@@ -4,9 +4,11 @@ use super::{
     control::ControlFlow,
     index, mir,
     origins::{
-        AllocationId, AllocationKind, Projection, Site, Sources, local_alias, statement_alias,
+        AllocationId, AllocationKind, Projection, Site, Sources, is_class_field, local_alias,
+        statement_alias,
     },
 };
+use mir::optimization_report::AllocationOutcome;
 
 pub(super) enum Replacement {
     Value {
@@ -19,27 +21,38 @@ pub(super) enum Replacement {
 pub(super) struct Plan {
     pub sources: Sources,
     pub removable: Vec<bool>,
+    pub single_use: Vec<bool>,
+    pub reasons: Option<Vec<Option<AllocationOutcome>>>,
     control: ControlFlow,
 }
 
 impl Plan {
-    pub fn new(module: &mir::Module, function: &mir::Function) -> Self {
+    pub fn new(module: &mir::Module, function: &mir::Function, observe: bool) -> Self {
         let control = ControlFlow::new(&function.body);
-        let sources = Sources::new(function, &control);
+        let sources = Sources::new(module, function, &control);
         let mut removable = vec![true; sources.allocations.len()];
+        let mut reasons = observe.then(|| vec![None; sources.allocations.len()]);
         for origins in &sources.locals {
             if origins.unique().is_none() {
                 for &id in &origins.candidates {
                     removable[index(id)] = false;
+                    if let Some(reasons) = &mut reasons {
+                        reasons[index(id)].get_or_insert(AllocationOutcome::AmbiguousSource);
+                    }
                 }
             }
         }
         for id in control.loop_carried(&function.body, &sources) {
             removable[index(id)] = false;
+            if let Some(reasons) = &mut reasons {
+                reasons[index(id)].get_or_insert(AllocationOutcome::LoopCarried);
+            }
         }
         let mut plan = Self {
             sources,
             removable,
+            single_use: Vec::new(),
+            reasons,
             control,
         };
         let mut reads = vec![0_usize; plan.removable.len()];
@@ -58,6 +71,9 @@ impl Plan {
                         replaced[index(candidate)] += 1;
                     }
                 }
+                if let Some((candidate, _)) = plan.field_write(module, node, site) {
+                    replaced[index(candidate)] += 1;
+                }
                 mir::visit_statement_exprs(node, &mut |expr| {
                     plan.count(module, expr, site, &mut reads, &mut replaced);
                 });
@@ -71,7 +87,17 @@ impl Plan {
             });
         }
         for (id, removable) in plan.removable.iter_mut().enumerate() {
+            plan.single_use
+                .push(*removable && reads[id] == replaced[id] + 1);
             *removable &= reads[id] == replaced[id];
+            if reads[id] != replaced[id]
+                && let Some(reasons) = &mut plan.reasons
+            {
+                reasons[id].get_or_insert(AllocationOutcome::UnreplacedUses {
+                    reads: reads[id],
+                    replacements: replaced[id],
+                });
+            }
         }
         plan
     }
@@ -90,11 +116,19 @@ impl Plan {
         if let mir::ExprKind::Local(local) = expr.kind {
             for &candidate in &self.sources.locals[index(local)].candidates {
                 reads[index(candidate)] += 1;
-                self.removable[index(candidate)] &= self
+                let dominates = self
                     .control
                     .dominates(self.sources.allocations[candidate].site, site);
+                self.removable[index(candidate)] &= dominates;
+                if !dominates && let Some(reasons) = &mut self.reasons {
+                    reasons[index(candidate)].get_or_insert(AllocationOutcome::NotDominating);
+                }
             }
         }
+    }
+
+    pub fn reachable(&self, block: mir::BlockId) -> bool {
+        self.control.reachable(block)
     }
 
     pub fn replacement(
@@ -106,6 +140,16 @@ impl Plan {
         let operand = match &expr.kind {
             mir::ExprKind::Unbox(operand) | mir::ExprKind::IsInstance { operand, .. } => operand,
             mir::ExprKind::ClosureCapture { closure, .. } => closure,
+            mir::ExprKind::FieldAccess { receiver, index } => {
+                let candidate = self.field_source(module, receiver, *index, &expr.ty, site)?;
+                return Some((
+                    candidate,
+                    Replacement::Value {
+                        candidate,
+                        projection: Projection::Field(*index),
+                    },
+                ));
+            }
             _ => return None,
         };
         let candidate = self.sources.locals[index(local_alias(operand)?)].unique()?;
@@ -150,6 +194,42 @@ impl Plan {
             _ => return None,
         };
         Some((candidate, replacement))
+    }
+
+    pub fn field_write(
+        &self,
+        module: &mir::Module,
+        statement: &mir::Statement,
+        site: Site,
+    ) -> Option<(AllocationId, Projection)> {
+        let mir::StatementKind::FieldSet {
+            object,
+            index,
+            value,
+        } = &statement.kind
+        else {
+            return None;
+        };
+        let candidate = self.field_source(module, object, *index, &value.ty, site)?;
+        Some((candidate, Projection::Field(*index)))
+    }
+
+    fn field_source(
+        &self,
+        module: &mir::Module,
+        object: &mir::Expr,
+        field: u32,
+        ty: &mir::Type,
+        site: Site,
+    ) -> Option<AllocationId> {
+        let candidate = self.sources.locals[index(local_alias(object)?)].unique()?;
+        let allocation = &self.sources.allocations[candidate];
+        let AllocationKind::Class(class) = allocation.kind else {
+            return None;
+        };
+        (is_class_field(module, class, object, field, ty)
+            && self.control.dominates(allocation.site, site))
+        .then_some(candidate)
     }
 }
 

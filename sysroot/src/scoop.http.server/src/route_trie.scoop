@@ -102,7 +102,7 @@ internal fun matchResource(node: RouteNode, parts: Array<PathSegment>, index: Lo
     }
     if (present(node.tail)) {
         val suffix = pathTail(parts, index)
-        if (suffix.encoded.length != 0L) {
+        if (suffix.encoded.charLength != 0L) {
             values.add(suffix)
             val found = matchResource(node.tail!!, parts, parts.size, values)
             values.removeAt(values.size - 1L)

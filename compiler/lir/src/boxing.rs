@@ -13,6 +13,7 @@ mod tests;
 pub struct BoxedZstDescriptor {
     descriptor: BoxedDescriptorReference,
     descriptor_exact: scoop_identity::PersistentExactTypeId,
+    instance_layout: AbiNonZeroLayout,
     value: LogicalZstValue,
 }
 
@@ -20,6 +21,7 @@ pub struct BoxedZstDescriptor {
 pub struct BoxedNonZeroDescriptor {
     descriptor: BoxedDescriptorReference,
     descriptor_exact: scoop_identity::PersistentExactTypeId,
+    instance_layout: AbiNonZeroLayout,
     payload_exact: scoop_identity::PersistentExactTypeId,
     payload_offset: u64,
     value: AbiValue,
@@ -134,6 +136,13 @@ pub enum BoxPayload {
 }
 
 impl BoxPayload {
+    pub const fn instance_layout(&self) -> AbiNonZeroLayout {
+        match self {
+            Self::ZeroSized(descriptor) => descriptor.instance_layout,
+            Self::NonZero(place) => place.descriptor.instance_layout,
+        }
+    }
+
     pub fn descriptor(&self) -> TypeDescriptorRef {
         match self {
             Self::ZeroSized(descriptor) => descriptor.descriptor(),

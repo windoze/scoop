@@ -9,7 +9,7 @@ import scoop.text.*
 
 fun runOracle(path: Path) {
     for (line in path.readText().split('\n')) {
-        if (line.length == 0L) continue
+        if (line.charLength == 0L) continue
         val fields = line.split('|')
         val role = if (fields[0L] == "S") HttpRole.Server else HttpRole.Client
         val sending = if (role == HttpRole.Server) HttpRole.Client else HttpRole.Server

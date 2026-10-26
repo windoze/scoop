@@ -9,6 +9,9 @@ mod data_borrow;
 mod expression;
 mod expression_support;
 mod floating;
+mod interface_checks;
+mod interface_queries;
+mod interface_tables;
 mod interfaces;
 mod maybe_uninit;
 mod objects;
@@ -17,6 +20,7 @@ mod pointers;
 mod scalars;
 mod statements;
 mod storage;
+mod strings;
 mod task_context;
 
 use call::LoweredCallDestination;
@@ -102,6 +106,7 @@ fn integer_shift_op(operation: mir::IntegerShiftOperation) -> lir::IntegerShiftO
 #[allow(clippy::too_many_arguments)]
 pub(super) fn lower_function<'a>(
     context: &'a LoweringContext,
+    optimization: lir::OptimizationMode,
     producer: scoop_identity::ConeIdentity,
     module: &'a mir::Module,
     callable_body: lir::CallableBodyIdentity,
@@ -189,7 +194,7 @@ pub(super) fn lower_function<'a>(
         });
         block_map.insert(mir_id, lir_id);
     }
-    let entry = block_map[&function.body.entry];
+    let mut entry = block_map[&function.body.entry];
     let loop_header_polls = function
         .body
         .loop_header_polls
@@ -205,6 +210,8 @@ pub(super) fn lower_function<'a>(
         module,
         mir_locals: &function.body.locals,
         known_receiver: known_receiver_class.map(|class| (function.params[0].local, class)),
+        interface_tables: interface_tables::TableCache::new(optimization, address_taken.clone()),
+        interface_queries: interface_queries::QueryCache::default(),
         global_map,
         storage_globals,
         globals,
@@ -240,6 +247,9 @@ pub(super) fn lower_function<'a>(
         exception_slots: None,
         caught_exception: None,
     };
+    if optimization == lir::OptimizationMode::Release {
+        entry = lowerer.prepare_interface_queries(function, &address_taken, entry)?;
+    }
     for (index, param) in function.params.iter().enumerate() {
         if address_taken.contains(&param.local) {
             let local = lowerer.local_slot(param.local);
@@ -251,13 +261,31 @@ pub(super) fn lower_function<'a>(
                 });
         }
     }
+    let mut interface_checks = if optimization == lir::OptimizationMode::Release {
+        interface_checks::Plan::new(module, &function.body, &address_taken, &mut lowerer)?
+    } else {
+        interface_checks::Plan::default()
+    };
     for (mir_id, block) in function.body.blocks.iter() {
         let lir_id = lowerer.block_map[&mir_id];
         lowerer.enter(lir_id);
+        lowerer.interface_tables.enter_mir(
+            interface_checks
+                .incoming
+                .remove(&mir_id)
+                .unwrap_or_default(),
+        );
         lowerer.current_unwind = block.unwind.map(|target| lowerer.block_map[&target]);
-        lowerer.lower_statements(&block.statements)?;
+        let interface_check = interface_checks.checks.get(&mir_id).copied();
+        lowerer.lower_statements(&block.statements, interface_check)?;
         if !lowerer.current_sealed {
-            lowerer.lower_terminator(&block.terminator)?;
+            lowerer.lower_terminator(
+                &block.terminator,
+                interface_check.and_then(|check| match check.location {
+                    interface_checks::Location::Terminator => Some(check.entry),
+                    interface_checks::Location::Statement(_) => None,
+                }),
+            )?;
         }
         assert!(lowerer.current_sealed, "every MIR block has a terminator");
     }
@@ -307,6 +335,8 @@ struct FunctionLowerer<'a> {
     mir_locals: &'a Arena<mir::Local>,
     /// An itable adapter belongs to one concrete receiver class.
     known_receiver: Option<(mir::LocalId, mir::ClassId)>,
+    interface_tables: interface_tables::TableCache,
+    interface_queries: interface_queries::QueryCache,
     global_map: &'a HashMap<mir::StringConstId, lir::GlobalId>,
     storage_globals: &'a HashMap<mir::GlobalId, StorageGlobal>,
     /// Sink for ordinary globals such as trap-message C strings.
@@ -386,6 +416,7 @@ impl<'a> FunctionLowerer<'a> {
     fn enter(&mut self, block: lir::BlockId) {
         self.current = block;
         self.current_sealed = false;
+        self.interface_tables.clear();
     }
 
     fn push(&mut self, instruction: lir::Instruction) {

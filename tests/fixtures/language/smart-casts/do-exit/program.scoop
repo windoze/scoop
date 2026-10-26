@@ -1,5 +1,5 @@
 fun length(value: Any): Long {
     do { if (value !is String) return 0L } while (false)
-    return value.length
+    return value.charLength
 }
 fun main() { println(length("once")); println(length(42)) }

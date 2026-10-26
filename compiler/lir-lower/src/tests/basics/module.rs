@@ -75,6 +75,7 @@ fn lowers_hello_world() {
             }
             lir::GlobalInit::Storage { .. }
             | lir::GlobalInit::RawStorage { .. }
+            | lir::GlobalInit::ImportedImmortal { .. }
             | lir::GlobalInit::ImportedStorage { .. } => None,
         })
         .collect();
@@ -93,6 +94,7 @@ fn lowers_hello_world() {
             lir::GlobalInit::CString { .. }
             | lir::GlobalInit::Storage { .. }
             | lir::GlobalInit::RawStorage { .. }
+            | lir::GlobalInit::ImportedImmortal { .. }
             | lir::GlobalInit::ImportedStorage { .. } => None,
         })
         .collect::<Vec<_>>();
@@ -114,6 +116,7 @@ fn lowers_hello_world() {
             | lir::GlobalInit::RawStorage { .. }
             | lir::GlobalInit::StringConst { .. }
             | lir::GlobalInit::CString { .. }
+            | lir::GlobalInit::ImportedImmortal { .. }
             | lir::GlobalInit::ImportedStorage { .. } => None,
         })
         .collect::<Vec<_>>();
@@ -212,7 +215,7 @@ fn lowers_hello_world() {
         ret
       fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
       block entry
-        poll managed-void-target1 sp<managed-poll:0> live=[]
+        poll gateway managed-void-target1 sp<managed-poll:0> live=[]
         call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td10)
         invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
         br @success

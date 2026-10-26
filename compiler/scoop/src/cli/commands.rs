@@ -15,6 +15,7 @@ pub(super) fn execute(
     command: Command,
     sysroot: Option<PathBuf>,
     enable_gc_stress: bool,
+    enable_startup_stats: bool,
     reporter: &Reporter,
 ) -> BuildResult<Option<ExitStatus>> {
     match command {
@@ -28,8 +29,14 @@ pub(super) fn execute(
             Ok(None)
         }
         Command::Build(args) => {
-            let mut request =
-                build_request(args.options, sysroot, args.output, false, enable_gc_stress)?;
+            let mut request = build_request(
+                args.options,
+                sysroot,
+                args.output,
+                false,
+                enable_gc_stress,
+                enable_startup_stats,
+            )?;
             if let (Some(emit), Some(directory)) = (args.emit, args.dump_dir) {
                 request.dumps = Some(BuildDumpRequest {
                     stages: emit.stages(),
@@ -44,7 +51,14 @@ pub(super) fn execute(
             Ok(None)
         }
         Command::Run(args) => {
-            let request = build_request(args.options, sysroot, None, true, enable_gc_stress)?;
+            let request = build_request(
+                args.options,
+                sysroot,
+                None,
+                true,
+                enable_gc_stress,
+                enable_startup_stats,
+            )?;
             let cwd = request.cwd.clone();
             let result = scoop::build(request)?;
             reporter.built(&result).map_err(config)?;
@@ -63,6 +77,7 @@ pub(super) fn execute(
                 None,
                 !args.no_run && !args.list,
                 enable_gc_stress,
+                enable_startup_stats,
             )?;
             request.graph = request
                 .graph
@@ -130,6 +145,7 @@ pub(super) fn execute(
                     .map(|path| absolute(&cwd, path))
                     .transpose()?,
                 enable_gc_stress,
+                enable_startup_stats,
                 library_paths: paths(&cwd, args.library_path)?,
                 output: absolute(&cwd, args.output)?,
             };
@@ -147,6 +163,7 @@ fn build_request(
     output: Option<PathBuf>,
     require_executable: bool,
     enable_gc_stress: bool,
+    enable_startup_stats: bool,
 ) -> BuildResult<BuildRequest> {
     let cwd = std::env::current_dir().map_err(config)?;
     let generators =
@@ -201,6 +218,7 @@ fn build_request(
             graph.sysroot().as_path(),
             graph.target().lir_target(),
             enable_gc_stress,
+            enable_startup_stats,
         )),
     };
     Ok(BuildRequest {
@@ -217,6 +235,7 @@ fn build_request(
             .transpose()?,
         runtime,
         enable_gc_stress,
+        enable_startup_stats,
         final_link,
         library_paths: paths(&cwd, args.library_path)?,
         cwd,

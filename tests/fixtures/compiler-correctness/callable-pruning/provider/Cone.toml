@@ -1,0 +1,7 @@
+schema = 1
+
+[cone]
+group = "dev.pruning"
+name = "provider"
+version = "0.1.0"
+kind = "library"

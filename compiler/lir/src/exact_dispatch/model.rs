@@ -171,6 +171,7 @@ struct ExactDispatchBodyV1 {
     target: LirTargetProfile,
     role: ExactDispatchRoleV1,
     entries: Vec<ExactDispatchEntryV1>,
+    layout: crate::DispatchTableLayout,
     physical: StrongShapeDefinitionRefV1,
     definition: StrongShapeDefinitionV1<PersistentDispatchTableId>,
 }
@@ -183,6 +184,7 @@ impl ExactDispatchExportV1 {
             target: parts.target,
             role: parts.role,
             entries: parts.entries,
+            layout: parts.layout,
             physical: parts.physical,
             definition: parts.definition,
         }))
@@ -208,6 +210,10 @@ impl ExactDispatchExportV1 {
         &self.0.entries
     }
 
+    pub fn layout(&self) -> &crate::DispatchTableLayout {
+        &self.0.layout
+    }
+
     pub fn physical_definition(&self) -> StrongShapeDefinitionRefV1 {
         self.0.physical
     }
@@ -223,6 +229,7 @@ pub(super) struct ExactDispatchBodyPartsV1 {
     pub target: LirTargetProfile,
     pub role: ExactDispatchRoleV1,
     pub entries: Vec<ExactDispatchEntryV1>,
+    pub layout: crate::DispatchTableLayout,
     pub physical: StrongShapeDefinitionRefV1,
     pub definition: StrongShapeDefinitionV1<PersistentDispatchTableId>,
 }

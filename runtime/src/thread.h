@@ -92,7 +92,7 @@ void scoop_thread_runtime_finish_shutdown(void);
 
 ScoopThreadState *scoop_thread_current(void);
 ScoopThreadState *scoop_thread_current_required(void);
-void scoop_thread_require_managed(void);
+ScoopThreadState *scoop_thread_require_managed(void);
 void scoop_thread_poll(void);
 void scoop_thread_native_borrowed_entry(void);
 void scoop_thread_push_managed_anchor(ScoopManagedAnchor *anchor, uintptr_t return_pc,

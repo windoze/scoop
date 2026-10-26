@@ -2,6 +2,77 @@ use super::*;
 use crate::emission::initialization_unit_globals_from_pairs;
 
 #[test]
+fn initialization_ready_path_keeps_roots_and_runtime_only_on_the_slow_edge() {
+    let mut module = values_module();
+    module.output = scoop_lir::LirOutput::Library;
+    let outcome = LirType::MachineScalar(MachineScalarKind::InitializationOutcome);
+    let mut temps = Arena::default();
+    let out = temps.alloc(Temp {
+        ty: outcome.clone(),
+    });
+    let mut targets = CallTargets::default();
+    let mut site = direct_site(
+        &mut targets,
+        TestCallProtocol::Managed {
+            safepoint: 1,
+            destination: managed_runtime(scoop_lir::ManagedRuntimeFunction::InitializationEnter),
+        },
+        vec![METADATA_PTR],
+        (outcome, RefScan::None),
+        out,
+        vec![Value::Param(0)],
+    );
+    let CallSite::Managed(call) = &mut site else {
+        unreachable!();
+    };
+    call.live = statepoint_live(vec![statepoint_value(
+        scoop_lir::CallerRootSource::Param(1),
+        MANAGED_PTR,
+        &[0],
+    )]);
+    let mut blocks = Arena::default();
+    let entry = blocks.alloc(BasicBlock {
+        name: "entry".into(),
+        instructions: vec![Instruction::Call { site }],
+        terminator: Terminator::Return {
+            value: Some(Value::Param(1)),
+        },
+    });
+    module.functions = vec![Function {
+        callable_body: callable_body("ready"),
+        safepoints: test_safepoints("ready", &blocks, entry),
+        gc_effect: GcEffect::Managed,
+        signature: plain_scoop_signature(vec![METADATA_PTR, MANAGED_PTR], MANAGED_PTR),
+        call_targets: targets,
+        locals: Arena::default(),
+        temps,
+        blocks,
+        entry,
+    }];
+    let ir = ir_of(&module);
+    let slow = ir
+        .lines()
+        .find(|line| line.starts_with("init.slow."))
+        .unwrap();
+    let (before, after) = ir.split_once(slow).expect("a guarded slow edge");
+    assert!(
+        before.contains("load atomic i64, ptr %init.cell acquire, align 8"),
+        "{ir}"
+    );
+    assert!(
+        before.contains("br i1 %init.ready, label %init.continue."),
+        "{ir}"
+    );
+    assert!(!before.contains("call i64 @scoop_rt_init_enter"), "{ir}");
+    assert!(after.contains("call i64 @scoop_rt_init_enter"), "{ir}");
+    assert!(after.contains("phi i64 [ 1, %entry ]"), "{ir}");
+    assert!(after.contains("store volatile ptr addrspace(1)"), "{ir}");
+    let rewritten = rewritten_ir_of(&module);
+    assert!(rewritten.contains("gc.relocate"), "{rewritten}");
+    assert!(rewritten.contains("load atomic i64"), "{rewritten}");
+}
+
+#[test]
 fn storage_codegen_uses_each_definition_owners_linkage() {
     let mut module = values_module();
     let cone_identity = static_storage_identity("coneStorage");

@@ -1,0 +1,36 @@
+package dev.performance.members.provider
+
+public interface Reader { public fun read(): Long }
+public interface Label { public fun label(): Long = 7L }
+
+public struct Amount(val value: Long) : Reader {
+    public override fun read(): Long = value
+    public fun add(delta: Long): Long = value + delta
+    public fun divide(divisor: Long): Long = value / divisor
+    public val twice: Long get() = value * 2L
+}
+
+public val Amount.extra: Long get() = value + 3L
+
+private fun collectNow() { gcCollect() }
+
+public class Cell public constructor(private val value: Long) : Label {
+    public fun add(delta: Long): Long = value + delta
+    public val twice: Long get() = value * 2L
+    public fun afterCollection(other: Cell): Cell {
+        collectNow()
+        return other
+    }
+}
+
+public open class Base public constructor(protected val value: Long) : Reader {
+    public open override fun read(): Long = value
+}
+
+public class Derived public constructor(value: Long) : Base(value) {
+    public override fun read(): Long = value + 10L
+}
+
+public class Holder<T> public constructor(private val value: T) {
+    public fun read(): T = value
+}

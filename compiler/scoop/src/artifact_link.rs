@@ -21,6 +21,7 @@ pub struct LinkRequest {
     pub final_link: scoop_toolchain::FinalLinkOptions,
     pub runtime_index: Option<PathBuf>,
     pub enable_gc_stress: bool,
+    pub enable_startup_stats: bool,
     pub library_paths: Vec<PathBuf>,
     pub output: PathBuf,
 }
@@ -69,6 +70,7 @@ pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
             &request.sysroot,
             target.lir_target(),
             request.enable_gc_stress,
+            request.enable_startup_stats,
         )
     });
     let runtime = RuntimeObjectSet::read_index(
@@ -79,6 +81,9 @@ pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
     .map_err(failure)?;
     runtime
         .require_gc_stress(request.enable_gc_stress)
+        .map_err(failure)?;
+    runtime
+        .require_startup_stats(request.enable_startup_stats)
         .map_err(failure)?;
     let output = OutputLocation::new(&request.output).map_err(failure)?;
     let directory = tempfile::Builder::new()

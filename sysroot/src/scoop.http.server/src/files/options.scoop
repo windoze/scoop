@@ -54,7 +54,7 @@ public class StaticFileOptions public constructor(
     public val fallbackFile: Path? = None
 ) {
     init {
-        if (pathParameter.length == 0L || (present(indexDocument) && !validStaticFileName(indexDocument!!.toByteArray())))
+        if (pathParameter.charLength == 0L || (present(indexDocument) && !validStaticFileName(indexDocument!!.toByteArray())))
             throw IllegalArgumentException(Some("invalid static file mapping options"))
     }
 }

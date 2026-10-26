@@ -1,5 +1,5 @@
 fun inspect(flag: Boolean) {
     var value: Any = "before"
-    if (value is String && if (flag) { value = 42; true } else true) println(value.length)
+    if (value is String && if (flag) { value = 42; true } else true) println(value.charLength)
 }
 fun main() {}

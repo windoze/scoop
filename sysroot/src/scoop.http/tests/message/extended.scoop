@@ -24,11 +24,11 @@ private class HttpExtendedParameterTests {
         assertEquals(badUtf8.indexOf("%C3"), missing.extendedFailure!!.byteOffset)
         assertTrue(missing.extendedFailure!!.cause!! is CharsetException)
         gcCollect()
-        assertTrue(failure.detail.length > 0L)
+        assertTrue(failure.detail.charLength > 0L)
         for (value in ["UTF-8'", "''name", "UTF-8''%", "UTF-8''%E0%80%80", "UTF-8''a*b", "UTF-8''a'b", "UTF-16''abc"]) {
             val result = HttpContentDisposition.parse("attachment; filename=plain; filename*=" + value).filename()
             assertEquals("plain", result.text!!)
-            assertTrue(result.extendedFailure!!.detail.length > 0L)
+            assertTrue(result.extendedFailure!!.detail.charLength > 0L)
         }
         val quoted = HttpContentDisposition.parse("attachment; filename*=\"UTF-8''name\"; filename=plain").filename()
         assertEquals("plain", quoted.text!!)

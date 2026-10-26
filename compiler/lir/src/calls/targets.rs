@@ -509,6 +509,7 @@ pub enum NoGcRuntimeFunction {
 
     IsInstance,
     ITableLookup,
+    ITableFind,
     Pin,
     Unpin,
     GetHandle,
@@ -582,6 +583,7 @@ impl RuntimeFunction {
             Self::NoGc(function) => match function {
                 NoGcRuntimeFunction::IsInstance => 1,
                 NoGcRuntimeFunction::ITableLookup => 2,
+                NoGcRuntimeFunction::ITableFind => 25,
                 NoGcRuntimeFunction::Pin => 3,
                 NoGcRuntimeFunction::Unpin => 4,
                 NoGcRuntimeFunction::GetHandle => 5,
@@ -651,6 +653,7 @@ impl RuntimeFunction {
             (2, 22) => Some(Self::NoGc(NoGcRuntimeFunction::StringByteLength)),
             (2, 23) => Some(Self::NoGc(NoGcRuntimeFunction::StringByteAt)),
             (2, 24) => Some(Self::NoGc(NoGcRuntimeFunction::StringCharacterAtByte)),
+            (2, 25) => Some(Self::NoGc(NoGcRuntimeFunction::ITableFind)),
 
             _ => None,
         }

@@ -20,8 +20,8 @@ internal fun addUnique(values: ArrayList<String>, name: String, kind: String) {
 }
 
 internal fun checkOptionName(name: String) {
-    val short = name.length == 2L && name[0L] == '-' && asciiLetter(name[1L])
-    val long = name.length > 2L && name[0L] == '-' && name[1L] == '-'
+    val short = name.charLength == 2L && name.getCharAt(0L) == '-' && asciiLetter(name.getCharAt(1L))
+    val long = name.charLength > 2L && name.getCharAt(0L) == '-' && name.getCharAt(1L) == '-'
     if (!short && !long) { configuration("invalid option name: " + name) }
     for (character in name) {
         if (invalidNameCharacter(character)) { configuration("invalid option name: " + name) }

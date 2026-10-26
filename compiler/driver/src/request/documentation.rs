@@ -83,7 +83,10 @@ impl SingleConeOutput {
         }
         if self.artifact().is_none()
             && let StageDumpPolicy::Stages(stages) = emit
-            && (stages.contains(StageDumpKind::Mir) || stages.contains(StageDumpKind::Lir))
+            && (stages.contains(StageDumpKind::Mir)
+                || stages.contains(StageDumpKind::Optimizations)
+                || stages.contains(StageDumpKind::Lir)
+                || stages.contains(StageDumpKind::Symbols))
         {
             return Err(SingleConeBuildRequestError::DocumentationMachineDump);
         }

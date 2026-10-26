@@ -1,6 +1,6 @@
 fun length(value: Any): Long {
     if (value is String) {
-        class Local { fun read(): Long = value.length }
+        class Local { fun read(): Long = value.charLength }
         return Local().read()
     }
     return 0L

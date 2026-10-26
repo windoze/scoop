@@ -122,11 +122,11 @@ public object FormUrlEncoded {
 
 private fun parseQuery(text: String, form: Boolean): UrlQuery {
     val items = ArrayList<UrlQueryParameter>()
-    if (text.length == 0L) return UrlQuery(items)
+    if (text.charLength == 0L) return UrlQuery(items)
     for (part in text.split('&')) {
         val equal = part.indexOf('=')
         val name = if (equal < 0L) part else part.slice(0L, equal)
-        val value: List<Byte>? = if (equal < 0L) None else Some<List<Byte>>(decodeUrlBytes(part.slice(equal + 1L, part.length), form))
+        val value: List<Byte>? = if (equal < 0L) None else Some<List<Byte>>(decodeUrlBytes(part.slice(equal + 1L, part.charLength), form))
         items.add(UrlQueryParameter(decodeUrlBytes(name, form), value))
     }
     return UrlQuery(items)

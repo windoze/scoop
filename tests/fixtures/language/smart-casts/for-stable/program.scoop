@@ -2,9 +2,9 @@ fun main() {
     var value: Any = "stable"
     if (value !is String) return
     for (number in [1, 2]) {
-        println(value.length)
+        println(value.charLength)
         if (number == 1) continue
-        println(value.length)
+        println(value.charLength)
     }
-    println(value.length)
+    println(value.charLength)
 }

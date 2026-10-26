@@ -14,12 +14,12 @@ fn dispatch_projection_keeps_slot_contract_and_target_but_drops_definition() {
     )
     .unwrap();
     let bytes = encode(&record.semantic_projection()).unwrap();
-    assert_eq!(bytes[0], 0xa4);
+    assert_eq!(bytes[0], 0xa5);
     let decoded: DecodedExactDispatchSemanticProjectionV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
     let mut complete = bytes.clone();
-    complete[0] = 0xa5;
-    complete.push(5);
+    complete[0] = 0xa6;
+    complete.push(6);
     complete.extend(encode(&record.definition()).unwrap());
     assert_eq!(encode(&record).unwrap(), complete);
     assert!(decode_canonical::<DecodedExactDispatchSemanticProjectionV1>(&complete).is_err());

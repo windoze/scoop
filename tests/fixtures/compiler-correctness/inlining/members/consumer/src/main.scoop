@@ -1,0 +1,79 @@
+package dev.performance.members
+
+import dev.performance.members.provider.*
+
+fun check(value: Boolean) { if (!value) throw IllegalStateException() }
+
+public fun methodKernel(value: Amount, delta: Long): Long = value.add(delta)
+public fun valueAccessorKernel(value: Amount): Long = value.twice + value.extra
+public fun referenceKernel(value: Cell, delta: Long): Long = value.add(delta)
+public fun accessorKernel(value: Cell): Long = value.twice
+public fun defaultKernel(value: Cell): Long = value.label()
+public fun primitiveKernel(value: Long): Long = value.hash()
+public fun virtualKernel(value: Base): Long = value.read()
+public fun interfaceKernel(value: Reader): Long = value.read()
+public fun genericKernel(value: Holder<Long>): Long = value.read()
+
+public class LocalLabel : Label {
+    public fun direct(): Long = super<Label>.label()
+}
+
+public fun directDefaultKernel(value: LocalLabel): Long = value.direct()
+
+public fun guardedKernel(value: Amount, divisor: Long, count: Int): Long {
+    var total = 0L
+    try {
+        var index = 0
+        while (index < count) {
+            total += value.divide(divisor)
+            index += 1
+        }
+    } catch (failure: ArithmeticException) {
+        return -1L
+    }
+    return total
+}
+
+public fun collectedKernel(receiver: Cell, other: Cell): Cell =
+    receiver.afterCollection(other)
+
+var source = Amount(10L)
+
+fun mutateSource(): Long {
+    source = Amount(100L)
+    gcCollect()
+    return 1L
+}
+
+public fun snapshotKernel(): Long = source.add(mutateSource())
+
+public fun boxedKernel(value: Amount): Long {
+    val reader: Reader = value
+    gcCollect()
+    return reader.read()
+}
+
+fun main() {
+    val amount = Amount(21L)
+    val cell = Cell(21L)
+    check(methodKernel(amount, 4L) == 25L)
+    check(valueAccessorKernel(amount) == 66L)
+    check(referenceKernel(cell, 4L) == 25L)
+    check(accessorKernel(cell) == 42L)
+    check(defaultKernel(cell) == 7L)
+    check(directDefaultKernel(LocalLabel()) == 7L)
+    check(primitiveKernel(0L) == 0L)
+    check(primitiveKernel(1L) == 6238072747940578789L)
+    val base: Base = Derived(21L)
+    check(virtualKernel(base) == 31L && interfaceKernel(base) == 31L)
+    check(genericKernel(Holder(42L)) == 42L)
+    check(guardedKernel(amount, 3L, 2) == 14L && guardedKernel(amount, 0L, 2) == -1L)
+    val other = Cell(31L)
+    val returned = collectedKernel(cell, other)
+    gcCollect()
+    check(returned === other && accessorKernel(returned) == 62L)
+    check(snapshotKernel() == 11L && source.value == 100L)
+    check(boxedKernel(amount) == 21L)
+    checkOperations()
+    println("member inline preserves receivers, dispatch and roots")
+}

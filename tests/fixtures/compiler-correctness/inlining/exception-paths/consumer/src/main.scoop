@@ -1,0 +1,89 @@
+package dev.performance.resources
+
+import dev.performance.resources.provider.*
+
+fun check(value: Boolean) { if (!value) throw IllegalStateException() }
+
+class Marker(var value: Int)
+
+fun guarded(marker: Marker): Int {
+    try {
+        return leaf(marker.value)
+    } finally {
+        marker.value += 1
+    }
+}
+
+fun importedGuarded(value: Int): Int {
+    val marker = Marker(value)
+    val result = guarded(marker)
+    return result * 100 + marker.value
+}
+
+fun opaqueGuarded(value: Int): Int = opaque(value)
+
+class FailingLease(val failure: Throwable) : Disposable {
+    public override fun dispose() { throw failure }
+}
+
+fun cleanupFailure(failure: Throwable): Boolean {
+    try {
+        FailingLease(failure).use { 42 }
+    } catch (actual: Throwable) {
+        return actual === failure
+    }
+    return false
+}
+
+fun bodyFailure(failure: Throwable): Boolean {
+    val lease = Lease(7L)
+    try {
+        lease.use { throw failure }
+    } catch (actual: Throwable) {
+        return actual === failure && lease.value == 8L
+    }
+    return false
+}
+
+fun unresolved(resource: Disposable, callback: (Disposable) -> Int): Int {
+    return resource.use(callback)
+}
+
+class Payload(val value: Int)
+var retained: Payload? = None
+
+fun escapingPayload(value: Int): Payload {
+    val payload = Payload(value)
+    retained = Some(payload)
+    return payload
+}
+
+class CollectingLease : Disposable {
+    public override fun dispose() { gcCollect() }
+}
+
+fun retainedReference(value: Int): Int {
+    val payload = escapingPayload(value)
+    retained = None
+    val result = CollectingLease().use { payload }
+    gcCollect()
+    return result.value
+}
+
+fun main() {
+    val failure = Exception(Some("retained failure"))
+    var count = 0L
+    while (count <= 65L) {
+        check(usingLease(count) == directLease(count))
+        check(guardedUse(count, failure) == guardedDirect(count, failure))
+        count += 1L
+    }
+    check(importedGuarded(7) == 1108)
+    check(importedGuarded(-9) == -508)
+    check(opaqueGuarded(7) == 11)
+    check(cleanupFailure(failure))
+    check(bodyFailure(failure))
+    check(unresolved(Lease(0L), { 19 }) == 19)
+    check(retainedReference(42) == 42)
+    println("exception specialization preserves cleanup, failures and roots")
+}

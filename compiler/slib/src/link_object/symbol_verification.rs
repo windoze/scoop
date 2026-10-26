@@ -16,6 +16,7 @@ use super::{
 use crate::SlibMemberId;
 
 use super::literal_pools::{LiteralPools, ObjectLiteral};
+mod ranges;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ObjectDefinitionSymbolV1 {
@@ -238,7 +239,7 @@ pub fn read_member_object_definitions_v1(
         .into_iter()
         .map(finalize_definition)
         .collect::<Result<Vec<_>, _>>()?;
-    validate_disjoint_atom_ranges(&definitions)?;
+    ranges::validate(&definitions, &symbols, &sections)?;
     let literal_pools = LiteralPools::read(bytes, &sections, &definitions)?;
 
     Ok(MemberObjectDefinitionIndexV1 {
@@ -388,26 +389,6 @@ fn finalize_definition(
         primary_symbol_table_index: primary.table_index,
         atoms,
     })
-}
-
-fn validate_disjoint_atom_ranges(
-    definitions: &[ObjectDefinitionV1],
-) -> Result<(), ObjectDefinitionReadError> {
-    let mut ranges = definitions
-        .iter()
-        .flat_map(|definition| definition.atoms.iter().copied())
-        .collect::<Vec<_>>();
-    ranges
-        .sort_unstable_by_key(|range| (range.section_ordinal, range.start, range.end, range.atom));
-    for pair in ranges.windows(2) {
-        if pair[0].section_ordinal == pair[1].section_ordinal && pair[0].end > pair[1].start {
-            return Err(ObjectDefinitionReadError::OverlappingAtomRanges {
-                first: pair[0].atom,
-                second: pair[1].atom,
-            });
-        }
-    }
-    Ok(())
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

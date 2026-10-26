@@ -94,6 +94,7 @@ typedef struct ScoopConeRecordV1 {
 } ScoopConeRecordV1;
 
 typedef struct ScoopInitializationCell {
+  /* Atomic accesses after publication; owner_thread stays coordinator-locked. */
   uint64_t state;
   void *owner_thread;
 } ScoopInitializationCell;

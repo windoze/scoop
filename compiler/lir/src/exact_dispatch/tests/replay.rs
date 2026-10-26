@@ -29,7 +29,7 @@ fn replay_joins_schema_physical_slot_callable_abi_and_definition() {
     );
 
     let bytes = encode(&record).unwrap();
-    assert_eq!(bytes[0], 0xa5);
+    assert_eq!(bytes[0], 0xa6);
     let decoded = decode_canonical::<DecodedExactDispatchExportV1>(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
     read::roundtrip(&fixture, &record);

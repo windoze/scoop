@@ -7,7 +7,10 @@ use scoop_mir as mir;
 use scoop_slib as slib;
 
 mod errors;
+mod identities;
 mod imports;
+mod optimization_report;
+mod symbol_report;
 use LayoutProductionError as Error;
 pub use errors::LayoutProductionError;
 
@@ -27,6 +30,9 @@ pub(super) fn assemble(
         .project_dependency_callables_to_mir(&hir.hir)
         .map_err(CurrentConeMirStageError::DependencyProjection)
         .map_err(CurrentConeProductionFailure::Mir)?;
+    let mut report = matches!(request.emit(), StageDumpPolicy::Stages(stages)
+        if stages.contains(StageDumpKind::Optimizations))
+    .then(mir::optimization_report::OptimizationReport::default);
     let mir = hir
         .machine_input()
         .lower_selected_mir(
@@ -35,6 +41,7 @@ pub(super) fn assemble(
                 lir::OptimizationMode::Debug => scoop_mir_lower::MirOptimizationOptions::default(),
                 lir::OptimizationMode::Release => scoop_mir_lower::MirOptimizationOptions::RELEASE,
             },
+            report.as_mut(),
         )
         .map_err(CurrentConeProductionFailure::Mir)?;
     dump.extend(capture_stage_dump(
@@ -43,6 +50,29 @@ pub(super) fn assemble(
         || scoop_mir::dump(mir.strong.module()),
     ));
     if stop_after == Some(StageDumpKind::Mir) {
+        return Ok(ControlFlow::Break(()));
+    }
+    if let Some(report) = report {
+        let foundations = std::iter::once(&hir.foundation)
+            .chain(
+                request
+                    .dependencies()
+                    .semantic()
+                    .hir_metadata()
+                    .map(|metadata| metadata.foundation),
+            )
+            .collect::<Vec<_>>();
+        dump.push(EmittedStageDump::new(
+            StageDumpKind::Optimizations,
+            optimization_report::render(
+                mir.strong.module(),
+                mir.strong.selected_callables(),
+                &foundations,
+                &report,
+            ),
+        ));
+    }
+    if stop_after == Some(StageDumpKind::Optimizations) {
         return Ok(ControlFlow::Break(()));
     }
     let selected = closure
@@ -144,6 +174,7 @@ pub(super) fn assemble(
             .map_err(CurrentConeLirStageError::DiagnosticCatalog)
             .map_err(CurrentConeProductionFailure::Lir)?;
     let (lir, lir_public) = machine::lower_selected_lir(
+        request.optimization(),
         &mir.strong,
         &mir.public,
         &selected,
@@ -188,6 +219,22 @@ pub(super) fn assemble(
         },
     ));
     if stop_after == Some(StageDumpKind::Lir) {
+        return Ok(ControlFlow::Break(()));
+    }
+    dump.extend(capture_stage_dump(
+        request.emit(),
+        StageDumpKind::Symbols,
+        || {
+            symbol_report::render(
+                mir.strong.foundation(),
+                lir.foundation(),
+                &foundation,
+                &identities,
+                &dependencies,
+            )
+        },
+    ));
+    if stop_after == Some(StageDumpKind::Symbols) {
         return Ok(ControlFlow::Break(()));
     }
     let input = scoop_lir_lower::LayoutAbiExportInputV1 {

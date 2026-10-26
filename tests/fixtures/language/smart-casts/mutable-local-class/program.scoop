@@ -1,5 +1,5 @@
 fun main() {
     var value: Any = "before"
     if (value !is String) return
-    class Local { fun read(): Long = value.length }
+    class Local { fun read(): Long = value.charLength }
 }

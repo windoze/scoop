@@ -14,12 +14,18 @@ mod heap;
 mod maybe_uninit;
 mod operators;
 mod pointers;
+mod string_copy;
+mod strings;
 mod values;
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
     pub(super) fn instruction(&mut self, instruction: &Instruction) -> Result<(), CodegenError> {
         self.retain_field_barrier(instruction);
+        self.retain_young_allocation(instruction);
+        self.interface_values.retain(instruction);
         match instruction {
+            Instruction::StringConcat { .. } => self.emit_string_concat(instruction),
+            Instruction::StringCopy { .. } => self.emit_string_copy(instruction),
             Instruction::MaybeUninit {
                 out,
                 wrapper,

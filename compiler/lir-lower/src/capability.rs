@@ -197,6 +197,18 @@ fn expression_requirement(
     expression: &mir::Expr,
 ) -> Option<StrongLirMaterializationRequirement> {
     match &expression.kind {
+        mir::ExprKind::StringCopy(operation) => match operation.as_ref() {
+            mir::StringCopyOperation::FromBytes(array) => match array.ty {
+                mir::Type::Class(class) => unavailable_array(roots, class),
+                _ => unreachable!("a byte copy consumes an exact array"),
+            },
+            mir::StringCopyOperation::ToBytes(_) => match expression.ty {
+                mir::Type::Class(class) => unavailable_array(roots, class),
+                _ => unreachable!("a byte copy produces an exact array"),
+            },
+            _ => None,
+        },
+        mir::ExprKind::StringConcat(_) => None,
         mir::ExprKind::DataBorrow(operation) => match operation.kind {
             mir::DataBorrowOperationKind::DataPointer(mir::BorrowDataSource::Array(class))
             | mir::DataBorrowOperationKind::Length(mir::BorrowDataSource::Array(class)) => {

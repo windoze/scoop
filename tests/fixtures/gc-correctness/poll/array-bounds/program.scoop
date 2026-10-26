@@ -1,0 +1,60 @@
+@Extern(lib = "m34_poll_threads", name = "m13_run_many")
+fun workers(function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, base: Int, count: Int): Int
+@Extern(name = "usleep") fun pause(microseconds: UInt): Int
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+
+fun transform(values: MutableArray<Int>, seed: Int) {
+    var i = 0L
+    while (i < values.size) { values[i] = values[i] * 3 + seed; i += 1L }
+}
+
+fun copy(source: MutableArray<Int>, target: MutableArray<Int>, count: Long) {
+    var i = 0L
+    while (i < count) { target[i] = source[i]; i += 1L }
+}
+
+fun exercise(worker: Int): Int {
+    var round = 0L
+    while (round < 64L) {
+        val seed = worker * 1000 + round.toInt()
+        val source = MutableArray<Int>(2049L) { i -> i.toInt() }
+        val target = MutableArray<Int>(2049L) { _ -> -1 }
+        transform(source, seed)
+        copy(source, target, 2049L)
+        var i = 0L
+        while (i < 2049L) { check(target[i] == i.toInt() * 3 + seed); i += 1L }
+        round += 1L
+    }
+    return worker
+}
+
+@Unsafe fun main() {
+    val ready = AtomicInt(0)
+    val finished = AtomicInt(0)
+    val start = AtomicBoolean(false)
+    val action: (Int) -> Int = { worker ->
+        if (worker == 0) {
+            while (ready.load(MemoryOrder.Acquire) < 2) {}
+            gcCollect()
+            start.store(true, MemoryOrder.Release)
+            while (finished.load(MemoryOrder.Acquire) < 2) {
+                gcCollect()
+                // Leave a NativeSafe interval for mutators between requests.
+                @Unsafe { pause(100u) }
+            }
+            0
+        } else {
+            ready.fetchAdd(1, MemoryOrder.Release)
+            while (!start.load(MemoryOrder.Acquire)) {}
+            try { exercise(worker) }
+            finally { finished.fetchAdd(1, MemoryOrder.Release) }
+        }
+    }
+    val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(action, 1, ForeignCallbackMode.Reusable)
+    try {
+        check(workers(callback.function, callback.context, 0, 3) == 3)
+        check(when (foreignCallbackFailure(callback)) { case None -> true; case Some(_) -> false })
+    } finally { releaseForeignCallback(callback) }
+    println("array bounds kernels survive concurrent collection")
+}

@@ -2,8 +2,8 @@ use scoop_identity::CallableMaterialization;
 
 use super::{
     index, mir,
-    origins::{Site, statement_alias},
-    snapshots::{self, Snapshot},
+    origins::{Site, defined_local, statement_alias},
+    storage::{self, Initialization, ReplacementLocal},
     uses::{Plan, Replacement},
 };
 use crate::local_values::LocalValueRegistry;
@@ -16,7 +16,7 @@ pub(super) fn apply(
     plan: &Plan,
 ) -> (mir::Function, bool) {
     let mut function = module.functions[id].clone();
-    let snapshots = snapshots::create(&mut function, id, owner, registry, plan);
+    let values = storage::create(module, &mut function, id, owner, registry, plan);
     let mut changed = false;
     for (block_id, block) in function.body.blocks.iter_mut() {
         // Positions refer to the immutable analyzed body, even after removals.
@@ -37,20 +37,23 @@ pub(super) fn apply(
                 changed = true;
                 continue;
             }
-            if let mir::StatementKind::ValDecl { local, .. } = &statement.kind
-                && let Some(candidate) = plan.sources.locals[index(*local)].unique()
+            if let Some(local) = defined_local(&statement)
+                && let Some(candidate) = plan.sources.locals[index(local)].unique()
                 && let creation = &plan.sources.allocations[candidate]
                 && creation.site == site
                 && plan.removable[index(candidate)]
             {
-                for snapshot in &snapshots[index(candidate)] {
-                    let mut init = snapshot.init.clone();
+                for storage in &values[index(candidate)] {
+                    let Initialization::AllocationValue(value) = &storage.initialization else {
+                        continue;
+                    };
+                    let mut init = value.clone();
                     mir::visit_expr_mut(&mut init, &mut |expr| {
-                        expression(module, plan, &snapshots, site, expr);
+                        expression(module, plan, &values, site, expr);
                     });
                     block.statements.push(mir::Statement {
                         kind: mir::StatementKind::ValDecl {
-                            local: snapshot.local,
+                            local: storage.local,
                             init,
                         },
                         span: statement.span,
@@ -59,13 +62,27 @@ pub(super) fn apply(
                 changed = true;
                 continue;
             }
+            if let Some((candidate, projection)) = plan.field_write(module, &statement, site)
+                && plan.removable[index(candidate)]
+            {
+                let local = values[index(candidate)]
+                    .iter()
+                    .find(|value| value.projection == projection)
+                    .expect("a replaced field has typed storage")
+                    .local;
+                let mir::StatementKind::FieldSet { value, .. } = statement.kind else {
+                    unreachable!()
+                };
+                statement.kind = mir::StatementKind::Assign { local, value };
+                changed = true;
+            }
             mir::visit_statement_exprs_mut(&mut statement, &mut |expr| {
-                changed |= expression(module, plan, &snapshots, site, expr);
+                changed |= expression(module, plan, &values, site, expr);
             });
             block.statements.push(statement);
         }
         mir::visit_terminator_exprs_mut(&mut block.terminator, &mut |expr| {
-            changed |= expression(module, plan, &snapshots, terminator_site, expr);
+            changed |= expression(module, plan, &values, terminator_site, expr);
         });
     }
     (function, changed)
@@ -74,7 +91,7 @@ pub(super) fn apply(
 fn expression(
     module: &mir::Module,
     plan: &Plan,
-    snapshots: &[Vec<Snapshot>],
+    values: &[Vec<ReplacementLocal>],
     site: Site,
     expr: &mut mir::Expr,
 ) -> bool {
@@ -86,13 +103,13 @@ fn expression(
             candidate,
             projection,
         } => {
-            let Some(snapshot) = snapshots[index(candidate)]
+            let Some(storage) = values[index(candidate)]
                 .iter()
                 .find(|value| value.projection == projection)
             else {
                 return false;
             };
-            *expr = mir::Expr::local(snapshot.local, expr.ty.clone());
+            *expr = mir::Expr::local(storage.local, expr.ty.clone());
         }
         Replacement::Boolean(value) => {
             *expr = mir::Expr::new(mir::Type::Boolean, mir::ExprKind::BoolLiteral(value))

@@ -1,8 +1,8 @@
-//! Inline small synchronous suspend bodies before adding the completion ABI.
+//! Select synchronous suspend call sites before adding the completion ABI.
 
 use std::collections::HashMap;
 
-use super::{CallerState, Choice, clone, graph, index, mir, policy};
+use super::{CallerState, Choice, clone, graph, index, mir, policy, summary};
 use crate::Lowerer;
 use crate::cfg::{CallSite, CallSiteKind};
 
@@ -11,7 +11,7 @@ mod sites;
 struct Template {
     function: mir::Function,
     calls: Vec<CallSite>,
-    cost: policy::Cost,
+    summary: summary::Summary,
 }
 
 pub(in crate::optimization) fn run(lowerer: &mut Lowerer) {
@@ -21,13 +21,22 @@ pub(in crate::optimization) fn run(lowerer: &mut Lowerer) {
         .map(|source| {
             let function = lowerer.functions[source.function].clone();
             let calls = lowerer.coroutines.pre_coroutine_call_sites[&source.function].clone();
-            let cost = policy::function_cost(&lowerer.structs.defs, &function);
+            let summary = summary::Summary::from_blocks(
+                &lowerer.structs.defs,
+                &function,
+                function
+                    .body
+                    .blocks
+                    .iter()
+                    .map(|(id, block)| (id, block.clone()))
+                    .collect(),
+            );
             (
                 source.function,
                 Template {
                     function,
                     calls,
-                    cost,
+                    summary,
                 },
             )
         })
@@ -43,7 +52,7 @@ pub(in crate::optimization) fn run(lowerer: &mut Lowerer) {
         let mut function = source.function.clone();
         let mut calls = source.calls.clone();
         let mut state = CallerState {
-            remaining: (source.cost.size / 2 + 96).min(384),
+            growth: policy::Growth::new(source.summary.original.size, 96),
             ancestry: vec![vec![super::Target::Local(id)]; function.body.blocks.len()],
         };
         while let Some((order, callee)) = choose(
@@ -56,10 +65,16 @@ pub(in crate::optimization) fn run(lowerer: &mut Lowerer) {
         ) {
             let site = calls[order].clone();
             let template = &templates[&callee];
+            let mir::StatementKind::Call(effect) =
+                &function.body.blocks[site.block].statements[site.statement].kind
+            else {
+                unreachable!("a selected call-site record identifies its CFG call");
+            };
             let choice = Choice {
                 block: site.block,
                 statement: site.statement,
                 callee: super::Target::Local(callee),
+                call: super::super::call(effect).clone(),
                 blocks: template
                     .function
                     .body
@@ -148,11 +163,23 @@ fn choose(
     calls: &[CallSite],
     state: &mut CallerState,
 ) -> Option<(usize, mir::FunctionId)> {
-    if state.remaining == 0 {
-        return None;
+    let heats = policy::heats(&function.body);
+    let caller_size = policy::function_cost(&lowerer.structs.defs, function).size;
+    let mut reads = std::collections::HashSet::new();
+    for (_, block) in function.body.blocks.iter() {
+        mir::visit_block_exprs(block, &mut |expr| {
+            if let mir::ExprKind::Local(local) | mir::ExprKind::AddressOf { local, .. } = expr.kind
+            {
+                reads.insert(local);
+            }
+        });
     }
-    let in_loop = graph::cyclic_nodes(&graph::block_edges(&function.body));
-    for (order, site) in calls.iter().enumerate() {
+    let mut order = calls.iter().enumerate().collect::<Vec<_>>();
+    order.sort_by_key(|(_, site)| {
+        let heat = heats[index(site.block)];
+        std::cmp::Reverse(heat.numerator * 8 / heat.denominator)
+    });
+    for (order, site) in order {
         if !matches!(site.kind, CallSiteKind::Call) || state.ancestry[index(site.block)].len() > 6 {
             continue;
         }
@@ -171,18 +198,26 @@ fn choose(
             continue;
         }
         let source = &templates[&callee];
-        let growth = source.cost.size.saturating_sub(6).max(1);
-        if growth <= state.remaining
-            && policy::worthwhile(
-                &lowerer.structs.defs,
-                source.cost.execution,
-                source.cost.execution,
-                in_loop[index(site.block)],
-                &[],
-                &source.function,
-            )
+        let context = policy::Site {
+            heat: heats[index(site.block)],
+            caller_size,
+            result_used: match effect {
+                mir::CallEffect::Value { destination, .. } => reads.contains(destination),
+                mir::CallEffect::Unit(_) => false,
+            },
+        };
+        let cost = policy::assess(
+            &source.summary,
+            source.summary.baseline,
+            summary::complexity(&source.summary.blocks),
+            0,
+            0,
+            &context,
+        );
+        if cost.growth <= state.growth.remaining(context.heat)
+            && cost.weighted_benefit >= cost.penalty
         {
-            state.remaining -= growth;
+            state.growth.charge(cost.growth, context.heat);
             return Some((order, callee));
         }
     }

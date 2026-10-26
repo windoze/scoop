@@ -8,7 +8,7 @@ internal fun formatLocalTime(time: LocalTime): String {
     if (time.nanosecond == 0) return base
     val digits = time.nanosecond.toString().padStart(9L, '0')
     var end = 9L
-    while (digits[end - 1L] == '0') end -= 1L
+    while (digits.getCharAt(end - 1L) == '0') end -= 1L
     return base + "." + digits.substring(0L, end)
 }
 

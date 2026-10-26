@@ -47,7 +47,8 @@ pub(super) fn foundation(
             GlobalInit::CString { .. }
             | GlobalInit::Storage { .. }
             | GlobalInit::RawStorage { .. }
-            | GlobalInit::ImportedStorage { .. } => None,
+            | GlobalInit::ImportedStorage { .. }
+            | GlobalInit::ImportedImmortal { .. } => None,
         })
         .unwrap();
     let immortal_registration = immortal_registration_artifacts(immortal);

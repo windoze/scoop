@@ -40,8 +40,14 @@ mod runtime_eh_lifecycle_tests;
 #[path = "runtime_eh_personality_tests.rs"]
 mod runtime_eh_personality_tests;
 
+#[path = "runtime_integer_decimal_tests.rs"]
+mod runtime_integer_decimal_tests;
+
+mod allocation;
 mod arrays;
 mod arrays_clone;
+mod arrays_initialization;
+mod arrays_writes;
 mod arrays_zst;
 mod atomics;
 mod boxing;
@@ -69,8 +75,10 @@ mod runtime_scans;
 mod scoop_abi;
 mod smoke;
 mod statepoints;
+mod string_copy;
 mod string_leaves;
 mod strong_shapes;
+mod task_context;
 mod utf8;
 mod zst_places;
 

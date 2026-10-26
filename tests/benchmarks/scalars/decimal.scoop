@@ -1,0 +1,55 @@
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_kind") fun kind(): Int
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_count") fun count(): Int
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_begin") fun begin()
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_end") fun end()
+
+public fun unsignedDecimal(iterations: Int, short: Boolean): Long {
+    var index = 0
+    var value = 42uL
+    var result = 0L
+    while (index < iterations) {
+        value = value * 6364136223846793005uL + 1uL
+        val input = if (short) { value % 1000000uL } else { value }
+        result += input.toString().byteLength
+        index += 1
+    }
+    return result
+}
+
+public fun signedDecimal(iterations: Int): Long {
+    var index = 0
+    var value = 42uL
+    var result = 0L
+    while (index < iterations) {
+        value = value * 6364136223846793005uL + 1uL
+        result += value.toLong().toString().byteLength
+        index += 1
+    }
+    return result
+}
+
+public fun constantDecimal(iterations: Int): Long {
+    var index = 0
+    var result = 0L
+    while (index < iterations) {
+        result += 1234L.toString().byteLength
+        index += 1
+    }
+    return result
+}
+
+fun main() {
+    @Unsafe {
+        val iterations = count()
+        val mode = kind()
+        begin()
+        val result = when (mode) {
+            case 0 -> unsignedDecimal(iterations, true)
+            case 1 -> unsignedDecimal(iterations, false)
+            case 2 -> signedDecimal(iterations)
+            else -> constantDecimal(iterations)
+        }
+        end()
+        println(result)
+    }
+}

@@ -1,0 +1,51 @@
+package dev.m34.bench
+
+public interface ChildReader : Reader {
+    public fun tag(): Int
+}
+
+public class ChildCell public constructor(public val salt: UInt) : ChildReader {
+    public override fun tag(): Int = 1
+    public override fun next(value: UInt): UInt {
+        val first = (value xor salt) xor value.shl(13)
+        val second = first xor first.shr(17)
+        return second xor second.shl(5)
+    }
+}
+
+public fun repeatedParent(source: ChildReader, count: Int): UInt {
+    var value = 305419896U
+    var index = 0
+    while (index < count) {
+        value = source.next(value)
+        value = source.next(value)
+        index += 1
+    }
+    return value
+}
+
+public fun smartParent(source: Any, count: Int): UInt {
+    var value = 305419896U
+    var index = 0
+    while (index < count) {
+        if (source is Reader) {
+            value = source.next(value)
+            value = source.next(value)
+        }
+        index += 1
+    }
+    return value
+}
+
+public fun smartChild(source: Any, count: Int): UInt {
+    var value = 305419896U
+    var index = 0
+    while (index < count) {
+        if (source is ChildReader) {
+            value = source.next(value)
+            value = source.next(value)
+        }
+        index += 1
+    }
+    return value
+}

@@ -36,6 +36,7 @@ pub struct RuntimeBuildRequest<'a> {
     pub cache_root: &'a Path,
     pub optimization: RuntimeOptimization,
     pub enable_gc_stress: bool,
+    pub enable_startup_stats: bool,
     pub unwind_prefix: Option<&'a Path>,
 }
 
@@ -82,7 +83,7 @@ pub fn build_runtime(
     request: RuntimeBuildRequest<'_>,
 ) -> Result<RuntimeBuildOutput, RuntimeBuildError> {
     let inputs = inputs::Inputs::read(&request)?;
-    let namespace = request.cache_root.join("runtime-v6");
+    let namespace = request.cache_root.join("runtime-v7");
     let entry = namespace.join(format!("{}.json", inputs.base_key));
     if let Some(output) = record::load(&entry, request.target)? {
         return Ok(output);
@@ -106,6 +107,7 @@ pub fn build_runtime(
         compiler_inputs: inputs.compiler_inputs,
         flags: inputs.flags,
         enable_gc_stress: request.enable_gc_stress,
+        enable_startup_stats: request.enable_startup_stats,
     };
     let objects = RuntimeObjectSet::from_paths(
         request.target.lir_target(),

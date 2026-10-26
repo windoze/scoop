@@ -1,0 +1,65 @@
+// Decimal formatting writes once into a twenty-byte GC-free local place.
+// Pair lookup and eight-digit chunks follow the vendored Ryu digit writer.
+internal fun coreLongToString(value: Long): String {
+    var storage = (0u, 0u, 0u, 0u, 0u)
+    @Unsafe {
+        val bytes = addressOf(storage).cast<Byte>()
+        val magnitude = if (value < 0L) { 0uL - value.toULong() } else { value.toULong() }
+        var length = coreWriteUnsignedDecimal(magnitude, bytes)
+        if (value < 0L) {
+            length += 1L
+            bytes.store(20L - length, 45.toByte())
+        }
+        return coreStringCopyUtf8Unchecked(bytes + (20L - length), length)
+    }
+}
+
+internal fun coreULongToString(value: ULong): String {
+    var storage = (0u, 0u, 0u, 0u, 0u)
+    @Unsafe {
+        val bytes = addressOf(storage).cast<Byte>()
+        val length = coreWriteUnsignedDecimal(value, bytes)
+        return coreStringCopyUtf8Unchecked(bytes + (20L - length), length)
+    }
+}
+
+@Unsafe
+internal fun coreWriteUnsignedDecimal(input: ULong, bytes: Ptr<Byte>): Long {
+    var value = input
+    var cursor = 20L
+    while (value >= 100000000uL) {
+        val quotient = value / 100000000uL
+        val remainder = (value - quotient * 100000000uL).toUInt()
+        val low = remainder % 10000u
+        val high = remainder / 10000u
+        cursor -= 8L
+        coreWriteDecimalPair(bytes, cursor + 6L, low % 100u)
+        coreWriteDecimalPair(bytes, cursor + 4L, low / 100u)
+        coreWriteDecimalPair(bytes, cursor + 2L, high % 100u)
+        coreWriteDecimalPair(bytes, cursor, high / 100u)
+        value = quotient
+    }
+    var tail = value.toUInt()
+    while (tail >= 100u) {
+        val quotient = tail / 100u
+        cursor -= 2L
+        coreWriteDecimalPair(bytes, cursor, tail - quotient * 100u)
+        tail = quotient
+    }
+    if (tail < 10u) {
+        cursor -= 1L
+        bytes.store(cursor, (48u + tail).toByte())
+    } else {
+        cursor -= 2L
+        coreWriteDecimalPair(bytes, cursor, tail)
+    }
+    return 20L - cursor
+}
+
+@Unsafe
+internal fun coreWriteDecimalPair(bytes: Ptr<Byte>, cursor: Long, value: UInt) {
+    val pairs = "00010203040506070809101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899"
+    val index = value.toLong() * 2L
+    bytes.store(cursor, coreStringByteAt(pairs, index))
+    bytes.store(cursor + 1L, coreStringByteAt(pairs, index + 1L))
+}

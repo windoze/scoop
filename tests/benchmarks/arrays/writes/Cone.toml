@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "dev.performance"
+name = "array-reference-writes"
+version = "0.1.0"
+kind = "executable"

@@ -1,0 +1,39 @@
+package dev.typepruning
+
+public interface Marker {}
+public interface Readable<T> {
+    public fun read(): T
+}
+
+public class KeptType(public val amount: Int) : Readable<Int>, Marker {
+    public override fun read(): Int {
+        gcCollect()
+        return amount
+    }
+}
+
+public class Holder<T>(public val item: T) : Readable<T> {
+    public override fun read(): T {
+        gcCollect()
+        return item
+    }
+}
+
+public struct UsedValue(val number: Int)
+public struct DeadValue(val number: Int)
+
+public class DeadType(public val amount: Int) : Readable<Int> {
+    public override fun read(): Int = amount
+}
+
+public class DeadCycle : Readable<DeadCycle> {
+    public override fun read(): DeadCycle = this
+}
+
+public fun make(flag: Boolean): Readable<Int> =
+    if (flag) KeptType(21) else Holder<Int>(21)
+
+public fun makeValue(): Readable<UsedValue> = Holder<UsedValue>(UsedValue(21))
+public fun unusedClass(): Any = DeadType(0)
+public fun unusedCycle(): Any = DeadCycle()
+public fun unusedGeneric(): Any = Holder<DeadValue>(DeadValue(0))

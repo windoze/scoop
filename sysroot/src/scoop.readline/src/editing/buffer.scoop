@@ -7,7 +7,7 @@ import scoop.text.*
 internal struct BufferState(val text: String, val cursor: Long)
 
 /** A Unicode line buffer whose cursor always lies on an extended-grapheme boundary. */
-public class LineBuffer public constructor(initial: String = "", cursor: Long = initial.length) {
+public class LineBuffer public constructor(initial: String = "", cursor: Long = initial.charLength) {
     private var value: String = initial
     private var scalars: Array<Char> = initial.toCharArray()
     private var boundaries: Array<Long> = graphemeBoundaries(initial)
@@ -35,7 +35,7 @@ public class LineBuffer public constructor(initial: String = "", cursor: Long = 
         value = value.slice(0L, start) + text + value.slice(end, length)
         scalars = value.toCharArray()
         boundaries = graphemeBoundaries(value)
-        position = snap(start + text.length, true)
+        position = snap(start + text.charLength, true)
     }
 
     /** Inserts text as a single edit, preserving whole grapheme clusters. */

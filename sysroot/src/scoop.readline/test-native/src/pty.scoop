@@ -68,7 +68,7 @@ public class Pty private constructor() : ByteSource, ByteSink, Closeable {
             var attempts = 0L
             while (attempts < 200L) {
                 val found = String.fromUtf8Lossy(received.toByteArray()).indexOf(text, consumed)
-                if (found >= 0L) { consumed = found + text.length; return@use }
+                if (found >= 0L) { consumed = found + text.charLength; return@use }
                 buffer.clear()
                 val count = readInto(buffer, buffer.writableBytes)
                 received.append(buffer.readBytes(count))
@@ -101,7 +101,7 @@ public class Pty private constructor() : ByteSource, ByteSink, Closeable {
                 received.append(buffer.readBytes(count))
             }
         }
-        consumed = String.fromUtf8Lossy(received.toByteArray()).length
+        consumed = String.fromUtf8Lossy(received.toByteArray()).charLength
     }
     public fun resume() {
         @Unsafe {

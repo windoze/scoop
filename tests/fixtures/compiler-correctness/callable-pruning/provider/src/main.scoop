@@ -1,0 +1,32 @@
+package dev.pruning
+
+public interface Parent {
+    public fun number(): Int
+    public fun doubled(): Int = number() + number()
+}
+
+public interface Child : Parent {}
+
+public class Payload(public val value: Int) : Child {
+    public override fun number(): Int {
+        gcCollect()
+        return value
+    }
+}
+
+public fun make(): Child = Payload(21)
+
+public fun deadLeaf(): Int {
+    gcCollect()
+    return 19
+}
+
+public fun deadLeft(value: Int): Int {
+    gcCollect()
+    return if (value == 0) deadLeaf() else deadRight(value - 1)
+}
+
+public fun deadRight(value: Int): Int {
+    gcCollect()
+    return deadLeft(value)
+}

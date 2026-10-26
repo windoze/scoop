@@ -5,6 +5,6 @@ fun length(value: Any, flag: Boolean): Long {
             break
         } finally { if (flag) break }
     }
-    return value.length
+    return value.charLength
 }
 fun main() {}

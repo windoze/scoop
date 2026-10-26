@@ -1,1 +1,15 @@
-fun main(): Int = 48
+fun answer(value: Int): Int = value
+fun sum(values: ArrayList<Long>): Long {
+    var total = 0L
+    for (value in values) total += value
+    return total
+}
+interface Measurement { fun value(): Long }
+struct Reading(val amount: Long): Measurement {
+    override fun value(): Long = amount
+}
+fun boxed(): Measurement = Reading(4L)
+fun <T> identity(value: T): T = value
+fun read(value: Int): Int = identity(value)
+fun read(value: Long): Long = identity(value)
+fun main(): Int = answer(48)

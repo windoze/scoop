@@ -149,3 +149,81 @@ fn a_mutated_or_addressed_source_does_not_replace_its_snapshot() {
         assert!(body.blocks[body.entry].statements.iter().any(|statement| matches!(statement.kind, mir::StatementKind::ValDecl { local, .. } if local == snapshot)));
     }
 }
+
+#[test]
+fn loop_defined_values_propagate_through_copy_chains() {
+    let mut h = Harness::new();
+    let boolean = h.boolean;
+    let mut locals = Arena::new();
+    let left = locals.alloc(local("left", boolean));
+    let right = locals.alloc(local("right", boolean));
+    let repeat = locals.alloc(local("repeat", boolean));
+    let computed = locals.alloc(local("computed", boolean));
+    let mut statements = vec![val_decl(computed, local_ref(left, boolean))];
+    let mut previous = computed;
+    for index in 0..8 {
+        let copy = locals.alloc(local(&format!("snapshot{index}"), boolean));
+        statements.push(val_decl(copy, local_ref(previous, boolean)));
+        previous = copy;
+    }
+    statements.push(stmt(hir::StatementKind::Return {
+        value: local_ref(previous, boolean),
+    }));
+    h.user_fn_full(
+        "scope",
+        Vec::new(),
+        vec![
+            param("left", boolean, left),
+            param("right", boolean, right),
+            param("repeat", boolean, repeat),
+        ],
+        boolean,
+        hir::Body { locals, statements },
+    );
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals: Arena::new(),
+            statements: Vec::new(),
+        },
+    );
+    let mut module = lower(&h.finish(main));
+    let scope = function_named(&module, "scope");
+    let function = &mut module.functions[scope];
+    let entry = function.body.entry;
+    let left = function.params[0].local;
+    let right = function.params[1].local;
+    let repeat = function.params[2].local;
+    let first = &mut function.body.blocks[entry].statements[0];
+    let mir::StatementKind::ValDecl {
+        local: computed,
+        init,
+    } = &mut first.kind
+    else {
+        panic!("computed local")
+    };
+    let computed = *computed;
+    *init = mir::Expr::new(
+        mir::Type::Boolean,
+        mir::ExprKind::Binary {
+            op: mir::BinOp::BoolEq,
+            lhs: Box::new(mir::Expr::local(left, mir::Type::Boolean)),
+            rhs: Box::new(mir::Expr::local(right, mir::Type::Boolean)),
+        },
+    );
+    let mut exit = function.body.blocks[entry].clone();
+    exit.name = "exit".into();
+    exit.statements.clear();
+    let exit = function.body.blocks.alloc(exit);
+    function.body.blocks[entry].terminator = mir::Terminator::Branch {
+        cond: mir::Expr::local(repeat, mir::Type::Boolean),
+        then_block: entry,
+        else_block: exit,
+    };
+    optimize(&mut module);
+    let function = &module.functions[scope];
+    assert!(
+        matches!(&function.body.blocks[exit].terminator, mir::Terminator::Return { value: mir::Expr { kind: mir::ExprKind::Local(local), .. } } if *local == computed)
+    );
+    assert_eq!(function.body.blocks[entry].statements.len(), 1);
+}

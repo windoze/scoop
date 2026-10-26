@@ -1,0 +1,58 @@
+public fun constantReads(): Long = "A\u0000é".byteLength + "é".compareTo("雪")
+public fun constantHash(): Long = "abc".hash()
+public fun constantHashLoop(iterations: Int): Long {
+    var result = 0L
+    var index = 0
+    while (index < iterations) {
+        result += "0123456789abcdef".hash()
+        index += 1
+    }
+    return result
+}
+public fun shortCompare(value: String): Long = value.compareTo("a\u0000é")
+public fun reverseCompare(value: String): Long = "a\u0000é".compareTo(value)
+public fun emptyCompare(value: String): Long = value.compareTo("")
+public fun characters(value: String): Long {
+    var sum = 0L
+    for (character in value) { sum += character.code.toLong() }
+    return sum
+}
+public fun hashAfterCollection(value: Hash): Long {
+    gcCollect()
+    return value.hash()
+}
+private var pressure: Array<Byte>? = None
+public fun hashAfterPressure(value: Hash): Long {
+    var index = 0
+    while (index < 20) {
+        pressure = None
+        pressure = Some(Array<Byte>(4096L) { offset -> offset.toByte() })
+        index += 1
+    }
+    pressure = None
+    return value.hash()
+}
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun main() {
+    check(constantReads() == 3L)
+    check(constantHash() == -2204510569963675907L)
+    check(constantHashLoop(1) == -4634884695092946081L)
+    val text = "a\u0000é" + ""
+    check(shortCompare(text) == 0L && reverseCompare(text) == 0L)
+    check(shortCompare("a") == -1L && reverseCompare("a") == 1L)
+    check(shortCompare("b\u0000é") == 1L && reverseCompare("b\u0000é") == -1L)
+    check(emptyCompare("") == 0L && emptyCompare(text) == 1L)
+    gcCollect()
+    check(characters("A\u0000é雪🙂") == 167510L)
+    val sixteen = String.fromUtf8(Array<Byte>(16L) { index -> index.toByte() })
+    val seventeen = String.fromUtf8(Array<Byte>(17L) { index -> index.toByte() })
+    val thirtyTwo = String.fromUtf8(Array<Byte>(32L) { index -> index.toByte() })
+    val thirtyThree = String.fromUtf8(Array<Byte>(33L) { index -> index.toByte() })
+    check(hashAfterCollection(sixteen) == 615731795747517251L)
+    check(hashAfterCollection(seventeen) == -664846548891093495L)
+    check(hashAfterCollection(thirtyTwo) == -4098353606094590973L)
+    check(hashAfterCollection(thirtyThree) == 2689684201023061881L)
+    check(hashAfterPressure(String.fromUtf8(Array<Byte>(32L) { index -> index.toByte() })) == -4098353606094590973L)
+    check(hashAfterPressure(String.fromUtf8(Array<Byte>(33L) { index -> index.toByte() })) == 2689684201023061881L)
+    println("String reads preserve text and identity")
+}

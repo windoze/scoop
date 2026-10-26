@@ -1,0 +1,161 @@
+interface Read { fun read(): Long }
+class Node(var value: Long) : Read {
+    public override fun read(): Long = value
+}
+struct Payload(val node: Node, val nested: (Node, String), val view: Read)
+open class Base(val base: Node)
+class Holder<T>(var value: T, node: Node) : Base(node)
+class Constructed(val first: Node, last: Node) {
+    init { gcCollect() }
+    val second = last
+}
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+
+fun references(index: Long) {
+    val first = Node(index)
+    val next = Node(index + 1L)
+    val holder = Holder(Payload(first, (next, "left" + "right"), first), first)
+    val alias = holder
+    val before = alias.value
+    gcCollect()
+    holder.value = Payload(next, (first, "right" + "left"), next)
+    gcCollect()
+    check(before.node === first && before.nested._1 === next && before.view === first)
+    check(before.nested._2 == "leftright")
+    check(alias.value.node === next && alias.value.nested._1 === first)
+    check(alias.value.nested._2 == "rightleft" && alias.value.view.read() == index + 1L)
+    val base: Base = holder
+    check(base.base === first)
+    before.node.value += 2L
+    gcCollect()
+    check(alias.value.nested._1.value == index + 2L)
+}
+
+fun construction(index: Long, failure: Throwable) {
+    try {
+        val value = Constructed(Node(index), Node(index + 1L))
+        gcCollect()
+        check(value.first !== value.second)
+        check(value.first.value == index && value.second.value == index + 1L)
+        throw failure
+    } catch (actual: Throwable) {
+        gcCollect()
+        check(actual === failure)
+    }
+}
+
+fun collectAndFail(failure: Throwable): Nothing {
+    try {
+        gcCollect()
+        throw failure
+    } finally {
+        gcCollect()
+    }
+}
+
+fun exceptionBox(value: Payload, failure: Throwable): Payload {
+    val boxed: Any = value
+    try {
+        collectAndFail(failure)
+    } catch (actual: Throwable) {
+        gcCollect()
+        check(actual === failure)
+        return boxed as Payload
+    }
+}
+
+fun exceptionReferences(index: Long, updated: Boolean, failure: Throwable) {
+    val first = Node(index)
+    val next = Node(index + 1L)
+    val holder = Holder(Payload(first, (next, "left" + "right"), first), first)
+    val before = holder.value
+    try {
+        gcCollect()
+        if (!updated) collectAndFail(failure)
+        holder.value = Payload(next, (first, "right" + "left"), next)
+        collectAndFail(failure)
+    } catch (actual: Throwable) {
+        gcCollect()
+        check(actual === failure)
+        val snapshot = exceptionBox(before, failure)
+        check(snapshot.node === first && snapshot.nested._1 === next)
+        check(snapshot.view === first && snapshot.nested._2 == "leftright")
+        val current = holder.value
+        if (updated) {
+            check(current.node === next && current.nested._1 === first)
+            check(current.view === next && current.nested._2 == "rightleft")
+        } else {
+            check(current.node === first && current.nested._1 === next)
+            check(current.view === first && current.nested._2 == "leftright")
+        }
+        check(current.view.read() == index + (if (updated) 1L else 0L))
+        check(holder.base === first && before.node.value == index)
+    }
+}
+
+fun exceptionReturn(index: Long, failure: Throwable): Node {
+    val holder = Holder(Node(index), Node(index + 1L))
+    try {
+        try {
+            throw failure
+        } finally {
+            holder.value = holder.base
+            gcCollect()
+        }
+    } catch (actual: Throwable) {
+        check(actual === failure)
+        val snapshot = holder.value
+        try {
+            return snapshot
+        } finally {
+            holder.value = Node(index + 2L)
+            gcCollect()
+            check(holder.value !== snapshot)
+        }
+    }
+}
+
+fun drain(values: ArrayList<Payload>): Long {
+    var total = 0L
+    var round = 0L
+    while (round < 3L) {
+        var index = 0L
+        for (value in values) {
+            val snapshot = value
+            gcCollect()
+            check(snapshot.node.read() == snapshot.view.read())
+            check(snapshot.node !== snapshot.nested._1)
+            check(snapshot.nested._2 == (if (index == 0L) "onetwo" else "threefour"))
+            total += snapshot.node.value + snapshot.nested._1.value
+            index += 1L
+        }
+        round += 1L
+    }
+    return total
+}
+
+fun iteratorReferences() {
+    val first = Node(11L)
+    val second = Node(17L)
+    val values = ArrayList<Payload>()
+    values.add(Payload(first, (second, "one" + "two"), first))
+    values.add(Payload(second, (first, "three" + "four"), second))
+    check(drain(values) == 168L)
+    check(drain(ArrayList<Payload>()) == 0L)
+}
+
+fun main() {
+    val failure = Exception(Some("scalar replacement"))
+    var index = 0L
+    while (index < 8L) {
+        references(index)
+        construction(index, failure)
+        exceptionReferences(index, false, failure)
+        exceptionReferences(index, true, failure)
+        check(exceptionReturn(index, failure).value == index + 1L)
+        iteratorReferences()
+        index += 1L
+    }
+    println("scalar fields retain relocated references and aggregate snapshots")
+}

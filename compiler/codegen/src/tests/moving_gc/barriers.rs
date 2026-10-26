@@ -232,8 +232,17 @@ fn reference_store_marks_its_card() {
     }
     assert!(ir.contains("lshr i64"), "card index shift missing:\n{ir}");
     // Only the reference store marks a card; the integer array store does not.
-    let marks = ir.matches(" = atomicrmw or ptr ").count();
+    let marks = ir.matches("store atomic i8 1, ptr ").count();
     assert_eq!(marks, 1, "one card mark per reference store:\n{ir}");
+    let mark = ir
+        .lines()
+        .find(|line| line.contains("store atomic i8 1, ptr "))
+        .expect("card mark store");
+    assert!(mark.contains("monotonic"), "relaxed card mark:\n{ir}");
+    assert!(
+        !ir.contains("atomicrmw"),
+        "card mark must not read-modify-write:\n{ir}"
+    );
 }
 
 #[test]

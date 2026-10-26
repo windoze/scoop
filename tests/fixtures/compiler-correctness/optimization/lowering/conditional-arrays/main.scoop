@@ -1,0 +1,87 @@
+package dev.performance
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+fun valueAt(i: Long): Int = (i.toInt() * 17).and(31) - 15
+
+fun exercise(count: Long) {
+    val longs = Array<Long>(count) { i -> valueAt(i).toLong() }
+    val source = MutableArray<Int>(count) { i -> valueAt(i) }
+    val target = MutableArray<Int>(count) { _ -> 55 }
+    val other = MutableArray<Int>(count) { _ -> 77 }
+    val generated = generatedConditional(count, 19)
+    transform(source, target, 0)
+    var i = 0L
+    var total = 0L
+    while (i < count) {
+        val value = valueAt(i)
+        if (value >= 3) total += value.toLong()
+        check(target[i] == (if (value < 0) value * 3 + 1 else value - 7))
+        check(generated[i] == (if (i.and(1L) == 0L) 19 else -19))
+        i += 1L
+    }
+    check(sumSelected(longs, 3L) == total)
+    check(sumSelected(longs, 2147483648L) == 0L)
+    check(sumSelected(longs, -2147483648L) == straightSum(longs))
+    retainPositive(source, other)
+    i = 0L
+    while (i < count) {
+        val value = valueAt(i)
+        check(other[i] == (if (value > 0) value else 77))
+        i += 1L
+    }
+    partition(source, target, other)
+    i = 0L
+    while (i < count) {
+        val value = valueAt(i)
+        check(target[i] == (if (value >= 0) value + 1 else value * 3 + 1))
+        check(other[i] == (if (value < 0) value - 1 else if (value > 0) value else 77))
+        i += 1L
+    }
+    transform(source, source, 0)
+    i = 0L
+    while (i < count) {
+        val value = valueAt(i)
+        check(source[i] == (if (value < 0) value * 3 + 1 else value - 7))
+        i += 1L
+    }
+    val search = Array<Long>(count) { j -> if (j == count - 1L) -1L else j }
+    check(firstNegative(search) == count - 1L)
+}
+
+fun readSnapshot(values: Array<Long>, good: Boolean): Long {
+    var i = 0L
+    var result = 0L
+    while (i < values.size) {
+        var at = i
+        if (good) at = i else at = values.size
+        result += values[at]
+        i += 1L
+    }
+    return result
+}
+
+fun earlyUpdate(values: Array<Long>): Long {
+    var i = 0L
+    var result = 0L
+    while (i < values.size) {
+        val before = i
+        i += 1L
+        if (i.and(1L) == 0L) result += values[before] else result += values[before] * 2L
+    }
+    return result
+}
+
+fun main() {
+    val sizes = [0L, 1L, 63L, 64L, 65L, 129L, 1025L]
+    var i = 0L
+    while (i < sizes.size) { exercise(sizes[i]); i += 1L }
+    checkEdges()
+    checkPrefixes()
+    val snapshots = Array<Long>(129L) { _ -> 1L }
+    check(readSnapshot(snapshots, true) == 129L && earlyUpdate(snapshots) == 194L)
+    var caught = false
+    try { readSnapshot(snapshots, false) }
+    catch (error: IndexOutOfBoundsException) { caught = true }
+    check(caught)
+    println("conditional arrays preserve branches, snapshots and prefixes")
+}

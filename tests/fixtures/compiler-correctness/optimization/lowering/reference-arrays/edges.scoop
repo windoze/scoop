@@ -1,0 +1,77 @@
+package dev.performance
+
+open class OpenNode(val value: Long) : Token<Long> {
+    override fun number(): Long = value
+}
+struct Pair(val first: Node, val second: Node)
+enum Choice { Missing, Present(Node) }
+
+fun projectFinal(source: Array<Node>, target: MutableArray<Token<Long>>) {
+    var i = 0L
+    while (i < source.size) { target[i] = source[i]; i += 1L }
+}
+
+fun projectEmpty(source: Array<Node>, target: MutableArray<Empty>) {
+    var i = 0L
+    while (i < source.size) { target[i] = source[i]; i += 1L }
+}
+
+fun copyAny(source: Array<Any>, target: MutableArray<Any>) {
+    var i = 0L
+    while (i < source.size) { target[i] = source[i]; i += 1L }
+}
+
+fun copyNullableViews(source: Array<Token<Long>?>, target: MutableArray<Token<Long>?>) {
+    var i = 0L
+    while (i < source.size) { target[i] = source[i]; i += 1L }
+}
+
+fun copyChoice(source: Array<Choice>, target: MutableArray<Choice>) {
+    var i = 0L
+    while (i < source.size) { target[i] = source[i]; i += 1L }
+}
+
+fun wrappedSum(source: MutableArray<MaybeUninit<Node>>): Long {
+    var i = 0L
+    var result = 0L
+    while (i < source.size) {
+        @Unsafe { result += source[i].assumeInit().value }
+        i += 1L
+    }
+    return result
+}
+
+fun copyAliased(source: MutableArray<Node>, target: MutableArray<Node>) {
+    var i = 0L
+    while (i < source.size) { target[i] = source[i]; i += 1L }
+}
+
+fun copyUntil(source: Array<Node>, target: MutableArray<Node>, stop: Node): Node {
+    var i = 0L
+    while (i < source.size) {
+        val value = source[i]
+        if (value === stop) return value
+        target[i] = value
+        i += 1L
+    }
+    return stop
+}
+
+// The dynamic table query and general multi-reference aggregate stay outside
+// the bounded representation-only body.
+fun projectOpen(source: Array<OpenNode>, target: MutableArray<Token<Long>>) {
+    var i = 0L
+    while (i < source.size) { target[i] = source[i]; i += 1L }
+}
+
+fun copyPairs(source: Array<Pair>, target: MutableArray<Pair>) {
+    var i = 0L
+    while (i < source.size) { target[i] = source[i]; i += 1L }
+}
+
+fun invokeElements(source: MutableArray<Token<Long>>): Long {
+    var i = 0L
+    var result = 0L
+    while (i < source.size) { result += source[i].number(); i += 1L }
+    return result
+}

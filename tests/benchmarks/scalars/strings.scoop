@@ -1,0 +1,77 @@
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_kind") fun kind(): Int
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_count") fun count(): Int
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_begin") fun begin()
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_end") fun end()
+
+public fun equalStrings(iterations: Int, left: String, right: String): Long {
+    var result = 0L
+    var index = 0
+    while (index < iterations) {
+        val value = if (index.and(1) == 0) left else right
+        if (value == left) { result += 1L }
+        index += 1
+    }
+    return result
+}
+public fun compareShort(iterations: Int, left: String, right: String): Long {
+    var result = 0L
+    var index = 0
+    while (index < iterations) {
+        val value = if (index.and(1) == 0) left else right
+        result += value.compareTo("key-1234")
+        index += 1
+    }
+    return result
+}
+public fun hashStrings(iterations: Int, left: String, right: String): Long {
+    var result = 0L
+    var index = 0
+    while (index < iterations) {
+        val value = if (index.and(1) == 0) left else right
+        result += value.hash()
+        index += 1
+    }
+    return result
+}
+public fun hashConstant(iterations: Int): Long {
+    var result = 0L
+    var index = 0
+    while (index < iterations) {
+        result += "key-1234".hash()
+        index += 1
+    }
+    return result
+}
+public fun decodeText(iterations: Int, text: String): Long {
+    var result = 0L
+    var index = 0
+    while (index < iterations) {
+        for (character in text) { result += character.code.toLong() }
+        index += 1
+    }
+    return result
+}
+fun main() {
+    @Unsafe {
+        val iterations = count()
+        val mode = kind()
+        val left = "key-1234" + ""
+        val right = "key-2234" + ""
+        val longLeft = "abcdefghijklmnopqrstuvwxyz-ABCDEFGHIJKLMNOPQRSTUVWXYZ-0123456789" + ""
+        val longRight = "abcdefghijklmnopqrstuvwxyz-ABCDEFGHIJKLMNOPQRSTUVWXYZ-0123456788" + ""
+        val ascii = "the quick brown fox jumps over a lazy dog" + ""
+        val unicode = "é雪🙂é雪🙂é雪🙂é雪🙂" + ""
+        begin()
+        val result = when (mode) {
+            case 0 -> equalStrings(iterations, left, right)
+            case 1 -> compareShort(iterations, left, right)
+            case 2 -> hashStrings(iterations, left, right)
+            case 3 -> hashStrings(iterations, longLeft, longRight)
+            case 4 -> hashConstant(iterations)
+            case 5 -> decodeText(iterations, ascii)
+            else -> decodeText(iterations, unicode)
+        }
+        end()
+        println(result)
+    }
+}

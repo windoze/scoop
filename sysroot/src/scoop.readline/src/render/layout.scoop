@@ -18,7 +18,7 @@ public fun renderLine(
     val promptText = stripDecoration(prompt)
     layout.append(promptText, if (colors) highlighter.highlightPrompt(prompt) else promptText, -1L)
     val styled = if (final) session.line else highlighter.highlight(session.line, session.cursor)
-    layout.append(session.line, styled, if (final) session.line.length else session.cursor)
+    layout.append(session.line, styled, if (final) session.line.charLength else session.cursor)
     val hint = if (final) None else session.hint
     if (hint != None) layout.append(hint!!.display, highlighter.highlightHint(hint!!.display), -1L)
     val message = session.message
@@ -89,7 +89,7 @@ private class LineLayout(private val columns: Long, private val tabStop: Long) {
                 }
                 column += if (width > columns) 1L else width
             }
-            offset += text.length
+            offset += text.charLength
             if (column == columns) newRow()
         }
         if (offset == cursor) { cursorRow = lines.size; cursorColumn = column }

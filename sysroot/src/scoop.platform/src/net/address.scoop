@@ -116,7 +116,7 @@ public class IpAddress private constructor(internal val native: NativeSocketAddr
         public fun parse(text: String): IpAddress {
             val separator = text.indexOf('%')
             val literal = if (separator < 0L) text else text.slice(0L, separator)
-            val scope = if (separator < 0L) 0.toUInt() else decimal(text.slice(separator + 1L, text.length))
+            val scope = if (separator < 0L) 0.toUInt() else decimal(text.slice(separator + 1L, text.charLength))
             @Unsafe {
                 val parsed = OsString.fromString(literal).withNativeString { pointer ->
                     @Unsafe { return@withNativeString nativeParse(pointer) }
@@ -141,7 +141,7 @@ private fun word(bytes: Array<Byte>, offset: Long): UInt {
 }
 
 internal fun decimal(text: String): UInt {
-    if (text.length == 0L) throw IllegalArgumentException(Some("empty address number"))
+    if (text.charLength == 0L) throw IllegalArgumentException(Some("empty address number"))
     for (byte in text.toByteArray()) {
         if (byte < 48 || byte > 57) throw IllegalArgumentException(Some("invalid address number"))
     }

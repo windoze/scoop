@@ -21,6 +21,22 @@ impl ExactDispatchExportV1 {
         inputs: &[ExactDispatchEntryInputV1<'_>],
         foundation: &ConeLirFoundation,
     ) -> Result<Self, ExactDispatchError> {
+        Self::replay_with_layout(
+            target,
+            identity,
+            inputs,
+            crate::DispatchTableLayout::flat(identity.id(), inputs.len()),
+            foundation,
+        )
+    }
+
+    pub(super) fn replay_with_layout(
+        target: crate::LirTargetProfile,
+        identity: &CborIdentityRecord<PersistentDispatchTableId, DispatchTableKey>,
+        inputs: &[ExactDispatchEntryInputV1<'_>],
+        layout: crate::DispatchTableLayout,
+        foundation: &ConeLirFoundation,
+    ) -> Result<Self, ExactDispatchError> {
         let path = WirePath::root();
 
         let Some(canonical) = foundation
@@ -73,6 +89,7 @@ impl ExactDispatchExportV1 {
             target,
             role,
             entries,
+            layout,
             physical: physical_definition,
             definition,
         }))

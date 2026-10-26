@@ -9,7 +9,7 @@ import scoop.text.*
 
 fun runOracle(path: Path) {
     for (line in path.readText().split('\n')) {
-        if (line.length == 0L) continue
+        if (line.charLength == 0L) continue
         val fields = line.split('|')
         try {
             val handshake = WebSocketHandshake.parse(decodeRequest(Base64.Default.decode(fields[0L])))

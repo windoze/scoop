@@ -591,10 +591,11 @@ ScoopThreadState *scoop_thread_current(void) { return &test_thread; }
 
 ScoopThreadState *scoop_thread_current_required(void) { return &test_thread; }
 
-void scoop_thread_require_managed(void) {
+ScoopThreadState *scoop_thread_require_managed(void) {
     CHECK(atomic_load_explicit(&test_thread.poll.mode, memory_order_relaxed) ==
           SCOOP_THREAD_MANAGED);
     CHECK(test_thread.managed_depth == 1);
+    return &test_thread;
 }
 
 bool scoop_gc_is_published_object(const void *object) {

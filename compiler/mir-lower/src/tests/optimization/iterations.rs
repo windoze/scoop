@@ -124,19 +124,15 @@ fn main_calls(module: &mir::Module) -> Vec<&mir::Call> {
 }
 
 #[test]
-fn alternating_rounds_inline_the_newly_resolved_target_and_report_convergence() {
+fn newly_resolved_targets_inline_in_the_same_round_and_report_convergence() {
     let mut once = dispatch_chain(1, 1, false);
     assert_eq!(run(&mut once, 1), (1, false));
-    assert!(
-        main_calls(&once)
-            .iter()
-            .any(|call| matches!(call.target, mir::CallTarget::Virtual { .. }))
-    );
+    assert!(main_calls(&once).is_empty());
     let mut twice = dispatch_chain(1, 1, false);
-    assert_eq!(run(&mut twice, 2), (2, false));
+    assert_eq!(run(&mut twice, 2), (2, true));
     assert!(main_calls(&twice).is_empty());
     let mut fixed = dispatch_chain(1, 1, false);
-    assert_eq!(run(&mut fixed, 4), (3, true));
+    assert_eq!(run(&mut fixed, 4), (2, true));
     assert!(main_calls(&fixed).is_empty());
 }
 
@@ -201,6 +197,14 @@ fn newly_exposed_recursive_edges_refresh_the_call_graph() {
     let calls = main_calls(&module);
     assert_eq!(calls.len(), 1);
     assert!(
-        matches!(calls[0].target, mir::CallTarget::Direct(mir::Callee::User(target)) if target == method)
+        matches!(calls[0].target, mir::CallTarget::Direct(mir::Callee::User(target)) if module.functions[target].name == "helper")
     );
+    let body = &module.functions[method].body;
+    assert!(body.blocks.len() < 16);
+    assert!(body.blocks.iter().any(|(_, block)| {
+        block.statements.iter().any(|statement| {
+            matches!(&statement.kind, mir::StatementKind::Call(mir::CallEffect::Unit(call))
+                if matches!(call.target, mir::CallTarget::Direct(mir::Callee::User(target)) if target == method))
+        })
+    }));
 }

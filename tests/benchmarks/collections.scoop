@@ -10,7 +10,7 @@ fun main() {
             values.add(identity("value-" + index.toString()))
             index = index + 1L
         }
-        for (value in values) { total = total + value.length }
+        for (value in values) { total = total + value.charLength }
         round = round + 1L
     }
     println(total)

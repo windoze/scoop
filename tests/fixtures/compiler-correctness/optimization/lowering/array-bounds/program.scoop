@@ -1,0 +1,111 @@
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+
+fun sum(values: Array<Long>): Long {
+    val count = values.size
+    var i = 0L
+    var result = 0L
+    while (i < count) { result += values[i]; i += 1L }
+    return result
+}
+
+fun repeatSum(count: Long, rounds: Long): Long {
+    val values = Array<Long>(count) { i -> i }
+    var round = 0L
+    var result = 0L
+    while (round < rounds) { result += sum(values); round += 1L }
+    return result
+}
+
+fun transform(values: MutableArray<Int>, seed: Int) {
+    var i = 0L
+    while (i < values.size) { values[i] = values[i] * 3 + seed; i += 1L }
+}
+
+fun copy(source: MutableArray<Int>, target: MutableArray<Int>, count: Long) {
+    var i = 0L
+    while (i < count) { target[i] = source[i]; i += 1L }
+}
+
+fun prefix(values: MutableArray<Long>, count: Long) {
+    var i = 0L
+    while (i < count) { values[i] = i + 7L; i += 1L }
+}
+
+class Counter(var value: Long)
+
+fun sideEffect(values: MutableArray<Long>, count: Long, counter: Counter) {
+    var i = 0L
+    while (i < count) {
+        counter.value += 1L
+        values[i] = counter.value
+        i += 1L
+    }
+}
+
+fun rebound(values: MutableArray<Int>, replacement: MutableArray<Int>, count: Long) {
+    var current = values
+    var i = 0L
+    while (i < count) { current[i] = i.toInt(); current = replacement; i += 1L }
+}
+
+fun stepped(values: MutableArray<Int>) {
+    var i = 0L
+    while (i < values.size) { values[i] = 7; i += 2L }
+}
+
+fun negative(values: MutableArray<Int>) {
+    var i = -1L
+    while (i < values.size) { values[i] = 9; i += 1L }
+}
+
+fun main() {
+    check(repeatSum(129L, 3L) == 24768L)
+    for (size in [0L, 1L, 63L, 64L, 65L, 127L, 128L, 129L, 1025L]) {
+        check(sum(Array<Long>(size) { i -> i }) == size * (size - 1L) / 2L)
+        val source = MutableArray<Int>(size) { i -> i.toInt() + 2147483647 }
+        val target = MutableArray<Int>(size) { _ -> -1 }
+        transform(source, 2)
+        copy(source, target, size)
+        copy(target, target, size)
+        var i = 0L
+        while (i < size) {
+            check(target[i] == (i.toInt() + 2147483647) * 3 + 2)
+            i += 1L
+        }
+        stepped(target)
+        i = 0L
+        while (i < size) { check(target[i] == 7); i += 2L }
+        val longs = MutableArray<Long>(size) { _ -> -1L }
+        prefix(longs, -1L)
+        prefix(longs, 0L)
+        if (size > 0L) check(longs[0L] == -1L)
+        var caught = false
+        try { prefix(longs, size + 2L) } catch (error: IndexOutOfBoundsException) { caught = true }
+        check(caught)
+        i = 0L
+        while (i < size) { check(longs[i] == i + 7L); i += 1L }
+    }
+    val longSource = MutableArray<Int>(129L) { i -> i.toInt() }
+    val shortTarget = MutableArray<Int>(65L) { _ -> -1 }
+    var caught = false
+    try { copy(longSource, shortTarget, 129L) } catch (error: IndexOutOfBoundsException) { caught = true }
+    check(caught && shortTarget[0L] == 0 && shortTarget[64L] == 64)
+    val longTarget = MutableArray<Int>(129L) { _ -> -1 }
+    caught = false
+    try { copy(shortTarget, longTarget, 129L) } catch (error: IndexOutOfBoundsException) { caught = true }
+    check(caught && longTarget[64L] == 64 && longTarget[65L] == -1)
+    val values = MutableArray<Long>(65L) { _ -> -1L }
+    val counter = Counter(0L)
+    caught = false
+    try { sideEffect(values, 129L, counter) } catch (error: IndexOutOfBoundsException) { caught = true }
+    check(caught && counter.value == 66L && values[64L] == 65L)
+    val first = MutableArray<Int>(129L) { _ -> -1 }
+    val second = MutableArray<Int>(1L) { _ -> -1 }
+    caught = false
+    try { rebound(first, second, 129L) } catch (error: IndexOutOfBoundsException) { caught = true }
+    check(caught && first[0L] == 0 && first[1L] == -1 && second[0L] == -1)
+    caught = false
+    try { negative(first) } catch (error: IndexOutOfBoundsException) { caught = true }
+    check(caught && first[0L] == 0)
+    println("array bounds preserve ranges, aliases and exceptional prefixes")
+}

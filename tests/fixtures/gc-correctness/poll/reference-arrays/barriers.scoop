@@ -1,0 +1,82 @@
+package dev.performance
+
+@Extern(lib = "m34_poll_threads", name = "m44_minor_count") fun minorCount(): Long
+@Extern(lib = "m34_poll_threads", name = "m44_moving") fun movingStress(): Boolean
+private var allocationPressure: Node? = None
+
+@Unsafe fun collectYoung() {
+    if (movingStress()) { gcCollect(); return }
+    val before = minorCount()
+    while (minorCount() == before) {
+        var i = 0L
+        while (i < 256L) {
+            val value = Node(i)
+            allocationPressure = Some(value)
+            i = value.value + 1L
+            allocationPressure = None
+        }
+    }
+}
+
+// Once these helpers return, the old array is the only owner of the young
+// value. A subsequent minor collection must find it through dirty cards.
+fun writeYoungNodes(target: MutableArray<Node>, seed: Long) {
+    val young = Node(seed)
+    var i = 0L
+    while (i < target.size) { target[i] = young; i += 1L }
+}
+
+fun writeYoungViews(target: MutableArray<Token<Long>>, seed: Long) {
+    val young: ChildToken<Long> = Node(seed)
+    var i = 0L
+    while (i < target.size) { target[i] = young; i += 1L }
+}
+
+fun writeYoungOptional(target: MutableArray<Token<Long>?>, seed: Long) {
+    val young: Token<Long> = Node(seed)
+    var i = 0L
+    while (i < target.size) { target[i] = Some(young); i += 1L }
+}
+
+fun writeYoungWrapped(target: MutableArray<MaybeUninit<Node>>, seed: Long) {
+    val young = Node(seed)
+    var i = 0L
+    while (i < target.size) { target[i] = MaybeUninit<Node>.initialized(young); i += 1L }
+}
+
+@Unsafe fun oldArrayWrites() {
+    // Cross card boundaries and the ordinary 64 KiB region size.
+    val initial = Node(0L)
+    val nodes = MutableArray<Node>(8193L) { _ -> initial }
+    val views = MutableArray<Token<Long>>(4097L) { _ -> initial }
+    val optional = MutableArray<Token<Long>?>(4097L) { _ -> None }
+    val wrapped = emptyStorage(8193L)
+    gcCollect()
+    writeYoungNodes(nodes, 101L)
+    collectYoung()
+    var i = 0L
+    while (i < nodes.size) { check(nodes[i].value == 101L); i += 1L }
+    writeYoungViews(views, 202L)
+    collectYoung()
+    i = 0L
+    while (i < views.size) { check(views[i].number() == 202L); i += 1L }
+    writeYoungOptional(optional, 303L)
+    collectYoung()
+    i = 0L
+    while (i < optional.size) {
+        check(when (optional[i]) { case None -> false; case Some(value) -> value.number() == 303L })
+        i += 1L
+    }
+    writeYoungWrapped(wrapped, 404L)
+    collectYoung()
+    i = 0L
+    while (i < wrapped.size) { check(wrapped[i].assumeInit().value == 404L); i += 1L }
+    gcCollect()
+    val beforeClear = gcStats()
+    clearWrapped(wrapped)
+    gcCollect()
+    // Keep the array alive: the decrease must include its cleared element,
+    // rather than merely collecting the entire array after its last use.
+    check(wrapped.size == 8193L && beforeClear > gcStats())
+    check(nodes[8192L].value == 101L && views[4096L].number() == 202L)
+}

@@ -596,7 +596,7 @@ when (s) {
 
 ```scoop
 when (val item = load()) {
-    is String if item.length > 0 -> println(item.length)
+    is String if item.charLength > 0 -> println(item.charLength)
     is String -> println("empty")
     else if canRetry() -> retry()
     else -> stop()
@@ -637,7 +637,7 @@ when {
 }
 
 when (val item = load()) {
-    is String -> println(item.length)
+    is String -> println(item.charLength)
     else -> println("other")
 }
 ```
@@ -1207,7 +1207,7 @@ parser 在表达式入口接受 `return [expression]`，同时统一 `throw expr
 **class初始化顺序：**
 
 1. 调用处先选择唯一constructor与完整nominal type arguments，再按8.5求值、物化全部实参；inner constructor 先求值并保存所需的外层实例，再处理显式实参。显式实参属于caller，因此可以在suspend caller中先挂起；
-2. 分配一次exact concrete对象，写入最派生TypeDescriptor并清零完整payload；随后所有`this`/`super` constructor initializer共享该对象，不重新分配或替换identity；
+2. 分配一次exact concrete对象，写入最派生TypeDescriptor并按运行时规范 3.1 初始化存储；语义上 payload 从全零开始，允许消除被确定初始化覆盖、在覆盖前不可观察的无引用字节的零写入。随后所有`this`/`super` constructor initializer共享该对象，不重新分配或替换identity；
 3. 每条constructor delegation先按其自身源码顺序求值显式实参，再物化目标default/`vararg`，然后direct调用typed目标；
 4. terminal primary先完成direct base constructor，写入本 class 的隐藏外层引用，再按声明顺序把带`val`/`var`的primary参数写入本class字段；terminal `super` secondary先完成base constructor，再写入隐藏外层引用。随后按继承列表顺序求值并保存 9.2.2 的 interface delegate；
 5. body stored initializer、optional synthetic None store、delegate initialization与`init`按照它们在class/object body中的源码顺序交错执行。method、computed/abstract property、nested declaration和secondary constructor本身不执行，也不改变相邻初始化项顺序；
@@ -1281,6 +1281,8 @@ inner 可以使用直接外层 class 的类型参数与实例成员；它自己�
 局部/匿名类型身份由原声明的词法位置及完整类型实参确定，不依赖函数调用次数。同一匿名表达式在同一泛型 application 下多次执行产生不同对象，但类型相同。泛型 body、默认值及跨 Cone 再次发布保存原声明及已绑定引用，不导出局部名称，不在消费方重新进行名称解析。
 
 #### 9.1.4 Interface default implementation
+
+接口继承保持同一实际对象对各 exact 父接口的实现语义：经不同菱形路径取得同一父接口视图，方法调用结果、override/default 选择及调用 ABI 一致。完整泛型 application 分别保留身份和契约；派发表片段共享不改变身份、装箱或访问规则。物理父表投影见实现规范 2.9 与运行时规范 2.1。
 
 - interface function有body时提供default，无body时形成abstract obligation；property按getter/setter slot分别判断。private interface member必须有body且只作词法helper，不进入itable、继承或override；
 - 对每个typed slot先选择class hierarchy中最近的实际方法声明；具体声明成为实现，抽象声明保留该声明的义务并压制接口default。没有class声明时，删除被更specific subinterface覆写的interface候选，唯一剩余default获胜，只剩abstract即保留实际抽象声明，多个互不相关default则必须显式override。getter/setter独立选target，但property整体仍满足9.1.1的type/mutability规则；
@@ -1610,7 +1612,7 @@ Increment/Decrement 的递归上界使声明的结果符合 9.3.1 的 receiver �
 | `Component1<Result>` | `component1(): Result` |
 | `Component2<Result>` | `component2(): Result` |
 
-List<T> 继承 IndexGet<Long, T> 并保留自己的 override get；MutableList<T> 另继承 IndexSet<Long, T> 并保留 override set。Array<T>、MutableArray<T> 与 ArrayList<T> 通过原有 List/MutableList 关系获得 IndexGet；MutableArray<T> 另外显式实现 IndexSet<Long, T>；String 显式实现 IndexGet<Long, Char>。MutableArray 的公开 set 使用普通源码正文调用私有存储 intrinsic，与已有 arrayRead/get 分层相同。
+List<T> 继承 IndexGet<Long, T> 并保留自己的 override get；MutableList<T> 另继承 IndexSet<Long, T> 并保留 override set。Array<T>、MutableArray<T> 与 ArrayList<T> 通过原有 List/MutableList 关系获得 IndexGet；MutableArray<T> 另外显式实现 IndexSet<Long, T>。String 不实现 IndexGet，字符定位使用 11.4 的普通方法 getCharAt。MutableArray 的公开 set 使用普通源码正文调用私有存储 intrinsic，与已有 arrayRead/get 分层相同。
 
 其余表中接口由需要这些操作的用户类型显式实现。函数值、FunPtr、struct/tuple 的内建解构和只有同名方法的对象均不自动获得对应接口。Component1/2 为前两个位置提供独立约束，不改变 struct/tuple 的内建解构；class、interface 及有对应成员上界的泛型使用既有 componentN 决议。迭代能力继续由 11.8 的 Iterable<T>/Iterator<T> 表达，不增加平行迭代协议。标准接口覆盖这些固定签名；其他参数数量、component 位置以及 generic、suspend、unsafe、default、vararg 形式继续按 9.3.1～9.3.4 合法声明和调用，需要名义 bound 时可声明普通用户接口。接口列表不成为运算符可用性的前置条件。
 
@@ -1934,13 +1936,17 @@ core整数的二元算术、逐bit运算和比较要求两个已定型operand为
 
 每种integer提供到八种表示的显式`toByte`/`toShort`/`toInt`/`toLong`与`toUByte`/`toUShort`/`toUInt`/`toULong`。普通转换以 Byte／Short／Int／Long 及无符号类型的常用拼写命名；透明定宽类型 alias 继续用于 FFI 和二进制字段。整数之间的转换total且不抛异常：数学源值先模`2^targetWidth`，再按目标signedness解释bit pattern。`toFloat`/`toDouble`遵守11.2.2，不改变上述整数转换规则。每个基本类型显式声明同类型的 `operator fun equals`，并以该成员显式实现 `Equals<该类型>`，同时实现 `ToString`；`Boolean`、`Char`和八种integer另显式实现`Hash`，`Float`/`Double`不实现`Hash`（11.11）。这些实现按owner的完整位宽工作，不经过装箱或`Any`分派。
 
+八种整数的 `toString()` 产生无 locale 依赖的十进制 ASCII 文本：零为 `"0"`，仅负数带 `-`，没有前导零或结尾 NUL。Long／ULong 的结果最多 20 字节，包含 Long 最小值的负号。普通 core 正文可以在 GC-free 局部值存储中一次写出文本，再按实际字节数复制为不可变 String；不要求各次相同文本具有不同引用身份（11.4）。其他整数沿其符号族显式扩展到 Long／ULong；浮点格式与解析合同保持。
+
 八个canonical integer struct及`Byte`/`Short`/`Int32`/`Int64`/`UByte`/`UShort`/`UInt32`/`UInt64` alias都在core显式声明`public`，用户可调用成员同样显式`public`。`and`/`or`/`xor`/`shl`/`shr`是普通`infix` member，`inv()`是普通零参数member；signed类型另提供infix `ushr`，unsigned的`shr`已经是逻辑右移且不另设`ushr`。这些bit名称不带`operator` modifier，不增加9.3.1的operator约定。
 
 每个integer kind的representation intrinsic surface固定包括`unaryPlus`/`unaryMinus`/`inc`/`dec`、`plus`/`minus`/`times`/`div`/`rem`/`compareTo`/`equals`、上述bit members及到八个integer kind的转换；另增加11.2.2的`toFloat`/`toDouble`。unsigned同样提供wrapping `unaryMinus`，所以`-1u`有定义。除显式转换的目标类型、`compareTo: Long`、`equals: Boolean`和shift count `Long`外，operand/result均为owner exact type。range members是普通core body，不属于该intrinsic集合。
 
 除`div`/`rem`外，上述integer representation intrinsic均不分配、不抛异常，源码声明必须显式带`@NoGC`并登记为NoGc call target；`div`/`rem`因除零可能构造`ArithmeticException`，不得带`@NoGC`且登记为Managed。普通`toString`仍可分配并经普通typed Scoop-ABI core helper工作，不属于integer intrinsic operation集合。
 
-#### 11.2.1 `Char`
+#Boolean 的 `equals`／`hash` 与整数 hash 可以由普通 core 标量正文实现，不要求 native 调用；固定宽度转换与乘法继续遵守本节回绕规则。Boolean 的 `toString()` 返回内容为 `"true"`／`"false"` 的不可变 String，可直接选择已有字符串常量；不承诺每次新分配对象（11.4）。
+
+### 11.2.1 `Char`
 
 `Char` 是具有独立 nominal identity 的 intrinsic struct，表示一个 Unicode 标量值：U+0000..U+D7FF 或 U+E000..U+10FFFF。它不是 UTF-8 byte、UTF-16 code unit 或用户感知的 grapheme cluster。内存表示为 32 位无符号 scalar，GC-free；没有普通字段或公开 primary constructor，也不与 Int/UInt 隐式互转。
 
@@ -2010,9 +2016,9 @@ String 是 immutable 引用类型，持有合法 UTF-8 编码的 Unicode 标量�
 
 | API | 语义 |
 | --- | --- |
-| `length: Long` | Unicode 标量值数量 |
-| `byteLength: Long` | UTF-8 字节数 |
-| `operator get(index: Long): Char` | 第 index 个标量值 |
+| `charLength: Long` | Unicode 标量值数量，O(byteLength) |
+| `byteLength: Long` | UTF-8 字节数，O(1) |
+| `getCharAt(idx: Long): Char` | 第 idx 个标量值，最坏 O(byteLength) |
 | `slice(start: Long, endExclusive: Long): String` | 按标量索引取半开区间 |
 | `iterator(): Iterator<Char>` | 按标量顺序迭代，普通 `Iterable<Char>` conformance |
 | `toCharArray(): Array<Char>` | 独立、只读的字符数组快照 |
@@ -2028,9 +2034,9 @@ String 是 immutable 引用类型，持有合法 UTF-8 编码的 Unicode 标量�
 | `String.withCString<R>(block: (Ptr<Int8>) -> R): R` | `@Unsafe` 的作用域 C 字符串副本，补结尾 NUL；原内容含 U+0000 时抛出 IllegalArgumentException |
 | `String.fromCString(pointer: Ptr<Int8>): String` | `@Unsafe`；读取到首个 NUL，按相同严格 UTF-8 规则复制为 String |
 
-`get` 要求 `0 <= index < length`，`slice` 要求 `0 <= start <= endExclusive <= length`，否则抛 `IndexOutOfBoundsException`。`slice(length, length)` 合法并返回空串。索引不接受隐式数值转换；所有上述计数与边界直接使用 Long。`"A雪😀".length == 3L`，其 byteLength 为 8L。组合字符分别计数，不执行 Unicode normalization，因此 `"e\u0301"` 与 `"\u00E9"` 不相等且长度不同。
+`getCharAt` 要求 `0 <= idx < charLength`，`slice` 要求 `0 <= start <= endExclusive <= charLength`，否则抛 `IndexOutOfBoundsException`。`slice(charLength, charLength)` 合法并返回空串。索引不接受隐式数值转换；所有上述计数与边界直接使用 Long。`"A雪😀".charLength == 3L`，其 byteLength 为 8L。组合字符分别计数，不执行 Unicode normalization，因此 `"e\u0301"` 与 `"\u00E9"` 不相等且字符数量不同。
 
-byteLength 为 O(1)；length 与索引定位为 O(byteLength)，完整顺序迭代为 O(byteLength)。String 实现 `Iterable<Char>`，不实现 `List<Char>`。
+byteLength 为 O(1)；charLength 与 getCharAt 的最坏时间为 O(byteLength)，完整顺序迭代为 O(byteLength)。String 实现 `Iterable<Char>`，不实现 `List<Char>` 或 `IndexGet<Long, Char>`；不提供旧 length 属性、get 方法或 `str[n]` 下标运算，以显式名称区分字符扫描与常数时间的字节计数。这是公开 API 的调整，不增加字符计数缓存或改变 String 的 UTF-8 对象表示。
 
 core 内部的 `string_byte_length(String): Long`、`string_byte_at(String, Long): Byte`、`string_character_at_byte(String, Long): Char` 是 13.1 的三个 top-level intrinsic 登记项，用于上述表示操作。字节访问要求有效索引，字符解码要求位于有效 UTF-8 标量起点；core 保证这些内部前置条件，索引越界仍按 runtime 内部错误终止。它们不增加公开 API，不标注 `@NoGC`：源码函数含 managed 引用，仍遵守 13.2；编译器内部可将有界表示读取实现为无 safepoint 的 load 或 runtime leaf。
 

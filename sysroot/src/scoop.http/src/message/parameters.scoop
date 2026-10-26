@@ -41,7 +41,7 @@ public class HttpParameter internal constructor(
          * supplied base name.
          */
         public fun extended(name: String, text: String, language: String = ""): HttpParameter {
-            if (name.length == 0L) throw IllegalArgumentException(Some("empty extended parameter name"))
+            if (name.charLength == 0L) throw IllegalArgumentException(Some("empty extended parameter name"))
             for (byte in name.toByteArray()) if (!httpAttributeByte(byte.toUByte().toInt()))
                 throw IllegalArgumentException(Some("invalid extended parameter name"))
             if (!httpLanguageTag(language)) throw IllegalArgumentException(Some("invalid extended parameter language"))

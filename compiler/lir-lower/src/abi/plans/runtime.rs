@@ -37,7 +37,7 @@ pub(crate) fn runtime_signature(
             Leaf::ContextEnter => (vec![P], P),
             Leaf::ContextLeave => (vec![P], T::Void),
             Leaf::IsInstance => (vec![P, M], T::I1),
-            Leaf::ITableLookup => (vec![M, M], M),
+            Leaf::ITableLookup | Leaf::ITableFind => (vec![M, M], M),
             Leaf::Pin | Leaf::GetHandle => (vec![P], T::I64),
             Leaf::Unpin | Leaf::ReleaseHandle => (vec![T::I64], P),
             Leaf::GcStats => (vec![], T::I64),

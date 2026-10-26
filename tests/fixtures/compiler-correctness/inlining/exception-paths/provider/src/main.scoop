@@ -1,0 +1,11 @@
+package dev.performance.resources.provider
+
+public fun leaf(value: Int): Int = value + 4
+
+public fun opaque(value: Int): Int {
+    try {
+        return value + 4
+    } finally {
+        leaf(value)
+    }
+}

@@ -8,9 +8,12 @@ mod dispatch;
 mod flow;
 mod graph;
 mod inline;
+mod interface_views;
 mod intrinsics;
+mod observation;
 mod poll_chunks;
 mod simplify;
+mod strings;
 
 /// Producer choices; they do not change entity or ABI identity.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -18,6 +21,7 @@ pub struct MirOptimizationOptions {
     pub devirtualize: bool,
     pub inline: bool,
     pub allocation_elision: bool,
+    pub interface_views: bool,
     pub coroutine_elision: bool,
     pub poll_chunking: bool,
 }
@@ -27,6 +31,7 @@ impl MirOptimizationOptions {
         devirtualize: true,
         inline: true,
         allocation_elision: true,
+        interface_views: true,
         coroutine_elision: true,
         poll_chunking: true,
     };
@@ -45,15 +50,36 @@ pub(super) fn run(
     run_to_limit(module, selected, options, 3)
 }
 
+#[cfg(test)]
+pub(super) fn run_observed(
+    module: &mut mir::Module,
+    options: MirOptimizationOptions,
+) -> mir::optimization_report::OptimizationReport {
+    let mut report = mir::optimization_report::OptimizationReport::default();
+    let selected = mir::SelectedExternalMirSet::empty(module.cone);
+    let outcome = run_with_intrinsics(
+        module,
+        &selected,
+        options,
+        3,
+        &Default::default(),
+        Default::default(),
+        Some(&mut report),
+    );
+    assert_eq!(outcome, (report.rounds, report.converged));
+    report
+}
+
 pub(super) fn run_current(
     module: &mut mir::Module,
     selected: &mir::SelectedExternalMirSet,
     source: &scoop_hir::concrete::Module,
     options: MirOptimizationOptions,
     mut imported: crate::imported_bodies::ImportedBodies,
+    report: Option<&mut mir::optimization_report::OptimizationReport>,
 ) -> (usize, bool) {
     let required = intrinsics::entries(module, source, std::mem::take(&mut imported.required));
-    run_with_intrinsics(module, selected, options, 3, &required, imported)
+    run_with_intrinsics(module, selected, options, 3, &required, imported, report)
 }
 
 /// Return the rounds used and whether an unchanged round was observed.
@@ -71,6 +97,7 @@ pub(super) fn run_to_limit(
         limit,
         &Default::default(),
         Default::default(),
+        None,
     )
 }
 
@@ -81,13 +108,22 @@ fn run_with_intrinsics(
     limit: usize,
     required: &intrinsics::Entries,
     mut imported: crate::imported_bodies::ImportedBodies,
+    report: Option<&mut mir::optimization_report::OptimizationReport>,
 ) -> (usize, bool) {
+    let observer = report.map(|report| observation::Observer::new(report, options));
     let mut registry =
         crate::local_values::LocalValueRegistry::from_existing(&module.meta.local_values);
     let dispatch = std::mem::take(&mut imported.dispatch);
     let has_intrinsics = !required.is_empty();
-    let mut inliner = (options.inline || has_intrinsics)
-        .then(|| inline::Session::new(module, required.clone(), options.inline, imported));
+    let mut inliner = (options.inline || has_intrinsics).then(|| {
+        inline::Session::new(
+            module,
+            required.clone(),
+            options.inline,
+            options.allocation_elision,
+            imported,
+        )
+    });
     if has_intrinsics {
         intrinsics::normalize(
             module,
@@ -101,14 +137,21 @@ fn run_with_intrinsics(
     if !options.devirtualize
         && !options.inline
         && !options.allocation_elision
+        && !options.interface_views
         && !options.poll_chunking
     {
         module.meta.local_values = registry.finish();
+        if let Some(observer) = &observer {
+            observer.finish((0, true));
+        }
         return (0, true);
     }
     let mut active = vec![true; module.functions.len()];
     let mut outcome = (limit, false);
     for round in 0..limit {
+        if let Some(observer) = &observer {
+            observer.round(round + 1);
+        }
         let mut changed = if options.devirtualize {
             devirtualize(module, selected, &active, None, &dispatch)
         } else {
@@ -117,20 +160,25 @@ fn run_with_intrinsics(
         if options.inline
             && let Some(inliner) = &mut inliner
         {
-            for (changed, inlined) in
-                changed
-                    .iter_mut()
-                    .zip(inliner.run(module, &active, &mut registry))
-            {
+            for (changed, inlined) in changed.iter_mut().zip(inliner.run(
+                module,
+                selected,
+                &dispatch,
+                &active,
+                &mut registry,
+                observer.as_ref(),
+            )) {
                 *changed |= inlined;
             }
         }
         if options.allocation_elision {
-            for (changed, elided) in
-                changed
-                    .iter_mut()
-                    .zip(allocation::run(module, &active, &mut registry))
-            {
+            for (changed, elided) in changed.iter_mut().zip(allocation::run(
+                module,
+                &active,
+                &mut registry,
+                observer.as_ref(),
+                inliner.as_ref(),
+            )) {
                 *changed |= elided;
             }
         }
@@ -146,16 +194,33 @@ fn run_with_intrinsics(
                 *changed |= normalized;
             }
         }
+        if options.interface_views {
+            for (changed, reused) in changed
+                .iter_mut()
+                .zip(interface_views::run(module, &active))
+            {
+                *changed |= reused;
+            }
+        }
         if !changed.iter().any(|changed| *changed) {
             outcome = (round + 1, true);
             break;
         }
         active = changed;
     }
+    if options.allocation_elision {
+        strings::run(module);
+    }
     if options.poll_chunking {
         poll_chunks::run(module, &mut registry);
     }
+    if options.inline {
+        simplify::copies(module);
+    }
     module.meta.local_values = registry.finish();
+    if let Some(observer) = &observer {
+        observer.finish(outcome);
+    }
     outcome
 }
 
@@ -201,7 +266,7 @@ fn devirtualize(
                         }
                     };
                     if let Some(receiver) = call.target.receiver()
-                        && let Some((target, receiver_ty, unbox)) = dispatch::resolve(
+                        && let Some(replacement) = dispatch::direct_call(
                             module,
                             selected,
                             dispatch,
@@ -210,9 +275,10 @@ fn devirtualize(
                             analysis.expression(receiver, &state).actual,
                         )
                     {
-                        if required
-                            .is_some_and(|required| !required.contains(module, target.into()))
-                        {
+                        let mir::CallTarget::Direct(target) = replacement.target else {
+                            unreachable!("dispatch resolution produces a direct call")
+                        };
+                        if required.is_some_and(|required| !required.contains(module, target)) {
                             analysis.statement(statement, &mut state);
                             continue;
                         }
@@ -220,30 +286,7 @@ fn devirtualize(
                             function: function_id,
                             block: block_id,
                             statement: statement_index,
-                            call: {
-                                let receiver = if unbox {
-                                    mir::Expr::new(
-                                        receiver_ty,
-                                        mir::ExprKind::Unbox(Box::new(receiver.clone())),
-                                    )
-                                } else if receiver.ty == receiver_ty {
-                                    receiver.clone()
-                                } else {
-                                    mir::Expr::new(
-                                        receiver_ty.clone(),
-                                        mir::ExprKind::Retype {
-                                            operand: Box::new(receiver.clone()),
-                                            ty: Box::new(receiver_ty),
-                                        },
-                                    )
-                                };
-                                mir::Call {
-                                    target: mir::CallTarget::Direct(target.into()),
-                                    args: std::iter::once(receiver)
-                                        .chain(call.args.iter().cloned())
-                                        .collect(),
-                                }
-                            },
+                            call: replacement,
                         });
                     }
                 }

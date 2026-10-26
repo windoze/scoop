@@ -4,7 +4,7 @@ fun main() {
     check("".byteLength == 0L && "".toByteArray().size == 0L)
     check("".iterator().next() == None)
     val text = "A\u0000é雪🙂"
-    check(text.byteLength == 11L && text.length == 5L)
+    check(text.byteLength == 11L && text.charLength == 5L)
     val bytes = text.toByteArray()
     val mutable = text.toMutableByteArray()
     check(bytes.size == 11L && bytes[0L] == 65.toByte() && bytes[1L] == 0.toByte())
@@ -13,10 +13,10 @@ fun main() {
     var sum = 0L
     for (c in text) { sum += c.code.toLong() }
     check(sum == 167510L)
-    check(text[4L] == '🙂' && text.slice(5L, 5L) == "")
+    check(text.getCharAt(4L) == '🙂' && text.slice(5L, 5L) == "")
     var caught = 0
-    try { text[-1L] } catch (_: IndexOutOfBoundsException) { caught += 1 }
-    try { text[5L] } catch (_: IndexOutOfBoundsException) { caught += 1 }
+    try { text.getCharAt(-1L) } catch (_: IndexOutOfBoundsException) { caught += 1 }
+    try { text.getCharAt(5L) } catch (_: IndexOutOfBoundsException) { caught += 1 }
     check(caught == 2)
     println("bounded String reads preserved")
 }

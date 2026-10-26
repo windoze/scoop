@@ -44,7 +44,7 @@ public class UrlBuilder public constructor() {
     public fun setEncodedAuthority(value: String?): UrlBuilder {
         if (value == None) { host = None; userInfo = None; port = None; return this }
         val parsed = Url.parse("//" + value!!)
-        if (parsed.encodedPath.length != 0L || parsed.encodedQuery != None || parsed.encodedFragment != None) {
+        if (parsed.encodedPath.charLength != 0L || parsed.encodedQuery != None || parsed.encodedFragment != None) {
             urlError(UrlComponent.Authority, "authority must not contain a path, query or fragment")
         }
         copyAuthority(parsed.authority!!)
@@ -98,7 +98,7 @@ public class UrlBuilder public constructor() {
         if (segment.contains('/') || segment.contains('?') || segment.contains('#')) {
             urlError(UrlComponent.Path, "an encoded path segment cannot contain structural separators")
         }
-        if ((path.length == 0L && host != None) || (path.length > 0L && !path.endsWith('/'))) path += "/"
+        if ((path.charLength == 0L && host != None) || (path.charLength > 0L && !path.endsWith('/'))) path += "/"
         path += segment
         return this
     }

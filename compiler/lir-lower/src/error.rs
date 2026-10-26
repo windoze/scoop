@@ -34,6 +34,10 @@ pub enum LirLoweringError {
         provider: scoop_identity::ConeIdentity,
         storage: scoop_identity::PersistentStaticStorageId,
     },
+    DependencyImmortalBinding {
+        provider: scoop_identity::ConeIdentity,
+        object: scoop_identity::PersistentImmortalObjectId,
+    },
     Diagnostic(scoop_identity::ExactTypeDiagnosticError),
     StorageReplay(StorageLoweringError),
 
@@ -111,6 +115,10 @@ impl fmt::Display for LirLoweringError {
                 "dependency storage {storage} from {provider} is absent or disagrees with its MIR type"
             ),
             Self::Diagnostic(source) => source.fmt(formatter),
+            Self::DependencyImmortalBinding { provider, object } => write!(
+                formatter,
+                "immortal object {object} from {provider} is absent from the dependency selection"
+            ),
             Self::StorageReplay(source) => source.fmt(formatter),
             Self::ExternalCallable(source) => source.fmt(formatter),
             Self::CallableAbi(source) => source.fmt(formatter),
@@ -192,6 +200,7 @@ impl std::error::Error for LirLoweringError {
             | Self::MissingDependencyLayoutSelection { .. }
             | Self::DependencyDescriptorBinding(_)
             | Self::DependencyStorageBinding { .. }
+            | Self::DependencyImmortalBinding { .. }
             | Self::ForeignExternalLirSelection { .. }
             | Self::ExternalCallableCountMismatch { .. }
             | Self::MissingExternalCallable { .. }

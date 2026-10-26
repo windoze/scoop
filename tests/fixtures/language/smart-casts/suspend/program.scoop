@@ -8,7 +8,7 @@ class Task(val gate: Gate) : SuspendTask<Int> {
         if (value !is String) return 0
         val result = suspendCoroutine(Registration(gate))
         gcCollect()
-        println(value.length)
+        println(value.charLength)
         return result
     }
 }

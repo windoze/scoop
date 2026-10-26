@@ -1,7 +1,6 @@
 use super::*;
 
-#[test]
-fn clone_reloads_its_only_source_root_and_barriers_reference_storage() {
+pub(super) fn reference_clone_module() -> Module {
     let mut module = arrays::arrays_module();
     module.output = scoop_lir::LirOutput::Library;
     let element = LirType::Aggregate(vec![MANAGED_PTR, LirType::I64]);
@@ -55,6 +54,12 @@ fn clone_reloads_its_only_source_root_and_barriers_reference_storage() {
         blocks,
         entry,
     };
+    module
+}
+
+#[test]
+fn clone_reloads_its_only_source_root_and_barriers_reference_storage() {
+    let module = reference_clone_module();
     let ir = ir_of(&module);
     let after_allocation = ir.split("alloc.continue.0:").nth(1).unwrap();
     let root = after_allocation

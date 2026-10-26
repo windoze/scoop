@@ -55,7 +55,13 @@ pub(super) fn main() -> ExitCode {
         ));
         return ExitCode::FAILURE;
     }
-    match commands::execute(cli.command, cli.sysroot, cli.enable_gc_stress, &reporter) {
+    match commands::execute(
+        cli.command,
+        cli.sysroot,
+        cli.enable_gc_stress,
+        cli.enable_startup_stats,
+        &reporter,
+    ) {
         Ok(None) => {
             scoop_process::finish_interruption();
             ExitCode::SUCCESS

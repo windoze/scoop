@@ -277,10 +277,18 @@ mod tests {
         let success = ScoopcSuccessV1::new(
             crate::test_summary(),
             vec![warning()],
-            vec![EmittedDumpDescriptorV1::new(
-                StageDumpKindV1::Lir,
-                EmittedDumpDestinationV1::File(path("dump/lir.txt")),
-            )],
+            StageDumpKindV1::ALL
+                .into_iter()
+                .map(|stage| {
+                    EmittedDumpDescriptorV1::new(
+                        stage,
+                        EmittedDumpDestinationV1::File(path(&format!(
+                            "dump/{}",
+                            stage.file_name()
+                        ))),
+                    )
+                })
+                .collect(),
         )
         .unwrap();
         let success = ScoopcResponseEnvelopeV1::success(request_id, success);

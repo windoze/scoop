@@ -176,7 +176,8 @@ pub(super) fn push_immortal_object(
             | scoop_lir::GlobalInit::Storage { .. }
             | scoop_lir::GlobalInit::CString { .. }
             | scoop_lir::GlobalInit::RawStorage { .. }
-            | scoop_lir::GlobalInit::ImportedStorage { .. } => None,
+            | scoop_lir::GlobalInit::ImportedStorage { .. }
+            | scoop_lir::GlobalInit::ImportedImmortal { .. } => None,
         })
         .expect("immortal registration must resolve to a StringConst global");
     assert_eq!(identity.identity_record().id(), registration.object());

@@ -28,7 +28,7 @@ private fun exercise() {
     try { "x".split(',', -1L) } catch (error: IllegalArgumentException) { errors += 1 }
     check(errors == 3, "split argument errors")
     val repeated = "aa雪".repeat(1024L)
-    check(repeated.replace("aa", "😀").length == 2048L && repeated.split("aa").size == 1025L, "many pieces")
+    check(repeated.replace("aa", "😀").charLength == 2048L && repeated.split("aa").size == 1025L, "many pieces")
 
 }
 

@@ -1,3 +1,7 @@
+package dev.performance.boxes.consumer
+
+import dev.performance.boxes.*
+
 class Node(var number: Long)
 struct Pair(val node: Node, val nested: (String, Long))
 struct Empty()
@@ -7,13 +11,20 @@ enum Code: Long { Answer = 42L }
 
 @Unsafe fun main() {
     val node = Node(9L)
-    val values = MutableArray<Any>(5L) { _ -> Empty() }
+    val values = MutableArray<Any>(7L) { _ -> Empty() }
     values[0L] = Pair(node, ("left" + "right", 17L))
     values[1L] = Packed(3.toByte(), 2.5)
     values[2L] = Code.Answer
     var original = Padded(7.toByte(), 29L)
     addressOf(original).cast<Byte>().store(3, 99.toByte())
     values[4L] = MaybeUninit<Padded>.initialized(original)
+    val foreignValue = Foreign(1234L.toString(), (5678L.toString(), 19L))
+    values[5L] = foreignBox(foreignValue)
+    values[6L] = foreignValue
+    val anotherEmpty: Any = Empty()
+    if (values[3L] === anotherEmpty || values[5L] === values[6L]) {
+        throw IllegalStateException()
+    }
     var i = 0L
     while (i < 8L) {
         gcCollect()
@@ -23,12 +34,15 @@ enum Code: Long { Answer = 42L }
         val parent = values[2L] as Long
         val empty = values[3L] as Empty
         val padded = values[4L] as MaybeUninit<Padded>
+        val foreign = values[6L] as Foreign
         gcCollect()
         first.node.number += 1L
         if (first.node !== node || first.nested._1 != "leftright" ||
             first.nested._2 != 17L || packed.tag != 3.toByte() || packed.number != 2.5 ||
             exact != Code.Answer || parent != 42L || empty != Empty() ||
-            addressOf(padded).cast<Byte>().load(3) != 99.toByte()) {
+            addressOf(padded).cast<Byte>().load(3) != 99.toByte() ||
+            foreign.text != "1234" || foreign.pair._1 != "5678" || foreign.pair._2 != 19L ||
+            (values[5L] as Foreign) != foreign) {
             throw IllegalStateException()
         }
         i += 1L

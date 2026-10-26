@@ -2,8 +2,7 @@
 
 void scoop_rt_push_caller_roots(ScoopCallerRootFrame *frame, ScoopCallerRootEntry *entries,
                                 uint64_t count) {
-    ScoopThreadState *state = scoop_thread_current_required();
-    scoop_thread_require_managed();
+    ScoopThreadState *state = scoop_thread_require_managed();
     if (frame == NULL) {
         scoop_thread_fatal("invalid caller root frame");
     }
@@ -27,8 +26,7 @@ void scoop_rt_push_caller_roots(ScoopCallerRootFrame *frame, ScoopCallerRootEntr
     state->caller_roots = frame;
 }
 void scoop_rt_pop_caller_roots(ScoopCallerRootFrame *frame) {
-    ScoopThreadState *state = scoop_thread_current_required();
-    scoop_thread_require_managed();
+    ScoopThreadState *state = scoop_thread_require_managed();
     if (frame == NULL || state->caller_roots != frame) {
         scoop_thread_fatal("caller root frames must be popped in LIFO order");
     }
@@ -41,8 +39,7 @@ void scoop_rt_pop_caller_roots(ScoopCallerRootFrame *frame) {
 
 void scoop_rt_push_compiler_roots(ScoopCompilerRootFrame *frame, ScoopCallerRootEntry *entries,
                                   uint64_t count) {
-    ScoopThreadState *state = scoop_thread_current_required();
-    scoop_thread_require_managed();
+    ScoopThreadState *state = scoop_thread_require_managed();
     if (frame == NULL || (count != 0 && entries == NULL)) {
         scoop_thread_fatal("invalid compiler root frame");
     }
@@ -64,8 +61,7 @@ void scoop_rt_push_compiler_roots(ScoopCompilerRootFrame *frame, ScoopCallerRoot
 }
 
 void scoop_rt_pop_compiler_roots(ScoopCompilerRootFrame *frame) {
-    ScoopThreadState *state = scoop_thread_current_required();
-    scoop_thread_require_managed();
+    ScoopThreadState *state = scoop_thread_require_managed();
     if (frame == NULL || state->compiler_roots != frame) {
         scoop_thread_fatal("compiler root frames must be popped in LIFO order");
     }
@@ -76,8 +72,7 @@ void scoop_rt_pop_compiler_roots(ScoopCompilerRootFrame *frame) {
 }
 
 void scoop_rt_pop_top_compiler_roots(void) {
-    ScoopThreadState *state = scoop_thread_current_required();
-    scoop_thread_require_managed();
+    ScoopThreadState *state = scoop_thread_require_managed();
     if (state->compiler_roots == NULL) {
         scoop_thread_fatal("unwind has no active compiler root frame");
     }
@@ -85,8 +80,7 @@ void scoop_rt_pop_top_compiler_roots(void) {
 }
 
 void scoop_rt_push_pin_frame(ScoopPinFrame *frame, void *object) {
-    ScoopThreadState *state = scoop_thread_current_required();
-    scoop_thread_require_managed();
+    ScoopThreadState *state = scoop_thread_require_managed();
     if (frame == NULL || object == NULL) {
         scoop_thread_fatal("invalid pin frame");
     }
@@ -96,8 +90,7 @@ void scoop_rt_push_pin_frame(ScoopPinFrame *frame, void *object) {
 }
 
 void scoop_rt_pop_pin_frame(ScoopPinFrame *frame) {
-    ScoopThreadState *state = scoop_thread_current_required();
-    scoop_thread_require_managed();
+    ScoopThreadState *state = scoop_thread_require_managed();
     if (frame == NULL || state->pin_frames != frame) {
         scoop_thread_fatal("pin frames must be popped in LIFO order");
     }

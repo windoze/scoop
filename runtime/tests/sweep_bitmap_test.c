@@ -26,7 +26,7 @@ static const ScoopTypeDescriptor resource_td = {
 static Resource *place(ScoopGcBlockMeta *block, size_t word, uint64_t index) {
     Resource *resource = (void *)((char *)scoop_heap_block_base(block) + word * sizeof(uint64_t));
     *resource = (Resource){{&resource_td, GC_RELEASE_READY_BIT}, index};
-    scoop_heap_record_small_object(block, resource, sizeof *resource, false);
+    scoop_heap_record_small_object(block, resource, sizeof *resource);
     return resource;
 }
 

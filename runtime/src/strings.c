@@ -6,6 +6,18 @@
 
 extern const ScoopTypeDescriptor scoop_td_String;
 
+const ScoopString *scoop_rt_string_from_utf8_unchecked(const unsigned char *bytes, int64_t length) {
+    if (bytes == NULL || length < 0) {
+        scoop_shape_fatal("invalid unchecked UTF-8 range");
+    }
+    uint64_t count = (uint64_t)length;
+    ScoopString *result =
+        scoop_rt_alloc(&scoop_td_String, scoop_shape_allocation_size(&scoop_td_String, count));
+    result->len = count;
+    memcpy(result->data, bytes, (size_t)count);
+    return result;
+}
+
 int64_t scoop_rt_string_byte_length(const ScoopString *value) { return (int64_t)value->len; }
 
 int64_t scoop_rt_string_length(const ScoopString *value) {

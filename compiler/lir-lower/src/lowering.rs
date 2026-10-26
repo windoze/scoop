@@ -17,6 +17,7 @@ pub(super) fn lower_graph(
         input,
         selected_layout,
         context,
+        optimization,
         identity_roots,
         external_type_descriptors,
         dependency_types,
@@ -201,6 +202,7 @@ pub(super) fn lower_graph(
     let mut lower_body = |body_identity, body, signature, known_receiver| {
         lower_function(
             &context,
+            optimization,
             module.cone,
             module,
             body_identity,

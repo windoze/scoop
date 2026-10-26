@@ -46,10 +46,23 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .map_err(|error| CodegenError(format!("heap field store: {error}")))?;
         let mut references = Vec::new();
         self.heap_reference_offsets(ty, 0, &mut references)?;
+        if references.is_empty() {
+            return Ok(());
+        }
+        let young = self.young_initialization(object);
+        self.initialization_barrier(young, |emitter| {
+            emitter.field_reference_barrier(object, offset, address, references)
+        })
+    }
+
+    fn field_reference_barrier(
+        &mut self,
+        object: Value,
+        offset: u64,
+        address: PointerValue<'ctx>,
+        mut references: Vec<u64>,
+    ) -> Result<(), CodegenError> {
         let [reference] = references.as_slice() else {
-            if references.is_empty() {
-                return Ok(());
-            }
             self.field_barrier = None;
             references.sort_unstable();
             return self.heap_reference_barrier(address, &references);

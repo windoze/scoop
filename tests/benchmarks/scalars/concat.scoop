@@ -1,0 +1,59 @@
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_kind") fun kind(): Int
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_count") fun count(): Int
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_begin") fun begin()
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_end") fun end()
+
+public fun binary(left: String, right: String, iterations: Int): Long {
+    var result = 0L
+    var index = 0
+    while (index < iterations) {
+        result += (left + right).byteLength
+        index += 1
+    }
+    return result
+}
+public fun chain(left: String, right: String, iterations: Int): Long {
+    var result = 0L
+    var index = 0
+    while (index < iterations) {
+        result += (left + " / " + "[" + right + "]").byteLength
+        index += 1
+    }
+    return result
+}
+public fun shared(left: String, right: String, iterations: Int): Long {
+    var result = 0L
+    var index = 0
+    while (index < iterations) {
+        val part = left + right
+        result += (part + part).byteLength
+        index += 1
+    }
+    return result
+}
+public fun constant(iterations: Int): Long {
+    var result = 0L
+    var index = 0
+    while (index < iterations) {
+        result += ("alpha" + ":" + "雪" + ":omega").byteLength
+        index += 1
+    }
+    return result
+}
+fun main() {
+    @Unsafe {
+        val iterations = count()
+        val mode = kind()
+        val left = 12345678L.toString()
+        val right = (-12345678L).toString()
+        begin()
+        val result = when (mode) {
+            case 0 -> binary(left, right, iterations)
+            case 1 -> chain(left, right, iterations)
+            case 2 -> shared(left, right, iterations)
+            else -> constant(iterations)
+        }
+        end()
+        println(result)
+    }
+}

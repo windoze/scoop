@@ -1,0 +1,60 @@
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_kind") fun kind(): Int
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_count") fun count(): Int
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_begin") fun begin()
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_end") fun end()
+
+public fun wordHash(iterations: Int): Long {
+    var value = 42uL
+    var result = 0L
+    var index = 0
+    while (index < iterations) {
+        value = value * 6364136223846793005uL + 1uL
+        result += value.toLong().hash()
+        index += 1
+    }
+    return result
+}
+public fun constantHash(iterations: Int): Long {
+    var result = 0L
+    var index = 0
+    while (index < iterations) {
+        result += 1234uL.hash()
+        index += 1
+    }
+    return result
+}
+public fun booleanHash(iterations: Int): Long {
+    var result = 0L
+    var index = 0
+    while (index < iterations) {
+        val value = index.and(1) == 0
+        result += value.hash()
+        if (value.equals(index.and(3) == 0)) { result += 1L }
+        index += 1
+    }
+    return result
+}
+public fun booleanText(iterations: Int): Long {
+    var result = 0L
+    var index = 0
+    while (index < iterations) {
+        result += (index.and(1) == 0).toString().byteLength
+        index += 1
+    }
+    return result
+}
+fun main() {
+    @Unsafe {
+        val iterations = count()
+        val mode = kind()
+        begin()
+        val result = when (mode) {
+            case 0 -> wordHash(iterations)
+            case 1 -> constantHash(iterations)
+            case 2 -> booleanHash(iterations)
+            else -> booleanText(iterations)
+        }
+        end()
+        println(result)
+    }
+}

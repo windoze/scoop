@@ -105,6 +105,7 @@ impl Builder {
         self.strings.alloc(mir::StringConst {
             identity,
             value: value.to_string(),
+            source: mir::StringConstSource::CurrentCone,
         })
     }
 
@@ -215,6 +216,7 @@ impl Builder {
         let methods = methods
             .iter()
             .map(|method| mir::InterfaceMethod {
+                identity: test_interface_slot(name, method),
                 gc_effect: mir::GcEffect::Managed,
                 name: format!("{name}.{method}"),
                 parameters: Vec::new(),

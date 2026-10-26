@@ -28,8 +28,7 @@ void scoop_thread_enter_gateway(const void *managed_stack_boundary) {
     enter_managed(managed_stack_boundary, SCOOP_THREAD_MANAGED_PENDING);
 }
 void scoop_thread_leave_managed(void) {
-    ScoopThreadState *state = scoop_thread_current_required();
-    scoop_thread_require_managed();
+    ScoopThreadState *state = scoop_thread_require_managed();
     if (state->managed_depth != 1 || state->managed_anchor != NULL) {
         scoop_thread_fatal("invalid managed exit transition");
     }
@@ -82,8 +81,7 @@ void scoop_thread_enter_callback(ScoopCallbackThreadEntry *entry,
 }
 
 void scoop_thread_leave_callback(ScoopCallbackThreadEntry *entry) {
-    ScoopThreadState *state = scoop_thread_current_required();
-    scoop_thread_require_managed();
+    ScoopThreadState *state = scoop_thread_require_managed();
     if (entry == NULL || !entry->active || state->callback_depth == 0 ||
         state->managed_depth != entry->previous_managed_depth + 1 ||
         state->managed_anchor != NULL) {
@@ -113,8 +111,7 @@ void scoop_thread_leave_callback(ScoopCallbackThreadEntry *entry) {
 static void enter_native(ScoopThreadTransition *transition, uintptr_t managed_stack_low,
                          uintptr_t return_pc, uintptr_t stack_pointer, uintptr_t frame_pointer,
                          ScoopThreadMode native_mode) {
-    ScoopThreadState *state = scoop_thread_current_required();
-    scoop_thread_require_managed();
+    ScoopThreadState *state = scoop_thread_require_managed();
     uintptr_t managed_boundary = (uintptr_t)state->managed_stack_boundary;
     scoop_thread_ensure_stack_range(
         state, managed_stack_low < stack_pointer ? managed_stack_low : stack_pointer,

@@ -8,7 +8,7 @@ fun check(ok: Boolean, location: SourceLocation = currentSourceLocation()) {
     assertTrue(ok, location = location)
 }
 fun golden(bytes: List<Byte>, hex: String) {
-    check(bytes.size * 2L == hex.length)
+    check(bytes.size * 2L == hex.charLength)
     var index = 0L
     while (index < bytes.size) {
         check(bytes[index].toUByte() == hex.substring(index * 2L, index * 2L + 2L).toUByte(16))

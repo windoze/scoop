@@ -18,6 +18,7 @@ mod patterns;
 mod release;
 mod statements;
 mod static_callbacks;
+mod strings;
 mod task_context;
 mod when;
 
@@ -136,8 +137,14 @@ impl BodyLowerer<'_> {
             .next_string_ordinal
             .checked_add(1)
             .expect("one string-constant owner has at most u32::MAX direct children");
+        let source = match self.current_owner {
+            crate::local_values::BodyOwner::Emitted(_) => mir::StringConstSource::CurrentCone,
+            crate::local_values::BodyOwner::Imported(callable) => mir::StringConstSource::Imported(
+                self.external_callables[callable].reference().provider(),
+            ),
+        };
         self.strings
-            .intern(self.current_string_owner, ordinal, value)
+            .intern_from(self.current_string_owner, ordinal, value, source)
     }
 }
 

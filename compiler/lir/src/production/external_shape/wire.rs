@@ -17,6 +17,7 @@ pub enum DecodedExternalStrongShapeSubjectV1 {
     StaticStorageRegistration(DecodedPersistentId<PersistentStaticStorageId>),
     InitializationCell(DecodedPersistentId<PersistentInitializationUnitId>),
     InitializationRegistration(DecodedPersistentId<PersistentInitializationUnitId>),
+    ImmortalObject(DecodedPersistentId<PersistentImmortalObjectId>),
 }
 
 impl DecodedExternalStrongShapeSubjectV1 {
@@ -25,6 +26,11 @@ impl DecodedExternalStrongShapeSubjectV1 {
         identities: &mut ValidatedIdentityGraph,
     ) -> Result<ExternalStrongShapeSubjectV1, ExternalShapeSubjectResolutionError> {
         Ok(match self {
+            Self::ImmortalObject(id) => ExternalStrongShapeSubjectV1::ImmortalObject(
+                identities
+                    .resolve(id)
+                    .map_err(ExternalShapeSubjectResolutionError::Identity)?,
+            ),
             Self::Callable(id) => ExternalStrongShapeSubjectV1::Callable(
                 id.resolve(identities)
                     .map_err(ExternalShapeSubjectResolutionError::Callable)?,
@@ -95,6 +101,7 @@ impl WireEncode for ExternalStrongShapeSubjectV1 {
             Self::StaticStorageRegistration(id) => encode_subject(encoder, 8, id),
             Self::InitializationCell(id) => encode_subject(encoder, 9, id),
             Self::InitializationRegistration(id) => encode_subject(encoder, 11, id),
+            Self::ImmortalObject(id) => encode_subject(encoder, 12, id),
         }
     }
 }
@@ -112,6 +119,7 @@ impl WireEncode for DecodedExternalStrongShapeSubjectV1 {
             Self::StaticStorageRegistration(id) => encode_subject(encoder, 8, id),
             Self::InitializationCell(id) => encode_subject(encoder, 9, id),
             Self::InitializationRegistration(id) => encode_subject(encoder, 11, id),
+            Self::ImmortalObject(id) => encode_subject(encoder, 12, id),
         }
     }
 }
@@ -157,6 +165,9 @@ impl WireDecode for DecodedExternalStrongShapeSubjectV1 {
                 decoder.field(1, DecodedPersistentId::decode)?,
             )),
             11 => Ok(Self::InitializationRegistration(
+                decoder.field(1, DecodedPersistentId::decode)?,
+            )),
+            12 => Ok(Self::ImmortalObject(
                 decoder.field(1, DecodedPersistentId::decode)?,
             )),
             tag => Err(WireError::new(

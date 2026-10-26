@@ -79,11 +79,6 @@ static void collect_sites(ScoopImageRegistry *registry) {
             site->root_pair_count > (UINT16_MAX - 3) / 2) {
             scoop_metadata_fatal(&check, "site ID, role or root count");
         }
-        const ScoopRegisteredRecord *owner = scoop_record_by_id(
-            registry, SCOOP_RECORD_CALLABLE, &site->owner_callable_id);
-        if (owner == NULL || !scoop_records_same_owner(&table->entries[index], owner)) {
-            scoop_metadata_fatal(&check, "owner callable identity or producer");
-        }
         registry->site_ids[index] =
             (ScoopRecordAddress){(uintptr_t)site->safepoint_id, index};
     }

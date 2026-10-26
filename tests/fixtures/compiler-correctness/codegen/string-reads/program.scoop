@@ -18,14 +18,14 @@ fun main() {
             throw IllegalStateException()
         }
         mutable[0L] = 0.toByte()
-        if (bytes[0L] != 65.toByte() || text[0L] != 'A') {
+        if (bytes[0L] != 65.toByte() || text.getCharAt(0L) != 'A') {
             throw IllegalStateException()
         }
         text += "x"
         i += 1L
     }
     var caught = false
-    try { text[-1L] } catch (_: IndexOutOfBoundsException) { caught = true }
+    try { text.getCharAt(-1L) } catch (_: IndexOutOfBoundsException) { caught = true }
     if (!caught || "".byteLength != 0L || "".toByteArray().size != 0L) {
         throw IllegalStateException()
     }

@@ -15,7 +15,7 @@ public class ExternalPrinter internal constructor() {
             if (editing) messages.add(message)
             else {
                 standardOutput.writeText(message)
-                if (message.byteLength == 0L || message[message.length - 1L] != '\n') standardOutput.writeText("\n")
+                if (message.byteLength == 0L || message.getCharAt(message.charLength - 1L) != '\n') standardOutput.writeText("\n")
                 standardOutput.flush()
             }
         }
@@ -31,7 +31,7 @@ public class ExternalPrinter internal constructor() {
             editing = false
             for (message in messages) {
                 standardOutput.writeText(message)
-                if (message.byteLength == 0L || message[message.length - 1L] != '\n') standardOutput.writeText("\n")
+                if (message.byteLength == 0L || message.getCharAt(message.charLength - 1L) != '\n') standardOutput.writeText("\n")
             }
             messages.clear()
             standardOutput.flush()

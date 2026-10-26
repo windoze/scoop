@@ -1,0 +1,73 @@
+package dev.performance
+
+@Extern(lib = "m34_poll_threads", name = "m13_run_many")
+fun workers(function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, base: Int, count: Int): Int
+@Extern(name = "usleep") fun pause(microseconds: UInt): Int
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+
+fun exercise(worker: Int): Int {
+    val count = 2049L + worker.toLong()
+    var round = 0L
+    while (round < 64L) {
+        val seed = worker * 64 + round.toInt() + 1
+        val source = generatedConditional(count, seed)
+        val target = MutableArray<Int>(count) { _ -> -777 }
+        val other = MutableArray<Int>(count) { _ -> -888 }
+        val longs = Array<Long>(count) { i -> if (i.and(1L) == 0L) seed.toLong() else -seed.toLong() }
+        val doubles = Array<Double>(count) { _ -> seed.toDouble() }
+        val mask = Array<Boolean>(count) { i -> i.and(1L) == 0L }
+        val floats = MutableArray<Float>(count) { i -> if (i.and(1L) == 0L) 2f else -2f }
+        val reals = MutableArray<Double>(count) { i -> if (i.and(1L) == 0L) 2.0 else -2.0 }
+        transform(source, target, 0)
+        retainPositive(source, target)
+        partition(source, target, other)
+        clampFloat(floats, floats, -1f, 1f)
+        clampDouble(reals, reals, -1.0, 1.0)
+        var i = 0L
+        while (i < count) {
+            val even = i.and(1L) == 0L
+            check(source[i] == (if (even) seed else -seed))
+            check(target[i] == (if (even) seed + 1 else -seed * 3 + 1))
+            check(other[i] == (if (even) -888 else -seed - 1))
+            check(floats[i] == (if (even) 1f else -1f))
+            check(reals[i] == (if (even) 1.0 else -1.0))
+            i += 1L
+        }
+        val selected = (count + 1L) / 2L
+        check(sumSelected(longs, 0L) == selected * seed.toLong())
+        check(sumMasked(doubles, mask) == selected.toDouble() * seed.toDouble())
+        round += 1L
+    }
+    return worker
+}
+
+@Unsafe fun main() {
+    val ready = AtomicInt(0)
+    val finished = AtomicInt(0)
+    val start = AtomicBoolean(false)
+    val action: (Int) -> Int = { worker ->
+        if (worker == 0) {
+            while (ready.load(MemoryOrder.Acquire) < 2) {}
+            gcCollect()
+            start.store(true, MemoryOrder.Release)
+            while (finished.load(MemoryOrder.Acquire) < 2) {
+                gcCollect()
+                // Allow mutators to run between collection requests.
+                @Unsafe { pause(100u) }
+            }
+            0
+        } else {
+            ready.fetchAdd(1, MemoryOrder.Release)
+            while (!start.load(MemoryOrder.Acquire)) {}
+            try { exercise(worker) }
+            finally { finished.fetchAdd(1, MemoryOrder.Release) }
+        }
+    }
+    val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(action, 1, ForeignCallbackMode.Reusable)
+    try {
+        check(workers(callback.function, callback.context, 0, 3) == 3)
+        check(when (foreignCallbackFailure(callback)) { case None -> true; case Some(_) -> false })
+    } finally { releaseForeignCallback(callback) }
+    println("conditional arrays survive concurrent collection")
+}

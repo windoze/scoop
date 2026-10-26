@@ -12,6 +12,8 @@ mod wire;
 /// Typed data required by one external physical import.
 #[derive(Clone, Debug)]
 pub enum ShapeLinkContractV1 {
+    /// Address of an immutable managed object defined and registered upstream.
+    ImmortalObject,
     CallableAbi {
         canonical_signature: CanonicalScoopAbiFunctionSignature,
         calling_convention: CallingConvention,
@@ -49,6 +51,7 @@ impl ShapeLinkContractV1 {
             Self::Dispatch { .. } => 5,
             Self::StaticStorage { .. } => 6,
             Self::Initialization { .. } => 7,
+            Self::ImmortalObject => 8,
         }
     }
 
@@ -67,5 +70,6 @@ pub(super) const fn contract_tag(subject: ExternalStrongShapeSubjectV1) -> u32 {
         Subject::DispatchTable(_) => 5,
         Subject::StaticStorage(_) | Subject::StaticStorageRegistration(_) => 6,
         Subject::InitializationCell(_) | Subject::InitializationRegistration(_) => 7,
+        Subject::ImmortalObject(_) => 8,
     }
 }

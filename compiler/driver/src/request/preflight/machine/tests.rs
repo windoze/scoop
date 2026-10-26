@@ -42,7 +42,7 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
     assert_eq!(input.output.imported_dependencies().callable_count(), 1);
     let dependencies = selection::mir(&input);
     let mir = input
-        .lower_selected_mir(dependencies, Default::default())
+        .lower_selected_mir(dependencies, Default::default(), None)
         .unwrap();
     assert_eq!(mir.strong.selected_callables().len(), 1);
     assert_eq!(
@@ -78,6 +78,7 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
     let root = &mir.strong.materialization().external_callable_roots()[0];
     assert!(matches!(
         lower_selected_lir(
+        scoop_lir::OptimizationMode::Debug,
             &mir.strong,
             &mir.public,
             &empty,
@@ -96,6 +97,7 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
         )) if provider == root.provider() && target == root.implementation()
     ));
     let (lir, public) = lower_selected_lir(
+        scoop_lir::OptimizationMode::Debug,
         &mir.strong,
         &mir.public,
         &selected,

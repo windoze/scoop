@@ -1,0 +1,114 @@
+public interface Parent { public fun label(): String }
+public interface Child : Parent { public fun value(): Long }
+class Item(val text: String, val number: Long) : Child {
+    public override fun label(): String = text
+    public override fun value(): Long = number
+}
+public interface Source { public fun next(): Child }
+class FirstSource(val value: Child) : Source {
+    public override fun next(): Child = value
+}
+class SecondSource(val value: Child) : Source {
+    public override fun next(): Child = value
+}
+class FailingSource : Source {
+    public override fun next(): Child { throw IllegalStateException() }
+}
+class ViewHolder(var value: Child?)
+struct Views(val direct: Child, val optional: Child?)
+public fun returnedView(source: Source): Child {
+    val result = source.next()
+    gcCollect()
+    return result
+}
+public fun optionalView(source: Source, present: Boolean): Child? {
+    val result: Child? = if (present) Some(source.next()) else None
+    gcCollect()
+    return result
+}
+fun storedView(source: Source, holder: ViewHolder): Child? {
+    val result = optionalView(source, true)
+    gcCollect()
+    holder.value = result
+    gcCollect()
+    return holder.value
+}
+public fun invokedView(source: Source, fallback: Child): Child {
+    try {
+        val result = source.next()
+        gcCollect()
+        return result
+    } catch (_: IllegalStateException) {
+        gcCollect()
+        return fallback
+    }
+}
+fun nestedView(value: Views): Child? {
+    val copy = value
+    gcCollect()
+    check(value.direct.value() == 7L)
+    return copy.optional
+}
+public fun copied(first: Child, second: Child, choose: Boolean): Child {
+    var source = first
+    val a = source
+    val b = a
+    val c = b
+    source = second
+    val result = if (choose) c else source
+    gcCollect()
+    return result
+}
+public fun loopCopies(first: Child, second: Child, iterations: Long): Long {
+    var current = first
+    var total = 0L
+    var index = 0L
+    while (index < iterations) {
+        val snapshot = current
+        val alias = snapshot
+        current = if (index % 2L == 0L) second else first
+        gcCollect()
+        total += alias.value()
+        index += 1L
+    }
+    return total
+}
+public fun throughException(first: Child, second: Child): Child {
+    var source = first
+    val snapshot = source
+    try {
+        source = second
+        gcCollect()
+        throw IllegalStateException()
+    } catch (_: IllegalStateException) {
+        gcCollect()
+        return snapshot
+    }
+}
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun main() {
+    val first: Child = Item("first" + "", 7L)
+    val second: Child = Item("second" + "", 11L)
+    check(copied(first, second, true).label() == "first")
+    check(copied(first, second, false).label() == "second")
+    check(loopCopies(first, second, 8L) == 72L)
+    check(throughException(first, second).value() == 7L)
+    val values = Array<Child>(2L) { index -> if (index == 0L) first else second }
+    val copies = values.toMutableArray()
+    val parents = Array<Parent>(2L) { index -> copies[index] }
+    gcCollect()
+    check(parents[0L].label() == "first" && parents[1L].label() == "second")
+    val sources = Array<Source>(2L) { index -> if (index == 0L) FirstSource(first) else SecondSource(second) }
+    val holder = ViewHolder(None)
+    for (source in sources) {
+        val expected = source.next().value()
+        check(returnedView(source).value() == expected)
+        check(optionalView(source, true)!!.value() == expected)
+        check(when (optionalView(source, false)) { case None -> true; case Some(_) -> false })
+        check(storedView(source, holder)!!.value() == expected)
+        check(invokedView(source, first).value() == expected)
+    }
+    check(invokedView(FailingSource(), second).value() == 11L)
+    check(nestedView(Views(first, Some(second)))!!.value() == 11L)
+    println("interface snapshots survive relocation")
+}

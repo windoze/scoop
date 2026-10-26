@@ -31,7 +31,7 @@ internal suspend fun digestRespond(connection: AsyncHttp1Connection, status: UIn
     for (field in extra) fields.add(field)
     connection.sendResponse(HttpResponseHead(HttpVersion.Http11, status, fields = fields),
         Http1BodyFraming.Length(text.toByteArray().size)).useAsync suspend { output ->
-            if (text.length != 0L) digestWrite(output, text)
+            if (text.charLength != 0L) digestWrite(output, text)
             output.finish()
         }
 }

@@ -7,7 +7,7 @@ fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
 fun main() {
     val result = decodeThen([231.toByte(), 149.toByte(), 140.toByte(), 0.toByte()], fun(value: String): Result {
         gcCollect()
-        return Result(value, value.length)
+        return Result(value, value.charLength)
     })
     gcCollect()
     expect(result.value == "界\u0000" && result.count == 2L)

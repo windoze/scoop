@@ -7,15 +7,23 @@ use super::{
 use crate::local_values::LocalValueRegistry;
 
 mod control;
+mod inlining;
+mod observation;
 mod origins;
 mod rewrite;
-mod snapshots;
+mod storage;
 mod uses;
+
+pub(super) use control::ControlFlow;
+pub(super) use inlining::InlineReceivers;
+pub(super) use origins::{defined_local, is_class_field, local_alias, statement_alias};
 
 pub(super) fn run(
     module: &mut mir::Module,
     active: &[bool],
     registry: &mut LocalValueRegistry,
+    observer: Option<&super::observation::Observer<'_>>,
+    inliner: Option<&inline::Session>,
 ) -> Vec<bool> {
     let mut changed = vec![false; module.functions.len()];
     let functions = module
@@ -24,13 +32,22 @@ pub(super) fn run(
         .map(|(id, _)| id)
         .collect::<Vec<_>>();
     for id in functions {
-        if !active[index(id)] || !supported(&module.functions[id]) {
+        if !active[index(id)] {
+            continue;
+        }
+        if !has_candidate(&module.functions[id]) {
             continue;
         }
         let Some(owner) = inline::owner(module, id) else {
             continue;
         };
-        let plan = uses::Plan::new(module, &module.functions[id]);
+        let plan = uses::Plan::new(module, &module.functions[id], observer.is_some());
+        if let Some(observer) = observer {
+            observation::record(module, id, &plan, observer, inliner);
+        }
+        if plan.sources.allocations.is_empty() {
+            continue;
+        }
         let (function, rewritten) = rewrite::apply(module, id, owner, registry, &plan);
         if rewritten {
             module.functions[id].body = simplify::body(module, &function).0;
@@ -40,36 +57,32 @@ pub(super) fn run(
     changed
 }
 
-fn supported(function: &mir::Function) -> bool {
-    let mut has_candidate = false;
+fn has_candidate(function: &mir::Function) -> bool {
     for (_, block) in function.body.blocks.iter() {
-        if block.unwind.is_some()
-            || matches!(
-                block.terminator,
-                mir::Terminator::Resume
-                    | mir::Terminator::Rethrow { .. }
-                    | mir::Terminator::Throw {
-                        unwind: Some(_),
-                        ..
-                    }
-            )
-        {
-            return false;
-        }
         for statement in &block.statements {
             match &statement.kind {
                 mir::StatementKind::ValDecl {
                     init:
                         mir::Expr {
-                            kind: mir::ExprKind::Box(_) | mir::ExprKind::ClosureAlloc { .. },
+                            kind:
+                                mir::ExprKind::Box(_)
+                                | mir::ExprKind::ClosureAlloc { .. }
+                                | mir::ExprKind::ClassAlloc { .. },
                             ..
                         },
                     ..
-                } => has_candidate = true,
-                mir::StatementKind::Eh(_) => return false,
+                } => return true,
+                mir::StatementKind::Assign {
+                    value:
+                        mir::Expr {
+                            kind: mir::ExprKind::ClassAlloc { .. },
+                            ..
+                        },
+                    ..
+                } => return true,
                 _ => {}
             }
         }
     }
-    has_candidate
+    false
 }

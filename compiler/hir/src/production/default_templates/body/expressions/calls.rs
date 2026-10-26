@@ -94,6 +94,7 @@ impl BodyProjection<'_, '_> {
             crate::ImportedCallableTemplateOrigin::Generic(_)
             | crate::ImportedCallableTemplateOrigin::Intrinsic(_)
             | crate::ImportedCallableTemplateOrigin::Inline(_)
+            | crate::ImportedCallableTemplateOrigin::InlineAccessor(_)
             | crate::ImportedCallableTemplateOrigin::Closure { .. }
             | crate::ImportedCallableTemplateOrigin::Initialization { .. }
             | crate::ImportedCallableTemplateOrigin::ExtensionAccessor(_)

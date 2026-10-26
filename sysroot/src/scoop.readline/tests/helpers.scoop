@@ -65,11 +65,11 @@ private class BrokenHighlighter : Highlighter {
             directory.resolve(Path.fromString("a-dir")).createDirectory()
             val prefix = directory.toOsString().decodeUtf8() + "/a"
             val completer = FilenameCompleter()
-            val result = completer.completePath(prefix, prefix.length)
+            val result = completer.completePath(prefix, prefix.charLength)
             assertEquals(2L, result.candidates.size)
             assertEquals(directory.toOsString().decodeUtf8() + "/a\\ b", result.candidates[0L].replacement)
             val quoted = "'" + prefix
-            val quotes = completer.completePath(quoted, quoted.length)
+            val quotes = completer.completePath(quoted, quoted.charLength)
             assertEquals(1L, quotes.start)
             assertEquals(directory.toOsString().decodeUtf8() + "/a b", quotes.candidates[0L].replacement)
         } finally { directory.deleteRecursively() }

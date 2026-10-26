@@ -1,20 +1,30 @@
 schema = 1
 name = "inlining-growth"
-inputs = ["program.scoop"]
-tools = ["scoop"]
+inputs = ["program.scoop", "inspect.py"]
+tools = ["scoop", "python"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["inlining", "locals", "compiler-correctness"]
-variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
+variants = [
+  {name = "debug", vars = {profile = "debug"}},
+  {name = "release", vars = {profile = "release"}, env = {SCOOP_GC_STRESS_MOVE = "1", SCOOP_GC_STRESS_MINOR = "1"}},
+]
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${fixture}/program.scoop", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${fixture}/program.scoop", "--profile", "${profile}", "--enable-gc-stress", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = []
+
+[[steps]]
+name = "inspect"
+argv = ["${python}", "${fixture}/inspect.py", "${profile}", "${work}/dump/${build.result.root.identity}"]
+exit = 0
+stdout = ""
+stderr = ""
 
 [[steps]]
 name = "run"

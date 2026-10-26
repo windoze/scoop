@@ -4,7 +4,7 @@ fun main() {
     var count = 0
     while (count < 2) {
         when (value) {
-            is String -> println(value.length)
+            is String -> println(value.charLength)
             is Int -> println(value + 1)
             else -> {}
         }

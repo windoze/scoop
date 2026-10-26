@@ -1,0 +1,80 @@
+schema = 1
+name = "reference-array-roots"
+inputs = ["Cone.toml", "main.scoop", "barriers.scoop", "wide.scoop", "../../../language/callback/native.c", "../../gc-writes/native.c", "../../../../benchmarks/arrays/references/src/kernels.scoop", "../../../compiler-correctness/optimization/lowering/reference-arrays/inspect.py"]
+tools = ["scoop", "cc", "ar", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["poll", "array", "reference", "roots", "barriers", "gc-correctness"]
+
+[[steps]]
+name = "prepare"
+files = [
+    {copy = {from = "${fixture}/Cone.toml", to = "${work}/cone/Cone.toml"}},
+    {copy = {from = "${fixture}/main.scoop", to = "${work}/cone/src/main.scoop"}},
+    {copy = {from = "${fixture}/barriers.scoop", to = "${work}/cone/src/barriers.scoop"}},
+    {copy = {from = "${fixture}/wide.scoop", to = "${work}/cone/src/wide.scoop"}},
+    {copy = {from = "${fixture}/../../../../benchmarks/arrays/references/src/kernels.scoop", to = "${work}/cone/src/kernels.scoop"}},
+]
+
+[[steps]]
+name = "threads"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O2", "-c", "${fixture}/../../../language/callback/native.c", "-o", "${work}/threads.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "metrics"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O2", "-I", "${runtime}/include", "-c", "${fixture}/../../gc-writes/native.c", "-o", "${work}/metrics.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive"
+argv = ["${ar}", "rcs", "${work}/libm34_poll_threads.a", "${work}/threads.o", "${work}/metrics.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "--enable-gc-stress", "build", {each = "${link_args}"}, "${work}/cone", "--release", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "inspect"
+argv = ["${python}", "${fixture}/../../../compiler-correctness/optimization/lowering/reference-arrays/inspect.py", "${work}/dump/${build.result.root.identity}/mir.txt", "release", "gc"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "moving"
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "reference arrays retain young values and moving views\n"
+stderr = ""
+timeout = 60
+
+[[steps]]
+name = "minor"
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_STRESS_MINOR = "1"}
+exit = 0
+stdout = "reference arrays retain young values and moving views\n"
+stderr = ""
+timeout = 60
+
+[[steps]]
+name = "survivor"
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_SURVIVOR = "1", SCOOP_GC_NURSERY_MAX_MIB = "1"}
+exit = 0
+stdout = "reference arrays retain young values and moving views\n"
+stderr = ""
+timeout = 60

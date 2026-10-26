@@ -9,6 +9,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
         use ExternalStrongShapeSubjectV1 as Subject;
 
         Ok(match subject {
+            Subject::ImmortalObject(_) => ShapeLinkContractV1::ImmortalObject,
             Subject::Callable(target) => {
                 let (signature, calling_convention, protocol) = match (
                     self.parts.callables.get(target),

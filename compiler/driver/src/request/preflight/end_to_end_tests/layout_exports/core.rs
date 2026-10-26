@@ -153,6 +153,7 @@ fn check_core_layout_exports(names: &[&str]) {
             .lower_selected_mir(
                 mir::SelectedExternalMirSet::empty(ConeIdentity::CORE),
                 Default::default(),
+                None,
             )
             .unwrap();
         let coordinates = [ConeCoordinate::reserved_core()];

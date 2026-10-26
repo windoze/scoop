@@ -65,7 +65,7 @@ internal fun queryPath(name: String): String {
 }
 
 internal fun queryRejection(error: DecodingException, location: String): HttpRejection {
-    val source = if (location.length == 0L) "" else " (" + location + ")"
+    val source = if (location.charLength == 0L) "" else " (" + location + ")"
     return HttpRejection(text("invalid query " + error.path + source + ": " +
         (error.message ?: "decoding failed"), 400U), Some<Throwable>(error))
 }

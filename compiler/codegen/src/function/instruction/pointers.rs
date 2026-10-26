@@ -82,9 +82,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             } => {
                 let pointer_ty = function.value_ty(self.globals_arena, *pointer);
                 let out_ty = &function.temps[*out].ty;
-                if pointer_ty != scoop_lir::RAW_PTR || *out_ty != scoop_lir::RAW_PTR {
+                if !matches!(pointer_ty, scoop_lir::RAW_PTR | scoop_lir::METADATA_PTR)
+                    || *out_ty != pointer_ty
+                {
                     return Err(CodegenError(format!(
-                        "ptr_offset @{} requires ptr<raw> -> ptr<raw>, got {} -> {}",
+                        "ptr_offset @{} requires matching raw or metadata pointers, got {} -> {}",
                         function.symbol(),
                         pointer_ty.dump(),
                         out_ty.dump()

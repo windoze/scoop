@@ -8,10 +8,10 @@ use super::*;
 
 impl WireDecode for DecodedExactDispatchExportV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(5)?;
+        decoder.expect_map(6)?;
         Ok(Self {
             semantic: DecodedExactDispatchSemanticProjectionV1::decode_fields(decoder)?,
-            definition: decoder.field(5, DecodedStrongShapeDefinitionV1::decode)?,
+            definition: decoder.field(6, DecodedStrongShapeDefinitionV1::decode)?,
         })
     }
 }
@@ -100,9 +100,9 @@ impl WireDecode for DecodedExactDispatchImplementationV1 {
 
 impl WireEncode for DecodedExactDispatchExportV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(5)?;
+        encoder.map(6)?;
         self.semantic.encode_fields(encoder)?;
-        encoder.field(5)?;
+        encoder.field(6)?;
         self.definition.encode(encoder)
     }
 }
@@ -251,6 +251,7 @@ impl DecodedExactDispatchSemanticProjectionV1 {
             entries: decoder.field(4, |decoder| {
                 decoder.decode_array(|decoder, _| DecodedExactDispatchEntryV1::decode(decoder))
             })?,
+            layout: decoder.field(5, crate::DecodedDispatchTableLayout::decode)?,
         })
     }
     fn encode_fields(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
@@ -261,18 +262,20 @@ impl DecodedExactDispatchSemanticProjectionV1 {
         encoder.field(3)?;
         self.role.encode(encoder)?;
         encoder.field(4)?;
-        encode_array(encoder, &self.entries)
+        encode_array(encoder, &self.entries)?;
+        encoder.field(5)?;
+        self.layout.encode(encoder)
     }
 }
 impl WireDecode for DecodedExactDispatchSemanticProjectionV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(4)?;
+        decoder.expect_map(5)?;
         Self::decode_fields(decoder)
     }
 }
 impl WireEncode for DecodedExactDispatchSemanticProjectionV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
+        encoder.map(5)?;
         self.encode_fields(encoder)
     }
 }

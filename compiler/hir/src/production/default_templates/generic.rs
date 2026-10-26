@@ -72,15 +72,14 @@ impl<'a> GenericBodyProducer<'a> {
         for &function in self.index.values() {
             let export = self.export;
             if (export.functions[function].type_param_count() != 0
-                || (export.functions[function].method.is_none()
-                    && matches!(
-                        &export.function_identities[function],
-                        HirFunctionIdentity::Source(crate::HirSourceFunctionIdentity::Plain(_))
-                    )
-                    && crate::small_inline_body(
-                        &export.functions[function].signature,
-                        &export.functions[function].kind,
-                    )))
+                || (matches!(
+                    &export.function_identities[function],
+                    HirFunctionIdentity::Source(crate::HirSourceFunctionIdentity::Plain(_))
+                        | HirFunctionIdentity::PropertyAccessor(_)
+                ) && crate::portable_inline_body(
+                    &export.functions[function].signature,
+                    &export.functions[function].kind,
+                )))
                 && is_shared_root(export, function, roots)
                 && self.scheduled.insert(function)
             {
@@ -170,7 +169,15 @@ impl<'a> GenericBodyProducer<'a> {
             | HirFunctionIdentity::Initialization { .. }
             | HirFunctionIdentity::DerivedEquality(_) => false,
         };
-        if (lexical || export.functions[function].type_param_count() != 0)
+        let ordinary = matches!(
+            &export.function_identities[function],
+            HirFunctionIdentity::Source(crate::HirSourceFunctionIdentity::Plain(_))
+                | HirFunctionIdentity::PropertyAccessor(_)
+        ) && crate::portable_inline_body(
+            &export.functions[function].signature,
+            &export.functions[function].kind,
+        );
+        if (lexical || export.functions[function].type_param_count() != 0 || ordinary)
             && self.scheduled.insert(function)
         {
             self.pending.push_back(function);

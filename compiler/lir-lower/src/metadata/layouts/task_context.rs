@@ -1,5 +1,29 @@
 use super::*;
 
+pub(crate) fn context_object_shape(
+    context: &LoweringContext,
+    storage: mir::ContextStorageType,
+) -> (Vec<lir::FieldLayout>, u64, u64) {
+    debug_assert!(matches!(
+        storage.role,
+        mir::ContextStorageRole::Task | mir::ContextStorageRole::Node
+    ));
+    let pointer = context.pointer_layout(lir::PointerKind::Managed);
+    let header = context.object_header_layout();
+    let count = mir::context_fields(storage).len() as u64;
+    let fields = (0..count)
+        .map(|index| lir::FieldLayout {
+            offset: header.size + index * pointer.size,
+            access_align: pointer.align,
+        })
+        .collect();
+    (
+        fields,
+        header.size + count * pointer.size,
+        header.align.max(pointer.align),
+    )
+}
+
 pub(super) fn append(
     context: &LoweringContext,
     roots: &IdentityRoots<'_>,
@@ -43,21 +67,13 @@ pub(super) fn append(
             storage.role,
             mir::ContextStorageRole::Task | mir::ContextStorageRole::Node
         ) {
-            let pointer = context.pointer_layout(lir::PointerKind::Managed);
-            let header = context.object_header_layout();
-            let count = mir::context_fields(storage).len() as u64;
-            let fields: Vec<_> = (0..count)
-                .map(|index| lir::FieldLayout {
-                    offset: header.size + index * pointer.size,
-                    access_align: pointer.align,
-                })
-                .collect();
+            let (fields, size, align) = context_object_shape(context, storage);
             let scan = lir::RefScan::References(fields.iter().map(|field| field.offset).collect());
             layouts.alloc(lir::Layout {
                 identity: managed_object_layout_identity(context, roots, module, &ty),
                 name: storage.role.name().to_string(),
-                size: header.size + count * pointer.size,
-                align: header.align.max(pointer.align),
+                size,
+                align,
                 fields,
                 c_layout: None,
                 interior_mutable: false,

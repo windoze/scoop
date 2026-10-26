@@ -17,6 +17,16 @@ impl StringRegistry {
         ordinal: u32,
         value: String,
     ) -> mir::StringConstId {
+        self.intern_from(owner, ordinal, value, mir::StringConstSource::CurrentCone)
+    }
+
+    pub(super) fn intern_from(
+        &mut self,
+        owner: mir::ImmortalObjectOwner,
+        ordinal: u32,
+        value: String,
+        source: mir::StringConstSource,
+    ) -> mir::StringConstId {
         let path = mir::StructuralDefinitionPath::from_first(
             mir::StructuralPathSegment::new(
                 mir::StructuralDefinitionSiteRole::StringConstant,
@@ -26,6 +36,7 @@ impl StringRegistry {
         );
         let identity = mir::ImmortalObjectKey::string_constant(owner, path);
         if let Some(&id) = self.by_identity.get(&identity) {
+            assert_eq!(self.values[id].source, source);
             assert_eq!(
                 self.values[id].value, value,
                 "one string-constant identity cannot name different content"
@@ -36,6 +47,7 @@ impl StringRegistry {
         let id = self.values.alloc(mir::StringConst {
             identity: identity.clone(),
             value,
+            source,
         });
         let previous = self.by_identity.insert(identity, id);
         assert!(previous.is_none(), "new string identity was absent");

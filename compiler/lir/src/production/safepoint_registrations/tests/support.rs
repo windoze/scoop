@@ -297,6 +297,7 @@ fn poll(
 
 fn live_roots() -> StatepointLiveSet {
     StatepointLiveSet::new(vec![StatepointLiveValue {
+        restore: true,
         source: crate::CallerRootSource::Param(0),
         ty: crate::LirType::Aggregate(vec![crate::MANAGED_PTR; 2]),
         leaves: ManagedLeafPaths::new(vec![

@@ -220,25 +220,26 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .map_or_else(|| self.value(value), Ok)
     }
 
-    pub(in crate::function) fn sync_root_temp(&self, temp: TempId) -> Result<(), CodegenError> {
+    pub(in crate::function) fn sync_root_temp(&mut self, temp: TempId) -> Result<(), CodegenError> {
         let source = scoop_lir::CallerRootSource::Temp(temp);
-        let Some(storage) = self.root_storage.get(&source) else {
+        let Some(&storage) = self.root_storage.get(&source) else {
             return Ok(());
         };
-        let value = self.temps.get(&temp).ok_or_else(|| {
+        let value = *self.temps.get(&temp).ok_or_else(|| {
             CodegenError(format!(
                 "rooted temp t{} has no emitted definition",
                 temp.into_raw().into_u32()
             ))
         })?;
         self.builder
-            .build_store(storage.pointer, *value)
+            .build_store(storage.pointer, value)
             .map_err(|error| {
                 CodegenError(format!(
                     "store rooted temp t{}: {error}",
                     temp.into_raw().into_u32()
                 ))
             })?;
+        self.remember_interface_value(&self.function.temps[temp].ty, storage.pointer, value);
         Ok(())
     }
 }

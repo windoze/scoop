@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.performance"
+name = "member-bench-consumer"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"dev.performance:member-bench-provider" = "0.1.0"

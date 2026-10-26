@@ -349,3 +349,74 @@ fn descriptor_cannot_be_rebound_to_a_different_exact_payload_with_the_same_shape
         Err(scoop_lir::BoxDescriptorError::PayloadIdentityMismatch)
     );
 }
+
+fn release_ir(module: &Module, relocate: bool) -> String {
+    let machine = host_target_machine().unwrap();
+    let context = Context::create();
+    let profile = host_profile().with_optimization(scoop_lir::OptimizationMode::Release);
+    let llvm = emit_llvm_module(&context, module, &machine, profile).unwrap();
+    llvm.verify().unwrap();
+    if relocate {
+        let expected = statepoint::expectations(module).unwrap();
+        statepoint::rewrite(&llvm, &machine, &expected, profile).unwrap();
+        llvm.verify().unwrap();
+    }
+    llvm.print_to_string().to_string()
+}
+
+#[test]
+fn small_release_boxes_reuse_allocation_without_dynamic_box_calls() {
+    for (ty, size) in [(LirType::Aggregate(vec![]), 0), (LirType::I64, 8)] {
+        let ir = release_ir(&roundtrip_module(ty, size, &[]), false);
+        assert!(
+            !ir.contains("@scoop_rt_box_zst") && !ir.contains("@scoop_rt_box_value"),
+            "{ir}"
+        );
+        assert!(
+            ir.contains("@scoop_runtime_alloc_slow") && ir.contains("tlab_cursor"),
+            "{ir}"
+        );
+        assert!(!ir.contains("native_region_roots"), "{ir}");
+        assert_eq!(ir.contains("%box.payload ="), size != 0, "{ir}");
+        assert!(!ir.contains("init.barrier:"), "{ir}");
+    }
+}
+
+#[test]
+fn generated_reference_box_uses_relocation_and_the_value_barrier() {
+    let module = roundtrip_module(
+        LirType::Aggregate(vec![MANAGED_PTR, LirType::I64]),
+        16,
+        &[0],
+    );
+    let ir = release_ir(&module, false);
+    assert!(
+        !ir.contains("native_region_roots") && !ir.contains("@scoop_rt_box_value"),
+        "{ir}"
+    );
+    assert!(
+        ir.contains("@llvm.memcpy.p1.p0.i64") && ir.contains("barrier"),
+        "{ir}"
+    );
+    let function = ir.split_once("define ").unwrap().1;
+    let (before, barrier) = function.split_once("init.barrier:").unwrap();
+    assert!(before.contains("@llvm.memcpy.p1.p0.i64"), "{ir}");
+    assert!(!before.contains("@scoop_gc_page_map"), "{ir}");
+    assert!(barrier.contains("@scoop_gc_page_map"), "{ir}");
+    let rewritten = release_ir(&module, true);
+    assert!(
+        rewritten.contains("gc.statepoint") && rewritten.contains("gc.relocate"),
+        "{rewritten}"
+    );
+}
+
+#[test]
+fn large_release_boxes_keep_the_shared_runtime_path() {
+    let module = roundtrip_module(LirType::Aggregate(vec![LirType::I64; 16]), 128, &[]);
+    let ir = release_ir(&module, false);
+    assert!(
+        ir.contains("call ptr addrspace(1) @scoop_rt_box_value"),
+        "{ir}"
+    );
+    assert!(!ir.contains("%box.payload ="), "{ir}");
+}

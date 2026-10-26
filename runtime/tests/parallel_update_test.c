@@ -27,13 +27,22 @@ static void run_case(size_t workers) {
     ScoopNativeRootFrame roots;
     scoop_rt_push_native_roots(&roots, aliases, 2);
 
+    /* Exercise actual relocation even when the runtime has no stress capability. */
+    nursery_collect(true);
+    assert(scoop_rt_gc_debug_last_moved_count() > 0);
+    check_values(&fixture, pinned);
+
     /* These native roots alias slots also visited by live-object update. */
+#if SCOOP_ENABLE_GC_STRESS
     scoop_gc_heap_state.stress_move = true;
+#endif
     for (size_t round = 0; round < 3; round++) {
         parallel_check_full(workers, PARALLEL_NODE_COUNT + 4, PARALLEL_NODE_COUNT / 1024);
         check_values(&fixture, pinned);
     }
+#if SCOOP_ENABLE_GC_STRESS
     scoop_gc_heap_state.stress_move = false;
+#endif
 
     NurseryNode *young = nursery_node(7331);
     pinned->next = (ParallelNode *)young;

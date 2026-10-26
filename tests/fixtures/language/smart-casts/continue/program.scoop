@@ -7,6 +7,6 @@ fun main() {
             value = "next"
             continue
         }
-        println(value.length)
+        println(value.charLength)
     }
 }

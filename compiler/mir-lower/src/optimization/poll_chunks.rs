@@ -1,21 +1,35 @@
-//! Strip mine scalar counted loops before safepoints and roots acquire identity.
+//! Strip mine bounded scalar kernels before safepoints and roots acquire identity.
+
+use std::collections::BTreeSet;
 
 use scoop_identity::{StructuralDefinitionSiteRole, SyntheticLocalRole};
 
 use super::{inline, mir};
 use crate::local_values::LocalValueRegistry;
 
+mod checks;
 mod copy;
+mod header;
+mod inlining;
+mod linear;
+mod operations;
 mod recognize;
+mod region;
+mod values;
+
+pub(super) use inlining::CallRanges;
 
 const CHUNK: u32 = 64;
 
 struct Loop {
     header: mir::BlockId,
-    body: mir::BlockId,
+    body: region::Region,
     index: mir::LocalId,
     bound: mir::Expr,
     kind: mir::IntegerKind,
+    start: i128,
+    header_chain: Vec<mir::BlockId>,
+    temporaries: BTreeSet<mir::LocalId>,
 }
 
 pub(super) fn run(module: &mut mir::Module, registry: &mut LocalValueRegistry) {
@@ -28,14 +42,53 @@ pub(super) fn run(module: &mut mir::Module, registry: &mut LocalValueRegistry) {
         let Some(owner) = inline::owner(module, id) else {
             continue;
         };
-        let function = &mut module.functions[id];
+        let function = &module.functions[id];
         if function.gc_effect != mir::GcEffect::Managed {
             continue;
         }
         let headers = function.body.loop_header_polls.clone();
         for target in headers {
-            let Some(counted) = recognize::counted(function, target.header()) else {
+            let function = &module.functions[id];
+            let incoming = linear::predecessors(&function.body);
+            let Some(head) = header::analyze(module, function, target.header(), &incoming) else {
                 continue;
+            };
+            // A checked failure is now an ordinary side exit. Fold proven
+            // checks before accepting that region, so it can still vectorize.
+            let (mut counted, mut projected, guards) = if let Some(projection) =
+                checks::project(module, function, target.header(), &head, &incoming)
+            {
+                (projection.counted, Some(projection.body), projection.guards)
+            } else if let Some(counted) =
+                recognize::counted(module, function, target.header(), &head, &incoming)
+            {
+                (counted, None, Vec::new())
+            } else {
+                continue;
+            };
+            let function = &mut module.functions[id];
+            if guards.is_empty()
+                && let Some(body) = projected.take()
+            {
+                function.body = body;
+            }
+            linear::merge(&mut function.body, &counted.header_chain);
+            let source = if let Some(mut body) = projected {
+                counted.body.merge(&mut body);
+                counted
+                    .body
+                    .blocks
+                    .iter()
+                    .map(|&id| (id, body.blocks[id].clone()))
+                    .collect()
+            } else {
+                counted.body.merge(&mut function.body);
+                counted
+                    .body
+                    .blocks
+                    .iter()
+                    .map(|&id| (id, function.body.blocks[id].clone()))
+                    .collect()
             };
             let counter = function.body.locals.alloc(mir::Local {
                 name: format!("$poll.remaining.{}", function.body.locals.len()),
@@ -49,23 +102,40 @@ pub(super) fn run(module: &mut mir::Module, registry: &mut LocalValueRegistry) {
                 StructuralDefinitionSiteRole::SyntheticValue,
                 SyntheticLocalRole::Temporary,
             );
-            let full = copy::body(function, counted.body, registry, owner, id);
-            expand(&mut function.body, counted, counter, full);
+            let full = copy::body(
+                function,
+                &counted.body,
+                source,
+                &counted.temporaries,
+                registry,
+                owner,
+                id,
+            );
+            expand(&mut function.body, counted, counter, full, &guards);
         }
     }
 }
 
-fn expand(body: &mut mir::Body, counted: Loop, counter: mir::LocalId, full: mir::BlockId) {
+fn expand(
+    body: &mut mir::Body,
+    counted: Loop,
+    counter: mir::LocalId,
+    full: region::Region,
+    guards: &[values::Length],
+) {
     let Loop {
         header,
         body: inner,
         index,
         bound,
         kind,
+        ..
     } = counted;
     let ty = mir::Type::Integer(kind);
-    let span = body.blocks[inner]
-        .statements
+    let span = full
+        .blocks
+        .iter()
+        .flat_map(|&block| &body.blocks[block].statements)
         .last()
         .expect("counted loop updates its index")
         .span;
@@ -93,9 +163,29 @@ fn expand(body: &mut mir::Body, counted: Loop, counter: mir::LocalId, full: mir:
             },
             span,
         }],
-        terminator: mir::Terminator::Goto(full),
+        terminator: mir::Terminator::Goto(full.entry),
         unwind: None,
     });
+    let mut full_entry = clamp;
+    for length in guards.iter().rev() {
+        full_entry = body.blocks.alloc(mir::BasicBlock {
+            name: format!("poll.bounds.{}", body.blocks.len()),
+            statements: Vec::new(),
+            terminator: mir::Terminator::Branch {
+                cond: mir::Expr::integer_compare(
+                    mir::IntegerComparisonOperation::new(
+                        kind,
+                        mir::IntegerComparisonOperator::LessThanOrEqual,
+                    ),
+                    bound.clone(),
+                    length.expression(),
+                ),
+                then_block: full_entry,
+                else_block: inner.entry,
+            },
+            unwind: None,
+        });
+    }
     let chunk = body.blocks.alloc(mir::BasicBlock {
         name: format!("poll.chunk.{}", body.blocks.len()),
         statements: vec![mir::Statement {
@@ -114,8 +204,8 @@ fn expand(body: &mut mir::Body, counted: Loop, counter: mir::LocalId, full: mir:
                 mir::IntegerComparisonOperator::GreaterThanOrEqual,
                 constant(CHUNK),
             ),
-            then_block: clamp,
-            else_block: inner,
+            then_block: full_entry,
+            else_block: inner.entry,
         },
         unwind: None,
     });
@@ -123,8 +213,8 @@ fn expand(body: &mut mir::Body, counted: Loop, counter: mir::LocalId, full: mir:
         unreachable!("recognized conditional header")
     };
     *then_block = chunk;
-    for inner in [inner, full] {
-        body.blocks[inner].statements.push(mir::Statement {
+    for inner in std::iter::once(full).chain(guards.is_empty().then_some(inner)) {
+        body.blocks[inner.latch].statements.push(mir::Statement {
             kind: mir::StatementKind::Assign {
                 local: counter,
                 value: mir::Expr::integer_binary(
@@ -135,12 +225,12 @@ fn expand(body: &mut mir::Body, counted: Loop, counter: mir::LocalId, full: mir:
             },
             span,
         });
-        body.blocks[inner].terminator = mir::Terminator::Branch {
+        body.blocks[inner.latch].terminator = mir::Terminator::Branch {
             cond: compare(mir::IntegerComparisonOperator::NotEqual, constant(0)),
-            then_block: inner,
+            then_block: inner.entry,
             else_block: header,
         };
     }
-    // The full inner has a constant countdown; the scalar tail consumes the
-    // positive remaining count. Only the original header remains a poll target.
+    // Guarded kernels retain the original checked scalar path. Otherwise the
+    // scalar tail is bounded too. Only the original header remains a poll target.
 }

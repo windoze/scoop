@@ -1,6 +1,10 @@
+#define _POSIX_C_SOURCE 200809L
 #include <inttypes.h>
 #include <stdatomic.h>
 #include <stdio.h>
+#if defined(SCOOP_ENABLE_STARTUP_STATS) && SCOOP_ENABLE_STARTUP_STATS
+#include <time.h>
+#endif
 
 #include "callback.h"
 #include "eh_internal.h"
@@ -14,6 +18,76 @@ extern const ScoopTypeDescriptor scoop_td_String;
 static atomic_flag program_started = ATOMIC_FLAG_INIT;
 static int32_t program_argc;
 static const char *const *program_argv;
+
+#if defined(SCOOP_ENABLE_STARTUP_STATS) && SCOOP_ENABLE_STARTUP_STATS
+typedef enum StartupPhase {
+    STARTUP_LOADED_IMAGES,
+    STARTUP_COLLECT_RECORDS,
+    STARTUP_CODE_AND_TYPES,
+    STARTUP_STORAGE_AND_UNITS,
+    STARTUP_STACKMAPS,
+    STARTUP_RUNTIME_INIT,
+    STARTUP_EAGER_INIT,
+    STARTUP_PHASE_COUNT
+} StartupPhase;
+
+typedef struct StartupMetrics {
+    uint64_t start;
+    uint64_t previous;
+    uint64_t phases[STARTUP_PHASE_COUNT];
+} StartupMetrics;
+
+static uint64_t startup_time_ns(void) {
+    struct timespec value;
+    if (clock_gettime(CLOCK_MONOTONIC, &value) != 0) {
+        scoop_startup_fatal("cannot measure startup time");
+    }
+    return (uint64_t)value.tv_sec * 1000000000 + (uint64_t)value.tv_nsec;
+}
+
+static StartupMetrics startup_metrics_begin(void) {
+    StartupMetrics metrics = {0};
+    metrics.start = metrics.previous = startup_time_ns();
+    return metrics;
+}
+
+static void startup_measure(StartupMetrics *metrics, StartupPhase phase) {
+    uint64_t now = startup_time_ns();
+    metrics->phases[phase] = now - metrics->previous;
+    metrics->previous = now;
+}
+
+static void startup_report(const StartupMetrics *metrics, const ScoopImageRegistry *registry) {
+    fprintf(
+        stderr,
+        "{\"scoop_startup\":1,\"total_ns\":%" PRIu64 ",\"phases_ns\":{"
+        "\"loaded_images\":%" PRIu64 ",\"collect_records\":%" PRIu64 ",\"code_and_types\":%" PRIu64
+        ",\"storage_and_units\":%" PRIu64 ",\"stackmaps\":%" PRIu64 ",\"runtime_init\":%" PRIu64
+        ",\"eager_init\":%" PRIu64 "},\"counts\":{"
+        "\"images\":%zu,\"loaded_images\":%zu,\"types\":%zu,\"callables\":%zu,"
+        "\"safepoints\":%zu,\"stackmap_records\":%zu,\"scan_programs\":%zu,"
+        "\"static_storages\":%zu,\"static_roots\":%zu,\"immortals\":%zu,"
+        "\"initialization_units\":%zu,\"eager_units\":%zu,\"context_keys\":%" PRIu64 "}}\n",
+        metrics->previous - metrics->start, metrics->phases[STARTUP_LOADED_IMAGES],
+        metrics->phases[STARTUP_COLLECT_RECORDS], metrics->phases[STARTUP_CODE_AND_TYPES],
+        metrics->phases[STARTUP_STORAGE_AND_UNITS], metrics->phases[STARTUP_STACKMAPS],
+        metrics->phases[STARTUP_RUNTIME_INIT], metrics->phases[STARTUP_EAGER_INIT],
+        registry->image_count, registry->loaded->count, registry->tables[SCOOP_RECORD_TYPE].count,
+        registry->tables[SCOOP_RECORD_CALLABLE].count, registry->tables[SCOOP_RECORD_SITE].count,
+        registry->stackmaps.record_count, scoop_image_scan_program_count(registry),
+        registry->tables[SCOOP_RECORD_STORAGE].count, registry->static_root_count,
+        registry->tables[SCOOP_RECORD_IMMORTAL].count, registry->tables[SCOOP_RECORD_UNIT].count,
+        registry->eager_unit_count, registry->context_key_count);
+}
+
+#define STARTUP_BEGIN() StartupMetrics metrics = startup_metrics_begin()
+#define STARTUP_MEASURE(phase) startup_measure(&metrics, phase)
+#define STARTUP_REPORT(registry) startup_report(&metrics, registry)
+#else
+#define STARTUP_BEGIN() ((void)0)
+#define STARTUP_MEASURE(phase) ((void)0)
+#define STARTUP_REPORT(registry) ((void)0)
+#endif
 
 int32_t scoop_rt_program_argc(void) { return program_argc; }
 
@@ -45,16 +119,22 @@ int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *images, uint64_t i
     }
     program_argc = argc;
     program_argv = argv;
+    STARTUP_BEGIN();
     const ScoopPlatformBundle *platform = require_platform();
     ScoopPlatformMetadataImages loaded = {0};
     ScoopPlatformError error = {0};
     if (!platform->metadata_images->loaded_images(&loaded, &error)) {
         scoop_startup_fatal(scoop_platform_error_message(error.code));
     }
+    STARTUP_MEASURE(STARTUP_LOADED_IMAGES);
     ScoopImageRegistry *registry = scoop_image_collect(&loaded, images, image_count, root_entry);
+    STARTUP_MEASURE(STARTUP_COLLECT_RECORDS);
     scoop_image_validate_code_and_types(registry);
+    STARTUP_MEASURE(STARTUP_CODE_AND_TYPES);
     scoop_image_validate_storage_and_units(registry);
+    STARTUP_MEASURE(STARTUP_STORAGE_AND_UNITS);
     scoop_image_stackmaps(registry, platform->managed_frames);
+    STARTUP_MEASURE(STARTUP_STACKMAPS);
     if (scoop_image_type(registry, &scoop_td_String) == NULL ||
         scoop_td_String.instance_shape.instance_kind != SCOOP_TYPE_INSTANCE_INLINE_BYTES_V1) {
         scoop_startup_fatal("String binding is not a registered InlineBytes type");
@@ -64,12 +144,15 @@ int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *images, uint64_t i
     scoop_callback_runtime_init();
     scoop_rt_gc_init(registry);
     scoop_thread_attach_main();
+    STARTUP_MEASURE(STARTUP_RUNTIME_INIT);
     for (size_t index = 0; index < registry->eager_unit_count; index++) {
         const ScoopInitializationUnitDescriptorV1 *unit = registry->eager_units[index];
         if (scoop_startup_call_gateway(unit->startup_gateway) != 0) {
             scoop_startup_report_failure(unit->failure_root, unit);
         }
     }
+    STARTUP_MEASURE(STARTUP_EAGER_INIT);
+    STARTUP_REPORT(registry);
     int32_t exit_code = 0;
     if (scoop_startup_call_root(root_entry->gateway, argc, argv, &exit_code) != 0) {
         scoop_startup_report_failure(root_entry->failure_root, NULL);

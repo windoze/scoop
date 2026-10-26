@@ -33,8 +33,8 @@ internal fun debugQuoted(text: String, quote: Char, maxLength: Long): String {
                     val code = character.code
                     if (code < 32 || (code >= 127 && code <= 159)) {
                         result.append("\\u00")
-                        result.append(hex[(code / 16).toLong()])
-                        result.append(hex[(code % 16).toLong()])
+                        result.append(hex.getCharAt((code / 16).toLong()))
+                        result.append(hex.getCharAt((code % 16).toLong()))
                     } else { result.append(character) }
                 }
             }

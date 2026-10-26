@@ -9,6 +9,7 @@ class Node(val value: Long, var left: Node?, var right: Node?)
 
 class SparseLeaf(val value: Long)
 class SparseNode(val leaf: SparseLeaf, var next: SparseNode?)
+private var allocationPressure: SparseLeaf? = None
 
 @Unsafe fun sparseGraph(count: Long): MutableArray<SparseNode> {
     val all = MutableArray<SparseNode>(count) { index ->
@@ -59,8 +60,11 @@ class SparseNode(val leaf: SparseLeaf, var next: SparseNode?)
     while (minorCount() == previous) {
         val end = index + 1024L
         while (index < end) {
-            checksum += SparseLeaf(index).value
+            val leaf = SparseLeaf(index)
+            allocationPressure = Some(leaf)
+            checksum += leaf.value
             index += 1L
+            allocationPressure = None
         }
     }
     if (checksum != index * (index - 1L) / 2L) { throw IllegalStateException() }

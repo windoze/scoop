@@ -19,7 +19,7 @@ impl Cost {
         let parameters = function
             .params
             .iter()
-            .map(|parameter| 1 + copy_cost(structs, &parameter.ty))
+            .map(|parameter| assignment_cost(structs, &parameter.ty))
             .sum::<usize>();
         self.execution += parameters;
         self.size += parameters;
@@ -38,6 +38,14 @@ pub(in crate::optimization::inline) fn blocks_cost<'a>(
     structs: &la_arena::Arena<mir::StructDef>,
     blocks: impl Iterator<Item = (mir::BlockId, &'a mir::BasicBlock)>,
 ) -> Cost {
+    adjusted_blocks_cost(structs, blocks, |_, _, size| size)
+}
+
+pub(in crate::optimization::inline) fn adjusted_blocks_cost<'a>(
+    structs: &la_arena::Arena<mir::StructDef>,
+    blocks: impl Iterator<Item = (mir::BlockId, &'a mir::BasicBlock)>,
+    mut adjust: impl FnMut(mir::BlockId, &mir::BasicBlock, usize) -> usize,
+) -> Cost {
     let blocks = blocks.collect::<Vec<_>>();
     let cold = cold_blocks(&blocks);
     let mut cost = Cost {
@@ -45,7 +53,7 @@ pub(in crate::optimization::inline) fn blocks_cost<'a>(
         size: 0,
     };
     for (id, block) in blocks {
-        let size = block_cost(structs, block);
+        let size = adjust(id, block, block_cost(structs, block));
         cost.size += size;
         cost.execution += if cold.contains(&id) {
             size.div_ceil(4)
@@ -56,7 +64,9 @@ pub(in crate::optimization::inline) fn blocks_cost<'a>(
     cost
 }
 
-fn cold_blocks(blocks: &[(mir::BlockId, &mir::BasicBlock)]) -> HashSet<mir::BlockId> {
+pub(in crate::optimization::inline) fn cold_blocks(
+    blocks: &[(mir::BlockId, &mir::BasicBlock)],
+) -> HashSet<mir::BlockId> {
     let mut cold = HashSet::new();
     if !blocks
         .iter()
@@ -104,54 +114,16 @@ fn cold_blocks(blocks: &[(mir::BlockId, &mir::BasicBlock)]) -> HashSet<mir::Bloc
     cold
 }
 
-fn block_cost(structs: &la_arena::Arena<mir::StructDef>, block: &mir::BasicBlock) -> usize {
+pub(in crate::optimization::inline) fn block_cost(
+    structs: &la_arena::Arena<mir::StructDef>,
+    block: &mir::BasicBlock,
+) -> usize {
     let mut cost = usize::from(block.unwind.is_some()) * 4;
     for statement in &block.statements {
-        cost += match &statement.kind {
-            mir::StatementKind::Call(effect) => {
-                if matches!(
-                    crate::optimization::call(effect).target,
-                    mir::CallTarget::Direct(_)
-                ) {
-                    6
-                } else {
-                    10
-                }
-            }
-            mir::StatementKind::ValDecl { init, .. }
-            | mir::StatementKind::Assign { value: init, .. } => 1 + copy_cost(structs, &init.ty),
-            mir::StatementKind::Eh(_) => 8,
-            _ => 2,
-        };
+        cost += statement_cost(structs, statement);
     }
     mir::visit_block_exprs(block, &mut |expression| {
-        cost += match expression.kind {
-            mir::ExprKind::Local(_)
-            | mir::ExprKind::IntegerLiteral(_)
-            | mir::ExprKind::BoolLiteral(_)
-            | mir::ExprKind::CharLiteral(_)
-            | mir::ExprKind::FloatLiteral(_)
-            | mir::ExprKind::UnitLiteral
-            | mir::ExprKind::StringConst(_)
-            | mir::ExprKind::MachineScalarLiteral(_) => 0,
-            mir::ExprKind::ClassAlloc { .. }
-            | mir::ExprKind::ClosureAlloc { .. }
-            | mir::ExprKind::Box(_)
-            | mir::ExprKind::ArrayAllocate { .. }
-            | mir::ExprKind::ArrayLiteral { .. }
-            | mir::ExprKind::ArrayAssembly { .. }
-            | mir::ExprKind::ArrayClone { .. }
-            | mir::ExprKind::AtomicNew(_) => 12,
-            mir::ExprKind::Context(_) | mir::ExprKind::Atomic(_) => 6,
-            mir::ExprKind::StructInit { .. }
-            | mir::ExprKind::StructConstruct { .. }
-            | mir::ExprKind::TupleLiteral(_)
-            | mir::ExprKind::VariantConstruct { .. } => 4,
-            mir::ExprKind::FieldAccess { .. }
-            | mir::ExprKind::ArrayGet { .. }
-            | mir::ExprKind::PtrLoad { .. } => 2,
-            _ => 1,
-        };
+        cost += expression_cost(expression);
     });
     cost + match block.terminator {
         mir::Terminator::Goto(_) | mir::Terminator::Unreachable => 0,
@@ -161,4 +133,71 @@ fn block_cost(structs: &la_arena::Arena<mir::StructDef>, block: &mir::BasicBlock
         | mir::Terminator::Resume => 8,
         _ => 1,
     }
+}
+
+pub(in crate::optimization::inline) fn assignment_cost(
+    structs: &la_arena::Arena<mir::StructDef>,
+    ty: &mir::Type,
+) -> usize {
+    1 + copy_cost(structs, ty)
+}
+
+pub(in crate::optimization::inline) fn statement_cost(
+    structs: &la_arena::Arena<mir::StructDef>,
+    statement: &mir::Statement,
+) -> usize {
+    match &statement.kind {
+        mir::StatementKind::Call(effect) => {
+            if matches!(
+                crate::optimization::call(effect).target,
+                mir::CallTarget::Direct(_)
+            ) {
+                6
+            } else {
+                10
+            }
+        }
+        mir::StatementKind::ValDecl { init, .. }
+        | mir::StatementKind::Assign { value: init, .. } => assignment_cost(structs, &init.ty),
+        mir::StatementKind::Eh(_) => 8,
+        _ => 2,
+    }
+}
+
+pub(in crate::optimization::inline) fn expression_cost(expression: &mir::Expr) -> usize {
+    match expression.kind {
+        mir::ExprKind::Local(_)
+        | mir::ExprKind::IntegerLiteral(_)
+        | mir::ExprKind::BoolLiteral(_)
+        | mir::ExprKind::CharLiteral(_)
+        | mir::ExprKind::FloatLiteral(_)
+        | mir::ExprKind::UnitLiteral
+        | mir::ExprKind::StringConst(_)
+        | mir::ExprKind::MachineScalarLiteral(_) => 0,
+        mir::ExprKind::ClassAlloc { .. }
+        | mir::ExprKind::ClosureAlloc { .. }
+        | mir::ExprKind::Box(_)
+        | mir::ExprKind::ArrayAllocate { .. }
+        | mir::ExprKind::ArrayLiteral { .. }
+        | mir::ExprKind::ArrayAssembly { .. }
+        | mir::ExprKind::StringConcat(_)
+        | mir::ExprKind::StringCopy(_)
+        | mir::ExprKind::ArrayClone { .. }
+        | mir::ExprKind::AtomicNew(_) => 12,
+        mir::ExprKind::Context(_) | mir::ExprKind::Atomic(_) => 6,
+        mir::ExprKind::StructInit { .. }
+        | mir::ExprKind::StructConstruct { .. }
+        | mir::ExprKind::TupleLiteral(_)
+        | mir::ExprKind::VariantConstruct { .. } => 4,
+        mir::ExprKind::FieldAccess { .. }
+        | mir::ExprKind::ArrayGet { .. }
+        | mir::ExprKind::PtrLoad { .. } => 2,
+        _ => 1,
+    }
+}
+
+pub(in crate::optimization::inline) fn tree_cost(expression: &mir::Expr) -> usize {
+    let mut cost = 0;
+    mir::visit_expr(expression, &mut |expr| cost += expression_cost(expr));
+    cost
 }

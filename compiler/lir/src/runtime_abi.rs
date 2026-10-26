@@ -24,6 +24,9 @@ const INITIAL_SCHEMA: u64 = 1;
 pub const POLL_WORLD_RUNNING: u64 = 0;
 pub const POLL_THREAD_MANAGED: u64 = 1;
 
+/// Published terminal state in the runtime-private initialization cell.
+pub const INITIALIZATION_CELL_READY: u64 = 2;
+
 mod machine;
 pub use machine::{CompilerNativeContractV1, CompilerNativeValueV1};
 
@@ -67,7 +70,7 @@ impl WireEncode for RuntimeAbiContract {
         for field in 1..=3 {
             encoder.field(field)?;
             encoder.unsigned(match field {
-                1 => 14,
+                1 => 19,
                 3 => 2,
                 _ => INITIAL_SCHEMA,
             })?;
@@ -87,11 +90,13 @@ pub enum RuntimeAbiSymbolV1 {
     CoreStringTypeDescriptor,
     ArrayClone,
     AllocationContext,
+    ContextSlot,
     PollState,
     WorldPhase,
     GcEpoch,
     PageMap,
     WriteBarrier,
+    RecordDirtyCardGroup,
     FinishTlabAllocation,
     AllocateSlow,
     BeginCatch,
@@ -116,7 +121,8 @@ pub enum RuntimeAbiSymbolV1 {
 }
 
 impl RuntimeAbiSymbolV1 {
-    pub const ALL: [Self; 67] = [
+    pub const ALL: [Self; 70] = [
+        Self::ContextSlot,
         Self::PollState,
         Self::WorldPhase,
         Self::GcEpoch,
@@ -162,6 +168,7 @@ impl RuntimeAbiSymbolV1 {
         )),
         Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::IsInstance)),
         Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::ITableLookup)),
+        Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::ITableFind)),
         Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Pin)),
         Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Unpin)),
         Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::GetHandle)),
@@ -189,6 +196,7 @@ impl RuntimeAbiSymbolV1 {
         Self::AllocationContext,
         Self::PageMap,
         Self::WriteBarrier,
+        Self::RecordDirtyCardGroup,
         Self::FinishTlabAllocation,
         Self::AllocateSlow,
         Self::BeginCatch,
@@ -278,6 +286,9 @@ impl RuntimeAbiSymbolV1 {
             Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::ITableLookup)) => {
                 "scoop_rt_itable_lookup"
             }
+            Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::ITableFind)) => {
+                "scoop_rt_itable_find"
+            }
             Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Pin)) => "scoop_rt_pin",
             Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Unpin)) => "scoop_rt_unpin",
             Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::GetHandle)) => {
@@ -321,11 +332,13 @@ impl RuntimeAbiSymbolV1 {
             Self::CoreStringTypeDescriptor => "scoop_td_String",
             Self::ArrayClone => "scoop_rt_array_clone",
             Self::AllocationContext => "scoop_rt_allocation_context",
+            Self::ContextSlot => "scoop_rt_context_slot",
             Self::PollState => "scoop_rt_poll_state",
             Self::WorldPhase => "scoop_thread_world_phase",
             Self::GcEpoch => "scoop_thread_gc_epoch",
             Self::PageMap => "scoop_gc_page_map",
             Self::WriteBarrier => "scoop_rt_gc_write_barrier",
+            Self::RecordDirtyCardGroup => "scoop_runtime_record_dirty_card_group",
             Self::FinishTlabAllocation => "scoop_runtime_finish_tlab_alloc",
             Self::AllocateSlow => "scoop_runtime_alloc_slow",
             Self::BeginCatch => "scoop_rt_begin_catch",
@@ -357,6 +370,7 @@ impl RuntimeAbiSymbolV1 {
             Self::CoreStringTypeDescriptor => 3,
             Self::ArrayClone => 4,
             Self::AllocationContext => 5,
+            Self::ContextSlot => 34,
             Self::PageMap => 32,
             Self::FinishTlabAllocation => 7,
             Self::AllocateSlow => 8,
@@ -378,6 +392,7 @@ impl RuntimeAbiSymbolV1 {
             Self::CallbackState => 24,
             Self::CallbackInvoke => 25,
             Self::WriteBarrier => 26,
+            Self::RecordDirtyCardGroup => 33,
             Self::PushPinFrame => 27,
             Self::PopPinFrame => 28,
             Self::PollState => 29,
@@ -793,10 +808,10 @@ mod tests {
 
     #[test]
     fn runtime_abi_contract_versions_current_metadata_layout() {
-        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010e02010302");
+        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3011302010302");
         assert_eq!(
             RuntimeAbiContract.fingerprint().unwrap().to_string(),
-            "59ffdf49e0a70aed93e58d2a094211793eb4daa234474ebb21a7760be036cb37"
+            "87d07bd20f85f64915f502588de4acd2a1df4055903d087448d876a8267080d3"
         );
     }
 
@@ -853,6 +868,43 @@ mod tests {
     }
 
     #[test]
+    fn interface_query_is_a_metadata_returning_no_gc_leaf() {
+        let function = RuntimeFunction::NoGc(NoGcRuntimeFunction::ITableFind);
+        assert_eq!(function.wire_family_tag(), 2);
+        assert_eq!(function.wire_function_tag(), 25);
+        assert_eq!(RuntimeFunction::from_wire_tags(2, 25), Some(function));
+        assert_eq!(function.symbol(), "scoop_rt_itable_find");
+        assert!(!function.requires_dedicated_operation());
+        assert_eq!(
+            RuntimeAbiSymbolV1::LirCall(function).machine_contract(),
+            CompilerNativeContractV1::Function {
+                parameters: &[
+                    CompilerNativeValueV1::Pointer,
+                    CompilerNativeValueV1::Pointer
+                ],
+                result: CompilerNativeValueV1::Pointer,
+                effect: scoop_identity::GcEffect::NoGc,
+            }
+        );
+    }
+
+    #[test]
+    fn context_slot_is_a_native_tls_address_in_every_profile() {
+        let symbol = RuntimeAbiSymbolV1::ContextSlot;
+        assert_eq!(symbol.logical_symbol(), "scoop_rt_context_slot");
+        assert_eq!(hex(&encode(&symbol).unwrap()), "a1001822");
+        assert_eq!(
+            symbol.machine_contract(),
+            CompilerNativeContractV1::Data {
+                byte_size: 8,
+                alignment: 8,
+                thread_local: true,
+                mutable: true,
+            }
+        );
+    }
+
+    #[test]
     fn runtime_registry_has_one_contract_per_typed_symbol() {
         let target = crate::target_fixtures::DARWIN_AARCH64;
         let registry = RuntimeSymbolContractRegistryV1::current(target).unwrap();
@@ -871,7 +923,7 @@ mod tests {
         assert_eq!(allocation.symbol(), RuntimeAbiSymbolV1::AllocationContext);
         assert_eq!(
             allocation.id().to_string(),
-            "b740cdb570835de93631ef79eca73cefb5eec79098710ab793a073e83e974d01"
+            "4629b99d349a77db675c921b4fdb6b3ebfa580d6b870e16414370578ed1807bf"
         );
         assert!(
             registry
@@ -927,7 +979,7 @@ mod tests {
                 .unwrap()
                 .id()
                 .to_string(),
-            "6959831f4677cfdaa65ba01124f463f0084dd22e3cf509c5227bcfddb1eb1c22"
+            "92dc170013773be257879ceec3f7e1e070739064bfc99961fb434e826d87ea85"
         );
     }
 

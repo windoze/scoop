@@ -1,7 +1,7 @@
 fun main() {
     var value: Any = "hello"
     if (value !is String) return
-    println(value.length)
+    println(value.charLength)
     value = 42
     if (value !is Int) return
     println(value + 1)

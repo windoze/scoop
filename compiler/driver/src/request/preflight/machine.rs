@@ -20,10 +20,15 @@ impl CurrentConeMachineHir<'_> {
         self,
         selected_callables: scoop_mir::SelectedExternalMirSet,
         optimization: scoop_mir_lower::MirOptimizationOptions,
+        report: Option<&mut scoop_mir::optimization_report::OptimizationReport>,
     ) -> Result<CurrentConeMirArtifacts, CurrentConeMirStageError> {
-        let mir =
-            scoop_mir_lower::lower_current_cone(self.output, selected_callables, optimization)
-                .map_err(CurrentConeMirStageError::Lowering)?;
+        let mir = scoop_mir_lower::lower_current_cone(
+            self.output,
+            selected_callables,
+            optimization,
+            report,
+        )
+        .map_err(CurrentConeMirStageError::Lowering)?;
         let foundation = mir.foundation();
         let production = scoop_mir_lower::lower_production_section(
             mir.module().cone,
@@ -55,6 +60,7 @@ impl CurrentConeMachineHir<'_> {
 }
 
 pub(super) fn lower_selected_lir(
+    optimization: scoop_lir::OptimizationMode,
     strong: &scoop_mir::ConeMirInput,
     public: &scoop_mir::CrossConeMirBridgeSectionV1,
     selected_callables: &scoop_lir::SelectedExternalLirSet,
@@ -69,6 +75,7 @@ pub(super) fn lower_selected_lir(
     CurrentConeLirStageError,
 > {
     let lir = crate::lir_pipeline::lower_with_layout_dependencies(
+        optimization,
         strong,
         selected_callables,
         target,

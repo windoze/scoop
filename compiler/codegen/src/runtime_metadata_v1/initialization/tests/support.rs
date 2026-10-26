@@ -79,6 +79,7 @@ pub(super) fn initialization_plan(lazy: bool) -> StrongInitializationUnitRegistr
                     GlobalInit::CString { .. }
                     | GlobalInit::StringConst { .. }
                     | GlobalInit::RawStorage { .. }
+                    | GlobalInit::ImportedImmortal { .. }
                     | GlobalInit::ImportedStorage { .. } => unreachable!(),
                 })
                 .collect(),

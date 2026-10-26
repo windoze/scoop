@@ -274,6 +274,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         value_ty,
                         LirType::Struct(_) | LirType::Aggregate(_) | LirType::Enum(_)
                     )
+                    && !(self.interface_values.enabled() && self.is_interface_storage(&value_ty))
                 {
                     if source != local {
                         let scoop_lir::LocalStorage::NonZero(value) =
@@ -296,11 +297,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     return Ok(());
                 }
                 let operand = self.value(*v)?;
-                builder
-                    .build_store(self.local_pointer(*local)?, operand)
-                    .map_err(|e| {
-                        CodegenError(format!("store %{}: {e}", function.locals[*local].name))
-                    })?;
+                let storage = self.local_pointer(*local)?;
+                builder.build_store(storage, operand).map_err(|e| {
+                    CodegenError(format!("store %{}: {e}", function.locals[*local].name))
+                })?;
+                self.remember_interface_value(&value_ty, storage, operand);
             }
             _ => {
                 unreachable!("instruction dispatcher routes only address and storage instructions")

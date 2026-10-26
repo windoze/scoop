@@ -19,18 +19,16 @@ static _Noreturn void record_fatal(const ScoopStackMapRecord *record,
     abort();
 }
 
-static size_t resolve_site(const ScoopImageRegistry *registry,
-                           const ScoopManagedFrameOps *frames,
-                           const ScoopStackMapRecord *record) {
+static void validate_site(const ScoopImageRegistry *registry, const ScoopManagedFrameOps *frames,
+                          const ScoopStackMapRecord *record, size_t index) {
     const ScoopRecordTable *sites = &registry->tables[SCOOP_RECORD_SITE];
-    size_t index = scoop_record_address_find(registry->site_ids, sites->count,
-                                             (uintptr_t)record->safepoint_id);
-    if (index == SIZE_MAX) {
-        record_fatal(record, "raw record has no safepoint registration");
-    }
     const ScoopSafepointRegistrationDescriptorV1 *site = sites->entries[index].record;
     const ScoopRegisteredRecord *owner =
         scoop_record_by_id(registry, SCOOP_RECORD_CALLABLE, &site->owner_callable_id);
+    if (owner == NULL || !scoop_records_same_owner(&sites->entries[index], owner)) {
+        ScoopMetadataCheck check = scoop_record_check(registry, SCOOP_RECORD_SITE, index);
+        scoop_metadata_fatal(&check, "owner callable identity or producer");
+    }
     const ScoopCallableRegistrationDescriptorV1 *callable = owner->record;
     if ((uintptr_t)callable->entry != record->function_address ||
         record->root_count != site->root_pair_count) {
@@ -42,7 +40,6 @@ static size_t resolve_site(const ScoopImageRegistry *registry,
                 (unsigned)platform_error.root_index, (unsigned)platform_error.code);
         record_fatal(record, "invalid managed frame or root location");
     }
-    return index;
 }
 
 void scoop_image_stackmaps(ScoopImageRegistry *registry,
@@ -71,8 +68,13 @@ void scoop_image_stackmaps(ScoopImageRegistry *registry,
     bool *seen = scoop_metadata_allocate(sites->count, sizeof *seen);
     for (size_t index = 0; index < raw.record_count; index++) {
         ScoopStackMapRecord *record = &raw.records[index];
-        size_t site = resolve_site(registry, frames, record);
+        size_t site = scoop_record_address_find(registry->site_ids, sites->count,
+                                                (uintptr_t)record->safepoint_id);
+        if (site == SIZE_MAX) {
+            record_fatal(record, "raw record has no safepoint registration");
+        }
         if (!seen[site]) {
+            validate_site(registry, frames, record, site);
             seen[site] = true;
             joined.records[site] = *record;
             *record = (ScoopStackMapRecord){0};

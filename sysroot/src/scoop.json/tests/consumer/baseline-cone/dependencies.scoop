@@ -55,8 +55,8 @@ struct DependencyDetail(val version: String, val path: String? = None, val artif
             val value = DependencyDetailFields.decode(decoder)
             requireValid(version(value.version), fields.required("version"), "invalid version")
             requireValid(value.path == None || value.artifact == None, decoder, "conflicting locators")
-            if (value.path != None) { requireValid(value.path!!.length != 0L, fields.required("path"), "empty locator") }
-            if (value.artifact != None) { requireValid(value.artifact!!.length != 0L, fields.required("artifact"), "empty locator") }
+            if (value.path != None) { requireValid(value.path!!.charLength != 0L, fields.required("path"), "empty locator") }
+            if (value.artifact != None) { requireValid(value.artifact!!.charLength != 0L, fields.required("artifact"), "empty locator") }
             fields.end()
             return value
         }

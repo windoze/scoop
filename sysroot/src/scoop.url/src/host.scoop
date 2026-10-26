@@ -95,7 +95,7 @@ internal fun resolveUrlHost(host: String, kind: Int, address: Array<Byte>): Host
     try {
         val name = Idna.parse(decoded!!)
         val canonical = stripRootDot(name.ascii)
-        if (canonical.length == 0L) return HostResolution.Invalid("network host is empty or the DNS root", None)
+        if (canonical.charLength == 0L) return HostResolution.Invalid("network host is empty or the DNS root", None)
         if (numericUrlHost(canonical)) {
             val bytes = urlNativeIpv4(canonical)
             if (!hasUrlValue(bytes)) return HostResolution.Invalid("IPv4 requires four decimal octets without leading zeroes", None)
@@ -108,14 +108,14 @@ internal fun resolveUrlHost(host: String, kind: Int, address: Array<Byte>): Host
     }
 }
 
-internal fun stripRootDot(host: String): String = if (host.endsWith(".")) host.slice(0L, host.length - 1L) else host
+internal fun stripRootDot(host: String): String = if (host.endsWith(".")) host.slice(0L, host.charLength - 1L) else host
 
 private fun numericUrlHost(host: String): Boolean {
     for (label in host.split('.')) {
-        if (label.length == 0L) return false
+        if (label.charLength == 0L) return false
         if (label.startsWith("0x")) {
-            if (label.length == 2L) return false
-            for (index in 2L..<label.length) { if (hexDigit(label[index].code) < 0) return false }
+            if (label.charLength == 2L) return false
+            for (index in 2L..<label.charLength) { if (hexDigit(label.getCharAt(index).code) < 0) return false }
         } else {
             for (character in label) { if (character < '0' || character > '9') return false }
         }

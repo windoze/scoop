@@ -66,7 +66,27 @@ impl<'a> ProgramInputs<'a> {
         if runtime.target() != profile.target() {
             return Err(error("runtime target differs from final-link target"));
         }
-        let selected = SelectedMembers::new(closure)?;
+        let (declarations, libraries) = native::declarations::read(closure)?;
+        let mut native = NativeInputs::read(libraries, library_paths, profile)?;
+        native.include_embedded(closure, profile)?;
+        let namespace =
+            crate::namespace::NativeNamespace::read(&mut native, library_paths, profile)?;
+        // These indexes were already read for native symbol selection. Candidate
+        // archive references conservatively retain Scoop entries without pulling
+        // the native members themselves into the final link.
+        let native_references = native
+            .files
+            .values()
+            .flat_map(|file| file.objects())
+            .flat_map(|(_, index, _, _)| &index.requirements)
+            .chain(
+                runtime
+                    .objects()
+                    .iter()
+                    .flat_map(|object| &object.info().requirements),
+            )
+            .map(String::as_str);
+        let selected = SelectedMembers::new(closure, native_references)?;
         let mut final_images = Vec::new();
         let mut objects = Vec::new();
         let mut definitions = BTreeMap::new();
@@ -201,11 +221,6 @@ impl<'a> ProgramInputs<'a> {
                 .iter()
                 .map(|symbol| (*symbol).to_owned()),
         );
-        let (declarations, libraries) = native::declarations::read(closure)?;
-        let mut native = NativeInputs::read(libraries, library_paths, profile)?;
-        native.include_embedded(closure, profile)?;
-        let namespace =
-            crate::namespace::NativeNamespace::read(&mut native, library_paths, profile)?;
         let mut result = Self {
             objects,
             definitions,

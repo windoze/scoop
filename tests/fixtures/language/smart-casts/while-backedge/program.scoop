@@ -3,7 +3,7 @@ fun main() {
     if (value !is String) return
     var count = 0
     while (count < 2) {
-        println(value.length)
+        println(value.charLength)
         value = 42
         count++
     }

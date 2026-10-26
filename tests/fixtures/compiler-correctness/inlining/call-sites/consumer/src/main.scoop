@@ -1,0 +1,51 @@
+package dev.performance.callsite
+
+import dev.performance.callsite.provider.*
+
+public fun ordinarySite(value: Long, mode: Boolean): Long = mix(value, mode)
+public fun constantSite(value: Long): Long = mix(value, false)
+public fun smallSite(value: Long): Long = tiny(value)
+
+public fun hotSite(value: Long, mode: Boolean, count: Int): Long {
+    var result = value
+    var outer = 0
+    while (outer < count) {
+        var inner = 0
+        while (inner < count) {
+            result = mix(result, mode)
+            inner += 1
+        }
+        outer += 1
+    }
+    return result
+}
+
+public fun referenceSite(value: Long, mode: Boolean, count: Int): Long {
+    var result = value
+    var index = 0
+    while (index < count) {
+        result = ordinarySite(result, mode)
+        index += 1
+    }
+    return result
+}
+
+public fun coldSite(value: Long, fail: Boolean): Long {
+    if (fail) throw IllegalStateException(Some(tiny(value).toString()))
+    return value
+}
+
+fun check(value: Boolean) { if (!value) throw IllegalStateException() }
+
+fun main() {
+    check(hotSite(7L, true, 3) == referenceSite(7L, true, 9))
+    check(hotSite(7L, false, 3) == 16L)
+    check(ordinarySite(7L, false) == constantSite(7L))
+    check(smallSite(2L) == 9L)
+    check(coldSite(9L, false) == 9L)
+    var caught = false
+    try { coldSite(9L, true) }
+    catch (error: IllegalStateException) { caught = true }
+    check(caught)
+    println("call sites preserve results and exceptions")
+}

@@ -2,8 +2,8 @@ fun main() {
     var value: Any = "snapshot"
     val saved = value
     if (saved !is String) return
-    println(value.length)
+    println(value.charLength)
     value = 42
-    println(saved.length)
+    println(saved.charLength)
     if (value is Int) println(value + 1)
 }

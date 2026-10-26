@@ -35,8 +35,8 @@ private fun exercise() {
     val alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
     var index = 0L
     while (index < 64L) {
-        val second = "Z" + alphabet[index].toString()
-        val third = "Zm" + alphabet[index].toString()
+        val second = "Z" + alphabet.getCharAt(index).toString()
+        val third = "Zm" + alphabet.getCharAt(index).toString()
         check(accepted(required, second + "==") == (index % 16L == 0L))
         check(accepted(optional, second) == (index % 16L == 0L))
         check(accepted(absent, third) == (index % 4L == 0L))

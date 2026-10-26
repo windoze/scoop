@@ -5,7 +5,7 @@ use super::*;
 #[derive(Clone, Copy)]
 pub(super) enum MethodDispatch {
     Virtual(u32),
-    Interface(u32),
+    Interface(mir::InterfaceId, u32),
 }
 
 pub(super) use abi::plans::FunctionDispatch;
@@ -44,6 +44,13 @@ impl FunctionLowerer<'_> {
             signature.logical_argument_count(),
             "method call arity"
         );
+        let (receiver, dispatch) = match dispatch {
+            MethodDispatch::Interface(interface, method) => {
+                let (receiver, slot) = self.interface_call_receiver(receiver, interface, method);
+                (receiver, MethodDispatch::Interface(interface, slot))
+            }
+            _ => (receiver, dispatch),
+        };
         let receiver = self.lower_expr(receiver)?;
         let arguments = arguments
             .iter()
@@ -68,7 +75,7 @@ impl FunctionLowerer<'_> {
                     receiver,
                 )
             }
-            MethodDispatch::Interface(slot) => {
+            MethodDispatch::Interface(_, slot) => {
                 let table = self.interface_component(receiver, 1);
                 let receiver = self.interface_component(receiver, 0);
                 let key = abi::plans::InterfaceCallable::new(self.module, callee);
@@ -83,6 +90,27 @@ impl FunctionLowerer<'_> {
         let destination = self.dispatch_destination(table, kind, slot, effect);
         let args = std::iter::once(receiver).chain(arguments).collect();
         self.finish_indirect(destination, args, &signature)
+    }
+
+    fn interface_call_receiver<'e>(
+        &self,
+        mut receiver: &'e mir::Expr,
+        mut interface: mir::InterfaceId,
+        method: u32,
+    ) -> (&'e mir::Expr, u32) {
+        let layouts = &self.type_descriptors.interface_layouts;
+        let mut slot = layouts.get(interface).methods[method as usize];
+        while let mir::ExprKind::Retype { operand, .. } = &receiver.kind
+            && let mir::Type::Interface(child) = operand.ty
+            && let Some(offset) = layouts.projection(child, interface)
+        {
+            slot = slot
+                .checked_add(offset)
+                .expect("validated interface table offset");
+            interface = child;
+            receiver = operand;
+        }
+        (receiver, slot)
     }
 
     pub(super) fn lower_function_call(

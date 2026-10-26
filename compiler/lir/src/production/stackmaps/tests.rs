@@ -273,6 +273,7 @@ fn function_with_reused_reference(name: &str) -> Function {
 
 fn live_roots(offsets: &[u64]) -> StatepointLiveSet {
     StatepointLiveSet::new(vec![StatepointLiveValue {
+        restore: true,
         source: crate::CallerRootSource::Param(0),
         ty: LirType::Aggregate(vec![crate::MANAGED_PTR; offsets.len()]),
         leaves: ManagedLeafPaths::new(

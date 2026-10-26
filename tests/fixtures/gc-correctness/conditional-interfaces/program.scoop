@@ -1,5 +1,6 @@
 interface Text { public fun text(): String }
 interface Detailed : Text { public fun number(): Int }
+class DetailedHolder(var value: Detailed)
 class Node(val text: String, val next: Node?)
 
 struct Payload<T>(val node: Node, val value: T) {
@@ -48,10 +49,79 @@ suspend fun deferred(value: Detailed, gate: Gate): String {
 fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
 fun <T> erase(value: T): Any = value
 
+fun repeatedParentAcrossGc(holder: DetailedHolder): Int {
+    val value = holder.value
+    val first = value.text()
+    gcCollect()
+    check(value.text() == first)
+    return value.number()
+}
+
+fun repeatedSmartAcrossGc(value: Any): String {
+    if (value is Detailed) {
+        val first = value.text()
+        gcCollect()
+        return first + value.text()
+    }
+    throw IllegalStateException()
+}
+
+fun smartViewAfterGc(value: Any): String {
+    if (!(value is Detailed)) throw IllegalStateException()
+    gcCollect()
+    return value.text()
+}
+
+fun loopQueriesAcrossGc(value: Any, count: Int): Int {
+    var total = 0
+    var index = 0
+    while (index < count) {
+        if (value is Detailed) {
+            gcCollect()
+            total += value.number()
+            check(value.text() != "")
+        } else gcCollect()
+        index += 1
+    }
+    return total
+}
+fun loopQueriesAcrossCatch(value: Any): Int {
+    var total = 0
+    var index = 0
+    while (index < 4) {
+        try {
+            if (index % 2 == 0) throw IllegalStateException()
+            if (value is Detailed) {
+                gcCollect()
+                total += value.number()
+            }
+        } catch (error: IllegalStateException) {
+            gcCollect()
+            if (value is Detailed) total += value.number()
+        }
+        index += 1
+    }
+    return total
+}
+fun changingQueriesAcrossGc(first: Any, second: Any): Int {
+    var value = first
+    var total = 0
+    var index = 0
+    while (index < 4) {
+        val source = value
+        gcCollect()
+        if (source is Detailed) total += source.number()
+        value = if (index % 2 == 0) second else first
+        index += 1
+    }
+    return total
+}
+
 fun main() {
     val value = Payload(Node("moving ", Some(Node("payload", None))), 7)
     val boxed: Any = erase(value)
     val detailed: Detailed = boxed as Detailed
+    val holder = DetailedHolder(detailed)
     val text: Text = detailed
     val read = detailed::text
     val child: Base<Int> = Child(Node("class payload", None), 11)
@@ -63,6 +133,13 @@ fun main() {
     val done = Done()
     startCoroutine(suspend { deferred(detailed, gate) }, done)
     check(done.count == 0)
+    check(repeatedParentAcrossGc(holder) == 31)
+    check(repeatedSmartAcrossGc(holder.value) == "moving payloadmoving payload")
+    check(smartViewAfterGc(holder.value) == "moving payload")
+    check(loopQueriesAcrossGc(boxed, 0) == 0 && loopQueriesAcrossGc(boxed, 4) == 124)
+    check(loopQueriesAcrossGc(child, 4) == 164 && loopQueriesAcrossGc(absent, 4) == 0)
+    check(loopQueriesAcrossCatch(boxed) == 124 && loopQueriesAcrossCatch(absentChild) == 0)
+    check(changingQueriesAcrossGc(boxed, absent) == 62)
 
     gcCollect()
     check(boxed is Text && boxed is Detailed)

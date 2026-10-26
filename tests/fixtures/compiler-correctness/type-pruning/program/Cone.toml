@@ -1,0 +1,10 @@
+schema = 1
+
+[cone]
+group = "dev.typepruning"
+name = "program"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"dev.typepruning:provider" = { version = "0.1.0", path = "../provider" }

@@ -3,13 +3,14 @@ use super::*;
 use crate::LinkDataError;
 use scoop_identity::{
     ObjectDefinitionPlanId, ObjectDefinitionPlanOwner, PersistentSymbolRequest,
-    StrongDefinitionRole,
+    StrongDefinitionEntity, StrongDefinitionRole,
 };
 use std::collections::BTreeMap;
 
 #[derive(Clone, Copy)]
 pub struct ProgramLinkDefinition {
     pub owner: ObjectDefinitionPlanOwner,
+    pub entity: StrongDefinitionEntity,
     pub role: StrongDefinitionRole,
 }
 

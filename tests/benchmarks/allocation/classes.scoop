@@ -1,0 +1,77 @@
+@Extern(lib = "m34_interfaces", name = "bench_kind") fun benchKind(): Int
+@Extern(lib = "m34_interfaces", name = "bench_count") fun benchCount(): Int
+@Extern(lib = "m34_interfaces", name = "bench_begin") fun benchBegin(): Unit
+@Extern(lib = "m34_interfaces", name = "bench_end") fun benchEnd(): Unit
+
+class Point(var x: Long, val y: Long)
+class Cursor(var current: Long, val limit: Long) {
+    fun hasNext(): Boolean = current < limit
+    fun next(): Long { val result = current; current += 1L; return result }
+}
+
+fun mix(value: Long): Long {
+    var state = value.xor(value.shl(13L)).and(4294967295L)
+    state = state.xor(state.shr(17L))
+    return state.xor(state.shl(5L)).and(4294967295L)
+}
+
+fun points(count: Long): Long {
+    var state = 7L
+    var index = 0L
+    while (index < count) {
+        val point = Point(mix(state), index)
+        point.x = (point.x + point.y).and(4294967295L)
+        state = point.x.xor(point.y)
+        index += 1L
+    }
+    return state
+}
+
+fun cursors(count: Long): Long {
+    var state = 7L
+    var index = 0L
+    while (index < count) {
+        val cursor = Cursor(index, index + 16L)
+        while (cursor.hasNext()) state = mix(state.xor(cursor.next()))
+        index += 1L
+    }
+    return state
+}
+
+fun lists(count: Long): Long {
+    val values = ArrayList<Long>(16L)
+    var index = 0L
+    while (index < 16L) { values.add(index); index += 1L }
+    var state = 7L
+    index = 0L
+    while (index < count) {
+        for (value in values) state = mix(state.xor(value + index))
+        index += 1L
+    }
+    return state
+}
+
+fun scalar(count: Long): Long {
+    var state = 7L
+    var index = 0L
+    while (index < count) {
+        val x = (mix(state) + index).and(4294967295L)
+        state = x.xor(index)
+        index += 1L
+    }
+    return state
+}
+
+@Unsafe fun main() {
+    val count = benchCount().toLong()
+    val mode = benchKind()
+    benchBegin()
+    val result = when (mode) {
+        case 0 -> points(count)
+        case 1 -> cursors(count)
+        case 2 -> lists(count)
+        else -> scalar(count)
+    }
+    benchEnd()
+    println(result)
+}

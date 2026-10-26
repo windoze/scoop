@@ -16,25 +16,16 @@ pub(super) fn context_type_descriptor(
     let instance_layout =
         lir::LayoutIdentity::managed_object(exact, context.target_profile(), root.clone())
             .expect("a context type has an instance layout identity");
-    let pointer = context.pointer_layout(lir::PointerKind::Managed);
     let (instance_shape, inline_scan) = match storage.role {
         mir::ContextStorageRole::Task | mir::ContextStorageRole::Node => {
-            let count = if storage.role == mir::ContextStorageRole::Task {
-                1
-            } else {
-                4
-            };
-            let header = context.object_header_layout().size;
-            let scan = lir::RefScan::References(
-                (0..count)
-                    .map(|index| header + index * pointer.size)
-                    .collect(),
-            );
+            let (fields, size, align) =
+                crate::metadata::layouts::context_object_shape(context, storage);
+            let scan = lir::RefScan::References(fields.iter().map(|field| field.offset).collect());
             (
                 lir::TypeInstanceShapeV1::fixed_object(
                     context.target_profile(),
-                    header + count * pointer.size,
-                    pointer.align,
+                    size,
+                    align,
                     scan,
                 )?,
                 lir::TypeDescriptorInlineScanV1::Null,
@@ -258,26 +249,14 @@ pub(crate) fn class_type_descriptor(
             .collect(),
     )
     .expect("validated class exact type must derive a vtable identity");
-    let mut itables: Vec<_> = def
-        .itables
-        .iter()
-        .filter_map(|record| {
-            let interface = refs.interfaces.get(&record.interface).copied()?;
-            lir::ItableRecord::new(
-                &identity,
-                exact_type_record(module, &mir::Type::Interface(record.interface)).id(),
-                interface,
-                record
-                    .slots
-                    .iter()
-                    .map(|slot| dispatch_entry(slot, local_functions, external_callables))
-                    .collect(),
-            )
-            .expect("validated class and interface exact types must derive an itable identity")
-            .into()
-        })
-        .collect();
-    itables.sort_unstable_by_key(|table| table.identity_record().key().interface());
+    let itables = super::interfaces::tables(
+        module,
+        id,
+        &identity,
+        refs,
+        local_functions,
+        external_callables,
+    )?;
     Ok(lir::TypeDescriptor {
         release_policy: match def.release_policy {
             mir::ReleasePolicy::None => lir::ReleasePolicy::None,

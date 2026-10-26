@@ -13,15 +13,15 @@ public class FilenameCompleter public constructor() : Completer {
 
     /** Completes only the token ending at cursor; filesystem errors other than absence propagate. */
     public fun completePath(line: String, cursor: Long): Completions {
-        if (cursor < 0L || cursor > line.length) throw IndexOutOfBoundsException()
+        if (cursor < 0L || cursor > line.charLength) throw IndexOutOfBoundsException()
         val token = filenameToken(line, cursor)
         val slash = token.text.lastIndexOf('/')
         val prefix = if (slash < 0L) "" else token.text.slice(0L, slash + 1L)
-        val partial = token.text.slice(slash + 1L, token.text.length)
+        val partial = token.text.slice(slash + 1L, token.text.charLength)
         var directory = if (prefix.byteLength == 0L) Path.fromString(".") else Path.fromString(prefix)
         if (prefix.startsWith("~/")) {
             val home = homeDirectory()
-            if (home != None) directory = home!!.resolve(Path.fromString(prefix.slice(2L, prefix.length)))
+            if (home != None) directory = home!!.resolve(Path.fromString(prefix.slice(2L, prefix.charLength)))
         }
         val candidates = ArrayList<Candidate>()
         try {
@@ -50,7 +50,7 @@ private fun filenameToken(line: String, cursor: Long): FilenameToken {
     var index = 0L
     val result = StringBuilder()
     while (index < cursor) {
-        val character = line[index]
+        val character = line.getCharAt(index)
         if (escape) { result.append(character); escape = false }
         else if (character == '\\' && quote != Some('\'')) escape = true
         else if (quote != None) {

@@ -1,6 +1,7 @@
 use super::*;
 use scoop_lir::{BoxPayload, BoxPayloadRooting, NoGcRuntimeFunction, UnboxResult};
 
+mod allocation;
 mod unbox;
 
 /// The frame and entry share one lexical lifetime around a single managed box.
@@ -20,6 +21,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let descriptor = self
                     .value(Value::TypeDescriptor(payload.descriptor()))?
                     .into_pointer_value();
+                if self.optimize_allocations && payload.instance_layout().size().get() <= 128 {
+                    let result = self.allocate_box(payload, descriptor, safepoint, live)?;
+                    self.temps.insert(*out, result.into());
+                    return Ok(());
+                }
                 let (runtime, frame, args) = match payload {
                     BoxPayload::ZeroSized(_) => (
                         scoop_lir::ManagedRuntimeFunction::BoxZst,

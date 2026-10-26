@@ -1,6 +1,7 @@
 use super::*;
 
 mod descriptors;
+pub(crate) mod interface_layouts;
 mod layouts;
 mod representation;
 mod scans;

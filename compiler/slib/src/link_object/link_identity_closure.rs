@@ -1,9 +1,9 @@
 //! Member assignments and symbol tables consumed by program linking.
 
 use super::{
-    CanonicalDefinedLinkSymbolOwnerSetV1, CanonicalScoopLirObjectUnitSetV1,
-    CanonicalUndefinedSymbolRequirementSetV1, CodeFingerprintDataV1, CodeFingerprintDataV2,
-    FinalCodeObjectSetV1, PlannedLinkObjectMemberSetV1,
+    CanonicalDefinedLinkSymbolOwnerSetV1, CanonicalScoopLirObjectUnitSetV1, CodeFingerprintDataV1,
+    CodeFingerprintDataV2, FinalCodeObjectSetV1, PlannedLinkObjectMemberSetV1,
+    StrongRelocationResolutionV1, VerifiedCurrentConeStrongRelocationClosureV1,
 };
 use crate::SlibMemberId;
 use scoop_wire::{Encoder, WireEncode};
@@ -80,25 +80,16 @@ impl LinkIdentityClosureSectionV1 {
     }
 
     pub fn from_verified_code(code: &CodeFingerprintDataV1) -> Self {
-        Self::from_code_parts(
-            code.production().link_objects(),
-            code.defined_symbols(),
-            code.undefined_symbols(),
-        )
+        Self::from_code_parts(code.production().link_objects(), code.defined_symbols())
     }
 
     pub fn from_verified_layout_code(code: &CodeFingerprintDataV2) -> Self {
-        Self::from_code_parts(
-            code.production().link_objects(),
-            code.defined_symbols(),
-            code.undefined_symbols(),
-        )
+        Self::from_code_parts(code.production().link_objects(), code.defined_symbols())
     }
 
     fn from_code_parts<D, C, I>(
         objects: &FinalCodeObjectSetV1<D, C, I>,
         defined_symbols: &CanonicalDefinedLinkSymbolOwnerSetV1,
-        undefined_symbols: &CanonicalUndefinedSymbolRequirementSetV1,
     ) -> Self
     where
         D: scoop_lir::StrongDescriptorReference,
@@ -108,7 +99,7 @@ impl LinkIdentityClosureSectionV1 {
         Self {
             materializations: materializations(builtins.member_plan()),
             defined_symbols: defined_symbols.clone(),
-            symbol_uses: symbol_uses(undefined_symbols),
+            symbol_uses: symbol_uses(builtins.strong_relocations()),
         }
     }
 }
@@ -141,16 +132,19 @@ impl WireEncode for SymbolUse {
     }
 }
 
-fn symbol_uses(requirements: &CanonicalUndefinedSymbolRequirementSetV1) -> Vec<SymbolUse> {
-    let mut uses = requirements
-        .requirements()
+fn symbol_uses(relocations: &VerifiedCurrentConeStrongRelocationClosureV1) -> Vec<SymbolUse> {
+    let mut uses = relocations
+        .bindings()
         .iter()
-        .map(|requirement| {
-            let site = requirement.use_site();
-            SymbolUse {
-                member: site.source_member(),
-                symbol: site.symbol().to_vec(),
-            }
+        .filter(|binding| {
+            !matches!(
+                binding.resolution(),
+                StrongRelocationResolutionV1::ObjectLocalStrong { .. }
+            )
+        })
+        .map(|binding| SymbolUse {
+            member: binding.source_member(),
+            symbol: binding.symbol().to_vec(),
         })
         .collect::<Vec<_>>();
     uses.sort_unstable();

@@ -178,7 +178,12 @@ def assemble(root, targets, binaries, args, release, extension):
         for package in COMPRESSION_PACKAGES:
             for library in package["libraries"]:
                 shutil.copy2(source / library, destination / library)
-        for variant in ("runtime", "runtime-stress"):
+        for variant in (
+            "runtime",
+            "runtime-stress",
+            "runtime-startup-stats",
+            "runtime-stress-startup-stats",
+        ):
             shutil.copytree(source / variant, destination / variant)
         for component, libraries in (
             ("openssl", ("libcrypto.a", "libssl.a")),

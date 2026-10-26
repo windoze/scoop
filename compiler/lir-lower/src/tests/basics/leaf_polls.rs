@@ -59,22 +59,29 @@ fn identity(ty: mir::Type, copies: usize) -> lir::Module {
 fn entry_poll(function: &lir::Function) -> &lir::ManagedPollSite {
     let lir::Instruction::ManagedPoll { site } = &function.blocks[function.entry].instructions[0]
     else {
-        panic!("Managed functions retain their entry handshake");
+        panic!("this function requires an entry poll");
     };
     site
 }
 
 #[test]
-fn bounded_leaf_retains_activation_and_live_reference_roots() {
-    let module = identity(mir::Type::String, 0);
-    let site = entry_poll(&module.functions[0]);
-    assert_eq!(site.kind, lir::ManagedPollKind::EntryActivation);
-    assert_eq!(site.live.as_slice().len(), 1);
-    assert_eq!(
-        site.live.as_slice()[0].source,
-        lir::CallerRootSource::Param(0)
-    );
-    lir::CanonicalLirFoundation::from_module(&module).unwrap();
+fn bounded_leaves_omit_polls_without_changing_their_managed_effect() {
+    for ty in [
+        mir::Type::String,
+        mir::Type::Tuple(vec![mir::Type::String; 2]),
+    ] {
+        let module = identity(ty, 0);
+        let function = &module.functions[0];
+        assert_eq!(function.gc_effect, lir::GcEffect::Managed);
+        assert!(function.safepoints.is_empty());
+        assert!(function.blocks.values().all(|block| {
+            block
+                .instructions
+                .iter()
+                .all(|instruction| !matches!(instruction, lir::Instruction::ManagedPoll { .. }))
+        }));
+        lir::CanonicalLirFoundation::from_module(&module).unwrap();
+    }
 }
 
 #[test]

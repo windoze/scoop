@@ -1,0 +1,21 @@
+package dev.performance.resources
+
+@Extern(lib = "m34_interfaces", name = "bench_kind") fun benchKind(): Int
+@Extern(lib = "m34_interfaces", name = "bench_count") fun benchCount(): Int
+@Extern(lib = "m34_interfaces", name = "bench_begin") fun benchBegin(): Unit
+@Extern(lib = "m34_interfaces", name = "bench_end") fun benchEnd(): Unit
+
+@Unsafe fun main() {
+    val count = benchCount().toLong()
+    val kind = benchKind()
+    val result = if (kind < 2) {
+        benchBegin()
+        if (kind == 0) usingLease(count) else directLease(count)
+    } else {
+        val failure = Exception(Some("guarded benchmark"))
+        benchBegin()
+        if (kind == 2) guardedUse(count, failure) else guardedDirect(count, failure)
+    }
+    benchEnd()
+    println(result)
+}

@@ -105,7 +105,9 @@ static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
         }
     }
     memset(block->marks, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
+#if SCOOP_GC_TRACK_RELOCATION
     memset(block->scanned, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
+#endif
     memset(block->line_live, 0, GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
     free(block->forwarding);
     block->forwarding = NULL;
@@ -126,7 +128,9 @@ static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
     if (SCOOP_ENABLE_GC_STRESS && stress) {
         return true;
     }
-    record_free_runs(block, block->line_occupied);
+    if (block->generation == SCOOP_GC_OLD) {
+        record_free_runs(block, block->line_occupied);
+    }
     return true;
 }
 
@@ -157,7 +161,9 @@ static bool finish_large_block(ScoopGcBlockMeta *block, bool stress) {
     block->movable_live_bytes = 0;
     block->large_forwarding = NULL;
     block->large_marked = false;
+#if SCOOP_GC_TRACK_RELOCATION
     block->large_scanned = false;
+#endif
     return true;
 }
 

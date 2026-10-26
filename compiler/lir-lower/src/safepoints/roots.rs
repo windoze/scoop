@@ -54,6 +54,49 @@ pub(super) fn statepoint_live_set(
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
 ) -> StorageResult<lir::StatepointLiveSet> {
+    live_set(context, live, function, structs, enums, |_| true)
+}
+
+pub(super) fn managed_call_live_set(
+    context: &LoweringContext,
+    live: &HashSet<LiveValue>,
+    arguments: &[lir::AbiCallArgument],
+    function: &lir::Function,
+    structs: &lir::StructDefs,
+    enums: &lir::EnumDefs,
+) -> StorageResult<lir::StatepointLiveSet> {
+    let mut roots = live.clone();
+    include_managed_operands(
+        context,
+        &mut roots,
+        arguments.iter().map(|argument| argument.logical_value()),
+        function,
+        structs,
+        enums,
+    )?;
+    let mut restored = live.clone();
+    for argument in arguments {
+        if let lir::AbiCallArgument::Indirect(_) = argument
+            && let Some(value) = LiveValue::from_value(argument.logical_value())
+        {
+            // An AS0 by-value address does not expose its managed leaves to
+            // RS4GC. Keep their explicit uses even when the source dies here.
+            restored.insert(value);
+        }
+    }
+    live_set(context, &roots, function, structs, enums, |value| {
+        restored.contains(&value)
+    })
+}
+
+fn live_set(
+    context: &LoweringContext,
+    live: &HashSet<LiveValue>,
+    function: &lir::Function,
+    structs: &lir::StructDefs,
+    enums: &lir::EnumDefs,
+    restore: impl Fn(LiveValue) -> bool,
+) -> StorageResult<lir::StatepointLiveSet> {
     let mut values = Vec::new();
     for value in sorted_live(live) {
         let ty = live_value_ty(value, function).clone();
@@ -78,6 +121,7 @@ pub(super) fn statepoint_live_set(
             source: value.source(),
             ty,
             leaves,
+            restore: restore(value),
         });
     }
     lir::StatepointLiveSet::new(values).ok_or(StorageLoweringError::InvalidRepresentation(

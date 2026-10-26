@@ -1,0 +1,57 @@
+package test.core.tests.scalars.decimal
+
+import scoop.test.*
+
+private fun throughInterface(value: ToString): String = value.toString()
+
+@Test
+private class IntegerDecimalTests {
+    @Test
+    fun boundariesAndNarrowValues() {
+        assertEquals("0", 0L.toString())
+        assertEquals("0", 0uL.toString())
+        assertEquals("-1", (-1L).toString())
+        assertEquals("-9223372036854775808", (-9223372036854775808L).toString())
+        assertEquals("9223372036854775807", 9223372036854775807L.toString())
+        assertEquals("18446744073709551615", 18446744073709551615uL.toString())
+        assertEquals("-128", (-128).toByte().toString())
+        assertEquals("-32768", (-32768).toShort().toString())
+        assertEquals("-2147483648", (-2147483648).toString())
+        assertEquals("255", 255u.toUByte().toString())
+        assertEquals("65535", 65535u.toUShort().toString())
+        assertEquals("4294967295", 4294967295u.toString())
+    }
+
+    @Test
+    fun digitTransitionsAndMovingReferences() {
+        var power = 1uL
+        var expected = "1"
+        var index = 0
+        while (index < 20) {
+            val before = power.toString()
+            val after = (power + 1uL).toString()
+            gcCollect()
+            assertEquals(expected, before)
+            assertEquals(before.byteLength, after.byteLength)
+            if (index < 19) {
+                assertEquals("-" + expected, (-power.toLong()).toString())
+            }
+            power *= 10uL
+            expected += "0"
+            index += 1
+        }
+        val values = Array<ToString>(4L) { i -> when (i) {
+            case 0L -> (-9223372036854775808L)
+            case 1L -> 18446744073709551615uL
+            case 2L -> (-128).toByte()
+            else -> 4294967295u
+        } }
+        val signed: () -> String = (-9223372036854775808L)::toString
+        gcCollect()
+        assertEquals("-9223372036854775808", signed())
+        assertEquals("-9223372036854775808", throughInterface(values[0L]))
+        assertEquals("18446744073709551615", throughInterface(values[1L]))
+        assertEquals("-128", throughInterface(values[2L]))
+        assertEquals("4294967295", throughInterface(values[3L]))
+    }
+}

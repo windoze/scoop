@@ -1,0 +1,99 @@
+package dev.performance
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+
+var effects = 0
+
+fun finish(values: Array<Long>, index: Long, value: Long): Found {
+    effects += 1
+    gcCollect()
+    return Found(values, index, value)
+}
+
+fun findWithCollection(values: Array<Long>): Found {
+    var i = 0L
+    while (i < values.size) {
+        val value = values[i]
+        if (value < 0L) return finish(values, i, value)
+        i += 1L
+    }
+    return finish(values, -1L, 0L)
+}
+
+fun findWithFinally(values: Array<Long>): Long {
+    var i = 0L
+    try {
+        while (i < values.size) {
+            val value = values[i]
+            if (value < 0L) return value
+            i += 1L
+        }
+    } finally { effects += 10 }
+    return 0L
+}
+
+fun search(count: Long, hit: Long) {
+    val value = -hit - 17L
+    val values = Array<Long>(count) { i -> if (i == hit || i == hit + 1L) value else i + 1L }
+    val expected = if (hit < count) hit else -1L
+    check(findIndex(values, value) == expected)
+    check(findValue(values, 0L) == (if (expected < 0L) 0L else value))
+    val found = findObject(values, 0L)
+    check(found.source === values && found.index == expected)
+    check(found.value == (if (expected < 0L) 0L else value))
+    val collected = findWithCollection(values)
+    check(collected.source === values && collected.index == expected && collected.value == found.value)
+    check(findWithFinally(values) == found.value)
+    if (expected >= 0L) check(collected.source[expected] == value)
+}
+
+fun prefixes() {
+    val long = Array<Int>(129L) { i -> i.toInt() + 10 }
+    val short = Array<Int>(65L) { i -> if (i == 63L) -1 else i.toInt() + 10 }
+    val first = Array<Int>(1L) { _ -> -1 }
+    check(firstMismatch(long, short) == 63L && firstMismatch(long, first) == 0L)
+    check(firstMismatch(long, long) == -1L)
+    var caught = false
+    try { firstMismatch(long, Array<Int>(65L) { i -> i.toInt() + 10 }) }
+    catch (error: IndexOutOfBoundsException) { caught = true }
+    check(caught)
+    val source = MutableArray<Int>(129L) { i -> i.toInt() + 10 }
+    val empty = MutableArray<Int>(0L) { _ -> 0 }
+    check(copyUntil(source, empty, 10) == 0L)
+    val target = MutableArray<Int>(64L) { _ -> -1 }
+    check(copyUntil(source, target, 74) == 64L)
+    check(target[0L] == 31 && target[63L] == 220)
+    caught = false
+    try { copyUntil(source, target, 75) }
+    catch (error: IndexOutOfBoundsException) { caught = true }
+    check(caught && target[0L] == 31 && target[63L] == 220)
+    check(copyUntil(source, source, 74) == 64L)
+    check(source[0L] == 31 && source[63L] == 220 && source[64L] == 74 && source[128L] == 138)
+}
+
+fun floats() {
+    val values = Array<Double>(132L) { i ->
+        if (i == 129L) -42.0 else if (i > 129L) Double.fromBits(0x7ff8000000000001L)
+        else if (i % 3L == 0L) 9007199254740992.0 else if (i % 3L == 1L) 1.0 else -9007199254740992.0
+    }
+    check(prefixDouble(values, -42.0).toBits() == 0L)
+    val tiny = Array<Double>(66L) { i -> if (i == 65L) -7.0 else Double.fromBits(1L) }
+    check(prefixDouble(tiny, -7.0).toBits() == 65L)
+    val zero = Array<Double>(65L) { i -> if (i == 0L) -0.0 else Double.fromBits(0x7ff8000000000001L) }
+    check(prefixDouble(zero, 0.0).toBits() == 0L)
+}
+
+fun main() {
+    val sizes = [0L, 1L, 63L, 64L, 65L, 129L, 1025L]
+    val hits = [0L, 1L, 62L, 63L, 64L, 65L, 128L, 1024L, 1025L]
+    var i = 0L
+    while (i < sizes.size) {
+        var j = 0L
+        while (j < hits.size) { search(sizes[i], hits[j]); j += 1L }
+        i += 1L
+    }
+    check(effects == 693)
+    prefixes()
+    floats()
+    println("early exits preserve first hits, live values and prefixes")
+}

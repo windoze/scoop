@@ -652,6 +652,28 @@ impl std::fmt::Display for MirVariantExprError {
 impl std::error::Error for MirVariantExprError {}
 
 #[derive(Debug, Clone)]
+pub enum StringConcatPart {
+    Value(Expr),
+    Literal(String),
+}
+
+impl StringConcatPart {
+    pub fn value(&self) -> Option<&Expr> {
+        match self {
+            Self::Value(value) => Some(value),
+            Self::Literal(_) => None,
+        }
+    }
+
+    pub fn value_mut(&mut self) -> Option<&mut Expr> {
+        match self {
+            Self::Value(value) => Some(value),
+            Self::Literal(_) => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum ExprKind {
     MaybeUninit {
         wrapper: StructId,
@@ -660,6 +682,9 @@ pub enum ExprKind {
     Context(ContextOperation<Expr>),
     DataBorrow(DataBorrowOperation<Expr>),
     StringConst(StringConstId),
+    /// One allocation from already evaluated strings and merged UTF-8 literals.
+    StringConcat(Vec<StringConcatPart>),
+    StringCopy(Box<crate::StringCopyOperation<Expr>>),
     IntegerLiteral(MirIntegerConstant),
     MachineScalarLiteral(MachineScalarValue),
     BoolLiteral(bool),

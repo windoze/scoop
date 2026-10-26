@@ -4,13 +4,6 @@
 #include "../generated_entries.h"
 #include "mutator.h"
 
-typedef struct ScoopGcAllocationCounters {
-    _Atomic(uint64_t) objects;
-    _Atomic(uint64_t) nursery_objects;
-    _Atomic(uint64_t) bytes;
-    _Atomic(uint64_t) nursery_bytes;
-} ScoopGcAllocationCounters;
-
 struct ScoopGcMutator {
     ScoopAllocationContext allocation;
     struct ScoopGcBlockMeta *allocation_block;

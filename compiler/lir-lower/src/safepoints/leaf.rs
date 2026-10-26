@@ -1,4 +1,4 @@
-//! Bounded entry work may defer an already active mutator's next full poll.
+//! Bounded leaves return to an active caller without introducing a safepoint.
 
 use super::*;
 

@@ -144,6 +144,7 @@ fn semantic_module() -> (Module, CallableBodyIdentity, SafepointIdentity) {
 
 fn live_roots() -> StatepointLiveSet {
     StatepointLiveSet::new(vec![StatepointLiveValue {
+        restore: true,
         source: scoop_lir::CallerRootSource::Param(0),
         ty: scoop_lir::LirType::Aggregate(vec![scoop_lir::MANAGED_PTR; 2]),
         leaves: ManagedLeafPaths::new(vec![

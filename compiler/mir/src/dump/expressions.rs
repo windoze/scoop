@@ -72,6 +72,31 @@ pub(super) fn dump_expr(
         ExprKind::StringConst(id) => {
             out.push_str(&format!("{pad}StringConst {}\n", string_ref(*id)));
         }
+        ExprKind::StringCopy(operation) => {
+            let name = match operation.as_ref() {
+                crate::StringCopyOperation::Utf8 { .. } => "utf8",
+                crate::StringCopyOperation::Slice { .. } => "slice",
+                crate::StringCopyOperation::FromBytes(_) => "from_bytes",
+                crate::StringCopyOperation::ToBytes(_) => "to_bytes",
+            };
+            out.push_str(&format!("{pad}StringCopy.{name}\n"));
+            for value in operation.operands() {
+                dump_expr(module, locals, value, indent + 1, out);
+            }
+        }
+        ExprKind::StringConcat(parts) => {
+            out.push_str(&format!("{pad}StringConcat\n"));
+            for part in parts {
+                match part {
+                    StringConcatPart::Value(value) => {
+                        dump_expr(module, locals, value, indent + 1, out)
+                    }
+                    StringConcatPart::Literal(text) => {
+                        out.push_str(&format!("{pad}  Utf8 {text:?}\n"))
+                    }
+                }
+            }
+        }
         ExprKind::IntegerLiteral(value) => {
             let digits = usize::from(value.width().bytes()) * 2;
             out.push_str(&format!(

@@ -24,14 +24,16 @@ impl ManagedLeafPaths {
 }
 
 /// One source whose managed leaves must be present at a statepoint. The set
-/// includes values live after the site and movable call operands: LLVM treats
-/// direct AS1 operands as roots even if their source dies at the call, while
-/// aggregate operands require explicit leaf exposure.
+/// includes values live after the site and movable call operands. Direct AS1
+/// operands remain roots during the call without an artificial post-call use.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StatepointLiveValue {
     pub source: CallerRootSource,
     pub ty: LirType,
     pub leaves: ManagedLeafPaths,
+    /// The continuation, a lowering expansion, or indirect argument storage
+    /// needs the relocated leaves. Dead direct operands need no restoration.
+    pub restore: bool,
 }
 
 /// The complete, source-ordered root set for one ordinary statepoint.
@@ -119,8 +121,10 @@ impl NativeBorrowedRootSet {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ManagedPollKind {
+    /// A full safepoint check in an already active managed segment.
     Full,
-    EntryActivation,
+    /// The root or initialization gateway may still need pending activation.
+    Gateway,
 }
 
 #[derive(Debug)]

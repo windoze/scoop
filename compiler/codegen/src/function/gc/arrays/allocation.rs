@@ -62,9 +62,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let array = self.managed_alloc_value(
                     td,
                     context.i64_type().const_int(total, false),
+                    Some(AllocationLayout::array(&layout)),
                     safepoint,
                     live,
+                    None,
                 )?;
+                let young = array.young;
+                let array = array.object;
                 let size_ptr = self.byte_gep(array, 16, "size_ptr")?;
                 builder
                     .build_store(size_ptr, context.i64_type().const_int(element_count, false))
@@ -96,10 +100,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             ))
                         })?;
                 }
-                self.heap_array_barrier(
+                self.allocated_array_barrier(
                     array,
                     &layout,
                     context.i64_type().const_int(total, false),
+                    young,
                 )?;
                 self.temps.insert(*out, array.into());
             }

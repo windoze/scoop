@@ -14,7 +14,9 @@ use scoop_lir::{
 use crate::atom_boundaries::{GlobalAtomMaterializationV1, emit_global_atom_boundaries_v1};
 use crate::{CodegenError, Module};
 
+mod dispatch;
 mod scans;
+pub(super) use dispatch::{emit_dispatch_definition_v1, emit_dispatch_view_v1};
 
 #[derive(Clone, Copy)]
 pub(super) struct EmittedScanDefinitionV1<'ctx> {
@@ -140,45 +142,6 @@ pub(super) fn emit_strong_shape_definitions_v1<'ctx>(
     emit_global_atom_boundaries_v1(llvm, surface, emitted.atoms)
 }
 
-pub(super) fn emit_dispatch_definition_v1<'ctx>(
-    context: &'ctx Context,
-    llvm: &LlvmModule<'ctx>,
-    surface: &ObjectSymbolSurfaceV1,
-    table: PersistentDispatchTableId,
-    values: &[PointerValue<'ctx>],
-    emitted: &mut EmittedStrongShapeDefinitionsV1<'ctx>,
-) -> Result<EmittedDispatchDefinitionV1<'ctx>, CodegenError> {
-    let definition = require_definition(
-        surface,
-        StrongDefinitionEntity::dispatch_table(table),
-        StrongDefinitionRole::DispatchTable,
-    )?;
-    let symbol = definition.primary_symbol().symbol();
-
-    let (global, is_empty) = if values.is_empty() {
-        let global = llvm.add_global(context.i8_type(), None, symbol.as_str());
-        global.set_initializer(&context.i8_type().const_zero());
-        (global, true)
-    } else {
-        let value = context
-            .ptr_type(inkwell::AddressSpace::default())
-            .const_array(values);
-        let global = llvm.add_global(value.get_type(), None, symbol.as_str());
-        global.set_initializer(&value);
-        (global, false)
-    };
-    global.set_constant(true);
-    crate::emission::apply_persistent_linkage(&global, definition.primary_symbol(), true)?;
-    let result = EmittedDispatchDefinitionV1 { global, is_empty };
-    if emitted.dispatch_tables.insert(table, result).is_some() {
-        return Err(CodegenError(format!(
-            "dispatch-table definition {table} was emitted more than once"
-        )));
-    }
-    emitted.record_atom(definition.primary_atom(), global);
-    Ok(result)
-}
-
 fn collect_layouts(module: &Module) -> BTreeSet<PersistentLayoutId> {
     let mut layouts = BTreeSet::new();
     for identity in module
@@ -201,6 +164,7 @@ fn collect_layouts(module: &Module) -> BTreeSet<PersistentLayoutId> {
                 .filter_map(|(_, global)| match &global.init {
                     scoop_lir::GlobalInit::Storage { layout, .. } => layout.local(),
                     scoop_lir::GlobalInit::StringConst { .. }
+                    | scoop_lir::GlobalInit::ImportedImmortal { .. }
                     | scoop_lir::GlobalInit::ImportedStorage { .. }
                     | scoop_lir::GlobalInit::CString { .. }
                     | scoop_lir::GlobalInit::RawStorage { .. } => None,

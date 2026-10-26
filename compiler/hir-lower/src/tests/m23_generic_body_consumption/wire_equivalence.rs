@@ -124,8 +124,9 @@ pub(super) fn compare_consumers(label: &str, provider: &str, consumer: &str) {
         let dependencies =
             scoop_mir::SelectedExternalMirSet::try_from_callables(source.cone(), initialization)
                 .unwrap();
-        let mir = scoop_mir_lower::lower_current_cone(&output, dependencies, Default::default())
-            .unwrap_or_else(|errors| panic!("{label}: {errors:?}"));
+        let mir =
+            scoop_mir_lower::lower_current_cone(&output, dependencies, Default::default(), None)
+                .unwrap_or_else(|errors| panic!("{label}: {errors:?}"));
         results.push((
             hir::dump(&output.output().export),
             scoop_mir::dump(mir.module()),
