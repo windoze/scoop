@@ -1445,6 +1445,8 @@ release 还可对上述常数有界区域中的小型引用读取内层作四倍
 
 codegen 按运行时规范 3.2 的入口状态保证与 3.5 的线程握手生成 poll：普通 Full 仅以 LLVM acquire 读取全局 phase，不取得 TLS；Gateway 的全局 epoch／phase 使用 acquire，本线程 mode／observed epoch 使用 monotonic（对应 C relaxed）。有界普通叶函数可由 LIR lowering 省去入口 poll，Gateway 仍保留 pending 激活。全部构建 profile 使用同一规则；保留的读取仍位于原 poll，条件慢边、状态点与 roots 保持。此选择不弱化 runtime 向收集者发布状态及 native 返回握手的内存序，也不增加或改变 callable 参数。
 
+release 对 typed ArraySet 的 stride 大于 16 bytes、恰有一个 managed leaf 的元素，复用实际数组布局和已有 scan offset，在写入前读取旧引用，完整写入后比较新引用；仅在新引用非 null 且不同于旧引用时生成原卡表查询、置脏和卡组登记（运行时规范 3.6）。普通 LLVM 优化可以转发写后读取、折叠常量和已知相同引用。选择不依赖函数、类型或符号名称，不改变 setter 调用协议；入口 poll 或先前分配之后才形成槽地址与比较值，区间内不新增 safepoint、root、状态点或外部调用。单／双字引用元素保持已有有界循环的页表提升与批量标记，多引用元素保持范围屏障，数组 literal／clone／assembly 与年轻对象初始化不增加旧槽扫描。debug 保留原写入路径。外部接口表示、`.slib`、runtime ABI、原子与 native 写入合同保持；预编译 setter 需重新生成才能采用此选择。
+
 依据语言规范 1.2，编译器可以假定普通非原子访问不存在数据竞争，不为竞争场景提供单字或逐字段不撕裂的保证。普通字段、数组元素、全局存储和聚合值复制无需为此改用 LLVM `unordered` 原子 load/store、增加发布屏障或限制访问的机器指令粒度；显式同步原语以及 runtime/GC 内部同步的契约仍须保持。
 
 最终 GC 计划从实际保留的 callable/site 和完整逻辑 managed leaves 得到。普通优化后保留逻辑根身份，标明包含可移动对象的 base phi/select；RS4GC 完成真实下降后，先清理 unreachable 前末尾无使用者的 gc.relocate，再按实际保留的 gc.relocate 引用的不同 derived SSA 值数量生成注册元数据，随后执行机器发射和原 stackmap 格式／根合同检查。此清理只处理终止块中连续的末尾无用 relocation，不重写控制流、不运行 InstCombine、PRE 或代码复制；它使无返回后继的调用后无用 relocation 与机器准备阶段一致。调用实参仍按 ABI 传入，被调用帧负责它实际继续使用的引用；正常返回调用的仅调用期间根和显式 native／EH roots 保持。多个逻辑 leaf 可以对应同一 SSA 值；已知 null／不可移动常量通常不产生 relocation pair，但不能仅按已折叠的逻辑恢复标记提前推算物理根数：共享后继或循环仍可能使原动态 SSA 值跨站点存活。该计数消费实际下降结果，不添加独立的指针活跃性分析或 RS4GC 策略复核器。每个保留 site 具有唯一 owner/role，site identity 不因删除其他 site 而重编号。

@@ -70,6 +70,7 @@ fun exercise(worker: Int): Int {
 
 @Unsafe fun main() {
     oldArrayWrites()
+    wideArrayWrites()
     val ready = AtomicInt(0)
     val finished = AtomicInt(0)
     val start = AtomicBoolean(false)

@@ -1,0 +1,89 @@
+package dev.performance
+
+// The reference is neither the first nor the only word. Interface payloads
+// add an itab which must still be written when the object reference is equal.
+struct WideEntry<T>(val tag: Long, val key: T, val value: Long)
+
+fun fillWideNodes(target: MutableArray<MaybeUninit<WideEntry<Node>>>, seed: Long) {
+    val node = Node(seed)
+    var i = 0L
+    while (i < target.size) {
+        target[i] = MaybeUninit<WideEntry<Node>>.initialized(WideEntry(i, node, seed))
+        i += 1L
+    }
+}
+
+fun fillWideViews(target: MutableArray<WideEntry<Token<Long>?>>, seed: Long) {
+    val node: ChildToken<Long> = Node(seed)
+    val parent: Token<Long> = node
+    var i = 0L
+    while (i < target.size) {
+        target[i] = WideEntry<Token<Long>?>(i, Some(parent), seed)
+        i += 1L
+    }
+}
+
+@Unsafe fun rewriteWideNodes(target: MutableArray<MaybeUninit<WideEntry<Node>>>) {
+    var i = 0L
+    while (i < target.size) {
+        val previous = target[i].assumeInit()
+        target[i] = MaybeUninit<WideEntry<Node>>.initialized(
+            WideEntry(previous.tag + 1L, previous.key, previous.value + 2L)
+        )
+        i += 1L
+    }
+}
+
+fun rewriteWideViews(target: MutableArray<WideEntry<Token<Long>?>>) {
+    var i = 0L
+    while (i < target.size) {
+        val previous = target[i]
+        target[i] = WideEntry(previous.tag + 1L, previous.key, previous.value + 2L)
+        i += 1L
+    }
+}
+
+@Unsafe fun wideArrayWrites() {
+    val nodes = MutableArray<MaybeUninit<WideEntry<Node>>>(2731L) { _ -> MaybeUninit<WideEntry<Node>>.uninit() }
+    val views = MutableArray<WideEntry<Token<Long>?>>(2051L) { _ -> WideEntry<Token<Long>?>(0L, None, 0L) }
+    gcCollect()
+    fillWideNodes(nodes, 701L)
+    fillWideViews(views, 809L)
+    collectYoung()
+    // Repeated equal-reference writes must preserve remembered survivor edges;
+    // the non-reference fields must change on every pass.
+    var round = 0L
+    while (round < 3L) {
+        rewriteWideNodes(nodes)
+        rewriteWideViews(views)
+        collectYoung()
+        round += 1L
+    }
+    var i = 0L
+    while (i < nodes.size) {
+        val entry = nodes[i].assumeInit()
+        check(entry.tag == i + 3L && entry.value == 707L && entry.key.value == 701L)
+        i += 1L
+    }
+    i = 0L
+    while (i < views.size) {
+        val entry = views[i]
+        check(entry.tag == i + 3L && entry.value == 815L)
+        check(when (entry.key) { case None -> false; case Some(value) -> value.number() == 809L })
+        i += 1L
+    }
+    try {
+        views[-1L] = WideEntry<Token<Long>?>(0L, None, 0L)
+        throw IllegalStateException()
+    } catch (error: IndexOutOfBoundsException) {}
+    gcCollect()
+    val before = gcStats()
+    i = 0L
+    while (i < nodes.size) { nodes[i] = MaybeUninit<WideEntry<Node>>.uninit(); i += 1L }
+    i = 0L
+    while (i < views.size) { views[i] = WideEntry<Token<Long>?>(i, None, 19L); i += 1L }
+    gcCollect()
+    check(before > gcStats() && nodes.size == 2731L)
+    check(views[2050L].tag == 2050L && views[2050L].value == 19L)
+    check(when (views[2050L].key) { case None -> true; case Some(_) -> false })
+}

@@ -5,6 +5,7 @@ use super::*;
 pub(crate) struct ModuleCtx<'a, 'ctx> {
     pub(crate) reuse_interface_values: bool,
     pub(crate) optimize_allocations: bool,
+    pub(crate) optimize_reference_writes: bool,
     pub(crate) allocation_initialization_limit: u64,
     pub(crate) reuse_thread_addresses: bool,
     pub(crate) managed_address_space: ManagedAddressSpace,

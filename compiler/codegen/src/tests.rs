@@ -47,6 +47,7 @@ mod allocation;
 mod arrays;
 mod arrays_clone;
 mod arrays_initialization;
+mod arrays_writes;
 mod arrays_zst;
 mod atomics;
 mod boxing;
