@@ -1,0 +1,76 @@
+package scoop.asyncio
+
+import scoop.asyncio.host.MainDispatchHost
+import scoop.platform.concurrent.currentThreadId
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class MainDispatchHostTest {
+    @Test
+    fun `CFRunLoop delivers managed callbacks on main and observes asynchronous removal`() {
+        val result = HostResult()
+        val host = MainDispatchHost()
+        assertTrue(host.isCurrentThread())
+        val owner = currentThreadId()
+        val session =
+            PlatformEventLoop().attach(host) {
+                error ->
+                assertEquals(owner, currentThreadId())
+                result.closed += 1
+                result.failure = error
+            }
+        session.post {
+            scope ->
+            assertEquals(owner, currentThreadId())
+            scope.launch suspend {
+                currentEventLoop().sleep(Duration.milliseconds(1L))
+                assertEquals(owner, currentThreadId())
+                result.completed = true
+                session.requestClose()
+            }
+        }
+        assertFalse(result.completed)
+        while (!session.isClosed) {
+            @Unsafe
+            {
+                nativeTestMainTurn()
+            }
+        }
+        assertNoHostFailure(result.failure)
+        assertTrue(result.completed)
+        assertEquals(1, result.closed)
+        @Unsafe
+        {
+            nativeTestMainTurn()
+        }
+        assertEquals(1, result.closed)
+    }
+
+    @Test
+    fun `onClosed exception is contained by the native callback bridge`() {
+        val result = HostResult()
+        val session =
+            PlatformEventLoop().attach(MainDispatchHost()) {
+                _ ->
+                result.closed += 1
+                throw IllegalStateException(Some("expected onClosed test failure"))
+            }
+        session.requestClose()
+        while (!session.isClosed) {
+            @Unsafe
+            {
+                nativeTestMainTurn()
+            }
+        }
+        @Unsafe
+        {
+            nativeTestMainTurn()
+        }
+        assertEquals(1, result.closed)
+        assertFalse(session.post { _ -> fail(Some("closed session accepted post")) })
+    }
+}
+
+@Extern(name = "scoop_test_main_turn")
+private fun nativeTestMainTurn()

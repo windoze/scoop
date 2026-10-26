@@ -6,7 +6,7 @@ import scoop.test.*
 private class LoopPumpTest {
     @Test
     fun `one turn leaves commands and ready work produced during resume for the next turn`() {
-        val loop = LibuvEventLoop()
+        val loop = PlatformEventLoop()
         val owner = loop.state
         val native = owner.open(loop)
         val seen = ArrayList<Int>()
@@ -35,7 +35,7 @@ private class LoopPumpTest {
 
     @Test
     fun `nested pump does not enter queued commands recursively`() {
-        val loop = LibuvEventLoop()
+        val loop = PlatformEventLoop()
         val owner = loop.state
         val native = owner.open(loop)
         val entered = AtomicBoolean(false)

@@ -8,15 +8,20 @@ import scoop.test.*
 private class AsyncDirectoryReadTest {
     @Test
     fun `directory entries preserve raw names links and independent snapshots`() {
-        IoTestDirectory().use { tree ->
+        IoTestDirectory().use {
+            tree ->
             val raw: Array<Byte> = [100, -1, 32, 110]
-            val name = if (operatingSystem == OperatingSystem.Linux) OsString.fromByteArray(raw)
-                else OsString.fromString("目录 空格")
+            val name =
+                if (operatingSystem == OperatingSystem.Linux)
+                    OsString.fromByteArray(raw)
+                else
+                    OsString.fromString("目录 空格")
             tree.path.resolve(Path.fromOsString(name)).writeText("data")
             tree.child("subdirectory").createDirectory()
             tree.child("link").createSymbolicLink(tree.child("missing"))
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { _ ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                _ ->
                 val directory = loop.openDirectory(tree.path)
                 val entries = collectDirectoryEntries(directory)
                 assertEquals(3L, entries.size)
@@ -24,36 +29,49 @@ private class AsyncDirectoryReadTest {
                 assertTrue(hasDirectoryName(entries, OsString.fromString("subdirectory")))
                 assertTrue(hasDirectoryName(entries, OsString.fromString("link")))
                 gcCollect()
-                for (entry in entries) assertEquals(tree.path.resolve(Path.fromOsString(entry.name)), entry.path)
+                for (entry in entries)
+                    assertEquals(tree.path.resolve(Path.fromOsString(entry.name)), entry.path)
                 assertDirectoryEnd(directory.next())
                 directory.close()
                 assertDirectoryEnd(directory.next())
-                assertTrue(loop.metadata(tree.child("link"), followLinks = false).kind == FileKind.SymbolicLink)
+                assertTrue(
+                    loop.metadata(tree.child("link"), followLinks = false).kind ==
+                        FileKind.SymbolicLink
+                )
             }
         }
     }
 
     @Test
     fun `empty enumeration remembers EOF and open failures preserve path errno`() {
-        IoTestDirectory().use { tree ->
+        IoTestDirectory().use {
+            tree ->
             val empty = tree.child("empty")
             empty.createDirectory()
             val file = tree.child("file")
             file.writeText("file")
             val missing = tree.child("missing")
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { _ ->
-                loop.openDirectory(empty).useAsync suspend { directory ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                _ ->
+                loop.openDirectory(empty).useAsync suspend {
+                    directory ->
                     assertDirectoryEnd(directory.next())
                     assertDirectoryEnd(directory.next())
                 }
-                try { loop.openDirectory(missing); fail(Some("missing directory opened")) }
+                try {
+                    loop.openDirectory(missing);
+                    fail(Some("missing directory opened"))
+                }
                 catch (error: PlatformException) {
                     assertTrue(error.kind == PlatformErrorKind.NotFound)
                     assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
                     assertEquals(missing.toOsString(), error.context!!)
                 }
-                try { loop.openDirectory(file); fail(Some("ordinary file opened as directory")) }
+                try {
+                    loop.openDirectory(file);
+                    fail(Some("ordinary file opened as directory"))
+                }
                 catch (error: PlatformException) {
                     assertTrue(error.kind == PlatformErrorKind.NotDirectory)
                     assertEquals(file.toOsString(), error.context!!)
@@ -63,7 +81,9 @@ private class AsyncDirectoryReadTest {
     }
 }
 
-internal suspend fun collectDirectoryEntries(directory: AsyncDirectoryEntries): ArrayList<DirectoryEntry> {
+internal suspend fun collectDirectoryEntries(directory: AsyncDirectoryEntries): ArrayList<
+    DirectoryEntry
+> {
     val entries = ArrayList<DirectoryEntry>()
     while (true) {
         when (directory.next()) {
@@ -74,10 +94,15 @@ internal suspend fun collectDirectoryEntries(directory: AsyncDirectoryEntries): 
 }
 
 internal fun assertDirectoryEnd(entry: DirectoryEntry?) {
-    when (entry) { case None -> {}; case Some(_) -> fail(Some("expected directory EOF")) }
+    when (entry) {
+        case None -> {};
+        case Some(_) -> fail(Some("expected directory EOF"))
+    }
 }
 
 private fun hasDirectoryName(entries: List<DirectoryEntry>, name: OsString): Boolean {
-    for (entry in entries) if (entry.name == name) return true
+    for (entry in entries)
+        if (entry.name == name)
+            return true
     return false
 }

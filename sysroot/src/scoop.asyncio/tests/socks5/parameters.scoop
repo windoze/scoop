@@ -7,7 +7,13 @@ import scoop.test.*
 private class AsyncSocks5ParameterTest {
     @Test
     fun `credentials snapshot opaque input and validate field lengths`() {
-        val username = MutableArray<Byte>(2L) { index -> if (index == 0L) 0.toByte() else 255.toByte() }
+        val username =
+            MutableArray<Byte>(2L) {
+                index -> if (index == 0L)
+                    0.toByte()
+                else
+                    255.toByte()
+            }
         val password = MutableArray<Byte>(1L) { _ -> 42.toByte() }
         val identity = Socks5Credentials(username, password)
         username[0L] = 1.toByte()
@@ -29,20 +35,29 @@ private class AsyncSocks5ParameterTest {
     @Test
     fun `invalid destinations fail before sending or taking ownership`() {
         val longName = String.fromUtf8(Array<Byte>(256L) { _ -> 97.toByte() })
-        val invalid: Array<Socks5Address> = [
-            Socks5Address.Domain("", 80),
-            Socks5Address.Domain("with space", 80),
-            Socks5Address.Domain("用户", 80),
-            Socks5Address.Domain(longName, 80),
-            Socks5Address.Domain("localhost", -1),
-            Socks5Address.Domain("localhost", 65536),
-            Socks5Address.Ip(SocketAddress(IpAddress.fromByteArray(IpAddress.IPV6_LOOPBACK.toByteArray(), 1u), 80))
-        ]
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
-            for (target in invalid) {
+        val invalid: Array<Socks5Address> =
+            [
+                Socks5Address.Domain("", 80),
+                Socks5Address.Domain("with space", 80),
+                Socks5Address.Domain("用户", 80),
+                Socks5Address.Domain(longName, 80),
+                Socks5Address.Domain("localhost", -1),
+                Socks5Address.Domain("localhost", 65536),
+                Socks5Address.Ip(
+                    SocketAddress(
+                        IpAddress.fromByteArray(IpAddress.IPV6_LOOPBACK.toByteArray(), 1u),
+                        80
+                    )
+                )
+            ]
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope -> for (target in invalid) {
                 val script = Socks5Script(socks5SuccessInput())
-                try { AsyncSocks5Tunnel.takeOwnership(script, target); fail() }
+                try {
+                    AsyncSocks5Tunnel.takeOwnership(script, target);
+                    fail()
+                }
                 catch (_: IllegalArgumentException) {}
                 assertEquals(0L, script.sent.size)
                 assertEquals(0L, script.closes)

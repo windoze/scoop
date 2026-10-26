@@ -5,7 +5,7 @@ import scoop.test.*
 import scoop.time.Duration
 
 // Query actual socket backpressure without depending on the backend's request layout.
-private suspend fun outputBlocked(backend: LibuvEventLoop, stream: AsyncTcpStream): Boolean =
+private suspend fun outputBlocked(backend: PlatformEventLoop, stream: AsyncTcpStream): Boolean =
     suspendCoroutine<Boolean> {
         continuation ->
         val endpoint = (stream as TcpStream).owner
@@ -21,7 +21,7 @@ private suspend fun outputBlocked(backend: LibuvEventLoop, stream: AsyncTcpStrea
 private class AsyncTcpQueuedWriteTest {
     @Test
     fun `cancel a queued write commits exactly the sent prefix and permits later writes`() {
-        val backend = LibuvEventLoop()
+        val backend = PlatformEventLoop()
         val loop: EventLoop = backend
         loop.run suspend {
             scope ->

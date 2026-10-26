@@ -78,3 +78,5 @@ bool scoop_io_loop_idle(ScoopIoLoop *loop) {
 ScoopIoEvent scoop_io_status_error(int status) {
     return (ScoopIoEvent){.kind = SCOOP_IO_UV_ERROR, .code = status};
 }
+
+int scoop_io_loop_descriptor(ScoopIoLoop *loop) { return uv_backend_fd(&loop->uv); }

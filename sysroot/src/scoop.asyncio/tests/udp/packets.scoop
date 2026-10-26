@@ -18,7 +18,7 @@ private class AsyncUdpPacketTest {
     }
 
     private fun packets(address: IpAddress) {
-        val loop: EventLoop = LibuvEventLoop()
+        val loop: EventLoop = PlatformEventLoop()
         loop.run suspend {
             scope ->
             val sender = loop.bindUdp(SocketAddress(address, 0))
@@ -61,7 +61,7 @@ private class AsyncUdpPacketTest {
 
     @Test
     fun `invalid ranges and oversized packets release borrows without splitting packets`() {
-        val loop: EventLoop = LibuvEventLoop()
+        val loop: EventLoop = PlatformEventLoop()
         loop.run suspend {
             _ ->
             val sender = loop.bindUdp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))

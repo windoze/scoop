@@ -5,8 +5,7 @@ import scoop.collections.HashMap
 internal class LoopOwner {
     private val lock: IoLock = IoLock()
     private var binding: EventLoop? = None
-    private var pumping: Boolean = false
-    private var pumpAgain: Boolean = false
+    private val driver: LoopDriver = LoopDriver()
     private var pointer: Ptr<Unit>? = None
     private var commands: ArrayList<() -> Unit> = ArrayList<() -> Unit>()
     private var nextId: Long = 1L
@@ -121,7 +120,7 @@ internal class LoopOwner {
         }
     }
 
-    private fun startCleanup() {
+    fun startCleanup() {
         if (cleaning || !lock.withLock { rootEnded })
             return
         cleaning = true
@@ -134,7 +133,7 @@ internal class LoopOwner {
         lock.withLock { root = Some(job) }
     }
 
-    private fun poll(native: Ptr<Unit>, wait: Boolean) {
+    fun poll(native: Ptr<Unit>, wait: Boolean) {
         @Unsafe
         {
             val status = nativeLoopPoll(native, wait)
@@ -179,101 +178,58 @@ internal class LoopOwner {
         }
     }
 
-    private fun takeCommands(): ArrayList<() -> Unit> =
+    fun takeCommands(): ArrayList<() -> Unit> =
         lock.withLock {
             val batch = commands
             commands = ArrayList<() -> Unit>()
             batch
         }
 
-    // A turn processes finite snapshots. Work produced by a resumed continuation
-    // belongs to the next turn, so a host can service its own events in between.
-    fun pump(native: Ptr<Unit>) {
-        if (pumping) {
-            pumpAgain = true;
-            return
+    fun cancelRoot() {
+        val job = lock.withLock { root }
+        job?.cancel()
+    }
+
+    fun hasQueuedWork(): Boolean = lock.withLock { commands.size != 0L || ready.size != 0L }
+
+    fun stopIfDrained(native: Ptr<Unit>): Boolean {
+        @Unsafe
+        {
+            if (!nativeLoopIdle(native))
+                return false
         }
-        pumping = true
-        try {
-            val pending = takeCommands()
-            poll(native, false)
-            var completions = 0L
-            @Unsafe
-            {
-                completions = nativeLoopBatchSize(native)
-            }
-            for (command in pending)
-                command()
-            var index = 0L
-            while (index < completions) {
-                @Unsafe
-                {
-                    complete(decodeEvent(nativeLoopNext(native)))
-                }
-                index += 1L
-            }
-            startCleanup()
-            val batch = ready
-            ready = ArrayList<() -> Unit>()
-            for (resume in batch)
-                resume()
-            startCleanup()
-        } finally {
-            pumping = false
-            if (pumpAgain) {
-                pumpAgain = false
-                @Unsafe
-                {
-                    nativeLoopWake(native)
-                }
+        return lock.withLock {
+            if (
+                !rootEnded ||
+                    commands.size !=
+                    0L ||
+                    ready.size !=
+                    0L ||
+                    operations.size !=
+                    0L ||
+                    resources.size !=
+                    0L
+            )
+                false
+            else {
+                pointer = None;
+                true
             }
         }
     }
 
-    fun drive(native: Ptr<Unit>) {
-        while (true) {
-            pump(native)
-            var nativeIdle = false
-            @Unsafe
-            {
-                nativeIdle = nativeLoopIdle(native)
-            }
-            val idle = nativeIdle
-            val stopped =
-                lock.withLock {
-                    if (
-                        !idle ||
-                            !rootEnded ||
-                            commands.size !=
-                            0L ||
-                            ready.size !=
-                            0L ||
-                            operations.size !=
-                            0L ||
-                            resources.size !=
-                            0L
-                    )
-                        false
-                    else {
-                        pointer = None;
-                        true
-                    }
-                }
-            if (stopped)
-                break
-            val wait = lock.withLock { commands.size == 0L && ready.size == 0L }
-            if (wait)
-                poll(native, true)
-        }
+    fun destroy(native: Ptr<Unit>): Throwable? {
         @Unsafe
         {
             val status = nativeLoopDestroy(native)
             if (status < 0)
                 cleanupFailed(backendFailure("close event loop", status))
         }
-        when (failure) {
-            case Some(error) -> throw error;
-            case None -> {}
-        }
+        return lock.withLock { failure }
+    }
+
+    fun pump(native: Ptr<Unit>): Boolean = driver.pump(this, native)
+    fun drive(native: Ptr<Unit>) {
+        driver.drive(this, native)
     }
 }

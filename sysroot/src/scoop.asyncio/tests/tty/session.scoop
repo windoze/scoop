@@ -10,7 +10,7 @@ private class AsyncTtySessionTest {
     fun `owned PTY receives bytes resize and deadlines and restores raw mode`() {
         TestTerminal().use {
             terminal ->
-            val loop: EventLoop = LibuvEventLoop()
+            val loop: EventLoop = PlatformEventLoop()
             loop.run suspend {
                 scope ->
                 val tty = loop.openTty()
@@ -54,7 +54,7 @@ private class AsyncTtySessionTest {
     fun `cancellation leaves an owned terminal usable and loop cleanup restores mode`() {
         TestTerminal().use {
             terminal ->
-            val backend = LibuvEventLoop()
+            val backend = PlatformEventLoop()
             val loop: EventLoop = backend
             loop.run suspend {
                 scope ->
@@ -84,7 +84,7 @@ private class AsyncTtySessionTest {
     fun `PTY hangup is a repeatable input end`() {
         TestTerminal().use {
             terminal ->
-            val loop: EventLoop = LibuvEventLoop()
+            val loop: EventLoop = PlatformEventLoop()
             loop.run suspend {
                 _ ->
                 val tty = loop.openTty()

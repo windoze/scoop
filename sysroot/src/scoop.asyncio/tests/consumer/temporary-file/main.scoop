@@ -9,7 +9,8 @@ import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.system.OsString
 
 private fun check(value: Boolean) {
-    if (!value) throw IllegalStateException(Some("asynchronous temporary file check failed"))
+    if (!value)
+        throw IllegalStateException(Some("asynchronous temporary file check failed"))
 }
 
 private fun exercise(parent: Path) {
@@ -17,19 +18,25 @@ private fun exercise(parent: Path) {
     try {
         val published = directory.resolve(Path.fromString("published"))
         published.writeText("old")
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
-            val creating = scope.async<TemporaryFile> suspend { loop.createTempFile(Some(directory), "暂存 ") }
-            val other = scope.async<TemporaryFile> suspend { loop.createTempFile(Some(directory), "暂存 ") }
-            creating.await().useAsync suspend { first ->
-                other.await().useAsync suspend { second ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
+            val creating =
+                scope.async<TemporaryFile> suspend { loop.createTempFile(Some(directory), "暂存 ") }
+            val other =
+                scope.async<TemporaryFile> suspend { loop.createTempFile(Some(directory), "暂存 ") }
+            creating.await().useAsync suspend {
+                first -> other.await().useAsync suspend {
+                    second ->
                     check(first.path != second.path)
                     loop.moveFile(first.path, published, replaceExisting = true)
-                    loop.openFile(first.path, OpenOptions(write = true, createNew = true)).useAsync suspend { replacement ->
-                        replacement.truncate(1L)
-                    }
+                    loop.openFile(
+                        first.path,
+                        OpenOptions(write = true, createNew = true)
+                    ).useAsync suspend { replacement -> replacement.truncate(1L) }
                     gcCollect()
-                    NativeByteBuffer.allocate(7L).use suspend { bytes ->
+                    NativeByteBuffer.allocate(7L).use suspend {
+                        bytes ->
                         bytes.writeBytes("content".toByteArray())
                         first.file.writeFully(bytes)
                         first.file.syncAll()
@@ -37,7 +44,9 @@ private fun exercise(parent: Path) {
                     first.file.seek(0L)
                     check(first.file.copyTo(second.file, 2L) == 7L)
                     second.file.seek(0L)
-                    check(OsString.fromByteArray(second.file.readAllBytes()).decodeUtf8() == "content")
+                    check(
+                        OsString.fromByteArray(second.file.readAllBytes()).decodeUtf8() == "content"
+                    )
                     check(loop.metadata(published).size == 7L)
                     check(loop.metadata(first.path).size == 1L)
                     second.close()
@@ -49,14 +58,17 @@ private fun exercise(parent: Path) {
             check(loop.metadata(published).size == 7L)
         }
         check(published.readText() == "content")
-    } finally { directory.deleteRecursively() }
+    } finally {
+        directory.deleteRecursively()
+    }
 }
 
 private fun exerciseConsumer(args: Array<String>) {
     check(args.size == 2L)
     val directory = Path.fromString(args[1L])
-    Thread.start { exercise(directory) }.use { first ->
-        Thread.start { exercise(directory) }.use { second ->
+    Thread.start { exercise(directory) }.use {
+        first -> Thread.start { exercise(directory) }.use {
+            second ->
             first.join()
             second.join()
         }
@@ -68,7 +80,11 @@ private class ConsumerTests {
     @Test
     fun run() {
         val directory = createTempDirectory(prefix = "scoop-consumer-")
-        try { exerciseConsumer(["consumer", directory.decodeUtf8()]) }
-        finally { directory.deleteRecursively() }
+        try {
+            exerciseConsumer(["consumer", directory.decodeUtf8()])
+        }
+        finally {
+            directory.deleteRecursively()
+        }
     }
 }

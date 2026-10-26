@@ -14,7 +14,7 @@ private class TcpThreadReturn {
 private class AsyncTcpDuplexTest {
     @Test
     fun `IPv6 permits independent reads and writes including foreign thread submission`() {
-        val loop: EventLoop = LibuvEventLoop()
+        val loop: EventLoop = PlatformEventLoop()
         val ownerThread = currentThreadId()
         val gate = TcpThreadReturn()
         loop.run suspend {
@@ -52,7 +52,7 @@ private class AsyncTcpDuplexTest {
 
     @Test
     fun `refused connections retain POSIX codes and invalid counts release reservations`() {
-        val loop: EventLoop = LibuvEventLoop()
+        val loop: EventLoop = PlatformEventLoop()
         loop.run suspend {
             scope ->
             val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))

@@ -159,3 +159,6 @@ internal fun nativeTimerStart(loop: Ptr<Unit>, id: Long, seconds: Long, nanos: I
 
 @Extern(name = "scoop_io_timer_cancel")
 internal fun nativeTimerCancel(loop: Ptr<Unit>, id: Long)
+
+@Extern(name = "scoop_io_loop_descriptor")
+internal fun nativeLoopDescriptor(loop: Ptr<Unit>): Int

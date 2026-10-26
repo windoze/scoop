@@ -6,6 +6,20 @@ name = "scoop.asyncio"
 version = "0.1.0"
 kind = "library"
 
+[[sources]]
+path = "src"
+
+[[sources]]
+path = "platform/darwin"
+when = { os = "darwin" }
+
+[[test.sources]]
+path = "tests"
+
+[[test.sources]]
+path = "test-platform/darwin"
+when = { os = "darwin" }
+
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
 "scoop:scoop.std" = "0.1.0"
@@ -356,3 +370,7 @@ when = { os = "linux" }
 [[native.libraries]]
 name = "rt"
 when = { os = "linux" }
+
+[[native.sources]]
+path = "native/darwin/host.c"
+when = { os = "darwin" }

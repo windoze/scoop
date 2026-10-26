@@ -10,7 +10,7 @@
 
 库内 C shim 的完成记录 kind 与 Scoop 解码保持一致：既有通用／网络事件保留原编号，使用 `0x000–0x0ff` 段；文件／目录事件使用 `0x100–0x1ff` 段，依次为 Metadata `0x100`、Position `0x101`、Temporary `0x102`、DirectoryName `0x103`；TTY 事件使用 `0x200–0x2ff` 段，Resize 为 `0x200`、Timeout 为 `0x201`。两类新增事件分别在自己的段内追加，保留已有编号；未分配值仍按非法完成记录处理。此编号仅用于该 Cone 的 native 接口，不属于 runtime ABI 或公共 Scoop 枚举身份。
 
-首版支持 aarch64-apple-darwin、x86_64-unknown-linux-gnu、x86_64-unknown-linux-musl。LibuvEventLoop 使用固定的 libuv 1.53.0，源码、许可证和各目标 native 输入随 Cone 发布；不查找系统 libuv。C11 shim 只管理 native I/O、稳定存储及完成记录，worker／callback 不进入 managed 代码。TLS、HTTP 属于各自库，文件监听、进程和任意 fd 接管不在本版范围；M54 为实际缓存与下载补齐第 9 节的基础能力；M59 增加第 10 节的自有 TTY。
+首版支持 aarch64-apple-darwin、x86_64-unknown-linux-gnu、x86_64-unknown-linux-musl。PlatformEventLoop 由目标平台选择后端：Darwin 使用系统 libdispatch，Linux 使用第 11 节规定的 io_uring；Linux 迁移完成前临时保留内部 libuv 适配。C11 shim 只管理 native I/O、稳定存储及完成记录，worker／callback 不进入 managed 代码。TLS、HTTP 属于各自库，文件监听、进程和任意 fd 接管不在本版范围；M54 为实际缓存与下载补齐第 9 节的基础能力；M59 增加第 10 节的自有 TTY。
 
 Linux C 工具链同时需要所选 libc 的开发头文件和对应架构的 Linux UAPI 头文件（包括 linux/errqueue.h）。只带 musl libc 的 musl-gcc 包装器须补齐内核头文件搜索路径，可通过普通 --cc 包装脚本配置；不把 glibc 用户态头文件加入 musl 的搜索路径。
 
@@ -27,7 +27,7 @@ public interface EventLoop {
     public suspend fun openFile(path: Path, options: OpenOptions = OpenOptions()): AsyncFile
     public suspend fun openTty(): AsyncTty
 }
-public class LibuvEventLoop public constructor() : EventLoop
+public class PlatformEventLoop public constructor() : EventLoop
 public fun <T> EventLoop.runWithResult(block: suspend (CoroutineScope) -> T): T
 public fun currentEventLoop(): EventLoop
 ```
@@ -44,7 +44,7 @@ public fun currentEventLoop(): EventLoop
 
 ## 3. 取消、完成与关闭
 
-直接 I/O 属于提交时的当前 Job，不为每次操作创建子任务。登记前已取消则不提交。操作完成与取消在 managed 状态中选择一次结果；native 结束是独立事实。借用解除、实际进度提交及未交付资源清理完成后才恢复，包括取消结果。成功先选定则后来的取消不覆盖成功；取消先选定则迟到成功只执行清理。libuv 撤销返回值不替代真实 callback。
+直接 I/O 属于提交时的当前 Job，不为每次操作创建子任务。登记前已取消则不提交。操作完成与取消在 managed 状态中选择一次结果；native 结束是独立事实。借用解除、实际进度提交及未交付资源清理完成后才恢复，包括取消结果。成功先选定则后来的取消不覆盖成功；取消先选定则迟到成功只执行清理。撤销提交或控制请求的完成不替代实际数据请求的退休。
 
 定时器取消等待 timer close callback。TCP read／UDP receive 停止订阅后由 shim 记录终止；已提交 request 等实际 callback。单独取消 TCP read／write、UDP receive 不关闭健康资源。TCP write 使用 1.53.0 的 uv_cancel 和 uv_write_nwritten 保留部分进度。shutdownOutput 提交后的取消终止整个 stream。UDP send 提交后等 callback；文件／DNS work 队列可撤销，已执行 syscall 必须等 after-work。迟到 open／connect／accept 成功先关闭未交付资源。
 
@@ -92,7 +92,7 @@ AsyncByteStream 允许使用不同 buffer 各一个 read 和 write 同时在途�
 
 ## 5. 定时等待
 
-sleep 使用 Duration，负值非法，零在取消检查后立即完成。正时长按单调截止时间等待；更新 libuv 缓存时间、向上舍入毫秒并在 callback 核对截止时间，不提前报告完成。不承诺精确唤醒时刻。取消停止并关闭 timer，收齐 native 关闭后恢复。
+sleep 使用 Duration，负值非法，零在取消检查后立即完成。正时长按单调截止时间等待；Darwin 使用 dispatch timer，Linux 使用 TIMEOUT；到期核对截止时间，不提前报告完成。不承诺精确唤醒时刻。取消停止并关闭 timer，收齐 native 关闭后恢复。
 
 ## 6. 网络
 
@@ -115,13 +115,13 @@ public interface AsyncUdpSocket : AsyncCloseable {
 
 TCP EOF 不关闭输出。shutdownOutput 属于输出方向，提交后禁止新 write；成功后输入仍可读。真实读错误成为该方向终态，不重启失效的读订阅。listener 同时一个 accept，无等待者时保留后端待 accept 状态，不建立 managed 预接收队列。关闭 listener 不关闭已交付 stream。地址属性是创建时取得的值，不跨线程访问 native handle；这与 platform 同步 socket 每次调用 localAddress()／peerAddress() 查询 OS 状态的合同不同。
 
-listenTcp 的 backlog 必须为正。监听使用 platform 的 socket_bind helper 先按 reuseAddress 配置和绑定新的 owned fd，再移交 uv_tcp_open／uv_listen；这样 false 不被 libuv 的隐式 SO_REUSEADDR 覆盖。移交前失败按 raw close 清理，移交后按 uv_close 清理。helper 错误保留 PosixErrno，libuv 错误使用 Libuv；不接管用户已有 socket。
+listenTcp 的 backlog 必须为正。监听使用 platform 的 socket_bind helper 按 reuseAddress 配置和绑定新的 owned fd，再 listen。失败时关闭尚未交付的 fd；错误保留 PosixErrno，不接管用户已有 socket。
 
 UDP 每方向一个在途操作，发送保持完整 datagram，不拆包；空发送是真实空包。receive 要求正容量，有源地址的零字节是空包，无地址的零通知继续等待。Datagram 保留来源、实际交付长度及截断标志。超大报文保留实际错误。
 
 bindUdp 同样先由 platform socket_bind 配置 reuseAddress 并绑定新的 fd，再通过 uv_udp_open_ex(handle, fd, 0) 移交；不使用隐式开启 SO_REUSEADDR 的 uv_udp_open。移交前后失败的关闭责任与 TCP 相同。sendTo 提交单个 uv_udp_send_t，成功 callback 表示完整报文已交给 OS；取消仍等待 callback 并提交实际发送长度，不能把取消当作撤回报文。
 
-libuv 错误保留 NativeErrorDomain.Libuv 与原码；UV_EOF 按 EOF 解释，库主动取消／关闭不伪造 OS 错误。Linux 在实际 socket 输出提交及 uv_run 周围屏蔽线程 SIGPIPE，仅消费本段新增信号，再恢复旧 mask/pending；Darwin 输出前设置 SO_NOSIGPIPE。不改进程 signal handler。
+后端错误保留 NativeErrorDomain.PosixErrno 与实际 errno；TCP read 的零结果按 EOF 解释，库主动取消／关闭不伪造 OS 错误。Linux 网络输出使用 MSG_NOSIGNAL，Darwin 输出前设置 SO_NOSIGPIPE。不改进程 signal handler。
 
 ## 7. DNS 与文件
 
@@ -139,11 +139,11 @@ public interface AsyncFile : AsyncByteSource, AsyncByteSink, AsyncCloseable {
 }
 ```
 
-openFile 使用 Path／OpenOptions 的已有合同。文件 open／read／write／metadata／seek／truncate／sync／close 在 libuv worker 调用 platform 的 GC-free helper，保留 PosixErrno。顺序 read／write 共用文件位置，同一文件的读写、查询、位置／长度控制与 sync 同时最多一个。flush 不等于 sync；不使用 uv_fs 的额外 close／sync 语义。worker 只接收 native 存储，立即记录错误。已开始的阻塞操作可能推迟取消和 run 退出，不承诺固定时延。
+openFile 使用 Path／OpenOptions 的已有合同。Darwin 的文件操作在后台 dispatch work 调用 platform 的 GC-free helper；Linux 的 read／write／sync 使用 ring，其余文件操作使用 native worker。错误保留 PosixErrno。顺序 read／write 共用文件位置，同一文件的读写、查询、位置／长度控制与 sync 同时最多一个。flush 不等于 sync；不增加额外的 close／sync 语义。worker 只接收 native 存储，立即记录错误。已开始的阻塞操作可能推迟取消和 run 退出，不承诺固定时延。
 
 ## 8. 实现边界与验收
 
-native request 持有预留完成节点；C callback 仅存状态和进度、入 native 队列，managed 在 NativeSafe 返回握手后消费。操作编号在完成消费前不复用。managed 使用普通带类型操作与结果，不以可空字段猜测不同事件。提交同步失败走同一释放路径。libuv 及相关系统库按语言规范 12.2.1～12.2.3 的普通 native 输入链接；三目标不启用 io_uring。
+native request 持有预留完成节点；C callback 仅存状态和进度、入 native 队列，managed 在 NativeSafe 返回握手后消费。操作编号在完成消费前不复用。managed 使用普通带类型操作与结果，不以可空字段猜测不同事件。提交同步失败走同一释放路径。后端及相关系统库按语言规范 12.2.1～12.2.3 的普通 native 输入链接。
 
 主要验收为同 Cone scoop.test：真实 loopback 动态端口、无公网 DNS、真实文件、Context、取消／关闭竞争、部分进度、原始错误、SIGPIPE 及 moving GC。竞争用明确同步点，测试源码和工具始终存在。详细边界见 [M49 设计第 14 节](../milestone49/DESIGN.md#142-异步-io)。
 
@@ -175,7 +175,7 @@ createTempFile 以一次 native 排他创建返回实际 Path 与拥有句柄的
 
 open／next／close 均由 worker 调用 platform 的目录 helper。next 在本次工作内复制一个名称，managed 取得独立快照并释放原生副本；关闭等待正在进行的 readdir 及结果消费结束。排队取消不推进目录，已经执行的 next 不回退 OS 位置，迟到名称仍被释放。open 取消后取得的句柄必须在恢复调用方前关闭；循环退出也收尾未关闭的目录，不把所有名称预先收集进数组。
 
-上述工作使用既有 libuv worker 和 platform 的 GC-free 文件 helper；必要 helper 先在 platform 补齐，再由 asyncio 调度。路径、输入数据和输出存储在提交前取得稳定 native 副本，errno 在 worker 内立即记录。已开始的 syscall 取消仍等 after-work；迟到结果和 close 按第 3 节收尾。
+上述工作使用 native worker 和 platform 的 GC-free 文件 helper；必要 helper 先在 platform 补齐，再由 asyncio 调度。路径、输入数据和输出存储在提交前取得稳定 native 副本，errno 在 worker 内立即记录。已开始的 syscall 取消仍等真实返回；迟到结果和 close 按第 3 节收尾。
 
 ### 9.2 地址族竞速与 SOCKS5
 
@@ -253,23 +253,23 @@ openTty 通过 platform 的共同 owner 取得实际终端与 resize 通知，�
 选定后才完成的 open 先关闭未交付 owner。库不接管调用者 fd，不改变 stdin
 的 O_NONBLOCK，不增加后台读取线程。
 
-receive 同时等待字节与 resize，使用 libuv poll 观察自有 fd，实际 read 为
+receive 同时等待字节与 resize，使用平台后端观察自有 fd，实际 read 为
 非阻塞 syscall。正 count 返回正 Bytes、End、Resize 或 TimedOut；count 为 0
 在状态、参数和取消检查后返回 Bytes(0)，不表示 EOF。None 无限等待，非负
 timeout 使用单调总时间；零不等待。resize 可合并为最后实际尺寸，通知本身
 不占用字节 buffer。收到 End 后后续正 receive 继续返回 End。
 
 同一资源允许各一个 receive 和 writeFrom 同时在途；模式和尺寸控制要求两个
-方向都空闲。flush 沿无缓冲输出合同。所有原生操作在所属 loop 线程执行；
+方向都空闲。flush 沿无缓冲输出合同。原生状态由后端串行管理，managed 完成由所属 loop owner 消费；
 不把同步阻塞 poll／write 包在 suspend 函数内。SIGWINCH 沿终端规范的
-Linux self-pipe／Darwin kqueue 实现，由 libuv poll 观察通知 fd，避免另装
-libuv signal handler 改变应用原 disposition。
+Linux self-pipe／Darwin kqueue 实现，由后端观察通知 fd，避免另装
+signal handler 改变应用原 disposition。
 
 取消停止 poll／timer 后记录一次终止，借用按实际字节进度提交后才恢复。
 取消已经选定时到达的 resize 保留给下一次 receive；End 保留为输入终态。
 单次取消不关闭健康 TTY。关闭拒绝新操作，结束在途等待，等待借用释放和
-全部 libuv close callback，再恢复 raw 并释放共同 owner；run 收尾同样执行。
-原生错误保留 PosixErrno／Libuv 来源；恢复失败也继续消费所有资源。
+全部 source cancel handler／CQE，再恢复 raw 并释放共同 owner；run 收尾同样执行。
+原生错误保留 PosixErrno 来源；恢复失败也继续消费所有资源。
 
 disableRawMode 和 isRawMode 允许已取消 Job 在所属活动 loop 中进行清理，
 不因此接受其他被取消的 I/O。模式的幂等、快照与恢复沿终端规范第 7 节。
@@ -277,7 +277,7 @@ async raw 作用域使用这两个入口和 useAsync，GC 不承担恢复。
 
 ## 11. 平台后端与宿主主循环（迁移合同）
 
-本节规定当前迁移合同。各平台实施完成时，第 1～10 节中的具体 libuv 驱动、撤销、计时精度和原生错误描述应同步替换；其中任务归属、资源方向独占、实际进度、路径／地址、TTY、显式关闭与 buffer 借用合同继续适用。当前版本仍按第 1～10 节运行。
+本节规定当前迁移合同。各平台实施完成时，第 1～10 节中的具体 libuv 驱动、撤销、计时精度和原生错误描述应同步替换；其中任务归属、资源方向独占、实际进度、路径／地址、TTY、显式关闭与 buffer 借用合同继续适用。可用状态以实施记录为准；迁移期间的 Linux 适配仍保留其原生 Libuv 错误，最终随 adapter 一并移除。
 
 ### 11.1 共享层与平台后端
 

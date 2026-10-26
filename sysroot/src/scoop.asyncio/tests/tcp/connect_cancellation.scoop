@@ -9,7 +9,7 @@ import scoop.test.*
 private class AsyncTcpConnectCancellationTest {
     @Test
     fun `cancelling queued resolution stops both families before connection submission`() {
-        val backend = LibuvEventLoop()
+        val backend = PlatformEventLoop()
         val loop: EventLoop = backend
         loop.run suspend {
             scope ->
@@ -42,7 +42,7 @@ private class AsyncTcpConnectCancellationTest {
 
     @Test
     fun `completed DNS results are drained when cancellation wins before delivery`() {
-        val backend = LibuvEventLoop()
+        val backend = PlatformEventLoop()
         val loop: EventLoop = backend
         loop.run suspend {
             scope ->
@@ -67,7 +67,7 @@ private class AsyncTcpConnectCancellationTest {
 
     @Test
     fun `queued competing successes and late rejected sockets close without closing the winner`() {
-        val backend = LibuvEventLoop()
+        val backend = PlatformEventLoop()
         val loop: EventLoop = backend
         loop.run suspend {
             scope ->

@@ -29,3 +29,15 @@ path = "native/socket.c"
 
 [[native.sources]]
 path = "native/tty.c"
+
+[[native.sources]]
+path = "native/host.c"
+
+[[native.sources]]
+path = "native/host_darwin.c"
+when = { os = "darwin" }
+
+[[native.libraries]]
+name = "CoreFoundation"
+kind = "framework"
+when = { os = "darwin" }

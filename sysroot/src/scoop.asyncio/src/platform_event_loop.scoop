@@ -1,16 +1,17 @@
 package scoop.asyncio
 
 import scoop.asyncio.native.NativeWork
+import scoop.asyncio.host.EventLoopHost
 import scoop.time.Duration
 import scoop.platform.net.*
 import scoop.platform.system.OsString
 import scoop.platform.fs.*
 
 /**
- * A single-use libuv event loop. Run it from outside a Job and outside another event loop; I/O
+ * A single-use platform event loop. Run it from outside a Job and outside another event loop; I/O
  * requires an active job in this loop's context.
  */
-public class LibuvEventLoop public constructor(): EventLoop {
+public class PlatformEventLoop public constructor(): EventLoop {
     private val accepted: AtomicBoolean = AtomicBoolean(false)
     internal val state: LoopOwner = LoopOwner()
 
@@ -19,14 +20,7 @@ public class LibuvEventLoop public constructor(): EventLoop {
      * single-use and cannot be nested or called from an existing Job.
      */
     public override fun run(block: suspend (CoroutineScope) -> Unit) {
-        when (currentJobOrNone()) {
-            case Some(_) -> throw IllegalStateException(Some("run requires a caller outside a Job"))
-            case None -> {}
-        }
-        if (hasEventLoop())
-            throw IllegalStateException(Some("nested event loop run"))
-        if (!accepted.compareAndSet(false, true))
-            throw IllegalStateException(Some("event loop already used"))
+        acceptStart()
         val native = state.open(this)
         val loop: EventLoop = this
         context(loop) {
@@ -42,6 +36,48 @@ public class LibuvEventLoop public constructor(): EventLoop {
             )
         }
         state.drive(native)
+    }
+
+    /** Attaches without running application callbacks on the registration stack. */
+    public fun attach(host: EventLoopHost, onClosed: (Throwable?) -> Unit): EventLoopSession {
+        if (!host.isCurrentThread())
+            throw IllegalStateException(Some("attach requires the host owner thread"))
+        acceptStart()
+        val native = state.open(this)
+        val mailbox = LoopMailbox(state)
+        val loop: EventLoop = this
+        context(loop) {
+            startCoroutine<Unit>(
+                suspend { coroutineScope<Unit> suspend { scope -> mailbox.run(scope) } },
+                SessionCompletion(mailbox)
+            )
+        }
+        try {
+            LoopAttachment(state, native, mailbox, onClosed).install(host)
+        } catch (error: Throwable) {
+            mailbox.requestClose()
+            try {
+                state.drive(native)
+            }
+            catch (cleanup: Throwable) {
+                throw ResourceUseException(error, cleanup)
+            }
+            throw error
+        }
+        return EventLoopSession(loop, mailbox)
+    }
+
+    private fun acceptStart() {
+        when (currentJobOrNone()) {
+            case Some(_) -> throw IllegalStateException(
+                Some("event loop startup requires a caller outside a Job")
+            )
+            case None -> {}
+        }
+        if (hasEventLoop())
+            throw IllegalStateException(Some("nested event loop startup"))
+        if (!accepted.compareAndSet(false, true))
+            throw IllegalStateException(Some("event loop already used"))
     }
 
     /**

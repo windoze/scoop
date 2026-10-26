@@ -33,7 +33,7 @@ private class AsyncFileRunningWorkTest {
             tree ->
             val path = tree.child("fifo")
             makeFifo(path)
-            val backend = LibuvEventLoop()
+            val backend = PlatformEventLoop()
             val loop: EventLoop = backend
             loop.run suspend {
                 scope ->
@@ -77,7 +77,7 @@ private class AsyncFileRunningWorkTest {
             tree ->
             val path = tree.child("fifo")
             makeFifo(path)
-            val backend = LibuvEventLoop()
+            val backend = PlatformEventLoop()
             val loop: EventLoop = backend
             loop.run suspend {
                 scope ->

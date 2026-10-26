@@ -2,57 +2,90 @@ package scoop.asyncio
 
 // These gates exist only in the test dependency. The real work queue and file
 // syscalls still run; the gates make queued/running cancellation deterministic.
-internal class WorkFence(private val loop: LibuvEventLoop) {
+internal class WorkFence(private val loop: PlatformEventLoop) {
     private var pointer: Ptr<Unit>? = None
     private var completed: Boolean = false
     private var waiter: Continuation<Unit>? = None
 
     suspend fun start(spare: UInt = 0u, cancelAfterPriorWork: Job? = None) {
-        suspendCoroutine<Unit> { continuation ->
-            val operation = LoopOperation(loop.state, loop.state.nextOperation(),
-                { native, id -> @Unsafe {
-                    val result = createFence(native, id, spare)
-                    if (result.status < 0) return@LoopOperation nativeStatus(id, result.status)
-                    pointer = result.pointer
-                    when (cancelAfterPriorWork) {
-                        case Some(job) -> {
-                            // All gates running means earlier work has returned, before loop delivery.
-                            waitFence(pointer!!)
-                            job.cancel()
+        suspendCoroutine<Unit> {
+            continuation ->
+            val operation =
+                LoopOperation(
+                    loop.state,
+                    loop.state.nextOperation(),
+                    {
+                        native,
+                        id -> @Unsafe
+                        {
+                            val result = createFence(native, id, spare)
+                            if (result.status < 0)
+                                return@LoopOperation nativeStatus(id, result.status)
+                            pointer = result.pointer
+                            when (cancelAfterPriorWork) {
+                                case Some(job) -> {
+                                    // All gates running means earlier work has returned, before loop delivery.
+                                    waitFence(pointer!!)
+                                    job.cancel()
+                                }
+                                case None -> {}
+                            }
+                            loop.state.ready.add { continuation.resume(Unit) }
+                            return@LoopOperation IoStart.Pending
                         }
-                        case None -> {}
-                    }
-                    loop.state.ready.add { continuation.resume(Unit) }
-                    return@LoopOperation IoStart.Pending
-                } }, { _, _ -> },
-                { event, _ ->
-                    when (resultFailure("test worker fence", event.result)) {
-                        case Some(error) -> continuation.resumeWithException(error)
-                        case None -> {
-                            pointer = None
-                            completed = true
-                            when (waiter) { case Some(value) -> value.resume(Unit); case None -> {} }
-                            waiter = None
+                    },
+                    { _, _ -> },
+                    {
+                        event,
+                        _ -> when (resultFailure("test worker fence", event.result)) {
+                            case Some(error) -> continuation.resumeWithException(error)
+                            case None -> {
+                                pointer = None
+                                completed = true
+                                when (waiter) {
+                                    case Some(value) -> value.resume(Unit);
+                                    case None -> {}
+                                }
+                                waiter = None
+                            }
                         }
                     }
-                })
+                )
             loop.state.submit(operation)
         }
     }
 
-    fun waitStarted() { @Unsafe { waitFence(pointer!!) } }
+    fun waitStarted() {
+        @Unsafe
+        {
+            waitFence(pointer!!)
+        }
+    }
 
     suspend fun close() {
-        if (completed) return
-        @Unsafe { releaseFence(pointer!!) }
-        suspendCoroutine<Unit> { continuation ->
-            if (completed) continuation.resume(Unit) else waiter = Some(continuation)
+        if (completed)
+            return
+        @Unsafe
+        {
+            releaseFence(pointer!!)
+        }
+        suspendCoroutine<Unit> {
+            continuation -> if (completed)
+                continuation.resume(Unit)
+            else
+                waiter = Some(continuation)
         }
     }
 }
 
 @Extern(name = "scoop_test_fence_create")
 private fun createFence(loop: Ptr<Unit>, id: Long, spare: UInt): NativeCreated
-@Extern(name = "scoop_test_fence_wait") private fun waitFence(fence: Ptr<Unit>)
-@Extern(name = "scoop_test_fence_release") private fun releaseFence(fence: Ptr<Unit>)
-@Extern(name = "scoop_test_pool_size") internal fun testPoolSize(): UInt
+
+@Extern(name = "scoop_test_fence_wait")
+private fun waitFence(fence: Ptr<Unit>)
+
+@Extern(name = "scoop_test_fence_release")
+private fun releaseFence(fence: Ptr<Unit>)
+
+@Extern(name = "scoop_test_pool_size")
+internal fun testPoolSize(): UInt

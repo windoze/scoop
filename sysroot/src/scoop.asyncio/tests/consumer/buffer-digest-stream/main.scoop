@@ -9,67 +9,98 @@ import scoop.platform.net.*
 import scoop.text.toHexString
 
 private fun check(value: Boolean) {
-    if (!value) throw IllegalStateException(Some("buffer digest stream check failed"))
+    if (!value)
+        throw IllegalStateException(Some("buffer digest stream check failed"))
 }
 
-private class HashSource(val source: AsyncByteSource, val digest: Digest) : AsyncByteSource {
+private class HashSource(val source: AsyncByteSource, val digest: Digest): AsyncByteSource {
     public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
         val start = buffer.writePosition
-        val progress = source.readInto(buffer, if (count > 2L) 2L else count)
+        val progress =
+            source.readInto(
+                buffer,
+                if (count > 2L)
+                    2L
+                else
+                    count
+            )
         digest.update(buffer.getBytes(start, progress))
         return progress
     }
 }
 
-private class HashSink(val sink: AsyncByteSink, val digest: Digest) : AsyncByteSink {
+private class HashSink(val sink: AsyncByteSink, val digest: Digest): AsyncByteSink {
     public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
         val start = buffer.readPosition
-        val progress = sink.writeFrom(buffer, if (count > 3L) 3L else count)
+        val progress =
+            sink.writeFrom(
+                buffer,
+                if (count > 3L)
+                    3L
+                else
+                    count
+            )
         digest.update(buffer.getBytes(start, progress))
         return progress
     }
-    public override suspend fun flush() { sink.flush() }
+    public override suspend fun flush() {
+        sink.flush()
+    }
 }
 
 private fun transfer() {
     val payload = "The quick brown fox jumps over the lazy dog".toByteArray()
     val expected = "d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592"
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
-        loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
-            val connecting = scope.async<AsyncTcpStream> suspend { loop.connectTcp(listener.localAddress) }
-            listener.accept().useAsync suspend { server ->
-                connecting.await().useAsync suspend { client ->
-                    val sending = scope.async<Unit> suspend {
-                        Digest(DigestAlgorithm.Sha256).use suspend { hash ->
-                            NativeByteBuffer.allocate(payload.size).use suspend { output ->
-                                output.writeBytes(payload)
-                                HashSink(server, hash).writeFully(output)
-                                check(output.readableBytes == 0L)
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope -> loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend {
+            listener ->
+            val connecting =
+                scope.async<AsyncTcpStream> suspend { loop.connectTcp(listener.localAddress) }
+            listener.accept().useAsync suspend {
+                server -> connecting.await().useAsync suspend {
+                    client ->
+                    val sending =
+                        scope.async<Unit> suspend {
+                            Digest(DigestAlgorithm.Sha256).use suspend {
+                                hash ->
+                                NativeByteBuffer.allocate(payload.size).use suspend {
+                                    output ->
+                                    output.writeBytes(payload)
+                                    HashSink(server, hash).writeFully(output)
+                                    check(output.readableBytes == 0L)
+                                }
+                                check(hash.finish().toHexString() == expected)
                             }
-                            check(hash.finish().toHexString() == expected)
+                            server.shutdownOutput()
                         }
-                        server.shutdownOutput()
-                    }
-                    Digest(DigestAlgorithm.Sha256).use suspend { hash ->
+                    Digest(DigestAlgorithm.Sha256).use suspend {
+                        hash ->
                         val input = HashSource(client, hash)
                         val result = ArrayList<Byte>()
-                        NativeByteBuffer.allocate(8L).use suspend { buffer ->
-                            while (true) {
+                        NativeByteBuffer.allocate(8L).use suspend {
+                            buffer -> while (true) {
                                 buffer.clear()
-                                buffer.writeByte(11.toByte()); buffer.writeByte(22.toByte()); buffer.skip(1L)
+                                buffer.writeByte(11.toByte());
+                                buffer.writeByte(22.toByte());
+                                buffer.skip(1L)
                                 val count = input.readInto(buffer, 3L)
-                                check(buffer.readPosition == 1L && buffer.writePosition == count + 2L)
+                                check(
+                                    buffer.readPosition == 1L && buffer.writePosition == count + 2L
+                                )
                                 check(buffer.readByte() == 22.toByte())
-                                if (count == 0L) break
+                                if (count == 0L)
+                                    break
                                 val copy = buffer.readBytes(count)
-                                for (byte in copy) result.add(byte)
+                                for (byte in copy)
+                                    result.add(byte)
                                 gcCollect()
                             }
                         }
                         check(hash.finish().toHexString() == expected)
                         check(result.size == payload.size)
-                        for (index in 0L..<payload.size) check(result[index] == payload[index])
+                        for (index in 0L ..< payload.size)
+                            check(result[index] == payload[index])
                     }
                     sending.await()
                 }
@@ -79,12 +110,17 @@ private fun transfer() {
 }
 
 private fun exerciseConsumer() {
-    Thread.start { transfer() }.use { thread -> transfer(); thread.join() }
-
+    Thread.start { transfer() }.use {
+        thread ->
+        transfer();
+        thread.join()
+    }
 }
 
 @Test
 private class ConsumerTests {
     @Test
-    fun behavior() { exerciseConsumer() }
+    fun behavior() {
+        exerciseConsumer()
+    }
 }

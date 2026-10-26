@@ -16,7 +16,7 @@ private fun breakOutput(stream: AsyncTcpStream) {
 }
 
 private fun exerciseBrokenOutput() {
-    val backend = LibuvEventLoop()
+    val backend = PlatformEventLoop()
     val loop: EventLoop = backend
     loop.run suspend {
         scope ->

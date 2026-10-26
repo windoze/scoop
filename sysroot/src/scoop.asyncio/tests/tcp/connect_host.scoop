@@ -10,7 +10,7 @@ import scoop.time.Duration
 private class AsyncTcpConnectHostTest {
     @Test
     fun `numeric hosts connect both families and transfer through the selected stream`() {
-        val loop: EventLoop = LibuvEventLoop()
+        val loop: EventLoop = PlatformEventLoop()
         loop.run suspend {
             scope -> for (ip in [IpAddress.IPV4_LOOPBACK, IpAddress.IPV6_LOOPBACK]) {
                 val listener = loop.listenTcp(SocketAddress(ip, 0))
@@ -36,7 +36,7 @@ private class AsyncTcpConnectHostTest {
 
     @Test
     fun `a failed localhost candidate does not cancel its successful sibling or caller`() {
-        val loop: EventLoop = LibuvEventLoop()
+        val loop: EventLoop = PlatformEventLoop()
         loop.run suspend {
             scope ->
             val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
@@ -64,7 +64,7 @@ private class AsyncTcpConnectHostTest {
 
     @Test
     fun `all failures retain native causes and catching them leaves the caller usable`() {
-        val loop: EventLoop = LibuvEventLoop()
+        val loop: EventLoop = PlatformEventLoop()
         loop.run suspend {
             scope ->
             val reserved = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
@@ -99,8 +99,8 @@ private class AsyncTcpConnectHostTest {
 
     @Test
     fun `invalid hosts ports and loop bindings keep their original exception types`() {
-        val loop: EventLoop = LibuvEventLoop()
-        val other: EventLoop = LibuvEventLoop()
+        val loop: EventLoop = PlatformEventLoop()
+        val other: EventLoop = PlatformEventLoop()
         loop.run suspend {
             scope ->
             try {
