@@ -6,7 +6,8 @@
 
 - 2026-10-27：开始实施，保留现有公共行为，以共享 owner、Darwin、宿主接入、Linux、消费者迁移的顺序提交。
 - 共享层已完成：资源、操作和连接竞速只依赖 `LoopOwner`；一次非阻塞处理消费有限快照并阻止递归进入，同步运行复用该流程。native 公共头不再暴露 uv 类型，过渡适配的布局集中在私有头。
-- 当前仍由 libuv 提供原生后端；`PlatformEventLoop`、session 与新后端尚未交付。
+- Darwin 原生后端已完成：通知 pipe、串行 I/O queue、source 与后台 work 覆盖全部现有操作，错误保留 POSIX 来源。source 取消处理器与 worker 退出均计入关闭条件。
+- Linux 暂由内部 libuv 适配提供后端；公共构造类名尚未迁移，session 与 Linux ring 后端待交付。
 
 ## 验证约定
 
@@ -19,3 +20,5 @@ Linux 远端原仓库存在未提交工作，测试使用独立源目录及目�
 - 共享层：Darwin release，`scoop check --tests` 与受影响 C 的严格编译检查通过；asyncio 55 个容器、135 项测试全部通过，含分轮投递及嵌套处理两项新增测试。复用了同一测试构建，未运行全仓测试。
 - 验证前重建了与现有 sysroot 配套的 release 命令，解决旧本地命令的 ABI 版本不匹配。未修改 ABI。
 - 首次清理使用 `cargo clean --profile dev`，仓库 `target` 从约 21 GB 降至 8.9 GB；配套命令重建后约 9.4 GB。
+
+- Darwin 后端：严格 C 检查与 `scoop check --tests` 通过；56 个容器、138 项 release 测试覆盖原有行为及真实 PTY 的字节、resize、超时、取消、挂断和 raw 模式恢复。首次运行仅两项新增恢复断言失败，已核实并排除 Darwin 内核设置的 PENDIN 暂态位，TTY 三项重测通过。

@@ -35,9 +35,7 @@ internal enum IoStart {
 
 internal fun nativeStatus(id: Long, status: Int): IoStart =
     if (status < 0)
-        IoStart.Finished(
-            NativeEvent(id, IoResult.Failed(NativeError(NativeErrorDomain.Libuv, status), 0L))
-        )
+        IoStart.Finished(NativeEvent(id, IoResult.Failed(nativeStatusError(status), 0L)))
     else
         IoStart.Pending
 
@@ -113,10 +111,30 @@ internal fun resultProgress(result: IoResult): Long =
         case _ -> 0L
     }
 
-internal fun uvFailure(operation: String, status: Int): PlatformException {
-    val error = NativeError(NativeErrorDomain.Libuv, status)
+internal fun backendFailure(operation: String, status: Int): PlatformException {
+    val error = nativeStatusError(status)
     return PlatformException(operation, error.kind, Some(error))
 }
+
+internal fun nativeStatusError(status: Int): NativeError {
+    @Unsafe
+    {
+        val record = nativeErrorRecord(status)
+        return NativeError(
+            if (record.kind == 4)
+                NativeErrorDomain.Libuv
+            else
+                NativeErrorDomain.PosixErrno,
+            record.code
+        )
+    }
+}
+
+@Extern(name = "scoop_io_status_error")
+private fun nativeErrorRecord(status: Int): NativeRecord
+
+@Extern(name = "scoop_io_loop_idle")
+internal fun nativeLoopIdle(loop: Ptr<Unit>): Boolean
 
 @Extern(name = "scoop_io_loop_create")
 internal fun nativeLoopCreate(): NativeCreated
@@ -125,7 +143,7 @@ internal fun nativeLoopCreate(): NativeCreated
 internal fun nativeLoopWake(loop: Ptr<Unit>)
 
 @Extern(name = "scoop_io_loop_poll")
-internal fun nativeLoopPoll(loop: Ptr<Unit>, wait: Boolean)
+internal fun nativeLoopPoll(loop: Ptr<Unit>, wait: Boolean): Int
 
 @Extern(name = "scoop_io_loop_batch_size")
 internal fun nativeLoopBatchSize(loop: Ptr<Unit>): Long

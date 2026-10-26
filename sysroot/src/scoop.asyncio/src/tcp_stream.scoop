@@ -27,7 +27,7 @@ private class ShutdownProgress {
 }
 
 internal class TcpStream(
-    private val owner: OwnedEndpoint,
+    internal val owner: OwnedEndpoint,
     public override val localAddress: SocketAddress,
     public override val peerAddress: SocketAddress
 ): AsyncTcpStream {

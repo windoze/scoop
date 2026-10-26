@@ -59,8 +59,13 @@ private suspend fun sendBorrowed(
                             )
                         }
                     },
-                    // uv_udp_send cannot be cancelled; its callback ends the borrow.
-                    { _, _ -> },
+                    {
+                        _,
+                        id -> @Unsafe
+                        {
+                            nativeUdpSendCancel(owner.pointer, id)
+                        }
+                    },
                     {
                         event, selected ->
                         progress.count = resultProgress(event.result)

@@ -23,11 +23,12 @@ ScoopIoCreated scoop_io_loop_create(void) {
 
 void scoop_io_loop_wake(ScoopIoLoop *loop) { uv_async_send(&loop->wake); }
 
-void scoop_io_loop_poll(ScoopIoLoop *loop, bool wait) {
+int scoop_io_loop_poll(ScoopIoLoop *loop, bool wait) {
     ScoopIoSignalGuard guard;
     scoop_io_signal_enter(&guard);
     uv_run(&loop->uv, wait && !loop->head ? UV_RUN_ONCE : UV_RUN_NOWAIT);
     scoop_io_signal_leave(&guard);
+    return 0;
 }
 
 void scoop_io_complete(ScoopIoLoop *loop, ScoopIoCompletion *completion, int status) {
@@ -68,4 +69,12 @@ int scoop_io_loop_destroy(ScoopIoLoop *loop) {
     if (status == 0)
         free(loop);
     return status;
+}
+
+bool scoop_io_loop_idle(ScoopIoLoop *loop) {
+    return !loop->head && !loop->timers && !loop->connections && !loop->work;
+}
+
+ScoopIoEvent scoop_io_status_error(int status) {
+    return (ScoopIoEvent){.kind = SCOOP_IO_UV_ERROR, .code = status};
 }

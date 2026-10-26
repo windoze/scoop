@@ -48,9 +48,12 @@ typedef struct ScoopIoCreated {
 void scoop_io_complete(ScoopIoLoop *loop, ScoopIoCompletion *completion, int status);
 ScoopIoCreated scoop_io_loop_create(void);
 void scoop_io_loop_wake(ScoopIoLoop *loop);
-void scoop_io_loop_poll(ScoopIoLoop *loop, bool wait);
+int scoop_io_loop_poll(ScoopIoLoop *loop, bool wait);
 int64_t scoop_io_loop_batch_size(ScoopIoLoop *loop);
 ScoopIoEvent scoop_io_loop_next(ScoopIoLoop *loop);
+bool scoop_io_loop_idle(ScoopIoLoop *loop);
+int scoop_io_loop_descriptor(ScoopIoLoop *loop);
+ScoopIoEvent scoop_io_status_error(int status);
 int scoop_io_loop_destroy(ScoopIoLoop *loop);
 int scoop_io_timer_start(ScoopIoLoop *loop, int64_t id, int64_t seconds, int nanos);
 void scoop_io_timer_cancel(ScoopIoLoop *loop, int64_t id);

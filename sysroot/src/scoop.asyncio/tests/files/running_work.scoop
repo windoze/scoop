@@ -7,8 +7,14 @@ import scoop.platform.system.*
 import scoop.test.*
 
 internal fun makeFifo(path: Path) {
-    @Unsafe {
-        path.withNativePath { pointer -> @Unsafe { assertEquals(0, createFifo(pointer, 0x180u)) } }
+    @Unsafe
+    {
+        path.withNativePath {
+            pointer -> @Unsafe
+            {
+                assertEquals(0, createFifo(pointer, 0x180u))
+            }
+        }
     }
 }
 
@@ -16,16 +22,25 @@ internal fun makeFifo(path: Path) {
 private class AsyncFileRunningWorkTest {
     @Test
     fun `cancelling a running read waits for syscall completion and commits its actual prefix`() {
-        @Unsafe { assertTrue(testPoolSize() >= 2u, Some("this execution fence requires UV_THREADPOOL_SIZE >= 2")) }
-        IoTestDirectory().use { tree ->
+        @Unsafe
+        {
+            assertTrue(
+                testPoolSize() >= 2u,
+                Some("this execution fence requires at least two native workers")
+            )
+        }
+        IoTestDirectory().use {
+            tree ->
             val path = tree.child("fifo")
             makeFifo(path)
             val backend = LibuvEventLoop()
             val loop: EventLoop = backend
-            loop.run suspend { scope ->
+            loop.run suspend {
+                scope ->
                 val file = loop.openFile(path, OpenOptions(write = true))
-                File.open(path, OpenOptions(read = false, write = true)).use suspend { writer ->
-                    NativeByteBuffer.allocate(4L).use suspend { bytes ->
+                File.open(path, OpenOptions(read = false, write = true)).use suspend {
+                    writer -> NativeByteBuffer.allocate(4L).use suspend {
+                        bytes ->
                         val reading = scope.launch suspend { file.readInto(bytes, 4L) }
                         val fence = WorkFence(backend)
                         // FIFO work is ahead of these N-1 gates in the real worker queue.
@@ -45,7 +60,8 @@ private class AsyncFileRunningWorkTest {
                             assertEquals(42.toByte(), bytes.readByte())
                             bytes.clear()
                         } finally {
-                            if (!supplied) writer.writeAllBytes(Array<Byte>(1L) { 42.toByte() })
+                            if (!supplied)
+                                writer.writeAllBytes(Array<Byte>(1L) { 42.toByte() })
                             fence.close()
                         }
                     }
@@ -57,12 +73,14 @@ private class AsyncFileRunningWorkTest {
 
     @Test
     fun `late open cancellation closes the acquired FIFO before the caller resumes`() {
-        IoTestDirectory().use { tree ->
+        IoTestDirectory().use {
+            tree ->
             val path = tree.child("fifo")
             makeFifo(path)
             val backend = LibuvEventLoop()
             val loop: EventLoop = backend
-            loop.run suspend { scope ->
+            loop.run suspend {
+                scope ->
                 val output = OpenedFifo()
                 val opening = scope.launch suspend { loop.openFile(path) }
                 backend.state.post {
@@ -72,10 +90,12 @@ private class AsyncFileRunningWorkTest {
                 }
                 opening.join()
                 assertTrue(opening.isCancelled)
-                output.file!!.use { writer ->
-                    val failure = assertFailsWith<PlatformException> {
-                        writer.writeAllBytes(Array<Byte>(1L) { 42.toByte() })
-                    }
+                output.file!!.use {
+                    writer ->
+                    val failure =
+                        assertFailsWith<PlatformException> {
+                            writer.writeAllBytes(Array<Byte>(1L) { 42.toByte() })
+                        }
                     assertTrue(failure.kind == PlatformErrorKind.BrokenPipe)
                 }
             }
@@ -83,5 +103,9 @@ private class AsyncFileRunningWorkTest {
     }
 }
 
-private class OpenedFifo { var file: File? = None }
-@Extern(name = "mkfifo") private fun createFifo(path: Ptr<Byte>, mode: UInt): Int
+private class OpenedFifo {
+    var file: File? = None
+}
+
+@Extern(name = "mkfifo")
+private fun createFifo(path: Ptr<Byte>, mode: UInt): Int

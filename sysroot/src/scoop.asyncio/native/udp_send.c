@@ -39,3 +39,9 @@ int scoop_io_udp_send(ScoopIoUdp *udp, int64_t id, void *bytes, int64_t count,
         free(request);
     return status;
 }
+
+void scoop_io_udp_send_cancel(ScoopIoUdp *udp, int64_t id) {
+    /* The transitional libuv send remains owned until its completion callback. */
+    (void)udp;
+    (void)id;
+}

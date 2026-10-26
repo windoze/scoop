@@ -30,7 +30,16 @@ public class LibuvEventLoop public constructor(): EventLoop {
         val native = state.open(this)
         val loop: EventLoop = this
         context(loop) {
-            startCoroutine<Unit>(suspend { coroutineScope<Unit>(block) }, LoopCompletion(state))
+            startCoroutine<Unit>(
+                suspend {
+                    coroutineScope<Unit> suspend {
+                        scope ->
+                        state.bindRoot(scope.job);
+                        block(scope)
+                    }
+                },
+                LoopCompletion(state)
+            )
         }
         state.drive(native)
     }

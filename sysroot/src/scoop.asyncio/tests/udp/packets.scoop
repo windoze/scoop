@@ -8,28 +8,36 @@ import scoop.test.*
 @Test
 private class AsyncUdpPacketTest {
     @Test
-    fun `IPv4 preserves empty datagrams boundaries truncation and sources`() { packets(IpAddress.IPV4_LOOPBACK) }
+    fun `IPv4 preserves empty datagrams boundaries truncation and sources`() {
+        packets(IpAddress.IPV4_LOOPBACK)
+    }
 
     @Test
-    fun `IPv6 preserves empty datagrams boundaries truncation and sources`() { packets(IpAddress.IPV6_LOOPBACK) }
+    fun `IPv6 preserves empty datagrams boundaries truncation and sources`() {
+        packets(IpAddress.IPV6_LOOPBACK)
+    }
 
     private fun packets(address: IpAddress) {
         val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        loop.run suspend {
+            scope ->
             val sender = loop.bindUdp(SocketAddress(address, 0))
             val receiver = loop.bindUdp(SocketAddress(address, 0))
-            NativeByteBuffer.allocate(3L).use suspend { input ->
+            NativeByteBuffer.allocate(3L).use suspend {
+                input ->
                 val waiting = scope.async<Datagram> suspend { receiver.receiveFrom(input, 3L) }
-                NativeByteBuffer.allocate(0L).use suspend { empty ->
-                    assertEquals(0L, sender.sendTo(empty, receiver.localAddress, 0L))
+                NativeByteBuffer.allocate(0L).use suspend {
+                    empty -> assertEquals(0L, sender.sendTo(empty, receiver.localAddress, 0L))
                 }
                 val packet = waiting.await()
                 assertEquals(0L, packet.count)
                 assertEquals(sender.localAddress, packet.source)
                 assertFalse(packet.truncated)
                 assertEquals(0L, input.writePosition)
-                NativeByteBuffer.allocate(5L).use suspend { output ->
-                    for (value in 1L..5L) output.writeByte(value.toByte())
+                NativeByteBuffer.allocate(5L).use suspend {
+                    output ->
+                    for (value in 1L .. 5L)
+                        output.writeByte(value.toByte())
                     assertEquals(5L, sender.sendTo(output, receiver.localAddress, 5L))
                     assertEquals(5L, output.readPosition)
                     output.clear()
@@ -40,7 +48,8 @@ private class AsyncUdpPacketTest {
                 assertEquals(3L, truncated.count)
                 assertTrue(truncated.truncated)
                 assertEquals(sender.localAddress, truncated.source)
-                for (index in 0L..<3L) assertEquals((index + 1L).toByte(), input.getByte(index))
+                for (index in 0L ..< 3L)
+                    assertEquals((index + 1L).toByte(), input.getByte(index))
                 input.clear()
                 val next = receiver.receiveFrom(input, 3L)
                 assertEquals(1L, next.count)
@@ -53,23 +62,40 @@ private class AsyncUdpPacketTest {
     @Test
     fun `invalid ranges and oversized packets release borrows without splitting packets`() {
         val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        loop.run suspend {
+            _ ->
             val sender = loop.bindUdp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
             val receiver = loop.bindUdp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
-            NativeByteBuffer.allocate(65536L).use suspend { bytes ->
-                try { receiver.receiveFrom(bytes, 0L); fail() }
+            NativeByteBuffer.allocate(65536L).use suspend {
+                bytes ->
+                try {
+                    receiver.receiveFrom(bytes, 0L);
+                    fail()
+                }
                 catch (_: IllegalArgumentException) {}
-                try { receiver.receiveFrom(bytes, 65537L); fail() }
+                try {
+                    receiver.receiveFrom(bytes, 65537L);
+                    fail()
+                }
                 catch (_: IndexOutOfBoundsException) {}
-                try { sender.sendTo(bytes, receiver.localAddress, -1L); fail() }
+                try {
+                    sender.sendTo(bytes, receiver.localAddress, -1L);
+                    fail()
+                }
                 catch (_: IllegalArgumentException) {}
-                try { sender.sendTo(bytes, receiver.localAddress, 1L); fail() }
+                try {
+                    sender.sendTo(bytes, receiver.localAddress, 1L);
+                    fail()
+                }
                 catch (_: IndexOutOfBoundsException) {}
                 bytes.writeBytes(Array<Byte>(65536L) { 7 })
-                try { sender.sendTo(bytes, receiver.localAddress, 65536L); fail(Some("oversized packet accepted")) }
+                try {
+                    sender.sendTo(bytes, receiver.localAddress, 65536L);
+                    fail(Some("oversized packet accepted"))
+                }
                 catch (error: PlatformException) {
-                    assertTrue(error.nativeError!!.domain == NativeErrorDomain.Libuv)
-                    assertTrue(error.nativeError!!.code < 0)
+                    assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+                    assertTrue(error.nativeError!!.code > 0)
                 }
                 assertEquals(0L, bytes.readPosition)
                 bytes.clear()

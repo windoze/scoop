@@ -10,11 +10,22 @@ kind = "library"
 "scoop:scoop.core" = "0.1.0"
 
 [native]
-include = ["../../../vendor/libuv/include"]
+include = [{ path = "../../../vendor/libuv/include", when = { os = "linux" } }]
 c_flags = ["-std=c11", "-Wall", "-Wextra", "-include", "../native/config.h"]
 
 [[native.sources]]
 path = "native/fence.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/fence_dispatch.c"
+when = { os = "darwin" }
 
 [[native.sources]]
 path = "native/work.c"
+
+[[native.sources]]
+path = "native/socket.c"
+
+[[native.sources]]
+path = "native/tty.c"

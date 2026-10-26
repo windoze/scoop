@@ -1,0 +1,101 @@
+package scoop.asyncio
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class AsyncTtySessionTest {
+    @Test
+    fun `owned PTY receives bytes resize and deadlines and restores raw mode`() {
+        TestTerminal().use {
+            terminal ->
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend {
+                scope ->
+                val tty = loop.openTty()
+                tty.enableRawMode()
+                assertTrue(tty.isRawMode())
+                NativeByteBuffer.allocate(8L).use suspend {
+                    bytes ->
+                    assertTrue(tty.receive(bytes, 0L) == TtyRead.Bytes(0L))
+                    assertTrue(tty.receive(bytes, 8L, Some(Duration.ZERO)) == TtyRead.TimedOut)
+                    assertTrue(
+                        tty.receive(bytes, 8L, Some(Duration.milliseconds(1L))) == TtyRead.TimedOut
+                    )
+                    val reading = scope.async<TtyRead> suspend { tty.receive(bytes, 8L) }
+                    terminal.send(65)
+                    assertTrue(reading.await() == TtyRead.Bytes(1L))
+                    assertEquals(65.toByte(), bytes.readByte())
+                    bytes.clear()
+                    bytes.writeByte(66)
+                    tty.writeFully(bytes)
+                    assertEquals(66, terminal.receive())
+                    bytes.clear()
+                    terminal.resize(91, 37)
+                    assertTrue(
+                        tty.receive(bytes, 8L, Some(Duration.seconds(5L))) ==
+                            TtyRead.Resize(91L, 37L)
+                    )
+                    assertEquals(0L, bytes.writePosition)
+                    val size = tty.size()
+                    assertEquals(91L, size.columns)
+                    assertEquals(37L, size.rows)
+                }
+                tty.close()
+                tty.close()
+                assertTrue(tty.isClosed)
+            }
+            assertTrue(terminal.restored())
+        }
+    }
+
+    @Test
+    fun `cancellation leaves an owned terminal usable and loop cleanup restores mode`() {
+        TestTerminal().use {
+            terminal ->
+            val backend = LibuvEventLoop()
+            val loop: EventLoop = backend
+            loop.run suspend {
+                scope ->
+                val tty = loop.openTty()
+                tty.enableRawMode()
+                NativeByteBuffer.allocate(4L).use suspend {
+                    bytes ->
+                    val reading = scope.launch suspend { tty.receive(bytes, 4L) }
+                    suspendCoroutine<Unit> {
+                        continuation -> backend.state.post { continuation.resume(Unit) }
+                    }
+                    assertFailsWith<IllegalStateException> { bytes.clear() }
+                    reading.cancel()
+                    reading.join()
+                    assertTrue(reading.isCancelled)
+                    bytes.clear()
+                    terminal.send(67)
+                    assertTrue(tty.receive(bytes, 4L) == TtyRead.Bytes(1L))
+                    assertEquals(67.toByte(), bytes.readByte())
+                }
+            }
+            assertTrue(terminal.restored())
+        }
+    }
+
+    @Test
+    fun `PTY hangup is a repeatable input end`() {
+        TestTerminal().use {
+            terminal ->
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend {
+                _ ->
+                val tty = loop.openTty()
+                NativeByteBuffer.allocate(1L).use suspend {
+                    bytes ->
+                    terminal.endInput()
+                    assertTrue(tty.receive(bytes, 1L) == TtyRead.End)
+                    assertTrue(tty.receive(bytes, 1L) == TtyRead.End)
+                }
+                tty.close()
+            }
+        }
+    }
+}

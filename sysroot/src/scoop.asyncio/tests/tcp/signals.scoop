@@ -7,42 +7,31 @@ import scoop.test.*
 @NoGC
 private fun pipeHandler(signal: Int) {}
 
-// Shut down the OS write side without changing libuv's managed write state.
-// This forces a real EPIPE through the normal asynchronous stream API.
-@NoGC
-private fun stopNativeOutput(handle: Ptr<Unit>, context: Ptr<Long>) {
-    @Unsafe {
-        if (uvHandleType(handle) == 12) {
-            var fd = -1
-            if (signalFileno(handle, addressOf(fd)) == 0) signalShutdown(fd, 1)
-        }
-    }
-}
-
-private suspend fun breakOutputs(backend: LibuvEventLoop) {
-    suspendCoroutine<Unit> { continuation ->
-        val operation = LoopOperation(backend.state, backend.state.nextOperation(),
-            { native, id ->
-                var unused = 0L
-                @Unsafe { uvWalk(native, ::stopNativeOutput, addressOf(unused)) }
-                IoStart.Finished(NativeEvent(id, IoResult.Done))
-            }, { _, _ -> }, { _, _ -> continuation.resume(Unit) })
-        backend.state.submit(operation)
+// Force real EPIPE without changing the stream's managed output state.
+private fun breakOutput(stream: AsyncTcpStream) {
+    @Unsafe
+    {
+        assertEquals(0, nativeBreakOutput((stream as TcpStream).owner.pointer))
     }
 }
 
 private fun exerciseBrokenOutput() {
     val backend = LibuvEventLoop()
     val loop: EventLoop = backend
-    loop.run suspend { scope ->
-        val (_, client, _) = tcpPair(loop, scope)
-        breakOutputs(backend)
-        NativeByteBuffer.allocate(1L).use suspend { bytes ->
+    loop.run suspend {
+        scope ->
+        val(_, client, _) = tcpPair(loop, scope)
+        breakOutput(client)
+        NativeByteBuffer.allocate(1L).use suspend {
+            bytes ->
             bytes.writeByte(42)
-            try { client.writeFrom(bytes, 1L); fail(Some("broken pipe write succeeded")) }
+            try {
+                client.writeFrom(bytes, 1L);
+                fail(Some("broken pipe write succeeded"))
+            }
             catch (error: PlatformException) {
                 assertTrue(error.kind == PlatformErrorKind.BrokenPipe)
-                assertTrue(error.nativeError!!.domain == NativeErrorDomain.Libuv)
+                assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
             }
             assertEquals(0L, bytes.readPosition)
         }
@@ -57,8 +46,16 @@ private fun checkPipeSignals(masks: NativeByteBuffer, seed: Boolean) {
         val old = set + 128L
         val pending = set + 256L
         val observed = set + 384L
-        val block = if (operatingSystem == OperatingSystem.Darwin) 1 else 0
-        val restore = if (operatingSystem == OperatingSystem.Darwin) 3 else 2
+        val block =
+            if (operatingSystem == OperatingSystem.Darwin)
+                1
+            else
+                0
+        val restore =
+            if (operatingSystem == OperatingSystem.Darwin)
+                3
+            else
+                2
         assertEquals(0, signalEmpty(set))
         assertEquals(0, signalAdd(set, 13))
         assertEquals(0, signalMask(block, Some(set), Some(old)))
@@ -66,18 +63,29 @@ private fun checkPipeSignals(masks: NativeByteBuffer, seed: Boolean) {
         val hadPending = signalMember(pending, 13) == 1
         val previous = signalInstall(13, Some(::pipeHandler))
         try {
-            if (seed) assertEquals(0, signalRaise(13))
+            if (seed)
+                assertEquals(0, signalRaise(13))
             exerciseBrokenOutput()
             assertEquals(0, signalPending(pending))
-            assertEquals(if (seed || hadPending) 1 else 0, signalMember(pending, 13))
+            assertEquals(
+                if (seed || hadPending)
+                    1
+                else
+                    0,
+                signalMember(pending, 13)
+            )
             assertEquals(0, signalMask(block, None, Some(observed)))
             assertEquals(1, signalMember(observed, 13))
-            for (number in 1..64) {
-                if (number != 13) assertEquals(signalMember(old, number), signalMember(observed, number))
+            for (number in 1 .. 64) {
+                if (number != 13)
+                    assertEquals(signalMember(old, number), signalMember(observed, number))
             }
             val installed = signalInstall(13, Some(::pipeHandler))!!
             val expected: FunPtr<(Int) -> Unit> = ::pipeHandler
-            assertEquals(addressOf(expected).cast<ULong>().load(), addressOf(installed).cast<ULong>().load())
+            assertEquals(
+                addressOf(expected).cast<ULong>().load(),
+                addressOf(installed).cast<ULong>().load()
+            )
         } finally {
             if (seed && !hadPending) {
                 var number = 0
@@ -87,26 +95,48 @@ private fun checkPipeSignals(masks: NativeByteBuffer, seed: Boolean) {
             signalInstall(13, previous)
             assertEquals(0, signalMask(restore, Some(old), None))
         }
-    } finally { borrowed.complete(0L) }
+    } finally {
+        borrowed.complete(0L)
+    }
 }
 
 @Test
 private class AsyncTcpSignalTest {
     @Test
     fun `broken output preserves SIGPIPE handler mask and existing pending signal`() {
-        NativeByteBuffer.allocate(512L).use { masks ->
-            @Unsafe { checkPipeSignals(masks, false); checkPipeSignals(masks, true) }
+        NativeByteBuffer.allocate(512L).use {
+            masks -> @Unsafe
+            {
+                checkPipeSignals(masks, false);
+                checkPipeSignals(masks, true)
+            }
         }
     }
 }
 
-@Extern(name = "signal") private fun signalInstall(number: Int, handler: FunPtr<(Int) -> Unit>?): FunPtr<(Int) -> Unit>?
-@Extern(name = "pthread_sigmask") private fun signalMask(how: Int, set: Ptr<Byte>?, old: Ptr<Byte>?): Int
-@Extern(name = "sigemptyset") private fun signalEmpty(set: Ptr<Byte>): Int
-@Extern(name = "sigaddset") private fun signalAdd(set: Ptr<Byte>, number: Int): Int
-@Extern(name = "sigismember") private fun signalMember(set: Ptr<Byte>, number: Int): Int
-@Extern(name = "sigpending") private fun signalPending(set: Ptr<Byte>): Int
-@Extern(name = "sigwait") private fun signalWait(set: Ptr<Byte>, number: Ptr<Int>): Int
-@Extern(name = "raise") private fun signalRaise(number: Int): Int
-@GCLeaf @Extern(name = "uv_fileno") private fun signalFileno(handle: Ptr<Unit>, fd: Ptr<Int>): Int
-@GCLeaf @Extern(name = "shutdown") private fun signalShutdown(fd: Int, direction: Int): Int
+@Extern(name = "signal")
+private fun signalInstall(number: Int, handler: FunPtr<(Int) -> Unit>?): FunPtr<(Int) -> Unit>?
+
+@Extern(name = "pthread_sigmask")
+private fun signalMask(how: Int, set: Ptr<Byte>?, old: Ptr<Byte>?): Int
+
+@Extern(name = "sigemptyset")
+private fun signalEmpty(set: Ptr<Byte>): Int
+
+@Extern(name = "sigaddset")
+private fun signalAdd(set: Ptr<Byte>, number: Int): Int
+
+@Extern(name = "sigismember")
+private fun signalMember(set: Ptr<Byte>, number: Int): Int
+
+@Extern(name = "sigpending")
+private fun signalPending(set: Ptr<Byte>): Int
+
+@Extern(name = "sigwait")
+private fun signalWait(set: Ptr<Byte>, number: Ptr<Int>): Int
+
+@Extern(name = "raise")
+private fun signalRaise(number: Int): Int
+
+@Extern(name = "scoop_test_socket_break_output")
+private fun nativeBreakOutput(endpoint: Ptr<Unit>): Int

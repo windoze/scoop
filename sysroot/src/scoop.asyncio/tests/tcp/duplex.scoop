@@ -6,7 +6,9 @@ import scoop.platform.net.*
 import scoop.platform.system.*
 import scoop.test.*
 
-private class TcpThreadReturn { var worker: Thread? = None }
+private class TcpThreadReturn {
+    var worker: Thread? = None
+}
 
 @Test
 private class AsyncTcpDuplexTest {
@@ -15,18 +17,23 @@ private class AsyncTcpDuplexTest {
         val loop: EventLoop = LibuvEventLoop()
         val ownerThread = currentThreadId()
         val gate = TcpThreadReturn()
-        loop.run suspend { scope ->
+        loop.run suspend {
+            scope ->
             val listener = loop.listenTcp(SocketAddress(IpAddress.IPV6_LOOPBACK, 0))
-            val connecting = scope.async<AsyncTcpStream> suspend { loop.connectTcp(listener.localAddress) }
+            val connecting =
+                scope.async<AsyncTcpStream> suspend { loop.connectTcp(listener.localAddress) }
             val server = listener.accept()
             val client = connecting.await()
             assertTrue(client.peerAddress.address.family == AddressFamily.Ipv6)
-            NativeByteBuffer.allocate(1L).use suspend { input ->
+            NativeByteBuffer.allocate(1L).use suspend {
+                input ->
                 val reading = scope.launch suspend { client.readFully(input) }
-                NativeByteBuffer.allocate(1L).use suspend { output ->
+                NativeByteBuffer.allocate(1L).use suspend {
+                    output ->
                     output.writeByte(42)
-                    suspendCoroutine<Unit> { continuation ->
-                        gate.worker = Some(Thread.start { continuation.resume(Unit) })
+                    suspendCoroutine<Unit> {
+                        continuation -> gate.worker =
+                            Some(Thread.start { continuation.resume(Unit) })
                     }
                     assertTrue(currentThreadId() != ownerThread)
                     client.writeFully(output)
@@ -44,23 +51,34 @@ private class AsyncTcpDuplexTest {
     }
 
     @Test
-    fun `refused connections retain libuv codes and invalid counts release reservations`() {
+    fun `refused connections retain POSIX codes and invalid counts release reservations`() {
         val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        loop.run suspend {
+            scope ->
             val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
             val address = listener.localAddress
             listener.close()
-            try { loop.connectTcp(address); fail(Some("closed listener accepted connection")) }
+            try {
+                loop.connectTcp(address);
+                fail(Some("closed listener accepted connection"))
+            }
             catch (error: PlatformException) {
                 assertTrue(error.kind == PlatformErrorKind.ConnectionRefused)
-                assertTrue(error.nativeError!!.domain == NativeErrorDomain.Libuv)
-                assertTrue(error.nativeError!!.code < 0)
+                assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+                assertTrue(error.nativeError!!.code > 0)
             }
-            val (_, client, _) = tcpPair(loop, scope)
-            NativeByteBuffer.allocate(1L).use suspend { buffer ->
-                try { client.readInto(buffer, -1L); fail(Some("negative read accepted")) }
+            val(_, client, _) = tcpPair(loop, scope)
+            NativeByteBuffer.allocate(1L).use suspend {
+                buffer ->
+                try {
+                    client.readInto(buffer, -1L);
+                    fail(Some("negative read accepted"))
+                }
                 catch (_: IllegalArgumentException) {}
-                try { client.writeFrom(buffer, 1L); fail(Some("unavailable write accepted")) }
+                try {
+                    client.writeFrom(buffer, 1L);
+                    fail(Some("unavailable write accepted"))
+                }
                 catch (_: IndexOutOfBoundsException) {}
                 assertEquals(0L, client.readInto(buffer, 0L))
                 assertEquals(0L, client.writeFrom(buffer, 0L))

@@ -10,6 +10,8 @@ internal class LoopOwner {
     private var pointer: Ptr<Unit>? = None
     private var commands: ArrayList<() -> Unit> = ArrayList<() -> Unit>()
     private var nextId: Long = 1L
+    private var root: Job? = None
+    private var backendFailed: Boolean = false
     private var rootEnded: Boolean = false
     private var failure: Throwable? = None
     private val operations: HashMap<Long, LoopOperation> = HashMap<Long, LoopOperation>()
@@ -22,7 +24,7 @@ internal class LoopOwner {
         {
             val created = nativeLoopCreate()
             if (created.status < 0)
-                throw uvFailure("create event loop", created.status)
+                throw backendFailure("create event loop", created.status)
             lock.withLock {
                 binding = Some(loop);
                 pointer = created.pointer
@@ -108,13 +110,15 @@ internal class LoopOwner {
     }
 
     fun cleanupFailed(error: Throwable) {
-        failure =
-            Some(
-                when (failure) {
-                    case Some(primary) -> ResourceUseException(primary, error)
-                    case None -> error
-                }
-            )
+        lock.withLock {
+            failure =
+                Some(
+                    when (failure) {
+                        case Some(primary) -> ResourceUseException(primary, error)
+                        case None -> error
+                    }
+                )
+        }
     }
 
     private fun startCleanup() {
@@ -126,9 +130,44 @@ internal class LoopOwner {
             resource.closeFromLoop()
     }
 
+    fun bindRoot(job: Job) {
+        lock.withLock { root = Some(job) }
+    }
+
+    private fun poll(native: Ptr<Unit>, wait: Boolean) {
+        @Unsafe
+        {
+            val status = nativeLoopPoll(native, wait)
+            if (status < 0) {
+                val failed =
+                    lock.withLock {
+                        if (backendFailed)
+                            false
+                        else {
+                            backendFailed = true;
+                            true
+                        }
+                    }
+                if (failed) {
+                    cleanupFailed(backendFailure("drive event loop", status))
+                    val job = lock.withLock { root }
+                    job?.cancel()
+                }
+            }
+        }
+    }
+
     fun finishRoot(error: Throwable?) {
         lock.withLock {
-            failure = error
+            when (failure) {
+                case None -> failure = error
+                case Some(primary) -> when (error) {
+                    case Some(next) -> if (!(next is CancellationException))
+                        failure = Some(ResourceUseException(primary, next))
+                    case None -> {}
+                }
+            }
+            root = None
             rootEnded = true
             when (pointer) {
                 case Some(native) -> @Unsafe
@@ -157,10 +196,7 @@ internal class LoopOwner {
         pumping = true
         try {
             val pending = takeCommands()
-            @Unsafe
-            {
-                nativeLoopPoll(native, false)
-            }
+            poll(native, false)
             var completions = 0L
             @Unsafe
             {
@@ -197,10 +233,17 @@ internal class LoopOwner {
     fun drive(native: Ptr<Unit>) {
         while (true) {
             pump(native)
+            var nativeIdle = false
+            @Unsafe
+            {
+                nativeIdle = nativeLoopIdle(native)
+            }
+            val idle = nativeIdle
             val stopped =
                 lock.withLock {
                     if (
-                        !rootEnded ||
+                        !idle ||
+                            !rootEnded ||
                             commands.size !=
                             0L ||
                             ready.size !=
@@ -220,16 +263,13 @@ internal class LoopOwner {
                 break
             val wait = lock.withLock { commands.size == 0L && ready.size == 0L }
             if (wait)
-                @Unsafe
-                {
-                    nativeLoopPoll(native, true)
-                }
+                poll(native, true)
         }
         @Unsafe
         {
             val status = nativeLoopDestroy(native)
             if (status < 0)
-                cleanupFailed(uvFailure("close event loop", status))
+                cleanupFailed(backendFailure("close event loop", status))
         }
         when (failure) {
             case Some(error) -> throw error;

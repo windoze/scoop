@@ -4,26 +4,18 @@ import scoop.platform.memory.NativeByteBuffer
 import scoop.test.*
 import scoop.time.Duration
 
-// Inspect actual libuv write queues with its synchronous public native API.
-// ScoopIoLoop begins with uv_loop_t; no pointer is retained beyond this call.
-@NoGC
-private fun countQueuedWrites(handle: Ptr<Unit>, count: Ptr<Long>) {
-    @Unsafe {
-        // UV_TCP is 12 in the pinned libuv 1.53.0 public enum.
-        if (uvHandleType(handle) == 12 && uvWriteQueue(handle) > 0uL) count.store(count.load() + 1L)
+// Query actual socket backpressure without depending on the backend's request layout.
+private suspend fun outputBlocked(backend: LibuvEventLoop, stream: AsyncTcpStream): Boolean =
+    suspendCoroutine<Boolean> {
+        continuation ->
+        val endpoint = (stream as TcpStream).owner
+        backend.state.post {
+            @Unsafe
+            {
+                continuation.resume(nativeOutputBlocked(endpoint.pointer) == 1)
+            }
+        }
     }
-}
-
-private suspend fun queuedWrites(backend: LibuvEventLoop): Long = suspendCoroutine<Long> { continuation ->
-    val operation = LoopOperation(backend.state, backend.state.nextOperation(),
-        { native, id ->
-            var count = 0L
-            @Unsafe { uvWalk(native, ::countQueuedWrites, addressOf(count)) }
-            IoStart.Finished(NativeEvent(id, IoResult.Bytes(count)))
-        }, { _, _ -> },
-        { event, _ -> continuation.resume(resultProgress(event.result)) })
-    backend.state.submit(operation)
-}
 
 @Test
 private class AsyncTcpQueuedWriteTest {
@@ -31,17 +23,33 @@ private class AsyncTcpQueuedWriteTest {
     fun `cancel a queued write commits exactly the sent prefix and permits later writes`() {
         val backend = LibuvEventLoop()
         val loop: EventLoop = backend
-        loop.run suspend { scope ->
-            val timeout = scope.launch suspend { loop.sleep(Duration.seconds(15L)); fail(Some("queued write test timed out")) }
-            val (_, client, server) = tcpPair(loop, scope)
-            NativeByteBuffer.allocate(67108864L).use suspend { output ->
-                @Unsafe { output.withWritableBytes { pointer, length ->
-                    @Unsafe { fillNative(pointer, 49, length.toULong()) }
-                    length
-                } }
+        loop.run suspend {
+            scope ->
+            val timeout =
+                scope.launch suspend {
+                    loop.sleep(Duration.seconds(15L));
+                    fail(Some("queued write test timed out"))
+                }
+            val(_, client, server) = tcpPair(loop, scope)
+            NativeByteBuffer.allocate(67108864L).use suspend {
+                output ->
+                @Unsafe
+                {
+                    output.withWritableBytes {
+                        pointer, length ->
+                        @Unsafe
+                        {
+                            fillNative(pointer, 49, length.toULong())
+                        }
+                        length
+                    }
+                }
                 val writer = scope.launch suspend { client.writeFully(output) }
-                while (queuedWrites(backend) == 0L) {
-                    assertFalse(writer.isCompleted, Some("kernel accepted the entire backpressure payload"))
+                while (!outputBlocked(backend, client)) {
+                    assertFalse(
+                        writer.isCompleted,
+                        Some("kernel accepted the entire backpressure payload")
+                    )
                 }
                 assertFailsWith<IllegalStateException> { output.compact() }
                 gcCollect()
@@ -51,15 +59,18 @@ private class AsyncTcpQueuedWriteTest {
                 val sent = output.readPosition
                 assertTrue(sent >= before)
                 assertTrue(sent < output.writePosition)
-                NativeByteBuffer.allocate(sent + 1L).use suspend { input ->
+                NativeByteBuffer.allocate(sent + 1L).use suspend {
+                    input ->
                     server.readFully(input, sent)
-                    NativeByteBuffer.allocate(1L).use suspend { marker ->
+                    NativeByteBuffer.allocate(1L).use suspend {
+                        marker ->
                         marker.writeByte(114)
                         client.writeFully(marker)
                     }
                     server.readFully(input, 1L)
                     assertEquals(114.toByte(), input.getByte(sent))
-                    if (sent > 0L) assertEquals(49.toByte(), input.getByte(sent - 1L))
+                    if (sent > 0L)
+                        assertEquals(49.toByte(), input.getByte(sent - 1L))
                     Unit
                 }
             }
@@ -69,11 +80,8 @@ private class AsyncTcpQueuedWriteTest {
     }
 }
 
-@Extern(name = "uv_walk")
-internal fun uvWalk(loop: Ptr<Unit>, callback: FunPtr<(Ptr<Unit>, Ptr<Long>) -> Unit>, count: Ptr<Long>)
-@GCLeaf @Extern(name = "uv_handle_get_type")
-internal fun uvHandleType(handle: Ptr<Unit>): Int
-@GCLeaf @Extern(name = "uv_stream_get_write_queue_size")
-private fun uvWriteQueue(handle: Ptr<Unit>): ULong
+@Extern(name = "scoop_test_socket_output_blocked")
+private fun nativeOutputBlocked(endpoint: Ptr<Unit>): Int
+
 @Extern(name = "memset")
 private fun fillNative(pointer: Ptr<Byte>?, value: Int, count: ULong): Ptr<Byte>?
