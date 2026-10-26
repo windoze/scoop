@@ -758,11 +758,12 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 各里程碑"涵盖但只实现了部分"的事项，按来源里程碑整理。标注→的为目标里程碑（已知时）；未标注的待排期。
 
-### `scoop fmt` 与 `scoop check`（已实现，本机验证通过，Linux 完整验收中）
+### `scoop fmt` 与 `scoop check`（已实现，三目标定向验证通过）
 
 - [设计](fmt-check/DESIGN.md)明确固定格式规则、manifest 生产／测试及全平台源码并集、显式文件、写回和 `fmt --check`；复用保留原文的 CST，保留有语义作用的换行、相邻关系与注释附着。
 - `check` 完成根 Cone 的全部前端检查及 LocalConcrete HIR，复用必要 generator，支持 Production／Test、single-file 与独立成功缓存；源码依赖沿已有完整 `.slib` 构建和复用，根跳过机器生产与链接。
 - 按单 Cone 检查、项目检查、格式库、格式 CLI 分批实施；共享 human／JSON 诊断及正式 fixture 验收。LSP formatting 接入与全图纯语义依赖传输不属于首版。
+- 已合并 main 的 ELF 修复和 runtime ABI 20；扩展验证中保留的三项既有失败在本批改动合并后单独处理，详见[验证记录](fmt-check/VALIDATION.md)。
 
 ### 程序运行性能优化主线（调研完成，持续实施中）
 

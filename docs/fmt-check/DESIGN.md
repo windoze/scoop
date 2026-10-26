@@ -1,6 +1,6 @@
 # `scoop fmt` 与 `scoop check` 设计
 
-状态：两项命令均已实现并通过本机定向验证，完整 Linux 验收进行中。设计日期：2026-10-26。
+状态：两项命令均已实现，合并 main 后的 macOS 及 Linux GNU／musl 新命令定向验证通过。扩展验收结果及合并后单独处理的三项问题见[验证记录](VALIDATION.md)。设计日期：2026-10-26；收尾日期：2026-10-27。
 
 依据：[语言规范](../specs/SCOOP-SPEC.md)、[实现规范](../specs/SCOOP-IMPL-SPEC.md) §2.1、§2.2、§2.7、§2.20，以及[语言服务公共基础](../language-service/DESIGN.md)。本设计不改变语言语义、`.slib` 格式或[运行时契约](../specs/SCOOP-RUNTIME-SPEC.md)。本文按命令合同描述目标；当前交付范围以文首状态及验证记录为准。
 
