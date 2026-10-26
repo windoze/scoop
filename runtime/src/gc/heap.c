@@ -146,13 +146,17 @@ static void ensure_small_metadata(ScoopGcBlockMeta *block) {
         block->starts = calloc(GC_BITMAP_WORDS, sizeof(uint64_t));
         block->marks = calloc(GC_BITMAP_WORDS, sizeof(uint64_t));
         block->pins = calloc(GC_BITMAP_WORDS, sizeof(uint64_t));
+#if SCOOP_GC_TRACK_RELOCATION
         block->scanned = calloc(GC_BITMAP_WORDS, sizeof(uint64_t));
+        if (block->scanned == NULL) {
+            heap_fatal("out of memory allocating relocation coverage bitmap");
+        }
+#endif
         block->line_occupied = calloc(GC_LINE_BITMAP_WORDS, sizeof(uint64_t));
         block->line_live = calloc(GC_LINE_BITMAP_WORDS, sizeof(uint64_t));
         block->size_units = calloc(GC_WORDS_PER_BLOCK, sizeof(uint16_t));
         if (block->starts == NULL || block->marks == NULL || block->pins == NULL ||
-            block->scanned == NULL || block->line_occupied == NULL || block->line_live == NULL ||
-            block->size_units == NULL) {
+            block->line_occupied == NULL || block->line_live == NULL || block->size_units == NULL) {
             heap_fatal("out of memory allocating small-block side metadata");
         }
     }
@@ -163,7 +167,9 @@ static void reset_small_metadata(ScoopGcBlockMeta *block) {
     memset(block->starts, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
     memset(block->marks, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
     memset(block->pins, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
+#if SCOOP_GC_TRACK_RELOCATION
     memset(block->scanned, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
+#endif
     memset(block->line_occupied, 0, GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
     memset(block->line_live, 0, GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
     memset(block->size_units, 0, GC_WORDS_PER_BLOCK * sizeof(uint16_t));

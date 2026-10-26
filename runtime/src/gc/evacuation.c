@@ -9,6 +9,7 @@
 #include "forwarding_internal.h"
 #endif
 
+#if SCOOP_GC_TRACK_RELOCATION
 void scoop_heap_claim_current_object(void *object) {
     if (!collection_active) {
         heap_fatal("scan claimed outside collection");
@@ -44,6 +45,7 @@ bool scoop_gc_object_was_scanned_locked(const void *object) {
     return block->kind == SCOOP_BLOCK_KIND_LARGE ? block->large_scanned
                                                  : bit_test(block->scanned, word_index);
 }
+#endif
 
 #if SCOOP_ENABLE_GC_STRESS
 void scoop_gc_heap_verify_stress_moved_locked(void) {
@@ -78,6 +80,7 @@ void scoop_gc_heap_verify_stress_moved_locked(void) {
 }
 #endif
 
+#if SCOOP_GC_TRACK_RELOCATION
 void scoop_gc_visit_current_objects_locked(ScoopGcHeapObjectVisitor visitor, void *context) {
     if (visitor == NULL || !collection_active) {
         heap_fatal("invalid live-object visitor");
@@ -113,3 +116,4 @@ void scoop_gc_visit_current_objects_locked(ScoopGcHeapObjectVisitor visitor, voi
         }
     }
 }
+#endif

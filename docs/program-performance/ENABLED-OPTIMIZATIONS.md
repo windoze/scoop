@@ -12,6 +12,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [普通 GC 省去搬迁覆盖登记](RELOCATION-COVERAGE.md) | 新版普通 runtime，所有 profile 默认；重链接即可，系统库可复用 | 直接消费唯一且已更新为当前副本的存活清单，省去逐对象 claim、覆盖位图及其生命周期操作。现有 GC stress 构建或显式 heap 验证保留这些诊断；真实字段／roots 转发、pin、survivor 与 ABI 保持。 |
 | [宽数组元素的重复引用屏障消除](REFERENCE-WRITES.md) | release 默认；重新生成实际 ArraySet 正文，现有四个系统库与 runtime 可复用 | stride >16 B、恰有一个 managed leaf 时，完整写入后仅为不同的非 null 引用标卡。单／双字批量路径、多引用范围屏障、字段、原子、native 和初始化保持原策略；不增加根或跨 GC 保存旧引用。 |
 | [固定引用布局的数组扫描](ARRAY-SCANS.md) | 使用新版 runtime 重新链接，所有 profile 默认；无需重建 core | 根据实际 References child 直接枚举元素槽，省去逐元素递归解释；保留精确范围、访问顺序及原标记／搬迁 visitor。复杂 child 保留递归，scan／对象／根及 ABI 不变；各平台收益、短对照回退和 native 栈帧成本见记录。 |
 | [年轻对象初始化屏障消除](YOUNG-INITIALIZATION.md)，含[数组初始化](ARRAY-INITIALIZATION-BARRIERS.md) | release 默认，沿既有分配优化配置；旧库需重建才能获益 | 实际 TLAB 成功后，未经过 GC／观察／外传的字段、typed box 复制及数组字面量／clone／assembly 初始化跳过屏障；字段跟踪未取址副本及单前驱直线后继，数组事实仅在当前 typed 操作内使用。慢分配、用户 initializer、原子写入、外部数组发布和 C 后备保留原屏障，无新增根、布局或 ABI。 |

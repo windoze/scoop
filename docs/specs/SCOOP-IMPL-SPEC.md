@@ -890,6 +890,8 @@ program-link 消费完整 `.slib` Link 闭包、普通 runtime 对象、已有 n
 
 `scoop --enable-startup-stats` 和独立 `scoop-link --enable-startup-stats` 按运行时规范第 7 章选择编入启动诊断的 runtime，对 build/run/test/link 生效，独立于 profile 和 GC stress。默认 runtime 必须在预处理阶段排除启动计时、报告及专用数据访问；环境变量不能启用未编入的代码。该开关只影响 runtime 构建／选择及最终链接结果，不改变 Scoop 源码编译缓存、`.slib`、对象布局或 ABI；编译器不消费测量记录。显式 runtime index 的配置必须与请求一致。
 
+运行时规范 3.9 的搬迁覆盖登记随既有 GC stress 构建能力或显式 heap 验证编入。普通 runtime 不生成逐存活对象的 claim 调用、覆盖验证函数及专用 bitmap 生命周期操作，启动诊断开关本身不启用这项验证。不同配置仅改变 collector 私有侧元数据，所有 profile 继续使用同一对象／根 ABI；无须重建未变化的 Scoop `.slib`，重建 runtime 并重新链接即可消费该优化。
+
 root 是唯一 executable，依赖为 library。正常构建使用已确定的依赖结果、目标及链接配置，显式 link 读取所需 Link 输入。不以重算三层语义指纹、整包内容或重复生产校验来授予链接资格。
 
 最终 executable 是缓存结果。先根据 Cone 代码结果、runtime/native 输入、库选择、工具与链接配置判断更新；输入未变化且输出存在时直接返回，不能调用 read_program_link_closure、生成 startup/image tables/response file、调用 C compiler/linker 或复制／读取 executable 内容。只改变 native、runtime 或链接配置时不重编译无关 Scoop Cone。库搜索记录影响实际选择的目录状态，新增优先候选或配置改变后重新选择。

@@ -1,4 +1,4 @@
-/* STW reference update: coordinator claims; workers visit disjoint slots. */
+/* STW reference update: coordinator partitions; workers visit disjoint slots. */
 #include "../gc_binding/object.h"
 #include "mark_internal.h"
 
@@ -45,7 +45,9 @@ void scoop_gc_update_live(ScoopGcSlotVisitor visitor, ScoopGcLiveEntryVisitor se
                     if (scan == NULL) {
                         continue;
                     }
+#if SCOOP_GC_TRACK_RELOCATION
                     scoop_heap_claim_current_object(object);
+#endif
                     if (scoop_gc_scan_is_array(scan)) {
                         enqueue_update_array(owner, object, scan);
                     } else {

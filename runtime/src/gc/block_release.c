@@ -22,7 +22,9 @@ static void retire_metadata(ScoopGcBlockMeta *block, ScoopGcBlockState state) {
     block->large_published = false;
     block->large_marked = false;
     block->large_pinned = false;
+#if SCOOP_GC_TRACK_RELOCATION
     block->large_scanned = false;
+#endif
     committed_bytes -= scoop_heap_block_bytes(block);
     active_block_heads--;
 }

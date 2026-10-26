@@ -7,7 +7,9 @@
 
 typedef struct ScoopGcVisitContext {
     bool minor;
+#if SCOOP_GC_TRACK_RELOCATION
     bool verify;
+#endif
     bool remember_survivors;
 } ScoopGcVisitContext;
 
@@ -37,9 +39,11 @@ relocate_slot(void **slot, void *raw_context, bool remember_survivors) {
     }
     void *current = scoop_heap_forward_object(target, block, word);
     if (current != target) {
+#if SCOOP_GC_TRACK_RELOCATION
         if (context->verify) {
             heap_fatal("managed slot still points to a forwarded old object");
         }
+#endif
         *slot = current;
     }
     if (remember_survivors) {
@@ -85,12 +89,15 @@ static void relocate_live_object(void **entry, void *context) {
     if (scan == NULL) {
         return;
     }
+#if SCOOP_GC_TRACK_RELOCATION
     scoop_heap_claim_current_object(object);
+#endif
     ScoopGcVisitContext *visit = context;
     ScoopGcSlotVisitor slot = visit->remember_survivors ? visit_survivor_slot : visit_managed_slot;
     scoop_gc_scan_descriptor(object, scan, slot, context, 0, UINTPTR_MAX);
 }
 
+#if SCOOP_GC_TRACK_RELOCATION
 static void verify_heap_object(void *object, void *context) {
     const uint64_t *scan = scoop_gc_object_scan(object);
     if (scan == NULL) {
@@ -101,6 +108,7 @@ static void verify_heap_object(void *object, void *context) {
     }
     scoop_gc_scan_descriptor(object, scan, visit_managed_slot, context, 0, UINTPTR_MAX);
 }
+#endif
 
 static void record_pause(uint64_t elapsed, bool minor) {
     ScoopGcMetrics *metrics = &scoop_gc_heap_state.metrics;
@@ -180,6 +188,7 @@ static bool collect(bool minor) {
     metrics->minor_collections += minor;
     metrics->full_collections += !minor;
 
+#if SCOOP_GC_TRACK_RELOCATION
     bool verify_heap = scoop_gc_stress_move_enabled();
 #if defined(SCOOP_GC_VERIFY_HEAP) && SCOOP_GC_VERIFY_HEAP
     verify_heap = true;
@@ -189,6 +198,7 @@ static bool collect(bool minor) {
         scan_roots(&verify);
         scoop_gc_visit_current_objects_locked(verify_heap_object, &verify);
     }
+#endif
 #if SCOOP_ENABLE_GC_STRESS
     if (scoop_gc_stress_move_enabled()) {
         scoop_gc_heap_verify_stress_moved_locked();

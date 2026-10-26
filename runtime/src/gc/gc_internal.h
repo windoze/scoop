@@ -37,7 +37,9 @@ bool scoop_gc_heap_plan_moving_locked(bool minor, ScoopGcSurvivors *survivors);
 #if SCOOP_ENABLE_GC_STRESS
 void scoop_gc_heap_verify_stress_moved_locked(void);
 #endif
+#if SCOOP_GC_TRACK_RELOCATION
 void scoop_gc_visit_current_objects_locked(ScoopGcHeapObjectVisitor visitor, void *context);
+#endif
 void scoop_gc_heap_finish_collection_locked(uint64_t live_objects, bool minor,
                                              const ScoopGcSurvivors *survivors);
 

@@ -79,7 +79,9 @@ typedef struct ScoopGcBlockMeta {
     uint64_t *starts;
     uint64_t *marks;
     uint64_t *pins;
+#if SCOOP_GC_TRACK_RELOCATION
     uint64_t *scanned;
+#endif
     uint64_t *line_occupied;
     uint64_t *line_live;
     uint16_t *size_units;
@@ -92,7 +94,9 @@ typedef struct ScoopGcBlockMeta {
     bool large_published;
     bool large_marked;
     bool large_pinned;
+#if SCOOP_GC_TRACK_RELOCATION
     bool large_scanned;
+#endif
     bool discard_pending;
 } ScoopGcBlockMeta;
 
@@ -257,8 +261,10 @@ ScoopGcBlockMeta *scoop_heap_activate_large_block(size_t exact_size, ScoopGcBloc
 bool scoop_heap_object_meta(const void *object, ScoopGcBlockMeta **block, size_t *word_index);
 /* False only outside the heap; invalid heap references fail in every build. */
 bool scoop_heap_reference_meta(const void *object, ScoopGcBlockMeta **block, size_t *word_index);
+#if SCOOP_GC_TRACK_RELOCATION
 void scoop_heap_claim_current_object(void *object);
 bool scoop_gc_object_was_scanned_locked(const void *object);
+#endif
 void scoop_heap_record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_size,
                                     bool marked);
 void scoop_heap_publish_large_object(ScoopGcBlockMeta *block, bool marked);
