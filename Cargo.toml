@@ -40,7 +40,7 @@ rust-version = "1.85"
 [workspace.dependencies]
 rustc_apfloat = "=0.2.3"
 # External LLVM 22.1; independent of the Rust toolchain LLVM version.
-inkwell = { version = "0.10", features = ["llvm22-1-prefer-dynamic"] }
+inkwell = { version = "0.10", default-features = false, features = ["llvm22-1-prefer-dynamic", "target-aarch64", "target-x86"] }
 llvm-sys = "221"
 clap = { version = "4", features = ["derive"] }
 insta = { version = "1" }
