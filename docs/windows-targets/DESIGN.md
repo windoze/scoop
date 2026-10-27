@@ -1,6 +1,6 @@
 # Windows MSVCRT／UCRT target 与工具链设计
 
-状态：实施中，当前进行 W0；尚未开放正式 Windows target。日期：2026-10-27。本文覆盖 MSVCRT、UCRT 两种 CRT，并按 native 工具链环境区分完整 target。实施与验收记录见 [进度](PROGRESS.md)。
+状态：实施中，W0 关键路线实验通过，继续 W1～W4；尚未开放正式 Windows target。日期：2026-10-27。本文覆盖 MSVCRT、UCRT 两种 CRT，并按 native 工具链环境区分完整 target。实施与验收记录见 [进度](PROGRESS.md)。
 
 依据：[语言规范](../specs/SCOOP-SPEC.md) 12～14、[实现规范](../specs/SCOOP-IMPL-SPEC.md) 1、2.4～2.10，以及[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md) 3～7。实施时先将本文对应阶段的精确合同纳入这些规范，再改实现；当前三个已实现目标的合同保持有效。
 
@@ -211,6 +211,8 @@ stdout／stderr 继续遵守既有字节输出合同，明确处理 CRT text mod
 MSVC＋UCRT 从 Rust `x86_64-pc-windows-msvc` 构建，匹配默认动态 CRT 配置；LLVM-MinGW＋UCRT 从 `x86_64-pc-windows-gnullvm` 构建；LLVM-MinGW＋MSVCRT 从 `x86_64-pc-windows-gnu` 的匹配 MSVCRT 路线开始资格验证。最后一项不是已确认兼容 LLVM-MinGW 的承诺：Rust GNU target 默认 native 依赖包含 GCC 相关库，不能只更换 `CC` 就把这些默认项视为已解决。
 
 准备阶段以实际 `staticlib` 的 native 依赖和最终程序为依据，验证 std、compiler builtins、import libraries 与本 target 运行库的组合。若固定 Rust 版本的预编译 GNU std 带入不可兼容的 GCC runtime，则从同版 Rust 源码构建匹配配置的 std／后端；这个依赖闭合必须在发布 MSVCRT 全部系统库之前完成，不临时混入另一 target 的文本库或重复 `_Unwind_*` 实现。是否需要这一维护构建，在 W0 用真实文本后端小程序确定并补充准确命令。
+
+W0 已验证 Rust `1.99.1`、LLVM-MinGW `20260616`／LLVM `22.1.8`：三种 Rust target 的实际文本 staticlib 均可与对应 native 环境和 Scoop SEH 链接运行；GNU／MSVCRT 组合不需要重建 std，文本 archive 不定义第二套 `_Unwind_*`，最终程序未导入 libgcc DLL。复现命令见 [W0 Rust 文本实验](../../spikes/windows-targets/README.md#rust-text-dependency-closure)。此结果只适用于该固定组合，升级 Rust 或 native 配套时按正常维护验证重新确认。
 
 ## 6. 仓库落点与实施顺序
 

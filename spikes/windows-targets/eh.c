@@ -31,7 +31,7 @@ void caught_probe(void *record, int selector) {
     _Unwind_DeleteException(record);
 }
 
-int main(void) {
+int seh_probe(void) {
     assert(catch_probe() == 42);
     assert(cleanups == 1);
     assert(deletions == 1);

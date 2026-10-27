@@ -4,7 +4,7 @@
 
 | 阶段 | 状态 | 尚需闭合 |
 | --- | --- | --- |
-| W0 工具链与 ABI | 进行中 | 三环境 C／C++、真实文本后端、Scoop personality／statepoint 与 frame 几何 |
+| W0 工具链与 ABI | 关键路线实验通过 | 复现入口与范围见下文；正式编译器集成在 W1／W2 完成 |
 | W1 编译／链接 | 待实施 | 完整 target identity、Win64 ABI、COFF／PE、工具选择与链接 |
 | W2 core runtime | 待实施 | Win32 平台层、SEH、精确根、Unicode 启动与完整 core／std |
 | W3 系统库 | 待实施 | 平台规范与实现、IOCP、全部 native 组件、真实 consumer |
@@ -14,7 +14,7 @@
 
 ## 本地环境
 
-- Windows x64；MSVC toolset `14.44.35207`，已安装 SDK `10.0.22621.0`／`10.0.26100.0`。
+- Windows x64 `10.0.26300`；MSVC toolset `14.44.35207`，实验选择 SDK `10.0.26100.0`（同时安装 `10.0.22621.0`）。
 - LLVM `22.1.8`（`ca7933e47d3a3451d81e72ac174dcb5aa28b59d1`）。
 - LLVM-MinGW `20260616`（LLVM `22.1.8`），分别准备 MSVCRT 与 UCRT prefix。
 - Rust `1.99.1`（`58cf8f9c3`）；三个 Windows Rust target 分别验证 native 依赖，不能从 C probe 成功推断文本库兼容。
@@ -29,4 +29,14 @@
 - MSVC 环境的 LLVM libunwind 源码用 Microsoft headers 与 `/MD` 构建成功；生产准备仍须把实验中的明确配置接入上游 CMake，不能复用 MinGW archive。
 - C 变更先格式化并以 `-Wall -Wextra -Werror` 检查；实验 Python 与公共 fixture runner 通过 Ruff 0.16.10 format/check。
 
-复现入口：[W0 experiments](../../spikes/windows-targets/README.md)。这批验证尚不包含 managed GC、native C++ 与 Scoop handler 共存、Rust 文本后端或正式 target 消费；W0 保持进行中。
+复现入口：[W0 experiments](../../spikes/windows-targets/README.md)。
+
+第二批 W0 实验已通过：
+
+- 三环境使用真实 zero-live statepoint invoke 与 Scoop SEH 同时发射、链接、catch／cleanup／resume。
+- 三环境各测试保留／省略 frame pointer 的 16 KiB 栈帧；通过系统 `RtlVirtualUnwind` 和 production stackmap reader 找到精确槽，更新根后 LLVM 函数返回新地址。Win64 不使用 `FP = SP + stack_size - 8` 的 SysV 推算。
+- MSVC 用 cl 产生同一真实 C++ 静态 `.lib` 和 DLL import library，分别由 cl/link.exe、clang-cl/lld-link 构建 wrapper 并消费；STL、RTTI、两条 native throw/catch、静态初始化／两次析构与 Scoop SEH 同处一个程序通过。两个 MinGW CRT 的 libc++ 路线同样通过。
+- 三环境均验证 LLP64、Win32 线程、独立 TLS／errno 和私有 C locale。
+- 三个 Rust target 的真实文本 staticlib 通过 NFC、IDNA、转换器创建／处理／释放及 Scoop SEH 组合；实际 imports 与所选 CRT 一致，无 libgcc DLL，也未在文本 archive 中发现第二套 `_Unwind_*` 定义。固定 Rust `1.99.1` 的 MSVCRT 路线无需重建 std。
+
+这些是后端机制与依赖闭合实验，尚不包含完整 compiler pipeline、managed heap／GcHandle、GC 协调、callback 或系统库；不据此开放正式 target。后续按 W1～W4 完成全部设计与验收。

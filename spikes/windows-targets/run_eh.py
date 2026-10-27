@@ -65,6 +65,7 @@ def main():
             decoder,
             personality,
             HERE / "eh.c",
+            HERE / "eh_main.c",
             HERE / "eh.ll",
             library,
             "-o",
