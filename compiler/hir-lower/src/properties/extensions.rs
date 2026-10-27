@@ -179,14 +179,14 @@ impl Lowerer {
                     first_failure.get_or_insert(Box::new(state));
                 }
                 ExtensionPropertySelectionOutcome::Failed => {
-                    self.commit_layer_diagnostics(state);
+                    self.commit_layer_diagnostics(&state);
                     return ExtensionPropertyResolution::Failed;
                 }
                 ExtensionPropertySelectionOutcome::NoCandidate => {}
             }
         }
         if let Some(failure) = first_failure {
-            self.commit_layer_diagnostics(*failure);
+            self.commit_layer_diagnostics(&failure);
             ExtensionPropertyResolution::Failed
         } else if declared {
             self.error(

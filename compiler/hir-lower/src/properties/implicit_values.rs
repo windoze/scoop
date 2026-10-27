@@ -159,7 +159,7 @@ impl Lowerer {
                 for binding in self.implicit_receivers() {
                     let mut state = self.clone();
                     let Some(receiver) = state.lower_receiver_binding(binding, name.span) else {
-                        self.commit_layer_diagnostics(state);
+                        self.commit_layer_diagnostics(&state);
                         return ImplicitValueSelection::Failed;
                     };
                     let mut layer_sink = Vec::new();
@@ -212,7 +212,7 @@ impl Lowerer {
                             result = ExtensionPropertySelection::NoApplicable;
                         }
                         ExtensionPropertySelection::Failed => {
-                            self.commit_layer_diagnostics(state);
+                            self.commit_layer_diagnostics(&state);
                             return ImplicitValueSelection::Failed;
                         }
                         ExtensionPropertySelection::NoCandidate => {}

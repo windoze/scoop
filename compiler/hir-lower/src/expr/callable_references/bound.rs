@@ -61,7 +61,7 @@ impl Lowerer {
         ) {
             Ok(candidates) => candidates,
             Err(failure) => {
-                self.commit_layer_diagnostics(*failure);
+                self.commit_layer_diagnostics(&failure);
                 return None;
             }
         };
@@ -81,7 +81,7 @@ impl Lowerer {
             name,
             RequiredCallableModifiers::default(),
         ) {
-            self.commit_layer_diagnostics(*failure);
+            self.commit_layer_diagnostics(&failure);
             return None;
         }
         let mut member_candidates =
@@ -121,7 +121,7 @@ impl Lowerer {
                 BoundReferenceOutcome::NoApplicable => first_failure = Some(Box::new(state)),
                 BoundReferenceOutcome::Blocked => return None,
                 BoundReferenceOutcome::Failed => {
-                    self.commit_layer_diagnostics(state);
+                    self.commit_layer_diagnostics(&state);
                     return None;
                 }
             }
@@ -133,7 +133,7 @@ impl Lowerer {
             if layer.candidates.is_empty() {
                 if !layer.suppressed_callables.is_empty() {
                     if let Some(failure) = first_failure {
-                        self.commit_layer_diagnostics(*failure);
+                        self.commit_layer_diagnostics(&failure);
                     }
                     return None;
                 }
@@ -166,14 +166,14 @@ impl Lowerer {
                 }
                 BoundReferenceOutcome::NoApplicable => {
                     if !layer.suppressed_callables.is_empty() {
-                        self.commit_layer_diagnostics(state);
+                        self.commit_layer_diagnostics(&state);
                         return None;
                     }
                     first_failure.get_or_insert(Box::new(state));
                 }
                 BoundReferenceOutcome::Blocked => return None,
                 BoundReferenceOutcome::Failed => {
-                    self.commit_layer_diagnostics(state);
+                    self.commit_layer_diagnostics(&state);
                     return None;
                 }
             }
@@ -183,7 +183,7 @@ impl Lowerer {
             return None;
         }
         if let Some(failure) = first_failure {
-            self.commit_layer_diagnostics(*failure);
+            self.commit_layer_diagnostics(&failure);
         } else {
             let found = self.type_name(receiver.ty);
             self.error(

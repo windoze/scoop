@@ -29,7 +29,7 @@ impl Lowerer {
             Ok(layer) => Some(self.commit_expr_layer(layer, sink)),
             Err(failed) => {
                 if failed.diagnostics.len() > self.diagnostics.len() {
-                    self.commit_layer_diagnostics(*failed);
+                    self.commit_layer_diagnostics(&failed);
                 }
                 None
             }

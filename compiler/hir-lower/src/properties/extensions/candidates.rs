@@ -86,7 +86,7 @@ impl Lowerer {
         }
         if probes.is_empty() {
             if let Some(failure) = first_failure {
-                self.commit_layer_diagnostics(*failure);
+                self.commit_layer_diagnostics(&failure);
                 return if suppressed {
                     ExtensionPropertySelectionOutcome::Failed
                 } else {

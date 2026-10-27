@@ -27,7 +27,7 @@ impl Lowerer {
         ) {
             Ok(candidates) => candidates,
             Err(failure) => {
-                self.commit_layer_diagnostics(*failure);
+                self.commit_layer_diagnostics(&failure);
                 return DelegateRoleCall::Failed;
             }
         };
@@ -44,7 +44,7 @@ impl Lowerer {
                 continue;
             }
             if context.report_unavailable_signatures(&name.text, name.span, [candidate.function]) {
-                self.commit_layer_diagnostics(context);
+                self.commit_layer_diagnostics(&context);
                 return DelegateRoleCall::Failed;
             }
             if context
@@ -84,7 +84,7 @@ impl Lowerer {
                 DelegateRoleCall::Resolved(resolved)
             }
             DelegateRoleCall::Failed => {
-                self.commit_layer_diagnostics(context);
+                self.commit_layer_diagnostics(&context);
                 DelegateRoleCall::Failed
             }
             DelegateRoleCall::NoApplicable => DelegateRoleCall::NoApplicable,
