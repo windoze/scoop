@@ -1,4 +1,4 @@
-//! Append COFF symbols and update COMDAT association without renumbering inputs.
+//! Materialize COFF atoms while preserving symbol indices and relocation targets.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -8,6 +8,7 @@ use scoop_lir::LinkageClass;
 use crate::CodegenError;
 
 mod constants;
+mod section_order;
 
 pub(crate) use constants::merge_callable_constants;
 
@@ -208,6 +209,7 @@ impl<'a> CoffObject<'a> {
     }
 
     pub(crate) fn finish(mut self) -> Result<Vec<u8>, CodegenError> {
+        self.order_associated_sections()?;
         let offset = u32::try_from(self.bytes.len()).map_err(error)?;
         let count = u32::try_from(self.symbols.len() / self.symbol_bytes).map_err(error)?;
         let length = u32::try_from(self.strings.len()).map_err(error)?;

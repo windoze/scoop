@@ -17,6 +17,7 @@ fixture 的 Scoop 命令通过 `${target}` 传递该选择。`${cc}` 默认分�
 可用 `--cc` 覆盖；Linux 不提供 Darwin 的 `${sdk}` / `${deployment}`。
 Windows x64 可选择三个完整 Windows target，默认 Microsoft UCRT；命令默认使用 `.exe`。
 `--native-sysroot` 与 `--unwind-prefix` 可指定所选目标的开发资源；省略时使用 sysroot 中的目标目录。
+`--linker` 选择最终 executable linker（例如 Microsoft `link.exe`），仅加入 `${link_args}`。
 Windows native companion 使用 Clang 的 GNU 风格命令行，`${cc_args}` 提供实际 machine triple 和目标资源，
 MinGW 默认使用所选 prefix 的 Clang，Microsoft 使用宿主 Clang 并由 SDK／Build Tools 或 `msvc.toml` 取得开发环境。
 `--ar` 可覆盖 companion archiver；只为当前适用且实际使用 native 工具的用例准备这些参数。

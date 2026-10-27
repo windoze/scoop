@@ -158,8 +158,8 @@ impl CoffObject<'_> {
                 self.symbols[aux + 4..aux + 6].copy_from_slice(&encoded_count.to_le_bytes());
                 self.symbols[aux + 8..aux + 12].fill(0);
             } else {
-                // Keep section ordinals stable. Only the primary contribution
-                // holds content; all original relocation indices remain valid.
+                // Leave unused headers in place. Only the primary contribution
+                // holds content; relocation symbol indices remain valid.
                 flags &= !pe::IMAGE_SCN_LNK_COMDAT;
                 self.bytes[header + 16..header + 36].fill(0);
             }

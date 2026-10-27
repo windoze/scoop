@@ -513,7 +513,9 @@ MinGW 后端为全局数据地址生成的 `.rdata$.refptr.*` 指针，与普通
 
 Windows callable 的 definition atom 新增 unwind table／unwind information 两种 role（编码 10／11）；`.xdata` 内的 unwind header／handler RVA 与后续 LSDA 使用各自不重叠的真实边界。代码、stackmap、SEH、callable／safepoint registration 与 callable 私有常量按 COFF COMDAT association 同步保留／裁剪；Strong 不转为可任意选取的 ODR 定义。已有目标的 atom role 编码不变。Windows personality 的对象符号为 `scoop_eh_personality_seh`，通过同一 target EH requirement 投影选择，普通 Unix personality 符号保持原样。
 
-LLVM 在同一 callable 对象中产生的多个 `.rdata` 常量池合并为一个私有 contribution，保留各常量的实际对齐、内容和 relocation，并作为该 callable 的常量 atom 关联保留。LLVM 的可跨对象合并的常量符号在此成为局部符号；不得因此合并 callable identity。显式命名的 `.rdata$scoop.*` 元数据仍按其原 definition plan 独立拥有边界。此物理布局整理不改变已有 symbol／section 序号或完整 target identity。
+COFF atom 物化完成后，若关联节先于其所属 COMDAT，则按实际 association 将所属节排在关联节之前，以满足 Microsoft LINK 的输入约束。只调整 section header 顺序与符号／association 中的 section 序号；原 symbol table 序号、relocation 索引、节内容及其文件偏移保持，不重新发射机器代码。已经满足顺序的对象不调整。普通 COFF 与 bigobj 使用各自的 section number 字段宽度，真实关联环或越界按格式错误报告；产物 reader 仍保存最终对象中的实际序号。
+
+LLVM 在同一 callable 对象中产生的多个 `.rdata` 常量池合并为一个私有 contribution，保留各常量的实际对齐、内容和 relocation，并作为该 callable 的常量 atom 关联保留。LLVM 的可跨对象合并的常量符号在此成为局部符号；不得因此合并 callable identity。显式命名的 `.rdata$scoop.*` 元数据仍按其原 definition plan 独立拥有边界。常量合并保留原 section header 槽，随后按前述 COMDAT 规则排列；已有 symbol 序号和完整 target identity 不变。
 
 ELF atom 边界归一化按每个实际对象建立一次原始符号名到符号表序号的查询索引，借用原字符串表。边界、可见性和 COMDAT 操作复用该索引，不为每个 atom 重扫整个符号表。索引表示原对象，新增或改名的符号仍由既有编辑记录管理；原 symbol／section 序号、relocation、弱定义规则与输出顺序保持，不增加 native 符号登记或解析职责。
 

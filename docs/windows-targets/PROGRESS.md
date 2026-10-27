@@ -5,7 +5,7 @@
 | 阶段 | 状态 | 尚需闭合 |
 | --- | --- | --- |
 | W0 工具链与 ABI | 关键路线实验通过 | 复现入口与范围见下文；正式编译器集成在 W1／W2 完成 |
-| W1 编译／链接 | 实施中 | 三目标开发 CLI 已支持 subsystem、RC 与 DLL 数据；继续 Microsoft LINK 的 COMDAT 顺序、native C++ CLI、调试信息与组合验收 |
+| W1 编译／链接 | 实施中 | 三目标开发 CLI 已支持 subsystem、RC 与 DLL 数据，Microsoft LINK 的 COMDAT 顺序已修正；继续 native C++ CLI、调试信息与组合验收 |
 | W2 core runtime | 实施中 | core／std／test 已构建，启动、异常和移动 GC 的真实程序通过；继续线程／callback／unwind 组合及正式 fixture 验收 |
 | W3 系统库 | 待实施 | 平台规范与实现、IOCP、全部 native 组件、真实 consumer |
 | W4 宿主与发行 | 基础实施中 | 进程中断已实现；继续 Windows 命令、维护脚本、DLL／SDK 布局与打包、交叉编译 |
@@ -131,4 +131,8 @@ fixture runner 已接入三种完整 Windows target、各自的 Clang／archive 
 
 Windows 非 TLS native global 现通过普通 IAT 引用访问，产物中的实际 `__imp_` 引用保留原数据契约与显式 library 归属；静态 archive 和 DLL import library 使用同一份 `.slib`。三个目标的正式 fixture 各通过 9 个进程步骤，覆盖可变 scalar／C-layout struct、只读数据独占的 archive 成员、addressOf 与原生 getter 的地址一致性、写入可见性、本地 native TLS、artifact-only 切换到 DLL 及 warm 复用。受影响四个 crate 的 Clippy、后续 codegen Clippy、C／Scoop 格式化和 Python Ruff 通过。
 
-以上 DLL 数据 fixture 使用三个目标各自的默认 LLD。额外的 Microsoft LINK CLI 验证发现既有 COFF 常量节关联到后方函数节，触发 LNK1243；已定位到 `.rdata` section 4 关联 `.text` section 5，继续修正发射顺序，未将该路径记为通过。native C++ 的 CLI 契约汇总还需接入 Windows 已有的目标 C++ 配置；调试信息及后续 W2～W4 仍未完成，未开始远端测试。
+以上 DLL 数据 fixture 最初使用三个目标各自的默认 LLD。额外的 Microsoft LINK CLI 验证发现既有 COFF 常量节关联到后方函数节，触发 LNK1243；该失败由下一批 COMDAT 顺序修正闭合。native C++ 的 CLI 契约汇总还需接入 Windows 已有的目标 C++ 配置；调试信息及后续 W2～W4 仍未完成，未开始远端测试。
+
+COFF atom 物化现在将所属 COMDAT 排在关联节之前，只重排 section headers 和 section 序号，保留 symbol 索引、relocation 目标及机器内容。真实普通 COFF 与超过 65,535 个节的 bigobj 均经 Microsoft LINK 链接并运行通过，确认 association 高低位、代码和 relocation 保持正确。codegen Clippy 无告警；fixture runner 可显式选择 `--linker`，65 项公共规则测试通过 62 项、跳过 3 项 POSIX 专项，Ruff 通过。
+
+三个 release CLI 与三个目标各自的 core／std／test 已重新构建。Microsoft UCRT 的 LLD／LINK、两个 MinGW CRT 的 LLD 共四种组合均通过 `windows-native-data-static-and-dll`、`roots-gc-context`、`string-copies-moving` 和 `exceptions-return-paths`，每种组合 6 个变体／19 个进程步骤；包括 debug／release 移动 GC、完整静态库和 DLL `.slib` 链接。原 Microsoft LINK LNK1243 已闭合，后续 native C++、调试信息和 W2～W4 继续实施。

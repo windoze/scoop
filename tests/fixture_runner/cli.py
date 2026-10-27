@@ -65,6 +65,7 @@ def arguments(argv):
         "--native-sysroot", type=Path, help="selected target's C development resources"
     )
     parser.add_argument("--unwind-prefix", type=Path, help="selected target's LLVM unwind prefix")
+    parser.add_argument("--linker", type=Path, help="final executable linker")
     parser.add_argument("--llc", type=Path, help="LLVM 22.1 compiler for IR companions")
     args = parser.parse_args(argv)
     if args.jobs < 1:
@@ -130,6 +131,8 @@ def environment(repo, work, fixtures, args):
             else sysroot / "lib" / target / "unwind"
         )
         common["link_args"] += ["--unwind-prefix", str(unwind)]
+    if args.linker:
+        common["link_args"] += ["--linker", str(args.linker.resolve())]
     if target in WINDOWS_TARGETS:
         common["llvm_target"] = (
             "x86_64-pc-windows-msvc" if target == WINDOWS_TARGETS[0] else "x86_64-w64-windows-gnu"

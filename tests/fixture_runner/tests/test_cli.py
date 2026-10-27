@@ -224,6 +224,7 @@ class EnvironmentTests(unittest.TestCase):
             repo, work = self.prepare(directory)
             native = repo / "native 雪"
             unwind = repo / "unwind"
+            linker = repo / "Microsoft tools/link.exe"
             fixtures = [
                 SimpleNamespace(data={"tools": []}),
                 SimpleNamespace(
@@ -233,6 +234,8 @@ class EnvironmentTests(unittest.TestCase):
             with patch("fixture_runner.cli.shutil.which") as locate:
                 for index, target in enumerate(WINDOWS_TARGETS):
                     options = ["--native-sysroot", str(native), "--unwind-prefix", str(unwind)]
+                    if not index:
+                        options += ["--linker", str(linker)]
                     if index:
                         options += ["--target", target]
                     common = environment(repo, work, fixtures, arguments(options))
@@ -243,7 +246,9 @@ class EnvironmentTests(unittest.TestCase):
                     )
                     self.assertEqual(
                         common["link_args"],
-                        common["compile_args"] + ["--unwind-prefix", str(unwind)],
+                        common["compile_args"]
+                        + ["--unwind-prefix", str(unwind)]
+                        + (["--linker", str(linker)] if not index else []),
                     )
                     self.assertEqual(
                         common["llvm_target"],
