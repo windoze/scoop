@@ -365,7 +365,9 @@ allocation context 的地址与所属 mutator 在单次 managed 函数调用期�
 
 release 复用 LIR 中已有的完整本地 TD 或 typed array layout，将确定的对象对齐与 nursery 资格作为常量发射；不因物理对象分区把已知事实退化为 TD 加载，也不重做布局或 release 语义检查。仅对请求大小为编译期常量、位于 16～128 bytes、对齐已知且确定无 release hook 的分配，在原 TLAB、溢出和边界判断成功后直接完成清零、对象头、精确大小、位图发布和计数。不生成 line 索引、mask、位图读写或跨字分支，也不引入循环或 safepoint。starts 的 atomic load／store 次序与下述单写者登记一致，starts 最后作 release 发布，随后只更新 nursery 对象数与字节数两项 relaxed 计数；不另外维护与其重叠的总量。使用现成的 allocation context，不再次读取 TLS，不访问 `ScoopGcBlockMeta` 或 mutator 的私有偏移。debug、动态大小、更大对象及缺少完整布局事实的外部／动态 TD 沿原完成入口和必要 TD 加载；有 release hook 的对象仍从旧代慢路径分配。失败分配沿原 collecting slow path，保持完整 live set 和 relocation。
 
-小型内联分配可缩短一次连续清零的末尾：ARM64 接受对齐后不超过 128 bytes 的对象，x86 接受不超过 64 bytes 的对象，仅省去已证明在同一直线执行路径中被后续 typed 字段存储完整覆盖的无引用尾部。证明可跨无条件跳转并跟踪未取址的局部副本；遇到调用、poll、异常出口、条件分支、对象读取、取址、外传或其他未分析操作即停止。只接受实际存储覆盖全部字节、无 padding 的标量或普通 struct／tuple，保留对象头、引用槽、padding、enum／MaybeUninit 存储及其他未证明字节的清零；不拆成多段 memset，不移动构造写入或位图发布。被省去零写入的字节必须在该路径的下一次可观察操作前写好，STW 仍经原合作式 safepoint 协调。慢路径、共享完成入口、typed 数组和 debug 保留完整清零，精确 roots、分配计数、release-ready 与 ABI 不变。
+小型内联分配可缩短一次连续清零的末尾：ARM64 接受对齐后不超过 128 bytes 的对象，x86 接受不超过 64 bytes 的对象，仅省去已证明在同一直线执行路径中被后续 typed 字段存储完整覆盖的尾部。证明可跨无条件跳转并跟踪未取址的局部副本；遇到调用、poll、异常出口、条件分支、对象读取、取址、外传或其他未分析操作即停止。只接受实际存储覆盖全部字节、无 padding 的标量、直接引用、接口、null niche enum 或普通 struct／tuple；保留对象头、padding、tagged enum／MaybeUninit 存储及其他未证明字节的清零。纯值构造只有在不把新对象装入另一个值时才可穿过；不拆成多段 memset，不移动构造写入或位图发布。
+
+省去引用零写入的必要条件是全部相关槽在下一次可能 GC、观察或发布之前已由原 typed store 写为有效引用或 null。starts 的 release 发布仍保证对象头和精确大小可查询，并不允许其他 mutator 在普通语言发布之前扫描私有 payload；collector 仍只在全部 mutator 停稳后扫描，不能在这段无 safepoint 的构造区间读取未完成字段。输入引用继续由分配的原根计划保活，在实际 collecting 慢路径返回后使用 relocation 结果；清零省略只发生在成功 TLAB 分支。慢路径、共享完成入口、typed 数组和 debug 保留完整清零，精确 roots、分配计数、release-ready、对象布局与 ABI 不变。
 
 生成代码成功 bump 后的完成入口接收已经按 TD 对齐的普通对象大小，复用当前 mutator 的 nursery block；此前已确认有效 TLAB、大小不溢出且在 limit 内，以及 TD 无 release hook，moving stress 不提供可用 TLAB。完成入口不重复规格化大小、判断分配资格、查找 block 或重查已保留范围的对象起点；它仍清零全部对象字节、设置对象头、登记精确大小，再 release 发布 starts，更新线程原子计数；不额外更新 line 位图。此入口不经过 safepoint；动态 runtime 分配入口仍执行其输入与布局检查。
 

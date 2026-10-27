@@ -37,6 +37,9 @@ impl InitializationAliases {
             Instruction::MakeAggregate { elements, .. } => {
                 elements.iter().all(|value| !self.contains(*value))
             }
+            Instruction::EnumWrap { fields, .. } => {
+                fields.iter().all(|value| !self.contains(*value))
+            }
             Instruction::ExtractValue { aggregate, .. } => !self.contains(*aggregate),
             _ => false,
         }
@@ -85,7 +88,7 @@ impl FnEmitter<'_, '_> {
                     let ty = self.function.value_ty(self.globals_arena, *value);
                     let Some(bytes) = self.dense_store_size(&ty)? else {
                         // The store is still into this unpublished object.
-                        // Its reference slots and padding remain zeroed.
+                        // Unproven bytes, including padding, remain zeroed.
                         continue;
                     };
                     let Some(end) = offset.checked_add(bytes).filter(|end| *end <= size) else {
@@ -107,8 +110,8 @@ impl FnEmitter<'_, '_> {
             start = 0;
         }
 
-        // Keep one memset, including the header, every reference slot and all
-        // padding. Only a completely overwritten suffix can shorten it.
+        // Keep one memset for the header and every unproven byte. All omitted
+        // reference writes complete before the first observation or safepoint.
         let mut clear_size = size;
         while clear_size > 16 && covered[clear_size as usize - 1] {
             clear_size -= 1;
@@ -117,15 +120,18 @@ impl FnEmitter<'_, '_> {
     }
 
     /// An LLVM aggregate store need not write its padding. Only count types
-    /// whose scalar leaves densely cover their complete, GC-free storage.
+    /// whose scalar leaves densely cover their complete storage.
     fn dense_store_size(&self, ty: &LirType) -> Result<Option<u64>, CodegenError> {
         Ok(match ty {
             LirType::I1 | LirType::I8 => Some(1),
             LirType::I16 => Some(2),
             LirType::I32 | LirType::F32 => Some(4),
-            LirType::I64
-            | LirType::F64
-            | LirType::Ptr(PointerKind::Raw | PointerKind::Code | PointerKind::Metadata) => Some(8),
+            LirType::I64 | LirType::F64 | LirType::Ptr(_) => Some(8),
+            LirType::Interface => Some(16),
+            LirType::Enum(id) => match &self.enums[*id].repr {
+                EnumRepr::Niche { kind, .. } => self.dense_store_size(&kind.storage_type())?,
+                EnumRepr::Tagged { .. } | EnumRepr::Integral { .. } => None,
+            },
             LirType::Struct(id) => {
                 let definition = &self.structs[*id];
                 let StructRepresentation::Scoop { fields } = &definition.representation else {
@@ -164,12 +170,7 @@ impl FnEmitter<'_, '_> {
                 }
                 (end == self.target_data.get_abi_size(&layout)).then_some(end)
             }
-            LirType::Void
-            | LirType::MachineScalar(_)
-            | LirType::Ptr(PointerKind::Managed)
-            | LirType::Interface
-            | LirType::ExceptionRecord
-            | LirType::Enum(_) => None,
+            LirType::Void | LirType::MachineScalar(_) | LirType::ExceptionRecord => None,
         })
     }
 }

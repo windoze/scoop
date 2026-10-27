@@ -1212,7 +1212,7 @@ parser 在表达式入口接受 `return [expression]`，同时统一 `throw expr
 **class初始化顺序：**
 
 1. 调用处先选择唯一constructor与完整nominal type arguments，再按8.5求值、物化全部实参；inner constructor 先求值并保存所需的外层实例，再处理显式实参。显式实参属于caller，因此可以在suspend caller中先挂起；
-2. 分配一次exact concrete对象，写入最派生TypeDescriptor并按运行时规范 3.1 初始化存储；语义上 payload 从全零开始，允许消除被确定初始化覆盖、在覆盖前不可观察的无引用字节的零写入。随后所有`this`/`super` constructor initializer共享该对象，不重新分配或替换identity；
+2. 分配一次exact concrete对象，写入最派生TypeDescriptor并按运行时规范 3.1 初始化存储；语义上 payload 从全零开始，允许消除被确定初始化完整覆盖、在覆盖前不可观察的字节的零写入；含引用存储须在任何可能 GC 或发布之前完成有效初始化。随后所有`this`/`super` constructor initializer共享该对象，不重新分配或替换identity；
 3. 每条constructor delegation先按其自身源码顺序求值显式实参，再物化目标default/`vararg`，然后direct调用typed目标；
 4. terminal primary先完成direct base constructor，写入本 class 的隐藏外层引用，再按声明顺序把带`val`/`var`的primary参数写入本class字段；terminal `super` secondary先完成base constructor，再写入隐藏外层引用。随后按继承列表顺序求值并保存 9.2.2 的 interface delegate；
 5. body stored initializer、optional synthetic None store、delegate initialization与`init`按照它们在class/object body中的源码顺序交错执行。method、computed/abstract property、nested declaration和secondary constructor本身不执行，也不改变相邻初始化项顺序；

@@ -110,7 +110,6 @@ fn small_release_allocations_publish_ordered_metadata_inline() {
         assert!(ir.contains("@llvm.memset.p1.i64"), "{ir}");
         assert!(!ir.contains("allocation_alignment = load"), "{ir}");
         assert!(!ir.contains("allocation_hook = load"), "{ir}");
-        assert!(ir.contains(&format!("i64 {size}, i1 false")), "{ir}");
         assert!(
             ir.contains("load atomic i64") && ir.contains(" monotonic, align 8"),
             "{ir}"
