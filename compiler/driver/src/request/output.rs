@@ -122,6 +122,10 @@ pub(super) fn validate_output_isolation(
     let mut inputs =
         Vec::with_capacity(2 + dependencies.direct().len() + dependencies.support().len());
     match current {
+        CurrentConeInput::ExpandedManifest { manifest } => inputs.push((
+            OutputAliasRole::CurrentManifest,
+            manifest.manifest_path().to_owned(),
+        )),
         CurrentConeInput::Manifest { root } => {
             let path = match root {
                 ManifestRootLocator::ConeDirectory(path) => path.join("Cone.toml"),

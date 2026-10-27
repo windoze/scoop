@@ -4,15 +4,17 @@ use super::*;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum DecodedCurrentConeRequestV1 {
-    ManifestRoot(DecodedHostPathCarrier),
+    ExpandedCone(Vec<u8>),
     SingleFile(DecodedHostPathCarrier),
 }
 
 impl DecodedCurrentConeRequestV1 {
     fn validate(self) -> Result<CurrentConeRequestV1, ProtocolValidationError> {
         match self {
-            Self::ManifestRoot(root) => Ok(CurrentConeRequestV1::ManifestRoot {
-                root: root.validate().map_err(ProtocolValidationError::HostPath)?,
+            Self::ExpandedCone(bytes) => Ok(CurrentConeRequestV1::ExpandedCone {
+                config: serde_json::from_slice(&bytes).map_err(|error| {
+                    ProtocolValidationError::InvalidExpandedCone(error.to_string())
+                })?,
             }),
             Self::SingleFile(source) => Ok(CurrentConeRequestV1::SingleFile {
                 source: source
@@ -26,12 +28,12 @@ impl DecodedCurrentConeRequestV1 {
 impl WireEncode for DecodedCurrentConeRequestV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
-            Self::ManifestRoot(root) => {
+            Self::ExpandedCone(bytes) => {
                 encoder.map(2)?;
                 encoder.field(0)?;
-                encoder.unsigned(1)?;
+                encoder.unsigned(3)?;
                 encoder.field(1)?;
-                root.encode(encoder)
+                encoder.bytes(bytes)
             }
             Self::SingleFile(source) => {
                 encoder.map(2)?;
@@ -49,11 +51,11 @@ impl WireDecode for DecodedCurrentConeRequestV1 {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
-            1 => {
+            3 => {
                 crate::framing::expect_sum_length(decoder, fields, 2)?;
                 decoder
-                    .field(1, DecodedHostPathCarrier::decode)
-                    .map(Self::ManifestRoot)
+                    .field(1, Decoder::owned_bytes)
+                    .map(Self::ExpandedCone)
             }
             2 => {
                 crate::framing::expect_sum_length(decoder, fields, 2)?;

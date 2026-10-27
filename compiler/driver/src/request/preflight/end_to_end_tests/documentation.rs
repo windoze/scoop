@@ -146,8 +146,16 @@ fn documentation_core_requests_select_all_targets_without_machine_toolchains() {
         let output = workspace.path().join(format!("{triple}.json"));
         let path = |path: &Path| scoop_protocol::HostPathCarrier::from_path(path).unwrap();
         let wire = scoop_protocol::ScoopcBuildRequestV1::new(
-            scoop_protocol::CurrentConeRequestV1::ManifestRoot {
-                root: path(&source),
+            scoop_protocol::CurrentConeRequestV1::ExpandedCone {
+                config: Box::new(
+                    scoop_protocol::package::ExpandedConeInputV1::from_manifest(
+                        &scoop_toolchain::load_cone_manifest(&ManifestRootLocator::cone_directory(
+                            &source,
+                        ))
+                        .unwrap(),
+                    )
+                    .unwrap(),
+                ),
             },
             Vec::new(),
             Vec::new(),

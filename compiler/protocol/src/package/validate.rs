@@ -144,8 +144,41 @@ impl ExpandedConeInputV1 {
             .locators()
             .iter()
             .any(|(_, locator)| !locator.uses_search_roots())
+            || self
+                .manifest
+                .tests()
+                .dependency_iter()
+                .any(|(_, dependency)| !dependency.locator().uses_search_roots())
         {
             return Err("expanded Cone input cannot contain unresolved source locators".into());
+        }
+        let spans = self.manifest.diagnostic_spans();
+        let fields = spans.cone_fields();
+        for span in [
+            spans.schema(),
+            spans.cone(),
+            fields.group(),
+            fields.name(),
+            fields.version(),
+            fields.kind(),
+        ] {
+            self.span(span)?;
+        }
+        for (_, span) in spans.dependency_iter().chain(
+            self.manifest
+                .tests()
+                .dependency_iter()
+                .map(|(key, dependency)| (key, dependency.spans())),
+        ) {
+            self.span(span.declaration())?;
+            self.span(span.version())?;
+        }
+        Ok(())
+    }
+
+    fn span(&self, span: &scoop_manifest::ManifestSpan) -> Result<(), String> {
+        if self.manifest_text.get(span.range()).is_none() {
+            return Err("manifest diagnostic span is outside the original UTF-8 text".into());
         }
         Ok(())
     }

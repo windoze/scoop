@@ -8,7 +8,7 @@
 
 现有 `scoop` 已经有可复用的精确图：`compiler/scoop/src/graph.rs` 的 `ResolvedBuildGraph` 保存 root、节点、边和依赖优先顺序；`discovery/` 从 manifest/artifact 收集图，`schedule.rs` 调度单 Cone 编译。新增 PM 应替换前面的“发现和选择”，不重写后面的构建执行。
 
-当前 `compiler/manifest` 将 dependency version 直接视为精确坐标，`compiler/protocol/src/request.rs` 的 `ManifestRoot` 让 child 再读取原 manifest，`compiler/analysis/src/workspace/` 也有自己的项目发现。这三处需要共同改成“原始要求”和“已解析输入”两个类型，否则只是把下载移走，driver、child 和 LSP 仍会各自实现一部分包管理语义。
+原始包声明与已解析单 Cone 配置已分开，machine protocol 18 用 `ExpandedCone` 交付已绑定配置，child 不再读取原 manifest。独立 PM 已能准备完整图；普通构建入口与 `compiler/analysis/src/workspace/` 的项目发现仍需切到同一准备结果。低层直接调用 `scoopc` 时只绑定调用者提供的精确产物，不承担包解析或下载。
 
 ```mermaid
 flowchart TD

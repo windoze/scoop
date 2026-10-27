@@ -60,16 +60,45 @@ impl ManifestRootLocator {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct LoadedConeManifest {
     real_root: PathBuf,
     manifest_path: PathBuf,
     source: String,
     identity: ConeIdentity,
     parsed: ParsedConeManifest,
+    metadata: std::collections::BTreeMap<String, String>,
 }
 
 impl LoadedConeManifest {
+    /// Attach an already expanded compiler input without reopening its manifest.
+    pub fn from_expanded(
+        real_root: PathBuf,
+        manifest_path: PathBuf,
+        source: String,
+        parsed: ParsedConeManifest,
+        metadata: std::collections::BTreeMap<String, String>,
+    ) -> Result<Self, ManifestRootError> {
+        let identity = parsed.semantic().coordinate().identity().map_err(|error| {
+            ManifestRootError::new(
+                manifest_path.clone(),
+                ManifestRootErrorKind::Identity(error),
+            )
+        })?;
+        Ok(Self {
+            real_root,
+            manifest_path,
+            source,
+            identity,
+            parsed,
+            metadata,
+        })
+    }
+
+    pub fn metadata(&self) -> &std::collections::BTreeMap<String, String> {
+        &self.metadata
+    }
+
     pub fn real_root(&self) -> &Path {
         &self.real_root
     }

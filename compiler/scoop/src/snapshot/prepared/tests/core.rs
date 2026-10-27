@@ -47,11 +47,14 @@ fn scheduler_stops_before_dependent_after_core_failure() {
         BuildGraphExecutionError::Ordinary(ConeIdentity::CORE, source)
             if matches!(source.as_ref(), OrdinarySourceExecutionError::ChildFailure(_))
     ));
+    let requests = runner.current.into_inner().unwrap();
+    let [CurrentConeRequestV1::ExpandedCone { config }] = requests.as_slice() else {
+        panic!("core must receive one expanded configuration");
+    };
+    assert_eq!(config.root.to_path_buf().unwrap(), core_root);
     assert_eq!(
-        runner.current.into_inner().unwrap(),
-        vec![CurrentConeRequestV1::ManifestRoot {
-            root: scoop_protocol::HostPathCarrier::from_path(&core_root).unwrap()
-        }]
+        config.manifest.semantic().coordinate(),
+        &ConeCoordinate::reserved_core()
     );
 }
 
@@ -108,8 +111,8 @@ fn core_child_plan_uses_the_actual_manifest_root() {
     assert_eq!(plan.request().request_id(), request_id);
     assert!(matches!(
         plan.request().build().current(),
-        CurrentConeRequestV1::ManifestRoot { root }
-            if root.to_path_buf().unwrap() == prepared.source_input_path(ConeIdentity::CORE).unwrap()
+        CurrentConeRequestV1::ExpandedCone { config }
+            if config.root.to_path_buf().unwrap() == prepared.source_input_path(ConeIdentity::CORE).unwrap()
     ));
     assert!(plan.request().build().direct_slibs().is_empty());
     assert!(plan.request().build().support_slibs().is_empty());

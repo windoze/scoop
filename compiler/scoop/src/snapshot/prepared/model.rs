@@ -130,7 +130,7 @@ pub(super) enum PreparedGraphNode {
 #[derive(Debug)]
 pub(super) struct PreparedManifestSourceNode {
     pub(super) snapshot: ManifestSourceInput,
-    pub(super) input_root: PathBuf,
+    pub(super) manifest: Box<scoop_manifest::LoadedConeManifest>,
     pub(super) output_path: PathBuf,
 }
 
@@ -238,7 +238,7 @@ impl PreparedBuildGraph {
 
     pub fn source_input_path(&self, identity: ConeIdentity) -> Option<&Path> {
         match self.nodes.get(&identity) {
-            Some(PreparedGraphNode::ManifestSource(node)) => Some(&node.input_root),
+            Some(PreparedGraphNode::ManifestSource(node)) => Some(node.manifest.real_root()),
             Some(PreparedGraphNode::SingleFile(node)) => Some(&node.input_path),
             _ => None,
         }

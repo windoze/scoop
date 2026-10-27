@@ -116,6 +116,9 @@ fn normalize_direct(
         target::SelectedTarget::Production(Box::new(target))
     };
     let is_core = match &current {
+        CurrentConeInput::ExpandedManifest { manifest } => {
+            manifest.coordinate() == &scoop_identity::ConeCoordinate::reserved_core()
+        }
         CurrentConeInput::Manifest { root } => {
             scoop_toolchain::load_cone_manifest(root)
                 .map_err(BuildRequestNormalizationError::ManifestRoot)?

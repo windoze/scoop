@@ -1,7 +1,9 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 
+mod current;
 mod documentation;
+pub use current::{CurrentConeInput, classify_current_cone_operand};
 mod normalization;
 mod output;
 mod target;
@@ -22,10 +24,7 @@ pub use report::{
 };
 
 use scoop_codegen::CodegenError;
-pub use scoop_manifest::{
-    CurrentConeInput, CurrentConeOperandError, CurrentConeOperandErrorKind,
-    classify_current_cone_operand,
-};
+pub use scoop_manifest::{CurrentConeOperandError, CurrentConeOperandErrorKind};
 use scoop_manifest::{
     ManifestRootError, ManifestRootLocator, SingleFileInputError, SingleFileLocator,
 };
@@ -324,7 +323,9 @@ fn validate_request_shape(
     output: &SingleConeOutput,
 ) -> Result<(), SingleConeBuildRequestError> {
     match (current, trusted_core) {
-        (CurrentConeInput::Manifest { .. }, _) => Ok(()),
+        (CurrentConeInput::Manifest { .. } | CurrentConeInput::ExpandedManifest { .. }, _) => {
+            Ok(())
+        }
         (
             CurrentConeInput::SingleFile { .. },
             TrustedCoreInput::Artifact(_) | TrustedCoreInput::DependenciesOrDefault { .. },

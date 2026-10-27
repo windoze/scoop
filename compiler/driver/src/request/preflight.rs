@@ -253,6 +253,9 @@ fn load_current_input(
     current: CurrentConeInput,
 ) -> Result<LoadedCurrentConeInput, SingleConePreflightError> {
     match current {
+        CurrentConeInput::ExpandedManifest { manifest } => {
+            Ok(LoadedCurrentConeInput::Manifest { manifest })
+        }
         CurrentConeInput::Manifest { root } => load_cone_manifest(&root)
             .map(|manifest| LoadedCurrentConeInput::Manifest {
                 manifest: Box::new(manifest),

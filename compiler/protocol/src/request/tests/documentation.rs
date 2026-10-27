@@ -21,7 +21,7 @@ fn build(
 }
 
 fn manifest() -> CurrentConeRequestV1 {
-    CurrentConeRequestV1::ManifestRoot { root: path("lib") }
+    crate::test_support::manifest("lib")
 }
 
 fn documentation() -> ScoopcOutputRequestV1 {

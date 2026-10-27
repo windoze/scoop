@@ -20,19 +20,26 @@ const REQUEST_MAGIC: &[u8; 8] = b"SCOOPREQ";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CurrentConeRequestV1 {
-    ManifestRoot { root: HostPathCarrier },
-    SingleFile { source: HostPathCarrier },
+    ExpandedCone {
+        config: Box<crate::package::ExpandedConeInputV1>,
+    },
+    SingleFile {
+        source: HostPathCarrier,
+    },
 }
 
 impl WireEncode for CurrentConeRequestV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
-            Self::ManifestRoot { root } => {
+            Self::ExpandedCone { config } => {
                 encoder.map(2)?;
                 encoder.field(0)?;
-                encoder.unsigned(1)?;
+                encoder.unsigned(3)?;
                 encoder.field(1)?;
-                root.encode(encoder)
+                let bytes = serde_json::to_vec(config).map_err(|error| {
+                    scoop_wire::cbor::EncodeError::InvalidValue(error.to_string())
+                })?;
+                encoder.bytes(&bytes)
             }
             Self::SingleFile { source } => {
                 encoder.map(2)?;
@@ -352,7 +359,9 @@ fn validate_build_shape(
     trusted_core: &TrustedCoreRequestV1,
 ) -> Result<(), ProtocolValidationError> {
     match (current, trusted_core) {
-        (CurrentConeRequestV1::ManifestRoot { .. }, _) => Ok(()),
+        (CurrentConeRequestV1::ExpandedCone { config }, _) => config
+            .validate()
+            .map_err(ProtocolValidationError::InvalidExpandedCone),
         (CurrentConeRequestV1::SingleFile { .. }, TrustedCoreRequestV1::ArtifactSlot { .. }) => {
             Ok(())
         }

@@ -12,19 +12,33 @@ pub use direct::{
 pub fn normalize_protocol_build_request(
     build: &ScoopcBuildRequestV1,
 ) -> Result<SingleConeBuildRequest, BuildRequestNormalizationError> {
-    let current_path = match build.current() {
-        CurrentConeRequestV1::ManifestRoot { root } => {
-            let path = root
-                .to_path_buf()
-                .map_err(BuildRequestNormalizationError::HostPath)?;
-            (true, path)
-        }
-        CurrentConeRequestV1::SingleFile { source } => {
-            let path = source
-                .to_path_buf()
-                .map_err(BuildRequestNormalizationError::HostPath)?;
-            (false, path)
-        }
+    let current = match build.current() {
+        CurrentConeRequestV1::ExpandedCone { config } => CurrentConeInput::ExpandedManifest {
+            manifest: Box::new(
+                scoop_manifest::LoadedConeManifest::from_expanded(
+                    config
+                        .root
+                        .to_path_buf()
+                        .map_err(BuildRequestNormalizationError::HostPath)?,
+                    config
+                        .manifest_path
+                        .to_path_buf()
+                        .map_err(BuildRequestNormalizationError::HostPath)?,
+                    config.manifest_text.clone(),
+                    config.manifest.clone(),
+                    config.metadata.clone(),
+                )
+                .map_err(BuildRequestNormalizationError::ManifestRoot)?,
+            ),
+        },
+        CurrentConeRequestV1::SingleFile { source } => CurrentConeInput::SingleFile {
+            source: SingleFileLocator::from_path(
+                source
+                    .to_path_buf()
+                    .map_err(BuildRequestNormalizationError::HostPath)?,
+            )
+            .map_err(BuildRequestNormalizationError::SingleFile)?,
+        },
     };
     let dependencies = explicit_dependencies(
         protocol_paths(build.direct_slibs())?,
@@ -51,45 +65,16 @@ pub fn normalize_protocol_build_request(
         .map_err(BuildRequestNormalizationError::Backend)?;
         target::SelectedTarget::Production(Box::new(target))
     };
-    let (current, trusted_core) = match (current_path, build.trusted_core()) {
-        ((true, path), TrustedCoreRequestV1::ArtifactSlot { artifact }) => {
-            let root = ManifestRootLocator::from_path(path)
-                .map_err(BuildRequestNormalizationError::ManifestRoot)?;
-            let artifact = artifact
-                .to_path_buf()
-                .map_err(BuildRequestNormalizationError::HostPath)?;
-            let input = HostArtifactLocator::new(&artifact)
-                .map_err(BuildRequestNormalizationError::Request)?;
-            (
-                CurrentConeInput::Manifest { root },
-                TrustedCoreInput::Artifact(input),
+    let trusted_core = match build.trusted_core() {
+        TrustedCoreRequestV1::ArtifactSlot { artifact } => TrustedCoreInput::Artifact(
+            HostArtifactLocator::new(
+                artifact
+                    .to_path_buf()
+                    .map_err(BuildRequestNormalizationError::HostPath)?,
             )
-        }
-        ((false, path), TrustedCoreRequestV1::ArtifactSlot { artifact }) => {
-            let source = SingleFileLocator::from_path(path)
-                .map_err(BuildRequestNormalizationError::SingleFile)?;
-            let artifact = artifact
-                .to_path_buf()
-                .map_err(BuildRequestNormalizationError::HostPath)?;
-            let input = HostArtifactLocator::new(&artifact)
-                .map_err(BuildRequestNormalizationError::Request)?;
-            (
-                CurrentConeInput::SingleFile { source },
-                TrustedCoreInput::Artifact(input),
-            )
-        }
-        ((true, path), TrustedCoreRequestV1::Bootstrap) => (
-            CurrentConeInput::Manifest {
-                root: ManifestRootLocator::from_path(path)
-                    .map_err(BuildRequestNormalizationError::ManifestRoot)?,
-            },
-            TrustedCoreInput::BootstrapSelf,
+            .map_err(BuildRequestNormalizationError::Request)?,
         ),
-        _ => {
-            return Err(BuildRequestNormalizationError::Request(
-                SingleConeBuildRequestError::InvalidCurrentCoreCombination,
-            ));
-        }
+        TrustedCoreRequestV1::Bootstrap => TrustedCoreInput::BootstrapSelf,
     };
 
     SingleConeBuildRequest::new_selected(

@@ -213,7 +213,7 @@ fn compile_cache_key_has_a_fixed_canonical_vector() {
     // The vector includes the current runtime ABI and machine protocol.
     assert_eq!(
         input.key().unwrap().to_string(),
-        "948d3a3e012dc53e339c94154c1e3311914e29286db67cea60dfe70d0fe6adc0"
+        "5974ebe8e6f7ae5c311c4882d7d8764752a9545bc88000d81aa0de5ec29aa04d"
     );
     assert_eq!(encode(&input).unwrap().first(), Some(&0xaf));
 }

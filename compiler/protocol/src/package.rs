@@ -112,5 +112,19 @@ pub struct ExpandedConeInputV1 {
     pub metadata: BTreeMap<String, String>,
 }
 
+impl ExpandedConeInputV1 {
+    pub fn from_manifest(
+        manifest: &scoop_manifest::LoadedConeManifest,
+    ) -> Result<Self, crate::HostPathError> {
+        Ok(Self {
+            root: HostPathCarrier::from_path(manifest.real_root())?,
+            manifest_path: HostPathCarrier::from_path(manifest.manifest_path())?,
+            manifest_text: manifest.source_text().to_owned(),
+            manifest: manifest.parsed().clone().into_bound(),
+            metadata: manifest.metadata().clone(),
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests;

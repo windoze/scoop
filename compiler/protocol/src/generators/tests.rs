@@ -37,9 +37,7 @@ fn build_transport_preserves_registered_and_used_programs() {
     let host = |name| HostPathCarrier::from_path(&root.join(name)).unwrap();
     let registration = GeneratorRegistrationV1::new("custom".into(), host("generator")).unwrap();
     let build = ScoopcBuildRequestV1::new(
-        CurrentConeRequestV1::ManifestRoot {
-            root: host("Cone.toml"),
-        },
+        crate::test_support::manifest("library"),
         vec![],
         vec![],
         TrustedCoreRequestV1::Bootstrap,

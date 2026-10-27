@@ -4,6 +4,17 @@ use super::*;
 use crate::package::{DependencyDeclaration, InheritableValue, PackageDocument};
 
 impl ParsedConeManifest {
+    /// A compiler handoff uses bound coordinates; discovery locators are no longer inputs.
+    pub fn into_bound(mut self) -> Self {
+        for locator in self.locators.0.values_mut() {
+            *locator = DependencyLocator::SearchRoots;
+        }
+        for dependency in self.tests.dependencies.values_mut() {
+            dependency.locator = DependencyLocator::SearchRoots;
+        }
+        self
+    }
+
     /// The caller has expanded the coordinate and selected every dependency.
     /// This operation neither resolves versions nor interprets source locators.
     pub fn bind_package(

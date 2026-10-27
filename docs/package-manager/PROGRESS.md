@@ -39,7 +39,13 @@
 - `scoop-pm prepare --request --response` 实现版本 1 的 JSON 接口，一次准备全部所选根；成功后原子交付响应，失败保留既有成功文件。共享类型放在 `scoop-protocol`，不引入 PM 实现依赖。
 - 每个源码 Cone 交付已绑定精确依赖的生产配置，只有测试根携带测试配置；保留原清单文本与 span，继承字段/依赖定位到成员的继承声明。预编译节点复用现有 `.slib` 摘要；host path 使用无损载体，JSON 解码检查路径编码和格式。
 - prepare 记录先检查配置、manifest、lock、artifact 及发现候选位置的更新状态，命中后直接交付已有展开结果。新增 workspace、用户配置、search-root 产物会失效；普通源码正文改变不重新选择版本。锁文件的观察记录在 lock 文件锁释放前取得，避免把旧图与并发更新后的 lock 状态配对。
-- 两个项目取得同一 registry 版本时，交付相同共享源码目录；prepare 不复制源码到项目中。本批尚未改变 `scoop → scoopc` 的 machine request，普通构建与 LSP 接入继续在下一批完成。
+- 两个项目取得同一 registry 版本时，交付相同共享源码目录；prepare 不复制源码到项目中。普通构建与 LSP 的 PM 接入仍待完成。
+
+### 编译器已展开输入
+
+- `scoop → scoopc` 协议升级到 18，移除 machine request 的 `ManifestRoot`，通过 `ExpandedCone` 交付已绑定配置、原始诊断文本和无损 host 路径；CBOR frame 与现有成功摘要继续复用。child 不重新读取或解析清单，独立单文件输入保持。
+- parent 保留已加载的单 Cone 配置，native 准备及 child request 共享该结果。协议 reader 检查必需格式、引用、路径和诊断 span，不重放依赖求解。
+- 真实 child 进程可消费含 workspace 继承的原清单与已展开配置，原始源码/清单保持在位。此批完成编译器交接边界，尚未把普通构建的图发现替换为 PM prepare。
 
 ## 验证记录
 
@@ -51,4 +57,6 @@
 - 来源批次：全 workspace lint 通过；macOS 的 PM 回归与新增索引错误测试通过，Linux 的 PM 25 项单元与 2 项真实 CLI 测试通过。真实 Git 仓库覆盖 ref 更新/锁定/离线；本地 HTTP 服务覆盖跨项目并发共享、来源隔离、撤回版本、校验/解包失败和离线缺失，不删除源码或工具来验证缓存命中。
 - 解析批次：全 workspace lint 通过；macOS/Linux 的 PM 34 项单元、2 项基础 CLI 和 6 项解析 CLI 场景通过，覆盖真实 Git/submodule、HTTP、workspace、override、生产/测试隔离、旧索引/commit 不满足新要求时的刷新，以及 artifact 精确语义与目标检查。正式编译链路验收尚待后续批次。
 - prepare 批次：全 workspace lint 通过；macOS/Linux 的 manifest 77 项、protocol 41 项、PM 34 项单元、2 项基础 CLI 和 12 项解析/prepare CLI 场景通过。新增覆盖多根不同版本、继承诊断位置、测试根隔离、预编译摘要传输、共享 registry 路径，以及源码更新复用/新配置与 workspace/新搜索产物失效。真实非 UTF-8 目录由 Linux 覆盖；macOS 文件系统拒绝创建该名称，两端均验证路径载体的无损编码。
+- 已展开输入批次：全 workspace lint 通过；macOS/Linux 的 protocol 42 项、wire 19 项、PM/manifest 回归及真实 `scoopc` child 交接通过；driver 调度、CLI 与依赖边界检查通过。macOS 三个正式 CLI 用例共 20 次进程调用通过，覆盖 native 更新、生产/测试隔离和文档缓存。测试前发现本地预编译库 ABI 过旧，只重新准备所需 core/test 库后闭合。
+- 同批发现的 HIR 栈溢出已单独修复：候选状态在堆上保存，失败诊断借用状态。macOS 的调用/上下文推断 152 项回归通过；macOS/Linux 均通过 core 文档的三个目标检查，未扩大测试线程栈。
 - 原始日志与临时工作文件在仓库外。按阶段清理 `target/debug/incremental`，保留当前二进制与依赖构建结果。
