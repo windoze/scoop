@@ -2,6 +2,30 @@ use super::compile::compile_and_run_configuration;
 use super::{compile_and_run, compile_and_run_with_flags, workspace_root};
 
 #[test]
+fn new_work_notifies_one_marker_and_completion_releases_all_waiters() {
+    let output = compile_and_run_with_flags(
+        &workspace_root(),
+        "mark_work_notification_test",
+        "runtime/tests/mark_work_notification_test.c",
+        false,
+        &[
+            "-O2",
+            "-Dpthread_cond_signal=scoop_test_mark_signal",
+            "-Dpthread_cond_broadcast=scoop_test_mark_broadcast",
+        ],
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"new work wakes one waiting marker; completion releases every phase participant\n"
+    );
+}
+
+#[test]
 fn mark_region_views_preserve_collisions_movement_and_mapping_reuse() {
     for (stress, optimization) in [(false, "-O0"), (false, "-O2"), (true, "-O2")] {
         let output = compile_and_run_configuration(

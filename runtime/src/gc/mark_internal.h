@@ -120,6 +120,7 @@ typedef struct ScoopGcMarker {
     pthread_cond_t work_available;
     pthread_cond_t finished;
     _Atomic(size_t) pending;
+    _Atomic(size_t) waiting_workers;
     size_t configured_workers;
     size_t active_workers;
     size_t phase_workers;
@@ -153,7 +154,7 @@ extern ScoopGcMarker scoop_gc_marker;
 
 void scoop_gc_mark_pool_prepare(bool minor);
 void scoop_gc_mark_pool_run(size_t task_limit);
-void scoop_gc_mark_notify_work(void);
+void scoop_gc_mark_notify_work(bool complete);
 void scoop_gc_mark_queue_push(ScoopGcMarkWorker *worker, ScoopGcMarkTask task);
 void scoop_gc_mark_enqueue_remembered(void);
 bool scoop_gc_mark_queue_take(ScoopGcMarkWorker *worker, ScoopGcMarkTask *task);

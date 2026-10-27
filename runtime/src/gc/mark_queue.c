@@ -34,7 +34,7 @@ void scoop_gc_mark_queue_push(ScoopGcMarkWorker *worker, ScoopGcMarkTask task) {
     pthread_mutex_unlock(&queue->lock);
     /* A lone successor can be consumed by its active publisher without waking the pool. */
     if (previous >= 2) {
-        scoop_gc_mark_notify_work();
+        scoop_gc_mark_notify_work(false);
     }
 }
 
@@ -95,6 +95,6 @@ void scoop_gc_mark_task_done(void) {
         heap_fatal("mark task completed without outstanding work");
     }
     if (previous == 1) {
-        scoop_gc_mark_notify_work();
+        scoop_gc_mark_notify_work(true);
     }
 }

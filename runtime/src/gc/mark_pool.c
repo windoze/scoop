@@ -13,12 +13,24 @@ ScoopGcMarker scoop_gc_marker = {
     .finished = PTHREAD_COND_INITIALIZER,
 };
 
-void scoop_gc_mark_notify_work(void) {
+void scoop_gc_mark_notify_work(bool complete) {
     if (scoop_gc_marker.active_workers == 1) {
         return;
     }
+    /* Queue publication synchronizes with the waiter's search after registration.
+     * Completion has no queue handoff, so it must always acquire the wake lock. */
+    if (!complete &&
+        atomic_load_explicit(&scoop_gc_marker.waiting_workers, memory_order_relaxed) == 0) {
+        return;
+    }
     pthread_mutex_lock(&scoop_gc_marker.lock);
-    pthread_cond_broadcast(&scoop_gc_marker.work_available);
+    if (atomic_load_explicit(&scoop_gc_marker.waiting_workers, memory_order_relaxed) != 0) {
+        if (complete) {
+            pthread_cond_broadcast(&scoop_gc_marker.work_available);
+        } else {
+            pthread_cond_signal(&scoop_gc_marker.work_available);
+        }
+    }
     pthread_mutex_unlock(&scoop_gc_marker.lock);
 }
 
@@ -30,11 +42,14 @@ static void run_worker(ScoopGcMarkWorker *worker, size_t task_limit) {
         bool found = scoop_gc_mark_queue_take(worker, &task);
         if (!found) {
             pthread_mutex_lock(&scoop_gc_marker.lock);
-            /* Search again under the wake lock so publication cannot be missed. */
+            /* Register before searching, so a publisher cannot miss a waiter
+             * which has already searched its queue and is about to sleep. */
+            atomic_fetch_add_explicit(&scoop_gc_marker.waiting_workers, 1, memory_order_relaxed);
             while (atomic_load_explicit(&scoop_gc_marker.pending, memory_order_acquire) != 0 &&
                    !(found = scoop_gc_mark_queue_take(worker, &task))) {
                 pthread_cond_wait(&scoop_gc_marker.work_available, &scoop_gc_marker.lock);
             }
+            atomic_fetch_sub_explicit(&scoop_gc_marker.waiting_workers, 1, memory_order_relaxed);
             pthread_mutex_unlock(&scoop_gc_marker.lock);
             if (!found) {
                 break;
@@ -57,7 +72,7 @@ static void run_worker(ScoopGcMarkWorker *worker, size_t task_limit) {
     }
     /* A bounded publisher may leave its lone successor for a waiting peer. */
     if (task_limit != 0 && completed >= task_limit) {
-        scoop_gc_mark_notify_work();
+        scoop_gc_mark_notify_work(false);
     }
     worker->cpu_ns += scoop_gc_thread_cpu_ns() - started;
 }

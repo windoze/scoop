@@ -653,6 +653,8 @@ STW 后 coordinator 可使用内部常驻 pthread worker 并行 mark，worker �
 
 worker pool 的每次 phase 发布在原锁内固定该阶段的参与数量，worker 的参与判断和 coordinator 的完成等待使用同一份已发布数量。下一轮 collection 准备可调整活动数量，但不得改变旧 phase 的参与者；旧阶段未参与且延迟醒来的 worker 只能跳过该阶段，不能追加入完成计数。单 worker phase、连续多阶段及下轮恢复多 worker 遵守同一规则，不增加 mutator 通知、队列或 runtime ABI。
 
+工作通知区分新任务与本阶段终止。worker 在原通知锁内先登记等待者，再重查全部队列与未完成计数；只有仍无可用任务且尚未终止时才等待，离开该区域前撤销登记。任务发布仍由各队列锁同步；发布后没有等待者时跳过通知锁，有等待者时在通知锁内唤醒一个 worker。先登记后重查与队列锁共同保证：等待者要么看到已发布任务，要么被其后的发布者看到，不能丢失工作通知。分片额度耗尽的发布者退出前也按新任务规则交接剩余工作。最后一项完成时必须取得通知锁并唤醒全部等待者，不能仅按无锁读取的等待计数跳过终止通知。该协调状态不进入 mutator、对象或 runtime ABI，所有 profile 共用；phase 开始与完成的原通知和参与者合同保持。
+
 collector 持有 heap／roots 的独占阶段后，发布不可变的 region、对象起点、精确大小、pin 和 immortal 对象视图。marker 使用明确的 STW reader／原子 marker 接口，不要求各 worker 重新取得 coordinator 持有的锁。每个参与 block 在本轮取得临时统计索引，worker 私有计数按该索引归并；它不是持久对象身份，也不进入产物或 generated-code ABI。存活清单以稳定的分块存储保留对象指针，任务发布后不得由扩容使其失效。
 
 marker 可以在本次停顿内复用已经经页表定位的普通 region：每个 worker 私有保存有限数量的地址范围与 region 指针，命中完整范围后直接计算 block。首次查询、大对象和未命中地址仍使用原页表；命中只省去地址映射查询，对齐、活动 block、精确对象起点及首次标记的大小／scan 检查保持。缓存不含 managed roots，不保活对象，不进入对象头、产物或 generated-code ABI；每次开始标记及增量周期恢复下一片时，在发布 roots／任务前清空全部参与 worker 的缓存，不能跨 mutator 执行、搬迁或 mapping 退役复用旧地址与元数据。
