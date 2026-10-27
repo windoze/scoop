@@ -2,6 +2,26 @@ use super::compile::compile_and_run_configuration;
 use super::{compile_and_run, compile_and_run_with_flags, workspace_root};
 
 #[test]
+fn delayed_workers_observe_the_participants_of_the_published_phase() {
+    let output = compile_and_run_with_flags(
+        &workspace_root(),
+        "mark_phase_participation_test",
+        "runtime/tests/mark_phase_participation_test.c",
+        false,
+        &["-O2", "-Dpthread_cond_wait=scoop_test_phase_wait"],
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"delayed inactive workers retain the participants of their published phase\n"
+    );
+}
+
+#[test]
 fn copy_group_failure_preserves_the_graph_and_subsequent_copying() {
     let output = compile_and_run_with_flags(
         &workspace_root(),

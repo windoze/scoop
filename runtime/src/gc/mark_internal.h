@@ -86,6 +86,7 @@ typedef struct ScoopGcMarker {
     _Atomic(size_t) pending;
     size_t configured_workers;
     size_t active_workers;
+    size_t phase_workers;
     size_t created_workers;
     size_t finished_workers;
     size_t task_limit;

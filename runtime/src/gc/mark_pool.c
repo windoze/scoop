@@ -72,7 +72,7 @@ static void *worker_main(void *context) {
             break;
         }
         observed = scoop_gc_marker.phase;
-        if (worker->id >= scoop_gc_marker.active_workers) {
+        if (worker->id >= scoop_gc_marker.phase_workers) {
             continue;
         }
         pthread_mutex_unlock(&scoop_gc_marker.lock);
@@ -155,13 +155,16 @@ void scoop_gc_mark_pool_prepare(bool minor) {
 void scoop_gc_mark_pool_run(size_t task_limit) {
     pthread_mutex_lock(&scoop_gc_marker.lock);
     scoop_gc_marker.task_limit = task_limit;
+    /* Preparing another collection must not add delayed inactive workers to
+     * a phase which has already completed. Publish membership with the phase. */
+    scoop_gc_marker.phase_workers = scoop_gc_marker.active_workers;
     scoop_gc_marker.finished_workers = 0;
     scoop_gc_marker.phase++;
     pthread_cond_broadcast(&scoop_gc_marker.phase_changed);
     pthread_mutex_unlock(&scoop_gc_marker.lock);
     run_worker(&scoop_gc_marker.workers[0], task_limit);
     pthread_mutex_lock(&scoop_gc_marker.lock);
-    while (scoop_gc_marker.finished_workers + 1 != scoop_gc_marker.active_workers) {
+    while (scoop_gc_marker.finished_workers + 1 != scoop_gc_marker.phase_workers) {
         pthread_cond_wait(&scoop_gc_marker.finished, &scoop_gc_marker.lock);
     }
     pthread_mutex_unlock(&scoop_gc_marker.lock);

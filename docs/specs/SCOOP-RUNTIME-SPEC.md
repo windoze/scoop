@@ -637,6 +637,8 @@ minor 和 full 共享线程、root、pin、handle、Context、callback、冻结�
 
 STW 后 coordinator 可使用内部常驻 pthread worker 并行 mark，worker 不登记为 mutator，也不执行用户代码。小 minor 可只使用 coordinator；单 worker 与多 worker 共用同一参数化 collector。对象／大对象 mark 使用原子首次置位，只有首次成功者登记存活对象和扫描任务；line_live 原子 OR，计数和存活清单按 worker 汇总。
 
+worker pool 的每次 phase 发布在原锁内固定该阶段的参与数量，worker 的参与判断和 coordinator 的完成等待使用同一份已发布数量。下一轮 collection 准备可调整活动数量，但不得改变旧 phase 的参与者；旧阶段未参与且延迟醒来的 worker 只能跳过该阶段，不能追加入完成计数。单 worker phase、连续多阶段及下轮恢复多 worker 遵守同一规则，不增加 mutator 通知、队列或 runtime ABI。
+
 collector 持有 heap／roots 的独占阶段后，发布不可变的 region、对象起点、精确大小、pin 和 immortal 对象视图。marker 使用明确的 STW reader／原子 marker 接口，不要求各 worker 重新取得 coordinator 持有的锁。每个参与 block 在本轮取得临时统计索引，worker 私有计数按该索引归并；它不是持久对象身份，也不进入产物或 generated-code ABI。存活清单以稳定的分块存储保留对象指针，任务发布后不得由扩容使其失效。
 
 大引用数组按元素区间分任务，普通对象分批；GC-free 数组没有引用扫描任务。全局未完成任务数同时覆盖队列、正在扫描及尚在发布的子任务，子任务先计数再发布，父任务发布完子任务后才完成；队列暂时为空或窃取失败不表示终止。worker 创建失败在本轮开始前退回串行，队列分配失败走明确 runtime 失败出口，不能丢失任务。

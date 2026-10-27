@@ -419,3 +419,14 @@ NUC12 GNU 中等参数一次预热后五对：bintrees 1.767 → 1.739 s、CPU 2
 两机先 fmt／release clippy，再各通过九项定向 C 测试，覆盖 O0／O2 的复制后 live entry、small／large／无引用／宽对齐／pin、共享图与多轮并行、worker 创建失败、旧代槽、survivor、增量回退、native 别名及 remembered 更新。新增分组分配失败回归：第二组预留失败时 source／roots／payload 未变，回退 full 后仍能执行下一轮真实复制；测试替换只存在于专测编译。Darwin／GNU／musl 的 release-sweep、native TLS callback 与 full-live-graph 双 profile GC 组合通过。普通 runtime 各 87 个对象，无测试或暂停探针；机器码确认复制任务进入原 pool。ARM64 text 增加 616 B、文件增加 64～80 B；GNU 代码／只读增加 832 B、BSS 增加 96 B、完整文件保持。无需新编译分析或系统库 ABI 重建，重链接用时不计为编译速度收益。
 
 后续按更新后的阶段成本继续推进：普通大图 plan／mark 仍各约 1.1 s，低暂停配置 full 完成片仍受清扫影响；先验证旧代精确大小槽能否按位图退休无 hook 的死亡对象，再处理计划和生成写屏障。并发／增量架构和多线程差距仍在，整个 GC 主线未完成。原始对照、分位数、机器码和日志位于仓库外 `gc-evolution/copy-blocks-*`。
+
+
+## 第十四阶段：固定已发布 GC phase 的参与数量
+
+继续检查并行扩展边界时，用可控交错复现了原 worker pool 的真实错误：4 worker 之后执行一个 1 worker phase，三个未参与者延迟醒来；下一轮准备把 `active_workers` 改回 4、尚未发布新 phase 时，它们会按新数量参与旧 phase，并错误增加已经完成阶段的计数。旧版最小回归在 `finished_workers == 0` 处失败。每次发布 phase 时在原锁内保存 `phase_workers`，worker 选择与 coordinator 完成等待共用此快照；下一轮准备不能更改旧阶段参与者。没有新通知、队列或原子热路径，只增加一个进程私有 `size_t`，对象／TLAB／ABI 保持。
+
+两机先 fmt／release clippy，再各通过五项定向 C 测试：可控延迟与连续 4→1→4、1／2／4／8 worker 的真实共享图／pin／minor、多类型移动 entry、创建线程失败以及增量完整回退。最小测试的条件变量替换只编入专测，并按线程／phase 去重虚假唤醒；正式 runtime 无该符号。Darwin／GNU／musl 的双 profile native TLS callback 与 full-live-graph 组合通过，配套 runtime 重建。
+
+相对 `711fb0dbf`，固定配套库、源码、一次预热后三对交替。M3 中等 gcpause 墙钟 0.422 → 0.403 s、CPU 0.935 → 0.889 s；固定 640 棵树的 4／16 线程 0.782／2.158 → 0.780／2.125 s，CPU 2.148／6.592 → 2.151／6.599 s、RSS 93／205 → 92／208 MiB。GNU gcpause 0.673 → 0.668 s，4／16 线程 1.733／4.277 → 1.621／4.225 s、CPU 4.098／11.564 → 3.843／11.488 s、RSS 96／268 → 95／269 MiB。线程 GC 次数随调度略变，范围和原始报告保留；这些小幅变化不记为 GC 加速或尾暂停改善，本项以修复错误参与／提前完成风险交付。ARM64 text 增加 4 B、最终文件不变，无新编译分析或 ABI 重建成本。
+
+主线继续评估已确认无 release hook 的旧代槽批量清扫；计划构建、写屏障和剩余暂停仍需改进。此次正确性修复没有取代后续性能工作。原始复现与验证位于仓库外 `gc-evolution/phase-participation-*`。
