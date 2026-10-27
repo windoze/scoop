@@ -35,6 +35,7 @@
 | [编译依赖身份图复用](COMPILER-IDENTITIES.md) | 编译器所有 profile 默认，无新增选项 | 共享完整图与导入映射，单节点 key 索引、增量环队列、快速进程内哈希；保留引用／冲突检查，持久 ID、产物与 ABI 不变。 |
 | [已知 box 生成分配](BOX-ALLOCATION.md)，含[后备收敛](RUNTIME-RESPONSIBILITIES.md) | 所有 profile 默认，配套 runtime contract 21；release 沿既有 TLAB 条件优化 | ZST／GC-free／含引用及大 payload 均使用已知布局，GC 后复制并保留必要屏障；debug／大对象仍用共享分配器，不进入专用 box C 包装。动态拆箱和真正的 native 根入口保留，无新开关。 |
 | [普通 String 拼接融合与热二元生成](STRING-CONCAT.md) | release 默认 | 同块单用链最多八段、短常量合并；热循环／短常量二元使用同一路径，其他点共享后备。checked 一次分配并在 GC 后重读输入，保留共享结果与副作用边界，无布局或 ABI 变化。 |
+| [短 f-string 就地展开](STRING-BUILDER-INTERPOLATION.md) | 新编译器所有 profile 展开；release 复用拼接融合 | 不超过八个有效片段，按序求值并立即转换，最后保存稳定引用并拼接；零／单段直接使用结果，2～8 段 release 一次分配。debug 保留二元后备，九段以上使用普通 StringBuilder；跨挂起与默认值保持，无新 ABI。 |
 | [标量计算与 Boolean 字符串常量](SCALAR-BODIES.md) | 新 core 所有 profile 默认；release 按调用点展开 | Boolean equals／hash、整数 hash 为普通正文，热／常量点可化简，普通点可共享；Boolean.toString 不再分配结果 String，无消费者的旧 C 后备已退役。 |
 | [整数专用十进制格式化](INTEGER-DECIMAL.md) | 新 core／runtime 所有 profile 默认；release 按调用点评分展开 | 20 B 栈缓冲区一次格式化，实际长度分配／复制；八位分块与两位表，动态大正文共享，无消费者的旧 C writer／ABI 已退役，无 NUL／locale 依赖。 |
 | [普通 helper 正文闭合与循环／pointer 移植](INTEGER-DECIMAL.md) | 各 profile 导出一致，release 默认消费 | 沿 typed 依赖队列递归导出／导入，复用已完成分析；保留独立局部 place、loop target、原 intrinsic 身份和 GC 契约，不改变收益阈值。 |

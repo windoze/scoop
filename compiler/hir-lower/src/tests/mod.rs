@@ -10,6 +10,7 @@
 mod basics;
 mod builders;
 mod core;
+mod interpolation;
 mod m10;
 mod m11;
 mod m12;
