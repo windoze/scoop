@@ -10,39 +10,74 @@ import scoop.url.Url
 private class HttpClientTrailersHttp1Test {
     @Test
     fun `HTTP1 uses chunked trailers for known and empty bodies and reuses the connection`() {
-        clientTestTrust().use { trust ->
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { scope ->
-                clientTestListen(loop).useAsync suspend { listener ->
+        clientTestTrust().use {
+            trust ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                scope -> clientTestListen(loop).useAsync suspend {
+                    listener ->
                     val done = BodyTestGate()
-                    val serving = scope.launch suspend {
-                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
-                            for (text in ["请求", ""]) {
-                                val incoming = connection.receiveRequest()!!
-                                assertTrue(parseHttpContentLength(incoming.head.fields) == None)
-                                assertEquals("chunked", parseHttpTokenFields(incoming.head.fields, "Transfer-Encoding")[0L])
-                                assertEquals("x-end", parseHttpTokenFields(incoming.head.fields, "Trailer")[0L])
-                                assertEquals(text, String.fromUtf8(incoming.body.readAllBytes(6L)))
-                                val fields = incoming.body.trailers!!
-                                assertEquals(2L, fields.size)
-                                assertEquals(text, String.fromUtf8(fields[0L].value))
-                                assertEquals("tail", String.fromUtf8(fields[1L].value))
-                                incoming.body.close()
-                                sendClientTestText(connection, 200U, "ok")
+                    val serving =
+                        scope.launch suspend {
+                            AsyncHttp1Connection.takeOwnershipAsServer(
+                                listener.accept(),
+                                scope
+                            ).useAsync suspend {
+                                connection ->
+                                for (text in ["请求", ""]) {
+                                    val incoming = connection.receiveRequest()!!
+                                    assertTrue(parseHttpContentLength(incoming.head.fields) == None)
+                                    assertEquals(
+                                        "chunked",
+                                        parseHttpTokenFields(
+                                            incoming.head.fields,
+                                            "Transfer-Encoding"
+                                        )[0L]
+                                    )
+                                    assertEquals(
+                                        "x-end",
+                                        parseHttpTokenFields(incoming.head.fields, "Trailer")[0L]
+                                    )
+                                    assertEquals(
+                                        text,
+                                        String.fromUtf8(incoming.body.readAllBytes(6L))
+                                    )
+                                    val fields = incoming.body.trailers!!
+                                    assertEquals(2L, fields.size)
+                                    assertEquals(text, String.fromUtf8(fields[0L].value))
+                                    assertEquals("tail", String.fromUtf8(fields[1L].value))
+                                    incoming.body.close()
+                                    sendClientTestText(connection, 200U, "ok")
+                                }
+                                done.await()
                             }
-                            done.await()
                         }
-                    }
-                    withHttpClient(clientTestConfig(trust)) suspend { client ->
-                        for (text in ["请求", ""]) {
+                    withHttpClient(clientTestConfig(trust)) suspend {
+                        client -> for (text in ["请求", ""]) {
                             val length = text.toByteArray().size
-                            val body = RequestBody.fromProducerWithTrailers(["X-End"], Some(length)) suspend { output ->
-                                writeBodyText(output, text)
-                                [HttpField("X-End".toByteArray(), text.toByteArray()),
-                                    HttpField("x-end".toByteArray(), "tail".toByteArray())]
-                            }
-                            val fields = [HttpField("Content-Length".toByteArray(), length.toString().toByteArray())]
-                            client.withResponse(HttpRequest.post(clientTestUrl(listener), body, fields)) suspend { response ->
+                            val body =
+                                RequestBody.fromProducerWithTrailers(
+                                    ["X-End"],
+                                    Some(length)
+                                ) suspend {
+                                    output ->
+                                    writeBodyText(output, text)
+                                    [
+                                        HttpField("X-End".toByteArray(), text.toByteArray()),
+                                        HttpField("x-end".toByteArray(), "tail".toByteArray())
+                                    ]
+                                }
+                            val fields =
+                                [
+                                    HttpField(
+                                        "Content-Length".toByteArray(),
+                                        length.toString().toByteArray()
+                                    )
+                                ]
+                            client.withResponse(
+                                HttpRequest.post(clientTestUrl(listener), body, fields)
+                            ) suspend {
+                                response ->
                                 assertEquals("ok", String.fromUtf8(response.body.readAllBytes(2L)))
                                 assertEquals(0L, response.trailers!!.size)
                             }
@@ -58,14 +93,19 @@ private class HttpClientTrailersHttp1Test {
     @Test
     fun `HTTP1.0 rejects trailer bodies before network submission and producer consumption`() {
         val calls = AtomicLong(0L)
-        val body = RequestBody.fromProducerWithTrailers(["X-End"], Some(0L)) suspend { _ ->
-            calls.fetchAdd(1L)
-            [HttpField("X-End".toByteArray(), "done".toByteArray())]
-        }
-        clientTestTrust().use { trust ->
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { scope ->
-                withHttpClient(clientTestConfig(trust, HttpVersion.Http10)) suspend { client ->
+        val body =
+            RequestBody.fromProducerWithTrailers(["X-End"], Some(0L)) suspend {
+                _ ->
+                calls.fetchAdd(1L)
+                [HttpField("X-End".toByteArray(), "done".toByteArray())]
+            }
+        clientTestTrust().use {
+            trust ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                scope ->
+                withHttpClient(clientTestConfig(trust, HttpVersion.Http10)) suspend {
+                    client ->
                     expectBodyFailure<IllegalArgumentException> suspend {
                         client.execute(HttpRequest.post(Url.parse("http://127.0.0.1:1/"), body))
                     }

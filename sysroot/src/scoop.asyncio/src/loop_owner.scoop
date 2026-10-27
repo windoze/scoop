@@ -1,0 +1,238 @@
+package scoop.asyncio
+
+import scoop.collections.HashMap
+
+internal class LoopOwner {
+    private val lock: IoLock = IoLock()
+    private var binding: EventLoop? = None
+    private val driver: LoopDriver = LoopDriver()
+    private var pointer: Ptr<Unit>? = None
+    private var commands: ArrayList<() -> Unit> = ArrayList<() -> Unit>()
+    private var nextId: Long = 1L
+    private var root: Job? = None
+    private var backendFailed: Boolean = false
+    private var rootEnded: Boolean = false
+    private var failure: Throwable? = None
+    private val operations: HashMap<Long, LoopOperation> = HashMap<Long, LoopOperation>()
+    private val resources: ArrayList<LoopResource> = ArrayList<LoopResource>()
+    private var cleaning: Boolean = false
+    var ready: ArrayList<() -> Unit> = ArrayList<() -> Unit>()
+
+    fun open(loop: EventLoop): Ptr<Unit> {
+        @Unsafe
+        {
+            val created = nativeLoopCreate()
+            if (created.status < 0)
+                throw backendFailure("create event loop", created.status)
+            lock.withLock {
+                binding = Some(loop);
+                pointer = created.pointer
+            }
+            return created.pointer!!
+        }
+    }
+
+    fun requireJob(cancellable: Boolean = true): Job {
+        val expected =
+            lock.withLock { binding } ?:
+                throw IllegalStateException(Some("event loop is not running"))
+        if (!hasEventLoop() || currentEventLoop() !== expected)
+            throw IllegalStateException(Some("wrong event loop"))
+        val job = currentJobOrNone() ?: throw IllegalStateException(Some("I/O requires a Job"))
+        if (job.isCompleted)
+            throw IllegalStateException(Some("I/O requires an active Job"))
+        if (cancellable)
+            job.ensureActive()
+        return job
+    }
+
+    fun post(command: () -> Unit) {
+        lock.withLock {
+            when (pointer) {
+                case Some(native) -> {
+                    commands.add(command)
+                    @Unsafe
+                    {
+                        nativeLoopWake(native)
+                    }
+                }
+                case None -> {}
+            }
+        }
+    }
+
+    fun nextOperation(): Long =
+        lock.withLock {
+            if (pointer == None)
+                throw IllegalStateException(Some("event loop is not running"))
+            if (nextId == Long.MAX_VALUE)
+                throw ArithmeticException()
+            val id = nextId
+            nextId += 1L
+            id
+        }
+
+    fun submit(operation: LoopOperation) {
+        post {
+            operations.put(operation.id, operation)
+            operation.begin(pointer!!)
+        }
+    }
+
+    fun cancel(id: Long) {
+        when (operations[id]) {
+            case Some(operation) -> operation.cancelNative(pointer!!)
+            case None -> {}
+        }
+    }
+
+    fun complete(event: NativeEvent) {
+        val operation = operations.remove(event.id)!!
+        operation.complete(event)
+    }
+
+    fun retain(resource: LoopResource) {
+        resources.add(resource)
+        if (cleaning)
+            resource.closeFromLoop()
+    }
+
+    fun forget(resource: LoopResource) {
+        var index = 0L
+        while (index < resources.size) {
+            if (resources[index] === resource) {
+                resources.removeAt(index);
+                return
+            }
+            index += 1L
+        }
+    }
+
+    fun cleanupFailed(error: Throwable) {
+        lock.withLock {
+            failure =
+                Some(
+                    when (failure) {
+                        case Some(primary) -> ResourceUseException(primary, error)
+                        case None -> error
+                    }
+                )
+        }
+    }
+
+    fun startCleanup() {
+        if (cleaning || !lock.withLock { rootEnded })
+            return
+        cleaning = true
+        val owned = Array<LoopResource>(resources.size) { index -> resources[index] }
+        for (resource in owned)
+            resource.closeFromLoop()
+    }
+
+    fun bindRoot(job: Job) {
+        lock.withLock { root = Some(job) }
+    }
+
+    fun poll(native: Ptr<Unit>, wait: Boolean) {
+        @Unsafe
+        {
+            val status = nativeLoopPoll(native, wait)
+            if (status < 0) {
+                val failed =
+                    lock.withLock {
+                        if (backendFailed)
+                            false
+                        else {
+                            backendFailed = true;
+                            true
+                        }
+                    }
+                if (failed) {
+                    cleanupFailed(backendFailure("drive event loop", status))
+                    val job = lock.withLock { root }
+                    job?.cancel()
+                }
+            }
+        }
+    }
+
+    fun finishRoot(error: Throwable?) {
+        lock.withLock {
+            when (failure) {
+                case None -> failure = error
+                case Some(primary) -> when (error) {
+                    case Some(next) -> if (!(next is CancellationException))
+                        failure = Some(ResourceUseException(primary, next))
+                    case None -> {}
+                }
+            }
+            root = None
+            rootEnded = true
+            when (pointer) {
+                case Some(native) -> @Unsafe
+                {
+                    nativeLoopWake(native)
+                };
+                case None -> {}
+            }
+        }
+    }
+
+    fun takeCommands(): ArrayList<() -> Unit> =
+        lock.withLock {
+            val batch = commands
+            commands = ArrayList<() -> Unit>()
+            batch
+        }
+
+    fun cancelRoot() {
+        val job = lock.withLock { root }
+        job?.cancel()
+    }
+
+    fun hasQueuedWork(): Boolean = lock.withLock { commands.size != 0L || ready.size != 0L }
+
+    private fun managedIdle(): Boolean =
+        rootEnded &&
+            commands.size ==
+            0L &&
+            ready.size ==
+            0L &&
+            operations.size ==
+            0L &&
+            resources.size ==
+            0L
+
+    fun stopIfDrained(native: Ptr<Unit>): Boolean {
+        if (!lock.withLock { managedIdle() })
+            return false
+        @Unsafe
+        {
+            if (!nativeLoopIdle(native))
+                return false
+        }
+        return lock.withLock {
+            if (!managedIdle())
+                false
+            else {
+                pointer = None;
+                true
+            }
+        }
+    }
+
+    fun destroy(native: Ptr<Unit>): Throwable? {
+        @Unsafe
+        {
+            val status = nativeLoopDestroy(native)
+            if (status < 0)
+                cleanupFailed(backendFailure("close event loop", status))
+        }
+        return lock.withLock { failure }
+    }
+
+    fun pump(native: Ptr<Unit>): Boolean = driver.pump(this, native)
+    fun drive(native: Ptr<Unit>) {
+        driver.drive(this, native)
+    }
+}

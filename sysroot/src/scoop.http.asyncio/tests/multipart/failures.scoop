@@ -4,20 +4,31 @@ import scoop.asyncio.*
 import scoop.http.*
 import scoop.test.*
 
-@Test private class MultipartSourceFailureTests {
-    @Test fun `discard overflow closes the source and combines a cleanup failure`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
-            for (failClose in [false, true]) {
+@Test
+private class MultipartSourceFailureTests {
+    @Test
+    fun `discard overflow closes the source and combines a cleanup failure`() {
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ -> for (failClose in [false, true]) {
                 val input = MessageTestSource("--b\r\n\r\nabcdef\r\n--b--".toByteArray())
                 input.failClose = failClose
                 val source = MultipartSource.takeOwnership(input, MultipartBoundary("b"))
                 val part = source.nextPart()!!
                 if (failClose) {
-                    val error = expectMessageFailure<ResourceUseException> suspend { part.body.discard(2L) }
-                    assertTrue(error.primaryFailure is MultipartDiscardLimitException && error.cleanupFailure is CleanupFailure)
+                    val error =
+                        expectMessageFailure<ResourceUseException> suspend { part.body.discard(2L) }
+                    assertTrue(
+                        error.primaryFailure is
+                            MultipartDiscardLimitException &&
+                            error.cleanupFailure is
+                            CleanupFailure
+                    )
                 } else {
-                    val error = expectMessageFailure<MultipartDiscardLimitException> suspend { part.body.discard(2L) }
+                    val error =
+                        expectMessageFailure<MultipartDiscardLimitException> suspend {
+                            part.body.discard(2L)
+                        }
                     assertEquals(2L, error.maxBytes)
                 }
                 assertTrue(source.isClosed && part.body.isClosed && !part.body.isComplete)
@@ -28,9 +39,11 @@ import scoop.test.*
         }
     }
 
-    @Test fun `parse I/O and inconsistent progress failures retain their types`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+    @Test
+    fun `parse I/O and inconsistent progress failures retain their types`() {
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             val bad = MessageTestSource("--b\r\n\r\ntruncated".toByteArray())
             val parsing = MultipartSource.takeOwnership(bad, MultipartBoundary("b"))
             val part = parsing.nextPart()!!
@@ -38,15 +51,22 @@ import scoop.test.*
             assertTrue(parsing.failure!! is MultipartParseException)
             parsing.close()
             val broken = MessageTestSource("".toByteArray())
-            broken.failRead = true; broken.failClose = true
+            broken.failRead = true;
+            broken.failClose = true
             val reading = MultipartSource.takeOwnership(broken, MultipartBoundary("b"))
-            val error = expectMessageFailure<ResourceUseException> suspend { reading.useAsync suspend { stream -> stream.nextPart() } }
-            assertTrue(error.primaryFailure is TransportFailure && error.cleanupFailure is CleanupFailure)
+            val error =
+                expectMessageFailure<ResourceUseException> suspend {
+                    reading.useAsync suspend { stream -> stream.nextPart() }
+                }
+            assertTrue(
+                error.primaryFailure is TransportFailure && error.cleanupFailure is CleanupFailure
+            )
             assertEquals(1, broken.closes)
             for (mode in [1, 2, 3, 4]) {
                 val input = MessageTestSource("".toByteArray())
                 input.badProgress = mode
-                val source = MultipartSource.takeOwnership(input, MultipartBoundary("b"), bufferSize = 4L)
+                val source =
+                    MultipartSource.takeOwnership(input, MultipartBoundary("b"), bufferSize = 4L)
                 expectMessageFailure<IllegalStateException> suspend { source.nextPart() }
                 source.close()
                 assertEquals(1, input.closes)
@@ -54,25 +74,38 @@ import scoop.test.*
         }
     }
 
-    @Test fun `construction cancellation and wrong loop checks preserve ownership and state`() {
-        val loop: EventLoop = LibuvEventLoop()
-        val other: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+    @Test
+    fun `construction cancellation and wrong loop checks preserve ownership and state`() {
+        val loop: EventLoop = PlatformEventLoop()
+        val other: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val input = MessageTestSource("--b--".toByteArray())
             val boundary = MultipartBoundary("b")
-            assertFailsWith<IllegalArgumentException> { MultipartSource.takeOwnership(input, boundary, bufferSize = 0L) }
-            val source = MultipartSource(input, boundary)
-            val cancelled = scope.launch suspend {
-                currentJobOrNone()!!.cancel()
-                expectMessageFailure<CancellationException> suspend { MultipartSource.takeOwnership(input, boundary) }
-                expectMessageFailure<CancellationException> suspend { source.nextPart() }
+            assertFailsWith<IllegalArgumentException> {
+                MultipartSource.takeOwnership(input, boundary, bufferSize = 0L)
             }
+            val source = MultipartSource(input, boundary)
+            val cancelled =
+                scope.launch suspend {
+                    currentJobOrNone()!!.cancel()
+                    expectMessageFailure<CancellationException> suspend {
+                        MultipartSource.takeOwnership(input, boundary)
+                    }
+                    expectMessageFailure<CancellationException> suspend { source.nextPart() }
+                }
             cancelled.join()
-            expectMessageFailure<IllegalStateException> suspend { context(other) { source.nextPart() } }
-            assertEquals(0, input.reads); assertEquals(0, input.closes)
+            expectMessageFailure<IllegalStateException> suspend {
+                context(other) {
+                    source.nextPart()
+                }
+            }
+            assertEquals(0, input.reads);
+            assertEquals(0, input.closes)
             assertFalse(present(source.failure))
             assertFalse(present(source.nextPart()))
-            source.close(); input.close()
+            source.close();
+            input.close()
         }
     }
 }

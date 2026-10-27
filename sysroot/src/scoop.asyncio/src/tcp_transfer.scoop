@@ -4,44 +4,106 @@ import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.memory.NativeByteBorrow
 import scoop.platform.io.WriteZeroException
 
-private class TcpProgress { var count: Long = 0L }
+private class TcpProgress {
+    var count: Long = 0L
+}
 
-internal suspend fun transferTcp(owner: OwnedEndpoint, buffer: NativeByteBuffer, count: Long, writing: Boolean): Long {
+internal suspend fun transferTcp(
+    owner: OwnedEndpoint,
+    buffer: NativeByteBuffer,
+    count: Long,
+    writing: Boolean
+): Long {
     val job = owner.loop.requireJob()
     val reservation = owner.reserve(writing)
     try {
         val borrowed = borrowTcp(buffer, count, writing)
         val progress = TcpProgress()
         try {
-            if (count == 0L) return 0L
-            return suspendCoroutine<Long> { continuation ->
-                val operation = LoopOperation(owner.loop.state, owner.loop.state.nextOperation(),
-                    { _, id -> @Unsafe {
-                        val status = if (writing) nativeTcpWrite(owner.pointer, id, borrowed.pointer(), borrowed.length)
-                            else nativeTcpRead(owner.pointer, id, borrowed.pointer(), borrowed.length)
-                        return@LoopOperation nativeStatus(id, status)
-                    } },
-                    { _, id -> @Unsafe {
-                        if (writing) nativeTcpWriteCancel(owner.pointer, id) else nativeTcpReadCancel(owner.pointer, id)
-                    } },
-                    { event, selected ->
-                        progress.count = resultProgress(event.result)
-                        when (completionFailure(if (writing) "TCP write" else "TCP read", event.result, selected)) {
-                            case Some(error) -> continuation.resumeWithException(error)
-                            case None -> {
-                                if (writing && progress.count == 0L) continuation.resumeWithException(WriteZeroException())
-                                else continuation.resume(progress.count)
+            if (count == 0L)
+                return 0L
+            return suspendCoroutine<Long> {
+                continuation ->
+                val operation =
+                    LoopOperation(
+                        owner.loop,
+                        owner.loop.nextOperation(),
+                        {
+                            _,
+                            id -> @Unsafe
+                            {
+                                val status =
+                                    if (writing)
+                                        nativeTcpWrite(
+                                            owner.pointer,
+                                            id,
+                                            borrowed.pointer(),
+                                            borrowed.length
+                                        )
+                                    else
+                                        nativeTcpRead(
+                                            owner.pointer,
+                                            id,
+                                            borrowed.pointer(),
+                                            borrowed.length
+                                        )
+                                return@LoopOperation nativeStatus(id, status)
+                            }
+                        },
+                        {
+                            _,
+                            id -> @Unsafe
+                            {
+                                if (writing)
+                                    nativeTcpWriteCancel(owner.pointer, id)
+                                else
+                                    nativeTcpReadCancel(owner.pointer, id)
+                            }
+                        },
+                        {
+                            event, selected ->
+                            progress.count = resultProgress(event.result)
+                            when (
+                                completionFailure(
+                                    if (writing)
+                                        "TCP write"
+                                    else
+                                        "TCP read",
+                                    event.result,
+                                    selected
+                                )
+                            ) {
+                                case Some(error) -> continuation.resumeWithException(error)
+                                case None -> {
+                                    if (writing && progress.count == 0L)
+                                        continuation.resumeWithException(WriteZeroException())
+                                    else
+                                        continuation.resume(progress.count)
+                                }
                             }
                         }
-                    })
+                    )
                 operation.subscribe(job)
                 owner.attach(operation, writing)
-                owner.loop.state.submit(operation)
+                owner.loop.submit(operation)
             }
-        } finally { @Unsafe { borrowed.complete(progress.count) } }
-    } finally { reservation.dispose() }
+        } finally {
+            @Unsafe
+            {
+                borrowed.complete(progress.count)
+            }
+        }
+    } finally {
+        reservation.dispose()
+    }
 }
 
 private fun borrowTcp(buffer: NativeByteBuffer, count: Long, writing: Boolean): NativeByteBorrow {
-    @Unsafe { return if (writing) buffer.borrowReadable(count) else buffer.borrowWritable(count) }
+    @Unsafe
+    {
+        return if (writing)
+            buffer.borrowReadable(count)
+        else
+            buffer.borrowWritable(count)
+    }
 }

@@ -4,35 +4,75 @@ import scoop.platform.fs.copyNativeString
 import scoop.platform.system.OsString
 
 internal fun takeDirectoryName(pointer: Ptr<Unit>): OsString {
-    @Unsafe {
+    @Unsafe
+    {
         val name = pointer.cast<Byte>()
-        try { return copyNativeString(name) }
-        finally { nativeDirectoryNameFree(name) }
+        try {
+            return copyNativeString(name)
+        }
+        finally {
+            nativeDirectoryNameFree(name)
+        }
     }
 }
 
 internal suspend fun nextDirectoryName(owner: OwnedDirectory, job: Job): OsString? =
-    suspendCoroutine<OsString?> { continuation ->
-        val operation = LoopOperation(owner.loop.state, owner.loop.state.nextOperation(),
-            { _, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeDirectoryNext(owner.pointer, id)) } },
-            { native, id -> @Unsafe { nativeWorkCancel(native, id) } },
-            { event, selected ->
-                when (completionFailure("read directory", event.result, selected, Some(owner.context))) {
-                    case Some(error) -> continuation.resumeWithException(error)
-                    case None -> when (event.result) {
-                        case DirectoryName(name) -> continuation.resume(Some(name))
-                        case Eof -> { owner.reachedEnd(); continuation.resume(None) }
-                        case _ -> continuation.resumeWithException(
-                            IllegalStateException(Some("directory read returned no name or EOF")))
+    suspendCoroutine<OsString?> {
+        continuation ->
+        val operation =
+            LoopOperation(
+                owner.loop,
+                owner.loop.nextOperation(),
+                {
+                    _,
+                    id -> @Unsafe
+                    {
+                        return@LoopOperation nativeStatus(
+                            id,
+                            nativeDirectoryNext(owner.pointer, id)
+                        )
+                    }
+                },
+                {
+                    native,
+                    id -> @Unsafe
+                    {
+                        nativeWorkCancel(native, id)
+                    }
+                },
+                {
+                    event,
+                    selected -> when (
+                        completionFailure(
+                            "read directory",
+                            event.result,
+                            selected,
+                            Some(owner.context)
+                        )
+                    ) {
+                        case Some(error) -> continuation.resumeWithException(error)
+                        case None -> when (event.result) {
+                            case DirectoryName(name) -> continuation.resume(Some(name))
+                            case Eof -> {
+                                owner.reachedEnd();
+                                continuation.resume(None)
+                            }
+                            case _ -> continuation.resumeWithException(
+                                IllegalStateException(
+                                    Some("directory read returned no name or EOF")
+                                )
+                            )
+                        }
                     }
                 }
-            })
+            )
         operation.subscribe(job)
         owner.attach(operation)
-        owner.loop.state.submit(operation)
+        owner.loop.submit(operation)
     }
 
 @Extern(name = "scoop_io_directory_next")
 private fun nativeDirectoryNext(directory: Ptr<Unit>, id: Long): Int
+
 @Extern(name = "scoop_io_directory_name_free")
 private fun nativeDirectoryNameFree(name: Ptr<Byte>)

@@ -11,8 +11,9 @@ private class RequestBodySourceTest {
         val body = RequestBody.fromSource(source, Some(6L))
         assertFalse(body.isReplayable)
         assertEquals(0L, source.reads + source.closes)
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             expectBodyFailure<IllegalArgumentException> suspend { body.writeTo(BodyTestSink(), 0L) }
             assertEquals(0L, source.reads)
             assertEquals("source", bodyText(body))
@@ -26,20 +27,23 @@ private class RequestBodySourceTest {
     @Test
     fun `a source factory opens a fresh owned input only for each actual send`() {
         val sources = ArrayList<BodyTestSource>()
-        val body = RequestBody.fromSourceFactory(Some(4L)) suspend {
-            val source = BodyTestSource("copy".toByteArray())
-            sources.add(source)
-            source
-        }
+        val body =
+            RequestBody.fromSourceFactory(Some(4L)) suspend {
+                val source = BodyTestSource("copy".toByteArray())
+                sources.add(source)
+                source
+            }
         assertTrue(body.isReplayable)
         assertEquals(0L, sources.size)
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             assertEquals("copy", bodyText(body))
             assertEquals("copy", bodyText(body, 1L))
             assertEquals(2L, sources.size)
             assertTrue(sources[0L] !== sources[1L])
-            for (source in sources) assertEquals(1L, source.closes)
+            for (source in sources)
+                assertEquals(1L, source.closes)
         }
     }
 
@@ -49,9 +53,11 @@ private class RequestBodySourceTest {
         source.failRead = true
         source.failClose = true
         val body = RequestBody.fromSourceFactory suspend { source }
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
-            val error = expectBodyFailure<ResourceUseException> suspend { body.writeTo(BodyTestSink()) }
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
+            val error =
+                expectBodyFailure<ResourceUseException> suspend { body.writeTo(BodyTestSink()) }
             assertSame(source.failure, error.primaryFailure)
             assertSame(source.cleanup, error.cleanupFailure)
             assertEquals(1L, source.closes)
@@ -62,8 +68,9 @@ private class RequestBodySourceTest {
 
     @Test
     fun `file bodies reopen with asynchronous IO and do not claim a content snapshot`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             val temporary = loop.createTempFile(prefix = "m54-body-文件 ")
             try {
                 RequestBody.fromText("first").writeTo(temporary.file)
@@ -76,7 +83,10 @@ private class RequestBodySourceTest {
                 RequestBody.fromText("second").writeTo(temporary.file)
                 assertEquals("second", bodyText(body, 1L))
                 val wrongLength = RequestBody.fromFile(temporary.path, Some(8L))
-                val error = expectBodyFailure<RequestBodyLengthException> suspend { wrongLength.writeTo(BodyTestSink()) }
+                val error =
+                    expectBodyFailure<RequestBodyLengthException> suspend {
+                        wrongLength.writeTo(BodyTestSink())
+                    }
                 assertEquals(8L, error.expectedLength)
                 assertEquals(6L, error.transferredBytes)
                 assertEquals(0L, error.rejectedBytes)

@@ -1,4 +1,5 @@
 package scoop.tests
+
 import scoop.asyncio.*
 import scoop.collections.emptyList
 import scoop.crypto.x509.TrustStore
@@ -11,84 +12,171 @@ import scoop.time.Duration
 import scoop.tls.TlsTrustSource
 import scoop.url.Url
 
-internal fun lifeCheck(value: Boolean, detail: String = "proxy authentication lifecycle check failed") {
-    if (!value) throw IllegalStateException(Some(detail))
+internal fun lifeCheck(
+    value: Boolean,
+    detail: String = "proxy authentication lifecycle check failed"
+) {
+    if (!value)
+        throw IllegalStateException(Some(detail))
 }
-internal fun <T> lifePresent(value: T?): Boolean = when (value) { case Some(_) -> true; case None -> false }
+
+internal fun <T> lifePresent(value: T?): Boolean =
+    when (value) {
+        case Some(_) -> true;
+        case None -> false
+    }
+
 internal class LifeGate {
     private var ready: Boolean = false
     private val waiters: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
     fun signal() {
         ready = true
-        val saved = waiters.toArray(); waiters.clear()
-        for (waiter in saved) waiter.resume(Unit)
+        val saved = waiters.toArray();
+        waiters.clear()
+        for (waiter in saved)
+            waiter.resume(Unit)
     }
     suspend fun await() {
-        suspendCoroutine<Unit> { continuation ->
-            if (ready) continuation.resume(Unit) else waiters.add(continuation)
+        suspendCoroutine<Unit> {
+            continuation -> if (ready)
+                continuation.resume(Unit)
+            else
+                waiters.add(continuation)
         }
     }
 }
-internal class LifeFailure { var value: Throwable? = None }
+
+internal class LifeFailure {
+    var value: Throwable? = None
+}
+
 internal class LifeContext(val name: String)
+
 context(value: LifeContext)
 internal fun lifeContext(): String = value.name
-internal fun lifeUrl(listener: AsyncTcpListener): Url = Url.parse("http://127.0.0.1:" + listener.localAddress.port.toString())
+
+internal fun lifeUrl(listener: AsyncTcpListener): Url =
+    Url.parse("http://127.0.0.1:" + listener.localAddress.port.toString())
+
 internal fun lifeTarget(): Url = Url.parse("http://origin.invalid/resource")
-internal fun lifeSelector(endpoint: HttpProxyEndpoint): HttpProxySelector = HttpProxySelector.fixed(HttpProxy.Http(endpoint))
-internal fun lifeConfig(trust: TrustStore, selector: HttpProxySelector, origin: HttpAuthenticationOptions = HttpAuthenticationOptions(),
-    connections: Long = 1L): HttpClientConfig =
-    HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)), proxy = selector, authentication = origin,
-        pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = connections, maxConnections = connections),
-        retries = HttpRetryOptions(maxRetries = 2L, initialDelay = Duration.ZERO, maxDelay = Duration.ZERO),
-        timeouts = HttpTimeoutOptions(resolve = None, connect = None, tlsHandshake = None, proxyHandshake = None))
+
+internal fun lifeSelector(endpoint: HttpProxyEndpoint): HttpProxySelector =
+    HttpProxySelector.fixed(HttpProxy.Http(endpoint))
+
+internal fun lifeConfig(
+    trust: TrustStore,
+    selector: HttpProxySelector,
+    origin: HttpAuthenticationOptions = HttpAuthenticationOptions(),
+    connections: Long = 1L
+): HttpClientConfig =
+    HttpClientConfig(
+        tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+        proxy = selector,
+        authentication = origin,
+        pool =
+            HttpConnectionPoolOptions(
+                maxConnectionsPerOrigin = connections,
+                maxConnections = connections
+            ),
+        retries =
+            HttpRetryOptions(
+                maxRetries = 2L,
+                initialDelay = Duration.ZERO,
+                maxDelay = Duration.ZERO
+            ),
+        timeouts =
+            HttpTimeoutOptions(
+                resolve = None,
+                connect = None,
+                tlsHandshake = None,
+                proxyHandshake = None
+            )
+    )
+
 internal fun withLifeRuntime(block: suspend (EventLoop, CoroutineScope, AsyncTcpListener) -> Unit) {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
-        loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope -> loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend {
+            listener ->
             block(loop, scope, listener)
             lifeCheck(!scope.job.isCancelled)
         }
     }
 }
-internal fun lifeField(name: String, value: String): HttpField = HttpField(name.toByteArray(), value.toByteArray())
+
+internal fun lifeField(name: String, value: String): HttpField =
+    HttpField(name.toByteArray(), value.toByteArray())
+
 internal suspend fun lifeWrite(output: AsyncByteSink, text: String) {
     val bytes = text.toByteArray()
-    NativeByteBuffer.allocate(bytes.size).use suspend { buffer -> buffer.writeBytes(bytes); output.writeFully(buffer) }
+    NativeByteBuffer.allocate(bytes.size).use suspend {
+        buffer ->
+        buffer.writeBytes(bytes);
+        output.writeFully(buffer)
+    }
 }
-internal suspend fun lifeRespond(connection: AsyncHttp1Connection, status: UInt, body: String = "",
-    extra: List<HttpField> = emptyList<HttpField>()) {
+
+internal suspend fun lifeRespond(
+    connection: AsyncHttp1Connection,
+    status: UInt,
+    body: String = "",
+    extra: List<HttpField> = emptyList<HttpField>()
+) {
     val fields = ArrayList<HttpField>()
     fields.add(lifeField("Connection", "close"))
-    for (field in extra) fields.add(field)
-    connection.sendResponse(HttpResponseHead(HttpVersion.Http11, status, fields = fields),
-        Http1BodyFraming.Length(body.toByteArray().size)).useAsync suspend { output ->
-        if (body.charLength != 0L) lifeWrite(output, body)
+    for (field in extra)
+        fields.add(field)
+    connection.sendResponse(
+        HttpResponseHead(HttpVersion.Http11, status, fields = fields),
+        Http1BodyFraming.Length(body.toByteArray().size)
+    ).useAsync suspend {
+        output ->
+        if (body.charLength != 0L)
+            lifeWrite(output, body)
         output.finish()
     }
 }
-internal fun lifeChallenge(kind: String): HttpField = lifeField("Proxy-Authenticate", when (kind) {
-    case "basic" -> "Basic realm=\"private\""
-    case "bearer" -> "Bearer realm=\"private\""
-    else -> "Digest realm=\"private\", nonce=\"nonce\", algorithm=SHA-256, qop=auth"
-})
-internal fun lifeReject(scope: CoroutineScope, listener: AsyncTcpListener, kind: String): Job = scope.launch suspend {
-    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
-        val request = connection.receiveRequest()!!
-        lifeCheck(request.head.fields.findAll("Proxy-Authorization".toByteArray()).size == 0L)
-        request.body.readAllBytes(0L)
-        lifeRespond(connection, 407U, extra = [lifeChallenge(kind)])
+
+internal fun lifeChallenge(kind: String): HttpField =
+    lifeField(
+        "Proxy-Authenticate",
+        when (kind) {
+            case "basic" -> "Basic realm=\"private\""
+            case "bearer" -> "Bearer realm=\"private\""
+            else -> "Digest realm=\"private\", nonce=\"nonce\", algorithm=SHA-256, qop=auth"
+        }
+    )
+
+internal fun lifeReject(scope: CoroutineScope, listener: AsyncTcpListener, kind: String): Job =
+    scope.launch suspend {
+        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend {
+            connection ->
+            val request = connection.receiveRequest()!!
+            lifeCheck(request.head.fields.findAll("Proxy-Authorization".toByteArray()).size == 0L)
+            request.body.readAllBytes(0L)
+            lifeRespond(connection, 407U, extra = [lifeChallenge(kind)])
+        }
     }
-}
+
 internal fun lifeToken(head: HttpRequestHead): String? {
     val fields = head.fields.findAll("Proxy-Authorization".toByteArray())
-    if (fields.size == 0L) return None
+    if (fields.size == 0L)
+        return None
     lifeCheck(fields.size == 1L)
     return HttpCredentials.parse(fields[0L].value).token68
 }
+
 internal suspend fun lifeDone(client: HttpClient, request: HttpRequest, count: Long = 0L) {
-    client.withResponse(request) suspend { response ->
-        lifeCheck(response.status == 200U && response.proxyAuthenticationCount == count && response.authenticationCount == 0L)
+    client.withResponse(request) suspend {
+        response ->
+        lifeCheck(
+            response.status ==
+                200U &&
+                response.proxyAuthenticationCount ==
+                count &&
+                response.authenticationCount ==
+                0L
+        )
         lifeCheck(response.body.text(4L) == "done")
     }
 }

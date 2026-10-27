@@ -6,7 +6,7 @@
 
 ## 1. 分层与后端
 
-`scoop:scoop.http:0.1.0` 提供字节消息、HTTP/1 增量编解码、HTTP/2 内存会话和协商数据处理，依赖 core、std、platform、url、idna、charset；后三者服务 M54 的字段、主机名与目标处理。`scoop:scoop.http.asyncio:0.1.0` 在普通 AsyncByteStream／AsyncCloseable 上协调传输、body 与连接生命周期，依赖 HTTP 和 asyncio。前者不依赖 libuv、TLS 或 socket；后者不负责连接 TCP、TLS 握手或证书校验。
+`scoop:scoop.http:0.1.0` 提供字节消息、HTTP/1 增量编解码、HTTP/2 内存会话和协商数据处理，依赖 core、std、platform、url、idna、charset；后三者服务 M54 的字段、主机名与目标处理。`scoop:scoop.http.asyncio:0.1.0` 在普通 AsyncByteStream／AsyncCloseable 上协调传输、body 与连接生命周期，依赖 HTTP 和 asyncio。前者不依赖异步平台后端、TLS 或 socket；后者不负责连接 TCP、TLS 握手或证书校验。
 
 HTTP/1 使用 llhttp 9.4.3；HTTP/2 使用 nghttp2 1.70.0 的完整上游协议核心，通过 `nghttp2_session_mem_recv2`／`nghttp2_session_mem_send2` 接入。帧、HPACK、HTTP messaging、流状态与 SETTINGS 校验交给 nghttp2；Scoop 不再重放一套接收校验。
 

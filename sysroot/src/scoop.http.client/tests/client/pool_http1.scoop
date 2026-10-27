@@ -13,29 +13,46 @@ private class HttpClientPoolHttp1Test {
     fun `complete messages reuse one HTTP1 connection for successive requests`() {
         val trust = clientTestTrust()
         try {
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { scope ->
-                clientTestListen(loop).useAsync suspend { listener ->
-                    val serving = scope.launch suspend {
-                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
-                            var index = 0L
-                            while (index < 3L) {
-                                val request = connection.receiveRequest()!!
-                                assertEquals(0L, request.body.readAllBytes(0L).size)
-                                sendClientTestText(connection, 200U, index.toString())
-                                index += 1L
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                scope -> clientTestListen(loop).useAsync suspend {
+                    listener ->
+                    val serving =
+                        scope.launch suspend {
+                            AsyncHttp1Connection.takeOwnershipAsServer(
+                                listener.accept(),
+                                scope
+                            ).useAsync suspend {
+                                connection ->
+                                var index = 0L
+                                while (index < 3L) {
+                                    val request = connection.receiveRequest()!!
+                                    assertEquals(0L, request.body.readAllBytes(0L).size)
+                                    sendClientTestText(connection, 200U, index.toString())
+                                    index += 1L
+                                }
+                                Unit
                             }
-                            Unit
                         }
-                    }
-                    val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
-                        pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L, maxConnections = 1L))
-                    withHttpClient(config) suspend { client ->
+                    val config =
+                        HttpClientConfig(
+                            tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                            pool =
+                                HttpConnectionPoolOptions(
+                                    maxConnectionsPerOrigin = 1L,
+                                    maxConnections = 1L
+                                )
+                        )
+                    withHttpClient(config) suspend {
+                        client ->
                         var index = 0L
                         while (index < 3L) {
                             val expected = index.toString()
-                            client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend { response ->
-                                assertEquals(expected, String.fromUtf8(response.body.readAllBytes(1L)))
+                            client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend {
+                                response -> assertEquals(
+                                    expected,
+                                    String.fromUtf8(response.body.readAllBytes(1L))
+                                )
                             }
                             index += 1L
                         }
@@ -44,42 +61,76 @@ private class HttpClientPoolHttp1Test {
                     serving.join()
                 }
             }
-        } finally { trust.close() }
+        } finally {
+            trust.close()
+        }
     }
 
     @Test
     fun `unread HTTP1 responses retain capacity and cancelled queued requests are never sent`() {
-        clientTestTrust().use { trust ->
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { scope ->
-                clientTestListen(loop).useAsync suspend { listener ->
-                    val serving = scope.launch suspend {
-                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
-                            connection.receiveRequest()!!.body.readAllBytes(0L)
-                            sendClientTestText(connection, 200U, "first")
-                            val next = connection.receiveRequest()!!
-                            assertEquals("/last", when (next.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> "" })
-                            next.body.readAllBytes(0L)
-                            sendClientTestText(connection, 200U, "last")
-                        }
-                    }
-                    val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
-                        pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L))
-                    withHttpClient(config) suspend { client ->
-                        val first = client.execute(HttpRequest.get(clientTestUrl(listener, "/first")))
-                        val cancelled = ClientTestFailureHolder()
-                        val pending = scope.launch suspend {
-                            try { client.execute(HttpRequest.get(clientTestUrl(listener, "/cancelled"))).close() }
-                            catch (error: Throwable) { cancelled.value = Some(error) }
-                        }
-                        assertFalse(pending.isCompleted)
-                        pending.cancel(); pending.join()
-                        assertTrue(cancelled.value!! is CancellationException)
-                        val next = scope.launch suspend {
-                            client.withResponse(HttpRequest.get(clientTestUrl(listener, "/last"))) suspend { response ->
-                                assertEquals("last", String.fromUtf8(response.body.readAllBytes(4L)))
+        clientTestTrust().use {
+            trust ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                scope -> clientTestListen(loop).useAsync suspend {
+                    listener ->
+                    val serving =
+                        scope.launch suspend {
+                            AsyncHttp1Connection.takeOwnershipAsServer(
+                                listener.accept(),
+                                scope
+                            ).useAsync suspend {
+                                connection ->
+                                connection.receiveRequest()!!.body.readAllBytes(0L)
+                                sendClientTestText(connection, 200U, "first")
+                                val next = connection.receiveRequest()!!
+                                assertEquals(
+                                    "/last",
+                                    when (next.head.target) {
+                                        case Http1(bytes) -> String.fromUtf8(bytes);
+                                        else -> ""
+                                    }
+                                )
+                                next.body.readAllBytes(0L)
+                                sendClientTestText(connection, 200U, "last")
                             }
                         }
+                    val config =
+                        HttpClientConfig(
+                            tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                            pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L)
+                        )
+                    withHttpClient(config) suspend {
+                        client ->
+                        val first =
+                            client.execute(HttpRequest.get(clientTestUrl(listener, "/first")))
+                        val cancelled = ClientTestFailureHolder()
+                        val pending =
+                            scope.launch suspend {
+                                try {
+                                    client.execute(
+                                        HttpRequest.get(clientTestUrl(listener, "/cancelled"))
+                                    ).close()
+                                }
+                                catch (error: Throwable) {
+                                    cancelled.value = Some(error)
+                                }
+                            }
+                        assertFalse(pending.isCompleted)
+                        pending.cancel();
+                        pending.join()
+                        assertTrue(cancelled.value!! is CancellationException)
+                        val next =
+                            scope.launch suspend {
+                                client.withResponse(
+                                    HttpRequest.get(clientTestUrl(listener, "/last"))
+                                ) suspend {
+                                    response -> assertEquals(
+                                        "last",
+                                        String.fromUtf8(response.body.readAllBytes(4L))
+                                    )
+                                }
+                            }
                         assertFalse(next.isCompleted)
                         assertEquals("first", String.fromUtf8(first.body.readAllBytes(5L)))
                         first.close()
@@ -94,28 +145,54 @@ private class HttpClientPoolHttp1Test {
 
     @Test
     fun `abandoning an HTTP1 response closes its connection before the next lease`() {
-        clientTestTrust().use { trust ->
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { scope ->
-                clientTestListen(loop).useAsync suspend { listener ->
-                    val serving = scope.launch suspend {
-                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { first ->
-                            first.receiveRequest()!!.body.readAllBytes(0L)
-                            sendClientTestText(first, 200U, "unread")
-                            try { assertFalse(clientPresent(first.receiveRequest())) }
-                            catch (error: PlatformException) { assertTrue(error.kind == PlatformErrorKind.ConnectionReset) }
+        clientTestTrust().use {
+            trust ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                scope -> clientTestListen(loop).useAsync suspend {
+                    listener ->
+                    val serving =
+                        scope.launch suspend {
+                            AsyncHttp1Connection.takeOwnershipAsServer(
+                                listener.accept(),
+                                scope
+                            ).useAsync suspend {
+                                first ->
+                                first.receiveRequest()!!.body.readAllBytes(0L)
+                                sendClientTestText(first, 200U, "unread")
+                                try {
+                                    assertFalse(clientPresent(first.receiveRequest()))
+                                }
+                                catch (error: PlatformException) {
+                                    assertTrue(error.kind == PlatformErrorKind.ConnectionReset)
+                                }
+                            }
+                            AsyncHttp1Connection.takeOwnershipAsServer(
+                                listener.accept(),
+                                scope
+                            ).useAsync suspend {
+                                second ->
+                                second.receiveRequest()!!.body.readAllBytes(0L)
+                                sendClientTestText(second, 200U, "new")
+                            }
                         }
-                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { second ->
-                            second.receiveRequest()!!.body.readAllBytes(0L)
-                            sendClientTestText(second, 200U, "new")
-                        }
-                    }
-                    val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
-                        pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L, maxConnections = 1L))
-                    withHttpClient(config) suspend { client ->
+                    val config =
+                        HttpClientConfig(
+                            tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                            pool =
+                                HttpConnectionPoolOptions(
+                                    maxConnectionsPerOrigin = 1L,
+                                    maxConnections = 1L
+                                )
+                        )
+                    withHttpClient(config) suspend {
+                        client ->
                         client.execute(HttpRequest.get(clientTestUrl(listener))).close()
-                        client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend { response ->
-                            assertEquals("new", String.fromUtf8(response.body.readAllBytes(3L)))
+                        client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend {
+                            response -> assertEquals(
+                                "new",
+                                String.fromUtf8(response.body.readAllBytes(3L))
+                            )
                         }
                     }
                     serving.join()

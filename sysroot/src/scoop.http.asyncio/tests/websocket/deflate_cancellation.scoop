@@ -9,21 +9,34 @@ import scoop.test.*
 private class AsyncWebSocketDeflateCancellationTests {
     @Test
     fun `cancelling a compressed sync flush waits for the real borrows and discards unfinished history`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val input = PendingMessageSource()
             val output = PendingMessageSink(65.toByte())
             output.pause = true
             val transport = WebSocketTestTransport(input, output)
-            val session = AsyncWebSocketSession.takeOwnership(transport, scope, HttpRole.Client,
-                WebSocketSessionOptions(outgoingFrameBytes = 2L), Some(negotiatedWsDeflate()))
+            val session =
+                AsyncWebSocketSession.takeOwnership(
+                    transport,
+                    scope,
+                    HttpRole.Client,
+                    WebSocketSessionOptions(outgoingFrameBytes = 2L),
+                    Some(negotiatedWsDeflate())
+                )
             val writer = session.beginMessage(WebSocketMessageType.Text)
-            NativeByteBuffer.allocate(3L).use suspend { buffer ->
+            NativeByteBuffer.allocate(3L).use suspend {
+                buffer ->
                 buffer.writeBytes("abc".toByteArray())
                 assertEquals(2L, writer.writeFrom(buffer, 3L))
-                val flushing = scope.launch suspend {
-                    try { writer.flush() } finally { writer.close() }
-                }
+                val flushing =
+                    scope.launch suspend {
+                        try {
+                            writer.flush()
+                        } finally {
+                            writer.close()
+                        }
+                    }
                 try {
                     assertTrue(input.running && output.running)
                     flushing.cancel()
@@ -36,15 +49,18 @@ private class AsyncWebSocketDeflateCancellationTests {
                     input.complete()
                     assertFalse(input.buffer!!.isClosed)
                     output.complete()
-                    flushing.join(); closing.join()
+                    flushing.join();
+                    closing.join()
                     assertTrue(session.isClosed && writer.isClosed && !writer.isComplete)
                     assertTrue(input.buffer!!.isClosed && output.buffer!!.isClosed)
                     assertTrue(session.failure!! is CancellationException)
                     assertEquals(1, transport.closes)
                     ensureActive()
                 } finally {
-                    if (input.running) input.complete()
-                    if (output.running) output.complete()
+                    if (input.running)
+                        input.complete()
+                    if (output.running)
+                        output.complete()
                     session.close()
                 }
             }

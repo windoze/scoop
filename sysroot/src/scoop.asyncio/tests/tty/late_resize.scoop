@@ -1,0 +1,70 @@
+package scoop.asyncio
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class TtyLateResizeTest {
+    @Test
+    fun `a native resize completed before cancellation delivery remains available to the next receive`() {
+        TestTerminal().use {
+            terminal ->
+            val loop = PlatformEventLoop()
+            loop.run suspend {
+                scope -> loop.openTty().useAsync suspend {
+                    tty -> NativeByteBuffer.allocate(1L).use suspend {
+                        bytes ->
+                        val reading = scope.launch suspend { tty.receive(bytes, 1L) }
+                        suspendCoroutine<Unit> {
+                            continuation -> loop.state.post { continuation.resume(Unit) }
+                        }
+                        terminal.resize(94, 39)
+                        resizeBeforeCancel(loop, reading)
+                        reading.join()
+                        assertTrue(reading.isCancelled)
+                        assertEquals(0L, bytes.writePosition)
+                        assertTrue(
+                            tty.receive(bytes, 1L, Some(Duration.ZERO)) == TtyRead.Resize(94L, 39L)
+                        )
+                        assertTrue(tty.receive(bytes, 1L, Some(Duration.ZERO)) == TtyRead.TimedOut)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private suspend fun resizeBeforeCancel(loop: PlatformEventLoop, reading: Job) {
+    suspendCoroutine<Unit> {
+        continuation ->
+        val operation =
+            LoopOperation(
+                loop.state,
+                loop.state.nextOperation(),
+                {
+                    native, id ->
+                    @Unsafe
+                    {
+                        assertEquals(0, nativeTtyCompletionReady(native))
+                    }
+                    reading.cancel()
+                    IoStart.Finished(NativeEvent(id, IoResult.Done))
+                },
+                { _, _ -> },
+                {
+                    event,
+                    selected -> when (
+                        completionFailure("observe TTY completion", event.result, selected)
+                    ) {
+                        case Some(error) -> continuation.resumeWithException(error)
+                        case None -> continuation.resume(Unit)
+                    }
+                }
+            )
+        loop.state.submit(operation)
+    }
+}
+
+@Extern(name = "scoop_test_tty_completion_ready")
+private fun nativeTtyCompletionReady(loop: Ptr<Unit>): Int

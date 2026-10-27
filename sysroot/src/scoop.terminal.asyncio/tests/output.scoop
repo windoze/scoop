@@ -9,7 +9,7 @@ import scoop.terminal.cursor.MoveTo
 import scoop.test.*
 import scoop.time.Duration
 
-private class ShortSink : AsyncByteSink, AsyncCloseable {
+private class ShortSink: AsyncByteSink, AsyncCloseable {
     val bytes: ByteArrayBuilder = ByteArrayBuilder()
     var flushes: Int = 0
     var closed: Boolean = false
@@ -17,19 +17,27 @@ private class ShortSink : AsyncByteSink, AsyncCloseable {
     var failFlush: Boolean = false
     public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
         currentEventLoop().sleep(Duration.nanoseconds(1L))
-        if (zero) return 0L
-        val size = if (count < 2L) count else 2L
+        if (zero)
+            return 0L
+        val size =
+            if (count < 2L)
+                count
+            else
+                2L
         bytes.append(buffer.readBytes(size))
         return size
     }
     public override suspend fun flush() {
         flushes += 1
-        if (failFlush) throw IllegalStateException()
+        if (failFlush)
+            throw IllegalStateException()
     }
-    public override suspend fun close() { closed = true }
+    public override suspend fun close() {
+        closed = true
+    }
 }
 
-private object Broken : Command {
+private object Broken: Command {
     public override fun writeAnsi(writer: TextWriter) {
         writer.write("uncommitted")
         throw IllegalArgumentException()
@@ -41,8 +49,9 @@ private class AsyncTerminalOutputTest {
     @Test
     fun `short suspended writes preserve UTF8 and flush once without closing the sink`() {
         val sink = ShortSink()
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             sink.queue(Print("é"))
             assertEquals(0, sink.flushes)
             sink.execute(MoveTo(2L, 1L), Print("界"))
@@ -56,7 +65,7 @@ private class AsyncTerminalOutputTest {
     @Test
     fun `encoding failure retains earlier commands and does not flush`() {
         val sink = ShortSink()
-        val loop: EventLoop = LibuvEventLoop()
+        val loop: EventLoop = PlatformEventLoop()
         assertFailsWith<IllegalArgumentException> {
             loop.run suspend { _ -> sink.execute(Print("ok"), Broken, Print("later")) }
         }
@@ -69,13 +78,15 @@ private class AsyncTerminalOutputTest {
     fun `zero progress and flush failure keep ordinary stream errors`() {
         val sink = ShortSink()
         sink.zero = true
-        val first: EventLoop = LibuvEventLoop()
+        val first: EventLoop = PlatformEventLoop()
         assertFailsWith<WriteZeroException> { first.run suspend { _ -> sink.execute(Print("x")) } }
         assertEquals(0, sink.flushes)
         sink.zero = false
         sink.failFlush = true
-        val second: EventLoop = LibuvEventLoop()
-        assertFailsWith<IllegalStateException> { second.run suspend { _ -> sink.execute(Print("y")) } }
+        val second: EventLoop = PlatformEventLoop()
+        assertFailsWith<IllegalStateException> {
+            second.run suspend { _ -> sink.execute(Print("y")) }
+        }
         assertEquals("y", String.fromUtf8(sink.bytes.toByteArray()))
         assertEquals(1, sink.flushes)
     }

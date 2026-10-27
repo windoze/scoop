@@ -19,18 +19,31 @@ fun main(args: Array<String>): Int {
         println("Usage: server CERT.pem KEY.pem [PORT]")
         return 2
     }
-    val port = if (args.size > 3L) args[3L].toInt() else 8444
+    val port =
+        if (args.size > 3L)
+            args[3L].toInt()
+        else
+            8444
     // Load server credentials before entering the event loop.
-    Certificate.fromPem(Path.fromString(args[1L]).readText()).use { certificate ->
-        PrivateKey.fromPem(Path.fromString(args[2L]).readText()).use { key ->
-            TlsServerContext([certificate], key).use { context ->
-                val loop: EventLoop = LibuvEventLoop()
-                loop.run suspend { _ ->
-                    loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, port)).useAsync suspend { listener ->
+    Certificate.fromPem(Path.fromString(args[1L]).readText()).use {
+        certificate -> PrivateKey.fromPem(Path.fromString(args[2L]).readText()).use {
+            key -> TlsServerContext([certificate], key).use {
+                context ->
+                val loop: EventLoop = PlatformEventLoop()
+                loop.run suspend {
+                    _ -> loop.listenTcp(
+                        SocketAddress(IpAddress.IPV4_LOOPBACK, port)
+                    ).useAsync suspend {
+                        listener ->
                         println(f"Listening on ${listener.localAddress.toString()}")
-                        AsyncTlsStream.takeOwnershipAsServer(listener.accept(), context).useAsync suspend { stream ->
+                        AsyncTlsStream.takeOwnershipAsServer(
+                            listener.accept(),
+                            context
+                        ).useAsync suspend {
+                            stream ->
                             val message = "Hello over async TLS!\n".toByteArray()
-                            NativeByteBuffer.allocate(message.size).use suspend { buffer ->
+                            NativeByteBuffer.allocate(message.size).use suspend {
+                                buffer ->
                                 buffer.writeBytes(message)
                                 stream.writeFully(buffer)
                             }

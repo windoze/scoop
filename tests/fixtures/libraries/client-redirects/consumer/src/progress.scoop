@@ -1,4 +1,5 @@
 package scoop.tests
+
 import scoop.asyncio.*
 import scoop.crypto.x509.TrustStore
 import scoop.http.client.*
@@ -7,18 +8,28 @@ import scoop.tls.TlsTrustSource
 import scoop.url.Url
 
 private fun progressCheck(value: Boolean) {
-    if (!value) throw IllegalStateException(Some("redirect network progress check failed"))
+    if (!value)
+        throw IllegalStateException(Some("redirect network progress check failed"))
 }
 
 fun exerciseRedirectNetworkProgress(url: Url, trust: TrustStore) {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope ->
         val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)))
-        withHttpClient(config) suspend { client ->
-            client.withResponse(HttpRequest.get(url)) suspend { response -> response.body.bytes(0L); Unit }
-            val options = HttpCallOptions(timeouts = Some(HttpTimeoutOptions(connect = Some(Duration.ZERO))))
+        withHttpClient(config) suspend {
+            client ->
+            client.withResponse(HttpRequest.get(url)) suspend {
+                response ->
+                response.body.bytes(0L);
+                Unit
+            }
+            val options =
+                HttpCallOptions(timeouts = Some(HttpTimeoutOptions(connect = Some(Duration.ZERO))))
             try {
-                client.execute(HttpRequest.post(url, RequestBody.fromText("sent"), options = options)).close()
+                client.execute(
+                    HttpRequest.post(url, RequestBody.fromText("sent"), options = options)
+                ).close()
                 progressCheck(false)
             } catch (error: HttpTimeoutException) {
                 progressCheck(error.phase == HttpTimeoutPhase.Connect)

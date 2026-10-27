@@ -1,0 +1,51 @@
+package scoop.asyncio
+
+import scoop.asyncio.host.*
+
+/** An attached structured scope. The host must keep running until onClosed is delivered. */
+public class EventLoopSession internal constructor(
+    /** The I/O service installed in the session root context. */
+    public val loop: EventLoop,
+    private val mailbox: LoopMailbox
+) {
+    /** True after I/O cleanup and host watch removal, before onClosed is invoked. */
+    public val isClosed: Boolean get() = mailbox.isClosed
+    /** Queues a callback in the attach context; false means the closure was not retained. */
+    public fun post(block: (CoroutineScope) -> Unit): Boolean = mailbox.post(block)
+    /** Stops accepting callbacks and schedules cancellation, without blocking this thread. */
+    public fun requestClose() {
+        mailbox.requestClose()
+    }
+}
+
+internal class LoopAttachment(
+    private val owner: LoopOwner,
+    private val native: Ptr<Unit>,
+    private val mailbox: LoopMailbox,
+    private val onClosed: (Throwable?) -> Unit
+) {
+    private var watch: EventLoopWatch? = None
+    private var detaching: Boolean = false
+
+    fun install(host: EventLoopHost) {
+        @Unsafe
+        {
+            watch = Some(host.watchReadable(nativeLoopDescriptor(native), { pump() }))
+        }
+        owner.post { mailbox.signal() }
+    }
+
+    private fun pump() {
+        if (detaching || !owner.pump(native))
+            return
+        if (!owner.stopIfDrained(native))
+            return
+        detaching = true
+        watch!!.remove {
+            val failure = owner.destroy(native)
+            mailbox.didClose()
+            onClosed(failure)
+        }
+        watch = None
+    }
+}

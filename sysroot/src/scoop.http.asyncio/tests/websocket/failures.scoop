@@ -11,23 +11,30 @@ import scoop.time.Duration
 private class AsyncWebSocketFailureTests {
     @Test
     fun `incoming protocol text and size failures send their bounded failure close`() {
-        val cases: Array<(Array<Byte>, UInt)> = [
-            ([194.toByte(), 0.toByte()], 1002U),
-            ([129.toByte(), 1.toByte(), 255.toByte()], 1007U),
-            ([130.toByte(), 3.toByte(), 1.toByte(), 2.toByte(), 3.toByte()], 1009U)
-        ]
+        val cases: Array<(Array<Byte>, UInt)> =
+            [
+                ([194.toByte(), 0.toByte()], 1002U),
+                ([129.toByte(), 1.toByte(), 255.toByte()], 1007U),
+                ([130.toByte(), 3.toByte(), 1.toByte(), 2.toByte(), 3.toByte()], 1009U)
+            ]
         for ((wire, code) in cases) {
-            withRawWebSocket(WebSocketSessionOptions(WebSocketFrameLimits(maxFrameBytes = 2L))) suspend { scope, _, client, peer ->
-                val reading = scope.launch suspend {
-                    val error = expectMessageFailure<WebSocketFrameException> suspend {
-                        val message = client.receive()
-                        if (present(message)) message!!.readBytes()
-                        Unit
+            withRawWebSocket(
+                WebSocketSessionOptions(WebSocketFrameLimits(maxFrameBytes = 2L))
+            ) suspend {
+                scope, _, client, peer ->
+                val reading =
+                    scope.launch suspend {
+                        val error =
+                            expectMessageFailure<WebSocketFrameException> suspend {
+                                val message = client.receive()
+                                if (present(message))
+                                    message!!.readBytes()
+                                Unit
+                            }
+                        assertEquals(code, error.closeCode)
                     }
-                    assertEquals(code, error.closeCode)
-                }
                 sendBytes(peer.transport, wire)
-                val (head, bytes) = peer.receive()
+                val(head, bytes) = peer.receive()
                 assertTrue(head.opcode == WebSocketOpcode.Close)
                 assertTrue(WebSocketClose.parse(bytes).code == Some(code))
                 reading.join()
@@ -39,11 +46,16 @@ private class AsyncWebSocketFailureTests {
 
     @Test
     fun `outgoing invalid UTF8 preserves consumed bytes and aborts without a second encoder`() {
-        withRawWebSocket suspend { _, _, client, peer ->
+        withRawWebSocket suspend {
+            _, _, client, peer ->
             val writer = client.beginMessage(WebSocketMessageType.Text)
-            NativeByteBuffer.allocate(1L).use suspend { buffer ->
+            NativeByteBuffer.allocate(1L).use suspend {
+                buffer ->
                 buffer.writeInt8(255.toByte())
-                val error = expectMessageFailure<WebSocketFrameException> suspend { writer.writeFrom(buffer, 1L) }
+                val error =
+                    expectMessageFailure<WebSocketFrameException> suspend {
+                        writer.writeFrom(buffer, 1L)
+                    }
                 assertEquals(1007U, error.closeCode)
                 assertEquals(1L, buffer.readPosition)
                 assertFalse(writer.isComplete || present(client.sentClose))
@@ -56,10 +68,11 @@ private class AsyncWebSocketFailureTests {
 
     @Test
     fun `finish rejects an incomplete code point after its nonfinal frame was flushed`() {
-        withRawWebSocket suspend { _, _, client, peer ->
+        withRawWebSocket suspend {
+            _, _, client, peer ->
             val writer = client.beginMessage(WebSocketMessageType.Text)
             sendBytes(writer, [194.toByte()])
-            val (head, bytes) = peer.receive()
+            val(head, bytes) = peer.receive()
             assertFalse(head.isFinal)
             assertEquals(194.toByte(), bytes[0L])
             val error = expectMessageFailure<WebSocketFrameException> suspend { writer.finish() }
@@ -71,7 +84,8 @@ private class AsyncWebSocketFailureTests {
 
     @Test
     fun `truncated frame EOF retains the frame cause and is never a clean close`() {
-        withRawWebSocket suspend { _, _, client, peer ->
+        withRawWebSocket suspend {
+            _, _, client, peer ->
             sendBytes(peer.transport, [130.toByte()])
             peer.transport.close()
             val error = expectMessageFailure<WebSocketSessionException> suspend { client.receive() }
@@ -84,8 +98,14 @@ private class AsyncWebSocketFailureTests {
 
     @Test
     fun `a peer that does not complete the close handshake times out`() {
-        withRawWebSocket(WebSocketSessionOptions(closeTimeout = Duration.milliseconds(5L))) suspend { _, _, client, _ ->
-            val error = expectMessageFailure<WebSocketSessionException> suspend { client.shutdownGracefully() }
+        withRawWebSocket(
+            WebSocketSessionOptions(closeTimeout = Duration.milliseconds(5L))
+        ) suspend {
+            _, _, client, _ ->
+            val error =
+                expectMessageFailure<WebSocketSessionException> suspend {
+                    client.shutdownGracefully()
+                }
             assertTrue(error.kind == WebSocketFailureKind.CloseTimeout)
             assertTrue(client.isClosed)
             assertFalse(present(client.peerClose))
@@ -94,20 +114,23 @@ private class AsyncWebSocketFailureTests {
 
     @Test
     fun `invalid transport progress is rejected on both directions`() {
-        for (mode in 1..4) {
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { scope ->
+        for (mode in 1 .. 4) {
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                scope ->
                 val input = MessageTestSource("".toByteArray())
                 input.badProgress = mode
                 val readTransport = WebSocketTestTransport(input, MessageTestSink())
-                val reader = AsyncWebSocketSession.takeOwnership(readTransport, scope, HttpRole.Client)
+                val reader =
+                    AsyncWebSocketSession.takeOwnership(readTransport, scope, HttpRole.Client)
                 expectMessageFailure<IllegalStateException> suspend { reader.receive() }
                 assertTrue(reader.isClosed)
                 assertEquals(1, readTransport.closes)
                 val output = MessageTestSink()
                 output.badProgress = mode
                 val writeTransport = WebSocketTestTransport(WebSocketWaitingSource(), output)
-                val writer = AsyncWebSocketSession.takeOwnership(writeTransport, scope, HttpRole.Client)
+                val writer =
+                    AsyncWebSocketSession.takeOwnership(writeTransport, scope, HttpRole.Client)
                 expectMessageFailure<IllegalStateException> suspend { writer.sendText("data") }
                 assertTrue(writer.isClosed)
                 assertEquals(1, writeTransport.closes)
@@ -117,13 +140,15 @@ private class AsyncWebSocketFailureTests {
 
     @Test
     fun `zero writes and flush failures fail the actual send`() {
-        withRawWebSocket suspend { _, raw, client, _ ->
+        withRawWebSocket suspend {
+            _, raw, client, _ ->
             raw.zeroWrite = true
             expectMessageFailure<WriteZeroException> suspend { client.sendText("data") }
             assertTrue(client.isClosed)
         }
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val output = MessageTestSink()
             output.failFlush = true
             val transport = WebSocketTestTransport(WebSocketWaitingSource(), output)
@@ -137,14 +162,16 @@ private class AsyncWebSocketFailureTests {
 
     @Test
     fun `primary and cleanup failures are retained and repeated close reuses the cleanup result`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val output = MessageTestSink()
             output.failAfter = Some(0L)
             val transport = WebSocketTestTransport(WebSocketWaitingSource(), output)
             transport.failClose = true
             val session = AsyncWebSocketSession.takeOwnership(transport, scope, HttpRole.Client)
-            val error = expectMessageFailure<ResourceUseException> suspend { session.sendText("data") }
+            val error =
+                expectMessageFailure<ResourceUseException> suspend { session.sendText("data") }
             assertTrue(error.primaryFailure is TransportFailure)
             assertTrue(error.cleanupFailure is CleanupFailure)
             assertTrue(session.failure!! === error)
@@ -157,10 +184,13 @@ private class AsyncWebSocketFailureTests {
 
     @Test
     fun `borrowed source failure aborts the message and preserves source ownership`() {
-        withWebSockets suspend { _, _, _, client, _ ->
+        withWebSockets suspend {
+            _, _, _, client, _ ->
             val source = MessageTestSource("data".toByteArray())
             source.failRead = true
-            expectMessageFailure<TransportFailure> suspend { client.send(WebSocketMessageType.Binary, source) }
+            expectMessageFailure<TransportFailure> suspend {
+                client.send(WebSocketMessageType.Binary, source)
+            }
             assertTrue(client.isClosed)
             assertTrue(client.failure!! is TransportFailure)
             assertEquals(0, source.closes)

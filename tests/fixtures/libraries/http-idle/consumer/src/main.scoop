@@ -1,4 +1,5 @@
 package scoop.tests
+
 import scoop.asyncio.*
 import scoop.http.*
 import scoop.http.asyncio.*
@@ -7,11 +8,20 @@ import scoop.platform.net.*
 import scoop.text.toInt
 import scoop.time.Duration
 
-fun check(value: Boolean) { if (!value) throw IllegalStateException(Some("HTTP idle fixture assertion failed")) }
+fun check(value: Boolean) {
+    if (!value)
+        throw IllegalStateException(Some("HTTP idle fixture assertion failed"))
+}
+
 // Allow ordinary flush work on two native threads under full moving GC.
 fun idleLimit(): Duration = Duration.seconds(2L)
 
-fun checkTimeout(error: HttpIoTimeoutException, protocol: HttpProtocol, direction: HttpIoDirection, stream: Int) {
+fun checkTimeout(
+    error: HttpIoTimeoutException,
+    protocol: HttpProtocol,
+    direction: HttpIoDirection,
+    stream: Int
+) {
     check(error.protocol == protocol && error.direction == direction && error.streamId == stream)
     check(error.limit == idleLimit() && error.elapsed >= error.limit)
 }
@@ -19,19 +29,30 @@ fun checkTimeout(error: HttpIoTimeoutException, protocol: HttpProtocol, directio
 class Signal {
     private var open: Boolean = false
     private var waiter: Continuation<Unit>? = None
-    fun signal() { open = true; val saved = waiter; waiter = None; saved?.resume(Unit) }
+    fun signal() {
+        open = true;
+        val saved = waiter;
+        waiter = None;
+        saved?.resume(Unit)
+    }
     suspend fun await() {
-        suspendCoroutine<Unit> { continuation ->
-            if (open) continuation.resume(Unit) else waiter = Some(continuation)
+        suspendCoroutine<Unit> {
+            continuation -> if (open)
+                continuation.resume(Unit)
+            else
+                waiter = Some(continuation)
         }
     }
 }
 
 private fun exercise(mode: String, address: SocketAddress) {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
-        if (mode == "h1-progress" || mode == "h1-stall") exerciseH1(loop, scope, address, mode)
-        else exerciseH2(loop, scope, address, mode)
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope ->
+        if (mode == "h1-progress" || mode == "h1-stall")
+            exerciseH1(loop, scope, address, mode)
+        else
+            exerciseH2(loop, scope, address, mode)
         check(!scope.job.isCancelled)
     }
 }
@@ -40,6 +61,10 @@ fun main(args: Array<String>) {
     check(args.size == 3L)
     val mode = args[1L]
     val address = SocketAddress(IpAddress.IPV4_LOOPBACK, args[2L].toInt())
-    Thread.start { exercise(mode, address) }.use { thread -> exercise(mode, address); thread.join() }
+    Thread.start { exercise(mode, address) }.use {
+        thread ->
+        exercise(mode, address);
+        thread.join()
+    }
     println(mode + " idle passed")
 }

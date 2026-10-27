@@ -1,4 +1,5 @@
 package scoop.tests
+
 import scoop.asyncio.*
 import scoop.tests.scoop.crypto.testdata.rootPem
 import scoop.crypto.x509.TrustStore
@@ -12,57 +13,150 @@ import scoop.tls.TlsTrustSource
 import scoop.url.Url
 
 fun main(args: Array<String>) {
-    try { runWsCase(args) }
-    catch (error: Exception) { eprintln(error.message ?: "WebSocket client fixture failed"); throw error }
+    try {
+        runWsCase(args)
+    }
+    catch (error: Exception) {
+        eprintln(error.message ?: "WebSocket client fixture failed");
+        throw error
+    }
 }
 
 private fun runWsCase(args: Array<String>) {
     val mode = args[1L]
     val port = args[2L].toInt()
     val url = Url.parse("ws://127.0.0.1:" + port.toString() + "/start/%e9%9b%aa?x=%2f&x=2")
-    TrustStore.fromPem(rootPem()).use { trust ->
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
-            val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
-                versionPolicy = if (mode == "force-h2") HttpVersionPolicy.Http2Only else HttpVersionPolicy.Auto,
-                cleartext = if (mode == "force-h2") HttpCleartextProtocol.Http2PriorKnowledge else HttpCleartextProtocol.Http1,
-                http1RequestVersion = if (mode == "force-h1") HttpVersion.Http10 else HttpVersion.Http11,
-                retries = HttpRetryOptions(maxRetries = if (mode == "retry") 1L else 0L, statuses = [503U],
-                    initialDelay = Duration.ZERO, maxDelay = Duration.ZERO),
-                pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L),
-                timeouts = HttpTimeoutOptions(poolAcquire = Some(Duration.seconds(5L))),
-                cookieJar = if (mode == "cookie") Some<CookieJar>(MemoryCookieJar(suffixes = PublicSuffixList.parse("com\n"))) else None)
+    TrustStore.fromPem(rootPem()).use {
+        trust ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
+            val config =
+                HttpClientConfig(
+                    tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                    versionPolicy =
+                        if (mode == "force-h2")
+                            HttpVersionPolicy.Http2Only
+                        else
+                            HttpVersionPolicy.Auto,
+                    cleartext =
+                        if (mode == "force-h2")
+                            HttpCleartextProtocol.Http2PriorKnowledge
+                        else
+                            HttpCleartextProtocol.Http1,
+                    http1RequestVersion =
+                        if (mode == "force-h1")
+                            HttpVersion.Http10
+                        else
+                            HttpVersion.Http11,
+                    retries =
+                        HttpRetryOptions(
+                            maxRetries =
+                                if (mode == "retry")
+                                    1L
+                                else
+                                    0L,
+                            statuses = [503U],
+                            initialDelay = Duration.ZERO,
+                            maxDelay = Duration.ZERO
+                        ),
+                    pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L),
+                    timeouts = HttpTimeoutOptions(poolAcquire = Some(Duration.seconds(5L))),
+                    cookieJar =
+                        if (mode == "cookie")
+                            Some<CookieJar>(
+                                MemoryCookieJar(suffixes = PublicSuffixList.parse("com\n"))
+                            )
+                        else
+                            None
+                )
             val client = HttpClient.open(scope, config)
             try {
-                val request = HttpWebSocketRequest(url, [HttpField("X-Client".toByteArray(), "scoop".toByteArray())])
-                val offers = if (mode == "deflate" || mode == "bad-window")
-                    [WebSocketDeflateOffer(true, true, Some(15), WebSocketWindowBits.Limit(if (mode == "bad-window") 8 else 15))]
-                    else Array<WebSocketDeflateOffer>(0L) { _ -> WebSocketDeflateOffer() }
-                val options = HttpWebSocketOptions(["chat"], offers,
-                    WebSocketSessionOptions(outgoingFrameBytes = 7L, inputBufferBytes = 19L,
-                        incomingLimits = WebSocketFrameLimits(dataChunkBytes = 11L)))
+                val request =
+                    HttpWebSocketRequest(
+                        url,
+                        [HttpField("X-Client".toByteArray(), "scoop".toByteArray())]
+                    )
+                val offers =
+                    if (mode == "deflate" || mode == "bad-window")
+                        [
+                            WebSocketDeflateOffer(
+                                true,
+                                true,
+                                Some(15),
+                                WebSocketWindowBits.Limit(
+                                    if (mode == "bad-window")
+                                        8
+                                    else
+                                        15
+                                )
+                            )
+                        ]
+                    else
+                        Array<WebSocketDeflateOffer>(0L) { _ -> WebSocketDeflateOffer() }
+                val options =
+                    HttpWebSocketOptions(
+                        ["chat"],
+                        offers,
+                        WebSocketSessionOptions(
+                            outgoingFrameBytes = 7L,
+                            inputBufferBytes = 19L,
+                            incomingLimits = WebSocketFrameLimits(dataChunkBytes = 11L)
+                        )
+                    )
                 if (mode == "bad-window") {
-                    val error = wsClientFailure suspend { client.openWebSocket(request, options); Unit }
+                    val error =
+                        wsClientFailure suspend {
+                            client.openWebSocket(request, options);
+                            Unit
+                        }
                     assertTrue(error is IllegalArgumentException)
                     wsClientProbe(client, url)
-                } else client.withWebSocket(request, options) suspend { result ->
-                    when (result) {
-                        case Opened(session) -> wsClientSession(client, session, mode)
-                        case Rejected(response, error) -> {
-                            assertTrue(mode == "reject" || mode == "bad-accept" || mode == "bad-protocol" || mode == "bad-extensions")
-                            assertTrue(error is WebSocketHandshakeException || error is HttpFieldParseException)
-                            assertEquals(Some("http"), response.url.scheme)
-                            if (mode == "reject") {
-                                assertEquals(403U, response.status)
-                                assertEquals("handshake denied", response.body.text(1024L))
-                                assertEquals("gzip", String.fromUtf8(response.fields.findAll("Content-Encoding".toByteArray())[0L].value))
-                            } else { assertEquals(101U, response.status); assertEquals(0L, response.body.bytes(0L).size) }
-                            response.close()
-                            wsClientProbe(client, url)
+                } else
+                    client.withWebSocket(request, options) suspend {
+                        result -> when (result) {
+                            case Opened(session) -> wsClientSession(client, session, mode)
+                            case Rejected(response, error) -> {
+                                assertTrue(
+                                    mode ==
+                                        "reject" ||
+                                        mode ==
+                                        "bad-accept" ||
+                                        mode ==
+                                        "bad-protocol" ||
+                                        mode ==
+                                        "bad-extensions"
+                                )
+                                assertTrue(
+                                    error is
+                                        WebSocketHandshakeException ||
+                                        error is
+                                        HttpFieldParseException
+                                )
+                                assertEquals(Some("http"), response.url.scheme)
+                                if (mode == "reject") {
+                                    assertEquals(403U, response.status)
+                                    assertEquals("handshake denied", response.body.text(1024L))
+                                    assertEquals(
+                                        "gzip",
+                                        String.fromUtf8(
+                                            response.fields.findAll(
+                                                "Content-Encoding".toByteArray()
+                                            )[0L].value
+                                        )
+                                    )
+                                } else {
+                                    assertEquals(101U, response.status);
+                                    assertEquals(0L, response.body.bytes(0L).size)
+                                }
+                                response.close()
+                                wsClientProbe(client, url)
+                            }
                         }
                     }
-                }
-            } finally { client.close() }
+            } finally {
+                client.close()
+            }
             assertTrue(client.isClosed)
         }
     }

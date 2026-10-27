@@ -12,72 +12,117 @@ private class ServerDecompressionFailureTests {
     fun `empty corrupt truncated and trailing input fails while concatenated members complete`() {
         val encoded = requestGzip("abc".toByteArray())
         val truncated = Array<Byte>(encoded.size - 1L) { index -> encoded[index] }
-        val corrupt = Array<Byte>(encoded.size) { index ->
-            if (index == encoded.size - 8L) (encoded[index].toInt() xor 1).toByte() else encoded[index]
-        }
-        val trailing = ByteArrayBuilder().append(encoded).append("garbage".toByteArray()).toByteArray()
+        val corrupt =
+            Array<Byte>(encoded.size) {
+                index -> if (index == encoded.size - 8L)
+                    (encoded[index].toInt() xor 1).toByte()
+                else
+                    encoded[index]
+            }
+        val trailing =
+            ByteArrayBuilder().append(encoded).append("garbage".toByteArray()).toByteArray()
         for (bad in ["".toByteArray(), truncated, corrupt, trailing]) {
             val result = decompressionExercise(bad)
             assertEquals(400U, result.status)
             assertFalse(result.context.request.body.isComplete)
         }
         assertEquals("", decompressionExercise(requestGzip("".toByteArray())).text())
-        for ((coding, options) in [("gzip", CompressionOptions.Gzip(GzipOptions())), ("zstd", CompressionOptions.Zstd(ZstdOptions()))]) {
-            val data = ByteArrayBuilder().append(compress("ab".toByteArray(), options)).append(compress("cd".toByteArray(), options)).toByteArray()
+        for (
+            (coding, options) in [
+                ("gzip", CompressionOptions.Gzip(GzipOptions())),
+                ("zstd", CompressionOptions.Zstd(ZstdOptions()))
+            ]
+        ) {
+            val data =
+                ByteArrayBuilder().append(compress("ab".toByteArray(), options)).append(
+                    compress("cd".toByteArray(), options)
+                ).toByteArray()
             assertEquals("abcd", decompressionExercise(data, coding).text())
         }
-        assertEquals(400U, decompressionExercise(compress("abc".toByteArray(), CompressionOptions.RawDeflate(DeflateOptions())), "deflate").status)
+        assertEquals(
+            400U,
+            decompressionExercise(
+                compress("abc".toByteArray(), CompressionOptions.RawDeflate(DeflateOptions())),
+                "deflate"
+            ).status
+        )
     }
 
     @Test
     fun `zero reads do not touch input and decoded EOF requires final validation`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             val input = DecompressionReadSource(TestSource(requestGzip("a".toByteArray())))
             val body = HttpRequestBody(input, fields = requestEncodedFields())
             body.configureDecoding(RequestDecompressionOptions())
             val source = body.openStream()
             try {
-                NativeByteBuffer.allocate(1L).use suspend { buffer ->
-                    assertEquals(0L, source.readInto(buffer, 0L)); assertEquals(0, input.calls)
-                    assertEquals(1L, source.readInto(buffer, 1L)); assertEquals(97.toByte(), buffer.readByte())
+                NativeByteBuffer.allocate(1L).use suspend {
+                    buffer ->
+                    assertEquals(0L, source.readInto(buffer, 0L));
+                    assertEquals(0, input.calls)
+                    assertEquals(1L, source.readInto(buffer, 1L));
+                    assertEquals(97.toByte(), buffer.readByte())
                     assertFalse(body.isComplete)
                     buffer.clear()
-                    assertEquals(0L, source.readInto(buffer, 1L)); assertTrue(body.isComplete)
+                    assertEquals(0L, source.readInto(buffer, 1L));
+                    assertTrue(body.isComplete)
                 }
-            } finally { body.closeView() }
+            } finally {
+                body.closeView()
+            }
             var closed = false
-            try { networkText(source) } catch (_: IoClosedException) { closed = true }
+            try {
+                networkText(source)
+            } catch (_: IoClosedException) {
+                closed = true
+            }
             assertTrue(closed)
         }
     }
 
     @Test
     fun `decoder input rejection retains its cause while underlying IO failures stay unchanged`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             val original = IoClosedException()
             for (ioFailure in [false, true]) {
                 val input = DecompressionReadSource(TestSource("broken".toByteArray()))
-                if (ioFailure) input.failure = Some<Throwable>(original)
+                if (ioFailure)
+                    input.failure = Some<Throwable>(original)
                 val body = HttpRequestBody(input, fields = requestEncodedFields())
                 body.configureDecoding(RequestDecompressionOptions(bufferSize = 1L))
                 val source = body.openStream()
                 try {
                     var first: Throwable? = None
-                    try { networkText(source) } catch (error: Throwable) { first = Some(error) }
+                    try {
+                        networkText(source)
+                    } catch (error: Throwable) {
+                        first = Some(error)
+                    }
                     assertTrue(present(first))
-                    if (ioFailure) assertTrue(first!! === original)
+                    if (ioFailure)
+                        assertTrue(first!! === original)
                     else {
                         val error = first!!
                         assertTrue(error is HttpRejection)
-                        if (error is HttpRejection) assertTrue(error.cause!! is CompressionException)
+                        if (error is HttpRejection)
+                            assertTrue(error.cause!! is CompressionException)
                     }
                     val calls = input.calls
-                    try { networkText(source); throw IllegalStateException(Some("expected retained failure")) }
-                    catch (error: Throwable) { assertTrue(error === first!!) }
+                    try {
+                        networkText(source);
+                        throw IllegalStateException(Some("expected retained failure"))
+                    }
+                    catch (error: Throwable) {
+                        assertTrue(error === first!!)
+                    }
                     assertEquals(calls, input.calls)
-                } finally { body.closeView() }
+                } finally {
+                    body.closeView()
+                }
             }
         }
     }

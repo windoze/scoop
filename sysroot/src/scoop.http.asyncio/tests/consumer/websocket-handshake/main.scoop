@@ -11,27 +11,42 @@ import scoop.text.*
 import scoop.url.Url
 
 private fun exerciseConsumer(args: Array<String>) {
-    if (args.size == 2L) { runOracle(Path.fromString(args[1L])); return }
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
-        if (args.size == 3L) {
+    if (args.size == 2L) {
+        runOracle(Path.fromString(args[1L]));
+        return
+    }
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope -> if (args.size == 3L) {
             useWebSocket(loop, scope, SocketAddress(IpAddress.IPV4_LOOPBACK, args[2L].toInt()))
         } else {
             val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
             try {
-                val serving = scope.launch suspend { listener.accept().useAsync suspend { peer -> serveWebSocket(peer) } }
+                val serving =
+                    scope.launch suspend {
+                        listener.accept().useAsync suspend { peer -> serveWebSocket(peer) }
+                    }
                 useWebSocket(loop, scope, listener.localAddress)
                 serving.join()
-            } finally { listener.close() }
+            } finally {
+                listener.close()
+            }
         }
     }
 }
 
-fun check(value: Boolean) { if (!value) throw IllegalStateException(Some("WebSocket consumer assertion failed")) }
+fun check(value: Boolean) {
+    if (!value)
+        throw IllegalStateException(Some("WebSocket consumer assertion failed"))
+}
 
 private suspend fun useWebSocket(loop: EventLoop, scope: CoroutineScope, address: SocketAddress) {
-    val handshake = WebSocketHandshake.create(Url.parse("ws://BÜCHER.example/chat?x=%2f"), ["chat", "Case"],
-        [WebSocketDeflateOffer(true, true, Some(12), WebSocketWindowBits.Limit(11))])
+    val handshake =
+        WebSocketHandshake.create(
+            Url.parse("ws://BÜCHER.example/chat?x=%2f"),
+            ["chat", "Case"],
+            [WebSocketDeflateOffer(true, true, Some(12), WebSocketWindowBits.Limit(11))]
+        )
     val connection = AsyncHttp1Connection.takeOwnershipAsClient(loop.connectTcp(address), scope)
     try {
         connection.sendRequest(handshake.request).finish()
@@ -41,16 +56,27 @@ private suspend fun useWebSocket(loop: EventLoop, scope: CoroutineScope, address
         val deflate = negotiated.deflate!!
         check(deflate.serverNoContextTakeover && deflate.clientNoContextTakeover)
         check(deflate.serverWindowBits == 10 && deflate.clientWindowBits == 9)
-        NativeByteBuffer.allocate(1L).use suspend { buffer -> check(response.body.readInto(buffer, 1L) == 0L) }
-        connection.takeTransport().useAsync suspend { stream ->
+        NativeByteBuffer.allocate(1L).use suspend {
+            buffer -> check(response.body.readInto(buffer, 1L) == 0L)
+        }
+        connection.takeTransport().useAsync suspend {
+            stream ->
             connection.close()
             check(connection.isClosed && response.body.isComplete)
-            checkBytes(awaitBytes(stream, 5L), [130.toByte(), 3.toByte(), 115.toByte(), 114.toByte(), 118.toByte()])
+            checkBytes(
+                awaitBytes(stream, 5L),
+                [130.toByte(), 3.toByte(), 115.toByte(), 114.toByte(), 118.toByte()]
+            )
             gcCollect()
-            sendBytes(stream, [137.toByte(), 128.toByte(), 1.toByte(), 2.toByte(), 3.toByte(), 4.toByte()])
+            sendBytes(
+                stream,
+                [137.toByte(), 128.toByte(), 1.toByte(), 2.toByte(), 3.toByte(), 4.toByte()]
+            )
             checkBytes(awaitBytes(stream, 2L), [136.toByte(), 0.toByte()])
         }
-    } finally { connection.close() }
+    } finally {
+        connection.close()
+    }
 }
 
 @Test

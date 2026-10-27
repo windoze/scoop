@@ -1,4 +1,5 @@
 package scoop.tests
+
 import scoop.asyncio.*
 import scoop.compression.*
 import scoop.crypto.x509.TrustStore
@@ -18,69 +19,141 @@ private fun responseContextValue(): String = binding.value
 private class ResponseGate {
     private var done: Boolean = false
     private var waiter: Continuation<Unit>? = None
-    fun signal() { done = true; val saved = waiter; waiter = None; saved?.resume(Unit) }
+    fun signal() {
+        done = true;
+        val saved = waiter;
+        waiter = None;
+        saved?.resume(Unit)
+    }
     suspend fun await() {
-        suspendCoroutine<Unit> { continuation ->
-            if (done) continuation.resume(Unit) else waiter = Some(continuation)
+        suspendCoroutine<Unit> {
+            continuation -> if (done)
+                continuation.resume(Unit)
+            else
+                waiter = Some(continuation)
         }
     }
 }
 
 internal fun exerciseResponseHttp2(trust: TrustStore) {
-    val variants: Array<(String, CompressionOptions)> = [("br", CompressionOptions.Brotli(BrotliOptions())),
-        ("zstd", CompressionOptions.Zstd(ZstdOptions()))]
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
-        loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+    val variants: Array<(String, CompressionOptions)> =
+        [
+            ("br", CompressionOptions.Brotli(BrotliOptions())),
+            ("zstd", CompressionOptions.Zstd(ZstdOptions()))
+        ]
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope -> loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend {
+            listener ->
             val done = ResponseGate()
-            val server = scope.launch suspend {
-                AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope,
-                    settings = Http2Settings(maxConcurrentStreams = 2U)).useAsync suspend { connection ->
-                    val requests = [connection.acceptRequest()!!, connection.acceptRequest()!!]
-                    val writing = ArrayList<Deferred<Unit>>()
-                    for (incoming in requests) {
-                        writing.add(scope.async suspend {
-                            val path = when (incoming.head.target) {
-                                case Http2(_, _, value) -> String.fromUtf8(value)
-                                else -> throw IllegalStateException()
-                            }
-                            responseCheck(path == "/br" || path == "/zstd")
-                            val coding = path.substring(1L)
-                            val options = if (coding == "br") CompressionOptions.Brotli(BrotliOptions()) else CompressionOptions.Zstd(ZstdOptions())
-                            incoming.stream.readAllBytes(0L)
-                            val encoded = compress((coding + " 中文").toByteArray(), options)
-                            incoming.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U, fields = [
-                                HttpField("Content-Encoding".toByteArray(), coding.toByteArray()),
-                                HttpField("Content-Length".toByteArray(), encoded.size.toString().toByteArray())]), false)
-                            writeResponseBytes(incoming.stream, encoded)
-                            incoming.stream.finish([HttpField("X-End".toByteArray(), coding.toByteArray())])
-                        })
+            val server =
+                scope.launch suspend {
+                    AsyncHttp2Connection.takeOwnershipAsServer(
+                        listener.accept(),
+                        scope,
+                        settings = Http2Settings(maxConcurrentStreams = 2U)
+                    ).useAsync suspend {
+                        connection ->
+                        val requests = [connection.acceptRequest()!!, connection.acceptRequest()!!]
+                        val writing = ArrayList<Deferred<Unit>>()
+                        for (incoming in requests) {
+                            writing.add(
+                                scope.async suspend {
+                                    val path =
+                                        when (incoming.head.target) {
+                                            case Http2(_, _, value) -> String.fromUtf8(value)
+                                            else -> throw IllegalStateException()
+                                        }
+                                    responseCheck(path == "/br" || path == "/zstd")
+                                    val coding = path.substring(1L)
+                                    val options =
+                                        if (coding == "br")
+                                            CompressionOptions.Brotli(BrotliOptions())
+                                        else
+                                            CompressionOptions.Zstd(ZstdOptions())
+                                    incoming.stream.readAllBytes(0L)
+                                    val encoded = compress((coding + " 中文").toByteArray(), options)
+                                    incoming.stream.sendResponse(
+                                        HttpResponseHead(
+                                            HttpVersion.Http2,
+                                            200U,
+                                            fields =
+                                                [
+                                                    HttpField(
+                                                        "Content-Encoding".toByteArray(),
+                                                        coding.toByteArray()
+                                                    ),
+                                                    HttpField(
+                                                        "Content-Length".toByteArray(),
+                                                        encoded.size.toString().toByteArray()
+                                                    )
+                                                ]
+                                        ),
+                                        false
+                                    )
+                                    writeResponseBytes(incoming.stream, encoded)
+                                    incoming.stream.finish(
+                                        [HttpField("X-End".toByteArray(), coding.toByteArray())]
+                                    )
+                                }
+                            )
+                        }
+                        for (job in writing)
+                            job.await()
+                        done.await()
                     }
-                    for (job in writing) job.await()
-                    done.await()
                 }
-            }
-            val config = HttpClientConfig(cleartext = HttpCleartextProtocol.Http2PriorKnowledge,
-                tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
-                pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L, maxStreamsPerHttp2 = 2L),
-                http2Settings = Http2Settings(initialWindowSize = 3U), decoding = HttpDecodingOptions(bufferSize = 2L))
+            val config =
+                HttpClientConfig(
+                    cleartext = HttpCleartextProtocol.Http2PriorKnowledge,
+                    tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                    pool =
+                        HttpConnectionPoolOptions(
+                            maxConnectionsPerOrigin = 1L,
+                            maxStreamsPerHttp2 = 2L
+                        ),
+                    http2Settings = Http2Settings(initialWindowSize = 3U),
+                    decoding = HttpDecodingOptions(bufferSize = 2L)
+                )
             try {
-                withHttpClient(config) suspend { client ->
+                withHttpClient(config) suspend {
+                    client ->
                     val jobs = ArrayList<Deferred<Unit>>()
                     for ((coding, options) in variants) {
-                        jobs.add(context(ResponseContext(coding)) { scope.async suspend {
-                            val url = Url.parse("http://127.0.0.1:" + listener.localAddress.port.toString() + "/" + coding)
-                            client.withResponse(HttpRequest.get(url)) suspend { response ->
-                                responseCheck(response.version == HttpVersion.Http2 && response.body.contentLength == None)
-                                responseCheck(response.body.text(16L) == coding + " 中文")
-                                responseCheck(String.fromUtf8(response.trailers!![0L].value) == coding)
-                                responseCheck(responseContextValue() == coding)
+                        jobs.add(
+                            context(ResponseContext(coding)) {
+                                scope.async suspend {
+                                    val url =
+                                        Url.parse(
+                                            "http://127.0.0.1:" +
+                                                listener.localAddress.port.toString() +
+                                                "/" +
+                                                coding
+                                        )
+                                    client.withResponse(HttpRequest.get(url)) suspend {
+                                        response ->
+                                        responseCheck(
+                                            response.version ==
+                                                HttpVersion.Http2 &&
+                                                response.body.contentLength ==
+                                                None
+                                        )
+                                        responseCheck(response.body.text(16L) == coding + " 中文")
+                                        responseCheck(
+                                            String.fromUtf8(response.trailers!![0L].value) == coding
+                                        )
+                                        responseCheck(responseContextValue() == coding)
+                                    }
+                                }
                             }
-                        } })
+                        )
                     }
-                    for (job in jobs) job.await()
+                    for (job in jobs)
+                        job.await()
                 }
-            } finally { done.signal() }
+            } finally {
+                done.signal()
+            }
             server.join()
             responseCheck(!scope.job.isCancelled)
         }

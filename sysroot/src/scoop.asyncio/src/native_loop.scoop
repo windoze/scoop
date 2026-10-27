@@ -6,74 +6,141 @@ import scoop.platform.fs.FileMetadata
 
 @CLayout
 internal struct NativeCreated(val pointer: Ptr<Unit>?, val status: Int)
+
 @CLayout
-internal struct NativeRecord(val id: Long, val kind: Int, val code: Int, val count: Long, val resource: Ptr<Unit>?)
+internal struct NativeRecord(
+    val id: Long,
+    val kind: Int,
+    val code: Int,
+    val count: Long,
+    val resource: Ptr<Unit>?
+)
 
 internal enum IoResult {
-    Done, Bytes(Long), Eof, Created(Ptr<Unit>), Addresses(Ptr<Unit>?), Packet(Datagram), Failed(NativeError, Long),
-    Metadata(FileMetadata), Position(Long), Temporary(CreatedTemporaryFile), DirectoryName(OsString),
+    Done, Bytes(Long), Eof, Created(Ptr<Unit>), Addresses(Ptr<Unit>?), Packet(Datagram), Failed(
+        NativeError,
+        Long
+    ),
+    Metadata(FileMetadata), Position(Long), Temporary(CreatedTemporaryFile), DirectoryName(
+        OsString
+    ),
     TtyResize(Long, Long), TtyTimeout, TtySizeValue(TtySize), TtyMode(Boolean)
 }
+
 internal struct NativeEvent(val id: Long, val result: IoResult)
-internal enum IoStart { Pending, Finished(NativeEvent) }
 
-internal fun nativeStatus(id: Long, status: Int): IoStart = if (status < 0)
-    IoStart.Finished(NativeEvent(id, IoResult.Failed(NativeError(NativeErrorDomain.Libuv, status), 0L)))
-    else IoStart.Pending
-
-internal fun decodeEvent(record: NativeRecord): NativeEvent = NativeEvent(record.id, when (record.kind) {
-    case 0 -> IoResult.Done
-    case 1 -> IoResult.Bytes(record.count)
-    case 2 -> IoResult.Eof
-    case 3 -> IoResult.Created(record.resource!!)
-    case 4 -> IoResult.Failed(NativeError(NativeErrorDomain.Libuv, record.code), record.count)
-    case 5 -> IoResult.Failed(NativeError(NativeErrorDomain.PosixErrno, record.code), record.count)
-    case 6 -> IoResult.Addresses(record.resource)
-    case 7 -> IoResult.Failed(NativeError(NativeErrorDomain.AddressResolution, record.code,
-        if (record.count < 0L) None else Some(record.count.toInt())), 0L)
-    case 8 -> IoResult.Packet(takeDatagram(record.resource!!))
-    // File and directory events: 0x100..0x1ff, matching native/loop.h.
-    case 0x100 -> IoResult.Metadata(takeFileMetadata(record.resource!!))
-    case 0x101 -> IoResult.Position(record.count)
-    case 0x102 -> IoResult.Temporary(takeTemporaryFile(record.resource!!))
-    case 0x103 -> IoResult.DirectoryName(takeDirectoryName(record.resource!!))
-    // TTY events: 0x200..0x2ff, matching native/loop.h.
-    case 0x200 -> IoResult.TtyResize(record.count shr 32L, record.count and 4294967295L)
-    case 0x201 -> IoResult.TtyTimeout
-    else -> throw IllegalStateException(Some("invalid native I/O event"))
-})
-
-internal fun resultFailure(operation: String, result: IoResult, context: OsString? = None): Throwable? = when (result) {
-    case Failed(error, _) -> Some(PlatformException(operation, error.kind, Some(error), context))
-    case _ -> None
+internal enum IoStart {
+    Pending, Finished(NativeEvent)
 }
 
-internal fun completionFailure(operation: String, result: IoResult, selected: Throwable?, context: OsString? = None): Throwable? =
-    when (selected) { case Some(_) -> selected; case None -> resultFailure(operation, result, context) }
+internal fun nativeStatus(id: Long, status: Int): IoStart =
+    if (status < 0)
+        IoStart.Finished(NativeEvent(id, IoResult.Failed(nativeStatusError(status), 0L)))
+    else
+        IoStart.Pending
 
-internal fun resultProgress(result: IoResult): Long = when (result) {
-    case Bytes(count) -> count
-    case Packet(value) -> value.count
-    case Failed(_, count) -> count
-    case _ -> 0L
-}
+internal fun decodeEvent(record: NativeRecord): NativeEvent =
+    NativeEvent(
+        record.id,
+        when (record.kind) {
+            case 0 -> IoResult.Done
+            case 1 -> IoResult.Bytes(record.count)
+            case 2 -> IoResult.Eof
+            case 3 -> IoResult.Created(record.resource!!)
+            case 5 -> IoResult.Failed(
+                NativeError(NativeErrorDomain.PosixErrno, record.code),
+                record.count
+            )
+            case 6 -> IoResult.Addresses(record.resource)
+            case 7 -> IoResult.Failed(
+                NativeError(
+                    NativeErrorDomain.AddressResolution,
+                    record.code,
+                    if (record.count < 0L)
+                        None
+                    else
+                        Some(record.count.toInt())
+                ),
+                0L
+            )
+            case 8 -> IoResult.Packet(takeDatagram(record.resource!!))
+            // File and directory events: 0x100..0x1ff, matching native/loop.h.
+            case 0x100 -> IoResult.Metadata(takeFileMetadata(record.resource!!))
+            case 0x101 -> IoResult.Position(record.count)
+            case 0x102 -> IoResult.Temporary(takeTemporaryFile(record.resource!!))
+            case 0x103 -> IoResult.DirectoryName(takeDirectoryName(record.resource!!))
+            // TTY events: 0x200..0x2ff, matching native/loop.h.
+            case 0x200 -> IoResult.TtyResize(record.count shr 32L, record.count and 4294967295L)
+            case 0x201 -> IoResult.TtyTimeout
+            else -> throw IllegalStateException(Some("invalid native I/O event"))
+        }
+    )
 
-internal fun uvFailure(operation: String, status: Int): PlatformException {
-    val error = NativeError(NativeErrorDomain.Libuv, status)
+internal fun resultFailure(
+    operation: String,
+    result: IoResult,
+    context: OsString? = None
+): Throwable? =
+    when (result) {
+        case Failed(error, _) -> Some(
+            PlatformException(operation, error.kind, Some(error), context)
+        )
+        case _ -> None
+    }
+
+internal fun completionFailure(
+    operation: String,
+    result: IoResult,
+    selected: Throwable?,
+    context: OsString? = None
+): Throwable? =
+    when (selected) {
+        case Some(_) -> selected;
+        case None -> resultFailure(operation, result, context)
+    }
+
+internal fun resultProgress(result: IoResult): Long =
+    when (result) {
+        case Bytes(count) -> count
+        case Packet(value) -> value.count
+        case Failed(_, count) -> count
+        case _ -> 0L
+    }
+
+internal fun backendFailure(operation: String, status: Int): PlatformException {
+    val error = nativeStatusError(status)
     return PlatformException(operation, error.kind, Some(error))
 }
 
+internal fun nativeStatusError(status: Int): NativeError =
+    NativeError(NativeErrorDomain.PosixErrno, -status)
+
+@Extern(name = "scoop_io_loop_idle")
+internal fun nativeLoopIdle(loop: Ptr<Unit>): Boolean
+
 @Extern(name = "scoop_io_loop_create")
 internal fun nativeLoopCreate(): NativeCreated
+
 @Extern(name = "scoop_io_loop_wake")
 internal fun nativeLoopWake(loop: Ptr<Unit>)
+
 @Extern(name = "scoop_io_loop_poll")
-internal fun nativeLoopPoll(loop: Ptr<Unit>, wait: Boolean)
+internal fun nativeLoopPoll(loop: Ptr<Unit>, wait: Boolean): Int
+
+@Extern(name = "scoop_io_loop_batch_size")
+internal fun nativeLoopBatchSize(loop: Ptr<Unit>): Long
+
 @Extern(name = "scoop_io_loop_next")
 internal fun nativeLoopNext(loop: Ptr<Unit>): NativeRecord
+
 @Extern(name = "scoop_io_loop_destroy")
 internal fun nativeLoopDestroy(loop: Ptr<Unit>): Int
+
 @Extern(name = "scoop_io_timer_start")
 internal fun nativeTimerStart(loop: Ptr<Unit>, id: Long, seconds: Long, nanos: Int): Int
+
 @Extern(name = "scoop_io_timer_cancel")
 internal fun nativeTimerCancel(loop: Ptr<Unit>, id: Long)
+
+@Extern(name = "scoop_io_loop_descriptor")
+internal fun nativeLoopDescriptor(loop: Ptr<Unit>): Int

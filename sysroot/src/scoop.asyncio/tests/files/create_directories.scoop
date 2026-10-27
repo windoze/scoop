@@ -8,7 +8,8 @@ import scoop.test.*
 private class AsyncDirectoryCreationTest {
     @Test
     fun `recursive creation validates modes and leaves existing directories unchanged`() {
-        IoTestDirectory().use { tree ->
+        IoTestDirectory().use {
+            tree ->
             val existing = tree.child("existing")
             existing.createDirectory(0x1c0)
             val originalMode = existing.metadata().permissions
@@ -16,11 +17,18 @@ private class AsyncDirectoryCreationTest {
             val invalid = tree.child("invalid")
             val file = tree.child("file")
             file.writeText("ordinary file")
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { _ ->
-                try { loop.createDirectories(invalid, -1); fail(Some("negative mode accepted")) }
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                _ ->
+                try {
+                    loop.createDirectories(invalid, -1);
+                    fail(Some("negative mode accepted"))
+                }
                 catch (_: IllegalArgumentException) {}
-                try { loop.createDirectories(invalid, 0x1000); fail(Some("mode overflow accepted")) }
+                try {
+                    loop.createDirectories(invalid, 0x1000);
+                    fail(Some("mode overflow accepted"))
+                }
                 catch (_: IllegalArgumentException) {}
                 assertFalse(invalid.exists())
                 loop.createDirectories(nested, 0x1c0)
@@ -28,9 +36,17 @@ private class AsyncDirectoryCreationTest {
                 loop.createDirectories(existing, 0x1ff)
                 assertTrue(loop.metadata(nested).kind == FileKind.Directory)
                 assertEquals(originalMode, loop.metadata(existing).permissions)
-                try { loop.createDirectories(file); fail(Some("ordinary file treated as directory")) }
-                catch (error: PlatformException) { assertTrue(error.kind == PlatformErrorKind.AlreadyExists) }
-                try { loop.createDirectories(file.resolve(Path.fromString("child"))); fail(Some("file used as parent")) }
+                try {
+                    loop.createDirectories(file);
+                    fail(Some("ordinary file treated as directory"))
+                }
+                catch (error: PlatformException) {
+                    assertTrue(error.kind == PlatformErrorKind.AlreadyExists)
+                }
+                try {
+                    loop.createDirectories(file.resolve(Path.fromString("child")));
+                    fail(Some("file used as parent"))
+                }
                 catch (error: PlatformException) {
                     assertTrue(error.kind == PlatformErrorKind.NotDirectory)
                     assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
@@ -41,10 +57,12 @@ private class AsyncDirectoryCreationTest {
 
     @Test
     fun `concurrent recursive creation accepts a directory created by another task`() {
-        IoTestDirectory().use { tree ->
+        IoTestDirectory().use {
+            tree ->
             val nested = tree.child("shared/a/b/c")
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { scope ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                scope ->
                 val first = scope.launch suspend { loop.createDirectories(nested) }
                 val second = scope.launch suspend { loop.createDirectories(nested) }
                 first.join()

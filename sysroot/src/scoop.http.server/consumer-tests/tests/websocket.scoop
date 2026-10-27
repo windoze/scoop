@@ -13,55 +13,127 @@ private class HttpServerWebSocketConsumerTests {
     fun `published upgrade starts after HTTP cleanup and exchanges negotiated compressed messages`() {
         val state = ConsumerWebSocketState()
         val routes = RouterBuilder()
-        routes.use(suspend { ctx, next ->
-            if (ctx.request.headers.getSingle("Authorization") != Some("Bearer consumer")) ctx.respond(empty(401U))
-            else try { next() } finally { state.cleaned = true }
-        })
-        routes.get("/socket", suspend { _ ->
-            webSocket(WebSocketOptions(protocols = ["echo"], requireProtocol = true, originAllowed = { fields ->
-                fields.size == 1L && String.fromUtf8OrNone(fields[0L].value) == Some("https://consumer.example")
-            }, deflate = Some(WebSocketDeflate())),
-                suspend { context, session ->
-                    assertTrue(state.cleaned); assertEquals(Some("echo"), context.protocol)
-                    session.sendText(session.receive()!!.readText())
-                })
-        })
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        routes.use(
+            suspend {
+                ctx,
+                next -> if (
+                    ctx.request.headers.getSingle("Authorization") != Some("Bearer consumer")
+                )
+                    ctx.respond(empty(401U))
+                else
+                    try {
+                        next()
+                    } finally {
+                        state.cleaned = true
+                    }
+            }
+        )
+        routes.get(
+            "/socket",
+            suspend {
+                _ -> webSocket(
+                    WebSocketOptions(
+                        protocols = ["echo"],
+                        requireProtocol = true,
+                        originAllowed =
+                            {
+                                fields -> fields.size ==
+                                    1L &&
+                                    String.fromUtf8OrNone(fields[0L].value) ==
+                                    Some("https://consumer.example")
+                            },
+                        deflate = Some(WebSocketDeflate())
+                    ),
+                    suspend {
+                        context, session ->
+                        assertTrue(state.cleaned);
+                        assertEquals(Some("echo"), context.protocol)
+                        session.sendText(session.receive()!!.readText())
+                    }
+                )
+            }
+        )
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
             val address = listener.localAddress
-            val server = HttpServer.takeOwnership(listener, routes.build(), scope,
-                HttpServerOptions(onWebSocketCompleted = Some(state::receive)))
+            val server =
+                HttpServer.takeOwnership(
+                    listener,
+                    routes.build(),
+                    scope,
+                    HttpServerOptions(onWebSocketCompleted = Some(state::receive))
+                )
             try {
-                AsyncHttp1Connection.takeOwnershipAsClient(loop.connectTcp(address), scope).useAsync suspend { client ->
-                    val request = HttpRequestHead(HttpVersion.Http11, "GET".toByteArray(),
-                        HttpRequestTarget.Http1("/socket".toByteArray()), [
-                            HttpField("Host".toByteArray(), "localhost".toByteArray()),
-                            HttpField("Upgrade".toByteArray(), "websocket".toByteArray()),
-                            HttpField("Connection".toByteArray(), "Upgrade".toByteArray()),
-                            HttpField("Sec-WebSocket-Key".toByteArray(), "dGhlIHNhbXBsZSBub25jZQ==".toByteArray()),
-                            HttpField("Sec-WebSocket-Version".toByteArray(), "13".toByteArray()),
-                            HttpField("Sec-WebSocket-Protocol".toByteArray(), "echo".toByteArray()),
-                            HttpField("Authorization".toByteArray(), "Bearer consumer".toByteArray()),
-                            HttpField("Origin".toByteArray(), "https://consumer.example".toByteArray()),
-                            WebSocketDeflateOffer().toExtension().toHttpField()])
+                AsyncHttp1Connection.takeOwnershipAsClient(
+                    loop.connectTcp(address),
+                    scope
+                ).useAsync suspend {
+                    client ->
+                    val request =
+                        HttpRequestHead(
+                            HttpVersion.Http11,
+                            "GET".toByteArray(),
+                            HttpRequestTarget.Http1("/socket".toByteArray()),
+                            [
+                                HttpField("Host".toByteArray(), "localhost".toByteArray()),
+                                HttpField("Upgrade".toByteArray(), "websocket".toByteArray()),
+                                HttpField("Connection".toByteArray(), "Upgrade".toByteArray()),
+                                HttpField(
+                                    "Sec-WebSocket-Key".toByteArray(),
+                                    "dGhlIHNhbXBsZSBub25jZQ==".toByteArray()
+                                ),
+                                HttpField(
+                                    "Sec-WebSocket-Version".toByteArray(),
+                                    "13".toByteArray()
+                                ),
+                                HttpField(
+                                    "Sec-WebSocket-Protocol".toByteArray(),
+                                    "echo".toByteArray()
+                                ),
+                                HttpField(
+                                    "Authorization".toByteArray(),
+                                    "Bearer consumer".toByteArray()
+                                ),
+                                HttpField(
+                                    "Origin".toByteArray(),
+                                    "https://consumer.example".toByteArray()
+                                ),
+                                WebSocketDeflateOffer().toExtension().toHttpField()
+                            ]
+                        )
                     val handshake = WebSocketHandshake.parse(request)
                     client.sendRequest(request).finish()
                     val response = client.receiveResponse()
                     assertEquals(101U, response.head.status)
                     val negotiated = handshake.accept(response.head)
                     assertEquals(Some("echo"), negotiated.protocol)
-                    assertTrue(when (negotiated.deflate) { case Some(_) -> true; case None -> false })
-                    AsyncWebSocketSession.takeOwnership(client.takeTransport(), scope, HttpRole.Client,
-                        WebSocketSessionOptions(outgoingFrameBytes = 3L), negotiated.deflate).useAsync suspend { session ->
+                    assertTrue(
+                        when (negotiated.deflate) {
+                            case Some(_) -> true;
+                            case None -> false
+                        }
+                    )
+                    AsyncWebSocketSession.takeOwnership(
+                        client.takeTransport(),
+                        scope,
+                        HttpRole.Client,
+                        WebSocketSessionOptions(outgoingFrameBytes = 3L),
+                        negotiated.deflate
+                    ).useAsync suspend {
+                        session ->
                         session.sendText("published websocket")
                         assertEquals("published websocket", session.receive()!!.readText())
-                        session.awaitClosed(); assertEquals(Some(1000U), session.peerClose!!.code)
+                        session.awaitClosed();
+                        assertEquals(Some(1000U), session.peerClose!!.code)
                     }
                 }
                 assertEquals(HttpWebSocketOutcome.Completed, state.awaitCompletion().outcome)
                 server.shutdownGracefully()
-            } finally { server.close() }
+            } finally {
+                server.close()
+            }
         }
     }
 }
@@ -72,9 +144,19 @@ private class ConsumerWebSocketState {
     private var waiter: CancellableContinuation<HttpWebSocketCompletion>? = None
     fun receive(value: HttpWebSocketCompletion) {
         completion = Some(value)
-        when (waiter) { case Some(pending) -> { waiter = None; pending.tryResume(value) }; case None -> return }
+        when (waiter) {
+            case Some(pending) -> {
+                waiter = None;
+                pending.tryResume(value)
+            };
+            case None -> return
+        }
     }
-    suspend fun awaitCompletion(): HttpWebSocketCompletion = suspendCancellableCoroutine<HttpWebSocketCompletion> { pending ->
-        when (completion) { case Some(value) -> pending.tryResume(value); case None -> waiter = Some(pending) }
-    }
+    suspend fun awaitCompletion(): HttpWebSocketCompletion =
+        suspendCancellableCoroutine<HttpWebSocketCompletion> {
+            pending -> when (completion) {
+                case Some(value) -> pending.tryResume(value);
+                case None -> waiter = Some(pending)
+            }
+        }
 }

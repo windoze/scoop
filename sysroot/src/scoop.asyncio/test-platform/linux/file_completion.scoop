@@ -1,0 +1,69 @@
+package scoop.asyncio
+
+import scoop.platform.fs.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test
+private class LinuxFileCompletionTest {
+    @Test
+    fun `cancellation after the kernel read CQE preserves bytes and the real descriptor position`() {
+        IoTestDirectory().use {
+            tree ->
+            val path = tree.child("read")
+            path.writeText("abc")
+            val backend = PlatformEventLoop()
+            backend.run suspend {
+                scope -> backend.openFile(path).useAsync suspend {
+                    file -> NativeByteBuffer.allocate(3L).use suspend {
+                        bytes ->
+                        val reading = scope.launch suspend { file.readInto(bytes, 3L) }
+                        awaitDataBeforeCancel(backend, reading)
+                        reading.join()
+                        assertTrue(reading.isCancelled)
+                        assertEquals(3L, bytes.writePosition)
+                        assertEquals(3L, file.position())
+                        assertEquals('a'.code.toByte(), bytes.readByte())
+                        assertEquals('b'.code.toByte(), bytes.readByte())
+                        assertEquals('c'.code.toByte(), bytes.readByte())
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Flush the actual earlier read and observe its kernel CQE before selecting Job cancellation.
+private suspend fun awaitDataBeforeCancel(loop: PlatformEventLoop, reading: Job) {
+    suspendCoroutine<Unit> {
+        continuation ->
+        val operation =
+            LoopOperation(
+                loop.state,
+                loop.state.nextOperation(),
+                {
+                    native, id ->
+                    @Unsafe
+                    {
+                        assertEquals(0, testRingDataReady(native))
+                    }
+                    reading.cancel()
+                    IoStart.Finished(NativeEvent(id, IoResult.Done))
+                },
+                { _, _ -> },
+                {
+                    event,
+                    selected -> when (
+                        completionFailure("observe read CQE", event.result, selected)
+                    ) {
+                        case Some(error) -> continuation.resumeWithException(error)
+                        case None -> continuation.resume(Unit)
+                    }
+                }
+            )
+        loop.state.submit(operation)
+    }
+}
+
+@Extern(name = "scoop_test_ring_data_ready")
+private fun testRingDataReady(loop: Ptr<Unit>): Int

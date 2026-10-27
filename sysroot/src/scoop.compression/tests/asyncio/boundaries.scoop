@@ -9,28 +9,59 @@ import scoop.test.*
 private class AsyncCompressionBoundaryTests {
     @Test
     fun `bad tails and missing EOF propagate without cancelling the caller`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             for (options in compressionCases()) {
                 val vector = compressionVector(options.format)
                 val truncated = Array<Byte>(vector.size - 1L) { index -> vector[index] }
-                AsyncDecompressionSource(ShortAsyncCompressionSource(truncated), DecompressionOptions(options.format), 1L).useAsync suspend { source ->
-                    val error = expectAsyncCompressionFailure<CompressionException> suspend { readSmallAsyncCompression(source) }
+                AsyncDecompressionSource(
+                    ShortAsyncCompressionSource(truncated),
+                    DecompressionOptions(options.format),
+                    1L
+                ).useAsync suspend {
+                    source ->
+                    val error =
+                        expectAsyncCompressionFailure<CompressionException> suspend {
+                            readSmallAsyncCompression(source)
+                        }
                     assertTrue(error.kind == CompressionFailureKind.Truncated)
                     assertSame(error, source.failure!!)
                     ensureActive()
                 }
-                AsyncDecompressionSink(ShortAsyncCompressionSink(), DecompressionOptions(options.format), 1L).useAsync suspend { sink ->
+                AsyncDecompressionSink(
+                    ShortAsyncCompressionSink(),
+                    DecompressionOptions(options.format),
+                    1L
+                ).useAsync suspend {
+                    sink ->
                     writeAsyncCompression(sink, truncated)
-                    val error = expectAsyncCompressionFailure<CompressionException> suspend { sink.finish() }
+                    val error =
+                        expectAsyncCompressionFailure<CompressionException> suspend {
+                            sink.finish()
+                        }
                     assertTrue(error.kind == CompressionFailureKind.Truncated)
                     ensureActive()
                 }
             }
-            for (format in [CompressionFormat.Zlib, CompressionFormat.RawDeflate, CompressionFormat.Brotli]) {
+            for (
+                format in [
+                    CompressionFormat.Zlib,
+                    CompressionFormat.RawDeflate,
+                    CompressionFormat.Brotli
+                ]
+            ) {
                 val bytes = joinCompressionBytes(compressionVector(format), "x".toByteArray())
-                AsyncDecompressionSource(ShortAsyncCompressionSource(bytes), DecompressionOptions(format), 1L).useAsync suspend { source ->
-                    val error = expectAsyncCompressionFailure<CompressionException> suspend { readSmallAsyncCompression(source) }
+                AsyncDecompressionSource(
+                    ShortAsyncCompressionSource(bytes),
+                    DecompressionOptions(format),
+                    1L
+                ).useAsync suspend {
+                    source ->
+                    val error =
+                        expectAsyncCompressionFailure<CompressionException> suspend {
+                            readSmallAsyncCompression(source)
+                        }
                     assertTrue(error.kind == CompressionFailureKind.InvalidData)
                 }
             }
@@ -39,19 +70,29 @@ private class AsyncCompressionBoundaryTests {
 
     @Test
     fun `limits and concatenated members retain the same async boundaries`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
-            for (format in [CompressionFormat.Gzip, CompressionFormat.Zstd]) {
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ -> for (format in [CompressionFormat.Gzip, CompressionFormat.Zstd]) {
                 val vector = compressionVector(format)
                 val data = joinCompressionBytes(vector, vector)
                 val input = ShortAsyncCompressionSource(data)
-                AsyncDecompressionSource(input, DecompressionOptions(format), 7L).useAsync suspend { source ->
-                    assertEquals("Hello, Scoop!Hello, Scoop!", String.fromUtf8(readSmallAsyncCompression(source)))
+                AsyncDecompressionSource(input, DecompressionOptions(format), 7L).useAsync suspend {
+                    source -> assertEquals(
+                        "Hello, Scoop!Hello, Scoop!",
+                        String.fromUtf8(readSmallAsyncCompression(source))
+                    )
                 }
-                AsyncDecompressionSink(ShortAsyncCompressionSink(), DecompressionOptions(format, maxOutputBytes = Some(3L)), 1L).useAsync suspend { sink ->
-                    val error = expectAsyncCompressionFailure<CompressionException> suspend {
-                        writeAsyncCompression(sink, vector); sink.finish()
-                    }
+                AsyncDecompressionSink(
+                    ShortAsyncCompressionSink(),
+                    DecompressionOptions(format, maxOutputBytes = Some(3L)),
+                    1L
+                ).useAsync suspend {
+                    sink ->
+                    val error =
+                        expectAsyncCompressionFailure<CompressionException> suspend {
+                            writeAsyncCompression(sink, vector);
+                            sink.finish()
+                        }
                     assertTrue(error.kind == CompressionFailureKind.OutputLimit)
                 }
             }
@@ -60,22 +101,34 @@ private class AsyncCompressionBoundaryTests {
 
     @Test
     fun `cancelled and invalid requests leave an unstarted stream usable`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val input = ShortAsyncCompressionSource("abc".toByteArray())
-            AsyncCompressionSource(input).useAsync suspend { source ->
-                NativeByteBuffer.allocate(4L).use suspend { buffer ->
-                    val cancelled = scope.launch suspend {
-                        currentJobOrNone()!!.cancel()
-                        expectAsyncCompressionFailure<CancellationException> suspend { source.readInto(buffer, 1L) }
-                    }
+            AsyncCompressionSource(input).useAsync suspend {
+                source -> NativeByteBuffer.allocate(4L).use suspend {
+                    buffer ->
+                    val cancelled =
+                        scope.launch suspend {
+                            currentJobOrNone()!!.cancel()
+                            expectAsyncCompressionFailure<CancellationException> suspend {
+                                source.readInto(buffer, 1L)
+                            }
+                        }
                     cancelled.join()
                     assertEquals(0L, source.readInto(buffer, 0L))
-                    expectAsyncCompressionFailure<IllegalArgumentException> suspend { source.readInto(buffer, -1L) }
-                    expectAsyncCompressionFailure<IndexOutOfBoundsException> suspend { source.readInto(buffer, 5L) }
+                    expectAsyncCompressionFailure<IllegalArgumentException> suspend {
+                        source.readInto(buffer, -1L)
+                    }
+                    expectAsyncCompressionFailure<IndexOutOfBoundsException> suspend {
+                        source.readInto(buffer, 5L)
+                    }
                     assertEquals(0, input.calls)
                     assertFalse(compressionPresent(source.failure))
-                    assertEquals("abc", String.fromUtf8(decompress(readSmallAsyncCompression(source))))
+                    assertEquals(
+                        "abc",
+                        String.fromUtf8(decompress(readSmallAsyncCompression(source)))
+                    )
                 }
             }
         }

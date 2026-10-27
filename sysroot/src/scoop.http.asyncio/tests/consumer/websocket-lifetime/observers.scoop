@@ -6,45 +6,106 @@ import scoop.http.*
 import scoop.http.asyncio.*
 
 internal fun wsObservers(cleanup: Boolean) {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope ->
         val transport = WsTestTransport()
         val release = WsGate()
         val closeError = Throwable()
         transport.closeRelease = Some(release)
-        if (cleanup) transport.closeFailure = Some(closeError)
+        if (cleanup)
+            transport.closeFailure = Some(closeError)
         val session = AsyncWebSocketSession.takeOwnership(transport, scope, HttpRole.Client)
-        val cancelled = scope.launch suspend {
-            wsCheck(wsExpect suspend { session.awaitClosed() } is CancellationException, "observer cancellation")
-        }
+        val cancelled =
+            scope.launch suspend {
+                wsCheck(
+                    wsExpect suspend { session.awaitClosed() } is CancellationException,
+                    "observer cancellation"
+                )
+            }
         val observed = WsFailure()
-        val observer = scope.launch suspend {
-            try { session.awaitClosed() } catch (error: Throwable) { observed.value = Some(error) }
-            wsCheck(session.isClosed, "observed real close")
-        }
-        cancelled.cancel(); cancelled.join()
-        wsCheck(!session.isClosed && !wsPresent(session.failure) && transport.closes == 0, "observer cancelled session")
+        val observer =
+            scope.launch suspend {
+                try {
+                    session.awaitClosed()
+                } catch (error: Throwable) {
+                    observed.value = Some(error)
+                }
+                wsCheck(session.isClosed, "observed real close")
+            }
+        cancelled.cancel();
+        cancelled.join()
+        wsCheck(
+            !session.isClosed && !wsPresent(session.failure) && transport.closes == 0,
+            "observer cancelled session"
+        )
         val firstFailure = WsFailure()
         val secondFailure = WsFailure()
-        val first = scope.launch suspend { try { session.close() } catch (error: Throwable) { firstFailure.value = Some(error) } }
-        val second = scope.launch suspend { try { session.close() } catch (error: Throwable) { secondFailure.value = Some(error) } }
+        val first =
+            scope.launch suspend {
+                try {
+                    session.close()
+                } catch (error: Throwable) {
+                    firstFailure.value = Some(error)
+                }
+            }
+        val second =
+            scope.launch suspend {
+                try {
+                    session.close()
+                } catch (error: Throwable) {
+                    secondFailure.value = Some(error)
+                }
+            }
         try {
             transport.closing.await()
-            wsCheck(!first.isCompleted && !second.isCompleted && !observer.isCompleted, "real transport close pending")
+            wsCheck(
+                !first.isCompleted && !second.isCompleted && !observer.isCompleted,
+                "real transport close pending"
+            )
             first.cancel()
             wsCheck(!first.isCompleted && !session.isClosed, "cancelled closer returned early")
-            release.signal(); first.join(); second.join(); observer.join()
+            release.signal();
+            first.join();
+            second.join();
+            observer.join()
             wsCheck(session.isClosed && transport.closes == 1, "close once")
             if (cleanup) {
-                wsCheck(firstFailure.value!! === closeError && secondFailure.value!! === closeError &&
-                    observed.value!! === closeError && session.failure!! === closeError, "shared cleanup result")
-                wsCheck(wsExpect suspend { session.close() } === closeError, "repeated close cleanup")
-                wsCheck(wsExpect suspend { session.awaitClosed() } === closeError, "late observer cleanup")
+                wsCheck(
+                    firstFailure.value!! ===
+                        closeError &&
+                        secondFailure.value!! ===
+                        closeError &&
+                        observed.value!! ===
+                        closeError &&
+                        session.failure!! ===
+                        closeError,
+                    "shared cleanup result"
+                )
+                wsCheck(
+                    wsExpect suspend { session.close() } === closeError,
+                    "repeated close cleanup"
+                )
+                wsCheck(
+                    wsExpect suspend { session.awaitClosed() } === closeError,
+                    "late observer cleanup"
+                )
             } else {
-                wsCheck(!wsPresent(firstFailure.value) && !wsPresent(secondFailure.value) && !wsPresent(observed.value),
-                    "normal close result")
-                session.close(); session.awaitClosed()
+                wsCheck(
+                    !wsPresent(firstFailure.value) &&
+                        !wsPresent(secondFailure.value) &&
+                        !wsPresent(observed.value),
+                    "normal close result"
+                )
+                session.close();
+                session.awaitClosed()
             }
-        } finally { release.signal(); wsIgnoreClose suspend { session.close() }; first.join(); second.join(); observer.join() }
+        } finally {
+            release.signal();
+            wsIgnoreClose suspend { session.close() };
+            first.join();
+            second.join();
+            observer.join()
+        }
     }
 }

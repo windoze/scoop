@@ -10,37 +10,57 @@ import scoop.tls.TlsTrustSource
 private class HttpClientPoolHttp2Test {
     @Test
     fun `cancelling one HTTP2 response preserves other streams and the pooled connection`() {
-        clientTestTrust().use { trust ->
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { scope ->
-                clientTestListen(loop).useAsync suspend { listener ->
-                    val serving = scope.launch suspend {
-                        AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
-                            val first = connection.acceptRequest()!!.stream
-                            first.readAllBytes(0L)
-                            assertEquals(1, first.id)
-                            first.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
-                            val second = connection.acceptRequest()!!.stream
-                            second.readAllBytes(0L)
-                            assertEquals(3, second.id)
-                            second.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
-                            writeBodyText(second, "second"); second.finish()
-                            val third = connection.acceptRequest()!!.stream
-                            third.readAllBytes(0L)
-                            assertEquals(5, third.id)
-                            third.sendResponse(HttpResponseHead(HttpVersion.Http2, 204U))
+        clientTestTrust().use {
+            trust ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                scope -> clientTestListen(loop).useAsync suspend {
+                    listener ->
+                    val serving =
+                        scope.launch suspend {
+                            AsyncHttp2Connection.takeOwnershipAsServer(
+                                listener.accept(),
+                                scope
+                            ).useAsync suspend {
+                                connection ->
+                                val first = connection.acceptRequest()!!.stream
+                                first.readAllBytes(0L)
+                                assertEquals(1, first.id)
+                                first.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
+                                val second = connection.acceptRequest()!!.stream
+                                second.readAllBytes(0L)
+                                assertEquals(3, second.id)
+                                second.sendResponse(
+                                    HttpResponseHead(HttpVersion.Http2, 200U),
+                                    false
+                                )
+                                writeBodyText(second, "second");
+                                second.finish()
+                                val third = connection.acceptRequest()!!.stream
+                                third.readAllBytes(0L)
+                                assertEquals(5, third.id)
+                                third.sendResponse(HttpResponseHead(HttpVersion.Http2, 204U))
+                            }
                         }
-                    }
-                    val config = HttpClientConfig(cleartext = HttpCleartextProtocol.Http2PriorKnowledge,
-                        tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
-                        pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L, maxStreamsPerHttp2 = 2L))
-                    withHttpClient(config) suspend { client ->
+                    val config =
+                        HttpClientConfig(
+                            cleartext = HttpCleartextProtocol.Http2PriorKnowledge,
+                            tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                            pool =
+                                HttpConnectionPoolOptions(
+                                    maxConnectionsPerOrigin = 1L,
+                                    maxStreamsPerHttp2 = 2L
+                                )
+                        )
+                    withHttpClient(config) suspend {
+                        client ->
                         val first = client.execute(HttpRequest.get(clientTestUrl(listener)))
                         val second = client.execute(HttpRequest.get(clientTestUrl(listener)))
                         first.close()
                         assertEquals("second", String.fromUtf8(second.body.readAllBytes(6L)))
                         second.close()
-                        client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend { response ->
+                        client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend {
+                            response ->
                             assertEquals(204U, response.status)
                             response.body.readAllBytes(0L)
                             Unit
@@ -54,40 +74,71 @@ private class HttpClientPoolHttp2Test {
     }
 
     @Test
-    fun `peer SETTINGS constrain the number of leased HTTP2 streams`() { checkStreamLimit(1U, 10L) }
+    fun `peer SETTINGS constrain the number of leased HTTP2 streams`() {
+        checkStreamLimit(1U, 10L)
+    }
 
     @Test
-    fun `the local HTTP2 stream cap can be smaller than peer SETTINGS`() { checkStreamLimit(10U, 1L) }
+    fun `the local HTTP2 stream cap can be smaller than peer SETTINGS`() {
+        checkStreamLimit(10U, 1L)
+    }
 
     private fun checkStreamLimit(peer: UInt, local: Long) {
-        clientTestTrust().use { trust ->
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { scope ->
-                clientTestListen(loop).useAsync suspend { listener ->
-                    val serving = scope.launch suspend {
-                        AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope,
-                            settings = Http2Settings(maxConcurrentStreams = peer)).useAsync suspend { connection ->
-                            var index = 0
-                            while (index < 2) {
-                                val request = connection.acceptRequest()!!.stream
-                                request.readAllBytes(0L)
-                                assertEquals(index * 2 + 1, request.id)
-                                request.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
-                                writeBodyText(request, "x"); request.finish()
-                                index += 1
+        clientTestTrust().use {
+            trust ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                scope -> clientTestListen(loop).useAsync suspend {
+                    listener ->
+                    val serving =
+                        scope.launch suspend {
+                            AsyncHttp2Connection.takeOwnershipAsServer(
+                                listener.accept(),
+                                scope,
+                                settings = Http2Settings(maxConcurrentStreams = peer)
+                            ).useAsync suspend {
+                                connection ->
+                                var index = 0
+                                while (index < 2) {
+                                    val request = connection.acceptRequest()!!.stream
+                                    request.readAllBytes(0L)
+                                    assertEquals(index * 2 + 1, request.id)
+                                    request.sendResponse(
+                                        HttpResponseHead(HttpVersion.Http2, 200U),
+                                        false
+                                    )
+                                    writeBodyText(request, "x");
+                                    request.finish()
+                                    index += 1
+                                }
                             }
                         }
-                    }
-                    val config = HttpClientConfig(cleartext = HttpCleartextProtocol.Http2PriorKnowledge,
-                        tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
-                        pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L, maxStreamsPerHttp2 = local))
-                    withHttpClient(config) suspend { client ->
+                    val config =
+                        HttpClientConfig(
+                            cleartext = HttpCleartextProtocol.Http2PriorKnowledge,
+                            tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                            pool =
+                                HttpConnectionPoolOptions(
+                                    maxConnectionsPerOrigin = 1L,
+                                    maxStreamsPerHttp2 = local
+                                )
+                        )
+                    withHttpClient(config) suspend {
+                        client ->
                         val held = client.execute(HttpRequest.get(clientTestUrl(listener)))
-                        val next = scope.launch suspend {
-                            client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend { response -> response.body.readAllBytes(1L); Unit }
-                        }
+                        val next =
+                            scope.launch suspend {
+                                client.withResponse(
+                                    HttpRequest.get(clientTestUrl(listener))
+                                ) suspend {
+                                    response ->
+                                    response.body.readAllBytes(1L);
+                                    Unit
+                                }
+                            }
                         assertFalse(next.isCompleted)
-                        held.body.readAllBytes(1L); held.close()
+                        held.body.readAllBytes(1L);
+                        held.close()
                         next.join()
                     }
                     serving.join()
@@ -98,44 +149,65 @@ private class HttpClientPoolHttp2Test {
 
     @Test
     fun `GOAWAY drains an accepted stream while a new connection serves the next request`() {
-        clientTestTrust().use { trust ->
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { scope ->
-                clientTestListen(loop).useAsync suspend { listener ->
+        clientTestTrust().use {
+            trust ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                scope -> clientTestListen(loop).useAsync suspend {
+                    listener ->
                     val finish = BodyTestGate()
-                    val serving = scope.launch suspend {
-                        val first = AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope)
-                        val accepted = first.acceptRequest()!!.stream
-                        accepted.readAllBytes(0L)
-                        first.goAway(lastStreamId = Some(accepted.id))
-                        accepted.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
-                        writeBodyText(accepted, "before"); accepted.flush()
-                        try {
-                            AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { second ->
-                                val next = second.acceptRequest()!!.stream
-                                next.readAllBytes(0L)
-                                assertEquals(1, next.id)
-                                next.sendResponse(HttpResponseHead(HttpVersion.Http2, 204U))
-                                finish.await()
+                    val serving =
+                        scope.launch suspend {
+                            val first =
+                                AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope)
+                            val accepted = first.acceptRequest()!!.stream
+                            accepted.readAllBytes(0L)
+                            first.goAway(lastStreamId = Some(accepted.id))
+                            accepted.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
+                            writeBodyText(accepted, "before");
+                            accepted.flush()
+                            try {
+                                AsyncHttp2Connection.takeOwnershipAsServer(
+                                    listener.accept(),
+                                    scope
+                                ).useAsync suspend {
+                                    second ->
+                                    val next = second.acceptRequest()!!.stream
+                                    next.readAllBytes(0L)
+                                    assertEquals(1, next.id)
+                                    next.sendResponse(HttpResponseHead(HttpVersion.Http2, 204U))
+                                    finish.await()
+                                }
+                                writeBodyText(accepted, "after");
+                                accepted.finish()
+                            } finally {
+                                first.close()
                             }
-                            writeBodyText(accepted, "after"); accepted.finish()
-                        } finally { first.close() }
-                    }
-                    val config = HttpClientConfig(cleartext = HttpCleartextProtocol.Http2PriorKnowledge,
-                        tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
-                        pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 2L))
-                    withHttpClient(config) suspend { client ->
-                        try {
+                        }
+                    val config =
+                        HttpClientConfig(
+                            cleartext = HttpCleartextProtocol.Http2PriorKnowledge,
+                            tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                            pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 2L)
+                        )
+                    withHttpClient(config) suspend {
+                        client -> try {
                             val held = client.execute(HttpRequest.get(clientTestUrl(listener)))
-                            client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend { response ->
+                            client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend {
+                                response ->
                                 assertEquals(204U, response.status)
                                 response.body.readAllBytes(0L)
                                 Unit
                             }
                             finish.signal()
-                            assertEquals("beforeafter", String.fromUtf8(held.body.readAllBytes(11L)))
+                            assertEquals(
+                                "beforeafter",
+                                String.fromUtf8(held.body.readAllBytes(11L))
+                            )
                             held.close()
-                        } finally { finish.signal() }
+                        } finally {
+                            finish.signal()
+                        }
                     }
                     serving.join()
                 }

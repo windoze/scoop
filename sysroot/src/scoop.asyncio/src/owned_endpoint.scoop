@@ -1,10 +1,22 @@
 package scoop.asyncio
 
-internal enum EndpointKind { Tcp, Udp, Tty }
-internal enum EndpointPhase { Open, Closing, Closed }
-internal interface LoopResource { public fun closeFromLoop() }
+internal enum EndpointKind {
+    Tcp, Udp, Tty
+}
 
-internal class OwnedEndpoint(val loop: LibuvEventLoop, val pointer: Ptr<Unit>, val kind: EndpointKind) : LoopResource {
+internal enum EndpointPhase {
+    Open, Closing, Closed
+}
+
+internal interface LoopResource {
+    public fun closeFromLoop()
+}
+
+internal class OwnedEndpoint(
+    val loop: LoopOwner,
+    val pointer: Ptr<Unit>,
+    val kind: EndpointKind
+): LoopResource {
     private val lock: IoLock = IoLock()
     private var phase: EndpointPhase = EndpointPhase.Open
     private var inputBusy: Boolean = false
@@ -21,101 +33,166 @@ internal class OwnedEndpoint(val loop: LibuvEventLoop, val pointer: Ptr<Unit>, v
 
     fun reserve(writing: Boolean): EndpointReservation {
         lock.withLock {
-            if (phase != EndpointPhase.Open) throw IoClosedException()
-            if (if (writing) outputBusy else inputBusy) throw IllegalStateException(Some("I/O direction is busy"))
-            if (writing && outputEnded) throw IllegalStateException(Some("TCP output was shut down"))
-            if (writing) outputBusy = true else inputBusy = true
+            if (phase != EndpointPhase.Open)
+                throw IoClosedException()
+            if (
+                if (writing)
+                    outputBusy
+                else
+                    inputBusy
+            )
+                throw IllegalStateException(Some("I/O direction is busy"))
+            if (writing && outputEnded)
+                throw IllegalStateException(Some("TCP output was shut down"))
+            if (writing)
+                outputBusy = true
+            else
+                inputBusy = true
         }
         return EndpointReservation(this, writing)
     }
 
     fun attach(operation: LoopOperation, writing: Boolean) {
-        val closing = lock.withLock {
-            if (writing) output = Some(operation) else input = Some(operation)
-            phase != EndpointPhase.Open
-        }
-        if (closing) operation.selectFailure(IoClosedException())
+        val closing =
+            lock.withLock {
+                if (writing)
+                    output = Some(operation)
+                else
+                    input = Some(operation)
+                phase != EndpointPhase.Open
+            }
+        if (closing)
+            operation.selectFailure(IoClosedException())
     }
 
     fun releaseDirection(writing: Boolean) {
         lock.withLock {
-            if (writing) { outputBusy = false; output = None }
-            else { inputBusy = false; input = None }
+            if (writing) {
+                outputBusy = false;
+                output = None
+            }
+            else {
+                inputBusy = false;
+                input = None
+            }
         }
-        loop.state.post { finishClose() }
+        loop.post { finishClose() }
     }
 
-    fun markOutputEnded() { lock.withLock { outputEnded = true } }
+    fun markOutputEnded() {
+        lock.withLock { outputEnded = true }
+    }
 
     suspend fun close() {
-        if (isClosed) return
+        if (isClosed)
+            return
         loop.requireJob(false)
-        suspendCoroutine<Unit> { continuation ->
-            loop.state.post { closeOnLoop { error ->
-                when (error) {
-                    case Some(value) -> continuation.resumeWithException(value)
-                    case None -> continuation.resume(Unit)
+        suspendCoroutine<Unit> {
+            continuation -> loop.post {
+                closeOnLoop {
+                    error -> when (error) {
+                        case Some(value) -> continuation.resumeWithException(value)
+                        case None -> continuation.resume(Unit)
+                    }
                 }
-            } }
+            }
         }
     }
 
     fun closeOnLoop(waiter: (Throwable?) -> Unit) {
-        val previous = lock.withLock {
-            val old = phase
-            if (old != EndpointPhase.Closed) waiters.add(waiter)
-            if (old == EndpointPhase.Open) phase = EndpointPhase.Closing
-            old
+        val previous =
+            lock.withLock {
+                val old = phase
+                if (old != EndpointPhase.Closed)
+                    waiters.add(waiter)
+                if (old == EndpointPhase.Open)
+                    phase = EndpointPhase.Closing
+                old
+            }
+        if (previous == EndpointPhase.Closed) {
+            loop.ready.add { waiter(None) };
+            return
         }
-        if (previous == EndpointPhase.Closed) { loop.state.ready.add { waiter(None) }; return }
-        if (previous == EndpointPhase.Closing) return
+        if (previous == EndpointPhase.Closing)
+            return
         val active = lock.withLock { (input, output) }
-        when (active._1) { case Some(operation) -> operation.selectFailure(IoClosedException()); case None -> {} }
-        when (active._2) { case Some(operation) -> operation.selectFailure(IoClosedException()); case None -> {} }
-        val closing = LoopOperation(loop.state, loop.state.nextOperation(),
-            { _, id -> @Unsafe { return@LoopOperation nativeStatus(id, when (kind) {
-                case Tcp -> nativeTcpClose(pointer, id)
-                case Udp -> nativeUdpClose(pointer, id)
-                case Tty -> nativeTtyClose(pointer, id)
-            }) } },
-            { _, _ -> },
-            { event, selected ->
-                lock.withLock {
-                    nativeClosed = true
-                    closeFailure = completionFailure("I/O endpoint close", event.result, selected)
+        when (active._1) {
+            case Some(operation) -> operation.selectFailure(IoClosedException());
+            case None -> {}
+        }
+        when (active._2) {
+            case Some(operation) -> operation.selectFailure(IoClosedException());
+            case None -> {}
+        }
+        val closing =
+            LoopOperation(
+                loop,
+                loop.nextOperation(),
+                {
+                    _,
+                    id -> @Unsafe
+                    {
+                        return@LoopOperation nativeStatus(
+                            id,
+                            when (kind) {
+                                case Tcp -> nativeTcpClose(pointer, id)
+                                case Udp -> nativeUdpClose(pointer, id)
+                                case Tty -> nativeTtyClose(pointer, id)
+                            }
+                        )
+                    }
+                },
+                { _, _ -> },
+                {
+                    event, selected ->
+                    lock.withLock {
+                        nativeClosed = true
+                        closeFailure =
+                            completionFailure("I/O endpoint close", event.result, selected)
+                    }
+                    finishClose()
                 }
-                finishClose()
-            })
-        loop.state.submit(closing)
+            )
+        loop.submit(closing)
     }
 
     private fun finishClose() {
-        val completed: ArrayList<(Throwable?) -> Unit>? = lock.withLock {
-            if (phase != EndpointPhase.Closing || !nativeClosed || inputBusy || outputBusy) return@withLock None
-            phase = EndpointPhase.Closed
-            val callbacks = waiters
-            waiters = ArrayList<(Throwable?) -> Unit>()
-            Some(callbacks)
-        }
+        val completed: ArrayList<(Throwable?) -> Unit>? =
+            lock.withLock {
+                if (phase != EndpointPhase.Closing || !nativeClosed || inputBusy || outputBusy)
+                    return@withLock None
+                phase = EndpointPhase.Closed
+                val callbacks = waiters
+                waiters = ArrayList<(Throwable?) -> Unit>()
+                Some(callbacks)
+            }
         when (completed) {
             case Some(callbacks) -> {
-                loop.state.forget(this)
-                for (callback in callbacks) loop.state.ready.add { callback(closeFailure) }
+                loop.forget(this)
+                for (callback in callbacks)
+                    loop.ready.add { callback(closeFailure) }
             }
             case None -> {}
         }
     }
 
     public override fun closeFromLoop() {
-        closeOnLoop { error ->
-            when (error) { case Some(value) -> loop.state.cleanupFailed(value); case None -> {} }
+        closeOnLoop {
+            error -> when (error) {
+                case Some(value) -> loop.cleanupFailed(value);
+                case None -> {}
+            }
         }
     }
 }
 
-internal class EndpointReservation(private val owner: OwnedEndpoint, private val writing: Boolean) : Disposable {
+internal class EndpointReservation(
+    private val owner: OwnedEndpoint,
+    private val writing: Boolean
+): Disposable {
     private val released: AtomicBoolean = AtomicBoolean(false)
     public override fun dispose() {
-        if (released.compareAndSet(false, true)) owner.releaseDirection(writing)
+        if (released.compareAndSet(false, true))
+            owner.releaseDirection(writing)
     }
 }

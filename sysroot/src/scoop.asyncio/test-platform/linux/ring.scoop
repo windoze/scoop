@@ -1,0 +1,68 @@
+package scoop.asyncio
+
+import scoop.test.*
+
+@Test
+private class LinuxRingRetirementTest {
+    @Test
+    fun `target and cancellation CQEs retire in either observed order`() {
+        @Unsafe
+        {
+            assertEquals(0, testRingCancelOrder(false))
+            assertEquals(0, testRingCancelOrder(true))
+        }
+    }
+    @Test
+    fun `a full SQ retains pending targets and gives cancellation room to progress`() {
+        @Unsafe
+        {
+            assertEquals(0, testRingPressure())
+        }
+    }
+    @Test
+    fun `a real seccomp denial fails initialization without a fallback`() {
+        @Unsafe
+        {
+            assertEquals(0, testRingDenied())
+        }
+    }
+    @Test
+    fun `fatal submission retains published requests without repeatedly waking an idle host`() {
+        @Unsafe
+        {
+            assertEquals(0, testRingSubmitDenied())
+        }
+    }
+    @Test
+    fun `denied worker startup reports failure without accepting work and leaves timers usable`() {
+        @Unsafe
+        {
+            assertEquals(0, testWorkersDenied())
+        }
+    }
+    @Test
+    fun `missing completion retention or a required opcode fails the capability check`() {
+        @Unsafe
+        {
+            assertEquals(0, testRingCapabilities())
+        }
+    }
+}
+
+@Extern(name = "scoop_test_ring_cancel_order")
+private fun testRingCancelOrder(controlFirst: Boolean): Int
+
+@Extern(name = "scoop_test_ring_pressure")
+private fun testRingPressure(): Int
+
+@Extern(name = "scoop_test_ring_denied")
+private fun testRingDenied(): Int
+
+@Extern(name = "scoop_test_ring_submit_denied")
+private fun testRingSubmitDenied(): Int
+
+@Extern(name = "scoop_test_ring_capabilities")
+private fun testRingCapabilities(): Int
+
+@Extern(name = "scoop_test_workers_denied")
+private fun testWorkersDenied(): Int

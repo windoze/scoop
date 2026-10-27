@@ -195,7 +195,8 @@ public fun <R> TerminalSession.withRawMode(block: () -> R): R
 
 `isTerminal` 只检测选定的标准端点，返回 Boolean，不打开会话。会话先使用 stdin
 指向的 TTY；stdin 不是 TTY 时打开当前进程的控制终端。Unix 通过终端路径重新
-打开自有读写句柄，不用 dup 后改变共享 file status flags。打开成功不会修改原
+打开自有读写句柄，不用 dup 后改变共享 file status flags。打开使用 `O_NOCTTY`，
+即使调用者是没有控制终端的会话首进程，也不取得或改变进程的控制终端。打开成功不会修改原
 stdin／stdout 的 O_NONBLOCK；stdout 重定向时会话仍写入自己的 TTY。没有可用
 TTY 或原生调用失败抛带 PosixErrno 的 PlatformException，不回退为普通管道输入。
 

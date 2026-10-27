@@ -8,39 +8,70 @@ import scoop.test.*
 private class HttpClientCloseFailureTest {
     @Test
     fun `concurrent client closers report the same owned cleanup failure after real completion`() {
-        clientTestTrust().use { trust ->
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { scope ->
-                clientTestListen(loop).useAsync suspend { listener ->
+        clientTestTrust().use {
+            trust ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                scope -> clientTestListen(loop).useAsync suspend {
+                    listener ->
                     val source = BodyTestSource("late".toByteArray())
-                    source.holdRead = true; source.holdClose = true; source.failClose = true
+                    source.holdRead = true;
+                    source.holdClose = true;
+                    source.failClose = true
                     val done = BodyTestGate()
-                    val serving = scope.launch suspend {
-                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
-                            connection.receiveRequest()
-                            done.await()
+                    val serving =
+                        scope.launch suspend {
+                            AsyncHttp1Connection.takeOwnershipAsServer(
+                                listener.accept(),
+                                scope
+                            ).useAsync suspend {
+                                connection ->
+                                connection.receiveRequest()
+                                done.await()
+                            }
                         }
-                    }
                     val client = HttpClient.open(scope, clientTestConfig(trust))
                     val callFailure = ClientTestFailureHolder()
-                    val executing = scope.launch suspend {
-                        try { client.execute(HttpRequest.post(clientTestUrl(listener), RequestBody.fromSourceFactory suspend { source })).close() }
-                        catch (error: Throwable) { callFailure.value = Some(error) }
-                    }
+                    val executing =
+                        scope.launch suspend {
+                            try {
+                                client.execute(
+                                    HttpRequest.post(
+                                        clientTestUrl(listener),
+                                        RequestBody.fromSourceFactory suspend { source }
+                                    )
+                                ).close()
+                            }
+                            catch (error: Throwable) {
+                                callFailure.value = Some(error)
+                            }
+                        }
                     source.started.await()
                     val firstFailure = ClientTestFailureHolder()
                     val secondFailure = ClientTestFailureHolder()
-                    val first = scope.launch suspend {
-                        try { client.close() } catch (error: Throwable) { firstFailure.value = Some(error) }
-                    }
-                    val second = scope.launch suspend {
-                        try { client.close() } catch (error: Throwable) { secondFailure.value = Some(error) }
-                    }
+                    val first =
+                        scope.launch suspend {
+                            try {
+                                client.close()
+                            } catch (error: Throwable) {
+                                firstFailure.value = Some(error)
+                            }
+                        }
+                    val second =
+                        scope.launch suspend {
+                            try {
+                                client.close()
+                            } catch (error: Throwable) {
+                                secondFailure.value = Some(error)
+                            }
+                        }
                     source.release.signal()
                     source.closeStarted.await()
                     assertFalse(first.isCompleted || second.isCompleted || executing.isCompleted)
                     source.closeRelease.signal()
-                    first.join(); second.join(); executing.join()
+                    first.join();
+                    second.join();
+                    executing.join()
                     assertSame(source.cleanup, firstFailure.value!!)
                     assertSame(source.cleanup, secondFailure.value!!)
                     assertTrue(callFailure.value!! is ResourceUseException)
@@ -52,7 +83,8 @@ private class HttpClientCloseFailureTest {
                     assertTrue(client.isClosed && source.buffer!!.isClosed)
                     assertEquals(1L, source.closes)
                     client.close()
-                    done.signal(); serving.join()
+                    done.signal();
+                    serving.join()
                     assertFalse(scope.job.isCancelled)
                 }
             }

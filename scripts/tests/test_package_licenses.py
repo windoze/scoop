@@ -18,6 +18,9 @@ class ExampleLicenseTests(unittest.TestCase):
             root = Path(temporary)
             repository = root / "repository"
             (repository / "sysroot/vendor").mkdir(parents=True)
+            uring = repository / "sysroot/vendor/liburing/2.15"
+            uring.mkdir(parents=True)
+            (uring / "COPYING").write_text("liburing license")
             source = root / "llvm-source"
             (source / "llvm").mkdir(parents=True)
             (source / "llvm/LICENSE.TXT").write_text("LLVM license")
@@ -86,6 +89,7 @@ class ExampleLicenseTests(unittest.TestCase):
                     [repository, repository / "tooling/scoop-example"],
                 )
             licenses = installation / "share/licenses"
+            self.assertEqual((licenses / "liburing/COPYING").read_text(), "liburing license")
             for name in ("shared", "main-only", "example-only"):
                 self.assertEqual(
                     (licenses / f"{name}-1.0.0/LICENSE").read_text(), f"{name} license"

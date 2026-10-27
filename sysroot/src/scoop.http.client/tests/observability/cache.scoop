@@ -10,29 +10,62 @@ import scoop.tls.TlsTrustSource
 private class HttpRequestObservationCacheTest {
     @Test
     fun `a cached response does not claim network submission or receipt timestamps`() {
-        clientTestTrust().use { trust ->
-            LibuvEventLoop().run suspend { scope ->
-                clientTestListen(currentEventLoop()).useAsync suspend { listener ->
-                    val serving = scope.launch suspend {
-                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
-                            connection.receiveRequest()!!.body.readAllBytes(0L)
-                            connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U,
-                                fields = [HttpField("Cache-Control".toByteArray(), "max-age=600".toByteArray())]),
-                                Http1BodyFraming.Length(2L)).useAsync suspend { output ->
-                                writeBodyText(output, "ok")
-                                output.finish()
+        clientTestTrust().use {
+            trust -> PlatformEventLoop().run suspend {
+                scope -> clientTestListen(currentEventLoop()).useAsync suspend {
+                    listener ->
+                    val serving =
+                        scope.launch suspend {
+                            AsyncHttp1Connection.takeOwnershipAsServer(
+                                listener.accept(),
+                                scope
+                            ).useAsync suspend {
+                                connection ->
+                                connection.receiveRequest()!!.body.readAllBytes(0L)
+                                connection.sendResponse(
+                                    HttpResponseHead(
+                                        HttpVersion.Http11,
+                                        200U,
+                                        fields =
+                                            [
+                                                HttpField(
+                                                    "Cache-Control".toByteArray(),
+                                                    "max-age=600".toByteArray()
+                                                )
+                                            ]
+                                    ),
+                                    Http1BodyFraming.Length(2L)
+                                ).useAsync suspend {
+                                    output ->
+                                    writeBodyText(output, "ok")
+                                    output.finish()
+                                }
                             }
                         }
-                    }
-                    val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
-                        cache = Some(HttpCacheOptions(MemoryHttpCache())))
-                    withHttpClient(config) suspend { client ->
+                    val config =
+                        HttpClientConfig(
+                            tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                            cache = Some(HttpCacheOptions(MemoryHttpCache()))
+                        )
+                    withHttpClient(config) suspend {
+                        client ->
                         val url = clientTestUrl(listener)
-                        client.withResponse(HttpRequest.get(url)) suspend { response -> assertEquals("ok", response.body.text(16L)) }
+                        client.withResponse(HttpRequest.get(url)) suspend {
+                            response -> assertEquals("ok", response.body.text(16L))
+                        }
                         serving.join()
                         val log = RequestObservationLog()
-                        client.withResponse(HttpRequest.get(url, options = HttpCallOptions(
-                            cacheMode = HttpCacheMode.OnlyIfCached, observer = Some(log.observer)))) suspend { response ->
+                        client.withResponse(
+                            HttpRequest.get(
+                                url,
+                                options =
+                                    HttpCallOptions(
+                                        cacheMode = HttpCacheMode.OnlyIfCached,
+                                        observer = Some(log.observer)
+                                    )
+                            )
+                        ) suspend {
+                            response ->
                             assertEquals("ok", response.body.text(16L))
                             assertTrue(response.cacheStatus == HttpCacheStatus.Hit)
                         }

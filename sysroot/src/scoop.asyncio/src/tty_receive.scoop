@@ -3,56 +3,109 @@ package scoop.asyncio
 import scoop.platform.memory.NativeByteBuffer
 import scoop.time.Duration
 
-private class TtyReadProgress { var count: Long = 0L }
+private class TtyReadProgress {
+    var count: Long = 0L
+}
 
-internal suspend fun receiveTty(tty: TtyEndpoint, buffer: NativeByteBuffer, count: Long, timeout: Duration?): TtyRead {
+internal suspend fun receiveTty(
+    tty: TtyEndpoint,
+    buffer: NativeByteBuffer,
+    count: Long,
+    timeout: Duration?
+): TtyRead {
     val owner = tty.owner
     val job = owner.loop.requireJob()
-    if (timeout != None && timeout!! < Duration.ZERO) throw IllegalArgumentException(Some("negative TTY timeout"))
+    if (timeout != None && timeout!! < Duration.ZERO)
+        throw IllegalArgumentException(Some("negative TTY timeout"))
     val reservation = owner.reserve(false)
     try {
         val borrowed = borrowTty(buffer, count, false)
         val progress = TtyReadProgress()
         try {
-            if (count == 0L) return TtyRead.Bytes(0L)
+            if (count == 0L)
+                return TtyRead.Bytes(0L)
             when (tty.pendingResize) {
-                case Some(value) -> { tty.pendingResize = None; return value }
+                case Some(value) -> {
+                    tty.pendingResize = None;
+                    return value
+                }
                 case None -> {}
             }
-            return suspendCoroutine<TtyRead> { continuation ->
-                val operation = LoopOperation(owner.loop.state, owner.loop.state.nextOperation(),
-                    { _, id -> @Unsafe {
-                        return@LoopOperation nativeStatus(id, nativeTtyReceive(owner.pointer, id, borrowed.pointer(), count,
-                            if (timeout == None) -1L else timeout!!.floorSeconds,
-                            if (timeout == None) 0 else timeout!!.nanosecondsOfSecond))
-                    } },
-                    { _, id -> @Unsafe { nativeTtyCancelRead(owner.pointer, id) } },
-                    { event, selected ->
-                        progress.count = resultProgress(event.result)
-                        val failure = completionFailure("TTY receive", event.result, selected)
-                        when (failure) {
-                            case Some(error) -> {
-                                when (event.result) {
-                                    case IoResult.TtyResize(columns, rows) -> tty.pendingResize = Some(TtyRead.Resize(columns, rows))
-                                    case _ -> {}
-                                }
-                                continuation.resumeWithException(error)
+            return suspendCoroutine<TtyRead> {
+                continuation ->
+                val operation =
+                    LoopOperation(
+                        owner.loop,
+                        owner.loop.nextOperation(),
+                        {
+                            _,
+                            id -> @Unsafe
+                            {
+                                return@LoopOperation nativeStatus(
+                                    id,
+                                    nativeTtyReceive(
+                                        owner.pointer,
+                                        id,
+                                        borrowed.pointer(),
+                                        count,
+                                        if (timeout == None)
+                                            -1L
+                                        else
+                                            timeout!!.floorSeconds,
+                                        if (timeout == None)
+                                            0
+                                        else
+                                            timeout!!.nanosecondsOfSecond
+                                    )
+                                )
                             }
-                            case None -> continuation.resume(ttyReadResult(event.result))
+                        },
+                        {
+                            _,
+                            id -> @Unsafe
+                            {
+                                nativeTtyCancelRead(owner.pointer, id)
+                            }
+                        },
+                        {
+                            event, selected ->
+                            progress.count = resultProgress(event.result)
+                            val failure = completionFailure("TTY receive", event.result, selected)
+                            when (failure) {
+                                case Some(error) -> {
+                                    when (event.result) {
+                                        case IoResult.TtyResize(
+                                            columns,
+                                            rows
+                                        ) -> tty.pendingResize = Some(TtyRead.Resize(columns, rows))
+                                        case _ -> {}
+                                    }
+                                    continuation.resumeWithException(error)
+                                }
+                                case None -> continuation.resume(ttyReadResult(event.result))
+                            }
                         }
-                    })
+                    )
                 operation.subscribe(job)
                 owner.attach(operation, false)
-                owner.loop.state.submit(operation)
+                owner.loop.submit(operation)
             }
-        } finally { @Unsafe { borrowed.complete(progress.count) } }
-    } finally { reservation.dispose() }
+        } finally {
+            @Unsafe
+            {
+                borrowed.complete(progress.count)
+            }
+        }
+    } finally {
+        reservation.dispose()
+    }
 }
 
-private fun ttyReadResult(result: IoResult): TtyRead = when (result) {
-    case Bytes(count) -> TtyRead.Bytes(count)
-    case TtyResize(columns, rows) -> TtyRead.Resize(columns, rows)
-    case Eof -> TtyRead.End
-    case TtyTimeout -> TtyRead.TimedOut
-    case _ -> throw IllegalStateException(Some("TTY receive returned no input result"))
-}
+private fun ttyReadResult(result: IoResult): TtyRead =
+    when (result) {
+        case Bytes(count) -> TtyRead.Bytes(count)
+        case TtyResize(columns, rows) -> TtyRead.Resize(columns, rows)
+        case Eof -> TtyRead.End
+        case TtyTimeout -> TtyRead.TimedOut
+        case _ -> throw IllegalStateException(Some("TTY receive returned no input result"))
+    }

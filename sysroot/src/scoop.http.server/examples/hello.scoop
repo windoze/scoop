@@ -5,11 +5,12 @@ import scoop.asyncio.*
 import scoop.http.server.*
 
 fun main() {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
-        HttpServer.listen(scope) { routes ->
-            routes.get("/", suspend { _ -> text("Hello, Scoop!") })
-        }.useAsync suspend { server ->
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope -> HttpServer.listen(scope) {
+            routes -> routes.get("/", suspend { _ -> text("Hello, Scoop!") })
+        }.useAsync suspend {
+            server ->
             println("Listening at http://" + server.localAddress.toString())
             server.awaitTermination()
         }

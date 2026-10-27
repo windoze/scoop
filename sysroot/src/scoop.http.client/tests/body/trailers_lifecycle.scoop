@@ -11,26 +11,32 @@ private class RequestBodyTrailersLifecycleTest {
         val source = BodyTestSource("body".toByteArray())
         source.holdClose = true
         val delivered = AtomicBoolean(false)
-        val body = RequestBody.fromProducerWithTrailers(["X-End"]) suspend { output ->
-            source.useAsync suspend { input ->
-                input.copyTo(output)
-                [HttpField("X-End".toByteArray(), "done".toByteArray())]
+        val body =
+            RequestBody.fromProducerWithTrailers(["X-End"]) suspend {
+                output -> source.useAsync suspend {
+                    input ->
+                    input.copyTo(output)
+                    [HttpField("X-End".toByteArray(), "done".toByteArray())]
+                }
             }
-        }
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val output = BodyTestSink()
-            val sending = scope.launch suspend {
-                body.writeWithTrailersTo(output)
-                delivered.store(true)
-            }
+            val sending =
+                scope.launch suspend {
+                    body.writeWithTrailersTo(output)
+                    delivered.store(true)
+                }
             source.closeStarted.await()
             try {
                 sending.cancel()
                 assertFalse(sending.isCompleted)
                 assertEquals("body", String.fromUtf8(output.bytes.toByteArray()))
                 gcCollect()
-            } finally { source.closeRelease.signal() }
+            } finally {
+                source.closeRelease.signal()
+            }
             sending.join()
             assertTrue(sending.isCancelled)
             assertFalse(delivered.load())

@@ -1,30 +1,55 @@
 package scoop.asyncio
 
-internal fun <T> finishEndpointCreation(loop: LibuvEventLoop, kind: EndpointKind, result: IoResult, selected: Throwable?,
-    continuation: Continuation<T>, make: (OwnedEndpoint) -> T) {
+internal fun <T> finishEndpointCreation(
+    loop: LoopOwner,
+    kind: EndpointKind,
+    result: IoResult,
+    selected: Throwable?,
+    continuation: Continuation<T>,
+    make: (OwnedEndpoint) -> T
+) {
     when (result) {
         case Created(pointer) -> {
             val owner = OwnedEndpoint(loop, pointer, kind)
-            loop.state.retain(owner)
+            loop.retain(owner)
             when (selected) {
-                case Some(error) -> { failEndpointCreation(owner, error, continuation); return }
+                case Some(error) -> {
+                    failEndpointCreation(owner, error, continuation);
+                    return
+                }
                 case None -> {}
             }
-            val value = try { make(owner) }
-            catch (error: Throwable) { failEndpointCreation(owner, error, continuation); return }
+            val value =
+                try {
+                    make(owner)
+                }
+                catch (error: Throwable) {
+                    failEndpointCreation(owner, error, continuation);
+                    return
+                }
             continuation.resume(value)
         }
         case _ -> {
-            val error = completionFailure("I/O endpoint create", result, selected)
-                ?: IllegalStateException(Some("I/O endpoint creation returned no resource"))
+            val error =
+                completionFailure("I/O endpoint create", result, selected) ?:
+                    IllegalStateException(Some("I/O endpoint creation returned no resource"))
             continuation.resumeWithException(error)
         }
     }
 }
 
-private fun <T> failEndpointCreation(owner: OwnedEndpoint, error: Throwable, continuation: Continuation<T>) {
-    owner.closeOnLoop { cleanup ->
-        val reported = when (cleanup) { case Some(value) -> ResourceUseException(error, value); case None -> error }
+private fun <T> failEndpointCreation(
+    owner: OwnedEndpoint,
+    error: Throwable,
+    continuation: Continuation<T>
+) {
+    owner.closeOnLoop {
+        cleanup ->
+        val reported =
+            when (cleanup) {
+                case Some(value) -> ResourceUseException(error, value);
+                case None -> error
+            }
         continuation.resumeWithException(reported)
     }
 }

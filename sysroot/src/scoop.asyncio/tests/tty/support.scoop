@@ -1,0 +1,74 @@
+package scoop.asyncio
+
+import scoop.test.*
+
+internal class TestTerminal: Disposable {
+    private val pointer: Ptr<Unit> = openTestTerminal()
+    fun send(value: Int) {
+        @Unsafe
+        {
+            assertEquals(0, nativeTestSend(pointer, value))
+        }
+    }
+    fun receive(): Int {
+        @Unsafe
+        {
+            return nativeTestReceive(pointer)
+        }
+    }
+    fun resize(columns: Int, rows: Int) {
+        @Unsafe
+        {
+            assertEquals(0, nativeTestResize(pointer, columns, rows))
+        }
+    }
+    fun endInput() {
+        @Unsafe
+        {
+            assertEquals(0, nativeTestEnd(pointer))
+        }
+    }
+    fun restored(): Boolean {
+        @Unsafe
+        {
+            return nativeTestRestored(pointer)
+        }
+    }
+    public override fun dispose() {
+        @Unsafe
+        {
+            nativeTestClose(pointer)
+        }
+    }
+}
+
+private fun openTestTerminal(): Ptr<Unit> {
+    @Unsafe
+    {
+        val created = nativeTestOpen()
+        if (created.status < 0)
+            throw backendFailure("test PTY open", created.status)
+        return created.pointer!!
+    }
+}
+
+@Extern(name = "scoop_test_tty_create")
+private fun nativeTestOpen(): NativeCreated
+
+@Extern(name = "scoop_test_tty_send")
+private fun nativeTestSend(terminal: Ptr<Unit>, value: Int): Int
+
+@Extern(name = "scoop_test_tty_receive")
+private fun nativeTestReceive(terminal: Ptr<Unit>): Int
+
+@Extern(name = "scoop_test_tty_resize")
+private fun nativeTestResize(terminal: Ptr<Unit>, columns: Int, rows: Int): Int
+
+@Extern(name = "scoop_test_tty_end_input")
+private fun nativeTestEnd(terminal: Ptr<Unit>): Int
+
+@Extern(name = "scoop_test_tty_restored")
+private fun nativeTestRestored(terminal: Ptr<Unit>): Boolean
+
+@Extern(name = "scoop_test_tty_close")
+private fun nativeTestClose(terminal: Ptr<Unit>)

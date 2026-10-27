@@ -10,9 +10,13 @@ private class AsyncSocks5LifecycleTest {
     fun `handshake cancellation waits for an actual native borrow before closing`() {
         val script = Socks5Script(socks5SuccessInput())
         script.holdRead = true
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
-            val opening = scope.launch suspend { AsyncSocks5Tunnel.takeOwnership(script, socks5IpTarget()).close() }
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
+            val opening =
+                scope.launch suspend {
+                    AsyncSocks5Tunnel.takeOwnership(script, socks5IpTarget()).close()
+                }
             script.readStarted.await()
             try {
                 opening.cancel()
@@ -20,7 +24,9 @@ private class AsyncSocks5LifecycleTest {
                 assertEquals(0L, script.closes)
                 assertFailsWith<IllegalStateException> { script.heldBuffer!!.close() }
                 gcCollect()
-            } finally { script.readRelease.signal() }
+            } finally {
+                script.readRelease.signal()
+            }
             opening.join()
             assertTrue(opening.isCancelled)
             assertTrue(script.closed)
@@ -35,18 +41,27 @@ private class AsyncSocks5LifecycleTest {
         val script = Socks5Script([4, 0])
         script.holdClose = true
         val reported = AtomicBoolean(false)
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
-            val opening = scope.launch suspend {
-                try { AsyncSocks5Tunnel.takeOwnership(script, socks5IpTarget()); fail() }
-                catch (_: Socks5Exception) { reported.store(true) }
-            }
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
+            val opening =
+                scope.launch suspend {
+                    try {
+                        AsyncSocks5Tunnel.takeOwnership(script, socks5IpTarget());
+                        fail()
+                    }
+                    catch (_: Socks5Exception) {
+                        reported.store(true)
+                    }
+                }
             script.closeStarted.await()
             try {
                 assertFalse(opening.isCompleted)
                 assertFalse(reported.load())
                 gcCollect()
-            } finally { script.closeRelease.signal() }
+            } finally {
+                script.closeRelease.signal()
+            }
             opening.join()
             assertTrue(reported.load())
             assertTrue(script.closed)
@@ -57,11 +72,16 @@ private class AsyncSocks5LifecycleTest {
 
     @Test
     fun `a real pending reply cancels and closes the TCP transport before returning`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
-            val (_, client, peer) = tcpPair(loop, scope)
-            val opening = scope.launch suspend { AsyncSocks5Tunnel.takeOwnership(client, socks5IpTarget()).close() }
-            NativeByteBuffer.allocate(3L).use suspend { bytes ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
+            val(_, client, peer) = tcpPair(loop, scope)
+            val opening =
+                scope.launch suspend {
+                    AsyncSocks5Tunnel.takeOwnership(client, socks5IpTarget()).close()
+                }
+            NativeByteBuffer.allocate(3L).use suspend {
+                bytes ->
                 peer.readFully(bytes)
                 assertSocks5Bytes([5, 1, 0], bytes.readBytes(3L))
                 opening.cancel()
@@ -76,22 +96,29 @@ private class AsyncSocks5LifecycleTest {
 
     @Test
     fun `coalesced tunnel data remains intact and concurrent close drains a pending read`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
-            val (_, client, peer) = tcpPair(loop, scope)
-            val opening = scope.async<AsyncSocks5Tunnel> suspend {
-                AsyncSocks5Tunnel.takeOwnership(client, socks5IpTarget())
-            }
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
+            val(_, client, peer) = tcpPair(loop, scope)
+            val opening =
+                scope.async<AsyncSocks5Tunnel> suspend {
+                    AsyncSocks5Tunnel.takeOwnership(client, socks5IpTarget())
+                }
             serveSocks5Ip(peer, [42, 73])
             val tunnel = opening.await()
-            NativeByteBuffer.allocate(2L).use suspend { bytes ->
+            NativeByteBuffer.allocate(2L).use suspend {
+                bytes ->
                 tunnel.readFully(bytes)
                 assertSocks5Bytes([42, 73], bytes.readBytes(2L))
                 bytes.clear()
-                val reading = scope.launch suspend {
-                    try { tunnel.readInto(bytes, 1L); fail() }
-                    catch (_: IoClosedException) {}
-                }
+                val reading =
+                    scope.launch suspend {
+                        try {
+                            tunnel.readInto(bytes, 1L);
+                            fail()
+                        }
+                        catch (_: IoClosedException) {}
+                    }
                 loop.sleep(Duration.nanoseconds(1L))
                 assertFailsWith<IllegalStateException> { bytes.clear() }
                 val first = scope.launch suspend { tunnel.close() }
@@ -110,18 +137,27 @@ private class AsyncSocks5LifecycleTest {
     @Test
     fun `loop ownership is checked and cancelled finally can close a returned tunnel`() {
         val script = Socks5Script(socks5SuccessInput())
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val tunnel = AsyncSocks5Tunnel.takeOwnership(script, socks5IpTarget())
-            val foreign: EventLoop = LibuvEventLoop()
+            val foreign: EventLoop = PlatformEventLoop()
             context(foreign) {
-                try { tunnel.flush(); fail() }
+                try {
+                    tunnel.flush();
+                    fail()
+                }
                 catch (_: IllegalStateException) {}
             }
-            val child = scope.launch suspend {
-                try { loop.sleep(Duration.seconds(1000000L)) }
-                finally { tunnel.close() }
-            }
+            val child =
+                scope.launch suspend {
+                    try {
+                        loop.sleep(Duration.seconds(1000000L))
+                    }
+                    finally {
+                        tunnel.close()
+                    }
+                }
             loop.sleep(Duration.nanoseconds(1L))
             child.cancel()
             child.join()

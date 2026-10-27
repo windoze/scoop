@@ -10,36 +10,64 @@ import scoop.time.Duration
 private class HttpClientIdleCancellationCleanupTest {
     @Test
     fun `cancelled idle response keeps the actual owned source cleanup failure`() {
-        clientTestTrust().use { trust ->
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { scope ->
-                clientTestListen(loop).useAsync suspend { listener ->
+        clientTestTrust().use {
+            trust ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                scope -> clientTestListen(loop).useAsync suspend {
+                    listener ->
                     val source = BodyTestSource("late".toByteArray())
-                    source.holdRead = true; source.holdClose = true; source.failClose = true
+                    source.holdRead = true;
+                    source.holdClose = true;
+                    source.failClose = true
                     val entered = BodyTestGate()
                     val release = BodyTestGate()
-                    val server = scope.launch suspend {
-                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
-                            connection.receiveRequest()
-                            source.started.await()
-                            connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 413U), Http1BodyFraming.Length(5L)).useAsync suspend { output ->
-                                output.flush(); release.await()
+                    val server =
+                        scope.launch suspend {
+                            AsyncHttp1Connection.takeOwnershipAsServer(
+                                listener.accept(),
+                                scope
+                            ).useAsync suspend {
+                                connection ->
+                                connection.receiveRequest()
+                                source.started.await()
+                                connection.sendResponse(
+                                    HttpResponseHead(HttpVersion.Http11, 413U),
+                                    Http1BodyFraming.Length(5L)
+                                ).useAsync suspend {
+                                    output ->
+                                    output.flush();
+                                    release.await()
+                                }
                             }
                         }
-                    }
-                    withHttpClient(clientTestConfig(trust)) suspend { client ->
+                    withHttpClient(clientTestConfig(trust)) suspend {
+                        client ->
                         val failure = ClientTestFailureHolder()
-                        val calling = scope.launch suspend {
-                            try {
-                                client.withResponse(HttpRequest.post(clientTestUrl(listener), RequestBody.fromSourceFactory suspend { source })) suspend { _ ->
-                                    entered.signal(); loop.sleep(Duration.seconds(60L))
+                        val calling =
+                            scope.launch suspend {
+                                try {
+                                    client.withResponse(
+                                        HttpRequest.post(
+                                            clientTestUrl(listener),
+                                            RequestBody.fromSourceFactory suspend { source }
+                                        )
+                                    ) suspend {
+                                        _ ->
+                                        entered.signal();
+                                        loop.sleep(Duration.seconds(60L))
+                                    }
+                                } catch (error: Throwable) {
+                                    failure.value = Some(error)
                                 }
-                            } catch (error: Throwable) { failure.value = Some(error) }
-                        }
-                        entered.await(); calling.cancel(); source.release.signal()
+                            }
+                        entered.await();
+                        calling.cancel();
+                        source.release.signal()
                         source.closeStarted.await()
                         assertFalse(calling.isCompleted)
-                        source.closeRelease.signal(); calling.join()
+                        source.closeRelease.signal();
+                        calling.join()
                         val error = failure.value!!
                         assertTrue(error is ResourceUseException)
                         if (error is ResourceUseException) {
@@ -48,7 +76,8 @@ private class HttpClientIdleCancellationCleanupTest {
                         }
                         assertEquals(1L, source.closes)
                     }
-                    release.signal(); server.join()
+                    release.signal();
+                    server.join()
                 }
             }
         }

@@ -6,6 +6,24 @@ name = "scoop.asyncio"
 version = "0.1.0"
 kind = "library"
 
+[[sources]]
+path = "src"
+
+[[sources]]
+path = "platform/darwin"
+when = { os = "darwin" }
+
+[[test.sources]]
+path = "tests"
+
+[[test.sources]]
+path = "test-platform/darwin"
+when = { os = "darwin" }
+
+[[test.sources]]
+path = "test-platform/linux"
+when = { os = "linux" }
+
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
 "scoop:scoop.std" = "0.1.0"
@@ -17,225 +35,151 @@ kind = "library"
 "scoop.tests:asyncio-native" = { version = "0.1.0", path = "test-native" }
 
 [native]
-include = ["../../vendor/libuv/include", "../../vendor/libuv/src"]
-c_flags = ["-std=c11", "-Wall", "-Wextra", "-Wno-unused-parameter", "-fno-strict-aliasing", "-include", "native/config.h"]
+include = [
+    { path = "native/linux/config/gnu", when = { env = "gnu" } },
+    { path = "native/linux/config/musl", when = { env = "musl" } },
+    { path = "../../vendor/liburing/2.15/src/include", when = { os = "linux" } },
+]
+c_flags = ["-std=c11", "-Wall", "-Wextra", "-Wno-unused-parameter", "-fno-strict-aliasing", "-DLIBURING_INTERNAL", "-include", "native/config.h"]
 
 [[native.sources]]
-path = "native/loop.c"
+path = "native/common/deadline.c"
 
 [[native.sources]]
-path = "native/timer.c"
+path = "native/common/directory.c"
 
 [[native.sources]]
-path = "native/work.c"
+path = "native/common/directory_next.c"
 
 [[native.sources]]
-path = "native/native_work.c"
+path = "native/common/file_control.c"
 
 [[native.sources]]
-path = "native/file_open.c"
-
-[[native.sources]]
-path = "native/file_io.c"
-
-[[native.sources]]
-path = "native/file_metadata.c"
-
-[[native.sources]]
-path = "native/file_temporary.c"
-
-[[native.sources]]
-path = "native/paths.c"
-
-[[native.sources]]
-path = "native/directory.c"
-
-[[native.sources]]
-path = "native/directory_next.c"
-
-[[native.sources]]
-path = "native/resolve.c"
-
-[[native.sources]]
-path = "native/tcp.c"
-
-[[native.sources]]
-path = "native/tcp_connect.c"
-
-[[native.sources]]
-path = "native/tcp_accept.c"
-
-[[native.sources]]
-path = "native/tcp_read.c"
-
-[[native.sources]]
-path = "native/tcp_write.c"
-
-[[native.sources]]
-path = "native/udp.c"
-
-[[native.sources]]
-path = "native/udp_receive.c"
-
-[[native.sources]]
-path = "native/udp_send.c"
-
-[[native.sources]]
-path = "native/tty.c"
-[[native.sources]]
-path = "native/tty_open.c"
-[[native.sources]]
-path = "native/tty_poll.c"
-[[native.sources]]
-path = "native/tty_read.c"
-[[native.sources]]
-path = "native/tty_write.c"
-[[native.sources]]
-path = "native/tty_timer.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/fs-poll.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/idna.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/inet.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/random.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/strscpy.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/strtok.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/thread-common.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/threadpool.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/timer.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/uv-common.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/uv-data-getter-setters.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/version.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/unix/async.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/unix/core.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/unix/dl.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/unix/fs.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/unix/getaddrinfo.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/unix/getnameinfo.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/unix/loop-watcher.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/unix/loop.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/unix/pipe.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/unix/poll.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/unix/process.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/unix/random-devurandom.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/unix/signal.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/unix/stream.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/unix/tcp.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/unix/thread.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/unix/tty.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/unix/udp.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/unix/proctitle.c"
-
-[[native.sources]]
-path = "../../vendor/libuv/src/unix/bsd-ifaddrs.c"
+path = "native/common/file_io.c"
 when = { os = "darwin" }
 
 [[native.sources]]
-path = "../../vendor/libuv/src/unix/kqueue.c"
+path = "native/common/file_metadata.c"
+
+[[native.sources]]
+path = "native/common/file_open.c"
+
+[[native.sources]]
+path = "native/common/file_temporary.c"
+
+[[native.sources]]
+path = "native/common/native_work.c"
+
+[[native.sources]]
+path = "native/common/paths.c"
+
+[[native.sources]]
+path = "native/common/resolve.c"
+
+[[native.sources]]
+path = "native/darwin/endpoint.c"
 when = { os = "darwin" }
 
 [[native.sources]]
-path = "../../vendor/libuv/src/unix/random-getentropy.c"
+path = "native/darwin/host.c"
 when = { os = "darwin" }
 
 [[native.sources]]
-path = "../../vendor/libuv/src/unix/darwin-proctitle.c"
+path = "native/darwin/loop.c"
 when = { os = "darwin" }
 
 [[native.sources]]
-path = "../../vendor/libuv/src/unix/darwin.c"
+path = "native/darwin/request.c"
 when = { os = "darwin" }
 
 [[native.sources]]
-path = "../../vendor/libuv/src/unix/fsevents.c"
+path = "native/darwin/socket_create.c"
 when = { os = "darwin" }
 
 [[native.sources]]
-path = "../../vendor/libuv/src/unix/linux.c"
+path = "native/darwin/socket_io.c"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "native/darwin/timer.c"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "native/darwin/tty.c"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "native/darwin/tty_io.c"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "native/darwin/wait.c"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "native/darwin/work.c"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "native/linux/endpoint.c"
 when = { os = "linux" }
 
 [[native.sources]]
-path = "../../vendor/libuv/src/unix/procfs-exepath.c"
+path = "native/linux/file_io.c"
 when = { os = "linux" }
 
 [[native.sources]]
-path = "../../vendor/libuv/src/unix/random-getrandom.c"
+path = "native/linux/loop.c"
 when = { os = "linux" }
 
 [[native.sources]]
-path = "../../vendor/libuv/src/unix/random-sysctl-linux.c"
+path = "native/linux/request.c"
 when = { os = "linux" }
 
-[[native.libraries]]
-name = "pthread"
-
-[[native.libraries]]
-name = "m"
-
-[[native.libraries]]
-name = "dl"
+[[native.sources]]
+path = "native/linux/ring.c"
 when = { os = "linux" }
 
-[[native.libraries]]
-name = "rt"
+[[native.sources]]
+path = "native/linux/socket_create.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/socket_io.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/timer.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/tty.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/tty_io.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/work.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "../../vendor/liburing/2.15/src/setup.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "../../vendor/liburing/2.15/src/queue.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "../../vendor/liburing/2.15/src/register.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "../../vendor/liburing/2.15/src/syscall.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "../../vendor/liburing/2.15/src/version.c"
 when = { os = "linux" }

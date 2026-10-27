@@ -230,13 +230,10 @@ def assemble(root, targets, binaries, args, release, extension):
         f"{package['name']} = {json.dumps(release[package['name']])}"
         for package in COMPRESSION_PACKAGES
     ]
-    uv = (sysroot / "vendor/libuv/include/uv/version.h").read_text()
-    uv_version = ".".join(
-        re.search(rf"#define UV_VERSION_{part}\s+(\d+)", uv)[1]
-        for part in ("MAJOR", "MINOR", "PATCH")
-    )
+    uring = (sysroot / "vendor/liburing/2.15/liburing.spec").read_text()
+    uring_version = re.search(r"^Version:\s+(\S+)", uring, re.MULTILINE)[1]
     manifest += [
-        f"libuv = {json.dumps(uv_version)}",
+        f"liburing = {json.dumps(uring_version)}",
         "ryu_revision = "
         + json.dumps(
             re.search(

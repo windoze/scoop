@@ -7,7 +7,7 @@ import scoop.platform.memory.NativeByteBuffer
  * An owned connected TCP byte stream with independent input and output and explicit output
  * half-close.
  */
-public interface AsyncTcpStream : AsyncByteStream, AsyncCloseable {
+public interface AsyncTcpStream: AsyncByteStream, AsyncCloseable {
     /**
      * The local endpoint of the established connection.
      */
@@ -22,10 +22,15 @@ public interface AsyncTcpStream : AsyncByteStream, AsyncCloseable {
     public suspend fun shutdownOutput()
 }
 
-private class ShutdownProgress { var submitted: Boolean = false }
+private class ShutdownProgress {
+    var submitted: Boolean = false
+}
 
-internal class TcpStream(private val owner: OwnedEndpoint,
-    public override val localAddress: SocketAddress, public override val peerAddress: SocketAddress) : AsyncTcpStream {
+internal class TcpStream(
+    internal val owner: OwnedEndpoint,
+    public override val localAddress: SocketAddress,
+    public override val peerAddress: SocketAddress
+): AsyncTcpStream {
     public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long =
         transferTcp(owner, buffer, count, false)
 
@@ -42,40 +47,66 @@ internal class TcpStream(private val owner: OwnedEndpoint,
         val reservation = owner.reserve(true)
         val progress = ShutdownProgress()
         try {
-            suspendCoroutine<Unit> { continuation ->
-                val operation = LoopOperation(owner.loop.state, owner.loop.state.nextOperation(),
-                    { _, id -> @Unsafe {
-                        val status = nativeTcpShutdown(owner.pointer, id)
-                        if (status >= 0) { progress.submitted = true; owner.markOutputEnded() }
-                        return@LoopOperation nativeStatus(id, status)
-                    } },
-                    { _, _ -> owner.closeOnLoop { _ -> } },
-                    { event, selected ->
-                        val error = completionFailure("TCP shutdown", event.result, selected)
-                        when (selected) {
-                            case Some(_) -> if (progress.submitted) owner.closeOnLoop { _ -> }
-                            case None -> {}
-                        }
-                        if (owner.isClosing) {
-                            reservation.dispose()
-                            owner.closeOnLoop { cleanup ->
-                                val reported: Throwable? = when (cleanup) {
-                                    case Some(value) -> Some(when (error) {
-                                        case Some(primary) -> ResourceUseException(primary, value)
-                                        case None -> value
-                                    })
-                                    case None -> error
+            suspendCoroutine<Unit> {
+                continuation ->
+                val operation =
+                    LoopOperation(
+                        owner.loop,
+                        owner.loop.nextOperation(),
+                        {
+                            _,
+                            id -> @Unsafe
+                            {
+                                val status = nativeTcpShutdown(owner.pointer, id)
+                                if (status >= 0) {
+                                    progress.submitted = true;
+                                    owner.markOutputEnded()
                                 }
-                                finishUnit(continuation, reported)
+                                return@LoopOperation nativeStatus(id, status)
                             }
-                        } else finishUnit(continuation, error)
-                    })
+                        },
+                        { _, _ -> owner.closeOnLoop { _ -> } },
+                        {
+                            event, selected ->
+                            val error = completionFailure("TCP shutdown", event.result, selected)
+                            when (selected) {
+                                case Some(_) -> if (progress.submitted)
+                                    owner.closeOnLoop { _ -> }
+                                case None -> {}
+                            }
+                            if (owner.isClosing) {
+                                reservation.dispose()
+                                owner.closeOnLoop {
+                                    cleanup ->
+                                    val reported: Throwable? =
+                                        when (cleanup) {
+                                            case Some(value) -> Some(
+                                                when (error) {
+                                                    case Some(primary) -> ResourceUseException(
+                                                        primary,
+                                                        value
+                                                    )
+                                                    case None -> value
+                                                }
+                                            )
+                                            case None -> error
+                                        }
+                                    finishUnit(continuation, reported)
+                                }
+                            } else
+                                finishUnit(continuation, error)
+                        }
+                    )
                 operation.subscribe(job)
                 owner.attach(operation, true)
-                owner.loop.state.submit(operation)
+                owner.loop.submit(operation)
             }
-        } finally { reservation.dispose() }
+        } finally {
+            reservation.dispose()
+        }
     }
 
-    public override suspend fun close() { owner.close() }
+    public override suspend fun close() {
+        owner.close()
+    }
 }

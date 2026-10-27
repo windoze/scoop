@@ -10,25 +10,40 @@ import scoop.platform.net.*
 import scoop.url.Url
 
 private fun exerciseConsumer() {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope ->
         val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
         try {
-            val server = scope.launch suspend {
-                listener.accept().useAsync suspend { peer -> serveProxy(peer) }
+            val server =
+                scope.launch suspend {
+                    listener.accept().useAsync suspend { peer -> serveProxy(peer) }
+                }
+            val connection =
+                AsyncHttp1Connection.takeOwnershipAsClient(
+                    loop.connectTcp(listener.localAddress),
+                    scope
+                )
+            try {
+                useProxy(connection)
+            } finally {
+                connection.close()
             }
-            val connection = AsyncHttp1Connection.takeOwnershipAsClient(loop.connectTcp(listener.localAddress), scope)
-            try { useProxy(connection) } finally { connection.close() }
             server.join()
-        } finally { listener.close() }
+        } finally {
+            listener.close()
+        }
     }
-
 }
 
-fun check(value: Boolean) { if (!value) throw IllegalStateException() }
+fun check(value: Boolean) {
+    if (!value)
+        throw IllegalStateException()
+}
 
 private suspend fun useProxy(connection: AsyncHttp1Connection) {
-    val proxy = httpProxyRequest(Url.parse("http://user:secret@BÜCHER.example:8080/a%2fb?q=a+b#fragment"))
+    val proxy =
+        httpProxyRequest(Url.parse("http://user:secret@BÜCHER.example:8080/a%2fb?q=a+b#fragment"))
     connection.sendRequest(proxy).finish()
     val ordinary = connection.receiveResponse()
     check(ordinary.head.status == 200U && bodyText(ordinary.body) == "body")
@@ -37,12 +52,23 @@ private suspend fun useProxy(connection: AsyncHttp1Connection) {
     val denied = connection.receiveResponse()
     check(!httpConnectAccepted(denied.head))
     check(bodyText(denied.body) == "deny")
-    try { connection.takeTransport(); throw IllegalStateException() }
-    catch (_: IllegalStateException) { check(!connection.isClosed) }
-    connection.sendRequest(httpConnectRequest(target, [HttpField("Proxy-Authorization".toByteArray(), "Bearer test".toByteArray(), true)])).finish()
+    try {
+        connection.takeTransport();
+        throw IllegalStateException()
+    }
+    catch (_: IllegalStateException) {
+        check(!connection.isClosed)
+    }
+    connection.sendRequest(
+        httpConnectRequest(
+            target,
+            [HttpField("Proxy-Authorization".toByteArray(), "Bearer test".toByteArray(), true)]
+        )
+    ).finish()
     val accepted = connection.receiveResponse()
     check(httpConnectAccepted(accepted.head) && bodyText(accepted.body) == "")
-    connection.takeTransport().useAsync suspend { tunnel ->
+    connection.takeTransport().useAsync suspend {
+        tunnel ->
         connection.close()
         check(connection.isClosed)
         check(readText(tunnel, 5L) == "early")
@@ -54,25 +80,28 @@ private suspend fun useProxy(connection: AsyncHttp1Connection) {
 
 suspend fun sendText(sink: AsyncByteSink, text: String) {
     val bytes = text.toByteArray()
-    NativeByteBuffer.allocate(bytes.size).use suspend { buffer ->
+    NativeByteBuffer.allocate(bytes.size).use suspend {
+        buffer ->
         buffer.writeBytes(bytes)
         sink.writeFully(buffer)
     }
 }
 
 suspend fun readText(source: AsyncByteSource, count: Long): String =
-    NativeByteBuffer.allocate(count).use suspend { buffer ->
+    NativeByteBuffer.allocate(count).use suspend {
+        buffer ->
         source.readFully(buffer, count)
         String.fromUtf8(buffer.readBytes(count))
     }
 
 private suspend fun bodyText(source: AsyncByteSource): String {
     val bytes = ByteArrayBuilder()
-    NativeByteBuffer.allocate(3L).use suspend { buffer ->
-        while (true) {
+    NativeByteBuffer.allocate(3L).use suspend {
+        buffer -> while (true) {
             buffer.clear()
             val count = source.readInto(buffer, 3L)
-            if (count == 0L) break
+            if (count == 0L)
+                break
             bytes.append(buffer.readBytes(count))
         }
     }
@@ -82,5 +111,7 @@ private suspend fun bodyText(source: AsyncByteSource): String {
 @Test
 private class ConsumerTests {
     @Test
-    fun behavior() { exerciseConsumer() }
+    fun behavior() {
+        exerciseConsumer()
+    }
 }

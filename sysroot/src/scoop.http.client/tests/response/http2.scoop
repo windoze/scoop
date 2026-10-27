@@ -12,51 +12,93 @@ import scoop.tls.TlsTrustSource
 private class HttpClientResponseHttp2Test {
     @Test
     fun `a failed compressed HTTP2 stream preserves concurrent decoding and pooled reuse`() {
-        clientTestTrust().use { trust ->
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { scope ->
-                clientTestListen(loop).useAsync suspend { listener ->
+        clientTestTrust().use {
+            trust ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                scope -> clientTestListen(loop).useAsync suspend {
+                    listener ->
                     val done = BodyTestGate()
-                    val server = scope.launch suspend {
-                        AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
-                            val first = connection.acceptRequest()!!.stream
-                            first.readAllBytes(0L)
-                            first.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U,
-                                fields = [responseTestField("Content-Encoding", "gzip")]), false)
-                            writeResponseTestBytes(first, [0.toByte(), 0.toByte()]); first.finish()
-                            val second = connection.acceptRequest()!!.stream
-                            second.readAllBytes(0L)
-                            second.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U,
-                                fields = [responseTestField("Content-Encoding", "gzip")]), false)
-                            writeResponseTestBytes(second, compress("second 中文".toByteArray(), CompressionOptions.Gzip(GzipOptions())))
-                            second.finish([responseTestField("X-End", "second")])
-                            val third = connection.acceptRequest()!!.stream
-                            assertEquals(5, third.id)
-                            third.readAllBytes(0L)
-                            third.sendResponse(HttpResponseHead(HttpVersion.Http2, 204U))
-                            done.await()
+                    val server =
+                        scope.launch suspend {
+                            AsyncHttp2Connection.takeOwnershipAsServer(
+                                listener.accept(),
+                                scope
+                            ).useAsync suspend {
+                                connection ->
+                                val first = connection.acceptRequest()!!.stream
+                                first.readAllBytes(0L)
+                                first.sendResponse(
+                                    HttpResponseHead(
+                                        HttpVersion.Http2,
+                                        200U,
+                                        fields = [responseTestField("Content-Encoding", "gzip")]
+                                    ),
+                                    false
+                                )
+                                writeResponseTestBytes(first, [0.toByte(), 0.toByte()]);
+                                first.finish()
+                                val second = connection.acceptRequest()!!.stream
+                                second.readAllBytes(0L)
+                                second.sendResponse(
+                                    HttpResponseHead(
+                                        HttpVersion.Http2,
+                                        200U,
+                                        fields = [responseTestField("Content-Encoding", "gzip")]
+                                    ),
+                                    false
+                                )
+                                writeResponseTestBytes(
+                                    second,
+                                    compress(
+                                        "second 中文".toByteArray(),
+                                        CompressionOptions.Gzip(GzipOptions())
+                                    )
+                                )
+                                second.finish([responseTestField("X-End", "second")])
+                                val third = connection.acceptRequest()!!.stream
+                                assertEquals(5, third.id)
+                                third.readAllBytes(0L)
+                                third.sendResponse(HttpResponseHead(HttpVersion.Http2, 204U))
+                                done.await()
+                            }
                         }
-                    }
-                    val config = HttpClientConfig(cleartext = HttpCleartextProtocol.Http2PriorKnowledge,
-                        tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
-                        pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L, maxStreamsPerHttp2 = 2L),
-                        http2Settings = Http2Settings(initialWindowSize = 3U), decoding = HttpDecodingOptions(bufferSize = 2L))
+                    val config =
+                        HttpClientConfig(
+                            cleartext = HttpCleartextProtocol.Http2PriorKnowledge,
+                            tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                            pool =
+                                HttpConnectionPoolOptions(
+                                    maxConnectionsPerOrigin = 1L,
+                                    maxStreamsPerHttp2 = 2L
+                                ),
+                            http2Settings = Http2Settings(initialWindowSize = 3U),
+                            decoding = HttpDecodingOptions(bufferSize = 2L)
+                        )
                     try {
-                        withHttpClient(config) suspend { client ->
+                        withHttpClient(config) suspend {
+                            client ->
                             val first = client.execute(HttpRequest.get(clientTestUrl(listener)))
                             val second = client.execute(HttpRequest.get(clientTestUrl(listener)))
-                            val failure = expectBodyFailure<CompressionException> suspend { first.body.bytes(16L); Unit }
+                            val failure =
+                                expectBodyFailure<CompressionException> suspend {
+                                    first.body.bytes(16L);
+                                    Unit
+                                }
                             assertTrue(failure.kind == CompressionFailureKind.InvalidData)
                             first.close()
                             assertEquals("second 中文", second.body.text(13L))
                             assertEquals("second", String.fromUtf8(second.trailers!![0L].value))
                             second.close()
-                            client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend { response ->
+                            client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend {
+                                response ->
                                 assertEquals(204U, response.status)
                                 assertEquals(0L, response.body.bytes(0L).size)
                             }
                         }
-                    } finally { done.signal() }
+                    } finally {
+                        done.signal()
+                    }
                     server.join()
                     assertFalse(scope.job.isCancelled)
                 }
@@ -66,52 +108,87 @@ private class HttpClientResponseHttp2Test {
 
     @Test
     fun `HTTP2 capacity stays leased until the decoded body reaches its validated end`() {
-        clientTestTrust().use { trust ->
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { scope ->
-                clientTestListen(loop).useAsync suspend { listener ->
+        clientTestTrust().use {
+            trust ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                scope -> clientTestListen(loop).useAsync suspend {
+                    listener ->
                     val sent = BodyTestGate()
                     val done = BodyTestGate()
-                    val server = scope.launch suspend {
-                        AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
-                            val first = connection.acceptRequest()!!.stream
-                            first.readAllBytes(0L)
-                            first.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U,
-                                fields = [responseTestField("Content-Encoding", "gzip")]), false)
-                            writeResponseTestBytes(first, compress("x".toByteArray(), CompressionOptions.Gzip(GzipOptions())))
-                            first.finish([responseTestField("X-End", "yes")]); sent.signal()
-                            val second = connection.acceptRequest()!!.stream
-                            assertEquals(3, second.id)
-                            second.readAllBytes(0L)
-                            second.sendResponse(HttpResponseHead(HttpVersion.Http2, 204U))
-                            done.await()
+                    val server =
+                        scope.launch suspend {
+                            AsyncHttp2Connection.takeOwnershipAsServer(
+                                listener.accept(),
+                                scope
+                            ).useAsync suspend {
+                                connection ->
+                                val first = connection.acceptRequest()!!.stream
+                                first.readAllBytes(0L)
+                                first.sendResponse(
+                                    HttpResponseHead(
+                                        HttpVersion.Http2,
+                                        200U,
+                                        fields = [responseTestField("Content-Encoding", "gzip")]
+                                    ),
+                                    false
+                                )
+                                writeResponseTestBytes(
+                                    first,
+                                    compress(
+                                        "x".toByteArray(),
+                                        CompressionOptions.Gzip(GzipOptions())
+                                    )
+                                )
+                                first.finish([responseTestField("X-End", "yes")]);
+                                sent.signal()
+                                val second = connection.acceptRequest()!!.stream
+                                assertEquals(3, second.id)
+                                second.readAllBytes(0L)
+                                second.sendResponse(HttpResponseHead(HttpVersion.Http2, 204U))
+                                done.await()
+                            }
                         }
-                    }
-                    val config = HttpClientConfig(cleartext = HttpCleartextProtocol.Http2PriorKnowledge,
-                        tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
-                        pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L, maxStreamsPerHttp2 = 1L))
+                    val config =
+                        HttpClientConfig(
+                            cleartext = HttpCleartextProtocol.Http2PriorKnowledge,
+                            tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                            pool =
+                                HttpConnectionPoolOptions(
+                                    maxConnectionsPerOrigin = 1L,
+                                    maxStreamsPerHttp2 = 1L
+                                )
+                        )
                     try {
-                        withHttpClient(config) suspend { client ->
+                        withHttpClient(config) suspend {
+                            client ->
                             val first = client.execute(HttpRequest.get(clientTestUrl(listener)))
-                            NativeByteBuffer.allocate(1L).use suspend { buffer ->
+                            NativeByteBuffer.allocate(1L).use suspend {
+                                buffer ->
                                 first.body.readFully(buffer)
                                 assertEquals(120.toByte(), buffer.readByte())
                             }
                             sent.await()
-                            val next = scope.async suspend {
-                                client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend { response ->
-                                    assertEquals(204U, response.status)
-                                    response.body.bytes(0L)
-                                    Unit
+                            val next =
+                                scope.async suspend {
+                                    client.withResponse(
+                                        HttpRequest.get(clientTestUrl(listener))
+                                    ) suspend {
+                                        response ->
+                                        assertEquals(204U, response.status)
+                                        response.body.bytes(0L)
+                                        Unit
+                                    }
                                 }
-                            }
                             assertFalse(first.body.isComplete || next.isCompleted)
                             assertEquals(0L, first.body.bytes(0L).size)
                             assertEquals("yes", String.fromUtf8(first.trailers!![0L].value))
                             first.close()
                             next.await()
                         }
-                    } finally { done.signal() }
+                    } finally {
+                        done.signal()
+                    }
                     server.join()
                 }
             }

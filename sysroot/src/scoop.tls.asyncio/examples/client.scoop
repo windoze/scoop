@@ -15,12 +15,22 @@ fun main(args: Array<String>): Int {
         println("Usage: client CA.pem [PORT]")
         return 2
     }
-    val port = if (args.size > 2L) args[2L].toInt() else 8444
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { _ ->
-        openTlsClientContext(Path.fromString(args[1L])).use suspend { context ->
+    val port =
+        if (args.size > 2L)
+            args[2L].toInt()
+        else
+            8444
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        _ -> openTlsClientContext(Path.fromString(args[1L])).use suspend {
+            context ->
             val transport = loop.connectTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, port))
-            AsyncTlsStream.takeOwnershipAsClient(transport, context, TlsPeerName.Dns("localhost")).useAsync suspend { stream ->
+            AsyncTlsStream.takeOwnershipAsClient(
+                transport,
+                context,
+                TlsPeerName.Dns("localhost")
+            ).useAsync suspend {
+                stream ->
                 print(String.fromUtf8(stream.readAllBytes(4096L)))
                 stream.shutdownGracefully()
             }

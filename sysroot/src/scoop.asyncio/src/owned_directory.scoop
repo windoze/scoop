@@ -3,9 +3,15 @@ package scoop.asyncio
 import scoop.platform.fs.Path
 import scoop.platform.system.OsString
 
-private enum DirectoryPhase { Open, Closing, Closed }
+private enum DirectoryPhase {
+    Open, Closing, Closed
+}
 
-internal class OwnedDirectory(val loop: LibuvEventLoop, val pointer: Ptr<Unit>, val path: Path) : LoopResource {
+internal class OwnedDirectory(
+    val loop: LoopOwner,
+    val pointer: Ptr<Unit>,
+    val path: Path
+): LoopResource {
     val context: OsString = path.toOsString()
     private val lock: IoLock = IoLock()
     private var phase: DirectoryPhase = DirectoryPhase.Open
@@ -18,85 +24,138 @@ internal class OwnedDirectory(val loop: LibuvEventLoop, val pointer: Ptr<Unit>, 
     private val isClosed: Boolean get() = lock.withLock { phase == DirectoryPhase.Closed }
 
     fun reserve(): DirectoryReservation? {
-        val needed = lock.withLock {
-            if (ended) false else {
-                if (phase != DirectoryPhase.Open) throw IoClosedException()
-                if (busy) throw IllegalStateException(Some("directory operation is active"))
-                busy = true
-                true
+        val needed =
+            lock.withLock {
+                if (ended)
+                    false
+                else {
+                    if (phase != DirectoryPhase.Open)
+                        throw IoClosedException()
+                    if (busy)
+                        throw IllegalStateException(Some("directory operation is active"))
+                    busy = true
+                    true
+                }
             }
-        }
-        return if (needed) Some(DirectoryReservation(this)) else None
+        return if (needed)
+            Some(DirectoryReservation(this))
+        else
+            None
     }
 
-    fun reachedEnd() { lock.withLock { ended = true } }
+    fun reachedEnd() {
+        lock.withLock { ended = true }
+    }
 
     fun attach(operation: LoopOperation) {
-        val stopped = lock.withLock { active = Some(operation); phase != DirectoryPhase.Open }
-        if (stopped) operation.selectFailure(IoClosedException())
+        val stopped =
+            lock.withLock {
+                active = Some(operation);
+                phase != DirectoryPhase.Open
+            }
+        if (stopped)
+            operation.selectFailure(IoClosedException())
     }
 
     fun releaseOperation() {
-        lock.withLock { busy = false; active = None }
-        loop.state.post { closeWhenIdle() }
+        lock.withLock {
+            busy = false;
+            active = None
+        }
+        loop.post { closeWhenIdle() }
     }
 
     suspend fun close() {
-        if (isClosed) return
+        if (isClosed)
+            return
         loop.requireJob(false)
-        suspendCoroutine<Unit> { continuation ->
-            loop.state.post { closeOnLoop { error -> finishUnit(continuation, error) } }
+        suspendCoroutine<Unit> {
+            continuation -> loop.post { closeOnLoop { error -> finishUnit(continuation, error) } }
         }
     }
 
     fun closeOnLoop(waiter: (Throwable?) -> Unit) {
-        val previous = lock.withLock {
-            val old = phase
-            if (old != DirectoryPhase.Closed) waiters.add(waiter)
-            if (old == DirectoryPhase.Open) phase = DirectoryPhase.Closing
-            old
+        val previous =
+            lock.withLock {
+                val old = phase
+                if (old != DirectoryPhase.Closed)
+                    waiters.add(waiter)
+                if (old == DirectoryPhase.Open)
+                    phase = DirectoryPhase.Closing
+                old
+            }
+        if (previous == DirectoryPhase.Closed) {
+            loop.ready.add { waiter(None) };
+            return
         }
-        if (previous == DirectoryPhase.Closed) { loop.state.ready.add { waiter(None) }; return }
-        if (previous == DirectoryPhase.Closing) return
+        if (previous == DirectoryPhase.Closing)
+            return
         val operation = lock.withLock { active }
-        when (operation) { case Some(value) -> value.requestFailure(IoClosedException()); case None -> {} }
+        when (operation) {
+            case Some(value) -> value.requestFailure(IoClosedException());
+            case None -> {}
+        }
         closeWhenIdle()
     }
 
     private fun closeWhenIdle() {
-        val start = lock.withLock {
-            if (phase != DirectoryPhase.Closing || busy || closing) false
-            else { closing = true; true }
-        }
-        if (!start) return
-        val operation = LoopOperation(loop.state, loop.state.nextOperation(),
-            { _, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeDirectoryClose(pointer, id)) } },
-            { _, _ -> },
-            { event, selected ->
-                val error = completionFailure("close directory", event.result, selected, Some(context))
-                val callbacks = lock.withLock {
-                    phase = DirectoryPhase.Closed
-                    val previous = waiters
-                    waiters = ArrayList<(Throwable?) -> Unit>()
-                    previous
+        val start =
+            lock.withLock {
+                if (phase != DirectoryPhase.Closing || busy || closing)
+                    false
+                else {
+                    closing = true;
+                    true
                 }
-                loop.state.forget(this)
-                for (callback in callbacks) loop.state.ready.add { callback(error) }
-            })
-        loop.state.submit(operation)
+            }
+        if (!start)
+            return
+        val operation =
+            LoopOperation(
+                loop,
+                loop.nextOperation(),
+                {
+                    _,
+                    id -> @Unsafe
+                    {
+                        return@LoopOperation nativeStatus(id, nativeDirectoryClose(pointer, id))
+                    }
+                },
+                { _, _ -> },
+                {
+                    event, selected ->
+                    val error =
+                        completionFailure("close directory", event.result, selected, Some(context))
+                    val callbacks =
+                        lock.withLock {
+                            phase = DirectoryPhase.Closed
+                            val previous = waiters
+                            waiters = ArrayList<(Throwable?) -> Unit>()
+                            previous
+                        }
+                    loop.forget(this)
+                    for (callback in callbacks)
+                        loop.ready.add { callback(error) }
+                }
+            )
+        loop.submit(operation)
     }
 
     public override fun closeFromLoop() {
-        closeOnLoop { error ->
-            when (error) { case Some(value) -> loop.state.cleanupFailed(value); case None -> {} }
+        closeOnLoop {
+            error -> when (error) {
+                case Some(value) -> loop.cleanupFailed(value);
+                case None -> {}
+            }
         }
     }
 }
 
-internal class DirectoryReservation(private val owner: OwnedDirectory) : Disposable {
+internal class DirectoryReservation(private val owner: OwnedDirectory): Disposable {
     private val released: AtomicBoolean = AtomicBoolean(false)
     public override fun dispose() {
-        if (released.compareAndSet(false, true)) owner.releaseOperation()
+        if (released.compareAndSet(false, true))
+            owner.releaseOperation()
     }
 }
 

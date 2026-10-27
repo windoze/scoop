@@ -27,10 +27,7 @@ class ToolchainArchiveTests(unittest.TestCase):
                     (sysroot / name).mkdir(parents=True)
                 (sysroot / "commands/.gitkeep").touch()
                 files = {
-                    "sysroot/vendor/libuv/include/uv/version.h": "\n".join(
-                        f"#define UV_VERSION_{part} {number}"
-                        for part, number in (("MAJOR", 1), ("MINOR", 0), ("PATCH", 0))
-                    ),
+                    "sysroot/vendor/liburing/2.15/liburing.spec": "Version: 2.15\n",
                     "sysroot/vendor/ryu/README.scoop.md": "固定 commit：`abc123`",
                     "scripts/distribution/README.md": "installation",
                     "scripts/distribution/RELEASE-NOTES.md": "release notes",
@@ -69,6 +66,9 @@ class ToolchainArchiveTests(unittest.TestCase):
                 installed = work / "extracted"
                 with tarfile.open(destination) as package:
                     package.extractall(installed, filter="data")
+                metadata = tomllib.loads((installed / "share/scoop/toolchain.toml").read_text())
+                self.assertEqual(metadata["liburing"], "2.15")
+                self.assertNotIn("libuv", metadata)
                 commands = installed / "commands"
                 for relative in (
                     "catalog.toml",

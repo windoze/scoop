@@ -61,9 +61,6 @@ static int32_t errno_kind(int32_t code) {
 int32_t scoop_platform_error_kind(int32_t domain, int32_t code, int32_t system_code) {
     if (domain == 0)
         return errno_kind(code);
-    /* libuv's supported Unix targets encode system errors as negative errno. */
-    if (domain == 2)
-        return code < 0 && code != INT32_MIN ? errno_kind(-code) : 0;
     switch (code) {
     case EAI_SYSTEM:
         return errno_kind(system_code);

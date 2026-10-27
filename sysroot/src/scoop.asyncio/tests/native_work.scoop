@@ -7,25 +7,41 @@ import scoop.test.*
 private class NativeWorkTests {
     @Test
     fun `native work executes on a worker and keeps results until explicit close`() {
-        NativeWorkProbe().use { probe ->
+        NativeWorkProbe().use {
+            probe ->
             assertFailsWith<IllegalStateException> { probe.result() }
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { _ ->
-                @Unsafe { loop.runNativeWork(probe.work) }
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                _ ->
+                @Unsafe
+                {
+                    loop.runNativeWork(probe.work)
+                }
                 gcCollect()
                 assertEquals(42, probe.result())
                 assertEquals(1, probe.foreign)
                 assertEquals(1, probe.finished)
-                @Unsafe {
+                @Unsafe
+                {
                     val failure = IllegalArgumentException(Some("result callback"))
-                    assertSame(failure, assertFailsWith<IllegalArgumentException> {
-                        @Unsafe { probe.work.withResult<Unit> { _ -> throw failure } }
-                    })
-                    probe.work.withResult<Unit> { _ ->
+                    assertSame(
+                        failure,
+                        assertFailsWith<IllegalArgumentException> {
+                            @Unsafe
+                            {
+                                probe.work.withResult<Unit> { _ -> throw failure }
+                            }
+                        }
+                    )
+                    probe.work.withResult<Unit> {
+                        _ ->
                         assertFailsWith<IllegalStateException> { probe.work.close() }
                         assertFailsWith<IllegalStateException> { probe.result() }
                     }
-                    try { loop.runNativeWork(probe.work); fail(Some("work ran twice")) }
+                    try {
+                        loop.runNativeWork(probe.work);
+                        fail(Some("work ran twice"))
+                    }
                     catch (_: IllegalStateException) {}
                 }
                 assertEquals(42, probe.result())
@@ -41,29 +57,44 @@ private class NativeWorkTests {
 
     @Test
     fun `work can close unused and preflight failures do not consume it`() {
-        NativeWorkProbe().use { probe ->
+        NativeWorkProbe().use {
+            probe ->
             probe.work.close()
             assertEquals(0, probe.started)
             assertEquals(1, probe.released)
         }
-        NativeWorkProbe().use { probe ->
-            val loop: EventLoop = LibuvEventLoop()
-            val other: EventLoop = LibuvEventLoop()
-            loop.run suspend { scope ->
-                @Unsafe {
-                    try { other.runNativeWork(probe.work); fail(Some("wrong loop accepted")) }
+        NativeWorkProbe().use {
+            probe ->
+            val loop: EventLoop = PlatformEventLoop()
+            val other: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                scope ->
+                @Unsafe
+                {
+                    try {
+                        other.runNativeWork(probe.work);
+                        fail(Some("wrong loop accepted"))
+                    }
                     catch (_: IllegalStateException) {}
                 }
-                val cancelled = scope.launch suspend {
-                    currentJobOrNone()!!.cancel()
-                    @Unsafe {
-                        try { loop.runNativeWork(probe.work); fail(Some("cancelled job accepted")) }
-                        catch (_: CancellationException) {}
+                val cancelled =
+                    scope.launch suspend {
+                        currentJobOrNone()!!.cancel()
+                        @Unsafe
+                        {
+                            try {
+                                loop.runNativeWork(probe.work);
+                                fail(Some("cancelled job accepted"))
+                            }
+                            catch (_: CancellationException) {}
+                        }
                     }
-                }
                 cancelled.join()
                 assertEquals(0, probe.started)
-                @Unsafe { loop.runNativeWork(probe.work) }
+                @Unsafe
+                {
+                    loop.runNativeWork(probe.work)
+                }
                 assertEquals(42, probe.result())
             }
         }
@@ -71,26 +102,40 @@ private class NativeWorkTests {
 
     @Test
     fun `queued cancellation never calls execute and retains one release obligation`() {
-        NativeWorkProbe().use { probe ->
-            val backend = LibuvEventLoop()
+        NativeWorkProbe().use {
+            probe ->
+            val backend = PlatformEventLoop()
             val loop: EventLoop = backend
-            loop.run suspend { scope ->
+            loop.run suspend {
+                scope ->
                 val fence = WorkFence(backend)
                 fence.start()
                 fence.waitStarted()
                 try {
-                    val child = scope.launch suspend { @Unsafe { loop.runNativeWork(probe.work) } }
+                    val child =
+                        scope.launch suspend {
+                            @Unsafe
+                            {
+                                loop.runNativeWork(probe.work)
+                            }
+                        }
                     backend.state.post { child.cancel() }
                     child.join()
                     assertTrue(child.isCancelled)
                     assertEquals(0, probe.started)
                     assertEquals(0, probe.released)
                     assertFailsWith<IllegalStateException> { probe.result() }
-                    @Unsafe {
-                        try { loop.runNativeWork(probe.work); fail(Some("cancelled work reused")) }
+                    @Unsafe
+                    {
+                        try {
+                            loop.runNativeWork(probe.work);
+                            fail(Some("cancelled work reused"))
+                        }
                         catch (_: IllegalStateException) {}
                     }
-                } finally { fence.close() }
+                } finally {
+                    fence.close()
+                }
             }
             probe.work.close()
             assertEquals(1, probe.released)
@@ -99,23 +144,37 @@ private class NativeWorkTests {
 
     @Test
     fun `running cancellation waits for native completion across threads and moving GC`() {
-        NativeWorkProbe(false).use { probe ->
-            val backend = LibuvEventLoop()
+        NativeWorkProbe(false).use {
+            probe ->
+            val backend = PlatformEventLoop()
             val loop: EventLoop = backend
-            loop.run suspend { scope ->
+            loop.run suspend {
+                scope ->
                 val returned = AtomicBoolean(false)
-                val child = scope.launch suspend {
-                    try { @Unsafe { loop.runNativeWork(probe.work) } }
-                    catch (_: CancellationException) { returned.store(true) }
-                }
-                suspendCoroutine<Unit> { continuation ->
-                    backend.state.post { continuation.resume(Unit) }
+                val child =
+                    scope.launch suspend {
+                        try {
+                            @Unsafe
+                            {
+                                loop.runNativeWork(probe.work)
+                            }
+                        }
+                        catch (_: CancellationException) {
+                            returned.store(true)
+                        }
+                    }
+                suspendCoroutine<Unit> {
+                    continuation -> backend.state.post { continuation.resume(Unit) }
                 }
                 probe.waitStarted()
                 try {
                     assertFailsWith<IllegalStateException> { probe.work.close() }
-                    @Unsafe {
-                        try { loop.runNativeWork(probe.work); fail(Some("concurrent work accepted")) }
+                    @Unsafe
+                    {
+                        try {
+                            loop.runNativeWork(probe.work);
+                            fail(Some("concurrent work accepted"))
+                        }
                         catch (_: IllegalStateException) {}
                     }
                     Thread.start { child.cancel() }.join()
@@ -129,7 +188,9 @@ private class NativeWorkTests {
                     assertFailsWith<IllegalStateException> { probe.result() }
                     probe.work.close()
                     assertEquals(1, probe.released)
-                } finally { probe.allow() }
+                } finally {
+                    probe.allow()
+                }
             }
         }
     }

@@ -6,34 +6,60 @@ import scoop.http.*
 import scoop.http.asyncio.*
 import scoop.platform.memory.NativeByteBuffer
 
-private class WsSelfWaitSource(val session: AsyncWebSocketSession, val child: Boolean) : AsyncByteSource {
+private class WsSelfWaitSource(
+    val session: AsyncWebSocketSession,
+    val child: Boolean
+): AsyncByteSource {
     var checked: Int = 0
     public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
-        if (child) coroutineScope<Unit> suspend { scope -> scope.launch suspend { checkWaits() }; Unit }
-        else checkWaits()
+        if (child)
+            coroutineScope<Unit> suspend {
+                scope ->
+                scope.launch suspend { checkWaits() };
+                Unit
+            }
+        else
+            checkWaits()
         return 0L
     }
     private suspend fun checkWaits() {
         wsCheck(wsMarker() == "self wait", "source child Context")
         wsCheck(wsExpect suspend { session.close() } is IllegalStateException, "close self wait")
-        wsCheck(wsExpect suspend { session.awaitClosed() } is IllegalStateException, "observe self wait")
-        wsCheck(wsExpect suspend { session.shutdownGracefully() } is IllegalStateException, "shutdown self wait")
-        wsCheck(wsExpect suspend { session.sendText("overlap") } is IllegalStateException, "same direction")
+        wsCheck(
+            wsExpect suspend { session.awaitClosed() } is IllegalStateException,
+            "observe self wait"
+        )
+        wsCheck(
+            wsExpect suspend { session.shutdownGracefully() } is IllegalStateException,
+            "shutdown self wait"
+        )
+        wsCheck(
+            wsExpect suspend { session.sendText("overlap") } is IllegalStateException,
+            "same direction"
+        )
         checked += 4
     }
 }
 
 internal fun wsSelfWait(child: Boolean) {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope ->
         val transport = WsTestTransport()
         val session = AsyncWebSocketSession.takeOwnership(transport, scope, HttpRole.Client)
         val source = WsSelfWaitSource(session, child)
         try {
-            context(WsMarker("self wait")) { session.send(WebSocketMessageType.Binary, source) }
-            wsCheck(source.checked == 4 && !session.isClosed && !wsPresent(session.failure), "self wait changed session")
+            context(WsMarker("self wait")) {
+                session.send(WebSocketMessageType.Binary, source)
+            }
+            wsCheck(
+                source.checked == 4 && !session.isClosed && !wsPresent(session.failure),
+                "self wait changed session"
+            )
             session.sendText("healthy after rejected self waits")
-        } finally { session.close() }
+        } finally {
+            session.close()
+        }
         session.awaitClosed()
     }
 }

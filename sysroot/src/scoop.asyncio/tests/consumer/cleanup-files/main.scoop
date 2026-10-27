@@ -13,57 +13,87 @@ import scoop.time.Duration
 private class CleanupGate {
     private var ready: Boolean = false
     private var waiter: Continuation<Unit>? = None
-    fun signal() { ready = true; val next = waiter; waiter = None; next?.resume(Unit) }
-    suspend fun await() { suspendCoroutine<Unit> { next -> if (ready) next.resume(Unit) else waiter = Some(next) } }
+    fun signal() {
+        ready = true;
+        val next = waiter;
+        waiter = None;
+        next?.resume(Unit)
+    }
+    suspend fun await() {
+        suspendCoroutine<Unit> {
+            next -> if (ready)
+                next.resume(Unit)
+            else
+                waiter = Some(next)
+        }
+    }
 }
 
 private class CleanupFileMarker(val value: Int)
+
 context(marker: CleanupFileMarker)
 private fun cleanupFileMarker(): Int = marker.value
 
 private fun exercise(parent: Path, cancelBefore: Boolean) {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope ->
         val file = loop.createTempFile(Some(parent), "m54-cleanup-")
-        NativeByteBuffer.allocate(7L).use suspend { buffer -> buffer.writeBytes("partial".toByteArray()); file.file.writeFully(buffer) }
+        NativeByteBuffer.allocate(7L).use suspend {
+            buffer ->
+            buffer.writeBytes("partial".toByteArray());
+            file.file.writeFully(buffer)
+        }
         val entered = CleanupGate()
         val cleaning = CleanupGate()
         val release = CleanupGate()
         val cleaned = AtomicBoolean(false)
         val restored = AtomicBoolean(false)
-        val worker = context(CleanupFileMarker(29)) {
-            scope.launch suspend {
-                val original = currentJobOrNone()!!
-                try {
-                    entered.signal()
-                    if (cancelBefore) loop.sleep(Duration.hours(1L))
-                } finally {
-                    nonCancellableScope<Unit> suspend { cleanup ->
-                        assertEquals(29, cleanupFileMarker())
-                        cleanup.launch suspend {
-                            cleaning.signal(); release.await()
-                            loop.sleep(Duration.milliseconds(2L))
+        val worker =
+            context(CleanupFileMarker(29)) {
+                scope.launch suspend {
+                    val original = currentJobOrNone()!!
+                    try {
+                        entered.signal()
+                        if (cancelBefore)
+                            loop.sleep(Duration.hours(1L))
+                    } finally {
+                        nonCancellableScope<Unit> suspend {
+                            cleanup ->
                             assertEquals(29, cleanupFileMarker())
-                            file.close()
-                            loop.deleteFile(file.path)
-                            cleaned.store(true)
+                            cleanup.launch suspend {
+                                cleaning.signal();
+                                release.await()
+                                loop.sleep(Duration.milliseconds(2L))
+                                assertEquals(29, cleanupFileMarker())
+                                file.close()
+                                loop.deleteFile(file.path)
+                                cleaned.store(true)
+                            }
+                            Unit
                         }
-                        Unit
+                        assertSame(original, currentJobOrNone()!!)
+                        assertTrue(original.isCancelled && cleaned.load())
+                        restored.store(true)
                     }
-                    assertSame(original, currentJobOrNone()!!)
-                    assertTrue(original.isCancelled && cleaned.load())
-                    restored.store(true)
                 }
             }
-        }
-        entered.await(); worker.cancel(); cleaning.await()
+        entered.await();
+        worker.cancel();
+        cleaning.await()
         assertFalse(worker.isCompleted || cleaned.load())
-        release.signal(); worker.join()
+        release.signal();
+        worker.join()
         assertTrue(restored.load() && cleaned.load())
         assertFalse(scope.job.isCancelled)
         var deleted = false
-        try { loop.metadata(file.path) }
-        catch (error: PlatformException) { assertEquals(PlatformErrorKind.NotFound, error.kind); deleted = true }
+        try {
+            loop.metadata(file.path)
+        }
+        catch (error: PlatformException) {
+            assertEquals(PlatformErrorKind.NotFound, error.kind);
+            deleted = true
+        }
         assertTrue(deleted)
     }
 }
@@ -71,8 +101,12 @@ private fun exercise(parent: Path, cancelBefore: Boolean) {
 private fun exerciseConsumer(args: Array<String>) {
     val directory = Path.fromString(args[1L])
     val thread = Thread.start { exercise(directory, true) }
-    try { exercise(directory, false) }
-    finally { thread.join() }
+    try {
+        exercise(directory, false)
+    }
+    finally {
+        thread.join()
+    }
 }
 
 @Test
@@ -80,7 +114,11 @@ private class ConsumerTests {
     @Test
     fun run() {
         val directory = createTempDirectory(prefix = "scoop-consumer-")
-        try { exerciseConsumer(["consumer", directory.decodeUtf8()]) }
-        finally { directory.deleteRecursively() }
+        try {
+            exerciseConsumer(["consumer", directory.decodeUtf8()])
+        }
+        finally {
+            directory.deleteRecursively()
+        }
     }
 }
