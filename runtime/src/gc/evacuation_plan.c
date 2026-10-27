@@ -39,6 +39,7 @@ typedef struct ScoopGcMovingPlan {
     char *target_cursor;
     char *target_limit;
     pthread_mutex_t *reservation_lock;
+    ScoopGcFreeRun *owned_runs;
     ScoopGcBlockMeta *survivor_block;
     char *survivor_cursor;
     char *survivor_limit;
@@ -54,6 +55,23 @@ typedef struct ScoopGcMovingPlan {
     ScoopGcCopyBlock *copy_groups;
     ScoopGcOldSlotPlan slots;
 } MovingPlan;
+
+static void discard_owned_runs(MovingPlan *plan) {
+    while (plan->owned_runs != NULL) {
+        ScoopGcFreeRun *run = plan->owned_runs;
+        plan->owned_runs = run->next;
+        free(run);
+    }
+}
+
+/* Called while claiming target storage, under the shared reservation lock. */
+static void record_destination(MovingPlan *plan, ScoopGcBlockMeta *block) {
+    if (block != NULL && plan->reuse_runs && !block->region->evacuation_destination) {
+        block->region->evacuation_destination = true;
+        plan->target_regions++;
+        plan->occupied_destinations += block->region->collection_live_bytes == 0;
+    }
+}
 
 static void discard_copy_groups(MovingPlan *plan) {
     while (plan->copy_groups != NULL) {
@@ -131,8 +149,28 @@ static void *reserve_target(MovingPlan *plan, size_t size, size_t alignment,
     }
     void *object = scoop_heap_bump(&plan->target_cursor, plan->target_limit, size, alignment);
     if (object == NULL && plan->reuse_runs) {
-        ScoopGcBlockMeta *reused =
-            scoop_heap_take_free_run(size, &plan->target_cursor, &plan->target_limit);
+        ScoopGcBlockMeta *reused = scoop_heap_take_free_run(
+            &plan->owned_runs, size, &plan->target_cursor, &plan->target_limit);
+        if (reused == NULL) {
+            if (plan->reservation_lock != NULL) {
+                pthread_mutex_lock(plan->reservation_lock);
+            }
+            ScoopGcFreeRun *runs = scoop_heap_take_free_run_group(size);
+            if (runs != NULL) {
+                record_destination(plan, runs->block);
+                ScoopGcFreeRun *last = runs;
+                while (last->next != NULL) {
+                    last = last->next;
+                }
+                last->next = plan->owned_runs;
+                plan->owned_runs = runs;
+            }
+            if (plan->reservation_lock != NULL) {
+                pthread_mutex_unlock(plan->reservation_lock);
+            }
+            reused = scoop_heap_take_free_run(
+                &plan->owned_runs, size, &plan->target_cursor, &plan->target_limit);
+        }
         if (reused != NULL) {
             plan->target_block = reused;
             object = scoop_heap_bump(&plan->target_cursor, plan->target_limit, size, alignment);
@@ -143,6 +181,7 @@ static void *reserve_target(MovingPlan *plan, size_t size, size_t alignment,
             pthread_mutex_lock(plan->reservation_lock);
         }
         plan->target_block = activate_small_block(SCOOP_BLOCK_EVACUATION_TARGET, plan->allow_growth);
+        record_destination(plan, plan->target_block);
         if (plan->reservation_lock != NULL) {
             pthread_mutex_unlock(plan->reservation_lock);
         }
@@ -248,11 +287,6 @@ static void reserve_move(void **entry, void *context) {
         plan->reserved = false;
         return;
     }
-    if (plan->reuse_runs && !target->region->evacuation_destination) {
-        target->region->evacuation_destination = true;
-        plan->target_regions++;
-        plan->occupied_destinations += target->region->collection_live_bytes == 0;
-    }
 }
 
 void scoop_gc_reserve_run_task(ScoopGcMarkWorker *worker, ScoopGcMovingPlan *plans,
@@ -288,6 +322,9 @@ static void reserve_parallel(MovingPlan *plan) {
     for (size_t index = 0; index < scoop_gc_marker.active_workers; index++) {
         plan->reserved &= plans[index].reserved;
         plan->survivors.objects += plans[index].survivors.objects;
+        plan->target_regions += plans[index].target_regions;
+        plan->occupied_destinations += plans[index].occupied_destinations;
+        discard_owned_runs(&plans[index]);
         *groups = plans[index].copy_groups;
         while (*groups != NULL) {
             groups = &(*groups)->next;
@@ -399,10 +436,11 @@ bool scoop_gc_heap_plan_moving_locked(bool minor, ScoopGcSurvivors *survivors) {
     if (ordinary_full) {
         scoop_heap_prepare_evacuation_targets();
     }
-    if (minor && plan.parallel_copy && plan.survivor_capacity_limit == 0) {
+    if ((minor || ordinary_full) && plan.parallel_copy && plan.survivor_capacity_limit == 0) {
         reserve_parallel(&plan);
     } else {
         scoop_gc_mark_visit_live(reserve_move, &plan);
+        discard_owned_runs(&plan);
     }
     if (ordinary_full) {
         plan.reserved &= plan.occupied_destinations < source_regions;

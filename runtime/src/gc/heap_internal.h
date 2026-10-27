@@ -330,7 +330,9 @@ void scoop_heap_publish_large_object(ScoopGcBlockMeta *block, bool marked);
 void scoop_heap_release_block(ScoopGcBlockMeta *block);
 void scoop_heap_quarantine_block(ScoopGcBlockMeta *block);
 void *scoop_heap_bump(char **cursor, char *limit, size_t size, size_t alignment);
-ScoopGcBlockMeta *scoop_heap_take_free_run(size_t size, char **cursor, char **limit);
+ScoopGcBlockMeta *scoop_heap_take_free_run(ScoopGcFreeRun **runs, size_t size,
+                                         char **cursor, char **limit);
+ScoopGcFreeRun *scoop_heap_take_free_run_group(size_t size);
 bool scoop_heap_object_pinned(const ScoopGcBlockMeta *block, size_t word);
 bool scoop_heap_object_marked(const ScoopGcBlockMeta *block, size_t word);
 bool scoop_heap_block_has_pins(const ScoopGcBlockMeta *block);

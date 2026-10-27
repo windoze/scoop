@@ -45,6 +45,26 @@ fn delayed_workers_observe_the_participants_of_the_published_phase() {
 }
 
 #[test]
+fn parallel_full_reservations_own_hole_blocks_and_recover_from_failure() {
+    let output = compile_and_run_with_flags(
+        &workspace_root(),
+        "full_parallel_reservation_test",
+        "runtime/tests/full_parallel_reservation_test.c",
+        true,
+        &["-Dcalloc=scoop_test_full_copy_calloc"],
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"parallel full reservations own complete hole blocks and recover from partial failure\n"
+    );
+}
+
+#[test]
 fn copy_group_failure_preserves_the_graph_and_subsequent_copying() {
     let output = compile_and_run_with_flags(
         &workspace_root(),

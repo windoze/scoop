@@ -29,8 +29,9 @@ void *scoop_heap_bump(char **cursor, char *limit, size_t size, size_t alignment)
     return object;
 }
 
-ScoopGcBlockMeta *scoop_heap_take_free_run(size_t size, char **cursor, char **limit) {
-    ScoopGcFreeRun **available = &free_runs;
+ScoopGcBlockMeta *scoop_heap_take_free_run(ScoopGcFreeRun **runs, size_t size,
+                                         char **cursor, char **limit) {
+    ScoopGcFreeRun **available = runs;
     while (*available != NULL && ((*available)->block->region->evacuation_source ||
                                   (size_t)(*available)->line_count * GC_LINE_SIZE < size)) {
         available = &(*available)->next;
@@ -46,6 +47,29 @@ ScoopGcBlockMeta *scoop_heap_take_free_run(size_t size, char **cursor, char **li
     block->discard_pending = true;
     free(run);
     return block;
+}
+
+/* Full target preparation emits each block's runs together. Claim the whole
+ * group so reservation and copying keep one writer for the target metadata. */
+ScoopGcFreeRun *scoop_heap_take_free_run_group(size_t size) {
+    ScoopGcFreeRun **group = &free_runs;
+    while (*group != NULL) {
+        ScoopGcBlockMeta *block = (*group)->block;
+        ScoopGcFreeRun **end = group;
+        bool fits = false;
+        do {
+            fits |= (size_t)(*end)->line_count * GC_LINE_SIZE >= size;
+            end = &(*end)->next;
+        } while (*end != NULL && (*end)->block == block);
+        if (fits && !block->region->evacuation_source) {
+            ScoopGcFreeRun *claimed = *group;
+            *group = *end;
+            *end = NULL;
+            return claimed;
+        }
+        group = end;
+    }
+    return NULL;
 }
 
 typedef enum RefillResult {
@@ -192,7 +216,7 @@ static void *allocate_old(size_t size, size_t alignment) {
         char **cursor = &scoop_gc_heap_state.old_cursor;
         char **limit = &scoop_gc_heap_state.old_limit;
         void *object = scoop_heap_bump(cursor, *limit, size, alignment);
-        if (object == NULL && scoop_heap_take_free_run(size, cursor, limit)) {
+        if (object == NULL && scoop_heap_take_free_run(&free_runs, size, cursor, limit)) {
             object = scoop_heap_bump(cursor, *limit, size, alignment);
         }
         size_t requested = scoop_heap_uses_old_slots() ? size : GC_BLOCK_SIZE;
