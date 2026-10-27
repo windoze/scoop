@@ -25,7 +25,7 @@
 | `src/loop_operation.scoop` | 选择成功／取消／关闭结果，等待原生完成 | 保留同一算法，消除后端类型依赖 |
 | `src/owned_endpoint.scoop`、`owned_file.scoop`、`owned_directory.scoop` | 具体持有 `LibuvEventLoop` | 只依赖共享 owner，保留各资源的并发规则 |
 | `src/native_loop.scoop`、`native/loop.h` | 完成记录、uv 错误与 uv handle | 平台无关记录与不透明 native handle |
-| `native/work.c`、`resolve.c`、文件／TTY helper | libuv worker／poll，部分已复用 platform | 复用 GC-free 平台 helper，由各后端提交 |
+| `native/work.c`、`native/resolve.c`、文件／TTY helper | libuv worker／poll，部分已复用 platform | 复用 GC-free 平台 helper，由各后端提交 |
 
 表内路径均相对 [scoop.asyncio](../../sysroot/src/scoop.asyncio/)。当前 native 代码按 `common/`、`darwin/`、`linux/` 分目录，以真实职责拆文件。
 
