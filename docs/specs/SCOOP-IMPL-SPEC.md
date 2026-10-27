@@ -28,6 +28,12 @@ Windows 后端数据按设计保留三个完整 target profile，机器 triple �
 
 Windows stackmap reader 验证 location kind、寄存器、8-byte slot／对齐和 pair 结构，保留 RSP／RBP 的有符号 offset；不从 stack size 推造 RBP 位置。扫描时由运行时使用实际 SEH context 计算地址，并执行真实线程栈范围检查。编译产物读取不另建一套 SEH unwinder 重放系统 frame 恢复。
 
+Windows generated-C producer 使用所选完整 target 的 Clang 模式，平台合同新增编码 3，记录实际 Clang 数值版本与预处理配置；宿主路径只保留在普通工具发现记录。三环境各有独立 C producer profile，Clang 接受的 machine triple 不取代完整 target。公共 flags 保持 C11、所选优化、无 debug／common／compiler-ident／stack-protector／builtin substitution；Windows 使用 x86-64 baseline、Windows 10 API 基线和 SEH unwind tables，Microsoft 环境使用动态 UCRT（`/MD` 等效设置）。新增 flag 编码 17、18、19 分别表示 Windows SEH、所选 Windows CRT 和 Windows 10 基线，原平台编码不变。
+
+runtime index 的补充 deployment 值 0 表示使用完整 target 已规定的 OS 基线，Linux 与 Windows 均使用此值；Darwin 继续保存所选最低 macOS packed version。target 相容性仍由已有完整 identity 检查承担，不在补充 deployment 字段重复编码 OS／CRT。
+
+MinGW 的 native sysroot 是对应 CRT 的完整 LLVM-MinGW prefix。Microsoft 环境可由已安装 Build Tools／SDK 发现，也可在显式 native sysroot 的 `msvc.toml` 中提供 `[msvc]` 表的 `vc_tools`、`windows_sdk`、`sdk_version`；前两项分别指向所选 `VC/Tools/MSVC/<version>` 与 Windows SDK 根，支持相对于该配置文件的路径。跨宿主使用同一显式布局。发现阶段以实际 headers 编译 AMD64 COFF probe，检查 Win64／LLP64、Microsoft 或 mingw-w64 环境及 `_UCRT` 对应关系；不执行目标程序，也不预先要求最终链接库齐全。配置、选中工具与实际头文件路径按既有输入更新规则记录和复用。
+
 仓库的 `scripts/release.toml` 记录发行所用 LLVM 精确版本、系统与 CPU 基线。构建宿主命令时将默认 Darwin 部署版本编入工具；普通命令不读取打包配置或发行清单。`MACOSX_DEPLOYMENT_TARGET` 可为一次编译／链接选择明确的 `major.minor[.patch]`，非法值必须诊断。未覆盖时使用编入的基线，不查询运行机器的系统版本。所选最低版本贯通 LLVM 对象、generated-C、用户 native、runtime 和最终链接，进入原有生产配置与更新键；SDK 版本继续只记录实际 SDK。Linux 使用既有 x86-64 CPU 基线和所选 libc 工具链，发行最低 libc 版本由对应构建／验证环境确定，不能仅靠一个版本参数降低实际动态依赖。
 
 三个宿主命令的 `--version` 使用同一份构建版本与源码 revision。维护脚本显式设置发行版本和 revision，普通开发构建使用仓库默认版本及当前 Git revision；源码归档没有 Git 信息时明确显示 revision 未提供。版本文本不替代配套工具的协议协商或产物兼容判断。

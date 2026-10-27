@@ -57,6 +57,10 @@ COFF section inventory 已接入 generated-C 对象入口，独立区分 `.pdata
 
 这一批完成内部机器发射与直接 native ABI 验证；正式 CLI target 仍待 native 开发资源选择、最终 PE 链接、runtime 和系统库闭环后开放，不将这些定向测试记为完整 Windows 验收。
 
+generated-C 已按三个完整 target 使用宿主 Clang 与实际目标 headers；Microsoft 环境支持 Build Tools／SDK 发现及显式 `msvc.toml`，两个 MinGW 环境使用各自完整 prefix。header/object probe 检查 AMD64 COFF、LLP64、CRT 与 native 环境，保留 SEH unwind 信息；不执行目标程序或提前要求最终链接依赖。producer 记录新增 Windows 分支，现有目标的编码向量保持不变。
+
+两项工具发现测试通过实际 headers、Unicode 输入／输出路径、producer 记录往返、显式 SDK 和错误 CRT prefix 诊断；四项 generated-C 对象测试（含三个环境的真实桥接编译、COFF 边界、native 链接与执行）以及七项 C producer 合同测试通过。workspace/all-targets Clippy 无告警，最后的测试 fixture 修订经 codegen all-targets Clippy 与定向测试确认。正式 native C/C++ 覆盖、PE 最终链接和 runtime 仍继续实施。
+
 ## W4 宿主基础
 
 `scoop-process` 已实现 Windows console handler，按实际 process handle 终止 child，关闭控制台时在 handler 返回前等待 child；中断后停止启动新工具，普通退出保留完整 32-bit 状态。真实子进程测试覆盖 Ctrl+C／Ctrl+Break／close 三个 handler 分支、两项并行 child、drop 回收、中断拒绝新任务与高位退出码透传，在 Rust MSVC 与 gnullvm 两种宿主 target 上通过；相应 Clippy 无告警。完整 CLI 的系统控制事件验收随宿主命令完成，不以这里的 handler 调用测试替代。

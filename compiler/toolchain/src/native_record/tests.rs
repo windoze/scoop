@@ -1,5 +1,8 @@
 use super::*;
 
+#[cfg(windows)]
+mod windows;
+
 #[test]
 fn actual_host_discovery_is_reused_and_transported_to_the_child() {
     let cache = tempfile::tempdir().unwrap();

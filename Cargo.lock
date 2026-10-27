@@ -1166,6 +1166,7 @@ dependencies = [
 name = "scoop-toolchain"
 version = "0.0.0"
 dependencies = [
+ "find-msvc-tools",
  "fs4",
  "object",
  "scoop-identity",

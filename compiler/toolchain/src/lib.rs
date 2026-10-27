@@ -21,6 +21,8 @@ mod generators;
 pub use generators::{GeneratorPrograms, record_generator_input};
 mod linux_c;
 mod linux_target;
+mod windows_c;
+pub use windows_c::resolve_windows_c_toolchain;
 mod manifest;
 pub use manifest::{SOURCE_TARGETS, load_cone_manifest, parse_cone_manifest};
 mod build_record;

@@ -23,14 +23,12 @@ impl ObjectDeployment {
                 "backend and native deployment targets differ".into(),
             ));
         }
-        if selection.target().native_object_format() == ObjectFormat::Coff64 {
-            return Ok(Self::Windows);
-        }
         Ok(match native.platform() {
             CBridgePlatformContractV1::Darwin { deployment, .. } => {
                 Self::Darwin(deployment.minimum_os())
             }
             CBridgePlatformContractV1::Linux { .. } => Self::Linux,
+            CBridgePlatformContractV1::Windows { .. } => Self::Windows,
         })
     }
 

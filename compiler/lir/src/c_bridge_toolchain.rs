@@ -29,10 +29,12 @@ pub use flags::{
     CanonicalCBridgeFlagContractV1, CanonicalCBridgeFlagFingerprint, CanonicalCBridgeFlagV1,
 };
 pub use linux::{GccCompilerIdentityError, GccCompilerIdentityV1};
+mod windows;
 pub use source::{
     GeneratedCSourceTemplateComponentV1, GeneratedCSourceTemplateContractV1,
     GeneratedCSourceTemplateFingerprint,
 };
+pub use windows::WindowsClangCompilerIdentityV1;
 
 /// The generated-C compiler inherits no host environment variables.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -71,12 +73,16 @@ pub enum CBridgePlatformContractV1 {
     Linux {
         compiler: GccCompilerIdentityV1,
     },
+    Windows {
+        compiler: WindowsClangCompilerIdentityV1,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CBridgePlatformError {
     ExpectedDarwin,
     ExpectedLinux,
+    ExpectedWindows,
 }
 
 impl fmt::Display for CBridgePlatformError {
@@ -84,6 +90,7 @@ impl fmt::Display for CBridgePlatformError {
         formatter.write_str(match self {
             Self::ExpectedDarwin => "a Darwin C toolchain is required for Mach-O deployment",
             Self::ExpectedLinux => "a Linux target is required for the GCC C toolchain",
+            Self::ExpectedWindows => "a Windows target is required for the Windows C toolchain",
         })
     }
 }
@@ -152,14 +159,18 @@ impl CBridgeToolchainContractV1 {
     pub fn deployment(&self) -> Result<&DarwinCBridgeDeploymentContractV1, CBridgePlatformError> {
         match &self.platform {
             CBridgePlatformContractV1::Darwin { deployment, .. } => Ok(deployment),
-            CBridgePlatformContractV1::Linux { .. } => Err(CBridgePlatformError::ExpectedDarwin),
+            CBridgePlatformContractV1::Linux { .. } | CBridgePlatformContractV1::Windows { .. } => {
+                Err(CBridgePlatformError::ExpectedDarwin)
+            }
         }
     }
 
     pub fn compiler(&self) -> Result<&AppleClangCompilerIdentityV1, CBridgePlatformError> {
         match &self.platform {
             CBridgePlatformContractV1::Darwin { compiler, .. } => Ok(compiler),
-            CBridgePlatformContractV1::Linux { .. } => Err(CBridgePlatformError::ExpectedDarwin),
+            CBridgePlatformContractV1::Linux { .. } | CBridgePlatformContractV1::Windows { .. } => {
+                Err(CBridgePlatformError::ExpectedDarwin)
+            }
         }
     }
 
@@ -199,6 +210,13 @@ impl WireEncode for CBridgeToolchainContractV1 {
                 encoder.map(1)?;
                 encoder.field(1)?;
                 encoder.unsigned(2)?;
+                encoder.field(5)?;
+                compiler.encode(encoder)?;
+            }
+            CBridgePlatformContractV1::Windows { compiler } => {
+                encoder.map(1)?;
+                encoder.field(1)?;
+                encoder.unsigned(3)?;
                 encoder.field(5)?;
                 compiler.encode(encoder)?;
             }

@@ -54,6 +54,16 @@ pub(super) fn check_relocation_and_compatible_toolchains(
 
 fn compatible_consumer(target: &ResolvedTargetProfile) -> CBridgeToolchainProfileV1 {
     match target.c_bridge_toolchain().profile().contract().platform() {
+        scoop_lir::CBridgePlatformContractV1::Windows { compiler } => {
+            scoop_target_data::windows_c_bridge_profile(
+                target.lir_target(),
+                scoop_lir::WindowsClangCompilerIdentityV1::new(
+                    compiler.version(),
+                    scoop_wire::sha256(b"different compiler"),
+                ),
+            )
+            .unwrap()
+        }
         CBridgePlatformContractV1::Darwin {
             deployment,
             compiler,
