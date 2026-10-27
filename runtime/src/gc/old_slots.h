@@ -20,8 +20,9 @@ static inline void scoop_heap_note_old_bytes(size_t bytes) {
     }
 }
 
+/* The slot cursor is exclusive; parallel planners lock only to claim a block. */
 void *scoop_heap_reserve_old_slot(ScoopGcOldSlotPlan *plan, size_t size,
-                                 ScoopGcBlockMeta **target);
+                                 ScoopGcBlockMeta **target, pthread_mutex_t *reservation_lock);
 void scoop_heap_rollback_old_slots(void);
 void scoop_heap_finish_old_slot_reservations(void);
 void scoop_heap_clear_old_slots(void);

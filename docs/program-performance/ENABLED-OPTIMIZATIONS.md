@@ -12,6 +12,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [minor 搬迁目标并行预留](GC-EVOLUTION.md) | 新版 runtime 所有 profile 默认，沿现有 worker／小规模策略；`SCOOP_GC_WORKERS=1` 串行 | 无 survivor 配额时按存活清单分块，worker 独占目标区；全体成功后复制，失败完整回滚。full／survivor 仍串行规划，无新 ABI；CPU、GNU full 尾部及部分 RSS 代价见阶段十八。 |
 | [单次标记停顿内复用 region](GC-EVOLUTION.md) | 新版 runtime，所有 profile 默认；无新开关，ABI 23 不变 | 每 worker 32 项普通 region，最大额外 4 KiB；每次 begin／resume 失效，命中仍验证对象起点，large／未命中走页表。普通与增量暂停、十六线程／RSS 回退见阶段十七。 |
 | [数组 owner 直接定位 mapping](GC-EVOLUTION.md) | ARM64 所有 profile 默认，配套 runtime contract 23；x86_64 保留原页表，无新开关 | 单引用 ArraySet 选择 small／large 的既有 mapping 前缀，省去四级页表；原卡合并、AS1 重定位及 pin 保持。普通容量不变，stress 保留 region 首 block。随机写入收益、整程序与尾暂停回退见阶段十六。 |
 | [按目标 block 并行复制](GC-EVOLUTION.md) | 新版 runtime，所有 profile 默认，沿用现有 worker／小规模策略；`SCOOP_GC_WORKERS=1` 串行 | 每个目标 block 单写者，完整预留后复制、全部完成后更新 roots；每阶段固定 worker 参与数量；每目标块 48 B 临时记录，无对象或 ABI 增量。降低复制阶段、墙钟和部分尾暂停，树形及高线程数 CPU 代价见阶段十三。 |

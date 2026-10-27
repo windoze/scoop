@@ -123,9 +123,6 @@ void scoop_gc_heap_finish_collection_locked(uint64_t object_count, bool minor,
     if (minor) {
         scoop_heap_finish_old_slot_reservations();
     }
-    evacuation_block = NULL;
-    evacuation_cursor = NULL;
-    evacuation_limit = NULL;
     scoop_heap_clear_dirty_card_groups(survivors->objects != 0);
     if (!minor) {
         uint64_t vm_started = scoop_gc_monotonic_ns();

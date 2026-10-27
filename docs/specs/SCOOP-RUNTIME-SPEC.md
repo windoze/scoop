@@ -657,6 +657,8 @@ roots／remembered 扫描先由 coordinator 发布初始工作，随后参与同
 
 mark 结束后复用首次标记的存活对象集合规划搬迁；实际有搬迁时，使用该集合更新存活副本的出站引用，不在 full 更新阶段再次用 worklist 发现可达图。存活清单的分块和条目地址在本轮保持稳定，3.7 的临时目标头保存对应条目的地址，不另建计划分块。全体目标预留成功后，复制执行者依次复制其负责的对象、登记目标元数据、发布原对象 forwarding，再把对应清单条目改为当前副本。预留失败不得修改任何清单条目；未搬迁和 pinned 对象继续保留原地址。无引用对象的条目也随实际搬迁更新。该修改发生在全部 mark worker 结束后、任何 update worker 发布之前，不新增 managed roots 或延长对象存活。
 
+多 worker 的 minor 在没有 survivor 配额时，可以按稳定存活清单分块并行预留目标。每个 worker 独占自己的 bump 游标、已摘取的旧代槽块及对应复制组；只在取得新 block 或摘取共享旧代槽块时，用 collector 私有锁串行修改 heap 目录、容量统计与预留链。coordinator 继续持有 heap／roots 和 STW 边界，不让 mutator 或其他 collector 与这些修改并发。单 worker、full 整理及需要统一 survivor 配额的规划仍使用同一预留逻辑的串行路径。全部规划任务结束并汇总成功后才能启动复制；任一 worker 预留失败时先等待其余规划任务结束，再统一撤销复制组、旧代槽预留和新目标，从完整原图进入既有回退。私有游标与临时任务不进入对象、roots 或产物 ABI；未用满目标块造成的额外空间和协调成本须计入测量。
+
 复制默认复用本轮 worker pool，遵循既有 worker 数量与小规模串行策略：多 worker 时，预留阶段按目标 block 分组临时目标头链，mark 的逐块计数已汇总后可复用其私有索引位置保存组指针；单 worker 保留原链顺序。每组至多由一个 worker 执行，目标 starts、marks、line 位图及存活字节保持 block 独占写入，不把同一目标块按任意对象数拆给多个 worker。完整预留与收益判断完成前不启动复制；分组分配失败与目标预留失败走相同回滚，不修改 source 或 live entry。所有复制任务结束后，coordinator 才合并复制计数、清除临时组索引并发布 roots／引用更新。native 分组记录按目标块分配，没有新逐对象表，不增加对象头、根、TLAB 或产物 ABI。普通及显式 moving、survivor、旧代槽复用遵守同一发布顺序；无需独立开关；`SCOOP_GC_WORKERS=1` 使用同一复制算法的串行路径，增加 worker 不改变对象或发布合同。
 
 此时 full 的 roots 全部更新；minor 更新精确 roots、年轻集合及 remembered set。对象字段和 roots 中的旧引用仍经正常 forwarding 回写，不能因存活清单已经更新而跳过它们。没有搬迁时按 3.7 跳过 relocation。release hook、reclaim 和 VM 归还仍由 coordinator 执行；shutdown 停止并 join worker。

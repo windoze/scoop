@@ -40,7 +40,9 @@ static void run_worker(ScoopGcMarkWorker *worker, size_t task_limit) {
                 break;
             }
         }
-        if (task.kind == SCOOP_COPY_BLOCK_TASK) {
+        if (task.kind == SCOOP_RESERVE_CHUNK_TASK) {
+            scoop_gc_reserve_run_task(worker, task.data.reserve.plans, task.data.reserve.chunk);
+        } else if (task.kind == SCOOP_COPY_BLOCK_TASK) {
             scoop_gc_copy_run_task(task.data.copy_group);
         } else if (scoop_gc_marker.updating) {
             scoop_gc_update_run_task(task);

@@ -216,9 +216,6 @@ typedef struct ScoopGcHeapState {
     uint64_t pause_buckets[8];
     char *old_cursor;
     char *old_limit;
-    ScoopGcBlockMeta *evacuation_block;
-    char *evacuation_cursor;
-    char *evacuation_limit;
     uint64_t moved_objects;
     ScoopGcBlockMeta *young_blocks;
     ScoopGcBlockMeta *evacuation_targets;
@@ -252,9 +249,6 @@ static inline bool scoop_heap_adaptive_nursery_enabled(void) {
 #define stress_move false
 #endif
 #define collection_active (scoop_gc_heap_state.collection_active)
-#define evacuation_block (scoop_gc_heap_state.evacuation_block)
-#define evacuation_cursor (scoop_gc_heap_state.evacuation_cursor)
-#define evacuation_limit (scoop_gc_heap_state.evacuation_limit)
 #define moved_objects (scoop_gc_heap_state.moved_objects)
 
 #define heap_fatal scoop_heap_fatal

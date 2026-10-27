@@ -60,14 +60,14 @@ static void check_slot_rollback(size_t size) {
     ScoopGcOldSlotPlan plan = {0}, retry = {0};
     ScoopGcBlockMeta *block;
     scoop_gc_heap_lock();
-    void *reserved = scoop_heap_reserve_old_slot(&plan, size, &block);
+    void *reserved = scoop_heap_reserve_old_slot(&plan, size, &block, NULL);
     assert(reserved != NULL && block->state != SCOOP_BLOCK_EVACUATION_TARGET);
     size_t word = ((uintptr_t)reserved - (uintptr_t)scoop_heap_block_base(block)) / sizeof(uint64_t);
     assert(!scoop_heap_bit_test(block->starts, word));
     /* An abandoned temporary header must never become a published object. */
     memset(reserved, 0xcd, sizeof(ScoopObjectHeader));
     scoop_heap_rollback_old_slots();
-    assert(scoop_heap_reserve_old_slot(&retry, size, &block) == reserved);
+    assert(scoop_heap_reserve_old_slot(&retry, size, &block, NULL) == reserved);
     assert(!scoop_heap_bit_test(block->starts, word));
     scoop_heap_rollback_old_slots();
     scoop_gc_heap_unlock();

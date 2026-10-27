@@ -173,9 +173,6 @@ size_t scoop_gc_heap_begin_collection_locked(bool minor) {
         scoop_gc_heap_state.old_cursor = NULL;
         scoop_gc_heap_state.old_limit = NULL;
     }
-    evacuation_block = NULL;
-    evacuation_cursor = NULL;
-    evacuation_limit = NULL;
     moved_objects = 0;
     size_t mark_blocks = 0;
     for (ScoopGcBlockMeta *block = scoop_heap_first_collection_block(minor); block != NULL;
