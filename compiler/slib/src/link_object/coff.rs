@@ -8,6 +8,7 @@ use scoop_identity::TargetProfileId;
 
 use super::object_envelope::*;
 
+pub(crate) mod builtin;
 mod relocations;
 mod symbols;
 #[cfg(all(test, target_os = "windows"))]

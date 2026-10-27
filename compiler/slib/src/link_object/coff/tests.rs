@@ -11,6 +11,7 @@ struct Objects {
     _directory: tempfile::TempDir,
     ordinary: Vec<u8>,
     big: Vec<u8>,
+    roots: Vec<u8>,
 }
 
 fn objects() -> &'static Objects {
@@ -42,6 +43,8 @@ retq
 .globl pointer
 pointer: .quad external + 17
 .quad external - 17
+.bss
+.space 16
 .section .tls$,"dw"
 .globl late_tls
 late_tls: .quad 42
@@ -55,19 +58,83 @@ odr: .quad 7
 "#);
         std::fs::write(&source, assembly).unwrap();
         let clang = std::env::var_os("SCOOP_TEST_CLANG").unwrap_or_else(|| "clang".into());
-        let result = Command::new(clang).args(["--target=x86_64-pc-windows-msvc", "-c"])
+        let result = Command::new(&clang).args(["--target=x86_64-pc-windows-msvc", "-c"])
             .arg(&source).arg("-o").arg(&output).output().unwrap();
         assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
         let ordinary = std::fs::read(&output).unwrap();
         let source = directory.path().join("big.c");
         let output = directory.path().join("big.obj");
         std::fs::write(&source, "__declspec(selectany) int shared_value = 42;\nint get_value(void) { return shared_value; }\n").unwrap();
-        let result = Command::new("cl.exe").args(["/nologo", "/c", "/bigobj"])
+        let result = Command::new("cl.exe").args(["/nologo", "/c", "/bigobj", "/Z7"])
             .arg(&source).arg(format!("/Fo{}", output.display())).output().unwrap();
         assert!(result.status.success(), "{}\n{}", String::from_utf8_lossy(&result.stdout), String::from_utf8_lossy(&result.stderr));
         let big = std::fs::read(output).unwrap();
-        Objects { _directory: directory, ordinary, big }
+        let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../spikes/windows-targets/roots.ll");
+        let output = directory.path().join("roots.obj");
+        let result = Command::new(clang)
+            .args(["--target=x86_64-pc-windows-msvc", "-c", "-O2"])
+            .arg(source).arg("-o").arg(&output).output().unwrap();
+        assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
+        let roots = std::fs::read(output).unwrap();
+        Objects { _directory: directory, ordinary, big, roots }
     })
+}
+
+#[test]
+fn coff_inventory_separates_seh_tls_debug_and_real_stackmaps() {
+    use crate::link_object::{
+        BuiltinObjectSectionRoleV1 as Role, read_generated_c_object_sections_v1,
+        read_object_stackmap_section_v3,
+    };
+
+    let target = scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID;
+    let objects = objects();
+    let inventory = read_generated_c_object_sections_v1(&objects.ordinary, target).unwrap();
+    for (name, expected) in [
+        (b".text".as_slice(), Role::Text),
+        (b".data", Role::WritableData),
+        (b".bss", Role::ZeroFill),
+        (b".rdata$assoc", Role::ReadOnlyData),
+        (b".tls$", Role::ThreadLocalData),
+        (b".pdata", Role::WindowsUnwindTable),
+        (b".xdata", Role::WindowsUnwindInfo),
+    ] {
+        let index = inventory
+            .envelope()
+            .sections()
+            .iter()
+            .position(|section| section.section_name() == name)
+            .unwrap();
+        assert_eq!(
+            inventory.roles()[index],
+            expected,
+            "{}",
+            String::from_utf8_lossy(name)
+        );
+    }
+    let big = read_generated_c_object_sections_v1(&objects.big, target).unwrap();
+    let debug = big
+        .envelope()
+        .sections()
+        .iter()
+        .position(|section| section.section_name() == b".debug$S")
+        .unwrap();
+    assert_eq!(big.roles()[debug], Role::ObjectMetadata);
+
+    let roots = read_generated_c_object_sections_v1(&objects.roots, target).unwrap();
+    assert!(roots.roles().contains(&Role::WindowsUnwindInfo));
+    let stackmap = read_object_stackmap_section_v3(&objects.roots, &roots)
+        .unwrap()
+        .unwrap();
+    assert_eq!(stackmap.functions().len(), 1);
+    assert_eq!(stackmap.record_count(), 1);
+    let function = &stackmap.functions()[0];
+    assert_eq!(
+        roots.envelope().symbols()[function.target_symbol_table_index() as usize].name(),
+        b"roots_probe"
+    );
+    assert!(function.parsed().stack_size() >= 16384);
 }
 
 #[test]

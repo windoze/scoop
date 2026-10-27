@@ -95,6 +95,8 @@ fn encode_section_role(
         BuiltinObjectSectionRoleV1::ThreadLocalZeroFill => 11,
         BuiltinObjectSectionRoleV1::ThreadLocalVariables => 12,
         BuiltinObjectSectionRoleV1::ObjectMetadata => 13,
+        BuiltinObjectSectionRoleV1::WindowsUnwindTable => 14,
+        BuiltinObjectSectionRoleV1::WindowsUnwindInfo => 15,
     })
 }
 

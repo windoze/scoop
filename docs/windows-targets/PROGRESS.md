@@ -49,6 +49,8 @@ COFF reader 已覆盖普通 AMD64 对象及 MSVC bigobj，保留长节名、超�
 
 本次同时闭合已有测试问题：Windows 在打开目录时返回 PermissionDenied，Unix 在读取目录时返回 IsADirectory；slib 的三处固定向量同步到此前已采用的 runtime ABI 21，与 LIR 的既有向量一致，未修改 runtime ABI 或现有 target fingerprint。COFF 的完整 section inventory、代码发射和最终链接仍按 W1 后续步骤完成。
 
+COFF section inventory 已接入 generated-C 对象入口，独立区分 `.pdata`、`.xdata`、TLS、CodeView／linker metadata 与实际加载节；已有 wire tag 不变。4 个定向测试通过普通 COFF、MSVC `/bigobj /Z7` 与 LLVM 实际发射的 16 KiB 栈帧 statepoint 对象，确认 stackmap 的 ADDR64 引用解析到真实 callable；Clippy 无告警。Scoop 后端的 target 选择、atom 边界和最终链接继续实施。
+
 ## W4 宿主基础
 
 `scoop-process` 已实现 Windows console handler，按实际 process handle 终止 child，关闭控制台时在 handler 返回前等待 child；中断后停止启动新工具，普通退出保留完整 32-bit 状态。真实子进程测试覆盖 Ctrl+C／Ctrl+Break／close 三个 handler 分支、两项并行 child、drop 回收、中断拒绝新任务与高位退出码透传，在 Rust MSVC 与 gnullvm 两种宿主 target 上通过；相应 Clippy 无告警。完整 CLI 的系统控制事件验收随宿主命令完成，不以这里的 handler 调用测试替代。

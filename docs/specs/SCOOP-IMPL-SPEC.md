@@ -482,6 +482,8 @@ ArraySet 的单引用槽屏障使用已有数组对象基址查询 mapping，实
 
 Windows 使用 AMD64 COFF relocatable（含 bigobj），对象格式 identity 为 `org.scoop-lang.object-format/coff-relocatable/1`。对象 reader 保存原 section／symbol 序号、长名称、section characteristics、aux symbol、COMDAT selection／关联 section、weak external fallback 与实际 relocation kind／写入宽度／隐式 addend；aux symbol 占用原符号表序号，但不能作为 relocation 的普通目标。COFF relocation form 使用新 tag 12（kind、width），隐式 addend 保留在原 field／canonical value，现有 Mach-O／ELF 编码不变。引用检查在读取边界完成，后续发射与链接复用结果。PE import-library 的短 import member 不伪装成 relocatable 对象；它由 native library 输入选择处理。三种 Windows 完整 target 独立保存身份，普通 COFF 本身没有可证明 CRT 的标签，reader 不从文件名或 object header 推测 CRT。
 
+COFF section inventory 将 `.pdata`／`.pdata$…` 记为 Windows unwind function table，将 `.xdata`／`.xdata$…` 记为 Windows unwind information，section-role 编码分别为新增 tag 14、15；两者不冒充 ELF `.eh_frame` 或独立 LSDA。`.llvm_stackmaps` 使用已有 stackmap role 和真实 ADDR64 function relocation；`.tls`／`.tls$…` 按 section characteristics 区分有初始化／零填充 TLS。其余实际加载节按 code／writable／zero-fill 属性分类，CodeView、linker directives 与被标记移除的节属于 object metadata。现有 section-role 编码保持不变。
+
 ELF atom 边界归一化按每个实际对象建立一次原始符号名到符号表序号的查询索引，借用原字符串表。边界、可见性和 COMDAT 操作复用该索引，不为每个 atom 重扫整个符号表。索引表示原对象，新增或改名的符号仍由既有编辑记录管理；原 symbol／section 序号、relocation、弱定义规则与输出顺序保持，不增加 native 符号登记或解析职责。
 
 relocation 的 section、atom、offset 和 target 均属于本次实际对象。raw source-native symbol 按 Darwin 添加一个前导下划线、ELF 保持 bytes 的规则正规化。Scoop-owned symbol 从 persistent identity 产生，不用 FQN 或 source 短名回退。

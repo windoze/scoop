@@ -1,4 +1,4 @@
-//! Read Mach-O and ELF facts used by object production.
+//! Read target object facts used by object production.
 
 use std::fmt;
 
@@ -63,6 +63,12 @@ pub fn read_generated_c_object_sections_v1(
             crate::link_object::elf::builtin::sections(bytes, target)
                 .map_err(GeneratedCBridgeObjectEnvelopeValidationError::Elf)
         }
+        scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID
+        | scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID
+        | scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_ID => {
+            crate::link_object::coff::builtin::sections(bytes, target)
+                .map_err(GeneratedCBridgeObjectEnvelopeValidationError::Coff)
+        }
         _ => Err(GeneratedCBridgeObjectEnvelopeValidationError::UnsupportedTarget),
     }
 }
@@ -89,6 +95,7 @@ impl std::error::Error for ScoopLirObjectEnvelopeValidationError {}
 pub enum GeneratedCBridgeObjectEnvelopeValidationError {
     UnsupportedTarget,
     Elf(crate::link_object::ElfObjectError),
+    Coff(crate::link_object::CoffObjectError),
     Envelope(ObjectEnvelopeValidationError),
 }
 
