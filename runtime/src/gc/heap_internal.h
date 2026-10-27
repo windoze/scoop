@@ -33,6 +33,10 @@
 #define GC_FORWARDED_BIT UINT64_C(1)
 #define GC_PIN_BIT UINT64_C(2)
 #define GC_RELEASE_READY_BIT UINT64_C(4)
+#define GC_SMALL_SIZE_MASK UINT64_C(0x7ff8)
+#define GC_PIN_INDEX_SHIFT 15
+_Static_assert((GC_REGULAR_MAX & GC_SMALL_SIZE_MASK) == GC_REGULAR_MAX,
+               "small allocation sizes must fit the object GC word");
 #define GC_POISON_BYTE ((unsigned char)0xA5)
 
 typedef enum ScoopGcBlockState {
@@ -85,7 +89,6 @@ typedef struct ScoopGcBlockMeta {
 #endif
     uint64_t *line_occupied;
     uint64_t *line_live;
-    uint16_t *size_units;
     size_t exact_size;
     size_t live_bytes;
     size_t movable_live_bytes;
@@ -104,6 +107,23 @@ static inline void *scoop_heap_forwarding_address(const void *object) {
     const ScoopObjectHeader *header = object;
     uint64_t word = __atomic_load_n(&header->gc_word, __ATOMIC_RELAXED);
     return (word & GC_FORWARDED_BIT) != 0 ? (void *)(uintptr_t)(word & ~GC_FORWARDED_BIT) : NULL;
+}
+
+/* The caller already has a current small-object start. */
+static inline size_t scoop_heap_small_object_size(const void *object) {
+    const ScoopObjectHeader *header = object;
+    return __atomic_load_n(&header->gc_word, __ATOMIC_RELAXED) & GC_SMALL_SIZE_MASK;
+}
+
+/* Old copies retain their exact size through the completed target. */
+static inline size_t scoop_heap_source_object_size(const void *object) {
+    const ScoopObjectHeader *header = object;
+    uint64_t word = __atomic_load_n(&header->gc_word, __ATOMIC_RELAXED);
+    if ((word & GC_FORWARDED_BIT) != 0) {
+        header = (const void *)(uintptr_t)(word & ~GC_FORWARDED_BIT);
+        word = __atomic_load_n(&header->gc_word, __ATOMIC_RELAXED);
+    }
+    return word & GC_SMALL_SIZE_MASK;
 }
 
 struct ScoopGcRegion {

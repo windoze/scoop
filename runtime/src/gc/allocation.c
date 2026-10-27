@@ -73,7 +73,6 @@ static void publish_tlab(ScoopGcMutator *mutator, ScoopGcBlockMeta *block) {
     mutator->allocation_block = block;
     ScoopAllocationContext *allocation = &mutator->allocation;
     allocation->block_start = block_base(block);
-    allocation->size_units = block->size_units;
     allocation->starts = block->starts;
     allocation->line_occupied = block->line_occupied;
     allocation->limit = allocation->block_start + GC_BLOCK_SIZE;
@@ -273,9 +272,7 @@ static void initialize_small_allocation(ScoopGcMutator *mutator, ScoopGcBlockMet
                                         void *object, const ScoopTypeDescriptor *td, size_t size,
                                         bool nursery) {
     memset(object, 0, size);
-    ScoopObjectHeader *header = object;
     scoop_gc_set_object_type(object, td);
-    header->gc_word = 0;
     if (nursery) {
         scoop_heap_record_small_metadata(block, object, size, false, true);
     } else {

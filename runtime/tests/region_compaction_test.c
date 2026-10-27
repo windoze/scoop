@@ -29,7 +29,7 @@ static void compact_round(bool pin_region) {
     for (size_t index = 0; index < PAIR_COUNT; index++) {
         objects[index] = nursery_allocate(&wide_td, WIDE_SIZE);
         ((unsigned char *)objects[index])[WIDE_SIZE - 1] = 101;
-        ((ScoopObjectHeader *)objects[index])->gc_word = GC_RELEASE_READY_BIT;
+        ((ScoopObjectHeader *)objects[index])->gc_word |= GC_RELEASE_READY_BIT;
         uintptr_t wide_region = scoop_heap_pointer_block(objects[index])->region->base;
         if (wide_region != node_region) {
             /* Scatter live nodes across growing regions even with batched TLAB reserves. */

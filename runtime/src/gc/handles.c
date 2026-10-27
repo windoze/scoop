@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include "gc_internal.h"
+#include "heap_internal.h"
 #include "scoop_rt.h"
 
 typedef struct ScoopGcHandleSlot {
@@ -22,8 +23,6 @@ typedef struct ScoopPinnedObject {
     uint64_t count;
 } ScoopPinnedObject;
 
-/* The low three bits remain available for ordinary GC flags. */
-enum { PIN_INDEX_SHIFT = 3 };
 static ScoopPinnedObject *pinned;
 static size_t pinned_len;
 static size_t pinned_cap;
@@ -134,16 +133,16 @@ const void *scoop_rt_resolve_handle(uint64_t handle) {
 
 static size_t pin_index(const void *object) {
     const ScoopObjectHeader *header = object;
-    return (size_t)(__atomic_load_n(&header->gc_word, __ATOMIC_ACQUIRE) >> PIN_INDEX_SHIFT);
+    return (size_t)(__atomic_load_n(&header->gc_word, __ATOMIC_ACQUIRE) >> GC_PIN_INDEX_SHIFT);
 }
 
 static void set_pin_index(void *object, size_t index) {
     ScoopObjectHeader *header = object;
-    const uint64_t flags = (UINT64_C(1) << PIN_INDEX_SHIFT) - 1;
+    const uint64_t flags = (UINT64_C(1) << GC_PIN_INDEX_SHIFT) - 1;
     uint64_t previous = __atomic_load_n(&header->gc_word, __ATOMIC_RELAXED);
     uint64_t next;
     do {
-        next = (previous & flags) | ((uint64_t)index << PIN_INDEX_SHIFT);
+        next = (previous & flags) | ((uint64_t)index << GC_PIN_INDEX_SHIFT);
     } while (!__atomic_compare_exchange_n(&header->gc_word, &previous, next, false,
                                           __ATOMIC_RELEASE, __ATOMIC_RELAXED));
 }
@@ -175,6 +174,9 @@ const void *scoop_rt_pin(const void *object) {
         }
         entry->count++;
     } else {
+        if (pinned_len == UINT64_MAX >> GC_PIN_INDEX_SHIFT) {
+            scoop_gc_roots_fatal("pinned registry index overflow");
+        }
         if (pinned_len == pinned_cap) {
             if (pinned_cap > SIZE_MAX / (2 * sizeof *pinned)) {
                 scoop_gc_roots_fatal("pinned registry size overflow");

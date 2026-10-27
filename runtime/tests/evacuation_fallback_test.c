@@ -72,7 +72,7 @@ int main(void) {
     for (size_t index = 0; index < GC_REGION_BLOCKS + 2; index++) {
         if (objects[index] != NULL) {
             assert(((unsigned char *)objects[index])[29999] == 73);
-            assert(((ScoopObjectHeader *)objects[index])->gc_word == GC_RELEASE_READY_BIT);
+            assert(((ScoopObjectHeader *)objects[index])->gc_word == (30000 | GC_RELEASE_READY_BIT));
         }
     }
     scoop_test_vm_fail_mappings = false;
@@ -80,8 +80,8 @@ int main(void) {
     assert(released == 1 && scoop_rt_gc_debug_last_moved_count() == 2);
     assert((uintptr_t)objects[GC_REGION_BLOCKS] != first);
     assert((uintptr_t)objects[GC_REGION_BLOCKS + 1] != second);
-    assert(((ScoopObjectHeader *)objects[GC_REGION_BLOCKS])->gc_word == GC_RELEASE_READY_BIT);
-    assert(((ScoopObjectHeader *)objects[GC_REGION_BLOCKS + 1])->gc_word == GC_RELEASE_READY_BIT);
+    assert(((ScoopObjectHeader *)objects[GC_REGION_BLOCKS])->gc_word == (30000 | GC_RELEASE_READY_BIT));
+    assert(((ScoopObjectHeader *)objects[GC_REGION_BLOCKS + 1])->gc_word == (30000 | GC_RELEASE_READY_BIT));
     // Moving a single sparse source into the empty cache has no concentration benefit.
     first = (uintptr_t)objects[GC_REGION_BLOCKS];
     second = (uintptr_t)objects[GC_REGION_BLOCKS + 1];

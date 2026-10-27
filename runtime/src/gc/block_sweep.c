@@ -54,11 +54,12 @@ static void record_free_runs(ScoopGcBlockMeta *block, const uint64_t *occupied_l
 /* Individual retirement covers full sweep and partially retained blocks. */
 static inline __attribute__((always_inline)) void
 retire_small_object(ScoopGcBlockMeta *block, size_t word, bool marked, bool stress) {
-    size_t size = (size_t)block->size_units[word] * sizeof(uint64_t);
+    void *object = (char *)block_base(block) + word * sizeof(uint64_t);
+    size_t size = marked ? scoop_heap_source_object_size(object)
+                         : scoop_heap_small_object_size(object);
     if (size == 0) {
         heap_fatal("allocated object lost its exact size");
     }
-    void *object = (char *)block_base(block) + word * sizeof(uint64_t);
     if (!marked) {
         release_dead_object(object);
     }
@@ -67,7 +68,6 @@ retire_small_object(ScoopGcBlockMeta *block, size_t word, bool marked, bool stre
     }
     bit_clear(block->starts, word);
     bit_clear(block->pins, word);
-    block->size_units[word] = 0;
     block->discard_pending = true;
 }
 
@@ -103,7 +103,7 @@ static bool finish_stress_source(ScoopGcBlockMeta *block) {
                 retire_small_object(block, word, marked, true);
                 continue;
             }
-            size_t size = (size_t)block->size_units[word] * sizeof(uint64_t);
+            size_t size = scoop_heap_source_object_size(object);
             if (size == 0) {
                 heap_fatal("live object lost its exact size");
             }

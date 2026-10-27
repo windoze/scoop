@@ -28,9 +28,9 @@ managed reference 是对象起点的直接指针；对象可能移动。对象�
 
 动态查询按 TD 指针身份逐项比较目录项，不以 diagnostic name、slots 地址或不完整的泛型类型代替。读取任何项前必须保证其下标小于 `itable_count`；空目录不解引用 itables，短目录也不能读取目录外的项。find、lookup 和完整类型关系中的接口查询共用此规则。查询不重排静态目录，也不保存 runtime 缓存；所有 profile 使用同一目录与调用 ABI。编译器可以按实现规范 2.19 对已证明稳定的局部对象值惰性保存查询结果，包含 null 未命中；这仅保存当前函数调用的不可变 metadata，不保存 managed 对象、改变首次查询时机或新增 GC root。
 
-GC 状态字的 pin bit 为 `UINT64_C(2)`（bit 1），release-ready bit 为 `UINT64_C(4)`（bit 2）；操作这些位时必须保留其他位。
+GC 状态字的 pin bit 为 `UINT64_C(2)`（bit 1），release-ready bit 为 `UINT64_C(4)`（bit 2）；操作这些位时必须保留其他位。小对象的 bit 3～14 保存其按 8-byte 对齐后的精确分配字节数，即 `gc_word & 0x7ff8`；最大普通对象为 32 KiB 减去 128 B，完整落在该字段内。bit 15～63 保存显式 pin 的非零登记索引，0 表示无登记；pin 计数仍保存在现有 registry。large mapping 的精确大小仍在 mapping metadata，大小字段为 0；immortal 的初始 GC 字为 0。新分配在 starts 发布前完成大小字段，后续 pin／release 只修改各自字段；native 和构造代码不得覆盖分配器已建立的 GC 私有字。
 
-bit 0 为 collector 私有的 forwarded 标志，仅在 STW 内、对象已完整复制且旧副本不再供 mutator 使用后设置。此时旧副本 GC 字保存 `destination | 1`，目标按至少 8-byte 对齐；目标副本保留原 GC 字，仍使用正常 pin／release 状态。新分配、未搬迁、pinned、immortal 以及所有 mutator 可见副本的 forwarded 位始终为 0。它不扩充对象头，也不增加生成分配或访问的工作；原副本的 TD 与精确大小在转发期间保持，具体时序见 3.7。
+bit 0 为 collector 私有的 forwarded 标志，仅在 STW 内、对象已完整复制且旧副本不再供 mutator 使用后设置。此时旧副本 GC 字保存 `destination | 1`，目标按至少 8-byte 对齐；目标副本保留原 GC 字，仍使用正常 pin／release 状态。新分配、未搬迁、pinned、immortal 以及所有 mutator 可见副本的 forwarded 位始终为 0。它不扩充对象头，也不增加生成分配或访问的工作；原副本的 TD 保持，需要原小对象精确大小的 collector／验证路径读取已复制目标的正常大小字段，不再依赖原 GC 字内的大小，具体时序见 3.7。
 
 class 的基类对象布局是派生对象的完整前缀，包括基类尾部 padding；派生字段不得复用该 padding。构造最派生对象时只分配一次，整个构造期间对象头都指向最派生 exact type 的 TypeDescriptor，不随基类构造改变。
 
@@ -215,7 +215,7 @@ unit 由 `PersistentInitializationUnitId` 标识；diagnostic path 只用于显�
 
 ### 2.8 多 image 登记与启动 ABI
 
-runtime ABI contract 为 **21**，metadata ABI 为 **9**。contract 20／21 退役无生产消费者的标量、打印、专用装箱、Array clone 与 Context 生成操作 C 入口；所有 profile 复用相同 typed 布局与根计划。contract 19 增加 9.2 的线程 Context 根槽地址视图；contract 18 的初始化状态原子访问及 release／acquire 发布保持，不能把生成的快速读取与旧 runtime 的普通写入混用。contract 17 的脏卡组登记与 region prefix、contract 16 的完整 TLAB 元数据视图及 contract 15 的接口查询入口保持。对象、接口值、TD、初始化 cell、注册记录和扫描布局不变。metadata 9 删除 runtime 不消费的 body、descriptor、layout、scan、stackmap、gateway、source signature 与 image 内容指纹字段；实体 identity、实际地址、类型布局、扫描与 stackmap 合同保持。producer、公共头、runtime 和启动代码一起更新，旧产物与开发 sysroot 必须重建。带 prefix 的 descriptor 以 `{ u64 magic; u32 abi_version; u32 struct_size; }` 开头，`abi_version == 9`，size 与本节布局精确一致，reserved fields 为 0。公共 C 声明见 [scoop_runtime_metadata_v1.h](../../runtime/include/scoop_runtime_metadata_v1.h)。不保留空的兼容槽或以 bitcast 混用旧布局。
+runtime ABI contract 为 **22**，metadata ABI 为 **9**。contract 22 将小对象精确大小放入现有 GC 字、移动 pin 索引字段并将 TLAB 视图减为六指针；生成分配、runtime 和全部机器产物须一起重建。contract 20／21 退役无生产消费者的标量、打印、专用装箱、Array clone 与 Context 生成操作 C 入口；所有 profile 复用相同 typed 布局与根计划。contract 19 增加 9.2 的线程 Context 根槽地址视图；contract 18 的初始化状态原子访问及 release／acquire 发布保持，不能把生成的快速读取与旧 runtime 的普通写入混用。contract 17 的脏卡组登记与 region prefix、contract 15 的接口查询入口保持；contract 16 的七指针 TLAB 视图由本版替换。对象、接口值、TD、初始化 cell、注册记录和扫描布局不变。metadata 9 删除 runtime 不消费的 body、descriptor、layout、scan、stackmap、gateway、source signature 与 image 内容指纹字段；实体 identity、实际地址、类型布局、扫描与 stackmap 合同保持。producer、公共头、runtime 和启动代码一起更新，旧产物与开发 sysroot 必须重建。带 prefix 的 descriptor 以 `{ u64 magic; u32 abi_version; u32 struct_size; }` 开头，`abi_version == 9`，size 与本节布局精确一致，reserved fields 为 0。公共 C 声明见 [scoop_runtime_metadata_v1.h](../../runtime/include/scoop_runtime_metadata_v1.h)。不保留空的兼容槽或以 bitcast 混用旧布局。
 
 | descriptor | magic | size（bytes） |
 | --- | --- | --- |
@@ -357,11 +357,11 @@ managed 分配返回直接对象指针，普通小对象分配摊还 O(1)，不�
 
 generated code 所需的 TLAB 分配视图、对象头状态位和 poll／card 数据布局是明确的共享快路径合同。Immix 的普通对象阈值与 TLAB 资格判断归 GC 分配实现及对应 codegen GC 模块，不能向通用 LIR 泄漏算法策略；当前阈值保持一个 32 KiB block 扣除首个 128-byte line。纯模块整理不改变布局、位值、登记顺序或快路径调用成本；共享视图的布局变更按 2.8 更新 ABI。
 
-`ScoopAllocationContext` 是现有 TLS 指针指向的统一视图，按顺序保存七个 native pointer：cursor、limit、block base、精确大小单位数组、starts 位图、occupied-line 位图、当前 mutator 的分配计数。当前 64-bit 目标的大小为 56 bytes、对齐为 8，字段偏移依次为 0、8、16、24、32、40、48。计数视图是四个对齐到 8 的 atomic u64，依次为 objects、nursery objects、bytes、nursery bytes，大小 32 bytes。计数仍由本线程写入，其他线程按原统计合同读取；视图指针不增加 GC roots。refill 在使 cursor 可用前填好对应年轻块的元数据视图，实际回收／搬迁前及 detach 时先令分配范围失效；3.9 的只标记片可保留有效分配视图，cursor 不可用时不得解引用块元数据。所有 profile 与 stress runtime 使用同一布局，不按优化开关改变结构。
+`ScoopAllocationContext` 是现有 TLS 指针指向的统一视图，按顺序保存六个 native pointer：cursor、limit、block base、starts 位图、occupied-line 位图、当前 mutator 的分配计数。当前 64-bit 目标的大小为 48 bytes、对齐为 8，字段偏移依次为 0、8、16、24、32、40。计数视图是四个对齐到 8 的 atomic u64，依次为 objects、nursery objects、bytes、nursery bytes，大小 32 bytes。计数仍由本线程写入，其他线程按原统计合同读取；视图指针不增加 GC roots。refill 在使 cursor 可用前填好对应年轻块的元数据视图，实际回收／搬迁前及 detach 时先令分配范围失效；3.9 的只标记片可保留有效分配视图，cursor 不可用时不得解引用块元数据。所有 profile 与 stress runtime 使用同一布局，不按优化开关改变结构。
 
 allocation context 的地址与所属 mutator 在单次 managed 函数调用期间稳定：GC、refill、native 转换及同步 callback 不替换 attachment；detach 只能发生在全部相关 managed frames 退出后。ARM64 release 在首次实际需要 TLAB 视图时读取一次 TLS 并在本次调用中复用该 AS0 地址，不在未执行分配的路径主动取址。复用只涵盖 context 地址；cursor、limit、块元数据视图和计数内容继续按每次分配的当前状态读取，不能跨 GC／refill 固定。缓存为本次调用的普通非托管局部值，在正常与异常路径上遵守同一调用生命周期，不增加对象字段、TLS 状态、GC roots 或 ABI 字段。x86 与 debug 保留逐次读取，所有目标继续使用相同布局与发布合同。
 
-该视图以 32 KiB block 的真实起点为基址，保留首个 128-byte line。`size_units` 为 4096 项、2-byte 对齐的 u16 数组，以对象 byte offset 除以 8 索引，保存对齐后大小除以 8。starts 为 64 项、8-byte 对齐的 u64 位图；对象 word index 为 `offset / 8`，对应 bitmap word 为 `index / 64`、低位起 bit 为 `index % 64`。occupied-line 为 4 项、8-byte 对齐的 u64 位图，以 `offset / 128` 到 `(offset + size - 1) / 128` 的闭区间标记同样的 word／bit 位置。此共享几何及发布顺序属于 contract 16，不能只在 runtime 或某个构建 profile 中更改。
+该视图以 32 KiB block 的真实起点为基址，保留首个 128-byte line。小对象精确大小保存在 2.1 的 GC 字，不分配按 block 容量索引的大小数组。大小来自已经规格化并保留的分配范围，不能从尚未完成初始化的 String／Array 长度推导。starts 为 64 项、8-byte 对齐的 u64 位图；对象 word index 为 `offset / 8`，对应 bitmap word 为 `index / 64`、低位起 bit 为 `index % 64`。occupied-line 为 4 项、8-byte 对齐的 u64 位图，以 `offset / 128` 到 `(offset + size - 1) / 128` 的闭区间标记同样的 word／bit 位置。此共享布局与发布顺序属于 contract 22，不能只在 runtime 或某个构建 profile 中更改。
 
 release 复用 LIR 中已有的完整本地 TD 或 typed array layout，将确定的对象对齐与 nursery 资格作为常量发射；不因物理对象分区把已知事实退化为 TD 加载，也不重做布局或 release 语义检查。仅对请求大小为编译期常量、位于 16～128 bytes、对齐已知且确定无 release hook 的分配，在原 TLAB、溢出和边界判断成功后直接完成清零、对象头、精确大小、位图发布和计数。对齐后的范围至多跨两个 line 和两个位图字；同字的 line mask 合并，不引入循环或 safepoint。其 atomic load／store 次序与下述单写者登记一致，starts 最后作 release 发布，随后更新四项 relaxed 计数。使用现成的 allocation context，不再次读取 TLS，不访问 `ScoopGcBlockMeta` 或 mutator 的私有偏移。debug、动态大小、更大对象及缺少完整布局事实的外部／动态 TD 沿原完成入口和必要 TD 加载；有 release hook 的对象仍从旧代慢路径分配。失败分配沿原 collecting slow path，保持完整 live set 和 relocation。
 
@@ -375,7 +375,7 @@ release 复用 LIR 中已有的完整本地 TD 或 typed array layout，将确�
 
 普通 nursery refill 可在一次 heap lock 内最多取得四个 block，首块成为当前 TLAB，其余至多三个保存在 mutator 私有储备。每个储备块在锁内完成元数据清零、年轻清单登记和 nursery／committed 容量计入；容量不足时只取仍可容纳的块，不越过当前 nursery 上限。首块成功后，额外储备映射失败不使本次分配失败。当前 TLAB 耗尽时，所属线程可无锁切换到已登记的储备，填完对应元数据视图后才使 cursor 可用；其间无 safepoint，逐对象登记和计数保持。旧代压力在取得一批新块时检查；这与 TLAB 中尚有空间一样是触发粒度，不改变真正分配失败后的 full／OOM 路径。
 
-除 3.9 的只标记片外，collection、退出 managed、callback 返回时同时使当前 TLAB 和所有储备失效；未用储备仍在年轻清单并占用已登记容量，由下一轮收集按空块退役，不能从失效的 native 指针重新发布范围。detach 不遗留所属线程可继续消费的块引用。储备使用 mutator 私有对齐空间，不改变 56-byte generated prefix、计数偏移、对象布局或 runtime ABI。moving／minor stress 与 full-only 保留逐块取得的触发策略；普通 debug／release 共用同一规则。
+除 3.9 的只标记片外，collection、退出 managed、callback 返回时同时使当前 TLAB 和所有储备失效；未用储备仍在年轻清单并占用已登记容量，由下一轮收集按空块退役，不能从失效的 native 指针重新发布范围。detach 不遗留所属线程可继续消费的块引用。储备使用 mutator 私有对齐空间，使用当前 48-byte generated prefix，计数仍在原 mutator 私有偏移，不为块储备增加字段或另一种 ABI。moving／minor stress 与 full-only 保留逐块取得的触发策略；普通 debug／release 共用同一规则。
 
 进入 collection 时，所有线程的分配状态必须停止使用并与 collector 一致。对象不得在仅部分登记时被扫描；分配失败使用明确的失败出口，不能返回无效对象。
 
@@ -448,7 +448,7 @@ immortal 对象只读且不含可移动引用。collector 对每个 root/对象�
 
 ### 3.4 Pin 与 handle
 
-pin 为摊还 O(1)、unpin 为 O(1) 操作。同一对象的显式 pin 共用一项登记和非零计数；每次 pin 增加计数，每次 unpin 减少计数，计数归零才移除登记、清除固定状态。登记期间对象保活且地址稳定，多线程操作由 heap lock 串行化；collector 在同一锁保护下访问登记。对象头的 GC 私有状态字保存其登记索引，移除时交换末项并修正该对象的索引，不线性搜索 pinned 列表。索引不进入语言可见的 `PinnedPtr.raw`，也不改变对象头大小或 typed ABI。非法地址、没有对应显式 pin 的 unpin 或计数溢出属于 fatal ABI error。pin 不替代线程、root 或写屏障协议，不提供对 payload 的同步。
+pin 为摊还 O(1)、unpin 为 O(1) 操作。同一对象的显式 pin 共用一项登记和非零计数；每次 pin 增加计数，每次 unpin 减少计数，计数归零才移除登记、清除固定状态。登记期间对象保活且地址稳定，多线程操作由 heap lock 串行化；collector 在同一锁保护下访问登记。对象头的 GC 私有状态字按 2.1 保存其登记索引，大小与低位状态始终保留；索引超过字段表示范围时在登记前报告溢出，移除时交换末项并修正该对象的索引，不线性搜索 pinned 列表。索引不进入语言可见的 `PinnedPtr.raw`，也不改变对象头大小或 typed ABI。非法地址、没有对应显式 pin 的 unpin 或计数溢出属于 fatal ABI error。pin 不替代线程、root 或写屏障协议，不提供对 payload 的同步。
 
 GC handle 是 GC-free opaque 64-bit 值，引用一个当前 live slot 与 generation。slot 复用时 generation 改变；非法、stale 或已释放 handle 是 fatal ABI error。handle 保活对象但不固定地址；解析后跨 safepoint 使用时仍须 root/reload，或显式 pin。
 
@@ -561,7 +561,7 @@ full collection 按回收收益选择低存活、无 pin 的 region 为 source�
 
 收集器的临时搬迁计划按固定 256 项的 native 分块顺序追加，每项保留存活清单 entry、destination、精确大小及目标 block；entry 在复制前仍保存 source，不重复保存 source block 与 word 索引。当前 64-bit 实现每项 32 bytes，不反复倍增、复制整份连续数组。预留成功后按相同顺序复制，失败和成功出口都释放全部分块。分块仅存活于原 STW 搬迁阶段，不形成持久缓存、managed root 或新的对象布局，也不改变预留完成前不发布 forwarding／更新 roots 的合同。该表示适用于所有 profile 与 minor／full／stress。
 
-全部目标预留成功后，小对象复制直接复用计划中的目标 block、精确大小和已保留范围，不再调用通用分配登记入口重复检查块种类、边界或起点。此时 mutator 已停稳、全部 mark worker 已完成、update worker 尚未发布，只有 coordinator 修改目标元数据；新 block、survivor block 和既有旧代空洞均满足这一阶段的独占条件。复制完成后写入精确 size，合并 occupied／live-line 与对象 mark，更新目标 live bytes，再 release 发布 starts，随后才发布 forwarding 和更新存活清单。occupied／starts 复用 3.1 的单写者 atomic load／OR／store，保留同一字的既有位；line_live／marks 在该独占阶段直接 OR。通用小对象登记入口仅发布未标记的新分配，不保留复制专用的参数或分支；共享 mutator 分配和并行标记的原子读改写保持，large 发布沿原入口，目标预留失败不执行任何复制或目标对象登记。不增加搬迁计划字段、对象元数据、roots 或 ABI，所有 profile 遵守同一顺序。
+全部目标预留成功后，小对象复制直接复用计划中的目标 block、精确大小和已保留范围，不再调用通用分配登记入口重复检查块种类、边界或起点。此时 mutator 已停稳、全部 mark worker 已完成、update worker 尚未发布，只有 coordinator 修改目标元数据；新 block、survivor block 和既有旧代空洞均满足这一阶段的独占条件。复制保留目标正常 GC 字中的精确 size，不重复写大小字段；随后合并 occupied／live-line 与对象 mark，更新目标 live bytes，再 release 发布 starts，随后才发布 forwarding 和更新存活清单。occupied／starts 复用 3.1 的单写者 atomic load／OR／store，保留同一字的既有位；line_live／marks 在该独占阶段直接 OR。通用小对象登记入口仅发布未标记的新分配，不保留复制专用的参数或分支；共享 mutator 分配和并行标记的原子读改写保持，large 发布沿原入口，目标预留失败不执行任何复制或目标对象登记。不增加搬迁计划字段、对象元数据、roots 或 ABI，所有 profile 遵守同一顺序。
 
 forwarding 复用已复制源对象的 GC 状态字，不为 small source 分配按 block 容量索引的指针表，也不单独保存 large forwarding。必须先把完整原对象（包括原 pin／release GC 字）复制到目标并完成目标登记，再把旧 GC 字写为带 forwarded 标志的目标地址，最后更新存活清单 entry。全部复制结束后才发布引用更新任务，标志只存在于已完成复制的原 source，目标与原 source 不重叠；标记、预留、复制和发布顺序保证当前图的引用可以按下述规则转发。预留阶段不改任何原对象头，失败无需恢复对象字节；收尾仅对 unmarked 死对象执行 release，不把源副本的转发字当成 pin registry 或 release 状态。moving stress 继续检查转发并 poison 旧存储；生成代码、native、异常及 pin 消费者不会在此 STW 私有阶段使用可搬迁旧副本。块 side metadata 只保留仍有读取者的字段，未改变有效对象、TLAB、region prefix 或产物 ABI。
 

@@ -3,7 +3,7 @@
 use super::*;
 
 pub(super) fn allocation_context_type(context: &Context) -> inkwell::types::StructType<'_> {
-    context.struct_type(&[ptr_ty(context).into(); 7], false)
+    context.struct_type(&[ptr_ty(context).into(); 6], false)
 }
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
@@ -25,6 +25,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         builder
             .build_store(object, descriptor)
             .map_err(allocation_error)?;
+        let gc_word = self.allocation_word(object, constant(1))?;
+        builder
+            .build_store(gc_word, size)
+            .map_err(allocation_error)?;
 
         let base = self.allocation_pointer(allocation, 2, "tlab_block_base")?;
         let base = builder
@@ -39,21 +43,6 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let word = builder
             .build_right_shift(offset, constant(3), false, "tlab_object_word")
             .map_err(allocation_error)?;
-        let sizes = self.allocation_pointer(allocation, 3, "tlab_sizes")?;
-        // SAFETY: the successful bump lies within this block's size-unit array.
-        let size_slot =
-            unsafe { builder.build_gep(self.context.i16_type(), sizes, &[word], "tlab_size_slot") }
-                .map_err(allocation_error)?;
-        let units = builder
-            .build_right_shift(size, constant(3), false, "tlab_size_units")
-            .and_then(|units| {
-                builder.build_int_truncate(units, self.context.i16_type(), "tlab_size_u16")
-            })
-            .map_err(allocation_error)?;
-        builder
-            .build_store(size_slot, units)
-            .map_err(allocation_error)?;
-
         let last = builder
             .build_int_add(offset, size, "tlab_object_end")
             .and_then(|end| builder.build_int_sub(end, constant(1), "tlab_last_byte"))
@@ -87,7 +76,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let mask = builder
             .build_or(first_bit, extra, "tlab_first_line_mask")
             .map_err(allocation_error)?;
-        let lines = self.allocation_pointer(allocation, 5, "tlab_occupied_lines")?;
+        let lines = self.allocation_pointer(allocation, 4, "tlab_occupied_lines")?;
         self.publish_allocation_bits(lines, first_word, mask, AtomicOrdering::Monotonic)?;
 
         // At most 128 aligned bytes cover two lines, including a word boundary.
@@ -107,7 +96,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .map_err(allocation_error)?;
         builder.position_at_end(complete);
 
-        let starts = self.allocation_pointer(allocation, 4, "tlab_starts")?;
+        let starts = self.allocation_pointer(allocation, 3, "tlab_starts")?;
         let start_word = builder
             .build_right_shift(word, constant(6), false, "tlab_start_word")
             .map_err(allocation_error)?;
@@ -118,7 +107,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             AtomicOrdering::Release,
         )?;
 
-        let counters = self.allocation_pointer(allocation, 6, "tlab_counters")?;
+        let counters = self.allocation_pointer(allocation, 5, "tlab_counters")?;
         for (field, increment) in [(0, constant(1)), (2, size), (1, constant(1)), (3, size)] {
             let slot = self.allocation_word(counters, constant(field))?;
             let value = self.allocation_atomic_load(slot)?;

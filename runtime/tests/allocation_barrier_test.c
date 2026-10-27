@@ -24,6 +24,9 @@ static const size_t sizes[] = {
     2056,
     GC_REGULAR_MAX - 16,
     GC_REGULAR_MAX,
+    16,
+    24,
+    32,
     GC_REGULAR_MAX + 16};
 #define SIZE_COUNT (sizeof sizes / sizeof sizes[0])
 
@@ -51,7 +54,7 @@ static void check_metadata(void *object, size_t size) {
     assert(scoop_heap_object_meta(object, &block, &word));
     if (size <= GC_REGULAR_MAX) {
         assert(block->kind == SCOOP_BLOCK_KIND_SMALL);
-        assert((size_t)block->size_units[word] * 8 == size);
+        assert((((ScoopObjectHeader *)object)->gc_word & GC_SMALL_SIZE_MASK) == size);
         size_t offset = (uintptr_t)object - (uintptr_t)scoop_heap_block_base(block);
         for (size_t line = offset / GC_LINE_SIZE; line <= (offset + size - 1) / GC_LINE_SIZE;
              line++) {
@@ -59,6 +62,7 @@ static void check_metadata(void *object, size_t size) {
         }
     } else {
         assert(block->kind == SCOOP_BLOCK_KIND_LARGE);
+        assert((((ScoopObjectHeader *)object)->gc_word & GC_SMALL_SIZE_MASK) == 0);
     }
     scoop_gc_heap_unlock();
 }
@@ -128,8 +132,18 @@ int main(void) {
         for (size_t offset = sizeof(ScoopObjectHeader); offset < sizes[index]; offset++) {
             assert(payload[offset] == 0);
         }
-        payload[sizeof(ScoopObjectHeader)] = (unsigned char)(index + 1);
-        payload[sizes[index] - 1] = (unsigned char)(index + 17);
+        if (sizes[index] > sizeof(ScoopObjectHeader)) {
+            payload[sizeof(ScoopObjectHeader)] = (unsigned char)(index + 1);
+            payload[sizes[index] - 1] = (unsigned char)(index + 17);
+        }
+        uint64_t original_word = ((ScoopObjectHeader *)objects[index])->gc_word;
+        assert(scoop_rt_pin(objects[index]) == objects[index]);
+        assert(scoop_rt_pin(objects[index]) == objects[index]);
+        check_metadata(objects[index], sizes[index]);
+        assert(scoop_rt_unpin(objects[index]) == objects[index]);
+        check_metadata(objects[index], sizes[index]);
+        assert(scoop_rt_unpin(objects[index]) == objects[index]);
+        assert(((ScoopObjectHeader *)objects[index])->gc_word == original_word);
     }
     // Consecutive 80-byte objects share a run and cross line boundaries.
     scoop_gc_mutator_invalidate(scoop_thread_current_required()->mutator);
@@ -142,7 +156,6 @@ int main(void) {
     ScoopAllocationContext *allocation = scoop_rt_allocation_context;
     ScoopGcBlockMeta *allocation_block = pointer_block(second);
     assert(allocation->block_start == block_base(allocation_block));
-    assert(allocation->size_units == allocation_block->size_units);
     assert(allocation->starts == allocation_block->starts);
     assert(allocation->line_occupied == allocation_block->line_occupied);
     assert(allocation->counters != NULL);
@@ -154,7 +167,7 @@ int main(void) {
     for (size_t index = 0; index < 64; index++) {
         check_metadata(dense[index], sizes[0]);
         const ScoopObjectHeader *header = dense[index];
-        assert(header->td == types[0] && header->gc_word == 0);
+        assert(header->td == types[0] && header->gc_word == sizes[0]);
         const unsigned char *bytes = dense[index];
         for (size_t offset = sizeof *header; offset < sizes[0]; offset++) {
             assert(bytes[offset] == 0);
@@ -165,8 +178,10 @@ int main(void) {
     for (size_t index = 0; index < SIZE_COUNT; index++) {
         check_metadata(objects[index], sizes[index]);
         const unsigned char *payload = objects[index];
-        assert(payload[sizeof(ScoopObjectHeader)] == index + 1);
-        assert(payload[sizes[index] - 1] == index + 17);
+        if (sizes[index] > sizeof(ScoopObjectHeader)) {
+            assert(payload[sizeof(ScoopObjectHeader)] == index + 1);
+            assert(payload[sizes[index] - 1] == index + 17);
+        }
     }
     check_barrier(objects[SIZE_COUNT - 1], sizes[SIZE_COUNT - 1]);
     scoop_rt_pop_native_roots(&roots);

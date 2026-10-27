@@ -61,7 +61,7 @@ uint64_t scoop_gc_scan_dirty_group(ScoopGcCardGroup *group, ScoopGcObjectRangeVi
                 continue;
             }
             uintptr_t object = base + word * sizeof(uint64_t);
-            size_t size = (size_t)block->size_units[word] * sizeof(uint64_t);
+            size_t size = scoop_heap_small_object_size((const void *)object);
             if (object + size > begin) {
                 visitor((void *)object, begin, end, context);
             }

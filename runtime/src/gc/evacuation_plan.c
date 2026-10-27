@@ -161,7 +161,7 @@ static void append_move(void **entry, void *context) {
     }
     size_t size = block->kind == SCOOP_BLOCK_KIND_LARGE
                       ? block->exact_size
-                      : (size_t)block->size_units[word] * sizeof(uint64_t);
+                      : scoop_heap_small_object_size(object);
     ScoopGcBlockMeta *target;
     size_t alignment = scoop_gc_object_alignment(object);
     void *destination = NULL;

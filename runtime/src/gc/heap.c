@@ -168,9 +168,8 @@ static void ensure_small_metadata(ScoopGcBlockMeta *block) {
 #endif
         block->line_occupied = calloc(GC_LINE_BITMAP_WORDS, sizeof(uint64_t));
         block->line_live = calloc(GC_LINE_BITMAP_WORDS, sizeof(uint64_t));
-        block->size_units = calloc(GC_WORDS_PER_BLOCK, sizeof(uint16_t));
         if (block->starts == NULL || block->marks == NULL || block->pins == NULL ||
-            block->line_occupied == NULL || block->line_live == NULL || block->size_units == NULL) {
+            block->line_occupied == NULL || block->line_live == NULL) {
             heap_fatal("out of memory allocating small-block side metadata");
         }
     }
@@ -186,7 +185,6 @@ static void reset_small_metadata(ScoopGcBlockMeta *block) {
 #endif
     memset(block->line_occupied, 0, GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
     memset(block->line_live, 0, GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
-    memset(block->size_units, 0, GC_WORDS_PER_BLOCK * sizeof(uint16_t));
 }
 
 static ScoopGcBlockMeta *take_small_block(bool allow_growth) {

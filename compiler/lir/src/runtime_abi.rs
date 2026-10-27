@@ -70,7 +70,7 @@ impl WireEncode for RuntimeAbiContract {
         for field in 1..=3 {
             encoder.field(field)?;
             encoder.unsigned(match field {
-                1 => 21,
+                1 => 22,
                 3 => 2,
                 _ => INITIAL_SCHEMA,
             })?;
@@ -758,10 +758,10 @@ mod tests {
 
     #[test]
     fn runtime_abi_contract_versions_current_metadata_layout() {
-        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3011502010302");
+        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3011602010302");
         assert_eq!(
             RuntimeAbiContract.fingerprint().unwrap().to_string(),
-            "dde16809236cbecc427ebf07e1dde655d17bd1bd365ace4353451331a0eaaed5"
+            "00db945f95307b97ada9c9b83f069395224ee5110e69d1e6a63b5ee70a2db808"
         );
     }
 

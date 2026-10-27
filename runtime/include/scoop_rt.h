@@ -51,9 +51,9 @@ extern "C" {
 #define SCOOP_REFS_SEQUENCE (UINT64_MAX - 1)
 
 /* Runtime spec 2.1: 16 bytes. A current object's `gc_word` carries the pin and
- * release-ready flags plus the explicit pin registry index. During STW only,
+ * release-ready flags, exact small-object size and explicit pin registry index. During STW only,
  * an already copied source stores a tagged forwarding address in this word.
- * Mark and exact size live in the arena-external side table.
+ * Mark and large-object sizes live in arena-external metadata.
  * Only compiler-generated constructor publication may set release-ready.
  * Source code must not touch it. TypeDescriptor shape determines each
  * aligned payload offset. */

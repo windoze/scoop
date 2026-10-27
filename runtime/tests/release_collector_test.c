@@ -16,7 +16,6 @@
 #include "../src/thread.h"
 #include "platform/image_fixture.h"
 
-#define OTHER_HEADER_BIT UINT64_C(1)
 #define PAYLOAD_MARKER UINT64_C(0x1255aabbfedc9876)
 
 typedef struct Resource {
@@ -28,15 +27,20 @@ typedef struct Resource {
 
 typedef struct LargeResource {
     Resource resource;
-    uint8_t bytes[5000];
+    uint8_t bytes[GC_REGULAR_MAX];
 } LargeResource;
+
+static uint64_t size_word(const ScoopTypeDescriptor *td) {
+    size_t size = td->instance_shape.minimum_size;
+    return size <= GC_REGULAR_MAX ? size : 0;
+}
 
 static unsigned attempts[16], freed[16];
 static const uint64_t child_scan[] = {1, offsetof(Resource, child)};
 
 static void release_resource(void *object) {
     Resource *resource = object;
-    assert(resource->header.gc_word == OTHER_HEADER_BIT);
+    assert(resource->header.gc_word == size_word(resource->header.td));
     assert(resource->marker == PAYLOAD_MARKER);
     assert(resource->handle < 16);
     if (resource->header.td->instance_shape.minimum_size == sizeof(LargeResource)) {
@@ -74,10 +78,9 @@ static Resource *allocate(const ScoopTypeDescriptor *td, uint64_t handle, bool r
     scoop_thread_push_managed_anchor(&anchor, 0x1010, (uintptr_t)frame, (uintptr_t)&frame[2]);
     Resource *resource = scoop_gc_alloc_internal(td, td->instance_shape.minimum_size);
     scoop_thread_pop_managed_anchor(&anchor);
-    assert(resource->header.gc_word == 0);
+    assert(resource->header.gc_word == size_word(td));
     resource->handle = handle;
     resource->marker = PAYLOAD_MARKER;
-    resource->header.gc_word = OTHER_HEADER_BIT;
     if (td->instance_shape.minimum_size == sizeof(LargeResource)) {
         LargeResource *large = (LargeResource *)resource;
         large->bytes[0] = 0x12;
@@ -105,7 +108,7 @@ static void lifecycle(const ScoopTypeDescriptor *td, bool stress) {
 
     Resource *unfinished = allocate(td, 2, false);
     unfinished = collect(unfinished);
-    assert(unfinished->header.gc_word == OTHER_HEADER_BIT);
+    assert(unfinished->header.gc_word == size_word(td));
     (void)collect(NULL);
     assert(attempts[2] == 0);
 
@@ -114,7 +117,7 @@ static void lifecycle(const ScoopTypeDescriptor *td, bool stress) {
         uintptr_t old = (uintptr_t)live;
         live = collect(live);
         assert(((uintptr_t)live != old) == stress);
-        assert(live->header.gc_word == (OTHER_HEADER_BIT | GC_RELEASE_READY_BIT));
+        assert(live->header.gc_word == (size_word(td) | GC_RELEASE_READY_BIT));
         assert(scoop_rt_gc_debug_last_moved_count() == (uint64_t)stress);
         assert(attempts[1] == 0);
     }
@@ -154,9 +157,9 @@ static void roots_and_cycles(const ScoopTypeDescriptor *td, bool stress) {
     assert(attempts[5] == 0 && attempts[6] == 0 && attempts[7] == 1);
     assert(((uintptr_t)live != old_live) == stress);
     assert((pinned->header.gc_word & UINT64_C(7)) ==
-           (OTHER_HEADER_BIT | GC_PIN_BIT | GC_RELEASE_READY_BIT));
+           (GC_PIN_BIT | GC_RELEASE_READY_BIT));
     assert(scoop_rt_unpin(pinned) == pinned);
-    assert(pinned->header.gc_word == (OTHER_HEADER_BIT | GC_RELEASE_READY_BIT));
+    assert(pinned->header.gc_word == (size_word(td) | GC_RELEASE_READY_BIT));
     live = NULL;
     (void)collect(NULL);
     assert(attempts[5] == 1 && attempts[6] == 1);

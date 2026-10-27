@@ -6,12 +6,13 @@
 
 相关 API 调整：[String 的字符扫描名称](STRING-API.md)在全部 profile 生效，无开关；`charLength`／`getCharAt` 保持 O(n)，`byteLength` 保持 O(1)，内部存储保持。扫描、编码与后备职责迁移见 [Runtime 职责收敛](RUNTIME-RESPONSIBILITIES.md)。
 
-表中 ABI 版本注明各项引入时的合同；当前统一 runtime contract 为 **21**、metadata ABI 为 **9**，配套库／runtime／sysroot 按当前合同重建。
+表中 ABI 版本注明各项引入时的合同；当前统一 runtime contract 为 **22**、metadata ABI 为 **9**，配套库／runtime／sysroot 按当前合同重建。
 
 ## 程序优化
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [小对象大小合入 GC 字](GC-EVOLUTION.md) | 所有 profile 默认，配套 runtime contract 22；编译器／runtime／系统库一起重建 | 删除每块 8 KiB 大小表，TLAB 56→48 B、普通 block metadata 120→112 B；对象头仍为 16 B，pin／release／复制状态保持，large 沿原精确大小。两机内存及大存活集收益、线程波动和暂停限制见阶段八，无新开关。 |
 | [冻结图的直接引用回写](GC-EVOLUTION.md) | 新版 runtime，所有 profile 默认；重链接即可 | 完成 mark 和复制后直接消费源 GC 字，省去逐边 page map／mark／pin 复核；首次边界检查保持，survivor 查询当前目标代际，完整验证只编入 stress／heap 验证。无布局、ABI 或新配置，性能与暂停限制见阶段七。 |
 | [源对象 GC 字转发](GC-EVOLUTION.md) | 新版 runtime，所有 profile 默认；重链接即可 | 完整复制后在不可见旧副本保存带标志的目标地址，删除源块 forwarding 表；计划 48→32 B、普通 block metadata 136→120 B。当前对象头、pin／release、预留失败和 ABI 保持，收益与多线程成本见阶段六。 |
 | [清扫复用存活 line](GC-EVOLUTION.md) | 新版 runtime，所有 profile 默认；重链接即可 | 普通保留块只逐个退休死亡对象，复用已完成 mark／复制的 line 位图；完整搬出的无 pin 源直接退休。moving stress 保留 forwarding 检查与 poison，pin／release／空洞／失败回退保持，无额外元数据或 ABI。 |

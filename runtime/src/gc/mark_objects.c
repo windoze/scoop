@@ -108,7 +108,7 @@ static void mark_target(ScoopGcMarkWorker *worker, void *object) {
     }
     size_t size = block->kind == SCOOP_BLOCK_KIND_LARGE
                       ? block->exact_size
-                      : (size_t)block->size_units[word] * sizeof(uint64_t);
+                      : scoop_heap_small_object_size(object);
     scoop_gc_validate_object(object, size);
     if (block->kind == SCOOP_BLOCK_KIND_SMALL) {
         mark_lines(block, word, size);
