@@ -6,6 +6,9 @@ use crate::imports::lookup::calls::{NamedCallBinding, NamedCallOrigin, NamedCall
 use crate::namespace::{TopLevelNamespaces, TopLevelTypeTarget};
 use members::PropertyExtensionInvokeOutcome;
 
+mod conversion;
+mod short;
+
 impl Lowerer {
     pub(super) fn lower_interpolated_string(
         &mut self,
@@ -13,6 +16,10 @@ impl Lowerer {
         span: Span,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
+        let normalized = short::normalize(parts);
+        if normalized.len() <= short::MAX_PARTS {
+            return self.lower_short_interpolation(&normalized, span, sink);
+        }
         let builder = self.construct_interpolation_builder(span, sink)?;
         let ty = builder.ty;
         let local = self.alloc_hidden("stringBuilder", ty);
@@ -60,30 +67,7 @@ impl Lowerer {
         span: Span,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
-        // This is the core prelude's typed binding, independent of every
-        // user scope, import, alias, or same-name function candidate.
-        let bindings = if self.current_cone() == scoop_identity::ConeIdentity::CORE {
-            self.top_level_namespaces
-                .current_type_bindings()
-                .into_iter()
-                .filter(|(package, name, _, _)| {
-                    *package == TopLevelNamespaces::root_package() && name == "StringBuilder"
-                })
-                .map(|(_, _, target, _)| {
-                    let target = NamedCallTarget::Type(target);
-                    NamedCallBinding {
-                        target,
-                        origin: NamedCallOrigin::Core(target),
-                    }
-                })
-                .collect::<Vec<_>>()
-        } else {
-            self.named_call_layers("StringBuilder")
-                .into_iter()
-                .filter(|layer| layer.kind == ImportLookupLayer::CorePrelude)
-                .flat_map(|layer| layer.candidates)
-                .collect()
-        };
+        let bindings = self.interpolation_core_bindings("StringBuilder");
         let targets = bindings
             .into_iter()
             .filter(|binding| {
@@ -120,6 +104,33 @@ impl Lowerer {
         )
         .ok()
         .flatten()
+    }
+
+    fn interpolation_core_bindings(&self, requested: &str) -> Vec<NamedCallBinding> {
+        // This is the core prelude's typed binding, independent of every
+        // user scope, import, alias, or same-name function candidate.
+        if self.current_cone() == scoop_identity::ConeIdentity::CORE {
+            self.top_level_namespaces
+                .current_type_bindings()
+                .into_iter()
+                .filter(|(package, name, _, _)| {
+                    *package == TopLevelNamespaces::root_package() && name == requested
+                })
+                .map(|(_, _, target, _)| {
+                    let target = NamedCallTarget::Type(target);
+                    NamedCallBinding {
+                        target,
+                        origin: NamedCallOrigin::Core(target),
+                    }
+                })
+                .collect::<Vec<_>>()
+        } else {
+            self.named_call_layers(requested)
+                .into_iter()
+                .filter(|layer| layer.kind == ImportLookupLayer::CorePrelude)
+                .flat_map(|layer| layer.candidates)
+                .collect()
+        }
     }
 
     fn interpolation_member_call(

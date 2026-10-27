@@ -1,0 +1,85 @@
+fun two(a: String, b: String): String = f"${a}${b}"
+
+fun three(a: String): String = f"<${a}>"
+
+fun eight(a: String, b: String): String = f"${a}${b}${a}${b}${a}${b}${a}${b}"
+
+fun nine(a: String, b: String): String = f"${a}${b}${a}${b}${a}${b}${a}${b}${a}"
+
+fun branch(a: String, b: String): String =
+    f"<${a}:${
+        if (a.byteLength > 0L) {
+            gcCollect();
+            b
+        } else {
+            a
+        }
+    }>"
+
+fun longText(a: String): String =
+    f"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-----${a}!"
+
+fun check(actual: String, expected: String) {
+    if (actual != expected) {
+        throw IllegalStateException()
+    }
+}
+
+class Gate: SuspendRegistration<Int> {
+    var waiter: Continuation<Int>? = None
+    public override fun register(continuation: Continuation<Int>) {
+        waiter = Some(continuation)
+    }
+}
+
+class Completion: Continuation<String> {
+    var text: String = ""
+    public override fun resume(result: String) {
+        text = result
+    }
+    public override fun resumeWithException(error: Throwable) {
+        throw error
+    }
+}
+
+class Suspension(val gate: Gate, val seed: Long): SuspendTask<String> {
+    public override suspend fun run(): String = f"<${seed}:${suspendCoroutine(gate)}>"
+}
+
+suspend fun defaulted(
+    gate: Gate,
+    prefix: String,
+    text: String = f"${prefix}:${suspendCoroutine(gate)}"
+): String = text
+
+class DefaultSuspension(val gate: Gate, val seed: Long): SuspendTask<String> {
+    public override suspend fun run(): String = defaulted(gate, seed.toString())
+}
+
+fun suspendCase(gate: Gate, task: SuspendTask<String>, expected: String) {
+    val completion = Completion()
+    startCoroutine(task, completion)
+    gcCollect()
+    gate.waiter!!.resume(7)
+    check(completion.text, expected)
+}
+
+fun main() {
+    // Produce managed inputs that survive later conversions and final allocation.
+    val left = 123456789L.toString()
+    val right = (-987654321L).toString()
+    check(two(left, right), left + right)
+    check(three(left), "<" + left + ">")
+    check(eight(left, right), left + right + left + right + left + right + left + right)
+    check(nine(left, right), left + right + left + right + left + right + left + right + left)
+    check(branch(left, right), "<" + left + ":" + right + ">")
+    check(
+        longText(left),
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-----" + left + "!"
+    )
+    val first = Gate()
+    suspendCase(first, Suspension(first, 123456789L), "<123456789:7>")
+    val second = Gate()
+    suspendCase(second, DefaultSuspension(second, 987654321L), "987654321:7")
+    println("interpolation preserves moving inputs")
+}

@@ -282,3 +282,18 @@
 - 新增 9 种基准负载，覆盖数值装箱的不同命中位置、泛型／空／单项目录未命中、集合、Boolean 及混合查询。三目标各完成五种短输入的数学校验；两机 O2 C 测试覆盖 0～17 项目录的合法位置、目录外目标及空 slots，格式化和 Clippy 通过。
 - 本机比较四种扫描展开，各有约 12%～27% 的中后段收益，但短目录／smartcast 回退最高约 22%。全部 stage／`.slib`／GC 计数保持，text 增加 284～440 B；本轮未采纳这些 runtime 实验，也未增加开关。
 - 已恢复原查询及开发 sysroot，普通和 stress 的各 92 个 runtime 目标文件、程序和两份 `.slib` 与基线逐字节一致。正式接口专测只运行 4 个变体，没有全量验收；[详细记录](INTERFACE-DIRECTORY.md)保留取舍与验证范围。
+
+## B1：短 f-string 就地展开
+
+- 先同步语言规范 §6／§6.2／§11.6 和实现规范 §2.15。HIR 对不超过八个有效片段的插值，按序求值、立即调用实际 core ToString、保存 String，再发射已有 typed 拼接链；零／单段直接使用结果。release 复用现有融合，debug 保留二元后备；九段以上继续调用普通 StringBuilder。本轮未实施字节缓冲或标量直接格式化，也没有改动 MIR／LIR／codegen、runtime 或 ABI。
+- 本机 2,064 项 HIR 测试通过，最终两项定向 HIR 回归再次通过；三目标各 29 项插值 fixture、三个字符串编译器专测的六个变体及两项 core consumer 行为测试通过。覆盖转换顺序、异常、动态 override、泛型／默认值跨 Cone、遮蔽、诊断和 moving／minor。先独立修复测试 core 的过时浮点 helper 引用；收尾补齐转换后的引用快照，普通挂起及默认参数挂起均精确生成一个 StringConcat，没有放宽融合屏障。fmt、Clippy、Ruff 通过，没有运行全量套件。
+- 对照真正修改前后的编译器及同一份 benchmark／sysroot，七对 AB／BA、每次一百万轮。五段 String 在 Darwin／GNU／musl 从 117.642／119.061／251.650 ns 降到 11.442／10.342／74.056 ns；Long／Int 插值从 155.242／158.578／342.649 ns 降到 50.554／47.323／158.369 ns。短插值每次减少 168 B 临时分配，五段 String 的十万轮分配从 21,600,176 B 降到 4,800,176 B，minor 20 → 4，full 均为零；数值转换临时 String 仍保留。
+- 九段后备和普通 String `+` 的分配保持；全部时间、GC 与复测限制见[设计第 6.1 节](STRING-BUILDER-INTERPOLATION.md#61-实施验收2026-10-27)。Linux 最终运行测量固定 CPU 4，且与编译测量分开；单段已有 String 的循环进一步化简，不把亚纳秒值解释为一次调用。最终三目标基准程序与已测候选逐字节相同，运行数据可复用；下面的冷 consumer 成本已使用最终编译器重测。
+
+| 目标 | 代码段 bytes，前 → 后 | 完整文件 bytes，前 → 后 | 冷 consumer 构建中位秒，前 → 后 |
+| --- | ---: | ---: | ---: |
+| Darwin ARM64 | 324,292 → 318,068 | 1,440,984 → 1,407,960 | 2.151 → 2.001 |
+| Linux GNU x86_64 | 387,553 → 380,641 | 1,650,448 → 1,613,584 | 3.130 → 2.914 |
+| Linux musl x86_64 | 456,126 → 449,214 | 1,535,368 → 1,494,408 | 2.914 → 2.785 |
+
+编译成本为每边三个全新 cache／target 的交替样本；两边保留源码与工具，消费相同预编译库。代表程序缩小，但这些微负载与短构建样本不代表完整应用收益。原始 JSON／日志保存在仓库外 `/Users/chenxu/scoop-performance-results/2026-10-27/string-builder-interpolation/`，Linux 原件为 `nuc12:~/scoop-string-builder-linux-*`；未提交日志归档。本地已清理约 1.7 GiB 的闲置 dev target，Linux 使用独立 checkout，保留原工作区及其构建缓存。[开启条件清单](ENABLED-OPTIMIZATIONS.md)已同步。

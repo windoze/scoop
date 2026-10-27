@@ -1,6 +1,6 @@
 # f-string 就地展开与 StringBuilder 后续优化
 
-状态：设计已进入实施，先同步短 f-string 的规范，再完成前端与定向验证。2026-10-27 对照基线 `d90538338`；初始本机探针使用当时的 `eb81be354` 开发命令与已准备的 sysroot，具体限制见第 5 节。
+状态：短 f-string 已实现，三目标验证和实际编译器对照见第 6.1 节；本轮仅交付这一阶段，第 7 节 StringBuilder 字节缓冲留待后续。2026-10-27 对照基线 `d90538338`；第 5 节保留实现前的可行性探针，不能与正式验收数据混用。
 
 ## 1. 结论与实施范围
 
@@ -15,9 +15,9 @@
 
 如果以后要求所有 profile 的多段拼接都直接生成单次分配，再单独考虑 HIR 多元 StringConcat 及其可移植正文表示；本阶段无需承担该格式变更。
 
-## 2. 已核实的实现基础
+## 2. 实施前已核实的实现基础
 
-| 位置 | 当前行为及对设计的影响 |
+| 位置 | 基线行为及对设计的影响 |
 | --- | --- |
 | [HIR 插值下降](../../compiler/hir-lower/src/expr/interpolation.rs) | 无论片段数，先构造隐藏的 core StringBuilder，再逐段调用 append，最后调用 toString。绑定来自实际 core 声明，保留源位置。 |
 | [core StringBuilder](../../sysroot/src/scoop.core/src/string_builder.scoop) | 持有 `ArrayList<String>`；generic append 立即转换；toString 调用 `coreStringJoinParts`。 |
@@ -52,6 +52,8 @@ val text = "<" + first + ":" + second + ">"
 ```
 
 上述源码仅说明顺序。实际 HIR 使用 hygienic locals、已绑定的 ToString callable 和 typed StringConcat，不重新执行用户作用域中的 `.toString` 或 `+` 名称查找。所有转换均在拼接链之前完成，链内只读取 String 常量与已经保存的结果，中间 concat 结果只供下一个 concat 使用。
+
+多片段在全部转换完成后，再把转换结果引用保存到拼接所在块的不可变局部变量。协程恢复可能在多条路径写回先前保存的转换局部；这组最后的引用快照使拼接输入仍是单次定义，从而复用已有融合条件。快照不调用 ToString、不分配 String，也不保存 bytes 指针；普通直线正文中的冗余复制由既有优化消除。
 
 | 有效片段数 | 脱糖与结果 |
 | --- | --- |
@@ -139,6 +141,33 @@ HIR lower 负责语义检查、转换调用和临时变量的顺序，输出已�
 性能验收使用同一输入、配套工具与系统库，对照真正修改前后的 f-string；手写展开只作为上限参考。覆盖冷点/热循环，1/2/5/8/9 段，String、整数、Char、自定义 ToString 和长文本。分别报告墙钟、GC 分配、minor/full、text/完整文件与冷 consumer 编译成本；计时与 GC 统计分开。保持九段后备及普通 String `+` 的对照，确认没有把成本转移到它们。
 
 实施顺序为：同步 spec → HIR 脱糖与相关测试 → Rust 格式化/Clippy → 定向语义、产物及 GC 检查 → 三目标性能和成本对照。修改 Python inspector 时先运行仓库规定的 Ruff。正式源码编译、产物消费、链接与运行闭环通过后交付本阶段，不等待 StringBuilder 重构或整数融合。
+
+### 6.1 实施验收（2026-10-27）
+
+实现限于 HIR lower，沿真实 core ToString slot 绑定转换，保留具体 receiver、泛型 bound 和动态 override。已同步语言规范 §6／§6.2／§11.6 与实现规范 §2.15；MIR／LIR／codegen、runtime、StringBuilder 和产物格式未改动。先独立修复 HIR 测试 core 中已失效的浮点 helper 引用，再通过 2,064 项 HIR 单元测试；最终补齐引用快照后，两项专门的 HIR 回归再次通过。Rust fmt／workspace Clippy、Scoop 格式检查及 Python Ruff 通过。
+
+Darwin ARM64、Linux GNU x86_64、Linux musl x86_64 均通过 29 项 interpolation fixture（含诊断、求值／转换／异常顺序、遮蔽、跨 Cone generic/default 和挂起），两项 core consumer 行为测试，以及三个字符串编译器专测的六个 profile 变体。新增专测精确断言短链、含分支的最后一段、普通挂起和默认参数挂起在 release 各生成一个 StringConcat；debug 保留相应二元后备，九段保留一个 builder。release 专测使用 moving／minor stress，另复用现有挂起异常用例检查跨恢复后的保活。没有运行全量测试套件。
+
+正式对照使用同一份 [benchmark](../../tests/benchmarks/strings/README.md)，修改前工具构建于 `3600e70f0`（生产代码与 `d90538338` 相同），修改后使用本阶段实现。每目标两边消费同一份匹配 ABI 的预编译 sysroot；Linux 在独立 checkout 准备系统库，未改动原工作区。十个模式分别预热一次，再运行七对 AB／BA、每次一百万轮；逐对校验 stdout。Linux 固定 CPU 4；计时与十万轮 GC 统计分开。
+
+| 负载 | Darwin，ns/次，前 → 后 | GNU，ns/次，前 → 后 | musl，ns/次，前 → 后 |
+| --- | ---: | ---: | ---: |
+| 单个 String | 66.036 → 0.187 | 64.423 → 0.136 | 84.551 → 0.159 |
+| 两个 String | 102.105 → 11.325 | 92.981 → 9.604 | 121.863 → 25.890 |
+| 五段 String／文本 | 117.642 → 11.442 | 119.061 → 10.342 | 251.650 → 74.056 |
+| 八个 String | 136.682 → 18.037 | 146.837 → 22.796 | 360.487 → 225.963 |
+| 九个 String，builder 后备 | 193.411 → 194.469 | 192.376 → 187.953 | 454.935 → 451.268 |
+| Long／Int 与文本 | 155.242 → 50.554 | 158.578 → 47.323 | 342.649 → 158.369 |
+| Char 与文本 | 132.818 → 12.581 | 142.814 → 16.937 | 295.673 → 45.926 |
+| 自定义 ToString／Int | 135.194 → 24.915 | 140.130 → 24.695 | 294.716 → 117.068 |
+| 长文本 | 106.440 → 9.222 | 107.691 → 12.377 | 178.560 → 54.420 |
+| 普通 String `+` 对照 | 11.665 → 11.462 | 10.548 → 10.577 | 74.075 → 74.127 |
+
+这些短插值负载每次均减少 168 B 临时分配，三目标一致。五段 String 的十万轮 allocated_bytes 为 21,600,176 → 4,800,176，minor 为 20 → 4；整数为 30,397,840 → 13,597,840、29 → 13，仍保留数值转换 String。单段只有固定 176 B 启动分配，minor 16 → 0；八段 minor 25 → 9。九段和普通 `+` 的分配及 minor 保持，全部模式 full 为零。
+
+单段返回已有 String 后循环可继续简化，不能将亚纳秒结果解释为实际调用成本；其他数值也只是这些微负载的阶段时间。初次 GNU 未绑定 CPU 的普通 `+` 对照回退约 8.8%，固定 CPU 后为 +0.3%；musl 与构建测量重叠的一轮已单独保留，表中采用无并发构建的复测。Darwin 九段 +0.5% 与 Linux 对照的微小变化均保留，不据此声称后备或普通拼接得到优化。最终引用快照补丁生成的三目标基准程序与已测候选逐字节相同，因此复用运行数据；编译成本另用最终编译器重测。
+
+完整文件与代码段均缩小；冷 consumer 构建以每边三个全新 cache／target 目录交替测量，保留全部源码和工具。具体成本与原始记录位置见[性能进展](PROGRESS.md#b1短-f-string-就地展开)。本阶段已清理本地不再使用的 dev target（约 1.7 GiB），保留 release 工具与需要复用的缓存。
 
 ## 7. 后续 StringBuilder 设计结论
 

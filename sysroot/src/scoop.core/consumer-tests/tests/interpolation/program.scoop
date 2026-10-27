@@ -1,0 +1,66 @@
+package test.core.tests.interpolation
+
+import scoop.test.*
+
+private class Text(val value: String): ToString {
+    public override fun toString(): String = value
+}
+
+private fun <T: ToString> generic(value: T): String = f"<${value}>"
+
+private fun dynamic(value: ToString): String = f"[${value}]"
+
+private open class Parent: ToString {
+    public open override fun toString(): String = "parent"
+}
+
+private class Child: Parent() {
+    public override fun toString(): String = "child"
+}
+
+@Test
+private class InterpolationTests {
+    @Test
+    fun sizesAndContent() {
+        val a = "雪"
+        val b = "🚀\u0000"
+        assertEquals("", f"")
+        assertEquals("text", f"text")
+        assertEquals(a, f"${a}")
+        assertEquals(a + b, f"${a}${b}")
+        assertEquals("<雪>", f"<${a}>")
+        assertEquals(a + b + a + b + a + b + a, f"${a}${b}${a}${b}${a}${b}${a}")
+        assertEquals(a + b + a + b + a + b + a + b, f"${a}${b}${a}${b}${a}${b}${a}${b}")
+        assertEquals(a + b + a + b + a + b + a + b + a, f"${a}${b}${a}${b}${a}${b}${a}${b}${a}")
+        assertEquals("<>[雪]", f"${generic(Text(""))}${dynamic(Text(a))}")
+        assertEquals("雪true42", f"${'雪'}${true}${42}")
+        val parent: Parent = Child()
+        assertEquals("child", f"${parent}")
+    }
+
+    @Test
+    fun snapshotsPrecedeLaterMutation() {
+        var text = "before"
+        assertEquals(
+            "before/after/after",
+            f"${text}/${
+                if (text == "before") {
+                    text = "after";
+                    text
+                } else {
+                    "bad"
+                }
+            }/${text}"
+        )
+        assertEquals(
+            "<after>",
+            f"<${
+                if (text == "after") {
+                    text
+                } else {
+                    "bad"
+                }
+            }>"
+        )
+    }
+}

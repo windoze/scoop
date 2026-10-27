@@ -1,0 +1,158 @@
+@GCLeaf
+@Extern(lib = "scoop_scalar_phases", name = "bench_kind")
+fun kind(): Int
+
+@GCLeaf
+@Extern(lib = "scoop_scalar_phases", name = "bench_count")
+fun count(): Int
+
+@GCLeaf
+@Extern(lib = "scoop_scalar_phases", name = "bench_begin")
+fun begin()
+
+@GCLeaf
+@Extern(lib = "scoop_scalar_phases", name = "bench_end")
+fun end()
+
+class Label(val text: String): ToString {
+    public override fun toString(): String = text
+}
+
+public fun one(left: String, right: String, iterations: Int): Long {
+    var total = 0L
+    var index = 0
+    while (index < iterations) {
+        val text = f"${left}"
+        total += text.byteLength
+        index += 1
+    }
+    return total
+}
+
+public fun two(left: String, right: String, iterations: Int): Long {
+    var total = 0L
+    var index = 0
+    while (index < iterations) {
+        val text = f"${left}${right}"
+        total += text.byteLength
+        index += 1
+    }
+    return total
+}
+
+public fun five(left: String, right: String, iterations: Int): Long {
+    var total = 0L
+    var index = 0
+    while (index < iterations) {
+        val text = f"<${left}:${right}>"
+        total += text.byteLength
+        index += 1
+    }
+    return total
+}
+
+public fun eight(left: String, right: String, iterations: Int): Long {
+    var total = 0L
+    var index = 0
+    while (index < iterations) {
+        val text = f"${left}${right}${left}${right}${left}${right}${left}${right}"
+        total += text.byteLength
+        index += 1
+    }
+    return total
+}
+
+public fun nine(left: String, right: String, iterations: Int): Long {
+    var total = 0L
+    var index = 0
+    while (index < iterations) {
+        val text = f"${left}${right}${left}${right}${left}${right}${left}${right}${left}"
+        total += text.byteLength
+        index += 1
+    }
+    return total
+}
+
+public fun integers(left: String, right: String, iterations: Int): Long {
+    var value = 12345678L
+    var total = 0L
+    var index = 0
+    while (index < iterations) {
+        value = value * 1664525L + 1013904223L
+        val text = f"[${value}:${index}]"
+        total += text.byteLength
+        index += 1
+    }
+    return total
+}
+
+public fun characters(left: String, right: String, iterations: Int): Long {
+    var total = 0L
+    var index = 0
+    while (index < iterations) {
+        val text = f"<${'雪'}:${'🚀'}>"
+        total += text.byteLength
+        index += 1
+    }
+    return total
+}
+
+public fun custom(left: String, right: String, iterations: Int): Long {
+    val label = Label(left)
+    var total = 0L
+    var index = 0
+    while (index < iterations) {
+        val text = f"<${label}:${index}>"
+        total += text.byteLength
+        index += 1
+    }
+    return total
+}
+
+public fun longText(left: String, right: String, iterations: Int): Long {
+    var total = 0L
+    var index = 0
+    while (index < iterations) {
+        val text = f"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-----${left}!"
+        total += text.byteLength
+        index += 1
+    }
+    return total
+}
+
+public fun ordinary(left: String, right: String, iterations: Int): Long {
+    var total = 0L
+    var index = 0
+    while (index < iterations) {
+        val text = "<" + left + ":" + right + ">"
+        total += text.byteLength
+        index += 1
+    }
+    return total
+}
+
+fun main() {
+    @Unsafe
+    {
+        val iterations = count()
+        val mode = kind()
+        val left = 12345678L.toString()
+        val right = (-12345678L).toString()
+        begin()
+        val result =
+            when (mode) {
+                case 0 -> one(left, right, iterations)
+                case 1 -> two(left, right, iterations)
+                case 2 -> five(left, right, iterations)
+                case 3 -> eight(left, right, iterations)
+                case 4 -> nine(left, right, iterations)
+                case 5 -> integers(left, right, iterations)
+                case 6 -> characters(left, right, iterations)
+                case 7 -> custom(left, right, iterations)
+                case 8 -> longText(left, right, iterations)
+                else -> ordinary(left, right, iterations)
+            }
+        end()
+        println(result)
+    }
+}
