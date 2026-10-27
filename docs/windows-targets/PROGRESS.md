@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | W0 工具链与 ABI | 关键路线实验通过 | 复现入口与范围见下文；正式编译器集成在 W1／W2 完成 |
 | W1 编译／链接 | 实施中 | ABI、COFF、generated-C 与 native C/C++ 已接入；继续完整 PE 链接与调试信息 |
-| W2 core runtime | 待实施 | Win32 平台层、SEH、精确根、Unicode 启动与完整 core／std |
+| W2 core runtime | 实施中 | Unicode 启动、同步／worker／计时／对齐分配已接入；继续 Win32 VM、PE image、SEH 精确根与完整 core／std |
 | W3 系统库 | 待实施 | 平台规范与实现、IOCP、全部 native 组件、真实 consumer |
 | W4 宿主与发行 | 基础实施中 | 进程中断已实现；继续 Windows 命令、维护脚本、DLL／SDK 布局与打包、交叉编译 |
 
@@ -74,6 +74,12 @@ W1 的 Windows final-link profile 已完成内部工具调用：Microsoft 由 cl
 PE profile 已接入 artifact linker：普通 AMD64 COFF／bigobj 符号读取、COMDAT／common／TLS 分类、短 import object 与普通 archive 成员分开处理，Windows 原生库按内容区分 static／dynamic。显式库绑定保留实际导入接口；CRT defaults、弱 alias 与 `.drectve` 交给所选原生 linker。PE 链接生成 String TD alias、只读 `.smap`、目标 quoting 的 response file，并把实际系统库 trace 接入更新输入。Windows 默认输出及缓存 executable 使用 `.exe`，PDB basename 纳入 executable 键并随结果发布。
 
 四种组合（MSVC＋LLD、MSVC＋LINK、MinGW MSVCRT、MinGW UCRT）的定向测试通过真实普通静态库与 DLL import library、未选成员排除、generated startup 的 image/root 顺序、String alias、只读 stackmap 节、PDB／map 和 Unicode 路径。启动使用实际 runtime UTF-16 转换，覆盖空参数、BMP／非 BMP、引号／尾部反斜线、非法 surrogate 拒绝、native atexit 期间参数有效及完整 32-bit 退出码。MinGW 启动的私有 root 声明使用 hidden visibility，避免将本 image metadata 当作可自动导入数据；response file 由 LLD 解析，避免 Clang GNU parser 提前消费 Windows 路径的反斜线。完整 `.slib`／runtime／CLI 和缓存发布验收仍待 W2 闭环，不以这些边界测试替代。
+
+## W2 runtime 基础
+
+通用 runtime 的 mutex、condition、once、GC worker create/join、对齐分配和计时已通过有限的 platform primitives 调用。Windows 使用 SRW exclusive lock、condition variable、InitOnce、CRT `_beginthreadex`、thread handle、配对 aligned allocation，以及 QPC／GetThreadTimes；Darwin／Linux 的 pthread／POSIX 行为保留在对应实现。停稳等待遵守 OS 计时粒度；没有增加 pthread DLL、全局 timer-resolution 修改或新的 GC 协调机制。删除未被使用的私有 OS thread id 字段，私有 itable C 字段改名为 `interface_type`，避免 Windows SDK 的 `interface` 宏冲突，二进制布局不变。
+
+三个环境均通过实际四 worker 并发测试，覆盖互斥计数、condition signal／broadcast／timeout、once publication、C TLS 隔离、join、动态 mutex、单调／线程 CPU 时钟和 8～128-byte 对齐分配。13 个受影响的 runtime C translation unit 在每个环境以 `-Wall -Wextra -Werror` 编译通过，包含启动统计分支。POSIX 构建与现有 native C 测试入口已加入同一实现；现有宿主的运行回归仍按约定等待本地完整验收。Win32 VM／PE 元数据／SEH 栈扫描和完整 GC／语言运行尚未完成，不以 primitives 测试作为完整 runtime 验收。
 
 ## W4 宿主基础
 

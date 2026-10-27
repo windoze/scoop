@@ -9,7 +9,7 @@
 
 #undef collection_threshold
 ScoopGcHeapState scoop_gc_heap_state = {
-    .lock = PTHREAD_MUTEX_INITIALIZER,
+    .lock = SCOOP_PLATFORM_MUTEX_INIT,
     .collection_threshold = GC_INITIAL_THRESHOLD,
     .nursery_capacity = GC_NURSERY_MIN_CAPACITY,
     .nursery_limit = GC_NURSERY_DEFAULT_MAX_CAPACITY,
@@ -23,13 +23,13 @@ _Noreturn void heap_fatal(const char *message) {
 }
 
 void lock_heap(void) {
-    if (pthread_mutex_lock(&heap_lock) != 0) {
+    if (scoop_platform_mutex_lock(&heap_lock) != 0) {
         heap_fatal("failed to lock the heap");
     }
 }
 
 void unlock_heap(void) {
-    if (pthread_mutex_unlock(&heap_lock) != 0) {
+    if (scoop_platform_mutex_unlock(&heap_lock) != 0) {
         heap_fatal("failed to unlock the heap");
     }
 }

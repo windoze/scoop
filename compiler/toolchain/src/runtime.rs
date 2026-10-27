@@ -2,6 +2,8 @@
 use scoop_lir::LirTargetProfile;
 
 mod sources;
+#[cfg(all(test, windows, target_arch = "x86_64"))]
+mod windows_tests;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ValidatedRuntimeBuildProfile {

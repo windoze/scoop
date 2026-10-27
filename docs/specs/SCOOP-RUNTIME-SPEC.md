@@ -603,7 +603,9 @@ minor 和 full 共享线程、root、pin、handle、Context、callback、冻结�
 
 分配压力可触发 minor 或 full；晋升空间不足时必须从完整对象图进入 full 或明确的分配失败出口。分代策略和容量不改变语言合法性、对象 ABI 或 FFI 保活义务。
 
-STW 后 coordinator 可使用内部常驻 pthread worker 并行 mark，worker 不登记为 mutator，也不执行用户代码。小 minor 可只使用 coordinator；单 worker 与多 worker 共用同一参数化 collector。对象／大对象 mark 使用原子首次置位，只有首次成功者登记存活对象和扫描任务；line_live 原子 OR，计数和存活清单按 worker 汇总。
+STW 后 coordinator 可使用内部常驻 OS worker 线程并行 mark，worker 不登记为 mutator，也不执行用户代码。小 minor 可只使用 coordinator；单 worker 与多 worker 共用同一参数化 collector。对象／大对象 mark 使用原子首次置位，只有首次成功者登记存活对象和扫描任务；line_live 原子 OR，计数和存活清单按 worker 汇总。
+
+runtime 使用 platform 层提供当前实际需要的 mutex、condition、once、worker create/join、对齐分配和计时操作。Darwin／Linux 使用 pthread 与 POSIX；Windows 使用 SRW exclusive lock、condition variable、InitOnce、所选 CRT 的 `_beginthreadex` 和系统 thread handle，不要求额外 pthread DLL。condition wait 原子释放并重新取得锁，调用者继续循环检查条件；停稳轮询的有限等待按 OS 定时粒度向上取整，不通过修改全局计时器分辨率维持 Unix 的微秒数值。内部对齐分配必须由同一平台配对释放；单调时间和线程 CPU 时间分别测量，不将 wall time 当作 CPU time。上述操作不改变现有 GC 协调、TLS attachment 或 runtime ABI。
 
 collector 持有 heap／roots 的独占阶段后，发布不可变的 region、对象起点、精确大小、pin 和 immortal 对象视图。marker 使用明确的 STW reader／原子 marker 接口，不要求各 worker 重新取得 coordinator 持有的锁。每个参与 block 在本轮取得临时统计索引，worker 私有计数按该索引归并；它不是持久对象身份，也不进入产物或 generated-code ABI。存活清单以稳定的分块存储保留对象指针，任务发布后不得由扩容使其失效。
 

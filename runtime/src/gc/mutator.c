@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../platform/primitives.h"
 #include "mutator_internal.h"
 
 _Thread_local ScoopAllocationContext *scoop_rt_allocation_context;
@@ -14,8 +15,9 @@ _Noreturn void scoop_gc_mutator_fatal(const char *message) {
 }
 
 ScoopGcMutator *scoop_gc_mutator_create(void) {
-    void *storage = NULL;
-    if (posix_memalign(&storage, _Alignof(ScoopGcMutator), sizeof(ScoopGcMutator)) != 0) {
+    void *storage =
+        scoop_platform_aligned_allocate(_Alignof(ScoopGcMutator), sizeof(ScoopGcMutator));
+    if (storage == NULL) {
         scoop_gc_mutator_fatal("out of memory creating GC mutator state");
     }
     ScoopGcMutator *mutator = storage;
@@ -53,5 +55,5 @@ ScoopGcAllocationTotals scoop_gc_detached_allocations_locked(void) { return deta
 void scoop_gc_mutator_detach(ScoopGcMutator *mutator) {
     scoop_gc_add_mutator_totals(mutator, &detached_allocations);
     scoop_rt_allocation_context = NULL;
-    free(mutator);
+    scoop_platform_aligned_free(mutator);
 }

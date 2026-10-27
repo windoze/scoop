@@ -2,9 +2,6 @@
 #include <inttypes.h>
 #include <stdatomic.h>
 #include <stdio.h>
-#if defined(SCOOP_ENABLE_STARTUP_STATS) && SCOOP_ENABLE_STARTUP_STATS
-#include <time.h>
-#endif
 
 #include "callback.h"
 #include "eh_internal.h"
@@ -38,11 +35,11 @@ typedef struct StartupMetrics {
 } StartupMetrics;
 
 static uint64_t startup_time_ns(void) {
-    struct timespec value;
-    if (clock_gettime(CLOCK_MONOTONIC, &value) != 0) {
+    uint64_t value;
+    if (!scoop_platform_monotonic_ns(&value)) {
         scoop_startup_fatal("cannot measure startup time");
     }
-    return (uint64_t)value.tv_sec * 1000000000 + (uint64_t)value.tv_nsec;
+    return value;
 }
 
 static StartupMetrics startup_metrics_begin(void) {

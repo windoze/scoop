@@ -1,5 +1,5 @@
 /* M13 managed foreign-callback token registry and invocation gateway. */
-#include <pthread.h>
+#include "platform/primitives.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -41,7 +41,7 @@ typedef struct ReleasedHandles {
     uint64_t failure;
 } ReleasedHandles;
 
-static pthread_mutex_t callback_lock = PTHREAD_MUTEX_INITIALIZER;
+static ScoopPlatformMutex callback_lock = SCOOP_PLATFORM_MUTEX_INIT;
 static ScoopCallbackToken *callback_tokens;
 static size_t callback_tokens_len;
 static size_t callback_tokens_cap;
@@ -56,13 +56,13 @@ static _Noreturn void callback_fatal(const char *message) {
 }
 
 static void lock_callbacks(void) {
-    if (pthread_mutex_lock(&callback_lock) != 0) {
+    if (scoop_platform_mutex_lock(&callback_lock) != 0) {
         callback_fatal("failed to lock callback registry");
     }
 }
 
 static void unlock_callbacks(void) {
-    if (pthread_mutex_unlock(&callback_lock) != 0) {
+    if (scoop_platform_mutex_unlock(&callback_lock) != 0) {
         callback_fatal("failed to unlock callback registry");
     }
 }

@@ -1,7 +1,7 @@
 #include "eh_internal.h"
 
+#include "platform/primitives.h"
 #include <inttypes.h>
-#include <pthread.h>
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -13,7 +13,7 @@
 #include "scoop_rt.h"
 #include "thread.h"
 
-static pthread_mutex_t active_records_lock = PTHREAD_MUTEX_INITIALIZER;
+static ScoopPlatformMutex active_records_lock = SCOOP_PLATFORM_MUTEX_INIT;
 static ScoopExceptionRecord *active_records;
 static uint64_t active_record_count;
 static _Atomic(uint64_t) caught_frame_count;
@@ -24,13 +24,13 @@ static _Noreturn void scoop_eh_state_error(const char *reason) {
 }
 
 static void scoop_eh_lock_active_records(void) {
-    if (pthread_mutex_lock(&active_records_lock) != 0) {
+    if (scoop_platform_mutex_lock(&active_records_lock) != 0) {
         scoop_eh_state_error("failed to lock the active record registry");
     }
 }
 
 static void scoop_eh_unlock_active_records(void) {
-    if (pthread_mutex_unlock(&active_records_lock) != 0) {
+    if (scoop_platform_mutex_unlock(&active_records_lock) != 0) {
         scoop_eh_state_error("failed to unlock the active record registry");
     }
 }

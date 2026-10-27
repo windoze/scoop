@@ -2,9 +2,9 @@
 #define _GNU_SOURCE
 #endif
 
+#include "platform/primitives.h"
 #include <locale.h>
 #include <math.h>
-#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #if defined(__APPLE__)
@@ -14,7 +14,7 @@
 #include "floating_abi.h"
 #include "value_shape.h"
 
-static pthread_once_t locale_once = PTHREAD_ONCE_INIT;
+static ScoopPlatformOnce locale_once = SCOOP_PLATFORM_ONCE_INIT;
 static locale_t number_locale;
 
 static void initialize_number_locale(void) {
@@ -25,7 +25,7 @@ static void initialize_number_locale(void) {
 }
 
 static char *terminated_number(const ScoopString *text, char *scratch, size_t capacity) {
-    if (pthread_once(&locale_once, initialize_number_locale) != 0) {
+    if (scoop_platform_once(&locale_once, initialize_number_locale) != 0) {
         scoop_shape_fatal("cannot initialize the C numeric locale");
     }
     if (text->len >= SIZE_MAX) {

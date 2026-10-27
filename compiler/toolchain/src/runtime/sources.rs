@@ -80,8 +80,14 @@ pub(super) const COMMON: &[&str] = &[
     "runtime/src/platform/common.c",
 ];
 
-pub(super) const DARWIN_OS: &[&str] = &["runtime/src/platform/os/darwin.c"];
-pub(super) const LINUX_OS: &[&str] = &["runtime/src/platform/os/linux.c"];
+pub(super) const DARWIN_OS: &[&str] = &[
+    "runtime/src/platform/os/darwin.c",
+    "runtime/src/platform/primitives/posix.c",
+];
+pub(super) const LINUX_OS: &[&str] = &[
+    "runtime/src/platform/os/linux.c",
+    "runtime/src/platform/primitives/posix.c",
+];
 pub(super) const MACHO_IMAGE: &[&str] = &["runtime/src/platform/image/macho.c"];
 pub(super) const ELF_IMAGE: &[&str] = &["runtime/src/platform/image/elf.c"];
 pub(super) const AARCH64: &[&str] = &[
