@@ -1,10 +1,10 @@
 # Scoop 包管理规范
 
-状态：设计完成，待 M63 实施。更新日期：2026-10-28。
+状态：M63 实施中；完成范围见[实施记录](../package-manager/PROGRESS.md)。更新日期：2026-10-28。
 
 本规范规定独立 `scoop-pm` 的 workspace、依赖来源、版本解析、`Cone.lock`、源码 registry 及其与构建 driver 的接口。实现步骤与设计取舍见[包管理设计](../package-manager/DESIGN.md)，调度、编译和链接继续遵守[编译器与产物规范 2.7～2.8](SCOOP-IMPL-SPEC.md#27-scoop-与-single-cone-scoopc)。
 
-Scoop 尚未发布。本次直接重定义 `Cone.toml` 的初始 schema，与仓库内清单、工具和测试一起实施，不提供旧清单兼容层。以下是待实施合同，不表示当前命令已经支持这些能力。
+Scoop 尚未发布。本次直接重定义 `Cone.toml` 的初始 schema，与仓库内清单、工具和测试一起实施，不提供旧清单兼容层。以下是完整目标合同，不表示当前命令已经支持全部能力。
 
 ## 1. 职责与交付边界
 

@@ -74,6 +74,7 @@ BUILTINS = {
     "scoopc",
     "scoop-link",
     "scoop-lsp",
+    "scoop-pm",
     "terminal-host",
     "cc",
     "cc_args",

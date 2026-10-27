@@ -1,6 +1,6 @@
 # Scoop 包管理设计与实施步骤
 
-状态：设计完成，待实施；对应 [ROADMAP M63](../ROADMAP.md#m63-独立包管理器与-workspace设计完成待实施)。更新日期：2026-10-28。规范合同见 [Scoop 包管理规范](../specs/SCOOP-PACKAGE-SPEC.md)。本次只更新设计和 spec，不包含实现。
+状态：实施中；对应 [ROADMAP M63](../ROADMAP.md#m63-独立包管理器与-workspace实施中)。更新日期：2026-10-28。规范合同见 [Scoop 包管理规范](../specs/SCOOP-PACKAGE-SPEC.md)，已完成范围与验证见[实施记录](PROGRESS.md)。
 
 采用独立 `scoop-pm` 可执行程序：它处理 workspace、版本求解、GitHub/Git、registry、源码打包和 `Cone.lock`；`scoop` 取得 lock 的精确图与本地输入后继续使用现有构建调度、缓存和链接。`scoopc` 仍只编译一个 Cone。这将新增复杂度集中在 PM，便于在不启动 LLVM 的测试中验证解析和下载行为。
 
@@ -62,9 +62,11 @@ flowchart TD
 
 [Cargo 源码打包](https://doc.rust-lang.org/cargo/commands/cargo-package.html)和[registry 配置](https://doc.rust-lang.org/cargo/reference/registries.html)也提示要分清源码归档、消费索引与上传 API。M63 的静态 registry 可由普通 Web 托管；提供本地维护命令即可完成首次发布/消费闭环，不需要同时建设公共网站。
 
+[Cargo home](https://doc.rust-lang.org/cargo/guide/cargo-home.html)将 registry 索引、下载归档、解包源码与 Git objects/checkouts 分开保存。Scoop 借鉴这种跨项目复用方式，在 `~/.scoop/packages/` 下由 PM 统一管理；lock 只记录可移植的来源与选择，源码位置由本机投影提供。编译结果仍由已有构建缓存按实际编译输入决定是否复用。
+
 ## 4. 代码归属与最小改动面
 
-以下目录是实施落点，尚未新增实现：
+以下目录是实施落点；各项进度以实施记录为准：
 
 | 位置 | 预期变更 |
 | --- | --- |

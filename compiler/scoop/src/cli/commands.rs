@@ -18,11 +18,15 @@ pub(super) enum CommandOutcome {
 pub(super) fn execute(
     command: Command,
     sysroot: Option<PathBuf>,
+    package_manager: Option<PathBuf>,
     enable_gc_stress: bool,
     enable_startup_stats: bool,
     reporter: &Reporter,
 ) -> BuildResult<CommandOutcome> {
     match command {
+        Command::Pm(args) => {
+            super::package_manager::execute(args, package_manager).map(CommandOutcome::Child)
+        }
         Command::External(args) => {
             super::external::execute(&args, sysroot).map(CommandOutcome::Child)
         }

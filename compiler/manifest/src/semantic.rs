@@ -26,23 +26,37 @@ impl serde::Serialize for DependencyCoordinateKey {
 impl<'de> serde::Deserialize<'de> for DependencyCoordinateKey {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value = <String as serde::Deserialize>::deserialize(deserializer)?;
-        let (group, name) = value
-            .split_once(':')
-            .ok_or_else(|| serde::de::Error::custom("expected a dependency coordinate key"))?;
-        Ok(Self {
-            group: group.to_owned(),
-            name: name.to_owned(),
-        })
+        value.parse().map_err(serde::de::Error::custom)
     }
 }
 
 impl DependencyCoordinateKey {
+    pub fn from_coordinate(coordinate: &ConeCoordinate) -> Self {
+        Self {
+            group: coordinate.group().to_owned(),
+            name: coordinate.name().to_owned(),
+        }
+    }
+
     pub fn group(&self) -> &str {
         &self.group
     }
 
     pub fn name(&self) -> &str {
         &self.name
+    }
+}
+
+impl std::str::FromStr for DependencyCoordinateKey {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let (group, name) = value
+            .split_once(':')
+            .ok_or_else(|| format!("invalid dependency key {value:?}; expected group:name"))?;
+        let coordinate = ConeCoordinate::new(group, name, "0.0.0")
+            .map_err(|error| format!("invalid dependency key {value:?}: {error}"))?;
+        Ok(Self::from_coordinate(&coordinate))
     }
 }
 
@@ -311,6 +325,7 @@ impl ManifestParseError {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ManifestParseErrorKind {
     InvalidToml(String),
+    InvalidPackage(String),
     UnsupportedSchema(i64),
     InvalidConeCoordinate(ConeCoordinateError),
     ReservedConeCoordinate,
@@ -331,9 +346,9 @@ pub enum ManifestParseErrorKind {
 impl fmt::Display for ManifestParseErrorKind {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InvalidSelection(message) | Self::InvalidNative(message) => {
-                formatter.write_str(message)
-            }
+            Self::InvalidSelection(message)
+            | Self::InvalidNative(message)
+            | Self::InvalidPackage(message) => formatter.write_str(message),
             Self::InvalidToml(message) => write!(formatter, "invalid Cone.toml: {message}"),
             Self::UnsupportedSchema(schema) => {
                 write!(

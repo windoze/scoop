@@ -1,0 +1,7 @@
+schema = 1
+
+[cone]
+group = { workspace = true }
+name = "model"
+version = { workspace = true }
+kind = "library"

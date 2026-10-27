@@ -1,0 +1,10 @@
+schema = 1
+
+[cone]
+group = { workspace = true }
+name = "server"
+version = { workspace = true }
+kind = "executable"
+
+[dependencies]
+"dev.example:model" = { workspace = true }

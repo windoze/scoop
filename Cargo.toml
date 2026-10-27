@@ -15,6 +15,7 @@ members = [
     "compiler/toolchain",
     "compiler/linker",
     "compiler/scoop",
+    "compiler/pm",
     "compiler/ast",
     "compiler/parser",
     "compiler/doc",
@@ -84,6 +85,7 @@ scoop-generator-protocol = { path = "compiler/generator-protocol" }
 scoop-toolchain = { path = "compiler/toolchain" }
 scoop-linker = { path = "compiler/linker" }
 scoop = { path = "compiler/scoop" }
+scoop-pm = { path = "compiler/pm" }
 scoop-ast = { path = "compiler/ast" }
 scoop-parser = { path = "compiler/parser" }
 scoop-doc = { path = "compiler/doc" }

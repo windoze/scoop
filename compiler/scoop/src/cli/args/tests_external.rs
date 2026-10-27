@@ -1,6 +1,24 @@
 use super::*;
 
 #[test]
+fn package_manager_is_a_paired_command_with_unmodified_arguments() {
+    for tail in [
+        vec!["--help"],
+        vec!["members", "--workspace", "--json"],
+        vec!["new", "--workspace", "two words"],
+    ] {
+        let mut raw = vec!["scoop", "--package-manager", "paired-pm", "pm"];
+        raw.extend(&tail);
+        let cli = Cli::try_parse_from(raw).unwrap();
+        assert_eq!(cli.package_manager, Some(PathBuf::from("paired-pm")));
+        let Command::Pm(args) = cli.command else {
+            panic!("expected paired PM")
+        };
+        assert_eq!(args.args, tail);
+    }
+}
+
+#[test]
 fn external_commands_forward_every_argument_after_the_name() {
     for tail in [
         vec![],

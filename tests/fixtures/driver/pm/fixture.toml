@@ -1,0 +1,54 @@
+schema = 1
+name = "pm-local-workspace"
+root = "workspace"
+inputs = ["workspace"]
+tools = ["scoop", "scoop-pm"]
+tags = ["cli", "driver", "pm", "workspace"]
+
+[[steps]]
+name = "create"
+argv = ["${scoop}", "--package-manager", "${scoop-pm}", "pm", "new", "--workspace", "${work}/new workspace"]
+exit = 0
+stdout = "Created workspace ${work}/new workspace\n"
+stderr = ""
+checks = [{file = "${work}/new workspace/Cone.toml", equals = "schema = 1\n\n[workspace]\nmembers = []\n"}]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${root}", to = "${work}/project"}}]
+
+[[steps]]
+name = "default"
+argv = ["${scoop}", "--package-manager", "${scoop-pm}", "pm", "members", "${work}/project"]
+exit = 0
+stdout = "  dev.example:model:0.1.0 (model)\n* dev.example:server:0.1.0 (server)\n"
+stderr = ""
+
+[[steps]]
+name = "all"
+argv = ["${scoop-pm}", "members", "${work}/project", "--workspace"]
+exit = 0
+stdout = "* dev.example:model:0.1.0 (model)\n* dev.example:server:0.1.0 (server)\n"
+stderr = ""
+
+[[steps]]
+name = "member"
+cwd = "${work}/project/model"
+argv = ["${scoop}", "--package-manager", "${scoop-pm}", "pm", "members"]
+exit = 0
+stdout = "* dev.example:model:0.1.0 (model)\n  dev.example:server:0.1.0 (server)\n"
+stderr = ""
+
+[[steps]]
+name = "selected"
+argv = ["${scoop-pm}", "members", "${work}/project", "-p", "dev.example:model"]
+exit = 0
+stdout = "* dev.example:model:0.1.0 (model)\n  dev.example:server:0.1.0 (server)\n"
+stderr = ""
+
+[[steps]]
+name = "refuse_overwrite"
+argv = ["${scoop}", "--package-manager", "${scoop-pm}", "pm", "new", "--workspace", "${work}/new workspace"]
+exit = 1
+stdout = ""
+stderr = "error: refusing to overwrite ${work}/new workspace\n"

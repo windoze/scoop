@@ -1060,10 +1060,12 @@ dependencies = [
  "scoop-identity",
  "scoop-target-data",
  "scoop-wire",
+ "semver",
  "serde",
  "tempfile",
  "toml",
  "toml_edit",
+ "url",
 ]
 
 [[package]]
@@ -1097,6 +1099,21 @@ dependencies = [
  "scoop-source",
  "scoop-syntax",
  "unicode-ident",
+]
+
+[[package]]
+name = "scoop-pm"
+version = "0.0.0"
+dependencies = [
+ "clap",
+ "scoop-identity",
+ "scoop-manifest",
+ "scoop-process",
+ "scoop-protocol",
+ "scoop-toolchain",
+ "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

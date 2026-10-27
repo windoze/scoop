@@ -742,9 +742,9 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 保留现有调查的收益与限制，沿用 M56 的桌面暂停和 footprint 验收，与 M58 优化协作；候选方案不视为已实现，不仅凭 trees 调大默认 nursery。
 - 各功能已独立提交；修正 intrinsic 标量复制成本后 V3 自动内联对照约改善 7.7 倍，普通 GC 移除逐槽 immortal 登记查询。Linux 已知十五个 fixture 失败均定向补测通过；按用户要求停止剩余完整 fixture，实际覆盖与限制见验收记录。
 
-### M63 独立包管理器与 workspace（设计完成，待实施）
+### M63 独立包管理器与 workspace（实施中）
 
-规范见[包管理规范](specs/SCOOP-PACKAGE-SPEC.md)，取舍、改动面和逐步验收见[设计与实施步骤](package-manager/DESIGN.md)。本阶段只完成设计，尚未编写实现；Scoop未发布，Cone.toml及工具协议按新合同一次性调整，不保留旧清单兼容层。
+规范见[包管理规范](specs/SCOOP-PACKAGE-SPEC.md)，取舍、改动面和逐步验收见[设计与实施步骤](package-manager/DESIGN.md)，实际完成范围见[实施记录](package-manager/PROGRESS.md)。Scoop未发布，Cone.toml及工具协议按新合同一次性调整，不保留旧清单兼容层。
 
 - 独立`scoop-pm`负责workspace、GitHub/Git、registry、版本解析和`Cone.lock`，`scoop pm`转发到配套程序；构建driver消费lock的精确图和本地已展开输入，保留已有缓存/调度/链接，`scoopc`不承担包管理。
 - 每个root/purpose/target独立求解，共享lock可保存多个程序的不同版本；每个程序内同`group:name`仍只能一个版本。默认保留有效锁定选择，新选择偏好最新兼容且允许回溯；无解报告依赖路径，不能忽略约束。

@@ -8,6 +8,8 @@ mod discovery;
 mod file_snapshot;
 mod input;
 mod native;
+pub mod package;
+mod requirement;
 mod root;
 mod selection;
 mod semantic;
@@ -25,6 +27,7 @@ pub use input::{
     classify_current_cone_operand,
 };
 pub use native::{NativeCompileFlag, NativeConfig, NativeIncludeFlag, NativeSourceLanguage};
+pub use requirement::VersionRequirement;
 pub use root::{
     LoadedConeManifest, LocatedConeManifest, ManifestRootError, ManifestRootErrorKind,
     ManifestRootIoOperation, ManifestRootLocator, load_cone_manifest,
