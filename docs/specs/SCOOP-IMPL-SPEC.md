@@ -899,6 +899,12 @@ run 直接执行本次成功构建确定的文件；同一请求构建失败时�
 
 Windows native C/C++ driver 单独选择：Microsoft 默认使用宿主 LLVM 的 clang-cl，也接受显式 cl；MinGW 使用 Clang／Clang++ 与所选 prefix 的 libc++。`--cc` 选择用户 native C driver，`--cxx` 可选择相容 C++ driver；Microsoft 未显式选择 C++ 时沿用选中 C driver，MinGW 沿配套位置选 Clang++。generated-C 优先使用安装根 libexec/llvm/bin 的 Clang；直接运行开发输出时允许从 PATH 定位宿主 Clang，不将其 builtin 交给 cl。实际 header/object probe 检查 Win64、LLP64、CRT、MSVC STL 或 libc++，无须执行程序；C++ probe 包含 RTTI、标准库和内部异常。路径只进入宿主调用及普通更新记录，未使用的 C++ 配置不探测。
 
+Windows 最终链接的 `--linker` 选择实际 linker：Microsoft 环境默认宿主配套 lld-link，也可显式选择 link.exe；MinGW 使用配套 GNU 接口的 LLD。Microsoft 经 clang-cl driver 传递已选 SDK／toolset 的库目录与正常 CRT defaults，native 对象可来自 cl 或 clang-cl，C++ producer 的选择不改变此链接调用。MinGW 经目标 prefix 的 Clang driver 选择 startup、compiler-rt 与 libc++。三个环境均使用 Unicode wmain startup，动态依赖其已选 CRT；辅助 C++／Scoop unwind archive 可静态加入，不能借此切换 CRT。`--link-mode static` 不适用于首期 Windows `/MD` 资源；默认或 dynamic 使用同一配套。Scoop 的 LLVM unwind archive 始终取已选 `<unwind-prefix>/lib/libunwind.a`，C++ 模式也不替换为另一套 `_Unwind_*` 实现。
+
+Windows final-link 首次使用实际 header/object/link probe 验证 PE32+ AMD64、selected CRT imports、SEH 与所需 C++ 运行库；交叉宿主无需执行目标程序。工具、库搜索目录、实际 trace 输入与 unwind archive 进入普通更新记录，命中时不重新探测。最终 PE 使用 ASLR、NX、REF 裁剪和禁止 ICF；COMDAT 关联保留被选代码的 GC／EH metadata。debug 或 `--keep-symbols` 输出相邻 `<output>.pdb`，`--emit-symbol-map` 仍输出 `<output>.map`；PDB 使用相邻文件名定位，随 executable 一起纳入结果存在性与发布，不把临时目录写入其部署合同。
+
+Windows 10 是受支持 OS／API 基线，不要求把每种 CRT 的 PE subsystem version 改成 10.0。MinGW 保留配套 CRT 的默认 PE subsystem version；当前 mingw-w64 load configuration 未提供 Windows 6.3+ subsystem 所需的 security cookie，强行改版本会被 loader 以 `STATUS_INVALID_IMAGE_FORMAT` 拒绝。该处理不降低所声明的 Windows 10 运行基线，也不由 Scoop 改写 CRT 的 load configuration。
+
 Microsoft native 默认 `/MD`、C11／C++20、`/EHsc`、UTF-8 源码／执行字符集与符合标准的预处理器；debug 优化不切换 debug CRT。cl 使用 `/E` 与 `/sourceDependencies` JSON 收集实际头文件，clang-cl 使用其支持的 Clang depfile 参数；二者都保留诊断行标记。默认 CRT／target、输入／输出、依赖与阶段参数由 driver 管理；不支持的 native include 模式得到明确诊断，不悄悄改变搜索语义。MSVC flags 中 `/I`、`/FI`、`/D`、`/U` 按既有 include／macro 规则处理。普通用户 flags 不得切换 `/MT`、`/MDd`、LTCG 或其他受 driver 管理的配置。
 
 `c_flags`／`cxx_flags` 只作用于当前 Cone 的相应 native 源码，按 argv 元素与声明顺序传递。native 默认语言标准分别为 C11 和 C++20，可由对应 flags 中的 `-std` 覆盖。`cxx` 和实际生效的编译参数、C++ 源码及头文件、配套编译器与标准库 ABI 配置进入构建输入和 compile key。library 构建把 C++ 链接及运行库需求写入 `.slib` 的逻辑 native requirements，不执行最终 C++ 链接。

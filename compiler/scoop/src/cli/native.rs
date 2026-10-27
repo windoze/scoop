@@ -23,6 +23,7 @@ impl NativeOptions {
                     .transpose()?,
             },
             FinalLinkOptions {
+                linker: self.linker,
                 sysroot: Some(sysroot.to_owned()),
                 unwind_prefix: self
                     .unwind_prefix

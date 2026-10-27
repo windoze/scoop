@@ -12,8 +12,10 @@ mod cache;
 mod darwin;
 mod dependencies;
 mod linux;
+mod windows;
 pub use darwin::DarwinFinalLinkProfile;
 pub use linux::LinuxFinalLinkProfile;
+pub use windows::WindowsFinalLinkProfile;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum LinkMode {
@@ -23,6 +25,8 @@ pub enum LinkMode {
 
 #[derive(Clone, Debug, Default)]
 pub struct FinalLinkOptions {
+    /// Actual Windows linker executable, independently of the native C/C++ producer.
+    pub linker: Option<PathBuf>,
     pub sysroot: Option<PathBuf>,
     pub unwind_prefix: Option<PathBuf>,
     pub mode: Option<LinkMode>,
@@ -83,6 +87,11 @@ impl ValidatedFinalLinkProfile {
         options: &FinalLinkOptions,
         cxx: Option<crate::ValidatedCxxToolchain>,
     ) -> Result<Self, ToolchainError> {
+        if options.linker.is_some()
+            && startup.target().native_object_format() != scoop_lir::NativeObjectFormat::Coff64
+        {
+            return Err(error("--linker currently selects a Windows final linker"));
+        }
         let native_roots = options.native_roots(startup.target())?;
         match startup.profile().contract().target().id() {
             scoop_target_data::DARWIN_AARCH64_ID => {

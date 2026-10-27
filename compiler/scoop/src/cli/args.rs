@@ -215,6 +215,9 @@ pub(super) struct NativeOptions {
     /// Native C++ compiler driver; otherwise use the paired driver.
     #[arg(long)]
     pub cxx: Option<PathBuf>,
+    /// Final Windows linker executable (lld-link, link.exe, or MinGW LLD).
+    #[arg(long)]
+    pub linker: Option<PathBuf>,
     /// Target C development sysroot, separate from the Scoop sysroot.
     #[arg(long)]
     pub native_sysroot: Option<PathBuf>,

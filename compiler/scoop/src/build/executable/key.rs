@@ -36,6 +36,7 @@ pub(super) fn of(request: &Request<'_>) -> BuildResult<Digest256> {
         mode,
         options.sysroot.as_deref().map(path).transpose()?,
         options.unwind_prefix.as_deref().map(path).transpose()?,
+        options.linker.as_deref().map(path).transpose()?,
         request
             .libraries
             .iter()

@@ -144,7 +144,7 @@ MSVC toolset 版本、`/MD`／`/MT`、debug CRT、`_ITERATOR_DEBUG_LEVEL` 和 LT
 
 generated-C、用户 native、runtime、startup 与内置库必须符合选定 native 环境。C++ 环境是配套配置的一部分，不能单改 C++ compiler 然后沿用另一环境的全部 C startup／headers。实际符合 C ABI 且不依赖不相容支持库的对象仍按正常链接规则使用，不仅按生产者名称拒绝。
 
-MinGW 最终链接沿用 Clang driver；Microsoft 使用选定的 clang-cl／cl 链接驱动及 lld-link／link.exe。Scoop 添加实际对象、metadata 和所需库，不复制一套任意启动顺序；Unicode startup 之后才进入 Scoop coordinator，正常 native 初始化／终止由对应 CRT 负责。
+MinGW 最终链接沿用目标 Clang driver；Microsoft 经宿主 clang-cl driver 调用选定的 lld-link／link.exe，native 对象可来自 cl 或 clang-cl。这样 compiler producer 与最终 linker 可独立选择，无须通过未声明的 cl 内部选项替换 linker。Scoop 添加实际对象、metadata 和所需库，不复制一套任意启动顺序；Unicode startup 之后才进入 Scoop coordinator，正常 native 初始化／终止由对应 CRT 负责。
 
 现代 MSVC 的 `msvcrt.lib` 是搭配 UCRT／VCRuntime 的启动库名，不能据此认定它导入旧 `msvcrt.dll`，见 [Microsoft CRT 库对应关系](https://learn.microsoft.com/en-us/cpp/c-runtime-library/crt-library-features?view=msvc-170)。跨 DLL 或不相同运行库边界时，分配与释放留在原 owner，不共享未经约定的 `FILE*`、CRT fd、locale 或 C++ 对象。C++ 异常在 native 一侧处理，不能穿越 Scoop FFI；普通裸 native archive 不附加 Scoop 来源认证。
 

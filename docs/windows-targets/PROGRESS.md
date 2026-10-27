@@ -65,6 +65,10 @@ native C/C++ 编译现已区分 Clang GNU、clang-cl 和 cl 的实际参数／�
 
 本机真实 native 编译／链接／运行矩阵通过 clang-cl、cl、MinGW MSVCRT 与 MinGW UCRT；两个 Microsoft 编译器均消费实际 cl 构建的 C++ 静态库，覆盖 C/C++ 混合源码、STL 返回值、RTTI、内部异常、公开 Scoop 头、Unicode 路径／头文件、CodeView 和实际 header 更新。59 项 manifest 与 39 项 protocol 测试、两项 SDK 发现测试、两项 GCC 调用合同回归和一项输入更新测试通过，相关 Clippy 无告警。正式 Windows CLI、完整 PE 产物消费／链接、runtime 与系统库仍未开放；上述验证不替代后续完整验收。
 
+W1 的 Windows final-link profile 已完成内部工具调用：Microsoft 由 clang-cl 调用选定的 lld-link／link.exe，并使用所选 SDK／toolset；两个 MinGW 环境由目标 prefix 的 Clang driver 选择 compiler-rt／libc++。三个环境均静态加入各自的 Scoop LLVM unwind archive，使用 Unicode wmain、ASLR／NX、REF 和 no-ICF。真实 PE 验证包含正确 CRT imports、SEH、内部 C++ 异常／RTTI／STL、Unicode 路径／参数、相邻 PDB 名称与 map。普通更新输入已能取得所选 CRT／startup／辅助 archive 的实际 linker trace。
+
+五种本地组合（Microsoft C、cl C++＋LLD、clang-cl C++＋Microsoft LINK、两个 MinGW C++）编译／链接／运行通过，workspace/all-targets Clippy 通过。MinGW 保留原生 PE subsystem 默认值：强行指定 10.0 会触发现有 CRT load configuration 的 loader 拒绝；同一输入恢复默认值后运行成功，Windows 10 的 API／支持基线不变。这一批仍是共享工具 profile；Scoop `.slib` 的 PE library resolver、PDB 发布／缓存与完整 runtime 集成继续实施，正式 Windows CLI 尚未开放。
+
 ## W4 宿主基础
 
 `scoop-process` 已实现 Windows console handler，按实际 process handle 终止 child，关闭控制台时在 handler 返回前等待 child；中断后停止启动新工具，普通退出保留完整 32-bit 状态。真实子进程测试覆盖 Ctrl+C／Ctrl+Break／close 三个 handler 分支、两项并行 child、drop 回收、中断拒绝新任务与高位退出码透传，在 Rust MSVC 与 gnullvm 两种宿主 target 上通过；相应 Clippy 无告警。完整 CLI 的系统控制事件验收随宿主命令完成，不以这里的 handler 调用测试替代。
