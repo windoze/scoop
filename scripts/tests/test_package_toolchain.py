@@ -1,5 +1,6 @@
 """Check the installation archive layout and publication failure behavior."""
 
+import shutil
 import sys
 import tarfile
 import tempfile
@@ -16,7 +17,7 @@ from package_toolchain import archive, assemble
 
 
 class ToolchainArchiveTests(unittest.TestCase):
-    def test_commands_are_assembled_and_archived_with_executable_permissions(self):
+    def test_tooling_and_commands_are_assembled_and_archived(self):
         release = tomllib.loads(package_toolchain.RELEASE_CONFIG.read_text())
         for populated in (False, True):
             with self.subTest(populated=populated), tempfile.TemporaryDirectory() as temporary:
@@ -39,6 +40,9 @@ class ToolchainArchiveTests(unittest.TestCase):
                     path = repository / relative
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_text(content)
+                skill_path = Path("tooling/scoop-programming")
+                skill_source = package_toolchain.ROOT / skill_path
+                shutil.copytree(skill_source, repository / skill_path)
                 if populated:
                     command = sysroot / "commands/scoop-example"
                     command.write_text("#!/bin/sh\nexit 37\n")
@@ -69,6 +73,22 @@ class ToolchainArchiveTests(unittest.TestCase):
                 metadata = tomllib.loads((installed / "share/scoop/toolchain.toml").read_text())
                 self.assertEqual(metadata["liburing"], "2.15")
                 self.assertNotIn("libuv", metadata)
+                self.assertEqual(metadata["programming_skill"], skill_path.as_posix())
+                skill_files = {
+                    path.relative_to(skill_source): path.read_bytes()
+                    for path in skill_source.rglob("*")
+                    if path.is_file()
+                }
+                installed_skill = installed / metadata["programming_skill"]
+                self.assertEqual(
+                    {
+                        path.relative_to(installed_skill): path.read_bytes()
+                        for path in installed_skill.rglob("*")
+                        if path.is_file()
+                    },
+                    skill_files,
+                )
+                self.assertIn(Path("SKILL.md"), skill_files)
                 commands = installed / "commands"
                 for relative in (
                     "catalog.toml",

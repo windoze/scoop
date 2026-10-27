@@ -1,0 +1,4 @@
+interface:
+  display_name: "Scoop 程序开发"
+  short_description: "利用 Scoop 配套示例、库文档与命令行工具编写并验证原生程序"
+  default_prompt: "使用 $scoop-programming，根据配套示例和库 API 完成我的 Scoop 程序，并运行相关检查与测试。"

@@ -12,7 +12,7 @@ scoop --version
 
 归档内没有额外的版本目录、`.scoop` 或 `sysroot` 层，无需 `--strip-components`。四个命令通过实际执行文件定位相邻资源，也支持正常软链接启动。也可解压到其他安装根；移动整个目录后可以直接继续使用。
 
-安装根的 `VERSION` 第一行为发行版本，随后记录源码 revision 与宿主平台。`scoop --version`、`scoopc --version`、`scoop-link --version`、`scoop-lsp --version` 显示同一份发行版本和源码 revision。此目录中的 `toolchain.toml` 列出宿主、目标、内置 Cone、native 版本和 VSIX 路径；它只说明包内容，不是命令启动时的验证清单。
+安装根的 `VERSION` 第一行为发行版本，随后记录源码 revision 与宿主平台。`scoop --version`、`scoopc --version`、`scoop-link --version`、`scoop-lsp --version` 显示同一份发行版本和源码 revision。此目录中的 `toolchain.toml` 列出宿主、目标、内置 Cone、native 版本、VSIX 和编程 skill 路径；它只说明包内容，不是命令启动时的验证清单。
 
 Darwin/AArch64 包要求声明版本的 macOS、Xcode 或 Command Line Tools、Apple Clang、macOS SDK 和系统 linker。Linux/GNU amd64 包要求声明版本的 glibc、GCC、GNU ld 和开发文件；生成 musl 程序还需要 musl-gcc 与匹配的 musl 开发文件。GNU 宿主工具不承诺在纯 musl 系统运行。native C++ 另需配套 clang++／g++ 与标准库；musl C++ 不在当前范围。
 
@@ -31,6 +31,8 @@ scoop example json/typed --format json
 ```
 
 默认输出完整程序、运行条件、操作步骤、预期结果和关键规则。把显示文件保存到可写目录后按说明运行；example 本身只读取材料。新示例和正文位于 `share/scoop/examples`，复用的库示例仍在 `src/`。指定其他安装根查询时，后续运行也使用同一 `--sysroot`。
+
+面向 AI 的编程 skill 位于安装根的 [`tooling/scoop-programming/SKILL.md`](../../tooling/scoop-programming/SKILL.md)。它指导 AI 查询示例与库 API、正确处理语言差异和 Cone 依赖，并使用 fmt/check/test/build/run 验证程序。可向 AI 提供该文件，或按所用工具的方式自行添加整个 `scoop-programming/` 目录，保留 `references/` 与 `agents/`。工具包只分发这些文件，不自动安装、注册 skill 或修改 AI 工具的配置。
 
 VS Code 扩展位于 `tooling/scoop-language-support-<extension-version>.vsix`，内含语法高亮、折叠和缩进所需代码及 WASM。在 VS Code 中选择“从 VSIX 安装”，或运行：
 
