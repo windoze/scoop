@@ -53,7 +53,7 @@ stderr = ""
 
 [[steps]]
 name = "link"
-argv = ["${scoop}", "--enable-gc-stress", "link", {"each" = "${link_args}"}, "--root-slib", "${build.result.root.path}", {"each" = "${build.result.dependencies}", "field" = "path", "prefix" = "--dependency-slib"}, "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--library-path", "${work}/native/lib", "-o", "${work}/relinked", "--message-format", "json"]
+argv = ["${scoop}", "--enable-gc-stress", "link", "--keep-symbols", {"each" = "${link_args}"}, "--root-slib", "${build.result.root.path}", {"each" = "${build.result.dependencies}", "field" = "path", "prefix" = "--dependency-slib"}, "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--library-path", "${work}/native/lib", "-o", "${work}/relinked", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

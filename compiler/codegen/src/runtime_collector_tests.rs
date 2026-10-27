@@ -244,6 +244,7 @@ fn generic_runtime_has_no_target_specific_vm_dependency() {
         "runtime/src/gc_binding/scan.c",
         "runtime/src/gc/remembered.c",
         "runtime/src/gc/evacuation_plan.c",
+        "runtime/src/gc/old_slots.c",
         "runtime/src/gc/evacuation_sources.c",
         "runtime/src/gc/statistics.c",
         "runtime/src/gc/evacuation.c",

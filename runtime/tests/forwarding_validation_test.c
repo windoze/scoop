@@ -16,8 +16,25 @@ static void corrupt_forwarding(unsigned scenario) {
     void **slots[] = {&object};
     ScoopNativeRootFrame roots;
     scoop_rt_push_native_roots(&roots, slots, 1);
+    if (scenario == 5) {
+        object = (char *)object + sizeof(void *);
+    } else if (scenario >= 6 && scenario <= 8) {
+        /* Mark the valid owner first so the invalid edge takes the region-cache hit. */
+        NurseryNode *node = object;
+        if (scenario == 6) {
+            node->next = (NurseryNode *)((char *)object + sizeof(void *));
+        } else if (scenario == 7) {
+            node->next = (NurseryNode *)((char *)object + 1);
+        } else {
+            ScoopGcRegion *region = pointer_block(object)->region;
+            assert(region->next_block < GC_REGION_BLOCKS);
+            node->next = (NurseryNode *)(region->base + region->next_block * GC_BLOCK_SIZE +
+                                         GC_LINE_SIZE);
+        }
+    }
     nursery_collect(false);
     assert(nursery_metrics().full_collections == 1);
+#if SCOOP_GC_TRACK_RELOCATION
     scoop_gc_heap_lock();
     ScoopGcBlockMeta *block;
     size_t word;
@@ -26,13 +43,19 @@ static void corrupt_forwarding(unsigned scenario) {
     if (scenario != 1) {
         bit_set(block->marks, word);
     }
+    if (scenario == 9) {
+        scoop_heap_claim_current_object(object);
+        scoop_heap_claim_current_object(object);
+        _exit(2);
+    }
     block->state = SCOOP_BLOCK_EVACUATION_SOURCE;
-    block->forwarding = calloc(GC_WORDS_PER_BLOCK, sizeof(void *));
-    assert(block->forwarding != NULL);
     if (scenario == 3) {
-        block->forwarding[word] = object;
+        ((ScoopObjectHeader *)object)->gc_word = (uintptr_t)object | GC_FORWARDED_BIT;
+    } else if (scenario == 4) {
+        ((ScoopObjectHeader *)object)->gc_word = GC_RELEASE_READY_BIT;
     }
     (void)scoop_heap_forward_object(object, block, word);
+#endif
     _exit(2);
 }
 
@@ -65,10 +88,18 @@ static void expect_failure(unsigned scenario, const char *message) {
 }
 
 int main(void) {
+    expect_failure(5, "managed slot is not a current heap object start");
+    expect_failure(6, "managed slot is not a current heap object start");
+    expect_failure(7, "managed slot is not a current heap object start");
+    expect_failure(8, "managed slot is not a current heap object start");
+#if SCOOP_GC_TRACK_RELOCATION
     expect_failure(0, "object forwarded outside collection");
     expect_failure(1, "unmarked object reached relocation");
     expect_failure(2, "marked evacuation source has no planned forwarding address");
     expect_failure(3, "evacuation source forwards to its own address");
-    puts("resolved forwarding retains collection, mark and address validation");
+    expect_failure(4, "marked evacuation source has no planned forwarding address");
+    expect_failure(9, "marked object appeared twice in the retained live set");
+#endif
+    puts("mark boundaries and forwarding verification reject invalid references");
     return 0;
 }

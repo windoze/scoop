@@ -4,6 +4,58 @@
 
 各项已采纳方案的开启方式与适用条件统一见[简略清单](ENABLED-OPTIMIZATIONS.md)，后续交付与默认策略调整时同步更新。
 
+- [GC 第二十四阶段](GC-EVOLUTION.md)把普通 full 的搬迁预留并行化，按完整目标块领取空洞，保留集中收益和失败回滚。所有 profile 默认沿现有 worker 策略，ABI 24 不变。M3／GNU 默认大图请求 p99 116.4／170.5 → 88.6／157.8 ms，墙钟 3.467／4.841 → 3.340／4.653 s；CPU 增加、四线程吞吐及部分应用间隔 p99 的回退按 STW 优先目标接受。两机七项定向 C 回归及三目标双 profile GC 组合通过，继续评估旧槽／分片默认策略。
+
+- [GC 第二十三阶段](GC-EVOLUTION.md)删除普通分配的逐对象 line 位图维护，collector 复用唯一存活位图；全部 profile 默认，配套 contract 24。M3／GNU 树墙钟 5.245／7.486 → 4.847／7.065 s，单线程分配减少 7.9%／6.2%；GNU 四线程与 M3 尾暂停回退保留。每小对象块逻辑 metadata 少 40 B，context 48 → 40 B，16 B 对象头和 256 B mutator 保持。两机 IR／C 回归及三目标真实 GC／native 组合通过。后续优先缩短 STW 和提高分配速度，接受实测且合理的其他成本，继续处理 full 收尾并行度。
+
+- [GC 第二十二阶段](GC-EVOLUTION.md)以 `SCOOP_GC_OLD_SLOTS=2` 允许密集等大小年轻块直接转为旧代槽；默认 0 与复制等级 1 保留。M3／GNU 树墙钟 5.056／6.986 → 4.808／6.673 s，十六线程 1.321／2.421 → 1.035／1.682 s，树复制从 2.616 GB 降到 21.4／14.6 MB；大图尾暂停和 ARM64 线程系统 CPU 的回退决定该策略显式选择。每进程增加 248 B 类别计数，无对象／ABI 增量。两机定向回归与三目标 debug／release／moving 组合通过；下一阶段消除分配端重复的 line 位图维护，继续 GC 主线。
+
+- [GC 第二十一阶段](GC-EVOLUTION.md)把存活 line 位图合入 worker 私有块统计，标记完成后统一合并，省去逐对象共享原子 OR；所有 profile 默认，ABI 23 保持。M3／GNU 默认大图 mark 1.093／1.582 → 1.004／1.498 s，普通应用间隔 p99 30.1／55.8 → 26.9／54.1 ms，整体吞吐变化较小；每 worker／块额外 32 B 工作区、ARM64 线程和 GNU 增量最大暂停回退保留。两机六项定向 C 测试及三目标 debug／release／四 worker 的真实 GC 程序通过。继续减少高存活集的扫描、规划和复制，GC 主线未完成。
+
+- [GC 第二十阶段](GC-EVOLUTION.md)实现 minor 分片、旧脏卡保留和有界片间分配，使用显式等级 `SCOOP_GC_INCREMENTAL=2`；默认 0／原等级 1 保持原策略，ABI 23 不变。相对仅 full 分片，M3／GNU 大图请求 max 43.1／62.4 → 27.8／45.1 ms，但墙钟增加 9.3%／12.2%，应用间隔 p95 明显变差，树形晋升与线程成本也增加；默认控制组的 ARM64 小幅回退如实保留。两个提前启动候选已撤回。两机七项 C 专测、故意破坏的重定位反例及三目标双 profile GC／callback 组合通过；继续定位默认 mark／plan 工作量和对象元数据成本，整体 GC 目标未完成。
+
+- [GC 第十九阶段](GC-EVOLUTION.md)让 worker 直接消费存活分块，删除更新前逐对象预遍历和重复 scan 读取；所有 profile 默认，ABI 23 不变。M3／GNU 大图墙钟 4.199／5.222 → 3.820／4.914 s、总 CPU 降低，普通队列容量 3,200 → 320 KiB，full 请求 p99 131／192 → 119／180 ms；部分 minor／系统 CPU／RSS 回退保留。两机八项 C 专测及三目标双 profile GC／callback 组合通过。下一步实际实验 minor 分片，继续降低现有增量配置中的停顿，GC 主线未完成。
+
+- [GC 第十八阶段](GC-EVOLUTION.md)并行预留无 survivor 配额的 minor 目标，每 worker 独占分配区，失败在全体结束后统一回滚；沿现有 worker 设置默认采用，ABI 23 不变。M3／GNU 大图墙钟 4.979／6.171 → 4.401／5.263 s，minor p99 52.6／73.2 → 44.1／53.8 ms；总 CPU 增长、GNU full 尾部与部分 RSS 回退保留。两机九项 C 专测及三目标双 profile GC／callback 组合通过。继续减少 full 规划和引用更新的串行工作，GC 主线未完成。
+
+- [GC 第十七阶段](GC-EVOLUTION.md)在单次标记停顿内复用普通 region，命中仍保留首次对象检查；begin／增量 resume 失效，最多增加 4 KiB，全部 profile 默认、ABI 23 不变。M3 增量大图墙钟 4.749 → 4.419 s，普通大图近乎持平；普通请求 p99 两机 134 → 129／202 → 197 ms，十六线程与 RSS／最大暂停回退保留。两机七项 C 专测及三目标双 profile GC／callback 组合通过。下一项实际推进 minor 搬迁计划并行，GC 主线继续。
+
+- [GC worker 通知实验](GC-EVOLUTION.md)比较了等待计数与启动前省通知；M3 线程负载的局部收益未在大图和 GNU 上稳定成立，两版均撤回。普通 runtime 没有新增计数或开关；继续处理扫描中的重复 region 定位。
+
+- [GC 第十六阶段](GC-EVOLUTION.md)让 ARM64 单引用数组写入直接从 owner 选择 mapping，保留现有卡合并与重定位顺序；x86_64 大数组退化，继续原页表。固定库的十亿次随机写入大／小数组 2.549／1.719 → 1.496／0.940 s，普通 runtime 元数据不变；逐 block owner 的页保留实验已否决。ABI 23 配套三目标系统库、双 profile／移动／pin／callback 组合通过。最终重建后大图和线程有回退，尾暂停没有稳定改善，原样记录；继续减少 collector 扫描、计划与同步成本。
+
+- [GC 第十五阶段](GC-EVOLUTION.md)利用旧代槽只接收无 hook 晋升对象的事实，按位图批量退休死亡槽；随现有 `SCOOP_GC_OLD_SLOTS=1` 启用，无新开关或 ABI。M3／GNU 大图清扫累计 128／278 → 15／37 ms，增量 full 完成片 max 16／35 → 6／12 ms；minor 主导的总体 p99 未解决，M3 部分 CPU／暂停回退保留。两机五项 C 专测及三目标双 profile GC／release 组合通过，继续处理 minor 计划、地址查询与对象布局成本。
+
+- [GC 第十四阶段](GC-EVOLUTION.md)修复 worker 数量切换的真实竞态：已发布 phase 固定参与数量，延迟醒来的旧 worker 不能按下一轮数量追加入完成计数。M3 可控交错先失败后通过，两机五项专测及三目标双 profile native／GC 组合通过，ABI 不变；对照未见明确额外运行成本，不计为性能收益。继续旧代槽清扫及剩余 STW 优化。
+
+- [GC 第十三阶段](GC-EVOLUTION.md)完成按目标 block 独占的并行复制，所有 profile 沿现有 worker 策略默认启用，单 worker 共用同一复制算法。M3 大存活图墙钟 4.997 → 4.446 s、copy 累计 814 → 255 ms，GNU 中等负载 0.868 → 0.762 s；RSS 保持。两机复制／失败回滚／并行／增量专测及三目标双 profile GC／native 组合通过。树形与高线程数 CPU 代价、暂停边界及两 worker 对照保留；继续按实际阶段成本处理剩余计划、清扫和 mutator 屏障，不视为 GC 主线完成。
+
+- [GC 第十二阶段](GC-EVOLUTION.md)实现旧代精确大小槽和按真实存活量触发的原地 full，`SCOOP_GC_OLD_SLOTS=1`、默认关闭。M3／GNU 大存活图 RSS 554／542 → 375／364 MiB，单次请求 max 151／200 → 69／125 ms；应用间隔 p99、GNU 吞吐与 CPU 回退保留。两机定向 C、三目标双 profile GC／native 组合和预留回滚通过，ABI 不变。只按 committed 触发的膨胀版本已撤回；下一项实际实验按目标 block 独占的并行复制，继续处理 minor、剩余 STW 与生成屏障。
+
+- [GC 第十一阶段](GC-EVOLUTION.md)复用 worker pool 并行普通 minor 的旧代脏区扫描／回写，入队前排除年轻组；单 worker 沿原直接路径，ABI 不变。M3 大 gcpause 墙钟 7.914 → 5.514 s、CPU 11.411 → 10.858 s、应用间隔 p99 93.7 → 47.5 ms；GNU 中等负载 0.982 → 0.788 s，RSS 基本保持。两机定向 C、优化 C 及三目标 GC／native 组合通过，测试模拟栈边界问题已修正。完整 full 的最大暂停几乎不变，线程负载仍有回退；最新 Go／K/N 参照确认随机更新和线程扩展差距，继续实验旧代对象槽复用及非搬迁收尾。
+
+- [GC 第十阶段](GC-EVOLUTION.md)为已确认堆对象使用直接 region 定位，复用 source 无 pin 的事实；普通所有 profile 默认，unknown/native／首次检查及 moving stress 保留原页表，ABI 不变。M3 大 gcpause 墙钟 6.909 → 6.735 s、plan 累计 1.439 → 1.099 s、应用 p99 83.1 → 77.7 ms，RSS 基本保持；GNU 中等负载 1.081 → 1.001 s，大负载请求 p99 224.8 → 196.6 ms。两机各 13 项 C 专测及三目标 GC／native 组合通过。完整收尾、生成屏障和旧代空间效率仍是主线，继续实施。
+
+- [GC 第九阶段](GC-EVOLUTION.md)以未发布目标头保存临时搬迁链，删除每对象 32 B native 计划；完整预留、失败回退、原对象及 GC 契约保持，所有 profile 默认，ABI 不变。M3 大 gcpause RSS 595.6 → 554.3 MiB、墙钟 7.231 → 7.110 s；GNU RSS 174.6 → 154.4 MiB、墙钟略退。三目标 GC／native／回退专测通过，否决源头提前转发实验。尾暂停没有改善，Linux 引用写入波动与回退完整记录；下一项继续直接 region 定位与剩余 STW 成本。
+
+- [GC 第八阶段](GC-EVOLUTION.md)将小对象精确大小放入现有 GC 字，删除每块 8 KiB 大小表；对象头不变，TLAB 减至 48 B，runtime contract 升至 22，所有 profile 默认。M3 大 gcpause 墙钟 7.818 → 7.182 s、RSS 712.0 → 588.5 MiB、应用间隔 p99 95.2 → 83.8 ms；GNU 中等负载 1.203 → 1.093 s、RSS 207.1 → 174.6 MiB。两机分配／pin／release／复制／失败回退专测及三目标 10 variants／32 次进程调用通过。多线程波动与尾部回退保留，继续处理逐对象搬迁计划和剩余 STW 成本。
+
+- [GC 第七阶段](GC-EVOLUTION.md)完成冻结图的直接引用回写，所有 profile 默认：省去逐边页表及 mark／pin 复核，保留首次边界检查、survivor 和显式验证。M3 大 gcpause 墙钟 8.850 → 7.849 s、CPU 12.690 → 11.109 s，update 累计 2.210 → 1.225 s，RSS 基本不变；应用间隔 p99 110.6 → 95.9 ms。两机各 10 项 C 专测、三目标 7 variants／29 次进程调用通过，机器码和诊断生成边界已核对。Linux 干扰、短负载回退和 p95 代价保留；继续精确大小元数据与剩余 STW 改进。
+
+- [GC 空间复用实验](GC-EVOLUTION.md)已完成对照并撤回：minor 复用旧代空洞单独收益不稳定；与非搬迁 full 组合虽将其 M3 RSS 从 2,305 MiB 降到 1,369 MiB，仍约为默认两倍，吞吐仅改善约 10%。两机正确性通过，保留负面结论，不推送实验实现或增加开关；下一项转向冻结图中重复的引用地址解析。
+
+- [GC 第六阶段](GC-EVOLUTION.md)完成源对象 GC 字转发与计划压缩，所有 profile 默认：删除每源块 32 KiB forwarding 表，保留完整预留、失败回退及当前对象 GC 状态。ARM64 大 gcpause 墙钟 9.931 → 8.843 s、RSS 984 → 703 MiB，普通／增量单次最大暂停约 191 → 178／170 → 152 ms；低分配吞吐持平。两机各 13 项 C 专测、三目标 7 variants／29 次进程调用通过。Linux 背景编译干扰和 16 线程系统 CPU 小幅代价已记录；继续实验按目标块并行复制及降低计划成本。
+
+- [GC 第五阶段](GC-EVOLUTION.md)完成清扫的存活 line 复用，所有 profile 默认：普通路径省去逐活对象大小读取与位图重建，保留死亡 release、pin、moving stress 和回滚。ARM64 bintrees／gcpause 墙钟降低约 7%／4%，reclaim 累计 485 → 80 ms／529 → 128 ms，RSS 保持；大 gcpause 单次暂停最大值约 231 → 199 ms，增量配置约 207 → 171 ms。GNU 长 4／8 线程也改善，短负载干扰和 ARM64 8 线程 CPU 回退均保留。继续处理 forwarding／搬迁计划工作区和地址映射。
+
+- [GC 第四阶段](GC-EVOLUTION.md)实现语义完整的 full 分片标记，`SCOOP_GC_INCREMENTAL=1`、默认关闭；两代追踪、脏组重扫、精确 roots、pin 与完整回退复用原 GC，显式 full 不再因加入 minor／未完成片而提前返回。ARM64 长 bintrees 7.461 → 6.755 s、RSS 891 → 726 MiB；大 gcpause 最长单次 GC 约 230 → 207 ms，最长应用间隔约 376 → 212 ms，但正常吞吐略退、随机重扫增加。GNU 树分配改善、随机更新吞吐回退已记录。原地晋升／小片／非移动实验未消除主要差距，下一阶段继续减少 plan／copy／reclaim 与 metadata 成本，不视为主线完成。
+
+- [GC 第三阶段](GC-EVOLUTION.md)完成 TLAB 本地块储备：普通运行一次锁内最多准备四块，GC／managed／callback 边界统一失效，mutator 大小和 ABI 不变。ARM64 长 8 线程墙钟降低 17.1%；16 线程墙钟持平但总 CPU 降低 15.9%、系统 CPU 1.862 → 0.820 s。GNU 1～16 线程降低 1.4%～18.6%；四线程应用间隔 p99 357 → 331 μs，单线程尾部及部分 RSS 回退均已记录。两机各 17 项定向测试、三目标线程与回调／重链接通过。普通 profile 默认启用，继续推进非搬迁 full 与增量标记实验。
+
+- [GC 第二阶段](GC-EVOLUTION.md)实现密集年轻块原地晋升，以 `SCOOP_GC_PROMOTE_IN_PLACE=1` 开启、默认关闭；无搬迁源时跳过计划遍历默认启用。ARM64 长 bintrees／gcpause 墙钟降低 22.9%／32.5%，复制量显著减少；但大 gcpause full p99 226 → 351 ms、RSS 945 → 1,059 MiB，明确保留代价。survivor、密度和 nursery 参数实验没有消除 full 长尾，不作为新默认。当前 Go／K/N 同机参照显示多线程及大存活集仍有数倍差距，继续推进分配器、full 工作量和增量／并发路线。
+
+- [GC 持续改进](GC-EVOLUTION.md)第一阶段已完成：同一 epoch 一次确认，collector 与 mutator 通知分流。ARM64 长负载 8／16 线程墙钟降低 22.9%／28.3%，系统 CPU 17.19／47.38 → 0.57／0.98 s；GNU 小规模对应降低 22.5%／22.4%。独立四线程观测的分配进度间隔 p99 453 → 351 μs，单线程基本持平；RSS、波动及计时边界完整保留。两机七项定向测试、三目标双 profile GC 组合通过，普通产物无测试钩子。主线继续处理高存活图的晋升／复制、分配器及并发／增量阶段，尚未完成。
+
 - 已完成[编译身份图共享与增量处理](COMPILER-IDENTITIES.md)及[最终程序符号清理](EXECUTABLE-SYMBOLS.md)：消除重复容器复制、导入排序与已验证节点的环遍历；release 最终链接清理内部普通符号，旁置真实地址 map。计入 map 和整合成本后，ARM64 正文重建 hello／nbody 降低 28.4%／40.1%，公开签名修改降低 35.9%；三目标 hello 文件缩小 53.5%～55.7%。身份、链接、符号化、缓存与定向 GC 验证通过，运行时间／RSS 未因符号清理明显下降。后续持续主线转向 GC：先核实线程重复唤醒并建立当前基线，再按测量推进代际、分配器、收集工作及并发／增量和对象布局实验。
 
 - 已完成 [Runtime 生成操作收敛](RUNTIME-RESPONSIBILITIES.md)：所有 profile 的已知 box／Array clone／Context 操作复用 typed 布局和根计划，退役重复 C 入口；大 box 使用共享 NoGC memcpy 控制体积，修复嵌套 aggregate 分解支配错误。三目标十组 ABI／GC／跨 Cone 组合通过，ARM64 大 box／Context scope 降低 43.77%／5.71%，text 和文件缩小，分配／GC 保持。Linux 运行计时受并行任务影响尚未完成；根帧批次暂后置，下一步优先处理编译速度与最终内部符号清理。

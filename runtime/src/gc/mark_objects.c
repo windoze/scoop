@@ -58,7 +58,7 @@ static bool first_mark(ScoopGcBlockMeta *block, size_t word) {
     return (__atomic_fetch_or(bits, mask, __ATOMIC_RELAXED) & mask) == 0;
 }
 
-static void mark_lines(ScoopGcBlockMeta *block, size_t word, size_t size) {
+static void mark_lines(ScoopGcMarkBlockCount *counts, size_t word, size_t size) {
     size_t first = word * sizeof(uint64_t) / GC_LINE_SIZE;
     size_t last = (word * sizeof(uint64_t) + size - 1) / GC_LINE_SIZE;
     for (size_t index = first / 64; index <= last / 64; index++) {
@@ -69,7 +69,25 @@ static void mark_lines(ScoopGcBlockMeta *block, size_t word, size_t size) {
         if (index == last / 64) {
             bits &= UINT64_MAX >> (63 - last % 64);
         }
-        __atomic_fetch_or(&block->line_live[index], bits, __ATOMIC_RELAXED);
+        counts->live_lines[index] |= bits;
+    }
+}
+
+static bool slot_aligned(size_t word, size_t size) {
+    size_t offset = word * sizeof(uint64_t) - GC_LINE_SIZE;
+    size_t mask = size - 1;
+    return (size & mask) == 0 ? (offset & mask) == 0 : offset % size == 0;
+}
+
+static void mark_slot_layout(ScoopGcMarkBlockCount *counts, size_t word, size_t size) {
+    if (counts->slot_size == SIZE_MAX) {
+        return;
+    }
+    if (size > GC_OLD_SLOT_MAX || (counts->slot_size != 0 && counts->slot_size != size) ||
+        !slot_aligned(word, size)) {
+        counts->slot_size = SIZE_MAX;
+    } else {
+        counts->slot_size = size;
     }
 }
 
@@ -83,7 +101,7 @@ static void enqueue_array(ScoopGcMarkWorker *worker, void *object, const uint64_
         uint64_t stride = scoop_gc_array_stride(scan);
         scoop_gc_mark_queue_push(worker,
                                  (ScoopGcMarkTask){
-                                     .array = true,
+                                     .kind = SCOOP_MARK_ARRAY_TASK,
                                      .data.range = {object, scan, array.elements + first * stride,
                                                     array.elements + (first + length) * stride},
                                  });
@@ -91,11 +109,25 @@ static void enqueue_array(ScoopGcMarkWorker *worker, void *object, const uint64_
     }
 }
 
+static ScoopGcBlockMeta *reference_block(ScoopGcMarkWorker *worker, const void *object) {
+    uintptr_t address = (uintptr_t)object;
+    uintptr_t base = address & ~(uintptr_t)(GC_REGION_SIZE - 1);
+    ScoopGcMarkRegion *entry = &worker->regions[(address / GC_REGION_SIZE) % GC_MARK_REGION_CACHE];
+    if (entry->region != NULL && entry->base == base) {
+        return &entry->region->blocks[(address - base) / GC_BLOCK_SIZE];
+    }
+    ScoopGcBlockMeta *block = pointer_block(object);
+    if (block != NULL && !block->region->large) {
+        *entry = (ScoopGcMarkRegion){base, block->region};
+    }
+    return block;
+}
+
 static void mark_target(ScoopGcMarkWorker *worker, void *object) {
-    ScoopGcBlockMeta *block;
+    ScoopGcBlockMeta *block = reference_block(worker, object);
     size_t word;
     /* The coordinator owns heap/roots; these metadata remain immutable during mark. */
-    if (!scoop_heap_reference_meta(object, &block, &word)) {
+    if (!scoop_heap_reference_in_block(object, block, &word)) {
 #if SCOOP_ENABLE_GC_STRESS || (defined(SCOOP_GC_VERIFY_HEAP) && SCOOP_GC_VERIFY_HEAP)
         if (!scoop_gc_stw_is_stable_object(object)) {
             heap_fatal("managed slot points outside the current heap and stable object tables");
@@ -108,14 +140,16 @@ static void mark_target(ScoopGcMarkWorker *worker, void *object) {
     }
     size_t size = block->kind == SCOOP_BLOCK_KIND_LARGE
                       ? block->exact_size
-                      : (size_t)block->size_units[word] * sizeof(uint64_t);
+                      : scoop_heap_small_object_size(object);
     scoop_gc_validate_object(object, size);
-    if (block->kind == SCOOP_BLOCK_KIND_SMALL) {
-        mark_lines(block, word, size);
-    }
     ScoopGcMarkBlockCount *counts = &worker->blocks[block->mark_index];
+    if (block->kind == SCOOP_BLOCK_KIND_SMALL) {
+        mark_lines(counts, word, size);
+    }
     counts->live_bytes += size;
-    if (!object_pinned(block, word)) {
+    if (worker->slot_layout) {
+        mark_slot_layout(counts, word, size);
+    } else if (!object_pinned(block, word)) {
         counts->movable_bytes += size;
     }
     worker->marked++;
@@ -145,7 +179,11 @@ void scoop_gc_mark_slot(void **slot, void *context) {
 void scoop_gc_mark_run_task(ScoopGcMarkWorker *worker, ScoopGcMarkTask task) {
     ScoopGcMarkVisit visit = {worker, SCOOP_MARK_OBJECT};
     worker->tasks++;
-    if (task.array) {
+    if (task.kind == SCOOP_MARK_DIRTY_TASK) {
+        scoop_gc_mark_run_dirty(worker, task.data.dirty.group, task.data.dirty.saved);
+        return;
+    }
+    if (task.kind == SCOOP_MARK_ARRAY_TASK) {
         worker->array_tasks++;
         scoop_gc_scan_descriptor(task.data.range.object, task.data.range.scan, scoop_gc_mark_slot,
                                  &visit, task.data.range.begin, task.data.range.end);

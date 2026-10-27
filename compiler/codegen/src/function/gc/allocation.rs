@@ -203,7 +203,6 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 descriptor,
                 aligned_size,
                 clear_size,
-                index,
             )?;
         } else {
             self.finish_allocation_call(object, descriptor, aligned_size)?;

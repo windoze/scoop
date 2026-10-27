@@ -51,13 +51,20 @@ bool object_meta(const void *object, ScoopGcBlockMeta **result, size_t *word_ind
     return true;
 }
 
-bool scoop_heap_reference_meta(const void *object, ScoopGcBlockMeta **result, size_t *word_index) {
-    ScoopGcBlockMeta *block = pointer_block(object);
+bool scoop_heap_reference_in_block(const void *object, ScoopGcBlockMeta *block, size_t *word_index) {
     if (block == NULL) {
         return false;
     }
     if (!object_meta_in_block(object, block, word_index)) {
         heap_fatal("managed slot is not a current heap object start");
+    }
+    return true;
+}
+
+bool scoop_heap_reference_meta(const void *object, ScoopGcBlockMeta **result, size_t *word_index) {
+    ScoopGcBlockMeta *block = pointer_block(object);
+    if (!scoop_heap_reference_in_block(object, block, word_index)) {
+        return false;
     }
     *result = block;
     return true;
@@ -78,16 +85,16 @@ size_t scoop_gc_object_size_locked(const void *object) {
     if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
         return block->exact_size;
     }
-    uint16_t units = block->size_units[word_index];
-    if (units == 0) {
+    size_t size = scoop_heap_source_object_size(object);
+    if (size == 0) {
         heap_fatal("published small object has no exact allocation size");
     }
-    return (size_t)units * sizeof(uint64_t);
+    return size;
 }
 
 void record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_size) {
-    if (block->kind != SCOOP_BLOCK_KIND_SMALL || exact_size == 0 || exact_size > GC_REGULAR_MAX ||
-        exact_size % sizeof(uint64_t) != 0) {
+    if (block->kind != SCOOP_BLOCK_KIND_SMALL || exact_size < sizeof(ScoopObjectHeader) ||
+        exact_size > GC_REGULAR_MAX || exact_size % sizeof(uint64_t) != 0) {
         heap_fatal("invalid small-object metadata publication");
     }
     size_t word = object_word_index(block, object);
@@ -166,9 +173,6 @@ size_t scoop_gc_heap_begin_collection_locked(bool minor) {
         scoop_gc_heap_state.old_cursor = NULL;
         scoop_gc_heap_state.old_limit = NULL;
     }
-    evacuation_block = NULL;
-    evacuation_cursor = NULL;
-    evacuation_limit = NULL;
     moved_objects = 0;
     size_t mark_blocks = 0;
     for (ScoopGcBlockMeta *block = scoop_heap_first_collection_block(minor); block != NULL;
@@ -183,13 +187,10 @@ size_t scoop_gc_heap_begin_collection_locked(bool minor) {
         block->live_bytes = 0;
         block->movable_live_bytes = 0;
         block->mark_index = mark_blocks++;
-        block->large_forwarding = NULL;
         block->large_marked = false;
 #if SCOOP_GC_TRACK_RELOCATION
         block->large_scanned = false;
 #endif
-        free(block->forwarding);
-        block->forwarding = NULL;
         if (block->kind == SCOOP_BLOCK_KIND_SMALL) {
             memset(block->marks, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
 #if SCOOP_GC_TRACK_RELOCATION

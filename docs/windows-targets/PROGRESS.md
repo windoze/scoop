@@ -92,3 +92,5 @@ Windows 构建选择支持 UTF-8 的 Ninja；实际编译器依赖记录包含 U
 Windows 宿主已使用相邻 `.exe` 命令／generator 和 `%LOCALAPPDATA%/Scoop/Cache`。`run` 通过 `CreateProcessW` 执行选中的缓存程序，同时保留发布路径作为 `argv[0]`、原 UTF-16 参数、cwd、环境和标准流；仅继承选中的标准流 handle。文档发布在现有文件锁内替换目录，发布失败恢复旧站点，恢复也失败时保留并报告旧目录位置。
 
 真实进程的参数／cwd／退出与回收测试在 MSVC、gnullvm 两种 Rust 宿主通过；generator 的 4 个测试、文档目录替换／实际文件锁失败恢复的 2 个测试及相关 Clippy 通过。gnullvm `scoop.exe` 已构建，配套 `libunwind.dll` 后，实际外部命令验证 Unicode／空参数／引号／反斜线、原始二进制标准流、环境／显式／安装位置 sysroot、完整高位退出码；系统实际发送 Ctrl+C／Ctrl+Break 时 CLI 与已登记 child 均退出。依赖 POSIX shell 的旧 compiler 测试仅在 Unix 运行；Windows 正式编译 CLI fixture 和完整发行脚本仍待 W1／W2 闭环后接入，不将当前宿主验证记为完整 Windows target 验收。
+
+上游 GC 演进（#57）已合并：保留分片标记、phase 参与数量发布与独立 quiescence 唤醒，将新增 reservation 锁接入 platform 同步操作。统一 runtime ABI contract 25 合并 Windows 启动与上游五指针分配视图，并同步固定编码向量。workspace/all-targets Clippy、21 项 ABI 测试、三个 native 环境的同步与 17 个 runtime C 单元编译、5 项 Windows codegen 测试通过；POSIX 运行回归仍在本地完整验收后进行。

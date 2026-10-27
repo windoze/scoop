@@ -6,7 +6,10 @@ use super::super::operations::{address, ordinary};
 use super::InstructionValue;
 use crate::statepoint::{BasicValue, InstructionOpcode};
 
-pub(super) fn immutable_load(instruction: InstructionValue<'_>) -> bool {
+pub(super) fn immutable_query(instruction: InstructionValue<'_>) -> bool {
+    if crate::gc_regions::is_array_query(instruction) {
+        return true;
+    }
     if instruction.get_opcode() != InstructionOpcode::Load {
         return false;
     }
@@ -71,13 +74,11 @@ fn page_level(pointer: PointerValue<'_>, remaining: u8) -> Option<u8> {
 }
 
 fn prefix_offset(pointer: PointerValue<'_>) -> Option<u64> {
-    if page_level(pointer, 4) == Some(4) {
+    if mapping(pointer) {
         return Some(0);
     }
     let gep = pointer.as_instruction_value()?;
-    if gep.get_opcode() != InstructionOpcode::GetElementPtr
-        || page_level(address(gep, 0)?, 4) != Some(4)
-    {
+    if gep.get_opcode() != InstructionOpcode::GetElementPtr || !mapping(address(gep, 0)?) {
         return None;
     }
     let offset = match gep.get_gep_source_element_type().ok()? {
@@ -103,6 +104,13 @@ fn prefix_offset(pointer: PointerValue<'_>) -> Option<u64> {
         _ => return None,
     };
     matches!(offset, 0 | 16).then_some(offset)
+}
+
+fn mapping(pointer: PointerValue<'_>) -> bool {
+    page_level(pointer, 4) == Some(4)
+        || pointer
+            .as_instruction_value()
+            .is_some_and(crate::gc_regions::is_array_query)
 }
 
 pub(super) fn card_store(instruction: InstructionValue<'_>) -> bool {

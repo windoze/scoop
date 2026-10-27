@@ -1,4 +1,5 @@
 #include "nursery_fixture.h"
+#include "../src/gc/mutator_internal.h"
 
 static void release_old(void *object) { (void)object; }
 
@@ -83,7 +84,7 @@ int main(void) {
         }
         roots[2] = nursery_node(77);
         const void *pinned = scoop_rt_pin(roots[2]);
-        assert(check_young_index() == 6);
+        assert(check_young_index() == 6 + scoop_gc_current_mutator()->reserved_count);
         void *old_head = roots[0], *large = roots[3];
         ScoopGcMetrics before = nursery_metrics();
         nursery_collect(true);
@@ -110,7 +111,7 @@ int main(void) {
 
     /* A full collection also retires a nonempty nursery index and unmaps regions. */
     roots[1] = nursery_node(99);
-    assert(check_young_index() == 1);
+    assert(check_young_index() == 1 + scoop_gc_current_mutator()->reserved_count);
     roots[0] = roots[3] = NULL;
     nursery_collect(false);
     assert(check_young_index() == 0 && ((NurseryNode *)roots[1])->value == 99);

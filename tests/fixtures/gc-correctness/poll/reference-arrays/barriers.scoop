@@ -51,6 +51,7 @@ fun writeYoungWrapped(target: MutableArray<MaybeUninit<Node>>, seed: Long) {
     val views = MutableArray<Token<Long>>(4097L) { _ -> initial }
     val optional = MutableArray<Token<Long>?>(4097L) { _ -> None }
     val wrapped = emptyStorage(8193L)
+    val pinned = pin(nodes)
     gcCollect()
     writeYoungNodes(nodes, 101L)
     collectYoung()
@@ -79,4 +80,5 @@ fun writeYoungWrapped(target: MutableArray<MaybeUninit<Node>>, seed: Long) {
     // rather than merely collecting the entire array after its last use.
     check(wrapped.size == 8193L && beforeClear > gcStats())
     check(nodes[8192L].value == 101L && views[4096L].number() == 202L)
+    check(unpin(pinned) === nodes)
 }

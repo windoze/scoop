@@ -15,6 +15,9 @@ typedef enum ScoopThreadTestPoint {
     SCOOP_TEST_COLLECTOR_RESUMING,
     SCOOP_TEST_NURSERY_RETRY,
     SCOOP_TEST_COLLECTOR_RUNNING,
+    SCOOP_TEST_PARKED_ACKNOWLEDGED,
+    SCOOP_TEST_WORLD_WAITING,
+    SCOOP_TEST_WORLD_WOKEN,
 } ScoopThreadTestPoint;
 
 void scoop_thread_test_point(ScoopThreadTestPoint point);

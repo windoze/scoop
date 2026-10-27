@@ -12,13 +12,26 @@ class Item(val value: Long)
 fun compute(count: Int, allocate: Boolean): Long {
     var sum = 0L
     var index = 0
+    val items = MutableArray<Item?>(if (allocate) 1024L else 0L) { _ -> None }
     @Unsafe { progress(0L, sum, false) }
     while (index < count) {
+        val begin = index
         val end = if (count - index < 1024) count else index + 1024
         while (index < end) {
             val value = index.toLong() + 1L
-            sum += if (allocate) Item(value).value else value
+            if (allocate) {
+                items[(index - begin).toLong()] = Some(Item(value))
+            } else {
+                sum += value
+            }
             index += 1
+        }
+        if (allocate) {
+            var item = 0
+            while (item < end - begin) {
+                sum += items[item.toLong()]!!.value
+                item += 1
+            }
         }
         @Unsafe { progress(index.toLong(), sum, index == count) }
     }

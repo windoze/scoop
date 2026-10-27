@@ -25,6 +25,12 @@ void scoop_runtime_record_dirty_card_group(void *mapping, size_t card_index) {
                                                     memory_order_relaxed));
 }
 
+void scoop_heap_clear_dirty_card_group(ScoopGcCardGroup *group) {
+    size_t index = (size_t)(group - group->region->card_groups);
+    memset(group->region->cards + index * GC_CARDS_PER_GROUP, 0, GC_CARDS_PER_GROUP);
+    atomic_store_explicit(&group->next, NULL, memory_order_relaxed);
+}
+
 void scoop_heap_clear_dirty_card_groups(bool retain_survivors) {
     /* All writers are stopped, and no region may be retired until this ends. */
     ScoopGcCardGroup *group = atomic_exchange_explicit(&scoop_gc_heap_state.dirty_card_groups, NULL,

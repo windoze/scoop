@@ -5,16 +5,17 @@ extern bool scoop_test_vm_fail_mappings;
 static const ScoopTypeDescriptor wide_td = {
     .type_id = 804,
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
-                       .minimum_size = 30000,
+                       .minimum_size = 12000,
                        .instance_alignment = 16}};
 
 int main(void) {
+    assert(setenv("SCOOP_GC_PROMOTE_IN_PLACE", "1", 1) == 0);
 #ifdef SCOOP_TEST_SURVIVOR
     assert(setenv("SCOOP_GC_SURVIVOR", "1", 1) == 0);
     assert(setenv("SCOOP_GC_NURSERY_MAX_MIB", "1", 1) == 0);
-    enum { WIDE_COUNT = 10 };
+    enum { WIDE_COUNT = 24 };
 #else
-    enum { WIDE_COUNT = 2 };
+    enum { WIDE_COUNT = 3 };
 #endif
     const ScoopTypeDescriptor *types[] = {&nursery_node_td, &wide_td};
     scoop_thread_runtime_init();
@@ -30,8 +31,10 @@ int main(void) {
     scoop_rt_push_native_roots(&frame, slots, WIDE_COUNT + 1);
     roots[0] = nursery_node(70);
     for (size_t index = 1; index <= WIDE_COUNT; index++) {
-        roots[index] = nursery_allocate(&wide_td, 30000);
-        ((unsigned char *)roots[index])[29999] = (unsigned char)(80 + index);
+        roots[index] = nursery_allocate(&wide_td, 12000);
+        ((unsigned char *)roots[index])[11999] = (unsigned char)(80 + index);
+        /* Leave each source sparse so the test really needs evacuation. */
+        nursery_allocate(&wide_td, 12000);
     }
     ScoopGcMetrics before = nursery_metrics();
 
@@ -52,7 +55,7 @@ int main(void) {
     assert(after.update_ns == before.update_ns);
     assert(((NurseryNode *)roots[0])->value == 70);
     for (size_t index = 1; index <= WIDE_COUNT; index++) {
-        assert(((unsigned char *)roots[index])[29999] == 80 + index);
+        assert(((unsigned char *)roots[index])[11999] == 80 + index);
     }
     for (size_t index = 0; index <= WIDE_COUNT; index++) {
         assert(!scoop_gc_is_young_object_locked(roots[index]));

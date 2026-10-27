@@ -59,6 +59,9 @@ int main(void) {
     scoop_gc_heap_unlock();
     uintptr_t first = (uintptr_t)objects[GC_REGION_BLOCKS];
     uintptr_t second = (uintptr_t)objects[GC_REGION_BLOCKS + 1];
+    unsigned char first_bytes[30000], second_bytes[30000];
+    memcpy(first_bytes, (void *)first, sizeof first_bytes);
+    memcpy(second_bytes, (void *)second, sizeof second_bytes);
     scoop_test_vm_fail_mappings = true;
     uint64_t updated = nursery_metrics().update_ns;
     nursery_collect(false);
@@ -69,9 +72,12 @@ int main(void) {
     assert(nursery_metrics().last_full_target_regions == 0);
     assert((uintptr_t)objects[GC_REGION_BLOCKS] == first);
     assert((uintptr_t)objects[GC_REGION_BLOCKS + 1] == second);
+    assert(memcmp((void *)first, first_bytes, sizeof first_bytes) == 0);
+    assert(memcmp((void *)second, second_bytes, sizeof second_bytes) == 0);
     for (size_t index = 0; index < GC_REGION_BLOCKS + 2; index++) {
         if (objects[index] != NULL) {
             assert(((unsigned char *)objects[index])[29999] == 73);
+            assert(((ScoopObjectHeader *)objects[index])->gc_word == (30000 | GC_RELEASE_READY_BIT));
         }
     }
     scoop_test_vm_fail_mappings = false;
@@ -79,6 +85,10 @@ int main(void) {
     assert(released == 1 && scoop_rt_gc_debug_last_moved_count() == 2);
     assert((uintptr_t)objects[GC_REGION_BLOCKS] != first);
     assert((uintptr_t)objects[GC_REGION_BLOCKS + 1] != second);
+    assert(((ScoopObjectHeader *)objects[GC_REGION_BLOCKS])->gc_word == (30000 | GC_RELEASE_READY_BIT));
+    assert(((ScoopObjectHeader *)objects[GC_REGION_BLOCKS + 1])->gc_word == (30000 | GC_RELEASE_READY_BIT));
+    assert(memcmp(objects[GC_REGION_BLOCKS], first_bytes, sizeof first_bytes) == 0);
+    assert(memcmp(objects[GC_REGION_BLOCKS + 1], second_bytes, sizeof second_bytes) == 0);
     // Moving a single sparse source into the empty cache has no concentration benefit.
     first = (uintptr_t)objects[GC_REGION_BLOCKS];
     second = (uintptr_t)objects[GC_REGION_BLOCKS + 1];
@@ -88,6 +98,8 @@ int main(void) {
     assert(scoop_rt_gc_debug_last_moved_count() == 0 && released == 1);
     assert((uintptr_t)objects[GC_REGION_BLOCKS] == first);
     assert((uintptr_t)objects[GC_REGION_BLOCKS + 1] == second);
+    assert(memcmp((void *)first, first_bytes, sizeof first_bytes) == 0);
+    assert(memcmp((void *)second, second_bytes, sizeof second_bytes) == 0);
     scoop_rt_pop_native_roots(&roots);
     nursery_collect(false);
     assert(released == GC_REGION_BLOCKS + 2 && scoop_rt_gc_stats() == 0);

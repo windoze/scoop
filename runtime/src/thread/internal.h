@@ -40,8 +40,10 @@ void scoop_thread_registry_lock(void);
 void scoop_thread_registry_unlock(void);
 void scoop_thread_world_wait(void);
 void scoop_thread_world_wait_for_quiescence(void);
+void scoop_thread_notify_quiescence(void);
 void scoop_thread_world_broadcast(void);
 void scoop_thread_wait_for_running_world(void);
+void scoop_thread_acknowledge_parked_locked(ScoopThreadState *state);
 void scoop_thread_park_current_locked(ScoopThreadState *state);
 void scoop_thread_ensure_stack_range(ScoopThreadState *state, uintptr_t low, uintptr_t high);
 

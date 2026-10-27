@@ -1,4 +1,4 @@
-/* Dead-object release, live line reconstruction and reusable evacuation holes. */
+/* Dead-object release, retained line reuse and reusable evacuation holes. */
 #include <stdlib.h>
 #include <string.h>
 
@@ -54,11 +54,12 @@ static void record_free_runs(ScoopGcBlockMeta *block, const uint64_t *occupied_l
 /* Individual retirement covers full sweep and partially retained blocks. */
 static inline __attribute__((always_inline)) void
 retire_small_object(ScoopGcBlockMeta *block, size_t word, bool marked, bool stress) {
-    size_t size = (size_t)block->size_units[word] * sizeof(uint64_t);
+    void *object = (char *)block_base(block) + word * sizeof(uint64_t);
+    size_t size = marked ? scoop_heap_source_object_size(object)
+                         : scoop_heap_small_object_size(object);
     if (size == 0) {
         heap_fatal("allocated object lost its exact size");
     }
-    void *object = (char *)block_base(block) + word * sizeof(uint64_t);
     if (!marked) {
         release_dead_object(object);
     }
@@ -67,14 +68,38 @@ retire_small_object(ScoopGcBlockMeta *block, size_t word, bool marked, bool stre
     }
     bit_clear(block->starts, word);
     bit_clear(block->pins, word);
-    block->size_units[word] = 0;
     block->discard_pending = true;
 }
 
-static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
-    memset(block->line_occupied, 0, GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
+static void retire_dead_small_objects(ScoopGcBlockMeta *block, bool stress) {
+    if (block->slot_size != 0 && !stress) {
+        /* Slot blocks only receive nursery survivors, which cannot have release
+         * hooks. All readers and markers have stopped before this retirement. */
+        for (size_t index = 0; index < GC_BITMAP_WORDS; index++) {
+            uint64_t starts = block->starts[index];
+            uint64_t live = starts & block->marks[index];
+            if (live != starts) {
+                block->starts[index] = live;
+                block->pins[index] &= live;
+                block->discard_pending = true;
+            }
+        }
+        return;
+    }
+    for (size_t index = 0; index < GC_BITMAP_WORDS; index++) {
+        uint64_t dead = block->starts[index] & ~block->marks[index];
+        while (dead != 0) {
+            size_t word = index * 64 + (size_t)__builtin_ctzll(dead);
+            dead &= dead - 1;
+            retire_small_object(block, word, false, stress);
+        }
+    }
+}
+
+#if SCOOP_ENABLE_GC_STRESS
+static bool finish_stress_source(ScoopGcBlockMeta *block) {
+    memset(block->line_live, 0, GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
     bool any_live = false;
-    bool any_pinned = false;
     for (size_t index = 0; index < GC_BITMAP_WORDS; index++) {
         uint64_t starts = block->starts[index];
         while (starts != 0) {
@@ -82,37 +107,48 @@ static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
             starts &= starts - 1;
             bool pinned = bit_test(block->pins, word);
             bool marked = bit_test(block->marks, word);
-            bool moved = block->state == SCOOP_BLOCK_EVACUATION_SOURCE && !pinned;
-            if (moved && marked && block->forwarding[word] == NULL) {
+            bool moved = !pinned;
+            void *object = (char *)block_base(block) + word * sizeof(uint64_t);
+            if (moved && marked && scoop_heap_forwarding_address(object) == NULL) {
                 heap_fatal("marked source object has no forwarding address");
             }
             bool keep = marked && !moved;
             if (!keep) {
-                retire_small_object(block, word, marked, stress);
+                retire_small_object(block, word, marked, true);
                 continue;
             }
-            size_t size = (size_t)block->size_units[word] * sizeof(uint64_t);
+            size_t size = scoop_heap_source_object_size(object);
             if (size == 0) {
                 heap_fatal("live object lost its exact size");
             }
             uintptr_t first = word * sizeof(uint64_t);
             uintptr_t last = first + size - 1;
             for (size_t line = first / GC_LINE_SIZE; line <= last / GC_LINE_SIZE; line++) {
-                bit_set(block->line_occupied, line);
+                bit_set(block->line_live, line);
             }
             any_live = true;
-            any_pinned |= pinned;
         }
     }
-    memset(block->marks, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
-#if SCOOP_GC_TRACK_RELOCATION
-    memset(block->scanned, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
+    return any_live;
+}
 #endif
-    memset(block->line_live, 0, GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
-    free(block->forwarding);
-    block->forwarding = NULL;
-    block->live_bytes = 0;
-    block->movable_live_bytes = 0;
+
+static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
+    bool any_live;
+    bool any_pinned;
+#if SCOOP_ENABLE_GC_STRESS
+    if (stress && block->state == SCOOP_BLOCK_EVACUATION_SOURCE) {
+        any_live = finish_stress_source(block);
+        any_pinned = any_live;
+    } else
+#endif
+    {
+        retire_dead_small_objects(block, stress);
+        /* Ordinary sources are unpinned and completely copied; retained blocks
+         * already have the exact occupied lines from marking and target publication. */
+        any_live = block->state != SCOOP_BLOCK_EVACUATION_SOURCE && block->live_bytes != 0;
+        any_pinned = any_live && scoop_heap_block_has_pins(block);
+    }
     if (!any_live) {
 #if SCOOP_ENABLE_GC_STRESS
         if (stress) {
@@ -124,12 +160,19 @@ static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
         }
         return false;
     }
+    memset(block->marks, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
+#if SCOOP_GC_TRACK_RELOCATION
+    memset(block->scanned, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
+#endif
+    /* Free runs and full VM return consume these lines before the next mark. */
+    block->live_bytes = 0;
+    block->movable_live_bytes = 0;
     block->state = any_pinned ? SCOOP_BLOCK_PINNED_PARTIAL : SCOOP_BLOCK_MUTATOR;
     if (SCOOP_ENABLE_GC_STRESS && stress) {
         return true;
     }
-    if (block->generation == SCOOP_GC_OLD) {
-        record_free_runs(block, block->line_occupied);
+    if (block->generation == SCOOP_GC_OLD && block->slot_size == 0) {
+        record_free_runs(block, block->line_live);
     }
     return true;
 }
@@ -137,7 +180,8 @@ static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
 static bool finish_large_block(ScoopGcBlockMeta *block, bool stress) {
     (void)stress;
     bool moved = block->state == SCOOP_BLOCK_EVACUATION_SOURCE && !block->large_pinned;
-    if (moved && block->large_marked && block->large_forwarding == NULL) {
+    if (moved && block->large_marked &&
+        scoop_heap_forwarding_address((char *)block_base(block) + GC_LINE_SIZE) == NULL) {
         heap_fatal("marked large source object has no forwarding address");
     }
     bool keep = block->large_marked && !moved;
@@ -159,7 +203,6 @@ static bool finish_large_block(ScoopGcBlockMeta *block, bool stress) {
     block->state = block->large_pinned ? SCOOP_BLOCK_PINNED_PARTIAL : SCOOP_BLOCK_MUTATOR;
     block->live_bytes = 0;
     block->movable_live_bytes = 0;
-    block->large_forwarding = NULL;
     block->large_marked = false;
 #if SCOOP_GC_TRACK_RELOCATION
     block->large_scanned = false;
@@ -175,17 +218,10 @@ void scoop_heap_prepare_evacuation_targets(void) {
             (block->generation == SCOOP_GC_YOUNG && block->live_bytes != 0)) {
             continue;
         }
-        for (size_t index = 0; index < GC_BITMAP_WORDS; index++) {
-            uint64_t dead = block->starts[index] & ~block->marks[index];
-            while (dead != 0) {
-                size_t word = index * 64 + (size_t)__builtin_ctzll(dead);
-                dead &= dead - 1;
-                retire_small_object(block, word, false, false);
-            }
-        }
+        retire_dead_small_objects(block, false);
         if (block->live_bytes == 0) {
             scoop_heap_release_block(block);
-        } else {
+        } else if (block->slot_size == 0) {
             record_free_runs(block, block->line_live);
         }
     }

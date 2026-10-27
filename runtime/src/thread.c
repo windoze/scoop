@@ -7,6 +7,7 @@
 
 ScoopPlatformMutex scoop_thread_world_lock = SCOOP_PLATFORM_MUTEX_INIT;
 ScoopPlatformCondition scoop_thread_world_changed = SCOOP_PLATFORM_CONDITION_INIT;
+static ScoopPlatformCondition quiescence_changed = SCOOP_PLATFORM_CONDITION_INIT;
 ScoopThreadState *scoop_thread_registry;
 uint64_t scoop_thread_registry_count;
 ScoopRuntimeLifecycle scoop_thread_runtime_lifecycle = SCOOP_RUNTIME_UNINITIALIZED;
@@ -33,18 +34,26 @@ void scoop_thread_registry_unlock(void) {
 }
 
 void scoop_thread_world_wait(void) {
+    SCOOP_THREAD_TEST_POINT(SCOOP_TEST_WORLD_WAITING);
     if (scoop_platform_condition_wait(&scoop_thread_world_changed, &scoop_thread_world_lock) != 0) {
         scoop_thread_fatal("failed to wait for a world-state change");
     }
+    SCOOP_THREAD_TEST_POINT(SCOOP_TEST_WORLD_WOKEN);
 }
 
 void scoop_thread_world_wait_for_quiescence(void) {
     /* NativeSafe publication deliberately sends no notification. A bounded
      * condition wait releases the world lock so other targets can park. */
-    int result = scoop_platform_condition_wait_for(&scoop_thread_world_changed,
-                                                   &scoop_thread_world_lock, 50);
+    int result =
+        scoop_platform_condition_wait_for(&quiescence_changed, &scoop_thread_world_lock, 50);
     if (result != 0 && result != ETIMEDOUT) {
         scoop_thread_fatal("failed to wait for quiescent threads");
+    }
+}
+
+void scoop_thread_notify_quiescence(void) {
+    if (scoop_platform_condition_signal(&quiescence_changed) != 0) {
+        scoop_thread_fatal("failed to notify the collector of quiescence");
     }
 }
 

@@ -1,4 +1,4 @@
-/* Reserve real to-space before publishing any forwarding or changing roots. */
+/* Reserve all to-space before copying objects or changing any live entry/root. */
 #include <stdlib.h>
 #include <string.h>
 
@@ -6,36 +6,108 @@
 #include "allocation_metadata.h"
 #include "gc_internal.h"
 #include "heap_internal.h"
+#include "mark_internal.h"
+#include "old_slots.h"
 
-typedef struct PlannedMove {
+/* A reserved target is not an object until copying replaces this header. */
+typedef struct PendingMove {
+    struct PendingMove *next;
     void **entry;
-    void *destination;
-    size_t size;
-    size_t word;
-    ScoopGcBlockMeta *source_block;
+} PendingMove;
+
+_Static_assert(sizeof(PendingMove) == sizeof(ScoopObjectHeader) &&
+                   _Alignof(PendingMove) <= _Alignof(ScoopObjectHeader),
+               "pending move must fit in the unpublished target header");
+
+typedef struct CopyTotals {
+    uint64_t bytes;
+    uint64_t objects;
+} CopyTotals;
+
+struct ScoopGcCopyBlock {
+    ScoopGcCopyBlock *next;
+    ScoopGcBlockMeta *block;
+    PendingMove *first;
+    PendingMove *last;
+    CopyTotals totals;
+};
+
+typedef struct ScoopGcMovingPlan {
+    _Alignas(128) PendingMove *first;
+    PendingMove *last;
     ScoopGcBlockMeta *target_block;
-} PlannedMove;
-
-#define GC_MOVE_CHUNK 256
-
-typedef struct PlannedMoveChunk {
-    struct PlannedMoveChunk *next;
-    size_t used;
-    PlannedMove moves[GC_MOVE_CHUNK];
-} PlannedMoveChunk;
-
-typedef struct MovingPlan {
-    PlannedMoveChunk *first;
-    PlannedMoveChunk *last;
+    char *target_cursor;
+    char *target_limit;
+    ScoopPlatformMutex *reservation_lock;
+    ScoopGcFreeRun *owned_runs;
     ScoopGcBlockMeta *survivor_block;
     char *survivor_cursor;
     char *survivor_limit;
     size_t survivor_capacity_limit;
     ScoopGcSurvivors survivors;
+    size_t target_regions;
+    size_t occupied_destinations;
     bool reuse_runs;
     bool allow_growth;
     bool reserved;
+    bool use_old_slots;
+    bool parallel_copy;
+    ScoopGcCopyBlock *copy_groups;
+    ScoopGcOldSlotPlan slots;
 } MovingPlan;
+
+static void discard_owned_runs(MovingPlan *plan) {
+    while (plan->owned_runs != NULL) {
+        ScoopGcFreeRun *run = plan->owned_runs;
+        plan->owned_runs = run->next;
+        free(run);
+    }
+}
+
+/* Called while claiming target storage, under the shared reservation lock. */
+static void record_destination(MovingPlan *plan, ScoopGcBlockMeta *block) {
+    if (block != NULL && plan->reuse_runs && !block->region->evacuation_destination) {
+        block->region->evacuation_destination = true;
+        plan->target_regions++;
+        plan->occupied_destinations += block->region->collection_live_bytes == 0;
+    }
+}
+
+static void discard_copy_groups(MovingPlan *plan) {
+    while (plan->copy_groups != NULL) {
+        ScoopGcCopyBlock *group = plan->copy_groups;
+        plan->copy_groups = group->next;
+        group->block->copy_reserved = false;
+        group->block->mark_index = SIZE_MAX;
+        free(group);
+    }
+}
+
+static bool append_move(MovingPlan *plan, PendingMove *move, ScoopGcBlockMeta *target) {
+    PendingMove **first = &plan->first, **last = &plan->last;
+    if (plan->parallel_copy) {
+        if (!target->copy_reserved) {
+            ScoopGcCopyBlock *group = calloc(1, sizeof *group);
+            if (group == NULL) {
+                return false;
+            }
+            group->block = target;
+            group->next = plan->copy_groups;
+            plan->copy_groups = group;
+            target->copy_group = group;
+            target->copy_reserved = true;
+        }
+        first = &target->copy_group->first;
+        last = &target->copy_group->last;
+    }
+    if (*last == NULL) {
+        *first = move;
+    } else {
+        (*last)->next = move;
+    }
+    *last = move;
+    return true;
+}
 
 static void *reserve_survivor(MovingPlan *plan, size_t size, size_t alignment,
                               ScoopGcBlockMeta **target) {
@@ -63,43 +135,69 @@ static void *reserve_survivor(MovingPlan *plan, size_t size, size_t alignment,
     return object;
 }
 
-static void free_plan(PlannedMoveChunk *chunk) {
-    while (chunk != NULL) {
-        PlannedMoveChunk *next = chunk->next;
-        free(chunk);
-        chunk = next;
-    }
-}
-
-static void *reserve_target(size_t size, size_t alignment, ScoopGcBlockMeta **block,
-                            bool reuse_runs, bool allow_growth) {
+static void *reserve_target(MovingPlan *plan, size_t size, size_t alignment,
+                            ScoopGcBlockMeta **block) {
     if (size > GC_REGULAR_MAX) {
+        if (plan->reservation_lock != NULL) {
+            scoop_platform_mutex_lock(plan->reservation_lock);
+        }
         *block = activate_large_block(size, SCOOP_BLOCK_EVACUATION_TARGET);
+        if (plan->reservation_lock != NULL) {
+            scoop_platform_mutex_unlock(plan->reservation_lock);
+        }
         return *block == NULL ? NULL : (char *)block_base(*block) + GC_LINE_SIZE;
     }
-    void *object = scoop_heap_bump(&evacuation_cursor, evacuation_limit, size, alignment);
-    if (object == NULL && reuse_runs) {
-        ScoopGcBlockMeta *reused =
-            scoop_heap_take_free_run(size, &evacuation_cursor, &evacuation_limit);
+    void *object = scoop_heap_bump(&plan->target_cursor, plan->target_limit, size, alignment);
+    if (object == NULL && plan->reuse_runs) {
+        ScoopGcBlockMeta *reused = scoop_heap_take_free_run(
+            &plan->owned_runs, size, &plan->target_cursor, &plan->target_limit);
+        if (reused == NULL) {
+            if (plan->reservation_lock != NULL) {
+                scoop_platform_mutex_lock(plan->reservation_lock);
+            }
+            ScoopGcFreeRun *runs = scoop_heap_take_free_run_group(size);
+            if (runs != NULL) {
+                record_destination(plan, runs->block);
+                ScoopGcFreeRun *last = runs;
+                while (last->next != NULL) {
+                    last = last->next;
+                }
+                last->next = plan->owned_runs;
+                plan->owned_runs = runs;
+            }
+            if (plan->reservation_lock != NULL) {
+                scoop_platform_mutex_unlock(plan->reservation_lock);
+            }
+            reused = scoop_heap_take_free_run(
+                &plan->owned_runs, size, &plan->target_cursor, &plan->target_limit);
+        }
         if (reused != NULL) {
-            evacuation_block = reused;
-            object = scoop_heap_bump(&evacuation_cursor, evacuation_limit, size, alignment);
+            plan->target_block = reused;
+            object = scoop_heap_bump(&plan->target_cursor, plan->target_limit, size, alignment);
         }
     }
     if (object == NULL) {
-        evacuation_block = activate_small_block(SCOOP_BLOCK_EVACUATION_TARGET, allow_growth);
-        if (evacuation_block == NULL) {
+        if (plan->reservation_lock != NULL) {
+            scoop_platform_mutex_lock(plan->reservation_lock);
+        }
+        plan->target_block = activate_small_block(SCOOP_BLOCK_EVACUATION_TARGET, plan->allow_growth);
+        record_destination(plan, plan->target_block);
+        if (plan->reservation_lock != NULL) {
+            scoop_platform_mutex_unlock(plan->reservation_lock);
+        }
+        if (plan->target_block == NULL) {
             return NULL;
         }
-        evacuation_cursor = (char *)block_base(evacuation_block) + GC_LINE_SIZE;
-        evacuation_limit = (char *)block_base(evacuation_block) + GC_BLOCK_SIZE;
-        object = scoop_heap_bump(&evacuation_cursor, evacuation_limit, size, alignment);
+        plan->target_cursor = (char *)block_base(plan->target_block) + GC_LINE_SIZE;
+        plan->target_limit = (char *)block_base(plan->target_block) + GC_BLOCK_SIZE;
+        object = scoop_heap_bump(&plan->target_cursor, plan->target_limit, size, alignment);
     }
-    *block = evacuation_block;
+    *block = plan->target_block;
     return object;
 }
 
 static void rollback_reservations(bool minor) {
+    scoop_heap_rollback_old_slots();
     while (scoop_gc_heap_state.evacuation_targets != NULL) {
         ScoopGcBlockMeta *block = scoop_gc_heap_state.evacuation_targets;
         scoop_gc_heap_state.evacuation_targets = block->next_collection;
@@ -111,8 +209,6 @@ static void rollback_reservations(bool minor) {
         if (block->state == SCOOP_BLOCK_EVACUATION_SOURCE) {
             block->state =
                 scoop_heap_block_has_pins(block) ? SCOOP_BLOCK_PINNED_PARTIAL : SCOOP_BLOCK_MUTATOR;
-            free(block->forwarding);
-            block->forwarding = NULL;
         }
     }
     if (!minor) {
@@ -122,8 +218,6 @@ static void rollback_reservations(bool minor) {
             region->evacuation_destination = false;
         }
     }
-    evacuation_block = NULL;
-    evacuation_cursor = evacuation_limit = NULL;
 }
 
 static bool single_source_may_fit(void) {
@@ -151,21 +245,23 @@ static bool single_source_may_fit(void) {
     return false;
 }
 
-static void append_move(void **entry, void *context) {
+static void reserve_move(void **entry, void *context) {
     MovingPlan *plan = context;
     if (!plan->reserved) {
         return;
     }
     void *object = *entry;
-    ScoopGcBlockMeta *block = pointer_block(object);
-    size_t word = ((uintptr_t)object - (uintptr_t)block_base(block)) / sizeof(uint64_t);
-    if (block->state != SCOOP_BLOCK_EVACUATION_SOURCE || object_pinned(block, word)) {
+    size_t size = scoop_heap_small_object_size(object);
+    ScoopGcBlockMeta *block = scoop_heap_known_object_block(object, size != 0);
+    if (block->state != SCOOP_BLOCK_EVACUATION_SOURCE ||
+        (stress_move && object_pinned(block, ((uintptr_t)object - (uintptr_t)block_base(block)) /
+                                                sizeof(uint64_t)))) {
         plan->survivors.objects += block->retained_young;
         return;
     }
-    size_t size = block->kind == SCOOP_BLOCK_KIND_LARGE
-                      ? block->exact_size
-                      : (size_t)block->size_units[word] * sizeof(uint64_t);
+    if (size == 0) {
+        size = block->exact_size;
+    }
     ScoopGcBlockMeta *target;
     size_t alignment = scoop_gc_object_alignment(object);
     void *destination = NULL;
@@ -174,28 +270,132 @@ static void append_move(void **entry, void *context) {
         destination = reserve_survivor(plan, size, alignment, &target);
     }
     if (destination == NULL) {
-        destination = reserve_target(size, alignment, &target, plan->reuse_runs, plan->allow_growth);
+        if (plan->use_old_slots && size <= GC_OLD_SLOT_MAX) {
+            destination =
+                scoop_heap_reserve_old_slot(&plan->slots, size, &target, plan->reservation_lock);
+        } else {
+            destination = reserve_target(plan, size, alignment, &target);
+        }
     }
     if (destination == NULL) {
         plan->reserved = false;
         return;
     }
-    if (plan->last == NULL || plan->last->used == GC_MOVE_CHUNK) {
-        PlannedMoveChunk *chunk = malloc(sizeof *chunk);
-        if (chunk == NULL) {
-            heap_fatal("out of memory planning evacuation");
-        }
-        chunk->next = NULL;
-        chunk->used = 0;
-        if (plan->last == NULL) {
-            plan->first = chunk;
-        } else {
-            plan->last->next = chunk;
-        }
-        plan->last = chunk;
+    PendingMove *move = destination;
+    *move = (PendingMove){.entry = entry};
+    if (!append_move(plan, move, target)) {
+        plan->reserved = false;
+        return;
     }
-    plan->last->moves[plan->last->used++] =
-        (PlannedMove){entry, destination, size, word, block, target};
+}
+
+void scoop_gc_reserve_run_task(ScoopGcMarkWorker *worker, ScoopGcMovingPlan *plans,
+                               ScoopGcLiveChunk *chunk) {
+    MovingPlan *plan = &plans[worker->id];
+    for (size_t index = 0; index < chunk->used && plan->reserved; index++) {
+        reserve_move(&chunk->objects[index], plan);
+    }
+}
+
+static void reserve_parallel(MovingPlan *plan) {
+    ScoopPlatformMutex lock = SCOOP_PLATFORM_MUTEX_INIT;
+    MovingPlan plans[GC_MARK_MAX_WORKERS];
+    for (size_t index = 0; index < scoop_gc_marker.active_workers; index++) {
+        plans[index] = *plan;
+        plans[index].reservation_lock = &lock;
+        plans[index].survivors = (ScoopGcSurvivors){0};
+    }
+    size_t owner = 0;
+    for (size_t index = 0; index < scoop_gc_marker.active_workers; index++) {
+        for (ScoopGcLiveChunk *chunk = scoop_gc_marker.workers[index].live; chunk != NULL;
+             chunk = chunk->next) {
+            scoop_gc_mark_queue_push(&scoop_gc_marker.workers[owner], (ScoopGcMarkTask){
+                .kind = SCOOP_RESERVE_CHUNK_TASK,
+                .data.reserve = {plans, chunk},
+            });
+            owner = (owner + 1) % scoop_gc_marker.active_workers;
+        }
+    }
+    scoop_gc_mark_pool_run(0);
+    scoop_platform_mutex_destroy(&lock);
+    ScoopGcCopyBlock **groups = &plan->copy_groups;
+    for (size_t index = 0; index < scoop_gc_marker.active_workers; index++) {
+        plan->reserved &= plans[index].reserved;
+        plan->survivors.objects += plans[index].survivors.objects;
+        plan->target_regions += plans[index].target_regions;
+        plan->occupied_destinations += plans[index].occupied_destinations;
+        discard_owned_runs(&plans[index]);
+        *groups = plans[index].copy_groups;
+        while (*groups != NULL) {
+            groups = &(*groups)->next;
+        }
+    }
+}
+
+static CopyTotals copy_reserved_objects(PendingMove *move, ScoopGcBlockMeta *owned_block) {
+    ScoopGcBlockMeta *target_block = owned_block;
+    uintptr_t target_base = owned_block == NULL ? 0 : (uintptr_t)block_base(owned_block);
+    CopyTotals totals = {0};
+    while (move != NULL) {
+        /* Copying destroys the temporary header, so take both fields first. */
+        PendingMove *next = move->next;
+        void **entry = move->entry;
+        ScoopObjectHeader *source = *entry;
+        size_t size = __atomic_load_n(&source->gc_word, __ATOMIC_RELAXED) & GC_SMALL_SIZE_MASK;
+        ScoopGcBlockMeta *block;
+        if (size == 0) {
+            block = owned_block == NULL ? scoop_heap_known_object_block(move, false) : owned_block;
+            size = block->exact_size;
+        } else {
+            if (target_block == NULL || (uintptr_t)move - target_base >= GC_BLOCK_SIZE) {
+                target_block = scoop_heap_known_object_block(move, true);
+                target_base = (uintptr_t)block_base(target_block);
+            }
+            block = target_block;
+        }
+        memcpy(move, source, size);
+        totals.bytes += size;
+        if (size <= GC_REGULAR_MAX) {
+            scoop_heap_record_small_metadata(block, move, size, true, true);
+        } else {
+            publish_large_object(block, true);
+        }
+        __atomic_store_n(&source->gc_word, (uintptr_t)move | GC_FORWARDED_BIT, __ATOMIC_RELAXED);
+        *entry = move;
+        totals.objects++;
+        move = next;
+    }
+    return totals;
+}
+
+void scoop_gc_copy_run_task(ScoopGcCopyBlock *group) {
+    group->totals = copy_reserved_objects(group->first, group->block);
+}
+
+static void copy_plan(MovingPlan *plan) {
+    CopyTotals totals = {0};
+    if (plan->parallel_copy) {
+        size_t owner = 0;
+        for (ScoopGcCopyBlock *group = plan->copy_groups; group != NULL; group = group->next) {
+            scoop_gc_mark_queue_push(&scoop_gc_marker.workers[owner], (ScoopGcMarkTask){
+                .kind = SCOOP_COPY_BLOCK_TASK,
+                .data.copy_group = group,
+            });
+            owner = (owner + 1) % scoop_gc_marker.active_workers;
+        }
+        if (plan->copy_groups != NULL) {
+            scoop_gc_mark_pool_run(0);
+        }
+        for (ScoopGcCopyBlock *group = plan->copy_groups; group != NULL; group = group->next) {
+            totals.bytes += group->totals.bytes;
+            totals.objects += group->totals.objects;
+        }
+        discard_copy_groups(plan);
+    } else {
+        totals = copy_reserved_objects(plan->first, NULL);
+    }
+    scoop_gc_heap_state.copied_bytes += totals.bytes;
+    moved_objects += totals.objects;
 }
 
 bool scoop_gc_heap_plan_moving_locked(bool minor, ScoopGcSurvivors *survivors) {
@@ -203,19 +403,30 @@ bool scoop_gc_heap_plan_moving_locked(bool minor, ScoopGcSurvivors *survivors) {
     if (!collection_active) {
         heap_fatal("evacuation planned outside collection");
     }
+    if (!minor && scoop_heap_uses_old_slots()) {
+        scoop_gc_heap_state.metrics.last_full_source_regions = 0;
+        scoop_gc_heap_state.metrics.last_full_target_regions = 0;
+        return true;
+    }
     bool ordinary_full = !minor && !stress_move;
-    MovingPlan plan = {.reuse_runs = ordinary_full, .reserved = true};
+    MovingPlan plan = {
+        .reuse_runs = ordinary_full,
+        .reserved = true,
+        .use_old_slots = minor && scoop_heap_uses_old_slots(),
+        .parallel_copy = scoop_gc_marker.active_workers > 1,
+    };
     if (minor && scoop_gc_heap_state.survivor_enabled && scoop_heap_adaptive_nursery_enabled()) {
         plan.survivor_capacity_limit = scoop_gc_heap_state.nursery_capacity / 4;
     }
-    size_t source_regions =
-        scoop_heap_select_evacuation_sources(minor, plan.survivor_capacity_limit, &plan.survivors);
+    bool has_sources;
+    size_t source_regions = scoop_heap_select_evacuation_sources(
+        minor, plan.survivor_capacity_limit, &plan.survivors, &has_sources);
     plan.allow_growth = !ordinary_full || source_regions > 1;
     if (ordinary_full) {
         scoop_gc_heap_state.metrics.last_full_source_regions = 0;
         scoop_gc_heap_state.metrics.last_full_target_regions = 0;
     }
-    if (ordinary_full && source_regions == 0) {
+    if (!has_sources && plan.survivors.capacity == 0) {
         return true;
     }
     if (ordinary_full && source_regions == 1 && !single_source_may_fit()) {
@@ -225,24 +436,17 @@ bool scoop_gc_heap_plan_moving_locked(bool minor, ScoopGcSurvivors *survivors) {
     if (ordinary_full) {
         scoop_heap_prepare_evacuation_targets();
     }
-    scoop_gc_mark_visit_live(append_move, &plan);
-    size_t target_regions = 0;
+    if ((minor || ordinary_full) && plan.parallel_copy && plan.survivor_capacity_limit == 0) {
+        reserve_parallel(&plan);
+    } else {
+        scoop_gc_mark_visit_live(reserve_move, &plan);
+        discard_owned_runs(&plan);
+    }
     if (ordinary_full) {
-        size_t occupied_destinations = 0;
-        for (PlannedMoveChunk *chunk = plan.first; chunk != NULL; chunk = chunk->next) {
-            for (size_t index = 0; index < chunk->used; index++) {
-                ScoopGcRegion *region = chunk->moves[index].target_block->region;
-                if (!region->evacuation_destination) {
-                    region->evacuation_destination = true;
-                    target_regions++;
-                    occupied_destinations += region->collection_live_bytes == 0;
-                }
-            }
-        }
-        plan.reserved &= occupied_destinations < source_regions;
+        plan.reserved &= plan.occupied_destinations < source_regions;
     }
     if (!plan.reserved) {
-        free_plan(plan.first);
+        discard_copy_groups(&plan);
         rollback_reservations(minor);
         if (stress_move) {
             heap_fatal("stress heap exhausted during evacuation reservation");
@@ -251,31 +455,11 @@ bool scoop_gc_heap_plan_moving_locked(bool minor, ScoopGcSurvivors *survivors) {
     }
     if (ordinary_full) {
         scoop_gc_heap_state.metrics.last_full_source_regions = source_regions;
-        scoop_gc_heap_state.metrics.last_full_target_regions = target_regions;
+        scoop_gc_heap_state.metrics.last_full_target_regions = plan.target_regions;
     }
     uint64_t copy_started = scoop_gc_monotonic_ns();
-    for (PlannedMoveChunk *chunk = plan.first; chunk != NULL; chunk = chunk->next) {
-        for (size_t index = 0; index < chunk->used; index++) {
-            PlannedMove *move = &chunk->moves[index];
-            memcpy(move->destination, *move->entry, move->size);
-            scoop_gc_heap_state.copied_bytes += move->size;
-            ScoopGcBlockMeta *source = move->source_block;
-            if (move->size <= GC_REGULAR_MAX) {
-                /* The complete plan owns these ranges; mark/update workers are idle. */
-                scoop_heap_record_small_metadata(move->target_block, move->destination, move->size,
-                                                 true, true);
-                source->forwarding[move->word] = move->destination;
-            } else {
-                publish_large_object(move->target_block, true);
-                source->large_forwarding = move->destination;
-            }
-            /* Mark tasks have finished; update tasks will only see current copies. */
-            *move->entry = move->destination;
-            moved_objects++;
-        }
-    }
+    copy_plan(&plan);
     scoop_gc_heap_state.metrics.copy_ns += scoop_gc_monotonic_ns() - copy_started;
-    free_plan(plan.first);
     *survivors = plan.survivors;
     return true;
 }
