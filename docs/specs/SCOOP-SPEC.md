@@ -2765,9 +2765,9 @@ use 以 receiver 调用 block 恰好一次，正文正常返回或抛出后调�
 
 ### 12.2 Cone identity与`Cone.toml`
 
-每个 Cone 具有 canonical coordinate `group:name:version`。`group` 与 `name` 各由一个或多个 `.` 分隔的 lowercase ASCII segment 组成，每段精确匹配 `[a-z][a-z0-9-]*`；`version` 是 canonical SemVer 2.0.0 文本，禁止多余 `v` 与非法前导零，合法 pre-release/build metadata 原样参与 identity。不做 trim、大小写折叠、Unicode 归一化或路径别名解析，不满足语法的 coordinate 是错误。
-
 workspace、版本范围、Git/registry来源及锁文件采用[包管理规范](SCOOP-PACKAGE-SPEC.md)的M63设计，当前待实施；以下清单合同随该里程碑直接调整，不保留尚未发布的旧schema语义。编译后的实体身份和12.3的精确图约束保持。
+
+每个 Cone 具有 canonical coordinate `group:name:version`。`group` 与 `name` 各由一个或多个 `.` 分隔的 lowercase ASCII segment 组成，每段精确匹配 `[a-z][a-z0-9-]*`；`version` 是 canonical SemVer 2.0.0 文本，禁止多余 `v` 与非法前导零，合法 pre-release/build metadata 原样参与 identity。不做 trim、大小写折叠、Unicode 归一化或路径别名解析，不满足语法的 coordinate 是错误。
 
 `ConeIdentity` 由完整 canonical coordinate 确定；version 参与身份，因此两个版本即使源码相同也不是同一声明或类型的来源。artifact 内容具有独立的 `ArtifactFingerprint`，不能用它、package、FQN 或 manifest 路径代替 ConeIdentity。identity 与产物指纹的编码见编译器与产物规范 2.6。
 
@@ -3007,10 +3007,10 @@ import 指向原声明；经不同依赖路径或 re-export 到达同一声明�
 
 core 是可修改、扩展和重建的普通 library Cone。intrinsic 与脱糖所需的声明按第 13 章解析；其余类型、可见性、ABI、产物与链接规则和普通库相同。sysroot 只提供默认 locator，不构成来源授权。
 
-- 除core自身外，每个Cone都具有到该exact core Cone的direct dependency。manifest可以像其他依赖一样显式声明core的`path`、`artifact`或search-root locator；未声明时注入默认edge。先解析全图的显式声明，已有core节点则复用，仅当仍无core节点时才读取默认`<sysroot>/lib/<canonical-target-triple>/scoop.core.slib`，不查找随包源码。显式locator失败按普通依赖报错，不回退到sysroot；不同core来源的冲突使用同一coordinate/content唯一性检查；
-- core 自身不隐式依赖自身。core manifest 的显式 dependency 使用普通语法、定位与无环规则；core 到普通库的依赖若与该库到 core 的依赖形成环，按 12.3 报错。用户可在普通源码目录声明 core coordinate、修改或扩展源码，并重新构建 library；intrinsic 声明遵守第 13 章的名称、类型和唯一性规则；
 M63包管理允许显式Git/registry来源及根覆盖，但core仍固定为上述精确coordinate；普通版本范围或registry默认值不能自动升级core。PM选择来源后交付同一精确core边，不改变默认prelude、intrinsic或runtime兼容规则。
 
+- 除core自身外，每个Cone都具有到该exact core Cone的direct dependency。manifest可以像其他依赖一样显式声明core的`path`、`artifact`或search-root locator；未声明时注入默认edge。先解析全图的显式声明，已有core节点则复用，仅当仍无core节点时才读取默认`<sysroot>/lib/<canonical-target-triple>/scoop.core.slib`，不查找随包源码。显式locator失败按普通依赖报错，不回退到sysroot；不同core来源的冲突使用同一coordinate/content唯一性检查；
+- core 自身不隐式依赖自身。core manifest 的显式 dependency 使用普通语法、定位与无环规则；core 到普通库的依赖若与该库到 core 的依赖形成环，按 12.3 报错。用户可在普通源码目录声明 core coordinate、修改或扩展源码，并重新构建 library；intrinsic 声明遵守第 13 章的名称、类型和唯一性规则；
 - core 声明与 Option variant 的默认可见性来自 core `.slib` 中的 typed prelude binding，不通过把 core 源码拼入用户 AST、扫描 package name 或对 `Some`/`None` 写短名特判实现；
 - core中的普通public API、generic template、non-generic alias、layout、TypeDescriptor与runtime binding遵守与其他library Cone相同的metadata、persistent identity和兼容检查。sysroot core与compiler的language/runtime、target及backend fingerprints不兼容时必须重建或拒绝，不能退回core与用户源码同单元编译。
 
