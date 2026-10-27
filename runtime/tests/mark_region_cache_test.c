@@ -64,6 +64,7 @@ static void scattered_graph(void) {
 
 int main(void) {
     alarm(30);
+    assert(setenv("SCOOP_GC_OLD_SLOTS", "0", 1) == 0);
     assert(setenv("SCOOP_GC_WORKERS", "4", 1) == 0);
     const ScoopTypeDescriptor *types[] = {&nursery_node_td, &wide_td};
     scoop_thread_runtime_init();

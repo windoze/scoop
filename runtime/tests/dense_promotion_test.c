@@ -86,6 +86,7 @@ static void mixed_sources_and_old_writes(void **roots) {
 }
 
 int main(void) {
+    assert(setenv("SCOOP_GC_OLD_SLOTS", "0", 1) == 0);
     assert(setenv("SCOOP_GC_PROMOTE_IN_PLACE", "1", 1) == 0);
 #ifdef SCOOP_TEST_PROMOTION_PARALLEL
     assert(setenv("SCOOP_GC_WORKERS", "4", 1) == 0);

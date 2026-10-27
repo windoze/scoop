@@ -555,9 +555,9 @@ AtomicRef<I> 的原子槽仍只保存 object；返回引用的原子操作在无
 
 ### 3.7 移动与存储有效期
 
-full collection 按回收收益选择低存活、无 pin 的 region 为 source，把对象集中到未选为 source 的目标 region；高存活／含 pin 区域继续原地复用 Immix line。普通 full 不强制搬迁，显式 moving stress 在目标空间足够时要求 eligible movement。pinned 对象不移动；移动不改变语言对象身份。
+full collection 在采用 region 整理时，按回收收益选择低存活、无 pin 的 region 为 source，把对象集中到未选为 source 的目标 region；高存活／含 pin 区域继续原地复用 Immix line。普通 full 不强制搬迁，显式 moving stress 在目标空间足够时要求 eligible movement。pinned 对象不移动；移动不改变语言对象身份。
 
-可选旧代对象槽策略（`SCOOP_GC_OLD_SLOTS` 为 0、1 或 2，默认 0；1 使用复制晋升，2 另允许下述原地转槽）保持 nursery、对象头和 ABI，普通 minor 把对齐后 16～256 B 的晋升对象放入按精确大小分组的旧代 block。每块的槽间距等于对齐后大小，复用现有 starts 位图选择空槽；只在 block 级保存 native 空槽游标和临时预留记录，不在死亡对象内保存可跨 VM discard 使用的链。完整预留成功前不发布 starts、forwarding 或 live entry；失败时恢复可用槽游标、释放本轮新块，原旧对象与根保持。成功复制仍执行既有目标登记；minor 收尾只清除复用旧块中新对象的临时 marks，不把未参加本轮年轻标记的旧对象当作死亡。full 清扫后按当前 starts 重建空槽记录，空块／region 与 release hook 沿原退休合同。
+普通旧代对象槽策略（`SCOOP_GC_OLD_SLOTS` 为 0、1 或 2，默认 2；0 使用 region 整理，1 使用复制晋升到槽，2 另允许下述原地转槽）保持 nursery、对象头和 ABI，普通 minor 把对齐后 16～256 B 的晋升对象放入按精确大小分组的旧代 block。每块的槽间距等于对齐后大小，复用现有 starts 位图选择空槽；只在 block 级保存 native 空槽游标和临时预留记录，不在死亡对象内保存可跨 VM discard 使用的链。完整预留成功前不发布 starts、forwarding 或 live entry；失败时恢复可用槽游标、释放本轮新块，原旧对象与根保持。成功复制仍执行既有目标登记；minor 收尾只清除复用旧块中新对象的临时 marks，不把未参加本轮年轻标记的旧对象当作死亡。full 清扫后按当前 starts 重建空槽记录，空块／region 与 release hook 沿原退休合同。
 
 等级 2 可直接把密集年轻块转为旧代槽块，省去同一存活图的目标预留和复制。资格取自本轮完整标记：small、无 pin、存活字节不少于可用容量一半，所有存活对象的对齐后精确大小相同且位于从首个可用地址开始的同一槽网格，大小在 16～256 B 内。若该大小的剩余可用旧槽足以容纳本块存活对象，则沿原路径填空，并在本轮选择中扣除对应容量；剩余容量不足时才原地转槽。对符合槽布局的块，已有空槽复用优先于 survivor 晋升或显式原地晋升选项的原地保留；不符合槽布局的块继续遵守原选择。可用槽数随既有 block 游标的登记、独占领取、归还与回滚维护；source 选择只复制大小类别的汇总，不在每轮 minor 遍历旧代对象或全部旧槽块。survivor 配额内的首次保留仍优先，真正晋升时才考虑转槽。
 
@@ -597,7 +597,7 @@ small block 的普通 sweep 与压缩目标准备按 `starts & ~marks` 枚举实
 
 首版在普通 full 结束时合并已使用 block 中不覆盖任何存活 line 的整页，通过 ThreadVmOps 调用平台 `madvise(MADV_DONTNEED)`；失败保留映射并在后续 full 重试，不影响可达图。block 激活、空洞再次分配或对象退休时才重新请求 discard，不在普通对象分配热路径增加共享计数。统计分别给出成功／失败调用数、成功建议的累计字节和解除映射的累计字节，重复建议不代表新增物理内存归还。RSS 是诊断时采样的进程当前／历史峰值，采样不可用时对应字段为零；既不作为收集正确性条件，也不与 managed mapping 字节等同。
 
-旧代精确大小槽的批量清扫适用于 3.7 的 `slot_size != 0` 块、且当前未执行 moving stress。该分配类别只接受已通过 nursery 资格判断的晋升对象，release-hook 对象预晋升到普通旧代块，不会混入此类槽；无需按死亡对象再次读取大小、TD 或查询 release。完成 mark／copy／引用更新后，coordinator 按 bitmap word 将 starts 与 marks 相交，并清除死亡起点的 pin 位；只要发生退休仍设置原 discard 状态。保留活对象的精确 line、pin、对象头及槽内字节，后续重新占用由原完整复制／发布初始化。普通可变大小块、large 与 moving stress 继续逐对象 release／poison；不得按 payload 大小自行把普通旧代块当作槽块。该复用不增加 metadata、线程状态或 ABI，随既有旧代槽策略启用，没有独立开关；该策略本身仍默认关闭。
+旧代精确大小槽的批量清扫适用于 3.7 的 `slot_size != 0` 块、且当前未执行 moving stress。该分配类别只接受已通过 nursery 资格判断的晋升对象，release-hook 对象预晋升到普通旧代块，不会混入此类槽；无需按死亡对象再次读取大小、TD 或查询 release。完成 mark／copy／引用更新后，coordinator 按 bitmap word 将 starts 与 marks 相交，并清除死亡起点的 pin 位；只要发生退休仍设置原 discard 状态。保留活对象的精确 line、pin、对象头及槽内字节，后续重新占用由原完整复制／发布初始化。普通可变大小块、large 与 moving stress 继续逐对象 release／poison；不得按 payload 大小自行把普通旧代块当作槽块。该复用不增加 metadata、线程状态或 ABI，随既有旧代槽策略启用，没有独立开关；默认等级 2 启用，设置 0 关闭。
 
 ### 3.8 GC-free release hook
 
@@ -617,7 +617,7 @@ minor collection 处理年轻代，依据完整精确根与旧代脏区追踪年
 
 显式收集入口保留请求开始时的完整 full 次数。若加入的是 minor 或未完成的标记片，仍须继续请求 full；若请求开始后已有完整 full 收尾，可以合并该请求。计数读取由既有 heap 锁保护。分配器用于失败重试的内部返回值仍只表示本线程是否实际完成 full，不能把加入其他 collector 当作已经完成自己的回收尝试。
 
-普通运行通过 `SCOOP_GC_INCREMENTAL` 选择分片策略：默认 0 使用完整收集；1 仅在旧代压力触发时分片标记 full，minor 保持完整收集；2 同时启用下述 minor 分片。其他值在初始化时报错。等级 2 在 nursery 达到正常目标容量时开始 minor 周期。未完成的 minor 可以额外取得至多目标容量八分之一的 block 作为片间分配余量；达到该上界必须完整结束本周期。余量计入真实 nursery 占用、heap 和 RSS，不永久提高下一轮目标容量或配置的目标上限。没有活动 minor 时，不能使用这段余量。full 追踪两代，minor 只追踪年轻对象及旧代脏区的出站引用；每片结束后全部 marker worker 停下，mutator 恢复执行。它不并发读取普通对象字段，不改变对象头、精确根、写屏障或产物 ABI；moving／minor stress 与 full-only 继续使用原完整收集。开始片准备本轮 mark 与 block 计数索引，取得当前 roots；full 的完整图追踪替代开始前的 remembered 信息，minor 必须保留旧代脏区，但开始前的年轻脏卡已经由本轮年轻图扫描覆盖，应直接清除，不再入队重复扫描。随后保留尚未扫描的任务、mark 和存活清单。周期完成前不搬迁或退休对象，不运行另一轮共享这些状态的收集。
+普通运行通过 `SCOOP_GC_INCREMENTAL` 选择分片策略：默认 1 仅在旧代压力触发时分片标记 full，minor 保持完整收集；0 使用完整收集；2 同时启用下述 minor 分片。默认组合为旧槽等级 2 与 full 分片等级 1，优先缩短 STW 和提高分配吞吐；minor 分片的额外扫描与握手成本仍由显式等级 2 选择。两个选项独立，不隐式改写另一个选项；所有 profile 共用默认值和完整 GC 语义。其他值在初始化时报错。等级 2 在 nursery 达到正常目标容量时开始 minor 周期。未完成的 minor 可以额外取得至多目标容量八分之一的 block 作为片间分配余量；达到该上界必须完整结束本周期。余量计入真实 nursery 占用、heap 和 RSS，不永久提高下一轮目标容量或配置的目标上限。没有活动 minor 时，不能使用这段余量。full 追踪两代，minor 只追踪年轻对象及旧代脏区的出站引用；每片结束后全部 marker worker 停下，mutator 恢复执行。它不并发读取普通对象字段，不改变对象头、精确根、写屏障或产物 ABI；moving／minor stress 与 full-only 继续使用原完整收集。开始片准备本轮 mark 与 block 计数索引，取得当前 roots；full 的完整图追踪替代开始前的 remembered 信息，minor 必须保留旧代脏区，但开始前的年轻脏卡已经由本轮年轻图扫描覆盖，应直接清除，不再入队重复扫描。随后保留尚未扫描的任务、mark 和存活清单。周期完成前不搬迁或退休对象，不运行另一轮共享这些状态的收集。
 
 一批 TLAB 储备耗尽后的慢路径推动下一片；每个 marker 每片以 1,024 个扫描单位为处理量，普通对象批次／数组区间各为一个单位，覆盖 32 KiB 的脏卡组为四个单位，未完成任务留在稳定队列中。任务大小限制是局部调度粒度，不是暂停时间上界，也不是程序资源配额；任一已取出的任务都完成后才结束本片。该检查不进入成功 bump 路径。只标记的片不改变分配块及其元数据视图的有效性，可以保留尚未耗尽的 TLAB／储备；真正完成收集或转入原 full 前仍统一失效。片间新增的 nursery block 正常登记、发布和计入容量；每片只枚举年轻清单上次头部之前的新前缀，为新增 block 补充统计索引和清零新增计数，不能重置已有 mark 或每片重扫整个 block 目录。随后扫描当前精确 roots，并把新登记的脏卡组交给同一标记队列。临时 pin frame 在每片停稳后重新取得，在该片恢复前解除临时 pin；持久 pin、异常、callback 和 NativeSafe 沿原协议，全部对象地址在片间稳定。
 

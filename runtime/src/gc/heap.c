@@ -14,6 +14,8 @@ ScoopGcHeapState scoop_gc_heap_state = {
     .nursery_capacity = GC_NURSERY_MIN_CAPACITY,
     .nursery_limit = GC_NURSERY_DEFAULT_MAX_CAPACITY,
     .nursery_floor = GC_NURSERY_MIN_CAPACITY,
+    .old_slots_level = 2,
+    .incremental_enabled = true,
 };
 #define collection_threshold (scoop_gc_heap_state.collection_threshold)
 

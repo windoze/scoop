@@ -56,6 +56,7 @@ static void collect_insufficient_capacity(void *dead) {
 }
 
 int main(void) {
+    assert(setenv("SCOOP_GC_OLD_SLOTS", "0", 1) == 0);
     const ScoopTypeDescriptor *types[] = {&nursery_node_td, &wide_td};
     uintptr_t boundary = 0;
     scoop_thread_runtime_init();

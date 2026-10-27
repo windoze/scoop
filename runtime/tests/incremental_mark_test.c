@@ -257,7 +257,6 @@ static void complete_or_restart(void **roots) {
 
 int main(void) {
     alarm(30);
-    assert(setenv("SCOOP_GC_INCREMENTAL", "1", 1) == 0);
 #ifdef SCOOP_TEST_INCREMENTAL_PARALLEL
     assert(setenv("SCOOP_GC_WORKERS", "4", 1) == 0);
 #else
@@ -266,6 +265,9 @@ int main(void) {
     const ScoopTypeDescriptor *types[] = {&nursery_node_td, &array_td, &release_td};
     scoop_thread_runtime_init();
     scoop_test_image_init(types, 3, NULL, 0, NULL, 0);
+    assert(scoop_gc_heap_state.incremental_enabled &&
+           !scoop_gc_heap_state.incremental_minor_enabled &&
+           scoop_gc_heap_state.old_slots_level == 2);
     scoop_thread_attach_main();
     scoop_thread_enter_managed((void *)scoop_rt_thread_debug_stack_high());
     void *roots[6] = {0};

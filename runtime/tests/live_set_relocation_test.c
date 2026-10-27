@@ -166,6 +166,7 @@ static void run_case(size_t workers) {
 }
 
 int main(void) {
+    assert(setenv("SCOOP_GC_OLD_SLOTS", "0", 1) == 0);
     const size_t workers[] = {1, 4};
     for (size_t index = 0; index < sizeof workers / sizeof *workers; index++) {
         pid_t child = fork();
