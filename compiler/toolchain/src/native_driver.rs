@@ -68,7 +68,7 @@ impl NativeDriver {
         language: scoop_manifest::NativeSourceLanguage,
     ) -> std::process::Command {
         if crate::windows_native::is_windows(c) {
-            crate::windows_native::command(c, &self.path, self.kind, language)
+            crate::windows_native::command(c, &self.path, self.kind, language, false)
         } else {
             c.driver_command_with(&self.path)
         }

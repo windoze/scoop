@@ -32,6 +32,7 @@ mod native_record;
 mod object_file;
 mod paths;
 mod windows_native;
+mod windows_resource;
 pub use object_file::{object_path, store_object};
 mod registry;
 mod request;
@@ -49,7 +50,7 @@ pub use linux_c::resolve_linux_c_toolchain;
 pub use native::{
     NativeSourceInput, NativeToolchain, PreparedNativeInputs, PreparedNativeObjects,
     compile_native_source, prepare_native_inputs, prepare_native_objects,
-    strip_native_include_observations,
+    selected_native_object_sources, strip_native_include_observations,
 };
 pub use paths::{
     artifact_candidate_path, configured_cache_root, configured_sysroot_root, default_runtime_index,

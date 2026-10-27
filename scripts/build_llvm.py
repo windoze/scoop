@@ -33,6 +33,7 @@ TOOLS = (
     "llvm-ranlib",
     "llvm-readobj",
     "llvm-rc",
+    "llvm-windres",
     "llvm-cvtres",
     "llvm-nm",
     "llvm-objcopy",

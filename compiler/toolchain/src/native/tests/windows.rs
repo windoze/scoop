@@ -50,6 +50,7 @@ fn windows_native_drivers_compile_c_cpp_and_consume_real_cpp_archives() {
         let root = directory.path().join(index.to_string());
         std::fs::create_dir_all(root.join("include")).unwrap();
         let macro_flag = if index < 2 { "/D" } else { "-D" };
+        let warnings = if index == 1 { "/WX" } else { "-Werror" };
         std::fs::write(
             root.join("Cone.toml"),
             format!(
@@ -62,7 +63,8 @@ kind = "library"
 [native]
 cxx = true
 include = ["include"]
-c_flags = ["{macro_flag}", "EXTRA=5"]
+c_flags = ["{macro_flag}", "EXTRA=5", "{warnings}"]
+cxx_flags = ["{warnings}"]
 [[native.sources]]
 path = "answer.c"
 [[native.sources]]
@@ -117,6 +119,7 @@ path = "wrapper.cpp"
                 cl.path(),
                 crate::native_driver::NativeDriverKind::Msvc,
                 NativeSourceLanguage::Cxx,
+                false,
             )
         } else {
             native.command(NativeSourceLanguage::Cxx).unwrap()

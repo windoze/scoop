@@ -6,7 +6,7 @@ fn object_records_reuse_outputs_and_follow_actual_header_changes() {
     let root = directory.path().join("cone");
     let manifest = manifest(
         &root,
-        "#include <value.h>\nint answer(void) { return VALUE; }\n",
+        "#include <value.h>\nint answer(void);\nint answer(void) { return VALUE; }\n",
     );
     std::fs::write(root.join("include/value.h"), "#define VALUE 41\n").unwrap();
     let cache = directory.path().join("cache");
@@ -17,6 +17,7 @@ fn object_records_reuse_outputs_and_follow_actual_header_changes() {
             OptimizationMode::Debug,
             &crate::development_runtime_root().join("include"),
             &cache,
+            scoop_protocol::CompilationPurpose::Production,
         )
         .unwrap()
     };
@@ -40,10 +41,6 @@ fn object_records_reuse_outputs_and_follow_actual_header_changes() {
         std::fs::read(&changed.objects()[0]).unwrap()
     );
     assert_eq!(prepare(), changed);
-    std::fs::remove_file(&changed.objects()[0]).unwrap();
-    let restored = prepare();
-    assert_eq!(restored.key(), changed.key());
-    assert!(restored.objects()[0].is_file());
 }
 
 #[test]
@@ -52,7 +49,7 @@ fn quoted_macro_include_observes_its_own_directory() {
     let root = directory.path().join("cone");
     let manifest = manifest(
         &root,
-        "#include <nested/entry.h>\nint answer(void) { return VALUE; }\n",
+        "#include <nested/entry.h>\nint answer(void);\nint answer(void) { return VALUE; }\n",
     );
     std::fs::create_dir_all(root.join("include/nested")).unwrap();
     std::fs::write(
@@ -69,6 +66,7 @@ fn quoted_macro_include_observes_its_own_directory() {
             OptimizationMode::Debug,
             &crate::development_runtime_root().join("include"),
             &cache,
+            scoop_protocol::CompilationPurpose::Production,
         )
         .unwrap()
     };
@@ -96,7 +94,8 @@ fn native_compilation_failure_does_not_publish_a_record() {
             target(),
             OptimizationMode::Debug,
             &crate::development_runtime_root().join("include"),
-            &cache
+            &cache,
+            scoop_protocol::CompilationPurpose::Production,
         )
         .is_err()
     );

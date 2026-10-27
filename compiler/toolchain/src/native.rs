@@ -15,7 +15,7 @@ mod command;
 mod includes;
 pub use includes::strip_native_include_observations;
 mod objects;
-pub use objects::{PreparedNativeObjects, prepare_native_objects};
+pub use objects::{PreparedNativeObjects, prepare_native_objects, selected_native_object_sources};
 mod paths;
 mod prepare;
 mod toolchain;

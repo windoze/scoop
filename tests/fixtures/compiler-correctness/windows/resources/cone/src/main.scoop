@@ -1,0 +1,11 @@
+package dev.windows
+
+@Extern(lib = "", name = "resource_fixture_marker")
+fun marker(): Int
+
+fun main(): Int {
+    @Unsafe
+    {
+        return marker()
+    }
+}

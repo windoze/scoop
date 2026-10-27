@@ -21,9 +21,12 @@ fn target() -> &'static ResolvedTargetProfile {
 
 fn manifest(root: &Path, source: &str) -> LoadedConeManifest {
     std::fs::create_dir_all(root.join("include")).unwrap();
+    // clang-cl uses the Microsoft warning levels rather than GNU -Wall.
+    let warnings = if cfg!(windows) { "/W4" } else { "-Wall" };
     std::fs::write(
         root.join("Cone.toml"),
-        r#"schema = 1
+        format!(
+            r#"schema = 1
 [cone]
 group = "test"
 name = "native"
@@ -31,10 +34,11 @@ version = "1.0.0"
 kind = "library"
 [native]
 include = ["include"]
-c_flags = ["-D", "EXTRA=1", "-g", "-Wall", "-Wextra", "-Werror"]
+c_flags = ["-D", "EXTRA=1", "-g", "{warnings}", "-Wextra", "-Werror"]
 [[native.sources]]
 path = "answer.c"
-"#,
+"#
+        ),
     )
     .unwrap();
     std::fs::write(root.join("answer.c"), source).unwrap();

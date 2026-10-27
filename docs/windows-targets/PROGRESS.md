@@ -5,14 +5,14 @@
 | 阶段 | 状态 | 尚需闭合 |
 | --- | --- | --- |
 | W0 工具链与 ABI | 关键路线实验通过 | 复现入口与范围见下文；正式编译器集成在 W1／W2 完成 |
-| W1 编译／链接 | 实施中 | 三目标开发 CLI 已生成 `.slib` 与真实 PE 程序并支持 subsystem；继续 DLL 数据、RC、调试信息与组合验收 |
+| W1 编译／链接 | 实施中 | 三目标开发 CLI 已生成 `.slib` 与真实 PE 程序并支持 subsystem 与 RC；继续 DLL 数据、调试信息与组合验收 |
 | W2 core runtime | 实施中 | core／std／test 已构建，启动、异常和移动 GC 的真实程序通过；继续线程／callback／unwind 组合及正式 fixture 验收 |
 | W3 系统库 | 待实施 | 平台规范与实现、IOCP、全部 native 组件、真实 consumer |
 | W4 宿主与发行 | 基础实施中 | 进程中断已实现；继续 Windows 命令、维护脚本、DLL／SDK 布局与打包、交叉编译 |
 
 本地实现和完整验收完成后，才在 Linux `nuc12w.0d0a.com` 与 macOS `mm.0d0a.com` 的 `~/repos` 下新建测试目录，运行与变更范围相称的回归。原始日志与构建目录放在仓库外。
 
-2026-10-28 新增需求：`Cone.toml` 的 `[windows]` 节已支持 `subsystem = "console" | "gui"`（默认 console）。同节的可选 `rc` 文件尚待实现，Windows toolchain 将自带或发现 RC compiler，资源编译后进入 exe。W1 覆盖 manifest、产物、链接与缓存，W4 覆盖工具供应／发现；具体合同和验收见 [设计 3.4](DESIGN.md#34-windows-executable-配置与资源)。
+2026-10-28 新增需求：`Cone.toml` 的 `[windows]` 节已支持 `subsystem = "console" | "gui"`（默认 console）和可选 `rc` 文件。Windows toolchain 自带或发现 LLVM resource compiler，资源编译后进入 exe。manifest、产物、链接、缓存及工具供应／发现的定向验收已通过；具体合同见 [设计 3.4](DESIGN.md#34-windows-executable-配置与资源)。
 
 ## 本地环境
 
@@ -124,3 +124,7 @@ fixture runner 已接入三种完整 Windows target、各自的 Clang／archive 
 移动 GC 的返回 PC 失败已闭合：LLVM 22.1.8 的 X86 statepoint emitter 将记录标签放在 WinEH NOP 之后，导致部分记录比实际返回地址多一个字节。配套补丁将标签移到 NOP 之前并保留 EH padding；runtime 的精确匹配规则保持不变。所有发射 Windows 对象的宿主均通过 LLVM 准备脚本应用该补丁，未变化命中先于补丁读取／应用。
 
 修补后的宿主 LLVM 完整构建、安装与后续原命令复用通过；真实 COFF 回归覆盖三个 target 的 call／invoke，检查准确 PC 和必要 NOP。配套三个 CLI 与三个目标各自的 core／std／test 已重新构建；`roots-gc-context`、`string-copies-moving` 和新增 Windows 适用性的 `exceptions-return-paths` 全部通过，每目标 5 个变体／10 个进程步骤，包含 debug／release 的移动 GC。对应 Rust Clippy 和 Python Ruff 通过，先前两项 GC 失败与返回路径不适用项均在本批闭合；线程／callback、其余系统库和完整宿主验收继续实施，未开始远端测试。
+
+`[windows].rc` 已使用所选目标的 Clang、headers 与 `native.include` 预处理，通过 LLVM `llvm-windres` 和 `llvm-cvtres` 生成资源 COFF，并作为现有 native 对象进入 executable `.slib`。资源更新记录跟随实际头文件、引用资源及搜索候选；测试 executable 省略生产资源。配套 LLVM 已安装 windres 入口，固定原 Ninja 后的完整准备命令直接复用现有安装。
+
+三个目标的资源正式 fixture 各通过 19 个实际进程步骤，覆盖 GUI exe 的真实 RCDATA、native C 与 RC 组合、C flags 不泄漏到 RC、资源／头文件更新、未变化时零 compiler child、artifact-only 重链接及移除 RC 配置后的更新。非法 RC 路径的正式诊断位置、4 项 manifest 测试、2 项资源测试（含三个目标的真实 COFF／Unicode／缓存与失败不发布矩阵）通过。用例同时发现并修正了预处理文件编译时多余的 clang-cl 语言／SDK 参数与 MinGW C++ 选项；clang-cl 的 SDK headers 使用系统搜索顺序，保留 Clang builtin headers。四种 native 编译器组合的严格警告回归、3 项 native 对象更新测试、相关 Clippy、Ruff 与格式化通过。完整 Windows 系统库、宿主发行和远端回归仍待后续完成。

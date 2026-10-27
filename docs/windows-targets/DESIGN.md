@@ -37,7 +37,7 @@
 | 宿主 LLVM 22.1.8 library | `scoopc` 通过 inkwell 生成代码 | 每种宿主构建一份，与应用 CRT 无关 |
 | 宿主 Clang／Clang++／clang-cl | generated-C、用户 native、runtime 和第三方 C/C++ | 同一宿主 LLVM 工具支持多个已登记环境 |
 | 用户选择的 MSVC `cl.exe`／`link.exe` | MSVC native C/C++，以及需要 Microsoft linker 的库 | Windows MSVC 环境；不要求完整 Visual Studio IDE |
-| LLD、llvm-ar／ranlib、llvm-readobj、llvm-rc／cvtres | PE 链接、归档、准备阶段检查和资源编译 | 同一宿主工具共用；按实际需要执行 |
+| LLD、llvm-ar／ranlib、llvm-readobj、llvm-rc／windres／cvtres | PE 链接、归档、准备阶段检查和资源编译 | 同一宿主工具共用；按实际需要执行 |
 | mingw-w64 headers、CRT startup、Win32／CRT import libraries | MinGW 环境的 Windows API、启动和 DLL 导入 | MSVCRT／UCRT 分别配置 |
 | Windows SDK、MSVC toolset headers／libraries | Microsoft 环境的 C／C++、启动和系统导入 | 从已安装 Build Tools／SDK 或显式 SDK 根取得 |
 | compiler-rt builtins、LLVM libunwind | LLVM 辅助调用、栈探测、Scoop SEH 展开 | 按 CRT 和 native 环境准备；不替代 MSVC C++ EH |
@@ -158,7 +158,7 @@ rc = "resources/app.rc" # 可选；相对于 Cone 根的 RC 文件
 
 `console` 生成 Windows console executable，`gui` 生成 Windows GUI executable；两者保持相同的 Scoop entry、Unicode argv、CRT 初始化／终止和完整退出码合同。该设置只改变 Windows executable 的 subsystem 与相应启动方式，不引入窗口库或消息循环。未知 subsystem 值和错误字段按普通 manifest 诊断处理；非 Windows target 不读取 RC 输入或发现 RC 工具。
 
-RC compiler 是 Windows toolchain 的组成部分：可使用随包的 `llvm-rc`，也可发现外部可执行的兼容工具（例如所选 Windows SDK 的 `rc.exe`）。所需预处理器、目标 headers 和资源到 COFF 的转换使用同一已选工具链；缺少 RC 工具时仅对实际声明 RC 的构建报错。RC 编译得到的资源进入最终 exe 的 `.rsrc`；图标、版本信息等由普通 RC 脚本表达，不另设计资源描述语言。RC 文件、实际包含的头文件和引用资源按已有输入更新规则参与构建；未变命中先于资源读取、工具探测与编译。executable `.slib` 保存最终链接所需的 subsystem 和已编译资源，使 artifact-only 链接继续消费产物。
+RC compiler 是 Windows toolchain 的组成部分：使用随包或外部发现的 LLVM resource compiler `llvm-windres`（`llvm-rc` 的 windres 入口）与 `llvm-cvtres`。windres 入口允许显式选择目标 Clang 预处理器并取得实际头文件依赖。所需预处理器、目标 headers 和资源到 COFF 的转换使用同一已选工具链；缺少 RC 工具时仅对实际声明 RC 的构建报错。RC 编译得到的资源进入最终 exe 的 `.rsrc`；图标、版本信息等由普通 RC 脚本表达，不另设计资源描述语言。RC 文件、实际包含的头文件和引用资源按已有输入更新规则参与构建；未变命中先于资源读取、工具探测与编译。executable `.slib` 保存最终链接所需的 subsystem 和已编译资源，使 artifact-only 链接继续消费产物。测试 executable 不继承生产程序的 RC。
 
 这两项列入 W1 编译／链接闭环；W4 工具包提供 RC compiler 或外部发现入口。验收覆盖默认／显式 console、gui 的实际 PE subsystem、同一节声明的 RC 内容进入 `.rsrc`、资源／包含文件变化后的更新、无变化复用及正常错误诊断。
 

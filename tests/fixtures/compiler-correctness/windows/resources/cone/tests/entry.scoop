@@ -1,0 +1,11 @@
+package dev.windows
+
+import scoop.test.*
+
+@Test
+private class Resources {
+    @Test
+    fun nativeEntryStillWorks() {
+        assertEquals(27, main())
+    }
+}

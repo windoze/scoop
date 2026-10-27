@@ -2798,6 +2798,8 @@ kind = "library" # 或 "executable"
 
 executable Cone 可使用 `[windows]` 节：`subsystem = "console" | "gui"`（缺省 `"console"`）选择 Windows PE 的 console／GUI subsystem；可选 `rc = "resources/app.rc"` 指定相对于 Cone 根的 RC 文件。两项属于同一节，未知字段、非法取值及 library Cone 使用该节均为 manifest 错误。配置只作用于 Windows target；其他 target 不读取 RC 文件。两种 subsystem 保留相同的 Scoop `main`、Unicode argv、CRT 初始化／终止及退出码规则，不隐式启动窗口库或消息循环。测试 executable 始终使用 console，不继承生产 executable 的 GUI 配置。资源编译与 artifact-only 链接合同见实现规范及 [Windows 设计 3.4](../windows-targets/DESIGN.md#34-windows-executable-配置与资源)。
 
+`windows.rc` 选择单个资源脚本，路径沿用 native source 的相对路径规则，允许引用 Cone 根外的共用文件，不递归发现资源。脚本以 UTF-8 输入，使用所选 Windows target 的 Clang 预处理器、headers 和目标宏；包含路径还包括当前 Cone 的 `native.include`，C/C++ 编译 flags 不自动应用到 RC。头文件和图标等资源由普通 RC 语法引用；实际输入缺失或编译失败按构建错误报告。测试 executable 不继承生产程序的 RC，非 Windows target 和未声明 RC 的构建不读取资源或探测资源工具。
+
 #### 12.2.1 Native C/C++ 源码
 
 manifest Cone 可在 `[native]` 中配置 `include`、`c_flags`、`cxx_flags` 与 `cxx`，并以 `[[native.sources]]` 的 `path` 和可选 `when` 列出源码。`native.sources` 只选择单个 regular file；`.c` 按 C 编译，`.cc`、`.cpp`、`.cxx` 和 `.C` 按 C++ 编译，不递归发现其他 native 源码。省略的数组为空；`include` 是头文件搜索目录，允许普通相对路径（含 `..`）或绝对路径；相对路径以 Cone 根为基准，保留路径分量供实际文件系统解析。native.sources 使用 Cone 相对路径，沿用 12.2.2 的分隔符、空路径、绝对路径、盘符、NUL 与 glob 限制，词法折叠重复分隔符、`.` 及可以消去的 `..`，但允许保留越出 Cone 根的前置 `..`，以引用共用的 vendor 源码；Scoop 源码的逻辑路径规则不变。条件筛选先于选中文件的存在性、后缀与语言开关检查。native 源码以声明的归一化路径区分 translation unit，不比较 inode 或将指向同一物理文件的不同路径合并。

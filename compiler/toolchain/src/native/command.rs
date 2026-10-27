@@ -12,9 +12,19 @@ pub(super) fn base(
     compiler: &NativeToolchain,
     language: NativeSourceLanguage,
     optimization: OptimizationMode,
+    preprocessed: bool,
 ) -> Result<Command, ToolchainError> {
     let mut command = compiler.command(language)?;
     let kind = compiler.kind(language);
+    if preprocessed && crate::windows_native::is_windows(compiler.c()) {
+        command = crate::windows_native::command(
+            compiler.c(),
+            Path::new(command.get_program()),
+            kind,
+            language,
+            true,
+        );
+    }
     if kind.microsoft() {
         command.arg(match language {
             NativeSourceLanguage::C => "/std:c11",
@@ -190,7 +200,7 @@ pub(super) fn compile(
         NativeSourceLanguage::Cxx => "unit.ii",
     });
     std::fs::write(&source, input.preprocessed()).map_err(error)?;
-    let mut command = base(compiler, language, optimization)?;
+    let mut command = base(compiler, language, optimization, true)?;
     let kind = compiler.kind(language);
     for flag in config.flags(language) {
         if let NativeCompileFlag::Argument(argument) = flag
@@ -210,11 +220,9 @@ pub(super) fn compile(
                 NativeSourceLanguage::C => "/TC",
                 NativeSourceLanguage::Cxx => "/TP",
             });
-        } else {
-            command
-                .arg("/clang:-x")
-                .arg(format!("/clang:{}", language.preprocessed_name()));
         }
+        // clang-cl recognizes .i/.ii as preprocessed input. /clang:-x would
+        // be forwarded after all inputs and trigger an unused-option warning.
         command
             .arg("/c")
             .arg(dunce::simplified(&source))

@@ -42,3 +42,30 @@ fn libraries_reject_windows_executable_configuration() {
     ));
     assert!(error.to_string().contains("kind = \"executable\""));
 }
+
+#[test]
+fn windows_resources_use_native_relative_paths_without_reading_inputs() {
+    let source = MINIMAL.replace("\"library\"", "\"executable\"");
+    for (path, expected) in [
+        ("resources/./app.rc", "resources/app.rc"),
+        ("../shared/app.rc", "../shared/app.rc"),
+    ] {
+        let parsed =
+            parse_cone_manifest(&format!("{source}\n[windows]\nrc = \"{path}\"\n")).unwrap();
+        assert_eq!(parsed.semantic().windows().rc().unwrap().as_str(), expected);
+        assert_eq!(
+            parsed.semantic().windows().subsystem(),
+            WindowsSubsystem::Console
+        );
+    }
+    for path in ["", "/app.rc", "C:/app.rc", "resources/*.rc"] {
+        let text = format!("{source}\n[windows]\nrc = \"{path}\"\n");
+        let error = parse_cone_manifest(&text).unwrap_err();
+        assert!(matches!(
+            error.kind(),
+            ManifestParseErrorKind::InvalidWindows(_)
+        ));
+        assert_eq!(&text[error.span().unwrap().range()], format!("\"{path}\""));
+    }
+    assert!(parse_cone_manifest(&format!("{source}\n[windows]\nrc = false\n")).is_err());
+}

@@ -37,7 +37,7 @@ impl ValidatedCxxToolchain {
             &crate::native_record::ResolvedRecord::from_target(target)?,
         )?;
         let record = crate::build_record::cached(
-            &cache.join("cxx-tools-v2"),
+            &cache.join("cxx-tools-v3"),
             key,
             |_| Ok(true),
             || Self::probe(target.c_bridge_toolchain(), target.native_cxx_driver()),

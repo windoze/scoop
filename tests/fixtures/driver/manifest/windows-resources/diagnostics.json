@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "invalid build root: invalid Cone manifest root ${manifest.canonical}: windows.rc: path must be relative to the Cone root",
+    "notes": [],
+    "origin": {
+      "end": 126,
+      "kind": "host",
+      "path": "${manifest.canonical}",
+      "start": 117
+    },
+    "phase": "Root",
+    "severity": "error"
+  }
+]

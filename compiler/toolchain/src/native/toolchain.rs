@@ -95,7 +95,7 @@ impl NativeToolchain {
                         &crate::native_record::ResolvedRecord::from_target(target)?,
                     )?;
                     let record = crate::build_record::cached(
-                        &cache.join("native-c-tools-v1"),
+                        &cache.join("native-c-tools-v2"),
                         key,
                         |_| Ok(true),
                         || {

@@ -1,0 +1,183 @@
+schema = 1
+name = "windows-executable-resources"
+root = "cone/Cone.toml"
+inputs = ["cone", "inspect.py", "../subsystem/inspect.py"]
+tools = ["scoop", "scoopc", "python"]
+targets = ["x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
+tags = ["windows", "link", "cli", "resources", "compiler-correctness"]
+
+[vars]
+build_args = ["${work}/cone", "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+payload = "${work}/cone/resources/payload.txt"
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}]
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "build", {each = "${link_args}"}, {each = "${build_args}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "resource"
+argv = ["${python}", "${fixture}/inspect.py", "${cold.result.output}", "73", "${payload}"]
+exit = 0
+stdout = "resource-ok\n"
+stderr = ""
+
+[[steps]]
+name = "gui"
+argv = ["${python}", "${fixture}/../subsystem/inspect.py", "${cold.result.output}", "gui"]
+exit = 0
+stdout = "gui\n"
+stderr = ""
+
+[[steps]]
+name = "run"
+argv = ["${cold.result.output}"]
+exit = 27
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", {each = "${link_args}"}, {each = "${build_args}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+    {actual = "${warm.result.observations.child_invocations}", equals = []},
+    {actual = "${warm.result.root.artifact_fingerprint}", equals = "${cold.result.root.artifact_fingerprint}"},
+    {actual = "${warm.result.link_plan_fingerprint}", equals = "${cold.result.link_plan_fingerprint}"},
+]
+
+[[steps]]
+name = "edit_payload"
+files = [{replace = {path = "${payload}", old = "first-payload", new = "updated-payload"}}]
+
+[[steps]]
+name = "asset_changed"
+argv = ["${scoop}", "build", {each = "${link_args}"}, {each = "${build_args}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${asset_changed.result.root.artifact_fingerprint}", not_equals = "${cold.result.root.artifact_fingerprint}"}]
+
+[[steps]]
+name = "updated_resource"
+argv = ["${python}", "${fixture}/inspect.py", "${asset_changed.result.output}", "73", "${payload}"]
+exit = 0
+stdout = "resource-ok\n"
+stderr = ""
+
+[[steps]]
+name = "edit_header"
+files = [{replace = {path = "${work}/cone/include/resource_ids.h", old = "RESOURCE_ID 73", new = "RESOURCE_ID 74"}}]
+
+[[steps]]
+name = "header_changed"
+argv = ["${scoop}", "build", {each = "${link_args}"}, {each = "${build_args}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${header_changed.result.root.artifact_fingerprint}", not_equals = "${asset_changed.result.root.artifact_fingerprint}"}]
+
+[[steps]]
+name = "new_id"
+argv = ["${python}", "${fixture}/inspect.py", "${header_changed.result.output}", "74", "${payload}"]
+exit = 0
+stdout = "resource-ok\n"
+stderr = ""
+
+[[steps]]
+name = "old_id"
+argv = ["${python}", "${fixture}/inspect.py", "${header_changed.result.output}", "73", "-"]
+exit = 0
+stdout = "resource-absent\n"
+stderr = ""
+
+[[steps]]
+name = "relink"
+argv = ["${scoop}", "link", {each = "${link_args}"}, "--root-slib", "${header_changed.result.root.path}", {each = "${header_changed.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "-o", "${work}/relinked.exe", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "relinked_resource"
+argv = ["${python}", "${fixture}/inspect.py", "${relink.result.output}", "74", "${payload}"]
+exit = 0
+stdout = "resource-ok\n"
+stderr = ""
+
+[[steps]]
+name = "relinked_gui"
+argv = ["${python}", "${fixture}/../subsystem/inspect.py", "${relink.result.output}", "gui"]
+exit = 0
+stdout = "gui\n"
+stderr = ""
+
+[[steps]]
+name = "relinked_run"
+argv = ["${relink.result.output}"]
+exit = 27
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "tests"
+argv = ["${scoop}", "test", {each = "${link_args}"}, {each = "${build_args}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+checks = [{actual = "${tests.test_result.counts.passed}", equals = 1}]
+
+[[steps]]
+name = "test_resource"
+argv = ["${python}", "${fixture}/inspect.py", "${tests.result.output}", "74", "-"]
+exit = 0
+stdout = "resource-absent\n"
+stderr = ""
+
+[[steps]]
+name = "test_console"
+argv = ["${python}", "${fixture}/../subsystem/inspect.py", "${tests.result.output}", "console"]
+exit = 0
+stdout = "console\n"
+stderr = ""
+
+[[steps]]
+name = "omit_rc"
+files = [{replace = {path = "${work}/cone/Cone.toml", old = 'rc = "resources/app.rc"', new = '# rc omitted'}}]
+
+[[steps]]
+name = "without_rc"
+argv = ["${scoop}", "build", {each = "${link_args}"}, {each = "${build_args}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${without_rc.result.root.artifact_fingerprint}", not_equals = "${header_changed.result.root.artifact_fingerprint}"}]
+
+[[steps]]
+name = "no_resource"
+argv = ["${python}", "${fixture}/inspect.py", "${without_rc.result.output}", "74", "-"]
+exit = 0
+stdout = "resource-absent\n"
+stderr = ""

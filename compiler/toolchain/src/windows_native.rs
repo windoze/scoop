@@ -61,10 +61,12 @@ pub(crate) fn command(
     driver: &Path,
     kind: NativeDriverKind,
     language: NativeSourceLanguage,
+    preprocessed: bool,
 ) -> Command {
     if !kind.microsoft() {
         let mut command = c.driver_command_with(driver);
-        if language == NativeSourceLanguage::Cxx
+        if !preprocessed
+            && language == NativeSourceLanguage::Cxx
             && c.target().id() != scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID
         {
             command.arg("-stdlib=libc++");
@@ -91,8 +93,16 @@ pub(crate) fn command(
     if language == NativeSourceLanguage::Cxx {
         command.arg("/EHsc");
     }
-    for include in &environment.includes {
-        command.arg("/I").arg(include);
+    if !preprocessed {
+        for include in &environment.includes {
+            command
+                .arg(if kind == NativeDriverKind::ClangCl {
+                    "/imsvc"
+                } else {
+                    "/I"
+                })
+                .arg(include);
+        }
     }
     command
 }
@@ -128,7 +138,7 @@ pub(crate) fn discover(
     let object = directory.path().join("probe.obj");
     let depfile = directory.path().join("dependencies");
     std::fs::write(&source, probe::source(c.target().id(), language)).map_err(error)?;
-    let mut compiler = command(c, &driver, kind, language);
+    let mut compiler = command(c, &driver, kind, language, false);
     compiler.arg(if kind.microsoft() {
         if language == NativeSourceLanguage::Cxx {
             "/std:c++20"

@@ -104,7 +104,7 @@ pub(super) fn prepare(
     for (source, language) in &sources {
         let input = roots.cone.join(source.path().as_path());
         let depfile = directory.path().join("unit.d");
-        let mut command = command::base(compiler, *language, optimization)?;
+        let mut command = command::base(compiler, *language, optimization, false)?;
         command.args([
             format!(
                 "-DSCOOP_TARGET_OS_{}=1",

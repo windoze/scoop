@@ -978,6 +978,10 @@ generator 的 stderr 沿 driver 日志目标输出。scoop 在取得合法的 ch
 
 Windows executable 的 subsystem 由根 Cone 的 `[windows].subsystem` 决定，默认 console；单文件与测试 executable 使用 console。manifest 的 Cone record 可带 field 5 的 Windows subsystem（Console=1、Gui=2），仅 executable 使用；无该字段的现有产物按 console 解释，library 与非 Windows producer 不写该字段。此配置不改变 Cone／实体 identity 或语言 ABI，保存在 executable `.slib` 供 artifact-only 链接读取，并作为最终链接的实际输入参与更新与链接指纹。GUI 链接使用 PE Windows subsystem；Microsoft 显式选择 Unicode `wmainCRTStartup`，MinGW 使用配套 Unicode CRT startup。两者均由生成的 `wmain` 进入同一 Scoop startup，保持 CRT 初始化／终止与 argv 处理。
 
+Windows 资源使用配套或外部发现的 LLVM `llvm-windres`（LLVM RC 的 windres 入口）和 `llvm-cvtres`。资源工具只在实际选择 RC 且更新记录未命中后发现／调用，预处理器显式使用已选 target 的 Clang 与环境。RC 编译生成 `.res`，再转换为 AMD64 COFF，按 RC 的归一化 native source 路径作为 `NativeLinkObject` 保存在 executable `.slib`；资源内容进入 Code 与最终链接更新键，不另增加 runtime ABI。现有 native 对象通道同时传递 C/C++ 对象与资源对象，资源对象排在已排序的 C/C++ 对象之后。artifact-only 链接直接消费该对象，不需要 RC 源码或资源工具。
+
+RC 更新记录使用预处理器的实际头文件依赖，以及 LLVM RC 对实际文件资源的解析结果，记录源文件、包含文件、引用资源、搜索候选与工具的普通 metadata；未变化命中不重新预处理、解析或编译。资源文件按资源编译器的实际搜索顺序定位：绝对路径直接使用，否则依次为工作目录（Cone 根）、RC 父目录、显式 include 目录。工具环境不继承额外的 INCLUDE 搜索路径；所选 SDK／MinGW headers 通过目标配置提供。资源编译和已有 native 编译共用更新记录与失败不发布规则，不重新实现 RC 语法或资源编码。
+
 program-link 消费完整 `.slib` Link 闭包、普通 runtime 对象、已有 native 文件、LIR target 与 final-link 配置。它不展开模板、重新编译 Scoop 或编译用户 C/C++；只可用明确选择的 C compiler 生成本次固定启动代码与最终 image tables。
 
 `scoop --enable-startup-stats` 和独立 `scoop-link --enable-startup-stats` 按运行时规范第 7 章选择编入启动诊断的 runtime，对 build/run/test/link 生效，独立于 profile 和 GC stress。默认 runtime 必须在预处理阶段排除启动计时、报告及专用数据访问；环境变量不能启用未编入的代码。该开关只影响 runtime 构建／选择及最终链接结果，不改变 Scoop 源码编译缓存、`.slib`、对象布局或 ABI；编译器不消费测量记录。显式 runtime index 的配置必须与请求一致。
