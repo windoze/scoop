@@ -1,6 +1,6 @@
 # EventLoop 后端实施记录
 
-设计与合同见 [DESIGN.md](DESIGN.md) 和 [asyncio 规范](../specs/SCOOP-ASYNCIO-SPEC.md)。
+状态：已完成。设计与合同见 [DESIGN.md](DESIGN.md) 和 [asyncio 规范](../specs/SCOOP-ASYNCIO-SPEC.md)；三目标实测与回退见[性能记录](PERFORMANCE.md)。
 
 ## 进度
 

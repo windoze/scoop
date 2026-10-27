@@ -1,6 +1,6 @@
 # EventLoop 平台后端与 GUI 主循环接入
 
-状态：实施中。日期：2026-10-27。迁移以本设计为合同，已交付范围与验证记录见 [实施记录](PROGRESS.md)；未完成的入口与后端不视为已可用。
+状态：已实现。日期：2026-10-27。Darwin、Linux GNU／musl 后端、宿主接入和消费者迁移均已交付；验证范围见[实施记录](PROGRESS.md)，性能与回退见[性能记录](PERFORMANCE.md)。
 
 本设计对应[异步 I/O 库规范第 11 节](../specs/SCOOP-ASYNCIO-SPEC.md#11-平台后端与宿主主循环迁移合同)。沿用[语言规范](../specs/SCOOP-SPEC.md) 11.9～11.9.2 的协程与任务树、[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)第 4 章的 native／callback 边界，以及[平台库规范](../specs/SCOOP-PLATFORM-SPEC.md)的错误、buffer 与 TTY 所有权。编译器、runtime ABI 和 `.slib` 格式不变。
 
@@ -12,13 +12,13 @@
 
 首版覆盖现有全部 asyncio 能力：定时器、TCP、UDP、DNS、文件、目录、路径操作、TTY 和 `NativeWork`。TLS、HTTP、地址竞争、SOCKS5 等继续组合公共 API。文件监听、子进程、任意 fd 接管、通用任务执行器、协程拦截器、渲染线程与帧调度不在本次范围。
 
-平台由构建目标决定，不增加运行时后端注册表或公共后端枚举。迁移期间可暂时保留内部 libuv 适配以验证共享逻辑；迁移完成后移除 `LibuvEventLoop` 与 libuv 依赖，并更新仓库内调用方，不永久维护三套后端。
+平台由构建目标决定，不增加运行时后端注册表或公共后端枚举。迁移时通过内部 libuv 适配验证共享逻辑；现已移除 `LibuvEventLoop` 与 libuv 依赖，并更新仓库内调用方。
 
-## 2. 现状与拆分位置
+## 2. 迁移前状态与拆分位置
 
-当前耦合不仅是 `uv_run`：
+以下保留迁移前的耦合与对应拆分，当前实现不再依赖 `uv_run`：
 
-| 现有位置 | 当前职责／耦合 | 目标 |
+| 迁移前位置 | 迁移前职责／耦合 | 实现方式 |
 | --- | --- | --- |
 | `src/libuv_event_loop.scoop` | 根入口、Job／Context 检查、具体资源构造 | `PlatformEventLoop`，持有共享 owner |
 | `src/loop_state.scoop` | 命令、完成、ready 队列及运行收尾 | 重整为 `LoopOwner`，支持阻塞驱动与宿主驱动 |
@@ -27,7 +27,7 @@
 | `src/native_loop.scoop`、`native/loop.h` | 完成记录、uv 错误与 uv handle | 平台无关记录与不透明 native handle |
 | `native/work.c`、`resolve.c`、文件／TTY helper | libuv worker／poll，部分已复用 platform | 复用 GC-free 平台 helper，由各后端提交 |
 
-表内路径均相对 [scoop.asyncio](../../sysroot/src/scoop.asyncio/)。后续 native 代码按 `common/`、`darwin/`、`linux/` 分目录；以真实职责拆文件，不先建立没有调用者的扩展框架。
+表内路径均相对 [scoop.asyncio](../../sysroot/src/scoop.asyncio/)。当前 native 代码按 `common/`、`darwin/`、`linux/` 分目录，以真实职责拆文件。
 
 分层边界如下：
 
@@ -40,7 +40,7 @@
 
 ## 3. 公共入口与宿主协议
 
-保留 `EventLoop` 全部现有方法、`currentEventLoop` 和 `runWithResult`。新增入口的目标声明如下；可用状态以实施记录为准：
+保留 `EventLoop` 全部现有方法、`currentEventLoop` 和 `runWithResult`。新增入口的公共声明如下：
 
 ```scoop
 public class PlatformEventLoop public constructor() : EventLoop {
@@ -253,4 +253,4 @@ Linux 在 6.1 基线与当前发行内核各验证 GNU／musl 所需行为；未
 
 性能记录只用于判断后端是否适合 GUI：空闲 CPU／唤醒次数、post 到执行延迟、timer 偏差、连续 I/O 时宿主事件延迟、吞吐与关闭延迟，并与迁移前 libuv 对照。不预设新后端必然更快，也不为这些测量增加公共资源预算或程序合法性规则。
 
-实施按第 11 节分批交付；各批在实施记录中明确当前后端、测试范围和未完成项。
+实现按第 11 节分批提交；各批的验证范围、失败闭合与设计限制见实施记录。

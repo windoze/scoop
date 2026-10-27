@@ -758,12 +758,12 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 各里程碑"涵盖但只实现了部分"的事项，按来源里程碑整理。标注→的为目标里程碑（已知时）；未标注的待排期。
 
-### EventLoop 平台后端与 GUI 主循环（实施中）
+### EventLoop 平台后端与 GUI 主循环（已实现）
 
-- [设计](asyncio-backends/DESIGN.md)与[异步 I/O 规范第 11 节](specs/SCOOP-ASYNCIO-SPEC.md#11-平台后端与宿主主循环迁移合同)规定 `PlatformEventLoop`：Darwin 使用 libdispatch，Linux 使用 io_uring／liburing，迁移完成后移除 libuv。
+- [设计](asyncio-backends/DESIGN.md)与[异步 I/O 规范第 11 节](specs/SCOOP-ASYNCIO-SPEC.md#11-平台后端与宿主主循环迁移合同)规定 `PlatformEventLoop`：Darwin 使用 libdispatch，Linux 使用 io_uring／liburing；调用方与发行资源已迁移，libuv 已移除。
 - 共用 Job／CoroutineScope、操作结果选择、buffer 借用、资源关闭与恢复队列；命令行 `run` 和 GUI `attach` 使用同一处理流程，宿主通过通知 fd 驱动并在关闭完成后退出。
 - Linux 新后端以 6.1 为支持基线并实际探测能力；明确取消请求与原生完成的区别、迟到资源处理、宿主回调注销和不支持环境的启动错误。
-- 按共享层、Darwin、Linux、调用方与发行资源迁移分批实施；三目标公共行为、宿主接入及定向生命周期验收完成前，不把设计 API 标为已交付。实际交付和定向验证见[实施记录](asyncio-backends/PROGRESS.md)。
+- 共享层、Darwin、Linux、调用方与发行资源已分批交付；三目标公共行为、Linux 6.1 基线、宿主接入与定向移动 GC 验收通过，见[实施记录](asyncio-backends/PROGRESS.md)。同机对照及实测回退见[性能记录](asyncio-backends/PERFORMANCE.md)；具体窗口系统的接入仍由后续 GUI 库验证。
 
 ### `scoop example` 外部子命令（首批 24 个主题已实现）
 
