@@ -78,6 +78,7 @@ def decode_streams(stdout, stderr, mode):
 class Process:
     def __init__(self, step, context, base, environment):
         self.step, self.started = step, time.monotonic()
+        self.job = None
         env = environment | expand(step.get("env", {}), context)
         env = {key: str(value) for key, value in env.items()}
         argv = argv_values(step["argv"], context)
@@ -88,15 +89,20 @@ class Process:
                 self.stdin = stack.enter_context(tempfile.TemporaryFile())
                 self.stdin.write(byte_value(expand(step.get("stdin", ""), context), base))
                 self.stdin.seek(0)
-                self.child = subprocess.Popen(
-                    argv,
-                    cwd=path(expand(step.get("cwd", "${work}"), context)),
-                    env=env,
-                    stdin=self.stdin,
-                    stdout=self.stdout,
-                    stderr=self.stderr,
-                    start_new_session=True,
-                )
+                options = {
+                    "cwd": path(expand(step.get("cwd", "${work}"), context)),
+                    "env": env,
+                    "stdin": self.stdin,
+                    "stdout": self.stdout,
+                    "stderr": self.stderr,
+                }
+                if os.name == "nt":
+                    from .windows_process import Job
+
+                    self.job = stack.enter_context(Job())
+                    self.child = self.job.spawn(argv, **options)
+                else:
+                    self.child = subprocess.Popen(argv, start_new_session=True, **options)
                 self.files = stack.pop_all()
         except OSError as error:
             raise EnvironmentError(f"cannot start {argv!r}: {error}") from error
@@ -115,6 +121,8 @@ class Process:
                     raise AssertionFailure(
                         f"{self.step['name']}: process timed out after {timeout}s"
                     ) from error
+        if self.job is not None:
+            self.job.close()
         self.stdout.seek(0)
         self.stderr.seek(0)
         result = decode_streams(self.stdout.read(), self.stderr.read(), self.step.get("json"))
@@ -129,8 +137,11 @@ class Process:
         self.files.close()
 
     def cleanup(self):
-        # The session belongs only to this fixture process and its descendants.
-        with suppress(ProcessLookupError):
-            os.killpg(self.child.pid, signal.SIGKILL)
+        if self.job is not None:
+            self.job.close()
+        else:
+            # The session belongs only to this fixture process and its descendants.
+            with suppress(ProcessLookupError):
+                os.killpg(self.child.pid, signal.SIGKILL)
         self.child.wait()
         self.close_files()

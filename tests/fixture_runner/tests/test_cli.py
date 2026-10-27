@@ -174,7 +174,7 @@ class EnvironmentTests(unittest.TestCase):
                 common = environment(
                     repo, work, fixtures, arguments(["--llc", "/opt/llvm/bin/llc"])
                 )
-                locate.assert_called_once_with("/opt/llvm/bin/llc")
+                locate.assert_called_once_with(str(Path("/opt/llvm/bin/llc")))
                 version.assert_called_once_with(["/opt/llvm/bin/llc", "--version"])
                 self.assertEqual(common["llc"], "/opt/llvm/bin/llc")
                 self.assertEqual(common["llvm_target"], "x86_64-unknown-linux-gnu")

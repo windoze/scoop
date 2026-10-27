@@ -66,6 +66,7 @@ class FileTests(unittest.TestCase):
             )
             self.assertEqual(target.read_bytes(), b"original\xff\x01")
 
+    @unittest.skipUnless(os.name == "posix", "POSIX FIFO input")
     def test_remove_unlinks_fifo_and_symlink_without_reading_the_target(self):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)

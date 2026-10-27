@@ -1,4 +1,4 @@
-"""Actual POSIX status, byte streams, diagnostic completeness, and cleanup."""
+"""Actual process status, byte streams, diagnostic completeness, and cleanup."""
 
 import json
 import os
@@ -32,12 +32,16 @@ class ProcessTests(unittest.TestCase):
             finally:
                 process.cleanup()
 
-    def test_normal_exit_is_distinct_from_signal(self):
+    def test_normal_exit_is_preserved(self):
         normal, _ = self.run_program("raise SystemExit(37)")
-        signaled, _ = self.run_program("import os,signal; os.kill(os.getpid(),signal.SIGTERM)")
         self.assertEqual(normal["returncode"], 37)
+
+    @unittest.skipUnless(os.name == "posix", "POSIX signal status")
+    def test_signal_exit_is_distinct_from_normal_status(self):
+        signaled, _ = self.run_program("import os,signal; os.kill(os.getpid(),signal.SIGTERM)")
         self.assertEqual(signaled["returncode"], -signal.SIGTERM)
 
+    @unittest.skipUnless(os.name == "posix", "POSIX byte arguments")
     def test_raw_argv_and_stdin_are_preserved(self):
         code = "import os,sys; sys.stdout.buffer.write(os.fsencode(sys.argv[1])+sys.stdin.buffer.read())"
         result, step = self.run_program(
@@ -93,7 +97,10 @@ class ProcessTests(unittest.TestCase):
             step = {"name": "sleep", "argv": [sys.executable, "-c", "import time; time.sleep(30)"]}
             process = Process(step, {"work": directory}, Path(directory), dict(os.environ))
             process.cleanup()
-            self.assertEqual(process.child.returncode, -signal.SIGKILL)
+            if os.name == "posix":
+                self.assertEqual(process.child.returncode, -signal.SIGKILL)
+            else:
+                self.assertIsNotNone(process.child.returncode)
 
     def test_documentation_result_ends_the_structured_prefix(self):
         tool = {"schema": 1, "kind": "documentation", "output": "site/index.html"}

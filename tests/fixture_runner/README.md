@@ -42,6 +42,9 @@ ELF 的 `${llvm_target}` 与 `${target}` 相同；Darwin 包含当前 deployment
 只为适用 target 的用例发现工具，目标不适用项仍单列，不计为通过。
 每个用例的步骤与变体保持有序；报告按发现顺序保存。中断时清理运行中的进程，
 未完成项标记 `interrupted`，退出码为 130。
+Windows 执行保留完整 32-bit exit code；`signal` 退出断言只用于 POSIX。
+每个 Windows fixture 进程在开始执行前加入独立 Job，结束、超时或中断时关闭 Job，
+回收该进程及其后代；不设置 CPU／内存配额。参数使用 Windows Unicode 表示，标准流仍按原始字节断言。
 
 每个用例选择一种载体：相邻 `name.fixture.toml`、目录中的 `fixture.toml`，
 或源码开头 `// fixture:begin` 到 `// fixture:end` 之间每行带 `//` 的 TOML。

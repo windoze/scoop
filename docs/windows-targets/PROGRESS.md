@@ -112,3 +112,5 @@ scoop.test 的 native 报告通道已适配 Windows：使用所选 CRT 的 descr
 三个完整 Windows target 已接入开发 CLI，默认选择 Microsoft UCRT。实际构建修复了 compiler child 的 DLL 搜索环境、Windows compiler 栈 reserve、runtime Clang 路径、Windows artifact summary 解码，以及准备脚本的 UTF-16 路径传输。工具发现更新版本使旧 include 顺序正常失效；三个 target 的完整 runtime 分别准备并发布，Unicode cache 路径与未变化 runtime 的复用通过。ELF／COFF 共用每份 symbol surface 的一次名称索引，消除每个 callable 重建全 Cone 名称的开销；MinGW 全局地址的 refptr 归入 callable 常量贡献。程序链接复用 runtime 已合并的 weak helper，允许用户 native 中相同的 COFF helper 正常合并。
 
 三环境的 core／std／scoop.test 均通过实际 release CLI 构建；hello、try/catch/finally、String 移动根、boxed struct／tuple／enum／context 与 unwind 后收集的四组真实程序全部运行通过，scoop.test 自身每环境 4 项测试通过。正式测试还修复了带 `\\?\` 前缀报告目录的路径拼接，并移除 manifest 中重复且不适用于 clang-cl 的 C11 flags。相关 Rust 格式化／Clippy、Python Ruff、ELF 索引与 Windows codegen／refptr／常量池、registry／summary／工具发现测试通过，C 变更在三环境严格警告检查通过。这里是开发 CLI 的定向组合验收，尚未替代正式 fixture 全量、线程／callback／GC stress、系统库和发行验收；未开始远端测试。
+
+正式 fixture runner 的进程层已支持 Windows：挂起创建后先加入独立 Job，再恢复初始线程；完成、超时和中断回收该用例的进程及后代。实际 Python 子进程验证 UTF-16 参数（含非配对 surrogate）、Unicode 工作路径、原始字节流、完整高位退出码、立即派生的子进程回收与超时。公共规则测试共 62 项，59 项通过、3 项仅适用 POSIX 的 signal／byte argv／FIFO 检查跳过，Ruff 通过；Windows target／工具选择和正式用例接入继续实施。

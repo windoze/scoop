@@ -71,7 +71,7 @@ def signal_value(value, where):
 def process_values(step):
     if "exit" in step:
         integer(step["exit"], "exit")
-        require(step["exit"] <= 255, "exit must be in 0..255; use signal for termination")
+        require(step["exit"] <= 0xFFFFFFFF, "exit must be in 0..4294967295")
     if "signal" in step:
         signal_value(step["signal"], "signal")
     for stream in ("stdin", "stdout", "stderr"):

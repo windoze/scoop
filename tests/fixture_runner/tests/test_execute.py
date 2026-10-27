@@ -1,5 +1,6 @@
 """Compose ordinary file, process, wait, and snapshot steps in one executor."""
 
+import os
 import sys
 import tempfile
 import unittest
@@ -35,7 +36,8 @@ class ExecutionTests(unittest.TestCase):
                         "argv": [
                             "${python}",
                             "-c",
-                            "import os; print(os.getenv('SCOOP_GC_STRESS_MOVE', 'unset'), "
+                            "import os,sys; sys.stdout.reconfigure(newline='\\n'); "
+                            "print(os.getenv('SCOOP_GC_STRESS_MOVE', 'unset'), "
                             "os.getenv('SCOOP_GC_STRESS_MINOR', 'unset'), os.environ['PAYLOAD'])",
                         ],
                         "exit": 0,
@@ -47,7 +49,8 @@ class ExecutionTests(unittest.TestCase):
                         "argv": [
                             "${python}",
                             "-c",
-                            "import os; print(os.environ['SCOOP_GC_STRESS_MOVE'], "
+                            "import os,sys; sys.stdout.reconfigure(newline='\\n'); "
+                            "print(os.environ['SCOOP_GC_STRESS_MOVE'], "
                             "os.environ['SCOOP_GC_STRESS_MINOR'])",
                         ],
                         "env": {"SCOOP_GC_STRESS_MOVE": "0", "SCOOP_GC_STRESS_MINOR": "1"},
@@ -87,7 +90,7 @@ class ExecutionTests(unittest.TestCase):
                         "name": "child",
                         "argv": ["${python}", "-c", script],
                         "background": True,
-                        "signal": "SIGTERM",
+                        **({"exit": 1} if os.name == "nt" else {"signal": "SIGTERM"}),
                         "stdout": "",
                         "stderr": "",
                     },

@@ -30,6 +30,7 @@ class PreflightTests(unittest.TestCase):
             {"env": {"A=B": "1"}},
             {"exit": True},
             {"exit": -15},
+            {"exit": 0x1_0000_0000},
             {"timeout": "20"},
             {"timeout": float("nan")},
             {"background": "yes"},
