@@ -5,22 +5,25 @@ use std::process::{Child, Command, ExitStatus, Output, Stdio};
 
 #[cfg(unix)]
 mod signals;
+#[cfg(windows)]
+#[path = "windows.rs"]
+mod signals;
 
 mod depfile;
 pub use depfile::parse_make_dependencies;
 
 pub fn initialize() -> io::Result<()> {
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     signals::initialize()?;
     Ok(())
 }
 
 pub fn interrupted_signal() -> Option<i32> {
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     {
         signals::interrupted()
     }
-    #[cfg(not(unix))]
+    #[cfg(not(any(unix, windows)))]
     {
         None
     }
@@ -60,6 +63,11 @@ pub fn exit_with_status(status: ExitStatus) -> ! {
 fn exit_with_signal(signal: i32) -> ! {
     #[cfg(unix)]
     let _ = signal_hook::low_level::emulate_default_handler(signal);
+    #[cfg(not(any(unix, windows)))]
+    let _ = signal;
+    #[cfg(windows)]
+    std::process::exit(signal);
+    #[cfg(not(windows))]
     std::process::exit(1)
 }
 
@@ -73,9 +81,9 @@ impl CommandExt for Command {
     fn scoop_spawn(&mut self) -> io::Result<ToolChild> {
         initialize()?;
         check_interrupted()?;
-        #[cfg(unix)]
+        #[cfg(any(unix, windows))]
         let child = signals::spawn(self)?;
-        #[cfg(not(unix))]
+        #[cfg(not(any(unix, windows)))]
         let child = self.spawn()?;
         Ok(ToolChild {
             child,
@@ -111,9 +119,9 @@ impl DerefMut for ToolChild {
 
 impl ToolChild {
     pub fn try_wait(&mut self) -> io::Result<Option<ExitStatus>> {
-        #[cfg(unix)]
+        #[cfg(any(unix, windows))]
         let status = signals::try_wait(&mut self.child, &mut self.registered)?;
-        #[cfg(not(unix))]
+        #[cfg(not(any(unix, windows)))]
         let status = self.child.try_wait()?;
         if status.is_some() {
             self.registered = false;
