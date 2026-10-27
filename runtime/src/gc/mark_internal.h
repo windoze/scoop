@@ -75,6 +75,7 @@ typedef struct ScoopGcMarkQueue {
 typedef struct ScoopGcMarkBlockCount {
     size_t live_bytes;
     size_t movable_bytes;
+    uint64_t live_lines[GC_LINE_BITMAP_WORDS];
 } ScoopGcMarkBlockCount;
 
 typedef struct ScoopGcMarkRegion {

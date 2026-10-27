@@ -643,7 +643,7 @@ minor 和 full 共享线程、root、pin、handle、Context、callback、冻结�
 
 分配压力可触发 minor 或 full；晋升空间不足时必须从完整对象图进入 full 或明确的分配失败出口。分代策略和容量不改变语言合法性、对象 ABI 或 FFI 保活义务。
 
-STW 后 coordinator 可使用内部常驻 pthread worker 并行 mark，worker 不登记为 mutator，也不执行用户代码。小 minor 可只使用 coordinator；单 worker 与多 worker 共用同一参数化 collector。对象／大对象 mark 使用原子首次置位，只有首次成功者登记存活对象和扫描任务；line_live 原子 OR，计数和存活清单按 worker 汇总。
+STW 后 coordinator 可使用内部常驻 pthread worker 并行 mark，worker 不登记为 mutator，也不执行用户代码。小 minor 可只使用 coordinator；单 worker 与多 worker 共用同一参数化 collector。对象／大对象 mark 使用原子首次置位，只有首次成功者登记存活对象和扫描任务。每个 worker 在既有 block 统计中保存自己的存活 line 位图，普通 OR 不写共享 block；标记完成、全部 worker 停止后，coordinator 随存活字节统计一起按位合并到 block 的 `line_live`，再规划、复制和清扫。标记和片间分配不消费未合并的 line 位图；未完成分片保留 worker 位图，新增 block 只清零新增统计，取消周期后完整重置。复制阶段仍由目标 block 的唯一写入者登记目标 line，不能与标记合并并发。该调整每个 worker／参与 block 增加 32 bytes 临时统计，不改变对象、持久 block metadata、分配发布或 ABI；任务完成前不得提前开始 line 的消费。
 
 worker pool 的每次 phase 发布在原锁内固定该阶段的参与数量，worker 的参与判断和 coordinator 的完成等待使用同一份已发布数量。下一轮 collection 准备可调整活动数量，但不得改变旧 phase 的参与者；旧阶段未参与且延迟醒来的 worker 只能跳过该阶段，不能追加入完成计数。单 worker phase、连续多阶段及下轮恢复多 worker 遵守同一规则，不增加 mutator 通知、队列或 runtime ABI。
 

@@ -58,7 +58,7 @@ static bool first_mark(ScoopGcBlockMeta *block, size_t word) {
     return (__atomic_fetch_or(bits, mask, __ATOMIC_RELAXED) & mask) == 0;
 }
 
-static void mark_lines(ScoopGcBlockMeta *block, size_t word, size_t size) {
+static void mark_lines(ScoopGcMarkBlockCount *counts, size_t word, size_t size) {
     size_t first = word * sizeof(uint64_t) / GC_LINE_SIZE;
     size_t last = (word * sizeof(uint64_t) + size - 1) / GC_LINE_SIZE;
     for (size_t index = first / 64; index <= last / 64; index++) {
@@ -69,7 +69,7 @@ static void mark_lines(ScoopGcBlockMeta *block, size_t word, size_t size) {
         if (index == last / 64) {
             bits &= UINT64_MAX >> (63 - last % 64);
         }
-        __atomic_fetch_or(&block->line_live[index], bits, __ATOMIC_RELAXED);
+        counts->live_lines[index] |= bits;
     }
 }
 
@@ -124,10 +124,10 @@ static void mark_target(ScoopGcMarkWorker *worker, void *object) {
                       ? block->exact_size
                       : scoop_heap_small_object_size(object);
     scoop_gc_validate_object(object, size);
-    if (block->kind == SCOOP_BLOCK_KIND_SMALL) {
-        mark_lines(block, word, size);
-    }
     ScoopGcMarkBlockCount *counts = &worker->blocks[block->mark_index];
+    if (block->kind == SCOOP_BLOCK_KIND_SMALL) {
+        mark_lines(counts, word, size);
+    }
     counts->live_bytes += size;
     if (!object_pinned(block, word)) {
         counts->movable_bytes += size;

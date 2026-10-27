@@ -12,6 +12,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [worker 本地存活 line 位图](GC-EVOLUTION.md) | 新版 runtime 所有 profile 默认，无新开关 | 逐对象只更新本 worker 的块统计，标记完成后与字节计数一起合并；保留原子首次标记、分片与复制边界。每 worker／参与 block 额外 32 B 临时统计，无对象或 ABI 增量；吞吐、暂停及 RSS 的小幅回退见阶段二十一。 |
 | [minor 分片标记与有界分配余量](GC-EVOLUTION.md) | `SCOOP_GC_INCREMENTAL=2`，默认关闭；0 保持完整收集，1 仍只分片 full | nursery 达目标容量后分片，片间最多使用目标容量的 1/8 额外 block；保存旧脏卡至最终重定位，OOM／显式 full 完整回退。降低大存活图的单次停顿，但增加吞吐、CPU、应用间隔 p95 和部分 RSS 成本；树形负载不推荐。各 profile 同义、ABI 23 不变，具体对照见阶段二十。 |
 | [引用更新直接消费存活分块](GC-EVOLUTION.md) | 新版 runtime 所有 profile 默认，沿现有 worker 策略；单 worker 直接遍历 | 省去 coordinator 逐对象建批次和重复 scan 读取，数组任务完整结束后 reclaim；降低队列容量、CPU 和部分暂停。覆盖位图原子 claim 只编入原 stress／显式验证配置，ABI 23 不变；回退与测量边界见阶段十九。 |
 | [minor 搬迁目标并行预留](GC-EVOLUTION.md) | 新版 runtime 所有 profile 默认，沿现有 worker／小规模策略；`SCOOP_GC_WORKERS=1` 串行 | 无 survivor 配额时按存活清单分块，worker 独占目标区；全体成功后复制，失败完整回滚。full／survivor 仍串行规划，无新 ABI；CPU、GNU full 尾部及部分 RSS 代价见阶段十八。 |

@@ -268,9 +268,15 @@ uint64_t scoop_gc_mark_complete(bool minor) {
             continue;
         }
         for (size_t index = 0; index < scoop_gc_marker.active_workers; index++) {
-            ScoopGcMarkBlockCount counts = scoop_gc_marker.workers[index].blocks[block->mark_index];
-            block->live_bytes += counts.live_bytes;
-            block->movable_live_bytes += counts.movable_bytes;
+            const ScoopGcMarkBlockCount *counts =
+                &scoop_gc_marker.workers[index].blocks[block->mark_index];
+            block->live_bytes += counts->live_bytes;
+            block->movable_live_bytes += counts->movable_bytes;
+            if (block->kind == SCOOP_BLOCK_KIND_SMALL) {
+                for (size_t line = 0; line < GC_LINE_BITMAP_WORDS; line++) {
+                    block->line_live[line] |= counts->live_lines[line];
+                }
+            }
         }
     }
     return scoop_gc_marker.marked;
