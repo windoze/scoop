@@ -18,6 +18,43 @@ static void check_values(ParallelFixture *fixture, ParallelNode *pinned) {
     }
 }
 
+static void check_remembered_ranges(ParallelFixture *fixture, bool survivors) {
+    scoop_gc_heap_lock();
+    scoop_gc_heap_state.survivor_enabled = survivors;
+    scoop_gc_heap_unlock();
+    for (size_t index = 0; index < PARALLEL_NODE_COUNT; index++) {
+        NurseryNode *young = nursery_node(100000 + index);
+        young->next = fixture->objects[1];
+        ParallelEdge *edge = &parallel_edges(fixture)[index];
+        edge->right = young;
+        edge->padding = index ^ UINT64_C(0x123456789abcdef0);
+        scoop_rt_gc_write_barrier(&edge->right, sizeof edge->right);
+    }
+    /* A 24-byte element can straddle a card-group boundary. The two references
+     * and non-reference word must retain their individual range semantics. */
+    for (size_t round = 0; round < 2; round++) {
+        nursery_collect(true);
+        size_t young_count = 0;
+        for (size_t index = 0; index < PARALLEL_NODE_COUNT; index++) {
+            ParallelEdge *edge = &parallel_edges(fixture)[index];
+            NurseryNode *current = edge->right;
+            assert(current->value == 100000 + index && current->next == fixture->objects[1]);
+            assert(((ParallelNode *)edge->left)->value == index);
+            assert(edge->padding == (index ^ UINT64_C(0x123456789abcdef0)));
+            young_count += scoop_gc_is_young_object_locked(current);
+        }
+        assert(survivors && round == 0 ? young_count != 0 : young_count == 0);
+    }
+    for (size_t index = 0; index < PARALLEL_NODE_COUNT; index++) {
+        ParallelEdge *edges = parallel_edges(fixture);
+        edges[index].right = edges[index % 8].left;
+        scoop_rt_gc_write_barrier(&edges[index].right, sizeof edges[index].right);
+    }
+    scoop_gc_heap_lock();
+    scoop_gc_heap_state.survivor_enabled = false;
+    scoop_gc_heap_unlock();
+}
+
 static void run_case(size_t workers) {
     ParallelFixture fixture = {0};
     parallel_start(&fixture, workers);
@@ -53,6 +90,10 @@ static void run_case(size_t workers) {
     check_values(&fixture, pinned);
     pinned->next = NULL;
     scoop_rt_gc_write_barrier(&pinned->next, sizeof pinned->next);
+
+    check_remembered_ranges(&fixture, false);
+    check_remembered_ranges(&fixture, true);
+    check_values(&fixture, pinned);
 
     scoop_rt_pop_native_roots(&roots);
     assert(scoop_rt_unpin(pinned) == pinned);

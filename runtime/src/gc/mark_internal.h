@@ -115,6 +115,7 @@ void scoop_gc_mark_pool_prepare(bool minor);
 void scoop_gc_mark_pool_run(size_t task_limit);
 void scoop_gc_mark_notify_work(void);
 void scoop_gc_mark_queue_push(ScoopGcMarkWorker *worker, ScoopGcMarkTask task);
+void scoop_gc_mark_enqueue_remembered(void);
 bool scoop_gc_mark_queue_take(ScoopGcMarkWorker *worker, ScoopGcMarkTask *task);
 void scoop_gc_mark_task_done(void);
 void scoop_gc_mark_flush(ScoopGcMarkWorker *worker);

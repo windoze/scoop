@@ -97,13 +97,6 @@ static void scan_roots(ScoopGcVisitContext *context) {
     });
 }
 
-static void visit_dirty_object(void *object, uintptr_t begin, uintptr_t end, void *context) {
-    const uint64_t *scan = scoop_gc_object_scan(object);
-    ScoopGcVisitContext *visit = context;
-    ScoopGcSlotVisitor slot = visit->remember_survivors ? visit_survivor_slot : visit_managed_slot;
-    scoop_gc_scan_descriptor(object, scan, slot, context, begin, end);
-}
-
 static void relocate_live_object(void **entry, void *context) {
     void *object = *entry;
     const uint64_t *scan = scoop_gc_object_scan(object);
@@ -268,11 +261,8 @@ static bool collect(CollectionRequest request) {
             scan_roots(&relocate);
         }
         relocate.remember_survivors = survivors.objects != 0;
-        if (minor) {
-            scoop_gc_scan_remembered(visit_dirty_object, &relocate, false);
-        }
         ScoopGcSlotVisitor slot = survivors.objects != 0 ? visit_survivor_slot : visit_managed_slot;
-        scoop_gc_update_live(slot, relocate_live_object, &relocate);
+        scoop_gc_update_live(minor, slot, relocate_live_object, &relocate);
         metrics->update_ns += scoop_gc_monotonic_ns() - phase;
     }
     metrics->minor_collections += minor;

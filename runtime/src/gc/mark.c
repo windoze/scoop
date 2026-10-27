@@ -77,6 +77,10 @@ static void scan_dirty(void *object, uintptr_t begin, uintptr_t end, void *conte
 }
 
 void scoop_gc_mark_remembered(void) {
+    if (scoop_gc_marker.active_workers > 1) {
+        scoop_gc_mark_enqueue_remembered();
+        return;
+    }
     RememberedVisit visit = {.visit = {&scoop_gc_marker.workers[0], SCOOP_MARK_REMEMBERED}};
     scoop_gc_scan_remembered(scan_dirty, &visit, true);
 }
@@ -123,6 +127,11 @@ static void scan_dirty_live(void *object, uintptr_t begin, uintptr_t end, void *
 }
 
 void scoop_gc_mark_run_dirty(ScoopGcMarkWorker *worker, ScoopGcCardGroup *group) {
+    if (worker->minor) {
+        RememberedVisit visit = {.visit = {worker, SCOOP_MARK_REMEMBERED}};
+        worker->dirty_cards += scoop_gc_scan_dirty_group(group, scan_dirty, &visit, true);
+        return;
+    }
     ScoopGcRegion *region = group->region;
     size_t index = region->large ? 0 : (size_t)(group - region->card_groups);
     DirtyVisit visit = {

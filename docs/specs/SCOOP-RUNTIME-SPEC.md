@@ -639,6 +639,8 @@ collector 持有 heap／roots 的独占阶段后，发布不可变的 region、�
 
 roots／remembered 扫描先由 coordinator 发布初始工作，随后参与同一任务循环。普通对象每个任务最多扫描 64 个，可以在该批次内继续处理本 worker 刚发现的后继，避免长链每个对象都经过队列；大数组每个任务最多 1024 个元素，嵌套值仍执行已有精确 scan。未扫描的剩余子工作在当前任务完成前发布。仅一个在途父任务和一个后继时无需唤醒其他 worker，最后一项完成必须唤醒终止等待者；这不改变全局未完成任务数的含义。首次成功标记但不含引用的对象仍进入存活清单与统计，无需扫描任务。本轮候选 block 总容量不足 4 MiB 时默认仅使用 coordinator；minor 使用实际年轻 block 容量，full 使用活跃堆容量，其余按在线 CPU 数选择最多 4 个 worker；在线 CPU 数通过私有 ThreadVmOps 查询。`SCOOP_GC_WORKERS=1..8` 可显式选择本轮 worker 数以验证同义性和测量，worker 数包含 coordinator，属于 runtime 策略参数，不影响程序或产物合法性。
 
+普通 minor 在有多个 worker 时，先用既有的活动 block／旧代条件过滤 remembered 卡组，再将实际需要扫描的组发布到同一队列，由 worker 按既有精确脏范围扫描旧对象并追踪年轻引用；每组在该阶段只发布一次，不提前清卡或解除登记。单 worker 保留直接扫描，避免空转任务开销。标记和全部复制完成后，coordinator 先更新精确 roots，再把原 remembered 组与年轻存活对象的引用更新任务发布给同一 pool。旧对象按互不重叠的卡组范围回写，年轻存活清单按原唯一 entry／数组范围回写；普通 minor 不向已有旧对象 block 的空洞复制，因此两类任务不并发访问同一槽。所有任务结束后才能验证、清卡、退休对象或恢复 mutator。survivor 的卡 2 状态及新登记组按原规则保留到收尾；入队遍历在 worker 启动前完成，不与新组发布并发读取链接。native roots 即使 alias heap 槽也已先由 coordinator 更新，保留原幂等转发语义。增量 full 的 dirty 任务仍按已标记 owner 扫描，并在任务完成后清卡，不能把两种清卡时机混同。
+
 mark 结束后复用首次标记的存活对象集合规划搬迁；实际有搬迁时，使用该集合更新存活副本的出站引用，不在 full 更新阶段再次用 worklist 发现可达图。存活清单的分块和条目地址在本轮保持稳定，3.7 的临时目标头保存对应条目的地址，不另建计划分块。全体目标预留成功后，coordinator 依次复制对象、登记目标元数据、发布原对象 forwarding，再把对应清单条目改为当前副本。预留失败不得修改任何清单条目；未搬迁和 pinned 对象继续保留原地址。无引用对象的条目也随实际搬迁更新。该修改发生在全部 mark worker 结束后、任何 update worker 发布之前，不新增 managed roots 或延长对象存活。
 
 此时 full 的 roots 全部更新；minor 更新精确 roots、年轻集合及 remembered set。对象字段和 roots 中的旧引用仍经正常 forwarding 回写，不能因存活清单已经更新而跳过它们。没有搬迁时按 3.7 跳过 relocation。复制、release hook、reclaim 和 VM 归还仍由 coordinator 执行；shutdown 停止并 join worker。
@@ -655,7 +657,7 @@ mark 结束后复用首次标记的存活对象集合规划搬迁；实际有搬
 
 分片周期的各次 STW 均计入 pause／full-pause 累计值与暂停直方图，full collection 次数只在完整周期收尾时增加；直方图样本数因此可多于 minor 与 full 次数之和。每片结束后归并当片 worker CPU 和扫描工作，取消未完成周期不抹去已经付出的成本；block 存活计数只在最终收尾前归并一次。逐事件时间线仍仅由显式测量构建提供，不在普通产物中新增测试探针。
 
-增量周期中，remembered 阶段计入脏组转交队列的 coordinator 时间，实际区间扫描由 marker 执行并计入 mark 时间与引用槽数；dirty-card 计数在任务真正访问卡时累计，不在入队时预估。普通 minor 的同步 remembered 扫描口径保持。
+增量周期和多 worker minor 的 remembered 阶段计入脏组转交队列的 coordinator 时间，实际区间扫描与后继追踪共同计入 mark 时间和各 worker 的 CPU；单 worker minor 的同步扫描仍计入 remembered 时间。跨这两种调度对比必须同时报告 remembered＋mark 的总墙钟及扫描量，不能把入队耗时下降当作扫描工作消失。dirty-card／old-reference 计数在实际访问时累计并在 worker 完成后归并。旧对象范围和年轻存活引用的回写均计入 update 墙钟，包含任务发布与等待，不与线程 CPU 相加。该调度复用现有 pool、卡组、scan 和元数据，不增加 mutator 屏障、对象状态或 ABI。
 
 region 诊断补充 managed region 映射成功的累计次数、当前可复用的空 ordinary region 数，以及上次普通 full 成功搬迁的 source／target region 数和因 pin 被排除的稀疏候选数。无搬迁或预留回滚的 source／target 数为零；minor／显式 moving stress 不覆盖上次普通 full 的策略记录。统计复用选择和预留阶段已有事实，不能为了诊断重放标记或搬迁。
 

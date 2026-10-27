@@ -2,6 +2,17 @@
 #include "../gc_binding/object.h"
 #include "mark_internal.h"
 
+typedef struct UpdateDirtyVisit {
+    ScoopGcSlotVisitor visitor;
+    void *context;
+} UpdateDirtyVisit;
+
+static void update_dirty_object(void *object, uintptr_t begin, uintptr_t end, void *context) {
+    UpdateDirtyVisit *visit = context;
+    scoop_gc_scan_descriptor(object, scoop_gc_object_scan(object), visit->visitor, visit->context,
+                             begin, end);
+}
+
 static void enqueue_update_array(ScoopGcMarkWorker *owner, void *object, const uint64_t *scan) {
     ScoopGcArrayScan array = scoop_gc_array_scan(object, scan);
     uint64_t stride = scoop_gc_array_stride(scan);
@@ -20,9 +31,13 @@ static void enqueue_update_array(ScoopGcMarkWorker *owner, void *object, const u
     }
 }
 
-void scoop_gc_update_live(ScoopGcSlotVisitor visitor, ScoopGcLiveEntryVisitor serial_visitor,
-                          void *context) {
+void scoop_gc_update_live(bool minor, ScoopGcSlotVisitor visitor,
+                          ScoopGcLiveEntryVisitor serial_visitor, void *context) {
     if (scoop_gc_marker.active_workers == 1) {
+        if (minor) {
+            UpdateDirtyVisit visit = {visitor, context};
+            scoop_gc_scan_remembered(update_dirty_object, &visit, false);
+        }
         /* Preserve the coordinator's direct callback without a per-object wrapper. */
         scoop_gc_mark_visit_live(serial_visitor, context);
         return;
@@ -30,6 +45,9 @@ void scoop_gc_update_live(ScoopGcSlotVisitor visitor, ScoopGcLiveEntryVisitor se
     scoop_gc_marker.updating = true;
     scoop_gc_marker.update_visitor = visitor;
     scoop_gc_marker.update_context = context;
+    if (minor) {
+        scoop_gc_mark_enqueue_remembered();
+    }
     for (size_t index = 0; index < scoop_gc_marker.active_workers; index++) {
         ScoopGcMarkWorker *owner = &scoop_gc_marker.workers[index];
         for (ScoopGcLiveChunk *chunk = owner->live; chunk != NULL; chunk = chunk->next) {
@@ -72,6 +90,11 @@ void scoop_gc_update_live(ScoopGcSlotVisitor visitor, ScoopGcLiveEntryVisitor se
 void scoop_gc_update_run_task(ScoopGcMarkTask task) {
     ScoopGcSlotVisitor visitor = scoop_gc_marker.update_visitor;
     void *context = scoop_gc_marker.update_context;
+    if (task.kind == SCOOP_MARK_DIRTY_TASK) {
+        UpdateDirtyVisit visit = {visitor, context};
+        (void)scoop_gc_scan_dirty_group(task.data.dirty_group, update_dirty_object, &visit, true);
+        return;
+    }
     if (task.kind == SCOOP_MARK_ARRAY_TASK) {
         scoop_gc_scan_descriptor(task.data.range.object, task.data.range.scan, visitor, context,
                                  task.data.range.begin, task.data.range.end);

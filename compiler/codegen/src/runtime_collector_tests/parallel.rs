@@ -41,18 +41,23 @@ fn serial_and_parallel_markers_preserve_shared_graphs_and_repeated_collection() 
 
 #[test]
 fn parallel_update_preserves_native_root_aliases_and_remembered_slots() {
-    for (verify, stress) in [(false, false), (true, false), (false, true)] {
+    for (verify, stress, optimization) in [
+        (false, false, "-O0"),
+        (false, false, "-O2"),
+        (true, false, "-O0"),
+        (false, true, "-O0"),
+    ] {
         let output = compile_and_run_configuration(
             &workspace_root(),
             "parallel_update_test",
             "runtime/tests/parallel_update_test.c",
             verify,
             stress,
-            &[],
+            &[optimization],
         );
         assert!(
             output.status.success(),
-            "verify={verify}, stress={stress}: {}",
+            "verify={verify}, stress={stress}, optimization={optimization}: {}",
             String::from_utf8_lossy(&output.stderr)
         );
         assert_eq!(

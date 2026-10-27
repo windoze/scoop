@@ -66,8 +66,8 @@ uint64_t scoop_gc_mark_complete(bool minor);
 uint64_t scoop_gc_mark_finish(bool minor);
 void scoop_gc_mark_visit_live(ScoopGcLiveEntryVisitor visitor, void *context);
 void scoop_gc_mark_dispose(void);
-void scoop_gc_update_live(ScoopGcSlotVisitor visitor, ScoopGcLiveEntryVisitor serial_visitor,
-                          void *context);
+void scoop_gc_update_live(bool minor, ScoopGcSlotVisitor visitor,
+                          ScoopGcLiveEntryVisitor serial_visitor, void *context);
 uint64_t scoop_gc_monotonic_ns(void);
 uint64_t scoop_gc_thread_cpu_ns(void);
 
