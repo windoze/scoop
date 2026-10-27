@@ -16,8 +16,12 @@ static void corrupt_forwarding(unsigned scenario) {
     void **slots[] = {&object};
     ScoopNativeRootFrame roots;
     scoop_rt_push_native_roots(&roots, slots, 1);
+    if (scenario == 5) {
+        object = (char *)object + sizeof(void *);
+    }
     nursery_collect(false);
     assert(nursery_metrics().full_collections == 1);
+#if SCOOP_GC_TRACK_RELOCATION
     scoop_gc_heap_lock();
     ScoopGcBlockMeta *block;
     size_t word;
@@ -33,6 +37,7 @@ static void corrupt_forwarding(unsigned scenario) {
         ((ScoopObjectHeader *)object)->gc_word = GC_RELEASE_READY_BIT;
     }
     (void)scoop_heap_forward_object(object, block, word);
+#endif
     _exit(2);
 }
 
@@ -65,11 +70,14 @@ static void expect_failure(unsigned scenario, const char *message) {
 }
 
 int main(void) {
+    expect_failure(5, "managed slot is not a current heap object start");
+#if SCOOP_GC_TRACK_RELOCATION
     expect_failure(0, "object forwarded outside collection");
     expect_failure(1, "unmarked object reached relocation");
     expect_failure(2, "marked evacuation source has no planned forwarding address");
     expect_failure(3, "evacuation source forwards to its own address");
     expect_failure(4, "marked evacuation source has no planned forwarding address");
-    puts("resolved forwarding retains collection, mark and address validation");
+#endif
+    puts("mark boundaries and forwarding verification reject invalid references");
     return 0;
 }

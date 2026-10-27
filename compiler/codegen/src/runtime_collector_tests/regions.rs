@@ -40,21 +40,25 @@ fn insufficient_full_capacity_skips_target_sweep_and_retries_after_reclamation()
 
 #[test]
 fn resolved_forwarding_rejects_invalid_collection_metadata() {
-    let output = compile_and_run(
-        &workspace_root(),
-        "forwarding_validation_test",
-        "runtime/tests/forwarding_validation_test.c",
-        true,
-    );
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert_eq!(
-        output.stdout,
-        b"resolved forwarding retains collection, mark and address validation\n"
-    );
+    for verify in [false, true] {
+        let output = super::compile::compile_and_run_configuration(
+            &workspace_root(),
+            "forwarding_validation_test",
+            "runtime/tests/forwarding_validation_test.c",
+            verify,
+            verify,
+            &["-O2"],
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"mark boundaries and forwarding verification reject invalid references\n"
+        );
+    }
 }
 
 #[test]

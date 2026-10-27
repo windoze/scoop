@@ -563,13 +563,15 @@ full collection 按回收收益选择低存活、无 pin 的 region 为 source�
 
 全部目标预留成功后，小对象复制直接复用计划中的目标 block、精确大小和已保留范围，不再调用通用分配登记入口重复检查块种类、边界或起点。此时 mutator 已停稳、全部 mark worker 已完成、update worker 尚未发布，只有 coordinator 修改目标元数据；新 block、survivor block 和既有旧代空洞均满足这一阶段的独占条件。复制完成后写入精确 size，合并 occupied／live-line 与对象 mark，更新目标 live bytes，再 release 发布 starts，随后才发布 forwarding 和更新存活清单。occupied／starts 复用 3.1 的单写者 atomic load／OR／store，保留同一字的既有位；line_live／marks 在该独占阶段直接 OR。通用小对象登记入口仅发布未标记的新分配，不保留复制专用的参数或分支；共享 mutator 分配和并行标记的原子读改写保持，large 发布沿原入口，目标预留失败不执行任何复制或目标对象登记。不增加搬迁计划字段、对象元数据、roots 或 ABI，所有 profile 遵守同一顺序。
 
-forwarding 复用已复制源对象的 GC 状态字，不为 small source 分配按 block 容量索引的指针表，也不单独保存 large forwarding。必须先把完整原对象（包括原 pin／release GC 字）复制到目标并完成目标登记，再把旧 GC 字写为带 forwarded 标志的目标地址，最后更新存活清单 entry。全部复制结束后才发布引用更新任务；读取 forwarding 前仍按原元数据确认 collection、mark、source 和非 pinned 状态，并拒绝缺失转发或自转发。预留阶段不改任何原对象头，失败无需恢复对象字节；收尾仅对 unmarked 死对象执行 release，不把源副本的转发字当成 pin registry 或 release 状态。moving stress 继续检查转发并 poison 旧存储；生成代码、native、异常及 pin 消费者不会在此 STW 私有阶段使用可搬迁旧副本。块 side metadata 只保留仍有读取者的字段，未改变有效对象、TLAB、region prefix 或产物 ABI。
+forwarding 复用已复制源对象的 GC 状态字，不为 small source 分配按 block 容量索引的指针表，也不单独保存 large forwarding。必须先把完整原对象（包括原 pin／release GC 字）复制到目标并完成目标登记，再把旧 GC 字写为带 forwarded 标志的目标地址，最后更新存活清单 entry。全部复制结束后才发布引用更新任务，标志只存在于已完成复制的原 source，目标与原 source 不重叠；标记、预留、复制和发布顺序保证当前图的引用可以按下述规则转发。预留阶段不改任何原对象头，失败无需恢复对象字节；收尾仅对 unmarked 死对象执行 release，不把源副本的转发字当成 pin registry 或 release 状态。moving stress 继续检查转发并 poison 旧存储；生成代码、native、异常及 pin 消费者不会在此 STW 私有阶段使用可搬迁旧副本。块 side metadata 只保留仍有读取者的字段，未改变有效对象、TLAB、region prefix 或产物 ABI。
 
 在规划、预留回退和实际复制全部结束后，以本轮实际完成的搬迁数决定是否更新 roots；零搬迁且没有 survivor 时还跳过 remembered set 与存活对象回写。原地保留 survivor 的 minor 即使没有复制，也须借 remembered set 与年轻存活对象扫描保留下一轮所需的卡；不为此重扫旧堆或新增 roots。非零搬迁仍完整更新相关引用。minor 转 full 使用最终完成轮次的事实，不能复用上轮计数或按计时值判断。各路径都完成必要统计、晋升、release、回收、清卡、nursery／TLAB 重置、临时 pin 解除及线程恢复。
 
-引用更新在本轮稳定的堆视图内，每次访问先解析目标对象的 block／word 位置，并复用该位置判断代际、mark、pin、source 和 forwarding；minor 的旧代目标保持原引用。有 survivor 时，回写后按实际目标副本判断下一轮代际，仅对仍指向 survivor 的 heap 槽定位 owner 并保留卡；roots 不记卡，不增加用户引用存活范围。最终地址与原槽值相同时不写回。需要扫描搬迁后的对象时，只有地址变化才独立解析目标副本的位置，保留对象起点、存活性、forwarding 和当前副本检查；位置不跨 metadata 退休边界保存，不建立持久地址缓存。
+引用更新复用本轮 mark 已消费的图：精确 roots、相关 remembered 区间和存活对象的引用已经参与必要的边界检查与追踪；mark 完成后到更新结束，没有 mutator 或 native 对这些可扫描槽的写入，复制保持原 payload 引用。full 分片标记必须先按 3.9 完成当前 roots、待处理对象和脏区追踪，才能使用同一规则。普通回写直接读取非 null 目标的 GC 字，有 forwarded 标志时写入新地址，无标志时保留原引用，不再次解析每条边的 page map、block、word、mark 或 pin。已经被 aliased root／先前访问更新为当前副本的槽不会再次改变；pinned、未搬迁旧代和合法 immortal 的 GC 字没有该标志。该复用限于本次更新阶段，不缓存跨 GC 的地址，不删除首次 mark 的对象起点、size／scan 或边界检查。
 
-普通 runtime 的 mark 与引用更新遇到堆外引用时直接保留：合法的堆外 managed 对象已在映像登记边界验证为无可移动引用的 immortal，不必逐槽重复查询 immortal 地址表。该查询只承担非法堆外引用的诊断，在支持 GC stress 的 runtime（`SCOOP_ENABLE_GC_STRESS=1`）或显式堆验证构建（`SCOOP_GC_VERIFY_HEAP=1`）中保留，与应用 debug／release profile 无关。堆内地址仍须是当前有效的对象起点；映像登记及 pin／handle 等边界所需的检查保持不变。
+有 survivor 时，回写后只解析当前目标的 block 来判断下一轮代际；仅对仍指向 survivor 的 heap 槽再定位 owner 并保留卡，roots 不记卡。不增加用户引用存活范围。显式 heap／moving 验证仍独立使用对象起点、mark、source、pin 和 forwarding 元数据检查实际更新结果，拒绝缺失／自转发或遗留原 source；这类重复验证及其 helper 只编入原有 stress／heap 验证能力，普通 runtime 不生成它们。动态分配、pin／handle、映像登记及 native 边界的实际检查保持。
+
+普通 runtime 的 mark 遇到堆外引用时直接保留：合法的堆外 managed 对象已在映像登记边界验证为无可移动引用的 immortal，更新时读取其不变的正常 GC 字即可，不必逐槽重复查询 immortal 地址表。该查询只承担非法堆外引用的诊断，在支持 GC stress 的 runtime（`SCOOP_ENABLE_GC_STRESS=1`）或显式堆验证构建（`SCOOP_GC_VERIFY_HEAP=1`）中保留，与应用 debug／release profile 无关。堆内地址仍须是当前有效的对象起点；映像登记及 pin／handle 等边界所需的检查保持不变。
 
 普通 full 复用已有旧代 block 的空洞时，依据本轮 mark／live-line 结果先释放目标 block 中的死亡对象并移除其起点，保留原有存活对象的 mark。预留回滚只退还新激活的目标 block，不退休既有存活对象；已完成的死亡对象 release 不重复执行。复制到既有 block 的对象与原有存活对象都参与完整引用回写。
 

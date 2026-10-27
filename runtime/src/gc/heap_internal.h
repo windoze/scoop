@@ -303,11 +303,13 @@ void scoop_heap_page_map_publish(ScoopGcRegion *region);
 void scoop_heap_page_map_remove(const ScoopGcRegion *region);
 void scoop_heap_page_map_prune(void);
 
+#if SCOOP_GC_TRACK_RELOCATION
 #if SCOOP_PLATFORM_INLINE_GC_FORWARDING
 #include "forwarding_internal.h"
 #else
 /* Collector-only: the supplied position was resolved in this stable heap view. */
 void *scoop_heap_forward_object(void *object, const ScoopGcBlockMeta *block, size_t word);
+#endif
 #endif
 
 #endif /* SCOOP_GC_HEAP_INTERNAL_H */

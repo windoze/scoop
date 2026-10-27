@@ -46,13 +46,18 @@ static const ScoopTypeDescriptor wide_td = {
 
 typedef struct ExpectedLiveSet {
     void *original[6];
+    uint64_t gc_words[6];
     unsigned seen;
 } ExpectedLiveSet;
 
-static void check_copy_metadata(void *object, void *original) {
+static void check_copy_metadata(void *object, void *original, uint64_t gc_word) {
     size_t size = scoop_gc_object_size_locked(original);
     assert(scoop_gc_object_size_locked(object) == size);
-    assert(memcmp(object, original, size) == 0);
+    assert(((ScoopObjectHeader *)object)->gc_word == gc_word);
+    assert(((ScoopObjectHeader *)object)->td == ((ScoopObjectHeader *)original)->td);
+    assert(memcmp((char *)object + sizeof(ScoopObjectHeader),
+                  (char *)original + sizeof(ScoopObjectHeader),
+                  size - sizeof(ScoopObjectHeader)) == 0);
     const ScoopTypeDescriptor *td = ((ScoopObjectHeader *)object)->td;
     assert((uintptr_t)object % td->instance_shape.instance_alignment == 0);
     ScoopGcBlockMeta *block;
@@ -86,7 +91,7 @@ static void check_current_entry(void **entry, void *context) {
     size_t word;
     assert(object_meta(original, &source, &word));
     assert(scoop_heap_forward_object(original, source, word) == object);
-    check_copy_metadata(object, original);
+    check_copy_metadata(object, original, expected->gc_words[value - 1]);
     assert(!scoop_gc_object_was_scanned_locked(object));
     if (td->object_scan != NULL) {
         scoop_heap_claim_current_object(object);
@@ -131,6 +136,9 @@ static void run_case(size_t workers) {
     ((NurseryNode *)expected.original[0])->next = expected.original[1];
     ((NurseryNode *)expected.original[2])->next = expected.original[1];
     assert(scoop_rt_pin(expected.original[2]) == expected.original[2]);
+    for (size_t index = 0; index < 6; index++) {
+        expected.gc_words[index] = ((ScoopObjectHeader *)expected.original[index])->gc_word;
+    }
 
     /* Inspect the real phase boundary before root/field relocation consumes the set. */
     _Alignas(16) uintptr_t frame[4] = {0};

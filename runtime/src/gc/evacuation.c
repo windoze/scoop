@@ -5,7 +5,7 @@
 #include "gc_internal.h"
 #include "heap_internal.h"
 
-#if !SCOOP_PLATFORM_INLINE_GC_FORWARDING
+#if SCOOP_GC_TRACK_RELOCATION && !SCOOP_PLATFORM_INLINE_GC_FORWARDING
 #include "forwarding_internal.h"
 #endif
 

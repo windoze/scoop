@@ -17,8 +17,21 @@ static bool remains_young(const ScoopGcBlockMeta *block) {
     return block->generation == SCOOP_GC_YOUNG && block->retained_young;
 }
 
-static inline __attribute__((always_inline)) void
-relocate_slot(void **slot, void *raw_context, bool remember_survivors) {
+/* Mark has consumed this frozen graph; only collector relocation changes it. */
+static inline void *relocate_frozen_slot(void **slot) {
+    void *object = *slot;
+    if (object != NULL) {
+        void *forwarded = scoop_heap_forwarding_address(object);
+        if (forwarded != NULL) {
+            *slot = forwarded;
+            return forwarded;
+        }
+    }
+    return object;
+}
+
+#if SCOOP_GC_TRACK_RELOCATION
+static void verify_slot(void **slot, void *raw_context) {
     ScoopGcVisitContext *context = raw_context;
     void *target = *slot;
     if (target == NULL) {
@@ -27,11 +40,9 @@ relocate_slot(void **slot, void *raw_context, bool remember_survivors) {
     ScoopGcBlockMeta *block;
     size_t word;
     if (!scoop_heap_reference_meta(target, &block, &word)) {
-#if SCOOP_ENABLE_GC_STRESS || (defined(SCOOP_GC_VERIFY_HEAP) && SCOOP_GC_VERIFY_HEAP)
         if (!scoop_gc_is_immortal_object_locked(target)) {
             heap_fatal("managed slot points outside the current heap and stable object tables");
         }
-#endif
         return;
     }
     if (context->minor && block->generation == SCOOP_GC_OLD) {
@@ -39,30 +50,40 @@ relocate_slot(void **slot, void *raw_context, bool remember_survivors) {
     }
     void *current = scoop_heap_forward_object(target, block, word);
     if (current != target) {
-#if SCOOP_GC_TRACK_RELOCATION
-        if (context->verify) {
-            heap_fatal("managed slot still points to a forwarded old object");
-        }
-#endif
-        *slot = current;
+        heap_fatal("managed slot still points to a forwarded old object");
     }
-    if (remember_survivors) {
-        const ScoopGcBlockMeta *target_block = current == target ? block : pointer_block(current);
-        if (remains_young(target_block)) {
-            ScoopGcBlockMeta *owner = pointer_block(slot);
-            if (!remains_young(owner)) {
-                ScoopGcRegion *region = owner->region;
-                size_t card = ((uintptr_t)slot - region->base) >> GC_CARD_SHIFT;
-                __atomic_store_n(&region->cards[card], 2, __ATOMIC_RELAXED);
-                scoop_runtime_record_dirty_card_group(region, card);
-            }
+}
+#endif
+
+static void visit_managed_slot(void **slot, void *context) {
+#if SCOOP_GC_TRACK_RELOCATION
+    if (((ScoopGcVisitContext *)context)->verify) {
+        verify_slot(slot, context);
+        return;
+    }
+#else
+    (void)context;
+#endif
+    (void)relocate_frozen_slot(slot);
+}
+
+static void visit_survivor_slot(void **slot, void *context) {
+    (void)context;
+    void *current = relocate_frozen_slot(slot);
+    if (current == NULL) {
+        return;
+    }
+    const ScoopGcBlockMeta *target = pointer_block(current);
+    if (target != NULL && remains_young(target)) {
+        ScoopGcBlockMeta *owner = pointer_block(slot);
+        if (!remains_young(owner)) {
+            ScoopGcRegion *region = owner->region;
+            size_t card = ((uintptr_t)slot - region->base) >> GC_CARD_SHIFT;
+            __atomic_store_n(&region->cards[card], 2, __ATOMIC_RELAXED);
+            scoop_runtime_record_dirty_card_group(region, card);
         }
     }
 }
-
-static void visit_managed_slot(void **slot, void *context) { relocate_slot(slot, context, false); }
-
-static void visit_survivor_slot(void **slot, void *context) { relocate_slot(slot, context, true); }
 
 static void visit_root_region(void *base, const uint64_t *scan, void *context) {
     scoop_gc_scan_descriptor(base, scan, visit_managed_slot, context, 0, UINTPTR_MAX);
