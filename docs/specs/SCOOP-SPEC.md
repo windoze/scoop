@@ -2757,7 +2757,7 @@ use 以 receiver 调用 block 恰好一次，正文正常返回或抛出后调�
 ### 12.1 基本概念
 
 - **Cone是module、分发、依赖、编译与静态链接的基本单位；package只是源码namespace。** Cone不等于package，二者不能由名称或目录互相推导。一个Cone可以包含多个package，同一package也可以由多个Cone贡献声明；后一情形称为split package，不会把不同origin的实体合并为同一identity；
-- manifest source Cone是包含`Cone.toml`及按12.2.2选择的Scoop源码的独立目录；未配置源码清单时使用`src/`。`scoop build/run <file.scoop>`则把指定的唯一文件构造为12.2的synthetic executable source Cone。binary Cone是该语义单元编译得到的`.slib` artifact。面向构建的`scoop`可以将manifest Cone的上游依赖定位到source Cone或已经验证的binary Cone，二者必须声明同一Cone identity；低层single-Cone compiler `scoopc`只消费已生成并显式传入的上游`.slib`，不跟随source locator或递归构建其他Cone；
+- manifest source Cone是包含`Cone.toml`及按12.2.2选择的Scoop源码的独立目录；未配置源码清单时使用`src/`。workspace是多个Cone的组织单位，不成为新的语言module。`scoop build/run <file.scoop>`则把指定的唯一文件构造为12.2的synthetic executable source Cone。binary Cone是该语义单元编译得到的`.slib` artifact。M63规划由独立`scoop-pm`定位和锁定source/binary依赖，`scoop`消费精确图并构建；低层single-Cone compiler `scoopc`只消费已生成并显式传入的上游`.slib`，不跟随source locator或递归构建其他Cone；
 - 文件路径不决定 package。普通 manifest Cone 的每个生产/测试 source file 必须显式声明一个 `package` header，名称按实际 identifier 段等于 Cone group，或以该 group 的全部段为前缀；例如 group `dev.example` 允许 `dev.example` 和 `dev.example.http`，不允许 `dev.examples`、`dev` 或单个转义段 `` `dev.example` ``。连字符 group 段用反引号表示，例如 group `dev.my-team` 对应 ``package dev.`my-team` ``；跨 package 引用仍按 12.4 导入或使用合法 qualified path；
 - `scoop:scoop.core` 与 `scoop:scoop.std` 两个库豁免 package/group 前缀和必须声明 header 的要求，允许根 package 及其实际声明的其他 package。其他内置库、不同 group 的同名 Cone 或消费者不享有此例外；例外仅是名称规则，不增加来源授权机制；
 - 单文件模式使用内置默认 RootPackage，不声明 package。若文件包含语法合法的 package header，发出定位到该声明的 warning，随后忽略它的 namespace 效果；原文、byte span、文档边界及后续诊断位置保留。非法 package 语法仍是 parser error，不吞掉或按注释跳过；
@@ -2766,6 +2766,8 @@ use 以 receiver 调用 block 恰好一次，正文正常返回或抛出后调�
 ### 12.2 Cone identity与`Cone.toml`
 
 每个 Cone 具有 canonical coordinate `group:name:version`。`group` 与 `name` 各由一个或多个 `.` 分隔的 lowercase ASCII segment 组成，每段精确匹配 `[a-z][a-z0-9-]*`；`version` 是 canonical SemVer 2.0.0 文本，禁止多余 `v` 与非法前导零，合法 pre-release/build metadata 原样参与 identity。不做 trim、大小写折叠、Unicode 归一化或路径别名解析，不满足语法的 coordinate 是错误。
+
+workspace、版本范围、Git/registry来源及锁文件采用[包管理规范](SCOOP-PACKAGE-SPEC.md)的M63设计，当前待实施；以下清单合同随该里程碑直接调整，不保留尚未发布的旧schema语义。编译后的实体身份和12.3的精确图约束保持。
 
 `ConeIdentity` 由完整 canonical coordinate 确定；version 参与身份，因此两个版本即使源码相同也不是同一声明或类型的来源。artifact 内容具有独立的 `ArtifactFingerprint`，不能用它、package、FQN 或 manifest 路径代替 ConeIdentity。identity 与产物指纹的编码见编译器与产物规范 2.6。
 
@@ -2782,16 +2784,16 @@ kind = "library" # 或 "executable"
 
 [dependencies]
 "org.foo:bar" = { version = "1.2.3", path = "../bar" }
-"org.acme:util" = { version = "2.0.0", artifact = "../artifacts/util.slib" }
-"org.other:log" = "3.1.0"
+"org.acme:util" = { version = "=2.0.0", artifact = "../artifacts/util.slib" }
+"org.other:log" = { version = "3.1.0", registry = "https://packages.example.org/" }
 ```
 
-- `schema`以及`[cone]`中的`group`、`name`、`version`、`kind`必需；`kind`只能是`library`或`executable`。拼错或未知的semantic field不能被静默忽略；
-- dependency key是exact `group:name`，value必须给出exact version；字符串短式只省略locator。table value至多给一个`path` source-Cone locator或`artifact` `.slib` locator；二者都省略时，`scoop`在每个显式artifact search root下检查`<group>/<name>/<version>/cone.slib`，三项都使用canonical文本且`.`不拆目录。所有存在的候选必须具有相同完整`ArtifactFingerprint`，否则是ambiguous artifact错误；search-root顺序不能决定选择不同内容；
-- 除 core 按 12.6 定位外，没有显式 locator 且全部显式 artifact search root 均无候选时，仅 `group = "scoop"` 的依赖继续检查 `<sysroot>/lib/<canonical-target-triple>/<name>.slib`。其完整 coordinate 必须匹配所声明的 group/name/version，且为当前目标的普通 library Cone；其他 group 不作此默认查找。已选择的显式来源损坏、歧义或不兼容时直接报错，不以 sysroot 覆盖。缺失默认产物时报告目标、coordinate 和路径，不读取随包源码或自动重建。默认查找不注入新依赖、不改变名称可见性或实体身份；
-- locator只用于当前构建查找，相对路径以当前manifest为基准；它不进入Cone identity、实体identity、`.slib` metadata、初始化顺序或源码诊断identity。locator解析到的source/artifact coordinate必须与dependency key/version canonical相等；
-- dependency声明没有version range、`latest`、optional/build dependency、feature、platform条件或dependency alias；测试专用依赖见 12.2.4。`scoop`只把exact locator解析为12.3的resolved graph，不执行版本选择或冲突调停；`scoopc`仅验证当前manifest的semantic projection与命令行显式提供的binary dependency closure，不解析任何locator。native C++模式见12.2.1；
-- `scoop build [root-input]` 与 `scoop run [root-input]` 允许省略 root：此时明确使用调用者当前目录的 `Cone.toml`，与显式传入该文件相同；缺失或无效时报告输入错误，不向父目录搜索，也不猜测某个 `.scoop` 文件。显式 root 继续按目录、`Cone.toml` 或单文件规则分类；低层 `scoopc build` 仍要求明确输入；
+- `schema`必需；普通Cone在展开workspace继承后必须具有`[cone]`的`group`、`name`、精确`version`和`kind`，kind只能是`library`或`executable`。virtual workspace只声明成员、不定义Cone。未知semantic field不能被静默忽略；
+- dependency key是exact `group:name`，version是包管理规范2.2的要求；`"1.2.3"`默认caret，`"=1.2.3"`才是精确固定。来源可为path、Git/GitHub、registry、显式artifact或默认系统库。PM按完整闭包选择版本，写入`Cone.lock`；driver与编译器只消费精确绑定；
+- 没有显式来源的普通依赖使用明确配置的registry；`group = "scoop"`继续使用显式artifact search roots及`<sysroot>/lib/<canonical-target-triple>/<name>.slib`，core另遵守12.6。系统库必须匹配key并满足版本要求，且为当前目标的普通library。显式来源失败或不兼容时直接报错，不切换来源、读取随包源码或自动重建；
+- locator及registry URL、Git commit用于依赖选择、lock与构建更新，不进入ConeIdentity、实体identity、`.slib`语言身份、初始化顺序或源码诊断identity。相对路径以声明它的manifest为基准，workspace共享值以定义处为基准。所选source/artifact必须匹配key和版本要求；同坐标不同来源不能被静默合并；
+- 首版不提供`latest`、optional/build dependency、feature、依赖platform条件或alias；测试依赖见12.2.4。workspace、获取、求解及lock由独立`scoop-pm`负责，`scoop`保持精确图构建与调度，`scoopc`不执行包管理。native C++模式见12.2.1；
+- `scoop build/run`省略root时，由PM从cwd向上定位最近Cone.toml及其所属workspace；成员内默认选该成员，workspace根使用default-members。`--workspace`或`-p group:name`显式选择，run要求唯一executable。显式`.scoop`继续使用下述独立单文件规则，不读取相邻workspace。低层`scoopc build`仍要求明确输入；
 - `scoop:single-file:0.0.0`是另一reserved coordinate，用户manifest不得声明它。`scoop build/run`收到basename扩展名精确为`.scoop`、跟随symlink后目标为已存在regular file的operand时，构造`kind = executable`、source set恰好为该文件、logical source path恒为`main.scoop`、direct Cone dependency为core、std及头部显式dep并集的typed synthetic projection；symlink cycle、dangling link或最终目标非regular file是输入错误，resolved host path不进入identity。显式文件operand即使位于某Cone目录中也不读取相邻`Cone.toml`、其他`.scoop`、C/C++ source或blob；额外依赖仅由头部 `//! dep: group:name:version` 声明，沿显式 cone-path 与 sysroot 的精确产物查找，不隐式构建相邻源码。该`.slib`可缓存，并可作为产生它的build/run或显式`scoop link --root-slib`的唯一executable root；但不能作为可分发artifact发布、作为dependency或被manifest artifact locator引用；
 - 单文件依赖头部仅到首个语言 token（包括被忽略的 package）之前；允许首行 shebang、空白和普通注释穿插。只有真实行注释 `//! dep: group:name:version` 指定精确坐标；不读取块注释、文档正文或字符串中的相似文本。dep 缺少冒号/坐标、非法 coordinate/SemVer、重复显式坐标均定位到原始注释行报错；其他 `//!` 与 token 后的所有注释按普通注释处理。默认依赖始终为 `scoop:scoop.core:0.1.0` 和 `scoop:scoop.std:0.1.0`，显式相同坐标只合并边，重复源码声明仍报错；不同版本沿现有版本冲突规则处理。普通 manifest build/test/doc 不解释这些注释。依赖不隐式导入名称，core prelude 保持；
 - manifest Cone的source identity是`(ConeIdentity, normalized Cone-relative source path)`，保留从Cone根开始的完整路径，不以显式源码根为基准截短；single-file 的原始输入使用相同pair形态，第一项固定为由reserved `scoop:single-file:0.0.0`计算的`ConeIdentity`，第二项固定为`main.scoop`。生成方法体在同一 Cone 下保留自己的逻辑来源，不成为额外的输入文件或顶层声明。host绝对路径、CLI relative/absolute/symlink spelling、inode、mtime、目录枚举顺序与临时输出路径不进入语义identity；只有语言允许跨文件同名的file-private/hidden实体才把该source identity加入其declaration key。single-file构建记录另外区分实际source及其修改时间／大小、实际依赖结果、compiler/schema/target/toolchain；需要编译时源码内容参与正常语义计算，不因共用reserved identity而冒用另一输入的缓存；
@@ -2873,11 +2875,11 @@ path = "tests/linux"
 when = { os = "linux" }
 
 [test-dependencies]
-"scoop:scoop.test" = "0.1.0"
+"scoop:scoop.test" = "=0.1.0"
 "dev.example:test-helper" = { version = "0.1.0", path = "../test-helper" }
 ```
 
-测试依赖沿用生产依赖的 exact coordinate、version、path/artifact locator 及错误定位规则。同一 group:name 已在 `[dependencies]` 声明时，测试使用该生产依赖，不得在 `[test-dependencies]` 再次声明；即使版本与 locator 相同也在测试声明处报错。未知字段、非法 coordinate、冲突 locator 和非法源码清单仍属于 manifest 错误，普通构建也检查这些格式规则。
+测试依赖沿用生产依赖的 key、版本要求、workspace继承和来源规则，由PM为所选测试根求解精确闭包。同一 group:name 已在 `[dependencies]` 声明时，测试使用该生产依赖，不得在 `[test-dependencies]` 再次声明；即使版本与 locator 相同也在测试声明处报错。未知字段、非法 coordinate/版本要求、冲突来源和非法源码清单仍属于 manifest 错误，普通构建也检查这些格式规则；这不要求生产请求定位或下载测试依赖。
 
 普通 `scoop build/run` 与生产用途的 `scoopc build` 只选择生产源码和生产依赖，不检查测试路径的存在性，不读取、解析或类型检查测试文件，也不定位测试依赖。测试源码内容、测试依赖、测试源码选择配置及其 locator 均不进入生产编译缓存键或生产 `.slib` 的依赖闭包；测试目录内即使有非法 Scoop 源码、无效 UTF-8 或不可用的测试依赖，生产构建仍可完成。生产源码选择及非空要求保持 12.2.2 的规则。
 
@@ -2889,7 +2891,7 @@ when = { os = "linux" }
 
 ### 12.3 静态exact依赖图
 
-依赖图必须在最终链接前完整确定。构建、运行与产物链接命令的输入、输出和兼容性要求见编译器与产物规范 2.7～2.8。
+依赖图必须在最终链接前完整确定。M63的PM按每个root/purpose/target独立求解和锁定；workspace的多个独立程序可以使用不同版本，同一程序内仍受下列单版本约束。构建、运行与产物链接命令的输入、输出和兼容性要求见编译器与产物规范 2.7～2.8。
 
 - 依赖边必须无环；同一图中同一 `group:name` 只能出现一个 version，同一 ConeIdentity 只能对应一致的产物与语义指纹。环、多个版本、同 identity 的内容冲突或 dependency coordinate 不匹配均为构建错误。
 - executable 不能作为另一个 Cone 的依赖。一次程序构建恰有一个 executable root，其余节点均为 library；library 单独构建不需要 executable root。
@@ -2899,7 +2901,7 @@ when = { os = "linux" }
 - eager top-level initialization 按上述 Cone 顺序执行，同一 Cone 内按 9.1.3 的 PersistentInitializationUnitId bytes 排序。object、companion 与 generic delegated extension 等 lazy unit 不提前执行。初始化期间读取另一 unit 时，先完成目标 unit 的初始化，因此目标可以早于其通常排序位置执行。
 - 间接依赖的存在不使其声明自动成为源码候选。名称可到达性只由 12.4 的当前 Cone、direct dependency surface、re-export 与 core prelude 决定。
 - 源码或依赖变化时，缓存不得复用不相容的结果；没有源码可重建的 stale dependency 是构建错误。
-- 不提供 registry 下载、版本求解、lockfile、shared-library ABI、`dlopen`/`dlclose`、hot reload、image 卸载或运行期新增 Cone。
+- registry下载、版本求解与lockfile只在编译前的独立PM中处理，见[包管理规范](SCOOP-PACKAGE-SPEC.md)；`.slib`已绑定的精确依赖不能按SemVer范围重新换绑。不提供shared-library ABI、`dlopen`/`dlclose`、hot reload、image卸载或运行期新增Cone。
 
 ### 12.4 `package`、`import`、re-export与编译单元
 
@@ -3007,6 +3009,8 @@ core 是可修改、扩展和重建的普通 library Cone。intrinsic 与脱糖�
 
 - 除core自身外，每个Cone都具有到该exact core Cone的direct dependency。manifest可以像其他依赖一样显式声明core的`path`、`artifact`或search-root locator；未声明时注入默认edge。先解析全图的显式声明，已有core节点则复用，仅当仍无core节点时才读取默认`<sysroot>/lib/<canonical-target-triple>/scoop.core.slib`，不查找随包源码。显式locator失败按普通依赖报错，不回退到sysroot；不同core来源的冲突使用同一coordinate/content唯一性检查；
 - core 自身不隐式依赖自身。core manifest 的显式 dependency 使用普通语法、定位与无环规则；core 到普通库的依赖若与该库到 core 的依赖形成环，按 12.3 报错。用户可在普通源码目录声明 core coordinate、修改或扩展源码，并重新构建 library；intrinsic 声明遵守第 13 章的名称、类型和唯一性规则；
+M63包管理允许显式Git/registry来源及根覆盖，但core仍固定为上述精确coordinate；普通版本范围或registry默认值不能自动升级core。PM选择来源后交付同一精确core边，不改变默认prelude、intrinsic或runtime兼容规则。
+
 - core 声明与 Option variant 的默认可见性来自 core `.slib` 中的 typed prelude binding，不通过把 core 源码拼入用户 AST、扫描 package name 或对 `Some`/`None` 写短名特判实现；
 - core中的普通public API、generic template、non-generic alias、layout、TypeDescriptor与runtime binding遵守与其他library Cone相同的metadata、persistent identity和兼容检查。sysroot core与compiler的language/runtime、target及backend fingerprints不兼容时必须重建或拒绝，不能退回core与用户源码同单元编译。
 

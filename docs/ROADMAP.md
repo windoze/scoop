@@ -579,7 +579,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 增加同 Cone 测试源码、测试依赖与构建用途，由 `scoop test` 静态发现、构建、过滤、列出并串行运行，保留准确的生命周期失败与进程结果。
 - 以 `scoop.std` 作为首个实际落地应用，在 `sysroot/lib/scoop.std/tests/` 编写同 Cone 单元测试，通过 `scoop test sysroot/lib/scoop.std` 验收测试库与命令的完整流程。
 - 已按功能分批更新规范、实现、验证并提交；三个现有 target 各通过 167 项 fixture，包含 105 项 M43 与 62 项必要既有回归，覆盖正式 CLI、产物消费、进程边界与 GC 组合。
-- integration-test 等待 multi-cone workspace 定型后另行设计，不纳入本里程碑。
+- integration-test 等待 multi-cone workspace 定型后另行设计，不纳入本里程碑；workspace基础由M63交付，不把新的integration-test运行模型自动并入M63。
 
 ### M44 GC 引用更新优化与实现边界隔离（已完成，[设计](milestone44/DESIGN.md)、[验收](milestone44/ACCEPTANCE.md)）
 
@@ -741,6 +741,26 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 独立评估有界 core leaf、Managed 入口 poll、TLAB 完成路径、nursery 与回写、HFA 和最终映像链接信息；保留必要的发布、握手、异常与 ABI 语义。
 - 保留现有调查的收益与限制，沿用 M56 的桌面暂停和 footprint 验收，与 M58 优化协作；候选方案不视为已实现，不仅凭 trees 调大默认 nursery。
 - 各功能已独立提交；修正 intrinsic 标量复制成本后 V3 自动内联对照约改善 7.7 倍，普通 GC 移除逐槽 immortal 登记查询。Linux 已知十五个 fixture 失败均定向补测通过；按用户要求停止剩余完整 fixture，实际覆盖与限制见验收记录。
+
+### M63 独立包管理器与 workspace（设计完成，待实施）
+
+规范见[包管理规范](specs/SCOOP-PACKAGE-SPEC.md)，取舍、改动面和逐步验收见[设计与实施步骤](package-manager/DESIGN.md)。本阶段只完成设计，尚未编写实现；Scoop未发布，Cone.toml及工具协议按新合同一次性调整，不保留旧清单兼容层。
+
+- 独立`scoop-pm`负责workspace、GitHub/Git、registry、版本解析和`Cone.lock`，`scoop pm`转发到配套程序；构建driver消费lock的精确图和本地已展开输入，保留已有缓存/调度/链接，`scoopc`不承担包管理。
+- 每个root/purpose/target独立求解，共享lock可保存多个程序的不同版本；每个程序内同`group:name`仍只能一个版本。默认保留有效锁定选择，新选择偏好最新兼容且允许回溯；无解报告依赖路径，不能忽略约束。
+- Git支持ref、完整commit锁定、subdir和同repo多Cone；registry首版交付静态HTTP索引、源码归档、package与静态目录维护命令。源码缓存默认放在`~/.scoop/packages/`，按来源/包/版本或仓库/commit供多个项目共享。
+- 保留生产/测试隔离、显式sysroot/prebuilt合同及artifact精确依赖；共享源码不意味着不同target/profile/实际依赖绑定可以共用编译结果。语言身份、IR、LLVM和runtime ABI不因PM而改变。
+
+实施顺序与各步完成条件：
+
+1. **数据边界和独立程序**：PM crate与子命令、prepare协议、已展开单Cone请求；以path/sysroot/artifact精确图接通已有构建，不将新resolver放进driver。
+2. **workspace和多根**：成员发现、virtual/root清单、显式继承、共享依赖、根选择与输出；验证不同程序版本隔离、正确任务共享和全局jobs上限。
+3. **版本与lock**：版本要求、单版本全图求解、回溯诊断、锁定优先、update/precise及locked/offline/frozen；验证多个解析单位和并发写入互不覆盖。
+4. **Git来源**：GitHub便捷语法、系统Git获取、commit/subdir/submodule与跨项目cache；用真实本地仓库验证锁定、更新和离线行为。
+5. **registry与发布闭环**：静态协议、索引求解、归档获取、yank、workspace/path/Git发布转换及native vendor打包；本地HTTP完成发布到编译/运行。
+6. **工具与发行收尾**：build/run/test/check/doc/LSP统一输入、members/add/remove/deps/metadata、模板/清单更新、PM随工具链分发；PM独立测试及必要正式CLI回归。
+
+不包含同程序多版本、feature/variant、build scripts、通用任务DSL、二进制registry或托管账号/上传网站。既有M23对registry/求解的范围排除保持为历史记录，新增能力由本里程碑承担。
 
 ### 独立 Regex 库（已完成，[设计](regex/INVESTIGATION.md)、[规范](specs/SCOOP-REGEX-SPEC.md)、[实施记录](regex/PROGRESS.md)）
 
