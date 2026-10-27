@@ -1,9 +1,14 @@
 use super::{load::Manifests, *};
 
-pub(super) fn discover(cwd: &Path, input: Option<&Path>) -> PmResult<Workspace> {
-    let mut manifests = Manifests::default();
+pub(super) fn discover(
+    cwd: &Path,
+    input: Option<&Path>,
+    cache: Option<&crate::cache::PackageCache>,
+    boundary: Option<&Path>,
+) -> PmResult<Workspace> {
+    let mut manifests = Manifests::new(cache.cloned());
     let selected = manifests.load(&input_manifest(cwd, input)?)?;
-    let owner = find_owner(&selected, &mut manifests)?;
+    let owner = find_owner(&selected, &mut manifests, boundary)?;
     let definition = owner.document.workspace.as_ref();
     let mut paths = Vec::new();
     if owner.document.cone.is_some() {
@@ -53,6 +58,7 @@ pub(super) fn discover(cwd: &Path, input: Option<&Path>) -> PmResult<Workspace> 
                 relative_path,
                 directory: loaded.directory.clone(),
                 manifest: loaded.path.clone(),
+                manifest_text: loaded.text.clone(),
                 cone,
             },
         );
@@ -95,17 +101,22 @@ pub(super) fn discover(cwd: &Path, input: Option<&Path>) -> PmResult<Workspace> 
         members,
         defaults,
         invoking_member,
+        inputs: manifests.inputs,
     })
 }
 
 fn find_owner(
     selected: &Arc<LoadedManifest>,
     manifests: &mut Manifests,
+    boundary: Option<&Path>,
 ) -> PmResult<Arc<LoadedManifest>> {
     if selected.document.workspace.is_some() {
         return Ok(selected.clone());
     }
     for directory in selected.directory.ancestors().skip(1) {
+        if boundary.is_some_and(|boundary| !directory.starts_with(boundary)) {
+            break;
+        }
         let path = directory.join("Cone.toml");
         if !exists(&path)? {
             continue;

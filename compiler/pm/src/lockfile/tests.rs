@@ -149,6 +149,7 @@ fn source_records_reject_wrong_fields_and_malformed_download_inputs() {
             git: "https://example.org/repo.git".into(),
             commit: "a".repeat(width),
             subdir: "cones/json".into(),
+            references: vec!["branch:main".into()],
         };
         graph.validate().unwrap();
     }

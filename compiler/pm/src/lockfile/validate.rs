@@ -133,6 +133,9 @@ impl LockedResolution {
         self.nodes
             .sort_by_cached_key(|node| node.coordinate.to_string());
         for node in &mut self.nodes {
+            if let LockedSource::Git { references, .. } = &mut node.source {
+                references.sort();
+            }
             node.dependencies.sort_by_cached_key(ToString::to_string);
             node.test_dependencies
                 .sort_by_cached_key(ToString::to_string);
@@ -155,6 +158,7 @@ impl LockedSource {
                 git,
                 commit,
                 subdir,
+                references,
             } => {
                 if git.is_empty()
                     || git.contains('\0')
@@ -173,6 +177,20 @@ impl LockedSource {
                     != subdir
                 {
                     return Err(invalid("Git subdir must be normalized"));
+                }
+                let mut unique = BTreeSet::new();
+                for reference in references {
+                    let valid = reference == "default"
+                        || ["branch:", "tag:", "rev:"].iter().any(|prefix| {
+                            reference
+                                .strip_prefix(prefix)
+                                .is_some_and(|value| !value.is_empty())
+                        });
+                    if !valid || reference.contains('\0') || !unique.insert(reference) {
+                        return Err(invalid(
+                            "Git references must contain distinct declared selectors",
+                        ));
+                    }
                 }
             }
             Self::Registry {

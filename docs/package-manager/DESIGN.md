@@ -78,7 +78,7 @@ flowchart TD
 | `compiler/analysis/` 与 LSP | 读取相同已准备模型及本地成员信息；消除自有版本选择，编辑时不下载 |
 | 发行与 fixtures | 分发配套 PM；新增独立 CLI 测试及少量编译闭环，更新仓库所有 Cone.toml 和文档示例 |
 
-复用现有 `semver`、TOML、`toml_edit`、serde/JSON、URL、SHA-256、文件锁等依赖。resolver 优先评估成熟实现（例如 [pubgrub-rs](https://github.com/pubgrub-rs/pubgrub)），以单版本约束、冲突诊断、维护状态和许可证为选型依据；不预先承诺某个库版本。Git 首版调用系统 Git。HTTP、tar/zstd 选已有库，实施时核对近期维护与项目分发许可，不手写协议/压缩算法。
+复用现有 `semver`、TOML、`toml_edit`、serde/JSON、URL、SHA-256、文件锁等依赖。resolver 使用 [pubgrub-rs 0.4](https://pubgrub-rs.github.io/pubgrub/pubgrub/trait.DependencyProvider.html) 的冲突回溯；PM 的 Rust 最低版本按该库要求为 1.92，独立于 Scoop 产物兼容性。求解变量仍是 group:name，候选包含实际来源，范围匹配继续使用 Scoop 的版本规则。索引/本地 manifest 提供 metadata，求解成功后才获取 registry 归档。Git 首版调用系统 Git；HTTP 使用 ureq 3.5，归档使用 tar 0.4/zstd 0.14。发行许可证收集须包含 PM（PubGrub 为 MPL-2.0），不手写协议、压缩或回溯算法。
 
 PM 的 library 入口供自身命令与单元测试使用；构建 driver 通过进程边界调用它，不直接链接其实现。数据 crate 中不放网络、锁文件写入、求解算法或 compiler stage。无需为仅存在于测试中的调用者造 factories、credentials 状态机或通用 transport 框架。
 

@@ -14,6 +14,7 @@ pub struct ManifestOrigin {
 pub struct PmError {
     pub message: String,
     pub origins: Vec<ManifestOrigin>,
+    pub(crate) resolution_conflicts: Vec<scoop_manifest::DependencyCoordinateKey>,
 }
 
 pub type PmResult<T> = Result<T, PmError>;
@@ -23,6 +24,7 @@ impl PmError {
         Self {
             message: message.into(),
             origins: Vec::new(),
+            resolution_conflicts: Vec::new(),
         }
     }
 

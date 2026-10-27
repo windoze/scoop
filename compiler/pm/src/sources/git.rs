@@ -47,14 +47,13 @@ pub fn checkout(
         }
     }
     let _guard = cache.lock("git", repository.as_bytes())?;
-    if let Some(commit) = locked {
-        if cached(commit)
+    if let Some(commit) = locked
+        && cached(commit)
             .root
             .try_exists()
             .map_err(|error| PmError::io(&checkouts, error))?
-        {
-            return Ok(cached(commit));
-        }
+    {
+        return Ok(cached(commit));
     }
     let db = directory.join("db");
     let exists = db.try_exists().map_err(|error| PmError::io(&db, error))?;

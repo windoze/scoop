@@ -10,6 +10,9 @@ use scoop_manifest::package::RegistryUrl;
 
 use crate::{PmError, PmResult};
 
+mod inputs;
+pub(crate) use inputs::FileStamp;
+
 #[derive(Clone, Debug)]
 pub struct PackageCache {
     root: PathBuf,

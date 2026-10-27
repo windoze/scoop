@@ -6,6 +6,7 @@ use scoop_pm::{MemberSelection, PmError, PmResult, Workspace};
 use scoop_protocol::HostPathCarrier;
 
 mod deps;
+mod resolve;
 
 #[derive(Parser)]
 #[command(name = "scoop-pm", version = scoop_toolchain::VERSION, about = "Manage Scoop workspaces and packages")]
@@ -25,6 +26,12 @@ enum Command {
     Members(MembersArgs),
     /// Read exact dependency graphs from Cone.lock without fetching or updating.
     Deps(deps::DepsArgs),
+    /// Resolve selected dependency graphs and prepare their source packages.
+    Resolve(resolve::ResolveArgs),
+    /// Fetch the exact source packages from existing selected lock records.
+    Fetch(resolve::ResolveArgs),
+    /// Update compatible registry versions or Git references.
+    Update(resolve::UpdateArgs),
 }
 
 #[derive(Args)]
@@ -48,6 +55,9 @@ fn execute(cli: Cli) -> PmResult<()> {
         Command::New { workspace } => create_workspace(&workspace),
         Command::Members(args) => members(args),
         Command::Deps(args) => deps::execute(args),
+        Command::Resolve(args) => resolve::execute(args, false, None, None),
+        Command::Fetch(args) => resolve::execute(args, true, None, None),
+        Command::Update(args) => resolve::update(args),
     }
 }
 

@@ -11,7 +11,7 @@ pub use parse::parse_cone_manifest;
 mod testing;
 pub use testing::{ManifestDependency, TestManifestConfig};
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct DependencyCoordinateKey {
     group: String,
     name: String,

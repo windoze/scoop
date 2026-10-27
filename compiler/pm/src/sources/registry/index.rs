@@ -24,11 +24,10 @@ pub fn load_index(
         .join(key.group())
         .join(format!("{}.json", key.name()));
     let _guard = cache.lock("registry-index", format!("{registry}/{key}").as_bytes())?;
-    if !refresh || offline {
-        if let Some(index) = read_json::<RegistryIndex>(&path)? {
-            index.validate(registry, key)?;
-            return Ok(index);
-        }
+    if (!refresh || offline)
+        && let Some(index) = read_json::<RegistryIndex>(&path)?
+    {
+        return Ok(index);
     }
     if offline {
         return Err(PmError::new(format!(
@@ -38,11 +37,7 @@ pub fn load_index(
     let config_path = directory.join("config.json");
     {
         let _config_guard = cache.lock("registry-config", registry.as_str().as_bytes())?;
-        let config = if refresh {
-            None
-        } else {
-            read_json::<Config>(&config_path)?
-        };
+        let config = read_json::<Config>(&config_path)?;
         let config = match config {
             Some(config) => config,
             None => {

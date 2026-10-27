@@ -88,6 +88,7 @@ pub enum LockedSource {
         git: String,
         commit: String,
         subdir: String,
+        references: Vec<String>,
     },
     Registry {
         registry: RegistryUrl,
@@ -110,6 +111,7 @@ impl std::fmt::Display for LockedSource {
                 git,
                 commit,
                 subdir,
+                ..
             } => write!(f, "git {git}#{commit}:{subdir}"),
             Self::Registry { registry, .. } => write!(f, "registry {}", registry.as_str()),
             Self::Artifact { path } => write!(f, "artifact {path}"),

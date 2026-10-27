@@ -146,7 +146,7 @@ path、git/github、registry、artifact 互斥。registry 使用规范化的 HTT
 
 未显式指定 registry 的普通依赖依次使用声明所在 Cone 的 `[registry].default`、所属 workspace 根的该字段、调用者配置文件中的默认值。用户配置位置为平台配置目录的 `scoop/config.toml`，使用同一 `[registry] default` 字段。没有默认值则报错，不假定尚未部署的官方站点。为保证远端清单可移植，Git Cone 的普通 registry 依赖必须在自身/所属 workspace 中固定 URL；发布的 registry 包必须展开全部 URL，不采用消费者配置。用户配置不改写已明确的来源。
 
-无显式来源的 `scoop` group 继续使用显式 artifact search roots，找不到时使用 `<sysroot>/lib/<target>/<name>.slib`，不去默认 registry 搜索。候选必须满足版本要求，且是目标兼容的 library；多个不同内容候选仍报歧义。隐式 core 固定为 `scoop:scoop.core:0.1.0`，全图复用已选显式 core，否则使用 sysroot。显式来源失败不切换其他来源。
+无显式来源的 `scoop` group 继续使用显式 artifact search roots，找不到满足要求的候选时使用 `<sysroot>/lib/<target>/<name>.slib`，不去默认 registry 搜索。候选必须满足版本要求，且是目标兼容的 library；不同版本参与普通版本选择，同坐标的多个不同内容候选报歧义。隐式 core 固定为 `scoop:scoop.core:0.1.0`，全图复用已选显式 core，否则使用 sysroot。显式来源失败不切换其他来源。
 
 非 `scoop` group 的普通 manifest 裸依赖改为 registry；`--cone-path` 不再充当其多源回退。单文件模式、artifact-only 链接和已有 `.slib` 传递依赖仍按原有精确 coordinate 搜索规则工作。
 
@@ -231,12 +231,12 @@ source是带kind的封闭记录，各分支必需字段如下，不接收其他�
 | kind | 字段 |
 | --- | --- |
 | `path` | `path`，相对lock所在目录的Cone路径 |
-| `git` | `git`，规范化仓库URL；`commit`，完整object ID；`subdir`，仓库内Cone目录 |
+| `git` | `git`，规范化仓库URL；`commit`，完整object ID；`subdir`，仓库内Cone目录；`references`，本闭包指向该节点的已解析 Git selector 列表 |
 | `registry` | `registry`，base URL；`archive`，归档URL（可相对base）；`sha256` |
 | `artifact` | `path`，相对lock所在目录的`.slib`路径 |
 | `sysroot` | `name`，所选target下的逻辑系统库名 |
 
-具体版本由coordinate唯一提供。Git原branch/tag属于manifest要求，lock的实际选择使用commit。显式`--lockfile`只改变锁文件位置，不改变workspace发现和root标识；path/artifact字段按实际lock目录重新表达。
+具体版本由coordinate唯一提供。Git的实际选择使用commit；references保留对应的声明意图，元素为`default`、`branch:<name>`、`tag:<name>`或`rev:<value>`，去重并排序。同仓库内path边不增加selector，因此列表可以为空。日常使用lock必须匹配当前声明的selector；从branch改成tag或其他branch时不能继续冒用旧commit。多个selector解析到同一个repository/commit/subdir可以共存，selector本身不成为新的实际来源身份。显式`--lockfile`只改变锁文件位置，不改变workspace发现和root标识；path/artifact字段按实际lock目录重新表达。
 
 不把下载 cache 的绝对路径、工具位置、mtime、编译结果、成功收据或机器凭据写入 lock。用户显式使用的本机绝对 path/artifact 可记录但不具有可移植性；相对路径可以含 `..`。path 源码内容不被 lock 冻结，正常源码更新由构建缓存处理。lock 固定依赖选择，不承诺不同工具链产生相同二进制。
 
@@ -251,7 +251,7 @@ source是带kind的封闭记录，各分支必需字段如下，不接收其他�
 
 读取 lock 时只做必要的格式、坐标和图结构检查。对源清单的约束匹配、workspace 展开与来源选择由 PM 负责；driver 不再做第二次求解。PM 使用普通本地解析记录按 manifest/lock/config/工具的路径、mtime、大小判断更新；命中不重读清单正文、Git checkout 内容或归档摘要。输入发生变化后只更新受影响的解析单位；仅测试配置变化不使生产结果失效。
 
-默认构建的 lock 命中不进行网络 freshness 请求；明确 update 才刷新所需远端 ref/索引。新增依赖需要的元数据可以获取。离线解析可能基于旧索引选不到联网时的新版本，诊断应说明信息来源，不冒充已检查远端最新状态。
+默认构建的有效 lock 不进行网络 freshness 请求。首次解析、增加 registry 来源或明确 update 时，联网模式刷新相关包索引；共享源码缓存仍直接复用同一版本。旧选择/缓存 metadata 不能满足已改变的全图要求时，只刷新冲突涉及的来源后重试；`--locked` 不走这条更新路径。离线解析只能使用本机索引和 Git 对象，可能选不到联网时的新版本，诊断应说明信息来源，不冒充已检查远端最新状态。
 
 求解、选中来源获取及必要 manifest 匹配成功后，才发布该批解析结果；失败保留旧 lock。后续编译失败可以保留已正确生成的 lock，但不能发布构建成功记录。普通文件锁和原子替换协调写入，在锁内重查输入并保留本次未选择的解析记录；不把两个并发命令的更新互相覆盖。已删除的成员记录在下一次写入时移除。lock 冲突不可通过任选一侧静默解决，应重新 resolve。
 

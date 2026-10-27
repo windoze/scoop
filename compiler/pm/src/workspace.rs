@@ -43,6 +43,7 @@ pub struct WorkspaceMember {
     pub relative_path: String,
     pub directory: PathBuf,
     pub manifest: PathBuf,
+    pub manifest_text: String,
     pub cone: ExpandedCone,
 }
 
@@ -54,6 +55,7 @@ pub struct Workspace {
     pub document: Arc<PackageDocument>,
     defaults: Vec<DependencyCoordinateKey>,
     invoking_member: Option<DependencyCoordinateKey>,
+    pub(crate) inputs: Vec<(PathBuf, crate::cache::FileStamp)>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -66,7 +68,36 @@ pub enum MemberSelection {
 
 impl Workspace {
     pub fn discover(cwd: &Path, input: Option<&Path>) -> PmResult<Self> {
-        discover::discover(cwd, input)
+        discover::discover(cwd, input, None, None)
+    }
+
+    pub(crate) fn discover_cached(
+        cwd: &Path,
+        input: Option<&Path>,
+        cache: &crate::cache::PackageCache,
+        boundary: Option<&Path>,
+    ) -> PmResult<Self> {
+        discover::discover(cwd, input, Some(cache), boundary)
+    }
+
+    pub(crate) fn packaged(
+        directory: PathBuf,
+        text: String,
+        document: PackageDocument,
+    ) -> PmResult<WorkspaceMember> {
+        let loaded = LoadedManifest {
+            path: directory.join("Cone.toml"),
+            directory,
+            text,
+            document: Arc::new(document),
+        };
+        Ok(WorkspaceMember {
+            relative_path: ".".into(),
+            directory: loaded.directory.clone(),
+            manifest: loaded.path.clone(),
+            manifest_text: loaded.text.clone(),
+            cone: expand::expand(&loaded, None)?,
+        })
     }
 
     pub fn select(&self, selection: &MemberSelection) -> PmResult<Vec<&WorkspaceMember>> {

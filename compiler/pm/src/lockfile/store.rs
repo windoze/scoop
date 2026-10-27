@@ -69,6 +69,10 @@ impl LockTransaction {
         &self.current
     }
 
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
     pub fn publish(
         mut self,
         resolutions: Vec<LockedResolution>,

@@ -1,7 +1,7 @@
 [package]
 name = "scoop-pm"
 edition.workspace = true
-rust-version.workspace = true
+rust-version = "1.92"
 
 [dependencies]
 clap.workspace = true
@@ -11,6 +11,10 @@ toml.workspace = true
 fs4.workspace = true
 url.workspace = true
 semver.workspace = true
+pubgrub = "0.4.0"
+pathdiff.workspace = true
+scoop-slib.workspace = true
+scoop-lir.workspace = true
 sha2.workspace = true
 ureq = { version = "3.5.0", default-features = false, features = ["rustls"] }
 tar = { version = "0.4.46", default-features = false }
