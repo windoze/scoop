@@ -559,9 +559,9 @@ full collection 按回收收益选择低存活、无 pin 的 region 为 source�
 
 搬迁前预留包括对齐损耗的全部目标空间，失败时缩小 source 集合或非移动回收；minor 晋升不足从完整原图转 full。source 不能又作目标。复制、forwarding 和全部精确引用更新完成后，才允许退休旧副本。
 
-收集器的临时搬迁计划按固定 256 项的 native 分块顺序追加，每项保留存活清单 entry、destination、精确大小及目标 block；entry 在复制前仍保存 source，不重复保存 source block 与 word 索引。当前 64-bit 实现每项 32 bytes，不反复倍增、复制整份连续数组。预留成功后按相同顺序复制，失败和成功出口都释放全部分块。分块仅存活于原 STW 搬迁阶段，不形成持久缓存、managed root 或新的对象布局，也不改变预留完成前不发布 forwarding／更新 roots 的合同。该表示适用于所有 profile 与 minor／full／stress。
+收集器复用已预留但尚未发布的目标对象头保存临时计划，不再分配逐对象的 native 计划分块。每个目标头暂存下一目标地址和对应的唯一存活清单 entry；当前两指针共 16 bytes，完全位于原有对象头范围内。source 的头／payload 和存活清单 entry 在预留阶段保持不变；目标不是已发布对象，不得被根、scan 或 mutator 消费。目标 region 的使用情况在预留时累计。预留失败或没有实际集中收益时，取消整份计划并沿原流程退还目标空间，不修改原可达图。既有空洞中的临时字节不再被访问，之后重新分配仍按正常清零和发布合同处理。该表示适用于所有 profile、minor／full／stress，不增加对象体积、managed roots 或产物 ABI。
 
-全部目标预留成功后，小对象复制直接复用计划中的目标 block、精确大小和已保留范围，不再调用通用分配登记入口重复检查块种类、边界或起点。此时 mutator 已停稳、全部 mark worker 已完成、update worker 尚未发布，只有 coordinator 修改目标元数据；新 block、survivor block 和既有旧代空洞均满足这一阶段的独占条件。复制保留目标正常 GC 字中的精确 size，不重复写大小字段；随后合并 occupied／live-line 与对象 mark，更新目标 live bytes，再 release 发布 starts，随后才发布 forwarding 和更新存活清单。occupied／starts 复用 3.1 的单写者 atomic load／OR／store，保留同一字的既有位；line_live／marks 在该独占阶段直接 OR。通用小对象登记入口仅发布未标记的新分配，不保留复制专用的参数或分支；共享 mutator 分配和并行标记的原子读改写保持，large 发布沿原入口，目标预留失败不执行任何复制或目标对象登记。不增加搬迁计划字段、对象元数据、roots 或 ABI，所有 profile 遵守同一顺序。
+全部目标预留成功并通过收益判断后，按目标头中的链顺序复制。每次必须先取出下一目标与存活清单 entry，再由 entry 取得 source；小对象精确大小来自原 GC 字，large 来自其目标 mapping。完整复制覆盖临时目标头并保留原 TD、GC 状态及 payload。coordinator 可在本次复制中复用最后一个 small 目标 block 的地址范围，连续落在同一 block 的对象不重复查询 page map；该 native 局部复用不跨收集。mutator 已停稳、全部 mark worker 已完成、update worker 尚未发布，只有 coordinator 修改目标元数据，新 block、survivor block 和既有旧代空洞共用该独占条件。随后合并 occupied／live-line 与对象 mark，更新目标 live bytes，再 release 发布 starts，最后设置 source forwarding 并更新存活清单 entry。occupied／starts 使用 3.1 的单写者 atomic load／OR／store，保留同一字的既有位；line_live／marks 在独占阶段直接 OR。通用小对象登记只发布未标记的新分配，共享 mutator 分配和并行标记的原子读改写保持，large 沿原发布入口。失败预留不复制 payload 或登记目标对象。
 
 forwarding 复用已复制源对象的 GC 状态字，不为 small source 分配按 block 容量索引的指针表，也不单独保存 large forwarding。必须先把完整原对象（包括原 pin／release GC 字）复制到目标并完成目标登记，再把旧 GC 字写为带 forwarded 标志的目标地址，最后更新存活清单 entry。全部复制结束后才发布引用更新任务，标志只存在于已完成复制的原 source，目标与原 source 不重叠；标记、预留、复制和发布顺序保证当前图的引用可以按下述规则转发。预留阶段不改任何原对象头，失败无需恢复对象字节；收尾仅对 unmarked 死对象执行 release，不把源副本的转发字当成 pin registry 或 release 状态。moving stress 继续检查转发并 poison 旧存储；生成代码、native、异常及 pin 消费者不会在此 STW 私有阶段使用可搬迁旧副本。块 side metadata 只保留仍有读取者的字段，未改变有效对象、TLAB、region prefix 或产物 ABI。
 
@@ -637,7 +637,7 @@ collector 持有 heap／roots 的独占阶段后，发布不可变的 region、�
 
 roots／remembered 扫描先由 coordinator 发布初始工作，随后参与同一任务循环。普通对象每个任务最多扫描 64 个，可以在该批次内继续处理本 worker 刚发现的后继，避免长链每个对象都经过队列；大数组每个任务最多 1024 个元素，嵌套值仍执行已有精确 scan。未扫描的剩余子工作在当前任务完成前发布。仅一个在途父任务和一个后继时无需唤醒其他 worker，最后一项完成必须唤醒终止等待者；这不改变全局未完成任务数的含义。首次成功标记但不含引用的对象仍进入存活清单与统计，无需扫描任务。本轮候选 block 总容量不足 4 MiB 时默认仅使用 coordinator；minor 使用实际年轻 block 容量，full 使用活跃堆容量，其余按在线 CPU 数选择最多 4 个 worker；在线 CPU 数通过私有 ThreadVmOps 查询。`SCOOP_GC_WORKERS=1..8` 可显式选择本轮 worker 数以验证同义性和测量，worker 数包含 coordinator，属于 runtime 策略参数，不影响程序或产物合法性。
 
-mark 结束后复用首次标记的存活对象集合规划搬迁；实际有搬迁时，使用该集合更新存活副本的出站引用，不在 full 更新阶段再次用 worklist 发现可达图。存活清单的分块和条目地址在本轮保持稳定；搬迁计划保存对应清单条目的地址，替代单独保存 source 指针，不增加每项计划或清单的大小。全体目标预留成功后，coordinator 依次复制对象、登记目标元数据、发布原对象的 forwarding，再把对应清单条目改为当前副本。预留失败不得修改任何清单条目；未搬迁和 pinned 对象继续保留原地址。无引用对象的条目也随实际搬迁更新。该修改发生在全部 mark worker 结束后、任何 update worker 发布之前，不新增 managed roots 或延长对象存活。
+mark 结束后复用首次标记的存活对象集合规划搬迁；实际有搬迁时，使用该集合更新存活副本的出站引用，不在 full 更新阶段再次用 worklist 发现可达图。存活清单的分块和条目地址在本轮保持稳定，3.7 的临时目标头保存对应条目的地址，不另建计划分块。全体目标预留成功后，coordinator 依次复制对象、登记目标元数据、发布原对象 forwarding，再把对应清单条目改为当前副本。预留失败不得修改任何清单条目；未搬迁和 pinned 对象继续保留原地址。无引用对象的条目也随实际搬迁更新。该修改发生在全部 mark worker 结束后、任何 update worker 发布之前，不新增 managed roots 或延长对象存活。
 
 此时 full 的 roots 全部更新；minor 更新精确 roots、年轻集合及 remembered set。对象字段和 roots 中的旧引用仍经正常 forwarding 回写，不能因存活清单已经更新而跳过它们。没有搬迁时按 3.7 跳过 relocation。复制、release hook、reclaim 和 VM 归还仍由 coordinator 执行；shutdown 停止并 join worker。
 

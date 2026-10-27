@@ -4,6 +4,8 @@
 
 各项已采纳方案的开启方式与适用条件统一见[简略清单](ENABLED-OPTIMIZATIONS.md)，后续交付与默认策略调整时同步更新。
 
+- [GC 第九阶段](GC-EVOLUTION.md)以未发布目标头保存临时搬迁链，删除每对象 32 B native 计划；完整预留、失败回退、原对象及 GC 契约保持，所有 profile 默认，ABI 不变。M3 大 gcpause RSS 595.6 → 554.3 MiB、墙钟 7.231 → 7.110 s；GNU RSS 174.6 → 154.4 MiB、墙钟略退。三目标 GC／native／回退专测通过，否决源头提前转发实验。尾暂停没有改善，Linux 引用写入波动与回退完整记录；下一项继续直接 region 定位与剩余 STW 成本。
+
 - [GC 第八阶段](GC-EVOLUTION.md)将小对象精确大小放入现有 GC 字，删除每块 8 KiB 大小表；对象头不变，TLAB 减至 48 B，runtime contract 升至 22，所有 profile 默认。M3 大 gcpause 墙钟 7.818 → 7.182 s、RSS 712.0 → 588.5 MiB、应用间隔 p99 95.2 → 83.8 ms；GNU 中等负载 1.203 → 1.093 s、RSS 207.1 → 174.6 MiB。两机分配／pin／release／复制／失败回退专测及三目标 10 variants／32 次进程调用通过。多线程波动与尾部回退保留，继续处理逐对象搬迁计划和剩余 STW 成本。
 
 - [GC 第七阶段](GC-EVOLUTION.md)完成冻结图的直接引用回写，所有 profile 默认：省去逐边页表及 mark／pin 复核，保留首次边界检查、survivor 和显式验证。M3 大 gcpause 墙钟 8.850 → 7.849 s、CPU 12.690 → 11.109 s，update 累计 2.210 → 1.225 s，RSS 基本不变；应用间隔 p99 110.6 → 95.9 ms。两机各 10 项 C 专测、三目标 7 variants／29 次进程调用通过，机器码和诊断生成边界已核对。Linux 干扰、短负载回退和 p95 代价保留；继续精确大小元数据与剩余 STW 改进。
