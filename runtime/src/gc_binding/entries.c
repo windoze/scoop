@@ -37,13 +37,13 @@ void scoop_rt_gc_collect_impl(uintptr_t return_pc, uintptr_t stack_pointer,
                               uintptr_t frame_pointer) {
     ScoopManagedAnchor anchor;
     scoop_thread_push_managed_anchor(&anchor, return_pc, stack_pointer, frame_pointer);
-    scoop_gc_collect_internal();
+    scoop_gc_collect_explicit_internal();
     scoop_thread_pop_managed_anchor(&anchor);
 }
 
 void scoop_runtime_gc_collect(void) {
     scoop_thread_native_borrowed_entry();
-    scoop_gc_collect_internal();
+    scoop_gc_collect_explicit_internal();
 }
 
 void scoop_rt_safepoint_impl(uintptr_t return_pc, uintptr_t stack_pointer,

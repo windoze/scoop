@@ -66,6 +66,29 @@ void scoop_gc_heap_init(void) {
         }
         scoop_gc_heap_state.survivor_enabled = strcmp(survivor, "1") == 0;
     }
+    const char *promotion = getenv("SCOOP_GC_PROMOTE_IN_PLACE");
+    if (promotion != NULL) {
+        if (strcmp(promotion, "0") != 0 && strcmp(promotion, "1") != 0) {
+            heap_fatal("SCOOP_GC_PROMOTE_IN_PLACE must be 0 or 1");
+        }
+        scoop_gc_heap_state.promote_in_place = strcmp(promotion, "1") == 0;
+    }
+    const char *incremental = getenv("SCOOP_GC_INCREMENTAL");
+    if (incremental != NULL) {
+        if (strcmp(incremental, "0") != 0 && strcmp(incremental, "1") != 0 &&
+            strcmp(incremental, "2") != 0) {
+            heap_fatal("SCOOP_GC_INCREMENTAL must be 0, 1 or 2");
+        }
+        scoop_gc_heap_state.incremental_enabled = strcmp(incremental, "0") != 0;
+        scoop_gc_heap_state.incremental_minor_enabled = strcmp(incremental, "2") == 0;
+    }
+    const char *slots = getenv("SCOOP_GC_OLD_SLOTS");
+    if (slots != NULL) {
+        if (strcmp(slots, "0") != 0 && strcmp(slots, "1") != 0 && strcmp(slots, "2") != 0) {
+            heap_fatal("SCOOP_GC_OLD_SLOTS must be 0, 1 or 2");
+        }
+        scoop_gc_heap_state.old_slots_level = (uint8_t)(slots[0] - '0');
+    }
     const char *nursery = getenv("SCOOP_GC_NURSERY_MAX_MIB");
     if (nursery != NULL) {
         char *end;
@@ -152,11 +175,9 @@ static void ensure_small_metadata(ScoopGcBlockMeta *block) {
             heap_fatal("out of memory allocating relocation coverage bitmap");
         }
 #endif
-        block->line_occupied = calloc(GC_LINE_BITMAP_WORDS, sizeof(uint64_t));
         block->line_live = calloc(GC_LINE_BITMAP_WORDS, sizeof(uint64_t));
-        block->size_units = calloc(GC_WORDS_PER_BLOCK, sizeof(uint16_t));
         if (block->starts == NULL || block->marks == NULL || block->pins == NULL ||
-            block->line_occupied == NULL || block->line_live == NULL || block->size_units == NULL) {
+            block->line_live == NULL) {
             heap_fatal("out of memory allocating small-block side metadata");
         }
     }
@@ -170,11 +191,7 @@ static void reset_small_metadata(ScoopGcBlockMeta *block) {
 #if SCOOP_GC_TRACK_RELOCATION
     memset(block->scanned, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
 #endif
-    memset(block->line_occupied, 0, GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
     memset(block->line_live, 0, GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
-    memset(block->size_units, 0, GC_WORDS_PER_BLOCK * sizeof(uint16_t));
-    free(block->forwarding);
-    block->forwarding = NULL;
 }
 
 static ScoopGcBlockMeta *take_small_block(bool allow_growth) {
@@ -233,6 +250,7 @@ ScoopGcBlockMeta *activate_small_block(ScoopGcBlockState state, bool allow_growt
     block->exact_size = 0;
     block->live_bytes = 0;
     block->movable_live_bytes = 0;
+    block->mark_index = SIZE_MAX;
     block->discard_pending = true;
     committed_bytes += GC_BLOCK_SIZE;
     active_block_heads++;
@@ -255,6 +273,7 @@ ScoopGcBlockMeta *activate_large_block(size_t exact_size, ScoopGcBlockState stat
     block->survivor = false;
     block->retained_young = false;
     block->exact_size = exact_size;
+    block->mark_index = SIZE_MAX;
     region->next_block = 1;
     committed_bytes += region->size;
     active_block_heads++;

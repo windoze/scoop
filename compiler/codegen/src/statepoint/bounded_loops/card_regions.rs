@@ -31,7 +31,7 @@ pub(super) fn prepare(
     let mandatory = mandatory_blocks(region);
     let mut plan = Vec::new();
     for instruction in region.blocks.iter().flat_map(|b| b.get_instructions()) {
-        if !query::immutable_load(instruction) || plan.contains(&instruction) {
+        if !query::immutable_query(instruction) || plan.contains(&instruction) {
             continue;
         }
         let mut pending = Vec::new();
@@ -56,6 +56,7 @@ fn supported(instruction: InstructionValue<'_>, retain_stack_reloads: bool) -> b
     match instruction.get_opcode() {
         InstructionOpcode::Call => {
             crate::gc_card_groups::record(instruction).is_some()
+                || crate::gc_regions::is_array_query(instruction)
                 || crate::statepoint::address_bits::source(instruction).is_some()
         }
         InstructionOpcode::Load => {
@@ -131,7 +132,7 @@ fn collect<'ctx>(
             .get_parent()
             .expect("loop instruction has a block"),
     ) || !(pure_address(instruction)
-        || query::immutable_load(instruction)
+        || query::immutable_query(instruction)
         || operations::root_load(instruction, &region.blocks))
     {
         return false;

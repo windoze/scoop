@@ -48,6 +48,18 @@ fn source() -> String {
     )
 }
 
+fn array_query_source() -> String {
+    let mut source = source();
+    let begin = source.find("  %shift0 =").unwrap();
+    let end = source.find("  %base =").unwrap();
+    source.replace_range(
+        begin..end,
+        "  %page3 = call ptr @array_mapping(i64 %address)\n",
+    );
+    source.insert_str(0, "declare ptr @array_mapping(i64) nounwind memory(read) \"gc-leaf-function\" \"scoop.gc.array-region\"\n");
+    source
+}
+
 fn conditional(always: bool) -> String {
     let body = if always {
         format!(
@@ -189,5 +201,31 @@ fn only_unconditional_stable_queries_move_without_calls_or_synchronization() {
             .unwrap();
         llvm.verify().unwrap();
         assert_queries(llvm.get_function("f").unwrap(), outside);
+    }
+}
+
+#[test]
+fn typed_array_queries_keep_the_existing_hoisting_boundaries() {
+    let original = array_query_source();
+    for (source, outside) in [
+        (original.clone(), true),
+        (original.replace("  %scaled =", "  call void @tick()\n  %scaled ="), false),
+        (original.replace("  %scaled =", "  store atomic ptr addrspace(1) %root, ptr addrspace(1) %element release, align 8\n  %scaled ="), false),
+        (original.replace("  %scaled =", "  store ptr addrspace(1) %root, ptr %slot, align 8\n  %scaled ="), false),
+        (original.replace("%array = load ptr", "%array = load volatile ptr"), false),
+    ] {
+        let context = Context::create();
+        let llvm = parse(&context, &source);
+        let machine = ValidatedBackendProfile::darwin_aarch64_for_test().create_target_machine().unwrap();
+        let function = llvm.get_function("f").unwrap();
+        crate::statepoint::bounded_loops::optimize(function, &machine).unwrap();
+        llvm.verify().unwrap();
+        let queries = function.get_basic_blocks().into_iter()
+            .flat_map(|block| block.get_instructions()).filter(|instruction| crate::gc_regions::is_array_query(*instruction))
+            .collect::<Vec<_>>();
+        assert_eq!(queries.len(), 1);
+        let block = queries[0].get_parent().unwrap();
+        let name = block.get_name().to_str().unwrap();
+        assert_eq!(matches!(name, "chunk" | "card.preheader"), outside);
     }
 }

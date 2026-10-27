@@ -1,4 +1,5 @@
 use super::*;
+use scoop_lir::OptimizationMode;
 
 /// A scalar HeapStore and ArraySet in the entry block, then a
 /// `while`-shaped loop (header ← body back edge) for the loop
@@ -243,6 +244,139 @@ fn reference_store_marks_its_card() {
         !ir.contains("atomicrmw"),
         "card mark must not read-modify-write:\n{ir}"
     );
+}
+
+fn reference_array_module(meta: LirMeta) -> Module {
+    let mut module = barrier_module();
+    module.meta = meta;
+    let refs = array_type(
+        &mut module.meta,
+        "MutableArray<Object>",
+        scoop_lir::ArrayKind::Mutable,
+        MANAGED_PTR,
+        8,
+        8,
+        RefScan::References(vec![0]),
+    );
+    let function = &mut module.functions[0];
+    function.blocks[function.entry].instructions[3] = Instruction::ArraySet {
+        array: Value::Param(1),
+        index: signed64(0),
+        value: Value::Param(1),
+        array_type: refs,
+    };
+    module
+}
+
+#[test]
+fn array_reference_store_mapping_strategy_is_target_specific() {
+    for target in [
+        scoop_target_data::DARWIN_AARCH64_ID,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
+    ] {
+        for mode in [OptimizationMode::Debug, OptimizationMode::Release] {
+            let module = reference_array_module(string_metadata_for(
+                scoop_target_data::layout(target).unwrap(),
+            ));
+            let profile = ValidatedBackendProfile::for_selection(
+                scoop_target_data::selection(target).unwrap(),
+            )
+            .unwrap()
+            .with_optimization(mode);
+            let machine = profile.create_target_machine().unwrap();
+            let context = Context::create();
+            let llvm = emit_llvm_module(&context, &module, &machine, profile).unwrap();
+            llvm.verify().unwrap();
+            let ir = llvm.print_to_string().to_string();
+            let direct = target == scoop_target_data::DARWIN_AARCH64_ID;
+            assert_eq!(ir.contains("scoop.gc.array-region"), direct, "{ir}");
+            assert_eq!(
+                ir.matches("load atomic ptr").count(),
+                if direct { 0 } else { 4 },
+                "{ir}"
+            );
+        }
+    }
+}
+
+#[test]
+fn array_reference_store_selects_its_mapping_from_the_owner() {
+    let module = reference_array_module(string_metadata());
+    let initial = ir_of(&module);
+    assert!(initial.contains("scoop.gc.array-region"));
+    assert!(
+        !initial.contains("array.owner_mapping"),
+        "keep the mapping operation intact through loop optimization"
+    );
+    let ir = rewritten_ir_of(&module);
+    assert!(
+        !ir.contains("@scoop.gc.array.region"),
+        "private query must be fully lowered:\n{ir}"
+    );
+    assert!(
+        ir.contains("ptrtoint ptr addrspace(1)"),
+        "retain managed owner provenance:\n{ir}"
+    );
+    assert!(
+        ir.contains(", -16777216") && ir.contains("select i1"),
+        "select the small or large mapping before reading its prefix:\n{ir}"
+    );
+    assert!(
+        ir.contains("array.owner_mapping") && ir.contains("load ptr"),
+        "immutable mapping owner:\n{ir}"
+    );
+    assert!(
+        ir.contains("load atomic i64") && ir.contains("monotonic"),
+        "read size bits atomically with concurrent pin state changes:\n{ir}"
+    );
+    assert!(
+        !ir.contains("@scoop_gc_page_map"),
+        "known array bases must not traverse the page map:\n{ir}"
+    );
+    assert_eq!(
+        ir.matches("store atomic i8 1, ptr ").count(),
+        1,
+        "one card mark:\n{ir}"
+    );
+}
+
+#[test]
+fn array_mapping_identity_does_not_replace_an_ordinary_extern() {
+    let context = Context::create();
+    let llvm = context.create_module("array query identity");
+    let builder = context.create_builder();
+    let ty = context
+        .ptr_type(AddressSpace::default())
+        .fn_type(&[context.i64_type().into()], false);
+    let ordinary = llvm.add_function("scoop.gc.array.region", ty, None);
+    let caller = llvm.add_function("caller", ty, None);
+    builder.position_at_end(context.append_basic_block(caller, "entry"));
+    let address = caller.get_nth_param(0).unwrap().into_int_value();
+    let external_call = builder
+        .build_call(ordinary, &[address.into()], "external")
+        .unwrap();
+    assert!(!crate::gc_regions::is_array_query(
+        external_call
+            .try_as_basic_value()
+            .basic()
+            .unwrap()
+            .as_instruction_value()
+            .unwrap()
+    ));
+    let mapping = crate::gc_regions::array_mapping(&llvm, &builder, address).unwrap();
+    builder.build_return(Some(&mapping)).unwrap();
+    crate::gc_regions::inline_array_queries(&llvm, &host_target_machine().unwrap()).unwrap();
+    llvm.verify().unwrap();
+    assert_eq!(ordinary.count_basic_blocks(), 0);
+    assert!(ordinary.as_global_value().get_first_use().is_some());
+    assert!(!llvm.get_functions().any(|function| {
+        function
+            .get_basic_blocks()
+            .iter()
+            .flat_map(|block| block.get_instructions())
+            .any(crate::gc_regions::is_array_query)
+    }));
 }
 
 #[test]

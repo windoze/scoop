@@ -75,7 +75,6 @@ static const ScoopTypeDescriptor parallel_release_td = {
 };
 
 typedef struct ParallelFixture {
-    uintptr_t boundary;
     void *objects[5];
     void **slots[5];
     ScoopNativeRootFrame roots;
@@ -94,7 +93,7 @@ static void parallel_start(ParallelFixture *fixture, size_t workers) {
     scoop_thread_runtime_init();
     scoop_test_image_init(types, 5, NULL, 0, NULL, 0);
     scoop_thread_attach_main();
-    scoop_thread_enter_managed(&fixture->boundary);
+    scoop_thread_enter_managed((void *)scoop_rt_thread_debug_stack_high());
     parallel_coordinator = pthread_self();
     for (size_t index = 0; index < 5; index++) {
         fixture->slots[index] = &fixture->objects[index];

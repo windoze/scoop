@@ -21,22 +21,23 @@ static size_t previous_start(const ScoopGcBlockMeta *block, size_t word) {
     }
 }
 
-static void scan_group(ScoopGcCardGroup *group, ScoopGcObjectRangeVisitor visitor, void *context,
-                       bool count_cards) {
+uint64_t scoop_gc_scan_dirty_group(ScoopGcCardGroup *group, ScoopGcObjectRangeVisitor visitor,
+                                   void *context, bool only_old) {
     ScoopGcRegion *region = group->region;
     size_t index = (size_t)(group - region->card_groups);
     ScoopGcBlockMeta *block = &region->blocks[region->large ? 0 : index];
-    if (!active_head(block) || block->generation != SCOOP_GC_OLD) {
-        return;
+    if (!active_head(block) || (only_old && block->generation != SCOOP_GC_OLD)) {
+        return 0;
     }
     if (region->large) {
         if (!block->large_published ||
             scoop_gc_object_scan((const char *)block_base(block) + GC_LINE_SIZE) == NULL) {
-            return;
+            return 0;
         }
     }
     size_t first_card = index * GC_CARDS_PER_GROUP;
     size_t count = first_card + GC_CARDS_PER_GROUP;
+    uint64_t visited = 0;
     for (size_t card = first_card; card < count; card++) {
         if (region->cards[card] == 0) {
             const unsigned char *dirty = memchr(region->cards + card, 1, count - card);
@@ -47,9 +48,7 @@ static void scan_group(ScoopGcCardGroup *group, ScoopGcObjectRangeVisitor visito
         }
         uintptr_t begin = region->base + (card << GC_CARD_SHIFT);
         uintptr_t end = begin + ((uintptr_t)1 << GC_CARD_SHIFT);
-        if (count_cards) {
-            scoop_gc_heap_state.metrics.dirty_cards++;
-        }
+        visited++;
         uintptr_t base = (uintptr_t)block_base(block);
         if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
             visitor((void *)(base + GC_LINE_SIZE), begin, end, context);
@@ -62,12 +61,13 @@ static void scan_group(ScoopGcCardGroup *group, ScoopGcObjectRangeVisitor visito
                 continue;
             }
             uintptr_t object = base + word * sizeof(uint64_t);
-            size_t size = (size_t)block->size_units[word] * sizeof(uint64_t);
+            size_t size = scoop_heap_small_object_size((const void *)object);
             if (object + size > begin) {
                 visitor((void *)object, begin, end, context);
             }
         }
     }
+    return visited;
 }
 
 void scoop_gc_scan_remembered(ScoopGcObjectRangeVisitor visitor, void *context, bool count_cards) {
@@ -75,6 +75,9 @@ void scoop_gc_scan_remembered(ScoopGcObjectRangeVisitor visitor, void *context, 
         atomic_load_explicit(&scoop_gc_heap_state.dirty_card_groups, memory_order_acquire);
     for (ScoopGcCardGroup *group = first; group != NULL;
          group = scoop_heap_next_dirty_card_group(group)) {
-        scan_group(group, visitor, context, count_cards);
+        uint64_t visited = scoop_gc_scan_dirty_group(group, visitor, context, true);
+        if (count_cards) {
+            scoop_gc_heap_state.metrics.dirty_cards += visited;
+        }
     }
 }

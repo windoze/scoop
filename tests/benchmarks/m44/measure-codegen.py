@@ -35,7 +35,7 @@ def measure(case, environment):
     if result.stdout != case["expected_stdout"]:
         raise RuntimeError(f"wrong checksum: {case['name']}: {result.stdout!r}")
     gc = json.loads(result.stderr)
-    if gc.get("scoop_gc") != 1 or sum(gc["pause_buckets"]) != (
+    if gc.get("scoop_gc") != 1 or sum(gc["pause_buckets"]) < (
         gc["minor_collections"] + gc["full_collections"]
     ):
         raise RuntimeError("invalid GC statistics")

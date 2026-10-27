@@ -1,5 +1,17 @@
 #include "internal.h"
 
+void scoop_thread_acknowledge_parked_locked(ScoopThreadState *state) {
+    uint64_t epoch = atomic_load_explicit(&scoop_thread_gc_epoch, memory_order_acquire);
+    if (atomic_load_explicit(&state->poll.mode, memory_order_relaxed) == SCOOP_THREAD_PARKED &&
+        atomic_load_explicit(&state->poll.observed_gc_epoch, memory_order_relaxed) == epoch) {
+        return;
+    }
+    atomic_store_explicit(&state->poll.observed_gc_epoch, epoch, memory_order_release);
+    atomic_store_explicit(&state->poll.mode, SCOOP_THREAD_PARKED, memory_order_release);
+    scoop_thread_notify_quiescence();
+    SCOOP_THREAD_TEST_POINT(SCOOP_TEST_PARKED_ACKNOWLEDGED);
+}
+
 void scoop_thread_park_current_locked(ScoopThreadState *state) {
     ScoopThreadMode from = atomic_load_explicit(&state->poll.mode, memory_order_acquire);
     if (from != SCOOP_THREAD_MANAGED && from != SCOOP_THREAD_MANAGED_PENDING &&
@@ -21,10 +33,7 @@ void scoop_thread_park_current_locked(ScoopThreadState *state) {
     state->parked_from = from;
     while (atomic_load_explicit(&scoop_thread_world_phase, memory_order_acquire) !=
            SCOOP_WORLD_RUNNING) {
-        uint64_t epoch = atomic_load_explicit(&scoop_thread_gc_epoch, memory_order_acquire);
-        atomic_store_explicit(&state->poll.observed_gc_epoch, epoch, memory_order_release);
-        atomic_store_explicit(&state->poll.mode, SCOOP_THREAD_PARKED, memory_order_release);
-        scoop_thread_world_broadcast();
+        scoop_thread_acknowledge_parked_locked(state);
         /* Wait once rather than hiding phase changes in
          * scoop_thread_wait_for_running_world: a new collector may win the
          * world lock before an old-epoch parker wakes. The outer loop must then
@@ -215,7 +224,6 @@ bool scoop_thread_begin_collection(void) {
                           memory_order_release);
     atomic_store_explicit(&scoop_thread_world_phase, SCOOP_WORLD_COLLECTING, memory_order_release);
     SCOOP_THREAD_TEST_POINT(SCOOP_TEST_COLLECTOR_STOPPED);
-    scoop_thread_world_broadcast();
     scoop_thread_registry_unlock();
     return true;
 }

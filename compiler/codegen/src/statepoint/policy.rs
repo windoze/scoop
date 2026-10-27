@@ -92,6 +92,7 @@ pub(crate) fn optimize(
             finish_managed_optimization(function, machine)?;
         }
     }
+    crate::gc_regions::inline_array_queries(module, machine)?;
     crate::gc_card_groups::inline_fast_paths(module, machine)?;
     aggregate_values::expose(module, profile.managed_address_space_contract())?;
     finalization::finalize(module, expected, profile)

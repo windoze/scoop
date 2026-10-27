@@ -193,12 +193,8 @@ static void wait_for_unit(ScoopThreadState *thread,
                           const ScoopInitializationUnitDescriptorV1 *unit) {
     thread->initialization_wait = unit;
     thread->parked_from = SCOOP_THREAD_MANAGED;
-    atomic_store_explicit(&thread->poll.mode, SCOOP_THREAD_PARKED, memory_order_release);
     for (;;) {
-        uint64_t epoch =
-            atomic_load_explicit(&scoop_thread_gc_epoch, memory_order_acquire);
-        atomic_store_explicit(&thread->poll.observed_gc_epoch, epoch, memory_order_release);
-        scoop_thread_world_broadcast();
+        scoop_thread_acknowledge_parked_locked(thread);
         if (__atomic_load_n(&unit->cell->state, __ATOMIC_RELAXED) !=
                 SCOOP_INIT_INITIALIZING &&
             atomic_load_explicit(&scoop_thread_world_phase, memory_order_acquire) ==

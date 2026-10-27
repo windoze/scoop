@@ -51,7 +51,7 @@ static NurseryNode *check_collection_baselines(void) {
     assert(inline_node != NULL);
     scoop_runtime_finish_tlab_alloc(inline_node, &nursery_node_td, sizeof(NurseryNode));
     NurseryNode *initialized = inline_node;
-    assert(initialized->header.td == &nursery_node_td && initialized->header.gc_word == 0);
+    assert(initialized->header.td == &nursery_node_td && initialized->header.gc_word == sizeof(NurseryNode));
     assert(initialized->next == NULL && initialized->value == 0);
     scoop_gc_heap_lock();
     assert(scoop_gc_is_object_start_locked(inline_node));

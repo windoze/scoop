@@ -97,7 +97,7 @@ fn allocation_ir(
     )
     .unwrap();
     llvm.verify()
-        .expect("cross-word completion must be a valid allocation phi predecessor");
+        .expect("completion must be a valid allocation phi predecessor");
     llvm.print_to_string().to_string()
 }
 
@@ -120,7 +120,14 @@ fn small_release_allocations_publish_ordered_metadata_inline() {
             "{ir}"
         );
         assert!(!ir.contains("atomicrmw"), "{ir}");
-        assert!(ir.contains("%alloc.lines.done.0"), "{ir}");
+        assert!(
+            ir.contains(&format!("store i64 {size}, ptr addrspace(1)")),
+            "{ir}"
+        );
+        assert!(!ir.contains("store i16"), "{ir}");
+        assert!(!ir.contains("alloc.lines."), "{ir}");
+        assert!(!ir.contains("tlab_occupied_lines"), "{ir}");
+        assert!(ir.contains("{ ptr, ptr, ptr, ptr, ptr }"), "{ir}");
     }
 }
 
@@ -144,10 +151,13 @@ fn debug_large_dynamic_and_unknown_allocations_keep_the_shared_finish_entry() {
             "{ir}"
         );
         assert!(!ir.contains("alloc.lines.second"), "{ir}");
-        assert!(ir.contains("{ ptr, ptr, ptr, ptr, ptr, ptr, ptr }"), "{ir}");
-        if !known_descriptor || mode == scoop_lir::OptimizationMode::Debug {
+        assert!(ir.contains("{ ptr, ptr, ptr, ptr, ptr }"), "{ir}");
+        if !known_descriptor {
             assert!(ir.contains("allocation_alignment = load"), "{ir}");
             assert!(ir.contains("allocation_hook = load"), "{ir}");
+        } else {
+            assert!(!ir.contains("allocation_alignment = load"), "{ir}");
+            assert!(!ir.contains("allocation_hook = load"), "{ir}");
         }
     }
 }

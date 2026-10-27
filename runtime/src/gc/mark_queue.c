@@ -38,6 +38,28 @@ void scoop_gc_mark_queue_push(ScoopGcMarkWorker *worker, ScoopGcMarkTask task) {
     }
 }
 
+/* The original links and cards remain intact through minor relocation. Workers
+ * start after publication; survivor update may subsequently register new groups. */
+void scoop_gc_mark_enqueue_remembered(void) {
+    size_t owner = 0;
+    ScoopGcCardGroup *first =
+        atomic_load_explicit(&scoop_gc_heap_state.dirty_card_groups, memory_order_acquire);
+    for (ScoopGcCardGroup *group = first; group != NULL;
+         group = scoop_heap_next_dirty_card_group(group)) {
+        ScoopGcRegion *region = group->region;
+        size_t index = region->large ? 0 : (size_t)(group - region->card_groups);
+        ScoopGcBlockMeta *block = &region->blocks[index];
+        if (!active_head(block) || block->generation != SCOOP_GC_OLD) {
+            continue;
+        }
+        scoop_gc_mark_queue_push(&scoop_gc_marker.workers[owner], (ScoopGcMarkTask){
+            .kind = SCOOP_MARK_DIRTY_TASK,
+            .data.dirty.group = group,
+        });
+        owner = (owner + 1) % scoop_gc_marker.active_workers;
+    }
+}
+
 static bool take(ScoopGcMarkQueue *queue, bool steal, ScoopGcMarkTask *task) {
     pthread_mutex_lock(&queue->lock);
     bool found = queue->count != 0;

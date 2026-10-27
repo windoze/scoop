@@ -14,6 +14,13 @@ static void check_graph(ParallelFixture *fixture) {
         assert(node->next == (index == 0 ? NULL : edges[index - 1].left));
         assert(edges[index].right == edges[index % 8].left);
         assert(node->shared->next->next == node->shared);
+        ScoopGcBlockMeta *block = pointer_block(node);
+        assert(block->kind == SCOOP_BLOCK_KIND_SMALL);
+        size_t begin = (uintptr_t)node - (uintptr_t)block_base(block);
+        size_t end = begin + sizeof *node;
+        for (size_t line = begin / GC_LINE_SIZE; line <= (end - 1) / GC_LINE_SIZE; line++) {
+            assert(bit_test(block->line_live, line));
+        }
     }
     const uint64_t *numbers = (const uint64_t *)((const char *)fixture->objects[3] + 24);
     assert(numbers[0] == UINT64_C(0xa5a5a5a5a5a5a5a5));

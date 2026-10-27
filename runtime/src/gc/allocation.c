@@ -8,6 +8,7 @@
 #include "gc_internal.h"
 #include "heap_internal.h"
 #include "allocation_metadata.h"
+#include "old_slots.h"
 
 _Static_assert(GC_BLOCK_SIZE == 32768 && GC_LINE_SIZE == 128 && sizeof(uint64_t) == 8,
                "generated TLAB metadata geometry drifted");
@@ -28,8 +29,9 @@ void *scoop_heap_bump(char **cursor, char *limit, size_t size, size_t alignment)
     return object;
 }
 
-ScoopGcBlockMeta *scoop_heap_take_free_run(size_t size, char **cursor, char **limit) {
-    ScoopGcFreeRun **available = &free_runs;
+ScoopGcBlockMeta *scoop_heap_take_free_run(ScoopGcFreeRun **runs, size_t size,
+                                         char **cursor, char **limit) {
+    ScoopGcFreeRun **available = runs;
     while (*available != NULL && ((*available)->block->region->evacuation_source ||
                                   (size_t)(*available)->line_count * GC_LINE_SIZE < size)) {
         available = &(*available)->next;
@@ -47,15 +49,42 @@ ScoopGcBlockMeta *scoop_heap_take_free_run(size_t size, char **cursor, char **li
     return block;
 }
 
+/* Full target preparation emits each block's runs together. Claim the whole
+ * group so reservation and copying keep one writer for the target metadata. */
+ScoopGcFreeRun *scoop_heap_take_free_run_group(size_t size) {
+    ScoopGcFreeRun **group = &free_runs;
+    while (*group != NULL) {
+        ScoopGcBlockMeta *block = (*group)->block;
+        ScoopGcFreeRun **end = group;
+        bool fits = false;
+        do {
+            fits |= (size_t)(*end)->line_count * GC_LINE_SIZE >= size;
+            end = &(*end)->next;
+        } while (*end != NULL && (*end)->block == block);
+        if (fits && !block->region->evacuation_source) {
+            ScoopGcFreeRun *claimed = *group;
+            *group = *end;
+            *end = NULL;
+            return claimed;
+        }
+        group = end;
+    }
+    return NULL;
+}
+
 typedef enum RefillResult {
     REFILL_READY,
     REFILL_MINOR,
     REFILL_FULL,
+    REFILL_INCREMENT,
+    REFILL_MINOR_INCREMENT,
 } RefillResult;
 
 static bool exceeds_old_threshold(size_t bytes) {
     size_t occupied = committed_bytes;
-    if (scoop_heap_adaptive_nursery_enabled()) {
+    if (scoop_heap_uses_old_slots()) {
+        occupied = scoop_gc_heap_state.old_pressure_bytes;
+    } else if (scoop_heap_adaptive_nursery_enabled()) {
         occupied -= scoop_gc_heap_state.nursery_bytes;
     }
     return occupied > collection_threshold || bytes > collection_threshold - occupied;
@@ -68,7 +97,20 @@ static void record_nursery_block(ScoopGcBlockMeta *block) {
     scoop_gc_heap_state.nursery_bytes += GC_BLOCK_SIZE;
 }
 
-static RefillResult refill_nursery(ScoopGcMutator *mutator, bool after_full) {
+static void publish_tlab(ScoopGcMutator *mutator, ScoopGcBlockMeta *block) {
+    mutator->allocation_block = block;
+    ScoopAllocationContext *allocation = &mutator->allocation;
+    allocation->block_start = block_base(block);
+    allocation->starts = block->starts;
+    allocation->limit = allocation->block_start + GC_BLOCK_SIZE;
+    allocation->cursor = allocation->block_start + GC_LINE_SIZE;
+}
+
+static RefillResult refill_nursery(ScoopGcMutator *mutator, bool after_full, bool after_step) {
+    if (mutator->reserved_count != 0) {
+        publish_tlab(mutator, mutator->reserved_blocks[--mutator->reserved_count]);
+        return REFILL_READY;
+    }
     lock_heap();
     size_t capacity = scoop_gc_heap_state.nursery_capacity;
 #if SCOOP_ENABLE_GC_STRESS
@@ -76,14 +118,33 @@ static RefillResult refill_nursery(ScoopGcMutator *mutator, bool after_full) {
         capacity = GC_BLOCK_SIZE;
     }
 #endif
+    size_t limit = capacity;
+    if (scoop_gc_heap_state.incremental_active && scoop_gc_heap_state.incremental_minor) {
+        size_t extra = (capacity / 8) & ~(GC_BLOCK_SIZE - 1);
+        limit = capacity <= SIZE_MAX - extra ? capacity + extra : SIZE_MAX & ~(GC_BLOCK_SIZE - 1);
+    }
     size_t old_request = scoop_heap_adaptive_nursery_enabled() ? 0 : GC_BLOCK_SIZE;
-    if (!after_full && exceeds_old_threshold(old_request)) {
+    if (!scoop_gc_heap_state.incremental_active && !after_full &&
+        exceeds_old_threshold(old_request)) {
+        bool incremental = scoop_gc_heap_state.incremental_enabled &&
+                           scoop_heap_adaptive_nursery_enabled() &&
+                           scoop_gc_heap_state.nursery_bytes < capacity;
         unlock_heap();
-        return REFILL_FULL;
+        return incremental ? REFILL_INCREMENT : REFILL_FULL;
     }
     if (scoop_gc_heap_state.nursery_bytes >= capacity) {
+        if (!scoop_gc_heap_state.incremental_active ||
+            scoop_gc_heap_state.nursery_bytes >= limit) {
+            bool start_minor = !scoop_gc_heap_state.incremental_active &&
+                               scoop_gc_heap_state.incremental_minor_enabled &&
+                               scoop_heap_adaptive_nursery_enabled();
+            unlock_heap();
+            return start_minor ? REFILL_MINOR_INCREMENT : REFILL_MINOR;
+        }
+    }
+    if (scoop_gc_heap_state.incremental_active && !after_step) {
         unlock_heap();
-        return REFILL_MINOR;
+        return REFILL_INCREMENT;
     }
     ScoopGcBlockMeta *block = activate_small_block(SCOOP_BLOCK_MUTATOR, true);
     if (block == NULL) {
@@ -91,32 +152,40 @@ static RefillResult refill_nursery(ScoopGcMutator *mutator, bool after_full) {
         return REFILL_FULL;
     }
     record_nursery_block(block);
-    mutator->allocation_block = block;
-    ScoopAllocationContext *allocation = &mutator->allocation;
-    allocation->block_start = block_base(block);
-    allocation->size_units = block->size_units;
-    allocation->starts = block->starts;
-    allocation->line_occupied = block->line_occupied;
-    allocation->limit = allocation->block_start + GC_BLOCK_SIZE;
-    allocation->cursor = allocation->block_start + GC_LINE_SIZE;
+    if (scoop_heap_adaptive_nursery_enabled()) {
+        while (mutator->reserved_count < 3 &&
+               scoop_gc_heap_state.nursery_bytes < limit) {
+            ScoopGcBlockMeta *reserve = activate_small_block(SCOOP_BLOCK_MUTATOR, true);
+            if (reserve == NULL) {
+                break;
+            }
+            record_nursery_block(reserve);
+            mutator->reserved_blocks[mutator->reserved_count++] = reserve;
+        }
+    }
     unlock_heap();
+    publish_tlab(mutator, block);
     return REFILL_READY;
 }
 
 static void *allocate_small(ScoopGcMutator *mutator, size_t size, size_t alignment) {
     bool full_attempted = false;
+    bool step_attempted = false;
     for (;;) {
         void *object = scoop_heap_bump(&mutator->allocation.cursor, mutator->allocation.limit, size,
                                        alignment);
         if (object != NULL) {
             return object;
         }
-        scoop_gc_reset_allocation(mutator);
-        RefillResult refill = refill_nursery(mutator, full_attempted);
+        scoop_gc_reset_current_allocation(mutator);
+        RefillResult refill = refill_nursery(mutator, full_attempted, step_attempted);
         if (refill == REFILL_READY) {
             continue;
         }
-        if (refill == REFILL_MINOR) {
+        if (refill == REFILL_INCREMENT || refill == REFILL_MINOR_INCREMENT) {
+            scoop_gc_collect_incremental_internal(refill == REFILL_MINOR_INCREMENT);
+            step_attempted = true;
+        } else if (refill == REFILL_MINOR) {
             /* Another mutator can claim the newly emptied nursery before
              * this mutator resumes. Capacity contention is not heap OOM. */
             scoop_gc_collect_minor_internal();
@@ -134,19 +203,33 @@ static void *allocate_old(size_t size, size_t alignment) {
     bool collected = false;
     for (;;) {
         lock_heap();
+        if (scoop_gc_heap_state.incremental_active) {
+            unlock_heap();
+            collected = scoop_gc_collect_internal();
+            continue;
+        }
+        if (!collected && scoop_heap_uses_old_slots() && exceeds_old_threshold(size)) {
+            unlock_heap();
+            collected = scoop_gc_collect_internal();
+            continue;
+        }
         char **cursor = &scoop_gc_heap_state.old_cursor;
         char **limit = &scoop_gc_heap_state.old_limit;
         void *object = scoop_heap_bump(cursor, *limit, size, alignment);
-        if (object == NULL && scoop_heap_take_free_run(size, cursor, limit)) {
+        if (object == NULL && scoop_heap_take_free_run(&free_runs, size, cursor, limit)) {
             object = scoop_heap_bump(cursor, *limit, size, alignment);
         }
-        if (object == NULL && (collected || !exceeds_old_threshold(GC_BLOCK_SIZE))) {
+        size_t requested = scoop_heap_uses_old_slots() ? size : GC_BLOCK_SIZE;
+        if (object == NULL && (collected || !exceeds_old_threshold(requested))) {
             ScoopGcBlockMeta *block = activate_small_block(SCOOP_BLOCK_MUTATOR, true);
             if (block != NULL) {
                 *cursor = (char *)block_base(block) + GC_LINE_SIZE;
                 *limit = (char *)block_base(block) + GC_BLOCK_SIZE;
                 object = scoop_heap_bump(cursor, *limit, size, alignment);
             }
+        }
+        if (object != NULL) {
+            scoop_heap_note_old_bytes(size);
         }
         unlock_heap();
         if (object != NULL) {
@@ -182,10 +265,19 @@ static void *allocate_large(size_t size, ScoopGcBlockMeta **allocated_block) {
     bool collected = false;
     for (;;) {
         lock_heap();
+        if (scoop_gc_heap_state.incremental_active) {
+            unlock_heap();
+            collected = scoop_gc_collect_internal();
+            continue;
+        }
         size_t span = scoop_heap_large_mapping_size(size);
-        bool threshold_exceeded = !collected && exceeds_old_threshold(span);
+        size_t requested = scoop_heap_uses_old_slots() ? size : span;
+        bool threshold_exceeded = !collected && exceeds_old_threshold(requested);
         ScoopGcBlockMeta *block =
             threshold_exceeded ? NULL : activate_large_block(size, SCOOP_BLOCK_MUTATOR);
+        if (block != NULL) {
+            scoop_heap_note_old_bytes(size);
+        }
         unlock_heap();
         if (block != NULL) {
             *allocated_block = block;
@@ -231,9 +323,7 @@ static void initialize_small_allocation(ScoopGcMutator *mutator, ScoopGcBlockMet
                                         void *object, const ScoopTypeDescriptor *td, size_t size,
                                         bool nursery) {
     memset(object, 0, size);
-    ScoopObjectHeader *header = object;
     scoop_gc_set_object_type(object, td);
-    header->gc_word = 0;
     if (nursery) {
         scoop_heap_record_small_metadata(block, object, size, false, true);
     } else {

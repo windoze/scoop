@@ -1,4 +1,4 @@
-/* STW phases: parallel mark/update, serial plan/copy and reclaim. */
+/* STW marking slices, followed by complete reservation/copy/update and reclaim. */
 #include <stdint.h>
 
 #include "../gc_binding/object.h"
@@ -17,8 +17,21 @@ static bool remains_young(const ScoopGcBlockMeta *block) {
     return block->generation == SCOOP_GC_YOUNG && block->retained_young;
 }
 
-static inline __attribute__((always_inline)) void
-relocate_slot(void **slot, void *raw_context, bool remember_survivors) {
+/* Mark has consumed this frozen graph; only collector relocation changes it. */
+static inline void *relocate_frozen_slot(void **slot) {
+    void *object = *slot;
+    if (object != NULL) {
+        void *forwarded = scoop_heap_forwarding_address(object);
+        if (forwarded != NULL) {
+            *slot = forwarded;
+            return forwarded;
+        }
+    }
+    return object;
+}
+
+#if SCOOP_GC_TRACK_RELOCATION
+static void verify_slot(void **slot, void *raw_context) {
     ScoopGcVisitContext *context = raw_context;
     void *target = *slot;
     if (target == NULL) {
@@ -27,11 +40,9 @@ relocate_slot(void **slot, void *raw_context, bool remember_survivors) {
     ScoopGcBlockMeta *block;
     size_t word;
     if (!scoop_heap_reference_meta(target, &block, &word)) {
-#if SCOOP_ENABLE_GC_STRESS || (defined(SCOOP_GC_VERIFY_HEAP) && SCOOP_GC_VERIFY_HEAP)
         if (!scoop_gc_is_immortal_object_locked(target)) {
             heap_fatal("managed slot points outside the current heap and stable object tables");
         }
-#endif
         return;
     }
     if (context->minor && block->generation == SCOOP_GC_OLD) {
@@ -39,30 +50,40 @@ relocate_slot(void **slot, void *raw_context, bool remember_survivors) {
     }
     void *current = scoop_heap_forward_object(target, block, word);
     if (current != target) {
-#if SCOOP_GC_TRACK_RELOCATION
-        if (context->verify) {
-            heap_fatal("managed slot still points to a forwarded old object");
-        }
-#endif
-        *slot = current;
+        heap_fatal("managed slot still points to a forwarded old object");
     }
-    if (remember_survivors) {
-        const ScoopGcBlockMeta *target_block = current == target ? block : pointer_block(current);
-        if (remains_young(target_block)) {
-            ScoopGcBlockMeta *owner = pointer_block(slot);
-            if (!remains_young(owner)) {
-                ScoopGcRegion *region = owner->region;
-                size_t card = ((uintptr_t)slot - region->base) >> GC_CARD_SHIFT;
-                __atomic_store_n(&region->cards[card], 2, __ATOMIC_RELAXED);
-                scoop_runtime_record_dirty_card_group(region, card);
-            }
+}
+#endif
+
+static void visit_managed_slot(void **slot, void *context) {
+#if SCOOP_GC_TRACK_RELOCATION
+    if (((ScoopGcVisitContext *)context)->verify) {
+        verify_slot(slot, context);
+        return;
+    }
+#else
+    (void)context;
+#endif
+    (void)relocate_frozen_slot(slot);
+}
+
+static void visit_survivor_slot(void **slot, void *context) {
+    (void)context;
+    void *current = relocate_frozen_slot(slot);
+    if (current == NULL) {
+        return;
+    }
+    const ScoopGcBlockMeta *target = pointer_block(current);
+    if (target != NULL && remains_young(target)) {
+        ScoopGcBlockMeta *owner = pointer_block(slot);
+        if (!remains_young(owner)) {
+            ScoopGcRegion *region = owner->region;
+            size_t card = ((uintptr_t)slot - region->base) >> GC_CARD_SHIFT;
+            __atomic_store_n(&region->cards[card], 2, __ATOMIC_RELAXED);
+            scoop_runtime_record_dirty_card_group(region, card);
         }
     }
 }
-
-static void visit_managed_slot(void **slot, void *context) { relocate_slot(slot, context, false); }
-
-static void visit_survivor_slot(void **slot, void *context) { relocate_slot(slot, context, true); }
 
 static void visit_root_region(void *base, const uint64_t *scan, void *context) {
     scoop_gc_scan_descriptor(base, scan, visit_managed_slot, context, 0, UINTPTR_MAX);
@@ -74,13 +95,6 @@ static void scan_roots(ScoopGcVisitContext *context) {
         .visit_region = visit_root_region,
         .context = context,
     });
-}
-
-static void visit_dirty_object(void *object, uintptr_t begin, uintptr_t end, void *context) {
-    const uint64_t *scan = scoop_gc_object_scan(object);
-    ScoopGcVisitContext *visit = context;
-    ScoopGcSlotVisitor slot = visit->remember_survivors ? visit_survivor_slot : visit_managed_slot;
-    scoop_gc_scan_descriptor(object, scan, slot, context, begin, end);
 }
 
 static void relocate_live_object(void **entry, void *context) {
@@ -129,7 +143,67 @@ static void record_pause(uint64_t elapsed, bool minor) {
     scoop_gc_heap_state.pause_buckets[bucket]++;
 }
 
-static bool collect(bool minor) {
+typedef enum CollectionRequest {
+    COLLECT_MINOR,
+    COLLECT_FULL,
+    COLLECT_INCREMENT,
+    COLLECT_MINOR_INCREMENT,
+} CollectionRequest;
+
+static void mark_roots(void) {
+    uint64_t phase = scoop_gc_monotonic_ns();
+    scoop_gc_mark_roots();
+    scoop_gc_heap_state.metrics.root_scan_ns += scoop_gc_monotonic_ns() - phase;
+}
+
+static bool plan_collection(bool minor, ScoopGcSurvivors *survivors) {
+    ScoopGcMetrics *metrics = &scoop_gc_heap_state.metrics;
+    uint64_t phase = scoop_gc_monotonic_ns();
+    uint64_t copied = metrics->copy_ns;
+    bool planned = scoop_gc_heap_plan_moving_locked(minor, survivors);
+    metrics->plan_ns += scoop_gc_monotonic_ns() - phase - (metrics->copy_ns - copied);
+    return planned;
+}
+
+static bool incremental_step(bool minor, bool finish, bool *finished) {
+    ScoopGcHeapState *heap = &scoop_gc_heap_state;
+    bool first = !heap->incremental_active;
+    if (first) {
+        heap->incremental_blocks = scoop_gc_heap_begin_collection_locked(minor);
+        scoop_gc_mark_begin(minor, heap->incremental_blocks);
+        heap->incremental_active = true;
+        heap->incremental_minor = minor;
+    } else {
+        size_t total_blocks = heap->incremental_blocks;
+        for (ScoopGcBlockMeta *block = heap->young_blocks; block != heap->incremental_young_head;
+             block = block->next_collection) {
+            block->mark_index = total_blocks++;
+        }
+        scoop_gc_mark_resume(heap->incremental_blocks, total_blocks);
+        heap->incremental_blocks = total_blocks;
+    }
+    heap->incremental_young_head = heap->young_blocks;
+    mark_roots();
+    uint64_t phase = scoop_gc_monotonic_ns();
+    bool prepared = true;
+    if (first && !minor) {
+        /* All generations are traced from current roots; pre-cycle cards are redundant. */
+        scoop_heap_clear_dirty_card_groups(false);
+    } else {
+        prepared = scoop_gc_mark_dirty_groups(minor, first);
+    }
+    heap->metrics.remembered_scan_ns += scoop_gc_monotonic_ns() - phase;
+    if (!prepared) {
+        return false;
+    }
+    scoop_gc_mark_publish();
+    phase = scoop_gc_monotonic_ns();
+    *finished = scoop_gc_mark_step(finish);
+    heap->metrics.mark_ns += scoop_gc_monotonic_ns() - phase;
+    return true;
+}
+
+static bool collect(CollectionRequest request) {
     uint64_t requested = scoop_gc_monotonic_ns();
     if (!scoop_gc_stop_world()) {
         return false;
@@ -140,15 +214,49 @@ static bool collect(bool minor) {
     ScoopGcMetrics *metrics = &scoop_gc_heap_state.metrics;
     metrics->stop_wait_ns += started - requested;
     scoop_gc_set_pin_frames_locked(true);
-    scoop_gc_retire_allocations();
+    bool minor = request == COLLECT_MINOR && !scoop_gc_stress_move_enabled() &&
+                 !scoop_gc_heap_state.full_only;
     uint64_t marked_count;
     ScoopGcSurvivors survivors;
+    if (request == COLLECT_INCREMENT || request == COLLECT_MINOR_INCREMENT ||
+        (minor && scoop_gc_heap_state.incremental_active)) {
+        minor = scoop_gc_heap_state.incremental_active
+                    ? scoop_gc_heap_state.incremental_minor
+                    : request == COLLECT_MINOR_INCREMENT;
+        bool finished;
+        if (incremental_step(minor, request == COLLECT_MINOR, &finished)) {
+            if (!finished) {
+                goto resume;
+            }
+            scoop_gc_retire_allocations();
+            marked_count = scoop_gc_mark_complete(minor);
+            scoop_gc_heap_state.incremental_active = false;
+            if (minor) {
+                scoop_gc_mark_restore_remembered();
+            }
+            if (plan_collection(minor, &survivors) || !minor) {
+                goto marked;
+            }
+            metrics->promotion_fallbacks++;
+        }
+        /* No copies or forwarding were published. Restart from the current full graph. */
+        scoop_gc_mark_dispose();
+        scoop_gc_heap_state.incremental_active = false;
+        collection_active = false;
+        minor = false;
+    }
+    if (scoop_gc_heap_state.incremental_active) {
+        /* No movement or retirement has occurred; restart from the current graph. */
+        scoop_gc_mark_dispose();
+        scoop_gc_heap_state.incremental_active = false;
+        collection_active = false;
+    }
+    scoop_gc_retire_allocations();
     for (;;) {
         size_t block_count = scoop_gc_heap_begin_collection_locked(minor);
         scoop_gc_mark_begin(minor, block_count);
-        uint64_t phase = scoop_gc_monotonic_ns();
-        scoop_gc_mark_roots();
-        metrics->root_scan_ns += scoop_gc_monotonic_ns() - phase;
+        mark_roots();
+        uint64_t phase;
         if (minor) {
             phase = scoop_gc_monotonic_ns();
             scoop_gc_mark_remembered();
@@ -157,11 +265,7 @@ static bool collect(bool minor) {
         phase = scoop_gc_monotonic_ns();
         marked_count = scoop_gc_mark_finish(minor);
         metrics->mark_ns += scoop_gc_monotonic_ns() - phase;
-        phase = scoop_gc_monotonic_ns();
-        uint64_t copied = metrics->copy_ns;
-        bool planned = scoop_gc_heap_plan_moving_locked(minor, &survivors);
-        metrics->plan_ns += scoop_gc_monotonic_ns() - phase - (metrics->copy_ns - copied);
-        if (planned || !minor) {
+        if (plan_collection(minor, &survivors) || !minor) {
             break;
         }
         /* No copies or forwarding were published by a failed reservation. */
@@ -171,6 +275,7 @@ static bool collect(bool minor) {
         minor = false;
     }
 
+marked:
     if (moved_objects != 0 || survivors.objects != 0) {
         uint64_t phase = scoop_gc_monotonic_ns();
         ScoopGcVisitContext relocate = {.minor = minor};
@@ -178,11 +283,8 @@ static bool collect(bool minor) {
             scan_roots(&relocate);
         }
         relocate.remember_survivors = survivors.objects != 0;
-        if (minor) {
-            scoop_gc_scan_remembered(visit_dirty_object, &relocate, false);
-        }
         ScoopGcSlotVisitor slot = survivors.objects != 0 ? visit_survivor_slot : visit_managed_slot;
-        scoop_gc_update_live(slot, relocate_live_object, &relocate);
+        scoop_gc_update_live(minor, slot, relocate_live_object, &relocate);
         metrics->update_ns += scoop_gc_monotonic_ns() - phase;
     }
     metrics->minor_collections += minor;
@@ -209,6 +311,7 @@ static bool collect(bool minor) {
     uint64_t returned = metrics->vm_return_ns;
     scoop_gc_heap_finish_collection_locked(marked_count, minor, &survivors);
     metrics->reclaim_ns += scoop_gc_monotonic_ns() - phase - (metrics->vm_return_ns - returned);
+resume:
     scoop_gc_set_pin_frames_locked(false);
     record_pause(scoop_gc_monotonic_ns() - started, minor);
     scoop_gc_roots_unlock();
@@ -217,8 +320,24 @@ static bool collect(bool minor) {
     return true;
 }
 
-bool scoop_gc_collect_internal(void) { return collect(false); }
+bool scoop_gc_collect_internal(void) { return collect(COLLECT_FULL); }
 
-void scoop_gc_collect_minor_internal(void) {
-    collect(!scoop_gc_stress_move_enabled() && !scoop_gc_heap_state.full_only);
+void scoop_gc_collect_explicit_internal(void) {
+    scoop_gc_heap_lock();
+    uint64_t before = scoop_gc_heap_state.metrics.full_collections;
+    scoop_gc_heap_unlock();
+    while (!scoop_gc_collect_internal()) {
+        scoop_gc_heap_lock();
+        bool completed = scoop_gc_heap_state.metrics.full_collections != before;
+        scoop_gc_heap_unlock();
+        if (completed) {
+            return;
+        }
+    }
+}
+
+void scoop_gc_collect_minor_internal(void) { collect(COLLECT_MINOR); }
+
+void scoop_gc_collect_incremental_internal(bool minor) {
+    collect(minor ? COLLECT_MINOR_INCREMENT : COLLECT_INCREMENT);
 }

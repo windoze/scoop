@@ -1,8 +1,9 @@
 /* Ordinary full collections compact sparse regions; stress/minor select blocks. */
-#include <stdlib.h>
+#include <string.h>
 
 #include "gc_internal.h"
 #include "heap_internal.h"
+#include "old_slots.h"
 
 bool scoop_heap_block_has_pins(const ScoopGcBlockMeta *block) {
     if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
@@ -14,16 +15,6 @@ bool scoop_heap_block_has_pins(const ScoopGcBlockMeta *block) {
         }
     }
     return false;
-}
-
-static void select_block(ScoopGcBlockMeta *source) {
-    source->state = SCOOP_BLOCK_EVACUATION_SOURCE;
-    if (source->kind == SCOOP_BLOCK_KIND_SMALL) {
-        source->forwarding = calloc(GC_WORDS_PER_BLOCK, sizeof(void *));
-        if (source->forwarding == NULL) {
-            heap_fatal("out of memory allocating forwarding metadata");
-        }
-    }
 }
 
 static size_t select_regions(void) {
@@ -66,27 +57,42 @@ static size_t select_regions(void) {
 }
 
 size_t scoop_heap_select_evacuation_sources(bool minor, size_t survivor_capacity,
-                                             ScoopGcSurvivors *survivors) {
+                                             ScoopGcSurvivors *survivors, bool *has_sources) {
+    *has_sources = false;
+    size_t available[GC_OLD_SLOT_CLASSES];
+    bool old_slots = minor && scoop_heap_promotes_slot_blocks();
+    if (old_slots) {
+        memcpy(available, scoop_gc_heap_state.old_slots_free, sizeof available);
+    }
     size_t regions = !minor && !stress_move ? select_regions() : 0;
     for (ScoopGcBlockMeta *block = scoop_heap_first_collection_block(minor); block != NULL;
          block = scoop_heap_next_collection_block(block, minor)) {
-        if (!active_head(block) || block->movable_live_bytes == 0) {
+        /* Ordinary collection selects sources using their current pin state.
+         * Pins may have changed since an incremental mark first saw the object. */
+        size_t eligible = stress_move ? block->movable_live_bytes : block->live_bytes;
+        if (!active_head(block) || eligible == 0) {
             continue;
         }
         bool selected = minor ? !scoop_heap_block_has_pins(block)
                               : stress_move || block->region->evacuation_source;
-        if (minor && selected && block->live_bytes >= GC_REGULAR_MAX / 2) {
-            if (block->survivor) {
+        if (minor && selected && scoop_heap_adaptive_nursery_enabled() &&
+            block->kind == SCOOP_BLOCK_KIND_SMALL && block->live_bytes >= GC_REGULAR_MAX / 2) {
+            if (block->survivor || scoop_gc_heap_state.promote_in_place) {
                 selected = false;
-            } else if (survivors->capacity + GC_BLOCK_SIZE <= survivor_capacity) {
+            }
+            if (!block->survivor && survivors->capacity + GC_BLOCK_SIZE <= survivor_capacity) {
                 block->retained_young = true;
                 survivors->capacity += GC_BLOCK_SIZE;
                 survivors->live_bytes += block->live_bytes;
                 selected = false;
             }
+            if (!block->retained_young && old_slots) {
+                selected = scoop_heap_select_slot_source(block, available, selected);
+            }
         }
         if (selected) {
-            select_block(block);
+            *has_sources = true;
+            block->state = SCOOP_BLOCK_EVACUATION_SOURCE;
         }
     }
     return regions;

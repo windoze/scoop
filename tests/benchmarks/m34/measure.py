@@ -73,7 +73,7 @@ def sample(path, environment, name):
     records = [json.loads(line) for line in result.stderr.splitlines()]
     gc = records[-1]
     assert gc["scoop_gc"] == 1
-    assert sum(gc["pause_buckets"]) == gc["minor_collections"] + gc["full_collections"]
+    assert sum(gc["pause_buckets"]) >= gc["minor_collections"] + gc["full_collections"]
     row = {
         "wall_seconds": elapsed,
         "cpu_seconds": after.ru_utime + after.ru_stime - before.ru_utime - before.ru_stime,

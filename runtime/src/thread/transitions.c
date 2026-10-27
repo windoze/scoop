@@ -40,7 +40,7 @@ void scoop_thread_leave_managed(void) {
                           atomic_load_explicit(&scoop_thread_gc_epoch, memory_order_acquire),
                           memory_order_release);
     atomic_store_explicit(&state->poll.mode, SCOOP_THREAD_NATIVE_SAFE, memory_order_release);
-    scoop_thread_world_broadcast();
+    scoop_thread_notify_quiescence();
     scoop_thread_registry_unlock();
 }
 
@@ -103,7 +103,7 @@ void scoop_thread_leave_callback(ScoopCallbackThreadEntry *entry) {
             SCOOP_WORLD_RUNNING) {
         scoop_thread_park_current_locked(state);
     } else {
-        scoop_thread_world_broadcast();
+        scoop_thread_notify_quiescence();
     }
     scoop_thread_registry_unlock();
 }

@@ -1,6 +1,155 @@
 use super::{compile_and_run, compile_and_run_with_flags, workspace_root};
 
 #[test]
+fn dense_slot_promotion_preserves_layout_aliases_and_survivor_age() {
+    for flags in [
+        vec!["-O0", "-Dcalloc=scoop_test_slot_calloc"],
+        vec![
+            "-O2",
+            "-Dcalloc=scoop_test_slot_calloc",
+            "-DSCOOP_TEST_SLOT_PROMOTION_PARALLEL",
+        ],
+    ] {
+        let output = compile_and_run_with_flags(
+            &workspace_root(),
+            "slot_promotion_test",
+            "runtime/tests/slot_promotion_test.c",
+            true,
+            &flags,
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"slot promotion preserves exact grids, mixed types, aliases, pins and survivor age\n"
+        );
+    }
+}
+
+#[test]
+fn old_slots_reuse_dead_cells_without_overlapping_reference_updates() {
+    for optimization in ["-O0", "-O2"] {
+        let output = compile_and_run_with_flags(
+            &workspace_root(),
+            "old_slots_test",
+            "runtime/tests/old_slots_test.c",
+            true,
+            &[optimization],
+        );
+        assert!(
+            output.status.success(),
+            "{optimization}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"old slots reuse dead cells and preserve roots, padding, alignment and pins\n"
+        );
+    }
+}
+
+#[test]
+fn incremental_marking_preserves_changed_edges_and_complete_fallbacks() {
+    for flags in [
+        vec!["-O0"],
+        vec!["-O2", "-DSCOOP_TEST_INCREMENTAL_PARALLEL"],
+    ] {
+        let output = compile_and_run_with_flags(
+            &workspace_root(),
+            "incremental_mark_test",
+            "runtime/tests/incremental_mark_test.c",
+            true,
+            &flags,
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"incremental marking preserves changed edges, pins, roots and complete fallbacks\n"
+        );
+    }
+}
+
+#[test]
+fn incremental_minor_preserves_remembered_relocation_and_changed_young_edges() {
+    for flags in [
+        vec!["-O0", "-Dmalloc=scoop_test_cards_malloc"],
+        vec![
+            "-O2",
+            "-Dmalloc=scoop_test_cards_malloc",
+            "-DSCOOP_TEST_INCREMENTAL_PARALLEL",
+        ],
+    ] {
+        let output = compile_and_run_with_flags(
+            &workspace_root(),
+            "incremental_minor_test",
+            "runtime/tests/incremental_minor_test.c",
+            true,
+            &flags,
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"minor slices preserve old cards, changed young edges, pins and full fallbacks\n"
+        );
+    }
+}
+
+#[test]
+fn tlab_reserves_preserve_capacity_failures_and_retirement() {
+    for optimization in ["-O0", "-O2"] {
+        let output = compile_and_run_with_flags(
+            &workspace_root(),
+            "tlab_reserve_test",
+            "runtime/tests/tlab_reserve_test.c",
+            true,
+            &[optimization],
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"TLAB reserves preserve capacity, partial failures, moving roots and retirement\n"
+        );
+    }
+}
+
+#[test]
+fn dense_promotion_preserves_sparse_relocation_reuse_and_old_writes() {
+    for flags in [vec!["-O0"], vec!["-O2", "-DSCOOP_TEST_PROMOTION_PARALLEL"]] {
+        let output = compile_and_run_with_flags(
+            &workspace_root(),
+            "dense_promotion_test",
+            "runtime/tests/dense_promotion_test.c",
+            true,
+            &flags,
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"dense promotion preserves aliases, sparse relocation, reuse and old writes\n"
+        );
+    }
+}
+
+#[test]
 fn array_scans_preserve_exact_ranges_order_and_metadata() {
     for optimization in ["-O0", "-O2"] {
         let output = compile_and_run_with_flags(

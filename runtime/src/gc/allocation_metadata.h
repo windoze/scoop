@@ -14,23 +14,22 @@ static inline void scoop_heap_publish_allocation_bits(uint64_t *word, uint64_t m
 }
 
 /* The caller has reserved a valid, aligned small-object range. Nursery allocation
- * and the coordinator's STW copy phase have one writer; shared allocation does not. */
+ * and STW copying have one writer per block; shared allocation does not. */
 static inline void scoop_heap_record_small_metadata(ScoopGcBlockMeta *block, void *object,
                                                     size_t size, bool marked, bool owned) {
     size_t offset = (uintptr_t)object - (uintptr_t)scoop_heap_block_base(block);
     size_t word = offset / sizeof(uint64_t);
-    size_t first = offset / GC_LINE_SIZE;
-    size_t last = (offset + size - 1) / GC_LINE_SIZE;
-    block->size_units[word] = (uint16_t)(size / sizeof(uint64_t));
-    for (size_t line = first; line <= last; line++) {
-        uint64_t mask = UINT64_C(1) << (line % 64);
-        scoop_heap_publish_allocation_bits(&block->line_occupied[line / 64], mask, __ATOMIC_RELAXED,
-                                           owned);
-        if (marked) {
-            block->line_live[line / 64] |= mask;
-        }
+    if (!marked) {
+        ScoopObjectHeader *header = object;
+        header->gc_word = (header->gc_word & ~GC_SMALL_SIZE_MASK) | size;
     }
     if (marked) {
+        size_t first = offset / GC_LINE_SIZE;
+        size_t last = (offset + size - 1) / GC_LINE_SIZE;
+        for (size_t line = first; line <= last; line++) {
+            uint64_t mask = UINT64_C(1) << (line % 64);
+            block->line_live[line / 64] |= mask;
+        }
         block->marks[word / 64] |= UINT64_C(1) << (word % 64);
         block->live_bytes += size;
         block->movable_live_bytes += size;

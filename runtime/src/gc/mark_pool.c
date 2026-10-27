@@ -4,6 +4,7 @@
 
 #include "../platform/platform.h"
 #include "mark_internal.h"
+#include "old_slots.h"
 
 ScoopGcMarker scoop_gc_marker = {
     .lock = PTHREAD_MUTEX_INITIALIZER,
@@ -21,9 +22,10 @@ void scoop_gc_mark_notify_work(void) {
     pthread_mutex_unlock(&scoop_gc_marker.lock);
 }
 
-static void run_worker(ScoopGcMarkWorker *worker) {
+static void run_worker(ScoopGcMarkWorker *worker, size_t task_limit) {
     uint64_t started = scoop_gc_thread_cpu_ns();
-    for (;;) {
+    size_t completed = 0;
+    while (task_limit == 0 || completed < task_limit) {
         ScoopGcMarkTask task;
         bool found = scoop_gc_mark_queue_take(worker, &task);
         if (!found) {
@@ -38,13 +40,24 @@ static void run_worker(ScoopGcMarkWorker *worker) {
                 break;
             }
         }
-        if (scoop_gc_marker.updating) {
-            scoop_gc_update_run_task(task);
+        if (task.kind == SCOOP_RESERVE_CHUNK_TASK) {
+            scoop_gc_reserve_run_task(worker, task.data.reserve.plans, task.data.reserve.chunk);
+        } else if (task.kind == SCOOP_COPY_BLOCK_TASK) {
+            scoop_gc_copy_run_task(task.data.copy_group);
+        } else if (scoop_gc_marker.updating) {
+            scoop_gc_update_run_task(worker, task);
         } else {
             scoop_gc_mark_run_task(worker, task);
             scoop_gc_mark_flush(worker);
         }
         scoop_gc_mark_task_done();
+        if (task_limit != 0) {
+            completed += task.kind == SCOOP_MARK_DIRTY_TASK ? 4 : 1;
+        }
+    }
+    /* A bounded publisher may leave its lone successor for a waiting peer. */
+    if (task_limit != 0 && completed >= task_limit) {
+        scoop_gc_mark_notify_work();
     }
     worker->cpu_ns += scoop_gc_thread_cpu_ns() - started;
 }
@@ -61,11 +74,11 @@ static void *worker_main(void *context) {
             break;
         }
         observed = scoop_gc_marker.phase;
-        if (worker->id >= scoop_gc_marker.active_workers) {
+        if (worker->id >= scoop_gc_marker.phase_workers) {
             continue;
         }
         pthread_mutex_unlock(&scoop_gc_marker.lock);
-        run_worker(worker);
+        run_worker(worker, scoop_gc_marker.task_limit);
         pthread_mutex_lock(&scoop_gc_marker.lock);
         scoop_gc_marker.finished_workers++;
         pthread_cond_signal(&scoop_gc_marker.finished);
@@ -141,15 +154,19 @@ void scoop_gc_mark_pool_prepare(bool minor) {
     pthread_mutex_unlock(&scoop_gc_marker.lock);
 }
 
-void scoop_gc_mark_pool_run(void) {
+void scoop_gc_mark_pool_run(size_t task_limit) {
     pthread_mutex_lock(&scoop_gc_marker.lock);
+    scoop_gc_marker.task_limit = task_limit;
+    /* Preparing another collection must not add delayed inactive workers to
+     * a phase which has already completed. Publish membership with the phase. */
+    scoop_gc_marker.phase_workers = scoop_gc_marker.active_workers;
     scoop_gc_marker.finished_workers = 0;
     scoop_gc_marker.phase++;
     pthread_cond_broadcast(&scoop_gc_marker.phase_changed);
     pthread_mutex_unlock(&scoop_gc_marker.lock);
-    run_worker(&scoop_gc_marker.workers[0]);
+    run_worker(&scoop_gc_marker.workers[0], task_limit);
     pthread_mutex_lock(&scoop_gc_marker.lock);
-    while (scoop_gc_marker.finished_workers + 1 != scoop_gc_marker.active_workers) {
+    while (scoop_gc_marker.finished_workers + 1 != scoop_gc_marker.phase_workers) {
         pthread_cond_wait(&scoop_gc_marker.finished, &scoop_gc_marker.lock);
     }
     pthread_mutex_unlock(&scoop_gc_marker.lock);
@@ -161,6 +178,7 @@ void scoop_gc_shutdown(void) {
     }
     stop_threads();
     scoop_gc_mark_dispose();
+    scoop_heap_clear_old_slots();
     for (size_t index = 0; index < GC_MARK_MAX_WORKERS; index++) {
         ScoopGcMarkWorker *worker = &scoop_gc_marker.workers[index];
         free(worker->queue.tasks);

@@ -8,6 +8,7 @@
 
 pthread_mutex_t scoop_thread_world_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t scoop_thread_world_changed = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t quiescence_changed = PTHREAD_COND_INITIALIZER;
 ScoopThreadState *scoop_thread_registry;
 uint64_t scoop_thread_registry_count;
 ScoopRuntimeLifecycle scoop_thread_runtime_lifecycle = SCOOP_RUNTIME_UNINITIALIZED;
@@ -34,9 +35,11 @@ void scoop_thread_registry_unlock(void) {
 }
 
 void scoop_thread_world_wait(void) {
+    SCOOP_THREAD_TEST_POINT(SCOOP_TEST_WORLD_WAITING);
     if (pthread_cond_wait(&scoop_thread_world_changed, &scoop_thread_world_lock) != 0) {
         scoop_thread_fatal("failed to wait for a world-state change");
     }
+    SCOOP_THREAD_TEST_POINT(SCOOP_TEST_WORLD_WOKEN);
 }
 
 void scoop_thread_world_wait_for_quiescence(void) {
@@ -52,9 +55,15 @@ void scoop_thread_world_wait_for_quiescence(void) {
         deadline.tv_nsec -= 1000000000;
     }
     int result =
-        pthread_cond_timedwait(&scoop_thread_world_changed, &scoop_thread_world_lock, &deadline);
+        pthread_cond_timedwait(&quiescence_changed, &scoop_thread_world_lock, &deadline);
     if (result != 0 && result != ETIMEDOUT) {
         scoop_thread_fatal("failed to wait for quiescent threads");
+    }
+}
+
+void scoop_thread_notify_quiescence(void) {
+    if (pthread_cond_signal(&quiescence_changed) != 0) {
+        scoop_thread_fatal("failed to notify the collector of quiescence");
     }
 }
 

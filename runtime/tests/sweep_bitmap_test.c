@@ -30,6 +30,30 @@ static Resource *place(ScoopGcBlockMeta *block, size_t word, uint64_t index) {
     return resource;
 }
 
+static void check_retained_storage(void *const *objects) {
+    for (size_t index = 0; index < 9; index++) {
+        if (objects[index] == NULL) {
+            continue;
+        }
+        const Resource *resource = objects[index];
+        assert((resource->header.gc_word & GC_FORWARDED_BIT) == 0);
+        assert((resource->header.gc_word & GC_RELEASE_READY_BIT) != 0);
+        ScoopGcBlockMeta *block = pointer_block(objects[index]);
+        uintptr_t begin = (uintptr_t)objects[index] - (uintptr_t)block_base(block);
+        uintptr_t end = begin + sizeof(Resource);
+        for (size_t line = begin / GC_LINE_SIZE; line <= (end - 1) / GC_LINE_SIZE; line++) {
+            assert(bit_test(block->line_live, line));
+        }
+        for (const ScoopGcFreeRun *run = free_runs; run != NULL; run = run->next) {
+            if (run->block == block) {
+                size_t free_begin = (size_t)run->first_line * GC_LINE_SIZE;
+                size_t free_end = free_begin + (size_t)run->line_count * GC_LINE_SIZE;
+                assert(end <= free_begin || begin >= free_end);
+            }
+        }
+    }
+}
+
 int main(void) {
     const ScoopTypeDescriptor *types[] = {&nursery_node_td, &resource_td};
     uintptr_t boundary = 0;
@@ -40,7 +64,7 @@ int main(void) {
     assert(nursery_node(2)->value == 2);
     nursery_collect(false);
     /* Several bits per word, adjacent words, empty words, and the last possible start. */
-    const size_t words[] = {16, 20, 60, 64, 127, 192, 1000, GC_WORDS_PER_BLOCK - 3};
+    const size_t words[] = {16, 20, 60, 64, 127, 191, 1000, GC_WORDS_PER_BLOCK - 3};
     void *objects[9] = {0};
     void **slots[9];
     for (size_t index = 0; index < 9; index++) {
@@ -76,8 +100,10 @@ int main(void) {
     assert(scoop_rt_gc_debug_last_moved_count() == 1);
     assert(nursery_metrics().last_full_source_regions == 1);
     assert((uintptr_t)objects[8] != moving && (uintptr_t)objects[1] == pinned);
+    check_retained_storage(objects);
     nursery_collect(false);
     assert(scoop_rt_gc_debug_last_moved_count() == 0);
+    check_retained_storage(objects);
     for (size_t index = 0; index < 9; index++) {
         assert(released[index] == (unsigned)!keep[index]);
         if (keep[index]) {

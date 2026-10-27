@@ -25,10 +25,17 @@ static void compact_round(bool pin_region) {
     }
     ScoopNativeRootFrame roots;
     scoop_rt_push_native_roots(&roots, slots, 2 * PAIR_COUNT);
+    uintptr_t node_region = 0;
     for (size_t index = 0; index < PAIR_COUNT; index++) {
         objects[index] = nursery_allocate(&wide_td, WIDE_SIZE);
         ((unsigned char *)objects[index])[WIDE_SIZE - 1] = 101;
-        ((ScoopObjectHeader *)objects[index])->gc_word = GC_RELEASE_READY_BIT;
+        ((ScoopObjectHeader *)objects[index])->gc_word |= GC_RELEASE_READY_BIT;
+        uintptr_t wide_region = scoop_heap_pointer_block(objects[index])->region->base;
+        if (wide_region != node_region) {
+            /* Scatter live nodes across growing regions even with batched TLAB reserves. */
+            scoop_gc_mutator_invalidate(scoop_thread_current_required()->mutator);
+            node_region = wide_region;
+        }
         objects[PAIR_COUNT + index] = nursery_node(index);
     }
     ScoopGcMetrics before = nursery_metrics();
