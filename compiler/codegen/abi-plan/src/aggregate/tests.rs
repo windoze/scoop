@@ -188,3 +188,39 @@ fn sysv_exhaustion_rolls_back_the_entire_aggregate() {
     }
     assert!(!registers.aggregate(integer_part));
 }
+
+#[test]
+fn win64_aggregates_match_clang_in_both_windows_environments() {
+    // Clang 22.1 MSVC and MinGW use integer carriers even for float structs.
+    for size in 1..=32 {
+        for position in [AbiValuePosition::Argument, AbiValuePosition::Result] {
+            let value = layout(size, 1, &[(0, AbiCarrier::Integer(8))]);
+            let result = coercion(&value, ProcedureAbi::Win64, position);
+            match size {
+                1 | 2 | 4 | 8 => {
+                    let parts = result.unwrap();
+                    assert_eq!(parts.parts().len(), 1);
+                    assert_eq!(
+                        parts.parts()[0].carrier(),
+                        AbiCarrier::Integer((size * 8) as u8)
+                    );
+                    assert_eq!(parts.parts()[0].extent(), size);
+                }
+                _ => assert!(result.is_none(), "{size}-byte {position:?}"),
+            }
+        }
+    }
+    for (size, carrier) in [
+        (4, AbiCarrier::Float(FloatKind::F32)),
+        (8, AbiCarrier::Float(FloatKind::F64)),
+    ] {
+        let value = layout(size, size, &[(0, carrier)]);
+        for position in [AbiValuePosition::Argument, AbiValuePosition::Result] {
+            let parts = coercion(&value, ProcedureAbi::Win64, position).unwrap();
+            assert_eq!(
+                parts.parts()[0].carrier(),
+                AbiCarrier::Integer((size * 8) as u8)
+            );
+        }
+    }
+}

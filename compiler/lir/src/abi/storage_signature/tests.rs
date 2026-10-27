@@ -76,6 +76,29 @@ fn provider_sysv_sret_and_register_exhaustion_keep_the_recorded_indirect_argumen
 }
 
 #[test]
+fn provider_interface_sret_keeps_the_consumers_scan() {
+    let interface = storage("interface", 16, ScoopAbiValueShape::Interface);
+    let provider = canonical(
+        vec![Argument::direct_parts(interface, AbiCoercion::interface()).unwrap()],
+        Return::indirect(interface).unwrap(),
+    );
+    let value = AbiValue::new(
+        LirType::Interface,
+        AbiNonZeroLayout::new(16, 8).unwrap(),
+        RefScan::References(vec![0]),
+    )
+    .unwrap();
+    let bound = AbiStorageSignature {
+        arguments: vec![AbiStorage::NonZero(value.clone())],
+        result: AbiStorageReturn::Value(AbiStorage::NonZero(value.clone())),
+    }
+    .bind(&provider, CallingConvention::Cdecl)
+    .unwrap();
+    assert_eq!(bound.result(), &AbiReturn::Indirect(value));
+    assert_eq!(bound.result().scan(), Some(&RefScan::References(vec![0])));
+}
+
+#[test]
 fn provider_carriers_and_consumer_storage_bounds_are_preserved() {
     let bytes = CanonicalScoopStorage::new(
         crate::tests::test_physical_exact("bytes", SourceNominalKind::Struct),

@@ -16,6 +16,7 @@ pub use c::{c_indirect_passing, c_integer_extension};
 pub enum ProcedureAbi {
     DarwinAarch64,
     SysvAmd64,
+    Win64,
 }
 
 impl ProcedureAbi {

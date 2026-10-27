@@ -6,6 +6,8 @@
 
 Windows 三环境扩展按 [Windows targets 设计](../windows-targets/DESIGN.md) 分阶段实施。W0 使用独立原生／LLVM 实验验证 MSVC＋UCRT、LLVM-MinGW＋MSVCRT 与 LLVM-MinGW＋UCRT 的 Win64、SEH／statepoint、C++ 和 Rust 文本后端组合；实验成功不自动扩充下表或 manifest 支持目录。正式开放前须完成本规范的编译／链接与运行时规范的完整 GC／异常合同，不发布关闭异常或缺少精确根的临时 target。
 
+宿主 LLVM 准备同时安装 LLVM 动态库、Rust 构建所需的 llvm-config／头文件、Clang／clang-cl／Clang++、LLD 及所需 LLVM 对象／归档／资源工具。Windows x64 宿主采用 LLVM-MinGW UCRT 开发环境构建，Rust 宿主为 `x86_64-pc-windows-gnullvm`；宿主身份不覆盖应用选择的完整 Scoop target。Windows 使用原生 Ninja 和 `.exe`／DLL 布局，必需的宿主 C++／unwind DLL 与实际引用它们的工具相邻安装；Darwin／Linux 保持各自的 rpath 与动态库规则。开发安装与运行期工具包的组装仍由维护脚本负责，普通编译不构建宿主 LLVM。
+
 一个 Cone 是一次独立编译的单位。library 和 executable Cone 都产生完整 `.slib`；executable 的最终程序由独立链接阶段从产物闭包生成。产物是编译结果，不承担独立分发认证或源码／工具移除后的可用性保证。缓存只判断正常输入是否变化，不检查输出是否遭到外部破坏。
 
 编译器使用自身及所选 C/C++ 工具链成功产生的输出，后续步骤只读取实际需要的数据，不重新证明生产过程。工作文件按普通生命周期管理，不设为只读、不审计权限或文件来源。实际 I/O、编译和链接错误正常报告；失败不发布部分结果。实体身份、ODR、ABI、GC 与读取边界所需的数据继续保留，不以验证资格或生产凭证替代这些普通合同。
@@ -363,7 +365,7 @@ Scoop ABI 保留完整逻辑参数序列及 exact identity，物理分类为：
 | --- | --- | --- |
 | Unit / ZST | ElidedZst，仍求值 | Unit 为 UnitVoid；其他为 ElidedZst。 |
 | scalar、单字 managed/raw/code pointer 及其 niche enum | Direct | Direct |
-| interface 及其 niche enum | DirectParts：object、itab | DirectParts：object、itab |
+| interface 及其 niche enum | DirectParts：object、itab | Darwin／SysV：DirectParts；Win64：Indirect |
 | size ≤ 16、alignment ≤ 8 的 GC-free struct／tuple／tagged enum | 按目标分类的 DirectParts 或所需间接形式 | 同一分类的直接或间接结果 |
 | 其余非 ZST aggregate | Indirect | Indirect |
 
@@ -381,7 +383,9 @@ GC-free 小值按 exact layout 和 scalar leaves 复用下述目标 aggregate cl
 
 carrier 记录实际读取的 extent，允许其机器类型宽于 extent；读入前将 carrier 临时存储清零，只复制 extent 字节，回写亦仅复制该范围。跨 Cone canonical ABI 保存完整 carrier 序列而非仅保存 DirectParts 标签，target classifier 的版本同时进入现有 target fingerprint。产物消费者复用保存的物理计划并检查 exact storage／引用一致性，不另行通过源码重建一套参数分类。
 
-每个 indirect 实参使用调用方新建的 exact storage，callee 按值接收。物理参数为 indirect result storage（若有），随后按逻辑顺序省略 ZST 并传递其余参数。LLVM 使用对应 exact type/alignment 的 byval/sret；实际寄存器分配由目标 ABI 决定。Darwin sret 使用 x8，amd64 使用 RDI 并在 RAX 返回同一地址。
+Win64 的 GC-free aggregate 仅在 exact size 为 1、2、4、8 bytes 时使用对应位宽的单个整数 carrier，其余使用间接形式；单成员 float／double struct 也遵守该整数 carrier 规则，不沿用 SysV SSE／Darwin HFA 分类。普通 scalar 与 interface 参数仍按顺序传递；interface 展开为 AS1 object 与 AS0 metadata 两个物理参数，interface／其 niche 的结果使用保留 `RefScan` 的 exact 间接 storage，不能先产生再提取 LLVM 隐式 sret aggregate。该结果计划沿现有 canonical ABI 的 Indirect 分支保存，consumer 复用其表示，不增加第二种签名格式。
+
+每个 indirect 实参使用调用方新建的 exact storage，callee 按值接收。物理参数为 indirect result storage（若有），随后按逻辑顺序省略 ZST 并传递其余参数。Darwin／SysV 的 Scoop indirect 参数使用对应 exact type/alignment 的 byval；Win64 使用已经创建的 caller copy 地址，不能添加改变机器传参方式的 byval。各目标间接结果使用 sret。Darwin sret 使用 x8，SysV amd64 使用 RDI，Win64 使用 RCX；两种 amd64 ABI 均在 RAX 返回同一地址。Win64 的前四个物理参数按位置使用整数／浮点参数寄存器，其后使用栈，shadow space、栈对齐和探测交给 LLVM；不使用 SysV 的两组独立寄存器计数。Win64 C ABI 的小整数不添加 signext／zeroext，Boolean 仍使用 zeroext；Scoop Boolean 规则保持上述约定。
 
 ZST 的求值、调用、构造、类型及对象身份不能因零 payload 消失。被观察地址的独立 place 有满足 alignment 的存储 token；同时存活的不同 place 不共享地址。Ptr<ZST> 的元素位移为零，仍遵守 operand 求值和 unsafe 有效性条件。
 
