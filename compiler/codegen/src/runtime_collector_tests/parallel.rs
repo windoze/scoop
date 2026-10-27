@@ -2,6 +2,29 @@ use super::compile::compile_and_run_configuration;
 use super::{compile_and_run, compile_and_run_with_flags, workspace_root};
 
 #[test]
+fn mark_region_views_preserve_collisions_movement_and_mapping_reuse() {
+    for (stress, optimization) in [(false, "-O0"), (false, "-O2"), (true, "-O2")] {
+        let output = compile_and_run_configuration(
+            &workspace_root(),
+            "mark_region_cache_test",
+            "runtime/tests/mark_region_cache_test.c",
+            stress,
+            stress,
+            &[optimization],
+        );
+        assert!(
+            output.status.success(),
+            "stress={stress}, optimization={optimization}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"colliding region views preserve moved graphs across mapping retirement and reuse\n"
+        );
+    }
+}
+
+#[test]
 fn delayed_workers_observe_the_participants_of_the_published_phase() {
     let output = compile_and_run_with_flags(
         &workspace_root(),

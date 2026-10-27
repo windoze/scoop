@@ -18,6 +18,19 @@ static void corrupt_forwarding(unsigned scenario) {
     scoop_rt_push_native_roots(&roots, slots, 1);
     if (scenario == 5) {
         object = (char *)object + sizeof(void *);
+    } else if (scenario >= 6) {
+        /* Mark the valid owner first so the invalid edge takes the region-cache hit. */
+        NurseryNode *node = object;
+        if (scenario == 6) {
+            node->next = (NurseryNode *)((char *)object + sizeof(void *));
+        } else if (scenario == 7) {
+            node->next = (NurseryNode *)((char *)object + 1);
+        } else {
+            ScoopGcRegion *region = pointer_block(object)->region;
+            assert(region->next_block < GC_REGION_BLOCKS);
+            node->next = (NurseryNode *)(region->base + region->next_block * GC_BLOCK_SIZE +
+                                         GC_LINE_SIZE);
+        }
     }
     nursery_collect(false);
     assert(nursery_metrics().full_collections == 1);
@@ -71,6 +84,9 @@ static void expect_failure(unsigned scenario, const char *message) {
 
 int main(void) {
     expect_failure(5, "managed slot is not a current heap object start");
+    expect_failure(6, "managed slot is not a current heap object start");
+    expect_failure(7, "managed slot is not a current heap object start");
+    expect_failure(8, "managed slot is not a current heap object start");
 #if SCOOP_GC_TRACK_RELOCATION
     expect_failure(0, "object forwarded outside collection");
     expect_failure(1, "unmarked object reached relocation");

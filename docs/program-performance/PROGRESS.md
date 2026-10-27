@@ -4,6 +4,10 @@
 
 各项已采纳方案的开启方式与适用条件统一见[简略清单](ENABLED-OPTIMIZATIONS.md)，后续交付与默认策略调整时同步更新。
 
+- [GC 第十七阶段](GC-EVOLUTION.md)在单次标记停顿内复用普通 region，命中仍保留首次对象检查；begin／增量 resume 失效，最多增加 4 KiB，全部 profile 默认、ABI 23 不变。M3 增量大图墙钟 4.749 → 4.419 s，普通大图近乎持平；普通请求 p99 两机 134 → 129／202 → 197 ms，十六线程与 RSS／最大暂停回退保留。两机七项 C 专测及三目标双 profile GC／callback 组合通过。下一项实际推进 minor 搬迁计划并行，GC 主线继续。
+
+- [GC worker 通知实验](GC-EVOLUTION.md)比较了等待计数与启动前省通知；M3 线程负载的局部收益未在大图和 GNU 上稳定成立，两版均撤回。普通 runtime 没有新增计数或开关；继续处理扫描中的重复 region 定位。
+
 - [GC 第十六阶段](GC-EVOLUTION.md)让 ARM64 单引用数组写入直接从 owner 选择 mapping，保留现有卡合并与重定位顺序；x86_64 大数组退化，继续原页表。固定库的十亿次随机写入大／小数组 2.549／1.719 → 1.496／0.940 s，普通 runtime 元数据不变；逐 block owner 的页保留实验已否决。ABI 23 配套三目标系统库、双 profile／移动／pin／callback 组合通过。最终重建后大图和线程有回退，尾暂停没有稳定改善，原样记录；继续减少 collector 扫描、计划与同步成本。
 
 - [GC 第十五阶段](GC-EVOLUTION.md)利用旧代槽只接收无 hook 晋升对象的事实，按位图批量退休死亡槽；随现有 `SCOOP_GC_OLD_SLOTS=1` 启用，无新开关或 ABI。M3／GNU 大图清扫累计 128／278 → 15／37 ms，增量 full 完成片 max 16／35 → 6／12 ms；minor 主导的总体 p99 未解决，M3 部分 CPU／暂停回退保留。两机五项 C 专测及三目标双 profile GC／release 组合通过，继续处理 minor 计划、地址查询与对象布局成本。

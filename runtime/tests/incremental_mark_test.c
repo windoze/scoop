@@ -2,6 +2,7 @@
 
 #include "nursery_fixture.h"
 #include "../src/gc/mutator_internal.h"
+#include "../src/gc/mark_internal.h"
 
 #ifdef SCOOP_TEST_INCREMENTAL_PARALLEL
 #define TEST_WORKERS 4
@@ -52,6 +53,16 @@ static void step(void) {
     scoop_thread_push_managed_anchor(&anchor, 0x1010, (uintptr_t)frame, (uintptr_t)&frame[2]);
     scoop_gc_collect_incremental_internal();
     scoop_thread_pop_managed_anchor(&anchor);
+}
+
+static void expire_mark_views(void *object) {
+    uintptr_t address = (uintptr_t)object;
+    size_t index = (address / GC_REGION_SIZE) % GC_MARK_REGION_CACHE;
+    for (size_t worker = 0; worker < GC_MARK_MAX_WORKERS; worker++) {
+        /* No prior pause's metadata may be dereferenced on begin or resume. */
+        scoop_gc_marker.workers[worker].regions[index] =
+            (ScoopGcMarkRegion){address & ~(uintptr_t)(GC_REGION_SIZE - 1), (ScoopGcRegion *)1};
+    }
 }
 
 static bool marked(void *object) {
@@ -109,6 +120,7 @@ static void changed_edges(void **roots) {
     ScoopGcMetrics before = nursery_metrics();
     ScoopPinFrame temporary;
     scoop_rt_push_pin_frame(&temporary, roots[4]);
+    expire_mark_views(roots[0]);
     step();
     assert(scoop_gc_heap_state.incremental_active && collection_active);
     assert(mutator->allocation.cursor == cursor && mutator->reserved_count == reserves);
@@ -139,6 +151,7 @@ static void changed_edges(void **roots) {
         scoop_rt_gc_write_barrier(&slots[index], sizeof slots[index]);
     }
     roots[2] = NULL;
+    expire_mark_views(roots[0]);
     step();
     assert(scoop_gc_heap_state.incremental_active);
     assert(atomic_load(&scoop_gc_heap_state.dirty_card_groups) == NULL);

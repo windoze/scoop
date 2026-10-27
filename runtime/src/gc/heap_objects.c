@@ -51,13 +51,20 @@ bool object_meta(const void *object, ScoopGcBlockMeta **result, size_t *word_ind
     return true;
 }
 
-bool scoop_heap_reference_meta(const void *object, ScoopGcBlockMeta **result, size_t *word_index) {
-    ScoopGcBlockMeta *block = pointer_block(object);
+bool scoop_heap_reference_in_block(const void *object, ScoopGcBlockMeta *block, size_t *word_index) {
     if (block == NULL) {
         return false;
     }
     if (!object_meta_in_block(object, block, word_index)) {
         heap_fatal("managed slot is not a current heap object start");
+    }
+    return true;
+}
+
+bool scoop_heap_reference_meta(const void *object, ScoopGcBlockMeta **result, size_t *word_index) {
+    ScoopGcBlockMeta *block = pointer_block(object);
+    if (!scoop_heap_reference_in_block(object, block, word_index)) {
+        return false;
     }
     *result = block;
     return true;

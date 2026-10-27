@@ -91,11 +91,25 @@ static void enqueue_array(ScoopGcMarkWorker *worker, void *object, const uint64_
     }
 }
 
+static ScoopGcBlockMeta *reference_block(ScoopGcMarkWorker *worker, const void *object) {
+    uintptr_t address = (uintptr_t)object;
+    uintptr_t base = address & ~(uintptr_t)(GC_REGION_SIZE - 1);
+    ScoopGcMarkRegion *entry = &worker->regions[(address / GC_REGION_SIZE) % GC_MARK_REGION_CACHE];
+    if (entry->region != NULL && entry->base == base) {
+        return &entry->region->blocks[(address - base) / GC_BLOCK_SIZE];
+    }
+    ScoopGcBlockMeta *block = pointer_block(object);
+    if (block != NULL && !block->region->large) {
+        *entry = (ScoopGcMarkRegion){base, block->region};
+    }
+    return block;
+}
+
 static void mark_target(ScoopGcMarkWorker *worker, void *object) {
-    ScoopGcBlockMeta *block;
+    ScoopGcBlockMeta *block = reference_block(worker, object);
     size_t word;
     /* The coordinator owns heap/roots; these metadata remain immutable during mark. */
-    if (!scoop_heap_reference_meta(object, &block, &word)) {
+    if (!scoop_heap_reference_in_block(object, block, &word)) {
 #if SCOOP_ENABLE_GC_STRESS || (defined(SCOOP_GC_VERIFY_HEAP) && SCOOP_GC_VERIFY_HEAP)
         if (!scoop_gc_stw_is_stable_object(object)) {
             heap_fatal("managed slot points outside the current heap and stable object tables");

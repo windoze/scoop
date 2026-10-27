@@ -6,12 +6,13 @@
 
 相关 API 调整：[String 的字符扫描名称](STRING-API.md)在全部 profile 生效，无开关；`charLength`／`getCharAt` 保持 O(n)，`byteLength` 保持 O(1)，内部存储保持。扫描、编码与后备职责迁移见 [Runtime 职责收敛](RUNTIME-RESPONSIBILITIES.md)。
 
-表中 ABI 版本注明各项引入时的合同；当前统一 runtime contract 为 **22**、metadata ABI 为 **9**，配套库／runtime／sysroot 按当前合同重建。
+表中 ABI 版本注明各项引入时的合同；当前统一 runtime contract 为 **23**、metadata ABI 为 **9**，配套库／runtime／sysroot 按当前合同重建。
 
 ## 程序优化
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [单次标记停顿内复用 region](GC-EVOLUTION.md) | 新版 runtime，所有 profile 默认；无新开关，ABI 23 不变 | 每 worker 32 项普通 region，最大额外 4 KiB；每次 begin／resume 失效，命中仍验证对象起点，large／未命中走页表。普通与增量暂停、十六线程／RSS 回退见阶段十七。 |
 | [数组 owner 直接定位 mapping](GC-EVOLUTION.md) | ARM64 所有 profile 默认，配套 runtime contract 23；x86_64 保留原页表，无新开关 | 单引用 ArraySet 选择 small／large 的既有 mapping 前缀，省去四级页表；原卡合并、AS1 重定位及 pin 保持。普通容量不变，stress 保留 region 首 block。随机写入收益、整程序与尾暂停回退见阶段十六。 |
 | [按目标 block 并行复制](GC-EVOLUTION.md) | 新版 runtime，所有 profile 默认，沿用现有 worker／小规模策略；`SCOOP_GC_WORKERS=1` 串行 | 每个目标 block 单写者，完整预留后复制、全部完成后更新 roots；每阶段固定 worker 参与数量；每目标块 48 B 临时记录，无对象或 ABI 增量。降低复制阶段、墙钟和部分尾暂停，树形及高线程数 CPU 代价见阶段十三。 |
 | [旧代槽的批量清扫](GC-EVOLUTION.md) | 随 `SCOOP_GC_OLD_SLOTS=1` 启用，该策略仍默认关闭；所有 profile 一致 | nursery 资格已排除 release hook，按位图清除死亡槽；普通块、large 与 moving stress 保留原路径。没有新 metadata／ABI／选项，缩短清扫和 full 收尾，整体 p99 与 M3 CPU 的限制见阶段十五。 |

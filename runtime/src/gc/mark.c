@@ -40,6 +40,7 @@ void scoop_gc_mark_begin(bool minor, size_t block_count) {
             heap_fatal("mark state was not retired by the prior collection");
         }
         resize_blocks(worker, 0, block_count);
+        memset(worker->regions, 0, sizeof worker->regions);
         worker->minor = minor;
         reset_work(worker);
     }
@@ -177,6 +178,7 @@ void scoop_gc_mark_resume(size_t retained_blocks, size_t total_blocks) {
     for (size_t index = 0; index < scoop_gc_marker.active_workers; index++) {
         ScoopGcMarkWorker *worker = &scoop_gc_marker.workers[index];
         resize_blocks(worker, retained_blocks, total_blocks);
+        memset(worker->regions, 0, sizeof worker->regions);
     }
     /* The new root/dirty-card producer joins any work left by a bounded slice. */
     atomic_fetch_add_explicit(&scoop_gc_marker.pending, 1, memory_order_relaxed);

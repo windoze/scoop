@@ -318,6 +318,8 @@ ScoopGcBlockMeta *scoop_heap_activate_large_block(size_t exact_size, ScoopGcBloc
 bool scoop_heap_object_meta(const void *object, ScoopGcBlockMeta **block, size_t *word_index);
 /* False only outside the heap; invalid heap references fail in every build. */
 bool scoop_heap_reference_meta(const void *object, ScoopGcBlockMeta **block, size_t *word_index);
+/* The block must describe the object's address in the current immutable heap view. */
+bool scoop_heap_reference_in_block(const void *object, ScoopGcBlockMeta *block, size_t *word_index);
 #if SCOOP_GC_TRACK_RELOCATION
 void scoop_heap_claim_current_object(void *object);
 bool scoop_gc_object_was_scanned_locked(const void *object);

@@ -8,6 +8,7 @@
 #define GC_MARK_BATCH 64
 #define GC_MARK_CHUNK 1024
 #define GC_MARK_ARRAY_RANGE 1024
+#define GC_MARK_REGION_CACHE 32
 
 typedef struct ScoopGcLiveChunk {
     struct ScoopGcLiveChunk *next;
@@ -53,6 +54,11 @@ typedef struct ScoopGcMarkBlockCount {
     size_t movable_bytes;
 } ScoopGcMarkBlockCount;
 
+typedef struct ScoopGcMarkRegion {
+    uintptr_t base;
+    ScoopGcRegion *region;
+} ScoopGcMarkRegion;
+
 typedef struct ScoopGcMarkWorker {
     _Alignas(128) ScoopGcMarkQueue queue;
     _Alignas(128) size_t id;
@@ -76,6 +82,7 @@ typedef struct ScoopGcMarkWorker {
     uint64_t array_tasks;
     uint64_t stolen_tasks;
     uint64_t cpu_ns;
+    ScoopGcMarkRegion regions[GC_MARK_REGION_CACHE];
 } ScoopGcMarkWorker;
 
 typedef struct ScoopGcMarker {
