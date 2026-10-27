@@ -12,7 +12,12 @@ pub(crate) fn merge_callable_constants(path: &Path) -> Result<(), CodegenError> 
     let sections = output
         .file
         .sections()
-        .filter(|section| section.size() != 0 && section.name() == Ok(".rdata"))
+        .filter(|section| {
+            section.size() != 0
+                && section
+                    .name()
+                    .is_ok_and(|name| name == ".rdata" || name.starts_with(".rdata$.refptr."))
+        })
         .map(|section| section.index())
         .collect::<Vec<_>>();
     let Some(&primary) = sections.first() else {
@@ -144,6 +149,11 @@ impl CoffObject<'_> {
                     .section_aux
                     .get(&index.0)
                     .ok_or_else(|| error("constant section has no auxiliary record"))?;
+                // A module containing only MinGW address pointers has no plain
+                // .rdata yet. Keep its header and section symbol in agreement.
+                self.bytes[header..header + 8].copy_from_slice(b".rdata\0\0");
+                let symbol = aux - self.symbol_bytes;
+                self.symbols[symbol..symbol + 8].copy_from_slice(b".rdata\0\0");
                 self.symbols[aux..aux + 4].copy_from_slice(&size.to_le_bytes());
                 self.symbols[aux + 4..aux + 6].copy_from_slice(&encoded_count.to_le_bytes());
                 self.symbols[aux + 8..aux + 12].fill(0);
@@ -158,3 +168,6 @@ impl CoffObject<'_> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests;

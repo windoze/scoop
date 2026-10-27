@@ -23,10 +23,12 @@ pub(super) fn prepare_non_callable_strong_llvm_module<
     profile: ValidatedBackendProfile,
     expected_safepoints: &statepoint::ExpectedSafepoints,
 ) -> Result<LlvmModule<'ctx>, CodegenError> {
+    let symbol_plans = crate::symbol_plan::SymbolPlanIndex::new(production.canonical_definitions());
     let (llvm, ()) = emit_llvm_module_with_surface(
         context,
         module,
         production.canonical_definitions(),
+        &symbol_plans,
         production
             .registration_production()
             .callables()
@@ -60,7 +62,7 @@ pub(super) fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
     context: &'ctx Context,
     module: &Module,
     production: &scoop_lir::ConeProductionSection<D, C, I>,
-    elf_symbols: &crate::elf_llvm::SymbolPlanIndex,
+    symbol_plans: &crate::symbol_plan::SymbolPlanIndex,
     machine: &TargetMachine,
     profile: ValidatedBackendProfile,
     expected: &statepoint::ExpectedSafepoints,
@@ -73,6 +75,7 @@ pub(super) fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
         context,
         module,
         production.canonical_definitions(),
+        symbol_plans,
         production
             .registration_production()
             .callables()
@@ -108,10 +111,10 @@ pub(super) fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
             inkwell::passes::PassBuilderOptions::create(),
         )
         .map_err(|error| CodegenError(format!("COFF declaration cleanup: {error}")))?;
-        crate::coff_llvm::prepare(&llvm, production.canonical_definitions())?;
+        crate::coff_llvm::prepare(&llvm, symbol_plans)?;
     }
     if profile.lir_target_profile().native_object_format() == scoop_lir::NativeObjectFormat::Elf64 {
-        elf_symbols.prepare_callable(&llvm, machine)?;
+        symbol_plans.prepare_callable(&llvm, machine)?;
     }
     crate::metadata_sections::place_immutable_metadata(&llvm, profile);
     Ok(PreparedCallableModule {

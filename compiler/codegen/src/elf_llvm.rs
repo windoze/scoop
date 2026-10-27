@@ -4,20 +4,11 @@ use inkwell::GlobalVisibility;
 use inkwell::module::{Linkage, Module};
 use inkwell::values::{AsValueRef, GlobalValue};
 use llvm_sys::core::LLVMGetFirstUse;
-use scoop_lir::ObjectSymbolSurfaceV1;
 
 use crate::CodegenError;
 use crate::llvm_definitions::definition_owner;
 
 mod plans;
-pub(crate) use plans::SymbolPlanIndex;
-
-pub(crate) fn prepare(
-    llvm: &Module<'_>,
-    surface: &ObjectSymbolSurfaceV1,
-) -> Result<(), CodegenError> {
-    SymbolPlanIndex::new(surface).prepare(llvm)
-}
 
 pub(crate) fn apply_visibility(value: GlobalValue<'_>) {
     // Unused hidden declarations emit NOTYPE symbols even without relocations.

@@ -144,8 +144,9 @@ pub fn host_target_triple() -> Result<&'static str, ToolchainError> {
         ("aarch64", "macos") => Ok("aarch64-apple-darwin"),
         ("x86_64", "linux") if cfg!(target_env = "musl") => Ok("x86_64-unknown-linux-musl"),
         ("x86_64", "linux") => Ok("x86_64-unknown-linux-gnu"),
+        ("x86_64", "windows") => Ok("x86_64-pc-windows-msvc-ucrt"),
         (arch, os) => Err(ToolchainError(format!(
-            "unsupported host {arch}-{os}; M28 supports macOS/AArch64 and Linux/amd64"
+            "unsupported host {arch}-{os}; supported hosts are macOS/AArch64, Linux/amd64 and Windows/amd64"
         ))),
     }
 }
@@ -157,6 +158,15 @@ pub fn select_target(triple: &str) -> Result<ValidatedLirTargetSelection, Toolch
         }
         "x86_64-unknown-linux-musl" | "x86_64-linux-musl" => {
             return Ok(scoop_target_data::LINUX_X86_64_MUSL_LLVM_22_1);
+        }
+        "x86_64-pc-windows-msvc-ucrt" => {
+            return Ok(scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_LLVM_22_1);
+        }
+        "x86_64-w64-windows-llvm-mingw-msvcrt" => {
+            return Ok(scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_LLVM_22_1);
+        }
+        "x86_64-w64-windows-llvm-mingw-ucrt" => {
+            return Ok(scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_LLVM_22_1);
         }
         _ => {}
     }
@@ -174,7 +184,7 @@ pub fn select_target(triple: &str) -> Result<ValidatedLirTargetSelection, Toolch
         Ok(scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
     } else {
         Err(ToolchainError(format!(
-            "unsupported target {triple:?}; M28 supports macOS/AArch64, Linux glibc/amd64 and Linux musl/amd64"
+            "unsupported target {triple:?}; use a registered macOS/AArch64, Linux/amd64 or complete Windows/amd64 target"
         )))
     }
 }
@@ -260,9 +270,42 @@ mod tests {
             "x86_64-apple-darwin",
             "aarch64-unknown-linux-gnu",
             "aarch64-apple-ios",
+            "x86_64-pc-windows-msvc",
+            "x86_64-w64-windows-gnu",
+            "windows-ucrt",
+            "windows-msvcrt",
         ] {
             let error = ResolvedTargetProfile::resolve(triple).unwrap_err();
             assert!(error.0.contains("unsupported target"));
+        }
+    }
+
+    #[test]
+    fn windows_cli_names_preserve_each_native_environment() {
+        for (triple, selection) in [
+            (
+                "x86_64-pc-windows-msvc-ucrt",
+                scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_LLVM_22_1,
+            ),
+            (
+                "x86_64-w64-windows-llvm-mingw-msvcrt",
+                scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_LLVM_22_1,
+            ),
+            (
+                "x86_64-w64-windows-llvm-mingw-ucrt",
+                scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_LLVM_22_1,
+            ),
+        ] {
+            assert_eq!(select_target(triple).unwrap(), selection);
+            assert_eq!(
+                crate::manifest::source_target(selection.target().id())
+                    .unwrap()
+                    .triple,
+                triple
+            );
+        }
+        if cfg!(all(windows, target_arch = "x86_64")) {
+            assert_eq!(host_target_triple().unwrap(), "x86_64-pc-windows-msvc-ucrt");
         }
     }
 }

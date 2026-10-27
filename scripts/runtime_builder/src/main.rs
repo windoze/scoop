@@ -1,9 +1,9 @@
 //! Script helper: use the existing runtime compiler and report its output files.
-use std::os::unix::ffi::OsStrExt;
 use std::path::PathBuf;
 
 use clap::Parser;
 use scoop::{RuntimeBuildRequest, RuntimeOptimization, build_runtime};
+use scoop_protocol::HostPathCarrier;
 use scoop_toolchain::{CToolchainOptions, ResolvedTargetProfile};
 
 #[derive(Parser)]
@@ -33,6 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tools = CToolchainOptions {
         compiler: args.cc,
         native_sysroot: args.native_sysroot,
+        ..Default::default()
     };
     let target = ResolvedTargetProfile::resolve_with_cached(&args.target, &tools, &args.cache_dir)?;
     let output = build_runtime(RuntimeBuildRequest {
@@ -57,15 +58,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .iter()
                 .map(|object| object.path()),
         )
-        .map(|path| {
-            path.strip_prefix(root)
-                .map(|relative| relative.as_os_str().as_bytes().to_vec())
+        .map(|path| -> Result<_, Box<dyn std::error::Error>> {
+            Ok(HostPathCarrier::from_path(path.strip_prefix(root)?)?)
         })
         .collect::<Result<Vec<_>, _>>()?;
     println!(
         "{}",
         serde_json::json!({
-            "root": root.as_os_str().as_bytes(),
+            "root": HostPathCarrier::from_path(root)?,
             "files": files,
             "cache_hit": output.cache_hit(),
         })

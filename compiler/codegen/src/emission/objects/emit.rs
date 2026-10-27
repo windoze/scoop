@@ -39,7 +39,7 @@ pub(super) fn emit_object_set_with_production<
             ))
         })?;
     let mut callables = BTreeMap::new();
-    let elf_symbols = crate::elf_llvm::SymbolPlanIndex::new(production.canonical_definitions());
+    let symbol_plans = crate::symbol_plan::SymbolPlanIndex::new(production.canonical_definitions());
     let callable_definitions = production
         .canonical_definitions()
         .plans()
@@ -63,7 +63,7 @@ pub(super) fn emit_object_set_with_production<
             &context,
             module,
             &production,
-            &elf_symbols,
+            &symbol_plans,
             &machine,
             profile,
             &selected_safepoints,

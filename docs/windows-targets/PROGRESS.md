@@ -5,14 +5,14 @@
 | 阶段 | 状态 | 尚需闭合 |
 | --- | --- | --- |
 | W0 工具链与 ABI | 关键路线实验通过 | 复现入口与范围见下文；正式编译器集成在 W1／W2 完成 |
-| W1 编译／链接 | 实施中 | ABI、COFF、generated-C 与 native C/C++ 已接入；继续完整 PE 链接与调试信息 |
-| W2 core runtime | 实施中 | Unicode 启动、同步／worker／计时／对齐分配已接入；Win32 VM、PE image 已实现；继续 SEH 精确根与完整 core／std |
+| W1 编译／链接 | 实施中 | 三目标开发 CLI 已生成 `.slib` 与真实 PE 程序；继续 DLL 数据、subsystem／RC、调试信息与组合验收 |
+| W2 core runtime | 实施中 | core／std／test 已构建，启动、异常和移动 GC 的真实程序通过；继续线程／callback／unwind 组合及正式 fixture 验收 |
 | W3 系统库 | 待实施 | 平台规范与实现、IOCP、全部 native 组件、真实 consumer |
 | W4 宿主与发行 | 基础实施中 | 进程中断已实现；继续 Windows 命令、维护脚本、DLL／SDK 布局与打包、交叉编译 |
 
 本地实现和完整验收完成后，才在 Linux `nuc12w.0d0a.com` 与 macOS `mm.0d0a.com` 的 `~/repos` 下新建测试目录，运行与变更范围相称的回归。原始日志与构建目录放在仓库外。
 
-2026-10-28 新增需求已记录，尚待实现：`Cone.toml` 的 `[windows]` 节增加 `subsystem = "console" | "gui"`（默认 console）和可选 `rc` 文件；Windows toolchain 自带或发现 RC compiler，资源编译后进入 exe。W1 覆盖 manifest、产物、链接与缓存，W4 覆盖工具供应／发现；具体合同和验收见 [设计 3.1](DESIGN.md#31-windows-executable-配置与资源)。
+2026-10-28 新增需求已记录，尚待实现：`Cone.toml` 的 `[windows]` 节增加 `subsystem = "console" | "gui"`（默认 console）和可选 `rc` 文件；Windows toolchain 自带或发现 RC compiler，资源编译后进入 exe。W1 覆盖 manifest、产物、链接与缓存，W4 覆盖工具供应／发现；具体合同和验收见 [设计 3.4](DESIGN.md#34-windows-executable-配置与资源)。
 
 ## 本地环境
 
@@ -108,3 +108,7 @@ Windows managed entry shim 和独立 frame reader 已接入同一平台 bundle�
 完整 Windows runtime build profile 已组合全部公共 C、Windows OS／PE／frame、数值 parser 和入口 shim；三个环境的全部源文件在 GC stress／startup stats 分支启用时通过严格警告编译、runtime ABI 目录检查、索引往返和完整 native 对象集的链接运行。Microsoft SDK 路径放在 Clang builtin headers 之后，修复 C11 atomic header 选择并验证 pointer atomic 始终 lock-free；COFF runtime 目录允许 CRT helper 的正常 weak 合并，真实重复 strong 入口仍报错，shim 使用 NoDuplicates COMDAT。Clippy、四项平台组件矩阵及四种 PE 链接组合回归通过。这里的完整对象链接使用 native C consumer，未替代 managed startup／GC／异常验收；正式 CLI target 仍在后续闭环验证后开放。
 
 scoop.test 的 native 报告通道已适配 Windows：使用所选 CRT 的 descriptor 复制／恢复、宽字符结果目录、二进制文件和 QPC 计时。三个 native 环境的 capture／nocapture 六种实际进程组合通过 Unicode／非 BMP 路径、JSON 事件、LF／CR／NUL／0x1a／0xff 字节及重复捕获后的标准流恢复；C 格式化与严格警告检查通过。正式 Scoop Cone 测试仍随 core／std 的真实 CLI 构建闭环验证，不将 native 通道测试计作完整测试框架验收。
+
+三个完整 Windows target 已接入开发 CLI，默认选择 Microsoft UCRT。实际构建修复了 compiler child 的 DLL 搜索环境、Windows compiler 栈 reserve、runtime Clang 路径、Windows artifact summary 解码，以及准备脚本的 UTF-16 路径传输。工具发现更新版本使旧 include 顺序正常失效；三个 target 的完整 runtime 分别准备并发布，Unicode cache 路径与未变化 runtime 的复用通过。ELF／COFF 共用每份 symbol surface 的一次名称索引，消除每个 callable 重建全 Cone 名称的开销；MinGW 全局地址的 refptr 归入 callable 常量贡献。程序链接复用 runtime 已合并的 weak helper，允许用户 native 中相同的 COFF helper 正常合并。
+
+三环境的 core／std／scoop.test 均通过实际 release CLI 构建；hello、try/catch/finally、String 移动根、boxed struct／tuple／enum／context 与 unwind 后收集的四组真实程序全部运行通过，scoop.test 自身每环境 4 项测试通过。正式测试还修复了带 `\\?\` 前缀报告目录的路径拼接，并移除 manifest 中重复且不适用于 clang-cl 的 C11 flags。相关 Rust 格式化／Clippy、Python Ruff、ELF 索引与 Windows codegen／refptr／常量池、registry／summary／工具发现测试通过，C 变更在三环境严格警告检查通过。这里是开发 CLI 的定向组合验收，尚未替代正式 fixture 全量、线程／callback／GC stress、系统库和发行验收；未开始远端测试。

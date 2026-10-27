@@ -32,7 +32,7 @@ FILE *scoop_test_open_output(const char *name) {
     if (!path)
         return NULL;
     memcpy(path, run_directory, directory_length * sizeof(wchar_t));
-    path[directory_length] = L'/';
+    path[directory_length] = L'\\';
     // Output names are the internal ASCII event/capture filenames.
     for (size_t index = 0; index <= name_length; ++index)
         path[directory_length + 1 + index] = (unsigned char)name[index];

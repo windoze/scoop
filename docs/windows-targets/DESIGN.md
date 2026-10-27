@@ -1,6 +1,6 @@
 # Windows MSVCRT／UCRT target 与工具链设计
 
-状态：实施中，W0 关键路线实验通过，继续 W1～W4；尚未开放正式 Windows target。日期：2026-10-27。本文覆盖 MSVCRT、UCRT 两种 CRT，并按 native 工具链环境区分完整 target。实施与验收记录见 [进度](PROGRESS.md)。
+状态：实施中，W0 关键路线实验通过，三个 Windows target 已接入开发 CLI；W1～W4 尚未完成全部验收，不声明正式发行支持。日期：2026-10-28。本文覆盖 MSVCRT、UCRT 两种 CRT，并按 native 工具链环境区分完整 target。实施与验收记录见 [进度](PROGRESS.md)。
 
 依据：[语言规范](../specs/SCOOP-SPEC.md) 12～14、[实现规范](../specs/SCOOP-IMPL-SPEC.md) 1、2.4～2.10，以及[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md) 3～7。实施时先将本文对应阶段的精确合同纳入这些规范，再改实现；当前三个已实现目标的合同保持有效。
 
@@ -146,7 +146,7 @@ generated-C、用户 native、runtime、startup 与内置库必须符合选定 n
 
 MinGW 最终链接沿用目标 Clang driver；Microsoft 经宿主 clang-cl driver 调用选定的 lld-link／link.exe，native 对象可来自 cl 或 clang-cl。这样 compiler producer 与最终 linker 可独立选择，无须通过未声明的 cl 内部选项替换 linker。Scoop 添加实际对象、metadata 和所需库，不复制一套任意启动顺序；Unicode startup 之后才进入 Scoop coordinator，正常 native 初始化／终止由对应 CRT 负责。
 
-### 3.1 Windows executable 配置与资源
+### 3.4 Windows executable 配置与资源
 
 2026-10-28 补充需求：executable Cone 的 `Cone.toml` 使用同一个 `[windows]` 节设置 subsystem 和 RC 文件：
 

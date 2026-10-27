@@ -14,13 +14,13 @@ pub(super) struct Inputs {
 
 impl Inputs {
     pub fn read(request: &RuntimeBuildRequest<'_>) -> Result<Self, RuntimeBuildError> {
-        let root = request.runtime_root.canonicalize().map_err(|cause| {
+        let root = dunce::canonicalize(request.runtime_root).map_err(|cause| {
             error(format!(
                 "runtime source root {}: {cause}",
                 request.runtime_root.display()
             ))
         })?;
-        let vendor = request.vendor_root.canonicalize().map_err(|cause| {
+        let vendor = dunce::canonicalize(request.vendor_root).map_err(|cause| {
             error(format!(
                 "vendor source root {}: {cause}",
                 request.vendor_root.display()

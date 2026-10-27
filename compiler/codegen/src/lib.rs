@@ -91,6 +91,7 @@ mod object_partition;
 mod runtime_metadata_v1;
 mod shape_definitions;
 mod statepoint;
+mod symbol_plan;
 mod target;
 mod type_descriptors;
 

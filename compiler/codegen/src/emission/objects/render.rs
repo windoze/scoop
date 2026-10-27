@@ -22,7 +22,7 @@ pub fn render_llvm_ir_members(
     let declarations = ConeDeclarations::new(module, &production)?;
     let machine = profile.create_target_machine()?;
     let mut callables = BTreeMap::new();
-    let elf_symbols = crate::elf_llvm::SymbolPlanIndex::new(production.canonical_definitions());
+    let symbol_plans = crate::symbol_plan::SymbolPlanIndex::new(production.canonical_definitions());
     let context = Context::create();
     for function in module.callable_bodies() {
         let body = function.callable_body.id();
@@ -33,7 +33,7 @@ pub fn render_llvm_ir_members(
             &context,
             module,
             &production,
-            &elf_symbols,
+            &symbol_plans,
             &machine,
             profile,
             &selected_safepoints,

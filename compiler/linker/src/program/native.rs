@@ -30,7 +30,7 @@ pub(super) fn resolve(
         .map(|file| NativeObjectId::Direct(file.id))
         .collect();
     for id in direct {
-        selection::include(inputs, id, "direct input")?;
+        selection::include(inputs, runtime, id, "direct input")?;
     }
     for (symbol, declaration) in declarations {
         let result = (|| {
@@ -80,7 +80,7 @@ pub(super) fn resolve(
             ))
         })?;
     }
-    selection::resolve(inputs, declarations)?;
+    selection::resolve(inputs, declarations, runtime)?;
     inputs
         .namespace
         .project(&inputs.definitions, library_paths, profile)?;

@@ -180,13 +180,20 @@ impl<'a> ProgramInputs<'a> {
         }
         for object in runtime.objects() {
             for symbol in object.info().definitions.keys() {
-                if let Some(previous) =
-                    definitions.insert(symbol.clone(), DefinitionOwner::Runtime(object.id()))
-                {
-                    return Err(error(format!(
-                        "runtime object {} conflicts with {previous:?} at {symbol}",
-                        object.id()
-                    )));
+                match definitions.entry(symbol.clone()) {
+                    std::collections::btree_map::Entry::Vacant(entry) => {
+                        entry.insert(DefinitionOwner::Runtime(object.id()));
+                    }
+                    std::collections::btree_map::Entry::Occupied(entry) => {
+                        // RuntimeObjectSet already resolved coalescible definitions.
+                        if !matches!(entry.get(), DefinitionOwner::Runtime(_)) {
+                            return Err(error(format!(
+                                "runtime object {} conflicts with {:?} at {symbol}",
+                                object.id(),
+                                entry.get()
+                            )));
+                        }
+                    }
                 }
             }
             requirements.extend(object.info().requirements.iter().cloned());

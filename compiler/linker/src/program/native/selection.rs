@@ -9,6 +9,7 @@ pub(super) use candidates::{Candidate, candidate};
 
 pub(super) fn include(
     inputs: &mut ProgramInputs<'_>,
+    runtime: &RuntimeObjectSet,
     id: NativeObjectId,
     reason: &str,
 ) -> Result<(), LinkError> {
@@ -23,6 +24,15 @@ pub(super) fn include(
             )));
         }
         if let Some(previous) = inputs.definitions.get(symbol) {
+            if matches!(previous, DefinitionOwner::Runtime(_))
+                && inputs.target.native_object_format() == scoop_lir::NativeObjectFormat::Coff64
+            {
+                let old = runtime.symbols().definitions[symbol];
+                let new = index.definitions[symbol];
+                if old.binding == NativeSymbolBinding::Weak && old == new {
+                    continue;
+                }
+            }
             if let DefinitionOwner::Native(previous) = previous {
                 let (previous_index, _) = inputs.native.object(*previous)?;
                 let old = previous_index.definitions[symbol];
@@ -71,6 +81,7 @@ pub(super) fn include(
 pub(super) fn resolve(
     inputs: &mut ProgramInputs<'_>,
     declarations: &BTreeMap<String, Declarations<'_>>,
+    runtime: &RuntimeObjectSet,
 ) -> Result<(), LinkError> {
     let mut pending = inputs.requirements.clone();
     while let Some(symbol) = pending.pop_first() {
@@ -92,7 +103,7 @@ pub(super) fn resolve(
         match candidate {
             Candidate::Object(id) => {
                 if !inputs.native.selected.contains_key(&id) {
-                    include(inputs, id, &format!("{symbol} <- {origin}"))?;
+                    include(inputs, runtime, id, &format!("{symbol} <- {origin}"))?;
                     let (index, _) = inputs.native.object(id)?;
                     pending.extend(index.requirements.iter().cloned());
                 }

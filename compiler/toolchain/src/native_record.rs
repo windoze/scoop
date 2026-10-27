@@ -17,6 +17,9 @@ use inputs::Input;
 pub(crate) use inputs::{header_candidates, program_candidates};
 use invocation::InvocationRecord;
 
+// Changes to discovery semantics must also invalidate callers' build keys.
+const CACHE_VERSION: &str = "native-tools-v2";
+
 #[derive(Serialize, Deserialize)]
 pub(crate) struct ResolvedRecord {
     invocation: InvocationRecord,
@@ -128,7 +131,7 @@ pub(crate) fn resolve_cached(
     crate::registry::select_target(triple)?;
     let options = CToolchainOptions::from_request(request)?;
     let key = native_tool_configuration(request)?;
-    let directory = cache.join("native-tools-v1");
+    let directory = cache.join(CACHE_VERSION);
     let record_path = directory.join(format!("{key}.json"));
     if let Some(result) = lookup(&record_path)? {
         return result.into_target(triple);
@@ -189,8 +192,12 @@ pub fn native_tool_configuration(
         .map(|v| v.as_ref().map(|v| v.as_encoded_bytes()))
         .collect();
     Ok(sha256(
-        &serde_json::to_vec(&(scoop_wire::encode(request).map_err(error)?, environment))
-            .map_err(error)?,
+        &serde_json::to_vec(&(
+            CACHE_VERSION,
+            scoop_wire::encode(request).map_err(error)?,
+            environment,
+        ))
+        .map_err(error)?,
     ))
 }
 
@@ -200,8 +207,7 @@ pub fn cached_native_tool_inputs(
     cache: &Path,
 ) -> Result<Vec<Input>, ToolchainError> {
     let key = native_tool_configuration(request)?;
-    let file =
-        File::open(cache.join("native-tools-v1").join(format!("{key}.json"))).map_err(error)?;
+    let file = File::open(cache.join(CACHE_VERSION).join(format!("{key}.json"))).map_err(error)?;
     let record: Record = serde_json::from_reader(BufReader::new(file)).map_err(error)?;
     Ok(record.inputs)
 }

@@ -4,7 +4,7 @@ use scoop_process::CommandExt;
 use std::fmt;
 use std::io::{Read, Write};
 use std::path::PathBuf;
-use std::process::{Command, ExitStatus, Stdio};
+use std::process::{ExitStatus, Stdio};
 
 use scoop_protocol::{
     ProtocolReadError, ProtocolWriteError, ScoopcRequestEnvelopeV1, ScoopcResponseEnvelopeV1,
@@ -76,10 +76,14 @@ impl SingleConeCompilerRunner for ProductionSingleConeCompilerRunner {
             .prefix(".scoop-child-")
             .tempdir_in(&io.temporary_root)
             .map_err(ChildTransportError::TemporaryDirectory)?;
-        let mut child = Command::new(tool.executable_path())
+        let mut command = crate::compiler::compiler_command(tool.executable_path());
+        #[cfg(windows)]
+        command
+            .env("TEMP", temporary.path())
+            .env("TMP", temporary.path());
+        let mut child = command
             .arg("__child-protocol")
             .arg(tool.protocol().protocol_version().to_string())
-            .env_clear()
             .env("SCOOP_SYSROOT", io.trusted_sysroot())
             .env("SCOOP_CACHE_DIR", &io.temporary_root)
             .env("TMPDIR", temporary.path())
