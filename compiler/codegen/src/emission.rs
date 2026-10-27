@@ -255,6 +255,8 @@ fn emit_llvm_module_with_surface<'ctx, R>(
             && machine.get_target().get_name() == c"x86-64",
         optimize_allocations: profile.optimization() == scoop_lir::OptimizationMode::Release,
         optimize_reference_writes: profile.optimization() == scoop_lir::OptimizationMode::Release,
+        // Direct lookup regressed large random reference writes on x86.
+        direct_array_regions: machine.get_target().get_name() == c"aarch64",
         // Larger x86 initialization regions had unstable register-allocation costs.
         allocation_initialization_limit: if machine.get_target().get_name() == c"aarch64" {
             128

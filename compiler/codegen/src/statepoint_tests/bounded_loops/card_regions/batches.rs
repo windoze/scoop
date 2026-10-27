@@ -240,7 +240,11 @@ fn batched_cards_keep_moving_roots_and_actual_stack_reloads_on_each_target() {
         scoop_target_data::LINUX_X86_64_GNU_LLVM_22_1,
         scoop_target_data::LINUX_X86_64_MUSL_LLVM_22_1,
     ] {
-        for (source, reloads) in [(super::source(), 0), (stack_reads::source(), 2)] {
+        for (source, reloads) in [
+            (super::source(), 0),
+            (stack_reads::source(), 2),
+            (super::array_query_source(), 0),
+        ] {
             let source = strided(source, 16);
             let profile = ValidatedBackendProfile::for_selection(selection)
                 .unwrap()
@@ -277,6 +281,7 @@ fn batched_cards_keep_moving_roots_and_actual_stack_reloads_on_each_target() {
                 true,
             );
             assert!(llvm.get_function("scoop.card_group.fast").is_none());
+            assert!(llvm.get_function("array_mapping").is_none());
             let guards = llvm
                 .get_function("f")
                 .unwrap()

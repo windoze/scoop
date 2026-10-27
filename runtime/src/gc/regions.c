@@ -79,6 +79,11 @@ ScoopGcRegion *scoop_heap_region_create(size_t size, bool large) {
     region->next = scoop_gc_heap_state.regions;
     scoop_gc_heap_state.regions = region;
     if (!large) {
+#if SCOOP_ENABLE_GC_STRESS
+        /* Keep the mapping owner readable even when old object blocks are
+         * quarantined. The reserved block never acquires object metadata. */
+        region->next_block = 1;
+#endif
         region->next_available = scoop_gc_heap_state.available_regions;
         scoop_gc_heap_state.available_regions = region;
     }

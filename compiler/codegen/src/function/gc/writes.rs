@@ -27,7 +27,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .map_err(|error| CodegenError(format!("heap value store: {error}")))?;
         if let [offset] = references.as_slice() {
             // An array, including all of its elements, occupies one mapping.
-            let region = self.card_region(array)?;
+            let region = self.array_card_region(array)?;
             let slot = self.byte_gep(address, *offset, "barrier_start")?;
             self.mark_card_in_region(slot, region)
         } else {
@@ -75,7 +75,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .build_conditional_branch(needed, mark, done)
             .map_err(write_error)?;
         builder.position_at_end(mark);
-        let region = self.card_region(array)?;
+        let region = self.array_card_region(array)?;
         self.mark_card_in_region(slot, region)?;
         builder
             .build_unconditional_branch(done)

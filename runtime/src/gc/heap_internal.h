@@ -305,10 +305,6 @@ ScoopGcBlockMeta *scoop_heap_pointer_block(const void *pointer);
 /* Current heap starts or reserved targets only; never an arbitrary reference.
  * The caller knows the allocation class independently of temporary target headers. */
 static inline ScoopGcBlockMeta *scoop_heap_known_object_block(const void *object, bool small) {
-    if (stress_move) {
-        /* The first block of this region may already be quarantined. */
-        return pointer_block(object);
-    }
     uintptr_t address = (uintptr_t)object;
     uintptr_t base = small ? address & ~(uintptr_t)(GC_REGION_SIZE - 1) : address - GC_LINE_SIZE;
     ScoopGcRegion *region = *(ScoopGcRegion *const *)base;
