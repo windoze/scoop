@@ -12,8 +12,9 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [旧槽余量与少搬迁晋升](GC-EVOLUTION.md#第三十六阶段旧槽余量与少搬迁晋升) | `SCOOP_GC_OLD_SLOTS=3` 显式开启；默认仍为 2，所有 profile 同义 | 密集、等大小、精确网格的年轻块为旧槽保留相当于当前 nursery 的余量，优先原地转槽。树形分配可少复制；大随机更新图可能增加 RSS 和暂停，完整预留、survivor、pin 与失败回退保持，无对象／ABI 增量。 |
 | [单引用数组的槽区间](GC-EVOLUTION.md#第三十五阶段单引用数组的槽区间) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 实际 References child 恰含一个 offset 时，从槽地址一次计算合法下标并按 stride 调用原 visitor，省去逐元素 offset 遍历与范围分支。多引用／递归路径保留，无对象、metadata 或 ABI 增量；以少量代码和短线程回退换取大图 STW／吞吐收益。 |
-| [旧槽按位图字预留](GC-EVOLUTION.md#第三十四阶段旧槽按位图字预留) | 新版 runtime 随既有 `SCOOP_GC_OLD_SLOTS=1/2` 生效，默认 2；所有 profile，无新开关 | 复用零空槽计数跳过满块，按精确网格缓存空起点；保留整块独占、完整预留、回滚和 full 重建。每个可用块增加 8 B native 记录，另有 248 B 静态表；无逐对象／ABI 增量，接受单线程及部分长尾代价以缩短大图／多线程 STW。 |
+| [旧槽按位图字预留](GC-EVOLUTION.md#第三十四阶段旧槽按位图字预留) | 新版 runtime 随既有 `SCOOP_GC_OLD_SLOTS=1..3` 生效，默认 2；所有 profile，无新开关 | 复用零空槽计数跳过满块，按精确网格缓存空起点；保留整块独占、完整预留、回滚和 full 重建。每个可用块增加 8 B native 记录，另有 248 B 静态表；无逐对象／ABI 增量，接受单线程及部分长尾代价以缩短大图／多线程 STW。 |
 | [TLAB 已对齐范围比较](GC-EVOLUTION.md#第三十二阶段tlab-已对齐范围比较) | ARM64 release 默认；已知 8-byte 对齐、规格化尺寸为 16～32,640 B 的常量 | 直接比较请求与当前 `limit - cursor`，省去重复对齐和判空；原初始化、发布、计数及 collecting slow path 保持。x86 两个候选因树／单线程回退撤回，debug、动态或其他对齐沿原路径；无对象／ABI／配置增量，线程尾部代价见记录。 |
 | [精确对象定位正文内联](GC-EVOLUTION.md) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 当前 block 视图内共用对齐、活动状态、starts／large 发布和对象索引正文，省去逐引用调用与索引栈中转。保留全部精确起点检查、acquire 和 STW 边界；无对象／ABI 增量，大图吞吐改善，暂停和线程波动见阶段三十。 |
 | [提高 GC 并行度并限制分片总处理量](GC-EVOLUTION.md) | 新版 runtime 所有 profile 默认最多 8 worker；候选块小于 4 MiB 仍串行；既有 `SCOOP_GC_WORKERS=1..8` 可强制选择 | 四个以上 worker 分享约 4,096 单位的单片处理量，完整收尾仍排空任务。缩短大图和线程 STW、改善深树／多线程吞吐，接受更多 CPU、私有统计空间及单线程短负载回退；无新对象／ABI／选项，详见阶段二十九。 |
@@ -23,7 +24,7 @@
 | [STW 与分配优先的 GC 默认组合](GC-EVOLUTION.md) | 新版 runtime 所有 profile 默认 `SCOOP_GC_OLD_SLOTS=2`＋`SCOOP_GC_INCREMENTAL=1`，两个选项独立 | 复用密集转槽、原地 full 与 full 分片；minor 分片继续显式等级 2。缩短大图与多线程尾暂停、提高树和线程分配吞吐，接受随机更新吞吐与部分应用间隔 p99 代价；无新算法／ABI，见阶段二十五。 |
 | [full 搬迁目标并行预留](GC-EVOLUTION.md) | 需要 full 搬迁时默认使用（旧槽等级 0），沿现有 worker／小规模策略；`SCOOP_GC_WORKERS=1` 串行 | worker 独占完整目标块的空洞及复制组，保留单 source 容量预判、集中收益与统一回滚；逐对象不取锁，无新对象／ABI。缩短 STW，增加 CPU 和约 1 KiB 临时规划数组，四线程／部分 p99 代价见阶段二十四。 |
 | [分配不再维护 line 位图](GC-EVOLUTION.md) | 全部 profile 默认，配套 runtime contract 24；编译器／runtime／系统库一起重建 | 普通分配只维护精确大小、starts 与原计数，collector 的唯一 live-line 供清扫／full VM 归还消费；context 40 B、每小对象块逻辑 metadata 减少 40 B。分配吞吐与代码量改善，线程／尾暂停回退见阶段二十三；无新开关。 |
-| [密集年轻块直接转为旧代槽](GC-EVOLUTION.md) | `SCOOP_GC_OLD_SLOTS=2` 为所有 profile 默认；0 选择 region 整理，1 保留复制晋升；所有 profile 语义一致 | marker 汇总精确大小与槽网格，已有空槽不足时才原地晋升；保留首次 survivor、pin、混合布局及失败回退。树和线程减少复制、CPU 与 RSS，大图尾暂停可能回退；每进程增加 248 B，ABI 23 不变，见阶段二十二。 |
+| [密集年轻块直接转为旧代槽](GC-EVOLUTION.md) | `SCOOP_GC_OLD_SLOTS=2` 为所有 profile 默认；0 选择 region 整理，1 保留复制晋升；所有 profile 语义一致 | marker 汇总精确大小与槽网格；默认等级 2 在已有空槽不足时原地晋升，等级 3 另保留空槽余量。保留首次 survivor、pin、混合布局及失败回退。树和线程减少复制、CPU 与 RSS，大图尾暂停可能回退；每进程增加 248 B，ABI 23 不变，见阶段二十二。 |
 | [worker 本地存活 line 位图](GC-EVOLUTION.md) | 新版 runtime 所有 profile 默认，无新开关 | 逐对象只更新本 worker 的块统计，标记完成后与字节计数一起合并；保留原子首次标记、分片与复制边界。每 worker／参与 block 额外 32 B 临时统计，无对象或 ABI 增量；吞吐、暂停及 RSS 的小幅回退见阶段二十一。 |
 | [minor 分片标记与有界分配余量](GC-EVOLUTION.md) | `SCOOP_GC_INCREMENTAL=2`，默认关闭；0 保持完整收集，1 仍只分片 full | nursery 达目标容量后分片，片间最多使用目标容量的 1/8 额外 block；保存旧脏卡至最终重定位，OOM／显式 full 完整回退。降低大存活图的单次停顿，但增加吞吐、CPU、应用间隔 p95 和部分 RSS 成本；树形负载不推荐。各 profile 同义、ABI 23 不变，具体对照见阶段二十。 |
 | [引用更新直接消费存活分块](GC-EVOLUTION.md) | 新版 runtime 所有 profile 默认，沿现有 worker 策略；单 worker 直接遍历 | 省去 coordinator 逐对象建批次和重复 scan 读取，数组任务完整结束后 reclaim；降低队列容量、CPU 和部分暂停。覆盖位图原子 claim 只编入原 stress／显式验证配置，ABI 23 不变；回退与测量边界见阶段十九。 |
@@ -31,8 +32,8 @@
 | [单次标记停顿内复用 region](GC-EVOLUTION.md) | 新版 runtime，所有 profile 默认；无新开关，ABI 23 不变 | 每 worker 32 项普通 region，最大额外 4 KiB；每次 begin／resume 失效，命中仍验证对象起点，large／未命中走页表。普通与增量暂停、十六线程／RSS 回退见阶段十七。 |
 | [数组 owner 直接定位 mapping](GC-EVOLUTION.md) | ARM64 所有 profile 默认，配套 runtime contract 23；x86_64 保留原页表，无新开关 | 单引用 ArraySet 选择 small／large 的既有 mapping 前缀，省去四级页表；原卡合并、AS1 重定位及 pin 保持。普通容量不变，stress 保留 region 首 block。随机写入收益、整程序与尾暂停回退见阶段十六。 |
 | [按目标 block 并行复制](GC-EVOLUTION.md) | 新版 runtime，所有 profile 默认，沿用现有 worker／小规模策略；`SCOOP_GC_WORKERS=1` 串行 | 每个目标 block 单写者，完整预留后复制、全部完成后更新 roots；每阶段固定 worker 参与数量；每目标块 48 B 临时记录，无对象或 ABI 增量。降低复制阶段、墙钟和部分尾暂停，树形及高线程数 CPU 代价见阶段十三。 |
-| [旧代槽的批量清扫](GC-EVOLUTION.md) | 随 `SCOOP_GC_OLD_SLOTS=1` 或 `2` 启用，当前默认等级 2；所有 profile 一致 | nursery 资格已排除 release hook，按位图清除死亡槽；普通块、large 与 moving stress 保留原路径。没有新 metadata／ABI／选项，缩短清扫和 full 收尾，整体 p99 与 M3 CPU 的限制见阶段十五。 |
-| [旧代精确大小槽与原地 full](GC-EVOLUTION.md) | 新版 runtime，`SCOOP_GC_OLD_SLOTS=1` 或 `2`，默认等级 2；所有 profile 语义一致 | 16～256 B 晋升对象复用死亡槽，full 按真实存活与新增压力触发；保留完整预留回滚和独占回写。降低大存活图 RSS 与最长停顿，可能增加 CPU、收集频率及应用间隔 p99；stress／full-only 沿原策略，无 ABI／对象头变化。 |
+| [旧代槽的批量清扫](GC-EVOLUTION.md) | 随 `SCOOP_GC_OLD_SLOTS=1..3` 启用，当前默认等级 2；所有 profile 一致 | nursery 资格已排除 release hook，按位图清除死亡槽；普通块、large 与 moving stress 保留原路径。没有新 metadata／ABI／选项，缩短清扫和 full 收尾，整体 p99 与 M3 CPU 的限制见阶段十五。 |
+| [旧代精确大小槽与原地 full](GC-EVOLUTION.md) | 新版 runtime，`SCOOP_GC_OLD_SLOTS=1..3`，默认等级 2；所有 profile 语义一致 | 16～256 B 晋升对象复用死亡槽，full 按真实存活与新增压力触发；保留完整预留回滚和独占回写。降低大存活图 RSS 与最长停顿，可能增加 CPU、收集频率及应用间隔 p99；stress／full-only 沿原策略，无 ABI／对象头变化。 |
 | [minor 旧代脏区并行扫描与回写](GC-EVOLUTION.md) | 新版 runtime，所有 profile 默认，沿用现有 worker 策略；单 worker 保留直接扫描 | 只发布活动旧代卡组，复用精确范围和原 pool；roots 先更新，保持 native alias、survivor 和增量 full 的独立清卡协议。无 ABI／对象增长，大存活集吞吐与 p99 改善，full 长暂停及部分线程负载回退见阶段十一。 |
 | [已确认对象的直接 region 定位](GC-EVOLUTION.md) | 新版 runtime，所有 profile 默认；重链接即可 | 对齐 region 的保留首行保存 owner，collector 已验证 source／已预留 target 直接定位；普通 source 不重复查 pin，未知地址沿原页表。contract 23 让 moving stress 复用 owner，ARM64 数组写入见阶段十六；对象头不变。 |
 | [目标头保存临时搬迁计划](GC-EVOLUTION.md) | 新版 runtime，所有 profile 默认；重链接即可 | 已预留但未发布的目标头保存 next／live entry，删除每对象 32 B native 计划；原图直到完整预留成功仍不变，复制后发布。无 ABI／对象增量，主要降低工作区和 RSS，尾暂停及 Linux 波动限制见阶段九。 |

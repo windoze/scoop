@@ -80,8 +80,9 @@ void scoop_gc_heap_init(void) {
     }
     const char *slots = getenv("SCOOP_GC_OLD_SLOTS");
     if (slots != NULL) {
-        if (strcmp(slots, "0") != 0 && strcmp(slots, "1") != 0 && strcmp(slots, "2") != 0) {
-            heap_fatal("SCOOP_GC_OLD_SLOTS must be 0, 1 or 2");
+        if (strcmp(slots, "0") != 0 && strcmp(slots, "1") != 0 && strcmp(slots, "2") != 0 &&
+            strcmp(slots, "3") != 0) {
+            heap_fatal("SCOOP_GC_OLD_SLOTS must be 0, 1, 2 or 3");
         }
         scoop_gc_heap_state.old_slots_level = (uint8_t)(slots[0] - '0');
     }

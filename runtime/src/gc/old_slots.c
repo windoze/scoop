@@ -33,15 +33,17 @@ _Static_assert(sizeof slot_word_patterns / sizeof *slot_word_patterns == GC_OLD_
 
 static size_t class_index(size_t size) { return size / sizeof(uint64_t) - 2; }
 
-bool scoop_heap_select_slot_source(ScoopGcBlockMeta *block, size_t *available, bool selected) {
+bool scoop_heap_select_slot_source(ScoopGcBlockMeta *block, size_t *available,
+                                   size_t *copyable_bytes, bool selected) {
     size_t size = block->nursery_slot_size;
     if (size == 0 || size > GC_OLD_SLOT_MAX) {
         return selected;
     }
     size_t *free_slots = &available[class_index(size)];
     size_t live_slots = block->live_bytes / size;
-    if (*free_slots >= live_slots) {
+    if (*free_slots >= live_slots && *copyable_bytes >= block->live_bytes) {
         *free_slots -= live_slots;
+        *copyable_bytes -= block->live_bytes;
         return true;
     }
     block->slot_size = size;

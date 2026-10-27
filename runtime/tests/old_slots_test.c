@@ -109,24 +109,32 @@ static void check_size(const ScoopTypeDescriptor *td, size_t offset) {
         assert((uintptr_t)objects[index] == original[index]);
         assert(*value(objects[index], offset) == index);
         objects[index + 1] = new_value(td, offset, 100000 + index);
+        original[index + 1] = (uintptr_t)objects[index + 1];
         *edge(objects[index + 1], offset) = objects[0];
         *edge(objects[index], offset) = objects[index + 1];
         scoop_rt_gc_write_barrier(edge(objects[index], offset), sizeof(void *));
     }
     /* Dirty old ranges overlap the new occupants' blocks after reservation.
      * Their references must still be updated exactly once through the live set. */
-    bool survivor = scoop_gc_heap_state.old_slots_level == 2;
+    bool survivor = scoop_gc_heap_state.old_slots_level >= 2;
+    bool slack = scoop_gc_heap_state.old_slots_level == 3;
     scoop_gc_heap_state.survivor_enabled = survivor;
     nursery_collect(true);
     if (survivor) {
         nursery_collect(true);
     }
     scoop_gc_heap_state.survivor_enabled = false;
-    assert(nursery_metrics().heap_committed_bytes == occupied);
+    if (slack) {
+        assert(nursery_metrics().heap_committed_bytes >= occupied);
+    } else {
+        assert(nursery_metrics().heap_committed_bytes == occupied);
+    }
     assert(scoop_rt_gc_stats() == COUNT);
     assert(scoop_gc_heap_state.old_pressure_bytes == COUNT * size);
+    size_t retained = 0;
     for (size_t index = 0; index < COUNT; index += 2) {
         void *old = objects[index], *replacement = objects[index + 1];
+        retained += (uintptr_t)replacement == original[index + 1];
         assert((uintptr_t)old == original[index]);
         assert(*edge(old, offset) == replacement && *edge(replacement, offset) == objects[0]);
         assert(*value(replacement, offset) == 100000 + index);
@@ -135,6 +143,7 @@ static void check_size(const ScoopTypeDescriptor *td, size_t offset) {
             assert(((unsigned char *)replacement)[size - 1] == 0x6d);
         }
     }
+    assert(slack ? retained != 0 : retained == 0);
     void *pinned = objects[0];
     scoop_gc_heap_state.stress_move = true;
     nursery_collect(false);
@@ -186,7 +195,8 @@ static void check_pretenured_release(void) {
 
 static void run_case(size_t workers, size_t level) {
     char count[2] = {(char)('0' + workers), '\0'};
-    assert(setenv("SCOOP_GC_OLD_SLOTS", level == 1 ? "1" : "2", 1) == 0);
+    char strategy[2] = {(char)('0' + level), '\0'};
+    assert(setenv("SCOOP_GC_OLD_SLOTS", strategy, 1) == 0);
     assert(setenv("SCOOP_GC_WORKERS", count, 1) == 0);
     const ScoopTypeDescriptor *types[] = {&nursery_node_td, &padded_td, &aligned_td, &released_td};
     scoop_thread_runtime_init();
@@ -203,7 +213,7 @@ static void run_case(size_t workers, size_t level) {
 }
 
 int main(void) {
-    for (size_t variant = 0; variant < 4; variant++) {
+    for (size_t variant = 0; variant < 6; variant++) {
         pid_t child = fork();
         assert(child >= 0);
         if (child == 0) {

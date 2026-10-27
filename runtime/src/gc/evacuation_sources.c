@@ -60,9 +60,18 @@ size_t scoop_heap_select_evacuation_sources(bool minor, size_t survivor_capacity
                                              ScoopGcSurvivors *survivors, bool *has_sources) {
     *has_sources = false;
     size_t available[GC_OLD_SLOT_CLASSES];
+    size_t copyable_bytes = SIZE_MAX;
     bool old_slots = minor && scoop_heap_promotes_slot_blocks();
     if (old_slots) {
         memcpy(available, scoop_gc_heap_state.old_slots_free, sizeof available);
+        if (scoop_gc_heap_state.old_slots_level == 3) {
+            copyable_bytes = 0;
+            for (size_t index = 0; index < GC_OLD_SLOT_CLASSES; index++) {
+                copyable_bytes += available[index] * (index + 2) * sizeof(uint64_t);
+            }
+            size_t slack = scoop_gc_heap_state.nursery_capacity;
+            copyable_bytes = copyable_bytes > slack ? copyable_bytes - slack : 0;
+        }
     }
     size_t regions = !minor && !stress_move ? select_regions() : 0;
     for (ScoopGcBlockMeta *block = scoop_heap_first_collection_block(minor); block != NULL;
@@ -87,7 +96,7 @@ size_t scoop_heap_select_evacuation_sources(bool minor, size_t survivor_capacity
                 selected = false;
             }
             if (!block->retained_young && old_slots) {
-                selected = scoop_heap_select_slot_source(block, available, selected);
+                selected = scoop_heap_select_slot_source(block, available, &copyable_bytes, selected);
             }
         }
         if (selected) {

@@ -1,3 +1,4 @@
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "nursery_fixture.h"
@@ -200,12 +201,12 @@ static void complete_or_restart(void **roots) {
     assert(cards_failed);
 }
 
-int main(void) {
+static void run_case(const char *level) {
     alarm(40);
     assert(setenv("SCOOP_GC_INCREMENTAL", "2", 1) == 0);
+    assert(setenv("SCOOP_GC_OLD_SLOTS", level, 1) == 0);
 #ifdef SCOOP_TEST_INCREMENTAL_PARALLEL
     assert(setenv("SCOOP_GC_WORKERS", "4", 1) == 0);
-    assert(setenv("SCOOP_GC_OLD_SLOTS", "2", 1) == 0);
 #else
     assert(setenv("SCOOP_GC_WORKERS", "1", 1) == 0);
     assert(setenv("SCOOP_GC_SURVIVOR", "1", 1) == 0);
@@ -237,5 +238,19 @@ int main(void) {
     scoop_gc_shutdown();
     scoop_thread_leave_managed();
     scoop_thread_detach_main();
+}
+
+int main(void) {
+    for (size_t level = 2; level <= 3; level++) {
+        pid_t child = fork();
+        assert(child >= 0);
+        if (child == 0) {
+            run_case(level == 2 ? "2" : "3");
+            _exit(0);
+        }
+        int status = 0;
+        assert(waitpid(child, &status, 0) == child);
+        assert(WIFEXITED(status) && WEXITSTATUS(status) == 0);
+    }
     puts("minor slices preserve old cards, changed young edges, pins and full fallbacks");
 }
