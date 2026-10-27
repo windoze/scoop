@@ -1,6 +1,28 @@
 use super::{compile_and_run, compile_and_run_with_flags, workspace_root};
 
 #[test]
+fn slot_reservations_cover_every_exact_grid_and_reset_after_rollback() {
+    for optimization in ["-O0", "-O2"] {
+        let output = compile_and_run_with_flags(
+            &workspace_root(),
+            "old_slot_reservation_test",
+            "runtime/tests/old_slot_reservation_test.c",
+            true,
+            &[optimization],
+        );
+        assert!(
+            output.status.success(),
+            "{optimization}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"all exact slot classes reserve each complete hole once and recover after rollback\n"
+        );
+    }
+}
+
+#[test]
 fn dense_slot_promotion_preserves_layout_aliases_and_survivor_age() {
     for flags in [
         vec!["-O0", "-Dcalloc=scoop_test_slot_calloc"],
