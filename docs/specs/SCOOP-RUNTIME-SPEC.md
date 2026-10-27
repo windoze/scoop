@@ -387,6 +387,8 @@ nursery 容量和 collection threshold 是收集触发条件，不是堆空间�
 
 堆由按需映射的普通 region 与独立大对象 mapping 构成；普通 region 初始策略为 16 MiB，内含 32 KiB block／128 B line，不限制总堆或单个大对象大小。先复用空闲 block／line 和保留 region，再扩容；超过旧 1 GiB 边界仍能继续分配。大对象按实际大小映射，记录原始 mapping base／length 和对齐后的范围，不遗失对齐前后页。所有 block、TLAB、forwarding 和 nursery 状态明确归属 region。
 
+普通 region 的起点按 16 MiB 对齐，large mapping 仍按 64 KiB 对齐。两者在原已保留的首个 128-byte line 内保存一个不可变的 owner region 指针，初始化在任何对象或页表索引发布之前；不占对象空间或增加 side table。对于已经确认是当前堆对象起点的 collector 输入，小对象以地址向下对齐到 region 取得该指针，large 以对象起点减去 128 bytes 取得；种类来自已知的分配类别或未转发源的大小字段。该直接查询不接受 null、immortal、内部地址或任意 native 指针，不替代首次引用检查和一般地址页表。当前仅由 STW 搬迁计划及其已预留目标使用，生成分配／屏障的 ABI 保持。moving stress 可保护同一 region 中已经退休的首 block，因此该模式继续用 side metadata 页表定位，不能读取受保护的首页。
+
 分配计数为 cache-line 分隔的线程累计值，本线程以 relaxed atomic store 发布，查询以 atomic load 汇总；热路径不对多个全局统计量执行 atomic RMW。detach 在 registry 生命周期保护下并入退出线程总账；STW 汇总更新 collection 基线，当前对象数由基线和随后分配推导，minor 同时保留旧代计数。查询、基线更新和 detach 归并遵守同一锁顺序，不漏计或双计。
 
 累计对象数、nursery 对象数及两种分配字节数在 collection 后不清零。查询按 registry/world lock → heap lock 读取目录与基线；STW collector 在目录已稳定、持 heap lock 时直接汇总，不反向取得 world lock。detached 总账在移除线程前更新，主线程退出后的最终报告仍包含其分配。并发查询是逐线程、逐字段的原子快照，不承诺不同统计字段间的事务一致性；STW 与线程全部退出后的汇总精确。线程计数区域按 128-byte 边界独立对齐并分配，覆盖当前 Darwin/AArch64 的 128-byte 和 amd64 的 64-byte cache line。
@@ -561,7 +563,7 @@ full collection 按回收收益选择低存活、无 pin 的 region 为 source�
 
 收集器复用已预留但尚未发布的目标对象头保存临时计划，不再分配逐对象的 native 计划分块。每个目标头暂存下一目标地址和对应的唯一存活清单 entry；当前两指针共 16 bytes，完全位于原有对象头范围内。source 的头／payload 和存活清单 entry 在预留阶段保持不变；目标不是已发布对象，不得被根、scan 或 mutator 消费。目标 region 的使用情况在预留时累计。预留失败或没有实际集中收益时，取消整份计划并沿原流程退还目标空间，不修改原可达图。既有空洞中的临时字节不再被访问，之后重新分配仍按正常清零和发布合同处理。该表示适用于所有 profile、minor／full／stress，不增加对象体积、managed roots 或产物 ABI。
 
-全部目标预留成功并通过收益判断后，按目标头中的链顺序复制。每次必须先取出下一目标与存活清单 entry，再由 entry 取得 source；小对象精确大小来自原 GC 字，large 来自其目标 mapping。完整复制覆盖临时目标头并保留原 TD、GC 状态及 payload。coordinator 可在本次复制中复用最后一个 small 目标 block 的地址范围，连续落在同一 block 的对象不重复查询 page map；该 native 局部复用不跨收集。mutator 已停稳、全部 mark worker 已完成、update worker 尚未发布，只有 coordinator 修改目标元数据，新 block、survivor block 和既有旧代空洞共用该独占条件。随后合并 occupied／live-line 与对象 mark，更新目标 live bytes，再 release 发布 starts，最后设置 source forwarding 并更新存活清单 entry。occupied／starts 使用 3.1 的单写者 atomic load／OR／store，保留同一字的既有位；line_live／marks 在独占阶段直接 OR。通用小对象登记只发布未标记的新分配，共享 mutator 分配和并行标记的原子读改写保持，large 沿原发布入口。失败预留不复制 payload 或登记目标对象。
+全部目标预留成功并通过收益判断后，按目标头中的链顺序复制。每次必须先取出下一目标与存活清单 entry，再由 entry 取得 source；小对象精确大小来自原 GC 字，large 来自其目标 mapping。完整复制覆盖临时目标头并保留原 TD、GC 状态及 payload。源清单已经过 mark 起点检查，预留目标由分配器返回，二者按 3.1 直接取得 block；coordinator 可在本次复制中复用最后一个 small 目标 block 的地址范围，该 native 局部复用不跨收集。普通 minor／full 的 source 选择已经排除 pinned block／region，预留不逐对象重复检查 pin；moving stress 允许同块混合 pin，继续逐对象检查。mutator 已停稳、全部 mark worker 已完成、update worker 尚未发布，只有 coordinator 修改目标元数据，新 block、survivor block 和既有旧代空洞共用该独占条件。随后合并 occupied／live-line 与对象 mark，更新目标 live bytes，再 release 发布 starts，最后设置 source forwarding 并更新存活清单 entry。occupied／starts 使用 3.1 的单写者 atomic load／OR／store，保留同一字的既有位；line_live／marks 在独占阶段直接 OR。通用小对象登记只发布未标记的新分配，共享 mutator 分配和并行标记的原子读改写保持，large 沿原发布入口。失败预留不复制 payload 或登记目标对象。
 
 forwarding 复用已复制源对象的 GC 状态字，不为 small source 分配按 block 容量索引的指针表，也不单独保存 large forwarding。必须先把完整原对象（包括原 pin／release GC 字）复制到目标并完成目标登记，再把旧 GC 字写为带 forwarded 标志的目标地址，最后更新存活清单 entry。全部复制结束后才发布引用更新任务，标志只存在于已完成复制的原 source，目标与原 source 不重叠；标记、预留、复制和发布顺序保证当前图的引用可以按下述规则转发。预留阶段不改任何原对象头，失败无需恢复对象字节；收尾仅对 unmarked 死对象执行 release，不把源副本的转发字当成 pin registry 或 release 状态。moving stress 继续检查转发并 poison 旧存储；生成代码、native、异常及 pin 消费者不会在此 STW 私有阶段使用可搬迁旧副本。块 side metadata 只保留仍有读取者的字段，未改变有效对象、TLAB、region prefix 或产物 ABI。
 
@@ -577,7 +579,7 @@ forwarding 复用已复制源对象的 GC 状态字，不为 small source 分配
 
 small block 的普通 sweep 与压缩目标准备按 `starts & ~marks` 枚举实际死亡对象，按地址递增执行 release-ready 清理并退休起点；循环先取得当前 bitmap word 的快照，避免退休对象影响同 word 中尚未处理的起点。非搬迁源的全部 marked 对象都保留，直接把已完成标记／复制产生的精确 live-line 位图作为 occupied-line，不再逐个读取存活对象大小重建同一结果；仍保留真实 pin 状态并按存活 line 形成空闲区间。普通 full 的 source 已由选择阶段保证无 pin，完整复制和引用更新后可整块退休，不能对已搬迁的 marked 副本再次执行 release。moving stress 的 source 仍逐对象验证 forwarding、poison 旧副本，并只按留在原地的 pinned 对象重建 line。全死／全部搬出的块直接进入原退休或 quarantine 路径；非活动块的位图不得再被消费，重新激活前按原规则完整清零。不维护额外对象列表，不弱化精确大小发布、pin、release 或引用更新合同。
 
-无存活对象覆盖的完整 OS page 可 discard，保留 side metadata；完全空闲 region 从分配结构及地址索引撤销后 unmap。撤销仅在 STW、所有 GC worker 结束且 TLAB／缓存失效后进行，不把 free-list 回收计作 OS 归还。discard 后复用必须重新清零；跨页活对象覆盖的页不可 discard。普通策略保留一个空 region，其他 full 后释放。记录 discard 成功量、unmapped bytes 和当前／峰值 RSS，不能把建议性 discard 等同于立即 RSS 下降。
+无存活对象覆盖的完整 OS page 可 discard，保留 side metadata；普通 region 的首个 OS page 含 3.1 的不可变 owner 指针，映射存活期间不得 discard，即使首 block 或保留 region 已空。完全空闲 region 从分配结构及地址索引撤销后 unmap。撤销仅在 STW、所有 GC worker 结束且 TLAB／缓存失效后进行，不把 free-list 回收计作 OS 归还。discard 后复用必须重新清零；跨页活对象覆盖的页不可 discard。普通策略保留一个空 region，其他 full 后释放。每 region 最多额外保留一个物理页，按实际 RSS 计入空间成本。记录 discard 成功量、unmapped bytes 和当前／峰值 RSS，不能把建议性 discard 等同于立即 RSS 下降。
 
 首版在普通 full 结束时合并已使用 block 中不覆盖任何存活 line 的整页，通过 ThreadVmOps 调用平台 `madvise(MADV_DONTNEED)`；失败保留映射并在后续 full 重试，不影响可达图。block 激活、空洞再次分配或对象退休时才重新请求 discard，不在普通对象分配热路径增加共享计数。统计分别给出成功／失败调用数、成功建议的累计字节和解除映射的累计字节，重复建议不代表新增物理内存归还。RSS 是诊断时采样的进程当前／历史峰值，采样不可用时对应字段为零；既不作为收集正确性条件，也不与 managed mapping 字节等同。
 

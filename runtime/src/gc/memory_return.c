@@ -27,7 +27,8 @@ static bool discard_range(const ScoopThreadVmOps *vm, uintptr_t begin, uintptr_t
 }
 
 static bool empty_page(const ScoopGcBlockMeta *block, size_t offset, size_t page_size) {
-    if (!block->discard_pending || block->state == SCOOP_BLOCK_QUARANTINED) {
+    if ((block->index == 0 && offset == 0) || !block->discard_pending ||
+        block->state == SCOOP_BLOCK_QUARANTINED) {
         return false;
     }
     if (!active_head(block)) {

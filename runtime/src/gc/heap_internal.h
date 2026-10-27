@@ -285,6 +285,18 @@ static inline ScoopGcBlockMeta *scoop_heap_next_collection_block(const ScoopGcBl
     return minor ? block->next_collection : scoop_heap_next_block(block);
 }
 ScoopGcBlockMeta *scoop_heap_pointer_block(const void *pointer);
+/* Current heap starts or reserved targets only; never an arbitrary reference.
+ * The caller knows the allocation class independently of temporary target headers. */
+static inline ScoopGcBlockMeta *scoop_heap_known_object_block(const void *object, bool small) {
+    if (stress_move) {
+        /* The first block of this region may already be quarantined. */
+        return pointer_block(object);
+    }
+    uintptr_t address = (uintptr_t)object;
+    uintptr_t base = small ? address & ~(uintptr_t)(GC_REGION_SIZE - 1) : address - GC_LINE_SIZE;
+    ScoopGcRegion *region = *(ScoopGcRegion *const *)base;
+    return &region->blocks[small ? (address - base) / GC_BLOCK_SIZE : 0];
+}
 bool scoop_heap_bit_test(const uint64_t *bits, size_t index);
 void scoop_heap_bit_set(uint64_t *bits, size_t index);
 void scoop_heap_bit_clear(uint64_t *bits, size_t index);

@@ -1,4 +1,4 @@
-/* Aligned region/large mappings; no collector state is kept in discarded pages. */
+/* Aligned mappings retain an owner pointer in their reserved first line. */
 #include <stdlib.h>
 
 #include "heap_internal.h"
@@ -18,13 +18,13 @@ size_t scoop_heap_large_mapping_size(size_t exact_size) {
     return (GC_LINE_SIZE + exact_size + GC_CHUNK_SIZE - 1) & ~(GC_CHUNK_SIZE - 1);
 }
 
-static void *map_aligned(size_t size) {
+static void *map_aligned(size_t size, size_t alignment) {
     const ScoopThreadVmOps *vm = scoop_platform_bundle()->thread_vm;
     size_t page_size = vm->page_size();
-    if (page_size == 0 || GC_CHUNK_SIZE % page_size != 0 || size > SIZE_MAX - GC_CHUNK_SIZE) {
+    if (page_size == 0 || alignment % page_size != 0 || size > SIZE_MAX - alignment) {
         heap_fatal("heap mapping cannot satisfy platform alignment");
     }
-    size_t reserved_size = size + GC_CHUNK_SIZE;
+    size_t reserved_size = size + alignment;
     void *mapping = NULL;
     ScoopPlatformError error = {0};
     if (!vm->reserve_read_write(0, reserved_size, &mapping, &error)) {
@@ -35,7 +35,7 @@ static void *map_aligned(size_t size) {
         release_mapping(mapping, reserved_size);
         return NULL;
     }
-    uintptr_t aligned = (raw + GC_CHUNK_SIZE - 1) & ~(uintptr_t)(GC_CHUNK_SIZE - 1);
+    uintptr_t aligned = (raw + alignment - 1) & ~(uintptr_t)(alignment - 1);
     size_t prefix = aligned - raw;
     size_t suffix = reserved_size - prefix - size;
     if (prefix != 0) {
@@ -48,7 +48,7 @@ static void *map_aligned(size_t size) {
 }
 
 ScoopGcRegion *scoop_heap_region_create(size_t size, bool large) {
-    void *mapping = map_aligned(size);
+    void *mapping = map_aligned(size, large ? GC_CHUNK_SIZE : GC_REGION_SIZE);
     if (mapping == NULL) {
         return NULL;
     }
@@ -75,6 +75,7 @@ ScoopGcRegion *scoop_heap_region_create(size_t size, bool large) {
         region->blocks[index].region = region;
         region->blocks[index].index = (uint16_t)index;
     }
+    *(ScoopGcRegion **)mapping = region;
     region->next = scoop_gc_heap_state.regions;
     scoop_gc_heap_state.regions = region;
     if (!large) {

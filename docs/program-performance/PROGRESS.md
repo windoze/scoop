@@ -4,6 +4,8 @@
 
 各项已采纳方案的开启方式与适用条件统一见[简略清单](ENABLED-OPTIMIZATIONS.md)，后续交付与默认策略调整时同步更新。
 
+- [GC 第十阶段](GC-EVOLUTION.md)为已确认堆对象使用直接 region 定位，复用 source 无 pin 的事实；普通所有 profile 默认，unknown/native／首次检查及 moving stress 保留原页表，ABI 不变。M3 大 gcpause 墙钟 6.909 → 6.735 s、plan 累计 1.439 → 1.099 s、应用 p99 83.1 → 77.7 ms，RSS 基本保持；GNU 中等负载 1.081 → 1.001 s，大负载请求 p99 224.8 → 196.6 ms。两机各 13 项 C 专测及三目标 GC／native 组合通过。完整收尾、生成屏障和旧代空间效率仍是主线，继续实施。
+
 - [GC 第九阶段](GC-EVOLUTION.md)以未发布目标头保存临时搬迁链，删除每对象 32 B native 计划；完整预留、失败回退、原对象及 GC 契约保持，所有 profile 默认，ABI 不变。M3 大 gcpause RSS 595.6 → 554.3 MiB、墙钟 7.231 → 7.110 s；GNU RSS 174.6 → 154.4 MiB、墙钟略退。三目标 GC／native／回退专测通过，否决源头提前转发实验。尾暂停没有改善，Linux 引用写入波动与回退完整记录；下一项继续直接 region 定位与剩余 STW 成本。
 
 - [GC 第八阶段](GC-EVOLUTION.md)将小对象精确大小放入现有 GC 字，删除每块 8 KiB 大小表；对象头不变，TLAB 减至 48 B，runtime contract 升至 22，所有 profile 默认。M3 大 gcpause 墙钟 7.818 → 7.182 s、RSS 712.0 → 588.5 MiB、应用间隔 p99 95.2 → 83.8 ms；GNU 中等负载 1.203 → 1.093 s、RSS 207.1 → 174.6 MiB。两机分配／pin／release／复制／失败回退专测及三目标 10 variants／32 次进程调用通过。多线程波动与尾部回退保留，继续处理逐对象搬迁计划和剩余 STW 成本。

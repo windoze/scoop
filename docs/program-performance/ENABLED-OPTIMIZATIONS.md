@@ -12,6 +12,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [已确认对象的直接 region 定位](GC-EVOLUTION.md) | 新版 runtime，所有 profile 默认；重链接即可 | 对齐 region 的保留首行保存 owner，collector 已验证 source／已预留 target 直接定位；普通 source 不重复查 pin，moving stress／未知地址沿原页表。保留首页，ABI／对象头不变；当前不改变生成写屏障，收益与限制见阶段十。 |
 | [目标头保存临时搬迁计划](GC-EVOLUTION.md) | 新版 runtime，所有 profile 默认；重链接即可 | 已预留但未发布的目标头保存 next／live entry，删除每对象 32 B native 计划；原图直到完整预留成功仍不变，复制后发布。无 ABI／对象增量，主要降低工作区和 RSS，尾暂停及 Linux 波动限制见阶段九。 |
 | [小对象大小合入 GC 字](GC-EVOLUTION.md) | 所有 profile 默认，配套 runtime contract 22；编译器／runtime／系统库一起重建 | 删除每块 8 KiB 大小表，TLAB 56→48 B、普通 block metadata 120→112 B；对象头仍为 16 B，pin／release／复制状态保持，large 沿原精确大小。两机内存及大存活集收益、线程波动和暂停限制见阶段八，无新开关。 |
 | [冻结图的直接引用回写](GC-EVOLUTION.md) | 新版 runtime，所有 profile 默认；重链接即可 | 完成 mark 和复制后直接消费源 GC 字，省去逐边 page map／mark／pin 复核；首次边界检查保持，survivor 查询当前目标代际，完整验证只编入 stress／heap 验证。无布局、ABI 或新配置，性能与暂停限制见阶段七。 |

@@ -6,7 +6,7 @@
 extern bool scoop_test_vm_fail_discards;
 extern void (*scoop_test_vm_discard_observer)(void *base, size_t size);
 
-static uintptr_t live_begin, live_end;
+static uintptr_t live_begin, live_end, region_base;
 static size_t page_size, observed;
 static const ScoopTypeDescriptor bytes_td = {
     .type_id = 911,
@@ -18,6 +18,7 @@ static void observe_discard(void *base, size_t size) {
     uintptr_t address = (uintptr_t)base;
     assert(address % page_size == 0 && size != 0 && size % page_size == 0);
     assert(address + size <= live_begin || address >= live_end);
+    assert(address != region_base);
     observed++;
 }
 
@@ -48,6 +49,8 @@ int main(void) {
     scoop_rt_push_pin_frame(&pin, object);
     live_begin = (uintptr_t)object / page_size * page_size;
     live_end = live_begin + 2 * page_size;
+    ScoopGcRegion *region = scoop_heap_region_for_address((uintptr_t)object);
+    region_base = region->base;
     for (size_t index = 0; index < 1000; index++) {
         (void)nursery_allocate(&bytes_td, 512);
     }
@@ -67,17 +70,22 @@ int main(void) {
     assert(succeeded.discarded_bytes > before.discarded_bytes);
     assert(succeeded.region_count == 1 && succeeded.unmapped_bytes == before.unmapped_bytes);
     assert(succeeded.current_rss_bytes > 0 && succeeded.peak_rss_bytes > 0);
+    assert(scoop_heap_known_object_block(object, true)->region == region);
     check_payload(object);
     nursery_collect(false);
     assert(nursery_metrics().discard_calls == succeeded.discard_calls);
     unsigned char *reused = nursery_allocate(&bytes_td, 512);
+    assert(scoop_heap_known_object_block(reused, true)->region == region);
     for (size_t offset = sizeof(ScoopObjectHeader); offset < 512; offset++) {
         assert(reused[offset] == 0);
     }
     check_payload(object);
-    scoop_test_vm_discard_observer = NULL;
     scoop_rt_pop_pin_frame(&pin);
+    live_begin = live_end = 0;
     nursery_collect(false);
+    assert(scoop_heap_region_for_address(region_base) == region);
+    assert(*(ScoopGcRegion **)region_base == region);
+    scoop_test_vm_discard_observer = NULL;
     assert(scoop_rt_gc_stats() == 0);
     scoop_thread_leave_managed();
     scoop_thread_detach_main();

@@ -141,15 +141,17 @@ static void reserve_move(void **entry, void *context) {
         return;
     }
     void *object = *entry;
-    ScoopGcBlockMeta *block = pointer_block(object);
-    size_t word = ((uintptr_t)object - (uintptr_t)block_base(block)) / sizeof(uint64_t);
-    if (block->state != SCOOP_BLOCK_EVACUATION_SOURCE || object_pinned(block, word)) {
+    size_t size = scoop_heap_small_object_size(object);
+    ScoopGcBlockMeta *block = scoop_heap_known_object_block(object, size != 0);
+    if (block->state != SCOOP_BLOCK_EVACUATION_SOURCE ||
+        (stress_move && object_pinned(block, ((uintptr_t)object - (uintptr_t)block_base(block)) /
+                                                sizeof(uint64_t)))) {
         plan->survivors.objects += block->retained_young;
         return;
     }
-    size_t size = block->kind == SCOOP_BLOCK_KIND_LARGE
-                      ? block->exact_size
-                      : scoop_heap_small_object_size(object);
+    if (size == 0) {
+        size = block->exact_size;
+    }
     ScoopGcBlockMeta *target;
     size_t alignment = scoop_gc_object_alignment(object);
     void *destination = NULL;
@@ -190,11 +192,11 @@ static void copy_reserved_objects(PendingMove *move) {
         size_t size = __atomic_load_n(&source->gc_word, __ATOMIC_RELAXED) & GC_SMALL_SIZE_MASK;
         ScoopGcBlockMeta *block;
         if (size == 0) {
-            block = pointer_block(move);
+            block = scoop_heap_known_object_block(move, false);
             size = block->exact_size;
         } else {
             if (target_block == NULL || (uintptr_t)move - target_base >= GC_BLOCK_SIZE) {
-                target_block = pointer_block(move);
+                target_block = scoop_heap_known_object_block(move, true);
                 target_base = (uintptr_t)block_base(target_block);
             }
             block = target_block;
