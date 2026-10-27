@@ -21,6 +21,8 @@ scoop example test/assertions --format json
 
 显式选择安装根时使用 `scoop --sysroot /path/to/scoop example ...`。程序始终从自身可执行文件位置读取内容，环境变量不会把它导向另一份安装。把输出的文件保存到可写目录后，按正文运行；后续 run/check/test 也应使用同一安装根。命令不会运行示例或写出项目。
 
+AI 编程工作流见配套 [scoop-programming skill](../scoop-programming/SKILL.md)：从主题检索和 JSON 文件还原开始，结合库 API、项目依赖及正式 CLI 完成验证。该目录随 dist 工具包提供，不自动安装到 AI 工具中。
+
 ## 开发安装
 
 在仓库根目录执行；只需 Rust/Cargo，不构建编译器：

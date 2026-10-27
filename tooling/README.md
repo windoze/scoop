@@ -1,6 +1,16 @@
 # Scoop 配套工具
 
-[scoop-example](scoop-example/README.md) 是独立的 `scoop example` 阅读器，按主题提供完整程序与说明，使用自己的 Cargo 项目和测试。下文为编辑器工具说明。
+[scoop-example](scoop-example/README.md) 是独立的 `scoop example` 阅读器，按主题提供完整程序与说明，使用自己的 Cargo 项目和测试。[scoop-programming](scoop-programming/SKILL.md) 是面向 AI 的 Scoop 编程 skill，组合示例、库文档及 CLI 完成程序开发与验证。
+
+## Scoop 编程 skill
+
+`scoop-programming/` 包含 `SKILL.md`、`agents/openai.yaml` 和按需阅读的 `references/`，用于编写、修改、调试和测试 Scoop 程序，不用于同名 Windows 包管理器。内容覆盖示例查询与文件还原、语言差异、库 API 查找、Cone 依赖、格式化、检查、构建、测试及运行；完整示例仍由配套 `scoop example` 提供，不在 skill 中另存副本。
+
+`scripts/package_toolchain.py` 将整个目录复制到 dist 工具包内的 `tooling/scoop-programming/`，组件清单以 `programming_skill` 记录相对路径。构建及安装包不自动安装或注册 skill，不修改 AI 工具的配置；使用者可向 AI 提供 `SKILL.md`，或按所用工具的方式自行添加整个目录，保留相对引用。
+
+维护 skill 时同步核对当前 CLI 帮助、示例和库声明；在临时工作目录用配套工具实际编译、运行涉及的写法。归档布局与参考文件完整性由 `python3 -m unittest discover -s scripts/tests -p test_package_toolchain.py` 覆盖；修改 Python 后先按 [scripts 说明](../scripts/README.md) 执行格式化与 lint。
+
+## 编辑器工具
 
 本目录提供独立的 Tree-sitter 语法包和 VS Code 扩展。语法以
 [语言规范](../docs/specs/SCOOP-SPEC.md)为准，并使用编译器已有源码和专门的编辑器

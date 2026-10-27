@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a complete Scoop installation archive, including sysroot and VS Code tooling."""
+"""Build a complete Scoop archive, including sysroot, VS Code tooling, and programming skill."""
 
 import argparse
 import json
@@ -124,6 +124,7 @@ def assemble(root, targets, binaries, args, release, extension):
     )
     (root / "tooling").mkdir()
     shutil.copy2(extension, root / "tooling" / extension.name)
+    shutil.copytree(ROOT / "tooling/scoop-programming", root / "tooling/scoop-programming")
     for name in ("src", "include"):
         shutil.copytree(sysroot / name, root / name, ignore=shutil.ignore_patterns("target"))
     shutil.copytree(
@@ -214,6 +215,7 @@ def assemble(root, targets, binaries, args, release, extension):
         f"source_revision = {json.dumps(args.revision)}",
         f"host = {json.dumps(args.host)}",
         f"vscode_extension = {json.dumps('tooling/' + extension.name)}",
+        'programming_skill = "tooling/scoop-programming"',
         f"llvm = {json.dumps(release['llvm'])}",
         f"openssl = {json.dumps(release['openssl'])}",
         f"llhttp = {json.dumps(release['llhttp'])}",
