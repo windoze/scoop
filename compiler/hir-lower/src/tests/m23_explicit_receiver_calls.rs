@@ -1,5 +1,7 @@
 use super::*;
 
+mod diagnostics;
+
 fn qualified(parts: &[&str]) -> ast::QualifiedNameSyntax {
     let (first, rest) = parts
         .split_first()

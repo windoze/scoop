@@ -52,14 +52,14 @@ impl Lowerer {
         let mut context = self.clone();
         let views = context.smart_cast_receiver_views(&receiver);
         let mut probes = Vec::new();
-        let mut first_failure = None;
+        let mut matching_arity_failure = None;
         let mut wrong_arity_failure = None;
         let mut suppressed = false;
         for target in candidates {
             let failure_slot = if call.type_args.is_empty()
                 || self.extension_call_target_has_type_arity(target, call.type_args.len())
             {
-                &mut first_failure
+                &mut matching_arity_failure
             } else {
                 &mut wrong_arity_failure
             };
@@ -73,7 +73,11 @@ impl Lowerer {
                         let mut state = context.clone();
                         let Some(explicit_type_args) = state.resolve_call_type_args(call.type_args)
                         else {
-                            failure_slot.get_or_insert(Box::new(state));
+                            merge_extension_failure(
+                                failure_slot,
+                                Box::new(state),
+                                self.diagnostics.len(),
+                            );
                             continue;
                         };
                         let candidate = crate::CallableCandidate::function(*function, Vec::new());
@@ -98,7 +102,11 @@ impl Lowerer {
                                 break;
                             }
                             Err(failure) => {
-                                failure_slot.get_or_insert(failure);
+                                merge_extension_failure(
+                                    failure_slot,
+                                    failure,
+                                    self.diagnostics.len(),
+                                );
                             }
                         }
                     }
@@ -118,7 +126,11 @@ impl Lowerer {
                                 break;
                             }
                             Err(failure) => {
-                                failure_slot.get_or_insert(failure);
+                                merge_extension_failure(
+                                    failure_slot,
+                                    failure,
+                                    self.diagnostics.len(),
+                                );
                             }
                         }
                     }
@@ -126,8 +138,8 @@ impl Lowerer {
             }
         }
         if probes.is_empty() {
-            let first_failure = first_failure.or(wrong_arity_failure);
-            return match (suppressed, first_failure) {
+            let failure = matching_arity_failure.or(wrong_arity_failure);
+            return match (suppressed, failure) {
                 (true, Some(failure)) => PropertyExtensionInvokeOutcome::Failed(failure),
                 (true, None) => PropertyExtensionInvokeOutcome::Blocked,
                 (false, failure) => PropertyExtensionInvokeOutcome::NoApplicable(failure),
@@ -212,6 +224,23 @@ impl Lowerer {
                 .is_none_or(|candidate| {
                     candidate.interface().type_parameters().binders().len() == arity
                 }),
+        }
+    }
+}
+
+fn merge_extension_failure(
+    failures: &mut Option<Box<Lowerer>>,
+    failure: Box<Lowerer>,
+    diagnostics_before: usize,
+) {
+    let Some(previous) = failures else {
+        *failures = Some(failure);
+        return;
+    };
+    // Retain every candidate's reason without adopting its speculative state.
+    for diagnostic in failure.diagnostics.into_iter().skip(diagnostics_before) {
+        if !previous.diagnostics[diagnostics_before..].contains(&diagnostic) {
+            previous.diagnostics.push(diagnostic);
         }
     }
 }
