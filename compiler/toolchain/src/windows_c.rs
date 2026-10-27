@@ -152,12 +152,14 @@ const PROBE: &str = r#"
 #include <stddef.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <stdatomic.h>
 #include <windows.h>
 #if !defined(__clang__) || !defined(_WIN64) || !defined(__x86_64__)
 #error the Windows generated-C producer requires x64 Clang
 #endif
 _Static_assert(sizeof(void *) == 8 && sizeof(long) == 4 && sizeof(wchar_t) == 2,
     "Windows LLP64 required");
+_Static_assert(ATOMIC_POINTER_LOCK_FREE == 2, "Windows runtime requires lock-free pointer atomics");
 "#;
 
 fn run(command: &mut Command) -> Result<Output, ToolchainError> {

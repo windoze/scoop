@@ -141,7 +141,9 @@ impl WindowsCEnvironment {
         if microsoft {
             command.args(["-nostdlibinc", "-fms-runtime-lib=dll"]);
             for include in &self.includes {
-                command.arg("-isystem").arg(include);
+                // Preserve Clang's builtin atomic/intrinsic headers before
+                // the explicitly selected SDK and CRT, as in driver discovery.
+                command.arg("-idirafter").arg(include);
             }
         } else if let Some(root) = &self.native_sysroot {
             command.arg("--sysroot").arg(root);

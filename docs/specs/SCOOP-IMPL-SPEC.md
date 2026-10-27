@@ -34,6 +34,8 @@ Windows generated-C producer 使用所选完整 target 的 Clang 模式，平台
 
 runtime index 的补充 deployment 值 0 表示使用完整 target 已规定的 OS 基线，Linux 与 Windows 均使用此值；Darwin 继续保存所选最低 macOS packed version。target 相容性仍由已有完整 identity 检查承担，不在补充 deployment 字段重复编码 OS／CRT。
 
+Windows runtime 的普通 COFF 对象可包含 CRT headers 生成的重复可合并 helper（如 inline stdio 配置函数和 MinGW refptr）。runtime index 合并符号目录时允许类型／只读属性一致的 weak 定义重复，实际 COMDAT 选择仍由 PE linker 执行，所有原始对象保留；runtime ABI 入口仍要求 strong 定义，重复 strong 定义仍报错。
+
 MinGW 的 native sysroot 是对应 CRT 的完整 LLVM-MinGW prefix。Microsoft 环境可由已安装 Build Tools／SDK 发现，也可在显式 native sysroot 的 `msvc.toml` 中提供 `[msvc]` 表的 `vc_tools`、`windows_sdk`、`sdk_version`；前两项分别指向所选 `VC/Tools/MSVC/<version>` 与 Windows SDK 根，支持相对于该配置文件的路径。跨宿主使用同一显式布局。发现阶段以实际 headers 编译 AMD64 COFF probe，检查 Win64／LLP64、Microsoft 或 mingw-w64 环境及 `_UCRT` 对应关系；不执行目标程序，也不预先要求最终链接库齐全。配置、选中工具与实际头文件路径按既有输入更新规则记录和复用。
 
 仓库的 `scripts/release.toml` 记录发行所用 LLVM 精确版本、系统与 CPU 基线。构建宿主命令时将默认 Darwin 部署版本编入工具；普通命令不读取打包配置或发行清单。`MACOSX_DEPLOYMENT_TARGET` 可为一次编译／链接选择明确的 `major.minor[.patch]`，非法值必须诊断。未覆盖时使用编入的基线，不查询运行机器的系统版本。所选最低版本贯通 LLVM 对象、generated-C、用户 native、runtime 和最终链接，进入原有生产配置与更新键；SDK 版本继续只记录实际 SDK。Linux 使用既有 x86-64 CPU 基线和所选 libc 工具链，发行最低 libc 版本由对应构建／验证环境确定，不能仅靠一个版本参数降低实际动态依赖。

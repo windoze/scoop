@@ -4,7 +4,7 @@
 .text
 
 .macro SCOOP_MANAGED_ENTRY public, implementation, pc, sp, fp
-.section .text$\public,"xr",discard,\public
+.section .text$\public,"xr",one_only,\public
 .p2align 4
 .globl \public
 .def \public; .scl 2; .type 32; .endef

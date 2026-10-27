@@ -93,6 +93,25 @@ pub(super) const LINUX_OS: &[&str] = &[
 ];
 pub(super) const MACHO_IMAGE: &[&str] = &["runtime/src/platform/image/macho.c"];
 pub(super) const ELF_IMAGE: &[&str] = &["runtime/src/platform/image/elf.c"];
+pub(super) const PE_IMAGE: &[&str] = &["runtime/src/platform/image/pe.c"];
+pub(super) const WINDOWS_OS: &[&str] = &[
+    "runtime/src/platform/os/windows.c",
+    "runtime/src/platform/primitives/windows.c",
+    "runtime/src/platform/numeric/windows.c",
+    "runtime/src/startup/windows_arguments.c",
+    "vendor/gdtoa/strtodg.c",
+    "vendor/gdtoa/strtof.c",
+    "vendor/gdtoa/strtodnrp.c",
+    "vendor/gdtoa/misc.c",
+    "vendor/gdtoa/dmisc.c",
+    "vendor/gdtoa/smisc.c",
+    "vendor/gdtoa/gmisc.c",
+    "vendor/gdtoa/sum.c",
+    "vendor/gdtoa/ulp.c",
+    "vendor/gdtoa/gethex.c",
+    "vendor/gdtoa/hexnan.c",
+    "vendor/gdtoa/hd_init.c",
+];
 pub(super) const AARCH64: &[&str] = &[
     "runtime/src/platform/arch/aarch64.c",
     "runtime/src/platform/arch/aarch64_anchor.S",
@@ -102,6 +121,12 @@ pub(super) const AARCH64: &[&str] = &[
 pub(super) const X86_64: &[&str] = &[
     "runtime/src/platform/arch/x86_64.c",
     "runtime/src/platform/arch/x86_64_anchor.S",
+    "runtime/src/platform/arch/x86_64_floating.c",
+    "runtime/src/platform/arch/x86_64_float_environment.c",
+];
+pub(super) const WINDOWS_X86_64: &[&str] = &[
+    "runtime/src/platform/arch/windows_x86_64.c",
+    "runtime/src/platform/arch/windows_x86_64_anchor.S",
     "runtime/src/platform/arch/x86_64_floating.c",
     "runtime/src/platform/arch/x86_64_float_environment.c",
 ];

@@ -28,7 +28,14 @@ pub fn runtime_unwind_include(
         }
         return Ok(None);
     }
-    crate::linux_target::LinuxTarget::select(target.id())?;
+    if !matches!(
+        target.id(),
+        scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID
+            | scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID
+            | scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_ID
+    ) {
+        crate::linux_target::LinuxTarget::select(target.id())?;
+    }
     let prefix = selected_unwind_prefix(target, None, prefix)?;
     let include = prefix.join("include");
     if !include.join("unwind.h").is_file() {
