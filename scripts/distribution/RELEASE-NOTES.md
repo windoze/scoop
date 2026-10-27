@@ -4,6 +4,10 @@
 
 VS Code 扩展接入 `scoop-lsp`，提供诊断、补全、签名、导航、符号、引用、重命名与快速修复。默认启动 `~/.scoop/bin/scoop-lsp`；Tree-sitter 继续提供高亮、折叠和缩进。
 
+## Scoop 编程 skill
+
+工具包新增 `tooling/scoop-programming/`，面向 AI 提供 `scoop example` 检索、完整示例文件还原、语言差异、库 API 查找、Cone 依赖和 CLI 验证工作流。`share/scoop/toolchain.toml` 的 `programming_skill` 字段标明目录位置。skill 复用当前安装中的示例、文档和源码，随 dist 分发，不自动安装到 AI 工具或修改用户配置。
+
 ## PCRE2 正则表达式库
 
 新增普通 Cone `scoop.regex`，基于 PCRE2-8 10.49 提供编译模式、编号／命名捕获、惰性搜索、字面／模板／回调替换及分割。公开位置使用 Long Unicode 标量索引，结果为独立快照，Regex 使用 close/use 管理 native 生命周期。PCRE2 采用独立 C 静态库和可选 JIT，不增加 Rust staticlib；Darwin、GNU、musl 目标资源、头文件及 PCRE2/SLJIT 许可随包交付。用法见 `src/scoop.regex/README.md`。

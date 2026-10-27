@@ -54,7 +54,7 @@ python3 scripts/prepare_sysroot.py \
 
 开发与发行 sysroot 均准备 `runtime`、`runtime-stress`、`runtime-startup-stats`、`runtime-stress-startup-stats` 四组目标 runtime，每组包含 `index.cbor`。默认构建使用 `runtime`，不编入 GC stress 或启动统计支持；`scoop --enable-gc-stress build/run/test/link` 选择 stress 配置，随后由 `SCOOP_GC_STRESS_MOVE` / `SCOOP_GC_STRESS_MINOR` 决定运行时是否开启。`--enable-startup-stats` 独立选择启动统计配置，编入后每次启动直接向 stderr 输出记录；未传时预处理完全排除计时和报告代码。两个开关可以组合，独立 `scoop-link` 同样支持。普通 fixtures 不传这些开关，相关专测显式选择。旧 schema 5 runtime 索引需要重新准备，`.slib` 和 runtime ABI 不变。
 
-`package_toolchain.py` 是完整安装包的唯一入口：取得固定 LLVM 输入、按 lockfile 构建 VS Code 扩展、构建 LLVM、四个 release 宿主命令与独立的 scoop-example、准备该宿主支持的全部 native／slib／runtime 资源、为全部内置库生成 API 文档，最后生成工具包与 LLVM 源码包。无需事先逐个执行其他准备或扩展打包脚本。默认工作位置为 `tmp/package/<host>`，归档位于 `tmp/dist`；用 `--work-dir`、`--output-dir` 可选择外置盘目录。脚本不自动运行测试。
+`package_toolchain.py` 是完整安装包的唯一入口：取得固定 LLVM 输入、按 lockfile 构建 VS Code 扩展、构建 LLVM、四个 release 宿主命令与独立的 scoop-example、准备该宿主支持的全部 native／slib／runtime 资源、为全部内置库生成 API 文档，随包复制 Scoop 编程 skill，最后生成工具包与 LLVM 源码包。无需事先逐个执行其他准备或扩展打包脚本。默认工作位置为 `tmp/package/<host>`，归档位于 `tmp/dist`；用 `--work-dir`、`--output-dir` 可选择外置盘目录。脚本不自动运行测试。
 
 构建机需要 Python 3.12+、Rust/Cargo、C/C++ 开发工具链、CMake、Make、Perl、Node.js 22.18+ 和 npm。npm 依赖、首次缺失的 LLVM 归档以及 Tree-sitter WASM 工具链需要联网取得；其余 native 上游输入已在 vendor 中。已有 WASI SDK／Binaryen 可按 [tooling 说明](../tooling/README.md) 选择。
 
@@ -83,12 +83,14 @@ LLVM 源码与归档优先复用 vendor 的固定版本位置；缺失时在工�
   libexec/llvm/lib/     宿主工具所需动态库
   docs/                离线 API 文档
   share/               示例主题、发行说明、组件清单及许可证
-  tooling/             scoop-language-support-<extension-version>.vsix
+  tooling/             scoop-language-support-<extension-version>.vsix、scoop-programming/
 ```
 
 `~/.scoop/bin/scoop` 默认使用相邻的 `~/.scoop/lib/<target-triple>/*.slib`，不因 debug profile 或空缓存重编系统库。显式 `--sysroot`／`SCOOP_SYSROOT` 和 source locator 仍按原有规则生效。安装及 VSIX 使用步骤见[随包说明](distribution/README.md)。
 
 `sysroot/commands` 整目录进入安装包，保留程序的可执行权限；空目录也保留，`.gitkeep` 不打包。`scoop [--sysroot path] somecommand <args>` 直接执行所选安装根的 `commands/scoop-somecommand`，后续参数全部原样交给该程序。
+
+`tooling/scoop-programming/` 原样进入 dist 工具包的同名目录，包含 `SKILL.md`、界面元数据和参考资料；`share/scoop/toolchain.toml` 的 `programming_skill` 字段记录其安装根相对路径。skill 引导 AI 使用配套示例、库文档和 CLI，不需要额外构建步骤，也不写入任何 AI 工具的技能目录或用户配置。内容与维护说明见 [tooling README](../tooling/README.md#scoop-编程-skill)。
 
 脚本读取宿主命令的实际动态依赖，将所需非系统库复制到 `libexec/llvm/lib`，为实际引用这些私有库的 Darwin 文件设置相对加载路径。目标资源和许可说明按实际组件收集；归档在完整写入后才替换同名文件。安装方法、系统开发环境要求及升级说明随包放在 `share/scoop`。
 

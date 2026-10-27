@@ -729,6 +729,8 @@ MIR `identity-foundation/6` 与 LIR foundation 保存实际实现的实体目录
 
 `scripts/package_toolchain.py` 是完整安装包的单一构建入口，负责 LLVM 输入准备、宿主命令、该宿主支持的全部目标 native／`.slib`／runtime、内置库文档和 VS Code 扩展。Darwin/AArch64 包包含 `aarch64-apple-darwin`，Linux/GNU amd64 包同时包含 `x86_64-unknown-linux-gnu` 与 `x86_64-unknown-linux-musl`。工具包归档直接以安装根内容为顶层，不包裹版本目录或额外的 `.scoop`／`sysroot` 目录，可用 `tar -xJf <archive> -C ~/.scoop` 安装。完整布局包含 `bin`、`commands`、`lib/<canonical-target-triple>`、`include`、`src`、`vendor`、`native`、`libexec`、`docs`、`share` 和 `tooling`；`commands` 即使为空也进入归档，存在内容时按原目录复制并保留可执行权限，仓库保留空目录的 `.gitkeep` 不进入发行包；扩展以可直接安装的 VSIX 放在 `tooling`，由同一入口按 npm lockfile 构建。安装根的纯文本 `VERSION` 记录发行版本、源码 revision 和宿主平台，与工具构建及发行清单共用本次参数，只用于查看安装版本。默认 LLVM 输入缺失时由维护脚本取得固定版本的上游归档并解包；显式输入路径失败照常报错。全部组件准备成功后才组装并发布归档。
 
+仓库的 `tooling/scoop-programming/` 保存面向 AI 的 Scoop 编程 skill，包含 `SKILL.md`、界面元数据与按需阅读的参考资料。完整打包入口将该目录原样复制到工具包的 `tooling/scoop-programming/`，在 `share/scoop/toolchain.toml` 的 `programming_skill` 字段记录安装根相对路径。skill 使用配套的 `scoop example`、CLI、离线 API 文档及库源码指导程序开发，不另行复制示例库或实现编译入口；打包及普通命令不自动安装、注册 skill，也不修改 AI 工具的用户配置。
+
 宿主包将 `scoop`、`scoopc`、`scoop-link` 和 `scoop-lsp` 放在 `bin`，四个命令共用发行版本与源码 revision；实际使用的 LLVM 动态库及非系统传递依赖放在 `libexec/llvm/lib`。Darwin 通过相对 rpath 和 dylib install name 加载；Linux 的每层私有依赖使用相对 `$ORIGIN` RUNPATH。组装脚本从实际动态依赖取得需要复制的库并修改加载路径，不在日常命令启动时重扫这些文件。版本、源码 revision、目标部署配置、Cone coordinate 和 native 版本写入 `share/scoop/toolchain.toml` 供说明；不把清单作为认证或逐文件验证输入。宿主和 LLVM 源码归档由手工脚本生成，不加入常规测试或 CI 的前置步骤。
 
 ```text
