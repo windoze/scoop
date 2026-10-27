@@ -15,6 +15,11 @@ Python 3.11+ 只用标准库；Python peer 和辅助进程统一使用 `${python
 Linux amd64 默认选择 glibc；用 `--target x86_64-unknown-linux-musl` 运行 musl 用例，
 fixture 的 Scoop 命令通过 `${target}` 传递该选择。`${cc}` 默认分别为 GCC / musl-gcc，
 可用 `--cc` 覆盖；Linux 不提供 Darwin 的 `${sdk}` / `${deployment}`。
+Windows x64 可选择三个完整 Windows target，默认 Microsoft UCRT；命令默认使用 `.exe`。
+`--native-sysroot` 与 `--unwind-prefix` 可指定所选目标的开发资源；省略时使用 sysroot 中的目标目录。
+Windows native companion 使用 Clang 的 GNU 风格命令行，`${cc_args}` 提供实际 machine triple 和目标资源，
+MinGW 默认使用所选 prefix 的 Clang，Microsoft 使用宿主 Clang 并由 SDK／Build Tools 或 `msvc.toml` 取得开发环境。
+`--ar` 可覆盖 companion archiver；只为当前适用且实际使用 native 工具的用例准备这些参数。
 共有 fixture 使用 `{each = "${compile_args}"}` 给 `scoopc build` 传目标参数，
 使用 `{each = "${link_args}"}` 给 `scoop build/run/link` 或 `scoop-link` 传目标及最终链接参数。
 普通功能 fixture 和内置 Cone 测试显式使用 release：Scoop 命令传 `--release`，
@@ -48,6 +53,8 @@ Windows 执行保留完整 32-bit exit code；`signal` 退出断言只用于 POS
 
 每个用例选择一种载体：相邻 `name.fixture.toml`、目录中的 `fixture.toml`，
 或源码开头 `// fixture:begin` 到 `// fixture:end` 之间每行带 `//` 的 TOML。
+`tests/fixtures/.gitattributes` 固定文本 checkout 使用 LF，保持源码字节位置与 golden 的跨宿主一致性；
+专门的二进制输入沿用 `-text` 属性，runner 不归一化源码或诊断中的位置。
 源码注释不会被删除，编译器读取原始源码。相对文件名以描述所在目录为基准。
 发现阶段仅解码内联条件注释；源码正文中的非法 UTF-8 留给实际 compiler 诊断。
 

@@ -95,7 +95,7 @@ def byte_value(value, base):
 
 def json_value(value, base):
     if isinstance(value, dict) and set(value) == {"file"}:
-        return json.loads(path(value["file"], base).read_text())
+        return json.loads(path(value["file"], base).read_text(encoding="utf-8"))
     return value
 
 

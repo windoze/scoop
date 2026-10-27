@@ -214,3 +214,79 @@ class EnvironmentTests(unittest.TestCase):
                 )
             self.assertEqual(common["target"], "aarch64-apple-darwin")
             self.assertEqual(common["llvm_target"], "aarch64-apple-macosx15.4")
+
+    @patch("fixture_runner.cli.platform.machine", return_value="AMD64")
+    @patch("fixture_runner.cli.platform.system", return_value="Windows")
+    def test_windows_targets_keep_complete_identity_and_skip_unused_native_tools(self, *_):
+        from fixture_runner.cli import WINDOWS_TARGETS
+
+        with tempfile.TemporaryDirectory() as directory:
+            repo, work = self.prepare(directory)
+            native = repo / "native 雪"
+            unwind = repo / "unwind"
+            fixtures = [
+                SimpleNamespace(data={"tools": []}),
+                SimpleNamespace(
+                    data={"targets": ["aarch64-apple-darwin"], "tools": ["cc", "ar", "llc"]}
+                ),
+            ]
+            with patch("fixture_runner.cli.shutil.which") as locate:
+                for index, target in enumerate(WINDOWS_TARGETS):
+                    options = ["--native-sysroot", str(native), "--unwind-prefix", str(unwind)]
+                    if index:
+                        options += ["--target", target]
+                    common = environment(repo, work, fixtures, arguments(options))
+                    self.assertEqual(common["target"], target)
+                    self.assertEqual(
+                        common["compile_args"],
+                        ["--target", target, "--native-sysroot", str(native)],
+                    )
+                    self.assertEqual(
+                        common["link_args"],
+                        common["compile_args"] + ["--unwind-prefix", str(unwind)],
+                    )
+                    self.assertEqual(
+                        common["llvm_target"],
+                        "x86_64-w64-windows-gnu" if index else "x86_64-pc-windows-msvc",
+                    )
+                locate.assert_not_called()
+
+    @patch("fixture_runner.cli.platform.machine", return_value="AMD64")
+    @patch("fixture_runner.cli.platform.system", return_value="Windows")
+    def test_windows_companions_use_selected_crt_prefix_and_explicit_microsoft_sdk(self, *_):
+        from fixture_runner.cli import WINDOWS_TARGETS
+
+        with tempfile.TemporaryDirectory() as directory:
+            repo, work = self.prepare(directory)
+            fixtures = [SimpleNamespace(data={"tools": ["cc", "ar"]})]
+            for target in WINDOWS_TARGETS:
+                with self.subTest(target=target):
+                    root = repo / target
+                    root.mkdir()
+                    (root / "msvc.toml").write_text(
+                        '[msvc]\nvc_tools="vc"\nwindows_sdk="sdk"\nsdk_version="10.0.test"\n',
+                        encoding="utf-8",
+                    )
+                    with (
+                        patch.dict(os.environ, {"LLVM_SYS_221_PREFIX": str(repo / "llvm")}),
+                        patch("fixture_runner.cli.shutil.which", side_effect=lambda value: value),
+                    ):
+                        common = environment(
+                            repo,
+                            work,
+                            fixtures,
+                            arguments(["--target", target, "--native-sysroot", str(root)]),
+                        )
+                    if target == WINDOWS_TARGETS[0]:
+                        self.assertEqual(common["cc"], str(repo / "llvm/bin/clang.exe"))
+                        self.assertIn(str(root / "vc/include"), common["cc_args"])
+                        self.assertIn(str(root / "sdk/Include/10.0.test/ucrt"), common["cc_args"])
+                        self.assertIn(str(root / "sdk/Lib/10.0.test/um/x64"), common["cc_args"])
+                        self.assertNotIn("-isystem", common["cc_args"])
+                    else:
+                        self.assertEqual(common["cc"], str(root / "bin/clang.exe"))
+                        self.assertEqual(common["ar"], str(root / "bin/llvm-ar.exe"))
+                        self.assertEqual(
+                            common["cc_args"],
+                            ["--target=x86_64-w64-windows-gnu", "--sysroot=" + str(root)],
+                        )

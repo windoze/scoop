@@ -21,6 +21,20 @@ from .discovery import discover
 from .model import ConfigurationError, EnvironmentError
 from .suite import run_suite
 
+WINDOWS_TARGETS = [
+    "x86_64-pc-windows-msvc-ucrt",
+    "x86_64-w64-windows-llvm-mingw-msvcrt",
+    "x86_64-w64-windows-llvm-mingw-ucrt",
+]
+TARGET_PROFILES = {
+    "aarch64-apple-darwin": "darwin-aarch64",
+    "x86_64-unknown-linux-gnu": "linux-x86-64-gnu",
+    "x86_64-unknown-linux-musl": "linux-x86-64-musl",
+    WINDOWS_TARGETS[0]: "windows-x86-64-msvc-ucrt",
+    WINDOWS_TARGETS[1]: "windows-x86-64-llvm-mingw-msvcrt",
+    WINDOWS_TARGETS[2]: "windows-x86-64-llvm-mingw-ucrt",
+}
+
 
 def arguments(argv):
     parser = argparse.ArgumentParser(description="Run declared Scoop process fixtures")
@@ -43,9 +57,14 @@ def arguments(argv):
     parser.add_argument("--terminal-host", type=Path, help="prebuilt native PTY test host")
     parser.add_argument(
         "--target",
-        choices=["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"],
+        choices=list(TARGET_PROFILES),
     )
     parser.add_argument("--cc", type=Path, help="native companion compiler for the selected target")
+    parser.add_argument("--ar", type=Path, help="native companion archiver")
+    parser.add_argument(
+        "--native-sysroot", type=Path, help="selected target's C development resources"
+    )
+    parser.add_argument("--unwind-prefix", type=Path, help="selected target's LLVM unwind prefix")
     parser.add_argument("--llc", type=Path, help="LLVM 22.1 compiler for IR companions")
     args = parser.parse_args(argv)
     if args.jobs < 1:
@@ -68,6 +87,8 @@ def host_targets():
     return {
         ("Darwin", "arm64"): ["aarch64-apple-darwin"],
         ("Linux", "x86_64"): ["x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"],
+        ("Windows", "AMD64"): WINDOWS_TARGETS,
+        ("Windows", "x86_64"): WINDOWS_TARGETS,
     }.get((platform.system(), platform.machine()), [])
 
 
@@ -90,11 +111,7 @@ def environment(repo, work, fixtures, args):
         "class_core": str(work / "class-core"),
         "target": target,
         "llvm_target": target,
-        "target_profile": {
-            "aarch64-apple-darwin": "darwin-aarch64",
-            "x86_64-unknown-linux-gnu": "linux-x86-64-gnu",
-            "x86_64-unknown-linux-musl": "linux-x86-64-musl",
-        }[target],
+        "target_profile": TARGET_PROFILES[target],
         "symbol_prefix": "_" if target == "aarch64-apple-darwin" else "",
         "errno_eloop": errno.ELOOP,
         "python": sys.executable,
@@ -103,9 +120,20 @@ def environment(repo, work, fixtures, args):
     }
     if target != "aarch64-apple-darwin" and args.cc:
         common["compile_args"] += ["--cc", str(args.cc.resolve())]
+    if args.native_sysroot:
+        common["compile_args"] += ["--native-sysroot", str(args.native_sysroot.resolve())]
     common["link_args"] = list(common["compile_args"])
     if target != "aarch64-apple-darwin":
-        common["link_args"] += ["--unwind-prefix", str(sysroot / "lib" / target / "unwind")]
+        unwind = (
+            args.unwind_prefix.resolve()
+            if args.unwind_prefix
+            else sysroot / "lib" / target / "unwind"
+        )
+        common["link_args"] += ["--unwind-prefix", str(unwind)]
+    if target in WINDOWS_TARGETS:
+        common["llvm_target"] = (
+            "x86_64-pc-windows-msvc" if target == WINDOWS_TARGETS[0] else "x86_64-w64-windows-gnu"
+        )
     applicable = [
         fixture
         for fixture in fixtures
@@ -116,7 +144,11 @@ def environment(repo, work, fixtures, args):
         configured = getattr(args, name.replace("-", "_")) or os.environ.get(
             "SCOOP_TEST_PAIRED_" + name.upper().replace("-", "_")
         )
-        binary = Path(configured) if configured else repo / "target/debug" / name
+        binary = (
+            Path(configured)
+            if configured
+            else repo / "target/debug" / (name + (".exe" if os.name == "nt" else ""))
+        )
         common[name] = str(binary.resolve())
         if name in needed and (not binary.is_file() or not os.access(binary, os.X_OK)):
             raise EnvironmentError(f"required executable is missing: {binary}")
@@ -139,7 +171,7 @@ def environment(repo, work, fixtures, args):
         program = (
             str(configured)
             if configured
-            else str(Path(prefix) / "bin/llc")
+            else str(Path(prefix) / "bin" / ("llc.exe" if os.name == "nt" else "llc"))
             if prefix
             else shutil.which("llc-22") or "llc"
         )
@@ -154,7 +186,9 @@ def environment(repo, work, fixtures, args):
             cc=str(args.cc.resolve())
             if args.cc
             else tool_output(["/usr/bin/xcrun", "--find", "clang"]),
-            ar=tool_output(["/usr/bin/xcrun", "--find", "ar"]),
+            ar=str(args.ar.resolve())
+            if args.ar
+            else tool_output(["/usr/bin/xcrun", "--find", "ar"]),
             sdk=tool_output(["/usr/bin/xcrun", "--sdk", "macosx", "--show-sdk-path"]),
             deployment=darwin_deployment(repo),
         )
@@ -165,11 +199,15 @@ def environment(repo, work, fixtures, args):
             common["sdk"],
             "-mmacosx-version-min=" + common["deployment"],
         ]
+    elif needed & {"cc", "ar"} and target in WINDOWS_TARGETS:
+        from .windows_tools import companions
+
+        common.update(companions(target, args, sysroot, needed))
     elif needed & {"cc", "ar"}:
         common["cc_args"] = ["-fPIC", "-pthread"]
         for name, program in {
             "cc": str(args.cc) if args.cc else "musl-gcc" if target.endswith("musl") else "gcc",
-            "ar": "ar",
+            "ar": str(args.ar) if args.ar else "ar",
         }.items():
             if name in needed:
                 located = shutil.which(program)
@@ -192,7 +230,7 @@ def darwin_deployment(repo):
     configured = os.environ.get("MACOSX_DEPLOYMENT_TARGET")
     if configured is not None:
         return configured
-    release = tomllib.loads((repo / "scripts/release.toml").read_text())
+    release = tomllib.loads((repo / "scripts/release.toml").read_text(encoding="utf-8"))
     return release["targets"]["aarch64-apple-darwin"]["minimum_os"]
 
 
@@ -251,7 +289,9 @@ def main(argv=None):
         "stage_and_plan_goldens": sum(result.snapshots for result in results),
         "results": [dataclasses.asdict(result) for result in results],
     }
-    (work / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
+    (work / "report.json").write_text(
+        json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     print(
         f"{dict(counts)}; variants={report['variants']}, processes={report['processes']}, goldens={report['stage_and_plan_goldens']}"
     )

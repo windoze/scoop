@@ -1,0 +1,2 @@
+# Keep source offsets and byte snapshots independent of checkout settings.
+* text=auto eol=lf

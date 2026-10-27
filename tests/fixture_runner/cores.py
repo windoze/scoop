@@ -33,17 +33,17 @@ def prepare_class_core(repo, work, sysroot):
         (
             "throwable.scoop",
             'public class ClassCastException public constructor() : Exception(Some("invalid cast"))\n',
-            (companions / "core-cast-direct.scoop").read_text(),
+            (companions / "core-cast-direct.scoop").read_text(encoding="utf-8"),
         ),
         (
             "throwable.scoop",
             'public class ArithmeticException public constructor() : Exception(Some("arithmetic error"))\n',
-            (companions / "core-arithmetic-direct.scoop").read_text(),
+            (companions / "core-arithmetic-direct.scoop").read_text(encoding="utf-8"),
         ),
     ]
     for name, old, new in replacements:
         path = sources / name
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
         if text.count(old) != 1:
             raise ValueError(f"{path}: expected one class-fixture replacement: {old!r}")
-        path.write_text(text.replace(old, new))
+        path.write_text(text.replace(old, new), encoding="utf-8")
