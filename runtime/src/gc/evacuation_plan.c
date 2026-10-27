@@ -5,6 +5,7 @@
 #include "allocation_metadata.h"
 #include "gc_internal.h"
 #include "heap_internal.h"
+#include "old_slots.h"
 
 /* A reserved target is not an object until copying replaces this header. */
 typedef struct PendingMove {
@@ -29,6 +30,8 @@ typedef struct MovingPlan {
     bool reuse_runs;
     bool allow_growth;
     bool reserved;
+    bool use_old_slots;
+    ScoopGcOldSlotPlan slots;
 } MovingPlan;
 
 static void *reserve_survivor(MovingPlan *plan, size_t size, size_t alignment,
@@ -86,6 +89,7 @@ static void *reserve_target(size_t size, size_t alignment, ScoopGcBlockMeta **bl
 }
 
 static void rollback_reservations(bool minor) {
+    scoop_heap_rollback_old_slots();
     while (scoop_gc_heap_state.evacuation_targets != NULL) {
         ScoopGcBlockMeta *block = scoop_gc_heap_state.evacuation_targets;
         scoop_gc_heap_state.evacuation_targets = block->next_collection;
@@ -160,7 +164,12 @@ static void reserve_move(void **entry, void *context) {
         destination = reserve_survivor(plan, size, alignment, &target);
     }
     if (destination == NULL) {
-        destination = reserve_target(size, alignment, &target, plan->reuse_runs, plan->allow_growth);
+        if (plan->use_old_slots && size <= GC_OLD_SLOT_MAX) {
+            destination = scoop_heap_reserve_old_slot(&plan->slots, size, &target);
+        } else {
+            destination = reserve_target(size, alignment, &target, plan->reuse_runs,
+                                         plan->allow_growth);
+        }
     }
     if (destination == NULL) {
         plan->reserved = false;
@@ -220,8 +229,17 @@ bool scoop_gc_heap_plan_moving_locked(bool minor, ScoopGcSurvivors *survivors) {
     if (!collection_active) {
         heap_fatal("evacuation planned outside collection");
     }
+    if (!minor && scoop_heap_uses_old_slots()) {
+        scoop_gc_heap_state.metrics.last_full_source_regions = 0;
+        scoop_gc_heap_state.metrics.last_full_target_regions = 0;
+        return true;
+    }
     bool ordinary_full = !minor && !stress_move;
-    MovingPlan plan = {.reuse_runs = ordinary_full, .reserved = true};
+    MovingPlan plan = {
+        .reuse_runs = ordinary_full,
+        .reserved = true,
+        .use_old_slots = minor && scoop_heap_uses_old_slots(),
+    };
     if (minor && scoop_gc_heap_state.survivor_enabled && scoop_heap_adaptive_nursery_enabled()) {
         plan.survivor_capacity_limit = scoop_gc_heap_state.nursery_capacity / 4;
     }

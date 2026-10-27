@@ -161,7 +161,7 @@ static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
     if (SCOOP_ENABLE_GC_STRESS && stress) {
         return true;
     }
-    if (block->generation == SCOOP_GC_OLD) {
+    if (block->generation == SCOOP_GC_OLD && block->slot_size == 0) {
         record_free_runs(block, block->line_occupied);
     }
     return true;
@@ -211,7 +211,7 @@ void scoop_heap_prepare_evacuation_targets(void) {
         retire_dead_small_objects(block, false);
         if (block->live_bytes == 0) {
             scoop_heap_release_block(block);
-        } else {
+        } else if (block->slot_size == 0) {
             record_free_runs(block, block->line_live);
         }
     }

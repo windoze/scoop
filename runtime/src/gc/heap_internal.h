@@ -18,6 +18,8 @@
 #define GC_BITMAP_WORDS (GC_WORDS_PER_BLOCK / 64)
 #define GC_LINE_BITMAP_WORDS (GC_LINES_PER_BLOCK / 64)
 #define GC_REGULAR_MAX (GC_BLOCK_SIZE - GC_LINE_SIZE)
+#define GC_OLD_SLOT_MAX ((size_t)256)
+#define GC_OLD_SLOT_CLASSES (GC_OLD_SLOT_MAX / sizeof(uint64_t) - 1)
 #define GC_INITIAL_THRESHOLD ((size_t)16 << 20)
 #define GC_NURSERY_MIN_CAPACITY ((size_t)1 << 20)
 #define GC_NURSERY_DEFAULT_MAX_CAPACITY ((size_t)32 << 20)
@@ -61,6 +63,7 @@ typedef enum ScoopGcGeneration {
 } ScoopGcGeneration;
 
 typedef struct ScoopGcRegion ScoopGcRegion;
+typedef struct ScoopGcOldSlots ScoopGcOldSlots;
 
 typedef struct ScoopGcCardGroup {
     /* Null until claimed; a self link terminates the published dirty list. */
@@ -89,7 +92,11 @@ typedef struct ScoopGcBlockMeta {
 #endif
     uint64_t *line_occupied;
     uint64_t *line_live;
-    size_t exact_size;
+    union {
+        size_t exact_size;
+        /* Zero for ordinary small blocks; otherwise the fixed old-object stride. */
+        size_t slot_size;
+    };
     size_t live_bytes;
     size_t movable_live_bytes;
     size_t mark_index;
@@ -185,6 +192,7 @@ typedef struct ScoopGcHeapState {
     bool promote_in_place;
     bool incremental_enabled;
     bool incremental_active;
+    bool old_slots_enabled;
     bool print_metrics;
     bool collection_active;
     size_t incremental_blocks;
@@ -209,6 +217,9 @@ typedef struct ScoopGcHeapState {
     ScoopGcBlockMeta *young_blocks;
     ScoopGcBlockMeta *evacuation_targets;
     _Atomic(ScoopGcCardGroup *) dirty_card_groups;
+    ScoopGcOldSlots *old_slots_available[GC_OLD_SLOT_CLASSES];
+    ScoopGcOldSlots *old_slots_reserved;
+    size_t old_pressure_bytes;
 } ScoopGcHeapState;
 
 extern ScoopGcHeapState scoop_gc_heap_state;

@@ -80,6 +80,13 @@ void scoop_gc_heap_init(void) {
         }
         scoop_gc_heap_state.incremental_enabled = strcmp(incremental, "1") == 0;
     }
+    const char *slots = getenv("SCOOP_GC_OLD_SLOTS");
+    if (slots != NULL) {
+        if (strcmp(slots, "0") != 0 && strcmp(slots, "1") != 0) {
+            heap_fatal("SCOOP_GC_OLD_SLOTS must be 0 or 1");
+        }
+        scoop_gc_heap_state.old_slots_enabled = strcmp(slots, "1") == 0;
+    }
     const char *nursery = getenv("SCOOP_GC_NURSERY_MAX_MIB");
     if (nursery != NULL) {
         char *end;

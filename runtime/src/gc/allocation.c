@@ -8,6 +8,7 @@
 #include "gc_internal.h"
 #include "heap_internal.h"
 #include "allocation_metadata.h"
+#include "old_slots.h"
 
 _Static_assert(GC_BLOCK_SIZE == 32768 && GC_LINE_SIZE == 128 && sizeof(uint64_t) == 8,
                "generated TLAB metadata geometry drifted");
@@ -56,7 +57,9 @@ typedef enum RefillResult {
 
 static bool exceeds_old_threshold(size_t bytes) {
     size_t occupied = committed_bytes;
-    if (scoop_heap_adaptive_nursery_enabled()) {
+    if (scoop_heap_uses_old_slots()) {
+        occupied = scoop_gc_heap_state.old_pressure_bytes;
+    } else if (scoop_heap_adaptive_nursery_enabled()) {
         occupied -= scoop_gc_heap_state.nursery_bytes;
     }
     return occupied > collection_threshold || bytes > collection_threshold - occupied;
@@ -170,19 +173,28 @@ static void *allocate_old(size_t size, size_t alignment) {
             collected = scoop_gc_collect_internal();
             continue;
         }
+        if (!collected && scoop_heap_uses_old_slots() && exceeds_old_threshold(size)) {
+            unlock_heap();
+            collected = scoop_gc_collect_internal();
+            continue;
+        }
         char **cursor = &scoop_gc_heap_state.old_cursor;
         char **limit = &scoop_gc_heap_state.old_limit;
         void *object = scoop_heap_bump(cursor, *limit, size, alignment);
         if (object == NULL && scoop_heap_take_free_run(size, cursor, limit)) {
             object = scoop_heap_bump(cursor, *limit, size, alignment);
         }
-        if (object == NULL && (collected || !exceeds_old_threshold(GC_BLOCK_SIZE))) {
+        size_t requested = scoop_heap_uses_old_slots() ? size : GC_BLOCK_SIZE;
+        if (object == NULL && (collected || !exceeds_old_threshold(requested))) {
             ScoopGcBlockMeta *block = activate_small_block(SCOOP_BLOCK_MUTATOR, true);
             if (block != NULL) {
                 *cursor = (char *)block_base(block) + GC_LINE_SIZE;
                 *limit = (char *)block_base(block) + GC_BLOCK_SIZE;
                 object = scoop_heap_bump(cursor, *limit, size, alignment);
             }
+        }
+        if (object != NULL) {
+            scoop_heap_note_old_bytes(size);
         }
         unlock_heap();
         if (object != NULL) {
@@ -224,9 +236,13 @@ static void *allocate_large(size_t size, ScoopGcBlockMeta **allocated_block) {
             continue;
         }
         size_t span = scoop_heap_large_mapping_size(size);
-        bool threshold_exceeded = !collected && exceeds_old_threshold(span);
+        size_t requested = scoop_heap_uses_old_slots() ? size : span;
+        bool threshold_exceeded = !collected && exceeds_old_threshold(requested);
         ScoopGcBlockMeta *block =
             threshold_exceeded ? NULL : activate_large_block(size, SCOOP_BLOCK_MUTATOR);
+        if (block != NULL) {
+            scoop_heap_note_old_bytes(size);
+        }
         unlock_heap();
         if (block != NULL) {
             *allocated_block = block;

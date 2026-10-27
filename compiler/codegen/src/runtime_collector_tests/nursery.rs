@@ -1,6 +1,28 @@
 use super::{compile_and_run, compile_and_run_with_flags, workspace_root};
 
 #[test]
+fn old_slots_reuse_dead_cells_without_overlapping_reference_updates() {
+    for optimization in ["-O0", "-O2"] {
+        let output = compile_and_run_with_flags(
+            &workspace_root(),
+            "old_slots_test",
+            "runtime/tests/old_slots_test.c",
+            true,
+            &[optimization],
+        );
+        assert!(
+            output.status.success(),
+            "{optimization}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"old slots reuse dead cells and preserve roots, padding, alignment and pins\n"
+        );
+    }
+}
+
+#[test]
 fn incremental_marking_preserves_changed_edges_and_complete_fallbacks() {
     for flags in [
         vec!["-O0"],

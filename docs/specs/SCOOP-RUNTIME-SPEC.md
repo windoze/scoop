@@ -553,6 +553,10 @@ AtomicRef<I> 的原子槽仍只保存 object；返回引用的原子操作在无
 
 full collection 按回收收益选择低存活、无 pin 的 region 为 source，把对象集中到未选为 source 的目标 region；高存活／含 pin 区域继续原地复用 Immix line。普通 full 不强制搬迁，显式 moving stress 在目标空间足够时要求 eligible movement。pinned 对象不移动；移动不改变语言对象身份。
 
+可选旧代对象槽策略（`SCOOP_GC_OLD_SLOTS=1`，默认关闭）保持 nursery、对象头和 ABI，普通 minor 把对齐后 16～256 B 的晋升对象放入按精确大小分组的旧代 block。每块的槽间距等于对齐后大小，复用现有 starts 位图选择空槽；只在 block 级保存 native 空槽游标和临时预留记录，不在死亡对象内保存可跨 VM discard 使用的链。完整预留成功前不发布 starts、forwarding 或 live entry；失败时恢复可用槽游标、释放本轮新块，原旧对象与根保持。成功复制仍执行既有目标登记；minor 收尾只清除复用旧块中新对象的临时 marks，不把未参加本轮年轻标记的旧对象当作死亡。full 清扫后按当前 starts 重建空槽记录，空块／region 与 release hook 沿原退休合同。
+
+该策略的普通 full 在完整标记后原地清扫，避免重新移动旧代槽；未采用槽的对象仍按 Immix line 复用。其下次 full 阈值以上次完整标记的真实存活字节为基础，按既有两倍系数与最小阈值设置；晋升在 minor 收尾累计，预分配在既有持锁慢路径累计。复用空槽仍产生分配压力，不能用含大量空槽的保留 block 容量不断抬高阈值。nursery 的逐对象快路径不增加计数操作。moving／minor stress 和 full-only 保留已有分配与收集回退。既有 pin、native、精确 roots、增量标记和写屏障不变。minor 的旧代脏范围可能覆盖本轮新填充槽：回写旧范围时用已完成复制的 marks 跳过这些新对象，它们仅由年轻存活清单回写；不能让两个 worker 并发更新同一引用槽。该区别来自 block 布局与本轮标记事实，不按类型名或调用点名称特判。策略选择在扫描入口完成，关闭时使用原逐对象回写。该策略可降低小对象存活图的内存和完整 full 长尾，但可能增加收集频率、扫描 CPU 和应用间隔的部分分位数，因此通过独立选项启用。
+
 首版普通 full 保留存活字节最多的普通 region 作为目标，其他存活量不超过 region 容量四分之一且无 pin 的非空 region 可选为 source。先使用非 source 的旧代空闲 line、空 block 和未使用 block；只有多个 source 可被腾空时才允许增加目标 region。预留完成后，新占用的空 region 数量（含已有空 region 和新映射）必须少于本批 source 数量，使含存活对象的 region 数量实际下降，避免在空闲缓存间往返复制。未取得实际集中收益或目标预留失败时保持非移动回收。该阈值是可调的收集策略，不属于产物 ABI。minor 按年轻 block 选择 source，存活对象按 3.9 进入 survivor 或旧代；显式 moving stress 以 eligible block 为单位验证对象搬迁，不采用普通 full 的收益筛选。
 
 普通 full 只有一个 source region 时，不能通过新占用空 region 获得上述集中收益。目标准备前可用本轮已累计的 region 存活字节计算必要容量上界：只计入非 source、非 large 且已有存活对象的 region，以其全部普通 block 的可用容量减去存活字节。若总上界仍小于 source 的存活量，取消本轮搬迁选择，直接进入正常非移动收尾，不提前扫描目标对象或执行 release。该上界忽略碎片、对齐和不可复用区间，只能否决不可能成功的尝试；通过检查仍须完成实际目标预留及必要回滚。
@@ -639,7 +643,7 @@ collector 持有 heap／roots 的独占阶段后，发布不可变的 region、�
 
 roots／remembered 扫描先由 coordinator 发布初始工作，随后参与同一任务循环。普通对象每个任务最多扫描 64 个，可以在该批次内继续处理本 worker 刚发现的后继，避免长链每个对象都经过队列；大数组每个任务最多 1024 个元素，嵌套值仍执行已有精确 scan。未扫描的剩余子工作在当前任务完成前发布。仅一个在途父任务和一个后继时无需唤醒其他 worker，最后一项完成必须唤醒终止等待者；这不改变全局未完成任务数的含义。首次成功标记但不含引用的对象仍进入存活清单与统计，无需扫描任务。本轮候选 block 总容量不足 4 MiB 时默认仅使用 coordinator；minor 使用实际年轻 block 容量，full 使用活跃堆容量，其余按在线 CPU 数选择最多 4 个 worker；在线 CPU 数通过私有 ThreadVmOps 查询。`SCOOP_GC_WORKERS=1..8` 可显式选择本轮 worker 数以验证同义性和测量，worker 数包含 coordinator，属于 runtime 策略参数，不影响程序或产物合法性。
 
-普通 minor 在有多个 worker 时，先用既有的活动 block／旧代条件过滤 remembered 卡组，再将实际需要扫描的组发布到同一队列，由 worker 按既有精确脏范围扫描旧对象并追踪年轻引用；每组在该阶段只发布一次，不提前清卡或解除登记。单 worker 保留直接扫描，避免空转任务开销。标记和全部复制完成后，coordinator 先更新精确 roots，再把原 remembered 组与年轻存活对象的引用更新任务发布给同一 pool。旧对象按互不重叠的卡组范围回写，年轻存活清单按原唯一 entry／数组范围回写；普通 minor 不向已有旧对象 block 的空洞复制，因此两类任务不并发访问同一槽。所有任务结束后才能验证、清卡、退休对象或恢复 mutator。survivor 的卡 2 状态及新登记组按原规则保留到收尾；入队遍历在 worker 启动前完成，不与新组发布并发读取链接。native roots 即使 alias heap 槽也已先由 coordinator 更新，保留原幂等转发语义。增量 full 的 dirty 任务仍按已标记 owner 扫描，并在任务完成后清卡，不能把两种清卡时机混同。
+普通 minor 在有多个 worker 时，先用既有的活动 block／旧代条件过滤 remembered 卡组，再将实际需要扫描的组发布到同一队列，由 worker 按既有精确脏范围扫描旧对象并追踪年轻引用；每组在该阶段只发布一次，不提前清卡或解除登记。单 worker 保留直接扫描，避免空转任务开销。标记和全部复制完成后，coordinator 先更新精确 roots，再把原 remembered 组与年轻存活对象的引用更新任务发布给同一 pool。旧对象按互不重叠的卡组范围回写，年轻存活清单按原唯一 entry／数组范围回写；默认 minor 不向已有旧对象 block 的空洞复制；3.7 对象槽策略用复制 marks 从旧范围排除新填充对象。因此两类任务不并发访问同一槽。所有任务结束后才能验证、清卡、退休对象或恢复 mutator。survivor 的卡 2 状态及新登记组按原规则保留到收尾；入队遍历在 worker 启动前完成，不与新组发布并发读取链接。native roots 即使 alias heap 槽也已先由 coordinator 更新，保留原幂等转发语义。增量 full 的 dirty 任务仍按已标记 owner 扫描，并在任务完成后清卡，不能把两种清卡时机混同。
 
 mark 结束后复用首次标记的存活对象集合规划搬迁；实际有搬迁时，使用该集合更新存活副本的出站引用，不在 full 更新阶段再次用 worklist 发现可达图。存活清单的分块和条目地址在本轮保持稳定，3.7 的临时目标头保存对应条目的地址，不另建计划分块。全体目标预留成功后，coordinator 依次复制对象、登记目标元数据、发布原对象 forwarding，再把对应清单条目改为当前副本。预留失败不得修改任何清单条目；未搬迁和 pinned 对象继续保留原地址。无引用对象的条目也随实际搬迁更新。该修改发生在全部 mark worker 结束后、任何 update worker 发布之前，不新增 managed roots 或延长对象存活。
 

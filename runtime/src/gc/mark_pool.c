@@ -4,6 +4,7 @@
 
 #include "../platform/platform.h"
 #include "mark_internal.h"
+#include "old_slots.h"
 
 ScoopGcMarker scoop_gc_marker = {
     .lock = PTHREAD_MUTEX_INITIALIZER,
@@ -170,6 +171,7 @@ void scoop_gc_shutdown(void) {
     }
     stop_threads();
     scoop_gc_mark_dispose();
+    scoop_heap_clear_old_slots();
     for (size_t index = 0; index < GC_MARK_MAX_WORKERS; index++) {
         ScoopGcMarkWorker *worker = &scoop_gc_marker.workers[index];
         free(worker->queue.tasks);
