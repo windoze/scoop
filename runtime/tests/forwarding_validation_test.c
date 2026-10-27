@@ -18,7 +18,7 @@ static void corrupt_forwarding(unsigned scenario) {
     scoop_rt_push_native_roots(&roots, slots, 1);
     if (scenario == 5) {
         object = (char *)object + sizeof(void *);
-    } else if (scenario >= 6) {
+    } else if (scenario >= 6 && scenario <= 8) {
         /* Mark the valid owner first so the invalid edge takes the region-cache hit. */
         NurseryNode *node = object;
         if (scenario == 6) {
@@ -42,6 +42,11 @@ static void corrupt_forwarding(unsigned scenario) {
     collection_active = scenario != 0;
     if (scenario != 1) {
         bit_set(block->marks, word);
+    }
+    if (scenario == 9) {
+        scoop_heap_claim_current_object(object);
+        scoop_heap_claim_current_object(object);
+        _exit(2);
     }
     block->state = SCOOP_BLOCK_EVACUATION_SOURCE;
     if (scenario == 3) {
@@ -93,6 +98,7 @@ int main(void) {
     expect_failure(2, "marked evacuation source has no planned forwarding address");
     expect_failure(3, "evacuation source forwards to its own address");
     expect_failure(4, "marked evacuation source has no planned forwarding address");
+    expect_failure(9, "marked object appeared twice in the retained live set");
 #endif
     puts("mark boundaries and forwarding verification reject invalid references");
     return 0;

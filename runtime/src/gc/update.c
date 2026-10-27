@@ -66,34 +66,10 @@ void scoop_gc_update_live(bool minor, ScoopGcSlotVisitor visitor,
     for (size_t index = 0; index < scoop_gc_marker.active_workers; index++) {
         ScoopGcMarkWorker *owner = &scoop_gc_marker.workers[index];
         for (ScoopGcLiveChunk *chunk = owner->live; chunk != NULL; chunk = chunk->next) {
-            for (size_t first = 0; first < chunk->used; first += GC_MARK_BATCH) {
-                uint64_t scans = 0;
-                size_t count = chunk->used - first;
-                if (count > GC_MARK_BATCH) {
-                    count = GC_MARK_BATCH;
-                }
-                for (size_t offset = 0; offset < count; offset++) {
-                    void *object = chunk->objects[first + offset];
-                    const uint64_t *scan = scoop_gc_object_scan(object);
-                    if (scan == NULL) {
-                        continue;
-                    }
-#if SCOOP_GC_TRACK_RELOCATION
-                    scoop_heap_claim_current_object(object);
-#endif
-                    if (scoop_gc_scan_is_array(scan)) {
-                        enqueue_update_array(owner, object, scan);
-                    } else {
-                        scans |= UINT64_C(1) << offset;
-                    }
-                }
-                if (scans != 0) {
-                    scoop_gc_mark_queue_push(owner,
-                                             (ScoopGcMarkTask){
-                                                 .data.batch = {&chunk->objects[first], scans},
-                                             });
-                }
-            }
+            scoop_gc_mark_queue_push(owner, (ScoopGcMarkTask){
+                .kind = SCOOP_UPDATE_CHUNK_TASK,
+                .data.live_chunk = chunk,
+            });
         }
     }
     scoop_gc_mark_pool_run(0);
@@ -102,7 +78,7 @@ void scoop_gc_update_live(bool minor, ScoopGcSlotVisitor visitor,
     scoop_gc_marker.update_context = NULL;
 }
 
-void scoop_gc_update_run_task(ScoopGcMarkTask task) {
+void scoop_gc_update_run_task(ScoopGcMarkWorker *worker, ScoopGcMarkTask task) {
     ScoopGcSlotVisitor visitor = scoop_gc_marker.update_visitor;
     void *context = scoop_gc_marker.update_context;
     if (task.kind == SCOOP_MARK_DIRTY_TASK) {
@@ -115,12 +91,20 @@ void scoop_gc_update_run_task(ScoopGcMarkTask task) {
                                  task.data.range.begin, task.data.range.end);
         return;
     }
-    uint64_t scans = task.data.batch.scans;
-    while (scans != 0) {
-        size_t index = (size_t)__builtin_ctzll(scans);
-        void *current = task.data.batch.objects[index];
-        scoop_gc_scan_descriptor(current, scoop_gc_object_scan(current), visitor, context, 0,
-                                 UINTPTR_MAX);
-        scans &= scans - 1;
+    ScoopGcLiveChunk *chunk = task.data.live_chunk;
+    for (size_t index = 0; index < chunk->used; index++) {
+        void *current = chunk->objects[index];
+        const uint64_t *scan = scoop_gc_object_scan(current);
+        if (scan == NULL) {
+            continue;
+        }
+#if SCOOP_GC_TRACK_RELOCATION
+        scoop_heap_claim_current_object(current);
+#endif
+        if (scoop_gc_scan_is_array(scan)) {
+            enqueue_update_array(worker, current, scan);
+        } else {
+            scoop_gc_scan_descriptor(current, scan, visitor, context, 0, UINTPTR_MAX);
+        }
     }
 }

@@ -55,6 +55,64 @@ static void check_remembered_ranges(ParallelFixture *fixture, bool survivors) {
     scoop_gc_heap_unlock();
 }
 
+static void check_mixed_arrays(ParallelFixture *fixture) {
+    const size_t count = 2049;
+    ScoopArray *outer = nursery_allocate(&parallel_array_td, 24 + count * sizeof(ParallelEdge));
+    outer->size = count;
+    fixture->objects[4] = outer;
+    for (size_t index = 0; index < count; index++) {
+        bool numbers = index % 3 == 0;
+        size_t length = index % 97 == 0 ? 1031 : index % 9;
+        size_t stride = numbers ? sizeof(uint64_t) : sizeof(ParallelEdge);
+        const ScoopTypeDescriptor *td = numbers ? &parallel_numbers_td : &parallel_array_td;
+        ScoopArray *child = nursery_allocate(td, 24 + length * stride);
+        child->size = length;
+        if (numbers) {
+            memset((char *)child + 24, (unsigned char)index, length * stride);
+        } else {
+            ParallelEdge *elements = (void *)((char *)child + 24);
+            for (size_t offset = 0; offset < length; offset++) {
+                elements[offset] = (ParallelEdge){fixture->objects[1], offset,
+                                                 fixture->objects[2]};
+            }
+            scoop_rt_gc_write_barrier(elements, length * stride);
+        }
+        ParallelEdge *elements = (void *)((char *)fixture->objects[4] + 24);
+        elements[index] = (ParallelEdge){child, index, fixture->objects[1]};
+        scoop_rt_gc_write_barrier(&elements[index], sizeof elements[index]);
+    }
+    /* More than one live chunk mixes empty, pointer-free and reference arrays;
+     * some reference arrays also publish a final partial range during update. */
+    for (size_t round = 0; round < 2; round++) {
+        nursery_collect(round == 0);
+        if (round == 0) {
+            assert(scoop_rt_gc_debug_last_moved_count() != 0);
+        }
+        ParallelEdge *elements = (void *)((char *)fixture->objects[4] + 24);
+        for (size_t index = 0; index < count; index++) {
+            bool numbers = index % 3 == 0;
+            size_t length = index % 97 == 0 ? 1031 : index % 9;
+            ScoopArray *child = elements[index].left;
+            assert(child->size == length && elements[index].padding == index);
+            assert(elements[index].right == fixture->objects[1]);
+            if (numbers) {
+                const unsigned char *bytes = (const void *)((const char *)child + 24);
+                for (size_t offset = 0; offset < length * sizeof(uint64_t); offset++) {
+                    assert(bytes[offset] == (unsigned char)index);
+                }
+            } else {
+                ParallelEdge *values = (void *)((char *)child + 24);
+                for (size_t offset = 0; offset < length; offset++) {
+                    assert(values[offset].left == fixture->objects[1]);
+                    assert(values[offset].right == fixture->objects[2]);
+                    assert(values[offset].padding == offset);
+                }
+            }
+        }
+    }
+    fixture->objects[4] = fixture->objects[0];
+}
+
 static void run_case(size_t workers) {
     ParallelFixture fixture = {0};
     parallel_start(&fixture, workers);
@@ -94,6 +152,7 @@ static void run_case(size_t workers) {
     check_remembered_ranges(&fixture, false);
     check_remembered_ranges(&fixture, true);
     check_values(&fixture, pinned);
+    check_mixed_arrays(&fixture);
 
     scoop_rt_pop_native_roots(&roots);
     assert(scoop_rt_unpin(pinned) == pinned);

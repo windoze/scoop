@@ -24,16 +24,15 @@ void scoop_heap_claim_current_object(void *object) {
         heap_fatal("scan claimed for a non-current object");
     }
     if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
-        if (block->large_scanned) {
+        if (__atomic_exchange_n(&block->large_scanned, true, __ATOMIC_RELAXED)) {
             heap_fatal("marked object appeared twice in the retained live set");
         }
-        block->large_scanned = true;
         return;
     }
-    if (bit_test(block->scanned, word_index)) {
+    uint64_t mask = UINT64_C(1) << (word_index % 64);
+    if (__atomic_fetch_or(&block->scanned[word_index / 64], mask, __ATOMIC_RELAXED) & mask) {
         heap_fatal("marked object appeared twice in the retained live set");
     }
-    bit_set(block->scanned, word_index);
 }
 
 bool scoop_gc_object_was_scanned_locked(const void *object) {

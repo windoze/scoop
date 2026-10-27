@@ -4,6 +4,8 @@
 
 各项已采纳方案的开启方式与适用条件统一见[简略清单](ENABLED-OPTIMIZATIONS.md)，后续交付与默认策略调整时同步更新。
 
+- [GC 第十九阶段](GC-EVOLUTION.md)让 worker 直接消费存活分块，删除更新前逐对象预遍历和重复 scan 读取；所有 profile 默认，ABI 23 不变。M3／GNU 大图墙钟 4.199／5.222 → 3.820／4.914 s、总 CPU 降低，普通队列容量 3,200 → 320 KiB，full 请求 p99 131／192 → 119／180 ms；部分 minor／系统 CPU／RSS 回退保留。两机八项 C 专测及三目标双 profile GC／callback 组合通过。下一步实际实验 minor 分片，继续降低现有增量配置中的停顿，GC 主线未完成。
+
 - [GC 第十八阶段](GC-EVOLUTION.md)并行预留无 survivor 配额的 minor 目标，每 worker 独占分配区，失败在全体结束后统一回滚；沿现有 worker 设置默认采用，ABI 23 不变。M3／GNU 大图墙钟 4.979／6.171 → 4.401／5.263 s，minor p99 52.6／73.2 → 44.1／53.8 ms；总 CPU 增长、GNU full 尾部与部分 RSS 回退保留。两机九项 C 专测及三目标双 profile GC／callback 组合通过。继续减少 full 规划和引用更新的串行工作，GC 主线未完成。
 
 - [GC 第十七阶段](GC-EVOLUTION.md)在单次标记停顿内复用普通 region，命中仍保留首次对象检查；begin／增量 resume 失效，最多增加 4 KiB，全部 profile 默认、ABI 23 不变。M3 增量大图墙钟 4.749 → 4.419 s，普通大图近乎持平；普通请求 p99 两机 134 → 129／202 → 197 ms，十六线程与 RSS／最大暂停回退保留。两机七项 C 专测及三目标双 profile GC／callback 组合通过。下一项实际推进 minor 搬迁计划并行，GC 主线继续。

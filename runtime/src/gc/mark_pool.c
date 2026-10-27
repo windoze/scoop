@@ -45,7 +45,7 @@ static void run_worker(ScoopGcMarkWorker *worker, size_t task_limit) {
         } else if (task.kind == SCOOP_COPY_BLOCK_TASK) {
             scoop_gc_copy_run_task(task.data.copy_group);
         } else if (scoop_gc_marker.updating) {
-            scoop_gc_update_run_task(task);
+            scoop_gc_update_run_task(worker, task);
         } else {
             scoop_gc_mark_run_task(worker, task);
             scoop_gc_mark_flush(worker);
