@@ -1248,7 +1248,7 @@ release 可对已知不超过八字节的常量比较生成有长度保护的定
 
 release 在普通 MIR 内联与局部分配优化之后识别真实 `RuntimeFn::StringConcat` 调用，融合同一基本块中单独使用的连续拼接。分析只穿过稳定局部值复制和常量准备；其他调用、可变存储写入、可能抛出或改变绑定的操作及控制流边界结束融合。中间结果及其别名必须具有唯一写入且只读一次，不能删除其他位置仍使用的结果。输入按原顺序各求值一次，保留共享输入与重复片段；融合不改变异常前的副作用前缀。首版最多展开八个片段，合并不超过 64 bytes 的相邻常量片段；更长的常量仍引用原 String。普通二元拼接只在静态热循环调用点或全部输入为短常量时使用同一生成路径；热度复用内联器的循环／冷出口分析，冷点及不合格链保留共享 runtime 后备。
 
-融合结果是编译器内部的 typed StringConcat 值操作，区分已求值 String 输入与直接 UTF-8 常量片段。LIR 携带实际 String TD、分配 safepoint 及输入 live set；codegen checked 累计长度，一次分配结果，写入 byte count 并按序复制。所有可能移动的输入在分配后从规范 root 重读，再计算 bytes 地址；长度可跨 safepoint 保留，内部指针不可。常量片段直接写入结果，不创建额外 immortal 对象或 managed root。此操作不进入 `.slib` 公共格式，不改变 String 布局、实体身份或旧二元 runtime ABI；debug 和 release 继续消费相同库合同。该局部融合不涉及 StringBuilder、插值格式化或 parts 存储。
+融合结果是编译器内部的 typed StringConcat 值操作，区分已求值 String 输入与直接 UTF-8 常量片段。LIR 携带实际 String TD、分配 safepoint 及输入 live set；codegen checked 累计长度，一次分配结果，写入 byte count 并按序复制。所有可能移动的输入在分配后从规范 root 重读，再计算 bytes 地址；长度可跨 safepoint 保留，内部指针不可。常量片段直接写入结果，不创建额外 immortal 对象或 managed root。此操作不进入 `.slib` 公共格式，不改变 String 布局、实体身份或旧二元 runtime ABI；debug 和 release 继续消费相同库合同。普通拼接与下述短插值展开共用该融合；它不改写 StringBuilder 或插值值的格式化算法。
 
 已知表示的字节复制使用真实 core intrinsic：`string_copy_utf8_unchecked(Ptr<Byte>, Long)`、`string_slice_bytes(String, Long, Long)`、`string_from_bytes(Array<Byte>)` 返回 String；`string_to_bytes(String)` 与 `string_to_mutable_bytes(String)` 分别返回 exact Array<Byte>／MutableArray<Byte>。第一项为 Unsafe，其指针在分配期间必须稳定、可读，长度非负且内容为合法 UTF-8；其余内部操作由调用的普通 core 正文保证 UTF-8 与范围前置条件。String intrinsic wire tags 4～8 按上述顺序追加，原 tags 1～3 不变；源码及跨 Cone 正文均按 typed 身份降低，不改变同名普通 extern 的语义。各 profile 使用同一 core 协议，配套 core 与依赖库按常规依赖更新重建；`.slib` 容器格式和外部 runtime ABI 不变。
 
@@ -1267,7 +1267,9 @@ Char 字面量、已知 Char 的 code 和合法常量的 unchecked 标量构造�
 C 字符串接口由普通 core 代码组合：withCString 检查 NUL，复制到带终止符的 MutableArray<UInt8>，再通过语言规范 13.11 借用；fromCString 通过普通 C ABI 的 strlen 取得长度，复用严格 pointer 解码。strlen 按 GCLeaf 合同调用；没有独立的编译器 C 字符串类型、隐式编码转换或栈缓冲优化。
 
 编译器为异常边生成的零参数构造适配器不参加源码构造重载选择；core 自身的函数体也遵守同一规则。源码调用仍选择实际 source constructor，并按普通规则求值缺省实参，泛型／默认模板保存该源码调用。适配器继续由编译器异常边的完整 typed 引用使用。
-f-string 按源码顺序保存 text/expression part 与原位置，绑定实际 core StringBuilder 的构造、append 与 toString。表达式与对应 toString 交错执行，保持异常和挂起行为；成功 HIR 正文不留待后端解释的字符串插值或 StringBuilder 指令。
+f-string 按源码顺序保存 text/expression part 与原位置，表达式与对应 ToString 转换交错执行，保持异常和挂起行为。移除空文本、合并不超过 64 bytes 的相邻文本后，有效片段不超过八个时，HIR 使用 hygienic 不可变局部变量保存各转换结果，再生成已有 typed 二元 StringConcat 的连续单用链；转换按真实 core ToString conformance 绑定，不统一装箱为接口，也不调用用户同名 extension。零段使用空串，单段直接返回文本或转换结果；f-string 的 const、NoGC 与 suspend 合法性仍先检查。超过八段按普通 core StringBuilder 的构造、append 与 toString 下降；上限是代码展开策略，不限制程序合法性或输出字节数。
+
+release 的短插值复用上述 MIR 融合，二至八段一次分配最终结果；两段冷调用点可以保留一次二元 runtime 后备。debug 使用相同的前端展开与现有二元后备，不承诺融合。所有 String 临时值沿普通 roots 和协程 frame 保活，最终分配后重新取得复制地址。generic、默认值与跨 Cone 正文保存原 callable、常量 owner、求值位置和已有 primitive 操作，不新增 HIR 正文格式。成功 HIR 不保留待后端解释的字符串插值或 StringBuilder 指令；stage 之间只传递完整 typed IR。
 
 普通容器布局和内部存储策略不属于编译器协议。其模板、接口调用、快照和字符串构建使用普通类型/ABI/GC 合同。
 
