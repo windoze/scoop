@@ -270,6 +270,15 @@ fn validate_pe(profile: &ValidatedFinalLinkProfile, scratch: &Path) {
         &arguments,
         &runtime,
     );
+    let mut runtime_objects = vec![arguments];
+    for source in ["src/platform/image/pe.c", "src/image/ranges.c"] {
+        let source = runtime.join(source);
+        let object = scratch
+            .join(source.file_stem().unwrap())
+            .with_extension("obj");
+        compile_runtime(profile, &source, &object, &runtime);
+        runtime_objects.push(object);
+    }
     let boundary_source = scratch.join("boundary.c");
     let boundary_object = scratch.join("边界 , 'quote'.obj");
     std::fs::write(&boundary_source, include_str!("windows_tests/boundary.c")).unwrap();
@@ -277,11 +286,12 @@ fn validate_pe(profile: &ValidatedFinalLinkProfile, scratch: &Path) {
     let executable = scratch.join("程序.exe");
     let pdb = scratch.join("公布 程序.exe.pdb");
     let map = scratch.join("程序.exe.map");
+    runtime_objects.extend([startup_path, boundary_object, extracted]);
     let traced = pe::link(
         windows,
         &inputs,
         scratch,
-        &[startup_path, arguments, boundary_object, extracted],
+        &runtime_objects,
         &executable,
         Some(&pdb),
         Some(&map),

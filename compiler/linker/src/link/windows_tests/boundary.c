@@ -1,4 +1,6 @@
+#include "platform/platform.h"
 #include "startup.h"
+#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,11 +12,36 @@ const ScoopRootEntryDescriptorV1 root __asm__("scoop$test$root") = {0};
 const uint64_t actual_string __asm__("scoop$test$String") = 31;
 extern const uint64_t scoop_td_String;
 __attribute__((section(".llvm_stackmaps"))) const char stackmaps[] = "SCOOPMAP";
+extern const ScoopMetadataImageOps scoop_pe_metadata_image_ops;
 __declspec(dllimport) int imported_data;
 __declspec(dllimport) int imported_function(int);
 extern int static_function(int);
 static const char *const *saved_arguments;
 static int calls;
+
+static void check_loaded_image(void) {
+    ScoopPlatformMetadataImages images;
+    ScoopPlatformError error = {0};
+    assert(scoop_pe_metadata_image_ops.loaded_images(&images, &error));
+    assert(images.count == 1 && images.range_count > 1);
+    const ScoopStackMapImage *image = &images.images[0];
+    assert(image->section == (const uint8_t *)stackmaps && image->section_size == sizeof stackmaps);
+    assert((uintptr_t)check_loaded_image >= image->text_start &&
+           (uintptr_t)check_loaded_image < image->text_end);
+    assert(scoop_image_range_contains(&images, &root, sizeof root,
+                                      _Alignof(ScoopRootEntryDescriptorV1)));
+    assert(scoop_image_range_contains(&images, &image0, sizeof image0,
+                                      _Alignof(ScoopImageDescriptorV1)));
+    assert(scoop_image_range_contains(&images, &image1, sizeof image1,
+                                      _Alignof(ScoopImageDescriptorV1)));
+    assert(scoop_image_range_contains(&images, &calls, sizeof calls, _Alignof(int)));
+    assert(!scoop_image_range_contains(&images, &images, sizeof images,
+                                       _Alignof(ScoopPlatformMetadataImages)));
+    assert(
+        !scoop_image_range_contains(&images, &imported_data, sizeof imported_data, _Alignof(int)));
+    scoop_pe_metadata_image_ops.dispose_images(&images);
+    assert(images.count == 0 && images.images == NULL && images.ranges == NULL);
+}
 
 static void check_arguments_at_exit(void) {
     if (strcmp(saved_arguments[2], "\xe5\x80\xbc\xf0\x9f\xa7\xaa") != 0) {
@@ -31,6 +58,7 @@ int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *images, uint64_t c
     const uint16_t *invalid[] = {valid, invalid_high, NULL};
     if (++calls != 1)
         return 90;
+    check_loaded_image();
     if (count != 2 || images[0] != &image0 || images[1] != &image1 || entry != &root ||
         images[0]->cone.identity.bytes[0] != 1 || images[1]->cone.identity.bytes[0] != 2)
         return 92;

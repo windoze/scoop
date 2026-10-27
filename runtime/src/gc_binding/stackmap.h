@@ -54,7 +54,7 @@ typedef struct ScoopStackMapIndex {
     size_t record_count;
 } ScoopStackMapIndex;
 
-/* One loaded image's dyld-fixed section and executable text interval. */
+/* One loaded image's relocated section and executable text interval. */
 typedef struct ScoopStackMapImage {
     const uint8_t *section;
     size_t section_size;

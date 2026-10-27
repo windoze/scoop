@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | W0 工具链与 ABI | 关键路线实验通过 | 复现入口与范围见下文；正式编译器集成在 W1／W2 完成 |
 | W1 编译／链接 | 实施中 | ABI、COFF、generated-C 与 native C/C++ 已接入；继续完整 PE 链接与调试信息 |
-| W2 core runtime | 实施中 | Unicode 启动、同步／worker／计时／对齐分配已接入；Win32 VM 已实现；继续 PE image、SEH 精确根与完整 core／std |
+| W2 core runtime | 实施中 | Unicode 启动、同步／worker／计时／对齐分配已接入；Win32 VM、PE image 已实现；继续 SEH 精确根与完整 core／std |
 | W3 系统库 | 待实施 | 平台规范与实现、IOCP、全部 native 组件、真实 consumer |
 | W4 宿主与发行 | 基础实施中 | 进程中断已实现；继续 Windows 命令、维护脚本、DLL／SDK 布局与打包、交叉编译 |
 
@@ -96,3 +96,5 @@ Windows 宿主已使用相邻 `.exe` 命令／generator 和 `%LOCALAPPDATA%/Scoo
 上游 GC 演进（#57）已合并：保留分片标记、phase 参与数量发布与独立 quiescence 唤醒，将新增 reservation 锁接入 platform 同步操作。统一 runtime ABI contract 25 合并 Windows 启动与上游五指针分配视图，并同步固定编码向量。workspace/all-targets Clippy、21 项 ABI 测试、三个 native 环境的同步与 17 个 runtime C 单元编译、5 项 Windows codegen 测试通过；POSIX 运行回归仍在本地完整验收后进行。
 
 Win32 ThreadVmOps 已实现栈范围、页／CPU 数、对齐 reservation、读写 commit、保护页、整页 discard、整体 release 和 RSS。GC 对齐映射移到 OS 层，POSIX 共用已有 mmap／裁剪逻辑，Windows 只提交可用区间并释放原 reservation。三个 native 环境的实际程序验证 16 MiB region／64 KiB 大对象对齐、保留区整体释放、discard 后重新写入、保护页失败路径、主线程／worker 栈增长与 RSS；Clippy 和 C 警告检查通过。该批尚未接入完整 Windows runtime profile，后续随 PE image 与 SEH frame 实现组合。
+
+PE metadata image 组件已从承载 runtime 的加载模块读取 section RVA／VirtualSize，以非 discardable 区间建立 metadata 地址范围，并读取 `.text`／`.smap`，不重新打开 exe 或包含文件对齐 padding。已有 PE 集成测试接入实际组件，在 Microsoft LLD／LINK 与两个 MinGW CRT 中验证生成 registration、静态存储、stackmap 长度及 DLL 数据边界；定向 Clippy 和 C 警告检查通过。真实 stackmap 解码与上下文扫描随 Windows SEH frame 实现闭合。
