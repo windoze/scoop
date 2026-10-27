@@ -284,7 +284,12 @@ static inline void *scoop_heap_block_base(const ScoopGcBlockMeta *block) {
     return (void *)(block->region->base + (size_t)block->index * GC_BLOCK_SIZE);
 }
 size_t scoop_heap_block_bytes(const ScoopGcBlockMeta *block);
-bool scoop_heap_active_head(const ScoopGcBlockMeta *block);
+static inline bool scoop_heap_active_head(const ScoopGcBlockMeta *block) {
+    return block->state == SCOOP_BLOCK_MUTATOR || block->state == SCOOP_BLOCK_EVACUATION_SOURCE ||
+           block->state == SCOOP_BLOCK_EVACUATION_TARGET ||
+           block->state == SCOOP_BLOCK_PINNED_PARTIAL;
+}
+
 void scoop_heap_require_ready(void);
 void scoop_heap_free_run_nodes(void);
 void scoop_heap_clear_dirty_card_groups(bool retain_survivors);
@@ -319,8 +324,6 @@ ScoopGcBlockMeta *scoop_heap_activate_large_block(size_t exact_size, ScoopGcBloc
 bool scoop_heap_object_meta(const void *object, ScoopGcBlockMeta **block, size_t *word_index);
 /* False only outside the heap; invalid heap references fail in every build. */
 bool scoop_heap_reference_meta(const void *object, ScoopGcBlockMeta **block, size_t *word_index);
-/* The block must describe the object's address in the current immutable heap view. */
-bool scoop_heap_reference_in_block(const void *object, ScoopGcBlockMeta *block, size_t *word_index);
 #if SCOOP_GC_TRACK_RELOCATION
 void scoop_heap_claim_current_object(void *object);
 bool scoop_gc_object_was_scanned_locked(const void *object);

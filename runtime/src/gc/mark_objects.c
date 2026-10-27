@@ -4,6 +4,7 @@
 #include "../gc_binding/object.h"
 #include "../gc_binding/scan.h"
 #include "mark_internal.h"
+#include "object_metadata.h"
 
 void scoop_gc_mark_flush(ScoopGcMarkWorker *worker) {
     if (worker->pending_scans != 0) {

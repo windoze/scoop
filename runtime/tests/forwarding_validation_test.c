@@ -5,19 +5,32 @@
 
 #include "nursery_fixture.h"
 
+static const ScoopTypeDescriptor large_td = {
+    .type_id = 982,
+    .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
+                       .minimum_size = GC_BLOCK_SIZE + 64,
+                       .instance_alignment = 16},
+};
+
 /* Inject invalid metadata only in child processes at the real forwarding boundary. */
 static void corrupt_forwarding(unsigned scenario) {
-    const ScoopTypeDescriptor *types[] = {&nursery_node_td};
+    const ScoopTypeDescriptor *types[] = {&nursery_node_td, &large_td};
     scoop_thread_runtime_init();
-    scoop_test_image_init(types, 1, NULL, 0, NULL, 0);
+    scoop_test_image_init(types, 2, NULL, 0, NULL, 0);
     scoop_thread_attach_main();
     scoop_thread_enter_managed((void *)scoop_rt_thread_debug_stack_high());
-    void *object = nursery_node(73);
+    void *object = scenario == 10 || scenario == 11
+                       ? nursery_allocate(&large_td, GC_BLOCK_SIZE + 64)
+                       : nursery_node(73);
     void **slots[] = {&object};
     ScoopNativeRootFrame roots;
     scoop_rt_push_native_roots(&roots, slots, 1);
-    if (scenario == 5) {
+    if (scenario == 5 || scenario == 10) {
         object = (char *)object + sizeof(void *);
+    } else if (scenario == 11) {
+        __atomic_store_n(&pointer_block(object)->large_published, false, __ATOMIC_RELEASE);
+    } else if (scenario == 12) {
+        object = block_base(pointer_block(object));
     } else if (scenario >= 6 && scenario <= 8) {
         /* Mark the valid owner first so the invalid edge takes the region-cache hit. */
         NurseryNode *node = object;
@@ -92,6 +105,9 @@ int main(void) {
     expect_failure(6, "managed slot is not a current heap object start");
     expect_failure(7, "managed slot is not a current heap object start");
     expect_failure(8, "managed slot is not a current heap object start");
+    expect_failure(10, "managed slot is not a current heap object start");
+    expect_failure(11, "managed slot is not a current heap object start");
+    expect_failure(12, "managed slot is not a current heap object start");
 #if SCOOP_GC_TRACK_RELOCATION
     expect_failure(0, "object forwarded outside collection");
     expect_failure(1, "unmarked object reached relocation");

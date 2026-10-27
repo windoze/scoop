@@ -6,58 +6,15 @@
 #include "gc_internal.h"
 #include "heap_internal.h"
 #include "allocation_metadata.h"
-
-static size_t object_word_index(ScoopGcBlockMeta *block, const void *object) {
-    uintptr_t offset = (uintptr_t)object - (uintptr_t)block_base(block);
-    return (size_t)(offset / sizeof(uint64_t));
-}
-
-static inline bool object_meta_in_block(const void *object, ScoopGcBlockMeta *block,
-                                        size_t *word_index) {
-    uintptr_t address = (uintptr_t)object;
-    if ((address & (sizeof(void *) - 1)) != 0) {
-        return false;
-    }
-    if (block == NULL || !active_head(block)) {
-        return false;
-    }
-    uintptr_t base = (uintptr_t)block_base(block);
-    if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
-        if (!__atomic_load_n(&block->large_published, __ATOMIC_ACQUIRE) ||
-            address != base + GC_LINE_SIZE) {
-            return false;
-        }
-        *word_index = GC_LINE_SIZE / sizeof(uint64_t);
-    } else {
-        if (block->kind != SCOOP_BLOCK_KIND_SMALL || address < base + GC_LINE_SIZE) {
-            return false;
-        }
-        *word_index = object_word_index(block, object);
-        uint64_t starts = __atomic_load_n(&block->starts[*word_index / 64], __ATOMIC_ACQUIRE);
-        if (((starts >> (*word_index % 64)) & UINT64_C(1)) == 0) {
-            return false;
-        }
-    }
-    return true;
-}
+#include "object_metadata.h"
 
 /* Read-only under the heap lock, or the coordinator's immutable STW mark view. */
 bool object_meta(const void *object, ScoopGcBlockMeta **result, size_t *word_index) {
     ScoopGcBlockMeta *block = pointer_block(object);
-    if (!object_meta_in_block(object, block, word_index)) {
+    if (!scoop_heap_object_meta_in_block(object, block, word_index)) {
         return false;
     }
     *result = block;
-    return true;
-}
-
-bool scoop_heap_reference_in_block(const void *object, ScoopGcBlockMeta *block, size_t *word_index) {
-    if (block == NULL) {
-        return false;
-    }
-    if (!object_meta_in_block(object, block, word_index)) {
-        heap_fatal("managed slot is not a current heap object start");
-    }
     return true;
 }
 
@@ -97,7 +54,7 @@ void record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_siz
         exact_size > GC_REGULAR_MAX || exact_size % sizeof(uint64_t) != 0) {
         heap_fatal("invalid small-object metadata publication");
     }
-    size_t word = object_word_index(block, object);
+    size_t word = scoop_heap_object_word_index(block, object);
     uintptr_t base = (uintptr_t)block_base(block);
     uintptr_t address = (uintptr_t)object;
     size_t line = (size_t)((address - base) / GC_LINE_SIZE);

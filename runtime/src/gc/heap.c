@@ -43,12 +43,6 @@ size_t scoop_heap_block_bytes(const ScoopGcBlockMeta *block) {
     return block->region->large ? block->region->size : GC_BLOCK_SIZE;
 }
 
-bool active_head(const ScoopGcBlockMeta *block) {
-    return block->state == SCOOP_BLOCK_MUTATOR || block->state == SCOOP_BLOCK_EVACUATION_SOURCE ||
-           block->state == SCOOP_BLOCK_EVACUATION_TARGET ||
-           block->state == SCOOP_BLOCK_PINNED_PARTIAL;
-}
-
 void free_run_nodes(void) {
     while (free_runs != NULL) {
         ScoopGcFreeRun *next = free_runs->next;
