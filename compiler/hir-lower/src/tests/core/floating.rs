@@ -31,9 +31,7 @@ fn synthetic_declaration(declaration: Decl) -> Decl {
                     {
                         None
                     }
-                    ast::StructMember::Function(method) => {
-                        Some(synthetic_function(*method, Some(&value.header.name.text)))
-                    }
+                    ast::StructMember::Function(method) => Some(synthetic_function(*method)),
                     ast::StructMember::Companion(_) => None,
                     _ => panic!("numeric core only declares methods and a companion"),
                 })
@@ -50,7 +48,7 @@ fn synthetic_declaration(declaration: Decl) -> Decl {
             result.fields = value.header.fields;
             Decl::Struct(result)
         }
-        Decl::Function(value) => Decl::Function(synthetic_function(value, None)),
+        Decl::Function(value) => Decl::Function(synthetic_function(value)),
         Decl::TypeAlias(value) => Decl::TypeAlias(ast::TypeAliasDecl {
             annotations: Vec::new(),
             type_params: Vec::new(),
@@ -64,14 +62,13 @@ fn synthetic_declaration(declaration: Decl) -> Decl {
     }
 }
 
-fn synthetic_function(value: ast::FunctionDecl, owner: Option<&str>) -> ast::FunctionDecl {
+fn synthetic_function(value: ast::FunctionDecl) -> ast::FunctionDecl {
     let body = match value.body {
         FunctionBody::None => FunctionBody::None,
         FunctionBody::Expr(_) => match value.name.text.as_str() {
-            "toString" => {
-                let helper = format!("core{}ToString", owner.expect("toString is a member"));
-                FunctionBody::Expr(Box::new(call(&helper, vec![this_expr()])))
-            }
+            // Formatting lives in floating_text.scoop. This signature fixture
+            // needs a complete managed body, not the full formatting library.
+            "toString" => FunctionBody::Expr(Box::new(str_lit("float"))),
             _ => panic!("unexpected numeric source body"),
         },
         FunctionBody::Block(_) => panic!("numeric signatures have no block body"),

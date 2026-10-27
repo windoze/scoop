@@ -721,7 +721,7 @@ case 继续使用现有递归 constructor matrix：variant payload、tuple/struc
 
 ## 6. 字符串插值
 
-Scoop 的字符串插值是语言特性，由核心库的 `StringBuilder`（见 11.6）实现。
+Scoop 的字符串插值是语言特性，按核心库的 `ToString` 协议逐段转换并拼接内容；`StringBuilder`（见 11.6）提供通用后备实现。
 
 ### 6.1 语法
 
@@ -740,7 +740,7 @@ this is the second line and the number is ${n+1}"""
 
 ### 6.2 脱糖
 
-插值字符串脱糖为 `StringBuilder` 的链式调用：
+插值字符串的行为等价于以下 `StringBuilder` 调用序列；编译器可以保持下述求值规则，直接展开为 String 转换与拼接：
 
 ```
 val n = 42
@@ -752,12 +752,13 @@ this is the second line and the number is """).append(n + 1).toString()
 规则：
 
 - 脱糖在编译早期完成；`${...}` 中的表达式按普通代码类型检查。
-- 按源码顺序交错执行每段表达式与对应 `append`：前一表达式及其 `toString()` 完成后，才开始下一表达式。表达式或 `toString()` 抛出时，后续段和最终 toString 不执行；挂起表达式仅在原上下文允许时合法，builder 按普通 managed local 跨挂起保活。
-- 脱糖引用实际 core `StringBuilder` 声明及普通构造、append、toString callable，使用 hygienic temporary；用户同名声明、alias 或 import 不替换脱糖目标，普通用户书写的调用仍遵守名称查找。通用 append 使用普通 `T : ToString` bound，不为插值增加 Any 字符串化回退。
+- 按源码顺序交错执行每段表达式与对应 `toString()`：前一转换完成后，才开始下一表达式。表达式或转换抛出时，后续段和最终拼接不执行；挂起表达式仅在原上下文允许时合法，已转换的 String 或后备 builder 按普通 managed local 跨挂起保活。
+- 脱糖通过实际 core `ToString` conformance 选择普通转换 callable；后备路径引用实际 core `StringBuilder` 的构造、append 与 toString，使用 hygienic temporary。用户同名声明、alias 或 import 不替换脱糖目标，普通用户书写的调用仍遵守名称查找。插值与通用 append 使用相同的 `T : ToString` 要求，不增加 Any 字符串化回退。
+- 直接展开时，每段转换结果立即保存，再按原顺序拼接；不先求值全部原始对象再统一转换，也不延迟读取可变 String 变量。只剩文本或单个转换结果时可以直接返回该 String。临时分配、GC 次数与资源耗尽时点不作保证，实际长度溢出和分配边界保持。
 - f-string 不属于 `const val` 的常量表达式，即使只有文本段；普通字符串和 raw 字符串仍可作为 String 常量。实现可以在合法性检查后优化纯文本结果，但不改变其 const 可用性。
 
 支持普通 `"""..."""` 与 `f"""..."""` 的 raw 多行字面量。普通单行字符串、单行 f-string 的文本段与字符字面量共用转义集合：`\t`、`\b`、`\n`、`\r`、`\'`、`\"`、`\\`、`\$`、四位十六进制 `\uXXXX` 和一至六位十六进制 `\u{...}`。每个 Unicode 转义必须是合法标量值；surrogate code point、超过 U+10FFFF、缺失数字/终止符及未知转义都在原 source span 诊断。raw 字面量不解释反斜杠转义。转义解码产生的美元符号始终是文本，不重新识别为插值起点。`${...}` 内的嵌套括号、字符串和注释遵守普通表达式词法规则。
-- `append` 对实现 `ToString` 的类型可用（见 11.6 与 11.11），插入其 `toString()` 结果。
+- 插值对实现 `ToString` 的类型可用（见 11.6 与 11.11），插入其 `toString()` 结果。
 
 ---
 
@@ -2079,7 +2080,7 @@ enum Option<T> {
 
 ### 11.6 `StringBuilder`
 
-字符串插值（第 6 章）的脱糖目标，提供以下公开接口：
+通用字符串累积 API，也是字符串插值（第 6 章）的后备实现，提供以下公开接口：
 
 ```
 public class StringBuilder : ToString {
