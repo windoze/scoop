@@ -64,6 +64,7 @@ typedef enum ScoopGcGeneration {
 
 typedef struct ScoopGcRegion ScoopGcRegion;
 typedef struct ScoopGcOldSlots ScoopGcOldSlots;
+typedef struct ScoopGcCopyBlock ScoopGcCopyBlock;
 
 typedef struct ScoopGcCardGroup {
     /* Null until claimed; a self link terminates the published dirty list. */
@@ -99,7 +100,11 @@ typedef struct ScoopGcBlockMeta {
     };
     size_t live_bytes;
     size_t movable_live_bytes;
-    size_t mark_index;
+    union {
+        size_t mark_index;
+        /* The marker has folded its counters before target reservation starts. */
+        ScoopGcCopyBlock *copy_group;
+    };
     bool large_published;
     bool large_marked;
     bool large_pinned;
@@ -107,6 +112,7 @@ typedef struct ScoopGcBlockMeta {
     bool large_scanned;
 #endif
     bool discard_pending;
+    bool copy_reserved;
 } ScoopGcBlockMeta;
 
 /* A tagged address is valid only in an inaccessible, copied evacuation source. */

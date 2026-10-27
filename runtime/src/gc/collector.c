@@ -1,4 +1,4 @@
-/* STW phases: parallel mark/update, serial plan/copy and reclaim. */
+/* STW phases: parallel mark/copy/update, serial reservation and reclaim. */
 #include <stdint.h>
 
 #include "../gc_binding/object.h"

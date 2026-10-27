@@ -2,12 +2,13 @@ use super::compile::compile_and_run_configuration;
 use super::{compile_and_run, compile_and_run_with_flags, workspace_root};
 
 #[test]
-fn retained_live_entries_are_current_before_reference_update() {
-    let output = compile_and_run(
+fn copy_group_failure_preserves_the_graph_and_subsequent_copying() {
+    let output = compile_and_run_with_flags(
         &workspace_root(),
-        "live_set_relocation_test",
-        "runtime/tests/live_set_relocation_test.c",
+        "copy_group_failure_test",
+        "runtime/tests/copy_group_failure_test.c",
         true,
+        &["-O2", "-Dcalloc=scoop_test_copy_calloc"],
     );
     assert!(
         output.status.success(),
@@ -16,8 +17,30 @@ fn retained_live_entries_are_current_before_reference_update() {
     );
     assert_eq!(
         output.stdout,
-        b"live entries hold copied small, large and pointer-free objects before update; pins stay\n"
+        b"copy grouping failure preserves the source graph and subsequent copying\n"
     );
+}
+
+#[test]
+fn retained_live_entries_are_current_before_reference_update() {
+    for optimization in ["-O0", "-O2"] {
+        let output = compile_and_run_with_flags(
+            &workspace_root(),
+            "live_set_relocation_test",
+            "runtime/tests/live_set_relocation_test.c",
+            true,
+            &[optimization],
+        );
+        assert!(
+            output.status.success(),
+            "{optimization}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"live entries hold copied small, large and pointer-free objects before update; pins stay\n"
+        );
+    }
 }
 
 #[test]

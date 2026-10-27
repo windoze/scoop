@@ -14,7 +14,7 @@ static inline void scoop_heap_publish_allocation_bits(uint64_t *word, uint64_t m
 }
 
 /* The caller has reserved a valid, aligned small-object range. Nursery allocation
- * and the coordinator's STW copy phase have one writer; shared allocation does not. */
+ * and STW copying have one writer per block; shared allocation does not. */
 static inline void scoop_heap_record_small_metadata(ScoopGcBlockMeta *block, void *object,
                                                     size_t size, bool marked, bool owned) {
     size_t offset = (uintptr_t)object - (uintptr_t)scoop_heap_block_base(block);

@@ -4,6 +4,8 @@
 
 各项已采纳方案的开启方式与适用条件统一见[简略清单](ENABLED-OPTIMIZATIONS.md)，后续交付与默认策略调整时同步更新。
 
+- [GC 第十三阶段](GC-EVOLUTION.md)完成按目标 block 独占的并行复制，所有 profile 沿现有 worker 策略默认启用，单 worker 共用同一复制算法。M3 大存活图墙钟 4.997 → 4.446 s、copy 累计 814 → 255 ms，GNU 中等负载 0.868 → 0.762 s；RSS 保持。两机复制／失败回滚／并行／增量专测及三目标双 profile GC／native 组合通过。树形与高线程数 CPU 代价、暂停边界及两 worker 对照保留；继续按实际阶段成本处理剩余计划、清扫和 mutator 屏障，不视为 GC 主线完成。
+
 - [GC 第十二阶段](GC-EVOLUTION.md)实现旧代精确大小槽和按真实存活量触发的原地 full，`SCOOP_GC_OLD_SLOTS=1`、默认关闭。M3／GNU 大存活图 RSS 554／542 → 375／364 MiB，单次请求 max 151／200 → 69／125 ms；应用间隔 p99、GNU 吞吐与 CPU 回退保留。两机定向 C、三目标双 profile GC／native 组合和预留回滚通过，ABI 不变。只按 committed 触发的膨胀版本已撤回；下一项实际实验按目标 block 独占的并行复制，继续处理 minor、剩余 STW 与生成屏障。
 
 - [GC 第十一阶段](GC-EVOLUTION.md)复用 worker pool 并行普通 minor 的旧代脏区扫描／回写，入队前排除年轻组；单 worker 沿原直接路径，ABI 不变。M3 大 gcpause 墙钟 7.914 → 5.514 s、CPU 11.411 → 10.858 s、应用间隔 p99 93.7 → 47.5 ms；GNU 中等负载 0.982 → 0.788 s，RSS 基本保持。两机定向 C、优化 C 及三目标 GC／native 组合通过，测试模拟栈边界问题已修正。完整 full 的最大暂停几乎不变，线程负载仍有回退；最新 Go／K/N 参照确认随机更新和线程扩展差距，继续实验旧代对象槽复用及非搬迁收尾。

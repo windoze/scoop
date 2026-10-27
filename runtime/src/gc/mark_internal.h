@@ -19,6 +19,7 @@ typedef enum ScoopGcMarkTaskKind {
     SCOOP_MARK_BATCH_TASK,
     SCOOP_MARK_ARRAY_TASK,
     SCOOP_MARK_DIRTY_TASK,
+    SCOOP_COPY_BLOCK_TASK,
 } ScoopGcMarkTaskKind;
 
 typedef struct ScoopGcMarkTask {
@@ -35,6 +36,7 @@ typedef struct ScoopGcMarkTask {
             uintptr_t end;
         } range;
         ScoopGcCardGroup *dirty_group;
+        ScoopGcCopyBlock *copy_group;
     } data;
 } ScoopGcMarkTask;
 
@@ -124,5 +126,6 @@ void scoop_gc_mark_run_task(ScoopGcMarkWorker *worker, ScoopGcMarkTask task);
 void scoop_gc_mark_run_dirty(ScoopGcMarkWorker *worker, ScoopGcCardGroup *group);
 
 void scoop_gc_update_run_task(ScoopGcMarkTask task);
+void scoop_gc_copy_run_task(ScoopGcCopyBlock *group);
 
 #endif
