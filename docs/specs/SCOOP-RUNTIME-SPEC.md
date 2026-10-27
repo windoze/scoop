@@ -403,6 +403,8 @@ nursery 容量和 collection threshold 是收集触发条件，不是堆空间�
 
 平台实现按实际职责分开：managed frame、caller anchor、返回值 shim 与浮点环境控制属于 arch，线程栈／VM 属于 OS，加载映射与 metadata 属于 image。构建只组合已实现的组件，架构专用 flags 只由对应架构选择；此职责划分不改变 GC、异常、对象布局或公共 runtime ABI。
 
+ThreadVmOps 的读写映射按请求大小和对齐返回完整可用区间，调用者只整体释放该映射；大小为 page 的倍数，对齐为不小于 page 的二次幂。普通 region 保持 16 MiB 对齐，大对象保持 64 KiB 对齐。Darwin／Linux 可过量映射后裁掉两端；Windows 以 VirtualAlloc 保留足够的地址范围，只 commit 对齐后的可用区间，释放时由 AllocationBase 整体 MEM_RELEASE，不模拟部分释放，也不将对齐 padding 计入 managed committed bytes。Windows 栈范围使用系统当前线程 stack limits；保护页、空闲整页归还和 RSS 分别使用 VirtualProtect、DiscardVirtualMemory 与进程 working-set 统计。
+
 GC 私有 helper 的目标相关内联选择由平台层提供，通用 GC 不直接使用架构宏选择调用方式。各目标共用同一算法与必要检查；内联选择不改变对象表示、函数 ABI、forwarding 规则或公开配置项，其性能依据按目标分别验证。
 
 managed 函数入口（下述有界叶函数除外）和循环回边，包括 continue 回边，提供 safepoint。编译器可将继续迭代区域内无调用、分配或异常的简单计数循环分块：正文包含局部整数／Boolean／严格浮点计算，或索引合法性已在 MIR 保证的固定表示数组值读写、普通字段读取、身份比较和长度读取（实现规范 2.19）。这些值包括单字引用、interface、相应 MaybeUninit 和单引用 payload 的可选值；写入保留 3.6 的完整屏障，初始化保留 2.4 的部分初始化扫描规则。正文可以含条件分支，但去除唯一回边后必须无环，所有继续迭代的路径到达同一 latch，不能绕过归纳变量与内层倒计数的更新。提前退出沿原 return、break 或检查失败出口执行；只在退出路径上的调用、分配、异常与清理保留原 safepoint／roots，不进入复制区域。原循环 header 保留 poll，生成的内层由实际 CFG 中的常数上限倒计数约束，最多执行 64 次后返回外层 poll。数组的 managed 基址在外层 poll 后取得，内层不新增握手或跨 safepoint 的裸地址；已有引用写屏障在原写入处完成，不能因为分块或“刚分配”而省略。该选择不承诺墙钟暂停上界，不改变任意其他循环或 continue 的 poll 责任。managed references 在 LLVM ABI 中使用 address space 1；跨 safepoint 存活的引用必须由 stackmap 或显式 compiler root frame 描述。
@@ -597,7 +599,7 @@ small block 的普通 sweep 与压缩目标准备按 `starts & ~marks` 枚举实
 
 无存活对象覆盖的完整 OS page 可 discard，保留 side metadata；普通 region 的首个 OS page 含 3.1 的不可变 owner 指针，映射存活期间不得 discard，即使首 block 或保留 region 已空。完全空闲 region 从分配结构及地址索引撤销后 unmap。撤销仅在 STW、所有 GC worker 结束且 TLAB／缓存失效后进行，不把 free-list 回收计作 OS 归还。discard 后复用必须重新清零；跨页活对象覆盖的页不可 discard。普通策略保留一个空 region，其他 full 后释放。每 region 最多额外保留一个物理页，按实际 RSS 计入空间成本。记录 discard 成功量、unmapped bytes 和当前／峰值 RSS，不能把建议性 discard 等同于立即 RSS 下降。
 
-首版在普通 full 结束时合并已使用 block 中不覆盖任何存活 line 的整页，通过 ThreadVmOps 调用平台 `madvise(MADV_DONTNEED)`；失败保留映射并在后续 full 重试，不影响可达图。block 激活、空洞再次分配或对象退休时才重新请求 discard，不在普通对象分配热路径增加共享计数。统计分别给出成功／失败调用数、成功建议的累计字节和解除映射的累计字节，重复建议不代表新增物理内存归还。RSS 是诊断时采样的进程当前／历史峰值，采样不可用时对应字段为零；既不作为收集正确性条件，也不与 managed mapping 字节等同。
+首版在普通 full 结束时合并已使用 block 中不覆盖任何存活 line 的整页，通过 ThreadVmOps 调用 Darwin／Linux 的 `madvise(MADV_DONTNEED)` 或 Windows 的 `DiscardVirtualMemory`；失败保留映射并在后续 full 重试，不影响可达图。discard 保持地址与可写状态，但原内容未定义；后续对象初始化继续显式清零，不依赖 OS 提供零页。block 激活、空洞再次分配或对象退休时才重新请求 discard，不在普通对象分配热路径增加共享计数。统计分别给出成功／失败调用数、成功建议的累计字节和解除映射的累计字节，重复建议不代表新增物理内存归还。RSS 是诊断时采样的进程当前／历史峰值，采样不可用时对应字段为零；既不作为收集正确性条件，也不与 managed mapping 字节等同。
 
 旧代精确大小槽的批量清扫适用于 3.7 的 `slot_size != 0` 块、且当前未执行 moving stress。该分配类别只接受已通过 nursery 资格判断的晋升对象，release-hook 对象预晋升到普通旧代块，不会混入此类槽；无需按死亡对象再次读取大小、TD 或查询 release。完成 mark／copy／引用更新后，coordinator 按 bitmap word 将 starts 与 marks 相交，并清除死亡起点的 pin 位；只要发生退休仍设置原 discard 状态。保留活对象的精确 line、pin、对象头及槽内字节，后续重新占用由原完整复制／发布初始化。普通可变大小块、large 与 moving stress 继续逐对象 release／poison；不得按 payload 大小自行把普通旧代块当作槽块。该复用不增加 metadata、线程状态或 ABI，随既有旧代槽策略启用，没有独立开关；该策略本身仍默认关闭。
 

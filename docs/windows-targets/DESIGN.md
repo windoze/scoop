@@ -210,6 +210,8 @@ Windows frame decoder 按 SEH frame 信息重建被扫描 frame 的上下文，�
 
 保留 C runtime，不要求改写为另一种语言。将实际需要的 pthread／POSIX 操作收束到现有 platform 层，Windows 使用线程／同步／TLS、`VirtualAlloc`／`VirtualFree`、栈范围查询和系统计时等 Win32 实现；不为三个 OS 建通用插件框架。两 CRT 共用 Win32 OS 层，CRT 差异集中在真实需要差异的 stdio、locale、数值解析、启动和终止处。
 
+GC region 的对齐映射由 OS 组件完成：Windows 保留包含对齐区间的 reservation，仅 commit 可用页，最终整体释放原 reservation。整页 discard 保持映射可写且不承诺零内容；后续对象初始化仍清零。线程栈范围和 RSS 使用系统 API，不借用 POSIX 地址或页释放假设。
+
 优先实现现有有限的 mutex、condition、once、thread join 与 TLS 生命周期合同，不让 runtime 为使用 pthread API 而强制依赖一个额外 DLL；第三方库确实需要的 winpthreads 可按其构建合同静态配套。锁等待仍执行现有 GC 协调，不能把 Windows wait 包成未经声明的 GCLeaf。
 
 stdout／stderr 继续遵守既有字节输出合同，明确处理 CRT text mode 的换行转换。Unicode argv 从 UTF-16 startup 取得，转换为严格 UTF-8 后复用当前 managed 参数构造；不经过 ANSI code page。非配对 surrogate 走明确的启动参数解码失败路径，不能静默替换。`scoop.platform` 的原生路径需要另行保留完整 UTF-16，不能由严格 `String` 代替全部 OS 路径。

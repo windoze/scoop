@@ -127,13 +127,12 @@ void (*scoop_test_vm_discard_observer)(void *base, size_t size);
 static ScoopThreadVmOps fake_vm_ops;
 static pthread_once_t fake_vm_once = PTHREAD_ONCE_INIT;
 
-static bool fake_reserve(uintptr_t address, size_t size, void **mapping,
-                         ScoopPlatformError *error) {
+static bool fake_reserve(size_t size, size_t alignment, void **mapping, ScoopPlatformError *error) {
     if (scoop_test_vm_fail_mappings) {
         error->code = SCOOP_PLATFORM_VM_OPERATION_FAILED;
         return false;
     }
-    return TEST_THREAD_VM_OPS.reserve_read_write(address, size, mapping, error);
+    return TEST_THREAD_VM_OPS.reserve_read_write(size, alignment, mapping, error);
 }
 
 static bool fake_discard(void *base, size_t size, ScoopPlatformError *error) {

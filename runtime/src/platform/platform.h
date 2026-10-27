@@ -76,7 +76,8 @@ typedef struct ScoopMetadataImageOps {
 
 typedef struct ScoopThreadVmOps {
     bool (*stack_bounds)(ScoopPlatformStackBounds *bounds, ScoopPlatformError *error);
-    bool (*reserve_read_write)(uintptr_t preferred_address, size_t size, void **mapping,
+    /* Return an aligned, committed range; release_mapping frees it as a whole. */
+    bool (*reserve_read_write)(size_t size, size_t alignment, void **mapping,
                                ScoopPlatformError *error);
     size_t (*page_size)(void);
     size_t (*processor_count)(void);

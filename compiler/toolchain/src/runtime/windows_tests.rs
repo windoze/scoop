@@ -11,6 +11,44 @@ fn tool(name: &str) -> PathBuf {
 
 #[test]
 fn windows_runtime_primitives_support_real_parallel_workers() {
+    run_windows_runtime_test(
+        "tests/platform_primitives_test.c",
+        &[
+            "src/thread.c",
+            "src/gc/mutator.c",
+            "src/gc/mark_pool.c",
+            "src/gc/mark_queue.c",
+            "src/gc/evacuation_plan.c",
+            "src/gc/old_slots.c",
+            "src/thread/collection.c",
+            "src/thread/transitions.c",
+            "src/gc/time.c",
+            "src/gc/heap.c",
+            "src/gc_binding/roots.c",
+            "src/initialization.c",
+            "src/rt.c",
+            "src/image/type_relations.c",
+            "src/callback.c",
+            "src/eh.c",
+            "src/startup.c",
+        ],
+        &["src/platform/primitives/windows.c"],
+    );
+}
+
+#[test]
+fn windows_vm_keeps_alignment_reservations_and_reusable_pages() {
+    run_windows_runtime_test(
+        "tests/windows_vm_test.c",
+        &["src/gc/regions.c", "src/gc/memory_return.c"],
+        &[
+            "src/platform/primitives/windows.c",
+            "src/platform/os/windows.c",
+        ],
+    );
+}
+
+fn run_windows_runtime_test(test: &str, compile_sources: &[&str], linked_sources: &[&str]) {
     let directory = tempfile::Builder::new()
         .prefix("scoop runtime 同步 ")
         .tempdir()
@@ -40,28 +78,7 @@ fn windows_runtime_primitives_support_real_parallel_workers() {
     .enumerate()
     {
         let startup = resolve_windows_c_toolchain(target, &clang, prefix).unwrap();
-        for (part, source) in [
-            "src/thread.c",
-            "src/gc/mutator.c",
-            "src/gc/mark_pool.c",
-            "src/gc/mark_queue.c",
-            "src/gc/evacuation_plan.c",
-            "src/gc/old_slots.c",
-            "src/thread/collection.c",
-            "src/thread/transitions.c",
-            "src/gc/time.c",
-            "src/gc/heap.c",
-            "src/gc_binding/roots.c",
-            "src/initialization.c",
-            "src/rt.c",
-            "src/image/type_relations.c",
-            "src/callback.c",
-            "src/eh.c",
-            "src/startup.c",
-        ]
-        .into_iter()
-        .enumerate()
-        {
+        for (part, source) in compile_sources.iter().enumerate() {
             checked(
                 startup
                     .object_compilation_command(
@@ -85,26 +102,25 @@ fn windows_runtime_primitives_support_real_parallel_workers() {
                     .arg(tool(unwind).join("include")),
             );
         }
-        let objects: Vec<_> = [
-            "src/platform/primitives/windows.c",
-            "tests/platform_primitives_test.c",
-        ]
-        .into_iter()
-        .enumerate()
-        .map(|(part, source)| {
-            let object = directory.path().join(format!("{index}-{part}.obj"));
-            checked(
-                startup
-                    .object_compilation_command(&runtime.join(source), &object)
-                    .args(["-Wall", "-Wextra", "-Werror", "-O2"])
-                    .arg("-I")
-                    .arg(runtime.join("include"))
-                    .arg("-I")
-                    .arg(runtime.join("src")),
-            );
-            object
-        })
-        .collect();
+        let objects: Vec<_> = linked_sources
+            .iter()
+            .copied()
+            .chain([test])
+            .enumerate()
+            .map(|(part, source)| {
+                let object = directory.path().join(format!("{index}-{part}.obj"));
+                checked(
+                    startup
+                        .object_compilation_command(&runtime.join(source), &object)
+                        .args(["-Wall", "-Wextra", "-Werror", "-O2"])
+                        .arg("-I")
+                        .arg(runtime.join("include"))
+                        .arg("-I")
+                        .arg(runtime.join("src")),
+                );
+                object
+            })
+            .collect();
         let profile = WindowsFinalLinkProfile::resolve(
             startup,
             &FinalLinkOptions {
@@ -115,7 +131,7 @@ fn windows_runtime_primitives_support_real_parallel_workers() {
             None,
         )
         .unwrap();
-        let binary = directory.path().join(format!("primitives-{index}.exe"));
+        let binary = directory.path().join(format!("runtime-{index}.exe"));
         let mut command = profile.command(directory.path(), &binary).unwrap();
         checked(command.args(objects));
         checked(&mut Command::new(binary));
