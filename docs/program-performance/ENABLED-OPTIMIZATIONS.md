@@ -12,6 +12,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [完整对象的平坦扫描展开](GC-EVOLUTION.md) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | binding 共用一个偏移扫描正文，完整范围与固定 visitor 直接展开；保留复杂 scan、局部范围和原子首次标记。树／线程吞吐改善，部分暂停回退保留；无对象／ABI 增量，代码成本见阶段二十七。 |
 | [互斥域的分配计数](GC-EVOLUTION.md) | 所有 profile 默认，配套 runtime contract 25；编译器／runtime／系统库一起重建 | nursery 与直接旧代分别只更新对象数和字节数，读取时合成总量；保留 atomic、detach、minor 基线与 starts 发布。无新状态或开关，主要减少分配指令；吞吐与暂停的分项对照见阶段二十六。 |
 | [STW 与分配优先的 GC 默认组合](GC-EVOLUTION.md) | 新版 runtime 所有 profile 默认 `SCOOP_GC_OLD_SLOTS=2`＋`SCOOP_GC_INCREMENTAL=1`，两个选项独立 | 复用密集转槽、原地 full 与 full 分片；minor 分片继续显式等级 2。缩短大图与多线程尾暂停、提高树和线程分配吞吐，接受随机更新吞吐与部分应用间隔 p99 代价；无新算法／ABI，见阶段二十五。 |
 | [full 搬迁目标并行预留](GC-EVOLUTION.md) | 需要 full 搬迁时默认使用（旧槽等级 0），沿现有 worker／小规模策略；`SCOOP_GC_WORKERS=1` 串行 | worker 独占完整目标块的空洞及复制组，保留单 source 容量预判、集中收益与统一回滚；逐对象不取锁，无新对象／ABI。缩短 STW，增加 CPU 和约 1 KiB 临时规划数组，四线程／部分 p99 代价见阶段二十四。 |

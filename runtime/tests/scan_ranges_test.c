@@ -2,8 +2,7 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#include "../src/gc_binding.h"
-#include "scoop_rt.h"
+#include "../src/gc_binding/scan.h"
 
 typedef struct Value {
     void *first;
@@ -45,6 +44,14 @@ static void check(void *base, const uint64_t *scan, const Visited *expected, uin
         }
     }
     assert(next == actual.count);
+    if (begin == 0 && end == UINTPTR_MAX) {
+        Visited whole = {0};
+        scoop_gc_scan_object(base, scan, record, &whole);
+        assert(whole.count == actual.count);
+        for (size_t index = 0; index < whole.count; index++) {
+            assert(whole.slots[index] == actual.slots[index]);
+        }
+    }
 }
 
 static void check_ranges(void *base, size_t size, const uint64_t *scan, const Visited *expected) {
@@ -62,6 +69,15 @@ static void check_ranges(void *base, size_t size, const uint64_t *scan, const Vi
 static void replace(void **slot, void *context) { *slot = context; }
 
 static void flat_and_sequence(void) {
+    Value value = {.metadata = 0xabad, .padding = 0xcafe};
+    Visited fields = {0};
+    record(&value.first, &fields);
+    record(&value.second, &fields);
+    check_ranges(&value, sizeof value, pair_scan, &fields);
+    scoop_gc_scan_object(&value, pair_scan, replace, &value);
+    assert(value.first == &value && value.second == &value);
+    assert(value.metadata == 0xabad && value.padding == 0xcafe);
+
     Array array = {.count = 6};
     for (size_t index = 0; index < 6; index++) {
         array.elements[index].metadata = 0xabad;

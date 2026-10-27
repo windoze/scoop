@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "../gc_binding/object.h"
+#include "../gc_binding/scan.h"
 #include "mark_internal.h"
 
 void scoop_gc_mark_flush(ScoopGcMarkWorker *worker) {
@@ -195,7 +196,7 @@ void scoop_gc_mark_run_task(ScoopGcMarkWorker *worker, ScoopGcMarkTask task) {
         size_t index = (size_t)__builtin_ctzll(scans);
         void *object = task.data.batch.objects[index];
         const uint64_t *scan = scoop_gc_object_scan(object);
-        scoop_gc_scan_descriptor(object, scan, scoop_gc_mark_slot, &visit, 0, UINTPTR_MAX);
+        scoop_gc_scan_object(object, scan, scoop_gc_mark_slot, &visit);
         scans &= scans - 1;
         scanned++;
     }
@@ -205,7 +206,7 @@ void scoop_gc_mark_run_task(ScoopGcMarkWorker *worker, ScoopGcMarkTask task) {
         void *object = worker->pending_objects[index];
         worker->pending_scans &= worker->pending_scans - 1;
         const uint64_t *scan = scoop_gc_object_scan(object);
-        scoop_gc_scan_descriptor(object, scan, scoop_gc_mark_slot, &visit, 0, UINTPTR_MAX);
+        scoop_gc_scan_object(object, scan, scoop_gc_mark_slot, &visit);
         scanned++;
     }
 }
