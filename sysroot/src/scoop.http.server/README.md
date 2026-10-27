@@ -11,7 +11,7 @@ import scoop.asyncio.*
 import scoop.http.server.*
 
 fun main() {
-    val loop: EventLoop = LibuvEventLoop()
+    val loop: EventLoop = PlatformEventLoop()
     loop.run suspend { scope ->
         HttpServer.listen(scope) { routes ->
             routes.get("/", suspend { _ -> text("Hello") })

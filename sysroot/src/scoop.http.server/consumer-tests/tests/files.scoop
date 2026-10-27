@@ -13,35 +13,73 @@ import scoop.test.*
 private class HttpServerFileConsumerTests {
     @Test
     fun `published file and static handlers support ranges and conditional responses`() {
-        val parent = when (environmentVariable("TMPDIR")) { case Some(value) -> Path.fromOsString(value); case None -> currentDirectory() }
+        val parent =
+            when (environmentVariable("TMPDIR")) {
+                case Some(value) -> Path.fromOsString(value);
+                case None -> currentDirectory()
+            }
         val directory = createTempDirectory(Some(parent), "scoop-file-consumer-")
         try {
-            val path = directory.resolve(Path.fromString("data.txt")); path.writeText("published file")
+            val path = directory.resolve(Path.fromString("data.txt"));
+            path.writeText("published file")
             val routes = RouterBuilder()
-            routes.get("/single", suspend { _ -> file(path, FileResponseOptions(entityTag = Some(HttpEntityTag.parse("\"v1\"")))) })
-            routes.get("/assets/{*asset}", staticFiles(directory, StaticFileOptions(pathParameter = "asset")))
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { scope ->
+            routes.get(
+                "/single",
+                suspend {
+                    _ -> file(
+                        path,
+                        FileResponseOptions(entityTag = Some(HttpEntityTag.parse("\"v1\"")))
+                    )
+                }
+            )
+            routes.get(
+                "/assets/{*asset}",
+                staticFiles(directory, StaticFileOptions(pathParameter = "asset"))
+            )
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                scope ->
                 val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
                 val address = listener.localAddress
-                HttpServer.takeOwnership(listener, routes.build(), scope).useAsync suspend { _ ->
-                    AsyncHttp1Connection.takeOwnershipAsClient(loop.connectTcp(address), scope).useAsync suspend { client ->
-                        val range = HttpRequestHead(HttpVersion.Http11, "GET".toByteArray(),
-                            HttpRequestTarget.Http1("/assets/data.txt".toByteArray()), [
-                                HttpField("Host".toByteArray(), "localhost".toByteArray()), HttpField("Range".toByteArray(), "bytes=0-8".toByteArray())])
+                HttpServer.takeOwnership(listener, routes.build(), scope).useAsync suspend {
+                    _ -> AsyncHttp1Connection.takeOwnershipAsClient(
+                        loop.connectTcp(address),
+                        scope
+                    ).useAsync suspend {
+                        client ->
+                        val range =
+                            HttpRequestHead(
+                                HttpVersion.Http11,
+                                "GET".toByteArray(),
+                                HttpRequestTarget.Http1("/assets/data.txt".toByteArray()),
+                                [
+                                    HttpField("Host".toByteArray(), "localhost".toByteArray()),
+                                    HttpField("Range".toByteArray(), "bytes=0-8".toByteArray())
+                                ]
+                            )
                         client.sendRequest(range).finish()
                         val partial = client.receiveResponse()
                         assertEquals(206U, partial.head.status)
                         assertEquals("published", consumerResponseText(partial.body))
-                        val condition = HttpRequestHead(HttpVersion.Http11, "GET".toByteArray(),
-                            HttpRequestTarget.Http1("/single".toByteArray()), [
-                                HttpField("Host".toByteArray(), "localhost".toByteArray()), HttpEntityTagCondition.wildcard().toIfNoneMatchField()])
+                        val condition =
+                            HttpRequestHead(
+                                HttpVersion.Http11,
+                                "GET".toByteArray(),
+                                HttpRequestTarget.Http1("/single".toByteArray()),
+                                [
+                                    HttpField("Host".toByteArray(), "localhost".toByteArray()),
+                                    HttpEntityTagCondition.wildcard().toIfNoneMatchField()
+                                ]
+                            )
                         client.sendRequest(condition).finish()
                         val cached = client.receiveResponse()
-                        assertEquals(304U, cached.head.status); assertEquals("", consumerResponseText(cached.body))
+                        assertEquals(304U, cached.head.status);
+                        assertEquals("", consumerResponseText(cached.body))
                     }
                 }
             }
-        } finally { directory.deleteRecursively() }
+        } finally {
+            directory.deleteRecursively()
+        }
     }
 }

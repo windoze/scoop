@@ -11,17 +11,35 @@ import scoop.time.Duration
 internal class ServerTestGate {
     private val lock: ServerLock = ServerLock()
     private var open: Boolean = false
-    private val waiters: ArrayList<CancellableContinuation<Unit>> = ArrayList<CancellableContinuation<Unit>>()
+    private val waiters: ArrayList<CancellableContinuation<Unit>> =
+        ArrayList<CancellableContinuation<Unit>>()
 
     fun signal() {
-        val ready = lock.withLock { open = true; val result = waiters.toArray(); waiters.clear(); result }
-        for (waiter in ready) waiter.tryResume(Unit)
+        val ready =
+            lock.withLock {
+                open = true;
+                val result = waiters.toArray();
+                waiters.clear();
+                result
+            }
+        for (waiter in ready)
+            waiter.tryResume(Unit)
     }
 
     suspend fun await() {
-        suspendCancellableCoroutine<Unit> { waiter ->
-            val ready = lock.withLock { if (open) true else { waiters.add(waiter); false } }
-            if (ready) waiter.tryResume(Unit)
+        suspendCancellableCoroutine<Unit> {
+            waiter ->
+            val ready =
+                lock.withLock {
+                    if (open)
+                        true
+                    else {
+                        waiters.add(waiter);
+                        false
+                    }
+                }
+            if (ready)
+                waiter.tryResume(Unit)
         }
     }
 }
@@ -31,44 +49,74 @@ internal class ServerTestCompletions(private val expected: Long = 1L) {
     private val values: ArrayList<HttpRequestCompletion> = ArrayList<HttpRequestCompletion>()
     val ready: ServerTestGate = ServerTestGate()
     fun receive(value: HttpRequestCompletion) {
-        if (lock.withLock { values.add(value); values.size >= expected }) ready.signal()
+        if (
+            lock.withLock {
+                values.add(value);
+                values.size >= expected
+            }
+        )
+            ready.signal()
     }
     fun snapshot(): Array<HttpRequestCompletion> = lock.withLock { values.toArray() }
 }
 
-internal fun withServer(application: HttpApplication, options: HttpServerOptions = HttpServerOptions(),
-    block: suspend (CoroutineScope, HttpServer, SocketAddress) -> Unit) {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
+internal fun withServer(
+    application: HttpApplication,
+    options: HttpServerOptions = HttpServerOptions(),
+    block: suspend (CoroutineScope, HttpServer, SocketAddress) -> Unit
+) {
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope ->
         val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
         val address = listener.localAddress
         val server = HttpServer.takeOwnership(listener, application, scope, options)
         try {
-            serverDeadline<Unit>(Some(Duration.seconds(5)), "network test", suspend {
-                coroutineScope<Unit> suspend { testScope -> block(testScope, server, address) }
-            })
-        } finally { server.close() }
+            serverDeadline<Unit>(
+                Some(Duration.seconds(5)),
+                "network test",
+                suspend {
+                    coroutineScope<Unit> suspend { testScope -> block(testScope, server, address) }
+                }
+            )
+        } finally {
+            server.close()
+        }
     }
 }
 
-internal fun networkRequest(path: String = "/", method: String = "GET",
-    fields: List<HttpField> = ArrayList<HttpField>(), version: HttpVersion = HttpVersion.Http11): HttpRequestHead {
+internal fun networkRequest(
+    path: String = "/",
+    method: String = "GET",
+    fields: List<HttpField> = ArrayList<HttpField>(),
+    version: HttpVersion = HttpVersion.Http11
+): HttpRequestHead {
     val all = ArrayList<HttpField>()
     all.add(field("Host", "localhost"))
-    for (value in fields) all.add(value)
-    return HttpRequestHead(version, method.toByteArray(), HttpRequestTarget.Http1(path.toByteArray()), all)
+    for (value in fields)
+        all.add(value)
+    return HttpRequestHead(
+        version,
+        method.toByteArray(),
+        HttpRequestTarget.Http1(path.toByteArray()),
+        all
+    )
 }
 
-internal suspend fun networkClient(address: SocketAddress, scope: CoroutineScope): AsyncHttp1Connection =
+internal suspend fun networkClient(
+    address: SocketAddress,
+    scope: CoroutineScope
+): AsyncHttp1Connection =
     AsyncHttp1Connection.takeOwnershipAsClient(currentEventLoop().connectTcp(address), scope)
 
 internal suspend fun networkText(source: AsyncByteSource): String {
     val result = ByteArrayBuilder()
-    NativeByteBuffer.allocate(31L).use suspend { buffer ->
-        while (true) {
+    NativeByteBuffer.allocate(31L).use suspend {
+        buffer -> while (true) {
             buffer.clear()
             val count = source.readInto(buffer, buffer.writableBytes)
-            if (count == 0L) break
+            if (count == 0L)
+                break
             result.append(buffer.readBytes(count))
         }
     }
@@ -76,11 +124,19 @@ internal suspend fun networkText(source: AsyncByteSource): String {
 }
 
 internal suspend fun readNetworkText(source: AsyncByteSource, count: Long): String =
-    NativeByteBuffer.allocate(count).use suspend { buffer -> source.readFully(buffer); String.fromUtf8(buffer.readBytes(count)) }
+    NativeByteBuffer.allocate(count).use suspend {
+        buffer ->
+        source.readFully(buffer);
+        String.fromUtf8(buffer.readBytes(count))
+    }
 
 internal suspend fun networkWrite(sink: AsyncByteSink, text: String) {
     val bytes = text.toByteArray()
-    NativeByteBuffer.allocate(bytes.size).use suspend { buffer -> buffer.writeBytes(bytes); sink.writeFully(buffer) }
+    NativeByteBuffer.allocate(bytes.size).use suspend {
+        buffer ->
+        buffer.writeBytes(bytes);
+        sink.writeFully(buffer)
+    }
 }
 
 internal suspend fun requestText(client: AsyncHttp1Connection, path: String = "/"): String {

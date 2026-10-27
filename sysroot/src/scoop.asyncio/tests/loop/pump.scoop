@@ -1,0 +1,57 @@
+package scoop.asyncio
+
+import scoop.test.*
+
+@Test
+private class LoopPumpTest {
+    @Test
+    fun `one turn leaves commands and ready work produced during resume for the next turn`() {
+        val loop = PlatformEventLoop()
+        val owner = loop.state
+        val native = owner.open(loop)
+        val seen = ArrayList<Int>()
+        owner.post {
+            seen.add(1)
+            owner.post { seen.add(3) }
+            owner.ready.add {
+                seen.add(2)
+                owner.ready.add { seen.add(4) }
+            }
+        }
+        try {
+            owner.pump(native)
+            assertEquals(2L, seen.size)
+            assertEquals(1, seen[0L])
+            assertEquals(2, seen[1L])
+            owner.pump(native)
+            assertEquals(4L, seen.size)
+            assertEquals(3, seen[2L])
+            assertEquals(4, seen[3L])
+        } finally {
+            owner.finishRoot(None)
+            owner.drive(native)
+        }
+    }
+
+    @Test
+    fun `nested pump does not enter queued commands recursively`() {
+        val loop = PlatformEventLoop()
+        val owner = loop.state
+        val native = owner.open(loop)
+        val entered = AtomicBoolean(false)
+        owner.post {
+            owner.post { entered.store(true) }
+            owner.pump(native)
+            assertFalse(entered.load())
+        }
+        try {
+            owner.pump(native)
+            assertFalse(entered.load())
+            owner.pump(native)
+            assertTrue(entered.load())
+        } finally {
+            owner.finishRoot(None)
+            owner.drive(native)
+        }
+    }
+}

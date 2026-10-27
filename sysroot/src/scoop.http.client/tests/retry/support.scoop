@@ -8,22 +8,38 @@ import scoop.time.Duration
 internal fun immediateClientRetryOptions(maxRetries: Long = 2L): HttpRetryOptions =
     HttpRetryOptions(maxRetries = maxRetries, initialDelay = Duration.ZERO, jitter = false)
 
-internal fun withClientRetryTest(retries: HttpRetryOptions = immediateClientRetryOptions(),
+internal fun withClientRetryTest(
+    retries: HttpRetryOptions = immediateClientRetryOptions(),
     version: HttpVersion = HttpVersion.Http11,
-    block: suspend (EventLoop, CoroutineScope, AsyncTcpListener, HttpClientConfig) -> Unit) {
-    clientTestTrust().use { trust ->
+    block: suspend (EventLoop, CoroutineScope, AsyncTcpListener, HttpClientConfig) -> Unit
+) {
+    clientTestTrust().use {
+        trust ->
         val base = clientTestConfig(trust, version)
-        val config = HttpClientConfig(cleartext = base.cleartext, tls = base.tls, retries = retries,
-            pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L, maxStreamsPerHttp2 = 2L))
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
-            clientTestListen(loop).useAsync suspend { listener -> block(loop, scope, listener, config) }
+        val config =
+            HttpClientConfig(
+                cleartext = base.cleartext,
+                tls = base.tls,
+                retries = retries,
+                pool =
+                    HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L, maxStreamsPerHttp2 = 2L)
+            )
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope -> clientTestListen(loop).useAsync suspend {
+                listener -> block(loop, scope, listener, config)
+            }
         }
     }
 }
 
-internal suspend fun sendRetryTestStatus(connection: AsyncHttp1Connection, status: UInt = 503U,
-    fields: List<HttpField> = ArrayList<HttpField>()) {
-    connection.sendResponse(HttpResponseHead(HttpVersion.Http11, status, Some("retry reason".toByteArray()), fields),
-        Http1BodyFraming.Empty).useAsync suspend { output -> output.finish() }
+internal suspend fun sendRetryTestStatus(
+    connection: AsyncHttp1Connection,
+    status: UInt = 503U,
+    fields: List<HttpField> = ArrayList<HttpField>()
+) {
+    connection.sendResponse(
+        HttpResponseHead(HttpVersion.Http11, status, Some("retry reason".toByteArray()), fields),
+        Http1BodyFraming.Empty
+    ).useAsync suspend { output -> output.finish() }
 }

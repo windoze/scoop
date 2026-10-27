@@ -6,14 +6,16 @@ import scoop.test.*
 private class AsyncReadAllLimitTests {
     @Test
     fun `bounded collection accepts exact and empty input without overflowing large limits`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             for (limit in [0L, 1L, 2L, 8191L, 8192L, 8193L]) {
                 val input = Array<Byte>(limit) { index -> (index % 127L).toByte() }
                 val source = LimitedCollectSource(input)
                 val result = source.readAllBytes(limit)
                 assertEquals(input.size, result.size)
-                for (index in 0L..<input.size) assertEquals(input[index], result[index])
+                for (index in 0L ..< input.size)
+                    assertEquals(input[index], result[index])
                 assertEquals(limit, source.position)
                 assertEquals(1L, source.lastRequested)
                 assertEquals(0L, source.closes)
@@ -28,12 +30,18 @@ private class AsyncReadAllLimitTests {
 
     @Test
     fun `a limit failure consumes at most one excess byte and leaves the source usable`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             for (limit in [0L, 1L, 8191L, 8192L, 8193L]) {
                 val source = LimitedCollectSource(Array<Byte>(limit + 3L) { _ -> 42.toByte() })
-                try { source.readAllBytes(limit); fail(Some("oversized input was accepted")) }
-                catch (error: ReadLimitException) { assertEquals(limit, error.maxBytes) }
+                try {
+                    source.readAllBytes(limit);
+                    fail(Some("oversized input was accepted"))
+                }
+                catch (error: ReadLimitException) {
+                    assertEquals(limit, error.maxBytes)
+                }
                 assertEquals(limit + 1L, source.position)
                 assertEquals(0L, source.closes)
                 assertTrue(source.buffer!!.isClosed)
@@ -50,12 +58,21 @@ private class AsyncReadAllLimitTests {
     @Test
     fun `a negative limit does not allocate or submit an input read`() {
         val source = LimitedCollectSource("x".toByteArray())
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
-            try { source.readAllBytes(-1L); fail(Some("negative limit was accepted")) }
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
+            try {
+                source.readAllBytes(-1L);
+                fail(Some("negative limit was accepted"))
+            }
             catch (_: IllegalArgumentException) {}
             assertEquals(0L, source.calls)
-            assertTrue(when (source.buffer) { case None -> true; case Some(_) -> false })
+            assertTrue(
+                when (source.buffer) {
+                    case None -> true;
+                    case Some(_) -> false
+                }
+            )
             assertEquals("x", String.fromUtf8(source.readAllBytes(1L)))
         }
     }
@@ -64,10 +81,16 @@ private class AsyncReadAllLimitTests {
     fun `a failing EOF probe preserves the source error and original close responsibility`() {
         val source = LimitedCollectSource("xy".toByteArray())
         source.failAt = Some(2L)
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
-            try { source.readAllBytes(2L); fail(Some("failed probe was accepted")) }
-            catch (error: Throwable) { assertSame(source.failure, error) }
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
+            try {
+                source.readAllBytes(2L);
+                fail(Some("failed probe was accepted"))
+            }
+            catch (error: Throwable) {
+                assertSame(source.failure, error)
+            }
             assertEquals(2L, source.position)
             assertEquals(0L, source.closes)
             assertTrue(source.buffer!!.isClosed)
@@ -77,12 +100,15 @@ private class AsyncReadAllLimitTests {
 
     @Test
     fun `invalid progress is checked against the actual bounded request`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
-            for (invalid in [-1L, 2L]) {
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ -> for (invalid in [-1L, 2L]) {
                 val source = LimitedCollectSource("x".toByteArray())
                 source.invalidProgress = Some(invalid)
-                try { source.readAllBytes(0L); fail(Some("invalid progress was accepted")) }
+                try {
+                    source.readAllBytes(0L);
+                    fail(Some("invalid progress was accepted"))
+                }
                 catch (_: IllegalStateException) {}
                 assertEquals(1L, source.lastRequested)
                 assertEquals(1L, source.calls)
@@ -93,26 +119,40 @@ private class AsyncReadAllLimitTests {
 
     @Test
     fun `cancelled EOF and excess probes wait for the actual native borrow to finish`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
-            for (extraByte in [false, true]) {
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope -> for (extraByte in [false, true]) {
                 val source = HeldLimitProbe(extraByte)
                 val cancelled = AtomicBoolean(false)
-                val reading = scope.launch suspend {
-                    try { source.readAllBytes(1L); fail(Some("cancelled probe completed")) }
-                    catch (_: CancellationException) { cancelled.store(true) }
-                }
+                val reading =
+                    scope.launch suspend {
+                        try {
+                            source.readAllBytes(1L);
+                            fail(Some("cancelled probe completed"))
+                        }
+                        catch (_: CancellationException) {
+                            cancelled.store(true)
+                        }
+                    }
                 source.started.await()
                 try {
                     reading.cancel()
                     assertFalse(reading.isCompleted || cancelled.load())
                     assertFailsWith<IllegalStateException> { source.buffer!!.close() }
                     gcCollect()
-                } finally { source.release.signal() }
+                } finally {
+                    source.release.signal()
+                }
                 reading.join()
                 assertTrue(cancelled.load())
                 assertEquals(2L, source.calls)
-                assertEquals(if (extraByte) 2L else 1L, source.completedBytes)
+                assertEquals(
+                    if (extraByte)
+                        2L
+                    else
+                        1L,
+                    source.completedBytes
+                )
                 assertTrue(source.buffer!!.isClosed)
                 assertFalse(scope.job.isCancelled)
             }

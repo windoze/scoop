@@ -5,20 +5,28 @@ import scoop.http.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.test.*
 
-@Test private class MultipartSinkCancellationTests {
-    @Test fun `concurrent output is rejected and close waits for the pending readable borrow`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+@Test
+private class MultipartSinkCancellationTests {
+    @Test
+    fun `concurrent output is rejected and close waits for the pending readable borrow`() {
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val output = PendingMessageSink()
             output.pause = true
             val sink = MultipartSink.takeOwnership(output, MultipartBoundary("b"), 3L)
-            val writing = scope.launch suspend {
-                expectMessageFailure<CancellationException> suspend { sink.beginPart(MultipartPartHead()) }
-                ensureActive()
-            }
+            val writing =
+                scope.launch suspend {
+                    expectMessageFailure<CancellationException> suspend {
+                        sink.beginPart(MultipartPartHead())
+                    }
+                    ensureActive()
+                }
             try {
                 assertTrue(output.running)
-                expectMessageFailure<IllegalStateException> suspend { sink.beginPart(MultipartPartHead()) }
+                expectMessageFailure<IllegalStateException> suspend {
+                    sink.beginPart(MultipartPartHead())
+                }
                 expectMessageFailure<IllegalStateException> suspend { sink.flush() }
                 expectMessageFailure<IllegalStateException> suspend { sink.finish() }
                 assertFalse(present(sink.failure))
@@ -30,43 +38,57 @@ import scoop.test.*
                 assertFailsWith<IllegalStateException> { output.buffer!!.close() }
                 gcCollect()
                 output.complete()
-                writing.join(); first.join(); second.join()
+                writing.join();
+                first.join();
+                second.join()
                 assertFalse(writing.isCancelled)
                 assertTrue(sink.isClosed && output.buffer!!.isClosed && !sink.isFinished)
                 assertEquals(1, output.closes)
                 ensureActive()
             } finally {
-                if (output.running) output.complete()
+                if (output.running)
+                    output.complete()
                 sink.close()
             }
         }
     }
 
-    @Test fun `cancelled body output keeps accepted prefix and can close a borrowed sink in finally`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+    @Test
+    fun `cancelled body output keeps accepted prefix and can close a borrowed sink in finally`() {
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val output = PendingMessageSink(97.toByte())
             val sink = MultipartSink(output, MultipartBoundary("b"), 2L)
             val part = sink.beginPart(MultipartPartHead())
             output.pause = true
-            NativeByteBuffer.allocate(3L).use suspend { buffer ->
+            NativeByteBuffer.allocate(3L).use suspend {
+                buffer ->
                 buffer.writeBytes("abc".toByteArray())
-                val writing = scope.launch suspend {
-                    try { part.writeFrom(buffer, 3L) }
-                    finally { part.close() }
-                }
+                val writing =
+                    scope.launch suspend {
+                        try {
+                            part.writeFrom(buffer, 3L)
+                        }
+                        finally {
+                            part.close()
+                        }
+                    }
                 try {
                     assertEquals(2L, buffer.readPosition)
                     writing.cancel()
                     assertTrue(output.running && output.job!!.isCancelled)
                     assertFalse(writing.isCompleted)
-                    output.complete(); writing.join()
+                    output.complete();
+                    writing.join()
                     assertTrue(sink.isClosed && part.isClosed && !part.isComplete)
                     assertTrue(sink.failure!! is CancellationException)
                     assertEquals(0, output.closes)
                 } finally {
-                    if (output.running) output.complete()
-                    sink.close(); output.close()
+                    if (output.running)
+                        output.complete()
+                    sink.close();
+                    output.close()
                 }
             }
         }

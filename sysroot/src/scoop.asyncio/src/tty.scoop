@@ -6,7 +6,13 @@ import scoop.time.Duration
 /**
  * Terminal dimensions in character cells and optional platform-reported pixel dimensions.
  */
-public struct TtySize(val columns: Long, val rows: Long, val widthPixels: Long, val heightPixels: Long)
+public struct TtySize(
+    val columns: Long,
+    val rows: Long,
+    val widthPixels: Long,
+    val heightPixels: Long
+)
+
 /**
  * The outcome of a terminal read: bytes, resize notification, end of input, or timeout.
  */
@@ -26,13 +32,14 @@ public enum TtyRead {
     /**
      * No input or resize was delivered before the requested timeout.
      */
-    TimedOut }
+    TimedOut
+}
 
 /**
  * An owned asynchronous terminal handle with byte output, input/resize events, and raw-mode
  * control.
  */
-public interface AsyncTty : AsyncByteSink, AsyncCloseable {
+public interface AsyncTty: AsyncByteSink, AsyncCloseable {
     /**
      * Whether terminal cleanup has completed.
      */
@@ -41,7 +48,11 @@ public interface AsyncTty : AsyncByteSink, AsyncCloseable {
      * Waits for input, resize, EOF, or an optional timeout, appending bytes to the writable buffer
      * region.
      */
-    public suspend fun receive(buffer: NativeByteBuffer, count: Long, timeout: Duration? = None): TtyRead
+    public suspend fun receive(
+        buffer: NativeByteBuffer,
+        count: Long,
+        timeout: Duration? = None
+    ): TtyRead
     /**
      * Queries current terminal cell and pixel dimensions.
      */
@@ -60,37 +71,72 @@ public interface AsyncTty : AsyncByteSink, AsyncCloseable {
     public suspend fun disableRawMode()
 }
 
-internal class TtyEndpoint(internal val owner: OwnedEndpoint) : AsyncTty {
+internal class TtyEndpoint(internal val owner: OwnedEndpoint): AsyncTty {
     internal var pendingResize: TtyRead? = None
     public override val isClosed: Boolean get() = owner.isClosed
 
-    public override suspend fun receive(buffer: NativeByteBuffer, count: Long, timeout: Duration?): TtyRead =
-        receiveTty(this, buffer, count, timeout)
-    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = writeTty(owner, buffer, count)
-    public override suspend fun flush() { owner.loop.requireJob(); owner.reserve(true).dispose() }
-    public override suspend fun close() { owner.close() }
+    public override suspend fun receive(
+        buffer: NativeByteBuffer,
+        count: Long,
+        timeout: Duration?
+    ): TtyRead = receiveTty(this, buffer, count, timeout)
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long =
+        writeTty(owner, buffer, count)
+    public override suspend fun flush() {
+        owner.loop.requireJob();
+        owner.reserve(true).dispose()
+    }
+    public override suspend fun close() {
+        owner.close()
+    }
 
-    public override suspend fun size(): TtySize = when (controlTty(owner, TtyControl.Size)) {
-        case IoResult.TtySizeValue(size) -> size
-        case _ -> throw IllegalStateException(Some("TTY size returned no value"))
+    public override suspend fun size(): TtySize =
+        when (controlTty(owner, TtyControl.Size)) {
+            case IoResult.TtySizeValue(size) -> size
+            case _ -> throw IllegalStateException(Some("TTY size returned no value"))
+        }
+    public override suspend fun isRawMode(): Boolean =
+        when (controlTty(owner, TtyControl.ReadMode)) {
+            case IoResult.TtyMode(raw) -> raw
+            case _ -> throw IllegalStateException(Some("TTY mode returned no value"))
+        }
+    public override suspend fun enableRawMode() {
+        controlTty(owner, TtyControl.Enable)
     }
-    public override suspend fun isRawMode(): Boolean = when (controlTty(owner, TtyControl.ReadMode)) {
-        case IoResult.TtyMode(raw) -> raw
-        case _ -> throw IllegalStateException(Some("TTY mode returned no value"))
+    public override suspend fun disableRawMode() {
+        controlTty(owner, TtyControl.Disable)
     }
-    public override suspend fun enableRawMode() { controlTty(owner, TtyControl.Enable) }
-    public override suspend fun disableRawMode() { controlTty(owner, TtyControl.Disable) }
 }
 
-internal suspend fun openTtyOnLoop(loop: LibuvEventLoop): AsyncTty {
+internal suspend fun openTtyOnLoop(loop: LoopOwner): AsyncTty {
     val job = loop.requireJob()
-    return suspendCoroutine<AsyncTty> { continuation ->
-        val operation = LoopOperation(loop.state, loop.state.nextOperation(),
-            { native, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeTtyOpen(native, id)) } },
-            { _, _ -> },
-            { event, selected -> finishEndpointCreation<AsyncTty>(loop, EndpointKind.Tty, event.result, selected,
-                continuation, { owner -> TtyEndpoint(owner) }) })
+    return suspendCoroutine<AsyncTty> {
+        continuation ->
+        val operation =
+            LoopOperation(
+                loop,
+                loop.nextOperation(),
+                {
+                    native,
+                    id -> @Unsafe
+                    {
+                        return@LoopOperation nativeStatus(id, nativeTtyOpen(native, id))
+                    }
+                },
+                { _, _ -> },
+                {
+                    event,
+                    selected -> finishEndpointCreation<AsyncTty>(
+                        loop,
+                        EndpointKind.Tty,
+                        event.result,
+                        selected,
+                        continuation,
+                        { owner -> TtyEndpoint(owner) }
+                    )
+                }
+            )
         operation.subscribe(job)
-        loop.state.submit(operation)
+        loop.submit(operation)
     }
 }

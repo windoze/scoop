@@ -10,11 +10,47 @@ kind = "library"
 "scoop:scoop.core" = "0.1.0"
 
 [native]
-include = ["../../../vendor/libuv/include"]
+include = [
+    { path = "../native/linux/config/gnu", when = { env = "gnu" } },
+    { path = "../native/linux/config/musl", when = { env = "musl" } },
+    { path = "../../../vendor/liburing/2.15/src/include", when = { os = "linux" } },
+]
 c_flags = ["-std=c11", "-Wall", "-Wextra", "-include", "../native/config.h"]
 
 [[native.sources]]
-path = "native/fence.c"
+path = "native/fence_work.c"
 
 [[native.sources]]
 path = "native/work.c"
+
+[[native.sources]]
+path = "native/socket.c"
+
+[[native.sources]]
+path = "native/tty.c"
+
+[[native.sources]]
+path = "native/host.c"
+
+[[native.sources]]
+path = "native/host_darwin.c"
+when = { os = "darwin" }
+
+[[native.libraries]]
+name = "CoreFoundation"
+kind = "framework"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "native/ring.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/ring_policy.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/tty_owner.c"
+
+[[native.sources]]
+path = "native/tty_completion.c"

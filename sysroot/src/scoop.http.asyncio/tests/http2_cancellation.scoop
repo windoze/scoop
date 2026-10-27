@@ -6,45 +6,63 @@ import scoop.platform.concurrent.Thread
 import scoop.platform.memory.NativeByteBuffer
 import scoop.test.*
 
-internal class Http2Slot { var value: AsyncHttp2Connection? = None }
+internal class Http2Slot {
+    var value: AsyncHttp2Connection? = None
+}
 
 @Test
 private class AsyncHttp2CancellationTests {
     @Test
     fun `request cancellation resets its stream while the shared TLS connection remains usable`() {
-        withTlsHttp2 suspend { scope, pair ->
+        withTlsHttp2 suspend {
+            scope, pair ->
             val created = AsyncGate()
             val caught = AtomicBoolean(false)
-            val request = scope.launch suspend {
-                val stream = pair.client.openRequest(request2("POST"), false)
-                try {
-                    sendBytes(stream, "discard".toByteArray()); stream.flush()
-                    created.signal()
-                    stream.receiveResponse()
-                    fail(Some("cancelled response wait succeeded"))
-                } catch (_: CancellationException) { caught.store(true) }
-                finally { stream.close() }
-            }
+            val request =
+                scope.launch suspend {
+                    val stream = pair.client.openRequest(request2("POST"), false)
+                    try {
+                        sendBytes(stream, "discard".toByteArray());
+                        stream.flush()
+                        created.signal()
+                        stream.receiveResponse()
+                        fail(Some("cancelled response wait succeeded"))
+                    } catch (_: CancellationException) {
+                        caught.store(true)
+                    }
+                    finally {
+                        stream.close()
+                    }
+                }
             created.await()
             val cancelled = pair.server.acceptRequest()!!
             val other = pair.client.openRequest(request2())
             val incoming = pair.server.acceptRequest()!!
             val cancelling = Thread.start { request.cancel() }
-            cancelling.join(); request.join()
+            cancelling.join();
+            request.join()
             pair.serverEvents.closed.await()
             assertTrue(caught.load())
             val failures = failureNotices(pair.clientEvents)
             assertEquals(1L, failures.size)
-            val (failedId, failure) = failures[0L]
+            val(failedId, failure) = failures[0L]
             assertEquals(cancelled.stream.id, failedId)
             assertTrue(failure is CancellationException)
-            assertEquals(0, pair.clientRaw.closes); assertEquals(0, pair.serverRaw.closes)
-            NativeByteBuffer.allocate(1L).use suspend { buffer ->
-                try { cancelled.stream.readInto(buffer, 1L); fail(Some("reset body remained readable")) }
-                catch (error: HttpException) { assertEquals(8, error.code); assertTrue(error.scope == HttpFailureScope.Stream) }
+            assertEquals(0, pair.clientRaw.closes);
+            assertEquals(0, pair.serverRaw.closes)
+            NativeByteBuffer.allocate(1L).use suspend {
+                buffer -> try {
+                    cancelled.stream.readInto(buffer, 1L);
+                    fail(Some("reset body remained readable"))
+                }
+                catch (error: HttpException) {
+                    assertEquals(8, error.code);
+                    assertTrue(error.scope == HttpFailureScope.Stream)
+                }
             }
             incoming.stream.sendResponse(response2(), false)
-            sendBytes(incoming.stream, "still live".toByteArray()); incoming.stream.finish()
+            sendBytes(incoming.stream, "still live".toByteArray());
+            incoming.stream.finish()
             assertEquals(200U, other.receiveResponse().status)
             assertEquals("still live", String.fromUtf8(receiveBytes(other)))
             assertFalse(pair.client.isClosed || pair.server.isClosed)
@@ -53,18 +71,28 @@ private class AsyncHttp2CancellationTests {
 
     @Test
     fun `connection scope cancellation waits for transport cleanup and concurrent close`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
-            val (a, b) = rawPair(loop, scope)
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
+            val(a, b) = rawPair(loop, scope)
             val slot = Http2Slot()
-            val ready = AsyncGate(); val releaseOwner = AsyncGate(); val releaseClose = AsyncGate()
-            val owner = scope.launch suspend {
-                coroutineScope<Unit> suspend { owned ->
-                    val connection = AsyncHttp2Connection.takeOwnershipAsClient(a, owned)
-                    slot.value = Some(connection); ready.signal()
-                    try { releaseOwner.await() } finally { connection.close() }
+            val ready = AsyncGate();
+            val releaseOwner = AsyncGate();
+            val releaseClose = AsyncGate()
+            val owner =
+                scope.launch suspend {
+                    coroutineScope<Unit> suspend {
+                        owned ->
+                        val connection = AsyncHttp2Connection.takeOwnershipAsClient(a, owned)
+                        slot.value = Some(connection);
+                        ready.signal()
+                        try {
+                            releaseOwner.await()
+                        } finally {
+                            connection.close()
+                        }
+                    }
                 }
-            }
             ready.await()
             val client = slot.value!!
             val server = AsyncHttp2Connection.takeOwnershipAsServer(b, scope)
@@ -75,37 +103,56 @@ private class AsyncHttp2CancellationTests {
                 assertEquals(200U, stream.receiveResponse().status)
                 a.closeGate = Some(releaseClose)
                 val returned = AtomicBoolean(false)
-                NativeByteBuffer.allocate(1L).use suspend { buffer ->
-                    val reading = scope.launch suspend {
-                        try { stream.readInto(buffer, 1L); fail(Some("cancelled connection body returned")) }
-                        catch (_: CancellationException) { returned.store(true) }
-                        finally { buffer.clear() }
-                    }
+                NativeByteBuffer.allocate(1L).use suspend {
+                    buffer ->
+                    val reading =
+                        scope.launch suspend {
+                            try {
+                                stream.readInto(buffer, 1L);
+                                fail(Some("cancelled connection body returned"))
+                            }
+                            catch (_: CancellationException) {
+                                returned.store(true)
+                            }
+                            finally {
+                                buffer.clear()
+                            }
+                        }
                     buffer.clear()
-                    owner.cancel(); a.closeStarted.await()
+                    owner.cancel();
+                    a.closeStarted.await()
                     assertTrue(client.isClosing)
                     assertFalse(client.isClosed)
                     val first = scope.launch suspend { client.close() }
                     val second = scope.launch suspend { client.close() }
                     assertFalse(returned.load() || first.isCompleted || second.isCompleted)
                     releaseClose.signal()
-                    reading.join(); first.join(); second.join()
+                    reading.join();
+                    first.join();
+                    second.join()
                     assertTrue(returned.load() && client.isClosed)
                     assertEquals(1, a.closes)
                 }
             } finally {
-                releaseClose.signal(); releaseOwner.signal()
-                client.close(); server.close(); owner.join()
+                releaseClose.signal();
+                releaseOwner.signal()
+                client.close();
+                server.close();
+                owner.join()
             }
         }
     }
 
     @Test
     fun `HTTP2 transport and cleanup failures retain both causes`() {
-        withHttp2 suspend { _, pair ->
+        withHttp2 suspend {
+            _, pair ->
             pair.clientRaw.failWrite = true
             pair.clientRaw.failClose = true
-            try { pair.client.openRequest(request2()); fail(Some("failed HTTP2 header send succeeded")) }
+            try {
+                pair.client.openRequest(request2());
+                fail(Some("failed HTTP2 header send succeeded"))
+            }
             catch (error: ResourceUseException) {
                 assertTrue(error.primaryFailure is TransportFailure)
                 assertTrue(error.cleanupFailure is CleanupFailure)

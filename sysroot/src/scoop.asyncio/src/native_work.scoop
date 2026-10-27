@@ -3,30 +3,57 @@ package scoop.asyncio
 import scoop.asyncio.native.NativeWork
 
 @Unsafe
-internal suspend fun runNativeWorkOnLoop(loop: LibuvEventLoop, work: NativeWork) {
+internal suspend fun runNativeWorkOnLoop(loop: LoopOwner, work: NativeWork) {
     val job = loop.requireJob()
-    val (payload, execute) = work.begin()
+    val(payload, execute) = work.begin()
     var complete = false
     try {
-        suspendCoroutine<Unit> { continuation ->
-            val operation = LoopOperation(loop.state, loop.state.nextOperation(),
-                { native, id -> @Unsafe {
-                    return@LoopOperation nativeStatus(id, nativeSubmitWork(native, id, payload, execute))
-                } },
-                { native, id -> @Unsafe { nativeWorkCancel(native, id) } },
-                { event, selected ->
-                    when (completionFailure("native work", event.result, selected)) {
-                        case Some(error) -> continuation.resumeWithException(error)
-                        case None -> continuation.resume(Unit)
+        suspendCoroutine<Unit> {
+            continuation ->
+            val operation =
+                LoopOperation(
+                    loop,
+                    loop.nextOperation(),
+                    {
+                        native,
+                        id -> @Unsafe
+                        {
+                            return@LoopOperation nativeStatus(
+                                id,
+                                nativeSubmitWork(native, id, payload, execute)
+                            )
+                        }
+                    },
+                    {
+                        native,
+                        id -> @Unsafe
+                        {
+                            nativeWorkCancel(native, id)
+                        }
+                    },
+                    {
+                        event,
+                        selected -> when (
+                            completionFailure("native work", event.result, selected)
+                        ) {
+                            case Some(error) -> continuation.resumeWithException(error)
+                            case None -> continuation.resume(Unit)
+                        }
                     }
-                })
+                )
             operation.subscribe(job)
-            loop.state.submit(operation)
+            loop.submit(operation)
         }
         complete = true
-    } finally { work.complete(complete) }
+    } finally {
+        work.complete(complete)
+    }
 }
 
 @Extern(name = "scoop_io_native_work")
-private fun nativeSubmitWork(loop: Ptr<Unit>, id: Long, payload: Ptr<Unit>,
-    execute: FunPtr<(Ptr<Unit>) -> Unit>): Int
+private fun nativeSubmitWork(
+    loop: Ptr<Unit>,
+    id: Long,
+    payload: Ptr<Unit>,
+    execute: FunPtr<(Ptr<Unit>) -> Unit>
+): Int

@@ -21,7 +21,7 @@ import scoop.http.client.*
 import scoop.url.Url
 
 fun main() {
-    val loop: EventLoop = LibuvEventLoop()
+    val loop: EventLoop = PlatformEventLoop()
     loop.run suspend { _ ->
         withHttpClient suspend { client ->
             val request = HttpRequest.get(Url.parse("https://example.com/"))

@@ -24,7 +24,9 @@ VS Code 扩展接入 `scoop-lsp`，提供诊断、补全、签名、导航、符
 
 本期提供 Darwin/AArch64、Linux/GNU amd64 两类宿主工具包，覆盖 Darwin、GNU、musl 三个既有目标。宿主包包含 `scoop`、`scoopc`、`scoop-link`、`scoop-lsp`，以及 LLVM 22.1.8 的所需动态依赖。M47 延后，不附带 generator。
 
-统一布局包含十七个内置 Cone 的源码、预编译产物、公开 C 头与 runtime 对象。本期新增 `scoop.http.client`、`scoop.idna`、`scoop.url`、`scoop.charset` 和单个 `scoop.compression` Cone。OpenSSL、nghttp2、文本、URL、压缩后端的静态库和 Linux libunwind 随目标资源交付；libuv、llhttp 与 Ryu 编入实际使用它们的 Cone／runtime。LLVM 原始源码归档、补丁和许可证另存于同版本的 `llvm-sources` 包。
+统一布局包含十七个内置 Cone 的源码、预编译产物、公开 C 头与 runtime 对象。本期新增 `scoop.http.client`、`scoop.idna`、`scoop.url`、`scoop.charset` 和单个 `scoop.compression` Cone。OpenSSL、nghttp2、文本、URL、压缩后端的静态库和 Linux libunwind 随目标资源交付；Linux 的 liburing、llhttp 与 Ryu 编入实际使用它们的 Cone／runtime；Darwin 的 asyncio 使用系统 libdispatch。LLVM 原始源码归档、补丁和许可证另存于同版本的 `llvm-sources` 包。
+
+异步 I/O 的默认构造入口由 `LibuvEventLoop()` 改为 `PlatformEventLoop()`，不保留旧别名。Linux asyncio 需要内核 6.1 及可用的 io_uring，初始化探测失败会明确报错；该要求不提高其他库的最低系统版本。Darwin 提供 `MainDispatchHost`，两平台均支持通过 `EventLoopHost` 接入宿主主循环。
 
 运行时契约更新为 14，metadata ABI 更新为 9。本期工具配套新的目标 runtime 与预编译库；旧开发 sysroot 需要通过既有准备脚本重新生成。
 

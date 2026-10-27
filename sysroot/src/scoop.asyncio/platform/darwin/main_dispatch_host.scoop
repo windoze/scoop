@@ -1,0 +1,149 @@
+package scoop.asyncio.host
+
+import scoop.asyncio.NativeCreated
+import scoop.asyncio.backendFailure
+import scoop.platform.io.standardError
+import scoop.platform.io.writeLine
+
+/** Uses the main dispatch queue served by the application's AppKit or CFRunLoop host. */
+public class MainDispatchHost public constructor(): EventLoopHost {
+    public override fun isCurrentThread(): Boolean {
+        @Unsafe
+        {
+            return nativeMainThread()
+        }
+    }
+
+    @Unsafe
+    public override fun watchReadable(descriptor: Int, ready: () -> Unit): EventLoopWatch {
+        if (!isCurrentThread())
+            throw IllegalStateException(Some("main dispatch watch requires the main thread"))
+        val watch = MainDispatchWatch(ready)
+        watch.install(descriptor)
+        return watch
+    }
+}
+
+private class MainDispatchWatch(private val ready: () -> Unit): EventLoopWatch {
+    private var pointer: Ptr<Unit>? = None
+    private var notification: ForeignCallback<(Ptr<Unit>) -> Int>? = None
+    private var observer: ForeignCallback<(Ptr<Unit>, Int) -> Int>? = None
+    private var removal: ForeignCallback<(Ptr<Unit>) -> Int>? = None
+    private var removing: Boolean = false
+
+    @Unsafe
+    fun install(descriptor: Int) {
+        val notification =
+            foreignCallback<(Ptr<Unit>) -> Int>(
+                {
+                    ready();
+                    0
+                },
+                0,
+                ForeignCallbackMode.Reusable
+            )
+        val observer =
+            foreignCallback<(Ptr<Unit>, Int) -> Int>(
+                {
+                    stage: Int ->
+                    observe(stage);
+                    0
+                },
+                0,
+                ForeignCallbackMode.Reusable
+            )
+        this.notification = Some(notification)
+        this.observer = Some(observer)
+        val created =
+            nativeMainWatch(
+                descriptor,
+                notification.function,
+                notification.context,
+                observer.function,
+                observer.context
+            )
+        if (created.status < 0) {
+            releaseForeignCallback(notification)
+            releaseForeignCallback(observer)
+            this.notification = None
+            this.observer = None
+            throw backendFailure("install main dispatch watch", created.status)
+        }
+        pointer = created.pointer
+    }
+
+    public override fun remove(onRemoved: () -> Unit) {
+        if (removing)
+            return
+        removing = true
+        @Unsafe
+        {
+            val callback =
+                foreignCallback<(Ptr<Unit>) -> Int>(
+                    {
+                        pointer = None;
+                        onRemoved();
+                        0
+                    },
+                    0,
+                    ForeignCallbackMode.OneShot
+                )
+            removal = Some(retainForeignCallback(callback))
+            nativeMainRemove(pointer!!, callback.function, callback.context)
+        }
+    }
+
+    private fun observe(stage: Int) {
+        @Unsafe
+        {
+            val callback =
+                if (stage == 0)
+                    notification!!
+                else
+                    removal!!
+            when (foreignCallbackFailure(callback)) {
+                case Some(error) -> report(error)
+                case None -> {}
+            }
+            if (stage == 1) {
+                releaseForeignCallback(removal!!)
+                releaseForeignCallback(notification!!)
+                // This observer invocation owns a lease until the native bridge returns.
+                releaseForeignCallback(observer!!)
+                removal = None
+                notification = None
+                observer = None
+            }
+        }
+    }
+
+    private fun report(error: Throwable) {
+        try {
+            val message =
+                if (error is Exception)
+                    error.message ?: "callback failed"
+                else
+                    "callback failed"
+            standardError.writeLine("scoop.asyncio MainDispatchHost: " + message)
+        } catch (_: Throwable) {}
+    }
+}
+
+@Extern(name = "scoop_io_main_thread")
+private fun nativeMainThread(): Boolean
+
+@Extern(name = "scoop_io_main_watch")
+private fun nativeMainWatch(
+    descriptor: Int,
+    ready: FunPtr<(Ptr<Unit>) -> Int>,
+    readyContext: Ptr<Unit>,
+    observer: FunPtr<(Ptr<Unit>, Int) -> Int>,
+    observerContext: Ptr<Unit>
+): NativeCreated
+
+@Extern(name = "scoop_io_main_remove")
+private fun nativeMainRemove(
+    watch: Ptr<Unit>,
+    removed: FunPtr<(Ptr<Unit>) -> Int>,
+    context: Ptr<Unit>
+)

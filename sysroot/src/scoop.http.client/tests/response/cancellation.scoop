@@ -12,43 +12,76 @@ private class HttpClientResponseDecodingCancellationTest {
     fun `reader cancellation and concurrent client close release an active decoder after execute completes`() {
         val compressed = compress("delayed".toByteArray(), CompressionOptions.Gzip(GzipOptions()))
         for (cancelReader in [true, false]) {
-            clientTestTrust().use { trust ->
-                val loop: EventLoop = LibuvEventLoop()
-                loop.run suspend { scope ->
-                    clientTestListen(loop).useAsync suspend { listener ->
+            clientTestTrust().use {
+                trust ->
+                val loop: EventLoop = PlatformEventLoop()
+                loop.run suspend {
+                    scope -> clientTestListen(loop).useAsync suspend {
+                        listener ->
                         val done = BodyTestGate()
-                        val server = scope.launch suspend {
-                            AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
-                                connection.receiveRequest()!!.body.readAllBytes(0L)
-                                connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U,
-                                    fields = [responseTestField("Content-Encoding", "gzip")]),
-                                    Http1BodyFraming.Length(compressed.size)).useAsync suspend { output ->
-                                    writeResponseTestBytes(output, Array<Byte>(10L) { index -> compressed[index] })
-                                    output.flush()
-                                    done.await()
+                        val server =
+                            scope.launch suspend {
+                                AsyncHttp1Connection.takeOwnershipAsServer(
+                                    listener.accept(),
+                                    scope
+                                ).useAsync suspend {
+                                    connection ->
+                                    connection.receiveRequest()!!.body.readAllBytes(0L)
+                                    connection.sendResponse(
+                                        HttpResponseHead(
+                                            HttpVersion.Http11,
+                                            200U,
+                                            fields = [responseTestField("Content-Encoding", "gzip")]
+                                        ),
+                                        Http1BodyFraming.Length(compressed.size)
+                                    ).useAsync suspend {
+                                        output ->
+                                        writeResponseTestBytes(
+                                            output,
+                                            Array<Byte>(10L) { index -> compressed[index] }
+                                        )
+                                        output.flush()
+                                        done.await()
+                                    }
                                 }
                             }
-                        }
                         val client = HttpClient.open(scope, clientTestConfig(trust))
                         try {
-                            val executing = scope.async suspend { client.execute(HttpRequest.get(clientTestUrl(listener))) }
+                            val executing =
+                                scope.async suspend {
+                                    client.execute(HttpRequest.get(clientTestUrl(listener)))
+                                }
                             val response = executing.await()
                             assertTrue(executing.isCompleted)
                             val failure = ClientTestFailureHolder()
-                            val reading = scope.launch suspend {
-                                try { response.body.bytes(20L); fail(Some("cancelled decompression completed")) }
-                                catch (error: Throwable) { failure.value = Some(error) }
-                            }
+                            val reading =
+                                scope.launch suspend {
+                                    try {
+                                        response.body.bytes(20L);
+                                        fail(Some("cancelled decompression completed"))
+                                    }
+                                    catch (error: Throwable) {
+                                        failure.value = Some(error)
+                                    }
+                                }
                             assertFalse(reading.isCompleted)
-                            if (cancelReader) reading.cancel()
+                            if (cancelReader)
+                                reading.cancel()
                             val first = scope.launch suspend { client.close() }
                             val second = scope.launch suspend { client.close() }
-                            reading.join(); first.join(); second.join()
-                            if (cancelReader) assertTrue(failure.value!! is CancellationException)
-                            else assertTrue(failure.value!! is HttpClientClosedException)
+                            reading.join();
+                            first.join();
+                            second.join()
+                            if (cancelReader)
+                                assertTrue(failure.value!! is CancellationException)
+                            else
+                                assertTrue(failure.value!! is HttpClientClosedException)
                             assertTrue(client.isClosed)
                             response.close()
-                        } finally { client.close(); done.signal() }
+                        } finally {
+                            client.close();
+                            done.signal()
+                        }
                         server.join()
                         assertFalse(scope.job.isCancelled)
                     }

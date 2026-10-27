@@ -7,8 +7,10 @@ import scoop.test.*
 import scoop.url.*
 
 private struct JsonRequestOnly(val value: String) {
-    public companion object : ValueEncoder<JsonRequestOnly> {
-        public override fun encode(value: JsonRequestOnly, encoder: Encoder) { String.encode(value.value, encoder) }
+    public companion object: ValueEncoder<JsonRequestOnly> {
+        public override fun encode(value: JsonRequestOnly, encoder: Encoder) {
+            String.encode(value.value, encoder)
+        }
     }
 }
 
@@ -21,9 +23,15 @@ private class RequestBodyDataTest {
         bytes[0L] = 90.toByte()
         assertTrue(body.isReplayable)
         assertTrue(body.contentLength == Some(5L))
-        assertTrue(when (body.contentType) { case None -> true; case Some(_) -> false })
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        assertTrue(
+            when (body.contentType) {
+                case None -> true;
+                case Some(_) -> false
+            }
+        )
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             assertEquals("ABCDE", bodyText(body, 1L))
             assertEquals("ABCDE", bodyText(body, 3L))
             assertEquals("", bodyText(RequestBody.Empty))
@@ -37,10 +45,14 @@ private class RequestBodyDataTest {
         val latin = RequestBody.fromText("café", Charset.Iso8859_1)
         assertTrue(utf8.contentLength == Some(9L))
         assertTrue(latin.contentLength == Some(4L))
-        assertEquals("ISO-8859-1", String.fromUtf8(latin.contentType!!.parameter("charset")!!.value))
+        assertEquals(
+            "ISO-8859-1",
+            String.fromUtf8(latin.contentType!!.parameter("charset")!!.value)
+        )
         assertFailsWith<CharsetException> { RequestBody.fromText("中文", Charset.Iso8859_1) }
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             assertEquals("中文 é", bodyText(utf8))
             val output = BodyTestSink()
             latin.writeTo(output, 1L)
@@ -51,25 +63,31 @@ private class RequestBodyDataTest {
     @Test
     fun `JSON encoding checks actual UTF8 size and preserves codec failures`() {
         val calls = AtomicLong(0L)
-        val codec = ValueEncoderFunction<String> { value, encoder ->
-            calls.fetchAdd(1L)
-            encoder.singleValue().writeString(value)
-        }
+        val codec =
+            ValueEncoderFunction<String> {
+                value, encoder ->
+                calls.fetchAdd(1L)
+                encoder.singleValue().writeString(value)
+            }
         assertFailsWith<IllegalArgumentException> { RequestBody.fromJson("中文", codec, -1L) }
         assertEquals(0L, calls.load())
-        val limit = assertFailsWith<RequestBodyLimitException> { RequestBody.fromJson("中文", codec, 7L) }
+        val limit =
+            assertFailsWith<RequestBodyLimitException> { RequestBody.fromJson("中文", codec, 7L) }
         assertEquals(7L, limit.maxBytes)
         assertEquals(8L, limit.actualBytes)
         val body = RequestBody.fromJson("中文", codec, 8L)
         assertEquals("application/json", String.fromUtf8(body.contentType!!.toByteArray()))
-        val broken = ValueEncoderFunction<String> { _, encoder ->
-            val single = encoder.singleValue()
-            single.writeNull()
-            single.writeString("again")
-        }
+        val broken =
+            ValueEncoderFunction<String> {
+                _, encoder ->
+                val single = encoder.singleValue()
+                single.writeNull()
+                single.writeString("again")
+            }
         assertFailsWith<EncodingException> { RequestBody.fromJson("x", broken, 1024L) }
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             assertEquals("\"中文\"", bodyText(body))
             assertEquals("\"中文\"", bodyText(body))
         }
@@ -80,15 +98,19 @@ private class RequestBodyDataTest {
     fun `default JSON encoding preserves independent capability limits and explicit overrides`() {
         val value = JsonRequestOnly("中文")
         assertFailsWith<IllegalArgumentException> { RequestBody.fromJson(value, maxBytes = -1L) }
-        val limit = assertFailsWith<RequestBodyLimitException> { RequestBody.fromJson(value, maxBytes = 7L) }
+        val limit =
+            assertFailsWith<RequestBodyLimitException> {
+                RequestBody.fromJson(value, maxBytes = 7L)
+            }
         assertEquals(8L, limit.actualBytes)
         val body = RequestBody.fromJson(value, maxBytes = 8L)
         assertTrue(body.isReplayable && body.contentLength == Some(8L))
         assertEquals("application/json", String.fromUtf8(body.contentType!!.toByteArray()))
         val custom = ValueEncoderFunction<JsonRequestOnly> { _, encoder -> Int.encode(7, encoder) }
         val explicit = RequestBody.fromJson(value, custom, 1L)
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             assertEquals("\"中文\"", bodyText(body))
             assertEquals("\"中文\"", bodyText(body))
             assertEquals("7", bodyText(explicit))
@@ -99,9 +121,13 @@ private class RequestBodyDataTest {
     fun `form data delegates escaping and preserves repeated ordered parameters`() {
         val query = UrlQuery().add("q", Some("a b+中")).add("q", Some("")).add("flag")
         val body = RequestBody.fromForm(query)
-        assertEquals("application/x-www-form-urlencoded", String.fromUtf8(body.contentType!!.toByteArray()))
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        assertEquals(
+            "application/x-www-form-urlencoded",
+            String.fromUtf8(body.contentType!!.toByteArray())
+        )
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             val encoded = bodyText(body, 1L)
             assertEquals("q=a+b%2B%E4%B8%AD&q=&flag", encoded)
             val parsed = FormUrlEncoded.parse(encoded)

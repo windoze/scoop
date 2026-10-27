@@ -9,16 +9,18 @@ import scoop.tls.*
 private class AsyncTlsDuplexTests {
     @Test
     fun `pending read permits write and a single handshake drives both transport directions`() {
-        for (version in [TlsVersion.Tls12, TlsVersion.Tls13]) duplex(version)
+        for (version in [TlsVersion.Tls12, TlsVersion.Tls13])
+            duplex(version)
     }
 }
 
 private fun duplex(version: TlsVersion) {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
-        val (clientRaw, serverRaw) = rawPair(loop, scope)
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope ->
+        val(clientRaw, serverRaw) = rawPair(loop, scope)
         clientRaw.gateFirstWrite = true
-        val (client, server) = tlsPair(scope, clientRaw, serverRaw, TlsOptions(version, version))
+        val(client, server) = tlsPair(scope, clientRaw, serverRaw, TlsOptions(version, version))
         try {
             assertTrue(client.connectionInfo.version == version)
             val input = NativeByteBuffer.allocate(3L)
@@ -28,23 +30,40 @@ private fun duplex(version: TlsVersion) {
                 assertEquals(0L, client.readInto(input, 0L))
                 assertEquals(0L, client.writeFrom(output, 0L))
                 assertEquals(before, clientRaw.reads + clientRaw.writes)
-                try { client.readInto(input, -1L); fail(Some("negative count accepted")) }
-                catch (_: IllegalArgumentException) { assertFalse(client.isClosed) }
-                try { client.writeFrom(output, 1L); fail(Some("unavailable byte accepted")) }
-                catch (_: IndexOutOfBoundsException) { assertFalse(client.isClosed) }
-                val otherLoop: EventLoop = LibuvEventLoop()
+                try {
+                    client.readInto(input, -1L);
+                    fail(Some("negative count accepted"))
+                }
+                catch (_: IllegalArgumentException) {
+                    assertFalse(client.isClosed)
+                }
+                try {
+                    client.writeFrom(output, 1L);
+                    fail(Some("unavailable byte accepted"))
+                }
+                catch (_: IndexOutOfBoundsException) {
+                    assertFalse(client.isClosed)
+                }
+                val otherLoop: EventLoop = PlatformEventLoop()
                 context(otherLoop) {
-                    try { client.flush(); fail(Some("wrong loop accepted")) }
-                    catch (_: IllegalStateException) { assertFalse(client.isClosed) }
+                    try {
+                        client.flush();
+                        fail(Some("wrong loop accepted"))
+                    }
+                    catch (_: IllegalStateException) {
+                        assertFalse(client.isClosed)
+                    }
                 }
                 val reading = scope.async<Long> suspend { client.readInto(input, 3L) }
                 assertFalse(reading.isCompleted)
-                val echo = scope.launch suspend {
-                    NativeByteBuffer.allocate(3L).use suspend { bytes ->
-                        server.readFully(bytes, 3L)
-                        server.writeFully(bytes, 3L)
+                val echo =
+                    scope.launch suspend {
+                        NativeByteBuffer.allocate(3L).use suspend {
+                            bytes ->
+                            server.readFully(bytes, 3L)
+                            server.writeFully(bytes, 3L)
+                        }
                     }
-                }
                 output.writeBytes("tls".toByteArray())
                 client.writeFully(output)
                 client.flush()
@@ -58,7 +77,13 @@ private fun duplex(version: TlsVersion) {
                 assertTrue(client.isClosed && server.isClosed)
                 assertEquals(1, clientRaw.closes)
                 assertEquals(1, serverRaw.closes)
-            } finally { input.close(); output.close() }
-        } finally { client.close(); server.close() }
+            } finally {
+                input.close();
+                output.close()
+            }
+        } finally {
+            client.close();
+            server.close()
+        }
     }
 }

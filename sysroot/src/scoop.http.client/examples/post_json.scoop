@@ -7,20 +7,28 @@ import scoop.http.client.*
 import scoop.url.Url
 
 struct GreetingInput(val name: String) {
-    public companion object : ValueEncoder<GreetingInput>
+    public companion object: ValueEncoder<GreetingInput>
 }
 
 struct GreetingOutput(val message: String) {
-    public companion object : ValueDecoder<GreetingOutput>
+    public companion object: ValueDecoder<GreetingOutput>
 }
 
 fun main(args: Array<String>) {
-    val url = Url.parse(if (args.size > 1L) args[1L] else "http://127.0.0.1:8080/greet")
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { _ ->
-        withHttpClient suspend { client ->
+    val url =
+        Url.parse(
+            if (args.size > 1L)
+                args[1L]
+            else
+                "http://127.0.0.1:8080/greet"
+        )
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        _ -> withHttpClient suspend {
+            client ->
             val request = HttpRequest.post(url, RequestBody.fromJson(GreetingInput("Scoop"), 1024L))
-            client.withResponse(request) suspend { response ->
+            client.withResponse(request) suspend {
+                response ->
                 response.requireSuccess()
                 val greeting = response.body.json<GreetingOutput>(4096L)
                 println(greeting.message)

@@ -10,33 +10,42 @@ private class RequestBodyProducerTest {
     @Test
     fun `producer factories inherit each sending task context across suspension`() {
         val factories = AtomicLong(0L)
-        val body = context(BodyTestContext("construction")) {
-            RequestBody.fromProducerFactory suspend {
-                factories.fetchAdd(1L)
-                val value = currentBodyTestContext()
-                currentEventLoop().sleep(Duration.nanoseconds(1L));
-                suspend { destination ->
-                    assertEquals(value, currentBodyTestContext())
-                    writeBodyText(destination, value)
-                    destination.flush()
+        val body =
+            context(BodyTestContext("construction")) {
+                RequestBody.fromProducerFactory suspend {
+                    factories.fetchAdd(1L)
+                    val value = currentBodyTestContext()
+                    currentEventLoop().sleep(Duration.nanoseconds(1L));
+                    suspend {
+                        destination ->
+                        assertEquals(value, currentBodyTestContext())
+                        writeBodyText(destination, value)
+                        destination.flush()
+                    }
                 }
             }
-        }
         assertEquals(0L, factories.load())
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
-            val first = context(BodyTestContext("first")) { scope.async suspend {
-                val sink = BodyTestSink()
-                assertEquals(5L, body.writeTo(sink, 1L))
-                assertEquals("first", String.fromUtf8(sink.bytes.toByteArray()))
-                assertEquals(1L, sink.flushes)
-            } }
-            val second = context(BodyTestContext("second")) { scope.async suspend {
-                val sink = BodyTestSink()
-                assertEquals(6L, body.writeTo(sink))
-                assertEquals("second", String.fromUtf8(sink.bytes.toByteArray()))
-                assertEquals(1L, sink.flushes)
-            } }
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
+            val first =
+                context(BodyTestContext("first")) {
+                    scope.async suspend {
+                        val sink = BodyTestSink()
+                        assertEquals(5L, body.writeTo(sink, 1L))
+                        assertEquals("first", String.fromUtf8(sink.bytes.toByteArray()))
+                        assertEquals(1L, sink.flushes)
+                    }
+                }
+            val second =
+                context(BodyTestContext("second")) {
+                    scope.async suspend {
+                        val sink = BodyTestSink()
+                        assertEquals(6L, body.writeTo(sink))
+                        assertEquals("second", String.fromUtf8(sink.bytes.toByteArray()))
+                        assertEquals(1L, sink.flushes)
+                    }
+                }
             first.await()
             second.await()
         }
@@ -47,11 +56,20 @@ private class RequestBodyProducerTest {
     fun `single use producers remain consumed after a failed attempt`() {
         val failure = Throwable()
         val calls = AtomicLong(0L)
-        val body = RequestBody.fromProducer suspend { _ -> calls.fetchAdd(1L); throw failure }
+        val body =
+            RequestBody.fromProducer suspend {
+                _ ->
+                calls.fetchAdd(1L);
+                throw failure
+            }
         assertFalse(body.isReplayable)
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
-            assertSame(failure, expectBodyFailure<Throwable> suspend { body.writeTo(BodyTestSink()) })
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
+            assertSame(
+                failure,
+                expectBodyFailure<Throwable> suspend { body.writeTo(BodyTestSink()) }
+            )
             expectBodyFailure<RequestBodyConsumedException> suspend { body.writeTo(BodyTestSink()) }
             assertFalse(scope.job.isCancelled)
         }
@@ -60,25 +78,36 @@ private class RequestBodyProducerTest {
 
     @Test
     fun `known length rejects an oversized write and a short final representation`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             val output = BodyTestSink()
             val oversized = RequestBody.fromSource(BodyTestSource("abc".toByteArray()), Some(2L))
-            val overflow = expectBodyFailure<RequestBodyLengthException> suspend { oversized.writeTo(output) }
+            val overflow =
+                expectBodyFailure<RequestBodyLengthException> suspend { oversized.writeTo(output) }
             assertEquals(0L, overflow.transferredBytes)
             assertEquals(3L, overflow.rejectedBytes)
             assertEquals(0L, output.bytes.size)
-            val short = RequestBody.fromProducer(Some(6L)) suspend { sink -> writeBodyText(sink, "abc") }
-            val underflow = expectBodyFailure<RequestBodyLengthException> suspend { short.writeTo(output) }
+            val short =
+                RequestBody.fromProducer(Some(6L)) suspend { sink -> writeBodyText(sink, "abc") }
+            val underflow =
+                expectBodyFailure<RequestBodyLengthException> suspend { short.writeTo(output) }
             assertEquals(3L, underflow.transferredBytes)
             assertEquals(0L, underflow.rejectedBytes)
             assertEquals("abc", String.fromUtf8(output.bytes.toByteArray()))
-            val caught = RequestBody.fromProducer(Some(2L)) suspend { sink ->
-                writeBodyText(sink, "ok")
-                try { writeBodyText(sink, "x") }
-                catch (_: RequestBodyLengthException) {}
-            }
-            val final = expectBodyFailure<RequestBodyLengthException> suspend { caught.writeTo(BodyTestSink()) }
+            val caught =
+                RequestBody.fromProducer(Some(2L)) suspend {
+                    sink ->
+                    writeBodyText(sink, "ok")
+                    try {
+                        writeBodyText(sink, "x")
+                    }
+                    catch (_: RequestBodyLengthException) {}
+                }
+            val final =
+                expectBodyFailure<RequestBodyLengthException> suspend {
+                    caught.writeTo(BodyTestSink())
+                }
             assertEquals(2L, final.transferredBytes)
             assertEquals(1L, final.rejectedBytes)
         }
@@ -88,12 +117,18 @@ private class RequestBodyProducerTest {
     fun `a caught downstream failure cannot turn partial output into success`() {
         val output = BodyTestSink()
         output.failAfterProgress = true
-        val body = RequestBody.fromProducer suspend { sink ->
-            try { writeBodyText(sink, "four") }
-            catch (error: Throwable) { assertSame(output.failure, error) }
-        }
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        val body =
+            RequestBody.fromProducer suspend {
+                sink -> try {
+                    writeBodyText(sink, "four")
+                }
+                catch (error: Throwable) {
+                    assertSame(output.failure, error)
+                }
+            }
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val error = expectBodyFailure<Throwable> suspend { body.writeTo(output) }
             assertSame(output.failure, error)
             assertEquals("fo", String.fromUtf8(output.bytes.toByteArray()))
@@ -106,11 +141,13 @@ private class RequestBodyProducerTest {
         val saved = BodySinkCapture()
         val body = RequestBody.fromProducer(Some(0L)) suspend { sink -> saved.sink = Some(sink) }
         val output = BodyTestSink()
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             assertEquals(0L, body.writeTo(output))
             expectBodyFailure<IoClosedException> suspend { saved.sink!!.flush() }
-            NativeByteBuffer.allocate(1L).use suspend { buffer ->
+            NativeByteBuffer.allocate(1L).use suspend {
+                buffer ->
                 buffer.writeByte(42)
                 expectBodyFailure<IoClosedException> suspend { saved.sink!!.writeFrom(buffer, 1L) }
                 assertEquals(1L, buffer.readableBytes)

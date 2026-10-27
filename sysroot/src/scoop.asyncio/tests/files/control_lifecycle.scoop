@@ -8,28 +8,53 @@ import scoop.test.*
 private class AsyncFileControlLifecycleTest {
     @Test
     fun `file controls share the read write sync and close reservation`() {
-        IoTestDirectory().use { tree ->
+        IoTestDirectory().use {
+            tree ->
             val path = tree.child("data")
             path.writeText("data")
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { scope ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                scope ->
                 val file = loop.openFile(path, OpenOptions(write = true))
-                val querying = scope.launch suspend {
-                    try { file.metadata(); fail(Some("close lost before metadata delivery")) }
-                    catch (_: IoClosedException) {}
+                val querying =
+                    scope.launch suspend {
+                        try {
+                            file.metadata();
+                            fail(Some("close lost before metadata delivery"))
+                        }
+                        catch (_: IoClosedException) {}
+                    }
+                try {
+                    file.seek(1L);
+                    fail(Some("concurrent seek accepted"))
                 }
-                try { file.seek(1L); fail(Some("concurrent seek accepted")) }
                 catch (_: IllegalStateException) {}
-                try { file.position(); fail(Some("concurrent position accepted")) }
+                try {
+                    file.position();
+                    fail(Some("concurrent position accepted"))
+                }
                 catch (_: IllegalStateException) {}
-                try { file.truncate(1L); fail(Some("concurrent truncate accepted")) }
+                try {
+                    file.truncate(1L);
+                    fail(Some("concurrent truncate accepted"))
+                }
                 catch (_: IllegalStateException) {}
-                try { file.size(); fail(Some("concurrent metadata accepted")) }
+                try {
+                    file.size();
+                    fail(Some("concurrent metadata accepted"))
+                }
                 catch (_: IllegalStateException) {}
-                try { file.syncAll(); fail(Some("concurrent sync accepted")) }
+                try {
+                    file.syncAll();
+                    fail(Some("concurrent sync accepted"))
+                }
                 catch (_: IllegalStateException) {}
-                NativeByteBuffer.allocate(1L).use suspend { bytes ->
-                    try { file.readInto(bytes, 1L); fail(Some("concurrent read accepted")) }
+                NativeByteBuffer.allocate(1L).use suspend {
+                    bytes ->
+                    try {
+                        file.readInto(bytes, 1L);
+                        fail(Some("concurrent read accepted"))
+                    }
                     catch (_: IllegalStateException) {}
                     assertEquals(0L, bytes.writePosition)
                 }
@@ -38,11 +63,20 @@ private class AsyncFileControlLifecycleTest {
                 first.join()
                 second.join()
                 querying.join()
-                try { file.metadata(); fail(Some("closed metadata accepted")) }
+                try {
+                    file.metadata();
+                    fail(Some("closed metadata accepted"))
+                }
                 catch (_: IoClosedException) {}
-                try { file.seek(0L); fail(Some("closed seek accepted")) }
+                try {
+                    file.seek(0L);
+                    fail(Some("closed seek accepted"))
+                }
                 catch (_: IoClosedException) {}
-                try { file.truncate(0L); fail(Some("closed truncate accepted")) }
+                try {
+                    file.truncate(0L);
+                    fail(Some("closed truncate accepted"))
+                }
                 catch (_: IoClosedException) {}
                 assertEquals(4L, path.metadata().size)
             }
@@ -51,12 +85,14 @@ private class AsyncFileControlLifecycleTest {
 
     @Test
     fun `queued controls cancel without changing offset size or touching paths`() {
-        IoTestDirectory().use { tree ->
+        IoTestDirectory().use {
+            tree ->
             val path = tree.child("data")
             path.writeText("data")
-            val backend = LibuvEventLoop()
+            val backend = PlatformEventLoop()
             val loop: EventLoop = backend
-            loop.run suspend { scope ->
+            loop.run suspend {
+                scope ->
                 val file = loop.openFile(path, OpenOptions(write = true))
                 file.seek(1L)
                 val fence = WorkFence(backend)
@@ -80,7 +116,9 @@ private class AsyncFileControlLifecycleTest {
                     missing.join()
                     assertTrue(missing.isCancelled)
                     gcCollect()
-                } finally { fence.close() }
+                } finally {
+                    fence.close()
+                }
                 assertEquals(1L, file.position())
                 assertEquals(4L, file.size())
                 file.close()

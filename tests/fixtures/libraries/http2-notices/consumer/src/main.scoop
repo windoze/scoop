@@ -1,4 +1,5 @@
 package scoop.tests
+
 import scoop.asyncio.*
 import scoop.http.*
 import scoop.http.asyncio.*
@@ -8,16 +9,32 @@ import scoop.platform.net.*
 import scoop.text.toInt
 import scoop.time.Duration
 
-private fun check(value: Boolean) { if (!value) throw IllegalStateException(Some("HTTP/2 notice fixture failed")) }
-private fun <T> present(value: T?): Boolean = when (value) { case Some(_) -> true; case None -> false }
+private fun check(value: Boolean) {
+    if (!value)
+        throw IllegalStateException(Some("HTTP/2 notice fixture failed"))
+}
+
+private fun <T> present(value: T?): Boolean =
+    when (value) {
+        case Some(_) -> true;
+        case None -> false
+    }
 
 private class Signal {
     private var open: Boolean = false
     private var waiter: Continuation<Unit>? = None
-    fun signal() { open = true; val saved = waiter; waiter = None; saved?.resume(Unit) }
+    fun signal() {
+        open = true;
+        val saved = waiter;
+        waiter = None;
+        saved?.resume(Unit)
+    }
     suspend fun await() {
-        suspendCoroutine<Unit> { continuation ->
-            if (open) continuation.resume(Unit) else waiter = Some(continuation)
+        suspendCoroutine<Unit> {
+            continuation -> if (open)
+                continuation.resume(Unit)
+            else
+                waiter = Some(continuation)
         }
     }
 }
@@ -29,48 +46,78 @@ private class Notices {
     var stream: AsyncHttp2Stream? = None
     fun record(notice: Http2Notice) {
         when (notice) {
-            case Settings(_, ack) -> { if (!ack) settings.signal() }
+            case Settings(_, ack) -> {
+                if (!ack)
+                    settings.signal()
+            }
             case StreamFailure(id, error) -> {
                 check(present(stream) && stream!!.id == id && stream!!.failure!! === error)
-                errors.add((id, error)); failed.signal()
+                errors.add((id, error));
+                failed.signal()
             }
             else -> {}
         }
     }
 }
 
-private fun request(method: String = "GET"): HttpRequestHead = HttpRequestHead(HttpVersion.Http2,
-    method.toByteArray(), HttpRequestTarget.Http2("http".toByteArray(), "localhost".toByteArray(), "/".toByteArray()))
+private fun request(method: String = "GET"): HttpRequestHead =
+    HttpRequestHead(
+        HttpVersion.Http2,
+        method.toByteArray(),
+        HttpRequestTarget.Http2("http".toByteArray(), "localhost".toByteArray(), "/".toByteArray())
+    )
 
 private suspend fun successful(stream: AsyncHttp2Stream) {
     check(stream.receiveResponse().status == 204U)
     check(stream.readAllBytes(0L).size == 0L && !present(stream.failure))
-    stream.close(); stream.close()
+    stream.close();
+    stream.close()
 }
 
 private suspend fun exerciseFailure(client: AsyncHttp2Connection, notices: Notices, mode: String) {
-    val options = if (mode == "timeout") HttpIoTimeoutOptions(writeIdle = Some(Duration.milliseconds(600L)))
-        else HttpIoTimeoutOptions()
-    val first = client.openRequest(request(if (mode == "timeout") "POST" else "GET"), mode != "timeout", options)
+    val options =
+        if (mode == "timeout")
+            HttpIoTimeoutOptions(writeIdle = Some(Duration.milliseconds(600L)))
+        else
+            HttpIoTimeoutOptions()
+    val first =
+        client.openRequest(
+            request(
+                if (mode == "timeout")
+                    "POST"
+                else
+                    "GET"
+            ),
+            mode != "timeout",
+            options
+        )
     notices.stream = Some(first)
     check(first.receiveResponse().status == 200U)
-    if (mode == "timeout") NativeByteBuffer.allocate(1L).use suspend { buffer ->
-        buffer.writeByte(97); check(first.writeFrom(buffer, 1L) == 1L)
-    }
+    if (mode == "timeout")
+        NativeByteBuffer.allocate(1L).use suspend {
+            buffer ->
+            buffer.writeByte(97);
+            check(first.writeFrom(buffer, 1L) == 1L)
+        }
     val probe = client.openRequest(request())
     successful(probe)
     notices.failed.await()
     check(notices.errors.size == 1L)
-    val (id, error) = notices.errors[0L]
+    val(id, error) = notices.errors[0L]
     check(id == first.id && first.failure!! === error)
     if (mode == "timeout") {
-        if (error is HttpIoTimeoutException) check(error.direction == HttpIoDirection.Write && error.streamId == id)
-        else check(false)
+        if (error is HttpIoTimeoutException)
+            check(error.direction == HttpIoDirection.Write && error.streamId == id)
+        else
+            check(false)
     } else {
-        if (error is HttpException) check(error.scope == HttpFailureScope.Stream && error.code == 8)
-        else check(false)
+        if (error is HttpException)
+            check(error.scope == HttpFailureScope.Stream && error.code == 8)
+        else
+            check(false)
     }
-    first.close(); first.close()
+    first.close();
+    first.close()
     check(first.failure!! === error && !client.isClosed)
     successful(client.openRequest(request()))
     check(notices.errors.size == 1L)
@@ -79,24 +126,34 @@ private suspend fun exerciseFailure(client: AsyncHttp2Connection, notices: Notic
 private suspend fun exerciseNormal(client: AsyncHttp2Connection, notices: Notices) {
     successful(client.openRequest(request()))
     val second = client.openRequest(request("POST"), false)
-    second.close(); second.close()
+    second.close();
+    second.close()
     check(second.failure!! is IoClosedException)
     successful(client.openRequest(request()))
     check(notices.errors.size == 0L)
 }
 
 private fun exercise(mode: String, address: SocketAddress) {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope ->
         val notices = Notices()
-        val client = AsyncHttp2Connection.takeOwnershipAsClient(loop.connectTcp(address), scope,
-            onEvent = { notice -> notices.record(notice) })
+        val client =
+            AsyncHttp2Connection.takeOwnershipAsClient(
+                loop.connectTcp(address),
+                scope,
+                onEvent = { notice -> notices.record(notice) }
+            )
         try {
             notices.settings.await()
-            if (mode == "normal") exerciseNormal(client, notices)
-            else exerciseFailure(client, notices, mode)
+            if (mode == "normal")
+                exerciseNormal(client, notices)
+            else
+                exerciseFailure(client, notices, mode)
             check(!scope.job.isCancelled)
-        } finally { client.close() }
+        } finally {
+            client.close()
+        }
     }
 }
 
@@ -104,6 +161,10 @@ fun main(args: Array<String>) {
     check(args.size == 3L)
     val mode = args[1L]
     val address = SocketAddress(IpAddress.IPV4_LOOPBACK, args[2L].toInt())
-    Thread.start { exercise(mode, address) }.use { thread -> exercise(mode, address); thread.join() }
+    Thread.start { exercise(mode, address) }.use {
+        thread ->
+        exercise(mode, address);
+        thread.join()
+    }
     println(mode + " notices passed")
 }

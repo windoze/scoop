@@ -10,14 +10,19 @@ import scoop.test.*
 private class AsyncTemporaryFileTest {
     @Test
     fun `temporary creation returns unique open read write files and close retains paths`() {
-        IoTestDirectory().use { tree ->
+        IoTestDirectory().use {
+            tree ->
             val raw: Array<Byte> = [116, -1, 32, 112]
-            val name = if (operatingSystem == OperatingSystem.Linux) OsString.fromByteArray(raw)
-                else OsString.fromString("临时 空格")
+            val name =
+                if (operatingSystem == OperatingSystem.Linux)
+                    OsString.fromByteArray(raw)
+                else
+                    OsString.fromString("临时 空格")
             val directory = tree.path.resolve(Path.fromOsString(name))
             directory.createDirectory()
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { _ ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                _ ->
                 val first = loop.createTempFile(Some(directory), "prefix-")
                 val second = loop.createTempFile(Some(directory), "prefix-")
                 assertFalse(first.path == second.path)
@@ -27,7 +32,8 @@ private class AsyncTemporaryFileTest {
                 assertEquals(0L, info.size)
                 assertTrue(info.kind == FileKind.Regular)
                 assertEquals(0, info.permissions and 0x3f)
-                NativeByteBuffer.allocate(3L).use suspend { bytes ->
+                NativeByteBuffer.allocate(3L).use suspend {
+                    bytes ->
                     bytes.writeBytes("one".toByteArray())
                     first.file.writeFully(bytes)
                     gcCollect()
@@ -41,7 +47,10 @@ private class AsyncTemporaryFileTest {
                 second.close()
                 assertEquals("one", first.path.readText())
                 assertTrue(second.path.exists())
-                try { first.file.position(); fail(Some("closed temporary file was usable")) }
+                try {
+                    first.file.position();
+                    fail(Some("closed temporary file was usable"))
+                }
                 catch (_: IoClosedException) {}
                 loop.deleteFile(first.path)
                 loop.deleteFile(second.path)
@@ -51,33 +60,52 @@ private class AsyncTemporaryFileTest {
 
     @Test
     fun `temporary defaults prefixes and native errors preserve ordinary file contracts`() {
-        IoTestDirectory().use { tree ->
+        IoTestDirectory().use {
+            tree ->
             val missing = tree.child("missing")
             val ordinary = tree.child("ordinary")
             ordinary.writeText("file")
             val invalid: Array<Byte> = [120, 0, 121]
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { _ ->
-                try { loop.createTempFile(Some(tree.path), "bad/name"); fail(Some("slash in prefix accepted")) }
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                _ ->
+                try {
+                    loop.createTempFile(Some(tree.path), "bad/name");
+                    fail(Some("slash in prefix accepted"))
+                }
                 catch (_: IllegalArgumentException) {}
                 try {
-                    loop.createTempFile(Some(tree.path), OsString.fromByteArray(invalid).decodeUtf8())
+                    loop.createTempFile(
+                        Some(tree.path),
+                        OsString.fromByteArray(invalid).decodeUtf8()
+                    )
                     fail(Some("NUL in prefix accepted"))
                 } catch (_: IllegalArgumentException) {}
-                try { loop.createTempFile(Some(missing)); fail(Some("missing parent accepted")) }
+                try {
+                    loop.createTempFile(Some(missing));
+                    fail(Some("missing parent accepted"))
+                }
                 catch (error: PlatformException) {
                     assertTrue(error.kind == PlatformErrorKind.NotFound)
                     assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
                     assertEquals(missing.toOsString(), error.context!!)
                 }
-                try { loop.createTempFile(Some(ordinary)); fail(Some("ordinary file accepted as parent")) }
-                catch (error: PlatformException) { assertTrue(error.kind == PlatformErrorKind.NotDirectory) }
-                val emptyPrefix = loop.createTempFile(Some(tree.path), "").useAsync suspend { temporary ->
-                    assertEquals(6L, temporary.path.fileName!!.toByteArray().size)
-                    temporary.path
+                try {
+                    loop.createTempFile(Some(ordinary));
+                    fail(Some("ordinary file accepted as parent"))
                 }
+                catch (error: PlatformException) {
+                    assertTrue(error.kind == PlatformErrorKind.NotDirectory)
+                }
+                val emptyPrefix =
+                    loop.createTempFile(Some(tree.path), "").useAsync suspend {
+                        temporary ->
+                        assertEquals(6L, temporary.path.fileName!!.toByteArray().size)
+                        temporary.path
+                    }
                 loop.deleteFile(emptyPrefix)
-                val defaultPath = loop.createTempFile().useAsync suspend { temporary -> temporary.path }
+                val defaultPath =
+                    loop.createTempFile().useAsync suspend { temporary -> temporary.path }
                 assertEquals(temporaryDirectory(), defaultPath.parent!!)
                 loop.deleteFile(defaultPath)
             }
@@ -86,14 +114,18 @@ private class AsyncTemporaryFileTest {
 
     @Test
     fun `a temporary handle keeps the created file after its path is moved or replaced`() {
-        IoTestDirectory().use { tree ->
+        IoTestDirectory().use {
+            tree ->
             val destination = tree.child("published")
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { _ ->
-                loop.createTempFile(Some(tree.path)).useAsync suspend { temporary ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                _ ->
+                loop.createTempFile(Some(tree.path)).useAsync suspend {
+                    temporary ->
                     loop.moveFile(temporary.path, destination)
                     temporary.path.writeText("replacement")
-                    NativeByteBuffer.allocate(1L).use suspend { bytes ->
+                    NativeByteBuffer.allocate(1L).use suspend {
+                        bytes ->
                         bytes.writeByte(42)
                         temporary.file.writeFully(bytes)
                     }

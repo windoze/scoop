@@ -1,0 +1,130 @@
+package scoop.asyncio
+
+import scoop.platform.concurrent.Thread
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.test.*
+
+private class HostProgress {
+    var turns: Long = 0L
+    var packets: Long = 0L
+    var started: Boolean = false
+    var cleaned: Boolean = false
+    var postedAt: Long = 0L
+    var closedAt: Long = 0L
+}
+
+@Test
+private class EventLoopHostProgressTest {
+    @Test
+    fun `an idle session has no polling callbacks and a later post wakes it`() {
+        val host = PollHost()
+        val progress = HostProgress()
+        val session =
+            PlatformEventLoop().attach(host) {
+                error ->
+                assertNoHostFailure(error)
+                progress.closedAt = hostClock()
+            }
+        host.step()
+        val callbacks = host.callbacks
+        val cpu = hostClock(1)
+        @Unsafe
+        {
+            assertEquals(0, nativeTestHostPoll(host.descriptor, 50))
+        }
+        println("host_idle_cpu_ns=" + (hostClock(1) - cpu).toString())
+        assertEquals(callbacks, host.callbacks)
+        val start = hostClock()
+        assertTrue(
+            session.post {
+                _ ->
+                progress.postedAt = hostClock()
+                session.requestClose()
+            }
+        )
+        host.drain(session)
+        println("host_post_ns=" + (progress.postedAt - start).toString())
+        println("host_close_ns=" + (progress.closedAt - progress.postedAt).toString())
+    }
+
+    @Test
+    fun `continuous datagrams leave host turns between completions`() {
+        val progress = HostProgress()
+        val host = PollHost()
+        val session = PlatformEventLoop().attach(host) { error -> assertNoHostFailure(error) }
+        session.post {
+            scope -> scope.launch suspend {
+                val loop = currentEventLoop()
+                loop.bindUdp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend {
+                    socket -> NativeByteBuffer.allocate(1L).use suspend {
+                        bytes ->
+                        var lastTurn = 0L
+                        for (_ in 0 ..< 64) {
+                            bytes.clear()
+                            bytes.writeByte(42)
+                            assertEquals(1L, socket.sendTo(bytes, socket.localAddress, 1L))
+                            bytes.clear()
+                            assertEquals(1L, socket.receiveFrom(bytes, 1L).count)
+                            assertEquals(42.toByte(), bytes.readByte())
+                            assertTrue(progress.turns > lastTurn)
+                            lastTurn = progress.turns
+                            progress.packets += 1L
+                        }
+                    }
+                }
+                session.requestClose()
+            }
+        }
+        var previous = hostClock()
+        var maximum = 0L
+        while (!session.isClosed) {
+            host.step()
+            progress.turns += 1L
+            val current = hostClock()
+            if (current - previous > maximum)
+                maximum = current - previous
+            previous = current
+        }
+        assertEquals(64L, progress.packets)
+        assertEquals(1L, host.removals)
+        println("host_max_turn_ns=" + maximum.toString())
+    }
+
+    @Test
+    fun `foreign close rejects posts while an outstanding buffer borrow drains after GC`() {
+        val progress = HostProgress()
+        val host = PollHost()
+        val session = PlatformEventLoop().attach(host) { error -> assertNoHostFailure(error) }
+        session.post {
+            scope -> scope.launch suspend {
+                currentEventLoop().bindUdp(
+                    SocketAddress(IpAddress.IPV4_LOOPBACK, 0)
+                ).useAsync suspend {
+                    socket -> NativeByteBuffer.allocate(1L).use suspend {
+                        bytes -> try {
+                            progress.started = true
+                            socket.receiveFrom(bytes, 1L)
+                        } finally {
+                            bytes.clear()
+                            progress.cleaned = true
+                        }
+                    }
+                }
+            }
+        }
+        while (!progress.started)
+            host.step()
+        // Enter the receive, then publish its SQE or finish its source registration.
+        host.step()
+        host.step()
+        gcCollect()
+        Thread.start {
+            session.requestClose()
+            assertFalse(session.post { _ -> fail(Some("closing session accepted post")) })
+        }.use { it.join() }
+        assertFalse(session.isClosed)
+        host.drain(session)
+        assertTrue(progress.cleaned)
+    }
+}

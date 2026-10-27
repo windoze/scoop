@@ -10,32 +10,54 @@ import scoop.tls.TlsTrustSource
 private class HttpClientPoolExpiryTest {
     @Test
     fun `an idle deadline closes the transport without a later request`() {
-        clientTestTrust().use { trust ->
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { scope ->
-                clientTestListen(loop).useAsync suspend { listener ->
+        clientTestTrust().use {
+            trust ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                scope -> clientTestListen(loop).useAsync suspend {
+                    listener ->
                     val reclaimed = BodyTestGate()
-                    val serving = scope.launch suspend {
-                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
-                            connection.receiveRequest()!!.body.readAllBytes(0L)
-                            sendClientTestText(connection, 200U, "old")
-                            assertFalse(clientPresent(connection.receiveRequest()))
-                            reclaimed.signal()
+                    val serving =
+                        scope.launch suspend {
+                            AsyncHttp1Connection.takeOwnershipAsServer(
+                                listener.accept(),
+                                scope
+                            ).useAsync suspend {
+                                connection ->
+                                connection.receiveRequest()!!.body.readAllBytes(0L)
+                                sendClientTestText(connection, 200U, "old")
+                                assertFalse(clientPresent(connection.receiveRequest()))
+                                reclaimed.signal()
+                            }
+                            AsyncHttp1Connection.takeOwnershipAsServer(
+                                listener.accept(),
+                                scope
+                            ).useAsync suspend {
+                                connection ->
+                                connection.receiveRequest()!!.body.readAllBytes(0L)
+                                sendClientTestText(connection, 200U, "new")
+                            }
                         }
-                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
-                            connection.receiveRequest()!!.body.readAllBytes(0L)
-                            sendClientTestText(connection, 200U, "new")
-                        }
-                    }
-                    val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
-                        pool = HttpConnectionPoolOptions(idleTimeout = Duration.milliseconds(10L)))
-                    withHttpClient(config) suspend { client ->
-                        client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend { response ->
-                            assertEquals("old", String.fromUtf8(response.body.readAllBytes(3L)))
+                    val config =
+                        HttpClientConfig(
+                            tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                            pool =
+                                HttpConnectionPoolOptions(idleTimeout = Duration.milliseconds(10L))
+                        )
+                    withHttpClient(config) suspend {
+                        client ->
+                        client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend {
+                            response -> assertEquals(
+                                "old",
+                                String.fromUtf8(response.body.readAllBytes(3L))
+                            )
                         }
                         reclaimed.await()
-                        client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend { response ->
-                            assertEquals("new", String.fromUtf8(response.body.readAllBytes(3L)))
+                        client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend {
+                            response -> assertEquals(
+                                "new",
+                                String.fromUtf8(response.body.readAllBytes(3L))
+                            )
                         }
                     }
                     serving.join()
@@ -46,32 +68,56 @@ private class HttpClientPoolExpiryTest {
 
     @Test
     fun `maximum lifetime stops new leases while an existing response remains readable`() {
-        clientTestTrust().use { trust ->
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { scope ->
-                clientTestListen(loop).useAsync suspend { listener ->
-                    val serving = scope.launch suspend {
-                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
-                            connection.receiveRequest()!!.body.readAllBytes(0L)
-                            sendClientTestText(connection, 200U, "old")
-                            assertFalse(clientPresent(connection.receiveRequest()))
-                        }
-                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
-                            connection.receiveRequest()!!.body.readAllBytes(0L)
-                            sendClientTestText(connection, 200U, "new")
-                        }
-                    }
-                    val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
-                        pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L,
-                            maxLifetime = Some(Duration.milliseconds(10L))))
-                    withHttpClient(config) suspend { client ->
-                        val held = client.execute(HttpRequest.get(clientTestUrl(listener)))
-                        loop.sleep(Duration.milliseconds(30L))
-                        val next = scope.launch suspend {
-                            client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend { response ->
-                                assertEquals("new", String.fromUtf8(response.body.readAllBytes(3L)))
+        clientTestTrust().use {
+            trust ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                scope -> clientTestListen(loop).useAsync suspend {
+                    listener ->
+                    val serving =
+                        scope.launch suspend {
+                            AsyncHttp1Connection.takeOwnershipAsServer(
+                                listener.accept(),
+                                scope
+                            ).useAsync suspend {
+                                connection ->
+                                connection.receiveRequest()!!.body.readAllBytes(0L)
+                                sendClientTestText(connection, 200U, "old")
+                                assertFalse(clientPresent(connection.receiveRequest()))
+                            }
+                            AsyncHttp1Connection.takeOwnershipAsServer(
+                                listener.accept(),
+                                scope
+                            ).useAsync suspend {
+                                connection ->
+                                connection.receiveRequest()!!.body.readAllBytes(0L)
+                                sendClientTestText(connection, 200U, "new")
                             }
                         }
+                    val config =
+                        HttpClientConfig(
+                            tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                            pool =
+                                HttpConnectionPoolOptions(
+                                    maxConnectionsPerOrigin = 1L,
+                                    maxLifetime = Some(Duration.milliseconds(10L))
+                                )
+                        )
+                    withHttpClient(config) suspend {
+                        client ->
+                        val held = client.execute(HttpRequest.get(clientTestUrl(listener)))
+                        loop.sleep(Duration.milliseconds(30L))
+                        val next =
+                            scope.launch suspend {
+                                client.withResponse(
+                                    HttpRequest.get(clientTestUrl(listener))
+                                ) suspend {
+                                    response -> assertEquals(
+                                        "new",
+                                        String.fromUtf8(response.body.readAllBytes(3L))
+                                    )
+                                }
+                            }
                         assertFalse(next.isCompleted)
                         assertEquals("old", String.fromUtf8(held.body.readAllBytes(3L)))
                         held.close()

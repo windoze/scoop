@@ -1,4 +1,5 @@
 package scoop.tests
+
 import scoop.asyncio.*
 import scoop.tests.scoop.crypto.testdata.rootPem
 import scoop.crypto.x509.TrustStore
@@ -9,15 +10,25 @@ import scoop.platform.memory.NativeByteBuffer
 import scoop.tls.TlsTrustSource
 import scoop.url.Url
 
-private fun check(value: Boolean) { if (!value) throw IllegalStateException(Some("HTTP h2c integration check failed")) }
+private fun check(value: Boolean) {
+    if (!value)
+        throw IllegalStateException(Some("HTTP h2c integration check failed"))
+}
 
-private suspend fun reply(client: HttpClient, request: HttpRequest, version: HttpVersion, text: String) {
-    client.withResponse(request) suspend { response ->
+private suspend fun reply(
+    client: HttpClient,
+    request: HttpRequest,
+    version: HttpVersion,
+    text: String
+) {
+    client.withResponse(request) suspend {
+        response ->
         check(response.version == version && response.status == 200U)
         check(String.fromUtf8(response.body.readAllBytes(100L)) == text)
         if (request.method == "POST" && version == HttpVersion.Http2)
             check(String.fromUtf8(response.trailers!![0L].value) == "yes")
-        if (request.method == "HEAD") check(response.wireContentLength == Some(123L))
+        if (request.method == "HEAD")
+            check(response.wireContentLength == Some(123L))
         Unit
     }
 }
@@ -29,7 +40,8 @@ private suspend fun exercise(client: HttpClient, mode: String, base: Url) {
         first.close()
         check(String.fromUtf8(second.body.readAllBytes(5L)) == "other")
         second.close()
-        client.withResponse(HttpRequest.get(base.resolve("third"))) suspend { response ->
+        client.withResponse(HttpRequest.get(base.resolve("third"))) suspend {
+            response ->
             check(response.version == HttpVersion.Http2 && response.status == 204U)
             response.body.readAllBytes(0L)
             Unit
@@ -38,33 +50,68 @@ private suspend fun exercise(client: HttpClient, mode: String, base: Url) {
     }
     val started = AtomicBoolean(false)
     val payload = "请求一次".toByteArray()
-    val body = RequestBody.fromProducer(Some(payload.size)) suspend { output ->
-        check(!started.exchange(true))
-        NativeByteBuffer.allocate(payload.size).use suspend { buffer ->
-            buffer.writeBytes(payload)
-            output.writeFully(buffer)
+    val body =
+        RequestBody.fromProducer(Some(payload.size)) suspend {
+            output ->
+            check(!started.exchange(true))
+            NativeByteBuffer.allocate(payload.size).use suspend {
+                buffer ->
+                buffer.writeBytes(payload)
+                output.writeFully(buffer)
+            }
         }
-    }
-    val request = if (mode == "head") HttpRequest.head(base) else HttpRequest.post(base, body)
+    val request =
+        if (mode == "head")
+            HttpRequest.head(base)
+        else
+            HttpRequest.post(base, body)
     if (mode == "required" || mode == "malformed") {
         var failed = false
-        try { client.execute(request).close() }
-        catch (_: HttpNegotiationException) { failed = true }
+        try {
+            client.execute(request).close()
+        }
+        catch (_: HttpNegotiationException) {
+            failed = true
+        }
         check(failed && started.load())
     } else {
-        val version = if (mode == "declined") HttpVersion.Http11 else HttpVersion.Http2
-        reply(client, request, version, if (mode == "head") "" else if (mode == "declined") "declined" else "post-result")
+        val version =
+            if (mode == "declined")
+                HttpVersion.Http11
+            else
+                HttpVersion.Http2
+        reply(
+            client,
+            request,
+            version,
+            if (mode == "head")
+                ""
+            else
+                if (mode == "declined")
+                    "declined"
+                else
+                    "post-result"
+        )
         reply(client, HttpRequest.get(base.resolve("next")), version, "next")
     }
 }
 
 private fun runClient(mode: String, base: Url, trust: TrustStore) {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
-        val config = HttpClientConfig(cleartext = HttpCleartextProtocol.H2cUpgrade,
-            versionPolicy = if (mode == "required") HttpVersionPolicy.Http2Only else HttpVersionPolicy.Auto,
-            tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)), http2Settings = Http2Settings(initialWindowSize = 32U),
-            pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L))
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope ->
+        val config =
+            HttpClientConfig(
+                cleartext = HttpCleartextProtocol.H2cUpgrade,
+                versionPolicy =
+                    if (mode == "required")
+                        HttpVersionPolicy.Http2Only
+                    else
+                        HttpVersionPolicy.Auto,
+                tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                http2Settings = Http2Settings(initialWindowSize = 32U),
+                pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L)
+            )
         withHttpClient(config) suspend { client -> exercise(client, mode, base) }
         check(!scope.job.isCancelled)
     }
@@ -74,8 +121,9 @@ fun main(args: Array<String>) {
     check(args.size == 3L)
     val mode = args[1L]
     val base = Url.parse(args[2L])
-    TrustStore.fromPem(rootPem()).use { trust ->
-        Thread.start { runClient(mode, base, trust) }.use { thread ->
+    TrustStore.fromPem(rootPem()).use {
+        trust -> Thread.start { runClient(mode, base, trust) }.use {
+            thread ->
             runClient(mode, base, trust)
             thread.join()
         }

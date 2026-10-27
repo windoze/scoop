@@ -10,8 +10,9 @@ private class AsyncReadAllTests {
         val raw = ShortSource("prefix:中🌍".toByteArray())
         raw.position = 7L
         val source = ObservedCollectSource(raw)
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             val bytes = source.readAllBytes()
             assertEquals("中🌍", String.fromUtf8(bytes))
             assertEquals(0L, source.readAllBytes().size)
@@ -27,7 +28,7 @@ private class AsyncReadAllTests {
         val raw = ShortSource([1, 2, 3, 4])
         raw.failAfter = 2L
         val source = ObservedCollectSource(raw)
-        val loop: EventLoop = LibuvEventLoop()
+        val loop: EventLoop = PlatformEventLoop()
         val error = assertFailsWith<Throwable> { loop.run suspend { _ -> source.readAllBytes() } }
         assertSame(raw.failure, error)
         assertEquals(2L, raw.position)
@@ -39,8 +40,10 @@ private class AsyncReadAllTests {
     fun `readAllBytes rejects invalid progress before copying bytes`() {
         for (progress in [-1L, 8193L]) {
             val source = InvalidCollectSource(progress)
-            val loop: EventLoop = LibuvEventLoop()
-            assertFailsWith<IllegalStateException> { loop.run suspend { _ -> source.readAllBytes() } }
+            val loop: EventLoop = PlatformEventLoop()
+            assertFailsWith<IllegalStateException> {
+                loop.run suspend { _ -> source.readAllBytes() }
+            }
             assertTrue(source.buffer!!.isClosed)
             assertEquals(1, source.calls)
         }
@@ -49,13 +52,20 @@ private class AsyncReadAllTests {
     @Test
     fun `readAllBytes cancellation waits for the source borrow and stops before another read`() {
         val source = HeldCollectSource()
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val returned = AtomicBoolean(false)
-            val reading = scope.launch suspend {
-                try { source.readAllBytes(); fail(Some("cancelled collection completed")) }
-                catch (_: CancellationException) { returned.store(true) }
-            }
+            val reading =
+                scope.launch suspend {
+                    try {
+                        source.readAllBytes();
+                        fail(Some("cancelled collection completed"))
+                    }
+                    catch (_: CancellationException) {
+                        returned.store(true)
+                    }
+                }
             source.started.await()
             try {
                 reading.cancel()
@@ -67,22 +77,26 @@ private class AsyncReadAllTests {
                 assertTrue(returned.load())
                 assertTrue(source.buffer!!.isClosed)
                 assertEquals(1, source.calls)
-            } finally { source.release.signal() }
+            } finally {
+                source.release.signal()
+            }
         }
     }
 }
 
-private class ObservedCollectSource(val inner: ShortSource) : AsyncByteSource, AsyncCloseable {
+private class ObservedCollectSource(val inner: ShortSource): AsyncByteSource, AsyncCloseable {
     var buffer: NativeByteBuffer? = None
     var closes: Int = 0
     public override suspend fun readInto(target: NativeByteBuffer, count: Long): Long {
         buffer = Some(target)
         return inner.readInto(target, count)
     }
-    public override suspend fun close() { closes += 1 }
+    public override suspend fun close() {
+        closes += 1
+    }
 }
 
-private class InvalidCollectSource(val progress: Long) : AsyncByteSource {
+private class InvalidCollectSource(val progress: Long): AsyncByteSource {
     var buffer: NativeByteBuffer? = None
     var calls: Int = 0
     public override suspend fun readInto(target: NativeByteBuffer, count: Long): Long {

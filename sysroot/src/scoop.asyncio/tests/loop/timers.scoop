@@ -8,10 +8,10 @@ import scoop.time.Duration
 private class EventLoopTimerTest {
     @Test
     fun `timers advance together and never complete before their monotonic duration`() {
-        val loop: EventLoop = LibuvEventLoop()
+        val loop: EventLoop = PlatformEventLoop()
         val completed = AtomicLong(0L)
-        loop.run suspend { scope ->
-            for (index in 1L..16L) {
+        loop.run suspend {
+            scope -> for (index in 1L .. 16L) {
                 scope.launch suspend {
                     val start = MonotonicTimeSource.markNow()
                     val duration = Duration.microseconds(index * 100L)
@@ -26,23 +26,36 @@ private class EventLoopTimerTest {
 
     @Test
     fun `cancel before native submission waits for finally and does not stop the loop`() {
-        val loop: EventLoop = LibuvEventLoop()
+        val loop: EventLoop = PlatformEventLoop()
         val finished = AtomicLong(0L)
-        loop.run suspend { scope ->
-            val child = scope.launch suspend {
-                try { loop.sleep(Duration.days(1000000L)); fail(Some("cancelled timer returned")) }
-                finally { finished.fetchAdd(1L) }
-            }
+        loop.run suspend {
+            scope ->
+            val child =
+                scope.launch suspend {
+                    try {
+                        loop.sleep(Duration.days(1000000L));
+                        fail(Some("cancelled timer returned"))
+                    }
+                    finally {
+                        finished.fetchAdd(1L)
+                    }
+                }
             child.cancel()
             child.cancel()
             child.join()
             assertTrue(child.isCompleted)
             loop.sleep(Duration.nanoseconds(1L))
-            val alreadyCancelled = scope.launch suspend {
-                currentJobOrNone()!!.cancel()
-                try { loop.sleep(Duration.ZERO); fail(Some("zero timer ignored cancellation")) }
-                catch (_: CancellationException) { finished.fetchAdd(1L) }
-            }
+            val alreadyCancelled =
+                scope.launch suspend {
+                    currentJobOrNone()!!.cancel()
+                    try {
+                        loop.sleep(Duration.ZERO);
+                        fail(Some("zero timer ignored cancellation"))
+                    }
+                    catch (_: CancellationException) {
+                        finished.fetchAdd(1L)
+                    }
+                }
             alreadyCancelled.join()
         }
         assertEquals(2L, finished.load())
@@ -50,13 +63,19 @@ private class EventLoopTimerTest {
 
     @Test
     fun `cancel an active timer waits for native close and completed results stay successful`() {
-        val loop: EventLoop = LibuvEventLoop()
+        val loop: EventLoop = PlatformEventLoop()
         val cleaned = AtomicBoolean(false)
-        loop.run suspend { scope ->
-            val pending = scope.launch suspend {
-                try { loop.sleep(Duration.seconds(Long.MAX_VALUE)) }
-                finally { cleaned.store(true) }
-            }
+        loop.run suspend {
+            scope ->
+            val pending =
+                scope.launch suspend {
+                    try {
+                        loop.sleep(Duration.seconds(Long.MAX_VALUE))
+                    }
+                    finally {
+                        cleaned.store(true)
+                    }
+                }
             // This native completion proves the earlier timer has been submitted.
             loop.sleep(Duration.nanoseconds(1L))
             gcCollect()
@@ -65,7 +84,11 @@ private class EventLoopTimerTest {
             assertFalse(cleaned.load())
             pending.join()
             assertTrue(cleaned.load())
-            val completed = scope.async<Int> suspend { loop.sleep(Duration.nanoseconds(1L)); 42 }
+            val completed =
+                scope.async<Int> suspend {
+                    loop.sleep(Duration.nanoseconds(1L));
+                    42
+                }
             assertEquals(42, completed.await())
             completed.cancel()
             assertEquals(42, completed.await())

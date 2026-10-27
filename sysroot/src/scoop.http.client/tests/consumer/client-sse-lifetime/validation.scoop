@@ -9,31 +9,94 @@ import scoop.time.Duration
 import scoop.url.Url
 
 internal fun sseValidation(trust: TrustStore) {
-    assertFailsWith<IllegalArgumentException> { val ignored = HttpSseOptions(bufferSize = 0L); Unit }
-    assertFailsWith<IllegalArgumentException> { val ignored = HttpSseReconnectOptions(initialDelay = Duration.milliseconds(-1L)); Unit }
-    assertFailsWith<IllegalArgumentException> { val ignored = HttpSseReconnectOptions(maxDelay = Duration.ZERO); Unit }
-    assertFailsWith<IllegalArgumentException> { val ignored = HttpSseReconnectOptions(maxReconnects = Some(-1L)); Unit }
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { _ ->
-        withHttpClient(sseConfig(trust)) suspend { client ->
+    assertFailsWith<IllegalArgumentException> {
+        val ignored = HttpSseOptions(bufferSize = 0L);
+        Unit
+    }
+    assertFailsWith<IllegalArgumentException> {
+        val ignored = HttpSseReconnectOptions(initialDelay = Duration.milliseconds(-1L));
+        Unit
+    }
+    assertFailsWith<IllegalArgumentException> {
+        val ignored = HttpSseReconnectOptions(maxDelay = Duration.ZERO);
+        Unit
+    }
+    assertFailsWith<IllegalArgumentException> {
+        val ignored = HttpSseReconnectOptions(maxReconnects = Some(-1L));
+        Unit
+    }
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        _ -> withHttpClient(sseConfig(trust)) suspend {
+            client ->
             val url = Url.parse("http://127.0.0.1:1/")
             val request = HttpRequest.get(url)
-            assertTrue(sseFailure suspend { client.openSse(request, HttpSseOptions(initialLastEventId = Some("x\r\ny"))); Unit }
-                is IllegalArgumentException)
-            assertTrue(sseFailure suspend { client.openSse(HttpRequest.get(url, fields = [sseField("Last-Event-ID", "a"),
-                sseField("Last-Event-ID", "b")])); Unit } is IllegalArgumentException)
-            assertTrue(sseFailure suspend { client.openSse(HttpRequest.get(url, fields = [sseField("Last-Event-ID", "a")]),
-                HttpSseOptions(initialLastEventId = Some("b"))); Unit } is IllegalArgumentException)
-            assertTrue(sseFailure suspend { client.openSse(HttpRequest.get(url, options = HttpCallOptions(cacheMode = HttpCacheMode.OnlyIfCached))); Unit }
-                is IllegalArgumentException)
-            assertTrue(sseFailure suspend { client.openSse(HttpRequest.get(url, fields = [sseField("Cache-Control", "only-if-cached")])); Unit }
-                is IllegalArgumentException)
+            assertTrue(
+                sseFailure suspend {
+                    client.openSse(request, HttpSseOptions(initialLastEventId = Some("x\r\ny")));
+                    Unit
+                } is
+                    IllegalArgumentException
+            )
+            assertTrue(
+                sseFailure suspend {
+                    client.openSse(
+                        HttpRequest.get(
+                            url,
+                            fields =
+                                [sseField("Last-Event-ID", "a"), sseField("Last-Event-ID", "b")]
+                        )
+                    );
+                    Unit
+                } is
+                    IllegalArgumentException
+            )
+            assertTrue(
+                sseFailure suspend {
+                    client.openSse(
+                        HttpRequest.get(url, fields = [sseField("Last-Event-ID", "a")]),
+                        HttpSseOptions(initialLastEventId = Some("b"))
+                    );
+                    Unit
+                } is
+                    IllegalArgumentException
+            )
+            assertTrue(
+                sseFailure suspend {
+                    client.openSse(
+                        HttpRequest.get(
+                            url,
+                            options = HttpCallOptions(cacheMode = HttpCacheMode.OnlyIfCached)
+                        )
+                    );
+                    Unit
+                } is
+                    IllegalArgumentException
+            )
+            assertTrue(
+                sseFailure suspend {
+                    client.openSse(
+                        HttpRequest.get(url, fields = [sseField("Cache-Control", "only-if-cached")])
+                    );
+                    Unit
+                } is
+                    IllegalArgumentException
+            )
             val called = AtomicBoolean(false)
             val body = RequestBody.fromProducer(Some(0L)) suspend { _ -> called.store(true) }
-            val failure = sseFailure suspend { client.openSse(HttpRequest(url, "POST", body = body),
-                HttpSseOptions(reconnect = Some(HttpSseReconnectOptions()))); Unit }
+            val failure =
+                sseFailure suspend {
+                    client.openSse(
+                        HttpRequest(url, "POST", body = body),
+                        HttpSseOptions(reconnect = Some(HttpSseReconnectOptions()))
+                    );
+                    Unit
+                }
             assertTrue(failure is HttpSseException)
-            assertEquals(HttpSseFailureReason.BodyNotReplayable, (failure as HttpSseException).reason)
+            assertEquals(
+                HttpSseFailureReason.BodyNotReplayable,
+                (failure as HttpSseException).reason
+            )
             assertFalse(called.load())
             Unit
         }

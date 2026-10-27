@@ -8,12 +8,13 @@ import scoop.terminal.asyncio.*
 import scoop.time.Duration
 
 fun main() {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { _ ->
-        AsyncTerminalSession.open(loop).useAsync suspend { terminal ->
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        _ -> AsyncTerminalSession.open(loop).useAsync suspend {
+            terminal ->
             val size = terminal.size()
             terminal.execute(Print(f"Terminal: ${size.columns}x${size.rows}\r\n"))
-            for (step in 1..3) {
+            for (step in 1 .. 3) {
                 terminal.execute(Print(f"\rCountdown: ${4 - step}"))
                 loop.sleep(Duration.milliseconds(300L))
             }

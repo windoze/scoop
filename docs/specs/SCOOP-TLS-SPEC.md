@@ -4,7 +4,7 @@
 
 ## 1. 分层
 
-`scoop:scoop.tls:0.1.0` 提供配置、公共协议引擎和同步流，依赖 crypto、platform 和实际使用的基础库，链接同一目标 OpenSSL libssl；不依赖 asyncio／libuv。`scoop:scoop.tls.asyncio:0.1.0` 依赖 TLS 和 asyncio，复用公共引擎与平台 NativeByteBuffer／NativeByteBorrow，不重复编译后端。
+`scoop:scoop.tls:0.1.0` 提供配置、公共协议引擎和同步流，依赖 crypto、platform 和实际使用的基础库，链接同一目标 OpenSSL libssl；不依赖 asyncio 或其平台后端。`scoop:scoop.tls.asyncio:0.1.0` 依赖 TLS 和 asyncio，复用公共引擎与平台 NativeByteBuffer／NativeByteBorrow，不重复编译后端。
 
 不提供 HTTP／DTLS／QUIC、自动重连、会话恢复 API、0-RTT、动态 SNI 或用户证书验证 callback，不新增 runtime ABI。客户端证书身份与系统信任按第 8 节在 M54 补齐。C 仅管理 SSL_CTX、SSL、有限 BIO pair、自有配置及必要的平台信任工作，不访问 runtime 私有头、不保存 managed 引用、不恢复 continuation。
 
@@ -50,7 +50,7 @@ AsyncTlsStream 实现 AsyncByteStream、AsyncCloseable，固定归属建立它�
 
 异步入口为 `AsyncTlsStream.takeOwnershipAsClient(transport, context, peer)` 和 `AsyncTlsStream.takeOwnershipAsServer(transport, context)`，完成握手后返回；返回的 AsyncTlsStream 提供 connectionInfo、isClosed 和 shutdownGracefully。连接以普通操作记录保留 continuation、所属 Job、进度和借用，每次实际传输通过公开 startCoroutine／Continuation 完成，传输结束后再决定可执行步骤与应用结果；不创建私有调度器、全局服务或逐步骤 Job。WANT_READ 的应用读可让写进入 SSL；待重试写及 WANT_WRITE 的读遵循上游重试次序。SSL 与错误提取在短锁内，实际传输、关闭、取消监听回调和 continuation 通知在锁外。
 
-跨线程取消与第三方恢复使用连接自身的普通同步，不能调用 libuv 私有状态／投递函数；传输等待通过公开异步流。服务端逐连接握手，listener 的后续 accept 不依赖前一握手完成。
+跨线程取消与第三方恢复使用连接自身的普通同步，不能访问 asyncio 平台后端的私有状态或投递函数；传输等待通过公开异步流。服务端逐连接握手，listener 的后续 accept 不依赖前一握手完成。
 
 ## 6. 取消与关闭
 

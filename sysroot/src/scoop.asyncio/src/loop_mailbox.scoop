@@ -1,0 +1,114 @@
+package scoop.asyncio
+
+internal class LoopMailbox(private val owner: LoopOwner) {
+    private val lock: IoLock = IoLock()
+    private var accepting: Boolean = true
+    private var closeRequested: Boolean = false
+    private var closed: Boolean = false
+    private var messages: ArrayList<(CoroutineScope) -> Unit> =
+        ArrayList<(CoroutineScope) -> Unit>()
+    private var waiting: Continuation<Unit>? = None
+
+    val isClosed: Boolean get() = lock.withLock { closed }
+
+    fun post(block: (CoroutineScope) -> Unit): Boolean {
+        val accepted =
+            lock.withLock {
+                if (!accepting)
+                    false
+                else {
+                    messages.add(block);
+                    true
+                }
+            }
+        if (accepted)
+            owner.post { signal() }
+        return accepted
+    }
+
+    fun requestClose() {
+        val first =
+            lock.withLock {
+                if (!accepting)
+                    false
+                else {
+                    accepting = false
+                    closeRequested = true
+                    messages = ArrayList<(CoroutineScope) -> Unit>()
+                    true
+                }
+            }
+        if (first)
+            owner.post { owner.cancelRoot() }
+    }
+
+    fun signal() {
+        when (waiting) {
+            case Some(continuation) -> {
+                waiting = None
+                owner.ready.add { continuation.resume(Unit) }
+            }
+            case None -> {}
+        }
+    }
+
+    suspend fun run(scope: CoroutineScope) {
+        owner.bindRoot(scope.job)
+        val subscription = scope.job.invokeOnCancellation { owner.post { signal() } }
+        try {
+            while (true) {
+                suspendCoroutine<Unit> { continuation -> waiting = Some(continuation) }
+                scope.job.ensureActive()
+                val batch =
+                    lock.withLock {
+                        val pending = messages
+                        messages = ArrayList<(CoroutineScope) -> Unit>()
+                        pending
+                    }
+                for (block in batch) {
+                    if (!lock.withLock { accepting })
+                        break
+                    scope.job.ensureActive()
+                    block(scope)
+                }
+            }
+        } finally {
+            stop()
+            subscription.dispose()
+        }
+    }
+
+    private fun stop() {
+        lock.withLock {
+            accepting = false
+            messages = ArrayList<(CoroutineScope) -> Unit>()
+        }
+    }
+
+    fun finish(error: Throwable?) {
+        stop()
+        val requested = lock.withLock { closeRequested }
+        val result =
+            when (error) {
+                case Some(value) -> if (requested && value is CancellationException)
+                    None
+                else
+                    error
+                case None -> None
+            }
+        owner.finishRoot(result)
+    }
+
+    fun didClose() {
+        lock.withLock { closed = true }
+    }
+}
+
+internal class SessionCompletion(private val mailbox: LoopMailbox): Continuation<Unit> {
+    public override fun resume(value: Unit) {
+        mailbox.finish(None)
+    }
+    public override fun resumeWithException(exception: Throwable) {
+        mailbox.finish(Some(exception))
+    }
+}

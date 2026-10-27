@@ -11,10 +11,12 @@ import scoop.test.*
 private class AsyncTemporaryFileCancellationTest {
     @Test
     fun `queued temporary creation cancels before acquiring a path or handle`() {
-        IoTestDirectory().use { tree ->
-            val backend = LibuvEventLoop()
+        IoTestDirectory().use {
+            tree ->
+            val backend = PlatformEventLoop()
             val loop: EventLoop = backend
-            loop.run suspend { scope ->
+            loop.run suspend {
+                scope ->
                 val fence = WorkFence(backend)
                 fence.start()
                 fence.waitStarted()
@@ -25,18 +27,22 @@ private class AsyncTemporaryFileCancellationTest {
                     assertTrue(creating.isCancelled)
                     assertTrue(firstTemporaryPath(tree.path) == None)
                     gcCollect()
-                } finally { fence.close() }
+                } finally {
+                    fence.close()
+                }
             }
         }
     }
 
     @Test
     fun `late cancellation closes and deletes the unreturned temporary file`() {
-        IoTestDirectory().use { tree ->
-            val backend = LibuvEventLoop()
+        IoTestDirectory().use {
+            tree ->
+            val backend = PlatformEventLoop()
             val loop: EventLoop = backend
             val observed = ObservedTemporary()
-            loop.run suspend { scope ->
+            loop.run suspend {
+                scope ->
                 val creating = scope.launch suspend { loop.createTempFile(Some(tree.path)) }
                 backend.state.post {
                     observed.path = Some(awaitTemporaryFile(tree.path))
@@ -53,25 +59,31 @@ private class AsyncTemporaryFileCancellationTest {
 
     @Test
     fun `temporary cleanup failures retain cancellation and the native delete error`() {
-        IoTestDirectory().use { tree ->
+        IoTestDirectory().use {
+            tree ->
             val directory = tree.child("creating")
             directory.createDirectory()
             val moved = tree.child("moved")
-            val backend = LibuvEventLoop()
+            val backend = PlatformEventLoop()
             val loop: EventLoop = backend
             val observed = ObservedTemporary()
-            loop.run suspend { scope ->
-                val creating = scope.launch suspend {
-                    try { loop.createTempFile(Some(directory)); fail(Some("cancelled temporary file returned")) }
-                    catch (error: ResourceUseException) {
-                        assertTrue(error.primaryFailure is CancellationException)
-                        assertTrue(error.cleanupFailure is PlatformException)
-                        val failure = error.cleanupFailure as PlatformException
-                        assertTrue(failure.nativeError!!.domain == NativeErrorDomain.PosixErrno)
-                        assertEquals(observed.path!!.toOsString(), failure.context!!)
-                        observed.cleanupFailed = true
+            loop.run suspend {
+                scope ->
+                val creating =
+                    scope.launch suspend {
+                        try {
+                            loop.createTempFile(Some(directory));
+                            fail(Some("cancelled temporary file returned"))
+                        }
+                        catch (error: ResourceUseException) {
+                            assertTrue(error.primaryFailure is CancellationException)
+                            assertTrue(error.cleanupFailure is PlatformException)
+                            val failure = error.cleanupFailure as PlatformException
+                            assertTrue(failure.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+                            assertEquals(observed.path!!.toOsString(), failure.context!!)
+                            observed.cleanupFailed = true
+                        }
                     }
-                }
                 backend.state.post {
                     val path = awaitTemporaryFile(directory)
                     observed.path = Some(path)
@@ -95,18 +107,25 @@ private class ObservedTemporary {
     var cleanupFailed: Boolean = false
 }
 
-private fun firstTemporaryPath(directory: Path): Path? = directory.entries().use { entries ->
-    when (entries.next()) {
-        case None -> None
-        case Some(entry) -> Some(entry.path)
+private fun firstTemporaryPath(directory: Path): Path? =
+    directory.entries().use {
+        entries -> when (entries.next()) {
+            case None -> None
+            case Some(entry) -> Some(entry.path)
+        }
     }
-}
 
 private fun awaitTemporaryFile(directory: Path): Path {
     val start = MonotonicTimeSource.markNow()
     while (true) {
-        when (firstTemporaryPath(directory)) { case Some(path) -> return path; case None -> {} }
-        assertTrue(start.elapsedNow() < Duration.seconds(10L), Some("temporary creation did not execute"))
+        when (firstTemporaryPath(directory)) {
+            case Some(path) -> return path;
+            case None -> {}
+        }
+        assertTrue(
+            start.elapsedNow() < Duration.seconds(10L),
+            Some("temporary creation did not execute")
+        )
         yield()
     }
 }

@@ -1,4 +1,5 @@
 package scoop.tests
+
 import scoop.asyncio.*
 import scoop.tests.scoop.crypto.testdata.rootPem
 import scoop.crypto.x509.TrustStore
@@ -16,62 +17,128 @@ context(binding: RedirectContext)
 private fun redirectContextText(): String = binding.text
 
 private fun check(value: Boolean) {
-    if (!value) throw IllegalStateException(Some("client redirect integration check failed"))
+    if (!value)
+        throw IllegalStateException(Some("client redirect integration check failed"))
 }
 
 private suspend fun writeText(output: AsyncByteSink) {
-    NativeByteBuffer.allocate(7L).use suspend { buffer ->
+    NativeByteBuffer.allocate(7L).use suspend {
+        buffer ->
         buffer.writeBytes("payload".toByteArray())
         output.writeFully(buffer)
     }
 }
 
 private fun exercise(mode: String, start: Url, final: Url, trust: TrustStore) {
-    if (mode == "progress") { exerciseRedirectNetworkProgress(start, trust); return }
+    if (mode == "progress") {
+        exerciseRedirectNetworkProgress(start, trust);
+        return
+    }
     val mixed = mode == "mixed"
     val factories = AtomicLong(0L)
     val informational = AtomicLong(0L)
-    val body = if (mixed) RequestBody.fromProducer(Some(7L)) suspend { output ->
-        factories.fetchAdd(1L)
-        writeText(output)
-    } else RequestBody.fromProducerWithTrailersFactory(["X-Attempt"], Some(7L)) suspend {
-        check(redirectContextText() == "live context")
-        val attempt = factories.fetchAdd(1L) + 1L;
-        suspend { output ->
-            check(redirectContextText() == "live context")
-            writeText(output)
-            [HttpField("X-Attempt".toByteArray(), attempt.toString().toByteArray())]
-        }
-    }.compressed()
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
-        val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
-            pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L))
-        withHttpClient(config) suspend { client ->
-            val options = HttpCallOptions(expectContinue = true, continueWait = Duration.seconds(30L),
-                onInformational = suspend { head ->
-                    check(head.status == 100U && redirectContextText() == "live context")
-                    informational.fetchAdd(1L)
-                    Unit
-                })
-            val fields = [HttpField("Authorization".toByteArray(), "Bearer secret".toByteArray()),
-                HttpField("Cookie".toByteArray(), "session=secret".toByteArray()),
-                HttpField("Content-Type".toByteArray(), "text/plain".toByteArray()),
-                HttpField("X-Keep".toByteArray(), "kept".toByteArray())]
+    val body =
+        if (mixed)
+            RequestBody.fromProducer(Some(7L)) suspend {
+                output ->
+                factories.fetchAdd(1L)
+                writeText(output)
+            }
+        else
+            RequestBody.fromProducerWithTrailersFactory(["X-Attempt"], Some(7L)) suspend {
+                check(redirectContextText() == "live context")
+                val attempt = factories.fetchAdd(1L) + 1L;
+                suspend {
+                    output ->
+                    check(redirectContextText() == "live context")
+                    writeText(output)
+                    [HttpField("X-Attempt".toByteArray(), attempt.toString().toByteArray())]
+                }
+            }.compressed()
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope ->
+        val config =
+            HttpClientConfig(
+                tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L)
+            )
+        withHttpClient(config) suspend {
+            client ->
+            val options =
+                HttpCallOptions(
+                    expectContinue = true,
+                    continueWait = Duration.seconds(30L),
+                    onInformational =
+                        suspend {
+                            head ->
+                            check(head.status == 100U && redirectContextText() == "live context")
+                            informational.fetchAdd(1L)
+                            Unit
+                        }
+                )
+            val fields =
+                [
+                    HttpField("Authorization".toByteArray(), "Bearer secret".toByteArray()),
+                    HttpField("Cookie".toByteArray(), "session=secret".toByteArray()),
+                    HttpField("Content-Type".toByteArray(), "text/plain".toByteArray()),
+                    HttpField("X-Keep".toByteArray(), "kept".toByteArray())
+                ]
             context(RedirectContext("live context")) {
-                client.withResponse(HttpRequest.post(start, body, fields, options)) suspend { response ->
+                client.withResponse(HttpRequest.post(start, body, fields, options)) suspend {
+                    response ->
                     check(response.status == 200U)
-                    check(response.version == (if (mixed) HttpVersion.Http2 else HttpVersion.Http11))
+                    check(
+                        response.version ==
+                            (
+                                if (mixed)
+                                    HttpVersion.Http2
+                                else
+                                    HttpVersion.Http11
+                            )
+                    )
                     check(response.url.toString() == final.toString())
                     val history = response.redirectHistory
                     check(history.size == 2L && history[0L].url == start)
                     check(history[0L].method == "POST")
-                    check(history[0L].head.status == (if (mixed) 302U else 307U))
-                    check(history[1L].head.status == (if (mixed) 307U else 308U))
-                    check(history[0L].nextMethod == (if (mixed) "GET" else "POST"))
+                    check(
+                        history[0L].head.status ==
+                            (
+                                if (mixed)
+                                    302U
+                                else
+                                    307U
+                            )
+                    )
+                    check(
+                        history[1L].head.status ==
+                            (
+                                if (mixed)
+                                    307U
+                                else
+                                    308U
+                            )
+                    )
+                    check(
+                        history[0L].nextMethod ==
+                            (
+                                if (mixed)
+                                    "GET"
+                                else
+                                    "POST"
+                            )
+                    )
                     check(history[1L].nextUrl == final)
                     check(String.fromUtf8(history[0L].head.reason!!) == "Move")
-                    check(response.body.text(64L) == (if (mixed) "redirect done" else "replayed"))
+                    check(
+                        response.body.text(64L) ==
+                            (
+                                if (mixed)
+                                    "redirect done"
+                                else
+                                    "replayed"
+                            )
+                    )
                     if (mixed) {
                         val trailers = response.trailers!!
                         check(trailers.size == 1L && trailers[0L].hasName("X-Final".toByteArray()))
@@ -83,8 +150,24 @@ private fun exercise(mode: String, start: Url, final: Url, trust: TrustStore) {
         }
         check(!scope.job.isCancelled)
     }
-    check(factories.load() == (if (mixed) 0L else 3L))
-    check(informational.load() == (if (mixed) 0L else 3L))
+    check(
+        factories.load() ==
+            (
+                if (mixed)
+                    0L
+                else
+                    3L
+            )
+    )
+    check(
+        informational.load() ==
+            (
+                if (mixed)
+                    0L
+                else
+                    3L
+            )
+    )
 }
 
 fun main(args: Array<String>) {
@@ -92,8 +175,9 @@ fun main(args: Array<String>) {
     val mode = args[1L]
     val start = Url.parse(args[2L])
     val final = Url.parse(args[3L])
-    TrustStore.fromPem(rootPem()).use { trust ->
-        Thread.start { exercise(mode, start, final, trust) }.use { thread ->
+    TrustStore.fromPem(rootPem()).use {
+        trust -> Thread.start { exercise(mode, start, final, trust) }.use {
+            thread ->
             exercise(mode, start, final, trust)
             thread.join()
         }

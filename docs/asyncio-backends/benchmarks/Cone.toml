@@ -1,0 +1,19 @@
+schema = 1
+[cone]
+group = "scoop.tests"
+name = "asyncio-benchmark"
+version = "0.1.0"
+kind = "library"
+[[sources]]
+path = "src"
+[[test.sources]]
+path = "tests"
+[dependencies]
+"scoop:scoop.asyncio" = { version = "0.1.0", path = "../../../sysroot/src/scoop.asyncio" }
+"scoop:scoop.platform" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+"scoop:scoop.core" = "0.1.0"
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"
+[[native.sources]]
+path = "native/measure.c"

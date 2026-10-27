@@ -4,45 +4,91 @@ import scoop.platform.fs.withNativeString
 import scoop.platform.net.*
 import scoop.platform.system.*
 
-internal suspend fun resolveOnLoop(loop: LibuvEventLoop, host: OsString, port: Int, family: AddressFamily?): Array<SocketAddress> {
+internal suspend fun resolveOnLoop(
+    loop: LoopOwner,
+    host: OsString,
+    port: Int,
+    family: AddressFamily?
+): Array<SocketAddress> {
     val job = loop.requireJob()
-    if (port < 0 || port > 65535) throw IllegalArgumentException(Some("port is out of range"))
-    val selector = when (family) {
-        case Some(AddressFamily.Ipv4) -> 4
-        case Some(AddressFamily.Ipv6) -> 6
-        case None -> 0
-    }
-    return suspendCoroutine<Array<SocketAddress>> { continuation ->
-        val operation = LoopOperation(loop.state, loop.state.nextOperation(),
-            { native, id -> @Unsafe {
-                return@LoopOperation host.withNativeString { pointer -> @Unsafe {
-                    return@withNativeString nativeStatus(id, nativeResolve(native, id, pointer, port, selector))
-                } }
-            } },
-            { native, id -> @Unsafe { nativeWorkCancel(native, id) } },
-            { event, selected ->
-                val addresses = try { resolutionResult(host, event.result, selected) }
-                catch (error: Throwable) { continuation.resumeWithException(error); return@LoopOperation }
-                continuation.resume(addresses)
-            })
+    if (port < 0 || port > 65535)
+        throw IllegalArgumentException(Some("port is out of range"))
+    val selector =
+        when (family) {
+            case Some(AddressFamily.Ipv4) -> 4
+            case Some(AddressFamily.Ipv6) -> 6
+            case None -> 0
+        }
+    return suspendCoroutine<Array<SocketAddress>> {
+        continuation ->
+        val operation =
+            LoopOperation(
+                loop,
+                loop.nextOperation(),
+                {
+                    native,
+                    id -> @Unsafe
+                    {
+                        return@LoopOperation host.withNativeString {
+                            pointer -> @Unsafe
+                            {
+                                return@withNativeString nativeStatus(
+                                    id,
+                                    nativeResolve(native, id, pointer, port, selector)
+                                )
+                            }
+                        }
+                    }
+                },
+                {
+                    native,
+                    id -> @Unsafe
+                    {
+                        nativeWorkCancel(native, id)
+                    }
+                },
+                {
+                    event, selected ->
+                    val addresses =
+                        try {
+                            resolutionResult(host, event.result, selected)
+                        }
+                        catch (error: Throwable) {
+                            continuation.resumeWithException(error);
+                            return@LoopOperation
+                        }
+                    continuation.resume(addresses)
+                }
+            )
         operation.subscribe(job)
-        loop.state.submit(operation)
+        loop.submit(operation)
     }
 }
 
-private fun resolutionResult(host: OsString, result: IoResult, selected: Throwable?): Array<SocketAddress> {
+private fun resolutionResult(host: OsString, result: IoResult, selected: Throwable?): Array<
+    SocketAddress
+> {
     when (result) {
         case Addresses(Some(head)) -> {
             try {
-                when (selected) { case Some(error) -> throw error; case None -> {} }
+                when (selected) {
+                    case Some(error) -> throw error;
+                    case None -> {}
+                }
                 val values = ArrayList<SocketAddress>()
                 var current: Ptr<Unit>? = Some(head)
-                @Unsafe {
+                @Unsafe
+                {
                     while (current != None) {
-                        val (address, status) = nativeResolveAddress(current!!)
+                        val(address, status) = nativeResolveAddress(current!!)
                         if (address.family == 0) {
                             val error = NativeError(NativeErrorDomain.PosixErrno, status)
-                            throw PlatformException("resolve address", error.kind, Some(error), Some(host))
+                            throw PlatformException(
+                                "resolve address",
+                                error.kind,
+                                Some(error),
+                                Some(host)
+                            )
                         }
                         values.add(ioSocketAddress(address))
                         current = nativeResolveNext(current!!)
@@ -50,25 +96,37 @@ private fun resolutionResult(host: OsString, result: IoResult, selected: Throwab
                 }
                 return values.toArray()
             } finally {
-                @Unsafe { nativeResolveFree(head) }
+                @Unsafe
+                {
+                    nativeResolveFree(head)
+                }
             }
         }
         case Addresses(None) -> {
-            when (selected) { case Some(error) -> throw error; case None -> {} }
+            when (selected) {
+                case Some(error) -> throw error;
+                case None -> {}
+            }
             return []
         }
-        case _ -> throw (completionFailure("resolve", result, selected, Some(host))
-            ?: IllegalStateException(Some("resolver returned no address list")))
+        case _ -> throw (
+            completionFailure("resolve", result, selected, Some(host)) ?:
+                IllegalStateException(Some("resolver returned no address list"))
+        )
     }
 }
 
 @Extern(name = "scoop_io_resolve")
 private fun nativeResolve(loop: Ptr<Unit>, id: Long, host: Ptr<Byte>, port: Int, family: Int): Int
+
 @Extern(name = "scoop_io_work_cancel")
 internal fun nativeWorkCancel(loop: Ptr<Unit>, id: Long)
+
 @Extern(name = "scoop_platform_resolve_next")
 private fun nativeResolveNext(entry: Ptr<Unit>): Ptr<Unit>?
+
 @Extern(name = "scoop_platform_resolve_address", captureErrno = true)
 private fun nativeResolveAddress(entry: Ptr<Unit>): (IoAddress, Int)
+
 @Extern(name = "scoop_platform_resolve_free")
 private fun nativeResolveFree(head: Ptr<Unit>)

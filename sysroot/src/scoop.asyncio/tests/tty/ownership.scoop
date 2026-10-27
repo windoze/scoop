@@ -1,0 +1,17 @@
+package scoop.asyncio
+
+import scoop.test.*
+
+@Test
+private class TtyNativeOwnershipTest {
+    @Test
+    fun `opening an owned terminal never acquires a process controlling terminal`() {
+        @Unsafe
+        {
+            assertEquals(0, testControllingTerminalOwner())
+        }
+    }
+}
+
+@Extern(name = "scoop_test_tty_controlling_owner")
+private fun testControllingTerminalOwner(): Int

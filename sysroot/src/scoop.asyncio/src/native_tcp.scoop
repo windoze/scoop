@@ -3,34 +3,53 @@ package scoop.asyncio
 import scoop.platform.net.SocketAddress
 
 internal fun tcpAddress(pointer: Ptr<Unit>, peer: Boolean): SocketAddress {
-    @Unsafe {
+    @Unsafe
+    {
         val result = nativeTcpAddress(pointer, peer)
-        if (result.status < 0) throw uvFailure("TCP address", result.status)
+        if (result.status < 0)
+            throw backendFailure("TCP address", result.status)
         return ioSocketAddress(result.address)
     }
 }
 
 @Extern(name = "scoop_io_tcp_connect")
 internal fun nativeTcpConnect(loop: Ptr<Unit>, id: Long, address: IoAddress): Int
+
 @Extern(name = "scoop_io_tcp_listen")
-internal fun nativeTcpListen(loop: Ptr<Unit>, id: Long, address: IoAddress, backlog: Int, reuse: Boolean): Int
+internal fun nativeTcpListen(
+    loop: Ptr<Unit>,
+    id: Long,
+    address: IoAddress,
+    backlog: Int,
+    reuse: Boolean
+): Int
+
 @Extern(name = "scoop_io_tcp_connect_cancel")
 internal fun nativeTcpConnectCancel(loop: Ptr<Unit>, id: Long)
+
 @Extern(name = "scoop_io_tcp_accept")
 internal fun nativeTcpAccept(tcp: Ptr<Unit>, id: Long): Int
+
 @Extern(name = "scoop_io_accept_cancel")
 internal fun nativeTcpAcceptCancel(tcp: Ptr<Unit>, id: Long)
+
 @Extern(name = "scoop_io_tcp_address")
 private fun nativeTcpAddress(tcp: Ptr<Unit>, peer: Boolean): NativeSocketName
+
 @Extern(name = "scoop_io_tcp_close")
 internal fun nativeTcpClose(tcp: Ptr<Unit>, id: Long): Int
+
 @Extern(name = "scoop_io_tcp_read")
 internal fun nativeTcpRead(tcp: Ptr<Unit>, id: Long, bytes: Ptr<Byte>?, count: Long): Int
+
 @Extern(name = "scoop_io_read_cancel")
 internal fun nativeTcpReadCancel(tcp: Ptr<Unit>, id: Long)
+
 @Extern(name = "scoop_io_tcp_write")
 internal fun nativeTcpWrite(tcp: Ptr<Unit>, id: Long, bytes: Ptr<Byte>?, count: Long): Int
+
 @Extern(name = "scoop_io_tcp_write_cancel")
 internal fun nativeTcpWriteCancel(tcp: Ptr<Unit>, id: Long)
+
 @Extern(name = "scoop_io_tcp_shutdown")
 internal fun nativeTcpShutdown(tcp: Ptr<Unit>, id: Long): Int

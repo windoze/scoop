@@ -6,60 +6,102 @@ import scoop.http.*
 import scoop.test.*
 
 // Explicit wire records exercise receive failures without the production sender.
-private fun wireFrame(type: Int, flags: Int, id: Int, payload: List<Byte> = ArrayList<Byte>()): Array<Byte> =
+private fun wireFrame(
+    type: Int,
+    flags: Int,
+    id: Int,
+    payload: List<Byte> = ArrayList<Byte>()
+): Array<Byte> =
     ByteArrayBuilder().append(0.toByte()).append(0.toByte()).append(payload.size.toByte())
-        .append(type.toByte()).append(flags.toByte()).append(0.toByte()).append(0.toByte())
-        .append(0.toByte()).append(id.toByte()).append(payload).toByteArray()
+    .append(type.toByte()).append(flags.toByte()).append(0.toByte()).append(0.toByte())
+    .append(0.toByte()).append(id.toByte()).append(payload).toByteArray()
 
 @Test
 private class AsyncHttp2FailureTests {
     @Test
     fun `a later receive failure preserves the completed response earlier in the same input`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
-            val (a, b) = rawPair(loop, scope)
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
+            val(a, b) = rawPair(loop, scope)
             a.readLimit = 16384L
-            val client = AsyncHttp2Connection.takeOwnershipAsClient(a, scope, limits = Http2Limits(maxContinuations = 1L))
+            val client =
+                AsyncHttp2Connection.takeOwnershipAsClient(
+                    a,
+                    scope,
+                    limits = Http2Limits(maxContinuations = 1L)
+                )
             try {
                 sendBytes(b, wireFrame(4, 0, 0))
                 val first = client.openRequest(request2())
                 val second = client.openRequest(request2())
-                val bytes = ByteArrayBuilder().append(wireFrame(1, 5, first.id, [136.toByte()]))
+                val bytes =
+                    ByteArrayBuilder().append(wireFrame(1, 5, first.id, [136.toByte()]))
                     .append(wireFrame(1, 1, second.id, [136.toByte()]))
-                    .append(wireFrame(9, 0, second.id)).append(wireFrame(9, 4, second.id)).toByteArray()
+                    .append(wireFrame(9, 0, second.id)).append(
+                        wireFrame(9, 4, second.id)
+                    ).toByteArray()
                 sendBytes(b, bytes)
-                try { second.receiveResponse(); fail(Some("excess CONTINUATION accepted")) }
-                catch (error: HttpException) { assertEquals(-905, error.code); assertTrue(error.scope == HttpFailureScope.Connection) }
+                try {
+                    second.receiveResponse();
+                    fail(Some("excess CONTINUATION accepted"))
+                }
+                catch (error: HttpException) {
+                    assertEquals(-905, error.code);
+                    assertTrue(error.scope == HttpFailureScope.Connection)
+                }
                 assertTrue(client.isClosed)
                 assertEquals(200U, first.receiveResponse().status)
                 assertEquals(0L, receiveBytes(first).size)
-            } finally { client.close(); b.close() }
+            } finally {
+                client.close();
+                b.close()
+            }
         }
     }
 
     @Test
     fun `notices run outside the connection lock and observer failure closes outstanding work`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
-            val (a, b) = rawPair(loop, scope)
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
+            val(a, b) = rawPair(loop, scope)
             val slot = Http2Slot()
-            val client = AsyncHttp2Connection.takeOwnershipAsClient(a, scope, onEvent = { event ->
-                when (event) {
-                    case Settings(_, _) -> { assertFalse(slot.value!!.isClosed); throw TransportFailure() }
-                    else -> {}
-                }
-            })
+            val client =
+                AsyncHttp2Connection.takeOwnershipAsClient(
+                    a,
+                    scope,
+                    onEvent =
+                        {
+                            event -> when (event) {
+                                case Settings(_, _) -> {
+                                    assertFalse(slot.value!!.isClosed);
+                                    throw TransportFailure()
+                                }
+                                else -> {}
+                            }
+                        }
+                )
             slot.value = Some(client)
             try {
-                val waiting = scope.launch suspend {
-                    try { client.openRequest(request2()).receiveResponse(); fail(Some("observer failure was ignored")) }
-                    catch (_: TransportFailure) { assertTrue(client.isClosed) }
-                }
+                val waiting =
+                    scope.launch suspend {
+                        try {
+                            client.openRequest(request2()).receiveResponse();
+                            fail(Some("observer failure was ignored"))
+                        }
+                        catch (_: TransportFailure) {
+                            assertTrue(client.isClosed)
+                        }
+                    }
                 sendBytes(b, wireFrame(4, 0, 0))
                 waiting.join()
                 assertTrue(client.isClosed)
                 assertEquals(1, a.closes)
-            } finally { client.close(); b.close() }
+            } finally {
+                client.close();
+                b.close()
+            }
         }
     }
 }

@@ -5,16 +5,20 @@ import scoop.http.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.test.*
 
-@Test private class MultipartSinkTests {
-    @Test fun `short output preserves exact framing lengths and completed part views`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+@Test
+private class MultipartSinkTests {
+    @Test
+    fun `short output preserves exact framing lengths and completed part views`() {
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             val output = MessageTestSink()
             val sink = MultipartSink(output, MultipartBoundary("b"), 3L)
             val head = MultipartPartHead([field("X", "one")], Some(4L))
             val first = sink.beginPart(head)
             assertTrue(first.head === head)
-            NativeByteBuffer.allocate(6L).use suspend { buffer ->
+            NativeByteBuffer.allocate(6L).use suspend {
+                buffer ->
                 buffer.writeBytes("abcdef".toByteArray())
                 assertEquals(3L, first.writeFrom(buffer, 4L))
                 assertEquals(3L, buffer.readPosition)
@@ -23,12 +27,20 @@ import scoop.test.*
                 assertEquals(0L, first.writeFrom(buffer, 0L))
                 assertEquals(writes, output.writes)
             }
-            first.finish(); first.flush(); first.close()
+            first.finish();
+            first.flush();
+            first.close()
             assertTrue(first.isComplete && first.isClosed && !sink.isClosed)
             val second = sink.beginPart(MultipartPartHead(bodyLength = Some(0L)))
-            second.finish(); sink.finish(); second.flush(); sink.flush()
+            second.finish();
+            sink.finish();
+            second.flush();
+            sink.flush()
             assertTrue(second.isComplete && sink.isFinished)
-            assertEquals("--b\r\nX: one\r\n\r\nabcd\r\n--b\r\n\r\n\r\n--b--\r\n", String.fromUtf8(output.bytes))
+            assertEquals(
+                "--b\r\nX: one\r\n\r\nabcd\r\n--b\r\n\r\n\r\n--b--\r\n",
+                String.fromUtf8(output.bytes)
+            )
             assertEquals(4, output.flushes)
             assertTrue(output.maxRequested <= 3L)
             sink.close()
@@ -37,11 +49,15 @@ import scoop.test.*
         }
     }
 
-    @Test fun `empty completion and early owning close have distinct wire effects`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+    @Test
+    fun `empty completion and early owning close have distinct wire effects`() {
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             val empty = MessageTestSink(3L)
-            MultipartSink.takeOwnership(empty, MultipartBoundary("b")).useAsync suspend { sink -> sink.finish() }
+            MultipartSink.takeOwnership(empty, MultipartBoundary("b")).useAsync suspend {
+                sink -> sink.finish()
+            }
             assertEquals("--b--\r\n", String.fromUtf8(empty.bytes))
             assertEquals(1, empty.closes)
             val output = MessageTestSink(3L)
@@ -49,7 +65,9 @@ import scoop.test.*
             val part = sink.beginPart(MultipartPartHead())
             sendBytes(part, "ab".toByteArray())
             val written = output.bytes.size
-            part.close(); part.close(); sink.close()
+            part.close();
+            part.close();
+            sink.close()
             assertEquals(written, output.bytes.size)
             assertEquals("--b\r\n\r\nab", String.fromUtf8(output.bytes))
             assertEquals(0, output.flushes)
@@ -58,18 +76,25 @@ import scoop.test.*
         }
     }
 
-    @Test fun `unknown length parts compose with an independent asynchronous source`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+    @Test
+    fun `unknown length parts compose with an independent asynchronous source`() {
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             val input = MessageTestSource("streamed".toByteArray(), 2L)
             val output = MessageTestSink(2L)
-            MultipartSink.takeOwnership(output, MultipartBoundary("stream"), 3L).useAsync suspend { sink ->
+            MultipartSink.takeOwnership(output, MultipartBoundary("stream"), 3L).useAsync suspend {
+                sink ->
                 val part = sink.beginPart(MultipartPartHead())
                 assertEquals(8L, input.copyTo(part, 3L))
                 assertEquals(0, input.closes)
-                part.finish(); sink.finish()
+                part.finish();
+                sink.finish()
             }
-            assertEquals("--stream\r\n\r\nstreamed\r\n--stream--\r\n", String.fromUtf8(output.bytes))
+            assertEquals(
+                "--stream\r\n\r\nstreamed\r\n--stream--\r\n",
+                String.fromUtf8(output.bytes)
+            )
             assertEquals(1, output.closes)
             input.close()
         }

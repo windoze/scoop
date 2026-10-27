@@ -16,7 +16,10 @@ private class MultipartRequestBodyTest {
         fields.add(HttpField("X-Part".toByteArray(), "retained".toByteArray()))
         val part = RequestBodyPart(RequestBody.fromText("one"), fields)
         fields.clear()
-        assertEquals("application/custom", String.fromUtf8(part.head.fields.findAll("Content-Type".toByteArray())[0L].value))
+        assertEquals(
+            "application/custom",
+            String.fromUtf8(part.head.fields.findAll("Content-Type".toByteArray())[0L].value)
+        )
         assertEquals(2L, part.head.fields.size)
         val parts = ArrayList<RequestBodyPart>()
         parts.add(part)
@@ -24,8 +27,9 @@ private class MultipartRequestBodyTest {
         val body = RequestBody.fromMultipart(parts, MultipartBoundary("quoted boundary"))
         parts.clear()
         assertTrue(body.isReplayable)
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             val encoded = collectRequestBody(body, 1L)
             assertTrue(body.contentLength == Some(encoded.size))
             assertTrue(String.fromUtf8(encoded).contains("name=\"中文\"; filename=\"报告.txt\""))
@@ -36,34 +40,41 @@ private class MultipartRequestBodyTest {
     @Test
     fun `unknown length source factories are reopened and closed inside each multipart send`() {
         val opened = ArrayList<BodyTestSource>()
-        val source = RequestBody.fromSourceFactory suspend {
-            val input = BodyTestSource("stream".toByteArray())
-            opened.add(input)
-            input
-        }
+        val source =
+            RequestBody.fromSourceFactory suspend {
+                val input = BodyTestSource("stream".toByteArray())
+                opened.add(input)
+                input
+            }
         val body = RequestBody.fromMultipart([RequestBodyPart.formData("file", source)])
         assertTrue(body.isReplayable)
         assertTrue(body.contentLength == None)
         assertEquals(0L, opened.size)
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             readBodyParts(body, ["stream"])
             readBodyParts(body, ["stream"])
             assertEquals(2L, opened.size)
-            for (input in opened) assertEquals(1L, input.closes)
+            for (input in opened)
+                assertEquals(1L, input.closes)
         }
     }
 
     @Test
     fun `a multipart body containing one single source rejects reuse before another delimiter`() {
         val source = BodyTestSource("once".toByteArray())
-        val body = RequestBody.fromMultipart([
-            RequestBodyPart(RequestBody.fromText("before")),
-            RequestBodyPart(RequestBody.fromSource(source))
-        ])
+        val body =
+            RequestBody.fromMultipart(
+                [
+                    RequestBodyPart(RequestBody.fromText("before")),
+                    RequestBodyPart(RequestBody.fromSource(source))
+                ]
+            )
         assertFalse(body.isReplayable)
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             readBodyParts(body, ["before", "once"])
             val output = BodyTestSink()
             expectBodyFailure<RequestBodyConsumedException> suspend { body.writeTo(output) }
@@ -73,26 +84,56 @@ private class MultipartRequestBodyTest {
 
     @Test
     fun `empty and nested multipart bodies use the same streaming encoding`() {
-        val empty = RequestBody.fromMultipart(emptyList<RequestBodyPart>(), MultipartBoundary("empty"))
-        val inner = RequestBody.fromMultipart([RequestBodyPart(RequestBody.fromText("inside"))], MultipartBoundary("inner"), "mixed")
+        val empty =
+            RequestBody.fromMultipart(emptyList<RequestBodyPart>(), MultipartBoundary("empty"))
+        val inner =
+            RequestBody.fromMultipart(
+                [RequestBodyPart(RequestBody.fromText("inside"))],
+                MultipartBoundary("inner"),
+                "mixed"
+            )
         val outer = RequestBody.fromMultipart([RequestBodyPart(inner)], MultipartBoundary("outer"))
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             val encodedEmpty = collectRequestBody(empty)
             assertEquals("--empty--\r\n", String.fromUtf8(encodedEmpty))
             assertTrue(empty.contentLength == Some(encodedEmpty.size))
             val encoded = collectRequestBody(outer)
             assertTrue(outer.contentLength == Some(encoded.size))
-            MultipartSource(BodyTestSource(encoded), MultipartBoundary("outer"), bufferSize = 3L).useAsync suspend { source ->
+            MultipartSource(
+                BodyTestSource(encoded),
+                MultipartBoundary("outer"),
+                bufferSize = 3L
+            ).useAsync suspend {
+                source ->
                 val part = source.nextPart()!!
-                val media = HttpMediaType.parse(part.head.fields.findAll("Content-Type".toByteArray())[0L].value)
+                val media =
+                    HttpMediaType.parse(
+                        part.head.fields.findAll("Content-Type".toByteArray())[0L].value
+                    )
                 assertEquals("mixed", media.subtype)
-                MultipartSource(part.body, MultipartBoundary.fromMediaType(media), bufferSize = 1L).useAsync suspend { nested ->
+                MultipartSource(
+                    part.body,
+                    MultipartBoundary.fromMediaType(media),
+                    bufferSize = 1L
+                ).useAsync suspend {
+                    nested ->
                     val child = nested.nextPart()!!
                     assertEquals("inside", String.fromUtf8(child.body.readAllBytes(100L)))
-                    assertTrue(when (nested.nextPart()) { case None -> true; case Some(_) -> false })
+                    assertTrue(
+                        when (nested.nextPart()) {
+                            case None -> true;
+                            case Some(_) -> false
+                        }
+                    )
                 }
-                assertTrue(when (source.nextPart()) { case None -> true; case Some(_) -> false })
+                assertTrue(
+                    when (source.nextPart()) {
+                        case None -> true;
+                        case Some(_) -> false
+                    }
+                )
             }
         }
     }

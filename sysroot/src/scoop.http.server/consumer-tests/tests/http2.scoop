@@ -12,70 +12,151 @@ import scoop.test.*
 
 internal suspend fun consumerResponseText(source: AsyncByteSource): String {
     val result = ByteArrayBuilder()
-    NativeByteBuffer.allocate(32L).use suspend { buffer ->
-        while (true) {
+    NativeByteBuffer.allocate(32L).use suspend {
+        buffer -> while (true) {
             buffer.clear()
             val count = source.readInto(buffer, buffer.writableBytes)
-            if (count == 0L) break
+            if (count == 0L)
+                break
             result.append(buffer.readBytes(count))
         }
     }
     return String.fromUtf8(result.toByteArray())
 }
 
-@Test private class HttpServerH2ConsumerTests {
-    @Test fun `published server supports HTTP2 streams SSE and compressed multipart through public APIs`() {
+@Test
+private class HttpServerH2ConsumerTests {
+    @Test
+    fun `published server supports HTTP2 streams SSE and compressed multipart through public APIs`() {
         val routes = RouterBuilder()
         routes.use(requestDecompression())
-        routes.get("/", suspend { ctx ->
-            assertEquals(HttpProtocol.Http2, ctx.connection.protocol)
-            stream("text/plain", suspend { writer -> writer.writeText("public h2") }, length = Some(9L))
-        })
-        routes.get("/events", suspend { ctx ->
-            ctx.setDeadline(None)
-            val id = ctx.request.lastEventId
-            sse(produce = suspend { events -> events.send(SseMessage(Some("public SSE"), id = id)) })
-        })
-        routes.post("/upload", suspend { ctx ->
-            ctx.request.body.multipart(RequestMultipartOptions(maxPartBytes = 16L)).useAsync suspend { reader ->
-                val part = reader.nextPart()!!
-                val result = part.name + ":" + part.text()
-                assertTrue(when (reader.nextPart()) { case None -> true; case Some(_) -> false })
-                assertEquals("gzip", ctx.request.body.view!!.decodedEncodings[0L])
-                assertEquals(None, ctx.request.body.view!!.contentLength)
-                text(result)
+        routes.get(
+            "/",
+            suspend {
+                ctx ->
+                assertEquals(HttpProtocol.Http2, ctx.connection.protocol)
+                stream(
+                    "text/plain",
+                    suspend { writer -> writer.writeText("public h2") },
+                    length = Some(9L)
+                )
             }
-        })
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        )
+        routes.get(
+            "/events",
+            suspend {
+                ctx ->
+                ctx.setDeadline(None)
+                val id = ctx.request.lastEventId
+                sse(
+                    produce =
+                        suspend { events -> events.send(SseMessage(Some("public SSE"), id = id)) }
+                )
+            }
+        )
+        routes.post(
+            "/upload",
+            suspend {
+                ctx -> ctx.request.body.multipart(
+                    RequestMultipartOptions(maxPartBytes = 16L)
+                ).useAsync suspend {
+                    reader ->
+                    val part = reader.nextPart()!!
+                    val result = part.name + ":" + part.text()
+                    assertTrue(
+                        when (reader.nextPart()) {
+                            case None -> true;
+                            case Some(_) -> false
+                        }
+                    )
+                    assertEquals("gzip", ctx.request.body.view!!.decodedEncodings[0L])
+                    assertEquals(None, ctx.request.body.view!!.contentLength)
+                    text(result)
+                }
+            }
+        )
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
             val address = listener.localAddress
-            HttpServer.takeOwnership(listener, routes.build(), scope, HttpServerOptions(allowCleartextHttp2 = true)).useAsync suspend { server ->
-                AsyncHttp2Connection.takeOwnershipAsClient(loop.connectTcp(address), scope).useAsync suspend { client ->
-                    val request = HttpRequestHead(HttpVersion.Http2, "GET".toByteArray(),
-                        HttpRequestTarget.Http2("http".toByteArray(), "localhost".toByteArray(), "/".toByteArray()))
+            HttpServer.takeOwnership(
+                listener,
+                routes.build(),
+                scope,
+                HttpServerOptions(allowCleartextHttp2 = true)
+            ).useAsync suspend {
+                server -> AsyncHttp2Connection.takeOwnershipAsClient(
+                    loop.connectTcp(address),
+                    scope
+                ).useAsync suspend {
+                    client ->
+                    val request =
+                        HttpRequestHead(
+                            HttpVersion.Http2,
+                            "GET".toByteArray(),
+                            HttpRequestTarget.Http2(
+                                "http".toByteArray(),
+                                "localhost".toByteArray(),
+                                "/".toByteArray()
+                            )
+                        )
                     val response = client.openRequest(request)
                     assertEquals(200U, response.receiveResponse().status)
                     assertEquals("public h2", consumerResponseText(response))
-                    val eventRequest = HttpRequestHead(HttpVersion.Http2, "GET".toByteArray(),
-                        HttpRequestTarget.Http2("http".toByteArray(), "localhost".toByteArray(), "/events".toByteArray()),
-                        [HttpField("Last-Event-ID".toByteArray(), "42".toByteArray())])
+                    val eventRequest =
+                        HttpRequestHead(
+                            HttpVersion.Http2,
+                            "GET".toByteArray(),
+                            HttpRequestTarget.Http2(
+                                "http".toByteArray(),
+                                "localhost".toByteArray(),
+                                "/events".toByteArray()
+                            ),
+                            [HttpField("Last-Event-ID".toByteArray(), "42".toByteArray())]
+                        )
                     val events = client.openRequest(eventRequest)
                     assertEquals(200U, events.receiveResponse().status)
-                    SseSource(events).useAsync suspend { source ->
+                    SseSource(events).useAsync suspend {
+                        source ->
                         val event = source.next()!!
                         assertEquals("public SSE", event.data)
                         assertEquals("42", event.lastEventId)
-                        assertTrue(when (source.next()) { case None -> true; case Some(_) -> false })
+                        assertTrue(
+                            when (source.next()) {
+                                case None -> true;
+                                case Some(_) -> false
+                            }
+                        )
                     }
-                    val uploadHead = HttpRequestHead(HttpVersion.Http2, "POST".toByteArray(),
-                        HttpRequestTarget.Http2("http".toByteArray(), "localhost".toByteArray(), "/upload".toByteArray()),
-                        [HttpField("Content-Type".toByteArray(), "multipart/form-data; boundary=external".toByteArray()),
-                            HttpField("Content-Encoding".toByteArray(), "gzip".toByteArray())])
+                    val uploadHead =
+                        HttpRequestHead(
+                            HttpVersion.Http2,
+                            "POST".toByteArray(),
+                            HttpRequestTarget.Http2(
+                                "http".toByteArray(),
+                                "localhost".toByteArray(),
+                                "/upload".toByteArray()
+                            ),
+                            [
+                                HttpField(
+                                    "Content-Type".toByteArray(),
+                                    "multipart/form-data; boundary=external".toByteArray()
+                                ),
+                                HttpField("Content-Encoding".toByteArray(), "gzip".toByteArray())
+                            ]
+                        )
                     val upload = client.openRequest(uploadHead, false)
-                    val body = compress("--external\r\nContent-Disposition: form-data; name=message\r\n\r\npublished\r\n--external--\r\n".toByteArray(),
-                        CompressionOptions.Gzip(GzipOptions()))
-                    NativeByteBuffer.allocate(body.size).use suspend { buffer -> buffer.writeBytes(body); upload.writeFully(buffer) }
+                    val body =
+                        compress(
+                            "--external\r\nContent-Disposition: form-data; name=message\r\n\r\npublished\r\n--external--\r\n".toByteArray(),
+                            CompressionOptions.Gzip(GzipOptions())
+                        )
+                    NativeByteBuffer.allocate(body.size).use suspend {
+                        buffer ->
+                        buffer.writeBytes(body);
+                        upload.writeFully(buffer)
+                    }
                     upload.finish()
                     assertEquals(200U, upload.receiveResponse().status)
                     assertEquals("message:published", consumerResponseText(upload))

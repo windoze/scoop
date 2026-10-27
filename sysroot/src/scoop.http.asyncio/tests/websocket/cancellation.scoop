@@ -11,16 +11,21 @@ import scoop.time.Duration
 private class AsyncWebSocketCancellationTests {
     @Test
     fun `local close waits for the real input borrow without cancelling its caller`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val input = PendingMessageSource()
             val transport = WebSocketTestTransport(input, MessageTestSink())
             val session = AsyncWebSocketSession.takeOwnership(transport, scope, HttpRole.Client)
-            val reading = scope.launch suspend {
-                val error = expectMessageFailure<WebSocketSessionException> suspend { session.receive() }
-                assertTrue(error.kind == WebSocketFailureKind.Closed)
-                ensureActive()
-            }
+            val reading =
+                scope.launch suspend {
+                    val error =
+                        expectMessageFailure<WebSocketSessionException> suspend {
+                            session.receive()
+                        }
+                    assertTrue(error.kind == WebSocketFailureKind.Closed)
+                    ensureActive()
+                }
             try {
                 assertTrue(input.running)
                 expectMessageFailure<IllegalStateException> suspend { session.receive() }
@@ -32,12 +37,15 @@ private class AsyncWebSocketCancellationTests {
                 assertFailsWith<IllegalStateException> { input.buffer!!.close() }
                 gcCollect()
                 input.complete()
-                reading.join(); first.join(); second.join()
+                reading.join();
+                first.join();
+                second.join()
                 assertTrue(session.isClosed && input.buffer!!.isClosed)
                 assertFalse(present(session.failure) || reading.isCancelled)
                 assertEquals(1, transport.closes)
             } finally {
-                if (input.running) input.complete()
+                if (input.running)
+                    input.complete()
                 session.close()
             }
         }
@@ -45,21 +53,33 @@ private class AsyncWebSocketCancellationTests {
 
     @Test
     fun `cross thread cancellation waits for both native borrows and closes from cancelled finally`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val input = PendingMessageSource()
             val output = PendingMessageSink(1.toByte())
             output.pause = true
             val transport = WebSocketTestTransport(input, output)
-            val session = AsyncWebSocketSession.takeOwnership(transport, scope, HttpRole.Client,
-                WebSocketSessionOptions(outgoingFrameBytes = 2L))
+            val session =
+                AsyncWebSocketSession.takeOwnership(
+                    transport,
+                    scope,
+                    HttpRole.Client,
+                    WebSocketSessionOptions(outgoingFrameBytes = 2L)
+                )
             val writer = session.beginMessage(WebSocketMessageType.Text)
-            NativeByteBuffer.allocate(3L).use suspend { buffer ->
+            NativeByteBuffer.allocate(3L).use suspend {
+                buffer ->
                 buffer.writeBytes("abc".toByteArray())
-                val writing = scope.launch suspend {
-                    try { writer.writeFrom(buffer, 3L) }
-                    finally { writer.close() }
-                }
+                val writing =
+                    scope.launch suspend {
+                        try {
+                            writer.writeFrom(buffer, 3L)
+                        }
+                        finally {
+                            writer.close()
+                        }
+                    }
                 try {
                     assertTrue(input.running && output.running)
                     assertEquals(2L, buffer.readPosition)
@@ -77,15 +97,19 @@ private class AsyncWebSocketCancellationTests {
                     assertFalse(input.buffer!!.isClosed)
                     assertEquals(0, transport.closes)
                     output.complete()
-                    writing.join(); first.join(); second.join()
+                    writing.join();
+                    first.join();
+                    second.join()
                     assertTrue(input.buffer!!.isClosed && output.buffer!!.isClosed)
                     assertTrue(session.isClosed && writer.isClosed && !writer.isComplete)
                     assertTrue(session.failure!! is CancellationException)
                     assertEquals(1, transport.closes)
                     ensureActive()
                 } finally {
-                    if (input.running) input.complete()
-                    if (output.running) output.complete()
+                    if (input.running)
+                        input.complete()
+                    if (output.running)
+                        output.complete()
                     session.close()
                 }
             }
@@ -94,7 +118,8 @@ private class AsyncWebSocketCancellationTests {
 
     @Test
     fun `closing an unfinished received message aborts instead of draining indefinitely`() {
-        withWebSockets suspend { _, _, _, client, server ->
+        withWebSockets suspend {
+            _, _, _, client, server ->
             val writer = client.beginMessage(WebSocketMessageType.Binary)
             sendBytes(writer, "partial".toByteArray())
             val message = server.receive()!!
@@ -108,18 +133,30 @@ private class AsyncWebSocketCancellationTests {
 
     @Test
     fun `session owns its timer after the supplied scope body returns`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
-            val (a, b) = rawPair(loop, scope)
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
+            val(a, b) = rawPair(loop, scope)
             val slot = WebSocketSlot()
             val ready = AsyncGate()
-            val owner = scope.launch suspend {
-                coroutineScope<Unit> suspend { child ->
-                    slot.value = Some(AsyncWebSocketSession.takeOwnership(a, child, HttpRole.Client,
-                        WebSocketSessionOptions(closeTimeout = Duration.seconds(Long.MAX_VALUE))))
-                    ready.signal()
+            val owner =
+                scope.launch suspend {
+                    coroutineScope<Unit> suspend {
+                        child ->
+                        slot.value =
+                            Some(
+                                AsyncWebSocketSession.takeOwnership(
+                                    a,
+                                    child,
+                                    HttpRole.Client,
+                                    WebSocketSessionOptions(
+                                        closeTimeout = Duration.seconds(Long.MAX_VALUE)
+                                    )
+                                )
+                            )
+                        ready.signal()
+                    }
                 }
-            }
             ready.await()
             val client = slot.value!!
             val server = AsyncWebSocketSession.takeOwnership(b, scope, HttpRole.Server)
@@ -130,17 +167,26 @@ private class AsyncWebSocketCancellationTests {
                 owner.join()
                 assertTrue(client.isClosed && server.isClosed)
                 assertFalse(present(client.failure))
-            } finally { client.close(); server.close(); owner.join() }
+            } finally {
+                client.close();
+                server.close();
+                owner.join()
+            }
         }
     }
 
     @Test
     fun `invalid options and closed scope are rejected before ownership transfer`() {
         assertFailsWith<IllegalArgumentException> { WebSocketSessionOptions(inputBufferBytes = 0L) }
-        assertFailsWith<IllegalArgumentException> { WebSocketSessionOptions(outgoingFrameBytes = Long.MAX_VALUE) }
-        assertFailsWith<IllegalArgumentException> { WebSocketSessionOptions(closeTimeout = Duration.ZERO) }
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        assertFailsWith<IllegalArgumentException> {
+            WebSocketSessionOptions(outgoingFrameBytes = Long.MAX_VALUE)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            WebSocketSessionOptions(closeTimeout = Duration.ZERO)
+        }
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             val closed = coroutineScope<CoroutineScope> suspend { it }
             val transport = WebSocketTestTransport(WebSocketWaitingSource(), MessageTestSink())
             expectMessageFailure<IllegalStateException> suspend {
@@ -152,37 +198,57 @@ private class AsyncWebSocketCancellationTests {
 
     @Test
     fun `cancelling a message owner between operations aborts the unfinished writer`() {
-        withRawWebSocket suspend { scope, _, session, _ ->
+        withRawWebSocket suspend {
+            scope, _, session, _ ->
             val ready = AsyncGate()
             val release = AsyncGate()
-            val sending = scope.launch suspend {
-                val writer = session.beginMessage(WebSocketMessageType.Binary)
-                try { ready.signal(); release.await() }
-                finally { writer.close() }
-            }
+            val sending =
+                scope.launch suspend {
+                    val writer = session.beginMessage(WebSocketMessageType.Binary)
+                    try {
+                        ready.signal();
+                        release.await()
+                    }
+                    finally {
+                        writer.close()
+                    }
+                }
             try {
                 ready.await()
                 sending.cancel()
                 session.close()
                 assertTrue(session.failure!! is CancellationException)
                 assertTrue(session.isClosed)
-            } finally { release.signal(); sending.join() }
+            } finally {
+                release.signal();
+                sending.join()
+            }
         }
     }
 
     @Test
     fun `cancelling the supplied owner scope closes an idle session`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val transport = WebSocketTestTransport(WebSocketWaitingSource(), MessageTestSink())
             val slot = WebSocketSlot()
             val ready = AsyncGate()
-            val owner = scope.launch suspend {
-                coroutineScope<Unit> suspend { child ->
-                    slot.value = Some(AsyncWebSocketSession.takeOwnership(transport, child, HttpRole.Client))
-                    ready.signal()
+            val owner =
+                scope.launch suspend {
+                    coroutineScope<Unit> suspend {
+                        child ->
+                        slot.value =
+                            Some(
+                                AsyncWebSocketSession.takeOwnership(
+                                    transport,
+                                    child,
+                                    HttpRole.Client
+                                )
+                            )
+                        ready.signal()
+                    }
                 }
-            }
             ready.await()
             owner.cancel()
             owner.join()

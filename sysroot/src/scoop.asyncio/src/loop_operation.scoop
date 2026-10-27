@@ -1,9 +1,11 @@
 package scoop.asyncio
 
-internal enum OperationChoice { Pending, Stopped(Throwable), Completed }
+internal enum OperationChoice {
+    Pending, Stopped(Throwable), Completed
+}
 
 internal class LoopOperation internal constructor(
-    val loop: LoopState,
+    val loop: LoopOwner,
     val id: Long,
     private val start: (Ptr<Unit>, Long) -> IoStart,
     private val cancel: (Ptr<Unit>, Long) -> Unit,
@@ -19,43 +21,67 @@ internal class LoopOperation internal constructor(
         subscription = Some(registration)
     }
 
-    fun selectFailure(error: Throwable): Boolean = lock.withLock {
+    fun selectFailure(error: Throwable): Boolean =
+        lock.withLock {
             when (choice) {
-                case Pending -> { choice = OperationChoice.Stopped(error); true }
+                case Pending -> {
+                    choice = OperationChoice.Stopped(error);
+                    true
+                }
                 case _ -> false
             }
-    }
+        }
 
     fun requestFailure(error: Throwable) {
-        if (selectFailure(error)) loop.post { loop.cancel(id) }
+        if (selectFailure(error))
+            loop.post { loop.cancel(id) }
     }
 
     fun begin(pointer: Ptr<Unit>) {
-        val cancelled = lock.withLock {
-            when (choice) { case Stopped(_) -> true; case _ -> false }
+        val cancelled =
+            lock.withLock {
+                when (choice) {
+                    case Stopped(_) -> true;
+                    case _ -> false
+                }
+            }
+        if (cancelled) {
+            loop.complete(NativeEvent(id, IoResult.Done));
+            return
         }
-        if (cancelled) { loop.complete(NativeEvent(id, IoResult.Done)); return }
-        val result = try { start(pointer, id) }
-        catch (error: Throwable) { selectFailure(error); IoStart.Finished(NativeEvent(id, IoResult.Done)) }
+        val result =
+            try {
+                start(pointer, id)
+            }
+            catch (error: Throwable) {
+                selectFailure(error);
+                IoStart.Finished(NativeEvent(id, IoResult.Done))
+            }
         when (result) {
             case Pending -> {}
             case Finished(event) -> loop.complete(event)
         }
     }
 
-    fun cancelNative(pointer: Ptr<Unit>) { cancel(pointer, id) }
+    fun cancelNative(pointer: Ptr<Unit>) {
+        cancel(pointer, id)
+    }
 
     fun complete(event: NativeEvent) {
-        val failure: Throwable? = lock.withLock {
-            val previous = choice
-            choice = OperationChoice.Completed
-            when (previous) {
-                case Stopped(error) -> Some(error)
-                case Pending -> None
-                case Completed -> throw IllegalStateException(Some("operation completed twice"))
+        val failure: Throwable? =
+            lock.withLock {
+                val previous = choice
+                choice = OperationChoice.Completed
+                when (previous) {
+                    case Stopped(error) -> Some(error)
+                    case Pending -> None
+                    case Completed -> throw IllegalStateException(Some("operation completed twice"))
+                }
             }
+        when (subscription) {
+            case Some(value) -> value.dispose();
+            case None -> {}
         }
-        when (subscription) { case Some(value) -> value.dispose(); case None -> {} }
         subscription = None
         loop.ready.add { finish(event, failure) }
     }

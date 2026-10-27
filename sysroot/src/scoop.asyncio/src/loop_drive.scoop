@@ -1,0 +1,63 @@
+package scoop.asyncio
+
+// Only the owner thread enters the driver. Nested host notifications schedule another turn.
+internal class LoopDriver {
+    private var pumping: Boolean = false
+    private var pumpAgain: Boolean = false
+
+    fun pump(owner: LoopOwner, native: Ptr<Unit>): Boolean {
+        if (pumping) {
+            pumpAgain = true;
+            return false
+        }
+        pumping = true
+        try {
+            val pending = owner.takeCommands()
+            owner.poll(native, false)
+            var completions = 0L
+            @Unsafe
+            {
+                completions = nativeLoopBatchSize(native)
+            }
+            for (command in pending)
+                command()
+            var index = 0L
+            while (index < completions) {
+                @Unsafe
+                {
+                    owner.complete(decodeEvent(nativeLoopNext(native)))
+                }
+                index += 1L
+            }
+            owner.startCleanup()
+            val batch = owner.ready
+            owner.ready = ArrayList<() -> Unit>()
+            for (resume in batch)
+                resume()
+            owner.startCleanup()
+        } finally {
+            pumping = false
+            @Unsafe
+            {
+                if (pumpAgain || owner.hasQueuedWork() || nativeLoopBatchSize(native) != 0L)
+                    nativeLoopWake(native)
+            }
+            pumpAgain = false
+        }
+        return true
+    }
+
+    fun drive(owner: LoopOwner, native: Ptr<Unit>) {
+        while (true) {
+            pump(owner, native)
+            if (owner.stopIfDrained(native))
+                break
+            if (!owner.hasQueuedWork())
+                owner.poll(native, true)
+        }
+        when (owner.destroy(native)) {
+            case Some(error) -> throw error
+            case None -> {}
+        }
+    }
+}

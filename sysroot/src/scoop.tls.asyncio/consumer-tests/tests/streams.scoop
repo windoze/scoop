@@ -22,8 +22,9 @@ private class AsyncTlsConsumerTests {
      */
     @Test
     fun `published async wrappers compose with M49 scopes and resource helpers`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val root = Certificate.fromPem(rootPem())
             val leaf = Certificate.fromPem(serverPem())
             val chain = Certificate.fromPem(intermediatePem())
@@ -31,22 +32,41 @@ private class AsyncTlsConsumerTests {
             val store = TrustStore.fromCertificates([root])
             val clientConfig = TlsClientContext(store)
             val serverConfig = TlsServerContext([leaf, chain], key)
-            root.close(); leaf.close(); chain.close(); key.close(); store.close()
+            root.close();
+            leaf.close();
+            chain.close();
+            key.close();
+            store.close()
             val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
             try {
-                val serving = scope.launch suspend {
-                    AsyncTlsStream.takeOwnershipAsServer(listener.accept(), serverConfig).useAsync suspend { server ->
-                        NativeByteBuffer.allocate(1L).use suspend { bytes ->
-                            server.readFully(bytes)
-                            server.writeFully(bytes)
-                            server.shutdownGracefully()
+                val serving =
+                    scope.launch suspend {
+                        AsyncTlsStream.takeOwnershipAsServer(
+                            listener.accept(),
+                            serverConfig
+                        ).useAsync suspend {
+                            server -> NativeByteBuffer.allocate(1L).use suspend {
+                                bytes ->
+                                server.readFully(bytes)
+                                server.writeFully(bytes)
+                                server.shutdownGracefully()
+                            }
                         }
                     }
-                }
-                val addresses = loop.resolve(OsString.fromString("localhost"), listener.localAddress.port, Some(AddressFamily.Ipv4))
+                val addresses =
+                    loop.resolve(
+                        OsString.fromString("localhost"),
+                        listener.localAddress.port,
+                        Some(AddressFamily.Ipv4)
+                    )
                 assertTrue(addresses.size > 0L)
-                AsyncTlsStream.takeOwnershipAsClient(loop.connectTcp(addresses[0L]), clientConfig, TlsPeerName.Dns("localhost")).useAsync suspend { client ->
-                    NativeByteBuffer.allocate(1L).use suspend { bytes ->
+                AsyncTlsStream.takeOwnershipAsClient(
+                    loop.connectTcp(addresses[0L]),
+                    clientConfig,
+                    TlsPeerName.Dns("localhost")
+                ).useAsync suspend {
+                    client -> NativeByteBuffer.allocate(1L).use suspend {
+                        bytes ->
                         bytes.writeByte(42)
                         client.writeFully(bytes)
                         client.flush()
@@ -58,7 +78,11 @@ private class AsyncTlsConsumerTests {
                     }
                 }
                 serving.join()
-            } finally { listener.close(); clientConfig.close(); serverConfig.close() }
+            } finally {
+                listener.close();
+                clientConfig.close();
+                serverConfig.close()
+            }
         }
     }
 }

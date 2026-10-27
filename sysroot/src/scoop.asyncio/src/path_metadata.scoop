@@ -4,37 +4,70 @@ import scoop.platform.fs.*
 import scoop.platform.native.*
 
 internal fun takeFileMetadata(pointer: Ptr<Unit>): FileMetadata {
-    @Unsafe { return decodeFileMetadata(nativeTakeMetadata(pointer), 0, None) }
+    @Unsafe
+    {
+        return decodeFileMetadata(nativeTakeMetadata(pointer), 0, None)
+    }
 }
 
-internal fun metadataResult(result: IoResult): FileMetadata = when (result) {
-    case Metadata(value) -> value
-    case _ -> throw IllegalStateException(Some("metadata returned no file information"))
-}
+internal fun metadataResult(result: IoResult): FileMetadata =
+    when (result) {
+        case Metadata(value) -> value
+        case _ -> throw IllegalStateException(Some("metadata returned no file information"))
+    }
 
-internal suspend fun metadataOnLoop(loop: LibuvEventLoop, path: Path, followLinks: Boolean): FileMetadata {
+internal suspend fun metadataOnLoop(
+    loop: LoopOwner,
+    path: Path,
+    followLinks: Boolean
+): FileMetadata {
     val job = loop.requireJob()
     val context = path.toOsString()
-    return suspendCoroutine<FileMetadata> { continuation ->
-        val operation = LoopOperation(loop.state, loop.state.nextOperation(),
-            { native, id -> @Unsafe {
-                return@LoopOperation path.withNativePath { pointer -> @Unsafe {
-                    return@withNativePath nativeStatus(id, nativePathMetadata(native, id, pointer, followLinks))
-                } }
-            } },
-            { native, id -> @Unsafe { nativeWorkCancel(native, id) } },
-            { event, selected ->
-                when (completionFailure("metadata", event.result, selected, Some(context))) {
-                    case Some(error) -> continuation.resumeWithException(error)
-                    case None -> continuation.resume(metadataResult(event.result))
+    return suspendCoroutine<FileMetadata> {
+        continuation ->
+        val operation =
+            LoopOperation(
+                loop,
+                loop.nextOperation(),
+                {
+                    native,
+                    id -> @Unsafe
+                    {
+                        return@LoopOperation path.withNativePath {
+                            pointer -> @Unsafe
+                            {
+                                return@withNativePath nativeStatus(
+                                    id,
+                                    nativePathMetadata(native, id, pointer, followLinks)
+                                )
+                            }
+                        }
+                    }
+                },
+                {
+                    native,
+                    id -> @Unsafe
+                    {
+                        nativeWorkCancel(native, id)
+                    }
+                },
+                {
+                    event,
+                    selected -> when (
+                        completionFailure("metadata", event.result, selected, Some(context))
+                    ) {
+                        case Some(error) -> continuation.resumeWithException(error)
+                        case None -> continuation.resume(metadataResult(event.result))
+                    }
                 }
-            })
+            )
         operation.subscribe(job)
-        loop.state.submit(operation)
+        loop.submit(operation)
     }
 }
 
 @Extern(name = "scoop_io_path_metadata")
 private fun nativePathMetadata(loop: Ptr<Unit>, id: Long, path: Ptr<Byte>, follow: Boolean): Int
+
 @Extern(name = "scoop_io_metadata_take")
 private fun nativeTakeMetadata(pointer: Ptr<Unit>): NativeFileMetadata

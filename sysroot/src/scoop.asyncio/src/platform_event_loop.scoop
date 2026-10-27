@@ -1,0 +1,195 @@
+package scoop.asyncio
+
+import scoop.asyncio.native.NativeWork
+import scoop.asyncio.host.EventLoopHost
+import scoop.time.Duration
+import scoop.platform.net.*
+import scoop.platform.system.OsString
+import scoop.platform.fs.*
+
+/**
+ * A single-use platform event loop. Run it from outside a Job and outside another event loop; I/O
+ * requires an active job in this loop's context.
+ */
+public class PlatformEventLoop public constructor(): EventLoop {
+    private val accepted: AtomicBoolean = AtomicBoolean(false)
+    internal val state: LoopOwner = LoopOwner()
+
+    /**
+     * Runs the root structured scope and drives its operations to completion. The loop is
+     * single-use and cannot be nested or called from an existing Job.
+     */
+    public override fun run(block: suspend (CoroutineScope) -> Unit) {
+        acceptStart()
+        val native = state.open(this)
+        val loop: EventLoop = this
+        context(loop) {
+            startCoroutine<Unit>(
+                suspend {
+                    coroutineScope<Unit> suspend {
+                        scope ->
+                        state.bindRoot(scope.job);
+                        block(scope)
+                    }
+                },
+                LoopCompletion(state)
+            )
+        }
+        state.drive(native)
+    }
+
+    /** Attaches without running application callbacks on the registration stack. */
+    public fun attach(host: EventLoopHost, onClosed: (Throwable?) -> Unit): EventLoopSession {
+        if (!host.isCurrentThread())
+            throw IllegalStateException(Some("attach requires the host owner thread"))
+        acceptStart()
+        val native = state.open(this)
+        val mailbox = LoopMailbox(state)
+        val loop: EventLoop = this
+        context(loop) {
+            startCoroutine<Unit>(
+                suspend { coroutineScope<Unit> suspend { scope -> mailbox.run(scope) } },
+                SessionCompletion(mailbox)
+            )
+        }
+        try {
+            LoopAttachment(state, native, mailbox, onClosed).install(host)
+        } catch (error: Throwable) {
+            mailbox.requestClose()
+            try {
+                state.drive(native)
+            }
+            catch (cleanup: Throwable) {
+                throw ResourceUseException(error, cleanup)
+            }
+            throw error
+        }
+        return EventLoopSession(loop, mailbox)
+    }
+
+    private fun acceptStart() {
+        when (currentJobOrNone()) {
+            case Some(_) -> throw IllegalStateException(
+                Some("event loop startup requires a caller outside a Job")
+            )
+            case None -> {}
+        }
+        if (hasEventLoop())
+            throw IllegalStateException(Some("nested event loop startup"))
+        if (!accepted.compareAndSet(false, true))
+            throw IllegalStateException(Some("event loop already used"))
+    }
+
+    /**
+     * Suspends for a nonnegative duration and follows current-job cancellation.
+     */
+    public override suspend fun sleep(duration: Duration) {
+        sleepOnLoop(state, duration)
+    }
+
+    /**
+     * Resolves the host and port, optionally restricted to one address family.
+     */
+    public override suspend fun resolve(host: OsString, port: Int, family: AddressFamily?): Array<
+        SocketAddress
+    > = resolveOnLoop(state, host, port, family)
+
+    /**
+     * Runs a single-use native payload on a worker and waits for completion before releasing its
+     * active borrow.
+     */
+    @Unsafe
+    public override suspend fun runNativeWork(work: NativeWork) {
+        runNativeWorkOnLoop(state, work)
+    }
+
+    /**
+     * Opens an owned asynchronous file using explicit access, creation, and truncation options.
+     */
+    public override suspend fun openFile(path: Path, options: OpenOptions): AsyncFile =
+        openFileOnLoop(state, path, options)
+    /**
+     * Opens an owned asynchronous terminal handle.
+     */
+    public override suspend fun openTty(): AsyncTty = openTtyOnLoop(state)
+
+    /**
+     * Queries filesystem metadata, optionally following symbolic links.
+     */
+    public override suspend fun metadata(path: Path, followLinks: Boolean): FileMetadata =
+        metadataOnLoop(state, path, followLinks)
+
+    /**
+     * Moves a filesystem entry, replacing the destination only when requested.
+     */
+    public override suspend fun moveFile(
+        source: Path,
+        destination: Path,
+        replaceExisting: Boolean
+    ) {
+        moveFileOnLoop(state, source, destination, replaceExisting)
+    }
+    /**
+     * Deletes the selected filesystem entry.
+     */
+    public override suspend fun deleteFile(path: Path) {
+        deleteFileOnLoop(state, path)
+    }
+    /**
+     * Creates missing parent directories with the requested mode, subject to the process umask.
+     */
+    public override suspend fun createDirectories(path: Path, mode: Int) {
+        createDirectoriesOnLoop(state, path, mode)
+    }
+    /**
+     * Creates a unique temporary file and returns both its path and open handle.
+     */
+    public override suspend fun createTempFile(parent: Path?, prefix: String): TemporaryFile =
+        createTemporaryFileOnLoop(state, parent, prefix)
+    /**
+     * Opens an owned directory enumeration cursor.
+     */
+    public override suspend fun openDirectory(path: Path): AsyncDirectoryEntries =
+        openDirectoryOnLoop(state, path)
+
+    /**
+     * Connects to an IP endpoint, or resolves and races candidates using the supplied host
+     * connection options. The returned stream has independent ownership.
+     */
+    public override suspend fun connectTcp(address: SocketAddress): AsyncTcpStream =
+        connectTcpOnLoop(state, address)
+    /**
+     * Connects to an IP endpoint, or resolves and races candidates using the supplied host
+     * connection options. The returned stream has independent ownership.
+     */
+    public override suspend fun connectTcp(
+        host: OsString,
+        port: Int,
+        options: TcpConnectOptions
+    ): AsyncTcpStream = connectTcpHostOnLoop(state, host, port, options)
+    /**
+     * Binds and listens for TCP connections with the requested backlog and address-reuse setting.
+     */
+    public override suspend fun listenTcp(
+        address: SocketAddress,
+        backlog: Int,
+        reuseAddress: Boolean
+    ): AsyncTcpListener = listenTcpOnLoop(state, address, backlog, reuseAddress)
+
+    /**
+     * Binds an owned UDP socket, optionally enabling address reuse.
+     */
+    public override suspend fun bindUdp(
+        address: SocketAddress,
+        reuseAddress: Boolean
+    ): AsyncUdpSocket = bindUdpOnLoop(state, address, reuseAddress)
+}
+
+private class LoopCompletion(val state: LoopOwner): Continuation<Unit> {
+    public override fun resume(value: Unit) {
+        state.finishRoot(None)
+    }
+    public override fun resumeWithException(exception: Throwable) {
+        state.finishRoot(Some(exception))
+    }
+}

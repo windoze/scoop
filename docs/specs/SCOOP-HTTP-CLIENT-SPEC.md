@@ -518,7 +518,7 @@ urlDisplay 只保留 origin 和明确的路径脱敏标记，去掉 userinfo、q
 
 ```scoop
 fun main() {
-    LibuvEventLoop().run suspend { _ ->
+    PlatformEventLoop().run suspend { _ ->
         withHttpClient(HttpClientConfig()) suspend { client ->
             val request = HttpRequest.get(Url.parse("https://example.com/data"))
             client.withResponse(request) suspend { response ->

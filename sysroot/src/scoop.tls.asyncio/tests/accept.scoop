@@ -10,25 +10,35 @@ import scoop.tls.*
 private class AsyncTlsAcceptTests {
     @Test
     fun `a stalled handshake does not block another accept and cancellation closes its transport`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
             val config = serverContext(TlsOptions())
-            val firstConnect = scope.async<AsyncTcpStream> suspend { loop.connectTcp(listener.localAddress) }
+            val firstConnect =
+                scope.async<AsyncTcpStream> suspend { loop.connectTcp(listener.localAddress) }
             val rawServer = ObservedTransport(listener.accept())
             val rawClient = firstConnect.await()
-            val stalled = scope.launch suspend {
-                try { AsyncTlsStream.takeOwnershipAsServer(rawServer, config); fail(Some("plaintext peer completed TLS")) }
-                catch (_: CancellationException) { assertEquals(1, rawServer.closes) }
-            }
+            val stalled =
+                scope.launch suspend {
+                    try {
+                        AsyncTlsStream.takeOwnershipAsServer(rawServer, config);
+                        fail(Some("plaintext peer completed TLS"))
+                    }
+                    catch (_: CancellationException) {
+                        assertEquals(1, rawServer.closes)
+                    }
+                }
             try {
                 rawServer.readStarted.await()
-                val secondConnect = scope.async<AsyncTcpStream> suspend { loop.connectTcp(listener.localAddress) }
+                val secondConnect =
+                    scope.async<AsyncTcpStream> suspend { loop.connectTcp(listener.localAddress) }
                 val secondServer = ObservedTransport(listener.accept())
                 val secondClient = ObservedTransport(secondConnect.await())
-                val (client, server) = tlsPair(scope, secondClient, secondServer)
+                val(client, server) = tlsPair(scope, secondClient, secondServer)
                 try {
-                    stalled.cancel(); stalled.join()
+                    stalled.cancel();
+                    stalled.join()
                     assertEquals(1, rawServer.closes)
                     val bytes = NativeByteBuffer.allocate(1L)
                     try {
@@ -37,9 +47,19 @@ private class AsyncTlsAcceptTests {
                         bytes.clear()
                         server.readFully(bytes)
                         assertEquals(42.toByte(), bytes.getByte(0L))
-                    } finally { bytes.close() }
-                } finally { client.close(); server.close() }
-            } finally { stalled.cancel(); rawClient.close(); listener.close(); config.close() }
+                    } finally {
+                        bytes.close()
+                    }
+                } finally {
+                    client.close();
+                    server.close()
+                }
+            } finally {
+                stalled.cancel();
+                rawClient.close();
+                listener.close();
+                config.close()
+            }
         }
     }
 }

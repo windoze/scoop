@@ -1,0 +1,105 @@
+package scoop.asyncio
+
+import scoop.asyncio.host.*
+import scoop.platform.concurrent.*
+import scoop.test.*
+
+internal class PollHost: EventLoopHost, EventLoopWatch {
+    private val thread: ThreadId = currentThreadId()
+    private var ready: (() -> Unit)? = None
+    private var removed: (() -> Unit)? = None
+    var descriptor: Int = -1
+    var callbacks: Long = 0L
+    var removals: Long = 0L
+    var inside: Boolean = false
+
+    public override fun isCurrentThread(): Boolean = currentThreadId() == thread
+    @Unsafe
+    public override fun watchReadable(descriptor: Int, ready: () -> Unit): EventLoopWatch {
+        assertTrue(isCurrentThread())
+        this.descriptor = descriptor
+        this.ready = Some(ready)
+        return this
+    }
+    public override fun remove(onRemoved: () -> Unit) {
+        assertTrue(isCurrentThread())
+        removed = Some(onRemoved)
+    }
+    fun step(timeout: Int = 5000) {
+        when (removed) {
+            case Some(callback) -> {
+                assertFalse(inside)
+                @Unsafe
+                {
+                    assertTrue(nativeTestDescriptorOpen(descriptor))
+                }
+                ready = None
+                removed = None
+                removals += 1L
+                callback()
+                @Unsafe
+                {
+                    assertFalse(nativeTestDescriptorOpen(descriptor))
+                }
+                return
+            }
+            case None -> {}
+        }
+        @Unsafe
+        {
+            val result = nativeTestHostPoll(descriptor, timeout)
+            assertTrue(result >= 0)
+            if (result == 0) {
+                if (timeout > 0)
+                    fail(Some("host notification did not arrive"))
+                return
+            }
+        }
+        callbacks += 1L
+        val previous = inside
+        inside = true
+        try {
+            ready!!()
+        } finally {
+            inside = previous
+        }
+    }
+    fun drain(session: EventLoopSession) {
+        while (!session.isClosed)
+            step()
+        assertEquals(1L, removals)
+    }
+}
+
+@Extern(name = "scoop_test_host_poll")
+internal fun nativeTestHostPoll(descriptor: Int, timeout: Int): Int
+
+@Extern(name = "scoop_test_descriptor_open")
+internal fun nativeTestDescriptorOpen(descriptor: Int): Boolean
+
+internal class HostResult {
+    var closed: Int = 0
+    var seen: Int = 0
+    var job: Job? = None
+    var completed: Boolean = false
+    var cleaned: Boolean = false
+    var second: Boolean = false
+    var failure: Throwable? = None
+}
+
+internal fun assertNoHostFailure(error: Throwable?) {
+    when (error) {
+        case Some(value) -> throw value
+        case None -> {}
+    }
+}
+
+internal fun hostClock(cpu: Int = 0): Long {
+    @Unsafe
+    {
+        return nativeTestHostClock(cpu)
+    }
+}
+
+@Extern(name = "scoop_test_host_clock")
+private fun nativeTestHostClock(cpu: Int): Long

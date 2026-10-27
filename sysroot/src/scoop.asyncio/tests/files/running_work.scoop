@@ -7,28 +7,43 @@ import scoop.platform.system.*
 import scoop.test.*
 
 internal fun makeFifo(path: Path) {
-    @Unsafe {
-        path.withNativePath { pointer -> @Unsafe { assertEquals(0, createFifo(pointer, 0x180u)) } }
+    @Unsafe
+    {
+        path.withNativePath {
+            pointer -> @Unsafe
+            {
+                assertEquals(0, createFifo(pointer, 0x180u))
+            }
+        }
     }
 }
 
 @Test
 private class AsyncFileRunningWorkTest {
     @Test
-    fun `cancelling a running read waits for syscall completion and commits its actual prefix`() {
-        @Unsafe { assertTrue(testPoolSize() >= 2u, Some("this execution fence requires UV_THREADPOOL_SIZE >= 2")) }
-        IoTestDirectory().use { tree ->
+    fun `cancelling a read waits for native retirement and preserves transferred or unread bytes`() {
+        @Unsafe
+        {
+            assertTrue(
+                testPoolSize() >= 2u,
+                Some("this execution fence requires at least two native workers")
+            )
+        }
+        IoTestDirectory().use {
+            tree ->
             val path = tree.child("fifo")
             makeFifo(path)
-            val backend = LibuvEventLoop()
+            val backend = PlatformEventLoop()
             val loop: EventLoop = backend
-            loop.run suspend { scope ->
+            loop.run suspend {
+                scope ->
                 val file = loop.openFile(path, OpenOptions(write = true))
-                File.open(path, OpenOptions(read = false, write = true)).use suspend { writer ->
-                    NativeByteBuffer.allocate(4L).use suspend { bytes ->
+                File.open(path, OpenOptions(read = false, write = true)).use suspend {
+                    writer -> NativeByteBuffer.allocate(4L).use suspend {
+                        bytes ->
                         val reading = scope.launch suspend { file.readInto(bytes, 4L) }
                         val fence = WorkFence(backend)
-                        // FIFO work is ahead of these N-1 gates in the real worker queue.
+                        // On worker backends the FIFO read precedes these N-1 gates; ring requests may still be pending.
                         fence.start(1u)
                         fence.waitStarted()
                         var supplied = false
@@ -41,11 +56,14 @@ private class AsyncFileRunningWorkTest {
                             supplied = true
                             reading.join()
                             assertTrue(reading.isCancelled)
-                            assertEquals(1L, bytes.writePosition)
+                            assertTrue(bytes.writePosition == 0L || bytes.writePosition == 1L)
+                            if (bytes.writePosition == 0L)
+                                assertEquals(1L, file.readInto(bytes, 1L))
                             assertEquals(42.toByte(), bytes.readByte())
                             bytes.clear()
                         } finally {
-                            if (!supplied) writer.writeAllBytes(Array<Byte>(1L) { 42.toByte() })
+                            if (!supplied)
+                                writer.writeAllBytes(Array<Byte>(1L) { 42.toByte() })
                             fence.close()
                         }
                     }
@@ -57,12 +75,14 @@ private class AsyncFileRunningWorkTest {
 
     @Test
     fun `late open cancellation closes the acquired FIFO before the caller resumes`() {
-        IoTestDirectory().use { tree ->
+        IoTestDirectory().use {
+            tree ->
             val path = tree.child("fifo")
             makeFifo(path)
-            val backend = LibuvEventLoop()
+            val backend = PlatformEventLoop()
             val loop: EventLoop = backend
-            loop.run suspend { scope ->
+            loop.run suspend {
+                scope ->
                 val output = OpenedFifo()
                 val opening = scope.launch suspend { loop.openFile(path) }
                 backend.state.post {
@@ -72,10 +92,12 @@ private class AsyncFileRunningWorkTest {
                 }
                 opening.join()
                 assertTrue(opening.isCancelled)
-                output.file!!.use { writer ->
-                    val failure = assertFailsWith<PlatformException> {
-                        writer.writeAllBytes(Array<Byte>(1L) { 42.toByte() })
-                    }
+                output.file!!.use {
+                    writer ->
+                    val failure =
+                        assertFailsWith<PlatformException> {
+                            writer.writeAllBytes(Array<Byte>(1L) { 42.toByte() })
+                        }
                     assertTrue(failure.kind == PlatformErrorKind.BrokenPipe)
                 }
             }
@@ -83,5 +105,9 @@ private class AsyncFileRunningWorkTest {
     }
 }
 
-private class OpenedFifo { var file: File? = None }
-@Extern(name = "mkfifo") private fun createFifo(path: Ptr<Byte>, mode: UInt): Int
+private class OpenedFifo {
+    var file: File? = None
+}
+
+@Extern(name = "mkfifo")
+private fun createFifo(path: Ptr<Byte>, mode: UInt): Int

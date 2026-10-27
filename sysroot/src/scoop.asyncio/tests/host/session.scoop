@@ -1,0 +1,156 @@
+package scoop.asyncio
+
+import scoop.asyncio.host.*
+import scoop.platform.concurrent.Thread
+import scoop.test.*
+import scoop.time.Duration
+
+private class AttachMarker(val value: Int)
+
+context(marker: AttachMarker)
+private fun attachMarker(): Int = marker.value
+
+@Test
+private class EventLoopSessionTest {
+    @Test
+    fun `first callback close discards accepted posts and retires the watch before the descriptor`() {
+        val result = HostResult()
+        val host = PollHost()
+        val loop = PlatformEventLoop()
+        val session =
+            loop.attach(host) {
+                error ->
+                assertNoHostFailure(error);
+                result.closed += 1
+            }
+        assertEquals(0L, host.callbacks)
+        assertTrue(session.post { _ -> fail(Some("discarded callback ran")) })
+        Thread.start {
+            session.requestClose();
+            session.requestClose()
+        }.use { it.join() }
+        assertFalse(session.post { _ -> fail(Some("rejected callback ran")) })
+        assertFalse(session.isClosed)
+        host.drain(session)
+        assertTrue(session.isClosed)
+        assertEquals(1, result.closed)
+        assertFailsWith<IllegalStateException> { loop.run suspend { _ -> } }
+        assertFailsWith<IllegalStateException> { loop.attach(host) { _ -> } }
+    }
+
+    @Test
+    fun `foreign posts retain attach context and share one structured root`() {
+        val result = HostResult()
+        val host = PollHost()
+        val origin = AttachMarker(42)
+        val session =
+            context(origin) {
+                PlatformEventLoop().attach(host) { error -> assertNoHostFailure(error) }
+            }
+        Thread.start {
+            val foreign = AttachMarker(99)
+            context(foreign) {
+                assertTrue(
+                    session.post {
+                        scope ->
+                        assertEquals(42, attachMarker())
+                        assertSame(session.loop, currentEventLoop())
+                        result.job = Some(scope.job)
+                        result.seen += 1
+                    }
+                )
+                assertTrue(
+                    session.post {
+                        scope ->
+                        assertSame(result.job!!, scope.job)
+                        assertEquals(42, attachMarker())
+                        result.seen += 1
+                        scope.launch suspend {
+                            session.loop.sleep(Duration.milliseconds(1L))
+                            assertEquals(42, attachMarker())
+                            result.seen += 1
+                            session.requestClose()
+                        }
+                    }
+                )
+            }
+        }.use { it.join() }
+        assertEquals(0, result.seen)
+        host.drain(session)
+        assertEquals(3, result.seen)
+    }
+
+    @Test
+    fun `callback failure cancels children joins finally and drops later posts`() {
+        val result = HostResult()
+        val host = PollHost()
+        val problem = IllegalArgumentException(Some("post failed"))
+        val session = PlatformEventLoop().attach(host) { error -> result.failure = error }
+        session.post {
+            scope ->
+            scope.launch suspend {
+                try {
+                    currentEventLoop().sleep(Duration.seconds(100L))
+                }
+                finally {
+                    result.cleaned = true
+                }
+            }
+            throw problem
+        }
+        session.post { _ -> fail(Some("callback after failure ran")) }
+        host.drain(session)
+        assertTrue(result.cleaned)
+        assertSame(problem, result.failure!!)
+    }
+
+    @Test
+    fun `nested host entry defers state machine work and leaves host turns between posts`() {
+        val result = HostResult()
+        val host = PollHost()
+        val session = PlatformEventLoop().attach(host) { error -> assertNoHostFailure(error) }
+        session.post {
+            _ ->
+            session.post {
+                _ ->
+                result.second = true;
+                session.requestClose()
+            }
+            host.step(0)
+            assertFalse(result.second)
+        }
+        host.step()
+        assertFalse(result.second)
+        host.drain(session)
+        assertTrue(result.second)
+    }
+
+    @Test
+    fun `failed installation rolls back and consumes the single start`() {
+        val result = HostResult()
+        val problem = IllegalArgumentException(Some("watch failed"))
+        val host = FailingHost(problem)
+        val loop = PlatformEventLoop()
+        assertSame(
+            problem,
+            assertFailsWith<IllegalArgumentException> {
+                loop.attach(host) { _ -> fail(Some("unexpected close callback")) }
+            }
+        )
+        @Unsafe
+        {
+            assertFalse(nativeTestDescriptorOpen(host.descriptor))
+        }
+        assertFailsWith<IllegalStateException> { loop.run suspend { _ -> } }
+    }
+}
+
+private class FailingHost(private val problem: Throwable): EventLoopHost {
+    var descriptor: Int = -1
+    public override fun isCurrentThread(): Boolean = true
+    @Unsafe
+    public override fun watchReadable(descriptor: Int, ready: () -> Unit): EventLoopWatch {
+        this.descriptor = descriptor
+        throw problem
+    }
+}

@@ -2,9 +2,13 @@ package scoop.asyncio
 
 import scoop.platform.system.*
 
-internal enum TtyControl { Size, ReadMode, Enable, Disable }
+internal enum TtyControl {
+    Size, ReadMode, Enable, Disable
+}
 
-private class TtyModeChange { var restoreOnFailure: Boolean = false }
+private class TtyModeChange {
+    var restoreOnFailure: Boolean = false
+}
 
 internal suspend fun controlTty(owner: OwnedEndpoint, control: TtyControl): IoResult {
     val cancellable = control == TtyControl.Size || control == TtyControl.Enable
@@ -14,39 +18,64 @@ internal suspend fun controlTty(owner: OwnedEndpoint, control: TtyControl): IoRe
         val output = owner.reserve(true)
         try {
             val mode = TtyModeChange()
-            return suspendCoroutine<IoResult> { continuation ->
-                val operation = LoopOperation(owner.loop.state, owner.loop.state.nextOperation(),
-                    { _, id -> IoStart.Finished(NativeEvent(id, applyControl(owner.pointer, control, mode))) },
-                    { _, _ -> },
-                    { event, selected ->
-                        val failure = completionFailure("TTY control", event.result, selected)
-                        when (failure) {
-                            case Some(error) -> {
-                                val reported = if (mode.restoreOnFailure && !owner.isClosing)
-                                    restoreFailedMode(owner.pointer, error) else error
-                                continuation.resumeWithException(reported)
+            return suspendCoroutine<IoResult> {
+                continuation ->
+                val operation =
+                    LoopOperation(
+                        owner.loop,
+                        owner.loop.nextOperation(),
+                        {
+                            _,
+                            id -> IoStart.Finished(
+                                NativeEvent(id, applyControl(owner.pointer, control, mode))
+                            )
+                        },
+                        { _, _ -> },
+                        {
+                            event, selected ->
+                            val failure = completionFailure("TTY control", event.result, selected)
+                            when (failure) {
+                                case Some(error) -> {
+                                    val reported =
+                                        if (mode.restoreOnFailure && !owner.isClosing)
+                                            restoreFailedMode(owner.pointer, error)
+                                        else
+                                            error
+                                    continuation.resumeWithException(reported)
+                                }
+                                case None -> continuation.resume(event.result)
                             }
-                            case None -> continuation.resume(event.result)
                         }
-                    })
-                if (cancellable) operation.subscribe(job)
+                    )
+                if (cancellable)
+                    operation.subscribe(job)
                 owner.attach(operation, false)
                 owner.attach(operation, true)
-                owner.loop.state.submit(operation)
+                owner.loop.submit(operation)
             }
-        } finally { output.dispose() }
-    } finally { input.dispose() }
+        } finally {
+            output.dispose()
+        }
+    } finally {
+        input.dispose()
+    }
 }
 
-private fun posixFailure(code: Int): IoResult = IoResult.Failed(NativeError(NativeErrorDomain.PosixErrno, code), 0L)
+private fun posixFailure(code: Int): IoResult =
+    IoResult.Failed(NativeError(NativeErrorDomain.PosixErrno, code), 0L)
 
 private fun applyControl(pointer: Ptr<Unit>, control: TtyControl, change: TtyModeChange): IoResult {
-    @Unsafe {
+    @Unsafe
+    {
         when (control) {
             case Size -> {
-                val (size, error) = nativeTtySize(pointer)
-                return if (size.columns < 0L) posixFailure(error)
-                    else IoResult.TtySizeValue(TtySize(size.columns, size.rows, size.widthPixels, size.heightPixels))
+                val(size, error) = nativeTtySize(pointer)
+                return if (size.columns < 0L)
+                    posixFailure(error)
+                else
+                    IoResult.TtySizeValue(
+                        TtySize(size.columns, size.rows, size.widthPixels, size.heightPixels)
+                    )
             }
             case ReadMode -> return IoResult.TtyMode(nativeTtyIsRaw(pointer))
             case Enable -> return changeMode(pointer, true, change)
@@ -56,20 +85,28 @@ private fun applyControl(pointer: Ptr<Unit>, control: TtyControl, change: TtyMod
 }
 
 private fun changeMode(pointer: Ptr<Unit>, enabled: Boolean, change: TtyModeChange): IoResult {
-    @Unsafe {
+    @Unsafe
+    {
         val previous = nativeTtyIsRaw(pointer)
-        val (status, error) = nativeTtyRaw(pointer, enabled)
+        val(status, error) = nativeTtyRaw(pointer, enabled)
         change.restoreOnFailure = !previous && nativeTtyIsRaw(pointer)
-        return if (status < 0) posixFailure(error) else IoResult.Done
+        return if (status < 0)
+            posixFailure(error)
+        else
+            IoResult.Done
     }
 }
 
 private fun restoreFailedMode(pointer: Ptr<Unit>, primary: Throwable): Throwable {
-    @Unsafe {
-        val (status, error) = nativeTtyRaw(pointer, false)
+    @Unsafe
+    {
+        val(status, error) = nativeTtyRaw(pointer, false)
         if (status < 0) {
             val native = NativeError(NativeErrorDomain.PosixErrno, error)
-            return ResourceUseException(primary, PlatformException("restore TTY mode", native.kind, Some(native)))
+            return ResourceUseException(
+                primary,
+                PlatformException("restore TTY mode", native.kind, Some(native))
+            )
         }
         return primary
     }

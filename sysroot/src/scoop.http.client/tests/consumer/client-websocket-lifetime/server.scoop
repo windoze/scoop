@@ -14,33 +14,65 @@ internal class ClientWsPeer {
     var session: AsyncWebSocketSession? = None
 }
 
-internal fun withClientWsPeer(mode: String, block: suspend (EventLoop, CoroutineScope, Url, ClientWsPeer) -> Unit) {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
-        loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+internal fun withClientWsPeer(
+    mode: String,
+    block: suspend (EventLoop, CoroutineScope, Url, ClientWsPeer) -> Unit
+) {
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope -> loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend {
+            listener ->
             val peer = ClientWsPeer()
-            val serving = scope.launch suspend {
-                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
-                    val request = connection.receiveRequest()!!
-                    assertEquals(0L, request.body.readAllBytes(0L).size)
-                    val handshake = WebSocketHandshake.parse(request.head)
-                    peer.received.signal()
-                    if (mode == "opening") peer.finished.await()
-                    else if (mode == "reject") {
-                        connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 403U), Http1BodyFraming.Length(4L)).useAsync suspend { _ ->
+            val serving =
+                scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(
+                        listener.accept(),
+                        scope
+                    ).useAsync suspend {
+                        connection ->
+                        val request = connection.receiveRequest()!!
+                        assertEquals(0L, request.body.readAllBytes(0L).size)
+                        val handshake = WebSocketHandshake.parse(request.head)
+                        peer.received.signal()
+                        if (mode == "opening")
                             peer.finished.await()
-                        }
-                    } else {
-                        connection.sendResponse(handshake.response()).useAsync suspend { writer -> writer.finish() }
-                        val session = AsyncWebSocketSession.takeOwnership(connection.takeTransport(), scope, HttpRole.Server)
-                        peer.session = Some(session)
-                        try { peer.finished.await() }
-                        finally { session.close() }
+                        else
+                            if (mode == "reject") {
+                                connection.sendResponse(
+                                    HttpResponseHead(HttpVersion.Http11, 403U),
+                                    Http1BodyFraming.Length(4L)
+                                ).useAsync suspend { _ -> peer.finished.await() }
+                            } else {
+                                connection.sendResponse(handshake.response()).useAsync suspend {
+                                    writer -> writer.finish()
+                                }
+                                val session =
+                                    AsyncWebSocketSession.takeOwnership(
+                                        connection.takeTransport(),
+                                        scope,
+                                        HttpRole.Server
+                                    )
+                                peer.session = Some(session)
+                                try {
+                                    peer.finished.await()
+                                }
+                                finally {
+                                    session.close()
+                                }
+                            }
                     }
                 }
+            try {
+                block(
+                    loop,
+                    scope,
+                    Url.parse("ws://127.0.0.1:" + listener.localAddress.port.toString() + "/"),
+                    peer
+                )
             }
-            try { block(loop, scope, Url.parse("ws://127.0.0.1:" + listener.localAddress.port.toString() + "/"), peer) }
-            finally { peer.finished.signal() }
+            finally {
+                peer.finished.signal()
+            }
             serving.join()
         }
     }

@@ -1,4 +1,5 @@
 package scoop.tests
+
 import scoop.asyncio.*
 import scoop.tests.scoop.crypto.testdata.rootPem
 import scoop.crypto.x509.TrustStore
@@ -9,12 +10,17 @@ import scoop.tls.TlsTrustSource
 import scoop.url.Url
 
 internal fun timeoutCheck(value: Boolean) {
-    if (!value) throw IllegalStateException(Some("HTTP client timeout integration check failed"))
+    if (!value)
+        throw IllegalStateException(Some("HTTP client timeout integration check failed"))
 }
 
 internal suspend fun timeoutFailure(block: suspend () -> Unit): HttpTimeoutException {
-    try { block() }
-    catch (error: HttpTimeoutException) { return error }
+    try {
+        block()
+    }
+    catch (error: HttpTimeoutException) {
+        return error
+    }
     throw IllegalStateException(Some("expected HTTP timeout"))
 }
 
@@ -23,12 +29,20 @@ internal fun timeoutPhase(error: HttpTimeoutException, phase: HttpTimeoutPhase, 
 }
 
 private fun exercise(mode: String, url: Url, trust: TrustStore) {
-    val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
-        cleartext = if (mode == "h2") HttpCleartextProtocol.Http2PriorKnowledge else HttpCleartextProtocol.Http1,
-        pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L, maxStreamsPerHttp2 = 2L))
-    LibuvEventLoop().run suspend { scope ->
-        withHttpClient(config) suspend { client ->
-            when (mode) {
+    val config =
+        HttpClientConfig(
+            tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+            cleartext =
+                if (mode == "h2")
+                    HttpCleartextProtocol.Http2PriorKnowledge
+                else
+                    HttpCleartextProtocol.Http1,
+            pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L, maxStreamsPerHttp2 = 2L)
+        )
+    PlatformEventLoop().run suspend {
+        scope ->
+        withHttpClient(config) suspend {
+            client -> when (mode) {
                 case "pool" -> timeoutPool(client, url)
                 case "headers" -> timeoutHeaders(client, url, mode)
                 case "boundary" -> timeoutHeaders(client, url, mode)
@@ -46,8 +60,9 @@ fun main(args: Array<String>) {
     timeoutCheck(args.size == 3L)
     val mode = args[1L]
     val url = Url.parse(args[2L])
-    TrustStore.fromPem(rootPem()).use { trust ->
-        Thread.start { exercise(mode, url, trust) }.use { thread ->
+    TrustStore.fromPem(rootPem()).use {
+        trust -> Thread.start { exercise(mode, url, trust) }.use {
+            thread ->
             exercise(mode, url, trust)
             thread.join()
         }

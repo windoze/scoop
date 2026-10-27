@@ -10,60 +10,89 @@ import scoop.test.*
 private class AsyncCompressionLifecycleTests {
     @Test
     fun `owned endpoints close once and failed acquisition retains the caller owner`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             val input = ShortAsyncCompressionSource("abc".toByteArray())
-            assertFailsWith<IllegalArgumentException> { AsyncCompressionSource.takeOwnership(input, bufferSize = 0L) }
+            assertFailsWith<IllegalArgumentException> {
+                AsyncCompressionSource.takeOwnership(input, bufferSize = 0L)
+            }
             assertEquals(0, input.closes)
             val source = AsyncCompressionSource.takeOwnership(input)
-            source.close(); source.close()
+            source.close();
+            source.close()
             assertEquals(1, input.closes)
             assertEquals(0, input.calls)
             val encoded = ShortAsyncCompressionSource(compressionVector(CompressionFormat.Zstd))
             val decoded = AsyncDecompressionSource.takeOwnership(encoded)
-            decoded.close(); decoded.close()
+            decoded.close();
+            decoded.close()
             assertEquals(1, encoded.closes)
             val output = ShortAsyncCompressionSink()
-            val sink = AsyncCompressionSink.takeOwnership(output, CompressionOptions.Gzip(GzipOptions()), 1L)
+            val sink =
+                AsyncCompressionSink.takeOwnership(
+                    output,
+                    CompressionOptions.Gzip(GzipOptions()),
+                    1L
+                )
             writeAsyncCompression(sink, "abc".toByteArray())
             val before = output.bytes.size
-            sink.close(); sink.close()
+            sink.close();
+            sink.close()
             assertEquals(before, output.bytes.size)
             assertEquals(1, output.closes)
             assertEquals(0, output.flushes)
             val plain = ShortAsyncCompressionSink()
             val inverse = AsyncDecompressionSink.takeOwnership(plain)
-            inverse.close(); inverse.close()
+            inverse.close();
+            inverse.close()
             assertEquals(1, plain.closes)
         }
     }
 
     @Test
     fun `I O and cleanup failures preserve causes and do not poison the caller Job`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             val input = ShortAsyncCompressionSource("abc".toByteArray())
             input.failAfter = 0L
-            AsyncCompressionSource(input).useAsync suspend { source ->
-                val error = expectAsyncCompressionFailure<Throwable> suspend { readSmallAsyncCompression(source) }
+            AsyncCompressionSource(input).useAsync suspend {
+                source ->
+                val error =
+                    expectAsyncCompressionFailure<Throwable> suspend {
+                        readSmallAsyncCompression(source)
+                    }
                 assertSame(input.error, error)
                 ensureActive()
             }
             val output = ShortAsyncCompressionSink()
             output.failAfterProgress = true
-            AsyncCompressionSink(output, CompressionOptions.Gzip(GzipOptions()), 1L).useAsync suspend { sink ->
-                val error = expectAsyncCompressionFailure<Throwable> suspend { writeAsyncCompression(sink, "abc".toByteArray()) }
+            AsyncCompressionSink(
+                output,
+                CompressionOptions.Gzip(GzipOptions()),
+                1L
+            ).useAsync suspend {
+                sink ->
+                val error =
+                    expectAsyncCompressionFailure<Throwable> suspend {
+                        writeAsyncCompression(sink, "abc".toByteArray())
+                    }
                 assertSame(output.error, error)
                 assertEquals(1L, sink.totals.outputBytes)
                 ensureActive()
             }
             val failing = ShortAsyncCompressionSink()
-            failing.failAfter = 0L; failing.failClose = true
-            val combined = expectAsyncCompressionFailure<ResourceUseException> suspend {
-                AsyncCompressionSink.takeOwnership(failing).useAsync suspend { sink ->
-                    writeAsyncCompression(sink, "abc".toByteArray()); sink.finish()
+            failing.failAfter = 0L;
+            failing.failClose = true
+            val combined =
+                expectAsyncCompressionFailure<ResourceUseException> suspend {
+                    AsyncCompressionSink.takeOwnership(failing).useAsync suspend {
+                        sink ->
+                        writeAsyncCompression(sink, "abc".toByteArray());
+                        sink.finish()
+                    }
                 }
-            }
             assertSame(failing.error, combined.primaryFailure)
             assertSame(failing.cleanup, combined.cleanupFailure)
             assertEquals(1, failing.closes)
@@ -73,19 +102,28 @@ private class AsyncCompressionLifecycleTests {
 
     @Test
     fun `zero writes fail and another EventLoop cannot operate the adapter`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             val output = ShortAsyncCompressionSink()
             output.zero = true
-            AsyncCompressionSink(output).useAsync suspend { sink ->
-                expectAsyncCompressionFailure<WriteZeroException> suspend {
-                    writeAsyncCompression(sink, "abc".toByteArray()); sink.finish()
+            AsyncCompressionSink(output).useAsync suspend {
+                sink -> expectAsyncCompressionFailure<WriteZeroException> suspend {
+                    writeAsyncCompression(sink, "abc".toByteArray());
+                    sink.finish()
                 }
             }
-            AsyncCompressionSource(ShortAsyncCompressionSource("abc".toByteArray())).useAsync suspend { source ->
-                NativeByteBuffer.allocate(1L).use suspend { buffer ->
-                    val other: EventLoop = LibuvEventLoop()
-                    expectAsyncCompressionFailure<IllegalStateException> suspend { context(other) { source.readInto(buffer, 1L) } }
+            AsyncCompressionSource(
+                ShortAsyncCompressionSource("abc".toByteArray())
+            ).useAsync suspend {
+                source -> NativeByteBuffer.allocate(1L).use suspend {
+                    buffer ->
+                    val other: EventLoop = PlatformEventLoop()
+                    expectAsyncCompressionFailure<IllegalStateException> suspend {
+                        context(other) {
+                            source.readInto(buffer, 1L)
+                        }
+                    }
                     assertFalse(compressionPresent(source.failure))
                 }
             }

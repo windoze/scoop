@@ -1,26 +1,40 @@
 package test
+
 import scoop.asyncio.*
 import scoop.terminal.asyncio.*
 import scoop.time.Duration
 
 fun escapedSession() {
-    val loop: EventLoop = LibuvEventLoop()
-    val escaped = loop.runWithResult<AsyncTerminalSession> suspend { _ ->
-        val session = AsyncTerminalSession.open(loop)
-        session.enableRawMode()
-        session
-    }
+    val loop: EventLoop = PlatformEventLoop()
+    val escaped =
+        loop.runWithResult<AsyncTerminalSession> suspend {
+            _ ->
+            val session = AsyncTerminalSession.open(loop)
+            session.enableRawMode()
+            session
+        }
     check(escaped.isClosed, "loop exit closes escaped terminal")
     val completion = OutsideCompletion()
-    startCoroutine<Unit>(suspend { escaped.close(); escaped.poll(Duration.ZERO); Unit }, completion)
+    startCoroutine<Unit>(
+        suspend {
+            escaped.close();
+            escaped.poll(Duration.ZERO);
+            Unit
+        },
+        completion
+    )
     check(completion.rejected.load(), "I/O without the owning loop is a state error")
 }
 
-private class OutsideCompletion : Continuation<Unit> {
+private class OutsideCompletion: Continuation<Unit> {
     val rejected: AtomicBoolean = AtomicBoolean(false)
-    public override fun resume(value: Unit) { check(false, "closed read outside loop succeeded") }
+    public override fun resume(value: Unit) {
+        check(false, "closed read outside loop succeeded")
+    }
     public override fun resumeWithException(error: Throwable) {
-        if (error is IllegalStateException) rejected.store(true)
-        else throw error
+        if (error is IllegalStateException)
+            rejected.store(true)
+        else
+            throw error
     }
 }

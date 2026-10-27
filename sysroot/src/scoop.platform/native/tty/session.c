@@ -31,7 +31,7 @@ void *scoop_terminal_open(void) {
         selected = path;
     }
     do {
-        fd = open(selected, O_RDWR | O_CLOEXEC | O_NONBLOCK);
+        fd = open(selected, O_RDWR | O_CLOEXEC | O_NONBLOCK | O_NOCTTY);
     } while (fd < 0 && errno == EINTR);
     if (fd < 0)
         goto failed;

@@ -1,0 +1,50 @@
+package scoop.asyncio
+
+import scoop.time.Duration
+
+internal suspend fun sleepOnLoop(loop: LoopOwner, duration: Duration) {
+    val job = loop.requireJob()
+    if (duration.floorSeconds < 0L)
+        throw IllegalArgumentException(Some("negative sleep duration"))
+    if (duration == Duration.ZERO)
+        return
+    suspendCoroutine<Unit> {
+        continuation ->
+        val operation =
+            LoopOperation(
+                loop,
+                loop.nextOperation(),
+                {
+                    native,
+                    id -> @Unsafe
+                    {
+                        return@LoopOperation nativeStatus(
+                            id,
+                            nativeTimerStart(
+                                native,
+                                id,
+                                duration.floorSeconds,
+                                duration.nanosecondsOfSecond
+                            )
+                        )
+                    }
+                },
+                {
+                    native,
+                    id -> @Unsafe
+                    {
+                        nativeTimerCancel(native, id)
+                    }
+                },
+                {
+                    event,
+                    cancelled -> when (completionFailure("sleep", event.result, cancelled)) {
+                        case Some(error) -> continuation.resumeWithException(error)
+                        case None -> continuation.resume(Unit)
+                    }
+                }
+            )
+        operation.subscribe(job)
+        loop.submit(operation)
+    }
+}

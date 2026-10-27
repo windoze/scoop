@@ -10,34 +10,65 @@ private class AsyncHttpTlsModeTests {
     @Test
     fun `HTTP1 uses the actual TLS ALPN or an explicit absent ALPN fallback`() {
         for (selected in [false, true]) {
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { scope ->
-                val (a, b) = rawPair(loop, scope)
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                scope ->
+                val(a, b) = rawPair(loop, scope)
                 val protocols = ArrayList<Array<Byte>>()
-                if (selected) protocols.add("http/1.1".toByteArray())
-                val (tlsClient, tlsServer) = tlsPair(scope, a, b, TlsOptions(alpn = protocols))
+                if (selected)
+                    protocols.add("http/1.1".toByteArray())
+                val(tlsClient, tlsServer) = tlsPair(scope, a, b, TlsOptions(alpn = protocols))
                 if (!selected) {
-                    assertFailsWith<HttpNegotiationException> { selectHttpAlpn(alpnBytes(tlsClient.connectionInfo.alpn), [HttpProtocol.Http1]) }
+                    assertFailsWith<HttpNegotiationException> {
+                        selectHttpAlpn(
+                            alpnBytes(tlsClient.connectionInfo.alpn),
+                            [HttpProtocol.Http1]
+                        )
+                    }
                 }
-                assertTrue(selectHttpAlpn(alpnBytes(tlsClient.connectionInfo.alpn), [HttpProtocol.Http1], !selected) == HttpProtocol.Http1)
-                assertTrue(selectHttpAlpn(alpnBytes(tlsServer.connectionInfo.alpn), [HttpProtocol.Http1], !selected) == HttpProtocol.Http1)
+                assertTrue(
+                    selectHttpAlpn(
+                        alpnBytes(tlsClient.connectionInfo.alpn),
+                        [HttpProtocol.Http1],
+                        !selected
+                    ) ==
+                        HttpProtocol.Http1
+                )
+                assertTrue(
+                    selectHttpAlpn(
+                        alpnBytes(tlsServer.connectionInfo.alpn),
+                        [HttpProtocol.Http1],
+                        !selected
+                    ) ==
+                        HttpProtocol.Http1
+                )
                 val client = AsyncHttp1Connection.takeOwnershipAsClient(tlsClient, scope)
                 val server = AsyncHttp1Connection.takeOwnershipAsServer(tlsServer, scope)
                 try {
-                    val serving = scope.launch suspend {
-                        val incoming = server.receiveRequest()!!
-                        assertEquals("HEAD", String.fromUtf8(incoming.head.method))
-                        receiveBytes(incoming.body)
-                        server.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U,
-                            fields = [field("Content-Length", "42")])).finish()
-                    }
+                    val serving =
+                        scope.launch suspend {
+                            val incoming = server.receiveRequest()!!
+                            assertEquals("HEAD", String.fromUtf8(incoming.head.method))
+                            receiveBytes(incoming.body)
+                            server.sendResponse(
+                                HttpResponseHead(
+                                    HttpVersion.Http11,
+                                    200U,
+                                    fields = [field("Content-Length", "42")]
+                                )
+                            ).finish()
+                        }
                     client.sendRequest(request("HEAD")).finish()
                     val incoming = client.receiveResponse()
                     assertEquals(200U, incoming.head.status)
                     assertEquals(0L, receiveBytes(incoming.body).size)
                     serving.join()
-                } finally { client.close(); server.close() }
-                assertEquals(1, a.closes); assertEquals(1, b.closes)
+                } finally {
+                    client.close();
+                    server.close()
+                }
+                assertEquals(1, a.closes);
+                assertEquals(1, b.closes)
             }
         }
     }

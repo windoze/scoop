@@ -7,16 +7,25 @@ import scoop.test.*
 private class AsyncDirectoryLifecycleTest {
     @Test
     fun `directory close drains the active read and rejects concurrent next`() {
-        IoTestDirectory().use { tree ->
+        IoTestDirectory().use {
+            tree ->
             tree.child("entry").writeText("data")
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { scope ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                scope ->
                 val directory = loop.openDirectory(tree.path)
-                val reading = scope.launch suspend {
-                    try { directory.next(); fail(Some("directory close lost before delivery")) }
-                    catch (_: IoClosedException) {}
+                val reading =
+                    scope.launch suspend {
+                        try {
+                            directory.next();
+                            fail(Some("directory close lost before delivery"))
+                        }
+                        catch (_: IoClosedException) {}
+                    }
+                try {
+                    directory.next();
+                    fail(Some("concurrent next accepted"))
                 }
-                try { directory.next(); fail(Some("concurrent next accepted")) }
                 catch (_: IllegalStateException) {}
                 val first = scope.launch suspend { directory.close() }
                 val second = scope.launch suspend { directory.close() }
@@ -24,7 +33,10 @@ private class AsyncDirectoryLifecycleTest {
                 second.join()
                 reading.join()
                 directory.close()
-                try { directory.next(); fail(Some("closed directory read accepted")) }
+                try {
+                    directory.next();
+                    fail(Some("closed directory read accepted"))
+                }
                 catch (_: IoClosedException) {}
             }
         }
@@ -32,20 +44,33 @@ private class AsyncDirectoryLifecycleTest {
 
     @Test
     fun `cancelled finally and loop exit close directory resources`() {
-        IoTestDirectory().use { tree ->
-            val loop: EventLoop = LibuvEventLoop()
-            val escaped = loop.runWithResult<AsyncDirectoryEntries> suspend { scope ->
-                val child = scope.launch suspend {
-                    val directory = loop.openDirectory(tree.path)
-                    try { currentJobOrNone()!!.cancel(); ensureActive() }
-                    finally { directory.close() }
+        IoTestDirectory().use {
+            tree ->
+            val loop: EventLoop = PlatformEventLoop()
+            val escaped =
+                loop.runWithResult<AsyncDirectoryEntries> suspend {
+                    scope ->
+                    val child =
+                        scope.launch suspend {
+                            val directory = loop.openDirectory(tree.path)
+                            try {
+                                currentJobOrNone()!!.cancel();
+                                ensureActive()
+                            }
+                            finally {
+                                directory.close()
+                            }
+                        }
+                    child.join()
+                    assertTrue(child.isCancelled)
+                    loop.openDirectory(tree.path)
                 }
-                child.join()
-                assertTrue(child.isCancelled)
-                loop.openDirectory(tree.path)
+            val next: EventLoop = PlatformEventLoop()
+            next.run suspend {
+                _ ->
+                escaped.close();
+                escaped.close()
             }
-            val next: EventLoop = LibuvEventLoop()
-            next.run suspend { _ -> escaped.close(); escaped.close() }
         }
     }
 }

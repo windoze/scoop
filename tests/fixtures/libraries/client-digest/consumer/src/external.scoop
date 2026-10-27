@@ -1,4 +1,5 @@
 package scoop.tests
+
 import scoop.asyncio.*
 import scoop.crypto.*
 import scoop.crypto.x509.TrustStore
@@ -9,61 +10,178 @@ import scoop.text.startsWith
 import scoop.url.Url
 
 internal fun digestExternal(mode: String, url: Url, trust: TrustStore) {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { _ ->
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        _ ->
         val calls = AtomicLong(0L)
         val producers = AtomicLong(0L)
         val split = mode.split('_')
-        val algorithm = if (mode == "default-md5") HttpDigestAlgorithm.Md5 else digestAlgorithm(split[0L])
-        val provider = HttpAuthenticator.digest(url.httpOrigin(),
-            realm = if (mode == "unsupported-realm") Some<List<Byte>>("private".toByteArray()) else None,
-            algorithms = if (mode == "preference") [HttpDigestAlgorithm.Sha512_256, HttpDigestAlgorithm.Sha256, HttpDigestAlgorithm.Md5]
-                else [algorithm], preferIntegrity = mode == "integrity-preference") suspend { request ->
-            calls.fetchAdd(1L)
-            digestCheck(digestContext() == "request context")
-            digestCheck(request.challenge!!.scheme == "digest" && request.request.url.httpOrigin() == url.httpOrigin())
-            val username = if (mode == "utf8" || mode == "userhash") "José" else if (mode == "latin") "café" else "Mufasa"
-            HttpPasswordCredentials(username, if (mode == "utf8" || mode == "userhash") "päss:word" else "Circle of Life")
-        }
-        withHttpClient(digestConfig(trust, provider, if (mode == "limit") 1L else 3L)) suspend { client ->
-            context(DigestContext("request context")) {
+        val algorithm =
+            if (mode == "default-md5")
+                HttpDigestAlgorithm.Md5
+            else
+                digestAlgorithm(split[0L])
+        val provider =
+            HttpAuthenticator.digest(
+                url.httpOrigin(),
+                realm =
+                    if (mode == "unsupported-realm")
+                        Some<List<Byte>>("private".toByteArray())
+                    else
+                        None,
+                algorithms =
+                    if (mode == "preference")
+                        [
+                            HttpDigestAlgorithm.Sha512_256,
+                            HttpDigestAlgorithm.Sha256,
+                            HttpDigestAlgorithm.Md5
+                        ]
+                    else
+                        [algorithm],
+                preferIntegrity = mode == "integrity-preference"
+            ) suspend {
+                request ->
+                calls.fetchAdd(1L)
+                digestCheck(digestContext() == "request context")
+                digestCheck(
+                    request.challenge!!.scheme ==
+                        "digest" &&
+                        request.request.url.httpOrigin() ==
+                        url.httpOrigin()
+                )
+                val username =
+                    if (mode == "utf8" || mode == "userhash")
+                        "José"
+                    else
+                        if (mode == "latin")
+                            "café"
+                        else
+                            "Mufasa"
+                HttpPasswordCredentials(
+                    username,
+                    if (mode == "utf8" || mode == "userhash")
+                        "päss:word"
+                    else
+                        "Circle of Life"
+                )
+            }
+        withHttpClient(
+            digestConfig(
+                trust,
+                provider,
+                if (mode == "limit")
+                    1L
+                else
+                    3L
+            )
+        ) suspend {
+            client -> context(DigestContext("request context")) {
                 val body = digestBody(mode, producers)
                 val options = HttpCallOptions(expectContinue = mode != "provided-sent")
                 val request = HttpRequest.post(url, body, options = options)
-                if (mode == "nohash" || mode == "provided-sent" || mode == "rejected" || mode == "no-stale" || mode == "limit" ||
-                    mode.startsWith("bad-") || mode.startsWith("invalid-")) {
-                    val error = digestFailure<HttpAuthenticationException> suspend {
-                        client.withResponse(request) suspend { response -> response.body.text(4L); Unit }
-                    }
-                    val expected = if (mode.startsWith("bad-")) HttpAuthenticationFailure.InvalidResponse
-                        else if (mode.startsWith("invalid-")) HttpAuthenticationFailure.InvalidChallenge
-                        else if (mode == "nohash" || mode == "provided-sent") HttpAuthenticationFailure.BodyNotReplayable
-                        else if (mode == "limit") HttpAuthenticationFailure.LimitExceeded else HttpAuthenticationFailure.Rejected
-                    digestCheck(error.reason == expected && error.url == url, "unexpected Digest failure category")
-                    if (mode.startsWith("bad-")) digestCheck(error.head!!.status == 200U)
-                } else if (mode.startsWith("unsupported-")) {
-                    client.withResponse(request) suspend { response ->
-                        digestCheck(response.status == 401U && response.authenticationCount == 0L)
-                        digestCheck(response.body.text(4L) == "deny")
-                    }
-                    digestCheck(calls.load() == 0L)
-                } else {
-                    client.withResponse(request) suspend { response ->
-                        digestCheck(response.status == 200U && response.authenticationCount == (if (mode == "stale") 2L else 1L))
-                        digestCheck(response.body.text(4L) == "done")
-                    }
-                    if (mode == "cache" || mode == "nextnonce" || mode == "preempt-rejected" || mode == "clear") {
-                        if (mode == "clear") client.clearAuthenticationCache(provider)
-                        client.withResponse(HttpRequest.get(url.resolve("second?q=%2F"))) suspend { response ->
-                            digestCheck(response.authenticationCount == if (mode == "preempt-rejected" || mode == "clear") 1L else 0L)
+                if (
+                    mode ==
+                        "nohash" ||
+                        mode ==
+                        "provided-sent" ||
+                        mode ==
+                        "rejected" ||
+                        mode ==
+                        "no-stale" ||
+                        mode ==
+                        "limit" ||
+                        mode.startsWith("bad-") ||
+                        mode.startsWith("invalid-")
+                ) {
+                    val error =
+                        digestFailure<HttpAuthenticationException> suspend {
+                            client.withResponse(request) suspend {
+                                response ->
+                                response.body.text(4L);
+                                Unit
+                            }
+                        }
+                    val expected =
+                        if (mode.startsWith("bad-"))
+                            HttpAuthenticationFailure.InvalidResponse
+                        else
+                            if (mode.startsWith("invalid-"))
+                                HttpAuthenticationFailure.InvalidChallenge
+                            else
+                                if (mode == "nohash" || mode == "provided-sent")
+                                    HttpAuthenticationFailure.BodyNotReplayable
+                                else
+                                    if (mode == "limit")
+                                        HttpAuthenticationFailure.LimitExceeded
+                                    else
+                                        HttpAuthenticationFailure.Rejected
+                    digestCheck(
+                        error.reason == expected && error.url == url,
+                        "unexpected Digest failure category"
+                    )
+                    if (mode.startsWith("bad-"))
+                        digestCheck(error.head!!.status == 200U)
+                } else
+                    if (mode.startsWith("unsupported-")) {
+                        client.withResponse(request) suspend {
+                            response ->
+                            digestCheck(
+                                response.status == 401U && response.authenticationCount == 0L
+                            )
+                            digestCheck(response.body.text(4L) == "deny")
+                        }
+                        digestCheck(calls.load() == 0L)
+                    } else {
+                        client.withResponse(request) suspend {
+                            response ->
+                            digestCheck(
+                                response.status ==
+                                    200U &&
+                                    response.authenticationCount ==
+                                    (
+                                        if (mode == "stale")
+                                            2L
+                                        else
+                                            1L
+                                    )
+                            )
                             digestCheck(response.body.text(4L) == "done")
                         }
-                        digestCheck(calls.load() == 2L)
-                    } else digestCheck(calls.load() == 1L)
-                }
-                if (mode == "gzip") digestCheck(producers.load() == 2L)
-                if (mode == "provided" || mode == "provided-sent") digestCheck(producers.load() == 1L)
-                if (mode == "nohash") digestCheck(producers.load() == 0L)
+                        if (
+                            mode ==
+                                "cache" ||
+                                mode ==
+                                "nextnonce" ||
+                                mode ==
+                                "preempt-rejected" ||
+                                mode ==
+                                "clear"
+                        ) {
+                            if (mode == "clear")
+                                client.clearAuthenticationCache(provider)
+                            client.withResponse(
+                                HttpRequest.get(url.resolve("second?q=%2F"))
+                            ) suspend {
+                                response ->
+                                digestCheck(
+                                    response.authenticationCount ==
+                                        if (mode == "preempt-rejected" || mode == "clear")
+                                            1L
+                                        else
+                                            0L
+                                )
+                                digestCheck(response.body.text(4L) == "done")
+                            }
+                            digestCheck(calls.load() == 2L)
+                        } else
+                            digestCheck(calls.load() == 1L)
+                    }
+                if (mode == "gzip")
+                    digestCheck(producers.load() == 2L)
+                if (mode == "provided" || mode == "provided-sent")
+                    digestCheck(producers.load() == 1L)
+                if (mode == "nohash")
+                    digestCheck(producers.load() == 0L)
                 Unit
             }
         }
@@ -71,19 +189,29 @@ internal fun digestExternal(mode: String, url: Url, trust: TrustStore) {
 }
 
 private fun digestBody(mode: String, producers: AtomicLong): RequestBody {
-    if (mode == "gzip") return RequestBody.fromProducerWithTrailersFactory(["X-Upload"], Some(7L)) suspend {
-        suspend { output ->
-            producers.fetchAdd(1L)
-            digestWrite(output, "payload")
-            [HttpField("X-Upload".toByteArray(), "checked".toByteArray())]
-        }
-    }.compressed()
+    if (mode == "gzip")
+        return RequestBody.fromProducerWithTrailersFactory(["X-Upload"], Some(7L)) suspend {
+            suspend {
+                output ->
+                producers.fetchAdd(1L)
+                digestWrite(output, "payload")
+                [HttpField("X-Upload".toByteArray(), "checked".toByteArray())]
+            }
+        }.compressed()
     if (mode == "provided" || mode == "provided-sent" || mode == "nohash") {
-        val body = RequestBody.fromProducer(Some(7L)) suspend { output ->
-            producers.fetchAdd(1L); digestWrite(output, "payload")
-        }
-        return if (mode == "nohash") body else body.withDigest(HttpDigestAlgorithm.Sha256Sess,
-            digest(DigestAlgorithm.Sha256, "payload".toByteArray()))
+        val body =
+            RequestBody.fromProducer(Some(7L)) suspend {
+                output ->
+                producers.fetchAdd(1L);
+                digestWrite(output, "payload")
+            }
+        return if (mode == "nohash")
+            body
+        else
+            body.withDigest(
+                HttpDigestAlgorithm.Sha256Sess,
+                digest(DigestAlgorithm.Sha256, "payload".toByteArray())
+            )
     }
     return RequestBody.fromText("payload")
 }

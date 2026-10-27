@@ -7,53 +7,126 @@ import scoop.http.asyncio.*
 import scoop.platform.memory.NativeByteBuffer
 
 internal fun wsBorrowCompletion(cancelCaller: Boolean) {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope ->
         val transport = WsPendingTransport()
-        val session = AsyncWebSocketSession.takeOwnership(transport, scope, HttpRole.Client,
-            WebSocketSessionOptions(outgoingFrameBytes = 2L))
+        val session =
+            AsyncWebSocketSession.takeOwnership(
+                transport,
+                scope,
+                HttpRole.Client,
+                WebSocketSessionOptions(outgoingFrameBytes = 2L)
+            )
         val writer = session.beginMessage(WebSocketMessageType.Text)
         val readFailure = WsFailure()
         val writeFailure = WsFailure()
-        val reading = scope.launch suspend {
-            try { session.receive() } catch (error: Throwable) { readFailure.value = Some(error) }
-            ensureActive()
-        }
-        NativeByteBuffer.allocate(3L).use suspend { buffer ->
-            buffer.writeBytes("abc".toByteArray())
-            val writing = scope.launch suspend {
-                try { writer.writeFrom(buffer, 3L) } catch (error: Throwable) { writeFailure.value = Some(error) }
-                finally { writer.close() }
-                if (!cancelCaller) ensureActive()
+        val reading =
+            scope.launch suspend {
+                try {
+                    session.receive()
+                } catch (error: Throwable) {
+                    readFailure.value = Some(error)
+                }
+                ensureActive()
             }
-            wsCheck(transport.input.running && transport.output.running && buffer.readPosition == 2L, "pending duplex borrows")
-            if (cancelCaller) writing.cancel()
+        NativeByteBuffer.allocate(3L).use suspend {
+            buffer ->
+            buffer.writeBytes("abc".toByteArray())
+            val writing =
+                scope.launch suspend {
+                    try {
+                        writer.writeFrom(buffer, 3L)
+                    } catch (error: Throwable) {
+                        writeFailure.value = Some(error)
+                    }
+                    finally {
+                        writer.close()
+                    }
+                    if (!cancelCaller)
+                        ensureActive()
+                }
+            wsCheck(
+                transport.input.running && transport.output.running && buffer.readPosition == 2L,
+                "pending duplex borrows"
+            )
+            if (cancelCaller)
+                writing.cancel()
             val first = scope.launch suspend { session.close() }
             val second = scope.launch suspend { session.close() }
             val observer = scope.launch suspend { session.awaitClosed() }
             try {
-                wsCheck(transport.input.job!!.isCancelled && transport.output.job!!.isCancelled, "cancel native owner")
-                wsCheck(!first.isCompleted && !second.isCompleted && !observer.isCompleted && !reading.isCompleted &&
-                    !writing.isCompleted, "wait for native borrow completion")
-                wsCheck(wsExpect suspend { transport.input.buffer!!.close() } is IllegalStateException, "input borrow live")
-                wsCheck(wsExpect suspend { transport.output.buffer!!.close() } is IllegalStateException, "output borrow live")
+                wsCheck(
+                    transport.input.job!!.isCancelled && transport.output.job!!.isCancelled,
+                    "cancel native owner"
+                )
+                wsCheck(
+                    !first.isCompleted &&
+                        !second.isCompleted &&
+                        !observer.isCompleted &&
+                        !reading.isCompleted &&
+                        !writing.isCompleted,
+                    "wait for native borrow completion"
+                )
+                wsCheck(
+                    wsExpect suspend { transport.input.buffer!!.close() } is IllegalStateException,
+                    "input borrow live"
+                )
+                wsCheck(
+                    wsExpect suspend { transport.output.buffer!!.close() } is IllegalStateException,
+                    "output borrow live"
+                )
                 transport.input.complete()
                 wsCheck(transport.closes == 0 && !session.isClosed, "output still borrowed")
                 transport.output.complete()
-                reading.join(); writing.join(); first.join(); second.join(); observer.join()
-                wsCheck(session.isClosed && transport.closes == 1 && !writer.isComplete && writer.isClosed, "complete close once")
-                wsCheck(transport.input.buffer!!.isClosed && transport.output.buffer!!.isClosed, "release wire buffers")
+                reading.join();
+                writing.join();
+                first.join();
+                second.join();
+                observer.join()
+                wsCheck(
+                    session.isClosed &&
+                        transport.closes ==
+                        1 &&
+                        !writer.isComplete &&
+                        writer.isClosed,
+                    "complete close once"
+                )
+                wsCheck(
+                    transport.input.buffer!!.isClosed && transport.output.buffer!!.isClosed,
+                    "release wire buffers"
+                )
                 if (cancelCaller) {
-                    wsCheck(session.failure!! is CancellationException && readFailure.value!! is CancellationException &&
-                        writeFailure.value!! is CancellationException, "preserve caller cancellation")
+                    wsCheck(
+                        session.failure!! is
+                            CancellationException &&
+                            readFailure.value!! is
+                            CancellationException &&
+                            writeFailure.value!! is
+                            CancellationException,
+                        "preserve caller cancellation"
+                    )
                 } else {
-                    wsCheck(!wsPresent(session.failure) && readFailure.value!! is WebSocketSessionException &&
-                        writeFailure.value!! is WebSocketSessionException, "local close keeps callers active")
+                    wsCheck(
+                        !wsPresent(session.failure) &&
+                            readFailure.value!! is
+                            WebSocketSessionException &&
+                            writeFailure.value!! is
+                            WebSocketSessionException,
+                        "local close keeps callers active"
+                    )
                 }
             } finally {
-                if (transport.input.running) transport.input.complete()
-                if (transport.output.running) transport.output.complete()
-                session.close(); reading.join(); writing.join(); first.join(); second.join(); observer.join()
+                if (transport.input.running)
+                    transport.input.complete()
+                if (transport.output.running)
+                    transport.output.complete()
+                session.close();
+                reading.join();
+                writing.join();
+                first.join();
+                second.join();
+                observer.join()
             }
         }
     }

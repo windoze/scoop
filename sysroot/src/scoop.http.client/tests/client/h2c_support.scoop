@@ -5,22 +5,40 @@ import scoop.http.*
 import scoop.http.asyncio.*
 import scoop.tls.TlsTrustSource
 
-internal fun withClientH2cTest(version: HttpVersionPolicy = HttpVersionPolicy.Auto,
-    block: suspend (EventLoop, CoroutineScope, AsyncTcpListener, HttpClientConfig) -> Unit) {
-    clientTestTrust().use { trust ->
-        val config = HttpClientConfig(versionPolicy = version, cleartext = HttpCleartextProtocol.H2cUpgrade,
-            tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)), http2Settings = Http2Settings(initialWindowSize = 3U),
-            pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 2L))
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
-            clientTestListen(loop).useAsync suspend { listener -> block(loop, scope, listener, config) }
+internal fun withClientH2cTest(
+    version: HttpVersionPolicy = HttpVersionPolicy.Auto,
+    block: suspend (EventLoop, CoroutineScope, AsyncTcpListener, HttpClientConfig) -> Unit
+) {
+    clientTestTrust().use {
+        trust ->
+        val config =
+            HttpClientConfig(
+                versionPolicy = version,
+                cleartext = HttpCleartextProtocol.H2cUpgrade,
+                tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                http2Settings = Http2Settings(initialWindowSize = 3U),
+                pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 2L)
+            )
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope -> clientTestListen(loop).useAsync suspend {
+                listener -> block(loop, scope, listener, config)
+            }
         }
     }
 }
 
-internal suspend fun acceptClientTestUpgrade(connection: AsyncHttp1Connection, scope: CoroutineScope,
-    head: HttpRequestHead): AsyncHttp2Connection {
+internal suspend fun acceptClientTestUpgrade(
+    connection: AsyncHttp1Connection,
+    scope: CoroutineScope,
+    head: HttpRequestHead
+): AsyncHttp2Connection {
     val settings = readHttp2UpgradeSettings(head)
     connection.sendResponse(http2UpgradeResponse()).finish()
-    return AsyncHttp2Connection.takeOwnershipAsUpgradedServer(connection.takeTransport(), scope, head.method, settings)
+    return AsyncHttp2Connection.takeOwnershipAsUpgradedServer(
+        connection.takeTransport(),
+        scope,
+        head.method,
+        settings
+    )
 }

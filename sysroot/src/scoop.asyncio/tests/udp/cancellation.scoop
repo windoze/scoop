@@ -8,15 +8,18 @@ import scoop.test.*
 private class AsyncUdpCancellationTest {
     @Test
     fun `submitted send cancellation waits for its callback and commits the complete packet`() {
-        val backend = LibuvEventLoop()
+        val backend = PlatformEventLoop()
         val loop: EventLoop = backend
-        loop.run suspend { scope ->
+        loop.run suspend {
+            scope ->
             val sender = loop.bindUdp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
             val receiver = loop.bindUdp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
-            NativeByteBuffer.allocate(2L).use suspend { bytes ->
+            NativeByteBuffer.allocate(2L).use suspend {
+                bytes ->
                 bytes.writeByte(11)
                 bytes.writeByte(12)
-                val sending = scope.launch suspend { sender.sendTo(bytes, receiver.localAddress, 2L) }
+                val sending =
+                    scope.launch suspend { sender.sendTo(bytes, receiver.localAddress, 2L) }
                 backend.state.post {
                     sending.cancel()
                     assertFalse(sending.isCompleted)
@@ -42,12 +45,14 @@ private class AsyncUdpCancellationTest {
 
     @Test
     fun `cancelled receives leave the socket usable and do not consume the next packet`() {
-        val backend = LibuvEventLoop()
+        val backend = PlatformEventLoop()
         val loop: EventLoop = backend
-        loop.run suspend { scope ->
+        loop.run suspend {
+            scope ->
             val sender = loop.bindUdp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
             val receiver = loop.bindUdp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
-            NativeByteBuffer.allocate(1L).use suspend { bytes ->
+            NativeByteBuffer.allocate(1L).use suspend {
+                bytes ->
                 val early = scope.launch suspend { receiver.receiveFrom(bytes, 1L) }
                 early.cancel()
                 early.join()

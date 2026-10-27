@@ -1,0 +1,83 @@
+package scoop.tests.measurement
+
+import scoop.asyncio.*
+import scoop.platform.fs.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.time.Duration
+
+private fun now(kind: Int = 0): Long {
+    @Unsafe
+    {
+        return clock(kind)
+    }
+}
+
+@Extern(name = "scoop_measure_clock")
+private fun clock(kind: Int): Long
+
+private class CloseTime {
+    var value: Long = 0L
+}
+
+@Test
+private class BackendMeasurement {
+    @Test
+    fun `measure idle timer file throughput and close without timing thresholds`() {
+        val tree = createTempDirectory(prefix = "asyncio-measure-")
+        try {
+            val loop: EventLoop = PlatformEventLoop()
+            val closeTime = CloseTime()
+            loop.run suspend {
+                _ ->
+                val cpu = now(1)
+                val switches = now(2)
+                val start = now()
+                loop.sleep(Duration.milliseconds(200L))
+                println("idle_wall_ns=" + (now() - start).toString())
+                println("idle_cpu_ns=" + (now(1) - cpu).toString())
+                println("idle_context_switches=" + (now(2) - switches).toString())
+                var timerSum = 0L
+                var timerMax = 0L
+                for (_ in 0 ..< 30) {
+                    val started = now()
+                    loop.sleep(Duration.milliseconds(1L))
+                    val late = now() - started - 1000000L
+                    timerSum += late
+                    if (late > timerMax)
+                        timerMax = late
+                }
+                println("timer_mean_late_ns=" + (timerSum / 30L).toString())
+                println("timer_max_late_ns=" + timerMax.toString())
+                val path = tree.resolve(Path.fromString("data"))
+                loop.openFile(path, OpenOptions(write = true, create = true)).useAsync suspend {
+                    file -> NativeByteBuffer.allocate(65536L).use suspend {
+                        bytes ->
+                        val block = Array<Byte>(65536L) { _ -> 42 }
+                        var writing = 0L
+                        for (_ in 0 ..< 256) {
+                            bytes.clear()
+                            bytes.writeBytes(block)
+                            val started = now()
+                            file.writeFully(bytes)
+                            writing += now() - started
+                        }
+                        file.seek(0L)
+                        val started = now()
+                        for (_ in 0 ..< 256) {
+                            bytes.clear()
+                            file.readFully(bytes, 65536L)
+                        }
+                        println("read_16m_ns=" + (now() - started).toString())
+                        println("write_16m_ns=" + writing.toString())
+                        assertEquals(16777216L, file.position())
+                    }
+                }
+                closeTime.value = now()
+            }
+            println("close_ns=" + (now() - closeTime.value).toString())
+        } finally {
+            tree.deleteRecursively()
+        }
+    }
+}

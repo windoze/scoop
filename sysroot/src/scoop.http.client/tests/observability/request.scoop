@@ -12,50 +12,75 @@ import scoop.tls.TlsTrustSource
 private class HttpRequestObservationTest {
     @Test
     fun `request observation reuses an unobserved connection and separates informational heads`() {
-        clientTestTrust().use { trust ->
-            LibuvEventLoop().run suspend { scope ->
-                clientTestListen(currentEventLoop()).useAsync suspend { listener ->
-                    val serving = scope.launch suspend {
-                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
-                            for (index in 0L..<3L) {
-                                connection.receiveRequest()!!.body.readAllBytes(0L)
-                                if (index == 1L)
-                                    connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 103U)).finish()
-                                sendClientTestText(connection, 200U, "response")
+        clientTestTrust().use {
+            trust -> PlatformEventLoop().run suspend {
+                scope -> clientTestListen(currentEventLoop()).useAsync suspend {
+                    listener ->
+                    val serving =
+                        scope.launch suspend {
+                            AsyncHttp1Connection.takeOwnershipAsServer(
+                                listener.accept(),
+                                scope
+                            ).useAsync suspend {
+                                connection -> for (index in 0L ..< 3L) {
+                                    connection.receiveRequest()!!.body.readAllBytes(0L)
+                                    if (index == 1L)
+                                        connection.sendResponse(
+                                            HttpResponseHead(HttpVersion.Http11, 103U)
+                                        ).finish()
+                                    sendClientTestText(connection, 200U, "response")
+                                }
                             }
                         }
-                    }
-                    withHttpClient(clientTestConfig(trust)) suspend { client ->
+                    withHttpClient(clientTestConfig(trust)) suspend {
+                        client ->
                         val url = clientTestUrl(listener)
-                        client.withResponse(HttpRequest.get(url)) suspend { response ->
+                        client.withResponse(HttpRequest.get(url)) suspend {
+                            response ->
                             assertFalse(clientPresent(response.metrics))
                             response.body.text(32L)
                             Unit
                         }
                         val log = RequestObservationLog()
-                        val options = HttpCallOptions(observer = Some(log.observer), onInformational = suspend { _ ->
-                            val headers = log.ofKind(HttpCallEventKind.ResponseHeaders)
-                            assertEquals(1L, headers.size)
-                            assertTrue(headers[0L].metrics.responseHeadersAtUtc != None)
-                            assertTrue(headers[0L].metrics.finalResponseHeadersAtUtc == None)
-                            assertTrue(headers[0L].metrics.finalResponseHeadersAt == None)
-                        })
+                        val options =
+                            HttpCallOptions(
+                                observer = Some(log.observer),
+                                onInformational =
+                                    suspend {
+                                        _ ->
+                                        val headers = log.ofKind(HttpCallEventKind.ResponseHeaders)
+                                        assertEquals(1L, headers.size)
+                                        assertTrue(headers[0L].metrics.responseHeadersAtUtc != None)
+                                        assertTrue(
+                                            headers[0L].metrics.finalResponseHeadersAtUtc == None
+                                        )
+                                        assertTrue(
+                                            headers[0L].metrics.finalResponseHeadersAt == None
+                                        )
+                                    }
+                            )
                         val response = client.execute(HttpRequest.get(url, options = options))
                         val initial = response.metrics!!
                         try {
                             assertTrue(initial.connectionReused == Some(true))
                             assertTrue(initial.finishedAtUtc == None)
                             assertEquals("response", response.body.text(32L))
-                        } finally { response.close() }
+                        } finally {
+                            response.close()
+                        }
                         val final = response.metrics!!
                         checkRequestObservation(final)
                         assertEquals(initial.requestHeadersAtUtc, final.requestHeadersAtUtc)
-                        assertEquals(initial.finalResponseHeadersAtUtc, final.finalResponseHeadersAtUtc)
+                        assertEquals(
+                            initial.finalResponseHeadersAtUtc,
+                            final.finalResponseHeadersAtUtc
+                        )
                         assertEquals(final.finishedAtUtc, log.completed().finishedAtUtc)
                         assertTrue(initial.finishedAtUtc == None)
                         assertEquals(2L, log.ofKind(HttpCallEventKind.ResponseHeaders).size)
                         val eventCount = log.events.size
-                        client.withResponse(HttpRequest.get(url)) suspend { next ->
+                        client.withResponse(HttpRequest.get(url)) suspend {
+                            next ->
                             assertFalse(clientPresent(next.metrics))
                             next.body.text(32L)
                             Unit
@@ -70,41 +95,69 @@ private class HttpRequestObservationTest {
 
     @Test
     fun `request and client observers share snapshots and deduplicate identical observers`() {
-        clientTestTrust().use { trust ->
-            LibuvEventLoop().run suspend { scope ->
-                clientTestListen(currentEventLoop()).useAsync suspend { listener ->
-                    val serving = scope.launch suspend {
-                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
-                            for (index in 0L..<2L) {
-                                connection.receiveRequest()!!.body.readAllBytes(0L)
-                                sendClientTestText(connection, 200U, "ok")
+        clientTestTrust().use {
+            trust -> PlatformEventLoop().run suspend {
+                scope -> clientTestListen(currentEventLoop()).useAsync suspend {
+                    listener ->
+                    val serving =
+                        scope.launch suspend {
+                            AsyncHttp1Connection.takeOwnershipAsServer(
+                                listener.accept(),
+                                scope
+                            ).useAsync suspend {
+                                connection -> for (index in 0L ..< 2L) {
+                                    connection.receiveRequest()!!.body.readAllBytes(0L)
+                                    sendClientTestText(connection, 200U, "ok")
+                                }
                             }
                         }
-                    }
                     val local = RequestObservationLog()
                     val global = RequestObservationLog()
-                    val clientObserver = HttpObserver(suspend { event ->
-                        global.events.add(event)
-                        if (event.kind == HttpCallEventKind.ResponseHeaders) {
-                            val sampled = event.metrics.finalResponseHeadersAt!!
-                            currentEventLoop().sleep(Duration.milliseconds(2L))
-                            assertTrue(MonotonicTimeSource.markNow() - sampled >= Duration.milliseconds(2L))
-                        }
-                    })
-                    val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
-                        observer = Some(clientObserver))
-                    withHttpClient(config) suspend { client ->
-                        client.withResponse(HttpRequest.get(clientTestUrl(listener),
-                            options = HttpCallOptions(observer = Some(local.observer)))) suspend { response ->
+                    val clientObserver =
+                        HttpObserver(
+                            suspend {
+                                event ->
+                                global.events.add(event)
+                                if (event.kind == HttpCallEventKind.ResponseHeaders) {
+                                    val sampled = event.metrics.finalResponseHeadersAt!!
+                                    currentEventLoop().sleep(Duration.milliseconds(2L))
+                                    assertTrue(
+                                        MonotonicTimeSource.markNow() -
+                                            sampled >=
+                                            Duration.milliseconds(2L)
+                                    )
+                                }
+                            }
+                        )
+                    val config =
+                        HttpClientConfig(
+                            tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                            observer = Some(clientObserver)
+                        )
+                    withHttpClient(config) suspend {
+                        client ->
+                        client.withResponse(
+                            HttpRequest.get(
+                                clientTestUrl(listener),
+                                options = HttpCallOptions(observer = Some(local.observer))
+                            )
+                        ) suspend {
+                            response ->
                             response.body.text(32L)
                             Unit
                         }
                         assertEquals(local.events.size, global.events.size)
-                        for (index in 0L..<local.events.size) assertSame(local.events[index], global.events[index])
+                        for (index in 0L ..< local.events.size)
+                            assertSame(local.events[index], global.events[index])
                         checkRequestObservation(local.completed())
                         val count = global.ofKind(HttpCallEventKind.Completed).size
-                        client.withResponse(HttpRequest.get(clientTestUrl(listener),
-                            options = HttpCallOptions(observer = Some(clientObserver)))) suspend { response ->
+                        client.withResponse(
+                            HttpRequest.get(
+                                clientTestUrl(listener),
+                                options = HttpCallOptions(observer = Some(clientObserver))
+                            )
+                        ) suspend {
+                            response ->
                             response.body.text(32L)
                             Unit
                         }

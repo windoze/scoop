@@ -7,7 +7,10 @@ import scoop.compression.*
 import scoop.platform.fs.*
 import scoop.platform.net.*
 
-private suspend fun pair(loop: EventLoop, scope: CoroutineScope, listener: AsyncTcpListener): (AsyncTcpStream, AsyncTcpStream) {
+private suspend fun pair(loop: EventLoop, scope: CoroutineScope, listener: AsyncTcpListener): (
+    AsyncTcpStream,
+    AsyncTcpStream
+) {
     val connecting = scope.async<AsyncTcpStream> suspend { loop.connectTcp(listener.localAddress) }
     val server = listener.accept()
     return (connecting.await(), server)
@@ -17,7 +20,10 @@ private fun checkFile(path: Path) {
     val bytes = path.readAllBytes()
     check(bytes.size == 12345L)
     var index = 0L
-    while (index < bytes.size) { check(bytes[index] == (index % 251L).toByte()); index += 1L }
+    while (index < bytes.size) {
+        check(bytes[index] == (index % 251L).toByte());
+        index += 1L
+    }
 }
 
 private fun exerciseConsumer(args: Array<String>) {
@@ -28,29 +34,52 @@ private fun exerciseConsumer(args: Array<String>) {
         val original = directory.resolve(Path.fromString("original.bin"))
         original.writeAllBytes(Array<Byte>(12345L) { index -> (index % 251L).toByte() })
         val paths = ArrayList<CompressionFixtureFiles>()
-        val options = [CompressionOptions.Gzip(GzipOptions()), CompressionOptions.Zstd(ZstdOptions())]
-        for (index in 0L..1L) paths.add(CompressionFixtureFiles(original,
-            directory.resolve(Path.fromString("uploaded-" + index.toString())),
-            directory.resolve(Path.fromString("downloaded-" + index.toString()))))
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        val options =
+            [CompressionOptions.Gzip(GzipOptions()), CompressionOptions.Zstd(ZstdOptions())]
+        for (index in 0L .. 1L)
+            paths.add(
+                CompressionFixtureFiles(
+                    original,
+                    directory.resolve(Path.fromString("uploaded-" + index.toString())),
+                    directory.resolve(Path.fromString("downloaded-" + index.toString()))
+                )
+            )
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
             try {
                 val tasks = ArrayList<Job>()
-                for (index in 0L..1L) {
+                for (index in 0L .. 1L) {
                     val files = paths[index]
                     val configuration = options[index]
-                    val (client, server) = pair(loop, scope, listener)
-                    tasks.add(scope.launch suspend { receiveAndRespond(loop, server, files, configuration) })
-                    tasks.add(scope.launch suspend { uploadAndDownload(loop, client, files, configuration) })
+                    val(client, server) = pair(loop, scope, listener)
+                    tasks.add(
+                        scope.launch suspend {
+                            receiveAndRespond(loop, server, files, configuration)
+                        }
+                    )
+                    tasks.add(
+                        scope.launch suspend {
+                            uploadAndDownload(loop, client, files, configuration)
+                        }
+                    )
                 }
-                val (client, server) = pair(loop, scope, listener)
+                val(client, server) = pair(loop, scope, listener)
                 cancelledCompressionRead(loop, scope, client, server)
-                for (task in tasks) task.join()
-            } finally { listener.close() }
+                for (task in tasks)
+                    task.join()
+            } finally {
+                listener.close()
+            }
         }
-        for (files in paths) { checkFile(files.uploaded); checkFile(files.downloaded) }
-    } finally { directory.deleteRecursively() }
+        for (files in paths) {
+            checkFile(files.uploaded);
+            checkFile(files.downloaded)
+        }
+    } finally {
+        directory.deleteRecursively()
+    }
 }
 
 @Test
@@ -58,7 +87,11 @@ private class ConsumerTests {
     @Test
     fun run() {
         val directory = createTempDirectory(prefix = "scoop-consumer-")
-        try { exerciseConsumer(["consumer", directory.decodeUtf8()]) }
-        finally { directory.deleteRecursively() }
+        try {
+            exerciseConsumer(["consumer", directory.decodeUtf8()])
+        }
+        finally {
+            directory.deleteRecursively()
+        }
     }
 }
