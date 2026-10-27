@@ -75,7 +75,39 @@ fn windows_numeric_parsing_rounds_directly_and_restores_native_locales() {
     );
 }
 
+#[test]
+fn windows_seh_frames_relocate_real_roots_through_entry_anchors() {
+    run_windows_runtime_test_with_optimizations(
+        "tests/windows_frames_test.c",
+        &[],
+        &[
+            "src/platform/profiles/windows_x86_64.c",
+            "src/platform/arch/windows_x86_64.c",
+            "src/platform/arch/windows_x86_64_anchor.S",
+            "src/platform/primitives/windows.c",
+            "src/platform/os/windows.c",
+            "src/platform/image/pe.c",
+            "src/image/ranges.c",
+            "src/gc_binding/stackmap.c",
+            "src/gc_binding/stackmap/parser.c",
+            "src/gc_binding/stackmap/records.c",
+            "src/gc_binding/stackmap/payload.c",
+            "tests/windows_frames_test.ll",
+        ],
+        &["-O0", "-O2"],
+    );
+}
+
 fn run_windows_runtime_test(test: &str, compile_sources: &[&str], linked_sources: &[&str]) {
+    run_windows_runtime_test_with_optimizations(test, compile_sources, linked_sources, &["-O2"]);
+}
+
+fn run_windows_runtime_test_with_optimizations(
+    test: &str,
+    compile_sources: &[&str],
+    linked_sources: &[&str],
+    optimizations: &[&str],
+) {
     let directory = tempfile::Builder::new()
         .prefix("scoop runtime 同步 ")
         .tempdir()
@@ -129,31 +161,6 @@ fn run_windows_runtime_test(test: &str, compile_sources: &[&str], linked_sources
                     .arg(tool(unwind).join("include")),
             );
         }
-        let objects: Vec<_> = linked_sources
-            .iter()
-            .copied()
-            .chain([test])
-            .enumerate()
-            .map(|(part, source)| {
-                let object = directory.path().join(format!("{index}-{part}.obj"));
-                checked(
-                    startup
-                        .object_compilation_command(&runtime.join(source), &object)
-                        .args([
-                            "-Wall",
-                            "-Wextra",
-                            "-Werror",
-                            "-O2",
-                            "-D_CRT_SECURE_NO_WARNINGS",
-                        ])
-                        .arg("-I")
-                        .arg(runtime.join("include"))
-                        .arg("-I")
-                        .arg(runtime.join("src")),
-                );
-                object
-            })
-            .collect();
         let profile = WindowsFinalLinkProfile::resolve(
             startup,
             &FinalLinkOptions {
@@ -164,10 +171,70 @@ fn run_windows_runtime_test(test: &str, compile_sources: &[&str], linked_sources
             None,
         )
         .unwrap();
-        let binary = directory.path().join(format!("runtime-{index}.exe"));
-        let mut command = profile.command(directory.path(), &binary).unwrap();
-        checked(command.args(objects));
-        checked(&mut Command::new(binary));
+        let startup = profile.startup_toolchain();
+        for optimization in optimizations {
+            let objects: Vec<_> = linked_sources
+                .iter()
+                .copied()
+                .chain([test])
+                .enumerate()
+                .map(|(part, source)| {
+                    let object = directory
+                        .path()
+                        .join(format!("{index}-{optimization}-{part}.obj"));
+                    let source = runtime.join(source);
+                    let mut command =
+                        if source.extension().is_some_and(|extension| extension == "c") {
+                            let mut command = startup.object_compilation_command(&source, &object);
+                            command
+                                .args([
+                                    "-Wall",
+                                    "-Wextra",
+                                    "-Werror",
+                                    "-fno-omit-frame-pointer",
+                                    "-fno-optimize-sibling-calls",
+                                    "-D_CRT_SECURE_NO_WARNINGS",
+                                ])
+                                .arg("-I")
+                                .arg(runtime.join("include"))
+                                .arg("-I")
+                                .arg(runtime.join("src"));
+                            command
+                        } else {
+                            let mut command = startup.driver_command();
+                            command
+                                .args([
+                                    "-c",
+                                    "-Werror",
+                                    "-Wno-override-module",
+                                    "-Wno-unused-command-line-argument",
+                                ])
+                                .arg(&source)
+                                .arg("-o")
+                                .arg(&object);
+                            command
+                        };
+                    checked(command.arg(optimization));
+                    object
+                })
+                .collect();
+            let binary = directory
+                .path()
+                .join(format!("runtime-{index}-{optimization}.exe"));
+            let mut command = profile.command(directory.path(), &binary).unwrap();
+            for argument in ["/merge:.llvm_stackmaps=.smap", "/section:.smap,R"] {
+                profile.linker_arg(
+                    &mut command,
+                    if profile.microsoft() {
+                        argument.to_owned()
+                    } else {
+                        format!("--Xlink={argument}")
+                    },
+                );
+            }
+            checked(command.args(objects));
+            checked(&mut Command::new(binary));
+        }
     }
 }
 

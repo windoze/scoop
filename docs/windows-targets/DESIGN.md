@@ -202,7 +202,7 @@ Scoop 的 `_Unwind_*` 只绑定这一套实现，不再拉入重复定义这些�
 
 Windows frame decoder 按 SEH frame 信息重建被扫描 frame 的上下文，并用 LLVM stackmap 的真实 RSP／RBP location 定位根。优先使用系统 `RtlVirtualUnwind`，不新增私有 Windows unwinder。普通 stackmap 的寄存器编号仍按 LLVM 的编号解释，不能换成 Windows `CONTEXT` 字段序号。
 
-当前 amd64 reader/runtime 使用 `FP = SP + stack_size - 8` 等 SysV frame 规则，Windows 必须有独立实现，不能只在 target match 中接受新名字。anchor 保存扫描所需的调用位置、栈与非易失寄存器上下文；NativeSafe 冻结、callback 重入、park、正常和异常恢复继续遵循既有 GC 协议。特别验证大栈帧、寄存器 spill、嵌套 native callback 与 unwind 途中的移动 GC。
+当前 amd64 reader/runtime 使用 `FP = SP + stack_size - 8` 等 SysV frame 规则，Windows 必须有独立实现，不能只在 target match 中接受新名字。anchor 保存扫描所需的调用位置、RSP 与 RBP：当前 LLVM profile 保留 RBP frame pointer，根只使用 RSP／RBP indirect location，因此不需要其他非易失寄存器的值。Win64 shim 提供 shadow space 与 SEH 描述，私有 C 实现和冻结段继续使用同一组三个值；NativeSafe 冻结、callback 重入、park、正常和异常恢复继续遵循既有 GC 协议。特别验证大栈帧、寄存器 spill、嵌套 native callback 与 unwind 途中的移动 GC。
 
 ## 5. Runtime 与内置库
 

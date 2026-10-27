@@ -435,6 +435,8 @@ core 的 Long／ULong hash、Boolean hash／equals 使用普通标量正文，�
 
 Darwin/AArch64 的 SP/FP DWARF register 分别为 31/29，stack size 为 16 的倍数。Linux/amd64 分别为 7/6；若 stackmap stack size 为 N，要求 `N % 16 == 8`。amd64 的入口 return PC 在 `[RSP]`，call-site SP 为 `RSP + 8`，FP 为 RBP；N 不包含 return address，`FP = SP + N - 8`，`[FP]` 保存前一 FP、`[FP+8]` 保存 return PC、前一 SP 为 `FP+16`。root slot 位于 `[SP, FP)`。这些目标保留 frame pointer，不使用 red zone 或破坏栈遍历的 tail call。
 
+Windows/amd64 同样保留 RBP frame pointer、禁用 red zone 与破坏遍历的 tail call，但不使用上述 SysV frame 几何。anchor 在自身 prologue 前取得 managed caller 的 return PC、call-site RSP 与 RBP；Win64 shim 提供 shadow space、栈参数和 `.seh_*` 描述后调用私有 C 实现。当前 profile 的 unwind frame register 只使用 RBP，stackmap 根只允许 DWARF 7／6 的 8-byte indirect location，base 与 derived 为同一槽位；因此扫描上下文只需这三个值。reader 使用实际 RSP／RBP 加 signed displacement 取得根槽，检查其位于该 frame 的 stackmap 分配区间；向外遍历使用 `RtlLookupFunctionEntry`／`RtlVirtualUnwind` 恢复 caller 的这三个值，在已发布 native boundary 停止。其他非易失寄存器不作为根或 frame base，不为扫描另存完整 CPU context；该限制随目标机器 frame 合同维护。
+
 ### 3.3 精确根集合
 
 Scoop GC 适配层解释已登记的 image／stackmap、线程发布的 managed segment、各类 root frame、Context 与 handle，并向 collector 访问器交付真实可更新的槽位。collector 不解析这些根的语言表示或遍历线程根链；适配层复用当前 collection 的冻结 registry，不另行复制根目录。显式 pin／handle 的保活及 pin 计数仍由 GC 管理，线程 pin frame 的枚举由适配层完成。

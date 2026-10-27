@@ -8,7 +8,8 @@
 
 /* C implementations reached only through the target ABI's generated-code
  * entry stubs. The stubs append the direct managed caller's return PC,
- * callsite SP and FP before tail-branching here. Runtime C code calls its
+ * callsite SP and FP before entering here (a Win64 call, otherwise a tail
+ * branch). Runtime C code calls its
  * internal operations instead of these entry implementations. */
 void scoop_rt_safepoint_impl(uintptr_t return_pc, uintptr_t stack_pointer,
                              uintptr_t frame_pointer);
