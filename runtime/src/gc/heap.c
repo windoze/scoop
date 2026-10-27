@@ -75,10 +75,12 @@ void scoop_gc_heap_init(void) {
     }
     const char *incremental = getenv("SCOOP_GC_INCREMENTAL");
     if (incremental != NULL) {
-        if (strcmp(incremental, "0") != 0 && strcmp(incremental, "1") != 0) {
-            heap_fatal("SCOOP_GC_INCREMENTAL must be 0 or 1");
+        if (strcmp(incremental, "0") != 0 && strcmp(incremental, "1") != 0 &&
+            strcmp(incremental, "2") != 0) {
+            heap_fatal("SCOOP_GC_INCREMENTAL must be 0, 1 or 2");
         }
-        scoop_gc_heap_state.incremental_enabled = strcmp(incremental, "1") == 0;
+        scoop_gc_heap_state.incremental_enabled = strcmp(incremental, "0") != 0;
+        scoop_gc_heap_state.incremental_minor_enabled = strcmp(incremental, "2") == 0;
     }
     const char *slots = getenv("SCOOP_GC_OLD_SLOTS");
     if (slots != NULL) {

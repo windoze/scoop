@@ -160,7 +160,7 @@ void scoop_gc_mark_run_task(ScoopGcMarkWorker *worker, ScoopGcMarkTask task) {
     ScoopGcMarkVisit visit = {worker, SCOOP_MARK_OBJECT};
     worker->tasks++;
     if (task.kind == SCOOP_MARK_DIRTY_TASK) {
-        scoop_gc_mark_run_dirty(worker, task.data.dirty_group);
+        scoop_gc_mark_run_dirty(worker, task.data.dirty.group, task.data.dirty.saved);
         return;
     }
     if (task.kind == SCOOP_MARK_ARRAY_TASK) {

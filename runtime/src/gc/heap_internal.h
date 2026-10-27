@@ -197,7 +197,9 @@ typedef struct ScoopGcHeapState {
     bool survivor_enabled;
     bool promote_in_place;
     bool incremental_enabled;
+    bool incremental_minor_enabled;
     bool incremental_active;
+    bool incremental_minor;
     bool old_slots_enabled;
     bool print_metrics;
     bool collection_active;

@@ -1,4 +1,4 @@
-/* STW phases: parallel mark/copy/update, serial reservation and reclaim. */
+/* STW marking slices, followed by complete reservation/copy/update and reclaim. */
 #include <stdint.h>
 
 #include "../gc_binding/object.h"
@@ -147,6 +147,7 @@ typedef enum CollectionRequest {
     COLLECT_MINOR,
     COLLECT_FULL,
     COLLECT_INCREMENT,
+    COLLECT_MINOR_INCREMENT,
 } CollectionRequest;
 
 static void mark_roots(void) {
@@ -164,13 +165,14 @@ static bool plan_collection(bool minor, ScoopGcSurvivors *survivors) {
     return planned;
 }
 
-static bool incremental_step(bool finish) {
+static bool incremental_step(bool minor, bool finish, bool *finished) {
     ScoopGcHeapState *heap = &scoop_gc_heap_state;
     bool first = !heap->incremental_active;
     if (first) {
-        heap->incremental_blocks = scoop_gc_heap_begin_collection_locked(false);
-        scoop_gc_mark_begin(false, heap->incremental_blocks);
+        heap->incremental_blocks = scoop_gc_heap_begin_collection_locked(minor);
+        scoop_gc_mark_begin(minor, heap->incremental_blocks);
         heap->incremental_active = true;
+        heap->incremental_minor = minor;
     } else {
         size_t total_blocks = heap->incremental_blocks;
         for (ScoopGcBlockMeta *block = heap->young_blocks; block != heap->incremental_young_head;
@@ -183,18 +185,22 @@ static bool incremental_step(bool finish) {
     heap->incremental_young_head = heap->young_blocks;
     mark_roots();
     uint64_t phase = scoop_gc_monotonic_ns();
-    if (first) {
+    bool prepared = true;
+    if (first && !minor) {
         /* All generations are traced from current roots; pre-cycle cards are redundant. */
         scoop_heap_clear_dirty_card_groups(false);
     } else {
-        scoop_gc_mark_dirty_groups();
+        prepared = scoop_gc_mark_dirty_groups(minor, first);
     }
     heap->metrics.remembered_scan_ns += scoop_gc_monotonic_ns() - phase;
+    if (!prepared) {
+        return false;
+    }
     scoop_gc_mark_publish();
     phase = scoop_gc_monotonic_ns();
-    bool finished = scoop_gc_mark_step(finish);
+    *finished = scoop_gc_mark_step(finish);
     heap->metrics.mark_ns += scoop_gc_monotonic_ns() - phase;
-    return finished;
+    return true;
 }
 
 static bool collect(CollectionRequest request) {
@@ -212,48 +218,64 @@ static bool collect(CollectionRequest request) {
                  !scoop_gc_heap_state.full_only;
     uint64_t marked_count;
     ScoopGcSurvivors survivors;
-    if (request == COLLECT_INCREMENT ||
+    if (request == COLLECT_INCREMENT || request == COLLECT_MINOR_INCREMENT ||
         (minor && scoop_gc_heap_state.incremental_active)) {
-        minor = false;
-        if (!incremental_step(request == COLLECT_MINOR)) {
-            goto resume;
-        }
-        scoop_gc_retire_allocations();
-        marked_count = scoop_gc_mark_complete(false);
-        scoop_gc_heap_state.incremental_active = false;
-        (void)plan_collection(false, &survivors);
-    } else {
-        if (scoop_gc_heap_state.incremental_active) {
-            /* No movement or retirement has occurred; restart from the current graph. */
-            scoop_gc_mark_dispose();
+        minor = scoop_gc_heap_state.incremental_active
+                    ? scoop_gc_heap_state.incremental_minor
+                    : request == COLLECT_MINOR_INCREMENT;
+        bool finished;
+        if (incremental_step(minor, request == COLLECT_MINOR, &finished)) {
+            if (!finished) {
+                goto resume;
+            }
+            scoop_gc_retire_allocations();
+            marked_count = scoop_gc_mark_complete(minor);
             scoop_gc_heap_state.incremental_active = false;
-            collection_active = false;
-        }
-        scoop_gc_retire_allocations();
-        for (;;) {
-            size_t block_count = scoop_gc_heap_begin_collection_locked(minor);
-            scoop_gc_mark_begin(minor, block_count);
-            mark_roots();
-            uint64_t phase;
             if (minor) {
-                phase = scoop_gc_monotonic_ns();
-                scoop_gc_mark_remembered();
-                metrics->remembered_scan_ns += scoop_gc_monotonic_ns() - phase;
+                scoop_gc_mark_restore_remembered();
             }
-            phase = scoop_gc_monotonic_ns();
-            marked_count = scoop_gc_mark_finish(minor);
-            metrics->mark_ns += scoop_gc_monotonic_ns() - phase;
             if (plan_collection(minor, &survivors) || !minor) {
-                break;
+                goto marked;
             }
-            /* No copies or forwarding were published by a failed reservation. */
-            scoop_gc_mark_dispose();
             metrics->promotion_fallbacks++;
-            collection_active = false;
-            minor = false;
         }
+        /* No copies or forwarding were published. Restart from the current full graph. */
+        scoop_gc_mark_dispose();
+        scoop_gc_heap_state.incremental_active = false;
+        collection_active = false;
+        minor = false;
+    }
+    if (scoop_gc_heap_state.incremental_active) {
+        /* No movement or retirement has occurred; restart from the current graph. */
+        scoop_gc_mark_dispose();
+        scoop_gc_heap_state.incremental_active = false;
+        collection_active = false;
+    }
+    scoop_gc_retire_allocations();
+    for (;;) {
+        size_t block_count = scoop_gc_heap_begin_collection_locked(minor);
+        scoop_gc_mark_begin(minor, block_count);
+        mark_roots();
+        uint64_t phase;
+        if (minor) {
+            phase = scoop_gc_monotonic_ns();
+            scoop_gc_mark_remembered();
+            metrics->remembered_scan_ns += scoop_gc_monotonic_ns() - phase;
+        }
+        phase = scoop_gc_monotonic_ns();
+        marked_count = scoop_gc_mark_finish(minor);
+        metrics->mark_ns += scoop_gc_monotonic_ns() - phase;
+        if (plan_collection(minor, &survivors) || !minor) {
+            break;
+        }
+        /* No copies or forwarding were published by a failed reservation. */
+        scoop_gc_mark_dispose();
+        metrics->promotion_fallbacks++;
+        collection_active = false;
+        minor = false;
     }
 
+marked:
     if (moved_objects != 0 || survivors.objects != 0) {
         uint64_t phase = scoop_gc_monotonic_ns();
         ScoopGcVisitContext relocate = {.minor = minor};
@@ -316,4 +338,6 @@ void scoop_gc_collect_explicit_internal(void) {
 
 void scoop_gc_collect_minor_internal(void) { collect(COLLECT_MINOR); }
 
-void scoop_gc_collect_incremental_internal(void) { collect(COLLECT_INCREMENT); }
+void scoop_gc_collect_incremental_internal(bool minor) {
+    collect(minor ? COLLECT_MINOR_INCREMENT : COLLECT_INCREMENT);
+}

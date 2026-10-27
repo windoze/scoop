@@ -54,7 +54,7 @@ void scoop_gc_mark_enqueue_remembered(void) {
         }
         scoop_gc_mark_queue_push(&scoop_gc_marker.workers[owner], (ScoopGcMarkTask){
             .kind = SCOOP_MARK_DIRTY_TASK,
-            .data.dirty_group = group,
+            .data.dirty.group = group,
         });
         owner = (owner + 1) % scoop_gc_marker.active_workers;
     }

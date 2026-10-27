@@ -18,6 +18,17 @@ typedef struct ScoopGcLiveChunk {
 
 typedef struct ScoopGcMovingPlan ScoopGcMovingPlan;
 
+typedef struct ScoopGcSavedCards {
+    ScoopGcCardGroup *group;
+    uint64_t bits;
+} ScoopGcSavedCards;
+
+typedef struct ScoopGcSavedCardChunk {
+    struct ScoopGcSavedCardChunk *next;
+    size_t used;
+    ScoopGcSavedCards entries[GC_MARK_CHUNK];
+} ScoopGcSavedCardChunk;
+
 typedef enum ScoopGcMarkTaskKind {
     SCOOP_MARK_BATCH_TASK,
     SCOOP_MARK_ARRAY_TASK,
@@ -40,7 +51,10 @@ typedef struct ScoopGcMarkTask {
             uintptr_t begin;
             uintptr_t end;
         } range;
-        ScoopGcCardGroup *dirty_group;
+        struct {
+            ScoopGcCardGroup *group;
+            ScoopGcSavedCards *saved;
+        } dirty;
         ScoopGcCopyBlock *copy_group;
         ScoopGcLiveChunk *live_chunk;
         struct {
@@ -114,6 +128,7 @@ typedef struct ScoopGcMarker {
     bool updating;
     ScoopGcSlotVisitor update_visitor;
     void *update_context;
+    ScoopGcSavedCardChunk *saved_cards;
     ScoopGcMarkWorker workers[GC_MARK_MAX_WORKERS];
 } ScoopGcMarker;
 
@@ -140,7 +155,8 @@ void scoop_gc_mark_task_done(void);
 void scoop_gc_mark_flush(ScoopGcMarkWorker *worker);
 void scoop_gc_mark_slot(void **slot, void *context);
 void scoop_gc_mark_run_task(ScoopGcMarkWorker *worker, ScoopGcMarkTask task);
-void scoop_gc_mark_run_dirty(ScoopGcMarkWorker *worker, ScoopGcCardGroup *group);
+void scoop_gc_mark_run_dirty(ScoopGcMarkWorker *worker, ScoopGcCardGroup *group,
+                              ScoopGcSavedCards *saved);
 
 void scoop_gc_update_run_task(ScoopGcMarkWorker *worker, ScoopGcMarkTask task);
 void scoop_gc_copy_run_task(ScoopGcCopyBlock *group);

@@ -86,20 +86,54 @@ void scoop_gc_mark_remembered(void) {
     scoop_gc_scan_remembered(scan_dirty, &visit, true);
 }
 
-void scoop_gc_mark_dirty_groups(void) {
+static ScoopGcSavedCards *save_dirty_group(ScoopGcCardGroup *group) {
+    ScoopGcSavedCardChunk *chunk = scoop_gc_marker.saved_cards;
+    if (chunk == NULL || chunk->used == GC_MARK_CHUNK) {
+        chunk = malloc(sizeof *chunk);
+        if (chunk == NULL) {
+            return NULL;
+        }
+        chunk->next = scoop_gc_marker.saved_cards;
+        chunk->used = 0;
+        scoop_gc_marker.saved_cards = chunk;
+    }
+    ScoopGcSavedCards *saved = &chunk->entries[chunk->used++];
+    *saved = (ScoopGcSavedCards){.group = group};
+    return saved;
+}
+
+bool scoop_gc_mark_dirty_groups(bool retain_remembered, bool first) {
     ScoopGcCardGroup *group = atomic_exchange_explicit(&scoop_gc_heap_state.dirty_card_groups,
                                                        NULL, memory_order_acquire);
     ScoopGcMarkWorker *worker = &scoop_gc_marker.workers[0];
     while (group != NULL) {
         ScoopGcCardGroup *next = scoop_heap_next_dirty_card_group(group);
+        if (retain_remembered && first) {
+            ScoopGcRegion *region = group->region;
+            size_t index = region->large ? 0 : (size_t)(group - region->card_groups);
+            if (region->blocks[index].generation == SCOOP_GC_YOUNG) {
+                /* The first root/remembered traversal will scan the current young graph. */
+                scoop_heap_clear_dirty_card_group(group);
+                group = next;
+                continue;
+            }
+        }
+        ScoopGcSavedCards *saved = retain_remembered ? save_dirty_group(group) : NULL;
+        if (retain_remembered && saved == NULL) {
+            /* Keep the unqueued tail registered for the complete full fallback. */
+            atomic_store_explicit(&scoop_gc_heap_state.dirty_card_groups, group,
+                                  memory_order_relaxed);
+            return false;
+        }
         /* Queued groups stay claimed; intervening writes are read when the task runs. */
         atomic_store_explicit(&group->next, group, memory_order_relaxed);
         scoop_gc_mark_queue_push(worker, (ScoopGcMarkTask){
             .kind = SCOOP_MARK_DIRTY_TASK,
-            .data.dirty_group = group,
+            .data.dirty = {group, saved},
         });
         group = next;
     }
+    return true;
 }
 
 typedef struct DirtyVisit {
@@ -127,20 +161,55 @@ static void scan_dirty_live(void *object, uintptr_t begin, uintptr_t end, void *
     }
 }
 
-void scoop_gc_mark_run_dirty(ScoopGcMarkWorker *worker, ScoopGcCardGroup *group) {
-    if (worker->minor) {
+void scoop_gc_mark_run_dirty(ScoopGcMarkWorker *worker, ScoopGcCardGroup *group,
+                              ScoopGcSavedCards *saved) {
+    if (worker->minor && saved == NULL) {
         RememberedVisit visit = {.visit = {worker, SCOOP_MARK_REMEMBERED}};
         worker->dirty_cards += scoop_gc_scan_dirty_group(group, scan_dirty, &visit, true);
         return;
     }
     ScoopGcRegion *region = group->region;
     size_t index = region->large ? 0 : (size_t)(group - region->card_groups);
-    DirtyVisit visit = {
-        .visit = {worker, SCOOP_MARK_OBJECT},
-        .block = &region->blocks[index],
-    };
-    worker->dirty_cards += scoop_gc_scan_dirty_group(group, scan_dirty_live, &visit, false);
+    ScoopGcBlockMeta *block = &region->blocks[index];
+    if (worker->minor && block->generation == SCOOP_GC_OLD) {
+        RememberedVisit visit = {.visit = {worker, SCOOP_MARK_REMEMBERED}};
+        worker->dirty_cards += scoop_gc_scan_dirty_group(group, scan_dirty, &visit, true);
+        const unsigned char *cards =
+            region->cards + (group - region->card_groups) * GC_CARDS_PER_GROUP;
+        uint64_t bits = 0;
+        for (size_t card = 0; card < GC_CARDS_PER_GROUP; card++) {
+            bits |= (uint64_t)(cards[card] != 0) << card;
+        }
+        saved->bits = bits;
+    } else {
+        DirtyVisit visit = {
+            .visit = {worker, SCOOP_MARK_OBJECT},
+            .block = block,
+        };
+        worker->dirty_cards += scoop_gc_scan_dirty_group(group, scan_dirty_live, &visit, false);
+    }
     scoop_heap_clear_dirty_card_group(group);
+}
+
+void scoop_gc_mark_restore_remembered(void) {
+    /* Workers have finished. Merge repeated groups before assigning update ownership. */
+    for (ScoopGcSavedCardChunk *chunk = scoop_gc_marker.saved_cards; chunk != NULL;
+         chunk = chunk->next) {
+        for (size_t entry = 0; entry < chunk->used; entry++) {
+            ScoopGcSavedCards saved = chunk->entries[entry];
+            ScoopGcRegion *region = saved.group->region;
+            size_t first = (size_t)(saved.group - region->card_groups) * GC_CARDS_PER_GROUP;
+            uint64_t bits = saved.bits;
+            while (bits != 0) {
+                size_t card = (size_t)__builtin_ctzll(bits);
+                region->cards[first + card] = 1;
+                bits &= bits - 1;
+            }
+            if (saved.bits != 0) {
+                scoop_runtime_record_dirty_card_group(region, first);
+            }
+        }
+    }
 }
 
 void scoop_gc_mark_publish(void) {
@@ -225,7 +294,7 @@ void scoop_gc_mark_dispose(void) {
             size_t slot = (worker->queue.first + offset) % worker->queue.capacity;
             ScoopGcMarkTask task = worker->queue.tasks[slot];
             if (task.kind == SCOOP_MARK_DIRTY_TASK) {
-                scoop_heap_clear_dirty_card_group(task.data.dirty_group);
+                scoop_heap_clear_dirty_card_group(task.data.dirty.group);
             }
         }
         while (worker->live != NULL) {
@@ -238,6 +307,11 @@ void scoop_gc_mark_dispose(void) {
         worker->pending_objects = NULL;
         worker->pending_count = 0;
         worker->pending_scans = 0;
+    }
+    while (scoop_gc_marker.saved_cards != NULL) {
+        ScoopGcSavedCardChunk *next = scoop_gc_marker.saved_cards->next;
+        free(scoop_gc_marker.saved_cards);
+        scoop_gc_marker.saved_cards = next;
     }
     atomic_store_explicit(&scoop_gc_marker.pending, 0, memory_order_relaxed);
 }

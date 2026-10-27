@@ -53,6 +53,7 @@ typedef enum RefillResult {
     REFILL_MINOR,
     REFILL_FULL,
     REFILL_INCREMENT,
+    REFILL_MINOR_INCREMENT,
 } RefillResult;
 
 static bool exceeds_old_threshold(size_t bytes) {
@@ -94,6 +95,11 @@ static RefillResult refill_nursery(ScoopGcMutator *mutator, bool after_full, boo
         capacity = GC_BLOCK_SIZE;
     }
 #endif
+    size_t limit = capacity;
+    if (scoop_gc_heap_state.incremental_active && scoop_gc_heap_state.incremental_minor) {
+        size_t extra = (capacity / 8) & ~(GC_BLOCK_SIZE - 1);
+        limit = capacity <= SIZE_MAX - extra ? capacity + extra : SIZE_MAX & ~(GC_BLOCK_SIZE - 1);
+    }
     size_t old_request = scoop_heap_adaptive_nursery_enabled() ? 0 : GC_BLOCK_SIZE;
     if (!scoop_gc_heap_state.incremental_active && !after_full &&
         exceeds_old_threshold(old_request)) {
@@ -104,8 +110,14 @@ static RefillResult refill_nursery(ScoopGcMutator *mutator, bool after_full, boo
         return incremental ? REFILL_INCREMENT : REFILL_FULL;
     }
     if (scoop_gc_heap_state.nursery_bytes >= capacity) {
-        unlock_heap();
-        return REFILL_MINOR;
+        if (!scoop_gc_heap_state.incremental_active ||
+            scoop_gc_heap_state.nursery_bytes >= limit) {
+            bool start_minor = !scoop_gc_heap_state.incremental_active &&
+                               scoop_gc_heap_state.incremental_minor_enabled &&
+                               scoop_heap_adaptive_nursery_enabled();
+            unlock_heap();
+            return start_minor ? REFILL_MINOR_INCREMENT : REFILL_MINOR;
+        }
     }
     if (scoop_gc_heap_state.incremental_active && !after_step) {
         unlock_heap();
@@ -119,7 +131,7 @@ static RefillResult refill_nursery(ScoopGcMutator *mutator, bool after_full, boo
     record_nursery_block(block);
     if (scoop_heap_adaptive_nursery_enabled()) {
         while (mutator->reserved_count < 3 &&
-               scoop_gc_heap_state.nursery_bytes < capacity) {
+               scoop_gc_heap_state.nursery_bytes < limit) {
             ScoopGcBlockMeta *reserve = activate_small_block(SCOOP_BLOCK_MUTATOR, true);
             if (reserve == NULL) {
                 break;
@@ -147,8 +159,8 @@ static void *allocate_small(ScoopGcMutator *mutator, size_t size, size_t alignme
         if (refill == REFILL_READY) {
             continue;
         }
-        if (refill == REFILL_INCREMENT) {
-            scoop_gc_collect_incremental_internal();
+        if (refill == REFILL_INCREMENT || refill == REFILL_MINOR_INCREMENT) {
+            scoop_gc_collect_incremental_internal(refill == REFILL_MINOR_INCREMENT);
             step_attempted = true;
         } else if (refill == REFILL_MINOR) {
             /* Another mutator can claim the newly emptied nursery before

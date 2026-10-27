@@ -51,7 +51,7 @@ static void step(void) {
     frame[2] = (uintptr_t)scoop_thread_current_required()->managed_stack_boundary;
     ScoopManagedAnchor anchor;
     scoop_thread_push_managed_anchor(&anchor, 0x1010, (uintptr_t)frame, (uintptr_t)&frame[2]);
-    scoop_gc_collect_incremental_internal();
+    scoop_gc_collect_incremental_internal(false);
     scoop_thread_pop_managed_anchor(&anchor);
 }
 

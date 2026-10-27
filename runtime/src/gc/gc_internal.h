@@ -52,13 +52,14 @@ bool scoop_gc_collect_internal(void);
 /* Wait for a full completed after this explicit request, coalescing concurrent fulls. */
 void scoop_gc_collect_explicit_internal(void);
 void scoop_gc_collect_minor_internal(void);
-void scoop_gc_collect_incremental_internal(void);
+void scoop_gc_collect_incremental_internal(bool minor);
 
 /* One parameterized marker, with a retained live set until reference update ends. */
 void scoop_gc_mark_begin(bool minor, size_t block_count);
 void scoop_gc_mark_roots(void);
 void scoop_gc_mark_remembered(void);
-void scoop_gc_mark_dirty_groups(void);
+bool scoop_gc_mark_dirty_groups(bool retain_remembered, bool first);
+void scoop_gc_mark_restore_remembered(void);
 void scoop_gc_mark_publish(void);
 bool scoop_gc_mark_step(bool finish);
 void scoop_gc_mark_resume(size_t retained_blocks, size_t total_blocks);

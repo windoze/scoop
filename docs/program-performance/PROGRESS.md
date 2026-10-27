@@ -4,6 +4,8 @@
 
 各项已采纳方案的开启方式与适用条件统一见[简略清单](ENABLED-OPTIMIZATIONS.md)，后续交付与默认策略调整时同步更新。
 
+- [GC 第二十阶段](GC-EVOLUTION.md)实现 minor 分片、旧脏卡保留和有界片间分配，使用显式等级 `SCOOP_GC_INCREMENTAL=2`；默认 0／原等级 1 保持原策略，ABI 23 不变。相对仅 full 分片，M3／GNU 大图请求 max 43.1／62.4 → 27.8／45.1 ms，但墙钟增加 9.3%／12.2%，应用间隔 p95 明显变差，树形晋升与线程成本也增加；默认控制组的 ARM64 小幅回退如实保留。两个提前启动候选已撤回。两机七项 C 专测、故意破坏的重定位反例及三目标双 profile GC／callback 组合通过；继续定位默认 mark／plan 工作量和对象元数据成本，整体 GC 目标未完成。
+
 - [GC 第十九阶段](GC-EVOLUTION.md)让 worker 直接消费存活分块，删除更新前逐对象预遍历和重复 scan 读取；所有 profile 默认，ABI 23 不变。M3／GNU 大图墙钟 4.199／5.222 → 3.820／4.914 s、总 CPU 降低，普通队列容量 3,200 → 320 KiB，full 请求 p99 131／192 → 119／180 ms；部分 minor／系统 CPU／RSS 回退保留。两机八项 C 专测及三目标双 profile GC／callback 组合通过。下一步实际实验 minor 分片，继续降低现有增量配置中的停顿，GC 主线未完成。
 
 - [GC 第十八阶段](GC-EVOLUTION.md)并行预留无 survivor 配额的 minor 目标，每 worker 独占分配区，失败在全体结束后统一回滚；沿现有 worker 设置默认采用，ABI 23 不变。M3／GNU 大图墙钟 4.979／6.171 → 4.401／5.263 s，minor p99 52.6／73.2 → 44.1／53.8 ms；总 CPU 增长、GNU full 尾部与部分 RSS 回退保留。两机九项 C 专测及三目标双 profile GC／callback 组合通过。继续减少 full 规划和引用更新的串行工作，GC 主线未完成。

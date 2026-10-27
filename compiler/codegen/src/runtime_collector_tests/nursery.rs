@@ -48,6 +48,35 @@ fn incremental_marking_preserves_changed_edges_and_complete_fallbacks() {
 }
 
 #[test]
+fn incremental_minor_preserves_remembered_relocation_and_changed_young_edges() {
+    for flags in [
+        vec!["-O0", "-Dmalloc=scoop_test_cards_malloc"],
+        vec![
+            "-O2",
+            "-Dmalloc=scoop_test_cards_malloc",
+            "-DSCOOP_TEST_INCREMENTAL_PARALLEL",
+        ],
+    ] {
+        let output = compile_and_run_with_flags(
+            &workspace_root(),
+            "incremental_minor_test",
+            "runtime/tests/incremental_minor_test.c",
+            true,
+            &flags,
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"minor slices preserve old cards, changed young edges, pins and full fallbacks\n"
+        );
+    }
+}
+
+#[test]
 fn tlab_reserves_preserve_capacity_failures_and_retirement() {
     for optimization in ["-O0", "-O2"] {
         let output = compile_and_run_with_flags(

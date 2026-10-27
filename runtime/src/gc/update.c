@@ -83,7 +83,7 @@ void scoop_gc_update_run_task(ScoopGcMarkWorker *worker, ScoopGcMarkTask task) {
     void *context = scoop_gc_marker.update_context;
     if (task.kind == SCOOP_MARK_DIRTY_TASK) {
         UpdateDirtyVisit visit = {visitor, context};
-        (void)scoop_gc_scan_dirty_group(task.data.dirty_group, dirty_visitor(), &visit, true);
+        (void)scoop_gc_scan_dirty_group(task.data.dirty.group, dirty_visitor(), &visit, true);
         return;
     }
     if (task.kind == SCOOP_MARK_ARRAY_TASK) {

@@ -6,12 +6,13 @@
 #include "../src/thread/testing.h"
 #include "nursery_fixture.h"
 
-typedef enum Request { INCREMENT, MINOR, FULL } Request;
+typedef enum Request { INCREMENT, MINOR_INCREMENT, MINOR, FULL } Request;
 
 static Request request;
 static _Thread_local bool rival;
 static _Atomic(bool) waiting;
 static bool finished_slice;
+static bool finished_minor_slice;
 
 void scoop_thread_test_point(ScoopThreadTestPoint point) {
     if (!rival) {
@@ -21,6 +22,9 @@ void scoop_thread_test_point(ScoopThreadTestPoint point) {
         atomic_store_explicit(&waiting, true, memory_order_release);
     } else if (point == SCOOP_TEST_COLLECTOR_RUNNING && request == INCREMENT) {
         finished_slice = scoop_gc_heap_state.incremental_active;
+    } else if (point == SCOOP_TEST_COLLECTOR_RUNNING && request == MINOR_INCREMENT) {
+        finished_minor_slice = scoop_gc_heap_state.incremental_active &&
+                               scoop_gc_heap_state.incremental_minor;
     }
 }
 
@@ -35,7 +39,10 @@ static void *collect_first(void *unused) {
     scoop_thread_push_managed_anchor(&anchor, 0x1010, (uintptr_t)frame, (uintptr_t)&frame[2]);
     switch (request) {
     case INCREMENT:
-        scoop_gc_collect_incremental_internal();
+        scoop_gc_collect_incremental_internal(false);
+        break;
+    case MINOR_INCREMENT:
+        scoop_gc_collect_incremental_internal(true);
         break;
     case MINOR:
         scoop_gc_collect_minor_internal();
@@ -71,6 +78,18 @@ int main(void) {
     }
     nursery_collect(false);
     for (request = INCREMENT; request <= FULL; request++) {
+        if (request == MINOR_INCREMENT) {
+            /* The rival must suspend a genuinely young graph before joining full. */
+            scoop_gc_heap_state.incremental_enabled = false;
+            scoop_gc_heap_state.nursery_capacity = 32 * 1024 * 1024;
+            collection_threshold = SIZE_MAX;
+            root = NULL;
+            for (uint64_t index = 0; index < 131072; index++) {
+                NurseryNode *node = nursery_node(index);
+                node->next = root;
+                root = node;
+            }
+        }
         atomic_store_explicit(&waiting, false, memory_order_relaxed);
         ScoopGcMetrics before = nursery_metrics();
         pthread_t thread;
@@ -91,7 +110,7 @@ int main(void) {
         }
         assert(node == NULL);
     }
-    assert(finished_slice);
+    assert(finished_slice && finished_minor_slice);
     scoop_rt_pop_native_roots(&roots);
     nursery_collect(false);
     assert(scoop_rt_gc_stats() == 0);
