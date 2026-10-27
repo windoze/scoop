@@ -5,7 +5,7 @@
 | 阶段 | 状态 | 尚需闭合 |
 | --- | --- | --- |
 | W0 工具链与 ABI | 关键路线实验通过 | 复现入口与范围见下文；正式编译器集成在 W1／W2 完成 |
-| W1 编译／链接 | 实施中 | 三目标开发 CLI 已生成 `.slib` 与真实 PE 程序并支持 subsystem 与 RC；继续 DLL 数据、调试信息与组合验收 |
+| W1 编译／链接 | 实施中 | 三目标开发 CLI 已支持 subsystem、RC 与 DLL 数据；继续 Microsoft LINK 的 COMDAT 顺序、native C++ CLI、调试信息与组合验收 |
 | W2 core runtime | 实施中 | core／std／test 已构建，启动、异常和移动 GC 的真实程序通过；继续线程／callback／unwind 组合及正式 fixture 验收 |
 | W3 系统库 | 待实施 | 平台规范与实现、IOCP、全部 native 组件、真实 consumer |
 | W4 宿主与发行 | 基础实施中 | 进程中断已实现；继续 Windows 命令、维护脚本、DLL／SDK 布局与打包、交叉编译 |
@@ -128,3 +128,7 @@ fixture runner 已接入三种完整 Windows target、各自的 Clang／archive 
 `[windows].rc` 已使用所选目标的 Clang、headers 与 `native.include` 预处理，通过 LLVM `llvm-windres` 和 `llvm-cvtres` 生成资源 COFF，并作为现有 native 对象进入 executable `.slib`。资源更新记录跟随实际头文件、引用资源及搜索候选；测试 executable 省略生产资源。配套 LLVM 已安装 windres 入口，固定原 Ninja 后的完整准备命令直接复用现有安装。
 
 三个目标的资源正式 fixture 各通过 19 个实际进程步骤，覆盖 GUI exe 的真实 RCDATA、native C 与 RC 组合、C flags 不泄漏到 RC、资源／头文件更新、未变化时零 compiler child、artifact-only 重链接及移除 RC 配置后的更新。非法 RC 路径的正式诊断位置、4 项 manifest 测试、2 项资源测试（含三个目标的真实 COFF／Unicode／缓存与失败不发布矩阵）通过。用例同时发现并修正了预处理文件编译时多余的 clang-cl 语言／SDK 参数与 MinGW C++ 选项；clang-cl 的 SDK headers 使用系统搜索顺序，保留 Clang builtin headers。四种 native 编译器组合的严格警告回归、3 项 native 对象更新测试、相关 Clippy、Ruff 与格式化通过。完整 Windows 系统库、宿主发行和远端回归仍待后续完成。
+
+Windows 非 TLS native global 现通过普通 IAT 引用访问，产物中的实际 `__imp_` 引用保留原数据契约与显式 library 归属；静态 archive 和 DLL import library 使用同一份 `.slib`。三个目标的正式 fixture 各通过 9 个进程步骤，覆盖可变 scalar／C-layout struct、只读数据独占的 archive 成员、addressOf 与原生 getter 的地址一致性、写入可见性、本地 native TLS、artifact-only 切换到 DLL 及 warm 复用。受影响四个 crate 的 Clippy、后续 codegen Clippy、C／Scoop 格式化和 Python Ruff 通过。
+
+以上 DLL 数据 fixture 使用三个目标各自的默认 LLD。额外的 Microsoft LINK CLI 验证发现既有 COFF 常量节关联到后方函数节，触发 LNK1243；已定位到 `.rdata` section 4 关联 `.text` section 5，继续修正发射顺序，未将该路径记为通过。native C++ 的 CLI 契约汇总还需接入 Windows 已有的目标 C++ 配置；调试信息及后续 W2～W4 仍未完成，未开始远端测试。

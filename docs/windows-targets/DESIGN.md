@@ -168,6 +168,8 @@ RC compiler 是 Windows toolchain 的组成部分：使用随包或外部发现�
 
 COFF 读取与链接增加 `.obj`／`.o`、普通 `.a`／`.lib` 和 import libraries；区分短 import object、普通成员与 `__imp_` 引用。按实际库类型解释文件，不仅按扩展名猜测。显式 roots、目标 sysroot、目标 provider 的既有顺序不变，不能回退到宿主库；DLL 运行期的加载位置属于正常部署合同。[LLD 的 Windows 支持](https://lld.llvm.org/windows_support.html)已经覆盖静态库、import library 和 PE 链接，不另写 PE linker。
 
+非 TLS native global 的 generated-C 使用 dllimport，经 IAT 保留 DLL 数据的真实地址；普通对象／archive 则使用 PE linker 的 local-import 解析。同一数据契约与 executable `.slib` 可在最终链接选择静态库或 import library，读写、addressOf 和原生 getter 必须观察同一存储。只关闭这条正常路径有意产生的 LNK4217，TLS 声明与检查保持独立。验收包含数据独占的 archive 成员，避免其他 native function 的引用掩盖数据选择错误。
+
 ## 4. 编译器与 GC／EH 的共同 Windows 实现
 
 ### 4.1 Win64 ABI

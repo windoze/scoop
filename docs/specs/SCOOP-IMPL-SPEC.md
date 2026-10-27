@@ -535,6 +535,8 @@ Mach-O 的数值跳转表及查找表可以与已有边界的字符串等常量�
 
 C extern 按 2.4 的 DirectC/StorageBridge 计划发射。DirectC 使用真实 native symbol 和完整目标 C ABI，不生成或经过 outbound storage bridge；对象中的调用 relocation 直接表达该 native 引用。只有实际采用 StorageBridge 的调用才要求相应 generated-C unit；callback、native global/TLS 等其他桥接用途照常保留。两种路径均保留相同的 native contract 与 library requirement，不因省去 bridge 丢失链接需求。
 
+Windows 的非 TLS native global 存取桥接通过 `__declspec(dllimport)` 发射实际 `__imp_` IAT 引用，读、写和 addressOf 使用同一地址。源码契约仍以原始 native symbol、类型和 library binding 表达；对象引用分类与最终 provider 选择将对应 IAT 引用关联到该数据契约。最终 provider 为普通对象／archive 时，由 PE linker 生成常规 local-import 指针；为 import library 时使用 DLL 的 IAT。同一份 `.slib` 可以按普通 TargetDefault 库选择消费两者，不复制 DLL 数据。此路线上有意产生的 local import 使用目标 linker 的 `/ignore:4217`（MinGW LLD 经 `--Xlink` 传递）关闭该项告警，其他诊断保持。TLS 保留原来的 native TLS 声明和符号种类检查，不对 TLS 施加 dllimport。
+
 generated-C bridge 保留实际声明的 C 类型、签名、目标工具链与编译选项；bridge 具有精确 primary/signature/context 定义范围，不能由邻近符号猜测。DirectC 与 StorageBridge 均不得按 extern 名称被 builtin 替换。普通 C ABI 与 Scoop NativeBorrowed 调用不混用 storage bridge。标量直接调用不依赖 bridge 内联、跨对象 LTO 或相容的 Clang bitcode；现有 generated-C 独立编译流程继续适用于保留的 bridge。
 
 errno 捕获 bridge 使用所选 target 的 `<errno.h>`。全部参数解包及必要准备完成后，先执行 `errno = 0`，再调用真实 C 函数；紧接着以独立语句将 errno 复制到 native 局部整数，然后才复制 `R`、执行其他 helper 或返回捕获值。当前 profile 的 C `int` 为 32 位，可精确映射为 Scoop `Int`。非 void `R` 通过既有 C storage 写回，bridge 返回 `int32_t`；void 不产生虚假的 C 返回对象。目标 libc 的 errno 访问所产生的 native 引用进入既有 generated-C 对象与链接需求，不能使用宿主 accessor 或新增 Scoop runtime 槽位 API。

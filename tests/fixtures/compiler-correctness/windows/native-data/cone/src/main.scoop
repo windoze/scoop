@@ -1,0 +1,56 @@
+package dev.windows
+
+@CLayout
+struct Pair(val left: Int, val right: Int)
+
+@Extern(lib = "scoop_data", name = "scoop_fixture_counter")
+@Global
+var counter: Int
+
+@Extern(lib = "scoop_data", name = "scoop_fixture_pair")
+@Global
+var pair: Pair
+
+@Extern(lib = "scoop_data", name = "scoop_fixture_limit")
+val limit: Int
+
+@Extern(lib = "scoop_data", name = "scoop_fixture_counter_address")
+fun counterAddress(): Ptr<Int>
+
+@Extern(lib = "scoop_data", name = "scoop_fixture_pair_address")
+fun pairAddress(): Ptr<Pair>
+
+@Extern(lib = "scoop_data", name = "scoop_fixture_provider_kind")
+fun providerKind(): Int
+
+@Extern(lib = "", name = "scoop_fixture_tls")
+@ThreadLocal
+var localTls: Int
+
+@Extern(lib = "", name = "scoop_fixture_tls_address")
+fun tlsAddress(): Ptr<Int>
+
+fun main(): Int {
+    @Unsafe
+    {
+        if (counter != 11 || pair.left != 13 || pair.right != 17 || limit != 37)
+            return 1
+        if (addressOf(counter) != counterAddress() || addressOf(pair) != pairAddress())
+            return 2
+        counter = 23
+        if (counterAddress().load() != 23)
+            return 3
+        addressOf(counter).store(29)
+        if (counter != 29)
+            return 4
+        pair = Pair(31, 41)
+        if (pairAddress().load().left != 31 || pairAddress().load().right != 41)
+            return 5
+        if (localTls != 5 || addressOf(localTls) != tlsAddress())
+            return 6
+        localTls = 43
+        if (tlsAddress().load() != 43)
+            return 7
+        return providerKind()
+    }
+}

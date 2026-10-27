@@ -88,8 +88,23 @@ pub(super) fn resolve(
         if inputs.linker_defined(&symbol) {
             continue;
         }
+        let source_symbol = if inputs.target.native_object_format()
+            == scoop_lir::NativeObjectFormat::Coff64
+            && !declarations.contains_key(&symbol)
+            && let Some(native) = symbol.strip_prefix("__imp_")
+            && declarations.get(native).is_some_and(|declaration| {
+                matches!(
+                    declaration.contract,
+                    NativeExternalContract::ReadOnlyData { .. }
+                        | NativeExternalContract::MutableData { .. }
+                )
+            }) {
+            native
+        } else {
+            symbol.as_str()
+        };
         let binding = declarations
-            .get(&symbol)
+            .get(source_symbol)
             .map_or(NativeLibraryBinding::DefaultNativeNamespace, |decl| {
                 decl.contract.library()
             });
@@ -98,7 +113,7 @@ pub(super) fn resolve(
             .get(&symbol)
             .map(|origins| origins.join(", "))
             .unwrap_or_else(|| "program startup/linker support".into());
-        let candidate = candidate(&symbol, binding, inputs)
+        let candidate = candidate(source_symbol, binding, inputs)
             .map_err(|err| error(format!("{err}; reference chain: {symbol} <- {origin}")))?;
         match candidate {
             Candidate::Object(id) => {
@@ -110,7 +125,7 @@ pub(super) fn resolve(
             }
             Candidate::Definition => continue,
             Candidate::Dynamic(binding) => {
-                for requirement in inputs.namespace.bind(symbol.clone(), binding)? {
+                for requirement in inputs.namespace.bind(source_symbol.to_owned(), binding)? {
                     inputs.requirements.insert(requirement.clone());
                     inputs
                         .requirement_origins

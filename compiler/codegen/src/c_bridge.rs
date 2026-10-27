@@ -188,13 +188,17 @@ fn render_native_global(
     let surface = CBridgeTypeSurface::for_value(module, &global.c_type)?;
     let renderer = CTypeRenderer::new(surface.function_types());
     let mut out = render_c_layout_assertions(module, &surface)?;
-    let thread_local = if global.thread_local {
+    let storage_class = if global.thread_local {
         "_Thread_local "
+    } else if module.meta.target_profile.native_object_format()
+        == scoop_lir::NativeObjectFormat::Coff64
+    {
+        "__declspec(dllimport) "
     } else {
         ""
     };
     let declaration = renderer.declaration(&global.c_type, &global.native_symbol)?;
-    out.push_str(&format!("extern {thread_local}{declaration};\n"));
+    out.push_str(&format!("extern {storage_class}{declaration};\n"));
     match kind {
         NativeGlobalBridgeKind::Read => out.push_str(&format!(
             "void {}(void *result) {{\n  __builtin_memcpy(result, &{}, sizeof({}));\n}}\n",

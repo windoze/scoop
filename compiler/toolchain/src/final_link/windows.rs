@@ -20,6 +20,7 @@ const MSVC_OPTIONS: &[&str] = &[
     "/opt:ref,noicf",
     "/incremental:no",
     "/Brepro",
+    "/ignore:4217",
 ];
 const MINGW_OPTIONS: &[&str] = &[
     "--gc-sections",
@@ -28,6 +29,7 @@ const MINGW_OPTIONS: &[&str] = &[
     "--high-entropy-va",
     "--nxcompat",
     "--no-insert-timestamp",
+    "--Xlink=/ignore:4217",
 ];
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
