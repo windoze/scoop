@@ -1,5 +1,6 @@
 /* STW reference update: coordinator partitions; workers visit disjoint slots. */
 #include "../gc_binding/object.h"
+#include "../gc_binding/scan.h"
 #include "mark_internal.h"
 
 typedef struct UpdateDirtyVisit {
@@ -104,7 +105,7 @@ void scoop_gc_update_run_task(ScoopGcMarkWorker *worker, ScoopGcMarkTask task) {
         if (scoop_gc_scan_is_array(scan)) {
             enqueue_update_array(worker, current, scan);
         } else {
-            scoop_gc_scan_descriptor(current, scan, visitor, context, 0, UINTPTR_MAX);
+            scoop_gc_scan_object(current, scan, visitor, context);
         }
     }
 }

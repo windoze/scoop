@@ -2,6 +2,7 @@
 #include <stdint.h>
 
 #include "../gc_binding/object.h"
+#include "../gc_binding/scan.h"
 #include "gc_internal.h"
 #include "heap_internal.h"
 
@@ -108,7 +109,7 @@ static void relocate_live_object(void **entry, void *context) {
 #endif
     ScoopGcVisitContext *visit = context;
     ScoopGcSlotVisitor slot = visit->remember_survivors ? visit_survivor_slot : visit_managed_slot;
-    scoop_gc_scan_descriptor(object, scan, slot, context, 0, UINTPTR_MAX);
+    scoop_gc_scan_object(object, scan, slot, context);
 }
 
 #if SCOOP_GC_TRACK_RELOCATION
