@@ -194,7 +194,7 @@ impl DiscoveryBuilder {
                 }
                 if existing.real_root() != source.manifest().real_root() {
                     return Err(BuildGraphDiscoveryError::ConflictingSourceLocator {
-                        coordinate: existing.coordinate().clone(),
+                        coordinate: Box::new(existing.coordinate().clone()),
                         first: existing.real_root().to_path_buf(),
                         second: source.manifest().real_root().to_path_buf(),
                     });

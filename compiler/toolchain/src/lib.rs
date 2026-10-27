@@ -48,8 +48,8 @@ pub use native::{
 };
 pub use paths::{
     artifact_candidate_path, configured_cache_root, configured_sysroot_root, default_runtime_index,
-    development_runtime_root, development_workspace_root, installed_executable,
-    sysroot_library_path, target_library_root,
+    development_runtime_root, development_workspace_root, host_executable_name,
+    installed_executable, installed_host_tool, sysroot_library_path, target_library_root,
 };
 pub use registry::host_target_triple;
 pub use registry::{CToolchainOptions, ResolvedTargetProfile, select_target};

@@ -148,7 +148,7 @@ fn distinct_explicit_core_sources_report_the_common_locator_conflict() {
         "[dependencies]\n\"scoop:scoop.core\" = { version = \"0.1.0\", path = \"../core-b\" }",
     );
     assert!(
-        matches!(request(&root, &sysroot, vec![]).load_root().unwrap().discover(), Err(BuildGraphDiscoveryError::ConflictingSourceLocator { coordinate, .. }) if coordinate == ConeCoordinate::reserved_core())
+        matches!(request(&root, &sysroot, vec![]).load_root().unwrap().discover(), Err(BuildGraphDiscoveryError::ConflictingSourceLocator { coordinate, .. }) if *coordinate == ConeCoordinate::reserved_core())
     );
 }
 

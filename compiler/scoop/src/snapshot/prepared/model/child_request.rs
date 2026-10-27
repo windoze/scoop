@@ -15,7 +15,7 @@ pub use error::ChildRequestPlanError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ChildInvocationPlanV1 {
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     identity: ConeIdentity,
     request: ScoopcRequestEnvelopeV1,
     output_path: Option<PathBuf>,
@@ -23,7 +23,7 @@ pub(crate) struct ChildInvocationPlanV1 {
 }
 
 impl ChildInvocationPlanV1 {
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     pub(crate) const fn identity(&self) -> ConeIdentity {
         self.identity
     }
@@ -231,7 +231,7 @@ impl PreparedBuildGraph {
         )
         .map_err(ChildRequestPlanError::Protocol)?;
         Ok(ChildInvocationPlanV1 {
-            #[cfg(test)]
+            #[cfg(all(test, unix))]
             identity,
             request: ScoopcRequestEnvelopeV1::new(request_id, build),
             output_path,

@@ -114,7 +114,7 @@ mod tests {
         let root = std::env::temp_dir().join("selected-toolchain");
         assert_eq!(
             GeneratorPrograms::default().program_for_compiler("scoop.codec", &root.join("scoopc")),
-            Some(root.join("scoop-codec-generator"))
+            Some(root.join(crate::host_executable_name("scoop-codec-generator")))
         );
     }
 }

@@ -371,7 +371,7 @@ pub enum BuildGraphDiscoveryError {
         second: Box<ConeCoordinate>,
     },
     ConflictingSourceLocator {
-        coordinate: ConeCoordinate,
+        coordinate: Box<ConeCoordinate>,
         first: PathBuf,
         second: PathBuf,
     },

@@ -13,6 +13,9 @@ use windows_sys::Win32::System::Console::{
 };
 use windows_sys::Win32::System::Threading::{INFINITE, TerminateProcess, WaitForSingleObject};
 
+#[path = "windows/program.rs"]
+pub(super) mod program;
+
 static CHILDREN: Mutex<BTreeMap<u32, OwnedHandle>> = Mutex::new(BTreeMap::new());
 static INTERRUPTED: AtomicI32 = AtomicI32::new(0);
 static INITIALIZED: Mutex<bool> = Mutex::new(false);

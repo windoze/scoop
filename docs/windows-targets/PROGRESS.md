@@ -56,3 +56,7 @@ COFF reader 已覆盖普通 AMD64 对象及 MSVC bigobj，保留长节名、超�
 宿主 LLVM 22.1.8 已用 LLVM-MinGW UCRT 完整构建并安装 LLVM／Clang DLL、Rust 开发输入及 Clang／LLD／对象工具。修复遗漏 `libclang-cpp.dll` 导致误加载 PATH 中 ESP32 DLL 的问题，并将 inkwell 的 target feature 与实际 AArch64／X86 backend 对齐。安装后的 Clang 生成 AMD64 COFF 成功；gnullvm 宿主的真实 codegen 测试通过 O0／O2 的 statepoint／异常发射及 AArch64／X86 Boolean ABI。相关 Rust Clippy、Python Ruff 与三个脚本测试通过。
 
 Windows 构建选择支持 UTF-8 的 Ninja；实际编译器依赖记录包含 Unicode 外部头文件，修改头文件会使结果更新。完整构建后的原命令直接复用，保留源码和工具，确认安装工具、DLL 与 Ninja 输出 metadata 未改变。日志、源码解包和构建目录均在仓库外。
+
+Windows 宿主已使用相邻 `.exe` 命令／generator 和 `%LOCALAPPDATA%/Scoop/Cache`。`run` 通过 `CreateProcessW` 执行选中的缓存程序，同时保留发布路径作为 `argv[0]`、原 UTF-16 参数、cwd、环境和标准流；仅继承选中的标准流 handle。文档发布在现有文件锁内替换目录，发布失败恢复旧站点，恢复也失败时保留并报告旧目录位置。
+
+真实进程的参数／cwd／退出与回收测试在 MSVC、gnullvm 两种 Rust 宿主通过；generator 的 4 个测试、文档目录替换／实际文件锁失败恢复的 2 个测试及相关 Clippy 通过。gnullvm `scoop.exe` 已构建，配套 `libunwind.dll` 后，实际外部命令验证 Unicode／空参数／引号／反斜线、原始二进制标准流、环境／显式／安装位置 sysroot、完整高位退出码；系统实际发送 Ctrl+C／Ctrl+Break 时 CLI 与已登记 child 均退出。依赖 POSIX shell 的旧 compiler 测试仅在 Unix 运行；Windows 正式编译 CLI fixture 和完整发行脚本仍待 W1／W2 闭环后接入，不将当前宿主验证记为完整 Windows target 验收。

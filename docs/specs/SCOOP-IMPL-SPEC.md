@@ -754,7 +754,7 @@ scoopc build <Cone-root-or-Cone.toml-or-file.scoop> [--direct-slib direct.slib].
 
 低层 `scoop-link` 使用相同的普通产物链接合同。build/run 省略 root 时使用调用者 cwd 的 Cone.toml，不向父目录搜索；`run -- args` 也使用该默认 root。低层 scoopc 的输入必需。
 
-`scoop` 优先解析内置子命令；其余子命令名称必须是单个文件名，并直接执行所选 `<SYSROOT>/commands/scoop-<名称>`。目标可以是任意宿主可执行程序（包括带解释器声明的脚本），不经过 shell 解释或 PATH 搜索。子命令名称之后的全部参数原样传递，包含选项、`--`、空字符串及宿主原始参数字节；`scoop` 自身的选项必须放在外部子命令之前。`--sysroot` 采用本节既有的显式参数、`SCOOP_SYSROOT`、安装根优先顺序，对内置子命令仍可放在子命令前后。外部程序继承 cwd、环境和标准输入输出，正常退出码与信号终止状态由 `scoop` 传回；程序缺失、不可执行或启动失败按实际路径报告，不触发编译、链接或工具探测。
+`scoop` 优先解析内置子命令；其余子命令名称必须是单个文件名，并直接执行所选 `<SYSROOT>/commands/scoop-<名称>`，Windows 使用 `scoop-<名称>.exe`。目标为宿主可直接执行的程序（Unix 包括带解释器声明的脚本），不经过 shell 解释或 PATH 搜索。子命令名称之后的全部参数原样传递，包含选项、`--`、空字符串及宿主原始参数字节；Windows 保留原 UTF-16 参数。`scoop` 自身的选项必须放在外部子命令之前。`--sysroot` 采用本节既有的显式参数、`SCOOP_SYSROOT`、安装根优先顺序，对内置子命令仍可放在子命令前后。外部程序继承 cwd、环境和标准输入输出，正常退出码与信号终止状态由 `scoop` 传回；程序缺失、不可执行或启动失败按实际路径报告，不触发编译、链接或工具探测。
 
 `scoop new` 创建普通 manifest Cone，group 必需，name 默认取目标目录名，kind 默认 executable，version 默认 0.1.0，package 默认 group；名称、版本与 package 使用现有 coordinate 和源码名称规则，显式 package 必须为 group 本身或其子包。生成 package 时按名称段转义连字符或关键字。固定模板包含 Cone.toml、executable 的 src/main.scoop 或 library 的 src/lib.scoop；默认还包含 tests/basic.scoop 及 scoop.test 测试依赖，`--no-tests` 同时省略两者。生产依赖沿用 manifest 的默认 core 规则，library 不生成 main。所有参数先验证，再创建目标目录；目标必须不存在，普通文件、空目录、非空目录均拒绝覆盖。父目录可按实际需要创建，I/O 失败按原路径报告；此命令不构建、不下载模板，也不读取 sysroot 或构建缓存。 `new` 的 CLI 参数校验可对内存中的 package 声明调用现有 parser，以复用转义标识符和关键字规则；它不读取或解析项目源码。构建编排库继续通过 scoopc 执行源码编译，不调用 HIR/MIR/LIR lowering 或 codegen 实现。
 
@@ -797,7 +797,7 @@ single-Cone 编译请求显式携带 Production 或 Test 用途，默认 Product
 
 `scoop doc` 接受零个或多个 manifest root，省略时使用 cwd 的 Cone.toml。各 root 独立发现并检查依赖图；只在站点层合并相容的源码文档任务，不建立 synthetic Cone。默认包含显式 root 及图中选中的源码依赖，`--no-deps` 保留全部显式 root；prebuilt 节点保持原消费来源。目标选择与图发现只需要纯 target registry 数据，native 工具与输入仅在确实需要生产依赖 `.slib` 时准备。仅文档 root 没有机器生产、runtime 或最终链接。
 
-文档前端输入记录使用实际 root／target、生产语义配置、选中源码的普通文件状态、依赖选择与结果及配套工具版本判断更新。命中且所需文档结果存在时，不读取源码内容或探测工具，也不读取命中结果复核内容；仅在站点确实需要重新渲染时读取已保存的文档输入。源码依赖的机器产物与文档分别判断缺失：冷产物附带文档，机器命中时仅补文档。README 与其实际引用资源独立决定首页更新。普通文件锁协调同一结果；全部页面、资源、链接和 warning 政策检查成功后替换站点，失败保留旧站点。
+文档前端输入记录使用实际 root／target、生产语义配置、选中源码的普通文件状态、依赖选择与结果及配套工具版本判断更新。命中且所需文档结果存在时，不读取源码内容或探测工具，也不读取命中结果复核内容；仅在站点确实需要重新渲染时读取已保存的文档输入。源码依赖的机器产物与文档分别判断缺失：冷产物附带文档，机器命中时仅补文档。README 与其实际引用资源独立决定首页更新。普通文件锁协调同一结果；全部页面、资源、链接和 warning 政策检查成功后替换站点，失败保留旧站点。Unix 使用目录交换；Windows 在同一发布锁内先将旧目录改名到同级临时位置，再发布新目录，第二次改名失败时恢复旧目录。若普通 I/O 错误也阻止恢复，报告旧目录实际保存的位置并保留其内容，不删除旧结果。
 
 文档渲染先汇总所有选中 Cone 的可见声明和 typed 路由，再生成页面与链接。Cone、package、类型、函数 overload 组与源码页使用完整身份确定的相对路径；显示名称与文件路径独立，成员、参数及 accessor 保留实际目标锚点。多目标引用连接到完整的可见 overload 集；解析成功但未生成页面的目标保留文本并注明缺少文档，不伪造 URL 或新增名称诊断。页面包含签名、tag、可见性与 property 能力、原文源码行及公开 re-export 的实际来源。
 
@@ -839,7 +839,7 @@ C++ 配套 driver、标准库配置、宏及搜索输入保存在 `cxx-tools-v1`
 
 首次 final-link 探测以实际编译／链接成功确认所选调用可用，使用 depfile 和 Linux linker trace 记录实际系统输入；不再读取探测 executable 重验目标、装载命令、段权限、EH 符号或 fixup，不生成 linker map 比对 unwind provider。目标／libc 由已有 C 工具选择确定，运行库由实际链接参数选择，输出行为由专门运行测试覆盖。
 
-`scoop link` 与独立 `scoop-link` 同样复用 C／C++／最终链接工具发现记录；两者没有源码 Cone root，缓存位置依次使用 `--cache-dir`、`SCOOP_CACHE_DIR`、平台默认缓存目录。显式 artifact 输入的读取和必要链接工作继续按实际请求执行。
+`scoop link` 与独立 `scoop-link` 同样复用 C／C++／最终链接工具发现记录；两者没有源码 Cone root，缓存位置依次使用 `--cache-dir`、`SCOOP_CACHE_DIR`、平台默认缓存目录。Windows 默认使用 `%LOCALAPPDATA%/Scoop/Cache`，Linux 使用 `$XDG_CACHE_HOME/scoop` 或 `$HOME/.cache/scoop`，Darwin 使用 `$HOME/Library/Caches/Scoop`；平台环境值只采用绝对路径，无可用默认值时要求显式缓存目录。显式 artifact 输入的读取和必要链接工作继续按实际请求执行。
 
 native 预处理同时取得实际 include 名称及其所在文件，按该次 include 的名称、引号查找目录和配置搜索根记录候选；不把所有头文件的父目录互相交叉展开。预处理器输出的 include 观察指令不进入后续预处理单元编译，原有行号与诊断映射保持。
 
@@ -873,7 +873,7 @@ run 直接执行本次成功构建确定的文件；同一请求构建失败时�
 
 `--sysroot` 定位 Scoop core 及上述 `scoop` group 默认产物；Linux 的 `--cc`、`--native-sysroot` 选择 C 工具链。`--unwind-prefix` 和 `--link-mode static|dynamic` 属于 runtime/executable 链接输入，library `.slib` 构建不要求 unwind archive。Linux 缺省 unwind prefix 为 `<Scoop sysroot>/lib/<canonical triple>/unwind`。Darwin 使用所选 Xcode 开发环境。
 
-三个宿主命令按显式 `--sysroot`、`SCOOP_SYSROOT`、实际执行文件所属 `bin` 的父目录依次选择 Scoop sysroot。默认定位跟随执行文件的普通 symlink，不依赖 cwd 或编译时仓库路径；显式相对路径仍按调用者 cwd 解析。开发工具从 Cargo 输出目录执行时也必须显式选择开发 sysroot。配套 scoopc 默认取实际 scoop 执行文件的相邻位置，显式 sysroot 不改变已选宿主命令。
+三个宿主命令按显式 `--sysroot`、`SCOOP_SYSROOT`、实际执行文件所属 `bin` 的父目录依次选择 Scoop sysroot。默认定位跟随执行文件的普通 symlink，不依赖 cwd 或编译时仓库路径；显式相对路径仍按调用者 cwd 解析。开发工具从 Cargo 输出目录执行时也必须显式选择开发 sysroot。配套 scoopc 默认取实际 scoop 执行文件的相邻位置，显式 sysroot 不改变已选宿主命令。Windows 上默认配套命令和内置 generator 使用 `.exe` 文件名；显式工具路径保持原样。
 
 因此将工具包解压到 `~/.scoop` 并从 `~/.scoop/bin` 启动时，默认系统库位置就是 `~/.scoop/lib/<canonical-target-triple>`；debug／release 应用及空缓存均直接消费其中的预编译 `.slib`。随包 `src` 不参与默认构建，显式 source locator 或直接构建库源码才请求重编。安装到其他位置仍沿同一相邻 sysroot 规则，不额外混用 HOME 下另一套库。
 

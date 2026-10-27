@@ -202,11 +202,7 @@ fn build_request(
     )?;
     let compiler = match args.scoopc {
         Some(path) => path,
-        None => scoop_toolchain::installed_executable()
-            .map_err(config)?
-            .parent()
-            .ok_or_else(|| config("scoop executable has no parent"))?
-            .join("scoopc"),
+        None => scoop_toolchain::installed_host_tool("scoopc").map_err(config)?,
     };
     let sysroot = absolute(
         &cwd,

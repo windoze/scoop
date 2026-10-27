@@ -1,3 +1,6 @@
+// Prepared-graph fixtures use a POSIX shell compiler for protocol responses.
+#![cfg(unix)]
+
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 

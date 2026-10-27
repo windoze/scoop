@@ -195,7 +195,7 @@ impl PreparedBuildGraph {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     pub(crate) fn execute_ordinary_source(
         &self,
         identity: ConeIdentity,

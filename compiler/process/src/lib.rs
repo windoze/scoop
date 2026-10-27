@@ -12,6 +12,18 @@ mod signals;
 mod depfile;
 pub use depfile::parse_make_dependencies;
 
+/// Run the selected image with a distinct argv[0], inherited I/O and environment.
+#[cfg(windows)]
+pub fn run_program(
+    executable: &std::path::Path,
+    argv0: &std::path::Path,
+    args: &[std::ffi::OsString],
+    cwd: &std::path::Path,
+) -> io::Result<ExitStatus> {
+    initialize()?;
+    signals::program::run(executable, argv0, args, cwd)
+}
+
 pub fn initialize() -> io::Result<()> {
     #[cfg(any(unix, windows))]
     signals::initialize()?;
