@@ -40,31 +40,35 @@ static void *execute_work(void *context) {
 }
 
 int scoop_io_workers_start(ScoopIoLoop *loop) {
-    pthread_t workers[4];
+    pthread_mutex_lock(&loop->mutex);
+    if (loop->workers) {
+        pthread_mutex_unlock(&loop->mutex);
+        return -EAGAIN;
+    }
+    loop->stopping = false;
+    pthread_mutex_unlock(&loop->mutex);
     unsigned started = 0;
     int status = 0;
     for (; started < scoop_io_work_width(); started++) {
+        pthread_t worker;
         pthread_mutex_lock(&loop->mutex);
         loop->workers++;
-        status = pthread_create(&workers[started], NULL, execute_work, loop);
+        status = pthread_create(&worker, NULL, execute_work, loop);
         if (status)
             loop->workers--;
         pthread_mutex_unlock(&loop->mutex);
         if (status)
             break;
+        pthread_detach(worker);
     }
     if (status) {
         pthread_mutex_lock(&loop->mutex);
         loop->stopping = true;
         pthread_cond_broadcast(&loop->work_ready);
         pthread_mutex_unlock(&loop->mutex);
-        for (unsigned i = 0; i < started; i++)
-            pthread_join(workers[i], NULL);
-        loop->stopping = false;
+        // Empty workers retire through the normal notification and idle protocol.
         return -status;
     }
-    for (unsigned i = 0; i < started; i++)
-        pthread_detach(workers[i]);
     loop->workers_started = true;
     return 0;
 }

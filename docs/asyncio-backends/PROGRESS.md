@@ -30,3 +30,5 @@ Linux 远端原仓库存在未提交工作，测试使用独立源目录及目�
 - Linux 后端与宿主进度：严格 GNU／musl C 检查、三目标 `scoop check --tests` 通过。Darwin 150 项；Linux 当前 7.0 内核 GNU／musl 各 153 项；独立 KVM 中 Linux 6.1.190 基线 GNU／musl 各 153 项全部通过。包含真实 target／cancel CQE 两种退休顺序、SQ 满、seccomp 禁用 setup／submit、缺能力、内核读完成后的取消进度、空闲无回调、持续 UDP 下宿主推进和 GC 后外线程关闭。
 - 首次 6.1 GNU 仅旧 worker 排队读断言失败：已将该验证保留为 Darwin 专项，Linux 以真实数据 CQE 断言实际进度；普通 open／DNS 排队取消仍为共享测试。修正后两种 libc 基线全部闭合。
 - 第二次清理使用 `scoop clean` 清除本任务不再使用的 `target/http-server` 输出，仓库 `target` 从约 9.4 GB 降至 1.7 GB；Linux 只使用独立的约 1.2 GB Cargo 输出，未触碰原远端工作树及其 target。
+
+- Linux worker 启动失败不再在 owner 上同步 join；已启动线程沿通常通知与空闲协议退休。真实 seccomp 拒绝 clone／clone3 的两次启动失败与后续 timer 测试在 GNU／musl 各 6 项 ring 专测中通过；最终普通 asyncio 测试两者各 155 项通过，定向移动 GC 的活动 buffer 借用和迟到 TTY resize 各 1 项通过。

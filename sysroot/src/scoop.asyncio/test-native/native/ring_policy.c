@@ -68,3 +68,40 @@ int scoop_test_ring_submit_denied(void) {
     }
     return wait_child(child);
 }
+
+static void unexpected_work(ScoopIoWork *work) {
+    (void)work;
+    _exit(6);
+}
+static void unexpected_finish(ScoopIoWork *work, int status) {
+    (void)work;
+    (void)status;
+    _exit(7);
+}
+int scoop_test_workers_denied(void) {
+    pid_t child = fork();
+    if (!child) {
+        ScoopIoCreated created = scoop_io_loop_create();
+        if (created.status)
+            _exit(2);
+        ScoopIoLoop *loop = created.pointer;
+        if (deny_syscall(__NR_clone) || deny_syscall(__NR_clone3))
+            _exit(3);
+        ScoopIoWork work = {0};
+        for (unsigned attempt = 0; attempt < 2; attempt++) {
+            if (scoop_io_work_submit(&work, loop, 1, unexpected_work, unexpected_finish) >= 0 ||
+                loop->workers || loop->workers_started || loop->work)
+                _exit(4);
+        }
+        if (scoop_io_timer_start(loop, 2, 0, 1))
+            _exit(5);
+        while (!scoop_io_loop_batch_size(loop)) {
+            if (scoop_io_loop_poll(loop, true))
+                _exit(8);
+        }
+        if (scoop_io_loop_next(loop).id != 2 || scoop_io_loop_destroy(loop))
+            _exit(9);
+        _exit(0);
+    }
+    return wait_child(child);
+}

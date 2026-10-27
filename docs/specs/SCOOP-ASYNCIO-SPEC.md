@@ -317,6 +317,6 @@ onClosed 执行时 isClosed 为真，参数为运行／清理失败或 None。�
 
 Darwin 的 libdispatch 通过系统 libSystem 的标准 re-export 链接，不另要求 SDK 默认库目录中存在名为 dispatch 的独立库。Darwin 用 dispatch source 驱动 nonblocking 网络／TTY 与单调 timer，后台 work 处理普通文件、DNS、目录、路径与 NativeWork；source 全部退休后才消费其 fd。Linux 用 ring 完成网络、文件数据 I/O、fsync、timer 与 TTY readiness，其余阻塞工作使用 native worker。两者复用 GC-free 平台 helper 和同一资源语义。
 
-Linux 新后端支持基线为内核 6.1，初始化实际探测所需操作与 feature；ring 不可用或能力不足明确失败，不静默回退其他后端。此要求仅针对 asyncio 新后端。完整操作集、队列满时的处理、取消退休、提交失败与 ring 销毁见[设计第 8 节](../asyncio-backends/DESIGN.md#8-linuxio_uring-后端)。
+Linux 新后端支持基线为内核 6.1，初始化实际探测所需操作与 feature；ring 不可用或能力不足明确失败，不静默回退其他后端。此要求仅针对 asyncio 新后端。worker 启动中途失败时，已启动的空闲线程异步退出，owner 不 join 等待；完全退休后允许后续操作重试启动。完整操作集、队列满时的处理、取消退休、提交失败与 ring 销毁见[设计第 8 节](../asyncio-backends/DESIGN.md#8-linuxio_uring-后端)。
 
 新后端的 syscall／负 CQE 错误保留 PosixErrno，DNS 保留 AddressResolution；正常 timer 到期不是错误，取消和 IoClosedException 仍由共享层选择。最终移除 Libuv 错误转换须随实际消费者迁移进行。迁移验收覆盖 Darwin、GNU、musl 的同一公共行为，以及宿主监听注销、Context、取消竞争和 native 内存寿命；本次设计不代表已完成这些验证。

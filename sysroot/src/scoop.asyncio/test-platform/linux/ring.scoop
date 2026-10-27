@@ -34,6 +34,13 @@ private class LinuxRingRetirementTest {
         }
     }
     @Test
+    fun `denied worker startup reports failure without accepting work and leaves timers usable`() {
+        @Unsafe
+        {
+            assertEquals(0, testWorkersDenied())
+        }
+    }
+    @Test
     fun `missing completion retention or a required opcode fails the capability check`() {
         @Unsafe
         {
@@ -56,3 +63,6 @@ private fun testRingSubmitDenied(): Int
 
 @Extern(name = "scoop_test_ring_capabilities")
 private fun testRingCapabilities(): Int
+
+@Extern(name = "scoop_test_workers_denied")
+private fun testWorkersDenied(): Int
