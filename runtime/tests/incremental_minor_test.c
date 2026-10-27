@@ -19,7 +19,7 @@ void *scoop_test_cards_malloc(size_t size) {
 }
 
 #ifdef SCOOP_TEST_INCREMENTAL_PARALLEL
-#define TEST_WORKERS 4
+#define TEST_WORKERS 8
 #else
 #define TEST_WORKERS 1
 #endif

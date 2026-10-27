@@ -2,6 +2,26 @@ use super::compile::compile_and_run_configuration;
 use super::{compile_and_run, compile_and_run_with_flags, workspace_root};
 
 #[test]
+fn parallel_slices_share_work_limits_and_finishing_drains_retained_tasks() {
+    let output = compile_and_run_with_flags(
+        &workspace_root(),
+        "mark_slice_quanta_test",
+        "runtime/tests/mark_slice_quanta_test.c",
+        false,
+        &["-O2"],
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"parallel slices share their work limit and finishing drains all retained tasks\n"
+    );
+}
+
+#[test]
 fn new_work_notifies_one_marker_and_completion_releases_all_waiters() {
     let output = compile_and_run_with_flags(
         &workspace_root(),

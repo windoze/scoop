@@ -240,7 +240,12 @@ static void record_work(void) {
 }
 
 bool scoop_gc_mark_step(bool finish) {
-    scoop_gc_mark_pool_run(finish ? 0 : 1024);
+    /* More participants share the slice's work instead of enlarging its pause. */
+    size_t task_limit = 4096 / scoop_gc_marker.active_workers;
+    if (task_limit > 1024) {
+        task_limit = 1024;
+    }
+    scoop_gc_mark_pool_run(finish ? 0 : task_limit);
     record_work();
     return atomic_load_explicit(&scoop_gc_marker.pending, memory_order_relaxed) == 0;
 }

@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 #include "../src/gc/mark_internal.h"
+#include "../src/platform/platform.h"
 
 #undef pthread_cond_wait
 extern int pthread_cond_wait(pthread_cond_t *condition, pthread_mutex_t *lock);
@@ -81,6 +82,29 @@ static void change_participants(void) {
     scoop_gc_mark_pool_run(0);
 }
 
+static void check_default_participants(void) {
+    assert(unsetenv("SCOOP_GC_WORKERS") == 0);
+    size_t expected = scoop_platform_bundle()->thread_vm->processor_count();
+    if (expected > 8) {
+        expected = 8;
+    }
+    committed_bytes = (size_t)3 << 20;
+    scoop_gc_mark_pool_prepare(false);
+    assert(!scoop_gc_marker.forced && scoop_gc_marker.configured_workers == expected);
+    assert(scoop_gc_marker.active_workers == 1);
+    scoop_gc_mark_pool_run(0);
+    committed_bytes = (size_t)8 << 20;
+    for (size_t iteration = 0; iteration < 3; iteration++) {
+        scoop_gc_mark_pool_prepare(false);
+        assert(scoop_gc_marker.active_workers == expected);
+        scoop_gc_mark_pool_run(0);
+        scoop_gc_mark_pool_prepare(true);
+        assert(scoop_gc_marker.active_workers == 1);
+        scoop_gc_mark_pool_run(0);
+    }
+    scoop_gc_shutdown();
+}
+
 int main(void) {
     alarm(20);
     assert(setenv("SCOOP_GC_WORKERS", "4", 1) == 0);
@@ -92,5 +116,6 @@ int main(void) {
         change_participants();
     }
     scoop_gc_shutdown();
+    check_default_participants();
     puts("delayed inactive workers retain the participants of their published phase");
 }

@@ -118,8 +118,8 @@ static void stop_threads(void) {
 
 static void initialize(void) {
     size_t count = scoop_platform_bundle()->thread_vm->processor_count();
-    if (count > 4) {
-        count = 4;
+    if (count > GC_MARK_MAX_WORKERS) {
+        count = GC_MARK_MAX_WORKERS;
     }
     const char *setting = getenv("SCOOP_GC_WORKERS");
     if (setting != NULL) {
