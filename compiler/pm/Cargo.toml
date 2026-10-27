@@ -7,11 +7,13 @@ rust-version.workspace = true
 clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+toml.workspace = true
+fs4.workspace = true
+url.workspace = true
+tempfile.workspace = true
+scoop-wire.workspace = true
 scoop-identity.workspace = true
 scoop-manifest.workspace = true
 scoop-process.workspace = true
 scoop-protocol.workspace = true
 scoop-toolchain.workspace = true
-
-[dev-dependencies]
-tempfile.workspace = true

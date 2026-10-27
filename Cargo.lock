@@ -1106,14 +1106,18 @@ name = "scoop-pm"
 version = "0.0.0"
 dependencies = [
  "clap",
+ "fs4",
  "scoop-identity",
  "scoop-manifest",
  "scoop-process",
  "scoop-protocol",
  "scoop-toolchain",
+ "scoop-wire",
  "serde",
  "serde_json",
  "tempfile",
+ "toml",
+ "url",
 ]
 
 [[package]]

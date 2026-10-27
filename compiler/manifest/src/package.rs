@@ -8,6 +8,7 @@ use crate::{
 };
 
 mod dependency;
+pub mod format;
 mod parse;
 mod raw;
 mod registry;

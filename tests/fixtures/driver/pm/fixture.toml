@@ -52,3 +52,18 @@ argv = ["${scoop}", "--package-manager", "${scoop-pm}", "pm", "new", "--workspac
 exit = 1
 stdout = ""
 stderr = "error: refusing to overwrite ${work}/new workspace\n"
+
+[[steps]]
+name = "deps"
+argv = ["${scoop}", "--package-manager", "${scoop-pm}", "pm", "deps", "${work}/project", "--target", "aarch64-apple-darwin"]
+exit = 0
+stdout = "dev.example:server:0.1.0 [production / aarch64-apple-darwin]\n  dev.example:model:0.1.0 (path model)\n    -> scoop:scoop.core:0.1.0\n  dev.example:server:0.1.0 (path server)\n    -> dev.example:model:0.1.0\n    -> scoop:scoop.core:0.1.0\n  scoop:scoop.core:0.1.0 (sysroot scoop.core)\n"
+stderr = ""
+
+[[steps]]
+name = "missing_test_lock"
+argv = ["${scoop-pm}", "deps", "${work}/project", "--target", "aarch64-apple-darwin", "--purpose", "test"]
+exit = 1
+stdout = ""
+stderr = "error: no locked resolution for dev.example:server:0.1.0 / test / aarch64-apple-darwin; resolve dependencies first\n"
+checks = [{file = "${work}/project/Cone.lock", same_as = "${root}/Cone.lock"}]
