@@ -1,10 +1,18 @@
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
+#include <fcntl.h>
+#include <io.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <windows.h>
 
 #include "startup.h"
+
+static int binary_stream(FILE *stream) {
+    int descriptor = _fileno(stream);
+    /* GUI processes may have no standard stream attached to their CRT. */
+    return descriptor < 0 || _setmode(descriptor, _O_BINARY) != -1;
+}
 
 int scoop_rt_run_program_utf16(const ScoopImageDescriptorV1 *const *images, uint64_t image_count,
                                const ScoopRootEntryDescriptorV1 *root_entry, int32_t argc,
@@ -12,6 +20,10 @@ int scoop_rt_run_program_utf16(const ScoopImageDescriptorV1 *const *images, uint
     HANDLE heap = GetProcessHeap();
     char **converted = NULL;
     int32_t index = 0;
+    if (!binary_stream(stdout) || !binary_stream(stderr)) {
+        fputs("scoop: cannot set Windows standard streams to binary mode\n", stderr);
+        return 1;
+    }
     if (argc < 1 || argv == NULL || argv[argc] != NULL ||
         (uint64_t)argc + 1 > SIZE_MAX / sizeof(char *)) {
         fputs("scoop: invalid Windows startup arguments\n", stderr);

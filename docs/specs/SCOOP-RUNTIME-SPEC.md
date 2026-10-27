@@ -819,6 +819,8 @@ native exception record 不能跨线程共享或跨挂起保存；可以保存�
 
 标准输出后备为普通 C ABI `scoop_rt_stdout_write(const uint8_t *bytes, int64_t length)`、`scoop_rt_stderr_write(const uint8_t *bytes, int64_t length)` 和 `scoop_rt_flush_stdout(void)`，均返回 void。调用方提供非负长度和本次调用期间有效、稳定的字节区间；core 的 String 包装使用作用域借用。实际操作使用 stdout/stderr 的 stdio 缓冲；caller 按普通 C FFI 进入 NativeSafe，后备不访问可移动的 managed 引用，也不回调 Scoop。语言接口及缓冲、并发和错误结果规则见语言规范 14.4。
 
+Windows startup 在进入 coordinator 之前将有效的 stdout／stderr CRT descriptor 设为 binary mode，保留 LF、CR、NUL 等原始字节，不做 text mode 的换行转换。GUI 进程没有标准流 descriptor 时跳过该流，不要求分配 console；有效 descriptor 的模式设置失败报告启动错误并返回 1。该初始化不改变 console code page，也不改变标准流的缓冲与错误返回合同。
+
 String 的公开行为、hash、UTF-8 扫描和编码由普通 core helper 实现；已知表示的读取、分配及复制沿 2.4 的 typed 操作生成。C 仅保留实际消费者需要的共享比较、拼接与有界读取 leaf。普通字符定位 helper 返回 Option<Char> 或 Option<(Long, Long)>，core 对 None 抛出 IndexOutOfBoundsException；内容与已验证边界未变化时直接复用，不调用另一套 C 校验。旧字符定位、解码及复制入口和专用聚合 ABI shim 退役。
 
 JSON／CLI 浮点解析后备返回的 `Option<Float>`／`Option<Double>` 同样为 16-byte tagged 值，固定 tag 与 payload bits 使用两个整数返回分量。平台适配必须按 bits 传递 payload，不能套用 C 的混合整数／浮点 struct 返回分类。这些适配由实际的 scoop.json／scoop.cli extern 声明消费。

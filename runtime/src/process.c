@@ -1,5 +1,9 @@
 #include <stdio.h>
+#if defined(_WIN32)
+#include <process.h>
+#else
 #include <unistd.h>
+#endif
 
 #include "scoop_rt.h"
 #include "thread/internal.h"

@@ -100,3 +100,5 @@ Win32 ThreadVmOps 已实现栈范围、页／CPU 数、对齐 reservation、读�
 PE metadata image 组件已从承载 runtime 的加载模块读取 section RVA／VirtualSize，以非 discardable 区间建立 metadata 地址范围，并读取 `.text`／`.smap`，不重新打开 exe 或包含文件对齐 padding。已有 PE 集成测试接入实际组件，在 Microsoft LLD／LINK 与两个 MinGW CRT 中验证生成 registration、静态存储、stackmap 长度及 DLL 数据边界；定向 Clippy 和 C 警告检查通过。真实 stackmap 解码与上下文扫描随 Windows SEH frame 实现闭合。
 
 Windows JSON／CLI 数值后备已通过 platform 入口使用固定 gdtoa C parser。固定 mingw-w64 2026-09-17 修订及许可证，只保留所需解析源；私有符号与平台锁避免混入 CRT 的另一份 gdtoa 状态，不读取或修改应用 locale。三个 native 环境验证 Float 直接最近偶数舍入、Double、400-byte 输入、overflow／subnormal／signed zero、嵌入 NUL、Win64 tagged C 返回及四线程并发；global locale 与 UCRT 已有 thread locale 保持，Clippy 和所有相关 C 源的严格警告编译通过。Darwin／Linux 的原 libc 私有 locale 实现移到 platform/numeric，运行回归仍按约定在本地完整验收之后执行。
+
+Windows startup 在进入 coordinator 前将有效 stdout／stderr CRT descriptor 设为 binary mode，`process.c` 使用对应 CRT 的 `_exit` 声明。PE 集成测试在 Microsoft LLD／LINK 和两个 MinGW CRT 中接入实际 I/O／退出实现，验证 LF、CR、NUL、0x1a、0xff 字节保留、缓冲刷新、高位退出码，以及正常返回执行 atexit、立即退出／trap 跳过 atexit；定向 Clippy 和 C 严格警告编译通过。测试的 coordinator 为边界替身，完整 managed 退出／GC 协调仍随 runtime 集成验证。

@@ -1,5 +1,7 @@
 #include "platform/platform.h"
+#include "scoop_rt.h"
 #include "startup.h"
+#include "thread.h"
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -18,6 +20,13 @@ __declspec(dllimport) int imported_function(int);
 extern int static_function(int);
 static const char *const *saved_arguments;
 static int calls;
+
+ScoopThreadState *scoop_thread_current(void) { return NULL; }
+
+_Noreturn void scoop_thread_fatal(const char *message) {
+    fputs(message, stderr);
+    abort();
+}
 
 static void check_loaded_image(void) {
     ScoopPlatformMetadataImages images;
@@ -47,6 +56,7 @@ static void check_arguments_at_exit(void) {
     if (strcmp(saved_arguments[2], "\xe5\x80\xbc\xf0\x9f\xa7\xaa") != 0) {
         _Exit(91);
     }
+    fputs("atexit\n", stdout);
 }
 
 int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *images, uint64_t count,
@@ -58,6 +68,8 @@ int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *images, uint64_t c
     const uint16_t *invalid[] = {valid, invalid_high, NULL};
     if (++calls != 1)
         return 90;
+    if (setvbuf(stdout, NULL, _IOFBF, 4096) != 0 || setvbuf(stderr, NULL, _IOFBF, 4096) != 0)
+        return 99;
     check_loaded_image();
     if (count != 2 || images[0] != &image0 || images[1] != &image1 || entry != &root ||
         images[0]->cone.identity.bytes[0] != 1 || images[1]->cone.identity.bytes[0] != 2)
@@ -78,5 +90,13 @@ int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *images, uint64_t c
     saved_arguments = argv;
     if (atexit(check_arguments_at_exit) != 0)
         return 98;
+    const uint8_t output[] = {'o', 'u', 't', ':', '\n', '\r', 0x1a, 0, 0xff};
+    const uint8_t error[] = {'e', 'r', 'r', ':', '\n', '\r', 0x1a, 0, 0xff};
+    scoop_rt_stdout_write(output, sizeof output);
+    scoop_rt_stderr_write(error, sizeof error);
+    if (argc == 6 && strcmp(argv[5], "--runtime-exit") == 0)
+        scoop_rt_exit((int32_t)UINT32_C(0x8ace1357));
+    if (argc == 6 && strcmp(argv[5], "--runtime-trap") == 0)
+        scoop_rt_trap("test");
     return argc == 6 ? (int32_t)UINT32_C(0x8ace1357) : 0;
 }

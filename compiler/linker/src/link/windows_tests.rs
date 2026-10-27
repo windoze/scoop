@@ -271,7 +271,12 @@ fn validate_pe(profile: &ValidatedFinalLinkProfile, scratch: &Path) {
         &runtime,
     );
     let mut runtime_objects = vec![arguments];
-    for source in ["src/platform/image/pe.c", "src/image/ranges.c"] {
+    for source in [
+        "src/platform/image/pe.c",
+        "src/image/ranges.c",
+        "src/io.c",
+        "src/process.c",
+    ] {
         let source = runtime.join(source);
         let object = scratch
             .join(source.file_stem().unwrap())
@@ -302,14 +307,42 @@ fn validate_pe(profile: &ValidatedFinalLinkProfile, scratch: &Path) {
             .is_some_and(|name| name == "ucrt.lib" || name == "libmsvcrt.a")
     }));
     let arguments = ["", "值🧪", "quoted \"value\"", "end\\"];
-    checked(Command::new(&executable).args(arguments));
-    let status = Command::new(&executable)
-        .args(arguments)
-        .arg("--high-exit")
-        .scoop_output()
-        .unwrap()
-        .status;
-    assert_eq!(status.code().map(|code| code as u32), Some(0x8ace_1357));
+    let output = checked(Command::new(&executable).args(arguments));
+    let binary_stdout = b"out:\n\r\x1a\0\xff";
+    let binary_stderr = b"scoop: cannot decode UTF-16 startup argument 1\nscoop: cannot decode UTF-16 startup argument 1\nerr:\n\r\x1a\0\xff";
+    assert_eq!(
+        output.stdout,
+        [binary_stdout.as_slice(), b"atexit\n"].concat()
+    );
+    assert_eq!(output.stderr, binary_stderr);
+    for (argument, code, native_exit, trap) in [
+        ("--high-exit", 0x8ace_1357, true, false),
+        ("--runtime-exit", 0x8ace_1357, false, false),
+        ("--runtime-trap", 1, false, true),
+    ] {
+        let output = Command::new(&executable)
+            .args(arguments)
+            .arg(argument)
+            .scoop_output()
+            .unwrap();
+        assert_eq!(output.status.code().map(|code| code as u32), Some(code));
+        assert_eq!(
+            output.stdout,
+            [
+                binary_stdout.as_slice(),
+                if native_exit { b"atexit\n" } else { b"" }
+            ]
+            .concat(),
+        );
+        assert_eq!(
+            output.stderr,
+            [
+                binary_stderr.as_slice(),
+                if trap { b"scoop: trap: test\n" } else { b"" }
+            ]
+            .concat(),
+        );
+    }
     let bytes = std::fs::read(executable).unwrap();
     let pe = object::File::parse(bytes.as_slice()).unwrap();
     assert_eq!(
