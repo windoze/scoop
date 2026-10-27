@@ -857,7 +857,7 @@ C FFI 使用目标真实 float/double ABI。数值操作遵守语言规范 11.2.
 
 Float／Double 的最短数字继续由 vendored Ryu 的 `f2s_buffered_n`／`d2s_buffered_n` 产生。普通 core 通过明确的 C ABI GCLeaf 声明调用，只传入 GC-free 标量与足够的栈缓冲；这些同步有界入口不分配、不握手、不回调、不保留指针。core 的普通有界格式 helper 处理小数／科学计数法阈值、至少一位小数、指数符号与零、NaN／Infinity 和负零，再用 typed StringCopy 一次分配并复制实际长度。String 不要求 NUL；旧 `scoop_rt_float_to_string`／`scoop_rt_double_to_string`、C 文本适配和分配包装退役。
 
-JSON／CLI 的现有解析适配继续复用所选 libc 的 `strtof_l`／`strtod_l` 与固定 C numeric locale，按目标精度完整消费输入并检查有限值。长度不足 256 B 时在固定栈缓冲中复制并补 NUL；更长输入使用原有动态缓冲慢路径，两者使用同一解析与错误规则。该阈值只选择存储，不限制可接受输入，不改变舍入、subnormal、signed zero 或下溢语义；动态分配失败仍沿原 fatal 路径。caller 保持原 NativeBorrowed 保活协议，不把整个动态扫描标为 GCLeaf，不改变 locale 的一次性协调规则。
+JSON／CLI 的现有解析适配通过 platform 数值入口复用精确解析器，按目标精度完整消费输入并检查有限值。Darwin／Linux 使用 `strtof_l`／`strtod_l` 与独立 C numeric locale；Windows 使用配套 gdtoa C parser 的 binary32／binary64 入口，固定小数点并直接最近偶数舍入，既不依赖 MSVCRT 的 Double 中转，也不读取或修改 native 调用者的 locale。gdtoa 的共享私有分配缓存经平台 mutex 协调，不改变 GC 协议。长度不足 256 B 时在固定栈缓冲中复制并补 NUL；更长输入使用原有动态缓冲慢路径，两者使用同一解析与错误规则。该阈值只选择存储，不限制可接受输入，不改变舍入、subnormal、signed zero 或下溢语义；动态分配失败仍沿原 fatal 路径。caller 保持原 NativeBorrowed 保活协议，不把整个动态扫描标为 GCLeaf。
 
 ## 7. 程序启动与退出
 

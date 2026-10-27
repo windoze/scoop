@@ -84,10 +84,12 @@ pub(super) const COMMON: &[&str] = &[
 pub(super) const DARWIN_OS: &[&str] = &[
     "runtime/src/platform/os/darwin.c",
     "runtime/src/platform/primitives/posix.c",
+    "runtime/src/platform/numeric/posix.c",
 ];
 pub(super) const LINUX_OS: &[&str] = &[
     "runtime/src/platform/os/linux.c",
     "runtime/src/platform/primitives/posix.c",
+    "runtime/src/platform/numeric/posix.c",
 ];
 pub(super) const MACHO_IMAGE: &[&str] = &["runtime/src/platform/image/macho.c"];
 pub(super) const ELF_IMAGE: &[&str] = &["runtime/src/platform/image/elf.c"];

@@ -98,3 +98,5 @@ Windows 宿主已使用相邻 `.exe` 命令／generator 和 `%LOCALAPPDATA%/Scoo
 Win32 ThreadVmOps 已实现栈范围、页／CPU 数、对齐 reservation、读写 commit、保护页、整页 discard、整体 release 和 RSS。GC 对齐映射移到 OS 层，POSIX 共用已有 mmap／裁剪逻辑，Windows 只提交可用区间并释放原 reservation。三个 native 环境的实际程序验证 16 MiB region／64 KiB 大对象对齐、保留区整体释放、discard 后重新写入、保护页失败路径、主线程／worker 栈增长与 RSS；Clippy 和 C 警告检查通过。该批尚未接入完整 Windows runtime profile，后续随 PE image 与 SEH frame 实现组合。
 
 PE metadata image 组件已从承载 runtime 的加载模块读取 section RVA／VirtualSize，以非 discardable 区间建立 metadata 地址范围，并读取 `.text`／`.smap`，不重新打开 exe 或包含文件对齐 padding。已有 PE 集成测试接入实际组件，在 Microsoft LLD／LINK 与两个 MinGW CRT 中验证生成 registration、静态存储、stackmap 长度及 DLL 数据边界；定向 Clippy 和 C 警告检查通过。真实 stackmap 解码与上下文扫描随 Windows SEH frame 实现闭合。
+
+Windows JSON／CLI 数值后备已通过 platform 入口使用固定 gdtoa C parser。固定 mingw-w64 2026-09-17 修订及许可证，只保留所需解析源；私有符号与平台锁避免混入 CRT 的另一份 gdtoa 状态，不读取或修改应用 locale。三个 native 环境验证 Float 直接最近偶数舍入、Double、400-byte 输入、overflow／subnormal／signed zero、嵌入 NUL、Win64 tagged C 返回及四线程并发；global locale 与 UCRT 已有 thread locale 保持，Clippy 和所有相关 C 源的严格警告编译通过。Darwin／Linux 的原 libc 私有 locale 实现移到 platform/numeric，运行回归仍按约定在本地完整验收之后执行。

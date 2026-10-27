@@ -48,6 +48,33 @@ fn windows_vm_keeps_alignment_reservations_and_reusable_pages() {
     );
 }
 
+#[test]
+fn windows_numeric_parsing_rounds_directly_and_restores_native_locales() {
+    run_windows_runtime_test(
+        "tests/windows_numeric_test.c",
+        &[],
+        &[
+            "src/floating_parse.c",
+            "src/platform/primitives/windows.c",
+            "src/platform/numeric/windows.c",
+            "src/platform/arch/x86_64_floating.c",
+            "src/platform/arch/x86_64_float_environment.c",
+            "../sysroot/vendor/gdtoa/strtodg.c",
+            "../sysroot/vendor/gdtoa/strtof.c",
+            "../sysroot/vendor/gdtoa/strtodnrp.c",
+            "../sysroot/vendor/gdtoa/misc.c",
+            "../sysroot/vendor/gdtoa/dmisc.c",
+            "../sysroot/vendor/gdtoa/smisc.c",
+            "../sysroot/vendor/gdtoa/gmisc.c",
+            "../sysroot/vendor/gdtoa/sum.c",
+            "../sysroot/vendor/gdtoa/ulp.c",
+            "../sysroot/vendor/gdtoa/gethex.c",
+            "../sysroot/vendor/gdtoa/hexnan.c",
+            "../sysroot/vendor/gdtoa/hd_init.c",
+        ],
+    );
+}
+
 fn run_windows_runtime_test(test: &str, compile_sources: &[&str], linked_sources: &[&str]) {
     let directory = tempfile::Builder::new()
         .prefix("scoop runtime 同步 ")
@@ -112,7 +139,13 @@ fn run_windows_runtime_test(test: &str, compile_sources: &[&str], linked_sources
                 checked(
                     startup
                         .object_compilation_command(&runtime.join(source), &object)
-                        .args(["-Wall", "-Wextra", "-Werror", "-O2"])
+                        .args([
+                            "-Wall",
+                            "-Wextra",
+                            "-Werror",
+                            "-O2",
+                            "-D_CRT_SECURE_NO_WARNINGS",
+                        ])
                         .arg("-I")
                         .arg(runtime.join("include"))
                         .arg("-I")

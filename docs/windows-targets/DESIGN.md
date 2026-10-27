@@ -216,7 +216,7 @@ GC region 的对齐映射由 OS 组件完成：Windows 保留包含对齐区间�
 
 stdout／stderr 继续遵守既有字节输出合同，明确处理 CRT text mode 的换行转换。Unicode argv 从 UTF-16 startup 取得，转换为严格 UTF-8 后复用当前 managed 参数构造；不经过 ANSI code page。非配对 surrogate 走明确的启动参数解码失败路径，不能静默替换。`scoop.platform` 的原生路径需要另行保留完整 UTF-16，不能由严格 `String` 代替全部 OS 路径。
 
-正常返回保留 CRT 标准终止，core `exit` 与失败立即退出保持“刷新后结束进程、不补做 managed finally／release”的现有语义。明确 Windows 的完整退出码表示，不照搬 POSIX signal／8-bit wait-status 解析。数值解析使用线程安全的独立 C locale，不修改进程全局 locale 来掩盖两 CRT 的函数差异。
+正常返回保留 CRT 标准终止，core `exit` 与失败立即退出保持“刷新后结束进程、不补做 managed finally／release”的现有语义。明确 Windows 的完整退出码表示，不照搬 POSIX signal／8-bit wait-status 解析。数值解析保持线程安全的固定 C numeric 语义，不修改进程全局 locale 来掩盖两 CRT 的函数差异。Windows 使用已固定的 gdtoa C parser，按目标精度直接舍入并保持 native locale；Darwin／Linux 保留 libc 的独立 locale 入口。
 
 ### 5.2 平台库、asyncio 与 native 依赖
 
