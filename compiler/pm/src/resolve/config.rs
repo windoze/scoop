@@ -21,10 +21,10 @@ struct Registry {
 #[derive(Default)]
 pub(super) struct LoadedConfig {
     pub registry: Option<RegistryUrl>,
-    pub input: Option<(PathBuf, FileStamp)>,
+    pub input: Option<(PathBuf, Option<FileStamp>)>,
 }
 
-pub(super) fn registry(cache: &PackageCache) -> PmResult<LoadedConfig> {
+pub(crate) fn path() -> Option<PathBuf> {
     let directory = if cfg!(windows) {
         std::env::var_os("APPDATA").map(PathBuf::from)
     } else if cfg!(target_os = "macos") {
@@ -34,17 +34,19 @@ pub(super) fn registry(cache: &PackageCache) -> PmResult<LoadedConfig> {
             .map(PathBuf::from)
             .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))
     };
-    let Some(directory) = directory else {
+    directory.map(|directory| directory.join("scoop/config.toml"))
+}
+
+pub(super) fn registry(cache: &PackageCache) -> PmResult<LoadedConfig> {
+    let Some(path) = path() else {
         return Ok(LoadedConfig::default());
     };
-    let path = directory.join("scoop/config.toml");
-    if !path
-        .try_exists()
-        .map_err(|error| PmError::io(&path, error))?
-    {
-        return Ok(LoadedConfig::default());
-    }
-    let stamp = FileStamp::read(&path)?;
+    let Some(stamp) = FileStamp::optional(&path)? else {
+        return Ok(LoadedConfig {
+            registry: None,
+            input: Some((path, None)),
+        });
+    };
     let record = cache.input_record("config-v1", &path, &stamp, &[])?;
     let config: Config = match fs::read(&record) {
         Ok(bytes) => {
@@ -65,6 +67,6 @@ pub(super) fn registry(cache: &PackageCache) -> PmResult<LoadedConfig> {
     };
     Ok(LoadedConfig {
         registry: config.registry.default,
-        input: Some((path, stamp)),
+        input: Some((path, Some(stamp))),
     })
 }

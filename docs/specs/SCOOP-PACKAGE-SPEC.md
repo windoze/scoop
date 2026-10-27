@@ -268,6 +268,10 @@ driver 消费的是 lock 的精确图和本次已准备好的本地输入。port
 - SourceCone：完整 coordinate、kind、本地 Cone 根、已展开的 manifest 生产配置、所选根需要的测试配置、manifest 诊断来源，以及已绑定的精确 direct 边和测试边。配置含现有源码选择、native 声明和文档元数据，不含源码正文或完整输入镜像。
 - PrebuiltCone：完整 coordinate、本地 `.slib` 位置和精确依赖记录；sysroot 和 artifact 来源均落实为该形式。PM 提取过的必要摘要可随结果交付，但不能作为跳过实际 reader 所需格式/ABI 检查的授权凭据。
 
+版本 1 的共享数据类型位于 `scoop-protocol`，不依赖 PM 的求解或获取实现。请求字段为 `version/cwd/input/members/purpose/target/sysroot/artifact_roots/package_cache/lockfile/locked/offline`；`members` 区分 `default`、`all` 和 `packages`，purpose 为 `production/test`。响应使用 `version/workspace/lockfile/resolutions`，每个 resolution 包含根相对路径、根 coordinate、purpose、target 和 nodes。节点包含 `cone`、精确 `dependencies` 与 `test_dependencies`；`cone.input` 区分 `source/prebuilt`。source 交付完整 `ParsedConeManifest`、本地根、原清单路径与文本、展开的文档 metadata。原清单文本仅服务诊断，不作为再次解析的输入；继承条目的诊断 span 指向成员的继承声明。prebuilt 交付本地路径和已有 `ArtifactManifestSummaryV1` 的 canonical CBOR 字节表示，复用既有摘要格式。
+
+生产配置只包含生产依赖；仅所选测试根绑定测试配置，传递依赖不携带可激活的测试边。源码配置中的原始 locator 不再参与 driver 发现：所有声明都已绑定到该解析单位内的精确 coordinate。隐式 core 保留在图的精确边中，不伪造原清单中的声明位置。协议边界检查版本、host path、节点/边对应关系及完整引用；不重做版本要求、workspace 继承和来源选择。
+
 `scoop` 将结果接入已有精确 `ResolvedBuildGraph`、缓存与调度，只做进程边界所需的数据解码/图引用检查；不重新打开原 manifest 解释 workspace/version/source，也不再次计算“这个版本是否满足范围”。实际编译仍按输入选择读取源码，实际 `.slib` 入口仍承担既有产物正确性职责。
 
 多个根之间可共享的任务由实际源码/配置、精确依赖结果、target、profile 等现有编译输入确定，**不能仅按 ConeIdentity 合并跨解析单位节点**。同版本源 Cone 在两个程序中绑定了不同依赖版本时，必须是两个编译任务和结果。
@@ -393,5 +397,7 @@ registry-id和repository-id是规范化来源URL的SHA-256目录键，只用于�
 PM 的缓存保存 manifest 展开记录、registry metadata、Git objects/checkouts、解包源码与本地准备结果；driver 保留已有 Cone 编译、native 和链接缓存。两者共享“先判断更新，再读取内容或准备输入”的规则，不互相读取命中产物作内容复核。
 
 解析缓存区分 root/purpose/target 及实际依赖声明/来源；构建缓存继续区分实际依赖结果和 profile。配置、lock 或本地 manifest 改变才更新相应投影；源文件正文变化不应触发版本重新选择。普通缓存目录并发以文件锁协调；输入变化、缺失输入和实际失败按既有规则处理。
+
+prepare 的本地记录按规范化请求位置、成员选择、purpose/target、sysroot/search roots、有效 PM cache 和工具版本区分。更新记录保存本次读取的配置、manifest、artifact 和 lock 的 mtime/大小，以及成员发现过程中不存在的候选清单/用户配置；新增 workspace 或配置同样使记录失效。先检查这些更新信息，命中后直接读取并交付已有准备结果，不重读 TOML、不展开继承、不遍历版本约束，不读取 Scoop/native 源码正文。locked/offline 不改变已经成功准备且输入未变的结果；源文件内容变化留给 driver 的构建缓存处理。
 
 解析器测试使用内存 metadata 图；Git 测试使用本地仓库；registry 测试使用本地 HTTP 静态服务。绝大多数 PM 测试不需要 LLVM、runtime 或调用 `scoopc`。少量正式 CLI fixture 验证 prepare → driver → 编译/链接和离线消费；普通库行为继续放 Cone tests。不引入包授权、来源防伪、资源计费或通用任务执行框架。

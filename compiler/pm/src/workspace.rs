@@ -44,6 +44,7 @@ pub struct WorkspaceMember {
     pub directory: PathBuf,
     pub manifest: PathBuf,
     pub manifest_text: String,
+    pub document: Arc<PackageDocument>,
     pub cone: ExpandedCone,
 }
 
@@ -56,6 +57,7 @@ pub struct Workspace {
     defaults: Vec<DependencyCoordinateKey>,
     invoking_member: Option<DependencyCoordinateKey>,
     pub(crate) inputs: Vec<(PathBuf, crate::cache::FileStamp)>,
+    pub(crate) missing_inputs: BTreeSet<PathBuf>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -96,6 +98,7 @@ impl Workspace {
             directory: loaded.directory.clone(),
             manifest: loaded.path.clone(),
             manifest_text: loaded.text.clone(),
+            document: loaded.document.clone(),
             cone: expand::expand(&loaded, None)?,
         })
     }

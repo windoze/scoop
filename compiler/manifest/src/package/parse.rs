@@ -61,6 +61,7 @@ pub fn parse_package_manifest(
         ));
     }
     Ok(PackageDocument {
+        schema_span: raw.schema.span(),
         cone: raw.cone.map(cone).transpose()?,
         workspace: raw.workspace.map(workspace).transpose()?,
         registry: raw
@@ -83,7 +84,9 @@ pub fn parse_package_manifest(
     })
 }
 
-fn cone(raw: RawCone) -> Result<ConeDeclaration, ManifestParseError> {
+fn cone(value: Spanned<RawCone>) -> Result<ConeDeclaration, ManifestParseError> {
+    let span = value.span();
+    let raw = value.into_inner();
     let kind = match raw.kind.get_ref().as_str() {
         "library" => RequestedConeKind::Library,
         "executable" => RequestedConeKind::Executable,
@@ -103,6 +106,7 @@ fn cone(raw: RawCone) -> Result<ConeDeclaration, ManifestParseError> {
         }
     }
     Ok(ConeDeclaration {
+        span,
         group: inheritable(raw.group)?,
         name: field(raw.name),
         version: inheritable(raw.version)?,

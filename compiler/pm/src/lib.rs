@@ -4,6 +4,7 @@ pub mod cache;
 pub mod catalog;
 mod error;
 pub mod lockfile;
+pub mod prepare;
 pub mod resolve;
 pub mod resolver;
 pub mod sources;

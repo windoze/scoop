@@ -12,6 +12,7 @@ pub(super) struct Manifests {
     loaded: BTreeMap<PathBuf, Arc<LoadedManifest>>,
     cache: Option<crate::cache::PackageCache>,
     pub inputs: Vec<(PathBuf, crate::cache::FileStamp)>,
+    pub missing_inputs: BTreeSet<PathBuf>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -26,11 +27,17 @@ impl Manifests {
             loaded: BTreeMap::new(),
             cache,
             inputs: Vec::new(),
+            missing_inputs: BTreeSet::new(),
         }
     }
 
     pub fn load(&mut self, path: &Path) -> PmResult<Arc<LoadedManifest>> {
-        let path = std::fs::canonicalize(path).map_err(|error| PmError::io(path, error))?;
+        let canonical = std::fs::canonicalize(path).map_err(|error| PmError::io(path, error))?;
+        if path != canonical {
+            self.inputs
+                .push((path.to_owned(), crate::cache::FileStamp::read(path)?));
+        }
+        let path = canonical;
         if let Some(loaded) = self.loaded.get(&path) {
             return Ok(loaded.clone());
         }
@@ -38,7 +45,7 @@ impl Manifests {
         let record_path = self
             .cache
             .as_ref()
-            .map(|cache| cache.input_record("manifests-v1", &path, &stamp, &[]))
+            .map(|cache| cache.input_record("manifests-v2", &path, &stamp, &[]))
             .transpose()?;
         let record = record_path.as_ref().map(std::fs::read).transpose();
         let record = match record {
@@ -91,6 +98,15 @@ impl Manifests {
         });
         self.loaded.insert(path, loaded.clone());
         Ok(loaded)
+    }
+
+    pub fn exists(&mut self, path: &Path) -> PmResult<bool> {
+        if crate::cache::FileStamp::optional(path)?.is_some() {
+            Ok(true)
+        } else {
+            self.missing_inputs.insert(path.to_owned());
+            Ok(false)
+        }
     }
 }
 

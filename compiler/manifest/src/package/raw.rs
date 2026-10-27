@@ -9,7 +9,7 @@ pub(super) type DependencyMap = BTreeMap<String, Spanned<toml::Value>>;
 #[serde(deny_unknown_fields)]
 pub(super) struct RawPackage {
     pub schema: Spanned<i64>,
-    pub cone: Option<RawCone>,
+    pub cone: Option<Spanned<RawCone>>,
     pub workspace: Option<RawWorkspace>,
     #[serde(default)]
     pub registry: RawRegistry,

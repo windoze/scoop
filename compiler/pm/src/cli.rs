@@ -32,6 +32,13 @@ enum Command {
     Fetch(resolve::ResolveArgs),
     /// Update compatible registry versions or Git references.
     Update(resolve::UpdateArgs),
+    /// Prepare exact local inputs for the build driver using the versioned JSON protocol.
+    Prepare {
+        #[arg(long)]
+        request: PathBuf,
+        #[arg(long)]
+        response: PathBuf,
+    },
 }
 
 #[derive(Args)]
@@ -58,6 +65,9 @@ fn execute(cli: Cli) -> PmResult<()> {
         Command::Resolve(args) => resolve::execute(args, false, None, None),
         Command::Fetch(args) => resolve::execute(args, true, None, None),
         Command::Update(args) => resolve::update(args),
+        Command::Prepare { request, response } => {
+            scoop_pm::prepare::prepare_files(&request, &response)
+        }
     }
 }
 

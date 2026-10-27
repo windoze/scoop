@@ -1271,6 +1271,7 @@ dependencies = [
  "scoop-target-data",
  "scoop-wire",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

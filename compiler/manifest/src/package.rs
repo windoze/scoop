@@ -30,6 +30,7 @@ pub enum InheritableValue {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ConeDeclaration {
+    pub span: Range<usize>,
     pub group: InheritableValue,
     pub name: ManifestValue<String>,
     pub version: InheritableValue,
@@ -107,6 +108,7 @@ pub struct PublishFile {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PackageDocument {
+    pub schema_span: Range<usize>,
     pub cone: Option<ConeDeclaration>,
     pub workspace: Option<WorkspaceDefinition>,
     pub registry: Option<RegistryUrl>,

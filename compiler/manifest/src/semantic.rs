@@ -8,6 +8,7 @@ use scoop_identity::{ConeCoordinate, ConeCoordinateError, RequestedConeKind};
 
 mod parse;
 pub use parse::parse_cone_manifest;
+mod resolved;
 mod testing;
 pub use testing::{ManifestDependency, TestManifestConfig};
 

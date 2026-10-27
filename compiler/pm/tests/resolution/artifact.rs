@@ -6,7 +6,7 @@ use scoop_slib::*;
 use super::support::*;
 
 // Only the container/manifest is consumed by PM. Compilation owns IR validation.
-fn artifact(
+pub(super) fn artifact(
     path: &Path,
     coordinate: ConeCoordinate,
     dependencies: Vec<DependencyRecord>,

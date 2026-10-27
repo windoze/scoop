@@ -99,19 +99,19 @@ impl Catalog<'_> {
             _ => None,
         };
         let mut paths = BTreeSet::new();
-        for root in &self.options.artifact_roots {
+        for root in self.options.artifact_roots.clone() {
             if let Some(coordinate) = exact {
-                let path = scoop_toolchain::artifact_candidate_path(root, coordinate);
-                if path
-                    .try_exists()
-                    .map_err(|error| PmError::io(&path, error))?
-                {
+                let path = scoop_toolchain::artifact_candidate_path(&root, coordinate);
+                if self.observe_presence(&path)? {
                     paths.insert(path);
                 }
             } else {
                 let directory = root
                     .join(requirement.key.group())
                     .join(requirement.key.name());
+                if !self.observe_presence(&directory)? {
+                    continue;
+                }
                 let entries = match fs::read_dir(&directory) {
                     Ok(entries) => entries,
                     Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
@@ -131,10 +131,7 @@ impl Catalog<'_> {
                         })
                     {
                         let path = entry.path().join("cone.slib");
-                        if path
-                            .try_exists()
-                            .map_err(|error| PmError::io(&path, error))?
-                        {
+                        if self.observe_presence(&path)? {
                             paths.insert(path);
                         }
                     }

@@ -5,6 +5,10 @@ mod server;
 mod artifact;
 #[path = "resolution/git.rs"]
 mod git;
+#[path = "resolution/prepare.rs"]
+mod prepare;
+#[path = "resolution/prepare_cache.rs"]
+mod prepare_cache;
 #[path = "resolution/registry.rs"]
 mod registry;
 #[path = "resolution/support.rs"]

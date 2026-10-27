@@ -7,8 +7,20 @@ pub(crate) struct FileStamp {
 }
 
 impl FileStamp {
+    pub fn optional(path: &Path) -> PmResult<Option<Self>> {
+        match fs::metadata(path) {
+            Ok(metadata) => Ok(Some(Self::from_metadata(path, metadata)?)),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(PmError::io(path, error)),
+        }
+    }
+
     pub fn read(path: &Path) -> PmResult<Self> {
         let metadata = fs::metadata(path).map_err(|error| PmError::io(path, error))?;
+        Self::from_metadata(path, metadata)
+    }
+
+    fn from_metadata(path: &Path, metadata: fs::Metadata) -> PmResult<Self> {
         Ok(Self {
             length: metadata.len(),
             modified: metadata

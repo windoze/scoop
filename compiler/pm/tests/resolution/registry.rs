@@ -83,6 +83,25 @@ fn real_registry_resolution_downloads_only_selected_versions_and_shares_across_p
     success(pm(root, &first, &["fetch", "--offline"]));
     success(pm(root, &first, &["resolve", "--locked"]));
     assert_eq!(server.total(), requests);
+    let mut prepared_roots = Vec::new();
+    for name in ["first", "second"] {
+        let mut request = super::prepare::request(root, &root.join(name));
+        request.target = scoop_toolchain::host_target_triple().unwrap().into();
+        request.locked = true;
+        let response = super::prepare::prepared(root, &request);
+        let node = response.resolutions[0]
+            .nodes
+            .iter()
+            .find(|node| node.cone.coordinate().name() == "a")
+            .unwrap();
+        let scoop_protocol::package::PreparedConeV1::Source { config } = &node.cone else {
+            panic!()
+        };
+        prepared_roots.push(config.root.to_path_buf().unwrap());
+    }
+    assert_eq!(prepared_roots[0], prepared_roots[1]);
+    assert!(prepared_roots[0].starts_with(root.join("cache/registry")));
+    assert_eq!(server.total(), requests);
     let new = publish(
         &server,
         "a",

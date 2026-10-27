@@ -10,6 +10,7 @@ pub use dump::{StageDumpKindV1, StageDumpPolicyV1, StageDumpSet};
 mod framing;
 mod generators;
 pub use generators::{GeneratorRegistrationV1, GeneratorToolInputV1};
+pub mod package;
 mod path;
 mod purpose;
 pub use purpose::CompilationPurpose;

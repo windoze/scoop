@@ -14,7 +14,7 @@ use crate::{
 };
 
 mod changes;
-mod config;
+pub(crate) mod config;
 mod solving;
 
 pub struct ResolveRequest {
@@ -47,6 +47,8 @@ pub struct ResolvedWorkspace {
     pub lockfile: PathBuf,
     pub roots: Vec<ResolvedRoot>,
     pub changed: bool,
+    pub(crate) inputs: BTreeMap<PathBuf, crate::cache::FileStamp>,
+    pub(crate) missing_inputs: BTreeSet<PathBuf>,
 }
 
 pub fn resolve(request: ResolveRequest) -> PmResult<ResolvedWorkspace> {
@@ -73,7 +75,18 @@ pub fn resolve(request: ResolveRequest) -> PmResult<ResolvedWorkspace> {
         return Err(PmError::new("no workspace members selected"));
     }
     let config = config::registry(&cache)?;
-    let mut observed: BTreeMap<_, _> = config.input.into_iter().collect();
+    let mut observed = BTreeMap::new();
+    let mut missing_inputs = BTreeSet::new();
+    if let Some((path, stamp)) = config.input {
+        match stamp {
+            Some(stamp) => {
+                observed.insert(path, stamp);
+            }
+            None => {
+                missing_inputs.insert(path);
+            }
+        }
+    }
     let options = CatalogOptions {
         lock_directory: lockfile.parent().expect("lock path has parent").to_owned(),
         target,
@@ -135,6 +148,7 @@ pub fn resolve(request: ResolveRequest) -> PmResult<ResolvedWorkspace> {
                 .iter()
                 .map(|(path, stamp)| (path.clone(), stamp.clone())),
         );
+        missing_inputs.extend(catalog.missing_inputs().iter().cloned());
         let inputs = solution
             .packages
             .iter()
@@ -157,8 +171,16 @@ pub fn resolve(request: ResolveRequest) -> PmResult<ResolvedWorkspace> {
             )));
         }
     }
-    for (path, stamp) in observed {
-        stamp.unchanged(&path)?;
+    for (path, stamp) in &observed {
+        stamp.unchanged(path)?;
+    }
+    for path in &missing_inputs {
+        if crate::cache::FileStamp::optional(path)?.is_some() {
+            return Err(PmError::new(format!(
+                "input appeared while preparing packages: {}; retry the command",
+                path.display()
+            )));
+        }
     }
     let changed = roots.iter().any(|root| {
         transaction.current().resolution(
@@ -178,10 +200,13 @@ pub fn resolve(request: ResolveRequest) -> PmResult<ResolvedWorkspace> {
             &members,
         )?;
     }
+    observed.insert(lockfile.clone(), crate::cache::FileStamp::read(&lockfile)?);
     Ok(ResolvedWorkspace {
         workspace,
         lockfile,
         roots,
         changed,
+        inputs: observed,
+        missing_inputs,
     })
 }

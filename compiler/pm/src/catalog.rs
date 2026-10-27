@@ -70,6 +70,7 @@ pub struct Catalog<'a> {
     options: CatalogOptions,
     overrides: BTreeMap<Key, ExpandedDependency>,
     inputs: BTreeMap<PathBuf, FileStamp>,
+    missing_inputs: BTreeSet<PathBuf>,
     packages: BTreeMap<(Key, Choice), PackageInput>,
     source_candidates: BTreeMap<SourceCacheKey, Candidate>,
     indexes: BTreeMap<(String, Key), RegistryIndex>,
@@ -112,6 +113,7 @@ impl<'a> Catalog<'a> {
             options,
             overrides,
             inputs: workspace.inputs.iter().cloned().collect(),
+            missing_inputs: workspace.missing_inputs.clone(),
             packages: BTreeMap::new(),
             source_candidates: BTreeMap::new(),
             indexes: BTreeMap::new(),
@@ -188,6 +190,23 @@ impl<'a> Catalog<'a> {
         &self.inputs
     }
 
+    pub(crate) fn missing_inputs(&self) -> &BTreeSet<PathBuf> {
+        &self.missing_inputs
+    }
+
+    fn observe_presence(&mut self, path: &Path) -> PmResult<bool> {
+        match FileStamp::optional(path)? {
+            Some(stamp) => {
+                self.inputs.insert(path.to_owned(), stamp);
+                Ok(true)
+            }
+            None => {
+                self.missing_inputs.insert(path.to_owned());
+                Ok(false)
+            }
+        }
+    }
+
     pub fn materialize(&mut self, solution: &Solution) -> PmResult<()> {
         for candidate in solution.packages.values() {
             if let LockedSource::Registry { registry, .. } = &candidate.source {
@@ -250,6 +269,7 @@ impl<'a> Catalog<'a> {
         let workspace =
             Workspace::discover_cached(&directory, Some(&directory), self.cache, boundary)?;
         self.inputs.extend(workspace.inputs);
+        self.missing_inputs.extend(workspace.missing_inputs);
         let member = workspace
             .members
             .into_values()

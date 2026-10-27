@@ -12,4 +12,5 @@ scoop-manifest.workspace = true
 scoop-wire.workspace = true
 
 [dev-dependencies]
+serde_json.workspace = true
 scoop-target-data.workspace = true

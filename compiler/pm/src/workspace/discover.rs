@@ -7,7 +7,8 @@ pub(super) fn discover(
     boundary: Option<&Path>,
 ) -> PmResult<Workspace> {
     let mut manifests = Manifests::new(cache.cloned());
-    let selected = manifests.load(&input_manifest(cwd, input)?)?;
+    let input = input_manifest(cwd, input, &mut manifests)?;
+    let selected = manifests.load(&input)?;
     let owner = find_owner(&selected, &mut manifests, boundary)?;
     let definition = owner.document.workspace.as_ref();
     let mut paths = Vec::new();
@@ -59,6 +60,7 @@ pub(super) fn discover(
                 directory: loaded.directory.clone(),
                 manifest: loaded.path.clone(),
                 manifest_text: loaded.text.clone(),
+                document: loaded.document.clone(),
                 cone,
             },
         );
@@ -102,6 +104,7 @@ pub(super) fn discover(
         defaults,
         invoking_member,
         inputs: manifests.inputs,
+        missing_inputs: manifests.missing_inputs,
     })
 }
 
@@ -118,7 +121,7 @@ fn find_owner(
             break;
         }
         let path = directory.join("Cone.toml");
-        if !exists(&path)? {
+        if !manifests.exists(&path)? {
             continue;
         }
         let parent = manifests.load(&path)?;
@@ -131,7 +134,10 @@ fn find_owner(
                 // An unrelated, unlisted Cone does not validate other workspace members.
                 let member_path = match std::fs::canonicalize(&path) {
                     Ok(path) => path,
-                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                        manifests.missing_inputs.insert(path);
+                        continue;
+                    }
                     Err(error) => return Err(PmError::io(&path, error)),
                 };
                 if member_path == selected.path {
@@ -144,7 +150,11 @@ fn find_owner(
     Ok(selected.clone())
 }
 
-fn input_manifest(cwd: &Path, input: Option<&Path>) -> PmResult<PathBuf> {
+fn input_manifest(
+    cwd: &Path,
+    input: Option<&Path>,
+    manifests: &mut Manifests,
+) -> PmResult<PathBuf> {
     if let Some(input) = input {
         let path = if input.is_absolute() {
             input.to_path_buf()
@@ -162,7 +172,7 @@ fn input_manifest(cwd: &Path, input: Option<&Path>) -> PmResult<PathBuf> {
     }
     for directory in cwd.ancestors() {
         let path = directory.join("Cone.toml");
-        if exists(&path)? {
+        if manifests.exists(&path)? {
             return Ok(path);
         }
     }
@@ -170,12 +180,4 @@ fn input_manifest(cwd: &Path, input: Option<&Path>) -> PmResult<PathBuf> {
         "no Cone.toml found from {} or its parents",
         cwd.display()
     )))
-}
-
-fn exists(path: &Path) -> PmResult<bool> {
-    match std::fs::metadata(path) {
-        Ok(_) => Ok(true),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
-        Err(error) => Err(PmError::io(path, error)),
-    }
 }
