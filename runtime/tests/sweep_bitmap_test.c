@@ -42,7 +42,7 @@ static void check_retained_storage(void *const *objects) {
         uintptr_t begin = (uintptr_t)objects[index] - (uintptr_t)block_base(block);
         uintptr_t end = begin + sizeof(Resource);
         for (size_t line = begin / GC_LINE_SIZE; line <= (end - 1) / GC_LINE_SIZE; line++) {
-            assert(bit_test(block->line_occupied, line));
+            assert(bit_test(block->line_live, line));
         }
         for (const ScoopGcFreeRun *run = free_runs; run != NULL; run = run->next) {
             if (run->block == block) {

@@ -35,7 +35,7 @@ static bool empty_page(const ScoopGcBlockMeta *block, size_t offset, size_t page
         return true;
     }
     for (size_t line = offset / GC_LINE_SIZE; line < (offset + page_size) / GC_LINE_SIZE; line++) {
-        if (bit_test(block->line_occupied, line)) {
+        if (bit_test(block->line_live, line)) {
             return false;
         }
     }

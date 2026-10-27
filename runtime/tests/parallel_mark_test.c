@@ -19,7 +19,7 @@ static void check_graph(ParallelFixture *fixture) {
         size_t begin = (uintptr_t)node - (uintptr_t)block_base(block);
         size_t end = begin + sizeof *node;
         for (size_t line = begin / GC_LINE_SIZE; line <= (end - 1) / GC_LINE_SIZE; line++) {
-            assert(bit_test(block->line_occupied, line));
+            assert(bit_test(block->line_live, line));
         }
     }
     const uint64_t *numbers = (const uint64_t *)((const char *)fixture->objects[3] + 24);

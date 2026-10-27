@@ -91,7 +91,7 @@ typedef struct ScoopGcBlockMeta {
 #if SCOOP_GC_TRACK_RELOCATION
     uint64_t *scanned;
 #endif
-    uint64_t *line_occupied;
+    /* Complete mark/copy lines remain valid through sweep and VM return. */
     uint64_t *line_live;
     union {
         size_t exact_size;

@@ -19,21 +19,17 @@ static inline void scoop_heap_record_small_metadata(ScoopGcBlockMeta *block, voi
                                                     size_t size, bool marked, bool owned) {
     size_t offset = (uintptr_t)object - (uintptr_t)scoop_heap_block_base(block);
     size_t word = offset / sizeof(uint64_t);
-    size_t first = offset / GC_LINE_SIZE;
-    size_t last = (offset + size - 1) / GC_LINE_SIZE;
     if (!marked) {
         ScoopObjectHeader *header = object;
         header->gc_word = (header->gc_word & ~GC_SMALL_SIZE_MASK) | size;
     }
-    for (size_t line = first; line <= last; line++) {
-        uint64_t mask = UINT64_C(1) << (line % 64);
-        scoop_heap_publish_allocation_bits(&block->line_occupied[line / 64], mask, __ATOMIC_RELAXED,
-                                           owned);
-        if (marked) {
+    if (marked) {
+        size_t first = offset / GC_LINE_SIZE;
+        size_t last = (offset + size - 1) / GC_LINE_SIZE;
+        for (size_t line = first; line <= last; line++) {
+            uint64_t mask = UINT64_C(1) << (line % 64);
             block->line_live[line / 64] |= mask;
         }
-    }
-    if (marked) {
         block->marks[word / 64] |= UINT64_C(1) << (word % 64);
         block->live_bytes += size;
         block->movable_live_bytes += size;

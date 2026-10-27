@@ -6,12 +6,13 @@
 
 相关 API 调整：[String 的字符扫描名称](STRING-API.md)在全部 profile 生效，无开关；`charLength`／`getCharAt` 保持 O(n)，`byteLength` 保持 O(1)，内部存储保持。扫描、编码与后备职责迁移见 [Runtime 职责收敛](RUNTIME-RESPONSIBILITIES.md)。
 
-表中 ABI 版本注明各项引入时的合同；当前统一 runtime contract 为 **23**、metadata ABI 为 **9**，配套库／runtime／sysroot 按当前合同重建。
+表中 ABI 版本注明各项引入时的合同；当前统一 runtime contract 为 **24**、metadata ABI 为 **9**，配套库／runtime／sysroot 按当前合同重建。
 
 ## 程序优化
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [分配不再维护 line 位图](GC-EVOLUTION.md) | 全部 profile 默认，配套 runtime contract 24；编译器／runtime／系统库一起重建 | 普通分配只维护精确大小、starts 与原计数，collector 的唯一 live-line 供清扫／full VM 归还消费；context 40 B、每小对象块逻辑 metadata 减少 40 B。分配吞吐与代码量改善，线程／尾暂停回退见阶段二十三；无新开关。 |
 | [密集年轻块直接转为旧代槽](GC-EVOLUTION.md) | `SCOOP_GC_OLD_SLOTS=2`；默认 0，等级 1 保留复制晋升；所有 profile 语义一致 | marker 汇总精确大小与槽网格，已有空槽不足时才原地晋升；保留首次 survivor、pin、混合布局及失败回退。树和线程减少复制、CPU 与 RSS，大图尾暂停可能回退；每进程增加 248 B，ABI 23 不变，见阶段二十二。 |
 | [worker 本地存活 line 位图](GC-EVOLUTION.md) | 新版 runtime 所有 profile 默认，无新开关 | 逐对象只更新本 worker 的块统计，标记完成后与字节计数一起合并；保留原子首次标记、分片与复制边界。每 worker／参与 block 额外 32 B 临时统计，无对象或 ABI 增量；吞吐、暂停及 RSS 的小幅回退见阶段二十一。 |
 | [minor 分片标记与有界分配余量](GC-EVOLUTION.md) | `SCOOP_GC_INCREMENTAL=2`，默认关闭；0 保持完整收集，1 仍只分片 full | nursery 达目标容量后分片，片间最多使用目标容量的 1/8 额外 block；保存旧脏卡至最终重定位，OOM／显式 full 完整回退。降低大存活图的单次停顿，但增加吞吐、CPU、应用间隔 p95 和部分 RSS 成本；树形负载不推荐。各 profile 同义、ABI 23 不变，具体对照见阶段二十。 |
@@ -25,7 +26,7 @@
 | [minor 旧代脏区并行扫描与回写](GC-EVOLUTION.md) | 新版 runtime，所有 profile 默认，沿用现有 worker 策略；单 worker 保留直接扫描 | 只发布活动旧代卡组，复用精确范围和原 pool；roots 先更新，保持 native alias、survivor 和增量 full 的独立清卡协议。无 ABI／对象增长，大存活集吞吐与 p99 改善，full 长暂停及部分线程负载回退见阶段十一。 |
 | [已确认对象的直接 region 定位](GC-EVOLUTION.md) | 新版 runtime，所有 profile 默认；重链接即可 | 对齐 region 的保留首行保存 owner，collector 已验证 source／已预留 target 直接定位；普通 source 不重复查 pin，未知地址沿原页表。contract 23 让 moving stress 复用 owner，ARM64 数组写入见阶段十六；对象头不变。 |
 | [目标头保存临时搬迁计划](GC-EVOLUTION.md) | 新版 runtime，所有 profile 默认；重链接即可 | 已预留但未发布的目标头保存 next／live entry，删除每对象 32 B native 计划；原图直到完整预留成功仍不变，复制后发布。无 ABI／对象增量，主要降低工作区和 RSS，尾暂停及 Linux 波动限制见阶段九。 |
-| [小对象大小合入 GC 字](GC-EVOLUTION.md) | 所有 profile 默认，当前配套 runtime contract 23；编译器／runtime／系统库一起重建 | 删除每块 8 KiB 大小表，TLAB 56→48 B、普通 block metadata 120→112 B；对象头仍为 16 B，pin／release／复制状态保持，large 沿原精确大小。两机内存及大存活集收益、线程波动和暂停限制见阶段八，无新开关。 |
+| [小对象大小合入 GC 字](GC-EVOLUTION.md) | 所有 profile 默认，按当前 runtime contract 配套重建 | 阶段八删除每块 8 KiB 大小表，context 56→48 B、普通 block metadata 120→112 B；阶段二十三继续缩至 40／104 B。对象头仍为 16 B，pin／release／复制状态保持，large 沿原精确大小。两机收益与限制见记录，无新开关。 |
 | [冻结图的直接引用回写](GC-EVOLUTION.md) | 新版 runtime，所有 profile 默认；重链接即可 | 完成 mark 和复制后直接消费源 GC 字，省去逐边 page map／mark／pin 复核；首次边界检查保持，survivor 查询当前目标代际，完整验证只编入 stress／heap 验证。无布局、ABI 或新配置，性能与暂停限制见阶段七。 |
 | [源对象 GC 字转发](GC-EVOLUTION.md) | 新版 runtime，所有 profile 默认；重链接即可 | 完整复制后在不可见旧副本保存带标志的目标地址，删除源块 forwarding 表；阶段六将计划 48→32 B、block metadata 136→120 B，后由阶段八／九继续收敛。当前对象头、pin／release、预留失败和 ABI 保持。 |
 | [清扫复用存活 line](GC-EVOLUTION.md) | 新版 runtime，所有 profile 默认；重链接即可 | 普通保留块只逐个退休死亡对象，复用已完成 mark／复制的 line 位图；完整搬出的无 pin 源直接退休。moving stress 保留 forwarding 检查与 poison，pin／release／空洞／失败回退保持，无额外元数据或 ABI。 |

@@ -78,7 +78,6 @@ static void publish_tlab(ScoopGcMutator *mutator, ScoopGcBlockMeta *block) {
     ScoopAllocationContext *allocation = &mutator->allocation;
     allocation->block_start = block_base(block);
     allocation->starts = block->starts;
-    allocation->line_occupied = block->line_occupied;
     allocation->limit = allocation->block_start + GC_BLOCK_SIZE;
     allocation->cursor = allocation->block_start + GC_LINE_SIZE;
 }

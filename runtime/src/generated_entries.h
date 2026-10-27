@@ -24,18 +24,16 @@ typedef struct ScoopAllocationContext {
     char *limit;
     char *block_start;
     uint64_t *starts;
-    uint64_t *line_occupied;
     ScoopGcAllocationCounters *counters;
 } ScoopAllocationContext;
 
-_Static_assert(sizeof(ScoopAllocationContext) == 48 && _Alignof(ScoopAllocationContext) == 8,
+_Static_assert(sizeof(ScoopAllocationContext) == 40 && _Alignof(ScoopAllocationContext) == 8,
                "generated allocation context layout drifted");
 _Static_assert(offsetof(ScoopAllocationContext, cursor) == 0 &&
                    offsetof(ScoopAllocationContext, limit) == 8 &&
                    offsetof(ScoopAllocationContext, block_start) == 16 &&
                    offsetof(ScoopAllocationContext, starts) == 24 &&
-                   offsetof(ScoopAllocationContext, line_occupied) == 32 &&
-                   offsetof(ScoopAllocationContext, counters) == 40,
+                   offsetof(ScoopAllocationContext, counters) == 32,
                "generated allocation context offsets drifted");
 _Static_assert(sizeof(ScoopGcAllocationCounters) == 32 &&
                    _Alignof(ScoopGcAllocationCounters) == 8 &&

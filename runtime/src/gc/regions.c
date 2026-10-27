@@ -105,7 +105,6 @@ void scoop_heap_region_destroy(ScoopGcRegion *region) {
 #if SCOOP_GC_TRACK_RELOCATION
         free(block->scanned);
 #endif
-        free(block->line_occupied);
         free(block->line_live);
     }
     free(region->blocks);

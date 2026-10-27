@@ -98,7 +98,7 @@ static void retire_dead_small_objects(ScoopGcBlockMeta *block, bool stress) {
 
 #if SCOOP_ENABLE_GC_STRESS
 static bool finish_stress_source(ScoopGcBlockMeta *block) {
-    memset(block->line_occupied, 0, GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
+    memset(block->line_live, 0, GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
     bool any_live = false;
     for (size_t index = 0; index < GC_BITMAP_WORDS; index++) {
         uint64_t starts = block->starts[index];
@@ -124,7 +124,7 @@ static bool finish_stress_source(ScoopGcBlockMeta *block) {
             uintptr_t first = word * sizeof(uint64_t);
             uintptr_t last = first + size - 1;
             for (size_t line = first / GC_LINE_SIZE; line <= last / GC_LINE_SIZE; line++) {
-                bit_set(block->line_occupied, line);
+                bit_set(block->line_live, line);
             }
             any_live = true;
         }
@@ -148,10 +148,6 @@ static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
          * already have the exact occupied lines from marking and target publication. */
         any_live = block->state != SCOOP_BLOCK_EVACUATION_SOURCE && block->live_bytes != 0;
         any_pinned = any_live && scoop_heap_block_has_pins(block);
-        if (any_live) {
-            memcpy(block->line_occupied, block->line_live,
-                   GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
-        }
     }
     if (!any_live) {
 #if SCOOP_ENABLE_GC_STRESS
@@ -168,7 +164,7 @@ static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
 #if SCOOP_GC_TRACK_RELOCATION
     memset(block->scanned, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
 #endif
-    memset(block->line_live, 0, GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
+    /* Free runs and full VM return consume these lines before the next mark. */
     block->live_bytes = 0;
     block->movable_live_bytes = 0;
     block->state = any_pinned ? SCOOP_BLOCK_PINNED_PARTIAL : SCOOP_BLOCK_MUTATOR;
@@ -176,7 +172,7 @@ static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
         return true;
     }
     if (block->generation == SCOOP_GC_OLD && block->slot_size == 0) {
-        record_free_runs(block, block->line_occupied);
+        record_free_runs(block, block->line_live);
     }
     return true;
 }
