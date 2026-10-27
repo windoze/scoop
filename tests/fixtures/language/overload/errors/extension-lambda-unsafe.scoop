@@ -1,0 +1,15 @@
+class A
+class B
+
+fun <R> A.run1(block: () -> R): R = block()
+fun <R> B.run1(block: () -> R): R = block()
+
+@Unsafe
+fun danger(): Long = 1L
+
+fun main() {
+    @Unsafe {
+        val x = B().run1 { danger() }
+        println(x)
+    }
+}
