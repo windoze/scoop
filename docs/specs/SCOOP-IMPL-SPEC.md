@@ -480,6 +480,8 @@ ArraySet 的单引用槽屏障使用已有数组对象基址查询 mapping，实
 对象格式与架构分别决定容器结构和机器规则：ELF 不隐含 x86-64，AArch64 不隐含 Mach-O。所选对象规则解释 machine、e_flags、relocation 写入范围／addend、stackmap/EH 指针及最终动态 relocation；仅开放当前已实现的完整 target，不增加空 handler。对象边界验证目标格式、section/symbol extent、alignment、权限、relocation 写入宽度/addend、定义与引用闭合。Mach-O 使用其真实 relocation 与 weak 属性；ELF 使用 ET_REL、实际 section/symbol/RELA/COMDAT 数据，TLS 必须保持 STT_TLS/SHF_TLS，不能伪装成普通 data。
 已验证的 relocation form 明确保留机器语义；现有 ELF form 的 tag 11 表示 x86-64 RELA（kind、width、signed addend），其编码不变，不把同一数字 relocation kind 自动解释为其他架构。ELF header flags 在所选机器的对象读取边界检查一次，后续 envelope 复用该结果。
 
+Windows 使用 AMD64 COFF relocatable（含 bigobj），对象格式 identity 为 `org.scoop-lang.object-format/coff-relocatable/1`。对象 reader 保存原 section／symbol 序号、长名称、section characteristics、aux symbol、COMDAT selection／关联 section、weak external fallback 与实际 relocation kind／写入宽度／隐式 addend；aux symbol 占用原符号表序号，但不能作为 relocation 的普通目标。COFF relocation form 使用新 tag 12（kind、width），隐式 addend 保留在原 field／canonical value，现有 Mach-O／ELF 编码不变。引用检查在读取边界完成，后续发射与链接复用结果。PE import-library 的短 import member 不伪装成 relocatable 对象；它由 native library 输入选择处理。三种 Windows 完整 target 独立保存身份，普通 COFF 本身没有可证明 CRT 的标签，reader 不从文件名或 object header 推测 CRT。
+
 ELF atom 边界归一化按每个实际对象建立一次原始符号名到符号表序号的查询索引，借用原字符串表。边界、可见性和 COMDAT 操作复用该索引，不为每个 atom 重扫整个符号表。索引表示原对象，新增或改名的符号仍由既有编辑记录管理；原 symbol／section 序号、relocation、弱定义规则与输出顺序保持，不增加 native 符号登记或解析职责。
 
 relocation 的 section、atom、offset 和 target 均属于本次实际对象。raw source-native symbol 按 Darwin 添加一个前导下划线、ELF 保持 bytes 的规则正规化。Scoop-owned symbol 从 persistent identity 产生，不用 FQN 或 source 短名回退。

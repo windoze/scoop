@@ -78,9 +78,9 @@ fn semantic_layer_fingerprints_have_fixed_vectors() {
             fingerprints.lir().to_string()
         ],
         [
-            "436dfd084b47bb258db4d3e7527c76c2226d40722c4d68e185e221bc10a1b110",
-            "07f4610d592d030f8988cc3e1c88b99219847532c551586bf1b6cfe70850ff35",
-            "065cff4bbea2460a239f25989d89733516e6cd0f26957e7ed82a36225388f583",
+            "a339d774d799d2e814464b5d4b4b39f2625c52822867cd27b4e1834a020ff72f",
+            "53c37933e23a4e92cf17166d20f111eabd933abbe7a6c872fa934e4586800908",
+            "5f9ce23f4e2e37496bf0b87bfef83bca294c307721a0c9800b342c64bd0f0623",
         ]
     );
 }

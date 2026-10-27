@@ -190,6 +190,11 @@ fn encode_relocation_form(
     form: VerifiedObjectRelocationFormV1,
 ) -> Result<(), RuntimeEncodeError> {
     match form {
+        VerifiedObjectRelocationFormV1::CoffAmd64 { kind, width } => {
+            encoder.u32(12)?;
+            encoder.u32(u32::from(kind))?;
+            encoder.u32(u32::from(width))
+        }
         VerifiedObjectRelocationFormV1::ElfX86_64Rela {
             kind,
             addend,

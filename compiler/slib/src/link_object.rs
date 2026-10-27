@@ -132,6 +132,9 @@ pub use elf::{
     validate_linux_elf_object_envelope_v1,
 };
 
+mod coff;
+pub use coff::{CoffObjectError, validate_windows_coff_object_envelope_v1};
+
 macro_rules! typed_digest {
     ($name:ident) => {
         #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]

@@ -114,6 +114,14 @@ fn encode_relocation_form(
     form: VerifiedObjectRelocationFormV1,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     match form {
+        VerifiedObjectRelocationFormV1::CoffAmd64 { kind, width } => {
+            encoder.map(3)?;
+            encode_tag(encoder, 12)?;
+            encoder.field(1)?;
+            encoder.unsigned(u64::from(kind))?;
+            encoder.field(2)?;
+            encoder.unsigned(u64::from(width))
+        }
         VerifiedObjectRelocationFormV1::ElfX86_64Rela {
             kind,
             addend,
