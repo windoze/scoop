@@ -40,13 +40,13 @@ fn insufficient_full_capacity_skips_target_sweep_and_retries_after_reclamation()
 
 #[test]
 fn resolved_forwarding_rejects_invalid_collection_metadata() {
-    for verify in [false, true] {
+    for (verify, stress) in [(false, false), (true, false), (false, true)] {
         let output = super::compile::compile_and_run_configuration(
             &workspace_root(),
             "forwarding_validation_test",
             "runtime/tests/forwarding_validation_test.c",
             verify,
-            verify,
+            stress,
             &["-O2"],
         );
         assert!(

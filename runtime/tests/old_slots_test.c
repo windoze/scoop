@@ -145,9 +145,13 @@ static void check_size(const ScoopTypeDescriptor *td, size_t offset) {
     }
     assert(slack ? retained != 0 : retained == 0);
     void *pinned = objects[0];
+#if SCOOP_ENABLE_GC_STRESS
     scoop_gc_heap_state.stress_move = true;
+#endif
     nursery_collect(false);
+#if SCOOP_ENABLE_GC_STRESS
     scoop_gc_heap_state.stress_move = false;
+#endif
     assert(objects[0] == pinned);
     for (size_t index = 0; index < COUNT; index += 2) {
         assert(*edge(objects[index], offset) == objects[index + 1]);

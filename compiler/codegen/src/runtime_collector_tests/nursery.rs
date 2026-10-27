@@ -53,17 +53,18 @@ fn dense_slot_promotion_preserves_layout_aliases_and_survivor_age() {
 
 #[test]
 fn old_slots_reuse_dead_cells_without_overlapping_reference_updates() {
-    for optimization in ["-O0", "-O2"] {
-        let output = compile_and_run_with_flags(
+    for (optimization, diagnostics) in [("-O0", true), ("-O2", false), ("-O2", true)] {
+        let output = super::compile::compile_and_run_configuration(
             &workspace_root(),
             "old_slots_test",
             "runtime/tests/old_slots_test.c",
-            true,
+            diagnostics,
+            diagnostics,
             &[optimization],
         );
         assert!(
             output.status.success(),
-            "{optimization}: {}",
+            "{optimization}, diagnostics={diagnostics}: {}",
             String::from_utf8_lossy(&output.stderr)
         );
         assert_eq!(

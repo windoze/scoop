@@ -665,7 +665,9 @@ worker pool 的每次 phase 发布在原锁内固定该阶段的参与数量，w
 
 collector 持有 heap／roots 的独占阶段后，发布不可变的 region、对象起点、精确大小、pin 和 immortal 对象视图。marker 使用明确的 STW reader／原子 marker 接口，不要求各 worker 重新取得 coordinator 持有的锁。每个参与 block 在本轮取得临时统计索引，worker 私有计数按该索引归并；它不是持久对象身份，也不进入产物或 generated-code ABI。存活清单以稳定的分块存储保留对象指针，任务发布后不得由扩容使其失效。
 
-marker 可以在本次停顿内复用已经经页表定位的普通 region：每个 worker 私有保存有限数量的地址范围与 region 指针，命中完整范围后直接计算 block。首次查询、大对象和未命中地址仍使用原页表；命中只省去地址映射查询，对齐、活动 block、精确对象起点及首次标记的大小／scan 检查保持。缓存不含 managed roots，不保活对象，不进入对象头、产物或 generated-code ABI；每次开始标记及增量周期恢复下一片时，在发布 roots／任务前清空全部参与 worker 的缓存，不能跨 mutator 执行、搬迁或 mapping 退役复用旧地址与元数据。
+marker 可以在本次停顿内复用已经经页表定位的普通 region：每个 worker 私有保存有限数量的地址范围与 region 指针，命中完整范围后直接计算 block。首次查询、大对象和未命中地址仍使用原页表；命中只省去地址映射查询，对齐、活动 block、精确对象起点及首次标记所需的大小／scan 读取保持。缓存不含 managed roots，不保活对象，不进入对象头、产物或 generated-code ABI；每次开始标记及增量周期恢复下一片时，在发布 roots／任务前清空全部参与 worker 的缓存，不能跨 mutator 执行、搬迁或 mapping 退役复用旧地址与元数据。
+
+固定对象与 boxed value 的 exact TD、物理大小和对齐由 2.1／3.1 的分配、发布及 typed 生成路径保证，发布后的 TD 与物理布局不可改变；GC 私有大小字段由 pin／release／搬迁操作保留。普通 runtime 的首次标记与 remembered 对象扫描直接复用这些事实，不逐对象重新调用完整 shape 校验。动态 String／Array 的物理 count 与范围检查继续由共享校验处理；分配输入、映像登记、动态拆箱等真实边界不因此省略检查。固定对象的完整交叉校验只编入 GC stress 支持或显式 `SCOOP_GC_VERIFY_HEAP` 构建，开关未编入时不生成该 GC 校验分支或调用，而不是调用一个空后备。应用 debug／release profile 使用相同 GC 语义；精确起点、根、scan、复制范围、pin、release 与异常合同保持，不新增证明状态或验证缓存。
 
 在当前 heap 视图已取得对应 block 后，对齐、活动状态、精确起点及其对象索引的计算可以内联到实际消费者，使已读取的字段和索引参与同一段代码的优化。各入口共用同一正文，普通对象保留 starts 的 acquire 读取，大对象保留发布状态与唯一地址检查；非 heap 地址继续返回未命中，heap 内非法起点在所有构建中仍须失败。该实现不增加缓存或发布状态，不改变 heap lock／STW 边界，也不把带副作用的检查结果跨搬迁复用。
 

@@ -12,16 +12,34 @@ static const ScoopTypeDescriptor large_td = {
                        .instance_alignment = 16},
 };
 
+static const ScoopTypeDescriptor bytes_td = {
+    .type_id = 983,
+    .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_INLINE_BYTES_V1,
+                       .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
+                       .minimum_size = sizeof(ScoopArray),
+                       .instance_alignment = 8,
+                       .inline_offset = sizeof(ScoopArray),
+                       .inline_size = 1,
+                       .inline_stride = 1,
+                       .inline_alignment = 1},
+};
+
 /* Inject invalid metadata only in child processes at the real forwarding boundary. */
 static void corrupt_forwarding(unsigned scenario) {
-    const ScoopTypeDescriptor *types[] = {&nursery_node_td, &large_td};
+    const ScoopTypeDescriptor *types[] = {&nursery_node_td, &large_td, &bytes_td};
     scoop_thread_runtime_init();
-    scoop_test_image_init(types, 2, NULL, 0, NULL, 0);
+    scoop_test_image_init(types, 3, NULL, 0, NULL, 0);
     scoop_thread_attach_main();
     scoop_thread_enter_managed((void *)scoop_rt_thread_debug_stack_high());
-    void *object = scenario == 10 || scenario == 11
-                       ? nursery_allocate(&large_td, GC_BLOCK_SIZE + 64)
-                       : nursery_node(73);
+    void *object;
+    if (scenario == 10 || scenario == 11) {
+        object = nursery_allocate(&large_td, GC_BLOCK_SIZE + 64);
+    } else if (scenario == 14) {
+        object = nursery_allocate(&bytes_td, sizeof(ScoopArray) + 8);
+        ((ScoopArray *)object)->size = 9;
+    } else {
+        object = nursery_node(73);
+    }
     void **slots[] = {&object};
     ScoopNativeRootFrame roots;
     scoop_rt_push_native_roots(&roots, slots, 1);
@@ -31,6 +49,8 @@ static void corrupt_forwarding(unsigned scenario) {
         __atomic_store_n(&pointer_block(object)->large_published, false, __ATOMIC_RELEASE);
     } else if (scenario == 12) {
         object = block_base(pointer_block(object));
+    } else if (scenario == 13) {
+        ((ScoopObjectHeader *)object)->gc_word += sizeof(void *);
     } else if (scenario >= 6 && scenario <= 8) {
         /* Mark the valid owner first so the invalid edge takes the region-cache hit. */
         NurseryNode *node = object;
@@ -108,7 +128,9 @@ int main(void) {
     expect_failure(10, "managed slot is not a current heap object start");
     expect_failure(11, "managed slot is not a current heap object start");
     expect_failure(12, "managed slot is not a current heap object start");
+    expect_failure(14, "object count, alignment or side-metadata size is invalid");
 #if SCOOP_GC_TRACK_RELOCATION
+    expect_failure(13, "object count, alignment or side-metadata size is invalid");
     expect_failure(0, "object forwarded outside collection");
     expect_failure(1, "unmarked object reached relocation");
     expect_failure(2, "marked evacuation source has no planned forwarding address");
