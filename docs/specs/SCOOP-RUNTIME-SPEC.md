@@ -697,7 +697,7 @@ Cycle 的 path 在复制为 managed String 之前保持稳定，随后调用已�
 
 ### 5.1 Exception record 与抛出
 
-异常 ABI 使用 Itanium Level I `_Unwind_*` 接口。每条私有 exception record 含恰好一个满足目标对齐的 `_Unwind_Exception`，并通过普通 GcHandle 保活被抛出的原 managed Throwable；record 内部布局不属于 generated-code ABI，只能经 runtime 入口转换。
+异常 ABI 使用 Itanium Level I `_Unwind_*` 接口。每条私有 exception record 含恰好一个满足目标对齐的 `_Unwind_Exception`，并通过普通 GcHandle 保活被抛出的原 managed Throwable；record 内部布局不属于 generated-code ABI，只能经 runtime 入口转换。Windows 使用 LLVM libunwind 的 SEH 实现及其配套 `unwind.h`（`__SEH__` 配置），私有字段数量与 Unix 不同；不得复制 Unix 的 record 定义或混用头文件和库。
 
 `exception_class = 0x53434f4f50000000`。`scoop_rt_throw(object)` 要求 FixedObject shape，在可能展开或 GC 前创建原对象的强 handle，再调用 `_Unwind_RaiseException`。异常对象遵守普通引用语义，不复制、不 pin，也不能直接作为 unwind record；GC 搬迁时更新 handle 中的引用。不再为异常建立堆外对象 root，collector 只处理既有引用槽、区域、handle 和 immortal 对象。
 
@@ -707,7 +707,9 @@ Cycle 的 path 在复制为 managed String 之前保持稳定，随后调用已�
 
 `scoop_eh_personality` 消费 LLVM 22.1 Itanium LSDA，只接受 Scoop catch-all 与 cleanup；源码 catch 类型在 landing pad 后按普通类型关系匹配，不使用 C++ RTTI。
 
-LPStart 为 `DW_EH_PE_omit (0xff)`，call-site 编码为 ULEB128。有 catch-all 时 TType 为 `0x9b` 且只有一个 null type entry；TType 为 `0xff` 时无 type-table offset，所有 call-site action 为零，有效表在 call-site 表结束。
+LPStart 为 `DW_EH_PE_omit (0xff)`，call-site 编码为 ULEB128。有 catch-all 时，Darwin／Linux 的 TType 为 `0x9b`（4-byte entry），Windows x64 为 `DW_EH_PE_absptr (0x00)`（8-byte entry）；两者都只接受一个 null type entry。TType 为 `0xff` 时无 type-table offset，所有 call-site action 为零，有效表在 call-site 表结束。
+
+Windows 的机器入口 `scoop_eh_personality_seh` 使用系统 SEH 的四参数签名，通过 `_GCC_specific_handler` 调用同一个 Level-I `scoop_eh_personality` 与 LSDA decoder。LLVM `invoke`／`landingpad` 保留该入口，`.pdata`／`.xdata` 提供系统 frame 信息。exception／selector 的机器寄存器来自该目标的 `__builtin_eh_return_data_regno`，不复用 SysV 的寄存器假设。W0 的独立实验先验证实际发射与运行，再开放正式 target，见实现规范 1。
 
 search phase 只由 Scoop exception 的 catch-all 选定 handler；cleanup-only 不终止搜索。cleanup phase 按目标 ABI 设置 exception/selector 寄存器与 landing-pad IP。`resume` 使用 `_Unwind_Resume`，不能代替源码 rethrow。
 
@@ -735,7 +737,7 @@ native exception record 不能跨线程共享或跨挂起保存；可以保存�
 
 生产异常 ABI 只依赖 Itanium Level I，不依赖 C++ EH、RTTI 或 terminate。target profile 明确选择兼容 unwind provider；Linux CRT 的普通退出清理符号不视为 C++ EH。
 
-启用 native C++ 的程序可以在 C++ 一侧使用配套的 C++ EH／RTTI／ABI 运行库，不改变 Scoop 异常对象和 personality 的合同。最终链接须协调两者使用同一兼容 unwind provider；GNU C++ 配置使用配套 libgcc_s 提供 Level I，Darwin 使用所选系统 provider，具体选择见实现规范 2.8。C++ 异常必须在 native 一侧捕获处理后再返回 Scoop；Scoop 不接管 C++ 对象的异常或析构语义。
+启用 native C++ 的程序可以在 C++ 一侧使用配套的 C++ EH／RTTI／ABI 运行库，不改变 Scoop 异常对象和 personality 的合同。最终链接须协调 Level-I unwind provider：Linux GNU C++ 配置使用配套 libgcc_s，Darwin 使用所选系统 provider；Windows Scoop 的 `_Unwind_*` 仅由相应环境的 LLVM libunwind 提供。MSVC C++ EH 仍由 VCRuntime 提供，两种语言 handler 共用系统 SEH，不删除 native C++ 的运行库，也不再引入第二套 `_Unwind_*`。具体链接选择见实现规范 2.8。C++ 异常必须在 native 一侧捕获处理后再返回 Scoop；Scoop 不接管 C++ 对象的异常或析构语义。
 
 除零、强制类型转换、Option unwrap、数组越界等语言异常，由 managed 代码构造实际 core 异常并抛出。native helper 不得把源码异常藏在穿越 FFI frame 的 unwind 中。
 

@@ -216,7 +216,7 @@ static bool scoop_eh_validate_catch_action(ScoopEhByteRange lsda,
                                            size_t type_table_base,
                                            uint64_t action,
                                            ScoopEhDecodeResult *error) {
-    const size_t encoded_type_size = 4;
+    const size_t encoded_type_size = SCOOP_EH_TYPE_ENTRY_SIZE;
     if (type_table_base < encoded_type_size) {
         *error = scoop_eh_failure(SCOOP_EH_DECODE_MALFORMED,
                                   SCOOP_EH_REASON_TYPE_TABLE_OUT_OF_RANGE,
@@ -313,7 +313,7 @@ ScoopEhDecodeResult scoop_eh_decode_lsda(ScoopEhByteRange lsda,
                                 scoop_eh_read_reason(status), cursor.offset);
     }
     bool has_type_table = encoding != SCOOP_EH_DW_PE_OMIT;
-    if (has_type_table && encoding != SCOOP_EH_DW_PE_PCREL_SDATA4_INDIRECT) {
+    if (has_type_table && encoding != SCOOP_EH_TTYPE_ENCODING) {
         return scoop_eh_failure(SCOOP_EH_DECODE_UNSUPPORTED,
                                 SCOOP_EH_REASON_UNSUPPORTED_TTYPE_ENCODING, 1);
     }

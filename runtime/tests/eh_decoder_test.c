@@ -63,13 +63,14 @@ static TestBuffer encode_call_sites(const TestCallSite *sites, size_t count) {
     return result;
 }
 
-static TestBuffer make_lsda(const TestCallSite *sites, size_t site_count,
-                            const uint8_t *actions, size_t action_length,
-                            const uint8_t type_entry[4]) {
+static TestBuffer
+make_lsda(const TestCallSite *sites, size_t site_count, const uint8_t *actions,
+          size_t action_length,
+          const uint8_t type_entry[SCOOP_EH_TYPE_ENTRY_SIZE]) {
     TestBuffer call_sites = encode_call_sites(sites, site_count);
     TestBuffer result = {0};
     push_byte(&result, SCOOP_EH_DW_PE_OMIT);
-    push_byte(&result, SCOOP_EH_DW_PE_PCREL_SDATA4_INDIRECT);
+    push_byte(&result, SCOOP_EH_TTYPE_ENCODING);
     size_t type_offset_byte = result.length;
     push_byte(&result, 0);
     size_t after_type_offset = result.length;
@@ -77,7 +78,7 @@ static TestBuffer make_lsda(const TestCallSite *sites, size_t site_count,
     push_uleb128(&result, call_sites.length);
     push_bytes(&result, call_sites.bytes, call_sites.length);
     push_bytes(&result, actions, action_length);
-    push_bytes(&result, type_entry, 4);
+    push_bytes(&result, type_entry, SCOOP_EH_TYPE_ENTRY_SIZE);
     size_t type_delta = result.length - after_type_offset;
     CHECK(type_delta < UINT8_C(0x80));
     result.bytes[type_offset_byte] = (uint8_t)type_delta;
@@ -120,7 +121,7 @@ static void expect_failure(ScoopEhDecodeResult result, ScoopEhDecodeKind kind,
 }
 
 static void test_closed_results(void) {
-    static const uint8_t null_type[4] = {0};
+    static const uint8_t null_type[SCOOP_EH_TYPE_ENTRY_SIZE] = {0};
     static const uint8_t catch_action[] = {1, 0};
     const uintptr_t region = (uintptr_t)UINT64_C(0x1000);
 
@@ -142,7 +143,7 @@ static void test_closed_results(void) {
 }
 
 static void test_multiple_ranges_and_ip_boundaries(void) {
-    static const uint8_t null_type[4] = {0};
+    static const uint8_t null_type[SCOOP_EH_TYPE_ENTRY_SIZE] = {0};
     static const uint8_t catch_action[] = {1, 0};
     static const TestCallSite sites[] = {
         {0, 4, 16, 0},
@@ -192,7 +193,7 @@ static void test_cleanup_without_type_table(void) {
 }
 
 static void test_multibyte_leb128(void) {
-    static const uint8_t null_type[4] = {0};
+    static const uint8_t null_type[SCOOP_EH_TYPE_ENTRY_SIZE] = {0};
     /* Non-canonical multi-byte encodings of SLEB128 1 and 0 are valid. */
     static const uint8_t catch_action[] = {0x81, 0x00, 0x80, 0x00};
     const uintptr_t region = (uintptr_t)UINT64_C(0x3000);
@@ -214,7 +215,7 @@ static void test_truncation_and_bounded_range(void) {
     static const uint8_t one_byte[] = {SCOOP_EH_DW_PE_OMIT};
     static const uint8_t truncated_uleb[] = {
         SCOOP_EH_DW_PE_OMIT,
-        SCOOP_EH_DW_PE_PCREL_SDATA4_INDIRECT,
+        SCOOP_EH_TTYPE_ENCODING,
         0x80,
     };
     expect_failure(
@@ -236,7 +237,7 @@ static void test_truncation_and_bounded_range(void) {
                        region, region + 1),
                    SCOOP_EH_DECODE_MALFORMED, SCOOP_EH_REASON_TRUNCATED);
 
-    static const uint8_t null_type[4] = {0};
+    static const uint8_t null_type[SCOOP_EH_TYPE_ENTRY_SIZE] = {0};
     static const uint8_t catch_action[] = {1, 0};
     TestCallSite site = {0, 4, 16, 1};
     TestBuffer valid =
@@ -259,7 +260,7 @@ static void test_integer_and_pointer_overflow(void) {
     const uintptr_t region = (uintptr_t)UINT64_C(0x5000);
     TestBuffer uleb_overflow = {0};
     push_byte(&uleb_overflow, SCOOP_EH_DW_PE_OMIT);
-    push_byte(&uleb_overflow, SCOOP_EH_DW_PE_PCREL_SDATA4_INDIRECT);
+    push_byte(&uleb_overflow, SCOOP_EH_TTYPE_ENCODING);
     for (unsigned index = 0; index < 9; index++) {
         push_byte(&uleb_overflow, UINT8_C(0x80));
     }
@@ -267,7 +268,7 @@ static void test_integer_and_pointer_overflow(void) {
     expect_failure(decode(&uleb_overflow, region, region + 1),
                    SCOOP_EH_DECODE_MALFORMED, SCOOP_EH_REASON_INTEGER_OVERFLOW);
 
-    static const uint8_t null_type[4] = {0};
+    static const uint8_t null_type[SCOOP_EH_TYPE_ENTRY_SIZE] = {0};
     TestCallSite overflowing_range = {UINT64_MAX, 1, 0, 0};
     TestBuffer range_lsda =
         make_lsda(&overflowing_range, 1, NULL, 0, null_type);
@@ -297,7 +298,7 @@ static void test_integer_and_pointer_overflow(void) {
 }
 
 static void test_unsupported_encodings(void) {
-    static const uint8_t null_type[4] = {0};
+    static const uint8_t null_type[SCOOP_EH_TYPE_ENTRY_SIZE] = {0};
     TestCallSite site = {0, 1, 16, 0};
     TestBuffer valid = make_lsda(&site, 1, NULL, 0, null_type);
     const uintptr_t region = (uintptr_t)UINT64_C(0x6000);
@@ -320,7 +321,7 @@ static void test_unsupported_encodings(void) {
 }
 
 static void test_action_bounds_cycles_and_chains(void) {
-    static const uint8_t null_type[4] = {0};
+    static const uint8_t null_type[SCOOP_EH_TYPE_ENTRY_SIZE] = {0};
     const uintptr_t region = (uintptr_t)UINT64_C(0x7000);
     TestCallSite site = {0, 1, 16, 1};
 
@@ -357,8 +358,10 @@ static void test_action_bounds_cycles_and_chains(void) {
 }
 
 static void test_typed_catches_filters_and_type_entries(void) {
-    static const uint8_t null_type[4] = {0};
-    static const uint8_t nonnull_type[4] = {1, 0, 0, 0};
+    static const uint8_t null_type[SCOOP_EH_TYPE_ENTRY_SIZE] = {0};
+    static const uint8_t nonnull_type[SCOOP_EH_TYPE_ENTRY_SIZE] = {
+        [SCOOP_EH_TYPE_ENTRY_SIZE - 1] = 1,
+    };
     const uintptr_t region = (uintptr_t)UINT64_C(0x8000);
     TestCallSite site = {0, 1, 16, 1};
 
@@ -392,7 +395,7 @@ static void test_typed_catches_filters_and_type_entries(void) {
 }
 
 static void test_ranges_landing_pads_and_table_order(void) {
-    static const uint8_t null_type[4] = {0};
+    static const uint8_t null_type[SCOOP_EH_TYPE_ENTRY_SIZE] = {0};
     static const uint8_t catch_action[] = {1, 0};
     const uintptr_t region = (uintptr_t)UINT64_C(0x9000);
 
