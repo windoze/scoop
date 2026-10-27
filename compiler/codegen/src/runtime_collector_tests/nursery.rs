@@ -1,6 +1,35 @@
 use super::{compile_and_run, compile_and_run_with_flags, workspace_root};
 
 #[test]
+fn dense_slot_promotion_preserves_layout_aliases_and_survivor_age() {
+    for flags in [
+        vec!["-O0", "-Dcalloc=scoop_test_slot_calloc"],
+        vec![
+            "-O2",
+            "-Dcalloc=scoop_test_slot_calloc",
+            "-DSCOOP_TEST_SLOT_PROMOTION_PARALLEL",
+        ],
+    ] {
+        let output = compile_and_run_with_flags(
+            &workspace_root(),
+            "slot_promotion_test",
+            "runtime/tests/slot_promotion_test.c",
+            true,
+            &flags,
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"slot promotion preserves exact grids, mixed types, aliases, pins and survivor age\n"
+        );
+    }
+}
+
+#[test]
 fn old_slots_reuse_dead_cells_without_overlapping_reference_updates() {
     for optimization in ["-O0", "-O2"] {
         let output = compile_and_run_with_flags(

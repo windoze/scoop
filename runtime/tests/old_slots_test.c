@@ -60,6 +60,7 @@ static void check_slot_rollback(size_t size) {
     ScoopGcOldSlotPlan plan = {0}, retry = {0};
     ScoopGcBlockMeta *block;
     scoop_gc_heap_lock();
+    size_t available = scoop_gc_heap_state.old_slots_free[size / sizeof(uint64_t) - 2];
     void *reserved = scoop_heap_reserve_old_slot(&plan, size, &block, NULL);
     assert(reserved != NULL && block->state != SCOOP_BLOCK_EVACUATION_TARGET);
     size_t word = ((uintptr_t)reserved - (uintptr_t)scoop_heap_block_base(block)) / sizeof(uint64_t);
@@ -67,9 +68,11 @@ static void check_slot_rollback(size_t size) {
     /* An abandoned temporary header must never become a published object. */
     memset(reserved, 0xcd, sizeof(ScoopObjectHeader));
     scoop_heap_rollback_old_slots();
+    assert(scoop_gc_heap_state.old_slots_free[size / sizeof(uint64_t) - 2] == available);
     assert(scoop_heap_reserve_old_slot(&retry, size, &block, NULL) == reserved);
     assert(!scoop_heap_bit_test(block->starts, word));
     scoop_heap_rollback_old_slots();
+    assert(scoop_gc_heap_state.old_slots_free[size / sizeof(uint64_t) - 2] == available);
     scoop_gc_heap_unlock();
 }
 
@@ -112,7 +115,13 @@ static void check_size(const ScoopTypeDescriptor *td, size_t offset) {
     }
     /* Dirty old ranges overlap the new occupants' blocks after reservation.
      * Their references must still be updated exactly once through the live set. */
+    bool survivor = scoop_gc_heap_state.old_slots_level == 2;
+    scoop_gc_heap_state.survivor_enabled = survivor;
     nursery_collect(true);
+    if (survivor) {
+        nursery_collect(true);
+    }
+    scoop_gc_heap_state.survivor_enabled = false;
     assert(nursery_metrics().heap_committed_bytes == occupied);
     assert(scoop_rt_gc_stats() == COUNT);
     assert(scoop_gc_heap_state.old_pressure_bytes == COUNT * size);
@@ -175,9 +184,9 @@ static void check_pretenured_release(void) {
     assert(scoop_rt_gc_stats() == 0 && released == 1);
 }
 
-static void run_case(size_t workers) {
+static void run_case(size_t workers, size_t level) {
     char count[2] = {(char)('0' + workers), '\0'};
-    assert(setenv("SCOOP_GC_OLD_SLOTS", "1", 1) == 0);
+    assert(setenv("SCOOP_GC_OLD_SLOTS", level == 1 ? "1" : "2", 1) == 0);
     assert(setenv("SCOOP_GC_WORKERS", count, 1) == 0);
     const ScoopTypeDescriptor *types[] = {&nursery_node_td, &padded_td, &aligned_td, &released_td};
     scoop_thread_runtime_init();
@@ -194,11 +203,11 @@ static void run_case(size_t workers) {
 }
 
 int main(void) {
-    for (size_t workers = 1; workers <= 4; workers += 3) {
+    for (size_t variant = 0; variant < 4; variant++) {
         pid_t child = fork();
         assert(child >= 0);
         if (child == 0) {
-            run_case(workers);
+            run_case(variant % 2 == 0 ? 1 : 4, variant / 2 + 1);
             _exit(0);
         }
         int status = 0;

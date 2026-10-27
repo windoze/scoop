@@ -55,6 +55,8 @@ static void finish_block(ScoopGcBlockMeta *block, bool minor) {
             return;
         }
     }
+    bool promoted_slots = minor && block->generation == SCOOP_GC_YOUNG &&
+                          block->kind == SCOOP_BLOCK_KIND_SMALL && block->slot_size != 0;
     bool retained = minor && block->generation == SCOOP_GC_YOUNG && block->retained_young;
     if (!retained) {
         block->generation = SCOOP_GC_OLD;
@@ -62,7 +64,7 @@ static void finish_block(ScoopGcBlockMeta *block, bool minor) {
     block->survivor = retained;
     block->retained_young = false;
     scoop_heap_finish_block(block, stress_move);
-    if (!minor && active_head(block) && block->kind == SCOOP_BLOCK_KIND_SMALL &&
+    if ((!minor || promoted_slots) && active_head(block) && block->kind == SCOOP_BLOCK_KIND_SMALL &&
         block->slot_size != 0) {
         scoop_heap_record_old_slots(block);
     }

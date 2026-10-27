@@ -205,7 +205,7 @@ int main(void) {
     assert(setenv("SCOOP_GC_INCREMENTAL", "2", 1) == 0);
 #ifdef SCOOP_TEST_INCREMENTAL_PARALLEL
     assert(setenv("SCOOP_GC_WORKERS", "4", 1) == 0);
-    assert(setenv("SCOOP_GC_OLD_SLOTS", "1", 1) == 0);
+    assert(setenv("SCOOP_GC_OLD_SLOTS", "2", 1) == 0);
 #else
     assert(setenv("SCOOP_GC_WORKERS", "1", 1) == 0);
     assert(setenv("SCOOP_GC_SURVIVOR", "1", 1) == 0);

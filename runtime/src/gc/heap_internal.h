@@ -99,7 +99,11 @@ typedef struct ScoopGcBlockMeta {
         size_t slot_size;
     };
     size_t live_bytes;
-    size_t movable_live_bytes;
+    union {
+        size_t movable_live_bytes;
+        /* Ordinary slot minors select whole blocks using their current pins. */
+        size_t nursery_slot_size;
+    };
     union {
         size_t mark_index;
         /* The marker has folded its counters before target reservation starts. */
@@ -200,7 +204,7 @@ typedef struct ScoopGcHeapState {
     bool incremental_minor_enabled;
     bool incremental_active;
     bool incremental_minor;
-    bool old_slots_enabled;
+    uint8_t old_slots_level;
     bool print_metrics;
     bool collection_active;
     size_t incremental_blocks;
@@ -223,6 +227,7 @@ typedef struct ScoopGcHeapState {
     ScoopGcBlockMeta *evacuation_targets;
     _Atomic(ScoopGcCardGroup *) dirty_card_groups;
     ScoopGcOldSlots *old_slots_available[GC_OLD_SLOT_CLASSES];
+    size_t old_slots_free[GC_OLD_SLOT_CLASSES];
     ScoopGcOldSlots *old_slots_reserved;
     size_t old_pressure_bytes;
 } ScoopGcHeapState;

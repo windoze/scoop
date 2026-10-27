@@ -73,6 +73,24 @@ static void mark_lines(ScoopGcMarkBlockCount *counts, size_t word, size_t size) 
     }
 }
 
+static bool slot_aligned(size_t word, size_t size) {
+    size_t offset = word * sizeof(uint64_t) - GC_LINE_SIZE;
+    size_t mask = size - 1;
+    return (size & mask) == 0 ? (offset & mask) == 0 : offset % size == 0;
+}
+
+static void mark_slot_layout(ScoopGcMarkBlockCount *counts, size_t word, size_t size) {
+    if (counts->slot_size == SIZE_MAX) {
+        return;
+    }
+    if (size > GC_OLD_SLOT_MAX || (counts->slot_size != 0 && counts->slot_size != size) ||
+        !slot_aligned(word, size)) {
+        counts->slot_size = SIZE_MAX;
+    } else {
+        counts->slot_size = size;
+    }
+}
+
 static void enqueue_array(ScoopGcMarkWorker *worker, void *object, const uint64_t *scan) {
     ScoopGcArrayScan array = scoop_gc_array_scan(object, scan);
     for (uint64_t first = 0; first < array.count;) {
@@ -129,7 +147,9 @@ static void mark_target(ScoopGcMarkWorker *worker, void *object) {
         mark_lines(counts, word, size);
     }
     counts->live_bytes += size;
-    if (!object_pinned(block, word)) {
+    if (worker->slot_layout) {
+        mark_slot_layout(counts, word, size);
+    } else if (!object_pinned(block, word)) {
         counts->movable_bytes += size;
     }
     worker->marked++;

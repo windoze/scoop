@@ -25,7 +25,7 @@ static void update_old_slot_object(void *object, uintptr_t begin, uintptr_t end,
 }
 
 static ScoopGcObjectRangeVisitor dirty_visitor(void) {
-    return scoop_gc_heap_state.old_slots_enabled ? update_old_slot_object : update_dirty_object;
+    return scoop_gc_heap_state.old_slots_level != 0 ? update_old_slot_object : update_dirty_object;
 }
 
 static void enqueue_update_array(ScoopGcMarkWorker *owner, void *object, const uint64_t *scan) {

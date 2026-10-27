@@ -4,6 +4,7 @@
 
 #include "../gc_binding/object.h"
 #include "mark_internal.h"
+#include "old_slots.h"
 
 static void resize_blocks(ScoopGcMarkWorker *worker, size_t retained, size_t count) {
     if (count > worker->block_capacity) {
@@ -42,6 +43,7 @@ void scoop_gc_mark_begin(bool minor, size_t block_count) {
         resize_blocks(worker, 0, block_count);
         memset(worker->regions, 0, sizeof worker->regions);
         worker->minor = minor;
+        worker->slot_layout = minor && scoop_heap_promotes_slot_blocks();
         reset_work(worker);
     }
     scoop_gc_marker.marked = 0;
@@ -262,6 +264,7 @@ uint64_t scoop_gc_mark_finish(bool minor) {
 
 uint64_t scoop_gc_mark_complete(bool minor) {
     scoop_gc_heap_state.metrics.parallel_collections += scoop_gc_marker.active_workers > 1;
+    bool slot_layout = scoop_gc_marker.workers[0].slot_layout;
     for (ScoopGcBlockMeta *block = scoop_heap_first_collection_block(minor); block != NULL;
          block = scoop_heap_next_collection_block(block, minor)) {
         if (!active_head(block)) {
@@ -271,7 +274,16 @@ uint64_t scoop_gc_mark_complete(bool minor) {
             const ScoopGcMarkBlockCount *counts =
                 &scoop_gc_marker.workers[index].blocks[block->mark_index];
             block->live_bytes += counts->live_bytes;
-            block->movable_live_bytes += counts->movable_bytes;
+            if (slot_layout) {
+                size_t size = counts->slot_size;
+                if (block->nursery_slot_size == 0) {
+                    block->nursery_slot_size = size;
+                } else if (size != 0 && size != block->nursery_slot_size) {
+                    block->nursery_slot_size = SIZE_MAX;
+                }
+            } else {
+                block->movable_live_bytes += counts->movable_bytes;
+            }
             if (block->kind == SCOOP_BLOCK_KIND_SMALL) {
                 for (size_t line = 0; line < GC_LINE_BITMAP_WORDS; line++) {
                     block->line_live[line] |= counts->live_lines[line];

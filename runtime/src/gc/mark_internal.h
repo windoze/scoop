@@ -74,7 +74,11 @@ typedef struct ScoopGcMarkQueue {
 
 typedef struct ScoopGcMarkBlockCount {
     size_t live_bytes;
-    size_t movable_bytes;
+    union {
+        size_t movable_bytes;
+        /* Zero: no object; SIZE_MAX: mixed size or a non-slot address. */
+        size_t slot_size;
+    };
     uint64_t live_lines[GC_LINE_BITMAP_WORDS];
 } ScoopGcMarkBlockCount;
 
@@ -89,6 +93,7 @@ typedef struct ScoopGcMarkWorker {
     pthread_t thread;
     uint64_t initial_phase;
     bool minor;
+    bool slot_layout;
     ScoopGcMarkBlockCount *blocks;
     size_t block_capacity;
     ScoopGcLiveChunk *live;
