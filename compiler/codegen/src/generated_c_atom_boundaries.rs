@@ -9,6 +9,7 @@ use scoop_lir::{
 };
 
 use crate::CodegenError;
+mod coff;
 mod elf;
 mod macho;
 
@@ -47,6 +48,7 @@ pub(crate) fn materialize_v1(
     let output = match target.native_object_format() {
         scoop_lir::NativeObjectFormat::MachO64 => macho::materialize(bytes, target, &atoms)?,
         scoop_lir::NativeObjectFormat::Elf64 => elf::materialize(&bytes, &atoms)?,
+        scoop_lir::NativeObjectFormat::Coff64 => coff::materialize(&bytes, &atoms)?,
     };
     std::fs::write(path, output).map_err(|error| {
         CodegenError(format!(

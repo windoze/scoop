@@ -7,6 +7,7 @@ use scoop_lir::{DefinitionAtomRole, DefinitionSymbolPlanV1, LirTargetProfile};
 pub(crate) use self::macho::{BoundaryDefinitionV1, MachOLayout};
 use crate::CodegenError;
 
+mod coff;
 mod elf;
 mod macho;
 
@@ -17,6 +18,9 @@ pub(crate) fn materialize_v1(
 ) -> Result<(), CodegenError> {
     if target.native_object_format() == scoop_lir::NativeObjectFormat::Elf64 {
         return elf::materialize(path, plan);
+    }
+    if target.native_object_format() == scoop_lir::NativeObjectFormat::Coff64 {
+        return coff::materialize(path, plan);
     }
 
     let mut bytes = std::fs::read(path).map_err(|error| {
@@ -103,6 +107,9 @@ pub(crate) fn materialize_v1(
                     layout.materialize_odr_definition(&mut bytes, &end_name)?;
                 }
             }
+            DefinitionAtomRole::WindowsUnwindTable | DefinitionAtomRole::WindowsUnwindInfo => {
+                return Err(CodegenError("Mach-O callable has COFF unwind atoms".into()));
+            }
         }
     }
     layout.add_external_definitions(&mut bytes, additions)?;
@@ -133,7 +140,9 @@ fn backend_section(
         | DefinitionAtomRole::RuntimeRecord
         | DefinitionAtomRole::AddressTakenConstant
         | DefinitionAtomRole::ContextKeyCell
-        | DefinitionAtomRole::ContextKeyTable => {
+        | DefinitionAtomRole::ContextKeyTable
+        | DefinitionAtomRole::WindowsUnwindTable
+        | DefinitionAtomRole::WindowsUnwindInfo => {
             return Err(CodegenError(format!(
                 "atom role {role:?} has no callable backend section"
             )));

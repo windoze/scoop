@@ -5,6 +5,7 @@ use scoop_lir::{CBridgePlatformContractV1, CBridgeToolchainContractV1, DarwinPac
 pub(super) enum ObjectDeployment {
     Darwin(DarwinPackedVersionV1),
     Linux,
+    Windows,
 }
 
 impl ObjectDeployment {
@@ -22,6 +23,9 @@ impl ObjectDeployment {
                 "backend and native deployment targets differ".into(),
             ));
         }
+        if selection.target().native_object_format() == ObjectFormat::Coff64 {
+            return Ok(Self::Windows);
+        }
         Ok(match native.platform() {
             CBridgePlatformContractV1::Darwin { deployment, .. } => {
                 Self::Darwin(deployment.minimum_os())
@@ -34,6 +38,7 @@ impl ObjectDeployment {
         match self {
             Self::Darwin(version) => format!("aarch64-apple-macosx{version}"),
             Self::Linux => canonical.into(),
+            Self::Windows => canonical.into(),
         }
     }
 }

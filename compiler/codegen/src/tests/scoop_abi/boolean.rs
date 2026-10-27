@@ -185,6 +185,9 @@ fn scalar_boolean_calls_and_statepoints_keep_zero_extension_on_every_target() {
         scoop_target_data::DARWIN_AARCH64_ID,
         scoop_target_data::LINUX_X86_64_GNU_ID,
         scoop_target_data::LINUX_X86_64_MUSL_ID,
+        scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID,
+        scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID,
+        scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_ID,
     ] {
         let profile =
             ValidatedBackendProfile::for_selection(scoop_target_data::selection(target).unwrap())

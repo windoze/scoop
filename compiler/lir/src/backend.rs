@@ -54,11 +54,18 @@ pub struct BackendLsdaEncodingsV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct BackendMachineFrameV1 {
-    pub stack_pointer_register: u16,
-    pub frame_pointer_register: u16,
-    pub root_slot_bytes: u8,
-    pub frame_record_bytes: u8,
+pub enum BackendMachineFrameV1 {
+    FixedFrame {
+        stack_pointer_register: u16,
+        frame_pointer_register: u16,
+        root_slot_bytes: u8,
+        frame_record_bytes: u8,
+    },
+    WindowsSeh {
+        stack_pointer_register: u16,
+        frame_pointer_register: u16,
+        root_slot_bytes: u8,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]

@@ -9,6 +9,42 @@ use scoop_wire::encode_runtime;
 use super::*;
 
 #[test]
+fn windows_roots_preserve_offsets_for_seh_reconstructed_registers() {
+    let expected = semantic_plan(1);
+    for (register, offset) in [(7, 32), (6, 16384), (6, -128)] {
+        let slot = ProvisionalLlvmStackmapLocationV3::new(LOCATION_INDIRECT, 8, register, offset);
+        let mut record = provisional(
+            expected,
+            vec![constant(8, 0), constant(8, 0), constant(8, 0), slot, slot],
+            Vec::new(),
+        );
+        record.header.stack_size = 16424;
+        let normalized =
+            normalize_record(StackmapArchitecture::WindowsX86_64, expected, &[], record).unwrap();
+        assert_eq!(
+            normalized.canonical().locations()[3],
+            CanonicalStackmapLocationV1::Indirect {
+                size: 8,
+                dwarf_register: u32::from(register),
+                signed_offset_bits: offset as i64 as u64,
+            }
+        );
+    }
+    for (register, offset) in [(6, 1), (7, -3)] {
+        let slot = ProvisionalLlvmStackmapLocationV3::new(LOCATION_INDIRECT, 8, register, offset);
+        let mut record = provisional(
+            expected,
+            vec![constant(8, 0), constant(8, 0), constant(8, 0), slot, slot],
+            Vec::new(),
+        );
+        record.header.stack_size = 40;
+        assert!(
+            normalize_record(StackmapArchitecture::WindowsX86_64, expected, &[], record).is_err()
+        );
+    }
+}
+
+#[test]
 fn amd64_roots_exclude_the_frame_record_red_zone_and_unaligned_slots() {
     let expected = semantic_plan(1);
     let record = |register, offset| {

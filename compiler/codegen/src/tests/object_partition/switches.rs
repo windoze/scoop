@@ -57,11 +57,14 @@ fn numeric_switch(odr: bool, has_table: bool, with_constant: bool) -> Module {
 }
 
 #[test]
-fn elf_switch_tables_have_owned_ranges_and_follow_callable_odr_selection() {
+fn native_switch_tables_have_owned_ranges_and_follow_callable_odr_selection() {
     let directory = tempfile::tempdir().unwrap();
     for target in [
         scoop_target_data::LINUX_X86_64_GNU_ID,
         scoop_target_data::LINUX_X86_64_MUSL_ID,
+        scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID,
+        scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID,
+        scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_ID,
     ] {
         for (odr, has_table, with_constant) in [
             (false, true, false),
@@ -104,8 +107,14 @@ fn elf_switch_tables_have_owned_ranges_and_follow_callable_odr_selection() {
                     plan.definition_role() == scoop_lir::StrongDefinitionRole::CallableBody
                 })
                 .unwrap();
-            let atom =
-                crate::callable_constants::atom(plan, CallableConstantKind::ReadOnly).unwrap();
+            let coff = input.module().meta.target_profile.native_object_format()
+                == scoop_lir::NativeObjectFormat::Coff64;
+            let kind = if coff {
+                CallableConstantKind::Relocatable
+            } else {
+                CallableConstantKind::ReadOnly
+            };
+            let atom = crate::callable_constants::atom(plan, kind).unwrap();
             let bytes = std::fs::read(member.path()).unwrap();
             let file = object::File::parse(bytes.as_slice()).unwrap();
             let boundary = plan
@@ -140,13 +149,26 @@ fn elf_switch_tables_have_owned_ranges_and_follow_callable_odr_selection() {
             let table = file
                 .section_by_index(start.section_index().unwrap())
                 .unwrap();
-            assert_eq!(table.name().unwrap(), ".rodata.scoop.constants");
+            assert_eq!(
+                table.name().unwrap(),
+                if coff {
+                    ".rdata"
+                } else {
+                    ".rodata.scoop.constants"
+                }
+            );
             assert_eq!(start.section_index(), Some(table.index()));
             assert_eq!(end.section_index(), start.section_index());
             assert_eq!(start.address(), 0);
             assert_eq!(end.address(), table.size());
             if with_constant {
-                let strings = file.section_by_name(".rodata.str1.1").unwrap();
+                let strings = file
+                    .section_by_name(if coff {
+                        ".rdata$scoop.strings"
+                    } else {
+                        ".rodata.str1.1"
+                    })
+                    .unwrap();
                 assert_ne!(strings.index(), table.index());
                 assert_eq!(
                     strings.data().unwrap(),

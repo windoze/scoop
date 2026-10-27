@@ -13,6 +13,7 @@ mod thread_address;
 /// Per-function emission state: everything instruction translation
 /// needs, bundled to keep signatures small.
 struct FnEmitter<'a, 'ctx> {
+    profile: ValidatedBackendProfile,
     context: &'ctx Context,
     managed_address_space: ManagedAddressSpace,
     optimize_allocations: bool,
@@ -237,7 +238,8 @@ pub(super) fn emit_function<'ctx>(
         })
     });
     if has_landing_pad {
-        let personality_symbol = scoop_lir::TargetEhSupportV1::ScoopPersonality.logical_symbol();
+        let personality_symbol = scoop_lir::TargetEhSupportV1::ScoopPersonality
+            .logical_symbol_for_target(module_ctx.profile.lir_target_profile());
         let personality = llvm.get_function(personality_symbol).unwrap_or_else(|| {
             llvm.add_function(
                 personality_symbol,
@@ -292,6 +294,7 @@ pub(super) fn emit_function<'ctx>(
     }
 
     let mut emitter = FnEmitter {
+        profile: module_ctx.profile,
         context,
         managed_address_space: module_ctx.managed_address_space,
         optimize_allocations: module_ctx.optimize_allocations,

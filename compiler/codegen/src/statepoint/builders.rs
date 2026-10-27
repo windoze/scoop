@@ -14,7 +14,7 @@ pub(crate) struct ManagedInvoke<'a, 'ctx> {
     pub(crate) abi_signature: Option<&'a scoop_lir::ScoopAbiSignature>,
     pub(crate) structs: &'a scoop_lir::StructDefs,
     pub(crate) enums: &'a scoop_lir::EnumDefs,
-    pub(crate) managed_address_space: ManagedAddressSpace,
+    pub(crate) profile: ValidatedBackendProfile,
 }
 
 pub(crate) struct ZeroLiveCall<'a, 'ctx> {
@@ -89,7 +89,7 @@ pub(crate) fn build_managed_invoke<'ctx>(
         abi_signature,
         structs,
         enums,
-        managed_address_space,
+        profile,
     } = invoke;
     let statepoint = intrinsic_declaration(module, "llvm.experimental.gc.statepoint", &[callee])?;
     let mut arguments = zero_live_arguments(context, callee, call_args, safepoint)?;
@@ -123,7 +123,7 @@ pub(crate) fn build_managed_invoke<'ctx>(
             context,
             structs,
             enums,
-            managed_address_space,
+            profile,
             statepoint_call,
             signature,
         )?;

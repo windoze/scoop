@@ -3,13 +3,11 @@
 use inkwell::GlobalVisibility;
 use inkwell::module::{Linkage, Module};
 use inkwell::values::{AsValueRef, GlobalValue};
-use llvm_sys::core::{
-    LLVMAliasGetAliasee, LLVMGetConstOpcode, LLVMGetFirstUse, LLVMGetOperand, LLVMIsAConstantExpr,
-    LLVMIsAGlobalAlias, LLVMIsAGlobalObject,
-};
+use llvm_sys::core::LLVMGetFirstUse;
 use scoop_lir::ObjectSymbolSurfaceV1;
 
 use crate::CodegenError;
+use crate::llvm_definitions::definition_owner;
 
 mod plans;
 pub(crate) use plans::SymbolPlanIndex;
@@ -32,36 +30,4 @@ pub(crate) fn apply_visibility(value: GlobalValue<'_>) {
     } else {
         GlobalVisibility::Hidden
     });
-}
-
-fn definition_owner(value: GlobalValue<'_>) -> Result<GlobalValue<'_>, CodegenError> {
-    let mut raw = value.as_value_ref();
-    // Boundaries may refer to a parent-table alias, which in turn projects a
-    // complete array. All of those views belong to the array's ELF section.
-    unsafe {
-        loop {
-            if !LLVMIsAGlobalAlias(raw).is_null() {
-                raw = LLVMAliasGetAliasee(raw);
-            } else if !LLVMIsAConstantExpr(raw).is_null() {
-                match LLVMGetConstOpcode(raw) {
-                    llvm_sys::LLVMOpcode::LLVMGetElementPtr | llvm_sys::LLVMOpcode::LLVMBitCast => {
-                        raw = LLVMGetOperand(raw, 0)
-                    }
-                    _ => {
-                        return Err(CodegenError(
-                            "ELF atom alias is not a direct owner/extent".into(),
-                        ));
-                    }
-                }
-            } else {
-                break;
-            }
-        }
-        if LLVMIsAGlobalObject(raw).is_null() {
-            return Err(CodegenError(
-                "ELF atom alias does not resolve to an LLVM global object".into(),
-            ));
-        }
-        Ok(GlobalValue::new(raw))
-    }
 }

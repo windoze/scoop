@@ -549,6 +549,15 @@ pub enum TargetEhSupportV1 {
 impl TargetEhSupportV1 {
     pub const ALL: [Self; 2] = [Self::ScoopPersonality, Self::UnwindResume];
 
+    pub const fn logical_symbol_for_target(self, target: LirTargetProfile) -> &'static str {
+        match (self, target.native_object_format()) {
+            (Self::ScoopPersonality, crate::NativeObjectFormat::Coff64) => {
+                "scoop_eh_personality_seh"
+            }
+            _ => self.logical_symbol(),
+        }
+    }
+
     pub const fn logical_symbol(self) -> &'static str {
         match self {
             Self::ScoopPersonality => "scoop_eh_personality",
@@ -640,7 +649,7 @@ impl TargetEhRequirementV1 {
         target
             .contract()
             .native_symbol_normalization()
-            .compiler_generated_object_symbol(self.support.logical_symbol())
+            .compiler_generated_object_symbol(self.support.logical_symbol_for_target(target))
             .into_bytes()
     }
 }

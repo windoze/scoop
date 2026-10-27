@@ -19,7 +19,8 @@ pub(in crate::emission) fn boundaries(
                 native_symbol.clone(),
                 match format {
                     scoop_lir::NativeObjectFormat::MachO64 => 24,
-                    scoop_lir::NativeObjectFormat::Elf64 => size,
+                    scoop_lir::NativeObjectFormat::Elf64
+                    | scoop_lir::NativeObjectFormat::Coff64 => size,
                 },
             ),
             scoop_lir::DefinitionAtomRole::AddressTakenConstant

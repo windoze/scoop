@@ -299,6 +299,7 @@ fn render_foreign_callback(
     let section = match module.meta.target_profile.native_object_format() {
         scoop_lir::NativeObjectFormat::MachO64 => "__TEXT,__scoop_sig",
         scoop_lir::NativeObjectFormat::Elf64 => ELF_BRIDGE_SIGNATURE_SECTION,
+        scoop_lir::NativeObjectFormat::Coff64 => ".rdata$scoop.signature",
     };
     out.push_str(&format!(
         "const unsigned char {} __attribute__((section(\"{section}\"))) = 0;\n",

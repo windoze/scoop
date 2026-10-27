@@ -42,6 +42,7 @@ fn relocated_runtime_index_links_the_copied_objects() {
 }
 
 #[test]
+#[cfg(unix)]
 fn native_alias_link_tracks_real_input_updates_and_missing_input() {
     let fixture = test_support::native_fixture();
     let directory = fixture.directory.path();

@@ -5,7 +5,7 @@
 | 阶段 | 状态 | 尚需闭合 |
 | --- | --- | --- |
 | W0 工具链与 ABI | 关键路线实验通过 | 复现入口与范围见下文；正式编译器集成在 W1／W2 完成 |
-| W1 编译／链接 | 实施中 | ABI 分类与 consumer 表示已补齐；继续 target identity、机器发射、COFF／PE、工具选择与链接 |
+| W1 编译／链接 | 实施中 | ABI 与三环境 COFF 后端发射已接入；继续 native 工具选择、完整 PE 链接与调试信息 |
 | W2 core runtime | 待实施 | Win32 平台层、SEH、精确根、Unicode 启动与完整 core／std |
 | W3 系统库 | 待实施 | 平台规范与实现、IOCP、全部 native 组件、真实 consumer |
 | W4 宿主与发行 | 基础实施中 | 进程中断已实现；继续 Windows 命令、维护脚本、DLL／SDK 布局与打包、交叉编译 |
@@ -50,6 +50,12 @@ COFF reader 已覆盖普通 AMD64 对象及 MSVC bigobj，保留长节名、超�
 本次同时闭合已有测试问题：Windows 在打开目录时返回 PermissionDenied，Unix 在读取目录时返回 IsADirectory；slib 的三处固定向量同步到此前已采用的 runtime ABI 21，与 LIR 的既有向量一致，未修改 runtime ABI 或现有 target fingerprint。COFF 的完整 section inventory、代码发射和最终链接仍按 W1 后续步骤完成。
 
 COFF section inventory 已接入 generated-C 对象入口，独立区分 `.pdata`、`.xdata`、TLS、CodeView／linker metadata 与实际加载节；已有 wire tag 不变。4 个定向测试通过普通 COFF、MSVC `/bigobj /Z7` 与 LLVM 实际发射的 16 KiB 栈帧 statepoint 对象，确认 stackmap 的 ADDR64 引用解析到真实 callable；Clippy 无告警。Scoop 后端的 target 选择、atom 边界和最终链接继续实施。
+
+三种 Windows 完整 target identity 已接入内部 LLVM 后端，分别映射 Microsoft／GNU machine triple，共用 Win64 数据布局和 SEH frame contract。发射包含真实 `.pdata`／`.xdata`、LSDA、statepoint stackmap、TLS 与 definition atom 边界。callable 代码、注册记录、SEH、stackmap 和常量池使用同一 COMDAT selection；Strong 保持不可重复，ODR 使用可选取的组。浮点常量池保留对齐与 relocation，显式元数据不并入池。Scoop 间接参数发射 caller copy，移除 SysV `byval`，保留 `sret` 并保证调用方临时副本至少 16-byte 对齐。
+
+本机验证通过：三环境 Debug／Release、Strong／ODR 机器对象矩阵；实际 C↔Scoop 24-byte aggregate 传参／返回；浮点常量链接运行、重复 ODR 选取和不同 callable 地址；Windows／Linux switch table relocation 与独立 CString 边界；全部目标 Boolean／statepoint 属性及原 Linux／Darwin 发射回归。identity、LIR、ABI-plan、slib 的 1,005 个单元测试通过，现有 target 编码向量不变；Windows gnullvm 宿主的 workspace/all-targets Clippy 无告警。native 对象测试以 `SCOOP_TEST_CLANG`、`SCOOP_TEST_MINGW_MSVCRT`、`SCOOP_TEST_MINGW_UCRT` 显式选择三个编译器，COFF bigobj 测试还使用 PATH 中的 cl。
+
+这一批完成内部机器发射与直接 native ABI 验证；正式 CLI target 仍待 native 开发资源选择、最终 PE 链接、runtime 和系统库闭环后开放，不将这些定向测试记为完整 Windows 验收。
 
 ## W4 宿主基础
 

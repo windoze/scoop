@@ -24,6 +24,10 @@ Windows 三环境扩展按 [Windows targets 设计](../windows-targets/DESIGN.md
 
 backend contract 使用 LLVM 22.1、LLVM stackmap v3 和本规范的 GC/EH 约束。Linux 两个 libc target 共用 `org.scoop-lang.backend-profile/llvm-22-1-linux-x86-64/1`，但 native、runtime 与最终链接输入不能混用 glibc/musl。target、对象格式、调用约定、pointer/storage ABI 及实际 producer 配置必须相容；不支持的组合在生成目标产物前诊断。
 
+Windows 后端数据按设计保留三个完整 target profile，机器 triple 分别投影为 MSVC 的 `x86_64-pc-windows-msvc` 或两个 MinGW 环境的 `x86_64-w64-windows-gnu`。三者共享 `org.scoop-lang.backend-profile/llvm-22-1-windows-x86-64/1`、Win64 数据布局与 COFF 机器发射，完整 target identity 仍参与产物相容性和缓存。Scoop ABI classifier 新编码 5 表示 Win64 caller copy／interface 间接结果，native symbol normalization 新编码 3 保留 x64 COFF 原符号字节。backend 的 frame recovery 编码 2 表示通过 SEH 重建 RSP／RBP，寄存器仍为 LLVM 编号 7／6、root slot 8 bytes，不保存 SysV frame-record 几何；LSDA 为 LPStart `0xff`、type table `0x00`、call-site `0x01`，无 type table 时为 `0xff`。现有目标编码与 fingerprint 不变；这些内部数据的接入不提前开放尚未完成 runtime／系统库验收的 CLI target。
+
+Windows stackmap reader 验证 location kind、寄存器、8-byte slot／对齐和 pair 结构，保留 RSP／RBP 的有符号 offset；不从 stack size 推造 RBP 位置。扫描时由运行时使用实际 SEH context 计算地址，并执行真实线程栈范围检查。编译产物读取不另建一套 SEH unwinder 重放系统 frame 恢复。
+
 仓库的 `scripts/release.toml` 记录发行所用 LLVM 精确版本、系统与 CPU 基线。构建宿主命令时将默认 Darwin 部署版本编入工具；普通命令不读取打包配置或发行清单。`MACOSX_DEPLOYMENT_TARGET` 可为一次编译／链接选择明确的 `major.minor[.patch]`，非法值必须诊断。未覆盖时使用编入的基线，不查询运行机器的系统版本。所选最低版本贯通 LLVM 对象、generated-C、用户 native、runtime 和最终链接，进入原有生产配置与更新键；SDK 版本继续只记录实际 SDK。Linux 使用既有 x86-64 CPU 基线和所选 libc 工具链，发行最低 libc 版本由对应构建／验证环境确定，不能仅靠一个版本参数降低实际动态依赖。
 
 三个宿主命令的 `--version` 使用同一份构建版本与源码 revision。维护脚本显式设置发行版本和 revision，普通开发构建使用仓库默认版本及当前 Git revision；源码归档没有 Git 信息时明确显示 revision 未提供。版本文本不替代配套工具的协议协商或产物兼容判断。
@@ -385,7 +389,7 @@ carrier 记录实际读取的 extent，允许其机器类型宽于 extent；读�
 
 Win64 的 GC-free aggregate 仅在 exact size 为 1、2、4、8 bytes 时使用对应位宽的单个整数 carrier，其余使用间接形式；单成员 float／double struct 也遵守该整数 carrier 规则，不沿用 SysV SSE／Darwin HFA 分类。普通 scalar 与 interface 参数仍按顺序传递；interface 展开为 AS1 object 与 AS0 metadata 两个物理参数，interface／其 niche 的结果使用保留 `RefScan` 的 exact 间接 storage，不能先产生再提取 LLVM 隐式 sret aggregate。该结果计划沿现有 canonical ABI 的 Indirect 分支保存，consumer 复用其表示，不增加第二种签名格式。
 
-每个 indirect 实参使用调用方新建的 exact storage，callee 按值接收。物理参数为 indirect result storage（若有），随后按逻辑顺序省略 ZST 并传递其余参数。Darwin／SysV 的 Scoop indirect 参数使用对应 exact type/alignment 的 byval；Win64 使用已经创建的 caller copy 地址，不能添加改变机器传参方式的 byval。各目标间接结果使用 sret。Darwin sret 使用 x8，SysV amd64 使用 RDI，Win64 使用 RCX；两种 amd64 ABI 均在 RAX 返回同一地址。Win64 的前四个物理参数按位置使用整数／浮点参数寄存器，其后使用栈，shadow space、栈对齐和探测交给 LLVM；不使用 SysV 的两组独立寄存器计数。Win64 C ABI 的小整数不添加 signext／zeroext，Boolean 仍使用 zeroext；Scoop Boolean 规则保持上述约定。
+每个 indirect 实参使用调用方新建的 exact storage，callee 按值接收。物理参数为 indirect result storage（若有），随后按逻辑顺序省略 ZST 并传递其余参数。Darwin／SysV 的 Scoop indirect 参数使用对应 exact type/alignment 的 byval；Win64 使用已经创建的 caller copy 地址，临时副本至少 16-byte 对齐而不改变值本身的 exact layout，不能添加改变机器传参方式的 byval。各目标间接结果使用 sret。Darwin sret 使用 x8，SysV amd64 使用 RDI，Win64 使用 RCX；两种 amd64 ABI 均在 RAX 返回同一地址。Win64 的前四个物理参数按位置使用整数／浮点参数寄存器，其后使用栈，shadow space、栈对齐和探测交给 LLVM；不使用 SysV 的两组独立寄存器计数。Win64 C ABI 的小整数不添加 signext／zeroext，Boolean 仍使用 zeroext；Scoop Boolean 规则保持上述约定。
 
 ZST 的求值、调用、构造、类型及对象身份不能因零 payload 消失。被观察地址的独立 place 有满足 alignment 的存储 token；同时存活的不同 place 不共享地址。Ptr<ZST> 的元素位移为零，仍遵守 operand 求值和 unsafe 有效性条件。
 
@@ -483,6 +487,10 @@ ArraySet 的单引用槽屏障使用已有数组对象基址查询 mapping，实
 Windows 使用 AMD64 COFF relocatable（含 bigobj），对象格式 identity 为 `org.scoop-lang.object-format/coff-relocatable/1`。对象 reader 保存原 section／symbol 序号、长名称、section characteristics、aux symbol、COMDAT selection／关联 section、weak external fallback 与实际 relocation kind／写入宽度／隐式 addend；aux symbol 占用原符号表序号，但不能作为 relocation 的普通目标。COFF relocation form 使用新 tag 12（kind、width），隐式 addend 保留在原 field／canonical value，现有 Mach-O／ELF 编码不变。引用检查在读取边界完成，后续发射与链接复用结果。PE import-library 的短 import member 不伪装成 relocatable 对象；它由 native library 输入选择处理。三种 Windows 完整 target 独立保存身份，普通 COFF 本身没有可证明 CRT 的标签，reader 不从文件名或 object header 推测 CRT。
 
 COFF section inventory 将 `.pdata`／`.pdata$…` 记为 Windows unwind function table，将 `.xdata`／`.xdata$…` 记为 Windows unwind information，section-role 编码分别为新增 tag 14、15；两者不冒充 ELF `.eh_frame` 或独立 LSDA。`.llvm_stackmaps` 使用已有 stackmap role 和真实 ADDR64 function relocation；`.tls`／`.tls$…` 按 section characteristics 区分有初始化／零填充 TLS。其余实际加载节按 code／writable／zero-fill 属性分类，CodeView、linker directives 与被标记移除的节属于 object metadata。现有 section-role 编码保持不变。
+
+Windows callable 的 definition atom 新增 unwind table／unwind information 两种 role（编码 10／11）；`.xdata` 内的 unwind header／handler RVA 与后续 LSDA 使用各自不重叠的真实边界。代码、stackmap、SEH、callable／safepoint registration 与 callable 私有常量按 COFF COMDAT association 同步保留／裁剪；Strong 不转为可任意选取的 ODR 定义。已有目标的 atom role 编码不变。Windows personality 的对象符号为 `scoop_eh_personality_seh`，通过同一 target EH requirement 投影选择，普通 Unix personality 符号保持原样。
+
+LLVM 在同一 callable 对象中产生的多个 `.rdata` 常量池合并为一个私有 contribution，保留各常量的实际对齐、内容和 relocation，并作为该 callable 的常量 atom 关联保留。LLVM 的可跨对象合并的常量符号在此成为局部符号；不得因此合并 callable identity。显式命名的 `.rdata$scoop.*` 元数据仍按其原 definition plan 独立拥有边界。此物理布局整理不改变已有 symbol／section 序号或完整 target identity。
 
 ELF atom 边界归一化按每个实际对象建立一次原始符号名到符号表序号的查询索引，借用原字符串表。边界、可见性和 COMDAT 操作复用该索引，不为每个 atom 重扫整个符号表。索引表示原对象，新增或改名的符号仍由既有编辑记录管理；原 symbol／section 序号、relocation、弱定义规则与输出顺序保持，不增加 native 符号登记或解析职责。
 

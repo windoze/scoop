@@ -193,7 +193,7 @@ fn emit_llvm_module_with_surface<'ctx, R>(
             &llvm,
             &module.structs,
             &module.enums,
-            managed_address_space,
+            profile,
             callable,
         )?;
     }
@@ -250,6 +250,7 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         )?;
     }
     let module_ctx = ModuleCtx {
+        profile,
         // Snapshot forwarding regressed AArch64 reference-copy kernels.
         reuse_interface_values: profile.optimization() == scoop_lir::OptimizationMode::Release
             && machine.get_target().get_name() == c"x86-64",
@@ -305,6 +306,9 @@ fn emit_llvm_module_with_surface<'ctx, R>(
                 runtime_scan_plan,
             )?;
         }
+    }
+    if module.meta.target_profile.native_object_format() == scoop_lir::NativeObjectFormat::Coff64 {
+        crate::coff_llvm::prepare(&llvm, surface)?;
     }
     if module.meta.target_profile.native_object_format() == scoop_lir::NativeObjectFormat::Elf64 {
         if !matches!(selection, StrongObjectEmissionSelection::CallableBody(_)) {

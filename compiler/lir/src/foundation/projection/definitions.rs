@@ -321,11 +321,15 @@ pub(super) fn callable_body_associated_atoms(
         }));
     }
     if function.callable_body.release_owner().is_none() {
-        let role = match target.native_object_format() {
-            crate::NativeObjectFormat::MachO64 => DefinitionAtomRole::CompactUnwind,
-            crate::NativeObjectFormat::Elf64 => DefinitionAtomRole::EhFrame,
+        let roles: &[_] = match target.native_object_format() {
+            crate::NativeObjectFormat::MachO64 => &[DefinitionAtomRole::CompactUnwind],
+            crate::NativeObjectFormat::Elf64 => &[DefinitionAtomRole::EhFrame],
+            crate::NativeObjectFormat::Coff64 => &[
+                DefinitionAtomRole::WindowsUnwindTable,
+                DefinitionAtomRole::WindowsUnwindInfo,
+            ],
         };
-        associated.push((role, subkey()));
+        associated.extend(roles.iter().map(|&role| (role, subkey())));
     }
     if !function.safepoints.is_empty() {
         associated.push((DefinitionAtomRole::Stackmap, subkey()));
@@ -339,7 +343,7 @@ pub(super) fn callable_body_associated_atoms(
         associated.push((DefinitionAtomRole::Lsda, subkey()));
         if target.native_object_format() == crate::NativeObjectFormat::MachO64 {
             associated.push((DefinitionAtomRole::EhFrame, subkey()));
-        } else {
+        } else if target.native_object_format() == crate::NativeObjectFormat::Elf64 {
             associated.push((DefinitionAtomRole::AddressTakenConstant, subkey()));
         }
     }

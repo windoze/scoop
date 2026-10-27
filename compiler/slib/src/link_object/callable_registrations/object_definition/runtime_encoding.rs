@@ -248,5 +248,7 @@ fn definition_atom_role_tag(role: DefinitionAtomRole) -> u32 {
         DefinitionAtomRole::AddressTakenConstant => 7,
         DefinitionAtomRole::ContextKeyCell => 8,
         DefinitionAtomRole::ContextKeyTable => 9,
+        DefinitionAtomRole::WindowsUnwindTable => 10,
+        DefinitionAtomRole::WindowsUnwindInfo => 11,
     }
 }

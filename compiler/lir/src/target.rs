@@ -146,6 +146,7 @@ pub struct LirTargetProfile {
 pub enum NativeObjectFormat {
     MachO64,
     Elf64,
+    Coff64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -170,6 +171,7 @@ impl NativeObjectFormat {
         match self {
             Self::MachO64 => scoop_identity::ObjectFormatId::macho_relocatable(),
             Self::Elf64 => scoop_identity::ObjectFormatId::elf_relocatable(),
+            Self::Coff64 => scoop_identity::ObjectFormatId::coff_relocatable(),
         }
     }
 }

@@ -100,6 +100,16 @@ pub(super) fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
     let has_unwind = prune_unused_personalities(&llvm);
     let safepoints = statepoint::lower(&llvm, machine)?;
     runtime_metadata_v1::emit_callable_safepoints(context, &llvm, production, body, &safepoints)?;
+    if profile.lir_target_profile().native_object_format() == scoop_lir::NativeObjectFormat::Coff64
+    {
+        llvm.run_passes(
+            "globaldce",
+            machine,
+            inkwell::passes::PassBuilderOptions::create(),
+        )
+        .map_err(|error| CodegenError(format!("COFF declaration cleanup: {error}")))?;
+        crate::coff_llvm::prepare(&llvm, production.canonical_definitions())?;
+    }
     if profile.lir_target_profile().native_object_format() == scoop_lir::NativeObjectFormat::Elf64 {
         elf_symbols.prepare_callable(&llvm, machine)?;
     }

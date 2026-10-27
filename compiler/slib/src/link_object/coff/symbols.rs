@@ -10,6 +10,7 @@ pub(super) fn read<'data, H: CoffHeader>(
     let table = file.coff_symbol_table();
     let mut symbols = Vec::with_capacity(table.len());
     let mut selections = vec![0; sections.len()];
+    let mut associations = vec![None; sections.len()];
     for symbol in file.symbols() {
         let raw = symbol.coff_symbol();
         let end = symbol
@@ -48,6 +49,8 @@ pub(super) fn read<'data, H: CoffHeader>(
             }
             if let Some(ordinal) = section_ordinal {
                 selections[ordinal.get() as usize - 1] = selection;
+                associations[ordinal.get() as usize - 1] =
+                    associative_section.map(|ordinal| ordinal.get() as usize - 1);
             }
             CoffSymbolAuxiliaryV1::Section {
                 selection,
@@ -96,6 +99,7 @@ pub(super) fn read<'data, H: CoffHeader>(
             });
         }
     }
+    let selections = effective_selections(selections, &associations)?;
     for symbol in &mut symbols {
         if symbol.kind == ObjectSymbolKindV1::ExternalStrongDefinition
             && symbol.section_ordinal.is_some_and(|ordinal| {
@@ -104,7 +108,6 @@ pub(super) fn read<'data, H: CoffHeader>(
                     pe::IMAGE_COMDAT_SELECT_ANY
                         | pe::IMAGE_COMDAT_SELECT_SAME_SIZE
                         | pe::IMAGE_COMDAT_SELECT_EXACT_MATCH
-                        | pe::IMAGE_COMDAT_SELECT_ASSOCIATIVE
                         | pe::IMAGE_COMDAT_SELECT_LARGEST
                         | pe::IMAGE_COMDAT_SELECT_NEWEST
                 )
@@ -123,6 +126,39 @@ pub(super) fn read<'data, H: CoffHeader>(
         }
     }
     Ok(symbols)
+}
+
+fn effective_selections(
+    selections: Vec<u8>,
+    associations: &[Option<usize>],
+) -> Result<Vec<u8>, CoffObjectError> {
+    let mut effective = selections
+        .iter()
+        .map(|&selection| (selection != pe::IMAGE_COMDAT_SELECT_ASSOCIATIVE).then_some(selection))
+        .collect::<Vec<_>>();
+    let mut active = vec![false; effective.len()];
+    for start in 0..effective.len() {
+        let mut current = start;
+        let mut path = Vec::new();
+        while effective[current].is_none() {
+            if active[current] {
+                return Err(error("cyclic COMDAT section association"));
+            }
+            active[current] = true;
+            path.push(current);
+            current = associations[current]
+                .ok_or_else(|| error("associative COMDAT has no parent section"))?;
+        }
+        let selection = effective[current].expect("resolved COMDAT root");
+        for index in path {
+            effective[index] = Some(selection);
+            active[index] = false;
+        }
+    }
+    Ok(effective
+        .into_iter()
+        .map(|selection| selection.expect("every association resolved"))
+        .collect())
 }
 
 pub(super) fn require_symbol(

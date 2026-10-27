@@ -289,3 +289,41 @@ fn malformed_relocation_extent_and_auxiliary_targets_are_rejected() {
     bytes[..2].copy_from_slice(&pe::IMAGE_FILE_MACHINE_ARM64.to_le_bytes());
     assert!(validate_windows_coff_object_envelope_v1(&bytes, target).is_err());
 }
+
+#[test]
+fn cyclic_comdat_association_is_rejected() {
+    use object::ObjectSymbol;
+
+    let original = &objects().ordinary;
+    let file = CoffFile::<&[u8]>::parse(original.as_slice()).unwrap();
+    let association = file
+        .symbols()
+        .find(|symbol| {
+            matches!(
+                symbol.flags(),
+                object::SymbolFlags::CoffSection {
+                    selection: pe::IMAGE_COMDAT_SELECT_ASSOCIATIVE,
+                    ..
+                }
+            )
+        })
+        .unwrap();
+    let section = association.section_index().unwrap().0;
+    let offset = file
+        .coff_header()
+        .pointer_to_symbol_table
+        .get(object::LittleEndian) as usize
+        + (association.index().0 + 1) * 18;
+    let mut bytes = original.clone();
+    bytes[offset + 12..offset + 14].copy_from_slice(&(section as u16).to_le_bytes());
+    bytes[offset + 16..offset + 18].copy_from_slice(&((section >> 16) as u16).to_le_bytes());
+    assert!(
+        validate_windows_coff_object_envelope_v1(
+            &bytes,
+            scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID
+        )
+        .unwrap_err()
+        .to_string()
+        .contains("cyclic COMDAT")
+    );
+}

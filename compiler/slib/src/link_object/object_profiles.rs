@@ -42,6 +42,11 @@ pub fn validate_scoop_lir_llvm_22_1_object_envelope_v1(
             .map(|sections| ValidatedScoopLirObjectEnvelopeV1 { sections })
             .map_err(ScoopLirObjectEnvelopeValidationError::Elf);
     }
+    if target.native_object_format() == scoop_lir::NativeObjectFormat::Coff64 {
+        return crate::link_object::coff::builtin::sections(bytes, target.id())
+            .map(|sections| ValidatedScoopLirObjectEnvelopeV1 { sections })
+            .map_err(ScoopLirObjectEnvelopeValidationError::Coff);
+    }
     let envelope = validate_darwin_arm64_object_envelope_v1(bytes)
         .map_err(ScoopLirObjectEnvelopeValidationError::Envelope)?;
     let sections = read_builtin_object_sections_v1(envelope);
@@ -77,6 +82,7 @@ pub fn read_generated_c_object_sections_v1(
 pub enum ScoopLirObjectEnvelopeValidationError {
     UnsupportedTarget,
     Elf(crate::link_object::ElfObjectError),
+    Coff(crate::link_object::CoffObjectError),
     Envelope(ObjectEnvelopeValidationError),
 }
 

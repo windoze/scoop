@@ -76,6 +76,7 @@ mod string_copy;
 mod string_leaves;
 mod strong_shapes;
 mod task_context;
+mod windows_codegen;
 mod zst_places;
 
 use enums::enum_module;

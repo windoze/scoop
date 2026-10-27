@@ -24,12 +24,16 @@ impl WireEncode for ByteOrder {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum ScoopAbiClassifier {
     ScalarInterfaceAndSmallValueParts,
+    Win64CallerCopyAndIndirectInterfaceResult,
 }
 
 impl WireEncode for ScoopAbiClassifier {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         // Version 4 adds zero extension for scalar Boolean arguments/results.
-        encoder.unsigned(4)
+        encoder.unsigned(match self {
+            Self::ScalarInterfaceAndSmallValueParts => 4,
+            Self::Win64CallerCopyAndIndirectInterfaceResult => 5,
+        })
     }
 }
 
@@ -91,7 +95,14 @@ impl TargetProfileContract {
     }
 
     pub const fn scoop_abi_classifier(self) -> ScoopAbiClassifier {
-        ScoopAbiClassifier::ScalarInterfaceAndSmallValueParts
+        match self.profile.native_object_format() {
+            super::NativeObjectFormat::Coff64 => {
+                ScoopAbiClassifier::Win64CallerCopyAndIndirectInterfaceResult
+            }
+            super::NativeObjectFormat::MachO64 | super::NativeObjectFormat::Elf64 => {
+                ScoopAbiClassifier::ScalarInterfaceAndSmallValueParts
+            }
+        }
     }
 
     pub const fn c_abi_lowering(self) -> CAbiLoweringProfile {
