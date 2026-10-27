@@ -10,6 +10,8 @@
 
 Windows x64 宿主使用 LLVM-MinGW `20260616` 的 UCRT 环境与支持 UTF-8 build file 的 Ninja（1.11+，`ninja -t wincodepage` 输出 UTF-8），以 `--cc`、`--cxx` 分别选择该 prefix 中的 `clang.exe`、`clang++.exe`。脚本安装 `.exe`、LLVM／Clang DLL 与 import library，并将其 C++／unwind DLL 放在同一 `bin`；Rust 编译使用 `x86_64-pc-windows-gnullvm` 与安装根的 `LLVM_SYS_221_PREFIX`。这些是宿主开发工具，与应用 target 的 Microsoft／MinGW、MSVCRT／UCRT 选择独立。首次完整构建包括 Clang／LLD；重复执行只在输入更新或所需输出缺失时构建。
 
+发射 Windows target 的宿主 LLVM 必须包含 [statepoint 返回地址修正](../sysroot/vendor/llvm-project/22.1.8/patches/llvm-windows-statepoint-return-pc.patch)。`build_llvm.py` 在需要构建时通过 Git 将补丁应用到所选外部 source tree，已应用时保留原文件；未变化命中不读取补丁或源码内容。补丁将 stackmap 标签放在 WinEH NOP 之前，保留必要的 EH padding。更新宿主 LLVM 后重新构建配套 Scoop 命令和 Windows 系统库；不复用此前发射的错误 stackmap。
+
 构建期间仅在子进程环境中将显式选择的 compiler 目录放到 PATH 前面，不修改用户全局环境。安装必须包含实际依赖的 `libclang-cpp.dll`，否则 PATH 上的 ESP32 等另一套 Clang DLL 可能被 Windows 加载并导致入口点错误。新构建完成后运行安装目录中的 llvm-config 与 Clang；命中缓存时不重复运行。需要排查当前会话的工具选择时，检查 PATH、`CC`／`CXX`、`CFLAGS`／`CXXFLAGS`、`CPATH`／`LIBRARY_PATH` 和 `LLVM_SYS_221_PREFIX`，不以清空全局配置代替正确安装依赖。
 
 ```sh
@@ -60,7 +62,7 @@ python3 scripts/prepare_sysroot.py \
 
 `package_toolchain.py` 是完整安装包的唯一入口：取得固定 LLVM 输入、按 lockfile 构建 VS Code 扩展、构建 LLVM、四个 release 宿主命令与独立的 scoop-example、准备该宿主支持的全部 native／slib／runtime 资源、为全部内置库生成 API 文档，随包复制 Scoop 编程 skill，最后生成工具包与 LLVM 源码包。无需事先逐个执行其他准备或扩展打包脚本。默认工作位置为 `tmp/package/<host>`，归档位于 `tmp/dist`；用 `--work-dir`、`--output-dir` 可选择外置盘目录。脚本不自动运行测试。
 
-构建机需要 Python 3.12+、Rust/Cargo、C/C++ 开发工具链、CMake、Make、Perl、Node.js 22.18+ 和 npm。npm 依赖、首次缺失的 LLVM 归档以及 Tree-sitter WASM 工具链需要联网取得；其余 native 上游输入已在 vendor 中。已有 WASI SDK／Binaryen 可按 [tooling 说明](../tooling/README.md) 选择。
+构建机需要 Python 3.12+、Git、Rust/Cargo、C/C++ 开发工具链、CMake、Make、Perl、Node.js 22.18+ 和 npm。npm 依赖、首次缺失的 LLVM 归档以及 Tree-sitter WASM 工具链需要联网取得；其余 native 上游输入已在 vendor 中。已有 WASI SDK／Binaryen 可按 [tooling 说明](../tooling/README.md) 选择。
 
 ```sh
 python3 scripts/package_toolchain.py --jobs 6

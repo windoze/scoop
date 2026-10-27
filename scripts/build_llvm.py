@@ -12,6 +12,9 @@ from pathlib import Path
 from build_support import RELEASE_CONFIG, ROOT, metadata, reusable, save_record, source_metadata
 
 VERSION = "22.1.8"
+STATEPOINT_PATCH = (
+    ROOT / "sysroot/vendor/llvm-project/22.1.8/patches/llvm-windows-statepoint-return-pc.patch"
+)
 HOSTS = {
     ("Darwin", "arm64"): "aarch64-apple-darwin",
     ("Linux", "x86_64"): "x86_64-unknown-linux-gnu",
@@ -37,6 +40,21 @@ TOOLS = (
     "llvm-symbolizer",
 )
 WINDOWS_RUNTIME_DLLS = ("libc++.dll", "libunwind.dll")
+
+
+def patch_windows_statepoint(source):
+    command = ["git", "-C", str(source), "apply", "--check", str(STATEPOINT_PATCH)]
+    if (
+        subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
+        == 0
+    ):
+        subprocess.run(["git", "-C", str(source), "apply", str(STATEPOINT_PATCH)], check=True)
+        return source / "llvm/lib/Target/X86/X86MCInstLower.cpp"
+    subprocess.run(
+        ["git", "-C", str(source), "apply", "--reverse", "--check", str(STATEPOINT_PATCH)],
+        check=True,
+    )
+    return None
 
 
 def configure(source, build, prefix, cc, cxx, host, release):
@@ -155,6 +173,7 @@ def main():
                 __file__,
                 ROOT / "scripts/build_support.py",
                 RELEASE_CONFIG,
+                STATEPOINT_PATCH,
                 *companions,
                 *([ninja] if windows else []),
             )
@@ -191,6 +210,12 @@ def main():
     if llvm_libraries and clang_libraries and reusable(record, inputs, outputs):
         print(f"Reusing LLVM {VERSION}: {prefix}")
         return
+    patched = patch_windows_statepoint(source)
+    if patched is not None:
+        # Applying the source fix changed one input after the update decision.
+        inputs["source"] = [
+            metadata(patched) if row[0] == str(patched) else row for row in inputs["source"]
+        ]
     release = tomllib.loads(RELEASE_CONFIG.read_text())
     if release["llvm"] != VERSION:
         parser.error(f"this recipe requires LLVM {VERSION}")

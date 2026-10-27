@@ -120,3 +120,7 @@ fixture runner 已接入三种完整 Windows target、各自的 Clang／archive 
 `[windows].subsystem` 已贯通 manifest、executable `.slib`、编译更新键和最终链接更新键；默认／显式 console 与 gui 不改变 Cone identity 或 Scoop entry。三个目标的正式 fixture 各通过 15 个实际进程步骤，验证 PE subsystem、Unicode argv／退出码、GUI／console 切换、未变化时零 compiler child、artifact-only 重链接，以及 GUI Cone 的测试 executable 仍为 console。非法取值和 library 使用该节的诊断位置由正式 CLI 用例验证。
 
 5 项 manifest／slib 定向测试、workspace/all-targets Clippy 与后续修改的定向 Clippy 通过；fixture runner 的 host canonical path 引用保持实际诊断原样，公共规则测试为 65 项（62 通过、3 项 POSIX 专项不适用），Ruff 通过。RC 配置与资源编译仍待实施；上述 subsystem 验证未替代前述 GC 返回 PC 修复和完整 Windows 验收。
+
+移动 GC 的返回 PC 失败已闭合：LLVM 22.1.8 的 X86 statepoint emitter 将记录标签放在 WinEH NOP 之后，导致部分记录比实际返回地址多一个字节。配套补丁将标签移到 NOP 之前并保留 EH padding；runtime 的精确匹配规则保持不变。所有发射 Windows 对象的宿主均通过 LLVM 准备脚本应用该补丁，未变化命中先于补丁读取／应用。
+
+修补后的宿主 LLVM 完整构建、安装与后续原命令复用通过；真实 COFF 回归覆盖三个 target 的 call／invoke，检查准确 PC 和必要 NOP。配套三个 CLI 与三个目标各自的 core／std／test 已重新构建；`roots-gc-context`、`string-copies-moving` 和新增 Windows 适用性的 `exceptions-return-paths` 全部通过，每目标 5 个变体／10 个进程步骤，包含 debug／release 的移动 GC。对应 Rust Clippy 和 Python Ruff 通过，先前两项 GC 失败与返回路径不适用项均在本批闭合；线程／callback、其余系统库和完整宿主验收继续实施，未开始远端测试。

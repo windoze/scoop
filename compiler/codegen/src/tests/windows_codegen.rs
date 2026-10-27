@@ -5,6 +5,7 @@ use object::{Object, ObjectComdat, ObjectSection, ObjectSymbol};
 use super::*;
 
 mod constants;
+mod statepoint_pc;
 
 #[cfg(windows)]
 pub(super) fn native_command(target: TargetProfileId, triple: &str) -> std::process::Command {

@@ -33,6 +33,8 @@ Windows 后端数据使用三个完整 target profile，机器 triple 分别投�
 
 Windows stackmap reader 验证 location kind、寄存器、8-byte slot／对齐和 pair 结构，保留 RSP／RBP 的有符号 offset；不从 stack size 推造 RBP 位置。扫描时由运行时使用实际 SEH context 计算地址，并执行真实线程栈范围检查。编译产物读取不另建一套 SEH unwinder 重放系统 frame 恢复。
 
+Windows statepoint 的 instruction offset 必须指向 call 的真实返回地址。LLVM 22.1.8 的 WinEH emitter 在部分 call／invoke 后插入必要的 NOP；配套 LLVM 修正为先登记 statepoint 标签，再发射该 NOP，保持 EH region 与 epilogue 行为。此修正适用于所有发射 Windows 对象的宿主；runtime 继续精确匹配 PC，不尝试相邻地址或跳过未登记 frame。
+
 Windows executable 的 `[windows].subsystem` 与 `[windows].rc` 按语言规范 12.2 和 [Windows 设计 3.4](../windows-targets/DESIGN.md#34-windows-executable-配置与资源) 实施。subsystem 默认为 console，可选 gui；工具链提供或发现 RC compiler，使用所选目标 headers／预处理环境编译资源。executable `.slib` 保留最终链接所需的 subsystem 和资源产物，artifact-only linker 不重新读取 RC 源码。RC、实际 include 与引用资源以及工具选择进入普通更新记录；命中不读取资源内容或探测工具。
 
 Windows generated-C producer 使用所选完整 target 的 Clang 模式，平台合同新增编码 3，记录实际 Clang 数值版本与预处理配置；宿主路径只保留在普通工具发现记录。三环境各有独立 C producer profile，Clang 接受的 machine triple 不取代完整 target。公共 flags 保持 C11、所选优化、无 debug／common／compiler-ident／stack-protector／builtin substitution；Windows 使用 x86-64 baseline、Windows 10 API 基线和 SEH unwind tables，Microsoft 环境使用动态 UCRT（`/MD` 等效设置）。新增 flag 编码 17、18、19 分别表示 Windows SEH、所选 Windows CRT 和 Windows 10 基线，原平台编码不变。
