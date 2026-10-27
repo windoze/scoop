@@ -10,35 +10,62 @@ import scoop.tls.TlsTrustSource
 private class HttpRequestObservationHttp2Test {
     @Test
     fun `HTTP2 requests retain independent timestamps on a shared unobserved connection`() {
-        clientTestTrust().use { trust ->
-            LibuvEventLoop().run suspend { scope ->
-                clientTestListen(currentEventLoop()).useAsync suspend { listener ->
+        clientTestTrust().use {
+            trust -> PlatformEventLoop().run suspend {
+                scope -> clientTestListen(currentEventLoop()).useAsync suspend {
+                    listener ->
                     val serverDone = BodyTestGate()
-                    val serving = scope.launch suspend {
-                        AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
-                            val first = connection.acceptRequest()!!.stream
-                            first.readAllBytes(0L)
-                            first.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
-                            val second = connection.acceptRequest()!!.stream
-                            second.readAllBytes(0L)
-                            second.sendResponse(HttpResponseHead(HttpVersion.Http2, 103U), false)
-                            second.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
-                            writeBodyText(second, "second")
-                            second.finish()
-                            serverDone.await()
+                    val serving =
+                        scope.launch suspend {
+                            AsyncHttp2Connection.takeOwnershipAsServer(
+                                listener.accept(),
+                                scope
+                            ).useAsync suspend {
+                                connection ->
+                                val first = connection.acceptRequest()!!.stream
+                                first.readAllBytes(0L)
+                                first.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
+                                val second = connection.acceptRequest()!!.stream
+                                second.readAllBytes(0L)
+                                second.sendResponse(
+                                    HttpResponseHead(HttpVersion.Http2, 103U),
+                                    false
+                                )
+                                second.sendResponse(
+                                    HttpResponseHead(HttpVersion.Http2, 200U),
+                                    false
+                                )
+                                writeBodyText(second, "second")
+                                second.finish()
+                                serverDone.await()
+                            }
                         }
-                    }
-                    val config = HttpClientConfig(cleartext = HttpCleartextProtocol.Http2PriorKnowledge,
-                        tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
-                        pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L))
+                    val config =
+                        HttpClientConfig(
+                            cleartext = HttpCleartextProtocol.Http2PriorKnowledge,
+                            tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                            pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L)
+                        )
                     val firstLog = RequestObservationLog()
                     val secondLog = RequestObservationLog()
-                    withHttpClient(config) suspend { client ->
-                        try {
-                            val first = client.execute(HttpRequest.get(clientTestUrl(listener),
-                                options = HttpCallOptions(observer = Some(firstLog.observer))))
-                            val second = client.execute(HttpRequest.get(clientTestUrl(listener),
-                                options = HttpCallOptions(observer = Some(secondLog.observer))))
+                    withHttpClient(config) suspend {
+                        client -> try {
+                            val first =
+                                client.execute(
+                                    HttpRequest.get(
+                                        clientTestUrl(listener),
+                                        options =
+                                            HttpCallOptions(observer = Some(firstLog.observer))
+                                    )
+                                )
+                            val second =
+                                client.execute(
+                                    HttpRequest.get(
+                                        clientTestUrl(listener),
+                                        options =
+                                            HttpCallOptions(observer = Some(secondLog.observer))
+                                    )
+                                )
                             assertTrue(second.metrics!!.connectionReused == Some(true))
                             first.close()
                             assertEquals("second", second.body.text(32L))
@@ -49,9 +76,14 @@ private class HttpRequestObservationHttp2Test {
                             checkRequestObservation(secondMetrics)
                             assertFalse(first.body.isComplete)
                             assertTrue(second.body.isComplete)
-                            assertEquals(2L, secondLog.ofKind(HttpCallEventKind.ResponseHeaders).size)
+                            assertEquals(
+                                2L,
+                                secondLog.ofKind(HttpCallEventKind.ResponseHeaders).size
+                            )
                             assertTrue(firstLog.events[0L].call !== secondLog.events[0L].call)
-                        } finally { serverDone.signal() }
+                        } finally {
+                            serverDone.signal()
+                        }
                     }
                     serving.join()
                 }

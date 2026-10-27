@@ -22,8 +22,8 @@ static void execute_metadata(ScoopIoWork *native) {
     }
     ScoopPlatformFileMetadata *result = malloc(sizeof(*result));
     if (!result) {
-        event->kind = SCOOP_IO_UV_ERROR;
-        event->code = -ENOMEM;
+        event->kind = SCOOP_IO_POSIX_ERROR;
+        event->code = ENOMEM;
         return;
     }
     *result = data;

@@ -9,10 +9,12 @@ import scoop.platform.fs.Path
 import scoop.platform.memory.NativeByteBuffer
 
 fun check(value: Boolean) {
-    if (!value) throw IllegalStateException(Some("request body integration check failed"))
+    if (!value)
+        throw IllegalStateException(Some("request body integration check failed"))
 }
 
 class BodyCallContext(val name: String)
+
 context(call: BodyCallContext)
 fun currentCallName(): String = call.name
 
@@ -26,15 +28,19 @@ class BodyGate {
         waiting?.resume(Unit)
     }
     suspend fun await() {
-        suspendCoroutine<Unit> { continuation ->
-            if (ready) continuation.resume(Unit) else waiter = Some(continuation)
+        suspendCoroutine<Unit> {
+            continuation -> if (ready)
+                continuation.resume(Unit)
+            else
+                waiter = Some(continuation)
         }
     }
 }
 
 suspend fun writeText(destination: AsyncByteSink, text: String) {
     val bytes = text.toByteArray()
-    NativeByteBuffer.allocate(bytes.size).use suspend { buffer ->
+    NativeByteBuffer.allocate(bytes.size).use suspend {
+        buffer ->
         buffer.writeBytes(bytes)
         destination.writeFully(buffer)
     }
@@ -47,9 +53,10 @@ suspend fun checkEnd(source: AsyncByteSource) {
 fun payload(): String = "文件正文：Scoop preserves ordered bytes.\n"
 
 private fun exercise(name: String, path: Path, body: RequestBody, factory: RequestBody) {
-    val loop: EventLoop = LibuvEventLoop()
+    val loop: EventLoop = PlatformEventLoop()
     context(BodyCallContext(name)) {
-        loop.run suspend { scope ->
+        loop.run suspend {
+            scope ->
             runBodyHttp1(loop, scope, path, body)
             runBodyHttp2(loop, scope, factory, name)
         }
@@ -60,12 +67,14 @@ private fun exerciseConsumer(args: Array<String>) {
     check(args.size == 2L)
     val path = Path.fromString(args[1L])
     val snapshot = RequestBody.fromText("共享字节快照")
-    val factory = RequestBody.fromProducerFactory suspend {
-        val name = currentCallName();
-        suspend { destination -> writeText(destination, name) }
-    }
-    Thread.start { exercise("first", path, snapshot, factory) }.use { first ->
-        Thread.start { exercise("second", path, snapshot, factory) }.use { second ->
+    val factory =
+        RequestBody.fromProducerFactory suspend {
+            val name = currentCallName();
+            suspend { destination -> writeText(destination, name) }
+        }
+    Thread.start { exercise("first", path, snapshot, factory) }.use {
+        first -> Thread.start { exercise("second", path, snapshot, factory) }.use {
+            second ->
             first.join()
             second.join()
         }
@@ -81,6 +90,8 @@ private class ConsumerTests {
             val payload = directory.resolve(Path.fromString("payload.txt"))
             payload.writeText("文件正文：Scoop preserves ordered bytes.\n")
             exerciseConsumer(["consumer", payload.decodeUtf8()])
-        } finally { directory.deleteRecursively() }
+        } finally {
+            directory.deleteRecursively()
+        }
     }
 }

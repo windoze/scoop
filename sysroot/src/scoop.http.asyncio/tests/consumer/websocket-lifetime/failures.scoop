@@ -6,59 +6,103 @@ import scoop.http.*
 import scoop.http.asyncio.*
 import scoop.platform.memory.NativeByteBuffer
 
-private class WsFailingSource(val error: Throwable) : AsyncByteSource {
-    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long { throw error }
+private class WsFailingSource(val error: Throwable): AsyncByteSource {
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        throw error
+    }
 }
+
 internal fun wsSourceFailure(cleanup: Boolean) {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope ->
         val transport = WsTestTransport()
         val sourceError = Throwable()
         val closeError = Throwable()
-        if (cleanup) transport.closeFailure = Some(closeError)
+        if (cleanup)
+            transport.closeFailure = Some(closeError)
         val session = AsyncWebSocketSession.takeOwnership(transport, scope, HttpRole.Client)
         val observed = WsFailure()
-        val observing = scope.launch suspend {
-            try { session.awaitClosed() } catch (error: Throwable) { observed.value = Some(error) }
-        }
-        val failure = wsExpect suspend { session.send(WebSocketMessageType.Binary, WsFailingSource(sourceError)) }
+        val observing =
+            scope.launch suspend {
+                try {
+                    session.awaitClosed()
+                } catch (error: Throwable) {
+                    observed.value = Some(error)
+                }
+            }
+        val failure =
+            wsExpect suspend {
+                session.send(WebSocketMessageType.Binary, WsFailingSource(sourceError))
+            }
         observing.join()
         wsCheck(session.isClosed && transport.closes == 1, "failed source cleaned up")
         if (cleanup) {
             wsCheck(failure is ResourceUseException, "source and transport failure")
-            wsCheck((failure as ResourceUseException).primaryFailure === sourceError &&
-                (failure as ResourceUseException).cleanupFailure === closeError, "preserve both failures")
+            wsCheck(
+                (failure as ResourceUseException).primaryFailure ===
+                    sourceError &&
+                    (failure as ResourceUseException).cleanupFailure ===
+                    closeError,
+                "preserve both failures"
+            )
             wsCheck(observed.value!! === closeError, "observer only reports cleanup")
-        } else wsCheck(failure === sourceError && !wsPresent(observed.value), "original source error")
+        } else
+            wsCheck(failure === sourceError && !wsPresent(observed.value), "original source error")
         ensureActive()
         wsIgnoreClose suspend { session.close() }
     }
 }
 
-private class WsEofTransport : AsyncByteStream, AsyncCloseable {
+private class WsEofTransport: AsyncByteStream, AsyncCloseable {
     val release: WsGate = WsGate()
     var closes: Int = 0
-    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long { release.await(); return 0L }
-    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long { buffer.skip(count); return count }
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        release.await();
+        return 0L
+    }
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        buffer.skip(count);
+        return count
+    }
     public override suspend fun flush() {}
-    public override suspend fun close() { closes += 1 }
+    public override suspend fun close() {
+        closes += 1
+    }
 }
+
 internal fun wsEofObserver() {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope ->
         val transport = WsEofTransport()
         val session = AsyncWebSocketSession.takeOwnership(transport, scope, HttpRole.Client)
         val received = WsFailure()
-        val reading = scope.launch suspend {
-            try { session.receive() } catch (error: Throwable) { received.value = Some(error) }
-            ensureActive()
-        }
-        val observer = scope.launch suspend { session.awaitClosed(); wsCheck(session.isClosed, "EOF observed completion") }
+        val reading =
+            scope.launch suspend {
+                try {
+                    session.receive()
+                } catch (error: Throwable) {
+                    received.value = Some(error)
+                }
+                ensureActive()
+            }
+        val observer =
+            scope.launch suspend {
+                session.awaitClosed();
+                wsCheck(session.isClosed, "EOF observed completion")
+            }
         transport.release.signal()
-        reading.join(); observer.join()
+        reading.join();
+        observer.join()
         val failure = session.failure!!
-        wsCheck(failure is WebSocketSessionException && (failure as WebSocketSessionException).kind ==
-            WebSocketFailureKind.UnexpectedEof, "EOF is a protocol failure")
+        wsCheck(
+            failure is
+                WebSocketSessionException &&
+                (failure as WebSocketSessionException).kind ==
+                WebSocketFailureKind.UnexpectedEof,
+            "EOF is a protocol failure"
+        )
         wsCheck(received.value!! === failure && transport.closes == 1, "preserve EOF identity")
         session.close()
     }

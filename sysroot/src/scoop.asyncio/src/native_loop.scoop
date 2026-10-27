@@ -47,10 +47,6 @@ internal fun decodeEvent(record: NativeRecord): NativeEvent =
             case 1 -> IoResult.Bytes(record.count)
             case 2 -> IoResult.Eof
             case 3 -> IoResult.Created(record.resource!!)
-            case 4 -> IoResult.Failed(
-                NativeError(NativeErrorDomain.Libuv, record.code),
-                record.count
-            )
             case 5 -> IoResult.Failed(
                 NativeError(NativeErrorDomain.PosixErrno, record.code),
                 record.count
@@ -116,22 +112,8 @@ internal fun backendFailure(operation: String, status: Int): PlatformException {
     return PlatformException(operation, error.kind, Some(error))
 }
 
-internal fun nativeStatusError(status: Int): NativeError {
-    @Unsafe
-    {
-        val record = nativeErrorRecord(status)
-        return NativeError(
-            if (record.kind == 4)
-                NativeErrorDomain.Libuv
-            else
-                NativeErrorDomain.PosixErrno,
-            record.code
-        )
-    }
-}
-
-@Extern(name = "scoop_io_status_error")
-private fun nativeErrorRecord(status: Int): NativeRecord
+internal fun nativeStatusError(status: Int): NativeError =
+    NativeError(NativeErrorDomain.PosixErrno, -status)
 
 @Extern(name = "scoop_io_loop_idle")
 internal fun nativeLoopIdle(loop: Ptr<Unit>): Boolean

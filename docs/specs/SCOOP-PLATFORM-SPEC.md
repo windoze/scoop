@@ -47,9 +47,9 @@ OsString 可以保存任意字节，包括 NUL。实际进入 C 字符串位置�
 
 `scoop.platform.system.PlatformErrorKind` 包含 NotFound、AlreadyExists、PermissionDenied、NotDirectory、IsDirectory、InvalidInput、NoMemory、NoSpace、BrokenPipe、ConnectionRefused、ConnectionReset、AddressInUse、AddressUnavailable、TimedOut、Interrupted、WouldBlock、Unsupported、Other。未知错误归 Other，必须保留原始错误数据；Unsupported 仅用于 OS 实际报告不支持。
 
-`NativeErrorDomain` 区分 PosixErrno、AddressResolution 与 Libuv。普通值类型 `NativeError(domain, code, systemCode: Int? = None)` 保存原始 Int 错误码；AddressResolution 的 EAI_SYSTEM 还保存同次失败的 errno。只读属性 `kind` 依据目标系统的实际常量分类，不假设两个 target 的 errno／EAI 数值相同。pthread 直接返回的 errno 风格错误属于 PosixErrno，不能改读线程 errno。
+`NativeErrorDomain` 区分 PosixErrno 与 AddressResolution。普通值类型 `NativeError(domain, code, systemCode: Int? = None)` 保存原始 Int 错误码；AddressResolution 的 EAI_SYSTEM 还保存同次失败的 errno。只读属性 `kind` 依据目标系统的实际常量分类，不假设两个 target 的 errno／EAI 数值相同。pthread 直接返回的 errno 风格错误属于 PosixErrno，不能改读线程 errno。
 
-Libuv 保存库返回的原始负错误码，不读取当前 errno。三个现有 Unix 目标的标准错误按 libuv 1.53.0 的负 errno 映射已有 kind；未知或库专有状态保持 Other，EOF 与主动取消／关闭由 I/O 协议解释。platform 本身不链接或包含 libuv，该域仅保存和分类错误，asyncio 才依赖具体驱动。[错误码定义](https://github.com/libuv/libuv/blob/v1.53.0/include/uv/errno.h)。
+asyncio 的 syscall 与 io_uring 负结果均转换为 PosixErrno；保留实际 errno，不再提供失去消费者的 Libuv 错误域。EOF 与主动取消／关闭由 I/O 协议解释。
 
 `PlatformException(operation: String, kind: PlatformErrorKind, nativeError: NativeError? = None, context: OsString? = None)` 继承 Exception，以上四项为只读字段。调用方按结构字段处理错误；message 只供诊断，不作为可解析协议。context 用于保存实际路径或端点文本等调用上下文，不覆盖原始 code。
 
@@ -133,8 +133,8 @@ M59 的同步 terminal 与 asyncio TTY 共用 platform 中的 native TTY 实现�
 的会话首进程。此处只提供两个库实际使用的 C helper，不增加公开 Scoop fd 接管
 或通用 signal API。原生实现及同步公开合同见 [终端规范](SCOOP-TERMINAL-SPEC.md)第 7 节。
 
-TTY 与通知 fd 属于同一个 opaque owner；同步 poll 和 libuv poll 分别借用，
-不能另行关闭。异步必须先停止并关闭所有 libuv 观察句柄、结束 native 操作，
+TTY 与通知 fd 属于同一个 opaque owner；同步 poll 和异步平台后端分别借用，
+不能另行关闭。异步必须先退休所有异步观察与控制请求、结束 native 操作，
 再恢复 termios 并释放 owner。每进程独占状态由该共同实现维护，因此同步与
 异步会话不能各自成功打开一个竞争读取者。该限制不约束普通 stdout 输出。
 

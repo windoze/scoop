@@ -71,10 +71,7 @@ static void finish_close(ScoopIoWork *native, int status) {
 }
 
 int scoop_io_directory_close(ScoopIoDirectory *directory, int64_t id) {
-    int status =
-        scoop_io_work_submit(&directory->closing, directory->loop, id, execute_close, finish_close);
-    /* Valid callbacks make submission infallible in the pinned libuv backend. */
-    if (status < 0)
-        abort();
-    return 0;
+    // Opening the directory started the workers; close uses its preallocated work.
+    return scoop_io_work_submit(&directory->closing, directory->loop, id, execute_close,
+                                finish_close);
 }

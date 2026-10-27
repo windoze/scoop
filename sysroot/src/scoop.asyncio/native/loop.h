@@ -18,8 +18,7 @@ enum {
     SCOOP_IO_BYTES,
     SCOOP_IO_EOF,
     SCOOP_IO_RESOURCE,
-    SCOOP_IO_UV_ERROR,
-    SCOOP_IO_POSIX_ERROR,
+    SCOOP_IO_POSIX_ERROR = 5,
     SCOOP_IO_ADDRESSES,
     SCOOP_IO_ADDRESS_ERROR,
     SCOOP_IO_DATAGRAM,
@@ -53,7 +52,6 @@ int64_t scoop_io_loop_batch_size(ScoopIoLoop *loop);
 ScoopIoEvent scoop_io_loop_next(ScoopIoLoop *loop);
 bool scoop_io_loop_idle(ScoopIoLoop *loop);
 int scoop_io_loop_descriptor(ScoopIoLoop *loop);
-ScoopIoEvent scoop_io_status_error(int status);
 int scoop_io_loop_destroy(ScoopIoLoop *loop);
 int scoop_io_timer_start(ScoopIoLoop *loop, int64_t id, int64_t seconds, int nanos);
 void scoop_io_timer_cancel(ScoopIoLoop *loop, int64_t id);

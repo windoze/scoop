@@ -9,18 +9,28 @@ import scoop.url.Url
 private class HttpRequestObservationFailureTest {
     @Test
     fun `failure before submission retains a completed unsent attempt`() {
-        clientTestTrust().use { trust ->
-            LibuvEventLoop().run suspend { _ ->
+        clientTestTrust().use {
+            trust -> PlatformEventLoop().run suspend {
+                _ ->
                 val failure = IllegalStateException(Some("prepare failed"))
-                val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
-                    onAttempt = Some(suspend { _ -> throw failure }))
+                val config =
+                    HttpClientConfig(
+                        tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                        onAttempt = Some(suspend { _ -> throw failure })
+                    )
                 val log = RequestObservationLog()
-                withHttpClient(config) suspend { client ->
-                    val actual = expectBodyFailure<IllegalStateException> suspend {
-                        client.execute(HttpRequest.get(Url.parse("http://127.0.0.1:1/"),
-                            options = HttpCallOptions(observer = Some(log.observer))))
-                        Unit
-                    }
+                withHttpClient(config) suspend {
+                    client ->
+                    val actual =
+                        expectBodyFailure<IllegalStateException> suspend {
+                            client.execute(
+                                HttpRequest.get(
+                                    Url.parse("http://127.0.0.1:1/"),
+                                    options = HttpCallOptions(observer = Some(log.observer))
+                                )
+                            )
+                            Unit
+                        }
                     assertSame(failure, actual)
                 }
                 val events = log.ofKind(HttpCallEventKind.Completed)
@@ -37,20 +47,33 @@ private class HttpRequestObservationFailureTest {
 
     @Test
     fun `request observer self close fails promptly and preserves the callback failure`() {
-        clientTestTrust().use { trust ->
-            LibuvEventLoop().run suspend { _ ->
-                withHttpClient(clientTestConfig(trust)) suspend { client ->
+        clientTestTrust().use {
+            trust -> PlatformEventLoop().run suspend {
+                _ -> withHttpClient(clientTestConfig(trust)) suspend {
+                    client ->
                     val calls = ArrayList<HttpCallEvent>()
-                    val observer = HttpObserver(suspend { event ->
-                        calls.add(event)
-                        client.close()
-                    })
-                    val failure = expectBodyFailure<IllegalStateException> suspend {
-                        client.execute(HttpRequest.get(Url.parse("http://127.0.0.1:1/"),
-                            options = HttpCallOptions(observer = Some(observer))))
-                        Unit
-                    }
-                    assertEquals(Some("cannot await client.close from its active observer"), failure.message)
+                    val observer =
+                        HttpObserver(
+                            suspend {
+                                event ->
+                                calls.add(event)
+                                client.close()
+                            }
+                        )
+                    val failure =
+                        expectBodyFailure<IllegalStateException> suspend {
+                            client.execute(
+                                HttpRequest.get(
+                                    Url.parse("http://127.0.0.1:1/"),
+                                    options = HttpCallOptions(observer = Some(observer))
+                                )
+                            )
+                            Unit
+                        }
+                    assertEquals(
+                        Some("cannot await client.close from its active observer"),
+                        failure.message
+                    )
                     assertEquals(1L, calls.size)
                     assertFalse(client.isClosed)
                 }

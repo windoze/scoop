@@ -10,45 +10,73 @@ import scoop.test.*
 private class HttpClientTrailersDuplexTest {
     @Test
     fun `duplex produces request trailers after consuming an early response prefix`() {
-        clientTestTrust().use { trust ->
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { scope ->
-                clientTestListen(loop).useAsync suspend { listener ->
+        clientTestTrust().use {
+            trust ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                scope -> clientTestListen(loop).useAsync suspend {
+                    listener ->
                     val done = BodyTestGate()
-                    val serving = scope.launch suspend {
-                        AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope,
-                            settings = Http2Settings(initialWindowSize = 5U)).useAsync suspend { connection ->
-                            val incoming = connection.acceptRequest()!!
-                            NativeByteBuffer.allocate(5L).use suspend { buffer ->
-                                incoming.stream.readFully(buffer)
-                                assertEquals("begin", String.fromUtf8(buffer.readBytes(5L)))
+                    val serving =
+                        scope.launch suspend {
+                            AsyncHttp2Connection.takeOwnershipAsServer(
+                                listener.accept(),
+                                scope,
+                                settings = Http2Settings(initialWindowSize = 5U)
+                            ).useAsync suspend {
+                                connection ->
+                                val incoming = connection.acceptRequest()!!
+                                NativeByteBuffer.allocate(5L).use suspend {
+                                    buffer ->
+                                    incoming.stream.readFully(buffer)
+                                    assertEquals("begin", String.fromUtf8(buffer.readBytes(5L)))
+                                }
+                                incoming.stream.sendResponse(
+                                    HttpResponseHead(HttpVersion.Http2, 200U),
+                                    false
+                                )
+                                writeBodyText(incoming.stream, "ready")
+                                incoming.stream.flush()
+                                assertEquals(
+                                    "tail",
+                                    String.fromUtf8(incoming.stream.readAllBytes(4L))
+                                )
+                                assertEquals(
+                                    "yes",
+                                    String.fromUtf8(incoming.stream.trailers!![0L].value)
+                                )
+                                incoming.stream.finish()
+                                done.await()
                             }
-                            incoming.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
-                            writeBodyText(incoming.stream, "ready")
-                            incoming.stream.flush()
-                            assertEquals("tail", String.fromUtf8(incoming.stream.readAllBytes(4L)))
-                            assertEquals("yes", String.fromUtf8(incoming.stream.trailers!![0L].value))
-                            incoming.stream.finish()
-                            done.await()
                         }
-                    }
-                    withHttpClient(clientTestConfig(trust, HttpVersion.Http2)) suspend { client ->
+                    withHttpClient(clientTestConfig(trust, HttpVersion.Http2)) suspend {
+                        client ->
                         val ready = BodyTestGate()
                         val holder = ClientTestResponseHolder()
                         val consumed = BodyTestGate()
-                        val body = RequestBody.fromProducerWithTrailers(["X-End"], Some(9L)) suspend { output ->
-                            writeBodyText(output, "begin")
-                            output.flush()
-                            ready.await()
-                            NativeByteBuffer.allocate(5L).use suspend { buffer ->
-                                holder.value!!.body.readFully(buffer)
-                                assertEquals("ready", String.fromUtf8(buffer.readBytes(5L)))
+                        val body =
+                            RequestBody.fromProducerWithTrailers(["X-End"], Some(9L)) suspend {
+                                output ->
+                                writeBodyText(output, "begin")
+                                output.flush()
+                                ready.await()
+                                NativeByteBuffer.allocate(5L).use suspend {
+                                    buffer ->
+                                    holder.value!!.body.readFully(buffer)
+                                    assertEquals("ready", String.fromUtf8(buffer.readBytes(5L)))
+                                }
+                                writeBodyText(output, "tail")
+                                consumed.signal()
+                                [HttpField("X-End".toByteArray(), "yes".toByteArray())]
                             }
-                            writeBodyText(output, "tail")
-                            consumed.signal()
-                            [HttpField("X-End".toByteArray(), "yes".toByteArray())]
-                        }
-                        val response = client.execute(HttpRequest.post(clientTestUrl(listener), body, options = HttpCallOptions(duplex = true)))
+                        val response =
+                            client.execute(
+                                HttpRequest.post(
+                                    clientTestUrl(listener),
+                                    body,
+                                    options = HttpCallOptions(duplex = true)
+                                )
+                            )
                         holder.value = Some(response)
                         ready.signal()
                         consumed.await()

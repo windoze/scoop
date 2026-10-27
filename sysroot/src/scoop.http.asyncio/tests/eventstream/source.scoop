@@ -9,17 +9,23 @@ import scoop.test.*
 private class AwsEventStreamSourceTests {
     @Test
     fun `AWS EventStream source drives short reads preserves typed messages and reaches clean EOF without closing a borrowed input`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
-            val bytes = ByteArrayBuilder().append(asyncAwsMessage).append(asyncAwsEmpty).toByteArray()
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
+            val bytes =
+                ByteArrayBuilder().append(asyncAwsMessage).append(asyncAwsEmpty).toByteArray()
             val input = MessageTestSource(bytes, 3L)
             val source = AwsEventStreamSource(input, bufferSize = 5L)
             assertEquals(0, input.reads)
-            source.useAsync suspend { stream ->
+            source.useAsync suspend {
+                stream ->
                 val first = stream.next()!!
                 assertEquals(10L, first.headers.size)
                 assertEquals("{'foo':'bar'}", String.fromUtf8(first.payload))
-                when (first.header("int64")!!) { case Int64(value) -> assertEquals(42424242L, value); else -> fail() }
+                when (first.header("int64")!!) {
+                    case Int64(value) -> assertEquals(42424242L, value);
+                    else -> fail()
+                }
                 assertTrue(input.position < bytes.size)
                 gcCollect()
                 assertEquals(0L, stream.next()!!.payload.size)
@@ -37,15 +43,18 @@ private class AwsEventStreamSourceTests {
 
     @Test
     fun `AWS EventStream owning source bounds prefetch and early close never drains the remaining messages`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
-            val bytes = ByteArrayBuilder().append(asyncAwsEmpty).append(asyncAwsMessage).toByteArray()
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
+            val bytes =
+                ByteArrayBuilder().append(asyncAwsEmpty).append(asyncAwsMessage).toByteArray()
             val input = MessageTestSource(bytes, 1000L)
             val source = AwsEventStreamSource.takeOwnership(input, bufferSize = 17L)
             assertEquals(0L, source.next()!!.payload.size)
             assertEquals(17L, input.position)
             val reads = input.reads
-            source.close(); source.close()
+            source.close();
+            source.close()
             assertEquals(reads, input.reads)
             assertEquals(1, input.closes)
             assertTrue(source.isClosed)
@@ -56,8 +65,9 @@ private class AwsEventStreamSourceTests {
 
     @Test
     fun `AWS EventStream source retains truncation and IO failures and combines owned cleanup errors`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             val short = MessageTestSource(Array<Byte>(12L) { index -> asyncAwsEmpty[index] })
             val source = AwsEventStreamSource.takeOwnership(short)
             val truncated = expectMessageFailure<AwsEventStreamException> suspend { source.next() }
@@ -67,9 +77,13 @@ private class AwsEventStreamSourceTests {
             source.close()
             assertEquals(1, short.closes)
             val broken = MessageTestSource([])
-            broken.failRead = true; broken.failClose = true
+            broken.failRead = true;
+            broken.failClose = true
             val failed = AwsEventStreamSource.takeOwnership(broken)
-            val error = expectMessageFailure<ResourceUseException> suspend { failed.useAsync suspend { stream -> stream.next() } }
+            val error =
+                expectMessageFailure<ResourceUseException> suspend {
+                    failed.useAsync suspend { stream -> stream.next() }
+                }
             assertTrue(error.primaryFailure is TransportFailure)
             assertTrue(error.cleanupFailure is CleanupFailure)
             assertTrue(failed.failure!! is TransportFailure)

@@ -9,11 +9,19 @@ import scoop.platform.memory.NativeByteBuffer
 private fun exerciseConsumer(args: Array<String>) {
     check(args.size == 2L)
     val path = Path.fromString(args[1L])
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope -> runHttp1(loop, scope, path); runHttp2(loop, scope) }
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope ->
+        runHttp1(loop, scope, path);
+        runHttp2(loop, scope)
+    }
 }
 
-fun check(value: Boolean) { if (!value) throw IllegalStateException() }
+fun check(value: Boolean) {
+    if (!value)
+        throw IllegalStateException()
+}
+
 suspend fun checkEmpty(source: AsyncByteSource) {
     NativeByteBuffer.allocate(1L).use suspend { buffer -> check(source.readInto(buffer, 1L) == 0L) }
 }
@@ -25,10 +33,16 @@ class Gate {
         open = true
         val ready = waiters.toArray()
         waiters.clear()
-        for (waiter in ready) waiter.resume(Unit)
+        for (waiter in ready)
+            waiter.resume(Unit)
     }
     suspend fun await() {
-        suspendCoroutine<Unit> { next -> if (open) next.resume(Unit) else waiters.add(next) }
+        suspendCoroutine<Unit> {
+            next -> if (open)
+                next.resume(Unit)
+            else
+                waiters.add(next)
+        }
     }
 }
 
@@ -41,6 +55,8 @@ private class ConsumerTests {
             val payload = directory.resolve(Path.fromString("payload.txt"))
             payload.writeText("文件内容\n")
             exerciseConsumer(["consumer", payload.decodeUtf8()])
-        } finally { directory.deleteRecursively() }
+        } finally {
+            directory.deleteRecursively()
+        }
     }
 }

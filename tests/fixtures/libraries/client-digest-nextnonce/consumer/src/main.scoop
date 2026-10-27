@@ -1,4 +1,5 @@
 package scoop.tests
+
 import scoop.asyncio.*
 import scoop.tests.scoop.crypto.testdata.rootPem
 import scoop.crypto.x509.TrustStore
@@ -7,26 +8,36 @@ import scoop.platform.concurrent.Thread
 import scoop.url.Url
 
 private fun exercise(url: Url, trust: TrustStore) {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope ->
         val calls = AtomicLong(0L)
-        val provider = HttpAuthenticator.digest(url.httpOrigin()) suspend { _ ->
-            calls.fetchAdd(1L)
-            HttpPasswordCredentials("Mufasa", "Circle of Life")
-        }
-        withHttpClient(digestConfig(trust, provider)) suspend { client ->
-            client.withResponse(HttpRequest.get(url)) suspend { response ->
+        val provider =
+            HttpAuthenticator.digest(url.httpOrigin()) suspend {
+                _ ->
+                calls.fetchAdd(1L)
+                HttpPasswordCredentials("Mufasa", "Circle of Life")
+            }
+        withHttpClient(digestConfig(trust, provider)) suspend {
+            client ->
+            client.withResponse(HttpRequest.get(url)) suspend {
+                response ->
                 digestCheck(response.authenticationCount == 1L)
-                val next = scope.async<Unit> suspend {
-                    client.withResponse(HttpRequest.get(url.resolve("new"))) suspend { fresh ->
-                        digestCheck(fresh.authenticationCount == 1L && fresh.body.text(4L) == "done")
+                val next =
+                    scope.async<Unit> suspend {
+                        client.withResponse(HttpRequest.get(url.resolve("new"))) suspend {
+                            fresh -> digestCheck(
+                                fresh.authenticationCount == 1L && fresh.body.text(4L) == "done"
+                            )
+                        }
                     }
-                }
                 digestCheck(response.body.text(4L) == "done")
                 next.await()
             }
-            client.withResponse(HttpRequest.get(url.resolve("final"))) suspend { response ->
-                digestCheck(response.authenticationCount == 0L && response.body.text(4L) == "done")
+            client.withResponse(HttpRequest.get(url.resolve("final"))) suspend {
+                response -> digestCheck(
+                    response.authenticationCount == 0L && response.body.text(4L) == "done"
+                )
             }
             digestCheck(calls.load() == 3L)
         }
@@ -35,8 +46,9 @@ private fun exercise(url: Url, trust: TrustStore) {
 
 private fun runMain(args: Array<String>) {
     digestCheck(args.size == 3L)
-    TrustStore.fromPem(rootPem()).use { trust ->
-        Thread.start { exercise(Url.parse(args[1L]), trust) }.use { thread ->
+    TrustStore.fromPem(rootPem()).use {
+        trust -> Thread.start { exercise(Url.parse(args[1L]), trust) }.use {
+            thread ->
             exercise(Url.parse(args[2L]), trust)
             thread.join()
         }
@@ -45,6 +57,11 @@ private fun runMain(args: Array<String>) {
 }
 
 fun main(args: Array<String>) {
-    try { runMain(args) }
-    catch (error: Throwable) { digestReport(error); throw error }
+    try {
+        runMain(args)
+    }
+    catch (error: Throwable) {
+        digestReport(error);
+        throw error
+    }
 }

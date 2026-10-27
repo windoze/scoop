@@ -11,20 +11,24 @@ fun main() {
     val entry = root.resolve(Path.fromString("index.html"))
     val assets = root.resolve(Path.fromString("assets"))
     val notFound: HttpHandler = suspend { _ -> text("Not Found", 404U) }
-    val loop: EventLoop = LibuvEventLoop()
+    val loop: EventLoop = PlatformEventLoop()
 
-    loop.run suspend { scope ->
-        HttpServer.listen(scope) { routes ->
+    loop.run suspend {
+        scope -> HttpServer.listen(scope) {
+            routes ->
             routes.get("/hello", suspend { _ -> text("Hello, Scoop!") })
 
             routes.get("/api", notFound)
-            routes.group("/api") { api ->
+            routes.group("/api") {
+                api ->
                 api.get("/", notFound)
-                api.group("/v1") { v1 ->
+                api.group("/v1") {
+                    v1 ->
                     v1.get("/status", suspend { _ -> text("ok") })
-                    v1.get("/users/{id}", suspend { ctx ->
-                        text("user:" + ctx.pathParams.text("id"))
-                    })
+                    v1.get(
+                        "/users/{id}",
+                        suspend { ctx -> text("user:" + ctx.pathParams.text("id")) }
+                    )
                 }
                 // A group fallback alone would not override the root SPA wildcard.
                 api.get("/{*path}", notFound)
@@ -37,11 +41,18 @@ fun main() {
 
             // The terminal wildcard does not match an empty root suffix.
             routes.get("/", suspend { _ -> file(entry) })
-            routes.get("/{*path}", staticFiles(root, StaticFileOptions(
-                indexDocument = Some("index.html"),
-                fallbackFile = Some(entry)
-            )))
-        }.useAsync suspend { server ->
+            routes.get(
+                "/{*path}",
+                staticFiles(
+                    root,
+                    StaticFileOptions(
+                        indexDocument = Some("index.html"),
+                        fallbackFile = Some(entry)
+                    )
+                )
+            )
+        }.useAsync suspend {
+            server ->
             println("Listening at http://" + server.localAddress.toString())
             server.awaitTermination()
         }

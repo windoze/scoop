@@ -4,7 +4,7 @@
 
 ## 1. 分层与后端
 
-库显式依赖 core、std、json，提供内存中的密码、密钥、证书和 JWS 操作，不依赖 platform、asyncio、libssl 或 libuv。文件、网络、系统 CA、在线 JWKS 和 claims 策略由调用者负责。安全随机与密钥生成使用系统熵。
+库显式依赖 core、std、json，提供内存中的密码、密钥、证书和 JWS 操作，不依赖 platform、asyncio 或 libssl。文件、网络、系统 CA、在线 JWKS 和 claims 策略由调用者负责。安全随机与密钥生成使用系统熵。
 
 三个目标统一使用 OpenSSL 3.5.9 LTS，Apache-2.0 许可证。上游完整源码归档位于 `sysroot/vendor/openssl/`，普通准备脚本 `scripts/build_openssl.py --target <triple>` 在仓库外构建；选项和来源见 vendor README。使用上游默认 provider、正常汇编与线程支持，关闭动态模块、engine、自动配置加载及共享库。不在运行时搜索或替换后端，不调用进程级 OPENSSL_cleanup。
 

@@ -167,7 +167,3 @@ int scoop_io_loop_destroy(ScoopIoLoop *loop) {
     free(loop);
     return -error;
 }
-
-ScoopIoEvent scoop_io_status_error(int status) {
-    return (ScoopIoEvent){.kind = SCOOP_IO_POSIX_ERROR, .code = -status};
-}

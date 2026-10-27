@@ -14,9 +14,14 @@ private class RequestBodyLifecycleTest {
         source.holdClose = true
         val output = BodyTestSink()
         val body = RequestBody.fromSourceFactory suspend { source }
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
-            val sending = scope.launch suspend { body.writeTo(output); Unit }
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
+            val sending =
+                scope.launch suspend {
+                    body.writeTo(output);
+                    Unit
+                }
             source.started.await()
             try {
                 sending.cancel()
@@ -24,14 +29,18 @@ private class RequestBodyLifecycleTest {
                 assertEquals(0L, source.closes)
                 assertFalse(source.buffer!!.isClosed)
                 gcCollect()
-            } finally { source.release.signal() }
+            } finally {
+                source.release.signal()
+            }
             source.closeStarted.await()
             try {
                 assertFalse(sending.isCompleted)
                 assertEquals(3L, source.position)
                 assertEquals(0L, output.bytes.size)
                 assertTrue(source.buffer!!.isClosed)
-            } finally { source.closeRelease.signal() }
+            } finally {
+                source.closeRelease.signal()
+            }
             sending.join()
             assertTrue(sending.isCancelled)
             assertEquals(1L, source.closes)
@@ -43,12 +52,18 @@ private class RequestBodyLifecycleTest {
     fun `already cancelled entry leaves a single source available for a later call`() {
         val source = BodyTestSource("later".toByteArray())
         val body = RequestBody.fromSource(source)
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
-            try { coroutineScope<Unit> suspend { scope ->
-                scope.job.cancel()
-                expectBodyFailure<CancellationException> suspend { body.writeTo(BodyTestSink()) }
-            } } catch (_: CancellationException) {}
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
+            try {
+                coroutineScope<Unit> suspend {
+                    scope ->
+                    scope.job.cancel()
+                    expectBodyFailure<CancellationException> suspend {
+                        body.writeTo(BodyTestSink())
+                    }
+                }
+            } catch (_: CancellationException) {}
             assertEquals(0L, source.reads)
             assertEquals("later", bodyText(body))
         }
@@ -59,14 +74,19 @@ private class RequestBodyLifecycleTest {
         val source = BodyTestSource("once".toByteArray())
         source.holdRead = true
         val body = RequestBody.fromSource(source)
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val first = scope.async suspend { bodyText(body) }
             source.started.await()
             try {
-                expectBodyFailure<RequestBodyConsumedException> suspend { body.writeTo(BodyTestSink()) }
+                expectBodyFailure<RequestBodyConsumedException> suspend {
+                    body.writeTo(BodyTestSink())
+                }
                 assertEquals(1L, source.reads)
-            } finally { source.release.signal() }
+            } finally {
+                source.release.signal()
+            }
             assertEquals("once", first.await())
         }
     }
@@ -75,23 +95,31 @@ private class RequestBodyLifecycleTest {
     fun `a producer cannot overlap output operations while a short write is suspended`() {
         val output = BodyTestSink()
         output.holdWrite = true
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
-            val body = RequestBody.fromProducer(Some(1L)) suspend { sink ->
-                coroutineScope<Unit> suspend { scope ->
-                    val writing = scope.launch suspend { writeBodyText(sink, "x") }
-                    output.started.await()
-                    try {
-                        expectBodyFailure<IllegalStateException> suspend { sink.flush() }
-                        NativeByteBuffer.allocate(1L).use suspend { buffer ->
-                            buffer.writeByte(9)
-                            expectBodyFailure<IllegalStateException> suspend { sink.writeFrom(buffer, 1L) }
-                            assertEquals(1L, buffer.readableBytes)
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
+            val body =
+                RequestBody.fromProducer(Some(1L)) suspend {
+                    sink -> coroutineScope<Unit> suspend {
+                        scope ->
+                        val writing = scope.launch suspend { writeBodyText(sink, "x") }
+                        output.started.await()
+                        try {
+                            expectBodyFailure<IllegalStateException> suspend { sink.flush() }
+                            NativeByteBuffer.allocate(1L).use suspend {
+                                buffer ->
+                                buffer.writeByte(9)
+                                expectBodyFailure<IllegalStateException> suspend {
+                                    sink.writeFrom(buffer, 1L)
+                                }
+                                assertEquals(1L, buffer.readableBytes)
+                            }
+                        } finally {
+                            output.release.signal()
                         }
-                    } finally { output.release.signal() }
-                    writing.join()
+                        writing.join()
+                    }
                 }
-            }
             assertEquals(1L, body.writeTo(output))
             assertEquals("x", String.fromUtf8(output.bytes.toByteArray()))
         }
@@ -102,19 +130,27 @@ private class RequestBodyLifecycleTest {
         assertFailsWith<IllegalArgumentException> {
             RequestBody.fromSource(BodyTestSource("x".toByteArray()), Some(-1L))
         }
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             val zero = BodyTestSink()
             zero.zero = true
-            expectBodyFailure<WriteZeroException> suspend { RequestBody.fromText("x").writeTo(zero) }
-            val caught = RequestBody.fromProducer suspend { sink ->
-                try { writeBodyText(sink, "x") }
-                catch (_: WriteZeroException) {}
+            expectBodyFailure<WriteZeroException> suspend {
+                RequestBody.fromText("x").writeTo(zero)
             }
+            val caught =
+                RequestBody.fromProducer suspend {
+                    sink -> try {
+                        writeBodyText(sink, "x")
+                    }
+                    catch (_: WriteZeroException) {}
+                }
             expectBodyFailure<WriteZeroException> suspend { caught.writeTo(zero) }
             val invalid = BodyTestSink()
             invalid.invalidProgress = true
-            expectBodyFailure<IllegalStateException> suspend { RequestBody.fromText("xy").writeTo(invalid) }
+            expectBodyFailure<IllegalStateException> suspend {
+                RequestBody.fromText("xy").writeTo(invalid)
+            }
             assertEquals("xy", String.fromUtf8(invalid.bytes.toByteArray()))
         }
     }

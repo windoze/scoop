@@ -9,27 +9,45 @@ import scoop.time.Duration
 private class HttpClientCancellationTest {
     @Test
     fun `caller cancellation and concurrent client close wait for owned source cleanup`() {
-        clientTestTrust().use { trust ->
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { scope ->
-                clientTestListen(loop).useAsync suspend { listener ->
+        clientTestTrust().use {
+            trust ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                scope -> clientTestListen(loop).useAsync suspend {
+                    listener ->
                     val source = BodyTestSource("late".toByteArray())
-                    source.holdRead = true; source.holdClose = true
+                    source.holdRead = true;
+                    source.holdClose = true
                     val serverDone = BodyTestGate()
-                    val serving = scope.launch suspend {
-                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
-                            connection.receiveRequest()
-                            serverDone.await()
+                    val serving =
+                        scope.launch suspend {
+                            AsyncHttp1Connection.takeOwnershipAsServer(
+                                listener.accept(),
+                                scope
+                            ).useAsync suspend {
+                                connection ->
+                                connection.receiveRequest()
+                                serverDone.await()
+                            }
                         }
-                    }
                     val client = HttpClient.open(scope, clientTestConfig(trust))
                     val failure = ClientTestFailureHolder()
-                    val executing = scope.launch suspend {
-                        try {
-                            client.execute(HttpRequest.post(clientTestUrl(listener), RequestBody.fromSourceFactory suspend { source })).close()
-                            throw IllegalStateException(Some("cancelled call completed successfully"))
-                        } catch (error: Throwable) { failure.value = Some(error) }
-                    }
+                    val executing =
+                        scope.launch suspend {
+                            try {
+                                client.execute(
+                                    HttpRequest.post(
+                                        clientTestUrl(listener),
+                                        RequestBody.fromSourceFactory suspend { source }
+                                    )
+                                ).close()
+                                throw IllegalStateException(
+                                    Some("cancelled call completed successfully")
+                                )
+                            } catch (error: Throwable) {
+                                failure.value = Some(error)
+                            }
+                        }
                     source.started.await()
                     executing.cancel()
                     val first = scope.launch suspend { client.close() }
@@ -39,7 +57,9 @@ private class HttpClientCancellationTest {
                     source.closeStarted.await()
                     assertFalse(first.isCompleted || second.isCompleted || executing.isCompleted)
                     source.closeRelease.signal()
-                    executing.join(); first.join(); second.join()
+                    executing.join();
+                    first.join();
+                    second.join()
                     assertTrue(failure.value!! is CancellationException)
                     assertTrue(client.isClosed)
                     assertEquals(1L, source.closes)
@@ -54,18 +74,29 @@ private class HttpClientCancellationTest {
 
     @Test
     fun `client closes from a cancelled finally and a later connection failure does not poison the parent`() {
-        clientTestTrust().use { trust ->
-            val loop: EventLoop = LibuvEventLoop()
-            loop.run suspend { scope ->
+        clientTestTrust().use {
+            trust ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                scope ->
                 val started = BodyTestGate()
                 val closed = BodyTestGate()
-                val task = scope.launch suspend {
-                    coroutineScope suspend { child ->
-                        val client = HttpClient.open(child, clientTestConfig(trust))
-                        try { started.signal(); loop.sleep(Duration.seconds(100L)) }
-                        finally { client.close(); closed.signal(); assertTrue(client.isClosed) }
+                val task =
+                    scope.launch suspend {
+                        coroutineScope suspend {
+                            child ->
+                            val client = HttpClient.open(child, clientTestConfig(trust))
+                            try {
+                                started.signal();
+                                loop.sleep(Duration.seconds(100L))
+                            }
+                            finally {
+                                client.close();
+                                closed.signal();
+                                assertTrue(client.isClosed)
+                            }
+                        }
                     }
-                }
                 started.await()
                 task.cancel()
                 closed.await()
@@ -73,8 +104,11 @@ private class HttpClientCancellationTest {
                 val listener = clientTestListen(loop)
                 val url = clientTestUrl(listener)
                 listener.close()
-                withHttpClient(clientTestConfig(trust)) suspend { client ->
-                    expectBodyFailure<Throwable> suspend { client.execute(HttpRequest.get(url)); Unit }
+                withHttpClient(clientTestConfig(trust)) suspend {
+                    client -> expectBodyFailure<Throwable> suspend {
+                        client.execute(HttpRequest.get(url));
+                        Unit
+                    }
                 }
                 assertFalse(scope.job.isCancelled)
             }

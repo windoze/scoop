@@ -7,38 +7,53 @@ import scoop.test.*
 private class NdjsonLifetimeTests {
     @Test
     fun `NDJSON construction wrong loop and precancellation leave the input usable`() {
-        val loop: EventLoop = LibuvEventLoop()
-        val other: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        val loop: EventLoop = PlatformEventLoop()
+        val other: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val input = MessageTestSource("a\n".toByteArray())
-            assertFailsWith<IllegalArgumentException> { NdjsonSource.takeOwnership(input, maxRecordBytes = -1L) }
-            assertFailsWith<IllegalArgumentException> { NdjsonSource.takeOwnership(input, bufferSize = 0L) }
-            val source = NdjsonSource(input)
-            val cancelled = scope.launch suspend {
-                currentJobOrNone()!!.cancel()
-                expectMessageFailure<CancellationException> suspend { NdjsonSource.takeOwnership(input) }
-                expectMessageFailure<CancellationException> suspend { source.next() }
+            assertFailsWith<IllegalArgumentException> {
+                NdjsonSource.takeOwnership(input, maxRecordBytes = -1L)
             }
+            assertFailsWith<IllegalArgumentException> {
+                NdjsonSource.takeOwnership(input, bufferSize = 0L)
+            }
+            val source = NdjsonSource(input)
+            val cancelled =
+                scope.launch suspend {
+                    currentJobOrNone()!!.cancel()
+                    expectMessageFailure<CancellationException> suspend {
+                        NdjsonSource.takeOwnership(input)
+                    }
+                    expectMessageFailure<CancellationException> suspend { source.next() }
+                }
             cancelled.join()
-            expectMessageFailure<IllegalStateException> suspend { context(other) { source.next() } }
+            expectMessageFailure<IllegalStateException> suspend {
+                context(other) {
+                    source.next()
+                }
+            }
             assertEquals(0, input.reads)
             assertEquals(0, input.closes)
             assertFalse(present(source.failure))
             assertEquals(Some("a"), source.next())
-            source.close(); input.close()
+            source.close();
+            input.close()
         }
     }
 
     @Test
     fun `NDJSON concurrent readers fail locally and owning close waits for the actual native borrow`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val pending = PendingMessageSource()
             val source = NdjsonSource.takeOwnership(pending, bufferSize = 4L)
-            val reader = scope.launch suspend {
-                expectMessageFailure<CancellationException> suspend { source.next() }
-                ensureActive()
-            }
+            val reader =
+                scope.launch suspend {
+                    expectMessageFailure<CancellationException> suspend { source.next() }
+                    ensureActive()
+                }
             try {
                 assertTrue(pending.running)
                 expectMessageFailure<IllegalStateException> suspend { source.next() }
@@ -50,12 +65,15 @@ private class NdjsonLifetimeTests {
                 assertEquals(0, pending.closes)
                 assertFailsWith<IllegalStateException> { pending.buffer!!.clear() }
                 pending.complete()
-                reader.join(); first.join(); second.join()
+                reader.join();
+                first.join();
+                second.join()
                 assertFalse(reader.isCancelled)
                 assertTrue(pending.buffer!!.isClosed && source.isClosed)
                 assertEquals(1, pending.closes)
             } finally {
-                if (pending.running) pending.complete()
+                if (pending.running)
+                    pending.complete()
                 source.close()
             }
         }
@@ -63,9 +81,9 @@ private class NdjsonLifetimeTests {
 
     @Test
     fun `NDJSON inconsistent source progress fails before record decoding`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
-            for (mode in [1, 2, 3, 4]) {
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ -> for (mode in [1, 2, 3, 4]) {
                 val input = MessageTestSource([])
                 input.badProgress = mode
                 val source = NdjsonSource.takeOwnership(input)

@@ -11,36 +11,77 @@ import scoop.test.*
 import scoop.url.Url
 
 internal fun resumeValidation(trust: TrustStore, directory: Path) {
-    LibuvEventLoop().run suspend { _ ->
+    PlatformEventLoop().run suspend {
+        _ ->
         currentEventLoop().createDirectories(directory)
         val target = directory.resolve(Path.fromString("target"))
         val data = directory.resolve(Path.fromString("partial"))
         val metadata = directory.resolve(Path.fromString("metadata"))
         val resume = HttpResumeOptions(data, metadata)
-        assertFailsWith<IllegalArgumentException> { HttpResumeOptions(data, metadata, maxMetadataBytes = 0L) }
-        assertFailsWith<IllegalArgumentException> { HttpResumeOptions(data, metadata, maxMetadataBytes = -1L) }
+        assertFailsWith<IllegalArgumentException> {
+            HttpResumeOptions(data, metadata, maxMetadataBytes = 0L)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            HttpResumeOptions(data, metadata, maxMetadataBytes = -1L)
+        }
         assertFailsWith<IllegalArgumentException> { HttpResumeOptions(data, data) }
         val url = Url.parse("http://127.0.0.1:9/")
         val requests = ArrayList<HttpRequest>()
         requests.add(HttpRequest(url, "POST"))
         requests.add(HttpRequest(url, body = RequestBody.fromText("content")))
-        requests.add(HttpRequest(url, body = RequestBody.fromProducer(contentLength = Some(0L)) suspend { _ -> Unit }))
-        requests.add(HttpRequest(url, body = RequestBody.fromProducerFactory() suspend { suspend { _ -> Unit } }))
-        requests.add(HttpRequest(url, body = RequestBody.fromProducerWithTrailersFactory(["Checksum"], Some(0L)) suspend {
-            suspend { _ -> emptyList<HttpField>() }
-        }))
-        for (name in ["Range", "If-Range", "If-Match", "If-None-Match", "If-Modified-Since", "If-Unmodified-Since"])
+        requests.add(
+            HttpRequest(
+                url,
+                body = RequestBody.fromProducer(contentLength = Some(0L)) suspend { _ -> Unit }
+            )
+        )
+        requests.add(
+            HttpRequest(
+                url,
+                body = RequestBody.fromProducerFactory() suspend { suspend { _ -> Unit } }
+            )
+        )
+        requests.add(
+            HttpRequest(
+                url,
+                body =
+                    RequestBody.fromProducerWithTrailersFactory(["Checksum"], Some(0L)) suspend {
+                        suspend { _ -> emptyList<HttpField>() }
+                    }
+            )
+        )
+        for (
+            name in [
+                "Range",
+                "If-Range",
+                "If-Match",
+                "If-None-Match",
+                "If-Modified-Since",
+                "If-Unmodified-Since"
+            ]
+        )
             requests.add(HttpRequest.get(url, [downloadField(name, "unused")]))
         requests.add(HttpRequest.get(url, [downloadField("Cache-Control", "only-if-cached")]))
-        requests.add(HttpRequest.get(url, options = HttpCallOptions(cacheMode = HttpCacheMode.OnlyIfCached)))
+        requests.add(
+            HttpRequest.get(url, options = HttpCallOptions(cacheMode = HttpCacheMode.OnlyIfCached))
+        )
         requests.add(HttpRequest.get(url, options = HttpCallOptions(duplex = true)))
-        withHttpClient(downloadConfig(trust)) suspend { client ->
+        withHttpClient(downloadConfig(trust)) suspend {
+            client ->
             for (request in requests) {
-                val error = resumeFailure suspend { client.resumeDownload(request, target, resume); Unit }
+                val error =
+                    resumeFailure suspend {
+                        client.resumeDownload(request, target, resume);
+                        Unit
+                    }
                 assertTrue(error is IllegalArgumentException)
             }
             for (path in [data, metadata, Path.fromString("/")]) {
-                val error = resumeFailure suspend { client.resumeDownload(HttpRequest.get(url), path, resume); Unit }
+                val error =
+                    resumeFailure suspend {
+                        client.resumeDownload(HttpRequest.get(url), path, resume);
+                        Unit
+                    }
                 assertTrue(error is IllegalArgumentException)
             }
         }
@@ -49,16 +90,30 @@ internal fun resumeValidation(trust: TrustStore, directory: Path) {
 }
 
 internal fun resumeEmptyProducer(trust: TrustStore, directory: Path) {
-    resumeWithServer(directory, "producer", 1L) suspend { _, _, url, _ ->
+    resumeWithServer(directory, "producer", 1L) suspend {
+        _, _, url, _ ->
         val factories = AtomicLong(0L)
         val writes = AtomicLong(0L)
-        val body: RequestBody = RequestBody.fromProducerFactory(Some(0L)) suspend {
-            factories.fetchAdd(1L);
-            suspend { _ -> writes.fetchAdd(1L); Unit }
-        }
-        withHttpClient(downloadConfig(trust)) suspend { client ->
-            val result = client.resumeDownload(HttpRequest(url, body = body), directory.resolve(Path.fromString("result")),
-                HttpResumeOptions(directory.resolve(Path.fromString("partial")), directory.resolve(Path.fromString("metadata"))))
+        val body: RequestBody =
+            RequestBody.fromProducerFactory(Some(0L)) suspend {
+                factories.fetchAdd(1L);
+                suspend {
+                    _ ->
+                    writes.fetchAdd(1L);
+                    Unit
+                }
+            }
+        withHttpClient(downloadConfig(trust)) suspend {
+            client ->
+            val result =
+                client.resumeDownload(
+                    HttpRequest(url, body = body),
+                    directory.resolve(Path.fromString("result")),
+                    HttpResumeOptions(
+                        directory.resolve(Path.fromString("partial")),
+                        directory.resolve(Path.fromString("metadata"))
+                    )
+                )
             assertEquals(4L, result.byteCount)
             assertEquals(1L, factories.load())
             assertEquals(1L, writes.load())

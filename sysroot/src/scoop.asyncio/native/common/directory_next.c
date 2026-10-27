@@ -19,8 +19,8 @@ static void execute_next(ScoopIoWork *native) {
     }
     char *copy = strdup(name);
     if (!copy) {
-        event->kind = SCOOP_IO_UV_ERROR;
-        event->code = -ENOMEM;
+        event->kind = SCOOP_IO_POSIX_ERROR;
+        event->code = ENOMEM;
         return;
     }
     event->kind = SCOOP_IO_DIRECTORY_NAME;

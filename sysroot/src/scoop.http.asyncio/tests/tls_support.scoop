@@ -9,47 +9,98 @@ import scoop.test.*
 import scoop.tls.*
 import scoop.tls.asyncio.*
 
-internal fun alpnBytes(bytes: Array<Byte>?): List<Byte>? = when (bytes) {
-    case Some(value) -> Some(value)
-    case None -> None
-}
-
-internal fun clientContext(options: TlsOptions): TlsClientContext = Certificate.fromPem(rootPem()).use { root ->
-    TrustStore.fromCertificates([root]).use { store -> TlsClientContext(store, options) }
-}
-
-internal fun serverContext(options: TlsOptions): TlsServerContext = Certificate.fromPem(serverPem()).use { leaf ->
-    Certificate.fromPem(intermediatePem()).use { intermediate ->
-        PrivateKey.fromPem(serverKeyPem()).use { key -> TlsServerContext([leaf, intermediate], key, options) }
+internal fun alpnBytes(bytes: Array<Byte>?): List<Byte>? =
+    when (bytes) {
+        case Some(value) -> Some(value)
+        case None -> None
     }
-}
 
-internal suspend fun tlsPair(scope: CoroutineScope, a: ObservedTransport, b: ObservedTransport,
-    options: TlsOptions): (AsyncTlsStream, AsyncTlsStream) {
+internal fun clientContext(options: TlsOptions): TlsClientContext =
+    Certificate.fromPem(rootPem()).use {
+        root -> TrustStore.fromCertificates([root]).use {
+            store -> TlsClientContext(store, options)
+        }
+    }
+
+internal fun serverContext(options: TlsOptions): TlsServerContext =
+    Certificate.fromPem(serverPem()).use {
+        leaf -> Certificate.fromPem(intermediatePem()).use {
+            intermediate -> PrivateKey.fromPem(serverKeyPem()).use {
+                key -> TlsServerContext([leaf, intermediate], key, options)
+            }
+        }
+    }
+
+internal suspend fun tlsPair(
+    scope: CoroutineScope,
+    a: ObservedTransport,
+    b: ObservedTransport,
+    options: TlsOptions
+): (AsyncTlsStream, AsyncTlsStream) {
     val clientConfig = clientContext(options)
     val serverConfig = serverContext(options)
     try {
-        val accepting = scope.async<AsyncTlsStream> suspend { AsyncTlsStream.takeOwnershipAsServer(b, serverConfig) }
-        val client = AsyncTlsStream.takeOwnershipAsClient(a, clientConfig, TlsPeerName.Dns("localhost"))
-        try { return (client, accepting.await()) }
-        catch (error: Throwable) { client.close(); throw error }
-    } finally { clientConfig.close(); serverConfig.close() }
+        val accepting =
+            scope.async<AsyncTlsStream> suspend {
+                AsyncTlsStream.takeOwnershipAsServer(b, serverConfig)
+            }
+        val client =
+            AsyncTlsStream.takeOwnershipAsClient(a, clientConfig, TlsPeerName.Dns("localhost"))
+        try {
+            return (client, accepting.await())
+        }
+        catch (error: Throwable) {
+            client.close();
+            throw error
+        }
+    } finally {
+        clientConfig.close();
+        serverConfig.close()
+    }
 }
 
 internal fun withTlsHttp2(block: suspend (CoroutineScope, H2Pair) -> Unit) {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
-        val (a, b) = rawPair(loop, scope)
-        val (tlsClient, tlsServer) = tlsPair(scope, a, b,
-            TlsOptions(alpn = ["h2".toByteArray(), "http/1.1".toByteArray()]))
-        assertTrue(selectHttpAlpn(alpnBytes(tlsClient.connectionInfo.alpn), [HttpProtocol.Http1, HttpProtocol.Http2]) == HttpProtocol.Http2)
-        assertTrue(selectHttpAlpn(alpnBytes(tlsServer.connectionInfo.alpn), [HttpProtocol.Http1, HttpProtocol.Http2]) == HttpProtocol.Http2)
-        val first = NoticeLog(); val second = NoticeLog()
-        val client = AsyncHttp2Connection.takeOwnershipAsClient(tlsClient, scope, onEvent = { event -> first.receive(event) })
-        val server = AsyncHttp2Connection.takeOwnershipAsServer(tlsServer, scope, onEvent = { event -> second.receive(event) })
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope ->
+        val(a, b) = rawPair(loop, scope)
+        val(tlsClient, tlsServer) =
+            tlsPair(scope, a, b, TlsOptions(alpn = ["h2".toByteArray(), "http/1.1".toByteArray()]))
+        assertTrue(
+            selectHttpAlpn(
+                alpnBytes(tlsClient.connectionInfo.alpn),
+                [HttpProtocol.Http1, HttpProtocol.Http2]
+            ) ==
+                HttpProtocol.Http2
+        )
+        assertTrue(
+            selectHttpAlpn(
+                alpnBytes(tlsServer.connectionInfo.alpn),
+                [HttpProtocol.Http1, HttpProtocol.Http2]
+            ) ==
+                HttpProtocol.Http2
+        )
+        val first = NoticeLog();
+        val second = NoticeLog()
+        val client =
+            AsyncHttp2Connection.takeOwnershipAsClient(
+                tlsClient,
+                scope,
+                onEvent = { event -> first.receive(event) }
+            )
+        val server =
+            AsyncHttp2Connection.takeOwnershipAsServer(
+                tlsServer,
+                scope,
+                onEvent = { event -> second.receive(event) }
+            )
         try {
-            first.settings.await(); second.settings.await()
+            first.settings.await();
+            second.settings.await()
             block(scope, H2Pair(client, server, a, b, first, second))
-        } finally { client.close(); server.close() }
+        } finally {
+            client.close();
+            server.close()
+        }
     }
 }

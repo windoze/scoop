@@ -46,7 +46,8 @@ def collect(root, repository, source, host, native, targets):
         add("Rust-std-" + target, "See included documents", sorted(notices.iterdir()))
     for vendor in (repository / "sysroot/vendor").iterdir():
         if vendor.is_dir() and vendor.name != "llvm-project":
-            add(vendor.name, "See included documents", license_files(vendor))
+            license_root = vendor / "2.15" if vendor.name == "liburing" else vendor
+            add(vendor.name, "See included documents", license_files(license_root))
             if vendor.name == "text_backend":
                 for package in json.loads((vendor / "packages.json").read_text()):
                     name = package["name"] + "-" + package["version"]

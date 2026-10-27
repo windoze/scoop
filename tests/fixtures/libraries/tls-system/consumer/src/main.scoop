@@ -1,4 +1,5 @@
 package scoop.tests
+
 import scoop.asyncio.*
 import scoop.tests.scoop.crypto.testdata.*
 import scoop.platform.concurrent.Thread
@@ -9,59 +10,94 @@ import scoop.tls.asyncio.openTlsClientContext
 import scoop.tls.native.TlsEngine
 
 fun check(value: Boolean, location: SourceLocation = currentSourceLocation()) {
-    if (!value) throw IllegalStateException(Some("system trust assertion at " + location.file + ":" + location.line.toString()))
+    if (!value)
+        throw IllegalStateException(
+            Some("system trust assertion at " + location.file + ":" + location.line.toString())
+        )
 }
 
 fun main() {
-    val worker = Thread.start {
-        for (version in [TlsVersion.Tls12, TlsVersion.Tls13])
-            withPeer(version) { port -> communicate(port, version, false) }
-    }
+    val worker =
+        Thread.start {
+            for (version in [TlsVersion.Tls12, TlsVersion.Tls13])
+                withPeer(version) { port -> communicate(port, version, false) }
+        }
     try {
         for (version in [TlsVersion.Tls12, TlsVersion.Tls13])
             withPeer(version) { port -> communicate(port, version, true) }
-    } finally { worker.join() }
-    println("System TLS verification composes synchronous and native-worker paths with independent mTLS")
+    } finally {
+        worker.join()
+    }
+    println(
+        "System TLS verification composes synchronous and native-worker paths with independent mTLS"
+    )
 }
 
 private fun communicate(port: Int, version: TlsVersion, asynchronous: Boolean) {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { _ ->
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        _ ->
         val identity = TlsIdentity.fromPem(clientPem() + intermediatePem(), serverKeyPem())
         val options = TlsOptions(version, version)
-        val context = try {
-            if (asynchronous) openTlsClientContext(TlsTrustSource.System, options, Some(identity))
-            else TlsClientContext(TlsTrustSource.System, options, Some(identity))
-        } finally { identity.close() }
-        val engine = try { TlsEngine.client(context, TlsPeerName.Dns("localhost")) }
-        finally { context.close() }
+        val context =
+            try {
+                if (asynchronous)
+                    openTlsClientContext(TlsTrustSource.System, options, Some(identity))
+                else
+                    TlsClientContext(TlsTrustSource.System, options, Some(identity))
+            } finally {
+                identity.close()
+            }
+        val engine =
+            try {
+                TlsEngine.client(context, TlsPeerName.Dns("localhost"))
+            }
+            finally {
+                context.close()
+            }
         try {
-            loop.connectTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, port)).useAsync suspend { transport ->
+            loop.connectTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, port)).useAsync suspend {
+                transport ->
                 val pump = EnginePump(engine, transport, loop, asynchronous)
                 try {
                     pump.drive(0, None)
                     check(engine.connectionInfo.version == version)
-                    NativeByteBuffer.allocate(4L).use suspend { bytes ->
+                    NativeByteBuffer.allocate(4L).use suspend {
+                        bytes ->
                         bytes.writeBytes("mtls".toByteArray())
-                        @Unsafe {
+                        @Unsafe
+                        {
                             val write = bytes.borrowReadable(4L)
-                            try { check(pump.drive(2, Some(write)) == 4L) }
-                            finally { write.complete(pump.progress) }
+                            try {
+                                check(pump.drive(2, Some(write)) == 4L)
+                            }
+                            finally {
+                                write.complete(pump.progress)
+                            }
                         }
                         bytes.clear()
                         while (bytes.writableBytes > 0L) {
-                            @Unsafe {
+                            @Unsafe
+                            {
                                 val read = bytes.borrowWritable(bytes.writableBytes)
-                                try { check(pump.drive(1, Some(read)) > 0L) }
-                                finally { read.complete(pump.progress) }
+                                try {
+                                    check(pump.drive(1, Some(read)) > 0L)
+                                }
+                                finally {
+                                    read.complete(pump.progress)
+                                }
                             }
                         }
                         check(String.fromUtf8(bytes.readBytes(4L)) == "peer")
                     }
                     check(pump.verifications == 1)
                     pump.drive(3, None)
-                } finally { pump.close() }
+                } finally {
+                    pump.close()
+                }
             }
-        } finally { engine.close() }
+        } finally {
+            engine.close()
+        }
     }
 }

@@ -1,4 +1,5 @@
 package scoop.tests
+
 import scoop.asyncio.*
 import scoop.tests.scoop.crypto.testdata.rootPem
 import scoop.crypto.x509.TrustStore
@@ -10,12 +11,14 @@ import scoop.tls.TlsTrustSource
 import scoop.url.Url
 
 internal fun retryCheck(value: Boolean) {
-    if (!value) throw IllegalStateException(Some("client retry integration check failed"))
+    if (!value)
+        throw IllegalStateException(Some("client retry integration check failed"))
 }
 
 internal suspend fun retryWrite(output: AsyncByteSink, text: String) {
     val bytes = text.toByteArray()
-    NativeByteBuffer.allocate(bytes.size).use suspend { buffer ->
+    NativeByteBuffer.allocate(bytes.size).use suspend {
+        buffer ->
         buffer.writeBytes(bytes)
         output.writeFully(buffer)
     }
@@ -23,20 +26,39 @@ internal suspend fun retryWrite(output: AsyncByteSink, text: String) {
 
 private fun exercise(mode: String, url: Url, trust: TrustStore) {
     val h2 = mode == "refused" || mode == "goaway"
-    val retries = HttpRetryOptions(maxRetries = if (mode == "status") 0L else 2L,
-        initialDelay = Duration.ZERO, maxDelay = Duration.ZERO, jitter = false)
-    val config = HttpClientConfig(
-        cleartext = if (h2) HttpCleartextProtocol.Http2PriorKnowledge else HttpCleartextProtocol.Http1,
-        tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)), retries = retries,
-        pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L))
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
-        withHttpClient(config) suspend { client ->
-            when (mode) {
+    val retries =
+        HttpRetryOptions(
+            maxRetries =
+                if (mode == "status")
+                    0L
+                else
+                    2L,
+            initialDelay = Duration.ZERO,
+            maxDelay = Duration.ZERO,
+            jitter = false
+        )
+    val config =
+        HttpClientConfig(
+            cleartext =
+                if (h2)
+                    HttpCleartextProtocol.Http2PriorKnowledge
+                else
+                    HttpCleartextProtocol.Http1,
+            tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+            retries = retries,
+            pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L)
+        )
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope ->
+        withHttpClient(config) suspend {
+            client -> when (mode) {
                 case "replay" -> retryReplay(client, url)
                 case "refused" -> retryRefused(client, url)
-                case "goaway" -> client.withResponse(HttpRequest.get(url)) suspend { response ->
-                    retryCheck(response.retryCount == 1L && response.body.text(4L) == "done")
+                case "goaway" -> client.withResponse(HttpRequest.get(url)) suspend {
+                    response -> retryCheck(
+                        response.retryCount == 1L && response.body.text(4L) == "done"
+                    )
                 }
                 case "status" -> retryStatus(client, url)
                 case "post" -> retryPost(client, url)
@@ -51,9 +73,11 @@ private fun exercise(mode: String, url: Url, trust: TrustStore) {
 fun main(args: Array<String>) {
     retryCheck(args.size == 4L)
     val mode = args[1L]
-    val first = Url.parse(args[2L]); val second = Url.parse(args[3L])
-    TrustStore.fromPem(rootPem()).use { trust ->
-        Thread.start { exercise(mode, first, trust) }.use { thread ->
+    val first = Url.parse(args[2L]);
+    val second = Url.parse(args[3L])
+    TrustStore.fromPem(rootPem()).use {
+        trust -> Thread.start { exercise(mode, first, trust) }.use {
+            thread ->
             exercise(mode, second, trust)
             thread.join()
         }

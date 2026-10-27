@@ -1,4 +1,5 @@
 package test
+
 import scoop.asyncio.*
 import scoop.platform.io.standardOutput
 import scoop.terminal.*
@@ -9,16 +10,25 @@ import scoop.terminal.screen.SetTitle
 import scoop.time.Duration
 
 fun main() {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
-        AsyncTerminalSession.open(loop).useAsync suspend { session ->
-            @Unsafe { check(redirect() == 0, "redirect stdin/stdout") }
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope -> AsyncTerminalSession.open(loop).useAsync suspend {
+            session ->
+            @Unsafe
+            {
+                check(redirect() == 0, "redirect stdin/stdout")
+            }
             try {
                 basic(session)
                 failures(session)
                 queued(session)
                 cancelled(loop, scope, session)
-            } finally { @Unsafe { check(restore() == 0, "restore stdin/stdout") } }
+            } finally {
+                @Unsafe
+                {
+                    check(restore() == 0, "restore stdin/stdout")
+                }
+            }
         }
     }
     standardOutput.execute(SetTitle("query-finished"))
@@ -59,7 +69,10 @@ suspend fun queued(session: AsyncTerminalSession) {
         stage(session, "query-late-queued")
         check(session.poll(Duration.seconds(1L)), "key ahead of stale replies")
         stage(session, "query-fresh-cursor")
-        check(session.cursorPosition() == CursorPosition(2L, 1L), "stale reply completed a new query")
+        check(
+            session.cursorPosition() == CursorPosition(2L, 1L),
+            "stale reply completed a new query"
+        )
         check(session.isRawMode(), "query changed an existing raw scope")
         expect(session, key('x'))
         check(!session.poll(Duration.ZERO), "device reply escaped as user input")

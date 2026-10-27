@@ -115,6 +115,9 @@ private class EventLoopHostProgressTest {
         }
         while (!progress.started)
             host.step()
+        // Enter the receive, then publish its SQE or finish its source registration.
+        host.step()
+        host.step()
         gcCollect()
         Thread.start {
             session.requestClose()

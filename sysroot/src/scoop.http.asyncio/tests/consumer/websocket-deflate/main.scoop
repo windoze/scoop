@@ -10,73 +10,115 @@ import scoop.text.toInt
 import scoop.time.Duration
 
 class WsProfile(val number: Int, val secure: Boolean) {
-    init { check(number >= 0 && number <= 3) }
+    init {
+        check(number >= 0 && number <= 3)
+    }
     val serverNoContext: Boolean = number == 1 || number == 3
     val clientNoContext: Boolean = number == 2 || number == 3
     val serverWindow: Int = 10 + number % 2
     val clientWindow: Int = 9 + number / 2
-    fun offer(): WebSocketDeflateOffer = WebSocketDeflateOffer(serverNoContext, clientNoContext,
-        Some(serverWindow), WebSocketWindowBits.Limit(clientWindow))
-    fun response(): WebSocketDeflate = WebSocketDeflate(serverNoContext, clientNoContext,
-        Some(serverWindow), Some(clientWindow))
+    fun offer(): WebSocketDeflateOffer =
+        WebSocketDeflateOffer(
+            serverNoContext,
+            clientNoContext,
+            Some(serverWindow),
+            WebSocketWindowBits.Limit(clientWindow)
+        )
+    fun response(): WebSocketDeflate =
+        WebSocketDeflate(serverNoContext, clientNoContext, Some(serverWindow), Some(clientWindow))
 }
 
 fun check(value: Boolean, location: SourceLocation = currentSourceLocation()) {
-    if (!value) throw IllegalStateException(Some("WebSocket compression assertion at " + location.file + ":" + location.line.toString()))
+    if (!value)
+        throw IllegalStateException(
+            Some(
+                "WebSocket compression assertion at " +
+                    location.file +
+                    ":" +
+                    location.line.toString()
+            )
+        )
 }
 
-fun sessionOptions(): WebSocketSessionOptions = WebSocketSessionOptions(
-    WebSocketFrameLimits(dataChunkBytes = 31L), inputBufferBytes = 97L, outgoingFrameBytes = 31L,
-    closeTimeout = Duration.seconds(60L))
+fun sessionOptions(): WebSocketSessionOptions =
+    WebSocketSessionOptions(
+        WebSocketFrameLimits(dataChunkBytes = 31L),
+        inputBufferBytes = 97L,
+        outgoingFrameBytes = 31L,
+        closeTimeout = Duration.seconds(60L)
+    )
 
 private fun exerciseConsumer(args: Array<String>) {
     try {
         if (args.size == 4L) {
             val mode = args[1L]
-            val profile = WsProfile(args[3L].toInt(), mode == "--tls-client" || mode == "--tls-server")
-            if (mode == "--client" || mode == "--tls-client") runClient(args[2L].toInt(), profile)
-            else if (mode == "--server" || mode == "--tls-server") runServer(args[2L].toInt(), profile)
-            else throw IllegalArgumentException(Some("unknown consumer role"))
+            val profile =
+                WsProfile(args[3L].toInt(), mode == "--tls-client" || mode == "--tls-server")
+            if (mode == "--client" || mode == "--tls-client")
+                runClient(args[2L].toInt(), profile)
+            else
+                if (mode == "--server" || mode == "--tls-server")
+                    runServer(args[2L].toInt(), profile)
+                else
+                    throw IllegalArgumentException(Some("unknown consumer role"))
         } else {
             check(args.size == 1L)
             val worker = Thread.start { runPair(WsProfile(2, false)) }
-            try { runPair(WsProfile(1, true)) } finally { worker.join() }
+            try {
+                runPair(WsProfile(1, true))
+            } finally {
+                worker.join()
+            }
         }
-        } catch (error: Exception) {
+    } catch (error: Exception) {
         eprintln(error.message ?: "WebSocket compression consumer failed")
         throw error
     }
 }
 
 private fun runPair(profile: WsProfile) {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope ->
         val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
         try {
-            val serving = scope.launch suspend { serveUpgrade(wsTransport(listener.accept(), profile, true), scope, profile) }
-            useUpgrade(wsTransport(loop.connectTcp(listener.localAddress), profile, false), scope, profile)
+            val serving =
+                scope.launch suspend {
+                    serveUpgrade(wsTransport(listener.accept(), profile, true), scope, profile)
+                }
+            useUpgrade(
+                wsTransport(loop.connectTcp(listener.localAddress), profile, false),
+                scope,
+                profile
+            )
             serving.join()
-        } finally { listener.close() }
+        } finally {
+            listener.close()
+        }
     }
 }
 
 private fun runClient(port: Int, profile: WsProfile) {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope ->
         val raw = loop.connectTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, port))
         useUpgrade(wsTransport(raw, profile, false), scope, profile)
     }
 }
 
 private fun runServer(port: Int, profile: WsProfile) {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope ->
         val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, port))
         try {
             println("PORT|" + listener.localAddress.port.toString())
             flushOutput()
             serveUpgrade(wsTransport(listener.accept(), profile, true), scope, profile)
-        } finally { listener.close() }
+        } finally {
+            listener.close()
+        }
     }
 }
 

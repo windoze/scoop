@@ -6,17 +6,21 @@ import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.net.*
 
 fun main() {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
-        loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
-            val echo = scope.launch suspend {
-                listener.accept().useAsync suspend { stream ->
-                    stream.copyTo(stream, 1024L)
-                    stream.shutdownOutput()
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope -> loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend {
+            listener ->
+            val echo =
+                scope.launch suspend {
+                    listener.accept().useAsync suspend {
+                        stream ->
+                        stream.copyTo(stream, 1024L)
+                        stream.shutdownOutput()
+                    }
                 }
-            }
-            loop.connectTcp(listener.localAddress).useAsync suspend { stream ->
-                NativeByteBuffer.allocate(64L).use suspend { buffer ->
+            loop.connectTcp(listener.localAddress).useAsync suspend {
+                stream -> NativeByteBuffer.allocate(64L).use suspend {
+                    buffer ->
                     val message = "Hello over TCP!".toByteArray()
                     buffer.writeBytes(message)
                     stream.writeFully(buffer)

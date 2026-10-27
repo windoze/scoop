@@ -1,4 +1,5 @@
 package scoop.tests
+
 import scoop.asyncio.*
 import scoop.collections.emptyList
 import scoop.crypto.x509.TrustStore
@@ -11,46 +12,111 @@ import scoop.time.*
 import scoop.tls.TlsTrustSource
 import scoop.url.Url
 
-internal class CacheClock(var value: Instant = Instant.parse("2026-10-20T00:00:00Z")) : Clock {
+internal class CacheClock(var value: Instant = Instant.parse("2026-10-20T00:00:00Z")): Clock {
     public override fun now(): Instant = value
-    fun advance(seconds: Long) { value += Duration.seconds(seconds) }
+    fun advance(seconds: Long) {
+        value += Duration.seconds(seconds)
+    }
 }
+
 internal class CacheGate {
     private var ready: Boolean = false
     private var waiter: Continuation<Unit>? = None
-    fun signal() { ready = true; val saved = waiter; waiter = None; saved?.resume(Unit) }
-    suspend fun await() { suspendCoroutine<Unit> { next -> if (ready) next.resume(Unit) else waiter = Some(next) } }
+    fun signal() {
+        ready = true;
+        val saved = waiter;
+        waiter = None;
+        saved?.resume(Unit)
+    }
+    suspend fun await() {
+        suspendCoroutine<Unit> {
+            next -> if (ready)
+                next.resume(Unit)
+            else
+                waiter = Some(next)
+        }
+    }
 }
-internal class CacheFailure { var value: Throwable? = None }
+
+internal class CacheFailure {
+    var value: Throwable? = None
+}
+
 internal class CacheMarker(val value: String)
+
 context(marker: CacheMarker)
 internal fun cacheMarker(): String = marker.value
-internal fun <T> cachePresent(value: T?): Boolean = when (value) { case Some(_) -> true; case None -> false }
-internal fun cacheField(name: String, value: String): HttpField = HttpField(name.toByteArray(), value.toByteArray())
+
+internal fun <T> cachePresent(value: T?): Boolean =
+    when (value) {
+        case Some(_) -> true;
+        case None -> false
+    }
+
+internal fun cacheField(name: String, value: String): HttpField =
+    HttpField(name.toByteArray(), value.toByteArray())
+
 internal suspend fun cacheWrite(sink: AsyncByteSink, text: String) {
     val bytes = text.toByteArray()
-    NativeByteBuffer.allocate(bytes.size).use suspend { buffer -> buffer.writeBytes(bytes); sink.writeFully(buffer) }
+    NativeByteBuffer.allocate(bytes.size).use suspend {
+        buffer ->
+        buffer.writeBytes(bytes);
+        sink.writeFully(buffer)
+    }
 }
-internal fun cacheConfig(trust: TrustStore, storage: HttpCache, clock: Clock, partition: String? = None,
-    jar: CookieJar? = None, h2: Boolean = false, authentication: HttpAuthenticationOptions = HttpAuthenticationOptions()): HttpClientConfig =
-    HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
-        cache = Some(HttpCacheOptions(storage, partition, clock)), cookieJar = jar, authentication = authentication,
-        cleartext = if (h2) HttpCleartextProtocol.Http2PriorKnowledge else HttpCleartextProtocol.Http1,
-        retries = HttpRetryOptions(maxRetries = 0L), pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L))
-internal suspend fun cacheGet(client: HttpClient, url: Url, body: String, status: HttpCacheStatus,
-    fields: List<HttpField> = emptyList<HttpField>(), options: HttpCallOptions = HttpCallOptions()) {
-    client.withResponse(HttpRequest.get(url, fields, options)) suspend { response ->
+
+internal fun cacheConfig(
+    trust: TrustStore,
+    storage: HttpCache,
+    clock: Clock,
+    partition: String? = None,
+    jar: CookieJar? = None,
+    h2: Boolean = false,
+    authentication: HttpAuthenticationOptions = HttpAuthenticationOptions()
+): HttpClientConfig =
+    HttpClientConfig(
+        tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+        cache = Some(HttpCacheOptions(storage, partition, clock)),
+        cookieJar = jar,
+        authentication = authentication,
+        cleartext =
+            if (h2)
+                HttpCleartextProtocol.Http2PriorKnowledge
+            else
+                HttpCleartextProtocol.Http1,
+        retries = HttpRetryOptions(maxRetries = 0L),
+        pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L)
+    )
+
+internal suspend fun cacheGet(
+    client: HttpClient,
+    url: Url,
+    body: String,
+    status: HttpCacheStatus,
+    fields: List<HttpField> = emptyList<HttpField>(),
+    options: HttpCallOptions = HttpCallOptions()
+) {
+    client.withResponse(HttpRequest.get(url, fields, options)) suspend {
+        response ->
         assertEquals(status, response.cacheStatus)
         assertEquals(200U, response.status)
         assertEquals(body, response.body.text(4096L))
         assertTrue(response.body.isComplete)
     }
 }
-internal fun withCacheRuntime(block: suspend (EventLoop, CoroutineScope, AsyncTcpListener, Url) -> Unit) {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
-        loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
-            block(loop, scope, listener, Url.parse("http://127.0.0.1:" + listener.localAddress.port.toString() + "/start"))
+
+internal fun withCacheRuntime(
+    block: suspend (EventLoop, CoroutineScope, AsyncTcpListener, Url) -> Unit
+) {
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope -> loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend {
+            listener -> block(
+                loop,
+                scope,
+                listener,
+                Url.parse("http://127.0.0.1:" + listener.localAddress.port.toString() + "/start")
+            )
         }
     }
 }

@@ -1,4 +1,5 @@
 package fixture
+
 import scoop.asyncio.*
 import scoop.collections.listOf
 import scoop.platform.concurrent.Thread
@@ -8,46 +9,89 @@ import scoop.platform.net.*
 import scoop.platform.system.OsString
 
 internal fun check(value: Boolean) {
-    if (!value) throw IllegalStateException(Some("SOCKS5 interoperability check failed"))
+    if (!value)
+        throw IllegalStateException(Some("SOCKS5 interoperability check failed"))
 }
 
 private fun target(scenario: String): Socks5Address {
-    if (scenario == "local") return Socks5Address.Domain("127.0.0.1", 80)
-    if (scenario == "ipv6") return Socks5Address.Ip(SocketAddress(IpAddress.IPV6_LOOPBACK, 8443))
+    if (scenario == "local")
+        return Socks5Address.Domain("127.0.0.1", 80)
+    if (scenario == "ipv6")
+        return Socks5Address.Ip(SocketAddress(IpAddress.IPV6_LOOPBACK, 8443))
     return Socks5Address.Domain("example.invalid", 443)
 }
 
 private fun checkBinding(address: Socks5Address, scenario: String) {
     when (address) {
-        case Domain(name, port) -> check(scenario == "domain" && name == "proxy-bound" && port == 3210)
+        case Domain(name, port) -> check(
+            scenario == "domain" && name == "proxy-bound" && port == 3210
+        )
         case Ip(value) -> {
             check(value.port == 3210)
-            check(value.address == IpAddress.parse(if (scenario == "local") "192.0.2.1" else "2001:db8::1"))
+            check(
+                value.address ==
+                    IpAddress.parse(
+                        if (scenario == "local")
+                            "192.0.2.1"
+                        else
+                            "2001:db8::1"
+                    )
+            )
         }
     }
 }
 
 private fun exchange(port: Int, scenario: String) {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
-        val credentials: Socks5Credentials? = if (scenario == "local" || scenario == "auth-reject")
-            Some(Socks5Credentials("用户".toByteArray(), listOf<Byte>(0, -1, 112))) else None
-        val resolution = if (scenario == "local") Socks5Resolution.Local else Socks5Resolution.Proxy
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope ->
+        val credentials: Socks5Credentials? =
+            if (scenario == "local" || scenario == "auth-reject")
+                Some(Socks5Credentials("用户".toByteArray(), listOf<Byte>(0, -1, 112)))
+            else
+                None
+        val resolution =
+            if (scenario == "local")
+                Socks5Resolution.Local
+            else
+                Socks5Resolution.Proxy
         val transport = loop.connectTcp(OsString.fromString("localhost"), port)
         if (scenario == "auth-reject" || scenario == "connect-reject") {
             var rejected = false
-            try { AsyncSocks5Tunnel.takeOwnership(transport, target(scenario), credentials, resolution) }
+            try {
+                AsyncSocks5Tunnel.takeOwnership(
+                    transport,
+                    target(scenario),
+                    credentials,
+                    resolution
+                )
+            }
             catch (error: Socks5Exception) {
                 rejected = true
                 if (scenario == "auth-reject") {
-                    check(error.phase == Socks5Phase.Authentication && error.replyCode == Some(9.toUByte()))
-                } else check(error.phase == Socks5Phase.Connect && error.replyCode == Some(5.toUByte()))
+                    check(
+                        error.phase ==
+                            Socks5Phase.Authentication &&
+                            error.replyCode ==
+                            Some(9.toUByte())
+                    )
+                } else
+                    check(
+                        error.phase == Socks5Phase.Connect && error.replyCode == Some(5.toUByte())
+                    )
             }
             check(rejected && !scope.job.isCancelled)
         } else {
-            AsyncSocks5Tunnel.takeOwnership(transport, target(scenario), credentials, resolution).useAsync suspend { tunnel ->
+            AsyncSocks5Tunnel.takeOwnership(
+                transport,
+                target(scenario),
+                credentials,
+                resolution
+            ).useAsync suspend {
+                tunnel ->
                 checkBinding(tunnel.boundAddress, scenario)
-                NativeByteBuffer.allocate(6L).use suspend { bytes ->
+                NativeByteBuffer.allocate(6L).use suspend {
+                    bytes ->
                     gcCollect()
                     tunnel.readFully(bytes, 6L)
                     check(String.fromUtf8(bytes.readBytes(6L)) == "prefix")
@@ -74,8 +118,9 @@ private fun exercise(script: Path) {
 fun main(args: Array<String>) {
     check(args.size == 2L)
     val script = Path.fromString(args[1L])
-    Thread.start { exercise(script) }.use { first ->
-        Thread.start { exercise(script) }.use { second ->
+    Thread.start { exercise(script) }.use {
+        first -> Thread.start { exercise(script) }.use {
+            second ->
             first.join()
             second.join()
         }

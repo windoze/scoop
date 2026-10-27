@@ -9,15 +9,18 @@ import scoop.test.*
 private class CompressedRequestBodyTest {
     @Test
     fun `HTTP compression updates representation metadata and finishes each supported coding`() {
-        val options: Array<CompressionOptions> = [
-            CompressionOptions.Gzip(GzipOptions()), CompressionOptions.Zlib(DeflateOptions()),
-            CompressionOptions.Brotli(BrotliOptions()), CompressionOptions.Zstd(ZstdOptions())
-        ]
+        val options: Array<CompressionOptions> =
+            [
+                CompressionOptions.Gzip(GzipOptions()),
+                CompressionOptions.Zlib(DeflateOptions()),
+                CompressionOptions.Brotli(BrotliOptions()),
+                CompressionOptions.Zstd(ZstdOptions())
+            ]
         val names: Array<String> = ["gzip", "deflate", "br", "zstd"]
         val plain = RequestBody.fromText("Hello 中文\n")
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
-            for (index in 0L..<options.size) {
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ -> for (index in 0L ..< options.size) {
                 val body = plain.compressed(options[index])
                 assertTrue(body.isReplayable)
                 assertTrue(body.contentLength == None)
@@ -26,33 +29,53 @@ private class CompressedRequestBodyTest {
                 assertEquals(names[index], body.contentEncodings[0L])
                 val first = collectRequestBody(body, 1L)
                 val second = collectRequestBody(body, 7L)
-                assertEquals("Hello 中文\n", String.fromUtf8(decompress(first, DecompressionOptions(options[index].format))))
-                assertEquals("Hello 中文\n", String.fromUtf8(decompress(second, DecompressionOptions(options[index].format))))
+                assertEquals(
+                    "Hello 中文\n",
+                    String.fromUtf8(decompress(first, DecompressionOptions(options[index].format)))
+                )
+                assertEquals(
+                    "Hello 中文\n",
+                    String.fromUtf8(decompress(second, DecompressionOptions(options[index].format)))
+                )
                 assertEquals(first.size, second.size)
-                for (offset in 0L..<first.size) assertEquals(first[offset], second[offset])
+                for (offset in 0L ..< first.size)
+                    assertEquals(first[offset], second[offset])
             }
         }
     }
 
     @Test
     fun `nested compression preserves coding order and part fields reject competing declarations`() {
-        val body = RequestBody.fromText("layers").compressed().compressed(CompressionOptions.Brotli(BrotliOptions()))
+        val body =
+            RequestBody.fromText("layers").compressed().compressed(
+                CompressionOptions.Brotli(BrotliOptions())
+            )
         assertEquals("gzip", body.contentEncodings[0L])
         assertEquals("br", body.contentEncodings[1L])
         val part = RequestBodyPart.formData("data", body)
-        assertEquals("gzip, br", String.fromUtf8(part.head.fields.findAll("Content-Encoding".toByteArray())[0L].value))
+        assertEquals(
+            "gzip, br",
+            String.fromUtf8(part.head.fields.findAll("Content-Encoding".toByteArray())[0L].value)
+        )
         assertTrue(part.head.bodyLength == None)
         assertFailsWith<IllegalArgumentException> {
-            RequestBodyPart(body, [HttpField("CONTENT-ENCODING".toByteArray(), "gzip, br".toByteArray())])
+            RequestBodyPart(
+                body,
+                [HttpField("CONTENT-ENCODING".toByteArray(), "gzip, br".toByteArray())]
+            )
         }
         assertFailsWith<IllegalArgumentException> {
             body.compressed(CompressionOptions.RawDeflate(DeflateOptions()))
         }
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { _ ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            _ ->
             val bytes = collectRequestBody(body)
             val gzip = decompress(bytes, DecompressionOptions(CompressionFormat.Brotli))
-            assertEquals("layers", String.fromUtf8(decompress(gzip, DecompressionOptions(CompressionFormat.Gzip))))
+            assertEquals(
+                "layers",
+                String.fromUtf8(decompress(gzip, DecompressionOptions(CompressionFormat.Gzip)))
+            )
         }
     }
 
@@ -61,10 +84,14 @@ private class CompressedRequestBodyTest {
         val source = BodyTestSource("once".toByteArray())
         val body = RequestBody.fromSource(source).compressed()
         assertFalse(body.isReplayable)
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val encoded = collectRequestBody(body)
-            assertEquals("once", String.fromUtf8(decompress(encoded, DecompressionOptions(CompressionFormat.Gzip))))
+            assertEquals(
+                "once",
+                String.fromUtf8(decompress(encoded, DecompressionOptions(CompressionFormat.Gzip)))
+            )
             val output = BodyTestSink()
             expectBodyFailure<RequestBodyConsumedException> suspend { body.writeTo(output) }
             assertEquals(0L, output.calls + source.closes)
@@ -72,7 +99,10 @@ private class CompressedRequestBodyTest {
             failing.failRead = true
             failing.failClose = true
             val owned = RequestBody.fromSourceFactory suspend { failing }
-            val error = expectBodyFailure<ResourceUseException> suspend { owned.compressed().writeTo(output) }
+            val error =
+                expectBodyFailure<ResourceUseException> suspend {
+                    owned.compressed().writeTo(output)
+                }
             assertSame(failing.failure, error.primaryFailure)
             assertSame(failing.cleanup, error.cleanupFailure)
             assertEquals(1L, failing.closes)
@@ -88,16 +118,23 @@ private class CompressedRequestBodyTest {
         val owned = RequestBody.fromSourceFactory suspend { source }
         val body = owned.compressed()
         val output = BodyTestSink()
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
-            val sending = scope.launch suspend { body.writeTo(output); Unit }
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
+            val sending =
+                scope.launch suspend {
+                    body.writeTo(output);
+                    Unit
+                }
             source.started.await()
             try {
                 sending.cancel()
                 assertFalse(sending.isCompleted)
                 assertEquals(0L, source.closes)
                 gcCollect()
-            } finally { source.release.signal() }
+            } finally {
+                source.release.signal()
+            }
             sending.join()
             assertTrue(sending.isCancelled)
             assertEquals(1L, source.closes)

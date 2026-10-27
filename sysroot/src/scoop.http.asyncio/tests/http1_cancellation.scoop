@@ -10,7 +10,8 @@ import scoop.test.*
 private class AsyncHttp1CancellationTests {
     @Test
     fun `cancellation remains primary when transport closure overtakes a pending read`() {
-        withHttp1 suspend { scope, transport, _, client, server ->
+        withHttp1 suspend {
+            scope, transport, _, client, server ->
             client.sendRequest(request()).finish()
             receiveBytes(server.receiveRequest()!!.body)
             server.sendResponse(response(), Http1BodyFraming.Length(1L))
@@ -19,11 +20,18 @@ private class AsyncHttp1CancellationTests {
             transport.readGate = Some(release)
             transport.readStarted = AsyncGate()
             val cancelled = AtomicBoolean(false)
-            NativeByteBuffer.allocate(1L).use suspend { buffer ->
-                val reading = scope.launch suspend {
-                    try { incoming.body.readInto(buffer, 1L); fail(Some("cancelled read succeeded")) }
-                    catch (_: CancellationException) { cancelled.store(true) }
-                }
+            NativeByteBuffer.allocate(1L).use suspend {
+                buffer ->
+                val reading =
+                    scope.launch suspend {
+                        try {
+                            incoming.body.readInto(buffer, 1L);
+                            fail(Some("cancelled read succeeded"))
+                        }
+                        catch (_: CancellationException) {
+                            cancelled.store(true)
+                        }
+                    }
                 transport.readStarted.await()
                 reading.cancel()
                 transport.closeStarted.await()
@@ -39,7 +47,8 @@ private class AsyncHttp1CancellationTests {
 
     @Test
     fun `pending body cancellation and concurrent close await the same cleanup`() {
-        withHttp1 suspend { scope, a, _, client, server ->
+        withHttp1 suspend {
+            scope, a, _, client, server ->
             client.sendRequest(request()).finish()
             receiveBytes(server.receiveRequest()!!.body)
             server.sendResponse(response(), Http1BodyFraming.Length(5L))
@@ -48,21 +57,39 @@ private class AsyncHttp1CancellationTests {
             a.closeGate = Some(release)
             a.readStarted = AsyncGate()
             val returned = AtomicBoolean(false)
-            NativeByteBuffer.allocate(1L).use suspend { buffer ->
-                val reading = scope.launch suspend {
-                    try { incoming.body.readInto(buffer, 1L); fail(Some("cancelled body read succeeded")) }
-                    catch (_: CancellationException) { returned.store(true) }
-                    finally { buffer.clear(); client.close() }
-                }
+            NativeByteBuffer.allocate(1L).use suspend {
+                buffer ->
+                val reading =
+                    scope.launch suspend {
+                        try {
+                            incoming.body.readInto(buffer, 1L);
+                            fail(Some("cancelled body read succeeded"))
+                        }
+                        catch (_: CancellationException) {
+                            returned.store(true)
+                        }
+                        finally {
+                            buffer.clear();
+                            client.close()
+                        }
+                    }
                 a.readStarted.await()
                 buffer.clear()
                 val cancelling = Thread.start { reading.cancel() }
                 a.closeStarted.await()
                 val first = scope.launch suspend { client.close() }
                 val second = scope.launch suspend { client.close() }
-                assertFalse(returned.load() || reading.isCompleted || first.isCompleted || second.isCompleted)
+                assertFalse(
+                    returned.load() ||
+                        reading.isCompleted ||
+                        first.isCompleted ||
+                        second.isCompleted
+                )
                 release.signal()
-                reading.join(); first.join(); second.join(); cancelling.join()
+                reading.join();
+                first.join();
+                second.join();
+                cancelling.join()
                 assertTrue(returned.load() && client.isClosed)
                 assertEquals(1, a.closes)
             }
@@ -71,18 +98,26 @@ private class AsyncHttp1CancellationTests {
 
     @Test
     fun `cancelling an idle unfinished writer closes its connection`() {
-        withHttp1 suspend { scope, a, _, client, _ ->
+        withHttp1 suspend {
+            scope, a, _, client, _ ->
             val created = AsyncGate()
             val release = AsyncGate()
-            val sending = scope.launch suspend {
-                val writer = client.sendRequest(request("POST"), Http1BodyFraming.Length(5L))
-                created.signal()
-                try { release.await() } finally { writer.close() }
-            }
+            val sending =
+                scope.launch suspend {
+                    val writer = client.sendRequest(request("POST"), Http1BodyFraming.Length(5L))
+                    created.signal()
+                    try {
+                        release.await()
+                    } finally {
+                        writer.close()
+                    }
+                }
             created.await()
             sending.cancel()
             a.closeStarted.await()
-            release.signal(); sending.join(); client.close()
+            release.signal();
+            sending.join();
+            client.close()
             assertTrue(client.isClosed)
             assertEquals(1, a.closes)
         }
@@ -90,12 +125,18 @@ private class AsyncHttp1CancellationTests {
 
     @Test
     fun `accepted body prefix and write and cleanup failures are preserved`() {
-        withHttp1 suspend { _, a, _, client, _ ->
+        withHttp1 suspend {
+            _, a, _, client, _ ->
             val writer = client.sendRequest(request("POST"), Http1BodyFraming.Length(3L))
-            a.failWrite = true; a.failClose = true
-            NativeByteBuffer.allocate(3L).use suspend { buffer ->
+            a.failWrite = true;
+            a.failClose = true
+            NativeByteBuffer.allocate(3L).use suspend {
+                buffer ->
                 buffer.writeBytes("abc".toByteArray())
-                try { writer.writeFrom(buffer, 3L); fail(Some("write failure ignored")) }
+                try {
+                    writer.writeFrom(buffer, 3L);
+                    fail(Some("write failure ignored"))
+                }
                 catch (error: ResourceUseException) {
                     assertTrue(error.primaryFailure is TransportFailure)
                     assertTrue(error.cleanupFailure is CleanupFailure)
@@ -110,22 +151,38 @@ private class AsyncHttp1CancellationTests {
 
     @Test
     fun `adoption validation and pre-cancellation retain caller ownership`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
-            val (a, b) = rawPair(loop, scope)
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
+            val(a, b) = rawPair(loop, scope)
             try {
                 try {
-                    AsyncHttp1Connection.takeOwnershipAsClient(a, scope, limits = Http1Limits(maxStartLineBytes = 0L))
+                    AsyncHttp1Connection.takeOwnershipAsClient(
+                        a,
+                        scope,
+                        limits = Http1Limits(maxStartLineBytes = 0L)
+                    )
                     fail(Some("invalid limits accepted"))
-                } catch (_: IllegalArgumentException) { assertEquals(0, a.closes) }
-                val child = scope.launch suspend {
-                    currentJobOrNone()!!.cancel()
-                    try { AsyncHttp1Connection.takeOwnershipAsClient(a, scope); fail(Some("cancelled adoption succeeded")) }
-                    catch (_: CancellationException) { assertEquals(0, a.closes) }
+                } catch (_: IllegalArgumentException) {
+                    assertEquals(0, a.closes)
                 }
+                val child =
+                    scope.launch suspend {
+                        currentJobOrNone()!!.cancel()
+                        try {
+                            AsyncHttp1Connection.takeOwnershipAsClient(a, scope);
+                            fail(Some("cancelled adoption succeeded"))
+                        }
+                        catch (_: CancellationException) {
+                            assertEquals(0, a.closes)
+                        }
+                    }
                 child.join()
                 assertEquals(0L, a.reads + a.writes)
-            } finally { a.close(); b.close() }
+            } finally {
+                a.close();
+                b.close()
+            }
         }
     }
 }

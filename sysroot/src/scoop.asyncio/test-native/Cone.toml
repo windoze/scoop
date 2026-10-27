@@ -51,3 +51,6 @@ when = { os = "linux" }
 
 [[native.sources]]
 path = "native/tty_owner.c"
+
+[[native.sources]]
+path = "native/tty_completion.c"

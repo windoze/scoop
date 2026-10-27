@@ -1,4 +1,5 @@
 package test
+
 import scoop.asyncio.*
 import scoop.platform.io.standardOutput
 import scoop.terminal.*
@@ -8,9 +9,10 @@ import scoop.terminal.screen.SetTitle
 import scoop.time.Duration
 
 fun main() {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
-        AsyncTerminalSession.open(loop, Duration.milliseconds(250L)).useAsync suspend { session ->
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope -> AsyncTerminalSession.open(loop, Duration.milliseconds(250L)).useAsync suspend {
+            session ->
             session.withRawMode suspend {
                 prefix(loop, scope, session)
                 progress(loop, scope, session)
@@ -20,7 +22,9 @@ fun main() {
                 check(session.isRawMode(), "nested raw ownership")
             }
             check(!session.isRawMode(), "raw scope restoration")
-            try { session.withRawMode<Unit> suspend { throw IllegalArgumentException() } }
+            try {
+                session.withRawMode<Unit> suspend { throw IllegalArgumentException() }
+            }
             catch (_: IllegalArgumentException) {}
             check(!session.isRawMode(), "exception restores raw mode")
             stage(session, "async-restored")
@@ -28,15 +32,24 @@ fun main() {
             cancellation(loop, scope, session)
         }
     }
-    val end: EventLoop = LibuvEventLoop()
-    end.run suspend { _ ->
-        AsyncTerminalSession.open(end).useAsync suspend { session ->
+    val end: EventLoop = PlatformEventLoop()
+    end.run suspend {
+        _ -> AsyncTerminalSession.open(end).useAsync suspend {
+            session ->
             stage(session, "async-eof")
             var disconnected = false
-            try { session.read() } catch (_: TerminalDisconnectedException) { disconnected = true }
+            try {
+                session.read()
+            } catch (_: TerminalDisconnectedException) {
+                disconnected = true
+            }
             check(disconnected, "async EOF")
             disconnected = false
-            try { session.poll(Duration.ZERO) } catch (_: TerminalDisconnectedException) { disconnected = true }
+            try {
+                session.poll(Duration.ZERO)
+            } catch (_: TerminalDisconnectedException) {
+                disconnected = true
+            }
             check(disconnected, "async stable EOF")
         }
     }
@@ -55,11 +68,15 @@ suspend fun prefix(loop: EventLoop, scope: CoroutineScope, session: AsyncTermina
     expect(session, key('é'))
     stage(session, "async-pair")
     check(session.poll(Duration.seconds(1L)), "ready event")
-    val cancelled = scope.launch suspend {
-        currentJobOrNone()!!.cancel()
-        try { session.read(); check(false, "cancelled Job consumed queued event") }
-        catch (_: CancellationException) {}
-    }
+    val cancelled =
+        scope.launch suspend {
+            currentJobOrNone()!!.cancel()
+            try {
+                session.read();
+                check(false, "cancelled Job consumed queued event")
+            }
+            catch (_: CancellationException) {}
+        }
     cancelled.join()
     check(session.poll(Duration.ZERO), "repeated poll retains event")
     expect(session, key('a'))

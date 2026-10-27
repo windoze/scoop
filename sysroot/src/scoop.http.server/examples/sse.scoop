@@ -8,23 +8,34 @@ import scoop.http.server.*
 import scoop.time.Duration
 
 fun main() {
-    val loop: EventLoop = LibuvEventLoop()
-    loop.run suspend { scope ->
-        HttpServer.listen(scope) { routes ->
+    val loop: EventLoop = PlatformEventLoop()
+    loop.run suspend {
+        scope -> HttpServer.listen(scope) {
+            routes ->
             routes.get("/", suspend { _ -> text("Use curl -N http://127.0.0.1:8080/events") })
-            routes.get("/events", suspend { _ ->
-                sse(produce = suspend { events ->
-                    for (index in 1..5) {
-                        events.send(SseMessage(
-                            data = Some("tick " + index.toString()),
-                            event = Some("tick"),
-                            id = Some(index.toString())
-                        ))
-                        if (index < 5) currentEventLoop().sleep(Duration.seconds(1))
-                    }
-                })
-            })
-        }.useAsync suspend { server ->
+            routes.get(
+                "/events",
+                suspend {
+                    _ -> sse(
+                        produce =
+                            suspend {
+                                events -> for (index in 1 .. 5) {
+                                    events.send(
+                                        SseMessage(
+                                            data = Some("tick " + index.toString()),
+                                            event = Some("tick"),
+                                            id = Some(index.toString())
+                                        )
+                                    )
+                                    if (index < 5)
+                                        currentEventLoop().sleep(Duration.seconds(1))
+                                }
+                            }
+                    )
+                }
+            )
+        }.useAsync suspend {
+            server ->
             println("Listening at http://" + server.localAddress.toString())
             server.awaitTermination()
         }

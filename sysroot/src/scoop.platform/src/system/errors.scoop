@@ -8,74 +8,74 @@ public enum PlatformErrorKind {
      * The requested resource does not exist.
      */
     NotFound,
-        /**
+    /**
          * The operation requires an absent destination.
          */
-        AlreadyExists,
-        /**
+    AlreadyExists,
+    /**
          * Access was denied.
          */
-        PermissionDenied,
-        /**
+    PermissionDenied,
+    /**
          * A required path component is not a directory.
          */
-        NotDirectory,
-        /**
+    NotDirectory,
+    /**
          * The selected entry is a directory where a file is required.
          */
-        IsDirectory,
+    IsDirectory,
     /**
      * The native operation rejected its arguments.
      */
     InvalidInput,
-        /**
+    /**
          * The native operation could not allocate required memory.
          */
-        NoMemory,
-        /**
+    NoMemory,
+    /**
          * The storage destination has insufficient space.
          */
-        NoSpace,
-        /**
+    NoSpace,
+    /**
          * The output pipe has no reader.
          */
-        BrokenPipe,
-        /**
+    BrokenPipe,
+    /**
          * The remote endpoint refused the connection.
          */
-        ConnectionRefused,
-        /**
+    ConnectionRefused,
+    /**
          * The connection was reset.
          */
-        ConnectionReset,
+    ConnectionReset,
     /**
      * The requested local address is already in use.
      */
     AddressInUse,
-        /**
+    /**
          * The requested address is unavailable on this host.
          */
-        AddressUnavailable,
-        /**
+    AddressUnavailable,
+    /**
          * The native operation timed out.
          */
-        TimedOut,
-        /**
+    TimedOut,
+    /**
          * A native wait was interrupted.
          */
-        Interrupted,
-        /**
+    Interrupted,
+    /**
          * The operation cannot progress without waiting.
          */
-        WouldBlock,
-        /**
+    WouldBlock,
+    /**
          * The requested operation is unsupported.
          */
-        Unsupported,
-        /**
+    Unsupported,
+    /**
          * A native failure outside the portable categories.
          */
-        Other
+    Other
 }
 
 /**
@@ -89,26 +89,28 @@ public enum NativeErrorDomain {
     /**
      * A native address-resolution error code.
      */
-    AddressResolution,
-    /**
-     * A libuv error code.
-     */
-    Libuv }
+    AddressResolution
+}
 
 /**
  * A native error domain and code with optional underlying system code.
  */
-public struct NativeError(val domain: NativeErrorDomain, val code: Int, val systemCode: Int? = None) {
+public struct NativeError(
+    val domain: NativeErrorDomain,
+    val code: Int,
+    val systemCode: Int? = None
+) {
     /**
      * The portable classification corresponding to this native error.
      */
     public val kind: PlatformErrorKind get() {
-        @Unsafe {
-            val domainCode = when (domain) {
-                case PosixErrno -> 0
-                case AddressResolution -> 1
-                case Libuv -> 2
-            }
+        @Unsafe
+        {
+            val domainCode =
+                when (domain) {
+                    case PosixErrno -> 0
+                    case AddressResolution -> 1
+                }
             val category = nativeErrorKind(domainCode, code, systemCode ?: 0)
             return errorKind(category)
         }
@@ -136,35 +138,42 @@ public class PlatformException public constructor(
      * An optional native-byte path or other operation-specific context.
      */
     public val context: OsString? = None
-) : Exception(Some(platformErrorMessage(operation, nativeError, context)))
+): Exception(Some(platformErrorMessage(operation, nativeError, context)))
 
-private fun platformErrorMessage(operation: String, error: NativeError?, context: OsString?): String {
+private fun platformErrorMessage(
+    operation: String,
+    error: NativeError?,
+    context: OsString?
+): String {
     var message = operation + " failed"
-    if (error != None) message += " (native code " + error!!.code.toString() + ")"
-    if (context != None) message += ": " + context!!.display()
+    if (error != None)
+        message += " (native code " + error!!.code.toString() + ")"
+    if (context != None)
+        message += ": " + context!!.display()
     return message
 }
 
-private fun errorKind(category: Int): PlatformErrorKind = when (category) {
-    case 1 -> PlatformErrorKind.NotFound
-    case 2 -> PlatformErrorKind.AlreadyExists
-    case 3 -> PlatformErrorKind.PermissionDenied
-    case 4 -> PlatformErrorKind.NotDirectory
-    case 5 -> PlatformErrorKind.IsDirectory
-    case 6 -> PlatformErrorKind.InvalidInput
-    case 7 -> PlatformErrorKind.NoMemory
-    case 8 -> PlatformErrorKind.NoSpace
-    case 9 -> PlatformErrorKind.BrokenPipe
-    case 10 -> PlatformErrorKind.ConnectionRefused
-    case 11 -> PlatformErrorKind.ConnectionReset
-    case 12 -> PlatformErrorKind.AddressInUse
-    case 13 -> PlatformErrorKind.AddressUnavailable
-    case 14 -> PlatformErrorKind.TimedOut
-    case 15 -> PlatformErrorKind.Interrupted
-    case 16 -> PlatformErrorKind.WouldBlock
-    case 17 -> PlatformErrorKind.Unsupported
-    else -> PlatformErrorKind.Other
-}
+private fun errorKind(category: Int): PlatformErrorKind =
+    when (category) {
+        case 1 -> PlatformErrorKind.NotFound
+        case 2 -> PlatformErrorKind.AlreadyExists
+        case 3 -> PlatformErrorKind.PermissionDenied
+        case 4 -> PlatformErrorKind.NotDirectory
+        case 5 -> PlatformErrorKind.IsDirectory
+        case 6 -> PlatformErrorKind.InvalidInput
+        case 7 -> PlatformErrorKind.NoMemory
+        case 8 -> PlatformErrorKind.NoSpace
+        case 9 -> PlatformErrorKind.BrokenPipe
+        case 10 -> PlatformErrorKind.ConnectionRefused
+        case 11 -> PlatformErrorKind.ConnectionReset
+        case 12 -> PlatformErrorKind.AddressInUse
+        case 13 -> PlatformErrorKind.AddressUnavailable
+        case 14 -> PlatformErrorKind.TimedOut
+        case 15 -> PlatformErrorKind.Interrupted
+        case 16 -> PlatformErrorKind.WouldBlock
+        case 17 -> PlatformErrorKind.Unsupported
+        else -> PlatformErrorKind.Other
+    }
 
 @GCLeaf
 @Extern(name = "scoop_platform_error_kind")

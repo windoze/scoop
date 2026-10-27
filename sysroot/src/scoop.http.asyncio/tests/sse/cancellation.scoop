@@ -7,14 +7,16 @@ import scoop.test.*
 private class SseSourceCancellationTests {
     @Test
     fun `concurrent reads are rejected and close waits for the real borrow without cancelling the caller`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val pending = PendingMessageSource()
             val source = SseSource.takeOwnership(pending, bufferSize = 4L)
-            val reader = scope.launch suspend {
-                expectMessageFailure<CancellationException> suspend { source.next() }
-                ensureActive()
-            }
+            val reader =
+                scope.launch suspend {
+                    expectMessageFailure<CancellationException> suspend { source.next() }
+                    ensureActive()
+                }
             try {
                 assertTrue(pending.running)
                 expectMessageFailure<IllegalStateException> suspend { source.next() }
@@ -28,14 +30,17 @@ private class SseSourceCancellationTests {
                 assertFailsWith<IllegalStateException> { pending.buffer!!.clear() }
                 gcCollect()
                 pending.complete()
-                reader.join(); first.join(); second.join()
+                reader.join();
+                first.join();
+                second.join()
                 assertFalse(reader.isCancelled)
                 assertTrue(pending.buffer!!.isClosed)
                 assertTrue(source.isClosed)
                 assertEquals(1, pending.closes)
                 ensureActive()
             } finally {
-                if (pending.running) pending.complete()
+                if (pending.running)
+                    pending.complete()
                 source.close()
             }
         }
@@ -43,11 +48,19 @@ private class SseSourceCancellationTests {
 
     @Test
     fun `cancelled finally closes local state while a borrowed endpoint remains open`() {
-        val loop: EventLoop = LibuvEventLoop()
-        loop.run suspend { scope ->
+        val loop: EventLoop = PlatformEventLoop()
+        loop.run suspend {
+            scope ->
             val pending = PendingMessageSource()
             val source = SseSource(pending, bufferSize = 4L)
-            val reader = scope.launch suspend { try { source.next() } finally { source.close() } }
+            val reader =
+                scope.launch suspend {
+                    try {
+                        source.next()
+                    } finally {
+                        source.close()
+                    }
+                }
             try {
                 assertTrue(pending.running)
                 reader.cancel()
@@ -61,7 +74,8 @@ private class SseSourceCancellationTests {
                 assertTrue(source.failure!! is CancellationException)
                 ensureActive()
             } finally {
-                if (pending.running) pending.complete()
+                if (pending.running)
+                    pending.complete()
                 source.close()
                 pending.close()
             }

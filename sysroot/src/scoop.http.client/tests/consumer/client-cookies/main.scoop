@@ -1,21 +1,28 @@
 package scoop.http.client.tests.consumer.client_cookies
 
 import scoop.test.*
-import scoop.asyncio.LibuvEventLoop
+import scoop.asyncio.PlatformEventLoop
 import scoop.http.PublicSuffixList
 import scoop.http.client.MemoryCookieJar
 import scoop.test.*
 
 private fun exerciseConsumer(args: Array<String>) {
     assertEquals(2L, args.size)
-    val bundled = when (args[1L]) {
-        case "bundled" -> true
-        case "custom" -> false
-        else -> throw IllegalArgumentException()
-    }
-    val suffixes = if (bundled) PublicSuffixList.bundled() else
-        PublicSuffixList.parse("com\nio\n// ===BEGIN PRIVATE DOMAINS===\ngithub.io\n// ===END PRIVATE DOMAINS===\n")
-    LibuvEventLoop().run suspend { _ ->
+    val bundled =
+        when (args[1L]) {
+            case "bundled" -> true
+            case "custom" -> false
+            else -> throw IllegalArgumentException()
+        }
+    val suffixes =
+        if (bundled)
+            PublicSuffixList.bundled()
+        else
+            PublicSuffixList.parse(
+                "com\nio\n// ===BEGIN PRIVATE DOMAINS===\ngithub.io\n// ===END PRIVATE DOMAINS===\n"
+            )
+    PlatformEventLoop().run suspend {
+        _ ->
         if (bundled) {
             val defaults = MemoryCookieJar()
             cookieSave(defaults, ["ok=1", "bad=1; Domain=com"])
