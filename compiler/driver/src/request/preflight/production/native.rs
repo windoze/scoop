@@ -57,7 +57,7 @@ pub(super) fn compile(
         }
     };
     let public_include = scoop_toolchain::configured_sysroot_root(sysroot)?.join("include");
-    let compiler = NativeToolchain::resolve(target.c_bridge_toolchain(), manifest)?;
+    let compiler = NativeToolchain::resolve_target(target, manifest)?;
     let prepared = compiler.prepare(manifest, request.optimization(), &public_include)?;
     let units = prepared.units();
     if units.is_empty() {

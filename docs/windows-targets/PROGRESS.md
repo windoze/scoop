@@ -5,7 +5,7 @@
 | 阶段 | 状态 | 尚需闭合 |
 | --- | --- | --- |
 | W0 工具链与 ABI | 关键路线实验通过 | 复现入口与范围见下文；正式编译器集成在 W1／W2 完成 |
-| W1 编译／链接 | 实施中 | ABI 与三环境 COFF 后端发射已接入；继续 native 工具选择、完整 PE 链接与调试信息 |
+| W1 编译／链接 | 实施中 | ABI、COFF、generated-C 与 native C/C++ 已接入；继续完整 PE 链接与调试信息 |
 | W2 core runtime | 待实施 | Win32 平台层、SEH、精确根、Unicode 启动与完整 core／std |
 | W3 系统库 | 待实施 | 平台规范与实现、IOCP、全部 native 组件、真实 consumer |
 | W4 宿主与发行 | 基础实施中 | 进程中断已实现；继续 Windows 命令、维护脚本、DLL／SDK 布局与打包、交叉编译 |
@@ -60,6 +60,10 @@ COFF section inventory 已接入 generated-C 对象入口，独立区分 `.pdata
 generated-C 已按三个完整 target 使用宿主 Clang 与实际目标 headers；Microsoft 环境支持 Build Tools／SDK 发现及显式 `msvc.toml`，两个 MinGW 环境使用各自完整 prefix。header/object probe 检查 AMD64 COFF、LLP64、CRT 与 native 环境，保留 SEH unwind 信息；不执行目标程序或提前要求最终链接依赖。producer 记录新增 Windows 分支，现有目标的编码向量保持不变。
 
 两项工具发现测试通过实际 headers、Unicode 输入／输出路径、producer 记录往返、显式 SDK 和错误 CRT prefix 诊断；四项 generated-C 对象测试（含三个环境的真实桥接编译、COFF 边界、native 链接与执行）以及七项 C producer 合同测试通过。workspace/all-targets Clippy 无告警，最后的测试 fixture 修订经 codegen all-targets Clippy 与定向测试确认。正式 native C/C++ 覆盖、PE 最终链接和 runtime 仍继续实施。
+
+native C/C++ 编译现已区分 Clang GNU、clang-cl 和 cl 的实际参数／依赖输出，Microsoft 默认使用 `/MD`、UTF-8 与 `/EHsc`，Debug 对象包含 CodeView。`--cxx` 从 CLI 经 protocol 18 传递，`--cc` 在 Windows 只选择用户 native C；generated-C 保持独立 Clang。host 工具选择保留 clang++ 的 driver 名称，Windows 可按 `cl` 查找 `cl.exe`。普通发现记录包含工具、真实头文件和搜索候选；Microsoft 自动发现记录 SDK／toolset 版本目录的变化。Windows 编译参数使用不改变路径含义的兼容拼写，预处理行标记支持实际 UTF-8 octal escapes 和 cl 的 `#line`。
+
+本机真实 native 编译／链接／运行矩阵通过 clang-cl、cl、MinGW MSVCRT 与 MinGW UCRT；两个 Microsoft 编译器均消费实际 cl 构建的 C++ 静态库，覆盖 C/C++ 混合源码、STL 返回值、RTTI、内部异常、公开 Scoop 头、Unicode 路径／头文件、CodeView 和实际 header 更新。59 项 manifest 与 39 项 protocol 测试、两项 SDK 发现测试、两项 GCC 调用合同回归和一项输入更新测试通过，相关 Clippy 无告警。正式 Windows CLI、完整 PE 产物消费／链接、runtime 与系统库仍未开放；上述验证不替代后续完整验收。
 
 ## W4 宿主基础
 

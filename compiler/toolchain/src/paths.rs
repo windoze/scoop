@@ -77,6 +77,35 @@ pub fn installed_host_tool(name: &str) -> Result<PathBuf, crate::ToolchainError>
     installed_executable().map(|path| path.with_file_name(host_executable_name(name)))
 }
 
+pub(crate) fn executable_path(program: &OsStr) -> PathBuf {
+    let path = Path::new(program);
+    if cfg!(windows) && path.extension().is_none() {
+        path.with_extension("exe")
+    } else {
+        path.to_owned()
+    }
+}
+
+/// Keep argv[0]'s driver spelling: resolving clang++'s symlink changes link defaults.
+pub(crate) fn find_program(
+    program: &OsStr,
+    search_path: &OsStr,
+) -> Result<PathBuf, crate::ToolchainError> {
+    let program = executable_path(program);
+    let candidate = if program.components().count() > 1 {
+        program.is_file().then_some(program.clone())
+    } else {
+        std::env::split_paths(search_path)
+            .map(|root| root.join(&program))
+            .find(|path| path.is_file())
+    };
+    let candidate = candidate.ok_or_else(|| {
+        crate::ToolchainError(format!("native tool not found: {}", program.display()))
+    })?;
+    std::path::absolute(dunce::simplified(&candidate))
+        .map_err(|e| crate::ToolchainError(e.to_string()))
+}
+
 pub fn development_runtime_root() -> PathBuf {
     development_workspace_root().join("runtime")
 }

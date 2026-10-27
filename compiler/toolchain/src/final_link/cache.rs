@@ -45,7 +45,7 @@ pub(super) fn resolve(
         cxx,
     ))?;
     let record = build_record::cached(
-        &cache.join("final-tools-v2"),
+        &cache.join("final-tools-v3"),
         key,
         |_| Ok(true),
         || {

@@ -74,6 +74,9 @@ impl WindowsCEnvironment {
         let tool = find_msvc_tools::find_tool("x86_64-pc-windows-msvc", "cl.exe")
             .ok_or_else(|| error("no Microsoft C++ Build Tools and Windows SDK found; provide an explicit native sysroot"))?;
         inputs.push(tool.path().to_owned());
+        if let Some(versions) = tool.path().ancestors().nth(5) {
+            inputs.push(versions.to_owned());
+        }
         for (name, value) in tool.env() {
             if name.eq_ignore_ascii_case("INCLUDE") {
                 self.includes = search_directories(value)?;
@@ -81,6 +84,15 @@ impl WindowsCEnvironment {
                 self.libraries = search_directories(value)?;
             } else if name.eq_ignore_ascii_case("PATH") {
                 self.search_path = value.clone();
+            }
+        }
+        for include in &self.includes {
+            if let Some(versions) = include.ancestors().nth(2)
+                && versions
+                    .file_name()
+                    .is_some_and(|name| name.eq_ignore_ascii_case("Include"))
+            {
+                inputs.push(versions.to_owned());
             }
         }
         Ok(())
@@ -94,6 +106,12 @@ impl WindowsCEnvironment {
     }
 
     pub(crate) fn command(&self, compiler: &Path, triple: &str, microsoft: bool) -> Command {
+        let mut command = self.bare_command(compiler);
+        self.configure(&mut command, triple, microsoft);
+        command
+    }
+
+    pub(crate) fn bare_command(&self, compiler: &Path) -> Command {
         let mut command = Command::new(compiler);
         command
             .env_clear()
@@ -107,7 +125,6 @@ impl WindowsCEnvironment {
         if let Some(root) = &self.system_root {
             command.env("SystemRoot", root);
         }
-        self.configure(&mut command, triple, microsoft);
         command
     }
 

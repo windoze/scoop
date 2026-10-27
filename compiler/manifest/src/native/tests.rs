@@ -92,6 +92,17 @@ fn flags_cannot_replace_driver_owned_inputs_or_outputs() {
         "-include-pch",
         "-fpreprocessed",
         "-fpch-preprocess",
+        "/Fooutput.obj",
+        "/MDd",
+        "/MT",
+        "/GL",
+        "/link",
+        "/sourceDependencies",
+        "/clang:-fno-exceptions",
+        "-Fooutput.obj",
+        "-MDd",
+        "-GL",
+        "/Zi",
     ] {
         let source = format!("{CONE}\n[native]\nc_flags = ['{flag}']");
         let error = parse_cone_manifest(&source).unwrap_err();
@@ -101,6 +112,31 @@ fn flags_cannot_replace_driver_owned_inputs_or_outputs() {
         );
         assert_eq!(&source[error.span().unwrap().range()], format!("'{flag}'"));
     }
+}
+
+#[test]
+fn microsoft_native_flags_preserve_include_paths_and_macro_arguments() {
+    let source = format!(
+        "{CONE}\n[native]\nc_flags = ['/I', 'include with spaces', '/FIconfig.h', '/D', 'ANSWER=42', '/UOLD', '/W4', '/std:c17']"
+    );
+    let parsed = parse_cone_manifest(&source).unwrap();
+    assert_eq!(
+        parsed.semantic().native().c_flags(),
+        &[
+            NativeCompileFlag::Include {
+                kind: NativeIncludeFlag::Search,
+                path: "include with spaces".into()
+            },
+            NativeCompileFlag::Include {
+                kind: NativeIncludeFlag::ForcedHeader,
+                path: "config.h".into()
+            },
+            NativeCompileFlag::Argument("/DANSWER=42".into()),
+            NativeCompileFlag::Argument("/UOLD".into()),
+            NativeCompileFlag::Argument("/W4".into()),
+            NativeCompileFlag::Argument("/std:c17".into()),
+        ]
+    );
 }
 
 #[test]

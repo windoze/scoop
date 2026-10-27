@@ -209,9 +209,12 @@ pub(super) struct LinkArgs {
 
 #[derive(Args)]
 pub(super) struct NativeOptions {
-    /// Linux C compiler driver.
+    /// Native C compiler driver for the selected target.
     #[arg(long)]
     pub cc: Option<PathBuf>,
+    /// Native C++ compiler driver; otherwise use the paired driver.
+    #[arg(long)]
+    pub cxx: Option<PathBuf>,
     /// Target C development sysroot, separate from the Scoop sysroot.
     #[arg(long)]
     pub native_sysroot: Option<PathBuf>,

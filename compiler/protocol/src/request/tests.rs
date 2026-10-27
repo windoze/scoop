@@ -213,9 +213,9 @@ fn target_request_retains_native_tool_paths_and_rejects_the_old_shape() {
             Some(path("/opt/target sysroot")),
         ),
     ] {
-        let request = TargetSelectionRequestV1::new("x86_64-unknown-linux-musl".into())
+        let request = TargetSelectionRequestV1::new("x86_64-unknown-linux-gnu".into())
             .unwrap()
-            .with_c_toolchain(compiler, sysroot);
+            .with_native_toolchain(compiler, sysroot, Some(path("/tools/compiler cxx")));
         let decoded =
             decode_canonical::<DecodedTargetSelectionRequestV1>(&encode(&request).unwrap())
                 .unwrap()
@@ -232,7 +232,9 @@ fn target_request_retains_native_tool_paths_and_rejects_the_old_shape() {
             actual: 1
         }
     ));
-    let multiple_drivers = [0xa2, 0x01, 0x61, b'x', 0x02, 0x83, 0, 0x82, 0, 0, 0x80];
+    let multiple_drivers = [
+        0xa2, 0x01, 0x61, b'x', 0x02, 0x84, 0, 0x82, 0, 0, 0x80, 0x80,
+    ];
     let error = decode_canonical::<DecodedTargetSelectionRequestV1>(&multiple_drivers).unwrap_err();
     assert!(matches!(
         error.kind(),
@@ -255,4 +257,5 @@ fn target_request_transports_completed_tool_discovery() {
     assert_eq!(decoded.resolved_toolchain(), Some(record.as_slice()));
     assert!(decoded.compiler().is_none());
     assert!(decoded.native_sysroot().is_none());
+    assert!(decoded.cxx_compiler().is_none());
 }

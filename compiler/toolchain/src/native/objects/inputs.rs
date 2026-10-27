@@ -69,6 +69,7 @@ pub(super) fn configuration(
         flags(NativeSourceLanguage::C),
         flags(NativeSourceLanguage::Cxx),
         compiler.cxx_fingerprint().map(|fp| *fp.as_array()),
+        compiler.c_fingerprint().map(|fp| *fp.as_array()),
         libraries,
         scoop_wire::encode(&optimization).map_err(error)?,
         (!sources.is_empty())

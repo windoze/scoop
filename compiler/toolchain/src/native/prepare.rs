@@ -1,9 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
+use crate::native_driver::NativeDriverKind;
 use scoop_lir::{OptimizationMode, TargetProfileId};
 use scoop_manifest::{LoadedConeManifest, NativeCompileFlag, NativeConfig, NativeSourceLanguage};
-use scoop_process::parse_make_dependencies;
 
 use super::paths::{InputRoots, normalize_line_markers};
 use super::{
@@ -116,35 +116,43 @@ pub(super) fn prepare(
             ),
             format!(
                 "-DSCOOP_TARGET_ENV_{}=1",
-                target_facts.env.to_ascii_uppercase()
+                target_facts.env.to_ascii_uppercase().replace('-', "_")
             ),
         ]);
-        command::configure_preprocessor(&mut command, config, target, *language, &roots.cone);
+        let kind = compiler.kind(*language);
+        command::configure_preprocessor(
+            &mut command,
+            config,
+            target,
+            *language,
+            &roots.cone,
+            kind,
+        )?;
         command
-            .current_dir(&roots.cone)
-            .arg("-I")
-            .arg(&roots.public);
+            .current_dir(dunce::simplified(&roots.cone))
+            .arg(if kind.microsoft() { "/I" } else { "-I" })
+            .arg(dunce::simplified(&roots.public));
         for (root, logical) in roots.mappings() {
-            command.arg(format!("-ffile-prefix-map={}={logical}", root.display()));
+            command::remap(&mut command, kind, root, &logical);
         }
-        command
-            .arg("-fPIC")
-            .args([
-                "-E",
-                "-dI",
-                "-x",
-                language.input_name(),
-                "-MD",
-                "-MT",
-                "native-unit",
-                "-MF",
-            ])
-            .arg(&depfile)
-            .arg(&input);
+        if kind.microsoft() {
+            command.arg("/E").arg(match language {
+                NativeSourceLanguage::C => "/TC",
+                NativeSourceLanguage::Cxx => "/TP",
+            });
+            if kind == NativeDriverKind::ClangCl {
+                command.arg("/clang:-dI");
+            }
+        } else {
+            command.args(["-E", "-dI", "-x", language.input_name()]);
+        }
+        crate::windows_native::dependencies(&mut command, kind, &depfile, "native-unit");
+        command.arg(dunce::simplified(&input));
         let output = command::run(&mut command, source.path().as_str())?;
-        let dependencies = std::fs::read_to_string(&depfile).map_err(error)?;
-        let dependencies = parse_make_dependencies(&dependencies, "native-unit")
-            .ok_or_else(|| error("C compiler returned an invalid dependency file"))?;
+        let dependencies = crate::windows_native::read_dependencies(kind, &depfile, "native-unit")?;
+        if kind == NativeDriverKind::Msvc {
+            observe_msvc_search(&search, &dependencies, &mut result.observed_paths)?;
+        }
         let mut path_map = BTreeMap::new();
         for path in dependencies {
             let path = if path.is_absolute() {
@@ -177,6 +185,33 @@ pub(super) fn prepare(
         result.cxx_flags = flags(config, target, NativeSourceLanguage::Cxx);
     }
     Ok(result)
+}
+
+fn observe_msvc_search(
+    search: &[std::path::PathBuf],
+    dependencies: &[std::path::PathBuf],
+    observed: &mut BTreeSet<std::path::PathBuf>,
+) -> Result<(), ToolchainError> {
+    observed.extend(search.iter().cloned());
+    let roots: Vec<_> = search
+        .iter()
+        .filter(|p| p.is_dir())
+        .map(|p| p.canonicalize().map_err(error))
+        .collect::<Result<_, _>>()?;
+    for dependency in dependencies {
+        let path = dependency.canonicalize().map_err(error)?;
+        if let Some(parent) = path.parent() {
+            observed.insert(parent.to_owned());
+        }
+        for root in &roots {
+            if let Ok(relative) = path.strip_prefix(root) {
+                for candidate in &roots {
+                    observed.insert(candidate.join(relative));
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 fn flags(

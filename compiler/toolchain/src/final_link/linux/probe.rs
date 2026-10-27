@@ -20,7 +20,7 @@ pub(super) fn driver_program(
     let mut candidates = BTreeSet::new();
     crate::native_record::program_candidates(OsStr::new(program.trim()), &path, &mut candidates);
     observed.extend(candidates);
-    crate::linux_c::find_program(OsStr::new(program.trim()), &path)
+    crate::paths::find_program(OsStr::new(program.trim()), &path)
 }
 
 pub(super) fn search_paths(

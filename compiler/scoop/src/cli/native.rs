@@ -16,6 +16,7 @@ impl NativeOptions {
         Ok((
             CToolchainOptions {
                 compiler: self.cc,
+                cxx_compiler: self.cxx,
                 native_sysroot: self
                     .native_sysroot
                     .map(|path| absolute(cwd, path))

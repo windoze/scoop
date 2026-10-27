@@ -31,6 +31,52 @@ pub fn resolve_windows_c_toolchain(
     probe(target, compiler, native_sysroot).map(|(invocation, _)| invocation)
 }
 
+pub(crate) fn probe_default(
+    target: LirTargetProfile,
+    native_sysroot: Option<&Path>,
+) -> Result<(ValidatedCBridgeToolchainInvocation, Vec<PathBuf>), ToolchainError> {
+    let executable = crate::installed_executable()?;
+    let installed = executable
+        .parent()
+        .and_then(Path::parent)
+        .ok_or_else(|| error("cannot locate the installed LLVM tools"))?
+        .join("libexec/llvm/bin")
+        .join(crate::host_executable_name("clang"));
+    let search = std::env::var_os("PATH").unwrap_or_default();
+    let bundled = installed.is_file();
+    let compiler = if bundled {
+        installed.clone()
+    } else {
+        crate::paths::find_program(&crate::host_executable_name("clang"), &search)?
+    };
+    let default_root = crate::target_library_root(&crate::configured_sysroot_root(None)?, target)
+        .join("toolchain");
+    let usable_default = if target.id() == scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID {
+        default_root.join("msvc.toml").is_file()
+    } else {
+        default_root.is_dir()
+    };
+    let (invocation, mut inputs) = probe(
+        target,
+        &compiler,
+        native_sysroot.or_else(|| usable_default.then_some(default_root.as_path())),
+    )?;
+    inputs.push(installed);
+    if !bundled {
+        let mut candidates = BTreeSet::new();
+        crate::native_record::program_candidates(
+            &crate::host_executable_name("clang"),
+            &search,
+            &mut candidates,
+        );
+        inputs.extend(candidates);
+    }
+    if native_sysroot.is_none() {
+        inputs.push(default_root);
+    }
+    Ok((invocation, inputs))
+}
+
 pub(crate) fn probe(
     target: LirTargetProfile,
     compiler: &Path,
@@ -38,9 +84,12 @@ pub(crate) fn probe(
 ) -> Result<(ValidatedCBridgeToolchainInvocation, Vec<PathBuf>), ToolchainError> {
     let triple = machine_triple(target.id())?;
     let search_path = std::env::var_os("PATH").unwrap_or_default();
-    let compiler = crate::linux_c::find_program(compiler.as_os_str(), &search_path)?;
+    let mut tool_inputs = BTreeSet::new();
+    crate::native_record::program_candidates(compiler.as_os_str(), &search_path, &mut tool_inputs);
+    let compiler = crate::paths::find_program(compiler.as_os_str(), &search_path)?;
     let (environment, paths) = WindowsCEnvironment::resolve(target, &compiler, native_sysroot)?;
     let mut inputs: BTreeSet<_> = paths.into_iter().collect();
+    inputs.extend(tool_inputs);
     inputs.insert(compiler.clone());
     let directory = tempfile::Builder::new()
         .prefix("scoop-windows-c-")

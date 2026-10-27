@@ -75,18 +75,7 @@ impl ValidatedFinalLinkProfile {
         options: &FinalLinkOptions,
     ) -> Result<Self, ToolchainError> {
         let target = ResolvedTargetProfile::resolve_with(triple, c_toolchain)?;
-        Self::from_startup(target.c_bridge_toolchain().clone(), options, false)
-    }
-
-    pub(crate) fn from_startup(
-        startup: ValidatedCBridgeToolchainInvocation,
-        options: &FinalLinkOptions,
-        cxx: bool,
-    ) -> Result<Self, ToolchainError> {
-        let cxx = cxx
-            .then(|| crate::ValidatedCxxToolchain::resolve(&startup))
-            .transpose()?;
-        Self::from_tools(startup, options, cxx)
+        target.final_link_with(options)
     }
 
     pub(crate) fn from_tools(

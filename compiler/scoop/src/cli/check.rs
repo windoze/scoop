@@ -38,6 +38,8 @@ pub(super) struct CheckArgs {
     #[arg(long)]
     cc: Option<PathBuf>,
     #[arg(long)]
+    cxx: Option<PathBuf>,
+    #[arg(long)]
     native_sysroot: Option<PathBuf>,
     #[arg(long, default_value = "human")]
     pub message_format: MessageFormat,
@@ -64,6 +66,7 @@ pub(super) fn execute(
         args.cache_dir,
     )?;
     let target = scoop_toolchain::CToolchainOptions {
+        cxx_compiler: args.cxx,
         compiler: args
             .cc
             .map(|path| {

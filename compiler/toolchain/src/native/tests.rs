@@ -11,6 +11,8 @@ use crate::ResolvedTargetProfile;
 #[cfg(not(target_env = "musl"))]
 mod cxx;
 mod objects;
+#[cfg(windows)]
+mod windows;
 
 fn target() -> &'static ResolvedTargetProfile {
     static TARGET: OnceLock<ResolvedTargetProfile> = OnceLock::new();

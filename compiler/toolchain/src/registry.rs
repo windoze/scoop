@@ -9,6 +9,7 @@ use crate::{FinalLinkOptions, ToolchainError, ValidatedFinalLinkProfile};
 #[derive(Clone, Debug, Default)]
 pub struct CToolchainOptions {
     pub compiler: Option<PathBuf>,
+    pub cxx_compiler: Option<PathBuf>,
     pub native_sysroot: Option<PathBuf>,
 }
 
@@ -20,6 +21,8 @@ pub struct ResolvedTargetProfile {
     c_bridge_toolchain: ValidatedCBridgeToolchainInvocation,
     runtime_build: ValidatedRuntimeBuildProfile,
     native_tool_inputs: scoop_wire::Digest256,
+    native_c: Option<PathBuf>,
+    native_cxx: Option<PathBuf>,
 }
 
 impl ResolvedTargetProfile {
@@ -43,7 +46,22 @@ impl ResolvedTargetProfile {
             c_bridge_toolchain,
             runtime_build: ValidatedRuntimeBuildProfile::for_target(lir_target.target())?,
             native_tool_inputs,
+            native_c: None,
+            native_cxx: None,
         })
+    }
+
+    pub(crate) fn with_native_drivers(mut self, c: Option<PathBuf>, cxx: Option<PathBuf>) -> Self {
+        self.native_c = c;
+        self.native_cxx = cxx;
+        self
+    }
+
+    pub(crate) fn native_c_driver(&self) -> Option<&std::path::Path> {
+        self.native_c.as_deref()
+    }
+    pub(crate) fn native_cxx_driver(&self) -> Option<&std::path::Path> {
+        self.native_cxx.as_deref()
     }
 
     pub const fn native_tool_inputs(&self) -> scoop_wire::Digest256 {
@@ -109,7 +127,15 @@ impl ResolvedTargetProfile {
         options: &FinalLinkOptions,
         cxx: bool,
     ) -> Result<ValidatedFinalLinkProfile, ToolchainError> {
-        ValidatedFinalLinkProfile::from_startup(self.c_bridge_toolchain.clone(), options, cxx)
+        let cxx = cxx
+            .then(|| {
+                crate::ValidatedCxxToolchain::resolve_with(
+                    &self.c_bridge_toolchain,
+                    self.native_cxx_driver(),
+                )
+            })
+            .transpose()?;
+        ValidatedFinalLinkProfile::from_tools(self.c_bridge_toolchain.clone(), options, cxx)
     }
 }
 
