@@ -19,6 +19,8 @@ def lookup(name, context):
                 value = len(value)
             elif part == "hex" and isinstance(value, (str, bytes)):
                 value = os.fsencode(value).hex()
+            elif part == "canonical" and isinstance(value, (str, bytes, os.PathLike)):
+                value = canonical_host_path(value)
             elif isinstance(value, list):
                 value = value[int(part)]
             else:
@@ -26,6 +28,14 @@ def lookup(name, context):
     except (KeyError, IndexError, ValueError, TypeError) as error:
         raise ConfigurationError(f"unresolved reference ${{{name}}}") from error
     return value
+
+
+def canonical_host_path(value):
+    """Match native canonical paths, including Rust's Windows verbatim prefix."""
+    result = str(Path(os.fsdecode(value)).resolve(strict=True))
+    if os.name == "nt" and not result.startswith("\\\\?\\"):
+        result = "\\\\?\\UNC\\" + result[2:] if result.startswith("\\\\") else "\\\\?\\" + result
+    return result
 
 
 def expand(value, context):

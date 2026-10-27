@@ -9,6 +9,11 @@ use super::{SlibDiagnostic, SlibDiagnosticRecord, SlibErrorCode, SlibPrimaryOrig
 
 pub(super) fn cone_record_diagnostic(error: &ConeRecordValidationError) -> SlibDiagnosticRecord {
     let (code, field, origin) = match error {
+        ConeRecordValidationError::Record(crate::ConeRecordError::WindowsSubsystemOnLibrary) => (
+            SlibErrorCode::ReferenceInvalid,
+            5,
+            SlibPrimaryOrigin::Manifest,
+        ),
         ConeRecordValidationError::Coordinate(_) | ConeRecordValidationError::Record(_) => (
             SlibErrorCode::IdentityInvalid,
             1,
@@ -35,6 +40,11 @@ pub(super) fn cone_record_diagnostic(error: &ConeRecordValidationError) -> SlibD
         ConeRecordValidationError::UnknownSourceForm { .. } => (
             SlibErrorCode::WireUnknownTag,
             4,
+            SlibPrimaryOrigin::Manifest,
+        ),
+        ConeRecordValidationError::UnknownWindowsSubsystem { .. } => (
+            SlibErrorCode::WireUnknownTag,
+            5,
             SlibPrimaryOrigin::Manifest,
         ),
         ConeRecordValidationError::Resource(error) => {

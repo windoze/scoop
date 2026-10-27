@@ -26,7 +26,7 @@ pub(super) fn of(request: &Request<'_>) -> BuildResult<Digest256> {
         NativeInputMetadata::read(&std::env::current_exe().map_err(failure)?).map_err(failure)?;
     let bytes = serde_json::to_vec(&(
         artifacts,
-        encode(&request.graph.root().artifact().summary().cone().identity()).map_err(failure)?,
+        encode(request.graph.root().artifact().summary().cone()).map_err(failure)?,
         request.runtime.fingerprint().digest().as_array(),
         encode(&request.target.child_request().map_err(failure)?).map_err(failure)?,
         encode(&request.target.lir_target().wire_id()).map_err(failure)?,

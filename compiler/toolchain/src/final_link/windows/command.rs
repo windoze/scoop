@@ -3,6 +3,15 @@ use std::ffi::{OsStr, OsString};
 
 impl WindowsFinalLinkProfile {
     pub fn command(&self, scratch: &Path, output: &Path) -> Result<Command, ToolchainError> {
+        self.command_with_subsystem(scratch, output, scoop_identity::WindowsSubsystem::Console)
+    }
+
+    pub fn command_with_subsystem(
+        &self,
+        scratch: &Path,
+        output: &Path,
+        subsystem: scoop_identity::WindowsSubsystem,
+    ) -> Result<Command, ToolchainError> {
         std::fs::create_dir_all(scratch).map_err(error)?;
         let environment = self.startup.windows_environment().map_err(error)?;
         let mut command = if self.microsoft() {
@@ -66,6 +75,22 @@ impl WindowsFinalLinkProfile {
             .env("TMPDIR", scratch);
         for option in self.linker_args() {
             self.linker_arg(&mut command, option);
+        }
+        if self.microsoft() {
+            self.linker_arg(
+                &mut command,
+                match subsystem {
+                    scoop_identity::WindowsSubsystem::Console => "/subsystem:console,10.0",
+                    scoop_identity::WindowsSubsystem::Gui => "/subsystem:windows,10.0",
+                },
+            );
+            // Both PE subsystems enter the Unicode console-style C function.
+            self.linker_arg(&mut command, "/entry:wmainCRTStartup");
+        } else {
+            command.arg(match subsystem {
+                scoop_identity::WindowsSubsystem::Console => "-mconsole",
+                scoop_identity::WindowsSubsystem::Gui => "-mwindows",
+            });
         }
         Ok(command)
     }

@@ -1,0 +1,28 @@
+schema = 1
+name = "manifest-windows-subsystem"
+inputs = ["program", "library"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
+tags = ["manifest", "negative", "driver"]
+
+[vars]
+manifest = "${fixture}/program/Cone.toml"
+library_manifest = "${fixture}/library/Cone.toml"
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "--release", {each = "${link_args}"}, "${fixture}/program", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "diagnostics.json"}
+
+[[steps]]
+name = "library"
+argv = ["${scoop}", "build", "--release", {each = "${link_args}"}, "${fixture}/library", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "library-diagnostics.json"}

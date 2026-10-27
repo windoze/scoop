@@ -23,6 +23,7 @@ pub struct DecodedConeRecord {
     identity: DecodedPersistentId<ConeIdentity>,
     kind: u32,
     source_form: u32,
+    windows_subsystem: Option<u32>,
 }
 
 impl DecodedConeRecord {
@@ -48,14 +49,28 @@ impl DecodedConeRecord {
             2 => ConeSourceForm::SingleFile,
             actual => return Err(ConeRecordValidationError::UnknownSourceForm { actual }),
         };
-        ConeRecord::from_validated(coordinate, expected, kind, source_form)
-            .map_err(ConeRecordValidationError::Record)
+        let cone = ConeRecord::from_validated(coordinate, expected, kind, source_form)
+            .map_err(ConeRecordValidationError::Record)?;
+        match self.windows_subsystem {
+            None => Ok(cone),
+            Some(value) => {
+                let subsystem = match value {
+                    1 => scoop_identity::WindowsSubsystem::Console,
+                    2 => scoop_identity::WindowsSubsystem::Gui,
+                    actual => {
+                        return Err(ConeRecordValidationError::UnknownWindowsSubsystem { actual });
+                    }
+                };
+                cone.with_windows_subsystem(subsystem)
+                    .map_err(ConeRecordValidationError::Record)
+            }
+        }
     }
 }
 
 impl WireEncode for DecodedConeRecord {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
+        encoder.map(4 + u64::from(self.windows_subsystem.is_some()))?;
         encoder.field(1)?;
         self.coordinate.encode(encoder)?;
         encoder.field(2)?;
@@ -63,18 +78,38 @@ impl WireEncode for DecodedConeRecord {
         encoder.field(3)?;
         encoder.unsigned(u64::from(self.kind))?;
         encoder.field(4)?;
-        encoder.unsigned(u64::from(self.source_form))
+        encoder.unsigned(u64::from(self.source_form))?;
+        if let Some(subsystem) = self.windows_subsystem {
+            encoder.field(5)?;
+            encoder.unsigned(u64::from(subsystem))?;
+        }
+        Ok(())
     }
 }
 
 impl WireDecode for DecodedConeRecord {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(4)?;
+        let length = decoder.map()?;
+        if !matches!(length, 4 | 5) {
+            return Err(WireError::new(
+                WireErrorKind::InvalidLength {
+                    expected: 4,
+                    actual: length,
+                },
+                decoder.path().clone(),
+                Some(decoder.position()),
+            ));
+        }
         Ok(Self {
             coordinate: decoder.field(1, DecodedConeCoordinate::decode)?,
             identity: decoder.field(2, DecodedPersistentId::decode)?,
             kind: decoder.field(3, Decoder::u32)?,
             source_form: decoder.field(4, Decoder::u32)?,
+            windows_subsystem: if length == 5 {
+                Some(decoder.field(5, Decoder::u32)?)
+            } else {
+                None
+            },
         })
     }
 }
@@ -86,6 +121,7 @@ pub enum ConeRecordValidationError {
     Identity(PersistentIdMismatch<ConeIdentity>),
     UnknownKind { actual: u32 },
     UnknownSourceForm { actual: u32 },
+    UnknownWindowsSubsystem { actual: u32 },
     Record(ConeRecordError),
     Resource(WireError),
 }
@@ -99,6 +135,9 @@ impl fmt::Display for ConeRecordValidationError {
             Self::UnknownKind { actual } => write!(formatter, "unknown Cone kind {actual}"),
             Self::UnknownSourceForm { actual } => {
                 write!(formatter, "unknown Cone source form {actual}")
+            }
+            Self::UnknownWindowsSubsystem { actual } => {
+                write!(formatter, "unknown Windows subsystem {actual}")
             }
             Self::Record(error) => error.fmt(formatter),
             Self::Resource(error) => error.fmt(formatter),

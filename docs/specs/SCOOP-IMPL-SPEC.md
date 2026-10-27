@@ -974,6 +974,8 @@ generator 的 stderr 沿 driver 日志目标输出。scoop 在取得合法的 ch
 
 ### 2.8 程序链接与最终结果复用
 
+Windows executable 的 subsystem 由根 Cone 的 `[windows].subsystem` 决定，默认 console；单文件与测试 executable 使用 console。manifest 的 Cone record 可带 field 5 的 Windows subsystem（Console=1、Gui=2），仅 executable 使用；无该字段的现有产物按 console 解释，library 与非 Windows producer 不写该字段。此配置不改变 Cone／实体 identity 或语言 ABI，保存在 executable `.slib` 供 artifact-only 链接读取，并作为最终链接的实际输入参与更新与链接指纹。GUI 链接使用 PE Windows subsystem；Microsoft 显式选择 Unicode `wmainCRTStartup`，MinGW 使用配套 Unicode CRT startup。两者均由生成的 `wmain` 进入同一 Scoop startup，保持 CRT 初始化／终止与 argv 处理。
+
 program-link 消费完整 `.slib` Link 闭包、普通 runtime 对象、已有 native 文件、LIR target 与 final-link 配置。它不展开模板、重新编译 Scoop 或编译用户 C/C++；只可用明确选择的 C compiler 生成本次固定启动代码与最终 image tables。
 
 `scoop --enable-startup-stats` 和独立 `scoop-link --enable-startup-stats` 按运行时规范第 7 章选择编入启动诊断的 runtime，对 build/run/test/link 生效，独立于 profile 和 GC stress。默认 runtime 必须在预处理阶段排除启动计时、报告及专用数据访问；环境变量不能启用未编入的代码。该开关只影响 runtime 构建／选择及最终链接结果，不改变 Scoop 源码编译缓存、`.slib`、对象布局或 ABI；编译器不消费测量记录。显式 runtime index 的配置必须与请求一致。

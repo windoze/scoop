@@ -54,6 +54,7 @@ pub(crate) struct ProgramInputs<'a> {
     pub root: String,
     pub string_target: String,
     pub native: NativeInputs,
+    pub windows_subsystem: scoop_identity::WindowsSubsystem,
 }
 
 impl<'a> ProgramInputs<'a> {
@@ -94,6 +95,7 @@ impl<'a> ProgramInputs<'a> {
         let mut requirement_origins: BTreeMap<String, Vec<String>> = BTreeMap::new();
         let mut images = Vec::new();
         let mut root = None;
+        let mut windows_subsystem = scoop_identity::WindowsSubsystem::Console;
         let mut string_target = None;
         for (artifact, symbols) in closure.artifacts() {
             let cone = artifact.identity();
@@ -115,6 +117,11 @@ impl<'a> ProgramInputs<'a> {
                     return Err(error(format!("multiple executable entries at Cone {cone}")));
                 }
                 root = Some(object_symbol(entry, profile));
+                windows_subsystem = artifact
+                    .manifest()
+                    .cone()
+                    .windows_subsystem()
+                    .unwrap_or_default();
             }
             for object in symbols.members() {
                 let member = object.member();
@@ -249,6 +256,7 @@ impl<'a> ProgramInputs<'a> {
             root,
             string_target,
             native,
+            windows_subsystem,
         };
         native::resolve(
             closure,

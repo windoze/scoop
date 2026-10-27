@@ -5,14 +5,14 @@
 | 阶段 | 状态 | 尚需闭合 |
 | --- | --- | --- |
 | W0 工具链与 ABI | 关键路线实验通过 | 复现入口与范围见下文；正式编译器集成在 W1／W2 完成 |
-| W1 编译／链接 | 实施中 | 三目标开发 CLI 已生成 `.slib` 与真实 PE 程序；继续 DLL 数据、subsystem／RC、调试信息与组合验收 |
+| W1 编译／链接 | 实施中 | 三目标开发 CLI 已生成 `.slib` 与真实 PE 程序并支持 subsystem；继续 DLL 数据、RC、调试信息与组合验收 |
 | W2 core runtime | 实施中 | core／std／test 已构建，启动、异常和移动 GC 的真实程序通过；继续线程／callback／unwind 组合及正式 fixture 验收 |
 | W3 系统库 | 待实施 | 平台规范与实现、IOCP、全部 native 组件、真实 consumer |
 | W4 宿主与发行 | 基础实施中 | 进程中断已实现；继续 Windows 命令、维护脚本、DLL／SDK 布局与打包、交叉编译 |
 
 本地实现和完整验收完成后，才在 Linux `nuc12w.0d0a.com` 与 macOS `mm.0d0a.com` 的 `~/repos` 下新建测试目录，运行与变更范围相称的回归。原始日志与构建目录放在仓库外。
 
-2026-10-28 新增需求已记录，尚待实现：`Cone.toml` 的 `[windows]` 节增加 `subsystem = "console" | "gui"`（默认 console）和可选 `rc` 文件；Windows toolchain 自带或发现 RC compiler，资源编译后进入 exe。W1 覆盖 manifest、产物、链接与缓存，W4 覆盖工具供应／发现；具体合同和验收见 [设计 3.4](DESIGN.md#34-windows-executable-配置与资源)。
+2026-10-28 新增需求：`Cone.toml` 的 `[windows]` 节已支持 `subsystem = "console" | "gui"`（默认 console）。同节的可选 `rc` 文件尚待实现，Windows toolchain 将自带或发现 RC compiler，资源编译后进入 exe。W1 覆盖 manifest、产物、链接与缓存，W4 覆盖工具供应／发现；具体合同和验收见 [设计 3.4](DESIGN.md#34-windows-executable-配置与资源)。
 
 ## 本地环境
 
@@ -116,3 +116,7 @@ scoop.test 的 native 报告通道已适配 Windows：使用所选 CRT 的 descr
 正式 fixture runner 的进程层已支持 Windows：挂起创建后先加入独立 Job，再恢复初始线程；完成、超时和中断回收该用例的进程及后代。实际 Python 子进程验证 UTF-16 参数（含非配对 surrogate）、Unicode 工作路径、原始字节流、完整高位退出码、立即派生的子进程回收与超时。公共规则测试共 62 项，59 项通过、3 项仅适用 POSIX 的 signal／byte argv／FIFO 检查跳过，Ruff 通过；Windows target／工具选择和正式用例接入继续实施。
 
 fixture runner 已接入三种完整 Windows target、各自的 Clang／archive companion、显式 native／unwind prefix 和 Microsoft SDK 配置；文本读写明确使用 UTF-8。fixture 文本由 Git 属性固定 LF，修复 Windows autocrlf 导致诊断字节位置与 golden 不一致的问题，不归一化实际诊断。公共规则测试扩至 64 项（61 通过、3 项 POSIX 专项不适用），Ruff 和 native C 严格警告检查通过。三个环境各通过 16 项异常／诊断 fixture 与 2 项真实 native scalar／aggregate 返回 fixture；Win64 native sret shim 保持 RCX／RAX 和 SEH 合同。定向 stress runtime 已分别准备，现有 `roots-gc-context` 和 `string-copies-moving` 在三个 target 均复现 managed 返回 PC 缺少精确 stackmap 记录，保留失败并继续修复；对应 release variant 尚未执行，未计为通过。`exceptions-return-paths` 的另一组 compiler 专测尚未扩展 target，本批单列为不适用。
+
+`[windows].subsystem` 已贯通 manifest、executable `.slib`、编译更新键和最终链接更新键；默认／显式 console 与 gui 不改变 Cone identity 或 Scoop entry。三个目标的正式 fixture 各通过 15 个实际进程步骤，验证 PE subsystem、Unicode argv／退出码、GUI／console 切换、未变化时零 compiler child、artifact-only 重链接，以及 GUI Cone 的测试 executable 仍为 console。非法取值和 library 使用该节的诊断位置由正式 CLI 用例验证。
+
+5 项 manifest／slib 定向测试、workspace/all-targets Clippy 与后续修改的定向 Clippy 通过；fixture runner 的 host canonical path 引用保持实际诊断原样，公共规则测试为 65 项（62 通过、3 项 POSIX 专项不适用），Ruff 通过。RC 配置与资源编译仍待实施；上述 subsystem 验证未替代前述 GC 返回 PC 修复和完整 Windows 验收。

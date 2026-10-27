@@ -149,7 +149,7 @@ fn link_inputs(
     let profile_fingerprint = profile.fingerprint().map_err(error)?;
     let fingerprint = ResolvedLinkPlanFingerprint(
         domain_separated_cbor_hash(
-            "scoop-resolved-link-plan-v5",
+            "scoop-resolved-link-plan-v6",
             &Plan {
                 closure,
                 runtime,
@@ -235,7 +235,7 @@ struct Plan<'a> {
 }
 impl WireEncode for Plan<'_> {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        e.map(11)?;
+        e.map(12)?;
         e.field(1)?;
         self.closure.root().encode(e)?;
         e.field(2)?;
@@ -278,6 +278,8 @@ impl WireEncode for Plan<'_> {
             }
             None => e.array(0)?,
         }
+        e.field(12)?;
+        self.inputs.windows_subsystem.encode(e)?;
         Ok(())
     }
 }

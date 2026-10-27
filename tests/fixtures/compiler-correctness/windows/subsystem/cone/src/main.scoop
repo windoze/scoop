@@ -1,0 +1,9 @@
+package dev.windows
+
+fun main(args: Array<String>): Int {
+    println(args.size)
+    println(args[1])
+    return exitCode()
+}
+
+fun exitCode(): Int = 73

@@ -142,9 +142,22 @@ impl PreparedBuildGraph {
         ),
         CompileCacheKeyError,
     > {
+        let windows = self.target_selection.target().native_object_format()
+            == scoop_lir::NativeObjectFormat::Coff64;
         match self.nodes.get(&identity) {
             Some(PreparedGraphNode::ManifestSource(node)) => {
-                manifest_cache_inputs(&node.snapshot, node.snapshot.requested_kind)
+                let subsystem = (windows
+                    && node.snapshot.requested_kind == RequestedConeKind::Executable)
+                    .then(|| {
+                        if self.compilation_purpose(identity)
+                            == scoop_protocol::CompilationPurpose::Test
+                        {
+                            scoop_identity::WindowsSubsystem::Console
+                        } else {
+                            node.snapshot.manifest_semantic.windows().subsystem()
+                        }
+                    });
+                manifest_cache_inputs(&node.snapshot, node.snapshot.requested_kind, subsystem)
             }
             Some(PreparedGraphNode::SingleFile(node)) => {
                 let cone = ConeRecord::new(
@@ -153,6 +166,12 @@ impl PreparedBuildGraph {
                     ConeSourceForm::SingleFile,
                 )
                 .map_err(CompileCacheKeyError::ConeRecord)?;
+                let cone = if windows {
+                    cone.with_windows_subsystem(scoop_identity::WindowsSubsystem::Console)
+                        .map_err(CompileCacheKeyError::ConeRecord)?
+                } else {
+                    cone
+                };
                 Ok((
                     cone,
                     CurrentConeSemanticProjectionV1::SingleFile,
@@ -170,6 +189,7 @@ impl PreparedBuildGraph {
 fn manifest_cache_inputs(
     snapshot: &super::ManifestSourceInput,
     requested_kind: RequestedConeKind,
+    windows_subsystem: Option<scoop_identity::WindowsSubsystem>,
 ) -> Result<
     (
         ConeRecord,
@@ -190,6 +210,12 @@ fn manifest_cache_inputs(
         ConeSourceForm::Manifest,
     )
     .map_err(CompileCacheKeyError::ConeRecord)?;
+    let cone = match windows_subsystem {
+        Some(subsystem) => cone
+            .with_windows_subsystem(subsystem)
+            .map_err(CompileCacheKeyError::ConeRecord)?,
+        None => cone,
+    };
     let mut dependencies: Vec<_> = snapshot
         .manifest_semantic
         .dependency_iter()

@@ -157,6 +157,7 @@ stdout/stderr 也可显式声明 `{snapshot = "symbols.${target}.txt"}`，沿用
 `scoop clean` 返回 `clean` 结果，包含选中的 `target_dir` 和是否实际删除目录的 `removed`；目录不存在时同样成功。
 这种模式必须声明完整 `diagnostics` 数组或 JSON 期望文件；仅剥离 display，不改变
 canonical source、span、code、message 或 notes。stdout/stderr 仍严格比较剩余原始字节。
+期望中的 `${input.canonical}` 可取得已存在宿主输入的真实路径；Windows 保留 Rust 文件系统 API 使用的 `\\?\` 前缀，并按宿主路径分隔符拼接。先把完整输入路径放入变量（如 `manifest = "${fixture}/program/Cone.toml"`），再在完整诊断的 message／host origin 中引用 `${manifest.canonical}`。这只构造期望，不归一化实际诊断或逻辑源码身份。
 `json = "stdout"` 用于普通工具的逐行 JSON，保留原 stdout。步骤结果还包含
 `records`、`diagnostics`、`returncode`、`pid`、`stdout`、`stderr`、`raw_stderr`。
 

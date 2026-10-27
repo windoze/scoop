@@ -22,7 +22,9 @@ pub(super) fn link(
         paths.push(path);
     }
     response::write_pe_objects(directory, &paths, profile.microsoft())?;
-    let mut command = profile.command(directory, candidate).map_err(error)?;
+    let mut command = profile
+        .command_with_subsystem(directory, candidate, inputs.windows_subsystem)
+        .map_err(error)?;
     profile.append_system_libraries(&mut command);
     profile.configure_outputs(&mut command, pdb, symbol_map);
     if profile.microsoft() {

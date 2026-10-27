@@ -51,7 +51,7 @@ pub use capability::{
 };
 pub use cone::{
     ConeCoordinate, ConeCoordinateComponent, ConeCoordinateError, ConeCoordinateTextError,
-    ConeIdentity, DecodedConeCoordinate, RequestedConeKind,
+    ConeIdentity, DecodedConeCoordinate, RequestedConeKind, WindowsSubsystem,
 };
 pub use entity::{
     AccessorRole, BindableEntity, BindingIdentityResolutionError, BindingNamespace,

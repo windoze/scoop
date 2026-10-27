@@ -14,7 +14,6 @@ mod tests;
 
 const MSVC_OPTIONS: &[&str] = &[
     "/machine:x64",
-    "/subsystem:console,10.0",
     "/dynamicbase",
     "/highentropyva",
     "/nxcompat",

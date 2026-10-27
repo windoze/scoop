@@ -252,6 +252,7 @@ fn validate_pe(profile: &ValidatedFinalLinkProfile, scratch: &Path) {
         root: "scoop$test$root".into(),
         string_target: "scoop$test$String".into(),
         native,
+        windows_subsystem: scoop_identity::WindowsSubsystem::Console,
     };
     let startup = StartupObject::build(&inputs, profile, scratch).unwrap_or_else(|error| {
         let info = NativeObjectInfo::read_with_toolchain(

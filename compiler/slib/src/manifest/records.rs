@@ -109,6 +109,7 @@ pub struct ConeRecord {
     identity: ConeIdentity,
     kind: ConeKind,
     source_form: ConeSourceForm,
+    windows_subsystem: Option<scoop_identity::WindowsSubsystem>,
 }
 
 impl ConeRecord {
@@ -136,6 +137,7 @@ impl ConeRecord {
             identity,
             kind,
             source_form,
+            windows_subsystem: None,
         })
     }
 
@@ -154,11 +156,26 @@ impl ConeRecord {
     pub const fn source_form(&self) -> ConeSourceForm {
         self.source_form
     }
+
+    pub const fn windows_subsystem(&self) -> Option<scoop_identity::WindowsSubsystem> {
+        self.windows_subsystem
+    }
+
+    pub fn with_windows_subsystem(
+        mut self,
+        subsystem: scoop_identity::WindowsSubsystem,
+    ) -> Result<Self, ConeRecordError> {
+        if self.kind != ConeKind::Executable {
+            return Err(ConeRecordError::WindowsSubsystemOnLibrary);
+        }
+        self.windows_subsystem = Some(subsystem);
+        Ok(self)
+    }
 }
 
 impl WireEncode for ConeRecord {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
+        encoder.map(4 + u64::from(self.windows_subsystem.is_some()))?;
         encoder.field(1)?;
         self.coordinate.encode(encoder)?;
         encoder.field(2)?;
@@ -166,19 +183,28 @@ impl WireEncode for ConeRecord {
         encoder.field(3)?;
         self.kind.encode(encoder)?;
         encoder.field(4)?;
-        self.source_form.encode(encoder)
+        self.source_form.encode(encoder)?;
+        if let Some(subsystem) = self.windows_subsystem {
+            encoder.field(5)?;
+            subsystem.encode(encoder)?;
+        }
+        Ok(())
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ConeRecordError {
     SingleFileCoordinateMismatch,
+    WindowsSubsystemOnLibrary,
     Hash(HashError),
 }
 
 impl fmt::Display for ConeRecordError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::WindowsSubsystemOnLibrary => formatter.write_str(
+                "Windows subsystem is only valid for an executable Cone",
+            ),
             Self::SingleFileCoordinateMismatch => formatter.write_str(
                 "single-file source form and the reserved single-file coordinate must appear together",
             ),
