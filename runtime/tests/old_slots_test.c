@@ -4,6 +4,25 @@
 #include "nursery_fixture.h"
 #include "../src/gc/old_slots.h"
 
+#undef stress_move
+
+static unsigned released;
+
+static void release_node(void *object) {
+    const NurseryNode *node = object;
+    assert(node->value == 771);
+    assert((node->header.gc_word & GC_RELEASE_READY_BIT) == 0);
+    assert(++released == 1);
+}
+
+static const ScoopTypeDescriptor released_td = {
+    .type_id = 946,
+    .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
+                       .minimum_size = sizeof(NurseryNode),
+                       .instance_alignment = 8},
+    .release_hook = release_node,
+};
+
 static const uint64_t aligned_scan[] = {1, 64};
 static const ScoopTypeDescriptor padded_td = {
     .type_id = 944,
@@ -107,6 +126,17 @@ static void check_size(const ScoopTypeDescriptor *td, size_t offset) {
             assert(((unsigned char *)replacement)[size - 1] == 0x6d);
         }
     }
+    void *pinned = objects[0];
+    scoop_gc_heap_state.stress_move = true;
+    nursery_collect(false);
+    scoop_gc_heap_state.stress_move = false;
+    assert(objects[0] == pinned);
+    for (size_t index = 0; index < COUNT; index += 2) {
+        assert(*edge(objects[index], offset) == objects[index + 1]);
+        assert(*edge(objects[index + 1], offset) == objects[0]);
+        assert(*value(objects[index], offset) == index);
+        assert(*value(objects[index + 1], offset) == 100000 + index);
+    }
     assert(scoop_rt_unpin(objects[0]) == objects[0]);
     scoop_rt_pop_native_roots(&roots);
     nursery_collect(false);
@@ -117,18 +147,47 @@ static void check_size(const ScoopTypeDescriptor *td, size_t offset) {
     free(objects);
 }
 
+static void check_pretenured_release(void) {
+    void *objects[3] = {0};
+    void **slots[] = {&objects[0], &objects[1], &objects[2]};
+    ScoopNativeRootFrame roots;
+    scoop_rt_push_native_roots(&roots, slots, 3);
+    objects[0] = nursery_node(770);
+    for (size_t index = 1; index < 3; index++) {
+        NurseryNode *node = nursery_allocate(&released_td, sizeof *node);
+        node->value = 770 + index;
+        if (index == 1) {
+            __atomic_fetch_or(&node->header.gc_word, GC_RELEASE_READY_BIT, __ATOMIC_RELEASE);
+        }
+        objects[index] = node;
+    }
+    nursery_collect(true);
+    assert(scoop_heap_pointer_block(objects[0])->slot_size == sizeof(NurseryNode));
+    assert(scoop_heap_pointer_block(objects[1])->slot_size == 0);
+    assert(scoop_heap_pointer_block(objects[2])->slot_size == 0);
+    assert(released == 0);
+    objects[1] = objects[2] = NULL;
+    nursery_collect(false);
+    assert(scoop_rt_gc_stats() == 1 && released == 1);
+    assert(((NurseryNode *)objects[0])->value == 770);
+    scoop_rt_pop_native_roots(&roots);
+    nursery_collect(false);
+    assert(scoop_rt_gc_stats() == 0 && released == 1);
+}
+
 static void run_case(size_t workers) {
     char count[2] = {(char)('0' + workers), '\0'};
     assert(setenv("SCOOP_GC_OLD_SLOTS", "1", 1) == 0);
     assert(setenv("SCOOP_GC_WORKERS", count, 1) == 0);
-    const ScoopTypeDescriptor *types[] = {&nursery_node_td, &padded_td, &aligned_td};
+    const ScoopTypeDescriptor *types[] = {&nursery_node_td, &padded_td, &aligned_td, &released_td};
     scoop_thread_runtime_init();
-    scoop_test_image_init(types, 3, NULL, 0, NULL, 0);
+    scoop_test_image_init(types, 4, NULL, 0, NULL, 0);
     scoop_thread_attach_main();
     scoop_thread_enter_managed((void *)scoop_rt_thread_debug_stack_high());
     check_size(&nursery_node_td, 16);
     check_size(&padded_td, 16);
     check_size(&aligned_td, 64);
+    check_pretenured_release();
     scoop_gc_shutdown();
     scoop_thread_leave_managed();
     scoop_thread_detach_main();

@@ -4,6 +4,8 @@
 
 各项已采纳方案的开启方式与适用条件统一见[简略清单](ENABLED-OPTIMIZATIONS.md)，后续交付与默认策略调整时同步更新。
 
+- [GC 第十五阶段](GC-EVOLUTION.md)利用旧代槽只接收无 hook 晋升对象的事实，按位图批量退休死亡槽；随现有 `SCOOP_GC_OLD_SLOTS=1` 启用，无新开关或 ABI。M3／GNU 大图清扫累计 128／278 → 15／37 ms，增量 full 完成片 max 16／35 → 6／12 ms；minor 主导的总体 p99 未解决，M3 部分 CPU／暂停回退保留。两机五项 C 专测及三目标双 profile GC／release 组合通过，继续处理 minor 计划、地址查询与对象布局成本。
+
 - [GC 第十四阶段](GC-EVOLUTION.md)修复 worker 数量切换的真实竞态：已发布 phase 固定参与数量，延迟醒来的旧 worker 不能按下一轮数量追加入完成计数。M3 可控交错先失败后通过，两机五项专测及三目标双 profile native／GC 组合通过，ABI 不变；对照未见明确额外运行成本，不计为性能收益。继续旧代槽清扫及剩余 STW 优化。
 
 - [GC 第十三阶段](GC-EVOLUTION.md)完成按目标 block 独占的并行复制，所有 profile 沿现有 worker 策略默认启用，单 worker 共用同一复制算法。M3 大存活图墙钟 4.997 → 4.446 s、copy 累计 814 → 255 ms，GNU 中等负载 0.868 → 0.762 s；RSS 保持。两机复制／失败回滚／并行／增量专测及三目标双 profile GC／native 组合通过。树形与高线程数 CPU 代价、暂停边界及两 worker 对照保留；继续按实际阶段成本处理剩余计划、清扫和 mutator 屏障，不视为 GC 主线完成。

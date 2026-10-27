@@ -72,6 +72,20 @@ retire_small_object(ScoopGcBlockMeta *block, size_t word, bool marked, bool stre
 }
 
 static void retire_dead_small_objects(ScoopGcBlockMeta *block, bool stress) {
+    if (block->slot_size != 0 && !stress) {
+        /* Slot blocks only receive nursery survivors, which cannot have release
+         * hooks. All readers and markers have stopped before this retirement. */
+        for (size_t index = 0; index < GC_BITMAP_WORDS; index++) {
+            uint64_t starts = block->starts[index];
+            uint64_t live = starts & block->marks[index];
+            if (live != starts) {
+                block->starts[index] = live;
+                block->pins[index] &= live;
+                block->discard_pending = true;
+            }
+        }
+        return;
+    }
     for (size_t index = 0; index < GC_BITMAP_WORDS; index++) {
         uint64_t dead = block->starts[index] & ~block->marks[index];
         while (dead != 0) {

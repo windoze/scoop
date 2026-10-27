@@ -587,6 +587,8 @@ small block 的普通 sweep 与压缩目标准备按 `starts & ~marks` 枚举实
 
 首版在普通 full 结束时合并已使用 block 中不覆盖任何存活 line 的整页，通过 ThreadVmOps 调用平台 `madvise(MADV_DONTNEED)`；失败保留映射并在后续 full 重试，不影响可达图。block 激活、空洞再次分配或对象退休时才重新请求 discard，不在普通对象分配热路径增加共享计数。统计分别给出成功／失败调用数、成功建议的累计字节和解除映射的累计字节，重复建议不代表新增物理内存归还。RSS 是诊断时采样的进程当前／历史峰值，采样不可用时对应字段为零；既不作为收集正确性条件，也不与 managed mapping 字节等同。
 
+旧代精确大小槽的批量清扫适用于 3.7 的 `slot_size != 0` 块、且当前未执行 moving stress。该分配类别只接受已通过 nursery 资格判断的晋升对象，release-hook 对象预晋升到普通旧代块，不会混入此类槽；无需按死亡对象再次读取大小、TD 或查询 release。完成 mark／copy／引用更新后，coordinator 按 bitmap word 将 starts 与 marks 相交，并清除死亡起点的 pin 位；只要发生退休仍设置原 discard 状态。保留活对象的精确 line、pin、对象头及槽内字节，后续重新占用由原完整复制／发布初始化。普通可变大小块、large 与 moving stress 继续逐对象 release／poison；不得按 payload 大小自行把普通旧代块当作槽块。该复用不增加 metadata、线程状态或 ABI，随既有旧代槽策略启用，没有独立开关；该策略本身仍默认关闭。
+
 ### 3.8 GC-free release hook
 
 release hook 仅属于符合语言规范 9.1.6 的 FixedObject 类型。编译器为该 exact type 生成 ReleaseHook callable 并绑定 descriptor 入口；GC 直接使用已登记的入口，不在启动时重新编码 body ID、计算 hash 或比较另一份 callable 地址。
