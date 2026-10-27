@@ -128,6 +128,13 @@ fn small_release_allocations_publish_ordered_metadata_inline() {
         assert!(!ir.contains("alloc.lines."), "{ir}");
         assert!(!ir.contains("tlab_occupied_lines"), "{ir}");
         assert!(ir.contains("{ ptr, ptr, ptr, ptr, ptr }"), "{ir}");
+        assert_eq!(
+            ir.lines()
+                .filter(|line| line.contains("tlab_counter_next") && line.contains(" = add i64"))
+                .count(),
+            2,
+            "a nursery allocation updates only its object and byte counts: {ir}"
+        );
     }
 }
 

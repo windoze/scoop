@@ -305,18 +305,14 @@ static void *allocate_large_stress(size_t size, ScoopGcBlockMeta **allocated_blo
 
 static void record_allocation(ScoopGcMutator *mutator, size_t size, bool nursery) {
     ScoopGcAllocationCounters *counters = &mutator->counters;
-    atomic_store_explicit(&counters->objects,
-                          atomic_load_explicit(&counters->objects, memory_order_relaxed) + 1,
+    _Atomic(uint64_t) *objects = nursery ? &counters->nursery_objects : &counters->direct_objects;
+    _Atomic(uint64_t) *bytes = nursery ? &counters->nursery_bytes : &counters->direct_bytes;
+    atomic_store_explicit(objects,
+                          atomic_load_explicit(objects, memory_order_relaxed) + 1,
                           memory_order_relaxed);
-    atomic_store_explicit(&counters->bytes,
-                          atomic_load_explicit(&counters->bytes, memory_order_relaxed) + size,
+    atomic_store_explicit(bytes,
+                          atomic_load_explicit(bytes, memory_order_relaxed) + size,
                           memory_order_relaxed);
-    if (nursery) {
-        uint64_t objects = atomic_load_explicit(&counters->nursery_objects, memory_order_relaxed);
-        uint64_t bytes = atomic_load_explicit(&counters->nursery_bytes, memory_order_relaxed);
-        atomic_store_explicit(&counters->nursery_objects, objects + 1, memory_order_relaxed);
-        atomic_store_explicit(&counters->nursery_bytes, bytes + size, memory_order_relaxed);
-    }
 }
 
 static void initialize_small_allocation(ScoopGcMutator *mutator, ScoopGcBlockMeta *block,

@@ -54,7 +54,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         )?;
 
         let counters = self.allocation_pointer(allocation, 4, "tlab_counters")?;
-        for (field, increment) in [(0, constant(1)), (2, size), (1, constant(1)), (3, size)] {
+        for (field, increment) in [(0, constant(1)), (1, size)] {
             let slot = self.allocation_word(counters, constant(field))?;
             let value = self.allocation_atomic_load(slot)?;
             let next = builder
@@ -104,7 +104,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         index: IntValue<'ctx>,
     ) -> Result<PointerValue<'ctx>, CodegenError> {
         // SAFETY: bitmap indexes are bounded by the successful block-sized bump;
-        // counter indexes are the four fixed fields of the shared ABI view.
+        // counter indexes select the nursery pair in the shared ABI view.
         unsafe {
             self.builder
                 .build_gep(self.context.i64_type(), storage, &[index], "tlab_word_slot")
