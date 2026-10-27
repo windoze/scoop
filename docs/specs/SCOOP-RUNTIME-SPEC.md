@@ -661,13 +661,11 @@ mark 结束后复用首次标记的存活对象集合规划搬迁；实际有搬
 
 复制默认复用本轮 worker pool，遵循既有 worker 数量与小规模串行策略：多 worker 时，预留阶段按目标 block 分组临时目标头链，mark 的逐块计数已汇总后可复用其私有索引位置保存组指针；单 worker 保留原链顺序。每组至多由一个 worker 执行，目标 starts、marks、line 位图及存活字节保持 block 独占写入，不把同一目标块按任意对象数拆给多个 worker。完整预留与收益判断完成前不启动复制；分组分配失败与目标预留失败走相同回滚，不修改 source 或 live entry。所有复制任务结束后，coordinator 才合并复制计数、清除临时组索引并发布 roots／引用更新。native 分组记录按目标块分配，没有新逐对象表，不增加对象头、根、TLAB 或产物 ABI。普通及显式 moving、survivor、旧代槽复用遵守同一发布顺序；无需独立开关；`SCOOP_GC_WORKERS=1` 使用同一复制算法的串行路径，增加 worker 不改变对象或发布合同。
 
-引用更新复用搬迁完成后的稳定存活分块。多 worker 时 coordinator 按块发布，不先逐对象读取 scan 再建立另一份批次；执行者读取当前对象的 scan，跳过无引用对象，并将数组的实际元素范围发布到同一工作队列。新增的数组任务也必须全部完成后才进入 reclaim。完整 roots 在对象任务启动前更新；单 worker 保留直接遍历，旧代脏区与年轻存活集合的槽归属不变。仅在 stress／显式 heap 验证构建中保留的覆盖位图，使用原子 claim 区分同一 word 中不同对象的并行更新，并继续拒绝重复条目；普通产物不生成该诊断。
-
 此时 full 的 roots 全部更新；minor 更新精确 roots、年轻集合及 remembered set。对象字段和 roots 中的旧引用仍经正常 forwarding 回写，不能因存活清单已经更新而跳过它们。没有搬迁时按 3.7 跳过 relocation。release hook、reclaim 和 VM 归还仍由 coordinator 执行；shutdown 停止并 join worker。
 
-引用回写复用本轮 mark 的 worker pool。coordinator 先串行更新 roots，minor remembered slots 按本节独立范围规则更新，再直接使用存活清单中的当前地址；首次标记已保证条目唯一，预留／复制阶段已保证条目指向当前副本，因此普通构建不为清单条目重新定位对象元数据、检查存活身份或登记 relocation 覆盖状态。普通对象按至多 64 个分批、大引用数组按至多 1024 个完整元素拆成互不重叠的槽区间。任务复用稳定的存活清单和既有精确 scan 解释器，forwarding、对象和扫描元数据在整个 update 阶段保持稳定；worker 只读这些元数据并更新各自的引用槽，不重新发现存活对象、修改 roots、执行用户代码或取得 coordinator 持有的 heap／roots 锁。根与对象槽即使别名，也已由前述串行边界隔开。全部 update worker 完成后才允许验证、退休存活清单、释放 source／metadata、执行 release、reclaim、VM 归还及恢复 mutator。单 worker 直接使用相同的当前地址和引用槽转发规则串行更新，不先建立任务队列；创建 worker 失败沿用既有串行回退。
+引用回写复用本轮 mark 的 worker pool。coordinator 先串行更新 roots，minor remembered slots 按本节独立范围规则更新，再直接使用存活清单中的当前地址；首次标记已保证条目唯一，预留／复制阶段已保证条目指向当前副本，因此普通构建不为清单条目重新定位对象元数据、检查存活身份或登记 relocation 覆盖状态。coordinator 按既有至多 1024 个对象的存活分块发布，不逐对象预读 scan 再建立一份批次；worker 读取当前对象的 scan，跳过无引用对象，普通对象直接更新，大引用数组按至多 1024 个完整元素发布互不重叠的槽区间。任务复用稳定的存活清单和既有精确 scan 解释器，forwarding、对象和扫描元数据在整个 update 阶段保持稳定；worker 只读这些元数据并更新各自的引用槽，不重新发现存活对象、修改 roots、执行用户代码或取得 coordinator 持有的 heap／roots 锁。根与对象槽即使别名，也已由前述串行边界隔开。全部 update 任务（包括 worker 后续发布的数组任务）结束后才允许验证、退休存活清单、释放 source／metadata、执行 release、reclaim、VM 归还及恢复 mutator。单 worker 直接使用相同的当前地址和引用槽转发规则串行更新，不先建立任务队列；创建 worker 失败沿用既有串行回退。
 
-搬迁覆盖登记仅编入启用 GC stress 支持或显式 `SCOOP_GC_VERIFY_HEAP` 的 runtime。此时 coordinator 在发布 update 任务前定位元数据并 claim：检查 collection、对象起点、已标记、当前副本和重复扫描；普通 `scanned` bitmap 不由多个 worker 并发置位。未编入这两类验证能力时，覆盖检查函数、调用、专用 bitmap／large 标志及其分配、清零和释放均由预处理排除，不以运行期开关保留。该状态属于 collector 私有侧元数据，不改变对象、根、scan、forwarding、generated-code ABI 或真实引用槽的合法性检查。
+搬迁覆盖登记仅编入启用 GC stress 支持或显式 `SCOOP_GC_VERIFY_HEAP` 的 runtime。执行者在更新当前对象前定位元数据并 claim，检查 collection、对象起点、已标记、当前副本和重复扫描；`scanned` bitmap 使用原子 OR 保留同一 word 中不同对象的并行置位，large 标志使用原子 exchange，已经被 claim 的同一对象仍报错。未编入这两类验证能力时，覆盖检查函数、调用、专用 bitmap／large 标志及其分配、清零和释放均由预处理排除，不以运行期开关保留。该状态属于 collector 私有侧元数据，不改变对象、根、scan、forwarding、generated-code ABI 或真实引用槽的合法性检查。
 
 存活性由 mark 与搬迁关系决定，不由 relocation 的 scanned 状态定义。显式 GC heap 验证和 moving stress 在零搬迁时仍检查根、当前存活对象及引用合法性，但不要求或伪造 relocation 覆盖状态；有搬迁时对含引用对象的当前副本保留相应覆盖检查。object_scan 为 null 的无引用对象仍参与存活清单、统计、规划、搬迁和回收，但不为出站引用扫描再解析位置、claim scanned 状态或调用扫描解释器；指向它们的引用仍正常更新。未执行 update 的轮次不累计 update 扫描时间。存活清单保留至规划、必要更新和验证结束。
 
