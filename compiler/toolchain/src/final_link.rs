@@ -53,6 +53,7 @@ impl FinalLinkOptions {
 pub enum ValidatedFinalLinkProfile {
     Darwin(DarwinFinalLinkProfile),
     Linux(LinuxFinalLinkProfile),
+    Windows(WindowsFinalLinkProfile),
 }
 
 impl ValidatedFinalLinkProfile {
@@ -105,6 +106,11 @@ impl ValidatedFinalLinkProfile {
             scoop_target_data::LINUX_X86_64_GNU_ID | scoop_target_data::LINUX_X86_64_MUSL_ID => {
                 LinuxFinalLinkProfile::resolve(startup, options, cxx, native_roots).map(Self::Linux)
             }
+            scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID
+            | scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID
+            | scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_ID => {
+                WindowsFinalLinkProfile::resolve(startup, options, cxx).map(Self::Windows)
+            }
             _ => Err(error("unsupported target for final linking")),
         }
     }
@@ -117,6 +123,7 @@ impl ValidatedFinalLinkProfile {
         match self {
             Self::Darwin(profile) => &profile.data.native_roots,
             Self::Linux(profile) => &profile.data.native_roots,
+            Self::Windows(profile) => &profile.data.native_roots,
         }
     }
 
@@ -124,6 +131,7 @@ impl ValidatedFinalLinkProfile {
         match self {
             Self::Darwin(profile) => profile.cxx(),
             Self::Linux(profile) => profile.cxx(),
+            Self::Windows(profile) => profile.cxx(),
         }
     }
 
@@ -139,6 +147,7 @@ impl ValidatedFinalLinkProfile {
         match self {
             Self::Darwin(profile) => profile.startup_toolchain(),
             Self::Linux(profile) => profile.startup_toolchain(),
+            Self::Windows(profile) => profile.startup_toolchain(),
         }
     }
 
@@ -146,6 +155,7 @@ impl ValidatedFinalLinkProfile {
         match self {
             Self::Darwin(profile) => profile.compiler_digest(),
             Self::Linux(profile) => profile.compiler_digest(),
+            Self::Windows(profile) => profile.compiler_digest(),
         }
     }
 
@@ -153,6 +163,7 @@ impl ValidatedFinalLinkProfile {
         match self {
             Self::Darwin(profile) => profile.linker_driver(),
             Self::Linux(profile) => profile.linker_driver(),
+            Self::Windows(profile) => profile.linker_driver(),
         }
     }
 
@@ -160,14 +171,15 @@ impl ValidatedFinalLinkProfile {
         match self {
             Self::Darwin(profile) => profile.linker_args(),
             Self::Linux(profile) => profile.linker_args(),
+            Self::Windows(profile) => profile.linker_args(),
         }
     }
 
     pub fn system_provider(&self) -> Result<&SystemProvider, ToolchainError> {
         match self {
             Self::Darwin(profile) => Ok(profile.system_provider()),
-            Self::Linux(_) => Err(error(
-                "ELF uses native CRT/libc inputs, not Darwin system stubs",
+            Self::Linux(_) | Self::Windows(_) => Err(error(
+                "this target uses native CRT/libc inputs, not Darwin system stubs",
             )),
         }
     }
@@ -175,7 +187,7 @@ impl ValidatedFinalLinkProfile {
     pub fn linker_system_requirements(&self) -> &'static [&'static str] {
         match self {
             Self::Darwin(profile) => profile.linker_system_requirements(),
-            Self::Linux(_) => &[],
+            Self::Linux(_) | Self::Windows(_) => &[],
         }
     }
 
@@ -183,6 +195,7 @@ impl ValidatedFinalLinkProfile {
         match self {
             Self::Darwin(profile) => profile.command(scratch, output),
             Self::Linux(profile) => profile.command(scratch, output),
+            Self::Windows(profile) => profile.command(scratch, output),
         }
     }
 
@@ -191,6 +204,7 @@ impl ValidatedFinalLinkProfile {
         match self {
             Self::Darwin(profile) => profile.input_paths(),
             Self::Linux(profile) => profile.update_input_paths(),
+            Self::Windows(profile) => Ok(profile.input_paths()),
         }
     }
 
@@ -204,6 +218,7 @@ impl WireEncode for ValidatedFinalLinkProfile {
         match self {
             Self::Darwin(profile) => profile.encode(encoder),
             Self::Linux(profile) => profile.encode(encoder),
+            Self::Windows(profile) => profile.encode(encoder),
         }
     }
 }

@@ -17,6 +17,7 @@ pub(super) struct Request<'a> {
     pub options: &'a scoop_toolchain::FinalLinkOptions,
     pub libraries: &'a [PathBuf],
     pub explicit_runtime: bool,
+    pub published_output: &'a Path,
 }
 
 impl Request<'_> {
@@ -27,11 +28,24 @@ impl Request<'_> {
     fn emit_symbol_map(&self) -> bool {
         self.options.emit_symbol_map || self.profile == crate::BuildProfile::Debug
     }
+
+    fn pdb_name(&self) -> Option<std::ffi::OsString> {
+        (self.keep_symbols()
+            && self.target.lir_target().native_object_format()
+                == scoop_lir::NativeObjectFormat::Coff64)
+            .then(|| {
+                scoop_linker::pdb_path(self.published_output)
+                    .file_name()
+                    .expect("output filename")
+                    .to_os_string()
+            })
+    }
 }
 
 pub(super) struct Executable {
     pub path: PathBuf,
     pub symbol_map: Option<PathBuf>,
+    pub pdb: Option<PathBuf>,
     pub fingerprint: ResolvedLinkPlanFingerprint,
     pub result_key: [u8; 32],
 }
@@ -71,9 +85,18 @@ pub(super) fn get(request: Request<'_>) -> BuildResult<Executable> {
         scoop_linker::ProgramLinkOptions {
             keep_symbols: request.keep_symbols(),
             emit_symbol_map: request.emit_symbol_map(),
+            pdb_name: request.pdb_name().as_deref(),
         },
         request.libraries,
-        &directory.path().join("program"),
+        &directory.path().join(
+            if request.target.lir_target().native_object_format()
+                == scoop_lir::NativeObjectFormat::Coff64
+            {
+                "program.exe"
+            } else {
+                "program"
+            },
+        ),
         request.cache,
     )
     .map_err(failure)?;
@@ -92,6 +115,7 @@ pub(super) fn get(request: Request<'_>) -> BuildResult<Executable> {
     let executable = Executable {
         path: linked.path,
         symbol_map: linked.symbol_map,
+        pdb: linked.pdb,
         fingerprint: linked.fingerprint,
         result_key,
     };

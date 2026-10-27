@@ -12,6 +12,7 @@ mod tests;
 enum Discovery {
     Darwin(darwin::Discovery),
     Linux(linux::Discovery),
+    Windows(windows::Discovery),
 }
 
 pub(super) fn resolve(
@@ -23,7 +24,10 @@ pub(super) fn resolve(
     let path = |value: &Path| {
         HostPathCarrier::from_path(&std::path::absolute(value).map_err(error)?).map_err(error)
     };
-    let unwind = (target.id() != scoop_target_data::DARWIN_AARCH64_ID && !cxx)
+    let unwind = (target.id() != scoop_target_data::DARWIN_AARCH64_ID
+        && (!cxx
+            || target.lir_target().native_object_format()
+                == scoop_lir::NativeObjectFormat::Coff64))
         .then(|| {
             crate::selected_unwind_prefix(
                 target.lir_target(),
@@ -46,7 +50,7 @@ pub(super) fn resolve(
         cxx,
     ))?;
     let record = build_record::cached(
-        &cache.join("final-tools-v3"),
+        &cache.join("final-tools-v4"),
         key,
         |_| Ok(true),
         || {
@@ -70,6 +74,9 @@ pub(super) fn resolve(
                 ValidatedFinalLinkProfile::Linux(profile) => {
                     Discovery::Linux(profile.into_discovery())
                 }
+                ValidatedFinalLinkProfile::Windows(profile) => {
+                    Discovery::Windows(profile.into_discovery())
+                }
             };
             Ok(Record { inputs, result })
         },
@@ -81,5 +88,8 @@ pub(super) fn resolve(
         )),
         Discovery::Linux(data) => LinuxFinalLinkProfile::from_discovery(startup, data)
             .map(ValidatedFinalLinkProfile::Linux),
+        Discovery::Windows(data) => Ok(ValidatedFinalLinkProfile::Windows(
+            WindowsFinalLinkProfile::from_discovery(startup, data),
+        )),
     }
 }

@@ -38,6 +38,11 @@ pub(super) fn of(request: &Request<'_>) -> BuildResult<Digest256> {
         options.unwind_prefix.as_deref().map(path).transpose()?,
         options.linker.as_deref().map(path).transpose()?,
         request
+            .pdb_name()
+            .as_deref()
+            .map(|name| path(Path::new(name)))
+            .transpose()?,
+        request
             .libraries
             .iter()
             .map(|p| path(p))

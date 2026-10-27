@@ -146,6 +146,22 @@ generated-C、用户 native、runtime、startup 与内置库必须符合选定 n
 
 MinGW 最终链接沿用目标 Clang driver；Microsoft 经宿主 clang-cl driver 调用选定的 lld-link／link.exe，native 对象可来自 cl 或 clang-cl。这样 compiler producer 与最终 linker 可独立选择，无须通过未声明的 cl 内部选项替换 linker。Scoop 添加实际对象、metadata 和所需库，不复制一套任意启动顺序；Unicode startup 之后才进入 Scoop coordinator，正常 native 初始化／终止由对应 CRT 负责。
 
+### 3.1 Windows executable 配置与资源
+
+2026-10-28 补充需求：executable Cone 的 `Cone.toml` 使用同一个 `[windows]` 节设置 subsystem 和 RC 文件：
+
+```toml
+[windows]
+subsystem = "console" # 可选 "console" 或 "gui"；省略时为 "console"
+rc = "resources/app.rc" # 可选；相对于 Cone 根的 RC 文件
+```
+
+`console` 生成 Windows console executable，`gui` 生成 Windows GUI executable；两者保持相同的 Scoop entry、Unicode argv、CRT 初始化／终止和完整退出码合同。该设置只改变 Windows executable 的 subsystem 与相应启动方式，不引入窗口库或消息循环。未知 subsystem 值和错误字段按普通 manifest 诊断处理；非 Windows target 不读取 RC 输入或发现 RC 工具。
+
+RC compiler 是 Windows toolchain 的组成部分：可使用随包的 `llvm-rc`，也可发现外部可执行的兼容工具（例如所选 Windows SDK 的 `rc.exe`）。所需预处理器、目标 headers 和资源到 COFF 的转换使用同一已选工具链；缺少 RC 工具时仅对实际声明 RC 的构建报错。RC 编译得到的资源进入最终 exe 的 `.rsrc`；图标、版本信息等由普通 RC 脚本表达，不另设计资源描述语言。RC 文件、实际包含的头文件和引用资源按已有输入更新规则参与构建；未变命中先于资源读取、工具探测与编译。executable `.slib` 保存最终链接所需的 subsystem 和已编译资源，使 artifact-only 链接继续消费产物。
+
+这两项列入 W1 编译／链接闭环；W4 工具包提供 RC compiler 或外部发现入口。验收覆盖默认／显式 console、gui 的实际 PE subsystem、同一节声明的 RC 内容进入 `.rsrc`、资源／包含文件变化后的更新、无变化复用及正常错误诊断。
+
 现代 MSVC 的 `msvcrt.lib` 是搭配 UCRT／VCRuntime 的启动库名，不能据此认定它导入旧 `msvcrt.dll`，见 [Microsoft CRT 库对应关系](https://learn.microsoft.com/en-us/cpp/c-runtime-library/crt-library-features?view=msvc-170)。跨 DLL 或不相同运行库边界时，分配与释放留在原 owner，不共享未经约定的 `FILE*`、CRT fd、locale 或 C++ 对象。C++ 异常在 native 一侧处理，不能穿越 Scoop FFI；普通裸 native archive 不附加 Scoop 来源认证。
 
 `captureErrno` 只捕获所选 CRT 的 `errno`，不能拿来取得 `GetLastError()`／`WSAGetLastError()`。平台 C wrapper 在对应 Windows API 返回后立即取得原始错误码，再进行其他调用；分别保留错误域，不把 Windows 错误伪装成 POSIX errno。

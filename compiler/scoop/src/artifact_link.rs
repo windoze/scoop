@@ -97,6 +97,7 @@ pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
         scoop_linker::ProgramLinkOptions {
             keep_symbols: request.final_link.keep_symbols,
             emit_symbol_map: request.final_link.emit_symbol_map,
+            pdb_name: scoop_linker::pdb_path(output.path()).file_name(),
         },
         &request.library_paths,
         &directory.path().join("program"),
@@ -107,6 +108,12 @@ pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
         OutputLocation::new(&scoop_linker::symbol_map_path(output.path()))
             .map_err(failure)?
             .publish(symbol_map, None)
+            .map_err(failure)?;
+    }
+    if let Some(pdb) = &linked.pdb {
+        OutputLocation::new(&scoop_linker::pdb_path(output.path()))
+            .map_err(failure)?
+            .publish(pdb, None)
             .map_err(failure)?;
     }
     output.publish(&linked.path, None).map_err(failure)?;

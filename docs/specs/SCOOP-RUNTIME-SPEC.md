@@ -266,6 +266,8 @@ const char *scoop_rt_program_argv(int32_t index);
 
 `scoop_rt_run_program` 每进程只调用一次。images 非空且恰为 root 的完整依赖闭包；输入顺序不承担初始化语义。调用方传入原生 argc/argv，`argc >= 1`，argv 含至少 `argc + 1` 项且 `argv[argc] == NULL`；前 `argc` 项各指向 NUL 结尾的非 null 字节串。runtime 在 eager 初始化前保存该 pointer/count，不复制或修改原始字节；调用方保证其到进程结束均有效，其他代码也不得修改已交给 runtime 的参数。`argv[0]` 保留启动者给出的可执行程序启动路径，不要求绝对路径或 canonical path。
 
+Windows 的生成入口为 CRT `wmain`，通过 `scoop_rt_run_program_utf16` 将 UTF-16 参数严格转换为 UTF-8 后进入同一 coordinator。转换后的非 managed 字节缓冲由进程拥有，直到进程结束保持有效；不使用当前代码页，不改变 argv[0]。非法 UTF-16 或 native 转换／分配失败在进入 managed 初始化前报告参数下标并返回退出码 1，失败时释放尚未发布的转换缓冲。有效参数继续遵守相同 root gateway 与 main 合同。
+
 原始 argv 访问器从启动输入保存后可用，均为只读 NoGC 操作；argc 包括第 `0` 项，合法 index 返回相应原始字节串，负数或不小于 argc 的 index 返回 null。这些指针不是 managed ref，不因 GC 移动。访问器不解码或跳过 `argv[0]`，无参数 main 也可通过平台库使用它们。
 
 root gateway 的返回值只表示调用状态：`0` 为成功，`1` 为失败，其他状态非法。runtime 提供独占、非 null、4-byte 对齐的 `int32_t` 输出槽，调用前初始化为 `0`，有效期覆盖整个 gateway 调用。成功时 gateway 必须写入 `out_exit_code`：Unit 写 `0`，Int 写完整的有符号 32-bit 返回值，然后返回状态 `0`。因此 main 正常返回 `1`、负数或边界值都仍是 gateway 成功。失败时 runtime 忽略输出槽，只消费已发布的 failure root。

@@ -28,6 +28,8 @@ Windows 后端数据按设计保留三个完整 target profile，机器 triple �
 
 Windows stackmap reader 验证 location kind、寄存器、8-byte slot／对齐和 pair 结构，保留 RSP／RBP 的有符号 offset；不从 stack size 推造 RBP 位置。扫描时由运行时使用实际 SEH context 计算地址，并执行真实线程栈范围检查。编译产物读取不另建一套 SEH unwinder 重放系统 frame 恢复。
 
+Windows executable 的 `[windows].subsystem` 与 `[windows].rc` 按语言规范 12.2 和 [Windows 设计 3.1](../windows-targets/DESIGN.md#31-windows-executable-配置与资源) 实施。subsystem 默认为 console，可选 gui；工具链提供或发现 RC compiler，使用所选目标 headers／预处理环境编译资源。executable `.slib` 保留最终链接所需的 subsystem 和资源产物，artifact-only linker 不重新读取 RC 源码。RC、实际 include 与引用资源以及工具选择进入普通更新记录；命中不读取资源内容或探测工具。
+
 Windows generated-C producer 使用所选完整 target 的 Clang 模式，平台合同新增编码 3，记录实际 Clang 数值版本与预处理配置；宿主路径只保留在普通工具发现记录。三环境各有独立 C producer profile，Clang 接受的 machine triple 不取代完整 target。公共 flags 保持 C11、所选优化、无 debug／common／compiler-ident／stack-protector／builtin substitution；Windows 使用 x86-64 baseline、Windows 10 API 基线和 SEH unwind tables，Microsoft 环境使用动态 UCRT（`/MD` 等效设置）。新增 flag 编码 17、18、19 分别表示 Windows SEH、所选 Windows CRT 和 Windows 10 基线，原平台编码不变。
 
 runtime index 的补充 deployment 值 0 表示使用完整 target 已规定的 OS 基线，Linux 与 Windows 均使用此值；Darwin 继续保存所选最低 macOS packed version。target 相容性仍由已有完整 identity 检查承担，不在补充 deployment 字段重复编码 OS／CRT。
@@ -873,6 +875,10 @@ build/run 接受 `--profile debug|release`，默认 debug；`--release` 为 rele
 
 默认 target root 为 manifest Cone root 下的 target，SingleFile 为调用者 cwd 下的 target。`--target-dir` 相对调用者 cwd 解析并替换该根；输出目录追加 `<canonical-target-triple>/<profile>`。library 文件名为 `<cone-name>.slib`，manifest executable 为 `<cone-name>`，single-file 为 `<sanitized-input-stem>`。build 的 `-o` 覆盖最终 root 文件的完整路径，不追加 triple/profile。
 
+Windows target 的默认 executable 文件名（包括测试程序）在上述名称后追加 `.exe`；最终链接缓存也保存带 `.exe` 后缀的可执行文件。显式 `-o` 路径保持原样。该选择依据构建 target，不依据宿主系统。
+
+Windows 保留符号时生成并发布 `<output>.pdb`，PE 的 CodeView 路径保存公开 PDB basename，缓存链接不得泄漏临时 PDB 名称。此 basename 参与最终 executable 键；PDB 与 executable／map 使用相同的普通更新及发布规则，命中只要求所需文件存在，不读取内容。未请求保留符号时不生成或要求 PDB。
+
 用户 Cone 的默认构建缓存位于 `<target-root>/<canonical-target-triple>/build/<profile>`，包含本次图的源码依赖、工具发现、中间产物和最终链接缓存，不使用用户级平台缓存目录。build/run/test 与 check 使用本次选择的 profile；doc 使用 debug，并以首个显式 root（省略时为当前 Cone）选择默认缓存 target root。支持 `--target-dir` 的命令同时将默认缓存放到指定 target root 下，`-o`／`--output-dir` 不改变缓存位置。显式 `--cache-dir` 优先，其次为 `SCOOP_CACHE_DIR`，两者均直接指定完整缓存根，不再追加 triple/profile；未指定时才使用上述 Cone 本地布局。默认缓存选择只定位输入和目标，不读取源码内容或探测工具。
 
 `scoop clean` 接受与 build 相同的 manifest 目录、Cone.toml 或单文件输入，省略时使用 cwd 的 Cone.toml，不搜索父目录。它定位同一 target root，递归删除整个目录（包括所有 target、profile、缓存和目录内其他生成物），目录不存在时成功返回；`--target-dir` 相对 cwd 解析并替换被清理的根。此命令不解析 manifest 内容或源码、不发现依赖，也不读取 sysroot、启动编译器或探测 native 工具。target root 外的显式输出和缓存不属于清理范围。实际删除失败按路径报告并退出 1；参数错误退出 2。human 成功摘要或 schema 1、kind 为 `clean`、含 `target_dir` 与 `removed` 的 JSON 结果写 stderr，stdout 保持为空。
@@ -1008,6 +1014,10 @@ Linux 系统库选择由所选 C driver/linker 按目标配置完成。发行版
 musl 将数学库、pthread 等接口合入 libc；所选工具链为这些固定系统库提供的空兼容 archive 按该平台规则绑定到现有 libc provider。此别名仅适用于实际系统解析选中的固定兼容文件，显式 roots 中的空 archive 不获得额外符号。
 
 普通 archive 使用既有 archive reader 返回的普通成员顺序作为从 0 开始的 member index（不包含 TOC 和名称表），保留实际 header／payload offset、length 与 digest，允许 BSD/GNU 命名；不另遍历原始 headers／padding 或按名称前缀拒绝普通成员。拒绝 thin、外部或嵌套 archive，实际读取的损坏边界由 reader 报告。通过普通对象 reader 建立候选的定义／引用索引，不为候选或选中 member 另建完整 relocation/EH/TLS/初始化验证器。实际 undefined references 驱动成员选择，新增引用继续闭合，每个物理 member 最多加入一次。
+
+Windows 同样接受普通 COFF archive。short import member 单独保存其 DLL／逻辑符号／function 或 data 种类，`__imp_` 对应 IAT 指针；它不作为 relocatable runtime/native object。使用某个 import member 时把已选 import library 交给目标 linker，保留原导入名／ordinal 和普通 descriptor 成员。COFF COMDAT 的可合并定义按 native Weak 优先级参加候选选择，实际 selection 条件仍由 native linker 处理；NODUPLICATES 保持 Strong，Common 高于 Weak。MSVC `/GL`／`/LTCG` 输入不属于本期普通 COFF 合同，明确诊断。
+
+Windows 显式 library roots 的 TargetDefault 候选为 `L.obj`、`L.o`、`L.lib`、`libL.a`、`libL.dll.a`；StaticArchive 只取普通 archive，Dynamic 只取实际包含 imports 的 archive，不凭 `.lib` 扩展名区分。roots、目标 sysroot、已选 SDK／MinGW provider 的顺序不变，framework 在 Windows 不适用。显式库仍检查符号归属和已知种类；未被显式库约束的普通 native 引用允许由真实 PE linker 按对象 directives／CRT defaults 完成，不另建立封闭的 Windows API 符号名单。实际 linker trace 的外部输入进入 executable 更新记录。
 
 尚未满足的 native 引用在候选选择时保留 Strong／Common／Weak 绑定，按下述目标优先级排除较弱候选；不能将一个强定义与 archive 中的弱后备实现误报为多 provider 歧义。最高优先级有多个 Strong 时仍报歧义；仅有同级 Weak／Common 时，优先复用 namespace provider，否则按既有 native 输入顺序选择。已经引入的对象定义继续按平台规则满足引用，不为查找另一个后备实现额外抽取 archive member；显式 library 的归属检查不变。
 

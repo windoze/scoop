@@ -63,7 +63,7 @@ pub(super) fn resolve(
                         NativeExternalContract::ReadOnlyTls { .. }
                             | NativeExternalContract::MutableTls { .. }
                     );
-                    if tls != binding.is_tls() {
+                    if binding.is_tls().is_some_and(|actual| actual != tls) {
                         return Err(error(format!("native TLS storage mismatch for {symbol}")));
                     }
                     if let Some(definition) = binding.definition() {

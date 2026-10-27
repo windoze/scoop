@@ -118,6 +118,7 @@ fn build_fixture(root_fixture: &str, native: bool) -> Fixture {
         crate::ProgramLinkOptions {
             keep_symbols: true,
             emit_symbol_map: true,
+            pdb_name: None,
         },
         &library_paths,
         &path.join("program"),

@@ -3,6 +3,7 @@ use scoop_identity::NativeLibraryKind;
 
 mod explicit;
 mod system;
+mod windows;
 
 pub(super) struct LibraryResolution {
     pub files: Vec<NativeFile>,

@@ -99,11 +99,18 @@ pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
             options: &request.final_link,
             libraries: &request.library_paths,
             explicit_runtime: matches!(&request.runtime, RuntimeInput::ObjectIndex(_)),
+            published_output: output.path(),
         })?;
         if let Some(symbol_map) = &linked.symbol_map {
             OutputLocation::new(&scoop_linker::symbol_map_path(output.path()))
                 .map_err(output_error)?
                 .publish(symbol_map, Some(&linked.result_key))
+                .map_err(output_error)?;
+        }
+        if let Some(pdb) = &linked.pdb {
+            OutputLocation::new(&scoop_linker::pdb_path(output.path()))
+                .map_err(output_error)?
+                .publish(pdb, Some(&linked.result_key))
                 .map_err(output_error)?;
         }
         output
@@ -216,7 +223,7 @@ fn output_path(
     if let Some(output) = output {
         return Ok(output);
     }
-    let (root, name) = if graph.root_identity() == ConeIdentity::SINGLE_FILE {
+    let (root, mut name) = if graph.root_identity() == ConeIdentity::SINGLE_FILE {
         (cwd.to_owned(), stem.unwrap_or("program").to_owned())
     } else {
         let manifest = graph.source_input(graph.root_identity()).ok_or_else(|| {
@@ -243,6 +250,11 @@ fn output_path(
         }
         (root, name)
     };
+    if graph.root_kind() == RequestedConeKind::Executable
+        && target.lir_target().native_object_format() == scoop_lir::NativeObjectFormat::Coff64
+    {
+        name.push_str(".exe");
+    }
     let mut directory = target_dir
         .unwrap_or_else(|| root.join("target"))
         .join(target.canonical_triple())

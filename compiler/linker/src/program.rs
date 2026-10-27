@@ -213,7 +213,15 @@ impl<'a> ProgramInputs<'a> {
                 .target()
                 .contract()
                 .native_symbol_normalization()
-                .compiler_generated_object_symbol("scoop_rt_run_program"),
+                .compiler_generated_object_symbol(
+                    if profile.target().native_object_format()
+                        == scoop_lir::NativeObjectFormat::Coff64
+                    {
+                        "scoop_rt_run_program_utf16"
+                    } else {
+                        "scoop_rt_run_program"
+                    },
+                ),
         ]);
         requirements.extend(
             profile
@@ -255,6 +263,8 @@ impl<'a> ProgramInputs<'a> {
 
     pub fn compiler_owned(&self, symbol: &str) -> bool {
         symbol == self.symbol("main")
+            || (self.target.native_object_format() == scoop_lir::NativeObjectFormat::Coff64
+                && symbol == "wmain")
             || symbol == self.symbol("scoop_td_String")
             || symbol.starts_with(&self.symbol("scoop$"))
     }

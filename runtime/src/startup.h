@@ -9,4 +9,10 @@ int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *images, uint64_t i
                          const ScoopRootEntryDescriptorV1 *root_entry, int32_t argc,
                          const char *const *argv);
 
+#if defined(_WIN32)
+int scoop_rt_run_program_utf16(const ScoopImageDescriptorV1 *const *images, uint64_t image_count,
+                               const ScoopRootEntryDescriptorV1 *root_entry, int32_t argc,
+                               const uint16_t *const *argv);
+#endif
+
 #endif

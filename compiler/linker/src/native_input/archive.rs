@@ -6,7 +6,36 @@ pub(crate) struct Member {
     pub name: String,
     pub range: Range<usize>,
     pub digest: Digest256,
-    pub index: NativeObjectInfo,
+    pub index: MemberIndex,
+}
+
+pub(crate) enum MemberIndex {
+    Object {
+        info: NativeObjectInfo,
+        imports: bool,
+    },
+    Import(coff_import::CoffImport),
+}
+
+impl Member {
+    pub fn object_index(&self) -> Option<&NativeObjectInfo> {
+        match &self.index {
+            MemberIndex::Object { info, .. } => Some(info),
+            MemberIndex::Import(_) => None,
+        }
+    }
+    pub fn import(&self) -> Option<&coff_import::CoffImport> {
+        match &self.index {
+            MemberIndex::Import(import) => Some(import),
+            MemberIndex::Object { .. } => None,
+        }
+    }
+    pub fn has_imports(&self) -> bool {
+        match self.index {
+            MemberIndex::Import(_) => true,
+            MemberIndex::Object { imports, .. } => imports,
+        }
+    }
 }
 
 pub(super) fn read(
@@ -17,9 +46,9 @@ pub(super) fn read(
 ) -> Result<Vec<Member>, LinkError> {
     let data = &bytes[slice.clone()];
     let archive = ArchiveFile::parse(data).map_err(error)?;
-    if archive.is_thin() || matches!(archive.kind(), ArchiveKind::Coff | ArchiveKind::AixBig) {
+    if archive.is_thin() || archive.kind() == ArchiveKind::AixBig {
         return Err(error(
-            "native archive must be a normal BSD/GNU archive, not thin or external-member",
+            "native archive must be a normal BSD/GNU/COFF archive, not thin or external-member",
         ));
     }
     let mut members = Vec::new();
@@ -44,9 +73,23 @@ pub(super) fn read(
                 "native archive member {ordinal} ({name}) is a nested archive"
             )));
         }
-        let index =
+        let index = if profile.target().native_object_format()
+            == scoop_lir::NativeObjectFormat::Coff64
+        {
+            if object::FileKind::parse(payload).ok() == Some(object::FileKind::CoffImport) {
+                coff_import::CoffImport::read(payload).map(MemberIndex::Import)
+            } else {
+                crate::native_object::coff::read_with_import_sections(payload)
+                    .map(|(info, imports)| MemberIndex::Object { info, imports })
+            }
+        } else {
             NativeObjectInfo::read_with_toolchain(payload, profile.startup_toolchain().profile())
-                .map_err(|err| error(format!("archive member {ordinal} ({name}): {err}")))?;
+                .map(|info| MemberIndex::Object {
+                    info,
+                    imports: false,
+                })
+        }
+        .map_err(|err| error(format!("archive member {ordinal} ({name}): {err}")))?;
         let start = slice
             .start
             .checked_add(usize::try_from(offset).map_err(error)?)

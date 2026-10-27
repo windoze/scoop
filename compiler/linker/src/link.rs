@@ -10,10 +10,13 @@ use crate::{LinkError, RuntimeObjectSet, error, program::ProgramInputs, startup:
 
 mod darwin;
 mod elf;
+mod pe;
 mod response;
 
 #[cfg(test)]
 mod tests;
+#[cfg(all(test, windows, target_arch = "x86_64"))]
+mod windows_tests;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ResolvedLinkPlanFingerprint(Digest256);
@@ -32,9 +35,11 @@ impl std::fmt::Display for ResolvedLinkPlanFingerprint {
 }
 
 #[derive(Clone, Copy, Debug, Default)]
-pub struct ProgramLinkOptions {
+pub struct ProgramLinkOptions<'a> {
     pub keep_symbols: bool,
     pub emit_symbol_map: bool,
+    /// Published PDB basename when the executable is first linked in a cache.
+    pub pdb_name: Option<&'a std::ffi::OsStr>,
 }
 
 #[derive(Debug)]
@@ -42,6 +47,8 @@ pub struct ProgramLinkOutput {
     pub path: PathBuf,
     /// Native linker address map for this exact executable.
     pub symbol_map: Option<PathBuf>,
+    /// CodeView/PDB sidecar for a Windows executable with retained symbols.
+    pub pdb: Option<PathBuf>,
     pub fingerprint: ResolvedLinkPlanFingerprint,
     pub plan_dump: String,
     /// Actual native files and lookup candidates used by this link.
@@ -52,7 +59,7 @@ pub fn link_program(
     closure: &ProgramLinkClosure,
     runtime: &RuntimeObjectSet,
     profile: &ValidatedFinalLinkProfile,
-    options: ProgramLinkOptions,
+    options: ProgramLinkOptions<'_>,
     library_paths: &[PathBuf],
     output: &Path,
     cache: &Path,
@@ -65,7 +72,7 @@ fn link_inputs(
     closure: &ProgramLinkClosure,
     runtime: &RuntimeObjectSet,
     profile: &ValidatedFinalLinkProfile,
-    options: ProgramLinkOptions,
+    options: ProgramLinkOptions<'_>,
     inputs: &ProgramInputs<'_>,
     output: &Path,
     cache: &Path,
@@ -87,10 +94,27 @@ fn link_inputs(
     for input in &inputs.objects {
         paths.push(input.path(cache)?);
     }
-    let candidate = directory.path().join("program");
+    let candidate = directory.path().join(
+        if matches!(profile, ValidatedFinalLinkProfile::Windows(_)) {
+            "program.exe"
+        } else {
+            "program"
+        },
+    );
     let candidate_map = options
         .emit_symbol_map
         .then(|| directory.path().join("program.map"));
+    let candidate_pdb = (options.keep_symbols
+        && matches!(profile, ValidatedFinalLinkProfile::Windows(_)))
+    .then(|| {
+        let default = pdb_path(&output);
+        directory.path().join(
+            options
+                .pdb_name
+                .unwrap_or_else(|| default.file_name().expect("PDB filename")),
+        )
+    });
+    let mut link_input_paths = Vec::new();
     match profile {
         ValidatedFinalLinkProfile::Darwin(_) => darwin::link(
             profile,
@@ -110,11 +134,22 @@ fn link_inputs(
             options.keep_symbols,
             candidate_map.as_deref(),
         )?,
+        ValidatedFinalLinkProfile::Windows(windows) => {
+            link_input_paths = pe::link(
+                windows,
+                inputs,
+                directory.path(),
+                &paths,
+                &candidate,
+                candidate_pdb.as_deref(),
+                candidate_map.as_deref(),
+            )?;
+        }
     }
     let profile_fingerprint = profile.fingerprint().map_err(error)?;
     let fingerprint = ResolvedLinkPlanFingerprint(
         domain_separated_cbor_hash(
-            "scoop-resolved-link-plan-v4",
+            "scoop-resolved-link-plan-v5",
             &Plan {
                 closure,
                 runtime,
@@ -122,6 +157,7 @@ fn link_inputs(
                 startup: &startup,
                 profile: profile_fingerprint,
                 keep_symbols: options.keep_symbols,
+                pdb_name: candidate_pdb.as_deref().and_then(Path::file_name),
             },
         )
         .map_err(error)?,
@@ -134,6 +170,16 @@ fn link_inputs(
             Ok::<_, LinkError>(symbol_map)
         })
         .transpose()?;
+    let pdb = candidate_pdb
+        .map(|candidate| {
+            let path = output
+                .parent()
+                .expect("absolute output parent")
+                .join(candidate.file_name().expect("PDB filename"));
+            std::fs::rename(candidate, &path).map_err(error)?;
+            Ok::<_, LinkError>(path)
+        })
+        .transpose()?;
     std::fs::rename(candidate, &output).map_err(|err| {
         error(format!(
             "cannot publish executable {}: {err}",
@@ -143,6 +189,7 @@ fn link_inputs(
     Ok(ProgramLinkOutput {
         path: output,
         symbol_map,
+        pdb,
         fingerprint,
         plan_dump,
         input_paths: inputs
@@ -150,6 +197,7 @@ fn link_inputs(
             .input_paths()
             .into_iter()
             .chain(inputs.namespace.input_paths())
+            .chain(link_input_paths)
             .collect(),
     })
 }
@@ -158,6 +206,12 @@ fn link_inputs(
 pub fn symbol_map_path(output: &Path) -> PathBuf {
     let mut path = output.as_os_str().to_os_string();
     path.push(".map");
+    PathBuf::from(path)
+}
+
+pub fn pdb_path(output: &Path) -> PathBuf {
+    let mut path = output.as_os_str().to_os_string();
+    path.push(".pdb");
     PathBuf::from(path)
 }
 
@@ -177,10 +231,11 @@ struct Plan<'a> {
     startup: &'a StartupObject,
     profile: Digest256,
     keep_symbols: bool,
+    pdb_name: Option<&'a std::ffi::OsStr>,
 }
 impl WireEncode for Plan<'_> {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        e.map(10)?;
+        e.map(11)?;
         e.field(1)?;
         self.closure.root().encode(e)?;
         e.field(2)?;
@@ -215,6 +270,14 @@ impl WireEncode for Plan<'_> {
         self.inputs.namespace.encode(e)?;
         e.field(10)?;
         e.unsigned(u64::from(self.keep_symbols))?;
+        e.field(11)?;
+        match self.pdb_name {
+            Some(name) => {
+                e.array(1)?;
+                e.bytes(name.as_encoded_bytes())?;
+            }
+            None => e.array(0)?,
+        }
         Ok(())
     }
 }
@@ -255,6 +318,7 @@ fn dump(
     text.push_str(match &inputs.namespace {
         crate::namespace::NativeNamespace::Darwin(_) => "link inputs: startup, cone/member order, runtime/object order, libSystem\n",
         crate::namespace::NativeNamespace::Elf(_) => "link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind\n",
+        crate::namespace::NativeNamespace::Coff(_) => "link inputs: Unicode startup, cone/member order, runtime/object order, COFF/import libraries, selected Windows CRT/LLVM unwind\n",
     });
     text.push_str(&inputs.native.dump());
     text.push_str(&inputs.namespace.dump());

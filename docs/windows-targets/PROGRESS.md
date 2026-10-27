@@ -12,6 +12,8 @@
 
 本地实现和完整验收完成后，才在 Linux `nuc12w.0d0a.com` 与 macOS `mm.0d0a.com` 的 `~/repos` 下新建测试目录，运行与变更范围相称的回归。原始日志与构建目录放在仓库外。
 
+2026-10-28 新增需求已记录，尚待实现：`Cone.toml` 的 `[windows]` 节增加 `subsystem = "console" | "gui"`（默认 console）和可选 `rc` 文件；Windows toolchain 自带或发现 RC compiler，资源编译后进入 exe。W1 覆盖 manifest、产物、链接与缓存，W4 覆盖工具供应／发现；具体合同和验收见 [设计 3.1](DESIGN.md#31-windows-executable-配置与资源)。
+
 ## 本地环境
 
 - Windows x64 `10.0.26300`；MSVC toolset `14.44.35207`，实验选择 SDK `10.0.26100.0`（同时安装 `10.0.22621.0`）。
@@ -68,6 +70,10 @@ native C/C++ 编译现已区分 Clang GNU、clang-cl 和 cl 的实际参数／�
 W1 的 Windows final-link profile 已完成内部工具调用：Microsoft 由 clang-cl 调用选定的 lld-link／link.exe，并使用所选 SDK／toolset；两个 MinGW 环境由目标 prefix 的 Clang driver 选择 compiler-rt／libc++。三个环境均静态加入各自的 Scoop LLVM unwind archive，使用 Unicode wmain、ASLR／NX、REF 和 no-ICF。真实 PE 验证包含正确 CRT imports、SEH、内部 C++ 异常／RTTI／STL、Unicode 路径／参数、相邻 PDB 名称与 map。普通更新输入已能取得所选 CRT／startup／辅助 archive 的实际 linker trace。
 
 五种本地组合（Microsoft C、cl C++＋LLD、clang-cl C++＋Microsoft LINK、两个 MinGW C++）编译／链接／运行通过，workspace/all-targets Clippy 通过。MinGW 保留原生 PE subsystem 默认值：强行指定 10.0 会触发现有 CRT load configuration 的 loader 拒绝；同一输入恢复默认值后运行成功，Windows 10 的 API／支持基线不变。这一批仍是共享工具 profile；Scoop `.slib` 的 PE library resolver、PDB 发布／缓存与完整 runtime 集成继续实施，正式 Windows CLI 尚未开放。
+
+PE profile 已接入 artifact linker：普通 AMD64 COFF／bigobj 符号读取、COMDAT／common／TLS 分类、短 import object 与普通 archive 成员分开处理，Windows 原生库按内容区分 static／dynamic。显式库绑定保留实际导入接口；CRT defaults、弱 alias 与 `.drectve` 交给所选原生 linker。PE 链接生成 String TD alias、只读 `.smap`、目标 quoting 的 response file，并把实际系统库 trace 接入更新输入。Windows 默认输出及缓存 executable 使用 `.exe`，PDB basename 纳入 executable 键并随结果发布。
+
+四种组合（MSVC＋LLD、MSVC＋LINK、MinGW MSVCRT、MinGW UCRT）的定向测试通过真实普通静态库与 DLL import library、未选成员排除、generated startup 的 image/root 顺序、String alias、只读 stackmap 节、PDB／map 和 Unicode 路径。启动使用实际 runtime UTF-16 转换，覆盖空参数、BMP／非 BMP、引号／尾部反斜线、非法 surrogate 拒绝、native atexit 期间参数有效及完整 32-bit 退出码。MinGW 启动的私有 root 声明使用 hidden visibility，避免将本 image metadata 当作可自动导入数据；response file 由 LLD 解析，避免 Clang GNU parser 提前消费 Windows 路径的反斜线。完整 `.slib`／runtime／CLI 和缓存发布验收仍待 W2 闭环，不以这些边界测试替代。
 
 ## W4 宿主基础
 

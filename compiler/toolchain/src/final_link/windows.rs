@@ -75,6 +75,17 @@ struct SystemInput {
 }
 
 impl WindowsFinalLinkProfile {
+    pub(super) fn into_discovery(self) -> Discovery {
+        self.data
+    }
+
+    pub(super) fn from_discovery(
+        startup: ValidatedCBridgeToolchainInvocation,
+        data: Discovery,
+    ) -> Self {
+        Self { startup, data }
+    }
+
     pub fn resolve(
         startup: ValidatedCBridgeToolchainInvocation,
         options: &FinalLinkOptions,
