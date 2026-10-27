@@ -117,6 +117,8 @@ scan fingerprint 为 `SHA-256(ByteSpan("scoop-scan-v1") || canonical_scan_bytes)
 
 数组元素 scan 为固定 References 时，适配层直接按元素步长和引用 offset 枚举槽，复用原描述符，不逐元素重新分派递归解释器。整对象、并行数组任务和脏卡扫描共享这一规则；半开地址范围只访问槽起点位于范围内的 managed leaf，首尾不完整元素仍须裁剪，不能因元素与范围相交而读取其余槽。保持元素顺序和元素内 offset 顺序，空数组不访问元素；Sequence 或递归 Array child 保留递归解释。此优化适用于所有 profile，不改变 scan 编码、引用集合、itab／tag／padding、根发布、写屏障或搬迁后原位回写契约，不建立第二份扫描布局。
 
+当实际 References child 恰含一个 offset 时，可以直接由首个引用槽地址、stride、元素数量及半开范围计算首尾合法元素下标，再按 stride 调用原 visitor，避免逐元素重读 offset 与重复范围分支。下标计算必须使用槽地址而非元素起点，保留非零 offset、非二次幂 stride、指针字内部切分、空范围及末尾裁剪；无符号地址上界不能因向上取整溢出。多引用及递归 child 沿既有通路，不增加逐对象或逐卡 metadata，也不改变扫描顺序和 GC 阶段边界。
+
 `parent`、itable 和相关类型引用必须解析到实际登记的 TypeDescriptor。空 vtable 为 null；空接口仍保留以其真实 TD 为键的 itable entry，slot table 可以为 null。slot 与 callable ABI 由产物合同确定。
 
 装载后 TD 与 shape 不再变化。generated-code 的 typed TD 引用、已发布对象头中的 TD 和 runtime 内部实际类型引用直接复用登记结果，尺寸计算、装箱及 collector 扫描不反复查询地址成员表。公开 native 分配入口在消费外来 TD 时检查登记一次，再进入同一内部尺寸与分配实现；动态 requested size／count、对齐、溢出、abstract 类型和对象实际边界检查不因此省略。不新增验证凭证或第二套 shape 实现。

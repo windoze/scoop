@@ -1,6 +1,23 @@
 /* Exact descriptor scans, optionally restricted to a half-open address range. */
 #include "scan.h"
 
+static void scan_single_reference_array(uintptr_t start, uint64_t stride, uint64_t count,
+                                         ScoopGcSlotVisitor visitor, void *context,
+                                         uintptr_t begin, uintptr_t end) {
+    if (end <= start) {
+        return;
+    }
+    /* Round relative slot indices up without adding stride near UINTPTR_MAX. */
+    uint64_t first = begin > start ? (begin - start - 1) / stride + 1 : 0;
+    uint64_t last = (end - start - 1) / stride + 1;
+    if (last > count) {
+        last = count;
+    }
+    for (uint64_t index = first; index < last; index++) {
+        visitor((void **)(start + index * stride), context);
+    }
+}
+
 void scoop_gc_scan_descriptor(void *base, const uint64_t *table, ScoopGcSlotVisitor visitor,
                               void *context, uintptr_t begin, uintptr_t end) {
     if (table == NULL) {
@@ -16,6 +33,11 @@ void scoop_gc_scan_descriptor(void *base, const uint64_t *table, ScoopGcSlotVisi
         char *elements = (char *)base + table[2];
         uintptr_t start = (uintptr_t)elements;
         if (count == 0 || end <= start) {
+            return;
+        }
+        if (element_scan[0] == 1) {
+            scan_single_reference_array(start + element_scan[1], stride, count, visitor, context,
+                                         begin, end);
             return;
         }
         uint64_t first = begin > start ? (begin - start) / stride : 0;

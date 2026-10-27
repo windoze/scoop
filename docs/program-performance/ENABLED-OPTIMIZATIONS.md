@@ -12,6 +12,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [单引用数组的槽区间](GC-EVOLUTION.md#第三十五阶段单引用数组的槽区间) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 实际 References child 恰含一个 offset 时，从槽地址一次计算合法下标并按 stride 调用原 visitor，省去逐元素 offset 遍历与范围分支。多引用／递归路径保留，无对象、metadata 或 ABI 增量；以少量代码和短线程回退换取大图 STW／吞吐收益。 |
 | [旧槽按位图字预留](GC-EVOLUTION.md#第三十四阶段旧槽按位图字预留) | 新版 runtime 随既有 `SCOOP_GC_OLD_SLOTS=1/2` 生效，默认 2；所有 profile，无新开关 | 复用零空槽计数跳过满块，按精确网格缓存空起点；保留整块独占、完整预留、回滚和 full 重建。每个可用块增加 8 B native 记录，另有 248 B 静态表；无逐对象／ABI 增量，接受单线程及部分长尾代价以缩短大图／多线程 STW。 |
 | [TLAB 已对齐范围比较](GC-EVOLUTION.md#第三十二阶段tlab-已对齐范围比较) | ARM64 release 默认；已知 8-byte 对齐、规格化尺寸为 16～32,640 B 的常量 | 直接比较请求与当前 `limit - cursor`，省去重复对齐和判空；原初始化、发布、计数及 collecting slow path 保持。x86 两个候选因树／单线程回退撤回，debug、动态或其他对齐沿原路径；无对象／ABI／配置增量，线程尾部代价见记录。 |
 | [精确对象定位正文内联](GC-EVOLUTION.md) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 当前 block 视图内共用对齐、活动状态、starts／large 发布和对象索引正文，省去逐引用调用与索引栈中转。保留全部精确起点检查、acquire 和 STW 边界；无对象／ABI 增量，大图吞吐改善，暂停和线程波动见阶段三十。 |

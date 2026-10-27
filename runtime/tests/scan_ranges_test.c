@@ -118,6 +118,43 @@ static void flat_and_sequence(void) {
     check_ranges(&array, sizeof array, (uint64_t[]){0}, &(Visited){0});
 }
 
+static void single_reference_strides(void) {
+    struct {
+        uint64_t count;
+        void *elements[56];
+    } array;
+    const size_t strides[] = {1, 2, 3, 5, 8};
+    const size_t counts[] = {0, 1, 7};
+    for (size_t shape = 0; shape < sizeof strides / sizeof *strides; shape++) {
+        size_t stride = strides[shape];
+        for (size_t offset = 0; offset < stride; offset++) {
+            uint64_t child[] = {1, offset * sizeof(void *)};
+            uint64_t scan[] = {SCOOP_REFS_ARRAY, 0, sizeof(uint64_t),
+                               stride * sizeof(void *), (uintptr_t)child};
+            for (size_t sample = 0; sample < sizeof counts / sizeof *counts; sample++) {
+                size_t count = counts[sample];
+                array.count = count;
+                for (size_t index = 0; index < 56; index++) {
+                    array.elements[index] = NULL;
+                }
+                Visited expected = {0};
+                for (size_t index = 0; index < count; index++) {
+                    record(&array.elements[index * stride + offset], &expected);
+                }
+                check_ranges(&array, sizeof(uint64_t) + count * stride * sizeof(void *),
+                              scan, &expected);
+                check(&array, scan, &expected, UINTPTR_MAX - 63, UINTPTR_MAX);
+                scoop_gc_scan_descriptor(&array, scan, replace, &array, 0, UINTPTR_MAX);
+                for (size_t index = 0; index < 56; index++) {
+                    bool reference = index < count * stride && index % stride == offset;
+                    assert(array.elements[index] == (reference ? &array : NULL));
+                }
+                assert(array.count == count);
+            }
+        }
+    }
+}
+
 static void recursive_array(void) {
     struct {
         uint64_t count;
@@ -141,6 +178,7 @@ static void recursive_array(void) {
 
 int main(void) {
     flat_and_sequence();
+    single_reference_strides();
     recursive_array();
     puts("flat and recursive array scans preserve exact slot ranges, order and metadata");
     return 0;
