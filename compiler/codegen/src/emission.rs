@@ -263,6 +263,8 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         } else {
             64
         },
+        // Both range simplification and alignment-only removal regressed x86 trees.
+        optimize_tlab_range: machine.get_target().get_name() == c"aarch64",
         // The extra live register and cache check regressed x86 wide allocations.
         reuse_thread_addresses: profile.optimization() == scoop_lir::OptimizationMode::Release
             && machine.get_target().get_name() == c"aarch64",

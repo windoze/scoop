@@ -2,6 +2,7 @@ use super::*;
 use inkwell::values::AnyValue;
 
 mod initialization;
+mod range;
 mod young_initialization;
 
 fn allocation_ir(
