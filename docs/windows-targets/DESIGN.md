@@ -50,6 +50,8 @@ MinGW 环境采用 [LLVM-MinGW 构建配方](https://github.com/mstorsjo/llvm-mi
 
 首个正式实现固定 LLVM 22.1.8，沿用仓库 backend 版本；发行准备同时记录验证过的 MSVC toolset／SDK 版本和 llvm-mingw／mingw-w64 revision。用户的受支持 toolset 通过普通编译／链接使用，不要求与发行准备工具路径或完整版本文本相同。上游构建配方与必要补丁沿用现有 vendor 管理；准备阶段先验证完整原生环境，再纳入发行脚本。
 
+`build_windows_unwind.py` 为三个 Windows target 构建独立的静态 LLVM libunwind，并按现有布局发布 headers 与 `lib/libunwind.a`。Microsoft 配置使用作用域限定的上游 CMake 补丁，显式启用 clang-cl x64／静态 Level-I SEH 与 `/MD`；保留 C unwind 函数的异常标记，关闭库自身的 C++ 异常／RTTI，不启用 Itanium C++ ABI，也不替代 MSVC C++ 异常处理。MinGW 配置使用所选 CRT prefix 的 Clang。准备脚本在外部工作目录复制所需源码、应用补丁并构建；输入未变化时直接复用已发布结果。
+
 ### 2.2 安装布局与选择
 
 Windows 宿主的主驱动安装为 `sco.exe`，避免与已有 Scoop 包管理器命令重名；macOS／Linux 继续使用 `scoop`。选择 Windows 应用 target 不改变其他宿主的命令名。其他可执行程序及外部命令前缀保持不变，例如 `sco pm` 调用 `scoop-pm.exe`，`sco example` 调用 `scoop-example.exe`。Cargo 的内部构建产物仍为 `scoop.exe`，安装与归档阶段使用 `sco.exe`；不随包提供同名 `scoop.exe` 别名。

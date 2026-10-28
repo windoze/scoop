@@ -297,3 +297,7 @@ math 按目标选择系统数学库，Windows 不请求 Unix libm；Float hypot 
 Windows 主驱动安装名已改为 `sco.exe`，帮助／版本信息同步使用 `sco`；其他可执行程序、外部命令前缀和 macOS／Linux 的 `scoop` 名称不变。规范、安装说明、维护脚本说明、fixture 文档与编程 skill 已同步。Cargo 内部输出名保留，Windows 归档组装时改名。
 
 4 项归档测试通过，布局用例覆盖 Windows／Darwin／Linux 各自空／有外部命令的 6 种组合。实际 Windows 组装目录通过五命令版本 fixture、帮助、PATH 启动、`sco pm` 和 `sco example`；中文及空格路径下默认定位安装根，复用开发 sysroot 的库和显式源码 runtime 完成 `sco new/run/test`，样例测试通过。格式化、Ruff、workspace/all-targets Clippy 通过。此批完成改名验收，完整 Windows 发行资源与跨宿主执行验收仍继续实施。
+
+正式 `build_windows_unwind.py` 已为三个 Windows target 发布静态 libunwind 与完整头文件；Microsoft 使用 clang-cl／`/MD` 和范围限定的 CMake 补丁，保留 C unwind 标记并关闭该库自身的 C++ EH／RTTI。输入与工具保持原位时，三个目标均直接复用，无 CMake／Ninja 调用。初次构建中的 MSVC driver 选项、共享 import library 名称冲突和 header install target 问题均已闭合，Python 格式化与 Ruff 通过。
+
+配套 ABI 28 的正式 core consumer 在三个目标上各 51 个容器／82 项测试全部通过，包括主线新增的 ArrayList 增长与 StringBuilder 存储用例。使用新发布 unwind 的真实 PE 测试通过全部 5 种组合，覆盖 Microsoft clang-cl／cl、LLD／LINK、两个 MinGW CRT、C++ STL／RTTI／内部异常、原生 backtrace、Unicode 参数和 PDB。原始日志和构建副本继续保存在仓库外。
