@@ -2,6 +2,8 @@
 
 `scoop example` 是安装在 `<SYSROOT>/commands/scoop-example` 的独立 Rust 程序，Windows 文件名为 `scoop-example.exe`。它通过已有外部命令入口运行，不依赖编译器 crate、LLVM 或系统库产物；查询时只读取配套的索引、说明和源码。
 
+Windows 主驱动名为 `sco.exe`，通过 `sco example` 调用该阅读器；以下示例中的 `scoop` 在 Windows 上替换为 `sco`。macOS／Linux 继续使用 `scoop example`。
+
 ## 使用
 
 ```sh

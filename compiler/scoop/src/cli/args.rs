@@ -17,7 +17,7 @@ mod tests_forwarding;
 
 #[derive(Parser)]
 #[command(
-    name = "scoop",
+    name = if cfg!(windows) { "sco" } else { "scoop" },
     version = scoop_toolchain::VERSION,
     about = "Build, check, format, test, run, and link Scoop programs",
     after_help = "Other commands run <SYSROOT>/commands/scoop-<command> with all following arguments unchanged. Put Scoop options before an external command."

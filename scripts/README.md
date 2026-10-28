@@ -6,6 +6,8 @@
 
 五个命令（`scoop`、`scoopc`、`scoop-link`、`scoop-lsp`、`scoop-pm`）的 `--version` 显示相同发行版本与源码 revision。开发构建读取默认版本和当前 Git revision；发行构建显式设置 `SCOOP_RELEASE_VERSION` 与 `SCOOP_SOURCE_REVISION`，不在运行时读取 Git 或发行清单。
 
+Windows 安装包将主驱动命名为 `sco.exe`，其版本信息使用 `sco`；其他可执行程序保持原名，macOS／Linux 仍用 `scoop`。Cargo package 和内部输出名继续为 `scoop`／`scoop.exe`，`package_toolchain.py` 组装时只重命名 Windows 主驱动。维护脚本的 `--scoop` 接受实际路径：开发构建可传 `.../release/scoop.exe`，安装包验证传 `.../bin/sco.exe`；外部命令仍以 `scoop-` 开头。
+
 `build_llvm.py` 从 [固定的 LLVM 22.1.8 上游输入](../sysroot/vendor/llvm-project/22.1.8/README.md) 构建宿主动态库，仅启用 AArch64／X86 后端，并安装 Rust 构建所需的 llvm-config、头文件和 CMake 资料，以及 Clang／Clang++／clang-cl、LLD 和 LLVM 对象／归档／资源工具。关闭未使用的压缩、XML、编辑器、HTTP 和插件依赖，不移除 GC／EH 或 statepoint 后端。默认工作位置为 `tmp/llvm/<host>`，可用 `--source`、`--build-dir`、`--prefix` 选择其他位置。
 
 Windows RC 构建使用 LLVM 22.1 的 `llvm-windres` 和 `llvm-cvtres`；前者是 LLVM RC 的 windres 入口，用于明确选择目标 Clang 预处理器并取得头文件依赖。默认从已选 Clang 的相邻目录查找，再检查所选 native prefix 的 `bin` 和 PATH，只有实际声明 RC 且需要更新时才调用。`build_llvm.py` 安装这两个工具，外部工具也必须可在宿主执行。

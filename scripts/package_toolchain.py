@@ -118,7 +118,8 @@ def assemble(root, targets, binaries, args, release, extension):
     sysroot = ROOT / "sysroot"
     (root / "bin").mkdir(parents=True)
     for binary in binaries:
-        shutil.copy2(binary, root / "bin" / binary.name)
+        name = "sco.exe" if "windows" in args.host and binary.name == "scoop.exe" else binary.name
+        shutil.copy2(binary, root / "bin" / name)
     (root / "VERSION").write_text(
         f"{args.version}\nrevision: {args.revision}\nhost: {args.host}\n", encoding="utf-8"
     )

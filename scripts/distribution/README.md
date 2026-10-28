@@ -1,5 +1,7 @@
 # Scoop 工具包
 
+Windows 的主驱动名为 `sco.exe`，在 PowerShell 中使用 `sco --version`、`sco run main.scoop`、`sco pm` 和 `sco example`。macOS／Linux 仍使用 `scoop`；下文示例中的 `scoop` 在 Windows 上替换为 `sco`。其余程序名不变：`scoopc.exe`、`scoop-link.exe`、`scoop-lsp.exe`、`scoop-pm.exe` 以及 `commands/scoop-example.exe`。Windows 工具包不提供 `scoop.exe` 别名，避免与同名包管理器冲突。
+
 工具包直接包含安装根内容，默认解压到 `~/.scoop`，然后把 `~/.scoop/bin` 加入 PATH。将下面的归档文件名替换为实际下载的版本与宿主平台：
 
 ```sh

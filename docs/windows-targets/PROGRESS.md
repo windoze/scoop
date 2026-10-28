@@ -293,3 +293,7 @@ math 按目标选择系统数学库，Windows 不请求 Unix libm；Float hypot 
 三个 target 的原生 C 探针确认 pow／hypot／fma 结果，正式 release Cone 各 16 项标量测试与 2 项预编译 consumer 测试全部通过；本批未改动的大整数／十进制等测试也已通过先前完整库运行。Scoop／C 格式化与原生严格告警检查通过，三个目标的生产 math slib 已更新。MSVC 缺失 hypotf 名称和 MSVCRT 两项 FMA 预期不符均已按上述合同闭合。
 
 发行辅助入口已补齐 Windows 命令名：示例阅读器遵循 `CARGO_BUILD_TARGET` 的 Cargo 输出目录并安装为 `.exe`，VS Code 扩展准备通过 PATH 解析实际 npm 启动文件。Python 格式化与 Ruff 通过；实际 GNU-LLVM 宿主示例程序构建成功，其 libunwind.dll 由既有 PE 依赖收集器部署后，在仅含 Windows 系统目录的 PATH 下经 `scoop example` 正常读取目录与示例源码。VS Code 扩展从 lockfile 完整构建并生成 0.2.0 VSIX，包含 Tree-sitter WASM。完整目标资源组装继续实施。
+
+Windows 主驱动安装名已改为 `sco.exe`，帮助／版本信息同步使用 `sco`；其他可执行程序、外部命令前缀和 macOS／Linux 的 `scoop` 名称不变。规范、安装说明、维护脚本说明、fixture 文档与编程 skill 已同步。Cargo 内部输出名保留，Windows 归档组装时改名。
+
+4 项归档测试通过，布局用例覆盖 Windows／Darwin／Linux 各自空／有外部命令的 6 种组合。实际 Windows 组装目录通过五命令版本 fixture、帮助、PATH 启动、`sco pm` 和 `sco example`；中文及空格路径下默认定位安装根，复用开发 sysroot 的库和显式源码 runtime 完成 `sco new/run/test`，样例测试通过。格式化、Ruff、workspace/all-targets Clippy 通过。此批完成改名验收，完整 Windows 发行资源与跨宿主执行验收仍继续实施。

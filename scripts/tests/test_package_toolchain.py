@@ -7,6 +7,7 @@ import tarfile
 import tempfile
 import tomllib
 import unittest
+from itertools import product
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -20,9 +21,14 @@ from package_toolchain import archive, assemble
 class ToolchainArchiveTests(unittest.TestCase):
     def test_tooling_and_commands_are_assembled_and_archived(self):
         release = tomllib.loads(package_toolchain.RELEASE_CONFIG.read_text())
-        for populated in (False, True):
-            with self.subTest(populated=populated), tempfile.TemporaryDirectory() as temporary:
+        hosts = ("x86_64-pc-windows-gnullvm", "aarch64-apple-darwin", "x86_64-unknown-linux-gnu")
+        for host, populated in product(hosts, (False, True)):
+            with (
+                self.subTest(host=host, populated=populated),
+                tempfile.TemporaryDirectory() as temporary,
+            ):
                 work = Path(temporary)
+                suffix = ".exe" if "windows" in host else ""
                 repository = work / "repository"
                 sysroot = repository / "sysroot"
                 for name in ("src", "include", "native/text_backend", "commands"):
@@ -45,7 +51,7 @@ class ToolchainArchiveTests(unittest.TestCase):
                 skill_source = package_toolchain.ROOT / skill_path
                 shutil.copytree(skill_source, repository / skill_path)
                 if populated:
-                    command = sysroot / "commands/scoop-example"
+                    command = sysroot / f"commands/scoop-example{suffix}"
                     command.write_text("#!/bin/sh\nexit 37\n")
                     command.chmod(0o755)
                     (sysroot / "commands/target").mkdir()
@@ -55,29 +61,38 @@ class ToolchainArchiveTests(unittest.TestCase):
                 args = SimpleNamespace(
                     version="1.2.3",
                     revision="abc123",
-                    host="aarch64-apple-darwin",
+                    host=host,
                     llvm_prefix=work / "llvm",
                     llvm_source=work / "llvm-source",
                 )
                 root = work / "installation"
-                pm = work / "scoop-pm"
-                pm.write_text("#!/bin/sh\necho package-manager\n")
-                pm.chmod(0o755)
-                self.assertIn("scoop-pm", package_toolchain.TOOLS)
+                binaries = [work / (name + suffix) for name in package_toolchain.TOOLS]
+                for binary in binaries:
+                    binary.write_text(f"#!/bin/sh\necho {binary.name}\n")
+                    binary.chmod(0o755)
                 with (
                     patch.object(package_toolchain, "ROOT", repository),
                     patch.object(package_toolchain.package_native, "darwin", return_value=[]),
+                    patch.object(package_toolchain.package_native, "linux", return_value=[]),
+                    patch.object(package_toolchain.package_native, "windows", return_value=[]),
                     patch.object(package_toolchain.package_licenses, "collect"),
                 ):
-                    assemble(root, [], [pm], args, release, extension)
+                    assemble(root, [], binaries, args, release, extension)
                 destination = work / "toolchain.tar.xz"
                 archive(root, destination)
                 installed = work / "extracted"
                 with tarfile.open(destination) as package:
                     package.extractall(installed, filter="data")
-                self.assertEqual((installed / "bin/scoop-pm").read_bytes(), pm.read_bytes())
-                if os.name != "nt":
-                    self.assertTrue((installed / "bin/scoop-pm").stat().st_mode & 0o111)
+                driver = "sco.exe" if "windows" in host else "scoop"
+                names = [
+                    driver,
+                    *(name + suffix for name in ("scoopc", "scoop-link", "scoop-lsp", "scoop-pm")),
+                ]
+                self.assertEqual({path.name for path in (installed / "bin").iterdir()}, set(names))
+                for name, binary in zip(names, binaries, strict=True):
+                    self.assertEqual((installed / "bin" / name).read_bytes(), binary.read_bytes())
+                    if os.name != "nt":
+                        self.assertTrue((installed / "bin" / name).stat().st_mode & 0o111)
                 metadata = tomllib.loads((installed / "share/scoop/toolchain.toml").read_text())
                 self.assertEqual(metadata["liburing"], "2.15")
                 self.assertNotIn("libuv", metadata)
@@ -110,11 +125,9 @@ class ToolchainArchiveTests(unittest.TestCase):
                 self.assertTrue(commands.is_dir())
                 self.assertFalse((commands / ".gitkeep").exists())
                 if populated:
-                    self.assertEqual(
-                        (commands / "scoop-example").read_bytes(), command.read_bytes()
-                    )
+                    self.assertEqual((commands / command.name).read_bytes(), command.read_bytes())
                     if os.name != "nt":
-                        self.assertEqual((commands / "scoop-example").stat().st_mode & 0o777, 0o755)
+                        self.assertEqual((commands / command.name).stat().st_mode & 0o777, 0o755)
                     self.assertEqual((commands / "target/data").read_text(), "command data")
                 else:
                     self.assertEqual(list(commands.iterdir()), [])

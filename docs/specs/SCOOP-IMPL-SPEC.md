@@ -2,6 +2,8 @@
 
 本文规定编译阶段的输入输出、实体身份、目标 ABI、`.slib` 格式、构建命令、缓存与链接契约。源码语义见 [语言规范](SCOOP-SPEC.md)，对象表示、GC 与 native 运行边界见 [运行时规范](SCOOP-RUNTIME-SPEC.md)。
 
+主驱动的安装名称由宿主平台决定：Windows 为 `sco.exe`（命令 `sco`），macOS／Linux 仍为 `scoop`。本文后续的 `scoop ...` 命令在 Windows 上对应 `sco ...`，不随应用 target 改名。其他可执行文件名保持不变，包括 `scoopc.exe`、`scoop-link.exe`、`scoop-lsp.exe`、`scoop-pm.exe` 和外部命令 `scoop-<command>.exe`；例如 Windows 的 `sco example` 调用 `commands/scoop-example.exe`。环境变量和安装目录名称继续使用 `SCOOP_*` 与 `scoop`。Cargo package／内部构建产物仍名为 `scoop`，发行组装时仅将 Windows 主驱动复制为 `bin/sco.exe`。
+
 ## 1. 范围与目标兼容性
 
 Windows 三环境扩展按 [Windows targets 设计](../windows-targets/DESIGN.md) 分阶段实施。W0 使用独立原生／LLVM 实验验证 MSVC＋UCRT、LLVM-MinGW＋MSVCRT 与 LLVM-MinGW＋UCRT 的 Win64、SEH／statepoint、C++ 和 Rust 文本后端组合；三个完整 target 随 W1／W2 接入开发 CLI。正式发行前须完成本规范的编译／链接与运行时规范的完整 GC／异常合同及相应系统库验收，不发布关闭异常或缺少精确根的临时 target；当前已验证范围见实施进度。
