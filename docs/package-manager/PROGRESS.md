@@ -129,6 +129,12 @@ PM 生成和维护 `Cone.lock`；`scoop` 消费锁定图及其本地投影，向
 - 服务端只需托管静态文件；PM 自行求解并仅下载选中版本，共享源码缓存沿既有获取实现。package/publish 与索引维护留至下一阶段。
 - macOS/Linux 新增正式 fixture 均通过：使用 Python 标准静态文件服务器，索引与归档在请求前生成；两个有传递依赖的项目真实编译/运行，验证相对及绝对归档 URL、最新兼容版本、一次共享下载、未选候选不下载、有效 lock 不查远端、显式 update 与 frozen 运行。测试输入压缩使用 zstd CLI；首轮测试代理环境及源码 package 声明问题修正后通过，不增加服务端接口。
 
+### 配套程序发行与清单迁移
+
+- 工具链组装构建并复制 scoop-pm，许可证遍历加入 PM 依赖（包括 PubGrub 的 MPL-2.0）；安装说明与开发构建命令同步为五个配套命令。
+- 两个遗留产物消费清单改为显式精确版本；产物摘要更新专测转为观察实际承担摘要读取的 PM 缓存，保留真实产物、修改/touch、更新记录和编译调用次数验证。双来源冲突的 negative 清单保持原测试意图。
+- macOS/Linux 发行脚本 7 项测试通过，覆盖 PM 复制、可执行位和独立依赖许可证收集。macOS 的 artifact-summary（16 个进程步骤）与 generator prebuilt（8 个步骤）通过；未重新构建完整 LLVM 发行包。
+
 ## 验证记录
 
 - `cargo clippy --workspace --all-targets` 通过。

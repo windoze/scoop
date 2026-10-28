@@ -59,17 +59,23 @@ class ToolchainArchiveTests(unittest.TestCase):
                     llvm_source=work / "llvm-source",
                 )
                 root = work / "installation"
+                pm = work / "scoop-pm"
+                pm.write_text("#!/bin/sh\necho package-manager\n")
+                pm.chmod(0o755)
+                self.assertIn("scoop-pm", package_toolchain.TOOLS)
                 with (
                     patch.object(package_toolchain, "ROOT", repository),
                     patch.object(package_toolchain.package_native, "darwin", return_value=[]),
                     patch.object(package_toolchain.package_licenses, "collect"),
                 ):
-                    assemble(root, [], [], args, release, extension)
+                    assemble(root, [], [pm], args, release, extension)
                 destination = work / "toolchain.tar.xz"
                 archive(root, destination)
                 installed = work / "extracted"
                 with tarfile.open(destination) as package:
                     package.extractall(installed, filter="data")
+                self.assertEqual((installed / "bin/scoop-pm").read_bytes(), pm.read_bytes())
+                self.assertTrue((installed / "bin/scoop-pm").stat().st_mode & 0o111)
                 metadata = tomllib.loads((installed / "share/scoop/toolchain.toml").read_text())
                 self.assertEqual(metadata["liburing"], "2.15")
                 self.assertNotIn("libuv", metadata)

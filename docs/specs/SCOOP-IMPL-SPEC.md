@@ -739,7 +739,7 @@ MIR `identity-foundation/6` 与 LIR foundation 保存实际实现的实体目录
 
 宿主包将 `scoop`、`scoopc`、`scoop-link` 和 `scoop-lsp` 放在 `bin`，四个命令共用发行版本与源码 revision；实际使用的 LLVM 动态库及非系统传递依赖放在 `libexec/llvm/lib`。Darwin 通过相对 rpath 和 dylib install name 加载；Linux 的每层私有依赖使用相对 `$ORIGIN` RUNPATH。组装脚本从实际动态依赖取得需要复制的库并修改加载路径，不在日常命令启动时重扫这些文件。版本、源码 revision、目标部署配置、Cone coordinate 和 native 版本写入 `share/scoop/toolchain.toml` 供说明；不把清单作为认证或逐文件验证输入。宿主和 LLVM 源码归档由手工脚本生成，不加入常规测试或 CI 的前置步骤。
 
-M63实施时在同一`bin`布局中增加配套`scoop-pm`，它本身不依赖LLVM；独立`pm`转发优先于既有`commands/`外部子命令查找。源码包registry的package/静态索引维护由PM负责，不与此处工具链/sysroot发行组装混为一个发布入口。
+M63 在同一 `bin` 布局中分发配套 `scoop-pm`，宿主构建与第三方许可证收集均包含该程序及其依赖，它本身不依赖 LLVM；独立`pm`转发优先于既有`commands/`外部子命令查找。源码包registry的package/静态索引维护由PM负责，不与此处工具链/sysroot发行组装混为一个发布入口。
 
 ```text
 scoop new <path> --group group [--name name] [--kind executable|library] [--version version] [--package package] [--no-tests]

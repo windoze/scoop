@@ -10,13 +10,17 @@ cat "$HOME/.scoop/VERSION"
 scoop --version
 ```
 
-归档内没有额外的版本目录、`.scoop` 或 `sysroot` 层，无需 `--strip-components`。四个命令通过实际执行文件定位相邻资源，也支持正常软链接启动。也可解压到其他安装根；移动整个目录后可以直接继续使用。
+归档内没有额外的版本目录、`.scoop` 或 `sysroot` 层，无需 `--strip-components`。五个命令通过实际执行文件定位相邻资源，也支持正常软链接启动。也可解压到其他安装根；移动整个目录后可以直接继续使用。
 
-安装根的 `VERSION` 第一行为发行版本，随后记录源码 revision 与宿主平台。`scoop --version`、`scoopc --version`、`scoop-link --version`、`scoop-lsp --version` 显示同一份发行版本和源码 revision。此目录中的 `toolchain.toml` 列出宿主、目标、内置 Cone、native 版本、VSIX 和编程 skill 路径；它只说明包内容，不是命令启动时的验证清单。
+安装根的 `VERSION` 第一行为发行版本，随后记录源码 revision 与宿主平台。`scoop --version`、`scoopc --version`、`scoop-link --version`、`scoop-lsp --version`、`scoop-pm --version` 显示同一份发行版本和源码 revision。此目录中的 `toolchain.toml` 列出宿主、目标、内置 Cone、native 版本、VSIX 和编程 skill 路径；它只说明包内容，不是命令启动时的验证清单。
 
 Darwin/AArch64 包要求声明版本的 macOS、Xcode 或 Command Line Tools、Apple Clang、macOS SDK 和系统 linker。Linux/GNU amd64 包要求声明版本的 glibc、GCC、GNU ld 和开发文件；生成 musl 程序还需要 musl-gcc 与匹配的 musl 开发文件。GNU 宿主工具不承诺在纯 musl 系统运行。native C++ 另需配套 clang++／g++ 与标准库；musl C++ 不在当前范围。
 
 内置库以 release 预编译，debug 和 release 应用都直接使用 `~/.scoop/lib/<target-triple>/*.slib`；当前应用需要的泛型实例仍正常生成。空缓存也不触发系统库重编。普通 build、run、test 和 link 不重新编译内置 Cone 或 runtime。应用构建缓存和输出写到各自正常位置，安装目录无需可写。显式 `--sysroot` 或环境变量 `SCOOP_SYSROOT` 会覆盖默认安装根；使用安装包时不需要设置这两项。
+
+包管理器位于 `bin/scoop-pm`，可通过 `scoop pm` 调用。普通 `build/run` 在没有 `Cone.lock` 时自动解析依赖并创建 lock；`--locked` 要求已有匹配选择，`--frozen` 同时禁止联网。workspace 成员可用 `-p group:name` 或 `--workspace` 选择。
+
+Git 和静态 registry 的源码默认共享在 `~/.scoop/packages/`，可用 `SCOOP_PACKAGE_CACHE_DIR` 或命令选项指定位置。PM 只按索引选中版本下载源码，构建输出仍留在项目 target 与构建缓存中。编辑器消费已有 lock；缺少输入时显式运行 `scoop pm resolve` 或 `scoop pm fetch`。当前发行提供 registry 读取/下载，源码打包与 publish 流程另行实施。
 
 安装根的 `commands/` 用于外部子命令，包中提供 `scoop-example`。放入其他宿主可执行程序 `commands/scoop-somecommand` 后，运行 `scoop somecommand <args>` 即可调用它。内置子命令优先；外部子命令之后的所有参数（包括 `--help` 和 `--`）原样传递，Scoop 自身的选项应放在子命令之前，例如 `scoop --sysroot /path/to/scoop somecommand --help`。程序继承当前目录、环境和标准输入输出，退出码及终止信号保持。
 
