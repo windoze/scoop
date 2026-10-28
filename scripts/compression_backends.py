@@ -7,6 +7,7 @@ PACKAGES = (
         "source": "build/cmake",
         "targets": ["libzstd_static"],
         "libraries": ["libzstd.a"],
+        "msvc_libraries": ["zstd_static.lib"],
         "header": "zstd.h",
         "options": {
             "ZSTD_BUILD_SHARED": "OFF",
@@ -24,6 +25,7 @@ PACKAGES = (
         "source": ".",
         "targets": ["zlib-ng"],
         "libraries": ["libz-ng.a"],
+        "msvc_libraries": ["zlibstatic-ng.lib"],
         "header": "zlib-ng.h",
         "options": {
             "ZLIB_COMPAT": "OFF",
@@ -39,6 +41,7 @@ PACKAGES = (
         "source": ".",
         "targets": ["brotlicommon", "brotlidec", "brotlienc"],
         "libraries": ["libbrotlicommon.a", "libbrotlidec.a", "libbrotlienc.a"],
+        "msvc_libraries": ["brotlicommon.lib", "brotlidec.lib", "brotlienc.lib"],
         "header": "brotli/encode.h",
         "options": {
             "BROTLI_BUILD_TOOLS": "OFF",

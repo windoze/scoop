@@ -10,6 +10,8 @@
 
 HTTP/1 使用 llhttp 9.4.3；HTTP/2 使用 nghttp2 1.70.0 的完整上游协议核心，通过 `nghttp2_session_mem_recv2`／`nghttp2_session_mem_send2` 接入。帧、HPACK、HTTP messaging、流状态与 SETTINGS 校验交给 nghttp2；Scoop 不再重放一套接收校验。
 
+三个 Windows 目标均消费各自预编译的 nghttp2 静态库；Microsoft UCRT 使用动态 CRT（`/MD`），LLVM-MinGW 使用目标 CRT 的编译器 prefix。发布位置统一为 `sysroot/lib/<target>/nghttp2/lib/libnghttp2.a` 与同 prefix 的 `include`；llhttp 仍作为 HTTP Cone 的 native C 源码编译。协议处理与公共 API 不随 Windows CRT 改变。
+
 协议引擎不增加连接池、自动重试、路由、Cookie jar、响应缓存或下载目的地选择；这些客户端策略由独立 client 库承担。M54 的字段、Cookie 数据、multipart、SSE 与 WebSocket 协议补充见第 9 节，内容压缩由独立 compression 库提供。HTTP/2 的库核心保持完整，普通消息接口不提供 server push 或通用扩展插件。客户端明确声明禁用 push；这不等于裁掉后端机器码。HTTP/3 不在本规范范围。
 
 ## 2. 消息、字段与错误

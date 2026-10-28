@@ -301,3 +301,7 @@ Windows 主驱动安装名已改为 `sco.exe`，帮助／版本信息同步使�
 正式 `build_windows_unwind.py` 已为三个 Windows target 发布静态 libunwind 与完整头文件；Microsoft 使用 clang-cl／`/MD` 和范围限定的 CMake 补丁，保留 C unwind 标记并关闭该库自身的 C++ EH／RTTI。输入与工具保持原位时，三个目标均直接复用，无 CMake／Ninja 调用。初次构建中的 MSVC driver 选项、共享 import library 名称冲突和 header install target 问题均已闭合，Python 格式化与 Ruff 通过。
 
 配套 ABI 28 的正式 core consumer 在三个目标上各 51 个容器／82 项测试全部通过，包括主线新增的 ArrayList 增长与 StringBuilder 存储用例。使用新发布 unwind 的真实 PE 测试通过全部 5 种组合，覆盖 Microsoft clang-cl／cl、LLD／LINK、两个 MinGW CRT、C++ STL／RTTI／内部异常、原生 backtrace、Unicode 参数和 PDB。原始日志和构建副本继续保存在仓库外。
+
+Zstandard、zlib-ng、Brotli 与 nghttp2 已按三个 Windows target 分别准备静态库和头文件；Microsoft 使用 clang-cl／动态 CRT，两个 MinGW 环境使用各自 CRT prefix。维护脚本采用原生 Ninja、普通文件锁和先判断更新的复用流程，未变化时不启动编译工具，源码与工具保持原位。HTTP 的 llhttp 仍由普通 Cone 构建，未加入另一套后端准备入口。
+
+三个 target 的正式 release compression 各 19 个容器／49 项测试、HTTP 各 99 个容器／303 项测试全部通过；其中两个 MinGW 运行使用 ABI 28。覆盖压缩格式、流式适配与短读写，以及 HTTP/1、HTTP/2、字段、Cookie、multipart、SSE、WebSocket 协议。HTTP 测试中旧 String 长度调用已改为 byteLength 并格式化，Python Ruff 通过；三个目标的生产库已发布开发 sysroot。高层异步 HTTP、client／server 和完整发行验收继续进行。

@@ -12,6 +12,8 @@
 | Brotli | Brotli 1.2.0 的 encoder、decoder、common | HTTP br 的压缩与解压 |
 | Zstd | Zstandard 1.5.7 | 通用压缩的默认选择，以及 HTTP zstd |
 
+三个 Windows 目标分别使用所选 CRT 的编译器准备静态后端；Microsoft UCRT 使用动态 CRT（`/MD`），两个 LLVM-MinGW 环境分别使用其 MSVCRT／UCRT prefix。后端以完整 target 隔离，发布固定的 `libzstd.a`、`libz-ng.a` 和 `libbrotli{enc,dec,common}.a` 及头文件；Windows 的 COFF archive 可采用这些统一文件名，不改变 archive 内容。普通 Cone 构建消费预编译资源，不现场构建或下载后端。
+
 `CompressionFormat { Gzip, Zlib, RawDeflate, Brotli, Zstd }` 表达不同格式；默认的通用压缩配置使用 Zstd level 3。各格式均支持压缩和解压，不以仅能解压冒充格式支持。gzip／zlib 包装层不同；HTTP 的 `deflate` 表示 RFC 1950 zlib 包装的 DEFLATE，不能遇错后静默改按 raw DEFLATE 重试。Zstd 不能代替另三种 HTTP 内容编码。
 
 不提供 ZIP／tar 归档、文件目录管理、压缩包路径提取、并行压缩调度器或 HTTP 字典协商。本期的字典支持限于 zstd 的显式预共享字典；字典训练没有当前调用需求，不加入公开接口。

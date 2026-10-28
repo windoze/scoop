@@ -11,17 +11,21 @@ import tarfile
 import tomllib
 from pathlib import Path
 
-from build_support import RELEASE_CONFIG, ROOT, metadata, reusable, save_record
+from build_support import RELEASE_CONFIG, ROOT, build_lock, metadata, reusable, save_record
 from compression_backends import PACKAGES
 
 TARGETS = {
     "aarch64-apple-darwin": ("Darwin", "clang"),
     "x86_64-unknown-linux-gnu": ("Linux", "gcc"),
     "x86_64-unknown-linux-musl": ("Linux", "musl-gcc"),
+    "x86_64-pc-windows-msvc-ucrt": ("Windows", "clang-cl"),
+    "x86_64-w64-windows-llvm-mingw-msvcrt": ("Windows", "clang"),
+    "x86_64-w64-windows-llvm-mingw-ucrt": ("Windows", "clang"),
 }
 
 
-def prepare(package, args, cc, cmake):
+def prepare(package, args):
+    host, default_cc = TARGETS[args.target]
     name, version = package["name"], package["version"]
     vendor = ROOT / "sysroot/vendor" / name
     archive = vendor / f"{name}-{version}.tar.gz"
@@ -30,24 +34,52 @@ def prepare(package, args, cc, cmake):
     inputs = {
         "archive": metadata(archive),
         "patches": [metadata(path) for path in patches],
-        "tools": [metadata(path) for path in (cc, cmake, __file__, RELEASE_CONFIG)],
+        "scripts": [metadata(path) for path in (__file__, RELEASE_CONFIG)],
         "support": [
             metadata(ROOT / "scripts" / file)
             for file in ("build_support.py", "compression_backends.py")
         ],
         "target": args.target,
+        "cc": args.cc or default_cc,
         "prefix": str(prefix),
         "package": package,
-        "deployment": os.environ.get("MACOSX_DEPLOYMENT_TARGET"),
+        "deployment": os.environ.get("MACOSX_DEPLOYMENT_TARGET") if host == "Darwin" else None,
+        "environment": {
+            name: os.environ.get(name)
+            for name in (
+                "PATH",
+                "CFLAGS",
+                "CXXFLAGS",
+                "LDFLAGS",
+                "INCLUDE",
+                "LIB",
+                "LIBPATH",
+                "CL",
+                "_CL_",
+            )
+        },
     }
-    if patches:
-        inputs["patch_tool"] = metadata(shutil.which("patch") or "/usr/bin/patch")
     outputs = [prefix / file for file in package["libraries"]]
     outputs.append(prefix / "include" / package["header"])
     record = build / "inputs.json"
     if reusable(record, inputs, outputs):
         print(f"Reusing {args.target} {name} {version}", flush=True)
         return
+    cc, cmake = shutil.which(inputs["cc"]), shutil.which("cmake")
+    if not cc or not cmake:
+        raise ValueError("the selected C compiler and CMake must be installed")
+    tools = [cc, cmake]
+    ninja = shutil.which("ninja") if host == "Windows" else None
+    if host == "Windows":
+        if not ninja:
+            raise ValueError("Windows compression preparation requires Ninja")
+        tools.append(ninja)
+    patch_tool = None
+    if patches:
+        patch_tool = shutil.which("git" if host == "Windows" else "patch")
+        if not patch_tool:
+            raise ValueError("vendor patches require Git on Windows or patch on Unix")
+        tools.append(patch_tool)
     build.mkdir(parents=True, exist_ok=True)
     source = build / "source"
     source_record = build / "source.json"
@@ -60,7 +92,16 @@ def prepare(package, args, cc, cmake):
             tar.extractall(build, filter="data")
         (build / top).rename(source)
         for patch in patches:
-            subprocess.run(["patch", "--batch", "-p1", "-i", str(patch)], cwd=source, check=True)
+            command = (
+                [patch_tool, "apply", "-"]
+                if host == "Windows"
+                else [patch_tool, "--batch", "-p1", "-i", str(patch)]
+            )
+            # A Windows checkout can use CRLF; the vendor archive retains LF.
+            patch_input = (
+                patch.read_text(encoding="utf-8").encode("utf-8") if host == "Windows" else None
+            )
+            subprocess.run(command, input=patch_input, cwd=source, check=True)
         source_record.write_text(json.dumps(source_inputs) + "\n")
     objects, stage, scratch = (build / part for part in ("objects", "stage", "scratch"))
     for directory in (objects, stage):
@@ -73,23 +114,47 @@ def prepare(package, args, cc, cmake):
     options = dict(
         package["options"],
         CMAKE_C_COMPILER=cc,
-        CMAKE_INSTALL_PREFIX=str(prefix),
-        CMAKE_INSTALL_LIBDIR=str(prefix),
+        CMAKE_INSTALL_PREFIX=str(stage),
+        CMAKE_INSTALL_LIBDIR="lib",
         CMAKE_BUILD_TYPE="MinSizeRel",
         CMAKE_POSITION_INDEPENDENT_CODE="ON",
         BUILD_SHARED_LIBS="OFF",
         BUILD_TESTING="OFF",
         CMAKE_C_FLAGS="-mcpu=generic" if darwin else "-march=" + release["cpu"],
     )
+    msvc = args.target == "x86_64-pc-windows-msvc-ucrt"
+    if host == "Windows":
+        options["CMAKE_MAKE_PROGRAM"] = ninja
+        options["CMAKE_SYSTEM_NAME"] = "Windows"
+        options["CMAKE_POSITION_INDEPENDENT_CODE"] = "OFF"
+        options["CMAKE_C_FLAGS"] += " -D_WIN32_WINNT=0x0a00"
+        if msvc:
+            options["CMAKE_C_FLAGS"] = "/D_WIN32_WINNT=0x0a00"
+            options["CMAKE_C_COMPILER_TARGET"] = "x86_64-pc-windows-msvc"
+            options["CMAKE_POLICY_DEFAULT_CMP0091"] = "NEW"
+            options["CMAKE_MSVC_RUNTIME_LIBRARY"] = "MultiThreadedDLL"
+        else:
+            options["CMAKE_C_COMPILER_TARGET"] = "x86_64-w64-windows-gnu"
+        if name == "zstd":
+            cxx = cc if msvc else str(Path(cc).with_name("clang++.exe"))
+            options["CMAKE_CXX_COMPILER"] = cxx
+            options["CMAKE_CXX_COMPILER_TARGET"] = options["CMAKE_C_COMPILER_TARGET"]
+            options["CMAKE_CXX_FLAGS"] = options["CMAKE_C_FLAGS"]
+            options["CMAKE_ASM_COMPILER"] = cc
+            if msvc:
+                options["ZSTD_USE_STATIC_RUNTIME"] = "OFF"
+            tools.append(cxx)
     if darwin:
         options["CMAKE_OSX_ARCHITECTURES"] = "arm64"
         options["CMAKE_OSX_DEPLOYMENT_TARGET"] = inputs["deployment"] or release["minimum_os"]
-    environment = dict(os.environ, TMPDIR=str(scratch))
+    environment = dict(os.environ, TMPDIR=str(scratch), TEMP=str(scratch), TMP=str(scratch))
+    if host == "Windows":
+        environment["PATH"] = str(Path(cc).parent) + os.pathsep + environment["PATH"]
     subprocess.run(
         [
             cmake,
             "-G",
-            "Unix Makefiles",
+            "Ninja" if host == "Windows" else "Unix Makefiles",
             "-S",
             str(source / package["source"]),
             "-B",
@@ -112,15 +177,16 @@ def prepare(package, args, cc, cmake):
         env=environment,
         check=True,
     )
-    subprocess.run(
-        [cmake, "--install", str(objects)], env=dict(environment, DESTDIR=str(stage)), check=True
-    )
-    installed = stage / prefix.relative_to(prefix.anchor)
+    subprocess.run([cmake, "--install", str(objects)], env=environment, check=True)
     prefix.mkdir(parents=True, exist_ok=True)
-    for file in package["libraries"]:
-        shutil.copy2(installed / file, prefix / file)
-    shutil.copytree(installed / "include", prefix / "include", dirs_exist_ok=True)
-    save_record(record, inputs, objects)
+    built = package["msvc_libraries"] if msvc else package["libraries"]
+    for source_name, output_name in zip(built, package["libraries"], strict=True):
+        output = prefix / output_name
+        temporary = output.with_suffix(output.suffix + ".new")
+        shutil.copy2(stage / "lib" / source_name, temporary)
+        temporary.replace(output)
+    shutil.copytree(stage / "include", prefix / "include", dirs_exist_ok=True)
+    save_record(record, inputs, objects, tools=tools)
     print(f"Prepared {args.target} {name} {version}", flush=True)
 
 
@@ -132,18 +198,19 @@ def main():
     parser.add_argument("--cc")
     parser.add_argument("--jobs", type=int, default=min(os.cpu_count() or 1, 6))
     args = parser.parse_args()
-    host, default_cc = TARGETS[args.target]
+    host, _ = TARGETS[args.target]
     if platform.system() != host:
         parser.error(f"prepare {args.target} on a {host} build host")
     if args.jobs < 1:
         parser.error("--jobs must be positive")
-    cc, cmake = shutil.which(args.cc or default_cc), shutil.which("cmake")
-    if not cc or not cmake:
-        parser.error("the selected C compiler and CMake must be installed")
+    if "llvm-mingw" in args.target and not args.cc:
+        parser.error("--cc must select clang.exe from the LLVM-MinGW prefix for this CRT")
     args.build_dir = args.build_dir.resolve()
     args.prefix = (args.prefix or ROOT / "sysroot/lib" / args.target).resolve()
-    for package in PACKAGES:
-        prepare(package, args, cc, cmake)
+    args.build_dir.mkdir(parents=True, exist_ok=True)
+    with build_lock(args.build_dir / "build.lock"):
+        for package in PACKAGES:
+            prepare(package, args)
 
 
 if __name__ == "__main__":
