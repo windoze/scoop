@@ -48,8 +48,9 @@ pub enum HirConstantImage {
     Float(scoop_identity::FloatConstant),
     String(String),
     NullPointer(HirPointerNullKind),
-    EnumUnit {
+    Enum {
         variant: EnumVariantApplication,
+        fields: Vec<HirConstantImage>,
     },
     Struct {
         application: StructApplicationId,

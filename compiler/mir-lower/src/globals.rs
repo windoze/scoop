@@ -87,10 +87,29 @@ pub(super) fn lower_global_constant(
             hir::HirConstantImage::NullPointer(hir::HirPointerNullKind::Code),
             mir::Type::FunPtr(_),
         ) => mir::MirConstantImage::PointerNull(mir::MirPointerNull::Code),
-        (hir::HirConstantImage::EnumUnit { variant }, mir::Type::Enum(enum_id, _)) => {
+        (hir::HirConstantImage::Enum { variant, fields }, mir::Type::Enum(enum_id, _)) => {
             let variant = enums.lower_variant_ref(*variant);
             assert_eq!(variant.enum_id(), *enum_id);
-            mir::MirConstantImage::EnumUnit { variant }
+            let definition = &enums.defs[*enum_id].variants[variant.variant_index() as usize];
+            assert_eq!(fields.len(), definition.fields.len());
+            mir::MirConstantImage::Enum {
+                variant,
+                fields: fields
+                    .iter()
+                    .zip(&definition.fields)
+                    .map(|(field, definition)| {
+                        lower_global_constant(
+                            field,
+                            &definition.ty,
+                            structs,
+                            enums,
+                            strings,
+                            owner,
+                            next_string_ordinal,
+                        )
+                    })
+                    .collect(),
+            }
         }
         (hir::HirConstantImage::Struct { fields, .. }, mir::Type::Struct(struct_id)) => {
             let mir::StructRepresentation::Declared(declared) = &structs[*struct_id].representation

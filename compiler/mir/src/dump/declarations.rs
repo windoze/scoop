@@ -575,18 +575,30 @@ fn constant_image_name(module: &Module, image: &MirConstantImage) -> String {
         MirConstantImage::String(id) => string_ref(*id),
         MirConstantImage::PointerNull(MirPointerNull::Data) => "null<data>".to_string(),
         MirConstantImage::PointerNull(MirPointerNull::Code) => "null<code>".to_string(),
-        MirConstantImage::EnumUnit { variant } => {
-            format!(
+        MirConstantImage::Enum { variant, fields } => {
+            let name = format!(
                 "{}::v{}",
                 type_name(
                     module,
                     &Type::Enum(
                         variant.enum_id(),
-                        module.enums[variant.enum_id()].type_arguments.clone(),
-                    ),
+                        module.enums[variant.enum_id()].type_arguments.clone()
+                    )
                 ),
-                variant.variant_index()
-            )
+                variant.variant_index(),
+            );
+            if fields.is_empty() {
+                name
+            } else {
+                format!(
+                    "{name}({})",
+                    fields
+                        .iter()
+                        .map(|field| constant_image_name(module, field))
+                        .collect::<Vec<_>>()
+                        .join(",")
+                )
+            }
         }
         MirConstantImage::Struct { struct_id, fields } => format!(
             "{}{{{}}}",

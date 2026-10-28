@@ -1147,6 +1147,8 @@ LLVM 的 wrapper 存储以不超过 64 位、满足现有对齐的整数单元�
 
 HIR 在普通名称、参数和完整类型选择后对编译期输入操作求值，复用现有 const 依赖环检查及数值常量语义，补齐带 payload 的 enum、Option Elvis 和 enum 模式解包。成功输出保存实际 enum application／variant、按声明顺序的全部 payload 常量；不使用 env 专属 OptionString 表示、运行期 constructor call 或缺失的类型信息。const property、正文、默认模板与跨 Cone 接口共用同一常量值表示，ordinary val 的静态初值也消费该结果；源码 const 声明可用的类型仍由语言规范 9.1.2 限定。
 
+静态 enum 初值的数据通路已实现：初值保存实际 application／variant 与按声明序齐全的字段；空 variant 使用空字段序列。HIR 至 LIR 逐层保留实际 variant 和字段，LLVM 按既有 integral／niche／tagged 布局发射；inactive GC slot 与 padding 保持零，String payload 保留 immortal relocation。该表示能力服务本节的常量求值扩展，不单独扩大源码 const 表达式集合。前端 enum 常量构造及默认 payload 的求值待随本节接入。
+
 文件定位／读取、目录筛选和环境查询由输入宿主提供给 HIR 的窄输入接口完成，driver 与分析宿主供给实际实现。HIR 负责语言语义并保存结果，IR/meta crate 只保存 typed 数据，不自行读取文件或环境，也不依赖 driver／上游 stage 的实现。每次编译中同一实际请求的结果及已记录输入直接复用，不因常量试探、模板发布或下游 stage 重读。失败的试探不发布常量与绑定事实；输入读取的缓存不赋予失败表达式成功语义。
 
 输入宿主使用定义 Cone 的根目录执行 include 范围检查；manifest 模式沿已有 Cone root，single-file 沿解析入口 symlink 后的实际文件父目录。按语言规范 11.19 同时检查定位路径和解析全部链接后的实际目标，父目录 symlink、链式链接与路径中的 `..` 按实际文件系统语义处理，不能仅比较字符串前缀或只检查末段链接。includeDir 对根及每个遍历条目检查，包括 glob 排除项；进入目录前先确认其目标仍在 Cone 内。合法链接的输出名称保留逻辑相对路径，内容去重不省略另一条路径的范围检查。这里只实施 include 资源的目录边界，不增加 owner／权限归属／inode 审计，也不修改普通源码、native 输入或包管理的路径合同。

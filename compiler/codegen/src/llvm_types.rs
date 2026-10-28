@@ -1,6 +1,7 @@
 use super::*;
 
 mod c_layout;
+mod enum_constants;
 mod maybe_uninit;
 
 pub(crate) use c_layout::{c_field_size, c_payload_fields, c_physical_field_index};
@@ -170,59 +171,16 @@ pub(crate) fn llvm_constant<'ctx>(
             }
             pointer.into()
         }
-        LirConstantImage::EnumUnit { variant } => {
-            if !enums.contains_variant(*variant) {
-                return Err(CodegenError(
-                    "enum unit constant carries an invalid variant reference".to_string(),
-                ));
-            }
-            let enum_id = variant.definition();
-            let variant_index = variant.index();
-            if expected_lir_ty != &LirType::Enum(enum_id) {
-                return Err(CodegenError(format!(
-                    "enum unit constant for e{} does not match storage type {}",
-                    enum_id.into_raw(),
-                    expected_lir_ty.dump(),
-                )));
-            }
-            match &enums[enum_id].repr {
-                EnumRepr::Integral { values, .. } => ty
-                    .into_int_type()
-                    .const_int(values[variant_index as usize], false)
-                    .into(),
-                EnumRepr::Niche {
-                    payload_variant, ..
-                } => {
-                    if variant_index == *payload_variant {
-                        return Err(CodegenError(
-                            "a payload enum variant cannot be encoded as a unit constant"
-                                .to_string(),
-                        ));
-                    }
-                    ty.const_zero()
-                }
-                EnumRepr::Tagged { variants, .. } => {
-                    let representation = &variants[variant_index as usize];
-                    if !representation.fields.is_empty() {
-                        return Err(CodegenError(
-                            "a payload enum variant cannot be encoded as a unit constant"
-                                .to_string(),
-                        ));
-                    }
-                    let struct_type = ty.into_struct_type();
-                    let mut values = struct_type
-                        .get_field_types()
-                        .into_iter()
-                        .map(BasicTypeEnum::const_zero)
-                        .collect::<Vec<_>>();
-                    values[0] = context
-                        .i64_type()
-                        .const_int(variant_index as u64, false)
-                        .into();
-                    struct_type.const_named_struct(&values).into()
-                }
-            }
-        }
+        LirConstantImage::Enum { variant, fields } => enum_constants::enum_constant(
+            context,
+            structs,
+            enums,
+            globals,
+            managed_address_space,
+            expected_lir_ty,
+            *variant,
+            fields,
+        )?,
         LirConstantImage::Struct { struct_id, fields } => {
             if expected_lir_ty != &LirType::Struct(*struct_id) {
                 return Err(CodegenError(format!(

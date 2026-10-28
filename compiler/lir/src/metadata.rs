@@ -1467,8 +1467,9 @@ pub enum LirConstantImage {
         global: GlobalId,
         kind: PointerKind,
     },
-    EnumUnit {
+    Enum {
         variant: LirVariantRef,
+        fields: Vec<LirConstantImage>,
     },
     Struct {
         struct_id: StructDefId,

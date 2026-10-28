@@ -8,6 +8,8 @@ use scoop_identity::{
 };
 
 use super::*;
+
+mod enum_constants;
 use crate::{
     Global, ImmortalObjectIdentity, LayoutIdentity, MaterializationRoot, StaticStorageIdentity,
 };

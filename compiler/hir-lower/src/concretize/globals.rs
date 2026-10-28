@@ -162,7 +162,7 @@ impl Concretizer<'_> {
         match value {
             export::HirConstantImage::Float(value) => concrete::HirConstantImage::Float(*value),
             export::HirConstantImage::Char(value) => concrete::HirConstantImage::Char(*value),
-            export::HirConstantImage::EnumUnit { variant } => {
+            export::HirConstantImage::Enum { variant, fields } => {
                 let ty = self.lower_type(
                     self.source.enum_applications[variant.owner].canonical_type,
                     &[],
@@ -174,14 +174,18 @@ impl Concretizer<'_> {
                     .variants
                     .iter()
                     .position(|value| value.identity == variant.variant)
-                    .expect("an enum constant retains its declared unit variant");
-                concrete::HirConstantImage::EnumUnit {
+                    .expect("an enum constant retains its declared variant");
+                concrete::HirConstantImage::Enum {
                     variant: concrete::EnumVariantRef::checked(
                         &self.enums,
                         enumeration,
                         concrete::VariantId::from_raw(index as u32),
                     )
-                    .expect("the unit variant belongs to the resolved enum"),
+                    .expect("the variant belongs to the resolved enum"),
+                    fields: fields
+                        .iter()
+                        .map(|field| self.lower_constant(field))
+                        .collect(),
                 }
             }
             export::HirConstantImage::Integer(value) => concrete::HirConstantImage::Integer(*value),

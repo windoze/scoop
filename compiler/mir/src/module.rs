@@ -652,8 +652,9 @@ pub enum MirConstantImage {
     Float(scoop_identity::FloatConstant),
     String(StringConstId),
     PointerNull(MirPointerNull),
-    EnumUnit {
+    Enum {
         variant: MirVariantRef,
+        fields: Vec<MirConstantImage>,
     },
     Struct {
         struct_id: StructId,

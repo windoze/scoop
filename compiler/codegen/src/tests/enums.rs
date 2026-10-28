@@ -1,5 +1,7 @@
 use super::*;
 
+mod constants;
+
 /// An M4-shaped module: a tagged enum with three variants (0/1/2
 /// fields of different types) and a niche enum (two variants,
 /// `Option<String>`-style), both exercised through EnumWrap /
@@ -569,7 +571,10 @@ fn exact_raw_and_code_niches_emit_through_all_enum_operations() {
                 .into(),
                 ty: LirType::Enum(option),
                 initial_state: LirStaticInitialState::EncodedStaticValue {
-                    payload: LirConstantImage::EnumUnit { variant: none },
+                    payload: LirConstantImage::Enum {
+                        variant: none,
+                        fields: Vec::new(),
+                    },
                 },
             },
         });

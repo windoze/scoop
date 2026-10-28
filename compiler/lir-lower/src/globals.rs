@@ -312,8 +312,12 @@ pub(super) fn lower_constant_image(
                 mir::MirPointerNull::Code => lir::PointerKind::Code,
             })
         }
-        mir::MirConstantImage::EnumUnit { variant } => lir::LirConstantImage::EnumUnit {
+        mir::MirConstantImage::Enum { variant, fields } => lir::LirConstantImage::Enum {
             variant: variant_ref(enums, *variant),
+            fields: fields
+                .iter()
+                .map(|field| lower_constant_image(field, enums, string_globals))
+                .collect(),
         },
         mir::MirConstantImage::Struct { struct_id, fields } => lir::LirConstantImage::Struct {
             struct_id: struct_def_id(*struct_id),

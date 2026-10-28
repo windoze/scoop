@@ -1,5 +1,7 @@
 use super::*;
 
+mod static_constants;
+
 #[test]
 fn string_reads_lower_to_no_gc_calls_with_managed_arguments() {
     for (operation, result_type, storage_type) in [
@@ -217,11 +219,14 @@ fn enum_unit_constant_maps_between_checked_stage_local_refs() {
         scan: lir::RefScan::None,
     });
     let lowered = lower_constant_image(
-        &mir::MirConstantImage::EnumUnit { variant: source },
+        &mir::MirConstantImage::Enum {
+            variant: source,
+            fields: Vec::new(),
+        },
         &lir_enums,
         &HashMap::new(),
     );
-    let lir::LirConstantImage::EnumUnit { variant } = lowered else {
+    let lir::LirConstantImage::Enum { variant, .. } = lowered else {
         panic!("unit enum constant stays a typed unit enum constant")
     };
     assert!(lir_enums.contains_variant(variant));
