@@ -31,6 +31,7 @@ fn child_checks_workspace_configuration_without_reinterpreting_the_manifest() {
     let build = ScoopcBuildRequestV1::new(
         CurrentConeRequestV1::ExpandedCone {
             config: Box::new(ExpandedConeInputV1 {
+                input_root: host(&root),
                 root: host(&root),
                 manifest_path: host(&root.join("Cone.toml")),
                 manifest_text: text.into(),

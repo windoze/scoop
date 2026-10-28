@@ -30,7 +30,7 @@ pub(super) fn failure(
 
 pub(super) fn request(root: &Path, input: &Path) -> PrepareRequestV1 {
     PrepareRequestV1 {
-        version: 1,
+        version: scoop_protocol::package::PACKAGE_PROTOCOL_VERSION,
         cwd: host(root),
         input: Some(host(input)),
         members: PackageMemberSelectionV1::Default,

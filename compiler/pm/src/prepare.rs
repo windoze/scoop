@@ -148,6 +148,7 @@ fn project_root(root: ResolvedRoot) -> PmResult<PreparedResolutionV1> {
                 .map_err(|error| PmError::new(format!("{}: {error}", member.manifest.display())))?;
                 PreparedConeV1::Source {
                     config: Box::new(ExpandedConeInputV1 {
+                        input_root: host(&member.input_directory)?,
                         root: host(&member.directory)?,
                         manifest_path: host(&member.manifest)?,
                         manifest_text: member.manifest_text.clone(),

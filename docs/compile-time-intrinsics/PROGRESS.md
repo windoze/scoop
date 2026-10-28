@@ -12,7 +12,8 @@
 - [x] const property 与静态初值共用聚合值表示；Unit／tuple／无负载 enum／None、前向引用、字段读取与跨 Cone 值编码。
 - [x] core 的 scoop.compiler.env、Option<String> 常量、SCOOP_ 名称限制、泛型／默认值及跨 Cone 传递。
 - [x] env 的 build／check／doc 缓存更新、定义处求值及语言服务的共享 HIR 输入宿主。
-- [ ] includeStr／includeBytes、Cone 目录范围检查。
+- [x] includeStr、Cone 目录范围检查与文件输入更新。
+- [ ] includeBytes 及静态字节数组。
 - [ ] includeDir、glob、逐项目录／symlink 范围检查与 EmbeddedDir API。
 - [ ] 文件／目录输入的构建／check／doc／LSP 更新和缓存复用、资源的定义来源。
 - [ ] Darwin 与 Linux 必要组合验证、对应规范状态更新及功能提交。
@@ -76,6 +77,18 @@ driver 和语言服务供给同一窄输入宿主，同次编译内按实际变�
 Darwin 验证：格式化及全 workspace lint 通过；env 定向 Rust 测试、protocol、profile、缓存及 child transport 测试通过。正式 CLI 的 env 值／缓存用例共 15 步、定义处跨 Cone 产物用例共 4 步、3 项 env 诊断 fixture 和 5 项既有 const 诊断 fixture 均通过。值／缓存用例覆盖缺失、空值、变化、未查询变量变化、运行期环境不影响产物、泛型／默认值，以及 build／check／doc 复用。已显式重建 25 个 Darwin 内置 Cone，并完成 runtime 准备。
 
 Linux 验证：使用 LLVM 22.1.2，在独立目录构建所需 CLI、core／std 与普通 GNU runtime；相同 15 步值／缓存、4 步跨 Cone 产物、3 项诊断 fixture 及输入宿主定向测试均通过。初次复用的旧 runtime 索引与当前编译器不兼容，已在独立测试 sysroot 重建并复验通过。未跑全套测试或 GC stress。
+
+### includeStr 与文件输入
+
+core 新增 `scoop.compiler.includeStr(path: String): String`。名称解析选中实际 intrinsic 后，在定义文件处读取 regular file 并展开为静态 String；保留空文件、BOM、CRLF 与 NUL，UTF-8 错误给出字节偏移。普通调用、泛型与默认值使用同一展开路径；预编译依赖的消费者保留 provider 已嵌入的内容。引用、动态参数、空／NUL 路径给出直接的语义诊断，没有扩大常量表达式集合。
+
+输入宿主保留原路径，分别检查词法定位与解析全部 symlink 后的目标位于定义 Cone 内，`link/..` 按真实文件系统解析。PM／driver 保留输入 Cone 根的定位拼写；single-file 按实际入口文件的父目录定位。同一编译请求复用读取结果，build／check／doc 记录实际文件与环境输入；更新判断只查询 metadata、解析后的目标及已使用的环境值，symlink 改指到 metadata 相同的文件也失效。失败构建不替换成功记录或已有产物。
+
+语言分析保留输入宿主，后续语义查询能在源码版本不变时发现本地及源码依赖的资源更新，缺失文件补回后可恢复。LSP 的资源 watcher 注册与主动重发诊断仍在文件／目录输入更新项收尾，不能将这里的查询缓存更新等同于完整编辑器通知链。
+
+本项增加 intrinsic tag 31，HIR `cross-cone-interface` 升至 84，machine protocol 升至 20，PM prepare 协议升至 2；相关缓存域及格式测试同步更新。未改动 LIR、codegen 或 runtime ABI。两机只重建本次需要的 core／std，沿用 ABI 26 的普通 runtime。
+
+Darwin：格式化、全 workspace lint 通过；文件宿主、HIR 展开、协议、profile、缓存、PM prepare 与语义分析的定向测试通过；env 的定向 Rust 回归及 15 步 CLI 值／缓存回归通过。Linux：相关 lint、文件／HIR／协议／语义分析及 env 宿主测试通过。两机各自通过 includeStr 的 19 步值／缓存／单文件／失败恢复、4 步跨 Cone 产物及 1 步诊断 fixture；最后补齐 UTF-8 字节偏移后，HIR 与诊断定向复验通过。未跑完整测试套件或 GC stress。target 已检查，无超过清理期限的旧增量 session；原始记录继续保存在仓库外。
 
 ### 合并远端 main
 

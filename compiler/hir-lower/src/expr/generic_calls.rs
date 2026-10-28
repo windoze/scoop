@@ -243,11 +243,15 @@ impl Lowerer {
             return self.lower_pointer_top_level_intrinsic(function, call, resolved);
         }
         let ty = resolved.return_ty;
-        if matches!(self.functions[function].kind, hir::FunctionKind::Intrinsic(intrinsic)
-            if intrinsic.kind == hir::IntrinsicFunctionKind::CompileEnv)
+        if let hir::FunctionKind::Intrinsic(intrinsic) = self.functions[function].kind
+            && matches!(
+                intrinsic.kind,
+                hir::IntrinsicFunctionKind::CompileEnv | hir::IntrinsicFunctionKind::IncludeStr
+            )
         {
             self.check_call_effects(hir::Callable::Function(function), call.span);
-            return self.normalize_compile_env(
+            return self.normalize_compiler_input(
+                intrinsic.kind,
                 &resolved.args,
                 Some(&call.args[0].expression),
                 ty,

@@ -62,8 +62,10 @@ impl Lowerer {
         let context = std::mem::replace(&mut self.constant_call_context, previous)
             .expect("constant call resolution retains its context");
         let expression = expression?;
-        if context.intrinsic != Some(hir::IntrinsicFunctionKind::CompileEnv)
-            || !statements.is_empty()
+        if !matches!(
+            context.intrinsic,
+            Some(hir::IntrinsicFunctionKind::CompileEnv | hir::IntrinsicFunctionKind::IncludeStr)
+        ) || !statements.is_empty()
         {
             self.error(call.span, "const initializer calls must select a compiler input intrinsic; ordinary functions and constructors are not constant expressions".into());
             return None;

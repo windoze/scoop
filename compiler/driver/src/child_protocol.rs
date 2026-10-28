@@ -162,7 +162,7 @@ fn success_response(
             let result = ScoopcSuccessV1::new(product, warnings, dumps)
                 .map_err(ChildProtocolError::ConstructResponse)?
                 .with_used_generators(success.used_generators().to_vec())
-                .with_environment_inputs(success.environment_inputs().to_vec());
+                .with_compiler_inputs(success.compiler_inputs().to_vec());
             Ok(ScoopcResponseEnvelopeV1::success(request_id, result))
         }
         scoopc::SingleConeCompilation::Documented(success) => {
@@ -175,7 +175,7 @@ fn success_response(
             )
             .map_err(ChildProtocolError::ConstructResponse)?
             .with_used_generators(success.used_generators().to_vec())
-            .with_environment_inputs(success.environment_inputs().to_vec());
+            .with_compiler_inputs(success.compiler_inputs().to_vec());
             Ok(ScoopcResponseEnvelopeV1::success(request_id, result))
         }
         scoopc::SingleConeCompilation::Checked(success) => {
@@ -183,7 +183,7 @@ fn success_response(
                 ScoopcSuccessV1::new(scoop_protocol::ScoopcProductV1::Check, warnings, dumps)
                     .map_err(ChildProtocolError::ConstructResponse)?
                     .with_used_generators(success.used_generators().to_vec())
-                    .with_environment_inputs(success.environment_inputs().to_vec());
+                    .with_compiler_inputs(success.compiler_inputs().to_vec());
             Ok(ScoopcResponseEnvelopeV1::success(request_id, result))
         }
         scoopc::SingleConeCompilation::Observed(_) => Ok(ScoopcResponseEnvelopeV1::Observed {

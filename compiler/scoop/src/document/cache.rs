@@ -8,7 +8,7 @@ pub(super) struct Entry {
 impl Entry {
     pub fn new(cache: &ArtifactCacheRoot, key: &str) -> Self {
         Self {
-            directory: cache.as_path().join("documentation-v2").join(key),
+            directory: cache.as_path().join("documentation-v3").join(key),
         }
     }
 
@@ -32,8 +32,8 @@ impl Entry {
         {
             return Ok(false);
         }
-        Ok(scoop_toolchain::environment_inputs_current(
-            &self.read()?.environment_inputs,
+        Ok(scoop_toolchain::compiler_inputs_current(
+            &self.read()?.compiler_inputs,
         ))
     }
 
@@ -55,15 +55,15 @@ impl Entry {
         &self,
         result: &scoop_protocol::ScoopcSuccessV1,
         dependencies: &[StructuredDiagnosticV1],
-        dependency_environment: &[scoop_protocol::EnvironmentInputV1],
+        dependency_inputs: &[scoop_protocol::CompilerInputV1],
     ) -> BuildResult<()> {
         let documentation = result
             .documentation()
             .ok_or_else(|| error("compiler did not return documentation"))?;
-        let mut environment_inputs = dependency_environment.to_vec();
-        environment_inputs.extend_from_slice(result.environment_inputs());
-        environment_inputs.sort();
-        environment_inputs.dedup();
+        let mut compiler_inputs = dependency_inputs.to_vec();
+        compiler_inputs.extend_from_slice(result.compiler_inputs());
+        compiler_inputs.sort();
+        compiler_inputs.dedup();
         let warnings = Warnings {
             ordinary: dependencies
                 .iter()
@@ -71,7 +71,7 @@ impl Entry {
                 .cloned()
                 .collect(),
             documentation: documentation.warnings().to_vec(),
-            environment_inputs,
+            compiler_inputs,
         };
         let path = self.record();
         let bytes = scoop_wire::encode(&warnings).map_err(error)?;
@@ -86,7 +86,7 @@ impl Entry {
 pub(super) struct Warnings {
     pub ordinary: Vec<StructuredDiagnosticV1>,
     pub documentation: Vec<StructuredDiagnosticV1>,
-    pub environment_inputs: Vec<scoop_protocol::EnvironmentInputV1>,
+    pub compiler_inputs: Vec<scoop_protocol::CompilerInputV1>,
 }
 
 impl WireEncode for Warnings {
@@ -98,8 +98,8 @@ impl WireEncode for Warnings {
                 warning.encode(encoder)?;
             }
         }
-        encoder.array(self.environment_inputs.len() as u64)?;
-        for input in &self.environment_inputs {
+        encoder.array(self.compiler_inputs.len() as u64)?;
+        for input in &self.compiler_inputs {
             input.encode(encoder)?;
         }
         Ok(())
@@ -122,8 +122,8 @@ impl WireDecode for Warnings {
         Ok(Self {
             ordinary: decoder.decode_array(|d, _| StructuredDiagnosticV1::decode(d))?,
             documentation: decoder.decode_array(|d, _| StructuredDiagnosticV1::decode(d))?,
-            environment_inputs: decoder
-                .decode_array(|d, _| scoop_protocol::EnvironmentInputV1::decode(d))?,
+            compiler_inputs: decoder
+                .decode_array(|d, _| scoop_protocol::CompilerInputV1::decode(d))?,
         })
     }
 }

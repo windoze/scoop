@@ -311,13 +311,15 @@ impl Lowerer {
                     native_type: solution.callable[0],
                 },
             }
-        } else if matches!(
-            candidate.interface().effects().implementation(),
-            hir::CallableImplementationV1::Intrinsic(hir::IntrinsicFunctionKind::CompileEnv)
-        ) {
+        } else if let hir::CallableImplementationV1::Intrinsic(
+            kind
+            @ (hir::IntrinsicFunctionKind::CompileEnv | hir::IntrinsicFunctionKind::IncludeStr),
+        ) = candidate.interface().effects().implementation()
+        {
             ImportedCallImplementation::Intrinsic {
                 template,
-                operation: ImportedIntrinsicCall::CompileEnv {
+                operation: ImportedIntrinsicCall::CompileInput {
+                    kind,
                     source: call.arguments.source(0).cloned(),
                 },
             }

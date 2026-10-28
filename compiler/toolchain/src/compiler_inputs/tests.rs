@@ -12,11 +12,11 @@ fn compile_env_host_values_and_cache_updates() {
         let value = inputs.environment(&name);
         if case == "invalid" {
             assert!(value.unwrap_err().contains("not valid Unicode"));
-            assert!(!environment_inputs_current(&[
-                scoop_protocol::EnvironmentInputV1 {
+            assert!(!compiler_inputs_current(&[
+                scoop_protocol::CompilerInputV1::Environment(scoop_protocol::EnvironmentInputV1 {
                     name: NAME.into(),
                     value: None,
-                }
+                })
             ]));
             return;
         }
@@ -28,10 +28,12 @@ fn compile_env_host_values_and_cache_updates() {
             _ => panic!("unexpected child case"),
         };
         assert_eq!(value.unwrap(), expected);
-        let recorded = inputs.environment_inputs();
+        let recorded = inputs.compiler_inputs();
         assert_eq!(recorded.len(), 1);
-        assert_eq!(recorded[0].value, expected);
-        assert!(environment_inputs_current(&recorded));
+        assert!(
+            matches!(&recorded[0], scoop_protocol::CompilerInputV1::Environment(input) if input.value == expected)
+        );
+        assert!(compiler_inputs_current(&recorded));
         let stale = scoop_protocol::EnvironmentInputV1 {
             name: NAME.into(),
             value: if expected.is_some() {
@@ -40,7 +42,9 @@ fn compile_env_host_values_and_cache_updates() {
                 Some(String::new())
             },
         };
-        assert!(!environment_inputs_current(&[stale]));
+        assert!(!compiler_inputs_current(&[
+            scoop_protocol::CompilerInputV1::Environment(stale)
+        ]));
         return;
     }
     let mut cases = vec![

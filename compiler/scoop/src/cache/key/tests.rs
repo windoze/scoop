@@ -58,6 +58,7 @@ fn input(source_modified: u64, compiler_input: &str) -> ConeCompileCacheInputV1 
         )
         .unwrap(),
         CurrentConeSemanticProjectionV1::Manifest {
+            input_root: PathBuf::from("/source").into_boxed_path(),
             coordinate: ConeCoordinate::reserved_core(),
             requested_kind: RequestedConeKind::Library,
             dependencies: Vec::new(),
@@ -160,6 +161,7 @@ fn rich_input() -> ConeCompileCacheInputV1 {
         )
         .unwrap(),
         CurrentConeSemanticProjectionV1::Manifest {
+            input_root: PathBuf::from("/source").into_boxed_path(),
             coordinate: current_coordinate,
             requested_kind: RequestedConeKind::Library,
             dependencies: vec![dependency.cone().coordinate().clone()],
@@ -213,7 +215,7 @@ fn compile_cache_key_has_a_fixed_canonical_vector() {
     // The vector includes the current runtime ABI and machine protocol.
     assert_eq!(
         input.key().unwrap().to_string(),
-        "aa5b6adfeeae99371b09df19007b6508f61e86c1fc452321d4b03833b738bdd1"
+        "10dde42f4a702fac46fb3754839c20e14dff48a75fd6eeb4d320de890e2abea2"
     );
     assert_eq!(encode(&input).unwrap().first(), Some(&0xaf));
 }
@@ -245,6 +247,14 @@ fn every_currently_variable_cache_key_dimension_misses_independently() {
     let baseline = rich_input();
     let (_, alternate_dependency) = dependency_summaries();
     let alternate_semantic = alternate_dependency.semantic_fingerprints();
+    assert_mutation_misses(&baseline, |input| {
+        let CurrentConeSemanticProjectionV1::Manifest { input_root, .. } =
+            &mut input.current_semantic
+        else {
+            unreachable!()
+        };
+        *input_root = PathBuf::from("/other-alias").into_boxed_path();
+    });
 
     assert_mutation_misses(&baseline, |input| {
         input.cone = ConeRecord::new(

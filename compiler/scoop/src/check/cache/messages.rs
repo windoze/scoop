@@ -4,7 +4,7 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 pub(in crate::check) struct Messages {
     pub warnings: Vec<StructuredDiagnosticV1>,
     pub used_generators: Vec<GeneratorToolInputV1>,
-    pub environment_inputs: Vec<scoop_protocol::EnvironmentInputV1>,
+    pub compiler_inputs: Vec<scoop_protocol::CompilerInputV1>,
 }
 
 impl WireEncode for Messages {
@@ -18,8 +18,8 @@ impl WireEncode for Messages {
         for input in &self.used_generators {
             input.encode(encoder)?;
         }
-        encoder.array(self.environment_inputs.len() as u64)?;
-        for input in &self.environment_inputs {
+        encoder.array(self.compiler_inputs.len() as u64)?;
+        for input in &self.compiler_inputs {
             input.encode(encoder)?;
         }
         Ok(())
@@ -43,8 +43,8 @@ impl WireDecode for Messages {
             warnings: decoder.decode_array(|decoder, _| StructuredDiagnosticV1::decode(decoder))?,
             used_generators: decoder
                 .decode_array(|decoder, _| GeneratorToolInputV1::decode(decoder))?,
-            environment_inputs: decoder
-                .decode_array(|decoder, _| scoop_protocol::EnvironmentInputV1::decode(decoder))?,
+            compiler_inputs: decoder
+                .decode_array(|decoder, _| scoop_protocol::CompilerInputV1::decode(decoder))?,
         })
     }
 }

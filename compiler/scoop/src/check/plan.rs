@@ -52,6 +52,7 @@ impl Plan {
                 machine_dependencies |= is_dependency;
                 let key = input_key(&(
                     manifest.manifest_path().as_os_str().as_encoded_bytes(),
+                    manifest.input_root().as_os_str().as_encoded_bytes(),
                     semantic.coordinate().to_string(),
                     semantic.requested_kind() == scoop_identity::RequestedConeKind::Library,
                     semantic.sources(),

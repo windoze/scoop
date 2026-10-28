@@ -41,6 +41,7 @@ pub(super) fn collect(
         let key = input_key(&(
             selection.target().contract().canonical_triple(),
             manifest.manifest_path().as_os_str().as_encoded_bytes(),
+            manifest.input_root().as_os_str().as_encoded_bytes(),
             manifest.parsed().semantic(),
             input_sources,
             dependencies,

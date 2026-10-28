@@ -111,11 +111,12 @@ impl Lowerer {
         }
 
         if let super::ImportedCallImplementation::Intrinsic {
-            operation: super::ImportedIntrinsicCall::CompileEnv { source },
+            operation: super::ImportedIntrinsicCall::CompileInput { kind, source },
             ..
         } = &implementation
         {
-            return self.normalize_compile_env(
+            return self.normalize_compiler_input(
+                *kind,
                 &source_args,
                 source.as_ref(),
                 result_type,

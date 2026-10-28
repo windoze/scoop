@@ -369,6 +369,13 @@ pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
         effects: IntrinsicEffects::NONE,
     },
     IntrinsicSpec {
+        name: "include_str",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicFunctionKind::IncludeStr,
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NONE,
+    },
+    IntrinsicSpec {
         name: "compile_env",
         stage: IntrinsicStage::Hir,
         kind: IntrinsicFunctionKind::CompileEnv,

@@ -18,7 +18,7 @@ mod validate;
 pub use members::{PackageMemberV1, PackageMembersV1};
 pub use overlays::{ManifestOverlayV1, ManifestOverlaysV1};
 
-pub const PACKAGE_PROTOCOL_VERSION: u32 = 1;
+pub const PACKAGE_PROTOCOL_VERSION: u32 = 2;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -124,6 +124,7 @@ impl PreparedConeV1 {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ExpandedConeInputV1 {
+    pub input_root: HostPathCarrier,
     pub root: HostPathCarrier,
     pub manifest_path: HostPathCarrier,
     /// Original configuration text is retained solely for diagnostics.
@@ -137,6 +138,7 @@ impl ExpandedConeInputV1 {
         manifest: &scoop_manifest::LoadedConeManifest,
     ) -> Result<Self, crate::HostPathError> {
         Ok(Self {
+            input_root: HostPathCarrier::from_path(manifest.input_root())?,
             root: HostPathCarrier::from_path(manifest.real_root())?,
             manifest_path: HostPathCarrier::from_path(manifest.manifest_path())?,
             manifest_text: manifest.source_text().to_owned(),

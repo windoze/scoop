@@ -55,12 +55,13 @@ mod tests {
                 name: format!("SCOOP_INPUT_{index}"),
                 value: value.map(str::to_owned),
             })
+            .map(CompilerInputV1::Environment)
             .collect();
         let response = ScoopcResponseEnvelopeV1::success(
             RequestCorrelationId::from_array([7; 16]),
             ScoopcSuccessV1::new(ScoopcProductV1::Check, vec![], vec![])
                 .unwrap()
-                .with_environment_inputs(inputs),
+                .with_compiler_inputs(inputs),
         );
         let bytes = encode_response_frame(&response).unwrap();
         assert_eq!(decode_response_frame(&bytes).unwrap(), response);

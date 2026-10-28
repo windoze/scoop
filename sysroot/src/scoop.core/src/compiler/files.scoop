@@ -1,0 +1,7 @@
+package scoop.compiler
+
+import String
+
+/** Embeds the exact UTF-8 contents of a file inside the defining Cone. */
+@Intrinsic("include_str")
+public fun includeStr(path: String): String

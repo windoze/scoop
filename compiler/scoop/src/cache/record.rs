@@ -8,7 +8,7 @@ pub struct CompileBuildRecordV1 {
     pub summary: ArtifactManifestSummaryV1,
     pub warnings: Vec<StructuredDiagnosticV1>,
     pub used_generators: Vec<scoop_protocol::GeneratorToolInputV1>,
-    pub environment_inputs: Vec<scoop_protocol::EnvironmentInputV1>,
+    pub compiler_inputs: Vec<scoop_protocol::CompilerInputV1>,
 }
 
 impl WireEncode for CompileBuildRecordV1 {
@@ -27,8 +27,8 @@ impl WireEncode for CompileBuildRecordV1 {
             input.encode(e)?;
         }
         e.field(4)?;
-        e.array(self.environment_inputs.len() as u64)?;
-        for input in &self.environment_inputs {
+        e.array(self.compiler_inputs.len() as u64)?;
+        for input in &self.compiler_inputs {
             input.encode(e)?;
         }
         Ok(())
@@ -46,8 +46,8 @@ impl WireDecode for CompileBuildRecordV1 {
             used_generators: d.field(3, |d| {
                 d.decode_array(|d, _| scoop_protocol::GeneratorToolInputV1::decode(d))
             })?,
-            environment_inputs: d.field(4, |d| {
-                d.decode_array(|d, _| scoop_protocol::EnvironmentInputV1::decode(d))
+            compiler_inputs: d.field(4, |d| {
+                d.decode_array(|d, _| scoop_protocol::CompilerInputV1::decode(d))
             })?,
         })
     }

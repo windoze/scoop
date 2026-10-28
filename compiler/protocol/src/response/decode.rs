@@ -107,7 +107,7 @@ enum DecodedResponseV1 {
         warnings: Vec<DecodedStructuredDiagnosticV1>,
         dumps: Vec<DecodedDumpDescriptorV1>,
         used_generators: Vec<crate::GeneratorToolInputV1>,
-        environment_inputs: Vec<crate::EnvironmentInputV1>,
+        compiler_inputs: Vec<crate::CompilerInputV1>,
     },
     Failure {
         request_id: Vec<u8>,
@@ -141,7 +141,7 @@ impl DecodedResponseV1 {
                 warnings,
                 dumps,
                 used_generators,
-                environment_inputs,
+                compiler_inputs,
             } => {
                 let warnings = warnings
                     .into_iter()
@@ -153,7 +153,7 @@ impl DecodedResponseV1 {
                     .collect::<Result<Vec<_>, _>>()?;
                 let result = ScoopcSuccessV1::new(product.validate()?, warnings, dumps)?
                     .with_used_generators(used_generators)
-                    .with_environment_inputs(environment_inputs);
+                    .with_compiler_inputs(compiler_inputs);
                 Ok(ScoopcResponseEnvelopeV1::success(
                     RequestCorrelationId::from_vec(request_id)?,
                     result,
@@ -204,7 +204,7 @@ impl WireEncode for DecodedResponseV1 {
                 warnings,
                 dumps,
                 used_generators,
-                environment_inputs,
+                compiler_inputs,
             } => {
                 encoder.map(7)?;
                 encoder.field(0)?;
@@ -226,8 +226,8 @@ impl WireEncode for DecodedResponseV1 {
                     input.encode(encoder)?;
                 }
                 encoder.field(6)?;
-                encoder.array(environment_inputs.len() as u64)?;
-                for input in environment_inputs {
+                encoder.array(compiler_inputs.len() as u64)?;
+                for input in compiler_inputs {
                     input.encode(encoder)?;
                 }
                 Ok(())
@@ -279,8 +279,8 @@ impl WireDecode for DecodedResponseV1 {
                     used_generators: decoder.field(5, |d| {
                         d.decode_array(|d, _| crate::GeneratorToolInputV1::decode(d))
                     })?,
-                    environment_inputs: decoder.field(6, |d| {
-                        d.decode_array(|d, _| crate::EnvironmentInputV1::decode(d))
+                    compiler_inputs: decoder.field(6, |d| {
+                        d.decode_array(|d, _| crate::CompilerInputV1::decode(d))
                     })?,
                 })
             }

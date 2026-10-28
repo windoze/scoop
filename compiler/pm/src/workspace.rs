@@ -45,6 +45,7 @@ pub struct ExpandedCone {
 pub struct WorkspaceMember {
     pub relative_path: String,
     pub directory: PathBuf,
+    pub input_directory: PathBuf,
     pub manifest: PathBuf,
     pub manifest_text: String,
     pub document: Arc<PackageDocument>,
@@ -93,12 +94,14 @@ impl Workspace {
                     result
                 })?;
         let loaded = LoadedManifest {
+            input_directory: member.input_directory.clone(),
             path: member.manifest.clone(),
             directory: member.directory.clone(),
             document: Arc::new(document),
             text: text.into(),
         };
         let owner = LoadedManifest {
+            input_directory: self.root.clone(),
             path: self.manifest.clone(),
             directory: self.root.clone(),
             document: self.document.clone(),
@@ -135,12 +138,14 @@ impl Workspace {
         document: PackageDocument,
     ) -> PmResult<WorkspaceMember> {
         let loaded = LoadedManifest {
+            input_directory: directory.clone(),
             path: directory.join("Cone.toml"),
             directory,
             text,
             document: Arc::new(document),
         };
         Ok(WorkspaceMember {
+            input_directory: loaded.input_directory.clone(),
             relative_path: ".".into(),
             directory: loaded.directory.clone(),
             manifest: loaded.path.clone(),

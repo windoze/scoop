@@ -605,7 +605,7 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 | 位置 / namespace | section 与 major |
 | --- | --- |
 | Manifest / `org.scoop-lang.manifest` | `single-cone-production/9` |
-| HIR / `org.scoop-lang.hir` | `identity-foundation/10`、`core-bootstrap-interface/16`、`cross-cone-interface/83`、`cross-cone-type-semantics/30` |
+| HIR / `org.scoop-lang.hir` | `identity-foundation/10`、`core-bootstrap-interface/16`、`cross-cone-interface/84`、`cross-cone-type-semantics/30` |
 | MIR / `org.scoop-lang.mir` | `identity-foundation/8`、`core-bootstrap-bridge/2`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/19` |
 | LIR / `org.scoop-lang.lir` | `identity-foundation/9`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/17`、`cone-production/14`、`link-identity-closure/19`、`link-support/1` |
 
@@ -927,7 +927,7 @@ PM的全局源码/解析缓存与编译缓存职责分离，默认布局和覆�
 
 输入缺失是普通源码构建错误，输出缺失只生成该输出。manifest 仅测试配置变化不使生产节点失效；未选中源码、程序 argv、测试过滤及显示方式不使编译失效。工具变化可以直接失效，不为恢复内容可能相同的命中强制读取整个程序。尚未使用的 generator 配置不影响构建；实际使用的工具按同一规则记录。
 
-machine transport 为一次 request/response 的 length-prefixed canonical CBOR，protocol version 为 19（成功响应增加编译期环境输入；当前 Cone 使用已展开配置；已有 Check、观察、生成器配置、工具输入和片段诊断原文保持），stdout 只含协议 frame。build request field 6 为输出选择：Artifact、Documentation、ArtifactWithDocumentation，保存各自实际输出 locator；Check 使用新 tag 4 的单字段 map，只保存 tag、不含 locator；成功 response 的 field 2 使用对应 product 选择，Artifact 与 ArtifactWithDocumentation 变体携带 artifact summary，文档输出保存渲染输入 locator 和独立文档 warning；Check product 同样使用 tag 4 的单字段 map，warning 与实际 generator 输入沿共有成功字段保存。Check 拒绝 dump、observation-only 与非空 native 对象输入。build request field 9 为 OptimizationMode（Debug=1、Release=2），field 10 为按归一化路径排序的选中 native 源码所对应的已编译 native 对象 locator 数组，机器生产时数量必须与 manifest 的实际 target 选择一致；没有 native 源码或仅文档时为空。field 11 为当前 Cone 的 CompilationPurpose（Production=1、Test=2）；field 12 为按名称排序且唯一的 generator 注册数组，保存名称与已按接收 CLI cwd 解析的绝对宿主程序路径，未使用的注册不探测程序。target request 保存 canonical triple，以及待解析的 C driver／native sysroot 选择或已解析的 C 工具调用记录。parent 将已得到的记录直接交给 child，child 解码后用于实际编译，不重复执行探测；独立 scoopc 请求仍执行正常工具发现。调用记录保存普通版本／deployment 配置、host locator 和本机输入摘要，不是产物验证资格，host locator 不进入 artifact identity。旧或不匹配协议拒绝。request envelope field 5 为 observation-only 标志（unsigned 0／1）；为 true 时必须请求非空 dump 集合，沿同一编译实现执行到最后一个所需阶段，不发布机器对象或 `.slib`。观察成功使用 response tag 3，携带 warning 和 dump 描述，不伪造产物摘要。
+machine transport 为一次 request/response 的 length-prefixed canonical CBOR，protocol version 为 20（成功响应统一记录环境及文件输入，展开配置保留原 Cone 根定位；当前 Cone 使用已展开配置；已有 Check、观察、生成器配置、工具输入和片段诊断原文保持），stdout 只含协议 frame。build request field 6 为输出选择：Artifact、Documentation、ArtifactWithDocumentation，保存各自实际输出 locator；Check 使用新 tag 4 的单字段 map，只保存 tag、不含 locator；成功 response 的 field 2 使用对应 product 选择，Artifact 与 ArtifactWithDocumentation 变体携带 artifact summary，文档输出保存渲染输入 locator 和独立文档 warning；Check product 同样使用 tag 4 的单字段 map，warning 与实际 generator 输入沿共有成功字段保存。Check 拒绝 dump、observation-only 与非空 native 对象输入。build request field 9 为 OptimizationMode（Debug=1、Release=2），field 10 为按归一化路径排序的选中 native 源码所对应的已编译 native 对象 locator 数组，机器生产时数量必须与 manifest 的实际 target 选择一致；没有 native 源码或仅文档时为空。field 11 为当前 Cone 的 CompilationPurpose（Production=1、Test=2）；field 12 为按名称排序且唯一的 generator 注册数组，保存名称与已按接收 CLI cwd 解析的绝对宿主程序路径，未使用的注册不探测程序。target request 保存 canonical triple，以及待解析的 C driver／native sysroot 选择或已解析的 C 工具调用记录。parent 将已得到的记录直接交给 child，child 解码后用于实际编译，不重复执行探测；独立 scoopc 请求仍执行正常工具发现。调用记录保存普通版本／deployment 配置、host locator 和本机输入摘要，不是产物验证资格，host locator 不进入 artifact identity。旧或不匹配协议拒绝。request envelope field 5 为 observation-only 标志（unsigned 0／1）；为 true 时必须请求非空 dump 集合，沿同一编译实现执行到最后一个所需阶段，不发布机器对象或 `.slib`。观察成功使用 response tag 3，携带 warning 和 dump 描述，不伪造产物摘要。
 
 成功响应直接携带生产时得到的产物摘要：Cone、直接依赖、target、产物 profile、各语义指纹、artifact fingerprint 及测试目录，并携带 warning 和 dump 描述。parent 将该摘要与产物实际位置保存为普通构建记录，不重新打开 child 产物、重读摘要或逐字段核对响应与归档。摘要是后续编译、链接及测试列举需要的数据，不是验证资格；不得包含无人消费的归档长度或成员数来支持复核。protocol 8 用此摘要替换原独立的七个指纹字段。
 
@@ -1161,6 +1161,8 @@ const property 的本地值与静态初值共用 HirConstantImage，完整 prope
 
 `env` 的 `compile_env` intrinsic 使用 callable intrinsic sum 的 tag 30，无额外 payload；完整签名仍由普通 callable declaration 保存。此编码对应 `cross-cone-interface/83`，不改变固定 core bootstrap protocol 或 runtime ABI。
 
+`includeStr` 的 `include_str` intrinsic 使用 callable intrinsic sum 的 tag 31，无额外 payload；完整签名为 String → String，对应 `cross-cone-interface/84`。环境与文件输入的成功记录使用闭合种类（tag 1／2）；文件记录保存原 Cone 根、实际根、原 locator、解析后目标、长度与修改时间。machine protocol 20 的成功 field 6、编译缓存 field 4 及 check／doc 的第三项统一保存该输入序列；缓存域同步升级。展开的 Cone 配置保留原输入根，供 include 的词法范围检查使用，实际源码发现仍使用原有 real root。
+
 文件定位／读取、目录筛选和环境查询由输入宿主提供给 HIR 的窄输入接口完成，driver 与分析宿主供给实际实现。HIR 负责语言语义并保存结果，IR/meta crate 只保存 typed 数据，不自行读取文件或环境，也不依赖 driver／上游 stage 的实现。每次编译中同一实际请求的结果及已记录输入直接复用，不因常量试探、模板发布或下游 stage 重读。失败的试探不发布常量与绑定事实；输入读取的缓存不赋予失败表达式成功语义。
 
 输入宿主使用定义 Cone 的根目录执行 include 范围检查；manifest 模式沿已有 Cone root，single-file 沿解析入口 symlink 后的实际文件父目录。按语言规范 11.19 同时检查定位路径和解析全部链接后的实际目标，父目录 symlink、链式链接与路径中的 `..` 按实际文件系统语义处理，不能仅比较字符串前缀或只检查末段链接。includeDir 对根及每个遍历条目检查，包括 glob 排除项；进入目录前先确认其目标仍在 Cone 内。合法链接的输出名称保留逻辑相对路径，内容去重不省略另一条路径的范围检查。这里只实施 include 资源的目录边界，不增加 owner／权限归属／inode 审计，也不修改普通源码、native 输入或包管理的路径合同。
@@ -1179,7 +1181,7 @@ MIR 保存完整常量值／对象引用，LIR 沿已有布局生成静态数组
 
 父 driver 向实际编译子进程原样传递可查询的 `SCOOP_` 环境变量，包括空值和非 Unicode 值；不以内部 sysroot／缓存配置覆盖这些名字。内部 child 命令用显式 `--object-cache-dir` 传递对象缓存位置，源码查询仍读取原继承值。记录以完成求值的实际输入为准；target 与 runtime 环境不参与查询。文件／环境变化只使重新编译源码的 provider 失效，纯预编译依赖消费保留其中的旧常量。正常失败不发布结果，同键并发沿现有锁协调；不为构建中外部替换输入增加快照复制、稳定性重试或来源审计。
 
-env 的实际更新记录使用名称与 `Option<String>`，空数组表示变量缺失，单元素数组保存存在的值。machine protocol 19 的成功响应新增 field 6 保存这些记录；编译缓存记录新增 field 4，check／doc 缓存结果新增第三项，并升级各自缓存键域。记录随 build、check 和 doc 的实际 HIR 结果返回，不写入供纯预编译消费的环境查询要求。重新构建时，非法 Unicode 的当前值使旧记录失效，再由源码求值给出诊断。
+env 的实际更新记录使用名称与 `Option<String>`，空数组表示变量缺失，单元素数组保存存在的值。这些值作为环境种类进入上述 machine protocol 20 的输入序列，以及编译／check／doc 缓存记录。记录随 build、check 和 doc 的实际 HIR 结果返回，不写入供纯预编译消费的环境查询要求。重新构建时，非法 Unicode 的当前值使旧记录失效，再由源码求值给出诊断。
 
 build、check、doc 和 LSP 的共享 HIR 路径使用同一求值规则。check／doc 的缓存同样记录相关文件、目录和 env 输入；LSP 在分析到相应区域时求值，输入更新使依赖该输入的语义结果失效，未完成结果不发布。语言服务不为这些值进入机器生成或启动外部生成器；其环境来自语言服务进程，外部父 shell 改值不会自动改变已启动进程的环境。
 

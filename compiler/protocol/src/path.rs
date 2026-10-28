@@ -3,7 +3,9 @@ use std::path::{Path, PathBuf};
 
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize,
+)]
 pub enum HostPathEncoding {
     UnixBytes,
     WindowsWtf16Le,
@@ -26,7 +28,7 @@ impl HostPathEncoding {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize)]
 pub struct HostPathCarrier {
     encoding: HostPathEncoding,
     bytes: Vec<u8>,

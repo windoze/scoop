@@ -137,7 +137,7 @@ pub struct ScoopcSuccessV1 {
     warnings: Vec<StructuredDiagnosticV1>,
     emitted_dump_descriptors: Vec<EmittedDumpDescriptorV1>,
     used_generators: Vec<crate::GeneratorToolInputV1>,
-    environment_inputs: Vec<crate::EnvironmentInputV1>,
+    compiler_inputs: Vec<crate::CompilerInputV1>,
 }
 
 impl ScoopcSuccessV1 {
@@ -156,7 +156,7 @@ impl ScoopcSuccessV1 {
             warnings,
             emitted_dump_descriptors,
             used_generators: Vec::new(),
-            environment_inputs: Vec::new(),
+            compiler_inputs: Vec::new(),
         })
     }
 
@@ -165,13 +165,13 @@ impl ScoopcSuccessV1 {
         self
     }
 
-    pub fn with_environment_inputs(mut self, inputs: Vec<crate::EnvironmentInputV1>) -> Self {
-        self.environment_inputs = inputs;
+    pub fn with_compiler_inputs(mut self, inputs: Vec<crate::CompilerInputV1>) -> Self {
+        self.compiler_inputs = inputs;
         self
     }
 
-    pub fn environment_inputs(&self) -> &[crate::EnvironmentInputV1] {
-        &self.environment_inputs
+    pub fn compiler_inputs(&self) -> &[crate::CompilerInputV1] {
+        &self.compiler_inputs
     }
 
     pub fn used_generators(&self) -> &[crate::GeneratorToolInputV1] {
@@ -316,8 +316,8 @@ fn encode_success(
         input.encode(encoder)?;
     }
     encoder.field(6)?;
-    encoder.array(result.environment_inputs.len() as u64)?;
-    for input in &result.environment_inputs {
+    encoder.array(result.compiler_inputs.len() as u64)?;
+    for input in &result.compiler_inputs {
         input.encode(encoder)?;
     }
     Ok(())

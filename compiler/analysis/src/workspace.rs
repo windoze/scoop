@@ -55,6 +55,17 @@ pub struct SourceConeInput {
     pub test_dependencies: Vec<ConeIdentity>,
 }
 
+impl SourceConeInput {
+    pub(crate) fn compiler_inputs(&self) -> scoop_toolchain::CompileTimeInputs {
+        scoop_toolchain::CompileTimeInputs::default().with_sources(
+            self.manifest.input_root().to_owned(),
+            self.sources
+                .iter()
+                .map(|source| (source.identity.clone(), source.path.clone())),
+        )
+    }
+}
+
 impl PartialEq for SourceConeInput {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.manifest, &other.manifest)

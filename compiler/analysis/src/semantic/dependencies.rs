@@ -60,6 +60,7 @@ impl ArtifactInputs {
         project: &ProjectInput,
         reachable: &BTreeSet<ConeIdentity>,
         check: &Rc<dyn Fn() -> bool>,
+        inputs: &mut Vec<Arc<scoop_toolchain::CompileTimeInputs>>,
     ) -> Result<DependencyInputs, Error> {
         let mut providers = self
             .providers
@@ -91,10 +92,12 @@ impl ArtifactInputs {
             let world = world(project, current, &providers)?;
             let (parsed, comments) = sources::complete(snapshot, input, check)?;
             let core = core(current, &providers)?;
+            let compiler_inputs = Arc::new(input.compiler_inputs());
+            inputs.push(compiler_inputs.clone());
             let sources = scoop_hir_lower::CurrentConeSources::try_new(&parsed, core, &world)
                 .and_then(|sources| sources.with_documentation(comments))
                 .map_err(|error| Error::Dependency(error.to_string()))?
-                .with_compile_time_inputs(Arc::new(scoop_toolchain::CompileTimeInputs::default()));
+                .with_compile_time_inputs(compiler_inputs);
             let cancellation = check.clone();
             let output = scoop_hir_lower::lower_current_export_with_cancellation(
                 input.manifest.parsed().semantic().requested_kind(),

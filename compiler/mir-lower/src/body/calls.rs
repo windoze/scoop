@@ -236,6 +236,7 @@ impl BodyLowerer<'_> {
             | hir::IntrinsicFunctionKind::Pointer(_)
             | hir::IntrinsicFunctionKind::CurrentSourceLocation
             | hir::IntrinsicFunctionKind::CompileEnv
+            | hir::IntrinsicFunctionKind::IncludeStr
             | hir::IntrinsicFunctionKind::TypeReference
             | hir::IntrinsicFunctionKind::TypeDescription
             | hir::IntrinsicFunctionKind::AnnotationKey

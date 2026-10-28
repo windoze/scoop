@@ -4,6 +4,7 @@ use super::*;
 pub(super) struct LoadedManifest {
     pub path: PathBuf,
     pub directory: PathBuf,
+    pub input_directory: PathBuf,
     pub document: Arc<PackageDocument>,
     pub text: String,
 }
@@ -34,6 +35,11 @@ impl Manifests {
     }
 
     pub fn load(&mut self, path: &Path) -> PmResult<Arc<LoadedManifest>> {
+        let input_directory = std::path::absolute(path)
+            .map_err(|error| PmError::io(path, error))?
+            .parent()
+            .expect("absolute manifest path has a parent")
+            .to_path_buf();
         let canonical = self
             .canonicalize(path)
             .map_err(|error| PmError::io(path, error))?;
@@ -47,7 +53,7 @@ impl Manifests {
         }
         if let Some(text) = self.overlays.text(&path) {
             let record = Record::parse(&path, text.to_owned())?;
-            return Ok(self.insert(path, record));
+            return Ok(self.insert(path, input_directory, record));
         }
         let stamp = crate::cache::FileStamp::read(&path)?;
         let record_path = self
@@ -81,11 +87,17 @@ impl Manifests {
             }
         };
         self.inputs.push((path.clone(), stamp));
-        Ok(self.insert(path, record))
+        Ok(self.insert(path, input_directory, record))
     }
 
-    fn insert(&mut self, path: PathBuf, record: Record) -> Arc<LoadedManifest> {
+    fn insert(
+        &mut self,
+        path: PathBuf,
+        input_directory: PathBuf,
+        record: Record,
+    ) -> Arc<LoadedManifest> {
         let loaded = Arc::new(LoadedManifest {
+            input_directory,
             directory: path
                 .parent()
                 .expect("absolute manifest path has a parent")

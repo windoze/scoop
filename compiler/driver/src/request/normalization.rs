@@ -28,7 +28,13 @@ pub fn normalize_protocol_build_request(
                     config.manifest.clone(),
                     config.metadata.clone(),
                 )
-                .map_err(BuildRequestNormalizationError::ManifestRoot)?,
+                .map_err(BuildRequestNormalizationError::ManifestRoot)?
+                .with_input_root(
+                    config
+                        .input_root
+                        .to_path_buf()
+                        .map_err(BuildRequestNormalizationError::HostPath)?,
+                ),
             ),
         },
         CurrentConeRequestV1::SingleFile { source } => CurrentConeInput::SingleFile {

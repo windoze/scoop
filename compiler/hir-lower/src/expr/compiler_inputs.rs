@@ -23,15 +23,16 @@ impl Lowerer {
         }
     }
 
-    pub(in crate::expr) fn normalize_compile_env(
+    pub(in crate::expr) fn normalize_compiler_input(
         &mut self,
+        kind: hir::IntrinsicFunctionKind,
         arguments: &[hir::Expr],
         source: Option<&ast::Expr>,
         result_type: hir::TypeId,
         span: Span,
     ) -> Option<hir::Expr> {
         let [name] = arguments else {
-            unreachable!("the compile_env signature has one String parameter")
+            unreachable!("the checked compiler input signature has one String parameter")
         };
         let value = match source {
             Some(source) => self.compiler_input_string(source),
@@ -43,10 +44,24 @@ impl Lowerer {
         let Some(value) = value else {
             self.error(
                 name.span,
-                "`env` requires a compile-time constant String name".into(),
+                match kind {
+                    hir::IntrinsicFunctionKind::CompileEnv => {
+                        "`env` requires a compile-time constant String name"
+                    }
+                    hir::IntrinsicFunctionKind::IncludeStr => {
+                        "`includeStr` requires a compile-time constant String path"
+                    }
+                    _ => unreachable!(
+                        "only String-parameter input intrinsics enter this normalization"
+                    ),
+                }
+                .into(),
             );
             return None;
         };
+        if kind == hir::IntrinsicFunctionKind::IncludeStr {
+            return self.normalize_include_str(value, name.span, span, result_type);
+        }
         let name = match hir::CompileTimeEnvironmentName::parse(&value) {
             Ok(name) => name,
             Err(message) => {
@@ -101,6 +116,44 @@ impl Lowerer {
         Some(self.constant_expression(
             value,
             result_type,
+            hir::StringConstantOwner::CurrentDefinition,
+            span,
+            self.expression_origin(span),
+        ))
+    }
+
+    fn normalize_include_str(
+        &mut self,
+        value: String,
+        path_span: Span,
+        span: Span,
+        ty: hir::TypeId,
+    ) -> Option<hir::Expr> {
+        let result = hir::CompileTimePath::parse(&value)
+            .map_err(str::to_owned)
+            .and_then(|path| {
+                let inputs = self
+                    .compile_time_inputs
+                    .as_ref()
+                    .ok_or("no compile-time input host was supplied for `includeStr`")?;
+                let bytes = inputs.file(self.source_identity(self.current_file), &path)?;
+                std::str::from_utf8(&bytes)
+                    .map(str::to_owned)
+                    .map_err(|error| format!(
+                        "includeStr input `{value}` must be valid UTF-8 (invalid sequence at byte offset {})",
+                        error.valid_up_to()
+                    ))
+            });
+        let value = match result {
+            Ok(value) => value,
+            Err(message) => {
+                self.error(path_span, message);
+                return None;
+            }
+        };
+        Some(self.constant_expression(
+            hir::HirConstantImage::String(value),
+            ty,
             hir::StringConstantOwner::CurrentDefinition,
             span,
             self.expression_origin(span),

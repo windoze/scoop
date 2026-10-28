@@ -5,6 +5,7 @@ use super::*;
 /// The current location and metadata of one manifest input.
 #[derive(Debug)]
 pub struct LocatedConeManifest {
+    input_root: PathBuf,
     real_root: PathBuf,
     manifest_path: PathBuf,
     metadata: Metadata,
@@ -12,6 +13,20 @@ pub struct LocatedConeManifest {
 
 impl ManifestRootLocator {
     pub fn resolve(&self) -> Result<LocatedConeManifest, ManifestRootError> {
+        let input = std::path::absolute(self.as_path()).map_err(|error| {
+            ManifestRootError::io(
+                ManifestRootIoOperation::Canonicalize,
+                self.as_path().to_owned(),
+                error,
+            )
+        })?;
+        let input_root = match self {
+            ManifestRootLocator::ConeDirectory(_) => input,
+            ManifestRootLocator::ExactConeManifestFile(_) => input
+                .parent()
+                .expect("an absolute manifest has a parent")
+                .to_owned(),
+        };
         let (real_root, manifest_path) = match self {
             ManifestRootLocator::ConeDirectory(root) => {
                 let real_root = canonicalize(root)?;
@@ -70,6 +85,7 @@ impl ManifestRootLocator {
         }
 
         Ok(LocatedConeManifest {
+            input_root,
             real_root,
             manifest_path,
             metadata,
@@ -111,6 +127,7 @@ impl LocatedConeManifest {
         parsed: ParsedConeManifest,
     ) -> Result<LoadedConeManifest, ManifestRootError> {
         let Self {
+            input_root,
             real_root,
             manifest_path,
             ..
@@ -122,5 +139,6 @@ impl LocatedConeManifest {
             parsed,
             std::collections::BTreeMap::new(),
         )
+        .map(|manifest| manifest.with_input_root(input_root))
     }
 }

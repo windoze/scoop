@@ -8,6 +8,17 @@ struct Inputs {
 }
 
 impl hir::CompileTimeInputHost for Inputs {
+    fn file(
+        &self,
+        _: &scoop_identity::SourceIdentity,
+        path: &hir::CompileTimePath,
+    ) -> Result<Arc<[u8]>, String> {
+        self.queries.lock().unwrap().push(path.as_str().to_owned());
+        if path.as_str() == "invalid-utf8" {
+            return Ok(Arc::from(b"ok\xff".as_slice()));
+        }
+        Ok(Arc::from(b"\xef\xbb\xbfhello\r\n\0".as_slice()))
+    }
     fn environment(
         &self,
         name: &hir::CompileTimeEnvironmentName,
@@ -26,7 +37,7 @@ fn lower(
     inputs: Arc<Inputs>,
 ) -> Result<hir::DependencyExportHirOutput, Vec<scoop_ast::Diagnostic>> {
     let mut declarations = super::super::complete_core_file();
-    let declaration = "@Intrinsic(\"compile_env\") public fun env(name: String): Option<String>";
+    let declaration = "@Intrinsic(\"compile_env\") public fun env(name: String): Option<String>\n@Intrinsic(\"include_str\") public fun includeStr(path: String): String";
     declarations
         .declarations
         .extend(scoop_parser::parse(declaration).unwrap().declarations);
@@ -190,5 +201,73 @@ fn compile_env_constant_call_does_not_admit_constructors_or_same_named_functions
             "{diagnostics:?}"
         );
         assert!(inputs.queries.lock().unwrap().is_empty());
+    }
+}
+
+#[test]
+fn include_str_expands_literals_in_generic_bodies_and_defaults() {
+    let inputs = Arc::new(Inputs::default());
+    let output = lower(
+        r#"
+        import includeStr as embed
+        public fun <T> generic(v: T): String = embed("file" + ".txt")
+        public fun defaulted(v: String = embed("default.txt")): String = v
+        public fun read(): String = embed("file.txt")
+        "#,
+        inputs.clone(),
+    )
+    .unwrap();
+    for name in ["generic", "read"] {
+        let function = output
+            .export
+            .module()
+            .functions
+            .iter()
+            .find(|(_, function)| function.name == name)
+            .unwrap()
+            .1;
+        let hir::FunctionKind::User(body) = &function.kind else {
+            panic!("ordinary body")
+        };
+        let [statement] = body.statements.as_slice() else {
+            panic!("no runtime argument evaluation")
+        };
+        let hir::StatementKind::Return { value } = &statement.kind else {
+            panic!("return")
+        };
+        assert!(
+            matches!(&value.kind, hir::ExprKind::StringLiteral { value, .. } if value == "\u{feff}hello\r\n\0")
+        );
+    }
+    assert!(
+        inputs
+            .queries
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|path| path == "default.txt")
+    );
+}
+
+#[test]
+fn include_str_rejects_invalid_paths_references_runtime_arguments_and_utf8() {
+    for (expression, expected, queried) in [
+        ("embed(\"\")", "must be nonempty", false),
+        ("embed(\"a\\u{0}b\")", "must not contain NUL", false),
+        (
+            "embed(path)",
+            "requires a compile-time constant String path",
+            false,
+        ),
+        ("::embed", "does not support callable references", false),
+        ("embed(\"invalid-utf8\")", "byte offset 2", true),
+    ] {
+        let inputs = Arc::new(Inputs::default());
+        let diagnostics = lower(&format!("import includeStr as embed\nfun invalid(path: String) {{ val result = {expression} }}"), inputs.clone()).err().expect("invalid include");
+        assert!(
+            diagnostics.iter().any(|d| d.message.contains(expected)),
+            "{diagnostics:?}"
+        );
+        assert_eq!(!inputs.queries.lock().unwrap().is_empty(), queried);
     }
 }

@@ -24,7 +24,7 @@ pub(super) struct Entry {
 impl Entry {
     pub fn new(cache: &ArtifactCacheRoot, key: &str) -> Self {
         Self {
-            directory: cache.as_path().join("checks-v2").join(key),
+            directory: cache.as_path().join("checks-v3").join(key),
         }
     }
 
@@ -61,7 +61,7 @@ impl Entry {
             }
         }
         let result = record.success()?;
-        if !scoop_toolchain::environment_inputs_current(&result.environment_inputs) {
+        if !scoop_toolchain::compiler_inputs_current(&result.compiler_inputs) {
             return Ok(None);
         }
         if !request

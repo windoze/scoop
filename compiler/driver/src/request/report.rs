@@ -203,7 +203,7 @@ pub struct SingleConeProductionSuccess {
     warnings: CurrentConeDiagnosticSet,
     emitted_dumps: Vec<EmittedStageDump>,
     used_generators: Vec<scoop_protocol::GeneratorToolInputV1>,
-    environment_inputs: Vec<scoop_protocol::EnvironmentInputV1>,
+    compiler_inputs: Vec<scoop_protocol::CompilerInputV1>,
     pub(in crate::request) documentation: Option<PublishedDocumentation>,
 }
 
@@ -213,14 +213,14 @@ impl SingleConeProductionSuccess {
         warnings: CurrentConeDiagnosticSet,
         emitted_dumps: Vec<EmittedStageDump>,
         used_generators: Vec<scoop_protocol::GeneratorToolInputV1>,
-        environment_inputs: Vec<scoop_protocol::EnvironmentInputV1>,
+        compiler_inputs: Vec<scoop_protocol::CompilerInputV1>,
     ) -> Self {
         Self {
             artifact,
             warnings,
             emitted_dumps,
             used_generators,
-            environment_inputs,
+            compiler_inputs,
             documentation: None,
         }
     }
@@ -229,8 +229,8 @@ impl SingleConeProductionSuccess {
         &self.artifact
     }
 
-    pub fn environment_inputs(&self) -> &[scoop_protocol::EnvironmentInputV1] {
-        &self.environment_inputs
+    pub fn compiler_inputs(&self) -> &[scoop_protocol::CompilerInputV1] {
+        &self.compiler_inputs
     }
 
     pub fn used_generators(&self) -> &[scoop_protocol::GeneratorToolInputV1] {
@@ -262,12 +262,12 @@ pub enum SingleConeCompilation {
 pub struct SingleConeCheckSuccess {
     pub(in crate::request) warnings: CurrentConeDiagnosticSet,
     pub(in crate::request) used_generators: Vec<scoop_protocol::GeneratorToolInputV1>,
-    pub(in crate::request) environment_inputs: Vec<scoop_protocol::EnvironmentInputV1>,
+    pub(in crate::request) compiler_inputs: Vec<scoop_protocol::CompilerInputV1>,
 }
 
 impl SingleConeCheckSuccess {
-    pub fn environment_inputs(&self) -> &[scoop_protocol::EnvironmentInputV1] {
-        &self.environment_inputs
+    pub fn compiler_inputs(&self) -> &[scoop_protocol::CompilerInputV1] {
+        &self.compiler_inputs
     }
 
     pub fn used_generators(&self) -> &[scoop_protocol::GeneratorToolInputV1] {

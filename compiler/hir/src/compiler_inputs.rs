@@ -23,4 +23,25 @@ impl CompileTimeEnvironmentName {
 /// Supplied by the compiler or editor host; shared by candidate-local probes.
 pub trait CompileTimeInputHost: Send + Sync {
     fn environment(&self, name: &CompileTimeEnvironmentName) -> Result<Option<String>, String>;
+    fn file(
+        &self,
+        source: &scoop_identity::SourceIdentity,
+        path: &CompileTimePath,
+    ) -> Result<std::sync::Arc<[u8]>, String>;
+}
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct CompileTimePath(String);
+
+impl CompileTimePath {
+    pub fn parse(path: &str) -> Result<Self, &'static str> {
+        if path.is_empty() || path.contains('\0') {
+            return Err("include path must be nonempty and must not contain NUL");
+        }
+        Ok(Self(path.to_owned()))
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }

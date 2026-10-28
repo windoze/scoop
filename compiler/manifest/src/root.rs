@@ -62,6 +62,7 @@ impl ManifestRootLocator {
 
 #[derive(Clone, Debug)]
 pub struct LoadedConeManifest {
+    input_root: PathBuf,
     real_root: PathBuf,
     manifest_path: PathBuf,
     source: String,
@@ -86,6 +87,7 @@ impl LoadedConeManifest {
             )
         })?;
         Ok(Self {
+            input_root: real_root.clone(),
             real_root,
             manifest_path,
             source,
@@ -101,6 +103,15 @@ impl LoadedConeManifest {
 
     pub fn real_root(&self) -> &Path {
         &self.real_root
+    }
+
+    pub fn input_root(&self) -> &Path {
+        &self.input_root
+    }
+
+    pub fn with_input_root(mut self, input_root: PathBuf) -> Self {
+        self.input_root = input_root;
+        self
     }
 
     pub fn manifest_path(&self) -> &Path {

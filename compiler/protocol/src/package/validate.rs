@@ -139,6 +139,7 @@ impl ExpandedConeInputV1 {
     pub fn validate(&self) -> Result<(), String> {
         absolute(&self.root)?;
         absolute(&self.manifest_path)?;
+        absolute(&self.input_root)?;
         if self
             .manifest
             .locators()
