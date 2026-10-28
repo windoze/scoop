@@ -161,6 +161,8 @@ bool scoop_gc_mark_queue_take(ScoopGcMarkWorker *worker, ScoopGcMarkTask *task);
 void scoop_gc_mark_task_done(void);
 void scoop_gc_mark_flush(ScoopGcMarkWorker *worker);
 void scoop_gc_mark_slot(void **slot, void *context);
+void scoop_gc_mark_range(void *object, const uint64_t *scan, ScoopGcMarkVisit *visit,
+                         uintptr_t begin, uintptr_t end);
 void scoop_gc_mark_run_task(ScoopGcMarkWorker *worker, ScoopGcMarkTask task);
 void scoop_gc_mark_run_dirty(ScoopGcMarkWorker *worker, ScoopGcCardGroup *group,
                               ScoopGcSavedCards *saved);

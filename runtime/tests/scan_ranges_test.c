@@ -36,6 +36,12 @@ static void check(void *base, const uint64_t *scan, const Visited *expected, uin
                   uintptr_t end) {
     Visited actual = {0};
     scoop_gc_scan_descriptor(base, scan, record, &actual, begin, end);
+    Visited direct = {0};
+    scoop_gc_scan_range(base, scan, record, &direct, begin, end);
+    assert(direct.count == actual.count);
+    for (size_t index = 0; index < actual.count; index++) {
+        assert(direct.slots[index] == actual.slots[index]);
+    }
     size_t next = 0;
     for (size_t index = 0; index < expected->count; index++) {
         void **slot = expected->slots[index];

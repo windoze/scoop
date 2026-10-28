@@ -125,7 +125,8 @@ static ScoopGcRegion *reference_region(ScoopGcMarkWorker *worker, const void *ob
     return region;
 }
 
-static ScoopGcBlockMeta *markable_block(ScoopGcMarkWorker *worker, const void *object, size_t *word) {
+static inline __attribute__((always_inline)) ScoopGcBlockMeta *
+markable_block(ScoopGcMarkWorker *worker, const void *object, size_t *word) {
     ScoopGcRegion *region = reference_region(worker, object);
     /* The coordinator owns heap/roots; these metadata remain immutable during mark. */
     if (region == NULL) {
@@ -155,7 +156,8 @@ static ScoopGcBlockMeta *markable_block(ScoopGcMarkWorker *worker, const void *o
     return &region->blocks[index];
 }
 
-static void mark_target(ScoopGcMarkWorker *worker, void *object) {
+static inline __attribute__((always_inline)) void
+mark_target(ScoopGcMarkWorker *worker, void *object) {
     size_t word;
     ScoopGcBlockMeta *block = markable_block(worker, object, &word);
     if (block == NULL || !first_mark(block, word)) {
@@ -185,7 +187,8 @@ static void mark_target(ScoopGcMarkWorker *worker, void *object) {
     }
 }
 
-void scoop_gc_mark_slot(void **slot, void *context) {
+/* Known slot loops inline this body; generic scanners retain its external entry. */
+extern inline __attribute__((always_inline)) void scoop_gc_mark_slot(void **slot, void *context) {
     ScoopGcMarkVisit *visit = context;
     if (visit->source == SCOOP_MARK_ROOT) {
         visit->worker->root_slots++;
@@ -199,6 +202,11 @@ void scoop_gc_mark_slot(void **slot, void *context) {
     }
 }
 
+void scoop_gc_mark_range(void *object, const uint64_t *scan, ScoopGcMarkVisit *visit,
+                         uintptr_t begin, uintptr_t end) {
+    scoop_gc_scan_range(object, scan, scoop_gc_mark_slot, visit, begin, end);
+}
+
 void scoop_gc_mark_run_task(ScoopGcMarkWorker *worker, ScoopGcMarkTask task) {
     ScoopGcMarkVisit visit = {worker, SCOOP_MARK_OBJECT};
     worker->tasks++;
@@ -208,8 +216,8 @@ void scoop_gc_mark_run_task(ScoopGcMarkWorker *worker, ScoopGcMarkTask task) {
     }
     if (task.kind == SCOOP_MARK_ARRAY_TASK) {
         worker->array_tasks++;
-        scoop_gc_scan_descriptor(task.data.range.object, task.data.range.scan, scoop_gc_mark_slot,
-                                 &visit, task.data.range.begin, task.data.range.end);
+        scoop_gc_mark_range(task.data.range.object, task.data.range.scan, &visit,
+                             task.data.range.begin, task.data.range.end);
         return;
     }
     uint64_t scans = task.data.batch.scans;

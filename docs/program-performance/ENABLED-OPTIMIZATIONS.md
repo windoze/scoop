@@ -12,6 +12,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [编译器可见的引用扫描循环](GC-EVOLUTION.md#第四十六阶段编译器可见的引用扫描循环) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 单引用数组复用共享范围算法，在 collector 热循环中展开标记过滤，省去逐槽调用和帧保存；动态／复杂扫描保持。增加约 3.5／14 KiB runtime 代码，改善大图 STW 及线程分配吞吐；树形吞吐、部分最大暂停及 runtime 编译成本回退见记录，无对象／metadata／ABI 增量。 |
 | [region 紧凑引用元数据](GC-EVOLUTION.md#第四十五阶段region-紧凑引用元数据) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 连续 head／starts 保留唯一状态和精确起点，minor 的合法旧引用避开完整 block 记录；省去逐 block 的 starts 分配。完整普通 region 增加约 4 KiB，未使用块多预留位图；大图及部分分配改善，线程尾部回退见记录，无对象／ABI 变化。 |
 | [连续脏卡范围与置位起点枚举](GC-EVOLUTION.md#第四十四阶段连续脏卡范围与置位起点枚举) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 相邻脏卡共用一次范围扫描，小对象仅枚举 starts 置位项；不跨清卡或卡组，保留精确槽裁剪、survivor 与并行回写所有权。GNU 大图吞吐和线程暂停改善，ARM64 基本持平且部分尾部回退；无分配快路径、对象、metadata 或 ABI 增量。 |
 | [固定对象复用已验证布局](GC-EVOLUTION.md#第四十阶段固定对象复用已验证布局) | 新版普通 runtime 所有 profile 默认；GC stress 支持或 `SCOOP_GC_VERIFY_HEAP` 构建仍完整交叉校验 | 首次标记和 remembered 扫描复用分配已保证的固定对象／box 大小与对齐，省去逐对象 shape 校验调用；动态长度、原生分配、映像、拆箱与精确起点检查保持。无对象／metadata／ABI 增量，重链接即可。 |

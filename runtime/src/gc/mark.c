@@ -76,7 +76,7 @@ static void scan_dirty(void *object, uintptr_t begin, uintptr_t end, void *conte
         visit->last_object = object;
     }
     const uint64_t *scan = scoop_gc_object_scan(object);
-    scoop_gc_scan_descriptor(object, scan, scoop_gc_mark_slot, &visit->visit, begin, end);
+    scoop_gc_mark_range(object, scan, &visit->visit, begin, end);
 }
 
 void scoop_gc_mark_remembered(void) {
@@ -159,7 +159,7 @@ static void scan_dirty_live(void *object, uintptr_t begin, uintptr_t end, void *
         visit->last_object = object;
     }
     if (visit->scan != NULL) {
-        scoop_gc_scan_descriptor(object, visit->scan, scoop_gc_mark_slot, &visit->visit, begin, end);
+        scoop_gc_mark_range(object, visit->scan, &visit->visit, begin, end);
     }
 }
 
