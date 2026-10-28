@@ -464,6 +464,8 @@ immortal 对象只读且不含可移动引用。collector 对每个 root/对象�
 
 pin 为摊还 O(1)、unpin 为 O(1) 操作。同一对象的显式 pin 共用一项登记和非零计数；每次 pin 增加计数，每次 unpin 减少计数，计数归零才移除登记、清除固定状态。登记期间对象保活且地址稳定，多线程操作由 heap lock 串行化；collector 在同一锁保护下访问登记。对象头的 GC 私有状态字按 2.1 保存其登记索引，大小与低位状态始终保留；索引超过字段表示范围时在登记前报告溢出，移除时交换末项并修正该对象的索引，不线性搜索 pinned 列表。索引不进入语言可见的 `PinnedPtr.raw`，也不改变对象头大小或 typed ABI。非法地址、没有对应显式 pin 的 unpin 或计数溢出属于 fatal ABI error。pin 不替代线程、root 或写屏障协议，不提供对 payload 的同步。
 
+普通小块的 pin 位图仅在首次显式或临时固定对象时分配，null 表示整块无 pin；对象查询、源选择、清扫和 relocation 验证按同一规则解释，不读取空位图。位图建立、置位和清位均在原 heap lock／停稳根协议内完成；扫描 worker 开始前完成发布，扫描期间不改变位图指针或内容，不新增逐引用原子操作。首次分配失败在发布固定状态之前沿现有 fatal 内存不足出口终止。已分配的 512-byte 位图保留供同块后续 pin 复用，块重新激活时清零，region 退休时释放；没有位图的块不为启用、复用或 pin 清除分配它。line、starts、marks 及显式 pin registry／计数保持独立生命周期，large 继续使用其既有状态；此变更不增加对象、块字段、GC roots、生成代码操作或 ABI。
+
 GC handle 是 GC-free opaque 64-bit 值，引用一个当前 live slot 与 generation。slot 复用时 generation 改变；非法、stale 或已释放 handle 是 fatal ABI error。handle 保活对象但不固定地址；解析后跨 safepoint 使用时仍须 root/reload，或显式 pin。
 
 接口 pin／handle 只保存 object；返回静态接口值时以 NoGC 表查询重建对应 itab，不将 metadata 作为 root 或固定对象。

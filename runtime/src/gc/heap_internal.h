@@ -94,6 +94,7 @@ typedef struct ScoopGcBlockMeta {
     ScoopGcBlockHead *head;
     uint64_t *starts;
     uint64_t *marks;
+    /* Null until the first pin; retained storage is reset on block reuse. */
     uint64_t *pins;
 #if SCOOP_GC_TRACK_RELOCATION
     uint64_t *scanned;

@@ -67,7 +67,9 @@ retire_small_object(ScoopGcBlockMeta *block, size_t word, bool marked, bool stre
         memset(object, GC_POISON_BYTE, size);
     }
     bit_clear(block->starts, word);
-    bit_clear(block->pins, word);
+    if (block->pins != NULL) {
+        bit_clear(block->pins, word);
+    }
     block->discard_pending = true;
 }
 
@@ -80,7 +82,9 @@ static void retire_dead_small_objects(ScoopGcBlockMeta *block, bool stress) {
             uint64_t live = starts & block->marks[index];
             if (live != starts) {
                 block->starts[index] = live;
-                block->pins[index] &= live;
+                if (block->pins != NULL) {
+                    block->pins[index] &= live;
+                }
                 block->discard_pending = true;
             }
         }
@@ -105,7 +109,7 @@ static bool finish_stress_source(ScoopGcBlockMeta *block) {
         while (starts != 0) {
             size_t word = index * 64 + (size_t)__builtin_ctzll(starts);
             starts &= starts - 1;
-            bool pinned = bit_test(block->pins, word);
+            bool pinned = object_pinned(block, word);
             bool marked = bit_test(block->marks, word);
             bool moved = !pinned;
             void *object = (char *)block_base(block) + word * sizeof(uint64_t);

@@ -89,10 +89,16 @@ bool scoop_gc_update_pin_locked(const void *object, bool pinned) {
         previous = block->large_pinned;
         block->large_pinned = pinned;
     } else {
-        previous = bit_test(block->pins, word_index);
+        previous = block->pins != NULL && bit_test(block->pins, word_index);
         if (pinned) {
+            if (block->pins == NULL) {
+                block->pins = calloc(GC_BITMAP_WORDS, sizeof(uint64_t));
+                if (block->pins == NULL) {
+                    heap_fatal("out of memory allocating pin bitmap");
+                }
+            }
             bit_set(block->pins, word_index);
-        } else {
+        } else if (block->pins != NULL) {
             bit_clear(block->pins, word_index);
         }
     }
@@ -107,7 +113,7 @@ bool scoop_gc_update_pin_locked(const void *object, bool pinned) {
 
 bool object_pinned(const ScoopGcBlockMeta *block, size_t word) {
     return block->head->kind == SCOOP_BLOCK_KIND_LARGE ? block->large_pinned
-                                                 : bit_test(block->pins, word);
+                                                 : block->pins != NULL && bit_test(block->pins, word);
 }
 
 bool object_marked(const ScoopGcBlockMeta *block, size_t word) {

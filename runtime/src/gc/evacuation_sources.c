@@ -9,6 +9,9 @@ bool scoop_heap_block_has_pins(const ScoopGcBlockMeta *block) {
     if (block->head->kind == SCOOP_BLOCK_KIND_LARGE) {
         return block->large_pinned;
     }
+    if (block->pins == NULL) {
+        return false;
+    }
     for (size_t index = 0; index < GC_BITMAP_WORDS; index++) {
         if (block->pins[index] != 0) {
             return true;

@@ -68,7 +68,7 @@ void scoop_gc_heap_verify_stress_moved_locked(void) {
         }
         for (size_t word = GC_LINE_SIZE / sizeof(uint64_t); word < GC_WORDS_PER_BLOCK; word++) {
             if (!bit_test(block->starts, word) || !bit_test(block->marks, word) ||
-                bit_test(block->pins, word)) {
+                object_pinned(block, word)) {
                 continue;
             }
             void *old = (char *)block_base(block) + word * sizeof(uint64_t);
@@ -108,7 +108,7 @@ void scoop_gc_visit_current_objects_locked(ScoopGcHeapObjectVisitor visitor, voi
             if (!bit_test(block->starts, word) || !bit_test(block->marks, word)) {
                 continue;
             }
-            if (block->head->state == SCOOP_BLOCK_EVACUATION_SOURCE && !bit_test(block->pins, word)) {
+            if (block->head->state == SCOOP_BLOCK_EVACUATION_SOURCE && !object_pinned(block, word)) {
                 void *object = (char *)block_base(block) + word * sizeof(uint64_t);
                 if (scoop_heap_forwarding_address(object) == NULL) {
                     heap_fatal("live small source object was not forwarded");
