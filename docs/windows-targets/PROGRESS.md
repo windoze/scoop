@@ -224,3 +224,5 @@ Windows TerminalSession 已使用独立、不可继承的 CONIN$／CONOUT$ owner
 完整 platform 与 terminal 已按实际生产源码在三个 target 构建并发布开发 slib。platform 每目标 42 个容器／148 项测试，首轮两处 POSIX 测试假设已改为 Path.resolve 和目标权限投影，并在三个目标定向复测通过；terminal 每目标 17 个容器／63 项测试全部通过。Scoop／C 格式化、三个 Clang 环境与 cl 的严格检查、Python Ruff 和 fixture 公共规则检查通过（63 项通过、3 项 POSIX 专项跳过）。
 
 正式 console fixture 在 Microsoft LLD／LINK、MinGW MSVCRT／UCRT 四种链接组合均通过，覆盖实际隐藏 console、重定向、模式恢复、单 owner、重复键、非 BMP、移动 GC、超时／resize、断开与无 console，以及真实 ConPTY 的 UTF-8 输入／输出和大小变化。ConPTY 以 VK_MENU key-up 传递 Unicode 的首轮遗漏已修复；最后的 Python CRLF 输出比较已闭合。IOCP、原生边界 GC fixture、其余系统库与发行验收继续实施，尚未开始远端 POSIX 验证。
+
+准备完整 platform 后，先前因缺目标产物未能运行的 `coroutine-unwind-liveness` 已闭合：Microsoft LLD／LINK、MinGW MSVCRT／UCRT 四种组合各通过 debug／release 两个变体、4 个进程步骤，验证真实线程恢复、异常清理覆盖值和移动 GC 存活。不重跑已通过的其余 GC 组；IOCP 与后续系统库工作继续，远端验证尚未开始。
