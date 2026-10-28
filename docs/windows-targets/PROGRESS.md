@@ -230,3 +230,7 @@ Windows TerminalSession 已使用独立、不可继承的 CONIN$／CONOUT$ owner
 IOCP 基础组件已实现：每 loop 一个完成端口、原生收集线程和 manual-reset 通知 event；OVERLAPPED 请求等真实 packet 后退休，CancelIoEx 不提前释放借用。QPC timer 与有限 worker 队列共用通知和排空路径。宿主接口用 EventLoopNotification 明确区分 POSIX fd／Windows HANDLE；直接错误改用同次 domain／code 结果，原 POSIX 实现及调用方同步该内部记录形状。
 
 三个 target 的实际组件 Cone 各 1 个容器／7 项测试通过，覆盖 C-layout 创建／完成记录、GC 后句柄、通知合并／空闲、长 timer／更早 deadline、真实 overlapped 管道的 pending 取消／迟到成功／同步成功、worker 屏障与 32 位错误码；cl、MinGW 两 CRT 的独立 native 探针同样通过。Scoop／C 格式化、三套 Clang 与 cl 的严格检查、共享驱动／host 适配／受影响测试的语义检查通过。首轮临时整源码链接因尚未移植的 TTY 入口失败，随后按实际底层 FFI 模块做组件验收；未据此发布完整 Windows asyncio。TCP／UDP、文件／目录／DNS、异步 TTY、host 运行测试和 POSIX 回归仍待完成。GC fixture 的 lockfile 已改写到 work 目录，并定向复测通过。
+
+Windows TCP／UDP 已接入 ConnectEx、AcceptEx 和 Winsock overlapped 数据操作，地址查询用同次 domain／code 结果；POSIX 查询同步内部结果形状。请求在实际 IOCP packet 后退休，取消后的健康 socket 可继续使用；关闭等待两个方向完成，UDP 截断保留前缀与包边界。所有新 socket 不可继承，接收连接不预读业务数据，并在交付前更新 context。
+
+三个 target 的实际网络组件 Cone 各 1 个容器／7 项测试全部通过，覆盖 IPv4／IPv6、accept／read 取消后重用、双向传输、半关闭／EOF、待收发期间关闭、UDP pending／已排队截断、空包／超长失败，以及地址／datagram 的 C-layout 和 GC 期间 native buffer 借用；cl 与两个 MinGW CRT 的独立 native 探针通过。Scoop／C 格式化和三套 Clang／cl 严格检查通过；cl 优化编译发现的局部变量初始化告警已修复并复测。仍未发布完整 Windows asyncio；文件／目录／DNS、异步 TTY、host 运行和 POSIX 回归继续实施。

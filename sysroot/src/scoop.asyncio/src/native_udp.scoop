@@ -9,7 +9,7 @@ internal fun udpAddress(pointer: Ptr<Unit>): SocketAddress {
     @Unsafe
     {
         val result = nativeUdpAddress(pointer)
-        if (result.status < 0)
+        if (result.status.code != 0)
             throw backendFailure("UDP address", result.status)
         return ioSocketAddress(result.address)
     }

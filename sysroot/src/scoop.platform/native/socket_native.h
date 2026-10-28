@@ -53,6 +53,9 @@ struct ScoopSocketAddressResult {
     struct ScoopSocketAddress address;
     int32_t error;
 };
+
+struct ScoopSocketOpened scoop_platform_socket_bind_owned(struct ScoopSocketAddress address,
+                                                          bool datagram, bool reuse, int backlog);
 struct ScoopSocketReceived {
     struct ScoopDatagram packet;
     int32_t error;

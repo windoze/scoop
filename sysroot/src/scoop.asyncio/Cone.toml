@@ -103,6 +103,18 @@ path = "native/windows/work.c"
 when = { os = "windows" }
 
 [[native.sources]]
+path = "native/windows/socket.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/socket_create.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/socket_io.c"
+when = { os = "windows" }
+
+[[native.sources]]
 path = "native/common/paths.c"
 
 [[native.sources]]

@@ -80,7 +80,7 @@ ScoopIoSocketName scoop_io_tcp_address(ScoopIoEndpoint *endpoint, bool peer) {
     int status = peer ? getpeername(endpoint->fd, (struct sockaddr *)&address, &length)
                       : getsockname(endpoint->fd, (struct sockaddr *)&address, &length);
     int error = status < 0 ? errno : 0;
-    ScoopIoSocketName result = {.status = -error};
+    ScoopIoSocketName result = {.status = scoop_io_errno(-error)};
     if (!error)
         result.address = scoop_socket_address_decode((struct sockaddr *)&address, length);
     return result;

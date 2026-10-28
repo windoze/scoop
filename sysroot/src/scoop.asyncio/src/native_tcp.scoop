@@ -6,7 +6,7 @@ internal fun tcpAddress(pointer: Ptr<Unit>, peer: Boolean): SocketAddress {
     @Unsafe
     {
         val result = nativeTcpAddress(pointer, peer)
-        if (result.status < 0)
+        if (result.status.code != 0)
             throw backendFailure("TCP address", result.status)
         return ioSocketAddress(result.address)
     }
