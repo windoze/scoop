@@ -7,16 +7,21 @@ pub(in crate::queries) fn callables_at(
     snapshot: &AnalysisSnapshot,
     cancellation: &Cancellation,
 ) -> Result<Vec<hir::EditingCallableReference>, ResponseError> {
-    Ok(
-        body_facts(analysis, function, snapshot, cancellation)?.map_or_else(Vec::new, |facts| {
-            facts
-                .callables
-                .iter()
-                .filter(|reference| reference.span == span)
-                .cloned()
-                .collect()
-        }),
-    )
+    let snapshot = snapshot.clone();
+    let cancellation = cancellation.clone();
+    let references = analysis
+        .callable_references(function, move || {
+            cancellation.check().is_err() || snapshot.check_cancelled().is_err()
+        })
+        .map_err(|_| cancelled())?;
+    Ok(match references {
+        EditingValue::Known(references) => references
+            .iter()
+            .filter(|reference| reference.span == span)
+            .cloned()
+            .collect(),
+        EditingValue::Unavailable(_) => Vec::new(),
+    })
 }
 
 pub(in crate::queries) fn property_at(

@@ -109,10 +109,10 @@ impl Lowerer {
         context: ReferenceResolutionContext<'_>,
     ) -> Result<Option<ApplicableReference>, ReferenceFailure> {
         let mut state = self.clone();
-        let fail = |reason| ReferenceFailure {
+        let fail = |reason: String| ReferenceFailure {
             signature: format!("constructor `{}`", context.name),
             layer: "constructor candidate",
-            reason,
+            reason: reason.into(),
         };
         let declaration =
             ConstructorReferenceDeclaration::resolve(&mut state, candidate.clone(), context.span)

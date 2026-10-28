@@ -8,6 +8,13 @@ impl ReferenceBuilder {
         check: &Rc<dyn Fn() -> bool>,
     ) -> Result<(), EditingCancelled> {
         let cancellation = check.clone();
+        if let V::Known(references) =
+            analysis.callable_references(function.id, move || cancellation())?
+        {
+            let references = references.to_vec();
+            self.callables(analysis, function, references, check)?;
+        }
+        let cancellation = check.clone();
         let V::Known(facts) = analysis.source_body_facts(function.id, move || cancellation())?
         else {
             self.parameters(analysis, function);
@@ -15,7 +22,6 @@ impl ReferenceBuilder {
             return Ok(());
         };
         let locals = facts.locals.clone();
-        let callables = facts.callables.clone();
         let properties = facts.properties.clone();
         let local_functions = facts.local_functions.clone();
         self.types(&facts.types);
@@ -65,28 +71,6 @@ impl ReferenceBuilder {
                 local.role == hir::EditingLocalRole::Declaration,
             );
         }
-        for reference in callables {
-            if check() {
-                return Err(EditingCancelled);
-            }
-            let origin = hir::SemanticSourceLocation {
-                source: source.clone(),
-                span: reference.span,
-            };
-            match self
-                .identities
-                .callee(&mut analysis.lowerer, reference.target)
-            {
-                Some(target) => {
-                    let target = Target::Callable(target);
-                    if let Some(definition) = reference.definition {
-                        self.definitions.entry(target).or_insert(definition);
-                    }
-                    self.record(target, origin, false);
-                }
-                None => self.unavailable.push(origin),
-            }
-        }
         for reference in properties {
             if check() {
                 return Err(EditingCancelled);
@@ -119,6 +103,38 @@ impl ReferenceBuilder {
                 return Err(EditingCancelled);
             }
             self.call_parameters(&mut analysis.lowerer, source, &call);
+        }
+        Ok(())
+    }
+
+    fn callables(
+        &mut self,
+        analysis: &mut DeclarationAnalysis,
+        function: &hir::EditingSourceBody,
+        references: Vec<hir::EditingCallableReference>,
+        check: &Rc<dyn Fn() -> bool>,
+    ) -> Result<(), EditingCancelled> {
+        for reference in references {
+            if check() {
+                return Err(EditingCancelled);
+            }
+            let origin = hir::SemanticSourceLocation {
+                source: function.origin.source.clone(),
+                span: reference.span,
+            };
+            match self
+                .identities
+                .callee(&mut analysis.lowerer, reference.target)
+            {
+                Some(target) => {
+                    let target = Target::Callable(target);
+                    if let Some(definition) = reference.definition {
+                        self.definitions.entry(target).or_insert(definition);
+                    }
+                    self.record(target, origin, false);
+                }
+                None => self.unavailable.push(origin),
+            }
         }
         Ok(())
     }

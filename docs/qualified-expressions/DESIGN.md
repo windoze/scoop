@@ -1,6 +1,6 @@
 # 包限定表达式与函数声明引用设计
 
-状态：设计完成，待实施。日期：2026-10-28。本次只补充语言与实现合同，未修改编译器源码。
+状态：实施中。日期：2026-10-28。currentSourceLocation 的不可引用诊断及错误下的声明导航已实现；包限定表达式仍待实施。验证记录见[实施记录](../compile-time-intrinsics/PROGRESS.md)。
 
 权威合同见[语言规范](../specs/SCOOP-SPEC.md) 8.1.4～8.1.5、11.12、12.4.5、13.1、13.10，以及[实现规范](../specs/SCOOP-IMPL-SPEC.md) 2.2.1、2.10。本设计与[编译期 intrinsic 设计](../compile-time-intrinsics/DESIGN.md)配合，但适用于所有可见 package 的普通声明。
 
@@ -145,4 +145,4 @@ AST 保证声明路径非空；成功 HIR 仍使用完整的 typed call、proper
 
 普通语言行为用独立测试 Cone 和 scoop.test，采用 release。编译错误／诊断位置、FunPtr ABI 及跨产物身份使用对应编译器测试或正式 fixture；少量 parser／typed HIR 测试检查路径和已选身份，不保存完整 IR 快照。完成代码变更后先格式化／lint，再运行相关测试。
 
-本次仅完成设计。当前编译器仍不能使用本节新增形式；不以文档中的规划示例作为已实现能力。
+当前编译器仍不能使用本节新增的包限定表达式；不以文档中的规划示例作为已实现能力。

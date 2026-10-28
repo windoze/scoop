@@ -2398,7 +2398,7 @@ fun currentSourceLocation(): SourceLocation
 ```
 
 - `currentSourceLocation()` 返回所在表达式的标准**求值来源**所指示的源码位置（文件、行、列）与所处函数、类型的名称。该信息在编译期已知，不依赖调试信息；本intrinsic不建立独立的调用处传播机制。
-- **引用限制（设计，待实施）**：本 intrinsic 只允许直接调用，`::currentSourceLocation` 以及指向同一声明的 alias／re-export 引用均为语义错误，不能创建 managed 函数值或 FunPtr。间接调用不携带调用处的源码求值来源；编译器不能以创建引用的位置、生成 adapter 的位置或调试信息替代。诊断遵守 13.1，明确说明其依赖直接调用表达式的源码位置，并建议在需要位置的地方直接调用或显式传递 SourceLocation。显式 lambda／普通函数正文中的直接调用仍合法，观察该表达式按原规则取得的求值来源，不自动获得间接调用者的位置；本条不改变缺省参数和内联语义。
+- **引用限制**：本 intrinsic 只允许直接调用，`::currentSourceLocation` 以及指向同一声明的 alias／re-export 引用均为语义错误，不能创建 managed 函数值或 FunPtr。间接调用不携带调用处的源码求值来源；编译器不能以创建引用的位置、生成 adapter 的位置或调试信息替代。诊断遵守 13.1，明确说明其依赖直接调用表达式的源码位置，并建议在需要位置的地方直接调用或显式传递 SourceLocation。显式 lambda／普通函数正文中的直接调用仍合法，观察该表达式按原规则取得的求值来源，不自动获得间接调用者的位置；本条不改变缺省参数和内联语义。
 - `file`保存可重现的canonical semantic source path，而不是host绝对路径或CLI operand spelling。manifest Cone中其形式为`group:name:version/<normalized Cone-relative source path>`；默认目录中的文件仍为`group:name:version/src/...`，12.2.2 的显式源码目录不截去其目录前缀。12.2的single-file Cone的原始入口文件为`scoop:single-file:0.0.0/main.scoop`；生成方法体使用同一 Cone 下按目标方法身份派生的逻辑来源，规则见实现规范2.20。编译诊断可另行显示当次调用路径，但该display locator不改变`SourceLocation`的值。
 - 可与 8.5 的缺省参数规则组合，取得调用者的源码位置：
 
@@ -3179,7 +3179,7 @@ public struct Int : Equals<Int>, ToString, Hash {
 
 - 11.19 的四个编译期输入 intrinsic 只允许定义处可常量求值的直接使用，在 Export HIR 完成前展开；没有动态分派、函数引用或运行期后备入口。其源码位置、外部输入及结果共享规则由该节规定，不因同属 intrinsic 就继承位置 intrinsic 的调用处观察语义。参数／结果仍按真实 core 类型与普通 import 解析，不按 `scoop.compiler` 的名称赋予用户声明特殊能力。
 
-- **不可引用 intrinsic 与诊断（设计，待实施）**：11.19 的四个编译期输入操作及 11.12 的 `currentSourceLocation` 不支持 callable reference。完成普通名称与可见性解析后，以实际声明的 typed intrinsic kind 判断，短名、import alias、re-export、限定路径及跨 Cone 使用一致；同名普通函数不受此限制，其他 intrinsic 保留各自原有的引用合同。诊断定位引用表达式，给出实际声明名称、禁止函数引用的事实及具体原因：前四者在编译期求值且无运行期入口；位置 intrinsic 依赖直接调用处的源码来源，普通间接调用不提供该信息。managed／无期望类型／FunPtr 三种上下文均保留这一原因，不能把它静默过滤后只报告 unknown name、syntax error 或 no applicable candidate；涉及多候选时保留该候选的具体失败原因，其他候选仍按原重载规则处理。可提示合法的直接调用或显式传值，不自动合成 lambda／adapter 来规避限制。
+- **不可引用 intrinsic 与诊断**：11.19 的四个编译期输入操作及 11.12 的 `currentSourceLocation` 不支持 callable reference。完成普通名称与可见性解析后，以实际声明的 typed intrinsic kind 判断，短名、import alias、re-export、限定路径及跨 Cone 使用一致；同名普通函数不受此限制，其他 intrinsic 保留各自原有的引用合同。诊断定位引用表达式，给出实际声明名称、禁止函数引用的事实及具体原因：前四者在编译期求值且无运行期入口；位置 intrinsic 依赖直接调用处的源码来源，普通间接调用不提供该信息。managed／无期望类型／FunPtr 三种上下文均保留这一原因，不能把它静默过滤后只报告 unknown name、syntax error 或 no applicable candidate；涉及多候选时保留该候选的具体失败原因，其他候选仍按原重载规则处理。可提示合法的直接调用或显式传值，不自动合成 lambda／adapter 来规避限制。位置 intrinsic 的短名／alias／依赖引用诊断已实现；11.19 新入口及 12.4.5 限定表达式仍待实施。
 
 - 11.15 的 `core_maybe_uninit` 登记为单参数 intrinsic struct；`maybe_uninit_zero`、`maybe_uninit_initialized` 是相应 companion 的静态操作，`maybe_uninit_assume_init` 是 wrapper 实例操作，后者必须带 `@Unsafe`。它们保留 wrapper 与 payload 的完整类型，不凭相同布局抹除初始化契约；不允许其他 annotation 组合绕过既有 NoGC／unsafe 检查。
 

@@ -234,6 +234,7 @@ impl Lowerer {
     }
 
     pub(crate) fn commit_layer_diagnostics(&mut self, failed: &Lowerer) {
+        self.retain_rejected_callable_references(failed);
         let baseline = self.diagnostics.len();
         debug_assert!(
             failed.diagnostics.len() > baseline
