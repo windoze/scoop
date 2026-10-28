@@ -13,6 +13,9 @@ TARGETS = {
     "aarch64-apple-darwin": ("Darwin", "clang"),
     "x86_64-unknown-linux-gnu": ("Linux", "gcc"),
     "x86_64-unknown-linux-musl": ("Linux", "musl-gcc"),
+    "x86_64-pc-windows-msvc-ucrt": ("Windows", "clang-cl"),
+    "x86_64-w64-windows-llvm-mingw-msvcrt": ("Windows", "clang"),
+    "x86_64-w64-windows-llvm-mingw-ucrt": ("Windows", "clang"),
 }
 
 

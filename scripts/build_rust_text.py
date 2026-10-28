@@ -14,6 +14,11 @@ LIBRARY = "libscoop_text_backend.a"
 HEADER = "scoop_text_backend.h"
 NOTICE_FILES = ("COPYRIGHT-library.html", "licenses/Apache-2.0.txt", "licenses/MIT.txt")
 NOTICE_DIRECTORY = "rust-std"
+WINDOWS_TARGETS = {
+    "x86_64-pc-windows-msvc-ucrt": "x86_64-pc-windows-msvc",
+    "x86_64-w64-windows-llvm-mingw-msvcrt": "x86_64-pc-windows-gnu",
+    "x86_64-w64-windows-llvm-mingw-ucrt": "x86_64-pc-windows-gnullvm",
+}
 
 
 def prepare(args):
@@ -26,6 +31,7 @@ def prepare(args):
 
 
 def prepare_locked(args, source, archive, build):
+    rust_target = WINDOWS_TARGETS.get(args.target, args.target)
     inputs = {
         "source": source_metadata(source, ("src", "include")),
         "files": [
@@ -40,6 +46,7 @@ def prepare_locked(args, source, archive, build):
             )
         ],
         "target": args.target,
+        "rust_target": rust_target,
         "prefix": str(args.prefix),
         "cc": args.cc,
         "environment": {
@@ -64,6 +71,10 @@ def prepare_locked(args, source, archive, build):
     rustc = shutil.which("rustc")
     if not cargo or not rustc:
         raise ValueError("preparing the Rust text backend requires Cargo and rustc")
+    configuration = tomllib.loads(RELEASE_CONFIG.read_text())
+    version = subprocess.check_output([rustc, "--version"], text=True)
+    if args.target in WINDOWS_TARGETS and version.split()[1] != configuration["rust_windows"]:
+        raise ValueError("Windows text preparation requires Rust " + configuration["rust_windows"])
     rust_sysroot = Path(subprocess.check_output([rustc, "--print=sysroot"], text=True).strip())
     notices = [rust_sysroot / "share/doc/rust" / name for name in NOTICE_FILES]
     for notice in notices:
@@ -94,8 +105,14 @@ def prepare_locked(args, source, archive, build):
             package.extractall(vendor, filter="data")
         vendor_record.write_text(json.dumps(archive_input) + "\n")
 
-    release = tomllib.loads(RELEASE_CONFIG.read_text())["targets"][args.target]
-    environment = dict(os.environ, TMPDIR=str(scratch), CARGO_TARGET_DIR=str(build / "target"))
+    release = configuration["targets"][args.target]
+    environment = dict(
+        os.environ,
+        TMPDIR=str(scratch),
+        TEMP=str(scratch),
+        TMP=str(scratch),
+        CARGO_TARGET_DIR=str(build / "target"),
+    )
     if args.target.endswith("darwin"):
         environment["MACOSX_DEPLOYMENT_TARGET"] = (
             inputs["environment"]["MACOSX_DEPLOYMENT_TARGET"] or release["minimum_os"]
@@ -114,7 +131,7 @@ def prepare_locked(args, source, archive, build):
         "--lib",
         "--release",
         "--target",
-        args.target,
+        rust_target,
         "--jobs",
         str(args.jobs),
         "--",
@@ -122,11 +139,11 @@ def prepare_locked(args, source, archive, build):
         "-Ctarget-cpu=" + release["cpu"],
     ]
     subprocess.run(command, env=environment, check=True)
-    version = subprocess.check_output([rustc, "--version"], text=True)
     (build / "toolchain.txt").write_text(version)
     stage = build / "stage"
     stage.mkdir(exist_ok=True)
-    shutil.copy2(build / "target" / args.target / "release" / LIBRARY, stage / LIBRARY)
+    built_name = "scoop_text_backend.lib" if rust_target.endswith("-msvc") else LIBRARY
+    shutil.copy2(build / "target" / rust_target / "release" / built_name, stage / LIBRARY)
     shutil.copy2(source / "include" / HEADER, stage / HEADER)
     staged_files = [stage / LIBRARY, stage / HEADER]
     for notice in notices:

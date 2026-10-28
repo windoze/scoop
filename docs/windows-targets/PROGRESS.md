@@ -270,3 +270,7 @@ Rust 文本 staticlib 消费暴露的 COFF 问题已修复：StaticArchive 接�
 合并主线 `726a38a96` 的异常查找和线程异常根优化：活跃异常随所属线程扫描并原位更新，去掉原全局 record 锁与 GcHandle；保留 Windows SEH record、8-byte type entry 和平台 condition wait。新增 LSDA 用例按目标 type entry 宽度构造，线程异常根 fixture 增加三个 Windows target 并将 lockfile 写入 work 目录。私有 record／线程字段不改变 runtime ABI 27。
 
 三个 target 的严格 C 编译与 LSDA decoder 单元测试通过；正式 `exception-thread-roots`、`exceptions-return-paths`、`roots-gc-context` 各目标 3 项／4 变体／12 进程步骤全部通过，包含多线程、嵌套异常、移动与 minor GC。原合并冲突已闭合；新 runtime 通过实际源码构建验收，开发 sysroot 的四组 runtime 在进行中的库测试结束后统一更新，未重复编译 ABI 未变化的系统 slib。其余库和发行验收继续实施，未开始远端测试。
+
+Rust 文本后端的正式准备入口已支持三个 Windows target，使用固定 Rust 1.99.1 的 MSVC／GNU／GNU-LLVM 标准库，按完整 target 发布 canonical 静态 archive、头文件与真实 Rust 许可；普通应用不运行 Cargo。charset／IDNA 声明额外 Windows 系统库，沿用 CRT 默认的 kernel32。uriparser 1.0.2 使用上游 CMake／Ninja 分别构建三个目标，Microsoft 保持 `/MD`；移除 Windows 不适用的 DESTDIR，沿工作目录 stage 发布 archive 和窄字符头文件。两种准备命令的三个目标均在输入与工具原位存在时直接复用。
+
+三个 target 的正式 release IDNA 各 3 个容器／11 项、URL 各 7 个容器／19 项、charset 各 7 个容器／18 项测试全部通过，覆盖普通 API、错误与跨 Cone 消费；生产 slib 已发布开发 sysroot。三套 PE 导入符合各自 CRT，未导入 libgcc DLL。Python Ruff／格式化通过，Rust 后端与 uriparser 均通过真实构建和发布。asyncio 全量、压缩／HTTP 等后端、原生发行与跨宿主验证继续实施。

@@ -50,7 +50,9 @@ python3 scripts/prepare_sysroot.py \
 
 `build_text_backends.py` 准备独立 Rust `scoop_text_backend`（字符集转换／IDNA／Punycode／NFC／Unicode 编辑基础操作）。Rust 依赖从固定 vendor 归档离线构建，需要支持所选目标的 Rust 工具链；普通应用不执行 Cargo。字符集按用户决定缩减为 43 个名称；原 GNU 文本构建链与发行资源已移除。必须显式给出仓库外 `--build-dir`；支持目标 `--cc`、资源目录 `--prefix` 与 `--jobs`。静态库放在 `sysroot/lib/<triple>`，头文件放在其 `include` 子目录，直接使用现有 native 搜索路径。实际 Rust 工具链的 `COPYRIGHT-library.html`、Apache-2.0／MIT 许可保存在目标目录的 `rust-std` 中，发行时收集到 `share/licenses`。这些文档必须随维护构建工具链提供；缓存命中不探测工具链或读取许可内容。固定依赖的源码与许可由 vendor 随工具链分发，不携带构建出的命令行程序。
 
-`build_uriparser.py` 以相同布局准备 uriparser 1.0.2，仅启用窄字符静态库，关闭工具、文档、测试及宽字符 API 的构建。需要 CMake 和所选目标 C 编译器；使用仓库外 `--build-dir`，其余目标、编译器与并行选项同上。输入未变化时直接复用，实际更新后在维护工作区重建，再发布库与头文件。
+Windows 文本后端使用 `release.toml` 固定的 Rust 1.99.1，先用 `rustup target add x86_64-pc-windows-msvc x86_64-pc-windows-gnu x86_64-pc-windows-gnullvm` 安装对应标准库。三个完整 Scoop target 分别选择 MSVC UCRT、GNU MSVCRT、GNU-LLVM UCRT 的 staticlib，统一发布为 `.a`；例如 `python scripts/build_text_backends.py --target x86_64-pc-windows-msvc-ucrt --build-dir E:/scoop-work/text-msvc`。构建只调用 Cargo／Rust，沿用参数 `--cc` 不会触发 C 编译器调用。实际 Windows 系统库由 charset／IDNA Cone 声明，CRT 和 Scoop 展开库仍由完整目标提供。
+
+`build_uriparser.py` 以相同布局准备 uriparser 1.0.2，仅启用窄字符静态库，关闭工具、文档、测试及宽字符 API 的构建。需要 CMake 和所选目标 C 编译器；使用仓库外 `--build-dir`，其余目标、编译器与并行选项同上。三个 Windows target 使用 Ninja，Microsoft 在 x64 SDK／MSVC 开发环境中选择 clang-cl／cl 和 `/MD`，两个 MinGW target 显式选择各自 prefix 的 Clang。输入未变化时直接复用，实际更新后在维护工作区重建，再发布库与头文件。
 
 `build_compression.py` 使用 CMake 依次准备 Zstandard 1.5.7、zlib-ng 2.3.3 和 Brotli 1.2.0；参数与目录布局同上。只发布静态库和头文件，不构建命令行程序、测试、benchmark 或并行压缩线程池；zlib-ng 保留原生命名前缀和运行时 CPU 检测。内存、同步与异步 API 共用同一个 `scoop.compression` Cone 和同一套后端。
 
