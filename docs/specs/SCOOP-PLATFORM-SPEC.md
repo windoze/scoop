@@ -143,6 +143,8 @@ BufferedSource 不把未读数据交回 endpoint；BufferedSink.close 尝试 flu
 
 standardInput、standardOutput、standardError 是使用调用时 fd 0/1/2 的借用视图，不实现 Closeable。duplicateStandardInput/Output/Error 返回独立拥有、close-on-exec 的 File 副本，与原描述符共享 OS 文件位置／状态，关闭副本不关闭标准 fd。标准流重定向后，后续操作使用新 fd；与 core libc stdio 混用时需要显式 flush，不承诺自动排序。
 
+Windows 的借用视图在每次操作时调用 GetStdHandle，使用实际输入／输出／错误 HANDLE；它们与 CRT fd 分开建模，不依赖二者数值或重定向状态相同。没有标准句柄（例如 GUI 进程）时，正长度传输与 duplicate 报 Win32 ERROR_INVALID_HANDLE，不分配 console。零长度传输保持字节协议，不访问 OS。DuplicateHandle 创建不可继承的独立 owner，仍共享底层文件位置；CloseHandle 不影响原标准句柄。ReadFile／WriteFile 传递字节，不执行 CRT text-mode 换行转换；与 core stdio 混用的 flush 与排序责任保持。
+
 ### 5.1 终端库共用的 native TTY 资源
 
 M59 的同步 terminal 与 asyncio TTY 共用 platform 中的 native TTY 实现，
@@ -162,9 +164,13 @@ TTY 与通知 fd 属于同一个 opaque owner；同步 poll 和异步平台后�
 
 `scoop.platform.fs.File` 为 final class，实现 ByteSource、ByteSink、Closeable。`File.open(path, options: OpenOptions = OpenOptions())` 创建 close-on-exec fd。OpenOptions 为值类型，默认 read=true，其余 write/append/create/createNew/truncate 标志默认为 false，mode 默认为 0666；至少允许一种读写，append/truncate/create/createNew 要求 write，append 与 truncate 冲突，mode 只允许 POSIX 07777 位。createNew 使用原生排他创建，优先于 create；实际 mode 仍受 umask 影响。
 
+Windows File 独占 CreateFileW 返回的完整宽度 HANDLE，与 SOCKET、CRT fd 分开表示；路径使用第 2 节的无损 UTF-16 转换。打开不允许继承，允许其他打开者共享读／写／删除；OS、ACL 或其他打开者仍可拒绝操作。createNew／create／truncate 分别沿 CREATE_NEW、OPEN_ALWAYS 或 CREATE_ALWAYS／TRUNCATE_EXISTING；append 只授予追加数据权限，seek 不改变后续写入必须追加的行为。mode 仍检查合法位，但不将 POSIX 位模拟为 ACL；新文件沿系统默认 ACL，mode 不改变 Windows 权限。
+
 除字节协议外，File 提供 position()、size() 外部查询函数与 isClosed 状态属性，List<Byte> 写入／MutableArray<Byte> 读取重载，以及 seek(position: Long)、truncate(size: Long)、syncData、syncAll、metadata、duplicate、close。seek 为绝对非负偏移，truncate 非负且不改变当前文件位置；append 通过 OS append 标志实现。flush 对原始 fd 无用户态缓冲可提交，但仍检查 open 状态。同步操作都保活 owner 直到 native 返回和退出清理，不能仅保留整数 fd。与关闭不竞争、各次使用独立或已同步 buffer 时，同一 File 允许 OS 支持的并发 IO；共享偏移与数据顺序遵守 OS 行为。活动调用期间重入 close 会拒绝，但关闭／配置改变与 IO 的跨线程竞争仍须调用方同步，不提供通过 close 取消阻塞 IO 的保证。
 
 显式关闭先清除 owned fd，再调用一次 close；成功或失败均终结 owner，不无条件重试，包括 EINTR。当前 Linux 的 fd 在 close 错误报告前已被消费；Darwin 的普通 fd 关闭同样沿实际内核消费路径，不能由错误码假定仍可重试。hook 只兜底尝试 raw close，不重放已消费的 fd，不 flush 或等待用户代码。close 结果不能证明远程文件已经持久化，必要时先显式 sync。
+
+Windows 使用相同的 owner／活动调用／关闭规则，原生清理由 CloseHandle 承担；不经 CRT 包装。同步 ReadFile／WriteFile 允许短传输，单次不超过 DWORD 字节上限；pipe 的 ERROR_BROKEN_PIPE 在读取端表示 EOF。seek 使用 SetFilePointerEx，truncate 使用 FileEndOfFileInfo 保持当前 offset；syncData／syncAll 均由 FlushFileBuffers 实现。原生结果记录在本次调用中带回 Win32 code，duplicate 失败不产生新 owner，成功副本共享文件位置并独立关闭。
 
 File.size()／position() 和同步 socket 的地址／选项查询访问当前 OS 状态，可能失败，因此采用函数。isClosed 只读取对象自身状态，保持属性；FileMetadata.size 等已取得的值也保持属性。
 
@@ -175,12 +181,15 @@ File.size()／position() 和同步 socket 的地址／选项查询访问当前 O
 withLock 在正文所有出口解锁，正文与解锁同时失败沿 ResourceUseException；
 调用者不得嵌套或并发操作同一 owner 的锁作用域。它不阻止不遵循锁协议的其他写入者。
 
+Windows 使用 LockFileEx／UnlockFileEx 锁定从零开始、长度为 UINT64_MAX 的区间；tryLock 只将 ERROR_LOCK_VIOLATION 转为 false。与 Unix advisory lock 不同，该锁限制实际 ReadFile／WriteFile：exclusive 锁拒绝其他打开句柄的读写，shared 锁也禁止持锁者写入；memory-mapped view 不受该机制约束。重复锁定、复制句柄与关闭的细节遵守 Windows 文件锁合同，调用者应通过取得锁的 owner 显式解锁，不依赖 duplicate 延长锁寿命；withLock 的异常组合规则保持。[Windows 锁合同](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-lockfileex)。
+
 ### 6.2 文件系统操作
 
 `scoop.platform.fs` 提供 Path 扩展 readAllBytes/readText/readTextLossy、writeAllBytes/writeText、copyTo(destination, replaceExisting = false)、moveTo(destination, replaceExisting = false)、delete/deleteRecursively、metadata/exists、createDirectory/createDirectories、readSymbolicLink/createSymbolicLink(target)、canonicalize、entries。接收者是被读取、修改或作为源的 Path；File.open(path, options) 仍负责创建文件句柄。createTempFile/createTempDirectory 是同 package 的顶层工厂。普通 import 即可使用这些入口，不保留 Files 工具 object。
 
 - writeAllBytes/writeText 默认创建或截断，支持显式 append；copyTo 默认不替换，replaceExisting=true 才允许覆盖。copyTo 不承诺原子性或复制全部 metadata，不允许把同一 OS 文件作为源与目标后先截断源内容。
 - moveTo 默认不替换，使用 Darwin renamex_np(RENAME_EXCL) 或 Linux renameat2(RENAME_NOREPLACE) 的真实排他操作；replaceExisting=true 使用 rename。跨文件系统与不支持的错误照常报告，不以有竞争的 exists 预检查模拟排他，不暗中 copy+delete。
+- Windows 的 moveTo 使用 MoveFileExW，只在 replaceExisting=true 时指定 MOVEFILE_REPLACE_EXISTING，不启用跨卷 copy。createDirectory 使用 CreateDirectoryW，mode 只检查位范围，ACL 沿系统默认规则；delete 依据当前对象属性调用 DeleteFileW 或 RemoveDirectoryW，目录 reparse point 只删除链接本身。readonly、共享冲突、非空目录、跨卷等错误保留 Win32 原码，不擅自改变属性再重试。
 - Path.metadata(followLinks=true) 返回 FileMetadata。FileKind 区分 Regular、Directory、SymbolicLink、BlockDevice、CharacterDevice、Fifo、Socket、Other；metadata 包含 size、permissions、accessedAt、modifiedAt、changedAt 和可选 createdAt，时间复用 scoop.time.Instant。Darwin 使用 birth time，Linux stat 不提供 birth time 时为 None；不可用时间不以零冒充有效值。
 - exists 仅把 NotFound 和路径组件的 NotDirectory 转为 false，权限与其他 IO 错误继续抛出。查询不消除之后操作的文件系统竞争。
 - createDirectory 默认 mode=0777，受 umask 影响；createDirectories 接受已存在目录，其他类型照常报错。delete 删除单个文件、symlink 或空目录；deleteRecursively 不主动跟随 symlink，调用方须排除并发替换目录树，API 不提供抵抗恶意路径替换的来源审计或安全沙箱。
@@ -198,6 +207,8 @@ EOF 时自动关闭枚举句柄，之后 next 仍返回 None；提前 close 后�
 阻塞 open/read/write、文件 metadata／同步、目录和路径操作使用 NativeSafe。read/write 只在没有交付字节的 EINTR 时重试，一次传输受平台 ssize_t／实际 syscall 上限限制。errno 在本次失败后立即保存，任何信号状态恢复或返回握手都不能覆盖它。
 
 供 asyncio 的实际文件工作复用，`scoop.platform.native.NativeFileMetadata` 公开既有 GC-free CLayout 记录：kind、permissions 为 Int，其余 size 及四组秒／纳秒为 Long；创建时间纳秒为负表示不可用。普通 `decodeFileMetadata(data, error, context)` 将它转换为 FileMetadata，复用同步文件的种类、时间和错误映射；失败记录的 kind 为负，error 是原调用中保存的 errno。共享 C 头声明既有 metadata、seek、truncate helper，不在 asyncio 再实现 stat 字段转换或 OS 偏移规则。
+
+Windows 的 metadata helper 保持上述字段形状，失败使用同次保存的 Win32 code；POSIX helper 继续保存 errno。文件 HANDLE 读取实际 size、access／write／change／creation time，100 ns FILETIME 转成 Unix 秒／纳秒。permissions 只是 readonly 属性的便捷投影：普通文件为 0444 或 0666，目录再加入 0111；它不是 ACL 或可访问性证明。不支持文件信息查询的 pipe／console 等端点保留实际 OS 查询错误，不伪造磁盘 metadata 或时间。路径 no-follow 查询将 symlink 与 junction 记为 SymbolicLink，防止递归删除跟进其目标；其他 reparse tag 不冒充符号链接。
 
 共享路径头公开既有 `path_mkdir`、`path_delete`、`path_move` helper，分别沿 mkdir、remove 和排他／替换 rename 的 OS 合同。`scoop.platform.native.requireFileMode(mode: Int): Unit` 统一同步文件、目录与 asyncio 的权限参数检查；有效范围为 0..0xfff，非法值抛 IllegalArgumentException，不增加独立的文件系统规则。
 

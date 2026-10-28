@@ -27,7 +27,8 @@ public enum Stdio {
     /**
      * Redirect through the supplied open file descriptor.
      */
-    Redirect(val file: File) }
+    Redirect(val file: File)
+}
 
 /**
  * A process launch description with copied argument/environment data, an explicit working
@@ -75,7 +76,9 @@ public class Command public constructor(
         if (mergeError) {
             when (stderr) {
                 case Stdio.Inherit -> {}
-                case _ -> throw IllegalArgumentException(Some("merged stderr cannot be redirected separately"))
+                case _ -> throw IllegalArgumentException(
+                    Some("merged stderr cannot be redirected separately")
+                )
             }
         }
     }
@@ -89,19 +92,25 @@ public class Command public constructor(
     private fun start(search: Boolean): ChildProcess {
         val packed = SpawnInput(executable, arguments, environment, workingDirectory)
         val child = ChildProcess(isPipe(stdin), isPipe(stdout), isPipe(stderr))
-        val result = MutableArray<Int>(4L) { -1 }
+        val result = MutableArray<NativeFileHandle>(3L) { NativeFileHandle(ULong.MAX_VALUE) }
         var denied: PlatformException? = None
         var missing: PlatformException? = None
-        val paths = if (search) searchCandidates(executable, environment) else Array<Path>(1L) { executable }
+        val paths =
+            if (search)
+                searchCandidates(executable, environment)
+            else
+                Array<Path>(1L) { executable }
         for (path in paths) {
-            val (status, code) = packed.spawn(path, stdin, stdout, stderr, mergeError, result)
-            if (status == 0) {
-                child.adopt(result)
+            val(status, code) = packed.spawn(path, stdin, stdout, stderr, mergeError, result)
+            if (status >= 0) {
+                child.adopt(status, result)
                 return child
             }
             val error = NativeError(NativeErrorDomain.PosixErrno, code)
-            val failure = PlatformException("spawn", error.kind, Some(error), Some(path.toOsString()))
-            if (!search) throw failure
+            val failure =
+                PlatformException("spawn", error.kind, Some(error), Some(path.toOsString()))
+            if (!search)
+                throw failure
             when (error.kind) {
                 case PlatformErrorKind.PermissionDenied -> denied = Some(failure)
                 case PlatformErrorKind.NotFound -> missing = Some(failure)
@@ -113,15 +122,22 @@ public class Command public constructor(
     }
 }
 
-internal fun isPipe(value: Stdio): Boolean = when (value) {
-    case Stdio.Pipe -> true
-    case _ -> false
-}
+internal fun isPipe(value: Stdio): Boolean =
+    when (value) {
+        case Stdio.Pipe -> true
+        case _ -> false
+    }
 
 private fun searchCandidates(executable: Path, environment: Map<OsString, OsString>): Array<Path> {
     val name = executable.toOsString().toByteArray()
-    for (byte in name) { if (byte == 47) return [executable] }
-    val path = (environment[OsString.fromString("PATH")] ?: OsString.fromString("/bin:/usr/bin")).toByteArray()
+    for (byte in name) {
+        if (byte == 47)
+            return [executable]
+    }
+    val path =
+        (
+            environment[OsString.fromString("PATH")] ?: OsString.fromString("/bin:/usr/bin")
+        ).toByteArray()
     val result = ArrayList<Path>()
     var start = 0L
     var index = 0L
@@ -129,7 +145,8 @@ private fun searchCandidates(executable: Path, environment: Map<OsString, OsStri
         if (index == path.size || path[index] == 58) {
             val from = start
             val length = index - start
-            val directory = Path.fromOsString(OsString.fromByteArray(Array<Byte>(length) { path[from + it] }))
+            val directory =
+                Path.fromOsString(OsString.fromByteArray(Array<Byte>(length) { path[from + it] }))
             result.add(directory.resolve(executable))
             start = index + 1L
         }

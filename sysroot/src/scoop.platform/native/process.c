@@ -23,25 +23,25 @@ static void close_descriptors(struct SpawnDescriptors *descriptors, int success)
 }
 
 static int redirect(posix_spawn_file_actions_t *actions, struct SpawnDescriptors *descriptors,
-                    int index, int source) {
-    if (source == -1) {
+                    int index, ScoopPlatformStdio source) {
+    if (source.kind == 0) {
         if (fcntl(index, F_GETFD) >= 0)
             return posix_spawn_file_actions_adddup2(actions, index, index);
         return errno == EBADF ? 0 : errno;
     }
-    if (source == -2)
+    if (source.kind == 1)
         return posix_spawn_file_actions_addopen(actions, index, "/dev/null",
                                                 index == 0 ? O_RDONLY : O_WRONLY, 0);
-    if (source == -4)
+    if (source.kind == 4)
         return posix_spawn_file_actions_adddup2(actions, 1, 2);
-    if (source == -3) {
+    if (source.kind == 2) {
         int32_t pipes[2];
         if (scoop_platform_pipe_open(pipes) < 0)
             return errno;
         descriptors->child[index] = pipes[index == 0 ? 0 : 1];
         descriptors->parent[index] = pipes[index == 0 ? 1 : 0];
     } else {
-        descriptors->child[index] = fcntl(source, F_DUPFD_CLOEXEC, 3);
+        descriptors->child[index] = fcntl(scoop_file_handle(source.handle), F_DUPFD_CLOEXEC, 3);
         if (descriptors->child[index] < 0)
             return errno;
     }
@@ -84,8 +84,8 @@ static int configure_attributes(posix_spawnattr_t *attributes) {
 
 int scoop_platform_process_spawn(const char *executable, char *arguments, int64_t argument_count,
                                  char *environment, int64_t environment_count,
-                                 const char *directory, const int32_t redirects[3],
-                                 int32_t result[4]) {
+                                 const char *directory, const ScoopPlatformStdio redirects[3],
+                                 ScoopPlatformFileHandle result[3]) {
     char **argv = string_vector(arguments, argument_count);
     if (argv == NULL)
         return -1;
@@ -115,13 +115,12 @@ int scoop_platform_process_spawn(const char *executable, char *arguments, int64_
     }
     for (int index = 0; index < 3 && error == 0; ++index)
         error = redirect(&actions, &descriptors, index, redirects[index]);
-    pid_t child;
+    pid_t child = -1;
     if (error == 0)
         error = posix_spawn(&child, executable, &actions, &attributes, argv, envp);
     if (error == 0) {
-        result[0] = (int32_t)child;
         for (int index = 0; index < 3; ++index)
-            result[index + 1] = descriptors.parent[index];
+            result[index] = scoop_file_wrap(descriptors.parent[index]);
     }
     close_descriptors(&descriptors, error == 0);
     (void)posix_spawnattr_destroy(&attributes);
@@ -131,5 +130,5 @@ finish:
     free(envp);
     free(argv);
     errno = error;
-    return error == 0 ? 0 : -1;
+    return error == 0 ? (int)child : -1;
 }

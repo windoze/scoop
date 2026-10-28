@@ -6,7 +6,9 @@ import scoop.platform.fs.*
 import scoop.platform.system.OsString
 
 internal class SpawnInput internal constructor(
-    executable: Path, arguments: Array<OsString>, environment: Map<OsString, OsString>,
+    executable: Path,
+    arguments: Array<OsString>,
+    environment: Map<OsString, OsString>,
     private val directory: Path
 ) {
     private val argumentCount: Long = arguments.size + 1L
@@ -14,26 +16,62 @@ internal class SpawnInput internal constructor(
     private val argumentBytes: Array<Byte> = packArguments(executable, arguments)
     private val environmentBytes: Array<Byte> = packEnvironment(environment)
 
-    internal fun spawn(path: Path, input: Stdio, output: Stdio, error: Stdio, merge: Boolean,
-                       result: MutableArray<Int>): (Int, Int) = withRedirect(input) inputScope@ { inputFd ->
-        withRedirect(output) outputScope@ { outputFd ->
-            withRedirect(error) errorScope@ { errorFd ->
-                val redirects: Array<Int> = [inputFd, outputFd, if (merge) -4 else errorFd]
-                @Unsafe {
-                    return@errorScope path.withNativePath pathScope@ { executable ->
-                        @Unsafe {
-                            return@pathScope directory.withNativePath directoryScope@ { cwd ->
-                                @Unsafe {
-                                    return@directoryScope argumentBytes.withDataPointer argumentScope@ { argv, _ ->
-                                        @Unsafe {
-                                            return@argumentScope environmentBytes.withDataPointer environmentScope@ { envp, _ ->
-                                                @Unsafe {
-                                                    return@environmentScope redirects.withDataPointer redirectScope@ { fds, _ ->
-                                                        @Unsafe {
-                                                            return@redirectScope result.withDataPointer resultScope@ { values, _ ->
-                                                                @Unsafe {
-                                                                    return@resultScope nativeSpawn(executable, argv, argumentCount,
-                                                                        envp, environmentCount, cwd, fds, values)
+    internal fun spawn(
+        path: Path,
+        input: Stdio,
+        output: Stdio,
+        error: Stdio,
+        merge: Boolean,
+        result: MutableArray<NativeFileHandle>
+    ): (Int, Int) =
+        withRedirect(input) inputScope@{
+            inputFd -> withRedirect(output) outputScope@{
+                outputFd -> withRedirect(error) errorScope@{
+                    errorFd ->
+                    val redirects: Array<NativeStdio> =
+                        [
+                            inputFd,
+                            outputFd,
+                            if (merge)
+                                NativeStdio(4, NativeFileHandle(ULong.MAX_VALUE))
+                            else
+                                errorFd
+                        ]
+                    @Unsafe
+                    {
+                        return@errorScope path.withNativePath pathScope@{
+                            executable -> @Unsafe
+                            {
+                                return@pathScope directory.withNativePath directoryScope@{
+                                    cwd -> @Unsafe
+                                    {
+                                        return@directoryScope argumentBytes.withDataPointer argumentScope@{
+                                            argv,
+                                            _ -> @Unsafe
+                                            {
+                                                return@argumentScope environmentBytes.withDataPointer environmentScope@{
+                                                    envp,
+                                                    _ -> @Unsafe
+                                                    {
+                                                        return@environmentScope redirects.withDataPointer redirectScope@{
+                                                            fds,
+                                                            _ -> @Unsafe
+                                                            {
+                                                                return@redirectScope result.withDataPointer resultScope@{
+                                                                    values,
+                                                                    _ -> @Unsafe
+                                                                    {
+                                                                        return@resultScope nativeSpawn(
+                                                                            executable,
+                                                                            argv,
+                                                                            argumentCount,
+                                                                            envp,
+                                                                            environmentCount,
+                                                                            cwd,
+                                                                            fds,
+                                                                            values
+                                                                        )
+                                                                    }
                                                                 }
                                                             }
                                                         }
@@ -49,29 +87,35 @@ internal class SpawnInput internal constructor(
                 }
             }
         }
-    }
 }
 
-private fun <R> withRedirect(value: Stdio, block: (Int) -> R): R = when (value) {
-    case Stdio.Inherit -> block(-1)
-    case Stdio.Null -> block(-2)
-    case Stdio.Pipe -> block(-3)
-    case Stdio.Redirect(file) -> file.withDescriptor(block)
-}
+private fun <R> withRedirect(value: Stdio, block: (NativeStdio) -> R): R =
+    when (value) {
+        case Stdio.Inherit -> block(NativeStdio(0, NativeFileHandle(ULong.MAX_VALUE)))
+        case Stdio.Null -> block(NativeStdio(1, NativeFileHandle(ULong.MAX_VALUE)))
+        case Stdio.Pipe -> block(NativeStdio(2, NativeFileHandle(ULong.MAX_VALUE)))
+        case Stdio.Redirect(file) -> file.withHandle { handle -> block(NativeStdio(3, handle)) }
+    }
 
 private fun appendString(builder: ByteArrayBuilder, value: OsString) {
     val bytes = value.toByteArray()
-    for (byte in bytes) { if (byte == 0) throw IllegalArgumentException(Some("process string contains NUL")) }
+    for (byte in bytes) {
+        if (byte == 0)
+            throw IllegalArgumentException(Some("process string contains NUL"))
+    }
     builder.append(bytes)
     builder.append(0.toByte())
 }
 
 private fun packArguments(executable: Path, arguments: Array<OsString>): Array<Byte> {
-    if (executable.toOsString().toByteArray().size == 0L) throw IllegalArgumentException(Some("empty executable"))
-    if (arguments.size == Long.MAX_VALUE) throw ArithmeticException()
+    if (executable.toOsString().toByteArray().size == 0L)
+        throw IllegalArgumentException(Some("empty executable"))
+    if (arguments.size == Long.MAX_VALUE)
+        throw ArithmeticException()
     val builder = ByteArrayBuilder()
     appendString(builder, executable.toOsString())
-    for (argument in arguments) appendString(builder, argument)
+    for (argument in arguments)
+        appendString(builder, argument)
     return builder.toByteArray()
 }
 
@@ -79,9 +123,11 @@ private fun packEnvironment(environment: Map<OsString, OsString>): Array<Byte> {
     val builder = ByteArrayBuilder()
     for ((name, value) in environment) {
         val bytes = name.toByteArray()
-        if (bytes.size == 0L) throw IllegalArgumentException(Some("empty environment name"))
+        if (bytes.size == 0L)
+            throw IllegalArgumentException(Some("empty environment name"))
         for (byte in bytes) {
-            if (byte == 0 || byte == 61) throw IllegalArgumentException(Some("invalid environment name"))
+            if (byte == 0 || byte == 61)
+                throw IllegalArgumentException(Some("invalid environment name"))
         }
         builder.append(bytes)
         builder.append(61.toByte())
@@ -91,6 +137,16 @@ private fun packEnvironment(environment: Map<OsString, OsString>): Array<Byte> {
 }
 
 @Extern(name = "scoop_platform_process_spawn", captureErrno = true)
-private fun nativeSpawn(executable: Ptr<Byte>, arguments: Ptr<Byte>, argumentCount: Long,
-                        environment: Ptr<Byte>, environmentCount: Long, directory: Ptr<Byte>,
-                        redirects: Ptr<Int>, result: Ptr<Int>): (Int, Int)
+private fun nativeSpawn(
+    executable: Ptr<Byte>,
+    arguments: Ptr<Byte>,
+    argumentCount: Long,
+    environment: Ptr<Byte>,
+    environmentCount: Long,
+    directory: Ptr<Byte>,
+    redirects: Ptr<NativeStdio>,
+    result: Ptr<NativeFileHandle>
+): (Int, Int)
+
+@CLayout
+private struct NativeStdio(val kind: Int, val handle: NativeFileHandle)

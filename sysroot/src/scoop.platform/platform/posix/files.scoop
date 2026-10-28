@@ -1,0 +1,4 @@
+package scoop.platform.fs
+
+@Unsafe
+internal fun <R> Path.withPlatformPath(block: (Ptr<Byte>) -> R): R = withNativePath(block)

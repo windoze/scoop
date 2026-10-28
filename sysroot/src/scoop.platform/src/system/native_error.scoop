@@ -1,11 +1,11 @@
 package scoop.platform.system
 
-internal fun failOperatingSystem(operation: String, code: Int): Nothing {
+internal fun failOperatingSystem(operation: String, code: Int, context: OsString? = None): Nothing {
     val domain =
         if (operatingSystem == OperatingSystem.Windows)
             NativeErrorDomain.Win32
         else
             NativeErrorDomain.PosixErrno
     val error = NativeError(domain, code)
-    throw PlatformException(operation, error.kind, Some(error))
+    throw PlatformException(operation, error.kind, Some(error), context)
 }

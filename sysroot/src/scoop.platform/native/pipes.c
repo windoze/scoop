@@ -38,13 +38,17 @@ fail:;
     return -1;
 }
 
-int scoop_platform_pipe_nonblocking(int descriptor) {
+int scoop_platform_pipe_nonblocking(ScoopPlatformFileHandle handle) {
+    int descriptor = scoop_file_handle(handle);
     int flags = fcntl(descriptor, F_GETFL);
     return flags < 0 ? -1 : fcntl(descriptor, F_SETFL, flags | O_NONBLOCK);
 }
 
-int scoop_platform_process_poll(int input, int output, int error) {
-    struct pollfd descriptors[3] = {{input, POLLOUT, 0}, {output, POLLIN, 0}, {error, POLLIN, 0}};
+int scoop_platform_process_poll(ScoopPlatformFileHandle input, ScoopPlatformFileHandle output,
+                                ScoopPlatformFileHandle error) {
+    struct pollfd descriptors[3] = {{scoop_file_handle(input), POLLOUT, 0},
+                                    {scoop_file_handle(output), POLLIN, 0},
+                                    {scoop_file_handle(error), POLLIN, 0}};
     int result;
     do {
         result = poll(descriptors, 3, -1);

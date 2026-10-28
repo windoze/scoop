@@ -1,0 +1,220 @@
+package scoop.platform.fs
+
+import scoop.platform.io.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.random.SystemRandom
+import scoop.platform.system.*
+import scoop.platform.time.SystemClock
+import scoop.test.*
+
+// These tests exercise Windows handle, UTF-16, sharing and locking semantics.
+private fun <R> withWindowsFile(block: (Path) -> R): R {
+    val path = Path.fromString("scoop-handle-" + SystemRandom.nextLong().toString())
+    File.open(path, OpenOptions(write = true, createNew = true)).close()
+    try {
+        return block(path)
+    }
+    finally {
+        if (path.exists(followLinks = false))
+            path.delete()
+    }
+}
+
+@Test
+private class WindowsFileTest {
+    @Test
+    fun `binary transfers duplicates and truncation share the actual OS position`() {
+        withWindowsFile {
+            path ->
+            val bytes: Array<Byte> = [0, 10, 13, 26, -1, 99]
+            File.open(path, OpenOptions(write = true)).use {
+                file ->
+                file.writeAllBytes(bytes)
+                assertEquals(6L, file.position())
+                val duplicate = file.duplicate()
+                duplicate.use {
+                    copy ->
+                    copy.seek(1L)
+                    assertEquals(1L, file.position())
+                    gcCollect()
+                    val array = MutableArray<Byte>(4L) { 42.toByte() }
+                    assertEquals(2L, copy.readInto(array, 1L, 2L))
+                    assertEquals(10.toByte(), array[1L])
+                    assertEquals(13.toByte(), array[2L])
+                    assertEquals(42.toByte(), array[0L])
+                    file.truncate(2L)
+                    assertEquals(3L, copy.position())
+                    assertEquals(2L, copy.size())
+                }
+                file.syncData()
+                file.syncAll()
+                assertFalse(file.isClosed)
+                file.seek(0L)
+                val remaining = file.readAllBytes()
+                assertEquals(2L, remaining.size)
+                assertEquals(0.toByte(), remaining[0L])
+                assertEquals(10.toByte(), remaining[1L])
+            }
+            File.open(path, OpenOptions(read = false, write = true, append = true)).use {
+                file ->
+                file.seek(0L)
+                assertEquals(1L, file.writeFrom(Array<Byte>(1L) { 26.toByte() }))
+            }
+            assertEquals(26.toByte(), path.readAllBytes()[2L])
+        }
+    }
+
+    @Test
+    fun `wide paths preserve non BMP and unpaired surrogate names`() {
+        withWindowsFile {
+            original ->
+            val prefix = original.toOsString().toUtf16()
+            val suffix: Array<UShort> =
+                [0x4e2d.toUShort(), 0xd83d.toUShort(), 0xde00.toUShort(), 0xd800.toUShort()]
+            val units =
+                Array<UShort>(prefix.size + suffix.size) {
+                    index -> if (index < prefix.size)
+                        prefix[index]
+                    else
+                        suffix[index - prefix.size]
+                }
+            val path = Path.fromOsString(OsString.fromUtf16(units))
+            original.moveTo(path)
+            try {
+                path.writeText("中😀")
+                assertEquals("中😀", path.readText())
+                assertEquals(7L, path.metadata().size)
+                val error =
+                    assertFailsWith<PlatformException> {
+                        File.open(path, OpenOptions(write = true, createNew = true))
+                    }
+                assertTrue(error.nativeError!!.domain == NativeErrorDomain.Win32)
+                assertEquals(80, error.nativeError!!.code)
+                assertEquals(path.toOsString(), error.context!!)
+            } finally {
+                path.delete()
+            }
+        }
+    }
+
+    @Test
+    fun `Windows metadata reports creation and change time and readonly projection`() {
+        withWindowsFile {
+            path ->
+            val metadata = path.metadata()
+            assertTrue(metadata.kind == FileKind.Regular)
+            assertEquals(0x1b6, metadata.permissions)
+            assertTrue(metadata.createdAt != None)
+            assertTrue(metadata.createdAt!! <= SystemClock.now())
+            assertTrue(metadata.changedAt.epochSeconds > 946684800L)
+            File.open(path, OpenOptions(write = true, mode = 0)).use {
+                file ->
+                file.writeText("contents")
+                val queried = file.metadata()
+                assertEquals(8L, queried.size)
+                assertTrue(queried.modifiedAt.nanosecondsOfSecond % 100 == 0)
+            }
+        }
+    }
+
+    @Test
+    fun `copy rejects aliases before truncation and move honors replacement`() {
+        withWindowsFile {
+            source -> withWindowsFile {
+                target ->
+                source.writeText("source")
+                target.writeText("target")
+                assertFailsWith<IllegalArgumentException> {
+                    source.copyTo(Path.fromString(".\\").resolve(source), replaceExisting = true)
+                }
+                assertEquals("source", source.readText())
+                assertTrue(
+                    assertFailsWith<PlatformException> { source.copyTo(target) }.kind ==
+                        PlatformErrorKind.AlreadyExists
+                )
+                assertEquals(6L, source.copyTo(target, replaceExisting = true))
+                assertEquals("source", target.readText())
+                assertTrue(
+                    assertFailsWith<PlatformException> { source.moveTo(target) }.kind ==
+                        PlatformErrorKind.AlreadyExists
+                )
+                source.moveTo(target, replaceExisting = true)
+                assertFalse(source.exists())
+                assertEquals("source", target.readText())
+            }
+        }
+    }
+
+    @Test
+    fun `Windows shared and exclusive locks constrain actual reads and writes`() {
+        withWindowsFile {
+            path ->
+            path.writeText("a")
+            File.open(path, OpenOptions(write = true)).use {
+                first -> File.open(path, OpenOptions(write = true)).use {
+                    second ->
+                    first.withLock {
+                        assertFalse(second.tryLock())
+                        val failure = assertFailsWith<PlatformException> { second.readAllBytes() }
+                        assertEquals(33, failure.nativeError!!.code)
+                    }
+                    first.lock(shared = true)
+                    try {
+                        assertTrue(second.tryLock(shared = true))
+                        second.unlock()
+                        assertFalse(second.tryLock())
+                        assertEquals(
+                            33,
+                            assertFailsWith<PlatformException> {
+                                first.writeText("x")
+                            }.nativeError!!.code
+                        )
+                    } finally {
+                        first.unlock()
+                    }
+                    assertTrue(second.tryLock())
+                    second.unlock()
+                    val identity = Throwable()
+                    assertSame(
+                        identity,
+                        assertFailsWith<Throwable> { first.withLock { throw identity } }
+                    )
+                    assertTrue(second.tryLock())
+                    second.unlock()
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `failed transfers and close preserve the Win32 error and owner state`() {
+        withWindowsFile {
+            path ->
+            val file = File.open(path)
+            NativeByteBuffer.allocate(3L).use {
+                buffer ->
+                buffer.writeByte(7.toByte())
+                val error = assertFailsWith<PlatformException> { file.writeFrom(buffer) }
+                assertTrue(error.nativeError!!.domain == NativeErrorDomain.Win32)
+                assertEquals(5, error.nativeError!!.code)
+                assertEquals(0L, buffer.readPosition)
+                assertEquals(1L, buffer.writePosition)
+                assertEquals(0L, file.readInto(buffer, 0L))
+                file.withHandle {
+                    handle ->
+                    assertFailsWith<IllegalStateException> { file.close() }
+                    @Unsafe
+                    {
+                        nativeFileClose(handle).checked("test close")
+                    }
+                }
+                val closed = assertFailsWith<PlatformException> { file.close() }
+                assertEquals(6, closed.nativeError!!.code)
+                assertTrue(file.isClosed)
+                file.close()
+                assertFailsWith<IllegalStateException> { file.readInto(buffer, 0L) }
+                assertFailsWith<IllegalStateException> { file.duplicate() }
+            }
+        }
+    }
+}

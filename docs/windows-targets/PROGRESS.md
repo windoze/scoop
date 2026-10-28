@@ -7,7 +7,7 @@
 | W0 工具链与 ABI | 关键路线实验通过 | 复现入口与范围见下文；正式编译器集成在 W1／W2 完成 |
 | W1 编译／链接 | 实施中 | 三目标开发 CLI 已支持 subsystem、RC、DLL 数据与跨 Cone C++；函数入口的 CodeView／PDB 定位通过，继续源位置覆盖与 ABI 组合验收 |
 | W2 core runtime | 实施中 | core／std／test 已构建且 Cone 测试通过，异常、移动 GC、callback、TLS、初始化、shutdown 与并行 GC 的定向程序通过；继续其余 ABI／GC 组合验收 |
-| W3 系统库 | 基础实施中 | UTF-16 无损字符串、Windows 路径词法与错误分类通过定向测试；继续 OS 操作、IOCP、全部 native 组件及真实 consumer |
+| W3 系统库 | 实施中 | 字符串／路径、错误、线程／同步、时钟／熵、同步 socket 与文件 HANDLE 已有定向验证；继续目录／环境／进程、console、IOCP、全部 native 组件及真实 consumer |
 | W4 宿主与发行 | 基础实施中 | 进程中断已实现；继续 Windows 命令、维护脚本、DLL／SDK 布局与打包、交叉编译 |
 
 本地实现和完整验收完成后，才在 Linux `nuc12w.0d0a.com` 与 macOS `mm.0d0a.com` 的 `~/repos` 下新建测试目录，运行与变更范围相称的回归。原始日志与构建目录放在仓库外。
@@ -188,3 +188,7 @@ Windows 时钟已使用 GetSystemTimePreciseAsFileTime／QPC，sleep 按 monoton
 同步 TCP／UDP 已从 File 中分离出独立 socket owner 和完整宽度的 native handle。Windows 使用 WSAStartup、不可继承的 WSASocketW、Winsock 传输与 closesocket，失败在 native 清理前保存原码；UDP 截断保留实际复制前缀和下一包边界。DNS 通过条件源码传入 UTF-16，使用 GetAddrInfoW／FreeAddrInfoW 并关闭隐式 IDNA；数字 IP 文本仍为 ASCII。POSIX 的 asyncio 共享 bind、地址与 resolver ABI 保留，故障注入 fixture 已从 File.read 调整为 socket recv。
 
 临时 Cone 加入实际网络源码与普通 API／Windows 错误测试后，三个 target 各 19 个容器／70 项全部通过，包括 IPv4／IPv6、localhost 与数字地址解析、65536 字节 TCP、缓冲／半关闭、options、移动 GC、UDP 空包／截断／超长失败和关闭后状态。三套 Clang 与 cl 的 C 严格检查通过，fixture 公共规则 62 项通过、3 项 POSIX 专项跳过；原生 OS 探针确认 accept 继承不可继承属性。完整 platform 尚未发布，文件／进程／console、IOCP、Windows native ownership fixture 与远端 POSIX 回归继续实施。
+
+File 与匿名 pipe 已改用独立的完整宽度文件 handle，Windows 实现 CreateFileW／CreatePipe、原始字节传输、复制／关闭、seek、保持位置的 truncate、FlushFileBuffers、metadata 和整文件锁。标准流逐次借用 GetStdHandle，缺失句柄按 Win32 错误报告；复制不可继承且独立拥有。基本路径的 metadata、mkdir、move／delete 使用 wide API。文件内容与基本路径操作从原长模块分出，剩余目录／链接／临时路径仍继续移植。POSIX asyncio 的底层 fd helper 保留，现有进程重定向与 pipe 调用点改为传递文件 handle，未将 Windows HANDLE 压成 Int。
+
+三个 target 的实际源码子集各通过 22 个容器／81 项测试，新增覆盖非 BMP／非配对 surrogate 文件名、原始 LF／CR／NUL／0x1a／0xff、共享文件位置、追加／截断／同步、同文件复制拒绝、替换移动、Windows shared／exclusive 锁、错误后的 buffer／owner 状态，以及 128 KiB 管道、EOF 与 broken pipe。Scoop 格式化、三套 Clang 与 cl 的严格 C 检查通过；完整 platform 的源码与测试语义检查通过。实际 native helper 探针在 cl、MinGW MSVCRT／UCRT 均验证不可继承属性、GetStdHandle 重定向／缺失句柄、独立关闭和原码保存。此批未发布完整 platform，完整目录／环境／进程、console、IOCP、原生边界 GC fixture 与远端 POSIX 回归仍待完成。

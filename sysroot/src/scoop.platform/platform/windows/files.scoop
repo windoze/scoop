@@ -1,0 +1,22 @@
+package scoop.platform.fs
+
+@Unsafe
+internal fun <R> Path.withPlatformPath(block: (Ptr<Byte>) -> R): R {
+    val units = toOsString().toUtf16()
+    if (units.size == Long.MAX_VALUE)
+        throw ArithmeticException()
+    val terminated =
+        Array<UShort>(units.size + 1L) {
+            index -> if (index == units.size)
+                0.toUShort()
+            else
+                units[index]
+        }
+    return terminated.withDataPointer {
+        pointer,
+        _ -> @Unsafe
+        {
+            return@withDataPointer block(pointer.cast<Byte>())
+        }
+    }
+}

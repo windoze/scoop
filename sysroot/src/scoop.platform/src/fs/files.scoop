@@ -3,154 +3,39 @@ package scoop.platform.fs
 import scoop.platform.io.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.memory.nativeMemoryFree
-import scoop.platform.native.decodeFileMetadata
-import scoop.platform.native.requireFileMode
 import scoop.platform.native.temporaryPathPattern
 import scoop.platform.env.temporaryDirectory
 import scoop.platform.system.*
 
 /**
- * Collects all remaining input into an independent byte array. Path overloads open and close their
- * own file handle.
- */
-public fun Path.readAllBytes(): Array<Byte> = File.open(this).use { it.readAllBytes() }
-/**
- * Reads all remaining bytes and validates them as UTF-8.
- */
-public fun Path.readText(): String = File.open(this).use { it.readText() }
-/**
- * Reads all remaining bytes as UTF-8, replacing malformed sequences.
- */
-public fun Path.readTextLossy(): String = File.open(this).use { it.readTextLossy() }
-
-/**
- * Writes all supplied bytes. Path overloads create/open and close their own file handle, with
- * explicit append selection.
- */
-public fun Path.writeAllBytes(bytes: List<Byte>, append: Boolean = false) {
-    val input = bytes.toArray()
-    File.open(this, outputOptions(append)).use { it.writeAllBytes(input) }
-}
-
-/**
- * Writes the complete UTF-8 encoding of the text without appending a newline.
- */
-public fun Path.writeText(text: String, append: Boolean = false) {
-    File.open(this, outputOptions(append)).use { it.writeText(text) }
-}
-
-/**
- * Copies input to a destination and returns actual bytes transferred. Byte-source copies borrow
- * both endpoints; path copies own their temporary handles and honor replaceExisting.
- */
-public fun Path.copyTo(destination: Path, replaceExisting: Boolean = false): Long {
-    return File.open(this).use { input ->
-        val options = OpenOptions(read = false, write = true, create = true, createNew = !replaceExisting)
-        File.open(destination, options).use { output ->
-            input.withDescriptor { sourceFd ->
-                output.withDescriptor { destinationFd ->
-                    @Unsafe {
-                        val (same, error) = nativeSameFile(sourceFd, destinationFd)
-                        checkNativeStatus(same, error, "compare files", Some(destination.toOsString()))
-                        if (same != 0) throw IllegalArgumentException(Some("cannot copy a file onto itself"))
-                    }
-                }
-            }
-            output.truncate(0L)
-            input.copyTo(output)
-        }
-    }
-}
-
-/**
- * Moves the path to the destination, replacing an existing entry only when requested.
- */
-public fun Path.moveTo(destination: Path, replaceExisting: Boolean = false) {
-    @Unsafe {
-        this.withNativePath { from ->
-            @Unsafe {
-                destination.withNativePath { to ->
-                    @Unsafe {
-                        val (status, error) = nativePathMove(from, to, replaceExisting)
-                        checkNativeStatus(status, error, "move", Some(destination.toOsString()))
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * Queries path metadata, following symbolic links unless followLinks is false.
- */
-public fun Path.metadata(followLinks: Boolean = true): FileMetadata {
-    @Unsafe {
-        return this.withNativePath { pointer ->
-            @Unsafe {
-                val (data, error) = nativeMetadata(-1, Some(pointer), followLinks)
-                return@withNativePath decodeFileMetadata(data, error, Some(this.toOsString()))
-            }
-        }
-    }
-}
-
-/**
- * Tests whether path metadata is available; ordinary absence returns false while other platform
- * failures propagate.
- */
-public fun Path.exists(followLinks: Boolean = true): Boolean {
-    try { this.metadata(followLinks); return true }
-    catch (error: PlatformException) {
-        if (error.kind == PlatformErrorKind.NotFound || error.kind == PlatformErrorKind.NotDirectory) return false
-        throw error
-    }
-}
-
-/**
- * Creates one directory with requested permissions, subject to umask.
- */
-public fun Path.createDirectory(mode: Int = 0x1ff) {
-    requireFileMode(mode)
-    @Unsafe {
-        this.withNativePath { pointer ->
-            @Unsafe {
-                val (status, error) = nativePathMkdir(pointer, mode)
-                checkNativeStatus(status, error, "create directory", Some(this.toOsString()))
-            }
-        }
-    }
-}
-
-/**
  * Creates missing path components as directories, preserving already existing directories.
  */
 public fun Path.createDirectories(mode: Int = 0x1ff) {
-    try { this.createDirectory(mode); return }
+    try {
+        this.createDirectory(mode);
+        return
+    }
     catch (error: PlatformException) {
         if (error.kind == PlatformErrorKind.AlreadyExists) {
-            if (this.metadata().kind == FileKind.Directory) return
+            if (this.metadata().kind == FileKind.Directory)
+                return
             throw error
         }
-        if (error.kind != PlatformErrorKind.NotFound || this.parent == None) throw error
+        if (error.kind != PlatformErrorKind.NotFound || this.parent == None)
+            throw error
     }
     this.parent!!.createDirectories(mode)
-    try { this.createDirectory(mode) }
-    catch (error: PlatformException) {
-        if (error.kind != PlatformErrorKind.AlreadyExists || this.metadata().kind != FileKind.Directory) throw error
+    try {
+        this.createDirectory(mode)
     }
-}
-
-/**
- * Removes the selected file or empty directory.
- */
-public fun Path.delete() {
-    @Unsafe {
-        this.withNativePath { pointer ->
-            @Unsafe {
-                val (status, error) = nativePathDelete(pointer)
-                checkNativeStatus(status, error, "delete", Some(this.toOsString()))
-            }
-        }
+    catch (error: PlatformException) {
+        if (
+            error.kind !=
+                PlatformErrorKind.AlreadyExists ||
+                this.metadata().kind !=
+                FileKind.Directory
+        )
+            throw error
     }
 }
 
@@ -159,7 +44,10 @@ public fun Path.delete() {
  */
 public fun Path.deleteRecursively() {
     if (this.metadata(followLinks = false).kind == FileKind.Directory) {
-        this.entries().use { directory -> for (entry in directory) entry.path.deleteRecursively() }
+        this.entries().use {
+            directory -> for (entry in directory)
+                entry.path.deleteRecursively()
+        }
     }
     this.delete()
 }
@@ -173,13 +61,21 @@ public fun Path.entries(): DirectoryEntries = DirectoryEntries.open(this)
  * Creates a symbolic link at this path containing the supplied target path.
  */
 public fun Path.createSymbolicLink(target: Path) {
-    @Unsafe {
-        this.withNativePath { name ->
-            @Unsafe {
-                target.withNativePath { destination ->
-                    @Unsafe {
-                        val (status, error) = nativePathSymlink(name, destination)
-                        checkNativeStatus(status, error, "create symbolic link", Some(this.toOsString()))
+    @Unsafe
+    {
+        this.withNativePath {
+            name -> @Unsafe
+            {
+                target.withNativePath {
+                    destination -> @Unsafe
+                    {
+                        val(status, error) = nativePathSymlink(name, destination)
+                        checkNativeStatus(
+                            status,
+                            error,
+                            "create symbolic link",
+                            Some(this.toOsString())
+                        )
                     }
                 }
             }
@@ -191,20 +87,34 @@ public fun Path.createSymbolicLink(target: Path) {
  * Reads the stored target of a symbolic link without resolving it.
  */
 public fun Path.readSymbolicLink(): Path {
-    return NativeByteBuffer.allocate(256L).use { buffer ->
-        @Unsafe {
-            return@use this.withNativePath { name ->
-                @Unsafe {
+    return NativeByteBuffer.allocate(256L).use {
+        buffer -> @Unsafe
+        {
+            return@use this.withNativePath {
+                name -> @Unsafe
+                {
                     while (true) {
                         buffer.clear()
-                        val count = buffer.withWritableBytes { pointer, capacity ->
-                            @Unsafe {
-                                val (read, error) = nativePathReadlink(name, pointer!!, capacity)
-                                return@withWritableBytes checkNative(read, error, "read symbolic link", Some(this.toOsString()))
+                        val count =
+                            buffer.withWritableBytes {
+                                pointer,
+                                capacity -> @Unsafe
+                                {
+                                    val(read, error) = nativePathReadlink(name, pointer!!, capacity)
+                                    return@withWritableBytes checkNative(
+                                        read,
+                                        error,
+                                        "read symbolic link",
+                                        Some(this.toOsString())
+                                    )
+                                }
                             }
-                        }
-                        if (count < buffer.capacity) return@withNativePath Path.fromOsString(OsString.fromByteArray(buffer.readBytes(count)))
-                        if (buffer.capacity == Long.MAX_VALUE) throw ArithmeticException()
+                        if (count < buffer.capacity)
+                            return@withNativePath Path.fromOsString(
+                                OsString.fromByteArray(buffer.readBytes(count))
+                            )
+                        if (buffer.capacity == Long.MAX_VALUE)
+                            throw ArithmeticException()
                         val needed = buffer.capacity + 1L
                         buffer.clear()
                         buffer.ensureWritable(needed)
@@ -220,13 +130,20 @@ public fun Path.readSymbolicLink(): Path {
  * path.
  */
 public fun Path.canonicalize(): Path {
-    @Unsafe {
-        return this.withNativePath { name ->
-            @Unsafe {
-                val (pointer, error) = nativePathRealpath(name)
-                if (pointer == None) failNative("canonicalize", error, Some(this.toOsString()))
-                try { return@withNativePath Path.fromOsString(copyNativeString(pointer!!)) }
-                finally { nativeMemoryFree(pointer!!) }
+    @Unsafe
+    {
+        return this.withNativePath {
+            name -> @Unsafe
+            {
+                val(pointer, error) = nativePathRealpath(name)
+                if (pointer == None)
+                    failNative("canonicalize", error, Some(this.toOsString()))
+                try {
+                    return@withNativePath Path.fromOsString(copyNativeString(pointer!!))
+                }
+                finally {
+                    nativeMemoryFree(pointer!!)
+                }
             }
         }
     }
@@ -236,26 +153,35 @@ public fun Path.canonicalize(): Path {
  * Creates a unique temporary file in the chosen parent and returns its path. The caller owns
  * deletion responsibility.
  */
-public fun createTempFile(parent: Path? = None, prefix: String = "scoop-"): Path = temporaryPath(parent, prefix, false)
+public fun createTempFile(parent: Path? = None, prefix: String = "scoop-"): Path =
+    temporaryPath(parent, prefix, false)
+
 /**
  * Creates a unique temporary directory in the chosen parent. The caller owns deletion
  * responsibility.
  */
-public fun createTempDirectory(parent: Path? = None, prefix: String = "scoop-"): Path = temporaryPath(parent, prefix, true)
-
-
-private fun outputOptions(append: Boolean): OpenOptions =
-    OpenOptions(read = false, write = true, create = true, append = append, truncate = !append)
+public fun createTempDirectory(parent: Path? = None, prefix: String = "scoop-"): Path =
+    temporaryPath(parent, prefix, true)
 
 private fun temporaryPath(parent: Path?, prefix: String, directory: Boolean): Path {
     val base = parent ?: temporaryDirectory()
     val pattern = temporaryPathPattern(base, prefix).toOsString().toByteArray()
-    @Unsafe {
-        if (pattern.size == Long.MAX_VALUE) throw ArithmeticException()
-        val writable = MutableArray<Byte>(pattern.size + 1L) { index -> if (index == pattern.size) 0.toByte() else pattern[index] }
-        return writable.withDataPointer { pointer, _ ->
-            @Unsafe {
-                val (status, error) = nativePathTemporary(pointer, directory)
+    @Unsafe
+    {
+        if (pattern.size == Long.MAX_VALUE)
+            throw ArithmeticException()
+        val writable =
+            MutableArray<Byte>(pattern.size + 1L) {
+                index -> if (index == pattern.size)
+                    0.toByte()
+                else
+                    pattern[index]
+            }
+        return writable.withDataPointer {
+            pointer,
+            _ -> @Unsafe
+            {
+                val(status, error) = nativePathTemporary(pointer, directory)
                 checkNativeStatus(status, error, "create temporary path", Some(base.toOsString()))
                 return@withDataPointer Path.fromOsString(copyNativeString(pointer))
             }
@@ -263,19 +189,17 @@ private fun temporaryPath(parent: Path?, prefix: String, directory: Boolean): Pa
     }
 }
 
-@Extern(name = "scoop_platform_path_mkdir", captureErrno = true)
-private fun nativePathMkdir(path: Ptr<Byte>, mode: Int): (Int, Int)
-@Extern(name = "scoop_platform_path_delete", captureErrno = true)
-private fun nativePathDelete(path: Ptr<Byte>): (Int, Int)
-@Extern(name = "scoop_platform_path_move", captureErrno = true)
-private fun nativePathMove(source: Ptr<Byte>, destination: Ptr<Byte>, replace: Boolean): (Int, Int)
 @Extern(name = "scoop_platform_path_symlink", captureErrno = true)
 private fun nativePathSymlink(link: Ptr<Byte>, target: Ptr<Byte>): (Int, Int)
+
 @Extern(name = "scoop_platform_path_readlink", captureErrno = true)
 private fun nativePathReadlink(path: Ptr<Byte>, buffer: Ptr<Byte>, capacity: Long): (Long, Int)
+
 @Extern(name = "scoop_platform_path_realpath", captureErrno = true)
 private fun nativePathRealpath(path: Ptr<Byte>): (Ptr<Byte>?, Int)
+
 @Extern(name = "scoop_platform_temporary_directory")
 internal fun nativeTemporaryDirectory(): Ptr<Byte>
+
 @Extern(name = "scoop_platform_path_temporary", captureErrno = true)
 private fun nativePathTemporary(pattern: Ptr<Byte>, directory: Boolean): (Int, Int)

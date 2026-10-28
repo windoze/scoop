@@ -237,6 +237,8 @@ stdout／stderr 继续遵守既有字节输出合同：Windows startup 将有效
 
 原生字符串沿用 `OsString` 的字节存储，以 WTF-8 无损表示 Windows UTF-16；`fromUtf16`／`toUtf16` 显式保留非配对 surrogate，managed String 的严格 UTF-8 合同保持。Windows 错误分别使用 Win32、Winsock、NtStatus（CNG）和地址解析错误域，保存原始 code；具体转换与分类合同见[平台规范 2～3](../specs/SCOOP-PLATFORM-SPEC.md)。这些基础类型的完成不等于文件、进程、网络及 IOCP 已完成移植。
 
+同步 File 与匿名 pipe 使用独立的完整宽度文件 handle 类型；Windows 沿 CreateFileW／CreatePipe、ReadFile／WriteFile、DuplicateHandle 和 CloseHandle，不转成 CRT fd。标准流逐次读取 GetStdHandle，GUI 缺失标准句柄时不隐式分配 console。POSIX 的 asyncio 继续复用原 fd helper；managed File 的包装结果在同次调用保存目标错误码，进程重定向也携带文件 handle。Windows 的权限投影、追加、截断、文件锁和 metadata 平台差异见[平台规范 5～6](../specs/SCOOP-PLATFORM-SPEC.md)。
+
 ### 5.3 Rust 文本后端是必须单独闭合的依赖
 
 `sysroot/native/text_backend` 当前依赖 Rust `std`，不是可在两个 CRT 间任意复用的纯对象集合。保留现有 C API 和“由文本后端分配、由文本后端释放”的 owner 规则，继续 `panic = "abort"`，Rust panic 不进入 Scoop EH。

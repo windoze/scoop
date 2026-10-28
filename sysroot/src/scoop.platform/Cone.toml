@@ -54,10 +54,21 @@ path = "native/memory.c"
 
 [[native.sources]]
 path = "native/io.c"
+when = {os = ["darwin", "linux"]}
 [[native.sources]]
 path = "native/files.c"
+when = {os = ["darwin", "linux"]}
 [[native.sources]]
 path = "native/file_metadata.c"
+when = {os = ["darwin", "linux"]}
+[[native.sources]]
+path = "native/file_handles.c"
+[[native.sources]]
+path = "native/file_handle_io.c"
+[[native.sources]]
+path = "native/file_handle_metadata.c"
+[[native.sources]]
+path = "native/path_operations.c"
 [[native.sources]]
 path = "native/paths.c"
 [[native.sources]]
