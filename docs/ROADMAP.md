@@ -784,6 +784,22 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 各里程碑"涵盖但只实现了部分"的事项，按来源里程碑整理。标注→的为目标里程碑（已知时）；未标注的待排期。
 
+### 包限定表达式与函数声明引用（设计完成，待实施）
+
+- [设计](qualified-expressions/DESIGN.md)与语言规范 12.4.5 补齐无需 import 的顶层调用、值／属性读写、构造、enum、object／companion，以及 `::pkg.function`／构造器／扩展函数引用；限定成员引用与 FunPtr 使用同一已解析目标。
+- 普通点表达式保留首段的现有遮蔽规则，再尝试最长可见 package；前置 `::` 明确选择声明路径，package 不作为 receiver。可见性、重载、泛型、初始化与 FFI 条件保持，类型／注解／模式路径沿既有规则。
+- 实施覆盖 parser／AST、HIR 名称解析、formatter 和 LSP；不增加 runtime ABI 或 FQN 实体身份。编译期 intrinsic 的限定直接调用随该通用能力支持，其函数引用仍拒绝；本次仅完成设计与 spec 同步。
+- 不可引用 intrinsic 使用明确的 HIR 语义诊断：文件／环境操作说明编译期求值且无运行期入口，currentSourceLocation 说明间接调用不提供调用点源码来源。短名／alias／re-export／FQN、managed／FunPtr 均按实际 kind 检查，不报告成语法错误或未找到函数。
+
+### 编译期文件／环境 intrinsic 与共享常量（设计完成，待实施）
+
+- [设计](compile-time-intrinsics/DESIGN.md)与语言规范 11.19 将 `includeStr`、`includeBytes`、`includeDir`、`env` 放入 core Cone 的 `scoop.compiler` package，使用显式导入或通用包限定表达式，不加入默认 prelude。
+- 文件与环境在定义 Cone 的 HIR 阶段求值；`env` 返回完整 `Option<String>`，补齐 enum payload 常量和 Option 常量解包。目录使用 include／exclude glob 选择，返回稳定有序的不可变文件表。
+- include 目标路径及解析全部 symlink 后的实际目标必须位于定义 Cone 内，includeDir 对每项检查，包括 glob 排除项；越界明确诊断。env 首版仅接受精确 `SCOOP_` 前缀，非法名称在查询环境前报错。
+- 独立常量池及跨 Cone 引用保证相同嵌入数据不随泛型特化、默认参数或内联重复发射；本组常量在同一 provider 内按完整类型与内容合并，沿现有布局和 immortal 登记发射。
+- 构建／check／doc／分析缓存跟踪实际文件、目录匹配集合、路径／链接目标和已查询环境变量；命中只判断输入更新，新增匹配文件须重编，链接改指或排除项越界不能复用旧值。实施按常量与 namespace、单文件／env、目录、增量与跨 Cone 验收推进；本次仅完成设计与 spec 同步。
+
+
 ### EventLoop 平台后端与 GUI 主循环（已实现）
 
 - [设计](asyncio-backends/DESIGN.md)与[异步 I/O 规范第 11 节](specs/SCOOP-ASYNCIO-SPEC.md#11-平台后端与宿主主循环迁移合同)规定 `PlatformEventLoop`：Darwin 使用 libdispatch，Linux 使用 io_uring／liburing；调用方与发行资源已迁移，libuv 已移除。
