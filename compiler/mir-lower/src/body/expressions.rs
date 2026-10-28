@@ -48,6 +48,13 @@ impl BodyLowerer<'_> {
                         0,
                         value.clone(),
                     ),
+                    hir::StringConstantOwner::PropertyElement { property, ordinal } => {
+                        self.strings.intern(
+                            mir::ImmortalObjectOwner::Property(property),
+                            ordinal,
+                            value.clone(),
+                        )
+                    }
                 };
                 smir::ExprKind::StringConst(id)
             }

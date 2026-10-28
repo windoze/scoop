@@ -924,7 +924,6 @@ fn const_rejects_invalid_declarations_and_non_constant_expressions() {
     mutable.mutable = true;
     let source = file(vec![
         Decl::Global(mutable),
-        Decl::Global(const_property("unit", ty_named("Unit"), unit_lit())),
         Decl::Global(ordinary_property("ordinary", int_lit(3))),
         Decl::Global(const_property(
             "ordinaryRead",
@@ -951,7 +950,6 @@ fn const_rejects_invalid_declarations_and_non_constant_expressions() {
         .map(|diagnostic| diagnostic.message)
         .collect::<Vec<_>>();
     assert!(messages.contains(&"const property must be a `val`".to_string()));
-    assert!(messages.contains(&"const property `unit` has unsupported type Unit".to_string()));
     assert!(
         messages.contains(
             &"const initializer may only reference const properties; `ordinary` is not const"

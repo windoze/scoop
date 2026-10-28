@@ -258,10 +258,7 @@ impl Lowerer {
                     optional,
                 }
             }
-            Kind::StringLiteral {
-                value,
-                owner: hir::DefaultStringOwnerV1::CurrentInstantiation,
-            } => hir::ExprKind::StringLiteral {
+            Kind::StringLiteral { value, .. } => hir::ExprKind::StringLiteral {
                 value: value.clone(),
                 owner: hir::StringConstantOwner::CurrentDefinition,
             },
@@ -529,11 +526,7 @@ impl Lowerer {
             | Kind::IntegerConversion { .. }
             | Kind::Binary { .. }
             | Kind::Unary { .. }) => self.materialize_imported_default_operator(kind, context)?,
-            Kind::StringLiteral {
-                owner: hir::DefaultStringOwnerV1::Property(_),
-                ..
-            }
-            | Kind::StructInit { .. }
+            Kind::StructInit { .. }
             | Kind::ClassInit { .. }
             | Kind::DirectSuperMethodCall { .. } => {
                 return Err(ImportedDefaultMaterializationError::Plan(

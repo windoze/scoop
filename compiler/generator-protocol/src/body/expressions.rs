@@ -348,6 +348,9 @@ impl Serialize for QueryJson<'_, hir::DefaultStringOwnerV1> {
             hir::DefaultStringOwnerV1::Property(property) => {
                 object!(serializer, {"kind": "property", "property": Reference::from(*property)})
             }
+            hir::DefaultStringOwnerV1::PropertyElement { property, ordinal } => {
+                object!(serializer, {"kind": "propertyElement", "property": Reference::from(*property), "ordinal": ordinal})
+            }
         }
     }
 }

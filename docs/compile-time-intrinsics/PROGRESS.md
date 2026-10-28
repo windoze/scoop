@@ -9,7 +9,8 @@
 - [x] currentSourceLocation 的明确语义诊断，包含 alias、依赖与 FunPtr；错误下保留声明导航。新 intrinsic 随后接入。
 - [x] 带 payload 的 enum 静态初值数据通路：HIR／MIR／LIR、LLVM 发射与既有静态存储 relocation。
 - [x] Unit／tuple 静态初值数据通路，以及显式类型 ordinary top-level property 的递归字面量初值求值。
-- [ ] struct／tuple／Unit／enum／Option 聚合常量及字段读取、Elvis／when、独立静态常量身份、泛型／跨 Cone 共享与发射。
+- [x] const property 与静态初值共用聚合值表示；Unit／tuple／无负载 enum／None、前向引用、字段读取与跨 Cone 值编码。
+- [ ] Option Elvis／when 常量求值、intrinsic 产生的聚合值、独立静态常量身份及泛型／跨 Cone 共享。
 - [ ] core 的 scoop.compiler 声明、includeStr／includeBytes／env、Cone 目录范围及 SCOOP_ 名称限制。
 - [ ] includeDir、glob、逐项目录／symlink 范围检查与 EmbeddedDir API。
 - [ ] 构建／check／doc／LSP 的外部输入更新和缓存复用，资源／环境的定义来源。
@@ -50,6 +51,14 @@ Darwin 验证：格式化、全 workspace lint 通过；四个相关 crate 的 `
 HIR／MIR 保存 Unit 和递归 tuple 元素，LIR 使用 aggregate 初值；完整存储类型逐层提供元素类型。直接发射 ordinary top-level property 中可静态求值的 tuple／Unit 字面量，包含运行期调用时保留完整 initializer。LLVM 发射复用目标布局取得嵌套 tuple offset；静态模板保留 padding、零大小 storage token 和嵌套 String relocation。无 runtime ABI 或 `.slib` 格式变化，尚不扩大源码 `const val` 求值。
 
 Darwin 验证：格式化、全 workspace lint 通过；6 项定向 Rust 测试通过，覆盖 HIR 至 LLVM、tuple／enum 嵌套、单位值、浮点位模式、引用重定位及静态／运行期初值选择。`tests/cones/aggregate-constants` 的 2 项 release 测试与正式 CLI `native-raw-globals-and-tls` fixture 通过。编译器及配套 CLI 已构建。编译期间磁盘空间不足已通过清理旧增量缓存解决；失败构建后相应验证通过。Linux 已确认 LLVM 22.1.2 可用，实际运行仍留在平台验收项。
+
+### 聚合 const 值与跨 Cone 传递
+
+const property 复用 HirConstantImage，保存完整类型下的 Unit／tuple／struct／enum 值。源码求值接通 Unit、tuple、无负载变体、const 引用和实际字段／元素读取；前向引用和依赖环覆盖 tuple 及字段 receiver。类型按实际常量值判断，`None: Option<RuntimePayload>`、`Choice<RuntimePayload>.Empty` 不检查未选择分支。普通 struct／enum payload 构造及任意用户函数仍拒绝，没有引入新 literal 语法。
+
+导出值使用独立的 canonical 聚合表示，保留原标量编码及注解标量语义，新增 Unit／tuple／struct／enum tag；枚举引用沿 typed identity 解码，消费时按完整 signature 匹配字段和实际 variant。移除无生产调用者的 const meta 语义重放 authority，保留实际边界的类型／格式／引用检查。多个 String 字段以 property 和元素序号区分；泛型正文与默认参数可传递这些值。独立常量池和 provider 间的数据合并尚未完成。
+
+Darwin 验证：格式化、全 workspace lint 通过；329 项常量相关 Rust 测试通过，随后补充的聚合 wire／泛型默认值组合和 String owner 编码测试通过。原 Cone 的 4 项及实际 `.slib` consumer 的 2 项 release 测试通过；新增诊断 fixture 覆盖构造调用拒绝、元素类型／数量和字段依赖环；3 项既有诊断 fixture 已按实际求值范围更新并通过。静态运行期 ABI 不变；新聚合值扩展既有 HIR metadata 的值 tag，旧标量保持兼容。Linux 仍留在平台验收项。
 
 ## 范围调整
 

@@ -99,6 +99,12 @@ impl Concretizer<'_> {
                             self.source.property_identities[property].property_owner(),
                         )
                     }
+                    export::StringConstantOwner::PropertyElement { property, ordinal } => {
+                        export::StringConstantOwner::PropertyElement {
+                            property: self.source.property_identities[property].property_owner(),
+                            ordinal,
+                        }
+                    }
                 },
             },
             export::ExprKind::IntegerLiteral(value) => concrete::ExprKind::IntegerLiteral(*value),

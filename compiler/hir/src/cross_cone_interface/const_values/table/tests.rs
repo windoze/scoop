@@ -3,8 +3,6 @@ use crate::{
     PropertyAccessorsV1 as Accessors,
 };
 
-use std::collections::BTreeMap;
-
 use scoop_identity::{
     AccessorRole, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope,
     DefinitionOrigin, DefinitionOwnerChain, NormalizedSourcePath, PackagePath,
@@ -17,11 +15,10 @@ use scoop_wire::{Encoder, WireEncode, decode_canonical, encode};
 
 use super::*;
 use crate::{
-    CanonicalBinderListV1, CanonicalBooleanV1, CanonicalConstValueKindV1, CanonicalConstValueV1,
-    CanonicalPropertyInterfacesV1, ConstPropertyDeclarationSourceV1,
-    ExportConstValueClosureValidationError, ExportConstValueSemanticAuthority,
-    ExportConstValueSemanticValidationError, ExportDefinitionSourceV1, PropertyInterfaceRecordV1,
-    PropertyPublicAccessV1, PropertyRepresentationV1, PublicDeclarationOwnerV1,
+    CanonicalBinderListV1, CanonicalBooleanV1, CanonicalConstValueV1,
+    CanonicalPropertyInterfacesV1, ExportConstValueClosureValidationError,
+    ExportDefinitionSourceV1, PropertyInterfaceRecordV1, PropertyPublicAccessV1,
+    PropertyRepresentationV1, PublicDeclarationOwnerV1,
 };
 
 #[test]
@@ -85,26 +82,6 @@ fn reader_rejects_duplicate_and_noncanonical_property_order() {
 }
 
 #[test]
-fn table_semantics_reports_the_failing_canonical_record_index() {
-    let fixture = Fixture::new();
-    let values = fixture.values();
-    let mut authority = fixture.semantic_authority();
-    assert_eq!(values.validate_semantics(&mut authority), Ok(()));
-
-    let failing = values.records()[1].property();
-    authority.sources.remove(&failing);
-    assert!(matches!(
-        values.validate_semantics(&mut authority),
-        Err(ExportConstValueSetSemanticValidationError::Record {
-            index: 1,
-            error: ExportConstValueSemanticValidationError::Declaration(
-                TestAuthorityError::Declaration(property)
-            ),
-        }) if property == failing
-    ));
-}
-
-#[test]
 fn property_closure_accepts_every_const_and_ignores_runtime_properties() {
     let fixture = Fixture::new();
     let values = fixture.values();
@@ -163,7 +140,6 @@ struct Fixture {
     first_interface: PropertyInterfaceRecordV1,
     second_interface: PropertyInterfaceRecordV1,
     runtime_interface: PropertyInterfaceRecordV1,
-    sources: BTreeMap<PersistentPropertyId, ConstPropertyDeclarationSourceV1>,
 }
 
 impl Fixture {
@@ -216,16 +192,6 @@ impl Fixture {
             boolean_identity.id(),
             PropertyRepresentationV1::RuntimeAccessor,
         );
-        let sources = BTreeMap::from([
-            (
-                first_identity.id(),
-                ConstPropertyDeclarationSourceV1::new(first_identity.key().clone(), first_origin),
-            ),
-            (
-                second_identity.id(),
-                ConstPropertyDeclarationSourceV1::new(second_identity.key().clone(), second_origin),
-            ),
-        ]);
         Self {
             first_identity,
             second_identity,
@@ -238,7 +204,6 @@ impl Fixture {
             first_interface,
             second_interface,
             runtime_interface,
-            sources,
         }
     }
 
@@ -284,81 +249,6 @@ impl Fixture {
             .register_external_canonical_authority(self.context.clone())
             .unwrap();
         pending.finish().unwrap()
-    }
-
-    fn semantic_authority(&self) -> TestAuthority {
-        TestAuthority {
-            sources: self.sources.clone(),
-            interfaces: BTreeMap::from([
-                (self.first.property(), self.first_interface.clone()),
-                (self.second.property(), self.second_interface.clone()),
-            ]),
-            core_types: BTreeMap::from([
-                (
-                    CanonicalConstValueKindV1::Boolean,
-                    self.boolean_identity.id(),
-                ),
-                (CanonicalConstValueKindV1::String, self.string_identity.id()),
-            ]),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum TestAuthorityError {
-    Declaration(PersistentPropertyId),
-    Interface(PersistentPropertyId),
-    Core(CanonicalConstValueKindV1),
-}
-
-impl std::fmt::Display for TestAuthorityError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "missing test authority: {self:?}")
-    }
-}
-
-impl std::error::Error for TestAuthorityError {}
-
-struct TestAuthority {
-    sources: BTreeMap<PersistentPropertyId, ConstPropertyDeclarationSourceV1>,
-    interfaces: BTreeMap<PersistentPropertyId, PropertyInterfaceRecordV1>,
-    core_types: BTreeMap<CanonicalConstValueKindV1, PersistentTypeId>,
-}
-
-impl ExportConstValueSemanticAuthority<TestAuthorityError> for TestAuthority {
-    fn current_cone(&self) -> ConeIdentity {
-        ConeIdentity::CORE
-    }
-
-    fn const_property_declaration_source(
-        &mut self,
-        property: PersistentPropertyId,
-    ) -> Result<ConstPropertyDeclarationSourceV1, TestAuthorityError> {
-        self.sources
-            .get(&property)
-            .cloned()
-            .ok_or(TestAuthorityError::Declaration(property))
-    }
-
-    fn validated_property_interface(
-        &mut self,
-        property: PersistentPropertyId,
-    ) -> Result<&PropertyInterfaceRecordV1, TestAuthorityError> {
-        self.interfaces
-            .get(&property)
-            .ok_or(TestAuthorityError::Interface(property))
-    }
-
-    fn validate_const_value_type(
-        &mut self,
-        value_type: PersistentTypeId,
-        kind: CanonicalConstValueKindV1,
-    ) -> Result<(), TestAuthorityError> {
-        self.core_types
-            .get(&kind)
-            .filter(|&&expected| expected == value_type)
-            .map(|_| ())
-            .ok_or(TestAuthorityError::Core(kind))
     }
 }
 

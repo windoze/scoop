@@ -116,6 +116,9 @@ impl Lowerer {
                 return None;
             }
         };
-        Some(constant.into())
+        Some(
+            hir::CanonicalConstValueV1::try_from(constant)
+                .expect("the matched annotation value is scalar"),
+        )
     }
 }

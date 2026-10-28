@@ -4,6 +4,7 @@
 
 ```sh
 target/debug/scoop test tests/cones/aggregate-constants --release --sysroot "$SCOOP_SYSROOT"
+target/debug/scoop test tests/cones/aggregate-constants/consumer --release --sysroot "$SCOOP_SYSROOT"
 ```
 
-当前覆盖 Unit／tuple 静态初值；struct／enum 的源码 const 求值随编译期 intrinsic 后续实现扩展。
+覆盖 Unit／tuple 静态初值与 const 值、前向引用、tuple 元素读取、带引用类型参数的空 enum 变体，以及泛型读取中的多个 String 字段。consumer 使用实际发布的依赖 `.slib`，验证常量字段读取、泛型正文及默认参数。普通构造调用不进入常量求值；对应诊断在 `tests/fixtures/language/aggregate-constants`。

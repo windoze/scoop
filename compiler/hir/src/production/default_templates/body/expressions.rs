@@ -67,6 +67,12 @@ impl BodyProjection<'_, '_> {
                     StringConstantOwner::Property(property) => {
                         DefaultStringOwnerV1::Property(self.entities.property_id(*property)?)
                     }
+                    StringConstantOwner::PropertyElement { property, ordinal } => {
+                        DefaultStringOwnerV1::PropertyElement {
+                            property: self.entities.property_id(*property)?,
+                            ordinal: *ordinal,
+                        }
+                    }
                 },
             },
             ExprKind::IntegerLiteral(value) => {

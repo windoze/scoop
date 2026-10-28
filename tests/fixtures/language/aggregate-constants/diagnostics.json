@@ -1,0 +1,67 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "const dependency cycle: cycle -> cycle",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 237,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 232
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "const initializer must contain only literals, const references, built-in primitive operators, and exact core numeric intrinsic calls",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 86,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 70
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "const initializer must contain only literals, const references, built-in primitive operators, and exact core numeric intrinsic calls",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 121,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 113
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "constant tuple element must be of type String, found Int",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 163,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 162
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "constant tuple has 1 elements, expected 2",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 204,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 200
+    },
+    "severity": "error"
+  }
+]

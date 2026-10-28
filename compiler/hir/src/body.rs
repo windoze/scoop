@@ -460,6 +460,7 @@ pub enum ExprKind {
 pub enum StringConstantOwner<P> {
     CurrentDefinition,
     Property(P),
+    PropertyElement { property: P, ordinal: u32 },
 }
 
 pub type HirIntegerOperation = IntegerExpression<Box<Expr>>;

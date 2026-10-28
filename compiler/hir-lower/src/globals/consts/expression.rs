@@ -8,27 +8,18 @@ impl Lowerer {
     ) -> Option<EvaluatedConst> {
         let mut statements = Vec::new();
         let expression = self.lower_expr(source, &mut statements, expected)?;
-        let value = match expression.kind {
-            hir::ExprKind::IntegerLiteral(value) => hir::ConstPropertyValue::Integer(value),
-            hir::ExprKind::FloatLiteral(value) => hir::ConstPropertyValue::Float(value),
-            hir::ExprKind::CharLiteral(value) => hir::ConstPropertyValue::Char(value),
-            hir::ExprKind::BoolLiteral(value) => hir::ConstPropertyValue::Boolean(value),
-            hir::ExprKind::StringLiteral { value, .. } => hir::ConstPropertyValue::String(value),
-            _ => {
-                self.error(
-                    source.span(),
-                    "const initializer may only reference const properties".into(),
-                );
-                return None;
-            }
+        let value = if statements.is_empty() {
+            self.expression_constant(&expression)
+        } else {
+            None
         };
-        if !statements.is_empty() {
+        let Some(value) = value else {
             self.error(
                 source.span(),
-                "const initializer may only reference const properties".into(),
+                "const initializer may only reference const properties or constant fields".into(),
             );
             return None;
-        }
+        };
         Some(EvaluatedConst {
             value,
             ty: expression.ty,
@@ -54,6 +45,20 @@ impl Lowerer {
             return self.evaluate_bound_const_reference(expression, expected);
         }
         match expression {
+            ast::Expr::UnitLiteral { .. } => Some(EvaluatedConst {
+                value: hir::HirConstantImage::Unit,
+                ty: self.unit,
+            }),
+            ast::Expr::TupleLiteral { elements, span } => self.evaluate_const_tuple(
+                elements,
+                *span,
+                expected,
+                file,
+                declarations,
+                ordinary,
+                states,
+                stack,
+            ),
             ast::Expr::IntLiteral(literal) => {
                 self.evaluate_integer_literal(*literal, expected, false, literal.span)
             }
@@ -89,6 +94,9 @@ impl Lowerer {
                     self.find_const_definition(declarations, current_owner, &name.text, file, true)
                 else {
                     let (layer, lookup) = self.lookup_value_origin_with_layer(&name.text);
+                    if self.const_name_is_variant(&lookup, expected, &name.text) {
+                        return self.evaluate_bound_const_reference(expression, expected);
+                    }
                     if let crate::imports::lookup::LookupResult::Unique(
                         crate::imports::lookup::values::ValueOrigin::Dependency(binding),
                     ) = &lookup
@@ -179,13 +187,20 @@ impl Lowerer {
                     .ok()?
                     .map(|(target, _)| target);
                 let Some(target) = target else {
-                    self.error(
-                        access.span,
-                        "const initializer qualifiers must name an object or a companion host"
-                            .to_string(),
+                    return self.evaluate_const_field(
+                        access,
+                        file,
+                        declarations,
+                        ordinary,
+                        states,
+                        stack,
                     );
-                    return None;
                 };
+                if let crate::NominalTarget::Enum(enumeration) = target
+                    && self.find_variant_ref(enumeration, &name.text).is_some()
+                {
+                    return self.evaluate_bound_const_reference(expression, expected);
+                }
                 let Some(definition) =
                     self.find_qualified_const_definition(declarations, target, &name.text, file)
                 else {
@@ -210,6 +225,9 @@ impl Lowerer {
                     stack,
                     Some(name.span),
                 )
+            }
+            ast::Expr::FieldAccess(access) if access.navigation == ast::Navigation::Direct => {
+                self.evaluate_const_field(access, file, declarations, ordinary, states, stack)
             }
             ast::Expr::Unary {
                 op, operand, span, ..

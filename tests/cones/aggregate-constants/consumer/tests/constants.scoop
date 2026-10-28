@@ -1,0 +1,26 @@
+package compiler.constant.consumer
+
+import compiler.constants.*
+import scoop.test.*
+
+@Test
+private class ImportedConstants {
+    @Test
+    fun `published aggregate values preserve exact types and fields`() {
+        assertEquals((), constantValues._1)
+        assertEquals(42, constantValues._2._1)
+        assertEquals("constant", constantValues._2._2)
+        assertEquals("second", copiedLabel)
+        assertEquals("second", forwardedLabel)
+        assertTrue(when (missingPayload) { case None -> true; case Some(_) -> false })
+        assertTrue(when (emptyChoice) { case Empty -> true; case Value(_) -> false })
+    }
+
+    @Test
+    fun `generic bodies and defaults retain distinct string fields`() {
+        assertEquals("first", genericLabels(1)._1)
+        assertEquals("second", genericLabels("argument")._2)
+        assertEquals("first", labelsWithDefault(1)._1)
+        assertEquals("second", labelsWithDefault("argument")._2)
+    }
+}

@@ -61,13 +61,7 @@ impl Lowerer {
         if !self.types_equal(evaluated.ty, expected) {
             return None;
         }
-        Some(match evaluated.value {
-            hir::ConstPropertyValue::Integer(value) => hir::HirConstantImage::Integer(value),
-            hir::ConstPropertyValue::Float(value) => hir::HirConstantImage::Float(value),
-            hir::ConstPropertyValue::Char(value) => hir::HirConstantImage::Char(value),
-            hir::ConstPropertyValue::Boolean(value) => hir::HirConstantImage::Boolean(value),
-            hir::ConstPropertyValue::String(value) => hir::HirConstantImage::String(value),
-        })
+        Some(evaluated.value)
     }
 
     fn evaluate_static_value(
@@ -284,6 +278,7 @@ impl Lowerer {
                     hir::ConstPropertyValue::Integer(_)
                     | hir::ConstPropertyValue::Float(_)
                     | hir::ConstPropertyValue::Char(_) => lhs.ty,
+                    _ => unreachable!("scalar operators produce scalar values"),
                 };
                 Some(StaticValue { value, ty })
             }

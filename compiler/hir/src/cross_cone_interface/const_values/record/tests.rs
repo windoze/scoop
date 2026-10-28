@@ -34,7 +34,9 @@ fn record_has_fixed_wire_and_exposes_all_fields() {
     );
     assert_eq!(
         record.value(),
-        &CanonicalConstValueV1::Boolean(CanonicalBooleanV1::True)
+        &super::CanonicalValueConstantV1::Scalar(CanonicalConstValueV1::Boolean(
+            CanonicalBooleanV1::True
+        ))
     );
     assert_eq!(record.definition_origin(), &fixture.origin);
 }
@@ -49,6 +51,52 @@ fn decoded_record_resolves_every_typed_reference() {
             .resolve(&mut fixture.authority(true, true, true))
             .unwrap(),
         record
+    );
+}
+
+#[test]
+fn aggregate_const_wire_preserves_nested_values_and_resolves_variant_identity() {
+    use crate::CanonicalValueConstantV1 as C;
+    use scoop_identity::{EnumVariantIdentityKey, PersistentEnumVariantId};
+    let enumeration = CborIdentityRecord::<PersistentTypeId, _>::from_key(
+        SourceDeclarationKey::nominal(site(), identifier("Choice"), SourceNominalKind::Enum, 0),
+    )
+    .unwrap();
+    let variant = CborIdentityRecord::<PersistentEnumVariantId, _>::from_key(
+        EnumVariantIdentityKey::source(enumeration.key(), identifier("Value")).unwrap(),
+    )
+    .unwrap();
+    let value = C::Tuple(vec![
+        C::Unit,
+        C::Struct(vec![C::Scalar(CanonicalConstValueV1::String(
+            "embedded".into(),
+        ))]),
+        C::Enum {
+            variant: variant.id(),
+            fields: vec![C::Unit],
+        },
+    ]);
+    let bytes = encode(&value).unwrap();
+    let decoded: crate::DecodedValueConstantV1 = decode_canonical(&bytes).unwrap();
+    assert_eq!(encode(&decoded).unwrap(), bytes);
+    let mut pending = PendingIdentityValidation::new();
+    pending.register_authority(ConeIdentity::CORE).unwrap();
+    pending
+        .register_external_canonical_authority(enumeration)
+        .unwrap();
+    let mut missing = pending.finish().unwrap();
+    assert!(decoded.clone().resolve(&mut missing).is_err());
+    let mut pending = PendingIdentityValidation::new();
+    pending.register_authority(ConeIdentity::CORE).unwrap();
+    pending
+        .register_external_canonical_authority(variant)
+        .unwrap();
+    assert_eq!(
+        decoded.resolve(&mut pending.finish().unwrap()).unwrap(),
+        value
+    );
+    assert!(
+        decode_canonical::<crate::DecodedValueConstantV1>(&[0xa2, 0x00, 0x06, 0x01, 0x80]).is_err()
     );
 }
 

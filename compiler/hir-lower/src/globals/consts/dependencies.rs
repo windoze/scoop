@@ -73,18 +73,33 @@ impl Lowerer {
                     dependencies.push((index.definition, name.span, file));
                 }
             }
-            ast::Expr::FieldAccess(access)
+            ast::Expr::FieldAccess(access) => {
                 if access.navigation == ast::Navigation::Direct
-                    && matches!(access.selector, ast::FieldSelector::Name(_)) =>
-            {
-                let ast::FieldSelector::Name(name) = &access.selector else {
-                    unreachable!("the match guard selected a named field")
-                };
-                if let Some(target) = self.nominal_qualifier_target(&access.receiver)
+                    && let ast::FieldSelector::Name(name) = &access.selector
+                    && let Some(target) = self.nominal_qualifier_target(&access.receiver)
                     && let Some(index) =
                         self.find_qualified_const_definition(declarations, target, &name.text, file)
                 {
                     dependencies.push((index.definition, name.span, file));
+                } else {
+                    self.collect_const_dependencies(
+                        &access.receiver,
+                        owner,
+                        file,
+                        declarations,
+                        dependencies,
+                    );
+                }
+            }
+            ast::Expr::TupleLiteral { elements, .. } => {
+                for element in elements {
+                    self.collect_const_dependencies(
+                        element,
+                        owner,
+                        file,
+                        declarations,
+                        dependencies,
+                    );
                 }
             }
             ast::Expr::Unary { operand, .. } => {

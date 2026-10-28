@@ -13,3 +13,19 @@ private fun next(): Int {
 
 public val runtimeValues: (Int, Int) = (next(), next())
 public fun runtimeSteps(): Int = steps
+
+public const val constantValues: (Unit, (Int, String), String?) = ((), (answer, "constant"), None)
+public const val answer: Int = numbers._2
+private const val numbers: (Int, Int) = (1, 42)
+public const val labels: (String, String) = ("first", "second")
+public const val copiedLabel: String = labels._2
+
+public class RuntimePayload(val value: Int)
+public const val missingPayload: RuntimePayload? = None
+
+public enum Choice<T> { Empty, Value(T) }
+public const val emptyChoice: Choice<RuntimePayload> = Choice.Empty
+
+public fun<T> genericLabels(value: T): (String, String) = labels
+
+public fun<T> labelsWithDefault(value: T, text: (String, String) = labels): (String, String) = text

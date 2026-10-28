@@ -145,24 +145,6 @@ impl Lowerer {
                     continue;
                 }
                 self.reject_logical_property_annotations("a const property", &decl.annotations);
-                if decl.ty.is_some()
-                    && !matches!(
-                        self.types[ty],
-                        hir::Type::Integer(_) | hir::Type::Boolean | hir::Type::String
-                    )
-                    && !self.is_char_type(ty)
-                    && self.float_kind(ty).is_none()
-                {
-                    self.error(
-                        decl.type_span(),
-                        format!(
-                            "const property `{}` has unsupported type {}",
-                            decl.name.text,
-                            self.type_name(ty)
-                        ),
-                    );
-                    continue;
-                }
                 constants.push(PendingConst {
                     import_source,
                     declaration: decl,
@@ -350,24 +332,6 @@ impl Lowerer {
                     &format!("{} const property", source.article_description()),
                     &property.annotations,
                 );
-                if property.ty.is_some()
-                    && !matches!(
-                        self.types[ty],
-                        hir::Type::Integer(_) | hir::Type::Boolean | hir::Type::String
-                    )
-                    && !self.is_char_type(ty)
-                    && self.float_kind(ty).is_none()
-                {
-                    self.error(
-                        property.type_span(),
-                        format!(
-                            "const property `{}` has unsupported type {}",
-                            property.name.text,
-                            self.type_name(ty)
-                        ),
-                    );
-                    continue;
-                }
                 constants.push(PendingConst {
                     import_source: self.imports.object_property_source(
                         object,

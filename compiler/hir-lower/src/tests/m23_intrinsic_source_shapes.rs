@@ -115,7 +115,10 @@ fn constant_and_vararg_projection_keep_actual_nominal_references_in_combination(
         let SignatureTypeKey::Nominal(id) = constant.value_type() else {
             panic!("portable constants carry concrete nominal types");
         };
-        let expected = match constant.value().kind() {
+        let hir::CanonicalValueConstantV1::Scalar(value) = constant.value() else {
+            panic!("this test exports only scalar constants");
+        };
+        let expected = match value.kind() {
             hir::CanonicalConstValueKindV1::Char => hir::IntrinsicTypeKind::Char,
             hir::CanonicalConstValueKindV1::Float(kind) => hir::IntrinsicTypeKind::Float(kind),
             hir::CanonicalConstValueKindV1::Integer(kind) => hir::IntrinsicTypeKind::Integer(kind),

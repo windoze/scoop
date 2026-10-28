@@ -81,6 +81,7 @@ mod aggregates;
 mod analysis;
 mod captures;
 mod characters;
+mod constants;
 mod constructors;
 mod context;
 mod copy_updates;

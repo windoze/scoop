@@ -76,3 +76,22 @@ impl Serialize for QueryJson<'_, CanonicalConstValueKindV1> {
         }
     }
 }
+
+impl Serialize for QueryJson<'_, scoop_hir::CanonicalValueConstantV1> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use scoop_hir::CanonicalValueConstantV1 as C;
+        match self.0 {
+            C::Scalar(value) => QueryJson(value).serialize(serializer),
+            C::Unit => object!(serializer, { "kind": "unit" }),
+            C::Tuple(elements) => {
+                object!(serializer, { "kind": "tuple", "elements": elements.iter().map(QueryJson).collect::<Vec<_>>() })
+            }
+            C::Struct(fields) => {
+                object!(serializer, { "kind": "struct", "fields": fields.iter().map(QueryJson).collect::<Vec<_>>() })
+            }
+            C::Enum { variant, fields } => {
+                object!(serializer, { "kind": "enum", "variant": crate::Reference::from(*variant), "fields": fields.iter().map(QueryJson).collect::<Vec<_>>() })
+            }
+        }
+    }
+}

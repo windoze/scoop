@@ -3,6 +3,55 @@ use crate::tests::m23_ordinary_core_only::support::parsed_ordinary_text;
 use scoop_hir as hir;
 
 #[test]
+fn aggregate_const_values_survive_dependency_materialization() {
+    use crate::tests::m23_ordinary_dependencies::support::project_dependency_text;
+    let mut core = trusted_core();
+    let coordinate = ConeCoordinate::new("test", "aggregate-constant-provider", "1.0.0").unwrap();
+    let (foundation, interface) = project_dependency_text(
+        &core,
+        &coordinate,
+        r#"
+        package dependency.api
+        public class RuntimePayload(val number: Int)
+        public enum Choice<T> { Empty, Value(T) }
+        public const val aggregate: (Unit, (String, String), Choice<RuntimePayload>) =
+            ((), ("first", "second"), Choice.Empty)
+        public fun<T> labels(value: T, text: (String, String) = aggregate._2): (String, String) = text
+    "#,
+        &["Unit", "String", "Int"],
+    );
+    let foundation = core.import_dependency_foundation(&coordinate, &foundation, 57);
+    let fixture = DependencyConstantFixture {
+        core,
+        coordinate,
+        foundation,
+        interface,
+        aliases: empty_alias_expansions(),
+    };
+    let consumer = scoop_parser::parse(
+        r#"
+        import dependency.api.*
+        public const val copied: (Unit, (String, String), Choice<RuntimePayload>) = aggregate
+        public const val selected: String = copied._2._2
+        fun read(): (Unit, (String, String), Choice<RuntimePayload>) = aggregate
+        fun defaultLabels(): (String, String) = labels(1)
+    "#,
+    )
+    .unwrap();
+    fixture.inspect(consumer, |output| {
+        let module = output.output().export.module();
+        assert!(matches!(function_result(module, "read").kind, hir::ExprKind::TupleLiteral(_)));
+        let selected = module.properties.iter().find(|(_, property)| property.name == "selected").unwrap().1;
+        assert!(matches!(&selected.representation, hir::PropertyRepresentation::Const { value: hir::HirConstantImage::String(value) } if value == "second"));
+        let values = hir::CanonicalExportConstValuesV1::from_export_hir(module).unwrap();
+        let copied = module.properties.iter().find(|(_, property)| property.name == "copied").unwrap().0;
+        let identity = module.property_identities[copied].ordinary_id().unwrap();
+        let hir::CanonicalValueConstantV1::Tuple(elements) = values.get(identity).unwrap().value() else { panic!("copied constant remains a tuple") };
+        assert!(matches!(&elements[2], hir::CanonicalValueConstantV1::Enum { fields, .. } if fields.is_empty()));
+    });
+}
+
+#[test]
 fn aggregate_temporaries_use_consumer_spans_and_keep_constant_origins() {
     let fixture = DependencyConstantFixture::new();
     for aggregate in ["[answer, answer + 1]", "(answer, answer + 1)"] {

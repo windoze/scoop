@@ -111,7 +111,10 @@ fn producer_projects_exactly_public_const_values_types_and_origins() {
         let record = values
             .get(persistent)
             .unwrap_or_else(|| panic!("missing exported const `{name}`"));
-        assert_eq!(record.value(), &expected_value);
+        assert_eq!(
+            record.value(),
+            &hir::CanonicalValueConstantV1::Scalar(expected_value)
+        );
         assert_eq!(
             record.value_type(),
             &mapper.map(module.properties[property].ty, &[]).unwrap()
@@ -133,24 +136,24 @@ fn producer_projects_exactly_public_const_values_types_and_origins() {
 }
 
 #[test]
-fn producer_rejects_a_const_value_whose_hir_type_has_drifted() {
-    let mut module = lower_core_with_additional_declarations(vec![const_property(
-        "MismatchedConstant",
-        ty_named("Int"),
-        int_lit(42),
-        true,
-    )])
-    .into_module();
-    let property = lowered_property(&module, "MismatchedConstant");
-    let persistent = persistent_property(&module, property);
-    module.properties[property].ty = module.boolean;
-
+fn producer_preserves_nested_aggregate_const_values() {
+    let source = scoop_parser::parse(
+        "public const val aggregate: (Unit, (String, String)) = ((), (\"first\", \"second\"))",
+    )
+    .unwrap();
+    let module = lower_core_with_additional_declarations(source.declarations);
+    let property = lowered_property(&module, "aggregate");
+    let values = hir::CanonicalExportConstValuesV1::from_export_hir(&module).unwrap();
+    let value = values.get(persistent_property(&module, property)).unwrap();
+    use hir::{CanonicalConstValueV1 as S, CanonicalValueConstantV1 as C};
     assert_eq!(
-        hir::CanonicalExportConstValuesV1::from_export_hir(&module),
-        Err(hir::ExportConstValueBuildError::ValueTypeMismatch {
-            property: persistent,
-            value: hir::CanonicalConstValueKindV1::Integer(hir::IntegerKind::SIGNED_32),
-            actual_type: Some(hir::CanonicalConstValueKindV1::Boolean),
-        })
+        value.value(),
+        &C::Tuple(vec![
+            C::Unit,
+            C::Tuple(vec![
+                C::Scalar(S::String("first".into())),
+                C::Scalar(S::String("second".into()))
+            ])
+        ])
     );
 }

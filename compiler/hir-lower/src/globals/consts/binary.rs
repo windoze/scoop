@@ -188,6 +188,7 @@ impl Lowerer {
             hir::ConstPropertyValue::Integer(_)
             | hir::ConstPropertyValue::Float(_)
             | hir::ConstPropertyValue::Char(_) => lhs.ty,
+            _ => unreachable!("scalar operators produce scalar values"),
         };
         Some(EvaluatedConst { value, ty })
     }
