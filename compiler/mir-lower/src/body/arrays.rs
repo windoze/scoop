@@ -2,6 +2,8 @@
 
 use super::*;
 
+mod zero;
+
 impl BodyLowerer<'_> {
     pub(super) fn lower_array_expression(&mut self, expr: &hir::Expr) -> smir::Expr {
         let ty = self.lower_type(expr.ty);
@@ -151,6 +153,7 @@ impl BodyLowerer<'_> {
         initializer: &hir::Expr,
         span: Span,
     ) -> smir::Expr {
+        let zero_initializer = self.is_zero_array_initializer(initializer);
         let array_ty = self.lower_type(result_type);
         let mir::Type::Class(array_type) = array_ty else {
             unreachable!("ArrayGenerate has a concrete intrinsic array application")
@@ -215,6 +218,9 @@ impl BodyLowerer<'_> {
                 },
             ),
         });
+        if zero_initializer {
+            return smir::Expr::local(array, array_ty);
+        }
         self.prelude.push(smir::StatementKind::ValDecl {
             local: index,
             init: smir::Expr::integer(mir::MirIntegerConstant::Signed64(0)),

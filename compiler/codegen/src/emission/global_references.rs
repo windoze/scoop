@@ -123,13 +123,23 @@ impl GlobalReferences {
                 self.descriptor(*descriptor);
                 self.globals.insert(*overflow_message);
             }
+            Instruction::ByteCopy {
+                source, array_type, ..
+            } => {
+                self.arrays.insert(*array_type);
+                if let scoop_lir::ByteCopySource::Prefix { array_type, .. } = source {
+                    self.arrays.insert(*array_type);
+                }
+            }
             Instruction::StringCopy {
                 source,
                 target,
                 overflow_message,
                 ..
             } => {
-                if let scoop_lir::StringCopySource::Bytes { array_type, .. } = source {
+                if let scoop_lir::StringCopySource::Bytes { array_type, .. }
+                | scoop_lir::StringCopySource::BytePrefix { array_type, .. } = source
+                {
                     self.arrays.insert(*array_type);
                 }
                 match target {

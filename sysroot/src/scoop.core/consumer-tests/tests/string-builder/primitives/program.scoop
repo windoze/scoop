@@ -1,0 +1,102 @@
+package test.core.tests.string_builder.primitives
+
+import scoop.test.*
+
+@Test
+private class ApiTests {
+    @Test
+    fun integerOverloads() {
+        val builder = StringBuilder(1L)
+        builder.append((-128).toByte()).append(':').append(127.toByte()).append(':')
+        .append((-32768).toShort()).append(':').append(32767.toShort()).append(':')
+        .append(-2147483648).append(':').append(2147483647).append(':')
+        .append(255u.toUByte()).append(':').append(65535u.toUShort()).append(':')
+        .append(4294967295u).append(':').append(18446744073709551615uL)
+        if (
+            builder.toString() !=
+                "-128:127:-32768:32767:-2147483648:2147483647:255:65535:4294967295:18446744073709551615"
+        ) {
+            fail(Some("integer widths"))
+        }
+        builder.clear().append(-9223372036854775808L).append(':').append(9223372036854775807L)
+        if (builder.toString() != "-9223372036854775808:9223372036854775807") {
+            fail(Some("long limits"))
+        }
+        var power = 1L
+        while (power <= 1000000000000000000L) {
+            for (value in power - 1L .. power + 1L) {
+                builder.clear().append(value).append(':').append(-value).append(':').append(
+                    value.toULong()
+                )
+                val expected =
+                    value.toString() + ":" + (-value).toString() + ":" + value.toULong().toString()
+                if (builder.toString() != expected) {
+                    fail(Some("decimal boundary"))
+                }
+            }
+            if (power == 1000000000000000000L) {
+                break
+            }
+            power *= 10L
+        }
+        builder.clear().append(0L).append(0uL).append<Long>(42L)
+        if (builder.toString() != "0042") {
+            fail(Some("zero and generic"))
+        }
+    }
+
+    @Test
+    fun scalarEncodingAndLongInterpolation() {
+        val builder = StringBuilder(1L)
+        builder.append('\u0000').append('\u007F').append('\u0080').append('\u07FF')
+        .append('\u0800').append('雪').append('\uFFFF').append('🚀')
+        .append(true).append(false)
+        if (builder.toString() != "\u0000\u007F\u0080\u07FF\u0800雪\uFFFF🚀truefalse") {
+            fail(Some("UTF-8"))
+        }
+        builder.clear().append(1.25f).append(':').append(1.25)
+        if (builder.toString() != "1.25:1.25") {
+            fail(Some("floating fallback"))
+        }
+        val value = 42L
+        val text = f"${value}:${true}:${'雪'}:${value}:${false}:${'🚀'}"
+        if (text != "42:true:雪:42:false:🚀") {
+            fail(Some("long interpolation"))
+        }
+    }
+
+    @Test
+    fun capacityAndReuse() {
+        var rejected = false
+        try {
+            val unused = StringBuilder(-1L)
+        } catch (e: IllegalArgumentException) {
+            rejected = true
+        }
+        if (!rejected) {
+            fail(Some("negative capacity"))
+        }
+        val builder = StringBuilder(8192L)
+        if (builder.toString() != "") {
+            fail(Some("reserved empty"))
+        }
+        for (index in 0L until 4096L) {
+            builder.append('雪')
+        }
+        val snapshot = builder.toString()
+        if (snapshot.byteLength != 12288L || snapshot.charLength != 4096L) {
+            fail(Some("growth"))
+        }
+        for (round in 0L until 8L) {
+            val same = builder.clear().append(round)
+            gcCollect()
+            if (same.toString() != round.toString() || snapshot.charLength != 4096L) {
+                fail(Some("reuse snapshot"))
+            }
+        }
+        builder.clear().clear().append("")
+        if (builder.toString() != "") {
+            fail(Some("empty reuse"))
+        }
+    }
+}

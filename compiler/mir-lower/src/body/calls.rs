@@ -207,7 +207,11 @@ impl BodyLowerer<'_> {
                 | hir::StringIntrinsic::SliceBytes
                 | hir::StringIntrinsic::FromBytes
                 | hir::StringIntrinsic::ToBytes
-                | hir::StringIntrinsic::ToMutableBytes => {
+                | hir::StringIntrinsic::ToMutableBytes
+                | hir::StringIntrinsic::FromBytePrefixUnchecked
+                | hir::StringIntrinsic::CopyToBytesUnchecked
+                | hir::StringIntrinsic::CopyBytePrefixUnchecked
+                | hir::StringIntrinsic::CopyRawBytesUnchecked => {
                     return self.lower_string_copy(kind, args, result_ty);
                 }
             },

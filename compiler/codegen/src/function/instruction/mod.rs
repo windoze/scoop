@@ -6,6 +6,7 @@ mod aggregates;
 mod arrays;
 mod atomics;
 mod boxing;
+mod byte_copy;
 mod callbacks;
 mod data_borrow;
 mod enums;
@@ -27,6 +28,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         match instruction {
             Instruction::StringConcat { .. } => self.emit_string_concat(instruction),
             Instruction::StringCopy { .. } => self.emit_string_copy(instruction),
+            Instruction::ByteCopy { .. } => self.emit_byte_copy(instruction),
             Instruction::StringByteLoad { .. } | Instruction::StringByteStore { .. } => {
                 self.emit_string_byte(instruction)
             }

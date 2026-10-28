@@ -85,6 +85,7 @@ pub(super) struct BodyLowerer<'a> {
     pub(super) shell: &'a mut mir::Module,
     /// HIR local -> MIR local (same declaration order per body).
     pub(super) local_map: HashMap<hir::LocalId, mir::LocalId>,
+    pub(super) zero_array_initializers: std::collections::HashSet<mir::LocalId>,
     /// Active concrete-HIR loop identities explicitly remapped into the
     /// private structured construction IR for this callable.
     pub(super) active_loops: Vec<(hir::LoopId, smir::LoopId)>,

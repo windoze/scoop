@@ -477,7 +477,7 @@ TLAB bump 由 codegen GC 层消费同一布局常量与运行时规范 3.1 的�
 
 nursery 容量、full 压力、可选 survivor 与 minor／full 分片标记归 runtime 私有实现（运行时规范 3.1、3.9），不作为 LIR 常量、构建 profile 或 `.slib` 字段导出；现有生成代码继续只消费稳定的 allocation context 与分配慢入口。调整这些策略不重编依赖或改变精确 roots；generated card store 在 mutator 阶段仍只写 1，collector 私有的保留卡状态不进入生成代码。分片之间不移动对象、不并发扫描普通字段，复用已有引用写入屏障记录已发布 owner 的改写；minor 清除扫描卡前保留最终 remembered 回写所需位图，年轻初始化屏障省略的既有证明仍成立。各片继续通过原 safepoint 与根计划停稳／恢复，普通 ABI 消费者无需感知某次暂停是否完成整个周期。
 
-该共享快路径沿用 runtime ABI contract 17 引入的卡组登记，当前统一 contract 为 26，metadata ABI 9 和 `.slib` 容器格式保持。旧 ABI 产物必须按现有 runtime contract 兼容性边界重建；不添加混合布局或运行时全堆扫描的兼容模式。region prefix 和卡组布局由 codegen GC 模块与 runtime 共同实现，LIR 仍只承载完整托管写入及实际 runtime 符号合同。
+该共享快路径沿用 runtime ABI contract 17 引入的卡组登记，当前统一 contract 为 27，metadata ABI 9 和 `.slib` 容器格式保持。旧 ABI 产物必须按现有 runtime contract 兼容性边界重建；不添加混合布局或运行时全堆扫描的兼容模式。region prefix 和卡组布局由 codegen GC 模块与 runtime 共同实现，LIR 仍只承载完整托管写入及实际 runtime 符号合同。
 
 ARM64 默认对 ArraySet 的单引用槽屏障使用已有数组对象基址查询 mapping；按运行时规范 3.1 的 mapping 合同读取 GC 字大小位，选择 small 的 16 MiB 对齐地址或 large 的首行前缀地址，再读取 owner region。只选择地址而不预读两条路径，共用原 region prefix 与登记；实际 card 地址仍取被写入的元素引用槽；一个对象的全部存储属于同一 mapping。多引用值继续使用原范围屏障，不按元素大小推定相邻槽属于同一卡。release 可以按 2.19 提升有界内层中的不变查询；其他 profile 与未命中路径保持原位置的完整操作。x86_64 的直接查询在大数组随机写入中回退，默认保留已有页表生成路径；没有按函数名称选择优化或新增策略开关。
 
@@ -647,7 +647,7 @@ Export HIR 的当前目标测试目录按语言规范 16.4 保留 typed class／
 
 测试用途产物在可选 manifest section `org.scoop-lang.manifest/test-directory/1` 中保存该目录的展示投影：容器限定名、用例方法名与完整显示名、各自的 Cone-relative 源码路径及一基行列、忽略原因。目录按前端顺序嵌套保存容器与用例，不通过解析显示名恢复关系；可执行调用仍使用 HIR 中的 typed 引用。该 section 不参与 Compile／Link 的语义要求，受普通 ArtifactFingerprint 覆盖；生产产物不写入，测试产物即使无容器也写入空目录。manifest summary 在读取边界解码并复用该投影，缓存命中不重新发现测试或加载完整 HIR。
 
-入口的四种 ABI 形态、完整签名、root gateway 的实际 C ABI 与定义指纹随各层 typed entry 保留，并进入对应语义／ABI fingerprints 和承载它们的 section profile。Link 投影保留精确 entry、gateway 与 failure-root 引用，使 artifact-only 链接无需源码或名称推断。当前 runtime ABI contract 26、metadata ABI 9 同时进入兼容检查、runtime 与启动对象的构建输入；旧 ABI 的薄接口、物理签名、poll／card／初始化发布／Context 槽合同及产物必须重建或拒绝，不能用缺省字段或 bitcast 混用。contract 20 同时退役无生产消费者的标量格式化、hash、equals 及专用打印 C 入口；沿用现有 runtime 输入更新与 ABI 重建边界，不增加兼容分支。新 ABI 的 debug／release 仍互通；各批次的实际实现与 section 版本见 [M34 记录](../milestone34/PROGRESS.md)。
+入口的四种 ABI 形态、完整签名、root gateway 的实际 C ABI 与定义指纹随各层 typed entry 保留，并进入对应语义／ABI fingerprints 和承载它们的 section profile。Link 投影保留精确 entry、gateway 与 failure-root 引用，使 artifact-only 链接无需源码或名称推断。当前 runtime ABI contract 27、metadata ABI 9 同时进入兼容检查、runtime 与启动对象的构建输入；旧 ABI 的薄接口、物理签名、poll／card／初始化发布／Context 槽合同及产物必须重建或拒绝，不能用缺省字段或 bitcast 混用。contract 20 同时退役无生产消费者的标量格式化、hash、equals 及专用打印 C 入口；沿用现有 runtime 输入更新与 ABI 重建边界，不增加兼容分支。新 ABI 的 debug／release 仍互通；各批次的实际实现与 section 版本见 [M34 记录](../milestone34/PROGRESS.md)。
 
 operator equals 的成员签名、operator 标记、已绑定调用及必要的派生正文使用既有 callable、模板与 exact-type metadata。`Equals<T>.equals` 的显式 conformance、接口 slot、实现和分派适配使用普通 interface metadata；该 slot 使用源码显式声明的 operator 实现，不按结构比较补齐接口，也不保存 Equals 专用的 core protocol 或条件接口规则。
 
@@ -1349,6 +1349,8 @@ MIR 的 StringCopy 保存完整操作与按序求值的输入，LIR 携带实际
 
 普通 UTF-8 构造还使用内部 `string_allocate_zeroed(Long): String`、unsafe `string_byte_at_unchecked(String, Long): Byte` 与 unsafe `string_set_byte_unchecked(String, Long, Byte): Unit`（String intrinsic tags 9～11）。零字节分配作为 StringCopy 的零初始化源复用现有大小检查、TD、TLAB／慢分配，不增加第二次清零；MIR 的 typed 字节操作及 LIR 的字节 load／store 只表达既有表示与前置条件，不增加扫描算法或 C 后备。字节范围由普通 core 正文保证，写只用于私有构造中的对象，见 runtime 2.4；普通受检读取仍可用于其他内部调用。所有 profile、跨 Cone 正文导出及产物消费遵守同一操作合同，配套 core／依赖产物按现有输入更新重建。
 
+StringBuilder 使用四项内部 unsafe 表示复制（String intrinsic tags 12～15，原 tags 不变）：`string_from_byte_prefix_unchecked(MutableArray<UInt8>, Long): String`、`string_copy_to_bytes_unchecked(String, MutableArray<UInt8>, Long): Unit`、`bytes_copy_prefix_unchecked(MutableArray<UInt8>, MutableArray<UInt8>, Long): Unit`、`bytes_copy_raw_unchecked(Ptr<Byte>, Long, MutableArray<UInt8>, Long): Unit`。数组前缀长度和目标起始位置由普通 core 保证有效；写入源／目标范围不重叠。String 来源复制全部字节，数组来源复制指定前缀，原生来源复制指定长度。MIR StringCopy 保存完整源、目标与按序求值的操作数；分配结果使用原 LIR StringCopy 与根计划，写已有数组使用无 safepoint 的 typed ByteCopy。目标写入是不可删除、不可视作纯读取的副作用。托管输入以实际数组布局定位，分配后从重定位引用取地址，原生源要求跨分配稳定；不引入每次追加的 pin／callback 或通用容器 runtime。
+
 Char 的单标量 UTF-8 编码使用普通 core 正文与四字节 GC-free 局部缓冲，复用上述复制；零字节不是终止符。整数十进制编码复用同一稳定缓冲复制。调用点内联与常量传播决定编码正文是否展开，LLVM 按已知长度降低 memcpy；动态长复制保留共享 memcpy，不复制扫描算法。debug 使用普通分配后备，release 复用已有 TLAB／慢路径。fromChars、严格／lossy UTF-8 解码与字符索引定位共享普通 core helper，不再调用旧 C 算法。
 
 普通正文对已解析的普通方法 application 与直接函数引用使用同一可移植调用合同；不能因为属性 getter 或方法以本地 method application 表示，就丢弃包含该调用的完整正文。沿既有引用记录保留 exact owner、receiver、参数和访问器身份，泛型替换仍由原具体化流程处理；正文可用性不代替 consumer 的调用点评分。
@@ -1366,7 +1368,9 @@ release 的短插值复用上述 MIR 融合，二至八段一次分配最终结�
 
 普通容器布局和内部存储策略不属于编译器协议。其模板、接口调用、快照和字符串构建使用普通类型/ABI/GC 合同。
 
-ArrayList 以普通 MutableArray<MaybeUninit<T>> 实现容量存储，elementCount 与扩容、插删、清零均为 core 正文；编译器不按 ArrayList 名称提供特殊 shape、分配或 initialized-length 字段。StringBuilder 继续持有 ArrayList<String>，只把拼接后备的参数及元素描述适配为实际 wrapper 类型；沿用完整容量 scan。
+数组构造若初始化器是正文仅返回已知全零值的直接 lambda（或其不可变局部副本），可复用分配器已经清零的元素存储，省去逐项调用／写零循环。支持无副作用的 MaybeUninit.uninit、零整数、false、Unit 及其全零值组合；保留 count 与 initializer 表达式的求值、负数检查和分配。其他 initializer（包括返回零但含用户调用、写入或异常的正文）仍逐项执行，不依类型名跳过任意用户代码。
+
+ArrayList 以普通 MutableArray<MaybeUninit<T>> 实现容量存储，elementCount 与扩容、插删、清零均为 core 正文；编译器不按 ArrayList 名称提供特殊 shape、分配或 initialized-length 字段。ArrayList 将容量检查与冷扩容正文分开，扩容先取得清零数组，再复制有效前缀；循环可捕获稳定的 backing 与计数，以复用普通范围分析。StringBuilder 以普通 MutableArray<UInt8> 和 byteCount 保存内容，公开容量参数、primitive 重载和快照行为见语言规范 11.6。整数重载复用既有 writer，先格式化到 GC-free 栈缓冲，再按实际长度复制；不得将可移动数组的未固定内部地址传入 managed formatter。
 
 ### 2.16 Task-local Context
 

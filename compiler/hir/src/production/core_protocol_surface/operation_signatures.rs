@@ -15,6 +15,10 @@ pub(super) fn expected_operation_signature(
     let boolean = SignatureTypeKey::Nominal(fundamental.boolean);
     let string = SignatureTypeKey::Nominal(fundamental.string);
     let binder = SignatureTypeKey::Binder { depth: 0, index: 0 };
+    let byte_buffer = signature_application(
+        fundamental.mutable_array,
+        signature_integer(fundamental, crate::IntegerKind::UNSIGNED_8),
+    );
 
     let (effect, parameters, result) = match kind {
         IntrinsicFunctionKind::Atomic(_)
@@ -141,6 +145,32 @@ pub(super) fn expected_operation_signature(
                     },
                     signature_integer(fundamental, crate::IntegerKind::SIGNED_8),
                 ),
+            ),
+            crate::StringIntrinsic::FromBytePrefixUnchecked => {
+                (Effect::Ordinary, vec![byte_buffer, long], string)
+            }
+            crate::StringIntrinsic::CopyToBytesUnchecked => (
+                Effect::Ordinary,
+                vec![string, byte_buffer, long],
+                unit.clone(),
+            ),
+            crate::StringIntrinsic::CopyBytePrefixUnchecked => (
+                Effect::Ordinary,
+                vec![byte_buffer.clone(), byte_buffer, long],
+                unit.clone(),
+            ),
+            crate::StringIntrinsic::CopyRawBytesUnchecked => (
+                Effect::Ordinary,
+                vec![
+                    SignatureTypeKey::RawPointer(Box::new(signature_integer(
+                        fundamental,
+                        crate::IntegerKind::SIGNED_8,
+                    ))),
+                    long.clone(),
+                    byte_buffer,
+                    long,
+                ],
+                unit.clone(),
             ),
         },
         IntrinsicFunctionKind::CoroutineStart => {

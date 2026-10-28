@@ -2093,23 +2093,35 @@ enum Option<T> {
 通用字符串累积 API，也是字符串插值（第 6 章）的后备实现，提供以下公开接口：
 
 ```
-public class StringBuilder : ToString {
+public class StringBuilder public constructor(initialCapacity: Long = 0L) : ToString {
     public fun append(value: String): StringBuilder
+    public fun append(value: Int8): StringBuilder
+    public fun append(value: Int16): StringBuilder
+    public fun append(value: Int): StringBuilder
+    public fun append(value: Long): StringBuilder
+    public fun append(value: UInt8): StringBuilder
+    public fun append(value: UInt16): StringBuilder
+    public fun append(value: UInt): StringBuilder
+    public fun append(value: ULong): StringBuilder
+    public fun append(value: Char): StringBuilder
+    public fun append(value: Boolean): StringBuilder
     public fun <T : ToString> append(value: T): StringBuilder
     public fun clear(): StringBuilder
     public override fun toString(): String
 }
 ```
 
-公开零参数构造创建空 builder，也可由用户代码直接使用。两种 append 都追加到当前末尾并返回同一 builder；generic append 在本次调用中恰好执行一次 `value.toString()`，完成后才追加结果，不保存原始对象或延迟转换。转换失败不追加该值，已发生的用户副作用不回滚；转换期间对同一 builder 的重入修改按普通调用顺序生效。
+构造创建空 builder，initialCapacity 以 UTF-8 字节计，仅预留存储；负数抛 IllegalArgumentException。缺省实参保留零参数调用。容量不是长度，也不是追加次数的上限。
 
-toString 返回当前所有 parts 按顺序连接的 String 内容快照，空 builder 返回空串；它不清空、关闭或冻结 builder。重复 toString 的内容相同，后续 append 不影响既有结果，不承诺结果引用身份不同。parts 不以固定槽数限制追加次数；增长、总 UTF-8 字节数与最终分配大小只受 10.6 的真实表示/分配边界限制。
+所有 append 都追加到当前末尾并返回同一 builder。整数、Char 与 Boolean 重载产生与各自 ToString 相同的内容；整数复用普通 core 十进制格式化，Char 编码一个 Unicode 标量，Boolean 追加固定文本，不分配中间 String。Float／Double 及其他值继续使用 generic append，显式泛型调用仍遵守普通重载规则。
 
-`toString` 的时间复杂度为 O(partCount + totalByteLength)。builder 不要求显式 close，不提供 off-heap 存储或 release hook 接口。
+generic append 在本次调用中恰好执行一次 `value.toString()`，完成后才读取 builder 当前状态并追加结果，不保存原始对象或延迟转换。转换失败不追加该值，已发生的用户副作用不回滚；转换期间对同一 builder 的 append、clear 与扩容按普通调用顺序生效。
 
-clear 丢弃全部已追加片段并返回同一 builder，允许重新使用；已取得的 String 快照不变。
+toString 返回当前内容的独立 String 快照，空 builder 返回空串；它不清空、关闭或冻结 builder。后续 append／clear 不影响既有结果，不承诺结果引用身份不同。时间复杂度为 O(byteCount)，非空快照复制有效字节前缀。增长、总 UTF-8 字节数与最终分配大小只受 10.6 的真实表示／分配边界限制。
 
-实现复用普通 `ArrayList<String>` 保存 parts 和扩容；拼接后备仅消费 backing 中由列表保证已初始化的前缀，不另建容量管理或复制临时 String 数组。
+clear 将有效字节数置零、保留容量并返回同一 builder，时间复杂度 O(1)，允许重新使用。builder 不要求显式 close，不提供 off-heap 存储或 release hook 接口。
+
+实现使用普通 MutableArray<UInt8> 与有效字节数，只有有效前缀构成当前 UTF-8 内容。扩容按几何增长且至少满足本次追加所需容量，仅复制有效前缀；不共享可变 backing 给返回的 String。普通字段与数组遵守现有 GC 合同，不引入容器专用表示。
 
 ### 11.7 异常
 

@@ -54,6 +54,12 @@ impl BodyLowerer<'_> {
                 target: self.active_loop(*target),
             },
             hir::StatementKind::ValDecl { pattern, init } => {
+                if let hir::Pattern::Binding { local } = pattern {
+                    let local = self.local_map[local];
+                    if !self.locals[local].mutable && self.is_zero_array_initializer(init) {
+                        self.zero_array_initializers.insert(local);
+                    }
+                }
                 self.lower_val_decl(pattern, init, span, out);
                 return;
             }

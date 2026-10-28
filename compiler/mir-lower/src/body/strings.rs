@@ -22,6 +22,26 @@ impl BodyLowerer<'_> {
             },
             (S::FromBytes, [bytes]) => Copy::FromBytes(self.lower_expr(bytes)),
             (S::ToBytes | S::ToMutableBytes, [string]) => Copy::ToBytes(self.lower_expr(string)),
+            (S::FromBytePrefixUnchecked, [array, length]) => Copy::FromBytePrefix {
+                array: self.lower_expr(array),
+                length: self.lower_expr(length),
+            },
+            (S::CopyToBytesUnchecked, [string, target, start]) => Copy::StringIntoBytes {
+                string: self.lower_expr(string),
+                target: self.lower_expr(target),
+                start: self.lower_expr(start),
+            },
+            (S::CopyBytePrefixUnchecked, [source, target, length]) => Copy::BytePrefixIntoBytes {
+                source: self.lower_expr(source),
+                target: self.lower_expr(target),
+                length: self.lower_expr(length),
+            },
+            (S::CopyRawBytesUnchecked, [pointer, length, target, start]) => Copy::RawIntoBytes {
+                pointer: self.lower_expr(pointer),
+                length: self.lower_expr(length),
+                target: self.lower_expr(target),
+                start: self.lower_expr(start),
+            },
             _ => unreachable!("the typed core String copy signature is complete"),
         };
         smir::Expr::new(

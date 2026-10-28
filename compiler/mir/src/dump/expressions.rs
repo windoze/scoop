@@ -82,6 +82,10 @@ pub(super) fn dump_expr(
                 crate::StringCopyOperation::Slice { .. } => "slice",
                 crate::StringCopyOperation::FromBytes(_) => "from_bytes",
                 crate::StringCopyOperation::ToBytes(_) => "to_bytes",
+                crate::StringCopyOperation::FromBytePrefix { .. } => "from_byte_prefix",
+                crate::StringCopyOperation::StringIntoBytes { .. } => "string_into_bytes",
+                crate::StringCopyOperation::BytePrefixIntoBytes { .. } => "byte_prefix_into_bytes",
+                crate::StringCopyOperation::RawIntoBytes { .. } => "raw_into_bytes",
             };
             out.push_str(&format!("{pad}StringCopy.{name}\n"));
             for value in operation.operands() {
