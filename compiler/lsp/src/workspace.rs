@@ -35,6 +35,9 @@ struct Options {
     sysroot: Option<PathBuf>,
     purpose: Purpose,
     artifact_search_roots: Vec<PathBuf>,
+    package_manager: Option<PathBuf>,
+    package_cache_dir: Option<PathBuf>,
+    lockfile: Option<PathBuf>,
     configurations: Vec<Configuration>,
     active_configuration: Option<String>,
 }
@@ -48,6 +51,9 @@ struct Configuration {
     sysroot: Option<PathBuf>,
     purpose: Option<Purpose>,
     artifact_search_roots: Option<Vec<PathBuf>>,
+    package_manager: Option<PathBuf>,
+    package_cache_dir: Option<PathBuf>,
+    lockfile: Option<PathBuf>,
 }
 
 #[derive(Default)]
@@ -139,7 +145,7 @@ impl WorkspaceSettings {
                     roots.insert(root.clone());
                 }
                 for path in documents.open_paths() {
-                    if !path.starts_with(&root) {
+                    if root.join("Cone.toml").is_file() || !path.starts_with(&root) {
                         continue;
                     }
                     for ancestor in path
@@ -261,6 +267,22 @@ fn project(
     let search = entry
         .and_then(|entry| entry.artifact_search_roots.as_ref())
         .unwrap_or(&options.artifact_search_roots);
+    let package_manager = entry
+        .and_then(|entry| entry.package_manager.clone())
+        .or_else(|| options.package_manager.clone())
+        .map(Ok)
+        .unwrap_or_else(|| {
+            std::env::current_exe().map(|path| {
+                path.with_file_name(format!("scoop-pm{}", std::env::consts::EXE_SUFFIX))
+            })
+        })
+        .map_err(|error| error.to_string())?;
+    let package_cache = entry
+        .and_then(|entry| entry.package_cache_dir.as_ref())
+        .or(options.package_cache_dir.as_ref());
+    let lockfile = entry
+        .and_then(|entry| entry.lockfile.as_ref())
+        .or(options.lockfile.as_ref());
     Ok(ProjectConfiguration {
         name: name.to_owned(),
         root: root.clone(),
@@ -271,6 +293,9 @@ fn project(
             .into(),
         sysroot: absolute(&root, &sysroot),
         artifact_search_roots: search.iter().map(|path| absolute(&root, path)).collect(),
+        package_manager: absolute(&root, &package_manager),
+        package_cache: package_cache.map(|path| absolute(&root, path)),
+        lockfile: lockfile.map(|path| absolute(&root, path)),
     })
 }
 

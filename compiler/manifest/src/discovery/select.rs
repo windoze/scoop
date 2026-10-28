@@ -8,26 +8,21 @@ pub(super) struct SelectedRoot {
 }
 
 pub(super) fn selected_roots(
-    manifest: &LoadedConeManifest,
+    root: &Path,
+    sources: &SourceSelection,
+    tests: Option<&SourceSelection>,
     target: TargetProfileId,
-    include_tests: bool,
 ) -> Result<Vec<SelectedRoot>, SourceDiscoveryError> {
     let mut roots = Vec::new();
     append_roots(
-        manifest.real_root(),
-        manifest.parsed().semantic().sources(),
+        root,
+        sources,
         Some(target),
         SourceRole::Production,
         &mut roots,
     )?;
-    if include_tests {
-        append_roots(
-            manifest.real_root(),
-            manifest.parsed().tests().sources(),
-            Some(target),
-            SourceRole::Test,
-            &mut roots,
-        )?;
+    if let Some(tests) = tests {
+        append_roots(root, tests, Some(target), SourceRole::Test, &mut roots)?;
     }
     Ok(roots)
 }

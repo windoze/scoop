@@ -2,11 +2,12 @@ use super::select::SelectedRoot;
 use super::*;
 
 pub(super) fn select(
-    manifest: &LoadedConeManifest,
+    root: &Path,
+    identity: scoop_identity::ConeIdentity,
     roots: Vec<SelectedRoot>,
 ) -> Result<SelectedManifestSources, SourceDiscoveryError> {
-    let (candidates, directories) = candidates(manifest.real_root(), roots)?;
-    finish(manifest, candidates, directories)
+    let (candidates, directories) = candidates(root, roots)?;
+    finish(root, identity, candidates, directories)
 }
 
 pub(super) fn formatting(
@@ -66,7 +67,8 @@ fn candidates(
 }
 
 fn finish(
-    manifest: &LoadedConeManifest,
+    root: &Path,
+    identity: scoop_identity::ConeIdentity,
     mut candidates: Vec<(SourceRole, SourceCandidate)>,
     directories: Vec<(ConeRelativePath, SourceRole)>,
 ) -> Result<SelectedManifestSources, SourceDiscoveryError> {
@@ -75,7 +77,7 @@ fn finish(
         .any(|(role, _)| *role == SourceRole::Production)
     {
         return Err(SourceDiscoveryError::new(
-            manifest.manifest_path().to_path_buf(),
+            root.join("Cone.toml"),
             SourceDiscoveryErrorKind::EmptySourceSet,
         ));
     }
@@ -93,7 +95,7 @@ fn finish(
         }
     }
     let mut sources = candidates.into_iter().map(|(role, candidate)| {
-        let identity = SourceIdentity::new(manifest.identity(), candidate.logical_path);
+        let identity = SourceIdentity::new(identity, candidate.logical_path);
         SelectedSource::new(
             identity,
             SourceDisplayLocator::new(candidate.display_path.clone()),

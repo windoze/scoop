@@ -5,7 +5,9 @@ use std::{
     time::SystemTime,
 };
 
-use scoop_manifest::{LoadedConeManifest, ManifestRootLocator};
+use scoop_identity::ConeIdentity;
+use scoop_manifest::LoadedConeManifest;
+use scoop_protocol::package::ExpandedConeInputV1;
 use scoop_source::{SourceId, SourceText};
 
 use super::LoadError;
@@ -34,12 +36,12 @@ impl FileStamp {
 #[derive(Default)]
 pub(super) struct FileInputs {
     disk: HashMap<PathBuf, (FileStamp, SourceText)>,
-    manifests: HashMap<PathBuf, ManifestInput>,
+    manifests: HashMap<(String, ConeIdentity, PathBuf), ManifestInput>,
 }
 
 struct ManifestInput {
-    text: SourceText,
-    result: Result<Arc<LoadedConeManifest>, LoadError>,
+    config: ExpandedConeInputV1,
+    manifest: Arc<LoadedConeManifest>,
 }
 
 impl FileInputs {
@@ -70,49 +72,45 @@ impl FileInputs {
         Ok((id, text))
     }
 
-    pub(super) fn manifest(
+    pub(super) fn expanded(
         &mut self,
         host: &mut AnalysisHost,
-        overlays: &BTreeSet<PathBuf>,
-        root: &Path,
+        configuration: &str,
+        root: ConeIdentity,
+        config: ExpandedConeInputV1,
     ) -> Result<Arc<LoadedConeManifest>, LoadError> {
-        let locator = if root.file_name().is_some_and(|name| name == "Cone.toml") {
-            ManifestRootLocator::exact_manifest_file(root)
-        } else {
-            ManifestRootLocator::cone_directory(root)
-        };
-        let located = locator
-            .resolve()
-            .map_err(|error| LoadError::new(error.path(), &error))?;
-        let path = located.manifest_path();
-        let (_, text) = self.read(host, overlays, path)?;
-        if let Some(previous) = self.manifests.get(path)
-            && previous.text == text
+        let path = config
+            .manifest_path
+            .to_path_buf()
+            .map_err(|error| LoadError::new(PathBuf::new(), error))?;
+        let key = (configuration.to_owned(), root, path.clone());
+        host.set_file_text(path.clone(), SourceText::new(config.manifest_text.clone()));
+        if let Some(previous) = self.manifests.get(&key)
+            && previous.config == config
         {
-            return previous.result.clone();
+            return Ok(previous.manifest.clone());
         }
-        let parsed = scoop_toolchain::parse_cone_manifest(text.as_str()).map_err(|error| {
-            let mut diagnostic = LoadError::new(path, &error);
-            if let Some(span) = error.span() {
-                diagnostic = diagnostic.with_span(span.range());
-            }
-            diagnostic
-        });
-        let path = path.to_owned();
-        let result = parsed.and_then(|parsed| {
-            located
-                .with_parsed(text.as_str().to_owned(), parsed)
-                .map(Arc::new)
-                .map_err(|error| LoadError::new(error.path(), &error))
-        });
+        let manifest = Arc::new(
+            LoadedConeManifest::from_expanded(
+                config
+                    .root
+                    .to_path_buf()
+                    .map_err(|error| LoadError::new(&path, error))?,
+                path.clone(),
+                config.manifest_text.clone(),
+                config.manifest.clone(),
+                config.metadata.clone(),
+            )
+            .map_err(|error| LoadError::new(&path, error))?,
+        );
         self.manifests.insert(
-            path,
+            key,
             ManifestInput {
-                text,
-                result: result.clone(),
+                config,
+                manifest: manifest.clone(),
             },
         );
-        result
+        Ok(manifest)
     }
 }
 

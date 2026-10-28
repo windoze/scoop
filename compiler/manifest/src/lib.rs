@@ -19,8 +19,9 @@ mod single_file;
 pub use discovery::{
     DiscoveredManifestSources, DiscoveredSource, DiscoveryIoOperation, SelectedManifestSources,
     SelectedSource, SourceDiscoveryError, SourceDiscoveryErrorKind, SourceDisplayLocator,
-    discover_manifest_sources, discover_manifest_sources_for_tests, select_format_sources,
-    select_manifest_format_sources, select_manifest_sources, select_manifest_sources_for_tests,
+    discover_manifest_sources, discover_manifest_sources_for_tests, select_cone_sources,
+    select_format_sources, select_manifest_format_sources, select_manifest_sources,
+    select_manifest_sources_for_tests,
 };
 pub use input::{
     CurrentConeInput, CurrentConeOperandError, CurrentConeOperandErrorKind,

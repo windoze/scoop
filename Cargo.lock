@@ -1000,11 +1000,14 @@ dependencies = [
  "scoop-lir",
  "scoop-manifest",
  "scoop-parser",
+ "scoop-process",
  "scoop-protocol",
  "scoop-slib",
  "scoop-source",
  "scoop-syntax",
  "scoop-toolchain",
+ "serde",
+ "serde_json",
  "tempfile",
 ]
 

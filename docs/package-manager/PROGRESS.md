@@ -117,6 +117,12 @@ PM 生成和维护 `Cone.lock`；`scoop` 消费锁定图及其本地投影，向
 - 覆盖只存在于本次请求，不写回文件、不改 lock、不发布准备记录；关闭覆盖后恢复磁盘及既有缓存结果。metadata 强制离线，不把输入文本作为触发下载或更新依赖的理由。
 - macOS/Linux 的 workspace/PM lint、protocol 43 项与 PM 回归通过，新增 2 个真实 CLI 场景覆盖 workspace/path 覆盖、依赖约束冲突、诊断位置、新成员及无 lock；测试中的继承字段和源码选择语法已按现有合同修正并复跑闭合。LSP 消费这条接口仍在实施中。
 
+### LSP 消费锁定项目模型
+
+- 分析宿主通过配套 PM 的 members/metadata --offline 消费精确图，移除原来的清单依赖查找；每个 workspace 成员独立取得实际绑定，根成员不受 default-members 排除。缺少适用 lock 的成员保留源码语法与 workspace 符号，不用空依赖图替代完整项目。
+- 未保存清单沿 overlays 协议进入 PM；Cone.lock 变化参与监听。sysroot 源码导航只使用本地 members 的源码选择，依赖语义仍来自预编译产物。新增配套 PM、包缓存和 lockfile 配置，并同步 VS Code 配置及说明。
+- macOS/Linux 的 manifest、analysis、LSP Rust 回归与 lint 通过。真实 LSP 会话覆盖源码/预编译依赖、未保存文本、安装源码导航，以及 workspace 的 Git/path 不同版本、非默认根、缺锁成员和 lock 不变；Mac 原会话与新增组合场景分别运行，Linux 同一正式 fixture 的三个进程场景全部通过。扩展定向 lint/类型检查及单元测试通过；全目录 Biome 检查会扫描现有示例 target 产物，因此使用变更文件检查。未运行 VS Code GUI 宿主验收。
+
 ## 验证记录
 
 - `cargo clippy --workspace --all-targets` 通过。

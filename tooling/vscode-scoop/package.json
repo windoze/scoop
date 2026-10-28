@@ -230,6 +230,18 @@
                 "items": {
                   "type": "string"
                 }
+              },
+              "packageManager": {
+                "type": "string",
+                "minLength": 1
+              },
+              "packageCacheDir": {
+                "type": "string",
+                "minLength": 1
+              },
+              "lockfile": {
+                "type": "string",
+                "minLength": 1
               }
             }
           },
@@ -251,6 +263,24 @@
           "description": "Trace LSP traffic in the Scoop LSP output channel.",
           "scope": "window",
           "markdownDescription": "LSP trace verbosity. Enable tracing by setting the Scoop LSP output channel log level to Trace (Developer: Set Log Level)."
+        },
+        "scoop.packageManager": {
+          "type": "string",
+          "default": "",
+          "description": "Companion scoop-pm executable. Empty uses the executable beside scoop-lsp. Relative paths are resolved against the configuration root.",
+          "scope": "window"
+        },
+        "scoop.packageCacheDir": {
+          "type": "string",
+          "default": "",
+          "description": "Local package cache for analysis. Empty uses SCOOP_PACKAGE_CACHE_DIR or ~/.scoop/packages. Analysis never downloads missing packages.",
+          "scope": "window"
+        },
+        "scoop.lockfile": {
+          "type": "string",
+          "default": "",
+          "description": "Explicit Cone.lock path for analysis, relative to the configuration root or absolute. Empty uses the workspace lock.",
+          "scope": "window"
         }
       }
     }

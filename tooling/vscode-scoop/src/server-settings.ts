@@ -7,6 +7,9 @@ const optionNames = [
   "sysroot",
   "purpose",
   "artifactSearchRoots",
+  "packageManager",
+  "packageCacheDir",
+  "lockfile",
   "configurations",
   "activeConfiguration",
 ] as const;
