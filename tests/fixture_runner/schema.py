@@ -92,6 +92,7 @@ BUILTINS = {
     "target_profile",
     "symbol_prefix",
     "errno_eloop",
+    "file_not_found_error",
     "python",
 }
 

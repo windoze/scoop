@@ -117,6 +117,8 @@ PTY fixture 声明 `tools = ["scoop", "scoopc", "terminal-host"]`，以普通 ar
 `SCOOP_TEST_PAIRED_TERMINAL_HOST`、`target/debug/terminal-host`。
 runner 仅在选中用例需要时检查该可执行文件，不自动构建工具。
 `${step.result.output}` 等引用前一步实际 JSON；数组使用 `.0`，`.length` 取长度。
+路径的 `.canonical` 按宿主解析绝对路径（Windows 包含 verbatim 前缀），也可表示缺失输入的诊断路径；`.filename` 返回工具或文件的末级名称。`${file_not_found_error}` 保存宿主的文件不存在错误文本，包含系统本地化和 OS error 编号。
+
 文本或 bytes 的 `.hex` 返回十六进制字节表示；文本使用文件系统编码并保留原始字节，
 可组合 `${work.hex}2fff` 这类期望来比较 JSON 中的非 UTF-8 路径。字典的 `hex` 字段仍按普通字段读取。
 传作 argv 时先在 vars 中声明 `raw_hex = "${work.hex}2fff"`，再写 `{hex = "${raw_hex}"}`；

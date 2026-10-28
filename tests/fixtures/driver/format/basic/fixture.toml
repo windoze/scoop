@@ -4,6 +4,11 @@ inputs = ["cone"]
 tools = ["scoop"]
 tags = ["driver", "format"]
 
+[vars]
+one_source = "${work}/cone/src/one.scoop"
+test_source = "${work}/cone/checks/case.scoop"
+platform_source = "${work}/cone/linux/platform.scoop"
+
 [[steps]]
 name = "prepare"
 files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}, {symlink = {from = "${work}/cone/src/one.scoop", to = "${work}/cone/src/alias.scoop"}}]
@@ -16,7 +21,7 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{actual = "${check.result.kind}", equals = "format"}, {actual = "${check.result.success}", equals = false}, {actual = "${check.result.files.length}", equals = 3}, {actual = "${check.result.counts.needs-format}", equals = 3}, {actual = "${check.result.files.0.path}", equals = "${work}/cone/src/one.scoop"}, {actual = "${check.result.files.1.path}", equals = "${work}/cone/checks/case.scoop"}, {actual = "${check.result.files.2.path}", equals = "${work}/cone/linux/platform.scoop"}, {file = "${work}/cone/src/one.scoop", same_as = "${fixture}/cone/src/one.scoop"}]
+checks = [{actual = "${check.result.kind}", equals = "format"}, {actual = "${check.result.success}", equals = false}, {actual = "${check.result.files.length}", equals = 3}, {actual = "${check.result.counts.needs-format}", equals = 3}, {actual = "${check.result.files.0.path}", equals = "${one_source.canonical}"}, {actual = "${check.result.files.1.path}", equals = "${test_source.canonical}"}, {actual = "${check.result.files.2.path}", equals = "${platform_source.canonical}"}, {file = "${work}/cone/src/one.scoop", same_as = "${fixture}/cone/src/one.scoop"}]
 
 [[steps]]
 name = "write"

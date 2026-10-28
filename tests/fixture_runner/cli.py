@@ -100,6 +100,12 @@ def environment(repo, work, fixtures, args):
     target = args.target or (supported[0] if supported else None)
     if target not in supported:
         raise EnvironmentError(f"target {target!r} cannot execute on fixture host {host}")
+    if os.name == "nt":
+        import ctypes
+
+        missing_file = ctypes.FormatError(2).strip()
+    else:
+        missing_file = os.strerror(errno.ENOENT)
     cache = Path(
         args.cache_dir or os.environ.get("SCOOP_CACHE_DIR") or repo / "target/fixture-cache"
     ).resolve()
@@ -116,6 +122,7 @@ def environment(repo, work, fixtures, args):
         "target_profile": TARGET_PROFILES[target],
         "symbol_prefix": "_" if target == "aarch64-apple-darwin" else "",
         "errno_eloop": errno.ELOOP,
+        "file_not_found_error": f"{missing_file} (os error 2)",
         "python": sys.executable,
         "compile_args": ["--target", target],
         "cc_args": [],

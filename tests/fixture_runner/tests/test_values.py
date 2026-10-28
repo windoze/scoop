@@ -25,6 +25,16 @@ class ValueTests(unittest.TestCase):
                 self.assertTrue(value.startswith("\\\\?\\"))
             self.assertEqual(expand("${record.canonical}", {"record": {"canonical": 7}}), 7)
 
+    def test_host_paths_cover_missing_inputs_and_cli_executable_names(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            value = expand("${source.canonical}", {"source": base / "missing.scoop"})
+            self.assertFalse(Path(value).exists())
+            self.assertTrue(Path(value).parent.samefile(base))
+            self.assertEqual(expand("${tool.filename}", {"tool": base / "sco.exe"}), "sco.exe")
+            self.assertEqual(expand("${tool.filename}", {"tool": base / "scoop"}), "scoop")
+            self.assertEqual(expand("${record.filename}", {"record": {"filename": 7}}), 7)
+
     def test_text_and_bytes_hex_compose_raw_arguments_and_json_paths(self):
         context = {"work": "/tmp/中文 path", "suffix": b"/source-\xff.scoop"}
         encoded = "${work.hex}${suffix.hex}"
