@@ -1,6 +1,6 @@
 # 编译期文件／环境 intrinsic 与共享常量设计
 
-状态：设计完成，待实施。日期：2026-10-28。本次只确定源码语义、常量表示、产物共享与输入更新合同，未修改编译器或 core 源码，未生成新 sysroot。
+状态：实施中。日期：2026-10-28。已完成范围与验证见 [PROGRESS.md](PROGRESS.md)；本文同时记录后续实现合同。
 
 权威合同已同步到[语言规范](../specs/SCOOP-SPEC.md) 8.5.3、9.1.2、11.19、12.6、13.1，[实现规范](../specs/SCOOP-IMPL-SPEC.md) 2.10.1，以及[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md) 2.4～2.5。本文说明实现选择、改动面和验收顺序。
 
@@ -148,7 +148,7 @@ pattern 以 `/` 分隔、大小写敏感，不做 Unicode 归一化。空 patter
 
 实现选择已有 [glob::Pattern](https://docs.rs/glob/latest/glob/struct.Pattern.html) 处理字符级模式，显式使用 [MatchOptions](https://docs.rs/glob/latest/glob/struct.MatchOptions.html) 的 `case_sensitive = true`、`require_literal_separator = true`、`require_literal_leading_dot = false`。目录枚举由已有输入宿主负责，匹配器不隐藏额外 IO。需要用适配层落实上表的路径形式和错误规则；库升级不得静默改变语言语义。实际引入依赖时按仓库要求确认维护状态并锁定版本，本次未增加 Cargo 依赖。
 
-## 6. env 与带 payload 的常量
+## 6. env 与聚合常量
 
 | 名称／变量状态 | env 结果 |
 | --- | --- |
@@ -168,13 +168,15 @@ error: compile-time environment variable name must start with `SCOOP_`
 
 `String?` 就是 Option<String>；不再提供 envOrNull 或缺失即报错的 env 重载。调用方可在允许的常量表达式中选择默认值，运行期也可照常模式匹配已嵌入的 Option。
 
-`const val` 保留原声明位置与显式类型要求，类型集合新增完整 enum application，其所有 variant 的 payload 类型递归为原标量／String 或可常量化 enum。Option<String>、嵌套 Option 与相同条件的用户 enum 都沿普通规则；Array、一般 struct／class、interface、函数及未确定的类型参数仍不是源码 const 声明类型。includeBytes／includeDir 用普通 val 持有静态值；这不妨碍它们自身没有运行期求值。
+`const val` 保留原声明位置与显式类型要求，按实际值而非 enum／struct／tuple 分类判断常量资格。primitive、String、Unit，以及递归由常量组成的 struct、tuple、enum 均可常量化；空 struct 也是常量。泛型看实例化后的实际字段，不把没有存入 payload 的 phantom 参数当作字段。普通方法、只读 computed property、interface conformance 和 companion 不增加实例存储，不影响该资格。
 
-常量表达式补齐实际 enum variant 构造、Option Elvis，以及对常量 enum 的 when 模式解包。构造沿普通参数映射，采用的默认 payload 必须也是常量；when 复用普通类型／模式／穷尽性规则，payload binding 指向已知常量，guard 与分支结果限于常量表达式，不解释任意语句或用户方法。
+enum 只检查选中 variant 的 payload；`None: Option<SomeClass>` 不因另一个 variant 可包含对象而被拒绝。静态引用继续要求完整合法且不可变的对象图，String 和 includeBytes／includeDir 已产生的数组、目录满足此要求，因此也可用 `const val` 保存或成为聚合常量字段。运行期对象／地址、可变存储和未知类型不能直接嵌入；Ptr／FunPtr／MaybeUninit 按 intrinsic representation 判断，不能误当作源码无字段的空 struct。
+
+常量表达式补齐 struct 主构造、enum variant 构造、tuple／Unit、真实字段／tuple 位置读取、Option Elvis 和 when 模式解包。构造沿普通参数映射，采用的默认字段／payload 必须也是常量；when 复用普通类型／模式／穷尽性规则，pattern binding 指向已知常量，guard 与分支结果限于常量表达式。类型可常量化与求值器支持哪些表达式是两个问题：本版不解释任意用户函数、computed getter 或 secondary constructor body，也不能跳过其校验、副作用或异常。这不构成对其返回的值类型的排除。
 
 分支均正常检查表达式是否合法，纯常量运算只求值实际选择的分支。本组外部输入 intrinsic 先按第 3 节展开，因此 `env("SCOOP_A") ?: env("SCOOP_B")` 中两个被检查的调用都记录输入；存在 SCOOP_A 不意味着可以略去 SCOOP_B 的语义检查和编译期读取。所选结果仍按 Elvis 正常选择，不生成运行期环境查询。
 
-注解参数的类型集合不随 const 扩展自动增加 Option／代数 enum；已有 String 注解参数可以引用已经求出的 String const，仍遵守语言规范 9.4 的值语法。
+注解参数的类型集合不随 const 扩展自动增加 struct／tuple／Option／代数 enum；已有 String 注解参数可以引用已经求出的 String const，仍遵守语言规范 9.4 的值语法。
 
 ## 7. 常量池、单态化与内容合并
 
@@ -206,14 +208,14 @@ payload 和常量节点在提供方表中保存一次；模板、特化与内联
 | --- | --- |
 | core／registry | 普通 package 导出、准确签名、编译期使用限制、两个普通 struct |
 | 输入宿主 | 按定义 Cone 根定位与检查资源范围、目录逐项枚举／匹配、合法名称的环境读取，返回实际值和更新依赖 |
-| HIR lowering | 调用绑定与常量求值、enum payload、数据池共享、源码诊断 |
+| HIR lowering | 调用绑定与常量求值、聚合值与静态引用、数据池共享、源码诊断 |
 | HIR／meta | 完整 typed 常量值、独立数据条目及 provider 引用；无 IO |
 | MIR | 直接消费静态值／引用，不保留待读文件或待查询环境的调用 |
 | LIR／codegen | 按已有 exact layout 发射数组、聚合值、静态引用及 relocation |
 | .slib／link | 保存可移植常量表与物理定义关系，按实际引用选择唯一数据定义 |
 | 构建／分析宿主 | 保存并检查实际输入更新，复用未变化结果 |
 
-常量值结构至少覆盖已有标量、String 引用、带 payload 的 enum、表示 EmbeddedFile／EmbeddedDir 所需的 struct，以及本组产生的不可变数组对象。enum 明确保存实际 application、variant 和按声明序齐全的字段；Some／None 不靠缺失 payload、匿名整数 tag 或 OptionString 特例猜出。数组条目保存完整数组／元素类型、长度和内容，引用携带 provider 与 typed 数据身份。
+常量值结构覆盖已有标量、Unit、String 引用、tuple、带 payload 的 enum、普通 struct，以及本组产生的不可变数组对象。聚合节点保留完整类型和全部字段／元素；enum 另保存实际 variant。Some／None 不靠缺失 payload、匿名整数 tag 或 OptionString 特例猜出。数组条目保存完整数组／元素类型、长度和内容，引用携带 provider 与 typed 数据身份。
 
 const property、普通表达式、静态初值、默认值和跨 Cone 模板复用同一常量表示；语言允许哪些表达式成为 const 与 IR 可以表示哪些静态数据分开。只读数组常量不是一次普通 ArrayAlloc，也不将任意不可变引用都视为可静态构造的对象。
 
@@ -257,7 +259,7 @@ LSP 在正常按需分析到声明或正文时求值，并将输入观察关联�
 
 ## 11. 实施步骤
 
-1. **常量与命名空间基础。** 扩展现有 typed 常量表示以容纳 enum payload／静态数据引用，补齐 const Option 与 Elvis／模式解包；明确 core 非根 package 的普通导出与非 prelude 行为。此步直接服务下一步四个入口，不预建通用求值插件层。
+1. **常量与命名空间基础。** 扩展现有 typed 常量表示以容纳 struct／tuple／Unit、enum payload 和静态数据引用，补齐构造、字段读取、const Option 与 Elvis／模式解包；明确 core 非根 package 的普通导出与非 prelude 行为。此步直接服务下一步四个入口，不预建通用求值插件层。
 2. **单文件和 env 闭环。** 增加 core 声明／registry、定义来源与 Cone 根输入接口、路径及 symlink 范围检查、env 的 SCOOP_ 名称限制、独立常量池、静态字节数组发射与普通更新记录；实际完成 includeStr／includeBytes／env 的源码到 .slib、消费、链接和运行。
 3. **目录闭环。** 增加 includeDir、普通 EmbeddedFile／EmbeddedDir、逐项范围检查、glob 选择、匹配集合／链接更新和目录静态数据图；接入同一常量池与产物引用。
 4. **跨 Cone 和工具验收。** 验证泛型／inline／默认参数的共享、导出 Option 常量、check／doc／LSP 输入失效、包内相对资源和完整缓存更新；验证四个入口的普通导入调用，以及导入短名／alias 后的引用拒绝。对实际变更格式统一升级并显式准备开发 sysroot。
@@ -273,6 +275,7 @@ LSP 在正常按需分析到声明或正文时求值，并将输入观察关联�
 | package 与解析 | exact／star／alias import；未 import 的裸名称错误；短名／alias 函数引用均拒绝；同名普通函数不获得 intrinsic 能力 |
 | String／bytes | 空文件、UTF-8／BOM／CRLF／NUL、二进制高位字节；非法 UTF-8 与非文件诊断 |
 | Option 常量 | None、Some 空串／非空串、显式 Some／None、嵌套 Option、Elvis／when、跨 Cone const 消费 |
+| 聚合常量 | struct／tuple／Unit／空 struct、嵌套字段、完整泛型 application、phantom 参数、实际 variant payload、字段读取与跨 Cone 消费；默认值及次构造器运行期行为的拒绝 |
 | env 名称 | SCOOP_ 前缀、精确大小写、前缀本身、非法名称在宿主查询前失败；HOME 等即使缺失或带默认值也报错；仅已查询合法名称影响更新 |
 | 常量限制 | 动态参数／局部 val／运行期数组／未知泛型输入错误，const 循环与错误位置；函数引用按真实 intrinsic 报专用语义错误，覆盖短名／alias／re-export 与三种引用上下文 |
 | 目录选择 | 根目录及嵌套文件、** 零层匹配、多 include／exclude、重叠去重、隐藏文件、Unicode、空结果、非法 pattern |

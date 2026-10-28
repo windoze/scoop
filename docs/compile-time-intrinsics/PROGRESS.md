@@ -8,7 +8,7 @@
 
 - [x] currentSourceLocation 的明确语义诊断，包含 alias、依赖与 FunPtr；错误下保留声明导航。新 intrinsic 随后接入。
 - [x] 带 payload 的 enum 静态初值数据通路：HIR／MIR／LIR、LLVM 发射与既有静态存储 relocation。
-- [ ] enum／Option 常量及 Elvis／when、独立静态常量身份、泛型／跨 Cone 共享与发射。
+- [ ] struct／tuple／Unit／enum／Option 聚合常量及字段读取、Elvis／when、独立静态常量身份、泛型／跨 Cone 共享与发射。
 - [ ] core 的 scoop.compiler 声明、includeStr／includeBytes／env、Cone 目录范围及 SCOOP_ 名称限制。
 - [ ] includeDir、glob、逐项目录／symlink 范围检查与 EmbeddedDir API。
 - [ ] 构建／check／doc／LSP 的外部输入更新和缓存复用，资源／环境的定义来源。
@@ -45,5 +45,7 @@ Darwin 验证：格式化、全 workspace lint 通过；四个相关 crate 的 `
 本项仅完成常量数据表示与发射，不宣称源码 enum const／env 已可用。前端初值求值早于默认参数模板注册，enum 构造、默认 payload、const property 与控制表达式需在后续常量求值项中统一接通；当前未加入提前解析默认值的特殊路径。
 
 ## 范围调整
+
+2026-10-28：按用户要求去掉只扩展 enum 的类型限制；常量按完整类型与实际值组成判断，包含 struct、tuple、Unit、空 struct 及编译期输入的不可变对象引用。enum 只检查选中 variant，不因其他分支携带运行期对象而拒绝 None。类型能表示常量不等于任意 initializer 都能编译期执行，保留本版不解释用户函数／次构造器正文的求值边界。尚未完成源码实现，不能将本次规范修订计为聚合常量功能交付。
 
 2026-10-28：按用户条件取消普通包限定表达式及前置点分声明引用 `::a.b.f`。点表达式的包分支需要协调现有 receiver、遮蔽、重载、类型别名和 property／place 流程，超出本组 intrinsic 所需的导入能力。相关未提交代码及测试已全部撤回，编译器代码回到已验证的 `d1b83f4e6`；本次仅同步文档，不重复构建测试。`scoop.compiler` package、显式 import／alias、intrinsic 引用诊断及常量实现目标保留。

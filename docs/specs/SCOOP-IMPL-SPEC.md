@@ -1143,7 +1143,7 @@ LLVM 的 wrapper 存储以不超过 64 位、满足现有对齐的整数单元�
 
 语言规范 11.19 的四个 API 与两个普通值类型位于 core Cone 的 `scoop.compiler` package，普通导入和 typed registry 负责识别。prelude 只消费其实际登记的 binding，不因 core 拥有此 package 就将其公开成员注入短名称候选；新增声明不在根 package 转导出。现有位置、布局等 intrinsic 不随本次扩展迁移。
 
-HIR 在普通名称、参数和完整类型选择后对编译期输入操作求值，复用现有 const 依赖环检查及数值常量语义，补齐带 payload 的 enum、Option Elvis 和 enum 模式解包。成功输出保存实际 enum application／variant、按声明顺序的全部 payload 常量；不使用 env 专属 OptionString 表示、运行期 constructor call 或缺失的类型信息。const property、正文、默认模板与跨 Cone 接口共用同一常量值表示，ordinary val 的静态初值也消费该结果；源码 const 声明可用的类型仍由语言规范 9.1.2 限定。
+HIR 在普通名称、参数和完整类型选择后对编译期输入操作求值，复用现有 const 依赖环检查及数值常量语义，补齐 struct／tuple／Unit、带 payload 的 enum、字段读取、Option Elvis 和模式解包。成功输出保存聚合值的完整类型、实际 application／variant 和按声明顺序的全部字段／元素常量；不使用 env 专属 OptionString 表示、运行期 constructor call 或缺失的类型信息。常量资格按实际值递归检查，enum 不检查未选择 variant 的 payload；普通 struct 与 intrinsic representation 分开处理，不能仅用空字段列表认定后者为 ZST。const property、正文、默认模板与跨 Cone 接口共用同一常量值表示，ordinary val 的静态初值也消费该结果。语言规范 9.1.2 区分可表示的常量值与当前支持的求值表达式，不通过解释任意用户正文或省略 constructor 行为来填充常量。
 
 静态 enum 初值的数据通路已实现：初值保存实际 application／variant 与按声明序齐全的字段；空 variant 使用空字段序列。HIR 至 LIR 逐层保留实际 variant 和字段，LLVM 按既有 integral／niche／tagged 布局发射；inactive GC slot 与 padding 保持零，String payload 保留 immortal relocation。该表示能力服务本节的常量求值扩展，不单独扩大源码 const 表达式集合。前端 enum 常量构造及默认 payload 的求值待随本节接入。
 

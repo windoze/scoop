@@ -1240,12 +1240,14 @@ base class的全部constructor body与初始化项先于derived自有字段。�
 
 #### 9.1.2 `const val`
 
-本节的 enum 常量、Option 解包及编译期输入 intrinsic 扩展与 11.19 一起设计、待实施；已有标量／String 常量规则保持。
+本节的聚合值常量、Option 解包及编译期输入 intrinsic 扩展与 11.19 一起设计、待实施；已有标量／String 常量规则保持。
 
-- `const val`只允许声明在top level、`object`或`companion object`中；必须有显式type和initializer，不能是extension/local、`var`、delegate或带accessor。其type可以是`Boolean`、基本数值类型、`Char`、`String`，或所有 variant 的 payload 类型递归满足这一条件的完整 enum application；例如 `Option<String>` 合法。普通 struct、Array、MutableArray、其他 class、interface、函数与未确定的类型参数不属于本节的 const 声明类型。
+- `const val`只允许声明在top level、`object`或`companion object`中；必须有显式type和initializer，不能是extension/local、`var`、delegate或带accessor。常量资格按完整类型及实际值的组成判断，不以 enum／struct／tuple 分类限制：`Boolean`、基本数值类型、`Char`、`String`、`Unit`，以及字段／元素递归为常量的 struct、tuple 和 enum 值均可表示为常量。聚合值保留实际 exact application；泛型实参通过实例化后的实际存储字段检查，不因没有参与存储的 phantom 参数而拒绝常量。方法、computed property、interface conformance 与 companion 不属于实例 payload，不影响类型表示常量的能力。
+- enum 只检查当前 variant 实际携带的 payload；其他 variant 不参与该值的递归检查。例如 `None: Option<SomeClass>` 不包含对象引用，可成为常量。普通 struct／tuple 的全部字段／元素均须具有完整合法的常量值；Unit 和没有字段的普通 struct 自然满足此条件。内联布局循环仍按 3.1 拒绝，不新增另一套常量类型循环规则。
+- 常量中的引用必须指向编译器能够静态发射、保持合法对象表示与身份的不可变对象。String 和 11.19 已产生的不可变数组／目录对象图满足这一条件，可直接用于 `const val` 或聚合常量字段；普通运行期对象、可变存储、运行期地址或捕获状态不能因包装进值类型而变成常量。`Ptr`、`FunPtr`、`MaybeUninit` 等 intrinsic representation 必须按自身表示和操作合同处理，不能把它们的空源码字段列表当作空 struct。未确定的完整类型或未知运行期 payload 不是完整常量。
 - initializer 必须是编译期常量表达式：字面量、对其他 `const val` 的引用、由它们组成且可在编译期确定结果的内建一元/二元运算，以及通过 typed numeric intrinsic registry 精确解析到整数或浮点表示运算、显式数值转换的封闭 call。后一类包括两类数值的 `compareTo`、 `inc`/`dec`、`equals`、`div`/`rem`、`toX`，以及浮点的分类方法；只有 exact typed registry identity 才使 call 成为常量表达式，用户声明或仅同名的 callable 不获得该能力。11.19 的 `includeStr`、`env` 产生相应 String／Option 常量，也可参与此求值。所有实际求值的实参都必须是常量表达式；整数常量 `div`/`rem` 的除数为零是 const 定义错误，浮点常量除零按 11.2.2 产生 Infinity 或 NaN。const 依赖图存在循环是编译错误。
-- enum 常量构造沿普通名称解析、完整类型推导及参数映射选择真实 variant；所有显式及实际采用的默认 payload 都须为常量。Option 的 `?:` 和对常量 enum 的 `when` 模式解包可继续求值：复用第 5、7 章的类型、匹配与穷尽性规则，payload binding 是对应常量，guard 与分支结果必须属于本节表达式集合。分支体不增加普通语句、循环或函数解释执行。各分支照常检查合法性，常量运算只求值选中分支；其中的编译期输入 intrinsic 仍按 11.19 在定义处展开。
-- 除上述封闭 intrinsic 和 enum variant 构造外，函数/方法调用（包括 `toString`）、普通构造、普通属性读取、数组或其他对象分配、`throw` 及挂起调用都不是常量表达式。`const val` 不生成需要在程序启动或单例首次访问时执行的 runtime initializer；位于 `object` / `companion object` 中的 `const val` 引用本身不触发单例初始化。11.19 的静态字节数组／目录结果可用于普通 `val`，不因此允许任意 Array／struct 的 const 声明或构造求值。
+- struct 主构造、enum variant 构造、tuple／Unit 字面量沿普通名称解析、完整类型推导及参数映射产生聚合常量；所有显式及实际采用的默认字段／payload 都须为常量。对常量 struct 的真实字段和 tuple 位置元素读取也是常量表达式，不执行 computed getter。Option 的 `?:` 和 `when` 模式解包可继续求值：复用第 5、7 章的类型、匹配与穷尽性规则，pattern binding 是对应常量，guard 与分支结果必须属于本节表达式集合。分支体不增加普通语句、循环或函数解释执行。各分支照常检查合法性，常量运算只求值选中分支；其中的编译期输入 intrinsic 仍按 11.19 在定义处展开。
+- 类型能够表示常量，不代表任意产生该类型的表达式都能编译期求值。本版不执行任意用户函数或 secondary constructor body；它们即使最终返回纯值，也不因此成为常量表达式。除上述封闭操作外，函数/方法调用（包括 `toString`）、computed getter、普通 class／数组对象分配、`throw` 及挂起调用都不是常量表达式。尤其不能跳过次构造器的副作用、校验或异常，仅按字段拼出结果。`const val` 不生成需要在程序启动或单例首次访问时执行的 runtime initializer；位于 `object` / `companion object` 中的 `const val` 引用本身不触发单例初始化。这是当前求值表达式集合的边界，不是对 struct、tuple 或其他结果类型施加永久禁令。
 - 导出的 `const val` 的类型和值属于 `.slib` 接口，下游 Cone 在编译期直接使用；值变化使依赖该值的编译缓存失效。const 没有 getter 或可寻址 storage，`addressOf(const)` 非法；可见性按声明检查，不因常量求值而绕过。
 
 #### 9.1.3 `object`、companion、nested declaration与全局初始化
