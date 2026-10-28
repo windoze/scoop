@@ -1,0 +1,10 @@
+package dev.pm
+
+import dev.pm.value.value
+import scoop.test.*
+
+@Test
+class Cases {
+    @Test
+    fun dependency() { assertEquals(42, value()) }
+}

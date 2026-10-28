@@ -79,6 +79,12 @@ PM 生成和维护 `Cone.lock`；`scoop` 消费锁定图及其本地投影，向
 - `fmt` 支持 workspace/default-members、成员子目录、重复 `-p` 与跨目标生产/测试源码并集，文件去重与写回规则保持。源码选择直接消费展开字段，不构造虚假的已绑定依赖配置。
 - `clean` 从任一成员定位 workspace 的 target；显式 target-dir 可在项目配置损坏时直接清理该目录。两者不求解或联网，不读取/写入 lock；显式单文件仍独立工作。
 
+### 分离产物编译与最终链接
+
+- `scoop build --emit-slib`通过同一PM/lock图编译并发布根`.slib`，保留真实Cone kind，不进入runtime准备或最终链接；`--tests`选择测试图及入口。默认路径、显式输出和workspace多根沿用统一布局。
+- 输出意图不进入编译键；后续普通build/test复用同一产物完成链接和运行。此能力用于将旧低层manifest调用迁回scoop，不给scoopc增加清单解析入口。
+- macOS/Linux的正式用例各6次调用通过，覆盖workspace继承、范围依赖、锁文件、普通与测试产物、无重复编译的链接运行及多根输出。全workspace lint、CLI测试（34/35项）和fixture runner 59项通过；runner已识别新的`artifact`结果类型。
+
 ## 验证记录
 
 - `cargo clippy --workspace --all-targets` 通过。

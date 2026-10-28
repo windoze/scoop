@@ -120,6 +120,12 @@ pub(super) struct BuildArgs {
     pub options: BuildOptions,
     #[arg(short = 'o')]
     pub output: Option<PathBuf>,
+    /// Publish the root .slib without preparing runtime or linking an executable.
+    #[arg(long)]
+    pub emit_slib: bool,
+    /// Compile the root test artifact; requires --emit-slib.
+    #[arg(long, requires = "emit_slib")]
+    pub tests: bool,
     #[arg(long, requires = "dump_dir")]
     pub emit: Option<Emit>,
     #[arg(long, requires = "emit")]

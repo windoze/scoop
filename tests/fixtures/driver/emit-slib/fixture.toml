@@ -1,0 +1,94 @@
+schema = 1
+name = "pm-emit-slib"
+inputs = ["workspace"]
+tools = ["scoop", "scoopc", "scoop-pm"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["driver", "pm", "artifact", "cache"]
+
+[vars]
+options = ["--release", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/workspace", to = "${work}/project"}}]
+
+[[steps]]
+name = "artifact"
+argv = ["${scoop}", "build", "${work}/project", "--emit-slib", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${artifact.result.kind}", equals = "artifact"},
+  {actual = "${artifact.result.output}", equals = "${work}/project/target/${target}/release/dev.pm/app/app.slib"},
+  {file = "${artifact.result.output}", same_as = "${artifact.result.root.path}"},
+  {actual = "${artifact.result.observations.child_invocations.length}", equals = 2},
+  {file = "${work}/project/Cone.lock", contains = 'coordinate = "dev.pm:value:0.1.0"'},
+]
+
+[[steps]]
+name = "linked"
+argv = ["${scoop}", "build", "${work}/project", "--frozen", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${linked.result.kind}", equals = "executable"},
+  {actual = "${linked.result.root.artifact_fingerprint}", equals = "${artifact.result.root.artifact_fingerprint}"},
+  {actual = "${linked.result.observations.child_invocations}", equals = []},
+]
+
+[[steps]]
+name = "run"
+argv = ["${linked.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "test_artifact"
+argv = ["${scoop}", "build", "${work}/project", "--emit-slib", "--tests", {each = "${compile_args}"}, {each = "${options}"}, "-o", "${work}/tests.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${test_artifact.result.kind}", equals = "artifact"},
+  {file = "${work}/tests.slib", same_as = "${test_artifact.result.root.path}"},
+  {actual = "${test_artifact.result.root.artifact_fingerprint}", not_equals = "${artifact.result.root.artifact_fingerprint}"},
+  {actual = "${test_artifact.result.observations.child_invocations.length}", equals = 1},
+]
+
+[[steps]]
+name = "test"
+argv = ["${scoop}", "test", "${work}/project", "--frozen", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+checks = [
+  {actual = "${test.result.root.artifact_fingerprint}", equals = "${test_artifact.result.root.artifact_fingerprint}"},
+  {actual = "${test.result.observations.child_invocations}", equals = []},
+  {actual = "${test.test_result.counts.passed}", equals = 1},
+]
+
+[[steps]]
+name = "workspace"
+argv = ["${scoop}", "build", "${work}/project", "--workspace", "--emit-slib", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "batch-stderr"
+diagnostics = []
+checks = [
+  {actual = "${workspace.records.length}", equals = 2},
+  {actual = "${workspace.records.0.kind}", equals = "artifact"},
+  {actual = "${workspace.records.1.kind}", equals = "artifact"},
+  {file = "${work}/project/target/${target}/release/dev.pm/value/value.slib", exists = true},
+]

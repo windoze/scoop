@@ -290,6 +290,8 @@ driver 消费的是 lock 的精确图和本次已准备好的本地输入。port
 
 single-file build/run 和 artifact-only `scoop link` 保持现有精确输入方式，不启动 PM、不读取邻近 workspace。低层单文件 `scoopc build/check` 仍可接收一个 `.scoop` 文件和显式 direct/support 产物；头部使用现有精确坐标，不引入包版本要求。普通 core 槽位与显式 core 自举参数保持。
 
+需要分开编译和链接时使用 `scoop build --emit-slib`：仍经 PM/lock 准备完整图和正常单 Cone 编译，但将根 `.slib` 作为输出，不准备 runtime、不执行最终链接。`-o` 指定产物位置，默认成员输出名为 `<name>.slib`；单文件使用源文件 stem。JSON 成功结果的 `kind` 为 `artifact`，保留 root/dependencies 与编译观察，不含 runtime/link 字段。`--tests` 只与 `--emit-slib` 一起使用，选择 Test 锁定图和测试入口产物，默认仍为 Production；普通测试继续使用 `scoop test`。该输出选择不进入编译缓存键，后续普通 build 可直接复用 `.slib` 后链接。
+
 LSP使用同一已展开数据模型；已有本地准备结果可直接消费，缺少结果时可执行PM的`metadata --offline`读取，不修改lock。缺少锁定源码提示fetch，缺少适用lock则提示resolve；仍可展示本地members和语法诊断。文档编辑或补全不自动触发网络。formatter只需本地成员发现和源码清单展开，使用PM的members输出，不要求先成功求解依赖。
 
 `members --json` 的格式 1 同样由 `scoop-protocol` 定义：返回 workspace root、所有成员的 coordinate/kind/相对路径/本地目录/清单路径、selected 标记及生产/测试 SourceSelection；本地路径使用无损 host path 载体。formatter 消费所选成员的源码集合，clean 使用 workspace root 定位统一 target；两者不调用 prepare，不创建或读取 lock。JSON 失败使用与 prepare 相同的结构化诊断记录。`fmt` 支持 `--workspace` 和可重复 `-p`，成员选择只接受一个 workspace 输入；多个显式文件仍可合并格式化。显式 `.scoop` 文件模式独立于 PM。

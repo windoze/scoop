@@ -39,6 +39,7 @@ def decode_streams(stdout, stderr, mode):
                 break
             kinds = {
                 "diagnostic",
+                "artifact",
                 "library",
                 "executable",
                 "link",

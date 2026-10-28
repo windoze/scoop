@@ -1,0 +1,9 @@
+schema = 1
+
+[workspace]
+members = ["app", "value"]
+default-members = ["app"]
+
+[workspace.cone]
+group = "dev.pm"
+version = "0.1.0"

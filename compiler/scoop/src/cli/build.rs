@@ -115,6 +115,7 @@ pub(super) fn requests(
             profile,
             cwd: cwd.clone(),
             output: output.clone(),
+            emit_slib: false,
             target_dir: Some(target_dir.clone()),
             runtime: runtime.clone(),
             enable_gc_stress,

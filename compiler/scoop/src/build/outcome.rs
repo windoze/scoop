@@ -14,6 +14,7 @@ pub struct BuiltArtifacts {
 
 #[derive(Debug)]
 pub enum BuildOutcome {
+    Artifact(BuiltArtifacts),
     Library(BuiltArtifacts),
     Executable {
         build: BuiltArtifacts,
@@ -26,7 +27,7 @@ pub enum BuildOutcome {
 impl BuildOutcome {
     pub fn artifacts(&self) -> &BuiltArtifacts {
         match self {
-            Self::Library(build) | Self::Executable { build, .. } => build,
+            Self::Artifact(build) | Self::Library(build) | Self::Executable { build, .. } => build,
         }
     }
 }

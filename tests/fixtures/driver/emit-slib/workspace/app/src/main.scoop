@@ -1,0 +1,7 @@
+package dev.pm
+
+import dev.pm.value.value
+
+fun main() {
+    if (value() != 42) throw IllegalStateException()
+}

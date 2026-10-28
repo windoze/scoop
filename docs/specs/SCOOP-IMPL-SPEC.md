@@ -769,6 +769,7 @@ scoopc build <file.scoop> [--direct-slib direct.slib]... [--support-slib support
 
 `scoop fmt --check` 使用同一选择与排版，只报告需要修改的文件，不写源码。格式检查存在差异或任何文件处理失败时退出 1，全部符合时退出 0；写回模式全部成功时退出 0。参数用法错误沿用退出 2。human／JSON 诊断和格式结果写 stderr，stdout 保持为空；格式差异是独立结果，不伪装成语言错误。
 
+scoop build [root-input] --emit-slib [--tests] [-o output.slib]
 `scoop check [root-input]` 沿用 build 的 manifest／single-file 输入、目标及依赖选择，默认检查 Production；`--tests` 将根切换为现有 Test 用途，只接受 manifest，依赖仍为 Production。Test 检查使用生成的测试入口，不额外要求生产 main；验证 executable 的生产入口需使用默认检查。检查完成普通 parser、package 检查、全部正文、必要 generator、effect 及 ExportHir／LocalConcreteHir，保留具体化中的类型条件与递归错误，然后返回诊断及无产物的成功结果；不进入根 Cone 的 MIR／LIR、native 编译、机器码或最终链接。检查不替代后端、native 源码或链接验收。
 
 首版检查继续通过 direct／support `.slib` 消费依赖。预编译依赖与成功的源码依赖缓存直接复用，需要更新的源码依赖按现有构建图正常产生完整库产物；因此“根不生成机器码”不表示整个命令永不运行后端。根本身不发布 `.slib`、对象或 executable，也不准备 runtime；仅当实际源码依赖需要机器生产时发现相应 native 工具。低层检查只消费上层传入的具体编译配置和依赖，不跟随locator或读取清单；Test用途由scoop的请求显式传入。直接`scoopc check`只保留单文件输入及具体依赖参数。
@@ -781,6 +782,8 @@ scoopc build <file.scoop> [--direct-slib direct.slib]... [--support-slib support
 
 - ExpandedCone：PM已从Cone.toml展开workspace与依赖，scoop传入单Cone身份、kind、生产/测试源码及native配置、精确依赖和诊断来源。scoopc不定位或解析Cone.toml。未配置`sources`时递归扫描`src/`；显式配置按语言规范12.2.2选择当前target的源码，不追加默认目录。目录只收集扩展名精确为`.scoop`的regular files，也可显式选择单个`.scoop`文件；最终按标准化Cone-relative UTF-8路径排序。
 - SingleFile：operand 扩展名精确为 `.scoop`，解析 symlink 后为存在的 regular file。只编译该文件，logical path 固定 main.scoop；不读取相邻 manifest、Scoop/C/C++ source 或 blob。
+`scoop build --emit-slib`保留完整PM/lock准备、依赖编译、native对象生产及根`.slib`发布，跳过runtime和最终链接，用于分离产物编译与程序链接。`--tests`仅与此选项共用，编译Test用途的根产物；默认Production。输出规则见包管理规范7.2，输出意图不改变编译键；后续普通build复用相同产物再链接，不把executable Cone伪装为library。
+
 
 manifest 字段、路径形式及 `when` 的合法性先于 target 筛选检查；文件系统检查和递归枚举只作用于选中路径。选中目录相同或互相包含、单文件与目录重叠、重复标准化路径或 symlink 重复指向同一源文件时，报告来源条目，不静默去重。选中路径缺失或类型不符、最终空集合、非 UTF-8 或实际 I/O／目录遍历循环错误均在 parse 前失败；显式清单为空或全部被筛掉也不回退到 `src/`。
 

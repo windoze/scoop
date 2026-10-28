@@ -79,6 +79,7 @@ fn prepare(
         stem.as_deref(),
         &target,
         request.profile,
+        request.emit_slib,
     )?;
     let output = OutputLocation::new(&output).map_err(output_error)?;
     if let Some(dumps) = request.dumps {
@@ -86,7 +87,7 @@ fn prepare(
     }
     let publish = move |graph: crate::BuildGraphOutcome| {
         let finish = || -> BuildResult<_> {
-            if matches!(graph, crate::BuildGraphOutcome::Library { .. }) {
+            if request.emit_slib || matches!(graph, crate::BuildGraphOutcome::Library { .. }) {
                 output
                     .publish(
                         graph.root().artifact_locator(),
@@ -141,6 +142,7 @@ fn prepare(
             sources,
         };
         Ok(match executable {
+            None if request.emit_slib => BuildOutcome::Artifact(build),
             None => BuildOutcome::Library(build),
             Some((runtime_index, link_plan_fingerprint, executable)) => BuildOutcome::Executable {
                 build,
@@ -228,6 +230,7 @@ fn source_context(prepared: &PreparedBuildGraph) -> Vec<SelectedSource> {
     sources
 }
 
+#[allow(clippy::too_many_arguments)]
 fn output_path(
     graph: &PreparedBuildGraph,
     cwd: &Path,
@@ -236,11 +239,12 @@ fn output_path(
     stem: Option<&str>,
     target: &ResolvedTargetProfile,
     profile: BuildProfile,
+    emit_slib: bool,
 ) -> BuildResult<PathBuf> {
     if let Some(output) = output {
         return Ok(output);
     }
-    let (root, name) = if graph.root_identity() == ConeIdentity::SINGLE_FILE {
+    let (root, mut name) = if graph.root_identity() == ConeIdentity::SINGLE_FILE {
         (cwd.to_owned(), stem.unwrap_or("program").to_owned())
     } else {
         let manifest = graph.source_input(graph.root_identity()).ok_or_else(|| {
@@ -261,12 +265,12 @@ fn output_path(
                 )
             })?
             .to_owned();
-        let mut name = manifest.coordinate().name().to_owned();
-        if graph.root_kind() == RequestedConeKind::Library {
-            name.push_str(".slib");
-        }
+        let name = manifest.coordinate().name().to_owned();
         (root, name)
     };
+    if emit_slib || graph.root_kind() == RequestedConeKind::Library {
+        name.push_str(".slib");
+    }
     let mut directory = target_dir
         .unwrap_or_else(|| root.join("target"))
         .join(target.canonical_triple())

@@ -1,6 +1,19 @@
 use super::*;
 
 #[test]
+fn slib_output_and_test_artifacts_are_explicit_build_choices() {
+    let cli = Cli::try_parse_from(["scoop", "build", "--emit-slib", "--tests"]).unwrap();
+    let Command::Build(args) = cli.command else {
+        panic!("expected build command")
+    };
+    assert!(args.emit_slib && args.tests);
+    assert!(Cli::try_parse_from(["scoop", "build", "--tests"]).is_err());
+    for command in ["run", "test", "check"] {
+        assert!(Cli::try_parse_from(["scoop", command, "--emit-slib"]).is_err());
+    }
+}
+
+#[test]
 fn clean_is_builtin_and_accepts_only_cleanup_options() {
     assert!(matches!(
         Cli::try_parse_from([

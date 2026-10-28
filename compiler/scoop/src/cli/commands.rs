@@ -51,12 +51,17 @@ pub(super) fn execute(
                 sysroot,
                 package_manager,
                 args.output,
-                scoop_protocol::CompilationPurpose::Production,
+                if args.tests {
+                    scoop_protocol::CompilationPurpose::Test
+                } else {
+                    scoop_protocol::CompilationPurpose::Production
+                },
                 false,
                 enable_gc_stress,
                 enable_startup_stats,
             )?;
             for request in &mut requests {
+                request.emit_slib = args.emit_slib;
                 if let (Some(emit), Some(directory)) = (args.emit, args.dump_dir.as_ref()) {
                     request.dumps = Some(BuildDumpRequest {
                         stages: emit.stages(),

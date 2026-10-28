@@ -1,0 +1,13 @@
+schema = 1
+
+[cone]
+group = { workspace = true }
+name = "app"
+version = { workspace = true }
+kind = "executable"
+
+[dependencies]
+"dev.pm:value" = { path = "../value", version = "^0.1.0" }
+
+[test-dependencies]
+"scoop:scoop.test" = "=0.1.0"

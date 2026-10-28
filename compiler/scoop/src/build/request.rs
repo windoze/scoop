@@ -37,6 +37,7 @@ pub struct BuildRequest {
     pub profile: BuildProfile,
     pub cwd: PathBuf,
     pub output: Option<PathBuf>,
+    pub emit_slib: bool,
     pub target_dir: Option<PathBuf>,
     pub runtime: RuntimeInput,
     pub enable_gc_stress: bool,
