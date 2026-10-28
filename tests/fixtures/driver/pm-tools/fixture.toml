@@ -1,0 +1,99 @@
+schema = 1
+name = "pm-workspace-local-tools"
+inputs = ["workspace"]
+tools = ["scoop", "scoop-pm"]
+tags = ["driver", "pm", "workspace", "format", "clean"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${fixture}/workspace", to = "${work}/project"}},
+  {write = {path = "${work}/project/one/src/one.scoop", data = "fun one()=1"}},
+  {write = {path = "${work}/project/one/linux.scoop", data = "fun linuxOne()=1"}},
+  {write = {path = "${work}/project/one/tests/case.scoop", data = "fun caseOne()=1"}},
+  {write = {path = "${work}/project/two/src/two.scoop", data = "fun two()=2"}},
+  {write = {path = "${work}/project/two/linux.scoop", data = "fun linuxTwo()=2"}},
+]
+
+[[steps]]
+name = "default"
+argv = ["${scoop}", "fmt", "${work}/project", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${default.result.counts.formatted}", equals = 3},
+  {file = "${work}/project/one/src/one.scoop", equals = "fun one() = 1\n"},
+  {file = "${work}/project/one/linux.scoop", equals = "fun linuxOne() = 1\n"},
+  {file = "${work}/project/one/tests/case.scoop", equals = "fun caseOne() = 1\n"},
+  {file = "${work}/project/two/src/two.scoop", equals = "fun two()=2"},
+  {file = "${work}/project/Cone.lock", exists = false},
+]
+
+[[steps]]
+name = "member"
+cwd = "${work}/project/two/src"
+argv = ["${scoop}", "fmt", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${member.result.counts.formatted}", equals = 2}]
+
+[[steps]]
+name = "all"
+argv = ["${scoop}", "fmt", "${work}/project", "--workspace", "--check", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${all.result.files.length}", equals = 5}]
+
+[[steps]]
+name = "selected"
+argv = ["${scoop}", "fmt", "${work}/project", "-p", "dev.tools:two", "-p", "dev.tools:two", "--check", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${selected.result.files.length}", equals = 2}]
+
+[[steps]]
+name = "outputs"
+files = [
+  {write = {path = "${work}/project/target/output", data = "shared target"}},
+  {write = {path = "${work}/project/one/target/keep", data = "member-local directory"}},
+  {write = {path = "${work}/project/Cone.lock", data = "Existing lock is not read by clean.\n"}},
+]
+
+[[steps]]
+name = "clean"
+cwd = "${work}/project/two/src"
+argv = ["${scoop}", "clean", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${clean.result.target_dir}", equals = "${work}/project/target"},
+  {actual = "${clean.result.removed}", equals = true},
+  {file = "${work}/project/target", exists = false},
+  {file = "${work}/project/one/target/keep", equals = "member-local directory"},
+  {file = "${work}/project/Cone.lock", equals = "Existing lock is not read by clean.\n"},
+]
+
+[[steps]]
+name = "again"
+argv = ["${scoop}", "clean", "${work}/project/one", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${again.result.removed}", equals = false}]

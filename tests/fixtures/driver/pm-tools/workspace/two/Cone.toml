@@ -1,0 +1,9 @@
+schema = 1
+sources = [{path = "src"}, {path = "linux.scoop", when = {os = "linux"}}]
+[cone]
+group = { workspace = true }
+name = "two"
+version = { workspace = true }
+kind = "library"
+[dependencies]
+"dev.remote:library" = { workspace = true }

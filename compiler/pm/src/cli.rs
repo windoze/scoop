@@ -4,6 +4,7 @@ use clap::{Args, Parser, Subcommand};
 use scoop_manifest::DependencyCoordinateKey;
 use scoop_pm::{MemberSelection, PmError, PmResult, Workspace};
 use scoop_protocol::HostPathCarrier;
+use scoop_protocol::package::{PACKAGE_PROTOCOL_VERSION, PackageMemberV1, PackageMembersV1};
 
 mod deps;
 mod resolve;
@@ -55,7 +56,8 @@ struct MembersArgs {
 
 pub fn run() -> Result<(), (PmError, bool)> {
     let cli = Cli::parse();
-    let machine = matches!(&cli.command, Command::Prepare { .. });
+    let machine = matches!(&cli.command, Command::Prepare { .. })
+        || matches!(&cli.command, Command::Members(args) if args.json);
     execute(cli).map_err(|error| (error, machine))
 }
 
@@ -115,17 +117,27 @@ fn members(args: MembersArgs) -> PmResult<()> {
         let host_path = |path: &std::path::Path| {
             HostPathCarrier::from_path(path).map_err(|error| PmError::new(error.to_string()))
         };
-        let members = workspace.members.values().map(|member| Ok(serde_json::json!({
-            "coordinate": member.cone.coordinate.to_string(),
-            "kind": match member.cone.kind { scoop_identity::RequestedConeKind::Library => "library", scoop_identity::RequestedConeKind::Executable => "executable" },
-            "path": member.relative_path,
-            "directory": host_path(&member.directory)?,
-            "manifest": host_path(&member.manifest)?,
-            "selected": selected.contains(&member.manifest),
-            "sources": member.cone.sources,
-            "test_sources": member.cone.test_sources,
-        }))).collect::<PmResult<Vec<_>>>()?;
-        let result = serde_json::json!({"format": 1, "root": host_path(&workspace.root)?, "members": members});
+        let members = workspace
+            .members
+            .values()
+            .map(|member| {
+                Ok(PackageMemberV1 {
+                    coordinate: member.cone.coordinate.clone(),
+                    kind: member.cone.kind,
+                    path: member.relative_path.clone(),
+                    directory: host_path(&member.directory)?,
+                    manifest: host_path(&member.manifest)?,
+                    selected: selected.contains(&member.manifest),
+                    sources: member.cone.sources.clone(),
+                    test_sources: member.cone.test_sources.clone(),
+                })
+            })
+            .collect::<PmResult<Vec<_>>>()?;
+        let result = PackageMembersV1 {
+            format: PACKAGE_PROTOCOL_VERSION,
+            root: host_path(&workspace.root)?,
+            members,
+        };
         println!(
             "{}",
             serde_json::to_string_pretty(&result)

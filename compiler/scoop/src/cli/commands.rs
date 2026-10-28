@@ -26,9 +26,11 @@ pub(super) fn execute(
         Command::External(args) => {
             super::external::execute(&args, sysroot).map(CommandOutcome::Child)
         }
-        Command::Fmt(args) => super::format::execute(args, reporter).map(CommandOutcome::Complete),
+        Command::Fmt(args) => {
+            super::format::execute(args, package_manager, reporter).map(CommandOutcome::Complete)
+        }
         Command::Clean(args) => {
-            super::clean::execute(args, reporter)?;
+            super::clean::execute(args, package_manager, reporter)?;
             Ok(CommandOutcome::Complete(true))
         }
         Command::New(args) => {

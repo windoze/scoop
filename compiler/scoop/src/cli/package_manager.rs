@@ -12,6 +12,36 @@ use super::commands::config;
 
 mod prepare;
 pub(super) use prepare::{PackageOptions, PrepareInput, prepare};
+mod members;
+pub(super) use members::{MemberOptions, members};
+
+fn executable(cwd: &std::path::Path, explicit: Option<PathBuf>) -> BuildResult<PathBuf> {
+    match explicit {
+        Some(path) => super::commands::absolute(cwd, path),
+        None => std::env::current_exe()
+            .map_err(config)
+            .map(|path| path.with_file_name(format!("scoop-pm{}", std::env::consts::EXE_SUFFIX))),
+    }
+}
+
+fn check_output(output: &std::process::Output, action: &str) -> BuildResult<()> {
+    if output.status.success() {
+        return Ok(());
+    }
+    if let Ok(record) =
+        serde_json::from_slice::<scoop_protocol::package::PackageDiagnosticV1>(&output.stderr)
+    {
+        record.validate().map_err(config)?;
+        let mut failure = config(record.diagnostic.message());
+        failure.diagnostics.push(record.diagnostic);
+        return Err(failure);
+    }
+    Err(config(format!(
+        "package {action} failed ({}): {}",
+        output.status,
+        String::from_utf8_lossy(&output.stderr).trim()
+    )))
+}
 
 #[derive(Args)]
 #[command(disable_help_flag = true, disable_version_flag = true)]

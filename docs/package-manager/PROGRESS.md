@@ -68,6 +68,12 @@
 - 文档编译仍按完整输入键共享；三个根中的两份相同绑定只编译一次。路由以根身份与清单位置确定，README 更新只重绘相应首页，冻结命中不编译或渲染。
 - 复用既有页面记录和整体原子发布，未另建文档产物缓存或语言身份。`--no-deps` 保留所选根；不同源码的同身份 Cone 也可分别展示。
 
+### 本地格式化与清理
+
+- `members --json` 使用共享的版本 1 类型和无损路径，失败复用 PM 结构化诊断。build 与本地工具共用成员选项；driver 不链接 PM 实现。
+- `fmt` 支持 workspace/default-members、成员子目录、重复 `-p` 与跨目标生产/测试源码并集，文件去重与写回规则保持。源码选择直接消费展开字段，不构造虚假的已绑定依赖配置。
+- `clean` 从任一成员定位 workspace 的 target；显式 target-dir 可在项目配置损坏时直接清理该目录。两者不求解或联网，不读取/写入 lock；显式单文件仍独立工作。
+
 ## 验证记录
 
 - `cargo clippy --workspace --all-targets` 通过。
@@ -83,4 +89,5 @@
 - 自动入口批次：workspace 用例在 macOS/Linux 各 6 次实际进程调用通过；macOS 的 Scoop library 98 项、CLI 33 项、fixture runner 59 项通过，既有构建/运行/测试/检查/文档用例及 36 个边界用例通过。新诊断合同的 PM 34 项单元、2 项基础 CLI、13 项解析/prepare 场景及 protocol 42 项在两端通过。显式 artifact 版本、合法 caret 语法及循环来源的旧测试意图已按新合同修正，完整诊断继续精确断言；其中 25 个 PM 诊断用例也在 Linux 通过，native 用例前显式准备所需公开头文件。
 - 跨根调度批次：全 workspace lint、macOS 的 driver 99 项单元和两端 5 项调度专测通过。两端 workspace 构建/绑定用例各 16 次正式进程调用通过，覆盖三个程序、两个依赖版本、共享编译、运行选择及多根测试；macOS 既有 test-list 和 library 发布用例也通过。Linux 显式准备所需 test/runtime 资源后验收，复用既有 libunwind，不复制完整 sysroot。
 - 文档绑定批次：两端文档库 24 项测试、共享/不同绑定用例各 15 次正式进程调用通过，检查实际页面链接、依赖版本、冻结复用、单页 README 更新和 no-deps。macOS 既有 5 组文档 CLI 回归通过，覆盖多版本路由、并发发布、失败保留与资源更新；Linux 基础和路由用例通过。检查脚本的 HTML 转义误判已修正并复跑闭合。
+- 本地工具批次：全 workspace lint 通过；两端 manifest 77 项、protocol 42 项、Scoop CLI（macOS 33 项、Linux 34 项）及 PM 基础 CLI 2 项通过。两端既有 8 组格式化 fixture 与新 workspace 工具用例通过，后者使用不可连接的 registry 和保留的 lock 验证纯本地操作；macOS 完整的 Cone cache/clean 用例也通过。新用例的版本要求已改为合同要求的完整 SemVer 后复跑闭合。
 - 原始日志与临时工作文件在仓库外。按阶段清理 `target/debug/incremental`，保留当前二进制与依赖构建结果。

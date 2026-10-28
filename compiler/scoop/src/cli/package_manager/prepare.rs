@@ -3,24 +3,16 @@ use std::process::{Command, Stdio};
 
 use clap::Args;
 use scoop::{BuildContext, BuildResult, BuildRootInput, ResolvedBuildGraph};
-use scoop_manifest::DependencyCoordinateKey;
 use scoop_process::CommandExt;
-use scoop_protocol::package::{
-    PACKAGE_PROTOCOL_VERSION, PackageDiagnosticV1, PackageMemberSelectionV1, PrepareRequestV1,
-    PreparedWorkspaceV1,
-};
+use scoop_protocol::package::{PACKAGE_PROTOCOL_VERSION, PrepareRequestV1, PreparedWorkspaceV1};
 use scoop_protocol::{CompilationPurpose, HostPathCarrier};
 
 use crate::cli::commands::{absolute, config};
 
 #[derive(Args, Clone, Default)]
 pub(in crate::cli) struct PackageOptions {
-    /// Select all members of the workspace.
-    #[arg(long, conflicts_with = "package")]
-    workspace: bool,
-    /// Select a workspace member; may be repeated.
-    #[arg(short = 'p', long = "package", value_name = "GROUP:NAME")]
-    package: Vec<DependencyCoordinateKey>,
+    #[command(flatten)]
+    members: super::MemberOptions,
     #[arg(long)]
     lockfile: Option<PathBuf>,
     /// Require an existing dependency selection without changing Cone.lock.
@@ -39,7 +31,7 @@ pub(in crate::cli) struct PackageOptions {
 
 impl PackageOptions {
     pub fn selects_members(&self) -> bool {
-        self.workspace || !self.package.is_empty()
+        self.members.explicit()
     }
 }
 
@@ -95,7 +87,7 @@ pub(in crate::cli) fn prepare(input: PrepareInput<'_>) -> BuildResult<Inputs> {
         .as_ref()
         .is_some_and(|path| path.extension().is_some_and(|ext| ext == "scoop"))
     {
-        if input.options.workspace || !input.options.package.is_empty() {
+        if input.options.selects_members() {
             return Err(config(
                 "workspace member selection requires a manifest input",
             ));
@@ -110,15 +102,7 @@ pub(in crate::cli) fn prepare(input: PrepareInput<'_>) -> BuildResult<Inputs> {
             .input
             .map(|value| absolute(input.cwd, value).and_then(|value| path(&value)))
             .transpose()?,
-        members: if input.options.workspace {
-            PackageMemberSelectionV1::All
-        } else if input.options.package.is_empty() {
-            PackageMemberSelectionV1::Default
-        } else {
-            PackageMemberSelectionV1::Packages {
-                keys: input.options.package,
-            }
-        },
+        members: input.options.members.selection(),
         purpose: input.purpose,
         target: input.target.into(),
         sysroot: path(input.sysroot)?,
@@ -140,12 +124,7 @@ pub(in crate::cli) fn prepare(input: PrepareInput<'_>) -> BuildResult<Inputs> {
         locked: input.options.locked || input.options.frozen,
         offline: input.options.offline || input.options.frozen,
     };
-    let executable = match input.executable {
-        Some(value) => absolute(input.cwd, value)?,
-        None => std::env::current_exe()
-            .map_err(config)?
-            .with_file_name(format!("scoop-pm{}", std::env::consts::EXE_SUFFIX)),
-    };
+    let executable = super::executable(input.cwd, input.executable)?;
     let staging = absolute(
         input.cwd,
         scoop_toolchain::configured_cache_root(input.cache).map_err(config)?,
@@ -175,19 +154,7 @@ pub(in crate::cli) fn prepare(input: PrepareInput<'_>) -> BuildResult<Inputs> {
                 executable.display()
             ))
         })?;
-    if !output.status.success() {
-        if let Ok(record) = serde_json::from_slice::<PackageDiagnosticV1>(&output.stderr) {
-            record.validate().map_err(config)?;
-            let mut failure = config(record.diagnostic.message());
-            failure.diagnostics.push(record.diagnostic);
-            return Err(failure);
-        }
-        return Err(config(format!(
-            "package preparation failed ({}): {}",
-            output.status,
-            String::from_utf8_lossy(&output.stderr).trim()
-        )));
-    }
+    super::check_output(&output, "preparation")?;
     let response: PreparedWorkspaceV1 =
         serde_json::from_slice(&std::fs::read(response_path).map_err(config)?).map_err(config)?;
     response.validate().map_err(config)?;

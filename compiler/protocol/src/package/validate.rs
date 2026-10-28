@@ -206,7 +206,7 @@ pub(super) fn version(actual: u32) -> Result<(), String> {
     Ok(())
 }
 
-fn absolute(path: &HostPathCarrier) -> Result<(), String> {
+pub(super) fn absolute(path: &HostPathCarrier) -> Result<(), String> {
     let path = path.to_path_buf().map_err(|error| error.to_string())?;
     if !path.is_absolute() {
         return Err(format!(

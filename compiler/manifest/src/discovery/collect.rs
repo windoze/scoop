@@ -5,15 +5,15 @@ pub(super) fn select(
     manifest: &LoadedConeManifest,
     roots: Vec<SelectedRoot>,
 ) -> Result<SelectedManifestSources, SourceDiscoveryError> {
-    let (candidates, directories) = candidates(manifest, roots)?;
+    let (candidates, directories) = candidates(manifest.real_root(), roots)?;
     finish(manifest, candidates, directories)
 }
 
 pub(super) fn formatting(
-    manifest: &LoadedConeManifest,
+    root: &Path,
     roots: Vec<SelectedRoot>,
 ) -> Result<Vec<PathBuf>, SourceDiscoveryError> {
-    let (mut candidates, _) = candidates(manifest, roots)?;
+    let (mut candidates, _) = candidates(root, roots)?;
     candidates.sort_by(|(_, left), (_, right)| left.logical_path.cmp(&right.logical_path));
     let mut seen = BTreeSet::new();
     Ok(candidates
@@ -29,7 +29,7 @@ type Candidates = (
 );
 
 fn candidates(
-    manifest: &LoadedConeManifest,
+    directory: &Path,
     roots: Vec<SelectedRoot>,
 ) -> Result<Candidates, SourceDiscoveryError> {
     let mut candidates = Vec::new();
@@ -56,7 +56,7 @@ fn candidates(
                 logical_path,
                 physical_path: root.resolved.path,
                 metadata: root.resolved.metadata,
-                display_path: manifest.real_root().join(root.path.as_path()),
+                display_path: directory.join(root.path.as_path()),
                 selection: root.selection,
             });
         }

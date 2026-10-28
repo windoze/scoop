@@ -171,7 +171,20 @@ pub fn select_manifest_sources_for_tests(
 pub fn select_manifest_format_sources(
     manifest: &LoadedConeManifest,
 ) -> Result<Vec<PathBuf>, SourceDiscoveryError> {
-    collect::formatting(manifest, select::formatting_roots(manifest)?)
+    select_format_sources(
+        manifest.real_root(),
+        manifest.parsed().semantic().sources(),
+        manifest.parsed().tests().sources(),
+    )
+}
+
+/// Local formatting only needs a member directory and expanded selections.
+pub fn select_format_sources(
+    root: &Path,
+    sources: &SourceSelection,
+    tests: &SourceSelection,
+) -> Result<Vec<PathBuf>, SourceDiscoveryError> {
+    collect::formatting(root, select::formatting_roots(root, sources, tests)?)
 }
 
 #[cfg(test)]

@@ -15,29 +15,6 @@ pub(super) fn build_root(cwd: &Path, input: Option<PathBuf>) -> BuildResult<Buil
     }
 }
 
-pub(super) fn target_root(
-    cwd: &Path,
-    root: &BuildRootInput,
-    explicit: Option<PathBuf>,
-) -> BuildResult<PathBuf> {
-    if let Some(path) = explicit {
-        return absolute(cwd, path);
-    }
-    match root.manifest_root() {
-        Some(root) => {
-            let manifest = root
-                .resolve()
-                .map_err(|error| config(&error).at_host(error.path()))?;
-            let directory = manifest
-                .manifest_path()
-                .parent()
-                .ok_or_else(|| config("manifest has no parent directory"))?;
-            Ok(directory.join("target"))
-        }
-        None => Ok(cwd.join("target")),
-    }
-}
-
 pub(super) fn build_cache(
     cwd: &Path,
     target_root: &Path,

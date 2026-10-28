@@ -43,7 +43,7 @@
 
 ### 3.1 公共输入与退出规则
 
-无参数时，两个公共命令都使用调用者 cwd 的 `Cone.toml`，不向父目录搜索。所有显式相对路径从 cwd 解析；已有内置命令优先于 `<SYSROOT>/commands/scoop-<name>` 的规则保持，因此 fmt／check 实现后成为内置名称。
+无参数时，两个公共命令通过 M63 的 PM 定位所在 Cone/workspace 并选择默认成员；成员子目录默认选择对应成员。`fmt` 仅调用本地 members，不要求依赖可解或存在 lock；`check` 使用已准备的精确依赖图。所有显式相对路径从 cwd 解析；已有内置命令优先于 `<SYSROOT>/commands/scoop-<name>` 的规则保持。
 
 | 结果 | 退出码 |
 | --- | --- |
