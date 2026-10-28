@@ -47,6 +47,7 @@ pub(super) fn reference_clone_module() -> Module {
     });
     module.functions[0] = Function {
         debug_name: Default::default(),
+        debug_variables: Vec::new(),
         debug_origin: Default::default(),
         callable_body: callable_body("scoop_main"),
         safepoints: test_safepoints("scoop_main", &blocks, entry),

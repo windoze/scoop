@@ -243,6 +243,7 @@ fn semantic_module(
     });
     let function = Function {
         debug_name: Default::default(),
+        debug_variables: Vec::new(),
         debug_origin: Default::default(),
         callable_body: body.clone(),
         gc_effect: GcEffect::Managed,
@@ -350,6 +351,7 @@ fn metadata() -> LirMeta {
         itables: Vec::new(),
     });
     LirMeta {
+        debug_types: Default::default(),
         exact_types: Vec::new(),
         target_profile: crate::target_fixtures::DARWIN_AARCH64,
         canonical_c_abi: CanonicalCAbiMetadata::default(),

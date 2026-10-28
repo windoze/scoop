@@ -138,6 +138,7 @@ fn function(callable_body: CallableBodyIdentity) -> Function {
     });
     Function {
         debug_name: Default::default(),
+        debug_variables: Vec::new(),
         debug_origin: Default::default(),
         callable_body,
         gc_effect: GcEffect::Managed,
@@ -202,6 +203,7 @@ fn metadata() -> LirMeta {
         ExternalTypeDescriptor::new(scoop_identity::ConeIdentity::CORE, string_type).unwrap(),
     );
     LirMeta {
+        debug_types: Default::default(),
         exact_types: Vec::new(),
         target_profile: scoop_target_data::DARWIN_AARCH64,
         canonical_c_abi: CanonicalCAbiMetadata::default(),

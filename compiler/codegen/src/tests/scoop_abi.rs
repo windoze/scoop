@@ -32,6 +32,7 @@ fn aggregate_identity(symbol: &str, gc_effect: GcEffect) -> Function {
     });
     Function {
         debug_name: Default::default(),
+        debug_variables: Vec::new(),
         debug_origin: Default::default(),
         callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
@@ -116,6 +117,7 @@ fn ordinary_caller(symbol: &str, gc_effect: GcEffect, protocol: TestCallProtocol
     });
     Function {
         debug_name: Default::default(),
+        debug_variables: Vec::new(),
         debug_origin: Default::default(),
         callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
@@ -194,6 +196,7 @@ fn invoke_caller() -> Function {
     };
     Function {
         debug_name: Default::default(),
+        debug_variables: Vec::new(),
         debug_origin: Default::default(),
         callable_body: callable_body("scoop.aggregate_invoke_caller"),
         safepoints: scoop_lir::SafepointIdentities::default(),
@@ -240,6 +243,7 @@ fn aggregate_dispatch_caller() -> Function {
     });
     Function {
         debug_name: Default::default(),
+        debug_variables: Vec::new(),
         debug_origin: Default::default(),
         callable_body: callable_body("scoop.aggregate_dispatch_caller"),
         safepoints: scoop_lir::SafepointIdentities::default(),
@@ -406,6 +410,7 @@ fn native_aggregate_module() -> Module {
     });
     let caller = Function {
         debug_name: Default::default(),
+        debug_variables: Vec::new(),
         debug_origin: Default::default(),
         callable_body: callable_body("scoop.native_aggregate_caller"),
         safepoints: scoop_lir::SafepointIdentities::default(),

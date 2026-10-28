@@ -22,6 +22,7 @@ pub(super) fn classes_module_for(target: scoop_lir::LirTargetProfile) -> Module 
         });
         Function {
             debug_name: Default::default(),
+            debug_variables: Vec::new(),
             debug_origin: Default::default(),
             callable_body: callable_body(symbol),
             safepoints: scoop_lir::SafepointIdentities::default(),
@@ -94,6 +95,7 @@ pub(super) fn classes_module_for(target: scoop_lir::LirTargetProfile) -> Module 
     });
     let main = Function {
         debug_name: Default::default(),
+        debug_variables: Vec::new(),
         debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
@@ -279,6 +281,7 @@ pub(super) fn heap_module_for(target: scoop_lir::LirTargetProfile) -> Module {
     });
     let describe = Function {
         debug_name: Default::default(),
+        debug_variables: Vec::new(),
         debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
@@ -440,6 +443,7 @@ pub(super) fn heap_module_for(target: scoop_lir::LirTargetProfile) -> Module {
     });
     let main = Function {
         debug_name: Default::default(),
+        debug_variables: Vec::new(),
         debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),

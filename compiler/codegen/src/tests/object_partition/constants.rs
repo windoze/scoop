@@ -58,6 +58,7 @@ pub(super) fn lookup_module() -> Module {
     }
     module.functions = vec![Function {
         debug_name: Default::default(),
+        debug_variables: Vec::new(),
         debug_origin: Default::default(),
         callable_body: callable_body("lookup"),
         gc_effect: GcEffect::NoGc,

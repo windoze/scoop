@@ -228,6 +228,7 @@ pub(super) fn arrays_module() -> Module {
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
             debug_name: Default::default(),
+            debug_variables: Vec::new(),
             debug_origin: Default::default(),
             callable_body,
             safepoints: test_safepoints("scoop_main", &blocks, entry),

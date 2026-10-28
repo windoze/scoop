@@ -42,6 +42,7 @@ pub(super) fn semantic_module() -> (Module, CallableBodyIdentity, Vec<SafepointI
     });
     let function = Function {
         debug_name: Default::default(),
+        debug_variables: Vec::new(),
         debug_origin: Default::default(),
         callable_body: body.clone(),
         gc_effect: GcEffect::Managed,
@@ -161,6 +162,7 @@ pub(super) fn metadata() -> LirMeta {
     let external_type_descriptors = Arena::new();
     let well_known_string = TypeDescriptorRef::Local(string_descriptor);
     LirMeta {
+        debug_types: Default::default(),
         exact_types: Vec::new(),
         target_profile: scoop_target_data::DARWIN_AARCH64,
         canonical_c_abi: CanonicalCAbiMetadata::default(),

@@ -138,6 +138,7 @@ pub(super) fn lower_initialization_startup_gateway(
     LoweredFunction {
         function: scoop_lir::Function {
             debug_name: Default::default(),
+            debug_variables: Vec::new(),
             debug_origin: Default::default(),
             callable_body,
             gc_effect: scoop_lir::GcEffect::Managed,

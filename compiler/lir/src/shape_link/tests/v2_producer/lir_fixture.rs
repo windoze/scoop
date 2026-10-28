@@ -144,6 +144,7 @@ pub(super) fn module(
         foreign_callback_bridges: Arena::new(),
         output: LirOutput::Library,
         meta: LirMeta {
+            debug_types: Default::default(),
             exact_types,
             target_profile: TARGET,
             canonical_c_abi: CanonicalCAbiMetadata::default(),
@@ -208,6 +209,7 @@ pub(super) fn local_function(function: PersistentFunctionId) -> Function {
     });
     Function {
         debug_name: Default::default(),
+        debug_variables: Vec::new(),
         debug_origin: Default::default(),
         callable_body: CallableBodyIdentity::for_function(function).unwrap(),
         gc_effect: crate::GcEffect::Managed,

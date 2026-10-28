@@ -196,6 +196,34 @@ pub(super) fn lower_function<'a>(
         block_map.insert(mir_id, lir_id);
     }
     let mut entry = block_map[&function.body.entry];
+    let debug_variables = function
+        .body
+        .locals
+        .iter()
+        .filter_map(|(local, definition)| {
+            let mir::DebugVariable::Source {
+                declaration,
+                location,
+            } = &definition.debug_variable
+            else {
+                return None;
+            };
+            Some(lir::DebugBinding {
+                declaration: declaration.clone(),
+                location: location.clone(),
+                ty: exact_type_record(module, &definition.ty).id(),
+                storage: match local_map[&local] {
+                    LocalSlot::Param(index) => lir::DebugStorage::Parameter(index),
+                    LocalSlot::Slot(id) => lir::DebugStorage::Local(id),
+                },
+                parameter: function
+                    .params
+                    .iter()
+                    .position(|param| param.local == local)
+                    .map(|index| std::num::NonZeroU32::new(index as u32 + 1).unwrap()),
+            })
+        })
+        .collect();
     let loop_header_polls = function
         .body
         .loop_header_polls
@@ -297,6 +325,7 @@ pub(super) fn lower_function<'a>(
         function: lir::Function {
             debug_origin: function.debug_origin.clone(),
             debug_name: function.name.clone(),
+            debug_variables,
             gc_effect: match function.gc_effect {
                 mir::GcEffect::Managed => lir::GcEffect::Managed,
                 mir::GcEffect::NoGc => lir::GcEffect::NoGc,

@@ -205,6 +205,7 @@ fn poll_function(
     });
     Function {
         debug_name: Default::default(),
+        debug_variables: Vec::new(),
         debug_origin: Default::default(),
         callable_body: body,
         gc_effect: effect,
@@ -236,6 +237,7 @@ fn function_with_unused_identity(name: &str) -> Function {
     });
     Function {
         debug_name: Default::default(),
+        debug_variables: Vec::new(),
         debug_origin: Default::default(),
         callable_body,
         gc_effect: GcEffect::Managed,

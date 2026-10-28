@@ -84,6 +84,7 @@ fn append_variant_projection_function(
     let index = module.functions.len();
     module.functions.push(Function {
         debug_name: Default::default(),
+        debug_variables: Vec::new(),
         debug_origin: Default::default(),
         callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
@@ -130,6 +131,7 @@ fn append_variant_test_function(
     let index = module.functions.len();
     module.functions.push(Function {
         debug_name: Default::default(),
+        debug_variables: Vec::new(),
         debug_origin: Default::default(),
         callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),

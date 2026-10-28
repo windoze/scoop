@@ -2,6 +2,26 @@
 
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
+mod types;
+pub use types::*;
+
+/// A source variable mapped to the existing logical ABI or local storage.
+#[derive(Debug)]
+pub struct DebugBinding {
+    pub declaration: std::sync::Arc<scoop_source::DebugDeclaration>,
+    pub location: std::sync::Arc<scoop_source::DebugLocation>,
+    pub ty: scoop_identity::PersistentExactTypeId,
+    pub storage: DebugStorage,
+    /// One-based logical source parameter index; inline locals keep their declaration.
+    pub parameter: Option<std::num::NonZeroU32>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum DebugStorage {
+    Local(crate::LocalId),
+    Parameter(u32),
+}
+
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub enum DebugInfoLevel {
     #[default]

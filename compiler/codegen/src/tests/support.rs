@@ -356,6 +356,7 @@ pub(super) fn append_executable_entry(module: &mut Module, identity_seed: &str) 
     let index = module.functions.len();
     module.functions.push(Function {
         debug_name: Default::default(),
+        debug_variables: Vec::new(),
         debug_origin: Default::default(),
         callable_body: callable_body(identity_seed),
         safepoints: scoop_lir::SafepointIdentities::default(),
@@ -955,6 +956,7 @@ pub(super) fn string_metadata_for(target: scoop_lir::LirTargetProfile) -> LirMet
         itables: Vec::new(),
     });
     LirMeta {
+        debug_types: Default::default(),
         exact_types: Vec::new(),
         target_profile: target,
         canonical_c_abi: scoop_lir::CanonicalCAbiMetadata::default(),
@@ -1197,6 +1199,7 @@ pub(super) fn values_module() -> Module {
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
             debug_name: Default::default(),
+            debug_variables: Vec::new(),
             debug_origin: Default::default(),
             callable_body: callable_body("scoop_main"),
             safepoints: test_safepoints("scoop_main", &blocks, entry),

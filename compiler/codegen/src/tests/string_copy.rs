@@ -55,6 +55,7 @@ fn string_copy_reloads_its_only_input_after_allocation() {
     });
     module.functions[0] = Function {
         debug_name: Default::default(),
+        debug_variables: Vec::new(),
         debug_origin: Default::default(),
         callable_body: callable_body("scoop_main"),
         safepoints: test_safepoints("scoop_main", &blocks, entry),
@@ -169,6 +170,7 @@ fn byte_buffer_copies_write_and_restore_the_managed_prefix() {
     });
     module.functions[0] = Function {
         debug_name: Default::default(),
+        debug_variables: Vec::new(),
         debug_origin: Default::default(),
         callable_body: callable_body("scoop_main"),
         safepoints: test_safepoints("scoop_main", &blocks, entry),

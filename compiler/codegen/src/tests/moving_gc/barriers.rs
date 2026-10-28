@@ -148,6 +148,7 @@ fn barrier_module() -> Module {
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
             debug_name: Default::default(),
+            debug_variables: Vec::new(),
             debug_origin: Default::default(),
             callable_body: callable_body_at(file!(), line!()),
             safepoints: scoop_lir::SafepointIdentities::default(),

@@ -681,6 +681,7 @@ fn function_parameters_keep_logical_types_across_abi_conventions() {
     });
     let function = super::Function {
         debug_name: Default::default(),
+        debug_variables: Vec::new(),
         debug_origin: Default::default(),
         callable_body: callable_body("logical_params"),
         gc_effect: GcEffect::NoGc,

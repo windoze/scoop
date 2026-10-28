@@ -45,6 +45,7 @@ fn places_module(address_logical: bool) -> Module {
     });
     module.functions = vec![Function {
         debug_name: Default::default(),
+        debug_variables: Vec::new(),
         debug_origin: Default::default(),
         callable_body: callable_body("zstPlaces"),
         gc_effect: GcEffect::NoGc,

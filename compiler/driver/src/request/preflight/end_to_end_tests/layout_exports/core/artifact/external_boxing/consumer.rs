@@ -29,6 +29,7 @@ pub(super) fn module(
         foreign_callback_bridges: Arena::new(),
         output: LirOutput::Library,
         meta: LirMeta {
+            debug_types: Default::default(),
             exact_types: Vec::new(),
             target_profile,
             canonical_c_abi: CanonicalCAbiMetadata::default(),
@@ -156,6 +157,7 @@ pub(super) fn roundtrip(
     .unwrap();
     Function {
         debug_name: Default::default(),
+        debug_variables: Vec::new(),
         debug_origin: Default::default(),
         callable_body,
         gc_effect: GcEffect::Managed,
