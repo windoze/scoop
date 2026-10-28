@@ -12,6 +12,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [较高 GC 并行度的显式选择](GC-EVOLUTION.md#第四十七阶段较高-gc-并行度的显式选择) | `SCOOP_GC_WORKERS=9..16`；默认仍最多 8，所有 profile 同义 | 大引用数组以更多 CPU／私有统计空间换取较短 STW；小图与不同平台的分配吞吐可能回退，不提高默认上限。分片总工作量保持；native `ScoopGcMetrics` 扩至 16 槽，消费者须用新头重编，对象／generated-code ABI 不变。 |
 | [编译器可见的引用扫描循环](GC-EVOLUTION.md#第四十六阶段编译器可见的引用扫描循环) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 单引用数组复用共享范围算法，在 collector 热循环中展开标记过滤，省去逐槽调用和帧保存；动态／复杂扫描保持。增加约 3.5／14 KiB runtime 代码，改善大图 STW 及线程分配吞吐；树形吞吐、部分最大暂停及 runtime 编译成本回退见记录，无对象／metadata／ABI 增量。 |
 | [region 紧凑引用元数据](GC-EVOLUTION.md#第四十五阶段region-紧凑引用元数据) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 连续 head／starts 保留唯一状态和精确起点，minor 的合法旧引用避开完整 block 记录；省去逐 block 的 starts 分配。完整普通 region 增加约 4 KiB，未使用块多预留位图；大图及部分分配改善，线程尾部回退见记录，无对象／ABI 变化。 |
 | [连续脏卡范围与置位起点枚举](GC-EVOLUTION.md#第四十四阶段连续脏卡范围与置位起点枚举) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 相邻脏卡共用一次范围扫描，小对象仅枚举 starts 置位项；不跨清卡或卡组，保留精确槽裁剪、survivor 与并行回写所有权。GNU 大图吞吐和线程暂停改善，ARM64 基本持平且部分尾部回退；无分配快路径、对象、metadata 或 ABI 增量。 |
@@ -22,7 +23,7 @@
 | [旧槽按位图字预留](GC-EVOLUTION.md#第三十四阶段旧槽按位图字预留) | 新版 runtime 随既有 `SCOOP_GC_OLD_SLOTS=1..3` 生效，默认 2；所有 profile，无新开关 | 复用零空槽计数跳过满块，按精确网格缓存空起点；保留整块独占、完整预留、回滚和 full 重建。每个可用块增加 8 B native 记录，另有 248 B 静态表；无逐对象／ABI 增量，接受单线程及部分长尾代价以缩短大图／多线程 STW。 |
 | [TLAB 已对齐范围比较](GC-EVOLUTION.md#第三十二阶段tlab-已对齐范围比较) | ARM64 release 默认；已知 8-byte 对齐、规格化尺寸为 16～32,640 B 的常量 | 直接比较请求与当前 `limit - cursor`，省去重复对齐和判空；原初始化、发布、计数及 collecting slow path 保持。x86 两个候选因树／单线程回退撤回，debug、动态或其他对齐沿原路径；无对象／ABI／配置增量，线程尾部代价见记录。 |
 | [精确对象定位正文内联](GC-EVOLUTION.md) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 当前 block 视图内共用对齐、活动状态、starts／large 发布和对象索引正文，省去逐引用调用与索引栈中转。保留全部精确起点检查、acquire 和 STW 边界；无对象／ABI 增量，大图吞吐改善，暂停和线程波动见阶段三十。 |
-| [提高 GC 并行度并限制分片总处理量](GC-EVOLUTION.md) | 新版 runtime 所有 profile 默认最多 8 worker；候选块小于 4 MiB 仍串行；既有 `SCOOP_GC_WORKERS=1..8` 可强制选择 | 四个以上 worker 分享约 4,096 单位的单片处理量，完整收尾仍排空任务。缩短大图和线程 STW、改善深树／多线程吞吐，接受更多 CPU、私有统计空间及单线程短负载回退；无新对象／ABI／选项，详见阶段二十九。 |
+| [提高 GC 并行度并限制分片总处理量](GC-EVOLUTION.md) | 新版 runtime 所有 profile 默认最多 8 worker；候选块小于 4 MiB 仍串行；既有 `SCOOP_GC_WORKERS` 可强制选择，范围见阶段四十七 | 四个以上 worker 分享约 4,096 单位的单片处理量，完整收尾仍排空任务。缩短大图和线程 STW、改善深树／多线程吞吐，接受更多 CPU、私有统计空间及单线程短负载回退；无新对象／ABI／选项，详见阶段二十九。 |
 | [GC 工作队列按等待需求通知](GC-EVOLUTION.md) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 无等待者时跳过通知锁，新工作只唤醒一人，终止仍持锁广播；先登记等待者再重查队列，保留分片交接与 phase 参与规则。主要改善 ARM64 树／线程吞吐和线程 STW，大图回退见阶段二十八；无对象／ABI 增量。 |
 | [完整对象的平坦扫描展开](GC-EVOLUTION.md) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | binding 共用一个偏移扫描正文，完整范围与固定 visitor 直接展开；保留复杂 scan、局部范围和原子首次标记。树／线程吞吐改善，部分暂停回退保留；无对象／ABI 增量，代码成本见阶段二十七。 |
 | [互斥域的分配计数](GC-EVOLUTION.md) | 所有 profile 默认，配套 runtime contract 25；编译器／runtime／系统库一起重建 | nursery 与直接旧代分别只更新对象数和字节数，读取时合成总量；保留 atomic、detach、minor 基线与 starts 发布。无新状态或开关，主要减少分配指令；吞吐与暂停的分项对照见阶段二十六。 |

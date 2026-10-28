@@ -28,7 +28,7 @@ int scoop_test_gc_pthread_join(pthread_t thread, void **result) {
 
 int main(void) {
     ParallelFixture fixture = {0};
-    parallel_start(&fixture, 8);
+    parallel_start(&fixture, SCOOP_GC_MAX_WORKERS);
     scoop_gc_heap_state.stress_move = true;
     parallel_check_full(1, PARALLEL_NODE_COUNT + 4, PARALLEL_NODE_COUNT / 1024);
     scoop_gc_heap_state.stress_move = false;

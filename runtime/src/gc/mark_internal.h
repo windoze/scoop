@@ -4,7 +4,8 @@
 #include "gc_internal.h"
 #include "heap_internal.h"
 
-#define GC_MARK_MAX_WORKERS 8
+#define GC_MARK_MAX_WORKERS SCOOP_GC_MAX_WORKERS
+#define GC_MARK_DEFAULT_MAX_WORKERS 8
 #define GC_MARK_BATCH 64
 #define GC_MARK_CHUNK 1024
 #define GC_MARK_ARRAY_RANGE 1024

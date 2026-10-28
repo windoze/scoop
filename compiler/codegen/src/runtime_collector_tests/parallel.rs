@@ -1,5 +1,5 @@
 use super::compile::compile_and_run_configuration;
-use super::{compile_and_run, compile_and_run_with_flags, workspace_root};
+use super::{compile_and_run_with_flags, workspace_root};
 
 #[test]
 fn parallel_slices_share_work_limits_and_finishing_drains_retained_tasks() {
@@ -152,21 +152,25 @@ fn retained_live_entries_are_current_before_reference_update() {
 
 #[test]
 fn serial_and_parallel_markers_preserve_shared_graphs_and_repeated_collection() {
-    let output = compile_and_run(
-        &workspace_root(),
-        "parallel_mark_test",
-        "runtime/tests/parallel_mark_test.c",
-        true,
-    );
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert_eq!(
-        output.stdout,
-        b"1/2/4/8 markers preserve shared graphs, nested arrays, pins, minor roots and chains\n"
-    );
+    for (stress, optimization) in [(false, "-O2"), (true, "-O0")] {
+        let output = compile_and_run_configuration(
+            &workspace_root(),
+            "parallel_mark_test",
+            "runtime/tests/parallel_mark_test.c",
+            stress,
+            stress,
+            &[optimization],
+        );
+        assert!(
+            output.status.success(),
+            "stress={stress}, optimization={optimization}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"1/2/4/8/16 markers preserve shared graphs, nested arrays, pins, minor roots and chains\n"
+        );
+    }
 }
 
 #[test]

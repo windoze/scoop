@@ -72,10 +72,19 @@ stdout = "parallel values\n"
 stderr = ""
 
 [[steps]]
+name = "workers-16"
+timeout = 180
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_WORKERS = "16"}
+exit = 0
+stdout = "parallel values\n"
+stderr = ""
+
+[[steps]]
 name = "moving"
 timeout = 180
 argv = ["${build.result.output}"]
-env = {SCOOP_GC_WORKERS = "4", SCOOP_GC_STRESS_MOVE = "1"}
+env = {SCOOP_GC_WORKERS = "16", SCOOP_GC_STRESS_MOVE = "1"}
 exit = 0
 stdout = "parallel values\n"
 stderr = ""
@@ -84,7 +93,7 @@ stderr = ""
 name = "minor"
 timeout = 180
 argv = ["${build.result.output}"]
-env = {SCOOP_GC_WORKERS = "4", SCOOP_GC_STRESS_MINOR = "1"}
+env = {SCOOP_GC_WORKERS = "16", SCOOP_GC_STRESS_MINOR = "1"}
 exit = 0
 stdout = "parallel values\n"
 stderr = ""

@@ -85,8 +85,8 @@ static void change_participants(void) {
 static void check_default_participants(void) {
     assert(unsetenv("SCOOP_GC_WORKERS") == 0);
     size_t expected = scoop_platform_bundle()->thread_vm->processor_count();
-    if (expected > 8) {
-        expected = 8;
+    if (expected > GC_MARK_DEFAULT_MAX_WORKERS) {
+        expected = GC_MARK_DEFAULT_MAX_WORKERS;
     }
     committed_bytes = (size_t)3 << 20;
     scoop_gc_mark_pool_prepare(false);

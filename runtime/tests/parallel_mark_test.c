@@ -39,9 +39,13 @@ static void run_case(size_t workers) {
 
     void *pinned = parallel_edges(&fixture)[0].left;
     assert(scoop_rt_pin(pinned) == pinned);
+#if SCOOP_ENABLE_GC_STRESS
     scoop_gc_heap_state.stress_move = true;
+#endif
     parallel_check_full(workers, PARALLEL_NODE_COUNT + 4, PARALLEL_NODE_COUNT / 1024);
+#if SCOOP_ENABLE_GC_STRESS
     scoop_gc_heap_state.stress_move = false;
+#endif
     assert(parallel_edges(&fixture)[0].left == pinned);
     assert(scoop_rt_unpin(pinned) == pinned);
     check_graph(&fixture);
@@ -78,7 +82,7 @@ static void run_case(size_t workers) {
 }
 
 int main(void) {
-    const size_t counts[] = {1, 2, 4, 8};
+    const size_t counts[] = {1, 2, 4, 8, 16};
     for (size_t index = 0; index < sizeof counts / sizeof *counts; index++) {
         pid_t child = fork();
         assert(child >= 0);
@@ -90,5 +94,5 @@ int main(void) {
         assert(waitpid(child, &status, 0) == child);
         assert(WIFEXITED(status) && WEXITSTATUS(status) == 0);
     }
-    puts("1/2/4/8 markers preserve shared graphs, nested arrays, pins, minor roots and chains");
+    puts("1/2/4/8/16 markers preserve shared graphs, nested arrays, pins, minor roots and chains");
 }

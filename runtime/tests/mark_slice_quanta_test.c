@@ -28,7 +28,9 @@ static void check_slice(size_t workers, size_t expected) {
 
 int main(void) {
     alarm(20);
-    const size_t cases[][2] = {{1, 1024}, {2, 2048}, {4, 4096}, {5, 4095}, {8, 4096}};
+    const size_t cases[][2] = {
+        {1, 1024}, {2, 2048}, {4, 4096}, {5, 4095}, {8, 4096}, {12, 4092}, {16, 4096},
+    };
     for (size_t index = 0; index < sizeof cases / sizeof *cases; index++) {
         pid_t child = fork();
         assert(child >= 0);

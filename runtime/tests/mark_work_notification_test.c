@@ -43,7 +43,9 @@ static void wait_idle(void) {
 
 int main(void) {
     alarm(30);
-    assert(setenv("SCOOP_GC_WORKERS", "8", 1) == 0);
+    char setting[16];
+    snprintf(setting, sizeof setting, "%d", GC_MARK_MAX_WORKERS);
+    assert(setenv("SCOOP_GC_WORKERS", setting, 1) == 0);
     scoop_gc_mark_pool_prepare(false);
     assert(scoop_gc_marker.active_workers == GC_MARK_MAX_WORKERS);
 
@@ -66,7 +68,7 @@ int main(void) {
         pthread_t runner;
         assert(pthread_create(&runner, NULL, run_phase, NULL) == 0);
         wait_idle();
-        for (size_t index = 0; index < 8; index++) {
+        for (size_t index = 0; index < GC_MARK_MAX_WORKERS; index++) {
             scoop_gc_mark_queue_push(&scoop_gc_marker.workers[index], (ScoopGcMarkTask){0});
             wait_idle();
             assert(atomic_load(&work_signals) == signals + index + 1);

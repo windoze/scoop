@@ -118,15 +118,15 @@ static void stop_threads(void) {
 
 static void initialize(void) {
     size_t count = scoop_platform_bundle()->thread_vm->processor_count();
-    if (count > GC_MARK_MAX_WORKERS) {
-        count = GC_MARK_MAX_WORKERS;
+    if (count > GC_MARK_DEFAULT_MAX_WORKERS) {
+        count = GC_MARK_DEFAULT_MAX_WORKERS;
     }
     const char *setting = getenv("SCOOP_GC_WORKERS");
     if (setting != NULL) {
         char *end = NULL;
         unsigned long requested = strtoul(setting, &end, 10);
         if (setting == end || *end != '\0' || requested == 0 || requested > GC_MARK_MAX_WORKERS) {
-            heap_fatal("SCOOP_GC_WORKERS must be an integer from 1 to 8");
+            heap_fatal("SCOOP_GC_WORKERS must be an integer from 1 to 16");
         }
         count = (size_t)requested;
         scoop_gc_marker.forced = true;
