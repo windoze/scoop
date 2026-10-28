@@ -1,4 +1,4 @@
-use super::{compile_and_run, workspace_root};
+use super::{compile_and_run, compile_and_run_configuration, workspace_root};
 
 #[test]
 fn bitmap_sweep_preserves_boundary_starts_pins_and_release() {
@@ -124,21 +124,25 @@ fn sparse_regions_compact_into_live_holes_and_shrink_around_pins() {
 
 #[test]
 fn empty_pages_preserve_cross_page_pins_and_retry_failed_discard() {
-    let output = compile_and_run(
-        &workspace_root(),
-        "page_discard_test",
-        "runtime/tests/page_discard_test.c",
-        true,
-    );
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert_eq!(
-        output.stdout,
-        b"discard preserves cross-page pins, retries failure and reuses zeroed storage\n"
-    );
+    for (stress, optimization) in [(false, "-O2"), (true, "-O0"), (true, "-O2")] {
+        let output = compile_and_run_configuration(
+            &workspace_root(),
+            &format!("page_discard_{stress}_{optimization}"),
+            "runtime/tests/page_discard_test.c",
+            true,
+            stress,
+            &[optimization],
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"discard preserves cross-page pins, retries failure and reuses zeroed storage\n"
+        );
+    }
 }
 
 #[test]

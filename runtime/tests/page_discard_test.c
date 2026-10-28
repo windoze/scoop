@@ -62,7 +62,8 @@ int main(void) {
     ScoopGcRegion *region = scoop_heap_region_for_address((uintptr_t)object);
     region_base = region->base;
     for (size_t index = 0; index < 1000; index++) {
-        (void)nursery_allocate(&bytes_td, 512);
+        unsigned char *dead = nursery_allocate(&bytes_td, 512);
+        memset(dead + sizeof(ScoopObjectHeader), 171, 512 - sizeof(ScoopObjectHeader));
     }
     ScoopGcMetrics before = nursery_metrics();
     scoop_test_vm_discard_observer = observe_discard;
@@ -113,7 +114,7 @@ int main(void) {
     nursery_collect(false);
     assert(discarded_prefix && *(ScoopGcRegion **)region_base == region);
 #if SCOOP_ENABLE_GC_STRESS
-    assert(region->blocks[0].state == SCOOP_BLOCK_NEVER_USED);
+    assert(region->blocks[0].head->state == SCOOP_BLOCK_NEVER_USED);
 #endif
     assert(scoop_heap_known_object_block(object, true)->region == region);
     check_payload(object);
