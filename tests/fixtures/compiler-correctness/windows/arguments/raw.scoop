@@ -1,0 +1,38 @@
+@GCLeaf
+@Extern(name = "scoop_rt_program_argc")
+private fun argumentCount(): Int
+
+@GCLeaf
+@Extern(name = "scoop_rt_program_argv")
+private fun argument(index: Int): Ptr<Byte>?
+
+@NoGC
+private fun startupCount(): Int {
+    @Unsafe
+    {
+        return argumentCount()
+    }
+}
+
+val eagerCount: Int = startupCount()
+
+fun main() {
+    @Unsafe
+    {
+        if (eagerCount != argumentCount() || argument(-1) != None || argument(eagerCount) != None)
+            exit(99)
+        gcCollect()
+        println(eagerCount)
+        for (index in 0 ..< eagerCount) {
+            val pointer = argument(index)!!
+            var offset = 0L
+            while (pointer.load(offset) != 0) {
+                if (offset != 0L)
+                    write(",")
+                write(pointer.load(offset).toUByte().toInt().toString())
+                offset += 1L
+            }
+            write("\n")
+        }
+    }
+}

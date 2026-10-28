@@ -226,7 +226,7 @@ safe fd 输出不因断开的 pipe/socket 默认杀死进程。Linux 普通 fd �
 
 ## 7. 原始参数、环境与系统信息
 
-`scoop.platform.env.arguments(): Array<OsString>` 复制包括 argv[0] 的原始进程参数，复用 runtime 的只读 argc/argv 入口。无参数 main 可以保留坏 UTF-8 参数；有参数 main 的启动解码规则保持语言／runtime 规范不变。
+`scoop.platform.env.arguments(): Array<OsString>` 复制包括 argv[0] 的原始进程参数，复用 runtime 的只读 argc/argv 入口。POSIX 保留原始字节；Windows startup 将原始 UTF-16 编为 canonical WTF-8，OsString.toUtf16 可无损还原，包括非配对 surrogate。无参数 main 不要求参数为有效 Unicode；有 Array<String> 参数的 main 继续使用 core 的严格 UTF-8 解码，非法输入（包括 argv[0]）在进入 main 正文前沿现有失败路径报告，见 runtime 规范 2.8。
 
 `environmentVariable(name: OsString): OsString?` 及 String 便利重载区分缺失与空值，名称非空且不含 NUL 或 `=`。`environment(): Map<OsString, OsString>` 返回独立只读快照；按第一个 `=` 拆分，不损坏原始字节。仅包含有非空名称和分隔符的环境项，同名项以第一个为准，与单项查询一致。没有进程全局环境修改 API；调用者不能同时通过外部 native 代码违反 libc 环境访问的线程合同，库内锁不能代替该前提。
 

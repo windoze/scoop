@@ -202,3 +202,7 @@ File 与匿名 pipe 已改用独立的完整宽度文件 handle，Windows 实现
 环境变量与目录查询已接入 GetEnvironmentVariableW／GetEnvironmentStringsW、GetCurrentDirectoryW 和 USERPROFILE／GetUserProfileDirectoryW。原生结果在 managed 分配前保存独立的字符串与本次错误，区分缺失和空值；环境快照保留名称拼写与完整值，单项查询使用 Windows 大小写规则。路径与环境共用已有的 owned 字符串结果形状；POSIX 的 getenv／environ、getcwd 与 HOME／passwd 语义保持，原始 argv 访问单独成文件。
 
 三个 target 的实际子集各通过 27 个容器／96 项测试，新增覆盖缺失／空值、大小写查询、修改后的快照独立性、600 个 UTF-16 code unit 的值、非配对 surrogate 名称／值、用户 profile 回退及实际 cwd 修改后查询和恢复。完整 platform 测试源码语义检查、Scoop 格式化、三个 Clang 环境与 cl 的严格 C 检查通过。尚未发布完整 platform；Windows startup 仍提前严格解码 argv，后续需与无参数 main 的原始参数合同对齐，再继续系统信息／进程、console、IOCP 和完整验收。远端 POSIX 回归尚未开始。
+
+Windows startup 现以 canonical WTF-8 无损保存原始 UTF-16 参数，包括 argv[0]、非配对 surrogate 和成对的非 BMP 字符；沿用进程生命周期的只读 argc／argv ABI。无参数 main 可读取原始参数，有 Array<String> 参数的 main 保持 core 的严格解码及原有下标诊断。三个 target 的普通／GC stress runtime 已更新，其余系统库复用现有产物。
+
+Microsoft LLD／LINK、MinGW MSVCRT／UCRT 四种组合均通过新参数 fixture，每组合 1 个变体／7 个进程步骤，覆盖空值、引号、尾反斜杠、原始 argv[0]、非法 Unicode、eager 初始化与 GC、scoop run 转发和 artifact-only 重链接。四组合原生 PE 测试通过，包含返回后的 atexit 参数存活与原始标准流字节；旧 DLL 测试改用正常 DLL 链接，避免误用 EXE 的 wmain 入口。Rust Clippy、Scoop／C 格式化、Ruff 与 fixture 公共规则检查通过；startup C 在三个 Clang 环境严格编译通过，cl 的 /W4 /WX 检查仅关闭现有 runtime header 的柔性数组 C4200 警告。系统信息／进程、console、IOCP、完整系统库和远端 POSIX 验收继续实施。

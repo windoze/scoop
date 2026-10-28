@@ -1,0 +1,70 @@
+schema = 1
+name = "windows-startup-raw-and-typed-arguments"
+root = "raw.scoop"
+inputs = ["raw.scoop", "typed.scoop", "inspect.py"]
+tools = ["scoop", "scoopc", "scoop-link", "python"]
+targets = ["x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
+tags = ["windows", "cli", "runtime", "compiler-correctness"]
+
+[vars]
+build_args = ["--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [
+    {copy = {from = "${fixture}/raw.scoop", to = "${work}/raw.scoop"}},
+    {copy = {from = "${fixture}/typed.scoop", to = "${work}/typed.scoop"}},
+]
+
+[[steps]]
+name = "raw"
+argv = ["${scoop}", "build", "${work}/raw.scoop", {each = "${link_args}"}, {each = "${build_args}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "typed"
+argv = ["${scoop}", "build", "${work}/typed.scoop", {each = "${link_args}"}, {each = "${build_args}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "raw_run"
+argv = ["${python}", "${fixture}/inspect.py", "raw", "${raw.result.output}"]
+exit = 0
+stdout = "raw passed\n"
+stderr = ""
+
+[[steps]]
+name = "typed_run"
+argv = ["${python}", "${fixture}/inspect.py", "typed", "${typed.result.output}"]
+exit = 0
+stdout = "typed passed\n"
+stderr = ""
+
+[[steps]]
+name = "cli_run"
+argv = ["${python}", "${fixture}/inspect.py", "cli", "${scoop}", "${raw.result.output}", "${work}/raw.scoop", {each = "${link_args}"}, {each = "${build_args}"}]
+exit = 0
+stdout = "cli passed\n"
+stderr = ""
+
+[[steps]]
+name = "relink"
+argv = ["${scoop-link}", {each = "${link_args}"}, "--root-slib", "${raw.result.root.path}", {each = "${raw.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${raw.result.runtime_index}", "-o", "${work}/relinked.exe", "--cache-dir", "${cache}", "--sysroot", "${sysroot}"]
+exit = 0
+stdout = "link-plan ${raw.result.link_plan_fingerprint}\n"
+stderr = ""
+
+[[steps]]
+name = "relinked_run"
+argv = ["${python}", "${fixture}/inspect.py", "raw", "${work}/relinked.exe"]
+exit = 0
+stdout = "raw passed\n"
+stderr = ""

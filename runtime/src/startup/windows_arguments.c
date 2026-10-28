@@ -14,6 +14,44 @@ static int binary_stream(FILE *stream) {
     return descriptor < 0 || _setmode(descriptor, _O_BINARY) != -1;
 }
 
+static char *copy_argument(HANDLE heap, const uint16_t *text) {
+    size_t units = 0;
+    while (text[units] != 0)
+        ++units;
+    /* Three bytes per code unit also cover a pair's four-byte encoding. */
+    if (units > (SIZE_MAX - 1) / 3)
+        return NULL;
+    uint8_t *bytes = HeapAlloc(heap, 0, units * 3 + 1);
+    if (bytes == NULL)
+        return NULL;
+    size_t written = 0;
+    for (size_t index = 0; index < units; ++index) {
+        uint32_t point = text[index];
+        if (point >= 0xd800 && point <= 0xdbff && index + 1 < units && text[index + 1] >= 0xdc00 &&
+            text[index + 1] <= 0xdfff) {
+            point = 0x10000 + ((point - 0xd800) << 10) + (text[++index] - 0xdc00);
+        }
+        /* Unpaired surrogates retain their code point in canonical WTF-8. */
+        if (point < 0x80) {
+            bytes[written++] = (uint8_t)point;
+        } else if (point < 0x800) {
+            bytes[written++] = (uint8_t)(0xc0 | (point >> 6));
+            bytes[written++] = (uint8_t)(0x80 | (point & 0x3f));
+        } else if (point < 0x10000) {
+            bytes[written++] = (uint8_t)(0xe0 | (point >> 12));
+            bytes[written++] = (uint8_t)(0x80 | ((point >> 6) & 0x3f));
+            bytes[written++] = (uint8_t)(0x80 | (point & 0x3f));
+        } else {
+            bytes[written++] = (uint8_t)(0xf0 | (point >> 18));
+            bytes[written++] = (uint8_t)(0x80 | ((point >> 12) & 0x3f));
+            bytes[written++] = (uint8_t)(0x80 | ((point >> 6) & 0x3f));
+            bytes[written++] = (uint8_t)(0x80 | (point & 0x3f));
+        }
+    }
+    bytes[written] = 0;
+    return (char *)bytes;
+}
+
 int scoop_rt_run_program_utf16(const ScoopImageDescriptorV1 *const *images, uint64_t image_count,
                                const ScoopRootEntryDescriptorV1 *root_entry, int32_t argc,
                                const uint16_t *const *argv) {
@@ -35,19 +73,13 @@ int scoop_rt_run_program_utf16(const ScoopImageDescriptorV1 *const *images, uint
         return 1;
     }
     for (; index < argc; ++index) {
-        int size = argv[index] == NULL
-                       ? 0
-                       : WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
-                                             (const WCHAR *)argv[index], -1, NULL, 0, NULL, NULL);
-        if (size == 0) {
-            fprintf(stderr, "scoop: cannot decode UTF-16 startup argument %d\n", (int)index);
+        if (argv[index] == NULL) {
+            fprintf(stderr, "scoop: invalid Windows startup argument %d\n", (int)index);
             goto failed;
         }
-        converted[index] = HeapAlloc(heap, 0, (size_t)size);
-        if (converted[index] == NULL ||
-            WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, (const WCHAR *)argv[index], -1,
-                                converted[index], size, NULL, NULL) != size) {
-            fprintf(stderr, "scoop: cannot convert Windows startup argument %d\n", (int)index);
+        converted[index] = copy_argument(heap, argv[index]);
+        if (converted[index] == NULL) {
+            fprintf(stderr, "scoop: cannot allocate Windows startup argument %d\n", (int)index);
             goto failed;
         }
     }

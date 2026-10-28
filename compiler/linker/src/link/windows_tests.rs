@@ -137,15 +137,38 @@ fn validate_pe(profile: &ValidatedFinalLinkProfile, scratch: &Path) {
     );
     let dll = scratch.join("provider.dll");
     let library = scratch.join("provider.lib");
-    let mut command = windows.command(scratch, &dll).unwrap();
-    command.arg(&provider_object);
-    if windows.microsoft() {
-        windows.linker_arg(&mut command, "/dll");
-        windows.linker_arg(&mut command, format!("/implib:{}", library.display()));
+    let mut command = if windows.microsoft() {
+        let mut command = Command::new(windows.linker_driver());
+        command
+            .args(["/nologo", "/dll"])
+            .arg(format!("/out:{}", dll.display()))
+            .arg(format!("/implib:{}", library.display()));
+        for directory in windows.library_search_paths() {
+            command.arg(format!("/libpath:{}", directory.display()));
+        }
+        command
     } else {
-        command.arg("-shared");
+        let compiler = tool(
+            if profile.target().id() == scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID {
+                "SCOOP_TEST_MINGW_MSVCRT"
+            } else {
+                "SCOOP_TEST_MINGW_UCRT"
+            },
+        );
+        let mut command = profile.startup_toolchain().driver_command_with(&compiler);
+        command
+            .args([
+                "-shared",
+                "-fuse-ld=lld",
+                "-rtlib=compiler-rt",
+                "-unwindlib=none",
+            ])
+            .arg("-o")
+            .arg(&dll);
         windows.linker_arg(&mut command, format!("--out-implib={}", library.display()));
-    }
+        command
+    };
+    command.arg(&provider_object);
     checked(&mut command);
     let static_source = scratch.join("static.c");
     let static_object = scratch.join("static.obj");
@@ -310,7 +333,7 @@ fn validate_pe(profile: &ValidatedFinalLinkProfile, scratch: &Path) {
     let arguments = ["", "值🧪", "quoted \"value\"", "end\\"];
     let output = checked(Command::new(&executable).args(arguments));
     let binary_stdout = b"out:\n\r\x1a\0\xff";
-    let binary_stderr = b"scoop: cannot decode UTF-16 startup argument 1\nscoop: cannot decode UTF-16 startup argument 1\nerr:\n\r\x1a\0\xff";
+    let binary_stderr = b"err:\n\r\x1a\0\xff";
     assert_eq!(
         output.stdout,
         [binary_stdout.as_slice(), b"atexit\n"].concat()

@@ -19,6 +19,7 @@ __declspec(dllimport) int imported_data;
 __declspec(dllimport) int imported_function(int);
 extern int static_function(int);
 static const char *const *saved_arguments;
+static const char *saved_raw_arguments[3];
 static int calls;
 
 ScoopThreadState *scoop_thread_current(void) { return NULL; }
@@ -56,6 +57,11 @@ static void check_arguments_at_exit(void) {
     if (strcmp(saved_arguments[2], "\xe5\x80\xbc\xf0\x9f\xa7\xaa") != 0) {
         _Exit(91);
     }
+    assert(strcmp(saved_raw_arguments[0], "\xed\xa0\x80") == 0);
+    assert(strcmp(saved_raw_arguments[1], "\xed\xb0\x80") == 0);
+    assert(strcmp(saved_raw_arguments[2],
+                  "\x7f\xc2\x80\xdf\xbf\xe0\xa0\x80\xed\x9f\xbf\xed\xa0\x80"
+                  "-\xed\xb0\x80\xf0\x90\x80\x80\xf4\x8f\xbf\xbf\xef\xbf\xbf") == 0);
     fputs("atexit\n", stdout);
 }
 
@@ -63,11 +69,17 @@ int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *images, uint64_t c
                          const ScoopRootEntryDescriptorV1 *entry, int32_t argc,
                          const char *const *argv) {
     const uint16_t valid[] = {'t', 0};
-    const uint16_t invalid_high[] = {0xd800, 0};
-    const uint16_t invalid_low[] = {0xdc00, 0};
-    const uint16_t *invalid[] = {valid, invalid_high, NULL};
-    if (++calls != 1)
-        return 90;
+    const uint16_t raw_high[] = {0xd800, 0};
+    const uint16_t raw_low[] = {0xdc00, 0};
+    const uint16_t raw_mixed[] = {0x7f,   0x80,   0x7ff,  0x800,  0xd7ff, 0xd800, '-',
+                                  0xdc00, 0xd800, 0xdc00, 0xdbff, 0xdfff, 0xffff, 0};
+    const uint16_t *raw[] = {valid, raw_high, NULL};
+    ++calls;
+    if (calls > 1) {
+        assert(calls <= 4 && argc == 2 && argv[2] == NULL && strcmp(argv[0], "t") == 0);
+        saved_raw_arguments[calls - 2] = argv[1];
+        return 73;
+    }
     if (setvbuf(stdout, NULL, _IOFBF, 4096) != 0 || setvbuf(stderr, NULL, _IOFBF, 4096) != 0)
         return 99;
     check_loaded_image();
@@ -82,11 +94,14 @@ int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *images, uint64_t c
         return 94;
     if (imported_data != 17 || imported_function(25) != 42 || static_function(39) != 42)
         return 95;
-    if (scoop_rt_run_program_utf16(images, count, entry, 2, invalid) != 1)
+    if (scoop_rt_run_program_utf16(images, count, entry, 2, raw) != 73)
         return 96;
-    invalid[1] = invalid_low;
-    if (scoop_rt_run_program_utf16(images, count, entry, 2, invalid) != 1 || calls != 1)
+    raw[1] = raw_low;
+    if (scoop_rt_run_program_utf16(images, count, entry, 2, raw) != 73)
         return 97;
+    raw[1] = raw_mixed;
+    if (scoop_rt_run_program_utf16(images, count, entry, 2, raw) != 73 || calls != 4)
+        return 90;
     saved_arguments = argv;
     if (atexit(check_arguments_at_exit) != 0)
         return 98;

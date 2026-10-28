@@ -218,7 +218,7 @@ GC region 的对齐映射由 OS 组件完成：Windows 保留包含对齐区间�
 
 优先实现现有有限的 mutex、condition、once、thread join 与 TLS 生命周期合同，不让 runtime 为使用 pthread API 而强制依赖一个额外 DLL；第三方库确实需要的 winpthreads 可按其构建合同静态配套。锁等待仍执行现有 GC 协调，不能把 Windows wait 包成未经声明的 GCLeaf。
 
-stdout／stderr 继续遵守既有字节输出合同：Windows startup 将有效 CRT descriptor 设为 binary mode，保留原始字节；GUI 没有标准流时跳过该流，不隐式分配 console。Unicode argv 从 UTF-16 startup 取得，转换为严格 UTF-8 后复用当前 managed 参数构造；不经过 ANSI code page。非配对 surrogate 走明确的启动参数解码失败路径，不能静默替换。`scoop.platform` 的原生路径需要另行保留完整 UTF-16，不能由严格 `String` 代替全部 OS 路径。
+stdout／stderr 继续遵守既有字节输出合同：Windows startup 将有效 CRT descriptor 设为 binary mode，保留原始字节；GUI 没有标准流时跳过该流，不隐式分配 console。原始 argv 从 UTF-16 startup 取得，以 canonical WTF-8 无损保存并复用既有 runtime argc/argv；不经过 ANSI code page，不替换非配对 surrogate。无参数 main 可通过平台 OsString 读取完整原始参数；带 Array<String> 参数的 main 仍由 core 严格解码，非法 Unicode（包括 argv[0]）沿现有下标诊断与 gateway 失败路径报告。`scoop.platform` 的原生路径同样保留完整 UTF-16，不能由严格 `String` 代替全部 OS 路径。
 
 正常返回保留 CRT 标准终止，core `exit` 与失败立即退出保持“刷新后结束进程、不补做 managed finally／release”的现有语义。明确 Windows 的完整退出码表示，不照搬 POSIX signal／8-bit wait-status 解析。数值解析保持线程安全的固定 C numeric 语义，不修改进程全局 locale 来掩盖两 CRT 的函数差异。Windows 使用已固定的 gdtoa C parser，按目标精度直接舍入并保持 native locale；Darwin／Linux 保留 libc 的独立 locale 入口。
 
