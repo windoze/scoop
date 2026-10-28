@@ -1,0 +1,10 @@
+schema = 1
+
+[cone]
+group = "dev.ehroots"
+name = "program"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"scoop:scoop.platform" = "0.1.0"

@@ -48,11 +48,13 @@ runtime-owned exception ABI:
 - `src/thread.c` owns thread attachment and registry lifecycle; `src/thread/`
   separates STW collection, managed/native transitions, root frames, and
   debug queries;
-- `src/eh.c` owns `ScoopExceptionRecord`, the per-thread caught stack,
-  throw/begin/end/rethrow, and handles preserving exception identity;
+- `src/eh.c` owns `ScoopExceptionRecord`, per-thread active and caught lists,
+  and throw/begin/end/rethrow; the collector visits each active record's
+  writable object slot through the existing thread root scan;
 - `src/eh_personality.c` owns the Scoop personality; `src/eh/` contains
-  the bounded LLVM 22.1 catch-all/cleanup LSDA decoder, including tables
-  that omit TType for cleanup-only functions;
+  the bounded LLVM 22.1 catch-all/cleanup LSDA lookup, including tables
+  that omit TType for cleanup-only functions. Lookup reads an ordered prefix
+  and only the selected action without revalidating the entire table;
 - `src/platform/` provides the target-selected image, OS/VM and frame/ABI
   components for Darwin/AArch64 and Linux/amd64 with glibc or musl. OS/image
   code and architecture-specific frame/entry code are separate components.

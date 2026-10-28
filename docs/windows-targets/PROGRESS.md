@@ -266,3 +266,7 @@ TLS 的 Windows System 信任现使用 Crypt32 当前用户链引擎及 SSL 服�
 Rust 文本 staticlib 消费暴露的 COFF 问题已修复：StaticArchive 接受包含普通定义和 imports 的混合 archive，仍排除纯 import library；GNU 长格式导入成员保留在原 archive 中交给 PE linker，避免逐成员物化损坏导入表。GNU thunk 的 code section 及仅有 IAT 定义的数据名称参与正常符号种类检查，不把 IAT 属性误作 DLL 数据属性。
 
 四种链接组合（Microsoft LLD／LINK、MinGW MSVCRT／UCRT）均通过真实短格式及 GNU 长格式导入库、混合静态库、数据／函数、Unicode 启动和 PDB 回归。该原生测试增加 `SCOOP_TEST_GNU_DLLTOOL` 指向 GNU dlltool；外部工具使用相对参数和明确 cwd，保留 Scoop 的 Unicode 路径验证。linker Clippy、Rust 格式化和 release 命令构建通过。MSVCRT 的实际 IDNA Cone 11 项测试通过，原程序加载失败与损坏导入表已闭合，PE 仅导入对应 MSVCRT／Windows DLL。其余文本／URL API 和 asyncio 完整验收继续运行，未开始远端测试。
+
+合并主线 `726a38a96` 的异常查找和线程异常根优化：活跃异常随所属线程扫描并原位更新，去掉原全局 record 锁与 GcHandle；保留 Windows SEH record、8-byte type entry 和平台 condition wait。新增 LSDA 用例按目标 type entry 宽度构造，线程异常根 fixture 增加三个 Windows target 并将 lockfile 写入 work 目录。私有 record／线程字段不改变 runtime ABI 27。
+
+三个 target 的严格 C 编译与 LSDA decoder 单元测试通过；正式 `exception-thread-roots`、`exceptions-return-paths`、`roots-gc-context` 各目标 3 项／4 变体／12 进程步骤全部通过，包含多线程、嵌套异常、移动与 minor GC。原合并冲突已闭合；新 runtime 通过实际源码构建验收，开发 sysroot 的四组 runtime 在进行中的库测试结束后统一更新，未重复编译 ABI 未变化的系统 slib。其余库和发行验收继续实施，未开始远端测试。

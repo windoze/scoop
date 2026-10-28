@@ -449,7 +449,7 @@ Windows/amd64 同样保留 RBP frame pointer、禁用 red zone 与破坏遍历�
 
 ### 3.3 精确根集合
 
-Scoop GC 适配层解释已登记的 image／stackmap、线程发布的 managed segment、各类 root frame、Context 与 handle，并向 collector 访问器交付真实可更新的槽位。collector 不解析这些根的语言表示或遍历线程根链；适配层复用当前 collection 的冻结 registry，不另行复制根目录。显式 pin／handle 的保活及 pin 计数仍由 GC 管理，线程 pin frame 的枚举由适配层完成。
+Scoop GC 适配层解释已登记的 image／stackmap、线程发布的 managed segment、各类 root frame、活跃异常记录、Context 与 handle，并向 collector 访问器交付真实可更新的槽位。collector 不解析这些根的语言表示或遍历线程根链；适配层复用当前 collection 的冻结 registry，不另行复制根目录。显式 pin／handle 的保活及 pin 计数仍由 GC 管理，线程 pin frame 的枚举由适配层完成。
 
 对象扫描描述的解释也归适配层。GC 请求整对象或半开地址范围扫描；并行 marker 通过适配层提供的元素起点、数量与步长视图划分既有大数组任务，不读取 scan 程序编码。描述、对象大小／对齐等未变化的标量事实可静态内联访问，保持原有检查边界与每对象调用成本；不得建立第二套类型／扫描元数据。
 
@@ -461,10 +461,10 @@ Scoop GC 适配层解释已登记的 image／stackmap、线程发布的 managed 
 - native transition 冻结的外层 managed 栈段，以及全部 caller/native root frames；
 - 已登记的 Recursive static storage、初始化与 root-entry failure roots；
 - 当前 TaskContext，包括 native-safe 线程保存的 context；
-- stable external exception payload 中的引用；
+- 各线程活跃 exception record 保存的 managed Throwable 引用槽（5.1）；
 - live GC handles 与 pinned 对象。
 
-immortal 对象只读且不含可移动引用。collector 对每个 root/对象只按其实际 scan 访问引用槽，移动后原地更新；异常 record 的 handle 与其他强 handle 一同更新。
+immortal 对象只读且不含可移动引用。collector 对每个 root/对象只按其实际 scan 访问引用槽，移动后原地更新；异常 record 的引用槽随线程根扫描原位更新。
 
 ### 3.4 Pin 与 handle
 
@@ -825,11 +825,13 @@ Cycle 的 path 在复制为 managed String 之前保持稳定，随后调用已�
 
 ### 5.1 Exception record 与抛出
 
-异常 ABI 使用 Itanium Level I `_Unwind_*` 接口。每条私有 exception record 含恰好一个满足目标对齐的 `_Unwind_Exception`，并通过普通 GcHandle 保活被抛出的原 managed Throwable；record 内部布局不属于 generated-code ABI，只能经 runtime 入口转换。Windows 使用 LLVM libunwind 的 SEH 实现及其配套 `unwind.h`（`__SEH__` 配置），私有字段数量与 Unix 不同；不得复制 Unix 的 record 定义或混用头文件和库。
+异常 ABI 使用 Itanium Level I `_Unwind_*` 接口。每条私有 exception record 含恰好一个满足目标对齐的 `_Unwind_Exception`，并保存被抛出的原 managed Throwable 的可回写引用槽；record 内部布局不属于 generated-code ABI，只能经 runtime 入口转换。Windows 使用 LLVM libunwind 的 SEH 实现及其配套 `unwind.h`（`__SEH__` 配置），私有字段数量与 Unix 不同；不得复制 Unix 的 record 定义或混用头文件和库。
 
-`exception_class = 0x53434f4f50000000`。`scoop_rt_throw(object)` 要求 FixedObject shape，在可能展开或 GC 前创建原对象的强 handle，再调用 `_Unwind_RaiseException`。异常对象遵守普通引用语义，不复制、不 pin，也不能直接作为 unwind record；GC 搬迁时更新 handle 中的引用。不再为异常建立堆外对象 root，collector 只处理既有引用槽、区域、handle 和 immortal 对象。
+`exception_class = 0x53434f4f50000000`。`scoop_rt_throw(object)` 接收 typed 调用已保证有效、已发布的非 null FixedObject 引用，检查实际实例形状，不再获取 heap／roots 锁重复查询对象归属。在可能展开或 GC 前，将新 record 加入所属线程的活跃记录链，再调用 `_Unwind_RaiseException`。异常对象遵守普通引用语义，不复制、不 pin，也不能直接作为 unwind record。
 
-`exception_cleanup` 是释放 handle 和 record 的最终出口，只执行一次。unwinder 私有字段只由 unwind library 使用。`_Unwind_RaiseException` 返回表示无 handler 或 unwind 失败，必须在 handle 仍有效时取得原对象并打印诊断，再清理并终止。
+活跃链同时包含 in-flight、caught 和 rethrowing record。所属线程只在 managed 状态下改变链和 catch 栈，GC 按 3.5 的既有握手取得静止线程后，通过 3.3 的线程根扫描访问每条活跃记录的引用槽，搬迁时原位回写；异常不经过全局 GcHandle 表或额外对象根系统。记录可按非 LIFO 顺序删除，例如新异常展开旧 handler 的 cleanup；注销只更新所属线程的链，不扫描其他记录。线程 detach 和正常 shutdown 要求活跃链与 catch 栈为空。
+
+`exception_cleanup` 是注销并释放 record 的最终出口，unwinder 按 Level I 契约只调用一次。已释放的 native record 不能再用于 BeginCatch 或 cleanup，不为此维护全局地址成员表。exception class、owner、状态转换与 catch 栈的 LIFO 规则仍在实际入口检查。unwinder 私有字段只由 unwind library 使用。`_Unwind_RaiseException` 返回表示无 handler 或 unwind 失败，必须在 record 仍保活原对象时打印诊断，再清理并终止。
 
 ### 5.2 Personality 与 landing pad
 
@@ -841,11 +843,13 @@ Windows 的机器入口 `scoop_eh_personality_seh` 使用系统 SEH 的四参数
 
 search phase 只由 Scoop exception 的 catch-all 选定 handler；cleanup-only 不终止搜索。cleanup phase 按目标 ABI 设置 exception/selector 寄存器与 landing-pad IP。`resume` 使用 `_Unwind_Resume`，不能代替源码 rethrow。
 
-version、flags、encoding、call-site range 与 action chain 必须有效。未知 encoding、typed filter、损坏表或非 Scoop exception 进入 Scoop EH 区域，均终止；不能交给 BeginCatch 当作 managed 对象。
+LLVM 发射的 call-site 表按起始偏移递增且区间不重叠。personality 按 `IP - 1` 顺序读取必要前缀，在命中区间或确定处于空隙后立即返回；只解析命中条目的 action，不重读此前条目或验证未使用的后缀。读取保留边界、整数／地址溢出及已消费前缀的顺序检查。全表发射规则由后端正确性测试覆盖，不在每帧 search／cleanup 中重放全表布局验证，也不另建运行时整表验证模式。
+
+version、flags、已读取的 encoding、call-site range 与选中 action 必须有效。选中 catch action 只接受 filter 1、零 next displacement 与 null type entry；非零 next displacement 直接拒绝，不遍历不支持的 action chain。实际消费到未知 encoding、typed filter、损坏表或非 Scoop exception 时终止；不能交给 BeginCatch 当作 managed 对象。
 
 ### 5.3 Catch 与重抛
 
-`scoop_rt_begin_catch(raw)` 验证 exception class、压入当前线程 catch 栈并从 handle 取得原 managed Throwable 的当前引用。同一 active record 不得重复 BeginCatch。
+`scoop_rt_begin_catch(raw)` 验证 exception class、owner 与 in-flight 状态，压入当前线程 catch 栈并从 record 的根槽取得原 managed Throwable 的当前引用。同一 active record 不得重复 BeginCatch；当前状态已表达是否被捕获，不再扫描整个 catch 栈。
 
 源码 catch 变量直接绑定该对象，可返回、存储或捕获；与 throw 实参保持引用身份、动态类型和可变字段的别名关系。该引用跨 safepoint 时使用普通 managed roots 和 relocation；不得把首次取得的地址当作稳定 native payload。
 
@@ -857,7 +861,7 @@ native exception record 不能跨线程共享或跨挂起保存；可以保存�
 
 ### 5.4 保存与发布异常
 
-保存异常不分配或复制 Throwable。普通 catch、初始化 failure root、callback observer、root gateway 与协程 frame 都保存原对象的 managed 引用；结束 native catch 只释放 record 自己的 handle，不使已被普通 roots 保活的对象失效。
+保存异常不分配或复制 Throwable。普通 catch、初始化 failure root、callback observer、root gateway 与协程 frame 都保存原对象的 managed 引用；结束 native catch 只撤销 record 自己的根槽并释放 record，不使已被普通 roots 保活的对象失效。
 
 跨挂起或线程发布前必须保存 managed 引用并结束 native catch，不能保存 native record。后续传播重新调用 throw，为同一个对象建立新 record；同步 rethrow 保持原 record。不存在额外的异常物化 runtime API。
 

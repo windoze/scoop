@@ -32,7 +32,8 @@ static void compact_round(bool pin_region) {
         ((ScoopObjectHeader *)objects[index])->gc_word |= GC_RELEASE_READY_BIT;
         uintptr_t wide_region = scoop_heap_pointer_block(objects[index])->region->base;
         if (wide_region != node_region) {
-            /* Scatter live nodes across growing regions even with batched TLAB reserves. */
+            /* Scatter live nodes across growing regions even with batched TLAB
+             * reserves. */
             scoop_gc_mutator_invalidate(scoop_thread_current_required()->mutator);
             node_region = wide_region;
         }
@@ -41,7 +42,8 @@ static void compact_round(bool pin_region) {
     ScoopGcMetrics before = nursery_metrics();
     assert(before.region_count >= 4);
     size_t released_before = released;
-    // One wide survivor makes the destination uniquely denser than the node-only regions.
+    // One wide survivor makes the destination uniquely denser than the node-only
+    // regions.
     uintptr_t destination = scoop_heap_pointer_block(objects[0])->region->base;
     uintptr_t prior[PAIR_COUNT], regions[PAIR_COUNT];
     uintptr_t pinned_region = 0;
@@ -63,7 +65,7 @@ static void compact_round(bool pin_region) {
     assert(!pin_region || pinned_region != 0);
     nursery_collect(false);
     ScoopGcMetrics after = nursery_metrics();
-    assert(after.last_mark_workers >= 1 && after.last_mark_workers <= 4);
+    assert(after.last_mark_workers >= 1 && after.last_mark_workers <= SCOOP_GC_MAX_WORKERS);
     assert(after.region_count <= (pin_region ? 3 : 2));
     assert(after.last_full_source_regions != 0 && after.last_full_target_regions != 0);
     assert(after.last_full_pin_blocked_regions == (pin_region ? 1 : 0));
@@ -116,5 +118,6 @@ int main(void) {
     compact_round(true);
     scoop_thread_leave_managed();
     scoop_thread_detach_main();
-    puts("sparse regions compact into live holes and shrink across pinned growth cycles");
+    puts("sparse regions compact into live holes and shrink across pinned growth "
+         "cycles");
 }

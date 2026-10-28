@@ -12,7 +12,6 @@
 #include <unistd.h>
 
 #include "eh_internal.h"
-#include "gc/gc_internal.h"
 #include "generated_entries.h"
 #include "scoop_rt.h"
 #include "thread.h"
@@ -39,25 +38,14 @@ static const ScoopTypeDescriptor test_exception_td = {
     .itable_count = 0,
     .diagnostic_name = {(const uint8_t *)"test.M25Exception", sizeof("test.M25Exception") - 1}};
 
-enum {
-    TEST_CAPACITY = 8,
-    CONCURRENT_THREAD_COUNT = 4};
+enum { TEST_CAPACITY = 8, CONCURRENT_THREAD_COUNT = 4 };
 
 static _Thread_local ScoopThreadState test_thread;
-static const void *published_objects[TEST_CAPACITY];
-static size_t published_object_count;
-static const void *handle_objects[TEST_CAPACITY];
-static size_t handle_count;
-static const void *last_removed_root;
-static uint64_t root_add_count;
-static uint64_t root_remove_count;
-static pthread_mutex_t observers_lock = PTHREAD_MUTEX_INITIALIZER;
-
 static _Thread_local jmp_buf raise_jump;
 static _Thread_local bool raise_jump_armed;
 static _Thread_local struct _Unwind_Exception *raise_history[TEST_CAPACITY];
 static _Thread_local size_t raise_count;
-static uint64_t delete_count;
+static _Thread_local uint64_t delete_count;
 
 static _Noreturn void test_fail(const char *condition, int line) {
     fprintf(stderr, "EH lifecycle test failed at line %d: %s\n", line, condition);
@@ -71,32 +59,38 @@ static _Noreturn void test_fail(const char *condition, int line) {
         }                                                                                          \
     } while (0)
 
-static void observers_lock_acquire(void) { CHECK(pthread_mutex_lock(&observers_lock) == 0); }
+static uint64_t active_record_count(void) {
+    uint64_t count = 0;
+    for (ScoopExceptionRecord *record = test_thread.active_exceptions; record != NULL;
+         record = record->active_next) {
+        count++;
+    }
+    return count;
+}
 
-static void observers_lock_release(void) { CHECK(pthread_mutex_unlock(&observers_lock) == 0); }
+static uint64_t caught_frame_count(void) {
+    uint64_t count = 0;
+    for (ScoopExceptionRecord *record = test_thread.caught_exception_top; record != NULL;
+         record = record->caught_previous) {
+        count++;
+    }
+    return count;
+}
 
-static bool handle_contains_locked(const void *object) {
-    for (size_t index = 0; index < TEST_CAPACITY; index++) {
-        if (handle_objects[index] == object) {
+static bool active_roots_contain(const void *object) {
+    for (ScoopExceptionRecord *record = test_thread.active_exceptions; record != NULL;
+         record = record->active_next) {
+        if (record->object == object) {
             return true;
         }
     }
     return false;
 }
 
-static void check_observer_counts(size_t expected_roots, uint64_t expected_adds,
-                                  uint64_t expected_removes, uint64_t expected_deletes) {
-    observers_lock_acquire();
-    CHECK(handle_count == expected_roots);
-    CHECK(root_add_count == expected_adds);
-    CHECK(root_remove_count == expected_removes);
-    CHECK(delete_count == expected_deletes);
-    observers_lock_release();
-}
-
 static void initialize_current_test_thread(void) {
     memset(&test_thread, 0, sizeof test_thread);
     test_thread.os_thread = pthread_self();
+    delete_count = 0;
     atomic_init(&test_thread.poll.mode, SCOOP_THREAD_MANAGED);
     test_thread.managed_depth = 1;
     raise_jump_armed = false;
@@ -104,21 +98,10 @@ static void initialize_current_test_thread(void) {
     raise_count = 0;
 }
 
-static void reset_observers(void) {
-    CHECK(scoop_eh_debug_active_record_count() == 0);
-    CHECK(scoop_eh_debug_caught_frame_count() == 0);
+static void reset_lifecycle(void) {
+    CHECK(test_thread.active_exceptions == NULL);
     CHECK(test_thread.caught_exception_top == NULL);
-
-    observers_lock_acquire();
-    CHECK(handle_count == 0);
-
-    published_object_count = 0;
-    last_removed_root = NULL;
-    root_add_count = 0;
-    root_remove_count = 0;
     delete_count = 0;
-    observers_lock_release();
-
     raise_jump_armed = false;
     memset(raise_history, 0, sizeof raise_history);
     raise_count = 0;
@@ -130,20 +113,6 @@ static TestException make_exception(uint64_t code, void *reference) {
         .code = code,
         .reference = reference,
     };
-}
-
-static void publish_object(const void *object) {
-    observers_lock_acquire();
-    CHECK(published_object_count < TEST_CAPACITY);
-    published_objects[published_object_count++] = object;
-    observers_lock_release();
-}
-
-static bool handle_contains(const void *object) {
-    observers_lock_acquire();
-    bool contains = handle_contains_locked(object);
-    observers_lock_release();
-    return contains;
 }
 
 static struct _Unwind_Exception *capture_throw(const void *object) {
@@ -174,31 +143,25 @@ static ScoopExceptionRecord *record_from_unwind(struct _Unwind_Exception *unwind
 }
 
 static void assert_runtime_empty(void) {
-    CHECK(scoop_eh_debug_active_record_count() == 0);
-    CHECK(scoop_eh_debug_caught_frame_count() == 0);
+    CHECK(active_record_count() == 0);
+    CHECK(caught_frame_count() == 0);
     CHECK(test_thread.caught_exception_top == NULL);
 
-    observers_lock_acquire();
-    CHECK(handle_count == 0);
-    CHECK(root_add_count == root_remove_count);
-    observers_lock_release();
+    CHECK(test_thread.active_exceptions == NULL);
     scoop_eh_prepare_shutdown();
 }
 
 static void test_throw_begin_end_preserves_identity_and_releases(void) {
-    reset_observers();
+    reset_lifecycle();
     int referenced_value = 17;
     _Alignas(32) TestException source =
         make_exception(UINT64_C(0x1122334455667788), &referenced_value);
-    publish_object(&source);
 
     struct _Unwind_Exception *unwind = capture_throw(&source);
     CHECK(unwind != NULL);
     CHECK((uint64_t)unwind->exception_class == SCOOP_EXCEPTION_CLASS);
-    CHECK(scoop_eh_debug_active_record_count() == 1);
-    CHECK(scoop_eh_debug_caught_frame_count() == 0);
-    CHECK(handle_count == 1);
-    CHECK(root_add_count == 1);
+    CHECK(active_record_count() == 1);
+    CHECK(caught_frame_count() == 0);
 
     TestException *payload = scoop_rt_begin_catch(unwind);
     CHECK(payload == &source);
@@ -209,45 +172,41 @@ static void test_throw_begin_end_preserves_identity_and_releases(void) {
     CHECK(payload->reference == source.reference);
     payload->code++;
     CHECK(source.code == UINT64_C(0x1122334455667789));
-    CHECK(handle_contains(payload));
+    CHECK(active_roots_contain(payload));
     CHECK(test_thread.caught_exception_top == record_from_unwind(unwind));
-    CHECK(scoop_eh_debug_active_record_count() == 1);
-    CHECK(scoop_eh_debug_caught_frame_count() == 1);
+    CHECK(active_record_count() == 1);
+    CHECK(caught_frame_count() == 1);
 
     scoop_rt_end_catch();
     CHECK(delete_count == 1);
-    CHECK(root_remove_count == 1);
-    CHECK(last_removed_root == payload);
+    CHECK(!active_roots_contain(payload));
     assert_runtime_empty();
 }
 
 static void test_rethrow_preserves_record_and_object_identity(void) {
-    reset_observers();
+    reset_lifecycle();
     int referenced_value = 23;
     _Alignas(32) TestException source = make_exception(200, &referenced_value);
-    publish_object(&source);
 
     struct _Unwind_Exception *unwind = capture_throw(&source);
     void *inner_payload = scoop_rt_begin_catch(unwind);
-    CHECK(scoop_eh_debug_caught_frame_count() == 1);
+    CHECK(caught_frame_count() == 1);
 
     struct _Unwind_Exception *rethrown = capture_rethrow();
     CHECK(rethrown == unwind);
     CHECK(raise_count == 2);
     CHECK(raise_history[0] == raise_history[1]);
     CHECK(record_from_unwind(unwind)->state == SCOOP_EXCEPTION_RETHROWING);
-    CHECK(scoop_eh_debug_active_record_count() == 1);
-    CHECK(scoop_eh_debug_caught_frame_count() == 1);
-    CHECK(handle_count == 1);
+    CHECK(active_record_count() == 1);
+    CHECK(caught_frame_count() == 1);
 
     /* The cleanup edge of the inner handler releases caught ownership, but
-     * the rethrown record and its handle remain alive. */
+     * the rethrown record and its root slot remain alive. */
     scoop_rt_end_catch();
     CHECK(record_from_unwind(unwind)->state == SCOOP_EXCEPTION_IN_FLIGHT);
     CHECK(delete_count == 0);
-    CHECK(root_remove_count == 0);
-    CHECK(scoop_eh_debug_active_record_count() == 1);
-    CHECK(scoop_eh_debug_caught_frame_count() == 0);
+    CHECK(active_record_count() == 1);
+    CHECK(caught_frame_count() == 0);
 
     void *outer_payload = scoop_rt_begin_catch(rethrown);
     CHECK(outer_payload == inner_payload);
@@ -257,51 +216,45 @@ static void test_rethrow_preserves_record_and_object_identity(void) {
 }
 
 static void test_new_throw_releases_old_handler_record_first(void) {
-    reset_observers();
+    reset_lifecycle();
     int first_reference = 31;
     int second_reference = 37;
     _Alignas(32) TestException first = make_exception(300, &first_reference);
     _Alignas(32) TestException second = make_exception(400, &second_reference);
-    publish_object(&first);
-    publish_object(&second);
 
     struct _Unwind_Exception *first_unwind = capture_throw(&first);
     void *first_payload = scoop_rt_begin_catch(first_unwind);
     struct _Unwind_Exception *second_unwind = capture_throw(&second);
     CHECK(second_unwind != first_unwind);
-    CHECK(scoop_eh_debug_active_record_count() == 2);
-    CHECK(scoop_eh_debug_caught_frame_count() == 1);
-    CHECK(handle_count == 2);
+    CHECK(active_record_count() == 2);
+    CHECK(caught_frame_count() == 1);
 
     /* Unwinding the first handler runs its normal cleanup before the outer
      * handler begins catching the replacement exception. */
     scoop_rt_end_catch();
     CHECK(delete_count == 1);
-    CHECK(root_remove_count == 1);
-    CHECK(last_removed_root == first_payload);
-    CHECK(scoop_eh_debug_active_record_count() == 1);
-    CHECK(scoop_eh_debug_caught_frame_count() == 0);
-    CHECK(handle_count == 1);
+    CHECK(!active_roots_contain(first_payload));
+    CHECK(active_record_count() == 1);
+    CHECK(caught_frame_count() == 0);
 
     TestException *second_payload = scoop_rt_begin_catch(second_unwind);
     CHECK(second_payload->code == second.code);
     CHECK(second_payload->reference == second.reference);
-    CHECK(handle_contains(second_payload));
+    CHECK(active_roots_contain(second_payload));
     scoop_rt_end_catch();
     CHECK(delete_count == 2);
     assert_runtime_empty();
 }
 
 static void test_catches_resolve_the_relocated_original_object(void) {
-    reset_observers();
+    reset_lifecycle();
     int reference = 41;
     _Alignas(32) TestException source = make_exception(500, &reference);
     _Alignas(32) TestException moved = source;
-    publish_object(&source);
     struct _Unwind_Exception *unwind = capture_throw(&source);
-    uint64_t handle = record_from_unwind(unwind)->object_handle;
+    ScoopExceptionRecord *record = record_from_unwind(unwind);
 
-    handle_objects[handle - 1] = &moved;
+    record->object = &moved;
     TestException *caught = scoop_rt_begin_catch(unwind);
     CHECK(caught == &moved);
     caught->code = 501;
@@ -310,29 +263,27 @@ static void test_catches_resolve_the_relocated_original_object(void) {
     struct _Unwind_Exception *rethrown = capture_rethrow();
     scoop_rt_end_catch();
     _Alignas(32) TestException moved_again = moved;
-    handle_objects[handle - 1] = &moved_again;
+    record->object = &moved_again;
     caught = scoop_rt_begin_catch(rethrown);
     CHECK(caught == &moved_again);
     CHECK(caught->code == 501);
     CHECK(caught->reference == &reference);
-    CHECK(root_add_count == 1);
     scoop_rt_end_catch();
-    CHECK(last_removed_root == &moved_again);
+    CHECK(!active_roots_contain(&moved_again));
     assert_runtime_empty();
 }
 
 static void test_new_throw_of_caught_object_has_independent_ownership(void) {
-    reset_observers();
+    reset_lifecycle();
     _Alignas(32) TestException source = make_exception(550, NULL);
-    publish_object(&source);
     struct _Unwind_Exception *first = capture_throw(&source);
     TestException *caught = scoop_rt_begin_catch(first);
     struct _Unwind_Exception *second = capture_throw(caught);
     CHECK(first != second);
-    CHECK(handle_count == 2);
+    CHECK(active_record_count() == 2);
     scoop_rt_end_catch();
-    CHECK(handle_count == 1);
-    CHECK(handle_contains(&source));
+    CHECK(active_record_count() == 1);
+    CHECK(active_roots_contain(&source));
     CHECK(scoop_rt_begin_catch(second) == &source);
     scoop_rt_end_catch();
     assert_runtime_empty();
@@ -356,7 +307,8 @@ typedef struct ConcurrentWorker {
     struct _Unwind_Exception *unwind;
     void *payload;
     size_t observed_raise_count;
-    bool caught_stack_empty;
+    uint64_t observed_delete_count;
+    bool stacks_empty;
 } ConcurrentWorker;
 
 static void concurrent_gate_init(ConcurrentGate *gate) {
@@ -380,6 +332,11 @@ static void *run_concurrent_exception_lifecycle(void *raw_worker) {
     worker->record = record_from_unwind(worker->unwind);
     CHECK(worker->record->owner == worker->thread_state);
     CHECK(worker->record->state == SCOOP_EXCEPTION_IN_FLIGHT);
+    CHECK(worker->thread_state->active_exceptions == worker->record);
+    CHECK(worker->record->active_previous == NULL);
+    CHECK(worker->record->active_next == NULL);
+    CHECK(active_record_count() == 1);
+    CHECK(caught_frame_count() == 0);
     CHECK(worker->thread_state->caught_exception_top == NULL);
 
     CHECK(pthread_mutex_lock(&gate->mutex) == 0);
@@ -420,13 +377,15 @@ static void *run_concurrent_exception_lifecycle(void *raw_worker) {
     }
 
     scoop_rt_end_catch();
-    worker->caught_stack_empty = worker->thread_state->caught_exception_top == NULL;
+    worker->stacks_empty = worker->thread_state->caught_exception_top == NULL &&
+                           worker->thread_state->active_exceptions == NULL;
+    worker->observed_delete_count = delete_count;
     worker->observed_raise_count = raise_count;
     return NULL;
 }
 
 static void test_concurrent_threads_have_isolated_caught_stacks(void) {
-    reset_observers();
+    reset_lifecycle();
     ConcurrentGate gate;
     ConcurrentWorker workers[CONCURRENT_THREAD_COUNT] = {0};
     pthread_t threads[CONCURRENT_THREAD_COUNT];
@@ -438,7 +397,6 @@ static void test_concurrent_threads_have_isolated_caught_stacks(void) {
         workers[index].referenced_value = (int)(1000 + index);
         workers[index].source =
             make_exception(UINT64_C(800) + index, &workers[index].referenced_value);
-        publish_object(&workers[index].source);
     }
     for (size_t index = 0; index < CONCURRENT_THREAD_COUNT; index++) {
         CHECK(pthread_create(&threads[index], NULL, run_concurrent_exception_lifecycle,
@@ -449,9 +407,8 @@ static void test_concurrent_threads_have_isolated_caught_stacks(void) {
     while (gate.thrown_ready < CONCURRENT_THREAD_COUNT) {
         CHECK(pthread_cond_wait(&gate.changed, &gate.mutex) == 0);
     }
-    CHECK(scoop_eh_debug_active_record_count() == CONCURRENT_THREAD_COUNT);
-    CHECK(scoop_eh_debug_caught_frame_count() == 0);
-    check_observer_counts(CONCURRENT_THREAD_COUNT, CONCURRENT_THREAD_COUNT, 0, 0);
+    CHECK(active_record_count() == 0);
+    CHECK(caught_frame_count() == 0);
     for (size_t index = 0; index < CONCURRENT_THREAD_COUNT; index++) {
         CHECK(workers[index].thread_state != NULL);
         CHECK(workers[index].record != NULL);
@@ -470,14 +427,14 @@ static void test_concurrent_threads_have_isolated_caught_stacks(void) {
     while (gate.caught_ready < CONCURRENT_THREAD_COUNT) {
         CHECK(pthread_cond_wait(&gate.changed, &gate.mutex) == 0);
     }
-    CHECK(scoop_eh_debug_active_record_count() == CONCURRENT_THREAD_COUNT);
-    CHECK(scoop_eh_debug_caught_frame_count() == CONCURRENT_THREAD_COUNT);
-    check_observer_counts(CONCURRENT_THREAD_COUNT, CONCURRENT_THREAD_COUNT, 0, 0);
+    CHECK(active_record_count() == 0);
+    CHECK(caught_frame_count() == 0);
     for (size_t index = 0; index < CONCURRENT_THREAD_COUNT; index++) {
         CHECK(workers[index].record->state == SCOOP_EXCEPTION_CAUGHT);
         CHECK(workers[index].thread_state->caught_exception_top == workers[index].record);
         CHECK(workers[index].payload == &workers[index].source);
-        CHECK(handle_contains(workers[index].payload));
+        CHECK(workers[index].thread_state->active_exceptions == workers[index].record);
+        CHECK(workers[index].record->object == workers[index].payload);
     }
 
     gate.phase = 2;
@@ -486,13 +443,12 @@ static void test_concurrent_threads_have_isolated_caught_stacks(void) {
 
     for (size_t index = 0; index < CONCURRENT_THREAD_COUNT; index++) {
         CHECK(pthread_join(threads[index], NULL) == 0);
-        CHECK(workers[index].caught_stack_empty);
+        CHECK(workers[index].stacks_empty);
+        CHECK(workers[index].observed_delete_count == 1);
         CHECK(workers[index].observed_raise_count == (((index & 1) != 0) ? 2 : 1));
     }
     concurrent_gate_destroy(&gate);
 
-    check_observer_counts(0, CONCURRENT_THREAD_COUNT, CONCURRENT_THREAD_COUNT,
-                          CONCURRENT_THREAD_COUNT);
     assert_runtime_empty();
 }
 
@@ -555,25 +511,13 @@ static void rethrow_with_empty_stack(void) { scoop_rt_rethrow(); }
 static void begin_same_record_twice(void) {
     int referenced_value = 47;
     _Alignas(32) TestException source = make_exception(600, &referenced_value);
-    publish_object(&source);
     struct _Unwind_Exception *unwind = capture_throw(&source);
     (void)scoop_rt_begin_catch(unwind);
     (void)scoop_rt_begin_catch(unwind);
-}
-
-static void repeat_cleanup_callback_after_release(void) {
-    int referenced_value = 53;
-    _Alignas(32) TestException source = make_exception(700, &referenced_value);
-    publish_object(&source);
-    struct _Unwind_Exception *unwind = capture_throw(&source);
-    void (*cleanup)(_Unwind_Reason_Code, struct _Unwind_Exception *) = unwind->exception_cleanup;
-    (void)scoop_rt_begin_catch(unwind);
-    scoop_rt_end_catch();
-    cleanup(_URC_NO_REASON, unwind);
 }
 
 static void test_invalid_catch_states_abort_with_stable_diagnostics(void) {
-    reset_observers();
+    reset_lifecycle();
     expect_abort_with_stderr(end_catch_with_empty_stack,
                              "scoop: fatal exception state error: end-catch has no active catch "
                              "frame\n");
@@ -583,8 +527,6 @@ static void test_invalid_catch_states_abort_with_stable_diagnostics(void) {
     expect_abort_with_stderr(begin_same_record_twice,
                              "scoop: fatal exception state error: begin-catch observed an invalid "
                              "record state\n");
-    expect_abort_with_stderr(repeat_cleanup_callback_after_release,
-                             "scoop: fatal exception state error: unwind record is not active\n");
 }
 
 ScoopThreadState *scoop_thread_current(void) { return &test_thread; }
@@ -596,56 +538,6 @@ ScoopThreadState *scoop_thread_require_managed(void) {
           SCOOP_THREAD_MANAGED);
     CHECK(test_thread.managed_depth == 1);
     return &test_thread;
-}
-
-bool scoop_gc_is_published_object(const void *object) {
-    observers_lock_acquire();
-    for (size_t index = 0; index < published_object_count; index++) {
-        if (published_objects[index] == object) {
-            observers_lock_release();
-            return true;
-        }
-    }
-    observers_lock_release();
-    return false;
-}
-
-uint64_t scoop_rt_get_handle(const void *object) {
-    CHECK(object != NULL);
-    observers_lock_acquire();
-    for (size_t index = 0; index < TEST_CAPACITY; index++) {
-        if (handle_objects[index] == NULL) {
-            handle_objects[index] = object;
-            handle_count++;
-            root_add_count++;
-            observers_lock_release();
-            return index + 1;
-        }
-    }
-    observers_lock_release();
-    test_fail("handle table has space", __LINE__);
-}
-
-const void *scoop_rt_resolve_handle(uint64_t handle) {
-    CHECK(handle > 0 && handle <= TEST_CAPACITY);
-    observers_lock_acquire();
-    const void *object = handle_objects[handle - 1];
-    CHECK(object != NULL);
-    observers_lock_release();
-    return object;
-}
-
-const void *scoop_rt_release_handle(uint64_t handle) {
-    CHECK(handle > 0 && handle <= TEST_CAPACITY);
-    observers_lock_acquire();
-    const void *object = handle_objects[handle - 1];
-    CHECK(object != NULL);
-    handle_objects[handle - 1] = NULL;
-    handle_count--;
-    last_removed_root = object;
-    root_remove_count++;
-    observers_lock_release();
-    return object;
 }
 
 _Unwind_Reason_Code _Unwind_RaiseException(struct _Unwind_Exception *exception) {
@@ -660,9 +552,7 @@ _Unwind_Reason_Code _Unwind_RaiseException(struct _Unwind_Exception *exception) 
 void _Unwind_DeleteException(struct _Unwind_Exception *exception) {
     CHECK(exception != NULL);
     CHECK(exception->exception_cleanup != NULL);
-    observers_lock_acquire();
     delete_count++;
-    observers_lock_release();
     exception->exception_cleanup(_URC_NO_REASON, exception);
 }
 
