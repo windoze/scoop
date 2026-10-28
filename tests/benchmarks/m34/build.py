@@ -115,7 +115,9 @@ if args.kind == "standard":
     ]:
         build(name, repo / f"tests/benchmarks/{name}.scoop", work / name)
 elif args.kind == "interfaces":
-    fixture = repo / "tests/benchmarks/interfaces"
+    fixture = source / "tests/benchmarks/interfaces"
+    for name in ("provider", "consumer"):
+        shutil.copytree(fixture / name, work / name)
     commands = [
         [
             "cc",
@@ -137,13 +139,13 @@ elif args.kind == "interfaces":
     artifacts = work / "artifacts"
     build(
         "provider",
-        fixture / "provider",
+        work / "provider",
         artifacts / "dev.m34/interface-bench-provider/0.1.0/cone.slib",
         ["--emit", "all", "--dump-dir", work / "provider-dump"],
     )
     build(
         "consumer",
-        fixture / "consumer",
+        work / "consumer",
         work / "interfaces",
         [
             "--cone-path",

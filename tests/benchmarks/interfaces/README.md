@@ -29,7 +29,7 @@ provider 提供普通公开循环函数，consumer 从独立 Cone 调用，保�
 
 `SCOOP_BENCH_COUNT` 可以覆盖循环次数。`phases.c` 只读取环境变量和系统时钟，不依赖任一版 runtime 内部布局；stderr 第一行是 kernel 的墙钟与进程 CPU 纳秒。开启 `SCOOP_GC_STATS=1` 后，第二行保留该进程的真实 GC 统计。开始计时前已分配 Cell，全部循环结束后才打印 checksum。
 
-先用 C11／O2 编译 `phases.c` 并打包为 `libm34_interfaces.a`，再使用配套的 `scoop`／`scoopc` 按 release 构建 provider 到 `artifacts/dev.m34/interface-bench-provider/0.1.0/cone.slib`。consumer 使用 `--cone-path artifacts --library-path <native archive directory>` 构建；两次构建都指定同一 sysroot／runtime、目标与普通缓存。`--emit all --dump-dir <directory>` 保留 MIR／LIR，结合目标 `llvm-objdump` 检查调用和转换的实际位置。
+先用 C11／O2 编译 `phases.c` 并打包为 `libm34_interfaces.a`，再使用配套的 `scoop`／`scoopc` 按 release 构建 provider 到 `artifacts/dev.m34/interface-bench-provider/0.1.0/cone.slib`。将 consumer 复制到工作目录的 `consumer/`，产物放在同一工作目录的上述 `artifacts/` 路径；consumer 清单显式引用它，并使用 `--library-path <native archive directory>` 构建；两次构建都指定同一 sysroot／runtime、目标与普通缓存。`--emit all --dump-dir <directory>` 保留 MIR／LIR，结合目标 `llvm-objdump` 检查调用和转换的实际位置。
 
 最终 M33／M34 对照按模式各七轮，逐轮交换顺序，关闭继承的 GC stress／worker 覆盖。它同时反映接口表示、MIR 优化和条件 poll 的累计变化；不把总加速归给单一优化。完整参数、命令、全部样本与机器码在 [M34 性能记录](../../../docs/milestone34/PERFORMANCE.md)。
 
