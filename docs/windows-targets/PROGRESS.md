@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | W0 工具链与 ABI | 关键路线实验通过 | 复现入口与范围见下文；正式编译器集成在 W1／W2 完成 |
 | W1 编译／链接 | 实施中 | 三目标开发 CLI 已支持 subsystem、RC、DLL 数据与跨 Cone C++；cl／clang-cl 消费同一 MSVC 静态库和 DLL 的完整程序及原生输入诊断通过，继续调试信息与组合验收 |
-| W2 core runtime | 实施中 | core／std／test 已构建，异常、移动 GC、callback、TLS、初始化、shutdown 与并行 GC 的定向程序通过；继续 core／std Cone 测试及其余 ABI／GC 组合验收 |
+| W2 core runtime | 实施中 | core／std／test 已构建且 Cone 测试通过，异常、移动 GC、callback、TLS、初始化、shutdown 与并行 GC 的定向程序通过；继续其余 ABI／GC 组合验收 |
 | W3 系统库 | 待实施 | 平台规范与实现、IOCP、全部 native 组件、真实 consumer |
 | W4 宿主与发行 | 基础实施中 | 进程中断已实现；继续 Windows 命令、维护脚本、DLL／SDK 布局与打包、交叉编译 |
 
@@ -152,3 +152,5 @@ callback 测试使用有限的共享 native thread helper，Windows 由 `_begint
 shutdown 的 native companion 复用同一 OS thread helper，覆盖仍附着的外来线程、活动 callback、未释放 token 的退出诊断，以及正常返回／显式 exit 的缓冲刷新、状态码和 atexit 差异。四项 shutdown、两项初始化、线程分配、线程 poll／根保持及并行标记共十项正式 fixture 在三个 target 均通过；C 格式化与严格告警检查通过。
 
 并行标记的首轮检查曾因 Windows 线程 CPU 时钟在短 GC 内未增长而失败；实际任务与对象计数确认标记完整。测试现在允许 CPU 采样值相等并拒绝倒退，继续精确检查 worker 数、array task 增长及本轮 marked／live 对象数，不用计时粒度判断 GC 是否执行。修正后每目标 debug／release 两个变体、20 个进程步骤通过，包含 1／2／4／8 workers、moving 与 minor；runtime 计时实现未改动。core／std Cone 测试、其余 ABI 组合和 W1／W3／W4 继续实施，未开始远端测试。
+
+三个 Windows target 的正式 release Cone 测试均通过：core consumer 每目标 49 个容器／77 项测试，std 每目标 97 个容器／104 项测试，失败、忽略和未运行均为零。测试使用前述已准备的预编译系统库与共享缓存；三个长时间编译进程均正常完成，没有重复启动。此结果闭合 core／std 的普通 API 行为验收；其余 ABI／GC 组合、调试信息、平台库、发行与跨宿主验证继续实施。
