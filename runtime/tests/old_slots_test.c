@@ -139,8 +139,10 @@ static void check_size(const ScoopTypeDescriptor *td, size_t offset) {
         assert(*edge(old, offset) == replacement && *edge(replacement, offset) == objects[0]);
         assert(*value(replacement, offset) == 100000 + index);
         assert((uintptr_t)replacement % td->instance_shape.instance_alignment == 0);
-        if (size > offset + 2 * sizeof(void *)) {
-            assert(((unsigned char *)replacement)[size - 1] == 0x6d);
+        for (size_t byte = sizeof(ScoopObjectHeader); byte < size; byte++) {
+            if (byte < offset || byte >= offset + 2 * sizeof(void *)) {
+                assert(((unsigned char *)replacement)[byte] == 0x6d);
+            }
         }
     }
     assert(slack ? retained != 0 : retained == 0);
