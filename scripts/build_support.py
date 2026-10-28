@@ -62,7 +62,7 @@ def reusable(record, inputs, outputs):
         return False
     saved = json.loads(record.read_text())
     return (
-        saved["inputs"] == inputs
+        saved.get("inputs") == inputs
         and all(path.exists() for path in outputs)
         and all(metadata(Path(value[0])) == value for value in saved["dependencies"])
     )
@@ -96,9 +96,19 @@ def dependency_paths(objects):
             if process.wait():
                 raise subprocess.CalledProcessError(process.returncode, command)
     else:
-        for depfile in objects.rglob("*.o.d"):
-            text = depfile.read_text().replace("\\\n", " ")
-            _, separator, prerequisites = text.partition(": ")
+        for depfile in objects.rglob("*.d"):
+            content = depfile.read_text(encoding="utf-8").replace("\\\n", " ")
+            # OpenSSL's Microsoft build writes /showIncludes output to .d files.
+            if "Note: including file:" in content:
+                names.update(
+                    line.removeprefix("Note: including file:").strip()
+                    for line in content.splitlines()
+                    if line.startswith("Note: including file:")
+                )
+                continue
+            if not content.strip():
+                continue
+            _, separator, prerequisites = content.partition(": ")
             if not separator:
                 raise ValueError(f"invalid compiler depfile: {depfile}")
             names.update(

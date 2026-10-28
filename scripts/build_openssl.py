@@ -2,20 +2,25 @@
 """Prepare Scoop's vendored OpenSSL headers and static libraries for one target."""
 
 import argparse
-import json
 import os
 import platform
+import shlex
+import shutil
 import subprocess
 import tarfile
 import tomllib
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+from build_support import RELEASE_CONFIG, ROOT, build_lock, metadata, reusable, save_record
+
 VERSION = "3.5.9"
 TARGETS = {
     "aarch64-apple-darwin": ("darwin64-arm64-cc", "clang", "Darwin"),
     "x86_64-unknown-linux-gnu": ("linux-x86_64", "gcc", "Linux"),
     "x86_64-unknown-linux-musl": ("linux-x86_64", "musl-gcc", "Linux"),
+    "x86_64-pc-windows-msvc-ucrt": ("VC-WIN64A", "clang-cl", "Windows"),
+    "x86_64-w64-windows-llvm-mingw-msvcrt": ("mingw64", "clang", "Windows"),
+    "x86_64-w64-windows-llvm-mingw-ucrt": ("mingw64", "clang", "Windows"),
 }
 OPTIONS = [
     "no-shared",
@@ -29,62 +34,130 @@ OPTIONS = [
 ]
 
 
-def metadata(path):
-    value = path.stat()
-    return [str(path), value.st_mtime_ns, value.st_size]
+def install_msvc(source, objects, prefix):
+    headers = prefix / "include/openssl"
+    files = [
+        (header, headers / header.name)
+        for directory in (source, objects)
+        for header in sorted((directory / "include/openssl").glob("*.h"))
+        if not header.name.startswith("__DECC_")
+    ]
+    files.extend(
+        (objects / f"lib{name}.lib", prefix / "lib" / f"lib{name}.a") for name in ("ssl", "crypto")
+    )
+    pdb = objects / "ossl_static.pdb"
+    if pdb.exists():
+        files.append((pdb, prefix / "lib" / pdb.name))
+    # clang-cl embeds CodeView in the objects and does not emit the compiler PDB
+    # that upstream's NMake install_dev unconditionally tries to copy.
+    for source_file, destination in files:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        temporary = destination.with_suffix(destination.suffix + ".new")
+        shutil.copy2(source_file, temporary)
+        temporary.replace(destination)
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--target", required=True, choices=TARGETS)
-    parser.add_argument("--build-dir", type=Path)
-    parser.add_argument("--prefix", type=Path)
-    parser.add_argument("--cc", help="Compiler for the selected target libc")
-    parser.add_argument("--jobs", type=int, default=min(os.cpu_count() or 1, 8))
-    parser.add_argument("--rebuild", action="store_true")
-    args = parser.parse_args()
+def prepare(args):
     config, default_cc, host = TARGETS[args.target]
-    if platform.system() != host:
-        parser.error(f"prepare {args.target} on a {host} build host")
-    if args.jobs < 1:
-        parser.error("--jobs must be positive")
+    msvc = config == "VC-WIN64A"
+    mingw = config == "mingw64"
     archive = ROOT / f"sysroot/vendor/openssl/openssl-{VERSION}.tar.gz"
-    build = (args.build_dir or ROOT / "tmp/openssl" / args.target).resolve()
-    prefix = (args.prefix or ROOT / "sysroot/lib" / args.target / "openssl").resolve()
-    cc = args.cc or default_cc
+    build = args.build_dir
+    prefix = args.prefix
     inputs = {
         "archive": metadata(archive),
-        "script": metadata(Path(__file__).resolve()),
+        "scripts": [
+            metadata(path) for path in (__file__, RELEASE_CONFIG, ROOT / "scripts/build_support.py")
+        ],
+        "target": args.target,
         "config": config,
-        "cc": cc,
+        "cc": args.cc or default_cc,
+        "perl": args.perl,
+        "make": args.make or ("nmake" if msvc else "make"),
+        "shell": args.shell or ("sh" if mingw else None),
         "prefix": str(prefix),
         "options": OPTIONS,
-        "release": metadata(ROOT / "scripts/release.toml"),
-        "deployment": os.environ.get("MACOSX_DEPLOYMENT_TARGET") if host == "Darwin" else None,
+        "environment": {
+            name: os.environ.get(name)
+            for name in (
+                "PATH",
+                "CFLAGS",
+                "CPPFLAGS",
+                "LDFLAGS",
+                "AR",
+                "RANLIB",
+                "PERL5LIB",
+                "INCLUDE",
+                "LIB",
+                "LIBPATH",
+                "CL",
+                "_CL_",
+                "MACOSX_DEPLOYMENT_TARGET",
+                "MSYS2_ENV_CONV_EXCL",
+            )
+        },
     }
     record = build / "inputs.json"
     outputs = [
         prefix / name for name in ("include/openssl/ssl.h", "lib/libssl.a", "lib/libcrypto.a")
     ]
-    if (
-        not args.rebuild
-        and record.exists()
-        and json.loads(record.read_text()) == inputs
-        and all(path.exists() for path in outputs)
-    ):
-        print(f"Reusing {args.target} OpenSSL {VERSION}: {prefix}")
+    if not args.rebuild and reusable(record, inputs, outputs):
+        print(f"Reusing {args.target} OpenSSL {VERSION}: {prefix}", flush=True)
         return
 
-    release = tomllib.loads((ROOT / "scripts/release.toml").read_text())
-    flags = ["-fPIC"]
+    tools = {}
+    for name in ("cc", "perl", "make", "shell"):
+        if inputs[name] is not None:
+            path = shutil.which(inputs[name])
+            if path is None:
+                raise ValueError(f"OpenSSL preparation requires {name}: {inputs[name]}")
+            tools[name] = Path(path).absolute().as_posix()
+    release = tomllib.loads(RELEASE_CONFIG.read_text())["targets"][args.target]
+    flags = [] if host == "Windows" else ["-fPIC"]
     if host == "Darwin":
-        baseline = release["targets"][args.target]["minimum_os"]
+        baseline = release["minimum_os"]
         flags.append("-mmacosx-version-min=" + os.environ.get("MACOSX_DEPLOYMENT_TARGET", baseline))
+    elif msvc:
+        flags.extend(("/MD", "/D_WIN32_WINNT=0x0a00"))
     else:
-        flags.append("-march=" + release["targets"][args.target]["cpu"])
+        flags.append("-march=" + release["cpu"])
+        if mingw:
+            flags.append("-D_WIN32_WINNT=0x0a00")
     scratch = build / "scratch"
     scratch.mkdir(parents=True, exist_ok=True)
-    environment = dict(os.environ, TMPDIR=str(scratch), CC=cc)
+    environment = dict(
+        os.environ, TMPDIR=str(scratch), TEMP=str(scratch), TMP=str(scratch), CC=tools["cc"]
+    )
+    make = [tools["make"]]
+    configure_prefix = prefix.as_posix()
+    if host == "Windows":
+        environment["PATH"] = str(Path(tools["cc"]).parent) + os.pathsep + environment["PATH"]
+    if msvc:
+        environment["VSLANG"] = "1033"
+        make.append("/NOLOGO")
+        for name in ("nasm", "lib", "link"):
+            path = shutil.which(name, path=environment["PATH"])
+            if path is None:
+                raise ValueError(f"Windows OpenSSL preparation requires {name}")
+            tools[name] = path
+    if mingw:
+        environment["CC"] = shlex.quote(tools["cc"])
+        for name in ("ar", "ranlib"):
+            path = Path(tools["cc"]).parent / ("llvm-" + name + ".exe")
+            if not path.is_file():
+                raise ValueError(f"the selected LLVM-MinGW prefix is missing {path.name}")
+            tools[name] = path.as_posix()
+            environment[name.upper()] = shlex.quote(tools[name])
+        environment["SHELL"] = tools["shell"]
+        # A native GNU Make must also invoke the selected MSYS Perl and shell.
+        make.extend((f"SHELL={tools['shell']}", f"PERL={shlex.quote(tools['perl'])}"))
+        prefix.mkdir(parents=True, exist_ok=True)
+        configure_prefix = subprocess.check_output(
+            [tools["perl"], "-MCwd=abs_path", "-e", "print abs_path($ARGV[0])", str(prefix)],
+            env=environment,
+            text=True,
+            encoding="utf-8",
+        )
     sources = build / "source"
     source = sources / f"openssl-{VERSION}"
     # The complete upstream archive remains the source input for every target.
@@ -93,24 +166,56 @@ def main():
     objects = build / "objects"
     objects.mkdir(exist_ok=True)
     if (objects / "Makefile").exists():
-        subprocess.run(["make", "clean"], cwd=objects, env=environment, check=True)
+        subprocess.run([*make, "clean"], cwd=objects, env=environment, check=True)
     command = [
-        "perl",
-        str(source / "Configure"),
+        tools["perl"],
+        (source / "Configure").as_posix(),
         config,
-        f"--prefix={prefix}",
+        f"--prefix={configure_prefix}",
         "--libdir=lib",
         *OPTIONS,
         *flags,
     ]
     subprocess.run(command, cwd=objects, env=environment, check=True)
     subprocess.run(
-        ["make", f"-j{args.jobs}", "build_libs"], cwd=objects, env=environment, check=True
+        [*make, *([] if msvc else [f"-j{args.jobs}"]), "build_libs"],
+        cwd=objects,
+        env=environment,
+        check=True,
     )
-    subprocess.run(["make", "install_dev"], cwd=objects, env=environment, check=True)
-    record.write_text(json.dumps(inputs, indent=2) + "\n")
-    print(f"Installed {args.target} OpenSSL {VERSION}: {prefix}")
-    print(f"Default Scoop library directory: {prefix / 'lib'}")
+    if msvc:
+        install_msvc(source, objects, prefix)
+    else:
+        subprocess.run([*make, "install_dev"], cwd=objects, env=environment, check=True)
+    save_record(record, inputs, objects, tools=tools.values())
+    print(f"Installed {args.target} OpenSSL {VERSION}: {prefix}", flush=True)
+    print(f"Default Scoop library directory: {prefix / 'lib'}", flush=True)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--target", required=True, choices=TARGETS)
+    parser.add_argument("--build-dir", type=Path)
+    parser.add_argument("--prefix", type=Path)
+    parser.add_argument("--cc", help="Compiler for the selected target libc")
+    parser.add_argument("--perl", default="perl")
+    parser.add_argument("--make")
+    parser.add_argument("--shell", help="Unix shell for the LLVM-MinGW build")
+    parser.add_argument("--jobs", type=int, default=min(os.cpu_count() or 1, 8))
+    parser.add_argument("--rebuild", action="store_true")
+    args = parser.parse_args()
+    host = TARGETS[args.target][2]
+    if platform.system() != host:
+        parser.error(f"prepare {args.target} on a {host} build host")
+    if args.jobs < 1:
+        parser.error("--jobs must be positive")
+    if "llvm-mingw" in args.target and not args.cc:
+        parser.error("--cc must select clang.exe from the LLVM-MinGW prefix for this CRT")
+    args.build_dir = (args.build_dir or ROOT / "tmp/openssl" / args.target).resolve()
+    args.prefix = (args.prefix or ROOT / "sysroot/lib" / args.target / "openssl").resolve()
+    args.build_dir.mkdir(parents=True, exist_ok=True)
+    with build_lock(args.build_dir / "build.lock"):
+        prepare(args)
 
 
 if __name__ == "__main__":

@@ -61,6 +61,48 @@ class NinjaDependencyTests(unittest.TestCase):
             self.assertTrue(header.is_file())
 
 
+@unittest.skipUnless(os.name == "nt", "Microsoft compiler dependency format")
+class MicrosoftDependencyTests(unittest.TestCase):
+    def test_openssl_depfiles_track_external_header_updates(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            header = root / "external header.h"
+            header.write_text("#define VALUE 42\n")
+            source = root / "source.c"
+            source.write_text('#include "external header.h"\nint answer(void) { return VALUE; }\n')
+            objects = root / "build/objects"
+            objects.mkdir(parents=True)
+            output = objects / "answer.obj"
+            compiler = os.environ.get("SCOOP_TEST_CLANG", "clang")
+            command = [
+                compiler,
+                "--driver-mode=cl",
+                "/nologo",
+                "/showIncludes",
+                "/c",
+                str(source),
+                "/Fo" + str(output),
+            ]
+
+            def build():
+                result = subprocess.run(command, capture_output=True)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                (objects / "answer.d").write_bytes(result.stdout)
+
+            build()
+            record = root / "build/inputs.json"
+            inputs = {"source": metadata(source)}
+            save_record(record, inputs, objects)
+            self.assertTrue(reusable(record, inputs, [output]))
+            header.write_text("#define VALUE 127\n")
+            self.assertFalse(reusable(record, inputs, [output]))
+            build()
+            save_record(record, inputs, objects)
+            self.assertTrue(reusable(record, inputs, [output]))
+            self.assertTrue(header.is_file())
+            self.assertTrue(source.is_file())
+
+
 class BuildLockTests(unittest.TestCase):
     def test_another_process_waits_until_the_build_releases_its_lock(self):
         with tempfile.TemporaryDirectory() as temporary:

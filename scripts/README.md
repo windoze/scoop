@@ -46,6 +46,8 @@ python3 scripts/prepare_sysroot.py \
 
 `build_nghttp2.py` 从 vendor 的固定 1.70.0 tag 归档构建纯静态协议库，保留完整上游核心，不构建应用、工具、测试或文档。使用同一目标部署／CPU 配置；工作目录默认为 `tmp/nghttp2/<triple>`，支持 `--build-dir`、`--prefix`、`--cc`。更新判断先于解包和 CMake，命中不读取或复验 archive。llhttp 9.4.3 的发布 C 源码由普通 HTTP Cone 编译，不另加工具或命令。
 
+`build_openssl.py` 使用固定 OpenSSL 3.5.9 的上游构建。Windows 的 Microsoft target 在 x64 SDK／MSVC 开发环境中以 clang-cl／cl、原生 Windows Perl、NASM、NMake 构建 `VC-WIN64A`，使用动态 CRT `/MD`。两个 MinGW target 必须通过 `--cc` 选择各自 CRT prefix 的 Clang，并使用完整的 MSYS Perl、GNU Make 和 Unix shell 构建 `mingw64`；`--perl`、`--make`、`--shell` 可显式指定维护工具。`--jobs` 控制 GNU Make 并发，NMake 串行执行。构建目录可用 `--build-dir E:/scoop-work/openssl-msvc`；目标资源位于 `sysroot/lib/<triple>/openssl`，普通应用无需 Perl／Make／MSYS。输入未变化时在解包和工具调用之前复用；`--rebuild` 可显式重新准备。
+
 `build_text_backends.py` 准备独立 Rust `scoop_text_backend`（字符集转换／IDNA／Punycode／NFC／Unicode 编辑基础操作）。Rust 依赖从固定 vendor 归档离线构建，需要支持所选目标的 Rust 工具链；普通应用不执行 Cargo。字符集按用户决定缩减为 43 个名称；原 GNU 文本构建链与发行资源已移除。必须显式给出仓库外 `--build-dir`；支持目标 `--cc`、资源目录 `--prefix` 与 `--jobs`。静态库放在 `sysroot/lib/<triple>`，头文件放在其 `include` 子目录，直接使用现有 native 搜索路径。实际 Rust 工具链的 `COPYRIGHT-library.html`、Apache-2.0／MIT 许可保存在目标目录的 `rust-std` 中，发行时收集到 `share/licenses`。这些文档必须随维护构建工具链提供；缓存命中不探测工具链或读取许可内容。固定依赖的源码与许可由 vendor 随工具链分发，不携带构建出的命令行程序。
 
 `build_uriparser.py` 以相同布局准备 uriparser 1.0.2，仅启用窄字符静态库，关闭工具、文档、测试及宽字符 API 的构建。需要 CMake 和所选目标 C 编译器；使用仓库外 `--build-dir`，其余目标、编译器与并行选项同上。输入未变化时直接复用，实际更新后在维护工作区重建，再发布库与头文件。

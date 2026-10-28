@@ -254,3 +254,7 @@ Windows 异步 TTY 已接入已有 worker：输入等待自有 console HANDLE �
 PCRE2 10.49 的静态 8-bit／Unicode／JIT 后端已按三个 Windows target 分别构建，Microsoft 使用 `/MD`；clang-cl 和 cl 两种上游构建通过。正则 Cone 使用所选目标头文件及 `PCRE2_STATIC`，沿 driver 的 C11 默认参数，移除会在 clang-cl 下改变含义的重复选项。三个 target 的正式 release Cone 各 4 个容器／19 项测试全部通过，生产 slib 已更新开发 sysroot。构建复用保留 archive 时间戳，输入与工具仍在原位。共享维护构建锁补上 Windows 分支，跨进程等待及真实 Ninja 头文件更新测试通过；测试曾遇到 PATH 上 ANSI Ninja 的中文路径失败，改用 UTF-8 Ninja 后复测通过。OpenSSL 等其他后端及 asyncio 广覆盖验收仍在继续，未开始远端测试。
 
 合并主线 `1de3cd2eb` 的 GC／分配优化：保留新的任务通知与四指针分配视图，工作线程仍使用 Windows 已有平台 primitives；runtime ABI 统一为 27，保留 Unicode 启动入口。workspace Clippy、6 项 runtime ABI、8 项兼容性、23 项分配生成及 4 项 Windows codegen 测试通过；旧 ABI 固定向量已同步并复测。三个 target 各 5 组／10 个 debug／release 变体的正式 GC fixture 全部通过，覆盖分配计数、线程、1／2／4／8／16 worker、移动与 minor GC、回收增长。release 命令、四种 runtime 配置及现有七个系统库已配套重建。asyncio 广覆盖曾在编译阶段触及外部运行器 20 分钟时限，延长时限后又因本次 ABI 更新停止旧版本构建；尚未得到该组运行结果，待依赖补齐后使用新版本继续验收。
+
+OpenSSL 3.5.9 已按三个 Windows target 分别正式构建并安装静态库：Microsoft 使用 native Perl／NMake／clang-cl 和 `/MD`，MinGW 使用 MSYS Perl／GNU Make 及所选 CRT prefix 的 Clang／archive 工具。Microsoft 安装保留真实公共和生成头文件，将 COFF archive 发布为约定的 `.a` 名称；clang-cl 不生成上游安装规则假定的 compiler PDB，因此只复制实际存在的 PDB。依赖记录读取真实 `/showIncludes` 和 Make depfile，未变化准备先于工具探测直接复用。
+
+三个 target 的 crypto 正式 release Cone 各 10 个容器／25 项测试、跨 Cone consumer 各 4 个容器／5 项测试全部通过；生产 json／crypto 已发布到开发 sysroot。三套 PE 导入符合对应 CRT，OpenSSL 保持静态链接。三套原生严格告警检查、Python Ruff 和三项维护脚本测试通过；后者覆盖真实编译器头文件更新与跨进程构建锁。三个 OpenSSL 准备命令重复执行均复用，archive 时间戳保持，源码与工具仍在原位。TLS、asyncio 广覆盖、其他第三方后端及完整发行验收继续实施，未开始远端测试。
