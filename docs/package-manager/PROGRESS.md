@@ -1,6 +1,6 @@
 # M63 包管理实施记录
 
-状态：本地功能实施中。更新日期：2026-10-28。目标合同见[包管理规范](../specs/SCOOP-PACKAGE-SPEC.md)，阶段完成条件见[设计](DESIGN.md#5-实施步骤与完成条件)。普通 manifest 命令、跨根构建/测试调度与文档绑定隔离已接入 PM；低层原始清单入口已退役；LSP与工具/发行收尾尚未完成。用户将registry及源码打包/发布移至下一阶段，已有获取实现保留，本轮不继续扩展其能力或等待发布闭环。
+状态：本地功能与静态 registry 消费实施中。更新日期：2026-10-28。目标合同见[包管理规范](../specs/SCOOP-PACKAGE-SPEC.md)，阶段完成条件见[设计](DESIGN.md#5-实施步骤与完成条件)。普通 manifest 命令、跨根构建/测试调度与文档绑定隔离已接入 PM；低层原始清单入口已退役；LSP 已接入，工具/发行收尾仍在进行。本轮包含静态 registry 索引读取与源码包下载，源码打包/发布流程单独留至下一阶段。
 
 ## 职责边界修订
 
@@ -122,6 +122,12 @@ PM 生成和维护 `Cone.lock`；`scoop` 消费锁定图及其本地投影，向
 - 分析宿主通过配套 PM 的 members/metadata --offline 消费精确图，移除原来的清单依赖查找；每个 workspace 成员独立取得实际绑定，根成员不受 default-members 排除。缺少适用 lock 的成员保留源码语法与 workspace 符号，不用空依赖图替代完整项目。
 - 未保存清单沿 overlays 协议进入 PM；Cone.lock 变化参与监听。sysroot 源码导航只使用本地 members 的源码选择，依赖语义仍来自预编译产物。新增配套 PM、包缓存和 lockfile 配置，并同步 VS Code 配置及说明。
 - macOS/Linux 的 manifest、analysis、LSP Rust 回归与 lint 通过。真实 LSP 会话覆盖源码/预编译依赖、未保存文本、安装源码导航，以及 workspace 的 Git/path 不同版本、非默认根、缺锁成员和 lock 不变；Mac 原会话与新增组合场景分别运行，Linux 同一正式 fixture 的三个进程场景全部通过。扩展定向 lint/类型检查及单元测试通过；全目录 Biome 检查会扫描现有示例 target 产物，因此使用变更文件检查。未运行 VS Code GUI 宿主验收。
+
+### 静态 registry 读取协议与构建消费
+
+- 固定格式 1：HTTP(S) base 下的 config.json 和 packages/<group>/<name>.json，版本记录提供完整版本、kind、生产依赖、archive URL、SHA-256 与 yanked；归档为根含独立 Cone.toml 的 tar.zst。明确相对 URL 基准、必需字段、不可变版本、HTTP 错误、lock/离线读取行为与源码包消费要求。
+- 服务端只需托管静态文件；PM 自行求解并仅下载选中版本，共享源码缓存沿既有获取实现。package/publish 与索引维护留至下一阶段。
+- macOS/Linux 新增正式 fixture 均通过：使用 Python 标准静态文件服务器，索引与归档在请求前生成；两个有传递依赖的项目真实编译/运行，验证相对及绝对归档 URL、最新兼容版本、一次共享下载、未选候选不下载、有效 lock 不查远端、显式 update 与 frozen 运行。测试输入压缩使用 zstd CLI；首轮测试代理环境及源码 package 声明问题修正后通过，不增加服务端接口。
 
 ## 验证记录
 

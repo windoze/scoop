@@ -4,13 +4,13 @@
 
 采用独立 `scoop-pm` 可执行程序：它处理 workspace、版本求解、GitHub/Git、registry、源码打包和 `Cone.lock`；`scoop` 取得 lock 的精确图与本地输入后继续使用现有构建调度、缓存和链接。`scoopc` 仍只编译一个 Cone。这将新增复杂度集中在 PM，便于在不启动 LLVM 的测试中验证解析和下载行为。
 
-本轮按用户调整后的范围完成本地功能和工具接入：workspace、path/Git/sysroot/artifact、lock、清单编辑、LSP、帮助/模板与发行。registry 与源码打包/发布移至下一阶段，现有获取实现保留；不继续扩展 registry，也不等待其发布闭环才交付本轮。
+本轮完成本地功能、工具接入与 registry 消费：workspace、path/Git/sysroot/artifact、lock、清单编辑、LSP、帮助/模板与发行，以及静态 HTTP 索引读取和选中源码包下载。源码打包/发布工具移至下一阶段，消费验收直接使用预先生成的静态目录。
 
 ## 1. 为什么这样拆分
 
 现有 `scoop` 已经有可复用的精确图：`compiler/scoop/src/graph.rs` 的 `ResolvedBuildGraph` 保存 root、节点、边和依赖优先顺序；`discovery/` 从 manifest/artifact 收集图，`schedule.rs` 调度单 Cone 编译。新增 PM 应替换前面的“发现和选择”，不重写后面的构建执行。
 
-原始包声明与已解析单 Cone 配置已分开，machine protocol 18 用 `ExpandedCone` 交付已绑定配置，child 不再读取原 manifest。独立 PM 已能准备完整图，普通构建入口已消费该结果；`compiler/analysis/src/workspace/` 的项目发现仍待接入。`scoopc` 不读取包声明或 lock，也不根据版本要求匹配产物；旧的独立 manifest 入口已删除，普通 Cone 统一由 `scoop` 传递具体编译参数。
+原始包声明与已解析单 Cone 配置已分开，machine protocol 18 用 `ExpandedCone` 交付已绑定配置，child 不再读取原 manifest。独立 PM 已能准备完整图，普通构建入口已消费该结果；`compiler/analysis/src/workspace/` 也已通过离线 metadata 接入锁定项目模型。`scoopc` 不读取包声明或 lock，也不根据版本要求匹配产物；旧的独立 manifest 入口已删除，普通 Cone 统一由 `scoop` 传递具体编译参数。
 
 ```mermaid
 flowchart TD
@@ -87,7 +87,7 @@ PM 的 library 入口供自身命令与单元测试使用；构建 driver 通过
 
 ## 5. 实施步骤与完成条件
 
-每步都更新实际进度；设计完成不等于实现完成。M63 本轮完成第一至第四步及第六步的本地工具/发行工作，第五步完整移至下一阶段。中间步骤只接入已实现的来源，不能将未支持分支以空实现发布为完成。
+每步都更新实际进度；设计完成不等于实现完成。M63 本轮完成第一至第六步中的消费与工具/发行工作，第五步的发布工具留至下一阶段。中间步骤只接入已实现的来源，不能将未支持分支以空实现发布为完成。
 
 ### 第一步：数据边界与独立程序
 
@@ -119,13 +119,13 @@ PM 的 library 入口供自身命令与单元测试使用；构建 driver 通过
 
 验收：用本地 Git 仓库真实创建 branch/tag/commit，验证引用前进后普通构建仍保持 lock、update 才变化；同 repo 多 Cone、version 不匹配、缺失 subdir、来源冲突、离线缺 object；复用用户 Git credential 行为，不建设登录模块。
 
-### 第五步：registry、打包与静态发布
+### 第五步：静态 registry 消费
 
-下一阶段实施，不作为本轮完成条件。
+本轮固定格式 1 的 config、每包 JSON 索引、源码归档与 URL 解析合同，完成 metadata 候选、选中归档获取、一次下载校验、撤回状态读取和共享源码缓存。服务器只需普通 GET 文件读取；不要求数据库、查询 API 或服务端版本求解。协议借鉴 [Cargo index](https://doc.rust-lang.org/cargo/reference/registry-index.html) 将候选依赖与归档位置/校验和分开的方式，采用每包一个 JSON 文档，具体合同见包管理规范第 8 节。
 
-实现静态协议、metadata 候选、选中归档获取、一次下载校验、yank 以及源码 package。完成 workspace/path/Git 依赖的发布转换、native vendor 映射和 package --check；交付本地 registry add/yank/unyank 命令与部署说明。
+验收：普通静态 HTTP 服务提供有传递依赖的包，真实消费、锁定、离线构建和更新；索引求解不下载全部候选源码。两个项目先后及并发消费同版本共用一次成功下载/解包，不同 registry 同名版本保持分离；撤回不破坏旧 lock；坏归档/metadata 不发布结果，同版本不能覆盖。源码和工具保持存在。
 
-验收：本地 HTTP 服务提供两个有传递依赖的包，真实打包、加入索引、消费、锁定、离线构建和更新；索引求解不下载所有候选源码；两个项目先后及并发消费相同版本共用一次成功下载/解包，不同registry同名版本保持分离；撤回不破坏旧 lock；坏归档/metadata 不发布结果，同版本不能覆盖。至少一个带共享 vendor native 文件的包通过真实编译，源码/工具保持存在。
+下一阶段实现 package/list/check、workspace/path/Git 的发布转换、native vendor 映射与本地 registry add/yank/unyank；这些工具产生上述静态文件，发布流程不改变客户端协议。其验收包含真实打包、目录维护与带共享 vendor native 文件的消费者编译。
 
 ### 第六步：工具统一、发行与正式验收
 
@@ -144,13 +144,13 @@ PM 的 library 入口供自身命令与单元测试使用；构建 driver 通过
 | 构建边界 | prepare 请求/响应格式、配套工具失败 | 无 lock 的 build/run 自动 prepare → 生成 lock → 编译/链接/运行；PM 失败不启动编译，两个闭包的实际依赖绑定 |
 | 生产/测试 | 只启用根测试依赖、正确源码角色 | 普通构建不下载测试包，测试配置修改不失效生产结果 |
 | 产物与缓存 | 精确 prebuilt 约束、实际输入更新 | 旧 slib 不能重绑定；未变化不重复读取摘要/探测/复制 |
-| 发布 | 清单展开、path 转换、Git 固定、归档文件集 | 归档解包后普通编译；HTTP 消费 native vendor 包 |
+| 发布（下一阶段） | 清单展开、path 转换、Git 固定、归档文件集 | 归档解包后普通编译；HTTP 消费 native vendor 包 |
 | 工具与发行 | members/deps/metadata 输出与诊断 | LSP 不联网、doc 多根、分发含 PM，single-file/link 不依赖 PM |
 
 验证以真实调用次数、输出与结果为证据；不删除/移走源码、工具或原产物要求缓存仍可用。不新增 GC stress 或与包管理无关的语言组合测试。原始日志放仓库外，后续验收记录仅保存范围、结论和必要限制。
 
 ## 7. 本期明确不做的扩展
 
-registry 与源码打包/静态发布已移至下一阶段；本轮验收矩阵只执行本地功能、Git、构建和工具接入相关项。多版本同程序、任意 feature/variant、build scripts、Gradle 式任务图、远端构建执行、二进制 registry、公共账号/上传网站、来源签名和包授权体系均不属于 M63。Git SemVer tag 自动枚举、registry 搜索服务和依赖平台条件也不作为交付前置项。
+源码打包/静态发布工具移至下一阶段；本轮验收包含静态 registry 的索引读取、下载和构建消费。多版本同程序、任意 feature/variant、build scripts、Gradle 式任务图、远端构建执行、二进制 registry、公共账号/上传网站、来源签名和包授权体系均不属于 M63。Git SemVer tag 自动枚举、registry 搜索服务和依赖平台条件也不作为交付前置项。
 
-未来扩展应由实际使用场景驱动，并单独修改规范。当前完成条件是 workspace + path/Git/sysroot/artifact + lock 经独立 PM 到编译/链接、LSP 和配套发行的可用闭环。
+未来扩展应由实际使用场景驱动，并单独修改规范。当前完成条件是 workspace + path/Git/registry/sysroot/artifact + lock 经独立 PM 到编译/链接、LSP 和配套发行的可用闭环。

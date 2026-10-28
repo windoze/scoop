@@ -1,12 +1,12 @@
 # Scoop 包管理规范
 
-状态：M63 本地功能实施中；registry 与源码发布移至下一阶段。完成范围见[实施记录](../package-manager/PROGRESS.md)。更新日期：2026-10-28。
+状态：M63 本地功能与 registry 消费实施中；源码打包/发布移至下一阶段。完成范围见[实施记录](../package-manager/PROGRESS.md)。更新日期：2026-10-28。
 
 本规范规定独立 `scoop-pm` 的 workspace、依赖来源、版本解析、`Cone.lock`、源码 registry 及其与构建 driver 的接口。实现步骤与设计取舍见[包管理设计](../package-manager/DESIGN.md)，调度、编译和链接继续遵守[编译器与产物规范 2.7～2.8](SCOOP-IMPL-SPEC.md#27-scoop-与-single-cone-scoopc)。
 
 Scoop 尚未发布。本次直接重定义 `Cone.toml` 的初始 schema，与仓库内清单、工具和测试一起实施，不提供旧清单兼容层。以下是完整目标合同，不表示当前命令已经支持全部能力。
 
-本轮交付 workspace、path/Git/sysroot/artifact 依赖、版本与 lock、本地清单编辑、构建与 LSP 接入及配套工具发行。第 8～9 节的 registry 与源码发布合同留至下一阶段；已有 registry 消费实现保留，但本轮不继续扩展或以发布闭环作为完成条件。
+本轮交付 workspace、path/Git/sysroot/artifact 依赖、版本与 lock、本地清单编辑、构建与 LSP 接入、配套工具发行，以及第 8 节静态 registry 的索引读取和归档下载消费。第 9 节源码打包/发布工具留至下一阶段；本轮以预先生成的静态文件验收消费闭环。
 
 ## 1. 职责与交付边界
 
@@ -312,11 +312,19 @@ LSP 在 workspace 根打开时发现全部成员，并为各成员独立取得�
 
 ## 8. 源码 registry
 
-本节属于下一阶段，不纳入 M63 本地功能的完成验收。
+本节是本轮的客户端合同。registry service 只需托管普通文件，版本求解、下载、校验和缓存均在 PM 内完成；不要求服务端执行包查询、版本选择或下载重定向逻辑。发布者如何生成和上传这些文件单独由第 9 节定义。
 
 ### 8.1 静态读取协议
 
-registry base 下提供 `config.json`（`{"format":1}`），以及 `packages/<group>/<name>.json`；group/name 使用 canonical 文本，点不拆目录。客户端只请求实际需要的包记录，不克隆完整索引。服务可以是普通 HTTP(S) 静态站点，首版无需数据库、账号网站或上传 API。
+registry base 是第 4 节的规范化 HTTP(S) 目录 URL，例如 `https://packages.example.org/scoop/`。base 下提供 `config.json`（完整内容为 `{"format":1}`），以及 `packages/<group>/<name>.json`；group/name 使用 canonical 文本，点不拆目录。索引为 UTF-8 JSON 对象，必需字段如下，格式 1 不接受未知字段。客户端只请求实际需要的包记录，不需要全局包列表或目录浏览，也不克隆完整索引。
+
+```text
+config.json
+packages/org.example/json.json
+archives/org.example/json/1.4.3.tar.zst
+```
+
+其中归档目录和文件名是示例，实际下载位置完全由版本记录的 `archive` 指定。`packages/org.example/json.json` 的内容示例为：
 
 ```json
 {
@@ -340,7 +348,11 @@ registry base 下提供 `config.json`（`{"format":1}`），以及 `packages/<gr
 
 每个版本记录必需完整版本、kind、生产依赖、archive、sha256、yanked。依赖条目必需key、version和source；source为`{kind="registry", registry=URL}`、`{kind="git", git=URL, commit=完整ID, subdir=目录}`或`{kind="sysroot"}`对应的JSON对象，不在索引内复制所依赖版本的归档位置。隐式core在索引中展开为普通精确边。只给消费者解析生产依赖，测试依赖保留在源包清单中但不参与传递求解。executable版本可发布，但不能作为普通依赖候选。
 
-archive 是 HTTP(S) URL 或相对 base 的 URL，sha256 是归档字节的 64 位小写十六进制摘要。索引先供解析使用，选定版本后才下载归档；不为了列出候选下载每个版本的源代码。未知索引格式、重复版本、非法依赖或传输错误正常报告，不能切换到另一个 registry 猜测同名包。
+`archive` 是 HTTP(S) URL 或按标准 URL 规则相对 registry base 解析的引用，不能包含内嵌凭据或 fragment；允许归档位于其他静态站点。它不相对包索引文件或重定向后的地址解析。`sha256` 是实际 tar.zst 归档字节的 64 位小写十六进制摘要，示例值需替换为真实摘要。索引的 group/name 必须匹配请求，versions 可为空，完整版本文本不得重复；数组顺序不影响求解。依赖 key 不得重复，版本要求沿用第 2 节，不另设 registry 版本语法。
+
+读取只需普通 HTTP GET：首次使用某个 registry 取得 config，求解时按需取得包索引，选定版本后取得其归档。不要求 HEAD、Range、ETag、条件请求、压缩索引或 POST API；可通过普通静态文件服务器、对象存储或 CDN 提供相同文件。服务端应返回完整 JSON 和归档内容；HTTP 客户端可跟随标准重定向，但静态站点无需配置重写或重定向。404 表示所请求的 registry 文件/归档不存在，其他 HTTP、TLS、JSON 或归档错误正常报告；不切换到另一个 registry 猜测同名包。
+
+有效 lock 保留已选版本及 archive/sha256；已有源码缓存时不查询远端，新环境的 locked fetch 可读取索引来取得锁定版本的完整依赖 metadata。新的解析或 update 刷新所涉及包的索引，offline 只用本地已有索引/归档/源码。索引先供求解使用，不为了列出候选下载每个版本的源码。服务端应先提供归档，再原子替换对应包索引，避免索引引用尚未可下载的文件；单包索引的更新不需要全 registry 事务。
 
 ### 8.2 不可变发布与缓存
 
@@ -350,9 +362,15 @@ archive 是 HTTP(S) URL 或相对 base 的 URL，sha256 是归档字节的 64 �
 
 归档 reader 检查格式、边界和解包路径，拒绝绝对路径、路径逃逸、冲突条目与非法文件类型；这些是正常解包职责，不检查 owner、权限、inode 或输入目录的物理归属。实际缺失输入和 I/O 失败正常报告；不设计“外部破坏缓存后自动恢复”的独立流程。
 
+### 8.3 已发布源码包的消费格式
+
+格式 1 的归档为 zstd 压缩的 tar，根目录直接包含 `Cone.toml`、源码及随包资源，不额外包一层包名目录。归档包含普通文件和目录。清单使用 schema 1，定义一个 Cone；workspace 继承必须展开，不含 workspace、根 overrides 或 publish 配置。路径按包内普通相对路径表达，随包内容必须足够用于声明的源码/native 输入。
+
+生产与测试依赖都须是可独立消费的显式 registry、完整 commit 的 Git，或 scoop 系统库来源，不能依赖发布者本地 path/artifact/default registry 配置。索引只列生产依赖，隐式 core 展开为精确依赖；源码中的普通 import、可见性和编译规则保持不变。消费者使用自己的 lock，归档不提供依赖版本选择。PM 在首次取得归档时将展开清单与索引匹配，然后把同一个共享源码目录交给构建；不需要先安装或调用 publish 工具。
+
 ## 9. 源码打包与静态发布
 
-本节与 registry 一起留至下一阶段，包含 package/list/check、静态目录维护和 HTTP 发布消费闭环。
+本节留至下一阶段，包含 package/list/check、发布清单转换、静态目录维护和发布流程；第 8 节客户端读取及下载消费在本轮完成。
 
 `scoop pm package`为所选Cone在workspace（独立Cone即自身）的`target/package/<group>/<name>/`下产生`<version>.tar.zst`和`<version>.json`版本metadata，`--target-dir`可替换target根；多个成员不会因拼接包名而覆盖。归档根直接包含独立`Cone.toml`和该Cone的源码/资源。默认纳入Cone目录内的普通文件，排除`.git`、`.scoop`、`target`、`Cone.lock`及本次package输出；`[publish] include`可显式列出完整相对文件/目录清单，exclude再排除子集，首版均不解释glob。排序稳定，归档中的owner/时间不承载本机状态。
 

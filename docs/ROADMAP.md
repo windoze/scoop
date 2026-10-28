@@ -746,11 +746,11 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 规范见[包管理规范](specs/SCOOP-PACKAGE-SPEC.md)，取舍、改动面和逐步验收见[设计与实施步骤](package-manager/DESIGN.md)，实际完成范围见[实施记录](package-manager/PROGRESS.md)。Scoop未发布，Cone.toml及工具协议按新合同一次性调整，不保留旧清单兼容层。
 
-本轮完成本地功能：workspace、path/Git/sysroot/artifact、版本与lock、清单编辑、LSP和工具发行。registry及源码打包/发布按用户决定移到下一阶段；已有获取代码保留，本轮不继续扩展，也不以registry发布闭环作为交付门槛。
+本轮完成 workspace、path/Git/sysroot/artifact、版本与 lock、清单编辑、LSP 和工具发行，并固定静态 registry 的索引读取与源码包下载协议，完成客户端消费。源码打包/发布流程移至下一阶段；本轮以预先生成的静态目录验证下载到构建的闭环。
 
 - 独立`scoop-pm`负责workspace、GitHub/Git、registry、版本解析和`Cone.lock`，`scoop pm`转发到配套程序；`scoop`消费lock的精确图和本地已展开输入，保留已有缓存/调度/链接。`scoopc`只接收具体编译参数与direct/support产物，不读取包声明或lock，不做版本要求匹配。
 - 每个root/purpose/target独立求解，共享lock可保存多个程序的不同版本；每个程序内同`group:name`仍只能一个版本。默认保留有效锁定选择，新选择偏好最新兼容且允许回溯；无解报告依赖路径，不能忽略约束。
-- Git支持ref、完整commit锁定、subdir和同repo多Cone。源码缓存默认放在`~/.scoop/packages/`，按来源/包/版本或仓库/commit供多个项目共享；registry的静态HTTP索引、源码归档、package与静态目录维护命令留至下一阶段。
+- Git支持ref、完整commit锁定、subdir和同repo多Cone。源码缓存默认放在`~/.scoop/packages/`，按来源/包/版本或仓库/commit供多个项目共享；registry 通过普通 GET 读取每包 JSON 索引和选中归档，不要求服务端动态逻辑；package 与静态目录维护命令留至下一阶段。
 - 保留生产/测试隔离、显式sysroot/prebuilt合同及artifact精确依赖；共享源码不意味着不同target/profile/实际依赖绑定可以共用编译结果。语言身份、IR、LLVM和runtime ABI不因PM而改变。
 
 实施顺序与各步完成条件：
@@ -759,11 +759,12 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 2. **workspace和多根**：成员发现、virtual/root清单、显式继承、共享依赖、根选择与输出；验证不同程序版本隔离、正确任务共享和全局jobs上限。
 3. **版本与lock**：版本要求、单版本全图求解、回溯诊断、锁定优先、update/precise及locked/offline/frozen；验证多个解析单位和并发写入互不覆盖。
 4. **Git来源**：GitHub便捷语法、系统Git获取、commit/subdir/submodule与跨项目cache；用真实本地仓库验证锁定、更新和离线行为。
-5. **工具与发行收尾**：build/run/test/check/doc/LSP统一输入、members/add/remove/deps/metadata、模板/清单更新、PM随工具链分发；PM独立测试及必要正式CLI回归。
+5. **静态 registry 消费**：固定 config/每包索引/归档合同，从记录的 URL 下载已选源码；验收锁定、更新、撤回、共享缓存、离线和实际编译，HTTP 服务只托管文件。
+6. **工具与发行收尾**：build/run/test/check/doc/LSP统一输入、members/add/remove/deps/metadata、模板/清单更新、PM随工具链分发；PM独立测试及必要正式CLI回归。
 
-当前已接通独立 PM、解析/获取/lock、prepare、已展开 child 输入，以及普通 manifest 命令的自动准备、成员输出、跨根构建/测试队列、文档绑定隔离和 fmt/clean 本地 workspace 选择。低层原始清单入口已退役，scoopc只消费具体编译输入；默认build/run在缺少lock时自动调用PM解析并创建。只读metadata已提供相同的本地锁定项目模型，offline不隐式下载或展开来源；deps --why可按根解释锁定版本、约束边与声明位置；本轮继续完成清单编辑、LSP接入及工具/发行收尾，阶段完成范围以实施记录为准。
+当前已接通独立 PM、解析/获取/lock、prepare、已展开 child 输入，以及普通 manifest 命令的自动准备、成员输出、跨根构建/测试队列、文档绑定隔离和 fmt/clean 本地 workspace 选择。低层原始清单入口已退役，scoopc只消费具体编译输入；默认build/run在缺少lock时自动调用PM解析并创建。只读metadata已提供相同的本地锁定项目模型，offline不隐式下载或展开来源；deps --why可按根解释锁定版本、约束边与声明位置；清单编辑与 LSP 已接入，本轮继续工具/发行收尾，阶段完成范围以实施记录为准。
 
-下一阶段完成registry与发布闭环：静态协议、索引求解、归档获取、yank、workspace/path/Git发布转换、native vendor打包及本地registry维护；本地HTTP完成真实发布到编译/运行，并验收跨项目共享下载与离线消费。
+下一阶段单独完成发布流程：package/list/check、workspace/path/Git 发布转换、native vendor 打包及本地 registry add/yank/unyank。生成并部署符合既定读取协议的静态文件，再验收真实发布到编译/运行。
 
 不包含同程序多版本、feature/variant、build scripts、通用任务DSL、二进制registry或托管账号/上传网站。既有M23对registry/求解的范围排除保持为历史记录，新增能力由本里程碑承担。
 
