@@ -41,11 +41,14 @@ static bool remembered_is_complete(bool minor) {
     return true;
 }
 
-static void update_remembered(ScoopGcRememberedChunk *group, ScoopGcSlotVisitor visitor,
+static void update_remembered(ScoopGcRememberedGroup *group, ScoopGcSlotVisitor visitor,
                               void *context) {
-    for (ScoopGcRememberedChunk *chunk = group; chunk != NULL; chunk = chunk->next) {
-        for (size_t index = 0; index < chunk->used; index++) {
-            visitor(chunk->slots[index], context);
+    for (size_t index = 0; index < GC_REMEMBERED_BITMAP_WORDS; index++) {
+        uint64_t bits = group->slots[index];
+        while (bits != 0) {
+            size_t word = index * 64 + (size_t)__builtin_ctzll(bits);
+            visitor((void **)(group->base + word * sizeof(void *)), context);
+            bits &= bits - 1;
         }
     }
 }
@@ -73,8 +76,8 @@ void scoop_gc_update_live(bool minor, ScoopGcSlotVisitor visitor,
     bool recorded = remembered_is_complete(minor);
     if (scoop_gc_marker.active_workers == 1) {
         if (recorded) {
-            for (ScoopGcRememberedChunk *group = scoop_gc_marker.workers[0].remembered_slots;
-                 group != NULL; group = group->next_group) {
+            for (ScoopGcRememberedGroup *group = scoop_gc_marker.workers[0].remembered_slots;
+                 group != NULL; group = group->next) {
                 update_remembered(group, visitor, context);
             }
         } else if (minor) {
@@ -94,8 +97,8 @@ void scoop_gc_update_live(bool minor, ScoopGcSlotVisitor visitor,
     for (size_t index = 0; index < scoop_gc_marker.active_workers; index++) {
         ScoopGcMarkWorker *owner = &scoop_gc_marker.workers[index];
         if (recorded) {
-            for (ScoopGcRememberedChunk *group = owner->remembered_slots; group != NULL;
-                 group = group->next_group) {
+            for (ScoopGcRememberedGroup *group = owner->remembered_slots; group != NULL;
+                 group = group->next) {
                 scoop_gc_mark_queue_push(owner, (ScoopGcMarkTask){
                     .kind = SCOOP_UPDATE_REMEMBERED_TASK,
                     .data.remembered = group,

@@ -13,6 +13,7 @@
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
 | [分配计数器直接寻址](GC-EVOLUTION.md#第五十五阶段分配计数器直接寻址) | release 的既有 TLAB 内联完成路径默认；所有 profile 使用 runtime contract 26，系统库与应用需重建 | 从当前 mutator 固定偏移取得计数器，省去每次成功分配的一层指针加载；保持两个计数更新、starts 发布和 256 B 线程状态。部分分配负载改善，x86_64 代码及部分暂停回退见记录；没有新开关或对象增量。 |
+| [完整 minor 的紧凑槽位图](GC-EVOLUTION.md#第五十六阶段完整-minor-的紧凑槽位图) | 所有 profile 的完整 minor 默认；分片 minor／full 及记录失败沿既有路径 | 用每卡组 528 B 记录替代地址分块，复用单次 STW 内实际年轻引用槽；大图记录峰值下降约 96%，无新增屏障、对象、root 或 ABI。大图暂停改善及线程／refwrite／RSS 代价见记录。 |
 | [完整 minor 复用 remembered 引用槽](GC-EVOLUTION.md#第五十四阶段完整-minor-复用-remembered-引用槽) | 新版 runtime，所有 profile 默认；重链接即可，无新开关 | 标记时记录实际年轻目标的旧代槽，复制后按原卡组单写者直接回写；分配记录失败沿原扫描，分片 minor 保留原流程。大图 STW 与回写减少，临时 native 记录、代码增长及树／线程回退见记录；不改变对象、根或 ABI。 |
 | [按实际引用量划分标记片](GC-EVOLUTION.md#第五十三阶段按实际引用量划分标记片) | 新版 runtime，所有 profile 随现有增量策略生效；默认等级 1，minor 分片仍需 `SCOOP_GC_INCREMENTAL=2` | 复用实际槽计数，每 128 槽计一个单位，完整任务允许越过片末；缩短大数组中间片，保留无界收尾。部分默认尾部及等级 2 的 p95／CPU 代价见记录；不改变分配快路径，无新开关、对象、metadata 或 ABI。 |
 | [Linux 空闲页延迟归还](GC-EVOLUTION.md#第五十一阶段linux-空闲页延迟归还) | Linux runtime 所有 profile 默认；重链接即可，无新开关 | 对已确认不含活对象的页使用 MADV_FREE，复用前仍初始化；空 region 仍按原规则 unmap。以延迟下降的 RSS 换取线程分配吞吐和较短 STW；Darwin 试验未确认收益，保留原策略。无对象／元数据／ABI 增量。 |
@@ -124,7 +125,7 @@
 | [卡表置脏的幂等原子写入](CARD-STORES.md) | 所有 profile 与 runtime 默认 | 二值 card 使用 relaxed atomic store 1，省去原子读改写，清零仅在 STW；合格 release 循环可按卡标记合并规则处理。 |
 | [nursery 独占块的分配登记](NURSERY-METADATA.md) | 使用新版 runtime，所有 profile 默认 | 已保留的年轻块范围直接登记，以原子 load／OR／store 保留已有位；共享旧代仍用原子读改写，保留完整清零与发布顺序。 |
 | [已知分配布局特化](TLAB-COMPLETION.md) | release 默认 | 从完整本地 TD／typed array layout 复用对齐与 release policy，跨物理对象分区消除重复加载和分支；缺少事实时保留原路径。 |
-| [已知布局的 TLAB 完成统一生成](GC-EVOLUTION.md#第五十阶段已知布局的-tlab-完成统一生成)，[初始实现](TLAB-COMPLETION.md) | release 默认，当前 runtime ABI 25，无新开关 | 完整 nursery 布局的成功 bump 直接清零、设置对象头和大小、发布 starts 并更新 nursery 计数；含较大常量及动态尺寸，不再受 128 B 门槛限制。复用 allocation context，省去完成入口的调用和 TLS 重读；debug、未知布局及 collecting slow path 保留。 |
+| [已知布局的 TLAB 完成统一生成](GC-EVOLUTION.md#第五十阶段已知布局的-tlab-完成统一生成)，[初始实现](TLAB-COMPLETION.md) | release 默认，当前 runtime ABI 26，无新开关 | 完整 nursery 布局的成功 bump 直接清零、设置对象头和大小、发布 starts 并更新 nursery 计数；含较大常量及动态尺寸，不再受 128 B 门槛限制。复用 allocation context，省去完成入口的调用和 TLS 重读；debug、未知布局及 collecting slow path 保留。 |
 | [分配 context 的首次使用复用](ALLOCATION-CONTEXT.md) | ARM64 release 默认 | 调用内首次需要 TLAB 时取址，跨循环／GC／catch 只复用稳定的 AS0 context 地址；可变字段继续重读。x86、debug 保留原路径，完成 helper 内部 TLS 访问不变。 |
 | [确定初始化前的尾部清零消除](ALLOCATION-ZEROING.md)，含[引用扩展](GC-EVOLUTION.md#第三十一阶段引用字段的确定初始化) | release 默认；对齐后对象大小 ARM64 ≤128 B、x86 ≤64 B | 已知布局、无 release hook 的小型 TLAB 分配；省去下一次 GC／观察／发布前被完整 typed store 覆盖的连续尾部，包含直接引用、接口、null niche 与无 padding 聚合。保留对象头、未证明字节及原发布顺序；慢路径和 debug 完整清零。 |
 | [有界引用循环的页表查询提升](CARD-REGIONS.md)，含[接口栈重取扩展](INTERFACE-CARD-REGIONS.md) | release 默认；保留接口栈重取的扩展仅 ARM64；数组基址定位规则适用于所有 profile | 常数有界、目标不变且查询每轮必经，保留原 roots。ARM64 可保留已确认来自本函数栈槽的 volatile 引用重读，同时提升独立查询；x86 仍排除含 volatile 的区域。 |

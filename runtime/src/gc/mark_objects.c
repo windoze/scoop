@@ -1,5 +1,6 @@
 /* STW-only readers and atomic first marking; workers own all counters and lists. */
 #include <stdlib.h>
+#include <string.h>
 
 #include "../gc_binding/object.h"
 #include "../gc_binding/scan.h"
@@ -160,25 +161,20 @@ static void record_remembered_slot(ScoopGcMarkWorker *worker, void **slot) {
     if (!worker->remembered_complete) {
         return;
     }
-    ScoopGcRememberedChunk *tail = worker->remembered_tail;
-    if (tail == NULL || tail->used == GC_MARK_CHUNK) {
-        ScoopGcRememberedChunk *chunk = malloc(sizeof *chunk);
-        if (chunk == NULL) {
+    ScoopGcRememberedGroup *group = worker->remembered_current;
+    if (group == NULL) {
+        group = malloc(sizeof *group);
+        if (group == NULL) {
             worker->remembered_complete = false;
             return;
         }
-        chunk->next = NULL;
-        chunk->next_group = NULL;
-        chunk->used = 0;
-        if (tail == NULL) {
-            chunk->next_group = worker->remembered_slots;
-            worker->remembered_slots = chunk;
-        } else {
-            tail->next = chunk;
-        }
-        worker->remembered_tail = tail = chunk;
+        group->next = worker->remembered_slots;
+        group->base = (uintptr_t)slot & ~(GC_REMEMBERED_GROUP_BYTES - 1);
+        memset(group->slots, 0, sizeof group->slots);
+        worker->remembered_slots = worker->remembered_current = group;
     }
-    tail->slots[tail->used++] = slot;
+    size_t word = ((uintptr_t)slot & (GC_REMEMBERED_GROUP_BYTES - 1)) / sizeof *slot;
+    group->slots[word / 64] |= UINT64_C(1) << (word % 64);
 }
 
 static inline __attribute__((always_inline)) void

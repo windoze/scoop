@@ -10,6 +10,12 @@
 #define GC_MARK_CHUNK 1024
 #define GC_MARK_ARRAY_RANGE 1024
 #define GC_MARK_REGION_CACHE 32
+#define GC_REMEMBERED_GROUP_BYTES (GC_CARDS_PER_GROUP << GC_CARD_SHIFT)
+#define GC_REMEMBERED_BITMAP_WORDS (GC_REMEMBERED_GROUP_BYTES / sizeof(void *) / 64)
+
+_Static_assert(GC_REGION_SIZE % GC_REMEMBERED_GROUP_BYTES == 0 &&
+                   GC_CHUNK_SIZE % GC_REMEMBERED_GROUP_BYTES == 0,
+               "heap mapping alignment must preserve remembered group boundaries");
 
 typedef struct ScoopGcLiveChunk {
     struct ScoopGcLiveChunk *next;
@@ -17,13 +23,12 @@ typedef struct ScoopGcLiveChunk {
     void *objects[GC_MARK_CHUNK];
 } ScoopGcLiveChunk;
 
-/* A dirty group's chunks stay with one updater, including repeated scan leaves. */
-typedef struct ScoopGcRememberedChunk {
-    struct ScoopGcRememberedChunk *next;
-    struct ScoopGcRememberedChunk *next_group;
-    size_t used;
-    void **slots[GC_MARK_CHUNK];
-} ScoopGcRememberedChunk;
+/* One owner records and updates a dirty group's distinct physical slots. */
+typedef struct ScoopGcRememberedGroup {
+    struct ScoopGcRememberedGroup *next;
+    uintptr_t base;
+    uint64_t slots[GC_REMEMBERED_BITMAP_WORDS];
+} ScoopGcRememberedGroup;
 
 typedef struct ScoopGcMovingPlan ScoopGcMovingPlan;
 
@@ -67,7 +72,7 @@ typedef struct ScoopGcMarkTask {
         } dirty;
         ScoopGcCopyBlock *copy_group;
         ScoopGcLiveChunk *live_chunk;
-        ScoopGcRememberedChunk *remembered;
+        ScoopGcRememberedGroup *remembered;
         struct {
             ScoopGcMovingPlan *plans;
             ScoopGcLiveChunk *chunk;
@@ -109,8 +114,8 @@ typedef struct ScoopGcMarkWorker {
     size_t block_capacity;
     ScoopGcLiveChunk *live;
     ScoopGcLiveChunk *tail;
-    ScoopGcRememberedChunk *remembered_slots;
-    ScoopGcRememberedChunk *remembered_tail;
+    ScoopGcRememberedGroup *remembered_slots;
+    ScoopGcRememberedGroup *remembered_current;
     bool remembered_complete;
     void *const *pending_objects;
     size_t pending_count;

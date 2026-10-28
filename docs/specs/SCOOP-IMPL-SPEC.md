@@ -469,7 +469,7 @@ TLAB bump 由 codegen GC 层消费同一布局常量与运行时规范 3.1 的�
 
 nursery 容量、full 压力、可选 survivor 与 minor／full 分片标记归 runtime 私有实现（运行时规范 3.1、3.9），不作为 LIR 常量、构建 profile 或 `.slib` 字段导出；现有生成代码继续只消费稳定的 allocation context 与分配慢入口。调整这些策略不重编依赖或改变精确 roots；generated card store 在 mutator 阶段仍只写 1，collector 私有的保留卡状态不进入生成代码。分片之间不移动对象、不并发扫描普通字段，复用已有引用写入屏障记录已发布 owner 的改写；minor 清除扫描卡前保留最终 remembered 回写所需位图，年轻初始化屏障省略的既有证明仍成立。各片继续通过原 safepoint 与根计划停稳／恢复，普通 ABI 消费者无需感知某次暂停是否完成整个周期。
 
-该共享快路径沿用 runtime ABI contract 17 引入的卡组登记，当前统一 contract 为 25，metadata ABI 9 和 `.slib` 容器格式保持。旧 ABI 产物必须按现有 runtime contract 兼容性边界重建；不添加混合布局或运行时全堆扫描的兼容模式。region prefix 和卡组布局由 codegen GC 模块与 runtime 共同实现，LIR 仍只承载完整托管写入及实际 runtime 符号合同。
+该共享快路径沿用 runtime ABI contract 17 引入的卡组登记，当前统一 contract 为 26，metadata ABI 9 和 `.slib` 容器格式保持。旧 ABI 产物必须按现有 runtime contract 兼容性边界重建；不添加混合布局或运行时全堆扫描的兼容模式。region prefix 和卡组布局由 codegen GC 模块与 runtime 共同实现，LIR 仍只承载完整托管写入及实际 runtime 符号合同。
 
 ARM64 默认对 ArraySet 的单引用槽屏障使用已有数组对象基址查询 mapping；按运行时规范 3.1 的 mapping 合同读取 GC 字大小位，选择 small 的 16 MiB 对齐地址或 large 的首行前缀地址，再读取 owner region。只选择地址而不预读两条路径，共用原 region prefix 与登记；实际 card 地址仍取被写入的元素引用槽；一个对象的全部存储属于同一 mapping。多引用值继续使用原范围屏障，不按元素大小推定相邻槽属于同一卡。release 可以按 2.19 提升有界内层中的不变查询；其他 profile 与未命中路径保持原位置的完整操作。x86_64 的直接查询在大数组随机写入中回退，默认保留已有页表生成路径；没有按函数名称选择优化或新增策略开关。
 

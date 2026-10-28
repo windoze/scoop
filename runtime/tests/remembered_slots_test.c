@@ -33,7 +33,7 @@ static const ScoopTypeDescriptor array_td = {
     .object_scan = array_scan,
 };
 
-static _Atomic unsigned chunks_until_failure;
+static _Atomic unsigned groups_until_failure;
 static _Atomic bool failed;
 static _Atomic unsigned seen[ELEMENTS][2];
 static _Atomic uintptr_t group_writers[8];
@@ -42,10 +42,10 @@ static void **old_slot;
 static unsigned old_slot_seen;
 
 void *scoop_test_remembered_malloc(size_t size) {
-    if (size == sizeof(ScoopGcRememberedChunk)) {
-        unsigned remaining = atomic_load(&chunks_until_failure);
+    if (size == sizeof(ScoopGcRememberedGroup)) {
+        unsigned remaining = atomic_load(&groups_until_failure);
         while (remaining != 0 &&
-               !atomic_compare_exchange_weak(&chunks_until_failure, &remaining, remaining - 1)) {
+               !atomic_compare_exchange_weak(&groups_until_failure, &remaining, remaining - 1)) {
         }
         if (remaining == 1) {
             atomic_store(&failed, true);
@@ -64,7 +64,8 @@ static void forward_slot(void **slot, void *context) {
         size_t offset = (address - first) % sizeof(Pair);
         assert(offset == offsetof(Pair, left) || offset == offsetof(Pair, right));
         atomic_fetch_add(&seen[index][offset == offsetof(Pair, right)], 1);
-        size_t group = address / GC_BLOCK_SIZE - first / GC_BLOCK_SIZE;
+        ScoopGcRegion *region = scoop_heap_region_for_address(first);
+        size_t group = (address - region->base) / (GC_CARDS_PER_GROUP << GC_CARD_SHIFT);
         assert(group < sizeof group_writers / sizeof *group_writers);
         uintptr_t thread = (uintptr_t)pthread_self();
         uintptr_t previous = 0;
@@ -153,7 +154,7 @@ static void run_case(size_t workers, unsigned mode) {
         assert(scoop_gc_mark_dirty_groups(true, true));
     } else {
         if (mode == 1) {
-            chunks_until_failure = 2;
+            groups_until_failure = 2;
         }
         scoop_gc_mark_remembered();
     }
@@ -163,24 +164,24 @@ static void run_case(size_t workers, unsigned mode) {
     }
     bool complete = true;
     size_t slots = 0;
-    size_t chunks = 0;
+    size_t groups = 0;
     for (size_t index = 0; index < workers; index++) {
         ScoopGcMarkWorker *worker = &scoop_gc_marker.workers[index];
         complete &= worker->remembered_complete;
-        for (ScoopGcRememberedChunk *group = worker->remembered_slots; group != NULL;
-             group = group->next_group) {
-            for (ScoopGcRememberedChunk *chunk = group; chunk != NULL; chunk = chunk->next) {
-                slots += chunk->used;
-                chunks++;
+        for (ScoopGcRememberedGroup *group = worker->remembered_slots; group != NULL;
+             group = group->next) {
+            for (size_t word = 0; word < GC_REMEMBERED_BITMAP_WORDS; word++) {
+                slots += (size_t)__builtin_popcountll(group->slots[word]);
             }
+            groups++;
         }
     }
     assert(complete == (mode == 0));
     assert(atomic_load(&failed) == (mode == 1));
     if (mode == 0) {
-        assert(slots == expected_slots && chunks > workers);
+        assert(slots == expected_slots && groups > workers);
     } else if (mode == 2) {
-        assert(slots == 0 && chunks == 0);
+        assert(slots == 0 && groups == 0);
     }
     ScoopGcSurvivors survivors;
     assert(scoop_gc_heap_plan_moving_locked(true, &survivors));

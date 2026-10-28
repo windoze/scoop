@@ -381,7 +381,7 @@ release 复用 LIR 中已有的完整本地 TD 或 typed array layout，将确�
 
 普通 nursery refill 可在一次 heap lock 内最多取得四个 block，首块成为当前 TLAB，其余至多三个保存在 mutator 私有储备。每个储备块在锁内完成元数据清零、年轻清单登记和 nursery／committed 容量计入；容量不足时只取仍可容纳的块，不越过当前 nursery 上限。首块成功后，额外储备映射失败不使本次分配失败。当前 TLAB 耗尽时，所属线程可无锁切换到已登记的储备，填完对应元数据视图后才使 cursor 可用；其间无 safepoint，逐对象登记和计数保持。旧代压力在取得一批新块时检查；这与 TLAB 中尚有空间一样是触发粒度，不改变真正分配失败后的 full／OOM 路径。
 
-除 3.9 的只标记片外，collection、退出 managed、callback 返回时同时使当前 TLAB 和所有储备失效；未用储备仍在年轻清单并占用已登记容量，由下一轮收集按空块退役，不能从失效的 native 指针重新发布范围。detach 不遗留所属线程可继续消费的块引用。储备使用 mutator 私有对齐空间，使用当前 40-byte generated prefix，计数仍在原 mutator 私有偏移，不为块储备增加字段或另一种 ABI。moving／minor stress 与 full-only 保留逐块取得的触发策略；普通 debug／release 共用同一规则。
+除 3.9 的只标记片外，collection、退出 managed、callback 返回时同时使当前 TLAB 和所有储备失效；未用储备仍在年轻清单并占用已登记容量，由下一轮收集按空块退役，不能从失效的 native 指针重新发布范围。detach 不遗留所属线程可继续消费的块引用。储备使用 mutator 私有对齐空间，使用当前 32-byte generated prefix，计数仍在 mutator 的 offset 128，不为块储备增加字段或另一种 ABI。moving／minor stress 与 full-only 保留逐块取得的触发策略；普通 debug／release 共用同一规则。
 
 进入 collection 时，所有线程的分配状态必须停止使用并与 collector 一致。对象不得在仅部分登记时被扫描；分配失败使用明确的失败出口，不能返回无效对象。
 
@@ -701,7 +701,7 @@ mark 结束后复用首次标记的存活对象集合规划搬迁；实际有搬
 
 此时 full 的 roots 全部更新；minor 更新精确 roots、年轻集合及 remembered set。对象字段和 roots 中的旧引用仍经正常 forwarding 回写，不能因存活清单已经更新而跳过它们。没有搬迁时按 3.7 跳过 relocation。release hook、reclaim 和 VM 归还仍由 coordinator 执行；shutdown 停止并 join worker。
 
-完整 minor 的 remembered 标记可以同时保留实际指向年轻对象的旧代引用槽地址，包括指向已标记或 pinned 年轻对象的其他槽；只复用本次真实扫描结果，不额外遍历旧堆。记录按原脏卡组归属，每组的全部 native 分块在回写时交给同一个执行者，保持重复访问及 survivor 卡处理的语义。旧代 owner 在完整 minor 内不会移动或退休，且 mutator 始终停止；记录不跨恢复边界，不是 managed root，不延长对象存活。复制完成后直接对这些槽执行原 forwarding／survivor visitor，省去再次解码旧对象 scan 和访问 null／旧目标槽；本轮新晋升对象仍只从年轻存活清单回写。原脏卡及组登记保留到正常收尾，不能因记录已完成而提前清除 survivor 所需状态。
+完整 minor 的 remembered 标记可以同时保留实际指向年轻对象的旧代引用槽，包括指向已标记或 pinned 年轻对象的其他槽；只复用本次真实扫描结果，不额外遍历旧堆。每个实际含此类槽的脏卡组懒分配一份 native 位图，按相对于该组起点的指针字偏移置位；当前 32 KiB 卡组使用 512 B 位图。普通 mapping 的 16 MiB 对齐和 large mapping 的 64 KiB 对齐均保证卡组边界对齐；记录直接从槽地址形成组起点及组内索引，无需再次查询 mapping 或另存 worker 组基址。重复扫描同一物理槽合并为同一位；回写时枚举置位槽，每组交给同一个执行者，执行原幂等 forwarding／survivor visitor。旧代 owner 在完整 minor 内不会移动或退休，且 mutator 始终停止；记录不跨恢复边界，不是 managed root，不延长对象存活。复制完成后直接对这些槽回写，省去再次解码旧对象 scan 和访问 null／旧目标槽；本轮新晋升对象仍只从年轻存活清单回写。原脏卡及组登记保留到正常收尾，不能因记录已完成而提前清除 survivor 所需状态。
 
 只在所有参与者的记录完整时使用槽记录；任何记录分配失败都继续完成原标记，并在回写时退回原 remembered 范围扫描。取消、full 回退和本轮结束统一释放记录，不增加新的收集失败方式。分片 minor 仍按原保存／恢复卡位图和范围扫描更新，不能把片间可能变化的槽记录当作完整快照。单 worker 直接按组串行访问，多 worker 复用原 pool；所有 profile 同义，没有新对象字段、写屏障、根或 ABI。
 
