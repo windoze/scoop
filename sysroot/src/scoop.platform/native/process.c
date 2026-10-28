@@ -82,19 +82,21 @@ static int configure_attributes(posix_spawnattr_t *attributes) {
     return error == 0 ? posix_spawnattr_setflags(attributes, flags) : error;
 }
 
-int scoop_platform_process_spawn(const char *executable, char *arguments, int64_t argument_count,
-                                 char *environment, int64_t environment_count,
-                                 const char *directory, const ScoopPlatformStdio redirects[3],
-                                 ScoopPlatformFileHandle result[3]) {
+ScoopPlatformSpawnResult scoop_platform_process_spawn(const char *executable, char *arguments,
+                                                      int64_t argument_count, char *environment,
+                                                      int64_t environment_count,
+                                                      const char *directory,
+                                                      const ScoopPlatformStdio redirects[3],
+                                                      ScoopPlatformFileHandle result[3]) {
     char **argv = string_vector(arguments, argument_count);
     if (argv == NULL)
-        return -1;
+        return scoop_process_failure(errno);
     char **envp = string_vector(environment, environment_count);
     if (envp == NULL) {
         int error = errno;
         free(argv);
         errno = error;
-        return -1;
+        return scoop_process_failure(error);
     }
     posix_spawn_file_actions_t actions;
     posix_spawnattr_t attributes;
@@ -130,5 +132,6 @@ finish:
     free(envp);
     free(argv);
     errno = error;
-    return error == 0 ? (int)child : -1;
+    return error == 0 ? (ScoopPlatformSpawnResult){{(uint64_t)child}, 0}
+                      : scoop_process_failure(error);
 }

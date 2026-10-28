@@ -1,0 +1,32 @@
+package scoop.platform.process
+
+import scoop.collections.Map
+import scoop.platform.fs.Path
+import scoop.platform.system.OsString
+
+internal fun searchCandidates(executable: Path, environment: Map<OsString, OsString>): Array<Path> {
+    val name = executable.toOsString().toByteArray()
+    for (byte in name) {
+        if (byte == 47)
+            return [executable]
+    }
+    val path =
+        (
+            environment[OsString.fromString("PATH")] ?: OsString.fromString("/bin:/usr/bin")
+        ).toByteArray()
+    val result = ArrayList<Path>()
+    var start = 0L
+    var index = 0L
+    while (index <= path.size) {
+        if (index == path.size || path[index] == 58) {
+            val from = start
+            val length = index - start
+            val directory =
+                Path.fromOsString(OsString.fromByteArray(Array<Byte>(length) { path[from + it] }))
+            result.add(directory.resolve(executable))
+            start = index + 1L
+        }
+        index += 1L
+    }
+    return Array<Path>(result.size) { result[it] }
+}

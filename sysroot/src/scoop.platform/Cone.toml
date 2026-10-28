@@ -117,8 +117,16 @@ path = "native/mutex.c"
 path = "native/condition.c"
 [[native.sources]]
 path = "native/pipes.c"
+when = {os = ["darwin", "linux"]}
 [[native.sources]]
 path = "native/process.c"
+when = {os = ["darwin", "linux"]}
+[[native.sources]]
+path = "native/process_windows.c"
+when = {os = "windows"}
+[[native.sources]]
+path = "native/process_windows_strings.c"
+when = {os = "windows"}
 [[native.sources]]
 path = "native/process_wait.c"
 [[native.sources]]

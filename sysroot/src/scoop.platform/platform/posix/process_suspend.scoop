@@ -4,8 +4,9 @@ import scoop.platform.io.checkNativeStatus
 
 /** Requests Unix job-control suspension; returns after continuation or an ignored signal. */
 public fun suspendCurrentProcess() {
-    @Unsafe {
-        val (status, error) = nativeSuspend()
+    @Unsafe
+    {
+        val(status, error) = nativeSuspend()
         checkNativeStatus(status, error, "suspend process")
     }
 }

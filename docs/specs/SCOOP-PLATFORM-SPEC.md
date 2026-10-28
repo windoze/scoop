@@ -289,6 +289,7 @@ Windows mutex 使用 SRW exclusive lock，并记录 owner 以实现相同的非�
 `scoop.platform.process.suspendCurrentProcess()` 在 Unix 向本进程发送 SIGTSTP，
 按操作系统 job-control 规则暂停，收到 SIGCONT 后返回。调用者先恢复终端模式；
 被忽略/屏蔽的信号及 orphan process group 沿 OS 行为，不改写进程信号处理策略。
+Windows 没有对应的 Unix job-control 操作，该调用抛 PlatformException(Unsupported)，不暂停任意 native thread 或模拟信号。
 
 ### 11.1 管道与命令快照
 
@@ -300,6 +301,10 @@ spawn(searchPath: Boolean = false): ChildProcess 启动进程；默认按明确 
 
 使用 posix_spawn 和真实 cwd file action，不在 managed 进程中 fork 后执行 Scoop。输入字符串只在本次同步 native 调用期间借用；pipe、临时 fd、副本、argv/env 指针表及 file actions 在失败时回滚。重定向先复制到非标准 fd，再设置 child 的 0/1/2，避免别名覆盖。Darwin 使用 CLOEXEC_DEFAULT 与显式标准流动作，Linux 使用 O_CLOEXEC 管道；库不提供继承任意 fd 的接口。child 使用空信号屏蔽集与默认 SIGPIPE，父进程 mask／handler 保持原样，不把临时屏蔽传给 child。
 
+Windows 使用 CreateProcessW，executable、argv、环境与 cwd 无损传入 UTF-16；显式 lpApplicationName 不触发系统 PATH 或 shell 搜索，工作目录和可执行路径先按请求的 cwd 解析。命令行沿 Microsoft CRT 的参数引号／反斜杠规则编码，argv[0] 保留原始 executable；只保证采用该常规解析规则的 child 能逐项还原参数，不把 cmd／PowerShell 的脚本语法当作普通 argv 规则。Windows 的 searchPath 对含 `/`、`\\` 或 drive prefix 的 executable 按路径启动，否则按命令环境中不区分大小写的 PATH、以分号分隔的目录顺序查找；空项或缺失 PATH 使用 child cwd。每项先尝试原名，无扩展名时再尝试 `.exe`，不通过 PATHEXT 启动脚本。成对包围目录项的引号被去掉，其余字符保留。
+
+Windows 环境按名称的不区分大小写 ordinal 顺序构造双 NUL 结尾的 Unicode block，拒绝大小写不同但等价的重复名称。stdin／stdout／stderr 的临时 child 句柄使用可继承副本，STARTUPINFOEX 的 HANDLE_LIST 仅包含这三个流；父端管道不可继承，Redirect 不转移原 File 的所有权，Null 使用 NUL，缺失的继承标准句柄仍为空。创建成功后关闭 primary-thread handle 和临时 child 副本，仅移交进程 HANDLE 与父端 pipes；失败关闭全部临时资源并保留本次 Win32 code。
+
 ### 11.2 观察、端点转移与释放
 
 ChildProcess 实现 Closeable，拥有子进程观察／reap 责任和本次创建的父端 pipes。stdin: ByteSink?、stdout/stderr: ByteSource? 返回借用视图；takeStdin/Stdout/Stderr 返回相应 owned 端点并清除 child 的关闭责任，缺失或已取出返回 None。对象操作与配置／关闭由调用方串行化，不提供竞争回收同一 pid 的保证。
@@ -310,6 +315,8 @@ wait(): ExitStatus 等待并回收；tryWait(): ExitStatus? 非阻塞查询。Ex
 
 close 逐一关闭仍拥有的父端 pipes，再尝试 wait；关闭失败也不能跳过后续关闭／回收，多个失败按 ResourceUseException 组合。close 不隐式终止进程，可能阻塞；成功后重复关闭无操作。hook 最多尝试一次 waitpid(WNOHANG)，不等待、不终止、不启动后台 reap，pipe owners 各自负责 raw close。因此 GC 不能替代显式 wait/use。
 
+Windows 使用独立的完整宽度进程 HANDLE，不以 pid 代替 owner。wait／tryWait 使用 WaitForSingleObject 与 GetExitCodeProcess；先确认进程已结束，因此退出码 259 仍是普通退出码。Exited.code 保留 DWORD 的完整 32 位模式（高位设置时为负 Int），不会生成 POSIX Signaled；成功观察后关闭 HANDLE 并缓存结果。terminate 与 kill 均请求 TerminateProcess(handle, 1)，不承诺普通 Windows 程序接受 POSIX 风格的温和信号；已结束的 child 不因此报错。hook 只关闭观察 HANDLE，不等待或终止 child。平台私有 C-layout 结果将状态与同次错误一起返回，POSIX 保留原 errno 及 ECHILD 消费规则。
+
 ### 11.3 communicate
 
 communicate(input: List<Byte>? = None): ProcessOutput 收集 stdout/stderr 的独立字节数组及 ExitStatus。提供输入要求配置 stdin Pipe，已经 take 的配置 pipe 拒绝自动通信；输入列表的快照与参数检查发生在消费任何端点之前，getter 失败照常传播。未配置输出 pipe 时对应数组为空，合并 stderr 时只收集 stdout。
@@ -318,7 +325,10 @@ communicate(input: List<Byte>? = None): ProcessOutput 收集 stdout/stderr 的�
 
 通信驱动失败时关闭其端点，显式 kill 并 reap 本次负责的 child，再传播原异常及必要清理失败；没有遗留工作线程或跨调用 buffer 借用。正常 communicate 不终止 child。普通用户自管 pipes／wait 仍需安排三方向进度；继承管道的后代进程可能延迟 EOF，API 不承诺超时或管理整个进程树。
 
+Windows 的同步管道通信为实际配置的 stdout／stderr 各启动一个库内 Thread 排空，调用线程写 stdin 并在输入结束后关闭。各线程独立拥有其管道和 buffer，读取失败先请求终止本次 child，使其余方向能结束；线程创建或写入失败同样先终止 child，再等待已启动的 reader。同一次通信的失败共享一次终止请求，避免在异步终止期间重复请求并覆盖原始 I/O 错误。所有 reader 在返回前 join，端点逐一关闭，失败按既有 ResourceUseException 规则合并；不建立线程池、后台进程管理器或异步调度器。后代保留 pipe 导致的 EOF 延迟仍适用前述限制。
+
 依据：[POSIX spawn 与 file actions](https://pubs.opengroup.org/onlinepubs/9799919799/functions/posix_spawn.html)、[Linux posix_spawn](https://man7.org/linux/man-pages/man3/posix_spawn.3.html) 以及当前 Darwin SDK 的 spawn 扩展。上述能力均为普通 platform 库，不增加 runtime 进程管理协议。
+Windows 依据：[CreateProcessW](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessw)、[HANDLE_LIST](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-updateprocthreadattribute)、[CRT 参数解析](https://learn.microsoft.com/en-us/cpp/c-language/parsing-c-command-line-arguments) 与 [TerminateProcess](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-terminateprocess)。
 
 ## 12. 阻塞 DNS、TCP 与 UDP
 

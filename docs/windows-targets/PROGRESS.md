@@ -7,7 +7,7 @@
 | W0 工具链与 ABI | 关键路线实验通过 | 复现入口与范围见下文；正式编译器集成在 W1／W2 完成 |
 | W1 编译／链接 | 实施中 | 三目标开发 CLI 已支持 subsystem、RC、DLL 数据与跨 Cone C++；函数入口的 CodeView／PDB 定位通过，继续源位置覆盖与 ABI 组合验收 |
 | W2 core runtime | 实施中 | core／std／test 已构建且 Cone 测试通过，异常、移动 GC、callback、TLS、初始化、shutdown 与并行 GC 的定向程序通过；继续其余 ABI／GC 组合验收 |
-| W3 系统库 | 实施中 | 字符串／路径、错误、线程／同步、时钟／熵、同步 socket、文件 HANDLE、目录枚举、链接／临时路径、环境变量与目录查询、原始参数及系统信息已有定向验证；继续进程、console、IOCP、全部 native 组件及真实 consumer |
+| W3 系统库 | 实施中 | 字符串／路径、错误、线程／同步、时钟／熵、同步 socket、文件 HANDLE、目录枚举、链接／临时路径、环境变量与目录查询、原始参数、系统信息及进程已有定向验证；继续 console、IOCP、全部 native 组件及真实 consumer |
 | W4 宿主与发行 | 基础实施中 | 进程中断已实现；继续 Windows 命令、维护脚本、DLL／SDK 布局与打包、交叉编译 |
 
 本地实现和完整验收完成后，才在 Linux `nuc12w.0d0a.com` 与 macOS `mm.0d0a.com` 的 `~/repos` 下新建测试目录，运行与变更范围相称的回归。原始日志与构建目录放在仓库外。
@@ -214,3 +214,7 @@ Microsoft LLD／LINK、MinGW MSVCRT／UCRT 四种组合均通过新参数 fixtur
 Windows 系统版本查询已接入 RtlGetVersion，返回十进制 major.minor.build；逻辑处理器数量使用 GetActiveProcessorCount(ALL_PROCESSOR_GROUPS)。查询结果与原错误码同次返回，版本保留 NtStatus，CPU 查询保留 Win32 code；POSIX 的 uname／sysconf 行为保持。ntdll 由目标条件 native library 声明链接。
 
 Scoop／C 格式化、三个 Clang 环境与 cl 的严格 C 检查、完整 platform 测试源码语义检查通过。针对实际系统信息源码建立的小型临时 Cone 在三个 target 各通过 2 个容器／2 项测试，覆盖版本格式、实际 CPU 数与 GC 后重复查询；首轮普通字符串误用已改为 f-string 并复测闭合。没有重复执行其余平台 API 测试，也未发布子集 platform。进程、console、IOCP、完整系统库与远端 POSIX 验收继续实施。
+
+Windows 子进程已接入 CreateProcessW、UTF-16 参数／环境／cwd 与限定标准流的 HANDLE_LIST；进程使用独立 HANDLE，wait 保留完整 32 位退出码，正常的 259 不误判为运行中。同步 communicate 由至多两个 reader 线程与调用线程推进三路管道，失败共享一次终止请求，并在返回前 join／reap；POSIX 保持 spawn、poll 与 signal 语义，相关实现和测试按目标条件组织。
+
+三个 target 各通过 2 个容器／9 项实际进程测试，覆盖 PATH 与 cwd、环境快照、空参数／引号／反斜杠／非配对 surrogate、高位退出码、pipe 所有权、重定向、128 KiB 双输出与输入、GC、断管失败清理和显式终止。原生探针在三个环境验证 CRT argv、原始字节、handle 继承、失败回收与退出状态；完整 platform 测试源码语义检查、Scoop／C 格式化、三套 Clang 与 cl 的严格 C 检查通过。首轮重复终止的清理错误已修复；PowerShell 测试辅助改为内联执行，避免扩展路径脚本的宿主限制，并已定向复测。未发布子集 platform；console、IOCP、完整系统库与远端 POSIX 验收继续实施。

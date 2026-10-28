@@ -2,15 +2,21 @@ package scoop.platform.process
 
 import scoop.bytes.ByteArrayBuilder
 import scoop.collections.Map
+import scoop.platform.env.currentDirectory
 import scoop.platform.fs.*
-import scoop.platform.system.OsString
+import scoop.platform.system.*
 
 internal class SpawnInput internal constructor(
     executable: Path,
     arguments: Array<OsString>,
     environment: Map<OsString, OsString>,
-    private val directory: Path
+    directory: Path
 ) {
+    private val directory: Path =
+        if (operatingSystem == OperatingSystem.Windows && !directory.isAbsolute)
+            currentDirectory().resolve(directory)
+        else
+            directory
     private val argumentCount: Long = arguments.size + 1L
     private val environmentCount: Long = environment.size
     private val argumentBytes: Array<Byte> = packArguments(executable, arguments)
@@ -23,7 +29,7 @@ internal class SpawnInput internal constructor(
         error: Stdio,
         merge: Boolean,
         result: MutableArray<NativeFileHandle>
-    ): (Int, Int) =
+    ): NativeSpawnResult =
         withRedirect(input) inputScope@{
             inputFd -> withRedirect(output) outputScope@{
                 outputFd -> withRedirect(error) errorScope@{
@@ -39,10 +45,15 @@ internal class SpawnInput internal constructor(
                         ]
                     @Unsafe
                     {
-                        return@errorScope path.withNativePath pathScope@{
+                        val resolved =
+                            if (operatingSystem == OperatingSystem.Windows)
+                                directory.resolve(path)
+                            else
+                                path
+                        return@errorScope resolved.withPlatformPath pathScope@{
                             executable -> @Unsafe
                             {
-                                return@pathScope directory.withNativePath directoryScope@{
+                                return@pathScope directory.withPlatformPath directoryScope@{
                                     cwd -> @Unsafe
                                     {
                                         return@directoryScope argumentBytes.withDataPointer argumentScope@{
@@ -97,14 +108,24 @@ private fun <R> withRedirect(value: Stdio, block: (NativeStdio) -> R): R =
         case Stdio.Redirect(file) -> file.withHandle { handle -> block(NativeStdio(3, handle)) }
     }
 
-private fun appendString(builder: ByteArrayBuilder, value: OsString) {
+private fun appendString(builder: ByteArrayBuilder, value: OsString, terminate: Boolean = true) {
     val bytes = value.toByteArray()
     for (byte in bytes) {
         if (byte == 0)
             throw IllegalArgumentException(Some("process string contains NUL"))
     }
-    builder.append(bytes)
-    builder.append(0.toByte())
+    if (operatingSystem == OperatingSystem.Windows) {
+        for (unit in value.toUtf16()) {
+            builder.append(unit.toByte())
+            builder.append((unit.toUInt() shr 8L).toByte())
+        }
+        if (terminate)
+            builder.append(0.toByte())
+    } else {
+        builder.append(bytes)
+    }
+    if (terminate)
+        builder.append(0.toByte())
 }
 
 private fun packArguments(executable: Path, arguments: Array<OsString>): Array<Byte> {
@@ -129,14 +150,14 @@ private fun packEnvironment(environment: Map<OsString, OsString>): Array<Byte> {
             if (byte == 0 || byte == 61)
                 throw IllegalArgumentException(Some("invalid environment name"))
         }
-        builder.append(bytes)
-        builder.append(61.toByte())
+        appendString(builder, name, false)
+        appendString(builder, OsString.fromString("="), false)
         appendString(builder, value)
     }
     return builder.toByteArray()
 }
 
-@Extern(name = "scoop_platform_process_spawn", captureErrno = true)
+@Extern(name = "scoop_platform_process_spawn")
 private fun nativeSpawn(
     executable: Ptr<Byte>,
     arguments: Ptr<Byte>,
@@ -146,7 +167,7 @@ private fun nativeSpawn(
     directory: Ptr<Byte>,
     redirects: Ptr<NativeStdio>,
     result: Ptr<NativeFileHandle>
-): (Int, Int)
+): NativeSpawnResult
 
 @CLayout
 private struct NativeStdio(val kind: Int, val handle: NativeFileHandle)

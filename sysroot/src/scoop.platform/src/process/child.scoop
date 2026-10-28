@@ -36,7 +36,7 @@ public class ChildProcess internal constructor(
     outputPipe: Boolean,
     errorPipe: Boolean
 ): Closeable {
-    private var process: Int = -1
+    private var process: NativeProcessHandle = NativeProcessHandle(ULong.MAX_VALUE)
     private var result: ExitStatus? = None
     private var waitFailure: Throwable? = None
     private var closed: Boolean = false
@@ -74,7 +74,7 @@ public class ChildProcess internal constructor(
      */
     public val isClosed: Boolean get() = closed
 
-    internal fun adopt(pid: Int, handles: MutableArray<NativeFileHandle>) {
+    internal fun adopt(pid: NativeProcessHandle, handles: MutableArray<NativeFileHandle>) {
         process = pid
         input?.file?.adoptHandle(handles[0L])
         output?.file?.adoptHandle(handles[1L])
@@ -118,7 +118,7 @@ public class ChildProcess internal constructor(
      */
     public fun tryWait(): ExitStatus? = observe(true)
 
-    private fun <R> withProcess(block: (Int) -> R): R {
+    private fun <R> withProcess(block: (NativeProcessHandle) -> R): R {
         active.fetchAdd(1L, MemoryOrder.Relaxed)
         try {
             return block(process)
@@ -139,28 +139,29 @@ public class ChildProcess internal constructor(
         }
         @Unsafe
         {
-            val(status, code) =
+            val observed =
                 withProcess {
                     pid -> @Unsafe
                     {
                         return@withProcess nativeWait(pid, noHang)
                     }
                 }
+            val status = observed.status
             if (status == -2L)
                 return None
             if (status < 0L) {
-                val error = NativeError(NativeErrorDomain.PosixErrno, code)
+                val error = processError(observed.error)
                 val failure = PlatformException("wait", error.kind, Some(error))
                 if (status == -3L) {
-                    process = -1;
+                    process = NativeProcessHandle(ULong.MAX_VALUE);
                     waitFailure = Some(failure)
                 }
                 throw failure
             }
-            process = -1
+            process = NativeProcessHandle(ULong.MAX_VALUE)
             result =
                 Some(
-                    if (status < 256L)
+                    if (operatingSystem == OperatingSystem.Windows || status < 256L)
                         ExitStatus.Exited(status.toInt())
                     else
                         ExitStatus.Signaled((status - 256L).toInt())
@@ -170,7 +171,7 @@ public class ChildProcess internal constructor(
     }
 
     /**
-     * Requests ordinary process termination.
+     * Requests SIGTERM on POSIX or TerminateProcess with exit code 1 on Windows.
      */
     public fun terminate() {
         signal(false)
@@ -182,25 +183,25 @@ public class ChildProcess internal constructor(
         signal(true)
     }
     private fun signal(force: Boolean) {
-        if (process < 0)
+        if (process.value == ULong.MAX_VALUE)
             return
         @Unsafe
         {
-            val(status, code) =
+            val code =
                 withProcess {
                     pid -> @Unsafe
                     {
                         return@withProcess nativeSignal(pid, force)
                     }
                 }
-            checkNativeStatus(
-                status,
-                code,
-                if (force)
-                    "kill"
-                else
-                    "terminate"
-            )
+            if (code != 0)
+                failOperatingSystem(
+                    if (force)
+                        "kill"
+                    else
+                        "terminate",
+                    code
+                )
         }
     }
 
@@ -228,30 +229,23 @@ public class ChildProcess internal constructor(
                 case Some(bytes) -> Some(bytes.toArray())
                 case None -> None
             }
-        val pipes = ProcessPipes(takeStdin(), takeStdout(), takeStderr())
-        try {
-            val(stdout, stderr) = pipes.transfer(snapshot)
-            val status = wait()
-            return ProcessOutput(stdout, stderr, status)
-        } catch (failure: Throwable) {
-            var reported = failure
+        val sink = takeStdin()
+        val source = takeStdout()
+        val errors = takeStderr()
+        val transferred =
             try {
-                pipes.close()
-            } catch (cleanup: Throwable) {
-                reported = ResourceUseException(reported, cleanup)
+                transferPipes(sink, source, errors, snapshot)
+            } catch (failure: Throwable) {
+                var reported = failure
+                try {
+                    wait()
+                } catch (cleanup: Throwable) {
+                    reported = ResourceUseException(reported, cleanup)
+                }
+                throw reported
             }
-            try {
-                kill()
-            } catch (cleanup: Throwable) {
-                reported = ResourceUseException(reported, cleanup)
-            }
-            try {
-                wait()
-            } catch (cleanup: Throwable) {
-                reported = ResourceUseException(reported, cleanup)
-            }
-            throw reported
-        }
+        val(stdout, stderr) = transferred
+        return ProcessOutput(stdout, stderr, wait())
     }
 
     /**
@@ -287,7 +281,7 @@ public class ChildProcess internal constructor(
     }
 
     release {
-        if (process >= 0) {
+        if (process.value != ULong.MAX_VALUE) {
             @Unsafe
             {
                 nativeAbandon(process)
@@ -302,11 +296,11 @@ internal fun combineProcessFailure(previous: Throwable?, next: Throwable): Throw
         case None -> next
     }
 
-@Extern(name = "scoop_platform_process_wait", captureErrno = true)
-private fun nativeWait(process: Int, noHang: Boolean): (Long, Int)
+@Extern(name = "scoop_platform_process_wait")
+private fun nativeWait(process: NativeProcessHandle, noHang: Boolean): NativeProcessWait
 
-@Extern(name = "scoop_platform_process_signal", captureErrno = true)
-private fun nativeSignal(process: Int, force: Boolean): (Int, Int)
+@Extern(name = "scoop_platform_process_signal")
+private fun nativeSignal(process: NativeProcessHandle, force: Boolean): Int
 
 @Extern(name = "scoop_platform_process_abandon")
-private fun nativeAbandon(process: Int)
+private fun nativeAbandon(process: NativeProcessHandle)

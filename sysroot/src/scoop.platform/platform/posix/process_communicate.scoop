@@ -6,6 +6,25 @@ import scoop.platform.io.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.system.*
 
+internal fun ChildProcess.transferPipes(
+    input: PipeSink?,
+    output: PipeSource?,
+    error: PipeSource?,
+    bytes: Array<Byte>?
+): (Array<Byte>, Array<Byte>) {
+    try {
+        return ProcessPipes(input, output, error).transfer(bytes)
+    } catch (failure: Throwable) {
+        try {
+            kill()
+        }
+        catch (cleanup: Throwable) {
+            throw ResourceUseException(failure, cleanup)
+        }
+        throw failure
+    }
+}
+
 internal class ProcessPipes internal constructor(
     input: PipeSink?,
     output: PipeSource?,

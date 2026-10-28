@@ -239,6 +239,8 @@ stdout／stderr 继续遵守既有字节输出合同：Windows startup 将有效
 
 同步 File 与匿名 pipe 使用独立的完整宽度文件 handle 类型；Windows 沿 CreateFileW／CreatePipe、ReadFile／WriteFile、DuplicateHandle 和 CloseHandle，不转成 CRT fd。标准流逐次读取 GetStdHandle，GUI 缺失标准句柄时不隐式分配 console。POSIX 的 asyncio 继续复用原 fd helper；managed File 的包装结果在同次调用保存目标错误码，进程重定向也携带文件 handle。Windows 的权限投影、追加、截断、文件锁和 metadata 平台差异见[平台规范 5～6](../specs/SCOOP-PLATFORM-SPEC.md)。
 
+子进程通过 CreateProcessW 接收 UTF-16 参数、环境与 cwd，使用独立的进程 HANDLE 和限定标准流的 HANDLE_LIST；wait 保留完整 32 位退出码，terminate／kill 使用 Windows 的实际终止操作。同步 communicate 用最多两个 reader 线程和调用线程推进三路管道，失败先请求一次终止并在返回前 join／wait；POSIX 保持 spawn／poll 与 signal 语义。精确的 PATH、参数引用、环境名称、退出与资源责任见[平台规范 11](../specs/SCOOP-PLATFORM-SPEC.md#11-匿名管道与子进程)。
+
 ### 5.3 Rust 文本后端是必须单独闭合的依赖
 
 `sysroot/native/text_backend` 当前依赖 Rust `std`，不是可在两个 CRT 间任意复用的纯对象集合。保留现有 C API 和“由文本后端分配、由文本后端释放”的 owner 规则，继续 `panic = "abort"`，Rust panic 不进入 Scoop EH。

@@ -1,0 +1,21 @@
+package scoop.platform.process
+
+import scoop.platform.system.*
+
+@CLayout
+internal struct NativeProcessHandle(val value: ULong)
+
+@CLayout
+internal struct NativeSpawnResult(val process: NativeProcessHandle, val error: Int)
+
+@CLayout
+internal struct NativeProcessWait(val status: Long, val error: Int)
+
+internal fun processError(code: Int): NativeError =
+    NativeError(
+        if (operatingSystem == OperatingSystem.Windows)
+            NativeErrorDomain.Win32
+        else
+            NativeErrorDomain.PosixErrno,
+        code
+    )
