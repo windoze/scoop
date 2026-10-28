@@ -30,7 +30,15 @@ def companions(target, args, sysroot, needed):
     if not microsoft:
         result["cc_args"] = ["--target=x86_64-w64-windows-gnu", "--sysroot=" + str(root)]
         return result
-    result["cc_args"] = ["--target=x86_64-pc-windows-msvc", "-fms-runtime-lib=dll"]
+    # The GNU driver otherwise adds libcmt even when cc1 selected /MD.
+    # Source objects already declare the matching CRT and startup libraries.
+    result["cc_args"] = [
+        "--target=x86_64-pc-windows-msvc",
+        "-fms-runtime-lib=dll",
+        "--start-no-unused-arguments",
+        "-nostartfiles",
+        "--end-no-unused-arguments",
+    ]
     config = root / "msvc.toml"
     if args.native_sysroot or config.is_file():
         try:

@@ -107,7 +107,7 @@ impl WindowsCEnvironment {
 
     pub(crate) fn command(&self, compiler: &Path, triple: &str, microsoft: bool) -> Command {
         let mut command = self.bare_command(compiler);
-        self.configure(&mut command, triple, microsoft);
+        self.configure(&mut command, triple, microsoft, false);
         command
     }
 
@@ -128,22 +128,32 @@ impl WindowsCEnvironment {
         command
     }
 
-    pub(crate) fn configure(&self, command: &mut Command, triple: &str, microsoft: bool) {
+    pub(crate) fn configure(
+        &self,
+        command: &mut Command,
+        triple: &str,
+        microsoft: bool,
+        preprocessed: bool,
+    ) {
         command.args([
             "-target",
             triple,
             "-march=x86-64",
-            "-D_WIN32_WINNT=0x0a00",
-            "-DWINVER=0x0a00",
             "-funwind-tables",
             "-fasynchronous-unwind-tables",
         ]);
+        if !preprocessed {
+            command.args(["-D_WIN32_WINNT=0x0a00", "-DWINVER=0x0a00"]);
+        }
         if microsoft {
-            command.args(["-nostdlibinc", "-fms-runtime-lib=dll"]);
-            for include in &self.includes {
-                // Preserve Clang's builtin atomic/intrinsic headers before
-                // the explicitly selected SDK and CRT, as in driver discovery.
-                command.arg("-idirafter").arg(include);
+            command.arg("-fms-runtime-lib=dll");
+            if !preprocessed {
+                command.arg("-nostdlibinc");
+                for include in &self.includes {
+                    // Preserve Clang's builtin atomic/intrinsic headers before
+                    // the explicitly selected SDK and CRT, as in driver discovery.
+                    command.arg("-idirafter").arg(include);
+                }
             }
         } else if let Some(root) = &self.native_sysroot {
             command.arg("--sysroot").arg(root);

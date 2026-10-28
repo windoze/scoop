@@ -20,6 +20,7 @@ Windows x64 可选择三个完整 Windows target，默认 Microsoft UCRT；命�
 `--linker` 选择最终 executable linker（例如 Microsoft `link.exe`），仅加入 `${link_args}`。
 Windows native companion 使用 Clang 的 GNU 风格命令行，`${cc_args}` 提供实际 machine triple 和目标资源，
 MinGW 默认使用所选 prefix 的 Clang，Microsoft 使用宿主 Clang 并由 SDK／Build Tools 或 `msvc.toml` 取得开发环境。
+Microsoft companion 使用动态 CRT；GNU driver 的额外静态 CRT 默认参数被省略，链接沿用对象中的正常默认库指令。
 `--ar` 可覆盖 companion archiver；只为当前适用且实际使用 native 工具的用例准备这些参数。
 共有 fixture 使用 `{each = "${compile_args}"}` 给 `scoopc build` 传目标参数，
 使用 `{each = "${link_args}"}` 给 `scoop build/run/link` 或 `scoop-link` 传目标及最终链接参数。

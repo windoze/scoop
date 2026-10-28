@@ -154,3 +154,5 @@ shutdown 的 native companion 复用同一 OS thread helper，覆盖仍附着的
 并行标记的首轮检查曾因 Windows 线程 CPU 时钟在短 GC 内未增长而失败；实际任务与对象计数确认标记完整。测试现在允许 CPU 采样值相等并拒绝倒退，继续精确检查 worker 数、array task 增长及本轮 marked／live 对象数，不用计时粒度判断 GC 是否执行。修正后每目标 debug／release 两个变体、20 个进程步骤通过，包含 1／2／4／8 workers、moving 与 minor；runtime 计时实现未改动。core／std Cone 测试、其余 ABI 组合和 W1／W3／W4 继续实施，未开始远端测试。
 
 三个 Windows target 的正式 release Cone 测试均通过：core consumer 每目标 49 个容器／77 项测试，std 每目标 97 个容器／104 项测试，失败、忽略和未运行均为零。测试使用前述已准备的预编译系统库与共享缓存；三个长时间编译进程均正常完成，没有重复启动。此结果闭合 core／std 的普通 API 行为验收；其余 ABI／GC 组合、调试信息、平台库、发行与跨宿主验证继续实施。
+
+Windows native companion 的 Microsoft 配置省略 GNU Clang driver 额外添加的静态 CRT 默认库，沿用 `/MD` 对象的正常默认库指令。用户显式选择 GNU 风格 Clang 时，已预处理的 native C/C++ 输入不再收到头文件目录和预处理宏；目标、动态 CRT 与 unwind 参数仍保留，修复严格告警下的 unused-argument 失败。toolchain Clippy、Ruff 和 fixture 公共规则测试通过（62 通过、3 项 POSIX 专项跳过）；MSVC 的 LLD／Microsoft LINK 与两个 MinGW CRT 均通过静态库／DLL 数据 fixture，每种组合 1 个变体／9 个进程步骤。调试源码路径的独立修复继续验证。

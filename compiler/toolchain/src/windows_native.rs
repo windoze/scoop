@@ -63,8 +63,17 @@ pub(crate) fn command(
     language: NativeSourceLanguage,
     preprocessed: bool,
 ) -> Command {
+    let environment = c
+        .windows_environment()
+        .expect("selected Windows native environment");
     if !kind.microsoft() {
-        let mut command = c.driver_command_with(driver);
+        let mut command = environment.bare_command(driver);
+        environment.configure(
+            &mut command,
+            crate::windows_c::machine_triple(c.target().id()).expect("validated Windows target"),
+            c.target().id() == scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID,
+            preprocessed,
+        );
         if !preprocessed
             && language == NativeSourceLanguage::Cxx
             && c.target().id() != scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID
@@ -73,9 +82,6 @@ pub(crate) fn command(
         }
         return command;
     }
-    let environment = c
-        .windows_environment()
-        .expect("selected Windows native environment");
     let mut command = environment.bare_command(driver);
     command.args([
         "/nologo",
