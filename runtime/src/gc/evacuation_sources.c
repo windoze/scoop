@@ -6,8 +6,11 @@
 #include "old_slots.h"
 
 bool scoop_heap_block_has_pins(const ScoopGcBlockMeta *block) {
-    if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
+    if (block->head->kind == SCOOP_BLOCK_KIND_LARGE) {
         return block->large_pinned;
+    }
+    if (block->pins == NULL) {
+        return false;
     }
     for (size_t index = 0; index < GC_BITMAP_WORDS; index++) {
         if (block->pins[index] != 0) {
@@ -60,9 +63,18 @@ size_t scoop_heap_select_evacuation_sources(bool minor, size_t survivor_capacity
                                              ScoopGcSurvivors *survivors, bool *has_sources) {
     *has_sources = false;
     size_t available[GC_OLD_SLOT_CLASSES];
+    size_t copyable_bytes = SIZE_MAX;
     bool old_slots = minor && scoop_heap_promotes_slot_blocks();
     if (old_slots) {
         memcpy(available, scoop_gc_heap_state.old_slots_free, sizeof available);
+        if (scoop_gc_heap_state.old_slots_level == 3) {
+            copyable_bytes = 0;
+            for (size_t index = 0; index < GC_OLD_SLOT_CLASSES; index++) {
+                copyable_bytes += available[index] * (index + 2) * sizeof(uint64_t);
+            }
+            size_t slack = scoop_gc_heap_state.nursery_capacity;
+            copyable_bytes = copyable_bytes > slack ? copyable_bytes - slack : 0;
+        }
     }
     size_t regions = !minor && !stress_move ? select_regions() : 0;
     for (ScoopGcBlockMeta *block = scoop_heap_first_collection_block(minor); block != NULL;
@@ -76,7 +88,7 @@ size_t scoop_heap_select_evacuation_sources(bool minor, size_t survivor_capacity
         bool selected = minor ? !scoop_heap_block_has_pins(block)
                               : stress_move || block->region->evacuation_source;
         if (minor && selected && scoop_heap_adaptive_nursery_enabled() &&
-            block->kind == SCOOP_BLOCK_KIND_SMALL && block->live_bytes >= GC_REGULAR_MAX / 2) {
+            block->head->kind == SCOOP_BLOCK_KIND_SMALL && block->live_bytes >= GC_REGULAR_MAX / 2) {
             if (block->survivor || scoop_gc_heap_state.promote_in_place) {
                 selected = false;
             }
@@ -87,12 +99,12 @@ size_t scoop_heap_select_evacuation_sources(bool minor, size_t survivor_capacity
                 selected = false;
             }
             if (!block->retained_young && old_slots) {
-                selected = scoop_heap_select_slot_source(block, available, selected);
+                selected = scoop_heap_select_slot_source(block, available, &copyable_bytes, selected);
             }
         }
         if (selected) {
             *has_sources = true;
-            block->state = SCOOP_BLOCK_EVACUATION_SOURCE;
+            block->head->state = SCOOP_BLOCK_EVACUATION_SOURCE;
         }
     }
     return regions;

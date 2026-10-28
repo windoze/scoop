@@ -100,6 +100,8 @@ static void compact_round(bool pin_region) {
 }
 
 int main(void) {
+    assert(setenv("SCOOP_GC_INCREMENTAL", "0", 1) == 0);
+    assert(setenv("SCOOP_GC_OLD_SLOTS", "0", 1) == 0);
     assert(unsetenv("SCOOP_GC_WORKERS") == 0);
     const ScoopTypeDescriptor *types[] = {&nursery_node_td, &wide_td};
     uintptr_t boundary = 0;

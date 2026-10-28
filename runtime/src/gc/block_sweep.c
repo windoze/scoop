@@ -67,7 +67,9 @@ retire_small_object(ScoopGcBlockMeta *block, size_t word, bool marked, bool stre
         memset(object, GC_POISON_BYTE, size);
     }
     bit_clear(block->starts, word);
-    bit_clear(block->pins, word);
+    if (block->pins != NULL) {
+        bit_clear(block->pins, word);
+    }
     block->discard_pending = true;
 }
 
@@ -80,7 +82,9 @@ static void retire_dead_small_objects(ScoopGcBlockMeta *block, bool stress) {
             uint64_t live = starts & block->marks[index];
             if (live != starts) {
                 block->starts[index] = live;
-                block->pins[index] &= live;
+                if (block->pins != NULL) {
+                    block->pins[index] &= live;
+                }
                 block->discard_pending = true;
             }
         }
@@ -105,7 +109,7 @@ static bool finish_stress_source(ScoopGcBlockMeta *block) {
         while (starts != 0) {
             size_t word = index * 64 + (size_t)__builtin_ctzll(starts);
             starts &= starts - 1;
-            bool pinned = bit_test(block->pins, word);
+            bool pinned = object_pinned(block, word);
             bool marked = bit_test(block->marks, word);
             bool moved = !pinned;
             void *object = (char *)block_base(block) + word * sizeof(uint64_t);
@@ -137,16 +141,16 @@ static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
     bool any_live;
     bool any_pinned;
 #if SCOOP_ENABLE_GC_STRESS
-    if (stress && block->state == SCOOP_BLOCK_EVACUATION_SOURCE) {
+    if (stress && block->head->state == SCOOP_BLOCK_EVACUATION_SOURCE) {
         any_live = finish_stress_source(block);
         any_pinned = any_live;
     } else
 #endif
     {
         retire_dead_small_objects(block, stress);
-        /* Ordinary sources are unpinned and completely copied; retained blocks
-         * already have the exact occupied lines from marking and target publication. */
-        any_live = block->state != SCOOP_BLOCK_EVACUATION_SOURCE && block->live_bytes != 0;
+        /* Ordinary sources are unpinned and completely copied. Retained blocks
+         * that need free runs already have exact occupied lines. */
+        any_live = block->head->state != SCOOP_BLOCK_EVACUATION_SOURCE && block->live_bytes != 0;
         any_pinned = any_live && scoop_heap_block_has_pins(block);
     }
     if (!any_live) {
@@ -167,11 +171,11 @@ static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
     /* Free runs and full VM return consume these lines before the next mark. */
     block->live_bytes = 0;
     block->movable_live_bytes = 0;
-    block->state = any_pinned ? SCOOP_BLOCK_PINNED_PARTIAL : SCOOP_BLOCK_MUTATOR;
+    block->head->state = any_pinned ? SCOOP_BLOCK_PINNED_PARTIAL : SCOOP_BLOCK_MUTATOR;
     if (SCOOP_ENABLE_GC_STRESS && stress) {
         return true;
     }
-    if (block->generation == SCOOP_GC_OLD && block->slot_size == 0) {
+    if (block->head->generation == SCOOP_GC_OLD && block->slot_size == 0) {
         record_free_runs(block, block->line_live);
     }
     return true;
@@ -179,7 +183,7 @@ static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
 
 static bool finish_large_block(ScoopGcBlockMeta *block, bool stress) {
     (void)stress;
-    bool moved = block->state == SCOOP_BLOCK_EVACUATION_SOURCE && !block->large_pinned;
+    bool moved = block->head->state == SCOOP_BLOCK_EVACUATION_SOURCE && !block->large_pinned;
     if (moved && block->large_marked &&
         scoop_heap_forwarding_address((char *)block_base(block) + GC_LINE_SIZE) == NULL) {
         heap_fatal("marked large source object has no forwarding address");
@@ -200,7 +204,7 @@ static bool finish_large_block(ScoopGcBlockMeta *block, bool stress) {
         }
         return false;
     }
-    block->state = block->large_pinned ? SCOOP_BLOCK_PINNED_PARTIAL : SCOOP_BLOCK_MUTATOR;
+    block->head->state = block->large_pinned ? SCOOP_BLOCK_PINNED_PARTIAL : SCOOP_BLOCK_MUTATOR;
     block->live_bytes = 0;
     block->movable_live_bytes = 0;
     block->large_marked = false;
@@ -213,9 +217,9 @@ static bool finish_large_block(ScoopGcBlockMeta *block, bool stress) {
 void scoop_heap_prepare_evacuation_targets(void) {
     for (ScoopGcBlockMeta *block = scoop_heap_first_block(); block != NULL;
          block = scoop_heap_next_block(block)) {
-        if (!active_head(block) || block->kind != SCOOP_BLOCK_KIND_SMALL ||
+        if (!active_head(block) || block->head->kind != SCOOP_BLOCK_KIND_SMALL ||
             block->region->evacuation_source ||
-            (block->generation == SCOOP_GC_YOUNG && block->live_bytes != 0)) {
+            (block->head->generation == SCOOP_GC_YOUNG && block->live_bytes != 0)) {
             continue;
         }
         retire_dead_small_objects(block, false);
@@ -228,9 +232,9 @@ void scoop_heap_prepare_evacuation_targets(void) {
 }
 
 void scoop_heap_finish_block(ScoopGcBlockMeta *block, bool stress) {
-    if (block->kind == SCOOP_BLOCK_KIND_SMALL) {
+    if (block->head->kind == SCOOP_BLOCK_KIND_SMALL) {
         (void)finish_small_block(block, stress);
-    } else if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
+    } else if (block->head->kind == SCOOP_BLOCK_KIND_LARGE) {
         (void)finish_large_block(block, stress);
     } else {
         heap_fatal("active block has no object kind");

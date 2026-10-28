@@ -2,6 +2,7 @@ use super::*;
 use inkwell::values::AnyValue;
 
 mod initialization;
+mod range;
 mod young_initialization;
 
 fn allocation_ir(
@@ -102,15 +103,21 @@ fn allocation_ir(
 }
 
 #[test]
-fn small_release_allocations_publish_ordered_metadata_inline() {
-    for size in [32, 128] {
-        let ir = allocation_ir(size, false, true, scoop_lir::OptimizationMode::Release);
+fn release_allocations_with_known_layout_publish_ordered_metadata_inline() {
+    for (size, dynamic) in [
+        (32, false),
+        (128, false),
+        (136, false),
+        (512, false),
+        (32640, false),
+        (512, true),
+    ] {
+        let ir = allocation_ir(size, dynamic, true, scoop_lir::OptimizationMode::Release);
         assert!(!ir.contains("@scoop_runtime_finish_tlab_alloc"), "{ir}");
         assert!(ir.contains("@scoop_runtime_alloc_slow"), "{ir}");
         assert!(ir.contains("@llvm.memset.p1.i64"), "{ir}");
         assert!(!ir.contains("allocation_alignment = load"), "{ir}");
         assert!(!ir.contains("allocation_hook = load"), "{ir}");
-        assert!(ir.contains(&format!("i64 {size}, i1 false")), "{ir}");
         assert!(
             ir.contains("load atomic i64") && ir.contains(" monotonic, align 8"),
             "{ir}"
@@ -120,24 +127,44 @@ fn small_release_allocations_publish_ordered_metadata_inline() {
             "{ir}"
         );
         assert!(!ir.contains("atomicrmw"), "{ir}");
-        assert!(
-            ir.contains(&format!("store i64 {size}, ptr addrspace(1)")),
-            "{ir}"
-        );
+        if !dynamic {
+            assert!(
+                ir.contains(&format!("store i64 {size}, ptr addrspace(1)")),
+                "{ir}"
+            );
+        } else {
+            assert!(
+                ir.contains("store i64 %alloc_size, ptr addrspace(1)"),
+                "{ir}"
+            );
+        }
         assert!(!ir.contains("store i16"), "{ir}");
         assert!(!ir.contains("alloc.lines."), "{ir}");
         assert!(!ir.contains("tlab_occupied_lines"), "{ir}");
-        assert!(ir.contains("{ ptr, ptr, ptr, ptr, ptr }"), "{ir}");
+        assert!(ir.contains("{ ptr, ptr, ptr, ptr }"), "{ir}");
+        assert!(
+            ir.lines()
+                .any(|line| line.contains("tlab_counters = getelementptr i8")
+                    && line.ends_with(", i64 128")),
+            "the stable mutator holds the counters at a fixed offset: {ir}"
+        );
+        assert_eq!(
+            ir.lines()
+                .filter(|line| line.contains("tlab_counter_next") && line.contains(" = add i64"))
+                .count(),
+            2,
+            "a nursery allocation updates only its object and byte counts: {ir}"
+        );
     }
 }
 
 #[test]
-fn debug_large_dynamic_and_unknown_allocations_keep_the_shared_finish_entry() {
+fn debug_and_unknown_allocations_keep_the_shared_finish_entry() {
     for (size, dynamic, known_descriptor, mode) in [
         (32, false, true, scoop_lir::OptimizationMode::Debug),
-        (136, false, true, scoop_lir::OptimizationMode::Release),
-        (32, true, true, scoop_lir::OptimizationMode::Release),
+        (136, true, true, scoop_lir::OptimizationMode::Debug),
         (32, false, false, scoop_lir::OptimizationMode::Release),
+        (512, true, false, scoop_lir::OptimizationMode::Release),
     ] {
         let ir = allocation_ir(size, dynamic, known_descriptor, mode);
         assert!(
@@ -151,7 +178,7 @@ fn debug_large_dynamic_and_unknown_allocations_keep_the_shared_finish_entry() {
             "{ir}"
         );
         assert!(!ir.contains("alloc.lines.second"), "{ir}");
-        assert!(ir.contains("{ ptr, ptr, ptr, ptr, ptr }"), "{ir}");
+        assert!(ir.contains("{ ptr, ptr, ptr, ptr }"), "{ir}");
         if !known_descriptor {
             assert!(ir.contains("allocation_alignment = load"), "{ir}");
             assert!(ir.contains("allocation_hook = load"), "{ir}");

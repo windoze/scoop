@@ -160,7 +160,7 @@ static void run_case(size_t workers) {
 }
 
 int main(void) {
-    const size_t workers[] = {1, 2, 4, 8};
+    const size_t workers[] = {1, 2, 4, 8, 16};
     for (size_t index = 0; index < sizeof workers / sizeof *workers; index++) {
         pid_t child = fork();
         assert(child >= 0);

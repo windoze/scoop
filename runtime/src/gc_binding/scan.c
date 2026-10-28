@@ -1,28 +1,16 @@
 /* Exact descriptor scans, optionally restricted to a half-open address range. */
-#include "../gc_binding.h"
-#include "scoop_rt.h"
-
-static inline void scan_references(char *base, const uint64_t *table, ScoopGcSlotVisitor visitor,
-                                   void *context, uintptr_t begin, uintptr_t end) {
-    for (uint64_t index = 0; index < table[0]; index++) {
-        void **slot = (void **)(base + table[1 + index]);
-        if ((uintptr_t)slot >= begin && (uintptr_t)slot < end) {
-            visitor(slot, context);
-        }
-    }
-}
+#include "scan.h"
 
 void scoop_gc_scan_descriptor(void *base, const uint64_t *table, ScoopGcSlotVisitor visitor,
                               void *context, uintptr_t begin, uintptr_t end) {
-    if (table == NULL) {
-        return;
-    }
+    scoop_gc_scan_range(base, table, visitor, context, begin, end);
+}
+
+void scoop_gc_scan_composite(void *base, const uint64_t *table, ScoopGcSlotVisitor visitor,
+                             void *context, uintptr_t begin, uintptr_t end) {
     if (table[0] == SCOOP_REFS_ARRAY) {
         uint64_t stride = table[3];
         const uint64_t *element_scan = (const uint64_t *)(uintptr_t)table[4];
-        if (stride == 0 || element_scan == NULL) {
-            scoop_gc_roots_fatal("array scan has an invalid element program");
-        }
         uint64_t count = *(const uint64_t *)((char *)base + table[1]);
         char *elements = (char *)base + table[2];
         uintptr_t start = (uintptr_t)elements;
@@ -36,23 +24,19 @@ void scoop_gc_scan_descriptor(void *base, const uint64_t *table, ScoopGcSlotVisi
         }
         if (element_scan[0] < SCOOP_REFS_SEQUENCE) {
             for (uint64_t index = first; index < last; index++) {
-                scan_references(elements + index * stride, element_scan, visitor, context, begin,
-                                end);
+                scoop_gc_scan_references(elements + index * stride, element_scan, visitor,
+                                          context, begin, end, true);
             }
             return;
         }
         for (uint64_t index = first; index < last; index++) {
-            scoop_gc_scan_descriptor(elements + index * stride, element_scan, visitor, context,
-                                     begin, end);
+            scoop_gc_scan_range(elements + index * stride, element_scan, visitor, context,
+                                begin, end);
         }
         return;
     }
-    if (table[0] == SCOOP_REFS_SEQUENCE) {
-        for (uint64_t index = 0; index < table[1]; index++) {
-            scoop_gc_scan_descriptor(base, (const uint64_t *)(uintptr_t)table[2 + index], visitor,
-                                     context, begin, end);
-        }
-        return;
+    for (uint64_t index = 0; index < table[1]; index++) {
+        scoop_gc_scan_range(base, (const uint64_t *)(uintptr_t)table[2 + index], visitor,
+                            context, begin, end);
     }
-    scan_references(base, table, visitor, context, begin, end);
 }

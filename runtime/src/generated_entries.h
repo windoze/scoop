@@ -13,10 +13,10 @@
 
 /* Per-thread TLAB ABI used only by generated allocation sequences. */
 typedef struct ScoopGcAllocationCounters {
-    _Atomic(uint64_t) objects;
     _Atomic(uint64_t) nursery_objects;
-    _Atomic(uint64_t) bytes;
     _Atomic(uint64_t) nursery_bytes;
+    _Atomic(uint64_t) direct_objects;
+    _Atomic(uint64_t) direct_bytes;
 } ScoopGcAllocationCounters;
 
 typedef struct ScoopAllocationContext {
@@ -24,23 +24,24 @@ typedef struct ScoopAllocationContext {
     char *limit;
     char *block_start;
     uint64_t *starts;
-    ScoopGcAllocationCounters *counters;
 } ScoopAllocationContext;
 
-_Static_assert(sizeof(ScoopAllocationContext) == 40 && _Alignof(ScoopAllocationContext) == 8,
+/* The TLS view is the prefix of its owning mutator, including these counters. */
+#define SCOOP_ALLOCATION_COUNTERS_OFFSET 128
+
+_Static_assert(sizeof(ScoopAllocationContext) == 32 && _Alignof(ScoopAllocationContext) == 8,
                "generated allocation context layout drifted");
 _Static_assert(offsetof(ScoopAllocationContext, cursor) == 0 &&
                    offsetof(ScoopAllocationContext, limit) == 8 &&
                    offsetof(ScoopAllocationContext, block_start) == 16 &&
-                   offsetof(ScoopAllocationContext, starts) == 24 &&
-                   offsetof(ScoopAllocationContext, counters) == 32,
+                   offsetof(ScoopAllocationContext, starts) == 24,
                "generated allocation context offsets drifted");
 _Static_assert(sizeof(ScoopGcAllocationCounters) == 32 &&
                    _Alignof(ScoopGcAllocationCounters) == 8 &&
-                   offsetof(ScoopGcAllocationCounters, objects) == 0 &&
-                   offsetof(ScoopGcAllocationCounters, nursery_objects) == 8 &&
-                   offsetof(ScoopGcAllocationCounters, bytes) == 16 &&
-                   offsetof(ScoopGcAllocationCounters, nursery_bytes) == 24,
+                   offsetof(ScoopGcAllocationCounters, nursery_objects) == 0 &&
+                   offsetof(ScoopGcAllocationCounters, nursery_bytes) == 8 &&
+                   offsetof(ScoopGcAllocationCounters, direct_objects) == 16 &&
+                   offsetof(ScoopGcAllocationCounters, direct_bytes) == 24,
                "generated allocation counters layout drifted");
 
 extern _Thread_local ScoopAllocationContext *scoop_rt_allocation_context;

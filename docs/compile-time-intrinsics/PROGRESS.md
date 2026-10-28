@@ -79,6 +79,12 @@ Darwin 验证：格式化及全 workspace lint 通过；env 定向 Rust 测试�
 
 Linux 验证：使用 LLVM 22.1.2，在独立目录构建所需 CLI、core／std 与普通 GNU runtime；相同 15 步值／缓存、4 步跨 Cone 产物、3 项诊断 fixture 及输入宿主定向测试均通过。初次复用的旧 runtime 索引与当前编译器不兼容，已在独立测试 sysroot 重建并复验通过。未跑全套测试或 GC stress。
 
+### 合并远端 main
+
+2026-10-29 按用户要求合并 `origin/main` 的 `1de3cd2eb`，无冲突；本组 intrinsic／常量改动保留。上游变更新增 GC／分配优化，并将 runtime ABI 从 24 升至 26。两机显式更新本次验证所需的 core、std、公开头文件与普通 runtime；其他内置 Cone 和 stress 产物在后续使用前按新 ABI 准备。
+
+合并后 Darwin 格式化、全 workspace lint、23 项分配、5 项静态数据及 1 项 runtime ABI Rust 测试通过；Linux 格式化、相关 crate lint、23 项分配和 6 项静态数据测试通过。两机各自的 env 值／缓存 15 步与跨 Cone 产物 4 步均通过，没有运行完整套件。原始日志继续保存在仓库外。
+
 ## 范围调整
 
 2026-10-28：按用户澄清，相同值的 const object 的运行期 identity 不保证相同或不同。不同泛型特化、泛型类 companion 及其中的常量实体保持独立；编译器可在语义正确的前提下共享底层数据。语言规范 9.1.2 增加此规则，11.19、实现／运行时规范及本设计同步去掉强制全局唯一对象、固定物理副本数量和各 profile 必须一致合并的要求。普通常量与 intrinsic 结果均可参与实际优化，不预建强制跨阶段常量身份体系。

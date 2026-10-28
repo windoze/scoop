@@ -5,19 +5,52 @@
 
 #include "nursery_fixture.h"
 
+static const ScoopTypeDescriptor large_td = {
+    .type_id = 982,
+    .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
+                       .minimum_size = GC_BLOCK_SIZE + 64,
+                       .instance_alignment = 16},
+};
+
+static const ScoopTypeDescriptor bytes_td = {
+    .type_id = 983,
+    .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_INLINE_BYTES_V1,
+                       .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
+                       .minimum_size = sizeof(ScoopArray),
+                       .instance_alignment = 8,
+                       .inline_offset = sizeof(ScoopArray),
+                       .inline_size = 1,
+                       .inline_stride = 1,
+                       .inline_alignment = 1},
+};
+
 /* Inject invalid metadata only in child processes at the real forwarding boundary. */
 static void corrupt_forwarding(unsigned scenario) {
-    const ScoopTypeDescriptor *types[] = {&nursery_node_td};
+    const ScoopTypeDescriptor *types[] = {&nursery_node_td, &large_td, &bytes_td};
     scoop_thread_runtime_init();
-    scoop_test_image_init(types, 1, NULL, 0, NULL, 0);
+    scoop_test_image_init(types, 3, NULL, 0, NULL, 0);
     scoop_thread_attach_main();
     scoop_thread_enter_managed((void *)scoop_rt_thread_debug_stack_high());
-    void *object = nursery_node(73);
+    void *object;
+    if (scenario == 10 || scenario == 11) {
+        object = nursery_allocate(&large_td, GC_BLOCK_SIZE + 64);
+    } else if (scenario == 14) {
+        object = nursery_allocate(&bytes_td, sizeof(ScoopArray) + 8);
+        ((ScoopArray *)object)->size = 9;
+    } else {
+        object = nursery_node(73);
+    }
     void **slots[] = {&object};
     ScoopNativeRootFrame roots;
     scoop_rt_push_native_roots(&roots, slots, 1);
-    if (scenario == 5) {
+    if (scenario == 5 || scenario == 10) {
         object = (char *)object + sizeof(void *);
+    } else if (scenario == 11) {
+        __atomic_store_n(&pointer_block(object)->large_published, false, __ATOMIC_RELEASE);
+    } else if (scenario == 12) {
+        object = block_base(pointer_block(object));
+    } else if (scenario == 13) {
+        ((ScoopObjectHeader *)object)->gc_word += sizeof(void *);
     } else if (scenario >= 6 && scenario <= 8) {
         /* Mark the valid owner first so the invalid edge takes the region-cache hit. */
         NurseryNode *node = object;
@@ -34,6 +67,22 @@ static void corrupt_forwarding(unsigned scenario) {
     }
     nursery_collect(false);
     assert(nursery_metrics().full_collections == 1);
+    if (scenario >= 15) {
+        /* A minor must validate old references before skipping their marking work. */
+        ScoopGcBlockMeta *old = pointer_block(object);
+        assert(old->head->generation == SCOOP_GC_OLD);
+        if (scenario == 15) {
+            object = (char *)object + sizeof(void *);
+        } else if (scenario == 16) {
+            object = (char *)object + 1;
+        } else if (scenario == 17) {
+            object = block_base(old);
+        } else {
+            old->head->state = SCOOP_BLOCK_FREE;
+        }
+        nursery_collect(true);
+        _exit(2);
+    }
 #if SCOOP_GC_TRACK_RELOCATION
     scoop_gc_heap_lock();
     ScoopGcBlockMeta *block;
@@ -48,7 +97,7 @@ static void corrupt_forwarding(unsigned scenario) {
         scoop_heap_claim_current_object(object);
         _exit(2);
     }
-    block->state = SCOOP_BLOCK_EVACUATION_SOURCE;
+    block->head->state = SCOOP_BLOCK_EVACUATION_SOURCE;
     if (scenario == 3) {
         ((ScoopObjectHeader *)object)->gc_word = (uintptr_t)object | GC_FORWARDED_BIT;
     } else if (scenario == 4) {
@@ -92,7 +141,15 @@ int main(void) {
     expect_failure(6, "managed slot is not a current heap object start");
     expect_failure(7, "managed slot is not a current heap object start");
     expect_failure(8, "managed slot is not a current heap object start");
+    expect_failure(10, "managed slot is not a current heap object start");
+    expect_failure(11, "managed slot is not a current heap object start");
+    expect_failure(12, "managed slot is not a current heap object start");
+    expect_failure(14, "object count, alignment or side-metadata size is invalid");
+    for (unsigned scenario = 15; scenario <= 18; scenario++) {
+        expect_failure(scenario, "managed slot is not a current heap object start");
+    }
 #if SCOOP_GC_TRACK_RELOCATION
+    expect_failure(13, "object count, alignment or side-metadata size is invalid");
     expect_failure(0, "object forwarded outside collection");
     expect_failure(1, "unmarked object reached relocation");
     expect_failure(2, "marked evacuation source has no planned forwarding address");

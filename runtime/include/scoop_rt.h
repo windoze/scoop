@@ -244,6 +244,8 @@ void scoop_runtime_gc_collect(void);
  * gcStats). */
 uint64_t scoop_rt_gc_stats(void);
 
+#define SCOOP_GC_MAX_WORKERS 16
+
 typedef struct ScoopGcMetrics {
   uint64_t minor_collections;
   uint64_t full_collections;
@@ -283,8 +285,8 @@ typedef struct ScoopGcMetrics {
   uint64_t mark_tasks;
   uint64_t array_tasks;
   uint64_t stolen_tasks;
-  uint64_t worker_cpu_ns[8];
-  uint64_t worker_marked_objects[8];
+  uint64_t worker_cpu_ns[SCOOP_GC_MAX_WORKERS];
+  uint64_t worker_marked_objects[SCOOP_GC_MAX_WORKERS];
   uint64_t region_mappings;
   uint64_t empty_region_count;
   uint64_t last_full_source_regions;

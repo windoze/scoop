@@ -6,58 +6,15 @@
 #include "gc_internal.h"
 #include "heap_internal.h"
 #include "allocation_metadata.h"
-
-static size_t object_word_index(ScoopGcBlockMeta *block, const void *object) {
-    uintptr_t offset = (uintptr_t)object - (uintptr_t)block_base(block);
-    return (size_t)(offset / sizeof(uint64_t));
-}
-
-static inline bool object_meta_in_block(const void *object, ScoopGcBlockMeta *block,
-                                        size_t *word_index) {
-    uintptr_t address = (uintptr_t)object;
-    if ((address & (sizeof(void *) - 1)) != 0) {
-        return false;
-    }
-    if (block == NULL || !active_head(block)) {
-        return false;
-    }
-    uintptr_t base = (uintptr_t)block_base(block);
-    if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
-        if (!__atomic_load_n(&block->large_published, __ATOMIC_ACQUIRE) ||
-            address != base + GC_LINE_SIZE) {
-            return false;
-        }
-        *word_index = GC_LINE_SIZE / sizeof(uint64_t);
-    } else {
-        if (block->kind != SCOOP_BLOCK_KIND_SMALL || address < base + GC_LINE_SIZE) {
-            return false;
-        }
-        *word_index = object_word_index(block, object);
-        uint64_t starts = __atomic_load_n(&block->starts[*word_index / 64], __ATOMIC_ACQUIRE);
-        if (((starts >> (*word_index % 64)) & UINT64_C(1)) == 0) {
-            return false;
-        }
-    }
-    return true;
-}
+#include "object_metadata.h"
 
 /* Read-only under the heap lock, or the coordinator's immutable STW mark view. */
 bool object_meta(const void *object, ScoopGcBlockMeta **result, size_t *word_index) {
     ScoopGcBlockMeta *block = pointer_block(object);
-    if (!object_meta_in_block(object, block, word_index)) {
+    if (!scoop_heap_object_meta_in_block(object, block, word_index)) {
         return false;
     }
     *result = block;
-    return true;
-}
-
-bool scoop_heap_reference_in_block(const void *object, ScoopGcBlockMeta *block, size_t *word_index) {
-    if (block == NULL) {
-        return false;
-    }
-    if (!object_meta_in_block(object, block, word_index)) {
-        heap_fatal("managed slot is not a current heap object start");
-    }
     return true;
 }
 
@@ -82,7 +39,7 @@ size_t scoop_gc_object_size_locked(const void *object) {
     if (!object_meta(object, &block, &word_index)) {
         heap_fatal("exact size requested for a non-object address");
     }
-    if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
+    if (block->head->kind == SCOOP_BLOCK_KIND_LARGE) {
         return block->exact_size;
     }
     size_t size = scoop_heap_source_object_size(object);
@@ -93,11 +50,11 @@ size_t scoop_gc_object_size_locked(const void *object) {
 }
 
 void record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_size) {
-    if (block->kind != SCOOP_BLOCK_KIND_SMALL || exact_size < sizeof(ScoopObjectHeader) ||
+    if (block->head->kind != SCOOP_BLOCK_KIND_SMALL || exact_size < sizeof(ScoopObjectHeader) ||
         exact_size > GC_REGULAR_MAX || exact_size % sizeof(uint64_t) != 0) {
         heap_fatal("invalid small-object metadata publication");
     }
-    size_t word = object_word_index(block, object);
+    size_t word = scoop_heap_object_word_index(block, object);
     uintptr_t base = (uintptr_t)block_base(block);
     uintptr_t address = (uintptr_t)object;
     size_t line = (size_t)((address - base) / GC_LINE_SIZE);
@@ -106,11 +63,11 @@ void record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_siz
          (UINT64_C(1) << (word % 64))) != 0) {
         heap_fatal("small object overlaps invalid storage");
     }
-    scoop_heap_record_small_metadata(block, object, exact_size, false, false);
+    scoop_heap_record_small_metadata(block, object, exact_size, false);
 }
 
 void publish_large_object(ScoopGcBlockMeta *block, bool marked) {
-    if (block->kind != SCOOP_BLOCK_KIND_LARGE || block->large_published || block->exact_size == 0) {
+    if (block->head->kind != SCOOP_BLOCK_KIND_LARGE || block->large_published || block->exact_size == 0) {
         heap_fatal("invalid large-object metadata publication");
     }
     block->large_marked = marked;
@@ -128,14 +85,20 @@ bool scoop_gc_update_pin_locked(const void *object, bool pinned) {
         heap_fatal("pin state changed for a non-object address");
     }
     bool previous;
-    if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
+    if (block->head->kind == SCOOP_BLOCK_KIND_LARGE) {
         previous = block->large_pinned;
         block->large_pinned = pinned;
     } else {
-        previous = bit_test(block->pins, word_index);
+        previous = block->pins != NULL && bit_test(block->pins, word_index);
         if (pinned) {
+            if (block->pins == NULL) {
+                block->pins = calloc(GC_BITMAP_WORDS, sizeof(uint64_t));
+                if (block->pins == NULL) {
+                    heap_fatal("out of memory allocating pin bitmap");
+                }
+            }
             bit_set(block->pins, word_index);
-        } else {
+        } else if (block->pins != NULL) {
             bit_clear(block->pins, word_index);
         }
     }
@@ -149,18 +112,18 @@ bool scoop_gc_update_pin_locked(const void *object, bool pinned) {
 }
 
 bool object_pinned(const ScoopGcBlockMeta *block, size_t word) {
-    return block->kind == SCOOP_BLOCK_KIND_LARGE ? block->large_pinned
-                                                 : bit_test(block->pins, word);
+    return block->head->kind == SCOOP_BLOCK_KIND_LARGE ? block->large_pinned
+                                                 : block->pins != NULL && bit_test(block->pins, word);
 }
 
 bool object_marked(const ScoopGcBlockMeta *block, size_t word) {
-    return block->kind == SCOOP_BLOCK_KIND_LARGE ? block->large_marked
+    return block->head->kind == SCOOP_BLOCK_KIND_LARGE ? block->large_marked
                                                  : bit_test(block->marks, word);
 }
 
 bool scoop_gc_is_young_object_locked(const void *object) {
     ScoopGcBlockMeta *block = pointer_block(object);
-    return block != NULL && block->generation == SCOOP_GC_YOUNG;
+    return block != NULL && block->head->generation == SCOOP_GC_YOUNG;
 }
 
 size_t scoop_gc_heap_begin_collection_locked(bool minor) {
@@ -180,18 +143,18 @@ size_t scoop_gc_heap_begin_collection_locked(bool minor) {
         if (!active_head(block)) {
             continue;
         }
-        if (block->state == SCOOP_BLOCK_EVACUATION_SOURCE ||
-            block->state == SCOOP_BLOCK_EVACUATION_TARGET) {
+        if (block->head->state == SCOOP_BLOCK_EVACUATION_SOURCE ||
+            block->head->state == SCOOP_BLOCK_EVACUATION_TARGET) {
             heap_fatal("unfinished evacuation state at collection start");
         }
         block->live_bytes = 0;
         block->movable_live_bytes = 0;
-        block->mark_index = mark_blocks++;
+        block->head->mark_index = mark_blocks++;
         block->large_marked = false;
 #if SCOOP_GC_TRACK_RELOCATION
         block->large_scanned = false;
 #endif
-        if (block->kind == SCOOP_BLOCK_KIND_SMALL) {
+        if (block->head->kind == SCOOP_BLOCK_KIND_SMALL) {
             memset(block->marks, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
 #if SCOOP_GC_TRACK_RELOCATION
             memset(block->scanned, 0, GC_BITMAP_WORDS * sizeof(uint64_t));

@@ -1,6 +1,28 @@
 use super::{compile_and_run, compile_and_run_with_flags, workspace_root};
 
 #[test]
+fn slot_reservations_cover_every_exact_grid_and_reset_after_rollback() {
+    for optimization in ["-O0", "-O2"] {
+        let output = compile_and_run_with_flags(
+            &workspace_root(),
+            "old_slot_reservation_test",
+            "runtime/tests/old_slot_reservation_test.c",
+            true,
+            &[optimization],
+        );
+        assert!(
+            output.status.success(),
+            "{optimization}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"all exact slot classes reserve each complete hole once and recover after rollback\n"
+        );
+    }
+}
+
+#[test]
 fn dense_slot_promotion_preserves_layout_aliases_and_survivor_age() {
     for flags in [
         vec!["-O0", "-Dcalloc=scoop_test_slot_calloc"],
@@ -31,17 +53,18 @@ fn dense_slot_promotion_preserves_layout_aliases_and_survivor_age() {
 
 #[test]
 fn old_slots_reuse_dead_cells_without_overlapping_reference_updates() {
-    for optimization in ["-O0", "-O2"] {
-        let output = compile_and_run_with_flags(
+    for (optimization, diagnostics) in [("-O0", true), ("-O2", false), ("-O2", true)] {
+        let output = super::compile::compile_and_run_configuration(
             &workspace_root(),
             "old_slots_test",
             "runtime/tests/old_slots_test.c",
-            true,
+            diagnostics,
+            diagnostics,
             &[optimization],
         );
         assert!(
             output.status.success(),
-            "{optimization}: {}",
+            "{optimization}, diagnostics={diagnostics}: {}",
             String::from_utf8_lossy(&output.stderr)
         );
         assert_eq!(
@@ -217,22 +240,25 @@ fn adaptive_nursery_follows_graph_lifetimes_and_preserves_old_pressure() {
 
 #[test]
 fn dirty_card_groups_preserve_sparse_crossing_and_concurrent_writes() {
-    let output = compile_and_run_with_flags(
-        &workspace_root(),
-        "dirty_card_groups_test",
-        "runtime/tests/dirty_card_groups_test.c",
-        true,
-        &["-O2"],
-    );
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert_eq!(
-        output.stdout,
-        b"dirty card groups preserve sparse, crossing and concurrent writes through collection\n"
-    );
+    for stress in [false, true] {
+        let output = super::compile::compile_and_run_configuration(
+            &workspace_root(),
+            "dirty_card_groups_test",
+            "runtime/tests/dirty_card_groups_test.c",
+            stress,
+            stress,
+            &["-O2"],
+        );
+        assert!(
+            output.status.success(),
+            "stress={stress}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"dirty card groups preserve sparse, crossing and concurrent writes through collection\n"
+        );
+    }
 }
 
 #[test]

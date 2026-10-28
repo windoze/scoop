@@ -1,4 +1,5 @@
-class Node(val value: Int)
+interface Measured { fun measure(): Int }
+class Node(val value: Int): Measured { override fun measure(): Int = value }
 class Empty()
 struct Words(val a: Long, val b: Long, val c: Long, val d: Long)
 class Wide(val node: Node, val value: Long, val left: Words, val middle: Words, val right: Words)
@@ -65,6 +66,7 @@ fun checkAllocationAcrossCatch(values: MutableArray<Node?>, fail: Boolean) {
 }
 
 struct Padded(val flag: Byte, val value: Long)
+struct RefPair(val node: Node, val other: Measured)
 class Initialized<T>(val node: Node?, val tag: Byte, val value: T) {
     init { gcCollect() }
 }
@@ -77,7 +79,7 @@ class Interrupted(val head: Long, fail: Boolean) {
 }
 
 fun checkInitializationStorage() {
-    val kept = MutableArray<Any?>(5L) { _ -> None }
+    val kept = MutableArray<Any?>(10L) { _ -> None }
     kept[0L] = Some(Initialized<Long>(Some(Node(71)), 1.toByte(), 72L))
     kept[1L] = Some(Initialized<Padded>(None, 2.toByte(), Padded(3.toByte(), 73L)))
     kept[2L] = Some(Initialized<Node>(Some(Node(74)), 4.toByte(), Node(75)))
@@ -90,12 +92,22 @@ fun checkInitializationStorage() {
         check(when (kept[4L]) { case None -> true; case Some(value) -> false })
     }
     kept[4L] = Some(Interrupted(81L, false))
+    kept[5L] = Some(Initialized<Measured>(Some(Node(82)), 6.toByte(), Node(83)))
+    kept[6L] = Some(Initialized<Measured?>(None, 7.toByte(), Some(Node(84))))
+    kept[7L] = Some(Initialized<RefPair>(None, 8.toByte(), RefPair(Node(85), Node(86))))
+    kept[8L] = Some(Initialized<(Node, Measured)>(None, 9.toByte(), (Node(87), Node(88) as Measured)))
+    kept[9L] = Some(Initialized<Measured?>(None, 10.toByte(), None))
     gcCollect()
     val scalar = kept[0L]!! as Initialized<Long>
     val padded = kept[1L]!! as Initialized<Padded>
     val rooted = kept[2L]!! as Initialized<Node>
     val aggregate = kept[3L]!! as Initialized<Words>
     val interrupted = kept[4L]!! as Interrupted
+    val measured = kept[5L]!! as Initialized<Measured>
+    val optional = kept[6L]!! as Initialized<Measured?>
+    val pair = kept[7L]!! as Initialized<RefPair>
+    val tuple = kept[8L]!! as Initialized<(Node, Measured)>
+    val absent = kept[9L]!! as Initialized<Measured?>
     check(scalar.node!!.value == 71 && scalar.tag == 1.toByte() && scalar.value == 72L)
     check(when (padded.node) { case None -> true; case Some(value) -> false })
     check(padded.tag == 2.toByte())
@@ -103,6 +115,12 @@ fun checkInitializationStorage() {
     check(rooted.node!!.value == 74 && rooted.value.value == 75)
     check(aggregate.value.a == 76L && aggregate.value.d == 79L)
     check(interrupted.head == 81L && interrupted.tail.value == 81)
+    check(measured.node!!.value == 82 && measured.value.measure() == 83)
+    check(optional.value!!.measure() == 84)
+    check(pair.value.node.value == 85 && pair.value.other.measure() == 86)
+    val (left, right) = tuple.value
+    check(left.value == 87 && right.measure() == 88)
+    check(when (absent.value) { case None -> true; case Some(value) -> false })
 }
 
 fun main() {

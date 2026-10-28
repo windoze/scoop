@@ -1,5 +1,7 @@
 use super::*;
 
+mod references;
+
 pub(super) fn fixture(size: u64, scan: RefScan) -> (Module, TempId) {
     let mut module = heap_module();
     let descriptor = module
@@ -100,7 +102,7 @@ fn initialization_follows_unconditional_blocks_and_local_snapshots() {
 }
 
 #[test]
-fn initialization_preserves_reference_slots_and_scalar_tail_padding() {
+fn initialization_covers_reference_stores_but_preserves_scalar_tail_padding() {
     let (mut module, out) = fixture(32, RefScan::References(vec![16]));
     let function = &mut module.functions[1];
     function.blocks[function.entry].instructions.extend([
@@ -111,7 +113,7 @@ fn initialization_preserves_reference_slots_and_scalar_tail_padding() {
         },
         store(Value::Temp(out), 24),
     ]);
-    check_clear(module, 24);
+    check_clear(module, 16);
 
     let (mut module, out) = fixture(24, RefScan::None);
     let function = &mut module.functions[1];

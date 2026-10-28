@@ -133,7 +133,12 @@ static void *collector_thread(void *unused) {
     _Alignas(16) uintptr_t frame[4];
     frame_init(frame, boundary);
     scoop_thread_enter_managed(boundary);
-    scoop_rt_gc_collect_impl(0x1010, (uintptr_t)frame, (uintptr_t)&frame[2]);
+    /* This test holds the heap lock until the handshake completes. Bypass the
+     * explicit request's pre-handshake collection-count read under that lock. */
+    ScoopManagedAnchor anchor;
+    scoop_thread_push_managed_anchor(&anchor, 0x1010, (uintptr_t)frame, (uintptr_t)&frame[2]);
+    assert(scoop_gc_collect_internal());
+    scoop_thread_pop_managed_anchor(&anchor);
     scoop_thread_leave_managed();
     scoop_rt_detach_foreign_thread();
     return NULL;

@@ -327,9 +327,9 @@ release 默认启用 MIR 优化，debug 保留未优化的完整 MIR；两种模
 
 LIR 以完整操作表达托管分配、字段／数组写入、值复制、原子引用访问、`ManagedPoll` 与 `PublishReleaseReady`，携带实际类型、布局、GC effect 和 live set。Immix 普通对象上限、TLAB 资格及 card/page-map 算法属于 codegen 的 GC 实现，不作为通用 LIR 策略常量；实际 runtime 符号、共享布局和兼容性摘要仍由现有 ABI 数据目录保存。
 
-codegen 的 release 小型常量分配按运行时规范 3.1 直接完成 TLAB 登记，使用统一的五指针 context 与四项 atomic u64 计数视图。成功 bump 后，在对象 GC 字写入已对齐的精确大小，再按原规则发布 starts；不再生成大小数组的地址计算或 u16 登记。GC 字大小／pin 位域保持，context 的 40-byte 布局由 runtime contract 24 规定，所有 profile、目标和预编译机器正文必须配套重建；不改变 16-byte 对象头、scan 或通用 LIR 操作。复用输入的完整本地 TD／typed array layout，跨物理对象分区保留已确定的 alignment 与 release-policy；外部 TD 缺少事实时保留原加载与完成入口，不扩充跨 Cone 格式。内联只在大小合格、布局已知、确定无 release hook 的成功分配分支内发射，不增加 LIR 操作、持久证明、managed 引用或根。不再生成 line 位图的地址计算、读写或跨字分支；line 占用由 collector 的完整标记／复制与收尾产生。分配结果按实际快路径出口与原慢路径出口构造 phi，慢路径 safepoint／relocation 保持。debug 与未命中的分配使用相同 ABI 下的既有完成入口。
+codegen 的 release 小型常量分配按运行时规范 3.1 直接完成 TLAB 登记，使用统一的四指针 context 前缀与四项 atomic u64 计数视图：依次为 nursery 对象数、nursery 字节数、直接旧代对象数、直接旧代字节数。内联成功分配只更新前两项，runtime 在读取时合成总量；不对同一次分配同时维护子集与总量。成功 bump 后，在对象 GC 字写入已对齐的精确大小，再按原规则发布 starts；不再生成大小数组的地址计算或 u16 登记。GC 字大小／pin 位域保持；context 是当前线程稳定 mutator 的 32-byte 前缀，计数器直接从该地址的 offset 128 寻址，不逐次加载计数器指针。完整线程状态仍为 256 bytes，计数原子操作和 nursery／direct 域含义保持；此布局由 runtime contract 26 规定，所有 profile、目标和预编译机器正文必须配套重建；不改变 16-byte 对象头、scan 或通用 LIR 操作。复用输入的完整本地 TD／typed array layout，跨物理对象分区保留已确定的 alignment 与 release-policy；外部 TD 缺少事实时保留原加载与完成入口，不扩充跨 Cone 格式。内联只在大小合格、布局已知、确定无 release hook 的成功分配分支内发射，不增加 LIR 操作、持久证明、managed 引用或根。不再生成 line 位图的地址计算、读写或跨字分支；line 占用由 collector 的完整标记／复制与收尾产生。分配结果按实际快路径出口与原慢路径出口构造 phi，慢路径 safepoint／relocation 保持。debug 与未命中的分配使用相同 ABI 下的既有完成入口。
 
-codegen 对上述小型普通对象分配可分析结果之后的确定初始化路径，按运行时规范 3.1 缩短清零范围；ARM64 的对象上限为 128 bytes，x86 为 64 bytes。x86 更大对象的试验出现寄存器分配变化与不稳定收益，暂保留完整清零，不扩大默认范围。分析只消费当前 LIR 的 typed store、局部副本、无条件 CFG 边与既有值布局：只将完整覆盖、无引用、无 padding 的字段存储计入已覆盖字节，取其连续尾部，清零前缀至少保留 16-byte 对象头。局部被重新赋值时更新别名，取址局部不参与；有界对象范围之外的写入不提供覆盖事实。未知操作、可观察操作及循环回边结束分析，未证明部分按原样清零。原字段写入与快／慢分配合流保持，不增加持久 LIR／`.slib` 字段、runtime 分支、对象字段或 GC roots；跨 Cone 内联后按同一规则消费完整正文，未内联调用结束分析。
+codegen 对上述小型普通对象分配可分析结果之后的确定初始化路径，按运行时规范 3.1 缩短清零范围；ARM64 的对象上限为 128 bytes，x86 为 64 bytes。x86 更大对象的试验出现寄存器分配变化与不稳定收益，暂保留完整清零，不扩大默认范围。分析只消费当前 LIR 的 typed store、局部副本、无条件 CFG 边与既有值布局：只将实际存储完整覆盖、无 padding 的字段计入已覆盖字节，取其连续尾部，清零前缀至少保留 16-byte 对象头。局部被重新赋值时更新别名，取址局部不参与；有界对象范围之外的写入不提供覆盖事实。未知操作、可观察操作及循环回边结束分析，未证明部分按原样清零。原字段写入与快／慢分配合流保持，不增加持久 LIR／`.slib` 字段、runtime 分支、对象字段或 GC roots；跨 Cone 内联后按同一规则消费完整正文，未内联调用结束分析。
 
 ARM64 release 的 TLAB context 地址在每次函数调用内按首次使用取得并复用。codegen 用入口初始化的非逃逸 AS0 局部槽表达空缓存，各实际分配点只在缓存为空时读取 TLS；交由既有 LLVM 标量优化提升为 SSA，不把取址无条件移到只含失败／异常分配的函数入口。若已有常量资格、大小或溢出条件直接否定 TLAB 路径，则先选择原 collecting slow path，不取得 context。首次 TLS load 使用 volatile 约束执行位置，避免 LLVM 将条件取址变成无条件取址加 select；这不是线程同步，缓存和 context 字段仍按各自普通／原子访问规则处理。缓存跨普通调用、GC、refill、异常处理和同步 callback 保留，依据运行时规范 3.1 的 attachment 生命周期；各分配点继续加载当前 cursor、limit 与块元数据，不复用这些可变内容。x86 试验收益不足以抵消宽对象路径回退，沿用逐次读取；debug 也不建立该缓存。统一 runtime ABI 与 LIR／跨 Cone 格式保持。
 
@@ -467,11 +467,17 @@ managed 单槽写屏障按运行时规范 3.6 内联读取四级 page map 与 re
 
 release 的 codegen 分配结果可携带实际 TLAB 成功的布尔 SSA 事实，普通 HeapStore、typed box 的紧接 payload 复制及 typed 数组的初始元素写入据此跳过年轻目标的初始化屏障；慢分配仍执行原单槽、完整值或数组范围屏障。普通字段跟踪未取址副本，复用尾部清零的初始化别名规则；无条件边仅向单前驱且尚未发射的后继传递事实，不回填已经发射的块。重赋保留各副本快照，调用、poll、取址、对象读取、外传、条件分支、合流及未分析操作撤销该事实。该布尔值不成为 GC root，不以对象刚分配、类型名字或长期缓存代替实际快分支证明；分配后所用的 payload／字段引用仍消费原根计划恢复的值。证明与 guarded barrier 留在 codegen GC 层，不向 MIR／LIR／`.slib` 增加 nursery 策略或新 ABI；debug 保留原屏障。
 
+同一初始化区间的尾部清零分析消费已有 exact LIR 类型、布局和真实 HeapStore，不按 GC-free 一概排除已确定覆盖的引用。直接引用按一个完整指针写入，接口按两个完整分量写入，null niche enum 复用其实际存储表示；普通 struct／tuple 递归要求字段连续且完整覆盖，不把 LLVM aggregate 的 padding 或 tagged enum 的未写部分计为覆盖。仅省去运行时规范 3.1 允许的连续尾部；原存储、屏障、root 恢复及发布位置保持。该分析在已有 codegen 分配路径内执行，不重建 scan、不加入持久摘要或另设初始化状态机，普通 LLVM 优化与晚期 aggregate 分解继续沿原顺序执行。
+
+TLAB bump 由 codegen GC 层消费同一布局常量与运行时规范 3.1 的当前范围合同。ARM64 release 已知 8-byte 对齐且规格化尺寸为正的正规对象常量使用剩余字节比较，省去游标重复对齐和空值判断；资格及尺寸合法性仍来自现有 typed 布局与检查，其他目标和未知情形继续使用通用分支。目标选择属于现有 codegen 配置，不按函数名，不向 MIR／LIR 添加策略字段，不跨 GC 缓存游标或 limit，也不改变初始化、位图发布和 collecting slow path 的顺序。
+
+已知 nursery 布局的 release 成功分支统一生成对象完成操作，常量大尺寸与动态大小复用同一 memset、对象头、精确大小、starts 和计数正文；不先因 128-byte 阈值调用共享 C 完成入口。清零仍由 LLVM 按目标及长度决定内联或使用共享内存实现，常量小对象的确定初始化分析保留原范围限制，动态／较大对象完整清零。debug、未知 TD 与 collecting slow path 保持，root plan 和重定位职责不变；该选择不增加 IR 策略字段、分析框架或产物／runtime ABI。
+
 单槽和 runtime 范围屏障对实际覆盖的每个 card 字节使用 relaxed atomic store 1，并按运行时规范 3.6 登记其 64-card 组。新增 NoGc runtime 入口 `RecordDirtyCardGroup`（tag 33），完整 C 签名为 `(region metadata pointer, UInt64 card index) -> void`；只操作组链接和 heap 私有链，不读写 managed storage、不分配、不取 TLS 或 park。生成代码先表达完整登记调用，release 的既有有界循环变换将与每个 card store 对应的登记一起移到正常出口；只有这项 compiler-owned 屏障调用可通过该变换，不推广到一般 NoGc／native 调用。完成普通优化后，使用临时内部 LLVM helper 与标准 always-inliner 展开登记状态的 relaxed 读取，已登记时跳过真实 runtime 调用；临时 helper 不成为 Scoop callable 或最终机器入口。所有 profile 都生成完整卡组登记与快速检查，原精确 roots、poll 和用户内存序保持。
 
 nursery 容量、full 压力、可选 survivor 与 minor／full 分片标记归 runtime 私有实现（运行时规范 3.1、3.9），不作为 LIR 常量、构建 profile 或 `.slib` 字段导出；现有生成代码继续只消费稳定的 allocation context 与分配慢入口。调整这些策略不重编依赖或改变精确 roots；generated card store 在 mutator 阶段仍只写 1，collector 私有的保留卡状态不进入生成代码。分片之间不移动对象、不并发扫描普通字段，复用已有引用写入屏障记录已发布 owner 的改写；minor 清除扫描卡前保留最终 remembered 回写所需位图，年轻初始化屏障省略的既有证明仍成立。各片继续通过原 safepoint 与根计划停稳／恢复，普通 ABI 消费者无需感知某次暂停是否完成整个周期。
 
-该共享快路径沿用 runtime ABI contract 17 引入的卡组登记，当前统一 contract 为 24，metadata ABI 9 和 `.slib` 容器格式保持。旧 ABI 产物必须按现有 runtime contract 兼容性边界重建；不添加混合布局或运行时全堆扫描的兼容模式。region prefix 和卡组布局由 codegen GC 模块与 runtime 共同实现，LIR 仍只承载完整托管写入及实际 runtime 符号合同。
+该共享快路径沿用 runtime ABI contract 17 引入的卡组登记，当前统一 contract 为 26，metadata ABI 9 和 `.slib` 容器格式保持。旧 ABI 产物必须按现有 runtime contract 兼容性边界重建；不添加混合布局或运行时全堆扫描的兼容模式。region prefix 和卡组布局由 codegen GC 模块与 runtime 共同实现，LIR 仍只承载完整托管写入及实际 runtime 符号合同。
 
 ARM64 默认对 ArraySet 的单引用槽屏障使用已有数组对象基址查询 mapping；按运行时规范 3.1 的 mapping 合同读取 GC 字大小位，选择 small 的 16 MiB 对齐地址或 large 的首行前缀地址，再读取 owner region。只选择地址而不预读两条路径，共用原 region prefix 与登记；实际 card 地址仍取被写入的元素引用槽；一个对象的全部存储属于同一 mapping。多引用值继续使用原范围屏障，不按元素大小推定相邻槽属于同一卡。release 可以按 2.19 提升有界内层中的不变查询；其他 profile 与未命中路径保持原位置的完整操作。x86_64 的直接查询在大数组随机写入中回退，默认保留已有页表生成路径；没有按函数名称选择优化或新增策略开关。
 
@@ -641,7 +647,7 @@ Export HIR 的当前目标测试目录按语言规范 16.4 保留 typed class／
 
 测试用途产物在可选 manifest section `org.scoop-lang.manifest/test-directory/1` 中保存该目录的展示投影：容器限定名、用例方法名与完整显示名、各自的 Cone-relative 源码路径及一基行列、忽略原因。目录按前端顺序嵌套保存容器与用例，不通过解析显示名恢复关系；可执行调用仍使用 HIR 中的 typed 引用。该 section 不参与 Compile／Link 的语义要求，受普通 ArtifactFingerprint 覆盖；生产产物不写入，测试产物即使无容器也写入空目录。manifest summary 在读取边界解码并复用该投影，缓存命中不重新发现测试或加载完整 HIR。
 
-入口的四种 ABI 形态、完整签名、root gateway 的实际 C ABI 与定义指纹随各层 typed entry 保留，并进入对应语义／ABI fingerprints 和承载它们的 section profile。Link 投影保留精确 entry、gateway 与 failure-root 引用，使 artifact-only 链接无需源码或名称推断。当前 runtime ABI contract 24、metadata ABI 9 同时进入兼容检查、runtime 与启动对象的构建输入；旧 ABI 的薄接口、物理签名、poll／card／初始化发布／Context 槽合同及产物必须重建或拒绝，不能用缺省字段或 bitcast 混用。contract 20 同时退役无生产消费者的标量格式化、hash、equals 及专用打印 C 入口；沿用现有 runtime 输入更新与 ABI 重建边界，不增加兼容分支。新 ABI 的 debug／release 仍互通；各批次的实际实现与 section 版本见 [M34 记录](../milestone34/PROGRESS.md)。
+入口的四种 ABI 形态、完整签名、root gateway 的实际 C ABI 与定义指纹随各层 typed entry 保留，并进入对应语义／ABI fingerprints 和承载它们的 section profile。Link 投影保留精确 entry、gateway 与 failure-root 引用，使 artifact-only 链接无需源码或名称推断。当前 runtime ABI contract 26、metadata ABI 9 同时进入兼容检查、runtime 与启动对象的构建输入；旧 ABI 的薄接口、物理签名、poll／card／初始化发布／Context 槽合同及产物必须重建或拒绝，不能用缺省字段或 bitcast 混用。contract 20 同时退役无生产消费者的标量格式化、hash、equals 及专用打印 C 入口；沿用现有 runtime 输入更新与 ABI 重建边界，不增加兼容分支。新 ABI 的 debug／release 仍互通；各批次的实际实现与 section 版本见 [M34 记录](../milestone34/PROGRESS.md)。
 
 operator equals 的成员签名、operator 标记、已绑定调用及必要的派生正文使用既有 callable、模板与 exact-type metadata。`Equals<T>.equals` 的显式 conformance、接口 slot、实现和分派适配使用普通 interface metadata；该 slot 使用源码显式声明的 operator 实现，不按结构比较补齐接口，也不保存 Equals 专用的 core protocol 或条件接口规则。
 

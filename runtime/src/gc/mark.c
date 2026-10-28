@@ -37,13 +37,15 @@ void scoop_gc_mark_begin(bool minor, size_t block_count) {
     }
     for (size_t index = 0; index < scoop_gc_marker.active_workers; index++) {
         ScoopGcMarkWorker *worker = &scoop_gc_marker.workers[index];
-        if (worker->live != NULL || worker->queue.count != 0 || worker->pending_count != 0) {
+        if (worker->live != NULL || worker->remembered_slots != NULL ||
+            worker->queue.count != 0 || worker->pending_count != 0) {
             heap_fatal("mark state was not retired by the prior collection");
         }
         resize_blocks(worker, 0, block_count);
         memset(worker->regions, 0, sizeof worker->regions);
         worker->minor = minor;
         worker->slot_layout = minor && scoop_heap_promotes_slot_blocks();
+        worker->remembered_complete = false;
         reset_work(worker);
     }
     scoop_gc_marker.marked = 0;
@@ -76,16 +78,26 @@ static void scan_dirty(void *object, uintptr_t begin, uintptr_t end, void *conte
         visit->last_object = object;
     }
     const uint64_t *scan = scoop_gc_object_scan(object);
-    scoop_gc_scan_descriptor(object, scan, scoop_gc_mark_slot, &visit->visit, begin, end);
+    scoop_gc_mark_range(object, scan, &visit->visit, begin, end);
 }
 
 void scoop_gc_mark_remembered(void) {
+    for (size_t index = 0; index < scoop_gc_marker.active_workers; index++) {
+        scoop_gc_marker.workers[index].remembered_complete = true;
+    }
     if (scoop_gc_marker.active_workers > 1) {
         scoop_gc_mark_enqueue_remembered();
         return;
     }
-    RememberedVisit visit = {.visit = {&scoop_gc_marker.workers[0], SCOOP_MARK_REMEMBERED}};
-    scoop_gc_scan_remembered(scan_dirty, &visit, true);
+    ScoopGcMarkWorker *worker = &scoop_gc_marker.workers[0];
+    RememberedVisit visit = {.visit = {worker, SCOOP_MARK_REMEMBERED}};
+    ScoopGcCardGroup *first =
+        atomic_load_explicit(&scoop_gc_heap_state.dirty_card_groups, memory_order_acquire);
+    for (ScoopGcCardGroup *group = first; group != NULL;
+         group = scoop_heap_next_dirty_card_group(group)) {
+        worker->remembered_current = NULL;
+        worker->dirty_cards += scoop_gc_scan_dirty_group(group, scan_dirty, &visit, true);
+    }
 }
 
 static ScoopGcSavedCards *save_dirty_group(ScoopGcCardGroup *group) {
@@ -113,7 +125,7 @@ bool scoop_gc_mark_dirty_groups(bool retain_remembered, bool first) {
         if (retain_remembered && first) {
             ScoopGcRegion *region = group->region;
             size_t index = region->large ? 0 : (size_t)(group - region->card_groups);
-            if (region->blocks[index].generation == SCOOP_GC_YOUNG) {
+            if (region->blocks[index].head->generation == SCOOP_GC_YOUNG) {
                 /* The first root/remembered traversal will scan the current young graph. */
                 scoop_heap_clear_dirty_card_group(group);
                 group = next;
@@ -150,7 +162,7 @@ static void scan_dirty_live(void *object, uintptr_t begin, uintptr_t end, void *
     if (visit->last_object != object) {
         const ScoopGcBlockMeta *block = visit->block;
         size_t word = ((uintptr_t)object - (uintptr_t)block_base(block)) / sizeof(uint64_t);
-        bool live = block->kind == SCOOP_BLOCK_KIND_LARGE
+        bool live = block->head->kind == SCOOP_BLOCK_KIND_LARGE
                         ? __atomic_load_n(&block->large_marked, __ATOMIC_RELAXED)
                         : (__atomic_load_n(&block->marks[word / 64], __ATOMIC_RELAXED) &
                            (UINT64_C(1) << (word % 64))) != 0;
@@ -159,13 +171,14 @@ static void scan_dirty_live(void *object, uintptr_t begin, uintptr_t end, void *
         visit->last_object = object;
     }
     if (visit->scan != NULL) {
-        scoop_gc_scan_descriptor(object, visit->scan, scoop_gc_mark_slot, &visit->visit, begin, end);
+        scoop_gc_mark_range(object, visit->scan, &visit->visit, begin, end);
     }
 }
 
 void scoop_gc_mark_run_dirty(ScoopGcMarkWorker *worker, ScoopGcCardGroup *group,
                               ScoopGcSavedCards *saved) {
     if (worker->minor && saved == NULL) {
+        worker->remembered_current = NULL;
         RememberedVisit visit = {.visit = {worker, SCOOP_MARK_REMEMBERED}};
         worker->dirty_cards += scoop_gc_scan_dirty_group(group, scan_dirty, &visit, true);
         return;
@@ -173,7 +186,7 @@ void scoop_gc_mark_run_dirty(ScoopGcMarkWorker *worker, ScoopGcCardGroup *group,
     ScoopGcRegion *region = group->region;
     size_t index = region->large ? 0 : (size_t)(group - region->card_groups);
     ScoopGcBlockMeta *block = &region->blocks[index];
-    if (worker->minor && block->generation == SCOOP_GC_OLD) {
+    if (worker->minor && block->head->generation == SCOOP_GC_OLD) {
         RememberedVisit visit = {.visit = {worker, SCOOP_MARK_REMEMBERED}};
         worker->dirty_cards += scoop_gc_scan_dirty_group(group, scan_dirty, &visit, true);
         const unsigned char *cards =
@@ -240,7 +253,12 @@ static void record_work(void) {
 }
 
 bool scoop_gc_mark_step(bool finish) {
-    scoop_gc_mark_pool_run(finish ? 0 : 1024);
+    /* More participants share the slice's work instead of enlarging its pause. */
+    size_t task_limit = 4096 / scoop_gc_marker.active_workers;
+    if (task_limit > 1024) {
+        task_limit = 1024;
+    }
+    scoop_gc_mark_pool_run(finish ? 0 : task_limit);
     record_work();
     return atomic_load_explicit(&scoop_gc_marker.pending, memory_order_relaxed) == 0;
 }
@@ -272,7 +290,7 @@ uint64_t scoop_gc_mark_complete(bool minor) {
         }
         for (size_t index = 0; index < scoop_gc_marker.active_workers; index++) {
             const ScoopGcMarkBlockCount *counts =
-                &scoop_gc_marker.workers[index].blocks[block->mark_index];
+                &scoop_gc_marker.workers[index].blocks[block->head->mark_index];
             block->live_bytes += counts->live_bytes;
             if (slot_layout) {
                 size_t size = counts->slot_size;
@@ -284,7 +302,7 @@ uint64_t scoop_gc_mark_complete(bool minor) {
             } else {
                 block->movable_live_bytes += counts->movable_bytes;
             }
-            if (block->kind == SCOOP_BLOCK_KIND_SMALL) {
+            if (!minor && block->head->kind == SCOOP_BLOCK_KIND_SMALL) {
                 for (size_t line = 0; line < GC_LINE_BITMAP_WORDS; line++) {
                     block->line_live[line] |= counts->live_lines[line];
                 }
@@ -305,6 +323,14 @@ void scoop_gc_mark_visit_live(ScoopGcLiveEntryVisitor visitor, void *context) {
     }
 }
 
+void scoop_gc_mark_release_spares(ScoopGcMarkWorker *worker) {
+    while (worker->spare_live != NULL) {
+        ScoopGcLiveChunk *next = worker->spare_live->next;
+        free(worker->spare_live);
+        worker->spare_live = next;
+    }
+}
+
 void scoop_gc_mark_dispose(void) {
     for (size_t index = 0; index < GC_MARK_MAX_WORKERS; index++) {
         ScoopGcMarkWorker *worker = &scoop_gc_marker.workers[index];
@@ -315,12 +341,18 @@ void scoop_gc_mark_dispose(void) {
                 scoop_heap_clear_dirty_card_group(task.data.dirty.group);
             }
         }
-        while (worker->live != NULL) {
-            ScoopGcLiveChunk *next = worker->live->next;
-            free(worker->live);
-            worker->live = next;
-        }
+        /* Keep only this round's capacity; no retired entry remains a live value. */
+        scoop_gc_mark_release_spares(worker);
+        worker->spare_live = worker->live;
+        worker->live = NULL;
         worker->tail = NULL;
+        while (worker->remembered_slots != NULL) {
+            ScoopGcRememberedGroup *group = worker->remembered_slots;
+            worker->remembered_slots = group->next;
+            free(group);
+        }
+        worker->remembered_current = NULL;
+        worker->remembered_complete = false;
         worker->queue.first = worker->queue.count = 0;
         worker->pending_objects = NULL;
         worker->pending_count = 0;

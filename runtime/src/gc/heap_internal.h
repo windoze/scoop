@@ -72,6 +72,20 @@ typedef struct ScoopGcCardGroup {
     ScoopGcRegion *region;
 } ScoopGcCardGroup;
 
+/* Canonical state used by address-based readers without the full block record. */
+typedef struct ScoopGcBlockHead {
+    ScoopGcBlockState state;
+    uint8_t kind;
+    uint8_t generation;
+    union {
+        size_t mark_index;
+        /* All marker counters have been folded before target reservation. */
+        ScoopGcCopyBlock *copy_group;
+    };
+} ScoopGcBlockHead;
+
+_Static_assert(sizeof(ScoopGcBlockHead) == 16, "compact block head layout drifted");
+
 typedef struct ScoopGcBlockMeta {
     ScoopGcRegion *region;
     union {
@@ -82,11 +96,10 @@ typedef struct ScoopGcBlockMeta {
     uint16_t index;
     bool survivor;
     bool retained_young;
-    ScoopGcBlockState state;
-    ScoopGcBlockKind kind;
-    ScoopGcGeneration generation;
+    ScoopGcBlockHead *head;
     uint64_t *starts;
     uint64_t *marks;
+    /* Null until the first pin; retained storage is reset on block reuse. */
     uint64_t *pins;
 #if SCOOP_GC_TRACK_RELOCATION
     uint64_t *scanned;
@@ -103,11 +116,6 @@ typedef struct ScoopGcBlockMeta {
         size_t movable_live_bytes;
         /* Ordinary slot minors select whole blocks using their current pins. */
         size_t nursery_slot_size;
-    };
-    union {
-        size_t mark_index;
-        /* The marker has folded its counters before target reservation starts. */
-        ScoopGcCopyBlock *copy_group;
     };
     bool large_published;
     bool large_marked;
@@ -126,10 +134,15 @@ static inline void *scoop_heap_forwarding_address(const void *object) {
     return (word & GC_FORWARDED_BIT) != 0 ? (void *)(uintptr_t)(word & ~GC_FORWARDED_BIT) : NULL;
 }
 
+/* A current object still has its GC state, not an old copy's forwarding word. */
+static inline uint64_t scoop_heap_current_gc_word(const void *object) {
+    const ScoopObjectHeader *header = object;
+    return __atomic_load_n(&header->gc_word, __ATOMIC_RELAXED);
+}
+
 /* The caller already has a current small-object start. */
 static inline size_t scoop_heap_small_object_size(const void *object) {
-    const ScoopObjectHeader *header = object;
-    return __atomic_load_n(&header->gc_word, __ATOMIC_RELAXED) & GC_SMALL_SIZE_MASK;
+    return scoop_heap_current_gc_word(object) & GC_SMALL_SIZE_MASK;
 }
 
 /* Old copies retain their exact size through the completed target. */
@@ -158,6 +171,10 @@ struct ScoopGcRegion {
     bool evacuation_destination;
     size_t collection_live_bytes;
     ScoopGcRegion *next_available;
+    ScoopGcBlockHead *heads;
+    /* Ordinary regions own continuous start and mark bitmaps, sliced by block. */
+    uint64_t *starts;
+    uint64_t *marks;
 };
 
 _Static_assert(sizeof(uintptr_t) == 8 && GC_CHUNK_SHIFT + 4 * GC_RADIX_BITS == 64,
@@ -284,7 +301,14 @@ static inline void *scoop_heap_block_base(const ScoopGcBlockMeta *block) {
     return (void *)(block->region->base + (size_t)block->index * GC_BLOCK_SIZE);
 }
 size_t scoop_heap_block_bytes(const ScoopGcBlockMeta *block);
-bool scoop_heap_active_head(const ScoopGcBlockMeta *block);
+static inline bool scoop_heap_active_state(ScoopGcBlockState state) {
+    return state == SCOOP_BLOCK_MUTATOR || state == SCOOP_BLOCK_EVACUATION_SOURCE ||
+           state == SCOOP_BLOCK_EVACUATION_TARGET || state == SCOOP_BLOCK_PINNED_PARTIAL;
+}
+static inline bool scoop_heap_active_head(const ScoopGcBlockMeta *block) {
+    return scoop_heap_active_state(block->head->state);
+}
+
 void scoop_heap_require_ready(void);
 void scoop_heap_free_run_nodes(void);
 void scoop_heap_clear_dirty_card_groups(bool retain_survivors);
@@ -319,8 +343,6 @@ ScoopGcBlockMeta *scoop_heap_activate_large_block(size_t exact_size, ScoopGcBloc
 bool scoop_heap_object_meta(const void *object, ScoopGcBlockMeta **block, size_t *word_index);
 /* False only outside the heap; invalid heap references fail in every build. */
 bool scoop_heap_reference_meta(const void *object, ScoopGcBlockMeta **block, size_t *word_index);
-/* The block must describe the object's address in the current immutable heap view. */
-bool scoop_heap_reference_in_block(const void *object, ScoopGcBlockMeta *block, size_t *word_index);
 #if SCOOP_GC_TRACK_RELOCATION
 void scoop_heap_claim_current_object(void *object);
 bool scoop_gc_object_was_scanned_locked(const void *object);

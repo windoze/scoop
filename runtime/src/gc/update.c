@@ -1,5 +1,6 @@
 /* STW reference update: coordinator partitions; workers visit disjoint slots. */
 #include "../gc_binding/object.h"
+#include "../gc_binding/scan.h"
 #include "mark_internal.h"
 
 typedef struct UpdateDirtyVisit {
@@ -28,6 +29,30 @@ static ScoopGcObjectRangeVisitor dirty_visitor(void) {
     return scoop_gc_heap_state.old_slots_level != 0 ? update_old_slot_object : update_dirty_object;
 }
 
+static bool remembered_is_complete(bool minor) {
+    if (!minor) {
+        return false;
+    }
+    for (size_t index = 0; index < scoop_gc_marker.active_workers; index++) {
+        if (!scoop_gc_marker.workers[index].remembered_complete) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static void update_remembered(ScoopGcRememberedGroup *group, ScoopGcSlotVisitor visitor,
+                              void *context) {
+    for (size_t index = 0; index < GC_REMEMBERED_BITMAP_WORDS; index++) {
+        uint64_t bits = group->slots[index];
+        while (bits != 0) {
+            size_t word = index * 64 + (size_t)__builtin_ctzll(bits);
+            visitor((void **)(group->base + word * sizeof(void *)), context);
+            bits &= bits - 1;
+        }
+    }
+}
+
 static void enqueue_update_array(ScoopGcMarkWorker *owner, void *object, const uint64_t *scan) {
     ScoopGcArrayScan array = scoop_gc_array_scan(object, scan);
     uint64_t stride = scoop_gc_array_stride(scan);
@@ -48,8 +73,14 @@ static void enqueue_update_array(ScoopGcMarkWorker *owner, void *object, const u
 
 void scoop_gc_update_live(bool minor, ScoopGcSlotVisitor visitor,
                           ScoopGcLiveEntryVisitor serial_visitor, void *context) {
+    bool recorded = remembered_is_complete(minor);
     if (scoop_gc_marker.active_workers == 1) {
-        if (minor) {
+        if (recorded) {
+            for (ScoopGcRememberedGroup *group = scoop_gc_marker.workers[0].remembered_slots;
+                 group != NULL; group = group->next) {
+                update_remembered(group, visitor, context);
+            }
+        } else if (minor) {
             UpdateDirtyVisit visit = {visitor, context};
             scoop_gc_scan_remembered(dirty_visitor(), &visit, false);
         }
@@ -60,11 +91,20 @@ void scoop_gc_update_live(bool minor, ScoopGcSlotVisitor visitor,
     scoop_gc_marker.updating = true;
     scoop_gc_marker.update_visitor = visitor;
     scoop_gc_marker.update_context = context;
-    if (minor) {
+    if (minor && !recorded) {
         scoop_gc_mark_enqueue_remembered();
     }
     for (size_t index = 0; index < scoop_gc_marker.active_workers; index++) {
         ScoopGcMarkWorker *owner = &scoop_gc_marker.workers[index];
+        if (recorded) {
+            for (ScoopGcRememberedGroup *group = owner->remembered_slots; group != NULL;
+                 group = group->next) {
+                scoop_gc_mark_queue_push(owner, (ScoopGcMarkTask){
+                    .kind = SCOOP_UPDATE_REMEMBERED_TASK,
+                    .data.remembered = group,
+                });
+            }
+        }
         for (ScoopGcLiveChunk *chunk = owner->live; chunk != NULL; chunk = chunk->next) {
             scoop_gc_mark_queue_push(owner, (ScoopGcMarkTask){
                 .kind = SCOOP_UPDATE_CHUNK_TASK,
@@ -81,6 +121,10 @@ void scoop_gc_update_live(bool minor, ScoopGcSlotVisitor visitor,
 void scoop_gc_update_run_task(ScoopGcMarkWorker *worker, ScoopGcMarkTask task) {
     ScoopGcSlotVisitor visitor = scoop_gc_marker.update_visitor;
     void *context = scoop_gc_marker.update_context;
+    if (task.kind == SCOOP_UPDATE_REMEMBERED_TASK) {
+        update_remembered(task.data.remembered, visitor, context);
+        return;
+    }
     if (task.kind == SCOOP_MARK_DIRTY_TASK) {
         UpdateDirtyVisit visit = {visitor, context};
         (void)scoop_gc_scan_dirty_group(task.data.dirty.group, dirty_visitor(), &visit, true);
@@ -104,7 +148,7 @@ void scoop_gc_update_run_task(ScoopGcMarkWorker *worker, ScoopGcMarkTask task) {
         if (scoop_gc_scan_is_array(scan)) {
             enqueue_update_array(worker, current, scan);
         } else {
-            scoop_gc_scan_descriptor(current, scan, visitor, context, 0, UINTPTR_MAX);
+            scoop_gc_scan_object(current, scan, visitor, context);
         }
     }
 }
