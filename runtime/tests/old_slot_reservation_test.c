@@ -91,6 +91,8 @@ static void check_size(const ScoopTypeDescriptor *td) {
                size - sizeof(ScoopObjectHeader));
     }
     nursery_collect(true);
+    /* Newly promoted and copied blocks publish exact capacity before any full sweep. */
+    check_reservations(size);
     size_t kept = 0;
     for (size_t index = 0; index < count; index++) {
         if (index % 128 >= 80 && index % 11 != 0) {

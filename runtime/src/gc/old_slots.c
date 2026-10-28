@@ -96,11 +96,11 @@ static void make_available(ScoopGcOldSlots *slots) {
     scoop_gc_heap_state.old_slots_available[index] = slots;
 }
 
-void scoop_heap_record_old_slots(ScoopGcBlockMeta *block) {
+void scoop_heap_record_old_slots(ScoopGcBlockMeta *block, size_t live_bytes) {
     ScoopGcOldSlots probe = {
         .block = block,
         .cursor = GC_LINE_SIZE / sizeof(uint64_t),
-        .remaining = empty_slots(block),
+        .remaining = (uint16_t)((GC_REGULAR_MAX - live_bytes) / block->slot_size),
     };
     if (!seek_empty(&probe)) {
         return;

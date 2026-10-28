@@ -30,7 +30,8 @@ void *scoop_heap_reserve_old_slot(ScoopGcOldSlotPlan *plan, size_t size,
 void scoop_heap_rollback_old_slots(void);
 void scoop_heap_finish_old_slot_reservations(void);
 void scoop_heap_clear_old_slots(void);
-void scoop_heap_record_old_slots(ScoopGcBlockMeta *block);
+/* Complete surviving bytes from before sweep cleared the block statistics. */
+void scoop_heap_record_old_slots(ScoopGcBlockMeta *block, size_t live_bytes);
 /* Complete mark, dense unpinned nursery block, no retained survivor. */
 bool scoop_heap_select_slot_source(ScoopGcBlockMeta *block, size_t *available,
                                    size_t *copyable_bytes, bool selected);

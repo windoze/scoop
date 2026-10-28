@@ -83,10 +83,11 @@ static void finish_block(ScoopGcBlockMeta *block, bool minor) {
     }
     block->survivor = retained;
     block->retained_young = false;
+    size_t live_bytes = block->live_bytes;
     scoop_heap_finish_block(block, stress_move);
     if ((!minor || promoted_slots) && active_head(block) && block->head->kind == SCOOP_BLOCK_KIND_SMALL &&
         block->slot_size != 0) {
-        scoop_heap_record_old_slots(block);
+        scoop_heap_record_old_slots(block, live_bytes);
     }
 }
 
