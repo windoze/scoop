@@ -58,7 +58,9 @@ const property 复用 HirConstantImage，保存完整类型下的 Unit／tuple�
 
 导出值使用独立的 canonical 聚合表示，保留原标量编码及注解标量语义，新增 Unit／tuple／struct／enum tag；枚举引用沿 typed identity 解码，消费时按完整 signature 匹配字段和实际 variant。移除无生产调用者的 const meta 语义重放 authority，保留实际边界的类型／格式／引用检查。多个 String 字段以 property 和元素序号区分；泛型正文与默认参数可传递这些值。独立常量池和 provider 间的数据合并尚未完成。
 
-Darwin 验证：格式化、全 workspace lint 通过；329 项常量相关 Rust 测试通过，随后补充的聚合 wire／泛型默认值组合和 String owner 编码测试通过。原 Cone 的 4 项及实际 `.slib` consumer 的 2 项 release 测试通过；新增诊断 fixture 覆盖构造调用拒绝、元素类型／数量和字段依赖环；3 项既有诊断 fixture 已按实际求值范围更新并通过。静态运行期 ABI 不变；新聚合值扩展既有 HIR metadata 的值 tag，旧标量保持兼容。Linux 仍留在平台验收项。
+Darwin 验证：格式化、全 workspace lint 通过；329 项常量相关 Rust 测试通过，随后补充的聚合 wire／泛型默认值组合和 String owner 编码测试通过。原 Cone 的 4 项及实际 `.slib` consumer 的 2 项 release 测试通过；新增诊断 fixture 覆盖构造调用拒绝、元素类型／数量和字段依赖环；3 项既有诊断 fixture 已按实际求值范围更新并通过。静态运行期 ABI 不变；新聚合值和默认模板 String owner 扩展 HIR metadata 的 tag，`cross-cone-interface` 升至 82，旧产物需要重建。Linux 仍留在平台验收项。
+
+格式版本补充验证：17 项 profile 测试通过，覆盖旧 section 拒绝、必要 section 清单与实际编码／指纹；新版 CLI 下的跨 Cone consumer 两项 release 测试通过。
 
 ## 范围调整
 

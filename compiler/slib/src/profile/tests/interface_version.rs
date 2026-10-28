@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v81_preserves_applied_member_conditions() {
+fn source_interface_v82_preserves_aggregate_const_values() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        81,
+        82,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );

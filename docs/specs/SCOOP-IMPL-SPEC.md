@@ -599,7 +599,7 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 | 位置 / namespace | section 与 major |
 | --- | --- |
 | Manifest / `org.scoop-lang.manifest` | `single-cone-production/9` |
-| HIR / `org.scoop-lang.hir` | `identity-foundation/10`、`core-bootstrap-interface/16`、`cross-cone-interface/81`、`cross-cone-type-semantics/30` |
+| HIR / `org.scoop-lang.hir` | `identity-foundation/10`、`core-bootstrap-interface/16`、`cross-cone-interface/82`、`cross-cone-type-semantics/30` |
 | MIR / `org.scoop-lang.mir` | `identity-foundation/8`、`core-bootstrap-bridge/2`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/19` |
 | LIR / `org.scoop-lang.lir` | `identity-foundation/9`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/17`、`cone-production/14`、`link-identity-closure/19`、`link-support/1` |
 
@@ -1150,6 +1150,8 @@ HIR 在普通名称、参数和完整类型选择后对编译期输入操作求�
 Unit 与 tuple 的静态初值沿同一数据通路保存。完整存储类型提供每个 tuple 元素的类型，元素初值按源码顺序递归编码；LIR 将 Unit 表示为无元素的 aggregate。显式标注类型的 ordinary top-level property 若由 Unit／tuple 字面量及现有静态常量表达式组成，直接采用 EncodedStaticValue；包含运行期表达式时保留完整 initializer 的正常求值顺序。tuple 使用既有自然对齐，嵌套 String 保留 immortal relocation，Unit／空 tuple 的 storage token 遵守运行时规范 2.8；不新增 ABI 或产物编码。
 
 const property 的本地值与静态初值共用 HirConstantImage，完整 property／表达式类型提供递归元素类型。读取常量只物化普通 literal、StructConstruct 或 VariantConstruct，不经过 StructInit 或任何源码 constructor。跨 Cone 的聚合常量使用独立于注解标量的 canonical 值结构；标量沿用原表示，聚合项按完整 property signature 的字段类型解释，enum 另保留实际 typed variant identity。共享接口仅保存该常量事实，消费方不重放其 initializer。类型／字段匹配在实际物化边界检查，保留格式、typed 引用和 property 接口闭包检查；不在 meta crate 中保留仅供测试调用的语义重放 authority。常量中的多个 String 使用 property identity 与元素序号区分，避免将不同字段错误合并。
+
+聚合 const 值将 `cross-cone-interface` 升至 82：canonical const value 的标量 tag 1～5 不变，Unit／tuple／struct／enum 分别使用 tag 6／7／8／9；默认模板的 String owner 增加 tag 3，保存 property identity 与元素序号。其他 section 和 runtime ABI 保持不变；旧 HIR section 及依赖它的产物需要重建，不提供兼容 reader。
 
 文件定位／读取、目录筛选和环境查询由输入宿主提供给 HIR 的窄输入接口完成，driver 与分析宿主供给实际实现。HIR 负责语言语义并保存结果，IR/meta crate 只保存 typed 数据，不自行读取文件或环境，也不依赖 driver／上游 stage 的实现。每次编译中同一实际请求的结果及已记录输入直接复用，不因常量试探、模板发布或下游 stage 重读。失败的试探不发布常量与绑定事实；输入读取的缓存不赋予失败表达式成功语义。
 
