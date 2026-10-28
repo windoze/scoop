@@ -22,6 +22,8 @@ enum {
     SCOOP_IO_ADDRESSES,
     SCOOP_IO_ADDRESS_ERROR,
     SCOOP_IO_DATAGRAM,
+    SCOOP_IO_WIN32_ERROR,
+    SCOOP_IO_WINSOCK_ERROR,
     /* File and directory events occupy 0x100..0x1ff. */
     SCOOP_IO_METADATA = 0x100,
     SCOOP_IO_POSITION = 0x101,
@@ -39,21 +41,33 @@ typedef struct ScoopIoCompletion {
 
 typedef struct ScoopIoLoop ScoopIoLoop;
 
+typedef struct ScoopIoStatus {
+    int domain, code;
+} ScoopIoStatus;
+
+static inline ScoopIoStatus scoop_io_errno(int status) {
+    return (ScoopIoStatus){SCOOP_IO_POSIX_ERROR, -status};
+}
+
 typedef struct ScoopIoCreated {
     void *pointer;
-    int status;
+    ScoopIoStatus status;
 } ScoopIoCreated;
 
 void scoop_io_complete(ScoopIoLoop *loop, ScoopIoCompletion *completion, int status);
 ScoopIoCreated scoop_io_loop_create(void);
 void scoop_io_loop_wake(ScoopIoLoop *loop);
-int scoop_io_loop_poll(ScoopIoLoop *loop, bool wait);
+ScoopIoStatus scoop_io_loop_poll(ScoopIoLoop *loop, bool wait);
 int64_t scoop_io_loop_batch_size(ScoopIoLoop *loop);
 ScoopIoEvent scoop_io_loop_next(ScoopIoLoop *loop);
 bool scoop_io_loop_idle(ScoopIoLoop *loop);
+#ifdef _WIN32
+void *scoop_io_loop_event(ScoopIoLoop *loop);
+#else
 int scoop_io_loop_descriptor(ScoopIoLoop *loop);
-int scoop_io_loop_destroy(ScoopIoLoop *loop);
-int scoop_io_timer_start(ScoopIoLoop *loop, int64_t id, int64_t seconds, int nanos);
+#endif
+ScoopIoStatus scoop_io_loop_destroy(ScoopIoLoop *loop);
+ScoopIoStatus scoop_io_timer_start(ScoopIoLoop *loop, int64_t id, int64_t seconds, int nanos);
 void scoop_io_timer_cancel(ScoopIoLoop *loop, int64_t id);
 
 #endif

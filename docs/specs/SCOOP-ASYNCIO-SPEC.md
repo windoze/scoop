@@ -10,7 +10,7 @@
 
 库内 C shim 的完成记录 kind 与 Scoop 解码保持一致：既有通用／网络事件保留原编号，使用 `0x000–0x0ff` 段；文件／目录事件使用 `0x100–0x1ff` 段，依次为 Metadata `0x100`、Position `0x101`、Temporary `0x102`、DirectoryName `0x103`；TTY 事件使用 `0x200–0x2ff` 段，Resize 为 `0x200`、Timeout 为 `0x201`。两类新增事件分别在自己的段内追加，保留已有编号；未分配值仍按非法完成记录处理。此编号仅用于该 Cone 的 native 接口，不属于 runtime ABI 或公共 Scoop 枚举身份。
 
-首版支持 aarch64-apple-darwin、x86_64-unknown-linux-gnu、x86_64-unknown-linux-musl。PlatformEventLoop 由目标平台选择后端：Darwin 使用系统 libdispatch，Linux 使用第 11 节规定的 io_uring。C11 shim 只管理 native I/O、稳定存储及完成记录，worker／callback 不进入 managed 代码。TLS、HTTP 属于各自库，文件监听、进程和任意 fd 接管不在本版范围；M54 为实际缓存与下载补齐第 9 节的基础能力；M59 增加第 10 节的自有 TTY。
+首版支持 aarch64-apple-darwin、x86_64-unknown-linux-gnu、x86_64-unknown-linux-musl；三个 Windows target 的扩展按[Windows 进度](../windows-targets/PROGRESS.md)分批实施，未完成前不声明整个库可用。PlatformEventLoop 由目标平台选择后端：Darwin 使用系统 libdispatch，Linux 使用第 11 节规定的 io_uring，Windows 使用 IOCP。C11 shim 只管理 native I/O、稳定存储及完成记录，worker／callback 不进入 managed 代码。TLS、HTTP 属于各自库，文件监听、进程和任意 fd 接管不在本版范围；M54 为实际缓存与下载补齐第 9 节的基础能力；M59 增加第 10 节的自有 TTY。
 
 Linux C 工具链同时需要所选 libc 的开发头文件和对应架构的 Linux UAPI 头文件（包括 linux/errqueue.h）。只带 musl libc 的 musl-gcc 包装器须补齐内核头文件搜索路径，可通过普通 --cc 包装脚本配置；不把 glibc 用户态头文件加入 musl 的搜索路径。
 
@@ -281,7 +281,7 @@ async raw 作用域使用这两个入口和 useAsync，GC 不承担恢复。
 
 ### 11.1 共享层与平台后端
 
-`EventLoop` 保留现有公共方法；默认实现改为 `PlatformEventLoop`，Darwin 绑定系统 libdispatch，Linux 绑定 io_uring／固定 liburing。所有端点、文件、目录和操作只依赖同一共享 owner；Job／CoroutineScope 仍来自 core。native 后端管理原生资源、请求、完成记录，不拥有另一套任务树，也不直接执行 managed I/O continuation。
+`EventLoop` 保留现有公共方法；默认实现改为 `PlatformEventLoop`，Darwin 绑定系统 libdispatch，Linux 绑定 io_uring／固定 liburing，Windows 绑定 IOCP。所有端点、文件、目录和操作只依赖同一共享 owner；Job／CoroutineScope 仍来自 core。native 后端管理原生资源、请求、完成记录，不拥有另一套任务树，也不直接执行 managed I/O continuation。
 
 后端按目标构建选择，不公开后端注册表。`PlatformEventLoop` 取代 `LibuvEventLoop`，不保留 libuv 依赖或兼容别名；不修改语言、runtime ABI、IR 或产物格式。平台能力与依赖版本见[设计第 7～10 节](../asyncio-backends/DESIGN.md#7-macoslibdispatch-后端)。
 
@@ -297,11 +297,11 @@ session 暴露 `loop: EventLoop`、`isClosed: Boolean`、`post(block: (Coroutine
 
 ### 11.3 宿主接入合同
 
-`scoop.asyncio.host.EventLoopHost` 提供 `isCurrentThread()` 与 `@Unsafe watchReadable(descriptor, ready): EventLoopWatch`。host 只监听、不读写或关闭 loop 借出的通知 fd；ready 在 owner 线程串行执行，注册时不得内联执行。安装失败不得留下活动监听或回调。
+`scoop.asyncio.host.EventLoopHost` 提供 `isCurrentThread()` 与 `@Unsafe watch(notification, ready): EventLoopWatch`。`EventLoopNotification` 是带值枚举：`ReadableDescriptor(Int)` 用于 POSIX，`WindowsEvent(Ptr<Unit>)` 用于 Windows 的 manual-reset event。host 只借用并监听，不读写、重置或关闭通知资源；Windows HANDLE 不缩窄成 Int，也不是 CRT fd。ready 在 owner 线程串行执行，注册时不得内联执行。安装失败不得留下活动监听或回调。
 
-`EventLoopWatch.remove(onRemoved)` 在 owner 上异步注销，按宿主协议不得抛错；必须等待当前 ready 退出并退休排队通知，再通知移除完成，此后不得再进入 ready。loop 在移除完成前保留 fd 和 callback 上下文。
+`EventLoopWatch.remove(onRemoved)` 在 owner 上异步注销，按宿主协议不得抛错；必须等待当前 ready 退出并退休排队通知，再通知移除完成，此后不得再进入 ready。loop 在移除完成前保留通知资源和 callback 上下文。
 
-Darwin 提供主 dispatch queue 的 `MainDispatchHost`，Linux GUI 在自己的 fd watch 中监听 eventfd。宿主仍负责窗口、输入、显示刷新和其连接协议。使用主队列的适配器只在宿主服务该队列时取得执行机会，不保证任意自定义 run-loop mode 都运行。具体声明与异常出口见[设计第 3 节](../asyncio-backends/DESIGN.md#3-公共入口与宿主协议)。
+Darwin 提供主 dispatch queue 的 `MainDispatchHost`，Linux GUI 在自己的 fd watch 中监听 eventfd，Windows GUI 将借出的 event 接入自己的等待／消息循环。宿主仍负责窗口、输入、显示刷新和其连接协议。使用主队列的适配器只在宿主服务该队列时取得执行机会，不保证任意自定义 run-loop mode 都运行。具体声明与异常出口见[设计第 3 节](../asyncio-backends/DESIGN.md#3-公共入口与宿主协议)。
 
 本库排队恢复在 owner 线程进入 managed；任意第三方挂起点仍可能在其他线程恢复。接入 GUI 不新增协程拦截器或所有挂起函数的 UI 线程亲和性保证，外部回调通过 session.post 进入根作用域。
 
@@ -320,3 +320,13 @@ Darwin 的 libdispatch 通过系统 libSystem 的标准 re-export 链接，不�
 Linux 新后端支持基线为内核 6.1，初始化实际探测所需操作与 feature；ring 不可用或能力不足明确失败，不静默回退其他后端。此要求仅针对 asyncio 新后端。worker 启动中途失败时，已启动的空闲线程异步退出，owner 不 join 等待；完全退休后允许后续操作重试启动。完整操作集、队列满时的处理、取消退休、提交失败与 ring 销毁见[设计第 8 节](../asyncio-backends/DESIGN.md#8-linuxio_uring-后端)。
 
 新后端的 syscall／负 CQE 错误保留 PosixErrno，DNS 保留 AddressResolution；正常 timer 到期不是错误，取消和 IoClosedException 仍由共享层选择。平台库不再提供 Libuv 错误域。迁移验收覆盖 Darwin、GNU、musl 的同一公共行为，以及宿主监听注销、Context、取消竞争和 native 内存寿命；实际结果见实施记录。
+
+### 11.6 Windows 完成端口
+
+Windows 的异步数据操作使用独立、稳定的 OVERLAPPED 请求与 IOCP。每个 loop 的原生收集线程阻塞等待完成，只发布原生记录并唤醒 owner，不执行 managed 代码；owner 消费有限完成快照并复用本规范的结果选择、借用和关闭规则。同步成功但仍会产生 completion packet 的操作也等该 packet；只有明确未提交的失败可以本地结束。CancelIoEx 的返回和 ERROR_NOT_FOUND 均不能代替目标完成。
+
+同一 manual-reset event 汇合命令、IOCP、timer 和 worker 通知。队列发布、SetEvent、owner 的 ResetEvent 与取队列在同一锁边界协调；通知只作提示，不能据其次数判断操作是否完成。宿主监听注销完成前不关闭 event。收集线程和 worker 不再访问 loop 后才销毁 native 状态；owner 的非阻塞 pump 和 close 不 join 活动线程。
+
+timer 按 QPC 单调截止时间等待并核对实际到期，长时长分段等待，不截断为无限等待或提前完成。取消在同一原生锁下移除尚未到期的 timer，已经发布的完成仍保留且只消费一次。不可 overlapped 的操作沿已有有限 NativeWork worker 边界执行，已开始的工作等真实返回，不因取消提前释放输入。
+
+Win32／IOCP 与 Winsock 错误分别保留真实 domain 和完整 32 位 code；CRT 的 errno 保留 PosixErrno。创建、等待和销毁的直接结果使用同次返回的错误记录，不以负 Int 编码 DWORD。详细执行与测试范围见[后端设计第 13 节](../asyncio-backends/DESIGN.md#13-windowsiocp-后端)。

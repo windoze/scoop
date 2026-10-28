@@ -30,7 +30,7 @@ internal class LoopAttachment(
     fun install(host: EventLoopHost) {
         @Unsafe
         {
-            watch = Some(host.watchReadable(nativeLoopDescriptor(native), { pump() }))
+            watch = Some(host.watch(loopNotification(native), { pump() }))
         }
         owner.post { mailbox.signal() }
     }

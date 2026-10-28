@@ -47,21 +47,21 @@ static void fence_finished(ScoopIoWork *request, int status) {
 ScoopIoCreated scoop_test_fence_create(ScoopIoLoop *loop, int64_t id, unsigned spare) {
     unsigned pool = scoop_test_pool_size();
     if (spare >= pool)
-        return (ScoopIoCreated){NULL, -EINVAL};
+        return (ScoopIoCreated){NULL, scoop_io_errno(-EINVAL)};
     unsigned count = pool - spare;
     TestWorkFence *fence = calloc(1, sizeof(*fence) + count * sizeof(ScoopIoWork));
     if (!fence)
-        return (ScoopIoCreated){NULL, -ENOMEM};
+        return (ScoopIoCreated){NULL, scoop_io_errno(-ENOMEM)};
     int error = pthread_mutex_init(&fence->mutex, NULL);
     if (error != 0) {
         free(fence);
-        return (ScoopIoCreated){NULL, -error};
+        return (ScoopIoCreated){NULL, scoop_io_errno(-error)};
     }
     error = pthread_cond_init(&fence->changed, NULL);
     if (error != 0) {
         pthread_mutex_destroy(&fence->mutex);
         free(fence);
-        return (ScoopIoCreated){NULL, -error};
+        return (ScoopIoCreated){NULL, scoop_io_errno(-error)};
     }
     fence->loop = loop;
     fence->completion.event.id = id;
@@ -71,7 +71,7 @@ ScoopIoCreated scoop_test_fence_create(ScoopIoLoop *loop, int64_t id, unsigned s
         if (scoop_io_work_submit(&fence->requests[index], loop, 0, fence_work, fence_finished) != 0)
             abort();
     }
-    return (ScoopIoCreated){fence, 0};
+    return (ScoopIoCreated){fence, scoop_io_errno(0)};
 }
 
 /**

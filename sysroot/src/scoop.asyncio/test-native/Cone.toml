@@ -31,6 +31,23 @@ path = "native/tty.c"
 
 [[native.sources]]
 path = "native/host.c"
+when = { os = ["darwin", "linux"] }
+
+[[native.sources]]
+path = "native/host_windows.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/loop.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/requests.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/work.c"
+when = { os = "windows" }
 
 [[native.sources]]
 path = "native/host_darwin.c"

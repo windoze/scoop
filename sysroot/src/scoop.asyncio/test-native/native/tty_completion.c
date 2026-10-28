@@ -8,7 +8,7 @@ int scoop_test_tty_completion_ready(ScoopIoLoop *loop) {
     struct timespec start;
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (;;) {
-        int status = scoop_io_loop_poll(loop, false);
+        int status = -scoop_io_loop_poll(loop, false).code;
         if (status < 0)
             return status;
         if (scoop_io_loop_batch_size(loop))

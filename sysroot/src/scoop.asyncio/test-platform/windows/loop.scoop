@@ -1,0 +1,93 @@
+package scoop.asyncio
+
+import scoop.test.*
+import scoop.platform.system.NativeErrorDomain
+
+@Test
+private class WindowsCompletionTest {
+    @Test
+    fun `created handles and completion records cross the native boundary`() {
+        @Unsafe
+        {
+            val created = nativeLoopCreate()
+            assertEquals(0, created.status.code)
+            val loop = created.pointer!!
+            try {
+                assertEquals(0, nativeTimerStart(loop, 0x123456789L, 0L, 1000000).code)
+                gcCollect()
+                while (nativeLoopBatchSize(loop) == 0L)
+                    assertEquals(0, nativeLoopPoll(loop, true).code)
+                val record = nativeLoopNext(loop)
+                assertEquals(0x123456789L, record.id)
+                assertEquals(0, record.kind)
+                assertEquals(0, record.code)
+                assertEquals(0L, record.count)
+                assertEquals(0L, nativeLoopBatchSize(loop))
+            } finally {
+                assertEquals(0, testDrain(loop))
+            }
+        }
+    }
+    @Test
+    fun `event notifications are manual reset and stop with the owner`() {
+        @Unsafe
+        {
+            assertEquals(0, testNotification())
+        }
+    }
+    @Test
+    fun `timers wake earlier deadlines and retire cancellation once`() {
+        @Unsafe
+        {
+            assertEquals(0, testTimers())
+        }
+    }
+    @Test
+    fun `cancelled and late successful IOCP requests retain their buffers`() {
+        @Unsafe
+        {
+            assertEquals(0, testRequests(false))
+        }
+    }
+    @Test
+    fun `synchronous overlapped success still waits for its packet`() {
+        @Unsafe
+        {
+            assertEquals(0, testRequests(true))
+        }
+    }
+    @Test
+    fun `queued work cancels while running work waits for its real return`() {
+        @Unsafe
+        {
+            assertEquals(0, testWork())
+        }
+    }
+    @Test
+    fun `Win32 errors retain their domain and complete code bits`() {
+        @Unsafe
+        {
+            val error = nativeStatusError(testError())
+            assertEquals(NativeErrorDomain.Win32, error.domain)
+            assertEquals(-517782169, error.code)
+        }
+    }
+}
+
+@Extern(name = "scoop_test_iocp_notification")
+private fun testNotification(): Int
+
+@Extern(name = "scoop_test_iocp_timers")
+private fun testTimers(): Int
+
+@Extern(name = "scoop_test_iocp_requests")
+private fun testRequests(prefill: Boolean): Int
+
+@Extern(name = "scoop_test_iocp_work")
+private fun testWork(): Int
+
+@Extern(name = "scoop_test_iocp_error")
+private fun testError(): NativeIoStatus
+
+@Extern(name = "scoop_test_iocp_drain")
+private fun testDrain(loop: Ptr<Unit>): Int

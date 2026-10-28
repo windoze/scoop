@@ -6,26 +6,26 @@
 ScoopIoCreated scoop_io_loop_create(void) {
     ScoopIoLoop *loop = calloc(1, sizeof(*loop));
     if (!loop)
-        return (ScoopIoCreated){NULL, -ENOMEM};
+        return (ScoopIoCreated){NULL, scoop_io_errno(-ENOMEM)};
     int status = pthread_mutex_init(&loop->mutex, NULL);
     if (status) {
         free(loop);
-        return (ScoopIoCreated){NULL, -status};
+        return (ScoopIoCreated){NULL, scoop_io_errno(-status)};
     }
     status = pthread_cond_init(&loop->work_ready, NULL);
     if (status) {
         pthread_mutex_destroy(&loop->mutex);
         free(loop);
-        return (ScoopIoCreated){NULL, -status};
+        return (ScoopIoCreated){NULL, scoop_io_errno(-status)};
     }
     status = scoop_io_ring_create(loop);
     if (status < 0) {
         pthread_cond_destroy(&loop->work_ready);
         pthread_mutex_destroy(&loop->mutex);
         free(loop);
-        return (ScoopIoCreated){NULL, status};
+        return (ScoopIoCreated){NULL, scoop_io_errno(status)};
     }
-    return (ScoopIoCreated){loop, 0};
+    return (ScoopIoCreated){loop, scoop_io_errno(0)};
 }
 
 void scoop_io_notify_locked(ScoopIoLoop *loop) {
@@ -52,7 +52,7 @@ void scoop_io_fail(ScoopIoLoop *loop, int error) {
 }
 int scoop_io_loop_descriptor(ScoopIoLoop *loop) { return loop->notification; }
 
-int scoop_io_loop_poll(ScoopIoLoop *loop, bool wait) {
+ScoopIoStatus scoop_io_loop_poll(ScoopIoLoop *loop, bool wait) {
     pthread_mutex_lock(&loop->mutex);
     bool queued = loop->head || loop->finished_head || (loop->failure && !loop->failure_reported);
     pthread_mutex_unlock(&loop->mutex);
@@ -82,7 +82,7 @@ int scoop_io_loop_poll(ScoopIoLoop *loop, bool wait) {
     int status = loop->failure_reported ? 0 : -loop->failure;
     loop->failure_reported = loop->failure != 0;
     pthread_mutex_unlock(&loop->mutex);
-    return status;
+    return scoop_io_errno(status);
 }
 
 void scoop_io_complete(ScoopIoLoop *loop, ScoopIoCompletion *completion, int status) {
@@ -138,14 +138,14 @@ bool scoop_io_loop_idle(ScoopIoLoop *loop) {
     pthread_mutex_unlock(&loop->mutex);
     return idle;
 }
-int scoop_io_loop_destroy(ScoopIoLoop *loop) {
+ScoopIoStatus scoop_io_loop_destroy(ScoopIoLoop *loop) {
     if (!scoop_io_loop_idle(loop))
-        return -EBUSY;
+        return scoop_io_errno(-EBUSY);
     io_uring_unregister_eventfd(&loop->ring);
     io_uring_queue_exit(&loop->ring);
     int status = close(loop->notification) < 0 ? -errno : 0;
     pthread_cond_destroy(&loop->work_ready);
     pthread_mutex_destroy(&loop->mutex);
     free(loop);
-    return status;
+    return scoop_io_errno(status);
 }

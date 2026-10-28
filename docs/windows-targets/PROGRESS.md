@@ -226,3 +226,7 @@ Windows TerminalSession 已使用独立、不可继承的 CONIN$／CONOUT$ owner
 正式 console fixture 在 Microsoft LLD／LINK、MinGW MSVCRT／UCRT 四种链接组合均通过，覆盖实际隐藏 console、重定向、模式恢复、单 owner、重复键、非 BMP、移动 GC、超时／resize、断开与无 console，以及真实 ConPTY 的 UTF-8 输入／输出和大小变化。ConPTY 以 VK_MENU key-up 传递 Unicode 的首轮遗漏已修复；最后的 Python CRLF 输出比较已闭合。IOCP、原生边界 GC fixture、其余系统库与发行验收继续实施，尚未开始远端 POSIX 验证。
 
 准备完整 platform 后，先前因缺目标产物未能运行的 `coroutine-unwind-liveness` 已闭合：Microsoft LLD／LINK、MinGW MSVCRT／UCRT 四种组合各通过 debug／release 两个变体、4 个进程步骤，验证真实线程恢复、异常清理覆盖值和移动 GC 存活。不重跑已通过的其余 GC 组；IOCP 与后续系统库工作继续，远端验证尚未开始。
+
+IOCP 基础组件已实现：每 loop 一个完成端口、原生收集线程和 manual-reset 通知 event；OVERLAPPED 请求等真实 packet 后退休，CancelIoEx 不提前释放借用。QPC timer 与有限 worker 队列共用通知和排空路径。宿主接口用 EventLoopNotification 明确区分 POSIX fd／Windows HANDLE；直接错误改用同次 domain／code 结果，原 POSIX 实现及调用方同步该内部记录形状。
+
+三个 target 的实际组件 Cone 各 1 个容器／7 项测试通过，覆盖 C-layout 创建／完成记录、GC 后句柄、通知合并／空闲、长 timer／更早 deadline、真实 overlapped 管道的 pending 取消／迟到成功／同步成功、worker 屏障与 32 位错误码；cl、MinGW 两 CRT 的独立 native 探针同样通过。Scoop／C 格式化、三套 Clang 与 cl 的严格检查、共享驱动／host 适配／受影响测试的语义检查通过。首轮临时整源码链接因尚未移植的 TTY 入口失败，随后按实际底层 FFI 模块做组件验收；未据此发布完整 Windows asyncio。TCP／UDP、文件／目录／DNS、异步 TTY、host 运行测试和 POSIX 回归仍待完成。GC fixture 的 lockfile 已改写到 work 目录，并定向复测通过。

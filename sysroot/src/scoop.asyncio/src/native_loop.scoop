@@ -4,18 +4,6 @@ import scoop.platform.system.*
 import scoop.platform.net.Datagram
 import scoop.platform.fs.FileMetadata
 
-@CLayout
-internal struct NativeCreated(val pointer: Ptr<Unit>?, val status: Int)
-
-@CLayout
-internal struct NativeRecord(
-    val id: Long,
-    val kind: Int,
-    val code: Int,
-    val count: Long,
-    val resource: Ptr<Unit>?
-)
-
 internal enum IoResult {
     Done, Bytes(Long), Eof, Created(Ptr<Unit>), Addresses(Ptr<Unit>?), Packet(Datagram), Failed(
         NativeError,
@@ -35,6 +23,12 @@ internal enum IoStart {
 
 internal fun nativeStatus(id: Long, status: Int): IoStart =
     if (status < 0)
+        IoStart.Finished(NativeEvent(id, IoResult.Failed(nativeStatusError(status), 0L)))
+    else
+        IoStart.Pending
+
+internal fun nativeStatus(id: Long, status: NativeIoStatus): IoStart =
+    if (status.code != 0)
         IoStart.Finished(NativeEvent(id, IoResult.Failed(nativeStatusError(status), 0L)))
     else
         IoStart.Pending
@@ -64,6 +58,14 @@ internal fun decodeEvent(record: NativeRecord): NativeEvent =
                 0L
             )
             case 8 -> IoResult.Packet(takeDatagram(record.resource!!))
+            case 9 -> IoResult.Failed(
+                NativeError(NativeErrorDomain.Win32, record.code),
+                record.count
+            )
+            case 10 -> IoResult.Failed(
+                NativeError(NativeErrorDomain.Winsock, record.code),
+                record.count
+            )
             // File and directory events: 0x100..0x1ff, matching native/loop.h.
             case 0x100 -> IoResult.Metadata(takeFileMetadata(record.resource!!))
             case 0x101 -> IoResult.Position(record.count)
@@ -106,41 +108,3 @@ internal fun resultProgress(result: IoResult): Long =
         case Failed(_, count) -> count
         case _ -> 0L
     }
-
-internal fun backendFailure(operation: String, status: Int): PlatformException {
-    val error = nativeStatusError(status)
-    return PlatformException(operation, error.kind, Some(error))
-}
-
-internal fun nativeStatusError(status: Int): NativeError =
-    NativeError(NativeErrorDomain.PosixErrno, -status)
-
-@Extern(name = "scoop_io_loop_idle")
-internal fun nativeLoopIdle(loop: Ptr<Unit>): Boolean
-
-@Extern(name = "scoop_io_loop_create")
-internal fun nativeLoopCreate(): NativeCreated
-
-@Extern(name = "scoop_io_loop_wake")
-internal fun nativeLoopWake(loop: Ptr<Unit>)
-
-@Extern(name = "scoop_io_loop_poll")
-internal fun nativeLoopPoll(loop: Ptr<Unit>, wait: Boolean): Int
-
-@Extern(name = "scoop_io_loop_batch_size")
-internal fun nativeLoopBatchSize(loop: Ptr<Unit>): Long
-
-@Extern(name = "scoop_io_loop_next")
-internal fun nativeLoopNext(loop: Ptr<Unit>): NativeRecord
-
-@Extern(name = "scoop_io_loop_destroy")
-internal fun nativeLoopDestroy(loop: Ptr<Unit>): Int
-
-@Extern(name = "scoop_io_timer_start")
-internal fun nativeTimerStart(loop: Ptr<Unit>, id: Long, seconds: Long, nanos: Int): Int
-
-@Extern(name = "scoop_io_timer_cancel")
-internal fun nativeTimerCancel(loop: Ptr<Unit>, id: Long)
-
-@Extern(name = "scoop_io_loop_descriptor")
-internal fun nativeLoopDescriptor(loop: Ptr<Unit>): Int

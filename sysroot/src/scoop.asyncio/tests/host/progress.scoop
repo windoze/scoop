@@ -31,7 +31,7 @@ private class EventLoopHostProgressTest {
         val cpu = hostClock(1)
         @Unsafe
         {
-            assertEquals(0, nativeTestHostPoll(host.descriptor, 50))
+            assertEquals(0, testNotificationPoll(host.notification!!, 50))
         }
         println("host_idle_cpu_ns=" + (hostClock(1) - cpu).toString())
         assertEquals(callbacks, host.callbacks)
