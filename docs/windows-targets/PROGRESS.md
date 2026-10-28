@@ -274,3 +274,10 @@ Rust 文本 staticlib 消费暴露的 COFF 问题已修复：StaticArchive 接�
 Rust 文本后端的正式准备入口已支持三个 Windows target，使用固定 Rust 1.99.1 的 MSVC／GNU／GNU-LLVM 标准库，按完整 target 发布 canonical 静态 archive、头文件与真实 Rust 许可；普通应用不运行 Cargo。charset／IDNA 声明额外 Windows 系统库，沿用 CRT 默认的 kernel32。uriparser 1.0.2 使用上游 CMake／Ninja 分别构建三个目标，Microsoft 保持 `/MD`；移除 Windows 不适用的 DESTDIR，沿工作目录 stage 发布 archive 和窄字符头文件。两种准备命令的三个目标均在输入与工具原位存在时直接复用。
 
 三个 target 的正式 release IDNA 各 3 个容器／11 项、URL 各 7 个容器／19 项、charset 各 7 个容器／18 项测试全部通过，覆盖普通 API、错误与跨 Cone 消费；生产 slib 已发布开发 sysroot。三套 PE 导入符合各自 CRT，未导入 libgcc DLL。Python Ruff／格式化通过，Rust 后端与 uriparser 均通过真实构建和发布。asyncio 全量、压缩／HTTP 等后端、原生发行与跨宿主验证继续实施。
+
+
+## W4 宿主 DLL 部署
+
+Windows 组装路径根据宿主 PE imports 递归收集非系统 DLL，从选定的 LLVM 安装优先取得其运行库，并分别放在 bin 和内置外部命令所在目录。系统 DLL／API-set 由 Windows 提供；Microsoft C++ runtime DLL 不作为系统基线跳过。依赖缺失保持正常构建错误，不加入安装来源审计。
+
+3 项 DLL 布局／递归依赖／缺失依赖测试与 4 项既有 archive 布局、内容、失败不发布测试通过；Unix mode 断言仅在支持其语义的宿主执行，Windows 仍验证全部内容与目录。使用实际五个 CLI 和外部命令目录中的实际 PE，打包 libLLVM-22.dll、libc++.dll、libunwind.dll 后，在仅含 Windows 系统目录的 PATH 下逐一运行 --version 均成功。源码和原工具保持存在。Python 格式与 Ruff 通过。此批完成宿主 DLL 部署，完整 Windows 发行入口、目标资源组装和安装后编译验收继续实施。

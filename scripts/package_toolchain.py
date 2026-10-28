@@ -200,9 +200,12 @@ def assemble(root, targets, binaries, args, release, extension):
                 shutil.copy2(
                     source / component / "lib" / name, destination / component / "lib" / name
                 )
-    native = (package_native.darwin if args.host.endswith("darwin") else package_native.linux)(
-        root, binaries, args.llvm_prefix / "lib"
-    )
+    if "windows" in args.host:
+        native = package_native.windows(root, binaries, args.llvm_prefix / "bin")
+    else:
+        native = (package_native.darwin if args.host.endswith("darwin") else package_native.linux)(
+            root, binaries, args.llvm_prefix / "lib"
+        )
     package_licenses.collect(root, ROOT, args.llvm_source, args.host, native, targets)
     share = root / "share/scoop"
     share.mkdir(parents=True)

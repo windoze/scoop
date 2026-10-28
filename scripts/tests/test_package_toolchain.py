@@ -1,5 +1,6 @@
 """Check the installation archive layout and publication failure behavior."""
 
+import os
 import shutil
 import sys
 import tarfile
@@ -75,7 +76,8 @@ class ToolchainArchiveTests(unittest.TestCase):
                 with tarfile.open(destination) as package:
                     package.extractall(installed, filter="data")
                 self.assertEqual((installed / "bin/scoop-pm").read_bytes(), pm.read_bytes())
-                self.assertTrue((installed / "bin/scoop-pm").stat().st_mode & 0o111)
+                if os.name != "nt":
+                    self.assertTrue((installed / "bin/scoop-pm").stat().st_mode & 0o111)
                 metadata = tomllib.loads((installed / "share/scoop/toolchain.toml").read_text())
                 self.assertEqual(metadata["liburing"], "2.15")
                 self.assertNotIn("libuv", metadata)
@@ -111,7 +113,8 @@ class ToolchainArchiveTests(unittest.TestCase):
                     self.assertEqual(
                         (commands / "scoop-example").read_bytes(), command.read_bytes()
                     )
-                    self.assertEqual((commands / "scoop-example").stat().st_mode & 0o777, 0o755)
+                    if os.name != "nt":
+                        self.assertEqual((commands / "scoop-example").stat().st_mode & 0o777, 0o755)
                     self.assertEqual((commands / "target/data").read_text(), "command data")
                 else:
                     self.assertEqual(list(commands.iterdir()), [])
@@ -138,7 +141,8 @@ class ToolchainArchiveTests(unittest.TestCase):
                 package.extractall(installed, filter="data")
             for relative, content in files.items():
                 self.assertEqual((installed / relative).read_text(), content)
-            self.assertTrue((installed / "bin/scoop").stat().st_mode & 0o111)
+            if os.name != "nt":
+                self.assertTrue((installed / "bin/scoop").stat().st_mode & 0o111)
             self.assertFalse((installed / source.name).exists())
 
     def test_source_archive_retains_its_named_directory(self):

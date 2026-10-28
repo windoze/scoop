@@ -53,6 +53,8 @@ MinGW 的 native sysroot 是对应 CRT 的完整 LLVM-MinGW prefix。Microsoft �
 
 三个宿主命令的 `--version` 使用同一份构建版本与源码 revision。维护脚本显式设置发行版本和 revision，普通开发构建使用仓库默认版本及当前 Git revision；源码归档没有 Git 信息时明确显示 revision 未提供。版本文本不替代配套工具的协议协商或产物兼容判断。
 
+Windows 发行包按宿主 PE 的实际 imports 收集非系统 DLL，递归包含其依赖，并放在对应宿主 executable 的相邻目录；内置外部命令遵守相同的加载规则。Windows 基线自带的系统 DLL 与 API-set 不复制。LLVM 的 DLL 优先从本次选定的 LLVM 安装取得，宿主命令启动不依赖开发机 PATH 中的另一份 LLVM 或 MinGW DLL。目标开发资源及 SDK／toolset 的选择仍由各 target 的 native 构建合同负责。
+
 Linux GNU 直接执行所选 GCC driver，不注入 musl wrapper 专用的 `REALGCC`；musl 将显式 `REALGCC` 或 PATH 中的 gcc 作为 wrapper 的实际 compiler。两者均通过真实 header/object probe 检查 libc 与机器，误选另一 libc 的 driver 必须得到不匹配诊断。
 
 两个 Linux 目标的默认 C／C++、runtime 与 startup 编译显式使用 `-march=x86-64`，与 LLVM backend 的 CPU 基线一致；该选项属于普通 C 生产配置。用户 manifest 仍可按既有 native 参数规则显式选择自己的附加编译选项。
