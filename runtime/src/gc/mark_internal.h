@@ -131,6 +131,7 @@ typedef struct ScoopGcMarkWorker {
     uint64_t stolen_tasks;
     uint64_t cpu_ns;
     ScoopGcMarkRegion regions[GC_MARK_REGION_CACHE];
+    ScoopGcLiveChunk *spare_live;
 } ScoopGcMarkWorker;
 
 typedef struct ScoopGcMarker {
@@ -180,6 +181,7 @@ void scoop_gc_mark_enqueue_remembered(void);
 bool scoop_gc_mark_queue_take(ScoopGcMarkWorker *worker, ScoopGcMarkTask *task);
 void scoop_gc_mark_task_done(void);
 void scoop_gc_mark_flush(ScoopGcMarkWorker *worker);
+void scoop_gc_mark_release_spares(ScoopGcMarkWorker *worker);
 void scoop_gc_mark_slot(void **slot, void *context);
 void scoop_gc_mark_range(void *object, const uint64_t *scan, ScoopGcMarkVisit *visit,
                          uintptr_t begin, uintptr_t end);

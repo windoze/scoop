@@ -225,6 +225,7 @@ void scoop_gc_shutdown(void) {
     scoop_heap_clear_old_slots();
     for (size_t index = 0; index < GC_MARK_MAX_WORKERS; index++) {
         ScoopGcMarkWorker *worker = &scoop_gc_marker.workers[index];
+        scoop_gc_mark_release_spares(worker);
         free(worker->queue.tasks);
         free(worker->blocks);
         worker->queue.tasks = NULL;

@@ -22,9 +22,14 @@ void scoop_gc_mark_flush(ScoopGcMarkWorker *worker) {
 static void append_live(ScoopGcMarkWorker *worker, void *object, bool scan) {
     if (worker->tail == NULL || worker->tail->used == GC_MARK_CHUNK) {
         scoop_gc_mark_flush(worker);
-        ScoopGcLiveChunk *chunk = malloc(sizeof *chunk);
-        if (chunk == NULL) {
-            heap_fatal("out of memory retaining the marked object set");
+        ScoopGcLiveChunk *chunk = worker->spare_live;
+        if (chunk != NULL) {
+            worker->spare_live = chunk->next;
+        } else {
+            chunk = malloc(sizeof *chunk);
+            if (chunk == NULL) {
+                heap_fatal("out of memory retaining the marked object set");
+            }
         }
         chunk->next = NULL;
         chunk->used = 0;

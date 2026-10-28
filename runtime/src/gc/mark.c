@@ -323,6 +323,14 @@ void scoop_gc_mark_visit_live(ScoopGcLiveEntryVisitor visitor, void *context) {
     }
 }
 
+void scoop_gc_mark_release_spares(ScoopGcMarkWorker *worker) {
+    while (worker->spare_live != NULL) {
+        ScoopGcLiveChunk *next = worker->spare_live->next;
+        free(worker->spare_live);
+        worker->spare_live = next;
+    }
+}
+
 void scoop_gc_mark_dispose(void) {
     for (size_t index = 0; index < GC_MARK_MAX_WORKERS; index++) {
         ScoopGcMarkWorker *worker = &scoop_gc_marker.workers[index];
@@ -333,11 +341,10 @@ void scoop_gc_mark_dispose(void) {
                 scoop_heap_clear_dirty_card_group(task.data.dirty.group);
             }
         }
-        while (worker->live != NULL) {
-            ScoopGcLiveChunk *next = worker->live->next;
-            free(worker->live);
-            worker->live = next;
-        }
+        /* Keep only this round's capacity; no retired entry remains a live value. */
+        scoop_gc_mark_release_spares(worker);
+        worker->spare_live = worker->live;
+        worker->live = NULL;
         worker->tail = NULL;
         while (worker->remembered_slots != NULL) {
             ScoopGcRememberedGroup *group = worker->remembered_slots;

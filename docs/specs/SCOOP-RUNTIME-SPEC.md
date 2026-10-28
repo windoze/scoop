@@ -711,6 +711,8 @@ mark 结束后复用首次标记的存活对象集合规划搬迁；实际有搬
 
 存活性由 mark 与搬迁关系决定，不由 relocation 的 scanned 状态定义。显式 GC heap 验证和 moving stress 在零搬迁时仍检查根、当前存活对象及引用合法性，但不要求或伪造 relocation 覆盖状态；有搬迁时对含引用对象的当前副本保留相应覆盖检查。object_scan 为 null 的无引用对象仍参与存活清单、统计、规划、搬迁和回收，但不为出站引用扫描再解析位置、claim scanned 状态或调用扫描解释器；指向它们的引用仍正常更新。未执行 update 的轮次不累计 update 扫描时间。存活清单保留至规划、必要更新和验证结束。
 
+存活清单退役时，条目地址及对象值即失效；其 native 分块存储可由原 worker 保留给下一轮使用。每个 worker 先消费自己的空闲分块，再按需分配，重新启用时重置链接和有效条目数；旧对象指针不再读取，不作为 root 或扫描结果跨轮复用。收尾由 coordinator 在全部 worker 与清单消费者结束后接管分块，释放上轮保留但本轮未用的余量，只保留本轮实际使用的容量；取消后重启也遵守同一退役边界。小工作量或空收集因此会缩减保留量，不永久保存历史峰值。停机在 join worker 后释放全部分块，包括未结束周期的存储。该复用仅减少 collector 的 native 分配与释放，不改变 mutator TLAB、对象存活、搬迁、根、失败回退或 ABI；所有 profile 语义一致，普通分配失败仍沿原路径处理。
+
 诊断分别记录停稳等待、roots、remembered、mark、plan、copy、reference update、reclaim 与 VM 归还的墙钟时间，以及各 marker 的线程 CPU／标记对象数、数组任务和窃取次数。mark 阶段加速与总停顿分开报告；root producer 的工作计入 roots／remembered 阶段，不把重叠时间相加成停顿。所有阶段计数在 worker 完成后由 coordinator 归并，release hook 不在 marker 上执行。
 
 既有 `stop_wait_ns` 从调用 `scoop_thread_begin_collection` 前计到成功返回，包含取得 collector 权限的开销；`pause_ns` 从返回后计到 `record_pause`，不包含此前等待和随后解锁／RUNNING 发布。保留这两个字段的含义，与 3.5 的三个发布边界分别报告。阶段累计值的前后差分保持 plan 扣除 copy、reclaim 扣除 VM 归还的口径；阶段之和不能替代整体停顿计时。实际搬迁数使用本轮完成的对象搬迁计数，不能从 `copy_ns == 0` 推断。
