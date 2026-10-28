@@ -96,7 +96,7 @@ Darwin：格式化、全 workspace lint 通过；文件宿主、HIR 展开、协
 
 合并后 Darwin 格式化、全 workspace lint、23 项分配、5 项静态数据及 1 项 runtime ABI Rust 测试通过；Linux 格式化、相关 crate lint、23 项分配和 6 项静态数据测试通过。两机各自的 env 值／缓存 15 步与跨 Cone 产物 4 步均通过，没有运行完整套件。原始日志继续保存在仓库外。
 
-### includeBytes（定向验证完成，全量验收进行中）
+### includeBytes（f3982705c）
 
 core 的 `scoop.compiler.includeBytes` 复用定义处文件宿主与已有路径限制，直接保存原始 bytes；默认／泛型模板携带已读数据。MIR 的原 String 表扩展为实际 String／字节数组的共享 immortal 表，字节数组保存完整 class application。LIR／LLVM 发射只读数组 header、count 和数据，使用实际 Array<Byte> TD 与既有 immortal 登记；不运行数组构造或复制。普通数组字面量仍按原语义分配，通用 const／常量表达式资格保持本轮收缩后的范围。
 
@@ -104,7 +104,13 @@ callable intrinsic 新增 tag 32，默认模板表达式 tag 77；HIR `cross-con
 
 Darwin／Linux 的 3 项普通 Cone 测试均通过，覆盖 256 种 byte、空数组、实际动态类型与可变副本。两平台定义处跨 Cone fixture 均通过 release 和 debug＋moving GC 两个变体，共 8 步；覆盖 global、泛型、默认值、普通函数及 provider 输入变化后消费已发布值。前端输入、字节模板编码、immortal 身份、数组登记布局和 LLVM 静态发射定向测试通过。Darwin 全 workspace lint、202 项 MIR lowering、357 项 identity、17 项 profile、92 项 driver 和 108 项 runtime 相关 Rust 测试通过；fixture runner 的 59 项规则测试通过。Linux 的完整 intrinsic 标签回归通过：9 项 fixture、10 个变体、54 个进程步骤，覆盖 env、includeStr 与 includeBytes。
 
-按用户要求以 `30af1bdfa` 合并 origin/main 的 `726a38a96`，无冲突。全量 Rust 验收未全部通过：4 项 codegen 分配器／GC 断言已在原提交 `c9ba66107` 复现；合并后其中的 region GC 用例及相关 runtime 回归通过，其余分配器断言仍未改动。另有使用旧 CLI 参数的 linker 集成测试、runtime EH 契约与 slib 旧向量失败，留待独立处理。正式 CLI 全量验收继续运行，不能将本次定向验证记为全量通过。本次也修正了 driver 测试复制 core 源码时只接受平铺文件的辅助代码，以覆盖 scoop.compiler 子目录。旧对照构建 target 已清理，原始日志保留在仓库外。
+按用户要求以 `30af1bdfa` 合并 origin/main 的 `726a38a96`，无冲突。全量 Rust 验收未全部通过：4 项 codegen 分配器／GC 断言已在原提交 `c9ba66107` 复现；合并后其中的 region GC 用例及相关 runtime 回归通过，其余分配器断言仍未改动。另有使用旧 CLI 参数的 linker 集成测试、runtime EH 契约与 slib 旧向量失败，留待独立处理。正式 CLI 全量验收在后续合并请求到来时停止：522 项通过、16 项失败、17 项不适用，其余 3752 项中止。失败涉及链接计划指纹不一致、优化断言、CLI／诊断差异及 JSON 库测试超时，尚未逐一归因与闭合，不能将定向验证记为全量通过。本次也修正了 driver 测试复制 core 源码时只接受平铺文件的辅助代码，以覆盖 scoop.compiler 子目录。旧对照构建 target 已清理，原始日志保留在仓库外。
+
+### 合并 origin/main 的 ArrayList／StringBuilder 优化
+
+2026-10-29 按用户追加要求，以 `1f35644e5` 合并 `origin/main` 的 `5c245cb7f`。解决运行时规范一处冲突：保留 include 的静态对象说明，同时采用上游新的 StringBuilder 字节存储合同。其余编译器改动自动合并，includeBytes 提交保留。
+
+上游将 runtime ABI 升至 27。两机显式准备本次需要的 core／std／test、公开 C 头文件、普通和 stress runtime；其余旧 sysroot 资源在后续使用前重新准备。Darwin 全 workspace lint 和 15 项定向 Rust 测试通过；Linux 相关 crate lint 和 13 项定向 Rust 测试通过，覆盖输入 intrinsic、字节复制与根计划、静态字节数组和 ABI。两机各自通过 3 项 includeBytes Cone 测试，以及 9 项 intrinsic fixture（10 个变体、54 个进程步骤）。Linux 额外通过 7 项 StringBuilder 和 2 项列表增长测试，定向启用 moving／minor GC stress。未重跑完整套件。原始日志与部分全量验收记录继续保存在仓库外，清除了本轮验证产生的 16 个未跟踪 Cone.lock 文件。
 
 ## 范围调整
 
