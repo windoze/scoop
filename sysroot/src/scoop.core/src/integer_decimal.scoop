@@ -2,25 +2,38 @@
 // Pair lookup and eight-digit chunks follow the vendored Ryu digit writer.
 internal fun coreLongToString(value: Long): String {
     var storage = (0u, 0u, 0u, 0u, 0u)
-    @Unsafe {
+    @Unsafe
+    {
         val bytes = addressOf(storage).cast<Byte>()
-        val magnitude = if (value < 0L) { 0uL - value.toULong() } else { value.toULong() }
-        var length = coreWriteUnsignedDecimal(magnitude, bytes)
-        if (value < 0L) {
-            length += 1L
-            bytes.store(20L - length, 45.toByte())
-        }
+        val length = coreWriteSignedDecimal(value, bytes)
         return coreStringCopyUtf8Unchecked(bytes + (20L - length), length)
     }
 }
 
 internal fun coreULongToString(value: ULong): String {
     var storage = (0u, 0u, 0u, 0u, 0u)
-    @Unsafe {
+    @Unsafe
+    {
         val bytes = addressOf(storage).cast<Byte>()
         val length = coreWriteUnsignedDecimal(value, bytes)
         return coreStringCopyUtf8Unchecked(bytes + (20L - length), length)
     }
+}
+
+@Unsafe
+internal fun coreWriteSignedDecimal(value: Long, bytes: Ptr<Byte>): Long {
+    val magnitude =
+        if (value < 0L) {
+            0uL - value.toULong()
+        } else {
+            value.toULong()
+        }
+    var length = coreWriteUnsignedDecimal(magnitude, bytes)
+    if (value < 0L) {
+        length += 1L
+        bytes.store(20L - length, 45.toByte())
+    }
+    return length
 }
 
 @Unsafe
@@ -58,7 +71,8 @@ internal fun coreWriteUnsignedDecimal(input: ULong, bytes: Ptr<Byte>): Long {
 
 @Unsafe
 internal fun coreWriteDecimalPair(bytes: Ptr<Byte>, cursor: Long, value: UInt) {
-    val pairs = "00010203040506070809101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899"
+    val pairs =
+        "00010203040506070809101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899"
     val index = value.toLong() * 2L
     bytes.store(cursor, coreStringByteAt(pairs, index))
     bytes.store(cursor + 1L, coreStringByteAt(pairs, index + 1L))

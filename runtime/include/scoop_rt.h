@@ -102,7 +102,6 @@ void scoop_rt_flush_stdout(void);
 int64_t scoop_rt_string_byte_length_leaf(const ScoopString *value);
 int8_t scoop_rt_string_byte_at_leaf(const ScoopString *value, int64_t index);
 uint32_t scoop_rt_string_character_at_byte_leaf(const ScoopString *value, int64_t index);
-const ScoopString *scoop_rt_string_join_parts(const ScoopArray *storage, int64_t part_count);
 
 /* String and primitive operations used by ordinary scoop.core declarations. */
 int64_t scoop_rt_string_compare(const ScoopString *a, const ScoopString *b);

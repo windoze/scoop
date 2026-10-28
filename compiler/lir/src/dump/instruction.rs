@@ -29,6 +29,24 @@ pub(super) fn dump_instruction(
             value_name(*index),
             value_name(*value)
         )),
+        Instruction::ByteCopy {
+            source,
+            target,
+            start,
+            array_type,
+        } => {
+            let operands = source
+                .operands()
+                .map(value_name)
+                .collect::<Vec<_>>()
+                .join(", ");
+            buf.push_str(&format!(
+                "    byte_copy [{operands}] into {} + {} array @{}\n",
+                value_name(*target),
+                value_name(*start),
+                array_type.into_raw()
+            ));
+        }
         Instruction::StringCopy {
             out,
             source,
@@ -45,6 +63,7 @@ pub(super) fn dump_instruction(
                 StringCopySource::Utf8 { .. } => "utf8",
                 StringCopySource::Slice { .. } => "slice",
                 StringCopySource::Bytes { .. } => "bytes",
+                StringCopySource::BytePrefix { .. } => "byte_prefix",
                 StringCopySource::String(_) => "string",
             };
             let target = match target {

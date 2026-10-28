@@ -13,6 +13,8 @@ impl Lowerer {
         let pointer = self.intern_type(hir::Type::Ptr(byte));
         let bytes = self.array_type(crate::types::ArrayKind::Immutable, byte);
         let mutable_bytes = self.array_type(crate::types::ArrayKind::Mutable, byte);
+        let ubyte = self.integer_type(hir::IntegerKind::UNSIGNED_8);
+        let buffer = self.array_type(crate::types::ArrayKind::Mutable, ubyte);
         for kind in hir::StringIntrinsic::ALL {
             let Some(function) =
                 self.require_intrinsic(hir::IntrinsicFunctionKind::String(kind), files)
@@ -32,6 +34,12 @@ impl Lowerer {
                 hir::StringIntrinsic::FromBytes => (vec![bytes], string),
                 hir::StringIntrinsic::ToBytes => (vec![string], bytes),
                 hir::StringIntrinsic::ToMutableBytes => (vec![string], mutable_bytes),
+                hir::StringIntrinsic::FromBytePrefixUnchecked => (vec![buffer, long], string),
+                hir::StringIntrinsic::CopyToBytesUnchecked => (vec![string, buffer, long], unit),
+                hir::StringIntrinsic::CopyBytePrefixUnchecked => (vec![buffer, buffer, long], unit),
+                hir::StringIntrinsic::CopyRawBytesUnchecked => {
+                    (vec![pointer, long, buffer, long], unit)
+                }
             };
             let signature = &self.signatures[&function];
             let valid = !signature.is_suspend

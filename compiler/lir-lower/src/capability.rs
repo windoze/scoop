@@ -198,10 +198,20 @@ fn expression_requirement(
 ) -> Option<StrongLirMaterializationRequirement> {
     match &expression.kind {
         mir::ExprKind::StringCopy(operation) => match operation.as_ref() {
-            mir::StringCopyOperation::FromBytes(array) => match array.ty {
+            mir::StringCopyOperation::FromBytes(array)
+            | mir::StringCopyOperation::FromBytePrefix { array, .. }
+            | mir::StringCopyOperation::StringIntoBytes { target: array, .. }
+            | mir::StringCopyOperation::RawIntoBytes { target: array, .. } => match array.ty {
                 mir::Type::Class(class) => unavailable_array(roots, class),
                 _ => unreachable!("a byte copy consumes an exact array"),
             },
+            mir::StringCopyOperation::BytePrefixIntoBytes { source, target, .. } => {
+                let (mir::Type::Class(source), mir::Type::Class(target)) = (&source.ty, &target.ty)
+                else {
+                    unreachable!("byte copies consume exact arrays");
+                };
+                unavailable_array(roots, *source).or_else(|| unavailable_array(roots, *target))
+            }
             mir::StringCopyOperation::ToBytes(_) => match expression.ty {
                 mir::Type::Class(class) => unavailable_array(roots, class),
                 _ => unreachable!("a byte copy produces an exact array"),

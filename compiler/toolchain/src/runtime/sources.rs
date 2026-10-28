@@ -6,7 +6,6 @@ pub(super) const COMMON: &[&str] = &[
     "vendor/ryu/ryu/f2s.c",
     "vendor/ryu/ryu/d2s.c",
     "runtime/src/strings.c",
-    "runtime/src/string_parts.c",
     "runtime/src/startup.c",
     "runtime/src/startup/failure.c",
     "runtime/src/startup/gateway.c",

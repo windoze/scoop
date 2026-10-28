@@ -183,7 +183,7 @@ typed 数组 clone 的源／目标 element exact type 与 layout 已一致时，
 
 ArrayList、StringBuilder 等普通库类型使用其声明的 class/value 表示，其公开行为由语言规范第 11 章规定。
 
-`MutableArray<MaybeUninit<T>>` 复用 InlineArray shape，logical size 为 capacity，元素 size／stride 为 T 的 exact size，ZST 仍为零。所有容量槽都保存合法 wrapper，完整 GC 按 capacity 扫描；ArrayList 的 elementCount 不进入 GC 协议。删除与 clear 必须清零不再使用的槽，StringBuilder 复用同一 ArrayList 扩容。
+`MutableArray<MaybeUninit<T>>` 复用 InlineArray shape，logical size 为 capacity，元素 size／stride 为 T 的 exact size，ZST 仍为零。所有容量槽都保存合法 wrapper，完整 GC 按 capacity 扫描；ArrayList 的 elementCount 不进入 GC 协议。删除与 clear 必须清零不再使用的槽。StringBuilder 使用普通 MutableArray<UInt8> 保存字节，有效前缀之外不含托管引用，clear 只需清零有效长度。
 
 ### 2.5 Option 的 niche 表示
 
@@ -219,7 +219,7 @@ unit 由 `PersistentInitializationUnitId` 标识；diagnostic path 只用于显�
 
 ### 2.8 多 image 登记与启动 ABI
 
-runtime ABI contract 为 **27**，metadata ABI 为 **9**。contract 27 合并 Windows Unicode 启动入口与 contract 26 的四指针分配视图，编译器、runtime 和系统库机器正文须配套重建。contract 26 删除分配视图中的计数器指针，统一使用四指针前缀；生成代码直接从同一稳定线程状态的 offset 128 取得既有计数器。计数、原子发布和线程生命周期保持，所有编译器、runtime 与系统库机器正文须配套重建。contract 25 将分配计数改为 nursery 与直接旧代分配两个互斥域，生成代码每次只更新 nursery 的对象数和字节数；总量在读取时相加，所有机器正文与 runtime 配套重建。contract 24 删除生成分配视图的 occupied-line 指针，统一使用五指针布局；分配只发布精确大小和 starts，collector 独立形成存活 line。编译器、runtime 与所有系统库机器正文须配套重建。contract 23 允许生成代码依赖 3.1 的 mapping owner；支持 GC stress 的 runtime 保留 region 首 block，编译器、runtime 与系统库须配套重建。contract 22 将小对象精确大小放入现有 GC 字、移动 pin 索引字段并将 TLAB 视图减为六指针；生成分配、runtime 和全部机器产物须一起重建。contract 20／21 退役无生产消费者的标量、打印、专用装箱、Array clone 与 Context 生成操作 C 入口；所有 profile 复用相同 typed 布局与根计划。contract 19 增加 9.2 的线程 Context 根槽地址视图；contract 18 的初始化状态原子访问及 release／acquire 发布保持，不能把生成的快速读取与旧 runtime 的普通写入混用。contract 17 的脏卡组登记与 region prefix、contract 15 的接口查询入口保持；contract 16 的七指针 TLAB 视图由本版替换。对象、接口值、TD、初始化 cell、注册记录和扫描布局不变。metadata 9 删除 runtime 不消费的 body、descriptor、layout、scan、stackmap、gateway、source signature 与 image 内容指纹字段；实体 identity、实际地址、类型布局、扫描与 stackmap 合同保持。producer、公共头、runtime 和启动代码一起更新，旧产物与开发 sysroot 必须重建。带 prefix 的 descriptor 以 `{ u64 magic; u32 abi_version; u32 struct_size; }` 开头，`abi_version == 9`，size 与本节布局精确一致，reserved fields 为 0。公共 C 声明见 [scoop_runtime_metadata_v1.h](../../runtime/include/scoop_runtime_metadata_v1.h)。不保留空的兼容槽或以 bitcast 混用旧布局。
+runtime ABI contract 为 **28**，metadata ABI 为 **9**。contract 27 合并 Windows Unicode 启动入口与 contract 26 的四指针分配视图，编译器、runtime 和系统库机器正文须配套重建。contract 26 删除分配视图中的计数器指针，统一使用四指针前缀；生成代码直接从同一稳定线程状态的 offset 128 取得既有计数器。计数、原子发布和线程生命周期保持，所有编译器、runtime 与系统库机器正文须配套重建。contract 25 将分配计数改为 nursery 与直接旧代分配两个互斥域，生成代码每次只更新 nursery 的对象数和字节数；总量在读取时相加，所有机器正文与 runtime 配套重建。contract 24 删除生成分配视图的 occupied-line 指针，统一使用五指针布局；分配只发布精确大小和 starts，collector 独立形成存活 line。编译器、runtime 与所有系统库机器正文须配套重建。contract 23 允许生成代码依赖 3.1 的 mapping owner；支持 GC stress 的 runtime 保留 region 首 block，编译器、runtime 与系统库须配套重建。contract 22 将小对象精确大小放入现有 GC 字、移动 pin 索引字段并将 TLAB 视图减为六指针；生成分配、runtime 和全部机器产物须一起重建。contract 20／21 退役无生产消费者的标量、打印、专用装箱、Array clone 与 Context 生成操作 C 入口；所有 profile 复用相同 typed 布局与根计划。contract 19 增加 9.2 的线程 Context 根槽地址视图；contract 18 的初始化状态原子访问及 release／acquire 发布保持，不能把生成的快速读取与旧 runtime 的普通写入混用。contract 17 的脏卡组登记与 region prefix、contract 15 的接口查询入口保持；contract 16 的七指针 TLAB 视图由本版替换。对象、接口值、TD、初始化 cell、注册记录和扫描布局不变。metadata 9 删除 runtime 不消费的 body、descriptor、layout、scan、stackmap、gateway、source signature 与 image 内容指纹字段；实体 identity、实际地址、类型布局、扫描与 stackmap 合同保持。producer、公共头、runtime 和启动代码一起更新，旧产物与开发 sysroot 必须重建。带 prefix 的 descriptor 以 `{ u64 magic; u32 abi_version; u32 struct_size; }` 开头，`abi_version == 9`，size 与本节布局精确一致，reserved fields 为 0。公共 C 声明见 [scoop_runtime_metadata_v1.h](../../runtime/include/scoop_runtime_metadata_v1.h)。不保留空的兼容槽或以 bitcast 混用旧布局。
 
 | descriptor | magic | size（bytes） |
 | --- | --- | --- |
@@ -897,11 +897,11 @@ Option<Char> 的 storage 为 16 bytes、alignment 8，tag offset 0、Char offset
 
 数组后备使用显式目标 TD 分配和浅复制，保持新对象头、logical size 和 canonical padding。ZST 不复制 payload；不能从来源名称或布局猜测目标 exact type。源码 bounds check 与异常构造由 managed 代码承担，受检 helper 收到越界 index 属于内部 invariant error。
 
-`scoop_rt_string_join_parts(const ScoopArray *storage, int64_t part_count)` 消费 MutableArray<MaybeUninit<String>> 的有效前缀并返回 String，使用 Managed native contract。prefix 范围有效，每项由 ArrayList 保证为已初始化 String，元素身份为实际 wrapper application；字节总数 checked 求和。分配后从更新后的 backing 重读 String 引用，结果发布后不再修改 bytes；不管理容量、不复制中间 String 数组、不调用用户 getter 或重新验证不变的 UTF-8 内容。
+StringBuilder 的数组前缀到 String 复制由 typed StringCopy 生成：普通 core 建立有效范围与 UTF-8 前置条件，分配后从更新的根重新取得源数组。String／数组／稳定原生缓冲到已分配字节数组的复制不包含 safepoint，直接使用本次操作取得的 payload 地址；不保存内部指针、不借用 pin frame，也不重复扫描合法 UTF-8。原生缓冲在外围分配期间必须稳定。目标字节写入为真实副作用，无引用 payload 不需要屏障；替换 builder 的 backing 字段仍使用普通引用屏障。无生产消费者的 `scoop_rt_string_join_parts` 与专用声明退役，runtime ABI contract 更新为 28；保留 contract 27 的 Windows Unicode 启动与分配视图，不复用原版本兼容指纹。
 
 `scoop_rt_allocation_overflow()` 为无参数、NoGC 后备，在 Long 容量运算溢出时进入 fatal allocation failure，不分配、不回调、不引入新的源码异常。
 
-编译器可以将普通 String 拼接链降低为一次 String 分配及按序复制，条件见实现规范 2.15。长度求和、24-byte 前缀及最终对齐必须保持 checked allocation 规则，不能 wrapping。结果复用既有 TLAB／collecting slow path；源 String 引用在 safepoint 中保活并接受移动回写，复制地址在分配后重取。结果为无引用 UTF-8 payload，不增加写屏障或对象字段；分配消除不承诺保留中间临时 String 的身份、GC 次数或内存耗尽时点。原二元 `scoop_rt_string_concat` 与 builder 的 join_parts 后备及 ABI 保留。
+编译器可以将普通 String 拼接链降低为一次 String 分配及按序复制，条件见实现规范 2.15。长度求和、24-byte 前缀及最终对齐必须保持 checked allocation 规则，不能 wrapping。结果复用既有 TLAB／collecting slow path；源 String 引用在 safepoint 中保活并接受移动回写，复制地址在分配后重取。结果为无引用 UTF-8 payload，不增加写屏障或对象字段；分配消除不承诺保留中间临时 String 的身份、GC 次数或内存耗尽时点。原二元 `scoop_rt_string_concat` 后备及 ABI 保留。
 
 实现规范 2.15 的 typed StringCopy 对稳定原生 UTF-8 区间、已定位的 String 字节范围和 exact Byte 数组生成分配、长度写入及 memcpy，也用于 String 到独立 Byte 数组的快照。复用实际 String TD 和数组布局，保留非负长度、范围及分配溢出规则；只复制给定字节数，不要求或添加 NUL。托管源在分配期间保活，源内部地址只从分配后的重定位引用取得；原生源的稳定性由 Unsafe 调用契约保证。结果初始化完成前不向用户发布，中间没有新的 safepoint。保留的原生适配按实际消费者提供；不能按符号拼写把普通 extern 调用改成该操作，也不因旧公开头文件或测试声明而保留无消费者的重复实现。
 

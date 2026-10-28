@@ -485,6 +485,13 @@ pub enum Instruction {
         safepoint: SafepointSiteRef,
         live: StatepointLiveSet,
     },
+    /// Write an established byte range without allocation or a safepoint.
+    ByteCopy {
+        source: crate::ByteCopySource,
+        target: Value,
+        start: Value,
+        array_type: ArrayTypeId,
+    },
     /// `array.size` (canonical source `Long`, represented by `I64`).
     ArrayLen {
         out: TempId,

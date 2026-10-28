@@ -281,3 +281,7 @@ Rust 文本后端的正式准备入口已支持三个 Windows target，使用固
 Windows 组装路径根据宿主 PE imports 递归收集非系统 DLL，从选定的 LLVM 安装优先取得其运行库，并分别放在 bin 和内置外部命令所在目录。系统 DLL／API-set 由 Windows 提供；Microsoft C++ runtime DLL 不作为系统基线跳过。依赖缺失保持正常构建错误，不加入安装来源审计。
 
 3 项 DLL 布局／递归依赖／缺失依赖测试与 4 项既有 archive 布局、内容、失败不发布测试通过；Unix mode 断言仅在支持其语义的宿主执行，Windows 仍验证全部内容与目录。使用实际五个 CLI 和外部命令目录中的实际 PE，打包 libLLVM-22.dll、libc++.dll、libunwind.dll 后，在仅含 Windows 系统目录的 PATH 下逐一运行 --version 均成功。源码和原工具保持存在。Python 格式与 Ruff 通过。此批完成宿主 DLL 部署，完整 Windows 发行入口、目标资源组装和安装后编译验收继续实施。
+
+合并主线 `5c245cb7f` 的 ArrayList 增长和 StringBuilder 字节存储优化。主线移除旧字符串拼接 runtime 入口，与本分支的 Windows ABI 27 合并后统一升级至 28；保留 Unicode 启动入口，并同步 ABI 与符号合同固定向量。新增 codegen 用例补齐本分支的 debug source 字段。
+
+workspace Clippy 与 21 项定向测试通过，覆盖 byte copy 代码生成／根恢复、字符串 intrinsic 诊断、runtime ABI 和 slib 兼容性。初次测试发现的两个派生合同固定向量已同步并复测。新 ABI 的命令、runtime 与开发 slib 配套更新及 Windows 实际程序验收继续进行。
