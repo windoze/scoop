@@ -2,7 +2,7 @@ schema = 1
 name = "core-layouts-shared-equality-standalone"
 inputs = ["../../imported-classes/support/stage3_test.scoop", "../../core-layout-exports/shared-equality-standalone.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["core-layouts", "shared_equality_replays_materialized_source_applications_and_default_only_keys", "language"]
 
 [[steps]]

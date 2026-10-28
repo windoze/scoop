@@ -2,7 +2,7 @@ schema = 1
 name = "generic-siblings-standalone"
 inputs = ["../../imported-classes/support/stage3_test.scoop", "generic-odr-provider", "../../generic-odr-siblings/provider.scoop", "generic-odr-standalone-left", "../../generic-odr-siblings/standalone-left.scoop", "generic-odr-standalone-right", "../../generic-odr-siblings/standalone-right.scoop", "generic-odr-standalone-consumer", "../../generic-odr-siblings/standalone-consumer.scoop", "runtime-fixture", "../../imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generic-siblings", "bodies", "language"]
 
 [[steps]]

@@ -2,7 +2,7 @@ schema = 1
 name = "generic-member-consumption-interface-class"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../generic-member-consumption/provider.scoop", "generic-member-interface-class", "../../../generic-member-consumption/interface-class.scoop", "generic-member-downstream-interface-class", "../../../generic-member-consumption/downstream.scoop", "runtime-fixture", "../../../imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "generic_member_templates_republish_and_execute_from_artifacts", "hir-generic-members", "language"]
 
 [[steps]]

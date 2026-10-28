@@ -2,7 +2,7 @@ schema = 1
 name = "coroutines-lifecycle"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../coroutines/provider.scoop", "generic-member-lifecycle", "../../../coroutines/lifecycle.scoop", "generic-member-downstream-lifecycle", "../../../coroutines/downstream.scoop", "runtime-fixture", "../../../imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "imported_coroutine_lifecycle_republishes_and_executes", "language"]
 
 [[steps]]

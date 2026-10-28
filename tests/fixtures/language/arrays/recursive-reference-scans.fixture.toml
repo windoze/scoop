@@ -3,7 +3,7 @@ name = "arrays-recursive-reference-scans"
 root = "recursive-reference-scans.scoop"
 inputs = ["recursive-reference-scans.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["single-file", "run", "language"]
 variants = [{"name" = "release"}]
 
