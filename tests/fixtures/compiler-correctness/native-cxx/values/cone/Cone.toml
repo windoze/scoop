@@ -6,8 +6,8 @@ version = "0.1.0"
 kind = "executable"
 [native]
 cxx = true
-c_flags = ["-std=c11", "-DC_ONLY=40", "-Wall", "-Wextra", "-Werror"]
-cxx_flags = ["-std=c++20", "-DCXX_ONLY=1", "-Wall", "-Wextra", "-Werror"]
+c_flags = ["-DC_ONLY=40", "-Wextra", "-Werror"]
+cxx_flags = ["-DCXX_ONLY=1", "-Wextra", "-Werror"]
 [[native.sources]]
 path = "native/value.c"
 [[native.sources]]
