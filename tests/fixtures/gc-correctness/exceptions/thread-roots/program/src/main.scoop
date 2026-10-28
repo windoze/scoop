@@ -1,0 +1,90 @@
+package dev.ehroots
+
+import scoop.platform.concurrent.*
+
+class RootedError(val code: Int, val text: String): Throwable()
+
+class OtherError: Throwable()
+
+fun verify(value: Boolean) {
+    if (!value)
+        throw IllegalStateException(Some("exception root mismatch"))
+}
+
+fun fail(code: Int) {
+    throw RootedError(code, "error-" + code.toString())
+}
+
+fun verifyError(error: RootedError, code: Int) {
+    verify(error.code == code)
+    verify(error.text == "error-" + code.toString())
+}
+
+fun nestedRoots() {
+    try {
+        try {
+            fail(11)
+        }
+        catch (outer: RootedError) {
+            try {
+                fail(22)
+            }
+            finally {
+                gcCollect()
+                verifyError(outer, 11)
+            }
+        }
+    } catch (inner: RootedError) {
+        verifyError(inner, 22)
+    }
+    try {
+        try {
+            fail(33)
+        }
+        catch (other: OtherError) {
+            verify(false)
+        }
+        finally {
+            gcCollect()
+        }
+    } catch (error: RootedError) {
+        verifyError(error, 33)
+    }
+}
+
+fun worker(code: Int, ready: AtomicInt, proceed: AtomicBoolean, done: AtomicInt) {
+    try {
+        try {
+            fail(code)
+        }
+        finally {
+            ready.fetchAdd(1)
+            while (!proceed.load()) {
+                yield()
+            }
+            gcCollect()
+        }
+    } catch (error: RootedError) {
+        verifyError(error, code)
+        done.fetchAdd(1)
+    }
+}
+
+fun main() {
+    nestedRoots()
+    val ready = AtomicInt(0)
+    val proceed = AtomicBoolean(false)
+    val done = AtomicInt(0)
+    val first = Thread.start { worker(44, ready, proceed, done) }
+    val second = Thread.start { worker(55, ready, proceed, done) }
+    while (ready.load() != 2) {
+        yield()
+    }
+    gcCollect()
+    proceed.store(true)
+    first.join()
+    second.join()
+    verify(done.load() == 2)
+    gcCollect()
+    println("exception roots passed")
+}

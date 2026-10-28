@@ -1,11 +1,16 @@
 /* Root publication is shared by minor and full collection. */
 #include <stdatomic.h>
 
+#include "../eh_internal.h"
 #include "../thread.h"
 #include "internal.h"
 
 static void scan_thread(const ScoopThreadState *thread, ScoopGcRootVisitor visitor) {
     visitor.visit_slot((void **)&thread->current_task_context, visitor.context);
+    for (ScoopExceptionRecord *record = thread->active_exceptions; record != NULL;
+         record = record->active_next) {
+        visitor.visit_slot(&record->object, visitor.context);
+    }
     for (ScoopPinFrame *frame = thread->pin_frames; frame != NULL; frame = frame->previous) {
         visitor.visit_slot(&frame->object, visitor.context);
     }
