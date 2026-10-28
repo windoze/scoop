@@ -44,7 +44,7 @@ pub(super) fn execute(
             Ok(CommandOutcome::Complete(true))
         }
         Command::Build(args) => {
-            let requests = super::build::requests(
+            let mut requests = super::build::requests(
                 args.options,
                 sysroot,
                 package_manager,
@@ -54,7 +54,7 @@ pub(super) fn execute(
                 enable_gc_stress,
                 enable_startup_stats,
             )?;
-            for mut request in requests {
+            for request in &mut requests {
                 if let (Some(emit), Some(directory)) = (args.emit, args.dump_dir.as_ref()) {
                     request.dumps = Some(BuildDumpRequest {
                         stages: emit.stages(),
@@ -65,7 +65,9 @@ pub(super) fn execute(
                         },
                     });
                 }
-                reporter.built(&scoop::build(request)?).map_err(config)?;
+            }
+            for result in scoop::build_all(requests)? {
+                reporter.built(&result).map_err(config)?;
             }
             Ok(CommandOutcome::Complete(true))
         }
@@ -80,6 +82,11 @@ pub(super) fn execute(
                 enable_gc_stress,
                 enable_startup_stats,
             )?;
+            if requests.len() > 1 {
+                requests.retain(|request| {
+                    request.graph.root_kind() == scoop_identity::RequestedConeKind::Executable
+                });
+            }
             if requests.len() != 1 {
                 return Err(config(
                     "run requires exactly one selected executable; use -p group:name",
@@ -108,9 +115,8 @@ pub(super) fn execute(
                 enable_gc_stress,
                 enable_startup_stats,
             )?;
-            for request in requests {
-                let cwd = request.cwd.clone();
-                let result = scoop::build(request)?;
+            let cwd = std::env::current_dir().map_err(config)?;
+            for result in scoop::build_all(requests)? {
                 reporter.built(&result).map_err(config)?;
                 if args.no_run {
                     continue;

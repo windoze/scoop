@@ -1,0 +1,3 @@
+schema = 1
+[workspace]
+members = ["one", "same", "two"]

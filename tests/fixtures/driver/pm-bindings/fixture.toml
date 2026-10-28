@@ -1,0 +1,142 @@
+schema = 1
+name = "pm-workspace-bindings"
+inputs = ["workspace", "shared", "value1", "value2"]
+tools = ["scoop", "scoopc", "scoop-pm"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["driver", "pm", "workspace", "cache", "test-command"]
+
+[vars]
+options = ["--release", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--package-cache", "${work}/packages", "--message-format", "json", "--target-dir", "${work}/outputs"]
+members = ["${work}/project", "--workspace", "--cone-path", "${work}/artifacts", "--jobs", "2"]
+
+[[steps]]
+name = "copy"
+files = [
+  {copy = {from = "${fixture}/workspace", to = "${work}/project"}},
+  {copy = {from = "${fixture}/shared", to = "${work}/shared"}},
+  {copy = {from = "${fixture}/value1", to = "${work}/value1"}},
+  {copy = {from = "${fixture}/value2", to = "${work}/value2"}},
+]
+
+[[steps]]
+name = "value1"
+argv = ["${scoop}", "build", "${work}/value1", {each = "${compile_args}"}, {each = "${options}"}, "-o", "${work}/artifacts/scoop/scoop.pm.value/1.0.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "value2"
+argv = ["${scoop}", "build", "${work}/value2", {each = "${compile_args}"}, {each = "${options}"}, "-o", "${work}/artifacts/scoop/scoop.pm.value/2.0.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${members}"}, {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "batch-stderr"
+diagnostics = []
+checks = [
+  {actual = "${build.records.length}", equals = 3},
+  {actual = "${build.records.0.root.coordinate.name}", equals = "one"},
+  {actual = "${build.records.1.root.coordinate.name}", equals = "same"},
+  {actual = "${build.records.2.root.coordinate.name}", equals = "two"},
+  {actual = "${build.records.0.observations.child_invocations.length}", equals = 2},
+  {actual = "${build.records.1.observations.child_invocations.length}", equals = 1},
+  {actual = "${build.records.2.observations.child_invocations.length}", equals = 2},
+  {actual = "${build.records.0.dependencies.1.coordinate.version}", equals = "1.0.0"},
+  {actual = "${build.records.2.dependencies.1.coordinate.version}", equals = "2.0.0"},
+  {actual = "${build.records.0.dependencies.2.identity}", equals = "${build.records.2.dependencies.2.identity}"},
+  {actual = "${build.records.0.dependencies.2.path}", equals = "${build.records.1.dependencies.2.path}"},
+  {actual = "${build.records.0.dependencies.2.artifact_fingerprint}", not_equals = "${build.records.2.dependencies.2.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "frozen"
+argv = ["${scoop}", "build", "${work}/project", "--workspace", "--cone-path", "${work}/artifacts", "--jobs", "1", "--frozen", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "batch-stderr"
+diagnostics = []
+checks = [
+  {actual = "${frozen.records.0.observations.child_invocations}", equals = []},
+  {actual = "${frozen.records.1.observations.child_invocations}", equals = []},
+  {actual = "${frozen.records.2.observations.child_invocations}", equals = []},
+]
+
+[[steps]]
+name = "run_one"
+argv = ["${build.records.0.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run_same"
+argv = ["${build.records.1.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run_two"
+argv = ["${build.records.2.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "ambiguous_run"
+argv = ["${scoop}", "run", {each = "${members}"}, "--frozen", {each = "${link_args}"}, {each = "${options}"}]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = [{severity = "error", code = "SCOOP_CLI_CONFIG", phase = "Request", message = "run requires exactly one selected executable; use -p group:name", origin = {kind = "none"}, notes = []}]
+
+[[steps]]
+name = "one_executable"
+files = [
+  {replace = {path = "${work}/project/same/Cone.toml", old = 'kind = "executable"', new = 'kind = "library"'}},
+  {replace = {path = "${work}/project/two/Cone.toml", old = 'kind = "executable"', new = 'kind = "library"'}},
+]
+
+[[steps]]
+name = "run_workspace"
+argv = ["${scoop}", "run", {each = "${members}"}, "--offline", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${run_workspace.result.root.coordinate.name}", equals = "one"},
+  {actual = "${run_workspace.result.observations.child_invocations}", equals = []},
+]
+
+[[steps]]
+name = "test_workspace"
+argv = ["${scoop}", "test", {each = "${members}"}, "--offline", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "batch-stderr"
+diagnostics = []
+checks = [
+  {actual = "${test_workspace.records.length}", equals = 6},
+  {actual = "${test_workspace.records.0.observations.child_invocations.length}", equals = 1},
+  {actual = "${test_workspace.records.2.observations.child_invocations.length}", equals = 1},
+  {actual = "${test_workspace.records.4.observations.child_invocations.length}", equals = 1},
+  {actual = "${test_workspace.records.1.counts.passed}", equals = 1},
+  {actual = "${test_workspace.records.3.counts.passed}", equals = 1},
+  {actual = "${test_workspace.records.5.counts.passed}", equals = 1},
+]

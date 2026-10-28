@@ -1,0 +1,11 @@
+schema = 1
+[cone]
+group = "dev.pm"
+name = "one"
+version = "1.0.0"
+kind = "executable"
+[dependencies]
+"dev.pm:shared" = {path = "../../shared"}
+"scoop:scoop.pm.value" = "=1.0.0"
+[test-dependencies]
+"scoop:scoop.test" = "=0.1.0"

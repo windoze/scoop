@@ -760,7 +760,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 5. **registry与发布闭环**：静态协议、索引求解、归档获取、yank、workspace/path/Git发布转换及native vendor打包；本地HTTP完成发布到编译/运行。
 6. **工具与发行收尾**：build/run/test/check/doc/LSP统一输入、members/add/remove/deps/metadata、模板/清单更新、PM随工具链分发；PM独立测试及必要正式CLI回归。
 
-当前已接通独立 PM、解析/获取/lock、prepare、已展开 child 输入，以及普通 manifest 命令的自动准备与成员输出。后续继续完成跨根共享调度、低层清单迁移、源码发布和工具/发行收尾，阶段完成范围以实施记录为准。
+当前已接通独立 PM、解析/获取/lock、prepare、已展开 child 输入，以及普通 manifest 命令的自动准备、成员输出和跨根构建/测试队列。后续继续完成文档绑定隔离、低层清单迁移、源码发布和工具/发行收尾，阶段完成范围以实施记录为准。
 
 不包含同程序多版本、feature/variant、build scripts、通用任务DSL、二进制registry或托管账号/上传网站。既有M23对registry/求解的范围排除保持为历史记录，新增能力由本里程碑承担。
 

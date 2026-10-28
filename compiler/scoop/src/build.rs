@@ -1,4 +1,4 @@
-//! Produce one library or linked executable through the existing graph pipeline.
+//! Build independent closures with a shared compilation schedule, then publish each root.
 use std::path::{Path, PathBuf};
 
 use scoop_identity::{ConeIdentity, RequestedConeKind};
@@ -20,6 +20,32 @@ pub use outcome::*;
 pub use request::*;
 
 pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
+    Ok(build_all(vec![request])?.remove(0))
+}
+
+pub fn build_all(requests: Vec<BuildRequest>) -> BuildResult<Vec<BuildOutcome>> {
+    let mut graphs = Vec::new();
+    let mut finishers = Vec::new();
+    for request in requests {
+        let (graph, finish) = prepare(request)?;
+        graphs.push(graph);
+        finishers.push(finish);
+    }
+    let sources = graphs.iter().flat_map(source_context).collect::<Vec<_>>();
+    PreparedBuildGraph::execute_all(graphs)
+        .map_err(|error| BuildFailure::execution(error, &sources))?
+        .into_iter()
+        .zip(finishers)
+        .map(|(graph, finish)| finish(graph.into_outcome()))
+        .collect()
+}
+
+fn prepare(
+    request: BuildRequest,
+) -> BuildResult<(
+    PreparedBuildGraph,
+    impl FnOnce(crate::BuildGraphOutcome) -> BuildResult<BuildOutcome>,
+)> {
     let target = request
         .graph
         .target()
@@ -58,73 +84,73 @@ pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
     if let Some(dumps) = request.dumps {
         prepared.observe_dumps(dumps).map_err(output_error)?;
     }
-    let graph = prepared
-        .execute()
-        .map_err(|error| BuildFailure::execution(error, &sources))?
-        .into_outcome();
-    let finish = || -> BuildResult<_> {
-        if matches!(graph, crate::BuildGraphOutcome::Library { .. }) {
+    let publish = move |graph: crate::BuildGraphOutcome| {
+        let finish = || -> BuildResult<_> {
+            if matches!(graph, crate::BuildGraphOutcome::Library { .. }) {
+                output
+                    .publish(
+                        graph.root().artifact_locator(),
+                        Some(
+                            graph
+                                .root()
+                                .artifact()
+                                .summary()
+                                .artifact_fingerprint()
+                                .as_array(),
+                        ),
+                    )
+                    .map_err(output_error)?;
+                return Ok(None);
+            }
+            let (runtime, index) = runtime_input(
+                &request.runtime,
+                &target,
+                &cache,
+                &request.final_link,
+                &vendor_root,
+                request.enable_gc_stress,
+                request.enable_startup_stats,
+            )?;
+            let linked = executable::get(executable::Request {
+                graph: &graph,
+                runtime: &runtime,
+                target: &target,
+                cache: &cache,
+                profile: request.profile,
+                options: &request.final_link,
+                libraries: &request.library_paths,
+                explicit_runtime: matches!(&request.runtime, RuntimeInput::ObjectIndex(_)),
+            })?;
+            if let Some(symbol_map) = &linked.symbol_map {
+                OutputLocation::new(&scoop_linker::symbol_map_path(output.path()))
+                    .map_err(output_error)?
+                    .publish(symbol_map, Some(&linked.result_key))
+                    .map_err(output_error)?;
+            }
             output
-                .publish(
-                    graph.root().artifact_locator(),
-                    Some(
-                        graph
-                            .root()
-                            .artifact()
-                            .summary()
-                            .artifact_fingerprint()
-                            .as_array(),
-                    ),
-                )
+                .publish(&linked.path, Some(&linked.result_key))
                 .map_err(output_error)?;
-            return Ok(None);
-        }
-        let (runtime, index) = runtime_input(
-            &request.runtime,
-            &target,
-            &cache,
-            &request.final_link,
-            &vendor_root,
-            request.enable_gc_stress,
-            request.enable_startup_stats,
-        )?;
-        let linked = executable::get(executable::Request {
-            graph: &graph,
-            runtime: &runtime,
-            target: &target,
-            cache: &cache,
+            Ok(Some((index, linked.fingerprint, linked.path)))
+        };
+        let executable =
+            finish().map_err(|error| error.with_context(graph.warnings(), &sources))?;
+        let build = BuiltArtifacts {
+            output: output.path().to_owned(),
             profile: request.profile,
-            options: &request.final_link,
-            libraries: &request.library_paths,
-            explicit_runtime: matches!(&request.runtime, RuntimeInput::ObjectIndex(_)),
-        })?;
-        if let Some(symbol_map) = &linked.symbol_map {
-            OutputLocation::new(&scoop_linker::symbol_map_path(output.path()))
-                .map_err(output_error)?
-                .publish(symbol_map, Some(&linked.result_key))
-                .map_err(output_error)?;
-        }
-        output
-            .publish(&linked.path, Some(&linked.result_key))
-            .map_err(output_error)?;
-        Ok(Some((index, linked.fingerprint, linked.path)))
+            graph,
+            sources,
+        };
+        Ok(match executable {
+            None => BuildOutcome::Library(build),
+            Some((runtime_index, link_plan_fingerprint, executable)) => BuildOutcome::Executable {
+                build,
+                executable,
+                runtime_index,
+                link_plan_fingerprint,
+            },
+        })
     };
-    let executable = finish().map_err(|error| error.with_context(graph.warnings(), &sources))?;
-    let build = BuiltArtifacts {
-        output: output.path().to_owned(),
-        profile: request.profile,
-        graph,
-        sources,
-    };
-    Ok(match executable {
-        None => BuildOutcome::Library(build),
-        Some((runtime_index, link_plan_fingerprint, executable)) => BuildOutcome::Executable {
-            build,
-            executable,
-            runtime_index,
-            link_plan_fingerprint,
-        },
-    })
+    Ok((prepared, publish))
 }
 
 fn runtime_input(
