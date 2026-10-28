@@ -374,6 +374,8 @@ from 是相对当前 Cone 的普通文件/目录路径，to 是归档内相对�
 
 `scoop clean`在manifest/workspace模式只通过本地成员发现定位workspace的target目录，不求解、不获取依赖、不删除Cone.lock或全局PM缓存；单文件仍使用其既有target根。若用户显式`--target-dir`，按该路径清理原有输出范围。
 
+`deps --why <group:name>` 对包含该包的每个选中解析单位输出锁定版本/来源、所有直接约束边、声明位置，以及从根到各约束边的一条确定路径；测试边明确标记。根自身说明为选中的 root。解释的是当前 lock 和有效声明，不保存历史求解轨迹，也不声称保留的版本一定是远端最新版本。该命令始终只读本地来源，不下载、不展开缺少的远端源码、不更新 lock；缺少源码/索引提示 fetch，声明已不满足 lock 则要求 resolve。`--json` 输出 `format/resolutions`，每个 resolution 包含 `root/purpose/target/selected/source/requirements`（root/selected 为精确坐标），要求记录包含 `from/path/versions/source/test/origins`；origin 使用无损 host path 与声明 span。普通不带 why 的 deps 仍只需读取锁定图。
+
 `metadata` 返回与 prepare 相同的版本 1 `PreparedWorkspace` JSON，接受本地根/成员、用途、target、sysroot、artifact search roots、lockfile 和 PM cache 选择；始终要求已有且满足声明的锁定记录，不写 lock。`--json` 同时选择结构化错误，供 LSP 消费。在线时可获取已锁定但本机缺少的来源；`--offline` 只使用已展开的 Git checkout 与 registry 源码目录，不能从已有 Git objects 或源码归档隐式展开缺少的来源，缺少时明确提示 `scoop pm fetch`。有效的本地准备记录沿既有更新规则直接复用；普通 metadata 缓存写入不修改项目声明或依赖选择。
 
 add/remove 先验证拟写的 TOML，再原子替换该 manifest；解析由后续 resolve/build 触发，避免承诺 manifest 与 lock 的跨文件事务。取消、网络失败、无解和工具退出均明确返回失败；已有可用 lock、下载结果或构建结果只按各自成功边界发布。没有成功准备结果时 driver 不运行旧程序充当本次成功。

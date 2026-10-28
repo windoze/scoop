@@ -91,6 +91,16 @@ fn offline_metadata_does_not_checkout_available_git_objects() {
     let app = root.join("app");
     success(pm(root, &app, &["resolve"]));
     let original_source = source(&metadata(root, &app), "lib");
+    let why: serde_json::Value = serde_json::from_str(&success(pm(
+        root,
+        &app,
+        &["deps", "--why", "org.example:lib", "--json"],
+    )))
+    .unwrap();
+    assert_eq!(
+        why["resolutions"][0]["source"]["references"],
+        serde_json::json!([format!("rev:{commit}")])
+    );
     let before = fs::read(app.join("Cone.lock")).unwrap();
     let isolated = root.join("objects-only");
     let cache = PackageCache::resolve(root, Some(&isolated.join("cache"))).unwrap();
@@ -108,6 +118,15 @@ fn offline_metadata_does_not_checkout_available_git_objects() {
     let checkout = db.parent().unwrap().join("checkouts").join(&commit);
     prepare::failure(
         pm(&isolated, &app, &["metadata", "--offline", "--json"]),
+        "run scoop pm fetch",
+    );
+    assert!(!checkout.exists());
+    failure(
+        pm(
+            &isolated,
+            &app,
+            &["deps", "--why", "org.example:lib", "--json"],
+        ),
         "run scoop pm fetch",
     );
     assert!(!checkout.exists());
@@ -160,6 +179,15 @@ fn offline_metadata_does_not_extract_cached_registry_archives() {
     }
     prepare::failure(
         pm(&isolated, &app, &["metadata", "--offline", "--json"]),
+        "run scoop pm fetch",
+    );
+    assert!(!local.join("src").exists());
+    failure(
+        pm(
+            &isolated,
+            &app,
+            &["deps", "--why", "org.example:lib", "--json"],
+        ),
         "run scoop pm fetch",
     );
     assert!(!local.join("src").exists());

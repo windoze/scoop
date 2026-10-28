@@ -19,7 +19,7 @@ PM 生成和维护 `Cone.lock`；`scoop` 消费锁定图及其本地投影，向
 
 - `Cone.lock` 格式、精确坐标/来源及每个 root/purpose/target 的闭合图已落地；读取检查缺节点、重复包、循环、测试边和不可达节点。
 - 锁文件写入按文件锁串行合并所选解析单位，保留其他根/用途，移除已删除成员；失败不替换旧文件，未变化不重写。
-- `deps` 可只读输出已锁定图及 JSON；`--why` 的声明原因输出待 metadata 接口接入。
+- `deps` 可只读输出已锁定图及 JSON；`--why` 补充本地声明原因，见下文。
 - PM 缓存位置按 CLI、环境变量、`~/.scoop/packages/` 的优先级选择；registry/Git 目录键包含规范化来源。
 
 ### Git 与 registry 的共享获取
@@ -97,7 +97,13 @@ PM 生成和维护 `Cone.lock`；`scoop` 消费锁定图及其本地投影，向
 
 - `scoop pm metadata [--offline]` 返回与 prepare 相同的版本 1 项目模型，支持成员、用途、目标及本地输入选择；始终要求有效 lock，不生成或更新依赖选择。`--json` 错误保留现有结构化诊断。
 - 命中准备记录时直接复用；离线只使用已有 Git checkout / registry 源码目录，缺少时提示 fetch，不因本机已有 objects 或归档而隐式展开。普通 fetch 的离线展开能力保持，在线 metadata 可获取已锁定的缺少来源。
-- 本批提供 LSP 所需的只读接口；语言服务接入与 deps --why 仍待后续完成。
+- 本批提供 LSP 所需的只读接口；语言服务接入仍待后续完成。
+
+
+### 锁定依赖原因说明
+
+- `deps --why group:name` 按所选 root/purpose/target 显示实际锁定坐标和来源，列出全部入边的版本要求、声明位置及从根到各入边的一条确定路径。继承声明保留定义/引用两处，测试边单独标记；独立根不会合并成一个版本解释。
+- 人类文本与 JSON 共用同一解释数据，Git 来源保留 lock 中的 commit/selector；只说明当前选择，不保存历史求解轨迹或查询最新版本。普通 deps 继续只读 lock，why 在锁定模式检查本地声明，缺少远端来源提示 fetch，陈旧 lock 提示 resolve；不隐式下载、展开或写 lock。
 
 ## 验证记录
 
@@ -118,4 +124,5 @@ PM 生成和维护 `Cone.lock`；`scoop` 消费锁定图及其本地投影，向
 - 文档混合来源补充：macOS/Linux 的绑定用例扩展为各 17 次实际调用，复用真实构建出的 `.slib` 与另一个上游版本的源码一起生成文档，验证独立 catalog、re-export 不错误连接以及全部本地链接；两端通过。
 - 编译器入口退役批次：全 workspace lint 通过；macOS/Linux 的请求与 CLI 15 项、底层 core/依赖 preflight 12 项及真实展开配置 child 用例通过。两端共 59 个相关文件 fixture 全部闭合（Linux 本批 273 次进程调用），覆盖首次 build/run 自动创建 lock、locked/frozen 缺锁拒绝、生产/测试隔离、core 自举、精确产物及 native/链接错误顺序；迁移中发现的旧声明和诊断期望已修正并仅复跑受影响用例。
 - metadata 批次：workspace lint 与两端 PM 34 项单元、2 项基础 CLI、16 项解析/准备场景通过。真实命令覆盖缺锁/陈旧 lock 拒绝、共享准备记录、保留 lock、Git objects-only 与 registry archives-only 的离线读取边界，以及显式 fetch 后读取和在线获取；源码、归档和工具保持在位。首轮复用断言的测试 sysroot 路径与实际 CLI 默认值不同，改为显式共同路径后闭合。
+- deps --why 批次：workspace lint、两端 17 项解析/准备 CLI 场景与既有本地 workspace fixture（各 8 次进程调用）通过。验证不同根版本、两条传递约束、继承位置、测试边、root/不存在包、缺锁/陈旧锁、Git selector，以及 objects/archives-only 缓存不被隐式展开；lock 内容和修改时间保持。
 - 原始日志与临时工作文件在仓库外。按阶段清理 `target/debug/incremental`，保留当前二进制与依赖构建结果。

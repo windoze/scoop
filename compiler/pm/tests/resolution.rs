@@ -3,6 +3,8 @@ mod server;
 
 #[path = "resolution/artifact.rs"]
 mod artifact;
+#[path = "resolution/deps.rs"]
+mod deps;
 #[path = "resolution/git.rs"]
 mod git;
 #[path = "resolution/metadata.rs"]

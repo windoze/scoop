@@ -55,6 +55,14 @@ pub fn resolve(request: ResolveRequest) -> PmResult<ResolvedWorkspace> {
     resolve_with_sources(request, false)
 }
 
+/// Inspect current declarations against a fixed lock. Offline inspection only
+/// uses source directories that have already been materialized.
+pub fn inspect(mut request: ResolveRequest) -> PmResult<ResolvedWorkspace> {
+    request.locked = true;
+    let local_sources_only = request.offline;
+    resolve_with_sources(request, local_sources_only)
+}
+
 pub(crate) fn resolve_with_sources(
     request: ResolveRequest,
     local_sources_only: bool,
@@ -133,6 +141,9 @@ pub(crate) fn resolve_with_sources(
         catalog.update_policy(&policy);
         let root = catalog.root(member, request.purpose)?;
         let solution = solving::solve(root, &mut policy, &mut catalog).map_err(|mut error| {
+            if request.locked && !error.resolution_conflicts.is_empty() {
+                error.message.push_str("\nCone.lock cannot satisfy the current requirements; run scoop pm resolve");
+            }
             if request.offline && !error.resolution_conflicts.is_empty() {
                 error.message.push_str("\n--offline used only local metadata and Git objects; remote versions were not checked");
             }
