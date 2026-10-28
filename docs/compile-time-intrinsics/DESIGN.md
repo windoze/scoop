@@ -246,6 +246,8 @@ LSP 在正常按需分析到声明或正文时求值，并将输入观察关联�
 
 支持动态文件监听的客户端为实际查询过 include 的源码 Cone 注册目录监听，覆盖根目录本身及后代；包括源码依赖和读取失败的请求。定位根与实际根不同时同时监听，覆盖 Cone 内链接改指、目标更新、缺失文件补建及新增嵌套目录。普通资源通知先复用现有输入记录判断更新；成功输入未变时不重读内容、不重建项目或重发诊断。失败输入在该 Cone 的下一次资源通知时重试。实际更新推进分析 revision、取消旧快照并重新调度打开文档；监听集合随当前分析结果更新，旧配置的注册撤销。客户端不支持动态注册时仍处理其主动发送的资源通知，并在正常语义查询时检查输入更新。
 
+客户端声明 LSP 3.17 relativePatternSupport 时，以 Cone 的父目录 URI 和转义后的目录名注册 RelativePattern，分别覆盖目录本身与后代；不支持时使用字符串 pattern。这使工作区外的源码依赖以及 Cone 根删除／重建也能产生通知。[VS Code 的 watcher](https://code.visualstudio.com/api/references/vscode-api#workspace.createFileSystemWatcher) 只有使用 RelativePattern 才会增加工作区外的监听根，字符串 glob 不能替代这一注册。
+
 源码包沿[包管理规范](../specs/SCOOP-PACKAGE-SPEC.md) 9 的普通资源打包规则包含所需文件。本组语法中的相对路径不会被 PM 当作可重写的 manifest 路径；发布者须保持源码与资源的相对布局。PM 不执行 HIR、glob 或 env 来猜测发布文件集合，不为本功能新增 build script／资源生成步骤。资源必须在定义 Cone 内，包括 symlink 的实际目标；绝对路径不会绕过范围检查，其发布可移植性仍由原打包规则负责。该限制不改变 PM 对其他输入的路径语义。
 
 ## 11. 实施步骤

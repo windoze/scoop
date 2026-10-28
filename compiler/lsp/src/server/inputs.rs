@@ -75,13 +75,11 @@ impl Server {
             .checked_add(1)
             .expect("resource watch identifiers exhausted");
         if !watches.roots.is_empty() {
+            let relative = self.workspace_settings.relative_watch_patterns;
             let patterns = watches
                 .roots
                 .iter()
-                .flat_map(|root| {
-                    let root = literal_glob(root);
-                    [root.clone(), format!("{root}/**/*")]
-                })
+                .flat_map(|root| watch_patterns(root, relative))
                 .map(|pattern| serde_json::json!({"globPattern": pattern}))
                 .collect::<Vec<_>>();
             watches.send(
@@ -133,6 +131,19 @@ fn literal_glob(path: &Path) -> String {
             character => character.to_string(),
         })
         .collect()
+}
+
+fn watch_patterns(root: &Path, relative: bool) -> [serde_json::Value; 2] {
+    if relative
+        && let (Some(parent), Some(name)) = (root.parent(), root.file_name())
+        && let Ok(base) = url::Url::from_directory_path(parent)
+    {
+        let name = literal_glob(Path::new(name));
+        return [name.clone(), format!("{name}/**/*")]
+            .map(|pattern| serde_json::json!({"baseUri": base.as_str(), "pattern": pattern}));
+    }
+    let root = literal_glob(root);
+    [root.clone(), format!("{root}/**/*")].map(serde_json::Value::String)
 }
 
 #[cfg(test)]

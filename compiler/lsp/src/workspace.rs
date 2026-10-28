@@ -61,6 +61,7 @@ pub(crate) struct WorkspaceSettings {
     folders: Vec<WorkspaceFolder>,
     options: Value,
     pub watch_registration: bool,
+    pub relative_watch_patterns: bool,
 }
 
 impl WorkspaceSettings {
@@ -76,12 +77,16 @@ impl WorkspaceSettings {
             });
         }
         self.options = params.initialization_options.clone().unwrap_or(Value::Null);
-        self.watch_registration = params
+        let watch = params
             .capabilities
             .workspace
             .as_ref()
-            .and_then(|workspace| workspace.did_change_watched_files.as_ref())
+            .and_then(|workspace| workspace.did_change_watched_files.as_ref());
+        self.watch_registration = watch
             .and_then(|files| files.dynamic_registration)
+            .unwrap_or(false);
+        self.relative_watch_patterns = watch
+            .and_then(|files| files.relative_pattern_support)
             .unwrap_or(false);
     }
 

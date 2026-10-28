@@ -133,6 +133,8 @@ Darwin 全 workspace lint 通过；一次全量 Rust 运行报告 6209 项通过
 
 Darwin／Linux 相关 crate lint 通过，LSP 共 23 项测试通过（原完整 crate 运行中两个新增测试的输入设置已修正并定向重跑），另各通过 1 项共享分析组合测试。实际 stdio 进程覆盖 includeStr 的非法 UTF-8、includeBytes 缺失／恢复、includeDir 嵌套项变化、源码依赖与 Cone 内目标更新、排除项越界链接修复、未改源码时诊断清除、无关文件写入不重发诊断，以及移除 include 后撤销监听；共享分析验证失效旧快照时仍保留 SourceVersion。字符串 glob 的转义使用真实 matcher 验证。
 
+客户端支持 relativePatternSupport 时，资源注册使用 Cone 父目录 URI 与目录名的 RelativePattern，使 VS Code 能监听工作区外的源码依赖，并接收 Cone 根删除／重建的通知。不支持该能力时保留字符串模式。两平台格式检查与 LSP lint 通过，两个 stdio 资源测试分别通过；实际覆盖两种能力分支、外部依赖注册，以及 Cone 根缺失时报错、恢复后清除诊断。
+
 includeDir 验收补充：全 workspace doc tests 顺序重跑通过；此前缺少依赖产物的问题由重叠 Cargo 构建导致，后续 Cargo 验证保持串行。Darwin 已显式准备当前 worktree 的 25 个内置 Cone 和四种 runtime，fixture runner 的 59 项规则测试通过。完整 CLI 正在使用固定的工具副本运行；一次误指向主工作区旧 core 源码的配置已更正并重跑，该批配置错误不计为编译器失败。全量 Rust 剩余 12 项失败仍按上节记录，不能宣称全量通过。
 
 ### 组合验收收尾

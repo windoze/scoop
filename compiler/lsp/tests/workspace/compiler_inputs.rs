@@ -5,11 +5,11 @@ fn real_core(root: &Path) {
     std::os::unix::fs::symlink(core, root.join("core/src/ordinary")).unwrap();
 }
 
-fn start(root: &Path) -> Client {
+fn start(root: &Path, relative: bool) -> Client {
     let mut client = Client::start();
     client.request("initialize", json!({
         "processId": null,
-        "capabilities": {"workspace": {"didChangeWatchedFiles": {"dynamicRegistration": true}}},
+        "capabilities": {"workspace": {"didChangeWatchedFiles": {"dynamicRegistration": true, "relativePatternSupport": relative}}},
         "workspaceFolders": [{"uri": uri(&root.join("app")), "name": "app"}],
         "initializationOptions": {"packageCacheDir": root.join("pm-cache")}
     })).response_result.unwrap();
@@ -24,9 +24,21 @@ fn watched(client: &Client, path: &Path) -> bool {
             .unwrap()
             .iter()
             .any(|watcher| {
-                glob::Pattern::new(watcher["globPattern"].as_str().unwrap())
-                    .unwrap()
-                    .matches_path(path)
+                let pattern = &watcher["globPattern"];
+                match pattern.as_str() {
+                    Some(pattern) => glob::Pattern::new(pattern).unwrap().matches_path(path),
+                    None => {
+                        let base = url::Url::parse(pattern["baseUri"].as_str().unwrap())
+                            .unwrap()
+                            .to_file_path()
+                            .unwrap();
+                        path.strip_prefix(base).is_ok_and(|path| {
+                            glob::Pattern::new(pattern["pattern"].as_str().unwrap())
+                                .unwrap()
+                                .matches_path(path)
+                        })
+                    }
+                }
             })
     })
 }
@@ -73,7 +85,7 @@ fn file_resources_refresh_diagnostics_and_retire_unused_watches_without_source_e
     let source = uri(&write(root, "app/src/value.scoop", text));
     let binary = write(root, "app/src/data.bin", "bytes");
     let resource = root.join("app/src/data.txt");
-    let mut client = start(root);
+    let mut client = start(root, false);
     client.open(&source, text);
     error(&mut client, &source, "cannot read include input");
     assert!(watched(&client, &resource));
@@ -150,10 +162,24 @@ fn directory_resources_in_source_dependencies_watch_nested_entries_and_link_targ
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    let mut client = start(root);
+    let mut client = start(root, true);
     client.open(&app_source, app_text);
     clean(&mut client, &app_source, 1);
     assert!(watched(&client, &target));
+    assert!(watched(&client, &root.join("lib")));
+    assert!(client.registrations.values().any(|registration| {
+        registration["registerOptions"]["watchers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|watcher| {
+                watcher["globPattern"]["baseUri"]
+                    .as_str()
+                    .is_some_and(|base| {
+                        url::Url::parse(base).unwrap().to_file_path().unwrap() == root
+                    })
+            })
+    }));
     client.open(&source, text);
     clean(&mut client, &source, 1);
 
@@ -175,6 +201,14 @@ fn directory_resources_in_source_dependencies_watch_nested_entries_and_link_targ
     std::fs::remove_file(&link).unwrap();
     std::os::unix::fs::symlink(&target, &link).unwrap();
     notify(&mut client, &link, 2);
+    clean(&mut client, &source, 1);
+    let library = root.join("lib");
+    let moved = root.join("moved-library");
+    std::fs::rename(&library, &moved).unwrap();
+    notify(&mut client, &library, 3);
+    error(&mut client, &source, "cannot read include input");
+    std::fs::rename(&moved, &library).unwrap();
+    notify(&mut client, &library, 1);
     clean(&mut client, &source, 1);
     client.finish();
 }
