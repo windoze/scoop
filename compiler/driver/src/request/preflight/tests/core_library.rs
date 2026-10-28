@@ -1,5 +1,5 @@
 use super::*;
-use crate::{HostArtifactLocator, normalize_direct_build_request};
+use crate::HostArtifactLocator;
 
 mod direct_inputs;
 mod metadata;
@@ -101,14 +101,14 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
 }
 
 fn build_core(source: &Path, artifact: &Path) -> SingleConeProductionSuccess {
-    normalize_direct_build_request(
-        source,
-        Vec::new(),
-        Vec::new(),
-        artifact,
+    SingleConeBuildRequest::new(
+        crate::request::test_support::expanded_fixture(ManifestRootLocator::cone_directory(source)),
+        ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
+        TrustedCoreInput::BootstrapSelf,
+        scoop_toolchain::ResolvedTargetProfile::resolve_host().unwrap(),
+        SlibOutputDestination::new(artifact).unwrap(),
         DiagnosticOutputPolicy::Human,
         StageDumpPolicy::None,
-        Default::default(),
     )
     .unwrap()
     .build_and_publish()
@@ -214,9 +214,7 @@ fn assert_explicit_core_version_is_checked(
     std::fs::create_dir_all(&root).unwrap();
     std::fs::write(root.join("Cone.toml"), "schema = 1\n[cone]\ngroup = \"test\"\nname = \"consumer\"\nversion = \"1.0.0\"\nkind = \"library\"\n[dependencies]\n\"scoop:scoop.core\" = \"0.2.0\"\n").unwrap();
     let error = SingleConeBuildRequest::new(
-        CurrentConeInput::Manifest {
-            root: ManifestRootLocator::cone_directory(&root),
-        },
+        crate::request::test_support::expanded_fixture(ManifestRootLocator::cone_directory(&root)),
         ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
         TrustedCoreInput::Artifact(HostArtifactLocator::new(core).unwrap()),
         target.clone(),
@@ -247,9 +245,7 @@ fn assert_non_core_artifact_is_rejected(
     std::fs::create_dir_all(&root).unwrap();
     std::fs::write(root.join("Cone.toml"), "schema = 1\n[cone]\ngroup = \"test\"\nname = \"non-core-input\"\nversion = \"1.0.0\"\nkind = \"library\"\n").unwrap();
     let loaded = SingleConeBuildRequest::new(
-        CurrentConeInput::Manifest {
-            root: ManifestRootLocator::cone_directory(&root),
-        },
+        crate::request::test_support::expanded_fixture(ManifestRootLocator::cone_directory(&root)),
         ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
         TrustedCoreInput::Artifact(HostArtifactLocator::new(artifact).unwrap()),
         target.clone(),

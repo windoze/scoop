@@ -1,0 +1,28 @@
+format = 1
+
+[[resolutions]]
+root = "server"
+purpose = "production"
+target = "aarch64-apple-darwin"
+root-coordinate = "dev.example:server:0.1.0"
+
+[[resolutions.nodes]]
+coordinate = "dev.example:model:0.1.0"
+kind = "library"
+dependencies = ["scoop:scoop.core:0.1.0"]
+test-dependencies = []
+source = { kind = "path", path = "model" }
+
+[[resolutions.nodes]]
+coordinate = "dev.example:server:0.1.0"
+kind = "executable"
+dependencies = ["dev.example:model:0.1.0", "scoop:scoop.core:0.1.0"]
+test-dependencies = []
+source = { kind = "path", path = "server" }
+
+[[resolutions.nodes]]
+coordinate = "scoop:scoop.core:0.1.0"
+kind = "library"
+dependencies = []
+test-dependencies = []
+source = { kind = "sysroot", name = "scoop.core" }

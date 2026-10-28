@@ -185,8 +185,8 @@ mod tests {
     use std::path::Path;
 
     use crate::{
-        CurrentConeRequestV1, DiagnosticNoteV1, DiagnosticOriginV1, DiagnosticOutputPolicyV1,
-        DiagnosticSeverityV1, EmittedDumpDescriptorV1, EmittedDumpDestinationV1, HostPathCarrier,
+        DiagnosticNoteV1, DiagnosticOriginV1, DiagnosticOutputPolicyV1, DiagnosticSeverityV1,
+        EmittedDumpDescriptorV1, EmittedDumpDestinationV1, HostPathCarrier,
         ProtocolValidationError, RequestCorrelationId, ScoopcBuildRequestV1,
         ScoopcRequestEnvelopeV1, ScoopcResponseEnvelopeV1, ScoopcSuccessV1, StageDumpKindV1,
         StageDumpPolicyV1, StructuredDiagnosticV1, TargetSelectionRequestV1, TrustedCoreRequestV1,
@@ -230,9 +230,7 @@ mod tests {
         ScoopcRequestEnvelopeV1::new(
             RequestCorrelationId::from_array([7; 16]),
             ScoopcBuildRequestV1::new(
-                CurrentConeRequestV1::ManifestRoot {
-                    root: path("project/Cone.toml"),
-                },
+                crate::test_support::manifest("project"),
                 vec![path("deps/direct.slib")],
                 vec![path("deps/support.slib")],
                 TrustedCoreRequestV1::ArtifactSlot {
@@ -253,8 +251,8 @@ mod tests {
         let frame = encode_request_frame(&request).unwrap();
         assert_eq!(decode_request_frame(&frame).unwrap(), request);
         assert_eq!(
-            u64::from_le_bytes(frame[..8].try_into().unwrap()),
-            if cfg!(windows) { 294 } else { 206 }
+            u64::from_le_bytes(frame[..8].try_into().unwrap()) as usize,
+            frame.len() - 8
         );
     }
 

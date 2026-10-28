@@ -4,12 +4,10 @@ use std::path::Path;
 use scoop_ast::{CurrentConeParsedSources, NonEmptyVec};
 use scoop_identity::{ConeCoordinate, ConeIdentity, TargetProfileId};
 use scoop_manifest::{
-    DiscoveredManifestSources, DiscoveredSource, LoadedConeManifest, ManifestRootError,
-    SingleFileInputError, SingleFileLocator, SourceDiscoveryError, discover_manifest_sources,
-    load_single_file_source,
+    DiscoveredManifestSources, DiscoveredSource, LoadedConeManifest, SingleFileInputError,
+    SingleFileLocator, SourceDiscoveryError, discover_manifest_sources, load_single_file_source,
 };
 use scoop_parser::{CurrentConeSourceInput, ParseCurrentConeError, parse_current_cone};
-use scoop_toolchain::load_cone_manifest;
 
 #[cfg(test)]
 use super::SlibOutputDestination;
@@ -253,11 +251,9 @@ fn load_current_input(
     current: CurrentConeInput,
 ) -> Result<LoadedCurrentConeInput, SingleConePreflightError> {
     match current {
-        CurrentConeInput::Manifest { root } => load_cone_manifest(&root)
-            .map(|manifest| LoadedCurrentConeInput::Manifest {
-                manifest: Box::new(manifest),
-            })
-            .map_err(|source| SingleConePreflightError::Manifest(Box::new(source))),
+        CurrentConeInput::ExpandedManifest { manifest } => {
+            Ok(LoadedCurrentConeInput::Manifest { manifest })
+        }
         CurrentConeInput::SingleFile { source } => {
             let input = load_single_file_source(&source)
                 .map_err(|error| SingleConePreflightError::SingleFile(Box::new(error)))?;
@@ -391,7 +387,6 @@ impl std::error::Error for CurrentConeSourceStageError {
 
 #[derive(Debug)]
 pub enum SingleConePreflightError {
-    Manifest(Box<ManifestRootError>),
     SingleFile(Box<SingleFileInputError>),
     ExplicitDependencyLoad(Box<ExplicitDependencyLoadError>),
     Dependencies(Box<ExplicitDependencyValidationError>),
@@ -402,7 +397,6 @@ pub enum SingleConePreflightError {
 impl fmt::Display for SingleConePreflightError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Manifest(source) => source.fmt(formatter),
             Self::SingleFile(source) => source.fmt(formatter),
             Self::ExplicitDependencyLoad(source) => source.fmt(formatter),
             Self::Dependencies(source) => source.fmt(formatter),
@@ -415,7 +409,6 @@ impl fmt::Display for SingleConePreflightError {
 impl std::error::Error for SingleConePreflightError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Manifest(source) => Some(source.as_ref()),
             Self::SingleFile(source) => Some(source.as_ref()),
             Self::ExplicitDependencyLoad(source) => Some(source.as_ref()),
             Self::Dependencies(source) => Some(source.as_ref()),

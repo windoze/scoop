@@ -23,7 +23,7 @@ json = "stderr"
 diagnostics = []
 checks = [
   {actual = "${debug.result.root.path}", contains = "${work}/cone/target/${target}/build/debug/compile-v3/"},
-  {actual = "${debug.result.output}", equals = "${work}/cone/target/${target}/debug/local-cache.slib"},
+  {actual = "${debug.result.output}", equals = "${work}/cone/target/${target}/debug/test.cache/local-cache/local-cache.slib"},
   {actual = "${debug.result.observations.child_invocations.length}", equals = 1},
   {file = "${work}/target", exists = false},
 ]
@@ -189,12 +189,12 @@ stderr = "${work}/not-a-directory: error[SCOOP_CLEAN_IO]: Not a directory (os er
 checks = [{file = "${work}/not-a-directory", equals = "keep"}]
 
 [[steps]]
-name = "clean_no_parent_search"
+name = "clean_parent_search"
 cwd = "${work}/cone/nested"
 argv = ["${scoop}", "clean"]
-exit = 1
+exit = 0
 stdout = ""
-stderr = "${work}/cone/nested/Cone.toml: error[SCOOP_CLI_CONFIG]: invalid current Cone operand ${work}/cone/nested/Cone.toml: cannot inspect: No such file or directory (os error 2)\n"
+stderr = "cleaned ${work}/cone/target\n"
 checks = [{file = "${work}/cone/nested/target/keep", equals = "keep"}]
 
 [[steps]]
@@ -203,7 +203,7 @@ files = [{write = {path = "${work}/cone/Cone.toml", data = "invalid manifest"}},
 
 [[steps]]
 name = "clean_invalid_manifest"
-argv = ["${scoop}", "clean", "${work}/cone", "--message-format", "json"]
+argv = ["${scoop}", "clean", "${work}/cone", "--target-dir", "${work}/cone/target", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

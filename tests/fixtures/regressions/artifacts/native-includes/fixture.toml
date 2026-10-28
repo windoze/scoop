@@ -7,7 +7,7 @@ tags = ["native", "regressions"]
 variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/program", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--profile", "${profile}"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--profile", "${profile}"]
 exit = 0
 stdout = ""
 stderr = ""

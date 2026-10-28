@@ -10,11 +10,12 @@
 | 可执行 Cone | `scoop run app --release` 或 `scoop run app/Cone.toml --release` 选择完整项目。默认从 `src/` 递归选择 `.scoop` 文件。 |
 | library Cone | `scoop build library --release` 产生库产物；通过库测试或真实消费者验证，不给库添加虚假 main 来运行。 |
 
-build/run/check/test/doc 的省略输入形式使用当前目录的 `Cone.toml`，不向父目录搜索。测试与文档要求 manifest Cone。已有项目直接修改；新项目可使用：
+build/run/check/test/doc 省略输入时从当前目录向上查找最近的 `Cone.toml` 及其 workspace；成员目录默认选该成员，workspace 根使用 `default-members`。测试与文档要求 manifest Cone。已有项目直接修改；新项目可使用：
 
 ```sh
 scoop new my-app --group example.app
 scoop new my-lib --group example.lib --kind library
+scoop pm new --workspace my-workspace
 ```
 
 目标目录必须不存在，包括空目录。`new` 默认创建生产源码、`tests/basic.scoop` 和测试依赖；只有确实不需要测试模板时才传 `--no-tests`。name 默认取目录名；目录名含空格等不符合 Cone 名称规则的字符时，用 `--name` 指定合法名称。`--version`、`--package` 也可覆盖默认值；此命令不下载模板或构建程序。
@@ -50,12 +51,28 @@ kind = "executable"
 "scoop:scoop.test" = "0.1.0"
 ```
 
-- 普通 manifest 默认依赖 core；std 与其他使用的库需显式声明。版本是精确版本，不是范围、`latest` 或自动解析的最新版本。
+- 普通 manifest 默认依赖 core；std 与其他使用的库需显式声明。`"1.2.3"` 是 caret 兼容范围，`"=1.2.3"` 才是精确版本，也可使用 tilde 或比较约束；不支持 `latest`。PM 在一个程序的完整依赖图中为每个 `group:name` 选择一个版本，默认保留有效 lock，新选择优先最新兼容版本。
 - 依赖是 Cone coordinate，import 是源码 package／名称，二者不必同名。例如 `scoop.std` 提供 `scoop.collections`、`scoop.time` 等包。安装根内有库不代表当前 Cone 已声明它；传递依赖也不自动成为直接可访问 API。
 - 普通 Cone 的源码 package 必须等于 group 或位于其子包；同一 Cone 的文件可以互用 internal 声明，跨 Cone 需要公开 API。单文件不建立项目的 package 结构，package header 会被忽略并产生 warning。
 - 本地源码依赖的写法可从 `language/visibility` 取得，例如 `"example.lib:greeter" = { version = "0.1.0", path = "../library" }`。path 相对声明它的 manifest，coordinate 必须与被引用库一致。
 - 显式 `sources` 是完整源码选择清单，不会额外追加默认 `src/`。增加文件前先检查项目是否使用显式清单或平台条件。
 - 随包系统库按目标预编译，普通应用复用所选 sysroot。缺失目标、版本不匹配和源码类型错误应分别处理，不自动修改依赖版本或从源码重建 sysroot。
+
+workspace 根用 `[workspace] members = ["app", "library"]` 列出成员目录，可配置 `default-members`。成员通过 `{ workspace = true }` 显式继承根的 `[workspace.cone]` 字段或 `[workspace.dependencies]` 条目。`--workspace` 选择全部成员，`-p group:name` 选择指定成员；`run` 要求所选成员中只有一个 executable。不同程序可以锁定同一依赖的不同版本。
+
+非 `scoop` group 的裸版本依赖要求明确的 `[registry] default`；它不会按 `--cone-path` 猜测本地产物。来源写法例如：
+
+```toml
+[dependencies]
+"example.lib:greeter" = { path = "../library" }
+"org.example:json" = { version = "1.4.0", registry = "https://packages.example.org/scoop/" }
+"org.example:codec" = { github = "example/codec", rev = "<实际 commit>" }
+"org.example:legacy" = { version = "=2.0.1", artifact = "../artifacts/legacy.slib" }
+```
+
+Git/GitHub 可指定 branch、tag 或 rev，最终完整 commit 写入 `Cone.lock`；同仓库中的包可用 `subdir` 选择。不要把示例 URL、仓库或 commit 当作已存在的包。registry 只需托管静态索引和源码归档，PM 按索引下载所选版本；源码默认共享在 `~/.scoop/packages/`，构建输出仍归项目和构建缓存管理。
+
+缺少 lock 时，普通 build/run 自动调用配套 PM 解析并生成；`--locked` 要求已有匹配 lock，`--frozen` 还禁止联网。提交项目的 `Cone.lock`；修改声明后运行 `scoop pm resolve`，显式升级用 `scoop pm update`，获取已有锁定来源用 `scoop pm fetch`。`deps --why group:name` 解释选择原因，`add/remove` 编辑声明后不自动更新 lock。编辑器只消费本地已有的锁定依赖；提示缺少输入时先 resolve/fetch。源码打包和 publish 流程尚未提供。
 
 ## 按目的选择命令
 
@@ -66,6 +83,7 @@ kind = "executable"
 | 生产语义检查 | `scoop check . --release` | 检查前端及生产入口，不生成根机器产物；需要更新的源码依赖仍可能构建。 |
 | 测试语义检查 | `scoop check . --tests --release` | 检查生产和测试源码及生成的测试入口，不检查生产 main。 |
 | 编译／链接 | `scoop build . --release` | 完成当前 Cone 产物及可执行 Cone 的链接，`-o` 选择输出位置。 |
+| 仅生成产物 | `scoop build . --emit-slib --release` | 发布根 `.slib`，不准备 runtime 或执行最终链接；测试产物可再加 `--tests`。 |
 | 执行 | `scoop run . --release -- Alice --count 2` | `--` 后原样传给程序。程序的 `--help` 也放在分隔符后。 |
 | 测试 | `scoop test . --release` | 编译并运行 manifest Cone 的测试，保持测试依赖在 `[test-dependencies]`。 |
 | 选择测试 | `scoop test . --release --filter "zero count"` | 按完整测试名称的子串筛选；`--list` 列举，`--no-run` 仅构建，`--nocapture` 显示输出。 |

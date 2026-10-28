@@ -79,11 +79,13 @@ stdout = ""
 stderr = ""
 [[steps]]
 name = "direct"
-argv = ["${scoopc}", "build", "--profile", "release", "${work}/cone", "--sysroot", "override resources", {"each" = "${compile_args}"}, "--out-slib", "${work}/direct.slib"]
+argv = ["${scoop}", "build", "--profile", "release", "${work}/cone", "--sysroot", "override resources", {each = "${compile_args}"}, "-o", "${work}/direct.slib", "--emit-slib", "--cache-dir", "${cache}", "--target-dir", "${work}/compiler-output", "--message-format", "json"]
 env = {SCOOP_SYSROOT = "${work}/primary", SCOOP_CACHE_DIR = "${work}/cache"}
 exit = 0
 stdout = ""
 stderr = ""
+json = "stderr"
+diagnostics = []
 
 [[steps]]
 name = "direct_link"

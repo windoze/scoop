@@ -7,7 +7,7 @@
 | W0 工具链与 ABI | 关键路线实验通过 | 复现入口与范围见下文；正式编译器集成在 W1／W2 完成 |
 | W1 编译／链接 | 实施中 | 三目标开发 CLI 已支持 subsystem、RC、DLL 数据与跨 Cone C++；函数入口的 CodeView／PDB 定位通过，继续源位置覆盖与 ABI 组合验收 |
 | W2 core runtime | 实施中 | core／std／test 已构建且 Cone 测试通过，异常、移动 GC、callback、TLS、初始化、shutdown 与并行 GC 的定向程序通过；继续其余 ABI／GC 组合验收 |
-| W3 系统库 | 实施中 | 字符串／路径、错误、线程／同步、时钟／熵、同步 socket、文件 HANDLE、目录枚举、链接／临时路径、环境变量与目录查询已有定向验证；继续参数／系统信息／进程、console、IOCP、全部 native 组件及真实 consumer |
+| W3 系统库 | 实施中 | 字符串／路径、错误、线程／同步、时钟／熵、同步 socket、文件 HANDLE、目录枚举、链接／临时路径、环境变量与目录查询及原始参数已有定向验证；继续系统信息／进程、console、IOCP、全部 native 组件及真实 consumer |
 | W4 宿主与发行 | 基础实施中 | 进程中断已实现；继续 Windows 命令、维护脚本、DLL／SDK 布局与打包、交叉编译 |
 
 本地实现和完整验收完成后，才在 Linux `nuc12w.0d0a.com` 与 macOS `mm.0d0a.com` 的 `~/repos` 下新建测试目录，运行与变更范围相称的回归。原始日志与构建目录放在仓库外。
@@ -206,3 +206,7 @@ File 与匿名 pipe 已改用独立的完整宽度文件 handle，Windows 实现
 Windows startup 现以 canonical WTF-8 无损保存原始 UTF-16 参数，包括 argv[0]、非配对 surrogate 和成对的非 BMP 字符；沿用进程生命周期的只读 argc／argv ABI。无参数 main 可读取原始参数，有 Array<String> 参数的 main 保持 core 的严格解码及原有下标诊断。三个 target 的普通／GC stress runtime 已更新，其余系统库复用现有产物。
 
 Microsoft LLD／LINK、MinGW MSVCRT／UCRT 四种组合均通过新参数 fixture，每组合 1 个变体／7 个进程步骤，覆盖空值、引号、尾反斜杠、原始 argv[0]、非法 Unicode、eager 初始化与 GC、scoop run 转发和 artifact-only 重链接。四组合原生 PE 测试通过，包含返回后的 atexit 参数存活与原始标准流字节；旧 DLL 测试改用正常 DLL 链接，避免误用 EXE 的 wmain 入口。Rust Clippy、Scoop／C 格式化、Ruff 与 fixture 公共规则检查通过；startup C 在三个 Clang 环境严格编译通过，cl 的 /W4 /WX 检查仅关闭现有 runtime header 的柔性数组 C4200 警告。系统信息／进程、console、IOCP、完整系统库和远端 POSIX 验收继续实施。
+
+已合并 main 的独立包管理器：Windows subsystem／RC 配置经 PM 展开和 JSON 交付保留，编译协议统一为 19；新的多 Cone 构建保留 EXE 后缀、PDB 发布和配套工具定位。Git checkout 与 workspace 路径使用同一 canonical 拼写，依赖路径编辑保持正常相对路径。Windows runtime 测试显式提供实际 unwind 与 gdtoa 输入，修正宿主路径、时间戳精度及协议变更对应的测试断言。
+
+合并后的 workspace/all-targets Clippy、格式化、Ruff 与公共 fixture 规则通过（63 项通过、3 项 POSIX 专项跳过）。manifest、protocol、PM 和 scoop 共 254 项 Rust 测试均已通过，首轮失败经定向复测闭合；没有重复运行已通过的 runtime 构建测试。五个 release CLI 已重建，Windows 五项正式 fixture 在 Microsoft LLD／LINK 和两个 MinGW CRT 全部通过，共 20 个变体／240 个进程步骤，覆盖 subsystem、RC、PDB、DLL 数据和启动参数。完整 platform 与远端验收仍待后续阶段。

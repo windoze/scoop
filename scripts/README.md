@@ -4,7 +4,7 @@
 
 发行配置集中在 `release.toml`。当前 Darwin 基线为 macOS 27.0.1／SDK 27.0，Linux 构建环境为 Ubuntu 26.04.1、glibc 2.43／musl 1.2.5；只在相应环境完成验证后声明支持，不推定更老系统可用。LLVM 固定 22.1.8，CPU 使用 AArch64 generic／x86-64。工具构建时写入默认 Darwin 最低版本，普通命令的 `MACOSX_DEPLOYMENT_TARGET` 覆盖贯通 Scoop 对象、C bridge、native、runtime 与最终链接；预编译 runtime 的最低版本仍必须兼容。OpenSSL 准备使用同一设置。
 
-四个命令（`scoop`、`scoopc`、`scoop-link`、`scoop-lsp`）的 `--version` 显示相同发行版本与源码 revision。开发构建读取默认版本和当前 Git revision；发行构建显式设置 `SCOOP_RELEASE_VERSION` 与 `SCOOP_SOURCE_REVISION`，不在运行时读取 Git 或发行清单。
+五个命令（`scoop`、`scoopc`、`scoop-link`、`scoop-lsp`、`scoop-pm`）的 `--version` 显示相同发行版本与源码 revision。开发构建读取默认版本和当前 Git revision；发行构建显式设置 `SCOOP_RELEASE_VERSION` 与 `SCOOP_SOURCE_REVISION`，不在运行时读取 Git 或发行清单。
 
 `build_llvm.py` 从 [固定的 LLVM 22.1.8 上游输入](../sysroot/vendor/llvm-project/22.1.8/README.md) 构建宿主动态库，仅启用 AArch64／X86 后端，并安装 Rust 构建所需的 llvm-config、头文件和 CMake 资料，以及 Clang／Clang++／clang-cl、LLD 和 LLVM 对象／归档／资源工具。关闭未使用的压缩、XML、编辑器、HTTP 和插件依赖，不移除 GC／EH 或 statepoint 后端。默认工作位置为 `tmp/llvm/<host>`，可用 `--source`、`--build-dir`、`--prefix` 选择其他位置。
 
@@ -42,7 +42,7 @@ python3 scripts/prepare_sysroot.py \
 
 `--sysroot` 默认为仓库的 `sysroot`，`--runtime-root` 默认为仓库的 `runtime`；可显式选择 `--cache-dir`、`--scoopc` 和现有 native 工具参数。维护脚本默认将工作目录放在仓库已忽略的 `tmp` 下，避免占用 HOME 所在磁盘；也可显式指定其他磁盘。构建缓存、中间产物和辅助程序的 Rust target 目录保存在工作目录或显式 `CARGO_TARGET_DIR`，不要选择绝对路径 `/tmp`。目标输出为 `sysroot/lib/<triple>`，公开头文件为 `sysroot/include`。
 
-脚本读取 `src/*/Cone.toml` 的生产依赖确定顺序，逐个执行普通 release library 构建；测试源码不进入发布库。`runtime_builder` 是独立于 Cargo 主 workspace 的脚本内部辅助程序，复用已有的 O2 runtime 编译与索引实现，不安装到发行包的 `bin`。准备过程不重新读取对象以核对摘要或复验产物；重复运行使用已有构建记录，输入发生变化时更新对应结果。runtime 与公开头文件先复制完整输出，再替换准备目录；复制失败保留原目录。
+脚本读取 `src/*/Cone.toml` 的生产依赖确定顺序，逐个执行普通 release library 构建；测试源码不进入发布库，各库的 lock 保存到工作目录的 `locks/`，不写入随包源码。`runtime_builder` 是独立于 Cargo 主 workspace 的脚本内部辅助程序，复用已有的 O2 runtime 编译与索引实现，不安装到发行包的 `bin`。准备过程不重新读取对象以核对摘要或复验产物；重复运行使用已有构建记录，输入发生变化时更新对应结果。runtime 与公开头文件先复制完整输出，再替换准备目录；复制失败保留原目录。
 
 `build_nghttp2.py` 从 vendor 的固定 1.70.0 tag 归档构建纯静态协议库，保留完整上游核心，不构建应用、工具、测试或文档。使用同一目标部署／CPU 配置；工作目录默认为 `tmp/nghttp2/<triple>`，支持 `--build-dir`、`--prefix`、`--cc`。更新判断先于解包和 CMake，命中不读取或复验 archive。llhttp 9.4.3 的发布 C 源码由普通 HTTP Cone 编译，不另加工具或命令。
 
@@ -62,7 +62,7 @@ python3 scripts/prepare_sysroot.py \
 
 开发与发行 sysroot 均准备 `runtime`、`runtime-stress`、`runtime-startup-stats`、`runtime-stress-startup-stats` 四组目标 runtime，每组包含 `index.cbor`。默认构建使用 `runtime`，不编入 GC stress 或启动统计支持；`scoop --enable-gc-stress build/run/test/link` 选择 stress 配置，随后由 `SCOOP_GC_STRESS_MOVE` / `SCOOP_GC_STRESS_MINOR` 决定运行时是否开启。`--enable-startup-stats` 独立选择启动统计配置，编入后每次启动直接向 stderr 输出记录；未传时预处理完全排除计时和报告代码。两个开关可以组合，独立 `scoop-link` 同样支持。普通 fixtures 不传这些开关，相关专测显式选择。旧 schema 5 runtime 索引需要重新准备，`.slib` 和 runtime ABI 不变。
 
-`package_toolchain.py` 是完整安装包的唯一入口：取得固定 LLVM 输入、按 lockfile 构建 VS Code 扩展、构建 LLVM、四个 release 宿主命令与独立的 scoop-example、准备该宿主支持的全部 native／slib／runtime 资源、为全部内置库生成 API 文档，随包复制 Scoop 编程 skill，最后生成工具包与 LLVM 源码包。无需事先逐个执行其他准备或扩展打包脚本。默认工作位置为 `tmp/package/<host>`，归档位于 `tmp/dist`；用 `--work-dir`、`--output-dir` 可选择外置盘目录。脚本不自动运行测试。
+`package_toolchain.py` 是完整安装包的唯一入口：取得固定 LLVM 输入、按 lockfile 构建 VS Code 扩展、构建 LLVM、五个 release 宿主命令与独立的 scoop-example、准备该宿主支持的全部 native／slib／runtime 资源、为全部内置库生成 API 文档，随包复制 Scoop 编程 skill，最后生成工具包与 LLVM 源码包。无需事先逐个执行其他准备或扩展打包脚本。默认工作位置为 `tmp/package/<host>`，归档位于 `tmp/dist`；用 `--work-dir`、`--output-dir` 可选择外置盘目录。脚本不自动运行测试。
 
 构建机需要 Python 3.12+、Git、Rust/Cargo、C/C++ 开发工具链、CMake、Make、Perl、Node.js 22.18+ 和 npm。npm 依赖、首次缺失的 LLVM 归档以及 Tree-sitter WASM 工具链需要联网取得；其余 native 上游输入已在 vendor 中。已有 WASI SDK／Binaryen 可按 [tooling 说明](../tooling/README.md) 选择。
 
@@ -81,7 +81,7 @@ LLVM 源码与归档优先复用 vendor 的固定版本位置；缺失时在工�
 ```text
 ~/.scoop/
   VERSION
-  bin/                 scoop、scoopc、scoop-link、scoop-lsp
+  bin/                 scoop、scoopc、scoop-link、scoop-lsp、scoop-pm
   commands/            scoop-example 与其他外部子命令
   lib/<target-triple>/  *.slib、native 库／头文件、四种 runtime 配置
   include/             公开 Scoop C 头文件
@@ -106,7 +106,7 @@ LLVM 源码与归档优先复用 vendor 的固定版本位置；缺失时在工�
 
 安装根的 `docs/index.html` 提供目标选择，具体站点位于 `docs/<canonical-target-triple>/`。Darwin 包包含 Darwin 站点；Linux 包包含 GNU／musl 两个站点。源码原文嵌入 HTML，搜索和资源均在本地；`.slib` 不保存完整源码。手工验收时检查解压后的目标及库清单、跨库链接、源码页、离线搜索与重复生成的复用情况；详细范围见 [M60 设计](../docs/milestone60/DESIGN.md)。
 
-手工验证发布包时，将归档解压到新的目录，可使用带空格路径；保留源码、原工具和原产物。运行四个命令的版本查询，检查实际加载的私有 LLVM，再用空缓存完成含 native／泛型／GC 的应用、crypto／TLS、普通库测试和两个 link 入口，重复构建检查复用。Linux 还应覆盖 GNU 与 musl 的既有链接模式。常规 fixture 使用已准备的开发 sysroot，不执行打包或解压步骤。具体结果记录在 [M52 实施记录](../docs/milestone52/PROGRESS.md)。
+手工验证发布包时，将归档解压到新的目录，可使用带空格路径；保留源码、原工具和原产物。运行五个命令的版本查询，检查实际加载的私有 LLVM，再用空缓存完成含 native／泛型／GC 的应用、crypto／TLS、普通库测试和两个 link 入口，重复构建检查复用。Linux 还应覆盖 GNU 与 musl 的既有链接模式。常规 fixture 使用已准备的开发 sysroot，不执行打包或解压步骤。具体结果记录在 [M52 实施记录](../docs/milestone52/PROGRESS.md)。
 
 打包脚本的归档布局与失败保留检查使用 `python3 -m unittest discover -s scripts/tests`；运行前对改动的 Python 脚本执行与 fixture runner 相同版本的 Ruff 格式化及 lint。完整包验收还应确认 `VERSION` 与命令版本一致、VSIX 内包含扩展代码及两个 WASM，并使用解压目录中的工具完成冷构建／运行及再次复用。
 

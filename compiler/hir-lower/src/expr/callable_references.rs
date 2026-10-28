@@ -125,7 +125,7 @@ impl Lowerer {
                 }
                 Ok(None) => first_failure = Some(Box::new(state)),
                 Err(()) => {
-                    self.commit_layer_diagnostics(state);
+                    self.commit_layer_diagnostics(&state);
                     return None;
                 }
             }
@@ -148,7 +148,7 @@ impl Lowerer {
                     first_failure.get_or_insert(Box::new(state));
                 }
                 Err(()) => {
-                    self.commit_layer_diagnostics(state);
+                    self.commit_layer_diagnostics(&state);
                     return None;
                 }
             }
@@ -186,7 +186,7 @@ impl Lowerer {
             }
             if layer.candidates.is_empty() && !layer.suppressed_callables.is_empty() {
                 if let Some(failure) = first_failure {
-                    self.commit_layer_diagnostics(*failure);
+                    self.commit_layer_diagnostics(&failure);
                 }
                 return None;
             }
@@ -230,19 +230,19 @@ impl Lowerer {
                 }
                 ReferenceResolutionOutcome::NoApplicable => {
                     if !layer.suppressed_callables.is_empty() {
-                        self.commit_layer_diagnostics(state);
+                        self.commit_layer_diagnostics(&state);
                         return None;
                     }
                     first_failure.get_or_insert(Box::new(state));
                 }
                 ReferenceResolutionOutcome::Blocked => return None,
                 ReferenceResolutionOutcome::Failed => {
-                    self.commit_layer_diagnostics(state);
+                    self.commit_layer_diagnostics(&state);
                     return None;
                 }
             }
         }
-        self.commit_layer_diagnostics(*first_failure.expect("at least one reference layer failed"));
+        self.commit_layer_diagnostics(&first_failure.expect("at least one reference layer failed"));
         None
     }
 

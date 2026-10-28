@@ -5,12 +5,20 @@ pub(super) struct Record {
     pub key: String,
     pub files: Vec<String>,
     #[serde(default)]
-    pub shared: Option<Pages>,
+    pub roots: Option<Pages>,
     #[serde(default)]
+    pub sites: BTreeMap<String, SiteRecord>,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+pub(super) struct SiteRecord {
+    pub key: String,
+    pub files: Vec<String>,
+    pub shared: Pages,
     pub cones: BTreeMap<String, ConePages>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub(super) struct ConePages {
     pub api: Pages,
     pub overview: Pages,
@@ -55,12 +63,17 @@ pub(super) fn reuse(
     if !complete(output, &previous.files)? {
         return Ok(None);
     }
-    for file in &previous.files {
+    copy(&previous.files, output, stage)?;
+    Ok(Some(previous.clone()))
+}
+
+pub(super) fn copy(files: &[String], output: &Path, stage: &Path) -> BuildResult<()> {
+    for file in files {
         let path = stage.join(file);
         std::fs::create_dir_all(path.parent().unwrap()).map_err(|e| io_error(&path, e))?;
         std::fs::hard_link(output.join(file), &path).map_err(|e| io_error(&path, e))?;
     }
-    Ok(Some(previous.clone()))
+    Ok(())
 }
 
 pub(super) fn render(

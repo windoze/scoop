@@ -138,8 +138,18 @@ impl PreparedBuildGraph {
                     completed_core_input(&completed)?
                 };
                 (
-                    CurrentConeRequestV1::ManifestRoot {
-                        root: path_carrier(&node.input_root)?,
+                    CurrentConeRequestV1::ExpandedCone {
+                        config: Box::new(
+                            scoop_protocol::package::ExpandedConeInputV1::from_manifest(
+                                &node.manifest,
+                            )
+                            .map_err(|source| {
+                                ChildRequestPlanError::HostPath {
+                                    path: node.manifest.manifest_path().to_owned(),
+                                    source,
+                                }
+                            })?,
+                        ),
                     },
                     direct,
                     support,

@@ -276,8 +276,8 @@ mod tests {
         ScoopcRequestEnvelopeV1::new(
             RequestCorrelationId::from_array([9; 16]),
             ScoopcBuildRequestV1::new(
-                CurrentConeRequestV1::ManifestRoot {
-                    root: host_path("project/Cone.toml"),
+                CurrentConeRequestV1::SingleFile {
+                    source: host_path("project/main.scoop"),
                 },
                 Vec::new(),
                 Vec::new(),

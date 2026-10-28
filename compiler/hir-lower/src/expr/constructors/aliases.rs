@@ -93,7 +93,7 @@ impl Lowerer {
                 ) {
                     Ok(probe) => probe,
                     Err(failure) => {
-                        self.commit_layer_diagnostics(*failure);
+                        self.commit_layer_diagnostics(&failure);
                         return None;
                     }
                 };
@@ -115,7 +115,7 @@ impl Lowerer {
                 ) {
                     Ok(probe) => self.commit_imported_dependency_callable(probe, sink),
                     Err(failure) => {
-                        self.commit_layer_diagnostics(*failure);
+                        self.commit_layer_diagnostics(&failure);
                         None
                     }
                 }

@@ -1,0 +1,2 @@
+package dev.pm.remote
+public fun remoteValue(): Int = 2

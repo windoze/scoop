@@ -6,11 +6,14 @@ rust-version.workspace = true
 [dependencies]
 rustix.workspace = true
 serde.workspace = true
+semver.workspace = true
+url.workspace = true
 scoop-identity.workspace = true
 scoop-wire.workspace = true
 toml.workspace = true
 toml_edit.workspace = true
 
 [dev-dependencies]
+serde_json.workspace = true
 scoop-target-data.workspace = true
 tempfile.workspace = true

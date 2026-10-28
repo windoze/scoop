@@ -5,4 +5,4 @@ name = "direct-combined"
 version = "1.0.0"
 kind = "library"
 [dependencies]
-"test:helper" = "1.0.0"
+"test:helper" = { version = "1.0.0", path = "../helper" }

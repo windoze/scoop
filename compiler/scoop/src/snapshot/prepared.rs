@@ -57,15 +57,8 @@ impl PreparedBuildGraph {
             .production(self.context.cache_root.as_path())
             .map_err(PrepareBuildGraphError::Native)?
             .into_owned();
-        let manifest = self
-            .context
-            .cache_root
-            .load_manifest(&scoop_manifest::ManifestRootLocator::exact_manifest_file(
-                &node.snapshot.manifest_locator,
-            ))
-            .map_err(PrepareBuildGraphError::Manifest)?;
         let native = scoop_toolchain::prepare_native_objects(
-            &manifest,
+            &node.manifest,
             &target,
             self.context.optimization,
             &self.context.sysroot.as_path().join("include"),
@@ -124,9 +117,8 @@ impl Preparer {
                     } else {
                         scoop_protocol::CompilationPurpose::Production
                     };
-                    let input_root = manifest.real_root().to_path_buf();
                     let snapshot = select_manifest_input(
-                        *manifest,
+                        &manifest,
                         &self.parts.context,
                         purpose,
                         self.frontend,
@@ -137,7 +129,7 @@ impl Preparer {
                         .map_err(PrepareBuildGraphError::Staging)?;
                     PreparedGraphNode::ManifestSource(Box::new(PreparedManifestSourceNode {
                         snapshot,
-                        input_root,
+                        manifest,
                         output_path,
                     }))
                 }
@@ -184,17 +176,17 @@ impl Preparer {
 }
 
 fn select_manifest_input(
-    manifest: LoadedConeManifest,
+    manifest: &LoadedConeManifest,
     context: &BuildContext,
     purpose: scoop_protocol::CompilationPurpose,
     frontend: bool,
 ) -> Result<ManifestSourceInput, PrepareBuildGraphError> {
     let discovered = match purpose {
         scoop_protocol::CompilationPurpose::Production => {
-            select_manifest_sources(&manifest, context.target.id())
+            select_manifest_sources(manifest, context.target.id())
         }
         scoop_protocol::CompilationPurpose::Test => {
-            scoop_manifest::select_manifest_sources_for_tests(&manifest, context.target.id())
+            scoop_manifest::select_manifest_sources_for_tests(manifest, context.target.id())
         }
     }
     .map_err(PrepareBuildGraphError::SourceDiscovery)?;
@@ -219,7 +211,7 @@ fn select_manifest_input(
             .map_err(PrepareBuildGraphError::Native)?;
         SourceNativeInput::Artifact(
             scoop_toolchain::prepare_native_objects(
-                &manifest,
+                manifest,
                 &target,
                 context.optimization,
                 &context.sysroot.as_path().join("include"),

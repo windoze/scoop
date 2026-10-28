@@ -28,6 +28,8 @@ def check(peer, root):
             '[dependencies]\n"test:editor-source" = {version = "1.0.0", path = "dependency"}',
         )
     )
+    (root / "Cone.toml").write_text(text)
+    peer.resolve(root)
     peer.notify(
         "textDocument/didChange",
         {"textDocument": {"uri": manifest, "version": 3}, "contentChanges": [{"text": text}]},

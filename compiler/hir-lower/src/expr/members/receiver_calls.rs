@@ -74,7 +74,7 @@ impl Lowerer {
             }
             PropertyExtensionInvokeOutcome::Blocked => return None,
             PropertyExtensionInvokeOutcome::Failed(failure) => {
-                self.commit_layer_diagnostics(*failure);
+                self.commit_layer_diagnostics(&failure);
                 return None;
             }
             PropertyExtensionInvokeOutcome::NoApplicable(failure) => {
@@ -142,13 +142,13 @@ impl Lowerer {
                 }
                 PropertyExtensionInvokeOutcome::Blocked => return None,
                 PropertyExtensionInvokeOutcome::Failed(failure) => {
-                    self.commit_layer_diagnostics(*failure);
+                    self.commit_layer_diagnostics(&failure);
                     return None;
                 }
                 PropertyExtensionInvokeOutcome::NoApplicable(failure) => {
                     if let Some(failure) = failure {
                         if suppressed {
-                            self.commit_layer_diagnostics(*failure);
+                            self.commit_layer_diagnostics(&failure);
                             return None;
                         }
                         first_failure.get_or_insert(failure);
@@ -160,7 +160,7 @@ impl Lowerer {
         }
 
         if let Some(failure) = first_failure {
-            self.commit_layer_diagnostics(*failure);
+            self.commit_layer_diagnostics(&failure);
         } else {
             let found = self.type_name(receiver.ty);
             self.error(

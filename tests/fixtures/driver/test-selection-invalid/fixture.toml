@@ -7,13 +7,13 @@ tags = ["test-selection", "negative", "driver"]
 
 [[steps]]
 name = "reject-unselected-method"
-argv = ["${scoop}", "test", "--release", {"each" = "${link_args}"}, "${fixture}/program", "--filter", "Cases::valid", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+argv = ["${scoop}", "test", "--release", {"each" = "${link_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--filter", "Cases::valid", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {file = "diagnostics.json"}
-checks = [{file = "${work}/outputs/${target}/release/tests/selection-invalid", exists = false}]
+checks = [{file = "${work}/outputs/${target}/release/dev.m43/selection-invalid/tests/selection-invalid", exists = false}]
 
 [[steps]]
 name = "valid-copy"
@@ -49,5 +49,5 @@ diagnostics = {file = "diagnostics.json"}
 checks = [
     {actual = "${reject-with-previous-output.records.length}", equals = 1},
     {file = "${build-valid.result.output}", same_as = "${work}/previous-tests"},
-    {glob = "${work}/outputs/${target}/release/tests/.test-run-*", equals = []},
+    {glob = "${work}/outputs/${target}/release/dev.m43/selection-invalid/tests/.test-run-*", equals = []},
 ]

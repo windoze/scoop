@@ -1,4 +1,4 @@
-//! Produce one library or linked executable through the existing graph pipeline.
+//! Build independent closures with a shared compilation schedule, then publish each root.
 use std::path::{Path, PathBuf};
 
 use scoop_identity::{ConeIdentity, RequestedConeKind};
@@ -20,23 +20,47 @@ pub use outcome::*;
 pub use request::*;
 
 pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
-    let target = request.graph.target().clone();
+    Ok(build_all(vec![request])?.remove(0))
+}
+
+pub fn build_all(requests: Vec<BuildRequest>) -> BuildResult<Vec<BuildOutcome>> {
+    let mut graphs = Vec::new();
+    let mut finishers = Vec::new();
+    for request in requests {
+        let (graph, finish) = prepare(request)?;
+        graphs.push(graph);
+        finishers.push(finish);
+    }
+    let sources = graphs.iter().flat_map(source_context).collect::<Vec<_>>();
+    PreparedBuildGraph::execute_all(graphs)
+        .map_err(|error| BuildFailure::execution(error, &sources))?
+        .into_iter()
+        .zip(finishers)
+        .map(|(graph, finish)| finish(graph.into_outcome()))
+        .collect()
+}
+
+fn prepare(
+    request: BuildRequest,
+) -> BuildResult<(
+    PreparedBuildGraph,
+    impl FnOnce(crate::BuildGraphOutcome) -> BuildResult<BuildOutcome>,
+)> {
+    let target = request
+        .graph
+        .target()
+        .production(request.graph.cache_root().as_path())
+        .map_err(|error| {
+            BuildFailure::tool("SCOOP_BUILD_TARGET", BuildFailurePhase::Toolchain, error)
+        })?
+        .into_owned();
     let vendor_root = request.graph.sysroot().as_path().join("vendor");
     let cache = request.graph.cache_root().as_path().to_owned();
     let stem = request
         .graph
-        .root()
         .single_file_source()
         .map(|source| sanitized_stem(source.display_path()));
-    let graph = request
-        .graph
-        .with_optimization(request.profile.optimization())
-        .load_root()
-        .map_err(BuildFailure::root)?
-        .discover()
-        .map_err(BuildFailure::discovery)?
-        .resolve()
-        .map_err(BuildFailure::classified)?;
+    let graph = request.graph;
     if request.require_executable && graph.root_kind() == RequestedConeKind::Library {
         return Err(BuildFailure::tool(
             "SCOOP_RUN_LIBRARY",
@@ -55,85 +79,87 @@ pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
         stem.as_deref(),
         &target,
         request.profile,
+        request.emit_slib,
     )?;
     let output = OutputLocation::new(&output).map_err(output_error)?;
     if let Some(dumps) = request.dumps {
         prepared.observe_dumps(dumps).map_err(output_error)?;
     }
-    let graph = prepared
-        .execute()
-        .map_err(|error| BuildFailure::execution(error, &sources))?
-        .into_outcome();
-    let finish = || -> BuildResult<_> {
-        if matches!(graph, crate::BuildGraphOutcome::Library { .. }) {
+    let publish = move |graph: crate::BuildGraphOutcome| {
+        let finish = || -> BuildResult<_> {
+            if request.emit_slib || matches!(graph, crate::BuildGraphOutcome::Library { .. }) {
+                output
+                    .publish(
+                        graph.root().artifact_locator(),
+                        Some(
+                            graph
+                                .root()
+                                .artifact()
+                                .summary()
+                                .artifact_fingerprint()
+                                .as_array(),
+                        ),
+                    )
+                    .map_err(output_error)?;
+                return Ok(None);
+            }
+            let (runtime, index) = runtime_input(
+                &request.runtime,
+                &target,
+                &cache,
+                &request.final_link,
+                &vendor_root,
+                request.enable_gc_stress,
+                request.enable_startup_stats,
+            )?;
+            let linked = executable::get(executable::Request {
+                graph: &graph,
+                runtime: &runtime,
+                target: &target,
+                cache: &cache,
+                profile: request.profile,
+                options: &request.final_link,
+                libraries: &request.library_paths,
+                explicit_runtime: matches!(&request.runtime, RuntimeInput::ObjectIndex(_)),
+                published_output: output.path(),
+            })?;
+            if let Some(symbol_map) = &linked.symbol_map {
+                OutputLocation::new(&scoop_linker::symbol_map_path(output.path()))
+                    .map_err(output_error)?
+                    .publish(symbol_map, Some(&linked.result_key))
+                    .map_err(output_error)?;
+            }
+            if let Some(pdb) = &linked.pdb {
+                OutputLocation::new(&scoop_linker::pdb_path(output.path()))
+                    .map_err(output_error)?
+                    .publish(pdb, Some(&linked.result_key))
+                    .map_err(output_error)?;
+            }
             output
-                .publish(
-                    graph.root().artifact_locator(),
-                    Some(
-                        graph
-                            .root()
-                            .artifact()
-                            .summary()
-                            .artifact_fingerprint()
-                            .as_array(),
-                    ),
-                )
+                .publish(&linked.path, Some(&linked.result_key))
                 .map_err(output_error)?;
-            return Ok(None);
-        }
-        let (runtime, index) = runtime_input(
-            &request.runtime,
-            &target,
-            &cache,
-            &request.final_link,
-            &vendor_root,
-            request.enable_gc_stress,
-            request.enable_startup_stats,
-        )?;
-        let linked = executable::get(executable::Request {
-            graph: &graph,
-            runtime: &runtime,
-            target: &target,
-            cache: &cache,
+            Ok(Some((index, linked.fingerprint, linked.path)))
+        };
+        let executable =
+            finish().map_err(|error| error.with_context(graph.warnings(), &sources))?;
+        let build = BuiltArtifacts {
+            output: output.path().to_owned(),
             profile: request.profile,
-            options: &request.final_link,
-            libraries: &request.library_paths,
-            explicit_runtime: matches!(&request.runtime, RuntimeInput::ObjectIndex(_)),
-            published_output: output.path(),
-        })?;
-        if let Some(symbol_map) = &linked.symbol_map {
-            OutputLocation::new(&scoop_linker::symbol_map_path(output.path()))
-                .map_err(output_error)?
-                .publish(symbol_map, Some(&linked.result_key))
-                .map_err(output_error)?;
-        }
-        if let Some(pdb) = &linked.pdb {
-            OutputLocation::new(&scoop_linker::pdb_path(output.path()))
-                .map_err(output_error)?
-                .publish(pdb, Some(&linked.result_key))
-                .map_err(output_error)?;
-        }
-        output
-            .publish(&linked.path, Some(&linked.result_key))
-            .map_err(output_error)?;
-        Ok(Some((index, linked.fingerprint, linked.path)))
+            graph,
+            sources,
+        };
+        Ok(match executable {
+            None if request.emit_slib => BuildOutcome::Artifact(build),
+            None => BuildOutcome::Library(build),
+            Some((runtime_index, link_plan_fingerprint, executable)) => BuildOutcome::Executable {
+                build,
+                executable,
+                runtime_index,
+                link_plan_fingerprint,
+            },
+        })
     };
-    let executable = finish().map_err(|error| error.with_context(graph.warnings(), &sources))?;
-    let build = BuiltArtifacts {
-        output: output.path().to_owned(),
-        profile: request.profile,
-        graph,
-        sources,
-    };
-    Ok(match executable {
-        None => BuildOutcome::Library(build),
-        Some((runtime_index, link_plan_fingerprint, executable)) => BuildOutcome::Executable {
-            build,
-            executable,
-            runtime_index,
-            link_plan_fingerprint,
-        },
-    })
+    Ok((prepared, publish))
 }
 
 fn runtime_input(
@@ -211,6 +237,7 @@ fn source_context(prepared: &PreparedBuildGraph) -> Vec<SelectedSource> {
     sources
 }
 
+#[allow(clippy::too_many_arguments)]
 fn output_path(
     graph: &PreparedBuildGraph,
     cwd: &Path,
@@ -219,6 +246,7 @@ fn output_path(
     stem: Option<&str>,
     target: &ResolvedTargetProfile,
     profile: BuildProfile,
+    emit_slib: bool,
 ) -> BuildResult<PathBuf> {
     if let Some(output) = output {
         return Ok(output);
@@ -244,21 +272,22 @@ fn output_path(
                 )
             })?
             .to_owned();
-        let mut name = manifest.coordinate().name().to_owned();
-        if graph.root_kind() == RequestedConeKind::Library {
-            name.push_str(".slib");
-        }
+        let name = manifest.coordinate().name().to_owned();
         (root, name)
     };
-    if graph.root_kind() == RequestedConeKind::Executable
-        && target.lir_target().native_object_format() == scoop_lir::NativeObjectFormat::Coff64
-    {
+    if emit_slib || graph.root_kind() == RequestedConeKind::Library {
+        name.push_str(".slib");
+    } else if target.lir_target().native_object_format() == scoop_lir::NativeObjectFormat::Coff64 {
         name.push_str(".exe");
     }
     let mut directory = target_dir
         .unwrap_or_else(|| root.join("target"))
         .join(target.canonical_triple())
         .join(profile.as_str());
+    if let Some(manifest) = graph.source_input(graph.root_identity()) {
+        directory.push(manifest.coordinate().group());
+        directory.push(manifest.coordinate().name());
+    }
     if graph.compilation_purpose(graph.root_identity()) == scoop_protocol::CompilationPurpose::Test
     {
         directory.push("tests");

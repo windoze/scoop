@@ -6,4 +6,4 @@ version = "0.1.0"
 kind = "executable"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"dev.example:generic-member-downstream-extension-write-only" = "0.1.0"
+"dev.example:generic-member-downstream-extension-write-only" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/generic-member-downstream-extension-write-only/0.1.0/cone.slib" }

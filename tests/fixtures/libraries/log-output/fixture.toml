@@ -7,7 +7,7 @@ tags = ["log", "output", "libraries"]
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${fixture}/consumer", "--release", {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+argv = ["${scoop}", "build", "${fixture}/consumer", "--lockfile", "${work}/source-lock-0.lock", "--release", {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

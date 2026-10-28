@@ -19,9 +19,9 @@ fn documentation_pipeline_checks_bodies_and_shares_hir_with_artifact_production(
     let artifact_path = workspace.path().join("library.slib");
     let make_request = || {
         SingleConeBuildRequest::documentation(
-            CurrentConeInput::Manifest {
-                root: ManifestRootLocator::cone_directory(&root),
-            },
+            crate::request::test_support::expanded_fixture(ManifestRootLocator::cone_directory(
+                &root,
+            )),
             ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
             TrustedCoreInput::Artifact(HostArtifactLocator::new(core.artifact().path()).unwrap()),
             target.lir_target_selection(),
@@ -146,8 +146,16 @@ fn documentation_core_requests_select_all_targets_without_machine_toolchains() {
         let output = workspace.path().join(format!("{triple}.json"));
         let path = |path: &Path| scoop_protocol::HostPathCarrier::from_path(path).unwrap();
         let wire = scoop_protocol::ScoopcBuildRequestV1::new(
-            scoop_protocol::CurrentConeRequestV1::ManifestRoot {
-                root: path(&source),
+            scoop_protocol::CurrentConeRequestV1::ExpandedCone {
+                config: Box::new(
+                    scoop_protocol::package::ExpandedConeInputV1::from_manifest(
+                        &scoop_toolchain::load_cone_manifest(&ManifestRootLocator::cone_directory(
+                            &source,
+                        ))
+                        .unwrap(),
+                    )
+                    .unwrap(),
+                ),
             },
             Vec::new(),
             Vec::new(),

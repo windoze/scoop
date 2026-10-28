@@ -56,7 +56,7 @@ MinGW 环境采用 [LLVM-MinGW 构建配方](https://github.com/mstorsjo/llvm-mi
 
 ```text
 <install>/
-  bin/                                      scoop、scoopc、scoop-link、scoop-lsp
+  bin/                                      scoop、scoopc、scoop-link、scoop-lsp、scoop-pm
   libexec/llvm/bin/                          宿主 Clang、LLD、LLVM 工具
   libexec/llvm/lib/                          宿主 LLVM 库
   libexec/llvm/lib/clang/<version>/include/   Clang resource headers

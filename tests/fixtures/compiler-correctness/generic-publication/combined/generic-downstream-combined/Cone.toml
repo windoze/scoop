@@ -6,5 +6,5 @@ version = "0.1.0"
 kind = "library"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"dev.example:generic-machine-provider" = "0.1.0"
-"dev.example:generic-machine-first" = "0.1.0"
+"dev.example:generic-machine-provider" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/generic-machine-provider/0.1.0/cone.slib" }
+"dev.example:generic-machine-first" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/generic-machine-first/0.1.0/cone.slib" }

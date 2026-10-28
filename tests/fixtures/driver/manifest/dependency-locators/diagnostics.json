@@ -1,7 +1,7 @@
 [
   {
-    "code": "SCOOP_BUILD_FAILED",
-    "message": "invalid build root: invalid Cone manifest root ${fixture}/program/Cone.toml: a dependency cannot specify both path and artifact",
+    "code": "SCOOP_PACKAGE_PREPARE",
+    "message": "${fixture}/program/Cone.toml: a dependency must select only one source",
     "notes": [],
     "origin": {
       "end": 199,
@@ -9,7 +9,6 @@
       "path": "${fixture}/program/Cone.toml",
       "start": 150
     },
-    "phase": "Root",
     "severity": "error"
   }
 ]

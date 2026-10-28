@@ -1,3 +1,0 @@
-[
-  {"code":"SCOOP_FMT_INPUT","message":"invalid current Cone operand ${work}/default/src/Cone.toml: cannot inspect: No such file or directory (os error 2)","notes":[],"origin":{"kind":"host","path":"${work}/default/src/Cone.toml","start":null,"end":null},"phase":"Request","severity":"error"}
-]

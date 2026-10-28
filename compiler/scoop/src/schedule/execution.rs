@@ -6,27 +6,27 @@ use super::ready::ReadyNodes;
 use super::*;
 use crate::{ChildTransportError, PendingSourceExecution, PreparedSourceExecution};
 
-type CompilerResponse = Result<ScoopcResponseEnvelopeV1, ChildTransportError>;
+pub(super) type CompilerResponse = Result<ScoopcResponseEnvelopeV1, ChildTransportError>;
 
-enum PreparedNode {
+pub(super) enum PreparedNode {
     Complete(Option<ConeCompileCacheKeyV1>, Box<CompletedNode>),
     Pending(ConeCompileCacheKeyV1, Box<PendingSourceExecution>),
     WaitingForLock(ConeCompileCacheKeyV1),
 }
 
-struct Execution {
-    order: Vec<ConeIdentity>,
-    ready: ReadyNodes,
+pub(super) struct Execution {
+    pub(super) order: Vec<ConeIdentity>,
+    pub(super) ready: ReadyNodes,
     completed: BTreeMap<ConeIdentity, CompletedNode>,
     observations: BTreeMap<usize, BuildNodeObservation>,
     child_invocations: BTreeSet<usize>,
-    pending: BTreeMap<usize, (ConeCompileCacheKeyV1, Box<PendingSourceExecution>)>,
-    waiting_keys: BTreeMap<usize, ConeCompileCacheKeyV1>,
-    failures: BTreeMap<usize, BuildGraphExecutionError>,
+    pub(super) pending: BTreeMap<usize, (ConeCompileCacheKeyV1, Box<PendingSourceExecution>)>,
+    pub(super) waiting_keys: BTreeMap<usize, ConeCompileCacheKeyV1>,
+    pub(super) failures: BTreeMap<usize, BuildGraphExecutionError>,
 }
 
 impl Execution {
-    fn new(graph: &PreparedBuildGraph, include_root: bool) -> Self {
+    pub(super) fn new(graph: &PreparedBuildGraph, include_root: bool) -> Self {
         let order = graph
             .dependency_first()
             .iter()
@@ -50,17 +50,19 @@ impl Execution {
         }
     }
 
-    fn completed_refs(&self) -> Vec<&CompletedNode> {
+    pub(super) fn completed_refs(&self) -> Vec<&CompletedNode> {
         self.order
             .iter()
             .filter_map(|id| self.completed.get(id))
             .collect()
     }
 
-    fn prepare(
+    pub(super) fn prepare(
         &self,
         graph: &PreparedBuildGraph,
         position: usize,
+        ordinal: usize,
+        wait_for_lock: bool,
     ) -> Result<PreparedNode, BuildGraphExecutionError> {
         let identity = self.order[position];
         let completed = self.completed_refs();
@@ -86,8 +88,8 @@ impl Execution {
                         identity,
                         &completed,
                         key,
-                        request_id(position)?,
-                        self.pending.is_empty(),
+                        request_id(ordinal)?,
+                        wait_for_lock,
                     )
                     .map_err(|source| {
                         BuildGraphExecutionError::Ordinary(identity, Box::new(source))
@@ -106,7 +108,7 @@ impl Execution {
         }
     }
 
-    fn complete(
+    pub(super) fn complete(
         &mut self,
         position: usize,
         cache_key: Option<ConeCompileCacheKeyV1>,
@@ -130,7 +132,7 @@ impl Execution {
         self.ready.complete(position);
     }
 
-    fn receive(
+    pub(super) fn receive(
         &mut self,
         graph: &PreparedBuildGraph,
         (position, response): (usize, CompilerResponse),
@@ -152,134 +154,8 @@ impl Execution {
     }
 }
 
-impl PreparedBuildGraph {
-    pub fn execute(self) -> Result<ExecutedBuildGraph, BuildGraphExecutionFailure> {
-        self.execute_with_runner(&ProductionSingleConeCompilerRunner)
-    }
-
-    pub(crate) fn execute_with_runner(
-        self,
-        runner: &impl SingleConeCompilerRunner,
-    ) -> Result<ExecutedBuildGraph, BuildGraphExecutionFailure> {
-        let execution = self.execute_nodes(runner, true)?;
-        let (order, completed, observations) = execution.into_parts();
-        Ok(ExecutedBuildGraph {
-            root: self.root_identity(),
-            _prepared: self,
-            dependency_first: order,
-            completed,
-            observations,
-        })
-    }
-
-    pub(crate) fn execute_dependencies(
-        &self,
-        runner: &impl SingleConeCompilerRunner,
-    ) -> Result<(Vec<CompletedNode>, BuildObservations), BuildGraphExecutionFailure> {
-        let execution = self.execute_nodes(runner, false)?;
-        let (order, mut completed, observations) = execution.into_parts();
-        Ok((
-            order
-                .into_iter()
-                .map(|id| {
-                    completed
-                        .remove(&id)
-                        .expect("scheduled dependency completed")
-                })
-                .collect(),
-            observations,
-        ))
-    }
-
-    fn execute_nodes(
-        &self,
-        runner: &impl SingleConeCompilerRunner,
-        include_root: bool,
-    ) -> Result<Execution, BuildGraphExecutionFailure> {
-        let mut execution = Execution::new(self, include_root);
-        let compiler = self.compiler().clone();
-        let jobs = self.jobs().get();
-        std::thread::scope(|scope| {
-            let (sender, receiver) = std::sync::mpsc::channel();
-            loop {
-                while let Ok(response) = receiver.try_recv() {
-                    execution.receive(self, response);
-                }
-                let mut waiting = Vec::new();
-                while execution.failures.is_empty() && execution.pending.len() < jobs {
-                    let Some(position) = execution.ready.pop() else {
-                        break;
-                    };
-                    match execution.prepare(self, position) {
-                        Ok(PreparedNode::WaitingForLock(key)) => {
-                            execution.waiting_keys.insert(position, key);
-                            waiting.push(position);
-                        }
-                        Ok(PreparedNode::Complete(key, node)) => {
-                            execution.complete(position, key, *node, false)
-                        }
-                        Ok(PreparedNode::Pending(key, pending)) => {
-                            let request = pending.invocation.request().clone();
-                            let io = pending.invocation.io().clone();
-                            let sender = sender.clone();
-                            let compiler = &compiler;
-                            let worker = std::thread::Builder::new()
-                                .name(format!("scoop-compile-{position}"))
-                                .spawn_scoped(scope, move || {
-                                    let response =
-                                        std::panic::catch_unwind(std::panic::AssertUnwindSafe(
-                                            || runner.invoke(compiler, &request, &io),
-                                        ))
-                                        .unwrap_or(Err(ChildTransportError::WorkerPanicked));
-                                    let _ = sender.send((position, response));
-                                });
-                            match worker {
-                                Ok(_) => {
-                                    execution.pending.insert(position, (key, pending));
-                                }
-                                Err(source) => {
-                                    execution.failures.insert(
-                                        position,
-                                        BuildGraphExecutionError::Ordinary(
-                                            execution.order[position],
-                                            Box::new(OrdinarySourceExecutionError::ChildTransport(
-                                                ChildTransportError::WorkerSpawn(source),
-                                            )),
-                                        ),
-                                    );
-                                }
-                            }
-                        }
-                        Err(source) => {
-                            execution.failures.insert(position, source);
-                        }
-                    }
-                }
-                execution.ready.defer(waiting);
-                if execution.pending.is_empty() {
-                    break;
-                }
-                // The main thread retains graph state and key locks, including
-                // while draining already started children after a failure.
-                let response = receiver
-                    .recv()
-                    .expect("an active compiler worker returns a response");
-                execution.receive(self, response);
-            }
-        });
-        if let Some((_, cause)) = execution.failures.pop_first() {
-            return Err(BuildGraphExecutionFailure::new(
-                cause,
-                &execution.completed_refs(),
-            ));
-        }
-        debug_assert_eq!(execution.completed.len(), execution.order.len());
-        Ok(execution)
-    }
-}
-
 impl Execution {
-    fn into_parts(
+    pub(super) fn into_parts(
         self,
     ) -> (
         Vec<ConeIdentity>,
@@ -296,5 +172,64 @@ impl Execution {
             child_invocations,
         };
         (self.order, self.completed, observations)
+    }
+}
+
+impl PreparedBuildGraph {
+    pub fn execute(self) -> Result<ExecutedBuildGraph, BuildGraphExecutionFailure> {
+        self.execute_with_runner(&ProductionSingleConeCompilerRunner)
+    }
+
+    pub fn execute_all(
+        graphs: Vec<Self>,
+    ) -> Result<Vec<ExecutedBuildGraph>, BuildGraphExecutionFailure> {
+        Self::execute_all_with_runner(graphs, &ProductionSingleConeCompilerRunner)
+    }
+
+    pub(crate) fn execute_with_runner(
+        self,
+        runner: &impl SingleConeCompilerRunner,
+    ) -> Result<ExecutedBuildGraph, BuildGraphExecutionFailure> {
+        Ok(Self::execute_all_with_runner(vec![self], runner)?.remove(0))
+    }
+
+    pub(crate) fn execute_all_with_runner(
+        graphs: Vec<Self>,
+        runner: &impl SingleConeCompilerRunner,
+    ) -> Result<Vec<ExecutedBuildGraph>, BuildGraphExecutionFailure> {
+        let executions = super::batch::execute(&graphs.iter().collect::<Vec<_>>(), runner, true)?;
+        Ok(graphs
+            .into_iter()
+            .zip(executions)
+            .map(|(graph, execution)| {
+                let (order, completed, observations) = execution.into_parts();
+                ExecutedBuildGraph {
+                    root: graph.root_identity(),
+                    _prepared: graph,
+                    dependency_first: order,
+                    completed,
+                    observations,
+                }
+            })
+            .collect())
+    }
+
+    pub(crate) fn execute_dependencies(
+        &self,
+        runner: &impl SingleConeCompilerRunner,
+    ) -> Result<(Vec<CompletedNode>, BuildObservations), BuildGraphExecutionFailure> {
+        let execution = super::batch::execute(&[self], runner, false)?.remove(0);
+        let (order, mut completed, observations) = execution.into_parts();
+        Ok((
+            order
+                .into_iter()
+                .map(|id| {
+                    completed
+                        .remove(&id)
+                        .expect("scheduled dependency completed")
+                })
+                .collect(),
+            observations,
+        ))
     }
 }

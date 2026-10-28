@@ -213,6 +213,8 @@ def main():
                 args.cache_dir,
                 "--target-dir",
                 work / "target" / name,
+                "--lockfile",
+                work / "locks" / f"{name}.lock",
                 "-o",
                 args.sysroot / "lib" / args.target / f"{name}.slib",
                 *native,

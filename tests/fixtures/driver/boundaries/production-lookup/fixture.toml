@@ -7,10 +7,10 @@ tags = ["test-boundaries", "negative", "driver"]
 
 [[steps]]
 name = "reject"
-argv = ["${scoop}", "test", "--release", {"each" = "${link_args}"}, "${fixture}/program", "--no-run", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+argv = ["${scoop}", "test", "--release", {"each" = "${link_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--no-run", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {file = "diagnostics.json"}
-checks = [{glob = "${work}/outputs/${target}/release/tests/*", equals = []}]
+checks = [{glob = "${work}/outputs/${target}/release/*/*/tests/*", equals = []}]

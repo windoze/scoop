@@ -26,7 +26,7 @@ from build_rust_text import LIBRARY as RUST_TEXT_LIBRARY
 from build_support import RELEASE_CONFIG, ROOT
 from compression_backends import PACKAGES as COMPRESSION_PACKAGES
 
-TOOLS = ("scoop", "scoopc", "scoop-link", "scoop-lsp")
+TOOLS = ("scoop", "scoopc", "scoop-link", "scoop-lsp", "scoop-pm")
 
 
 def run_script(name, arguments, environment):
@@ -371,6 +371,8 @@ def main():
             "scoop-linker",
             "-p",
             "scoop-lsp",
+            "-p",
+            "scoop-pm",
             "--bins",
             "-j",
             str(args.jobs),

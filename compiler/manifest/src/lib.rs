@@ -8,6 +8,8 @@ mod discovery;
 mod file_snapshot;
 mod input;
 mod native;
+pub mod package;
+mod requirement;
 mod root;
 mod selection;
 mod semantic;
@@ -20,14 +22,16 @@ pub use windows::WindowsConfig;
 pub use discovery::{
     DiscoveredManifestSources, DiscoveredSource, DiscoveryIoOperation, SelectedManifestSources,
     SelectedSource, SourceDiscoveryError, SourceDiscoveryErrorKind, SourceDisplayLocator,
-    discover_manifest_sources, discover_manifest_sources_for_tests, select_manifest_format_sources,
-    select_manifest_sources, select_manifest_sources_for_tests,
+    discover_manifest_sources, discover_manifest_sources_for_tests, select_cone_sources,
+    select_format_sources, select_manifest_format_sources, select_manifest_sources,
+    select_manifest_sources_for_tests,
 };
 pub use input::{
     CurrentConeInput, CurrentConeOperandError, CurrentConeOperandErrorKind,
     classify_current_cone_operand,
 };
 pub use native::{NativeCompileFlag, NativeConfig, NativeIncludeFlag, NativeSourceLanguage};
+pub use requirement::VersionRequirement;
 pub use root::{
     LoadedConeManifest, LocatedConeManifest, ManifestRootError, ManifestRootErrorKind,
     ManifestRootIoOperation, ManifestRootLocator, load_cone_manifest,

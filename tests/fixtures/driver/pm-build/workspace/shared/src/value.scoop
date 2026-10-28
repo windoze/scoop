@@ -1,0 +1,2 @@
+package dev.pm.common
+public fun sharedValue(): Int = 40

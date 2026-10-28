@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "dev.pm"
+name = "shared"
+version = "1.0.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.pm.value" = ">=1.0.0, <3.0.0"

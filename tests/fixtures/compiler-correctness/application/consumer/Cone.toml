@@ -10,4 +10,4 @@ kind = "library"
 "scoop:scoop.core" = "0.1.0"
 "scoop:scoop.std" = "0.1.0"
 "scoop:scoop.json" = "0.1.0"
-"dev.m42:app-provider" = "0.1.0"
+"dev.m42:app-provider" = { version = "=0.1.0", artifact = "../../artifacts/dev.m42/app-provider/0.1.0/cone.slib" }

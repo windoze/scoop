@@ -156,14 +156,41 @@ pub fn select_manifest_sources(
     manifest: &LoadedConeManifest,
     target: TargetProfileId,
 ) -> Result<SelectedManifestSources, SourceDiscoveryError> {
-    collect::select(manifest, selected_roots(manifest, target, false)?)
+    select_cone_sources(
+        manifest.real_root(),
+        manifest.identity(),
+        manifest.parsed().semantic().sources(),
+        None,
+        target,
+    )
 }
 
 pub fn select_manifest_sources_for_tests(
     manifest: &LoadedConeManifest,
     target: TargetProfileId,
 ) -> Result<SelectedManifestSources, SourceDiscoveryError> {
-    collect::select(manifest, selected_roots(manifest, target, true)?)
+    select_cone_sources(
+        manifest.real_root(),
+        manifest.identity(),
+        manifest.parsed().semantic().sources(),
+        Some(manifest.parsed().tests().sources()),
+        target,
+    )
+}
+
+/// Source selection also serves local editor members whose dependencies are unresolved.
+pub fn select_cone_sources(
+    root: &Path,
+    identity: scoop_identity::ConeIdentity,
+    sources: &SourceSelection,
+    tests: Option<&SourceSelection>,
+    target: TargetProfileId,
+) -> Result<SelectedManifestSources, SourceDiscoveryError> {
+    collect::select(
+        root,
+        identity,
+        selected_roots(root, sources, tests, target)?,
+    )
 }
 
 /// Select the union of all declared production and test paths for formatting.
@@ -171,7 +198,20 @@ pub fn select_manifest_sources_for_tests(
 pub fn select_manifest_format_sources(
     manifest: &LoadedConeManifest,
 ) -> Result<Vec<PathBuf>, SourceDiscoveryError> {
-    collect::formatting(manifest, select::formatting_roots(manifest)?)
+    select_format_sources(
+        manifest.real_root(),
+        manifest.parsed().semantic().sources(),
+        manifest.parsed().tests().sources(),
+    )
+}
+
+/// Local formatting only needs a member directory and expanded selections.
+pub fn select_format_sources(
+    root: &Path,
+    sources: &SourceSelection,
+    tests: &SourceSelection,
+) -> Result<Vec<PathBuf>, SourceDiscoveryError> {
+    collect::formatting(root, select::formatting_roots(root, sources, tests)?)
 }
 
 #[cfg(test)]

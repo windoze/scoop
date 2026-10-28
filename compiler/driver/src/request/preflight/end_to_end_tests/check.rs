@@ -6,16 +6,18 @@ fn check_completes_hir_without_machine_toolchains_or_output_paths() {
     copy_trusted_core_sources(workspace.path());
     let source = workspace.path().join("src/scoop.core");
     let make_request = |triple: &str| {
-        crate::normalize_direct_check_request(
-            &source,
-            Vec::new(),
-            Vec::new(),
+        SingleConeBuildRequest::new_selected(
+            crate::request::test_support::expanded_fixture(ManifestRootLocator::cone_directory(
+                &source,
+            )),
+            ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
+            TrustedCoreInput::BootstrapSelf,
+            crate::request::target::SelectedTarget::Frontend(
+                scoop_toolchain::select_target(triple).unwrap(),
+            ),
+            crate::SingleConeOutput::Check,
             DiagnosticOutputPolicy::Structured,
-            crate::DirectCheckOptions {
-                target: Some(triple.into()),
-                sysroot: Some(workspace.path().to_path_buf()),
-                ..Default::default()
-            },
+            StageDumpPolicy::None,
         )
         .unwrap()
     };

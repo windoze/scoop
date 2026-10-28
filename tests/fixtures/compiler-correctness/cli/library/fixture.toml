@@ -23,7 +23,7 @@ json = "stderr"
 diagnostics = []
 checks = [
   {actual = "${default_root.result.kind}", equals = "library"},
-  {actual = "${default_root.result.output}", equals = "${work}/cone/target/${target}/debug/library.slib"},
+  {actual = "${default_root.result.output}", equals = "${work}/cone/target/${target}/debug/dev.cli/library/library.slib"},
   {file = "${default_root.result.output}", same_as = "${default_root.result.root.path}"},
 ]
 

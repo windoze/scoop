@@ -6,5 +6,5 @@ version = "0.1.0"
 kind = "library"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"dev.example:image-provider" = "0.1.0"
-"dev.example:image-unused" = "0.1.0"
+"dev.example:image-provider" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/image-provider/0.1.0/cone.slib" }
+"dev.example:image-unused" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/image-unused/0.1.0/cone.slib" }

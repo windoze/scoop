@@ -44,7 +44,7 @@ impl Lowerer {
             }) {
                 Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
                 Err(failure) => {
-                    self.commit_layer_diagnostics(*failure);
+                    self.commit_layer_diagnostics(&failure);
                     return None;
                 }
             }
@@ -68,7 +68,7 @@ impl Lowerer {
             }
         }
         if let Some(failure) = ordinary_failure {
-            self.commit_layer_diagnostics(*failure);
+            self.commit_layer_diagnostics(&failure);
             return None;
         }
         if let Some(enumeration) = self.exact_expected_enum(expected) {
@@ -80,7 +80,7 @@ impl Lowerer {
                 ),
             );
         } else if let Some(failure) = prelude_variant_failure {
-            self.commit_layer_diagnostics(*failure);
+            self.commit_layer_diagnostics(&failure);
         } else if matches!(
             self.lookup_type(name),
             crate::imports::lookup::LookupResult::Inaccessible(_)

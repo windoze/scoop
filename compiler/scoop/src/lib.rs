@@ -1,6 +1,6 @@
 //! Dependency-graph orchestration for Scoop builds.
 //!
-//! This crate may inspect manifests and `.slib` artifacts and may invoke the
+//! This crate consumes prepared package graphs and `.slib` artifacts and invokes the
 //! paired `scoopc` process. It deliberately has no dependency on the compiler
 //! implementation pipeline.
 
@@ -44,3 +44,6 @@ pub use snapshot::*;
 
 #[cfg(test)]
 mod test_artifacts;
+
+#[cfg(test)]
+mod test_package;

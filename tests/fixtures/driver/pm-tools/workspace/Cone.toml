@@ -1,0 +1,9 @@
+schema = 1
+[workspace]
+members = ["one", "two"]
+default-members = ["one"]
+[workspace.cone]
+group = "dev.tools"
+version = "1.0.0"
+[workspace.dependencies]
+"dev.remote:library" = { version = "^1.0.0", registry = "http://127.0.0.1:9/registry" }

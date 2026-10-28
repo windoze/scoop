@@ -1,4 +1,4 @@
-//! Project inputs selected by the ordinary manifest and artifact readers.
+//! Local project inputs selected by the package manager and artifact readers.
 
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 
@@ -13,6 +13,7 @@ mod attached_sources;
 mod files;
 mod graph;
 mod loader;
+mod package;
 mod sources;
 
 pub use files::normalize_path;
@@ -26,6 +27,9 @@ pub struct ProjectConfiguration {
     pub purpose: CompilationPurpose,
     pub sysroot: PathBuf,
     pub artifact_search_roots: Vec<PathBuf>,
+    pub package_manager: PathBuf,
+    pub package_cache: Option<PathBuf>,
+    pub lockfile: Option<PathBuf>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -133,8 +137,16 @@ impl ProjectInput {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct WorkspaceInputs {
     pub projects: Vec<ProjectInput>,
+    /// Local syntax stays available when a member has no usable locked graph.
+    pub unresolved_members: Vec<LocalMemberInput>,
     pub diagnostics: Vec<ProjectDiagnostic>,
     pub active_configuration: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LocalMemberInput {
+    pub configuration: String,
+    pub sources: Vec<ProjectSource>,
 }
 
 impl WorkspaceInputs {
@@ -145,10 +157,20 @@ impl WorkspaceInputs {
             .iter()
             .filter(|project| project.source_cone(source).is_some());
         if let Some(active) = &self.active_configuration {
+            if self.unresolved_members.iter().any(|member| {
+                member.configuration == *active
+                    && member.sources.iter().any(|file| file.source == source)
+            }) {
+                return None;
+            }
             if !self
                 .projects
                 .iter()
                 .any(|project| project.configuration.name == *active)
+                && !self
+                    .unresolved_members
+                    .iter()
+                    .any(|member| member.configuration == *active)
             {
                 return None;
             }
@@ -157,6 +179,36 @@ impl WorkspaceInputs {
                 .find(|project| project.configuration.name == *active)
             {
                 return Some(project);
+            }
+        }
+        candidates.next()
+    }
+
+    pub(crate) fn unresolved_for_source(&self, source: SourceId) -> Option<&LocalMemberInput> {
+        if self.project_for_source(source).is_some() {
+            return None;
+        }
+        let mut candidates = self
+            .unresolved_members
+            .iter()
+            .filter(|member| member.sources.iter().any(|file| file.source == source));
+        if let Some(active) = &self.active_configuration {
+            if let Some(member) = candidates
+                .clone()
+                .find(|member| member.configuration == *active)
+            {
+                return Some(member);
+            }
+            if !self
+                .projects
+                .iter()
+                .any(|project| project.configuration.name == *active)
+                && !self
+                    .unresolved_members
+                    .iter()
+                    .any(|member| member.configuration == *active)
+            {
+                return None;
             }
         }
         candidates.next()

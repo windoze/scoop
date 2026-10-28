@@ -10,7 +10,7 @@ variants = [
 
 [[steps]]
 name = "list"
-argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/cone", "--list", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/cone", "--lockfile", "${work}/source-lock-0.lock", "--list", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -27,7 +27,7 @@ checks = [
 
 [[steps]]
 name = "container"
-argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/cone", "--filter", "LifecycleTests::", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/cone", "--lockfile", "${work}/source-lock-0.lock", "--filter", "LifecycleTests::", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -46,7 +46,7 @@ checks = [
 
 [[steps]]
 name = "method-list"
-argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/cone", "--list", "--filter", "FilterTests::selected", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/cone", "--lockfile", "${work}/source-lock-0.lock", "--list", "--filter", "FilterTests::selected", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -63,7 +63,7 @@ checks = [
 
 [[steps]]
 name = "method-run"
-argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/cone", "--filter", "FilterTests::selected", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/cone", "--lockfile", "${work}/source-lock-0.lock", "--filter", "FilterTests::selected", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

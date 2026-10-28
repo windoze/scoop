@@ -7,7 +7,7 @@ tags = ["test-report", "shutdown", "callback", "driver"]
 variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
 [[steps]]
 name = "shutdown"
-argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/../test-report/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/../test-report/program", "--lockfile", "${work}/source-lock-0.lock", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
 env = {M43_REPORT_MODE = "9"}
 exit = 1
 stdout = ""

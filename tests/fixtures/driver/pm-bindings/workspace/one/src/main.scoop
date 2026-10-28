@@ -1,0 +1,5 @@
+package dev.pm.one
+import dev.pm.shared.selected
+fun main() {
+    if (selected() != 1) throw IllegalStateException()
+}

@@ -1,5 +1,5 @@
 schema = 1
-name = "fmt-empty-selections-and-no-parent-search"
+name = "fmt-empty-selections-and-parent-search"
 inputs = ["default", "explicit"]
 tools = ["scoop"]
 tags = ["driver", "format"]
@@ -29,12 +29,12 @@ diagnostics = []
 checks = [{file = "${work}/blank.scoop", equals = ""}, {actual = "${blank.result.counts.formatted}", equals = 1}]
 
 [[steps]]
-name = "no_parent"
+name = "parent"
 argv = ["${scoop}", "fmt", "--message-format", "json"]
 cwd = "${work}/default/src"
-exit = 1
+exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {file = "no-parent.json"}
-checks = [{actual = "${no_parent.result.files}", equals = []}, {actual = "${no_parent.result.success}", equals = false}]
+diagnostics = []
+checks = [{actual = "${parent.result.files}", equals = []}, {actual = "${parent.result.success}", equals = true}]

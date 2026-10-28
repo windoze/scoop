@@ -29,10 +29,12 @@ files = [{copy = {from = "${build.result.dependencies.0.path}", to = "${work}/ma
 
 [[steps]]
 name = "manual"
-argv = ["${scoopc}", "build", {each = "${compile_args}"}, "${work}/cone", "--profile", "${profile}", "--sysroot", "${work}/manual-sysroot", "--out-slib", "${work}/manual.slib"]
+argv = ["${scoop}", "build", {each = "${compile_args}"}, "${work}/cone", "--profile", "${profile}", "--sysroot", "${work}/manual-sysroot", "-o", "${work}/manual.slib", "--emit-slib", "--cache-dir", "${cache}", "--target-dir", "${work}/compiler-output", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
+json = "stderr"
+diagnostics = []
 checks = [{file = "${work}/manual.slib", same_as = "${build.result.root.path}"}]
 
 [[steps]]

@@ -32,7 +32,7 @@ enum Command {
 
 #[derive(clap::Args)]
 struct BuildArgs {
-    /// Cone directory, exact `Cone.toml`, or one `.scoop` file.
+    /// One `.scoop` file; use `scoop build` for Cone projects.
     input: PathBuf,
     /// Direct dependency artifact; may be repeated.
     #[arg(long = "direct-slib")]
@@ -49,9 +49,6 @@ struct BuildArgs {
     /// Compiler optimization profile.
     #[arg(long, value_enum, default_value_t = Profile::Debug)]
     profile: Profile,
-    /// Compile this manifest Cone's tests with a generated entry.
-    #[arg(long)]
-    test: bool,
     /// Core sysroot; defaults to SCOOP_SYSROOT and the development layout.
     #[arg(long)]
     sysroot: Option<PathBuf>,
@@ -118,7 +115,6 @@ fn main() -> ExitCode {
                 native_sysroot,
                 generators,
                 profile,
-                test,
             } = *args;
             build(
                 input,
@@ -128,11 +124,6 @@ fn main() -> ExitCode {
                 emit,
                 scoopc::DirectBuildOptions {
                     optimization: profile.optimization(),
-                    purpose: if test {
-                        scoop_protocol::CompilationPurpose::Test
-                    } else {
-                        scoop_protocol::CompilationPurpose::Production
-                    },
                     target,
                     sysroot,
                     generators,
@@ -241,7 +232,7 @@ mod tests {
         let cli = Cli::try_parse_from([
             "scoopc",
             "build",
-            "Cone.toml",
+            "main.scoop",
             "--direct-slib",
             "direct.slib",
             "--support-slib",
@@ -274,7 +265,7 @@ mod tests {
             generators,
             ..
         } = *args;
-        assert_eq!(input, PathBuf::from("Cone.toml"));
+        assert_eq!(input, PathBuf::from("main.scoop"));
         assert_eq!(direct_slibs, [PathBuf::from("direct.slib")]);
         assert_eq!(support_slibs, [PathBuf::from("support.slib")]);
         assert_eq!(out_slib, PathBuf::from("current.slib"));

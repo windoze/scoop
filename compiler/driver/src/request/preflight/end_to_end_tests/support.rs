@@ -23,9 +23,9 @@ pub(super) fn bootstrap_core(
     let artifact_path = slot.artifact().to_path_buf();
     std::fs::create_dir_all(artifact_path.parent().unwrap()).unwrap();
     SingleConeBuildRequest::new(
-        CurrentConeInput::Manifest {
-            root: ManifestRootLocator::cone_directory(slot.source_root()),
-        },
+        crate::request::test_support::expanded_fixture(ManifestRootLocator::cone_directory(
+            slot.source_root(),
+        )),
         ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
         TrustedCoreInput::BootstrapSelf,
         target.clone(),
@@ -47,9 +47,7 @@ pub(super) fn build_manifest(
     build_ordinary(
         sysroot,
         target,
-        CurrentConeInput::Manifest {
-            root: ManifestRootLocator::cone_directory(root),
-        },
+        crate::request::test_support::expanded_fixture(ManifestRootLocator::cone_directory(root)),
         output,
     )
 }
@@ -119,9 +117,7 @@ pub(super) fn build_manifest_request(
         crate::trusted_core::resolve_trusted_core_slot_at(sysroot, target.lir_target_selection())
             .unwrap();
     SingleConeBuildRequest::new(
-        CurrentConeInput::Manifest {
-            root: ManifestRootLocator::cone_directory(root),
-        },
+        crate::request::test_support::expanded_fixture(ManifestRootLocator::cone_directory(root)),
         ExplicitDependencyInputs::new(
             direct
                 .into_iter()

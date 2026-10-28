@@ -84,7 +84,7 @@ impl Lowerer {
             .argument_map
             .as_ref()
             .expect("only shape-applicable candidates are probed");
-        let mut state = self.clone();
+        let mut state = self.probe_state();
         let intrinsic_argument_expected = match arguments {
             OverloadArguments::Source(expressions) => {
                 let diagnostics_before = state.diagnostics.len();
@@ -104,7 +104,7 @@ impl Lowerer {
                         let span = diagnostic_span(&state, diagnostics_before, candidate.call_span);
                         return Err(Box::new(CandidateProbeFailure {
                             candidate: candidate_index,
-                            state: Some(Box::new(state)),
+                            state: Some(state),
                             arguments: receiver.cloned().map(Some).into_iter().collect(),
                             kind: CandidateProbeFailureKind::Declaration { span, reason },
                         }));
@@ -173,7 +173,7 @@ impl Lowerer {
                 };
                 return Err(Box::new(CandidateProbeFailure {
                     candidate: candidate_index,
-                    state: Some(Box::new(state)),
+                    state: Some(state),
                     arguments: receiver
                         .cloned()
                         .map(Some)
@@ -200,7 +200,7 @@ impl Lowerer {
         }
         Ok(ApplicableCandidate {
             candidate: candidate_index,
-            state: Box::new(state),
+            state,
             type_args,
             args: values,
             argument_sinks,

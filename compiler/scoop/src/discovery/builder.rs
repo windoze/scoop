@@ -1,65 +1,50 @@
-use super::plans::{
-    ManifestDependencyPlanLocator, manifest_dependency_plans, prebuilt_dependency_plans,
-};
+use super::plans::prebuilt_dependency_plans;
 use super::*;
 
 pub(super) struct DiscoveryBuilder {
     root: ConeIdentity,
     nodes: BTreeMap<ConeIdentity, GraphNode>,
     edges: BTreeMap<(ConeIdentity, ConeIdentity), DiscoveredDependencyEdge>,
-    explicit: Vec<PendingExplicitDependency>,
     unlocated: Vec<PendingUnlocatedDependency>,
     context: BuildContext,
 }
 
 impl DiscoveryBuilder {
-    pub(super) fn new(loaded: LoadedBuildRoot) -> Result<Self, BuildGraphDiscoveryError> {
-        let LoadedBuildRoot { root, context } = loaded;
-        let root_identity = match &root {
-            LoadedRootInput::Manifest(manifest) => manifest.identity(),
-            LoadedRootInput::SingleFile { .. } => ConeIdentity::SINGLE_FILE,
-        };
+    pub(super) fn new(
+        source: SingleFileLocator,
+        dependencies: Vec<scoop_manifest::SingleFileDependency>,
+        context: BuildContext,
+    ) -> Result<Self, BuildGraphDiscoveryError> {
+        let root = ConeIdentity::SINGLE_FILE;
         let mut builder = Self {
-            root: root_identity,
+            root,
             nodes: BTreeMap::new(),
             edges: BTreeMap::new(),
-            explicit: Vec::new(),
             unlocated: Vec::new(),
             context,
         };
-        match root {
-            LoadedRootInput::Manifest(manifest) => {
-                builder.insert_node(root_identity, GraphNode::ManifestSource(manifest))?;
-                builder.expand_source(root_identity)?;
-            }
-            LoadedRootInput::SingleFile {
-                source,
-                dependencies,
-            } => {
-                for dependency in dependencies {
-                    let coordinate = dependency.coordinate().clone();
-                    let identity = coordinate
-                        .identity()
-                        .map_err(BuildGraphDiscoveryError::Identity)?;
-                    builder.insert_edge(DiscoveredDependencyEdge::new(
-                        root_identity,
-                        identity,
-                        coordinate.clone(),
-                        EdgeOrigin::SingleFile {
-                            source: source.display_path().to_owned(),
-                            span: dependency.span(),
-                        },
-                        None,
-                    ))?;
-                    if identity != ConeIdentity::CORE {
-                        builder
-                            .unlocated
-                            .push(PendingUnlocatedDependency { coordinate });
-                    }
-                }
-                builder.insert_node(root_identity, GraphNode::SingleFile(source))?;
+        for dependency in dependencies {
+            let coordinate = dependency.coordinate().clone();
+            let identity = coordinate
+                .identity()
+                .map_err(BuildGraphDiscoveryError::Identity)?;
+            builder.insert_edge(DiscoveredDependencyEdge::new(
+                root,
+                identity,
+                coordinate.clone(),
+                EdgeOrigin::SingleFile {
+                    source: source.display_path().to_owned(),
+                    span: dependency.span(),
+                },
+                None,
+            ))?;
+            if identity != ConeIdentity::CORE {
+                builder
+                    .unlocated
+                    .push(PendingUnlocatedDependency { coordinate });
             }
         }
+        builder.insert_node(root, GraphNode::SingleFile(source))?;
         Ok(builder)
     }
 
@@ -87,27 +72,6 @@ impl DiscoveryBuilder {
 
     fn discover_declared_dependencies(&mut self) -> Result<(), BuildGraphDiscoveryError> {
         loop {
-            while let Some(pending) = pop_explicit(&mut self.explicit) {
-                let claim = {
-                    let nodes = &self.nodes;
-                    let Some(GraphNode::ManifestSource(parent)) = nodes.get(&pending.dependent)
-                    else {
-                        return Err(BuildGraphDiscoveryError::InternalSourceClaim(
-                            pending.dependent,
-                        ));
-                    };
-                    locate_manifest_dependency(
-                        parent,
-                        &pending.key,
-                        &self.context.artifact_search_roots,
-                        self.context.target.lir_target_selection(),
-                        &self.context.cache_root,
-                    )
-                    .map_err(|error| BuildGraphDiscoveryError::Locator(Box::new(error)))?
-                };
-                self.intern_claim(claim)?;
-            }
-
             let Some(pending) = pop_unlocated(&mut self.unlocated) else {
                 return Ok(());
             };
@@ -149,67 +113,16 @@ impl DiscoveryBuilder {
 
     fn intern_claim(
         &mut self,
-        claim: LocatedDependencyClaim,
+        prebuilt: PrebuiltArtifactProjection,
     ) -> Result<(), BuildGraphDiscoveryError> {
-        match claim {
-            LocatedDependencyClaim::Source(source) => {
-                let identity = source.manifest().identity();
-                if self.intern_source(*source)? {
-                    self.expand_source(identity)?;
-                }
-            }
-            LocatedDependencyClaim::Prebuilt(prebuilt) => {
-                let identity = prebuilt
-                    .coordinate()
-                    .identity()
-                    .map_err(BuildGraphDiscoveryError::Identity)?;
-                if self.intern_prebuilt(*prebuilt)? {
-                    self.expand_prebuilt(identity)?;
-                }
-            }
+        let identity = prebuilt
+            .coordinate()
+            .identity()
+            .map_err(BuildGraphDiscoveryError::Identity)?;
+        if self.intern_prebuilt(prebuilt)? {
+            self.expand_prebuilt(identity)?;
         }
         Ok(())
-    }
-
-    fn intern_source(
-        &mut self,
-        source: ManifestSourceProjection,
-    ) -> Result<bool, BuildGraphDiscoveryError> {
-        let identity = source.manifest().identity();
-        match self.nodes.get(&identity) {
-            None => {
-                self.insert_node(
-                    identity,
-                    GraphNode::ManifestSource(Box::new(source.into_manifest())),
-                )?;
-                Ok(true)
-            }
-            Some(GraphNode::ManifestSource(existing)) => {
-                if existing.coordinate() != source.manifest().coordinate() {
-                    return Err(identity_coordinate_conflict(
-                        identity,
-                        existing.coordinate(),
-                        source.manifest().coordinate(),
-                    ));
-                }
-                if existing.real_root() != source.manifest().real_root() {
-                    return Err(BuildGraphDiscoveryError::ConflictingSourceLocator {
-                        coordinate: Box::new(existing.coordinate().clone()),
-                        first: existing.real_root().to_path_buf(),
-                        second: source.manifest().real_root().to_path_buf(),
-                    });
-                }
-                Ok(false)
-            }
-            Some(GraphNode::Prebuilt(existing)) => {
-                Err(BuildGraphDiscoveryError::ConflictingNodeRepresentation {
-                    coordinate: existing.coordinate().clone(),
-                })
-            }
-            Some(GraphNode::SingleFile(_)) => {
-                Err(BuildGraphDiscoveryError::ReservedNodeClaim(identity))
-            }
-        }
     }
 
     fn intern_prebuilt(
@@ -291,52 +204,6 @@ impl DiscoveryBuilder {
         Ok(())
     }
 
-    fn expand_source(&mut self, identity: ConeIdentity) -> Result<(), BuildGraphDiscoveryError> {
-        let plans = {
-            let Some(GraphNode::ManifestSource(manifest)) = self.nodes.get(&identity) else {
-                return Err(BuildGraphDiscoveryError::InternalSourceClaim(identity));
-            };
-            manifest_dependency_plans(
-                manifest,
-                identity == self.root
-                    && self.context.purpose == scoop_protocol::CompilationPurpose::Test,
-            )?
-        };
-        if identity != ConeIdentity::CORE
-            && !plans
-                .iter()
-                .any(|plan| plan.edge.dependency() == ConeIdentity::CORE)
-        {
-            self.insert_edge(DiscoveredDependencyEdge::new(
-                identity,
-                ConeIdentity::CORE,
-                ConeCoordinate::reserved_core(),
-                EdgeOrigin::InjectedTrustedCore {
-                    dependent: identity,
-                },
-                None,
-            ))?;
-        }
-        for plan in plans {
-            self.insert_edge(plan.edge)?;
-            match plan.locator {
-                ManifestDependencyPlanLocator::Explicit(key) => {
-                    self.explicit.push(PendingExplicitDependency {
-                        dependent: identity,
-                        coordinate: plan.coordinate,
-                        key,
-                    });
-                }
-                ManifestDependencyPlanLocator::SearchRoots => {
-                    self.unlocated.push(PendingUnlocatedDependency {
-                        coordinate: plan.coordinate,
-                    });
-                }
-            }
-        }
-        Ok(())
-    }
-
     fn expand_prebuilt(&mut self, identity: ConeIdentity) -> Result<(), BuildGraphDiscoveryError> {
         let plans = {
             let Some(GraphNode::Prebuilt(prebuilt)) = self.nodes.get(&identity) else {
@@ -356,27 +223,8 @@ impl DiscoveryBuilder {
     }
 }
 
-struct PendingExplicitDependency {
-    dependent: ConeIdentity,
-    coordinate: ConeCoordinate,
-    key: DependencyCoordinateKey,
-}
-
 struct PendingUnlocatedDependency {
     coordinate: ConeCoordinate,
-}
-
-fn pop_explicit(pending: &mut Vec<PendingExplicitDependency>) -> Option<PendingExplicitDependency> {
-    let index = pending
-        .iter()
-        .enumerate()
-        .min_by(|(_, left), (_, right)| {
-            compare_coordinates(&left.coordinate, &right.coordinate)
-                .then_with(|| left.dependent.cmp(&right.dependent))
-                .then_with(|| left.key.cmp(&right.key))
-        })?
-        .0;
-    Some(pending.swap_remove(index))
 }
 
 fn pop_unlocated(

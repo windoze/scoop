@@ -8,36 +8,46 @@ pub(super) struct SelectedRoot {
 }
 
 pub(super) fn selected_roots(
-    manifest: &LoadedConeManifest,
+    root: &Path,
+    sources: &SourceSelection,
+    tests: Option<&SourceSelection>,
     target: TargetProfileId,
-    include_tests: bool,
 ) -> Result<Vec<SelectedRoot>, SourceDiscoveryError> {
     let mut roots = Vec::new();
-    append_roots(manifest, Some(target), SourceRole::Production, &mut roots)?;
-    if include_tests {
-        append_roots(manifest, Some(target), SourceRole::Test, &mut roots)?;
+    append_roots(
+        root,
+        sources,
+        Some(target),
+        SourceRole::Production,
+        &mut roots,
+    )?;
+    if let Some(tests) = tests {
+        append_roots(root, tests, Some(target), SourceRole::Test, &mut roots)?;
     }
     Ok(roots)
 }
 
 pub(super) fn formatting_roots(
-    manifest: &LoadedConeManifest,
+    root: &Path,
+    sources: &SourceSelection,
+    tests: &SourceSelection,
 ) -> Result<Vec<SelectedRoot>, SourceDiscoveryError> {
     let mut roots = Vec::new();
-    append_roots(manifest, None, SourceRole::Production, &mut roots)?;
-    append_roots(manifest, None, SourceRole::Test, &mut roots)?;
+    append_roots(root, sources, None, SourceRole::Production, &mut roots)?;
+    append_roots(root, tests, None, SourceRole::Test, &mut roots)?;
     Ok(roots)
 }
 
 fn append_roots(
-    manifest: &LoadedConeManifest,
+    directory: &Path,
+    selection: &SourceSelection,
     target: Option<TargetProfileId>,
     role: SourceRole,
     roots: &mut Vec<SelectedRoot>,
 ) -> Result<(), SourceDiscoveryError> {
-    let (selection, default_path, field) = match role {
-        SourceRole::Production => (manifest.parsed().semantic().sources(), "src", "sources"),
-        SourceRole::Test => (manifest.parsed().tests().sources(), "tests", "test.sources"),
+    let (default_path, field) = match role {
+        SourceRole::Production => ("src", "sources"),
+        SourceRole::Test => ("tests", "test.sources"),
     };
     let paths: Vec<_> = match selection {
         SourceSelection::Default => vec![(
@@ -57,7 +67,7 @@ fn append_roots(
             .collect(),
     };
     for (path, label) in paths {
-        let display_path = manifest.real_root().join(path.as_path());
+        let display_path = directory.join(path.as_path());
         if role == SourceRole::Test
             && matches!(selection, SourceSelection::Default)
             && matches!(std::fs::symlink_metadata(&display_path), Err(error) if error.kind() == std::io::ErrorKind::NotFound)

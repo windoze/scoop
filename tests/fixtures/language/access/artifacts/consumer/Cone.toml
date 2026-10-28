@@ -6,4 +6,4 @@ version = "0.1.0"
 kind = "executable"
 
 [dependencies]
-"dev.m41:access-relay" = "0.1.0"
+"dev.m41:access-relay" = { version = "=0.1.0", artifact = "../../artifacts/dev.m41/access-relay/0.1.0/cone.slib" }

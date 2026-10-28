@@ -8,7 +8,10 @@ pub struct LoadedBuildRoot {
 
 #[derive(Debug)]
 pub(super) enum LoadedRootInput {
-    Manifest(Box<LoadedConeManifest>),
+    Prepared {
+        identity: ConeIdentity,
+        resolution: Box<scoop_protocol::package::PreparedResolutionV1>,
+    },
     SingleFile {
         source: SingleFileLocator,
         dependencies: Vec<scoop_manifest::SingleFileDependency>,
@@ -57,12 +60,13 @@ impl LoadedBuildRoot {
         context: BuildContext,
     ) -> Result<Self, LoadBuildRootError> {
         let root = match root.into_kind() {
-            BuildRootInputKind::ManifestCone(locator) => LoadedRootInput::Manifest(Box::new(
-                context
-                    .cache_root
-                    .load_manifest(&locator)
-                    .map_err(LoadBuildRootError::RootManifest)?,
-            )),
+            BuildRootInputKind::Prepared {
+                identity,
+                resolution,
+            } => LoadedRootInput::Prepared {
+                identity,
+                resolution,
+            },
             BuildRootInputKind::SingleFile(source) => {
                 let dependencies = context
                     .cache_root
@@ -79,7 +83,7 @@ impl LoadedBuildRoot {
 
     pub fn root_identity(&self) -> ConeIdentity {
         match &self.root {
-            LoadedRootInput::Manifest(manifest) => manifest.identity(),
+            LoadedRootInput::Prepared { identity, .. } => *identity,
             LoadedRootInput::SingleFile { .. } => ConeIdentity::SINGLE_FILE,
         }
     }
@@ -87,6 +91,15 @@ impl LoadedBuildRoot {
     /// Discovers exact source and prebuilt claims without constructing any
     /// Compile or Link artifact authority.
     pub fn discover(self) -> Result<DiscoveredBuildGraph, BuildGraphDiscoveryError> {
-        DiscoveryBuilder::new(self)?.run()
+        match self.root {
+            LoadedRootInput::Prepared {
+                identity,
+                resolution,
+            } => DiscoveredBuildGraph::from_package(identity, *resolution, self.context),
+            LoadedRootInput::SingleFile {
+                source,
+                dependencies,
+            } => DiscoveryBuilder::new(source, dependencies, self.context)?.run(),
+        }
     }
 }

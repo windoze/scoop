@@ -16,9 +16,9 @@ fn observations_stop_at_requested_stage_without_publishing_artifacts() {
     let output = sysroot.path().join("observed.slib");
     for stage in StageDumpKind::ALL {
         let request = SingleConeBuildRequest::new(
-            CurrentConeInput::Manifest {
-                root: ManifestRootLocator::cone_directory(&root),
-            },
+            crate::request::test_support::expanded_fixture(ManifestRootLocator::cone_directory(
+                &root,
+            )),
             ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
             TrustedCoreInput::Artifact(HostArtifactLocator::new(core.artifact().path()).unwrap()),
             target.clone(),

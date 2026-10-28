@@ -115,19 +115,12 @@ impl LocatedConeManifest {
             manifest_path,
             ..
         } = self;
-        let identity = parsed.semantic().coordinate().identity().map_err(|error| {
-            ManifestRootError::new(
-                manifest_path.clone(),
-                ManifestRootErrorKind::Identity(error),
-            )
-        })?;
-
-        Ok(LoadedConeManifest {
+        LoadedConeManifest::from_expanded(
             real_root,
             manifest_path,
             source,
-            identity,
             parsed,
-        })
+            std::collections::BTreeMap::new(),
+        )
     }
 }

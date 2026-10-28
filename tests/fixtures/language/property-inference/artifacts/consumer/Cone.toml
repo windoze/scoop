@@ -6,4 +6,4 @@ version = "0.1.0"
 kind = "executable"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"dev.m37:inferredproperties-bridge" = "0.1.0"
+"dev.m37:inferredproperties-bridge" = { version = "=0.1.0", artifact = "../../artifacts/dev.m37/inferredproperties-bridge/0.1.0/cone.slib" }

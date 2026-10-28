@@ -5,4 +5,4 @@ name = "index-consumer"
 version = "0.1.0"
 kind = "executable"
 [dependencies]
-"dev.m34:index-provider" = "0.1.0"
+"dev.m34:index-provider" = { version = "=0.1.0", artifact = "../../artifacts/dev.m34/index-provider/0.1.0/cone.slib" }

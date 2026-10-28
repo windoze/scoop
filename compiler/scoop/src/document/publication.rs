@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 
 mod record;
 mod replace;
-use record::{ConePages, Record};
+mod site;
+use record::Record;
 
 const RECORD: &str = ".scoop-doc.json";
 
@@ -21,27 +22,35 @@ pub(super) fn lock(output: &Path) -> BuildResult<std::fs::File> {
 
 pub(super) fn publish(
     request: &DocumentRequest,
-    sources: &BTreeMap<ConeIdentity, plan::Source>,
-    selected: &BTreeSet<ConeIdentity>,
-    overviews: &BTreeMap<ConeIdentity, overview::Overview>,
+    sites: &[plan::Site],
+    overviews: &[BTreeMap<ConeIdentity, overview::Overview>],
 ) -> BuildResult<(bool, Vec<PathBuf>)> {
     let tool = std::env::current_exe().map_err(error)?;
     let configuration = input_key(&(
+        "root-catalogs-v1",
         request.private,
         request.target.canonical_triple(),
         tool.as_os_str().as_encoded_bytes(),
         plan::file_state(&tool)?,
     ))?;
-    let entries = selected
-        .iter()
-        .map(|id| (id.to_string(), &sources[id].key))
-        .collect::<Vec<_>>();
-    let shared_key = input_key(&(&configuration, entries))?;
-    let overview_keys = selected
-        .iter()
-        .map(|id| &overviews[id].key)
-        .collect::<Vec<_>>();
-    let key = input_key(&(&shared_key, overview_keys))?;
+    let mut site_keys = Vec::new();
+    let mut configurations = Vec::new();
+    let mut roots = Vec::new();
+    for (site, overviews) in sites.iter().zip(overviews) {
+        let label = (!site.prefix.is_empty()).then_some(&site.name);
+        let config = input_key(&(&configuration, &site.prefix, label))?;
+        site_keys.push((&site.prefix, site::keys(site, overviews, &config)?.0));
+        configurations.push(config);
+        if !site.prefix.is_empty() {
+            roots.push(scoop_doc::RootReference {
+                name: site.name.clone(),
+                manifest: site.manifest.display().to_string(),
+                url: format!("{}/index.html", site.prefix),
+            });
+        }
+    }
+    let roots_key = input_key(&(&configuration, &roots))?;
+    let key = input_key(&(site_keys, &roots_key))?;
     let previous = record::load(&request.output)?;
     if let Some(previous) = &previous
         && previous.key == key
@@ -49,84 +58,55 @@ pub(super) fn publish(
     {
         return Ok((false, Vec::new()));
     }
-    let inputs = selected
-        .iter()
-        .map(|id| {
-            let path = cache::Entry::new(&request.cache, &sources[id].key).input();
-            let bytes = std::fs::read(&path).map_err(|e| io_error(&path, e))?;
-            scoop_doc::ConeInput::from_json(&bytes).map_err(|e| io_error(&path, e))
-        })
-        .collect::<BuildResult<Vec<_>>>()?;
-    let catalog = scoop_doc::SiteCatalog::new(
-        &inputs,
-        scoop_doc::SiteOptions {
-            document_private_items: request.private,
-        },
-    )
-    .map_err(error)?;
-    let renderer = scoop_doc::SiteRenderer::new(&catalog).map_err(error)?;
     let stage = tempfile::Builder::new()
         .prefix(".scoop-doc-")
         .tempdir_in(request.output.parent().unwrap())
         .map_err(|e| io_error(&request.output, e))?;
     let mut rendered = Vec::new();
-    let shared = match record::reuse(
-        &shared_key,
-        previous.as_ref().and_then(|p| p.shared.as_ref()),
-        &request.output,
-        stage.path(),
-    )? {
-        Some(pages) => pages,
-        None => record::render(
-            stage.path(),
-            shared_key,
-            renderer.render_shared().map_err(error)?,
-            &mut rendered,
-        )?,
-    };
-    let mut cones = BTreeMap::new();
-    for id in selected {
-        let cone = scoop_doc::ConeKey::new(*id).map_err(error)?;
-        let api_key = input_key(&(
-            &configuration,
-            &sources[id].key,
-            catalog.link_inputs(&cone).map_err(error)?,
-        ))?;
-        let overview_key = input_key(&(&api_key, &overviews[id].key))?;
-        let old = previous.as_ref().and_then(|p| p.cones.get(&id.to_string()));
-        let api = match record::reuse(&api_key, old.map(|p| &p.api), &request.output, stage.path())?
-        {
-            Some(pages) => pages,
-            None => record::render(
-                stage.path(),
-                api_key,
-                renderer.render_api(&cone).map_err(error)?,
-                &mut rendered,
-            )?,
+    let mut files = Vec::new();
+    let mut records = BTreeMap::new();
+    for ((site, overviews), config) in sites.iter().zip(overviews).zip(&configurations) {
+        let (record, changed) = site::render(
+            request,
+            site,
+            overviews,
+            config,
+            previous
+                .as_ref()
+                .and_then(|record| record.sites.get(&site.prefix)),
+            &stage.path().join(&site.prefix),
+        )?;
+        let prefix = |file: &str| {
+            if site.prefix.is_empty() {
+                file.to_owned()
+            } else {
+                format!("{}/{file}", site.prefix)
+            }
         };
-        let overview = match record::reuse(
-            &overview_key,
-            old.map(|p| &p.overview),
+        files.extend(record.files.iter().map(|file| prefix(file)));
+        rendered.extend(changed.iter().map(|file| prefix(file)));
+        records.insert(site.prefix.clone(), record);
+    }
+    let roots = if roots.is_empty() {
+        None
+    } else {
+        let pages = match record::reuse(
+            &roots_key,
+            previous.as_ref().and_then(|record| record.roots.as_ref()),
             &request.output,
             stage.path(),
         )? {
             Some(pages) => pages,
-            None => {
-                let home = renderer
-                    .render_overview(&cone, &overviews[id].view)
-                    .map_err(error)?;
-                let mut pages =
-                    record::render(stage.path(), overview_key, vec![home], &mut rendered)?;
-                record::resources(stage.path(), &overviews[id], &mut pages)?;
-                pages
-            }
+            None => record::render(
+                stage.path(),
+                roots_key,
+                scoop_doc::render_roots(&roots).map_err(error)?,
+                &mut rendered,
+            )?,
         };
-        cones.insert(id.to_string(), ConePages { api, overview });
-    }
-    let mut files = shared.files.clone();
-    for cone in cones.values() {
-        files.extend(cone.api.files.iter().chain(&cone.overview.files).cloned());
-    }
+        files.extend(pages.files.iter().cloned());
+        Some(pages)
+    };
     files.sort();
     files.dedup();
     write(
@@ -135,8 +115,8 @@ pub(super) fn publish(
         &serde_json::to_vec(&Record {
             key,
             files,
-            shared: Some(shared),
-            cones,
+            roots,
+            sites: records,
         })
         .map_err(error)?,
     )?;

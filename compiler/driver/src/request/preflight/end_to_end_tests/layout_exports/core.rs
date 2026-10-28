@@ -120,9 +120,9 @@ fn check_core_layout_exports(names: &[&str]) {
         )
         .unwrap();
         let loaded = SingleConeBuildRequest::new(
-            CurrentConeInput::Manifest {
-                root: ManifestRootLocator::cone_directory(&root),
-            },
+            crate::request::test_support::expanded_fixture(ManifestRootLocator::cone_directory(
+                &root,
+            )),
             ExplicitDependencyInputs::new(vec![], vec![]),
             TrustedCoreInput::BootstrapSelf,
             target.clone(),

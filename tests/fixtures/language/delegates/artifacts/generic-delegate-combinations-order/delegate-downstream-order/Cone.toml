@@ -6,4 +6,4 @@ version = "0.1.0"
 kind = "library"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"dev.example:delegate-order" = "0.1.0"
+"dev.example:delegate-order" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/delegate-order/0.1.0/cone.slib" }

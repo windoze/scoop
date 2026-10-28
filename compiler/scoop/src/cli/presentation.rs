@@ -121,6 +121,9 @@ impl Reporter {
             "root": artifact(root.artifact().summary(), root.artifact_locator()), "dependencies": dependencies,
             "observations": { "nodes": nodes, "child_invocations": observations.child_invocations().iter().map(ToString::to_string).collect::<Vec<_>>() },
         });
+        if matches!(outcome, BuildOutcome::Artifact(_)) {
+            record["kind"] = json!("artifact");
+        }
         if let BuildOutcome::Executable {
             runtime_index,
             link_plan_fingerprint,

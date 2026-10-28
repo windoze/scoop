@@ -199,7 +199,7 @@ impl Lowerer {
                 PropertyExtensionInvokeOutcome::Blocked => None,
                 PropertyExtensionInvokeOutcome::Failed(failure)
                 | PropertyExtensionInvokeOutcome::NoApplicable(Some(failure)) => {
-                    self.commit_layer_diagnostics(*failure);
+                    self.commit_layer_diagnostics(&failure);
                     None
                 }
                 PropertyExtensionInvokeOutcome::NoApplicable(None) => {
@@ -299,9 +299,9 @@ impl Lowerer {
         if candidates.is_empty() {
             return PropertyExtensionInvokeOutcome::NoApplicable(None);
         }
-        let mut state = self.clone();
+        let mut state = self.probe_state();
         let Some(explicit_type_args) = state.resolve_call_type_args(call.type_args) else {
-            return PropertyExtensionInvokeOutcome::NoApplicable(Some(Box::new(state)));
+            return PropertyExtensionInvokeOutcome::NoApplicable(Some(state));
         };
         let mut layer_sink = Vec::new();
         match state.resolve_member_overload_outcome(
@@ -322,12 +322,10 @@ impl Lowerer {
             &mut layer_sink,
         ) {
             OverloadResolutionOutcome::NoApplicable => {
-                PropertyExtensionInvokeOutcome::NoApplicable(Some(Box::new(state)))
+                PropertyExtensionInvokeOutcome::NoApplicable(Some(state))
             }
             OverloadResolutionOutcome::Blocked => PropertyExtensionInvokeOutcome::Blocked,
-            OverloadResolutionOutcome::Failed => {
-                PropertyExtensionInvokeOutcome::Failed(Box::new(state))
-            }
+            OverloadResolutionOutcome::Failed => PropertyExtensionInvokeOutcome::Failed(state),
             OverloadResolutionOutcome::Resolved(resolved) => {
                 state.observe_callable_reference(
                     name.span,
@@ -336,10 +334,10 @@ impl Lowerer {
                 let Some(expression) =
                     state.finish_resolved_method_call(*resolved, call.span, &mut layer_sink)
                 else {
-                    return PropertyExtensionInvokeOutcome::Failed(Box::new(state));
+                    return PropertyExtensionInvokeOutcome::Failed(state);
                 };
                 PropertyExtensionInvokeOutcome::Resolved(SuccessfulExprLayer {
-                    state: Box::new(state),
+                    state,
                     expression,
                     sink: layer_sink,
                 })

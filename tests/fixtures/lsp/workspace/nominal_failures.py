@@ -28,6 +28,7 @@ def check(peer, root):
     for file, text in texts.items():
         file.write_text(text)
     folder = {"name": "nominal failures", "uri": project.as_uri()}
+    peer.resolve(project)
     peer.notify(
         "workspace/didChangeWorkspaceFolders", {"event": {"added": [folder], "removed": []}}
     )

@@ -61,13 +61,16 @@ impl WorkspaceLoader {
         {
             return Ok(Vec::new());
         }
-        let manifest = self.files.manifest(host, overlays, &root)?;
-        if manifest.coordinate() != coordinate {
+        let members =
+            super::package::PackageInputs::new(configuration, host, overlays)?.members(&root)?;
+        let Some(member) = members
+            .members
+            .iter()
+            .find(|member| &member.coordinate == coordinate)
+        else {
             return Ok(Vec::new());
-        }
-        Ok(self
-            .files
-            .sources(host, overlays, manifest, configuration, false)?
-            .sources)
+        };
+        self.files
+            .member_sources(host, overlays, member, configuration, false)
     }
 }

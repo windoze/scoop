@@ -1,7 +1,8 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-use scoop_manifest::{ManifestRootLocator, SingleFileLocator};
+use scoop_manifest::SingleFileLocator;
+use scoop_protocol::package::PreparedResolutionV1;
 use scoop_protocol::{CompilationPurpose, TargetSelectionRequestV1};
 
 use scoop_toolchain::{ResolvedTargetProfile, ToolchainError};
@@ -101,22 +102,24 @@ pub struct BuildRootInput(BuildRootInputKind);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum BuildRootInputKind {
-    ManifestCone(ManifestRootLocator),
+    Prepared {
+        identity: scoop_identity::ConeIdentity,
+        resolution: Box<PreparedResolutionV1>,
+    },
     SingleFile(SingleFileLocator),
 }
 
 impl BuildRootInput {
-    pub fn manifest(root: ManifestRootLocator) -> Result<Self, BuildRootInputError> {
-        validate_absolute_path(root.as_path(), "build root")
-            .map_err(BuildRootInputError::Locator)?;
-        if matches!(&root, ManifestRootLocator::ExactConeManifestFile(path)
-            if path.file_name().is_none_or(|name| name != "Cone.toml"))
-        {
-            return Err(BuildRootInputError::InvalidManifestFileName(
-                root.as_path().to_path_buf(),
-            ));
-        }
-        Ok(Self(BuildRootInputKind::ManifestCone(root)))
+    /// Accept an exact package graph already decoded at the PM protocol boundary.
+    pub fn prepared(resolution: PreparedResolutionV1) -> Result<Self, BuildRootInputError> {
+        let identity = resolution
+            .coordinate
+            .identity()
+            .map_err(BuildRootInputError::Identity)?;
+        Ok(Self(BuildRootInputKind::Prepared {
+            identity,
+            resolution: Box::new(resolution),
+        }))
     }
 
     pub fn single_file(source: SingleFileLocator) -> Self {
@@ -124,16 +127,9 @@ impl BuildRootInput {
         Self(BuildRootInputKind::SingleFile(source))
     }
 
-    pub const fn manifest_root(&self) -> Option<&ManifestRootLocator> {
-        match &self.0 {
-            BuildRootInputKind::ManifestCone(root) => Some(root),
-            BuildRootInputKind::SingleFile(_) => None,
-        }
-    }
-
     pub const fn single_file_source(&self) -> Option<&SingleFileLocator> {
         match &self.0 {
-            BuildRootInputKind::ManifestCone(_) => None,
+            BuildRootInputKind::Prepared { .. } => None,
             BuildRootInputKind::SingleFile(source) => Some(source),
         }
     }
@@ -145,19 +141,13 @@ impl BuildRootInput {
 
 #[derive(Debug)]
 pub enum BuildRootInputError {
-    Locator(HostLocatorError),
-    InvalidManifestFileName(PathBuf),
+    Identity(scoop_wire::HashError),
 }
 
 impl fmt::Display for BuildRootInputError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Locator(error) => error.fmt(formatter),
-            Self::InvalidManifestFileName(path) => write!(
-                formatter,
-                "invalid build root {}: manifest file must be named exactly Cone.toml",
-                path.display()
-            ),
+            Self::Identity(error) => error.fmt(formatter),
         }
     }
 }
@@ -165,8 +155,7 @@ impl fmt::Display for BuildRootInputError {
 impl std::error::Error for BuildRootInputError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Locator(error) => Some(error),
-            Self::InvalidManifestFileName(_) => None,
+            Self::Identity(error) => Some(error),
         }
     }
 }
@@ -352,20 +341,6 @@ mod tests {
         }
     }
 
-    #[test]
-    fn manifest_root_is_lexically_closed_before_io() {
-        let wrong = ManifestRootLocator::exact_manifest_file(absolute("cone.toml"));
-        assert!(matches!(
-            BuildRootInput::manifest(wrong),
-            Err(BuildRootInputError::InvalidManifestFileName(_))
-        ));
-
-        let exact = ManifestRootLocator::exact_manifest_file(absolute("Cone.toml"));
-        assert!(BuildRootInput::manifest(exact).is_ok());
-        let directory = ManifestRootLocator::cone_directory(absolute("cone-root"));
-        assert!(BuildRootInput::manifest(directory).is_ok());
-    }
-
     #[cfg(unix)]
     #[test]
     fn host_locator_does_not_require_utf8() {
@@ -378,10 +353,12 @@ mod tests {
 
     #[test]
     fn target_aliases_and_search_root_order_normalize_at_the_boundary() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("main.scoop");
+        std::fs::write(&source, "fun main() {}\n").unwrap();
         let make = |target: &str, roots: [&str; 3]| {
             BuildGraphRequest::new(
-                BuildRootInput::manifest(ManifestRootLocator::cone_directory(absolute("root")))
-                    .unwrap(),
+                BuildRootInput::single_file(SingleFileLocator::from_path(&source).unwrap()),
                 roots
                     .map(|root| ArtifactSearchRoot::new(absolute(root)).unwrap())
                     .into(),
@@ -398,6 +375,9 @@ mod tests {
             scoop_target_data::DARWIN_AARCH64_ID => "arm64-apple-macosx14.0",
             scoop_target_data::LINUX_X86_64_GNU_ID => "x86_64-linux-gnu",
             scoop_target_data::LINUX_X86_64_MUSL_ID => "x86_64-linux-musl",
+            scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID
+            | scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID
+            | scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_ID => canonical,
             _ => panic!("test host must be supported by the driver"),
         };
         let first = make(canonical, ["z", "a", "a"]);

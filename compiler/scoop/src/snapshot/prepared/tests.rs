@@ -5,7 +5,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
 use scoop_identity::{ConeCoordinate, ConeIdentity};
-use scoop_manifest::{ManifestRootLocator, SingleFileLocator};
+use scoop_manifest::SingleFileLocator;
 use scoop_protocol::{
     CurrentConeRequestV1, DiagnosticOriginV1, DiagnosticOutputPolicyV1, DiagnosticSeverityV1,
     RequestCorrelationId, ScoopcRequestEnvelopeV1, ScoopcResponseEnvelopeV1, StageDumpPolicyV1,
@@ -137,10 +137,22 @@ fn write_fake_compiler(path: &Path) {
 }
 
 fn request(root: &Path, workspace: &Path) -> BuildGraphRequest {
+    request_for_purpose(
+        root,
+        workspace,
+        scoop_protocol::CompilationPurpose::Production,
+    )
+}
+
+fn request_for_purpose(
+    root: &Path,
+    workspace: &Path,
+    purpose: scoop_protocol::CompilationPurpose,
+) -> BuildGraphRequest {
     let sysroot = workspace.join("sysroot");
     let compiler = workspace.join("bin/scoopc");
     BuildGraphRequest::new(
-        BuildRootInput::manifest(ManifestRootLocator::cone_directory(root)).unwrap(),
+        crate::test_package::root(root, &sysroot, purpose),
         vec![],
         ArtifactCacheRoot::new(workspace.join("cache")).unwrap(),
         TrustedSysrootRoot::new(sysroot).unwrap(),
@@ -258,7 +270,7 @@ fn prepare_uses_the_actual_prebuilt_artifact_path() {
     write_manifest(
         &root,
         "root",
-        "[dependencies]\n\"test:prebuilt\" = { version = \"1.0.0\", artifact = \"../prebuilt.slib\" }\n",
+        "[dependencies]\n\"test:prebuilt\" = { version = \"=1.0.0\", artifact = \"../prebuilt.slib\" }\n",
     );
 
     let prepared = prepare(&root, workspace).unwrap();
