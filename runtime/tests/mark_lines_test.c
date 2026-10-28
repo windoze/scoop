@@ -1,3 +1,4 @@
+#include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -22,10 +23,11 @@ static void *allocate_bytes(size_t size) {
     return array;
 }
 
-static void run_case(size_t workers) {
+static void run_case(size_t workers, bool minor, bool old_slots) {
     char setting[8];
     snprintf(setting, sizeof setting, "%zu", workers);
     assert(setenv("SCOOP_GC_WORKERS", setting, 1) == 0);
+    assert(setenv("SCOOP_GC_OLD_SLOTS", old_slots ? "2" : "0", 1) == 0);
     const ScoopTypeDescriptor *types[] = {&bytes_td, &nursery_node_td};
     scoop_thread_runtime_init();
     scoop_test_image_init(types, 2, NULL, 0, NULL, 0);
@@ -70,7 +72,41 @@ static void run_case(size_t workers) {
             assert(pointer_block(objects[earlier]) != block);
         }
     }
+    assert(scoop_rt_pin(objects[0]) == objects[0]);
     assert(scoop_rt_pin(objects[3]) == objects[3]);
+
+    if (minor) {
+        void *pinned[] = {objects[0], objects[3]};
+        for (unsigned pass = 0; pass < 2; pass++) {
+            nursery_collect(pass == 0);
+            assert(objects[0] == pinned[0] && objects[3] == pinned[1]);
+            /* Minor retains aligned and mixed-layout pinned blocks, while other
+             * roots can share a copy target. Full collection must consume the result. */
+            for (size_t index = 0; index < COUNT; index++) {
+                ScoopGcBlockMeta *block = pointer_block(objects[index]);
+                uint64_t expected[GC_LINE_BITMAP_WORDS] = {0};
+                for (size_t other = 0; other < COUNT; other++) {
+                    if (pointer_block(objects[other]) != block) {
+                        continue;
+                    }
+                    assert(((ScoopArray *)objects[other])->size == cases[other].size - 24);
+                    size_t offset = (uintptr_t)objects[other] - (uintptr_t)block_base(block);
+                    for (size_t line = offset / GC_LINE_SIZE;
+                         line <= (offset + cases[other].size - 1) / GC_LINE_SIZE; line++) {
+                        bit_set(expected, line);
+                    }
+                }
+                if (pass != 0 || (block->slot_size == 0 &&
+                                  block->head->generation == SCOOP_GC_OLD)) {
+                    assert(memcmp(block->line_live, expected, sizeof expected) == 0);
+                }
+                for (size_t word = 0; word < GC_BITMAP_WORDS; word++) {
+                    assert(block->marks[word] == 0);
+                }
+            }
+        }
+        _exit(0);
+    }
 
     _Alignas(16) uintptr_t frame[4] = {0};
     frame[2] = (uintptr_t)scoop_thread_current_required()->managed_stack_boundary;
@@ -81,16 +117,21 @@ static void run_case(size_t workers) {
     scoop_gc_roots_lock();
     scoop_gc_set_pin_frames_locked(true);
     scoop_gc_retire_allocations();
-    size_t blocks = scoop_gc_heap_begin_collection_locked(false);
-    scoop_gc_mark_begin(false, blocks);
+    size_t blocks = scoop_gc_heap_begin_collection_locked(minor);
+    scoop_gc_mark_begin(minor, blocks);
+#if !SCOOP_ENABLE_GC_STRESS
+    assert(scoop_gc_marker.workers[0].slot_layout == minor);
+#endif
     scoop_gc_mark_roots();
-    assert(scoop_gc_mark_finish(false) == COUNT);
+    assert(scoop_gc_mark_finish(minor) == COUNT);
     assert(scoop_gc_marker.active_workers == workers);
     /* Inspect marking before copying or sweeping can establish their own lines. */
     for (size_t index = 0; index < COUNT; index++) {
         ScoopGcBlockMeta *block = pointer_block(objects[index]);
         assert(block->live_bytes == cases[index].size);
-        assert(block->movable_live_bytes == (index == 3 ? 0 : cases[index].size));
+        if (!scoop_gc_marker.workers[0].slot_layout) {
+            assert(block->movable_live_bytes == (index == 0 || index == 3 ? 0 : cases[index].size));
+        }
         size_t start = cases[index].offset / sizeof(uint64_t);
         for (size_t word = 0; word < GC_BITMAP_WORDS; word++) {
             uint64_t expected = word == start / 64 ? UINT64_C(1) << (start % 64) : 0;
@@ -108,14 +149,16 @@ static void run_case(size_t workers) {
 int main(void) {
     alarm(30);
     for (size_t workers = 1; workers <= 4; workers *= 4) {
-        pid_t child = fork();
-        assert(child >= 0);
-        if (child == 0) {
-            run_case(workers);
+        for (unsigned mode = 0; mode < 3; mode++) {
+            pid_t child = fork();
+            assert(child >= 0);
+            if (child == 0) {
+                run_case(workers, mode != 0, mode == 2);
+            }
+            int status = 0;
+            assert(waitpid(child, &status, 0) == child);
+            assert(WIFEXITED(status) && WEXITSTATUS(status) == 0);
         }
-        int status = 0;
-        assert(waitpid(child, &status, 0) == child);
-        assert(WIFEXITED(status) && WEXITSTATUS(status) == 0);
     }
     puts("marking preserves exact live lines across bitmap words and block edges");
 }

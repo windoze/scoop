@@ -4,6 +4,7 @@
 
 #include "../gc_binding/object.h"
 #include "../gc_binding/scan.h"
+#include "live_lines.h"
 #include "mark_internal.h"
 #include "object_metadata.h"
 
@@ -75,23 +76,6 @@ first_mark(ScoopGcBlockMeta *block, size_t word, uint64_t *marks) {
         return false;
     }
     return (__atomic_fetch_or(bits, mask, __ATOMIC_RELAXED) & mask) == 0;
-}
-
-static inline __attribute__((always_inline)) void
-mark_lines(ScoopGcMarkBlockCount *counts, size_t word, size_t size) {
-    size_t first = word * sizeof(uint64_t) / GC_LINE_SIZE;
-    size_t last = (word * sizeof(uint64_t) + size - 1) / GC_LINE_SIZE;
-    uint64_t head = UINT64_MAX << (first % 64);
-    uint64_t tail = UINT64_MAX >> (63 - last % 64);
-    if (first / 64 == last / 64) {
-        counts->live_lines[first / 64] |= head & tail;
-        return;
-    }
-    counts->live_lines[first / 64] |= head;
-    for (size_t index = first / 64 + 1; index < last / 64; index++) {
-        counts->live_lines[index] = UINT64_MAX;
-    }
-    counts->live_lines[last / 64] |= tail;
 }
 
 static bool slot_aligned(size_t word, size_t size) {
@@ -220,14 +204,16 @@ mark_target(ScoopGcMarkWorker *worker, void *object, void **remembered_slot) {
                       : gc_word & GC_SMALL_SIZE_MASK;
     scoop_gc_validate_object(object, size);
     ScoopGcMarkBlockCount *counts = &worker->blocks[block->mark_index];
-    if (block->head->kind == SCOOP_BLOCK_KIND_SMALL) {
-        mark_lines(counts, word, size);
-    }
     counts->live_bytes += size;
     if (worker->slot_layout) {
         mark_slot_layout(counts, word, size);
-    } else if ((gc_word & GC_PIN_BIT) == 0) {
-        counts->movable_bytes += size;
+    } else {
+        if (!worker->minor && block->head->kind == SCOOP_BLOCK_KIND_SMALL) {
+            scoop_gc_record_live_lines(counts->live_lines, word, size);
+        }
+        if ((gc_word & GC_PIN_BIT) == 0) {
+            counts->movable_bytes += size;
+        }
     }
     worker->marked++;
     worker->traced++;

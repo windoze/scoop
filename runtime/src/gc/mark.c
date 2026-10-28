@@ -302,7 +302,7 @@ uint64_t scoop_gc_mark_complete(bool minor) {
             } else {
                 block->movable_live_bytes += counts->movable_bytes;
             }
-            if (block->head->kind == SCOOP_BLOCK_KIND_SMALL) {
+            if (!minor && block->head->kind == SCOOP_BLOCK_KIND_SMALL) {
                 for (size_t line = 0; line < GC_LINE_BITMAP_WORDS; line++) {
                     block->line_live[line] |= counts->live_lines[line];
                 }

@@ -144,8 +144,8 @@ static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
 #endif
     {
         retire_dead_small_objects(block, stress);
-        /* Ordinary sources are unpinned and completely copied; retained blocks
-         * already have the exact occupied lines from marking and target publication. */
+        /* Ordinary sources are unpinned and completely copied. Retained blocks
+         * that need free runs already have exact occupied lines. */
         any_live = block->head->state != SCOOP_BLOCK_EVACUATION_SOURCE && block->live_bytes != 0;
         any_pinned = any_live && scoop_heap_block_has_pins(block);
     }

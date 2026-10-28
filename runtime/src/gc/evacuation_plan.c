@@ -245,11 +245,7 @@ static bool single_source_may_fit(void) {
     return false;
 }
 
-static void reserve_move(void **entry, void *context) {
-    MovingPlan *plan = context;
-    if (!plan->reserved) {
-        return;
-    }
+static bool reserve_move(void **entry, MovingPlan *plan) {
     void *object = *entry;
     size_t size = scoop_heap_small_object_size(object);
     ScoopGcBlockMeta *block = scoop_heap_known_object_block(object, size != 0);
@@ -257,7 +253,7 @@ static void reserve_move(void **entry, void *context) {
         (stress_move && object_pinned(block, ((uintptr_t)object - (uintptr_t)block_base(block)) /
                                                 sizeof(uint64_t)))) {
         plan->survivors.objects += block->retained_young;
-        return;
+        return true;
     }
     if (size == 0) {
         size = block->exact_size;
@@ -278,22 +274,44 @@ static void reserve_move(void **entry, void *context) {
         }
     }
     if (destination == NULL) {
-        plan->reserved = false;
-        return;
+        return false;
     }
     PendingMove *move = destination;
     *move = (PendingMove){.entry = entry};
-    if (!append_move(plan, move, target)) {
-        plan->reserved = false;
+    return append_move(plan, move, target);
+}
+
+static void reserve_chunk(MovingPlan *plan, ScoopGcLiveChunk *chunk) {
+    if (!plan->reserved) {
         return;
+    }
+    size_t count = chunk->used;
+    for (size_t index = 0; index < count; index++) {
+        if (index + 8 < count) {
+            const ScoopObjectHeader *next = chunk->objects[index + 8];
+            __builtin_prefetch(&next->gc_word, 0, 3);
+        }
+        if (!reserve_move(&chunk->objects[index], plan)) {
+            plan->reserved = false;
+            return;
+        }
     }
 }
 
 void scoop_gc_reserve_run_task(ScoopGcMarkWorker *worker, ScoopGcMovingPlan *plans,
                                ScoopGcLiveChunk *chunk) {
-    MovingPlan *plan = &plans[worker->id];
-    for (size_t index = 0; index < chunk->used && plan->reserved; index++) {
-        reserve_move(&chunk->objects[index], plan);
+    reserve_chunk(&plans[worker->id], chunk);
+}
+
+static void reserve_serial(MovingPlan *plan) {
+    for (size_t index = 0; index < scoop_gc_marker.active_workers; index++) {
+        for (ScoopGcLiveChunk *chunk = scoop_gc_marker.workers[index].live; chunk != NULL;
+             chunk = chunk->next) {
+            reserve_chunk(plan, chunk);
+            if (!plan->reserved) {
+                return;
+            }
+        }
     }
 }
 
@@ -443,7 +461,7 @@ bool scoop_gc_heap_plan_moving_locked(bool minor, ScoopGcSurvivors *survivors) {
     if ((minor || ordinary_full) && plan.parallel_copy && plan.survivor_capacity_limit == 0) {
         reserve_parallel(&plan);
     } else {
-        scoop_gc_mark_visit_live(reserve_move, &plan);
+        reserve_serial(&plan);
         discard_owned_runs(&plan);
     }
     if (ordinary_full) {
