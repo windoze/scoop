@@ -8,7 +8,7 @@
 #include "../src/gc/heap_internal.h"
 #include "../src/managed_entries.h"
 #include "../src/thread.h"
-#include "../src/gc/mutator.h"
+#include "../src/gc/mutator_internal.h"
 #include "platform/image_fixture.h"
 
 static const size_t sizes[] = {
@@ -53,7 +53,7 @@ static void check_metadata(void *object, size_t size, bool collected) {
     size_t word;
     assert(scoop_heap_object_meta(object, &block, &word));
     if (size <= GC_REGULAR_MAX) {
-        assert(block->kind == SCOOP_BLOCK_KIND_SMALL);
+        assert(block->head->kind == SCOOP_BLOCK_KIND_SMALL);
         assert((((ScoopObjectHeader *)object)->gc_word & GC_SMALL_SIZE_MASK) == size);
         if (collected) {
             size_t offset = (uintptr_t)object - (uintptr_t)scoop_heap_block_base(block);
@@ -63,7 +63,7 @@ static void check_metadata(void *object, size_t size, bool collected) {
             }
         }
     } else {
-        assert(block->kind == SCOOP_BLOCK_KIND_LARGE);
+        assert(block->head->kind == SCOOP_BLOCK_KIND_LARGE);
         assert((((ScoopObjectHeader *)object)->gc_word & GC_SMALL_SIZE_MASK) == 0);
     }
     scoop_gc_heap_unlock();
@@ -159,7 +159,7 @@ int main(void) {
     ScoopGcBlockMeta *allocation_block = pointer_block(second);
     assert(allocation->block_start == block_base(allocation_block));
     assert(allocation->starts == allocation_block->starts);
-    assert(allocation->counters != NULL);
+    assert((uintptr_t)&scoop_gc_current_mutator()->counters - (uintptr_t)allocation == 128);
     for (size_t index = 0; index < 64; index++) {
         dense[index] = scoop_heap_bump(&allocation->cursor, allocation->limit, sizes[0], 8);
         assert(dense[index] != NULL);

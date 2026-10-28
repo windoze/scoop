@@ -4,7 +4,7 @@
 
 bool scoop_heap_region_empty(const ScoopGcRegion *region) {
     for (size_t index = 0; index < region->next_block; index++) {
-        ScoopGcBlockState state = region->blocks[index].state;
+        ScoopGcBlockState state = region->blocks[index].head->state;
         if (state != SCOOP_BLOCK_FREE && state != SCOOP_BLOCK_NEVER_USED) {
             return false;
         }
@@ -28,7 +28,7 @@ static bool discard_range(const ScoopThreadVmOps *vm, uintptr_t begin, uintptr_t
 
 static bool empty_page(const ScoopGcBlockMeta *block, size_t offset, size_t page_size) {
     if ((block->index == 0 && offset == 0) || !block->discard_pending ||
-        block->state == SCOOP_BLOCK_QUARANTINED) {
+        block->head->state == SCOOP_BLOCK_QUARANTINED) {
         return false;
     }
     if (!active_head(block)) {
@@ -85,7 +85,7 @@ void scoop_heap_reclaim_regions(bool full) {
     ScoopGcRegion **link = &scoop_gc_heap_state.regions;
     while (*link != NULL) {
         ScoopGcRegion *region = *link;
-        bool empty = region->large ? region->blocks[0].state == SCOOP_BLOCK_FREE
+        bool empty = region->large ? region->blocks[0].head->state == SCOOP_BLOCK_FREE
                                    : full && scoop_heap_region_empty(region);
         bool release = empty && (region->large || retained != NULL);
         if (release) {
@@ -106,7 +106,7 @@ void scoop_heap_reclaim_regions(bool full) {
             discard_empty_pages(region, vm, page_size);
             for (size_t index = 0; index < region->next_block; index++) {
                 ScoopGcBlockMeta *block = &region->blocks[index];
-                if (block->state == SCOOP_BLOCK_FREE) {
+                if (block->head->state == SCOOP_BLOCK_FREE) {
                     block->next_free = scoop_gc_heap_state.free_blocks;
                     scoop_gc_heap_state.free_blocks = block;
                 }

@@ -26,13 +26,13 @@ static size_t check_young_index(void) {
     size_t indexed = 0, expected = 0;
     for (ScoopGcBlockMeta *block = scoop_heap_first_block(); block != NULL;
          block = scoop_heap_next_block(block)) {
-        expected += active_head(block) && block->generation == SCOOP_GC_YOUNG;
+        expected += active_head(block) && block->head->generation == SCOOP_GC_YOUNG;
     }
     for (ScoopGcBlockMeta *block = scoop_gc_heap_state.young_blocks; block != NULL;
          block = block->next_collection) {
         assert(++indexed <= expected);
-        assert(active_head(block) && block->generation == SCOOP_GC_YOUNG);
-        assert(block->kind == SCOOP_BLOCK_KIND_SMALL);
+        assert(active_head(block) && block->head->generation == SCOOP_GC_YOUNG);
+        assert(block->head->kind == SCOOP_BLOCK_KIND_SMALL);
     }
     assert(indexed == expected && scoop_gc_heap_state.evacuation_targets == NULL);
     return indexed;

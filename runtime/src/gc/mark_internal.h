@@ -4,17 +4,31 @@
 #include "gc_internal.h"
 #include "heap_internal.h"
 
-#define GC_MARK_MAX_WORKERS 8
+#define GC_MARK_MAX_WORKERS SCOOP_GC_MAX_WORKERS
+#define GC_MARK_DEFAULT_MAX_WORKERS 8
 #define GC_MARK_BATCH 64
 #define GC_MARK_CHUNK 1024
 #define GC_MARK_ARRAY_RANGE 1024
 #define GC_MARK_REGION_CACHE 32
+#define GC_REMEMBERED_GROUP_BYTES (GC_CARDS_PER_GROUP << GC_CARD_SHIFT)
+#define GC_REMEMBERED_BITMAP_WORDS (GC_REMEMBERED_GROUP_BYTES / sizeof(void *) / 64)
+
+_Static_assert(GC_REGION_SIZE % GC_REMEMBERED_GROUP_BYTES == 0 &&
+                   GC_CHUNK_SIZE % GC_REMEMBERED_GROUP_BYTES == 0,
+               "heap mapping alignment must preserve remembered group boundaries");
 
 typedef struct ScoopGcLiveChunk {
     struct ScoopGcLiveChunk *next;
     size_t used;
     void *objects[GC_MARK_CHUNK];
 } ScoopGcLiveChunk;
+
+/* One owner records and updates a dirty group's distinct physical slots. */
+typedef struct ScoopGcRememberedGroup {
+    struct ScoopGcRememberedGroup *next;
+    uintptr_t base;
+    uint64_t slots[GC_REMEMBERED_BITMAP_WORDS];
+} ScoopGcRememberedGroup;
 
 typedef struct ScoopGcMovingPlan ScoopGcMovingPlan;
 
@@ -34,6 +48,7 @@ typedef enum ScoopGcMarkTaskKind {
     SCOOP_MARK_ARRAY_TASK,
     SCOOP_MARK_DIRTY_TASK,
     SCOOP_UPDATE_CHUNK_TASK,
+    SCOOP_UPDATE_REMEMBERED_TASK,
     SCOOP_RESERVE_CHUNK_TASK,
     SCOOP_COPY_BLOCK_TASK,
 } ScoopGcMarkTaskKind;
@@ -57,6 +72,7 @@ typedef struct ScoopGcMarkTask {
         } dirty;
         ScoopGcCopyBlock *copy_group;
         ScoopGcLiveChunk *live_chunk;
+        ScoopGcRememberedGroup *remembered;
         struct {
             ScoopGcMovingPlan *plans;
             ScoopGcLiveChunk *chunk;
@@ -98,9 +114,13 @@ typedef struct ScoopGcMarkWorker {
     size_t block_capacity;
     ScoopGcLiveChunk *live;
     ScoopGcLiveChunk *tail;
+    ScoopGcRememberedGroup *remembered_slots;
+    ScoopGcRememberedGroup *remembered_current;
+    bool remembered_complete;
     void *const *pending_objects;
     size_t pending_count;
     uint64_t pending_scans;
+    ScoopGcMarkTask *continuation;
     uint64_t marked;
     uint64_t traced;
     uint64_t root_slots;
@@ -112,6 +132,7 @@ typedef struct ScoopGcMarkWorker {
     uint64_t stolen_tasks;
     uint64_t cpu_ns;
     ScoopGcMarkRegion regions[GC_MARK_REGION_CACHE];
+    ScoopGcLiveChunk *spare_live;
 } ScoopGcMarkWorker;
 
 typedef struct ScoopGcMarker {
@@ -120,6 +141,7 @@ typedef struct ScoopGcMarker {
     ScoopPlatformCondition work_available;
     ScoopPlatformCondition finished;
     _Atomic(size_t) pending;
+    _Atomic(size_t) waiting_workers;
     size_t configured_workers;
     size_t active_workers;
     size_t phase_workers;
@@ -153,13 +175,17 @@ extern ScoopGcMarker scoop_gc_marker;
 
 void scoop_gc_mark_pool_prepare(bool minor);
 void scoop_gc_mark_pool_run(size_t task_limit);
-void scoop_gc_mark_notify_work(void);
+void scoop_gc_mark_pool_run_fixed(void);
+void scoop_gc_mark_notify_work(bool complete);
 void scoop_gc_mark_queue_push(ScoopGcMarkWorker *worker, ScoopGcMarkTask task);
 void scoop_gc_mark_enqueue_remembered(void);
 bool scoop_gc_mark_queue_take(ScoopGcMarkWorker *worker, ScoopGcMarkTask *task);
 void scoop_gc_mark_task_done(void);
 void scoop_gc_mark_flush(ScoopGcMarkWorker *worker);
+void scoop_gc_mark_release_spares(ScoopGcMarkWorker *worker);
 void scoop_gc_mark_slot(void **slot, void *context);
+void scoop_gc_mark_range(void *object, const uint64_t *scan, ScoopGcMarkVisit *visit,
+                         uintptr_t begin, uintptr_t end);
 void scoop_gc_mark_run_task(ScoopGcMarkWorker *worker, ScoopGcMarkTask task);
 void scoop_gc_mark_run_dirty(ScoopGcMarkWorker *worker, ScoopGcCardGroup *group,
                               ScoopGcSavedCards *saved);

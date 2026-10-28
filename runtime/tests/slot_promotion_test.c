@@ -105,7 +105,7 @@ static void check_layout(size_t type, size_t prefix, bool mixed, bool pinned, bo
     nursery_collect(true);
     if (survivor) {
         assert(objects[0] == (void *)original[0]);
-        assert(block->generation == SCOOP_GC_YOUNG && block->slot_size == 0);
+        assert(block->head->generation == SCOOP_GC_YOUNG && block->slot_size == 0);
         assert(nursery_metrics().promoted_bytes == promoted);
         nursery_collect(true);
     }
@@ -119,7 +119,7 @@ static void check_layout(size_t type, size_t prefix, bool mixed, bool pinned, bo
         const ScoopTypeDescriptor *td = ((ScoopObjectHeader *)object)->td;
         assert((uintptr_t)object % td->instance_shape.instance_alignment == 0);
         assert(((uintptr_t)object == original[index]) == (eligible || pinned));
-        assert(pointer_block(object)->generation == SCOOP_GC_OLD);
+        assert(pointer_block(object)->head->generation == SCOOP_GC_OLD);
         assert(pointer_block(object)->slot_size == (pinned ? 0 : td->instance_shape.minimum_size));
         if (size > sizeof(ScoopObjectHeader)) {
             assert(*(void **)((char *)object + 16) == (index == 0 ? NULL : objects[0]));

@@ -13,33 +13,35 @@ ScoopGcMarker scoop_gc_marker = {
     .finished = SCOOP_PLATFORM_CONDITION_INIT,
 };
 
-void scoop_gc_mark_notify_work(void) {
+void scoop_gc_mark_notify_work(bool complete) {
     if (scoop_gc_marker.active_workers == 1) {
         return;
     }
+    /* Queue publication synchronizes with the waiter's search after registration.
+     * Completion has no queue handoff, so it must always acquire the wake lock. */
+    if (!complete &&
+        atomic_load_explicit(&scoop_gc_marker.waiting_workers, memory_order_relaxed) == 0) {
+        return;
+    }
     scoop_runtime_platform_mutex_lock(&scoop_gc_marker.lock);
-    scoop_runtime_platform_condition_broadcast(&scoop_gc_marker.work_available);
+    if (atomic_load_explicit(&scoop_gc_marker.waiting_workers, memory_order_relaxed) != 0) {
+        if (complete) {
+            scoop_runtime_platform_condition_broadcast(&scoop_gc_marker.work_available);
+        } else {
+            scoop_runtime_platform_condition_signal(&scoop_gc_marker.work_available);
+        }
+    }
     scoop_runtime_platform_mutex_unlock(&scoop_gc_marker.lock);
 }
 
-static void run_worker(ScoopGcMarkWorker *worker, size_t task_limit) {
-    uint64_t started = scoop_gc_thread_cpu_ns();
+static size_t run_task(ScoopGcMarkWorker *worker, ScoopGcMarkTask task, size_t task_limit) {
+    ScoopGcMarkTask continuation = {0};
+    worker->continuation = &continuation;
     size_t completed = 0;
-    while (task_limit == 0 || completed < task_limit) {
-        ScoopGcMarkTask task;
-        bool found = scoop_gc_mark_queue_take(worker, &task);
-        if (!found) {
-            scoop_runtime_platform_mutex_lock(&scoop_gc_marker.lock);
-            /* Search again under the wake lock so publication cannot be missed. */
-            while (atomic_load_explicit(&scoop_gc_marker.pending, memory_order_acquire) != 0 &&
-                   !(found = scoop_gc_mark_queue_take(worker, &task))) {
-                scoop_runtime_platform_condition_wait(&scoop_gc_marker.work_available,
-                                                      &scoop_gc_marker.lock);
-            }
-            scoop_runtime_platform_mutex_unlock(&scoop_gc_marker.lock);
-            if (!found) {
-                break;
-            }
+    for (;;) {
+        uint64_t references_before = 0;
+        if (task_limit != 0) {
+            references_before = worker->reference_slots + worker->old_slots;
         }
         if (task.kind == SCOOP_RESERVE_CHUNK_TASK) {
             scoop_gc_reserve_run_task(worker, task.data.reserve.plans, task.data.reserve.chunk);
@@ -51,14 +53,54 @@ static void run_worker(ScoopGcMarkWorker *worker, size_t task_limit) {
             scoop_gc_mark_run_task(worker, task);
             scoop_gc_mark_flush(worker);
         }
-        scoop_gc_mark_task_done();
         if (task_limit != 0) {
-            completed += task.kind == SCOOP_MARK_DIRTY_TASK ? 4 : 1;
+            uint64_t references = worker->reference_slots + worker->old_slots - references_before;
+            /* Arrays and dirty ranges consume the same reference work as object batches. */
+            completed += references == 0 ? 1 : (references - 1) / 128 + 1;
         }
+        if (continuation.data.batch.scans == 0) {
+            break;
+        }
+        task = continuation;
+        continuation.data.batch.scans = 0;
+        if (task_limit != 0 && completed >= task_limit) {
+            /* Publish before releasing the current outstanding task. */
+            scoop_gc_mark_queue_push(worker, task);
+            break;
+        }
+    }
+    worker->continuation = NULL;
+    return completed;
+}
+
+static void run_worker(ScoopGcMarkWorker *worker, size_t task_limit) {
+    uint64_t started = scoop_gc_thread_cpu_ns();
+    size_t completed = 0;
+    while (task_limit == 0 || completed < task_limit) {
+        ScoopGcMarkTask task;
+        bool found = scoop_gc_mark_queue_take(worker, &task);
+        if (!found) {
+            scoop_runtime_platform_mutex_lock(&scoop_gc_marker.lock);
+            /* Register before searching, so a publisher cannot miss a waiter
+             * which has already searched its queue and is about to sleep. */
+            atomic_fetch_add_explicit(&scoop_gc_marker.waiting_workers, 1, memory_order_relaxed);
+            while (atomic_load_explicit(&scoop_gc_marker.pending, memory_order_acquire) != 0 &&
+                   !(found = scoop_gc_mark_queue_take(worker, &task))) {
+                scoop_runtime_platform_condition_wait(&scoop_gc_marker.work_available,
+                                                      &scoop_gc_marker.lock);
+            }
+            atomic_fetch_sub_explicit(&scoop_gc_marker.waiting_workers, 1, memory_order_relaxed);
+            scoop_runtime_platform_mutex_unlock(&scoop_gc_marker.lock);
+            if (!found) {
+                break;
+            }
+        }
+        completed += run_task(worker, task, task_limit == 0 ? 0 : task_limit - completed);
+        scoop_gc_mark_task_done();
     }
     /* A bounded publisher may leave its lone successor for a waiting peer. */
     if (task_limit != 0 && completed >= task_limit) {
-        scoop_gc_mark_notify_work();
+        scoop_gc_mark_notify_work(false);
     }
     worker->cpu_ns += scoop_gc_thread_cpu_ns() - started;
 }
@@ -105,15 +147,15 @@ static void stop_threads(void) {
 
 static void initialize(void) {
     size_t count = scoop_platform_bundle()->thread_vm->processor_count();
-    if (count > 4) {
-        count = 4;
+    if (count > GC_MARK_DEFAULT_MAX_WORKERS) {
+        count = GC_MARK_DEFAULT_MAX_WORKERS;
     }
     const char *setting = getenv("SCOOP_GC_WORKERS");
     if (setting != NULL) {
         char *end = NULL;
         unsigned long requested = strtoul(setting, &end, 10);
         if (setting == end || *end != '\0' || requested == 0 || requested > GC_MARK_MAX_WORKERS) {
-            heap_fatal("SCOOP_GC_WORKERS must be an integer from 1 to 8");
+            heap_fatal("SCOOP_GC_WORKERS must be an integer from 1 to 16");
         }
         count = (size_t)requested;
         scoop_gc_marker.forced = true;
@@ -156,12 +198,17 @@ void scoop_gc_mark_pool_prepare(bool minor) {
     scoop_runtime_platform_mutex_unlock(&scoop_gc_marker.lock);
 }
 
-void scoop_gc_mark_pool_run(size_t task_limit) {
+static void run_pool(size_t task_limit, size_t workers) {
+    if (workers == 1) {
+        /* No new phase is visible to delayed peers of the last parallel phase. */
+        run_worker(&scoop_gc_marker.workers[0], task_limit);
+        return;
+    }
     scoop_runtime_platform_mutex_lock(&scoop_gc_marker.lock);
     scoop_gc_marker.task_limit = task_limit;
     /* Preparing another collection must not add delayed inactive workers to
      * a phase which has already completed. Publish membership with the phase. */
-    scoop_gc_marker.phase_workers = scoop_gc_marker.active_workers;
+    scoop_gc_marker.phase_workers = workers;
     scoop_gc_marker.finished_workers = 0;
     scoop_gc_marker.phase++;
     scoop_runtime_platform_condition_broadcast(&scoop_gc_marker.phase_changed);
@@ -174,6 +221,24 @@ void scoop_gc_mark_pool_run(size_t task_limit) {
     scoop_runtime_platform_mutex_unlock(&scoop_gc_marker.lock);
 }
 
+void scoop_gc_mark_pool_run(size_t task_limit) {
+    if (atomic_load_explicit(&scoop_gc_marker.pending, memory_order_acquire) != 0) {
+        run_pool(task_limit, scoop_gc_marker.active_workers);
+    }
+}
+
+void scoop_gc_mark_pool_run_fixed(void) {
+    /* Reservation and copying publish every task before entering the pool and
+     * cannot generate children. All configured queues remain available to steal. */
+    size_t workers = atomic_load_explicit(&scoop_gc_marker.pending, memory_order_acquire);
+    if (workers > scoop_gc_marker.active_workers) {
+        workers = scoop_gc_marker.active_workers;
+    }
+    if (workers != 0) {
+        run_pool(0, workers);
+    }
+}
+
 void scoop_gc_shutdown(void) {
     if (!scoop_gc_marker.initialized) {
         return;
@@ -183,6 +248,7 @@ void scoop_gc_shutdown(void) {
     scoop_heap_clear_old_slots();
     for (size_t index = 0; index < GC_MARK_MAX_WORKERS; index++) {
         ScoopGcMarkWorker *worker = &scoop_gc_marker.workers[index];
+        scoop_gc_mark_release_spares(worker);
         free(worker->queue.tasks);
         free(worker->blocks);
         worker->queue.tasks = NULL;

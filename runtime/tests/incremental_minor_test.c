@@ -1,3 +1,4 @@
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "nursery_fixture.h"
@@ -19,7 +20,7 @@ void *scoop_test_cards_malloc(size_t size) {
 }
 
 #ifdef SCOOP_TEST_INCREMENTAL_PARALLEL
-#define TEST_WORKERS 4
+#define TEST_WORKERS 8
 #else
 #define TEST_WORKERS 1
 #endif
@@ -72,7 +73,7 @@ static void prepare_young(void **roots) {
         roots[0] = node;
     }
     roots[4] = nursery_node(805);
-    assert(pointer_block(roots[0])->generation == SCOOP_GC_YOUNG);
+    assert(pointer_block(roots[0])->head->generation == SCOOP_GC_YOUNG);
 }
 
 static void check_chain(void **roots, uint64_t detached) {
@@ -127,7 +128,7 @@ static void changed_edges(void **roots) {
 
     scoop_gc_mutator_invalidate(scoop_gc_current_mutator());
     roots[2] = nursery_node(806);
-    assert(pointer_block(roots[2])->mark_index == SIZE_MAX);
+    assert(pointer_block(roots[2])->head->mark_index == SIZE_MAX);
     for (size_t index = 7; index < ARRAY_LENGTH; index += 67) {
         elements(roots)[index] = roots[2];
         scoop_rt_gc_write_barrier(&elements(roots)[index], sizeof(void *));
@@ -200,12 +201,12 @@ static void complete_or_restart(void **roots) {
     assert(cards_failed);
 }
 
-int main(void) {
+static void run_case(const char *level) {
     alarm(40);
     assert(setenv("SCOOP_GC_INCREMENTAL", "2", 1) == 0);
+    assert(setenv("SCOOP_GC_OLD_SLOTS", level, 1) == 0);
 #ifdef SCOOP_TEST_INCREMENTAL_PARALLEL
     assert(setenv("SCOOP_GC_WORKERS", "4", 1) == 0);
-    assert(setenv("SCOOP_GC_OLD_SLOTS", "2", 1) == 0);
 #else
     assert(setenv("SCOOP_GC_WORKERS", "1", 1) == 0);
     assert(setenv("SCOOP_GC_SURVIVOR", "1", 1) == 0);
@@ -237,5 +238,19 @@ int main(void) {
     scoop_gc_shutdown();
     scoop_thread_leave_managed();
     scoop_thread_detach_main();
+}
+
+int main(void) {
+    for (size_t level = 2; level <= 3; level++) {
+        pid_t child = fork();
+        assert(child >= 0);
+        if (child == 0) {
+            run_case(level == 2 ? "2" : "3");
+            _exit(0);
+        }
+        int status = 0;
+        assert(waitpid(child, &status, 0) == child);
+        assert(WIFEXITED(status) && WEXITSTATUS(status) == 0);
+    }
     puts("minor slices preserve old cards, changed young edges, pins and full fallbacks");
 }

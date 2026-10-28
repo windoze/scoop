@@ -85,8 +85,9 @@ static ParallelEdge *parallel_edges(ParallelFixture *fixture) {
 }
 
 static void parallel_start(ParallelFixture *fixture, size_t workers) {
-    assert(workers >= 1 && workers <= 8);
-    char setting[2] = {(char)('0' + workers), '\0'};
+    assert(workers >= 1 && workers <= SCOOP_GC_MAX_WORKERS);
+    char setting[16];
+    snprintf(setting, sizeof setting, "%zu", workers);
     assert(setenv("SCOOP_GC_WORKERS", setting, 1) == 0);
     const ScoopTypeDescriptor *types[] = {&nursery_node_td, &parallel_node_td, &parallel_array_td,
                                           &parallel_numbers_td, &parallel_release_td};
@@ -134,7 +135,7 @@ static void parallel_check_full(size_t workers, uint64_t expected_objects, uint6
     ScoopGcMetrics after = nursery_metrics();
     assert(after.last_mark_workers == workers && scoop_rt_gc_stats() == expected_objects);
     uint64_t marked = 0;
-    for (size_t index = 0; index < 8; index++) {
+    for (size_t index = 0; index < SCOOP_GC_MAX_WORKERS; index++) {
         marked += after.worker_marked_objects[index] - before.worker_marked_objects[index];
     }
     assert(marked == expected_objects);

@@ -118,11 +118,11 @@ void scoop_gc_report_metrics(void) {
         result.last_mark_workers, result.parallel_collections, result.worker_creation_failures,
         result.mark_reference_slots, result.mark_tasks, result.array_tasks, result.stolen_tasks);
     fputs(",\"worker_cpu_ns\":[", stderr);
-    for (size_t index = 0; index < 8; index++) {
+    for (size_t index = 0; index < SCOOP_GC_MAX_WORKERS; index++) {
         fprintf(stderr, "%s%" PRIu64, index == 0 ? "" : ",", result.worker_cpu_ns[index]);
     }
     fputs("],\"worker_marked_objects\":[", stderr);
-    for (size_t index = 0; index < 8; index++) {
+    for (size_t index = 0; index < SCOOP_GC_MAX_WORKERS; index++) {
         fprintf(stderr, "%s%" PRIu64, index == 0 ? "" : ",", result.worker_marked_objects[index]);
     }
     fprintf(stderr,

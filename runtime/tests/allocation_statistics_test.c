@@ -46,10 +46,16 @@ static NurseryNode *check_collection_baselines(void) {
     assert(scoop_rt_gc_stats() == 2);
     (void)nursery_node(3);
     ScoopAllocationContext *allocation = scoop_rt_allocation_context;
+    ScoopGcAllocationCounters *inline_counts =
+        (void *)((char *)allocation + SCOOP_ALLOCATION_COUNTERS_OFFSET);
+    uint64_t objects_before = atomic_load(&inline_counts->nursery_objects);
+    uint64_t bytes_before = atomic_load(&inline_counts->nursery_bytes);
     void *inline_node =
         scoop_heap_bump(&allocation->cursor, allocation->limit, sizeof(NurseryNode), 8);
     assert(inline_node != NULL);
     scoop_runtime_finish_tlab_alloc(inline_node, &nursery_node_td, sizeof(NurseryNode));
+    assert(atomic_load(&inline_counts->nursery_objects) == objects_before + 1);
+    assert(atomic_load(&inline_counts->nursery_bytes) == bytes_before + sizeof(NurseryNode));
     NurseryNode *initialized = inline_node;
     assert(initialized->header.td == &nursery_node_td && initialized->header.gc_word == sizeof(NurseryNode));
     assert(initialized->next == NULL && initialized->value == 0);

@@ -61,6 +61,7 @@ static void check_graph(NurseryNode *node, uint64_t count) {
 }
 
 int main(void) {
+    assert(setenv("SCOOP_GC_OLD_SLOTS", "0", 1) == 0);
     alarm(30);
     assert(setenv("SCOOP_GC_WORKERS", "4", 1) == 0);
     const ScoopTypeDescriptor *types[] = {&nursery_node_td};

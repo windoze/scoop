@@ -2,6 +2,7 @@
 #include <stdint.h>
 
 #include "../gc_binding/object.h"
+#include "../gc_binding/scan.h"
 #include "gc_internal.h"
 #include "heap_internal.h"
 
@@ -14,7 +15,7 @@ typedef struct ScoopGcVisitContext {
 } ScoopGcVisitContext;
 
 static bool remains_young(const ScoopGcBlockMeta *block) {
-    return block->generation == SCOOP_GC_YOUNG && block->retained_young;
+    return block->head->generation == SCOOP_GC_YOUNG && block->retained_young;
 }
 
 /* Mark has consumed this frozen graph; only collector relocation changes it. */
@@ -45,7 +46,7 @@ static void verify_slot(void **slot, void *raw_context) {
         }
         return;
     }
-    if (context->minor && block->generation == SCOOP_GC_OLD) {
+    if (context->minor && block->head->generation == SCOOP_GC_OLD) {
         return;
     }
     void *current = scoop_heap_forward_object(target, block, word);
@@ -108,7 +109,7 @@ static void relocate_live_object(void **entry, void *context) {
 #endif
     ScoopGcVisitContext *visit = context;
     ScoopGcSlotVisitor slot = visit->remember_survivors ? visit_survivor_slot : visit_managed_slot;
-    scoop_gc_scan_descriptor(object, scan, slot, context, 0, UINTPTR_MAX);
+    scoop_gc_scan_object(object, scan, slot, context);
 }
 
 #if SCOOP_GC_TRACK_RELOCATION
@@ -177,7 +178,7 @@ static bool incremental_step(bool minor, bool finish, bool *finished) {
         size_t total_blocks = heap->incremental_blocks;
         for (ScoopGcBlockMeta *block = heap->young_blocks; block != heap->incremental_young_head;
              block = block->next_collection) {
-            block->mark_index = total_blocks++;
+            block->head->mark_index = total_blocks++;
         }
         scoop_gc_mark_resume(heap->incremental_blocks, total_blocks);
         heap->incremental_blocks = total_blocks;

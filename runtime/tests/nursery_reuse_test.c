@@ -10,7 +10,7 @@ static void check_dead_block_reuse(void) {
     assert(pointer_block(last) == source);
     ScoopGcMetrics before = nursery_metrics();
     nursery_collect(true);
-    assert(source->state == SCOOP_BLOCK_FREE);
+    assert(source->head->state == SCOOP_BLOCK_FREE);
     assert(!scoop_rt_gc_debug_is_allocated(first));
     assert(!scoop_rt_gc_debug_is_allocated(last));
     assert(nursery_metrics().promoted_bytes == before.promoted_bytes);
@@ -38,7 +38,7 @@ static void check_evacuated_block_reuse(void **root) {
     ScoopGcBlockMeta *source = pointer_block(previous);
     ScoopGcMetrics before = nursery_metrics();
     nursery_collect(true);
-    assert(*root != previous && source->state == SCOOP_BLOCK_FREE);
+    assert(*root != previous && source->head->state == SCOOP_BLOCK_FREE);
     assert(!scoop_rt_gc_debug_is_allocated(previous));
     assert(!scoop_rt_gc_debug_is_allocated(last));
     assert(nursery_metrics().promoted_bytes - before.promoted_bytes == 8 * sizeof(NurseryNode));

@@ -3,6 +3,11 @@
 
 #include "mark_internal.h"
 
+static size_t queue_index(const ScoopGcMarkQueue *queue, size_t position) {
+    /* Capacity starts at 32 and doubles; nonempty queues always have storage. */
+    return position & (queue->capacity - 1);
+}
+
 static void grow_queue(ScoopGcMarkQueue *queue) {
     size_t capacity = queue->capacity == 0 ? 32 : queue->capacity * 2;
     if (capacity < queue->capacity || capacity > SIZE_MAX / sizeof *queue->tasks) {
@@ -13,7 +18,7 @@ static void grow_queue(ScoopGcMarkQueue *queue) {
         heap_fatal("out of memory growing a mark queue");
     }
     for (size_t index = 0; index < queue->count; index++) {
-        tasks[index] = queue->tasks[(queue->first + index) % queue->capacity];
+        tasks[index] = queue->tasks[queue_index(queue, queue->first + index)];
     }
     free(queue->tasks);
     queue->tasks = tasks;
@@ -29,12 +34,12 @@ void scoop_gc_mark_queue_push(ScoopGcMarkWorker *worker, ScoopGcMarkTask task) {
     if (queue->count == queue->capacity) {
         grow_queue(queue);
     }
-    queue->tasks[(queue->first + queue->count) % queue->capacity] = task;
+    queue->tasks[queue_index(queue, queue->first + queue->count)] = task;
     queue->count++;
     scoop_runtime_platform_mutex_unlock(&queue->lock);
     /* A lone successor can be consumed by its active publisher without waking the pool. */
     if (previous >= 2) {
-        scoop_gc_mark_notify_work();
+        scoop_gc_mark_notify_work(false);
     }
 }
 
@@ -49,14 +54,16 @@ void scoop_gc_mark_enqueue_remembered(void) {
         ScoopGcRegion *region = group->region;
         size_t index = region->large ? 0 : (size_t)(group - region->card_groups);
         ScoopGcBlockMeta *block = &region->blocks[index];
-        if (!active_head(block) || block->generation != SCOOP_GC_OLD) {
+        if (!active_head(block) || block->head->generation != SCOOP_GC_OLD) {
             continue;
         }
         scoop_gc_mark_queue_push(&scoop_gc_marker.workers[owner], (ScoopGcMarkTask){
                                                                       .kind = SCOOP_MARK_DIRTY_TASK,
                                                                       .data.dirty.group = group,
                                                                   });
-        owner = (owner + 1) % scoop_gc_marker.active_workers;
+        if (++owner == scoop_gc_marker.active_workers) {
+            owner = 0;
+        }
     }
 }
 
@@ -64,10 +71,10 @@ static bool take(ScoopGcMarkQueue *queue, bool steal, ScoopGcMarkTask *task) {
     scoop_runtime_platform_mutex_lock(&queue->lock);
     bool found = queue->count != 0;
     if (found) {
-        size_t index = steal ? queue->first : (queue->first + queue->count - 1) % queue->capacity;
+        size_t index = steal ? queue->first : queue_index(queue, queue->first + queue->count - 1);
         *task = queue->tasks[index];
         if (steal) {
-            queue->first = (queue->first + 1) % queue->capacity;
+            queue->first = queue_index(queue, queue->first + 1);
         }
         queue->count--;
     }
@@ -80,7 +87,10 @@ bool scoop_gc_mark_queue_take(ScoopGcMarkWorker *worker, ScoopGcMarkTask *task) 
         return true;
     }
     for (size_t distance = 1; distance < scoop_gc_marker.active_workers; distance++) {
-        size_t index = (worker->id + distance) % scoop_gc_marker.active_workers;
+        size_t index = worker->id + distance;
+        if (index >= scoop_gc_marker.active_workers) {
+            index -= scoop_gc_marker.active_workers;
+        }
         if (take(&scoop_gc_marker.workers[index].queue, true, task)) {
             worker->stolen_tasks++;
             return true;
@@ -95,6 +105,6 @@ void scoop_gc_mark_task_done(void) {
         heap_fatal("mark task completed without outstanding work");
     }
     if (previous == 1) {
-        scoop_gc_mark_notify_work();
+        scoop_gc_mark_notify_work(true);
     }
 }

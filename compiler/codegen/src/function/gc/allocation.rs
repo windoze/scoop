@@ -12,8 +12,8 @@ pub(in crate::function) struct AllocationResult<'ctx> {
 }
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
-    /// Bump through the thread's shared TLAB view. Small constant allocations
-    /// with known layouts finish inline in release; other bumps use the GC-leaf
+    /// Bump through the thread's shared TLAB view. Allocations with known
+    /// layouts finish inline in release; other bumps use the GC-leaf
     /// helper. Failed bumps retain the collecting slow path and its roots.
     pub(in crate::function) fn managed_alloc(
         &mut self,
@@ -126,41 +126,82 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let limit_int = builder
             .build_ptr_to_int(limit, i64_ty, "tlab_limit_int")
             .map_err(|error| CodegenError(format!("convert TLAB limit: {error}")))?;
-        let cursor_int = builder
-            .build_int_add(cursor_int, alignment_mask, "tlab_cursor_plus_align")
-            .and_then(|cursor| builder.build_and(cursor, inverse_mask, "tlab_aligned_cursor"))
-            .map_err(|error| CodegenError(format!("align TLAB object start: {error}")))?;
-        let object_int = cursor_int;
+        let direct_bump = self.optimize_allocations
+            && self.optimize_tlab_range
+            && alignment.get_zero_extended_constant() == Some(8)
+            && aligned_size
+                .get_zero_extended_constant()
+                .is_some_and(|size| (16..=REGULAR_MANAGED_OBJECT_MAX_SIZE).contains(&size));
+        let object_int = if direct_bump {
+            // Every live cursor is already header-aligned.
+            cursor_int
+        } else {
+            builder
+                .build_int_add(cursor_int, alignment_mask, "tlab_cursor_plus_align")
+                .and_then(|cursor| builder.build_and(cursor, inverse_mask, "tlab_aligned_cursor"))
+                .map_err(|error| CodegenError(format!("align TLAB object start: {error}")))?
+        };
         let next_int = builder
             .build_int_add(object_int, aligned_size, "tlab_next_int")
             .map_err(|error| CodegenError(format!("advance TLAB object: {error}")))?;
-        let has_tlab = builder
-            .build_int_compare(
-                IntPredicate::NE,
-                cursor_int,
-                i64_ty.const_zero(),
-                "tlab_present",
-            )
-            .map_err(|error| CodegenError(format!("check TLAB presence: {error}")))?;
-        let is_regular = builder
-            .build_int_compare(
-                IntPredicate::ULE,
-                aligned_size,
-                i64_ty.const_int(REGULAR_MANAGED_OBJECT_MAX_SIZE, false),
-                "alloc_is_regular",
-            )
-            .map_err(|error| CodegenError(format!("check regular allocation: {error}")))?;
-        let within_limit = builder
-            .build_int_compare(IntPredicate::ULE, next_int, limit_int, "alloc_within_tlab")
-            .map_err(|error| CodegenError(format!("check TLAB limit: {error}")))?;
-        let fast = builder
-            .build_and(has_tlab, is_regular, "alloc_has_regular_tlab")
-            .and_then(|condition| {
-                builder.build_and(condition, nursery_eligible, "alloc_young_tlab")
-            })
-            .and_then(|condition| builder.build_and(condition, within_limit, "alloc_within_limit"))
-            .and_then(|condition| builder.build_and(condition, size_valid, "alloc_fast_path"))
-            .map_err(|error| CodegenError(format!("combine TLAB checks: {error}")))?;
+        let fast = if direct_bump {
+            // A retired view has both pointers null and therefore no capacity.
+            let remaining = builder
+                .build_int_sub(limit_int, cursor_int, "tlab_remaining")
+                .map_err(|error| CodegenError(format!("remaining TLAB bytes: {error}")))?;
+            let fits = builder
+                .build_int_compare(
+                    IntPredicate::ULE,
+                    aligned_size,
+                    remaining,
+                    "alloc_within_tlab",
+                )
+                .map_err(|error| CodegenError(format!("check TLAB capacity: {error}")))?;
+            let is_regular = builder
+                .build_int_compare(
+                    IntPredicate::ULE,
+                    aligned_size,
+                    i64_ty.const_int(REGULAR_MANAGED_OBJECT_MAX_SIZE, false),
+                    "alloc_is_regular",
+                )
+                .map_err(|error| CodegenError(format!("check regular allocation: {error}")))?;
+            builder
+                .build_and(fits, is_regular, "alloc_has_regular_tlab")
+                .and_then(|condition| {
+                    builder.build_and(condition, nursery_eligible, "alloc_young_tlab")
+                })
+                .and_then(|condition| builder.build_and(condition, size_valid, "alloc_fast_path"))
+        } else {
+            let present = builder
+                .build_int_compare(
+                    IntPredicate::NE,
+                    object_int,
+                    i64_ty.const_zero(),
+                    "tlab_present",
+                )
+                .map_err(|error| CodegenError(format!("check TLAB presence: {error}")))?;
+            let is_regular = builder
+                .build_int_compare(
+                    IntPredicate::ULE,
+                    aligned_size,
+                    i64_ty.const_int(REGULAR_MANAGED_OBJECT_MAX_SIZE, false),
+                    "alloc_is_regular",
+                )
+                .map_err(|error| CodegenError(format!("check regular allocation: {error}")))?;
+            let within_limit = builder
+                .build_int_compare(IntPredicate::ULE, next_int, limit_int, "alloc_within_tlab")
+                .map_err(|error| CodegenError(format!("check TLAB limit: {error}")))?;
+            builder
+                .build_and(present, is_regular, "alloc_has_regular_tlab")
+                .and_then(|condition| {
+                    builder.build_and(condition, nursery_eligible, "alloc_young_tlab")
+                })
+                .and_then(|condition| {
+                    builder.build_and(condition, within_limit, "alloc_within_limit")
+                })
+                .and_then(|condition| builder.build_and(condition, size_valid, "alloc_fast_path"))
+        }
+        .map_err(|error| CodegenError(format!("combine TLAB checks: {error}")))?;
 
         let index = self.allocation_index;
         self.allocation_index += 1;
@@ -184,15 +225,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         builder
             .build_store(cursor_slot, next)
             .map_err(|error| CodegenError(format!("publish TLAB cursor: {error}")))?;
-        if layout.is_some_and(|layout| layout.nursery_eligible)
-            && requested_size
-                .get_zero_extended_constant()
-                .is_some_and(|size| (16..=128).contains(&size))
-        {
-            let clear_size = if let Some(out) = initialization_result {
-                let size = aligned_size
-                    .get_zero_extended_constant()
-                    .expect("the small allocation has constant size and alignment");
+        if layout.is_some_and(|layout| layout.nursery_eligible) {
+            let clear_size = if let (Some(out), Some(size)) = (
+                initialization_result,
+                aligned_size.get_zero_extended_constant(),
+            ) {
                 i64_ty.const_int(self.initialization_clear_size(out, size)?, false)
             } else {
                 aligned_size

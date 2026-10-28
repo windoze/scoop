@@ -82,7 +82,7 @@ static bool linux_discard_pages(void *base, size_t size, ScoopPlatformError *err
     if (error == NULL) {
         return false;
     }
-    if (base == NULL || size == 0 || madvise(base, size, MADV_DONTNEED) != 0) {
+    if (base == NULL || size == 0 || madvise(base, size, MADV_FREE) != 0) {
         error->code = SCOOP_PLATFORM_VM_OPERATION_FAILED;
         return false;
     }

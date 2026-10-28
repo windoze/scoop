@@ -19,17 +19,26 @@ static const NurseryNode immortal = {
 static void *root;
 
 static void expect_invalid_reference(const void *address) {
-    pid_t child = fork();
-    assert(child >= 0);
-    if (child == 0) {
-        (void)close(STDERR_FILENO);
-        root = (void *)address;
-        nursery_collect(false);
-        _exit(0);
+    for (unsigned minor = 0; minor < 2; minor++) {
+        pid_t child = fork();
+        assert(child >= 0);
+        if (child == 0) {
+            (void)close(STDERR_FILENO);
+            /* Confirm the valid start before its invalid alias. Pinning also keeps
+             * relocation from becoming a later, accidental rejection of the slot.
+             * A minor must validate even the old target it will not mark. */
+            assert(scoop_rt_pin(root) == root);
+            void *values[] = {root, (void *)address};
+            void **slots[] = {&values[0], &values[1]};
+            ScoopNativeRootFrame roots;
+            scoop_rt_push_native_roots(&roots, slots, 2);
+            nursery_collect(minor != 0);
+            _exit(0);
+        }
+        int status = 0;
+        assert(waitpid(child, &status, 0) == child);
+        assert(WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT);
     }
-    int status = 0;
-    assert(waitpid(child, &status, 0) == child);
-    assert(WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT);
 }
 
 /* Synthetic managed frames must stay below main's entry boundary at -O2. */

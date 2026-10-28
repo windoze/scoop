@@ -22,11 +22,10 @@ ScoopGcMutator *scoop_gc_mutator_create(void) {
     }
     ScoopGcMutator *mutator = storage;
     memset(mutator, 0, sizeof *mutator);
-    atomic_init(&mutator->counters.objects, 0);
     atomic_init(&mutator->counters.nursery_objects, 0);
-    atomic_init(&mutator->counters.bytes, 0);
     atomic_init(&mutator->counters.nursery_bytes, 0);
-    mutator->allocation.counters = &mutator->counters;
+    atomic_init(&mutator->counters.direct_objects, 0);
+    atomic_init(&mutator->counters.direct_bytes, 0);
     return mutator;
 }
 
@@ -43,11 +42,15 @@ bool scoop_gc_mutator_is_retired(const ScoopGcMutator *mutator) {
 
 void scoop_gc_add_mutator_totals(const ScoopGcMutator *mutator, ScoopGcAllocationTotals *total) {
     const ScoopGcAllocationCounters *counters = &mutator->counters;
-    total->objects += atomic_load_explicit(&counters->objects, memory_order_relaxed);
-    total->nursery_objects +=
+    uint64_t nursery_objects =
         atomic_load_explicit(&counters->nursery_objects, memory_order_relaxed);
-    total->bytes += atomic_load_explicit(&counters->bytes, memory_order_relaxed);
-    total->nursery_bytes += atomic_load_explicit(&counters->nursery_bytes, memory_order_relaxed);
+    uint64_t nursery_bytes = atomic_load_explicit(&counters->nursery_bytes, memory_order_relaxed);
+    total->objects +=
+        nursery_objects + atomic_load_explicit(&counters->direct_objects, memory_order_relaxed);
+    total->nursery_objects += nursery_objects;
+    total->bytes +=
+        nursery_bytes + atomic_load_explicit(&counters->direct_bytes, memory_order_relaxed);
+    total->nursery_bytes += nursery_bytes;
 }
 
 ScoopGcAllocationTotals scoop_gc_detached_allocations_locked(void) { return detached_allocations; }

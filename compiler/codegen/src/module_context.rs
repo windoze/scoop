@@ -10,6 +10,7 @@ pub(crate) struct ModuleCtx<'a, 'ctx> {
     pub(crate) optimize_reference_writes: bool,
     pub(crate) direct_array_regions: bool,
     pub(crate) allocation_initialization_limit: u64,
+    pub(crate) optimize_tlab_range: bool,
     pub(crate) reuse_thread_addresses: bool,
     pub(crate) managed_address_space: ManagedAddressSpace,
     pub(crate) functions: &'a [Function],
