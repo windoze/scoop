@@ -5,7 +5,7 @@
 | 阶段 | 状态 | 尚需闭合 |
 | --- | --- | --- |
 | W0 工具链与 ABI | 关键路线实验通过 | 复现入口与范围见下文；正式编译器集成在 W1／W2 完成 |
-| W1 编译／链接 | 实施中 | 三目标开发 CLI 已支持 subsystem、RC 与 DLL 数据，Microsoft LINK 的 COMDAT 顺序已修正；继续 native C++ CLI、调试信息与组合验收 |
+| W1 编译／链接 | 实施中 | 三目标开发 CLI 已支持 subsystem、RC、DLL 数据与跨 Cone C++；cl／clang-cl 消费同一 MSVC 静态库和 DLL 的完整程序通过，继续调试信息、原生输入诊断与组合验收 |
 | W2 core runtime | 实施中 | core／std／test 已构建，启动、异常和移动 GC 的真实程序通过；继续线程／callback／unwind 组合及正式 fixture 验收 |
 | W3 系统库 | 待实施 | 平台规范与实现、IOCP、全部 native 组件、真实 consumer |
 | W4 宿主与发行 | 基础实施中 | 进程中断已实现；继续 Windows 命令、维护脚本、DLL／SDK 布局与打包、交叉编译 |
@@ -136,3 +136,9 @@ Windows 非 TLS native global 现通过普通 IAT 引用访问，产物中的实
 COFF atom 物化现在将所属 COMDAT 排在关联节之前，只重排 section headers 和 section 序号，保留 symbol 索引、relocation 目标及机器内容。真实普通 COFF 与超过 65,535 个节的 bigobj 均经 Microsoft LINK 链接并运行通过，确认 association 高低位、代码和 relocation 保持正确。codegen Clippy 无告警；fixture runner 可显式选择 `--linker`，65 项公共规则测试通过 62 项、跳过 3 项 POSIX 专项，Ruff 通过。
 
 三个 release CLI 与三个目标各自的 core／std／test 已重新构建。Microsoft UCRT 的 LLD／LINK、两个 MinGW CRT 的 LLD 共四种组合均通过 `windows-native-data-static-and-dll`、`roots-gc-context`、`string-copies-moving` 和 `exceptions-return-paths`，每种组合 6 个变体／19 个进程步骤；包括 debug／release 移动 GC、完整静态库和 DLL `.slib` 链接。原 Microsoft LINK LNK1243 已闭合，后续 native C++、调试信息和 W2～W4 继续实施。
+
+Windows 跨 Cone C++ 需求现由所选目标的 final-link profile 提供，保留显式 native library 要求。generated-C 的原生 `.pdata`／`.xdata` 留给 COFF linker，不要求 Scoop atom 归属；Scoop LIR 的 unwind atom 与普通引用检查保持。真实 `captureErrno` 桥接发现的 orphan relocation 已闭合。内部 C 对象关闭当前 COFF 时间戳，新增 C producer flag 20；真实对象检查确认时间戳为零且 SEH 表保留。七项 C producer 合同测试、七项 relocation 测试及三环境真实工具链测试通过，相关六个 crate 的 all-targets Clippy 无告警，C++ 严格警告检查通过。
+
+三个 CLI、各目标 core／std／test 及普通／GC stress runtime 已按更新后的 producer 配置准备。四种组合（clang-cl＋LLD、cl＋Microsoft LINK、两个 MinGW CRT）均通过 `native-cxx-artifacts` 的 debug／release 两个变体、10 个进程步骤，覆盖跨 Cone C++ 需求、STL、RTTI、内部异常、静态初始化、errno 与 artifact-only 重链接；debug 重链接保留相同符号配置及 PDB basename，精确链接指纹比较通过，原 MSVC 时间戳不稳定失败已闭合。独立 `errno-values` 正式 fixture 在三个目标各通过 4 个进程步骤。
+
+完整 CLI 另消费 W0 已构建的真实 C++ 静态库和 DLL import library：两个 Microsoft wrapper 使用同一份 cl 产物，两个 MinGW wrapper 使用各自 libc++ 产物。四种组合均通过 native RTTI／STL／throw-catch、Scoop catch／移动 GC 和两次 native 静态析构。调试源位置信息、剩余原生输入诊断及 W2～W4 继续实施，未开始远端测试。

@@ -144,6 +144,7 @@ fn windows_c_profiles_separate_environments_and_preserve_seh_flags() {
     );
     let flags = CanonicalCBridgeFlagContractV1::WindowsClang.flags();
     assert!(flags.contains(&CanonicalCBridgeFlagV1::WindowsSeh));
+    assert!(flags.contains(&CanonicalCBridgeFlagV1::ReproducibleCoff));
     assert!(!flags.contains(&CanonicalCBridgeFlagV1::NoUnwindTables));
     assert!(!flags.contains(&CanonicalCBridgeFlagV1::NoAsynchronousUnwindTables));
 }

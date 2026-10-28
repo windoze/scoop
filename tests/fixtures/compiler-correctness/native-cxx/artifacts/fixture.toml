@@ -2,11 +2,11 @@ schema = 1
 name = "native-cxx-artifacts"
 inputs = ["provider", "middle", "consumer"]
 tools = ["scoop", "scoopc", "scoop-link"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["ffi", "native", "generics", "compiler-correctness"]
 variants = [
-  {name = "debug", vars = {profile = "debug"}},
-  {name = "release", vars = {profile = "release"}},
+  {name = "debug", vars = {profile = "debug", link_flags = ["--keep-symbols", "--emit-symbol-map"]}},
+  {name = "release", vars = {profile = "release", link_flags = []}},
 ]
 
 [[steps]]
@@ -52,14 +52,14 @@ checks = []
 
 [[steps]]
 name = "link"
-argv = ["${scoop-link}", {each = "${link_args}"}, "--root-slib", "${consumer.result.root.path}", {each = "${consumer.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${consumer.result.runtime_index}", "-o", "${work}/relinked", "--cache-dir", "${cache}", "--sysroot", "${sysroot}"]
+argv = ["${scoop-link}", {each = "${link_args}"}, {each = "${link_flags}"}, "--root-slib", "${consumer.result.root.path}", {each = "${consumer.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${consumer.result.runtime_index}", "-o", "${work}/relinked/cxx-consumer.exe", "--cache-dir", "${cache}", "--sysroot", "${sysroot}"]
 exit = 0
 stdout = "link-plan ${consumer.result.link_plan_fingerprint}\n"
 stderr = ""
 
 [[steps]]
 name = "run"
-argv = ["${work}/relinked"]
+argv = ["${work}/relinked/cxx-consumer.exe"]
 exit = 0
 stdout = "native-artifacts-ok\n"
 stderr = ""

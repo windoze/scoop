@@ -43,6 +43,7 @@ impl ValidatedCBridgeToolchainInvocation {
                 let mut command = self.driver_command();
                 command
                     .args([
+                        "-mno-incremental-linker-compatible",
                         "-std=c11",
                         self.optimization.c_flag(),
                         "-g0",
@@ -135,7 +136,8 @@ fn canonical_object_compilation_command(
             }
             CanonicalCBridgeFlagV1::WindowsSeh
             | CanonicalCBridgeFlagV1::WindowsCrt
-            | CanonicalCBridgeFlagV1::Windows10Baseline => {
+            | CanonicalCBridgeFlagV1::Windows10Baseline
+            | CanonicalCBridgeFlagV1::ReproducibleCoff => {
                 unreachable!("Windows flags use the Windows command producer");
             }
         }

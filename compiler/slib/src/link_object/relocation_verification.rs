@@ -6,6 +6,7 @@ use std::num::NonZeroU32;
 
 use scoop_identity::{
     ConeIdentity, DefinitionAtomRole, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
+    ObjectDefinitionPlanOwner, StrongDefinitionEntityKind,
 };
 
 use super::{
@@ -239,13 +240,25 @@ pub fn verify_member_object_relocations_v1(
 ) -> Result<VerifiedMemberObjectRelocationIndexV1, ObjectRelocationValidationError> {
     let local_symbol_owners = local_symbol_owners(&definitions);
     let envelope = definitions.sections().envelope();
+    let generated_c = definitions.symbols().iter().all(|symbol| {
+        matches!(symbol.definition_owner(), ObjectDefinitionPlanOwner::Strong { entity, .. }
+            if matches!(entity.kind(), StrongDefinitionEntityKind::GeneratedBridgeAtom(_)))
+    });
     let mut relocations = Vec::with_capacity(envelope.relocations().len());
     let mut relocations_by_atom: BTreeMap<_, Vec<_>> = BTreeMap::new();
     for relocation in envelope.relocations() {
         let section_ordinal = relocation.containing_section_ordinal();
         let section_index = section_ordinal.get() as usize - 1;
-        if definitions.sections().roles()[section_index]
-            == BuiltinObjectSectionRoleV1::ObjectMetadata
+        let section_role = definitions.sections().roles()[section_index];
+        // Clang owns the C bridge's native unwind tables. Their ordinary COFF
+        // references stay in the object for the linker; they are not Scoop atoms.
+        if section_role == BuiltinObjectSectionRoleV1::ObjectMetadata
+            || generated_c
+                && matches!(
+                    section_role,
+                    BuiltinObjectSectionRoleV1::WindowsUnwindTable
+                        | BuiltinObjectSectionRoleV1::WindowsUnwindInfo
+                )
         {
             continue;
         }

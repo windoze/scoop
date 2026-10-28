@@ -1,4 +1,4 @@
-use object::{Object, ObjectSymbol};
+use object::{Object, ObjectSection, ObjectSymbol};
 
 use super::*;
 
@@ -66,6 +66,10 @@ fn windows_c_discovery_uses_selected_headers_and_transports_real_commands() {
         let bytes = std::fs::read(object).unwrap();
         let file = object::File::parse(bytes.as_slice()).unwrap();
         assert_eq!(file.format(), object::BinaryFormat::Coff);
+        assert_eq!(u32::from_le_bytes(bytes[4..8].try_into().unwrap()), 0);
+        for section in [".pdata", ".xdata"] {
+            assert!(file.section_by_name(section).unwrap().size() > 0);
+        }
         assert!(
             file.symbols()
                 .any(|symbol| symbol.is_undefined()

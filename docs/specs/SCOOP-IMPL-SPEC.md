@@ -39,6 +39,10 @@ Windows executable 的 `[windows].subsystem` 与 `[windows].rc` 按语言规范 
 
 Windows generated-C producer 使用所选完整 target 的 Clang 模式，平台合同新增编码 3，记录实际 Clang 数值版本与预处理配置；宿主路径只保留在普通工具发现记录。三环境各有独立 C producer profile，Clang 接受的 machine triple 不取代完整 target。公共 flags 保持 C11、所选优化、无 debug／common／compiler-ident／stack-protector／builtin substitution；Windows 使用 x86-64 baseline、Windows 10 API 基线和 SEH unwind tables，Microsoft 环境使用动态 UCRT（`/MD` 等效设置）。新增 flag 编码 17、18、19 分别表示 Windows SEH、所选 Windows CRT 和 Windows 10 基线，原平台编码不变。
 
+generated-C 对象中由 Clang 产生的 `.pdata`／`.xdata` 保留实际 Windows unwind 分类、内容和重定位，交给原生 linker 处理；它们不要求另建 Scoop definition atom，也不进入 Scoop atom 的 relocation 所属检查。COFF 格式、引用边界和桥接代码中的引用检查保持。Scoop LIR 发射的 unwind atoms 仍按自身 definition plan 关联和验证，不能将其未归属 relocation 视为 generated-C 辅助内容。
+
+Windows 内部 C 对象（含 generated-C 和最终 startup）以 `-mno-incremental-linker-compatible` 关闭 COFF 当前时间戳，保持重复编译和等价重链接的确定性；最终 PE 本已关闭 incremental linking。该 producer flag 使用新增编码 20，进入 Windows C producer profile，既有平台编码不变。此配置不移除 SEH 表，也不在读取缓存对象时改写或归一化对象内容。
+
 runtime index 的补充 deployment 值 0 表示使用完整 target 已规定的 OS 基线，Linux 与 Windows 均使用此值；Darwin 继续保存所选最低 macOS packed version。target 相容性仍由已有完整 identity 检查承担，不在补充 deployment 字段重复编码 OS／CRT。
 
 Windows runtime 的普通 COFF 对象可包含 CRT headers 生成的重复可合并 helper（如 inline stdio 配置函数和 MinGW refptr）。runtime index 合并符号目录时允许类型／只读属性一致的 weak 定义重复，实际 COMDAT 选择仍由 PE linker 执行，所有原始对象保留；runtime ABI 入口仍要求 strong 定义，重复 strong 定义仍报错。程序输入汇总复用已合并的 runtime 目录，不再次将合法重复判为冲突；用户 native 对象与 runtime 之间的同类 COFF weak helper 也按相同规则合并。
@@ -996,7 +1000,7 @@ root 是唯一 executable，依赖为 library。正常构建使用已确定的�
 
 最终 executable 是缓存结果。先根据 Cone 代码结果、runtime/native 输入、库选择、工具与链接配置判断更新；输入未变化且输出存在时直接返回，不能调用 read_program_link_closure、生成 startup/image tables/response file、调用 C compiler/linker 或复制／读取 executable 内容。只改变 native、runtime 或链接配置时不重编译无关 Scoop Cone。库搜索记录影响实际选择的目录状态，新增优先候选或配置改变后重新选择。
 
-program-link 从完整产物闭包合并 C++ 链接和运行库需求；任一 Cone 要求 C++，就采用所选 target 的 C++ final-link 配置。GNU 由配套 `g++` 驱动并使用 `libstdc++`，Darwin 由配套 `clang++` 驱动并使用 `libc++`；同时纳入各自的 C++ ABI 运行库与系统依赖。C++ driver 调用相应平台 linker，既有对象格式、GC、EH 与 image 契约继续适用。不能仅把 C 编译器替换为 C++ 编译器后继续原样使用抑制其默认运行库的 C 链接参数，也不能靠 root 重复声明 `cxx` 才满足依赖。
+program-link 从完整产物闭包合并 C++ 链接和运行库需求；任一 Cone 要求 C++，就采用所选 target 的 C++ final-link 配置。Linux GNU 由配套 `g++` 驱动并使用 `libstdc++`，Darwin 由配套 `clang++` 驱动并使用 `libc++`；同时纳入各自的 C++ ABI 运行库与系统依赖。Windows 使用前述完整 target 的 final-link profile，由 Microsoft CRT defaults 或 MinGW Clang++ 配套参数加入所需 STL／ABI 运行库，不生成 Unix 的 `c++`／`stdc++` 动态库 requirement；各 Cone 显式声明的 native libraries 仍照常汇总。C++ driver 调用相应平台 linker，既有对象格式、GC、EH 与 image 契约继续适用。不能仅把 C 编译器替换为 C++ 编译器后继续原样使用抑制其默认运行库的 C 链接参数，也不能靠 root 重复声明 `cxx` 才满足依赖。
 
 musl 闭包出现 C++ requirement 时，在解析 C++ 工具链或调用最终 linker 前报错，指出要求 C++ 的 Cone；不因其源码已预编译而绕过限制。实际使用的 C++ driver、标准库／ABI 运行库、unwind provider 及链接参数进入 final-link 配置和 ResolvedLinkPlan。
 

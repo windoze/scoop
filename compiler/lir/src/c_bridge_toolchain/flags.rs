@@ -59,10 +59,11 @@ pub enum CanonicalCBridgeFlagV1 {
     WindowsSeh,
     WindowsCrt,
     Windows10Baseline,
+    ReproducibleCoff,
 }
 
 impl CanonicalCBridgeFlagV1 {
-    pub const WINDOWS_CLANG: [Self; 14] = [
+    pub const WINDOWS_CLANG: [Self; 15] = [
         Self::ExplicitCanonicalTarget,
         Self::ExplicitResolvedSdkRoot,
         Self::X86_64Baseline,
@@ -77,6 +78,7 @@ impl CanonicalCBridgeFlagV1 {
         Self::WindowsSeh,
         Self::WindowsCrt,
         Self::Windows10Baseline,
+        Self::ReproducibleCoff,
     ];
     pub const LINUX_GCC: [Self; 12] = [
         Self::X86_64Baseline,
@@ -128,6 +130,7 @@ impl CanonicalCBridgeFlagV1 {
             Self::WindowsSeh => 17,
             Self::WindowsCrt => 18,
             Self::Windows10Baseline => 19,
+            Self::ReproducibleCoff => 20,
         }
     }
 }
