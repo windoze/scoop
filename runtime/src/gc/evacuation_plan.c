@@ -316,7 +316,7 @@ static void reserve_parallel(MovingPlan *plan) {
             owner = (owner + 1) % scoop_gc_marker.active_workers;
         }
     }
-    scoop_gc_mark_pool_run(0);
+    scoop_gc_mark_pool_run_fixed();
     pthread_mutex_destroy(&lock);
     ScoopGcCopyBlock **groups = &plan->copy_groups;
     for (size_t index = 0; index < scoop_gc_marker.active_workers; index++) {
@@ -384,7 +384,7 @@ static void copy_plan(MovingPlan *plan) {
             owner = (owner + 1) % scoop_gc_marker.active_workers;
         }
         if (plan->copy_groups != NULL) {
-            scoop_gc_mark_pool_run(0);
+            scoop_gc_mark_pool_run_fixed();
         }
         for (ScoopGcCopyBlock *group = plan->copy_groups; group != NULL; group = group->next) {
             totals.bytes += group->totals.bytes;

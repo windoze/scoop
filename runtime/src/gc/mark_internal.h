@@ -155,6 +155,7 @@ extern ScoopGcMarker scoop_gc_marker;
 
 void scoop_gc_mark_pool_prepare(bool minor);
 void scoop_gc_mark_pool_run(size_t task_limit);
+void scoop_gc_mark_pool_run_fixed(void);
 void scoop_gc_mark_notify_work(bool complete);
 void scoop_gc_mark_queue_push(ScoopGcMarkWorker *worker, ScoopGcMarkTask task);
 void scoop_gc_mark_enqueue_remembered(void);

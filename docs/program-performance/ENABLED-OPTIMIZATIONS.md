@@ -12,6 +12,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [短 GC 阶段省去无效调度](GC-EVOLUTION.md#第四十八阶段短-gc-阶段省去无效调度) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 空阶段直接结束，单参与者不发布或广播新阶段；固定预留／复制任务只启动所需参与者，动态标记／回写仍保留原并行度。大图及 GNU 多线程 STW 改善，整体吞吐基本持平；部分回退和非独占机器短测波动见记录，无对象／metadata／ABI 增量。 |
 | [较高 GC 并行度的显式选择](GC-EVOLUTION.md#第四十七阶段较高-gc-并行度的显式选择) | `SCOOP_GC_WORKERS=9..16`；默认仍最多 8，所有 profile 同义 | 大引用数组以更多 CPU／私有统计空间换取较短 STW；小图与不同平台的分配吞吐可能回退，不提高默认上限。分片总工作量保持；native `ScoopGcMetrics` 扩至 16 槽，消费者须用新头重编，对象／generated-code ABI 不变。 |
 | [编译器可见的引用扫描循环](GC-EVOLUTION.md#第四十六阶段编译器可见的引用扫描循环) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 单引用数组复用共享范围算法，在 collector 热循环中展开标记过滤，省去逐槽调用和帧保存；动态／复杂扫描保持。增加约 3.5／14 KiB runtime 代码，改善大图 STW 及线程分配吞吐；树形吞吐、部分最大暂停及 runtime 编译成本回退见记录，无对象／metadata／ABI 增量。 |
 | [region 紧凑引用元数据](GC-EVOLUTION.md#第四十五阶段region-紧凑引用元数据) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 连续 head／starts 保留唯一状态和精确起点，minor 的合法旧引用避开完整 block 记录；省去逐 block 的 starts 分配。完整普通 region 增加约 4 KiB，未使用块多预留位图；大图及部分分配改善，线程尾部回退见记录，无对象／ABI 变化。 |

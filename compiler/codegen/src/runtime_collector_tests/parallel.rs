@@ -69,7 +69,7 @@ fn mark_region_views_preserve_collisions_movement_and_mapping_reuse() {
 }
 
 #[test]
-fn delayed_workers_observe_the_participants_of_the_published_phase() {
+fn short_work_preserves_the_published_phase_and_bounds_fixed_participants() {
     let output = compile_and_run_with_flags(
         &workspace_root(),
         "mark_phase_participation_test",
@@ -84,7 +84,7 @@ fn delayed_workers_observe_the_participants_of_the_published_phase() {
     );
     assert_eq!(
         output.stdout,
-        b"delayed inactive workers retain the participants of their published phase\n"
+        b"short work preserves the published phase; fixed work uses only needed participants\n"
     );
 }
 

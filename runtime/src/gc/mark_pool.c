@@ -169,12 +169,17 @@ void scoop_gc_mark_pool_prepare(bool minor) {
     pthread_mutex_unlock(&scoop_gc_marker.lock);
 }
 
-void scoop_gc_mark_pool_run(size_t task_limit) {
+static void run_pool(size_t task_limit, size_t workers) {
+    if (workers == 1) {
+        /* No new phase is visible to delayed peers of the last parallel phase. */
+        run_worker(&scoop_gc_marker.workers[0], task_limit);
+        return;
+    }
     pthread_mutex_lock(&scoop_gc_marker.lock);
     scoop_gc_marker.task_limit = task_limit;
     /* Preparing another collection must not add delayed inactive workers to
      * a phase which has already completed. Publish membership with the phase. */
-    scoop_gc_marker.phase_workers = scoop_gc_marker.active_workers;
+    scoop_gc_marker.phase_workers = workers;
     scoop_gc_marker.finished_workers = 0;
     scoop_gc_marker.phase++;
     pthread_cond_broadcast(&scoop_gc_marker.phase_changed);
@@ -185,6 +190,24 @@ void scoop_gc_mark_pool_run(size_t task_limit) {
         pthread_cond_wait(&scoop_gc_marker.finished, &scoop_gc_marker.lock);
     }
     pthread_mutex_unlock(&scoop_gc_marker.lock);
+}
+
+void scoop_gc_mark_pool_run(size_t task_limit) {
+    if (atomic_load_explicit(&scoop_gc_marker.pending, memory_order_acquire) != 0) {
+        run_pool(task_limit, scoop_gc_marker.active_workers);
+    }
+}
+
+void scoop_gc_mark_pool_run_fixed(void) {
+    /* Reservation and copying publish every task before entering the pool and
+     * cannot generate children. All configured queues remain available to steal. */
+    size_t workers = atomic_load_explicit(&scoop_gc_marker.pending, memory_order_acquire);
+    if (workers > scoop_gc_marker.active_workers) {
+        workers = scoop_gc_marker.active_workers;
+    }
+    if (workers != 0) {
+        run_pool(0, workers);
+    }
 }
 
 void scoop_gc_shutdown(void) {
