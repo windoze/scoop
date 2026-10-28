@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import path from "node:path";
 import { setTimeout } from "node:timers/promises";
 import * as vscode from "vscode";
 
@@ -72,6 +74,23 @@ export async function runLanguageServerTests() {
   const document = await vscode.workspace.openTextDocument(useUri);
   await vscode.window.showTextDocument(document);
   const settings = () => vscode.workspace.getConfiguration("scoop");
+  const pairedServer = settings().get<string>("server.path");
+  assert.ok(pairedServer);
+  const pm = path.join(
+    path.dirname(pairedServer),
+    process.platform === "win32" ? "scoop-pm.exe" : "scoop-pm",
+  );
+  execFileSync(
+    pm,
+    [
+      "resolve",
+      project.fsPath,
+      "--offline",
+      "--sysroot",
+      settings().get<string>("sysroot") ?? "",
+    ],
+    { stdio: "pipe" },
+  );
   const update = (key: string, value: unknown) =>
     settings().update(key, value, vscode.ConfigurationTarget.Workspace);
   await update("server.enabled", true);

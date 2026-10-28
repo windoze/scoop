@@ -1,6 +1,7 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::*;
+use scoop_manifest::ManifestRootLocator;
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
 
@@ -25,35 +26,35 @@ impl Drop for TempDirectory {
 }
 
 #[test]
-fn operand_classifier_uses_only_the_closed_file_shapes() {
+fn direct_requests_reject_manifest_inputs_without_reading_them() {
     let directory = TempDirectory::new();
-    let source = directory.0.join("main.scoop");
     let manifest = directory.0.join("Cone.toml");
-    let other = directory.0.join("other.toml");
-    std::fs::write(&source, "fun main() {}\n").unwrap();
-    std::fs::write(&manifest, "manifest").unwrap();
-    std::fs::write(&other, "other").unwrap();
-
-    assert!(matches!(
-        classify_current_cone_operand(&directory.0).unwrap(),
-        CurrentConeInput::Manifest {
-            root: ManifestRootLocator::ConeDirectory(_)
-        }
-    ));
-    assert!(matches!(
-        classify_current_cone_operand(&manifest).unwrap(),
-        CurrentConeInput::Manifest {
-            root: ManifestRootLocator::ExactConeManifestFile(_)
-        }
-    ));
-    assert!(matches!(
-        classify_current_cone_operand(&source).unwrap(),
-        CurrentConeInput::SingleFile { .. }
-    ));
-    assert!(matches!(
-        classify_current_cone_operand(&other).unwrap_err().kind(),
-        CurrentConeOperandErrorKind::UnsupportedFile
-    ));
+    std::fs::write(&manifest, "not valid TOML").unwrap();
+    for input in [&directory.0, &manifest] {
+        assert!(matches!(
+            normalize_direct_check_request(
+                input,
+                Vec::new(),
+                Vec::new(),
+                DiagnosticOutputPolicy::Human,
+                Default::default()
+            ),
+            Err(BuildRequestNormalizationError::ManifestRequiresScoop)
+        ));
+        assert!(matches!(
+            normalize_direct_build_request(
+                input,
+                Vec::new(),
+                Vec::new(),
+                directory.0.join("out.slib"),
+                DiagnosticOutputPolicy::Human,
+                StageDumpPolicy::None,
+                Default::default()
+            ),
+            Err(BuildRequestNormalizationError::ManifestRequiresScoop)
+        ));
+    }
+    assert_eq!(std::fs::read_to_string(manifest).unwrap(), "not valid TOML");
 }
 
 #[test]
@@ -104,12 +105,16 @@ fn output_isolation_rejects_dependency_aliases_before_writing() {
     let manifest = directory.0.join("Cone.toml");
     let core = directory.0.join("core.slib");
     let dependency = directory.0.join("dependency.slib");
-    std::fs::write(&manifest, "manifest").unwrap();
+    std::fs::write(
+        &manifest,
+        "schema=1\n[cone]\ngroup='test'\nname='output'\nversion='1.0.0'\nkind='library'\n",
+    )
+    .unwrap();
     std::fs::write(&core, "core").unwrap();
     std::fs::write(&dependency, "dependency").unwrap();
-    let current = CurrentConeInput::Manifest {
-        root: ManifestRootLocator::cone_directory(directory.0.clone()),
-    };
+    let current = crate::request::test_support::expanded_fixture(
+        ManifestRootLocator::cone_directory(directory.0.clone()),
+    );
     let dependencies = ExplicitDependencyInputs::new(
         vec![HostArtifactLocator::new(&dependency).unwrap()],
         Vec::new(),
@@ -134,11 +139,15 @@ fn output_isolation_accepts_a_new_file_in_an_existing_directory() {
     let directory = TempDirectory::new();
     let manifest = directory.0.join("Cone.toml");
     let core = directory.0.join("core.slib");
-    std::fs::write(&manifest, "manifest").unwrap();
+    std::fs::write(
+        &manifest,
+        "schema=1\n[cone]\ngroup='test'\nname='output'\nversion='1.0.0'\nkind='library'\n",
+    )
+    .unwrap();
     std::fs::write(&core, "core").unwrap();
-    let current = CurrentConeInput::Manifest {
-        root: ManifestRootLocator::cone_directory(directory.0.clone()),
-    };
+    let current = crate::request::test_support::expanded_fixture(
+        ManifestRootLocator::cone_directory(directory.0.clone()),
+    );
     let dependencies = ExplicitDependencyInputs::new(Vec::new(), Vec::new());
     let trusted_core = TrustedCoreInput::Artifact(HostArtifactLocator::new(core).unwrap());
     let output = SlibOutputDestination::new(directory.0.join("output.slib")).unwrap();

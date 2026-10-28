@@ -74,6 +74,7 @@ BUILTINS = {
     "scoopc",
     "scoop-link",
     "scoop-lsp",
+    "scoop-pm",
     "terminal-host",
     "cc",
     "cc_args",
@@ -248,14 +249,21 @@ def validate_step(step):
                 raise ConfigurationError("argv entries must be strings or byte/array values")
             else:
                 values.string(argument, "argument")
-        if step.get("json") not in (None, "stderr", "test-stderr", "stdout"):
-            raise ConfigurationError("json must be stderr, test-stderr or stdout")
-        if step.get("json") in {"stderr", "test-stderr"} and "diagnostics" not in step:
+        if step.get("json") not in (None, "stderr", "test-stderr", "batch-stderr", "stdout"):
+            raise ConfigurationError("json must be stderr, test-stderr, batch-stderr or stdout")
+        if (
+            step.get("json") in {"stderr", "test-stderr", "batch-stderr"}
+            and "diagnostics" not in step
+        ):
             raise ConfigurationError(
                 "structured stderr requires the complete diagnostics expectation"
             )
-        if "diagnostics" in step and step.get("json") not in {"stderr", "test-stderr"}:
-            raise ConfigurationError("diagnostics requires json = 'stderr' or 'test-stderr'")
+        if "diagnostics" in step and step.get("json") not in {
+            "stderr",
+            "test-stderr",
+            "batch-stderr",
+        }:
+            raise ConfigurationError("diagnostics requires a structured stderr mode")
         if "diagnostics_normalize" in step and "diagnostics" not in step:
             raise ConfigurationError("diagnostics_normalize requires diagnostics")
         values.process_values(step)

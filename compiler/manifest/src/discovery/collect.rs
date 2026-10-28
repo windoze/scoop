@@ -2,18 +2,19 @@ use super::select::SelectedRoot;
 use super::*;
 
 pub(super) fn select(
-    manifest: &LoadedConeManifest,
+    root: &Path,
+    identity: scoop_identity::ConeIdentity,
     roots: Vec<SelectedRoot>,
 ) -> Result<SelectedManifestSources, SourceDiscoveryError> {
-    let (candidates, directories) = candidates(manifest, roots)?;
-    finish(manifest, candidates, directories)
+    let (candidates, directories) = candidates(root, roots)?;
+    finish(root, identity, candidates, directories)
 }
 
 pub(super) fn formatting(
-    manifest: &LoadedConeManifest,
+    root: &Path,
     roots: Vec<SelectedRoot>,
 ) -> Result<Vec<PathBuf>, SourceDiscoveryError> {
-    let (mut candidates, _) = candidates(manifest, roots)?;
+    let (mut candidates, _) = candidates(root, roots)?;
     candidates.sort_by(|(_, left), (_, right)| left.logical_path.cmp(&right.logical_path));
     let mut seen = BTreeSet::new();
     Ok(candidates
@@ -29,7 +30,7 @@ type Candidates = (
 );
 
 fn candidates(
-    manifest: &LoadedConeManifest,
+    directory: &Path,
     roots: Vec<SelectedRoot>,
 ) -> Result<Candidates, SourceDiscoveryError> {
     let mut candidates = Vec::new();
@@ -56,7 +57,7 @@ fn candidates(
                 logical_path,
                 physical_path: root.resolved.path,
                 metadata: root.resolved.metadata,
-                display_path: manifest.real_root().join(root.path.as_path()),
+                display_path: directory.join(root.path.as_path()),
                 selection: root.selection,
             });
         }
@@ -66,7 +67,8 @@ fn candidates(
 }
 
 fn finish(
-    manifest: &LoadedConeManifest,
+    root: &Path,
+    identity: scoop_identity::ConeIdentity,
     mut candidates: Vec<(SourceRole, SourceCandidate)>,
     directories: Vec<(ConeRelativePath, SourceRole)>,
 ) -> Result<SelectedManifestSources, SourceDiscoveryError> {
@@ -75,7 +77,7 @@ fn finish(
         .any(|(role, _)| *role == SourceRole::Production)
     {
         return Err(SourceDiscoveryError::new(
-            manifest.manifest_path().to_path_buf(),
+            root.join("Cone.toml"),
             SourceDiscoveryErrorKind::EmptySourceSet,
         ));
     }
@@ -93,7 +95,7 @@ fn finish(
         }
     }
     let mut sources = candidates.into_iter().map(|(role, candidate)| {
-        let identity = SourceIdentity::new(manifest.identity(), candidate.logical_path);
+        let identity = SourceIdentity::new(identity, candidate.logical_path);
         SelectedSource::new(
             identity,
             SourceDisplayLocator::new(candidate.display_path.clone()),

@@ -2,8 +2,6 @@ use std::ffi::OsStr;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-use scoop_manifest::ManifestRootLocator;
-
 use super::{
     CurrentConeInput, ExplicitDependencyInputs, SingleConeBuildRequestError, TrustedCoreInput,
 };
@@ -122,13 +120,10 @@ pub(super) fn validate_output_isolation(
     let mut inputs =
         Vec::with_capacity(2 + dependencies.direct().len() + dependencies.support().len());
     match current {
-        CurrentConeInput::Manifest { root } => {
-            let path = match root {
-                ManifestRootLocator::ConeDirectory(path) => path.join("Cone.toml"),
-                ManifestRootLocator::ExactConeManifestFile(path) => path.clone(),
-            };
-            inputs.push((OutputAliasRole::CurrentManifest, path));
-        }
+        CurrentConeInput::ExpandedManifest { manifest } => inputs.push((
+            OutputAliasRole::CurrentManifest,
+            manifest.manifest_path().to_owned(),
+        )),
         CurrentConeInput::SingleFile { source } => inputs.push((
             OutputAliasRole::CurrentSource,
             source.resolved_path().to_path_buf(),

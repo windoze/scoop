@@ -6,8 +6,14 @@ targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-l
 tags = ["cross-cone", "suspend", "regressions"]
 variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
 [[steps]]
+name = "prepare_sources"
+files = [
+  {copy = {from = "${fixture}/consumer", to = "${work}/sources/consumer"}},
+]
+
+[[steps]]
 name = "provider"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/provider-target", "--message-format", "json", "--profile", "${profile}", "-o", "${work}/artifacts/test/suspend-support/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/provider", "--lockfile", "${work}/source-lock-0.lock", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/provider-target", "--message-format", "json", "--profile", "${profile}", "-o", "${work}/artifacts/test/suspend-support/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -16,7 +22,7 @@ diagnostics = []
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/consumer-target", "--cone-path", "${work}/artifacts", "--message-format", "json", "--profile", "${profile}"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/consumer-target", "--cone-path", "${work}/artifacts", "--message-format", "json", "--profile", "${profile}"]
 exit = 0
 stdout = ""
 stderr = ""

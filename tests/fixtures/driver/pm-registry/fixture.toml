@@ -1,0 +1,14 @@
+schema = 1
+name = "pm-static-registry-build"
+inputs = []
+support = ["consume.py"]
+tools = ["scoop", "scoopc", "scoop-pm", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["driver", "pm", "registry", "cache"]
+
+[[steps]]
+name = "consume"
+argv = ["${python}", "${fixture}/consume.py", "${scoop}", "${scoopc}", "${scoop-pm}", "${work}", "${sysroot}", "${cache}", "${target}", {each = "${compile_args}"}]
+exit = 0
+stdout = "static registry consumption passed\n"
+stderr = ""

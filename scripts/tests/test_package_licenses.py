@@ -35,7 +35,7 @@ class ExampleLicenseTests(unittest.TestCase):
                     "version": "1.0.0",
                     "source": "registry" if external else None,
                     "manifest_path": str(directory / "Cargo.toml"),
-                    "license": "MIT",
+                    "license": "MPL-2.0" if name == "pubgrub" else "MIT",
                     "license_file": None,
                 }
 
@@ -50,10 +50,18 @@ class ExampleLicenseTests(unittest.TestCase):
                 }
 
             main = {
-                "packages": [package("scoop", False), package("shared"), package("main-only")],
+                "packages": [
+                    package("scoop", False),
+                    package("scoop-pm", False),
+                    package("shared"),
+                    package("main-only"),
+                    package("pubgrub"),
+                ],
                 "resolve": {
                     "nodes": [
                         node("scoop", ["shared"]),
+                        node("scoop-pm", ["pubgrub"]),
+                        node("pubgrub"),
                         node("shared", ["main-only"]),
                         node("main-only"),
                     ]
@@ -90,10 +98,11 @@ class ExampleLicenseTests(unittest.TestCase):
                 )
             licenses = installation / "share/licenses"
             self.assertEqual((licenses / "liburing/COPYING").read_text(), "liburing license")
-            for name in ("shared", "main-only", "example-only"):
+            for name in ("shared", "main-only", "example-only", "pubgrub"):
                 self.assertEqual(
                     (licenses / f"{name}-1.0.0/LICENSE").read_text(), f"{name} license"
                 )
+            self.assertIn("| pubgrub-1.0.0 | MPL-2.0 |", (licenses / "README.md").read_text())
             self.assertFalse((licenses / "test-only-1.0.0").exists())
             self.assertEqual((licenses / "README.md").read_text().count("| shared-1.0.0 |"), 1)
 

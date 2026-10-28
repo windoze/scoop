@@ -5,4 +5,4 @@ name = "intrinsic-consumer"
 version = "0.1.0"
 kind = "library"
 [dependencies]
-"dev.m62:intrinsic-provider" = "0.1.0"
+"dev.m62:intrinsic-provider" = { version = "=0.1.0", artifact = "../artifacts/dev.m62/intrinsic-provider/0.1.0/cone.slib" }

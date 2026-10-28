@@ -159,6 +159,7 @@ impl BuildGraphOutcome {
     }
 }
 
+mod batch;
 mod execution;
 mod ready;
 

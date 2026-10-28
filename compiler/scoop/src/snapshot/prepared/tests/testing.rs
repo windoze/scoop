@@ -3,7 +3,7 @@ use scoop_identity::{RequestedConeKind, SourceRole};
 use scoop_protocol::CompilationPurpose;
 
 fn test_prepare(root: &Path, workspace: &Path) -> PreparedBuildGraph {
-    request(root, workspace)
+    request_for_purpose(root, workspace, CompilationPurpose::Test)
         .with_purpose(CompilationPurpose::Test)
         .unwrap()
         .load_root()

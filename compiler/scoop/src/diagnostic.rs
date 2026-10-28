@@ -170,7 +170,7 @@ impl ClassifyBuildFailure for BuildGraphRequestError {
 impl ClassifyBuildFailure for LoadBuildRootError {
     fn classification(&self) -> BuildFailureClassification {
         match self {
-            Self::RootManifest(_) | Self::SingleFile(_) => phase_only(BuildFailurePhase::Root),
+            Self::SingleFile(_) => phase_only(BuildFailurePhase::Root),
         }
     }
 }
@@ -178,6 +178,7 @@ impl ClassifyBuildFailure for LoadBuildRootError {
 impl ClassifyBuildFailure for BuildGraphDiscoveryError {
     fn classification(&self) -> BuildFailureClassification {
         match self {
+            Self::PreparedGraph(_) => phase_only(BuildFailurePhase::GraphIdentity),
             Self::Locator(source) => source.classification(),
 
             Self::Identity(_)

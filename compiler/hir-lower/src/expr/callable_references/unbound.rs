@@ -20,7 +20,7 @@ impl Lowerer {
         ) {
             Ok(candidates) => candidates,
             Err(failure) => {
-                self.commit_layer_diagnostics(*failure);
+                self.commit_layer_diagnostics(&failure);
                 return None;
             }
         };
@@ -96,14 +96,14 @@ impl Lowerer {
                 }
                 ReferenceResolutionOutcome::NoApplicable => {
                     if suppressed {
-                        self.commit_layer_diagnostics(state);
+                        self.commit_layer_diagnostics(&state);
                         return None;
                     }
                     first_failure.get_or_insert(state);
                 }
                 ReferenceResolutionOutcome::Blocked => return None,
                 ReferenceResolutionOutcome::Failed => {
-                    self.commit_layer_diagnostics(state);
+                    self.commit_layer_diagnostics(&state);
                     return None;
                 }
             }
@@ -113,7 +113,7 @@ impl Lowerer {
             return None;
         }
         if let Some(failure) = first_failure {
-            self.commit_layer_diagnostics(failure);
+            self.commit_layer_diagnostics(&failure);
         } else {
             self.error(
                 name.span,

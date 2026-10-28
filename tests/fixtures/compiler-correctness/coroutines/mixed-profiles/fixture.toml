@@ -10,8 +10,15 @@ variants = [
 ]
 
 [[steps]]
+name = "prepare_sources"
+files = [
+  {copy = {from = "${fixture}/middle", to = "${work}/sources/middle"}},
+  {copy = {from = "${fixture}/program", to = "${work}/sources/program"}},
+]
+
+[[steps]]
 name = "provider"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/provider", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "-o", "${work}/artifacts/dev.m58.profiles/provider/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/provider", "--lockfile", "${work}/source-lock-0.lock", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "-o", "${work}/artifacts/dev.m58.profiles/provider/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -20,7 +27,7 @@ diagnostics = []
 
 [[steps]]
 name = "middle"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/middle", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cone-path", "${work}/artifacts", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "-o", "${work}/artifacts/dev.m58.profiles/middle/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/middle", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cone-path", "${work}/artifacts", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "-o", "${work}/artifacts/dev.m58.profiles/middle/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -29,7 +36,7 @@ diagnostics = []
 
 [[steps]]
 name = "change_profile"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/provider", "--profile", "${replacement}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "-o", "${work}/artifacts/dev.m58.profiles/provider/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/provider", "--lockfile", "${work}/source-lock-0.lock", "--profile", "${replacement}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "-o", "${work}/artifacts/dev.m58.profiles/provider/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -38,7 +45,7 @@ diagnostics = []
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cone-path", "${work}/artifacts", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cone-path", "${work}/artifacts", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

@@ -17,7 +17,7 @@ checks = [{actual = "${platform.result.dependencies.length}", equals = 2}]
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "--profile", "${profile}", "${fixture}/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cone-path", "${work}/artifacts", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "--profile", "${profile}", "${fixture}/consumer", "--lockfile", "${work}/source-lock-0.lock", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cone-path", "${work}/artifacts", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -26,7 +26,7 @@ diagnostics = []
 
 [[steps]]
 name = "reuse"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "--profile", "${profile}", "${fixture}/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cone-path", "${work}/artifacts", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "--profile", "${profile}", "${fixture}/consumer", "--lockfile", "${work}/source-lock-0.lock", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cone-path", "${work}/artifacts", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

@@ -1,0 +1,89 @@
+schema = 1
+name = "pm-workspace-build"
+inputs = ["workspace", "repository"]
+support = ["setup.py"]
+tools = ["scoop", "scoopc", "scoop-pm", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["driver", "pm", "workspace", "cache"]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--package-cache", "${work}/packages", "--cache-dir", "${cache}", "--message-format", "json"]
+
+[[steps]]
+name = "copy"
+files = [{copy = {from = "${fixture}/workspace", to = "${work}/project"}}, {copy = {from = "${fixture}/repository", to = "${work}/repository"}}]
+
+[[steps]]
+name = "setup"
+argv = ["${python}", "${fixture}/setup.py", "${work}", "${scoop-pm}"]
+exit = 0
+stdout = ""
+stderr = ""
+checks = [{file = "${work}/project/Cone.lock", exists = false}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "--package-manager", "${work}/counting-pm", "build", "${work}/project", "--workspace", "--release", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "batch-stderr"
+diagnostics = []
+checks = [
+  {actual = "${build.records.length}", equals = 3},
+  {file = "${work}/pm-calls", equals = "prepare\n"},
+  {file = "${work}/project/target/${target}/release/dev.pm/app/app.slib", exists = true},
+  {file = "${work}/project/target/${target}/release/dev.other/app/app.slib", exists = true},
+  {file = "${work}/project/target/${target}/release/dev.pm/shared/shared.slib", exists = true},
+  {file = "${work}/project/Cone.lock", contains = 'kind = "git"'},
+]
+
+[[steps]]
+name = "frozen"
+argv = ["${scoop}", "--package-manager", "${work}/counting-pm", "build", "${work}/project", "--workspace", "--release", "--frozen", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "batch-stderr"
+diagnostics = []
+checks = [
+  {actual = "${frozen.records.length}", equals = 3},
+  {actual = "${frozen.records.0.observations.child_invocations}", equals = []},
+  {actual = "${frozen.records.1.observations.child_invocations}", equals = []},
+  {actual = "${frozen.records.2.observations.child_invocations}", equals = []},
+  {file = "${work}/pm-calls", equals = "prepare\nprepare\n"},
+]
+
+[[steps]]
+name = "member"
+cwd = "${work}/project/one/src"
+argv = ["${scoop}", "--package-manager", "${work}/counting-pm", "check", "--release", "--frozen", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${member.result.root.coordinate.group}", equals = "dev.pm"}]
+
+[[steps]]
+name = "check_all"
+argv = ["${scoop}", "--package-manager", "${work}/counting-pm", "check", "${work}/project", "--workspace", "--release", "--frozen", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "batch-stderr"
+diagnostics = []
+checks = [{actual = "${check_all.records.length}", equals = 3}]
+
+[[steps]]
+name = "doc"
+argv = ["${scoop}", "--package-manager", "${work}/counting-pm", "doc", "${work}/project", "-p", "dev.pm:app", "--frozen", "--no-deps", "--output-dir", "${work}/site", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${doc.result.cones.length}", equals = 1},
+  {file = "${doc.result.cones.0.output}", contains = "README from configured path."},
+]

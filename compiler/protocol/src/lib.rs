@@ -10,12 +10,15 @@ pub use dump::{StageDumpKindV1, StageDumpPolicyV1, StageDumpSet};
 mod framing;
 mod generators;
 pub use generators::{GeneratorRegistrationV1, GeneratorToolInputV1};
+pub mod package;
 mod path;
 mod purpose;
 pub use purpose::CompilationPurpose;
 mod request;
 pub use scoop_lir::OptimizationMode;
 mod response;
+#[cfg(test)]
+mod test_support;
 
 pub use diagnostic::{
     DiagnosticNoteV1, DiagnosticOriginV1, DiagnosticSeverityV1, ProtocolByteSpan,
@@ -37,7 +40,7 @@ pub use response::{
 };
 
 /// Version selected by the unique `scoopc` machine transport entrypoint.
-pub const PROTOCOL_VERSION: u32 = 17;
+pub const PROTOCOL_VERSION: u32 = 18;
 
 pub(crate) const MAX_EMITTED_DUMPS: usize = StageDumpKindV1::ALL.len();
 
@@ -53,6 +56,7 @@ pub enum ProtocolValidationError {
     HostPath(HostPathError),
 
     InvalidCurrentCoreCombination,
+    InvalidExpandedCone(String),
     TestRequiresManifest,
     DocumentationRequiresProductionManifest,
     DocumentationObservation,
@@ -110,6 +114,9 @@ impl std::fmt::Display for ProtocolValidationError {
 
             Self::InvalidCurrentCoreCombination => formatter
                 .write_str("current Cone input and trusted core request are not a permitted pair"),
+            Self::InvalidExpandedCone(message) => {
+                write!(formatter, "invalid expanded Cone input: {message}")
+            }
             Self::TestRequiresManifest => {
                 formatter.write_str("test compilation requires a manifest Cone")
             }

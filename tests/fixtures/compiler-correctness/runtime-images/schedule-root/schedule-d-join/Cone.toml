@@ -6,5 +6,5 @@ version = "0.1.0"
 kind = "library"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"dev.example:schedule-b-next" = "0.1.0"
-"dev.example:schedule-c-peer" = "0.1.0"
+"dev.example:schedule-b-next" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/schedule-b-next/0.1.0/cone.slib" }
+"dev.example:schedule-c-peer" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/schedule-c-peer/0.1.0/cone.slib" }

@@ -1,0 +1,10 @@
+schema = 1
+[cone]
+group = { workspace = true }
+name = "app"
+version = { workspace = true }
+kind = "library"
+readme = "guide/intro.md"
+[dependencies]
+"dev.pm:shared" = { workspace = true }
+"dev.pm:remote" = { workspace = true }

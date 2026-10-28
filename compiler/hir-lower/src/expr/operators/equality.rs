@@ -306,7 +306,7 @@ impl Lowerer {
                 ImportedMemberSelectionFailure::NoApplicable(Some(failure))
                 | ImportedMemberSelectionFailure::Failed(failure),
             ) => {
-                self.commit_layer_diagnostics(*failure);
+                self.commit_layer_diagnostics(&failure);
                 Err(())
             }
         }

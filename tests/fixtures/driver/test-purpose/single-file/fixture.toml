@@ -8,10 +8,10 @@ tags = ["test-purpose", "negative", "driver"]
 
 [[steps]]
 name = "reject"
-argv = ["${scoopc}", "build", "--profile", "release", {"each" = "${compile_args}"}, "${root}", "--test", "--out-slib", "${work}/tests.slib"]
+argv = ["${scoop}", "build", "--profile", "release", {"each" = "${compile_args}"}, "${root}", "--emit-slib", "--tests", "-o", "${work}/tests.slib"]
 exit = 1
 stdout = ""
-stderr = "error: test compilation requires a manifest Cone\n"
+stderr = "error[SCOOP_CLI_CONFIG]: test requires a manifest Cone\n"
 checks = [{file = "${work}/tests.slib", exists = false}]
 
 [[steps]]

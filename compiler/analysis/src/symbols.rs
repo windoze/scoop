@@ -79,38 +79,45 @@ impl AnalysisSnapshot {
         let query = query.to_lowercase();
         let mut files = BTreeSet::new();
         let mut results = Vec::new();
-        for project in &self.workspace.projects {
-            for file in project
+        let resolved = self.workspace.projects.iter().flat_map(|project| {
+            project
                 .cones
                 .values()
                 .filter_map(|cone| cone.source())
                 .flat_map(|cone| &cone.sources)
+                .filter(|file| {
+                    self.workspace
+                        .project_for_source(file.source)
+                        .is_some_and(|selected| std::ptr::eq(project, selected))
+                })
+        });
+        let unresolved = self.workspace.unresolved_members.iter().flat_map(|member| {
+            member.sources.iter().filter(|file| {
+                self.workspace
+                    .unresolved_for_source(file.source)
+                    .is_some_and(|selected| std::ptr::eq(member, selected))
+            })
+        });
+        for file in resolved.chain(unresolved) {
+            self.check_cancelled()?;
+            if is_cancelled() {
+                return Err(SymbolQueryError::Cancelled);
+            }
+            if !files.insert(file.source) {
+                continue;
+            }
+            let source = self
+                .source(file.source)?
+                .ok_or(SymbolQueryError::MissingSource(file.source))?;
+            for symbol in source
+                .symbols()
+                .map_err(|error| SymbolQueryError::SourceLength(*error))?
             {
-                self.check_cancelled()?;
                 if is_cancelled() {
                     return Err(SymbolQueryError::Cancelled);
                 }
-                if !self
-                    .workspace
-                    .project_for_source(file.source)
-                    .is_some_and(|selected| std::ptr::eq(project, selected))
-                    || !files.insert(file.source)
-                {
-                    continue;
-                }
-                let source = self
-                    .source(file.source)?
-                    .ok_or(SymbolQueryError::MissingSource(file.source))?;
-                for symbol in source
-                    .symbols()
-                    .map_err(|error| SymbolQueryError::SourceLength(*error))?
-                {
-                    if is_cancelled() {
-                        return Err(SymbolQueryError::Cancelled);
-                    }
-                    if symbol.search_name.contains(&query) {
-                        results.push(WorkspaceSymbol { file, symbol });
-                    }
+                if symbol.search_name.contains(&query) {
+                    results.push(WorkspaceSymbol { file, symbol });
                 }
             }
         }

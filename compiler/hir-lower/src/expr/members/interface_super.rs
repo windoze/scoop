@@ -27,7 +27,7 @@ impl Lowerer {
             PropertyExtensionInvokeOutcome::Blocked => None,
             PropertyExtensionInvokeOutcome::Failed(failure)
             | PropertyExtensionInvokeOutcome::NoApplicable(Some(failure)) => {
-                self.commit_layer_diagnostics(*failure);
+                self.commit_layer_diagnostics(&failure);
                 None
             }
             PropertyExtensionInvokeOutcome::NoApplicable(None) => {

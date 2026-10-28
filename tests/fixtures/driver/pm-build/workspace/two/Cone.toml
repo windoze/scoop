@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.other"
+name = "app"
+version = { workspace = true }
+kind = "library"
+[dependencies]
+"dev.pm:shared" = { workspace = true }
+"dev.pm:remote" = { workspace = true }

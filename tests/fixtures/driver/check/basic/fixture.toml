@@ -109,13 +109,6 @@ diagnostics = []
 checks = [{actual = "${single_warm.result.kind}", equals = "check"}, {actual = "${single_warm.result.cache_hit}", equals = true}]
 
 [[steps]]
-name = "direct"
-argv = ["${scoopc}", "check", "${work}/cone", "--target", "${target}", "--sysroot", "${sysroot}"]
-exit = 0
-stdout = ""
-stderr = ""
-
-[[steps]]
 name = "default"
 argv = ["${scoop}", "check", {each = "${compile_args}"}, {each = "${options}"}]
 cwd = "${work}/cone"

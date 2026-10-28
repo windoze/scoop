@@ -107,9 +107,9 @@ fn bootstrap_pointer_core(
     let artifact_path = slot.artifact().to_path_buf();
     std::fs::create_dir_all(artifact_path.parent().unwrap()).unwrap();
     SingleConeBuildRequest::new(
-        CurrentConeInput::Manifest {
-            root: ManifestRootLocator::cone_directory(slot.source_root()),
-        },
+        crate::request::test_support::expanded_fixture(ManifestRootLocator::cone_directory(
+            slot.source_root(),
+        )),
         ExplicitDependencyInputs::new(vec![], vec![]),
         TrustedCoreInput::BootstrapSelf,
         target.clone(),

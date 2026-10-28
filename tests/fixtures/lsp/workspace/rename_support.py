@@ -24,6 +24,7 @@ class RenameWorkspace:
         for name, path in self.paths.items():
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(texts[name])
+        peer.resolve(project)
         peer.notify(
             "workspace/didChangeWorkspaceFolders",
             {"event": {"added": [self.folder], "removed": []}},

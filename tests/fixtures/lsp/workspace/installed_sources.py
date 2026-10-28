@@ -27,14 +27,21 @@ def boolean_location(sysroot):
 def main():
     from peer import Peer
 
-    server, root, sysroot, target = sys.argv[1:]
+    server, package_manager, root, sysroot, target = sys.argv[1:]
     root = Path(root).resolve()
     sysroot = Path(sysroot).resolve()
     source = root / "src/navigation.scoop"
     text = source.read_text()
     manifest = root / "Cone.toml"
-    options = {"target": target, "sysroot": str(sysroot)}
-    peer = Peer(server)
+    original_manifest = manifest.read_text()
+    peer = Peer(server, package_manager, sysroot, target, root.parent / "pm-cache")
+    peer.resolve(root)
+    options = {
+        "target": target,
+        "sysroot": str(sysroot),
+        "packageManager": package_manager,
+        "packageCacheDir": str(peer.cache),
+    }
 
     def query(method, line, token):
         return peer.request(
@@ -70,10 +77,12 @@ def main():
         assert query("definition", 4, "floorSeconds") == expected
 
     def change_dependency(path, version):
-        updated = manifest.read_text().replace(
+        updated = original_manifest.replace(
             '"scoop:scoop.std" = "0.1.0"',
-            f'"scoop:scoop.std" = {{version = "0.1.0", artifact = {json.dumps(str(path))}}}',
+            f'"scoop:scoop.std" = {{version = "=0.1.0", artifact = {json.dumps(str(path))}}}',
         )
+        manifest.write_text(updated)
+        peer.resolve(root)
         if version == 1:
             peer.notify(
                 "textDocument/didOpen",
@@ -138,6 +147,8 @@ def main():
         assert query("typeDefinition", 3, "value") is None
         assert query("hover", 3, "toString") == signature
         core_navigation(sysroot)
+        manifest.write_text(original_manifest)
+        peer.resolve(root)
         peer.notify("textDocument/didClose", {"textDocument": {"uri": manifest.as_uri()}})
         std_navigation(sysroot)
 

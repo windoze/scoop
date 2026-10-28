@@ -7,7 +7,7 @@ tags = ["equality", "contracts", "language"]
 variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${fixture}/program/Cone.toml", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${fixture}/program/Cone.toml", "--lockfile", "${work}/source-lock-0.lock", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

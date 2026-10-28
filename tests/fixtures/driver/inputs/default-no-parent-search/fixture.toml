@@ -1,9 +1,9 @@
 schema = 1
-name = "cli-input-default-no-parent-search"
+name = "cli-input-default-parent-search"
 inputs = []
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["cli", "input", "negative", "driver"]
+tags = ["cli", "input", "driver"]
 
 [vars]
 options = ["--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
@@ -14,20 +14,21 @@ name = "prepare"
 files = [
   {"write" = {"path" = "${work}/parent/Cone.toml", "data" = "schema = 1\n\n[cone]\ngroup = \"dev.cli\"\nname = \"path-library\"\nversion = \"0.1.0\"\nkind = \"library\"\n"}},
   {"mkdir" = {"path" = "${work}/parent/child"}},
+  {write = {path = "${work}/parent/src/lib.scoop", data = "package dev.cli\npublic fun value(): Int = 42\n"}},
   {"write" = {"path" = "${work}/previous.slib", "data" = "previous output\n"}},
 ]
 
 [[steps]]
 name = "public"
 argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "-o", "${work}/previous.slib", {"each" = "${options}"}]
-exit = 1
+exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "diagnostics.json"}
+diagnostics = []
 cwd = "${work}/parent/child"
 checks = [
-  {"file" = "${work}/previous.slib", "equals" = "previous output\n"},
+  {file = "${work}/previous.slib", same_as = "${public.result.root.path}"},
 ]
 
 [[steps]]
@@ -35,7 +36,7 @@ name = "producer"
 argv = ["${scoopc}", "build", "--profile", "release", "${work}/parent/child/Cone.toml", "--sysroot", "${sysroot}", "--target", "${target}", "--out-slib", "${work}/producer.slib"]
 exit = 1
 stdout = ""
-stderr = "error: invalid current Cone operand ${work}/parent/child/Cone.toml: cannot inspect: No such file or directory (os error 2)\n"
+stderr = "error: scoopc does not read Cone.toml; use scoop build/check for Cone projects\n"
 cwd = "${work}/parent/child"
 checks = [
   {"file" = "${work}/producer.slib", "exists" = false},
@@ -44,10 +45,10 @@ checks = [
 [[steps]]
 name = "human"
 argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "-o", "${work}/previous.slib", {"each" = "${human_options}"}]
-exit = 1
+exit = 0
 stdout = ""
-stderr = "${work}/parent/child/Cone.toml: error[SCOOP_CLI_CONFIG]: invalid current Cone operand ${work}/parent/child/Cone.toml: cannot inspect: No such file or directory (os error 2)\n"
+stderr = "built ${work}/previous.slib (release)\n"
 cwd = "${work}/parent/child"
 checks = [
-  {"file" = "${work}/previous.slib", "equals" = "previous output\n"},
+  {file = "${work}/previous.slib", same_as = "${public.result.root.path}"},
 ]

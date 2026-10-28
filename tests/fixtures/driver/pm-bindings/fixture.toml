@@ -1,0 +1,234 @@
+schema = 1
+name = "pm-workspace-bindings"
+inputs = ["workspace", "shared", "value1", "value2", "check_docs.py"]
+tools = ["scoop", "scoopc", "scoop-pm", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["driver", "pm", "workspace", "cache", "test-command"]
+
+[vars]
+options = ["--release", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--package-cache", "${work}/packages", "--message-format", "json", "--target-dir", "${work}/outputs"]
+members = ["${work}/project", "--workspace", "--cone-path", "${work}/artifacts", "--jobs", "2"]
+doc_options = ["--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--package-cache", "${work}/packages", "--message-format", "json", "--output-dir", "${work}/docs"]
+
+[[steps]]
+name = "copy"
+files = [
+  {copy = {from = "${fixture}/workspace", to = "${work}/project"}},
+  {copy = {from = "${fixture}/shared", to = "${work}/shared"}},
+  {copy = {from = "${fixture}/value1", to = "${work}/value1"}},
+  {copy = {from = "${fixture}/value2", to = "${work}/value2"}},
+]
+
+[[steps]]
+name = "value1"
+argv = ["${scoop}", "build", "${work}/value1", {each = "${compile_args}"}, {each = "${options}"}, "-o", "${work}/artifacts/scoop/scoop.pm.value/1.0.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "value2"
+argv = ["${scoop}", "build", "${work}/value2", {each = "${compile_args}"}, {each = "${options}"}, "-o", "${work}/artifacts/scoop/scoop.pm.value/2.0.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${members}"}, {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "batch-stderr"
+diagnostics = []
+checks = [
+  {actual = "${build.records.length}", equals = 3},
+  {actual = "${build.records.0.root.coordinate.name}", equals = "one"},
+  {actual = "${build.records.1.root.coordinate.name}", equals = "same"},
+  {actual = "${build.records.2.root.coordinate.name}", equals = "two"},
+  {actual = "${build.records.0.observations.child_invocations.length}", equals = 2},
+  {actual = "${build.records.1.observations.child_invocations.length}", equals = 1},
+  {actual = "${build.records.2.observations.child_invocations.length}", equals = 2},
+  {actual = "${build.records.0.dependencies.1.coordinate.version}", equals = "1.0.0"},
+  {actual = "${build.records.2.dependencies.1.coordinate.version}", equals = "2.0.0"},
+  {actual = "${build.records.0.dependencies.2.identity}", equals = "${build.records.2.dependencies.2.identity}"},
+  {actual = "${build.records.0.dependencies.2.path}", equals = "${build.records.1.dependencies.2.path}"},
+  {actual = "${build.records.0.dependencies.2.artifact_fingerprint}", not_equals = "${build.records.2.dependencies.2.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "frozen"
+argv = ["${scoop}", "build", "${work}/project", "--workspace", "--cone-path", "${work}/artifacts", "--jobs", "1", "--frozen", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "batch-stderr"
+diagnostics = []
+checks = [
+  {actual = "${frozen.records.0.observations.child_invocations}", equals = []},
+  {actual = "${frozen.records.1.observations.child_invocations}", equals = []},
+  {actual = "${frozen.records.2.observations.child_invocations}", equals = []},
+]
+
+[[steps]]
+name = "doc_cold"
+argv = ["${scoop}", "doc", {each = "${members}"}, {each = "${compile_args}"}, {each = "${doc_options}"}, "--frozen"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${doc_cold.result.cones.length}", equals = 6},
+  {actual = "${doc_cold.result.observations.child_invocations.length}", equals = 5},
+]
+
+[[steps]]
+name = "doc_warm"
+argv = ["${scoop}", "doc", {each = "${members}"}, {each = "${compile_args}"}, {each = "${doc_options}"}, "--frozen"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${doc_warm.result.observations.child_invocations}", equals = []},
+  {actual = "${doc_warm.result.rendered}", equals = false},
+]
+
+[[steps]]
+name = "inspect_docs"
+argv = ["${python}", "${fixture}/check_docs.py", "${work}/docs"]
+exit = 0
+stdout = "Root bindings and local links verified.\n"
+stderr = ""
+
+[[steps]]
+name = "root_readme"
+files = [{write = {path = "${work}/project/one/README.md", data = "One root only.\n"}}]
+
+[[steps]]
+name = "doc_readme"
+argv = ["${scoop}", "doc", {each = "${members}"}, {each = "${compile_args}"}, {each = "${doc_options}"}, "--frozen"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${doc_readme.result.observations.child_invocations}", equals = []},
+  {actual = "${doc_readme.result.observations.rendered_files.length}", equals = 1},
+  {file = "${doc_readme.result.observations.rendered_files.0}", contains = "One root only."},
+]
+
+[[steps]]
+name = "doc_roots_only"
+argv = ["${scoop}", "doc", {each = "${members}"}, {each = "${compile_args}"}, {each = "${doc_options}"}, "--frozen", "--no-deps"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${doc_roots_only.result.cones.length}", equals = 3},
+  {actual = "${doc_roots_only.result.observations.child_invocations}", equals = []},
+]
+
+[[steps]]
+name = "artifact_consumer"
+files = [
+  {write = {path = "${work}/artifact-consumer/Cone.toml", data = "schema = 1\n[cone]\ngroup = \"dev.pm\"\nname = \"artifact-consumer\"\nversion = \"1.0.0\"\nkind = \"library\"\n[dependencies]\n\"dev.pm:shared\" = { version = \"=1.0.0\", artifact = \"${build.records.0.dependencies.2.path}\" }\n"}},
+  {write = {path = "${work}/artifact-consumer/src/main.scoop", data = "package dev.pm.artifact\npublic import dev.pm.shared.selected as inherited\n"}},
+]
+
+[[steps]]
+name = "doc_artifact"
+argv = ["${scoop}", "doc", "${work}/artifact-consumer", "${work}/project/two", "--cone-path", "${work}/artifacts", {each = "${compile_args}"}, {each = "${doc_options}"}, "--offline"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${doc_artifact.result.cones.length}", equals = 3},
+  {actual = "${doc_artifact.result.observations.child_invocations.length}", equals = 1},
+]
+
+[[steps]]
+name = "inspect_artifact_docs"
+argv = ["${python}", "${fixture}/check_docs.py", "${work}/docs", "mixed"]
+exit = 0
+stdout = "Root bindings and local links verified.\n"
+stderr = ""
+
+[[steps]]
+name = "run_one"
+argv = ["${build.records.0.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run_same"
+argv = ["${build.records.1.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run_two"
+argv = ["${build.records.2.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "ambiguous_run"
+argv = ["${scoop}", "run", {each = "${members}"}, "--frozen", {each = "${link_args}"}, {each = "${options}"}]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = [{severity = "error", code = "SCOOP_CLI_CONFIG", phase = "Request", message = "run requires exactly one selected executable; use -p group:name", origin = {kind = "none"}, notes = []}]
+
+[[steps]]
+name = "one_executable"
+files = [
+  {replace = {path = "${work}/project/same/Cone.toml", old = 'kind = "executable"', new = 'kind = "library"'}},
+  {replace = {path = "${work}/project/two/Cone.toml", old = 'kind = "executable"', new = 'kind = "library"'}},
+]
+
+[[steps]]
+name = "run_workspace"
+argv = ["${scoop}", "run", {each = "${members}"}, "--offline", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${run_workspace.result.root.coordinate.name}", equals = "one"},
+  {actual = "${run_workspace.result.observations.child_invocations}", equals = []},
+]
+
+[[steps]]
+name = "test_workspace"
+argv = ["${scoop}", "test", {each = "${members}"}, "--offline", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "batch-stderr"
+diagnostics = []
+checks = [
+  {actual = "${test_workspace.records.length}", equals = 6},
+  {actual = "${test_workspace.records.0.observations.child_invocations.length}", equals = 1},
+  {actual = "${test_workspace.records.2.observations.child_invocations.length}", equals = 1},
+  {actual = "${test_workspace.records.4.observations.child_invocations.length}", equals = 1},
+  {actual = "${test_workspace.records.1.counts.passed}", equals = 1},
+  {actual = "${test_workspace.records.3.counts.passed}", equals = 1},
+  {actual = "${test_workspace.records.5.counts.passed}", equals = 1},
+]

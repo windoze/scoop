@@ -6,9 +6,9 @@ fn manifest_dependency_is_loaded_without_discovering_current_sources() {
     let manifest_path = directory.path().join("Cone.toml");
     let text = "schema = 1\n[cone]\ngroup = \"test\"\nname = \"current\"\nversion = \"0.0.0\"\nkind = \"library\"\n[dependencies]\n\"dev.example:dep\" = \"1.2.3\"\n";
     std::fs::write(&manifest_path, text).unwrap();
-    let current = load_current_input(CurrentConeInput::Manifest {
-        root: ManifestRootLocator::exact_manifest_file(manifest_path),
-    })
+    let current = load_current_input(crate::request::test_support::expanded_fixture(
+        ManifestRootLocator::exact_manifest_file(manifest_path),
+    ))
     .unwrap();
     let LoadedCurrentConeInput::Manifest { manifest } = current else {
         panic!("test constructs a manifest input")
@@ -120,9 +120,9 @@ fn manifest_sources_parse_in_canonical_identity_order() {
     let directory = manifest_cone();
     std::fs::write(directory.path().join("src/z.scoop"), "package test.z\n").unwrap();
     std::fs::write(directory.path().join("src/a.scoop"), "package test.a\n").unwrap();
-    let current = load_current_input(CurrentConeInput::Manifest {
-        root: ManifestRootLocator::cone_directory(directory.path()),
-    })
+    let current = load_current_input(crate::request::test_support::expanded_fixture(
+        ManifestRootLocator::cone_directory(directory.path()),
+    ))
     .unwrap();
 
     let LoadedCurrentConeInput::Manifest { manifest } = &current else {
@@ -193,9 +193,9 @@ fn single_file_parse_uses_the_reserved_source_identity() {
 fn parser_failure_keeps_semantic_source_identity() {
     let directory = manifest_cone();
     std::fs::write(directory.path().join("src/bad.scoop"), "package .bad\n").unwrap();
-    let current = load_current_input(CurrentConeInput::Manifest {
-        root: ManifestRootLocator::cone_directory(directory.path()),
-    })
+    let current = load_current_input(crate::request::test_support::expanded_fixture(
+        ManifestRootLocator::cone_directory(directory.path()),
+    ))
     .unwrap();
 
     let LoadedCurrentConeInput::Manifest { manifest } = &current else {

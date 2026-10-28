@@ -7,7 +7,7 @@ tags = ["markers", "negative", "driver"]
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${fixture}/program", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
 exit = 1
 stdout = ""
 stderr = ""

@@ -77,7 +77,6 @@ impl BuildFailure {
 
     pub(crate) fn root(error: LoadBuildRootError) -> Box<Self> {
         let location = match &error {
-            LoadBuildRootError::RootManifest(manifest) => manifest_location(manifest),
             LoadBuildRootError::SingleFile(source) => BuildFailureLocation::Host {
                 path: source.path().to_owned(),
                 span: source.span(),

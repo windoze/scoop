@@ -103,14 +103,17 @@ files = [
 ]
 
 [[steps]]
-name = "conflict"
-argv = ["${scoop}", "doc", "${work}/first", "${work}/second", "${work}/conflicting", {"each" = "${compile_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--output-dir", "${work}/site", "--deny-doc-warnings", "--message-format", "json"]
-exit = 1
+name = "separate_sources"
+argv = ["${scoop}", "doc", "${work}/first", "${work}/second", "${work}/conflicting", {"each" = "${compile_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--output-dir", "${work}/separate-site", "--deny-doc-warnings", "--message-format", "json"]
+exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {file = "conflict.json"}
+diagnostics = []
 checks = [
+  {actual = "${separate_sources.result.cones.length}", equals = 7},
+  {actual = "${separate_sources.result.observations.child_invocations.length}", equals = 1},
+  {file = "${work}/separate-site/index.html", contains = "Documentation roots"},
   {file = "${work}/site/index.html", same_as = "${work}/previous.html"},
   {file = "${work}/site/assets/index.js", same_as = "${work}/previous.js"},
 ]

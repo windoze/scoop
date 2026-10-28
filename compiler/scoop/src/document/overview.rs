@@ -26,7 +26,10 @@ struct Reference {
 }
 
 pub(super) fn select(source: &plan::Source, cache: &ArtifactCacheRoot) -> BuildResult<Overview> {
-    let path = source.root.join("README.md");
+    let path = source
+        .readme
+        .clone()
+        .unwrap_or_else(|| source.root.join("README.md"));
     let state = plan::file_state(&path)?;
     let key = input_key(&(path.as_os_str().as_encoded_bytes(), &state))?;
     let mut overview = Overview {
@@ -39,6 +42,9 @@ pub(super) fn select(source: &plan::Source, cache: &ArtifactCacheRoot) -> BuildR
         warnings: Vec::new(),
     };
     if state.is_none() {
+        if source.readme.is_some() {
+            return Err(io_error(&path, "declared readme does not exist"));
+        }
         return Ok(overview);
     }
     let parsed = parsed(&path, cache, &overview.key)?;
@@ -62,8 +68,9 @@ pub(super) fn select(source: &plan::Source, cache: &ArtifactCacheRoot) -> BuildR
         if relative.is_empty() {
             continue;
         }
-        let input = source
-            .root
+        let input = path
+            .parent()
+            .unwrap_or(&source.root)
             .join(decode_path(relative).map_err(|e| io_error(&path, e))?);
         let state = plan::file_state(&input)?;
         states.push((url.clone(), state.clone()));

@@ -6,21 +6,11 @@ targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-l
 tags = ["test-purpose", "negative", "source-role", "driver"]
 
 [[steps]]
-name = "library"
-argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${sysroot}/src/scoop.test", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/library", "--message-format", "json"]
-exit = 0
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = []
-
-[[steps]]
 name = "reject"
-argv = ["${scoopc}", "build", "--profile", "release", {"each" = "${compile_args}"}, "${fixture}/program", "--test", "--direct-slib", "${library.result.root.path}", {"each" = "${library.result.dependencies}", "field" = "path", "prefix" = "--direct-slib"}, "--out-slib", "${work}/tests.slib"]
+argv = ["${scoop}", "build", "--release", {each = "${compile_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--emit-slib", "--tests", "-o", "${work}/tests.slib"]
 exit = 1
 stdout = ""
 stderr = """
-error: current Cone HIR lowering failed with 1 diagnostic(s)
-${fixture}/program/src/api.scoop:2:8: error: import target is not available in the current compilation unit
+${fixture}/program/src/api.scoop:2:8: error[SCOOPC_HIR_ERROR]: import target is not available in the current compilation unit
 """
 checks = [{file = "${work}/tests.slib", exists = false}]

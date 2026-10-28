@@ -46,13 +46,16 @@ code --install-extension "$HOME"/.scoop/tooling/scoop-language-support-*.vsix
 | `scoop.target`              | 空；服务端宿主 target triple                                                                                                 |
 | `scoop.purpose`             | `production`；`test` 同时分析根 Cone 的测试输入                                                                              |
 | `scoop.artifactSearchRoots` | `[]`；额外预编译依赖搜索目录                                                                                                 |
-| `scoop.configurations`      | `[]`；命名配置，每项必须有唯一 `name` 和 Cone 根 `rootUri`（file URI），可覆盖 target、sysroot、purpose、artifactSearchRoots |
+| `scoop.packageManager` | 空；使用 scoop-lsp 同目录的 scoop-pm |
+| `scoop.packageCacheDir` | 空；沿 PM 的共享源码缓存规则 |
+| `scoop.lockfile` | 空；使用 workspace 的 Cone.lock |
+| `scoop.configurations`      | `[]`；命名配置，每项必须有唯一 `name` 和 Cone 根 `rootUri`（file URI），可覆盖 target、sysroot、purpose、artifactSearchRoots 和上述 PM 设置 |
 | `scoop.activeConfiguration` | 空；按文档选择配置，也可指定配置名称                                                                                         |
 | `scoop.trace.server`        | `messages`；可选 `verbose` 增加细节；先通过 `Developer: Set Log Level` 将 Scoop LSP 日志等级设为 Trace                       |
 
 分析配置改变后通知现有服务器。空 configurations 使用工作区目录与打开文件最近的
 `Cone.toml` 发现项目；支持多根工作区、未保存的 Scoop／Cone.toml 文本，以及磁盘上
-源码、manifest 和 slib 的变更。使用测试或多目标配置的完整例子见
+源码、manifest、Cone.lock 和 slib 的变更。依赖由用户显式 resolve/fetch 或 build/run 准备；LSP 离线消费锁定图，不自动下载或改写 lock。workspace 根加载全部成员，缺少锁定输入的成员仍保留语法服务。使用测试或多目标配置的完整例子见
 [服务器说明](../../compiler/lsp/README.md)。
 
 命令面板提供 `Scoop: Restart Language Server` 和 `Scoop: Show Language Server Output`。
@@ -64,7 +67,7 @@ code --install-extension "$HOME"/.scoop/tooling/scoop-language-support-*.vsix
 sysroot。普通单元测试不需要服务器；真实扩展宿主测试需要 release 服务器和预编译库：
 
 ```sh
-cargo build --release -p scoop-lsp
+cargo build --release -p scoop-lsp -p scoop-pm
 cd tooling
 npm ci
 npm run format

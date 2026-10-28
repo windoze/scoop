@@ -7,7 +7,7 @@ tags = ["test-selection", "lifecycle", "cache", "driver"]
 variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
 [[steps]]
 name = "build"
-argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/outputs", "--message-format", "json", "--no-run", "--filter", "no match"]
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/outputs", "--message-format", "json", "--no-run", "--filter", "no match"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -23,7 +23,7 @@ stderr = ""
 
 [[steps]]
 name = "default"
-argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/outputs", "--message-format", "json"]
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/outputs", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -41,7 +41,7 @@ checks = [
 
 [[steps]]
 name = "first"
-argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/outputs", "--message-format", "json", "--filter", "Cases::first 雪"]
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/outputs", "--message-format", "json", "--filter", "Cases::first 雪"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -59,7 +59,7 @@ checks = [
 
 [[steps]]
 name = "ignored"
-argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/outputs", "--message-format", "json", "--ignored", "--filter", "Cases::skipped"]
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/outputs", "--message-format", "json", "--ignored", "--filter", "Cases::skipped"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -76,7 +76,7 @@ checks = [
 ]
 [[steps]]
 name = "none"
-argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/outputs", "--message-format", "json", "--filter", "NOT FOUND"]
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/outputs", "--message-format", "json", "--filter", "NOT FOUND"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -94,7 +94,7 @@ checks = [
 
 [[steps]]
 name = "ignored-excluded"
-argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/outputs", "--message-format", "json", "--filter", "Cases::skipped"]
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/outputs", "--message-format", "json", "--filter", "Cases::skipped"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -112,7 +112,7 @@ checks = [
 
 [[steps]]
 name = "constructor-fails"
-argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/outputs", "--message-format", "json", "--ignored", "--filter", "Failing::"]
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/outputs", "--message-format", "json", "--ignored", "--filter", "Failing::"]
 exit = 1
 stdout = ""
 stderr = ""

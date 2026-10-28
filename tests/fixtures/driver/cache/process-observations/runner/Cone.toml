@@ -6,4 +6,4 @@ version = "1.0.0"
 kind = "executable"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"test:root" = "1.0.0"
+"test:root" = { version = "=1.0.0", artifact = "../artifacts/test/root/1.0.0/cone.slib" }

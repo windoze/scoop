@@ -120,6 +120,44 @@ fn one_job_stops_before_starting_other_ready_nodes() {
 }
 
 #[test]
+fn independent_roots_share_the_job_limit_without_blocking_on_their_own_key_lock() {
+    let temp = tempfile::tempdir().unwrap();
+    write_parallel_graph(temp.path());
+    // The repeated first root represents a shared source ready in two closures.
+    // A second distinct root must still start while the first holds its key lock.
+    let graphs = ["first", "first", "second", "third"].map(|name| {
+        request(&temp.path().join(name), temp.path())
+            .with_jobs(NonZeroUsize::new(2).unwrap())
+            .load_root()
+            .unwrap()
+            .discover()
+            .unwrap()
+            .resolve()
+            .unwrap()
+            .prepare()
+            .unwrap()
+    });
+    let first = graphs[0].root_identity();
+    let ordinal = graphs[0]
+        .dependency_first()
+        .iter()
+        .position(|id| *id == first)
+        .unwrap() as u128
+        + 1;
+    let runner = OverlappingFailures {
+        requests: Mutex::new(Vec::new()),
+        entered: Condvar::new(),
+        slow: RequestCorrelationId::from_array(ordinal.to_be_bytes()),
+    };
+    let error =
+        PreparedBuildGraph::execute_all_with_runner(Vec::from(graphs), &runner).unwrap_err();
+    assert!(matches!(error.cause(), BuildGraphExecutionError::Ordinary(id, _) if *id == first));
+    let requests = runner.requests.into_inner().unwrap();
+    assert_eq!(requests.len(), 2);
+    assert_ne!(requests[0], requests[1]);
+}
+
+#[test]
 fn jobs_do_not_change_compilation_keys() {
     let temp = tempfile::tempdir().unwrap();
     write_parallel_graph(temp.path());

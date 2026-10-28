@@ -1,7 +1,7 @@
 [
   {
-    "code": "SCOOP_BUILD_FAILED",
-    "message": "invalid build root: invalid Cone manifest root ${fixture}/program/Cone.toml: invalid Cone.toml: TOML parse error at line 10, column 11\n   |\n10 | sources = \"tests\"\n   |           ^^^^^^^\ninvalid type: string \"tests\", expected a sequence\n",
+    "code": "SCOOP_PACKAGE_PREPARE",
+    "message": "${fixture}/program/Cone.toml: invalid Cone.toml: TOML parse error at line 10, column 11\n   |\n10 | sources = \"tests\"\n   |           ^^^^^^^\ninvalid type: string \"tests\", expected a sequence\n",
     "notes": [],
     "origin": {
       "end": 128,
@@ -9,7 +9,6 @@
       "path": "${fixture}/program/Cone.toml",
       "start": 121
     },
-    "phase": "Root",
     "severity": "error"
   }
 ]

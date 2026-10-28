@@ -1,15 +1,11 @@
 [
   {
-    "code": "SCOOP_BUILD_FAILED",
-    "message": "invalid build root: invalid Cone manifest root ${work}/cone/Cone.toml: resolved Cone.toml is not a regular file",
+    "code": "SCOOP_PACKAGE_PREPARE",
+    "message": "${work}/cone/Cone.toml: Is a directory (os error 21)",
     "notes": [],
     "origin": {
-      "end": null,
-      "kind": "host",
-      "path": "${work}/cone/Cone.toml",
-      "start": null
+      "kind": "none"
     },
-    "phase": "Root",
     "severity": "error"
   }
 ]

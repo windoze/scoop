@@ -56,11 +56,11 @@ scoop doc ./sysroot/src/scoop.core ./sysroot/src/scoop.std --no-deps
 
 ### 3.1 命令合同
 
-- root 参数是有序的零个或多个 Cone 目录／`Cone.toml`。省略时使用调用者 cwd 的 `Cone.toml`，与 build／run 一样不向父目录搜索。重复选择同一相容 Cone 不生成重复条目。
+- root 参数是有序的零个或多个 Cone 目录／`Cone.toml`。M63 中省略时由 PM 从 cwd 定位所在 Cone/workspace，沿用 default-members、`-p` 和 `--workspace` 选择。重复选择同一相容 Cone 不生成重复条目。
 - 默认生成所有显式 root，以及各依赖图中已选择为源码节点的依赖文档。`--no-deps` 只缩小文档集合；依赖仍按原规则参与类型检查。显式列出的 Cone 始终属于文档集合，即使它也是其他 root 的依赖。
 - 源码用途固定为 `CompilationPurpose::Production`。沿用 `sources/when` 与 canonical target 选择，不加入测试源码、测试依赖或另一平台的互斥输入。
 - library 默认生成公开 API；executable 默认包含非公开的非局部声明。`--document-private-items` 将本次所有源码 Cone 切换到后者，不包含函数内局部声明。
-- 默认站点入口是调用者 cwd 下的 `target/doc/<canonical-target-triple>/index.html`；`--target-dir` 替换其中的 target 根，`--output-dir` 直接覆盖站点目录。相对路径均从调用者 cwd 解析，多 root 不以第一个 root 的目录为隐含基准。
+- 默认站点入口是首个输入所属 workspace 下的 `target/doc/<canonical-target-triple>/index.html`；`--target-dir` 替换其中的 target 根，`--output-dir` 直接覆盖站点目录。显式相对路径均从调用者 cwd 解析。
 - 复用 `--target`、`--sysroot`、`--cone-path`、`--cache-dir`、`--scoopc`、`--message-format` 及源码依赖生产实际需要的 native 工具选择。文档根没有最终链接步骤，不引入 runtime／最终链接专属选项。
 - `--open` 只在站点成功发布后打开入口；打开失败报告实际错误和已生成的入口路径，不撤销文档结果。`--deny-doc-warnings` 使文档 warning 阻止站点发布，不改变普通编译 warning 的政策。
 
@@ -70,7 +70,7 @@ scoop doc ./sysroot/src/scoop.core ./sysroot/src/scoop.std --no-deps
 
 每个 root 保留自己的 `ResolvedBuildGraph` 与 direct dependency 环境。两个 executable 可以同时生成文档；不能造一个把两者都当依赖的 synthetic Cone。图内的环、版本冲突、可见性和 executable 限制继续由现有规则检查。
 
-站点允许不同 root 分别依赖某库的不同版本，按完整 ConeIdentity 区分页面和搜索项。相同 identity／target 的任务只有在源码、依赖选择及实际语义输入相容时才能合并；同 identity 的冲突输入在发布前报错，不能后写覆盖。复用已有输入记录与语义选择，不增加产物内容复核。
+站点允许不同 root 分别依赖某库的不同版本，按完整 ConeIdentity 区分页面和搜索项。相同 identity／target 的任务只有在源码、依赖选择及实际语义输入相容时才能合并；M63 中同 identity 的不同输入按根建立独立 catalog，由顶层入口连接，每个 catalog 的链接与搜索保留对应闭包。编译结果按完整输入键共享，整站仍一次发布；具体路由见编译器与产物规范 2.7。复用已有输入记录与语义选择，不增加产物内容复核。
 
 显式源码 root 与另一图中的同 identity prebuilt 依赖可以在输入／接口相容时共享文档链接，但不改变后者的编译来源。链接必须跟随该 root 实际解析到的声明，不能只凭 group:name 或显示名称连接到站点中的任意版本。
 

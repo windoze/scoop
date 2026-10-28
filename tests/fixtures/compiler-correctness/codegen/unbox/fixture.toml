@@ -18,7 +18,7 @@ files = [
 
 [[steps]]
 name = "provider"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/provider", "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "-o", "${work}/artifacts/dev.performance/box-provider/0.1.0/cone.slib", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/provider", "--lockfile", "${work}/source-lock-0.lock", "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "-o", "${work}/artifacts/dev.performance/box-provider/0.1.0/cone.slib", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

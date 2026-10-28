@@ -390,9 +390,9 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
     let artifact_path = slot.artifact().to_path_buf();
     std::fs::create_dir_all(artifact_path.parent().unwrap()).unwrap();
     let request = SingleConeBuildRequest::new(
-        CurrentConeInput::Manifest {
-            root: ManifestRootLocator::cone_directory(slot.source_root()),
-        },
+        crate::request::test_support::expanded_fixture(ManifestRootLocator::cone_directory(
+            slot.source_root(),
+        )),
         ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
         TrustedCoreInput::BootstrapSelf,
         target,

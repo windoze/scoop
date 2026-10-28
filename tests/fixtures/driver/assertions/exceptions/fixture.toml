@@ -8,7 +8,7 @@ variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

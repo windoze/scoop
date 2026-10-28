@@ -1,49 +1,12 @@
-use std::{
-    collections::BTreeSet,
-    path::{Path, PathBuf},
-};
+use std::collections::BTreeSet;
 
-use scoop_analysis::{AnalysisHost, ProjectConfiguration, WorkspaceLoader};
+use scoop_analysis::{AnalysisHost, WorkspaceLoader};
 use scoop_protocol::CompilationPurpose;
 use scoop_source::SourceText;
 
-fn write(root: &Path, name: &str, text: &str) -> PathBuf {
-    let path = root.join(name);
-    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-    std::fs::write(&path, text).unwrap();
-    path
-}
-
-fn setup(root: &Path) -> ProjectConfiguration {
-    write(
-        root,
-        "core/Cone.toml",
-        "schema = 1\n[cone]\ngroup = 'scoop'\nname = 'scoop.core'\nversion = '0.1.0'\nkind = 'library'\n",
-    );
-    write(
-        root,
-        "core/src/core.scoop",
-        "package scoop.core\npublic class Marker\n",
-    );
-    write(
-        root,
-        "app/Cone.toml",
-        "schema = 1\n[cone]\ngroup = 'test'\nname = 'app'\nversion = '1.0.0'\nkind = 'library'\n[dependencies]\n'scoop:scoop.core' = {version = '0.1.0', path = '../core'}\n",
-    );
-    write(
-        root,
-        "app/src/value.scoop",
-        "package test.app\nfun value(): Int = 42\n",
-    );
-    ProjectConfiguration {
-        name: "app".into(),
-        root: root.join("app"),
-        target: scoop_toolchain::select_target("aarch64-apple-darwin").unwrap(),
-        purpose: CompilationPurpose::Production,
-        sysroot: root.join("sysroot"),
-        artifact_search_roots: Vec::new(),
-    }
-}
+#[path = "workspace/support.rs"]
+mod support;
+use support::{resolve, setup, write};
 
 #[test]
 fn opened_files_and_manifests_override_disk_and_close_restores_disk() {
@@ -155,6 +118,7 @@ fn targets_purposes_and_unsaved_files_share_text_but_keep_project_membership() {
     testing.name = "linux-tests".into();
     testing.target = scoop_toolchain::select_target("x86_64-unknown-linux-gnu").unwrap();
     testing.purpose = CompilationPurpose::Test;
+    resolve(&testing);
     let mut host = AnalysisHost::default();
     let extra = root.join("app/src/unsaved.scoop");
     let id = host.set_file_text(
@@ -204,8 +168,9 @@ fn configuration_failures_preserve_selected_source_inputs() {
         &BTreeSet::new(),
         None,
     );
-    assert!(!inputs.projects[0].complete);
-    assert!(inputs.diagnostics[0].message.contains("not found"));
+    assert!(inputs.projects.is_empty());
+    assert_eq!(inputs.unresolved_members.len(), 1);
+    assert!(inputs.diagnostics[0].message.contains("missing"));
     assert!(host.file_source(&source).is_some());
     std::fs::write(
         &manifest,
@@ -290,6 +255,7 @@ fn workspace_symbol_indexes_follow_selected_sources_updates_and_cancellation() {
     let mut second = first.clone();
     second.name = "alternate".into();
     second.target = scoop_toolchain::select_target("x86_64-unknown-linux-gnu").unwrap();
+    resolve(&second);
     let mut host = AnalysisHost::default();
     let mut loader = WorkspaceLoader::default();
     let inputs = loader.load(

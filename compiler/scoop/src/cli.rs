@@ -4,6 +4,7 @@ use clap::Parser;
 use scoop::{BuildFailure, BuildFailurePhase};
 
 mod args;
+mod build;
 mod check;
 mod clean;
 mod commands;
@@ -12,6 +13,7 @@ mod external;
 mod format;
 mod native;
 mod new;
+mod package_manager;
 mod paths;
 mod presentation;
 mod run;
@@ -62,6 +64,7 @@ pub(super) fn main() -> ExitCode {
     match commands::execute(
         cli.command,
         cli.sysroot,
+        cli.package_manager,
         cli.enable_gc_stress,
         cli.enable_startup_stats,
         &reporter,

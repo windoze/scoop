@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Documentation roots · Scoop API</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="index.html">Scoop <span>API</span></a></header>
+  <main id="content">
+    <h1>Documentation roots</h1>
+    <p>Select a root to browse its API and dependencies.</p>
+    <section class="listing"><ul>
+      {% for root in roots %}
+      <li><a href="{{ root.url }}">{{ root.name }}</a><p>{{ root.manifest }}</p></li>
+      {% endfor %}
+    </ul></section>
+  </main>
+  <footer>Scoop API documentation · Available offline</footer>
+</body>
+</html>

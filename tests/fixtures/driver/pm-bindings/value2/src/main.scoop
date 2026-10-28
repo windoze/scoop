@@ -1,0 +1,2 @@
+package scoop.pm.value
+public fun value(): Int = 2

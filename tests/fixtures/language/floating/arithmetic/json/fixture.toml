@@ -24,7 +24,7 @@ stderr = ""
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${fixture}/program", "--runtime-root", "${runtime}", "--library-path", "${work}/native/lib", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--cone-path", "${work}/artifacts", "--message-format", "json"]
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--runtime-root", "${runtime}", "--library-path", "${work}/native/lib", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--cone-path", "${work}/artifacts", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

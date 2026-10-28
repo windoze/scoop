@@ -34,7 +34,7 @@ stderr = ""
 
 [[steps]]
 name = "cold"
-argv = ["${scoop}", "build", "--release", "${fixture}/cone", {"each" = "${link_args}"}, {"each" = "${options}"}]
+argv = ["${scoop}", "build", "--release", "${fixture}/cone", "--lockfile", "${work}/source-lock-0.lock", {"each" = "${link_args}"}, {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
@@ -64,7 +64,7 @@ stderr = ""
 
 [[steps]]
 name = "changed"
-argv = ["${scoop}", "build", "--release", "${fixture}/cone", {"each" = "${link_args}"}, {"each" = "${options}"}]
+argv = ["${scoop}", "build", "--release", "${fixture}/cone", "--lockfile", "${work}/source-lock-0.lock", {"each" = "${link_args}"}, {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""

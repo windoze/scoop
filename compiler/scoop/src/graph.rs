@@ -237,17 +237,28 @@ impl GraphResolver {
     }
 
     fn resolve(self) -> Result<ResolvedBuildGraph, ResolveBuildGraphError> {
-        let declared_kind = validate_nodes(self.root, &self.nodes, &self.edges)?;
+        // Package graphs have already crossed the checked PM protocol boundary.
+        // Only standalone source files still discover their exact artifact closure here.
+        let package_root = self
+            .nodes
+            .get(&self.root)
+            .filter(|node| matches!(node, GraphNode::ManifestSource(_)));
+        let declared_kind = match package_root {
+            Some(node) => node_kind(node),
+            None => validate_nodes(self.root, &self.nodes, &self.edges)?,
+        };
         let root_kind = match self.context.purpose {
             scoop_protocol::CompilationPurpose::Production => declared_kind,
             scoop_protocol::CompilationPurpose::Test => RequestedConeKind::Executable,
         };
-        validate_edges(&self.nodes, &self.edges)?;
-        validate_reachability(self.root, &self.nodes, &self.edges)?;
         let adjacency = canonical_adjacency(&self.nodes, &self.edges);
-        let cycles = find_cycles(&self.nodes, &self.edges, &adjacency)?;
-        if !cycles.is_empty() {
-            return Err(ResolveBuildGraphError::Cycles(cycles));
+        if package_root.is_none() {
+            validate_edges(&self.nodes, &self.edges)?;
+            validate_reachability(self.root, &self.nodes, &self.edges)?;
+            let cycles = find_cycles(&self.nodes, &self.edges, &adjacency)?;
+            if !cycles.is_empty() {
+                return Err(ResolveBuildGraphError::Cycles(cycles));
+            }
         }
 
         let dependency_first = stable_kahn(&self.nodes, &adjacency)?;

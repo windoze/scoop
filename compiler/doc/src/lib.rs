@@ -15,7 +15,7 @@ pub use model::*;
 pub use project::{ProjectionError, project_cone};
 pub use render::{
     ConeLinkInputs, ConeOverview, ConeReference, ReadmeInput, RenderError, RenderedFile,
-    SiteCatalog, SiteOptions, SiteRenderer,
+    RootReference, SiteCatalog, SiteOptions, SiteRenderer, render_roots,
 };
 pub use syntax::{prepare_comments, prepare_source};
 

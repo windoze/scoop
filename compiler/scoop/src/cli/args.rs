@@ -26,6 +26,9 @@ pub(super) struct Cli {
     /// Scoop installation root; defaults to SCOOP_SYSROOT or the installation directory.
     #[arg(long, global = true)]
     pub sysroot: Option<PathBuf>,
+    /// Explicit package manager; defaults to scoop-pm beside this executable.
+    #[arg(long)]
+    pub package_manager: Option<PathBuf>,
     /// Include runtime GC stress support, controlled by environment variables at run time.
     #[arg(long, global = true)]
     pub enable_gc_stress: bool,
@@ -38,6 +41,8 @@ pub(super) struct Cli {
 
 #[derive(Subcommand)]
 pub(super) enum Command {
+    /// Run the separate Scoop package manager with all following arguments unchanged.
+    Pm(super::package_manager::PmArgs),
     /// Create a new Cone with a fixed executable or library template.
     New(super::new::NewArgs),
     /// Build a library or executable from a Cone or one source file.
@@ -72,6 +77,8 @@ pub(super) enum MessageFormat {
 
 #[derive(Args)]
 pub(super) struct BuildOptions {
+    #[command(flatten)]
+    pub packages: super::package_manager::PackageOptions,
     /// Cone directory, Cone.toml, or one .scoop file; defaults to ./Cone.toml.
     pub root_input: Option<PathBuf>,
     #[arg(long)]
@@ -113,6 +120,12 @@ pub(super) struct BuildArgs {
     pub options: BuildOptions,
     #[arg(short = 'o')]
     pub output: Option<PathBuf>,
+    /// Publish the root .slib without preparing runtime or linking an executable.
+    #[arg(long)]
+    pub emit_slib: bool,
+    /// Compile the root test artifact; requires --emit-slib.
+    #[arg(long, requires = "emit_slib")]
+    pub tests: bool,
     #[arg(long, requires = "dump_dir")]
     pub emit: Option<Emit>,
     #[arg(long, requires = "emit")]
@@ -247,7 +260,7 @@ impl From<LinkMode> for scoop_toolchain::LinkMode {
 impl Command {
     pub fn message_format(&self) -> MessageFormat {
         match self {
-            Self::New(_) | Self::External(_) => MessageFormat::Human,
+            Self::New(_) | Self::External(_) | Self::Pm(_) => MessageFormat::Human,
             Self::Build(args) => args.options.message_format,
             Self::Run(args) => args.options.message_format,
             Self::Test(args) => args.options.message_format,

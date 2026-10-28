@@ -34,7 +34,7 @@ name = "producer"
 argv = ["${scoopc}", "build", "--profile", "release", "${work}/left.scoop", "--sysroot", "${sysroot}", "--target", "${target}", "--out-slib", "${work}/producer.slib"]
 exit = 1
 stdout = ""
-stderr = "error: invalid current Cone operand ${work}/left.scoop: cannot inspect: Too many levels of symbolic links (os error ${errno_eloop})\n"
+stderr = "error: invalid single-file input ${work}/left.scoop: cannot canonicalize: Too many levels of symbolic links (os error ${errno_eloop})\n"
 checks = [
   {"file" = "${work}/producer.slib", "exists" = false},
 ]

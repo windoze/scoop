@@ -1,7 +1,7 @@
 [
   {
-    "code": "SCOOP_BUILD_FAILED",
-    "message": "invalid build root: invalid Cone manifest root ${fixture}/program/Cone.toml: unknown target predicate \"os\" value \"unknown\"",
+    "code": "SCOOP_PACKAGE_PREPARE",
+    "message": "${fixture}/program/Cone.toml: unknown target predicate \"os\" value \"unknown\"",
     "notes": [],
     "origin": {
       "end": 163,
@@ -9,7 +9,6 @@
       "path": "${fixture}/program/Cone.toml",
       "start": 154
     },
-    "phase": "Root",
     "severity": "error"
   }
 ]

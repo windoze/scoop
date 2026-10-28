@@ -6,5 +6,5 @@ version = "0.1.0"
 kind = "executable"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"test:release-generic-left" = "0.1.0"
-"test:release-generic-right" = "0.1.0"
+"test:release-generic-left" = { version = "=0.1.0", artifact = "../artifacts/test/release-generic-left/0.1.0/cone.slib" }
+"test:release-generic-right" = { version = "=0.1.0", artifact = "../artifacts/test/release-generic-right/0.1.0/cone.slib" }

@@ -77,13 +77,6 @@ diagnostics = []
 checks = [{actual = "${changed_tests.result.kind}", equals = "check"}, {actual = "${changed_tests.result.cache_hit}", equals = false}]
 
 [[steps]]
-name = "direct_tests"
-argv = ["${scoopc}", "check", "${work}/cone", "--test", "--target", "${target}", "--sysroot", "${sysroot}", "--direct-slib", "${sysroot}/lib/${target}/scoop.test.slib"]
-exit = 0
-stdout = ""
-stderr = ""
-
-[[steps]]
 name = "executable_without_production_entry"
 files = [{replace = {path = "${work}/cone/Cone.toml", old = '"library"', new = '"executable"'}}]
 

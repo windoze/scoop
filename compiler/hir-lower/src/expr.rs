@@ -200,19 +200,26 @@ pub(crate) struct SuccessfulExprLayer {
 }
 
 impl Lowerer {
+    // Keep large speculative state off recursive call-resolution frames,
+    // including unoptimized builds where moves retain stack temporaries.
+    #[inline(never)]
+    pub(crate) fn probe_state(&self) -> Box<Self> {
+        Box::new(self.clone())
+    }
+
     pub(crate) fn probe_expr_layer(
         &self,
         lower: impl FnOnce(&mut Lowerer, &mut Vec<hir::Statement>) -> Option<hir::Expr>,
     ) -> Result<SuccessfulExprLayer, Box<Lowerer>> {
-        let mut state = self.clone();
+        let mut state = self.probe_state();
         let mut sink = Vec::new();
         match lower(&mut state, &mut sink) {
             Some(expression) => Ok(SuccessfulExprLayer {
-                state: Box::new(state),
+                state,
                 expression,
                 sink,
             }),
-            None => Err(Box::new(state)),
+            None => Err(state),
         }
     }
 
@@ -226,7 +233,7 @@ impl Lowerer {
         layer.expression
     }
 
-    pub(crate) fn commit_layer_diagnostics(&mut self, failed: Lowerer) {
+    pub(crate) fn commit_layer_diagnostics(&mut self, failed: &Lowerer) {
         let baseline = self.diagnostics.len();
         debug_assert!(
             failed.diagnostics.len() > baseline
@@ -238,7 +245,7 @@ impl Lowerer {
             "a failed expression must retain an existing or newly reported error"
         );
         self.diagnostics
-            .extend(failed.diagnostics.into_iter().skip(baseline));
+            .extend(failed.diagnostics.iter().skip(baseline).cloned());
     }
 
     /// Lower an expression, recording a diagnostic and returning `None`
