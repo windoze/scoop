@@ -291,3 +291,5 @@ asyncio 的完整 release Cone 在三个 Windows target 上各 63 个容器／17
 math 按目标选择系统数学库，Windows 不请求 Unix libm；Float hypot 的薄 C wrapper 仅适配 Microsoft header 的 `_hypotf` 导出名。按照系统行为约定移除 pow／hypot 的特殊值修正分支，fma 保留系统调用。规范、设计、库说明和 API 注释记录 C pow 与 Java Math 的差异，以及 LLVM-MinGW 20260616 MSVCRT 的 FMA 中间溢出；未增加数学 workaround。
 
 三个 target 的原生 C 探针确认 pow／hypot／fma 结果，正式 release Cone 各 16 项标量测试与 2 项预编译 consumer 测试全部通过；本批未改动的大整数／十进制等测试也已通过先前完整库运行。Scoop／C 格式化与原生严格告警检查通过，三个目标的生产 math slib 已更新。MSVC 缺失 hypotf 名称和 MSVCRT 两项 FMA 预期不符均已按上述合同闭合。
+
+发行辅助入口已补齐 Windows 命令名：示例阅读器遵循 `CARGO_BUILD_TARGET` 的 Cargo 输出目录并安装为 `.exe`，VS Code 扩展准备通过 PATH 解析实际 npm 启动文件。Python 格式化与 Ruff 通过；实际 GNU-LLVM 宿主示例程序构建成功，其 libunwind.dll 由既有 PE 依赖收集器部署后，在仅含 Windows 系统目录的 PATH 下经 `scoop example` 正常读取目录与示例源码。VS Code 扩展从 lockfile 完整构建并生成 0.2.0 VSIX，包含 Tree-sitter WASM。完整目标资源组装继续实施。

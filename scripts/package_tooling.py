@@ -1,6 +1,7 @@
 """Build the installable VS Code extension shipped with the toolchain."""
 
 import json
+import shutil
 import subprocess
 
 from build_support import ROOT
@@ -11,11 +12,14 @@ def build(work_dir, environment):
     manifest = json.loads((tooling / "vscode-scoop/package.json").read_text())
     output = work_dir / "tooling" / f"{manifest['name']}-{manifest['version']}.vsix"
     output.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run(["npm", "ci"], cwd=tooling, env=environment, check=True)
+    npm = shutil.which("npm", path=environment.get("PATH"))
+    if npm is None:
+        raise FileNotFoundError("npm is required to package the VS Code extension")
+    subprocess.run([npm, "ci"], cwd=tooling, env=environment, check=True)
     # The package script's prepublish hook builds both the parser WASM and extension.
     subprocess.run(
         [
-            "npm",
+            npm,
             "run",
             "package",
             "--workspace",
