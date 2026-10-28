@@ -54,8 +54,7 @@ void scoop_thread_world_wait_for_quiescence(void) {
         deadline.tv_sec++;
         deadline.tv_nsec -= 1000000000;
     }
-    int result =
-        pthread_cond_timedwait(&quiescence_changed, &scoop_thread_world_lock, &deadline);
+    int result = pthread_cond_timedwait(&quiescence_changed, &scoop_thread_world_lock, &deadline);
     if (result != 0 && result != ETIMEDOUT) {
         scoop_thread_fatal("failed to wait for quiescent threads");
     }
@@ -164,8 +163,9 @@ static void require_detachable(const ScoopThreadState *state,
         state->native_region_roots != NULL || state->caller_roots != NULL ||
         state->compiler_roots != NULL || state->pin_frames != NULL ||
         state->initialization_stack_len != 0 || state->initialization_wait != NULL ||
-        state->current_transition != NULL || state->caught_exception_top != NULL ||
-        state->managed_anchor != NULL || !scoop_gc_mutator_is_retired(state->mutator)) {
+        state->current_transition != NULL || state->active_exceptions != NULL ||
+        state->caught_exception_top != NULL || state->managed_anchor != NULL ||
+        !scoop_gc_mutator_is_retired(state->mutator)) {
         scoop_thread_fatal("thread detach with active managed frames, callbacks, "
                            "roots, exceptions, or transitions");
     }

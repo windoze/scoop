@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "../src/eh_internal.h"
 #include "../src/gc/gc_internal.h"
 #include "../src/gc/heap_internal.h"
 #undef stress_move
@@ -52,6 +53,7 @@ typedef struct ThreadProbe {
     _Atomic(uint64_t) *start_epoch;
     _Atomic(bool) *collection_finished;
     TestLeaf *old_root;
+    TestLeaf *old_exceptions[2];
     TestLeaf *current_root;
     bool passed;
 } ThreadProbe;
@@ -60,6 +62,44 @@ static TestLeaf *new_leaf(uint64_t value) {
     TestLeaf *leaf = scoop_gc_alloc_internal(&leaf_td, sizeof *leaf);
     leaf->value = value;
     return leaf;
+}
+
+static void publish_exception_roots(ThreadProbe *probe, ScoopExceptionRecord records[2]) {
+    ScoopThreadState *thread = scoop_thread_current_required();
+    assert(thread->active_exceptions == NULL && thread->caught_exception_top == NULL);
+    records[0] = (ScoopExceptionRecord){
+        .state = SCOOP_EXCEPTION_IN_FLIGHT,
+        .object = probe->old_exceptions[0],
+        .owner = thread,
+        .active_next = &records[1],
+    };
+    records[1] = (ScoopExceptionRecord){
+        .state = SCOOP_EXCEPTION_CAUGHT,
+        .object = probe->old_exceptions[1],
+        .owner = thread,
+        .active_previous = &records[0],
+    };
+    thread->active_exceptions = &records[0];
+    thread->caught_exception_top = &records[1];
+    if (probe->kind == PROBE_NATIVE_BORROWED) {
+        records[0].state = SCOOP_EXCEPTION_RETHROWING;
+        records[0].caught_previous = &records[1];
+        thread->caught_exception_top = &records[0];
+    }
+}
+
+static void check_and_remove_exception_roots(ThreadProbe *probe, ScoopExceptionRecord records[2]) {
+    for (size_t index = 0; index < 2; index++) {
+        TestLeaf *current = records[index].object;
+        assert(current != probe->old_exceptions[index]);
+        assert(current->value == probe->value * 10 + index);
+        assert(scoop_rt_gc_debug_is_allocated(current));
+        assert(!scoop_rt_gc_debug_is_allocated(probe->old_exceptions[index]));
+    }
+    ScoopThreadState *thread = scoop_thread_current_required();
+    assert(thread->active_exceptions == &records[0]);
+    thread->active_exceptions = NULL;
+    thread->caught_exception_top = NULL;
 }
 
 static void initialize_fake_frame(uintptr_t frame[4], TestLeaf *root, uintptr_t managed_boundary) {
@@ -90,6 +130,9 @@ static void run_callback_managed_probe(ThreadProbe *probe, uintptr_t managed_bou
     ScoopCallbackThreadEntry callback_entry = {0};
     scoop_thread_enter_callback(&callback_entry, (const void *)managed_boundary);
 
+    ScoopExceptionRecord exceptions[2];
+    publish_exception_roots(probe, exceptions);
+
     TestLeaf *root = probe->old_root;
     _Alignas(16) uintptr_t frame[4];
     initialize_fake_frame(frame, root, managed_boundary);
@@ -100,11 +143,15 @@ static void run_callback_managed_probe(ThreadProbe *probe, uintptr_t managed_bou
     memcpy(&root, &frame[0], sizeof root);
     probe->passed = validate_relocated_root(probe, root, frame[0]);
 
+    check_and_remove_exception_roots(probe, exceptions);
+
     scoop_thread_leave_callback(&callback_entry);
 }
 
 static void run_native_transition_probe(ThreadProbe *probe, uintptr_t managed_boundary) {
     scoop_thread_enter_managed((const void *)managed_boundary);
+    ScoopExceptionRecord exceptions[2];
+    publish_exception_roots(probe, exceptions);
     TestLeaf *root = probe->old_root;
 
     ScoopCallerRootEntry root_entry = {
@@ -142,6 +189,7 @@ static void run_native_transition_probe(ThreadProbe *probe, uintptr_t managed_bo
     }
 
     probe->passed = validate_relocated_root(probe, root, frame[0]);
+    check_and_remove_exception_roots(probe, exceptions);
     scoop_rt_pop_caller_roots(&root_frame);
     scoop_thread_leave_managed();
 }
@@ -213,6 +261,10 @@ int main(void) {
         },
     };
     pthread_t threads[3];
+    for (size_t index = 0; index < 3; index++) {
+        probes[index].old_exceptions[0] = new_leaf(probes[index].value * 10);
+        probes[index].old_exceptions[1] = new_leaf(probes[index].value * 10 + 1);
+    }
 #ifndef TEST_MINOR_GC
     // All C roots are constructed before workers start; this probe requires explicit movement.
     scoop_gc_heap_state.stress_move = true;

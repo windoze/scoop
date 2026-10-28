@@ -7,26 +7,21 @@
 #include <unwind.h>
 
 #define SCOOP_EXCEPTION_CLASS UINT64_C(0x53434f4f50000000)
-#define SCOOP_EXCEPTION_RECORD_MAGIC UINT64_C(0x53434f4f50454831)
-#define SCOOP_EXCEPTION_RECORD_DELETED UINT64_C(0xdead53434f4f5045)
 
 struct ScoopThreadState;
 
 typedef enum ScoopExceptionState {
-    SCOOP_EXCEPTION_ALLOCATED,
     SCOOP_EXCEPTION_IN_FLIGHT,
     SCOOP_EXCEPTION_CAUGHT,
     SCOOP_EXCEPTION_RETHROWING,
     SCOOP_EXCEPTION_DELETING,
-    SCOOP_EXCEPTION_DELETED,
 } ScoopExceptionState;
 
 /* Runtime-private storage. Generated code observes only `unwind` as an
  * opaque pointer and the managed object returned by begin-catch. */
 typedef struct ScoopExceptionRecord {
-    uint64_t magic;
     ScoopExceptionState state;
-    uint64_t object_handle;
+    void *object;
     struct ScoopThreadState *owner;
     struct ScoopExceptionRecord *caught_previous;
     struct ScoopExceptionRecord *active_previous;
@@ -82,7 +77,6 @@ typedef enum ScoopEhDecodeReason {
     SCOOP_EH_REASON_TABLE_ORDER,
     SCOOP_EH_REASON_NULL_LANDING_PAD,
     SCOOP_EH_REASON_ACTION_OUT_OF_RANGE,
-    SCOOP_EH_REASON_ACTION_CYCLE,
     SCOOP_EH_REASON_UNSUPPORTED_LPSTART_ENCODING,
     SCOOP_EH_REASON_UNSUPPORTED_TTYPE_ENCODING,
     SCOOP_EH_REASON_UNSUPPORTED_CALL_SITE_ENCODING,
@@ -115,7 +109,5 @@ _Unwind_Reason_Code scoop_eh_personality(int version, _Unwind_Action actions,
                                          struct _Unwind_Context *context);
 
 void scoop_eh_prepare_shutdown(void);
-uint64_t scoop_eh_debug_active_record_count(void);
-uint64_t scoop_eh_debug_caught_frame_count(void);
 
 #endif /* SCOOP_RT_EH_INTERNAL_H */
