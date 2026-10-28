@@ -1,7 +1,7 @@
 schema = 1
 name = "scoped-data-concurrent"
 root = "concurrent.scoop"
-inputs = ["concurrent.scoop", "native.c", "../../callback/native.c"]
+inputs = ["concurrent.scoop", "native.c", "../../callback/native.c", "../../callback/threading.h"]
 tools = ["scoop", "scoopc", "cc", "ar"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["ffi", "pin", "language"]

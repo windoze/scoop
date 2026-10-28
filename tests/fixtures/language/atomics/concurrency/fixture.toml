@@ -1,6 +1,6 @@
 schema = 1
 name = "atomics-concurrency"
-inputs = ["Cone.toml", "src", "../../callback/native.c"]
+inputs = ["Cone.toml", "src", "../../callback/native.c", "../../callback/threading.h"]
 tools = ["scoop", "cc", "ar"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["atomics", "threads", "language"]

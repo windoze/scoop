@@ -1,7 +1,7 @@
 schema = 1
 name = "context-gc-lifetimes"
 root = "program.scoop"
-inputs = ["program.scoop", "../../callback/native.c", "../../release-blocks/lifecycle/native.c"]
+inputs = ["program.scoop", "../../callback/native.c", "../../callback/threading.h", "../../release-blocks/lifecycle/native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["context", "callback", "coroutine", "release", "language"]

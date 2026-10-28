@@ -1,7 +1,7 @@
 schema = 1
 name = "gc-leaf"
 root = "program.scoop"
-inputs = ["program.scoop", "native.c", "../../../callback/native.c"]
+inputs = ["program.scoop", "native.c", "../../../callback/native.c", "../../../callback/threading.h"]
 tools = ["scoop", "scoopc", "cc", "ar"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["ffi", "gc-leaf", "language"]

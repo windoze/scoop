@@ -9,7 +9,7 @@ use super::*;
 pub(crate) fn merge_callable_constants(path: &Path) -> Result<(), CodegenError> {
     let bytes = std::fs::read(path).map_err(error)?;
     let mut output = CoffObject::read(&bytes)?;
-    let sections = output
+    let mut sections = output
         .file
         .sections()
         .filter(|section| {
@@ -18,8 +18,19 @@ pub(crate) fn merge_callable_constants(path: &Path) -> Result<(), CodegenError> 
                     .name()
                     .is_ok_and(|name| name == ".rdata" || name.starts_with(".rdata$.refptr."))
         })
-        .map(|section| section.index())
-        .collect::<Vec<_>>();
+        .map(|section| {
+            let index = section.index();
+            output
+                .section_aux
+                .get(&index.0)
+                .ok_or_else(|| error("constant section has no auxiliary record"))?;
+            Ok(index)
+        })
+        .collect::<Result<Vec<_>, CodegenError>>()?;
+    // LLD resolves associative contributions in symbol-table order. A moved
+    // section label must follow the retained section definition; LLVM's section
+    // headers can have a different order, notably for MinGW refptrs and tables.
+    sections.sort_by_key(|index| output.section_aux[&index.0]);
     let Some(&primary) = sections.first() else {
         return Ok(());
     };
