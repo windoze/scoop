@@ -68,6 +68,7 @@ impl NativeFile {
                 .then_some((NativeObjectId::Direct(self.id), index)),
             NativeContent::Archive(members) => members
                 .iter()
+                .filter(|member| !member.has_imports())
                 .filter_map(|member| member.object_index().map(|index| (member, index)))
                 .find(|(_, index)| index.definitions.contains_key(symbol))
                 .map(|(member, index)| (NativeObjectId::ArchiveMember(member.id), index)),

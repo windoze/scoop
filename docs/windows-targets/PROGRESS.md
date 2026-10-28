@@ -262,3 +262,7 @@ OpenSSL 3.5.9 已按三个 Windows target 分别正式构建并安装静态库�
 TLS 的 Windows System 信任现使用 Crypt32 当前用户链引擎及 SSL 服务端策略，保留用户／机器信任、用途、时间和 DNS／IP 名称校验，禁止 AIA 等网络获取，失败保存完整平台码与 UTF-8 原因。测试通过独立内存根和真实 chain engine 验证平台策略，不修改系统信任库。异步 TLS 的测试屏障已接入 Windows SRW lock／condition variable，并声明实际使用的 asyncio 依赖。
 
 三个 target 的正式 release TLS 各 12 个容器／28 项测试、异步 TLS 各 10 个容器／22 项测试、两组跨 Cone consumer 各 3 项测试全部通过；生产 TLS／异步 TLS 已发布开发 sysroot。覆盖独立 OpenSSL／Python 互操作、双向身份、TLS 1.2／1.3、系统信任拒绝与隔离锚成功、挂起验证、取消与关闭后的资源生命周期。外部 OpenSSL CLI 不接受 Windows verbatim 文件名的问题由测试使用明确 cwd 和相对文件名闭合，Python peer 使用 LF 协议输出。Scoop／C 格式化与三套原生严格告警检查通过。asyncio 全量、其余系统库、发行和远端验证继续实施。
+
+Rust 文本 staticlib 消费暴露的 COFF 问题已修复：StaticArchive 接受包含普通定义和 imports 的混合 archive，仍排除纯 import library；GNU 长格式导入成员保留在原 archive 中交给 PE linker，避免逐成员物化损坏导入表。GNU thunk 的 code section 及仅有 IAT 定义的数据名称参与正常符号种类检查，不把 IAT 属性误作 DLL 数据属性。
+
+四种链接组合（Microsoft LLD／LINK、MinGW MSVCRT／UCRT）均通过真实短格式及 GNU 长格式导入库、混合静态库、数据／函数、Unicode 启动和 PDB 回归。该原生测试增加 `SCOOP_TEST_GNU_DLLTOOL` 指向 GNU dlltool；外部工具使用相对参数和明确 cwd，保留 Scoop 的 Unicode 路径验证。linker Clippy、Rust 格式化和 release 命令构建通过。MSVCRT 的实际 IDNA Cone 11 项测试通过，原程序加载失败与损坏导入表已闭合，PE 仅导入对应 MSVCRT／Windows DLL。其余文本／URL API 和 asyncio 完整验收继续运行，未开始远端测试。

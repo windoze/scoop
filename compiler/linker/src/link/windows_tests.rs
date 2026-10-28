@@ -203,10 +203,43 @@ fn validate_pe(profile: &ValidatedFinalLinkProfile, scratch: &Path) {
         NativeLibraryGrouping::Independent,
     );
     let static_id = NativeLinkRequirementId::from_key(&static_key).unwrap();
+    // Rust staticlibs bundle their ordinary definitions and raw-dylib imports.
+    let bundled = scratch.join("libbundled.a");
+    let exports = scratch.join("provider.def");
+    std::fs::write(
+        &exports,
+        "LIBRARY provider.dll\nEXPORTS\nimported_function\nimported_data DATA\n",
+    )
+    .unwrap();
+    checked(
+        Command::new(tool("SCOOP_TEST_GNU_DLLTOOL"))
+            .current_dir(scratch)
+            .args(["--machine", "i386:x86-64", "--input-def"])
+            .arg("provider.def")
+            .arg("--output-lib")
+            .arg("libbundled.a"),
+    );
+    checked(
+        Command::new(tool("SCOOP_TEST_CLANG").with_file_name("llvm-ar.exe"))
+            .arg("rcs")
+            .arg(&bundled)
+            .arg(&static_object),
+    );
+    let bundled_key = NativeLinkRequirementKey::for_target(
+        profile.target().wire_id(),
+        CanonicalNativeLibraryName::new("bundled").unwrap(),
+        NativeLibraryKind::StaticArchive,
+        NativeLibraryGrouping::Independent,
+    );
+    let bundled_id = NativeLinkRequirementId::from_key(&bundled_key).unwrap();
     let mut native = NativeInputs::read(
         BTreeMap::from([
             (id, (key, vec!["PE import test".into()])),
             (static_id, (static_key, vec!["PE archive test".into()])),
+            (
+                bundled_id,
+                (bundled_key, vec!["PE bundled imports test".into()]),
+            ),
         ]),
         &[scratch.to_owned()],
         profile,
@@ -220,10 +253,13 @@ fn validate_pe(profile: &ValidatedFinalLinkProfile, scratch: &Path) {
     assert!(native.files[&input].objects().len() < members.len());
     let static_input = &native.files[&native.libraries[&static_id].inputs[0]];
     assert_eq!(static_input.objects().len(), 2);
-    let member = static_input.candidate("static_function").unwrap().0;
+    let bundled_input = native.libraries[&bundled_id].inputs[0];
+    let bundled_file = &native.files[&bundled_input];
+    assert!(bundled_file.candidate("imported_function").is_none());
+    let member = bundled_file.candidate("static_function").unwrap().0;
     let (_, range) = native.object(member).unwrap();
     let extracted = scratch.join("extracted static.obj");
-    std::fs::write(&extracted, &static_input.bytes[range]).unwrap();
+    std::fs::write(&extracted, &bundled_file.bytes[range]).unwrap();
     let mut namespace = NativeNamespace::read(&mut native, &[], profile).unwrap();
     for (symbol, kind) in [
         ("imported_function", NativeSymbolKind::Function),
@@ -232,9 +268,9 @@ fn validate_pe(profile: &ValidatedFinalLinkProfile, scratch: &Path) {
         ("__imp_imported_data", NativeSymbolKind::Data),
     ] {
         let mut candidates = namespace
-            .candidates(&native, symbol, Some(&[input]), false)
+            .candidates(&native, symbol, Some(&[bundled_input]), false)
             .unwrap();
-        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates.len(), 1, "{symbol}");
         let binding = candidates.pop().unwrap();
         assert_eq!(binding.definition().unwrap().kind, kind);
         namespace.bind(symbol.into(), binding).unwrap();

@@ -63,7 +63,13 @@ pub(crate) fn read_with_import_sections(
         });
         let kind = if tls {
             NativeSymbolKind::ThreadLocal
-        } else if symbol.kind() == SymbolKind::Text {
+        } else if symbol.kind() == SymbolKind::Text
+            || (imports
+                && section
+                    .as_ref()
+                    .is_some_and(|section| section.kind() == object::SectionKind::Text))
+        {
+            // GNU import thunks can omit COFF's function type on code symbols.
             NativeSymbolKind::Function
         } else {
             NativeSymbolKind::Data

@@ -30,7 +30,15 @@ pub(super) fn matches_kind(file: &NativeFile, kind: NativeLibraryKind) -> bool {
     };
     let imports = members.iter().any(|member| member.has_imports());
     match kind {
-        NativeLibraryKind::StaticArchive => !imports,
+        NativeLibraryKind::StaticArchive => {
+            !imports
+                || members.iter().any(|member| {
+                    !member.has_imports()
+                        && member
+                            .object_index()
+                            .is_some_and(|info| !info.definitions.is_empty())
+                })
+        }
         NativeLibraryKind::Dynamic => imports,
         _ => true,
     }

@@ -35,7 +35,10 @@ impl NativeBinding {
         match self {
             Self::Darwin(binding) => crate::NativeSymbolBinding::from_weak(binding.interface.weak),
             Self::Elf(binding) => binding.definition().binding,
-            Self::Coff(coff::CoffBinding::Import { definition, .. }) => definition.binding,
+            Self::Coff(
+                coff::CoffBinding::Import { definition, .. }
+                | coff::CoffBinding::LongImport { definition, .. },
+            ) => definition.binding,
             Self::Coff(coff::CoffBinding::Linker) => crate::NativeSymbolBinding::Weak,
         }
     }
@@ -47,7 +50,10 @@ impl NativeBinding {
                 ExportStorage::InterfaceOnly => None,
             },
             Self::Elf(binding) => Some(binding.definition()),
-            Self::Coff(coff::CoffBinding::Import { definition, .. }) => Some(*definition),
+            Self::Coff(
+                coff::CoffBinding::Import { definition, .. }
+                | coff::CoffBinding::LongImport { definition, .. },
+            ) => Some(*definition),
             Self::Coff(coff::CoffBinding::Linker) => None,
         }
     }
@@ -56,9 +62,10 @@ impl NativeBinding {
         match self {
             Self::Darwin(binding) => Some(binding.interface.kind == SystemExportKind::ThreadLocal),
             Self::Elf(binding) => Some(binding.definition().kind == NativeSymbolKind::ThreadLocal),
-            Self::Coff(coff::CoffBinding::Import { definition, .. }) => {
-                Some(definition.kind == NativeSymbolKind::ThreadLocal)
-            }
+            Self::Coff(
+                coff::CoffBinding::Import { definition, .. }
+                | coff::CoffBinding::LongImport { definition, .. },
+            ) => Some(definition.kind == NativeSymbolKind::ThreadLocal),
             Self::Coff(coff::CoffBinding::Linker) => None,
         }
     }
