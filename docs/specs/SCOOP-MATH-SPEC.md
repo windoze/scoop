@@ -85,7 +85,7 @@
 | `toRadians(x: F): F`、`toDegrees(x: F): F` | 单位转换 |
 | `floor(x: F): F`、`ceil(x: F): F`、`rint(x: F): F` | 向下、向上、最近偶数取整，仍返回浮点 |
 | `round(x: Float): Int`、`round(x: Double): Long` | 最近整数，恰好一半时朝正无穷；饱和返回整数 |
-| `fma(a: F, b: F, c: F): F` | 对数学 `a*b+c` 只舍入一次 |
+| `fma(a: F, b: F, c: F): F` | 调用系统 fma／fmaf；单次舍入能力与已知差异见 4.3 |
 | `ieeeRemainder(x: F, y: F): F` | 使用最近偶数整数商的 IEEE 余数，不是 `%` |
 | `copySign(magnitude: F, sign: F): F` | 复制 sign bit，其余 magnitude bits 不变 |
 | `nextUp(x: F): F`、`nextDown(x: F): F`、`nextAfter(x: F, direction: F): F` | 相邻可表示值 |
@@ -106,13 +106,17 @@
 - `ulp(±0)` 为最小正 subnormal，`ulp(±Infinity)` 为正无穷，`ulp(NaN)` 为 NaN；结果对输入符号不敏感。
 - `ieeeRemainder` 的有限 x 与无限 y 返回 x；无限 x、零 y 或 NaN operand 返回 NaN；零余数沿 x 的符号。`fma` 不能分解成普通乘法和加法，也不能以 fma 反向重写用户的独立乘加。
 
-三角函数的无穷输入为 NaN；反三角函数按实数定义域及带符号零处理。`atan2` 的零/无穷象限与 C/Java 数学库约定一致。`pow(x, ±0)` 为 1，包括 x 为 NaN；其余 NaN 参数返回 NaN。负的有限非零底数只有整数指数产生实数结果；奇数整数指数保留负结果。零、无穷和无限指数按照 Java Math.pow 的特殊值表处理，尤其 `pow(1, NaN)` 与 `pow(±1, ±Infinity)` 为 NaN；不能直接暴露不同的 C pow 特例。`hypot` 任一参数为无穷时返回正无穷，即使另一参数为 NaN；否则 NaN 传播。
+系统数学函数直接保留所选 libm／CRT 的结果。通常，三角函数的无穷输入为 NaN；反三角函数按实数定义域及带符号零处理，`atan2` 保留零／无穷象限。C 数学库的 `pow(x, ±0)`、`pow(1, NaN)` 与 `pow(±1, ±Infinity)` 为 1；负的有限非零底数只有整数指数产生实数结果，奇数整数指数保留负结果。`hypot` 通常在任一参数为无穷时返回正无穷，即使另一参数为 NaN，否则 NaN 传播。Scoop 不为这些入口增加特殊值修正分支；已知系统差异见 4.3。
 
 ### 4.3 精度与可移植性
 
-位操作、选择、取整、相邻值以及 IEEE 要求精确舍入的 `sqrt`、`fma`、`ieeeRemainder`、`scalb` 遵守各自数学合同。`scalb` 按精确缩放后一次舍入处理，允许合法上/下溢，不能通过先构造一个已溢出/下溢的浮点幂实现。
+位操作、选择、取整、相邻值以及 IEEE 要求精确舍入的 `sqrt`、`ieeeRemainder`、`scalb` 遵守各自数学合同。`scalb` 按精确缩放后一次舍入处理，允许合法上/下溢，不能通过先构造一个已溢出/下溢的浮点幂实现。
 
-其他初等函数首版使用所支持目标的 libm。其有限结果精度采用对应 libm 的保证；**不承诺统一的最大 ULP 误差、Java Math 的逐项精度界或 StrictMath 的跨平台位级一致性**。API 文档须说明这一边界；同一算法的 NaN payload 也不作跨目标承诺。特别值规则仍须满足 4.2，不能把精度自由解释成放宽 NaN、零、定义域或 fma 的语义。
+其他初等函数首版使用所支持目标的 libm。其有限结果精度采用对应 libm 的保证；**不承诺统一的最大 ULP 误差、Java Math 的逐项精度界或 StrictMath 的跨平台位级一致性**。API 文档须说明这一边界；同一算法的 NaN payload 也不作跨目标承诺。系统数学入口保留所选实现的行为，已知舍入或特别值差异在本节明确记录，不在 Scoop 库中增加修正算法。`min`、`max`、`round` 等由 Scoop 自身实现的 API 仍遵守各自的明确合同。
+
+Windows 的数学入口使用完整 target 所选的 CRT 与 LLVM-MinGW 配套数学实现，不额外请求 Unix 的 `libm`。`Float.hypot` 经目标 `math.h` 的 C wrapper 调用 `hypotf`，保留 Microsoft headers 将其映射到 `_hypotf` 的规则。不能混用另一 CRT 的数学 archive；纯 Scoop 大整数／十进制语义保持。
+
+已知差异：LLVM-MinGW 20260616 的 MSVCRT 配套 `fma`／`fmaf` 不保证单次舍入，`fma(MAX_VALUE, 2, -MAX_VALUE)` 在 Double 与 Float 上均返回正无穷，而 UCRT 的对应调用返回 `MAX_VALUE`。另外，系统 `pow(1, NaN)` 与 `pow(±1, ±Infinity)` 返回 1，与 Java Math 的 NaN 结果不同。Scoop 原样保留这些系统结果；依赖融合舍入或 Java 特殊值规则的程序须考虑这一限制。Scoop 自身不把 fma 展开为普通乘加，也不将用户独立的乘法、加法合并为 fma。
 
 `expm1`、`log1p`、`hypot` 使用相应成熟算法，不能替换为直接 `exp(x)-1`、`log(1+x)`、`sqrt(x*x+y*y)`。角度转换按该精度的乘法完成：弧度转换乘最近舍入的 π/180，角度转换乘最近舍入的 180/π，不保证往返精确。两种目标精度均使用直接确定的系数。
 

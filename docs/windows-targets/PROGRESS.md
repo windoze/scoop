@@ -287,3 +287,7 @@ Windows 组装路径根据宿主 PE imports 递归收集非系统 DLL，从选�
 workspace Clippy 与 21 项定向测试通过，覆盖 byte copy 代码生成／根恢复、字符串 intrinsic 诊断、runtime ABI 和 slib 兼容性。初次测试发现的两个派生合同固定向量已同步并复测。新 ABI 的命令、runtime 与开发 slib 配套更新及 Windows 实际程序验收继续进行。
 
 asyncio 的完整 release Cone 在三个 Windows target 上各 63 个容器／179 项测试全部通过，覆盖文件／目录／临时文件、TCP／UDP／DNS、取消与关闭、host、TTY 和 consumer。FIFO／SIGPIPE 专属用例按 Unix 选择；公共测试验证真实 Win32／Winsock 错误、权限映射、路径与句柄行为。Windows 不执行会实际占用 4 GiB 的 truncate，仍保留 64 位 seek；网络取消允许 OS 已完成全部提交量，并继续核对真实接收字节与后续写入。测试源码已格式化，隐藏 console 的 TTY 行为与完整运行结果均已确认。此轮使用 ABI 27；新 ABI 的核心库回归独立跟进。
+
+math 按目标选择系统数学库，Windows 不请求 Unix libm；Float hypot 的薄 C wrapper 仅适配 Microsoft header 的 `_hypotf` 导出名。按照系统行为约定移除 pow／hypot 的特殊值修正分支，fma 保留系统调用。规范、设计、库说明和 API 注释记录 C pow 与 Java Math 的差异，以及 LLVM-MinGW 20260616 MSVCRT 的 FMA 中间溢出；未增加数学 workaround。
+
+三个 target 的原生 C 探针确认 pow／hypot／fma 结果，正式 release Cone 各 16 项标量测试与 2 项预编译 consumer 测试全部通过；本批未改动的大整数／十进制等测试也已通过先前完整库运行。Scoop／C 格式化与原生严格告警检查通过，三个目标的生产 math slib 已更新。MSVC 缺失 hypotf 名称和 MSVCRT 两项 FMA 预期不符均已按上述合同闭合。
