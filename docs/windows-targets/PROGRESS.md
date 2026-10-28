@@ -246,3 +246,7 @@ Windows 普通文件由 worker 以 overlapped HANDLE 打开并关联 IOCP，读�
 Windows 异步临时文件现由 worker 规范化父目录、保留完整前缀并随机排他创建 overlapped 文件，直接返回实际路径和原始 HANDLE。关联失败保留内部资源结果，由 managed 的关闭／删除流程完成清理；POSIX 模板创建保持原调用，临时结果改用共享 C-layout。熵错误通过 NtStatus 完成事件保留原码。
 
 三个 target 的实际临时文件组件 Cone 各 1 个容器／4 项测试全部通过，覆盖 surrogate 父目录、非 BMP／CON. 前缀、唯一创建、原始句柄读写／位置、close 保留路径、缺失父目录、无效前缀、GC、worker 排队取消与迟到成功后的资源回收，以及 NtStatus 位模式。首轮测试 API 名称／扩展导入及共享源码结果类型推断问题均已修复并复测。Scoop／C 格式化、三套 Clang／cl 严格检查和共享源码语义检查通过；高层取消组合、异步 TTY、host 运行与完整 asyncio 仍待验收，未开始远端测试。
+
+Windows 异步 TTY 已接入已有 worker：输入等待自有 console HANDLE 与单次取消 event，复用 platform 的 Unicode／resize／EOF 转换；输出实际返回后才释放借用。关闭等两个方向结束再恢复模式并消费 owner。控制结果同次返回 Win32／PosixErrno，POSIX 同步内部 C-layout；TTY 与 timer 共用 QPC 截止时间算法。测试辅助库的 worker／socket／完成观察增加 Windows 分支，POSIX 专属 PTY hangup 和 controlling-terminal 用例按平台选择。
+
+三个 target 的完整 asyncio 源码配合所选 TTY、loop、host 与 NativeWork 测试，各 11 个容器／38 项测试全部通过；包含真实隐藏 console 的 raw 恢复、Unicode、resize／超时、运行中取消后复用、关闭时 GC 借用、排队输出取消、同步／异步单 owner、迟到 open 取消与断开错误。cl 原生探针及三套 Clang／cl 严格检查通过，正式 MSVC Cone 构建成功。宿主测试原先假定提交总有第二次通知，已改为只消费实际待处理通知并复测，未为 IOCP 添加无用唤醒。完整文件／网络高层组合和依赖 crypto 的 consumer 验收、第三方 native 库与远端回归继续实施；尚未声明 Windows 全量验收完成。

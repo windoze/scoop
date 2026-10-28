@@ -28,6 +28,11 @@ path = "native/socket.c"
 
 [[native.sources]]
 path = "native/tty.c"
+when = { os = ["darwin", "linux"] }
+
+[[native.sources]]
+path = "native/windows/tty.c"
+when = { os = "windows" }
 
 [[native.sources]]
 path = "native/host.c"
@@ -84,6 +89,7 @@ when = { os = "linux" }
 
 [[native.sources]]
 path = "native/tty_owner.c"
+when = { os = ["darwin", "linux"] }
 
 [[native.sources]]
 path = "native/tty_completion.c"

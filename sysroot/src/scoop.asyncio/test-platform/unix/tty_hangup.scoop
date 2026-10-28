@@ -1,0 +1,26 @@
+package scoop.asyncio
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test
+private class TtyHangupTest {
+    @Test
+    fun `PTY hangup is a repeatable input end`() {
+        TestTerminal().use {
+            terminal ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                _ ->
+                val tty = loop.openTty()
+                NativeByteBuffer.allocate(1L).use suspend {
+                    bytes ->
+                    terminal.endInput()
+                    assertTrue(tty.receive(bytes, 1L) == TtyRead.End)
+                    assertTrue(tty.receive(bytes, 1L) == TtyRead.End)
+                }
+                tty.close()
+            }
+        }
+    }
+}

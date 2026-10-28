@@ -60,6 +60,7 @@ c_flags = ["-std=c11", "-Wall", "-Wextra", "-Wno-unused-parameter", "-fno-strict
 
 [[native.sources]]
 path = "native/common/deadline.c"
+when = { os = ["darwin", "linux"] }
 
 [[native.sources]]
 path = "native/common/directory.c"
@@ -121,6 +122,14 @@ when = { os = "windows" }
 
 [[native.sources]]
 path = "native/windows/file_temporary.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/tty.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/tty_io.c"
 when = { os = "windows" }
 
 [[native.sources]]

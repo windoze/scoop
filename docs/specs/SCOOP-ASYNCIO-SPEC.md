@@ -261,25 +261,29 @@ public interface AsyncTty : AsyncByteSink, AsyncCloseable {
 openTty 通过 platform 的共同 owner 取得实际终端与 resize 通知，每进程最多
 一个活动 owner，包括同步 terminal 会话。失败清理所有已取得的资源；取消
 选定后才完成的 open 先关闭未交付 owner。库不接管调用者 fd，不改变 stdin
-的 O_NONBLOCK，不增加后台读取线程。
+的 O_NONBLOCK。POSIX 不增加后台读取线程；Windows 复用已有 native worker。
 
-receive 同时等待字节与 resize，使用平台后端观察自有 fd，实际 read 为
-非阻塞 syscall。正 count 返回正 Bytes、End、Resize 或 TimedOut；count 为 0
+receive 同时等待字节与 resize；POSIX 使用平台后端观察自有 fd，实际 read 为
+非阻塞 syscall。Windows worker 等待自有 console input HANDLE 与本次请求的取消 event，
+复用 platform 的 UTF-16 输入记录到 UTF-8 字节转换；输出在 worker 内执行实际 WriteFile。
+正 count 返回正 Bytes、End、Resize 或 TimedOut；count 为 0
 在状态、参数和取消检查后返回 Bytes(0)，不表示 EOF。None 无限等待，非负
 timeout 使用单调总时间；零不等待。resize 可合并为最后实际尺寸，通知本身
 不占用字节 buffer。收到 End 后后续正 receive 继续返回 End。
 
 同一资源允许各一个 receive 和 writeFrom 同时在途；模式和尺寸控制要求两个
 方向都空闲。flush 沿无缓冲输出合同。原生状态由后端串行管理，managed 完成由所属 loop owner 消费；
-不把同步阻塞 poll／write 包在 suspend 函数内。SIGWINCH 沿终端规范的
+不在 loop owner 上执行阻塞 poll／write。SIGWINCH 沿终端规范的
 Linux self-pipe／Darwin kqueue 实现，由后端观察通知 fd，避免另装
 signal handler 改变应用原 disposition。
 
 取消停止 poll／timer 后记录一次终止，借用按实际字节进度提交后才恢复。
 取消已经选定时到达的 resize 保留给下一次 receive；End 保留为输入终态。
 单次取消不关闭健康 TTY。关闭拒绝新操作，结束在途等待，等待借用释放和
-全部 source cancel handler／CQE，再恢复 raw 并释放共同 owner；run 收尾同样执行。
-原生错误保留 PosixErrno 来源；恢复失败也继续消费所有资源。
+全部 source cancel handler／CQE／worker 实际完成，再恢复 raw 并释放共同 owner；run 收尾同样执行。
+Windows 输入取消唤醒当前等待；已运行的同步输出等实际返回，保留其已知进度。
+输入截止时间在提交时确定，使用与 timer 相同的 QPC 单调时钟，排队时间计入总时间。
+原生错误保留 PosixErrno／Win32 来源，控制操作同次返回类型化错误；恢复失败也继续消费所有资源。
 
 disableRawMode 和 isRawMode 允许已取消 Job 在所属活动 loop 中进行清理，
 不因此接受其他被取消的 I/O。模式的幂等、快照与恢复沿终端规范第 7 节。
