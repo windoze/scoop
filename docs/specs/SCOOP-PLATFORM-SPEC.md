@@ -238,6 +238,8 @@ Windows 的 currentDirectory 使用 GetCurrentDirectoryW；homeDirectory 优先�
 
 `scoop.platform.system` 提供 OperatingSystem(Darwin/Linux/Windows)、Architecture(Aarch64/X86_64)、operatingSystem 与 architecture 只读值，标识当前构建目标。POSIX 的 systemVersion(): String 返回 uname 的系统 release，logicalProcessorCount: Long 返回 OS 报告的在线逻辑 CPU 数；失败照常抛系统错误，不推导容器配额或调度能力。
 
+Windows 的 systemVersion 使用 [RtlGetVersion](https://learn.microsoft.com/en-us/windows/win32/devnotes/rtlgetversion)，将实际 major、minor 与 build 以十进制 `major.minor.build` 返回，不追加产品名称或补丁 revision，也不根据此字符串推断 API 可用性。logicalProcessorCount 使用 [GetActiveProcessorCount](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-getactiveprocessorcount) 的 ALL_PROCESSOR_GROUPS，返回全部处理器组的活动逻辑 CPU 总数，不缩减为当前线程 affinity 或进程配额。版本查询失败保存 NtStatus，CPU 查询失败保存 Win32 code；原生调用在返回时携带本次结果与错误，managed 分配不改变错误来源。
+
 ## 8. 时钟与阻塞 sleep
 
 `scoop.platform.time.SystemClock` 实现 scoop.time.Clock，now 返回实时钟的 Instant；`MonotonicTimeSource` 实现 TimeSource，markNow 返回以自身为 source、以 CLOCK_MONOTONIC 读数构造 Duration 的 TimeMark。实时钟可以回拨，monotonic 不与 epoch 混用，同源比较仍由 std 检查。native 读取失败抛 PlatformException，不伪造零读数；转换遵守 std 的范围规则。

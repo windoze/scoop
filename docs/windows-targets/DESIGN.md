@@ -235,7 +235,7 @@ stdout／stderr 继续遵守既有字节输出合同：Windows startup 将有效
 
 当前 asyncio 已使用 Darwin libdispatch、Linux io_uring／liburing，libuv 已移除；Windows 设计不重新引入另一套 libuv 公共 EventLoop。IOCP completion、取消成功和实际缓冲区退休是不同事实；late completion、close、host 注销和移动 GC 按[已有后端设计](../asyncio-backends/DESIGN.md)共用规则。Windows event 与消息循环的接缝见[窗口设计第 4 节](../windowing/DESIGN.md#4-与-asyncio-的接入及-windows-唤醒接缝)。
 
-原生字符串沿用 `OsString` 的字节存储，以 WTF-8 无损表示 Windows UTF-16；`fromUtf16`／`toUtf16` 显式保留非配对 surrogate，managed String 的严格 UTF-8 合同保持。Windows 错误分别使用 Win32、Winsock、NtStatus（CNG）和地址解析错误域，保存原始 code；具体转换与分类合同见[平台规范 2～3](../specs/SCOOP-PLATFORM-SPEC.md)。这些基础类型的完成不等于文件、进程、网络及 IOCP 已完成移植。
+原生字符串沿用 `OsString` 的字节存储，以 WTF-8 无损表示 Windows UTF-16；`fromUtf16`／`toUtf16` 显式保留非配对 surrogate，managed String 的严格 UTF-8 合同保持。Windows 错误分别使用 Win32、Winsock、NtStatus（CNG／版本查询）和地址解析错误域，保存原始 code；具体转换与分类合同见[平台规范 2～3](../specs/SCOOP-PLATFORM-SPEC.md)。这些基础类型的完成不等于文件、进程、网络及 IOCP 已完成移植。
 
 同步 File 与匿名 pipe 使用独立的完整宽度文件 handle 类型；Windows 沿 CreateFileW／CreatePipe、ReadFile／WriteFile、DuplicateHandle 和 CloseHandle，不转成 CRT fd。标准流逐次读取 GetStdHandle，GUI 缺失标准句柄时不隐式分配 console。POSIX 的 asyncio 继续复用原 fd helper；managed File 的包装结果在同次调用保存目标错误码，进程重定向也携带文件 handle。Windows 的权限投影、追加、截断、文件锁和 metadata 平台差异见[平台规范 5～6](../specs/SCOOP-PLATFORM-SPEC.md)。
 

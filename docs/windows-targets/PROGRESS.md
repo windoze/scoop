@@ -7,7 +7,7 @@
 | W0 工具链与 ABI | 关键路线实验通过 | 复现入口与范围见下文；正式编译器集成在 W1／W2 完成 |
 | W1 编译／链接 | 实施中 | 三目标开发 CLI 已支持 subsystem、RC、DLL 数据与跨 Cone C++；函数入口的 CodeView／PDB 定位通过，继续源位置覆盖与 ABI 组合验收 |
 | W2 core runtime | 实施中 | core／std／test 已构建且 Cone 测试通过，异常、移动 GC、callback、TLS、初始化、shutdown 与并行 GC 的定向程序通过；继续其余 ABI／GC 组合验收 |
-| W3 系统库 | 实施中 | 字符串／路径、错误、线程／同步、时钟／熵、同步 socket、文件 HANDLE、目录枚举、链接／临时路径、环境变量与目录查询及原始参数已有定向验证；继续系统信息／进程、console、IOCP、全部 native 组件及真实 consumer |
+| W3 系统库 | 实施中 | 字符串／路径、错误、线程／同步、时钟／熵、同步 socket、文件 HANDLE、目录枚举、链接／临时路径、环境变量与目录查询、原始参数及系统信息已有定向验证；继续进程、console、IOCP、全部 native 组件及真实 consumer |
 | W4 宿主与发行 | 基础实施中 | 进程中断已实现；继续 Windows 命令、维护脚本、DLL／SDK 布局与打包、交叉编译 |
 
 本地实现和完整验收完成后，才在 Linux `nuc12w.0d0a.com` 与 macOS `mm.0d0a.com` 的 `~/repos` 下新建测试目录，运行与变更范围相称的回归。原始日志与构建目录放在仓库外。
@@ -210,3 +210,7 @@ Microsoft LLD／LINK、MinGW MSVCRT／UCRT 四种组合均通过新参数 fixtur
 已合并 main 的独立包管理器：Windows subsystem／RC 配置经 PM 展开和 JSON 交付保留，编译协议统一为 19；新的多 Cone 构建保留 EXE 后缀、PDB 发布和配套工具定位。Git checkout 与 workspace 路径使用同一 canonical 拼写，依赖路径编辑保持正常相对路径。Windows runtime 测试显式提供实际 unwind 与 gdtoa 输入，修正宿主路径、时间戳精度及协议变更对应的测试断言。
 
 合并后的 workspace/all-targets Clippy、格式化、Ruff 与公共 fixture 规则通过（63 项通过、3 项 POSIX 专项跳过）。manifest、protocol、PM 和 scoop 共 254 项 Rust 测试均已通过，首轮失败经定向复测闭合；没有重复运行已通过的 runtime 构建测试。五个 release CLI 已重建，Windows 五项正式 fixture 在 Microsoft LLD／LINK 和两个 MinGW CRT 全部通过，共 20 个变体／240 个进程步骤，覆盖 subsystem、RC、PDB、DLL 数据和启动参数。完整 platform 与远端验收仍待后续阶段。
+
+Windows 系统版本查询已接入 RtlGetVersion，返回十进制 major.minor.build；逻辑处理器数量使用 GetActiveProcessorCount(ALL_PROCESSOR_GROUPS)。查询结果与原错误码同次返回，版本保留 NtStatus，CPU 查询保留 Win32 code；POSIX 的 uname／sysconf 行为保持。ntdll 由目标条件 native library 声明链接。
+
+Scoop／C 格式化、三个 Clang 环境与 cl 的严格 C 检查、完整 platform 测试源码语义检查通过。针对实际系统信息源码建立的小型临时 Cone 在三个 target 各通过 2 个容器／2 项测试，覆盖版本格式、实际 CPU 数与 GC 后重复查询；首轮普通字符串误用已改为 f-string 并复测闭合。没有重复执行其余平台 API 测试，也未发布子集 platform。进程、console、IOCP、完整系统库与远端 POSIX 验收继续实施。

@@ -54,6 +54,10 @@ when = {os = "windows"}
 name = "advapi32"
 when = {os = "windows"}
 
+[[native.libraries]]
+name = "ntdll"
+when = {os = "windows"}
+
 [[native.sources]]
 path = "native/errors.c"
 
