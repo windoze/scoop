@@ -152,11 +152,13 @@ impl WindowsCEnvironment {
                 for include in &self.includes {
                     // Preserve Clang's builtin atomic/intrinsic headers before
                     // the explicitly selected SDK and CRT, as in driver discovery.
-                    command.arg("-idirafter").arg(include);
+                    command.arg("-idirafter").arg(dunce::simplified(include));
                 }
             }
         } else if let Some(root) = &self.native_sysroot {
-            command.arg("--sysroot").arg(root);
+            // Clang joins sysroot children with '/', which is not a separator
+            // in Windows verbatim paths returned by canonicalize.
+            command.arg("--sysroot").arg(dunce::simplified(root));
         }
     }
 }

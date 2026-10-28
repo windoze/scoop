@@ -57,7 +57,9 @@ fn windows_final_link_profiles_link_real_crt_unwind_cpp_and_pdb() {
         ),
     ];
     for (index, (target, prefix, unwind, cxx, linker)) in cases.into_iter().enumerate() {
-        let startup = crate::resolve_windows_c_toolchain(target, &clang, prefix).unwrap();
+        let prefix = prefix.map(|root| std::fs::canonicalize(root).unwrap());
+        let startup =
+            crate::resolve_windows_c_toolchain(target, &clang, prefix.as_deref()).unwrap();
         let cxx = cxx.map(|driver| {
             let driver = if target.id() == scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID {
                 driver.to_owned()
