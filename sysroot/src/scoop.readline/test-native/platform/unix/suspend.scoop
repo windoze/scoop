@@ -1,0 +1,45 @@
+package scoop.tests.readline
+
+/** Converts SIGTSTP into SIGSTOP in the child's orphan process group. */
+public fun enableSuspendProbe() {
+    @Unsafe
+    {
+        val(status, error) = nativeSuspendProbe()
+        checkNativeStatus(status, error, "install test suspend probe")
+    }
+}
+
+public fun Pty.isRestored(): Boolean {
+    @Unsafe
+    {
+        return nativeRestored(handle!!)
+    }
+}
+
+public fun Pty.waitForStop() {
+    @Unsafe
+    {
+        val(status, error) = nativeStopped(handle!!)
+        checkNativeStatus(status, error, "wait for test suspension")
+    }
+}
+
+public fun Pty.resume() {
+    @Unsafe
+    {
+        val(status, error) = nativeResume(handle!!)
+        checkNativeStatus(status, error, "resume test child")
+    }
+}
+
+@Extern(name = "scoop_readline_test_pty_restored")
+private fun nativeRestored(handle: Ptr<Unit>): Boolean
+
+@Extern(name = "scoop_readline_test_suspend_probe", captureErrno = true)
+private fun nativeSuspendProbe(): (Int, Int)
+
+@Extern(name = "scoop_readline_test_pty_stopped", captureErrno = true)
+private fun nativeStopped(handle: Ptr<Unit>): (Int, Int)
+
+@Extern(name = "scoop_readline_test_pty_resume", captureErrno = true)
+private fun nativeResume(handle: Ptr<Unit>): (Int, Int)

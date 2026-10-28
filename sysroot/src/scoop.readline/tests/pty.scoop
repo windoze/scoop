@@ -6,118 +6,123 @@ import scoop.platform.env.arguments
 import scoop.platform.io.*
 import scoop.platform.concurrent.Thread
 
-@Test private class PtyIntegrationTest {
-    @Test fun suspendRestoresModesAndResumeKeepsInput() {
-        Pty.open(arguments()[0L], "PtyChildTest::suspendAndResume").use { pty ->
-            pty.expect("edit> ")
-            pty.writeText("\u001a")
-            pty.waitForStop()
-            assertTrue(pty.isRestored())
-            pty.discardOutput()
-            pty.resume()
-            pty.expect("edit> ")
-            pty.writeText(" resumed\r")
-            pty.expect("restored")
-            assertTrue(pty.isRestored())
-            pty.writeText("\n")
-            assertEquals(0, pty.waitForExit())
-        }
-    }
-    @Test fun editingPasteResizeAndRestoration() {
-        Pty.open(arguments()[0L], "PtyChildTest::editing").use { pty ->
-            pty.expect("edit> ")
+@Test
+private class PtyIntegrationTest {
+    @Test
+    fun editingPasteResizeAndRestoration() {
+        Pty.open(arguments()[0L], "PtyChildTest::editing").use {
+            pty ->
+            pty.expect("edit>")
             pty.writeText("中e\u0301\u007f")
             pty.writeText("\u001b[200~ hello\nworld\u001b[201~")
             pty.resize(6, 20)
             pty.writeText("\r")
             pty.expect("accepted")
-            assertTrue(pty.isRestored())
-            pty.writeText("\n")
+            pty.writeText("\r")
             assertEquals(0, pty.waitForExit())
         }
     }
-    @Test fun interruptEofAndCallbackFailureRestoreModes() {
+    @Test
+    fun interruptEofAndCallbackFailureRestoreModes() {
         for (name in ["interrupt", "eof", "callbackFailure"]) {
-            Pty.open(arguments()[0L], "PtyChildTest::" + name).use { pty ->
-                pty.expect("edit> ")
-                pty.writeText(if (name == "interrupt") "\u0003" else if (name == "eof") "\u0004" else "\t")
+            Pty.open(arguments()[0L], "PtyChildTest::" + name).use {
+                pty ->
+                pty.expect("edit>")
+                pty.writeText(
+                    if (name == "interrupt")
+                        "\u0003"
+                    else
+                        if (name == "eof")
+                            "\u0004"
+                        else
+                            "\t"
+                )
                 pty.expect("restored")
-                assertTrue(pty.isRestored())
-                pty.writeText("\n")
+                pty.writeText("\r")
                 assertEquals(0, pty.waitForExit())
             }
         }
     }
-    @Test fun externalPrinterPreservesInput() {
-        Pty.open(arguments()[0L], "PtyChildTest::externalPrinter").use { pty ->
+    @Test
+    fun externalPrinterPreservesInput() {
+        Pty.open(arguments()[0L], "PtyChildTest::externalPrinter").use {
+            pty ->
             pty.expect("idle output")
-            pty.expect("edit> ")
+            pty.expect("edit>")
             pty.writeText("draft\t")
             pty.expect("worker output")
             pty.writeText("\r")
             pty.expect("restored")
-            assertTrue(pty.isRestored())
-            pty.writeText("\n")
+            pty.writeText("\r")
             assertEquals(0, pty.waitForExit())
         }
     }
 }
 
-private class PrintingCompleter(private val printer: ExternalPrinter) : Completer {
+private class PrintingCompleter(private val printer: ExternalPrinter): Completer {
     public override fun complete(line: String, cursor: Long, context: Context): Completions {
         Thread.start { printer.print("worker output") }.join()
         return Completions(cursor, [])
     }
 }
 
-private class FailingCompleter : Completer {
+private class FailingCompleter: Completer {
     public override fun complete(line: String, cursor: Long, context: Context): Completions {
         throw IllegalArgumentException(Some("completion failed"))
     }
 }
 
-@Test private class PtyChildTest {
-    @Test @Ignore("Launched inside a PTY by PtyIntegrationTest")
-    fun suspendAndResume() {
-        Pty.enableSuspendProbe()
-        assertEquals("saved resumed", Editor().readLine("edit> ", initial = "saved"))
-        println("restored")
-        standardInput.readLine()
-    }
-    @Test @Ignore("Launched inside a PTY by PtyIntegrationTest")
+@Test
+private class PtyChildTest {
+    @Test
+    @Ignore("Launched inside a PTY by PtyIntegrationTest")
     fun editing() {
+        Pty.captureModes()
         val editor = Editor()
         assertEquals("中 hello\nworld", editor.readLine("edit> "))
+        assertTrue(Pty.currentModesRestored())
         println("accepted")
         standardInput.readLine()
     }
-    @Test @Ignore("Launched inside a PTY by PtyIntegrationTest")
+    @Test
+    @Ignore("Launched inside a PTY by PtyIntegrationTest")
     fun interrupt() {
+        Pty.captureModes()
         assertFailsWith<ReadlineInterruptedException> { Editor().readLine("edit> ") }
+        assertTrue(Pty.currentModesRestored())
         println("restored")
         standardInput.readLine()
     }
-    @Test @Ignore("Launched inside a PTY by PtyIntegrationTest")
+    @Test
+    @Ignore("Launched inside a PTY by PtyIntegrationTest")
     fun eof() {
+        Pty.captureModes()
         assertFailsWith<ReadlineEofException> { Editor().readLine("edit> ") }
+        assertTrue(Pty.currentModesRestored())
         println("restored")
         standardInput.readLine()
     }
-    @Test @Ignore("Launched inside a PTY by PtyIntegrationTest")
+    @Test
+    @Ignore("Launched inside a PTY by PtyIntegrationTest")
     fun callbackFailure() {
+        Pty.captureModes()
         val editor = Editor()
         editor.completer = FailingCompleter()
         assertFailsWith<IllegalArgumentException> { editor.readLine("edit> ") }
+        assertTrue(Pty.currentModesRestored())
         println("restored")
         standardInput.readLine()
     }
-    @Test @Ignore("Launched inside a PTY by PtyIntegrationTest")
+    @Test
+    @Ignore("Launched inside a PTY by PtyIntegrationTest")
     fun externalPrinter() {
+        Pty.captureModes()
         val editor = Editor()
         val printer = editor.createExternalPrinter()
         printer.print("idle output")
         editor.completer = PrintingCompleter(printer)
         assertEquals("draft", editor.readLine("edit> "))
+        assertTrue(Pty.currentModesRestored())
         println("restored")
         standardInput.readLine()
     }

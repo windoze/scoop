@@ -305,3 +305,7 @@ Windows 主驱动安装名已改为 `sco.exe`，帮助／版本信息同步使�
 Zstandard、zlib-ng、Brotli 与 nghttp2 已按三个 Windows target 分别准备静态库和头文件；Microsoft 使用 clang-cl／动态 CRT，两个 MinGW 环境使用各自 CRT prefix。维护脚本采用原生 Ninja、普通文件锁和先判断更新的复用流程，未变化时不启动编译工具，源码与工具保持原位。HTTP 的 llhttp 仍由普通 Cone 构建，未加入另一套后端准备入口。
 
 三个 target 的正式 release compression 各 19 个容器／49 项测试、HTTP 各 99 个容器／303 项测试全部通过；其中两个 MinGW 运行使用 ABI 28。覆盖压缩格式、流式适配与短读写，以及 HTTP/1、HTTP/2、字段、Cookie、multipart、SSE、WebSocket 协议。HTTP 测试中旧 String 长度调用已改为 byteLength 并格式化，Python Ruff 通过；三个目标的生产库已发布开发 sysroot。高层异步 HTTP、client／server 和完整发行验收继续进行。
+
+readline 的文件名补全已支持 Windows 分隔符、盘符／extended 路径与引号；Unix 保留原有转义规则。测试辅助 Cone 使用真实 ConPTY，独立读取线程持续排空输出，子进程自行核对实际 console 输入／输出模式和代码页。Unix 暂停／恢复测试按平台选取；Windows 验证 Ctrl-Z 在恢复会话后返回 Unsupported。
+
+三个 Windows target 的正式 release readline 各 11 个容器／45 项声明全部完成：39 项通过，6 个标记忽略的子进程入口均由父测试实际启动。覆盖 Unicode 编辑、粘贴、resize、Ctrl-C／EOF、补全异常、跨线程输出、模式恢复、文件补全、历史和非 TTY 流。原先的 POSIX 路径假设、ConPTY 继承父进程重定向、帧输出省略尾部空白和 cooked 输入需要 Enter 的问题均已闭合。Scoop／C 格式化和三套原生严格告警检查通过；并行编译曾触及内存上限，降低大型构建并发后已完成本组复测，未改变编译器语义或资源限制。
