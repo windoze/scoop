@@ -156,11 +156,42 @@ markable_block(ScoopGcMarkWorker *worker, const void *object, size_t *word) {
     return &region->blocks[index];
 }
 
+static void record_remembered_slot(ScoopGcMarkWorker *worker, void **slot) {
+    if (!worker->remembered_complete) {
+        return;
+    }
+    ScoopGcRememberedChunk *tail = worker->remembered_tail;
+    if (tail == NULL || tail->used == GC_MARK_CHUNK) {
+        ScoopGcRememberedChunk *chunk = malloc(sizeof *chunk);
+        if (chunk == NULL) {
+            worker->remembered_complete = false;
+            return;
+        }
+        chunk->next = NULL;
+        chunk->next_group = NULL;
+        chunk->used = 0;
+        if (tail == NULL) {
+            chunk->next_group = worker->remembered_slots;
+            worker->remembered_slots = chunk;
+        } else {
+            tail->next = chunk;
+        }
+        worker->remembered_tail = tail = chunk;
+    }
+    tail->slots[tail->used++] = slot;
+}
+
 static inline __attribute__((always_inline)) void
-mark_target(ScoopGcMarkWorker *worker, void *object) {
+mark_target(ScoopGcMarkWorker *worker, void *object, void **remembered_slot) {
     size_t word;
     ScoopGcBlockMeta *block = markable_block(worker, object, &word);
-    if (block == NULL || !first_mark(block, word)) {
+    if (block == NULL) {
+        return;
+    }
+    if (remembered_slot != NULL) {
+        record_remembered_slot(worker, remembered_slot);
+    }
+    if (!first_mark(block, word)) {
         return;
     }
     size_t size = block->head->kind == SCOOP_BLOCK_KIND_LARGE
@@ -198,7 +229,8 @@ extern inline __attribute__((always_inline)) void scoop_gc_mark_slot(void **slot
         visit->worker->reference_slots++;
     }
     if (*slot != NULL) {
-        mark_target(visit->worker, *slot);
+        mark_target(visit->worker, *slot,
+                    visit->source == SCOOP_MARK_REMEMBERED ? slot : NULL);
     }
 }
 

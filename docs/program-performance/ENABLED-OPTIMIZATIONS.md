@@ -12,6 +12,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [完整 minor 复用 remembered 引用槽](GC-EVOLUTION.md#第五十四阶段完整-minor-复用-remembered-引用槽) | 新版 runtime，所有 profile 默认；重链接即可，无新开关 | 标记时记录实际年轻目标的旧代槽，复制后按原卡组单写者直接回写；分配记录失败沿原扫描，分片 minor 保留原流程。大图 STW 与回写减少，临时 native 记录、代码增长及树／线程回退见记录；不改变对象、根或 ABI。 |
 | [按实际引用量划分标记片](GC-EVOLUTION.md#第五十三阶段按实际引用量划分标记片) | 新版 runtime，所有 profile 随现有增量策略生效；默认等级 1，minor 分片仍需 `SCOOP_GC_INCREMENTAL=2` | 复用实际槽计数，每 128 槽计一个单位，完整任务允许越过片末；缩短大数组中间片，保留无界收尾。部分默认尾部及等级 2 的 p95／CPU 代价见记录；不改变分配快路径，无新开关、对象、metadata 或 ABI。 |
 | [Linux 空闲页延迟归还](GC-EVOLUTION.md#第五十一阶段linux-空闲页延迟归还) | Linux runtime 所有 profile 默认；重链接即可，无新开关 | 对已确认不含活对象的页使用 MADV_FREE，复用前仍初始化；空 region 仍按原规则 unmap。以延迟下降的 RSS 换取线程分配吞吐和较短 STW；Darwin 试验未确认收益，保留原策略。无对象／元数据／ABI 增量。 |
 | [GC 队列的有界环形索引](GC-EVOLUTION.md#第四十九阶段gc-队列的有界环形索引) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 队列容量为二次幂，使用掩码回绕；worker 遍历按实际人数回绕。保留锁、发布、终止与首尾消费顺序，消除队列动态除法。大图 STW 及部分线程吞吐改善，GNU 大图吞吐和线程尾部波动见记录，无存储／ABI 增量。 |

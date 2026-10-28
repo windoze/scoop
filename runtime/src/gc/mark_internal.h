@@ -17,6 +17,14 @@ typedef struct ScoopGcLiveChunk {
     void *objects[GC_MARK_CHUNK];
 } ScoopGcLiveChunk;
 
+/* A dirty group's chunks stay with one updater, including repeated scan leaves. */
+typedef struct ScoopGcRememberedChunk {
+    struct ScoopGcRememberedChunk *next;
+    struct ScoopGcRememberedChunk *next_group;
+    size_t used;
+    void **slots[GC_MARK_CHUNK];
+} ScoopGcRememberedChunk;
+
 typedef struct ScoopGcMovingPlan ScoopGcMovingPlan;
 
 typedef struct ScoopGcSavedCards {
@@ -35,6 +43,7 @@ typedef enum ScoopGcMarkTaskKind {
     SCOOP_MARK_ARRAY_TASK,
     SCOOP_MARK_DIRTY_TASK,
     SCOOP_UPDATE_CHUNK_TASK,
+    SCOOP_UPDATE_REMEMBERED_TASK,
     SCOOP_RESERVE_CHUNK_TASK,
     SCOOP_COPY_BLOCK_TASK,
 } ScoopGcMarkTaskKind;
@@ -58,6 +67,7 @@ typedef struct ScoopGcMarkTask {
         } dirty;
         ScoopGcCopyBlock *copy_group;
         ScoopGcLiveChunk *live_chunk;
+        ScoopGcRememberedChunk *remembered;
         struct {
             ScoopGcMovingPlan *plans;
             ScoopGcLiveChunk *chunk;
@@ -99,6 +109,9 @@ typedef struct ScoopGcMarkWorker {
     size_t block_capacity;
     ScoopGcLiveChunk *live;
     ScoopGcLiveChunk *tail;
+    ScoopGcRememberedChunk *remembered_slots;
+    ScoopGcRememberedChunk *remembered_tail;
+    bool remembered_complete;
     void *const *pending_objects;
     size_t pending_count;
     uint64_t pending_scans;

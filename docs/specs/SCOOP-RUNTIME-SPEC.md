@@ -701,6 +701,10 @@ mark 结束后复用首次标记的存活对象集合规划搬迁；实际有搬
 
 此时 full 的 roots 全部更新；minor 更新精确 roots、年轻集合及 remembered set。对象字段和 roots 中的旧引用仍经正常 forwarding 回写，不能因存活清单已经更新而跳过它们。没有搬迁时按 3.7 跳过 relocation。release hook、reclaim 和 VM 归还仍由 coordinator 执行；shutdown 停止并 join worker。
 
+完整 minor 的 remembered 标记可以同时保留实际指向年轻对象的旧代引用槽地址，包括指向已标记或 pinned 年轻对象的其他槽；只复用本次真实扫描结果，不额外遍历旧堆。记录按原脏卡组归属，每组的全部 native 分块在回写时交给同一个执行者，保持重复访问及 survivor 卡处理的语义。旧代 owner 在完整 minor 内不会移动或退休，且 mutator 始终停止；记录不跨恢复边界，不是 managed root，不延长对象存活。复制完成后直接对这些槽执行原 forwarding／survivor visitor，省去再次解码旧对象 scan 和访问 null／旧目标槽；本轮新晋升对象仍只从年轻存活清单回写。原脏卡及组登记保留到正常收尾，不能因记录已完成而提前清除 survivor 所需状态。
+
+只在所有参与者的记录完整时使用槽记录；任何记录分配失败都继续完成原标记，并在回写时退回原 remembered 范围扫描。取消、full 回退和本轮结束统一释放记录，不增加新的收集失败方式。分片 minor 仍按原保存／恢复卡位图和范围扫描更新，不能把片间可能变化的槽记录当作完整快照。单 worker 直接按组串行访问，多 worker 复用原 pool；所有 profile 同义，没有新对象字段、写屏障、根或 ABI。
+
 引用回写复用本轮 mark 的 worker pool。coordinator 先串行更新 roots，minor remembered slots 按本节独立范围规则更新，再直接使用存活清单中的当前地址；首次标记已保证条目唯一，预留／复制阶段已保证条目指向当前副本，因此普通构建不为清单条目重新定位对象元数据、检查存活身份或登记 relocation 覆盖状态。coordinator 按既有至多 1024 个对象的存活分块发布，不逐对象预读 scan 再建立一份批次；worker 读取当前对象的 scan，跳过无引用对象，普通对象直接更新，大引用数组按至多 1024 个完整元素发布互不重叠的槽区间。任务复用稳定的存活清单和既有精确 scan 解释器，forwarding、对象和扫描元数据在整个 update 阶段保持稳定；worker 只读这些元数据并更新各自的引用槽，不重新发现存活对象、修改 roots、执行用户代码或取得 coordinator 持有的 heap／roots 锁。根与对象槽即使别名，也已由前述串行边界隔开。全部 update 任务（包括 worker 后续发布的数组任务）结束后才允许验证、退休存活清单、释放 source／metadata、执行 release、reclaim、VM 归还及恢复 mutator。单 worker 直接使用相同的当前地址和引用槽转发规则串行更新，不先建立任务队列；创建 worker 失败沿用既有串行回退。
 
 搬迁覆盖登记仅编入启用 GC stress 支持或显式 `SCOOP_GC_VERIFY_HEAP` 的 runtime。执行者在更新当前对象前定位元数据并 claim，检查 collection、对象起点、已标记、当前副本和重复扫描；`scanned` bitmap 使用原子 OR 保留同一 word 中不同对象的并行置位，large 标志使用原子 exchange，已经被 claim 的同一对象仍报错。未编入这两类验证能力时，覆盖检查函数、调用、专用 bitmap／large 标志及其分配、清零和释放均由预处理排除，不以运行期开关保留。该状态属于 collector 私有侧元数据，不改变对象、根、scan、forwarding、generated-code ABI 或真实引用槽的合法性检查。

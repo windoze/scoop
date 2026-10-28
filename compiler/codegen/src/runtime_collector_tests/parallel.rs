@@ -2,6 +2,29 @@ use super::compile::compile_and_run_configuration;
 use super::{compile_and_run_with_flags, workspace_root};
 
 #[test]
+fn remembered_slots_preserve_relocation_ownership_and_incomplete_record_fallback() {
+    for (stress, optimization) in [(false, "-O2"), (true, "-O0")] {
+        let output = compile_and_run_configuration(
+            &workspace_root(),
+            "remembered_slots_test",
+            "runtime/tests/remembered_slots_test.c",
+            stress,
+            stress,
+            &[optimization, "-Dmalloc=scoop_test_remembered_malloc"],
+        );
+        assert!(
+            output.status.success(),
+            "stress={stress}, optimization={optimization}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"remembered slots preserve relocation, group ownership and incomplete-record fallback\n"
+        );
+    }
+}
+
+#[test]
 fn bounded_marking_counts_actual_array_and_remembered_references() {
     for (stress, optimization) in [(false, "-O2"), (true, "-O0")] {
         let output = compile_and_run_configuration(
