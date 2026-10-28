@@ -41,6 +41,25 @@ impl CurrentUnitImports {
     ) -> SelectorGroup {
         let mut group = SelectorGroup::default();
         match cursor {
+            NamespaceCursor::Stored { identity, groups } => {
+                let current = identity.current();
+                if current.is_some()
+                    || matches!(
+                        identity,
+                        crate::imports::ResolvedImportNamespace::DirectPackage(_)
+                    )
+                {
+                    self.extend_current_group(lowerer, &mut group, current, namespace, name);
+                }
+                group.direct.extend(
+                    groups
+                        .iter()
+                        .filter(|candidate| {
+                            candidate.namespace() == namespace && candidate.name().as_str() == name
+                        })
+                        .flat_map(|candidate| candidate.targets().iter().cloned()),
+                );
+            }
             NamespaceCursor::Current(current) => {
                 self.extend_current_group(lowerer, &mut group, Some(*current), namespace, name);
             }
@@ -74,6 +93,7 @@ impl CurrentUnitImports {
                 );
             }
         }
+        group.direct = self.canonicalize_dependencies(group.direct);
         group
     }
 
@@ -172,6 +192,7 @@ impl CurrentUnitImports {
         let mut names = BTreeMap::<String, Vec<ImportedTargetBinding>>::new();
         let current = match cursor {
             NamespaceCursor::Current(namespace) => Some(*namespace),
+            NamespaceCursor::Stored { identity, .. } => identity.current(),
             NamespaceCursor::SplitPackage { current, .. } => {
                 Some(ResolvedNamespace::Package(*current))
             }
@@ -185,6 +206,10 @@ impl CurrentUnitImports {
             None if matches!(
                 cursor,
                 NamespaceCursor::Direct(hir::DirectNamespaceView::Package(_))
+                    | NamespaceCursor::Stored {
+                        identity: crate::imports::ResolvedImportNamespace::DirectPackage(_),
+                        ..
+                    }
             ) =>
             {
                 self.unknown_packages.keys().collect()
@@ -203,6 +228,7 @@ impl CurrentUnitImports {
         }
 
         let direct = match cursor {
+            NamespaceCursor::Stored { groups, .. } => Some(groups.clone()),
             NamespaceCursor::Direct(hir::DirectNamespaceView::Package(package)) => Some(
                 package.snapshot_filtered(|provider| lowerer.dependency_in_source_scope(provider)),
             ),

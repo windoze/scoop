@@ -11,34 +11,39 @@ pub(super) fn dump_headers(file: &SourceFile, out: &mut String) {
     }
 
     for import in &file.imports {
-        match import {
-            ImportSyntax::Exact {
-                exposure,
-                selector,
-                alias,
-                ..
-            } => {
-                out.push_str("  ImportExact ");
-                out.push_str(dump_exposure(*exposure));
-                out.push(' ');
-                dump_qualified_name(selector, out);
-                if let Some(alias) = alias {
-                    out.push_str(" as ");
-                    out.push_str(&alias.name.text);
-                }
-                out.push('\n');
+        dump_import(import, 1, out);
+    }
+}
+
+pub(super) fn dump_import(import: &ImportSyntax, indent: usize, out: &mut String) {
+    let pad = "  ".repeat(indent);
+    match import {
+        ImportSyntax::Exact {
+            exposure,
+            selector,
+            alias,
+            ..
+        } => {
+            out.push_str(&format!("{pad}ImportExact "));
+            out.push_str(dump_exposure(*exposure));
+            out.push(' ');
+            dump_qualified_name(selector, out);
+            if let Some(alias) = alias {
+                out.push_str(" as ");
+                out.push_str(&alias.name.text);
             }
-            ImportSyntax::Star {
-                exposure,
-                namespace,
-                ..
-            } => {
-                out.push_str("  ImportStar ");
-                out.push_str(dump_exposure(*exposure));
-                out.push(' ');
-                dump_qualified_name(namespace, out);
-                out.push_str(".*\n");
-            }
+            out.push('\n');
+        }
+        ImportSyntax::Star {
+            exposure,
+            namespace,
+            ..
+        } => {
+            out.push_str(&format!("{pad}ImportStar "));
+            out.push_str(dump_exposure(*exposure));
+            out.push(' ');
+            dump_qualified_name(namespace, out);
+            out.push_str(".*\n");
         }
     }
 }

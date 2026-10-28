@@ -9,7 +9,8 @@ impl CurrentUnitImports {
         package: PackageId,
         name: &str,
     ) -> Vec<ImportCandidateLayer> {
-        let mut layers = self.layers(file, package, name);
+        let mut layers = self.block_layers(lowerer, Some(name));
+        layers.extend(self.layers(file, package, name));
         for layer in &mut layers {
             let in_scope = |binding: &super::CurrentUnitBindingId| {
                 lowerer

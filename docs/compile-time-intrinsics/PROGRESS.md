@@ -4,6 +4,8 @@
 
 ## 交付清单
 
+- [x] 用户追加的[块级 import](../block-imports/DESIGN.md)：作用域、parser／formatter、普通查找与 LSP，作为 intrinsic 的就近导入方式。
+
 - [x] currentSourceLocation 的明确语义诊断，包含 alias、依赖与 FunPtr；错误下保留声明导航。新 intrinsic 随后接入。
 - [x] 带 payload 的 enum 静态初值数据通路：HIR／MIR／LIR、LLVM 发射与既有静态存储 relocation。
 - [ ] enum／Option 常量及 Elvis／when、独立静态常量身份、泛型／跨 Cone 共享与发射。
@@ -21,6 +23,12 @@
 ## 已完成
 
 设计与规范已从原工作区提取，包含用户追加的不可引用诊断、Cone 内路径／symlink 和 SCOOP_ 环境限制。
+
+### 块级 import
+
+支持块内 exact／alias／star import：声明后生效、内层优先、离块恢复，复用现有 selector、可见性、真实目标去重和调用候选规则。局部 callable／类型保留定义处的导入；泛型与跨 Cone 正文携带已绑定身份。parser、formatter、LSP 引用／补全／参数提示／折叠同步支持，局部 public import 明确报错。
+
+Darwin 的格式化、workspace lint、定向及相关回归测试通过；5 项普通 Cone release 测试覆盖跨 Cone 泛型／默认值、局部类型、重载与扩展 invoke；正式诊断 fixture 通过。具体范围见块级 import 设计。无 runtime ABI 或 `.slib` 格式变化，Linux 组合验收仍按后续平台项执行。
 
 ### currentSourceLocation 引用诊断
 

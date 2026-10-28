@@ -241,6 +241,8 @@ return/throw 与 Elvis 复用正常值和终止路径的封闭表示；只有正
 
 语言规范 11.19 的编译期入口由普通导入定位，沿本规范 2.10.1 求值；它们及 current_source_location 的声明引用沿 2.10 报告明确的 intrinsic 语义错误，短名／alias／re-export 保留具体拒绝原因。此能力不要求扩展普通包限定表达式或新增 runtime ABI。
 
+语言规范 12.4.6 的块级 import 由 AST 保存原 selector、alias 与 span；parser／formatter 保持语句顺序，不把它移动到文件头。HIR lowering 在 import 语句处复用普通 namespace selector，向当前词法 scope 加入已解析 binding，退出 scope 时恢复；import 不产生运行期 HIR statement。闭包、局部函数、局部类型及默认值沿既有定义处 scope 快照继承导入。查询、operator／extension 分层与语言服务消费相同的作用域和 typed origin，不另建 intrinsic 专用导入入口。此能力不改变 MIR／LIR、runtime ABI 或已有 `.slib` 编码。
+
 ### 2.3 MIR
 
 MIR 只接收 LocalConcreteHir 和实际选用的依赖 MIR metadata，不接受 ExportHir 模板或执行泛型推断。每个 expression 具有本层 exact type；GC-free、ZST、字段和 variant 身份完整保留，synthetic 类型在产生时也完整定义。foundation 从已生成的 Module 提取实际身份记录，不先完整重放类型、CFG、ABI、coroutine、callback、release、constant image 或 GC 语义检查；IR/meta crate 不保留独立的语言验证器及其测试专用入口。具体转换的查询与格式／引用边界继续在实际使用处处理。MIR 输入组装直接复用同次生产的 foundation、entry bridge 与 Module；初始化物化从实际 unit 及 callable 索引取得 initializer／ensure，不再重建 generated ID、ODR key、物理／逻辑签名或比较两份 callable surface。

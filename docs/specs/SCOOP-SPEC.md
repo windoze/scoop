@@ -2985,8 +2985,8 @@ importHeader   = public? import ImportSelector (as Identifier)?
 ImportSelector = QualifiedName | QualifiedName . *
 ```
 
-- `package`至多一次且必须先于所有import/declaration；import只允许出现在文件头。exact import可写`as`，alias只改变当前文件中的短binding名；star import不能写alias；
-- 普通import只影响当前source file。`public import`同时建立当前文件的普通exact/star import，并在**当前文件package**下为当前Cone建立re-export binding；其destination name是`as` alias或target短名；
+- `package`至多一次且必须先于所有import/declaration；文件级import位于文件头，局部块另按12.4.6允许import。exact import可写`as`，alias只改变所在导入作用域的短binding名；star import不能写alias；
+- 文件级普通import只影响当前source file。`public import`同时建立当前文件的普通exact/star import，并在**当前文件package**下为当前Cone建立re-export binding；其destination name是`as` alias或target短名；
 - `public`在这里是上下文关键字，只修饰import；不存在`internal import`或`private import`；
 - import selector与qualified type path都先解析最长的可见package binding前缀，再沿static nested nominal、object或companion的typed owner edge查找；最长package前缀一旦选定便不回退到较短前缀重猜。exact import的终点必须是importable binding，star import的终点必须是importable namespace；不能把点连接的字符串直接当作FQN扫描全部artifact。top-level value/function表达式通过import后的短名或普通receiver语法访问；包名与表达式的边界见12.4.5。不新增dependency-coordinate-qualified源码名称。
 - 限定类型路径的 package 前缀同时考虑当前 Cone 与 direct dependency 的公开包（含 re-export）。同一最长包中的当前与外来类型在同层合并，按 typed origin 去重并诊断不同实体的同名冲突；仅含 value binding 的公开包仍是可见包，不能因其中缺少目标类型而回退。仅供模板、布局或链接使用的 support dependency 不增加可见包。路径末端的普通类型、泛型 application 和 typealias 使用与短名查找相同的类型实参、可见性及展开规则。
@@ -3018,13 +3018,14 @@ import 指向原声明；经不同依赖路径或 re-export 到达同一声明�
 
 1. 词法binding与local function；
 2. 隐含`this`的真实member；
-3. 当前文件的exact import，包括alias与`public import`；
-4. 当前package中可访问的本地声明与re-export binding；
-5. 当前文件的全部star import；
-6. core `.slib`提供的typed prelude；
-7. 4.2/8.6由唯一expected exact enum application产生的contextual variant fallback。
+3. 已生效的块级 import，按从内到外的块顺序；同一块先 exact／alias，再 star（12.4.6）；
+4. 当前文件的exact import，包括alias与`public import`；
+5. 当前package中可访问的本地声明与re-export binding；
+6. 当前文件的全部star import；
+7. core `.slib`提供的typed prelude；
+8. 4.2/8.6由唯一expected exact enum application产生的contextual variant fallback。
 
-显式receiver先查真实member；extension scope再按exact import → current package → star import → core prelude分层。property-like `invoke`在每层内继续使用9.3.4的c-level分区，property读写继续使用9.1.1的typed accessor/place规则，constructor、variant、operator、callable reference与typealias qualifier继续进入各自既有typed入口。
+显式receiver先查真实member；extension scope先按内到外的块级exact／star import分层，再按文件级exact import → current package → star import → core prelude分层。property-like `invoke`在每层内继续使用9.3.4的c-level分区，property读写继续使用9.1.1的typed accessor/place规则，constructor、variant、operator、callable reference与typealias qualifier继续进入各自既有typed入口。
 
 对callable层，每层独立执行8.6的shape filter、candidate-local applicability与MSC，只选择第一个至少含一个适用候选的层；某个高层只有不适用同名callable时继续到下一层。callable-value hard shadow等既有词法规则不变。type、object、property name等非overloadable lookup在同层出现多个不同origin时直接歧义。visibility 在 applicability 前按 9.1.5 检查，不产生额外访问凭证；声明顺序、dependency枚举、re-export链长与artifact加载顺序都不能作为tie-break。
 
@@ -3064,6 +3065,25 @@ import 指向原声明；经不同依赖路径或 re-export 到达同一声明�
 前置 `::` 后仍只读取一个声明名称，不将 `::a.b.f` 解释为包限定声明引用。跨包函数、构造器、扩展函数和 native callback 先 import 后写 `::name` 或 alias。后置 `receiver::member` 保持原语法及类型／值 receiver 规则；不增加包作为 receiver 的形式。
 
 既有限定类型、注解和模式路径继续按原规则解析，不扩展普通表达式的名称查找。导入后的 `::env`、`::includeStr` 等引用沿 13.1 报告实际 intrinsic 的明确语义原因；这一诊断不依赖包限定表达式。
+
+#### 12.4.6 块级 import
+
+局部语句块允许 `import path`、`import path as alias` 和 `import namespace.*`，复用文件级 selector、可见性、重载、去重和歧义规则。import 可位于块内任意语句位置；其作用从该语句之后到当前块结束，嵌套块可继承，离开块后恢复外层作用域，不提升到块首或文件头。函数／lambda／局部函数、控制流块、初始化块、accessor 与 safe／unsafe 等语句块一致适用；表达式形式的函数正文不新增声明位置。
+
+块级 import 只改变编译期名称查找，无运行期求值、初始化或捕获。局部函数、lambda 与局部类型的正文按定义位置保存有效的导入作用域，后续同名 import 不改变已解析引用；泛型、默认参数和跨 Cone 正文只携带选中的 typed 身份。import 的目标是既有 package／静态 namespace 可到达声明，不能导入局部变量或把 package 变成值。
+
+查找顺序见 12.4.3。词法 binding、局部类型／typealias 和 local function 保持原优先级；块级 import 不覆盖这些绑定。内层块的 import 层先于外层块；同一块的 exact／alias 层先于其 star 层。同层多个同名函数形成原重载候选集，其他不同声明按原歧义规则诊断；多个路径到同一实际声明按 typed 身份去重。高层 callable 没有适用候选时仍沿原规则查下一层；非 callable lookup 不以期望类型消除歧义。
+
+`public import` 在局部块中是编译错误：re-export 只在文件头建立。块级 import 不建立新的导出 binding，不改变 private／internal／protected 或生产／测试来源限制。非法 selector、star alias、不可访问目标及无法解析的 import 继续有明确诊断；编辑器应保留其位置，不能在失败后静默选中外层同名声明。
+
+```scoop
+fun buildTag(): Option<String> {
+    import scoop.compiler.env
+    return env("SCOOP_BUILD_TAG")
+}
+```
+
+实现与验证记录见[块级 import 设计](../block-imports/DESIGN.md)；编译期入口自身的状态仍见11.19。
 
 ### 12.5 编译产物 `.slib`
 

@@ -14,6 +14,7 @@ pub(crate) struct Scopes {
     stack: Vec<imbl::HashMap<String, LocalId>>,
     aliases: Vec<imbl::HashMap<String, crate::aliases::SourceTypeAliasId>>,
     nominals: Vec<imbl::HashMap<String, crate::NominalTarget>>,
+    imports: Vec<std::sync::Arc<crate::imports::FrozenFileImports>>,
 }
 
 /// Lexical candidate layers for block-local named functions. Each block is a
@@ -72,6 +73,7 @@ impl Scopes {
             stack: Vec::new(),
             aliases: Vec::new(),
             nominals: Vec::new(),
+            imports: Vec::new(),
         }
     }
 
@@ -79,12 +81,29 @@ impl Scopes {
         self.stack.push(imbl::HashMap::new());
         self.aliases.push(imbl::HashMap::new());
         self.nominals.push(imbl::HashMap::new());
+        self.imports.push(Default::default());
     }
 
     pub(crate) fn pop(&mut self) {
         self.stack.pop();
         self.aliases.pop();
         self.nominals.pop();
+        self.imports.pop();
+    }
+
+    pub(crate) fn imports(&self) -> &[std::sync::Arc<crate::imports::FrozenFileImports>] {
+        &self.imports
+    }
+
+    pub(crate) fn add_imports(&mut self, imports: crate::imports::FrozenFileImports) {
+        let current = std::sync::Arc::make_mut(
+            self.imports
+                .last_mut()
+                .expect("a block import has a lexical scope"),
+        );
+        current.exact.extend(imports.exact);
+        current.stars.extend(imports.stars);
+        current.unavailable.extend(imports.unavailable);
     }
 
     /// Whether `name` is already declared in the innermost scope
@@ -130,6 +149,7 @@ impl Scopes {
             stack: vec![imbl::HashMap::new(); self.stack.len()],
             aliases: self.aliases.clone(),
             nominals: self.nominals.clone(),
+            imports: self.imports.clone(),
         }
     }
 

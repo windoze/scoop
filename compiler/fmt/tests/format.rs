@@ -97,3 +97,16 @@ fn long_expressions_and_comments_keep_grammar_boundaries() {
         "fun f() {\r\n    return 1\r\n}\r\n"
     );
 }
+
+#[test]
+fn block_imports_stay_in_place_and_preserve_statement_separators() {
+    for source in [
+        "fun f(){import api.pick as selected;selected(); {import api.*;pick()}; selected()}",
+        "fun f()=apply { x -> import api.*; x.convert() }",
+        "fun f(){call();\n// local\nimport api.pick\npick()}",
+    ] {
+        let formatted = checked(source);
+        assert!(formatted.starts_with("fun f("), "{formatted}");
+        assert!(formatted.contains("import api."), "{formatted}");
+    }
+}

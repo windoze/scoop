@@ -1,14 +1,14 @@
-//! Immutable direct package types shared by qualified source lookups.
+//! Immutable direct package bindings shared by qualified source lookups.
 
 use super::*;
 use crate::Lowerer;
-use scoop_identity::{BindingNamespace, CanonicalIdentifier, PackagePath};
+use scoop_identity::{CanonicalIdentifier, PackagePath};
 
-pub(super) type DirectPackageTypeIndex = BTreeMap<PackagePath, Vec<DirectPackageTypes>>;
+pub(super) type DirectPackageIndex = BTreeMap<PackagePath, Vec<DirectPackageBindings>>;
 
-pub(super) struct DirectPackageTypes {
+pub(super) struct DirectPackageBindings {
     pub provider: scoop_identity::ConeIdentity,
-    pub types: BTreeMap<String, Vec<hir::DirectImportedTargetBinding>>,
+    pub groups: Vec<hir::DirectNamedPublicBindingGroup>,
 }
 
 pub(crate) struct QualifiedPackagePrefix {
@@ -32,11 +32,11 @@ impl QualifiedPackagePrefix {
 }
 
 impl CurrentUnitImports {
-    pub(super) fn collect_direct_package_types(
+    pub(super) fn collect_direct_packages(
         &mut self,
         world: Option<&hir::ImportedSemanticWorld<'_>>,
     ) {
-        let mut packages = DirectPackageTypeIndex::new();
+        let mut packages = DirectPackageIndex::new();
         if let Some(world) = world {
             for path in world.direct_packages().paths() {
                 let package = world
@@ -44,23 +44,16 @@ impl CurrentUnitImports {
                     .expect("an indexed package belongs to the same semantic world");
                 let contributions = package
                     .provider_ids()
-                    .map(|provider| DirectPackageTypes {
+                    .map(|provider| DirectPackageBindings {
                         provider,
-                        types: package
-                            .snapshot_filtered(|candidate| candidate == provider)
-                            .into_iter()
-                            .filter(|group| group.namespace() == BindingNamespace::Type)
-                            .map(|group| {
-                                (group.name().as_str().to_owned(), group.targets().to_vec())
-                            })
-                            .collect(),
+                        groups: package.snapshot_filtered(|candidate| candidate == provider),
                     })
                     .collect();
                 // A package with only values still owns its prefix.
                 packages.insert(path.clone(), contributions);
             }
         }
-        self.direct_package_types = std::sync::Arc::new(packages);
+        self.direct_packages = std::sync::Arc::new(packages);
     }
 }
 
@@ -81,7 +74,7 @@ impl Lowerer {
         let direct = (1..=segments.len()).rev().find_map(|length| {
             let prefix = PackagePath::from_segments(segments[..length].to_vec());
             self.imports
-                .direct_package_types
+                .direct_packages
                 .get_key_value(&prefix)
                 .filter(|(_, contributions)| {
                     contributions

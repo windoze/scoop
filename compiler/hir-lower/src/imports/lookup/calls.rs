@@ -52,23 +52,56 @@ pub(crate) enum ExpressionQualifierLookup {
     Ambiguous,
 }
 
-impl ImportLookupLayer {
-    pub(crate) fn call_rank(self) -> usize {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum ImportLookupRank {
+    ImplicitReceiver,
+    Block {
+        depth: std::cmp::Reverse<usize>,
+        star: bool,
+    },
+    Exact,
+    CurrentPackage,
+    Star,
+    CorePrelude,
+}
+
+impl ImportLookupRank {
+    pub(crate) fn name(self) -> &'static str {
         match self {
-            Self::Exact | Self::QualifiedPackage => 0,
-            Self::CurrentPackage(_) => 1,
-            Self::Star => 2,
-            Self::CorePrelude => 3,
+            Self::ImplicitReceiver => "implicit receiver",
+            Self::Block { star: false, .. } => "block exact import",
+            Self::Block { star: true, .. } => "block star import",
+            Self::Exact => "exact import",
+            Self::CurrentPackage => "current package",
+            Self::Star => "star import",
+            Self::CorePrelude => "core prelude",
+        }
+    }
+}
+
+impl ImportLookupLayer {
+    pub(crate) fn call_rank(self) -> ImportLookupRank {
+        match self {
+            Self::BlockExact(depth) => ImportLookupRank::Block {
+                depth: std::cmp::Reverse(depth),
+                star: false,
+            },
+            Self::BlockStar(depth) => ImportLookupRank::Block {
+                depth: std::cmp::Reverse(depth),
+                star: true,
+            },
+            Self::Exact | Self::QualifiedPackage => ImportLookupRank::Exact,
+            Self::CurrentPackage(_) => ImportLookupRank::CurrentPackage,
+            Self::Star => ImportLookupRank::Star,
+            Self::CorePrelude => ImportLookupRank::CorePrelude,
         }
     }
 
     pub(crate) fn call_name(self) -> &'static str {
-        match self {
-            Self::Exact => "exact import",
-            Self::CurrentPackage(_) => "current package",
-            Self::QualifiedPackage => "qualified package",
-            Self::Star => "star import",
-            Self::CorePrelude => "core prelude",
+        if self == Self::QualifiedPackage {
+            "qualified package"
+        } else {
+            self.call_rank().name()
         }
     }
 }

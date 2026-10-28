@@ -1,0 +1,11 @@
+package scoped.first
+
+public fun choose(): Int = 1
+public fun choose(value: Int): Int = value + 1
+public fun adjust(value: Int): Int = value + 10
+public fun<T> echo(value: T): T = value
+public fun Int.mark(): Int = this + 100
+public struct Runner(val base: Int)
+public operator fun Runner.invoke(value: Int): Int = base + value
+public enum Choice { Ready, Value(Int) }
+public const val number: Int = 7

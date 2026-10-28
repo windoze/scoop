@@ -50,6 +50,26 @@ impl Parser {
     }
 
     fn parse_statement_inner(&mut self) -> Result<Statement, Diagnostic> {
+        if matches!(self.peek().kind, TokenKind::Import) || self.at_public_import() {
+            let import = self.parse_import_header()?;
+            let (exposure, span) = match &import {
+                scoop_ast::ImportSyntax::Exact { exposure, span, .. }
+                | scoop_ast::ImportSyntax::Star { exposure, span, .. } => (*exposure, *span),
+            };
+            if let scoop_ast::ImportExposureSyntax::PublicReexport {
+                public_keyword_span,
+            } = exposure
+            {
+                return Err(Diagnostic::at(
+                    public_keyword_span,
+                    "public import is only allowed in a file header",
+                ));
+            }
+            return Ok(Statement {
+                kind: StatementKind::Import(import),
+                span,
+            });
+        }
         if self.starts_local_type() {
             let declaration = self.parse_local_type()?;
             return Ok(Statement {

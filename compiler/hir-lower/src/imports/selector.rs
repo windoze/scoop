@@ -9,6 +9,7 @@ use crate::Lowerer;
 
 mod documentation;
 mod groups;
+mod stored;
 
 pub(super) enum SelectorResult {
     Targets(ast::NonEmptyVec<ImportedTargetBinding>),
@@ -57,6 +58,10 @@ impl SelectorError {
 
 enum NamespaceCursor<'world, 'input> {
     Current(ResolvedNamespace),
+    Stored {
+        identity: ResolvedImportNamespace,
+        groups: Vec<hir::DirectNamedPublicBindingGroup>,
+    },
     Direct(hir::DirectNamespaceView<'world, 'input>),
     SplitPackage {
         current: PackageId,
@@ -120,6 +125,9 @@ impl CurrentUnitImports {
         ast_segments: &[ast::Ident],
         canonical_segments: &[CanonicalIdentifier],
     ) -> (usize, NamespaceCursor<'world, 'input>) {
+        if world.is_none() {
+            return self.stored_package_cursor(lowerer, ast_segments, canonical_segments);
+        }
         let (current, current_len) = lowerer
             .top_level_namespaces
             .longest_package_prefix(lowerer.current_file, ast_segments);
@@ -180,12 +188,25 @@ impl CurrentUnitImports {
                     .target()
                     .source_nominal()
                     .ok_or(SelectorError::NotStaticOwner)?;
-                let namespace = world
-                    .and_then(|world| world.imported_static_namespace(owner))
-                    .ok_or(SelectorError::NotStaticOwner)?;
-                Ok(NamespaceCursor::Direct(hir::DirectNamespaceView::Static(
-                    namespace,
-                )))
+                if let Some(world) = world {
+                    let namespace = world
+                        .imported_static_namespace(owner)
+                        .ok_or(SelectorError::NotStaticOwner)?;
+                    Ok(NamespaceCursor::Direct(hir::DirectNamespaceView::Static(
+                        namespace,
+                    )))
+                } else {
+                    let groups = lowerer
+                        .dependencies
+                        .as_ref()
+                        .and_then(|dependencies| dependencies.static_namespace(owner))
+                        .ok_or(SelectorError::NotStaticOwner)?
+                        .to_vec();
+                    Ok(NamespaceCursor::Stored {
+                        identity: ResolvedImportNamespace::DirectStatic(owner),
+                        groups,
+                    })
+                }
             }
             ([], []) => Err(SelectorError::Missing {
                 inaccessible: group.inaccessible,
@@ -199,6 +220,7 @@ impl NamespaceCursor<'_, '_> {
     fn identity(&self) -> ResolvedImportNamespace {
         match self {
             Self::Current(namespace) => ResolvedImportNamespace::Current(*namespace),
+            Self::Stored { identity, .. } => identity.clone(),
             Self::Direct(hir::DirectNamespaceView::Package(namespace)) => {
                 ResolvedImportNamespace::DirectPackage(namespace.path().clone())
             }
