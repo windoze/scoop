@@ -3,7 +3,7 @@ name = "initialization-ready-moving"
 root = "program.scoop"
 inputs = ["program.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["gc", "initialization", "gc-correctness"]
 variants = [
   {name = "debug", vars = {profile = "debug"}, env = {SCOOP_GC_STRESS_MOVE = "1"}},

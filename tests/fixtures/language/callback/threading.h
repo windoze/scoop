@@ -1,7 +1,7 @@
 #ifndef M13_CALLBACK_THREADING_H
 #define M13_CALLBACK_THREADING_H
 
-/* Native threads deliberately enter Scoop only through the callback under test. */
+/* Native test threads use OS primitives independently of the Scoop runtime. */
 #ifdef _WIN32
 #include <process.h>
 #include <stdint.h>
@@ -12,6 +12,8 @@ typedef SRWLOCK M13Mutex;
 typedef CONDITION_VARIABLE M13Condition;
 typedef unsigned M13ThreadResult;
 #define M13_THREAD_CALL __stdcall
+#define M13_MUTEX_INITIALIZER SRWLOCK_INIT
+#define M13_CONDITION_INITIALIZER CONDITION_VARIABLE_INIT
 
 static inline int m13_mutex_init(M13Mutex *mutex) {
     InitializeSRWLock(mutex);
@@ -87,6 +89,8 @@ typedef pthread_mutex_t M13Mutex;
 typedef pthread_cond_t M13Condition;
 typedef void *M13ThreadResult;
 #define M13_THREAD_CALL
+#define M13_MUTEX_INITIALIZER PTHREAD_MUTEX_INITIALIZER
+#define M13_CONDITION_INITIALIZER PTHREAD_COND_INITIALIZER
 
 #define m13_mutex_init(mutex) pthread_mutex_init(mutex, NULL)
 #define m13_mutex_lock pthread_mutex_lock

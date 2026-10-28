@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | W0 工具链与 ABI | 关键路线实验通过 | 复现入口与范围见下文；正式编译器集成在 W1／W2 完成 |
 | W1 编译／链接 | 实施中 | 三目标开发 CLI 已支持 subsystem、RC、DLL 数据与跨 Cone C++；cl／clang-cl 消费同一 MSVC 静态库和 DLL 的完整程序及原生输入诊断通过，继续调试信息与组合验收 |
-| W2 core runtime | 实施中 | core／std／test 已构建，启动、异常、移动 GC、原生线程 callback 与跨 Cone TLS 的真实程序通过；继续初始化、shutdown、并行 GC 与其余组合验收 |
+| W2 core runtime | 实施中 | core／std／test 已构建，异常、移动 GC、callback、TLS、初始化、shutdown 与并行 GC 的定向程序通过；继续 core／std Cone 测试及其余 ABI／GC 组合验收 |
 | W3 系统库 | 待实施 | 平台规范与实现、IOCP、全部 native 组件、真实 consumer |
 | W4 宿主与发行 | 基础实施中 | 进程中断已实现；继续 Windows 命令、维护脚本、DLL／SDK 布局与打包、交叉编译 |
 
@@ -148,3 +148,7 @@ Windows 跨 Cone C++ 需求现由所选目标的 final-link profile 提供，保
 MinGW callback 返回后的 enum switch 崩溃已闭合：LLVM 的 section headers 与 section-definition symbols 顺序不同，旧常量合并会把 jump-table 引用移到后方定义的 associative section，LLD 因此丢弃其目标。现在按原 section-definition symbol 顺序选择和排列合并内容，保留 relocation 与 symbol 索引。包含 refptr、jump table 和真实 COMDAT 的原生回归在修正前复现访问冲突，修正后两个 MinGW CRT 均运行通过；既有常量池、switch atom、Microsoft LINK 普通 COFF／bigobj 共五项定向测试及 codegen Clippy 通过。
 
 callback 测试使用有限的共享 native thread helper，Windows 由 `_beginthreadex`、SRW lock 和 condition variable 执行实际外来线程，POSIX 保持原 pthread 操作；全部使用方声明新增 header 输入。三个 release CLI 与各目标 core／std／test 已更新，C 格式化与三环境严格警告检查通过。六项 callback、errno callback、regions threads 和跨 Cone TLS 共九项正式 fixture 在三个 target 均通过，每目标 11 个变体／56 个进程步骤，覆盖 callback 异常与 continuation、errno 保持、attach／detach、跨 Cone TLS 隔离、artifact-only 重链接，以及 debug／release 的移动／minor GC 借用根。原七项 MinGW callback／errno 失败全部闭合；剩余 W1～W4 工作继续实施，未开始远端测试。
+
+shutdown 的 native companion 复用同一 OS thread helper，覆盖仍附着的外来线程、活动 callback、未释放 token 的退出诊断，以及正常返回／显式 exit 的缓冲刷新、状态码和 atexit 差异。四项 shutdown、两项初始化、线程分配、线程 poll／根保持及并行标记共十项正式 fixture 在三个 target 均通过；C 格式化与严格告警检查通过。
+
+并行标记的首轮检查曾因 Windows 线程 CPU 时钟在短 GC 内未增长而失败；实际任务与对象计数确认标记完整。测试现在允许 CPU 采样值相等并拒绝倒退，继续精确检查 worker 数、array task 增长及本轮 marked／live 对象数，不用计时粒度判断 GC 是否执行。修正后每目标 debug／release 两个变体、20 个进程步骤通过，包含 1／2／4／8 workers、moving 与 minor；runtime 计时实现未改动。core／std Cone 测试、其余 ABI 组合和 W1／W3／W4 继续实施，未开始远端测试。

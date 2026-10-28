@@ -1,6 +1,9 @@
+#ifdef _WIN32
+#define _CRT_SECURE_NO_WARNINGS
+#endif
 #include "scoop_rt.h"
 
-#include <pthread.h>
+#include "../callback/threading.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -8,9 +11,9 @@
 
 typedef int32_t (*Callback)(void *);
 
-static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t condition = PTHREAD_COND_INITIALIZER;
-static pthread_t worker;
+static M13Mutex mutex = M13_MUTEX_INITIALIZER;
+static M13Condition condition = M13_CONDITION_INITIALIZER;
+static M13Thread worker;
 static bool ready;
 static bool finish;
 static Callback callback;
@@ -24,40 +27,40 @@ static void check(int error) {
 }
 
 void m33_shutdown_hold(void) {
-    check(pthread_mutex_lock(&mutex));
+    check(m13_mutex_lock(&mutex));
     ready = true;
-    check(pthread_cond_broadcast(&condition));
+    check(m13_condition_broadcast(&condition));
     while (!finish) {
-        check(pthread_cond_wait(&condition, &mutex));
+        check(m13_condition_wait(&condition, &mutex));
     }
-    check(pthread_mutex_unlock(&mutex));
+    check(m13_mutex_unlock(&mutex));
 }
 
-static void *attached_worker(void *argument) {
+static M13ThreadResult M13_THREAD_CALL attached_worker(void *argument) {
     (void)argument;
     if (!scoop_rt_attach_foreign_thread()) {
         abort();
     }
     m33_shutdown_hold();
     scoop_rt_detach_foreign_thread();
-    return NULL;
+    return 0;
 }
 
-static void *callback_worker(void *argument) {
+static M13ThreadResult M13_THREAD_CALL callback_worker(void *argument) {
     (void)argument;
     result = callback(callback_context);
-    return NULL;
+    return 0;
 }
 
-static void start(void *(*entry)(void *)) {
-    check(pthread_mutex_lock(&mutex));
+static void start(M13ThreadResult(M13_THREAD_CALL *entry)(void *)) {
+    check(m13_mutex_lock(&mutex));
     ready = false;
     finish = false;
-    check(pthread_create(&worker, NULL, entry, NULL));
+    check(m13_thread_create(&worker, entry, NULL));
     while (!ready) {
-        check(pthread_cond_wait(&condition, &mutex));
+        check(m13_condition_wait(&condition, &mutex));
     }
-    check(pthread_mutex_unlock(&mutex));
+    check(m13_mutex_unlock(&mutex));
 }
 
 void m33_shutdown_start_attached(void) { start(attached_worker); }
@@ -69,11 +72,11 @@ void m33_shutdown_start_callback(Callback entry, void *context) {
 }
 
 int32_t m33_shutdown_join(void) {
-    check(pthread_mutex_lock(&mutex));
+    check(m13_mutex_lock(&mutex));
     finish = true;
-    check(pthread_cond_broadcast(&condition));
-    check(pthread_mutex_unlock(&mutex));
-    check(pthread_join(worker, NULL));
+    check(m13_condition_broadcast(&condition));
+    check(m13_mutex_unlock(&mutex));
+    check(m13_thread_join(worker));
     return result;
 }
 
