@@ -226,6 +226,13 @@ pub(super) fn emit_function<'ctx>(
     let llvm_function = llvm
         .get_function(function.symbol())
         .expect("function declared in the first pass");
+    let mut debug = module_ctx
+        .debug
+        .and_then(|debug| debug.function(function, llvm_function));
+    builder.unset_current_debug_location();
+    if let Some(debug) = &mut debug {
+        debug.set_location(builder, &scoop_source::DebugOrigin::Generated);
+    }
 
     // A function containing a landing pad needs Scoop's closed-profile
     // personality (M25, runtime spec 5). Setting it also makes LLVM emit the
@@ -373,6 +380,9 @@ pub(super) fn emit_function<'ctx>(
         // the first of its block (LLVM requires the landingpad first).
         let mut invoke_terminated = false;
         for (index, instruction) in block.instructions.iter().enumerate() {
+            if let Some(debug) = &mut debug {
+                debug.set_location(builder, block.instructions.origin(index));
+            }
             emitter.current_instruction = index;
             let is_invoke = matches!(instruction, Instruction::Invoke { .. });
             if is_invoke && index + 1 != block.instructions.len() {
@@ -417,6 +427,9 @@ pub(super) fn emit_function<'ctx>(
                 }
             }
             continue;
+        }
+        if let Some(debug) = &mut debug {
+            debug.set_location(builder, &block.terminator_origin);
         }
         match &block.terminator {
             Terminator::Br(target) => {
@@ -534,5 +547,6 @@ pub(super) fn emit_function<'ctx>(
             }
         }
     }
+    builder.unset_current_debug_location();
     emitter.runtime_scans.finish()
 }

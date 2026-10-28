@@ -31,6 +31,9 @@ pub use target::*;
 mod optimization;
 pub use optimization::OptimizationMode;
 
+mod debug;
+pub use debug::DebugInfoLevel;
+
 mod backend;
 pub use backend::*;
 

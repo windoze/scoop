@@ -1032,6 +1032,7 @@ dependencies = [
  "scoop-lir",
  "scoop-process",
  "scoop-slib",
+ "scoop-source",
  "scoop-target-data",
  "scoop-toolchain",
  "tempfile",

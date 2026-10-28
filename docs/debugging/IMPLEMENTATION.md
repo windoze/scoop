@@ -31,3 +31,5 @@
 共享记录及嵌套内联链、中文／CRLF 和导入位置换算、MIR 内联观测及六项基本 lowering 测试通过。DWARF 发射、变量声明／作用域的完整描述和用户调试入口继续在后续变更中完成。
 
 LIR 已贯通函数、指令和 terminator 的来源引用。指令与来源作为同一记录移动，GC poll／协议生成指令显式无源码位置；实际托管调用测试确认插入 poll 后仍引用原调用位置，三项 roots 回归通过。公共文件记录分别保存语言身份及 debugger 路径，本地沿已有输入 locator，导入模板沿已有逻辑路径，不读取源码补信息或重复写入 metadata。
+
+LLVM 后端已按独立级别发射 DWARF 5 行表、源码函数名／精确 linkage name、文件路径和内联位置链。生成操作使用无源码的 line 0，调试 builder 在优化前 finalize。定向对象测试覆盖 O0／O2 与 none／line-tables 的四种组合，验证 GC statepoint 变换前后 LLVM 合法、内联调用点仍存在，以及实际 Mach-O 行表的有无。此阶段仍需接通用户 CLI 和真实源码 debugger 验收。

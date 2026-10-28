@@ -3,6 +3,7 @@ use super::*;
 /// Module-level data function emission needs, bundled to keep
 /// signatures small.
 pub(crate) struct ModuleCtx<'a, 'ctx> {
+    pub(crate) debug: Option<&'a crate::debug::DebugContext<'ctx>>,
     pub(crate) reuse_interface_values: bool,
     pub(crate) optimize_allocations: bool,
     pub(crate) optimize_reference_writes: bool,

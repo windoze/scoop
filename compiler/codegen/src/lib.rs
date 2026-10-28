@@ -73,6 +73,7 @@ mod callable_atom_boundaries;
 mod callable_constants;
 mod callable_runtime_scans;
 mod dataflow;
+mod debug;
 mod declarations;
 mod elf_llvm;
 mod elf_object;
