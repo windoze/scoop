@@ -34,8 +34,11 @@ static void run_case(size_t workers, bool minor, bool old_slots) {
     scoop_thread_attach_main();
     scoop_thread_enter_managed((void *)scoop_rt_thread_debug_stack_high());
     assert(nursery_node(7)->value == 7);
-    nursery_collect(false);
-    assert(nursery_metrics().full_collections == 1);
+    nursery_collect(minor);
+    assert(nursery_metrics().full_collections == (minor ? 0 : 1));
+    if (minor) {
+        assert(nursery_metrics().minor_collections == 1);
+    }
     scoop_gc_heap_state.nursery_capacity = (size_t)32 << 20;
 
     static const struct {
@@ -77,8 +80,12 @@ static void run_case(size_t workers, bool minor, bool old_slots) {
 
     if (minor) {
         void *pinned[] = {objects[0], objects[3]};
-        for (unsigned pass = 0; pass < 2; pass++) {
-            nursery_collect(pass == 0);
+        for (unsigned pass = 0; pass < 4; pass++) {
+            bool collect_minor = pass % 2 == 0;
+            if (pass == 2) {
+                objects[COUNT - 1] = allocate_bytes(cases[COUNT - 1].size);
+            }
+            nursery_collect(collect_minor);
             assert(objects[0] == pinned[0] && objects[3] == pinned[1]);
             /* Minor retains aligned and mixed-layout pinned blocks, while other
              * roots can share a copy target. Full collection must consume the result. */
@@ -96,7 +103,7 @@ static void run_case(size_t workers, bool minor, bool old_slots) {
                         bit_set(expected, line);
                     }
                 }
-                if (pass != 0 || (block->slot_size == 0 &&
+                if (!collect_minor || (block->slot_size == 0 &&
                                   block->head->generation == SCOOP_GC_OLD)) {
                     assert(memcmp(block->line_live, expected, sizeof expected) == 0);
                 }
