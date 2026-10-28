@@ -16,7 +16,7 @@
 | Zstandard 1.5.7 level 1 | 431.15 | 0.929 | 0.305 |
 | Zstandard 1.5.7 level 3 | 365.29 | 1.895 | 0.360 |
 
-选择 Zstandard fast 3，即 API level `-3`。这一档在样本上兼顾体积和压缩成本；LZ4 解压更快，但文件更大。使用维护中的 Rust [zstd crate 0.14.3](https://crates.io/crates/zstd/0.14.3)，底层为 [Zstandard 1.5.7](https://github.com/facebook/zstd/releases/tag/v1.5.7)，关闭默认可选功能；不引入第二套编码、字典训练或压缩线程池。
+首次实现选择 Zstandard fast 3，即 API level `-3`；2026-10-29 的补充测量后，统一改用标准 level `3`，结果见[后续体积调查](FOLLOW_UP.md)。使用维护中的 Rust [zstd crate 0.14.3](https://crates.io/crates/zstd/0.14.3)，底层为 [Zstandard 1.5.7](https://github.com/facebook/zstd/releases/tag/v1.5.7)，关闭默认可选功能；不引入第二套编码、字典训练或压缩线程池。
 
 ## 内容精简
 
