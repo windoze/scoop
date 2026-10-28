@@ -197,7 +197,7 @@ fn same_edges(expected: &[ConeCoordinate], actual: &[ConeCoordinate]) -> Result<
     Ok(())
 }
 
-fn version(actual: u32) -> Result<(), String> {
+pub(super) fn version(actual: u32) -> Result<(), String> {
     if actual != PACKAGE_PROTOCOL_VERSION {
         return Err(format!(
             "unsupported package protocol version {actual}; expected {PACKAGE_PROTOCOL_VERSION}"

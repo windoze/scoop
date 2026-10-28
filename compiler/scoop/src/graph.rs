@@ -15,6 +15,7 @@ use crate::{
 };
 
 mod diagnostic;
+mod package;
 
 pub use diagnostic::*;
 

@@ -1,6 +1,4 @@
 use super::*;
-use crate::discovery::BuildContext;
-use crate::{DiagnosticsPolicy, GraphTarget, LoadedBuildRoot, ResolvedBuildGraph};
 
 pub(super) struct Plan {
     pub graphs: Vec<ResolvedBuildGraph>,
@@ -12,13 +10,17 @@ pub(super) struct Source {
     pub identity: ConeIdentity,
     pub key: String,
     pub root: PathBuf,
+    pub readme: Option<PathBuf>,
     pub sources: Vec<SelectedSource>,
     pub dependencies: Vec<scoop_doc::ConeReference>,
 }
 
 impl Plan {
-    pub fn new(request: &DocumentRequest) -> BuildResult<Self> {
-        if request.roots.is_empty() {
+    pub fn new(
+        mut graphs: Vec<ResolvedBuildGraph>,
+        request: &DocumentRequest,
+    ) -> BuildResult<Self> {
+        if graphs.is_empty() {
             return Err(error("documentation requires at least one manifest root"));
         }
         let selection =
@@ -26,36 +28,6 @@ impl Plan {
         let compiler = file_state(request.compiler.as_path())?.ok_or_else(|| {
             io_error(request.compiler.as_path(), "paired compiler does not exist")
         })?;
-        let mut graphs = Vec::new();
-        for root in &request.roots {
-            if root.manifest_root().is_none() {
-                return Err(error(
-                    "documentation requires manifest Cones; single-file input is not accepted",
-                ));
-            }
-            let context = BuildContext {
-                artifact_search_roots: request.search.clone(),
-                cache_root: request.cache.clone(),
-                sysroot: request.sysroot.clone(),
-                target: GraphTarget::Frontend {
-                    selection,
-                    request: request.target.clone(),
-                },
-                compiler: request.compiler.clone(),
-                diagnostics: DiagnosticsPolicy::Structured,
-                optimization: Default::default(),
-                purpose: scoop_protocol::CompilationPurpose::Production,
-                jobs: std::num::NonZeroUsize::MIN,
-                generators: Default::default(),
-            };
-            let graph = LoadedBuildRoot::from_input(root.clone(), context)
-                .map_err(BuildFailure::root)?
-                .discover()
-                .map_err(BuildFailure::discovery)?
-                .resolve()
-                .map_err(BuildFailure::classified)?;
-            graphs.push(graph);
-        }
         // A consumer produces a shared source dependency and its documentation
         // together before an explicit root for that dependency is considered.
         graphs.sort_by_key(|graph| std::cmp::Reverse(graph.node_count()));
@@ -135,6 +107,10 @@ impl Plan {
                         identity: *identity,
                         key,
                         root: manifest.real_root().to_owned(),
+                        readme: manifest
+                            .metadata()
+                            .get("readme")
+                            .map(|path| manifest.real_root().join(path)),
                         sources: selected.iter().cloned().collect(),
                         dependencies,
                     },

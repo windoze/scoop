@@ -20,23 +20,21 @@ pub use outcome::*;
 pub use request::*;
 
 pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
-    let target = request.graph.target().clone();
+    let target = request
+        .graph
+        .target()
+        .production(request.graph.cache_root().as_path())
+        .map_err(|error| {
+            BuildFailure::tool("SCOOP_BUILD_TARGET", BuildFailurePhase::Toolchain, error)
+        })?
+        .into_owned();
     let vendor_root = request.graph.sysroot().as_path().join("vendor");
     let cache = request.graph.cache_root().as_path().to_owned();
     let stem = request
         .graph
-        .root()
         .single_file_source()
         .map(|source| sanitized_stem(source.display_path()));
-    let graph = request
-        .graph
-        .with_optimization(request.profile.optimization())
-        .load_root()
-        .map_err(BuildFailure::root)?
-        .discover()
-        .map_err(BuildFailure::discovery)?
-        .resolve()
-        .map_err(BuildFailure::classified)?;
+    let graph = request.graph;
     if request.require_executable && graph.root_kind() == RequestedConeKind::Library {
         return Err(BuildFailure::tool(
             "SCOOP_RUN_LIBRARY",
@@ -247,6 +245,10 @@ fn output_path(
         .unwrap_or_else(|| root.join("target"))
         .join(target.canonical_triple())
         .join(profile.as_str());
+    if let Some(manifest) = graph.source_input(graph.root_identity()) {
+        directory.push(manifest.coordinate().group());
+        directory.push(manifest.coordinate().name());
+    }
     if graph.compilation_purpose(graph.root_identity()) == scoop_protocol::CompilationPurpose::Test
     {
         directory.push("tests");

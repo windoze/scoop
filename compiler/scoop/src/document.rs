@@ -7,8 +7,8 @@ use scoop_identity::ConeIdentity;
 use scoop_protocol::{StructuredDiagnosticV1, TargetSelectionRequestV1};
 
 use crate::{
-    ArtifactCacheRoot, ArtifactSearchRoot, BuildFailure, BuildFailurePhase, BuildResult,
-    BuildRootInput, PairedScoopcLocator, SelectedSource, TrustedSysrootRoot,
+    ArtifactCacheRoot, BuildFailure, BuildFailurePhase, BuildResult, PairedScoopcLocator,
+    ResolvedBuildGraph, SelectedSource,
 };
 
 mod cache;
@@ -19,12 +19,9 @@ mod publication;
 
 #[derive(Debug)]
 pub struct DocumentRequest {
-    pub roots: Vec<BuildRootInput>,
     pub target: TargetSelectionRequestV1,
-    pub sysroot: TrustedSysrootRoot,
     pub cache: ArtifactCacheRoot,
     pub compiler: PairedScoopcLocator,
-    pub search: Vec<ArtifactSearchRoot>,
     pub output: PathBuf,
     pub no_deps: bool,
     pub private: bool,
@@ -48,8 +45,11 @@ pub struct DocumentedCone {
     pub output: PathBuf,
 }
 
-pub fn document(request: DocumentRequest) -> BuildResult<DocumentOutcome> {
-    let plan = plan::Plan::new(&request)?;
+pub fn document(
+    graphs: Vec<ResolvedBuildGraph>,
+    request: DocumentRequest,
+) -> BuildResult<DocumentOutcome> {
+    let plan = plan::Plan::new(graphs, &request)?;
     let _lock = publication::lock(&request.output)?;
     let mut compiled = Vec::new();
     for graph in plan.graphs {

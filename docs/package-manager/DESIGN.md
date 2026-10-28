@@ -90,11 +90,15 @@ PM 的 library 入口供自身命令与单元测试使用；构建 driver 通过
 
 建立 `scoop-pm`、`scoop pm` 转发和 prepare 数据合同。先用 path/sysroot/artifact 的精确图连接现有调度；将已展开 Cone 配置传到 child。当前 manifest 的版本要求开始区分声明与已解析 coordinate，既有“固定版本”意图统一改写为 `=...`。
 
+当前进度：自动 manifest 命令与协议 18 的已展开 child 输入已接通，单文件和 artifact-only link 保持独立；直接 scoopc 的新版本要求匹配及仓库清单统一迁移尚待完成。
+
 验收：PM 可单独 build/test，无 LLVM stage 依赖；独立进程产生完整图；driver 用准备结果完成一个真实 Cone 的构建；低层 direct/support 错误仍有代表性测试。不是先将全部 PM 代码加入 `scoop` 后再拆。
 
 ### 第二步：workspace 与多根构建
 
 实现成员定位、virtual/root workspace、显式字段继承、共享依赖、根选择及多根输出。准备接口一次返回多个独立闭包；已有编译调度按完整构建输入共享任务。fmt/members 仅需本地展开。
+
+当前进度：成员/继承、一次 prepare、多根输出和本地成员默认选择已接入。各根目前依次执行；跨根调度、同身份不同绑定的文档表示及 fmt 接入尚待完成。
 
 验收：根/成员目录调用、`-p`、`--workspace`、重复坐标/错误继承诊断；两个独立程序可使用不同版本；相同 Cone 在不同上游绑定下不错误共用产物；共享相同输入只构建一次，jobs 为整体上限。
 

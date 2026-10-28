@@ -53,8 +53,10 @@ struct MembersArgs {
     json: bool,
 }
 
-pub fn run() -> PmResult<()> {
-    execute(Cli::parse())
+pub fn run() -> Result<(), (PmError, bool)> {
+    let cli = Cli::parse();
+    let machine = matches!(&cli.command, Command::Prepare { .. });
+    execute(cli).map_err(|error| (error, machine))
 }
 
 fn execute(cli: Cli) -> PmResult<()> {

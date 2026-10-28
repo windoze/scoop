@@ -31,7 +31,7 @@ json = "stderr"
 diagnostics = []
 checks = [
     {actual = "${build-tests.result.dependencies.length}", equals = 2},
-    {actual = "${build-tests.result.output}", equals = "${work}/outputs/${target}/${profile}/tests/selection"},
+    {actual = "${build-tests.result.output}", equals = "${work}/outputs/${target}/${profile}/dev.selection/selection/tests/selection"},
     {actual = "${build-tests.result.root.path}", not_equals = "${production.result.root.path}"},
 ]
 

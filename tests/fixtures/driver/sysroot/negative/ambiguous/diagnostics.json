@@ -1,12 +1,14 @@
 [
   {
-    "code": "SCOOP_LOCATOR_AMBIGUOUS_ARTIFACT",
-    "message": "artifact scoop:scoop.platform:0.1.0 has 2 candidates with different fingerprints",
+    "code": "SCOOP_PACKAGE_PREPARE",
+    "message": "ambiguous artifacts for scoop:scoop.platform:0.1.0 in search roots",
     "notes": [],
     "origin": {
-      "kind": "none"
+      "end": 147,
+      "kind": "host",
+      "path": "${work}/cone/Cone.toml",
+      "start": 140
     },
-    "phase": "Locator",
     "severity": "error"
   }
 ]

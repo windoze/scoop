@@ -23,7 +23,7 @@ json = "stderr"
 diagnostics = []
 checks = [
   {actual = "${debug.result.root.path}", contains = "${work}/cone/target/${target}/build/debug/compile-v3/"},
-  {actual = "${debug.result.output}", equals = "${work}/cone/target/${target}/debug/local-cache.slib"},
+  {actual = "${debug.result.output}", equals = "${work}/cone/target/${target}/debug/test.cache/local-cache/local-cache.slib"},
   {actual = "${debug.result.observations.child_invocations.length}", equals = 1},
   {file = "${work}/target", exists = false},
 ]

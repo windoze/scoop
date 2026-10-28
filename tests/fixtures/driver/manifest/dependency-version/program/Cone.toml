@@ -7,4 +7,4 @@ version = "0.1.0"
 kind = "library"
 
 [test-dependencies]
-"dev.m43:helper" = "^0.1.0"
+"dev.m43:helper" = "^not-a-version"

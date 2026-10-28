@@ -1,15 +1,14 @@
 [
   {
-    "code": "SCOOP_LOCATOR_COORDINATE_MISMATCH",
-    "message": "dependency at ${work}/sysroot/lib/${target}/scoop.platform.slib declares scoop:scoop.platform:0.2.0, expected scoop:scoop.platform:0.1.0",
+    "code": "SCOOP_PACKAGE_PREPARE",
+    "message": "dependency resolution failed:\ndev.m33:sysroot-reject 0.1.0 [path .] depends on scoop:scoop.platform ∅\n  dev.m33:sysroot-reject -> scoop:scoop.platform: dev.m33:sysroot-reject:0.1.0 requires 0.1.0 from sysroot/artifact search roots\n    ${work}/cone/Cone.toml (bytes 138..145)\n    candidate 0.2.0 [sysroot scoop.platform]: does not satisfy 0.1.0",
     "notes": [],
     "origin": {
-      "end": null,
+      "end": 145,
       "kind": "host",
-      "path": "${work}/sysroot/lib/${target}/scoop.platform.slib",
-      "start": null
+      "path": "${work}/cone/Cone.toml",
+      "start": 138
     },
-    "phase": "Locator",
     "severity": "error"
   }
 ]

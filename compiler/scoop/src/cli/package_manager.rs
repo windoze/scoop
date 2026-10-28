@@ -10,6 +10,9 @@ use scoop_process::CommandExt;
 
 use super::commands::config;
 
+mod prepare;
+pub(super) use prepare::{PackageOptions, PrepareInput, prepare};
+
 #[derive(Args)]
 #[command(disable_help_flag = true, disable_version_flag = true)]
 pub(super) struct PmArgs {

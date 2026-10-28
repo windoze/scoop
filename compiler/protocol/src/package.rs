@@ -9,10 +9,25 @@ use serde::{Deserialize, Serialize};
 
 use crate::{CompilationPurpose, HostPathCarrier};
 
+mod diagnostic;
 mod summary;
 mod validate;
 
 pub const PACKAGE_PROTOCOL_VERSION: u32 = 1;
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PackageDiagnosticV1 {
+    pub version: u32,
+    #[serde(with = "diagnostic")]
+    pub diagnostic: crate::StructuredDiagnosticV1,
+}
+
+impl PackageDiagnosticV1 {
+    pub fn validate(&self) -> Result<(), String> {
+        validate::version(self.version)
+    }
+}
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

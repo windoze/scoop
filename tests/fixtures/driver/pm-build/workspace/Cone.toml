@@ -1,0 +1,10 @@
+schema = 1
+[workspace]
+members = ["one", "two", "shared"]
+default-members = ["one"]
+[workspace.cone]
+group = "dev.pm"
+version = "0.1.0"
+[workspace.dependencies]
+"dev.pm:shared" = { path = "shared", version = "0.1.0" }
+"dev.pm:remote" = { git = "GIT_URL", rev = "GIT_REV", version = "1.0.0" }

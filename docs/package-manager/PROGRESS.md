@@ -1,6 +1,6 @@
 # M63 包管理实施记录
 
-状态：实施中。更新日期：2026-10-28。目标合同见[包管理规范](../specs/SCOOP-PACKAGE-SPEC.md)，阶段完成条件见[设计](DESIGN.md#5-实施步骤与完成条件)。
+状态：实施中。更新日期：2026-10-28。目标合同见[包管理规范](../specs/SCOOP-PACKAGE-SPEC.md)，阶段完成条件见[设计](DESIGN.md#5-实施步骤与完成条件)。普通 manifest 命令现已接入 PM；多根共享调度、低层清单迁移、发布及工具/发行收尾尚未完成。
 
 ## 已完成的功能
 
@@ -47,6 +47,14 @@
 - parent 保留已加载的单 Cone 配置，native 准备及 child request 共享该结果。协议 reader 检查必需格式、引用、路径和诊断 span，不重放依赖求解。
 - 真实 child 进程可消费含 workspace 继承的原清单与已展开配置，原始源码/清单保持在位。此批完成编译器交接边界，尚未把普通构建的图发现替换为 PM prepare。
 
+### 普通构建命令接入 PM
+
+- build/run/test/check/doc 的 manifest 入口通过配套 PM 一次准备所选成员，支持 workspace、`-p`、lock 路径、locked/offline/frozen 和共享包缓存。driver 投影精确节点与边，不重新读取清单、选择版本或获取源码；single-file 与 artifact-only link 保持原有入口。
+- 成员产物按 `target/<target>/<profile>/<group>/<name>/` 发布，测试产物位于其 `tests/` 子目录。同名不同 group 成员不覆盖，workspace 成员子目录默认选择对应成员。
+- prepare 失败通过已有结构化诊断格式交付，保留主清单 span 与相关声明；求解错误包含依赖路径和候选被排除的原因。文档消费展开后的 readme 元数据，资源路径以 README 所在目录为基准。
+- 多根当前依次执行，各根内部保留并行调度，编译缓存可共享相同输入；跨根统一 ready queue 仍待实施。文档中的同身份不同绑定也仍需独立表示，不能把此批视为第二阶段全部完成。
+- fixture runner 新增多结果 JSON 模式，保留全部构建/检查/测试记录；正式 workspace 用例通过真实 Git 依赖验证自动 PM、成员输出、冻结复用、子目录选择与指定 README。
+
 ## 验证记录
 
 - `cargo clippy --workspace --all-targets` 通过。
@@ -59,4 +67,5 @@
 - prepare 批次：全 workspace lint 通过；macOS/Linux 的 manifest 77 项、protocol 41 项、PM 34 项单元、2 项基础 CLI 和 12 项解析/prepare CLI 场景通过。新增覆盖多根不同版本、继承诊断位置、测试根隔离、预编译摘要传输、共享 registry 路径，以及源码更新复用/新配置与 workspace/新搜索产物失效。真实非 UTF-8 目录由 Linux 覆盖；macOS 文件系统拒绝创建该名称，两端均验证路径载体的无损编码。
 - 已展开输入批次：全 workspace lint 通过；macOS/Linux 的 protocol 42 项、wire 19 项、PM/manifest 回归及真实 `scoopc` child 交接通过；driver 调度、CLI 与依赖边界检查通过。macOS 三个正式 CLI 用例共 20 次进程调用通过，覆盖 native 更新、生产/测试隔离和文档缓存。测试前发现本地预编译库 ABI 过旧，只重新准备所需 core/test 库后闭合。
 - 同批发现的 HIR 栈溢出已单独修复：候选状态在堆上保存，失败诊断借用状态。macOS 的调用/上下文推断 152 项回归通过；macOS/Linux 均通过 core 文档的三个目标检查，未扩大测试线程栈。
+- 自动入口批次：workspace 用例在 macOS/Linux 各 6 次实际进程调用通过；macOS 的 Scoop library 98 项、CLI 33 项、fixture runner 59 项通过，既有构建/运行/测试/检查/文档用例及 36 个边界用例通过。新诊断合同的 PM 34 项单元、2 项基础 CLI、13 项解析/prepare 场景及 protocol 42 项在两端通过。显式 artifact 版本、合法 caret 语法及循环来源的旧测试意图已按新合同修正，完整诊断继续精确断言；其中 25 个 PM 诊断用例也在 Linux 通过，native 用例前显式准备所需公开头文件。
 - 原始日志与临时工作文件在仓库外。按阶段清理 `target/debug/incremental`，保留当前二进制与依赖构建结果。

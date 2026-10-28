@@ -39,7 +39,7 @@ where
     let selected = match pubgrub::resolve(&provider, key.clone(), choice) {
         Ok(selected) => selected,
         Err(PubGrubError::NoSolution(tree)) => {
-            return Err(report::failure(&key, &provider.pool.borrow(), tree));
+            return Err(report::failure(&key, &provider.pool.borrow(), policy, tree));
         }
         Err(
             PubGrubError::ErrorChoosingVersion { source, .. }
@@ -72,10 +72,12 @@ where
         let mut range = Domain::empty();
         for candidate in candidates {
             if candidate.key() != dependency.key {
-                return Err(PmError::new(format!(
-                    "expected {}, source declares {}",
-                    dependency.key, candidate.coordinate
-                )));
+                let mut error = PmError::new(format!(
+                    "expected {} from {}, source declares {}",
+                    dependency.key, dependency.source, candidate.coordinate
+                ));
+                error.origins = dependency.origins.clone();
+                return Err(error);
             }
             let choice = candidate.choice();
             if candidate.kind == RequestedConeKind::Library

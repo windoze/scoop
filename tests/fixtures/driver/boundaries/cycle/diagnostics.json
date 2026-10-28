@@ -1,12 +1,11 @@
 [
   {
-    "code": "SCOOP_GRAPH_CYCLE",
-    "message": "resolved graph contains dependency cycles; dev.m43:cycle-helper:0.1.0 -> dev.m43:cycle-root:0.1.0 -> dev.m43:cycle-helper:0.1.0",
+    "code": "SCOOP_PACKAGE_PREPARE",
+    "message": "cycle in locked dependency graph at dev.m43:cycle-root:0.1.0",
     "notes": [],
     "origin": {
       "kind": "none"
     },
-    "phase": "GraphCycleOrder",
     "severity": "error"
   }
 ]

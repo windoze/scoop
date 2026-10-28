@@ -1,10 +1,7 @@
 use std::collections::BTreeMap;
 
 use super::*;
-use crate::discovery::BuildContext;
-use crate::{
-    DiagnosticsPolicy, GraphTarget, LoadedBuildRoot, ResolvedBuildGraph, SourceCacheInputV1,
-};
+use crate::SourceCacheInputV1;
 
 pub(super) struct Plan {
     pub graph: ResolvedBuildGraph,
@@ -14,35 +11,12 @@ pub(super) struct Plan {
 }
 
 impl Plan {
-    pub fn new(request: &CheckRequest) -> BuildResult<Self> {
-        if request.purpose == CompilationPurpose::Test && request.root.manifest_root().is_none() {
+    pub fn new(graph: ResolvedBuildGraph, request: &CheckRequest) -> BuildResult<Self> {
+        if request.purpose == CompilationPurpose::Test && graph.single_file_source().is_some() {
             return Err(error("--tests requires a manifest Cone"));
         }
         let selection =
             scoop_toolchain::select_target(request.target.canonical_triple()).map_err(error)?;
-        let graph = LoadedBuildRoot::from_input(
-            request.root.clone(),
-            BuildContext {
-                artifact_search_roots: request.search.clone(),
-                cache_root: request.cache.clone(),
-                sysroot: request.sysroot.clone(),
-                target: GraphTarget::Frontend {
-                    selection,
-                    request: request.target.clone(),
-                },
-                compiler: request.compiler.clone(),
-                diagnostics: DiagnosticsPolicy::Structured,
-                optimization: request.profile.optimization(),
-                purpose: request.purpose,
-                jobs: request.jobs,
-                generators: request.generators.clone(),
-            },
-        )
-        .map_err(BuildFailure::root)?
-        .discover()
-        .map_err(BuildFailure::discovery)?
-        .resolve()
-        .map_err(BuildFailure::classified)?;
         let root = graph
             .node_coordinate(graph.root_identity())
             .expect("resolved root exists")

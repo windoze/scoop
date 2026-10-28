@@ -110,3 +110,28 @@ fn compiler_jobs_apply_to_build_run_and_test_and_must_be_positive() {
         assert!(Cli::try_parse_from(["scoop", command, "--jobs", "0"]).is_err());
     }
 }
+
+#[test]
+fn package_selection_and_lock_flags_are_shared_by_build_commands() {
+    for command in ["build", "run", "test", "check", "doc"] {
+        assert!(
+            Cli::try_parse_from([
+                "scoop",
+                command,
+                "-p",
+                "example:one",
+                "-p",
+                "example:two",
+                "--frozen",
+                "--lockfile",
+                "locks/Cone.lock",
+                "--package-cache",
+                "shared-packages",
+            ])
+            .is_ok()
+        );
+        assert!(
+            Cli::try_parse_from(["scoop", command, "--workspace", "-p", "example:one"]).is_err()
+        );
+    }
+}

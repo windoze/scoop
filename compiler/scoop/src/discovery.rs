@@ -31,18 +31,18 @@ pub use root::LoadedBuildRoot;
 use root::LoadedRootInput;
 pub use target::GraphTarget;
 
-#[derive(Debug)]
-pub(crate) struct BuildContext {
-    pub(crate) artifact_search_roots: Vec<ArtifactSearchRoot>,
-    pub(crate) cache_root: ArtifactCacheRoot,
-    pub(crate) sysroot: TrustedSysrootRoot,
-    pub(crate) target: GraphTarget,
-    pub(crate) compiler: PairedScoopcLocator,
-    pub(crate) diagnostics: DiagnosticsPolicy,
-    pub(crate) optimization: scoop_lir::OptimizationMode,
-    pub(crate) purpose: scoop_protocol::CompilationPurpose,
-    pub(crate) jobs: std::num::NonZeroUsize,
-    pub(crate) generators: scoop_toolchain::GeneratorPrograms,
+#[derive(Clone, Debug)]
+pub struct BuildContext {
+    pub artifact_search_roots: Vec<ArtifactSearchRoot>,
+    pub cache_root: ArtifactCacheRoot,
+    pub sysroot: TrustedSysrootRoot,
+    pub target: GraphTarget,
+    pub compiler: PairedScoopcLocator,
+    pub diagnostics: DiagnosticsPolicy,
+    pub optimization: scoop_lir::OptimizationMode,
+    pub purpose: scoop_protocol::CompilationPurpose,
+    pub jobs: std::num::NonZeroUsize,
+    pub generators: scoop_toolchain::GeneratorPrograms,
 }
 
 #[derive(Debug)]

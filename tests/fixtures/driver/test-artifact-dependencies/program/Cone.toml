@@ -6,8 +6,8 @@ version = "0.1.0"
 kind = "executable"
 
 [dependencies]
-"dev.m43:values" = {version = "0.1.0", path = "../provider"}
+"dev.m43:values" = {version = "=0.1.0", path = "../provider"}
 
 [test-dependencies]
 "scoop:scoop.test" = "0.1.0"
-"dev.m43:test-helper" = {version = "0.1.0", path = "../helper"}
+"dev.m43:test-helper" = {version = "=0.1.0", path = "../helper"}

@@ -12,6 +12,22 @@ fn host(path: &Path) -> HostPathCarrier {
     HostPathCarrier::from_path(path).unwrap()
 }
 
+pub(super) fn failure(
+    output: std::process::Output,
+    expected: &str,
+) -> scoop_protocol::StructuredDiagnosticV1 {
+    assert!(!output.status.success(), "unexpected success");
+    let record: scoop_protocol::package::PackageDiagnosticV1 =
+        serde_json::from_slice(&output.stderr).unwrap();
+    record.validate().unwrap();
+    assert!(
+        record.diagnostic.message().contains(expected),
+        "{}",
+        record.diagnostic.message()
+    );
+    record.diagnostic
+}
+
 pub(super) fn request(root: &Path, input: &Path) -> PrepareRequestV1 {
     PrepareRequestV1 {
         version: 1,
@@ -53,6 +69,38 @@ pub(super) fn prepared(root: &Path, request: &PrepareRequestV1) -> PreparedWorks
         serde_json::from_slice(&fs::read(root.join("prepared.json")).unwrap()).unwrap();
     response.validate().unwrap();
     response
+}
+
+#[test]
+fn prepare_failure_preserves_a_manifest_span_through_the_process_boundary() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    let path = root.join("app/Cone.toml");
+    let text = format!(
+        "{}\n[dependencies]\n'org.example:lib'={{path=''}}\n",
+        cone("app", "1.0.0")
+    );
+    write(&path, &text);
+    let diagnostic = failure(
+        invoke(root, &request(root, &root.join("app"))),
+        "path must not be empty",
+    );
+    let scoop_protocol::DiagnosticOriginV1::HostPathSpan {
+        path: location,
+        span,
+    } = diagnostic.origin()
+    else {
+        panic!("manifest error has no location");
+    };
+    assert_eq!(
+        location.to_path_buf().unwrap(),
+        fs::canonicalize(path).unwrap()
+    );
+    assert_eq!(
+        &text[span.start() as usize..span.end() as usize],
+        "{path=''}"
+    );
+    assert!(!root.join("prepared.json").exists());
 }
 
 #[test]

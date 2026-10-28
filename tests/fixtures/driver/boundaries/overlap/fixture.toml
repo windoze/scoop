@@ -13,4 +13,4 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {file = "diagnostics.json"}
-checks = [{glob = "${work}/outputs/${target}/release/tests/*", equals = []}]
+checks = [{glob = "${work}/outputs/${target}/release/*/*/tests/*", equals = []}]

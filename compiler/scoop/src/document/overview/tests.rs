@@ -5,6 +5,7 @@ fn source(root: &Path) -> plan::Source {
         identity: ConeIdentity::CORE,
         key: String::new(),
         root: root.to_owned(),
+        readme: None,
         sources: Vec::new(),
         dependencies: Vec::new(),
     }
@@ -72,4 +73,20 @@ fn optional_readme_and_missing_resource_keep_precise_locations() {
         &readme[span.start() as usize..span.end() as usize],
         "[Missing](absent.png)"
     );
+}
+
+#[test]
+fn explicit_readme_resolves_resources_from_its_own_directory() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path();
+    let mut source = source(root);
+    source.readme = Some(root.join("guide/intro.md"));
+    let cache = ArtifactCacheRoot::new(root.join("cache")).unwrap();
+    assert!(select(&source, &cache).is_err());
+    std::fs::create_dir(root.join("guide")).unwrap();
+    std::fs::write(root.join("guide/intro.md"), "![Picture](picture.svg)").unwrap();
+    std::fs::write(root.join("guide/picture.svg"), "<svg/>").unwrap();
+    let overview = select(&source, &cache).unwrap();
+    assert!(overview.warnings.is_empty());
+    assert_eq!(overview.copies[0].0, root.join("guide/picture.svg"));
 }

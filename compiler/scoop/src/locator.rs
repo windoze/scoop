@@ -75,6 +75,19 @@ struct NonEmptyPrebuiltArtifactCandidates {
 }
 
 impl PrebuiltArtifactProjection {
+    pub(crate) fn from_prepared(path: PathBuf, summary: ArtifactManifestSummaryV1) -> Self {
+        Self {
+            coordinate: summary.cone().coordinate().clone(),
+            artifact_fingerprint: summary.artifact_fingerprint(),
+            candidates: NonEmptyPrebuiltArtifactCandidates {
+                first: PrebuiltArtifactCandidate {
+                    artifact: BuildArtifact::from_result(path, summary),
+                },
+                rest: Vec::new(),
+            },
+        }
+    }
+
     pub(crate) const fn coordinate(&self) -> &ConeCoordinate {
         &self.coordinate
     }

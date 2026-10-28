@@ -265,13 +265,17 @@ fn independent_roots_and_test_constraints_do_not_force_one_workspace_version() {
 fn dependencies_must_be_libraries_and_self_cycles_are_errors() {
     let mut executable = candidate("a", "1.0.0", vec![]);
     executable.kind = RequestedConeKind::Executable;
+    let error = run(
+        root(vec![edge("a", "1.0.0")]),
+        vec![executable],
+        &ResolvePolicy::default(),
+    )
+    .unwrap_err();
     assert!(
-        run(
-            root(vec![edge("a", "1.0.0")]),
-            vec![executable],
-            &ResolvePolicy::default()
-        )
-        .is_err()
+        error
+            .to_string()
+            .contains("executable; dependencies must be libraries"),
+        "{error}"
     );
     let recursive = candidate("a", "1.0.0", vec![edge("a", "1.0.0")]);
     let error = run(

@@ -32,7 +32,7 @@ name = "human-list"
 argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--list"]
 exit = 0
 stdout = {file = "list.stdout"}
-stderr = "built ${work}/outputs/${target}/${profile}/tests/list-tests (${profile})\n"
+stderr = "built ${work}/outputs/${target}/${profile}/dev.m43/list-tests/tests/list-tests (${profile})\n"
 
 [[steps]]
 name = "ignored-list"

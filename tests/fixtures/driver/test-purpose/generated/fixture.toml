@@ -68,7 +68,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
- {actual = "${umbrella.result.output}", equals = "${work}/production/${target}/${profile}/tests/generated-tests"},
+ {actual = "${umbrella.result.output}", equals = "${work}/production/${target}/${profile}/dev.m43/generated-tests/tests/generated-tests"},
  {actual = "${umbrella.result.root.path}", not_equals = "${production.result.root.path}"},
 ]
 

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::{BuildDumpRequest, BuildGraphRequest};
+use crate::{BuildDumpRequest, ResolvedBuildGraph};
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, clap::ValueEnum)]
 pub enum BuildProfile {
@@ -25,7 +25,7 @@ impl BuildProfile {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum RuntimeInput {
     SourceRoot(PathBuf),
     ObjectIndex(PathBuf),
@@ -33,7 +33,7 @@ pub enum RuntimeInput {
 
 /// Final user outputs and observations are separate from compilation inputs.
 pub struct BuildRequest {
-    pub graph: BuildGraphRequest,
+    pub graph: ResolvedBuildGraph,
     pub profile: BuildProfile,
     pub cwd: PathBuf,
     pub output: Option<PathBuf>,

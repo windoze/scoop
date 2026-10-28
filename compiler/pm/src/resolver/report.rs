@@ -11,6 +11,7 @@ use crate::PmError;
 pub(super) fn failure(
     root: &Key,
     pool: &Pool,
+    policy: &ResolvePolicy,
     tree: DerivationTree<Key, Domain, String>,
 ) -> PmError {
     let involved = tree.packages();
@@ -57,6 +58,32 @@ pub(super) fn failure(
                             origin.span.start,
                             origin.span.end
                         ));
+                        if !error.origins.contains(origin) {
+                            error.origins.push(origin.clone());
+                        }
+                    }
+                    if let Some(candidates) = pool.get(&edge.key) {
+                        for (choice, candidate) in candidates {
+                            let mut reasons = Vec::new();
+                            if candidate.kind != RequestedConeKind::Library {
+                                reasons.push("executable; dependencies must be libraries".into());
+                            }
+                            for version in &edge.versions {
+                                if !version.matches(&choice.version) {
+                                    reasons.push(format!("does not satisfy {version}"));
+                                }
+                            }
+                            if !policy.permitted(candidate) {
+                                reasons.push("excluded by lock, update, or yank policy".into());
+                            }
+                            if reasons.is_empty() {
+                                reasons.push("other version or source constraints conflict".into());
+                            }
+                            error.message.push_str(&format!(
+                                "\n    candidate {choice}: {}",
+                                reasons.join("; ")
+                            ));
+                        }
                     }
                 }
             }

@@ -1,7 +1,7 @@
 [
   {
-    "code": "SCOOP_BUILD_FAILED",
-    "message": "invalid build root: invalid Cone manifest root ${fixture}/program/Cone.toml: test dependency \"dev.m43:helper\" is already declared in dependencies; reuse the production dependency",
+    "code": "SCOOP_PACKAGE_PREPARE",
+    "message": "${fixture}/program/Cone.toml: test dependency \"dev.m43:helper\" is already declared in dependencies; reuse the production dependency",
     "notes": [],
     "origin": {
       "end": 189,
@@ -9,7 +9,6 @@
       "path": "${fixture}/program/Cone.toml",
       "start": 182
     },
-    "phase": "Root",
     "severity": "error"
   }
 ]

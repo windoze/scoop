@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "dev.pm"
+name = "remote"
+version = "1.0.0"
+kind = "library"

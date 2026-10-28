@@ -1,12 +1,14 @@
 [
   {
-    "code": "SCOOP_LOCATOR_NOT_FOUND",
-    "message": "artifact different:scoop.platform:0.1.0 was not found in 0 checked search roots",
+    "code": "SCOOP_PACKAGE_PREPARE",
+    "message": "no default registry for different:scoop.platform; declare registry.default or an explicit registry URL",
     "notes": [],
     "origin": {
-      "kind": "none"
+      "end": 149,
+      "kind": "host",
+      "path": "${work}/cone/Cone.toml",
+      "start": 142
     },
-    "phase": "Locator",
     "severity": "error"
   }
 ]

@@ -1,5 +1,6 @@
 use std::{fs, path::Path};
 
+use super::prepare::failure;
 use super::{prepare::*, support::*};
 
 fn records(root: &Path) -> Vec<(std::path::PathBuf, std::time::SystemTime)> {

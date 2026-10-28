@@ -77,6 +77,8 @@ pub(super) enum MessageFormat {
 
 #[derive(Args)]
 pub(super) struct BuildOptions {
+    #[command(flatten)]
+    pub packages: super::package_manager::PackageOptions,
     /// Cone directory, Cone.toml, or one .scoop file; defaults to ./Cone.toml.
     pub root_input: Option<PathBuf>,
     #[arg(long)]

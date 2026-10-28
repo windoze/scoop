@@ -216,3 +216,5 @@ wait 之前只有后台进程的 `.pid` 可引用；result／stdout 等要等完
 `--work-dir` 或失败时保留 report 与工作区，`--keep` 也可用于审阅成功运行。
 
 内置 Cone 的测试入口使用仓库 `sysroot/src` 中的当前源码；`--sysroot` 只选择预编译系统库与 native 资源。把 sysroot 指向独立的已准备目录时，不会误跑该目录中的旧版测试源码。
+
+workspace 多根命令使用 `json = "batch-stderr"`，按顺序在 `${step.records}` 保留每个构建／检查／测试结果；`result` 与 `test_result` 分别为最后一个对应结果。单次运行程序仍用原 `stderr` 模式，在首个工具结果后保留程序的 stderr 原文。

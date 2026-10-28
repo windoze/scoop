@@ -36,6 +36,54 @@ impl PmError {
     pub(crate) fn io(path: &Path, error: std::io::Error) -> Self {
         Self::new(format!("{}: {error}", path.display()))
     }
+
+    pub fn machine_diagnostic(
+        &self,
+    ) -> Result<scoop_protocol::package::PackageDiagnosticV1, String> {
+        use scoop_protocol::{
+            DiagnosticNoteV1, DiagnosticOriginV1, DiagnosticSeverityV1, HostPathCarrier,
+            ProtocolByteSpan, StructuredDiagnosticV1,
+        };
+        let mut origins = self.origins.iter().map(|origin| -> Result<_, String> {
+            Ok(DiagnosticOriginV1::HostPathSpan {
+                path: HostPathCarrier::from_path(&origin.manifest).map_err(|e| e.to_string())?,
+                span: ProtocolByteSpan::new(
+                    origin
+                        .span
+                        .start
+                        .try_into()
+                        .map_err(|e: std::num::TryFromIntError| e.to_string())?,
+                    origin
+                        .span
+                        .end
+                        .try_into()
+                        .map_err(|e: std::num::TryFromIntError| e.to_string())?,
+                )
+                .map_err(|e| e.to_string())?,
+            })
+        });
+        let origin = origins
+            .next()
+            .transpose()?
+            .unwrap_or(DiagnosticOriginV1::None);
+        let notes = origins
+            .map(|origin| {
+                DiagnosticNoteV1::new("related declaration".into(), origin?)
+                    .map_err(|e| e.to_string())
+            })
+            .collect::<Result<_, String>>()?;
+        Ok(scoop_protocol::package::PackageDiagnosticV1 {
+            version: scoop_protocol::package::PACKAGE_PROTOCOL_VERSION,
+            diagnostic: StructuredDiagnosticV1::new(
+                DiagnosticSeverityV1::Error,
+                "SCOOP_PACKAGE_PREPARE".into(),
+                self.message.clone(),
+                origin,
+                notes,
+            )
+            .map_err(|e| e.to_string())?,
+        })
+    }
 }
 
 impl fmt::Display for PmError {

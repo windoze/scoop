@@ -20,4 +20,4 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {file = "diagnostics.json"}
-checks = [{file = "${work}/outputs/${target}/release/tests/declaration-negative", exists = false}]
+checks = [{file = "${work}/outputs/${target}/release/dev.m43/declaration-negative/tests/declaration-negative", exists = false}]

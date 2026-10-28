@@ -27,7 +27,7 @@ def decode_streams(stdout, stderr, mode):
     if mode == "stdout":
         records = [json.loads(line) for line in stdout.splitlines()]
         result = records[-1] if records else None
-    if mode in {"stderr", "test-stderr"}:
+    if mode in {"stderr", "test-stderr", "batch-stderr"}:
         lines = stderr.splitlines(keepends=True)
         count = 0
         for line in lines:
@@ -47,7 +47,7 @@ def decode_streams(stdout, stderr, mode):
                 "format",
                 "clean",
             }
-            if mode == "test-stderr":
+            if mode in {"test-stderr", "batch-stderr"}:
                 kinds |= {"test-report", "test-list"}
             if record.get("kind") not in kinds:
                 raise AssertionFailure(f"unknown Scoop JSON record: {record!r}")
@@ -56,7 +56,7 @@ def decode_streams(stdout, stderr, mode):
             if record["kind"] == "diagnostic":
                 diagnostics.append(canonical(record))
             elif record["kind"] in {"test-report", "test-list"}:
-                if test_result is not None:
+                if test_result is not None and mode != "batch-stderr":
                     raise AssertionFailure("multiple test result records")
                 test_result = record
             else:
