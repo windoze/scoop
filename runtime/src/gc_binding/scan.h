@@ -4,10 +4,11 @@
 #include "../gc_binding.h"
 #include "scoop_rt.h"
 
-/* Immutable offsets shared by full-object and range-restricted scans. */
-static inline void scoop_gc_scan_references(char *base, const uint64_t *table,
-                                            ScoopGcSlotVisitor visitor, void *context,
-                                            uintptr_t begin, uintptr_t end, bool bounded) {
+/* Keep this small loop visible even when a known visitor expands substantially.
+ * All callers still share the same immutable offset and range semantics. */
+static inline __attribute__((always_inline)) void
+scoop_gc_scan_references(char *base, const uint64_t *table, ScoopGcSlotVisitor visitor, void *context,
+                         uintptr_t begin, uintptr_t end, bool bounded) {
     uint64_t count = table[0];
     for (uint64_t index = 0; index < count; index++) {
         void **slot = (void **)(base + table[1 + index]);
@@ -67,8 +68,8 @@ static inline void scoop_gc_scan_range(void *base, const uint64_t *table,
 }
 
 /* Keep the flat case visible to callers with a statically known visitor. */
-static inline void scoop_gc_scan_object(void *base, const uint64_t *table,
-                                        ScoopGcSlotVisitor visitor, void *context) {
+static inline __attribute__((always_inline)) void
+scoop_gc_scan_object(void *base, const uint64_t *table, ScoopGcSlotVisitor visitor, void *context) {
     if (table == NULL) {
         return;
     }

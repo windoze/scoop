@@ -2,6 +2,29 @@ use super::compile::compile_and_run_configuration;
 use super::{compile_and_run_with_flags, workspace_root};
 
 #[test]
+fn marking_preserves_exact_live_lines_across_bitmap_words_and_block_edges() {
+    for (stress, optimization) in [(false, "-O2"), (true, "-O0")] {
+        let output = compile_and_run_configuration(
+            &workspace_root(),
+            "mark_lines_test",
+            "runtime/tests/mark_lines_test.c",
+            stress,
+            stress,
+            &[optimization],
+        );
+        assert!(
+            output.status.success(),
+            "stress={stress}, optimization={optimization}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"marking preserves exact live lines across bitmap words and block edges\n"
+        );
+    }
+}
+
+#[test]
 fn live_chunk_reuse_preserves_graphs_and_releases_unused_capacity() {
     for (stress, optimization) in [(false, "-O2"), (true, "-O0")] {
         let output = compile_and_run_configuration(
