@@ -17,6 +17,7 @@ const MSVC_OPTIONS: &[&str] = &[
     "/dynamicbase",
     "/highentropyva",
     "/nxcompat",
+    "/stack:8388608,4096",
     "/opt:ref,noicf",
     "/incremental:no",
     "/Brepro",
@@ -28,6 +29,7 @@ const MINGW_OPTIONS: &[&str] = &[
     "--dynamicbase",
     "--high-entropy-va",
     "--nxcompat",
+    "--stack=8388608,4096",
     "--no-insert-timestamp",
     "--Xlink=/ignore:4217",
 ];

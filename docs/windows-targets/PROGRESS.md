@@ -160,3 +160,7 @@ Windows native companion 的 Microsoft 配置省略 GNU Clang driver 额外添�
 Windows debug profile 的函数声明信息现由 HIR 经 MIR／LIR 传给 LLVM CodeView，包含源码名称、文件、行列与实际机器符号。当前源码保留本次文件路径，依赖泛型复用原始逻辑文件及 SourceRecord 位置；包坐标显示名与宿主路径保持独立。CodeView 使用等价 DOS／UNC 拼写，修复 LLVM 对 Windows verbatim 前缀的错误解释。此批提供函数入口声明位置，正文各语句和局部变量的源级调试仍未覆盖。
 
 三目标 debug／release 对象测试、Unicode／verbatim 文件路径的真实 PDB 检查，以及当前／依赖泛型经 MIR 的坐标测试通过；release 对象不含新增 CodeView。workspace/all-targets Clippy 与最后路径修订的定向 Clippy 均通过。正式 CLI 的 Microsoft LLD／LINK、MinGW MSVCRT／UCRT 四种组合各通过 1 个变体／10 个进程步骤：DbgHelp 按完整文件和行号查询入口、源码改行更新、无变化零子进程复用、artifact-only 重链接及运行。调试发射加入后的 roots-gc-context 在四种组合各通过 debug／release 两个变体／6 个步骤，保持移动 GC 行为。W1 的其余覆盖及 W2～W4 继续实施。
+
+深层调用的 Windows 首轮失败已闭合：原 PE 默认只预留 1 MiB 栈，而 debug 的递归帧约 704 字节，2048 层超过容量。最终链接现统一预留 8 MiB、初始提交 4 KiB；Microsoft LINK／LLD 和两个 MinGW CRT 的真实 PE header 检查通过，toolchain Clippy 通过。递归深度、移动 GC 和 600 层异常展开保持原测试要求。
+
+`deep-frames`、两项 direct-C 参数／表示、`interface-ssa` 与 `interfaces-artifacts` 在四种链接组合全部通过，每组合 8 个变体／24 个进程步骤；包含寄存器／栈混合参数、64 字节 sret、原生指针／handle、接口移动／minor GC、跨 Cone 混合 profile 与精确链接指纹。接口用例去掉没有断言的全阶段 dump，debug 重链接保留同样的符号配置与 PDB basename。`coroutine-unwind-liveness` 的首轮仍缺目标 platform 产物，随 W3 的真实线程实现继续验证，未计为通过；尚未开始远端测试。

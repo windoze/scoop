@@ -934,6 +934,8 @@ Windows 最终链接的 `--linker` 选择实际 linker：Microsoft 环境默认�
 
 Windows final-link 首次使用实际 header/object/link probe 验证 PE32+ AMD64、selected CRT imports、SEH 与所需 C++ 运行库；交叉宿主无需执行目标程序。工具、库搜索目录、实际 trace 输入与 unwind archive 进入普通更新记录，命中时不重新探测。最终 PE 使用 ASLR、NX、REF 裁剪和禁止 ICF；COMDAT 关联保留被选代码的 GC／EH metadata。debug 或 `--keep-symbols` 输出相邻 `<output>.pdb`，`--emit-symbol-map` 仍输出 `<output>.map`；PDB 使用相邻文件名定位，随 executable 一起纳入结果存在性与发布，不把临时目录写入其部署合同。
 
+Windows executable 在 PE header 中预留 8 MiB 线程栈、初始提交 4 KiB，后续由系统按需提交；runtime 以默认大小创建的线程沿用该设置。该预留满足 debug 大值类型参数和深层调用的实际栈需求，不保证任意递归深度，也不改变语言语义、ABI 或 stackmap 格式。Microsoft LINK／LLD 与 MinGW LLD 使用相同值，链接配置参与现有更新判断。
+
 Windows 10 是受支持 OS／API 基线，不要求把每种 CRT 的 PE subsystem version 改成 10.0。MinGW 保留配套 CRT 的默认 PE subsystem version；当前 mingw-w64 load configuration 未提供 Windows 6.3+ subsystem 所需的 security cookie，强行改版本会被 loader 以 `STATUS_INVALID_IMAGE_FORMAT` 拒绝。该处理不降低所声明的 Windows 10 运行基线，也不由 Scoop 改写 CRT 的 load configuration。
 
 Microsoft native 默认 `/MD`、C11／C++20、`/EHsc`、UTF-8 源码／执行字符集与符合标准的预处理器；debug 优化不切换 debug CRT。cl 使用 `/E` 与 `/sourceDependencies` JSON 收集实际头文件，clang-cl 使用其支持的 Clang depfile 参数；二者都保留诊断行标记。默认 CRT／target、输入／输出、依赖与阶段参数由 driver 管理；不支持的 native include 模式得到明确诊断，不悄悄改变搜索语义。MSVC flags 中 `/I`、`/FI`、`/D`、`/U` 按既有 include／macro 规则处理。普通用户 flags 不得切换 `/MT`、`/MDd`、LTCG 或其他受 driver 管理的配置。

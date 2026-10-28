@@ -1,5 +1,6 @@
 use super::*;
 use object::Object;
+use object::read::pe::ImageNtHeaders;
 
 fn tool(name: &str) -> PathBuf {
     std::env::var_os(name)
@@ -154,6 +155,13 @@ fn windows_final_link_profiles_link_real_crt_unwind_cpp_and_pdb() {
         assert!(String::from_utf8_lossy(&output.stdout).contains("PE CRT"));
         let bytes = std::fs::read(&binary).unwrap();
         probe::check_image(&bytes, target.id()).unwrap();
+        let pe = object::read::pe::PeFile64::parse(bytes.as_slice()).unwrap();
+        let header = pe.nt_headers().optional_header();
+        assert_eq!(
+            header.size_of_stack_reserve.get(object::LittleEndian),
+            8 * 1024 * 1024
+        );
+        assert_eq!(header.size_of_stack_commit.get(object::LittleEndian), 4096);
         let file = object::File::parse(bytes.as_slice()).unwrap();
         let info = file.pdb_info().unwrap().unwrap();
         assert_eq!(std::str::from_utf8(info.path()).unwrap(), "程序.exe.pdb");
