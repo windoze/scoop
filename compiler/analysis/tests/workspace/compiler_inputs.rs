@@ -42,6 +42,13 @@ fn include_file_changes_refresh_root_and_source_dependency_without_source_edits(
     let snapshot = host.snapshot();
     let mut session = scoop_analysis::SemanticSession::default();
     assert!(session.diagnostics(&snapshot, source).unwrap().is_empty());
+    let roots = session
+        .compiler_inputs(&snapshot)
+        .iter()
+        .flat_map(|input| input.resource_roots())
+        .collect::<BTreeSet<_>>();
+    assert!(roots.contains(&std::fs::canonicalize(root.join("app")).unwrap()));
+    assert!(roots.contains(&std::fs::canonicalize(root.join("lib")).unwrap()));
     std::fs::write(&local, [0xff]).unwrap();
     let diagnostics = session.diagnostics(&snapshot, source).unwrap();
     assert!(
@@ -68,4 +75,14 @@ fn include_file_changes_refresh_root_and_source_dependency_without_source_edits(
         if diagnostics.iter().any(|d| d.message.contains("valid UTF-8"))));
     std::fs::write(&dependency, "restored").unwrap();
     assert!(session.diagnostics(&snapshot, source).unwrap().is_empty());
+    let version = host.source(source).unwrap().version;
+    host.invalidate_compiler_inputs();
+    assert!(snapshot.check_cancelled().is_err());
+    assert_eq!(host.source(source).unwrap().version, version);
+    assert!(
+        session
+            .diagnostics(&host.snapshot(), source)
+            .unwrap()
+            .is_empty()
+    );
 }

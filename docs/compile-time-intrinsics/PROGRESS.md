@@ -15,7 +15,7 @@
 - [x] includeStr、Cone 目录范围检查与文件输入更新。
 - [x] includeBytes 及静态字节数组。
 - [x] includeDir、glob、逐项目录／symlink 范围检查与 EmbeddedDir API。
-- [ ] 文件／目录输入的构建／check／doc／LSP 更新和缓存复用、资源的定义来源。
+- [x] 文件／目录输入的构建／check／doc／LSP 更新和缓存复用、资源的定义来源。
 - [ ] Darwin 与 Linux 必要组合验证、对应规范状态更新及功能提交。
 
 ## 验证与工作目录
@@ -126,6 +126,14 @@ callable intrinsic 新增 tag 33、默认模板表达式 tag 78；HIR `cross-con
 Darwin／Linux 均通过 8 项普通 Cone 测试，以及新增 3 项正式 fixture（4 个变体、26 个进程步骤）。覆盖目录顺序、原始 bytes、空结果、named／default filters、精确查找、泛型、用户构造、可变副本、引用／非法输入诊断、release 与 debug＋moving GC 下的跨 Cone 静态引用，以及 build／check／doc 的新增、删除、改指、排除项变化、失败恢复与缓存复用。两平台的 11 项 HIR 输入测试、72 项 statepoint 测试、静态发射与 runtime immortal 登记测试通过；Darwin 的 195 项默认模板测试通过。新增聚合读取回归在修复前稳定复现 stackmap 数量失配，修复后覆盖全部三个后端目标和两种 profile。
 
 Darwin 全 workspace lint 通过；一次全量 Rust 运行报告 6209 项通过、18 项失败，另有 formatter corpus 线程栈溢出和 doc 阶段依赖产物缺失。6 项失败已闭合：缓存固定向量、shared-intrinsic 枚举、两项 profile、语义指纹，以及合并后的 StringBuilder 已改用 MutableArray<UInt8> 的 core 应用类型预期。对应 6 项缓存、5 项 shared-intrinsic、18 项 profile、8 项语义指纹与真实 core HIR→MIR→LIR 定向测试通过；前四组也在 Linux 通过。formatter 设置 RUST_MIN_STACK=16777216 后完整 corpus 通过。剩余 12 项失败涉及先前记录的 3 项 codegen 分配断言、5 项使用旧 CLI 的 linker 测试及 4 项 runtime ABI 固定向量；doc 阶段待顺序复验，不能记为全量通过。完整 CLI 验收正在显式准备其所需 sysroot，Linux 维持定向验证。LSP 资源 watcher 与主动重发诊断仍属于独立未完成项。清理了不再使用的 46 MiB 重现程序 target；原始日志和运行目录继续保存在仓库外。
+
+### LSP 资源通知与主动诊断
+
+共享分析将当前项目实际查询的输入宿主交给 LSP，包含源码依赖和失败请求。客户端支持动态注册时监听对应 Cone 的定位根／实际根及后代，覆盖缺失文件补建、目录新增、链接改指与目标变化；请求不再使用资源或配置改变时撤销旧注册。通知先复用输入记录判断更新，成功输入未变时不重读内容或调度分析。实际变化独立推进 revision、取消旧快照并重新调度打开文档，保留未变源码的语法缓存；没有增加单独的 intrinsic 求值器或修改编译产物格式。
+
+Darwin／Linux 相关 crate lint 通过，LSP 共 23 项测试通过（原完整 crate 运行中两个新增测试的输入设置已修正并定向重跑），另各通过 1 项共享分析组合测试。实际 stdio 进程覆盖 includeStr 的非法 UTF-8、includeBytes 缺失／恢复、includeDir 嵌套项变化、源码依赖与 Cone 内目标更新、排除项越界链接修复、未改源码时诊断清除、无关文件写入不重发诊断，以及移除 include 后撤销监听；共享分析验证失效旧快照时仍保留 SourceVersion。字符串 glob 的转义使用真实 matcher 验证。
+
+includeDir 验收补充：全 workspace doc tests 顺序重跑通过；此前缺少依赖产物的问题由重叠 Cargo 构建导致，后续 Cargo 验证保持串行。Darwin 已显式准备当前 worktree 的 25 个内置 Cone 和四种 runtime，fixture runner 的 59 项规则测试通过。完整 CLI 正在使用固定的工具副本运行；一次误指向主工作区旧 core 源码的配置已更正并重跑，该批配置错误不计为编译器失败。全量 Rust 剩余 12 项失败仍按上节记录，不能宣称全量通过。
 
 ## 范围调整
 

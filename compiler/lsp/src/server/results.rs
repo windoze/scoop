@@ -10,6 +10,9 @@ impl Server {
         completion: Completion,
         output: &mut impl Write,
     ) -> io::Result<()> {
+        if completion.revision == self.documents.host.revision() {
+            self.update_resource_watches(completion.inputs, output)?;
+        }
         match completion.value {
             Completed::Request {
                 id,

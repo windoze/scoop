@@ -94,6 +94,29 @@ impl CompileTimeInputHost for CompileTimeInputs {
 }
 
 impl CompileTimeInputs {
+    /// Resource notifications also need to cover requests that failed to read an input.
+    pub fn resource_roots(&self) -> std::collections::BTreeSet<std::path::PathBuf> {
+        let mut roots = std::collections::BTreeSet::new();
+        if let Some(sources) = &self.sources
+            && (!self
+                .files
+                .lock()
+                .expect("file input cache is not poisoned")
+                .is_empty()
+                || !self
+                    .directories
+                    .lock()
+                    .expect("directory input cache is not poisoned")
+                    .is_empty())
+        {
+            roots.insert(sources.root.clone());
+            if let Ok(real_root) = std::fs::canonicalize(&sources.root) {
+                roots.insert(real_root);
+            }
+        }
+        roots
+    }
+
     /// Editor analyses retain this host while bodies are checked on demand.
     pub fn inputs_current(&self) -> bool {
         if self

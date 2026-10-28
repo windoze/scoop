@@ -1167,6 +1167,7 @@ dependencies = [
 name = "scoop-lsp"
 version = "0.0.0"
 dependencies = [
+ "glob",
  "lsp-server",
  "lsp-types",
  "scoop-analysis",

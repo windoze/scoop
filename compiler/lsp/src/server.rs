@@ -16,6 +16,7 @@ use crate::{
     worker::{self, Completion, Work, WorkKind},
 };
 
+mod inputs;
 mod notifications;
 mod results;
 mod workspace;
@@ -35,6 +36,7 @@ struct Server {
     documents: Documents,
     workspace_settings: crate::workspace::WorkspaceSettings,
     workspace_loader: scoop_analysis::WorkspaceLoader,
+    resource_watches: inputs::ResourceWatches,
     project_diagnostics: HashMap<Uri, (Option<i32>, Vec<lsp_types::Diagnostic>)>,
     settings: Settings,
     initialized: bool,
@@ -74,6 +76,7 @@ pub fn run_stdio() -> io::Result<i32> {
         documents: Documents::default(),
         workspace_settings: Default::default(),
         workspace_loader: Default::default(),
+        resource_watches: Default::default(),
         project_diagnostics: HashMap::new(),
         settings: Settings::default(),
         initialized: false,
@@ -97,14 +100,12 @@ pub fn run_stdio() -> io::Result<i32> {
                 server.notification(notification, &mut output)?
             }
             Event::Incoming(Message::Response(response)) => {
-                if response.id == RequestId::from("scoop-watch-inputs".to_owned())
+                if (response.id == RequestId::from("scoop-watch-inputs".to_owned())
+                    || server.resource_watches.requests.remove(&response.id))
                     && let Err(error) = response.response_result
                 {
                     Server::log(
-                        format!(
-                            "cannot register input file notifications: {}",
-                            error.message
-                        ),
+                        format!("cannot update input file notifications: {}", error.message),
                         &mut output,
                     )?;
                 }

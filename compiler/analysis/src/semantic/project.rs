@@ -26,6 +26,15 @@ pub(super) struct ProjectSemantics {
 }
 
 impl ProjectSemantics {
+    pub fn compiler_inputs(
+        &self,
+    ) -> impl Iterator<Item = &Arc<scoop_toolchain::CompileTimeInputs>> {
+        self.declarations
+            .values()
+            .map(|cached| &cached.inputs)
+            .chain(self.dependencies.values().flat_map(|cached| &cached.inputs))
+    }
+
     pub fn dependency_documentation(
         &self,
         current: ConeIdentity,

@@ -18,6 +18,7 @@ impl Server {
         );
         inputs.diagnostics.append(&mut errors);
         self.documents.host.set_workspace(inputs);
+        self.update_resource_watches(Vec::new(), output)?;
         self.publish_project_diagnostics(output)?;
         self.schedule_open_diagnostics()
     }
