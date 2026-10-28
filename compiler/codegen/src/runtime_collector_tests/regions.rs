@@ -63,21 +63,25 @@ fn resolved_forwarding_rejects_invalid_collection_metadata() {
 
 #[test]
 fn region_growth_and_large_mapping_exceed_one_gibibyte() {
-    let output = compile_and_run(
-        &workspace_root(),
-        "region_heap_test",
-        "runtime/tests/region_heap_test.c",
-        true,
-    );
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert_eq!(
-        output.stdout,
-        b"region growth and independent mappings exceed the former 1 GiB limit\n"
-    );
+    for (verify, stress, optimization) in [(true, true, "-O0"), (false, false, "-O2")] {
+        let output = super::compile::compile_and_run_configuration(
+            &workspace_root(),
+            "region_heap_test",
+            "runtime/tests/region_heap_test.c",
+            verify,
+            stress,
+            &[optimization],
+        );
+        assert!(
+            output.status.success(),
+            "{optimization}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"region growth and independent mappings exceed the former 1 GiB limit\n"
+        );
+    }
 }
 
 #[test]

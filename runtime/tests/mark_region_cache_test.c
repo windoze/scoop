@@ -30,6 +30,14 @@ static void scattered_graph(void) {
         ScoopGcRegion *region = scoop_heap_region_create(GC_REGION_SIZE, false);
         scoop_gc_heap_unlock();
         assert(region != NULL);
+        for (size_t block = 0; block < GC_REGION_BLOCKS; block++) {
+            assert(region->blocks[block].head == &region->heads[block]);
+            assert(region->blocks[block].starts == &region->starts[block * GC_BITMAP_WORDS]);
+            assert(region->heads[block].state == SCOOP_BLOCK_NEVER_USED);
+            for (size_t word = 0; word < GC_BITMAP_WORDS; word++) {
+                assert(region->blocks[block].starts[word] == 0);
+            }
+        }
         /* The retained empty region's free blocks precede newly mapped storage. */
         for (size_t attempt = 0;; attempt++) {
             assert(attempt < GC_REGION_BLOCKS);

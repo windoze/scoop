@@ -47,24 +47,24 @@ static void adjust_nursery(size_t used, uint64_t live, bool minor) {
 }
 
 static void finish_block(ScoopGcBlockMeta *block, bool minor) {
-    if (block->generation == SCOOP_GC_YOUNG) {
-        if (minor && block->kind == SCOOP_BLOCK_KIND_SMALL &&
-            (block->live_bytes == 0 || block->state == SCOOP_BLOCK_EVACUATION_SOURCE)) {
+    if (block->head->generation == SCOOP_GC_YOUNG) {
+        if (minor && block->head->kind == SCOOP_BLOCK_KIND_SMALL &&
+            (block->live_bytes == 0 || block->head->state == SCOOP_BLOCK_EVACUATION_SOURCE)) {
             /* Minor sources are unpinned and fully updated; activation resets metadata. */
             scoop_heap_release_block(block);
             return;
         }
     }
-    bool promoted_slots = minor && block->generation == SCOOP_GC_YOUNG &&
-                          block->kind == SCOOP_BLOCK_KIND_SMALL && block->slot_size != 0;
-    bool retained = minor && block->generation == SCOOP_GC_YOUNG && block->retained_young;
+    bool promoted_slots = minor && block->head->generation == SCOOP_GC_YOUNG &&
+                          block->head->kind == SCOOP_BLOCK_KIND_SMALL && block->slot_size != 0;
+    bool retained = minor && block->head->generation == SCOOP_GC_YOUNG && block->retained_young;
     if (!retained) {
-        block->generation = SCOOP_GC_OLD;
+        block->head->generation = SCOOP_GC_OLD;
     }
     block->survivor = retained;
     block->retained_young = false;
     scoop_heap_finish_block(block, stress_move);
-    if ((!minor || promoted_slots) && active_head(block) && block->kind == SCOOP_BLOCK_KIND_SMALL &&
+    if ((!minor || promoted_slots) && active_head(block) && block->head->kind == SCOOP_BLOCK_KIND_SMALL &&
         block->slot_size != 0) {
         scoop_heap_record_old_slots(block);
     }
@@ -95,14 +95,14 @@ void scoop_gc_heap_finish_collection_locked(uint64_t object_count, bool minor,
         /* Retirement reuses the link for the free list. */
         ScoopGcBlockMeta *next = scoop_heap_next_collection_block(block, minor);
         if (active_head(block)) {
-            if (!minor && block->state != SCOOP_BLOCK_EVACUATION_SOURCE) {
+            if (!minor && block->head->state != SCOOP_BLOCK_EVACUATION_SOURCE) {
                 full_live += block->live_bytes;
             }
-            if (block->generation == SCOOP_GC_YOUNG) {
+            if (block->head->generation == SCOOP_GC_YOUNG) {
                 young_live += block->live_bytes;
             }
             finish_block(block, minor);
-            if (minor && block->generation == SCOOP_GC_YOUNG) {
+            if (minor && block->head->generation == SCOOP_GC_YOUNG) {
                 block->next_collection = young_blocks;
                 young_blocks = block;
             }
@@ -114,7 +114,7 @@ void scoop_gc_heap_finish_collection_locked(uint64_t object_count, bool minor,
             ScoopGcBlockMeta *block = scoop_gc_heap_state.evacuation_targets;
             scoop_gc_heap_state.evacuation_targets = block->next_collection;
             finish_block(block, true);
-            if (block->generation == SCOOP_GC_YOUNG) {
+            if (block->head->generation == SCOOP_GC_YOUNG) {
                 block->next_collection = young_blocks;
                 young_blocks = block;
             }

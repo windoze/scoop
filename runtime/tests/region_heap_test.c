@@ -24,6 +24,8 @@ static void huge_mapping(void) {
     bytes[GC_REGION_SIZE + 7] = 43;
     ScoopGcRegion *region = scoop_heap_region_for_address((uintptr_t)root);
     assert(region->large && region->size > ((size_t)1 << 30));
+    assert(region->starts == NULL && region->blocks[0].starts == NULL);
+    assert(region->blocks[0].head == &region->heads[0]);
     assert(scoop_heap_known_object_block(root, false) == region->blocks);
     assert(region->base % GC_CHUNK_SIZE == 0);
     assert(region->size == scoop_heap_large_mapping_size(HUGE_SIZE));
@@ -68,6 +70,8 @@ static void ordinary_regions(void) {
         assert(((unsigned char *)objects[index])[29999] == (unsigned char)index);
         ScoopGcBlockMeta *block = scoop_heap_pointer_block(objects[index]);
         assert(block != NULL && block->region != NULL);
+        assert(block->head == &block->region->heads[block->index]);
+        assert(block->starts == &block->region->starts[block->index * GC_BITMAP_WORDS]);
         assert(scoop_heap_known_object_block(objects[index], true) == block);
         assert(block->region->base % GC_REGION_SIZE == 0);
         different_region |= block->region != first;
@@ -80,11 +84,10 @@ static void ordinary_regions(void) {
 
 int main(void) {
     const ScoopTypeDescriptor *types[] = {&nursery_node_td, &huge_td, &wide_td};
-    uintptr_t boundary = 0;
     scoop_thread_runtime_init();
     scoop_test_image_init(types, 3, NULL, 0, NULL, 0);
     scoop_thread_attach_main();
-    scoop_thread_enter_managed(&boundary);
+    scoop_thread_enter_managed((void *)scoop_rt_thread_debug_stack_high());
     assert(nursery_node(3)->value == 3);
     huge_mapping();
     ordinary_regions();

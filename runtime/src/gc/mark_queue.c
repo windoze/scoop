@@ -49,7 +49,7 @@ void scoop_gc_mark_enqueue_remembered(void) {
         ScoopGcRegion *region = group->region;
         size_t index = region->large ? 0 : (size_t)(group - region->card_groups);
         ScoopGcBlockMeta *block = &region->blocks[index];
-        if (!active_head(block) || block->generation != SCOOP_GC_OLD) {
+        if (!active_head(block) || block->head->generation != SCOOP_GC_OLD) {
             continue;
         }
         scoop_gc_mark_queue_push(&scoop_gc_marker.workers[owner], (ScoopGcMarkTask){

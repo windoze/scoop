@@ -49,7 +49,7 @@ static void append_live(ScoopGcMarkWorker *worker, void *object, bool scan) {
 }
 
 static bool first_mark(ScoopGcBlockMeta *block, size_t word) {
-    if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
+    if (block->head->kind == SCOOP_BLOCK_KIND_LARGE) {
         return !__atomic_exchange_n(&block->large_marked, true, __ATOMIC_RELAXED);
     }
     uint64_t mask = UINT64_C(1) << (word % 64);
@@ -111,41 +111,62 @@ static void enqueue_array(ScoopGcMarkWorker *worker, void *object, const uint64_
     }
 }
 
-static ScoopGcBlockMeta *reference_block(ScoopGcMarkWorker *worker, const void *object) {
+static ScoopGcRegion *reference_region(ScoopGcMarkWorker *worker, const void *object) {
     uintptr_t address = (uintptr_t)object;
     uintptr_t base = address & ~(uintptr_t)(GC_REGION_SIZE - 1);
     ScoopGcMarkRegion *entry = &worker->regions[(address / GC_REGION_SIZE) % GC_MARK_REGION_CACHE];
     if (entry->region != NULL && entry->base == base) {
-        return &entry->region->blocks[(address - base) / GC_BLOCK_SIZE];
+        return entry->region;
     }
-    ScoopGcBlockMeta *block = pointer_block(object);
-    if (block != NULL && !block->region->large) {
-        *entry = (ScoopGcMarkRegion){base, block->region};
+    ScoopGcRegion *region = scoop_heap_region_for_address(address);
+    if (region != NULL && !region->large) {
+        *entry = (ScoopGcMarkRegion){base, region};
     }
-    return block;
+    return region;
 }
 
-static void mark_target(ScoopGcMarkWorker *worker, void *object) {
-    ScoopGcBlockMeta *block = reference_block(worker, object);
-    size_t word;
+static ScoopGcBlockMeta *markable_block(ScoopGcMarkWorker *worker, const void *object, size_t *word) {
+    ScoopGcRegion *region = reference_region(worker, object);
     /* The coordinator owns heap/roots; these metadata remain immutable during mark. */
-    if (!scoop_heap_reference_in_block(object, block, &word)) {
+    if (region == NULL) {
 #if SCOOP_ENABLE_GC_STRESS || (defined(SCOOP_GC_VERIFY_HEAP) && SCOOP_GC_VERIFY_HEAP)
         if (!scoop_gc_stw_is_stable_object(object)) {
             heap_fatal("managed slot points outside the current heap and stable object tables");
         }
 #endif
+        return NULL;
+    }
+    size_t index = 0;
+    if (region->large) {
+        if (!scoop_heap_object_meta_in_block(object, &region->blocks[0], word)) {
+            heap_fatal("managed slot is not a current heap object start");
+        }
+    } else {
+        uintptr_t offset = (uintptr_t)object - region->base;
+        index = offset / GC_BLOCK_SIZE;
+        if (!scoop_heap_small_object_meta_at(offset % GC_BLOCK_SIZE, &region->heads[index],
+                                             &region->starts[index * GC_BITMAP_WORDS], word)) {
+            heap_fatal("managed slot is not a current heap object start");
+        }
+    }
+    if (worker->minor && region->heads[index].generation != SCOOP_GC_YOUNG) {
+        return NULL;
+    }
+    return &region->blocks[index];
+}
+
+static void mark_target(ScoopGcMarkWorker *worker, void *object) {
+    size_t word;
+    ScoopGcBlockMeta *block = markable_block(worker, object, &word);
+    if (block == NULL || !first_mark(block, word)) {
         return;
     }
-    if ((worker->minor && block->generation != SCOOP_GC_YOUNG) || !first_mark(block, word)) {
-        return;
-    }
-    size_t size = block->kind == SCOOP_BLOCK_KIND_LARGE
+    size_t size = block->head->kind == SCOOP_BLOCK_KIND_LARGE
                       ? block->exact_size
                       : scoop_heap_small_object_size(object);
     scoop_gc_validate_object(object, size);
     ScoopGcMarkBlockCount *counts = &worker->blocks[block->mark_index];
-    if (block->kind == SCOOP_BLOCK_KIND_SMALL) {
+    if (block->head->kind == SCOOP_BLOCK_KIND_SMALL) {
         mark_lines(counts, word, size);
     }
     counts->live_bytes += size;

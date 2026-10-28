@@ -91,7 +91,7 @@ static bool exceeds_old_threshold(size_t bytes) {
 }
 
 static void record_nursery_block(ScoopGcBlockMeta *block) {
-    block->generation = SCOOP_GC_YOUNG;
+    block->head->generation = SCOOP_GC_YOUNG;
     block->next_collection = scoop_gc_heap_state.young_blocks;
     scoop_gc_heap_state.young_blocks = block;
     scoop_gc_heap_state.nursery_bytes += GC_BLOCK_SIZE;
@@ -340,7 +340,7 @@ static void finish_small_allocation(ScoopGcMutator *mutator, void *object,
         heap_fatal("invalid inline TLAB allocation");
     }
     initialize_small_allocation(mutator, block, object, td, size,
-                                block->generation == SCOOP_GC_YOUNG);
+                                block->head->generation == SCOOP_GC_YOUNG);
 }
 
 void scoop_runtime_finish_tlab_alloc(void *object, const ScoopTypeDescriptor *td, size_t size) {

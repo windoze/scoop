@@ -6,7 +6,7 @@
 #include "old_slots.h"
 
 bool scoop_heap_block_has_pins(const ScoopGcBlockMeta *block) {
-    if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
+    if (block->head->kind == SCOOP_BLOCK_KIND_LARGE) {
         return block->large_pinned;
     }
     for (size_t index = 0; index < GC_BITMAP_WORDS; index++) {
@@ -85,7 +85,7 @@ size_t scoop_heap_select_evacuation_sources(bool minor, size_t survivor_capacity
         bool selected = minor ? !scoop_heap_block_has_pins(block)
                               : stress_move || block->region->evacuation_source;
         if (minor && selected && scoop_heap_adaptive_nursery_enabled() &&
-            block->kind == SCOOP_BLOCK_KIND_SMALL && block->live_bytes >= GC_REGULAR_MAX / 2) {
+            block->head->kind == SCOOP_BLOCK_KIND_SMALL && block->live_bytes >= GC_REGULAR_MAX / 2) {
             if (block->survivor || scoop_gc_heap_state.promote_in_place) {
                 selected = false;
             }
@@ -101,7 +101,7 @@ size_t scoop_heap_select_evacuation_sources(bool minor, size_t survivor_capacity
         }
         if (selected) {
             *has_sources = true;
-            block->state = SCOOP_BLOCK_EVACUATION_SOURCE;
+            block->head->state = SCOOP_BLOCK_EVACUATION_SOURCE;
         }
     }
     return regions;

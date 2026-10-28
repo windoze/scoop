@@ -73,7 +73,7 @@ static void prepare_young(void **roots) {
         roots[0] = node;
     }
     roots[4] = nursery_node(805);
-    assert(pointer_block(roots[0])->generation == SCOOP_GC_YOUNG);
+    assert(pointer_block(roots[0])->head->generation == SCOOP_GC_YOUNG);
 }
 
 static void check_chain(void **roots, uint64_t detached) {

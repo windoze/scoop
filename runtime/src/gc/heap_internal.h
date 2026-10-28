@@ -72,6 +72,15 @@ typedef struct ScoopGcCardGroup {
     ScoopGcRegion *region;
 } ScoopGcCardGroup;
 
+/* Canonical state used by address-based readers without the full block record. */
+typedef struct ScoopGcBlockHead {
+    ScoopGcBlockState state;
+    uint8_t kind;
+    uint8_t generation;
+} ScoopGcBlockHead;
+
+_Static_assert(sizeof(ScoopGcBlockHead) == 8, "compact block head layout drifted");
+
 typedef struct ScoopGcBlockMeta {
     ScoopGcRegion *region;
     union {
@@ -82,9 +91,7 @@ typedef struct ScoopGcBlockMeta {
     uint16_t index;
     bool survivor;
     bool retained_young;
-    ScoopGcBlockState state;
-    ScoopGcBlockKind kind;
-    ScoopGcGeneration generation;
+    ScoopGcBlockHead *head;
     uint64_t *starts;
     uint64_t *marks;
     uint64_t *pins;
@@ -158,6 +165,9 @@ struct ScoopGcRegion {
     bool evacuation_destination;
     size_t collection_live_bytes;
     ScoopGcRegion *next_available;
+    ScoopGcBlockHead *heads;
+    /* Ordinary regions own one continuous start bitmap, sliced by block. */
+    uint64_t *starts;
 };
 
 _Static_assert(sizeof(uintptr_t) == 8 && GC_CHUNK_SHIFT + 4 * GC_RADIX_BITS == 64,
@@ -284,10 +294,12 @@ static inline void *scoop_heap_block_base(const ScoopGcBlockMeta *block) {
     return (void *)(block->region->base + (size_t)block->index * GC_BLOCK_SIZE);
 }
 size_t scoop_heap_block_bytes(const ScoopGcBlockMeta *block);
+static inline bool scoop_heap_active_state(ScoopGcBlockState state) {
+    return state == SCOOP_BLOCK_MUTATOR || state == SCOOP_BLOCK_EVACUATION_SOURCE ||
+           state == SCOOP_BLOCK_EVACUATION_TARGET || state == SCOOP_BLOCK_PINNED_PARTIAL;
+}
 static inline bool scoop_heap_active_head(const ScoopGcBlockMeta *block) {
-    return block->state == SCOOP_BLOCK_MUTATOR || block->state == SCOOP_BLOCK_EVACUATION_SOURCE ||
-           block->state == SCOOP_BLOCK_EVACUATION_TARGET ||
-           block->state == SCOOP_BLOCK_PINNED_PARTIAL;
+    return scoop_heap_active_state(block->head->state);
 }
 
 void scoop_heap_require_ready(void);

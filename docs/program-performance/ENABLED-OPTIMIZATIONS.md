@@ -12,6 +12,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [region 紧凑引用元数据](GC-EVOLUTION.md#第四十五阶段region-紧凑引用元数据) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 连续 head／starts 保留唯一状态和精确起点，minor 的合法旧引用避开完整 block 记录；省去逐 block 的 starts 分配。完整普通 region 增加约 4 KiB，未使用块多预留位图；大图及部分分配改善，线程尾部回退见记录，无对象／ABI 变化。 |
 | [连续脏卡范围与置位起点枚举](GC-EVOLUTION.md#第四十四阶段连续脏卡范围与置位起点枚举) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 相邻脏卡共用一次范围扫描，小对象仅枚举 starts 置位项；不跨清卡或卡组，保留精确槽裁剪、survivor 与并行回写所有权。GNU 大图吞吐和线程暂停改善，ARM64 基本持平且部分尾部回退；无分配快路径、对象、metadata 或 ABI 增量。 |
 | [固定对象复用已验证布局](GC-EVOLUTION.md#第四十阶段固定对象复用已验证布局) | 新版普通 runtime 所有 profile 默认；GC stress 支持或 `SCOOP_GC_VERIFY_HEAP` 构建仍完整交叉校验 | 首次标记和 remembered 扫描复用分配已保证的固定对象／box 大小与对齐，省去逐对象 shape 校验调用；动态长度、原生分配、映像、拆箱与精确起点检查保持。无对象／metadata／ABI 增量，重链接即可。 |
 | [完整引用回写复用平坦扫描](GC-EVOLUTION.md#第三十七阶段完整引用回写复用平坦扫描) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 串行与并行回写直接消费复制后存活对象，共用原 binding 的完整对象扫描正文。平坦对象省去共享解释器入口，动态 visitor、局部范围、复杂 scan、survivor 与覆盖验证保持；少量代码增长，无对象／metadata／ABI 增量。 |

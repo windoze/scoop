@@ -397,6 +397,8 @@ nursery 容量和 collection threshold 是收集触发条件，不是堆空间�
 
 已知当前堆对象起点时，以 relaxed 原子读取 GC 字的大小位区分 small 与 large；small 向下对齐到 16 MiB，large 减去 128 byte，选择有效的 mapping 起点后只读取一次 owner。不读取未选中的地址，不接受 null、immortal、内部地址或任意 native 指针，不替代首次引用检查和一般地址页表。GC 后须从重定位后的副本重新形成地址及查询，不能复用旧地址整数。collector 已知分配类别的 source／target 查询复用同一 mapping owner，无需读取临时目标头，也无需 moving stress 的页表回退。普通空页归还继续依据真实存活 line，不为每个稀疏存活 block 保留额外物理页。
 
+每个 region 以连续的私有 block head 数组保存各 block 的活动状态、对象类别与代际；这些字段只有一份，完整 block 记录引用对应 head，不维护镜像。普通 region 的 starts 位图按 block 顺序一次分配，每个 block 和 TLAB 继续使用其独立的 64-word 切片；large 保留独立发布状态。region 发布前建立数组与切片，block 启用／复用时清零自身位图，未使用、已释放或隔离块不能因残留位图而成为合法对象。数组随 region 一起退役，沿原 heap lock／STW 和 acquire／release 协议访问；不改变生成代码的 region prefix、allocation context、对象头或 ABI。该布局允许以未使用块的预留位图空间换取引用定位和首次 block 分配成本，所有 profile 采用同一合同。
+
 分配计数为 cache-line 分隔的线程累计值，本线程以 relaxed atomic store 发布，查询以 atomic load 汇总；热路径不对多个全局统计量执行 atomic RMW。detach 在 registry 生命周期保护下并入退出线程总账；STW 汇总更新 collection 基线，当前对象数由基线和随后分配推导，minor 同时保留旧代计数。查询、基线更新和 detach 归并遵守同一锁顺序，不漏计或双计。
 
 累计对象数、nursery 对象数及两种分配字节数在 collection 后不清零。查询按 registry/world lock → heap lock 读取目录与基线；STW collector 在目录已稳定、持 heap lock 时直接汇总，不反向取得 world lock。detached 总账在移除线程前更新，主线程退出后的最终报告仍包含其分配。并发查询是逐线程、逐字段的原子快照，不承诺不同统计字段间的事务一致性；STW 与线程全部退出后的汇总精确。线程计数区域按 128-byte 边界独立对齐并分配，覆盖当前 Darwin/AArch64 的 128-byte 和 amd64 的 64-byte cache line。
@@ -667,7 +669,7 @@ worker pool 的每次 phase 发布在原锁内固定该阶段的参与数量，w
 
 collector 持有 heap／roots 的独占阶段后，发布不可变的 region、对象起点、精确大小、pin 和 immortal 对象视图。marker 使用明确的 STW reader／原子 marker 接口，不要求各 worker 重新取得 coordinator 持有的锁。每个参与 block 在本轮取得临时统计索引，worker 私有计数按该索引归并；它不是持久对象身份，也不进入产物或 generated-code ABI。存活清单以稳定的分块存储保留对象指针，任务发布后不得由扩容使其失效。
 
-marker 可以在本次停顿内复用已经经页表定位的普通 region：每个 worker 私有保存有限数量的地址范围与 region 指针，命中完整范围后直接计算 block。首次查询、大对象和未命中地址仍使用原页表；命中只省去地址映射查询，对齐、活动 block、精确对象起点及首次标记所需的大小／scan 读取保持。缓存不含 managed roots，不保活对象，不进入对象头、产物或 generated-code ABI；每次开始标记及增量周期恢复下一片时，在发布 roots／任务前清空全部参与 worker 的缓存，不能跨 mutator 执行、搬迁或 mapping 退役复用旧地址与元数据。
+marker 可以在本次停顿内复用已经经页表定位的普通 region：每个 worker 私有保存有限数量的地址范围与 region 指针，命中完整范围后直接计算 block。首次查询、大对象和未命中地址仍使用原页表；普通引用从 3.1 的连续 head／starts 数组检查对齐、活动状态、类别和精确起点，minor 只在这些检查成功后跳过旧代对象，无需再读取完整 block 记录。实际标记仍消费原 block 的 marks、大小、scan 和私有统计。缓存不含 managed roots，不保活对象，不进入对象头、产物或 generated-code ABI；每次开始标记及增量周期恢复下一片时，在发布 roots／任务前清空全部参与 worker 的缓存，不能跨 mutator 执行、搬迁或 mapping 退役复用旧地址与元数据。
 
 固定对象与 boxed value 的 exact TD、物理大小和对齐由 2.1／3.1 的分配、发布及 typed 生成路径保证，发布后的 TD 与物理布局不可改变；GC 私有大小字段由 pin／release／搬迁操作保留。普通 runtime 的首次标记与 remembered 对象扫描直接复用这些事实，不逐对象重新调用完整 shape 校验。动态 String／Array 的物理 count 与范围检查继续由共享校验处理；分配输入、映像登记、动态拆箱等真实边界不因此省略检查。固定对象的完整交叉校验只编入 GC stress 支持或显式 `SCOOP_GC_VERIFY_HEAP` 构建，开关未编入时不生成该 GC 校验分支或调用，而不是调用一个空后备。应用 debug／release profile 使用相同 GC 语义；精确起点、根、scan、复制范围、pin、release 与异常合同保持，不新增证明状态或验证缓存。
 

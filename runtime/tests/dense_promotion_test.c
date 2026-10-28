@@ -47,7 +47,7 @@ static void dense_without_copy(void **roots) {
     assert(scoop_gc_heap_state.copied_bytes == copied && after.update_ns == start.update_ns);
     assert(after.promoted_bytes == start.promoted_bytes + 800 * sizeof(NurseryNode));
     ScoopGcBlockMeta *block = pointer_block(before);
-    assert(scoop_heap_forwarding_address(before) == NULL && block->generation == SCOOP_GC_OLD);
+    assert(scoop_heap_forwarding_address(before) == NULL && block->head->generation == SCOOP_GC_OLD);
     bool reusable = false;
     for (ScoopGcFreeRun *run = free_runs; run != NULL; run = run->next) {
         reusable |= run->block == block && run->line_count != 0;

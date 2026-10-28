@@ -15,7 +15,7 @@ typedef struct ScoopGcVisitContext {
 } ScoopGcVisitContext;
 
 static bool remains_young(const ScoopGcBlockMeta *block) {
-    return block->generation == SCOOP_GC_YOUNG && block->retained_young;
+    return block->head->generation == SCOOP_GC_YOUNG && block->retained_young;
 }
 
 /* Mark has consumed this frozen graph; only collector relocation changes it. */
@@ -46,7 +46,7 @@ static void verify_slot(void **slot, void *raw_context) {
         }
         return;
     }
-    if (context->minor && block->generation == SCOOP_GC_OLD) {
+    if (context->minor && block->head->generation == SCOOP_GC_OLD) {
         return;
     }
     void *current = scoop_heap_forward_object(target, block, word);

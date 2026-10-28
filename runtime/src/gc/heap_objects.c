@@ -39,7 +39,7 @@ size_t scoop_gc_object_size_locked(const void *object) {
     if (!object_meta(object, &block, &word_index)) {
         heap_fatal("exact size requested for a non-object address");
     }
-    if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
+    if (block->head->kind == SCOOP_BLOCK_KIND_LARGE) {
         return block->exact_size;
     }
     size_t size = scoop_heap_source_object_size(object);
@@ -50,7 +50,7 @@ size_t scoop_gc_object_size_locked(const void *object) {
 }
 
 void record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_size) {
-    if (block->kind != SCOOP_BLOCK_KIND_SMALL || exact_size < sizeof(ScoopObjectHeader) ||
+    if (block->head->kind != SCOOP_BLOCK_KIND_SMALL || exact_size < sizeof(ScoopObjectHeader) ||
         exact_size > GC_REGULAR_MAX || exact_size % sizeof(uint64_t) != 0) {
         heap_fatal("invalid small-object metadata publication");
     }
@@ -67,7 +67,7 @@ void record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_siz
 }
 
 void publish_large_object(ScoopGcBlockMeta *block, bool marked) {
-    if (block->kind != SCOOP_BLOCK_KIND_LARGE || block->large_published || block->exact_size == 0) {
+    if (block->head->kind != SCOOP_BLOCK_KIND_LARGE || block->large_published || block->exact_size == 0) {
         heap_fatal("invalid large-object metadata publication");
     }
     block->large_marked = marked;
@@ -85,7 +85,7 @@ bool scoop_gc_update_pin_locked(const void *object, bool pinned) {
         heap_fatal("pin state changed for a non-object address");
     }
     bool previous;
-    if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
+    if (block->head->kind == SCOOP_BLOCK_KIND_LARGE) {
         previous = block->large_pinned;
         block->large_pinned = pinned;
     } else {
@@ -106,18 +106,18 @@ bool scoop_gc_update_pin_locked(const void *object, bool pinned) {
 }
 
 bool object_pinned(const ScoopGcBlockMeta *block, size_t word) {
-    return block->kind == SCOOP_BLOCK_KIND_LARGE ? block->large_pinned
+    return block->head->kind == SCOOP_BLOCK_KIND_LARGE ? block->large_pinned
                                                  : bit_test(block->pins, word);
 }
 
 bool object_marked(const ScoopGcBlockMeta *block, size_t word) {
-    return block->kind == SCOOP_BLOCK_KIND_LARGE ? block->large_marked
+    return block->head->kind == SCOOP_BLOCK_KIND_LARGE ? block->large_marked
                                                  : bit_test(block->marks, word);
 }
 
 bool scoop_gc_is_young_object_locked(const void *object) {
     ScoopGcBlockMeta *block = pointer_block(object);
-    return block != NULL && block->generation == SCOOP_GC_YOUNG;
+    return block != NULL && block->head->generation == SCOOP_GC_YOUNG;
 }
 
 size_t scoop_gc_heap_begin_collection_locked(bool minor) {
@@ -137,8 +137,8 @@ size_t scoop_gc_heap_begin_collection_locked(bool minor) {
         if (!active_head(block)) {
             continue;
         }
-        if (block->state == SCOOP_BLOCK_EVACUATION_SOURCE ||
-            block->state == SCOOP_BLOCK_EVACUATION_TARGET) {
+        if (block->head->state == SCOOP_BLOCK_EVACUATION_SOURCE ||
+            block->head->state == SCOOP_BLOCK_EVACUATION_TARGET) {
             heap_fatal("unfinished evacuation state at collection start");
         }
         block->live_bytes = 0;
@@ -148,7 +148,7 @@ size_t scoop_gc_heap_begin_collection_locked(bool minor) {
 #if SCOOP_GC_TRACK_RELOCATION
         block->large_scanned = false;
 #endif
-        if (block->kind == SCOOP_BLOCK_KIND_SMALL) {
+        if (block->head->kind == SCOOP_BLOCK_KIND_SMALL) {
             memset(block->marks, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
 #if SCOOP_GC_TRACK_RELOCATION
             memset(block->scanned, 0, GC_BITMAP_WORDS * sizeof(uint64_t));

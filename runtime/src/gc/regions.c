@@ -64,7 +64,12 @@ ScoopGcRegion *scoop_heap_region_create(size_t size, bool large) {
     region->card_groups = calloc(group_count, sizeof *region->card_groups);
     size_t block_count = large ? 1 : GC_REGION_BLOCKS;
     region->blocks = calloc(block_count, sizeof *region->blocks);
-    if (region->cards == NULL || region->card_groups == NULL || region->blocks == NULL) {
+    region->heads = calloc(block_count, sizeof *region->heads);
+    if (!large) {
+        region->starts = calloc(block_count * GC_BITMAP_WORDS, sizeof *region->starts);
+    }
+    if (region->cards == NULL || region->card_groups == NULL || region->blocks == NULL ||
+        region->heads == NULL || (!large && region->starts == NULL)) {
         heap_fatal("out of memory allocating region side tables");
     }
     for (size_t index = 0; index < group_count; index++) {
@@ -74,6 +79,10 @@ ScoopGcRegion *scoop_heap_region_create(size_t size, bool large) {
     for (size_t index = 0; index < block_count; index++) {
         region->blocks[index].region = region;
         region->blocks[index].index = (uint16_t)index;
+        region->blocks[index].head = &region->heads[index];
+        if (!large) {
+            region->blocks[index].starts = &region->starts[index * GC_BITMAP_WORDS];
+        }
     }
     *(ScoopGcRegion **)mapping = region;
     region->next = scoop_gc_heap_state.regions;
@@ -99,7 +108,6 @@ void scoop_heap_region_destroy(ScoopGcRegion *region) {
     size_t count = region->large ? 1 : GC_REGION_BLOCKS;
     for (size_t index = 0; index < count; index++) {
         ScoopGcBlockMeta *block = &region->blocks[index];
-        free(block->starts);
         free(block->marks);
         free(block->pins);
 #if SCOOP_GC_TRACK_RELOCATION
@@ -108,6 +116,8 @@ void scoop_heap_region_destroy(ScoopGcRegion *region) {
         free(block->line_live);
     }
     free(region->blocks);
+    free(region->heads);
+    free(region->starts);
     free(region->cards);
     free(region->card_groups);
     free(region);

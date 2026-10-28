@@ -15,7 +15,7 @@ static void check_graph(ParallelFixture *fixture) {
         assert(edges[index].right == edges[index % 8].left);
         assert(node->shared->next->next == node->shared);
         ScoopGcBlockMeta *block = pointer_block(node);
-        assert(block->kind == SCOOP_BLOCK_KIND_SMALL);
+        assert(block->head->kind == SCOOP_BLOCK_KIND_SMALL);
         size_t begin = (uintptr_t)node - (uintptr_t)block_base(block);
         size_t end = begin + sizeof *node;
         for (size_t line = begin / GC_LINE_SIZE; line <= (end - 1) / GC_LINE_SIZE; line++) {

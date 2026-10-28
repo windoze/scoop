@@ -26,7 +26,7 @@ static void check_reservations(size_t size) {
         }
         for (size_t block_index = 0; block_index < GC_REGION_BLOCKS; block_index++) {
             ScoopGcBlockMeta *block = &region->blocks[block_index];
-            if (!active_head(block) || block->generation != SCOOP_GC_OLD ||
+            if (!active_head(block) || block->head->generation != SCOOP_GC_OLD ||
                 block->slot_size != size) {
                 continue;
             }
@@ -47,7 +47,7 @@ static void check_reservations(size_t size) {
         for (size_t cell = 0; cell < take; cell++) {
             ScoopGcBlockMeta *block;
             void *object = scoop_heap_reserve_old_slot(&plan, size, &block, NULL);
-            assert(object != NULL && block->state != SCOOP_BLOCK_EVACUATION_TARGET);
+            assert(object != NULL && block->head->state != SCOOP_BLOCK_EVACUATION_TARGET);
             size_t offset = (uintptr_t)object - (uintptr_t)block_base(block);
             assert(offset >= GC_LINE_SIZE && offset + size <= GC_BLOCK_SIZE);
             assert((offset - GC_LINE_SIZE) % size == 0);

@@ -20,10 +20,10 @@ void scoop_heap_claim_current_object(void *object) {
         heap_fatal("scan claimed for a non-object address");
     }
     if (!object_marked(block, word_index) ||
-        (block->state == SCOOP_BLOCK_EVACUATION_SOURCE && !object_pinned(block, word_index))) {
+        (block->head->state == SCOOP_BLOCK_EVACUATION_SOURCE && !object_pinned(block, word_index))) {
         heap_fatal("scan claimed for a non-current object");
     }
-    if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
+    if (block->head->kind == SCOOP_BLOCK_KIND_LARGE) {
         if (__atomic_exchange_n(&block->large_scanned, true, __ATOMIC_RELAXED)) {
             heap_fatal("marked object appeared twice in the retained live set");
         }
@@ -41,7 +41,7 @@ bool scoop_gc_object_was_scanned_locked(const void *object) {
     if (!object_meta(object, &block, &word_index)) {
         return false;
     }
-    return block->kind == SCOOP_BLOCK_KIND_LARGE ? block->large_scanned
+    return block->head->kind == SCOOP_BLOCK_KIND_LARGE ? block->large_scanned
                                                  : bit_test(block->scanned, word_index);
 }
 #endif
@@ -53,10 +53,10 @@ void scoop_gc_heap_verify_stress_moved_locked(void) {
     }
     for (ScoopGcBlockMeta *block = scoop_heap_first_block(); block != NULL;
          block = scoop_heap_next_block(block)) {
-        if (!active_head(block) || block->state != SCOOP_BLOCK_EVACUATION_SOURCE) {
+        if (!active_head(block) || block->head->state != SCOOP_BLOCK_EVACUATION_SOURCE) {
             continue;
         }
-        if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
+        if (block->head->kind == SCOOP_BLOCK_KIND_LARGE) {
             if (block->large_marked && !block->large_pinned) {
                 void *old = (char *)block_base(block) + GC_LINE_SIZE;
                 void *forwarded = scoop_heap_forwarding_address(old);
@@ -91,9 +91,9 @@ void scoop_gc_visit_current_objects_locked(ScoopGcHeapObjectVisitor visitor, voi
         if (!active_head(block)) {
             continue;
         }
-        if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
+        if (block->head->kind == SCOOP_BLOCK_KIND_LARGE) {
             if (block->large_marked) {
-                if (block->state == SCOOP_BLOCK_EVACUATION_SOURCE && !block->large_pinned) {
+                if (block->head->state == SCOOP_BLOCK_EVACUATION_SOURCE && !block->large_pinned) {
                     void *object = (char *)block_base(block) + GC_LINE_SIZE;
                     if (scoop_heap_forwarding_address(object) == NULL) {
                         heap_fatal("live large source object was not forwarded");
@@ -108,7 +108,7 @@ void scoop_gc_visit_current_objects_locked(ScoopGcHeapObjectVisitor visitor, voi
             if (!bit_test(block->starts, word) || !bit_test(block->marks, word)) {
                 continue;
             }
-            if (block->state == SCOOP_BLOCK_EVACUATION_SOURCE && !bit_test(block->pins, word)) {
+            if (block->head->state == SCOOP_BLOCK_EVACUATION_SOURCE && !bit_test(block->pins, word)) {
                 void *object = (char *)block_base(block) + word * sizeof(uint64_t);
                 if (scoop_heap_forwarding_address(object) == NULL) {
                     heap_fatal("live small source object was not forwarded");

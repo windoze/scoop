@@ -65,7 +65,7 @@ static void check_copy_metadata(void *object, void *original, uint64_t gc_word) 
     assert(object_meta(object, &block, &word));
     assert(object_marked(block, word));
     assert(!block->copy_reserved);
-    if (block->kind == SCOOP_BLOCK_KIND_SMALL) {
+    if (block->head->kind == SCOOP_BLOCK_KIND_SMALL) {
         size_t offset = (uintptr_t)object - (uintptr_t)block_base(block);
         size_t last = (offset + size - 1) / GC_LINE_SIZE;
         for (size_t line = offset / GC_LINE_SIZE; line <= last; line++) {

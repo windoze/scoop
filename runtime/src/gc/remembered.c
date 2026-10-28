@@ -26,7 +26,7 @@ uint64_t scoop_gc_scan_dirty_group(ScoopGcCardGroup *group, ScoopGcObjectRangeVi
     ScoopGcRegion *region = group->region;
     size_t index = (size_t)(group - region->card_groups);
     ScoopGcBlockMeta *block = &region->blocks[region->large ? 0 : index];
-    if (!active_head(block) || (only_old && block->generation != SCOOP_GC_OLD)) {
+    if (!active_head(block) || (only_old && block->head->generation != SCOOP_GC_OLD)) {
         return 0;
     }
     uintptr_t base = (uintptr_t)block_base(block);
@@ -53,7 +53,7 @@ uint64_t scoop_gc_scan_dirty_group(ScoopGcCardGroup *group, ScoopGcObjectRangeVi
         uintptr_t end = region->base + (last_card << GC_CARD_SHIFT);
         visited += last_card - card;
         card = last_card;
-        if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
+        if (block->head->kind == SCOOP_BLOCK_KIND_LARGE) {
             visitor((void *)(base + GC_LINE_SIZE), begin, end, context);
             continue;
         }

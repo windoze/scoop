@@ -197,7 +197,7 @@ int main(void) {
     ((ScoopArray *)roots[ARRAY_COUNT - 1])->size = 1500;
     nursery_collect(true);
     ScoopGcBlockMeta *small = pointer_block(roots[ARRAY_COUNT - 1]);
-    assert(small->kind == SCOOP_BLOCK_KIND_SMALL && small->generation == SCOOP_GC_OLD);
+    assert(small->head->kind == SCOOP_BLOCK_KIND_SMALL && small->head->generation == SCOOP_GC_OLD);
     check_scan_ranges(roots[ARRAY_COUNT - 1], &small->region->card_groups[small->index]);
     ScoopGcRegion *large = pointer_block(roots[0])->region;
     check_scan_ranges(roots[0], &large->card_groups[1]);

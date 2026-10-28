@@ -120,7 +120,7 @@ static void *reserve_survivor(MovingPlan *plan, size_t size, size_t alignment,
         if (block == NULL) {
             return NULL;
         }
-        block->generation = SCOOP_GC_YOUNG;
+        block->head->generation = SCOOP_GC_YOUNG;
         block->survivor = true;
         block->retained_young = true;
         plan->survivor_block = block;
@@ -206,8 +206,8 @@ static void rollback_reservations(bool minor) {
     for (ScoopGcBlockMeta *block = scoop_heap_first_collection_block(minor); block != NULL;
          block = scoop_heap_next_collection_block(block, minor)) {
         block->retained_young = false;
-        if (block->state == SCOOP_BLOCK_EVACUATION_SOURCE) {
-            block->state =
+        if (block->head->state == SCOOP_BLOCK_EVACUATION_SOURCE) {
+            block->head->state =
                 scoop_heap_block_has_pins(block) ? SCOOP_BLOCK_PINNED_PARTIAL : SCOOP_BLOCK_MUTATOR;
         }
     }
@@ -253,7 +253,7 @@ static void reserve_move(void **entry, void *context) {
     void *object = *entry;
     size_t size = scoop_heap_small_object_size(object);
     ScoopGcBlockMeta *block = scoop_heap_known_object_block(object, size != 0);
-    if (block->state != SCOOP_BLOCK_EVACUATION_SOURCE ||
+    if (block->head->state != SCOOP_BLOCK_EVACUATION_SOURCE ||
         (stress_move && object_pinned(block, ((uintptr_t)object - (uintptr_t)block_base(block)) /
                                                 sizeof(uint64_t)))) {
         plan->survivors.objects += block->retained_young;
@@ -266,7 +266,7 @@ static void reserve_move(void **entry, void *context) {
     size_t alignment = scoop_gc_object_alignment(object);
     void *destination = NULL;
     if (plan->survivor_capacity_limit != 0 && !block->survivor &&
-        block->kind == SCOOP_BLOCK_KIND_SMALL) {
+        block->head->kind == SCOOP_BLOCK_KIND_SMALL) {
         destination = reserve_survivor(plan, size, alignment, &target);
     }
     if (destination == NULL) {

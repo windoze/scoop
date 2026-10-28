@@ -113,7 +113,7 @@ bool scoop_gc_mark_dirty_groups(bool retain_remembered, bool first) {
         if (retain_remembered && first) {
             ScoopGcRegion *region = group->region;
             size_t index = region->large ? 0 : (size_t)(group - region->card_groups);
-            if (region->blocks[index].generation == SCOOP_GC_YOUNG) {
+            if (region->blocks[index].head->generation == SCOOP_GC_YOUNG) {
                 /* The first root/remembered traversal will scan the current young graph. */
                 scoop_heap_clear_dirty_card_group(group);
                 group = next;
@@ -150,7 +150,7 @@ static void scan_dirty_live(void *object, uintptr_t begin, uintptr_t end, void *
     if (visit->last_object != object) {
         const ScoopGcBlockMeta *block = visit->block;
         size_t word = ((uintptr_t)object - (uintptr_t)block_base(block)) / sizeof(uint64_t);
-        bool live = block->kind == SCOOP_BLOCK_KIND_LARGE
+        bool live = block->head->kind == SCOOP_BLOCK_KIND_LARGE
                         ? __atomic_load_n(&block->large_marked, __ATOMIC_RELAXED)
                         : (__atomic_load_n(&block->marks[word / 64], __ATOMIC_RELAXED) &
                            (UINT64_C(1) << (word % 64))) != 0;
@@ -173,7 +173,7 @@ void scoop_gc_mark_run_dirty(ScoopGcMarkWorker *worker, ScoopGcCardGroup *group,
     ScoopGcRegion *region = group->region;
     size_t index = region->large ? 0 : (size_t)(group - region->card_groups);
     ScoopGcBlockMeta *block = &region->blocks[index];
-    if (worker->minor && block->generation == SCOOP_GC_OLD) {
+    if (worker->minor && block->head->generation == SCOOP_GC_OLD) {
         RememberedVisit visit = {.visit = {worker, SCOOP_MARK_REMEMBERED}};
         worker->dirty_cards += scoop_gc_scan_dirty_group(group, scan_dirty, &visit, true);
         const unsigned char *cards =
@@ -289,7 +289,7 @@ uint64_t scoop_gc_mark_complete(bool minor) {
             } else {
                 block->movable_live_bytes += counts->movable_bytes;
             }
-            if (block->kind == SCOOP_BLOCK_KIND_SMALL) {
+            if (block->head->kind == SCOOP_BLOCK_KIND_SMALL) {
                 for (size_t line = 0; line < GC_LINE_BITMAP_WORDS; line++) {
                     block->line_live[line] |= counts->live_lines[line];
                 }

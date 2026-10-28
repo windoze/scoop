@@ -162,8 +162,7 @@ void bit_set(uint64_t *bits, size_t index) { bits[index / 64] |= UINT64_C(1) << 
 void bit_clear(uint64_t *bits, size_t index) { bits[index / 64] &= ~(UINT64_C(1) << (index % 64)); }
 
 static void ensure_small_metadata(ScoopGcBlockMeta *block) {
-    if (block->starts == NULL) {
-        block->starts = calloc(GC_BITMAP_WORDS, sizeof(uint64_t));
+    if (block->marks == NULL) {
         block->marks = calloc(GC_BITMAP_WORDS, sizeof(uint64_t));
         block->pins = calloc(GC_BITMAP_WORDS, sizeof(uint64_t));
 #if SCOOP_GC_TRACK_RELOCATION
@@ -173,8 +172,7 @@ static void ensure_small_metadata(ScoopGcBlockMeta *block) {
         }
 #endif
         block->line_live = calloc(GC_LINE_BITMAP_WORDS, sizeof(uint64_t));
-        if (block->starts == NULL || block->marks == NULL || block->pins == NULL ||
-            block->line_live == NULL) {
+        if (block->marks == NULL || block->pins == NULL || block->line_live == NULL) {
             heap_fatal("out of memory allocating small-block side metadata");
         }
     }
@@ -235,13 +233,13 @@ ScoopGcBlockMeta *activate_small_block(ScoopGcBlockState state, bool allow_growt
     if (block == NULL) {
         return NULL;
     }
-    if (block->state != SCOOP_BLOCK_NEVER_USED && block->state != SCOOP_BLOCK_FREE) {
+    if (block->head->state != SCOOP_BLOCK_NEVER_USED && block->head->state != SCOOP_BLOCK_FREE) {
         heap_fatal("region allocator selected an active block");
     }
     reset_small_metadata(block);
-    block->state = state;
-    block->kind = SCOOP_BLOCK_KIND_SMALL;
-    block->generation = SCOOP_GC_OLD;
+    block->head->state = state;
+    block->head->kind = SCOOP_BLOCK_KIND_SMALL;
+    block->head->generation = SCOOP_GC_OLD;
     block->survivor = false;
     block->retained_young = false;
     block->exact_size = 0;
@@ -264,9 +262,9 @@ ScoopGcBlockMeta *activate_large_block(size_t exact_size, ScoopGcBlockState stat
         return NULL;
     }
     ScoopGcBlockMeta *block = region->blocks;
-    block->state = state;
-    block->kind = SCOOP_BLOCK_KIND_LARGE;
-    block->generation = SCOOP_GC_OLD;
+    block->head->state = state;
+    block->head->kind = SCOOP_BLOCK_KIND_LARGE;
+    block->head->generation = SCOOP_GC_OLD;
     block->survivor = false;
     block->retained_young = false;
     block->exact_size = exact_size;
