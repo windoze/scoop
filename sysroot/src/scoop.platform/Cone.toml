@@ -75,6 +75,9 @@ path = "native/paths.c"
 path = "native/strings.c"
 [[native.sources]]
 path = "native/directory.c"
+when = {os = ["darwin", "linux"]}
+[[native.sources]]
+path = "native/directory_owner.c"
 [[native.sources]]
 path = "native/environment.c"
 [[native.sources]]

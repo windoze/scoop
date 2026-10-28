@@ -1,5 +1,7 @@
 package scoop.platform.fs
 
+import scoop.platform.system.OsString
+
 @Unsafe
 internal fun <R> Path.withPlatformPath(block: (Ptr<Byte>) -> R): R {
     val units = toOsString().toUtf16()
@@ -19,4 +21,17 @@ internal fun <R> Path.withPlatformPath(block: (Ptr<Byte>) -> R): R {
             return@withDataPointer block(pointer.cast<Byte>())
         }
     }
+}
+
+@Unsafe
+internal fun copyPlatformString(pointer: Ptr<Byte>, length: Long): OsString {
+    val units = pointer.cast<UShort>()
+    return OsString.fromUtf16(
+        Array<UShort>(length) {
+            index -> @Unsafe
+            {
+                return@Array units.load(index)
+            }
+        }
+    )
 }

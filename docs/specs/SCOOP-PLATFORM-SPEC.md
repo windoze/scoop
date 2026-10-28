@@ -202,6 +202,8 @@ Windows 使用 LockFileEx／UnlockFileEx 锁定从零开始、长度为 UINT64_M
 
 EOF 时自动关闭枚举句柄，之后 next 仍返回 None；提前 close 后再 next 抛 IllegalStateException。提前退出循环或正文失败由 use 清理，for 不自动关闭 iterator。native 枚举和复制名称期间保活 owner；不支持重入／并发枚举或关闭。hook 只兜底 closedir。
 
+Windows 枚举独占不可继承的目录 HANDLE，以 CreateFileW 的目录访问和 GetFileInformationByHandleEx 的 FileFullDirectoryInfo 读取实际条目，不将路径拼成 wildcard 搜索。名称按返回的 UTF-16 长度复制为独立 OsString，不要求 native 名称带 NUL；复制期间 owner 与枚举 buffer 保持有效。跳过 `.`／`..`，不排序、不重新启动游标；ERROR_NO_MORE_FILES 表示 EOF。CloseHandle 和 native buffer 释放共用一次关闭路径；失败在清理前保存 Win32 code，分配失败报告 ERROR_NOT_ENOUGH_MEMORY。POSIX 保留 opendir／readdir／closedir 供 asyncio 复用，managed 同步边界返回带名称长度和本次错误的记录。
+
 ### 6.4 native 传输、信号与错误
 
 阻塞 open/read/write、文件 metadata／同步、目录和路径操作使用 NativeSafe。read/write 只在没有交付字节的 EINTR 时重试，一次传输受平台 ssize_t／实际 syscall 上限限制。errno 在本次失败后立即保存，任何信号状态恢复或返回握手都不能覆盖它。

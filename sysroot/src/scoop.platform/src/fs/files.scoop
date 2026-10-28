@@ -8,56 +8,6 @@ import scoop.platform.env.temporaryDirectory
 import scoop.platform.system.*
 
 /**
- * Creates missing path components as directories, preserving already existing directories.
- */
-public fun Path.createDirectories(mode: Int = 0x1ff) {
-    try {
-        this.createDirectory(mode);
-        return
-    }
-    catch (error: PlatformException) {
-        if (error.kind == PlatformErrorKind.AlreadyExists) {
-            if (this.metadata().kind == FileKind.Directory)
-                return
-            throw error
-        }
-        if (error.kind != PlatformErrorKind.NotFound || this.parent == None)
-            throw error
-    }
-    this.parent!!.createDirectories(mode)
-    try {
-        this.createDirectory(mode)
-    }
-    catch (error: PlatformException) {
-        if (
-            error.kind !=
-                PlatformErrorKind.AlreadyExists ||
-                this.metadata().kind !=
-                FileKind.Directory
-        )
-            throw error
-    }
-}
-
-/**
- * Recursively removes a directory tree without following symbolic-link targets.
- */
-public fun Path.deleteRecursively() {
-    if (this.metadata(followLinks = false).kind == FileKind.Directory) {
-        this.entries().use {
-            directory -> for (entry in directory)
-                entry.path.deleteRecursively()
-        }
-    }
-    this.delete()
-}
-
-/**
- * Opens an owned, single-pass cursor over this directory.
- */
-public fun Path.entries(): DirectoryEntries = DirectoryEntries.open(this)
-
-/**
  * Creates a symbolic link at this path containing the supplied target path.
  */
 public fun Path.createSymbolicLink(target: Path) {
