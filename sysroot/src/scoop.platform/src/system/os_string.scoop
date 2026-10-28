@@ -4,23 +4,27 @@ package scoop.platform.system
  * An immutable snapshot of operating-system bytes. It can represent names that are not valid
  * UTF-8; decoding policy is explicit.
  */
-public class OsString private constructor(private val bytes: Array<Byte>) : Equals<OsString>, Hash {
+public class OsString private constructor(private val bytes: Array<Byte>): Equals<OsString>, Hash {
     /**
      * Returns an independent copy of the stored native bytes.
      */
     public fun toByteArray(): Array<Byte> = Array<Byte>(bytes.size) { index -> bytes[index] }
 
     /**
+     * Copies the UTF-16 code units represented by these UTF-8 or WTF-8 bytes, preserving unpaired
+     * surrogates. Malformed or noncanonical encoding throws CharacterCodingException.
+     */
+    public fun toUtf16(): Array<UShort> = decodeOsUtf16(bytes)
+
+    /**
      * Decodes the stored bytes as strict UTF-8, rejecting malformed encoding.
      */
-    public fun decodeUtf8(): String =
-        String.fromUtf8(bytes)
+    public fun decodeUtf8(): String = String.fromUtf8(bytes)
 
     /**
      * Decodes stored bytes with replacement for malformed UTF-8.
      */
-    public fun decodeUtf8Lossy(): String =
-        String.fromUtf8Lossy(bytes)
+    public fun decodeUtf8Lossy(): String = String.fromUtf8Lossy(bytes)
 
     /**
      * Returns a lossy UTF-8 presentation suitable for displaying native names.
@@ -30,7 +34,8 @@ public class OsString private constructor(private val bytes: Array<Byte>) : Equa
     /**
      * Compares the exact stored byte sequences.
      */
-    public override operator fun equals(other: OsString): Boolean = byteContentsEqual(bytes, other.bytes)
+    public override operator fun equals(other: OsString): Boolean =
+        byteContentsEqual(bytes, other.bytes)
     /**
      * Hashes the stored bytes consistently with equality.
      */
@@ -44,6 +49,11 @@ public class OsString private constructor(private val bytes: Array<Byte>) : Equa
          * Copies the UTF-8 encoding of the supplied text.
          */
         public fun fromString(value: String): OsString = fromByteArray(value.toByteArray())
+
+        /**
+         * Copies arbitrary UTF-16 code units as WTF-8, preserving unpaired surrogates and NUL.
+         */
+        public fun fromUtf16(value: List<UShort>): OsString = OsString(encodeOsUtf16(value))
         /**
          * Copies arbitrary native bytes without requiring UTF-8.
          */
@@ -53,10 +63,12 @@ public class OsString private constructor(private val bytes: Array<Byte>) : Equa
 }
 
 internal fun byteContentsEqual(left: Array<Byte>, right: Array<Byte>): Boolean {
-    if (left.size != right.size) return false
+    if (left.size != right.size)
+        return false
     var index = 0L
     while (index < left.size) {
-        if (left[index] != right[index]) return false
+        if (left[index] != right[index])
+            return false
         index += 1L
     }
     return true
@@ -64,6 +76,7 @@ internal fun byteContentsEqual(left: Array<Byte>, right: Array<Byte>): Boolean {
 
 internal fun byteContentsHash(bytes: Array<Byte>): Long {
     var result = 1L
-    for (value in bytes) result = result * 31L + value.toLong()
+    for (value in bytes)
+        result = result * 31L + value.toLong()
     return result
 }

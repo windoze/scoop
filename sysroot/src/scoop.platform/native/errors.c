@@ -1,7 +1,13 @@
+#ifndef _WIN32
 #define _POSIX_C_SOURCE 200809L
+#endif
 #include <errno.h>
-#include <netdb.h>
 #include <stdint.h>
+#ifdef _WIN32
+#include "errors_windows.h"
+#else
+#include <netdb.h>
+#endif
 
 /* Private category numbers shared with system/errors.scoop. */
 static int32_t errno_kind(int32_t code) {
@@ -23,7 +29,9 @@ static int32_t errno_kind(int32_t code) {
     case ENOMEM:
         return 7;
     case ENOSPC:
+#ifdef EDQUOT
     case EDQUOT:
+#endif
         return 8;
     case EPIPE:
         return 9;
@@ -58,9 +66,20 @@ static int32_t errno_kind(int32_t code) {
     }
 }
 
-int32_t scoop_platform_error_kind(int32_t domain, int32_t code, int32_t system_code) {
+int32_t scoop_platform_error_kind(int32_t domain, int32_t code,
+                                  int32_t system_code) {
     if (domain == 0)
         return errno_kind(code);
+#ifdef _WIN32
+    (void)system_code;
+    if (domain == 2)
+        return win32_error_kind(code);
+    if (domain == 1 || domain == 3)
+        return winsock_error_kind(code);
+    return 0;
+#else
+    if (domain != 1)
+        return 0;
     switch (code) {
     case EAI_SYSTEM:
         return errno_kind(system_code);
@@ -79,4 +98,5 @@ int32_t scoop_platform_error_kind(int32_t domain, int32_t code, int32_t system_c
     default:
         return 0;
     }
+#endif
 }

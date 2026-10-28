@@ -13,8 +13,15 @@ kind = "library"
 [test-dependencies]
 "scoop:scoop.test" = "0.1.0"
 
+[[test.sources]]
+path = "tests"
+
+[[test.sources]]
+path = "test-windows"
+when = {os = "windows"}
+
 [native]
-c_flags = ["-std=c11", "-Wall", "-Wextra", "-Werror"]
+c_flags = ["-Wextra", "-Werror"]
 
 [[native.sources]]
 path = "native/errors.c"

@@ -7,7 +7,7 @@
 | W0 工具链与 ABI | 关键路线实验通过 | 复现入口与范围见下文；正式编译器集成在 W1／W2 完成 |
 | W1 编译／链接 | 实施中 | 三目标开发 CLI 已支持 subsystem、RC、DLL 数据与跨 Cone C++；函数入口的 CodeView／PDB 定位通过，继续源位置覆盖与 ABI 组合验收 |
 | W2 core runtime | 实施中 | core／std／test 已构建且 Cone 测试通过，异常、移动 GC、callback、TLS、初始化、shutdown 与并行 GC 的定向程序通过；继续其余 ABI／GC 组合验收 |
-| W3 系统库 | 待实施 | 平台规范与实现、IOCP、全部 native 组件、真实 consumer |
+| W3 系统库 | 基础实施中 | UTF-16 无损字符串与 Windows 错误分类通过定向测试；继续路径／OS 操作、IOCP、全部 native 组件及真实 consumer |
 | W4 宿主与发行 | 基础实施中 | 进程中断已实现；继续 Windows 命令、维护脚本、DLL／SDK 布局与打包、交叉编译 |
 
 本地实现和完整验收完成后，才在 Linux `nuc12w.0d0a.com` 与 macOS `mm.0d0a.com` 的 `~/repos` 下新建测试目录，运行与变更范围相称的回归。原始日志与构建目录放在仓库外。
@@ -164,3 +164,7 @@ Windows debug profile 的函数声明信息现由 HIR 经 MIR／LIR 传给 LLVM 
 深层调用的 Windows 首轮失败已闭合：原 PE 默认只预留 1 MiB 栈，而 debug 的递归帧约 704 字节，2048 层超过容量。最终链接现统一预留 8 MiB、初始提交 4 KiB；Microsoft LINK／LLD 和两个 MinGW CRT 的真实 PE header 检查通过，toolchain Clippy 通过。递归深度、移动 GC 和 600 层异常展开保持原测试要求。
 
 `deep-frames`、两项 direct-C 参数／表示、`interface-ssa` 与 `interfaces-artifacts` 在四种链接组合全部通过，每组合 8 个变体／24 个进程步骤；包含寄存器／栈混合参数、64 字节 sret、原生指针／handle、接口移动／minor GC、跨 Cone 混合 profile 与精确链接指纹。接口用例去掉没有断言的全阶段 dump，debug 重链接保留同样的符号配置与 PDB basename。`coroutine-unwind-liveness` 的首轮仍缺目标 platform 产物，随 W3 的真实线程实现继续验证，未计为通过；尚未开始远端测试。
+
+W3 首批基础类型已实现：OsString 的显式 UTF-16 转换使用 WTF-8，保留全部 65,536 种码元、非配对 surrogate 与 NUL，并拒绝非法／非最短编码及分开编码的 surrogate 对。Win32／Winsock 错误域保留完整 code 位模式，使用所选 SDK 的常量分类；Windows 地址解析采用实际 WSA／EAI 码，POSIX 原规则保持。
+
+普通测试仍放在 platform Cone；本批从实际源码和测试复制出的仓库外临时 Cone 验证字符串与错误子集，三个 target 各 4 个容器／14 项测试全部通过，Microsoft 同时覆盖 GNU 风格 Clang 与默认 clang-cl。未构建或发布完整 Windows platform 库，不能据此声明 OS 操作已可用。Scoop／C 格式化及三环境 C 的 `-Wall -Wextra -Werror` 检查通过；manifest 去掉 driver 已提供的 C11 参数和在 clang-cl 中含义不同的 `-Wall`，保留 `-Wextra -Werror`。Windows 测试通过普通 conditional test sources 选择；路径、OS 错误捕获和其余 W3 工作继续实施。

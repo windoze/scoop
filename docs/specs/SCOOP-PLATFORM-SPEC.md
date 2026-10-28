@@ -26,6 +26,14 @@ IO 端点、文件／进程观察权和 native buffer 使用 core Closeable.clos
 
 OsString 可以保存任意字节，包括 NUL。实际进入 C 字符串位置的 API 在调用前拒绝内嵌 NUL；环境变量名另须非空且不含 `=`。拒绝抛 IllegalArgumentException，不能静默截断或改写输入。
 
+Windows 原生字符串需要无损保留全部 UTF-16 code unit，包括非配对 surrogate。`OsString` 增加以下显式转换，已有字节工厂与 UTF-8 解码合同保持不变：
+
+- `fromUtf16(value: List<UShort>): OsString` 复制输入并使用 [WTF-8](https://wtf-8.codeberg.page/) 表示：配对 surrogate 编码为一个普通 UTF-8 scalar，非配对 surrogate 保留其三字节编码，NUL 也保留。
+- `toUtf16(): Array<UShort>` 将 UTF-8／WTF-8 转成独立 code-unit 数组，不替换非配对 surrogate。非法或非最短字节序列、超过 U+10FFFF 的值，以及分别编码的相邻高／低 surrogate 对，抛 CharacterCodingException；byteOffset 指向该非法序列的首字节。
+- 两个转换在所有 target 上可用，互转保留任意 UTF-16 输入。有效 Unicode 的存储字节与 `fromString` 相同；相等和 hash 继续只取决于保存的字节。任意 POSIX 字节不能保证可转换为 UTF-16。
+
+Windows OS 返回的原生名称使用上述无损表示；进入 Windows wide API 时需可转换为 UTF-16，不经过 ANSI code page 或有损 String。这个系统字符串表示不扩展 managed `String` 的 Unicode scalar 合同，也不放宽程序启动参数的严格解码规则。具体 Windows OS 接口的实施与验收见 [Windows targets](../windows-targets/DESIGN.md)。
+
 ### 2.2 Path
 
 `scoop.platform.fs.Path` 是不可变 final class，实现 `Equals<Path>` 和 `Hash`。`fromString(String)` 与 `fromOsString(OsString)` 工厂保留原始字节并拒绝 NUL，不查询文件系统。相等和 hash 比较保存的字节，不折叠大小写、分隔符或 symlink。
@@ -47,7 +55,9 @@ OsString 可以保存任意字节，包括 NUL。实际进入 C 字符串位置�
 
 `scoop.platform.system.PlatformErrorKind` 包含 NotFound、AlreadyExists、PermissionDenied、NotDirectory、IsDirectory、InvalidInput、NoMemory、NoSpace、BrokenPipe、ConnectionRefused、ConnectionReset、AddressInUse、AddressUnavailable、TimedOut、Interrupted、WouldBlock、Unsupported、Other。未知错误归 Other，必须保留原始错误数据；Unsupported 仅用于 OS 实际报告不支持。
 
-`NativeErrorDomain` 区分 PosixErrno 与 AddressResolution。普通值类型 `NativeError(domain, code, systemCode: Int? = None)` 保存原始 Int 错误码；AddressResolution 的 EAI_SYSTEM 还保存同次失败的 errno。只读属性 `kind` 依据目标系统的实际常量分类，不假设两个 target 的 errno／EAI 数值相同。pthread 直接返回的 errno 风格错误属于 PosixErrno，不能改读线程 errno。
+`NativeErrorDomain` 区分 PosixErrno、AddressResolution、Win32 与 Winsock。普通值类型 `NativeError(domain, code, systemCode: Int? = None)` 保存原始 Int 错误码；AddressResolution 的 POSIX EAI_SYSTEM 还保存同次失败的 errno，Windows 保存地址解析函数直接返回的 WSA／EAI 码，不另取 errno。只读属性 `kind` 依据目标系统的实际常量分类，不假设两个 target 的 errno／EAI 数值相同；当前目标没有的错误域分类为 Other，仍保存原值。pthread 直接返回的 errno 风格错误属于 PosixErrno，不能改读线程 errno。
+
+Win32 保存失败调用后立即取得的 GetLastError，Winsock 保存立即取得的 WSAGetLastError；DWORD 的完整位模式保存在 Int 中。native shim 在任何清理、回调或返回 managed 代码之前保存错误，不将 Windows 错误翻译成伪造 errno，也不通过后续独立 FFI 调用重新读取线程错误。Windows CRT 本身产生的 errno 仍属于 PosixErrno。EOF、pending、取消和 close 是具体操作协议的结果，不因有相应 native code 就一律当成失败。错误域分类不会改写原始 code。
 
 asyncio 的 syscall 与 io_uring 负结果均转换为 PosixErrno；保留实际 errno，不再提供失去消费者的 Libuv 错误域。EOF 与主动取消／关闭由 I/O 协议解释。
 

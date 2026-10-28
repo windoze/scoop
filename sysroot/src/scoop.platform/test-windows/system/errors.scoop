@@ -1,0 +1,82 @@
+package scoop.platform.system
+
+import scoop.test.*
+
+@Test
+private class WindowsErrorTest {
+    @Test
+    fun `Win32 and Winsock codes retain distinct domains`() {
+        val missing = NativeError(NativeErrorDomain.Win32, 2)
+        assertTrue(missing.kind == PlatformErrorKind.NotFound)
+        val refused = NativeError(NativeErrorDomain.Winsock, 10061)
+        assertTrue(refused.kind == PlatformErrorKind.ConnectionRefused)
+        assertEquals(10061, refused.code)
+        assertTrue(refused.domain == NativeErrorDomain.Winsock)
+        assertTrue(refused.systemCode == None)
+        assertTrue(NativeError(NativeErrorDomain.Win32, 10061).kind == PlatformErrorKind.Other)
+        assertTrue(NativeError(NativeErrorDomain.Winsock, 2).kind == PlatformErrorKind.Other)
+    }
+
+    @Test
+    fun `Windows classifications cover file socket and resolution failures`() {
+        val windows: Array<(Int, PlatformErrorKind)> =
+            [
+                (3, PlatformErrorKind.NotFound),
+                (183, PlatformErrorKind.AlreadyExists),
+                (5, PlatformErrorKind.PermissionDenied),
+                (267, PlatformErrorKind.NotDirectory),
+                (87, PlatformErrorKind.InvalidInput),
+                (8, PlatformErrorKind.NoMemory),
+                (112, PlatformErrorKind.NoSpace),
+                (109, PlatformErrorKind.BrokenPipe),
+                (1460, PlatformErrorKind.TimedOut),
+                (995, PlatformErrorKind.Interrupted),
+                (997, PlatformErrorKind.WouldBlock),
+                (50, PlatformErrorKind.Unsupported)
+            ]
+        for ((code, kind) in windows)
+            assertTrue(NativeError(NativeErrorDomain.Win32, code).kind == kind)
+        val sockets: Array<(Int, PlatformErrorKind)> =
+            [
+                (10013, PlatformErrorKind.PermissionDenied),
+                (10022, PlatformErrorKind.InvalidInput),
+                (10055, PlatformErrorKind.NoMemory),
+                (10058, PlatformErrorKind.BrokenPipe),
+                (10054, PlatformErrorKind.ConnectionReset),
+                (10048, PlatformErrorKind.AddressInUse),
+                (10049, PlatformErrorKind.AddressUnavailable),
+                (10060, PlatformErrorKind.TimedOut),
+                (10004, PlatformErrorKind.Interrupted),
+                (10035, PlatformErrorKind.WouldBlock),
+                (10047, PlatformErrorKind.Unsupported)
+            ]
+        for ((code, kind) in sockets)
+            assertTrue(NativeError(NativeErrorDomain.Winsock, code).kind == kind)
+        assertTrue(
+            NativeError(NativeErrorDomain.AddressResolution, 11001).kind ==
+                PlatformErrorKind.NotFound
+        )
+        assertTrue(
+            NativeError(NativeErrorDomain.AddressResolution, 11002).kind ==
+                PlatformErrorKind.WouldBlock
+        )
+        assertTrue(
+            NativeError(NativeErrorDomain.AddressResolution, 8).kind == PlatformErrorKind.NoMemory
+        )
+    }
+
+    @Test
+    fun `unknown Windows codes retain all bits and their context`() {
+        for (domain in [NativeErrorDomain.Win32, NativeErrorDomain.Winsock]) {
+            val native = NativeError(domain, Int.MIN_VALUE)
+            assertTrue(native.kind == PlatformErrorKind.Other)
+            assertEquals(Int.MIN_VALUE, native.code)
+            val units: Array<UShort> = [0xd800.toUShort()]
+            val context = OsString.fromUtf16(units)
+            val failure = PlatformException("operation", native.kind, Some(native), Some(context))
+            assertEquals(Int.MIN_VALUE, failure.nativeError!!.code)
+            assertTrue(failure.nativeError!!.domain == domain)
+            assertEquals(0xd800.toUShort(), failure.context!!.toUtf16()[0L])
+        }
+    }
+}
