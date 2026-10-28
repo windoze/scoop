@@ -3,6 +3,7 @@ use object::{Object, ObjectSection};
 use scoop_source::{DebugFile, DebugRecords};
 use std::sync::Arc;
 
+mod globals;
 mod managed;
 mod variables;
 

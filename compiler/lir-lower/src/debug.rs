@@ -55,6 +55,11 @@ pub(super) fn types(
             }
         }
     }
+    for global in module.globals.values() {
+        if matches!(global.debug_origin, mir::DebugOrigin::Source(_)) {
+            builder.source(&global.ty)?;
+        }
+    }
     Ok(builder.types)
 }
 

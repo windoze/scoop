@@ -958,6 +958,7 @@ pub(super) fn string_metadata_for(target: scoop_lir::LirTargetProfile) -> LirMet
     });
     LirMeta {
         debug_types: Default::default(),
+        debug_globals: Default::default(),
         exact_types: Vec::new(),
         target_profile: target,
         canonical_c_abi: scoop_lir::CanonicalCAbiMetadata::default(),

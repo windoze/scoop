@@ -53,6 +53,7 @@ pub(super) fn lower_graph(
         &signatures,
     )?;
     let globals::LoweredGlobals {
+        debug: debug_globals,
         storage: storage_globals,
         native: native_globals,
         bridges: native_global_bridges,
@@ -367,6 +368,7 @@ pub(super) fn lower_graph(
         },
         meta: lir::LirMeta {
             debug_types,
+            debug_globals,
             exact_types: materialized_exact_types(input, &external_exact_types),
             target_profile: context.target_profile(),
             canonical_c_abi: native_abi.canonical_c_abi,

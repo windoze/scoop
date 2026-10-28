@@ -353,6 +353,7 @@ fn metadata() -> LirMeta {
     });
     LirMeta {
         debug_types: Default::default(),
+        debug_globals: Default::default(),
         exact_types: Vec::new(),
         target_profile: crate::target_fixtures::DARWIN_AARCH64,
         canonical_c_abi: CanonicalCAbiMetadata::default(),

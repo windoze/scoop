@@ -1356,6 +1356,7 @@ fn canonical_c_abi_metadata_includes_external_global_layouts() {
     );
     let source_contract_id = source_contract.id();
     source.globals.alloc(mir::Global {
+        debug_origin: Default::default(),
         name: "header".to_string(),
         storage_owner: mir::StaticStorageOwner::PropertyBacking(property_owner("header")),
         ty: mir::Type::Struct(header),

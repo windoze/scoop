@@ -365,6 +365,7 @@ fn semantic_module() -> Module {
         output: scoop_lir::LirOutput::Executable { entry },
         meta: LirMeta {
             debug_types: Default::default(),
+            debug_globals: Default::default(),
             exact_types: Vec::new(),
             target_profile: scoop_target_data::DARWIN_AARCH64,
             canonical_c_abi: CanonicalCAbiMetadata::default(),

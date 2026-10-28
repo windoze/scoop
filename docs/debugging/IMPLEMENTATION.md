@@ -45,3 +45,5 @@ LIR 已把源码变量关联到原有 local slot／逻辑参数，并建立按 e
 Full DWARF 已接通源码参数、局部、词法作用域和精确静态类型，debug 默认 full、release 默认 none；协议为 20，显式级别与优化模式独立。参数按实际 ABI 发射直接值或 fragment，普通局部观察已有存储，managed 值只记录实际读取／赋值；safepoint 后无法保证位置时结束记录，后续真实读取可恢复。调试没有增加 GC roots、存储或程序读取。类型显示名复用 MIR 的可读名称，exact id 仍用于类型关联与 DWARF 唯一性。
 
 本地定向验证通过：六组合行表／优化／statepoint、递归类型和参数片段、GC 前后失效与根数量对比、协议／缓存／CLI，以及十项 LIR 布局回归。真实 Scoop 默认 full 程序输出正确，dSYM 校验无错误，LLDB 可读取 Long 类型和 answer 变量位置并解析源码断点；重复构建没有 child 调用。全局／TLS、跨 Cone 模板局部名及闭包／协程绑定继续实施。stock LLDB 在帧显示中优先使用精确 linkage 名，此显示问题和本机进程启动卡顿仍需闭合，当前结果不代表进程内 DAP 验收完成。
+
+全局／TLS 绑定已随 property 与 singleton 来源传递，在定义实际存储的对象中发射 DIGlobalVariable；纯数据对象也可建立调试单元。生成的失败根与 delegate 协议存储不冒充源码变量。全局对象定向测试通过，真实 Scoop 的 counter、threadCounter、label 均出现在 dSYM 中，TLS 使用 DW_OP_form_tls_address，DWARF 校验和程序输出通过。未为此新增 `.slib` 调试快照。

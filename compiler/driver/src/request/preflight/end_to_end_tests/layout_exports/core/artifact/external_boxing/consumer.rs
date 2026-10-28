@@ -30,6 +30,7 @@ pub(super) fn module(
         output: LirOutput::Library,
         meta: LirMeta {
             debug_types: Default::default(),
+            debug_globals: Default::default(),
             exact_types: Vec::new(),
             target_profile,
             canonical_c_abi: CanonicalCAbiMetadata::default(),

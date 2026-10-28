@@ -22,6 +22,14 @@ pub enum DebugStorage {
     Parameter(u32),
 }
 
+/// Source observation of an existing static storage definition.
+#[derive(Debug)]
+pub struct DebugGlobal {
+    pub name: std::sync::Arc<str>,
+    pub location: std::sync::Arc<scoop_source::DebugLocation>,
+    pub ty: scoop_identity::PersistentExactTypeId,
+}
+
 #[derive(Debug, Default)]
 pub enum DebugSignature {
     #[default]

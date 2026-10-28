@@ -76,6 +76,7 @@ fn initialization_display_name_survives_lir_lowering() {
     );
     let storage_owner = property_owner("value");
     let storage = source.globals.alloc(mir::Global {
+        debug_origin: Default::default(),
         name: "value".to_string(),
         storage_owner: mir::StaticStorageOwner::PropertyBacking(storage_owner),
         ty: mir::Type::Unit,
@@ -85,6 +86,7 @@ fn initialization_display_name_survives_lir_lowering() {
         },
     });
     let failure_global = source.globals.alloc(mir::Global {
+        debug_origin: Default::default(),
         name: "$init.failure".to_string(),
         storage_owner: mir::StaticStorageOwner::InitializationFailureRoot(persistent_unit),
         ty: mir::Type::Any,

@@ -99,6 +99,14 @@ impl DebugSources {
             CallableTemplateOwner::VariantConstructor(_)
             | CallableTemplateOwner::ReleaseHook(_) => return DebugOrigin::Generated,
         };
+        self.definition(subject, records)
+    }
+
+    pub fn definition(
+        &self,
+        subject: DefinitionOriginSubject,
+        records: &mut DebugRecords,
+    ) -> DebugOrigin {
         match self.definitions.get(subject) {
             Some(record) => {
                 let origin = record.origin();

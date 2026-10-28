@@ -106,6 +106,7 @@ pub(super) fn fixture() -> Module {
         unreachable!()
     };
     let storage = module.globals.alloc(Global {
+        debug_origin: Default::default(),
         name: "setting".into(),
         storage_owner: StaticStorageOwner::PropertyBacking(PropertyOwner::Property(property)),
         ty: Type::Unit,
@@ -115,6 +116,7 @@ pub(super) fn fixture() -> Module {
         },
     });
     let failure = module.globals.alloc(Global {
+        debug_origin: Default::default(),
         name: "failure".into(),
         storage_owner: StaticStorageOwner::InitializationFailureRoot(unit.id()),
         ty: Type::Any,

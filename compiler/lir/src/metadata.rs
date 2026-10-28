@@ -15,6 +15,7 @@ pub use structs::*;
 pub struct LirMeta {
     /// Not serialized into LIR metadata; native objects carry their own DWARF.
     pub debug_types: DebugTypes,
+    pub debug_globals: std::collections::BTreeMap<GlobalId, DebugGlobal>,
     /// Complete persistent exact-type identities for every locally
     /// materialized source or generated nominal. Physical metadata keeps the
     /// semantic key instead of exposing only its derived id.

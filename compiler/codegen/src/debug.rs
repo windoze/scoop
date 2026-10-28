@@ -17,6 +17,7 @@ use scoop_source::{DebugFile, DebugInlineSite, DebugLocation, DebugOrigin, Debug
 
 use crate::ValidatedBackendProfile;
 
+mod globals;
 mod types;
 mod variables;
 

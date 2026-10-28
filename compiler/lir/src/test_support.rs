@@ -42,6 +42,7 @@ pub(crate) fn module(functions: Vec<Function>) -> Module {
         output: LirOutput::Library,
         meta: LirMeta {
             debug_types: Default::default(),
+            debug_globals: Default::default(),
             exact_types: Vec::new(),
             target_profile: crate::target_fixtures::DARWIN_AARCH64,
             canonical_c_abi: CanonicalCAbiMetadata::default(),
