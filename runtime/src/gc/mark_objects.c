@@ -205,9 +205,10 @@ mark_target(ScoopGcMarkWorker *worker, void *object, void **remembered_slot) {
     if (!first_mark(block, word)) {
         return;
     }
+    uint64_t gc_word = scoop_heap_current_gc_word(object);
     size_t size = block->head->kind == SCOOP_BLOCK_KIND_LARGE
                       ? block->exact_size
-                      : scoop_heap_small_object_size(object);
+                      : gc_word & GC_SMALL_SIZE_MASK;
     scoop_gc_validate_object(object, size);
     ScoopGcMarkBlockCount *counts = &worker->blocks[block->mark_index];
     if (block->head->kind == SCOOP_BLOCK_KIND_SMALL) {
@@ -216,7 +217,7 @@ mark_target(ScoopGcMarkWorker *worker, void *object, void **remembered_slot) {
     counts->live_bytes += size;
     if (worker->slot_layout) {
         mark_slot_layout(counts, word, size);
-    } else if (!object_pinned(block, word)) {
+    } else if ((gc_word & GC_PIN_BIT) == 0) {
         counts->movable_bytes += size;
     }
     worker->marked++;

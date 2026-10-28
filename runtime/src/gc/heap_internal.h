@@ -133,10 +133,15 @@ static inline void *scoop_heap_forwarding_address(const void *object) {
     return (word & GC_FORWARDED_BIT) != 0 ? (void *)(uintptr_t)(word & ~GC_FORWARDED_BIT) : NULL;
 }
 
+/* A current object still has its GC state, not an old copy's forwarding word. */
+static inline uint64_t scoop_heap_current_gc_word(const void *object) {
+    const ScoopObjectHeader *header = object;
+    return __atomic_load_n(&header->gc_word, __ATOMIC_RELAXED);
+}
+
 /* The caller already has a current small-object start. */
 static inline size_t scoop_heap_small_object_size(const void *object) {
-    const ScoopObjectHeader *header = object;
-    return __atomic_load_n(&header->gc_word, __ATOMIC_RELAXED) & GC_SMALL_SIZE_MASK;
+    return scoop_heap_current_gc_word(object) & GC_SMALL_SIZE_MASK;
 }
 
 /* Old copies retain their exact size through the completed target. */

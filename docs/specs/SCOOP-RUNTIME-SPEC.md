@@ -671,6 +671,8 @@ worker pool 的每次 phase 发布在原锁内固定该阶段的参与数量，w
 
 collector 持有 heap／roots 的独占阶段后，发布不可变的 region、对象起点、精确大小、pin 和 immortal 对象视图。marker 使用明确的 STW reader／原子 marker 接口，不要求各 worker 重新取得 coordinator 持有的锁。每个参与 block 在本轮取得临时统计索引，worker 私有计数按该索引归并；它不是持久对象身份，也不进入产物或 generated-code ABI。存活清单以稳定的分块存储保留对象指针，任务发布后不得由扩容使其失效。
 
+首次标记已定位的当前对象时，可从同一次 GC 状态字读取取得小对象精确大小和本片 pin 状态；大对象仍从 mapping metadata 取得大小。显式 pin 与临时 pin frame 在本片开始扫描之前，按原 heap／roots 协议同步对象头的 pin 位和 side metadata；扫描期间两者保持一致且不可变。该读数只供本次首次标记的存活／可移动统计，不跨 mutator 恢复保存，也不解释已经写入 forwarding 的旧副本。block 搬迁资格、pin 生命周期及片末的实际 pin 判断仍使用原协议，不增加 mutator 操作、对象字段、屏障、根或 ABI。
+
 marker 可以在本次停顿内复用已经经页表定位的普通 region：每个 worker 私有保存有限数量的地址范围与 region 指针，命中完整范围后直接计算 block。首次查询、大对象和未命中地址仍使用原页表；普通引用从 3.1 的连续 head／starts 数组检查对齐、活动状态、类别和精确起点，minor 只在这些检查成功后跳过旧代对象，无需再读取完整 block 记录。实际标记仍消费原 block 的 marks、大小、scan 和私有统计。缓存不含 managed roots，不保活对象，不进入对象头、产物或 generated-code ABI；每次开始标记及增量周期恢复下一片时，在发布 roots／任务前清空全部参与 worker 的缓存，不能跨 mutator 执行、搬迁或 mapping 退役复用旧地址与元数据。
 
 固定对象与 boxed value 的 exact TD、物理大小和对齐由 2.1／3.1 的分配、发布及 typed 生成路径保证，发布后的 TD 与物理布局不可改变；GC 私有大小字段由 pin／release／搬迁操作保留。普通 runtime 的首次标记与 remembered 对象扫描直接复用这些事实，不逐对象重新调用完整 shape 校验。动态 String／Array 的物理 count 与范围检查继续由共享校验处理；分配输入、映像登记、动态拆箱等真实边界不因此省略检查。固定对象的完整交叉校验只编入 GC stress 支持或显式 `SCOOP_GC_VERIFY_HEAP` 构建，开关未编入时不生成该 GC 校验分支或调用，而不是调用一个空后备。应用 debug／release profile 使用相同 GC 语义；精确起点、根、scan、复制范围、pin、release 与异常合同保持，不新增证明状态或验证缓存。

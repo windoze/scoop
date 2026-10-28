@@ -90,6 +90,7 @@ static void run_case(size_t workers) {
     for (size_t index = 0; index < COUNT; index++) {
         ScoopGcBlockMeta *block = pointer_block(objects[index]);
         assert(block->live_bytes == cases[index].size);
+        assert(block->movable_live_bytes == (index == 3 ? 0 : cases[index].size));
         for (size_t line = 0; line < GC_BLOCK_SIZE / GC_LINE_SIZE; line++) {
             bool overlaps = line * GC_LINE_SIZE < cases[index].offset + cases[index].size &&
                             (line + 1) * GC_LINE_SIZE > cases[index].offset;
