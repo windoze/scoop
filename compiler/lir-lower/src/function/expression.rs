@@ -17,7 +17,7 @@ impl<'a> FunctionLowerer<'a> {
             mir::ExprKind::ReleaseFieldLoad { class, index } => {
                 self.lower_release_field(*class, *index, ty)?
             }
-            mir::ExprKind::StringConst(id) | mir::ExprKind::ByteArrayConst(id) => {
+            mir::ExprKind::StringConst(id) | mir::ExprKind::ArrayConst(id) => {
                 lir::Value::Global(self.global_map[id])
             }
             mir::ExprKind::IntegerLiteral(value) => {

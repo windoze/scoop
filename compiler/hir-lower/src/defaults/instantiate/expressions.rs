@@ -71,6 +71,9 @@ impl Lowerer {
             hir::ExprKind::ByteArrayLiteral(bytes) => {
                 hir::ExprKind::ByteArrayLiteral(bytes.clone())
             }
+            hir::ExprKind::EmbeddedFileArrayLiteral(files) => {
+                hir::ExprKind::EmbeddedFileArrayLiteral(files.clone())
+            }
             hir::ExprKind::StringLiteral { value, owner } => hir::ExprKind::StringLiteral {
                 value: value.clone(),
                 owner: *owner,

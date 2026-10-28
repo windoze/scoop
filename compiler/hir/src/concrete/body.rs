@@ -147,6 +147,8 @@ pub enum ExprKind {
     },
     /// Raw bytes embedded by a compiler input intrinsic.
     ByteArrayLiteral(Vec<u8>),
+    /// A statically embedded Array<EmbeddedFile> with ordinary struct elements.
+    EmbeddedFileArrayLiteral(Vec<crate::CompileTimeFile>),
     StringLiteral {
         value: String,
         owner: StringConstantOwner<scoop_identity::PropertyOwner>,

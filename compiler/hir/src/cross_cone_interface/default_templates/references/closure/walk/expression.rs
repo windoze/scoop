@@ -53,6 +53,7 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
             DefaultExpressionKindV1::ContextLookup { .. }
             | DefaultExpressionKindV1::StringLiteral { .. }
             | DefaultExpressionKindV1::ByteArrayLiteral(_)
+            | DefaultExpressionKindV1::EmbeddedFileArrayLiteral(_)
             | DefaultExpressionKindV1::IntegerLiteral(_)
             | DefaultExpressionKindV1::CharLiteral(_)
             | DefaultExpressionKindV1::FloatLiteral(_)

@@ -30,6 +30,19 @@ pub(super) fn lower_immortals(
                         identity,
                         value: value.clone(),
                     },
+                    mir::ImmortalConstValue::EmbeddedFileArray { array_type, files } => {
+                        lir::GlobalInit::EmbeddedFileArrayConst {
+                            identity,
+                            array_type: arrays[array_type],
+                            files: files
+                                .iter()
+                                .map(|file| lir::EmbeddedFileConst {
+                                    path: immortal_global_map[&file.path],
+                                    bytes: immortal_global_map[&file.bytes],
+                                })
+                                .collect(),
+                        }
+                    }
                     mir::ImmortalConstValue::ByteArray { array_type, bytes } => {
                         lir::GlobalInit::ByteArrayConst {
                             identity,

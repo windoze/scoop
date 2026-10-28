@@ -1,0 +1,69 @@
+schema = 1
+name = "include-dir-definition-site-artifacts"
+inputs = ["provider", "consumer"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["compiler-intrinsics", "compiler-correctness", "artifacts"]
+
+[[variants]]
+name = "release"
+[variants.vars]
+profile = ["--release"]
+
+[[variants]]
+name = "debug-moving"
+[variants.vars]
+profile = []
+[variants.env]
+SCOOP_GC_STRESS_MOVE = "1"
+
+[vars]
+options = [ "--enable-gc-stress", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/provider", to = "${work}/provider"}}, {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}}]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "${work}/provider", {each = "${link_args}"}, {each = "${profile}"}, {each = "${options}"}, "-o", "${work}/provider.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "change_consumer"
+files = [{write = {path = "${work}/provider/src/data/nested/value.bin", data = "changed provider"}}]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "${work}/consumer", {each = "${link_args}"}, {each = "${profile}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${consumer.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "run"
+argv = ["${consumer.result.output}"]
+exit = 0
+stdout = "true\ntrue\ntrue\ntrue\ntrue\ntrue\n"
+stderr = ""
+
+[[steps]]
+name = "change_warm"
+files = [{write = {path = "${work}/provider/src/data/nested/value.bin", data = "changed again"}}]
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "${work}/consumer", {each = "${link_args}"}, {each = "${profile}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.observations.child_invocations.length}", equals = 0}]

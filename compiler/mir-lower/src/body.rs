@@ -7,6 +7,7 @@ mod casts;
 mod coroutines;
 mod data_borrow;
 mod diverging;
+mod embedded_files;
 mod exceptions;
 mod expressions;
 mod function;

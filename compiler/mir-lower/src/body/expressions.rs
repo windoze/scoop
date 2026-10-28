@@ -38,11 +38,12 @@ impl BodyLowerer<'_> {
                 class: self.class_map[class],
                 index: *index,
             },
+            hir::ExprKind::EmbeddedFileArrayLiteral(files) => self.lower_embedded_files(&ty, files),
             hir::ExprKind::ByteArrayLiteral(bytes) => {
                 let mir::Type::Class(array_type) = ty else {
                     unreachable!("embedded bytes have an Array<Byte> type")
                 };
-                smir::ExprKind::ByteArrayConst(self.intern_current_immortal(
+                smir::ExprKind::ArrayConst(self.intern_current_immortal(
                     mir::ImmortalConstValue::ByteArray {
                         array_type,
                         bytes: bytes.clone(),

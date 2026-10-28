@@ -52,6 +52,18 @@ impl WireEncode for DecodedDefaultExpressionKindV1 {
                 parameter,
                 diagnostic,
             } => encode_three(encoder, 66, declaration, &U32Wire(parameter.0), diagnostic),
+            Self::EmbeddedFileArrayLiteral(files) => {
+                encoder.map(2)?;
+                encode_tag(encoder, 78)?;
+                encoder.field(1)?;
+                encoder.array(files.len() as u64)?;
+                for file in files.iter() {
+                    encoder.array(2)?;
+                    encoder.text(&file.path)?;
+                    encoder.bytes(&file.bytes)?;
+                }
+                Ok(())
+            }
             Self::ByteArrayLiteral(value) => {
                 encoder.map(2)?;
                 encode_tag(encoder, 77)?;
@@ -307,6 +319,17 @@ impl WireDecode for DecodedDefaultExpressionKindV1 {
                     owner: decoder.field(2, DecodedDefaultStringOwnerV1::decode)?,
                 })
             }
+            78 => decode_one(decoder, fields, |decoder| {
+                decoder.decode_array(|decoder, _| {
+                    let fields = decoder.array()?;
+                    expect_sum_length(decoder, fields, 2)?;
+                    Ok(crate::CompileTimeFile {
+                        path: decoder.owned_text()?,
+                        bytes: decoder.owned_bytes()?.into(),
+                    })
+                })
+            })
+            .map(Self::EmbeddedFileArrayLiteral),
             77 => decode_one(decoder, fields, |decoder| decoder.owned_bytes())
                 .map(Self::ByteArrayLiteral),
             2 => decode_one(decoder, fields, CanonicalIntegerConstantV1::decode)

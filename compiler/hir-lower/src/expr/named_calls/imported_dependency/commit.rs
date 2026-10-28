@@ -111,20 +111,6 @@ impl Lowerer {
         }
 
         if let super::ImportedCallImplementation::Intrinsic {
-            operation: super::ImportedIntrinsicCall::CompileInput { kind, source },
-            ..
-        } = &implementation
-        {
-            return self.normalize_compiler_input(
-                *kind,
-                &source_args,
-                source.as_ref(),
-                result_type,
-                call_span,
-            );
-        }
-
-        if let super::ImportedCallImplementation::Intrinsic {
             operation: super::ImportedIntrinsicCall::Expression(expression),
             ..
         } = &implementation
@@ -187,6 +173,14 @@ impl Lowerer {
             };
             parameters[0].1 = source_args[source.index()].ty;
         }
+        let compile_input = matches!(
+            &implementation,
+            super::ImportedCallImplementation::Intrinsic {
+                operation: super::ImportedIntrinsicCall::CompileInput { .. },
+                ..
+            }
+        );
+        let mut compile_input_setup = Vec::new();
         let (receiver, parameter_values) = self.materialize_argument_inputs(
             ResolvedArgumentMaterialization {
                 parameters: &parameters,
@@ -195,10 +189,18 @@ impl Lowerer {
                 source_args,
                 argument_sinks,
                 call_span,
-                evaluation,
+                evaluation: if compile_input {
+                    ArgumentEvaluation::Lowered
+                } else {
+                    evaluation
+                },
                 temporary_prefix: "$dependency.",
             },
-            sink,
+            if compile_input {
+                &mut compile_input_setup
+            } else {
+                sink
+            },
             |state, template, context| {
                 let Some(prepared) = default_plan.get(*template) else {
                     state.error(

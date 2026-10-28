@@ -212,10 +212,10 @@ fn assert_mutation_misses(
 fn compile_cache_key_has_a_fixed_canonical_vector() {
     let input = input(1, "paired-scoopc-v1");
 
-    // The vector includes the current runtime ABI and machine protocol.
+    // The vector includes the directory-input cache domain, runtime ABI and machine protocol.
     assert_eq!(
         input.key().unwrap().to_string(),
-        "10dde42f4a702fac46fb3754839c20e14dff48a75fd6eeb4d320de890e2abea2"
+        "d0f1bae9a9c34f085b9584a13abdaa7f264f4263c500e9898946f1a4a384d3c0"
     );
     assert_eq!(encode(&input).unwrap().first(), Some(&0xaf));
 }

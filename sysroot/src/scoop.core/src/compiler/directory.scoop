@@ -1,0 +1,27 @@
+package scoop.compiler
+
+import Array
+import Byte
+import Option.*
+import String
+
+/** Embeds selected files from a directory inside the defining Cone. */
+@Intrinsic("include_dir")
+public fun includeDir(
+    path: String,
+    include: Array<String> = ["**"],
+    exclude: Array<String> = []
+): EmbeddedDir
+
+/** One immutable file with its logical path relative to the included directory. */
+public struct EmbeddedFile(val path: String, val bytes: Array<Byte>)
+
+/** An immutable file table. Lookup returns the first exact path match. */
+public struct EmbeddedDir(val files: Array<EmbeddedFile>) {
+    public operator fun get(path: String): Array<Byte>? {
+        for (file in files) {
+            if (file.path == path) return Some(file.bytes)
+        }
+        return None
+    }
+}

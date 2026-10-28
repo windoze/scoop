@@ -94,6 +94,7 @@ pub(super) fn inputs(lazy: bool) -> SemanticInputs {
                     GlobalInit::CString { .. }
                     | GlobalInit::StringConst { .. }
                     | GlobalInit::ByteArrayConst { .. }
+                    | GlobalInit::EmbeddedFileArrayConst { .. }
                     | GlobalInit::RawStorage { .. }
                     | GlobalInit::ImportedImmortal { .. }
                     | GlobalInit::ImportedStorage { .. } => unreachable!(),

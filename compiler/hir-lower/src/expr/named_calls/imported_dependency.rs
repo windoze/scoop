@@ -46,7 +46,7 @@ enum ImportedCallImplementation {
 enum ImportedIntrinsicCall {
     CompileInput {
         kind: hir::IntrinsicFunctionKind,
-        source: Option<ast::Expr>,
+        sources: Vec<Option<ast::Expr>>,
     },
     MaybeUninit(hir::MaybeUninitIntrinsic),
     Atomic(hir::AtomicIntrinsic),

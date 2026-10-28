@@ -91,6 +91,9 @@ impl Concretizer<'_> {
             export::ExprKind::ByteArrayLiteral(value) => {
                 concrete::ExprKind::ByteArrayLiteral(value.clone())
             }
+            export::ExprKind::EmbeddedFileArrayLiteral(value) => {
+                concrete::ExprKind::EmbeddedFileArrayLiteral(value.clone())
+            }
             export::ExprKind::StringLiteral { value, owner } => concrete::ExprKind::StringLiteral {
                 value: value.clone(),
                 owner: match *owner {

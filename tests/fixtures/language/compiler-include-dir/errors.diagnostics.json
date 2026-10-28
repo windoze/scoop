@@ -1,0 +1,223 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "invalid exclude pattern: invalid includeDir glob `a\\b`: expected a nonempty relative slash-separated path without backslashes, NUL, empty, . or .. components",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 953,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 947
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`includeDir` requires a compile-time constant String path",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 158,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 154
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`includeDir` include requires an array literal of compile-time constant Strings",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 205,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 197
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`includeDir` exclude elements must be compile-time constant Strings",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 251,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 247
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "compiler intrinsic `includeDir` does not support callable references\nnote: this intrinsic is evaluated at compile time and has no runtime callable entry\nhelp: import and call it directly with a constant path",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 281,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 274
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "compiler intrinsic `includeDir` does not support callable references\nnote: this intrinsic is evaluated at compile time and has no runtime callable entry\nhelp: import and call it directly with a constant path",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 362,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 355
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "compiler intrinsic `includeDir` does not support callable references\nnote: this intrinsic is evaluated at compile time and has no runtime callable entry\nhelp: import and call it directly with a constant path",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 450,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 443
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "invalid include pattern: invalid includeDir glob `a**`: Pattern syntax error near position 0: recursive wildcards must form a single path component",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 502,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 497
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "invalid exclude pattern: invalid includeDir glob `[abc`: Pattern syntax error near position 0: invalid range pattern",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 551,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 545
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "include path `${work}/cone/../outside` is outside the defining Cone directory `${work}/cone`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 590,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 578
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "includeDir entry `excluded`: include symlink target `${work}/outside` is outside the defining Cone directory `${work}/cone`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 629,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 621
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "includeDir entry `excluded`: cannot read include input `${work}/cone/broken/excluded`: No such file or directory (os error 2)",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 676,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 668
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "includeDir entry `self`: includeDir directory cycle at `${work}/cone/cycle/self`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 721,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 714
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "includeDir path `${work}/cone/errors.scoop` must name a directory",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 780,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 766
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cannot read include input `${work}/cone/missing`: No such file or directory (os error 2)",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 815,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 806
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "invalid include pattern: invalid includeDir glob `../*`: expected a nonempty relative slash-separated path without backslashes, NUL, empty, . or .. components",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 887,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 881
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`FunPtr` signature is not C-FFI-safe: FunPtr<(String, Array<String>, Array<String>) -> EmbeddedDir>.parameter1: ref type `String` is managed",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 385,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 379
+    },
+    "severity": "error"
+  }
+]

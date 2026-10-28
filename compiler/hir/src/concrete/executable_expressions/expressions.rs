@@ -154,6 +154,7 @@ impl<'a> Traversal<'a> {
                 }
             }
             ExprKind::ByteArrayLiteral(_)
+            | ExprKind::EmbeddedFileArrayLiteral(_)
             | ExprKind::StringLiteral { .. }
             | ExprKind::TypeIdentityLiteral(_)
             | ExprKind::IntegerLiteral(_)

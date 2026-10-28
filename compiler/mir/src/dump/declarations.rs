@@ -1,5 +1,5 @@
 use super::super::*;
-use super::{block_number, byte_array_ref, function_ref, string_ref, type_name};
+use super::{array_ref, block_number, function_ref, string_ref, type_name};
 
 pub fn dump(module: &Module) -> String {
     let mut out = String::from("Module\n");
@@ -508,9 +508,13 @@ pub fn dump(module: &Module) -> String {
             ImmortalConstValue::String(value) => {
                 out.push_str(&format!("  str {} {:?}\n", string_ref(id), value))
             }
+            ImmortalConstValue::EmbeddedFileArray { array_type, files } => out.push_str(&format!(
+                "  files {} {array_type:?} {files:?}\n",
+                array_ref(id)
+            )),
             ImmortalConstValue::ByteArray { array_type, bytes } => out.push_str(&format!(
                 "  bytes {} {array_type:?} {bytes:?}\n",
-                byte_array_ref(id)
+                array_ref(id)
             )),
         }
     }

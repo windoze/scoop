@@ -100,6 +100,7 @@ fn global_storage(module: &lir::Module, global: lir::GlobalId) -> bool {
                 ..
             } | lir::GlobalInit::StringConst { .. }
                 | lir::GlobalInit::ByteArrayConst { .. }
+                | lir::GlobalInit::EmbeddedFileArrayConst { .. }
                 | lir::GlobalInit::CString { .. }
         )
 }

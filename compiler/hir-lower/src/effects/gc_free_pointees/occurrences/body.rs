@@ -257,6 +257,7 @@ pub(in super::super) fn collect_expr_type_occurrences(
         ExprKind::ContextLookup(_)
         | ExprKind::StringLiteral { .. }
         | ExprKind::ByteArrayLiteral(_)
+        | ExprKind::EmbeddedFileArrayLiteral(_)
         | ExprKind::IntegerLiteral(_)
         | ExprKind::CharLiteral(_)
         | ExprKind::FloatLiteral(_)

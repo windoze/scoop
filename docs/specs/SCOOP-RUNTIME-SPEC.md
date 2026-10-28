@@ -183,7 +183,7 @@ typed 数组 clone 的源／目标 element exact type 与 layout 已一致时，
 
 ArrayList、StringBuilder 等普通库类型使用其声明的 class/value 表示，其公开行为由语言规范第 11 章规定。
 
-语言规范 11.19 的编译期文件输入使用同一 String／Array 布局；includeStr 已沿普通静态 String 发射。includeBytes 的 Array<Byte>、includeDir 的 Array<EmbeddedFile> 及其 String／字节数组引用由编译器静态发射并沿已有 image 机制登记为 immortal；EmbeddedFile／EmbeddedDir 是普通 struct。对象图只能包含完整合法的值与其他不可移动静态对象引用，符合 3.3 的 immortal 合同，没有指向可移动对象的槽。值相同的常量对象是否共享存储属于编译器优化，identity 遵守语言规范 9.1.2；不新增 runtime intern 表、文件系统 API、对象头字段或 GC 扫描协议。显式转换为 MutableArray 仍按普通语义分配独立对象。includeBytes 的静态 Array<Byte> 已实现；includeDir 的目录表仍为设计，待编译器实现。
+语言规范 11.19 的编译期文件输入使用同一 String／Array 布局；includeStr 已沿普通静态 String 发射。includeBytes 的 Array<Byte>、includeDir 的 Array<EmbeddedFile> 及其 String／字节数组引用由编译器静态发射并沿已有 image 机制登记为 immortal；EmbeddedFile／EmbeddedDir 是普通 struct。对象图只能包含完整合法的值与其他不可移动静态对象引用，符合 3.3 的 immortal 合同，没有指向可移动对象的槽。值相同的常量对象是否共享存储属于编译器优化，identity 遵守语言规范 9.1.2；不新增 runtime intern 表、文件系统 API、对象头字段或 GC 扫描协议。显式转换为 MutableArray 仍按普通语义分配独立对象。includeBytes 的静态 Array<Byte> 与 includeDir 的静态目录表已实现。
 
 `MutableArray<MaybeUninit<T>>` 复用 InlineArray shape，logical size 为 capacity，元素 size／stride 为 T 的 exact size，ZST 仍为零。所有容量槽都保存合法 wrapper，完整 GC 按 capacity 扫描；ArrayList 的 elementCount 不进入 GC 协议。删除与 clear 必须清零不再使用的槽。StringBuilder 使用普通 MutableArray<UInt8> 保存字节，有效前缀之外不含托管引用，clear 只需清零有效长度。
 
@@ -462,7 +462,7 @@ Scoop GC 适配层解释已登记的 image／stackmap、线程发布的 managed 
 - 各线程活跃 exception record 保存的 managed Throwable 引用槽（5.1）；
 - live GC handles 与 pinned 对象。
 
-immortal 对象只读且不含可移动引用。collector 对每个 root/对象只按其实际 scan 访问引用槽，移动后原地更新；异常 record 的引用槽随线程根扫描原位更新。
+immortal 对象只读且不含可移动引用。其普通 TD 可以具有引用 scan，例如 Array<EmbeddedFile>；编译器生成的非 null 槽只引用其他静态 immortal 对象。映像登记检查对象范围、大小和对象头，不因 TD 带有引用 scan 而拒绝，也不重放编译器已生成的静态值图。collector 不扫描或写入 immortal 内容；对其他 root/对象按其实际 scan 访问引用槽，移动后原地更新；异常 record 的引用槽随线程根扫描原位更新。
 
 ### 3.4 Pin 与 handle
 
@@ -605,7 +605,7 @@ forwarding 复用已复制源对象的 GC 状态字，不为 small source 分配
 
 有 survivor 时，回写后只解析当前目标的 block 来判断下一轮代际；仅对仍指向 survivor 的 heap 槽再定位 owner 并保留卡，roots 不记卡。不增加用户引用存活范围。显式 heap／moving 验证仍独立使用对象起点、mark、source、pin 和 forwarding 元数据检查实际更新结果，拒绝缺失／自转发或遗留原 source；这类重复验证及其 helper 只编入原有 stress／heap 验证能力，普通 runtime 不生成它们。动态分配、pin／handle、映像登记及 native 边界的实际检查保持。
 
-普通 runtime 的 mark 遇到堆外引用时直接保留：合法的堆外 managed 对象已在映像登记边界验证为无可移动引用的 immortal，更新时读取其不变的正常 GC 字即可，不必逐槽重复查询 immortal 地址表。该查询只承担非法堆外引用的诊断，在支持 GC stress 的 runtime（`SCOOP_ENABLE_GC_STRESS=1`）或显式堆验证构建（`SCOOP_GC_VERIFY_HEAP=1`）中保留，与应用 debug／release profile 无关。堆内地址仍须是当前有效的对象起点；映像登记及 pin／handle 等边界所需的检查保持不变。
+普通 runtime 的 mark 遇到堆外引用时直接保留：合法的堆外 managed 对象已在映像登记边界登记为 immortal，其静态值图由编译器保证不含可移动引用；更新时读取其不变的正常 GC 字即可，不必逐槽重复查询 immortal 地址表。该查询只承担非法堆外引用的诊断，在支持 GC stress 的 runtime（`SCOOP_ENABLE_GC_STRESS=1`）或显式堆验证构建（`SCOOP_GC_VERIFY_HEAP=1`）中保留，与应用 debug／release profile 无关。堆内地址仍须是当前有效的对象起点；映像登记及 pin／handle 等边界所需的检查保持不变。
 
 普通 full 复用已有旧代 block 的空洞时，依据本轮 mark／live-line 结果先释放目标 block 中的死亡对象并移除其起点，保留原有存活对象的 mark。预留回滚只退还新激活的目标 block，不退休既有存活对象；已完成的死亡对象 release 不重复执行。复制到既有 block 的对象与原有存活对象都参与完整引用回写。
 

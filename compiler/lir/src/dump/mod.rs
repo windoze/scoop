@@ -30,6 +30,12 @@ pub fn dump(module: &Module) -> String {
                 definition.provider(),
                 global.scan.dump()
             )),
+            GlobalInit::EmbeddedFileArrayConst {
+                array_type, files, ..
+            } => out.push_str(&format!(
+                "  global @{} = files {files:?} array={array_type:?}\n",
+                global.symbol()
+            )),
             GlobalInit::ByteArrayConst {
                 array_type, bytes, ..
             } => out.push_str(&format!(

@@ -8,7 +8,9 @@ mod diagnostic;
 mod dump;
 pub use dump::{StageDumpKindV1, StageDumpPolicyV1, StageDumpSet};
 mod compiler_inputs;
-pub use compiler_inputs::{CompilerInputV1, FileInputV1};
+pub use compiler_inputs::{
+    CompilerInputV1, DirectoryEntryInputV1, DirectoryEntryStateV1, DirectoryInputV1, FileInputV1,
+};
 mod environment;
 pub use environment::EnvironmentInputV1;
 mod framing;
@@ -44,7 +46,7 @@ pub use response::{
 };
 
 /// Version selected by the unique `scoopc` machine transport entrypoint.
-pub const PROTOCOL_VERSION: u32 = 20;
+pub const PROTOCOL_VERSION: u32 = 21;
 
 pub(crate) const MAX_EMITTED_DUMPS: usize = StageDumpKindV1::ALL.len();
 

@@ -95,6 +95,25 @@ static void positive_aggregate(void) {
     scoop_test_storage_dispose(&fixture);
 }
 
+static void positive_reference_payload(void) {
+    ScoopStorageFixture fixture = {0};
+    scoop_test_storage_setup(&fixture, false);
+    StorageMetadata *data = fixture.data;
+    ScoopTypeDescriptor *td = (ScoopTypeDescriptor *)data->td_bytes;
+    td->instance_shape = (ScoopTypeInstanceShapeV1){
+        .instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
+        .minimum_size = sizeof data->string_object,
+        .instance_alignment = 8};
+    data->scan_nodes[0][0] = 1;
+    data->scan_nodes[0][1] = 24;
+    td->object_scan = data->scan_nodes[0];
+    memset(data->string_object.bytes, 0, sizeof data->string_object.bytes);
+    ScoopImageRegistry *registry = check(&fixture);
+    assert(scoop_image_immortal(registry, &data->string_object) == &data->immortals[0]);
+    scoop_image_registry_dispose(registry);
+    scoop_test_storage_dispose(&fixture);
+}
+
 static const char *corrupt(ScoopStorageFixture *fixture, unsigned test) {
     StorageMetadata *data = fixture->data;
     StorageState *state = fixture->state;
@@ -130,15 +149,9 @@ static const char *corrupt(ScoopStorageFixture *fixture, unsigned test) {
     case 9:
         data->string_object.length = UINT64_MAX;
         return "physical count exceeds INT64_MAX";
-    case 10: {
-        ScoopTypeDescriptor *td = (ScoopTypeDescriptor *)data->td_bytes;
-        td->instance_shape = (ScoopTypeInstanceShapeV1){
-            .instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
-            .minimum_size = 24,
-            .instance_alignment = 8};
-        td->object_scan = data->reference_scan;
-        return "object size, alignment or reference scan";
-    }
+    case 10:
+        data->immortals[0].required_alignment = 16;
+        return "object size or alignment";
     case 11:
         data->image.static_storage_count++;
         return "zeroed storage has no initialization or failure role";
@@ -224,6 +237,7 @@ int main(void) {
     positive(false);
     positive(true);
     positive_aggregate();
+    positive_reference_payload();
     for (unsigned test = 0; test < 23; test++)
         negative(test);
     puts("image storage and initialization tests passed");

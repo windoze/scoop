@@ -1401,5 +1401,19 @@ pub enum ImmortalConstSource {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ImmortalConstValue {
     String(String),
-    ByteArray { array_type: ClassId, bytes: Vec<u8> },
+    ByteArray {
+        array_type: ClassId,
+        bytes: Vec<u8>,
+    },
+    EmbeddedFileArray {
+        array_type: ClassId,
+        files: Vec<EmbeddedFileConst>,
+    },
+}
+
+/// References from an embedded file-table element to its static child objects.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmbeddedFileConst {
+    pub path: ImmortalConstId,
+    pub bytes: ImmortalConstId,
 }

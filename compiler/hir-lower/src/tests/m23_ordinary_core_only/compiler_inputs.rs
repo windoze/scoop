@@ -1,4 +1,6 @@
 use super::*;
+
+mod directories;
 use scoop_hir as hir;
 use std::sync::{Arc, Mutex};
 
@@ -8,6 +10,22 @@ struct Inputs {
 }
 
 impl hir::CompileTimeInputHost for Inputs {
+    fn directory(
+        &self,
+        _source: &scoop_identity::SourceIdentity,
+        path: &hir::CompileTimePath,
+        filter: &hir::CompileTimeDirectoryFilter,
+    ) -> Result<Arc<[hir::CompileTimeFile]>, hir::CompileTimeDirectoryError> {
+        self.queries
+            .lock()
+            .unwrap()
+            .push(format!("directory:{}:{filter:?}", path.as_str()));
+        Ok(Arc::from([hir::CompileTimeFile {
+            path: "one.bin".into(),
+            bytes: Arc::from([0, 255]),
+        }]))
+    }
+
     fn file(
         &self,
         _: &scoop_identity::SourceIdentity,
@@ -32,16 +50,25 @@ impl hir::CompileTimeInputHost for Inputs {
     }
 }
 
+const DECLARATIONS: &str = r#"
+@Intrinsic("compile_env") public fun env(name: String): Option<String>
+@Intrinsic("include_str") public fun includeStr(path: String): String
+@Intrinsic("include_bytes") public fun includeBytes(path: String): Array<Int8>
+public struct EmbeddedFile(val path: String, val bytes: Array<Int8>)
+public struct EmbeddedDir(val files: Array<EmbeddedFile>)
+@Intrinsic("include_dir") public fun includeDir(path: String, include: Array<String> = ["**"], exclude: Array<String> = []): EmbeddedDir
+"#;
+
 fn lower(
     source: &str,
     inputs: Arc<Inputs>,
 ) -> Result<hir::DependencyExportHirOutput, Vec<scoop_ast::Diagnostic>> {
     let mut declarations = super::super::complete_core_file();
-    let declaration = "@Intrinsic(\"compile_env\") public fun env(name: String): Option<String>\n@Intrinsic(\"include_str\") public fun includeStr(path: String): String\n@Intrinsic(\"include_bytes\") public fun includeBytes(path: String): Array<Int8>";
+
     declarations
         .declarations
-        .extend(scoop_parser::parse(declaration).unwrap().declarations);
-    let core = support::trusted_core_from_source(declarations, declaration);
+        .extend(scoop_parser::parse(DECLARATIONS).unwrap().declarations);
+    let core = support::trusted_core_from_source(declarations, DECLARATIONS);
     let parsed = support::parsed_ordinary_text(source);
     let protocols = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(parsed.cone());

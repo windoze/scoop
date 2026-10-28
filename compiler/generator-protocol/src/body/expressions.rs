@@ -27,6 +27,15 @@ impl Serialize for BodyJson<'_, hir::DefaultExpressionKindV1> {
             } => {
                 object!(serializer, {"kind": "releaseFieldLoad", "ownerType": self.child(owner_type), "declaration": Reference::from(*declaration)})
             }
+            EmbeddedFileArrayLiteral(files) => {
+                let files = files
+                    .iter()
+                    .map(
+                        |file| serde_json::json!({"path": file.path, "bytes": file.bytes.as_ref()}),
+                    )
+                    .collect::<Vec<_>>();
+                object!(serializer, {"kind": "embeddedFileArrayLiteral", "files": files})
+            }
             ByteArrayLiteral(bytes) => {
                 object!(serializer, {"kind": "byteArrayLiteral", "bytes": bytes})
             }

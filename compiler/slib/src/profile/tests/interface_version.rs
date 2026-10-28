@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v85_preserves_static_byte_array_templates() {
+fn source_interface_v86_preserves_static_directory_templates() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        85,
+        86,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
@@ -118,6 +118,16 @@ fn hir_foundation_v10_preserves_annotation_description_owners() {
     assert_retired_version(
         hir_identity_foundation_capability(),
         10,
+        MemberPurposeSet::COMPILE_AND_LINK,
+        &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
+    );
+}
+
+#[test]
+fn lir_foundation_v11_preserves_static_directory_objects() {
+    assert_retired_version(
+        lir_identity_foundation_capability(),
+        11,
         MemberPurposeSet::COMPILE_AND_LINK,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );

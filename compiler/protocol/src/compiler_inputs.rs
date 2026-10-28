@@ -3,10 +3,14 @@
 use crate::{EnvironmentInputV1, HostPathCarrier};
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
+mod directories;
+pub use directories::{DirectoryEntryInputV1, DirectoryEntryStateV1, DirectoryInputV1};
+
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum CompilerInputV1 {
     Environment(EnvironmentInputV1),
     File(FileInputV1),
+    Directory(DirectoryInputV1),
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -31,6 +35,10 @@ impl WireEncode for CompilerInputV1 {
                 e.unsigned(2)?;
                 input.encode(e)
             }
+            Self::Directory(input) => {
+                e.unsigned(3)?;
+                input.encode(e)
+            }
         }
     }
 }
@@ -44,6 +52,7 @@ impl WireDecode for CompilerInputV1 {
         match d.unsigned()? {
             1 => EnvironmentInputV1::decode(d).map(Self::Environment),
             2 => FileInputV1::decode(d).map(Self::File),
+            3 => DirectoryInputV1::decode(d).map(Self::Directory),
             _ => Err(invalid(d)),
         }
     }
@@ -67,34 +76,37 @@ impl WireDecode for FileInputV1 {
         if d.array()? != 8 {
             return Err(invalid(d));
         }
-        let root = crate::DecodedHostPathCarrier::decode(d)?
-            .validate()
-            .map_err(|_| invalid(d))?;
-        let real_root = crate::DecodedHostPathCarrier::decode(d)?
-            .validate()
-            .map_err(|_| invalid(d))?;
-        let locator = crate::DecodedHostPathCarrier::decode(d)?
-            .validate()
-            .map_err(|_| invalid(d))?;
-        let resolved = crate::DecodedHostPathCarrier::decode(d)?
-            .validate()
-            .map_err(|_| invalid(d))?;
+        let root = decode_path(d)?;
+        let real_root = decode_path(d)?;
+        let locator = decode_path(d)?;
+        let resolved = decode_path(d)?;
         let length = d.unsigned()?;
-        let negative = d.unsigned()?;
-        let seconds = d.unsigned()?;
-        let nanos = d.unsigned()?;
-        if negative > 1 || nanos >= 1_000_000_000 {
-            return Err(invalid(d));
-        }
+        let modified = decode_modified(d)?;
         Ok(Self {
             root,
             real_root,
             locator,
             resolved,
             length,
-            modified: (negative == 1, seconds, nanos as u32),
+            modified,
         })
     }
+}
+
+fn decode_path(d: &mut Decoder<'_>) -> Result<HostPathCarrier, WireError> {
+    crate::DecodedHostPathCarrier::decode(d)?
+        .validate()
+        .map_err(|_| invalid(d))
+}
+
+fn decode_modified(d: &mut Decoder<'_>) -> Result<(bool, u64, u32), WireError> {
+    let negative = d.unsigned()?;
+    let seconds = d.unsigned()?;
+    let nanos = d.unsigned()?;
+    if negative > 1 || nanos >= 1_000_000_000 {
+        return Err(invalid(d));
+    }
+    Ok((negative == 1, seconds, nanos as u32))
 }
 
 fn invalid(d: &Decoder<'_>) -> WireError {

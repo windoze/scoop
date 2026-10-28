@@ -69,7 +69,7 @@ impl<'a> CfgLowerer<'a> {
                         .expect("a context operation has at most one operand")
                 }))
             }
-            smir::ExprKind::ByteArrayConst(id) => mir::ExprKind::ByteArrayConst(*id),
+            smir::ExprKind::ArrayConst(id) => mir::ExprKind::ArrayConst(*id),
             smir::ExprKind::StringConst(id) => mir::ExprKind::StringConst(*id),
             smir::ExprKind::IntegerLiteral(value) => mir::ExprKind::IntegerLiteral(*value),
             smir::ExprKind::MachineScalarLiteral(value) => {

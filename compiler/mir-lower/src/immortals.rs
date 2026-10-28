@@ -44,7 +44,8 @@ impl ImmortalRegistry {
     ) -> mir::ImmortalConstId {
         let role = match &value {
             mir::ImmortalConstValue::String(_) => mir::StructuralDefinitionSiteRole::StringConstant,
-            mir::ImmortalConstValue::ByteArray { .. } => {
+            mir::ImmortalConstValue::ByteArray { .. }
+            | mir::ImmortalConstValue::EmbeddedFileArray { .. } => {
                 mir::StructuralDefinitionSiteRole::ArrayConstant
             }
         };
@@ -56,7 +57,8 @@ impl ImmortalRegistry {
             mir::ImmortalConstValue::String(_) => {
                 mir::ImmortalObjectKey::string_constant(owner, path)
             }
-            mir::ImmortalConstValue::ByteArray { .. } => {
+            mir::ImmortalConstValue::ByteArray { .. }
+            | mir::ImmortalConstValue::EmbeddedFileArray { .. } => {
                 mir::ImmortalObjectKey::array_constant(owner, path)
             }
         };

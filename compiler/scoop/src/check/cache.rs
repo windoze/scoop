@@ -24,7 +24,7 @@ pub(super) struct Entry {
 impl Entry {
     pub fn new(cache: &ArtifactCacheRoot, key: &str) -> Self {
         Self {
-            directory: cache.as_path().join("checks-v3").join(key),
+            directory: cache.as_path().join("checks-v4").join(key),
         }
     }
 

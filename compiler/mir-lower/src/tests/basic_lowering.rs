@@ -84,7 +84,8 @@ fn lowers_hello_world() {
         .iter()
         .filter_map(|(_, s)| match &s.value {
             mir::ImmortalConstValue::String(text) => Some(text.as_str()),
-            mir::ImmortalConstValue::ByteArray { .. } => None,
+            mir::ImmortalConstValue::ByteArray { .. }
+            | mir::ImmortalConstValue::EmbeddedFileArray { .. } => None,
         })
         .collect();
     assert_eq!(strings, ["\n", "!", "hello, world"]);
@@ -165,7 +166,8 @@ fn repeated_literals_get_separate_constants_deterministically() {
         .iter()
         .filter_map(|(_, s)| match &s.value {
             mir::ImmortalConstValue::String(text) => Some(text.as_str()),
-            mir::ImmortalConstValue::ByteArray { .. } => None,
+            mir::ImmortalConstValue::ByteArray { .. }
+            | mir::ImmortalConstValue::EmbeddedFileArray { .. } => None,
         })
         .collect();
     assert_eq!(values, ["\n", "!", "hello, world", "hello, world"]);

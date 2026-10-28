@@ -249,13 +249,24 @@ impl Lowerer {
                 hir::IntrinsicFunctionKind::CompileEnv
                     | hir::IntrinsicFunctionKind::IncludeStr
                     | hir::IntrinsicFunctionKind::IncludeBytes
+                    | hir::IntrinsicFunctionKind::IncludeDir
             )
         {
             self.check_call_effects(hir::Callable::Function(function), call.span);
+            let sources = resolved
+                .argument_inputs
+                .iter()
+                .map(|parameter| match parameter.input {
+                    crate::call_resolution::arguments::ResolvedParameterInput::Explicit(source) => {
+                        Some(call.args[source.index()].expression.clone())
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
             return self.normalize_compiler_input(
                 intrinsic.kind,
                 &resolved.args,
-                Some(&call.args[0].expression),
+                &sources,
                 ty,
                 call.span,
             );

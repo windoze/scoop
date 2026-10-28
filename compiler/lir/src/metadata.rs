@@ -822,7 +822,8 @@ impl Global {
     pub fn symbol(&self) -> &str {
         match &self.init {
             GlobalInit::StringConst { identity, .. }
-            | GlobalInit::ByteArrayConst { identity, .. } => identity.symbol(),
+            | GlobalInit::ByteArrayConst { identity, .. }
+            | GlobalInit::EmbeddedFileArrayConst { identity, .. } => identity.symbol(),
             GlobalInit::CString { identity, .. } => identity.symbol(),
             GlobalInit::Storage { identity, .. } | GlobalInit::RawStorage { identity, .. } => {
                 identity.symbol()
@@ -837,7 +838,10 @@ impl Global {
     ) -> Option<scoop_identity::PersistentSymbolRequest> {
         match &self.init {
             GlobalInit::StringConst { identity, .. }
-            | GlobalInit::ByteArrayConst { identity, .. } => Some(identity.symbol_request()),
+            | GlobalInit::ByteArrayConst { identity, .. }
+            | GlobalInit::EmbeddedFileArrayConst { identity, .. } => {
+                Some(identity.symbol_request())
+            }
             GlobalInit::Storage { identity, .. } | GlobalInit::RawStorage { identity, .. } => {
                 Some(identity.symbol_request())
             }
@@ -1206,6 +1210,11 @@ pub enum GlobalInit {
         array_type: ArrayTypeId,
         bytes: Vec<u8>,
     },
+    EmbeddedFileArrayConst {
+        identity: ImmortalObjectIdentity,
+        array_type: ArrayTypeId,
+        files: Vec<EmbeddedFileConst>,
+    },
     StringConst {
         identity: ImmortalObjectIdentity,
         value: String,
@@ -1484,4 +1493,11 @@ pub enum LirConstantImage {
         struct_id: StructDefId,
         fields: Vec<LirConstantImage>,
     },
+}
+
+/// The two ordinary managed-reference fields of one embedded file element.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EmbeddedFileConst {
+    pub path: GlobalId,
+    pub bytes: GlobalId,
 }

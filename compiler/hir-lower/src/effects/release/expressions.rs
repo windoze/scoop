@@ -169,6 +169,7 @@ impl Lowerer {
             }
             E::StringLiteral { .. }
             | E::ByteArrayLiteral(_)
+            | E::EmbeddedFileArrayLiteral(_)
             | E::ClassInit { .. }
             | E::ConstructorReceiver
             | E::GenericDelegateStorageRead(_)

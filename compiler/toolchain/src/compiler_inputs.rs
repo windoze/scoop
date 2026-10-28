@@ -5,22 +5,56 @@ use std::sync::Mutex;
 
 use scoop_hir::{CompileTimeEnvironmentName, CompileTimeInputHost};
 
+mod directories;
 mod files;
+mod paths;
+mod patterns;
 type FileValues = BTreeMap<
     (scoop_identity::SourceIdentity, scoop_hir::CompileTimePath),
     Result<files::ReadFile, String>,
 >;
 
 type EnvironmentValues = BTreeMap<CompileTimeEnvironmentName, Result<Option<String>, String>>;
+type DirectoryValues = BTreeMap<
+    (
+        scoop_identity::SourceIdentity,
+        scoop_hir::CompileTimePath,
+        scoop_hir::CompileTimeDirectoryFilter,
+    ),
+    Result<directories::ReadDirectory, scoop_hir::CompileTimeDirectoryError>,
+>;
 
 #[derive(Default)]
 pub struct CompileTimeInputs {
     environment: Mutex<EnvironmentValues>,
     sources: Option<files::Sources>,
     files: Mutex<FileValues>,
+    directories: Mutex<DirectoryValues>,
 }
 
 impl CompileTimeInputHost for CompileTimeInputs {
+    fn directory(
+        &self,
+        source: &scoop_identity::SourceIdentity,
+        path: &scoop_hir::CompileTimePath,
+        filter: &scoop_hir::CompileTimeDirectoryFilter,
+    ) -> Result<std::sync::Arc<[scoop_hir::CompileTimeFile]>, scoop_hir::CompileTimeDirectoryError>
+    {
+        let sources = self.sources.as_ref().ok_or_else(|| {
+            scoop_hir::CompileTimeDirectoryError::Input(
+                "include call has no physical definition source".into(),
+            )
+        })?;
+        self.directories
+            .lock()
+            .expect("directory input cache is not poisoned")
+            .entry((source.clone(), path.clone(), filter.clone()))
+            .or_insert_with(|| directories::read(sources, source, path, filter))
+            .as_ref()
+            .map(|directory| directory.files.clone())
+            .map_err(Clone::clone)
+    }
+
     fn file(
         &self,
         source: &scoop_identity::SourceIdentity,
@@ -74,6 +108,12 @@ impl CompileTimeInputs {
                 .expect("file input cache is not poisoned")
                 .values()
                 .any(Result::is_err)
+            || self
+                .directories
+                .lock()
+                .expect("directory input cache is not poisoned")
+                .values()
+                .any(Result::is_err)
         {
             return false;
         }
@@ -118,6 +158,17 @@ impl CompileTimeInputs {
                             .map(|file| scoop_protocol::CompilerInputV1::File(file.input.clone()))
                     }),
             )
+            .chain(
+                self.directories
+                    .lock()
+                    .expect("directory input cache is not poisoned")
+                    .values()
+                    .filter_map(|directory| {
+                        directory.as_ref().ok().map(|directory| {
+                            scoop_protocol::CompilerInputV1::Directory(directory.input.clone())
+                        })
+                    }),
+            )
             .collect()
     }
 }
@@ -125,6 +176,7 @@ impl CompileTimeInputs {
 pub fn compiler_inputs_current(inputs: &[scoop_protocol::CompilerInputV1]) -> bool {
     inputs.iter().all(|input| match input {
         scoop_protocol::CompilerInputV1::File(input) => files::current(input),
+        scoop_protocol::CompilerInputV1::Directory(input) => directories::current(input),
         scoop_protocol::CompilerInputV1::Environment(input) => match std::env::var(&input.name) {
             Ok(value) => input.value.as_ref() == Some(&value),
             Err(std::env::VarError::NotPresent) => input.value.is_none(),
@@ -138,3 +190,6 @@ mod tests;
 
 #[cfg(test)]
 mod file_tests;
+
+#[cfg(test)]
+mod directory_tests;

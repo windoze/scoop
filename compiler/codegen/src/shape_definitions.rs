@@ -165,6 +165,7 @@ fn collect_layouts(module: &Module) -> BTreeSet<PersistentLayoutId> {
                     scoop_lir::GlobalInit::Storage { layout, .. } => layout.local(),
                     scoop_lir::GlobalInit::StringConst { .. }
                     | scoop_lir::GlobalInit::ByteArrayConst { .. }
+                    | scoop_lir::GlobalInit::EmbeddedFileArrayConst { .. }
                     | scoop_lir::GlobalInit::ImportedImmortal { .. }
                     | scoop_lir::GlobalInit::ImportedStorage { .. }
                     | scoop_lir::GlobalInit::CString { .. }

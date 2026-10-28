@@ -25,7 +25,8 @@ pub(super) fn expected_operation_signature(
         | IntrinsicFunctionKind::MaybeUninit(_)
         | IntrinsicFunctionKind::TypeReference
         | IntrinsicFunctionKind::TypeDescription
-        | IntrinsicFunctionKind::AnnotationKey => {
+        | IntrinsicFunctionKind::AnnotationKey
+        | IntrinsicFunctionKind::IncludeDir => {
             unreachable!("these signatures come from their ordinary nominal declaration")
         }
         IntrinsicFunctionKind::Float(kind) => {
@@ -427,6 +428,7 @@ pub(super) fn operation_own_type_parameter_count(kind: IntrinsicFunctionKind) ->
         | IntrinsicFunctionKind::CompileEnv
         | IntrinsicFunctionKind::IncludeStr
         | IntrinsicFunctionKind::IncludeBytes
+        | IntrinsicFunctionKind::IncludeDir
         | IntrinsicFunctionKind::Integer(_)
         | IntrinsicFunctionKind::Float(_)
         | IntrinsicFunctionKind::Char(_)

@@ -61,6 +61,9 @@ impl BodyProjection<'_, '_> {
             ExprKind::ByteArrayLiteral(value) => {
                 DefaultExpressionKindV1::ByteArrayLiteral(value.clone())
             }
+            ExprKind::EmbeddedFileArrayLiteral(value) => {
+                DefaultExpressionKindV1::EmbeddedFileArrayLiteral(value.clone())
+            }
             ExprKind::StringLiteral { value, owner } => DefaultExpressionKindV1::StringLiteral {
                 value: value.clone(),
                 owner: match owner {

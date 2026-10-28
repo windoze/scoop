@@ -147,7 +147,7 @@ pattern 以 `/` 分隔、大小写敏感，不做 Unicode 归一化。空 patter
 
 条目采用根内无前导 `/`、无 `.`／`..` 的 UTF-8 相对路径，按 UTF-8 byte order 排序；名称无法表示为 String 时诊断，不 lossy 改名。越界、断链、遍历错误、循环和匹配到的非普通文件类型正常报错，不将 pipe／device 当作字节文件读取。只读取选中文件的内容；排除条目的内容不影响值，其路径和链接仍受范围规则约束。
 
-实现选择已有 [glob::Pattern](https://docs.rs/glob/latest/glob/struct.Pattern.html) 处理字符级模式，显式使用 [MatchOptions](https://docs.rs/glob/latest/glob/struct.MatchOptions.html) 的 `case_sensitive = true`、`require_literal_separator = true`、`require_literal_leading_dot = false`。目录枚举由已有输入宿主负责，匹配器不隐藏额外 IO。需要用适配层落实上表的路径形式和错误规则；库升级不得静默改变语言语义。实际引入依赖时按仓库要求确认维护状态并锁定版本，本次未增加 Cargo 依赖。
+实现选择已有 [glob::Pattern](https://docs.rs/glob/latest/glob/struct.Pattern.html) 处理字符级模式，显式使用 [MatchOptions](https://docs.rs/glob/latest/glob/struct.MatchOptions.html) 的 `case_sensitive = true`、`require_literal_separator = true`、`require_literal_leading_dot = false`。目录枚举由已有输入宿主负责，匹配器不隐藏额外 IO。需要用适配层落实上表的路径形式和错误规则；库升级不得静默改变语言语义。实现采用 0.3.4，并通过 Cargo.lock 锁定；已核对上游 2026-07-21 发布记录。
 
 ## 6. env 与聚合常量
 
@@ -214,7 +214,7 @@ Option<String> 沿既有 niche：None 为零引用，Some 为非 null String 对
 
 链接从代码、静态初值、其他常量的真实引用选择数据定义，并同选其登记；不能因常量记录存在就无条件保留全部常量。合并后的数据必须保留所有实际引用，不得随其中一个未使用的函数丢失。完全未引用的数据可裁剪。
 
-可移植模板保存引用而非逐实例 payload；前端需要求值导出 const 时，按需读取 provider 的常量内容表。机器数据由实际 provider 发射，消费者保留外部引用；源路径和环境只存在于原构建输入，不成为消费者必须打开的依赖。必要格式变更沿现有 schema／profile 机制处理，实施时才分配新 tag／版本，重建编译器与 core，不新增兼容 reader 或 runtime ABI。
+可移植模板保存定义处已经求值的输入值或静态引用；实例化不重新读取文件或环境。普通预编译机器正文的消费者保留 provider 的外部引用，泛型／inline 模板在消费方物化时可以发射所需的静态对象。静态定义沿既有 immortal 表登记和复用；跨特化、跨 Cone 的同值合并属于优化，不要求新增通用常量表。源路径和环境只存在于原构建输入，不成为消费者必须打开的依赖。必要格式变更沿现有 schema／profile 机制处理，实施时才分配新 tag／版本，重建编译器与 core，不新增兼容 reader 或 runtime ABI。
 
 ## 9. 输入更新与缓存
 

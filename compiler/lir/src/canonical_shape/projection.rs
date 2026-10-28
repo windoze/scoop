@@ -81,7 +81,8 @@ impl<'a> ShapeContents<'a> {
         }
         for (_, global) in module.globals.iter() {
             if let GlobalInit::StringConst { identity, .. }
-            | GlobalInit::ByteArrayConst { identity, .. } = &global.init
+            | GlobalInit::ByteArrayConst { identity, .. }
+            | GlobalInit::EmbeddedFileArrayConst { identity, .. } = &global.init
             {
                 let object = identity.identity_record().id();
                 values.insert(

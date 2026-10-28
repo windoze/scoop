@@ -56,6 +56,7 @@ impl Lowerer {
                         | hir::IntrinsicFunctionKind::CompileEnv
                         | hir::IntrinsicFunctionKind::IncludeStr
                         | hir::IntrinsicFunctionKind::IncludeBytes
+                        | hir::IntrinsicFunctionKind::IncludeDir
                         | hir::IntrinsicFunctionKind::TypeReference
                         | hir::IntrinsicFunctionKind::TypeDescription
                 )

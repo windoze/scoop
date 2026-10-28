@@ -253,7 +253,7 @@ pub(crate) enum ExprKind {
     },
     Context(mir::ContextOperation<Expr>),
     DataBorrow(mir::DataBorrowOperation<Expr>),
-    ByteArrayConst(mir::ImmortalConstId),
+    ArrayConst(mir::ImmortalConstId),
     StringConst(mir::ImmortalConstId),
     IntegerLiteral(mir::MirIntegerConstant),
     MachineScalarLiteral(mir::MachineScalarValue),

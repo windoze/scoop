@@ -14,7 +14,7 @@
 - [x] env 的 build／check／doc 缓存更新、定义处求值及语言服务的共享 HIR 输入宿主。
 - [x] includeStr、Cone 目录范围检查与文件输入更新。
 - [x] includeBytes 及静态字节数组。
-- [ ] includeDir、glob、逐项目录／symlink 范围检查与 EmbeddedDir API。
+- [x] includeDir、glob、逐项目录／symlink 范围检查与 EmbeddedDir API。
 - [ ] 文件／目录输入的构建／check／doc／LSP 更新和缓存复用、资源的定义来源。
 - [ ] Darwin 与 Linux 必要组合验证、对应规范状态更新及功能提交。
 
@@ -111,6 +111,21 @@ Darwin／Linux 的 3 项普通 Cone 测试均通过，覆盖 256 种 byte、空�
 2026-10-29 按用户追加要求，以 `1f35644e5` 合并 `origin/main` 的 `5c245cb7f`。解决运行时规范一处冲突：保留 include 的静态对象说明，同时采用上游新的 StringBuilder 字节存储合同。其余编译器改动自动合并，includeBytes 提交保留。
 
 上游将 runtime ABI 升至 27。两机显式准备本次需要的 core／std／test、公开 C 头文件、普通和 stress runtime；其余旧 sysroot 资源在后续使用前重新准备。Darwin 全 workspace lint 和 15 项定向 Rust 测试通过；Linux 相关 crate lint 和 13 项定向 Rust 测试通过，覆盖输入 intrinsic、字节复制与根计划、静态字节数组和 ABI。两机各自通过 3 项 includeBytes Cone 测试，以及 9 项 intrinsic fixture（10 个变体、54 个进程步骤）。Linux 额外通过 7 项 StringBuilder 和 2 项列表增长测试，定向启用 moving／minor GC stress。未重跑完整套件。原始日志与部分全量验收记录继续保存在仓库外，清除了本轮验证产生的 16 个未跟踪 Cone.lock 文件。
+
+### includeDir 与静态目录表
+
+目录输入已接入共享输入宿主与成功响应／缓存记录，复用文件输入的 Cone 范围检查；glob 0.3.4 只负责字符串匹配。遍历先检查所有条目和链接，再读取选中的 regular files；保留逻辑路径、排序与原始 bytes。同一次请求复用结果，同一实际目标经多个逻辑路径出现时共用已读 bytes。更新检查重扫目录与解析目标，记录选中文件的长度／修改时间，不读取内容，也不因排除文件的内容变化重编。
+
+machine protocol 升至 21，编译 key 域升至 v10，check／doc 缓存目录升至 v4，相关 fixture 路径已同步。Darwin 格式化与全 workspace lint、13 项输入测试、46 项协议测试通过；Linux 相关 lint、14 项输入测试、46 项协议测试通过。覆盖递归 glob／Unicode／隐藏项、空选择、深层新增／删除／改名、excluded symlink 越界、目录循环、重复目标、原始 link/..、相同 metadata 下改指及非普通文件；非法 UTF-8 文件名在允许创建该输入的 Linux 上验证，Darwin 文件系统在创建时即拒绝。随后接通的源码和静态发射验证如下。
+
+
+core 增加普通 package `scoop.compiler` 下的 includeDir、EmbeddedFile 与 EmbeddedDir。名称解析沿普通命名／默认参数绑定；include／exclude 的数组字面量在 HIR 消费，结果为普通 struct 与静态文件表，不留下运行期筛选数组或文件访问。泛型、默认值和 inline 模板保存定义处已读数据，跨 Cone 消费不重新读取 provider 的资源。文件表使用真实 Array<EmbeddedFile> 布局，String／bytes 子对象及其引用沿既有 immortal 表和链接关系发射；runtime 允许只包含静态引用的 immutable immortal，继续检查大小、对齐、对象头与范围，不重放编译器生成的整个对象图。runtime ABI 仍为 27。
+
+callable intrinsic 新增 tag 33、默认模板表达式 tag 78；HIR `cross-cone-interface` 升至 86，LIR `identity-foundation` 升至 11。运行期接口、普通构造器和通用 const 表达式范围保持。实际 debug 跨 Cone 用例暴露聚合字段读取与根恢复读取直到机器下降才合并的问题：debug 在 RS4GC 前复用 InstCombine／EarlyCSE 完成标量规范化，物理根数量与最终 stackmap 一致；没有增加独立根等价算法。
+
+Darwin／Linux 均通过 8 项普通 Cone 测试，以及新增 3 项正式 fixture（4 个变体、26 个进程步骤）。覆盖目录顺序、原始 bytes、空结果、named／default filters、精确查找、泛型、用户构造、可变副本、引用／非法输入诊断、release 与 debug＋moving GC 下的跨 Cone 静态引用，以及 build／check／doc 的新增、删除、改指、排除项变化、失败恢复与缓存复用。两平台的 11 项 HIR 输入测试、72 项 statepoint 测试、静态发射与 runtime immortal 登记测试通过；Darwin 的 195 项默认模板测试通过。新增聚合读取回归在修复前稳定复现 stackmap 数量失配，修复后覆盖全部三个后端目标和两种 profile。
+
+Darwin 全 workspace lint 通过；一次全量 Rust 运行报告 6209 项通过、18 项失败，另有 formatter corpus 线程栈溢出和 doc 阶段依赖产物缺失。6 项失败已闭合：缓存固定向量、shared-intrinsic 枚举、两项 profile、语义指纹，以及合并后的 StringBuilder 已改用 MutableArray<UInt8> 的 core 应用类型预期。对应 6 项缓存、5 项 shared-intrinsic、18 项 profile、8 项语义指纹与真实 core HIR→MIR→LIR 定向测试通过；前四组也在 Linux 通过。formatter 设置 RUST_MIN_STACK=16777216 后完整 corpus 通过。剩余 12 项失败涉及先前记录的 3 项 codegen 分配断言、5 项使用旧 CLI 的 linker 测试及 4 项 runtime ABI 固定向量；doc 阶段待顺序复验，不能记为全量通过。完整 CLI 验收正在显式准备其所需 sysroot，Linux 维持定向验证。LSP 资源 watcher 与主动重发诊断仍属于独立未完成项。清理了不再使用的 46 MiB 重现程序 target；原始日志和运行目录继续保存在仓库外。
 
 ## 范围调整
 

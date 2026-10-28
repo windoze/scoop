@@ -18,8 +18,8 @@ fn function_ref(id: FunctionId) -> String {
     format!("@fn{}", id.into_raw().into_u32())
 }
 
-fn byte_array_ref(id: ImmortalConstId) -> String {
-    format!("@bytes{}", id.into_raw().into_u32())
+fn array_ref(id: ImmortalConstId) -> String {
+    format!("@array{}", id.into_raw().into_u32())
 }
 
 fn string_ref(id: ImmortalConstId) -> String {

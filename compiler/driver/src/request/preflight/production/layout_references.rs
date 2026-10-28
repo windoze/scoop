@@ -57,7 +57,8 @@ pub(in crate::request::preflight) fn collect_mir_references(
         if input.materialization().immortals().iter().any(|id| {
             match &input.module().immortals[*id].value {
                 mir::ImmortalConstValue::String(_) => source.ty() == &mir::Type::String,
-                mir::ImmortalConstValue::ByteArray { array_type, .. } => {
+                mir::ImmortalConstValue::ByteArray { array_type, .. }
+                | mir::ImmortalConstValue::EmbeddedFileArray { array_type, .. } => {
                     source.ty() == &mir::Type::Class(*array_type)
                 }
             }

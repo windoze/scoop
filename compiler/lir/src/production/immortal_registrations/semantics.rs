@@ -1,4 +1,4 @@
-//! Semantic plans for immutable String and byte-array objects and their type registrations.
+//! Semantic plans for immutable String and array objects and their type registrations.
 
 use crate::{GlobalInit, LirTargetProfile, Module, PointerKind, RefScan, TypeDescriptorRef};
 use scoop_identity::{
@@ -103,6 +103,25 @@ impl StrongImmortalObjectSemanticPlanSetV1 {
                         string_object_alignment(meta.target_profile),
                         string_type,
                     ),
+                    GlobalInit::EmbeddedFileArrayConst {
+                        identity,
+                        array_type,
+                        files,
+                    } => {
+                        let array = &meta.arrays[*array_type];
+                        let count = u64::try_from(files.len()).map_err(|_| {
+                            StrongImmortalObjectSemanticPlanBuildError::ObjectSizeOverflow
+                        })?;
+                        let size = array.layout.allocation_size(count).ok_or(
+                            StrongImmortalObjectSemanticPlanBuildError::ObjectSizeOverflow,
+                        )?;
+                        (
+                            identity,
+                            size,
+                            array.layout.instance().instance_alignment(),
+                            type_registration(meta, array.type_descriptor)?,
+                        )
+                    }
                     GlobalInit::ByteArrayConst {
                         identity,
                         array_type,

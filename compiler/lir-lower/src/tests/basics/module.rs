@@ -77,7 +77,8 @@ fn lowers_hello_world() {
             | lir::GlobalInit::RawStorage { .. }
             | lir::GlobalInit::ImportedImmortal { .. }
             | lir::GlobalInit::ImportedStorage { .. }
-            | lir::GlobalInit::ByteArrayConst { .. } => None,
+            | lir::GlobalInit::ByteArrayConst { .. }
+            | lir::GlobalInit::EmbeddedFileArrayConst { .. } => None,
         })
         .collect();
     assert_eq!(
@@ -97,7 +98,8 @@ fn lowers_hello_world() {
             | lir::GlobalInit::RawStorage { .. }
             | lir::GlobalInit::ImportedImmortal { .. }
             | lir::GlobalInit::ImportedStorage { .. }
-            | lir::GlobalInit::ByteArrayConst { .. } => None,
+            | lir::GlobalInit::ByteArrayConst { .. }
+            | lir::GlobalInit::EmbeddedFileArrayConst { .. } => None,
         })
         .collect::<Vec<_>>();
     assert_eq!(
@@ -120,7 +122,8 @@ fn lowers_hello_world() {
             | lir::GlobalInit::CString { .. }
             | lir::GlobalInit::ImportedImmortal { .. }
             | lir::GlobalInit::ImportedStorage { .. }
-            | lir::GlobalInit::ByteArrayConst { .. } => None,
+            | lir::GlobalInit::ByteArrayConst { .. }
+            | lir::GlobalInit::EmbeddedFileArrayConst { .. } => None,
         })
         .collect::<Vec<_>>();
     assert_eq!(failure_roots.len(), 1);

@@ -314,14 +314,24 @@ impl Lowerer {
         } else if let hir::CallableImplementationV1::Intrinsic(
             kind @ (hir::IntrinsicFunctionKind::CompileEnv
             | hir::IntrinsicFunctionKind::IncludeStr
-            | hir::IntrinsicFunctionKind::IncludeBytes),
+            | hir::IntrinsicFunctionKind::IncludeBytes
+            | hir::IntrinsicFunctionKind::IncludeDir),
         ) = candidate.interface().effects().implementation()
         {
             ImportedCallImplementation::Intrinsic {
                 template,
                 operation: ImportedIntrinsicCall::CompileInput {
                     kind,
-                    source: call.arguments.source(0).cloned(),
+                    sources: argument_map
+                        .parameters()
+                        .iter()
+                        .map(|parameter| match parameter.input {
+                            crate::call_resolution::arguments::ResolvedParameterInput::Explicit(
+                                source,
+                            ) => call.arguments.source(source.index()).cloned(),
+                            _ => None,
+                        })
+                        .collect(),
                 },
             }
         } else if let Some(kind) = candidate.maybe_uninit_intrinsic()

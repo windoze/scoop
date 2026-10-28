@@ -28,6 +28,32 @@ pub trait CompileTimeInputHost: Send + Sync {
         source: &scoop_identity::SourceIdentity,
         path: &CompileTimePath,
     ) -> Result<std::sync::Arc<[u8]>, String>;
+    fn directory(
+        &self,
+        source: &scoop_identity::SourceIdentity,
+        path: &CompileTimePath,
+        filter: &CompileTimeDirectoryFilter,
+    ) -> Result<std::sync::Arc<[CompileTimeFile]>, CompileTimeDirectoryError>;
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct CompileTimeDirectoryFilter {
+    pub include: Vec<String>,
+    pub exclude: Vec<String>,
+}
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct CompileTimeFile {
+    /// Logical UTF-8 path relative to the selected directory, using slash separators.
+    pub path: String,
+    pub bytes: std::sync::Arc<[u8]>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum CompileTimeDirectoryError {
+    Input(String),
+    IncludePattern { index: usize, message: String },
+    ExcludePattern { index: usize, message: String },
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]

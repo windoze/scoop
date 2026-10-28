@@ -27,6 +27,7 @@ impl CoreCompilerProtocolSurfaceV1 {
                 | IntrinsicFunctionKind::TypeReference
                 | IntrinsicFunctionKind::TypeDescription
                 | IntrinsicFunctionKind::AnnotationKey
+                | IntrinsicFunctionKind::IncludeDir
         ) {
             // Atomic and MaybeUninit owners are ordinary nominal declarations,
             // not members of the fixed bootstrap protocol surface.

@@ -2,6 +2,8 @@
 
 use super::*;
 
+mod directory;
+
 #[derive(Clone)]
 pub(crate) struct ConstantCallContext {
     pub file: usize,
@@ -27,14 +29,17 @@ impl Lowerer {
         &mut self,
         kind: hir::IntrinsicFunctionKind,
         arguments: &[hir::Expr],
-        source: Option<&ast::Expr>,
+        sources: &[Option<ast::Expr>],
         result_type: hir::TypeId,
         span: Span,
     ) -> Option<hir::Expr> {
+        if kind == hir::IntrinsicFunctionKind::IncludeDir {
+            return self.normalize_include_directory(arguments, sources, result_type, span);
+        }
         let [name] = arguments else {
             unreachable!("the checked compiler input signature has one String parameter")
         };
-        let value = match source {
+        let value = match sources.first().and_then(Option::as_ref) {
             Some(source) => self.compiler_input_string(source),
             None => match self.expression_constant(name) {
                 Some(hir::HirConstantImage::String(value)) => Some(value),
