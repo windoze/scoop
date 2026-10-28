@@ -92,6 +92,7 @@ fn zst_arrays_keep_count_checks_without_payload_access() {
         terminator: Terminator::Return { value: None },
     });
     module.functions[0] = Function {
+        debug_source: None,
         callable_body: callable_body("scoop_main"),
         safepoints: test_safepoints("scoop_main", &blocks, entry),
         gc_effect: GcEffect::Managed,

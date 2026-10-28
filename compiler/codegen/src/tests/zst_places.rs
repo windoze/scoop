@@ -42,6 +42,7 @@ fn places_module(address_logical: bool) -> Module {
         terminator: Terminator::Return { value: None },
     });
     module.functions = vec![Function {
+        debug_source: None,
         callable_body: callable_body("zstPlaces"),
         gc_effect: GcEffect::NoGc,
         signature: plain_scoop_signature(vec![LirType::Aggregate(Vec::new())], LirType::Void),

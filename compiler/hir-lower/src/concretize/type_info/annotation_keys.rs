@@ -84,6 +84,7 @@ impl Concretizer<'_> {
             origin,
         );
         functions::PendingFunction {
+            debug_source: None,
             name: format!("<annotation-description:{annotation}>"),
             is_suspend: false,
             modifiers: export::CallableModifiers::default(),

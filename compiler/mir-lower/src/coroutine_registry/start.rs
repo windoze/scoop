@@ -172,6 +172,7 @@ impl CoroutineRegistry {
         });
         let result_name = mir::type_name(shell, result);
         let function = functions.alloc(mir::Function {
+            debug_source: None,
             gc_effect: mir::GcEffect::Managed,
             name: format!("startCoroutine<{result_name}>"),
             params: vec![

@@ -205,6 +205,7 @@ impl BodyLowerer<'_> {
             unwind: None,
         });
         let bridge_function = self.functions.alloc(mir::Function {
+            debug_source: None,
             gc_effect: mir::GcEffect::NoGc,
             name: format!("callback bridge for {source_name}"),
             params,

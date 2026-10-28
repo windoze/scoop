@@ -27,6 +27,7 @@ fn callable_modules_declare_their_own_data_and_keep_complete_metadata_definition
                 },
             });
             Function {
+                debug_source: None,
                 callable_body: callable_body(&format!("selectData{ordinal}")),
                 gc_effect: GcEffect::NoGc,
                 signature: plain_scoop_signature(Vec::new(), MANAGED_PTR),

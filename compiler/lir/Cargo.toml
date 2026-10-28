@@ -6,4 +6,5 @@ rust-version.workspace = true
 [dependencies]
 la-arena.workspace = true
 scoop-identity.workspace = true
+scoop-source.workspace = true
 scoop-wire.workspace = true

@@ -16,6 +16,7 @@ fn boolean_function(symbol: &str, effect: GcEffect) -> Function {
         },
     });
     Function {
+        debug_source: None,
         callable_body: callable_body(symbol),
         safepoints: Default::default(),
         gc_effect: effect,

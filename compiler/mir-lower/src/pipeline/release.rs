@@ -26,6 +26,7 @@ impl Lowerer {
                 owner,
                 materialization: hook.materialization,
                 code: mir::Function {
+                    debug_source: None,
                     gc_effect: mir::GcEffect::NoGc,
                     name: format!("{}::release", self.classes[owner].name),
                     params: Vec::new(),

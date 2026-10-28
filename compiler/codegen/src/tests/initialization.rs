@@ -39,6 +39,7 @@ fn initialization_ready_path_keeps_roots_and_runtime_only_on_the_slow_edge() {
         },
     });
     module.functions = vec![Function {
+        debug_source: None,
         callable_body: callable_body("ready"),
         safepoints: test_safepoints("ready", &blocks, entry),
         gc_effect: GcEffect::Managed,

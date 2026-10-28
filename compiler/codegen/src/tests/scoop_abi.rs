@@ -31,6 +31,7 @@ fn aggregate_identity(symbol: &str, gc_effect: GcEffect) -> Function {
         },
     });
     Function {
+        debug_source: None,
         callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect,
@@ -111,6 +112,7 @@ fn ordinary_caller(symbol: &str, gc_effect: GcEffect, protocol: TestCallProtocol
         terminator: Terminator::Return { value: None },
     });
     Function {
+        debug_source: None,
         callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect,
@@ -181,6 +183,7 @@ fn invoke_caller() -> Function {
         terminator: Terminator::Br(normal),
     };
     Function {
+        debug_source: None,
         callable_body: callable_body("scoop.aggregate_invoke_caller"),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -223,6 +226,7 @@ fn aggregate_dispatch_caller() -> Function {
         terminator: Terminator::Return { value: None },
     });
     Function {
+        debug_source: None,
         callable_body: callable_body("scoop.aggregate_dispatch_caller"),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -385,6 +389,7 @@ fn native_aggregate_module() -> Module {
         terminator: Terminator::Return { value: None },
     });
     let caller = Function {
+        debug_source: None,
         callable_body: callable_body("scoop.native_aggregate_caller"),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,

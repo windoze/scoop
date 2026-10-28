@@ -136,6 +136,7 @@ impl Lowerer {
                 local: closure,
             }];
             let function = self.functions.alloc(mir::Function {
+                debug_source: None,
                 gc_effect: mir::GcEffect::Managed,
                 name: format!("$reference.{}", id.into_raw()),
                 params: Vec::new(),

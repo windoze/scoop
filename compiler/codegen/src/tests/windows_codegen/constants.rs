@@ -2,7 +2,7 @@ use scoop_lir::{CallableConstantKind, FloatBinaryOperator, FloatKind, FloatUnary
 
 use super::*;
 
-fn floating_function(name: &str, odr: bool) -> Function {
+pub(super) fn floating_function(name: &str, odr: bool) -> Function {
     let mut temps = Arena::new();
     let product = temps.alloc(Temp { ty: LirType::F64 });
     let sum = temps.alloc(Temp { ty: LirType::F64 });
@@ -38,6 +38,7 @@ fn floating_function(name: &str, odr: bool) -> Function {
         },
     });
     Function {
+        debug_source: None,
         callable_body: if odr {
             odr_callable_body(name)
         } else {

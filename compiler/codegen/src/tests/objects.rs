@@ -20,6 +20,7 @@ pub(super) fn classes_module_for(target: scoop_lir::LirTargetProfile) -> Module 
             },
         });
         Function {
+            debug_source: None,
             callable_body: callable_body(symbol),
             safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,
@@ -88,6 +89,7 @@ pub(super) fn classes_module_for(target: scoop_lir::LirTargetProfile) -> Module 
         },
     });
     let main = Function {
+        debug_source: None,
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -270,6 +272,7 @@ pub(super) fn heap_module_for(target: scoop_lir::LirTargetProfile) -> Module {
         },
     });
     let describe = Function {
+        debug_source: None,
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -427,6 +430,7 @@ pub(super) fn heap_module_for(target: scoop_lir::LirTargetProfile) -> Module {
         terminator: Terminator::Return { value: None },
     });
     let main = Function {
+        debug_source: None,
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,

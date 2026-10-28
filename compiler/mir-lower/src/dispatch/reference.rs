@@ -151,6 +151,7 @@ impl Lowerer {
             &self.classes,
         );
         let function = self.functions.alloc(mir::Function {
+            debug_source: None,
             name: format!(
                 "receiver<{}> {}.{}",
                 self.classes[class].name, self.interfaces.defs[iface].name, method.name

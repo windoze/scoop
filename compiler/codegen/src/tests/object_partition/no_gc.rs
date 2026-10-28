@@ -17,6 +17,7 @@ fn empty_leaf(name: &str) -> Function {
         },
     });
     Function {
+        debug_source: None,
         callable_body: callable_body(name),
         gc_effect: GcEffect::NoGc,
         signature: plain_scoop_signature(Vec::new(), empty),

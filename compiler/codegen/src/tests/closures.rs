@@ -125,6 +125,7 @@ fn closure_abi_module() -> Module {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
+            debug_source: None,
             callable_body: callable_body_at(file!(), line!()),
             safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,
@@ -262,6 +263,7 @@ fn elided_zst_calls_keep_logical_values_without_physical_abi_slots() {
         },
     });
     let callee = Function {
+        debug_source: None,
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,
@@ -300,6 +302,7 @@ fn elided_zst_calls_keep_logical_values_without_physical_abi_slots() {
         terminator: Terminator::Return { value: None },
     });
     let caller = Function {
+        debug_source: None,
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,

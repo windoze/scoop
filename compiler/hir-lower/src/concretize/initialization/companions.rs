@@ -47,6 +47,7 @@ impl Concretizer<'_> {
             }
         };
         crate::concretize::functions::PendingFunction {
+            debug_source: None,
             name: format!("{}${role:?}", signature.name),
             is_suspend: false,
             modifiers: signature.modifiers,

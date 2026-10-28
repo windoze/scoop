@@ -5,6 +5,7 @@ use object::{Object, ObjectComdat, ObjectSection, ObjectSymbol};
 use super::*;
 
 mod constants;
+mod debug_info;
 mod statepoint_pc;
 
 #[cfg(windows)]

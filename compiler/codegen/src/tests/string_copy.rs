@@ -52,6 +52,7 @@ fn string_copy_reloads_its_only_input_after_allocation() {
         },
     });
     module.functions[0] = Function {
+        debug_source: None,
         callable_body: callable_body("scoop_main"),
         safepoints: test_safepoints("scoop_main", &blocks, entry),
         gc_effect: GcEffect::Managed,

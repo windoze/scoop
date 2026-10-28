@@ -75,6 +75,7 @@ fn append_variant_projection_function(
     };
     let index = module.functions.len();
     module.functions.push(Function {
+        debug_source: None,
         callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,
@@ -117,6 +118,7 @@ fn append_variant_test_function(
     });
     let index = module.functions.len();
     module.functions.push(Function {
+        debug_source: None,
         callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,

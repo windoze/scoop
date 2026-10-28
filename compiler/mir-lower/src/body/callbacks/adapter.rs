@@ -94,6 +94,7 @@ pub(super) fn build(
         unwind: None,
     });
     mir::Function {
+        debug_source: None,
         gc_effect: mir::GcEffect::Managed,
         name: format!("foreign callback adapter {index}"),
         params: storage.params,

@@ -35,6 +35,7 @@ fn ordinary_module(callable: crate::ExternalCallableUse) -> Module {
     });
     let mut functions = Arena::new();
     functions.alloc(Function {
+        debug_source: None,
         gc_effect: GcEffect::Managed,
         name: "ordinary".to_string(),
         params: Vec::new(),

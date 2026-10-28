@@ -10,6 +10,8 @@ pub use visit_mut::*;
 
 #[derive(Debug, Clone)]
 pub struct Function {
+    /// Absent for generated helpers that have no source declaration.
+    pub debug_source: Option<scoop_source::FunctionDebugSource>,
     /// Whether this body participates in managed GC instrumentation.
     pub gc_effect: GcEffect,
     pub name: String,

@@ -61,6 +61,7 @@ fn switched_context_module() -> Module {
         },
     });
     module.functions = vec![Function {
+        debug_source: None,
         callable_body: callable_body("switch_context"),
         safepoints: test_safepoints("switch_context", &blocks, entry),
         gc_effect: GcEffect::Managed,

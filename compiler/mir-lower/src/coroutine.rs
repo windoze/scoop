@@ -143,6 +143,7 @@ fn transform_function(
     );
 
     let driver = lowerer.functions.alloc(mir::Function {
+        debug_source: None,
         gc_effect: mir::GcEffect::Managed,
         name: format!("{source_name}$drive"),
         params: Vec::new(),

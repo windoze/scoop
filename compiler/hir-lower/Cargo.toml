@@ -10,6 +10,7 @@ imbl.workspace = true
 scoop-ast.workspace = true
 scoop-hir.workspace = true
 scoop-identity.workspace = true
+scoop-source.workspace = true
 scoop-wire.workspace = true
 
 [dev-dependencies]

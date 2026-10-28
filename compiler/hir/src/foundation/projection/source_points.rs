@@ -157,6 +157,7 @@ mod tests {
             provider: crate::IntrinsicProviderId::from_raw(7),
             identity: source,
             name: "main.scoop".to_string(),
+            debug_path: None,
             source: "aé\nz".to_string(),
             canonical_record: None,
         };
@@ -208,6 +209,7 @@ mod tests {
             provider: crate::IntrinsicProviderId::from_raw(7),
             identity: source.clone(),
             name: "main.scoop".to_string(),
+            debug_path: None,
             source: "abcd".to_string(),
             canonical_record: None,
         };

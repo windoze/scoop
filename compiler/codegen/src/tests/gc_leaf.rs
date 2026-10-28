@@ -158,6 +158,7 @@ fn check_gc_leaf(
         },
     });
     let function = Function {
+        debug_source: None,
         callable_body: callable_body_at(file!(), line!()),
         safepoints: Default::default(),
         gc_effect: GcEffect::Managed,

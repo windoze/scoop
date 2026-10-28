@@ -78,6 +78,7 @@ pub(super) fn fixture() -> Module {
             })
             .unwrap();
         let function = module.functions.alloc(Function {
+            debug_source: None,
             gc_effect: GcEffect::Managed,
             name: format!("{role:?}"),
             params: vec![],
@@ -180,6 +181,7 @@ fn base_module() -> Module {
     };
     let mut functions = Arena::new();
     let entry = functions.alloc(Function {
+        debug_source: None,
         gc_effect: GcEffect::NoGc,
         name: "cycle".to_string(),
         params: Vec::new(),

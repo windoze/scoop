@@ -58,6 +58,7 @@ impl Concretizer<'_> {
                     })
                     .collect();
                 let value = PendingFunction {
+                    debug_source: None,
                     name: format!("$derived.equals.{}", source.into_raw().into_u32()),
                     is_suspend: false,
                     modifiers: export::CallableModifiers {

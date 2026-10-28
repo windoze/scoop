@@ -11,6 +11,7 @@ fn initialization_function(
     role: InitializationCallableRole,
 ) -> mir::FunctionId {
     let function = module.functions.alloc(mir::Function {
+        debug_source: None,
         gc_effect: mir::GcEffect::Managed,
         name: format!("{role:?}"),
         params: vec![],

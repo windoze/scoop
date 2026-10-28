@@ -5,7 +5,7 @@
 | 阶段 | 状态 | 尚需闭合 |
 | --- | --- | --- |
 | W0 工具链与 ABI | 关键路线实验通过 | 复现入口与范围见下文；正式编译器集成在 W1／W2 完成 |
-| W1 编译／链接 | 实施中 | 三目标开发 CLI 已支持 subsystem、RC、DLL 数据与跨 Cone C++；cl／clang-cl 消费同一 MSVC 静态库和 DLL 的完整程序及原生输入诊断通过，继续调试信息与组合验收 |
+| W1 编译／链接 | 实施中 | 三目标开发 CLI 已支持 subsystem、RC、DLL 数据与跨 Cone C++；函数入口的 CodeView／PDB 定位通过，继续源位置覆盖与 ABI 组合验收 |
 | W2 core runtime | 实施中 | core／std／test 已构建且 Cone 测试通过，异常、移动 GC、callback、TLS、初始化、shutdown 与并行 GC 的定向程序通过；继续其余 ABI／GC 组合验收 |
 | W3 系统库 | 待实施 | 平台规范与实现、IOCP、全部 native 组件、真实 consumer |
 | W4 宿主与发行 | 基础实施中 | 进程中断已实现；继续 Windows 命令、维护脚本、DLL／SDK 布局与打包、交叉编译 |
@@ -156,3 +156,7 @@ shutdown 的 native companion 复用同一 OS thread helper，覆盖仍附着的
 三个 Windows target 的正式 release Cone 测试均通过：core consumer 每目标 49 个容器／77 项测试，std 每目标 97 个容器／104 项测试，失败、忽略和未运行均为零。测试使用前述已准备的预编译系统库与共享缓存；三个长时间编译进程均正常完成，没有重复启动。此结果闭合 core／std 的普通 API 行为验收；其余 ABI／GC 组合、调试信息、平台库、发行与跨宿主验证继续实施。
 
 Windows native companion 的 Microsoft 配置省略 GNU Clang driver 额外添加的静态 CRT 默认库，沿用 `/MD` 对象的正常默认库指令。用户显式选择 GNU 风格 Clang 时，已预处理的 native C/C++ 输入不再收到头文件目录和预处理宏；目标、动态 CRT 与 unwind 参数仍保留，修复严格告警下的 unused-argument 失败。toolchain Clippy、Ruff 和 fixture 公共规则测试通过（62 通过、3 项 POSIX 专项跳过）；MSVC 的 LLD／Microsoft LINK 与两个 MinGW CRT 均通过静态库／DLL 数据 fixture，每种组合 1 个变体／9 个进程步骤。调试源码路径的独立修复继续验证。
+
+Windows debug profile 的函数声明信息现由 HIR 经 MIR／LIR 传给 LLVM CodeView，包含源码名称、文件、行列与实际机器符号。当前源码保留本次文件路径，依赖泛型复用原始逻辑文件及 SourceRecord 位置；包坐标显示名与宿主路径保持独立。CodeView 使用等价 DOS／UNC 拼写，修复 LLVM 对 Windows verbatim 前缀的错误解释。此批提供函数入口声明位置，正文各语句和局部变量的源级调试仍未覆盖。
+
+三目标 debug／release 对象测试、Unicode／verbatim 文件路径的真实 PDB 检查，以及当前／依赖泛型经 MIR 的坐标测试通过；release 对象不含新增 CodeView。workspace/all-targets Clippy 与最后路径修订的定向 Clippy 均通过。正式 CLI 的 Microsoft LLD／LINK、MinGW MSVCRT／UCRT 四种组合各通过 1 个变体／10 个进程步骤：DbgHelp 按完整文件和行号查询入口、源码改行更新、无变化零子进程复用、artifact-only 重链接及运行。调试发射加入后的 roots-gc-context 在四种组合各通过 debug／release 两个变体／6 个步骤，保持移动 GC 行为。W1 的其余覆盖及 W2～W4 继续实施。

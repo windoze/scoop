@@ -24,6 +24,7 @@ fn constant_function(symbol: &str, constant: LirIntegerConstant) -> Function {
         },
     });
     Function {
+        debug_source: None,
         callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,
@@ -53,6 +54,7 @@ fn instruction_module(
         terminator: Terminator::Return { value: None },
     });
     module_with_functions(vec![Function {
+        debug_source: None,
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,

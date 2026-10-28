@@ -101,6 +101,7 @@ pub(super) fn type_context(
     }
     let mut functions = Arena::new();
     let entry = functions.alloc(mir::Function {
+        debug_source: None,
         gc_effect: mir::GcEffect::Managed,
         name: String::new(),
         params: Vec::new(),

@@ -207,6 +207,7 @@ fn enum_module_with(
         },
     });
     let tagged = Function {
+        debug_source: None,
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -297,6 +298,7 @@ fn enum_module_with(
         },
     });
     let niche = Function {
+        debug_source: None,
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -331,6 +333,7 @@ fn enum_module_with(
         terminator: Terminator::Unreachable,
     });
     let trap_on_none = Function {
+        debug_source: None,
         callable_body: trap_callable_body,
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -362,6 +365,7 @@ fn enum_module_with(
         },
     });
     let produce = Function {
+        debug_source: None,
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -416,6 +420,7 @@ fn enum_module_with(
         },
     });
     let consume = Function {
+        debug_source: None,
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -468,6 +473,7 @@ fn enum_module_with(
         },
     });
     let consume_indirect = Function {
+        debug_source: None,
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,

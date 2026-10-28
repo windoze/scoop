@@ -206,6 +206,7 @@ pub(super) fn local_function(function: PersistentFunctionId) -> Function {
         },
     });
     Function {
+        debug_source: None,
         callable_body: CallableBodyIdentity::for_function(function).unwrap(),
         gc_effect: crate::GcEffect::Managed,
         signature: pointer_result_signature(),

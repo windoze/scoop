@@ -66,6 +66,7 @@ impl Lowerer {
         let source_name = mir::type_name(&self.shell, &mir::Type::Function(source));
         let target_name = mir::type_name(&self.shell, &mir::Type::Function(target));
         let function = self.functions.alloc(mir::Function {
+            debug_source: None,
             gc_effect: mir::GcEffect::Managed,
             name: format!("$adapter.{source_name}.{target_name}"),
             params: Vec::new(),

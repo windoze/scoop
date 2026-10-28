@@ -240,6 +240,7 @@ fn semantic_module(
         terminator: Terminator::Return { value: None },
     });
     let function = Function {
+        debug_source: None,
         callable_body: body.clone(),
         gc_effect: GcEffect::Managed,
         signature: ScoopAbiSignature::new(

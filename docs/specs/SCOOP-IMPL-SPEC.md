@@ -902,6 +902,8 @@ Windows target 的默认 executable 文件名（包括测试程序）在上述�
 
 Windows 保留符号时生成并发布 `<output>.pdb`，PE 的 CodeView 路径保存公开 PDB basename，缓存链接不得泄漏临时 PDB 名称。此 basename 参与最终 executable 键；PDB 与 executable／map 使用相同的普通更新及发布规则，命中只要求所需文件存在，不读取内容。未请求保留符号时不生成或要求 PDB。
 
+Windows debug profile 的 Scoop 对象使用 CodeView。函数的显示名称、实际声明文件和位置由 HIR 经 MIR／LIR 传递，LLVM subprogram 继续以实际机器符号关联函数；位置复用当前已读取源码或依赖的 source record，不在 codegen 重新读取源码。当前源码使用本次输入的文件定位路径，独立于 `SourceLocation.file` 的包坐标显示名称；该宿主路径不进入持久化 SourceRecord 或实体身份。只保留 source record 的依赖泛型使用原始逻辑文件路径和位置，不猜测提供方的宿主目录。没有源码声明的辅助函数不伪造文件或位置。函数入口的声明位置与正文各语句的位置是不同信息，只有已传递的实际位置才能生成行记录；不得把整段正文标成声明所在行。调试 metadata 不参与实体身份、ABI 或 GC／EH 根信息，release 的必要展开表与 stackmap 保持原合同。
+
 用户 Cone 的默认构建缓存位于 `<target-root>/<canonical-target-triple>/build/<profile>`，包含本次图的源码依赖、工具发现、中间产物和最终链接缓存，不使用用户级平台缓存目录。build/run/test 与 check 使用本次选择的 profile；doc 使用 debug，并以首个显式 root（省略时为当前 Cone）选择默认缓存 target root。支持 `--target-dir` 的命令同时将默认缓存放到指定 target root 下，`-o`／`--output-dir` 不改变缓存位置。显式 `--cache-dir` 优先，其次为 `SCOOP_CACHE_DIR`，两者均直接指定完整缓存根，不再追加 triple/profile；未指定时才使用上述 Cone 本地布局。默认缓存选择只定位输入和目标，不读取源码内容或探测工具。
 
 `scoop clean` 接受与 build 相同的 manifest 目录、Cone.toml 或单文件输入，省略时使用 cwd 的 Cone.toml，不搜索父目录。它定位同一 target root，递归删除整个目录（包括所有 target、profile、缓存和目录内其他生成物），目录不存在时成功返回；`--target-dir` 相对 cwd 解析并替换被清理的根。此命令不解析 manifest 内容或源码、不发现依赖，也不读取 sysroot、启动编译器或探测 native 工具。target root 外的显式输出和缓存不属于清理范围。实际删除失败按路径报告并退出 1；参数错误退出 2。human 成功摘要或 schema 1、kind 为 `clean`、含 `target_dir` 与 `removed` 的 JSON 结果写 stderr，stdout 保持为空。

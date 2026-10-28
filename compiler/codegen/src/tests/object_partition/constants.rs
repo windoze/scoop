@@ -53,6 +53,7 @@ pub(super) fn lookup_module() -> Module {
         });
     }
     module.functions = vec![Function {
+        debug_source: None,
         callable_body: callable_body("lookup"),
         gc_effect: GcEffect::NoGc,
         signature: plain_scoop_signature(vec![LirType::I64], MANAGED_PTR),

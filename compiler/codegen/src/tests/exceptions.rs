@@ -16,6 +16,7 @@ pub(super) fn exceptions_module() -> Module {
         terminator: Terminator::Unreachable,
     });
     let thrower = Function {
+        debug_source: None,
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -36,6 +37,7 @@ pub(super) fn exceptions_module() -> Module {
         },
     });
     let may_throw = Function {
+        debug_source: None,
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -183,6 +185,7 @@ pub(super) fn exceptions_module() -> Module {
         },
     };
     let eh_test = Function {
+        debug_source: None,
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,

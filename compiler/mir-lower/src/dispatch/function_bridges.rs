@@ -114,6 +114,7 @@ impl Lowerer {
             &self.classes,
         );
         let function = self.functions.alloc(mir::Function {
+            debug_source: None,
             gc_effect: mir::GcEffect::Managed,
             name,
             params,

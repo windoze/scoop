@@ -23,6 +23,7 @@ pub(crate) fn request_dynamic_adapter(
     let signature = &shell.function_types[target];
     let name = mir::type_name(shell, &mir::Type::Function(target));
     let function = definitions.functions.alloc(mir::Function {
+        debug_source: None,
         gc_effect: mir::GcEffect::Managed,
         name: format!("$dynamic_adapter.{name}"),
         params: Vec::new(),

@@ -66,6 +66,7 @@ impl Lowerer {
             bodies.insert(
                 callable,
                 mir::Function {
+                    debug_source: None,
                     name: "imported inline body".into(),
                     gc_effect,
                     params,

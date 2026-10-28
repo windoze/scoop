@@ -152,6 +152,7 @@ fn roundtrip_module(ty: LirType, size: u64, offsets: &[u64]) -> Module {
         terminator: Terminator::Return { value: Some(value) },
     });
     module.functions = vec![Function {
+        debug_source: None,
         callable_body: callable_body("boxRoundtrip"),
         gc_effect: GcEffect::Managed,
         signature: plain_scoop_signature(vec![ty.clone()], ty),

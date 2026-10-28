@@ -14,6 +14,7 @@ pub(super) fn foreign_callback_adapter(symbol: &str) -> Function {
         },
     });
     Function {
+        debug_source: None,
         callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -38,6 +39,7 @@ fn static_callback_bridge(module: &mut Module, symbol: &str) -> scoop_lir::NoGcL
     });
     let index = module.functions.len();
     module.functions.push(Function {
+        debug_source: None,
         callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,
@@ -567,6 +569,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
+            debug_source: None,
             callable_body: callable_body_at(file!(), line!()),
             safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,

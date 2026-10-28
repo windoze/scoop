@@ -123,6 +123,7 @@ pub(super) fn root_gateway(
         });
     LoweredFunction {
         function: scoop_lir::Function {
+            debug_source: None,
             callable_body,
             gc_effect: scoop_lir::GcEffect::Managed,
             signature: gateway_signature.clone(),

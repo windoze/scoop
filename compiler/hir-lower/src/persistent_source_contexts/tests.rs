@@ -379,6 +379,7 @@ fn source_context_relation_requires_one_file_context_per_source() {
         provider: hir::IntrinsicProviderId::from_raw(1),
         identity: test_source_identity("src/unrepresented.scoop"),
         name: "ignored display path".to_string(),
+        debug_path: None,
         source: String::new(),
         canonical_record: None,
     });

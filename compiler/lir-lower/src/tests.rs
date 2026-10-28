@@ -794,6 +794,7 @@ fn nominal_descriptor_symbols_use_exact_type_identity() {
             CallableMaterializationContext::NoSubstitution,
         );
         let invoke_function = source.functions.alloc(mir::Function {
+            debug_source: None,
             gc_effect: mir::GcEffect::Managed,
             name: format!("$closure{index}.invoke"),
             params: Vec::new(),
@@ -1608,6 +1609,7 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
     let application = application_identity.id();
     let exact_signature = exact_callback_signature();
     let adapter_function = module.functions.alloc(mir::Function {
+        debug_source: None,
         gc_effect: mir::GcEffect::Managed,
         name: "foreign callback adapter".to_string(),
         params: Vec::new(),

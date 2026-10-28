@@ -118,6 +118,7 @@ impl Lowerer {
             provider,
             identity: record.identity().clone(),
             name,
+            debug_path: None,
             source: String::new(),
             canonical_record: Some(record.clone()),
         });

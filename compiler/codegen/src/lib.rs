@@ -75,6 +75,7 @@ mod callable_runtime_scans;
 mod coff_llvm;
 mod coff_object;
 mod dataflow;
+mod debug_info;
 mod declarations;
 mod elf_llvm;
 mod elf_object;

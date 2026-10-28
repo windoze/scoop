@@ -39,6 +39,7 @@ pub(in crate::tests) fn stackmap_qualification_module() -> Module {
             },
         });
         Function {
+            debug_source: None,
             callable_body: callable_body(symbol),
             safepoints: test_safepoints(symbol, &blocks, entry),
             gc_effect: GcEffect::Managed,

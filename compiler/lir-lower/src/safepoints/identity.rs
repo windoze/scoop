@@ -219,6 +219,7 @@ mod tests {
         };
 
         let mut function = lir::Function {
+            debug_source: None,
             callable_body: callable_body(),
             gc_effect: lir::GcEffect::Managed,
             signature: lir::ScoopAbiSignature::new(

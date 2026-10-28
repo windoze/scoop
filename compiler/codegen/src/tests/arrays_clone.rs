@@ -44,6 +44,7 @@ pub(super) fn reference_clone_module() -> Module {
         },
     });
     module.functions[0] = Function {
+        debug_source: None,
         callable_body: callable_body("scoop_main"),
         safepoints: test_safepoints("scoop_main", &blocks, entry),
         gc_effect: GcEffect::Managed,

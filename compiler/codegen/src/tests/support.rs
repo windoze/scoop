@@ -362,6 +362,7 @@ pub(super) fn append_executable_entry(module: &mut Module, identity_seed: &str) 
     });
     let index = module.functions.len();
     module.functions.push(Function {
+        debug_source: None,
         callable_body: callable_body(identity_seed),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -1192,6 +1193,7 @@ pub(super) fn values_module() -> Module {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
+            debug_source: None,
             callable_body: callable_body("scoop_main"),
             safepoints: test_safepoints("scoop_main", &blocks, entry),
             gc_effect: GcEffect::Managed,

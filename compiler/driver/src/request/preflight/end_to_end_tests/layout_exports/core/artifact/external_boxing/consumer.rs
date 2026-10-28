@@ -154,6 +154,7 @@ pub(super) fn roundtrip(
     )])
     .unwrap();
     Function {
+        debug_source: None,
         callable_body,
         gc_effect: GcEffect::Managed,
         signature: ScoopAbiSignature::new(vec![argument], returned, CallingConvention::Cdecl),

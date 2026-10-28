@@ -1,4 +1,5 @@
 use super::*;
+pub use scoop_source::FunctionDebugSource;
 
 mod place;
 pub use place::*;
@@ -14,6 +15,8 @@ pub struct Temp {
 
 #[derive(Debug)]
 pub struct Function {
+    /// Absent for generated helpers that have no source declaration.
+    pub debug_source: Option<FunctionDebugSource>,
     /// Persistent identity and canonical runtime key of this emitted Scoop
     /// machine body. Native/runtime declarations use their own typed targets
     /// and never fabricate a callable-body identity.

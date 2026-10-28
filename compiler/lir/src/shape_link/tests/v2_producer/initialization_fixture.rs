@@ -85,6 +85,7 @@ fn empty_initialization_function(callable_body: CallableBodyIdentity) -> Functio
         terminator: Terminator::Return { value: None },
     });
     Function {
+        debug_source: None,
         callable_body,
         gc_effect: crate::GcEffect::Managed,
         signature: ScoopAbiSignature::new(

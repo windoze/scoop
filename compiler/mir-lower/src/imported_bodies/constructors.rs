@@ -88,6 +88,7 @@ impl Lowerer {
             bodies.functions.insert(
                 callable,
                 mir::Function {
+                    debug_source: None,
                     name: "imported primary value constructor".into(),
                     gc_effect,
                     params,

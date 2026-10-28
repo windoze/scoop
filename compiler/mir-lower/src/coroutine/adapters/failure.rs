@@ -197,6 +197,7 @@ pub(super) fn generate_failure_method(
         claim_waiting
     };
     let function = lowerer.functions.alloc(mir::Function {
+        debug_source: None,
         gc_effect: mir::GcEffect::Managed,
         name: format!("CoroutineAdapter.resumeWithException${state}"),
         params: vec![

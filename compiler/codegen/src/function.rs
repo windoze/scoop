@@ -226,6 +226,12 @@ pub(super) fn emit_function<'ctx>(
     let llvm_function = llvm
         .get_function(function.symbol())
         .expect("function declared in the first pass");
+    let debug_locations = module_ctx.debug_info.and_then(|debug| {
+        crate::debug_info::attach_function(context, debug, function, llvm_function)
+    });
+    if let Some((_, unknown)) = debug_locations {
+        builder.set_current_debug_location(unknown);
+    }
 
     // A function containing a landing pad needs Scoop's closed-profile
     // personality (M25, runtime spec 5). Setting it also makes LLVM emit the
@@ -374,6 +380,13 @@ pub(super) fn emit_function<'ctx>(
         // the first of its block (LLVM requires the landingpad first).
         let mut invoke_terminated = false;
         for (index, instruction) in block.instructions.iter().enumerate() {
+            if let Some((entry, unknown)) = debug_locations {
+                builder.set_current_debug_location(if block_id == function.entry && index == 0 {
+                    entry
+                } else {
+                    unknown
+                });
+            }
             emitter.current_instruction = index;
             let is_invoke = matches!(instruction, Instruction::Invoke { .. });
             if is_invoke && index + 1 != block.instructions.len() {
@@ -418,6 +431,15 @@ pub(super) fn emit_function<'ctx>(
                 }
             }
             continue;
+        }
+        if let Some((entry, unknown)) = debug_locations {
+            builder.set_current_debug_location(
+                if block_id == function.entry && block.instructions.is_empty() {
+                    entry
+                } else {
+                    unknown
+                },
+            );
         }
         match &block.terminator {
             Terminator::Br(target) => {
@@ -535,5 +557,6 @@ pub(super) fn emit_function<'ctx>(
             }
         }
     }
+    builder.unset_current_debug_location();
     emitter.runtime_scans.finish()
 }

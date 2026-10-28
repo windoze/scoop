@@ -250,7 +250,18 @@ fn emit_llvm_module_with_surface<'ctx, R>(
             type_descriptor_globals,
         )?;
     }
+    let debug_info = crate::debug_info::create_builder(
+        context,
+        &llvm,
+        profile,
+        declarations
+            .functions
+            .iter()
+            .copied()
+            .filter(|function| selection.defines_callable(function.callable_body.id())),
+    );
     let module_ctx = ModuleCtx {
+        debug_info: debug_info.as_ref(),
         profile,
         // Snapshot forwarding regressed AArch64 reference-copy kernels.
         reuse_interface_values: profile.optimization() == scoop_lir::OptimizationMode::Release
@@ -309,6 +320,9 @@ fn emit_llvm_module_with_surface<'ctx, R>(
                 runtime_scan_plan,
             )?;
         }
+    }
+    if let Some(debug_info) = debug_info {
+        debug_info.finalize();
     }
     if module.meta.target_profile.native_object_format() == scoop_lir::NativeObjectFormat::Coff64 {
         crate::coff_llvm::prepare(&llvm, symbol_plans)?;

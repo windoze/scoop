@@ -108,6 +108,7 @@ impl Lowerer {
         let decl = &module.classes[constructor.class];
         let name = format!("init.{}.$c{}", decl.name, constructor.source_discriminator);
         let id = self.functions.alloc(mir::Function {
+            debug_source: None,
             gc_effect: mir::GcEffect::Managed,
             name,
             params: Vec::new(),
@@ -139,6 +140,7 @@ impl Lowerer {
             }
         };
         let id = self.functions.alloc(mir::Function {
+            debug_source: None,
             gc_effect,
             name,
             params: Vec::new(),

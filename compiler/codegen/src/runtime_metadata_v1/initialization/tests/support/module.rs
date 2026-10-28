@@ -138,6 +138,7 @@ fn function(callable_body: CallableBodyIdentity) -> Function {
         terminator: Terminator::Return { value: None },
     });
     Function {
+        debug_source: None,
         callable_body,
         gc_effect: GcEffect::Managed,
         signature: ScoopAbiSignature::new(

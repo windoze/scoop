@@ -37,6 +37,7 @@ fn message_module(odr: bool) -> (Module, ObjectDefinitionAtomId) {
         },
     });
     module.functions = vec![Function {
+        debug_source: None,
         callable_body: body,
         gc_effect: GcEffect::NoGc,
         signature: plain_scoop_signature(Vec::new(), RAW_PTR),

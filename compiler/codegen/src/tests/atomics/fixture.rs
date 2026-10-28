@@ -90,6 +90,7 @@ fn function(kind: AtomicValueKind) -> Function {
         terminator: Terminator::Return { value: None },
     });
     Function {
+        debug_source: None,
         callable_body: callable_body(kind.registry_key()),
         safepoints: Default::default(),
         gc_effect: GcEffect::NoGc,

@@ -291,6 +291,7 @@ pub(super) fn lower_function<'a>(
     }
     Ok(LoweredFunction {
         function: lir::Function {
+            debug_source: function.debug_source.clone(),
             gc_effect: match function.gc_effect {
                 mir::GcEffect::Managed => lir::GcEffect::Managed,
                 mir::GcEffect::NoGc => lir::GcEffect::NoGc,

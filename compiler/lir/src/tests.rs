@@ -679,6 +679,7 @@ fn function_parameters_keep_logical_types_across_abi_conventions() {
         terminator: super::Terminator::Return { value: None },
     });
     let function = super::Function {
+        debug_source: None,
         callable_body: callable_body("logical_params"),
         gc_effect: GcEffect::NoGc,
         signature,

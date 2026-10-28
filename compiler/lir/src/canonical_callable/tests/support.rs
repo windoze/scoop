@@ -88,6 +88,7 @@ pub(super) fn function(name: &str, arguments: Vec<AbiArgument>, result: AbiRetur
     let mut blocks = Arena::new();
     let entry = blocks.alloc(block("entry"));
     Function {
+        debug_source: None,
         callable_body: crate::tests::callable_body(name),
         gc_effect: GcEffect::NoGc,
         signature: ScoopAbiSignature::new(arguments, result, CallingConvention::Cdecl),

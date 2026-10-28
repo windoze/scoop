@@ -202,6 +202,7 @@ fn poll_function(
         SafepointIdentities::checked(vec![(reference, identity.unwrap())]).unwrap()
     });
     Function {
+        debug_source: None,
         callable_body: body,
         gc_effect: effect,
         signature: ScoopAbiSignature::new(
@@ -230,6 +231,7 @@ fn function_with_unused_identity(name: &str) -> Function {
         terminator: Terminator::Return { value: None },
     });
     Function {
+        debug_source: None,
         callable_body,
         gc_effect: GcEffect::Managed,
         signature: ScoopAbiSignature::new(

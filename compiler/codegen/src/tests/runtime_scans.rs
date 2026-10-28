@@ -109,6 +109,7 @@ fn managed_poll_test_module() -> Module {
         terminator: Terminator::Return { value: None },
     });
     let function = Function {
+        debug_source: None,
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,

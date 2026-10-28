@@ -169,6 +169,7 @@ fn native_calls_publish_roots_transition_and_reload() {
         },
     });
     let safe = Function {
+        debug_source: None,
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -227,6 +228,7 @@ fn native_calls_publish_roots_transition_and_reload() {
         },
     });
     let borrowed_function = Function {
+        debug_source: None,
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -348,6 +350,7 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
+            debug_source: None,
             callable_body: callable_body_at(file!(), line!()),
             safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,
