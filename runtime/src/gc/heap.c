@@ -162,8 +162,7 @@ void bit_set(uint64_t *bits, size_t index) { bits[index / 64] |= UINT64_C(1) << 
 void bit_clear(uint64_t *bits, size_t index) { bits[index / 64] &= ~(UINT64_C(1) << (index % 64)); }
 
 static void ensure_small_metadata(ScoopGcBlockMeta *block) {
-    if (block->marks == NULL) {
-        block->marks = calloc(GC_BITMAP_WORDS, sizeof(uint64_t));
+    if (block->pins == NULL) {
         block->pins = calloc(GC_BITMAP_WORDS, sizeof(uint64_t));
 #if SCOOP_GC_TRACK_RELOCATION
         block->scanned = calloc(GC_BITMAP_WORDS, sizeof(uint64_t));
@@ -172,7 +171,7 @@ static void ensure_small_metadata(ScoopGcBlockMeta *block) {
         }
 #endif
         block->line_live = calloc(GC_LINE_BITMAP_WORDS, sizeof(uint64_t));
-        if (block->marks == NULL || block->pins == NULL || block->line_live == NULL) {
+        if (block->pins == NULL || block->line_live == NULL) {
             heap_fatal("out of memory allocating small-block side metadata");
         }
     }

@@ -171,8 +171,9 @@ struct ScoopGcRegion {
     size_t collection_live_bytes;
     ScoopGcRegion *next_available;
     ScoopGcBlockHead *heads;
-    /* Ordinary regions own one continuous start bitmap, sliced by block. */
+    /* Ordinary regions own continuous start and mark bitmaps, sliced by block. */
     uint64_t *starts;
+    uint64_t *marks;
 };
 
 _Static_assert(sizeof(uintptr_t) == 8 && GC_CHUNK_SHIFT + 4 * GC_RADIX_BITS == 64,

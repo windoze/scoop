@@ -60,12 +60,13 @@ append_live(ScoopGcMarkWorker *worker, void *object, bool scan) {
     }
 }
 
-static inline __attribute__((always_inline)) bool first_mark(ScoopGcBlockMeta *block, size_t word) {
-    if (block->head->kind == SCOOP_BLOCK_KIND_LARGE) {
+static inline __attribute__((always_inline)) bool
+first_mark(ScoopGcBlockMeta *block, size_t word, uint64_t *marks) {
+    if (marks == NULL) {
         return !__atomic_exchange_n(&block->large_marked, true, __ATOMIC_RELAXED);
     }
     uint64_t mask = UINT64_C(1) << (word % 64);
-    uint64_t *bits = &block->marks[word / 64];
+    uint64_t *bits = &marks[word / 64];
     if (__atomic_load_n(bits, __ATOMIC_RELAXED) & mask) {
         return false;
     }
@@ -142,7 +143,7 @@ reference_region(ScoopGcMarkWorker *worker, const void *object) {
 }
 
 static inline __attribute__((always_inline)) ScoopGcBlockMeta *
-markable_block(ScoopGcMarkWorker *worker, const void *object, size_t *word) {
+markable_block(ScoopGcMarkWorker *worker, const void *object, size_t *word, uint64_t **marks) {
     ScoopGcRegion *region = reference_region(worker, object);
     /* The coordinator owns heap/roots; these metadata remain immutable during mark. */
     if (region == NULL) {
@@ -168,6 +169,9 @@ markable_block(ScoopGcMarkWorker *worker, const void *object, size_t *word) {
     }
     if (worker->minor && region->heads[index].generation != SCOOP_GC_YOUNG) {
         return NULL;
+    }
+    if (!region->large) {
+        *marks = &region->marks[index * GC_BITMAP_WORDS];
     }
     return &region->blocks[index];
 }
@@ -195,14 +199,15 @@ static void record_remembered_slot(ScoopGcMarkWorker *worker, void **slot) {
 static inline __attribute__((always_inline)) void
 mark_target(ScoopGcMarkWorker *worker, void *object, void **remembered_slot) {
     size_t word;
-    ScoopGcBlockMeta *block = markable_block(worker, object, &word);
+    uint64_t *marks = NULL;
+    ScoopGcBlockMeta *block = markable_block(worker, object, &word, &marks);
     if (block == NULL) {
         return;
     }
     if (remembered_slot != NULL) {
         record_remembered_slot(worker, remembered_slot);
     }
-    if (!first_mark(block, word)) {
+    if (!first_mark(block, word, marks)) {
         return;
     }
     uint64_t gc_word = scoop_heap_current_gc_word(object);

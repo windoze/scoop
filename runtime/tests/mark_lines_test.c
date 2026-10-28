@@ -91,6 +91,11 @@ static void run_case(size_t workers) {
         ScoopGcBlockMeta *block = pointer_block(objects[index]);
         assert(block->live_bytes == cases[index].size);
         assert(block->movable_live_bytes == (index == 3 ? 0 : cases[index].size));
+        size_t start = cases[index].offset / sizeof(uint64_t);
+        for (size_t word = 0; word < GC_BITMAP_WORDS; word++) {
+            uint64_t expected = word == start / 64 ? UINT64_C(1) << (start % 64) : 0;
+            assert(block->marks[word] == expected);
+        }
         for (size_t line = 0; line < GC_BLOCK_SIZE / GC_LINE_SIZE; line++) {
             bool overlaps = line * GC_LINE_SIZE < cases[index].offset + cases[index].size &&
                             (line + 1) * GC_LINE_SIZE > cases[index].offset;

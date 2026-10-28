@@ -12,6 +12,7 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
+| [region 连续 mark 位图](GC-EVOLUTION.md#第六十九阶段region-连续-mark-位图) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 已定位 region 直接索引每块标记切片，减少间接读取与独立分配；每 region 预留 256 KiB，取代已启用块各 512 B。部分吞吐与 minor 暂停改善，保留未用块空间及部分 CPU／full 尾部代价；对象、根、屏障、TLAB 成功路径及 ABI 保持。 |
 | [首次标记复用 GC 状态字](GC-EVOLUTION.md#第六十六阶段首次标记复用-gc-状态字) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 已定位当前对象的同一读数提供尺寸／pin，省去 marker 内的 pin 位图查询；读数仅在本片 STW 内有效。两机部分持续分配与 minor 暂停改善，RSS／尾部代价见记录；无新字段、工作区、屏障、根或 ABI，TLAB 路径保持。 |
 | [已知扫描上下文与 line 位图范围](GC-EVOLUTION.md#第六十四阶段已知扫描上下文与-line-位图范围) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 原扫描与标记正文直接消费对象任务的固定来源，减少逐对象／逐引用调用；line 范围合并单字掩码或完整中间字。两机标记、部分持续分配及暂停改善；保留 ARM64 代码／编译成本、负载回退和尾部波动记录。无新增对象、GC 根、持久 metadata 或 ABI。 |
 | [复制目标元数据的批量发布](GC-EVOLUTION.md#第六十一阶段复制目标元数据的批量发布) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 复用目标 block 独占与 pool 完成边界，合并起点／mark、line 和字节写入；保留旧位、完整预留及失败回滚。ARM64 复制和完整 minor 改善，GNU 收益较小，吞吐／尾部回退及栈／代码增量见记录。无新对象、持久 metadata、native 堆工作区或 ABI。 |

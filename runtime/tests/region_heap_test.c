@@ -25,6 +25,7 @@ static void huge_mapping(void) {
     ScoopGcRegion *region = scoop_heap_region_for_address((uintptr_t)root);
     assert(region->large && region->size > ((size_t)1 << 30));
     assert(region->starts == NULL && region->blocks[0].starts == NULL);
+    assert(region->marks == NULL && region->blocks[0].marks == NULL);
     assert(region->blocks[0].head == &region->heads[0]);
     assert(scoop_heap_known_object_block(root, false) == region->blocks);
     assert(region->base % GC_CHUNK_SIZE == 0);
@@ -72,6 +73,9 @@ static void ordinary_regions(void) {
         assert(block != NULL && block->region != NULL);
         assert(block->head == &block->region->heads[block->index]);
         assert(block->starts == &block->region->starts[block->index * GC_BITMAP_WORDS]);
+        assert(block->marks == &block->region->marks[block->index * GC_BITMAP_WORDS]);
+        size_t word = ((uintptr_t)objects[index] - (uintptr_t)block_base(block)) / sizeof(uint64_t);
+        assert(bit_test(block->starts, word) && !bit_test(block->marks, word));
         assert(scoop_heap_known_object_block(objects[index], true) == block);
         assert(block->region->base % GC_REGION_SIZE == 0);
         different_region |= block->region != first;

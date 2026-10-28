@@ -399,7 +399,7 @@ nursery 容量和 collection threshold 是收集触发条件，不是堆空间�
 
 已知当前堆对象起点时，以 relaxed 原子读取 GC 字的大小位区分 small 与 large；small 向下对齐到 16 MiB，large 减去 128 byte，选择有效的 mapping 起点后只读取一次 owner。不读取未选中的地址，不接受 null、immortal、内部地址或任意 native 指针，不替代首次引用检查和一般地址页表。GC 后须从重定位后的副本重新形成地址及查询，不能复用旧地址整数。collector 已知分配类别的 source／target 查询复用同一 mapping owner，无需读取临时目标头，也无需 moving stress 的页表回退。普通空页归还继续依据真实存活 line，不为每个稀疏存活 block 保留额外物理页。
 
-每个 region 以连续的私有 block head 数组保存各 block 的活动状态、对象类别与代际；这些字段只有一份，完整 block 记录引用对应 head，不维护镜像。普通 region 的 starts 位图按 block 顺序一次分配，每个 block 和 TLAB 继续使用其独立的 64-word 切片；large 保留独立发布状态。region 发布前建立数组与切片，block 启用／复用时清零自身位图，未使用、已释放或隔离块不能因残留位图而成为合法对象。数组随 region 一起退役，沿原 heap lock／STW 和 acquire／release 协议访问；不改变生成代码的 region prefix、allocation context、对象头或 ABI。该布局允许以未使用块的预留位图空间换取引用定位和首次 block 分配成本，所有 profile 采用同一合同。
+每个 region 以连续的私有 block head 数组保存各 block 的活动状态、对象类别与代际；这些字段只有一份，完整 block 记录引用对应 head，不维护镜像。普通 region 的 starts 与 marks 各自按 block 顺序一次分配，每个 block 继续使用其独立的 64-word 切片，TLAB 仍只消费 starts。首次引用检查保留 starts acquire；已定位 region 的 marker 直接索引 marks 切片，首次原子标记、存活登记和任务发布保持，不增加逐引用校验或把 mark 当作 payload 发布。large 保留独立发布和标记状态。region 发布前建立数组与切片，block 启用／复用时清零自身位图；集合开始仍按原代际范围重置 marks，未使用、已释放或隔离块不能因残留位图而成为合法对象。数组随 region 一起退役，沿原 heap lock／STW 和 acquire／release 协议访问；不改变生成代码的 region prefix、allocation context、对象头或 ABI。连续 marks 为每个普通 region 预留 256 KiB，取代已启用块各自的 512 B 分配；未启用块的空间与更少的独立分配、地址读取是明确取舍，所有 profile 采用同一合同。
 
 分配计数为 cache-line 分隔的线程累计值，本线程以 relaxed atomic store 发布，查询以 atomic load 汇总；热路径不对多个全局统计量执行 atomic RMW。detach 在 registry 生命周期保护下并入退出线程总账；STW 汇总更新 collection 基线，当前对象数由基线和随后分配推导，minor 同时保留旧代计数。查询、基线更新和 detach 归并遵守同一锁顺序，不漏计或双计。
 
