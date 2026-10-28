@@ -176,3 +176,7 @@ Path 已按目标区分 Windows 与 POSIX 词法：盘符相对、当前盘 root
 runtime 的私有 platform primitives 改用 `scoop_runtime_platform_` 函数前缀，修复与普通 platform 库的线程／同步 native 接口重名且签名不同的问题；对象布局与公开 runtime ABI 不变。全部实际调用方和原生测试已同步，C 格式化、三个环境的严格编译及四项 Windows runtime 组件测试通过。
 
 三个 target 的普通／GC-stress runtime 已按实际源码重新准备；`parallel-threads` 与 `roots-gc-context` 正式 fixture 各目标通过 4 个变体／26 个进程步骤。实际 platform 线程与同步源码在临时 Cone 中和 runtime 一起链接运行通过，确认两套接口可以共存；该子集验证仍不代表完整 platform 已发布。
+
+platform 的 Thread／Mutex／ConditionVariable 已实现 Windows 分支，分别使用 `_beginthreadex`／thread handle、SRW exclusive lock 与 condition variable。原生 worker／观察者双持有和 managed callback 生命周期保持；join、mutex 和 condition 通过同次 C-layout 结果保留 Win32 code，创建失败保留真实 CRT errno。有限等待不溢出成无限等待，错误／超时后恢复 mutex owner；原 POSIX pthread 结果改为同一内部结果形状。
+
+实际 common 线程／同步测试与三项 Windows 错误／长等待测试加入上述临时 Cone，三个 target 各 8 个容器／32 项全部通过，包含并发 GC、TaskContext、异常同一性、self-join、忙碌销毁、错误 owner、零超时及大于 DWORD 毫秒的通知唤醒。Scoop／C 格式化和三环境 C 严格告警检查通过。thread-gc 的 POSIX native probe 已同步内部返回类型；完整 platform、GC ownership fixture 与远端 POSIX 回归仍待后续阶段。

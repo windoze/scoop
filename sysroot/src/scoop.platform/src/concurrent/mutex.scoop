@@ -1,13 +1,12 @@
 package scoop.platform.concurrent
 
-import scoop.platform.io.checkNativeStatus
 import scoop.platform.io.failNative
 
 /**
  * An owned native mutex. Pair lock/unlock on the owning thread or use withLock; dispose only when
  * no operation or held lock remains.
  */
-public class Mutex : Disposable {
+public class Mutex: Disposable {
     private var native: Ptr<Unit>? = None
     private val active: AtomicLong = AtomicLong(0L)
     /**
@@ -16,28 +15,35 @@ public class Mutex : Disposable {
     public val isDisposed: Boolean get() = native == None
 
     public constructor() {
-        @Unsafe {
-            val (pointer, error) = nativeMutexCreate()
-            if (pointer == None) failNative("create mutex", error)
+        @Unsafe
+        {
+            val(pointer, error) = nativeMutexCreate()
+            if (pointer == None)
+                failNative("create mutex", error)
             native = pointer
         }
     }
 
     internal fun <R> withNative(block: (Ptr<Unit>) -> R): R {
-        if (native == None) throw IllegalStateException(Some("mutex is disposed"))
+        if (native == None)
+            throw IllegalStateException(Some("mutex is disposed"))
         active.fetchAdd(1L, MemoryOrder.Relaxed)
-        try { return block(native!!) }
-        finally { active.fetchSub(1L, MemoryOrder.Relaxed) }
+        try {
+            return block(native!!)
+        }
+        finally {
+            active.fetchSub(1L, MemoryOrder.Relaxed)
+        }
     }
 
     /**
      * Blocks until this thread acquires the mutex.
      */
     public fun lock() {
-        withNative { pointer ->
-            @Unsafe {
-                val (status, error) = nativeMutexLock(pointer, false)
-                checkNativeStatus(status, error, "mutex lock")
+        withNative {
+            pointer -> @Unsafe
+            {
+                nativeMutexLock(pointer, false).check("mutex lock")
             }
         }
     }
@@ -45,22 +51,22 @@ public class Mutex : Disposable {
     /**
      * Attempts acquisition without blocking and returns whether this thread acquired the mutex.
      */
-    public fun tryLock(): Boolean = withNative { pointer ->
-        @Unsafe {
-            val (status, error) = nativeMutexLock(pointer, true)
-            checkNativeStatus(status, error, "mutex try lock")
-            return@withNative status == 0
+    public fun tryLock(): Boolean =
+        withNative {
+            pointer -> @Unsafe
+            {
+                return@withNative nativeMutexLock(pointer, true).check("mutex try lock") == 0
+            }
         }
-    }
 
     /**
      * Releases the mutex held by this thread.
      */
     public fun unlock() {
-        withNative { pointer ->
-            @Unsafe {
-                val (status, error) = nativeMutexUnlock(pointer)
-                checkNativeStatus(status, error, "mutex unlock")
+        withNative {
+            pointer -> @Unsafe
+            {
+                nativeMutexUnlock(pointer).check("mutex unlock")
             }
         }
     }
@@ -70,26 +76,35 @@ public class Mutex : Disposable {
      */
     public fun <T> withLock(block: () -> T): T {
         lock()
-        try { return block() }
-        finally { unlock() }
+        try {
+            return block()
+        }
+        finally {
+            unlock()
+        }
     }
 
     /**
      * Destroys the native mutex when it is no longer in use.
      */
     public override fun dispose() {
-        if (native == None) return
-        if (active.load(MemoryOrder.Relaxed) != 0L) throw IllegalStateException(Some("mutex operation is active"))
-        @Unsafe {
-            val (status, error) = nativeMutexDestroy(native!!)
-            checkNativeStatus(status, error, "dispose mutex")
+        if (native == None)
+            return
+        if (active.load(MemoryOrder.Relaxed) != 0L)
+            throw IllegalStateException(Some("mutex operation is active"))
+        @Unsafe
+        {
+            nativeMutexDestroy(native!!).check("dispose mutex")
             native = None
         }
     }
 
     release {
         when (native) {
-            case Some(pointer) -> @Unsafe { nativeMutexDestroy(pointer) }
+            case Some(pointer) -> @Unsafe
+            {
+                nativeMutexDestroy(pointer)
+            }
             case None -> {}
         }
     }
@@ -97,9 +112,12 @@ public class Mutex : Disposable {
 
 @Extern(name = "scoop_platform_mutex_create", captureErrno = true)
 private fun nativeMutexCreate(): (Ptr<Unit>?, Int)
-@Extern(name = "scoop_platform_mutex_lock", captureErrno = true)
-private fun nativeMutexLock(mutex: Ptr<Unit>, attempt: Boolean): (Int, Int)
-@Extern(name = "scoop_platform_mutex_unlock", captureErrno = true)
-private fun nativeMutexUnlock(mutex: Ptr<Unit>): (Int, Int)
-@Extern(name = "scoop_platform_mutex_destroy", captureErrno = true)
-private fun nativeMutexDestroy(mutex: Ptr<Unit>): (Int, Int)
+
+@Extern(name = "scoop_platform_mutex_lock")
+private fun nativeMutexLock(mutex: Ptr<Unit>, attempt: Boolean): NativeSyncResult
+
+@Extern(name = "scoop_platform_mutex_unlock")
+private fun nativeMutexUnlock(mutex: Ptr<Unit>): NativeSyncResult
+
+@Extern(name = "scoop_platform_mutex_destroy")
+private fun nativeMutexDestroy(mutex: Ptr<Unit>): NativeSyncResult

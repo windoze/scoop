@@ -243,11 +243,17 @@ Thread 实现 Disposable，提供 isFinished、join、dispose。isFinished 表�
 
 Thread hook 只做非阻塞 pthread_detach 并释放 native 观察权。控制记录由 worker 与观察者分别持有原生存活权，最后一方释放；不保存 managed 指针、不等待正文、不操作 callback ownership。丢弃 Thread 不承诺 worker 已完成或 runtime 正常退出；程序需显式 join/use。currentThreadId(): ThreadId 返回有 Equals/Hash 的不透明 pthread 标识，线程结束后允许复用，不等同于进程 id；yield() 请求让出当前 native 线程。
 
+Windows 使用所选 CRT 的 `_beginthreadex`，join 以 WaitForSingleObject 等待后 CloseHandle，hook 只 CloseHandle 并释放观察权。两份 native 存活权与 callback 规则保持；currentThreadId 使用系统 thread ID，yield 使用 SwitchToThread，没有可切换线程不算失败。创建和分配失败保留 CRT 的实际 errno；join、mutex 与 condition 的 Windows 失败属于 Win32，self-join 报 ERROR_POSSIBLE_DEADLOCK 且保留观察权。
+
 Mutex() 为 final Disposable class，使用非递归 ERRORCHECK mutex，提供 lock、tryLock、unlock、withLock<T>(block: () -> T)、isDisposed。tryLock 忙时返回 false；重入 lock 和非持有者 unlock 报 native 错误。withLock 在 finally 解锁，支持泛型结果和异常，只有普通同步回调，没有 suspend 重载。
 
 ConditionVariable(mutex: Mutex) 保活并绑定一个 Mutex，提供 await()、await(timeout: Duration): Boolean、signal、broadcast、dispose 和 isDisposed。await 要求当前线程持有该 mutex，原子释放／等待／重新取得；超时重载 true 表示唤醒，false 表示超时。任何返回都不能证明谓词成立，调用方使用 while 循环。负时长拒绝，零超时仍执行释放／重新取得；Linux 使用 CLOCK_MONOTONIC cond clock，Darwin 使用相对等待接口，避免 realtime 校时改变超时。超出目标时间表示范围按实际错误报告。
 
 同步对象的活动调用保活 owner；ConditionVariable.await 同时保活相关 Mutex，native 等待使用 NativeSafe。dispose 要求没有并发操作，mutex 未持有、cond 无等待者；不满足时拒绝并保留对象。关闭成功才清除 owner，重复关闭无操作。Mutex 的 native 持有状态避免对忙碌 mutex 调用具有未定义行为的 destroy；hook 不解锁、不唤醒，只在合法销毁前提满足时释放，忙碌对象不被强行 free。禁止外部 native 代码直接操作这些私有同步句柄。
+
+Windows mutex 使用 SRW exclusive lock，并记录 owner 以实现相同的非递归／错误检查合同；同线程 tryLock 返回 false，重入 lock、非持有者 unlock、持有时 destroy 分别报告 ERROR_POSSIBLE_DEADLOCK、ERROR_NOT_OWNER、ERROR_BUSY。condition 使用 SleepConditionVariableSRW，唤醒后恢复 owner。定时等待按毫秒向上取整，单次最多等待 INFINITE-1 毫秒，不把有限等待误转成 INFINITE；以 GetTickCount64 的 monotonic 经过时间判断总时长是否到期，单次到期但总时长未到时按允许的伪唤醒返回，让调用方重查谓词，不在库内重新等待而丢失两次等待之间的通知。无法用 64-bit 毫秒表示时报告 ERROR_ARITHMETIC_OVERFLOW。零超时仍调用原子释放／等待／重获操作。
+
+库内部同步 FFI 以普通 C-layout `{status: Int, code: Int}` 同次返回结果：status 为 0（成功）、1（tryLock 忙或 wait 超时）或 -1（失败），code 保存实际错误。POSIX 的 pthread 返回码直接保存，Windows 在失败后立即保存 GetLastError，不借 errno 转运。该 private native 结果只服务库的实际同步调用，不进入 runtime ABI。
 
 依据：[POSIX mutex 销毁前提](https://pubs.opengroup.org/onlinepubs/9799919799/functions/pthread_mutex_destroy.html)、[条件等待](https://pubs.opengroup.org/onlinepubs/9799919799/functions/pthread_cond_clockwait.html)、[Darwin 相对条件等待](https://github.com/apple-oss-distributions/libpthread/blob/main/src/pthread_cond.c)。这些 API 复用既有 callback、Context、原子与 GC 合同，不新增线程 runtime 协议或强制停止机制。
 
