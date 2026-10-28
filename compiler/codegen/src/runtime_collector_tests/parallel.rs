@@ -2,6 +2,28 @@ use super::compile::compile_and_run_configuration;
 use super::{compile_and_run_with_flags, workspace_root};
 
 #[test]
+fn wrapped_and_growing_queues_preserve_owner_and_thief_order() {
+    for optimization in ["-O0", "-O2"] {
+        let output = compile_and_run_with_flags(
+            &workspace_root(),
+            "mark_queue_order_test",
+            "runtime/tests/mark_queue_order_test.c",
+            false,
+            &[optimization],
+        );
+        assert!(
+            output.status.success(),
+            "{optimization}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"wrapped and growing queues preserve owner and thief order for every worker\n"
+        );
+    }
+}
+
+#[test]
 fn parallel_slices_share_work_limits_and_finishing_drains_retained_tasks() {
     let output = compile_and_run_with_flags(
         &workspace_root(),
