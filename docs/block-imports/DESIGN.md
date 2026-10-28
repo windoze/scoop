@@ -17,4 +17,4 @@
 
 普通行为在独立测试 Cone 中验证：局部导入、不泄漏、声明前后、嵌套恢复、alias／star、overload、type／variant、扩展与函数引用、lambda／局部函数捕获定义处绑定、泛型与跨 Cone 消费。必要的 compiler fixture 验证 public import、无效 selector、不可访问与同层歧义的诊断及位置。少量 parser／typed HIR／LSP 测试锁定语法、实际身份、格式化幂等和别名导航。按仓库要求先格式化／lint，再运行相关测试。
 
-Darwin 验证通过：workspace 格式化与 lint；块级 import 的 7 项 HIR／编辑器测试、formatter 幂等与 analysis 折叠测试；既有 import 回归 94 项、named call 回归 23 项；`tests/cones/block-imports/consumer` 的 5 项 release 测试；`block-import-diagnostics` 正式 fixture 的 2 个进程、7 项错误位置与消息断言。跨 Cone 测试涵盖泛型特化、默认 lambda、局部类型、重载回退与扩展 invoke。Linux 随编译期 intrinsic 整组能力做平台组合验收。
+Darwin 验证通过：workspace 格式化与 lint；块级 import 的 7 项 HIR／编辑器测试、formatter 幂等与 analysis 折叠测试；既有 import 回归 94 项、named call 回归 23 项；`tests/cones/block-imports/consumer` 的 5 项 release 测试；`block-import-diagnostics` 正式 fixture 的 2 个进程、7 项错误位置与消息断言。跨 Cone 测试涵盖泛型特化、默认 lambda、局部类型、重载回退与扩展 invoke。Linux 在编译期 intrinsic 组合验收中通过相同的 5 项 release 行为测试和诊断 fixture。

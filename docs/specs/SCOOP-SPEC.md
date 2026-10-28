@@ -1095,7 +1095,7 @@ context list 不参与 overload applicability、MSC、泛型推断、普通或 s
 
 因此所有显式实参都先于任何缺省表达式求值；多个实际使用的缺省表达式按参数声明顺序求值。命名实参只改变“值属于哪个参数”，不改变其源码求值顺序。例如`f(y = n(), x = m())`先执行`n()`再执行`m()`，随后以`x = m()`的结果、`y = n()`的结果调用`f`；若只写`f(y = n())`且`x`有默认值，则先执行`n()`，再执行`x`的缺省表达式。
 
-- 调用目标与完整type arguments确定后，缺省表达式在每个发生缺省的调用处以已经绑定的typed template进行hygienic展开并求值，不是在声明时执行或缓存运行期计算；调用方显式提供参数时，对应缺省表达式完全不展开。调用方不会对template中的名称、extension或overload重新做决议，因而调用方import、同名局部声明或后来新增的overload不能改变其含义。11.19 规划的编译期输入 intrinsic 在定义 Cone 语义检查时已成为常量引用；模板实例化只消费该常量，不再次读取定义方或调用方的文件、环境。
+- 调用目标与完整type arguments确定后，缺省表达式在每个发生缺省的调用处以已经绑定的typed template进行hygienic展开并求值，不是在声明时执行或缓存运行期计算；调用方显式提供参数时，对应缺省表达式完全不展开。调用方不会对template中的名称、extension或overload重新做决议，因而调用方import、同名局部声明或后来新增的overload不能改变其含义。11.19 的编译期输入 intrinsic 在定义 Cone 语义检查时已成为常量引用；模板实例化只消费该常量，不再次读取定义方或调用方的文件、环境。
 - 这与单态化一致：缺省表达式可能依赖类型参数（如`fun <T> f(x: T, y: Array<T> = [])`），只有在调用目标与全部类型实参确定后才能生成具体代码。缺省表达式自身不能作为“猜出”尚未确定类型实参的来源；若显式实参、receiver、允许的期望类型及声明约束仍不能唯一确定实参，调用不成立。
 - 缺省表达式可以引用此前参数，因为完整参数值按声明顺序物化；此前参数无论来自显式实参、vararg构造还是另一个缺省表达式都已经可用。
 - 导出callable的default template只引用已经导出或re-export的typed实体，不携带private/internal hidden dependency closure。修改参数名、default body、绑定目标或vararg形态会改变其`.slib`接口metadata并使下游重新编译；被引用实体的可见域收窄到不再覆盖callable调用域时，声明方必须重新编译并报错。
@@ -2775,7 +2775,7 @@ use 以 receiver 调用 block 恰好一次，正文正常返回或抛出后调�
 
 这些声明经普通 core public prelude 和 `.slib` 泛型模板提供，不新增语法、compiler-known 角色、MIR cleanup 节点或 runtime 释放机制。拥有 native 资源的平台库按[平台库规范](SCOOP-PLATFORM-SPEC.md)实现具体所有权合同。
 
-### 11.19 编译期输入 intrinsic（实施中）
+### 11.19 编译期输入 intrinsic
 
 本节与[编译期 intrinsic 设计](../compile-time-intrinsics/DESIGN.md)规定首批文件／环境输入能力及必要的静态表示。env／includeStr／includeBytes／includeDir 及编辑器资源通知链已实现；本轮不追加 9.1.2 中尚未实现的常量控制表达式。声明位于 reserved core Cone `scoop:scoop.core:0.1.0` 的普通 package `scoop.compiler`；该 package 的声明不进入默认 prelude，也不在根 package 转导出。使用方可显式 `import scoop.compiler.includeStr`、`import scoop.compiler.env as compileEnv` 或 `import scoop.compiler.*`，导入后调用短名或 alias，不增加无 import 的包限定调用。各导入形式使用同一 typed intrinsic 语义；package 本身仍不是 exact import 的合法终点。后续编译期 intrinsic 同样在此 package 组织；package 本身不赋予编译器能力，识别仍遵守 13.1 的 typed registry。
 
@@ -3115,7 +3115,7 @@ fun buildTag(): Option<String> {
 
 ### 12.6 核心库
 
-第11章的核心库是reserved library Cone **`scoop:scoop.core:0.1.0`**，以独立`.slib`提供，sysroot只提供默认查找位置。`scoop.core` 是 Cone `name`，不是自动生成的源码 package；基础 core 声明位于默认根 package，显式导入采用 `import List` 等形式。11.19 规划的编译期 API 位于同一 Cone 的 `scoop.compiler` package，使用普通显式导入，不加入默认 prelude 或根 package 转导出。Cone identity 与源码 package 没有推导关系。
+第11章的核心库是reserved library Cone **`scoop:scoop.core:0.1.0`**，以独立`.slib`提供，sysroot只提供默认查找位置。`scoop.core` 是 Cone `name`，不是自动生成的源码 package；基础 core 声明位于默认根 package，显式导入采用 `import List` 等形式。11.19 的编译期 API 位于同一 Cone 的 `scoop.compiler` package，使用普通显式导入，不加入默认 prelude 或根 package 转导出。Cone identity 与源码 package 没有推导关系。
 
 core 是可修改、扩展和重建的普通 library Cone。intrinsic 与脱糖所需的声明按第 13 章解析；其余类型、可见性、ABI、产物与链接规则和普通库相同。sysroot 只提供默认 locator，不构成来源授权。
 
@@ -3194,7 +3194,7 @@ public struct Int : Equals<Int>, ToString, Hash {
 
 - 11.19 的四个编译期输入 intrinsic 只允许定义处可常量求值的直接使用，在 Export HIR 完成前展开；没有动态分派、函数引用或运行期后备入口。其源码位置、外部输入及结果值语义由该节规定，不因同属 intrinsic 就继承位置 intrinsic 的调用处观察语义。参数／结果仍按真实 core 类型与普通 import 解析，不按 `scoop.compiler` 的名称赋予用户声明特殊能力。
 
-- **不可引用 intrinsic 与诊断**：11.19 的四个编译期输入操作及 11.12 的 `currentSourceLocation` 不支持 callable reference。完成普通名称与可见性解析后，以实际声明的 typed intrinsic kind 判断，短名、import alias、re-export 及跨 Cone 使用一致；同名普通函数不受此限制，其他 intrinsic 保留各自原有的引用合同。诊断定位引用表达式，给出实际声明名称、禁止函数引用的事实及具体原因：前四者在编译期求值且无运行期入口；位置 intrinsic 依赖直接调用处的源码来源，普通间接调用不提供该信息。managed／无期望类型／FunPtr 三种上下文均保留这一原因，不能把它静默过滤后只报告 unknown name、syntax error 或 no applicable candidate；涉及多候选时保留该候选的具体失败原因，其他候选仍按原重载规则处理。可提示合法的直接调用或显式传值，不自动合成 lambda／adapter 来规避限制。位置 intrinsic 的短名／alias／依赖引用诊断已实现；11.19 新入口仍待实施。
+- **不可引用 intrinsic 与诊断**：11.19 的四个编译期输入操作及 11.12 的 `currentSourceLocation` 不支持 callable reference。完成普通名称与可见性解析后，以实际声明的 typed intrinsic kind 判断，短名、import alias、re-export 及跨 Cone 使用一致；同名普通函数不受此限制，其他 intrinsic 保留各自原有的引用合同。诊断定位引用表达式，给出实际声明名称、禁止函数引用的事实及具体原因：前四者在编译期求值且无运行期入口；位置 intrinsic 依赖直接调用处的源码来源，普通间接调用不提供该信息。managed／无期望类型／FunPtr 三种上下文均保留这一原因，不能把它静默过滤后只报告 unknown name、syntax error 或 no applicable candidate；涉及多候选时保留该候选的具体失败原因，其他候选仍按原重载规则处理。可提示合法的直接调用或显式传值，不自动合成 lambda／adapter 来规避限制。位置 intrinsic 与 11.19 输入入口的短名／alias／依赖引用诊断已实现。
 
 - 11.15 的 `core_maybe_uninit` 登记为单参数 intrinsic struct；`maybe_uninit_zero`、`maybe_uninit_initialized` 是相应 companion 的静态操作，`maybe_uninit_assume_init` 是 wrapper 实例操作，后者必须带 `@Unsafe`。它们保留 wrapper 与 payload 的完整类型，不凭相同布局抹除初始化契约；不允许其他 annotation 组合绕过既有 NoGC／unsafe 检查。
 

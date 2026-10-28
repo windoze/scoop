@@ -143,6 +143,10 @@ Linux 在 includeDir 与 LSP 接通后通过整组 12 项 intrinsic fixture（14
 
 符号裁剪 fixture 同样补齐其符号表检查所需的 keep-symbols 选项，Darwin 的 debug／release 两个变体、6 步通过，包含 moving／minor GC 运行验证。Char 的常量负例同步此前字段查找已改变的诊断文字与字段位置，两平台各 1 步通过；源码仍被拒绝，没有扩展常量求值。
 
+Linux 补齐块级 import 与位置 intrinsic 的平台验收：普通 Cone 的 5 项 release 行为测试通过，块级 import 诊断、source location 引用拒绝、annotation query 引用诊断及默认值／泛型／协程位置组合共 4 项 fixture、6 个进程步骤通过。
+
+完整回归发现 combinations-artifacts、containers-artifacts、containers-updates 的 debug 重链接同样遗漏 keep-symbols。补齐与 consumer build 一致的选项后，两平台各自通过 3 项 fixture、6 个变体、24 个进程步骤，保留链接指纹比较与实际程序输出断言。
+
 ## 范围调整
 
 2026-10-29：按用户要求停止继续扩展常量及常量表达式，撤回尚未提交的常量 Elvis／when 接线与实现方案。已提交的聚合值通路和 env 实现保留；新的常量控制表达式、通用常量能力及合并优化改由后续专项处理，不再作为本轮交付门槛。include 系列继续要求在编译期完成读取并将静态数据嵌入产物，输入参数复用已实现的常量表达式集合。
