@@ -1,25 +1,12 @@
 #include "../../../scoop.platform/native/paths.h"
-#include "file.h"
+#include "temporary.h"
 #include <errno.h>
 #include <string.h>
-
-typedef struct {
-    ScoopIoFile *file;
-    char *path;
-} ScoopIoTemporaryFile;
 
 typedef struct {
     ScoopIoWork work;
     ScoopIoTemporaryFile *result;
 } TemporaryWork;
-
-static void free_temporary(ScoopIoTemporaryFile *result) {
-    if (!result)
-        return;
-    free(result->file);
-    free(result->path);
-    free(result);
-}
 
 static void execute_temporary(ScoopIoWork *native) {
     TemporaryWork *request = (void *)native;
@@ -39,7 +26,7 @@ static void execute_temporary(ScoopIoWork *native) {
 static void finish_temporary(ScoopIoWork *native, int status) {
     TemporaryWork *request = (void *)native;
     if (request->result->file->handle.value == UINT64_MAX)
-        free_temporary(request->result);
+        scoop_io_temporary_free(request->result);
     scoop_io_work_finished(&request->work, status);
 }
 
@@ -56,23 +43,15 @@ int scoop_io_file_temporary(ScoopIoLoop *loop, int64_t id, const char *pattern) 
     result->file = scoop_io_file_new(loop);
     result->path = strdup(pattern);
     if (!result->file || !result->path) {
-        free_temporary(result);
+        scoop_io_temporary_free(result);
         free(request);
         return -ENOMEM;
     }
     int status =
         scoop_io_work_submit(&request->work, loop, id, execute_temporary, finish_temporary);
     if (status < 0) {
-        free_temporary(result);
+        scoop_io_temporary_free(result);
         free(request);
     }
     return status;
 }
-
-ScoopIoTemporaryFile scoop_io_temporary_take(ScoopIoTemporaryFile *value) {
-    ScoopIoTemporaryFile result = *value;
-    free(value);
-    return result;
-}
-
-void scoop_io_temporary_path_free(char *path) { free(path); }

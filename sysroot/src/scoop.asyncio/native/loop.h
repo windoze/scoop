@@ -24,6 +24,7 @@ enum {
     SCOOP_IO_DATAGRAM,
     SCOOP_IO_WIN32_ERROR,
     SCOOP_IO_WINSOCK_ERROR,
+    SCOOP_IO_NTSTATUS_ERROR,
     /* File and directory events occupy 0x100..0x1ff. */
     SCOOP_IO_METADATA = 0x100,
     SCOOP_IO_POSITION = 0x101,

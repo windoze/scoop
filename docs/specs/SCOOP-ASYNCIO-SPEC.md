@@ -177,6 +177,8 @@ createTempFile 以一次 native 排他创建返回实际 Path 与拥有句柄的
 
 路径模板与排他 native 创建由 platform 共享 helper 提供；创建失败保留父目录 context 和立即 errno。迟到的成功结果先纳入正常 OwnedFile 生命周期，再执行不可由本次取消中断的 close 和 delete；两项清理都尝试完成，失败以 ResourceUseException 与原取消／关闭原因组合，不能遗失清理错误或向调用方交付部分结果。成功交付后，路径和文件句柄拥有普通文件的独立生命周期。
 
+Windows 临时文件在 worker 内规范化父目录，保留完整前缀并以随机后缀、CREATE_NEW 和 overlapped 句柄排他创建；重名重新选择，返回同一个打开的句柄及实际 UTF-16 路径，不先创建后重开。若创建后 IOCP 关联失败，内部结果保留已取得的 owner、路径和错误，由同一 managed 清理路径关闭并删除后再报告；不向应用交付失败的临时文件。随机源失败保留 NtStatus，路径／文件失败保留 Win32，mode 沿 Windows 的权限投影。
+
 `AsyncDirectoryEntries` 为 AsyncCloseable 的单遍枚举器，`next(): DirectoryEntry?` 可挂起，正常 EOF 关闭句柄，提前退出须 close。名称在 native 返回前复制，跳过点目录，不一次性把任意大目录收集到数组。缓存淘汰或启动扫描使用此公共能力。
 
 具体入口为 suspend 的 `EventLoop.openDirectory(path: Path): AsyncDirectoryEntries`；目录项复用 platform 的 DirectoryEntry，保持原始名称字节和 OS 枚举顺序，不额外查询每个条目的 metadata。同一目录同时最多一个 next，冲突报 IllegalStateException；正常 EOF 被记住，后续 next 等待同一次关闭后继续返回 None，显式提前关闭后的 next 报 IoClosedException。next 遵守所属 loop／Job 约束，close 沿已有资源清理合同允许取消中的 finally 和幂等关闭。

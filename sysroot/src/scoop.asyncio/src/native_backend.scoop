@@ -31,6 +31,7 @@ internal fun nativeStatusError(status: NativeIoStatus): NativeError =
             case 5 -> NativeErrorDomain.PosixErrno
             case 9 -> NativeErrorDomain.Win32
             case 10 -> NativeErrorDomain.Winsock
+            case 11 -> NativeErrorDomain.NtStatus
             else -> throw IllegalStateException(Some("invalid native I/O error domain"))
         },
         status.code

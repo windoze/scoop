@@ -1,6 +1,7 @@
 #ifndef _WIN32
 #define _GNU_SOURCE 1
 #endif
+#include "random.h"
 #include <errno.h>
 #include <stdint.h>
 #ifdef _WIN32
@@ -12,11 +13,6 @@
 #else
 #include <sys/random.h>
 #endif
-
-struct ScoopPlatformEntropy {
-    int64_t count;
-    int32_t error;
-};
 
 struct ScoopPlatformEntropy scoop_platform_entropy(void *data, int64_t count) {
     if (count < 0) {

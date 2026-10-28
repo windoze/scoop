@@ -279,3 +279,5 @@ Windows 普通测试复用同一 Cone，原生定向测试覆盖真实 overlappe
 DNS、路径修改和目录枚举继续使用共享 worker 生命周期。平台条件的字符串入口在 Windows 借用 UTF-16，在 POSIX 借用原始字节；请求在提交内复制，完成后释放。原生目录复用 platform owner，next 按实际长度复制独立、终止的名称，允许 managed 在原目录关闭后消费；错误同次取回，Windows 为 Win32。DNS 复用 platform resolver，结果地址的 C-layout 同次带回 Winsock／PosixErrno，取消后的地址链仍经正常消费释放。
 
 文件 owner 保存独立 HANDLE，普通文件的串行位置显式写入 OVERLAPPED，按完成长度推进；同步成功仍等 packet，EOF 不变成失败。append 使用同步句柄与现有 worker，从而由 OS 同时维护追加位置，避免在异步追加后查询 EOF 误认其他写入的位置。其余 metadata／truncate／sync／close 通过 platform 的结果 helper 执行。参见 [ReadFile](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-readfile)、[WriteFile](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-writefile) 和 [同步／异步文件位置](https://learn.microsoft.com/en-us/windows/win32/fileio/synchronous-and-asynchronous-i-o)。
+
+Windows 临时创建在 worker 内取得规范父目录，拼接完整前缀与随机后缀，再以 CREATE_NEW 创建 overlapped 文件；创建后复用同一 HANDLE，不重新打开路径。内部临时结果包含 owner、UTF-16 路径及关联状态，创建已成功但 IOCP 关联失败时交由原有 close／delete 清理流程报告错误；成功交付的 close 仍不删除路径。熵源沿 platform 的 BCrypt helper，完成记录增加 NtStatus 分支，保持原码。

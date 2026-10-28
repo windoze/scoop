@@ -242,3 +242,7 @@ DNS、路径修改和目录枚举现通过共享 worker 调用 platform 的 Wind
 Windows 普通文件由 worker 以 overlapped HANDLE 打开并关联 IOCP，读写在实际完成时推进 owner 的 64 位位置；seek／truncate／metadata／sync／close 复用平台结果 helper。append 使用同步句柄和已有 worker，保留各句柄自己的 OS 位置与追加语义。POSIX 文件 owner 改用同一完整 handle 类型，Linux ring 只在调用处取得 fd；Windows 新增的 overlapped open helper 不改变同步 File 的默认标志。
 
 三个 target 的实际文件组件 Cone 各 1 个容器／5 项测试全部通过：原始字节、同步完成 packet、EOF、64 位 seek、truncate 位置保持、metadata／sync／访问错误、两个 append 句柄位置独立、queued open／write 取消、迟到 open，以及真实 named pipe 的取消／迟到成功和 GC 借用。大偏移测试不创建巨大数据文件。Scoop／C 格式化、三套 Clang／cl 严格检查及共享源码语义检查通过；完整 platform 开发 slib 已更新三个目标。异步临时文件、TTY、host 运行和完整 asyncio 仍继续实施，未开始远端验证。
+
+Windows 异步临时文件现由 worker 规范化父目录、保留完整前缀并随机排他创建 overlapped 文件，直接返回实际路径和原始 HANDLE。关联失败保留内部资源结果，由 managed 的关闭／删除流程完成清理；POSIX 模板创建保持原调用，临时结果改用共享 C-layout。熵错误通过 NtStatus 完成事件保留原码。
+
+三个 target 的实际临时文件组件 Cone 各 1 个容器／4 项测试全部通过，覆盖 surrogate 父目录、非 BMP／CON. 前缀、唯一创建、原始句柄读写／位置、close 保留路径、缺失父目录、无效前缀、GC、worker 排队取消与迟到成功后的资源回收，以及 NtStatus 位模式。首轮测试 API 名称／扩展导入及共享源码结果类型推断问题均已修复并复测。Scoop／C 格式化、三套 Clang／cl 严格检查和共享源码语义检查通过；高层取消组合、异步 TTY、host 运行与完整 asyncio 仍待验收，未开始远端测试。

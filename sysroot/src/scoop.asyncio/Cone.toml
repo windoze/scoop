@@ -120,6 +120,13 @@ path = "native/windows/file_io.c"
 when = { os = "windows" }
 
 [[native.sources]]
+path = "native/windows/file_temporary.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/common/temporary.c"
+
+[[native.sources]]
 path = "native/common/paths.c"
 
 [[native.sources]]
