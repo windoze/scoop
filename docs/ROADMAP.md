@@ -784,12 +784,12 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 各里程碑"涵盖但只实现了部分"的事项，按来源里程碑整理。标注→的为目标里程碑（已知时）；未标注的待排期。
 
-### 包限定表达式与函数声明引用（设计完成，待实施）
+### 包限定表达式（设计完成，待实施）
 
-- [设计](qualified-expressions/DESIGN.md)与语言规范 12.4.5 补齐无需 import 的顶层调用、值／属性读写、构造、enum、object／companion，以及 `::pkg.function`／构造器／扩展函数引用；限定成员引用与 FunPtr 使用同一已解析目标。
-- 普通点表达式保留首段的现有遮蔽规则，再尝试最长可见 package；前置 `::` 明确选择声明路径，package 不作为 receiver。可见性、重载、泛型、初始化与 FFI 条件保持，类型／注解／模式路径沿既有规则。
-- 实施覆盖 parser／AST、HIR 名称解析、formatter 和 LSP；不增加 runtime ABI 或 FQN 实体身份。编译期 intrinsic 的限定直接调用随该通用能力支持，其函数引用仍拒绝；本次仅完成设计与 spec 同步。
-- 不可引用 intrinsic 使用明确的 HIR 语义诊断：文件／环境操作说明编译期求值且无运行期入口，currentSourceLocation 说明间接调用不提供调用点源码来源。短名／alias／re-export／FQN、managed／FunPtr 均按实际 kind 检查，不报告成语法错误或未找到函数。
+- [设计](qualified-expressions/DESIGN.md)与语言规范 12.4.5 补齐无需 import 的顶层调用、值／属性读写、构造、enum、object／companion，以及成员引用左侧的真实类型／值。
+- 普通点表达式保留首段遮蔽规则，再尝试最长可见 package。可见性、重载、泛型、初始化与 FFI 条件保持，类型／注解／模式路径沿既有规则。
+- 按用户范围调整取消 `::a.b.f`，保留 `::name` 与 `receiver::member`；跨包声明引用先 import，必要时使用 alias。相关 AST／parser 扩展已撤回。
+- 编译期 intrinsic 的限定直接调用仍在范围内。其短名／alias／re-export 引用按实际 kind 报 HIR 语义错误；currentSourceLocation 的不可引用诊断和错误下导航已实现，新文件／环境入口随后接入。验收进度见[实施记录](compile-time-intrinsics/PROGRESS.md)。
 
 ### 编译期文件／环境 intrinsic 与共享常量（设计完成，待实施）
 

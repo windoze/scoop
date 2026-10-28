@@ -891,7 +891,7 @@ lambda 参与重载决议时，每个候选先提供自己的期望函数类型�
 
 - 期望类型是普通/挂起函数类型时，表达式创建本节定义的 managed 函数值；
 - 没有期望类型时，只尝试推导 managed 函数类型，绝不自动推导为 `FunPtr`；
-- 期望类型是 `FunPtr<F>` 时，只有无 receiver 的声明引用才进入 8.1.5、13.10 的 native-address contextual resolution；当前形式为 `::name`，12.4.5 规划的 `::pkg.name` 同属这一类别，package 前缀不构成 receiver。该路径不先创建 managed 函数值。
+- 期望类型是 `FunPtr<F>` 时，只有无 receiver 的声明引用才进入 8.1.5、13.10 的 native-address contextual resolution；形式为 `::name`；跨包声明先 import，必要时使用 alias。该路径不先创建 managed 函数值。
 
 在 managed 函数类型上下文或无期望类型的推导上下文中，支持以下形式：
 
@@ -900,7 +900,7 @@ lambda 参与重载决议时，每个候选先提供自己的期望函数类型�
 - `receiver::member`：创建绑定接收者的成员函数引用，`receiver` 在创建时求值且只求值一次；限定名解析到 object/companion 时使用其 singleton value，完整泛型宿主 application、透明 alias 或限定路径都不把它变成未绑定引用；
 - `::extension`：创建未绑定扩展函数引用，其函数类型把扩展接收者作为第一个普通参数；`receiver::extension` 则创建绑定形式。
 
-12.4.5 规划把无 receiver 的声明选择器扩展为完整路径，例如 `::demo.api.function`、`::demo.api.Type` 和 `::demo.api.extension`；普通成员引用的左侧也可以通过可见 package 定位到实际类型／值，例如 `demo.api.Type::method` 或 `demo.api.Singleton::method`。此项设计待实施，目标类别、泛型推导、重载及是否存在合法运行期入口继续遵守本节；不产生 property reference，也不把 package 当作可求值的 receiver。语法结合与遮蔽规则见该节。
+12.4.5 的包限定表达式不扩展前置声明引用语法；跨包函数、构造器和扩展函数仍先 import 后使用 `::name`。普通成员引用的左侧可沿该节规划定位实际类型／值，例如 `demo.api.Type::method` 或 `demo.api.Singleton::method`。目标类别、泛型推导、重载及运行期入口继续遵守本节；package 本身不成为 receiver。
 
 13.1 规定的不可引用 intrinsic 使用合法的声明引用语法，但在 HIR 语义检查中拒绝；诊断必须指出已解析的 intrinsic 名称及禁止引用的具体原因。该诊断合同与 12.4.5 一起设计、待实施，适用于 managed 函数值、无期望类型和 FunPtr 上下文，不以语法错误或未找到函数代替。
 
@@ -916,7 +916,7 @@ abstract class、interface、object、annotation class 及其他没有普通构�
 
 managed 函数类型与 `FunPtr<F>`（13.10）是不同类别的值：前者是可捕获、可经 GC 移动的引用对象，后者是 GC-free 的原生代码指针值。二者没有一般性的子类型关系、转换或相同调用 ABI。
 
-唯一共享的是 8.1.4 的无 receiver 函数声明引用**源码语法**：当前 `::name`，以及 12.4.5 规划的 `::pkg.name`。在上下文期望类型明确为 `FunPtr<F>` 时，满足约束的顶层命名函数引用直接解析为原生 callback 地址；这是对函数声明引用表达式的 native-address contextual resolution，不是从 managed 函数值到 `FunPtr` 的值转换。该路径不创建 managed closure，也不允许把 lambda、匿名函数、局部函数、绑定引用或已存在的函数值转换为 `FunPtr`。
+唯一共享的是 8.1.4 的无 receiver 函数声明引用**源码语法**：`::name`。在上下文期望类型明确为 `FunPtr<F>` 时，满足约束的顶层命名函数引用直接解析为原生 callback 地址；这是对函数声明引用表达式的 native-address contextual resolution，不是从 managed 函数值到 `FunPtr` 的值转换。该路径不创建 managed closure，也不允许把 lambda、匿名函数、局部函数、绑定引用或已存在的函数值转换为 `FunPtr`。
 
 需要让 native代码在稍后或 foreign thread中调用 managed closure时，必须使用 14.3 的 callback registration协议。该协议导出的是“静态 C trampoline + GC-free opaque context/token”的组合，closure本身仍是 managed函数值并由 runtime保活；它不是到 `FunPtr` 的隐式或显式值转换，也不放宽本节规则。
 
@@ -2802,7 +2802,7 @@ public struct EmbeddedDir(val files: Array<EmbeddedFile>) {
 }
 ```
 
-四个函数都是非泛型、非 suspend、无 receiver 的编译期操作，无运行期 callable 入口。实参须在定义 Cone 的 HIR 检查中确定：String 实参沿 9.1.2 的常量表达式规则，include／exclude 接受元素均为常量 String 的数组字面量；它们在编译期读取，不构造运行期筛选数组。普通函数形参、局部 val、运行期数组及依赖类型参数的计算不能充当这些输入；内联、优化或调用处传入字面量不改变此规则。对这些 intrinsic 取函数引用／FunPtr 是 13.1 的语义错误，诊断须说明实际 intrinsic 不支持函数引用，因为它在编译期求值且没有运行期 callable 入口。短名、import alias、re-export 和 12.4.5 的限定引用使用同一规则，不能报告成引用语法错误。普通同名声明沿既有解析规则处理。
+四个函数都是非泛型、非 suspend、无 receiver 的编译期操作，无运行期 callable 入口。实参须在定义 Cone 的 HIR 检查中确定：String 实参沿 9.1.2 的常量表达式规则，include／exclude 接受元素均为常量 String 的数组字面量；它们在编译期读取，不构造运行期筛选数组。普通函数形参、局部 val、运行期数组及依赖类型参数的计算不能充当这些输入；内联、优化或调用处传入字面量不改变此规则。对这些 intrinsic 取函数引用／FunPtr 是 13.1 的语义错误，诊断须说明实际 intrinsic 不支持函数引用，因为它在编译期求值且没有运行期 callable 入口。短名、import alias 和 re-export 使用同一规则，不能报告成引用语法错误。普通同名声明沿既有解析规则处理。
 
 调用在所属源码被选中且完成相应 HIR 语义检查时展开，包括泛型、默认参数、闭包和运行期不可达分支。其路径采用原表达式的定义来源，环境采用本次定义 Cone 编译时的宿主环境；不观察默认参数的 evaluation origin。已导出模板只保存已完成的常量值／引用，下游实例化与内联不重复外部输入操作。11.12 的位置 intrinsic 保持原语义。
 
@@ -3057,9 +3057,9 @@ import 指向原声明；经不同依赖路径或 re-export 到达同一声明�
 
 `main` 返回时仍有已 attach 的非主线程、活动 callback 或未释放的 callback token ownership，属于 shutdown 失败：报告剩余计数，刷新输出后以 `1` 退出，覆盖本次 main 的返回码，不等待线程自动结束。程序应在 main 返回前完成 join 和 token 释放；M33 不提供 daemon 线程。需要带着后台线程结束整个进程时可显式调用 core 的 `exit(code: Int): Nothing`，它先刷新输出再终止进程，不做上述 shutdown 检查、不等待 join，也不执行 finally 或 release hook；刷新允许等待，见运行时规范第 7 章。
 
-#### 12.4.5 包限定表达式与声明引用（设计，待实施）
+#### 12.4.5 包限定表达式（设计，待实施）
 
-本节及[配套设计](../qualified-expressions/DESIGN.md)补齐无需 import 的 package 限定表达式。当前限定类型名已实现；本节新增的函数／值表达式和前置 `::` 多段选择器尚未实现。统一能力适用于当前 Cone 与直接依赖／re-export 的可见 binding，包括 core 的普通非 prelude package，不仅适用于 11.19。
+本节及[配套设计](../qualified-expressions/DESIGN.md)补齐无需 import 的 package 限定表达式。当前限定类型名已实现；本节新增的函数／值表达式尚未实现；不扩展前置 `::` 声明引用语法。统一能力适用于当前 Cone 与直接依赖／re-export 的可见 binding，包括 core 的普通非 prelude package，不仅适用于 11.19。
 
 | 位置 | 规划支持的形式 |
 | --- | --- |
@@ -3068,21 +3068,20 @@ import 指向原声明；经不同依赖路径或 re-export 到达同一声明�
 | 取得值后的操作 | `demo.api.callback(args)`、`demo.api.values[index]`、`demo.api.optional?.member()` |
 | 构造与变体 | `demo.api.Type<T>(args)`、`demo.api.Alias(args)`、`demo.api.Enum.Variant(args)`、unit variant 静态值 |
 | 对象与 companion | `demo.api.Singleton`、`demo.api.Type.Companion.member` 及已有的 companion 转发形式 |
-| 无 receiver 声明引用 | `::demo.api.f`、`::demo.api.Type`、`::demo.api.extension` |
 | 成员引用 | `demo.api.Type::method`、`demo.api.Type<T>::method`、`demo.api.Singleton::method` |
-| 原生函数地址／place 地址 | 期望 FunPtr 的 `::demo.api.callback`、`addressOf(demo.api.rawGlobal)`，仍满足 13.10 的原有全部条件 |
+| place 地址 | `addressOf(demo.api.rawGlobal)`，仍满足 13.10 的原有全部条件 |
 
 普通 `a.b...` 表达式先保留首段原有表达式绑定／遮蔽规则：该层存在值、类型或其他已绑定目标时，沿该实际目标处理，不因某个依赖新增同名 package 而改变原表达式。只有首段没有可用的普通限定目标时，才尝试可见 package 的最长前缀；未找到成员、目标不可访问或重载不适用后不退回另一路重猜。package 路由确定后，末端类型／值／函数使用该 namespace 的普通候选选择规则，不能按返回类型猜目标或跳到不相关 import 候选。
 
-无 receiver 的前置 `::` 后接非空点分声明路径；单段继续使用 8.1.4 的短名规则，多段优先按最长可见 package 前缀继续解析，没有 package 前缀时从可见静态类型／alias owner 起步，不读取局部变量作为 receiver。选定前缀后失败也不回退重猜。`::demo.api.f` 表示对声明的引用，不是对 `::demo` 的成员访问；需要继续操作或调用引用结果时显式括起整个表达式，如 `(::demo.api.f)(value)`。原 `::f.member` 的引用结果成员访问须改写为 `(::f).member`，formatter 必须保留这里的括号。后置 `receiver::member` 右侧仍是单个成员名，真实 receiver 按创建点求值一次；package 不是值，不引入 `demo.api::f` 这种 package receiver 写法。
+前置 `::` 后仍只读取一个声明名称，不将 `::a.b.f` 解释为包限定声明引用，也不改变既有 postfix 结合规则。跨包函数、构造器、扩展函数和 native callback 先 import 后写 `::name` 或 alias。后置 `receiver::member` 右侧仍是单个成员名，真实 receiver 按创建点求值一次；package 不是值，不引入 `demo.api::f`。
 
 所有表达式继续使用原 typed 声明身份、可见性、生产／测试来源、direct dependency、重载、泛型／默认参数及 effect 规则。package 限定不绕过 private／internal、未声明依赖或仅用于模板／链接的 support dependency；相同最长包中的候选按实际 origin 合并，歧义正常诊断。普通 object／companion 的读取仍触发原初始化语义；可变属性读写、复合更新和下标 place 保留 receiver／index／getter／setter 的求值次数与顺序。
 
-声明引用只扩展目标的定位方式。构造引用和类型别名沿 8.1.4 原规则选择；泛型仍按期望函数类型完成实例化，不同时新增 `::f<T>` 显式泛型引用语法。扩展函数的未绑定引用保留 receiver 为首参数，不增加 `pkg.extension(receiver, args)` 这种把 extension receiver 改成普通实参的调用规则。真实成员的绑定／未绑定引用继续用 `Type::member`／`value::member`，不通过前置点路径隐式创建成员 receiver。
+函数与构造器的短名引用继续沿 8.1.4 规则选择，泛型按期望函数类型完成实例化，不新增 `::f<T>`。扩展函数的未绑定引用保留 receiver 为首参数，不增加 `pkg.extension(receiver, args)` 这种扩展调用形式。成员引用沿原有 `Type::member`／`value::member` 规则解析。
 
-函数类型的属性可通过 `pkg.callback` 取得已有函数值，并按原 invoke 规则调用；`::pkg.callback` 不成为 property reference。函数／构造器声明引用仍按 8.1.4 选择合法入口，函数名作为普通值仍不隐式转换。FunPtr 继续要求 13.10 的非泛型、非挂起、非 extern、NoGC 顶层函数和精确 C-safe 签名；package 前缀既不制造 receiver，也不放宽 FFI 限制。`::scoop.compiler.env` 等没有运行期入口的编译期 intrinsic 引用仍是编译错误。
+函数类型的属性可通过 `pkg.callback` 取得已有函数值，并按原 invoke 规则调用；本次不增加 property reference。函数名作为普通值仍不隐式转换。FunPtr 继续要求 13.10 的非泛型、非挂起、非 extern、NoGC 顶层函数和精确 C-safe 签名，使用导入后的短名引用。
 
-对不可引用 intrinsic 的完整路径必须先完成正常语法和声明解析，再按 13.1 报告专门的语义原因。例如 `::scoop.compiler.env` 应报告该 intrinsic 不支持函数引用及编译期求值限制，不能报告点号不合法、未找到函数或笼统的签名不匹配；11.12 的位置 intrinsic 同样禁止引用，诊断说明其依赖直接调用处的源码来源。
+导入后的 `::env`、`::includeStr` 等引用按 13.1 报告明确的 intrinsic 语义原因；11.12 的位置 intrinsic 同样禁止引用。诊断要求覆盖短名、alias 和 re-export，不为取消的前置点分声明引用增加专门解析或诊断。
 
 类型注解、typealias、泛型 bound、is／as、注解名和 enum 模式中的既有限定路径继续使用原规则；本节补齐表达式，不改变这些位置的可用性。parser／formatter／LSP 必须保留每段标识符和原 span，诊断、导航、引用、重命名和完成候选沿实际选中声明工作，不把 FQN 文本作为实体身份。实现职责见编译器与产物规范 2.2.1。
 
@@ -3179,7 +3178,7 @@ public struct Int : Equals<Int>, ToString, Hash {
 
 - 11.19 的四个编译期输入 intrinsic 只允许定义处可常量求值的直接使用，在 Export HIR 完成前展开；没有动态分派、函数引用或运行期后备入口。其源码位置、外部输入及结果共享规则由该节规定，不因同属 intrinsic 就继承位置 intrinsic 的调用处观察语义。参数／结果仍按真实 core 类型与普通 import 解析，不按 `scoop.compiler` 的名称赋予用户声明特殊能力。
 
-- **不可引用 intrinsic 与诊断**：11.19 的四个编译期输入操作及 11.12 的 `currentSourceLocation` 不支持 callable reference。完成普通名称与可见性解析后，以实际声明的 typed intrinsic kind 判断，短名、import alias、re-export、限定路径及跨 Cone 使用一致；同名普通函数不受此限制，其他 intrinsic 保留各自原有的引用合同。诊断定位引用表达式，给出实际声明名称、禁止函数引用的事实及具体原因：前四者在编译期求值且无运行期入口；位置 intrinsic 依赖直接调用处的源码来源，普通间接调用不提供该信息。managed／无期望类型／FunPtr 三种上下文均保留这一原因，不能把它静默过滤后只报告 unknown name、syntax error 或 no applicable candidate；涉及多候选时保留该候选的具体失败原因，其他候选仍按原重载规则处理。可提示合法的直接调用或显式传值，不自动合成 lambda／adapter 来规避限制。位置 intrinsic 的短名／alias／依赖引用诊断已实现；11.19 新入口及 12.4.5 限定表达式仍待实施。
+- **不可引用 intrinsic 与诊断**：11.19 的四个编译期输入操作及 11.12 的 `currentSourceLocation` 不支持 callable reference。完成普通名称与可见性解析后，以实际声明的 typed intrinsic kind 判断，短名、import alias、re-export 及跨 Cone 使用一致；同名普通函数不受此限制，其他 intrinsic 保留各自原有的引用合同。诊断定位引用表达式，给出实际声明名称、禁止函数引用的事实及具体原因：前四者在编译期求值且无运行期入口；位置 intrinsic 依赖直接调用处的源码来源，普通间接调用不提供该信息。managed／无期望类型／FunPtr 三种上下文均保留这一原因，不能把它静默过滤后只报告 unknown name、syntax error 或 no applicable candidate；涉及多候选时保留该候选的具体失败原因，其他候选仍按原重载规则处理。可提示合法的直接调用或显式传值，不自动合成 lambda／adapter 来规避限制。位置 intrinsic 的短名／alias／依赖引用诊断已实现；11.19 新入口及 12.4.5 限定表达式仍待实施。
 
 - 11.15 的 `core_maybe_uninit` 登记为单参数 intrinsic struct；`maybe_uninit_zero`、`maybe_uninit_initialized` 是相应 companion 的静态操作，`maybe_uninit_assume_init` 是 wrapper 实例操作，后者必须带 `@Unsafe`。它们保留 wrapper 与 payload 的完整类型，不凭相同布局抹除初始化契约；不允许其他 annotation 组合绕过既有 NoGC／unsafe 检查。
 
@@ -3489,7 +3488,7 @@ public struct FunPtr<F>
 - `F` 的每个参数与返回类型必须满足 C-FFI-safe 约束；`Unit` 只允许作为返回类型。`FunPtr` 描述的是 C ABI callback 地址，不是 Scoop ABI managed callable；函数类型 `F` 在这里仅描述 native signature，本身不会作为 managed 引用穿越边界。
 - 可空函数指针用 `Option<FunPtr<F>>` 表示（niche 优化见 7.4）。
 - native-address resolution 的目标必须是带 `@NoGC` 的普通顶层命名函数，且**不能是 generic、挂起、extern、成员或扩展函数**。lambda、匿名函数、局部函数、任何绑定引用以及已存在的 managed 函数值都不能作为非 null `FunPtr` 的来源。违反这些约束是编译错误：FFI 回调不得与 GC 交互，generic 函数没有单一具体符号，挂起函数只有编译器内部的 hidden continuation ABI，而 closure 还需要原生 ABI 中不存在的 managed 环境参数。编译器不自动生成 closure 或挂起 callback wrapper。
-- 12.4.5 规划的 `::pkg.name` 与这里的无 receiver `::name` 使用相同 native-address resolution，全部目标／签名／效果限制保持；不能把 package 路径编码成已绑定 receiver 后错误拒绝，也不能通过限定路径取得原本不允许的 callback 地址。此项随包限定表达式实施。
+- 跨包 native callback 先 import 后使用无 receiver 的 `::name` 或 alias，沿同一 native-address resolution；本次不扩展前置声明引用语法。
 - `FunPtr` 不提供 Scoop 侧 `invoke`；它只用于传递/存储 native callback 地址。由`::name`得到的静态callback仅允许原生方在发起extern调用的同一已注册线程上同步调用；保存后异步、跨线程或在Scoop程序退出后调用不隐式获得安全性。只有14.3 registration返回的`ForeignCallback.function + context`配对具备对应token/attach协议，单独保存或调用其中的function而不携带仍存活的配对context同样非法。
 
 ```

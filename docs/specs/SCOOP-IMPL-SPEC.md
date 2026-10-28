@@ -235,15 +235,15 @@ return/throw 与 Elvis 复用正常值和终止路径的封闭表示；只有正
 
 整型枚举在源码 HIR 中具有明确的表示类别、底层整数 kind 和已检查的有序 variant 常量；父子关系、继承数值成员、普通上转及接口关系在 HIR lowering 完成。共享源码定义与表示数据保留 enum/variant identity、底层整数和数值，消费方不重新求值 initializer，也不按纯 unit variant 猜测枚举类别。依赖成员查找沿实际整数父类型继续遍历其接口，仅对接口节点读取接口方法与分派选择，不能把整数父类型当成 interface application。数值上转与引用上转均为已检查的单向类型适配；上转结果按目标类型继续参与装箱。
 
-#### 2.2.1 包限定表达式与函数引用（设计，待实施）
+#### 2.2.1 包限定表达式（设计，待实施）
 
-语言规范 12.4.5 在现有导入／限定类型查询上补齐包限定函数、值、place、构造与 callable reference。parser 对前置 `::` 保存非空的完整声明路径及逐段 span；有真实 receiver 的 `receiver::member` 仍保存 receiver 与单个成员名。AST 的明确类别保证 package 路径不能被伪造成运行期 receiver，FunPtr 的无 receiver 条件按语义类别判断，不以路径段数或有无点号判断。`.` 链、显式调用类型参数、命名实参、尾随 lambda 与引用结果的 postfix 沿既有语法处理；恢复语法与 formatter 同步支持该路径。
+语言规范 12.4.5 在现有导入／限定类型查询上补齐包限定函数、值、place 与构造。parser／AST 保留原有 `::name` 与 `receiver::member` 结构，不增加前置点分声明选择器；跨包声明引用通过普通 import／alias 定位。普通点表达式、显式调用类型参数、命名实参、尾随 lambda 与原有 postfix 沿既有语法处理；恢复语法和 formatter 保持其结合规则。
 
 HIR 使用普通表达式限定目标的原候选／遮蔽规则，必要时从已知可见 package 的最长前缀继续选择。包／静态 owner 只是解析状态，遇到真实值才生成普通值读取；成功输出仍是既有 typed call、构造、variant、property／place 或函数引用，不把 package 值、FQN 字符串或待解析 selector 传给 MIR。package 路由选择后复用当前 namespace 的完整候选分区、MSC、绑定参数和可见性结果；不得将导入路径当作运行期字段链，也不得扫描整个依赖闭包匹配字符串。
 
-函数调用、函数值 invoke、property 读取／赋值／更新、下标 place、addressOf、构造、enum variant、object／companion 以及 managed／native callable reference 共享同一已解析目标和来源事实，再各自执行原操作规则。更新仍只求值一次真实 receiver／index；绑定引用保存创建时 receiver；泛型、默认值与跨 Cone 正文保存实际 typed 身份。语言规范 11.19 的编译期输入操作沿本规范 2.10.1 求值；它们及 current_source_location 的声明引用沿 2.10 报告明确的 intrinsic 语义错误，不因使用限定路径而改成 parser 错误或普通查找失败。
+函数调用、函数值 invoke、property 读取／赋值／更新、下标 place、addressOf、构造、enum variant、object／companion 以及成员引用左侧的限定目标共享已解析声明和来源事实，再各自执行原操作规则。更新仍只求值一次真实 receiver／index；绑定引用保存创建时 receiver；泛型、默认值与跨 Cone 正文保存实际 typed 身份。语言规范 11.19 的编译期输入操作沿本规范 2.10.1 求值；它们及 current_source_location 的声明引用沿 2.10 报告明确的 intrinsic 语义错误，短名／alias／re-export 保留具体拒绝原因。
 
-语言服务记录路径各段的 namespace／声明来源与末端实际绑定，复用既有引用、签名和重命名查询；包段不冒充函数／property，跨 Cone 无源码时保持原导航限制。普通 type／annotation／pattern 的限定查询不被表达式遮蔽策略覆盖。此项不增加 runtime ABI、链接协议或语义 ID 种类；只有实际持久编码变化才升级相应 section，不能仅因 parser 路径变长重发所有 IR。范围与验收见[配套设计](../qualified-expressions/DESIGN.md)。
+语言服务记录路径各段的 namespace／声明来源与末端实际绑定，复用既有引用、签名和重命名查询；包段不冒充函数／property，跨 Cone 无源码时保持原导航限制。普通 type／annotation／pattern 的限定查询不被表达式遮蔽策略覆盖。此项不增加 runtime ABI、链接协议或语义 ID 种类；只有实际持久编码变化才升级相应 section，不为本次名称查找扩展重发未变化的 IR。范围与验收见[配套设计](../qualified-expressions/DESIGN.md)。
 
 ### 2.3 MIR
 
@@ -1085,7 +1085,7 @@ intrinsic 的识别来自实际声明及其完整 name/target/shape/signature，
 
 类型与目标已经确定且使用方式合法的 intrinsic 调用必须下降为该操作规定的 IR、编译期值或 runtime helper。本地／跨 Cone 的直接调用、泛型具体化后的约束实现选择、语义允许的静态函数引用以及去虚拟化得到的唯一目标遵守同一合同；后续内联或传播暴露的新目标也必须消费。此下降独立于普通函数内联开关、成本阈值与 debug／release 模式；优化模式只影响是否推导出额外的目标事实。默认实参、访问器、初始化器和闭包正文没有例外。动态目标尚不唯一时保留分派，合法动态引用所需的 callable 入口继续发射；语言规范 13.1 禁止引用的 intrinsic 不生成这类入口。
 
-不可引用 intrinsic 的检查与诊断为设计、待实施：HIR 的 managed／native 引用候选检查复用实际声明已有的 typed intrinsic kind，封闭匹配 current_source_location 与 2.10.1 四个操作及其拒绝原因，不新增独立能力表、持久 flag 或 FQN 名称判断。完成正常查找与访问检查后，保留专门的引用失败原因；唯一目标直接报告该 intrinsic 不支持引用，多候选诊断保留相应原因，不通过静默删除候选退化成未找到函数或笼统签名错误。检查先于 closure／adapter／FunctionAddress 构造，错误不推迟到 MIR 或链接。主位置为原引用表达式，消息标明实际声明名称；LSP 仍可利用已解析目标导航到声明。current_source_location 不捕获引用创建点或生成正文的位置冒充间接调用处；直接调用继续使用原 evaluation origin。其他 intrinsic 的合法引用下降保持。
+不可引用 intrinsic 的检查与诊断（current_source_location 已实现，2.10.1 新入口待实施）：HIR 的 managed／native 引用候选检查复用实际声明已有的 typed intrinsic kind，封闭匹配 current_source_location 与 2.10.1 四个操作及其拒绝原因，不新增独立能力表、持久 flag 或 FQN 名称判断。完成正常查找与访问检查后，保留专门的引用失败原因；唯一目标直接报告该 intrinsic 不支持引用，多候选诊断保留相应原因，不通过静默删除候选退化成未找到函数或笼统签名错误。检查先于 closure／adapter／FunctionAddress 构造，错误不推迟到 MIR 或链接。主位置为原引用表达式，消息标明实际声明名称；LSP 仍可利用已解析目标导航到声明。current_source_location 不捕获引用创建点或生成正文的位置冒充间接调用处；直接调用继续使用原 evaluation origin。其他 intrinsic 的合法引用下降保持。
 
 具体化将约束选择得到的 primitive intrinsic 归一化为完整的标量操作，与早期直接调用一致；除法／余数同时物化原有异常依赖。所用操作身份来自本地声明或依赖 HIR 中的 typed implementation，不靠函数名或普通外部函数体推断。
 
