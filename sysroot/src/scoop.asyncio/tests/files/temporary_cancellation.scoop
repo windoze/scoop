@@ -79,7 +79,7 @@ private class AsyncTemporaryFileCancellationTest {
                             assertTrue(error.primaryFailure is CancellationException)
                             assertTrue(error.cleanupFailure is PlatformException)
                             val failure = error.cleanupFailure as PlatformException
-                            assertTrue(failure.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+                            assertTrue(failure.nativeError!!.domain == testFileErrorDomain())
                             assertEquals(observed.path!!.toOsString(), failure.context!!)
                             observed.cleanupFailed = true
                         }

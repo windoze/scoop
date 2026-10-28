@@ -1,0 +1,15 @@
+package scoop.asyncio
+
+import scoop.platform.system.*
+
+internal fun testFileErrorDomain(): NativeErrorDomain =
+    if (operatingSystem == OperatingSystem.Windows)
+        NativeErrorDomain.Win32
+    else
+        NativeErrorDomain.PosixErrno
+
+internal fun testSocketErrorDomain(): NativeErrorDomain =
+    if (operatingSystem == OperatingSystem.Windows)
+        NativeErrorDomain.Winsock
+    else
+        NativeErrorDomain.PosixErrno

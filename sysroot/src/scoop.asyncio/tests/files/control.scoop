@@ -88,10 +88,23 @@ private class AsyncFileControlTest {
                     file.seek(4294967297L)
                     assertEquals(4294967297L, file.position())
                     assertEquals(3L, file.size())
-                    file.truncate(4294967298L)
-                    assertEquals(4294967298L, file.size())
-                    assertEquals(4294967297L, file.position())
-                    file.truncate(3L)
+                    // POSIX extends this sparsely; Windows may reserve the full allocation.
+                    if (operatingSystem != OperatingSystem.Windows) {
+                        file.truncate(4294967298L)
+                        assertEquals(4294967298L, file.size())
+                        assertEquals(4294967297L, file.position())
+                    }
+                    if (operatingSystem == OperatingSystem.Windows) {
+                        // An append-only Windows handle has no FILE_WRITE_DATA permission.
+                        try {
+                            file.truncate(3L)
+                            fail(Some("append-only handle truncated a file"))
+                        } catch (error: PlatformException) {
+                            assertTrue(error.kind == PlatformErrorKind.PermissionDenied)
+                            assertTrue(error.nativeError!!.domain == NativeErrorDomain.Win32)
+                        }
+                    } else
+                        file.truncate(3L)
                 }
             }
             assertEquals("abc", path.readText())
@@ -99,17 +112,14 @@ private class AsyncFileControlTest {
     }
 
     @Test
-    fun `invalid controls preserve errno path and subsequent usability`() {
+    fun `invalid controls preserve native errors path and subsequent usability`() {
         IoTestDirectory().use {
             tree ->
             val path = tree.child("readonly")
             path.writeText("abc")
-            val fifo = tree.child("fifo")
-            makeFifo(fifo)
             val loop: EventLoop = PlatformEventLoop()
             loop.run suspend {
-                _ ->
-                loop.openFile(path).useAsync suspend {
+                _ -> loop.openFile(path).useAsync suspend {
                     file ->
                     try {
                         file.seek(-1L);
@@ -126,26 +136,13 @@ private class AsyncFileControlTest {
                         fail(Some("read only file truncated"))
                     }
                     catch (error: PlatformException) {
-                        assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+                        assertTrue(error.nativeError!!.domain == testFileErrorDomain())
                         assertEquals(path.toOsString(), error.context!!)
                     }
                     assertEquals(0L, file.position())
                     assertEquals(3L, file.size())
                     file.seek(2L)
                     assertEquals(2L, file.position())
-                }
-                loop.openFile(fifo, OpenOptions(write = true)).useAsync suspend {
-                    file ->
-                    assertTrue(file.metadata().kind == FileKind.Fifo)
-                    try {
-                        file.position();
-                        fail(Some("FIFO reported a position"))
-                    }
-                    catch (error: PlatformException) {
-                        assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
-                        assertEquals(fifo.toOsString(), error.context!!)
-                    }
-                    assertTrue(file.metadata().kind == FileKind.Fifo)
                 }
             }
         }

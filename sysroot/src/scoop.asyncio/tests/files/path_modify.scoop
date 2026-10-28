@@ -30,13 +30,26 @@ private class AsyncPathModificationTest {
                     }
                     catch (error: PlatformException) {
                         assertTrue(error.kind == PlatformErrorKind.AlreadyExists)
-                        assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+                        assertTrue(error.nativeError!!.domain == testFileErrorDomain())
                         assertEquals(destination.toOsString(), error.context!!)
                     }
                     assertEquals("new contents", source.readText())
                     assertEquals("old", destination.readText())
+                    if (operatingSystem == OperatingSystem.Windows) {
+                        try {
+                            loop.moveFile(source, destination, replaceExisting = true)
+                            fail(Some("replaced a destination with an open Windows handle"))
+                        } catch (error: PlatformException) {
+                            assertTrue(error.kind == PlatformErrorKind.PermissionDenied)
+                            assertTrue(error.nativeError!!.domain == NativeErrorDomain.Win32)
+                        }
+                        assertEquals(3L, previous.size())
+                        assertEquals("new contents", source.readText())
+                        previous.close()
+                    }
                     loop.moveFile(source, destination, replaceExisting = true)
-                    assertEquals(3L, previous.size())
+                    if (operatingSystem != OperatingSystem.Windows)
+                        assertEquals(3L, previous.size())
                     assertEquals(12L, loop.metadata(destination).size)
                     assertFalse(source.exists())
                     val moved = tree.child("moved")
@@ -79,7 +92,7 @@ private class AsyncPathModificationTest {
                     fail(Some("nonempty directory removed"))
                 }
                 catch (error: PlatformException) {
-                    assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+                    assertTrue(error.nativeError!!.domain == testFileErrorDomain())
                     assertEquals(directory.toOsString(), error.context!!)
                 }
                 loop.deleteFile(child)

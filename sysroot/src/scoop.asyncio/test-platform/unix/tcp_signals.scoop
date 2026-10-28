@@ -31,7 +31,7 @@ private fun exerciseBrokenOutput() {
             }
             catch (error: PlatformException) {
                 assertTrue(error.kind == PlatformErrorKind.BrokenPipe)
-                assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+                assertTrue(error.nativeError!!.domain == testSocketErrorDomain())
             }
             assertEquals(0L, bytes.readPosition)
         }

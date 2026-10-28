@@ -13,7 +13,16 @@ private class AsyncDirectoryCreationTest {
             val existing = tree.child("existing")
             existing.createDirectory(0x1c0)
             val originalMode = existing.metadata().permissions
-            val nested = existing.resolve(Path.fromString("a/./b/c"))
+            // Windows temporary paths are verbatim; dot components are not normalized.
+            val nested =
+                existing.resolve(
+                    Path.fromString(
+                        if (operatingSystem == OperatingSystem.Windows)
+                            "a/b/c"
+                        else
+                            "a/./b/c"
+                    )
+                )
             val invalid = tree.child("invalid")
             val file = tree.child("file")
             file.writeText("ordinary file")
@@ -48,8 +57,14 @@ private class AsyncDirectoryCreationTest {
                     fail(Some("file used as parent"))
                 }
                 catch (error: PlatformException) {
-                    assertTrue(error.kind == PlatformErrorKind.NotDirectory)
-                    assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+                    assertTrue(
+                        error.kind ==
+                            if (operatingSystem == OperatingSystem.Windows)
+                                PlatformErrorKind.AlreadyExists
+                            else
+                                PlatformErrorKind.NotDirectory
+                    )
+                    assertTrue(error.nativeError!!.domain == testFileErrorDomain())
                 }
             }
         }

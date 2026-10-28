@@ -1,6 +1,7 @@
 package scoop.asyncio
 
 import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.system.*
 import scoop.test.*
 import scoop.time.Duration
 
@@ -58,7 +59,11 @@ private class AsyncTcpQueuedWriteTest {
                 writer.join()
                 val sent = output.readPosition
                 assertTrue(sent >= before)
-                assertTrue(sent < output.writePosition)
+                // WSASend can accept the whole buffer before POLLOUT clears; a late
+                // cancellation must preserve that completion's full committed count.
+                assertTrue(sent <= output.writePosition)
+                if (operatingSystem != OperatingSystem.Windows)
+                    assertTrue(sent < output.writePosition)
                 NativeByteBuffer.allocate(sent + 1L).use suspend {
                     input ->
                     server.readFully(input, sent)
