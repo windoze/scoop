@@ -24,10 +24,10 @@ static void free_temporary(ScoopIoTemporaryFile *result) {
 static void execute_temporary(ScoopIoWork *native) {
     TemporaryWork *request = (void *)native;
     ScoopIoTemporaryFile *result = request->result;
-    result->file->fd = scoop_platform_file_temporary(result->path);
+    result->file->handle = scoop_file_wrap(scoop_platform_file_temporary(result->path));
     int saved_errno = errno;
     ScoopIoEvent *event = &request->work.completion.event;
-    if (result->file->fd < 0) {
+    if (result->file->handle.value == UINT64_MAX) {
         event->kind = SCOOP_IO_POSIX_ERROR;
         event->code = saved_errno;
     } else {
@@ -38,7 +38,7 @@ static void execute_temporary(ScoopIoWork *native) {
 
 static void finish_temporary(ScoopIoWork *native, int status) {
     TemporaryWork *request = (void *)native;
-    if (request->result->file->fd < 0)
+    if (request->result->file->handle.value == UINT64_MAX)
         free_temporary(request->result);
     scoop_io_work_finished(&request->work, status);
 }
@@ -53,15 +53,13 @@ int scoop_io_file_temporary(ScoopIoLoop *loop, int64_t id, const char *pattern) 
         return -ENOMEM;
     }
     ScoopIoTemporaryFile *result = request->result;
-    result->file = calloc(1, sizeof(*result->file));
+    result->file = scoop_io_file_new(loop);
     result->path = strdup(pattern);
     if (!result->file || !result->path) {
         free_temporary(result);
         free(request);
         return -ENOMEM;
     }
-    result->file->fd = -1;
-    result->file->loop = loop;
     int status =
         scoop_io_work_submit(&request->work, loop, id, execute_temporary, finish_temporary);
     if (status < 0) {

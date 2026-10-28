@@ -4,7 +4,8 @@
 
 #ifdef _WIN32
 
-ScoopPlatformFileOpened scoop_platform_handle_open(const void *path, int32_t flags, int32_t mode) {
+static ScoopPlatformFileOpened open_handle(const void *path, int32_t flags, int32_t mode,
+                                           DWORD attributes) {
     (void)mode;
     DWORD access = (flags & 1) ? GENERIC_READ : 0;
     if (flags & 2)
@@ -14,9 +15,18 @@ ScoopPlatformFileOpened scoop_platform_handle_open(const void *path, int32_t fla
                                    : ((flags & 32) ? TRUNCATE_EXISTING : OPEN_EXISTING);
     HANDLE handle =
         CreateFileW(path, access, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
-                    creation, FILE_ATTRIBUTE_NORMAL, NULL);
+                    creation, attributes, NULL);
     DWORD error = handle == INVALID_HANDLE_VALUE ? GetLastError() : 0;
     return (ScoopPlatformFileOpened){scoop_file_wrap(handle), (int32_t)error};
+}
+
+ScoopPlatformFileOpened scoop_platform_handle_open(const void *path, int32_t flags, int32_t mode) {
+    return open_handle(path, flags, mode, FILE_ATTRIBUTE_NORMAL);
+}
+
+ScoopPlatformFileOpened scoop_platform_handle_open_overlapped(const void *path, int32_t flags,
+                                                              int32_t mode) {
+    return open_handle(path, flags, mode, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED);
 }
 
 ScoopPlatformFileOpened scoop_platform_handle_duplicate(ScoopPlatformFileHandle handle) {

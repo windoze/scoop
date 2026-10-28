@@ -238,3 +238,7 @@ Windows TCP／UDP 已接入 ConnectEx、AcceptEx 和 Winsock overlapped 数据�
 DNS、路径修改和目录枚举现通过共享 worker 调用 platform 的 Windows helper；提交取得独立 UTF-16 副本，保留非配对 surrogate，完成同时带回原错误。目录名称不借用 platform 的枚举缓冲；DNS 地址解码去掉 errno 桥接并带回实际错误域。POSIX 沿同一普通生命周期和 byte string，已有 worker 测试屏障增加 SRW lock／condition variable 分支。
 
 三个 target 的实际 worker 组件 Cone 各 1 个容器／7 项测试全部通过，覆盖 surrogate／非 BMP 路径、mkdir／move／delete、Win32 错误、关闭目录后的名称快照、真实 worker 饱和下取消、输入副本、数字 IPv4／IPv6 DNS 与族不匹配，以及 GC／NUL 字符串边界。Scoop／C 格式化、三套 Clang／cl 严格检查及共享源码语义检查通过；cl 对既有测试屏障的 C flexible array 仅关闭 C4200。文件读写／控制／临时文件、异步 TTY、host 运行和完整 asyncio 验收继续实施，尚未开始远端验证。
+
+Windows 普通文件由 worker 以 overlapped HANDLE 打开并关联 IOCP，读写在实际完成时推进 owner 的 64 位位置；seek／truncate／metadata／sync／close 复用平台结果 helper。append 使用同步句柄和已有 worker，保留各句柄自己的 OS 位置与追加语义。POSIX 文件 owner 改用同一完整 handle 类型，Linux ring 只在调用处取得 fd；Windows 新增的 overlapped open helper 不改变同步 File 的默认标志。
+
+三个 target 的实际文件组件 Cone 各 1 个容器／5 项测试全部通过：原始字节、同步完成 packet、EOF、64 位 seek、truncate 位置保持、metadata／sync／访问错误、两个 append 句柄位置独立、queued open／write 取消、迟到 open，以及真实 named pipe 的取消／迟到成功和 GC 借用。大偏移测试不创建巨大数据文件。Scoop／C 格式化、三套 Clang／cl 严格检查及共享源码语义检查通过；完整 platform 开发 slib 已更新三个目标。异步临时文件、TTY、host 运行和完整 asyncio 仍继续实施，未开始远端验证。

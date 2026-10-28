@@ -147,6 +147,8 @@ public interface AsyncFile : AsyncByteSource, AsyncByteSink, AsyncCloseable {
 
 openFile 使用 Path／OpenOptions 的已有合同。Darwin 的文件操作在后台 dispatch work 调用 platform 的 GC-free helper；Linux 的 read／write／sync 使用 ring，其余文件操作使用 native worker。错误保留 PosixErrno。顺序 read／write 共用文件位置，同一文件的读写、查询、位置／长度控制与 sync 同时最多一个。flush 不等于 sync；不增加额外的 close／sync 语义。worker 只接收 native 存储，立即记录错误。已开始的阻塞操作可能推迟取消和 run 退出，不承诺固定时延。
 
+Windows 普通文件由 worker 以不可继承的 FILE_FLAG_OVERLAPPED HANDLE 打开并关联 IOCP；ReadFile／WriteFile 使用该 owner 的 64 位位置，真实完成时按已知传输量推进，EOF／broken pipe 读取返回零。Windows 不维护 overlapped handle 的文件位置，因此 seek／position 使用同一串行 owner 的位置，并由实际 seek 检查设备能力；truncate 不修改该位置。append 文件以同步 FILE_APPEND_DATA 句柄打开，读写进入已有 worker，保留 OS 的追加原子性和追加后的真实位置，不用另一次文件大小查询推测写入位置。metadata、truncate、sync、close 均复用 platform helper；文件错误保留 Win32。取消在途 overlapped 请求等实际 packet，运行中的同步 worker 等实际返回，close 等操作与借用退休后关闭一次句柄。
+
 ## 8. 实现边界与验收
 
 native request 持有预留完成节点；C callback 仅存状态和进度、入 native 队列，managed 在 NativeSafe 返回握手后消费。操作编号在完成消费前不复用。managed 使用普通带类型操作与结果，不以可空字段猜测不同事件。提交同步失败走同一释放路径。后端及相关系统库按语言规范 12.2.1～12.2.3 的普通 native 输入链接。

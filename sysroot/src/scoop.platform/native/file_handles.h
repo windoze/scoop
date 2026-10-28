@@ -44,6 +44,10 @@ static inline ScoopPlatformFileHandle scoop_file_wrap(int descriptor) {
 #endif
 
 ScoopPlatformFileOpened scoop_platform_handle_open(const void *path, int32_t flags, int32_t mode);
+#ifdef _WIN32
+ScoopPlatformFileOpened scoop_platform_handle_open_overlapped(const void *path, int32_t flags,
+                                                              int32_t mode);
+#endif
 ScoopPlatformFileOpened scoop_platform_handle_duplicate(ScoopPlatformFileHandle handle);
 ScoopPlatformFileOpened scoop_platform_handle_standard(int32_t stream);
 ScoopPlatformFileResult scoop_platform_handle_close(ScoopPlatformFileHandle handle);

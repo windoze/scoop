@@ -62,6 +62,10 @@ path = "native/windows/paths.c"
 when = { os = "windows" }
 
 [[native.sources]]
+path = "native/windows/files.c"
+when = { os = "windows" }
+
+[[native.sources]]
 path = "native/host_darwin.c"
 when = { os = "darwin" }
 

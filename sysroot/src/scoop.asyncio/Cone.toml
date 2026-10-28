@@ -72,7 +72,7 @@ path = "native/common/file_control.c"
 
 [[native.sources]]
 path = "native/common/file_io.c"
-when = { os = "darwin" }
+when = { os = ["darwin", "windows"] }
 
 [[native.sources]]
 path = "native/common/file_metadata.c"
@@ -82,6 +82,7 @@ path = "native/common/file_open.c"
 
 [[native.sources]]
 path = "native/common/file_temporary.c"
+when = { os = ["darwin", "linux"] }
 
 [[native.sources]]
 path = "native/common/native_work.c"
@@ -112,6 +113,10 @@ when = { os = "windows" }
 
 [[native.sources]]
 path = "native/windows/socket_io.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/file_io.c"
 when = { os = "windows" }
 
 [[native.sources]]

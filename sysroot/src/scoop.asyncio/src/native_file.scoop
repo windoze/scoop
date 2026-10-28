@@ -1,0 +1,36 @@
+package scoop.asyncio
+
+import scoop.platform.native.NativeFileMetadata
+
+@Extern(name = "scoop_io_file_open")
+internal fun nativeFileOpen(loop: Ptr<Unit>, id: Long, path: Ptr<Byte>, flags: Int, mode: Int): Int
+
+@Extern(name = "scoop_io_file_transfer")
+internal fun nativeFileTransfer(
+    file: Ptr<Unit>,
+    id: Long,
+    bytes: Ptr<Byte>?,
+    count: Long,
+    writing: Boolean
+): Int
+
+@Extern(name = "scoop_io_file_metadata")
+internal fun nativeFileMetadata(file: Ptr<Unit>, id: Long): Int
+
+@Extern(name = "scoop_io_file_seek")
+internal fun nativeFileSeek(file: Ptr<Unit>, id: Long, offset: Long, current: Boolean): Int
+
+@Extern(name = "scoop_io_file_truncate")
+internal fun nativeFileTruncate(file: Ptr<Unit>, id: Long, size: Long): Int
+
+@Extern(name = "scoop_io_file_sync")
+internal fun nativeFileSync(file: Ptr<Unit>, id: Long, dataOnly: Boolean): Int
+
+@Extern(name = "scoop_io_file_close")
+internal fun nativeFileClose(file: Ptr<Unit>, id: Long): Int
+
+@Extern(name = "scoop_io_path_metadata")
+internal fun nativePathMetadata(loop: Ptr<Unit>, id: Long, path: Ptr<Byte>, follow: Boolean): Int
+
+@Extern(name = "scoop_io_metadata_take")
+internal fun nativeTakeMetadata(pointer: Ptr<Unit>): NativeFileMetadata
