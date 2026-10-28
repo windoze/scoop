@@ -463,6 +463,8 @@ release 的 codegen 分配结果可携带实际 TLAB 成功的布尔 SSA 事实�
 
 TLAB bump 由 codegen GC 层消费同一布局常量与运行时规范 3.1 的当前范围合同。ARM64 release 已知 8-byte 对齐且规格化尺寸为正的正规对象常量使用剩余字节比较，省去游标重复对齐和空值判断；资格及尺寸合法性仍来自现有 typed 布局与检查，其他目标和未知情形继续使用通用分支。目标选择属于现有 codegen 配置，不按函数名，不向 MIR／LIR 添加策略字段，不跨 GC 缓存游标或 limit，也不改变初始化、位图发布和 collecting slow path 的顺序。
 
+已知 nursery 布局的 release 成功分支统一生成对象完成操作，常量大尺寸与动态大小复用同一 memset、对象头、精确大小、starts 和计数正文；不先因 128-byte 阈值调用共享 C 完成入口。清零仍由 LLVM 按目标及长度决定内联或使用共享内存实现，常量小对象的确定初始化分析保留原范围限制，动态／较大对象完整清零。debug、未知 TD 与 collecting slow path 保持，root plan 和重定位职责不变；该选择不增加 IR 策略字段、分析框架或产物／runtime ABI。
+
 单槽和 runtime 范围屏障对实际覆盖的每个 card 字节使用 relaxed atomic store 1，并按运行时规范 3.6 登记其 64-card 组。新增 NoGc runtime 入口 `RecordDirtyCardGroup`（tag 33），完整 C 签名为 `(region metadata pointer, UInt64 card index) -> void`；只操作组链接和 heap 私有链，不读写 managed storage、不分配、不取 TLS 或 park。生成代码先表达完整登记调用，release 的既有有界循环变换将与每个 card store 对应的登记一起移到正常出口；只有这项 compiler-owned 屏障调用可通过该变换，不推广到一般 NoGc／native 调用。完成普通优化后，使用临时内部 LLVM helper 与标准 always-inliner 展开登记状态的 relaxed 读取，已登记时跳过真实 runtime 调用；临时 helper 不成为 Scoop callable 或最终机器入口。所有 profile 都生成完整卡组登记与快速检查，原精确 roots、poll 和用户内存序保持。
 
 nursery 容量、full 压力、可选 survivor 与 minor／full 分片标记归 runtime 私有实现（运行时规范 3.1、3.9），不作为 LIR 常量、构建 profile 或 `.slib` 字段导出；现有生成代码继续只消费稳定的 allocation context 与分配慢入口。调整这些策略不重编依赖或改变精确 roots；generated card store 在 mutator 阶段仍只写 1，collector 私有的保留卡状态不进入生成代码。分片之间不移动对象、不并发扫描普通字段，复用已有引用写入屏障记录已发布 owner 的改写；minor 清除扫描卡前保留最终 remembered 回写所需位图，年轻初始化屏障省略的既有证明仍成立。各片继续通过原 safepoint 与根计划停稳／恢复，普通 ABI 消费者无需感知某次暂停是否完成整个周期。

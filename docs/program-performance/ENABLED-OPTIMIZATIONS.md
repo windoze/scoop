@@ -120,7 +120,7 @@
 | [卡表置脏的幂等原子写入](CARD-STORES.md) | 所有 profile 与 runtime 默认 | 二值 card 使用 relaxed atomic store 1，省去原子读改写，清零仅在 STW；合格 release 循环可按卡标记合并规则处理。 |
 | [nursery 独占块的分配登记](NURSERY-METADATA.md) | 使用新版 runtime，所有 profile 默认 | 已保留的年轻块范围直接登记，以原子 load／OR／store 保留已有位；共享旧代仍用原子读改写，保留完整清零与发布顺序。 |
 | [已知分配布局特化](TLAB-COMPLETION.md) | release 默认 | 从完整本地 TD／typed array layout 复用对齐与 release policy，跨物理对象分区消除重复加载和分支；缺少事实时保留原路径。 |
-| [小型 TLAB 分配完成内联](TLAB-COMPLETION.md) | release 默认，配套 runtime ABI 16 | 16～128 B 常量请求、完整布局、无 release hook；成功 bump 后内联清零、登记和计数，动态／更大请求沿共享完成入口。 |
+| [已知布局的 TLAB 完成统一生成](GC-EVOLUTION.md#第五十阶段已知布局的-tlab-完成统一生成)，[初始实现](TLAB-COMPLETION.md) | release 默认，当前 runtime ABI 25，无新开关 | 完整 nursery 布局的成功 bump 直接清零、设置对象头和大小、发布 starts 并更新 nursery 计数；含较大常量及动态尺寸，不再受 128 B 门槛限制。复用 allocation context，省去完成入口的调用和 TLS 重读；debug、未知布局及 collecting slow path 保留。 |
 | [分配 context 的首次使用复用](ALLOCATION-CONTEXT.md) | ARM64 release 默认 | 调用内首次需要 TLAB 时取址，跨循环／GC／catch 只复用稳定的 AS0 context 地址；可变字段继续重读。x86、debug 保留原路径，完成 helper 内部 TLS 访问不变。 |
 | [确定初始化前的尾部清零消除](ALLOCATION-ZEROING.md)，含[引用扩展](GC-EVOLUTION.md#第三十一阶段引用字段的确定初始化) | release 默认；对齐后对象大小 ARM64 ≤128 B、x86 ≤64 B | 已知布局、无 release hook 的小型 TLAB 分配；省去下一次 GC／观察／发布前被完整 typed store 覆盖的连续尾部，包含直接引用、接口、null niche 与无 padding 聚合。保留对象头、未证明字节及原发布顺序；慢路径和 debug 完整清零。 |
 | [有界引用循环的页表查询提升](CARD-REGIONS.md)，含[接口栈重取扩展](INTERFACE-CARD-REGIONS.md) | release 默认；保留接口栈重取的扩展仅 ARM64；数组基址定位规则适用于所有 profile | 常数有界、目标不变且查询每轮必经，保留原 roots。ARM64 可保留已确认来自本函数栈槽的 volatile 引用重读，同时提升独立查询；x86 仍排除含 volatile 的区域。 |

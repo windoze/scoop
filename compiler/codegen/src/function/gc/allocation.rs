@@ -12,8 +12,8 @@ pub(in crate::function) struct AllocationResult<'ctx> {
 }
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
-    /// Bump through the thread's shared TLAB view. Small constant allocations
-    /// with known layouts finish inline in release; other bumps use the GC-leaf
+    /// Bump through the thread's shared TLAB view. Allocations with known
+    /// layouts finish inline in release; other bumps use the GC-leaf
     /// helper. Failed bumps retain the collecting slow path and its roots.
     pub(in crate::function) fn managed_alloc(
         &mut self,
@@ -225,15 +225,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         builder
             .build_store(cursor_slot, next)
             .map_err(|error| CodegenError(format!("publish TLAB cursor: {error}")))?;
-        if layout.is_some_and(|layout| layout.nursery_eligible)
-            && requested_size
-                .get_zero_extended_constant()
-                .is_some_and(|size| (16..=128).contains(&size))
-        {
-            let clear_size = if let Some(out) = initialization_result {
-                let size = aligned_size
-                    .get_zero_extended_constant()
-                    .expect("the small allocation has constant size and alignment");
+        if layout.is_some_and(|layout| layout.nursery_eligible) {
+            let clear_size = if let (Some(out), Some(size)) = (
+                initialization_result,
+                aligned_size.get_zero_extended_constant(),
+            ) {
                 i64_ty.const_int(self.initialization_clear_size(out, size)?, false)
             } else {
                 aligned_size

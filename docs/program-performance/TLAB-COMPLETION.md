@@ -1,5 +1,7 @@
 # 小型 TLAB 分配完成内联
 
+本文保留最初的实现与测量记录。当前范围见 [GC 演进第五十阶段](GC-EVOLUTION.md#第五十阶段已知布局的-tlab-完成统一生成)：release 已扩展至所有成功 bump 的已知 nursery 布局，包括大于 128 B 与动态大小；当前 contract 25 的 context 为五个指针，大小位于对象 GC 字，不再维护分配 line 位图，计数为 nursery 两项。下文的旧尺寸门槛、七指针与四计数只描述历史基线。
+
 2026-10-24，在 `5fb20e6ac` 的 nursery 独占块登记之上，复用完整 LIR 分配布局并内联小型分配的完成步骤。两部分均作为 release 默认能力，条件见[简略清单](ENABLED-OPTIMIZATIONS.md)；没有新增公开开关或等级。
 
 release 从完整本地 TypeDescriptor 或 typed array layout 取得已确定的 alignment 与 release policy，跨 LLVM 物理对象分区保留这些事实。请求大小为现有编译期常量、位于 16～128 B、布局完整且无 release hook 时，成功 bump 之后直接清零、设置对象头、登记精确大小、发布位图并更新四项原子计数。当前最大托管对齐为 16 B，对齐后仍至多 128 B；line mask 同字合并，跨字仅补一次登记。starts 在其他对象元数据之后作 release 发布，单写者 atomic load／OR／store 保留此前对象的位。

@@ -1,4 +1,4 @@
-//! Complete small TLAB allocations through the shared runtime ABI view.
+//! Complete known nursery allocations through the shared runtime ABI view.
 
 use super::*;
 
