@@ -1,6 +1,6 @@
 # M63 包管理实施记录
 
-状态：本地功能与静态 registry 消费实施中。更新日期：2026-10-28。目标合同见[包管理规范](../specs/SCOOP-PACKAGE-SPEC.md)，阶段完成条件见[设计](DESIGN.md#5-实施步骤与完成条件)。普通 manifest 命令、跨根构建/测试调度与文档绑定隔离已接入 PM；低层原始清单入口已退役；LSP 已接入，工具/发行收尾仍在进行。本轮包含静态 registry 索引读取与源码包下载，源码打包/发布流程单独留至下一阶段。
+状态：本轮本地功能与静态 registry 消费已完成（2026-10-28）。合同见[包管理规范](../specs/SCOOP-PACKAGE-SPEC.md)，实施划分见[设计](DESIGN.md#5-实施步骤与完成条件)。workspace、版本/lock、来源获取、driver/LSP、本地工具和 PM 配套发行均已接通；源码打包/发布流程留至下一阶段。按用户最后确认，本轮只做 PM 与 driver 依赖链路的定向验收，不继续完整 fixture。
 
 ## 职责边界修订
 
@@ -13,7 +13,6 @@ PM 生成和维护 `Cone.lock`；`scoop` 消费锁定图及其本地投影，向
 - 新建独立 `scoop-pm` crate/binary，`scoop pm` 转发 argv、标准流与退出状态，可显式选择配套程序。PM 不依赖 LLVM 或编译 stage 实现。
 - `new --workspace` 创建 virtual workspace；`members` 本地展开 root/virtual workspace、显式成员、default-members、`-p`/`--workspace` 选择及共享 Cone 字段/依赖。继承路径以定义处为基准，错误保留定义与引用位置。
 - manifest 数据层新增版本要求和 path/Git/GitHub/registry/artifact 声明，复用既有 source/native 解析规则；版本要求覆盖 caret、tilde、交集、pre-release 与精确 build metadata。
-- 此批提供本地声明和成员能力。现有构建尚未切到 PM；构建接入、发布及多根编译调度仍待完成，第一、二实施阶段未整体完成。
 
 ### 便携锁文件与共享缓存位置
 
@@ -27,7 +26,7 @@ PM 生成和维护 `Cone.lock`；`scoop` 消费锁定图及其本地投影，向
 - 系统 Git 获取默认分支、branch/tag/rev，并按规范化仓库与完整 commit 共享 object 库和 checkout；lock 命中不刷新 ref，离线可复用已缓存源码或对象。
 - registry 按需读取单包 JSON 索引，只下载选中的 tar.zst；首次下载校验 SHA-256，解包与 manifest/index 匹配成功后发布共享目录，保留已解析清单供后续准备使用。
 - 普通文件锁串行发布同一版本，缓存命中不重读源码或归档计算摘要；来源/摘要冲突和下载、解包错误不覆盖已有包。使用 `ureq 3.5`、`tar 0.4` 和仓库已有的 `zstd 0.14`，不手写 HTTP/归档协议。
-- 获取模块已连接 resolve/fetch/update。真实 CLI 覆盖 Git workspace、同仓库 path、submodule 的 gitlink 固定和 selector 变化；编译消费闭环仍待 driver 接入。
+- 获取模块已连接 resolve/fetch/update。真实 CLI 覆盖 Git workspace、同仓库 path、submodule 的 gitlink 固定和 selector 变化；构建消费由同一 prepare 接口接入。
 
 ### 单版本解析与 resolve/fetch/update
 
@@ -36,27 +35,25 @@ PM 生成和维护 `Cone.lock`；`scoop` 消费锁定图及其本地投影，向
 - Git lock 增加声明 selector 记录，防止改 branch/tag 后误用旧 commit。有效 lock 直接匹配已有选择；首次 registry 解析获取最新索引，旧选择无法满足新要求时只刷新冲突涉及的来源再回溯。
 - path、Git、registry、sysroot 和显式 artifact 均经同一来源目录进入求解；同包不同版本的独立根不合并。registry 在求解成功后才下载归档；同进程多个根共享已取得的 metadata。
 - manifest、用户配置和产物摘要按路径、mtime、大小与工具版本缓存。预编译依赖保持精确坐标和 semantic fingerprint，目标不匹配或同坐标产物歧义明确失败；不把源码目录变成构建输出目录。
-- 本批完成独立 PM 的解析/获取/lock 流程。driver 与 child 输入、普通构建多根调度、package/静态 registry 维护、LSP/formatter 和发行迁移仍待完成。
 
 ### prepare 与展开配置
 
 - `scoop-pm prepare --request --response` 实现版本 1 的 JSON 接口，一次准备全部所选根；成功后原子交付响应，失败保留既有成功文件。共享类型放在 `scoop-protocol`，不引入 PM 实现依赖。
 - 每个源码 Cone 交付已绑定精确依赖的生产配置，只有测试根携带测试配置；保留原清单文本与 span，继承字段/依赖定位到成员的继承声明。预编译节点复用现有 `.slib` 摘要；host path 使用无损载体，JSON 解码检查路径编码和格式。
 - prepare 记录先检查配置、manifest、lock、artifact 及发现候选位置的更新状态，命中后直接交付已有展开结果。新增 workspace、用户配置、search-root 产物会失效；普通源码正文改变不重新选择版本。锁文件的观察记录在 lock 文件锁释放前取得，避免把旧图与并发更新后的 lock 状态配对。
-- 两个项目取得同一 registry 版本时，交付相同共享源码目录；prepare 不复制源码到项目中。普通构建与 LSP 的 PM 接入仍待完成。
+- 两个项目取得同一 registry 版本时，交付相同共享源码目录；prepare 不复制源码到项目中。普通构建与 LSP 消费相同的本地投影。
 
 ### 编译器已展开输入
 
 - `scoop → scoopc` 协议升级到 18，移除 machine request 的 `ManifestRoot`，通过 `ExpandedCone` 交付已绑定配置、原始诊断文本和无损 host 路径；CBOR frame 与现有成功摘要继续复用。child 不重新读取或解析清单，独立单文件输入保持。
 - parent 保留已加载的单 Cone 配置，native 准备及 child request 共享该结果。协议 reader 检查必需格式、引用、路径和诊断 span，不重放依赖求解。
-- 真实 child 进程可消费含 workspace 继承的原清单与已展开配置，原始源码/清单保持在位。此批完成编译器交接边界，尚未把普通构建的图发现替换为 PM prepare。
+- 真实 child 进程可消费含 workspace 继承的原清单与已展开配置，原始源码/清单保持在位。普通构建也经 PM prepare 使用这一交接边界。
 
 ### 普通构建命令接入 PM
 
 - build/run/test/check/doc 的 manifest 入口通过配套 PM 一次准备所选成员，支持 workspace、`-p`、lock 路径、locked/offline/frozen 和共享包缓存。driver 投影精确节点与边，不重新读取清单、选择版本或获取源码；single-file 与 artifact-only link 保持原有入口。
 - 成员产物按 `target/<target>/<profile>/<group>/<name>/` 发布，测试产物位于其 `tests/` 子目录。同名不同 group 成员不覆盖，workspace 成员子目录默认选择对应成员。
 - prepare 失败通过已有结构化诊断格式交付，保留主清单 span 与相关声明；求解错误包含依赖路径和候选被排除的原因。文档消费展开后的 readme 元数据，资源路径以 README 所在目录为基准。
-- 此批最初依次执行各根；跨根构建/测试调度由下一批接入。文档中的同身份不同绑定仍需独立表示，第二阶段尚未全部完成。
 - fixture runner 新增多结果 JSON 模式，保留全部构建/检查/测试记录；正式 workspace 用例通过真实 Git 依赖验证自动 PM、成员输出、冻结复用、子目录选择与指定 README。
 
 ### 跨根构建与测试调度
@@ -97,7 +94,6 @@ PM 生成和维护 `Cone.lock`；`scoop` 消费锁定图及其本地投影，向
 
 - `scoop pm metadata [--offline]` 返回与 prepare 相同的版本 1 项目模型，支持成员、用途、目标及本地输入选择；始终要求有效 lock，不生成或更新依赖选择。`--json` 错误保留现有结构化诊断。
 - 命中准备记录时直接复用；离线只使用已有 Git checkout / registry 源码目录，缺少时提示 fetch，不因本机已有 objects 或归档而隐式展开。普通 fetch 的离线展开能力保持，在线 metadata 可获取已锁定的缺少来源。
-- 本批提供 LSP 所需的只读接口；语言服务接入仍待后续完成。
 
 
 ### 锁定依赖原因说明
@@ -115,7 +111,7 @@ PM 生成和维护 `Cone.lock`；`scoop` 消费锁定图及其本地投影，向
 
 - `members --overlays-stdin` 与 `metadata --offline --overlays-stdin` 接收版本化的未保存清单文本，复用 PM 的解析、workspace 继承和锁定匹配；新增但未保存的成员清单可以参与本地发现。
 - 覆盖只存在于本次请求，不写回文件、不改 lock、不发布准备记录；关闭覆盖后恢复磁盘及既有缓存结果。metadata 强制离线，不把输入文本作为触发下载或更新依赖的理由。
-- macOS/Linux 的 workspace/PM lint、protocol 43 项与 PM 回归通过，新增 2 个真实 CLI 场景覆盖 workspace/path 覆盖、依赖约束冲突、诊断位置、新成员及无 lock；测试中的继承字段和源码选择语法已按现有合同修正并复跑闭合。LSP 消费这条接口仍在实施中。
+- macOS/Linux 的 workspace/PM lint、protocol 43 项与 PM 回归通过，新增 2 个真实 CLI 场景覆盖 workspace/path 覆盖、依赖约束冲突、诊断位置、新成员及无 lock；测试中的继承字段和源码选择语法已按现有合同修正并复跑闭合。LSP 已消费这条接口。
 
 ### LSP 消费锁定项目模型
 
@@ -139,32 +135,20 @@ PM 生成和维护 `Cone.lock`；`scoop` 消费锁定图及其本地投影，向
 
 - driver 的库入口只接收 PM 已检查的精确图或独立单文件；删除原始清单解析缓存、源码依赖递归查找及重复的来源选择。普通命令和库调用共用相同投影与调度入口。
 - PM 图直接建立编译顺序及 direct/support 产物关系，不重放版本约束、图闭合和 core 选择；单文件头部的精确产物发现保持。源码图测试经真实 PM 生成输入，独立单文件继续覆盖原产物查找。
-- 全 workspace lint 与 macOS driver 110 项测试通过；Linux library 76 项通过，其中 musl 用例在显式准备对应 libunwind 后单独复跑。完整 CLI fixture 回归发现旧裸产物声明和开发 sysroot 资源需要迁移/更新，正在闭合。
+- 全 workspace lint 与 macOS driver 110 项测试通过；Linux library 76 项通过，其中 musl 用例在显式准备对应 libunwind 后单独复跑。Linux CLI 35 项及依赖边界 3 项也通过。首轮 CLI 回归发现的旧裸产物声明已迁移，所需开发 sysroot 输入按当前 ABI 更新后完成依赖链路验收。
 
 ### 既有产物 fixture 清单迁移
 
 - 将 2477 份实际产物消费者清单的裸版本改为精确版本及显式 artifact 路径；路径按各用例的真实复制位置、产物输出与搜索根确定，保留传递产物的精确查找。专门验证非法字段/版本、缺少 registry 和生产/测试隔离的声明保持测试意图。
 - 直接读取仓库源码的正式命令用独立测试工作目录保存 lock；开发 sysroot 准备也将 lock 放到维护工作目录，避免测试/发行准备修改随包源码。
-- 全部变更 TOML 解析及差异检查通过，Python 脚本格式化/lint 与 7 项发行脚本测试通过。macOS 首批 7 组正式 fixture（8 个变体、45 个进程步骤）通过，覆盖产物传递、ODR 冲突、profile 替换、native 要求及精确语言诊断；全量回归继续完成。
+- 全部变更 TOML 解析及差异检查通过，Python 脚本格式化/lint 与 7 项发行脚本测试通过。macOS 首批 7 组正式 fixture（8 个变体、45 个进程步骤）通过，覆盖产物传递、ODR 冲突、profile 替换、native 要求及精确语言诊断；按用户要求不继续全量回归，以以下依赖链路结果收尾。
 
-## 验证记录
+## 最终验收范围
 
-- `cargo clippy --workspace --all-targets` 通过。
-- manifest 77 项、PM workspace 8 项、PM 真实 CLI 2 项测试通过；PM 依赖树无 LLVM 或编译 stage 实现。
-- Scoop CLI 参数转发 4 项、fixture runner 公共规则 58 项及 `pm-local-workspace` 正式 fixture 通过。后者验证真实 `scoop → scoop-pm`、根/成员选择与失败退出，不调用编译器。
-- 锁文件批次：全 workspace lint、PM 15 项单元与 2 项真实 CLI 测试通过；正式 fixture 增加 deps 只读输出和缺失测试解析记录，8 次实际进程调用通过。
-- Linux 独立环境下，第一批 manifest 77 项、PM 8 项单元及 2 项真实 CLI 测试通过，无 LLVM 依赖。
-- 来源批次：全 workspace lint 通过；macOS 的 PM 回归与新增索引错误测试通过，Linux 的 PM 25 项单元与 2 项真实 CLI 测试通过。真实 Git 仓库覆盖 ref 更新/锁定/离线；本地 HTTP 服务覆盖跨项目并发共享、来源隔离、撤回版本、校验/解包失败和离线缺失，不删除源码或工具来验证缓存命中。
-- 解析批次：全 workspace lint 通过；macOS/Linux 的 PM 34 项单元、2 项基础 CLI 和 6 项解析 CLI 场景通过，覆盖真实 Git/submodule、HTTP、workspace、override、生产/测试隔离、旧索引/commit 不满足新要求时的刷新，以及 artifact 精确语义与目标检查。正式编译链路验收尚待后续批次。
-- prepare 批次：全 workspace lint 通过；macOS/Linux 的 manifest 77 项、protocol 41 项、PM 34 项单元、2 项基础 CLI 和 12 项解析/prepare CLI 场景通过。新增覆盖多根不同版本、继承诊断位置、测试根隔离、预编译摘要传输、共享 registry 路径，以及源码更新复用/新配置与 workspace/新搜索产物失效。真实非 UTF-8 目录由 Linux 覆盖；macOS 文件系统拒绝创建该名称，两端均验证路径载体的无损编码。
-- 已展开输入批次：全 workspace lint 通过；macOS/Linux 的 protocol 42 项、wire 19 项、PM/manifest 回归及真实 `scoopc` child 交接通过；driver 调度、CLI 与依赖边界检查通过。macOS 三个正式 CLI 用例共 20 次进程调用通过，覆盖 native 更新、生产/测试隔离和文档缓存。测试前发现本地预编译库 ABI 过旧，只重新准备所需 core/test 库后闭合。
-- 同批发现的 HIR 栈溢出已单独修复：候选状态在堆上保存，失败诊断借用状态。macOS 的调用/上下文推断 152 项回归通过；macOS/Linux 均通过 core 文档的三个目标检查，未扩大测试线程栈。
-- 自动入口批次：workspace 用例在 macOS/Linux 各 6 次实际进程调用通过；macOS 的 Scoop library 98 项、CLI 33 项、fixture runner 59 项通过，既有构建/运行/测试/检查/文档用例及 36 个边界用例通过。新诊断合同的 PM 34 项单元、2 项基础 CLI、13 项解析/prepare 场景及 protocol 42 项在两端通过。显式 artifact 版本、合法 caret 语法及循环来源的旧测试意图已按新合同修正，完整诊断继续精确断言；其中 25 个 PM 诊断用例也在 Linux 通过，native 用例前显式准备所需公开头文件。
-- 跨根调度批次：全 workspace lint、macOS 的 driver 99 项单元和两端 5 项调度专测通过。两端 workspace 构建/绑定用例各 16 次正式进程调用通过，覆盖三个程序、两个依赖版本、共享编译、运行选择及多根测试；macOS 既有 test-list 和 library 发布用例也通过。Linux 显式准备所需 test/runtime 资源后验收，复用既有 libunwind，不复制完整 sysroot。
-- 文档绑定批次：两端文档库 24 项测试、共享/不同绑定用例各 15 次正式进程调用通过，检查实际页面链接、依赖版本、冻结复用、单页 README 更新和 no-deps。macOS 既有 5 组文档 CLI 回归通过，覆盖多版本路由、并发发布、失败保留与资源更新；Linux 基础和路由用例通过。检查脚本的 HTML 转义误判已修正并复跑闭合。
-- 本地工具批次：全 workspace lint 通过；两端 manifest 77 项、protocol 42 项、Scoop CLI（macOS 33 项、Linux 34 项）及 PM 基础 CLI 2 项通过。两端既有 8 组格式化 fixture 与新 workspace 工具用例通过，后者使用不可连接的 registry 和保留的 lock 验证纯本地操作；macOS 完整的 Cone cache/clean 用例也通过。新用例的版本要求已改为合同要求的完整 SemVer 后复跑闭合。
-- 文档混合来源补充：macOS/Linux 的绑定用例扩展为各 17 次实际调用，复用真实构建出的 `.slib` 与另一个上游版本的源码一起生成文档，验证独立 catalog、re-export 不错误连接以及全部本地链接；两端通过。
-- 编译器入口退役批次：全 workspace lint 通过；macOS/Linux 的请求与 CLI 15 项、底层 core/依赖 preflight 12 项及真实展开配置 child 用例通过。两端共 59 个相关文件 fixture 全部闭合（Linux 本批 273 次进程调用），覆盖首次 build/run 自动创建 lock、locked/frozen 缺锁拒绝、生产/测试隔离、core 自举、精确产物及 native/链接错误顺序；迁移中发现的旧声明和诊断期望已修正并仅复跑受影响用例。
-- metadata 批次：workspace lint 与两端 PM 34 项单元、2 项基础 CLI、16 项解析/准备场景通过。真实命令覆盖缺锁/陈旧 lock 拒绝、共享准备记录、保留 lock、Git objects-only 与 registry archives-only 的离线读取边界，以及显式 fetch 后读取和在线获取；源码、归档和工具保持在位。首轮复用断言的测试 sysroot 路径与实际 CLI 默认值不同，改为显式共同路径后闭合。
-- deps --why 批次：workspace lint、两端 17 项解析/准备 CLI 场景与既有本地 workspace fixture（各 8 次进程调用）通过。验证不同根版本、两条传递约束、继承位置、测试边、root/不存在包、缺锁/陈旧锁、Git selector，以及 objects/archives-only 缓存不被隐式展开；lock 内容和修改时间保持。
-- 原始日志与临时工作文件在仓库外。按阶段清理 `target/debug/incremental`，保留当前二进制与依赖构建结果。
+- Rust 变更先执行格式化及 `cargo clippy --workspace --all-targets`。PM、manifest/protocol、driver、analysis/LSP 的分批单元与真实进程测试通过，覆盖版本回溯、来源/锁定冲突、离线、并发共享、编辑覆盖和错误保留；PM/driver 不依赖编译 stage 或 LLVM 实现。最终 driver 为 macOS 110 项、Linux 114 项。
+- macOS 最终以当前源码构建五个 release 宿主工具，workspace 自动准备及静态 registry 两组正式用例通过（7 个 runner 进程步骤，registry 脚本另调用真实 PM/构建命令）。验证没有 lock 时直接构建、Git 绑定、两个项目共享 registry 包、传递依赖、更新及 frozen 运行。
+- Linux 最终 8 组 PM/产物用例通过（57 个进程步骤），再通过 3 组单文件/缓存用例（11 个进程步骤）；包括多根不同版本、共享任务、emit-slib、本地工具、artifact 传递与单文件独立查找。使用独立仓库副本和已准备的 GNU 工具/系统资源。
+- 其他必要组合已分批通过：生产/测试隔离、普通增量命中与输入变化、文档多绑定、LSP 三组真实会话、格式化/清理、产物摘要更新和失败不发布。fixture runner 公共规则 59 项、发行脚本 7 项、扩展单元 13 项及变更文件 lint/类型检查通过。曾暴露的 HIR 候选状态栈溢出已独立修复并通过 152 项相关回归。
+- 旧产物消费声明已批量迁移，并以 7 组代表性 fixture（8 个变体、45 个进程步骤）验证 ODR 冲突、不同 profile、native 要求与精确诊断；4 份 benchmark 清单及使用说明同样改为显式 artifact。Python 格式化/lint、全部变更 TOML 与差异检查通过，不重复运行性能测量。
+- 开发 sysroot 准备暴露的独立 runtime helper Cargo.lock 缺少新增 URL 依赖已修正，`cargo check --locked --offline` 通过。维护工作区保存日志、缓存与 lock；测试过程中生成到源码树的未跟踪 lock 已清理，主 target 的增量中间文件已定期清理。
+- 按用户要求，未继续完整 fixture，不能将此前中止的全量尝试算作全量通过。完整 LLVM 发行包及 VS Code GUI 宿主未重跑；本轮没有源码 package/publish、索引维护工具或服务端动态接口。原始日志均保存在仓库外。

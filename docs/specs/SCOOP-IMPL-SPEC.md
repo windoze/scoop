@@ -727,7 +727,7 @@ MIR `identity-foundation/6` 与 LIR foundation 保存实际实现的实体目录
 
 `scoop` 负责精确依赖图的构建顺序、全局构建缓存、runtime 构建和程序链接；`scoopc` 一次只编译指定的一个 Cone，不跟随上游 manifest locator 或读取上游源码。
 
-**M63包管理，实施中。** manifest/workspace根选择、版本要求、Git/registry获取和`Cone.lock`由独立`scoop-pm`负责，完整合同见[包管理规范](SCOOP-PACKAGE-SPEC.md)，实施步骤见[包管理设计](../package-manager/DESIGN.md)。`scoop pm`转发到配套可执行程序；普通manifest构建通过一次prepare请求取得lock的精确图、本地源码/产物位置和已展开配置，再接入现有调度。默认build/run遇到缺失lock时仍调用PM自动解析并创建，成功后继续构建；只有显式locked/frozen才禁止创建。driver不链接PM实现，不处理网络或再次求解；registry源码缓存默认放在`~/.scoop/packages/`供多个项目共享。以下workspace/锁定输入规则是该里程碑的目标合同，现有实现与machine protocol版本在对应段落单独说明。
+**M63包管理，本轮消费与工具接入已完成。** manifest/workspace根选择、版本要求、Git/registry获取和`Cone.lock`由独立`scoop-pm`负责，完整合同见[包管理规范](SCOOP-PACKAGE-SPEC.md)，实施步骤见[包管理设计](../package-manager/DESIGN.md)。`scoop pm`转发到配套可执行程序；普通manifest构建通过一次prepare请求取得lock的精确图、本地源码/产物位置和已展开配置，再接入现有调度。默认build/run遇到缺失lock时仍调用PM自动解析并创建，成功后继续构建；只有显式locked/frozen才禁止创建。driver不链接PM实现，不处理网络或再次求解；registry源码缓存默认放在`~/.scoop/packages/`供多个项目共享。以下workspace/锁定输入规则已经实现，machine protocol版本在对应段落单独说明；源码打包/发布流程留至下一阶段。
 
 `Cone.lock`只保存可移植的精确选择；PM返回的本地准备结果是该图与清单的投影，不是另一份锁文件或构建成功收据。按root/purpose/target分别构图，不将workspace多个程序合并为一个单版本图；跨根共享任务时必须比较实际配置、来源和依赖结果，不能仅按ConeIdentity合并。`scoop`消费该锁定图，向`scoopc`传递展开后的单Cone编译配置与具体direct/support产物。`scoopc`不读取原manifest或lock，不匹配版本要求；旧独立manifest入口退役，普通Cone统一由scoop编排，不能为保留低层入口另建一套清单绑定。
 

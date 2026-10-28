@@ -1,10 +1,10 @@
 # Scoop 包管理规范
 
-状态：M63 本地功能与 registry 消费实施中；源码打包/发布移至下一阶段。完成范围见[实施记录](../package-manager/PROGRESS.md)。更新日期：2026-10-28。
+状态：M63 本轮本地功能与静态 registry 消费已完成；源码打包/发布移至下一阶段。完成范围见[实施记录](../package-manager/PROGRESS.md)。更新日期：2026-10-28。
 
 本规范规定独立 `scoop-pm` 的 workspace、依赖来源、版本解析、`Cone.lock`、源码 registry 及其与构建 driver 的接口。实现步骤与设计取舍见[包管理设计](../package-manager/DESIGN.md)，调度、编译和链接继续遵守[编译器与产物规范 2.7～2.8](SCOOP-IMPL-SPEC.md#27-scoop-与-single-cone-scoopc)。
 
-Scoop 尚未发布。本次直接重定义 `Cone.toml` 的初始 schema，与仓库内清单、工具和测试一起实施，不提供旧清单兼容层。以下是完整目标合同，不表示当前命令已经支持全部能力。
+Scoop 尚未发布。本次直接重定义 `Cone.toml` 的初始 schema，与仓库内清单、工具和测试一起实施，不提供旧清单兼容层。以下给出本轮消费合同及明确标注的下一阶段发布设计。
 
 本轮交付 workspace、path/Git/sysroot/artifact 依赖、版本与 lock、本地清单编辑、构建与 LSP 接入、配套工具发行，以及第 8 节静态 registry 的索引读取和归档下载消费。第 9 节源码打包/发布工具留至下一阶段；本轮以预先生成的静态文件验收消费闭环。
 
@@ -12,7 +12,7 @@ Scoop 尚未发布。本次直接重定义 `Cone.toml` 的初始 schema，与仓
 
 | 组件 | 负责的输入与输出 |
 | --- | --- |
-| `scoop-pm` | 读取 manifest/workspace；选择根；解析版本；获取 Git/registry 源码；维护 `Cone.lock`；提供精确图与本地输入；打包源码及维护静态 registry |
+| `scoop-pm` | 读取 manifest/workspace；选择根；解析版本；获取 Git/registry 源码；维护 `Cone.lock`；提供精确图与本地输入；下一阶段加入源码打包及静态 registry 维护 |
 | `scoop` | 将 `scoop pm …` 转发给配套 PM；构建命令取得已锁定的图后，判断构建更新、调度单 Cone 编译、链接与运行 |
 | `scoopc` | 只接收 `scoop` 传入的单 Cone 编译配置、源码与精确 direct/support `.slib`；完成编译，不读取包声明或 lock |
 | `scoop-link` / runtime | 消费既有精确产物闭包；不解释版本范围、workspace、Git 或 registry |
@@ -406,7 +406,7 @@ from 是相对当前 Cone 的普通文件/目录路径，to 是归档内相对�
 | `scoop pm update [--package group:name] [--precise value]` | 对所选解析单位更新版本/ref，显示 lock 的变化 |
 | `scoop pm deps [--why group:name] [--json]` | 只读现有精确图和本地约束说明；缺少适用lock则提示resolve，不隐式更新 |
 | `scoop pm metadata [--offline]` | 按locked规则返回第7节的数据，不改写lock；offline时也不下载，缺少必需来源则提示fetch |
-| `scoop pm package [--list] [--check]` | 生成或检查源码包 |
+| `scoop pm package [--list] [--check]` | 下一阶段：生成或检查源码包 |
 
 根选择沿用第 3 节，PM 命令用 `--purpose production|test`，默认 production；update 的 `--package` 指待更新依赖，与选择根的 `-p` 区分。target 默认使用本机的 canonical Scoop target，可显式指定。resolve/update/prepare 支持第 6 节模式；members、清单编辑与 formatter 不需要依赖成功解析。
 

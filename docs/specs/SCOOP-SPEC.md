@@ -2757,7 +2757,7 @@ use 以 receiver 调用 block 恰好一次，正文正常返回或抛出后调�
 ### 12.1 基本概念
 
 - **Cone是module、分发、依赖、编译与静态链接的基本单位；package只是源码namespace。** Cone不等于package，二者不能由名称或目录互相推导。一个Cone可以包含多个package，同一package也可以由多个Cone贡献声明；后一情形称为split package，不会把不同origin的实体合并为同一identity；
-- manifest source Cone是包含`Cone.toml`及按12.2.2选择的Scoop源码的独立目录；未配置源码清单时使用`src/`。workspace是多个Cone的组织单位，不成为新的语言module。`scoop build/run <file.scoop>`则把指定的唯一文件构造为12.2的synthetic executable source Cone。binary Cone是该语义单元编译得到的`.slib` artifact。M63规划由独立`scoop-pm`定位和锁定source/binary依赖，`scoop`消费精确图并构建；低层single-Cone compiler `scoopc`只消费已生成并显式传入的上游`.slib`，不跟随source locator或递归构建其他Cone；
+- manifest source Cone是包含`Cone.toml`及按12.2.2选择的Scoop源码的独立目录；未配置源码清单时使用`src/`。workspace是多个Cone的组织单位，不成为新的语言module。`scoop build/run <file.scoop>`则把指定的唯一文件构造为12.2的synthetic executable source Cone。binary Cone是该语义单元编译得到的`.slib` artifact。M63由独立`scoop-pm`定位和锁定source/binary依赖，`scoop`消费精确图并构建；低层single-Cone compiler `scoopc`只消费已生成并显式传入的上游`.slib`，不跟随source locator或递归构建其他Cone；
 - 文件路径不决定 package。普通 manifest Cone 的每个生产/测试 source file 必须显式声明一个 `package` header，名称按实际 identifier 段等于 Cone group，或以该 group 的全部段为前缀；例如 group `dev.example` 允许 `dev.example` 和 `dev.example.http`，不允许 `dev.examples`、`dev` 或单个转义段 `` `dev.example` ``。连字符 group 段用反引号表示，例如 group `dev.my-team` 对应 ``package dev.`my-team` ``；跨 package 引用仍按 12.4 导入或使用合法 qualified path；
 - `scoop:scoop.core` 与 `scoop:scoop.std` 两个库豁免 package/group 前缀和必须声明 header 的要求，允许根 package 及其实际声明的其他 package。其他内置库、不同 group 的同名 Cone 或消费者不享有此例外；例外仅是名称规则，不增加来源授权机制；
 - 单文件模式使用内置默认 RootPackage，不声明 package。若文件包含语法合法的 package header，发出定位到该声明的 warning，随后忽略它的 namespace 效果；原文、byte span、文档边界及后续诊断位置保留。非法 package 语法仍是 parser error，不吞掉或按注释跳过；
@@ -2765,7 +2765,7 @@ use 以 receiver 调用 block 恰好一次，正文正常返回或抛出后调�
 
 ### 12.2 Cone identity与`Cone.toml`
 
-workspace、版本范围、Git/registry来源及锁文件采用[包管理规范](SCOOP-PACKAGE-SPEC.md)的M63设计，当前待实施；以下清单合同随该里程碑直接调整，不保留尚未发布的旧schema语义。编译后的实体身份和12.3的精确图约束保持。
+workspace、版本范围、Git/registry来源及锁文件采用已实现的[包管理规范](SCOOP-PACKAGE-SPEC.md)本轮消费合同；源码打包/发布留至下一阶段。以下清单合同直接生效，不保留尚未发布的旧schema语义。编译后的实体身份和12.3的精确图约束保持。
 
 每个 Cone 具有 canonical coordinate `group:name:version`。`group` 与 `name` 各由一个或多个 `.` 分隔的 lowercase ASCII segment 组成，每段精确匹配 `[a-z][a-z0-9-]*`；`version` 是 canonical SemVer 2.0.0 文本，禁止多余 `v` 与非法前导零，合法 pre-release/build metadata 原样参与 identity。不做 trim、大小写折叠、Unicode 归一化或路径别名解析，不满足语法的 coordinate 是错误。
 

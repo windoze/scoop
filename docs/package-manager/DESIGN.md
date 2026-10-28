@@ -1,14 +1,14 @@
 # Scoop 包管理设计与实施步骤
 
-状态：实施中；对应 [ROADMAP M63](../ROADMAP.md#m63-独立包管理器与-workspace实施中)。更新日期：2026-10-28。规范合同见 [Scoop 包管理规范](../specs/SCOOP-PACKAGE-SPEC.md)，已完成范围与验证见[实施记录](PROGRESS.md)。
+状态：本轮消费与工具接入已完成；对应 [ROADMAP M63](../ROADMAP.md#m63-独立包管理器与-workspace已完成)。更新日期：2026-10-28。规范合同见 [Scoop 包管理规范](../specs/SCOOP-PACKAGE-SPEC.md)，已完成范围与验证见[实施记录](PROGRESS.md)。
 
-采用独立 `scoop-pm` 可执行程序：它处理 workspace、版本求解、GitHub/Git、registry、源码打包和 `Cone.lock`；`scoop` 取得 lock 的精确图与本地输入后继续使用现有构建调度、缓存和链接。`scoopc` 仍只编译一个 Cone。这将新增复杂度集中在 PM，便于在不启动 LLVM 的测试中验证解析和下载行为。
+采用独立 `scoop-pm` 可执行程序：它处理 workspace、版本求解、GitHub/Git、registry 消费和 `Cone.lock`，源码打包在下一阶段加入；`scoop` 取得 lock 的精确图与本地输入后继续使用现有构建调度、缓存和链接。`scoopc` 仍只编译一个 Cone。这将新增复杂度集中在 PM，便于在不启动 LLVM 的测试中验证解析和下载行为。
 
 本轮完成本地功能、工具接入与 registry 消费：workspace、path/Git/sysroot/artifact、lock、清单编辑、LSP、帮助/模板与发行，以及静态 HTTP 索引读取和选中源码包下载。源码打包/发布工具移至下一阶段，消费验收直接使用预先生成的静态目录。
 
 ## 1. 为什么这样拆分
 
-现有 `scoop` 已经有可复用的精确图：`compiler/scoop/src/graph.rs` 的 `ResolvedBuildGraph` 保存 root、节点、边和依赖优先顺序；`discovery/` 从 manifest/artifact 收集图，`schedule.rs` 调度单 Cone 编译。新增 PM 应替换前面的“发现和选择”，不重写后面的构建执行。
+M63 复用 `compiler/scoop/src/graph.rs` 的 `ResolvedBuildGraph` 保存 root、节点、边和依赖优先顺序，`schedule.rs` 调度单 Cone 编译。普通项目的发现和选择已移至 PM；driver 的 `discovery/` 将精确图投影到现有调度，只保留独立单文件的产物查找。
 
 原始包声明与已解析单 Cone 配置已分开，machine protocol 18 用 `ExpandedCone` 交付已绑定配置，child 不再读取原 manifest。独立 PM 已能准备完整图，普通构建入口已消费该结果；`compiler/analysis/src/workspace/` 也已通过离线 metadata 接入锁定项目模型。`scoopc` 不读取包声明或 lock，也不根据版本要求匹配产物；旧的独立 manifest 入口已删除，普通 Cone 统一由 `scoop` 传递具体编译参数。
 
@@ -46,7 +46,7 @@ flowchart TD
 | 本地修改远端依赖 | 只允许根 overrides 一致替换来源，仍满足原版本要求 |
 | 测试 | 测试根自己的闭包；普通生产请求不解析测试 deps，不连带下载或失效 |
 | 尚未发布 | 一次性更新现有清单和协议，不维护旧字段和新语义的并行路径 |
-| 发布范围 | 源码打包、静态目录维护与 HTTP 消费全部交付；账号网站及远端上传服务不在 M63 内 |
+| 发布范围 | 本轮交付静态索引读取、源码下载与构建消费；源码打包、索引维护和 publish 流程留至下一阶段 |
 
 最容易遗漏的两点是“多个解析闭包中的同一个 Cone”及“.slib 已固定的依赖”。前者可能需要以不同上游版本分别编译，不能跨根仅用 ConeIdentity 去重；后者即使版本范围兼容，也不能修改 lock 后继续冒用已绑定其他依赖的旧二进制。两者都复用现有实际依赖结果参与构建键的原则，不修改实体 ID。
 
@@ -63,7 +63,7 @@ flowchart TD
 
 [Cargo Git 依赖](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html)中 version 用于检查选中 Git 源的包版本；这适合首版 Scoop 的多 Cone 仓库。以后若确实需要 Git SemVer tag 发布，可单独设计标签命名及每个 subdir 的版本发现，不能让首版隐式猜测。
 
-[Cargo 源码打包](https://doc.rust-lang.org/cargo/commands/cargo-package.html)和[registry 配置](https://doc.rust-lang.org/cargo/reference/registries.html)也提示要分清源码归档、消费索引与上传 API。M63 的静态 registry 可由普通 Web 托管；提供本地维护命令即可完成首次发布/消费闭环，不需要同时建设公共网站。
+[Cargo 源码打包](https://doc.rust-lang.org/cargo/commands/cargo-package.html)和[registry 配置](https://doc.rust-lang.org/cargo/reference/registries.html)也提示要分清源码归档、消费索引与上传 API。M63 的静态 registry 可由普通 Web 托管；本轮先实现消费者，下一阶段由独立发布流程产生同一协议的静态文件，不需要同时建设公共网站。
 
 [Cargo home](https://doc.rust-lang.org/cargo/guide/cargo-home.html)将 registry 索引、下载归档、解包源码与 Git objects/checkouts 分开保存。Scoop 借鉴这种跨项目复用方式，在 `~/.scoop/packages/` 下由 PM 统一管理；lock 只记录可移植的来源与选择，源码位置由本机投影提供。编译结果仍由已有构建缓存按实际编译输入决定是否复用。
 
@@ -73,7 +73,7 @@ flowchart TD
 
 | 位置 | 预期变更 |
 | --- | --- |
-| `compiler/pm/`（新 crate，binary `scoop-pm`） | workspace、要求求解、来源获取、lock、prepare、package、静态 registry 命令；内部按当前职责拆模块，不建立 source 插件层 |
+| `compiler/pm/`（新 crate，binary `scoop-pm`） | workspace、要求求解、来源获取、lock、prepare 与本地清单工具；源码打包和静态 registry 维护在下一阶段加入；内部按当前职责拆模块，不建立 source 插件层 |
 | `compiler/manifest/` | 解析原始 TOML、版本要求和 workspace 字段；提供展开后单 Cone 数据；保留原位置、生产/测试分离、native/源码清单规则 |
 | `compiler/protocol/` | PM 请求/响应和已展开单 Cone 输入的纯数据合同；复用 host path/诊断载体，不引入网络或 solver 依赖 |
 | `compiler/scoop/` | `pm` 转发、prepare 调用、精确图接入、多根调度与输出；移走普通 manifest 路径的来源/版本发现 |
@@ -131,7 +131,7 @@ PM 的 library 入口供自身命令与单元测试使用；构建 driver 通过
 
 接入 build/run/test/check/doc 与 LSP 的相同结果，移除普通 manifest 路径的旧来源发现；实现 add/remove/deps/metadata，更新帮助、new 模板和全部仓库清单。发行打包包含配套 PM，单文件与 artifact-only 链接仍独立工作。
 
-验收：现有生产/测试隔离、sysroot/prebuilt、增量复用合同不退化；冷构建、命中、真实源码/manifest/lock 变化、失败不发布和普通并发均通过。先格式化/lint，再运行 PM tests 和必要 CLI fixtures；现有语言行为按仓库完整验收要求回归，避免把同一下载/热构建验证复制到所有库测试中。
+验收：现有生产/测试隔离、sysroot/prebuilt、增量复用合同不退化；冷构建、命中、真实源码/manifest/lock 变化、失败不发布和普通并发均通过。先格式化/lint，再运行 PM tests 和必要 CLI fixtures；按用户本轮确认的范围，以 PM 独立测试与 driver 依赖处理的定向正式用例验收，不要求完整语言 fixture；避免把同一下载/热构建验证复制到所有库测试中。
 
 ## 6. 验收矩阵
 
