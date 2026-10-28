@@ -10,7 +10,8 @@
 - [x] 带 payload 的 enum 静态初值数据通路：HIR／MIR／LIR、LLVM 发射与既有静态存储 relocation。
 - [x] Unit／tuple 静态初值数据通路，以及显式类型 ordinary top-level property 的递归字面量初值求值。
 - [x] const property 与静态初值共用聚合值表示；Unit／tuple／无负载 enum／None、前向引用、字段读取与跨 Cone 值编码。
-- [ ] Option Elvis／when 常量求值、intrinsic 产生的聚合值、独立静态常量身份及泛型／跨 Cone 共享。
+- [ ] Option Elvis／when 常量求值、intrinsic 产生的聚合值及泛型／跨 Cone 传递。
+- [ ] 常量存储合并优化：尽量共享可以安全合并的数据，保持不同常量实体身份；不作为源码合法性或唯一对象身份的强制要求。
 - [ ] core 的 scoop.compiler 声明、includeStr／includeBytes／env、Cone 目录范围及 SCOOP_ 名称限制。
 - [ ] includeDir、glob、逐项目录／symlink 范围检查与 EmbeddedDir API。
 - [ ] 构建／check／doc／LSP 的外部输入更新和缓存复用，资源／环境的定义来源。
@@ -56,13 +57,15 @@ Darwin 验证：格式化、全 workspace lint 通过；6 项定向 Rust 测试�
 
 const property 复用 HirConstantImage，保存完整类型下的 Unit／tuple／struct／enum 值。源码求值接通 Unit、tuple、无负载变体、const 引用和实际字段／元素读取；前向引用和依赖环覆盖 tuple 及字段 receiver。类型按实际常量值判断，`None: Option<RuntimePayload>`、`Choice<RuntimePayload>.Empty` 不检查未选择分支。普通 struct／enum payload 构造及任意用户函数仍拒绝，没有引入新 literal 语法。
 
-导出值使用独立的 canonical 聚合表示，保留原标量编码及注解标量语义，新增 Unit／tuple／struct／enum tag；枚举引用沿 typed identity 解码，消费时按完整 signature 匹配字段和实际 variant。移除无生产调用者的 const meta 语义重放 authority，保留实际边界的类型／格式／引用检查。多个 String 字段以 property 和元素序号区分；泛型正文与默认参数可传递这些值。独立常量池和 provider 间的数据合并尚未完成。
+导出值使用独立的 canonical 聚合表示，保留原标量编码及注解标量语义，新增 Unit／tuple／struct／enum tag；枚举引用沿 typed identity 解码，消费时按完整 signature 匹配字段和实际 variant。移除无生产调用者的 const meta 语义重放 authority，保留实际边界的类型／格式／引用检查。多个 String 字段以 property 和元素序号区分；泛型正文与默认参数可传递这些值。常量存储合并仍是后续优化项，不把当前未合并的结果视为语言语义错误。
 
 Darwin 验证：格式化、全 workspace lint 通过；329 项常量相关 Rust 测试通过，随后补充的聚合 wire／泛型默认值组合和 String owner 编码测试通过。原 Cone 的 4 项及实际 `.slib` consumer 的 2 项 release 测试通过；新增诊断 fixture 覆盖构造调用拒绝、元素类型／数量和字段依赖环；3 项既有诊断 fixture 已按实际求值范围更新并通过。静态运行期 ABI 不变；新聚合值和默认模板 String owner 扩展 HIR metadata 的 tag，`cross-cone-interface` 升至 82，旧产物需要重建。Linux 仍留在平台验收项。
 
-格式版本补充验证：17 项 profile 测试通过，覆盖旧 section 拒绝、必要 section 清单与实际编码／指纹；新版 CLI 下的跨 Cone consumer 两项 release 测试通过。
+格式版本补充验证：17 项 profile 测试通过，覆盖旧 section 拒绝、必要 section 清单与实际编码／指纹；新版 CLI 下的跨 Cone consumer 两项 release 测试通过。已显式准备 Darwin 开发 sysroot，25 个内置 Cone 和 runtime 全部完成。
 
 ## 范围调整
+
+2026-10-28：按用户澄清，相同值的 const object 的运行期 identity 不保证相同或不同。不同泛型特化、泛型类 companion 及其中的常量实体保持独立；编译器可在语义正确的前提下共享底层数据。语言规范 9.1.2 增加此规则，11.19、实现／运行时规范及本设计同步去掉强制全局唯一对象、固定物理副本数量和各 profile 必须一致合并的要求。普通常量与 intrinsic 结果均可参与实际优化，不预建强制跨阶段常量身份体系。
 
 2026-10-28：按用户要求简化本版，不支持构造器求值，只组合允许的常量表达式；struct 主／次构造、enum payload 构造和默认实参求值均移出本版。聚合常量表示、intrinsic 直接生成的 struct／enum 值及字段／模式读取保持。当前语言没有独立 struct／enum 花括号字面量，本次尚未引入新语法。
 

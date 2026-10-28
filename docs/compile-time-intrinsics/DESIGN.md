@@ -8,7 +8,7 @@
 
 首批提供 `includeStr`、`includeBytes`、`includeDir` 和 `env`。它们在定义 Cone 的语义检查中展开成类型完整的常量，文件内容／环境值嵌入产物，运行时直接使用静态值。所有 profile 保持同一语义；运行期不读源文件、目录或构建环境，不在程序启动时构造资源数组。
 
-实现必须同时解决三个实际问题：目录筛选及其新增文件更新、`Option<String>` 的完整常量值、泛型特化不重复嵌入数据。本期不引入任意用户函数的编译期解释执行、build scripts、宏展开语言或通用资源处理框架。未来编译期操作沿同一个 package 和既有 typed intrinsic registry 增加各自明确语义。
+实现必须解决目录筛选及其新增文件更新、`Option<String>` 的完整常量值和静态数据发射。编译器应尽量合并可以安全共享的常量，但是否合并是内部优化策略。本期不引入任意用户函数的编译期解释执行、build scripts、宏展开语言或通用资源处理框架。未来编译期操作沿同一个 package 和既有 typed intrinsic registry 增加各自明确语义。
 
 ## 2. core Cone 与 package
 
@@ -90,7 +90,7 @@ String 实参复用常量表达式规则：字面量、const 引用、允许的�
 
 展开在 Export HIR 完成前进行，不推迟到单态化、MIR 优化或 codegen。凡已选源码中按正常规则需要语义检查的调用，都在定义处处理；运行期不可达分支、未实例化泛型和未使用默认参数不能把该操作推迟到调用方。被平台源码选择排除的文件不参与处理。
 
-默认参数保留原有定义／求值双来源；本组操作使用定义来源，展开后模板中只剩常量引用。缺省参数被采用时，再按通常规则实例化其余表达式。`currentSourceLocation()` 仍观察求值来源；两者不共用“把位置改成调用者”的特殊机制。
+默认参数保留原有定义／求值双来源；本组操作使用定义来源，展开后模板中只剩已求出的常量值或静态引用。缺省参数被采用时，再按通常规则实例化其余表达式。`currentSourceLocation()` 仍观察求值来源；两者不共用“把位置改成调用者”的特殊机制。
 
 同次 HIR 的常量试探、正常绑定和模板发布共用已经完成的输入读取。嵌套如 `includeStr(env("SCOOP_TEXT_FILE") ?: "../default.txt")` 先得到常量路径，再通过 Cone 范围检查后读取文件，并记录两种输入；路径来自环境变量也不能绕过目录限制。原 const 依赖图检查循环；不引入用户函数递归解释器或工作量预算。
 
@@ -178,29 +178,15 @@ enum 只检查选中 variant 的 payload；`None: Option<SomeClass>` 不因另�
 
 注解参数的类型集合不随 const 扩展自动增加 struct／tuple／Option／代数 enum；已有 String 注解参数可以引用已经求出的 String const，仍遵守语言规范 9.4 的值语法。
 
-## 7. 常量池、单态化与内容合并
+## 7. 常量存储合并（内部优化）
 
-当前 `compiler/mir-lower/src/strings.rs` 按语义 owner 与结构位置登记 String，callable owner 又包含具体 materialization；不同源码位置的同内容字符串刻意保持独立。把 includeStr 直接替换成当前 StringLiteral，会沿特化复制 owner，不能满足本功能的共享要求。
+值相同的 const object，其运行期 identity 不保证一定相同，也不保证一定不同。不同泛型特化中的常量实体各自独立；泛型类的不同 companion application 及其中的 const 也保持各自的实体身份。编译器可以让这些常量引用同一只读对象，但不能因此合并声明、泛型 application 或 companion 对象，也不能改变类型、值、初始化及其他规定行为。
 
-因此本组结果在 Export HIR 中建立独立于 callable materialization 的 typed 常量引用：
+编译器应尽量合并可以安全共享的常量，范围包括普通常量与本组 intrinsic 的结果。是否合并、在哪一阶段合并，以及 debug／release 或不同消费 Cone 的存储选择均为内部策略，不是语法、源码合法性或统一对象身份的要求。优先复用现有常量表示与静态发射通路；只有实际优化需要时才扩展对应的数据结构，不为保证全程序唯一副本另建强制常量身份体系。
 
-```text
-provider constant table:
-    C0 : String = embedded file contents
+合并候选按完整 exact type 与内容比较。String 比较完整字节；Array<Byte> 比较长度和字节；聚合值保留全部字段、实际 variant、元素顺序及浮点原始位型。String 与 Array<Byte> 即使字节相同也不能合并整个对象；不同 nominal 类型不能因相同布局合并。用哈希加速时仍比较完整 key。
 
-generic template: constant-ref(provider, C0)
-specialization<Int>: constant-ref(provider, C0)
-specialization<String>: constant-ref(provider, C0)
-consumer B specialization<MyType>: constant-ref(provider, C0)
-```
-
-payload 和常量节点在提供方表中保存一次；模板、特化与内联复制只复制引用。常量身份由其实际 provider 与完整常量定义确定，不含 T 或本次特化的 callable ID，不使用 FQN 回退。闭包只读取同一静态引用，不为嵌入数据另造捕获副本。
-
-定义 Cone 内本组产生的静态对象按“完整 exact type + 规范化内容”合并。String 比较完整字节；Array<Byte> 比较长度和字节；文件表比较路径、顺序及各 bytes 引用的规范化值。String 与 Array<Byte> 即使 payload 相同也不能合并整个对象；不同 nominal 类型不能因相同布局合并。用哈希加速查询时仍比较完整 key，不把摘要当作内容相等的证明。
-
-目录中的两个路径可共享相同 bytes，整个相同目录值也可共享 files 数组。相同结果来自不同文件或变量时，各输入依赖继续独立保留。普通源码字符串字面量、普通数组字面量、clone、toMutableArray 与其他运行期对象构造维持原有身份规则，本期不为它们执行全程序常量合并。
-
-同一 provider 的同一个常量对象在所有消费 Cone 中保持同一对象身份；其定义、数据和 immortal 登记只选择一次。这是 debug／release 的实现合同，不依赖 LLVM 优化或 native linker ICF。独立 provider 各自产生相同内容时不要求合并，也不把跨 Cone 内容扫描加入 program-link。
+目录中的不同路径可以共享相同 bytes，目录值也可共享 files 数组，但各自路径和输入依赖必须保留。普通运行期对象构造、clone、toMutableArray 等操作仍遵守原有身份、副作用和独立副本语义；“结果值相同”本身不足以允许消除这些行为。
 
 ## 8. IR、产物和 runtime
 
@@ -208,11 +194,11 @@ payload 和常量节点在提供方表中保存一次；模板、特化与内联
 | --- | --- |
 | core／registry | 普通 package 导出、准确签名、编译期使用限制、两个普通 struct |
 | 输入宿主 | 按定义 Cone 根定位与检查资源范围、目录逐项枚举／匹配、合法名称的环境读取，返回实际值和更新依赖 |
-| HIR lowering | 调用绑定与常量求值、聚合值与静态引用、数据池共享、源码诊断 |
-| HIR／meta | 完整 typed 常量值、独立数据条目及 provider 引用；无 IO |
+| HIR lowering | 调用绑定与常量求值、聚合值与静态引用、源码诊断 |
+| HIR／meta | 完整 typed 常量值及其已有定义／引用关系；无 IO |
 | MIR | 直接消费静态值／引用，不保留待读文件或待查询环境的调用 |
 | LIR／codegen | 按已有 exact layout 发射数组、聚合值、静态引用及 relocation |
-| .slib／link | 保存可移植常量表与物理定义关系，按实际引用选择唯一数据定义 |
+| .slib／link | 保存可移植常量及物理定义关系，按实际引用选择数据定义 |
 | 构建／分析宿主 | 保存并检查实际输入更新，复用未变化结果 |
 
 常量值结构覆盖已有标量、Unit、String 引用、tuple、带 payload 的 enum、普通 struct，以及本组产生的不可变数组对象。聚合节点保留完整类型和全部字段／元素；enum 另保存实际 variant。Some／None 不靠缺失 payload、匿名整数 tag 或 OptionString 特例猜出。数组条目保存完整数组／元素类型、长度和内容，引用携带 provider 与 typed 数据身份。
@@ -223,7 +209,7 @@ Option<String> 沿既有 niche：None 为零引用，Some 为非 null String 对
 
 静态对象图只引用其他静态不可移动对象，沿原 image 的 immortal 登记管理，不新增 GC 根协议或 runtime interning。需要可写副本时，普通 toMutableArray 保持独立分配与 identity。
 
-独立数据定义不附着到每个特化函数的物理分组。链接从代码、静态初值、其他常量的真实引用选择数据定义，并同选其登记；不能因池中存在一条记录就无条件保留整个池。完全未引用的数据可裁剪，使用它的代码不得因拆分丢失数据。
+链接从代码、静态初值、其他常量的真实引用选择数据定义，并同选其登记；不能因常量记录存在就无条件保留全部常量。合并后的数据必须保留所有实际引用，不得随其中一个未使用的函数丢失。完全未引用的数据可裁剪。
 
 可移植模板保存引用而非逐实例 payload；前端需要求值导出 const 时，按需读取 provider 的常量内容表。机器数据由实际 provider 发射，消费者保留外部引用；源路径和环境只存在于原构建输入，不成为消费者必须打开的依赖。必要格式变更沿现有 schema／profile 机制处理，实施时才分配新 tag／版本，重建编译器与 core，不新增兼容 reader 或 runtime ABI。
 
@@ -260,9 +246,9 @@ LSP 在正常按需分析到声明或正文时求值，并将输入观察关联�
 ## 11. 实施步骤
 
 1. **常量与命名空间基础。** 扩展现有 typed 常量表示以容纳 struct／tuple／Unit、enum payload 和静态数据引用，补齐字面量、常量字段读取、const Option 与 Elvis／模式解包；普通构造调用不进入本版求值范围。明确 core 非根 package 的普通导出与非 prelude 行为。此步直接服务下一步四个入口，不预建通用求值插件层。
-2. **单文件和 env 闭环。** 增加 core 声明／registry、定义来源与 Cone 根输入接口、路径及 symlink 范围检查、env 的 SCOOP_ 名称限制、独立常量池、静态字节数组发射与普通更新记录；实际完成 includeStr／includeBytes／env 的源码到 .slib、消费、链接和运行。
-3. **目录闭环。** 增加 includeDir、普通 EmbeddedFile／EmbeddedDir、逐项范围检查、glob 选择、匹配集合／链接更新和目录静态数据图；接入同一常量池与产物引用。
-4. **跨 Cone 和工具验收。** 验证泛型／inline／默认参数的共享、导出 Option 常量、check／doc／LSP 输入失效、包内相对资源和完整缓存更新；验证四个入口的普通导入调用，以及导入短名／alias 后的引用拒绝。对实际变更格式统一升级并显式准备开发 sysroot。
+2. **单文件和 env 闭环。** 增加 core 声明／registry、定义来源与 Cone 根输入接口、路径及 symlink 范围检查、env 的 SCOOP_ 名称限制、静态字节数组发射与普通更新记录；实际完成 includeStr／includeBytes／env 的源码到 .slib、消费、链接和运行。
+3. **目录闭环。** 增加 includeDir、普通 EmbeddedFile／EmbeddedDir、逐项范围检查、glob 选择、匹配集合／链接更新和目录静态数据图；接入同一常量表示与产物引用。
+4. **跨 Cone 和工具验收。** 验证泛型／inline／默认参数中的常量值、导出 Option 常量、check／doc／LSP 输入失效、包内相对资源和完整缓存更新；验证四个入口的普通导入调用，以及导入短名／alias 后的引用拒绝。常量合并策略以独立优化测试验证，不将合并数量作为语言语义验收门槛。对实际变更格式统一升级并显式准备开发 sysroot。
 
 各步完成代码后先按仓库要求格式化／lint，再运行相关测试；首批新 API 在其端到端能力完成后才加入已实现能力清单。不保留“暂时生成运行期读文件”的后备路径。
 
@@ -283,12 +269,12 @@ LSP 在正常按需分析到声明或正文时求值，并将输入观察关联�
 | 路径来源 | manifest、single-file、不同 cwd、生成正文、默认参数与跨 Cone 定义来源；采用定义 Cone 根而非 workspace／消费方根 |
 | 路径范围 | Cone 内相对／绝对路径、合法 ..、词法越界、同名前缀兄弟目录；文件／目录／父目录／链式 symlink、外部链接指回、Cone 根 symlink、link/..、断链与实际循环 |
 | 目录逐项检查 | 根与深层条目、被 glob 排除的越界链接、空 include 仍检查；Cone 内但 includeDir 根外的合法链接，输出保持逻辑相对路径 |
-| 共享与发射 | 多种 T、多个消费 Cone、重复 include／相同内容、inline／default 克隆；静态对象只发射一份 |
+| 常量发射与优化 | 多种 T、泛型 companion、多个消费 Cone、重复 include／相同内容、inline／default 克隆的值与类型正确；已实现的合并策略另测实际存储数量，不断言语言保证唯一对象 |
 | 表示／GC／链接 | Option niche、不可变数组图、现有 GC 下可访问、toMutableArray 独立副本、实际引用保留与无用数据裁剪 |
 | 输入更新 | 内容更新、增加／删除／改名匹配文件、新嵌套目录、筛选参数变化、env 三态变化；链接改指 Cone 内／外、父目录链接变化、相同目标 metadata 下的改指、排除项新增越界链接；真实缺失输入、失败不发布、普通并发 |
 | 复用 | 所有输入保留且未变时没有源码／资源正文读取及编译调用；排除文件内容、无关 env 变化不重编 |
 | 工具 | check／doc 缓存失效，LSP 文件更新与诊断清除，已预编译库的值不被消费者环境重新求值 |
 
-普通行为使用 release；共享、静态发射、Option ABI 与跨产物合同在编译器正确性专测中覆盖 debug／release。共享验收检查 typed 引用及物理数据定义数量，不能只测试输出相等，也不能仅以最终文件总大小推测去重成功。产物自身允许具有必要的语义 metadata 与机器数据表示；验收要避免把这两种表示误算成泛型复制。
+普通行为使用 release；静态发射、Option ABI 与跨产物合同在编译器正确性专测中覆盖 debug／release。合并优化的专项测试检查实际 typed 引用及物理数据定义数量，不以最终文件总大小推测去重；不同 profile 可以采用不同策略，普通语义测试不要求相同内容对象的 `===` 一定为 true 或 false。产物可以同时保存必要的语义 metadata 与机器数据表示，二者不等于重复静态对象。
 
 GC stress 仅用于静态引用图的定向 GC 正确性验证。缓存验收保持源码、工具和原产物存在，以真实调用／读取和结果验证；删除目录匹配文件只用于正常输入变化语义，不作为移除源文件后强制复用的隔离验收。原始日志留在仓库外，实施记录只保留覆盖范围、结果与未闭合事项。

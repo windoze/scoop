@@ -1249,6 +1249,7 @@ base class的全部constructor body与初始化项先于derived自有字段。�
 - tuple／Unit 字面量、无 payload 的 enum variant 值、已有常量引用及 11.19 intrinsic 的结果可形成聚合常量。对常量 struct 的真实字段和 tuple 位置元素读取也是常量表达式，不执行 computed getter。Option 的 `?:` 和 `when` 模式解包可继续求值：复用第 5、7 章的类型、匹配与穷尽性规则，pattern binding 是对应常量，guard 与分支结果必须属于本节表达式集合。分支体不增加普通语句、循环或函数解释执行。各分支照常检查合法性，常量运算只求值选中分支；其中的编译期输入 intrinsic 仍按 11.19 在定义处展开。
 - 类型能够表示常量，不代表任意产生该类型的表达式都能编译期求值。本版不求值普通构造调用，包括 struct 主／次构造和带 payload 的 enum variant 构造；不展开其默认实参，即使全部实参恰好为常量也不例外。`env` 直接产生 Some／None 常量，include 系列直接产生相应静态数据，不通过源码构造器执行得到结果；这不使源码 `Some(...)` 或 `S(...)` 成为常量表达式。本版也不执行任意用户函数。除上述封闭操作外，函数/方法调用（包括 `toString`）、computed getter、普通 class／数组对象分配、`throw` 及挂起调用都不是常量表达式。不能跳过构造器的副作用、校验或异常，仅按字段拼出结果。`const val` 不生成需要在程序启动或单例首次访问时执行的 runtime initializer；位于 `object` / `companion object` 中的 `const val` 引用本身不触发单例初始化。这是当前求值表达式集合的边界，不是对 struct、tuple 或其他结果类型施加永久禁令。本次不新增 struct／enum 字面量语法；现有构造语法见 4.1.1、4.2。
 - 导出的 `const val` 的类型和值属于 `.slib` 接口，下游 Cone 在编译期直接使用；值变化使依赖该值的编译缓存失效。const 没有 getter 或可寻址 storage，`addressOf(const)` 非法；可见性按声明检查，不因常量求值而绕过。
+- 值相同的 const object，其运行期 identity 不保证一定相同，也不保证一定不同。不同泛型特化及泛型类 companion 中的常量实体仍各自独立；编译器可以在不改变类型、值及其他规定行为的前提下共享底层存储，是否合并只是内部优化策略，不影响程序是否合法。
 
 #### 9.1.3 `object`、companion、nested declaration与全局初始化
 
@@ -2820,7 +2821,7 @@ public struct EmbeddedDir(val files: Array<EmbeddedFile>) {
 
 `env` 首版只接受以 ASCII `SCOOP_` 精确开头的常量名称，前缀检查区分大小写，不做改写；名字仍不得为空或含 `=`／NUL。先检查名称，再查询本次编译的宿主进程环境，交叉编译也不读取目标机器环境。`env("HOME")`、`env("scoop_TAG")` 等在查询环境前报编译错误，明确指出只允许 `SCOOP_` 前缀，不能返回 None 或默认值来掩盖非法名称。合法名称查找沿宿主环境规则：变量不存在为 `None`，存在且为空为 `Some("")`，存在非空值为 `Some(value)`；非法 Unicode 值是编译错误，不当作缺失。`String?` 与 `Option<String>` 相同，不另设 envOrNull 或缺失即失败的重载。`const val TAG: Option<String> = env("SCOOP_TAG")` 及 `const val VERSION: String = env("SCOOP_VERSION") ?: "dev"` 均由 9.1.2 求值；首版不提供额外前缀、任意环境变量或放宽此限制的选项。
 
-这些结果是类型完整的静态值，String／不可变数组对象只存一份并由引用使用；Option／struct 保持普通值语义。相同定义的常量跨全部泛型特化、默认参数展开、内联和消费 Cone 共享原提供方对象，debug／release 均保证，不依赖链接器碰巧合并。定义 Cone 内本组操作产生的同 exact type、同完整内容对象按值合并；目录中相同 bytes 可共享，各自路径仍保留。常量池引用不包含函数特化实参；原文件／环境输入依赖不因结果合并丢失。普通运行期构造、clone／数组转换的对象身份保持。具体 pipeline、产物和更新合同见实现规范 2.10.1，对象表示见运行时规范 2.4～2.5。
+这些结果是类型完整的静态值；Option／struct 保持普通值语义，String／不可变数组使用静态对象引用。常量对象的 identity 遵守 9.1.2，不额外保证不同调用、泛型特化、默认参数展开、内联或消费 Cone 中的结果共享或独占某一对象。编译器可以合并满足条件的常量存储，原文件／环境输入依赖和目录中各自路径仍须保留。普通运行期构造、clone／数组转换的对象身份保持。具体 pipeline、产物和更新合同见实现规范 2.10.1，对象表示见运行时规范 2.4～2.5。
 
 ## 12. Cone模块、package与库
 
@@ -3178,7 +3179,7 @@ public struct Int : Equals<Int>, ToString, Hash {
 - intrinsic type 可以是 generic，但登记项必须完整规定 declaration kind、类型参数数量、bound 及表示；所有参数按 3.2 固定为 invariant。`Array<T>` 与 `MutableArray<T>` 各要求一个无 bound 参数，每个完整 application 是具有唯一类型身份的普通 generic class application，其元素表示遵守第 10 章；
 - intrinsic 声明的 name、target、shape、signature 及唯一性必须满足登记项。
 
-- 11.19 的四个编译期输入 intrinsic 只允许定义处可常量求值的直接使用，在 Export HIR 完成前展开；没有动态分派、函数引用或运行期后备入口。其源码位置、外部输入及结果共享规则由该节规定，不因同属 intrinsic 就继承位置 intrinsic 的调用处观察语义。参数／结果仍按真实 core 类型与普通 import 解析，不按 `scoop.compiler` 的名称赋予用户声明特殊能力。
+- 11.19 的四个编译期输入 intrinsic 只允许定义处可常量求值的直接使用，在 Export HIR 完成前展开；没有动态分派、函数引用或运行期后备入口。其源码位置、外部输入及结果值语义由该节规定，不因同属 intrinsic 就继承位置 intrinsic 的调用处观察语义。参数／结果仍按真实 core 类型与普通 import 解析，不按 `scoop.compiler` 的名称赋予用户声明特殊能力。
 
 - **不可引用 intrinsic 与诊断**：11.19 的四个编译期输入操作及 11.12 的 `currentSourceLocation` 不支持 callable reference。完成普通名称与可见性解析后，以实际声明的 typed intrinsic kind 判断，短名、import alias、re-export 及跨 Cone 使用一致；同名普通函数不受此限制，其他 intrinsic 保留各自原有的引用合同。诊断定位引用表达式，给出实际声明名称、禁止函数引用的事实及具体原因：前四者在编译期求值且无运行期入口；位置 intrinsic 依赖直接调用处的源码来源，普通间接调用不提供该信息。managed／无期望类型／FunPtr 三种上下文均保留这一原因，不能把它静默过滤后只报告 unknown name、syntax error 或 no applicable candidate；涉及多候选时保留该候选的具体失败原因，其他候选仍按原重载规则处理。可提示合法的直接调用或显式传值，不自动合成 lambda／adapter 来规避限制。位置 intrinsic 的短名／alias／依赖引用诊断已实现；11.19 新入口仍待实施。
 
