@@ -35,13 +35,7 @@ pub(super) fn types(
         .values()
         .chain(module.release_hooks.values().map(|hook| &hook.code))
     {
-        if matches!(function.debug_origin, mir::DebugOrigin::Source(_))
-            || function
-                .body
-                .locals
-                .values()
-                .any(|local| matches!(local.debug_variable, mir::DebugVariable::Source { .. }))
-        {
+        if matches!(function.debug_origin, mir::DebugOrigin::Source(_)) {
             for parameter in &function.params {
                 builder.source(&parameter.ty)?;
             }
@@ -76,6 +70,11 @@ struct Types<'a> {
 
 impl Types<'_> {
     fn source(&mut self, ty: &mir::Type) -> StorageResult<DebugTypeRef> {
+        if matches!(ty, mir::Type::MachineScalar(_)) {
+            // Compiler-owned frame fields have physical storage, not a
+            // source exact-type identity. Describe them inside their owner.
+            return Ok(inline(self.describe(ty)?));
+        }
         let id = exact_type_record(self.module, ty).id();
         if self.visited.insert(id) {
             let mut shape = self.describe(ty)?;

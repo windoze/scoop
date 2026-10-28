@@ -227,9 +227,7 @@ pub(super) fn lower_function<'a>(
             })
         })
         .collect();
-    let debug_signature = if matches!(function.debug_origin, mir::DebugOrigin::Generated)
-        && debug_variables.is_empty()
-    {
+    let debug_signature = if matches!(function.debug_origin, mir::DebugOrigin::Generated) {
         lir::DebugSignature::Generated
     } else {
         lir::DebugSignature::Source {

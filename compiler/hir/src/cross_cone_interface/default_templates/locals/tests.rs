@@ -20,7 +20,7 @@ fn synthetic_record_has_fixed_wire() {
 
     assert_eq!(
         hex(&encode(&table).unwrap()),
-        "81a401a300060181a2010b0200020102a3000701000200030104a10002"
+        "81a501a300060181a2010b0200020102a3000701000200030104a1000205656c6f63616c"
     );
 }
 
@@ -89,6 +89,7 @@ fn producer_rejects_duplicate_and_invalid_definition_shapes() {
     let synthetic = synthetic_selector(0);
     assert!(matches!(
         TemplateLocalRecordV1::try_new(
+            "local".into(),
             synthetic.clone(),
             binder(),
             CanonicalBooleanV1::False,
@@ -99,6 +100,7 @@ fn producer_rejects_duplicate_and_invalid_definition_shapes() {
     ));
     assert_eq!(
         TemplateLocalRecordV1::try_new(
+            "local".into(),
             LocalValueSelector::This,
             binder(),
             CanonicalBooleanV1::False,
@@ -111,6 +113,7 @@ fn producer_rejects_duplicate_and_invalid_definition_shapes() {
     let suspension = LocalValueSelector::SuspensionResult { site: path(1) };
     assert_eq!(
         TemplateLocalRecordV1::try_new(
+            "local".into(),
             suspension.clone(),
             binder(),
             CanonicalBooleanV1::False,
@@ -182,7 +185,7 @@ fn definition_decoder_rejects_unknown_tags_and_native_booleans() {
     assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 
     let error = decode_canonical::<DecodedTemplateLocalRecordV1>(&hex_bytes(
-        "a401a300060181a2010b0200020102a300070100020003f404a10002",
+        "a501a300060181a2010b0200020102a300070100020003f404a1000205656c6f63616c",
     ))
     .unwrap_err();
     assert_eq!(
@@ -198,6 +201,7 @@ fn source_local(
     value_type: SignatureTypeKey,
 ) -> TemplateLocalRecordV1 {
     TemplateLocalRecordV1::try_new(
+        "局部值".into(),
         selector,
         value_type,
         CanonicalBooleanV1::False,
@@ -208,6 +212,7 @@ fn source_local(
 
 fn synthetic_local(ordinal: u32) -> TemplateLocalRecordV1 {
     TemplateLocalRecordV1::try_new(
+        "local".into(),
         synthetic_selector(ordinal),
         binder(),
         CanonicalBooleanV1::False,
@@ -366,7 +371,7 @@ struct InvalidSyntheticSourceRecord;
 impl WireEncode for InvalidSyntheticSourceRecord {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.array(1)?;
-        encoder.map(4)?;
+        encoder.map(5)?;
         encoder.field(1)?;
         synthetic_selector(0).encode(encoder)?;
         encoder.field(2)?;
@@ -374,7 +379,9 @@ impl WireEncode for InvalidSyntheticSourceRecord {
         encoder.field(3)?;
         CanonicalBooleanV1::False.encode(encoder)?;
         encoder.field(4)?;
-        TemplateLocalDefinitionV1::Source(origin()).encode(encoder)
+        TemplateLocalDefinitionV1::Source(origin()).encode(encoder)?;
+        encoder.field(5)?;
+        encoder.text("local")
     }
 }
 

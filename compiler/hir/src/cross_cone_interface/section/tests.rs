@@ -231,6 +231,7 @@ fn closure_section(
     .unwrap();
 
     let local = TemplateLocalRecordV1::try_new(
+        "local".into(),
         fixture.local(),
         fixture.value_type(),
         CanonicalBooleanV1::False,

@@ -47,3 +47,7 @@ Full DWARF 已接通源码参数、局部、词法作用域和精确静态类型
 本地定向验证通过：六组合行表／优化／statepoint、递归类型和参数片段、GC 前后失效与根数量对比、协议／缓存／CLI，以及十项 LIR 布局回归。真实 Scoop 默认 full 程序输出正确，dSYM 校验无错误，LLDB 可读取 Long 类型和 answer 变量位置并解析源码断点；重复构建没有 child 调用。全局／TLS、跨 Cone 模板局部名及闭包／协程绑定继续实施。stock LLDB 在帧显示中优先使用精确 linkage 名，此显示问题和本机进程启动卡顿仍需闭合，当前结果不代表进程内 DAP 验收完成。
 
 全局／TLS 绑定已随 property 与 singleton 来源传递，在定义实际存储的对象中发射 DIGlobalVariable；纯数据对象也可建立调试单元。生成的失败根与 delegate 协议存储不冒充源码变量。全局对象定向测试通过，真实 Scoop 的 counter、threadCounter、label 均出现在 dSYM 中，TLS 使用 DW_OP_form_tls_address，DWARF 校验和程序输出通过。未为此新增 `.slib` 调试快照。
+
+跨 Cone 模板的现有局部记录增加源码名称字段，默认表达式、构造片段和泛型正文实例化保留原名称；HIR cross-cone-interface 升至 82，MIR／LIR 不增加持久化快照。接口测试 600 项、中文名称往返和生产端声明测试通过；真实 core／泛型 provider／consumer 流水线通过，并确认 catch／finally 局部名保留。该组合测试同时发现并修复生成协程 helper 的调试签名分类：内部机器参数不要求源码 exact type，frame 内部字段仅提供物理类型描述。
+
+LLDB 名称显示问题已定位到上游 LLVM 22 的 DWARFASTParserClang：存在 DW_AT_linkage_name 时，Function 的 Mangled 名称未保留 DW_AT_name，导致帧显示与按源码名查询使用编码后的符号。发行集成需要验证一个保留两种名称的小型兼容修补，不能通过丢弃精确 linkage 身份规避。官方 macOS 预编译 LLDB 包没有 Python 支持，发行打包也需使用启用 Python 的构建。两项尚未完成，不影响已验证的 DWARF 类型、行表和变量记录结果。

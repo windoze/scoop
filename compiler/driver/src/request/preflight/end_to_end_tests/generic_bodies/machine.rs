@@ -127,6 +127,32 @@ fn actual_generic_library_emits_shared_odr_objects() {
             &diagnostics,
         )
         .unwrap();
+        if case == "control-flow" {
+            let names = lir
+                .module()
+                .functions
+                .iter()
+                .flat_map(|function| {
+                    function
+                        .debug_variables
+                        .iter()
+                        .map(|binding| binding.declaration.name.as_ref())
+                })
+                .collect::<std::collections::HashSet<_>>();
+            assert!(
+                names.contains("marker"),
+                "the imported finally local retains its source name: {names:?}"
+            );
+            assert!(
+                names.contains("caught"),
+                "the imported catch local retains its source name: {names:?}"
+            );
+            assert!(
+                !names
+                    .iter()
+                    .any(|name| name.starts_with("$dependency.local."))
+            );
+        }
         for (id, definition) in mir.strong.module().structs.iter() {
             let expected = mir
                 .strong
