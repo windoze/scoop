@@ -1,6 +1,5 @@
 package scoop.platform.net
 
-import scoop.platform.fs.File
 import scoop.platform.io.*
 import scoop.platform.memory.NativeByteBuffer
 
@@ -8,19 +7,21 @@ import scoop.platform.memory.NativeByteBuffer
  * An owned blocking TCP connection. Input and output can be half-closed separately; close releases
  * the entire connection.
  */
-public class TcpStream internal constructor(private val file: File) : ByteSource, ByteSink, Closeable {
+public class TcpStream internal constructor(
+    private val owner: SocketOwner
+): ByteSource, ByteSink, Closeable {
     /**
      * Whether this owned resource has been closed.
      */
-    public val isClosed: Boolean get() = file.isClosed
+    public val isClosed: Boolean get() = owner.isClosed
     /**
      * Queries the local endpoint of this connection.
      */
-    public fun localAddress(): SocketAddress = file.socketAddress(false)
+    public fun localAddress(): SocketAddress = owner.socketAddress(false)
     /**
      * Queries the remote endpoint of this connection.
      */
-    public fun peerAddress(): SocketAddress = file.socketAddress(true)
+    public fun peerAddress(): SocketAddress = owner.socketAddress(true)
     /**
      * Queries the TCP_NODELAY setting.
      */
@@ -38,12 +39,11 @@ public class TcpStream internal constructor(private val file: File) : ByteSource
          * Connects to the specified numeric endpoint or reports a platform failure.
          */
         public fun connect(address: SocketAddress): TcpStream {
-            val file = File.newOwner()
-            val stream = TcpStream(file)
-            @Unsafe {
-                val (descriptor, error) = nativeConnect(nativeAddress(address))
-                checkNativeStatus(descriptor, error, "TCP connect")
-                file.adoptDescriptor(descriptor)
+            val owner = SocketOwner()
+            val stream = TcpStream(owner)
+            @Unsafe
+            {
+                owner.adopt(nativeConnect(nativeAddress(address)), "TCP connect")
             }
             return stream
         }
@@ -53,81 +53,125 @@ public class TcpStream internal constructor(private val file: File) : ByteSource
      * Reads into the selected writable region, returning actual bytes and permitting short reads.
      * Zero for a positive request denotes EOF.
      */
-    public override fun readInto(buffer: NativeByteBuffer, count: Long): Long = file.readInto(buffer, count)
+    public override fun readInto(buffer: NativeByteBuffer, count: Long): Long =
+        owner.withHandle {
+            handle ->
+            requireTransfer(count, buffer.writableBytes)
+            if (count == 0L)
+                return@withHandle 0L
+            @Unsafe
+            {
+                return@withHandle buffer.withWritableBytes {
+                    pointer,
+                    _ -> @Unsafe
+                    {
+                        return@withWritableBytes nativeRead(handle, pointer!!, count).checked(
+                            "TCP read"
+                        )
+                    }
+                }
+            }
+        }
     /**
      * Consumes the selected readable region, returning the actual accepted byte count and
      * permitting short writes.
      */
-    public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = file.withDescriptor { descriptor ->
-        requireTransfer(count, buffer.readableBytes)
-        if (count == 0L) return@withDescriptor 0L
-        @Unsafe {
-            val written = buffer.withReadableBytes { pointer, _ ->
-                @Unsafe {
-                    val (result, error) = nativeWrite(descriptor, pointer!!, count)
-                    return@withReadableBytes checkNative(result, error, "TCP write")
-                }
+    public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long =
+        owner.withHandle {
+            descriptor ->
+            requireTransfer(count, buffer.readableBytes)
+            if (count == 0L)
+                return@withHandle 0L
+            @Unsafe
+            {
+                val written =
+                    buffer.withReadableBytes {
+                        pointer,
+                        _ -> @Unsafe
+                        {
+                            return@withReadableBytes nativeWrite(
+                                descriptor,
+                                pointer!!,
+                                count
+                            ).checked("TCP write")
+                        }
+                    }
+                if (written == 0L)
+                    throw WriteZeroException()
+                buffer.skip(written)
+                return@withHandle written
             }
-            if (written == 0L) throw WriteZeroException()
-            buffer.skip(written)
-            return@withDescriptor written
         }
-    }
 
     /**
      * Enables or disables TCP_NODELAY.
      */
-    public fun setNoDelay(value: Boolean) { option(true, true, value) }
+    public fun setNoDelay(value: Boolean) {
+        option(true, true, value)
+    }
     /**
      * Enables or disables operating-system TCP keepalive.
      */
-    public fun setKeepAlive(value: Boolean) { option(false, true, value) }
-    private fun option(noDelay: Boolean, set: Boolean, value: Boolean): Boolean = file.withDescriptor { descriptor ->
-        @Unsafe {
-            val (result, error) = nativeOption(descriptor, noDelay, set, value)
-            checkNativeStatus(result, error, "socket option")
-            return@withDescriptor result != 0
-        }
+    public fun setKeepAlive(value: Boolean) {
+        option(false, true, value)
     }
+    private fun option(noDelay: Boolean, set: Boolean, value: Boolean): Boolean =
+        owner.withHandle {
+            descriptor -> @Unsafe
+            {
+                return@withHandle nativeOption(descriptor, noDelay, set, value).checked(
+                    "socket option"
+                ) !=
+                    0L
+            }
+        }
 
     /**
      * Shuts down the connection's input direction.
      */
-    public fun shutdownInput() { shutdown(false) }
+    public fun shutdownInput() {
+        shutdown(false)
+    }
     /**
      * Shuts down output while preserving the input direction.
      */
-    public fun shutdownOutput() { shutdown(true) }
+    public fun shutdownOutput() {
+        shutdown(true)
+    }
     private fun shutdown(output: Boolean) {
-        file.withDescriptor { descriptor ->
-            @Unsafe {
-                val (status, error) = nativeShutdown(descriptor, output)
-                checkNativeStatus(status, error, "TCP shutdown")
+        owner.withHandle {
+            descriptor -> @Unsafe
+            {
+                nativeShutdown(descriptor, output).checked("TCP shutdown")
             }
         }
     }
     /**
      * Checks the unbuffered connection state; it does not wait for peer acknowledgement.
      */
-    public override fun flush() { file.flush() }
+    public override fun flush() {
+        owner.requireOpen()
+    }
     /**
      * Closes the owned native descriptor; subsequent I/O through this owner is invalid.
      */
-    public override fun close() { file.close() }
+    public override fun close() {
+        owner.close()
+    }
 }
 
 /**
  * An owned blocking TCP listener; accepted streams have independent ownership.
  */
-public class TcpListener private constructor(private val file: File) : Closeable {
+public class TcpListener private constructor(private val owner: SocketOwner): Closeable {
     /**
      * Queries the actual bound address, including any ephemeral port.
      */
-    public fun localAddress(): SocketAddress = file.socketAddress(false)
+    public fun localAddress(): SocketAddress = owner.socketAddress(false)
     /**
      * Whether this owned resource has been closed.
      */
-    public val isClosed: Boolean get() = file.isClosed
+    public val isClosed: Boolean get() = owner.isClosed
 
     /**
      * Binds TCP listening sockets with explicit backlog and reuse policy.
@@ -136,14 +180,21 @@ public class TcpListener private constructor(private val file: File) : Closeable
         /**
          * Binds and listens on the selected address with the requested backlog.
          */
-        public fun bind(address: SocketAddress, backlog: Int = 128, reuseAddress: Boolean = false): TcpListener {
-            if (backlog <= 0) throw IllegalArgumentException(Some("backlog must be positive"))
-            val file = File.newOwner()
-            val listener = TcpListener(file)
-            @Unsafe {
-                val (descriptor, error) = nativeSocketBind(nativeAddress(address), false, reuseAddress, backlog)
-                checkNativeStatus(descriptor, error, "TCP bind/listen")
-                file.adoptDescriptor(descriptor)
+        public fun bind(
+            address: SocketAddress,
+            backlog: Int = 128,
+            reuseAddress: Boolean = false
+        ): TcpListener {
+            if (backlog <= 0)
+                throw IllegalArgumentException(Some("backlog must be positive"))
+            val owner = SocketOwner()
+            val listener = TcpListener(owner)
+            @Unsafe
+            {
+                owner.adopt(
+                    nativeSocketBind(nativeAddress(address), false, reuseAddress, backlog),
+                    "TCP bind/listen"
+                )
             }
             return listener
         }
@@ -152,29 +203,52 @@ public class TcpListener private constructor(private val file: File) : Closeable
     /**
      * Blocks until a connection is accepted, returning an owned stream.
      */
-    public fun accept(): TcpStream = file.withDescriptor { listener ->
-        val accepted = File.newOwner()
-        val stream = TcpStream(accepted)
-        @Unsafe {
-            val (descriptor, error) = nativeAccept(listener)
-            checkNativeStatus(descriptor, error, "TCP accept")
-            accepted.adoptDescriptor(descriptor)
+    public fun accept(): TcpStream =
+        owner.withHandle {
+            listener ->
+            val accepted = SocketOwner()
+            val stream = TcpStream(accepted)
+            @Unsafe
+            {
+                accepted.adopt(nativeAccept(listener), "TCP accept")
+            }
+            stream
         }
-        stream
-    }
     /**
      * Closes the owned native descriptor; subsequent I/O through this owner is invalid.
      */
-    public override fun close() { file.close() }
+    public override fun close() {
+        owner.close()
+    }
 }
 
-@Extern(name = "scoop_platform_tcp_connect", captureErrno = true)
-private fun nativeConnect(address: NativeSocketAddress): (Int, Int)
-@Extern(name = "scoop_platform_tcp_accept", captureErrno = true)
-private fun nativeAccept(listener: Int): (Int, Int)
-@Extern(name = "scoop_platform_tcp_write", captureErrno = true)
-private fun nativeWrite(descriptor: Int, bytes: Ptr<Byte>, count: Long): (Long, Int)
-@Extern(name = "scoop_platform_socket_option", captureErrno = true)
-private fun nativeOption(descriptor: Int, noDelay: Boolean, set: Boolean, value: Boolean): (Int, Int)
-@Extern(name = "scoop_platform_tcp_shutdown", captureErrno = true)
-private fun nativeShutdown(descriptor: Int, output: Boolean): (Int, Int)
+@Extern(name = "scoop_platform_tcp_connect")
+private fun nativeConnect(address: NativeSocketAddress): NativeSocketOpened
+
+@Extern(name = "scoop_platform_tcp_accept")
+private fun nativeAccept(listener: NativeSocketHandle): NativeSocketOpened
+
+@Extern(name = "scoop_platform_tcp_write")
+private fun nativeWrite(
+    descriptor: NativeSocketHandle,
+    bytes: Ptr<Byte>,
+    count: Long
+): NativeSocketResult
+
+@Extern(name = "scoop_platform_socket_option")
+private fun nativeOption(
+    descriptor: NativeSocketHandle,
+    noDelay: Boolean,
+    set: Boolean,
+    value: Boolean
+): NativeSocketResult
+
+@Extern(name = "scoop_platform_tcp_shutdown")
+private fun nativeShutdown(descriptor: NativeSocketHandle, output: Boolean): NativeSocketResult
+
+@Extern(name = "scoop_platform_tcp_read")
+private fun nativeRead(
+    handle: NativeSocketHandle,
+    bytes: Ptr<Byte>,
+    count: Long
+): NativeSocketResult

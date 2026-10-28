@@ -184,3 +184,7 @@ platform 的 Thread／Mutex／ConditionVariable 已实现 Windows 分支，分�
 Windows 时钟已使用 GetSystemTimePreciseAsFileTime／QPC，sleep 按 monotonic 截止时间等待，保留 Win32 错误且拒绝实际截止时间溢出。系统熵使用 BCryptGenRandom，新增 NtStatus 错误域保存 CNG 的完整原码；bcrypt 通过正常的条件 native library 声明链接。两套内部返回记录在本次调用中带回错误，不依赖后续线程错误读取。
 
 临时 Cone 加入实际时钟、熵、native buffer 与跨挂起借用测试，三个 target 各 15 个容器／58 项全部通过。MSVC 首轮链接因纳秒缩放引入未配套的 `__udivti3` 失败，现以 x64 原生乘除法实现所需 128÷64 位缩放，复测通过；MinGW 沿配套 compiler-rt。Scoop／C 格式化、三个 Clang 环境及 cl 的严格检查通过，实际 cl 原生探针还验证 Unix epoch、等待时长、熵写入边界与错误位模式。文件／socket／进程／console、IOCP 和完整系统库验收继续实施，尚未开始远端测试。
+
+同步 TCP／UDP 已从 File 中分离出独立 socket owner 和完整宽度的 native handle。Windows 使用 WSAStartup、不可继承的 WSASocketW、Winsock 传输与 closesocket，失败在 native 清理前保存原码；UDP 截断保留实际复制前缀和下一包边界。DNS 通过条件源码传入 UTF-16，使用 GetAddrInfoW／FreeAddrInfoW 并关闭隐式 IDNA；数字 IP 文本仍为 ASCII。POSIX 的 asyncio 共享 bind、地址与 resolver ABI 保留，故障注入 fixture 已从 File.read 调整为 socket recv。
+
+临时 Cone 加入实际网络源码与普通 API／Windows 错误测试后，三个 target 各 19 个容器／70 项全部通过，包括 IPv4／IPv6、localhost 与数字地址解析、65536 字节 TCP、缓冲／半关闭、options、移动 GC、UDP 空包／截断／超长失败和关闭后状态。三套 Clang 与 cl 的 C 严格检查通过，fixture 公共规则 62 项通过、3 项 POSIX 专项跳过；原生 OS 探针确认 accept 继承不可继承属性。完整 platform 尚未发布，文件／进程／console、IOCP、Windows native ownership fixture 与远端 POSIX 回归继续实施。

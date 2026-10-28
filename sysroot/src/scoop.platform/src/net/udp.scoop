@@ -1,6 +1,5 @@
 package scoop.platform.net
 
-import scoop.platform.fs.File
 import scoop.platform.io.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.system.*
@@ -9,20 +8,23 @@ import scoop.platform.system.*
  * A received datagram's sender, delivered byte count, and whether its payload was truncated.
  */
 public struct Datagram(val source: SocketAddress, val count: Long, val truncated: Boolean)
-private class ReceiveResult { var value: (NativeDatagram, Int)? = None }
+
+private class ReceiveResult {
+    var value: NativeDatagram? = None
+}
 
 /**
  * An owned blocking datagram socket preserving message boundaries.
  */
-public class UdpSocket private constructor(private val file: File) : Closeable {
+public class UdpSocket private constructor(private val owner: SocketOwner): Closeable {
     /**
      * Queries the actual bound UDP endpoint.
      */
-    public fun localAddress(): SocketAddress = file.socketAddress(false)
+    public fun localAddress(): SocketAddress = owner.socketAddress(false)
     /**
      * Whether this owned resource has been closed.
      */
-    public val isClosed: Boolean get() = file.isClosed
+    public val isClosed: Boolean get() = owner.isClosed
 
     /**
      * Binds UDP sockets with explicit address-reuse selection.
@@ -32,12 +34,14 @@ public class UdpSocket private constructor(private val file: File) : Closeable {
          * Binds an owned UDP socket to the specified endpoint.
          */
         public fun bind(address: SocketAddress, reuseAddress: Boolean = false): UdpSocket {
-            val file = File.newOwner()
-            val socket = UdpSocket(file)
-            @Unsafe {
-                val (descriptor, error) = nativeSocketBind(nativeAddress(address), true, reuseAddress, 0)
-                checkNativeStatus(descriptor, error, "UDP bind")
-                file.adoptDescriptor(descriptor)
+            val owner = SocketOwner()
+            val socket = UdpSocket(owner)
+            @Unsafe
+            {
+                owner.adopt(
+                    nativeSocketBind(nativeAddress(address), true, reuseAddress, 0),
+                    "UDP bind"
+                )
             }
             return socket
         }
@@ -46,19 +50,33 @@ public class UdpSocket private constructor(private val file: File) : Closeable {
     /**
      * Sends one datagram from count readable bytes and advances the buffer by the sent count.
      */
-    public fun sendTo(buffer: NativeByteBuffer, destination: SocketAddress, count: Long = buffer.readableBytes): Long =
-        file.withDescriptor { descriptor ->
+    public fun sendTo(
+        buffer: NativeByteBuffer,
+        destination: SocketAddress,
+        count: Long = buffer.readableBytes
+    ): Long =
+        owner.withHandle {
+            descriptor ->
             requireTransfer(count, buffer.readableBytes)
-            @Unsafe {
-                val sent = buffer.withReadableBytes { pointer, _ ->
-                    @Unsafe {
-                        val (result, error) = nativeSend(descriptor, pointer, count, nativeAddress(destination))
-                        return@withReadableBytes checkNative(result, error, "UDP send")
+            @Unsafe
+            {
+                val sent =
+                    buffer.withReadableBytes {
+                        pointer,
+                        _ -> @Unsafe
+                        {
+                            return@withReadableBytes nativeSend(
+                                descriptor,
+                                pointer,
+                                count,
+                                nativeAddress(destination)
+                            ).checked("UDP send")
+                        }
                     }
-                }
                 buffer.skip(sent)
-                if (sent != count) throw PlatformException("incomplete UDP send", PlatformErrorKind.Other)
-                return@withDescriptor sent
+                if (sent != count)
+                    throw PlatformException("incomplete UDP send", PlatformErrorKind.Other)
+                return@withHandle sent
             }
         }
 
@@ -67,31 +85,48 @@ public class UdpSocket private constructor(private val file: File) : Closeable {
      * status.
      */
     public fun receiveFrom(buffer: NativeByteBuffer, count: Long = buffer.writableBytes): Datagram =
-        file.withDescriptor { descriptor ->
+        owner.withHandle {
+            descriptor ->
             requireTransfer(count, buffer.writableBytes)
-            if (count == 0L) throw IllegalArgumentException(Some("UDP receive requires positive capacity"))
+            if (count == 0L)
+                throw IllegalArgumentException(Some("UDP receive requires positive capacity"))
             val received = ReceiveResult()
-            @Unsafe {
-                buffer.withWritableBytes { pointer, _ ->
-                    @Unsafe {
-                        val (packet, error) = nativeReceive(descriptor, pointer!!, count)
-                        checkNative(packet.count, error, "UDP receive")
-                        received.value = Some((packet, error))
-                        return@withWritableBytes packet.count
+            @Unsafe
+            {
+                buffer.withWritableBytes {
+                    pointer,
+                    _ -> @Unsafe
+                    {
+                        val result = nativeReceive(descriptor, pointer!!, count)
+                        checkSocketError("UDP receive", result.error)
+                        received.value = Some(result.packet)
+                        return@withWritableBytes result.packet.count
                     }
                 }
             }
-            val (packet, error) = received.value!!
-            Datagram(socketAddress(packet.source, error), packet.count, packet.truncated)
+            val packet = received.value!!
+            Datagram(socketAddress(packet.source, 0), packet.count, packet.truncated)
         }
 
     /**
      * Closes the owned native descriptor; subsequent I/O through this owner is invalid.
      */
-    public override fun close() { file.close() }
+    public override fun close() {
+        owner.close()
+    }
 }
 
-@Extern(name = "scoop_platform_udp_send", captureErrno = true)
-private fun nativeSend(descriptor: Int, bytes: Ptr<Byte>?, count: Long, destination: NativeSocketAddress): (Long, Int)
-@Extern(name = "scoop_platform_udp_receive", captureErrno = true)
-private fun nativeReceive(descriptor: Int, bytes: Ptr<Byte>, count: Long): (NativeDatagram, Int)
+@Extern(name = "scoop_platform_udp_send")
+private fun nativeSend(
+    descriptor: NativeSocketHandle,
+    bytes: Ptr<Byte>?,
+    count: Long,
+    destination: NativeSocketAddress
+): NativeSocketResult
+
+@Extern(name = "scoop_platform_udp_receive")
+private fun nativeReceive(
+    descriptor: NativeSocketHandle,
+    bytes: Ptr<Byte>,
+    count: Long
+): NativeSocketReceived

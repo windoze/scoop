@@ -1,0 +1,33 @@
+package scoop.platform.net
+
+import scoop.platform.system.OsString
+
+internal fun platformResolve(host: OsString, port: Int, family: Int): NativeResolution {
+    val units = host.toUtf16()
+    for (unit in units) {
+        if (unit == 0.toUShort())
+            throw IllegalArgumentException(Some("native string contains NUL"))
+    }
+    if (units.size == Long.MAX_VALUE)
+        throw ArithmeticException()
+    val terminated =
+        Array<UShort>(units.size + 1L) {
+            index -> if (index == units.size)
+                0.toUShort()
+            else
+                units[index]
+        }
+    @Unsafe
+    {
+        return terminated.withDataPointer {
+            pointer,
+            _ -> @Unsafe
+            {
+                return@withDataPointer nativeResolve(pointer, port, family)
+            }
+        }
+    }
+}
+
+@Extern(name = "scoop_platform_resolve")
+private fun nativeResolve(host: Ptr<UShort>, port: Int, family: Int): NativeResolution

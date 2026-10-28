@@ -6,6 +6,17 @@ name = "scoop.platform"
 version = "0.1.0"
 kind = "library"
 
+[[sources]]
+path = "src"
+
+[[sources]]
+path = "platform/windows"
+when = {os = "windows"}
+
+[[sources]]
+path = "platform/posix"
+when = {os = ["darwin", "linux"]}
+
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
 "scoop:scoop.std" = "0.1.0"
@@ -31,6 +42,10 @@ c_flags = ["-Wextra", "-Werror"]
 name = "bcrypt"
 when = {os = "windows"}
 
+[[native.libraries]]
+name = "ws2_32"
+when = {os = "windows"}
+
 [[native.sources]]
 path = "native/errors.c"
 
@@ -45,6 +60,8 @@ path = "native/files.c"
 path = "native/file_metadata.c"
 [[native.sources]]
 path = "native/paths.c"
+[[native.sources]]
+path = "native/strings.c"
 [[native.sources]]
 path = "native/directory.c"
 [[native.sources]]

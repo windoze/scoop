@@ -311,11 +311,17 @@ SocketAddress(address: IpAddress, port: Int) 检查 0..65535，实现 Equals／H
 
 resolve(host: OsString, port: Int, family: AddressFamily? = None) 与 String 重载使用阻塞 getaddrinfo，返回实际地址数组，不承诺排序或去重。名称与 IP parse 分开，不做 IDNA 或隐式构造器联网；名称字节不含 NUL。错误保存 AddressResolution 的 EAI code；仅 EAI_SYSTEM 另保存同次 errno。native 结果在复制后 freeaddrinfo，包括复制失败路径；不使用外部 DNS 服务作为测试前提。
 
+Windows 使用 GetAddrInfoW／FreeAddrInfoW，名称通过 OsString.toUtf16 无损传入，拒绝 NUL；设置 AI_NUMERICSERV 与 AI_DISABLE_IDN_ENCODING，不经过 ANSI code page 或隐式 IDNA。错误保留函数直接返回的 WSA／EAI 值。数字 IP parse／format 使用 InetPtonA／InetNtopA，其输入输出是 ASCII 数字文本。
+
 ### 12.2 TCP 与端点所有权
 
 TcpListener.bind(address, backlog: Int = 128, reuseAddress: Boolean = false) 返回 owned listener；backlog 必须为正，实际队列长度由 OS 决定。提供 localAddress()、accept(): TcpStream、isClosed 与 close。TcpStream.connect(address) 返回 owned stream，提供 localAddress()、peerAddress()、ByteSource／ByteSink、shutdownInput、shutdownOutput、isClosed、close，以及 noDelay()／keepAlive() 查询和 setNoDelay(value)／setKeepAlive(value) 设置。
 
 所有 socket 为 close-on-exec。创建、配置、bind/listen/connect 或 accept 后配置失败都会关闭未移交的 fd；显式关闭复用第 6.1 节的单次消费语义，hook 仅 raw close。活动 accept/read/write/地址查询／配置保活 owner，操作与 close／配置改变的竞争由调用方同步。stream 支持 OS 允许的并发读写，但不保证复合操作原子。
+
+socket 使用独立的 native handle 值和 managed owner，不借 File 保存端点。Windows 保存完整 UINT_PTR 宽度的 SOCKET，INVALID_SOCKET 表示无所有权，释放使用 closesocket；不转为 CRT fd 或交给 CloseHandle。Windows 进程内首次网络使用完成一次 WSAStartup(2.2)，该引用覆盖库的进程存活期；实际初始化失败按原 Winsock 错误报告。WSASocketW 使用 WSA_FLAG_OVERLAPPED／WSA_FLAG_NO_HANDLE_INHERIT，accept 继承 listener 的不可继承属性；POSIX 仍使用原 close-on-exec fd 和关闭规则。
+
+Windows socket 操作在失败后立即保存 WSAGetLastError，和返回值一起通过普通 C-layout 记录传回 managed 层；POSIX 同次保存 errno。bind 的 reuseAddress 仍精确映射 SO_REUSEADDR，不以 Windows 的 SO_EXCLUSIVEADDRUSE 替代；实际端口共享与冲突规则由目标 OS 决定。
 
 TCP 是字节流：允许短读写，正请求读取零表示输入 EOF，写入无进度抛 WriteZeroException；游标只提交实际字节。shutdownOutput 只关闭输出方向，之后仍可读取；shutdownInput 与整个关闭区分，按 OS 报告错误。flush 只检查状态，不承诺对端收到或持久化。可恢复的 read/write/accept EINTR 重试；连接创建若失败或被中断，关闭本次 fd 并报告实际错误，不重复使用未确定状态的 socket。
 
@@ -325,13 +331,17 @@ UdpSocket.bind(address, reuseAddress: Boolean = false) 返回 owned socket，提
 
 receiveFrom(buffer: NativeByteBuffer, count: Long = buffer.writableBytes): Datagram 返回 source: SocketAddress、count: Long、truncated: Boolean。count 参数必须为正且不超过可写尾部。使用 recvmsg 的实际复制长度与 MSG_TRUNC；只提交复制字节，不把截断后的长度称为原包总长。空 datagram 返回 count=0、truncated=false，仍消费该报文，不代表 EOF；不足容量时消费整包并标记截断，下一次接收是下一包。
 
+Windows 同步 UDP 接收使用 WSARecvFrom；WSAEMSGSIZE 表示本包已复制可容纳前缀并丢弃余部，按实际复制长度返回 truncated=true，不把该结果作为无进度失败。发送长度超过 native 单次长度表示范围时报告 WSAEMSGSIZE，不拆成多个 datagram；空包仍执行一次发送。TCP 的单次长度按 WinSock int 范围截取；其余短传输与游标规则保持。
+
 socket 输出在 Linux 使用 MSG_NOSIGNAL，Darwin 在新建／accept 后设置 SO_NOSIGPIPE；错误路径不安装或修改全局 signal handler。pipe/fd 的既有策略不变。DNS、连接、accept、传输和可能阻塞的操作使用 NativeSafe，复用已有精确根、借用与 FFI ABI。地址的 C 对应结构只是普通 @CLayout 值，不新增 compiler/runtime 协议、连接池、异步调度或网络安全框架。
 
 依据：[getaddrinfo](https://man7.org/linux/man-pages/man3/getaddrinfo.3.html)、[recvmsg／MSG_TRUNC 与空包](https://man7.org/linux/man-pages/man2/recvmsg.2.html) 及目标 socket headers。验收使用 loopback、动态端口与显式线程同步。
 
 ### 12.4 普通 native helper 复用
 
-`native/socket_native.h` 是本库网络 helper 的 C11 声明边界，供 asyncio 等显式依赖者复用。Scoop 对应的公开 `@CLayout NativeSocketAddress(family: Int, port: Int, scopeId: UInt, a: UInt, b: UInt, c: UInt, d: UInt)` 由 platform 定义，复用同一 C 符号的 Scoop 声明使用该类型身份，不自行重声明同形 nominal。ScoopSocketAddress 的字段及 encode／decode、socket_bind 均保持现有 C ABI；family 为 4／6，port 为主机序 0..65535，地址 a～d 为按网络字节顺序组装的主机 UInt32 值，scope 为 IPv6 scope id。socket_bind 返回 owned close-on-exec fd，reuse 精确配置 SO_REUSEADDR，TCP 在返回前完成 bind/listen；失败返回 -1 并保留 errno，内部未交付 fd 已关闭。
+`native/socket_native.h` 是本库网络 helper 的 C11 声明边界，供 asyncio 等显式依赖者复用。Scoop 对应的公开 `@CLayout NativeSocketAddress(family: Int, port: Int, scopeId: UInt, a: UInt, b: UInt, c: UInt, d: UInt)` 由 platform 定义，复用同一 C 符号的 Scoop 声明使用该类型身份，不自行重声明同形 nominal。ScoopSocketAddress 的字段与 encode／decode 保持现有 C ABI；family 为 4／6，port 为主机序 0..65535，地址 a～d 为按网络字节顺序组装的主机 UInt32 值，scope 为 IPv6 scope id。POSIX 的 socket_bind 继续返回 owned close-on-exec fd，reuse 精确配置 SO_REUSEADDR，TCP 在返回前完成 bind/listen；失败返回 -1 并保留 errno，内部未交付 fd 已关闭。
+
+同步 managed 端点使用独立 C-layout socket handle 及同次错误记录，socket_bind_owned 在 POSIX 复用上述 fd helper，在 Windows 返回不可继承的 SOCKET。解析链在 Windows 为 owned ADDRINFOW，由 FreeAddrInfoW 配对释放；POSIX 仍为 addrinfo／freeaddrinfo。共享地址值布局保持，目标选择只改变实际名称编码和 OS 资源类型。
 
 这是普通 GC-free C helper 边界，不提供 managed File／TcpStream 的私有句柄访问。使用者自行拥有新获得的 fd，可交给其事件后端；只能移交一次。native 头文件作为实际 include 输入参与普通构建，预编译 `.slib` 消费不再次编译这些 helper。错误、对象身份与缓存沿既有合同处理，不增加 runtime API 或特殊 native dependency 机制。
 
