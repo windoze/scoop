@@ -97,7 +97,11 @@ public enum NativeErrorDomain {
     /**
      * A Windows Sockets error code captured from the failing operation.
      */
-    Winsock
+    Winsock,
+    /**
+     * An NTSTATUS returned directly by a Windows native operation.
+     */
+    NtStatus
 }
 
 /**
@@ -120,6 +124,7 @@ public struct NativeError(
                     case AddressResolution -> 1
                     case Win32 -> 2
                     case Winsock -> 3
+                    case NtStatus -> 4
                 }
             val category = nativeErrorKind(domainCode, code, systemCode ?: 0)
             return errorKind(category)

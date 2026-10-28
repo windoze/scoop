@@ -180,3 +180,7 @@ runtime 的私有 platform primitives 改用 `scoop_runtime_platform_` 函数前
 platform 的 Thread／Mutex／ConditionVariable 已实现 Windows 分支，分别使用 `_beginthreadex`／thread handle、SRW exclusive lock 与 condition variable。原生 worker／观察者双持有和 managed callback 生命周期保持；join、mutex 和 condition 通过同次 C-layout 结果保留 Win32 code，创建失败保留真实 CRT errno。有限等待不溢出成无限等待，错误／超时后恢复 mutex owner；原 POSIX pthread 结果改为同一内部结果形状。
 
 实际 common 线程／同步测试与三项 Windows 错误／长等待测试加入上述临时 Cone，三个 target 各 8 个容器／32 项全部通过，包含并发 GC、TaskContext、异常同一性、self-join、忙碌销毁、错误 owner、零超时及大于 DWORD 毫秒的通知唤醒。Scoop／C 格式化和三环境 C 严格告警检查通过。thread-gc 的 POSIX native probe 已同步内部返回类型；完整 platform、GC ownership fixture 与远端 POSIX 回归仍待后续阶段。
+
+Windows 时钟已使用 GetSystemTimePreciseAsFileTime／QPC，sleep 按 monotonic 截止时间等待，保留 Win32 错误且拒绝实际截止时间溢出。系统熵使用 BCryptGenRandom，新增 NtStatus 错误域保存 CNG 的完整原码；bcrypt 通过正常的条件 native library 声明链接。两套内部返回记录在本次调用中带回错误，不依赖后续线程错误读取。
+
+临时 Cone 加入实际时钟、熵、native buffer 与跨挂起借用测试，三个 target 各 15 个容器／58 项全部通过。MSVC 首轮链接因纳秒缩放引入未配套的 `__udivti3` 失败，现以 x64 原生乘除法实现所需 128÷64 位缩放，复测通过；MinGW 沿配套 compiler-rt。Scoop／C 格式化、三个 Clang 环境及 cl 的严格检查通过，实际 cl 原生探针还验证 Unix epoch、等待时长、熵写入边界与错误位模式。文件／socket／进程／console、IOCP 和完整系统库验收继续实施，尚未开始远端测试。

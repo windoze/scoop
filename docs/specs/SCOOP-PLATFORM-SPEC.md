@@ -63,7 +63,7 @@ Windows OS 返回的原生名称使用上述无损表示；进入 Windows wide A
 
 `scoop.platform.system.PlatformErrorKind` 包含 NotFound、AlreadyExists、PermissionDenied、NotDirectory、IsDirectory、InvalidInput、NoMemory、NoSpace、BrokenPipe、ConnectionRefused、ConnectionReset、AddressInUse、AddressUnavailable、TimedOut、Interrupted、WouldBlock、Unsupported、Other。未知错误归 Other，必须保留原始错误数据；Unsupported 仅用于 OS 实际报告不支持。
 
-`NativeErrorDomain` 区分 PosixErrno、AddressResolution、Win32 与 Winsock。普通值类型 `NativeError(domain, code, systemCode: Int? = None)` 保存原始 Int 错误码；AddressResolution 的 POSIX EAI_SYSTEM 还保存同次失败的 errno，Windows 保存地址解析函数直接返回的 WSA／EAI 码，不另取 errno。只读属性 `kind` 依据目标系统的实际常量分类，不假设两个 target 的 errno／EAI 数值相同；当前目标没有的错误域分类为 Other，仍保存原值。pthread 直接返回的 errno 风格错误属于 PosixErrno，不能改读线程 errno。
+`NativeErrorDomain` 区分 PosixErrno、AddressResolution、Win32、Winsock 与 NtStatus。普通值类型 `NativeError(domain, code, systemCode: Int? = None)` 保存原始 Int 错误码；AddressResolution 的 POSIX EAI_SYSTEM 还保存同次失败的 errno，Windows 保存地址解析函数直接返回的 WSA／EAI 码，不另取 errno。只读属性 `kind` 依据目标系统的实际常量分类，不假设两个 target 的 errno／EAI 数值相同；当前目标没有的错误域分类为 Other，仍保存原值。pthread 直接返回的 errno 风格错误属于 PosixErrno，不能改读线程 errno。NtStatus 保存 BCrypt 等 API 直接返回的 NTSTATUS 全部 32 位，不将它当作 GetLastError 或翻译成另一错误码；未知值仍归 Other。
 
 Win32 保存失败调用后立即取得的 GetLastError，Winsock 保存立即取得的 WSAGetLastError；DWORD 的完整位模式保存在 Int 中。native shim 在任何清理、回调或返回 managed 代码之前保存错误，不将 Windows 错误翻译成伪造 errno，也不通过后续独立 FFI 调用重新读取线程错误。Windows CRT 本身产生的 errno 仍属于 PosixErrno。EOF、pending、取消和 close 是具体操作协议的结果，不因有相应 native code 就一律当成失败。错误域分类不会改写原始 code。
 
@@ -223,7 +223,11 @@ currentDirectory(): Path 查询实际 cwd，不读取 PWD；homeDirectory(): Pat
 
 `scoop.platform.time.SystemClock` 实现 scoop.time.Clock，now 返回实时钟的 Instant；`MonotonicTimeSource` 实现 TimeSource，markNow 返回以自身为 source、以 CLOCK_MONOTONIC 读数构造 Duration 的 TimeMark。实时钟可以回拨，monotonic 不与 epoch 混用，同源比较仍由 std 检查。native 读取失败抛 PlatformException，不伪造零读数；转换遵守 std 的范围规则。
 
+Windows 实时钟使用 GetSystemTimePreciseAsFileTime，将 1601 epoch 的 100 ns tick 转为 Unix epoch 的规范化秒／纳秒；monotonic 使用 QueryPerformanceCounter／QueryPerformanceFrequency，整数缩放不溢出或丢失整秒精度。native 时钟结果同时保存本次错误码，Windows 使用 Win32，POSIX 使用原 errno。
+
 sleep(duration: Duration) 拒绝负值，零直接返回。sleep 与 ConditionVariable 的 native 时间分量使用 Duration.floorSeconds／nanosecondsOfSecond；toComponents 是面向调用者的趋零分解，不用于替代规范化的 native 分量。正值通过 NativeSafe 等待；使用 monotonic 截止时间在 EINTR 后继续，允许调度造成延迟，不承诺精确唤醒。截止时间超出目标表示范围时报告溢出错误；不以通用超时配额限制有效时长。等待不阻止其他 mutator 推进或 GC。
+
+Windows 将剩余时长按毫秒向上取整后 Sleep，单次最多 INFINITE-1 毫秒；每次醒来重新读取 QPC，直到 monotonic 截止时间，避免 tick 粒度导致提前返回，也不把有限时长转换成无限等待。超出秒截止时间表示范围报告 ERROR_ARITHMETIC_OVERFLOW；不改变全局 timer resolution。
 
 TimeMark.elapsedNow() 为 `source.markNow() - this`。measureTime(source: TimeSource = MonotonicTimeSource, block: () -> Unit) 与 measureTimedValue<T>(source: TimeSource = MonotonicTimeSource, block: () -> T) 同步调用正文一次，后者返回 TimedValue<T>(value, duration)；正文失败直接传播，不额外读取时钟覆盖原异常。不支持 suspend、timer queue 或调度器。
 
@@ -232,6 +236,8 @@ TimeMark.elapsedNow() 为 `source.markNow() - this`。measureTime(source: TimeSo
 `scoop.platform.random.SystemRandom` 实现 scoop.random.Random，nextBits 按 0..32 的既有合同返回位值；0 不调用 OS。覆盖 nextBytes(size) 与 nextBytes(MutableArray, fromIndex, toIndex) 的批量路径，不逐字节请求。fill(buffer: NativeByteBuffer, count: Long = buffer.writableBytes) 检查当前尾部容量，返回成功填充数量；零请求不执行 native 操作。
 
 Linux 使用 getrandom、Darwin 使用 getentropy，按目标单次上限分块并重试未产生数据的 EINTR；允许短结果后继续。NativeByteBuffer 每次只提交本次成功的前缀，后续失败保留已提交进度，未初始化尾部仍不可读；数组失败保留已写区间。native 正请求无进度作为 IO 错误处理，不忙循环或退化为 PRNG。所有系统熵操作使用 NativeSafe，可以与 GC 并行。Uuid.random(SystemRandom) 与既有 Random 默认方法沿普通接口组合，不增加隐式随机源或密码学算法。
+
+Windows 使用 BCryptGenRandom 的 BCRYPT_USE_SYSTEM_PREFERRED_RNG，按 ULONG 长度范围分块；失败同次返回原 NTSTATUS，成功后才提交本段进度。按 target 声明系统 bcrypt 导入库，不管理额外 provider handle 或使用 CRT PRNG 代替系统熵。
 
 目标依据：[getentropy](https://man7.org/linux/man-pages/man3/getentropy.3.html)、[nanosleep](https://man7.org/linux/man-pages/man2/nanosleep.2.html)、[clock_nanosleep](https://man7.org/linux/man-pages/man2/clock_nanosleep.2.html) 以及当前目标 SDK。环境、时钟和熵均不新增 runtime ABI。
 

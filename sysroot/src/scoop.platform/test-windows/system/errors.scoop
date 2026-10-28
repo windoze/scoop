@@ -67,7 +67,13 @@ private class WindowsErrorTest {
 
     @Test
     fun `unknown Windows codes retain all bits and their context`() {
-        for (domain in [NativeErrorDomain.Win32, NativeErrorDomain.Winsock]) {
+        for (
+            domain in [
+                NativeErrorDomain.Win32,
+                NativeErrorDomain.Winsock,
+                NativeErrorDomain.NtStatus
+            ]
+        ) {
             val native = NativeError(domain, Int.MIN_VALUE)
             assertTrue(native.kind == PlatformErrorKind.Other)
             assertEquals(Int.MIN_VALUE, native.code)
@@ -77,6 +83,26 @@ private class WindowsErrorTest {
             assertEquals(Int.MIN_VALUE, failure.nativeError!!.code)
             assertTrue(failure.nativeError!!.domain == domain)
             assertEquals(0xd800.toUShort(), failure.context!!.toUtf16()[0L])
+        }
+    }
+
+    @Test
+    fun `CNG status codes keep their original bits without Win32 conversion`() {
+        val cases: Array<(UInt, PlatformErrorKind)> =
+            [
+                (0xc0000008u, PlatformErrorKind.InvalidInput),
+                (0xc000000du, PlatformErrorKind.InvalidInput),
+                (0xc0000017u, PlatformErrorKind.NoMemory),
+                (0xc00000bbu, PlatformErrorKind.Unsupported)
+            ]
+        for ((code, kind) in cases) {
+            val error = NativeError(NativeErrorDomain.NtStatus, code.toInt())
+            assertTrue(error.kind == kind)
+            assertEquals(code, error.code.toUInt())
+            assertTrue(error.systemCode == None)
+            assertTrue(
+                NativeError(NativeErrorDomain.Win32, code.toInt()).kind == PlatformErrorKind.Other
+            )
         }
     }
 }

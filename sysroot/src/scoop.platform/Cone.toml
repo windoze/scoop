@@ -27,6 +27,10 @@ when = {os = ["darwin", "linux"]}
 [native]
 c_flags = ["-Wextra", "-Werror"]
 
+[[native.libraries]]
+name = "bcrypt"
+when = {os = "windows"}
+
 [[native.sources]]
 path = "native/errors.c"
 

@@ -1,14 +1,31 @@
 #ifndef SCOOP_PLATFORM_ERRORS_WINDOWS_H
 #define SCOOP_PLATFORM_ERRORS_WINDOWS_H
 
+#define WIN32_NO_STATUS
 #ifdef _MSC_VER
 #include <WinSock2.h>
-#include <Windows.h>
 #else
 #include <winsock2.h>
-#include <windows.h>
 #endif
+#include "windows_api.h"
+#undef WIN32_NO_STATUS
+#include <winternl.h>
+#include <ntstatus.h>
 #include <stdint.h>
+
+static int32_t ntstatus_error_kind(int32_t code) {
+    switch ((NTSTATUS)code) {
+    case STATUS_INVALID_HANDLE:
+    case STATUS_INVALID_PARAMETER:
+        return 6;
+    case STATUS_NO_MEMORY:
+        return 7;
+    case STATUS_NOT_SUPPORTED:
+        return 17;
+    default:
+        return 0;
+    }
+}
 
 static int32_t win32_error_kind(int32_t code) {
     switch ((uint32_t)code) {

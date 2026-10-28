@@ -66,14 +66,15 @@ static int32_t errno_kind(int32_t code) {
     }
 }
 
-int32_t scoop_platform_error_kind(int32_t domain, int32_t code,
-                                  int32_t system_code) {
+int32_t scoop_platform_error_kind(int32_t domain, int32_t code, int32_t system_code) {
     if (domain == 0)
         return errno_kind(code);
 #ifdef _WIN32
     (void)system_code;
     if (domain == 2)
         return win32_error_kind(code);
+    if (domain == 4)
+        return ntstatus_error_kind(code);
     if (domain == 1 || domain == 3)
         return winsock_error_kind(code);
     return 0;
