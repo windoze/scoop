@@ -1,0 +1,26 @@
+// Callers establish valid, nonoverlapping byte ranges. Managed sources are
+// relocated across allocation; raw sources must remain stable until copied.
+@Unsafe
+@Intrinsic("string_from_byte_prefix_unchecked")
+internal fun coreStringFromBytePrefixUnchecked(bytes: MutableArray<UInt8>, length: Long): String
+
+@Unsafe
+@Intrinsic("string_copy_to_bytes_unchecked")
+internal fun coreStringCopyToBytesUnchecked(value: String, bytes: MutableArray<UInt8>, start: Long)
+
+@Unsafe
+@Intrinsic("bytes_copy_prefix_unchecked")
+internal fun coreBytesCopyPrefixUnchecked(
+    source: MutableArray<UInt8>,
+    target: MutableArray<UInt8>,
+    length: Long
+)
+
+@Unsafe
+@Intrinsic("bytes_copy_raw_unchecked")
+internal fun coreBytesCopyRawUnchecked(
+    source: Ptr<Byte>,
+    length: Long,
+    target: MutableArray<UInt8>,
+    start: Long
+)

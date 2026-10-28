@@ -92,6 +92,12 @@ pub(super) fn instruction_uses(
         lir::Instruction::MakeAggregate { elements, .. }
         | lir::Instruction::ArrayAlloc { elements, .. } => elements.clone(),
         lir::Instruction::StringCopy { source, .. } => source.operands().collect(),
+        lir::Instruction::ByteCopy {
+            source,
+            target,
+            start,
+            ..
+        } => source.operands().chain([*target, *start]).collect(),
         lir::Instruction::StringByteLoad { string, index, .. } => vec![*string, *index],
         lir::Instruction::StringByteStore {
             string,
@@ -258,6 +264,7 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         | lir::Instruction::PopPinFrame { .. }
         | lir::Instruction::EndCatch
         | lir::Instruction::Throw { .. }
+        | lir::Instruction::ByteCopy { .. }
         | lir::Instruction::StringByteStore { .. } => None,
     };
     out.map_or_else(Vec::new, |out| vec![LiveValue::Temp(out)])

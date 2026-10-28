@@ -90,10 +90,70 @@ pub(super) fn string_intrinsic_declarations() -> Vec<Decl> {
             None,
         ),
     ];
+    for (name, intrinsic, parameters, result) in [
+        (
+            "coreStringFromBytePrefixUnchecked",
+            "string_from_byte_prefix_unchecked",
+            vec![
+                ("bytes", ty_generic("MutableArray", vec![ty_named("UInt8")])),
+                ("length", ty_named("Long")),
+            ],
+            Some(ty_named("String")),
+        ),
+        (
+            "coreStringCopyToBytesUnchecked",
+            "string_copy_to_bytes_unchecked",
+            vec![
+                ("value", ty_named("String")),
+                ("bytes", ty_generic("MutableArray", vec![ty_named("UInt8")])),
+                ("start", ty_named("Long")),
+            ],
+            None,
+        ),
+        (
+            "coreBytesCopyPrefixUnchecked",
+            "bytes_copy_prefix_unchecked",
+            vec![
+                (
+                    "source",
+                    ty_generic("MutableArray", vec![ty_named("UInt8")]),
+                ),
+                (
+                    "target",
+                    ty_generic("MutableArray", vec![ty_named("UInt8")]),
+                ),
+                ("length", ty_named("Long")),
+            ],
+            None,
+        ),
+        (
+            "coreBytesCopyRawUnchecked",
+            "bytes_copy_raw_unchecked",
+            vec![
+                ("source", ty_generic("Ptr", vec![ty_named("Int8")])),
+                ("length", ty_named("Long")),
+                (
+                    "target",
+                    ty_generic("MutableArray", vec![ty_named("UInt8")]),
+                ),
+                ("start", ty_named("Long")),
+            ],
+            None,
+        ),
+    ] {
+        declarations.push(intrinsic_fun(name, intrinsic, parameters, result));
+    }
     for declaration in &mut declarations {
         if let Decl::Function(function) = declaration
-            && ["coreStringByteAtUnchecked", "coreStringSetByteUnchecked"]
-                .contains(&function.name.text.as_str())
+            && [
+                "coreStringByteAtUnchecked",
+                "coreStringSetByteUnchecked",
+                "coreStringFromBytePrefixUnchecked",
+                "coreStringCopyToBytesUnchecked",
+                "coreBytesCopyPrefixUnchecked",
+                "coreBytesCopyRawUnchecked",
+            ]
+            .contains(&function.name.text.as_str())
         {
             function.annotations.push(ast::Annotation {
                 use_site: None,
@@ -109,6 +169,26 @@ pub(super) fn string_intrinsic_declarations() -> Vec<Decl> {
 #[test]
 fn string_intrinsics_reject_wrong_signature_at_the_declaration() {
     for (name, intrinsic, invalid) in [
+        (
+            "coreStringFromBytePrefixUnchecked",
+            "string_from_byte_prefix_unchecked",
+            "@Unsafe fun bad(bytes: Array<UInt8>, length: Long): String",
+        ),
+        (
+            "coreStringCopyToBytesUnchecked",
+            "string_copy_to_bytes_unchecked",
+            "@Unsafe fun bad(value: String, bytes: MutableArray<Int8>, start: Long)",
+        ),
+        (
+            "coreBytesCopyPrefixUnchecked",
+            "bytes_copy_prefix_unchecked",
+            "@Unsafe fun bad(source: MutableArray<UInt8>, target: MutableArray<UInt8>, length: Int)",
+        ),
+        (
+            "coreBytesCopyRawUnchecked",
+            "bytes_copy_raw_unchecked",
+            "@Unsafe fun bad(source: Ptr<UInt8>, length: Long, target: MutableArray<UInt8>, start: Long)",
+        ),
         (
             "coreStringCopyUtf8Unchecked",
             "string_copy_utf8_unchecked",

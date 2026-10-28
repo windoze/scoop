@@ -118,6 +118,12 @@ pub(super) fn instruction_uses(instruction: &Instruction, function: &Function) -
             elements.clone()
         }
         Instruction::StringCopy { source, .. } => source.operands().collect(),
+        Instruction::ByteCopy {
+            source,
+            target,
+            start,
+            ..
+        } => source.operands().chain([*target, *start]).collect(),
         Instruction::StringByteLoad { string, index, .. } => vec![*string, *index],
         Instruction::StringByteStore {
             string,
@@ -283,6 +289,7 @@ pub(super) fn instruction_defs(instruction: &Instruction) -> Vec<LiveValue> {
         | Instruction::PopPinFrame { .. }
         | Instruction::EndCatch
         | Instruction::Throw { .. }
+        | Instruction::ByteCopy { .. }
         | Instruction::StringByteStore { .. } => None,
     };
     out.map_or_else(Vec::new, |out| vec![LiveValue::Temp(out)])

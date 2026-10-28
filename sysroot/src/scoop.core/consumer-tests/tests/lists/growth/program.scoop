@@ -1,0 +1,92 @@
+package test.core.tests.lists.growth
+
+import scoop.test.*
+
+private class Cell(val value: Long)
+
+private class Counter(var value: Long)
+
+private struct Entry(val index: Long, val first: Cell, val second: Cell?)
+
+private struct Padded(val byte: Byte, val word: Long)
+
+@Test
+private class ApiTests {
+    @Test
+    fun growsAndShiftsValuesContainingReferences() {
+        val values = ArrayList<Entry>(1L)
+        for (index in 0L until 257L) {
+            values.add(Entry(index, Cell(index), Some(Cell(-index))))
+            if (index % 64L == 0L) {
+                gcCollect()
+            }
+        }
+        values.add(0L, Entry(-1L, Cell(99L), None))
+        assertEquals(128L, values.removeAt(129L).index)
+        gcCollect()
+        for (index in 1L until values.size) {
+            val expected =
+                if (index <= 128L) {
+                    index - 1L
+                } else {
+                    index
+                }
+            assertEquals(expected, values[index].index)
+            assertEquals(expected, values[index].first.value)
+            assertEquals(-expected, values[index].second!!.value)
+        }
+        val snapshot = values.toArray()
+        values.clear()
+        gcCollect()
+        values.add(Entry(42L, Cell(43L), None))
+        assertEquals(1L, values.size)
+        assertEquals(43L, values[0L].first.value)
+        assertEquals(256L, snapshot[snapshot.size - 1L].first.value)
+    }
+
+    @Test
+    fun zeroInitializationPreservesCallbacksAndPadding() {
+        val zeros = MutableArray<UInt8>(137L) { _ -> 0u }
+        for (index in 0L until zeros.size) {
+            assertEquals(0u.toUByte(), zeros[index])
+        }
+        val flags = MutableArray<Boolean>(65L) { _ -> false }
+        assertEquals(false, flags[64L])
+        val units = MutableArray<Unit>(65L) { _ -> Unit }
+        assertEquals(65L, units.size)
+        var initializer: (Long) -> Long = { _ -> 0L }
+        initializer = { index -> index + 1L }
+        val changed = MutableArray<Long>(65L, initializer)
+        assertEquals(65L, changed[64L])
+        val calls = Counter(0L)
+        val effects =
+            MutableArray<Long>(137L) {
+                _ ->
+                calls.value += 1L;
+                0L
+            }
+        assertEquals(137L, calls.value)
+        assertEquals(0L, effects[136L])
+        try {
+            val unused =
+                MutableArray<Long>(-1L) {
+                    _ ->
+                    calls.value += 1L;
+                    0L
+                }
+            fail(Some("negative size"))
+        } catch (e: IllegalArgumentException) {}
+        assertEquals(137L, calls.value)
+        val padded = MutableArray<MaybeUninit<Padded>>(65L) { _ -> MaybeUninit<Padded>.uninit() }
+        @Unsafe
+        {
+            for (index in 0L until padded.size) {
+                val value = padded[index]
+                val bytes = addressOf(value).cast<Byte>()
+                for (offset in 0L until 16L) {
+                    assertEquals(0.toByte(), bytes.load(offset))
+                }
+            }
+        }
+    }
+}
