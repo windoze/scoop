@@ -99,11 +99,11 @@ scoop check ./app --release -j 4
 ### 3.4 `scoopc check`
 
 ```sh
-scoopc check ./app --direct-slib ./deps/model.slib --support-slib ./deps/base.slib
-scoopc check ./app --test --direct-slib ./deps/scoop.test.slib
+scoopc check ./main.scoop --direct-slib ./deps/scoop.std.slib --direct-slib ./deps/model.slib --support-slib ./deps/base.slib
+scoop check ./app --tests
 ```
 
-命令接受必需的当前 Cone 输入、`--target`、`--sysroot`、`--direct-slib`、`--support-slib`、`--generator` 和 `--test`。示例中的依赖路径仅展示参数形式，调用者仍须提供真实完整依赖集合。
+M63按包管理规范7.2退役低层原始manifest入口。直接`scoopc check`只接受必需的单文件输入、`--target`、`--sysroot`、`--direct-slib`、`--support-slib`和`--generator`；普通Cone及测试检查使用`scoop`，由其传入已绑定配置、用途和具体依赖。示例中的依赖路径仅展示参数形式，调用者仍须提供真实完整依赖集合。
 
 与低层 build 一样一次只处理一个 Cone，保留已有默认 core 选择，不定位其他缺失依赖，不跟随上游源码 locator。它不需要 `--out-slib`、profile 或 C 工具参数，直接使用共享 target registry；human 诊断与父进程调用的结构化诊断来自同一结果。
 
@@ -194,7 +194,7 @@ fun add(a: Int, b: Int): Int {
 
 ### 5.1 图与依赖
 
-`scoop` 继续负责 root、locator、完整依赖图、版本／target 冲突与调度；`scoopc` 继续一次只检查或编译一个 Cone。检查不把 source dependency 移入根源码，也不把低层 driver 改成项目扫描器。
+M63中root选择、locator与版本要求统一由PM处理并写入lock；`scoop`消费锁定图及本地投影，负责构建与调度；`scoopc`只接收具体参数，一次检查或编译一个Cone。检查不把source dependency移入根源码，也不把低层driver改成项目扫描器。
 
 预编译库正常消费已选产物；源码库先判断已有完整产物是否可复用，需要更新时沿普通构建路径生成 `.slib`。生产依赖和测试依赖都按 Production 构建，不递归启用依赖的 tests。源码依赖中的语言、native 或产物生成错误正常使本次检查失败。
 

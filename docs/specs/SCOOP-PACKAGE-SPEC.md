@@ -12,7 +12,7 @@ Scoop 尚未发布。本次直接重定义 `Cone.toml` 的初始 schema，与仓
 | --- | --- |
 | `scoop-pm` | 读取 manifest/workspace；选择根；解析版本；获取 Git/registry 源码；维护 `Cone.lock`；提供精确图与本地输入；打包源码及维护静态 registry |
 | `scoop` | 将 `scoop pm …` 转发给配套 PM；构建命令取得已锁定的图后，判断构建更新、调度单 Cone 编译、链接与运行 |
-| `scoopc` | 消费一个已展开的 Cone 配置、精确 direct/support `.slib` 与源码；完成单 Cone 编译 |
+| `scoopc` | 只接收 `scoop` 传入的单 Cone 编译配置、源码与精确 direct/support `.slib`；完成编译，不读取包声明或 lock |
 | `scoop-link` / runtime | 消费既有精确产物闭包；不解释版本范围、workspace、Git 或 registry |
 
 `scoop-pm` 是独立可执行程序和可独立测试的 Rust crate，不依赖 LLVM 或编译 stage 实现。driver 不链接 resolver、Git 或 HTTP 客户端。共享代码限于 manifest 数据、精确图/请求的数据格式和已有产物 reader；不另建任务 DSL、通用插件系统或服务进程。
@@ -284,9 +284,11 @@ driver 消费的是 lock 的精确图和本次已准备好的本地输入。port
 
 普通 manifest build/run/test/check/doc 在构建前调用配套 PM 的 prepare；有效 lock 使用已缓存结果，无网络查询和求解。缺少 lock 时默认允许 PM 创建；`--locked` 可禁止。`scoop build --lockfile <file> -p group:name --locked` 是显式消费锁定图的入口；没有 `-p` 时仍按所在 workspace 的默认选择。driver 本身从不修改 lock。
 
-已展开的单 Cone 配置通过现有 `scoop` → `scoopc` machine request 的新输入分支交付，并附精确 direct/support 产物。该分支取代 parent 仅传 ManifestRoot 后 child 重做 manifest 依赖解释的路径；协议随实施统一升级，不保留双套依赖解释。source span 可以指向原清单，不能通过生成临时源码树改变诊断路径。
+`scoop` 根据 lock 的精确图安排依赖优先的构建，将每个单 Cone 的配置、源码输入、精确 direct/support 产物及目标/用途参数通过现有 machine request 交给 `scoopc`。PM 完成版本要求与来源的绑定，`scoop` 将已绑定的边落实为具体产物参数；两者都不把选择工作交回编译器。原清单文本及 span 只供诊断，不能作为 child 再次解析的输入，也不能通过生成临时源码树改变诊断路径。
 
-直接 `scoopc build` 仍可接受独立且不含 workspace 继承的 manifest；只做本地字段解析，用调用者提供的精确 direct/support 库匹配声明，不能下载或求解。含 workspace 继承的输入使用上层 prepared request；低层 CLI 明确提示使用 `scoop`。single-file build/run 和 artifact-only `scoop link` 保持现有精确输入方式，不启动 PM、不读取邻近 workspace。
+`scoopc` 不读取 `Cone.toml` 或 `Cone.lock`，不处理 workspace、版本要求、来源定位或声明与产物的匹配。普通 Cone 的 build/check/test/doc 和 AST 观察均走上层 `scoop`；现有独立 manifest 入口退役，不为其增加新版清单适配。`scoopc` 保留精确 direct 集合、support 闭包、单版本、产物语义指纹和 target/ABI 的普通编译输入检查，不重复 PM 的版本范围判断。只观察 AST 时沿用不加载依赖产物的规则。
+
+single-file build/run 和 artifact-only `scoop link` 保持现有精确输入方式，不启动 PM、不读取邻近 workspace。低层单文件 `scoopc build/check` 仍可接收一个 `.scoop` 文件和显式 direct/support 产物；头部使用现有精确坐标，不引入包版本要求。普通 core 槽位与显式 core 自举参数保持。
 
 LSP使用同一已展开数据模型；已有本地准备结果可直接消费，缺少结果时可执行PM的`metadata --offline`读取，不修改lock。缺少锁定源码提示fetch，缺少适用lock则提示resolve；仍可展示本地members和语法诊断。文档编辑或补全不自动触发网络。formatter只需本地成员发现和源码清单展开，使用PM的members输出，不要求先成功求解依赖。
 

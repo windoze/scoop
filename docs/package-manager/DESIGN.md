@@ -8,7 +8,7 @@
 
 现有 `scoop` 已经有可复用的精确图：`compiler/scoop/src/graph.rs` 的 `ResolvedBuildGraph` 保存 root、节点、边和依赖优先顺序；`discovery/` 从 manifest/artifact 收集图，`schedule.rs` 调度单 Cone 编译。新增 PM 应替换前面的“发现和选择”，不重写后面的构建执行。
 
-原始包声明与已解析单 Cone 配置已分开，machine protocol 18 用 `ExpandedCone` 交付已绑定配置，child 不再读取原 manifest。独立 PM 已能准备完整图；普通构建入口与 `compiler/analysis/src/workspace/` 的项目发现仍需切到同一准备结果。低层直接调用 `scoopc` 时只绑定调用者提供的精确产物，不承担包解析或下载。
+原始包声明与已解析单 Cone 配置已分开，machine protocol 18 用 `ExpandedCone` 交付已绑定配置，child 不再读取原 manifest。独立 PM 已能准备完整图，普通构建入口已消费该结果；`compiler/analysis/src/workspace/` 的项目发现仍待接入。`scoopc` 不读取包声明或 lock，也不根据版本要求匹配产物；旧的独立 manifest 入口应删除，普通 Cone 统一由 `scoop` 传递具体编译参数。
 
 ```mermaid
 flowchart TD
@@ -25,7 +25,7 @@ flowchart TD
 
 `Cone.lock` 适合提交到仓库，不能记录下载到哪台机器的哪个缓存目录，也不应把不断变化的源码/native 构建配置全部复制进去。因此增加的 `PreparedWorkspace` 只是 PM 对 lock 和现有清单的一次本地展开响应：源码位置、实际配置、精确边。driver 消费确定的结果，不理解 ref 更新、版本范围或 registry HTTP。响应可按普通更新规则缓存，不是一份需要用户同步维护的新清单。
 
-这仍需要修改 driver 的图输入、单 Cone 请求和多根结果管理；不会做到完全零改动。修改集中在边界，不进入名称解析、类型系统、IR、单态化、codegen 或 runtime。直接 `scoopc`、single-file 和 artifact-only 链接保留低层用途。
+这仍需要修改 driver 的图输入、单 Cone 请求和多根结果管理；不会做到完全零改动。修改集中在边界，不进入名称解析、类型系统、IR、单态化、codegen 或 runtime。`scoopc` 的 machine request 与显式 single-file 调用保留低层用途；不保留另一套 manifest 构建入口。artifact-only 链接继续消费具体产物。
 
 ## 2. 关键决定
 
@@ -74,7 +74,7 @@ flowchart TD
 | `compiler/manifest/` | 解析原始 TOML、版本要求和 workspace 字段；提供展开后单 Cone 数据；保留原位置、生产/测试分离、native/源码清单规则 |
 | `compiler/protocol/` | PM 请求/响应和已展开单 Cone 输入的纯数据合同；复用 host path/诊断载体，不引入网络或 solver 依赖 |
 | `compiler/scoop/` | `pm` 转发、prepare 调用、精确图接入、多根调度与输出；移走普通 manifest 路径的来源/版本发现 |
-| `compiler/driver/` | 接收已展开配置及精确边；现有 stage 编排和 direct/support 产物加载继续复用 |
+| `compiler/driver/` | 只接收单 Cone 编译配置及具体 direct/support 产物；删除原始 manifest 入口，复用 stage 编排与精确产物检查 |
 | `compiler/analysis/` 与 LSP | 读取相同已准备模型及本地成员信息；消除自有版本选择，编辑时不下载 |
 | 发行与 fixtures | 分发配套 PM；新增独立 CLI 测试及少量编译闭环，更新仓库所有 Cone.toml 和文档示例 |
 
@@ -90,9 +90,9 @@ PM 的 library 入口供自身命令与单元测试使用；构建 driver 通过
 
 建立 `scoop-pm`、`scoop pm` 转发和 prepare 数据合同。先用 path/sysroot/artifact 的精确图连接现有调度；将已展开 Cone 配置传到 child。当前 manifest 的版本要求开始区分声明与已解析 coordinate，既有“固定版本”意图统一改写为 `=...`。
 
-当前进度：自动 manifest 命令与协议 18 的已展开 child 输入已接通，单文件和 artifact-only link 保持独立；直接 scoopc 的新版本要求匹配及仓库清单统一迁移尚待完成。
+当前进度：自动 manifest 命令与协议 18 的已展开 child 输入已接通，单文件和 artifact-only link 保持独立。下一步删除 `scoopc` 的独立 manifest 入口与重复清单加载，迁移对应调用者和测试；不实现直接 `scoopc` 的版本要求匹配。仓库清单统一迁移仍待完成。
 
-验收：PM 可单独 build/test，无 LLVM stage 依赖；独立进程产生完整图；driver 用准备结果完成一个真实 Cone 的构建；低层 direct/support 错误仍有代表性测试。不是先将全部 PM 代码加入 `scoop` 后再拆。
+验收：PM 可单独 build/test，无 LLVM stage 依赖；独立进程产生完整图；`scoop` 消费 lock 的本地投影完成真实构建，`scoopc` 只消费其精确参数。普通 manifest 场景迁到 `scoop` fixture，低层 direct/support 错误通过具体编译请求保留代表性测试；不在 fixture 中另写清单解析器，不为旧低层入口维护版本语义。原始 manifest 和源码保持在位，以真实调用验证继承与版本选择只发生在 PM。
 
 ### 第二步：workspace 与多根构建
 
