@@ -1,15 +1,14 @@
 [
   {
-    "code": "SCOOP_BUILD_FAILED",
-    "message": "invalid build root: invalid Cone manifest root ${fixture}/program/Cone.toml: invalid dependency \"dev.m43:helper\": invalid Cone coordinate semantic version",
+    "code": "SCOOP_PACKAGE_PREPARE",
+    "message": "${fixture}/program/Cone.toml: expected a complete major.minor.patch version: unexpected character 'n' while parsing major version number",
     "notes": [],
     "origin": {
-      "end": 157,
+      "end": 165,
       "kind": "host",
       "path": "${fixture}/program/Cone.toml",
       "start": 149
     },
-    "phase": "Root",
     "severity": "error"
   }
 ]

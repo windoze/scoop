@@ -1,15 +1,14 @@
 [
   {
-    "code": "SCOOP_LOCATOR_COORDINATE_MISMATCH",
-    "message": "dependency at ${work}/sysroot/lib/${target}/scoop.platform.slib declares scoop:scoop.different:0.1.0, expected scoop:scoop.platform:0.1.0",
+    "code": "SCOOP_PACKAGE_PREPARE",
+    "message": "expected scoop:scoop.platform from sysroot/artifact search roots, source declares scoop:scoop.different:0.1.0",
     "notes": [],
     "origin": {
-      "end": null,
+      "end": 145,
       "kind": "host",
-      "path": "${work}/sysroot/lib/${target}/scoop.platform.slib",
-      "start": null
+      "path": "${work}/cone/Cone.toml",
+      "start": 138
     },
-    "phase": "Locator",
     "severity": "error"
   }
 ]

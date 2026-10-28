@@ -118,7 +118,7 @@ impl Lowerer {
         );
         if applicable.is_empty() {
             for failure in failures {
-                self.commit_layer_diagnostics(*failure);
+                self.commit_layer_diagnostics(&failure);
             }
             return None;
         }

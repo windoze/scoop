@@ -6,6 +6,8 @@
 
 运行时提供 managed 对象分配、精确移动 GC、类型检查与动态分派所需的数据、异常展开、一次性初始化、Task-local Context 和 FFI 支持。运行时不得重新进行源码名称解析、重载选择或泛型实例化。构建缓存与产物更新属于实现规范 2.6～2.8；移除缓存内容复核不增加运行时补充验证或新 ABI。实际 image 注册、GC 根更新、对象边界和 native 调用契约保持。
 
+M63的workspace、Git/registry依赖与锁文件见[包管理规范](SCOOP-PACKAGE-SPEC.md)，由独立`scoop-pm`在编译前选择精确依赖。每个最终程序仍只含同`group:name`的一个版本；同workspace中不同程序可分别使用不同版本，但不在同一runtime中动态混用。PM和共享源码缓存不新增runtime身份、image注册字段、版本求解或ABI，2.8的完整映像登记与初始化合同保持。
+
 函数条件与成员调用要求属于编译期合同（语言规范3.2.2～3.2.4、实现规范2.11、2.13），具体化后只产生已有的普通调用、构造与 singleton 访问。不增加 runtime 约束检查、dictionary、TypeDescriptor 字段或按调用点作用域分派的 ABI。
 
 语言9.1.8的条件interface实现同样在具体HIR前落实。每个exact type的普通接口表仅包含适用关系，接口转换、is/as、装箱和分派共同使用该结果；runtime不执行guard或选择实现块。字段表示、GC扫描、基类前缀及companion的原singleton状态和ensure协议保持，同一完整宿主跨Cone共享原对象。关系查询不执行初始化，不增加TD字段、额外codec参数或新的运行期分派ABI。

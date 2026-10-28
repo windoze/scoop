@@ -6,5 +6,5 @@ version = "0.1.0"
 kind = "executable"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"dev.m27:context-a" = "0.1.0"
-"dev.m27:context-b" = "0.1.0"
+"dev.m27:context-a" = { version = "=0.1.0", artifact = "../../artifacts/dev.m27/context-a/0.1.0/cone.slib" }
+"dev.m27:context-b" = { version = "=0.1.0", artifact = "../../artifacts/dev.m27/context-b/0.1.0/cone.slib" }

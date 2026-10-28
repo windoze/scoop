@@ -21,7 +21,7 @@ diagnostics = []
 
 [[steps]]
 name = "escaped"
-argv = ["${scoop}", "run", "${fixture}/escaped", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+argv = ["${scoop}", "run", "${fixture}/escaped", "--lockfile", "${work}/source-lock-0.lock", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
 exit = 0
 stdout = "7\n"
 stderr = ""

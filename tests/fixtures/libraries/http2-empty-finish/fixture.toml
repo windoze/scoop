@@ -7,7 +7,7 @@ tags = ["http2", "flow-control", "prebuilt", "libraries"]
 variants = [{"name" = "release", "vars" = {"mode" = ["--release"]}}]
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${fixture}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+argv = ["${scoop}", "build", "${fixture}/consumer", "--lockfile", "${work}/source-lock-0.lock", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

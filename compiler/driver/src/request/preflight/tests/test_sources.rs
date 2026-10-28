@@ -20,7 +20,8 @@ fn test_source_parsing_preserves_roles_and_reports_the_original_source() {
         "package test\nfun check() { api() }\n",
     )
     .unwrap();
-    let manifest = load_cone_manifest(&ManifestRootLocator::cone_directory(root)).unwrap();
+    let manifest =
+        scoop_toolchain::load_cone_manifest(&ManifestRootLocator::cone_directory(root)).unwrap();
     let target = scoop_target_data::DARWIN_AARCH64_ID;
     let production =
         parse_manifest_current(&manifest, target, CompilationPurpose::Production).unwrap();

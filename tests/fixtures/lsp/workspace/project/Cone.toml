@@ -7,7 +7,7 @@ version = "1.0.0"
 kind = "library"
 
 [dependencies]
-"scoop:scoop.std" = { version = "0.1.0", artifact = "STD_ARTIFACT" }
+"scoop:scoop.std" = { version = "=0.1.0", artifact = "STD_ARTIFACT" }
 
 [test-dependencies]
 "scoop:scoop.test" = "0.1.0"

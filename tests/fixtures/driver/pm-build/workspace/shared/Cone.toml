@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = { workspace = true }
+name = "shared"
+version = { workspace = true }
+kind = "library"

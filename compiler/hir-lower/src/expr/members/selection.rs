@@ -40,7 +40,7 @@ impl Lowerer {
         required: RequiredCallableModifiers,
         kind: MemberCallKind,
     ) -> PropertyExtensionInvokeOutcome {
-        let mut context = self.clone();
+        let mut context = self.probe_state();
         let diagnostics = context.diagnostics.len();
         let (inner, inner_failure) = if kind == MemberCallKind::Ordinary
             && !required.infix
@@ -90,7 +90,7 @@ impl Lowerer {
                 }
                 Err(reason) if candidates.is_empty() && imported.is_empty() => {
                     context.error(call.span, reason);
-                    return PropertyExtensionInvokeOutcome::NoApplicable(Some(Box::new(context)));
+                    return PropertyExtensionInvokeOutcome::NoApplicable(Some(context));
                 }
                 Ok(None) | Err(_) => {}
             }
@@ -135,7 +135,7 @@ impl Lowerer {
             name.span,
             candidates.iter().map(|(candidate, _)| candidate.function),
         ) {
-            return PropertyExtensionInvokeOutcome::Failed(Box::new(context));
+            return PropertyExtensionInvokeOutcome::Failed(context);
         }
         let mut probes = inner;
         let mut first_failure = inner_failure;
@@ -159,9 +159,9 @@ impl Lowerer {
                 suppressed = true;
                 continue;
             }
-            let mut state = context.clone();
+            let mut state = context.probe_state();
             let Some(explicit_type_args) = state.resolve_call_type_args(call.type_args) else {
-                first_failure.get_or_insert(Box::new(state));
+                first_failure.get_or_insert(state);
                 continue;
             };
             match state.probe_named_callable(
@@ -214,7 +214,7 @@ impl Lowerer {
         let Some(winner) =
             state.select_named_function_like(&name.text, "member", &probes, call.args, call.span)
         else {
-            return PropertyExtensionInvokeOutcome::Failed(Box::new(state));
+            return PropertyExtensionInvokeOutcome::Failed(state);
         };
         let mut sink = Vec::new();
         let expression = match probes.swap_remove(winner) {
@@ -255,11 +255,11 @@ impl Lowerer {
         };
         match expression {
             Some(expression) => PropertyExtensionInvokeOutcome::Resolved(SuccessfulExprLayer {
-                state: Box::new(state),
+                state,
                 expression,
                 sink,
             }),
-            None => PropertyExtensionInvokeOutcome::Failed(Box::new(state)),
+            None => PropertyExtensionInvokeOutcome::Failed(state),
         }
     }
 }

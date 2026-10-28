@@ -48,7 +48,13 @@ fn write_preserves_permissions_links_and_unchanged_mtime() {
     std::fs::write(&path, "fun f()=1").unwrap();
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o751)).unwrap();
     std::os::unix::fs::symlink("source.scoop", &alias).unwrap();
-    let selected = expand(&alias).unwrap();
+    let selected = expand(
+        directory.path(),
+        Some(alias.clone()),
+        &Default::default(),
+        None,
+    )
+    .unwrap();
     let reporter = Reporter(MessageFormat::Json);
     assert_eq!(
         format_file(&selected[0], true, &reporter).unwrap(),
@@ -87,7 +93,13 @@ fn explicit_non_utf8_path_is_preserved_through_writeback() {
         .path()
         .join(std::ffi::OsString::from_vec(b"source-\xff.scoop".to_vec()));
     std::fs::write(&path, "fun f()=1").unwrap();
-    let selected = expand(&path).unwrap();
+    let selected = expand(
+        directory.path(),
+        Some(path.clone()),
+        &Default::default(),
+        None,
+    )
+    .unwrap();
     assert_eq!(selected, [std::fs::canonicalize(&path).unwrap()]);
     assert_eq!(
         format_file(&selected[0], false, &Reporter(MessageFormat::Json)).unwrap(),

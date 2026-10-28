@@ -51,13 +51,13 @@ impl Lowerer {
         let mut prelude_variant_failure = None;
         let local = self.local_function_scopes.lookup(name);
         if !local.is_empty() {
-            let mut state = self.clone();
+            let mut state = self.probe_state();
             let mut layer_sink = Vec::new();
             match state.lower_local_function_layer(name, &local, call, &mut layer_sink, expected) {
                 Ok(Some(expression)) => {
                     return Some(self.commit_expr_layer(
                         SuccessfulExprLayer {
-                            state: Box::new(state),
+                            state,
                             expression,
                             sink: layer_sink,
                         },
@@ -65,10 +65,10 @@ impl Lowerer {
                     ));
                 }
                 Ok(None) => {
-                    first_failure = Some(Box::new(state));
+                    first_failure = Some(state);
                 }
                 Err(()) => {
-                    self.commit_layer_diagnostics(state);
+                    self.commit_layer_diagnostics(&state);
                     return None;
                 }
             }
@@ -120,7 +120,7 @@ impl Lowerer {
         let mut implicit_properties = Vec::new();
         for binding in self.implicit_receivers() {
             let members = self.methods_by_name(binding.ty, name);
-            let mut state = self.clone();
+            let mut state = self.probe_state();
             let receiver = state.lower_receiver_binding(binding, call.callee.span)?;
             match state.probe_member_call_partition(
                 members,
@@ -140,7 +140,7 @@ impl Lowerer {
                 }
                 PropertyExtensionInvokeOutcome::Blocked => return None,
                 PropertyExtensionInvokeOutcome::Failed(failure) => {
-                    self.commit_layer_diagnostics(*failure);
+                    self.commit_layer_diagnostics(&failure);
                     return None;
                 }
             }
@@ -210,7 +210,7 @@ impl Lowerer {
             }
             let rank = layer.kind.call_rank();
             found |= !layer.candidates.is_empty();
-            let mut state = self.clone();
+            let mut state = self.probe_state();
             let mut layer_sink = Vec::new();
             match state.lower_named_function_partition(
                 &layer.candidates,
@@ -223,7 +223,7 @@ impl Lowerer {
                     state.observe_import_lookup(&call.callee, layer.kind);
                     return Some(self.commit_expr_layer(
                         SuccessfulExprLayer {
-                            state: Box::new(state),
+                            state,
                             expression,
                             sink: layer_sink,
                         },
@@ -243,14 +243,14 @@ impl Lowerer {
                                 )
                             })
                         {
-                            prelude_variant_failure.get_or_insert(Box::new(state));
+                            prelude_variant_failure.get_or_insert(state);
                         } else {
-                            first_failure.get_or_insert(Box::new(state));
+                            first_failure.get_or_insert(state);
                         }
                     }
                 }
                 Err(()) => {
-                    self.commit_layer_diagnostics(state);
+                    self.commit_layer_diagnostics(&state);
                     return None;
                 }
             }
@@ -336,7 +336,7 @@ impl Lowerer {
                 if extension_properties.is_empty() {
                     break;
                 }
-                let mut state = self.clone();
+                let mut state = self.probe_state();
                 let mut setup = Vec::new();
                 let receiver = state.lower_receiver_binding(binding, call.callee.span)?;
                 match state.resolve_extension_property_candidates_outcome(
@@ -350,7 +350,7 @@ impl Lowerer {
                         current_values.push(NamedValueLayer {
                             origin: PropertyExtensionInvokeOrigin::Extension(property.identity()),
                             read: SuccessfulExprLayer {
-                                state: Box::new(state),
+                                state,
                                 expression: property.read,
                                 sink: setup,
                             },
@@ -359,10 +359,10 @@ impl Lowerer {
                         break;
                     }
                     crate::properties::ExtensionPropertyCandidateOutcome::NoApplicable => {
-                        first_failure.get_or_insert(Box::new(state));
+                        first_failure.get_or_insert(state);
                     }
                     crate::properties::ExtensionPropertyCandidateOutcome::Failed => {
-                        self.commit_layer_diagnostics(state);
+                        self.commit_layer_diagnostics(&state);
                         return None;
                     }
                     crate::properties::ExtensionPropertyCandidateOutcome::NoCandidate => {}
@@ -407,7 +407,7 @@ impl Lowerer {
             }
             if !layer.suppressed_callables.is_empty() {
                 if let Some(failure) = first_failure {
-                    self.commit_layer_diagnostics(*failure);
+                    self.commit_layer_diagnostics(&failure);
                 }
                 return None;
             }

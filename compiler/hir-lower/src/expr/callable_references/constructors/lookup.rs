@@ -46,7 +46,7 @@ impl Lowerer {
         if candidates.is_empty()
             && let Some(failure) = first_failure
         {
-            self.commit_layer_diagnostics(failure);
+            self.commit_layer_diagnostics(&failure);
             return Err(());
         }
         Ok(candidates)

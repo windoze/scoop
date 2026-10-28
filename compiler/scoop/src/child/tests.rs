@@ -20,8 +20,8 @@ fn request(id: [u8; 16]) -> ScoopcRequestEnvelopeV1 {
     ScoopcRequestEnvelopeV1::new(
         RequestCorrelationId::from_array(id),
         ScoopcBuildRequestV1::new(
-            CurrentConeRequestV1::ManifestRoot {
-                root: path("snapshot/Cone.toml"),
+            CurrentConeRequestV1::SingleFile {
+                source: path("snapshot/main.scoop"),
             },
             Vec::new(),
             Vec::new(),

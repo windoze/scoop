@@ -19,9 +19,7 @@ fn request(current: CurrentConeRequestV1) -> ScoopcBuildRequestV1 {
 #[test]
 fn check_requests_round_trip_without_output_paths() {
     for current in [
-        CurrentConeRequestV1::ManifestRoot {
-            root: path("library"),
-        },
+        crate::test_support::manifest("library"),
         CurrentConeRequestV1::SingleFile {
             source: path("main.scoop"),
         },
@@ -40,9 +38,7 @@ fn check_requests_round_trip_without_output_paths() {
 
 #[test]
 fn checks_support_test_purpose_but_reject_machine_inputs_and_observations() {
-    let request = request(CurrentConeRequestV1::ManifestRoot {
-        root: path("library"),
-    });
+    let request = request(crate::test_support::manifest("library"));
     let tests = request
         .clone()
         .with_purpose(crate::CompilationPurpose::Test)
@@ -63,9 +59,7 @@ fn checks_support_test_purpose_but_reject_machine_inputs_and_observations() {
     assert!(crate::decode_request_frame(&crate::encode_request_frame(&invalid).unwrap()).is_err());
     assert_eq!(
         ScoopcBuildRequestV1::new(
-            CurrentConeRequestV1::ManifestRoot {
-                root: path("library")
-            },
+            crate::test_support::manifest("library"),
             Vec::new(),
             Vec::new(),
             TrustedCoreRequestV1::Bootstrap,

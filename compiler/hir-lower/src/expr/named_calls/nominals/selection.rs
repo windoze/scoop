@@ -74,7 +74,7 @@ impl Lowerer {
                     .iter()
                     .any(|diagnostic| diagnostic.severity == ast::DiagnosticSeverity::Error)
                 {
-                    self.commit_layer_diagnostics(*layer.state);
+                    self.commit_layer_diagnostics(&layer.state);
                     None
                 } else {
                     Some(self.commit_expr_layer(layer, sink))

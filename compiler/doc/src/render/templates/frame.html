@@ -10,6 +10,7 @@
   <a class="skip" href="#content">Skip to content</a>
   <header class="topbar">
     <a class="brand" href="{{ home }}">Scoop <span>API</span></a>
+    {% if root %}<a href="{{ roots }}">All roots</a><span>{{ root }}</span>{% endif %}
     <form action="{{ search }}" method="get" role="search">
       <label for="search-input">Search API</label>
       <input id="search-input" type="search" name="q" placeholder="Name, alias, or description">

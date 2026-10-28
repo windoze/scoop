@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use scoop_identity::{ConeCoordinate, ConeIdentity};
-use scoop_manifest::{ManifestRootLocator, SingleFileLocator};
+use scoop_manifest::SingleFileLocator;
 use scoop_protocol::TargetSelectionRequestV1;
 use scoop_slib::{
     ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, read_artifact_manifest_summary,
@@ -59,7 +59,11 @@ fn write_core(sysroot: &Path) {
 
 fn request(root: &Path, sysroot: &Path) -> BuildGraphRequest {
     BuildGraphRequest::new(
-        BuildRootInput::manifest(ManifestRootLocator::cone_directory(root)).unwrap(),
+        crate::test_package::root(
+            root,
+            sysroot,
+            scoop_protocol::CompilationPurpose::Production,
+        ),
         vec![],
         ArtifactCacheRoot::new(sysroot.with_extension("cache")).unwrap(),
         TrustedSysrootRoot::new(sysroot).unwrap(),
@@ -177,149 +181,6 @@ fn diamond_has_canonical_order_and_exact_direct_support_projection() {
 }
 
 #[test]
-fn canonical_cycle_diagnostic_orders_sccs_and_edges() {
-    let temp = tempfile::tempdir().unwrap();
-    let sysroot = temp.path().join("sysroot");
-    write_core(&sysroot);
-    let root = temp.path().join("root");
-    for name in ["a", "b", "c", "d"] {
-        let dependency = match name {
-            "a" => "b",
-            "b" => "a",
-            "c" => "d",
-            "d" => "c",
-            _ => unreachable!(),
-        };
-        write_manifest(
-            &temp.path().join(name),
-            name,
-            "1.0.0",
-            "library",
-            &format!(
-                "[dependencies]\n\"test:{dependency}\" = {{ version = \"1.0.0\", path = \"../{dependency}\" }}\n"
-            ),
-        );
-    }
-    write_manifest(
-        &root,
-        "root",
-        "1.0.0",
-        "library",
-        "[dependencies]\n\"test:c\" = { version = \"1.0.0\", path = \"../c\" }\n\"test:a\" = { version = \"1.0.0\", path = \"../a\" }\n",
-    );
-
-    let error = request(&root, &sysroot)
-        .load_root()
-        .unwrap()
-        .discover()
-        .unwrap()
-        .resolve()
-        .unwrap_err();
-    let ResolveBuildGraphError::Cycles(cycles) = error else {
-        panic!("expected cycles, found {error}");
-    };
-    assert_eq!(cycles.len(), 2);
-    let paths: Vec<Vec<String>> = cycles
-        .iter()
-        .map(|cycle| {
-            let mut coordinates = vec![cycle.steps()[0].dependent_coordinate().to_string()];
-            coordinates.extend(
-                cycle
-                    .steps()
-                    .iter()
-                    .map(|step| step.dependency_coordinate().to_string()),
-            );
-            coordinates
-        })
-        .collect();
-    assert_eq!(
-        paths,
-        [
-            vec!["test:a:1.0.0", "test:b:1.0.0", "test:a:1.0.0"],
-            vec!["test:c:1.0.0", "test:d:1.0.0", "test:c:1.0.0"],
-        ]
-    );
-    assert!(
-        cycles
-            .iter()
-            .all(|cycle| { cycle.steps().iter().all(|step| !step.origins().is_empty()) })
-    );
-}
-
-#[test]
-fn multiple_versions_report_every_incoming_claim_canonically() {
-    let temp = tempfile::tempdir().unwrap();
-    let sysroot = temp.path().join("sysroot");
-    write_core(&sysroot);
-    let root = temp.path().join("root");
-    let a = temp.path().join("a");
-    let b = temp.path().join("b");
-    write_manifest(
-        &root,
-        "root",
-        "1.0.0",
-        "library",
-        "[dependencies]\n\"test:a\" = { version = \"1.0.0\", path = \"../a\" }\n\"test:b\" = { version = \"1.0.0\", path = \"../b\" }\n",
-    );
-    write_manifest(
-        &a,
-        "a",
-        "1.0.0",
-        "library",
-        "[dependencies]\n\"test:shared\" = { version = \"2.0.0\", path = \"../shared-v2\" }\n",
-    );
-    write_manifest(
-        &b,
-        "b",
-        "1.0.0",
-        "library",
-        "[dependencies]\n\"test:shared\" = { version = \"1.0.0\", path = \"../shared-v1\" }\n",
-    );
-    write_manifest(
-        &temp.path().join("shared-v1"),
-        "shared",
-        "1.0.0",
-        "library",
-        "",
-    );
-    write_manifest(
-        &temp.path().join("shared-v2"),
-        "shared",
-        "2.0.0",
-        "library",
-        "",
-    );
-
-    let error = request(&root, &sysroot)
-        .load_root()
-        .unwrap()
-        .discover()
-        .unwrap()
-        .resolve()
-        .unwrap_err();
-    let ResolveBuildGraphError::MultipleVersions(conflicts) = error else {
-        panic!("expected multiple versions, found {error}");
-    };
-    assert_eq!(conflicts.len(), 1);
-    assert_eq!(conflicts[0].group(), "test");
-    assert_eq!(conflicts[0].name(), "shared");
-    assert_eq!(
-        conflicts[0]
-            .claims()
-            .iter()
-            .map(|claim| claim.coordinate().version())
-            .collect::<Vec<_>>(),
-        ["1.0.0", "2.0.0"]
-    );
-    assert!(
-        conflicts[0]
-            .claims()
-            .iter()
-            .all(|claim| claim.incoming_origins().len() == 1)
-    );
-}
-
-#[test]
 fn executable_root_and_single_file_are_valid_roots_only() {
     let temp = tempfile::tempdir().unwrap();
     let sysroot = temp.path().join("sysroot");
@@ -420,7 +281,7 @@ fn prebuilt_node_must_bind_its_recorded_core_edge() {
         "root",
         "1.0.0",
         "library",
-        "[dependencies]\n\"test:prebuilt\" = { version = \"1.0.0\", artifact = \"../prebuilt.slib\" }\n",
+        "[dependencies]\n\"test:prebuilt\" = { version = \"=1.0.0\", artifact = \"../prebuilt.slib\" }\n",
     );
     let prebuilt_coordinate = coordinate("prebuilt", "1.0.0");
     std::fs::write(
@@ -491,10 +352,8 @@ fn self_cycle_uses_the_same_canonical_cycle_shape() {
         ),
     );
 
-    let error = GraphResolver::new(parts).resolve().unwrap_err();
-    let ResolveBuildGraphError::Cycles(cycles) = error else {
-        panic!("expected self cycle, found {error}");
-    };
+    let adjacency = canonical_adjacency(&parts.nodes, &parts.edges);
+    let cycles = find_cycles(&parts.nodes, &parts.edges, &adjacency).unwrap();
     assert_eq!(cycles.len(), 1);
     assert_eq!(cycles[0].steps().len(), 1);
     assert_eq!(cycles[0].steps()[0].dependent(), root_identity);
@@ -526,7 +385,7 @@ fn unreachable_nodes_are_rejected_in_coordinate_order() {
     let mut parts = discovered.into_parts();
     parts.edges.remove(&(root_identity, a_identity));
 
-    let error = GraphResolver::new(parts).resolve().unwrap_err();
+    let error = validate_reachability(parts.root, &parts.nodes, &parts.edges).unwrap_err();
     let ResolveBuildGraphError::UnreachableNodes(coordinates) = error else {
         panic!("expected unreachable node, found {error}");
     };

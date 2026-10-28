@@ -6,4 +6,4 @@ version = "0.1.0"
 kind = "executable"
 
 [dependencies]
-"dev.performance:member-provider" = "0.1.0"
+"dev.performance:member-provider" = { version = "=0.1.0", artifact = "../artifacts/dev.performance/member-provider/0.1.0/cone.slib" }

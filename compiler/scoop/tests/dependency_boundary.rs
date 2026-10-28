@@ -50,6 +50,8 @@ fn orchestration_cannot_reach_lowering_or_codegen_implementation_crates() {
         "scoop-mir-lower",
         "scoop-lir-lower",
         "scoop-codegen",
+        "scoop-pm",
+        "pubgrub",
     ]);
 
     for name in reachable {
@@ -63,30 +65,35 @@ fn orchestration_cannot_reach_lowering_or_codegen_implementation_crates() {
 #[test]
 fn compiler_driver_cannot_reach_orchestration() {
     let metadata = workspace_metadata();
-    assert!(
-        !normal_dependency_names(&metadata, "scoopc").contains("scoop"),
-        "scoopc must not depend on the scoop orchestration crate"
-    );
+    let reachable = normal_dependency_names(&metadata, "scoopc");
+    for name in ["scoop", "scoop-pm", "pubgrub"] {
+        assert!(
+            !reachable.contains(name),
+            "scoopc must not depend on {name}"
+        );
+    }
 }
 
 #[test]
-fn artifact_linker_cannot_reach_frontend_or_llvm_implementations() {
+fn package_manager_and_artifact_linker_cannot_reach_frontend_or_llvm_implementations() {
     let metadata = workspace_metadata();
-    for name in normal_dependency_names(&metadata, "scoop-linker") {
-        assert!(
-            !matches!(
-                name,
-                "scoop"
-                    | "scoopc"
-                    | "scoop-parser"
-                    | "scoop-hir-lower"
-                    | "scoop-mir-lower"
-                    | "scoop-lir-lower"
-                    | "scoop-codegen"
-                    | "inkwell"
-            ) && !name.starts_with("llvm-sys"),
-            "artifact-only linker reaches implementation crate {name}"
-        );
+    for root in ["scoop-linker", "scoop-pm"] {
+        for name in normal_dependency_names(&metadata, root) {
+            assert!(
+                !matches!(
+                    name,
+                    "scoop"
+                        | "scoopc"
+                        | "scoop-parser"
+                        | "scoop-hir-lower"
+                        | "scoop-mir-lower"
+                        | "scoop-lir-lower"
+                        | "scoop-codegen"
+                        | "inkwell"
+                ) && !name.starts_with("llvm-sys"),
+                "{root} reaches implementation crate {name}"
+            );
+        }
     }
 }
 

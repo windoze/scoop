@@ -10,7 +10,7 @@
 
 `clone.scoop` 的 `small`／`references`／`large` 模式分别复制 16 Long、16 个含引用值、8192 Long；前两项 100,000 次，后一项 512 次。输出为 `2250000`／`1600000`／`392448`。配套的 `../poll-response/clone.scoop` 单独测 wrapper 握手减少后的请求响应，不能与 production 计时混用。
 
-`byval/provider` 与 `byval/consumer` 是普通库／应用 Cone，用于保留跨 Cone 的 64-byte byval 调用。先以固定编译器构建 provider 到 artifact root 的 `dev.m58/byval-provider/0.1.0/cone.slib`，再让两版 consumer 构建使用相同 `--artifact-dir`。输出 `-1018`。不能把非泛型 provider 正文当作本地 inline 输入；这个对照用于区分副本消除与函数调用开销。
+`byval/provider` 与 `byval/consumer` 是普通库／应用 Cone，用于保留跨 Cone 的 64-byte byval 调用。先将 consumer 复制到工作目录的 `consumer/`，以固定编译器构建 provider 到该工作目录的 `artifacts/dev.m58/byval-provider/0.1.0/cone.slib`，再用两版编译器构建复制后的 consumer；其清单显式引用同一份 artifact。输出 `-1018`。不能把非泛型 provider 正文当作本地 inline 输入；这个对照用于区分副本消除与函数调用开销。
 
 使用同一预备 sysroot、app release、runtime 配置，分别以修改前后编译器构建到独立缓存及输出。先预热，每轮交替执行两版，校验 stdout，再报告整个程序的耗时中位数与范围；启动和输出包含在内。记录最终 executable 的 `llvm-size -A` text bytes 与文件大小。不要在计时期间并行构建或测试。
 

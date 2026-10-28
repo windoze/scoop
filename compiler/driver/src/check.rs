@@ -3,7 +3,7 @@ use std::process::ExitCode;
 
 #[derive(clap::Args)]
 pub(super) struct CheckArgs {
-    /// Cone directory, exact Cone.toml, or one .scoop file.
+    /// One `.scoop` file; use `scoop check` for Cone projects.
     input: PathBuf,
     #[arg(long = "direct-slib")]
     direct_slibs: Vec<PathBuf>,
@@ -13,9 +13,6 @@ pub(super) struct CheckArgs {
     target: Option<String>,
     #[arg(long)]
     sysroot: Option<PathBuf>,
-    /// Check production and test sources using the generated test entry.
-    #[arg(long)]
-    test: bool,
     #[arg(long = "generator", value_name = "NAME=PATH")]
     generators: Vec<std::ffi::OsString>,
 }
@@ -30,11 +27,6 @@ pub(super) fn run(args: CheckArgs) -> ExitCode {
             target: args.target,
             sysroot: args.sysroot,
             generators: args.generators,
-            purpose: if args.test {
-                scoop_protocol::CompilationPurpose::Test
-            } else {
-                scoop_protocol::CompilationPurpose::Production
-            },
         },
     );
     let request = match request {
@@ -67,15 +59,13 @@ mod tests {
 
     #[test]
     fn check_arguments_need_no_output_and_reject_machine_options() {
-        assert!(
-            super::super::Cli::try_parse_from(["scoopc", "check", "Cone.toml", "--test"]).is_ok()
-        );
-        for option in ["--out-slib", "--emit", "--cc"] {
+        assert!(super::super::Cli::try_parse_from(["scoopc", "check", "main.scoop"]).is_ok());
+        for option in ["--out-slib", "--emit", "--cc", "--test"] {
             assert!(
                 super::super::Cli::try_parse_from([
                     "scoopc",
                     "check",
-                    "Cone.toml",
+                    "main.scoop",
                     option,
                     "value"
                 ])

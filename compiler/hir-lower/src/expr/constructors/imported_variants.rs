@@ -161,7 +161,7 @@ impl Lowerer {
         match self.probe_imported_value_constructor(candidate, name, call, expected) {
             Ok(probe) => self.commit_imported_dependency_callable(probe, sink),
             Err(failure) => {
-                self.commit_layer_diagnostics(*failure);
+                self.commit_layer_diagnostics(&failure);
                 None
             }
         }

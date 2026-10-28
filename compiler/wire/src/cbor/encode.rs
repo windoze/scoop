@@ -103,7 +103,9 @@ pub fn encode_canonical_temporary(
         let kind = match error {
             EncodeError::Allocation => WireErrorKind::Allocation,
             EncodeError::LengthLimit => WireErrorKind::IntegerOutOfRange,
-            EncodeError::OutputSinkMismatch => WireErrorKind::NonCanonicalCbor,
+            EncodeError::OutputSinkMismatch | EncodeError::InvalidValue(_) => {
+                WireErrorKind::NonCanonicalCbor
+            }
         };
         WireError::new(kind, path.clone(), None)
     })
@@ -121,11 +123,12 @@ pub(crate) fn encode_into_hasher(
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EncodeError {
     Allocation,
     LengthLimit,
     OutputSinkMismatch,
+    InvalidValue(String),
 }
 
 impl From<minicbor::encode::Error<OutputError>> for EncodeError {
@@ -143,6 +146,9 @@ impl fmt::Display for EncodeError {
             Self::Allocation => "Wire CBOR v1 output allocation failed",
             Self::LengthLimit => "Wire CBOR v1 output exceeded its length limit",
             Self::OutputSinkMismatch => "Wire CBOR v1 encoder output sink mismatch",
+            Self::InvalidValue(message) => {
+                return write!(formatter, "cannot encode wire value: {message}");
+            }
         })
     }
 }

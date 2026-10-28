@@ -1,7 +1,7 @@
 [
   {
-    "code": "SCOOP_BUILD_FAILED",
-    "message": "invalid build root: invalid Cone manifest root ${fixture}/program/Cone.toml: invalid Cone.toml: TOML parse error at line 10, column 20\n   |\n10 | \"dev.m43:helper\" = { version = \"0.1.0\", optional = true }\n   |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ndata did not match any variant of untagged enum RawDependency\n",
+    "code": "SCOOP_PACKAGE_PREPARE",
+    "message": "${fixture}/program/Cone.toml: unknown field `optional`, expected one of `version`, `workspace`, `path`, `artifact`, `registry`, `git`, `github`, `branch`, `tag`, `rev`, `subdir`\n",
     "notes": [],
     "origin": {
       "end": 193,
@@ -9,7 +9,6 @@
       "path": "${fixture}/program/Cone.toml",
       "start": 155
     },
-    "phase": "Root",
     "severity": "error"
   }
 ]

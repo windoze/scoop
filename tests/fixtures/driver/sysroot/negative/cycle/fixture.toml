@@ -17,7 +17,7 @@ files = [
  {copy = {from = "${fixture}/cone", to = "${work}/cone"}},
  {copy = {from = "${fixture}/platform", to = "${work}/sysroot/src/scoop.platform"}},
  {mkdir = {path = "${work}/sysroot/src/scoop.helper"}},
- {write = {path = "${work}/sysroot/src/scoop.helper/Cone.toml", data = "schema = 1\n[cone]\ngroup = \"scoop\"\nname = \"scoop.helper\"\nversion = \"0.1.0\"\nkind = \"library\"\n[dependencies]\n\"scoop:scoop.platform\" = \"0.1.0\"\n"}},
+ {write = {path = "${work}/sysroot/src/scoop.helper/Cone.toml", data = "schema = 1\n[cone]\ngroup = \"scoop\"\nname = \"scoop.helper\"\nversion = \"0.1.0\"\nkind = \"library\"\n[dependencies]\n\"scoop:scoop.platform\" = {version = \"0.1.0\", path = \"../scoop.platform\"}\n"}},
 ]
 
 [[steps]]

@@ -1,12 +1,12 @@
 schema = 1
 name = "artifact-summary"
 inputs = ["provider", "consumer", "state.py"]
-tools = ["scoop", "scoopc", "python"]
+tools = ["scoop", "scoopc", "scoop-pm", "python"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["cache", "prebuilt", "multi-cone", "driver"]
 
 [vars]
-options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--runtime-root", "${runtime}", "--target-dir", "${work}/target", "--message-format", "json"]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--package-cache", "${work}/packages", "--runtime-root", "${runtime}", "--target-dir", "${work}/target", "--message-format", "json"]
 
 [[steps]]
 name = "prepare"
@@ -41,7 +41,7 @@ stderr = ""
 
 [[steps]]
 name = "save_first"
-argv = ["${python}", "${fixture}/state.py", "save", "${work}/cache", "${work}/records.json", "2"]
+argv = ["${python}", "${fixture}/state.py", "save", "${work}/packages", "${work}/records.json", "2"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -58,7 +58,7 @@ checks = [{actual = "${warm.result.observations.child_invocations.length}", equa
 
 [[steps]]
 name = "same_first"
-argv = ["${python}", "${fixture}/state.py", "same", "${work}/cache", "${work}/records.json", "2"]
+argv = ["${python}", "${fixture}/state.py", "same", "${work}/packages", "${work}/records.json", "2"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -79,7 +79,7 @@ checks = [{actual = "${touched.result.observations.child_invocations.length}", e
 
 [[steps]]
 name = "save_touched"
-argv = ["${python}", "${fixture}/state.py", "save", "${work}/cache", "${work}/records.json", "3"]
+argv = ["${python}", "${fixture}/state.py", "save", "${work}/packages", "${work}/records.json", "3"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -96,7 +96,7 @@ checks = [{actual = "${warm_touched.result.observations.child_invocations.length
 
 [[steps]]
 name = "same_touched"
-argv = ["${python}", "${fixture}/state.py", "same", "${work}/cache", "${work}/records.json", "3"]
+argv = ["${python}", "${fixture}/state.py", "same", "${work}/packages", "${work}/records.json", "3"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -134,7 +134,7 @@ stderr = ""
 
 [[steps]]
 name = "save_changed"
-argv = ["${python}", "${fixture}/state.py", "save", "${work}/cache", "${work}/records.json", "4"]
+argv = ["${python}", "${fixture}/state.py", "save", "${work}/packages", "${work}/records.json", "4"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -151,7 +151,7 @@ checks = [{actual = "${warm_changed.result.observations.child_invocations.length
 
 [[steps]]
 name = "same_changed"
-argv = ["${python}", "${fixture}/state.py", "same", "${work}/cache", "${work}/records.json", "4"]
+argv = ["${python}", "${fixture}/state.py", "same", "${work}/packages", "${work}/records.json", "4"]
 exit = 0
 stdout = ""
 stderr = ""

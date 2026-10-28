@@ -5,4 +5,4 @@ name = "intrinsic-runner"
 version = "0.1.0"
 kind = "executable"
 [dependencies]
-"dev.m62:intrinsic-consumer" = "0.1.0"
+"dev.m62:intrinsic-consumer" = { version = "=0.1.0", artifact = "../artifacts/dev.m62/intrinsic-consumer/0.1.0/cone.slib" }

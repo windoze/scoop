@@ -26,10 +26,24 @@ impl HostPathEncoding {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct HostPathCarrier {
     encoding: HostPathEncoding,
     bytes: Vec<u8>,
+}
+
+impl<'de> serde::Deserialize<'de> for HostPathCarrier {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(serde::Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Fields {
+            encoding: HostPathEncoding,
+            bytes: Vec<u8>,
+        }
+        let fields = Fields::deserialize(deserializer)?;
+        validate_host_encoding(fields.encoding).map_err(serde::de::Error::custom)?;
+        Self::new(fields.encoding, fields.bytes).map_err(serde::de::Error::custom)
+    }
 }
 
 impl HostPathCarrier {

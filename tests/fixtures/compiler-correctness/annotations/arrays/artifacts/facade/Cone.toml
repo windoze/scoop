@@ -5,4 +5,4 @@ name = "annotation-array-facade"
 version = "0.1.0"
 kind = "library"
 [dependencies]
-"dev.m35:annotation-array-provider" = "0.1.0"
+"dev.m35:annotation-array-provider" = { version = "=0.1.0", artifact = "../../artifacts/dev.m35/annotation-array-provider/0.1.0/cone.slib" }

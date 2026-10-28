@@ -148,3 +148,17 @@ class ProcessTests(unittest.TestCase):
         report = b'{"schema":1,"kind":"test-report"}\n'
         with self.assertRaisesRegex(AssertionFailure, "multiple test result"):
             decode_streams(b"", report * 2, "test-stderr")
+
+    def test_batch_mode_preserves_each_workspace_result_and_report(self):
+        records = [
+            {"schema": 1, "kind": "executable", "output": "one"},
+            {"schema": 1, "kind": "test-report", "passed": 1},
+            {"schema": 1, "kind": "executable", "output": "two"},
+            {"schema": 1, "kind": "test-report", "passed": 2},
+        ]
+        raw = b"\n".join(json.dumps(record).encode() for record in records) + b"\nplain\n"
+        result = decode_streams(b"", raw, "batch-stderr")
+        self.assertEqual(result["records"], records)
+        self.assertEqual(result["result"], records[2])
+        self.assertEqual(result["test_result"], records[3])
+        self.assertEqual(result["stderr"], b"plain\n")

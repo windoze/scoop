@@ -3,7 +3,7 @@
 构建与启动：
 
 ```sh
-cargo build --release -p scoop-lsp
+cargo build --release -p scoop-lsp -p scoop-pm
 target/release/scoop-lsp --stdio
 ```
 
@@ -19,7 +19,9 @@ workspace/symbol 搜索已加载项目的顶层声明与名义类型成员，支
 
 每个请求读取固定分析版本，未变化文件复用语法树；输入更新使旧计算失效并重新安排尚需响应的请求。传输循环在解析期间继续处理修改和取消，取消请求仍收到响应。诊断携带当前客户端版本，修复后发布空列表清除原诊断。
 
-工作区复用普通 Cone.toml、源码条件与依赖选择。workspaceFolders 或 rootUri 可指向 Cone 根；较大的仓库目录在打开文件时选择其最近的 Cone 根，同时加载声明的源码依赖。未归属项目的文件继续提供语法服务。打开的 Cone.toml 也覆盖磁盘；错误 manifest、缺失依赖与无效目标以 `SCOOP_PROJECT` 诊断发布。服务器响应 workspace/didChangeConfiguration、workspace/didChangeWorkspaceFolders 和文件变更通知；客户端支持动态文件监听注册时，服务器请求监听 manifest、Scoop 源码与 slib。
+工作区通过配套 `scoop-pm members` 与 `metadata --offline` 取得成员和锁定依赖图。先显式运行 `scoop pm resolve` 或普通 build/run 准备 `Cone.lock`，缺少本地依赖时运行 `scoop pm fetch`。服务器不联网、不选择新版本、不改写 lock；缺少适用 lock 的成员仍有语法诊断和符号查询，不影响其他成员的语义服务。workspace 根会加载全部成员，包括不在 default-members 中的成员；单独打开成员目录只选择该成员。
+
+工作区复用普通 Cone.toml 与源码条件。workspaceFolders 或 rootUri 可指向 Cone 根；较大的仓库目录在打开文件时选择其最近的 Cone 根，同时加载声明的源码依赖。未归属项目的文件继续提供语法服务。打开的 Cone.toml 也覆盖磁盘；错误 manifest、缺失依赖与无效目标以 `SCOOP_PROJECT` 诊断发布。服务器响应 workspace/didChangeConfiguration、workspace/didChangeWorkspaceFolders 和文件变更通知；客户端支持动态文件监听注册时，服务器请求监听 manifest、Cone.lock、Scoop 源码与 slib。
 
 初始化选项支持如下配置；同样的对象可放在配置变更通知的 `settings.scoop` 中：
 
@@ -32,7 +34,7 @@ workspace/symbol 搜索已加载项目的顶层声明与名义类型成员，支
 }
 ```
 
-target 默认使用宿主的现有目标选择；purpose 可为 production 或 test，默认 production。Test 只将根 Cone 的测试源码和测试依赖加入输入，源码依赖仍按 production 处理。sysroot 沿用 `SCOOP_SYSROOT` 或安装布局，编辑器不自动准备系统库、运行 native 构建或启动生成器。相对 sysroot／搜索路径相对于所属 Cone 根解析。
+target 默认使用宿主的现有目标选择；purpose 可为 production 或 test，默认 production。Test 只将根 Cone 的测试源码和测试依赖加入输入，源码依赖仍按 production 处理。sysroot 沿用 `SCOOP_SYSROOT` 或安装布局，编辑器不自动准备系统库、运行 native 构建或启动生成器。相对 sysroot／搜索路径相对于配置根解析。`packageManager` 默认使用 scoop-lsp 同目录的 scoop-pm，可指定配套程序；`packageCacheDir` 可覆盖共享源码缓存，`lockfile` 可覆盖锁文件位置，相对路径均基于配置根。
 
 同一文件需使用不同目标或用途时，可以在 `configurations` 中显式列出配置，并用 `activeConfiguration` 选取语义上下文：
 
@@ -47,7 +49,7 @@ target 默认使用宿主的现有目标选择；purpose 可为 production 或 t
 }
 ```
 
-每个配置还可覆盖 target、sysroot 和 artifactSearchRoots。配置名称须非空且唯一；未指定 activeConfiguration 时按配置顺序选择当前文件所属的第一个项目。同一文件共享文本和语法，项目归属与依赖保持分开。
+每个配置还可覆盖 target、sysroot、artifactSearchRoots、packageManager、packageCacheDir 和 lockfile。配置名称须非空且唯一；未指定 activeConfiguration 时按配置顺序选择当前文件所属的第一个项目。同一文件共享文本和语法，项目归属与依赖保持分开。
 
 已有语义服务包括函数／参数／局部变量及实际调用的 hover 和定义导航、receiver 成员补全、完整与半成品调用的签名帮助，以及普通声明／正文诊断。当前 Cone 和完整源码依赖复用原前端，预编译依赖读取已有 HIR；缺少源码时仍可显示已有签名，导航不猜测文件位置。错误源码中的已知事实与不可用状态按[完整设计](../../docs/language-service/DESIGN.md)区分，实际覆盖与剩余工作见[实施记录](../../docs/language-service/PROGRESS.md)。
 

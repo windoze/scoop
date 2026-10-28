@@ -6,9 +6,9 @@ pub(crate) fn locate_build_dependency(
     sysroot: &Path,
     target: scoop_lir::ValidatedLirTargetSelection,
     cache: &ArtifactCacheRoot,
-) -> Result<LocatedDependencyClaim, DependencyLocatorError> {
+) -> Result<PrebuiltArtifactProjection, DependencyLocatorError> {
     match locate_from_search_roots(coordinate, search_roots, target, cache) {
-        Ok(prebuilt) => Ok(LocatedDependencyClaim::Prebuilt(Box::new(prebuilt))),
+        Ok(prebuilt) => Ok(prebuilt),
         Err(DependencyLocatorError::ArtifactNotFound { .. })
             if coordinate.group() == "scoop" && *coordinate != ConeCoordinate::reserved_core() =>
         {
@@ -23,7 +23,7 @@ pub(super) fn locate_sysroot_dependency(
     sysroot: &Path,
     target: scoop_lir::ValidatedLirTargetSelection,
     cache: &ArtifactCacheRoot,
-) -> Result<LocatedDependencyClaim, DependencyLocatorError> {
+) -> Result<PrebuiltArtifactProjection, DependencyLocatorError> {
     let path = scoop_toolchain::sysroot_library_path(sysroot, target.target(), coordinate);
     locate_artifact_dependency(path.clone(), coordinate, target, cache).map_err(|error| {
         if matches!(&error, DependencyLocatorError::Io { source, .. } if source.kind() == std::io::ErrorKind::NotFound)

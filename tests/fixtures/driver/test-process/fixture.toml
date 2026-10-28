@@ -100,5 +100,5 @@ checks = [
     {actual = "${interrupt.test_result.counts.failed}", equals = 1},
     {actual = "${interrupt.test_result.counts.not_run}", equals = 1},
     {actual = "${interrupt.result.observations.child_invocations.length}", equals = 0},
-    {glob = "${work}/outputs/${target}/${profile}/tests/.test-run-*", equals = []},
+    {glob = "${work}/outputs/${target}/${profile}/dev.m43/process-tests/tests/.test-run-*", equals = []},
 ]

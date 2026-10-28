@@ -6,5 +6,5 @@ version = "0.1.0"
 kind = "library"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"dev.example:constructor-provider" = "0.1.0"
-"dev.example:constructors-tuple-constructor" = "0.1.0"
+"dev.example:constructor-provider" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/constructor-provider/0.1.0/cone.slib" }
+"dev.example:constructors-tuple-constructor" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/constructors-tuple-constructor/0.1.0/cone.slib" }

@@ -161,11 +161,11 @@ impl Lowerer {
                 return None;
             }
             if let Some(failure) = implicit_failure {
-                self.commit_layer_diagnostics(*failure);
+                self.commit_layer_diagnostics(&failure);
                 return None;
             }
             if let Some(failure) = prelude_failure {
-                self.commit_layer_diagnostics(*failure);
+                self.commit_layer_diagnostics(&failure);
                 return None;
             }
             if !self.local_function_scopes.lookup(&name.text).is_empty()

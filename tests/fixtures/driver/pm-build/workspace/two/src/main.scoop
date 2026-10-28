@@ -1,0 +1,4 @@
+package dev.other.two
+import dev.pm.common.sharedValue
+import dev.pm.remote.remoteValue
+public fun answer(): Int = sharedValue() - remoteValue()

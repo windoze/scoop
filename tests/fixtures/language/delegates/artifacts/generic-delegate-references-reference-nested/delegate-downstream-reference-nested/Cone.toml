@@ -6,4 +6,4 @@ version = "0.1.0"
 kind = "library"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"dev.example:delegate-reference-nested" = "0.1.0"
+"dev.example:delegate-reference-nested" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/delegate-reference-nested/0.1.0/cone.slib" }

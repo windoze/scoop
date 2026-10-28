@@ -1,0 +1,3 @@
+package dev.pm.shared
+import scoop.pm.value.value
+public fun selected(): Int = value()

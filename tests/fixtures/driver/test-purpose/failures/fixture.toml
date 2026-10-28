@@ -16,7 +16,7 @@ diagnostics = []
 
 [[steps]]
 name = "production"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/production", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/production", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -34,10 +34,12 @@ diagnostics = []
 
 [[steps]]
 name = "compile"
-argv = ["${scoopc}", "build", {each = "${compile_args}"}, "${fixture}/program", "--test", "--profile", "${profile}", "--direct-slib", "${library.result.root.path}", {each = "${library.result.dependencies}", field = "path", prefix = "--direct-slib"}, "--out-slib", "${work}/tests.slib"]
+argv = ["${scoop}", "build", {each = "${compile_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--tests", "--profile", "${profile}", "-o", "${work}/tests.slib", "--sysroot", "${sysroot}", "--emit-slib", "--cache-dir", "${cache}", "--target-dir", "${work}/compiler-output", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
+json = "stderr"
+diagnostics = []
 
 [[steps]]
 name = "link"
@@ -68,7 +70,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
- {actual = "${umbrella.result.output}", equals = "${work}/production/${target}/${profile}/tests/generated-failures"},
+ {actual = "${umbrella.result.output}", equals = "${work}/production/${target}/${profile}/dev.m43/generated-failures/tests/generated-failures"},
  {actual = "${umbrella.result.root.path}", not_equals = "${production.result.root.path}"},
 ]
 

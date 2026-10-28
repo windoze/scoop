@@ -1,31 +1,6 @@
 use super::*;
 
-impl ProjectBuilder<'_> {
-    pub(super) fn check_records(&self) -> Result<(), LoadError> {
-        for (owner, record) in &self.records {
-            if let Some(ConeInput::Artifact(provider)) = self.project.cones.get(&record.identity())
-            {
-                let summary = &provider.summary;
-                let fingerprints = summary.semantic_fingerprints();
-                if record.coordinate() != summary.cone().coordinate()
-                    || record.hir_fingerprint() != fingerprints.hir()
-                    || record.mir_fingerprint() != fingerprints.mir()
-                    || record.lir_fingerprint() != fingerprints.lir()
-                {
-                    return Err(LoadError::new(
-                        &self.manifest,
-                        format!(
-                            "dependency metadata for {:?} does not match {:?}",
-                            self.project.cones[owner].coordinate(),
-                            record.coordinate()
-                        ),
-                    ));
-                }
-            }
-        }
-        Ok(())
-    }
-
+impl ProjectBuilder {
     pub(super) fn order(&mut self) -> Result<(), LoadError> {
         let mut completed = BTreeSet::new();
         let mut order = Vec::new();

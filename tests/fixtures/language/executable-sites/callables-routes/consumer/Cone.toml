@@ -6,5 +6,5 @@ version = "0.1.0"
 kind = "library"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"dev.example:executable-provider" = "0.1.0"
-"dev.example:executable-facade" = "0.1.0"
+"dev.example:executable-provider" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/executable-provider/0.1.0/cone.slib" }
+"dev.example:executable-facade" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/executable-facade/0.1.0/cone.slib" }

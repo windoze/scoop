@@ -74,7 +74,7 @@ impl Lowerer {
             vec![validation.unit_delegate_argument(declaration.span)],
             declaration.span,
         ) else {
-            self.commit_layer_diagnostics(validation);
+            self.commit_layer_diagnostics(&validation);
             return;
         };
         let property_ty = annotation.unwrap_or(getter.expression.ty);
@@ -84,7 +84,7 @@ impl Lowerer {
             property_ty,
             declaration.span,
         ) {
-            self.commit_layer_diagnostics(validation);
+            self.commit_layer_diagnostics(&validation);
             return;
         }
         let getter = local_delegate_accessor(getter);
@@ -104,7 +104,7 @@ impl Lowerer {
                 ],
                 declaration.span,
             ) else {
-                self.commit_layer_diagnostics(validation);
+                self.commit_layer_diagnostics(&validation);
                 return;
             };
             Some(local_delegate_accessor(setter))

@@ -6,8 +6,8 @@ use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_protocol::{CompilationPurpose, StructuredDiagnosticV1, TargetSelectionRequestV1};
 
 use crate::{
-    ArtifactCacheRoot, ArtifactSearchRoot, BuildFailure, BuildFailurePhase, BuildProfile,
-    BuildResult, BuildRootInput, PairedScoopcLocator, SelectedSource, TrustedSysrootRoot,
+    ArtifactCacheRoot, BuildFailure, BuildFailurePhase, BuildProfile, BuildResult,
+    PairedScoopcLocator, ResolvedBuildGraph, SelectedSource,
 };
 
 mod cache;
@@ -16,15 +16,11 @@ mod plan;
 
 #[derive(Debug)]
 pub struct CheckRequest {
-    pub root: BuildRootInput,
     pub target: TargetSelectionRequestV1,
-    pub sysroot: TrustedSysrootRoot,
     pub cache: ArtifactCacheRoot,
     pub compiler: PairedScoopcLocator,
-    pub search: Vec<ArtifactSearchRoot>,
     pub purpose: CompilationPurpose,
     pub profile: BuildProfile,
-    pub jobs: std::num::NonZeroUsize,
     pub generators: scoop_toolchain::GeneratorPrograms,
 }
 
@@ -39,8 +35,8 @@ pub struct CheckOutcome {
     pub compiled_dependencies: Vec<ConeIdentity>,
 }
 
-pub fn check(request: CheckRequest) -> BuildResult<CheckOutcome> {
-    let plan = plan::Plan::new(&request)?;
+pub fn check(graph: ResolvedBuildGraph, request: CheckRequest) -> BuildResult<CheckOutcome> {
+    let plan = plan::Plan::new(graph, &request)?;
     let entry = cache::Entry::new(&request.cache, &plan.key);
     let _lock = entry.lock()?;
     let (warnings, cache_hit, compiled_dependencies) = match entry.current(&request)? {

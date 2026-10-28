@@ -84,6 +84,8 @@ impl SiteRenderer<'_, '_> {
                 cones => minijinja::value::Serde(cones),
                 packages => minijinja::value::Serde(packages),
                 current => cone.map(|c| c.name.as_str()),
+                root => &self.root,
+                roots => routes::relative(page, "../../index.html"),
             },
         )?;
         Ok(RenderedFile {

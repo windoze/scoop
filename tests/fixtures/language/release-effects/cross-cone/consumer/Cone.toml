@@ -6,4 +6,4 @@ version = "0.1.0"
 kind = "executable"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"test:release-effects-provider" = "0.1.0"
+"test:release-effects-provider" = { version = "=0.1.0", artifact = "../artifacts/test/release-effects-provider/0.1.0/cone.slib" }

@@ -153,7 +153,7 @@ impl Lowerer {
                     selected_value = Some(target);
                 }
                 crate::properties::ImplicitValueResolution::NoApplicable(failure) => {
-                    self.commit_layer_diagnostics(*failure);
+                    self.commit_layer_diagnostics(&failure);
                     return None;
                 }
                 crate::properties::ImplicitValueResolution::Failed => return None,

@@ -93,6 +93,10 @@ LSP 进程用例声明 `tools = ["scoop-lsp", "python"]`，使用 `${scoop-lsp}`
 先构建 `cargo build -p scoop-lsp`。可用 `--scoop-lsp` 或 `SCOOP_TEST_PAIRED_SCOOP_LSP`
 选择服务器，runner 不自动构建，也不为项目加载准备 sysroot。
 
+PM 进程用例声明 `tools = ["scoop", "scoop-pm"]`，先构建 `cargo build -p scoop -p scoop-pm --bins`。
+`${scoop-pm}` 可由 `--scoop-pm` 或 `SCOOP_TEST_PAIRED_SCOOP_PM` 指定；
+只做本地成员发现和清单编辑的用例无需 LLVM、编译器或预编译系统库。
+
 PTY fixture 声明 `tools = ["scoop", "scoopc", "terminal-host"]`，以普通 argv
 步骤调用 `${terminal-host}` 并传入 Scoop 产物。先按
 [host 说明](../terminal_host/README.md)构建测试工具；路径依次取 `--terminal-host`、
@@ -212,3 +216,5 @@ wait 之前只有后台进程的 `.pid` 可引用；result／stdout 等要等完
 `--work-dir` 或失败时保留 report 与工作区，`--keep` 也可用于审阅成功运行。
 
 内置 Cone 的测试入口使用仓库 `sysroot/src` 中的当前源码；`--sysroot` 只选择预编译系统库与 native 资源。把 sysroot 指向独立的已准备目录时，不会误跑该目录中的旧版测试源码。
+
+workspace 多根命令使用 `json = "batch-stderr"`，按顺序在 `${step.records}` 保留每个构建／检查／测试结果；`result` 与 `test_result` 分别为最后一个对应结果。单次运行程序仍用原 `stderr` 模式，在首个工具结果后保留程序的 stderr 原文。

@@ -1,0 +1,14 @@
+[
+  {
+    "code": "SCOOP_PACKAGE_PREPARE",
+    "message": "dependency resolution failed:\ndev.consumer:consumer 1.0.0 [path .] depends on scoop:single-file ∅\n  dev.consumer:consumer -> scoop:single-file: dev.consumer:consumer:1.0.0 requires =0.0.0 from artifact ${work}/executable.slib\n    ${work}/consumer/Cone.toml (bytes 131..186)\n    candidate 0.0.0 [artifact ../executable.slib]: executable; dependencies must be libraries",
+    "notes": [],
+    "origin": {
+      "end": 186,
+      "kind": "host",
+      "path": "${work}/consumer/Cone.toml",
+      "start": 131
+    },
+    "severity": "error"
+  }
+]

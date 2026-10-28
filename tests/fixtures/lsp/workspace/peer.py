@@ -63,7 +63,11 @@ from while_recovery import check as check_while_recovery
 
 
 class Peer:
-    def __init__(self, server):
+    def __init__(self, server, package_manager, sysroot, target, cache):
+        self.package_manager = package_manager
+        self.sysroot = sysroot
+        self.target = target
+        self.cache = cache
         self.process = subprocess.Popen(
             [server, "--stdio"],
             stdin=subprocess.PIPE,
@@ -76,6 +80,29 @@ class Peer:
         self.next_id = 1
         self.registered = False
         threading.Thread(target=self.read, daemon=True).start()
+
+    def resolve(self, root):
+        # Explicit fixture preparation, separate from the language server.
+        for purpose in ("production", "test"):
+            result = subprocess.run(
+                [
+                    self.package_manager,
+                    "resolve",
+                    str(root),
+                    "--offline",
+                    "--purpose",
+                    purpose,
+                    "--sysroot",
+                    str(self.sysroot),
+                    "--target",
+                    self.target,
+                    "--package-cache-dir",
+                    str(self.cache),
+                ],
+                capture_output=True,
+                text=True,
+            )
+            assert result.returncode == 0, result.stderr
 
     def read(self):
         try:
@@ -150,13 +177,19 @@ class Peer:
 
 
 def main():
-    server, root, sysroot, target = sys.argv[1:]
+    server, package_manager, root, sysroot, target = sys.argv[1:]
     root = Path(root)
     manifest = (root / "Cone.toml").as_uri()
     source = (root / "src/value.scoop").as_uri()
-    peer = Peer(server)
+    peer = Peer(server, package_manager, sysroot, target, root.parent / "pm-cache")
+    peer.resolve(root)
     try:
-        options = {"target": target, "sysroot": sysroot}
+        options = {
+            "target": target,
+            "sysroot": sysroot,
+            "packageManager": package_manager,
+            "packageCacheDir": str(peer.cache),
+        }
         initialized = peer.request(
             "initialize",
             {

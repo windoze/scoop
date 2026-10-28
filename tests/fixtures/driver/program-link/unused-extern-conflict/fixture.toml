@@ -57,10 +57,12 @@ checks = []
 
 [[steps]]
 name = "recompile"
-argv = ["${scoopc}", "build", "--profile", "release", "${work}/sources/root", {"each" = "${compile_args}"}, "--sysroot", "${sysroot}", "--direct-slib", "${build.result.dependencies.0.path}", "--direct-slib", "${build.result.dependencies.1.path}", "--direct-slib", "${rebuild_right.result.output}", "--out-slib", "${work}/replacement.slib"]
+argv = ["${scoop}", "build", "--profile", "release", "${work}/sources/root", {each = "${compile_args}"}, "--sysroot", "${sysroot}", "-o", "${work}/replacement.slib", "--emit-slib", "--cache-dir", "${cache}", "--target-dir", "${work}/compiler-output", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
+json = "stderr"
+diagnostics = []
 
 [[steps]]
 name = "prepare_link_inputs_isolate"

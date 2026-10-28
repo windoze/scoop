@@ -7,7 +7,7 @@ use std::{
 use scoop_identity::{ConeCoordinate, ConeIdentity, TargetProfileId};
 use scoop_lir::ValidatedLirTargetSelection;
 
-use super::{ArtifactConeInput, LoadError, ProjectConfiguration, files::FileStamp, normalize_path};
+use super::{ArtifactConeInput, LoadError, files::FileStamp, normalize_path};
 
 #[derive(Default)]
 pub(super) struct ArtifactInputs {
@@ -65,63 +65,5 @@ impl ArtifactInputs {
             ));
         }
         Ok(input)
-    }
-
-    pub(super) fn find(
-        &mut self,
-        coordinate: &ConeCoordinate,
-        configuration: &ProjectConfiguration,
-        default_core: bool,
-    ) -> Result<Option<ArtifactConeInput>, LoadError> {
-        let mut paths = Vec::new();
-        if !default_core {
-            for root in &configuration.artifact_search_roots {
-                let path = scoop_toolchain::artifact_candidate_path(root, coordinate);
-                if path
-                    .try_exists()
-                    .map_err(|error| LoadError::new(&path, error))?
-                {
-                    paths
-                        .push(normalize_path(&path).map_err(|error| LoadError::new(&path, error))?);
-                }
-            }
-        }
-        if paths.is_empty()
-            && (default_core
-                || (coordinate.group() == "scoop"
-                    && *coordinate != ConeCoordinate::reserved_core()))
-        {
-            paths.push(scoop_toolchain::sysroot_library_path(
-                &configuration.sysroot,
-                configuration.target.target(),
-                coordinate,
-            ));
-        }
-        paths.sort();
-        paths.dedup();
-        let mut selected: Option<ArtifactConeInput> = None;
-        for path in paths {
-            let input = self.read(&path, coordinate, configuration.target)?;
-            if let Some(previous) = &selected {
-                if input.summary.artifact_fingerprint() != previous.summary.artifact_fingerprint() {
-                    return Err(LoadError::new(
-                        path,
-                        format!(
-                            "ambiguous dependency artifact; differs from {}",
-                            previous.path.display()
-                        ),
-                    ));
-                }
-            } else {
-                selected = Some(input);
-            }
-        }
-        if selected.is_none() && *coordinate != ConeCoordinate::reserved_core() {
-            return Err(LoadError::new(
-                &configuration.root,
-                format!("dependency artifact was not found: {coordinate:?}"),
-            ));
-        }
-        Ok(selected)
     }
 }

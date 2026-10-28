@@ -197,7 +197,7 @@ impl Lowerer {
             {
                 // An argument can be blocked by a previously rejected
                 // declaration. Do not relabel that failure as an unknown name.
-                self.commit_layer_diagnostics(*failures.swap_remove(blocked));
+                self.commit_layer_diagnostics(&failures.swap_remove(blocked));
                 return Err(());
             }
             let functions = targets
@@ -226,7 +226,7 @@ impl Lowerer {
                 ));
             }
             if failures.len() == 1 {
-                self.commit_layer_diagnostics(*failures.pop().expect("one failed candidate"));
+                self.commit_layer_diagnostics(&failures.pop().expect("one failed candidate"));
             } else if !failures.is_empty() {
                 let mut traces = failures
                     .iter()

@@ -7,6 +7,27 @@ use super::*;
 mod check;
 mod documentation;
 
+#[test]
+fn expanded_input_retains_configuration_and_rejects_invalid_diagnostic_spans() {
+    let CurrentConeRequestV1::ExpandedCone { mut config } =
+        crate::test_support::manifest("library")
+    else {
+        panic!()
+    };
+    let encoded = serde_json::to_vec(&config).unwrap();
+    let decoded: crate::package::ExpandedConeInputV1 = serde_json::from_slice(&encoded).unwrap();
+    assert_eq!(decoded, *config);
+    config.manifest_text.clear();
+    assert!(matches!(
+        ScoopcBuildRequestV1::new(
+            CurrentConeRequestV1::ExpandedCone { config }, Vec::new(), Vec::new(),
+            TrustedCoreRequestV1::Bootstrap, target(), ScoopcOutputRequestV1::Check,
+            DiagnosticOutputPolicyV1::Structured, StageDumpPolicyV1::None,
+        ),
+        Err(ProtocolValidationError::InvalidExpandedCone(message)) if message.contains("diagnostic span")
+    ));
+}
+
 fn path(value: &str) -> HostPathCarrier {
     HostPathCarrier::from_path(Path::new(value)).unwrap()
 }
@@ -20,9 +41,7 @@ fn core_manifest_request_round_trips_without_a_default_source_slot() {
     let request = ScoopcRequestEnvelopeV1::new(
         RequestCorrelationId::from_array([72; 16]),
         ScoopcBuildRequestV1::new(
-            CurrentConeRequestV1::ManifestRoot {
-                root: path("edited-library"),
-            },
+            crate::test_support::manifest("edited-library"),
             vec![path("helper.slib")],
             vec![path("support.slib")],
             TrustedCoreRequestV1::Bootstrap,
@@ -185,7 +204,7 @@ fn current_cone_reader_distinguishes_unknown_tag_and_wrong_sum_length() {
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 9 });
 
     let error = decode_canonical::<DecodedCurrentConeRequestV1>(
-        &encode(&RawCurrentCone { fields: 1, tag: 1 }).unwrap(),
+        &encode(&RawCurrentCone { fields: 1, tag: 3 }).unwrap(),
     )
     .unwrap_err();
     assert_eq!(
@@ -198,9 +217,9 @@ fn current_cone_reader_distinguishes_unknown_tag_and_wrong_sum_length() {
 }
 
 #[test]
-fn removed_pathless_core_request_tag_is_rejected() {
-    let error = decode_canonical::<DecodedCurrentConeRequestV1>(&[0xa1, 0x00, 0x03]).unwrap_err();
-    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
+fn removed_manifest_root_request_tag_is_rejected() {
+    let error = decode_canonical::<DecodedCurrentConeRequestV1>(&[0xa1, 0x00, 0x01]).unwrap_err();
+    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 1 });
 }
 
 #[test]

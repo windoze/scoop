@@ -51,13 +51,13 @@ stderr = ""
 [[steps]]
 name = "replace_consumer"
 files = [
-  {copy = {from = "${fixture}/consumer/Cone.toml", to = "${work}/rejected/Cone.toml"}},
-  {copy = {from = "${fixture}/rejected.scoop", to = "${work}/rejected/src/main.scoop"}},
+  {copy = {from = "${fixture}/consumer/Cone.toml", to = "${work}/sources/rejected/Cone.toml"}},
+  {copy = {from = "${fixture}/rejected.scoop", to = "${work}/sources/rejected/src/main.scoop"}},
 ]
 
 [[steps]]
 name = "reject"
-argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/rejected", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-rejected", "--cone-path", "${work}/artifacts", "--message-format", "json"]
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/rejected", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-rejected", "--cone-path", "${work}/artifacts", "--message-format", "json"]
 exit = 1
 stdout = ""
 stderr = ""

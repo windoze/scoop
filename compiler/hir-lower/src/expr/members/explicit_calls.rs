@@ -53,7 +53,7 @@ impl Lowerer {
             });
             if members.is_empty() && before != 0 {
                 let found = self.type_name(receiver.ty);
-                let mut failure = self.clone();
+                let mut failure = self.probe_state();
                 failure.error(
                     name.span,
                     format!(
@@ -61,7 +61,7 @@ impl Lowerer {
                         name.text
                     ),
                 );
-                first_failure = Some(Box::new(failure));
+                first_failure = Some(failure);
             }
         }
         match self.probe_member_call_partition(
@@ -77,7 +77,7 @@ impl Lowerer {
             }
             PropertyExtensionInvokeOutcome::Blocked => return None,
             PropertyExtensionInvokeOutcome::Failed(failure) => {
-                self.commit_layer_diagnostics(*failure);
+                self.commit_layer_diagnostics(&failure);
                 return None;
             }
             PropertyExtensionInvokeOutcome::NoApplicable(failure) => {
@@ -116,7 +116,7 @@ impl Lowerer {
                 }
                 PropertyExtensionInvokeOutcome::Blocked => return None,
                 PropertyExtensionInvokeOutcome::Failed(failure) => {
-                    self.commit_layer_diagnostics(*failure);
+                    self.commit_layer_diagnostics(&failure);
                     return None;
                 }
                 PropertyExtensionInvokeOutcome::NoApplicable(failure) => {
@@ -142,7 +142,7 @@ impl Lowerer {
                 }
                 PropertyExtensionInvokeOutcome::Blocked => return None,
                 PropertyExtensionInvokeOutcome::Failed(failure) => {
-                    self.commit_layer_diagnostics(*failure);
+                    self.commit_layer_diagnostics(&failure);
                     return None;
                 }
             }
@@ -229,7 +229,7 @@ impl Lowerer {
                     }
                     PropertyExtensionInvokeOutcome::Blocked => return None,
                     PropertyExtensionInvokeOutcome::Failed(failure) => {
-                        self.commit_layer_diagnostics(*failure);
+                        self.commit_layer_diagnostics(&failure);
                         return None;
                     }
                     PropertyExtensionInvokeOutcome::NoApplicable(failure) => {
@@ -286,7 +286,7 @@ impl Lowerer {
                     }
                     PropertyExtensionInvokeOutcome::Blocked => return None,
                     PropertyExtensionInvokeOutcome::Failed(failure) => {
-                        self.commit_layer_diagnostics(*failure);
+                        self.commit_layer_diagnostics(&failure);
                         return None;
                     }
                     PropertyExtensionInvokeOutcome::NoApplicable(failure) => {
@@ -300,7 +300,7 @@ impl Lowerer {
             let property_candidates =
                 Self::property_candidates_at_rank(&extension_property_layers, rank);
             if !property_candidates.is_empty() {
-                let mut extension_property_state = self.clone();
+                let mut extension_property_state = self.probe_state();
                 let mut extension_property_sink = Vec::new();
                 match extension_property_state.resolve_extension_property_candidates_outcome(
                     receiver.clone(),
@@ -328,7 +328,7 @@ impl Lowerer {
                             }
                             PropertyExtensionInvokeOutcome::Blocked => return None,
                             PropertyExtensionInvokeOutcome::Failed(failure) => {
-                                self.commit_layer_diagnostics(*failure);
+                                self.commit_layer_diagnostics(&failure);
                                 return None;
                             }
                             PropertyExtensionInvokeOutcome::NoApplicable(failure) => {
@@ -339,12 +339,12 @@ impl Lowerer {
                         }
                     }
                     crate::properties::ExtensionPropertyCandidateOutcome::Failed => {
-                        self.commit_layer_diagnostics(extension_property_state);
+                        self.commit_layer_diagnostics(&extension_property_state);
                         return None;
                     }
                     crate::properties::ExtensionPropertyCandidateOutcome::NoApplicable => {
                         if extension_property_state.diagnostics.len() > self.diagnostics.len() {
-                            first_failure.get_or_insert(Box::new(extension_property_state));
+                            first_failure.get_or_insert(extension_property_state);
                         }
                     }
                     crate::properties::ExtensionPropertyCandidateOutcome::NoCandidate => {}
@@ -382,7 +382,7 @@ impl Lowerer {
                     {
                         continue;
                     }
-                    let mut property_state = self.clone();
+                    let mut property_state = self.probe_state();
                     let mut property_sink = Vec::new();
                     match property_state.resolve_extension_property_candidates_outcome(
                         receiver.clone(),
@@ -406,7 +406,7 @@ impl Lowerer {
                             property_extension_inputs.push(PropertyExtensionInvokeInput::new(
                                 PropertyExtensionInvokeOrigin::Extension(property.identity()),
                                 SuccessfulExprLayer {
-                                    state: Box::new(property_state),
+                                    state: property_state,
                                     expression: property.read,
                                     sink: property_sink,
                                 },
@@ -414,12 +414,12 @@ impl Lowerer {
                             ));
                         }
                         crate::properties::ExtensionPropertyCandidateOutcome::Failed => {
-                            self.commit_layer_diagnostics(property_state);
+                            self.commit_layer_diagnostics(&property_state);
                             return None;
                         }
                         crate::properties::ExtensionPropertyCandidateOutcome::NoApplicable => {
                             if property_state.diagnostics.len() > self.diagnostics.len() {
-                                first_failure.get_or_insert(Box::new(property_state));
+                                first_failure.get_or_insert(property_state);
                             }
                         }
                         crate::properties::ExtensionPropertyCandidateOutcome::NoCandidate => {}
@@ -438,7 +438,7 @@ impl Lowerer {
                     }
                     PropertyExtensionInvokeOutcome::Blocked => return None,
                     PropertyExtensionInvokeOutcome::Failed(failure) => {
-                        self.commit_layer_diagnostics(*failure);
+                        self.commit_layer_diagnostics(&failure);
                         return None;
                     }
                     PropertyExtensionInvokeOutcome::NoApplicable(failure) => {
@@ -450,14 +450,14 @@ impl Lowerer {
             }
             if suppressed_extensions || suppressed_invokes {
                 if let Some(failure) = first_failure {
-                    self.commit_layer_diagnostics(*failure);
+                    self.commit_layer_diagnostics(&failure);
                 }
                 return None;
             }
         }
 
         if let Some(failure) = first_failure {
-            self.commit_layer_diagnostics(*failure);
+            self.commit_layer_diagnostics(&failure);
         } else if let Some(message) = self.inaccessible_method_message(receiver.ty, &name.text) {
             self.error(name.span, message);
         } else {

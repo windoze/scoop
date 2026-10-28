@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "scoop"
+name = "scoop.pm.value"
+version = "2.0.0"
+kind = "library"

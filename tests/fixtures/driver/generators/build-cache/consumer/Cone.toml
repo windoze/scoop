@@ -5,4 +5,4 @@ name = "generated-consumer"
 version = "1.0.0"
 kind = "executable"
 [dependencies]
-"test:generated-provider" = { version = "1.0.0", artifact = "../provider.slib" }
+"test:generated-provider" = { version = "=1.0.0", artifact = "../provider.slib" }

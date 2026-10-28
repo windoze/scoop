@@ -32,7 +32,7 @@ Native C++ 支持由语言规范 12.2.1 的 `native.cxx` 显式选择，仅支�
 
 ## 2. 编译阶段与产物契约
 
-M51 的普通 native include 支持语言规范 12.2.1 的路径字符串或条件路径表。预处理搜索目录、选项投影与 native 对象更新判断只使用当前目标选中的路径，并保持声明顺序；复用现有目标谓词，不引入依赖准备回调或目标变量插值。manifest 本机解析记录升级为 `manifests-v3`，旧记录重建；语言实体、`.slib` 与 runtime ABI 不变。
+M51 的普通 native include 支持语言规范 12.2.1 的路径字符串或条件路径表。预处理搜索目录、选项投影与 native 对象更新判断只使用当前目标选中的路径，并保持声明顺序；复用现有目标谓词，不引入依赖准备回调或目标变量插值。M63 后原始 manifest 的本机解析记录由 PM 按实际输入更新复用，driver 不再保存原始清单解析缓存；语言实体、`.slib` 与 runtime ABI 不变。
 
 | 阶段 | 输入 | 输出与责任边界 |
 | --- | --- | --- |
@@ -116,7 +116,7 @@ smart cast 分析使用已有 BindingId、类型约束及带实际 LoopId 的控
 
 函数 smart cast 的读取视图与 binding 的声明存储类型分别处理。显式类型检查、转换及引用相等读取原存储值；不需要函数适配的期望类型继续使用声明视图。产生适配闭包的读取不建立来源与新值的快照等价关系。MIR 为动态函数适配器保存来源时，先使用既有引用转换将来源适配到捕获字段的 Any 类型；typed function 来源也必须满足同一物理字段契约。
 
-重载探测共享已经检查的声明、签名和正文，包括依赖模板、constructor、lambda 与局部函数；候选新增或修改的函数、局部值与词法绑定各自隔离，只有选中候选的结果进入当前状态。一次探测不复制此前所有函数正文或当前函数的全部局部值。参数形状不匹配的候选在建立可变试算状态前退出，普通函数名不经过 nominal constructor 的准备。内部共享不改变实体分配顺序、诊断与重载规则，输出仍为原有完整 HIR 数据。
+重载探测共享已经检查的声明、签名和正文，包括依赖模板、constructor、lambda 与局部函数；候选新增或修改的函数、局部值与词法绑定各自隔离，只有选中候选的结果进入当前状态。一次探测不复制此前所有函数正文或当前函数的全部局部值。嵌套调用的候选状态在堆上保存，失败诊断只借用该状态，不为传递诊断把整份 lowering 状态移回线程栈。参数形状不匹配的候选在建立可变试算状态前退出，普通函数名不经过 nominal constructor 的准备。内部共享不改变实体分配顺序、诊断与重载规则，输出仍为原有完整 HIR 数据。
 
 依赖声明 catalog 在构建时按 typed nominal owner 与成员名、operator role、constructor、dispatch slot 和 context parameter 需求建立查询索引；property accessor 和 intrinsic 使用各自 typed key 索引。重复成员查询只访问匹配候选，不重扫全依赖声明集合。索引保留原实体顺序、可见性与 intrinsic 唯一性语义，候选共享不可变的接口、源码与默认参数模板，不改变持久身份或产物格式。
 
@@ -731,7 +731,11 @@ MIR `identity-foundation/6` 与 LIR foundation 保存实际实现的实体目录
 
 ### 2.7 `scoop` 与 single-Cone `scoopc`
 
-`scoop` 负责 root input、locator、完整依赖图、构建顺序、全局缓存、runtime 构建和程序链接；`scoopc` 一次只编译指定的一个 Cone，不跟随上游 manifest locator 或读取上游源码。
+`scoop` 负责精确依赖图的构建顺序、全局构建缓存、runtime 构建和程序链接；`scoopc` 一次只编译指定的一个 Cone，不跟随上游 manifest locator 或读取上游源码。
+
+**M63包管理，本轮消费与工具接入已完成。** manifest/workspace根选择、版本要求、Git/registry获取和`Cone.lock`由独立`scoop-pm`负责，完整合同见[包管理规范](SCOOP-PACKAGE-SPEC.md)，实施步骤见[包管理设计](../package-manager/DESIGN.md)。`scoop pm`转发到配套可执行程序；普通manifest构建通过一次prepare请求取得lock的精确图、本地源码/产物位置和已展开配置，再接入现有调度。默认build/run遇到缺失lock时仍调用PM自动解析并创建，成功后继续构建；只有显式locked/frozen才禁止创建。driver不链接PM实现，不处理网络或再次求解；registry源码缓存默认放在`~/.scoop/packages/`供多个项目共享。以下workspace/锁定输入规则已经实现，machine protocol版本在对应段落单独说明；源码打包/发布流程留至下一阶段。
+
+`Cone.lock`只保存可移植的精确选择；PM返回的本地准备结果是该图与清单的投影，不是另一份锁文件或构建成功收据。按root/purpose/target分别构图，不将workspace多个程序合并为一个单版本图；跨根共享任务时必须比较实际配置、来源和依赖结果，不能仅按ConeIdentity合并。`scoop`消费该锁定图，向`scoopc`传递展开后的单Cone编译配置与具体direct/support产物。`scoopc`不读取原manifest或lock，不匹配版本要求；旧独立manifest入口退役，普通Cone统一由scoop编排，不能为保留低层入口另建一套清单绑定。
 
 开发 sysroot 准备、发行组装、安装及打包属于仓库维护脚本，不进入 `scoop` 命令或 driver。脚本调用普通 Cone 构建与已有 runtime 编译库；日常命令只消费选定的 sysroot 和显式指定的构建输入。
 
@@ -741,18 +745,25 @@ MIR `identity-foundation/6` 与 LIR foundation 保存实际实现的实体目录
 
 宿主包将 `scoop`、`scoopc`、`scoop-link` 和 `scoop-lsp` 放在 `bin`，四个命令共用发行版本与源码 revision；实际使用的 LLVM 动态库及非系统传递依赖放在 `libexec/llvm/lib`。Darwin 通过相对 rpath 和 dylib install name 加载；Linux 的每层私有依赖使用相对 `$ORIGIN` RUNPATH。组装脚本从实际动态依赖取得需要复制的库并修改加载路径，不在日常命令启动时重扫这些文件。版本、源码 revision、目标部署配置、Cone coordinate 和 native 版本写入 `share/scoop/toolchain.toml` 供说明；不把清单作为认证或逐文件验证输入。宿主和 LLVM 源码归档由手工脚本生成，不加入常规测试或 CI 的前置步骤。
 
+M63 在同一 `bin` 布局中分发配套 `scoop-pm`，宿主构建与第三方许可证收集均包含该程序及其依赖，它本身不依赖 LLVM；独立`pm`转发优先于既有`commands/`外部子命令查找。源码包registry的package/静态索引维护由PM负责，不与此处工具链/sysroot发行组装混为一个发布入口。
+
 ```text
 scoop new <path> --group group [--name name] [--kind executable|library] [--version version] [--package package] [--no-tests]
 scoop build [root-input]
+scoop build [--workspace | -p group:name] [--lockfile path] [--locked] [--offline]
+scoop pm <command> [arg...]
+scoop-pm <command> [arg...]
 scoop clean [root-input] [--target-dir path] [--message-format human|json]
 scoop run [root-input] [-- program-arg...]
 scoop run file.scoop [runner-option...] [program-arg...]
 scoop [--sysroot path] <external-command> [arg...]
 scoop link --root-slib root.slib --runtime-objects index [--dependency-slib dep.slib]... [-o output]
-scoopc build <Cone-root-or-Cone.toml-or-file.scoop> [--direct-slib direct.slib]... [--support-slib support.slib]... --out-slib current.slib
+scoopc build <file.scoop> [--direct-slib direct.slib]... [--support-slib support.slib]... --out-slib current.slib
 ```
 
-低层 `scoop-link` 使用相同的普通产物链接合同。build/run 省略 root 时使用调用者 cwd 的 Cone.toml，不向父目录搜索；`run -- args` 也使用该默认 root。低层 scoopc 的输入必需。
+无 lock 的首次 build/run 与已有 lock 的构建使用同一个 prepare 入口，具体顺序见[包管理规范 7.2](SCOOP-PACKAGE-SPEC.md#72-自动准备与低层调用)。PM 完成解析、来源准备和 lock 发布后，driver 才调度编译；PM 失败则停止本次命令。后续编译或链接失败保留正确生成的 lock，run 不执行旧程序。
+
+低层 `scoop-link` 使用相同的普通产物链接合同。manifest build/run省略root时按包管理规范3.1从cwd定位最近清单及所属workspace，成员内默认该成员，workspace根采用default-members；`run -- args`也采用该选择，必须得到唯一executable。低层scoopc输入必需。single-file与artifact-only link不启动PM或读取相邻workspace。
 
 `scoop` 优先解析内置子命令；其余子命令名称必须是单个文件名，并直接执行所选 `<SYSROOT>/commands/scoop-<名称>`。目标可以是任意宿主可执行程序（包括带解释器声明的脚本），不经过 shell 解释或 PATH 搜索。子命令名称之后的全部参数原样传递，包含选项、`--`、空字符串及宿主原始参数字节；`scoop` 自身的选项必须放在外部子命令之前。`--sysroot` 采用本节既有的显式参数、`SCOOP_SYSROOT`、安装根优先顺序，对内置子命令仍可放在子命令前后。外部程序继承 cwd、环境和标准输入输出，正常退出码与信号终止状态由 `scoop` 传回；程序缺失、不可执行或启动失败按实际路径报告，不触发编译、链接或工具探测。
 
@@ -760,52 +771,61 @@ scoopc build <Cone-root-or-Cone.toml-or-file.scoop> [--direct-slib direct.slib].
 
 **源码格式化与检查。** `scoop fmt`、`scoop check` 及低层 `scoopc check` 的完整命令、格式规则、缓存和验收范围见[设计](../fmt-check/DESIGN.md)。两项命令均已实现，验证状态见设计文首及验证记录。
 
-`scoop fmt [input...]` 接受 Cone 目录、Cone.toml 或显式 `.scoop` 文件，省略时选择 cwd 的 Cone.toml，不搜索父目录。manifest 模式收集生产与测试源码，包括合法 target 条件下的全部声明路径，分别按文件解析和格式化，不将不同平台的源码合并成编译输入；显式文件不要求 manifest、main 或可用依赖。缺省生产目录仍为 src/，缺省 tests/ 不存在时忽略，显式路径缺失按 I/O 错误报告；格式化集合允许为空。文件并集按普通解析后的实际路径去重，保持确定顺序，不改变正常编译对同一 target 内重复源码选择的诊断规则。只处理用户选中的源码，不发现依赖、读取 sysroot、启动 scoopc 或编译 native 输入。
+`scoop fmt [input...]` 接受 Cone目录、Cone.toml或显式`.scoop`文件；M63中manifest模式沿用workspace根选择，调用PM的本地members展开而不要求依赖可解或联网。manifest模式收集生产与测试源码，包括合法target条件下的全部声明路径，分别按文件解析和格式化，不将不同平台的源码合并成编译输入；显式文件不要求manifest、main或可用依赖。缺省生产目录仍为src/，缺省tests/不存在时忽略，显式路径缺失按I/O错误报告；格式化集合允许为空。文件并集按普通解析后的实际路径去重，保持确定顺序，不改变正常编译对同一target内重复源码选择的诊断规则。只处理用户选中的源码，不发现依赖、读取sysroot、启动scoopc或编译native输入。
 
 格式化采用四空格缩进和 100 列软行宽，只改语法允许改变的空白；保留全部非空白 token、注释原文及顺序、字符串内容、shebang、显式标点、声明与 import 顺序。语法上下文决定换行和相邻关系，不能改变 return 值、调用、下标、尾随 lambda 或文档附着；行宽不能优先于语义。布局规则与换行选择详见设计第 4 节。语法错误文件报告原始诊断并保持原文，其他已选文件可继续处理；每个成功文件只在文本变化时写回，保留普通文件权限和可执行位。批量格式化不提供跨文件事务。
 
 `scoop fmt --check` 使用同一选择与排版，只报告需要修改的文件，不写源码。格式检查存在差异或任何文件处理失败时退出 1，全部符合时退出 0；写回模式全部成功时退出 0。参数用法错误沿用退出 2。human／JSON 诊断和格式结果写 stderr，stdout 保持为空；格式差异是独立结果，不伪装成语言错误。
 
+scoop build [root-input] --emit-slib [--tests] [-o output.slib]
 `scoop check [root-input]` 沿用 build 的 manifest／single-file 输入、目标及依赖选择，默认检查 Production；`--tests` 将根切换为现有 Test 用途，只接受 manifest，依赖仍为 Production。Test 检查使用生成的测试入口，不额外要求生产 main；验证 executable 的生产入口需使用默认检查。检查完成普通 parser、package 检查、全部正文、必要 generator、effect 及 ExportHir／LocalConcreteHir，保留具体化中的类型条件与递归错误，然后返回诊断及无产物的成功结果；不进入根 Cone 的 MIR／LIR、native 编译、机器码或最终链接。检查不替代后端、native 源码或链接验收。
 
-首版检查继续通过 direct／support `.slib` 消费依赖。预编译依赖与成功的源码依赖缓存直接复用，需要更新的源码依赖按现有构建图正常产生完整库产物；因此“根不生成机器码”不表示整个命令永不运行后端。根本身不发布 `.slib`、对象或 executable，也不准备 runtime；仅当实际源码依赖需要机器生产时发现相应 native 工具。低层 `scoopc check` 只消费调用者提供的依赖与既有默认 core，不跟随上游 locator；`--test` 选择 Test 用途。
+首版检查继续通过 direct／support `.slib` 消费依赖。预编译依赖与成功的源码依赖缓存直接复用，需要更新的源码依赖按现有构建图正常产生完整库产物；因此“根不生成机器码”不表示整个命令永不运行后端。根本身不发布 `.slib`、对象或 executable，也不准备 runtime；仅当实际源码依赖需要机器生产时发现相应 native 工具。低层检查只消费上层传入的具体编译配置和依赖，不跟随locator或读取清单；Test用途由scoop的请求显式传入。直接`scoopc check`只保留单文件输入及具体依赖参数。
 
 检查成功保存普通本机更新记录及 warning。键按实际前端输入区分根、用途、源码选择与 metadata、目标、编译器／协议、依赖选择及使用的 generator；Production 不纳入仅测试配置。先判断更新，再读取源码、探测工具或准备依赖机器生产；命中不读产物内容复核、不重放 HIR。生成失败、检查失败或中断不发布成功记录，也不返回旧成功。首版复用依赖机器缓存和独立检查记录，不通过读取 build 产物补造检查记录；全图纯语义依赖传输另行设计，不新增残缺 `.slib` profile。
 
 显式单文件 run 支持省略程序参数分隔符：root 后首个普通位置参数开始原样转发，其后的所有元素（包括 `--`、已知 runner 选项和空字符串）均属于程序。转发开始前，已知 runner 选项仍由 Scoop 解析，未知连字符选项仍报参数错误；显式 `--` 开始转发并只消费这一次分隔符。因此 `run file.scoop Alice --release` 转发 Alice 和 --release，而 `run file.scoop --release -- Alice` 以 release 构建并转发 Alice。首个程序参数与 runner 选项冲突时必须使用 `--`，例如 `run file.scoop -- --help`。普通 manifest run 仍要求显式分隔符；选项的值不被误认成 root。
 
-输入为两种封闭形式：
+单Cone编译输入为两种封闭形式；workspace在PM层展开成多个已绑定Cone，不成为第三种语言编译单元：
 
-- ManifestCone：目录下必须有 Cone.toml，或显式 regular file 恰名为 Cone.toml。未出现顶层 `sources` 字段时递归扫描 `src/`；出现后按语言规范 12.2.2 的完整清单选择当前 target 的源码，不追加默认目录。目录只收集扩展名精确为 `.scoop` 的 regular files，也可显式选择单个 `.scoop` 文件；最终按标准化 Cone-relative UTF-8 路径排序。
+- ExpandedCone：PM已从Cone.toml展开workspace与依赖，scoop传入单Cone身份、kind、生产/测试源码及native配置、精确依赖和诊断来源。scoopc不定位或解析Cone.toml。未配置`sources`时递归扫描`src/`；显式配置按语言规范12.2.2选择当前target的源码，不追加默认目录。目录只收集扩展名精确为`.scoop`的regular files，也可显式选择单个`.scoop`文件；最终按标准化Cone-relative UTF-8路径排序。
 - SingleFile：operand 扩展名精确为 `.scoop`，解析 symlink 后为存在的 regular file。只编译该文件，logical path 固定 main.scoop；不读取相邻 manifest、Scoop/C/C++ source 或 blob。
+`scoop build --emit-slib`保留完整PM/lock准备、依赖编译、native对象生产及根`.slib`发布，跳过runtime和最终链接，用于分离产物编译与程序链接。`--tests`仅与此选项共用，编译Test用途的根产物；默认Production。输出规则见包管理规范7.2，输出意图不改变编译键；后续普通build复用相同产物再链接，不把executable Cone伪装为library。
+
 
 manifest 字段、路径形式及 `when` 的合法性先于 target 筛选检查；文件系统检查和递归枚举只作用于选中路径。选中目录相同或互相包含、单文件与目录重叠、重复标准化路径或 symlink 重复指向同一源文件时，报告来源条目，不静默去重。选中路径缺失或类型不符、最终空集合、非 UTF-8 或实际 I/O／目录遍历循环错误均在 parse 前失败；显式清单为空或全部被筛掉也不回退到 `src/`。
 
-更新判定只发现选中文件集合及其修改时间、大小和逻辑名，不先读源码内容。`sources` 的语义投影区分默认与显式模式，规范化路径、条目顺序和条件的等价写法；未选中文件的内容与原始 span 不使编译失效。需要编译时，parent 传递实际文件位置与选中清单，scoopc 读取本次所需源码；不创建、封存完整输入镜像，不检查读取前后 inode、owner、权限或文件替换。`scoop` 与直接调用 `scoopc` 使用同一发现规则，向 parser 交付相同的完整集合；后续阶段不能再追加默认源码。`SourceIdentity`、file-private 实体及 SourceLocation 使用从 Cone 根开始的完整路径，选择条目的顺序和分组不进入身份；改变源码集合只通过既有源码内容、依赖和指纹规则影响产物。
+更新判定只发现选中文件集合及其修改时间、大小和逻辑名，不先读源码内容。`sources` 的语义投影区分默认与显式模式，规范化路径、条目顺序和条件的等价写法；未选中文件的内容与原始 span 不使编译失效。需要编译时，parent传递本地位置和已展开的源码配置，scoopc读取本次所需源码；不创建、封存完整输入镜像，不检查读取前后inode、owner、权限或文件替换。两端复用同一已展开源码选择规则，向parser交付相同的完整集合；scoopc不通过读取原manifest补充配置，后续阶段不能再追加默认源码。`SourceIdentity`、file-private实体及SourceLocation使用从Cone根开始的完整路径，选择条目的顺序和分组不进入身份；改变源码集合只通过既有源码内容、依赖和指纹规则影响产物。
 
 SingleFile 的 coordinate 为保留值 `scoop:single-file:0.0.0`，kind 为 Executable；用户 manifest 不能声明该 coordinate。生效直接依赖为 `{core, std} ∪ 头部显式 dep`，共享单文件头部读取器按语言规范 12.1 处理坐标与原始 span。build/run 接受 cone-path，按既有精确 coordinate 查找库产物及传递闭包；不下载依赖或从相邻 manifest 构建。scoopc 接受 direct/support slib：沿用现有 core 槽位，调用者提供 std 与其他所需产物，检查 direct 集合及 support 闭包，不自行定位其余依赖。缺失 std 不能回退 core-only。单文件 `.slib` 仍要求一个源码及 executable kind，分类为 LocalExecutableRoot，可缓存、运行与显式 link，不能成为其他 Cone 的依赖或可分发 Cone。
 
 单文件头部解析记录使用独立 `single-file-headers-v1` namespace，以实际输入路径、mtime、大小判断更新，先读取记录再读取源码。记录命中不打开源码或读取命中产物复核；输入变化才重读头部并发现依赖。实际编译的 scoopc 在一次源文件读取中复用文本处理头部与语法，保留 shebang、注释和 package 的原文与位置。默认依赖只在共享读取器中定义，图、子请求、direct 集合校验和编译缓存均使用该集合；模式与依赖改变通过实际输入及现有结果指纹判断更新。
 
-测试配置遵守语言规范 12.2.4。manifest 解码保留独立的测试源码清单、测试依赖及其 locator/span；生产语义投影仅含生产字段。普通 build/run 与生产用途的 scoopc 不发现测试文件或展开测试依赖，缓存键不包含测试配置或测试文件摘要。manifest 未变化时使用记录的解析结果；变化时解析一次并按有效配置判断相应用途是否更新。原始文本供实际需要的诊断与编译使用，文本变化本身不等于生产语义变化。父进程的根、显式源码依赖与默认标准库使用同一 `manifests-v3` 解析记录：按实际 manifest 路径、mtime、大小和解析器 target catalog 判断更新，保存已解析的生产／测试／native 配置、locator、诊断区间及对应文本。命中不打开原 manifest 或重跑 TOML parser；缺失输入仍先报告普通定位错误。记录格式或解析规则改变时升级 namespace，不迁移旧记录或重放语言规则。实际编译的 scoopc 仍读取本次自己的 manifest 输入。
+测试配置遵守语言规范 12.2.4。PM 的包声明保留独立的测试源码清单、测试依赖及其 locator/span；生产语义投影仅含生产字段。普通 build/run 与生产用途的 scoopc 不发现测试文件或定位测试依赖，编译缓存键不包含测试配置或测试文件摘要。PM 按 manifest/lock/config 的路径、mtime、大小和工具版本复用已有解析及准备记录，未变化时不打开原清单或重跑 TOML parser；变化时按有效配置判断相应用途是否更新，缺失输入仍报告普通定位错误。原始文本与 span 只用于诊断，文本变化本身不等于生产语义变化。记录格式或解析规则改变时升级 namespace，不迁移旧记录或重放语言规则。
 
-single-Cone 编译请求显式携带 Production 或 Test 用途，默认 Production；直接调用 `scoopc build --test` 选择 Test，且输入必须是 manifest Cone。测试用途在解析源码前将 manifest 的生产依赖与测试依赖并为所需 direct artifact 集合，support 仍恰为其余传递闭包；scoopc 不定位或补建缺失的测试依赖。解析时使用同一 manifest 的生产／测试源码选择规则，将仅用于测试的依赖身份交给前端，并以原 ConeIdentity 产生具有 TestEntry 的 executable `.slib`，不要求改写源码 manifest kind。该字段自 machine protocol 6 加入；当前协议版本见下文，旧版本拒绝协商；普通生产请求的用途必须显式编码，不能靠源码目录或输出名推断。
+普通 manifest 入口通过 PM 展开 workspace/依赖，协议 18 将有效配置交付给 scoopc；child 只读取实际源码，不重解析清单。直接 manifest 入口已删除，不保留另一套新版声明解析或版本绑定；生产/测试分别判断更新及不重放检查的合同保持。
+
+single-Cone编译请求显式携带Production或Test用途，默认Production；`scoop test`及`scoop check --tests`使用PM为测试根锁定的图，并向scoopc传入Test用途及具体生产/测试依赖。测试编译只接受ExpandedCone，support仍恰为其余传递闭包；scoopc不读取声明、求解或补建缺失的测试依赖。解析时使用已展开的生产/测试源码配置，将仅用于测试的依赖身份交给前端，并以原ConeIdentity产生具有TestEntry的executable `.slib`，不要求改写源码manifest kind。该字段自machine protocol 6加入；当前协议版本见下文，旧版本拒绝协商；普通生产请求的用途必须显式编码，不能靠源码目录或输出名推断。
 
 文档是独立的输出意图，源码用途固定为 Production，且只接受 manifest Cone。机器／文档请求的 single-Cone 输出为 `.slib`、文档渲染输入、或两者同时生产的闭合选择；仅文档请求不携带虚假的 `.slib` 输出路径。检查意图按上文设计另加无产物的闭合分支。driver 在 parser 后整理文档，再完成正常 HIR 及 §2.2 的文档投影；仅文档随后发布本地 JSON 渲染输入并返回，不进入 MIR／LIR、native 编译或机器对象生产。该路径只用共享 target registry 选择目标，不探测无关的 C／C++ 工具或准备 runtime。生产附带文档从同一次 HIR 提取，在实际机器生产成功后发布文档输入；输出与普通 `.slib` 分别保存。
 
 文档成功响应携带渲染输入位置及独立的文档 warning，普通编译 warning 仍保留原分类；渲染输入包含页面目录组装所需的声明、typed 路由和诊断。仅文档成功没有 artifact summary。文档请求不与 observation-only 混用；仅文档可输出 AST／HIR dump，不能请求尚未执行的 MIR／optimizations／LIR 观察。普通编译不整理或报告文档问题；语言正文、默认值或可见性错误仍阻止文档输出，失败不覆盖之前的结果。工具本地 JSON 随编译器版本更新，不是 `.slib` section 或独立分发合同。
 
-`scoop doc` 接受零个或多个 manifest root，省略时使用 cwd 的 Cone.toml。各 root 独立发现并检查依赖图；只在站点层合并相容的源码文档任务，不建立 synthetic Cone。默认包含显式 root 及图中选中的源码依赖，`--no-deps` 保留全部显式 root；prebuilt 节点保持原消费来源。目标选择与图发现只需要纯 target registry 数据，native 工具与输入仅在确实需要生产依赖 `.slib` 时准备。仅文档 root 没有机器生产、runtime 或最终链接。
+`scoop doc`接受零个或多个manifest root，M63中沿用PM的workspace/default-members及显式根选择。各root使用独立的已锁定图；只合并实际依赖绑定与配置相容的源码文档任务，不建立synthetic Cone。默认包含显式root及图中选中的源码依赖，`--no-deps`保留全部显式root；prebuilt节点保持原消费来源。目标选择只需要纯target registry数据，native工具与输入仅在确实需要生产依赖`.slib`时准备。仅文档root没有机器生产、runtime或最终链接。
 
 文档前端输入记录使用实际 root／target、生产语义配置、选中源码的普通文件状态、依赖选择与结果及配套工具版本判断更新。命中且所需文档结果存在时，不读取源码内容或探测工具，也不读取命中结果复核内容；仅在站点确实需要重新渲染时读取已保存的文档输入。源码依赖的机器产物与文档分别判断缺失：冷产物附带文档，机器命中时仅补文档。README 与其实际引用资源独立决定首页更新。普通文件锁协调同一结果；全部页面、资源、链接和 warning 政策检查成功后替换站点，失败保留旧站点。
 
-文档渲染先汇总所有选中 Cone 的可见声明和 typed 路由，再生成页面与链接。Cone、package、类型、函数 overload 组与源码页使用完整身份确定的相对路径；显示名称与文件路径独立，成员、参数及 accessor 保留实际目标锚点。多目标引用连接到完整的可见 overload 集；解析成功但未生成页面的目标保留文本并注明缺少文档，不伪造 URL 或新增名称诊断。页面包含签名、tag、可见性与 property 能力、原文源码行及公开 re-export 的实际来源。
+文档渲染先汇总选中 Cone 的可见声明和 typed 路由，再生成页面与链接。先比较各根所有节点的精确依赖边，包括 prebuilt 节点；全部根中同身份节点的绑定相容、同身份源码的实际输入也相容时，共用一个站点 catalog；若同一 ConeIdentity 对应不同源码或依赖绑定，则每个根分别建立 catalog，放在 `r/<root-key>/` 下，由顶层首页列出各根入口。root-key 由根身份与实际清单位置决定，不随源码内容或依赖版本变化；同一绑定的文档编译结果仍共享。各 catalog 的链接与搜索只指向该根实际选中的声明，不能用另一个根的绑定补全链接；整站一次发布，任何根失败均保留旧站点。`--no-deps` 在各根范围内只保留显式选择的根。这里的页面范围只影响展示地址，不改变语言实体身份。
+
+Cone、package、类型、函数 overload 组与源码页在所属 catalog 内使用完整身份确定的相对路径；显示名称与文件路径独立，成员、参数及 accessor 保留实际目标锚点。多目标引用连接到完整的可见 overload 集；解析成功但未生成页面的目标保留文本并注明缺少文档，不伪造 URL 或新增名称诊断。页面包含签名、tag、可见性与 property 能力、原文源码行及公开 re-export 的实际来源。
 
 `scoop-doc` 使用 pulldown-cmark 处理 Markdown，使用 MiniJinja 的内置模板与 HTML 转义生成页面；原始 HTML 当作文本显示，不执行代码示例或活动 URL。站点共享样式和脚本保存在本地，导航在无 JavaScript 时仍可用；搜索索引通过普通静态 JavaScript 加载，覆盖 Cone／package、名称、声明种类、摘要、DocAlias 及可见 re-export，不使用 fetch、CDN 或外部服务。渲染只消费投影、README 内容与调用方已确定的资源路由，不重新发现或读取源码。
 
 `scoop test [root-input]` 使用同一构建图，只对 manifest 根 Cone 启用 Test 用途：发现根的生产与测试依赖，依赖节点仍按 Production 构建，不递归启用依赖自身的测试。根按 executable 产物规划和链接，保留源码 manifest 及 ConeIdentity。测试编译键包含用途、每个源码的角色、测试源码选择与测试依赖语义；本机源码实际路径、修改时间和大小参与更新判定，诊断显示 locator 与 span 不进入键；生产键不包含这些测试配置。测试源码或配置改变不使未改变的生产依赖缓存失效。
 
-测试程序发布到 `target/<canonical-target-triple>/<profile>/tests/<cone-name>`，`--target-dir` 替换 target 根目录，`--no-run` 完成构建和链接后返回。运行直接使用本次成功构建确定的已有或新生成 executable，不制作 execution copy；失败构建不得运行旧文件。过滤和忽略选择不改变测试编译产物；最终报告需要独立的用例结果通道，不能仅凭进程退出码判定整轮执行完成。
+测试程序发布到 `target/<canonical-target-triple>/<profile>/<group>/<cone-name>/tests/<cone-name>`，`--target-dir` 替换 target 根目录，`--no-run` 完成构建和链接后返回。运行直接使用本次成功构建确定的已有或新生成 executable，不制作 execution copy；失败构建不得运行旧文件。过滤和忽略选择不改变测试编译产物；最终报告需要独立的用例结果通道，不能仅凭进程退出码判定整轮执行完成。
+
+M63统一采用包管理规范3.1的`target/<target>/<profile>/<group>/<name>/`成员输出目录，测试放在该目录的`tests/`内；一次workspace测试分别产生/运行各根的测试程序，不将它们链接到同一进程。
 
 `--list` 完成更新判定后从已保存的测试目录输出容器与用例，不启动测试程序，与 `--no-run` 互斥。human 列表写 stdout，JSON 模式沿用 stderr 的结构化记录流，构建记录之后输出 `test-list` 记录；记录包含嵌套容器、用例位置与忽略原因，以及容器、用例和忽略计数。
 
@@ -819,15 +839,19 @@ single-Cone 编译请求显式携带 Production 或 Test 用途，默认 Product
 
 前端输入显式标明仅用于测试的 direct dependency 身份，在同一已加载的依赖语义数据上按源码角色收集名称候选。package binding 在按实体合并前筛选直接来源，qualified-type 索引保留来源贡献以复用相同数据；选中真实 nominal 后的静态成员遍历不按原始声明 Cone 再次排除实体。不为生产与测试分别加载或完整校验相同的依赖闭包，不在下游 IR 重做定义处名称查找。
 
-依赖使用 exact version，全部为 library，同一 group:name 只允许一个版本。构建图解析实际依赖、版本、target/ABI/schema 与 locator，诊断循环和歧义；不为复用已完成节点重读其产物或重算语义／内容摘要。canonical 记录顺序由静态依赖图生成，逐次取全部前驱已排序的 coordinate bytes 最小者，不按输入顺序或并发完成顺序决定。实际执行使用依赖完成后的 ready set，按 canonical 顺序优先启动可运行节点；独立源码 Cone 可以并发，每个 child 仍只编译一个 Cone。
+编译输入的依赖均使用exact version、全部为library，同一程序闭包中同一group:name只允许一个版本。M63中原manifest要求/来源由PM求解为该精确图，循环/来源冲突在解析边界诊断；实际产物消费继续检查target/ABI/schema与精确语义绑定，不因manifest范围兼容而重绑旧`.slib`。不为复用已完成节点重读产物或重算语义/内容摘要。canonical记录顺序由每个静态图生成，逐次取全部前驱已排序的coordinate bytes最小者，不按输入顺序或并发完成顺序决定。实际执行使用依赖完成后的ready set，按canonical顺序优先启动可运行节点；独立源码Cone可以并发，每个child仍只编译一个Cone。
 
 `scoop build/run/test` 的 `-j N`／`--jobs N` 指定同时运行的编译 child 上限，N 必须为正，默认使用宿主可用并行度。并发数只影响调度，不进入语言身份、编译键、产物格式或 machine protocol。缓存更新判定与锁内重查先于 child 请求准备；命中节点不占用编译 worker，缺失的显式观察沿相同调度执行。同键锁覆盖实际编译／观察到结果发布，不在运行 child 时释放。持有运行任务的锁时，其他键的锁获取不得阻塞该任务完成与释放锁；繁忙键延期到后续调度。节点成功后立即供其 dependents 使用；观察记录和 warning 按 canonical 顺序汇集。
+
+多个workspace根共用此jobs上限；诊断先按root key、再按各图canonical顺序汇集，不能为每个根另开N个worker。PM只准备依赖，不调度编译child；源码包下载锁与编译任务锁分别协调各自结果。
 
 非 core Cone 未显式声明 core 时，注入 `scoop:scoop.core:0.1.0` direct edge；core 不依赖自身。core 是普通库，显式 locator 遵守同一发现规则。缺省 sysroot 来源为 `lib/<canonical-target-triple>/scoop.core.slib`；不读取或枚举随包 `src/scoop.core`。已选来源损坏或不兼容时直接报错，缺失目标产物时报告目标、coordinate 和路径，不回退到源码或其他目标。
 
 显式声明 core 版本但未指定 locator 时，复用图中已选 core；尚未选定时先查显式 artifact search root。搜索无候选不立即报缺失，待其他声明的源码／产物依赖展开完毕后，若仍无 core 才使用上述 sysroot 缺省来源。这使普通库的显式 core 依赖与隐式 core 边绑定同一实际库，也允许后续发现的依赖提供显式 core locator；无效候选或显式 locator 错误仍直接报告。
 
 其他已声明的 `scoop` group 依赖在没有显式 locator、且全部显式 artifact search root 均无候选时，最后检查 `<sysroot>/lib/<canonical-target-triple>/<name>.slib`。使用普通产物入口匹配完整 coordinate、library kind 和目标，继续定位其实际产物依赖；不要求额外的 cone-path，不因应用选择 debug 或空缓存而重建发布库。其他 group 不查该默认位置；显式来源失败、候选歧义或已选 artifact 不兼容时不回退。随包源码只供阅读和显式源码请求，默认定位不读取它。`scoop link` 遵守同一显式产物优先、最后采用 sysroot 产物的顺序，不读取源码或补建缺失 artifact。
+
+M63中上述manifest来源选择由PM执行：普通非`scoop`裸依赖改用明确registry，系统库候选需满足版本要求后锁成精确coordinate；core仍固定0.1.0。单文件与artifact-only链接保留原精确artifact查找方式，不沿PM自动下载缺失来源。
 
 配套 scoopc 默认来自 scoop executable 同目录，允许显式指定。首次使用或工具路径、修改时间、大小及配置改变时取得其能力／协议；未变化时复用记录，不启动探测、不完整读取程序计算指纹，不在执行前后重捕获工具。本机工具记录保存在 `tools-v1`，保存路径、mtime、长度、生效的配套协议配置和实际能力响应；工具输入摘要由这组普通输入生成。compile key domain 接续为 `scoop-cone-compile-cache-v7`，使用独立的 C 工具输入与 native 对象构建输入摘要，不改变语言实体或 runtime ABI。每个 source cache miss 启动一次 single-Cone 编译，传入实际 direct/support artifact 路径；direct 对应 manifest edge，support 为其余传递依赖，两组互斥。工具启动、协议读写和实际编译失败正常报告，缓存复用不重放 child 成功产物及依赖闭包的完整验证。
 
@@ -859,7 +883,7 @@ build/run 接受 `--profile debug|release`，默认 debug；`--release` 为 rele
 
 用户 Cone 的默认构建缓存位于 `<target-root>/<canonical-target-triple>/build/<profile>`，包含本次图的源码依赖、工具发现、中间产物和最终链接缓存，不使用用户级平台缓存目录。build/run/test 与 check 使用本次选择的 profile；doc 使用 debug，并以首个显式 root（省略时为当前 Cone）选择默认缓存 target root。支持 `--target-dir` 的命令同时将默认缓存放到指定 target root 下，`-o`／`--output-dir` 不改变缓存位置。显式 `--cache-dir` 优先，其次为 `SCOOP_CACHE_DIR`，两者均直接指定完整缓存根，不再追加 triple/profile；未指定时才使用上述 Cone 本地布局。默认缓存选择只定位输入和目标，不读取源码内容或探测工具。
 
-`scoop clean` 接受与 build 相同的 manifest 目录、Cone.toml 或单文件输入，省略时使用 cwd 的 Cone.toml，不搜索父目录。它定位同一 target root，递归删除整个目录（包括所有 target、profile、缓存和目录内其他生成物），目录不存在时成功返回；`--target-dir` 相对 cwd 解析并替换被清理的根。此命令不解析 manifest 内容或源码、不发现依赖，也不读取 sysroot、启动编译器或探测 native 工具。target root 外的显式输出和缓存不属于清理范围。实际删除失败按路径报告并退出 1；参数错误退出 2。human 成功摘要或 schema 1、kind 为 `clean`、含 `target_dir` 与 `removed` 的 JSON 结果写 stderr，stdout 保持为空。
+`scoop clean`接受与build相同的manifest目录、Cone.toml或单文件输入；M63中manifest/workspace模式通过PM的本地成员发现定位workspace target根，不求解版本或获取依赖，单文件保持独立target根。它递归删除整个target目录（包括所有target、profile、缓存和目录内其他生成物），目录不存在时成功返回；`--target-dir`相对cwd解析并直接指定被清理的根，此时不依赖项目清单或PM，因此损坏的项目配置仍可显式清理。不读取源码/sysroot、启动编译器或探测native工具；target根外的显式输出和缓存不属于清理范围，Cone.lock与全局PM源码缓存不因项目clean被删除。实际删除失败按路径报告并退出1；参数错误退出2。human成功摘要或schema 1、kind为`clean`、含`target_dir`与`removed`的JSON结果写stderr，stdout保持为空。
 
 新结果在临时输出位置生成，工具成功后 rename 发布，再更新构建记录；失败不发布部分结果。普通构建锁协调相同结果的生产，取得锁后重查记录即可复用，不比较两份完整产物。不同输入的结果不得覆盖正在使用的同一缓存输出。用户首次指定另一输出位置时可发布一次，此后命中不重读、哈希或覆盖已有文件。不进行写后读回、sync_all、目录同步、只读封存、私有目录或路径来源审计。
 
@@ -889,13 +913,17 @@ native 与 runtime 的真实编译保存源码、depfile 中实际使用的头�
 
 全局构建缓存由 scoop 管理。同一工作区、Cone、Production/Test、target、profile 可直接定位普通构建记录；本机路径可参与记录定位，不进入语言身份。记录保存已解析的有效配置、选中输入的逻辑名／修改时间／大小、工具与协议版本、实际依赖输入键／必要语义摘要、生成物及用户输出位置。更新判定先于源码读取、输入复制、预处理、能力查询和链接准备。输入内容在确需编译时读一次，供 parser 与必要语义计算共用。
 
+PM的全局源码/解析缓存与编译缓存职责分离，默认布局和覆盖参数见[包管理规范11.1](SCOOP-PACKAGE-SPEC.md#111-跨项目共享目录)。多个项目可直接引用同一registry版本的解包目录或同一Git commit的checkout，不为每个项目复制依赖源码。同Cone在不同精确依赖绑定、target、profile或工具链下的编译结果仍分别判断更新；共享下载不能被当作共享编译结果的充分条件。
+
 记录不存在、缓存格式改变、有效输入变化、所需输出不存在或请求的观察结果尚未产生时更新相应结果。输入未变化且结果存在时直接采用记录；不核对 artifact/member/object hash、warning 来源、收据或指纹自洽性，不检测、修复、恢复或隔离外部破坏的缓存。记录按 schema 普通解码，实际读取错误直接传播；不通过扫描或重建来取得另一份更可信记录。旧缓存用新版本或 namespace 自然失效，不解析或迁移旧证明链。
 
 输入缺失是普通源码构建错误，输出缺失只生成该输出。manifest 仅测试配置变化不使生产节点失效；未选中源码、程序 argv、测试过滤及显示方式不使编译失效。工具变化可以直接失效，不为恢复内容可能相同的命中强制读取整个程序。尚未使用的 generator 配置不影响构建；实际使用的工具按同一规则记录。
 
-machine transport 为一次 request/response 的 length-prefixed canonical CBOR，protocol version 为 17（增加无产物的 Check 请求与成功结果；已有观察、生成器配置、工具输入和片段诊断原文保持），stdout 只含协议 frame。build request field 6 为输出选择：Artifact、Documentation、ArtifactWithDocumentation，保存各自实际输出 locator；Check 使用新 tag 4 的单字段 map，只保存 tag、不含 locator；成功 response 的 field 2 使用对应 product 选择，Artifact 与 ArtifactWithDocumentation 变体携带 artifact summary，文档输出保存渲染输入 locator 和独立文档 warning；Check product 同样使用 tag 4 的单字段 map，warning 与实际 generator 输入沿共有成功字段保存。Check 拒绝 dump、observation-only 与非空 native 对象输入。build request field 9 为 OptimizationMode（Debug=1、Release=2），field 10 为按归一化路径排序的选中 native 源码所对应的已编译 native 对象 locator 数组，机器生产时数量必须与 manifest 的实际 target 选择一致；没有 native 源码或仅文档时为空。field 11 为当前 Cone 的 CompilationPurpose（Production=1、Test=2）；field 12 为按名称排序且唯一的 generator 注册数组，保存名称与已按接收 CLI cwd 解析的绝对宿主程序路径，未使用的注册不探测程序。target request 保存 canonical triple，以及待解析的 C driver／native sysroot 选择或已解析的 C 工具调用记录。parent 将已得到的记录直接交给 child，child 解码后用于实际编译，不重复执行探测；独立 scoopc 请求仍执行正常工具发现。调用记录保存普通版本／deployment 配置、host locator 和本机输入摘要，不是产物验证资格，host locator 不进入 artifact identity。旧或不匹配协议拒绝。request envelope field 5 为 observation-only 标志（unsigned 0／1）；为 true 时必须请求非空 dump 集合，沿同一编译实现执行到最后一个所需阶段，不发布机器对象或 `.slib`。观察成功使用 response tag 3，携带 warning 和 dump 描述，不伪造产物摘要。
+machine transport 为一次 request/response 的 length-prefixed canonical CBOR，protocol version 为 18（当前 Cone 改用已展开配置；已有 Check、观察、生成器配置、工具输入和片段诊断原文保持），stdout 只含协议 frame。build request field 6 为输出选择：Artifact、Documentation、ArtifactWithDocumentation，保存各自实际输出 locator；Check 使用新 tag 4 的单字段 map，只保存 tag、不含 locator；成功 response 的 field 2 使用对应 product 选择，Artifact 与 ArtifactWithDocumentation 变体携带 artifact summary，文档输出保存渲染输入 locator 和独立文档 warning；Check product 同样使用 tag 4 的单字段 map，warning 与实际 generator 输入沿共有成功字段保存。Check 拒绝 dump、observation-only 与非空 native 对象输入。build request field 9 为 OptimizationMode（Debug=1、Release=2），field 10 为按归一化路径排序的选中 native 源码所对应的已编译 native 对象 locator 数组，机器生产时数量必须与 manifest 的实际 target 选择一致；没有 native 源码或仅文档时为空。field 11 为当前 Cone 的 CompilationPurpose（Production=1、Test=2）；field 12 为按名称排序且唯一的 generator 注册数组，保存名称与已按接收 CLI cwd 解析的绝对宿主程序路径，未使用的注册不探测程序。target request 保存 canonical triple，以及待解析的 C driver／native sysroot 选择或已解析的 C 工具调用记录。parent 将已得到的记录直接交给 child，child 解码后用于实际编译，不重复执行探测；独立 scoopc 请求仍执行正常工具发现。调用记录保存普通版本／deployment 配置、host locator 和本机输入摘要，不是产物验证资格，host locator 不进入 artifact identity。旧或不匹配协议拒绝。request envelope field 5 为 observation-only 标志（unsigned 0／1）；为 true 时必须请求非空 dump 集合，沿同一编译实现执行到最后一个所需阶段，不发布机器对象或 `.slib`。观察成功使用 response tag 3，携带 warning 和 dump 描述，不伪造产物摘要。
 
 成功响应直接携带生产时得到的产物摘要：Cone、直接依赖、target、产物 profile、各语义指纹、artifact fingerprint 及测试目录，并携带 warning 和 dump 描述。parent 将该摘要与产物实际位置保存为普通构建记录，不重新打开 child 产物、重读摘要或逐字段核对响应与归档。摘要是后续编译、链接及测试列举需要的数据，不是验证资格；不得包含无人消费的归档长度或成员数来支持复核。protocol 8 用此摘要替换原独立的七个指纹字段。
+
+protocol 18 的 current 输入为 ExpandedCone（tag 3）或 SingleFile（tag 2）；旧 ManifestRoot tag 1 不再接受。ExpandedCone 的 field 1 保存包管理规范 7.1 的 ExpandedConeInputV1 UTF-8 JSON 字节，沿用现有 CBOR frame，不生成临时清单或源码树。parent 交付已绑定依赖的生产/测试配置、原始清单诊断文本及 host 路径；child 只解码必要格式与引用，不重新读取或解释原始清单。native 准备同样复用 parent 已加载的配置。独立 scoop-pm 的 JSON prepare 协议由包管理规范 7 定义；两种协议各自检查版本，不扩展成可协商任意构建任务的服务协议。
 
 本机编译结果保存在 `compile-v3`：按输入键保存普通 `record.cbor`（生产摘要、warning 与实际 generator 工具输入）。成功 response 的 field 5 返回实际调用的名称、所选程序路径、generator 协议版本和程序修改时间／大小；v1 没有额外生成器选项，程序更新状态表示实际工具版本，不额外启动版本探测。命中先按已用名称比较当前绑定和程序状态，未使用的注册不参与输入键或失效；缺失／变化使该 Cone 正常重编译。默认 scoop.codec 程序相对于实际选中的 scoopc 安装位置解析。
 
@@ -1536,6 +1564,8 @@ digest kinds 4、8、9，digest owner tags 4、11、9，保留不用；全部 ru
 
 本节规定 M47 与 LSP 的共同基础。模块分工与查询边界见[公共基础设计](../language-service/DESIGN.md)，实际交付与验证见[实施与验收](../language-service/PROGRESS.md)；M47 的同步生成流程由[其主设计](../milestone47/DESIGN.md)及[协议](../milestone47/PROTOCOL.md)规定。合法源码的语言语义、成功 HIR 的完备性、产物和 runtime 合同保持。
 
+M63中项目成员、workspace继承和精确依赖绑定统一来自独立PM的本地数据模型，见[包管理规范7](SCOOP-PACKAGE-SPEC.md#7-pm-与构建-driver-的接口)。analysis/LSP不自行解释第二套版本规则，不在编辑或补全时下载依赖；本地缺少锁定源码时提示执行fetch。编辑buffer仍由语言服务覆盖对应source，不能通过重写全局共享源码cache实现编辑态。
+
 **源码与位置。** 同一文本版本提供不可变 UTF-8 源码、byte range 和可复用的行索引。普通文件继续沿用 SourceIdentity；编辑 buffer 和生成正文的本地定位由输入宿主维护，不使用显示路径、LSP URI、文档版本或请求编号构造语言实体身份。语义查询只消费显式传入的源码和依赖视图，不进行源码发现、磁盘读取或工具启动。LSP 在边界协商位置编码并转换为 byte offset；其零基行列、UTF-16 默认值及换行定义不能直接套用 CLI 的显示列或持久 SourcePointRecord。
 
 共同源码数据由 `scoop-source` 提供，AST 为兼容现有消费者重导出原 Span 与诊断类型。当前 Cone 文本与诊断报告共享不可变文本，按需建立并复用行索引。CLI 沿用 LF 分行与一基 Unicode 标量列；编辑器坐标使用零基编码单位列及 LF／CRLF／CR 分行，CRLF 中间和字符内部不是合法编辑位置。超出行长的编辑器列归到行尾，越界行或 byte offset 作为位置错误返回。parser 在词法扫描前检查源码长度能否由 u32 Span 表示，不截断过大的输入。
@@ -1788,12 +1818,12 @@ LSP 负责协议生命周期、文档版本与取消请求的映射；共享分�
 
 工作区符号查询索引已选项目的源码声明，按同一文件实际生效的配置去重；包含顶层声明与名义类型的成员，不将 callable 内部局部声明放入工作区符号表。索引记录 grammar 已取得的名称、容器及指定版本的位置，不声称错误声明已有成功语义身份；签名或正文尚未完成时仍可导航已知名称。每份不可变源码按需复用自己的声明索引，文件修改或移出所选输入后旧记录不进入当前查询。工作区请求使用实际工作区快照，不伪造文档 URI 或 SourceId。引用和重命名仍须使用普通前端的绑定目标，不能以该名称索引代替语义绑定。
 
-`scoop-analysis` 是与编译 driver 同层的分析宿主，保存本地 SourceId、文本 revision 与共享不可变输入；语法结果按文件按需建立并复用。输入更新使旧分析快照失效，读取时检查取消；快照保留原版本的文本，不混用新输入。工作区加载沿普通 manifest 取得 Cone 与 SourceIdentity，不从本地句柄派生语言身份，也不处理 LSP URI、客户端版本或进程传输。`scoop-lsp` 是独立 stdio 命令，传输线程、文档输入与分析 worker 分离；初版通过 LSP 3.17 的基础协议能力提供同步、诊断与结构查询，只声明实际实现的能力。
+`scoop-analysis` 是与编译 driver 同层的分析宿主，保存本地 SourceId、文本 revision 与共享不可变输入；语法结果按文件按需建立并复用。输入更新使旧分析快照失效，读取时检查取消；快照保留原版本的文本，不混用新输入。工作区加载经配套 PM 的 members 与 metadata --offline 取得成员及精确锁定图，再从已展开配置选择源码与 SourceIdentity；不重新解析包声明、匹配版本或下载依赖。未保存清单经版本 1 overlays 输入同一 PM 展开路径，不写回清单或 lock。缺少锁定输入的成员保留本地语法与符号，其他成员可继续分析，完整边界见包管理规范 7.2。不从本地句柄派生语言身份，也不处理 LSP URI、客户端版本或进程传输。`scoop-lsp` 是独立 stdio 命令，传输线程、文档输入与分析 worker 分离；初版通过 LSP 3.17 的基础协议能力提供同步、诊断与结构查询，只声明实际实现的能力。
 
-VS Code 扩展通过标准 LSP 客户端启动 `scoop-lsp --stdio`，管理初始化、文档增量同步、工作区与文件监听、配置更新及退出。服务器依次取显式配置、`~/.scoop/bin/scoop-lsp`、`PATH`；命令不使用 shell 解释。语义配置只传递服务器支持的 target、sysroot、purpose、artifactSearchRoots、configurations 和 activeConfiguration，未指定值沿服务端默认规则。扩展同步 `.scoop` 与打开的 `Cone.toml`，由服务器提供诊断、补全、签名、导航、符号、引用、重命名、选择范围与 quickfix；Tree-sitter 继续提供高亮、折叠和缩进，避免重复注册折叠结果。未找到或启动失败的服务器不影响这些本地语法能力，用户可查看输出并显式重启。受限工作区只启用本地语法能力，信任工作区后启动服务器。扩展不执行编译、sysroot 准备或生成器。
+VS Code 扩展通过标准 LSP 客户端启动 `scoop-lsp --stdio`，管理初始化、文档增量同步、工作区与文件监听、配置更新及退出。服务器依次取显式配置、`~/.scoop/bin/scoop-lsp`、`PATH`；命令不使用 shell 解释。语义配置只传递服务器支持的 target、sysroot、purpose、artifactSearchRoots、packageManager、packageCacheDir、lockfile、configurations 和 activeConfiguration，未指定值沿服务端默认规则。扩展同步 `.scoop` 与打开的 `Cone.toml`，由服务器提供诊断、补全、签名、导航、符号、引用、重命名、选择范围与 quickfix；Tree-sitter 继续提供高亮、折叠和缩进，避免重复注册折叠结果。未找到或启动失败的服务器不影响这些本地语法能力，用户可查看输出并显式重启。受限工作区只启用本地语法能力，信任工作区后启动服务器。扩展不执行编译、sysroot 准备或生成器。
 
 工作区配置明确选取根 Cone、target、Production／Test、sysroot 与产物搜索目录；同一物理源码可属于多份配置，共享文本但分别保存项目语义输入。根 Cone 的 Test 配置使用既有 production／test 源码与依赖选择，源码依赖仍使用 Production。目录、显式源码依赖、显式产物、版本依赖和默认 core 的选择沿普通构建规则；配置错误保留为 manifest 位置诊断，不移除已经加载的源码语法输入，也不隐式执行编译、sysroot 准备或生成器。未归属已选 Cone 的文档仅提供语法服务。
 
-宿主按文件更新时间与长度复用未变的磁盘文本和已打开产物；打开的文档覆盖磁盘，Cone.toml 也遵守这一规则。配置或监听通知重新选择项目输入，关闭文档恢复磁盘文本；实际文本未变时保留语法结果。依赖产物只打开一次并按需读取所需 HIR，目录及成员缓冲可在输入宿主与分析线程间共享，文件定位读取互斥；不为共享再解析或核对相同目录。源文件、配置与依赖选择一起进入分析快照，旧项目结果不混入更新后的请求。
+宿主按文件更新时间与长度复用未变的磁盘文本和已打开产物；打开的文档覆盖磁盘，Cone.toml 也遵守这一规则。配置或监听通知（包括 Cone.lock 变化）重新选择项目输入，关闭文档恢复磁盘文本；实际文本未变时保留语法结果。依赖产物只打开一次并按需读取所需 HIR，目录及成员缓冲可在输入宿主与分析线程间共享，文件定位读取互斥；不为共享再解析或核对相同目录。源文件、配置与依赖选择一起进入分析快照，旧项目结果不混入更新后的请求。
 
 进程内分析复用和 2.7、2.8 的构建缓存分别按各自实际输入更新，不增加缓存内容复核、源码镜像、来源认证或通用资源计费。语言服务只读取所需的依赖语义 metadata，不为查询进入 MIR／LIR、机器具体化、LLVM 或 native 链接准备。

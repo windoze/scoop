@@ -2,7 +2,8 @@ use std::path::PathBuf;
 
 use clap::Args;
 use scoop::{
-    ArtifactSearchRoot, BuildProfile, CheckRequest, PairedScoopcLocator, TrustedSysrootRoot,
+    ArtifactSearchRoot, BuildContext, BuildProfile, CheckRequest, DiagnosticsPolicy, GraphTarget,
+    PairedScoopcLocator, TrustedSysrootRoot,
 };
 
 use super::args::MessageFormat;
@@ -11,6 +12,8 @@ use super::presentation::Reporter;
 
 #[derive(Args)]
 pub(super) struct CheckArgs {
+    #[command(flatten)]
+    packages: super::package_manager::PackageOptions,
     /// Cone directory, Cone.toml, or one .scoop file; defaults to ./Cone.toml.
     root_input: Option<PathBuf>,
     /// Include test sources and dependencies and check the generated test entry.
@@ -46,19 +49,40 @@ pub(super) struct CheckArgs {
 pub(super) fn execute(
     args: CheckArgs,
     sysroot: Option<PathBuf>,
+    package_manager: Option<PathBuf>,
     reporter: &Reporter,
 ) -> scoop::BuildResult<()> {
     let cwd = std::env::current_dir().map_err(config)?;
-    let root = super::paths::build_root(&cwd, args.root_input)?;
     let selection = scoop_toolchain::select_target(&target(args.target)?).map_err(config)?;
     let profile = args.profile.unwrap_or(if args.release {
         BuildProfile::Release
     } else {
         BuildProfile::Debug
     });
+    let purpose = if args.tests {
+        scoop_protocol::CompilationPurpose::Test
+    } else {
+        scoop_protocol::CompilationPurpose::Production
+    };
+    let sysroot = absolute(
+        &cwd,
+        scoop_toolchain::configured_sysroot_root(sysroot).map_err(config)?,
+    )?;
+    let search = paths(&cwd, args.cone_path)?;
+    let inputs = super::package_manager::prepare(super::package_manager::PrepareInput {
+        cwd: &cwd,
+        input: args.root_input,
+        options: args.packages,
+        executable: package_manager,
+        purpose,
+        target: selection.target().contract().canonical_triple(),
+        sysroot: &sysroot,
+        search: &search,
+        cache: args.cache_dir.clone(),
+    })?;
     let cache = super::paths::build_cache(
         &cwd,
-        &super::paths::target_root(&cwd, &root, None)?,
+        &inputs.target_root(&cwd, None)?,
         selection.target().contract().canonical_triple(),
         profile,
         args.cache_dir,
@@ -89,34 +113,45 @@ pub(super) fn execute(
             .ok_or_else(|| config("scoop executable has no parent"))?
             .join("scoopc"),
     };
-    let outcome = scoop::check(CheckRequest {
-        root,
-        target,
-        sysroot: TrustedSysrootRoot::new(absolute(
-            &cwd,
-            scoop_toolchain::configured_sysroot_root(sysroot).map_err(config)?,
-        )?)
-        .map_err(config)?,
-        cache,
-        compiler: PairedScoopcLocator::new(compiler).map_err(config)?,
-        search: paths(&cwd, args.cone_path)?
+    let compiler = PairedScoopcLocator::new(compiler).map_err(config)?;
+    let generators =
+        scoop_toolchain::GeneratorPrograms::from_cli(&args.generators, &cwd).map_err(config)?;
+    let graphs = inputs.graphs(BuildContext {
+        artifact_search_roots: search
             .into_iter()
             .map(ArtifactSearchRoot::new)
             .collect::<Result<_, _>>()
             .map_err(config)?,
-        purpose: if args.tests {
-            scoop_protocol::CompilationPurpose::Test
-        } else {
-            scoop_protocol::CompilationPurpose::Production
+        cache_root: cache.clone(),
+        sysroot: TrustedSysrootRoot::new(sysroot).map_err(config)?,
+        target: GraphTarget::Frontend {
+            selection,
+            request: target.clone(),
         },
-        profile,
+        compiler: compiler.clone(),
+        diagnostics: DiagnosticsPolicy::Structured,
+        optimization: profile.optimization(),
+        purpose,
         jobs: args.jobs.unwrap_or_else(|| {
             std::thread::available_parallelism().unwrap_or(std::num::NonZeroUsize::MIN)
         }),
-        generators: scoop_toolchain::GeneratorPrograms::from_cli(&args.generators, &cwd)
-            .map_err(config)?,
+        generators: generators.clone(),
     })?;
-    reporter.checked(&outcome).map_err(config)
+    for graph in graphs {
+        let outcome = scoop::check(
+            graph,
+            CheckRequest {
+                target: target.clone(),
+                cache: cache.clone(),
+                compiler: compiler.clone(),
+                purpose,
+                profile,
+                generators: generators.clone(),
+            },
+        )?;
+        reporter.checked(&outcome).map_err(config)?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

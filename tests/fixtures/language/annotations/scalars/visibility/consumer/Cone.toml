@@ -6,4 +6,4 @@ version = "0.1.0"
 kind = "executable"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"dev.m29:annotation-provider" = "0.1.0"
+"dev.m29:annotation-provider" = { version = "=0.1.0", artifact = "../../artifacts/dev.m29/annotation-provider/0.1.0/cone.slib" }

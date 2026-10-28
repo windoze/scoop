@@ -1,0 +1,8 @@
+package dev.pm.two
+import dev.pm.shared.selected
+import scoop.test.*
+@Test
+class Cases {
+    @Test
+    fun binding() { assertEquals(2, selected()) }
+}

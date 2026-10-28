@@ -106,7 +106,7 @@ impl Server {
             serde_json::json!({"registrations": [{
                 "id": "scoop-inputs", "method": "workspace/didChangeWatchedFiles",
                 "registerOptions": {"watchers": [
-                    {"globPattern": "**/Cone.toml"}, {"globPattern": "**/*.scoop"}, {"globPattern": "**/*.slib"}
+                    {"globPattern": "**/Cone.toml"}, {"globPattern": "**/Cone.lock"}, {"globPattern": "**/*.scoop"}, {"globPattern": "**/*.slib"}
                 ]}
             }]}),
         )).write(output)

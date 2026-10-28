@@ -1,11 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
 
-use scoop::{
-    ArtifactSearchRoot, BuildDumpRequest, BuildFailure, BuildFailurePhase, BuildOutcome,
-    BuildProfile, BuildRequest, BuildResult, DiagnosticsPolicy, PairedScoopcLocator, RuntimeInput,
-    TrustedSysrootRoot,
-};
+use scoop::{BuildDumpRequest, BuildFailure, BuildFailurePhase, BuildOutcome, BuildResult};
 
 use super::args::*;
 use super::presentation::Reporter;
@@ -18,17 +14,23 @@ pub(super) enum CommandOutcome {
 pub(super) fn execute(
     command: Command,
     sysroot: Option<PathBuf>,
+    package_manager: Option<PathBuf>,
     enable_gc_stress: bool,
     enable_startup_stats: bool,
     reporter: &Reporter,
 ) -> BuildResult<CommandOutcome> {
     match command {
+        Command::Pm(args) => {
+            super::package_manager::execute(args, package_manager).map(CommandOutcome::Child)
+        }
         Command::External(args) => {
             super::external::execute(&args, sysroot).map(CommandOutcome::Child)
         }
-        Command::Fmt(args) => super::format::execute(args, reporter).map(CommandOutcome::Complete),
+        Command::Fmt(args) => {
+            super::format::execute(args, package_manager, reporter).map(CommandOutcome::Complete)
+        }
         Command::Clean(args) => {
-            super::clean::execute(args, reporter)?;
+            super::clean::execute(args, package_manager, reporter)?;
             Ok(CommandOutcome::Complete(true))
         }
         Command::New(args) => {
@@ -36,44 +38,68 @@ pub(super) fn execute(
             Ok(CommandOutcome::Complete(true))
         }
         Command::Doc(args) => {
-            super::doc::execute(args, sysroot, reporter)?;
+            super::doc::execute(args, sysroot, package_manager, reporter)?;
             Ok(CommandOutcome::Complete(true))
         }
         Command::Check(args) => {
-            super::check::execute(args, sysroot, reporter)?;
+            super::check::execute(args, sysroot, package_manager, reporter)?;
             Ok(CommandOutcome::Complete(true))
         }
         Command::Build(args) => {
-            let mut request = build_request(
+            let mut requests = super::build::requests(
                 args.options,
                 sysroot,
+                package_manager,
                 args.output,
+                if args.tests {
+                    scoop_protocol::CompilationPurpose::Test
+                } else {
+                    scoop_protocol::CompilationPurpose::Production
+                },
                 false,
                 enable_gc_stress,
                 enable_startup_stats,
             )?;
-            if let (Some(emit), Some(directory)) = (args.emit, args.dump_dir) {
-                request.dumps = Some(BuildDumpRequest {
-                    stages: emit.stages(),
-                    directory: absolute(&request.cwd, directory)?,
-                    scope: match args.dump_scope.unwrap_or_default() {
-                        DumpScope::Root => scoop::DumpScope::Root,
-                        DumpScope::Sources => scoop::DumpScope::Sources,
-                    },
-                });
+            for request in &mut requests {
+                request.emit_slib = args.emit_slib;
+                if let (Some(emit), Some(directory)) = (args.emit, args.dump_dir.as_ref()) {
+                    request.dumps = Some(BuildDumpRequest {
+                        stages: emit.stages(),
+                        directory: absolute(&request.cwd, directory.clone())?,
+                        scope: match args.dump_scope.unwrap_or_default() {
+                            DumpScope::Root => scoop::DumpScope::Root,
+                            DumpScope::Sources => scoop::DumpScope::Sources,
+                        },
+                    });
+                }
             }
-            reporter.built(&scoop::build(request)?).map_err(config)?;
+            for result in scoop::build_all(requests)? {
+                reporter.built(&result).map_err(config)?;
+            }
             Ok(CommandOutcome::Complete(true))
         }
         Command::Run(args) => {
-            let request = build_request(
+            let mut requests = super::build::requests(
                 args.options,
                 sysroot,
+                package_manager,
                 None,
+                scoop_protocol::CompilationPurpose::Production,
                 true,
                 enable_gc_stress,
                 enable_startup_stats,
             )?;
+            if requests.len() > 1 {
+                requests.retain(|request| {
+                    request.graph.root_kind() == scoop_identity::RequestedConeKind::Executable
+                });
+            }
+            if requests.len() != 1 {
+                return Err(config(
+                    "run requires exactly one selected executable; use -p group:name",
+                ));
+            }
+            let request = requests.pop().expect("one selected root");
             let cwd = request.cwd.clone();
             let result = scoop::build(request)?;
             reporter.built(&result).map_err(config)?;
@@ -86,56 +112,63 @@ pub(super) fn execute(
             }
         }
         Command::Test(args) => {
-            let mut request = build_request(
+            let requests = super::build::requests(
                 args.options,
                 sysroot,
+                package_manager,
                 None,
+                scoop_protocol::CompilationPurpose::Test,
                 !args.no_run && !args.list,
                 enable_gc_stress,
                 enable_startup_stats,
             )?;
-            request.graph = request
-                .graph
-                .with_purpose(scoop_protocol::CompilationPurpose::Test)
-                .map_err(config)?;
-            let cwd = request.cwd.clone();
-            let result = scoop::build(request)?;
-            reporter.built(&result).map_err(config)?;
-            if args.no_run {
-                return Ok(CommandOutcome::Complete(true));
-            }
-            let summary = result.artifacts().graph.root().artifact().summary();
-            let directory = summary
-                .test_directory()
-                .ok_or_else(|| config("test artifact has no test directory"))?;
-            let selected =
-                super::test_selection::select(directory, args.filter.as_deref(), args.ignored);
-            if args.list {
-                reporter
-                    .test_list(
-                        summary.cone().coordinate().name(),
-                        &selected.directory,
-                        selected.empty_reason,
+            let cwd = std::env::current_dir().map_err(config)?;
+            for result in scoop::build_all(requests)? {
+                reporter.built(&result).map_err(config)?;
+                if args.no_run {
+                    continue;
+                }
+                let summary = result.artifacts().graph.root().artifact().summary();
+                let directory = summary
+                    .test_directory()
+                    .ok_or_else(|| config("test artifact has no test directory"))?;
+                let selected =
+                    super::test_selection::select(directory, args.filter.as_deref(), args.ignored);
+                if args.list {
+                    reporter
+                        .test_list(
+                            summary.cone().coordinate().name(),
+                            &selected.directory,
+                            selected.empty_reason,
+                        )
+                        .map_err(config)?;
+                    continue;
+                }
+                let target = summary.cone().coordinate().name().to_owned();
+                let outcome = match result {
+                    BuildOutcome::Executable {
+                        build, executable, ..
+                    } => super::test_run::program(
+                        &executable,
+                        &build.output,
+                        &selected,
+                        args.nocapture,
+                        &cwd,
+                        reporter,
+                        &target,
                     )
-                    .map_err(config)?;
-                return Ok(CommandOutcome::Complete(true));
+                    .map(|status| {
+                        status.map_or(CommandOutcome::Complete(true), CommandOutcome::Child)
+                    }),
+                    _ => Err(config("test did not produce an executable")),
+                }?;
+                if let CommandOutcome::Child(status) = outcome {
+                    if !status.success() {
+                        return Ok(CommandOutcome::Child(status));
+                    }
+                }
             }
-            let target = summary.cone().coordinate().name().to_owned();
-            match result {
-                BuildOutcome::Executable {
-                    build, executable, ..
-                } => super::test_run::program(
-                    &executable,
-                    &build.output,
-                    &selected,
-                    args.nocapture,
-                    &cwd,
-                    reporter,
-                    &target,
-                )
-                .map(|status| status.map_or(CommandOutcome::Complete(true), CommandOutcome::Child)),
-                _ => Err(config("test did not produce an executable")),
-            }
+            Ok(CommandOutcome::Complete(true))
         }
         Command::Link(args) => {
             let cwd = std::env::current_dir().map_err(config)?;
@@ -171,90 +204,6 @@ pub(super) fn execute(
             Ok(CommandOutcome::Complete(true))
         }
     }
-}
-
-fn build_request(
-    args: BuildOptions,
-    sysroot: Option<PathBuf>,
-    output: Option<PathBuf>,
-    require_executable: bool,
-    enable_gc_stress: bool,
-    enable_startup_stats: bool,
-) -> BuildResult<BuildRequest> {
-    let cwd = std::env::current_dir().map_err(config)?;
-    let generators =
-        scoop_toolchain::GeneratorPrograms::from_cli(&args.generators, &cwd).map_err(config)?;
-    let root = super::paths::build_root(&cwd, args.root_input)?;
-    let target_dir = super::paths::target_root(&cwd, &root, args.target_dir)?;
-    let triple = target(args.target)?;
-    let selection = scoop_toolchain::select_target(&triple).map_err(config)?;
-    let profile = args.profile.unwrap_or(if args.release {
-        BuildProfile::Release
-    } else {
-        BuildProfile::Debug
-    });
-    let cache = super::paths::build_cache(
-        &cwd,
-        &target_dir,
-        selection.target().contract().canonical_triple(),
-        profile,
-        args.cache_dir,
-    )?;
-    let compiler = match args.scoopc {
-        Some(path) => path,
-        None => scoop_toolchain::installed_executable()
-            .map_err(config)?
-            .parent()
-            .ok_or_else(|| config("scoop executable has no parent"))?
-            .join("scoopc"),
-    };
-    let sysroot = absolute(
-        &cwd,
-        scoop_toolchain::configured_sysroot_root(sysroot).map_err(config)?,
-    )?;
-    let (c_toolchain, final_link) = args.native.resolve(&cwd, &sysroot)?;
-    let mut graph = scoop::BuildGraphRequest::new(
-        root,
-        paths(&cwd, args.cone_path)?
-            .into_iter()
-            .map(ArtifactSearchRoot::new)
-            .collect::<Result<_, _>>()
-            .map_err(config)?,
-        cache,
-        TrustedSysrootRoot::new(sysroot).map_err(config)?,
-        super::native::target_request(triple, &c_toolchain)?,
-        PairedScoopcLocator::new(absolute(&cwd, compiler)?).map_err(config)?,
-        DiagnosticsPolicy::Structured,
-    )
-    .map_err(BuildFailure::classified)?
-    .with_generators(generators);
-    if let Some(jobs) = args.jobs {
-        graph = graph.with_jobs(jobs);
-    }
-    let runtime = match (args.runtime_objects, args.runtime_root) {
-        (Some(index), _) => RuntimeInput::ObjectIndex(absolute(&cwd, index)?),
-        (_, Some(root)) => RuntimeInput::SourceRoot(absolute(&cwd, root)?),
-        (None, None) => RuntimeInput::ObjectIndex(scoop_toolchain::default_runtime_index(
-            graph.sysroot().as_path(),
-            graph.target().lir_target(),
-            enable_gc_stress,
-            enable_startup_stats,
-        )),
-    };
-    Ok(BuildRequest {
-        graph,
-        profile,
-        output: output.map(|path| absolute(&cwd, path)).transpose()?,
-        target_dir: Some(target_dir),
-        runtime,
-        enable_gc_stress,
-        enable_startup_stats,
-        final_link,
-        library_paths: paths(&cwd, args.library_path)?,
-        cwd,
-        dumps: None,
-        require_executable,
-    })
 }
 
 pub(super) fn target(explicit: Option<String>) -> BuildResult<String> {

@@ -1,7 +1,11 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 
+mod current;
 mod documentation;
+#[cfg(test)]
+mod test_support;
+pub use current::CurrentConeInput;
 mod normalization;
 mod output;
 mod target;
@@ -22,13 +26,7 @@ pub use report::{
 };
 
 use scoop_codegen::CodegenError;
-pub use scoop_manifest::{
-    CurrentConeInput, CurrentConeOperandError, CurrentConeOperandErrorKind,
-    classify_current_cone_operand,
-};
-use scoop_manifest::{
-    ManifestRootError, ManifestRootLocator, SingleFileInputError, SingleFileLocator,
-};
+use scoop_manifest::{ManifestRootError, SingleFileInputError, SingleFileLocator};
 pub use scoop_protocol::CompilationPurpose;
 use scoop_protocol::HostPathError;
 use scoop_toolchain::{ResolvedTargetProfile, ToolchainError};
@@ -277,7 +275,7 @@ impl std::error::Error for SingleConeBuildRequestError {
 
 #[derive(Debug)]
 pub enum BuildRequestNormalizationError {
-    CurrentOperand(CurrentConeOperandError),
+    ManifestRequiresScoop,
     ManifestRoot(ManifestRootError),
     SingleFile(SingleFileInputError),
     HostPath(HostPathError),
@@ -290,7 +288,9 @@ pub enum BuildRequestNormalizationError {
 impl fmt::Display for BuildRequestNormalizationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::CurrentOperand(error) => error.fmt(formatter),
+            Self::ManifestRequiresScoop => formatter.write_str(
+                "scoopc does not read Cone.toml; use scoop build/check for Cone projects",
+            ),
             Self::ManifestRoot(error) => error.fmt(formatter),
             Self::SingleFile(error) => error.fmt(formatter),
             Self::HostPath(error) => error.fmt(formatter),
@@ -305,7 +305,7 @@ impl fmt::Display for BuildRequestNormalizationError {
 impl std::error::Error for BuildRequestNormalizationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::CurrentOperand(error) => Some(error),
+            Self::ManifestRequiresScoop => None,
             Self::ManifestRoot(error) => Some(error),
             Self::SingleFile(error) => Some(error),
             Self::HostPath(error) => Some(error),
@@ -324,7 +324,7 @@ fn validate_request_shape(
     output: &SingleConeOutput,
 ) -> Result<(), SingleConeBuildRequestError> {
     match (current, trusted_core) {
-        (CurrentConeInput::Manifest { .. }, _) => Ok(()),
+        (CurrentConeInput::ExpandedManifest { .. }, _) => Ok(()),
         (
             CurrentConeInput::SingleFile { .. },
             TrustedCoreInput::Artifact(_) | TrustedCoreInput::DependenciesOrDefault { .. },

@@ -1,0 +1,12 @@
+schema = 1
+
+[workspace]
+members = ["server", "model"]
+default-members = ["server"]
+
+[workspace.cone]
+group = "dev.example"
+version = "0.1.0"
+
+[workspace.dependencies]
+"dev.example:model" = { path = "model", version = "0.1.0" }

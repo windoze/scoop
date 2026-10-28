@@ -5,4 +5,4 @@ name = "sysroot-reject"
 version = "0.1.0"
 kind = "executable"
 [dependencies]
-"scoop:scoop.platform" = {version = "0.1.0", artifact = "../bad.slib"}
+"scoop:scoop.platform" = {version = "=0.1.0", artifact = "../bad.slib"}

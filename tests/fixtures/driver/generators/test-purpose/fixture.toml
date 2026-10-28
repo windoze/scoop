@@ -18,7 +18,7 @@ files = [
 
 [[steps]]
 name = "compile"
-argv = ["${scoop}", "test", "${fixture}/cone", {each = "${link_args}"}, {each = "${options}"}, "--no-run"]
+argv = ["${scoop}", "test", "${fixture}/cone", "--lockfile", "${work}/source-lock-0.lock", {each = "${link_args}"}, {each = "${options}"}, "--no-run"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -31,7 +31,7 @@ checks = [
 
 [[steps]]
 name = "run"
-argv = ["${scoop}", "test", "${fixture}/cone", {each = "${link_args}"}, {each = "${options}"}]
+argv = ["${scoop}", "test", "${fixture}/cone", "--lockfile", "${work}/source-lock-0.lock", {each = "${link_args}"}, {each = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""

@@ -18,13 +18,12 @@ pub use object_production::{BuiltinObjectProducerV1, BuiltinObjectProductionErro
 pub use request::{
     BuildRequestNormalizationError, CurrentConeDiagnosticSet, CurrentConeDiagnosticSetError,
     CurrentConeHirStageError, CurrentConeInput, CurrentConeLirStageError, CurrentConeMirStageError,
-    CurrentConeOperandError, CurrentConeOperandErrorKind, CurrentConeProductionError,
-    CurrentConeProductionFailure, CurrentConeSourceStageError, DiagnosticMappingError,
-    DiagnosticOutputPolicy, DirectBuildOptions, DirectCheckOptions, DocumentationOutputDestination,
-    DocumentationProductionError, EmittedStageDump, ExplicitDependencyArtifactInput,
-    ExplicitDependencyInputs, ExplicitDependencyLoadError, ExplicitDependencyLoadOperation,
-    ExplicitDependencyRole, ExplicitDependencyValidationError, HostArtifactLocator,
-    LoadedCurrentConeInput, LoadedSingleConeBuildRequest, OutputAliasRole,
+    CurrentConeProductionError, CurrentConeProductionFailure, CurrentConeSourceStageError,
+    DiagnosticMappingError, DiagnosticOutputPolicy, DirectBuildOptions, DirectCheckOptions,
+    DocumentationOutputDestination, DocumentationProductionError, EmittedStageDump,
+    ExplicitDependencyArtifactInput, ExplicitDependencyInputs, ExplicitDependencyLoadError,
+    ExplicitDependencyLoadOperation, ExplicitDependencyRole, ExplicitDependencyValidationError,
+    HostArtifactLocator, LoadedCurrentConeInput, LoadedSingleConeBuildRequest, OutputAliasRole,
     OutputIsolationErrorKind, ParsedSingleConeBuildRequest, PublishedDocumentation,
     SingleConeBuildRequest, SingleConeBuildRequestError, SingleConeCheckSuccess,
     SingleConeCompilation, SingleConeDependencyValidationError, SingleConeDocumentationSuccess,
@@ -32,7 +31,7 @@ pub use request::{
     SingleConeProductionSuccess, SlibOutputDestination, StageDumpKind, StageDumpPolicy,
     StageObservation, TrustedCoreInput, ValidatedCompilerProtocols, ValidatedCurrentConeInput,
     ValidatedExplicitDependencyInputSet, ValidatedSingleConeBuildRequest,
-    classify_current_cone_operand, normalize_direct_build_request, normalize_direct_check_request,
+    normalize_direct_build_request, normalize_direct_check_request,
     normalize_protocol_build_request,
 };
 pub use trusted_core::{

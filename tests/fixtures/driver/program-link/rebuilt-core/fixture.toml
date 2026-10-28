@@ -54,10 +54,12 @@ stderr = ""
 
 [[steps]]
 name = "compile_core"
-argv = ["${scoopc}", "build", "--profile", "release", "${work}/core-source", "--sysroot", "${sysroot}", {"each" = "${compile_args}"}, "--out-slib", "${work}/rebuilt-core.slib"]
+argv = ["${scoop}", "build", "--profile", "release", "${work}/core-source", "--sysroot", "${sysroot}", {each = "${compile_args}"}, "-o", "${work}/rebuilt-core.slib", "--emit-slib", "--cache-dir", "${cache}", "--target-dir", "${work}/compiler-output", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
+json = "stderr"
+diagnostics = []
 
 [[steps]]
 name = "prepare_ordinary-string"

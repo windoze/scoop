@@ -34,6 +34,23 @@ fn setup(root: &Path) -> String {
         "app/src/value.scoop",
         "package test.editor\nfun value(): Int = 42\n",
     );
+    for purpose in ["production", "test"] {
+        let output = std::process::Command::new(
+            std::path::Path::new(env!("CARGO_BIN_EXE_scoop-lsp"))
+                .with_file_name(format!("scoop-pm{}", std::env::consts::EXE_SUFFIX)),
+        )
+        .args(["resolve", "--offline", "--purpose", purpose])
+        .arg(root.join("app"))
+        .arg("--package-cache-dir")
+        .arg(root.join("pm-cache"))
+        .output()
+        .expect("build the companion scoop-pm before project integration tests");
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
     manifest.to_owned()
 }
 

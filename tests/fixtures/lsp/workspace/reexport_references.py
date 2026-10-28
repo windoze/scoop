@@ -62,6 +62,7 @@ def check(peer, root):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
     folder = {"name": "reexports", "uri": project.as_uri()}
+    peer.resolve(project)
     peer.notify(
         "workspace/didChangeWorkspaceFolders", {"event": {"added": [folder], "removed": []}}
     )

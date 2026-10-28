@@ -43,7 +43,7 @@ diagnostics = []
 
 [[steps]]
 name = "manifest"
-argv = ["${scoop}", "run", "${fixture}/cone/Cone.toml", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+argv = ["${scoop}", "run", "${fixture}/cone/Cone.toml", "--lockfile", "${work}/source-lock-0.lock", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
 exit = 0
 stdout = "manifest shebang\n"
 stderr = ""

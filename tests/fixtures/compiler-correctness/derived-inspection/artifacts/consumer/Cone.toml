@@ -6,6 +6,6 @@ version = "0.1.0"
 kind = "executable"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"test:inspection-bridge" = "0.1.0"
+"test:inspection-bridge" = { version = "=0.1.0", artifact = "../../artifacts/test/inspection-bridge/0.1.0/cone.slib" }
 
 "scoop:scoop.json" = "0.1.0"

@@ -1,6 +1,19 @@
 use super::*;
 
 #[test]
+fn slib_output_and_test_artifacts_are_explicit_build_choices() {
+    let cli = Cli::try_parse_from(["scoop", "build", "--emit-slib", "--tests"]).unwrap();
+    let Command::Build(args) = cli.command else {
+        panic!("expected build command")
+    };
+    assert!(args.emit_slib && args.tests);
+    assert!(Cli::try_parse_from(["scoop", "build", "--tests"]).is_err());
+    for command in ["run", "test", "check"] {
+        assert!(Cli::try_parse_from(["scoop", command, "--emit-slib"]).is_err());
+    }
+}
+
+#[test]
 fn clean_is_builtin_and_accepts_only_cleanup_options() {
     assert!(matches!(
         Cli::try_parse_from([
@@ -108,5 +121,30 @@ fn compiler_jobs_apply_to_build_run_and_test_and_must_be_positive() {
         assert!(Cli::try_parse_from(["scoop", command, "-j", "2"]).is_ok());
         assert!(Cli::try_parse_from(["scoop", command, "--jobs", "1"]).is_ok());
         assert!(Cli::try_parse_from(["scoop", command, "--jobs", "0"]).is_err());
+    }
+}
+
+#[test]
+fn package_selection_and_lock_flags_are_shared_by_build_commands() {
+    for command in ["build", "run", "test", "check", "doc"] {
+        assert!(
+            Cli::try_parse_from([
+                "scoop",
+                command,
+                "-p",
+                "example:one",
+                "-p",
+                "example:two",
+                "--frozen",
+                "--lockfile",
+                "locks/Cone.lock",
+                "--package-cache",
+                "shared-packages",
+            ])
+            .is_ok()
+        );
+        assert!(
+            Cli::try_parse_from(["scoop", command, "--workspace", "-p", "example:one"]).is_err()
+        );
     }
 }
