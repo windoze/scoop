@@ -649,6 +649,8 @@ source 选择同步返回是否存在实际搬迁源；本轮没有源且没有�
 
 具有未使用 block 的普通 region 单独记录，分配／搬迁预留不为寻找一个可用 block 枚举所有已满 region；full 可以按原 source 排除规则选择并重建该清单。重建保持 region 目录的选择顺序，保留的空 region 如仍有未使用 block 则优先复用。大对象和带 release hook 的对象仍预晋升，minor 不产生需要归还的大对象 mapping，因而只在 full 收尾执行 region 回收／VM 归还枚举。卡表的扫描与清零按 3.6 仅枚举实际登记的卡组，可用 `memchr` 跳过组内连续清卡；minor 不为卡表或 full 专用的 region 标志枚举全部 region。每组仍只扫描已发布旧对象覆盖的真实脏卡。full 沿原全堆规则标记和回收，收尾同样先结束脏组成员关系再撤销 mapping。
 
+在一组的 STW 扫描中，把相邻脏卡合并为连续半开地址范围，再调用既有对象扫描／引用回写 visitor；范围不能包含清卡或越过该组边界。普通 block 从范围起点之前最近的已发布对象起点开始，仅枚举 starts 位图中置位的项，并检查对象是否确实与范围相交；大对象按同一连续范围裁剪实际引用槽。保留对象／槽的地址顺序、首尾不完整元素、稀疏洞、survivor 重记卡和不同 update worker 的不重叠所有权。统计仍按实际脏卡数累计，不能把合并范围数当作卡数；分片保留卡的规则不变。合并和位图枚举共用原扫描路径，不增加 metadata、mutator 屏障、根或 ABI，所有 profile 默认使用。
+
 remembered 枚举在读取大对象 mapping 的卡表前，使用已发布旧对象的既有 TD 判断是否含引用；`object_scan == null` 时整份卡表无需遍历。mark 与 relocation 复用这一枚举规则；真正含引用的大对象仍按脏卡扫描和回写。无引用对象自身仍由正常 roots／mark 保活，并参加统计、搬迁与回收；此优化不改变卡表分配、写屏障或收尾清零，也不重新验证静态 TD。
 
 minor 和 full 共享线程、root、pin、handle、Context、callback、冻结栈段及精确扫描契约。晋升或移动在原存储失效前更新全部相关引用；pin 暴露的地址不变。年轻区复用不能遗漏存活引用或 release hook，旧代死对象可以留到 full collection。

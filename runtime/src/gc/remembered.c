@@ -29,16 +29,17 @@ uint64_t scoop_gc_scan_dirty_group(ScoopGcCardGroup *group, ScoopGcObjectRangeVi
     if (!active_head(block) || (only_old && block->generation != SCOOP_GC_OLD)) {
         return 0;
     }
+    uintptr_t base = (uintptr_t)block_base(block);
     if (region->large) {
         if (!block->large_published ||
-            scoop_gc_object_scan((const char *)block_base(block) + GC_LINE_SIZE) == NULL) {
+            scoop_gc_object_scan((const void *)(base + GC_LINE_SIZE)) == NULL) {
             return 0;
         }
     }
     size_t first_card = index * GC_CARDS_PER_GROUP;
     size_t count = first_card + GC_CARDS_PER_GROUP;
     uint64_t visited = 0;
-    for (size_t card = first_card; card < count; card++) {
+    for (size_t card = first_card; card < count;) {
         if (region->cards[card] == 0) {
             const unsigned char *dirty = memchr(region->cards + card, 1, count - card);
             if (dirty == NULL) {
@@ -47,23 +48,33 @@ uint64_t scoop_gc_scan_dirty_group(ScoopGcCardGroup *group, ScoopGcObjectRangeVi
             card = (size_t)(dirty - region->cards);
         }
         uintptr_t begin = region->base + (card << GC_CARD_SHIFT);
-        uintptr_t end = begin + ((uintptr_t)1 << GC_CARD_SHIFT);
-        visited++;
-        uintptr_t base = (uintptr_t)block_base(block);
+        const unsigned char *clean = memchr(region->cards + card, 0, count - card);
+        size_t last_card = clean == NULL ? count : (size_t)(clean - region->cards);
+        uintptr_t end = region->base + (last_card << GC_CARD_SHIFT);
+        visited += last_card - card;
+        card = last_card;
         if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
             visitor((void *)(base + GC_LINE_SIZE), begin, end, context);
             continue;
         }
         size_t first = previous_start(block, (begin - base) / sizeof(uint64_t));
         size_t last = (end - base) / sizeof(uint64_t);
-        for (size_t word = first; word < last; word++) {
-            if (!bit_test(block->starts, word)) {
-                continue;
+        for (size_t index = first / 64; index <= (last - 1) / 64; index++) {
+            uint64_t bits = block->starts[index];
+            if (index == first / 64) {
+                bits &= UINT64_MAX << (first % 64);
             }
-            uintptr_t object = base + word * sizeof(uint64_t);
-            size_t size = scoop_heap_small_object_size((const void *)object);
-            if (object + size > begin) {
-                visitor((void *)object, begin, end, context);
+            if (index == (last - 1) / 64) {
+                bits &= UINT64_MAX >> (63 - (last - 1) % 64);
+            }
+            while (bits != 0) {
+                size_t word = index * 64 + (size_t)__builtin_ctzll(bits);
+                bits &= bits - 1;
+                uintptr_t object = base + word * sizeof(uint64_t);
+                size_t size = scoop_heap_small_object_size((const void *)object);
+                if (object + size > begin) {
+                    visitor((void *)object, begin, end, context);
+                }
             }
         }
     }

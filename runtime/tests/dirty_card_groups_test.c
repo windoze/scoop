@@ -1,8 +1,10 @@
 #include <pthread.h>
 #include <sched.h>
 #include <stdatomic.h>
+#include <string.h>
 
 #include "nursery_fixture.h"
+#include "../src/gc_binding/scan.h"
 
 #define ARRAY_COUNT 8
 #define ELEMENT_COUNT 12288
@@ -55,6 +57,84 @@ static ScoopArray *array(void) {
     ScoopArray *result = nursery_allocate(&array_td, 24 + ELEMENT_COUNT * sizeof(void *));
     result->size = ELEMENT_COUNT;
     return result;
+}
+
+typedef struct RangeCoverage {
+    ScoopArray *object;
+    uintptr_t group_base;
+    uint64_t cards;
+    size_t slots;
+    size_t ranges;
+    bool seen[ELEMENT_COUNT];
+} RangeCoverage;
+
+static void record_slot(void **slot, void *context) {
+    RangeCoverage *coverage = context;
+    uintptr_t payload = (uintptr_t)coverage->object->elements;
+    uintptr_t address = (uintptr_t)slot;
+    assert(address >= payload && (address - payload) % sizeof(void *) == 0);
+    size_t index = (address - payload) / sizeof(void *);
+    assert(index < coverage->object->size && !coverage->seen[index]);
+    assert(address >= coverage->group_base && address < coverage->group_base + GC_BLOCK_SIZE);
+    size_t card = (address - coverage->group_base) >> GC_CARD_SHIFT;
+    assert((coverage->cards & (UINT64_C(1) << card)) != 0);
+    coverage->seen[index] = true;
+    coverage->slots++;
+}
+
+static void record_range(void *object, uintptr_t begin, uintptr_t end, void *context) {
+    RangeCoverage *coverage = context;
+    if (object != coverage->object) {
+        return;
+    }
+    assert(begin >= coverage->group_base && begin < end);
+    assert(end <= coverage->group_base + GC_BLOCK_SIZE);
+    for (uintptr_t address = begin; address < end; address += (size_t)1 << GC_CARD_SHIFT) {
+        size_t card = (address - coverage->group_base) >> GC_CARD_SHIFT;
+        assert((coverage->cards & (UINT64_C(1) << card)) != 0);
+    }
+    coverage->ranges++;
+    scoop_gc_scan_descriptor(object, array_scan, record_slot, coverage, begin, end);
+}
+
+static void check_scan_ranges(ScoopArray *object, ScoopGcCardGroup *group) {
+    ScoopGcRegion *region = group->region;
+    uintptr_t base = region->base + (size_t)(group - region->card_groups) * GC_BLOCK_SIZE;
+    uintptr_t begin = (uintptr_t)object->elements;
+    uintptr_t end = begin + object->size * sizeof(void *);
+    begin = begin < base ? base : begin;
+    end = end > base + GC_BLOCK_SIZE ? base + GC_BLOCK_SIZE : end;
+    size_t first = (begin - base + ((size_t)1 << GC_CARD_SHIFT) - 1) >> GC_CARD_SHIFT;
+    size_t last = (end - base) >> GC_CARD_SHIFT;
+    assert(last - first >= 8 && last <= GC_CARDS_PER_GROUP);
+    uint64_t valid = (UINT64_MAX >> (64 - (last - first))) << first;
+    uint64_t masks[] = {0, valid, valid & UINT64_C(0xaaaaaaaaaaaaaaaa),
+                        (UINT64_C(7) << first) | (UINT64_C(3) << (first + 6))};
+    scoop_gc_heap_lock();
+    for (size_t index = 0; index < sizeof masks / sizeof *masks; index++) {
+        scoop_heap_clear_dirty_card_groups(false);
+        RangeCoverage coverage = {.object = object, .group_base = base, .cards = masks[index]};
+        for (size_t card = 0; card < GC_CARDS_PER_GROUP; card++) {
+            if ((coverage.cards & (UINT64_C(1) << card)) != 0) {
+                scoop_rt_gc_write_barrier((void *)(base + (card << GC_CARD_SHIFT)), 1);
+            }
+        }
+        assert(scoop_gc_scan_dirty_group(group, record_range, &coverage, true) ==
+               (uint64_t)__builtin_popcountll(coverage.cards));
+        assert(coverage.ranges ==
+               (size_t)__builtin_popcountll(coverage.cards & ~(coverage.cards << 1)));
+        size_t expected = 0;
+        for (size_t slot = 0; slot < object->size; slot++) {
+            uintptr_t address = (uintptr_t)object->elements + slot * sizeof(void *);
+            bool selected = address >= base && address < base + GC_BLOCK_SIZE &&
+                            (coverage.cards & (UINT64_C(1) << ((address - base) >> GC_CARD_SHIFT)));
+            assert(coverage.seen[slot] == selected);
+            expected += selected;
+        }
+        assert(coverage.slots == expected);
+    }
+    scoop_heap_clear_dirty_card_groups(false);
+    scoop_gc_heap_unlock();
 }
 
 int main(void) {
@@ -112,6 +192,15 @@ int main(void) {
         }
         assert(group_count() == 0);
     }
+    /* Exercise both a spanning small object and a complete large-object group. */
+    roots[ARRAY_COUNT - 1] = nursery_allocate(&array_td, 24 + 1500 * sizeof(void *));
+    ((ScoopArray *)roots[ARRAY_COUNT - 1])->size = 1500;
+    nursery_collect(true);
+    ScoopGcBlockMeta *small = pointer_block(roots[ARRAY_COUNT - 1]);
+    assert(small->kind == SCOOP_BLOCK_KIND_SMALL && small->generation == SCOOP_GC_OLD);
+    check_scan_ranges(roots[ARRAY_COUNT - 1], &small->region->card_groups[small->index]);
+    ScoopGcRegion *large = pointer_block(roots[0])->region;
+    check_scan_ranges(roots[0], &large->card_groups[1]);
     /* Full collection must clear pending links before freeing their mappings. */
     NurseryNode **elements = (NurseryNode **)((ScoopArray *)roots[1])->elements;
     elements[0] = nursery_node(200);

@@ -240,22 +240,25 @@ fn adaptive_nursery_follows_graph_lifetimes_and_preserves_old_pressure() {
 
 #[test]
 fn dirty_card_groups_preserve_sparse_crossing_and_concurrent_writes() {
-    let output = compile_and_run_with_flags(
-        &workspace_root(),
-        "dirty_card_groups_test",
-        "runtime/tests/dirty_card_groups_test.c",
-        true,
-        &["-O2"],
-    );
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert_eq!(
-        output.stdout,
-        b"dirty card groups preserve sparse, crossing and concurrent writes through collection\n"
-    );
+    for stress in [false, true] {
+        let output = super::compile::compile_and_run_configuration(
+            &workspace_root(),
+            "dirty_card_groups_test",
+            "runtime/tests/dirty_card_groups_test.c",
+            stress,
+            stress,
+            &["-O2"],
+        );
+        assert!(
+            output.status.success(),
+            "stress={stress}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"dirty card groups preserve sparse, crossing and concurrent writes through collection\n"
+        );
+    }
 }
 
 #[test]
