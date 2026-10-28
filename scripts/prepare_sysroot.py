@@ -164,7 +164,10 @@ def main():
     parser.add_argument("--cc", type=Path)
     parser.add_argument("--native-sysroot", type=Path)
     parser.add_argument("--unwind-prefix", type=Path)
+    parser.add_argument("--jobs", type=int, default=min(os.cpu_count() or 1, 6))
     args = parser.parse_args()
+    if args.jobs < 1:
+        parser.error("--jobs must be positive")
     args.sysroot = args.sysroot.resolve()
     args.runtime_root = args.runtime_root.resolve()
     work = (args.work_dir or ROOT / "tmp/sysroot" / args.target).resolve()
@@ -172,7 +175,7 @@ def main():
     args.cache_dir = (args.cache_dir or work / "cache").resolve()
     scratch = work / "scratch"
     scratch.mkdir(exist_ok=True)
-    environment = dict(os.environ, TMPDIR=str(scratch))
+    environment = dict(os.environ, TMPDIR=str(scratch), TMP=str(scratch), TEMP=str(scratch))
     scoop = args.scoop.resolve()
     scoopc = (
         args.scoopc or scoop.with_name("scoopc.exe" if os.name == "nt" else "scoopc")
@@ -203,6 +206,8 @@ def main():
                 "build",
                 args.sysroot / "src" / name,
                 "--release",
+                "--jobs",
+                str(args.jobs),
                 "--target",
                 args.target,
                 "--sysroot",

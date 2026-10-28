@@ -178,7 +178,8 @@ def windows(root, binaries, llvm_bin):
     """Put each executable's non-system PE dependencies beside that executable."""
     readobj = llvm_bin / "llvm-readobj.exe"
     queue = [(path.resolve(), root / "bin") for path in binaries]
-    queue += [(path, path.parent) for path in (root / "commands").rglob("*.exe")]
+    for directory in (root / "commands", root / "libexec/llvm/bin"):
+        queue += [(path, path.parent) for path in directory.rglob("*.exe")]
     search = [Path(path) for path in os.get_exec_path() if path]
     libraries, copied, visited = {}, set(), set()
     while queue:

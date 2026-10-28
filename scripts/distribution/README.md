@@ -18,6 +18,8 @@ scoop --version
 
 Darwin/AArch64 包要求声明版本的 macOS、Xcode 或 Command Line Tools、Apple Clang、macOS SDK 和系统 linker。Linux/GNU amd64 包要求声明版本的 glibc、GCC、GNU ld 和开发文件；生成 musl 程序还需要 musl-gcc 与匹配的 musl 开发文件。GNU 宿主工具不承诺在纯 musl 系统运行。native C++ 另需配套 clang++／g++ 与标准库；musl C++ 不在当前范围。
 
+Windows x64 包的最低版本以 `toolchain.toml` 为准，包含宿主 Clang／LLD／RC 工具、三个 Windows target 的系统库与 runtime，以及两个 LLVM-MinGW CRT 的 x86-64 开发资源。默认 MSVC UCRT 目标需要本机 C++ Build Tools 和 Windows SDK，或显式 `--native-sysroot` 所指的 `msvc.toml`；不要求完整 Visual Studio IDE。两个 MinGW 目标可直接使用随包资源，例如 `sco run --target x86_64-w64-windows-llvm-mingw-ucrt main.scoop`。应用开发不需要维护构建使用的 Rust、CMake、Perl 或 MSYS。native MSVC C++ 应用按实际依赖部署 VCRuntime／MSVC STL DLL。
+
 内置库以 release 预编译，debug 和 release 应用都直接使用 `~/.scoop/lib/<target-triple>/*.slib`；当前应用需要的泛型实例仍正常生成。空缓存也不触发系统库重编。普通 build、run、test 和 link 不重新编译内置 Cone 或 runtime。应用构建缓存和输出写到各自正常位置，安装目录无需可写。显式 `--sysroot` 或环境变量 `SCOOP_SYSROOT` 会覆盖默认安装根；使用安装包时不需要设置这两项。
 
 包管理器位于 `bin/scoop-pm`，可通过 `scoop pm` 调用。普通 `build/run` 在没有 `Cone.lock` 时自动解析依赖并创建 lock；`--locked` 要求已有匹配选择，`--frozen` 同时禁止联网。workspace 成员可用 `-p group:name` 或 `--workspace` 选择。
@@ -65,7 +67,7 @@ scoop build my-cone --target x86_64-unknown-linux-musl
 
 `scoop check` 默认检查当前 Cone 的生产源码，也接受一个 Cone 或 single-file 输入。检查完成完整前端语义及必要的 generator，不生成根 Cone 的机器产物或执行程序；源码依赖需要更新时仍正常构建。`--tests` 选择测试用途，包含生产与测试源码，但不验证生产 main；CI 可分别运行默认检查与 `--tests`。两命令均支持 `--message-format json`，完整选项可用各自的 `--help` 查看。
 
-用浏览器打开安装根的 `docs/index.html`，选择应用所用目标，即可浏览所有内置库的 API、说明和源码。页面之间使用相对链接，搜索及资源随包提供，无需联网或启动服务器。Darwin 包提供 Darwin 文档，Linux 包分别提供 GNU 与 musl 文档；源码直接嵌入 HTML，移动完整安装目录后仍可阅读。
+用浏览器打开安装根的 `docs/index.html`，选择应用所用目标，即可浏览所有内置库的 API、说明和源码。页面之间使用相对链接，搜索及资源随包提供，无需联网或启动服务器。Darwin 包提供 Darwin 文档，Linux 包分别提供 GNU 与 musl 文档，Windows 包提供 Microsoft UCRT 及两个 LLVM-MinGW CRT 目标的文档；源码直接嵌入 HTML，移动完整安装目录后仍可阅读。
 
 自己的 Cone 可用 `scoop doc my-cone` 生成离线文档；多个 Cone 可同时作为参数传入。`--no-deps` 只展示显式选择的根，`--deny-doc-warnings` 将文档 warning 作为生成失败处理。只有预编译产物的依赖仍可参与类型检查；没有可用源码文本时不生成源码展示部分，`.slib` 不包含完整源码。
 

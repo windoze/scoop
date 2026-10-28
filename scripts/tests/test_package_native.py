@@ -12,21 +12,29 @@ import package_native
 
 
 class WindowsDependenciesTests(unittest.TestCase):
-    def test_recursive_dlls_are_beside_tools_and_external_commands(self):
+    def test_recursive_dlls_are_beside_tools_external_commands_and_clang(self):
         with tempfile.TemporaryDirectory() as temporary:
             work = Path(temporary)
             root, llvm, build = (work / name for name in ("installation", "llvm", "build"))
-            for directory in (root / "bin", root / "commands", llvm, build):
+            for directory in (
+                root / "bin",
+                root / "commands",
+                root / "libexec/llvm/bin",
+                llvm,
+                build,
+            ):
                 directory.mkdir(parents=True)
             app = build / "scoop.exe"
             app.write_bytes(b"app")
             (root / "commands/scoop-example.exe").write_bytes(b"example")
+            (root / "libexec/llvm/bin/clang.exe").write_bytes(b"clang")
             (llvm / "runtime.dll").write_bytes(b"selected runtime")
             (llvm / "support.dll").write_bytes(b"selected support")
             (build / "runtime.dll").write_bytes(b"different runtime")
             imports = {
                 "scoop.exe": ["KERNEL32.dll", "runtime.dll"],
                 "scoop-example.exe": ["api-ms-win-crt-runtime-l1-1-0.dll", "runtime.dll"],
+                "clang.exe": ["runtime.dll"],
                 "runtime.dll": ["support.dll"],
                 "support.dll": ["runtime.dll", "ucrtbase.dll"],
             }
@@ -41,8 +49,8 @@ class WindowsDependenciesTests(unittest.TestCase):
             with patch.object(package_native, "output", side_effect=readobj) as calls:
                 libraries = package_native.windows(root, [app], llvm)
             self.assertEqual(set(libraries), {llvm / "runtime.dll", llvm / "support.dll"})
-            self.assertEqual(calls.call_count, 6)
-            for directory in (root / "bin", root / "commands"):
+            self.assertEqual(calls.call_count, 9)
+            for directory in (root / "bin", root / "commands", root / "libexec/llvm/bin"):
                 self.assertEqual((directory / "runtime.dll").read_bytes(), b"selected runtime")
                 self.assertEqual((directory / "support.dll").read_bytes(), b"selected support")
                 self.assertFalse((directory / "KERNEL32.dll").exists())

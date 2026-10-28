@@ -20,6 +20,7 @@ import package_licenses
 import package_llvm
 import package_native
 import package_tooling
+import package_windows
 from build_llvm import HOSTS, VERSION
 from build_rust_text import HEADER as RUST_TEXT_HEADER
 from build_rust_text import LIBRARY as RUST_TEXT_LIBRARY
@@ -53,6 +54,9 @@ def prepare_targets(args, targets, binaries, environment):
             cc = args.musl_cc if target.endswith("musl") else args.gnu_cc
             native = ["--cc", cc]
             openssl += native
+        elif "windows" in target:
+            native = ["--cc", package_windows.compiler(args, target)]
+            openssl += [*native, *package_windows.openssl_arguments(args, target)]
         run_script("build_openssl.py", openssl, environment)
         for script, directory in (
             ("build_nghttp2.py", "nghttp2"),
@@ -93,6 +97,26 @@ def prepare_targets(args, targets, binaries, environment):
                 unwind += ["--musl-include", args.musl_include]
             run_script("build_llvm_unwind.py", unwind, environment)
             native += ["--unwind-prefix", sysroot / "lib" / target / "unwind"]
+        elif "windows" in target:
+            run_script(
+                "build_windows_unwind.py",
+                [
+                    "--target",
+                    target,
+                    "--source",
+                    args.llvm_source,
+                    "--build-dir",
+                    args.work_dir / "unwind" / target,
+                    "--jobs",
+                    args.jobs,
+                    *native,
+                ],
+                environment,
+            )
+            native += ["--unwind-prefix", sysroot / "lib" / target / "unwind"]
+            prefix = package_windows.mingw_prefix(args, target)
+            if prefix is not None:
+                native += ["--native-sysroot", prefix]
         run_script(
             "prepare_sysroot.py",
             [
@@ -108,6 +132,8 @@ def prepare_targets(args, targets, binaries, environment):
                 args.work_dir / "sysroot" / target,
                 "--cache-dir",
                 args.work_dir / "cache",
+                "--jobs",
+                args.jobs,
                 *native,
             ],
             environment,
@@ -115,7 +141,7 @@ def prepare_targets(args, targets, binaries, environment):
 
 
 def assemble(root, targets, binaries, args, release, extension):
-    sysroot = ROOT / "sysroot"
+    sysroot = args.prepared_sysroot or ROOT / "sysroot"
     (root / "bin").mkdir(parents=True)
     for binary in binaries:
         name = "sco.exe" if "windows" in args.host and binary.name == "scoop.exe" else binary.name
@@ -127,7 +153,9 @@ def assemble(root, targets, binaries, args, release, extension):
     shutil.copy2(extension, root / "tooling" / extension.name)
     shutil.copytree(ROOT / "tooling/scoop-programming", root / "tooling/scoop-programming")
     for name in ("src", "include"):
-        shutil.copytree(sysroot / name, root / name, ignore=shutil.ignore_patterns("target"))
+        shutil.copytree(
+            sysroot / name, root / name, ignore=shutil.ignore_patterns("target", "Cone.lock")
+        )
     shutil.copytree(
         sysroot / "commands", root / "commands", ignore=shutil.ignore_patterns(".gitkeep")
     )
@@ -193,7 +221,7 @@ def assemble(root, targets, binaries, args, release, extension):
             ("nghttp2", ("libnghttp2.a",)),
             ("unwind", ("libunwind.a",)),
         ):
-            if component == "unwind" and "linux" not in target:
+            if component == "unwind" and target.endswith("darwin"):
                 continue
             shutil.copytree(source / component / "include", destination / component / "include")
             (destination / component / "lib").mkdir()
@@ -202,12 +230,15 @@ def assemble(root, targets, binaries, args, release, extension):
                     source / component / "lib" / name, destination / component / "lib" / name
                 )
     if "windows" in args.host:
+        package_windows.install(root, targets, args)
         native = package_native.windows(root, binaries, args.llvm_prefix / "bin")
     else:
         native = (package_native.darwin if args.host.endswith("darwin") else package_native.linux)(
             root, binaries, args.llvm_prefix / "lib"
         )
-    package_licenses.collect(root, ROOT, args.llvm_source, args.host, native, targets)
+    package_licenses.collect(
+        root, ROOT, args.llvm_source, args.host, native, targets, sysroot=sysroot
+    )
     share = root / "share/scoop"
     share.mkdir(parents=True)
     shutil.copytree(sysroot / "share/scoop/examples", share / "examples")
@@ -228,6 +259,10 @@ def assemble(root, targets, binaries, args, release, extension):
         f"pcre2 = {json.dumps(release['pcre2'])}",
         f"host_libraries = {json.dumps(sorted(path.name for path in native))}",
     ]
+    if "windows" in args.host:
+        manifest += [
+            f"{name} = {json.dumps(release[name])}" for name in ("rust_windows", "llvm_mingw")
+        ]
     manifest += [
         f"{name} = {json.dumps(release[name])}"
         for name in ("text_backend", "encoding_rs", "idna", "icu4x", "unicode", "unicode-width")
@@ -289,11 +324,17 @@ def main():
         help="Use a local LLVM source archive instead of downloading the fixed release",
     )
     parser.add_argument("--llvm-prefix", type=Path, help="Reuse an installed matching LLVM version")
+    parser.add_argument(
+        "--prepared-sysroot",
+        type=Path,
+        help="Use an explicitly prepared sysroot without rebuilding native backends, Cones, or runtime",
+    )
     parser.add_argument("--gnu-cc", default="gcc")
     parser.add_argument("--musl-cc", default="musl-gcc")
     parser.add_argument("--unwind-cc", default="clang")
     parser.add_argument("--unwind-cxx", default="clang++")
     parser.add_argument("--musl-include", type=Path, help="Linux musl development headers")
+    package_windows.arguments(parser)
     parser.add_argument("--jobs", type=int, default=min(os.cpu_count() or 1, 6))
     args = parser.parse_args()
     args.host = HOSTS.get((platform.system(), platform.machine()))
@@ -301,6 +342,9 @@ def main():
         parser.error("a supported build host and positive --jobs are required")
     if "linux" in args.host and args.musl_include is None:
         parser.error("Linux packaging requires --musl-include")
+    windows = "windows" in args.host
+    if windows and (args.mingw_msvcrt is None or args.mingw_ucrt is None):
+        parser.error("Windows packaging requires --mingw-msvcrt and --mingw-ucrt")
     release = tomllib.loads(RELEASE_CONFIG.read_text())
     args.version = args.version or release["version"]
     if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._+-]*", args.version) is None:
@@ -315,17 +359,24 @@ def main():
         parser.error("--revision must be nonempty and on one line")
     args.work_dir = (args.work_dir or ROOT / "tmp/package" / args.host).resolve()
     args.output_dir = args.output_dir.resolve()
+    if args.prepared_sysroot is not None:
+        args.prepared_sysroot = args.prepared_sysroot.resolve(strict=True)
+    sysroot = args.prepared_sysroot or ROOT / "sysroot"
     scratch = args.work_dir / "scratch"
     scratch.mkdir(parents=True, exist_ok=True)
     environment = dict(
         os.environ,
         TMPDIR=str(scratch),
+        TMP=str(scratch),
+        TEMP=str(scratch),
         SCOOP_RELEASE_VERSION=args.version,
         SCOOP_SOURCE_REVISION=args.revision,
         CARGO_TARGET_DIR=str(args.work_dir / "cargo"),
     )
     if args.host.endswith("darwin"):
         environment["MACOSX_DEPLOYMENT_TARGET"] = release["targets"][args.host]["minimum_os"]
+    if windows:
+        package_windows.host_environment(args, environment)
     args.llvm_source, args.llvm_archive = package_llvm.prepare(
         args.work_dir, args.llvm_source, args.llvm_archive
     )
@@ -343,24 +394,36 @@ def main():
                 args.llvm_prefix,
                 "--jobs",
                 args.jobs,
+                *(
+                    [
+                        "--cc",
+                        args.mingw_ucrt / "bin/clang.exe",
+                        "--cxx",
+                        args.mingw_ucrt / "bin/clang++.exe",
+                    ]
+                    if windows
+                    else []
+                ),
             ],
             environment,
         )
     args.llvm_prefix = args.llvm_prefix.resolve()
+    suffix = ".exe" if windows else ""
+    if windows:
+        environment["PATH"] = str(args.llvm_prefix / "bin") + os.pathsep + environment["PATH"]
     actual_llvm = subprocess.check_output(
-        [str(args.llvm_prefix / "bin/llvm-config"), "--version"], text=True
+        [str(args.llvm_prefix / "bin" / ("llvm-config" + suffix)), "--version"],
+        text=True,
+        env=environment,
     ).strip()
     if actual_llvm != release["llvm"]:
         parser.error(f"release requires LLVM {release['llvm']}, found {actual_llvm}")
     environment["LLVM_SYS_221_PREFIX"] = str(args.llvm_prefix)
-    environment["CARGO_ENCODED_RUSTFLAGS"] = "\x1f".join(
-        [
-            "-C",
-            "target-cpu=" + release["targets"][args.host]["cpu"],
-            "-C",
-            f"link-arg=-Wl,-rpath,{args.llvm_prefix / 'lib'}",
-        ]
-    )
+    host_target = "x86_64-w64-windows-llvm-mingw-ucrt" if windows else args.host
+    flags = ["-C", "target-cpu=" + release["targets"][host_target]["cpu"]]
+    if not windows:
+        flags += ["-C", f"link-arg=-Wl,-rpath,{args.llvm_prefix / 'lib'}"]
+    environment["CARGO_ENCODED_RUSTFLAGS"] = "\x1f".join(flags)
     subprocess.run(
         [
             "cargo",
@@ -385,17 +448,35 @@ def main():
         env=environment,
         check=True,
     )
-    binaries = [args.work_dir / "cargo/release" / name for name in TOOLS]
+    cargo_output = args.work_dir / "cargo"
+    if windows:
+        cargo_output /= args.host
+    binaries = [cargo_output / "release" / (name + suffix) for name in TOOLS]
     example_environment = environment.copy()
     example_environment.pop("CARGO_ENCODED_RUSTFLAGS", None)
     example = build_scoop_example.build(args.work_dir / "scoop-example", example_environment)
-    build_scoop_example.install(example, ROOT / "sysroot")
-    targets = (
-        [args.host] if args.host.endswith("darwin") else [args.host, "x86_64-unknown-linux-musl"]
-    )
-    prepare_targets(args, targets, binaries, environment)
+    build_scoop_example.install(example, sysroot)
+    if windows:
+        targets = list(package_windows.TARGETS)
+    else:
+        targets = (
+            [args.host]
+            if args.host.endswith("darwin")
+            else [args.host, "x86_64-unknown-linux-musl"]
+        )
+    if args.prepared_sysroot is None:
+        prepare_targets(args, targets, binaries, environment)
     documentation = package_documentation.generate(
-        ROOT / "sysroot", targets, binaries, args.work_dir, environment
+        sysroot,
+        targets,
+        binaries,
+        args.work_dir,
+        environment,
+        native_sysroots={
+            target: package_windows.mingw_prefix(args, target)
+            for target in targets
+            if windows and package_windows.mingw_prefix(args, target) is not None
+        },
     )
     args.output_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="assemble-", dir=args.work_dir) as temporary:

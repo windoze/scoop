@@ -10,6 +10,10 @@ Windows 三环境扩展按 [Windows targets 设计](../windows-targets/DESIGN.md
 
 宿主 LLVM 准备同时安装 LLVM／Clang 动态库、Rust 构建所需的 llvm-config／头文件、Clang／clang-cl／Clang++、LLD 及所需 LLVM 对象／归档／资源工具。LLVM 与 inkwell 均只启用实际使用的 AArch64／X86 backend，不引用未构建 target 的初始化入口。Windows x64 宿主采用 LLVM-MinGW UCRT 开发环境构建，Rust 宿主为 `x86_64-pc-windows-gnullvm`；宿主身份不覆盖应用选择的完整 Scoop target。Windows 使用原生 Ninja 和 `.exe`／DLL 布局，必需的宿主 LLVM／Clang、C++／unwind DLL 与实际引用它们的工具相邻安装；Darwin／Linux 保持各自的 rpath 与动态库规则。开发安装与运行期工具包的组装仍由维护脚本负责，普通编译不构建宿主 LLVM。
 
+Windows 发行准备使用同一 GNU-LLVM Rust 宿主构建主命令、示例命令和内部 runtime 准备程序，交付三个完整 Windows target 的库与 runtime。宿主 Clang／LLD／RC 工具及 Clang resource headers 安装在 `libexec/llvm`；两个 LLVM-MinGW 目标在各自 `lib/<target>/toolchain` 中保留所选 prefix 的 x86-64 开发资源、驱动与目录关系，Microsoft SDK／MSVC toolset 仍由构建机提供。目标 libunwind 随各自目录交付；宿主与目标 LLVM／MinGW、C++／unwind 的实际许可一并收集。发行前的 API 文档生成沿用相同 target 与 native sysroot 选择。
+
+发行脚本默认显式准备目标资源，也可通过 `--prepared-sysroot` 消费维护者已经准备的 sysroot，跳过 native 后端、系统 Cone 和 runtime 的重建；后续命令构建、示例与 API 文档、组装和归档流程相同。该入口是普通产物消费，不增加来源审核或生产过程复核；缺失资源按实际 I/O 报错，编译消费仍执行既有格式／ABI 检查。
+
 一个 Cone 是一次独立编译的单位。library 和 executable Cone 都产生完整 `.slib`；executable 的最终程序由独立链接阶段从产物闭包生成。产物是编译结果，不承担独立分发认证或源码／工具移除后的可用性保证。缓存只判断正常输入是否变化，不检查输出是否遭到外部破坏。
 
 编译器使用自身及所选 C/C++ 工具链成功产生的输出，后续步骤只读取实际需要的数据，不重新证明生产过程。工作文件按普通生命周期管理，不设为只读、不审计权限或文件来源。实际 I/O、编译和链接错误正常报告；失败不发布部分结果。实体身份、ODR、ABI、GC 与读取边界所需的数据继续保留，不以验证资格或生产凭证替代这些普通合同。

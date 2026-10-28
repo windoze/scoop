@@ -309,3 +309,5 @@ Zstandard、zlib-ng、Brotli 与 nghttp2 已按三个 Windows target 分别准�
 readline 的文件名补全已支持 Windows 分隔符、盘符／extended 路径与引号；Unix 保留原有转义规则。测试辅助 Cone 使用真实 ConPTY，独立读取线程持续排空输出，子进程自行核对实际 console 输入／输出模式和代码页。Unix 暂停／恢复测试按平台选取；Windows 验证 Ctrl-Z 在恢复会话后返回 Unsupported。
 
 三个 Windows target 的正式 release readline 各 11 个容器／45 项声明全部完成：39 项通过，6 个标记忽略的子进程入口均由父测试实际启动。覆盖 Unicode 编辑、粘贴、resize、Ctrl-C／EOF、补全异常、跨线程输出、模式恢复、文件补全、历史和非 TTY 流。原先的 POSIX 路径假设、ConPTY 继承父进程重定向、帧输出省略尾部空白和 cooked 输入需要 Enter 的问题均已闭合。Scoop／C 格式化和三套原生严格告警检查通过；并行编译曾触及内存上限，降低大型构建并发后已完成本组复测，未改变编译器语义或资源限制。
+
+Windows 打包入口已组装五个宿主命令、私有 LLVM 工具、两个 MinGW CRT prefix、三个目标的系统库／runtime／unwind、对应许可证、三个 API 文档站点、VSIX、示例与编程 skill；可显式复用已准备的 sysroot，源码副本排除生成的 target 与 Cone.lock。首个归档已实际解压到中文及空格路径，以仅包含安装 bin 和 Windows 系统目录的 PATH 验证默认 SDK／工具发现、new/run/test、C++、console／GUI 和 RC 资源。三个目标全部通过，实际 PE imports 分别匹配 MSVCRT／UCRT；Clang 对 verbatim sysroot 路径的处理问题已修复并通过真实 C++／PDB 链接回归。10 项打包测试、Python Ruff 与 workspace/all-targets Clippy 通过。最终归档仍需在 core 修复和剩余本地验收闭合后重新生成。

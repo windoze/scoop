@@ -5,13 +5,14 @@ import shutil
 import subprocess
 
 
-def generate(sysroot, targets, binaries, work_dir, environment):
+def generate(sysroot, targets, binaries, work_dir, environment, *, native_sysroots=None):
     roots = sorted((sysroot / "src").glob("*/Cone.toml"))
     if not roots:
         raise RuntimeError(f"no built-in Cone manifests found in {sysroot / 'src'}")
     sites = {}
     for target in targets:
         site = work_dir / "documentation" / target
+        native = (native_sysroots or {}).get(target)
         subprocess.run(
             [
                 str(binaries[0]),
@@ -31,6 +32,7 @@ def generate(sysroot, targets, binaries, work_dir, environment):
                 str(work_dir / "doc-target"),
                 "--output-dir",
                 str(site),
+                *(["--native-sysroot", str(native)] if native is not None else []),
             ],
             check=True,
             env=environment,

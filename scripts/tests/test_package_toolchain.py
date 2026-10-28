@@ -37,6 +37,9 @@ class ToolchainArchiveTests(unittest.TestCase):
                 files = {
                     "sysroot/vendor/liburing/2.15/liburing.spec": "Version: 2.15\n",
                     "sysroot/vendor/ryu/README.scoop.md": "固定 commit：`abc123`",
+                    "sysroot/src/library/main.scoop": "fun main() {}",
+                    "sysroot/src/library/Cone.lock": "generated dependency resolution",
+                    "sysroot/src/library/target/output": "generated output",
                     "scripts/distribution/README.md": "installation",
                     "scripts/distribution/RELEASE-NOTES.md": "release notes",
                     "sysroot/share/scoop/examples/catalog.toml": "schema = 1\n",
@@ -64,7 +67,15 @@ class ToolchainArchiveTests(unittest.TestCase):
                     host=host,
                     llvm_prefix=work / "llvm",
                     llvm_source=work / "llvm-source",
+                    prepared_sysroot=sysroot if populated else None,
                 )
+                if "windows" in host:
+                    (args.llvm_prefix / "bin").mkdir(parents=True)
+                    for name in package_toolchain.package_windows.TOOLS:
+                        (args.llvm_prefix / "bin" / (name + suffix)).write_text(name)
+                    header = args.llvm_prefix / "lib/clang/22/include/stddef.h"
+                    header.parent.mkdir(parents=True)
+                    header.write_text("Clang resource header")
                 root = work / "installation"
                 binaries = [work / (name + suffix) for name in package_toolchain.TOOLS]
                 for binary in binaries:
@@ -93,9 +104,27 @@ class ToolchainArchiveTests(unittest.TestCase):
                     self.assertEqual((installed / "bin" / name).read_bytes(), binary.read_bytes())
                     if os.name != "nt":
                         self.assertTrue((installed / "bin" / name).stat().st_mode & 0o111)
+                if "windows" in host:
+                    self.assertEqual(
+                        (installed / "libexec/llvm/bin/clang.exe").read_text(), "clang"
+                    )
+                    self.assertEqual(
+                        (installed / "libexec/llvm/lib/clang/22/include/stddef.h").read_bytes(),
+                        header.read_bytes(),
+                    )
                 metadata = tomllib.loads((installed / "share/scoop/toolchain.toml").read_text())
                 self.assertEqual(metadata["liburing"], "2.15")
+                for name in ("rust_windows", "llvm_mingw"):
+                    if "windows" in host:
+                        self.assertEqual(metadata[name], release[name])
+                    else:
+                        self.assertNotIn(name, metadata)
                 self.assertNotIn("libuv", metadata)
+                self.assertEqual(
+                    (installed / "src/library/main.scoop").read_text(), "fun main() {}"
+                )
+                self.assertFalse((installed / "src/library/Cone.lock").exists())
+                self.assertFalse((installed / "src/library/target").exists())
                 self.assertEqual(metadata["programming_skill"], skill_path.as_posix())
                 skill_files = {
                     path.relative_to(skill_source): path.read_bytes()
