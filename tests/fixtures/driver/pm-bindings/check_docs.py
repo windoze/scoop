@@ -33,7 +33,8 @@ class Page(HTMLParser):
 
 root = Path(sys.argv[1]).resolve()
 scopes = sorted((root / "r").iterdir())
-assert len(scopes) == 3
+mixed = sys.argv[2:] == ["mixed"]
+assert len(scopes) == (2 if mixed else 3)
 home = Page(root / "index.html")
 versions = []
 shared_paths = []
@@ -51,6 +52,11 @@ for scope in scopes:
             assert target == root / "index.html" or target.is_relative_to(scope)
         if parsed.title.startswith("dev.pm:shared:1.0.0"):
             shared.append(page)
+    if mixed and not shared:
+        # An artifact consumer must not borrow another root's source pages.
+        assert "dev.pm:artifact-consumer:1.0.0" in (scope / "index.html").read_text()
+        assert "inherited" not in (scope / "assets/index.js").read_text()
+        continue
     assert len(shared) == 1
     shared_paths.append(shared[0])
     text = shared[0].read_text()
@@ -59,6 +65,6 @@ for scope in scopes:
     assert f"scoop:scoop.pm.value:{3 - versions[-1]}.0.0" not in text
     index = (scope / "assets/index.js").read_text()
     assert "dev.pm:shared:1.0.0" in index
-assert sorted(versions) == [1, 1, 2]
-assert len(set(shared_paths)) == 3
+assert sorted(versions) == ([2] if mixed else [1, 1, 2])
+assert len(set(shared_paths)) == (1 if mixed else 3)
 print("Root bindings and local links verified.")

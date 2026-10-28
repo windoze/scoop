@@ -139,6 +139,33 @@ checks = [
 ]
 
 [[steps]]
+name = "artifact_consumer"
+files = [
+  {write = {path = "${work}/artifact-consumer/Cone.toml", data = "schema = 1\n[cone]\ngroup = \"dev.pm\"\nname = \"artifact-consumer\"\nversion = \"1.0.0\"\nkind = \"library\"\n[dependencies]\n\"dev.pm:shared\" = { version = \"=1.0.0\", artifact = \"${build.records.0.dependencies.2.path}\" }\n"}},
+  {write = {path = "${work}/artifact-consumer/src/main.scoop", data = "package dev.pm.artifact\npublic import dev.pm.shared.selected as inherited\n"}},
+]
+
+[[steps]]
+name = "doc_artifact"
+argv = ["${scoop}", "doc", "${work}/artifact-consumer", "${work}/project/two", "--cone-path", "${work}/artifacts", {each = "${compile_args}"}, {each = "${doc_options}"}, "--offline"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${doc_artifact.result.cones.length}", equals = 3},
+  {actual = "${doc_artifact.result.observations.child_invocations.length}", equals = 1},
+]
+
+[[steps]]
+name = "inspect_artifact_docs"
+argv = ["${python}", "${fixture}/check_docs.py", "${work}/docs", "mixed"]
+exit = 0
+stdout = "Root bindings and local links verified.\n"
+stderr = ""
+
+[[steps]]
 name = "run_one"
 argv = ["${build.records.0.output}"]
 exit = 0

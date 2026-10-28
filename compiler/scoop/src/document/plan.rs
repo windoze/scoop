@@ -40,6 +40,7 @@ impl Plan {
         graphs.sort_by_key(|graph| std::cmp::Reverse(graph.node_count()));
         let mut sites = Vec::new();
         let mut shared = BTreeMap::new();
+        let mut bindings = BTreeMap::new();
         let mut compatible = true;
         let mut seen = BTreeSet::new();
         for graph in graphs {
@@ -53,6 +54,18 @@ impl Plan {
                 continue;
             }
             let sources = source::collect(&graph, request, &compiler)?;
+            // A prebuilt node also fixes its upstream versions. Comparing only
+            // source nodes could link its consumer to another root's binding.
+            for id in graph.dependency_first() {
+                let dependencies = graph
+                    .edges()
+                    .filter(|edge| edge.dependent() == *id)
+                    .map(|edge| edge.dependency())
+                    .collect::<BTreeSet<_>>();
+                if let Some(previous) = bindings.insert(*id, dependencies.clone()) {
+                    compatible &= previous == dependencies;
+                }
+            }
             for (id, source) in &sources {
                 if let Some(previous) = shared.insert(*id, source.key.clone()) {
                     compatible &= previous == source.key;
