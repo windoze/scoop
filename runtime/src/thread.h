@@ -70,6 +70,7 @@ typedef struct ScoopThreadState {
     const ScoopInitializationUnitDescriptorV1 *initialization_wait;
     char *initialization_cycle_path;
     ScoopThreadTransition *current_transition;
+    struct ScoopExceptionRecord *active_exceptions;
     struct ScoopExceptionRecord *caught_exception_top;
     struct ScoopTaskContext *current_task_context;
     struct ScoopGcMutator *mutator;

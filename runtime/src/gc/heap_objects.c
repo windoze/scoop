@@ -67,7 +67,8 @@ void record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_siz
 }
 
 void publish_large_object(ScoopGcBlockMeta *block, bool marked) {
-    if (block->head->kind != SCOOP_BLOCK_KIND_LARGE || block->large_published || block->exact_size == 0) {
+    if (block->head->kind != SCOOP_BLOCK_KIND_LARGE || block->large_published ||
+        block->exact_size == 0) {
         heap_fatal("invalid large-object metadata publication");
     }
     block->large_marked = marked;
@@ -112,13 +113,14 @@ bool scoop_gc_update_pin_locked(const void *object, bool pinned) {
 }
 
 bool object_pinned(const ScoopGcBlockMeta *block, size_t word) {
-    return block->head->kind == SCOOP_BLOCK_KIND_LARGE ? block->large_pinned
-                                                 : block->pins != NULL && bit_test(block->pins, word);
+    return block->head->kind == SCOOP_BLOCK_KIND_LARGE
+               ? block->large_pinned
+               : block->pins != NULL && bit_test(block->pins, word);
 }
 
 bool object_marked(const ScoopGcBlockMeta *block, size_t word) {
     return block->head->kind == SCOOP_BLOCK_KIND_LARGE ? block->large_marked
-                                                 : bit_test(block->marks, word);
+                                                       : bit_test(block->marks, word);
 }
 
 bool scoop_gc_is_young_object_locked(const void *object) {
@@ -164,21 +166,4 @@ size_t scoop_gc_heap_begin_collection_locked(bool minor) {
     }
     collection_active = true;
     return mark_blocks;
-}
-
-bool scoop_gc_is_published_object(const void *object) {
-    if (object == NULL) {
-        return false;
-    }
-
-    /* Collection takes these locks in heap -> roots order while classifying
-     * stable targets.  Keep the same order here so a NoGC runtime entry can
-     * validate a throw source without racing root-table mutation. */
-    scoop_gc_heap_lock();
-    bool published = scoop_gc_is_object_start_locked(object);
-    scoop_gc_roots_lock();
-    published = published || scoop_gc_is_immortal_object_locked(object);
-    scoop_gc_roots_unlock();
-    scoop_gc_heap_unlock();
-    return published;
 }

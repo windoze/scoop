@@ -15,7 +15,7 @@
 
 第一批 runtime ABI contract 升至 20，metadata ABI 9 与对象布局不变。不为历史公开头文件保留无人消费的重复实现。删除死代码只计维护与静态体积收敛，不计运行性能收益。
 
-StringBuilder／join_parts，以及异常记录生命周期、calloc、全局锁、LSDA 与 libunwind 查询优化按约定后置。原始日志和逐次数据保存在仓库外 `scoop-performance-results/2026-10-26/runtime-responsibilities`。
+StringBuilder／join_parts，以及异常记录的 calloc 与 libunwind 查询优化按约定后置。[异常查找与线程内记录管理](EXCEPTION-RUNTIME.md)已另批完成 LSDA 必要前缀查找、全局 EH／handle 锁移除及线程引用根。原始职责收敛日志和逐次数据保存在仓库外 `scoop-performance-results/2026-10-26/runtime-responsibilities`。
 
 ## 第一批验证
 
@@ -74,4 +74,4 @@ ARM64 Darwin、x86_64 GNU／musl 均通过装箱、接口 SSA、跨 profile 小�
 
 最终两个程序的 text 分别减少 ARM64 1,120／1,012 B、GNU 2,304／2,112 B、musl 2,368／2,240 B；文件分别减少 880／896 B、8,928／4,832 B、4,832／736 B。ARM64 构建单次墙钟为 2.78／2.28 s，基线 2.77／2.23 s；Linux 候选构建 3.91～4.58 s，受到其他编译任务影响，运行计时延后，不从 ARM64 外推 Linux 收益。删除失效 C 入口只计职责与静态收敛，不能把它单独算作运行收益。
 
-compiler／caller 根帧生成发布仍待下一批；当前先按新增任务推进编译速度与最终符号体积。StringBuilder／join_parts 和原定 EH 生命周期等事项继续后置。
+compiler／caller 根帧生成发布仍待下一批；当前先按新增任务推进编译速度与最终符号体积。StringBuilder／join_parts 继续后置；EH 生命周期后续进展见[异常查找与线程内记录管理](EXCEPTION-RUNTIME.md)。
