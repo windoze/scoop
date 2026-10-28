@@ -31,7 +31,10 @@ private class FilesTest {
                 file.flush()
                 val metadata = file.metadata()
                 assertTrue(metadata.kind == FileKind.Regular)
-                assertEquals(0, metadata.permissions and 0x3f)
+                if (operatingSystem == OperatingSystem.Windows)
+                    assertEquals(0x1b6, metadata.permissions)
+                else
+                    assertEquals(0, metadata.permissions and 0x3f)
                 assertTrue(metadata.modifiedAt.nanosecondsOfSecond >= 0)
             }
             File.open(path, OpenOptions(read = false, write = true, append = true)).use {

@@ -53,7 +53,7 @@ private class DirectoriesTest {
             val inside = tree.child("inside")
             inside.createDirectory()
             val link = inside.resolve(Path.fromString("link"))
-            val relative = Path.fromString("../outside")
+            val relative = Path.fromString("..").resolve(Path.fromString("outside"))
             link.createSymbolicLink(relative, targetIsDirectory = true)
             assertEquals(relative, link.readSymbolicLink())
             assertTrue(link.metadata(followLinks = false).kind == FileKind.SymbolicLink)

@@ -158,6 +158,11 @@ TTY 与通知 fd 属于同一个 opaque owner；同步 poll 和异步平台后�
 再恢复 termios 并释放 owner。每进程独占状态由该共同实现维护，因此同步与
 异步会话不能各自成功打开一个竞争读取者。该限制不约束普通 stdout 输出。
 
+Windows 使用同一 opaque owner 管理独立 CONIN$／CONOUT$ HANDLE、console 模式
+快照、UTF-16 输入分片与 resize 通知。同步终端与后续 IOCP TTY 适配共用这些实际
+helper，不把 HANDLE 当作 fd；managed 调用以 C-layout 结果同次取得值与原 Win32
+错误，POSIX wrapper 同次保存 errno。模式、编码和恢复规则见终端规范第 7 节。
+
 ## 6. 文件与目录
 
 ### 6.1 File 与 OpenOptions
@@ -193,7 +198,7 @@ Windows 使用 LockFileEx／UnlockFileEx 锁定从零开始、长度为 UINT64_M
 - Path.metadata(followLinks=true) 返回 FileMetadata。FileKind 区分 Regular、Directory、SymbolicLink、BlockDevice、CharacterDevice、Fifo、Socket、Other；metadata 包含 size、permissions、accessedAt、modifiedAt、changedAt 和可选 createdAt，时间复用 scoop.time.Instant。Darwin 使用 birth time，Linux stat 不提供 birth time 时为 None；不可用时间不以零冒充有效值。
 - exists 仅把 NotFound 和路径组件的 NotDirectory 转为 false，权限与其他 IO 错误继续抛出。查询不消除之后操作的文件系统竞争。
 - createDirectory 默认 mode=0777，受 umask 影响；createDirectories 接受已存在目录，其他类型照常报错。delete 删除单个文件、symlink 或空目录；deleteRecursively 不主动跟随 symlink，调用方须排除并发替换目录树，API 不提供抵抗恶意路径替换的来源审计或安全沙箱。
-- Path.createSymbolicLink(target, targetIsDirectory: Boolean = false) 创建文件或目录符号链接。POSIX 保留 target 原始字节并忽略类型参数；Windows 使用 CreateSymbolicLinkW，调用者为目录目标（包括尚不存在的目录）指定 targetIsDirectory=true。Windows 尝试允许非提权创建的标志，旧系统不识别该标志时沿普通权限再调用；缺少所需权限时报告真实 Win32 错误，不修改系统设置。相对目标按所在链接目录解析，盘符相对等 Windows 路径沿系统 API 的语义。
+- Path.createSymbolicLink(target, targetIsDirectory: Boolean = false) 创建文件或目录符号链接。POSIX 保留 target 原始字节并忽略类型参数；Windows 使用 CreateSymbolicLinkW，调用者为目录目标（包括尚不存在的目录）指定 targetIsDirectory=true。Windows 尝试允许非提权创建的标志，旧系统不识别该标志时沿普通权限再调用；缺少所需权限时报告真实 Win32 错误，不修改系统设置。相对目标按所在链接目录解析，盘符相对等 Windows 路径沿系统 API 的语义。Windows 相对目标使用 reparse name 的反斜杠分隔语法，库不重写其原始拼写；可移植调用通过 Path.resolve 组合相对目标。
 - readSymbolicLink 不解析目标。Windows 读取符号链接或 junction 的实际 reparse substitute name，保留 UTF-16 code units；相对名称保留 OS 存储的拼写，绝对名称的 NT `\??\` 前缀转为可供 Win32 使用的 `\\?\`。不使用仅供显示的 print name；其他 reparse tag 报错。POSIX 返回 readlink 的原始字节。目标可以不存在。
 - canonicalize 解析实际存在的文件或目录与链接。Windows 打开目标后使用 GetFinalPathNameByHandleW 的 normalized DOS 路径，保留返回的 `\\?\` 前缀与 UTF-16；POSIX 使用 realpath。结果是 OS 的规范名称，不保证与输入字面相等。不存在、访问失败或不支持的路径查询照常报告；原生分配的结果在复制期间保持有效，并在所有出口释放。
 - createTempFile/createTempDirectory(parent: Path? = None, prefix: String = "scoop-") 使用 OS 排他创建，prefix 不含 NUL 或 `/`，Windows 还拒绝 `\` 与 `:`，防止前缀改变父目录或选择 alternate data stream。默认 parent 使用系统临时目录查询，失败照常报告；返回实际 Path，不因关闭或 GC 自动删除。POSIX 临时文件 mode 为 0600，目录为 0700，仍受 umask 约束。Windows 使用系统随机后缀及 CREATE_NEW／CreateDirectoryW，只在名称已存在时重试，ACL 沿系统默认规则；先规范化实际 parent 并在返回的 extended 路径下创建，以保留完整前缀并避免 DOS device 名称被当作临时文件。临时文件关闭失败时尝试删除刚创建的文件，错误沿正常清理组合规则报告。

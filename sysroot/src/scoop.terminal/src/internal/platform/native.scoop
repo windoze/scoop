@@ -1,0 +1,54 @@
+package scoop.terminal.internal.platform
+
+@CLayout
+internal struct NativeSize(
+    val columns: Long,
+    val rows: Long,
+    val widthPixels: Long,
+    val heightPixels: Long
+)
+
+@CLayout
+internal struct NativeOpened(val value: Ptr<Unit>?, val error: Int)
+
+@CLayout
+internal struct NativeStatus(val value: Int, val error: Int)
+
+@CLayout
+internal struct NativeCount(val value: Long, val error: Int)
+
+@CLayout
+internal struct NativeDimensions(val value: NativeSize, val error: Int)
+
+@Extern(name = "scoop_terminal_is_tty")
+internal fun nativeIsTerminal(stream: Int): Boolean
+
+@Extern(name = "scoop_platform_terminal_open")
+internal fun nativeOpen(): NativeOpened
+
+@Extern(name = "scoop_platform_terminal_close")
+internal fun nativeClose(terminal: Ptr<Unit>): NativeStatus
+
+@Extern(name = "scoop_platform_terminal_raw")
+internal fun nativeRaw(terminal: Ptr<Unit>, enabled: Boolean): NativeStatus
+
+@GCLeaf
+@Extern(name = "scoop_terminal_raw_enabled")
+internal fun nativeRawEnabled(terminal: Ptr<Unit>): Boolean
+
+@Extern(name = "scoop_platform_terminal_size")
+internal fun nativeSize(terminal: Ptr<Unit>): NativeDimensions
+
+@Extern(name = "scoop_platform_terminal_write")
+internal fun nativeWrite(terminal: Ptr<Unit>, data: Ptr<Byte>, count: Long): NativeCount
+
+@Extern(name = "scoop_platform_terminal_wait")
+internal fun nativeWait(terminal: Ptr<Unit>, milliseconds: Int): NativeStatus
+
+@Extern(name = "scoop_platform_terminal_read")
+internal fun nativeRead(
+    terminal: Ptr<Unit>,
+    data: Ptr<Byte>,
+    count: Long,
+    hungUp: Boolean
+): NativeCount

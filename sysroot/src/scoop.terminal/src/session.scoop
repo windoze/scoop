@@ -9,40 +9,54 @@ import scoop.terminal.event.Event
 import scoop.time.Duration
 
 /**
- * Selects a process standard descriptor for terminal detection.
+ * Selects a process standard endpoint for terminal detection.
  */
 public enum StandardStream {
     /**
-     * Standard input, descriptor 0.
+     * Standard input.
      */
     Input,
     /**
-     * Standard output, descriptor 1.
+     * Standard output.
      */
     Output,
     /**
-     * Standard error, descriptor 2.
+     * Standard error.
      */
-    Error }
+    Error
+}
 
 /**
- * Tests whether the selected standard descriptor refers to a terminal.
+ * Tests whether the selected standard endpoint refers to a terminal.
  */
 public fun isTerminal(stream: StandardStream): Boolean {
-    val number = when (stream) { case Input -> 0; case Output -> 1; case Error -> 2 }
-    @Unsafe { return nativeIsTerminal(number) }
+    val number =
+        when (stream) {
+            case Input -> 0;
+            case Output -> 1;
+            case Error -> 2
+        }
+    @Unsafe
+    {
+        return nativeIsTerminal(number)
+    }
 }
 
 /**
  * Terminal dimensions in character cells and platform-reported pixels.
  */
-public struct TerminalSize(val columns: Long, val rows: Long, val widthPixels: Long, val heightPixels: Long)
+public struct TerminalSize(
+    val columns: Long,
+    val rows: Long,
+    val widthPixels: Long,
+    val heightPixels: Long
+)
 
 /**
  * An owned synchronous terminal session with input parsing, queries, byte output, and raw-mode
  * restoration. Operations on one session must not overlap.
  */
-public class TerminalSession private constructor(escapeDelay: Duration) : ByteSink, Closeable {
+public class TerminalSession private constructor(escapeDelay: Duration): ByteSink, Closeable {
     private val terminal: TerminalHandle = TerminalHandle()
     private val input: SessionInput = SessionInput(escapeDelay)
     private val active: AtomicBoolean = AtomicBoolean(false)
@@ -66,10 +80,16 @@ public class TerminalSession private constructor(escapeDelay: Duration) : ByteSi
         public fun open(escapeDelay: Duration = Duration.milliseconds(50L)): TerminalSession {
             val session = TerminalSession(escapeDelay)
             session.terminal.open()
-            try { session.input.initialize(session.terminal) }
+            try {
+                session.input.initialize(session.terminal)
+            }
             catch (primary: Throwable) {
-                try { session.close() }
-                catch (cleanup: Throwable) { throw ResourceUseException(primary, cleanup) }
+                try {
+                    session.close()
+                }
+                catch (cleanup: Throwable) {
+                    throw ResourceUseException(primary, cleanup)
+                }
                 throw primary
             }
             return session
@@ -77,15 +97,22 @@ public class TerminalSession private constructor(escapeDelay: Duration) : ByteSi
     }
 
     private fun <R> withState(block: () -> R): R {
-        if (!active.compareAndSet(false, true)) throw IllegalStateException(Some("terminal operation is active"))
-        try { return block() }
-        finally { active.store(false) }
+        if (!active.compareAndSet(false, true))
+            throw IllegalStateException(Some("terminal operation is active"))
+        try {
+            return block()
+        }
+        finally {
+            active.store(false)
+        }
     }
 
-    internal fun <R> withTerminal(block: (TerminalHandle) -> R): R = withState {
-        if (terminal.isClosed) throw IllegalStateException(Some("terminal is closed"))
-        block(terminal)
-    }
+    internal fun <R> withTerminal(block: (TerminalHandle) -> R): R =
+        withState {
+            if (terminal.isClosed)
+                throw IllegalStateException(Some("terminal is closed"))
+            block(terminal)
+        }
 
     /**
      * Queries current character-cell and pixel dimensions.
@@ -94,11 +121,15 @@ public class TerminalSession private constructor(escapeDelay: Duration) : ByteSi
     /**
      * Enables raw input mode, retaining the state needed for restoration.
      */
-    public fun enableRawMode() { withTerminal { it.setRaw(true) } }
+    public fun enableRawMode() {
+        withTerminal { it.setRaw(true) }
+    }
     /**
      * Restores the mode saved before raw input was enabled.
      */
-    public fun disableRawMode() { withTerminal { it.setRaw(false) } }
+    public fun disableRawMode() {
+        withTerminal { it.setRaw(false) }
+    }
     /**
      * Waits for the next user-facing event, preserving query replies for query processing.
      */
@@ -107,14 +138,16 @@ public class TerminalSession private constructor(escapeDelay: Duration) : ByteSi
      * Waits up to a nonnegative duration and reports whether a user event is ready.
      */
     public fun poll(timeout: Duration): Boolean {
-        if (timeout < Duration.ZERO) throw IllegalArgumentException(Some("negative terminal poll timeout"))
+        if (timeout < Duration.ZERO)
+            throw IllegalArgumentException(Some("negative terminal poll timeout"))
         return withTerminal { input.poll(it, Some(timeout)) }
     }
 
     internal fun query(kind: QueryKind, timeout: Duration): InputItem {
-        if (timeout < Duration.ZERO) throw IllegalArgumentException(Some("negative terminal query timeout"))
-        return withTerminal { handle ->
-            QueryRawScope(handle).use { input.query(handle, kind, timeout) }
+        if (timeout < Duration.ZERO)
+            throw IllegalArgumentException(Some("negative terminal query timeout"))
+        return withTerminal {
+            handle -> QueryRawScope(handle).use { input.query(handle, kind, timeout) }
         }
     }
 
@@ -127,7 +160,9 @@ public class TerminalSession private constructor(escapeDelay: Duration) : ByteSi
      * Checks the unbuffered terminal session state; queued library commands are written
      * immediately.
      */
-    public override fun flush() { withTerminal {} }
+    public override fun flush() {
+        withTerminal {}
+    }
 
     /**
      * Restores terminal state and closes the owned handle; close cannot overlap another session
@@ -135,7 +170,8 @@ public class TerminalSession private constructor(escapeDelay: Duration) : ByteSi
      */
     public override fun close() {
         withState {
-            if (!terminal.isClosed) terminal.close()
+            if (!terminal.isClosed)
+                terminal.close()
             Unit
         }
     }

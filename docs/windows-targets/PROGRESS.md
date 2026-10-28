@@ -218,3 +218,9 @@ Scoop／C 格式化、三个 Clang 环境与 cl 的严格 C 检查、完整 plat
 Windows 子进程已接入 CreateProcessW、UTF-16 参数／环境／cwd 与限定标准流的 HANDLE_LIST；进程使用独立 HANDLE，wait 保留完整 32 位退出码，正常的 259 不误判为运行中。同步 communicate 由至多两个 reader 线程与调用线程推进三路管道，失败共享一次终止请求，并在返回前 join／reap；POSIX 保持 spawn、poll 与 signal 语义，相关实现和测试按目标条件组织。
 
 三个 target 各通过 2 个容器／9 项实际进程测试，覆盖 PATH 与 cwd、环境快照、空参数／引号／反斜杠／非配对 surrogate、高位退出码、pipe 所有权、重定向、128 KiB 双输出与输入、GC、断管失败清理和显式终止。原生探针在三个环境验证 CRT argv、原始字节、handle 继承、失败回收与退出状态；完整 platform 测试源码语义检查、Scoop／C 格式化、三套 Clang 与 cl 的严格 C 检查通过。首轮重复终止的清理错误已修复；PowerShell 测试辅助改为内联执行，避免扩展路径脚本的宿主限制，并已定向复测。未发布子集 platform；console、IOCP、完整系统库与远端 POSIX 验收继续实施。
+
+Windows TerminalSession 已使用独立、不可继承的 CONIN$／CONOUT$ owner，保存并恢复 console modes 与输出 code page；raw、viewport resize、UTF-16 输入、重复键和 UTF-8 分段输出复用共享终端协议与 parser。标准流查询仍检查实际 GetStdHandle，重定向不影响自有 console；无 console 时正常报错，不主动创建或附着。原生错误与返回值同次交付，POSIX session 改用同一内部结果记录。
+
+完整 platform 与 terminal 已按实际生产源码在三个 target 构建并发布开发 slib。platform 每目标 42 个容器／148 项测试，首轮两处 POSIX 测试假设已改为 Path.resolve 和目标权限投影，并在三个目标定向复测通过；terminal 每目标 17 个容器／63 项测试全部通过。Scoop／C 格式化、三个 Clang 环境与 cl 的严格检查、Python Ruff 和 fixture 公共规则检查通过（63 项通过、3 项 POSIX 专项跳过）。
+
+正式 console fixture 在 Microsoft LLD／LINK、MinGW MSVCRT／UCRT 四种链接组合均通过，覆盖实际隐藏 console、重定向、模式恢复、单 owner、重复键、非 BMP、移动 GC、超时／resize、断开与无 console，以及真实 ConPTY 的 UTF-8 输入／输出和大小变化。ConPTY 以 VK_MENU key-up 传递 Unicode 的首轮遗漏已修复；最后的 Python CRLF 输出比较已闭合。IOCP、原生边界 GC fixture、其余系统库与发行验收继续实施，尚未开始远端 POSIX 验证。

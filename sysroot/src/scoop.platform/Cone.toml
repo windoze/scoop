@@ -139,11 +139,25 @@ path = "native/socket_io.c"
 path = "native/resolve.c"
 
 [[native.sources]]
+path = "native/tty/managed.c"
+[[native.sources]]
 path = "native/tty/session.c"
+when = {os = ["darwin", "linux"]}
 [[native.sources]]
 path = "native/tty/control.c"
+when = {os = ["darwin", "linux"]}
 [[native.sources]]
 path = "native/tty/input.c"
+when = {os = ["darwin", "linux"]}
+[[native.sources]]
+path = "native/tty/windows_session.c"
+when = {os = "windows"}
+[[native.sources]]
+path = "native/tty/windows_control.c"
+when = {os = "windows"}
+[[native.sources]]
+path = "native/tty/windows_input.c"
+when = {os = "windows"}
 [[native.sources]]
 path = "native/tty/resize_linux.c"
 when = {os = "linux"}

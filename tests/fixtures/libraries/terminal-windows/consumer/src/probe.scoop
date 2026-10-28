@@ -1,0 +1,73 @@
+package test
+
+import scoop.terminal.*
+import scoop.terminal.event.*
+import scoop.time.Duration
+
+internal fun check(value: Boolean, message: String) {
+    if (!value) {
+        eprintln(message)
+        throw IllegalStateException(Some(message))
+    }
+}
+
+internal fun feed(unit: Int, key: Int = 0, modifiers: Int = 0, repeats: Int = 1) {
+    @Unsafe
+    {
+        check(nativeFeed(unit, key, modifiers, repeats), "inject console input")
+    }
+}
+
+internal fun expect(
+    session: TerminalSession,
+    code: KeyCode,
+    modifiers: KeyModifiers = KeyModifiers()
+) {
+    check(session.poll(Duration.seconds(2L)), "console input timed out")
+    check(session.poll(Duration.ZERO), "poll consumed the queued event")
+    val actual = session.read()
+    check(
+        actual == Event.Key(KeyEvent(code, modifiers)),
+        "unexpected console key: expected " + keyDetails(code) + ", actual " + eventDetails(actual)
+    )
+}
+
+private fun keyDetails(code: KeyCode): String =
+    when (code) {
+        case KeyCode.Char(value) -> f"Char(${value.code})"
+        case KeyCode.Left -> "Left"
+        case _ -> "other key"
+    }
+
+private fun eventDetails(event: Event): String =
+    when (event) {
+        case Event.Key(value) -> keyDetails(value.code) + f" modifiers=${value.modifiers.bits}"
+        case Event.Resize(columns, rows) -> f"Resize(${columns},${rows})"
+        case Event.FocusGained -> "FocusGained"
+        case Event.FocusLost -> "FocusLost"
+        case _ -> "other event"
+    }
+
+@Extern(name = "windows_terminal_setup")
+internal fun setup(): Boolean
+
+@Extern(name = "windows_terminal_modes")
+internal fun modes(raw: Boolean): Boolean
+
+@Extern(name = "windows_terminal_restored")
+internal fun restored(): Boolean
+
+@Extern(name = "windows_terminal_feed")
+private fun nativeFeed(unit: Int, key: Int, modifiers: Int, repeats: Int): Boolean
+
+@Extern(name = "windows_terminal_resize")
+internal fun resize(): Long
+
+@Extern(name = "windows_terminal_position")
+internal fun position(): Boolean
+
+@Extern(name = "windows_terminal_output")
+internal fun outputMatches(): Boolean
+
+@Extern(name = "windows_terminal_disconnect")
+internal fun disconnect(): Boolean

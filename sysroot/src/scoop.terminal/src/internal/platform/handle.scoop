@@ -1,0 +1,100 @@
+package scoop.terminal.internal.platform
+
+import scoop.platform.io.WriteZeroException
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.system.*
+import scoop.terminal.TerminalSize
+
+internal class TerminalHandle {
+    private var pointer: Ptr<Unit>? = None
+    internal val isRaw: Boolean get() {
+        @Unsafe
+        {
+            return nativeRawEnabled(pointer!!)
+        }
+    }
+    internal val isClosed: Boolean get() = pointer == None
+    internal fun <R> withPointer(block: (Ptr<Unit>) -> R): R = block(pointer!!)
+
+    internal fun open() {
+        @Unsafe
+        {
+            val result = nativeOpen()
+            if (result.value == None)
+                failTerminal("open terminal", result.error)
+            pointer = result.value
+        }
+    }
+
+    internal fun setRaw(enabled: Boolean) {
+        @Unsafe
+        {
+            val result = nativeRaw(pointer!!, enabled)
+            if (result.value < 0)
+                failTerminal("set terminal raw mode", result.error)
+        }
+    }
+
+    internal fun size(): TerminalSize {
+        @Unsafe
+        {
+            val result = nativeSize(pointer!!)
+            val value = result.value
+            if (value.columns < 0L)
+                failTerminal("terminal size", result.error)
+            return TerminalSize(value.columns, value.rows, value.widthPixels, value.heightPixels)
+        }
+    }
+
+    internal fun write(buffer: NativeByteBuffer, count: Long): Long {
+        if (count < 0L)
+            throw IllegalArgumentException(Some("negative terminal write count"))
+        if (count > buffer.readableBytes)
+            throw IndexOutOfBoundsException()
+        if (count == 0L)
+            return 0L
+        @Unsafe
+        {
+            val written =
+                buffer.withReadableBytes {
+                    data,
+                    _ -> @Unsafe
+                    {
+                        val result = nativeWrite(pointer!!, data!!, count)
+                        if (result.value < 0L)
+                            failTerminal("write terminal", result.error)
+                        if (result.value == 0L)
+                            throw WriteZeroException()
+                        return@withReadableBytes result.value
+                    }
+                }
+            buffer.skip(written)
+            return written
+        }
+    }
+
+    internal fun close() {
+        val handle = pointer!!
+        pointer = None
+        @Unsafe
+        {
+            val result = nativeClose(handle)
+            if (result.value < 0)
+                failTerminal("close terminal", result.error)
+        }
+    }
+}
+
+internal fun failTerminal(operation: String, code: Int): Nothing {
+    val error = terminalError(code)
+    throw PlatformException(operation, error.kind, Some(error))
+}
+
+internal fun terminalError(code: Int): NativeError =
+    NativeError(
+        if (operatingSystem == OperatingSystem.Windows)
+            NativeErrorDomain.Win32
+        else
+            NativeErrorDomain.PosixErrno,
+        code
+    )

@@ -1,0 +1,29 @@
+package test
+
+import scoop.platform.io.*
+import scoop.terminal.*
+import scoop.terminal.event.*
+import scoop.time.Duration
+
+internal fun pseudoConsole() {
+    TerminalSession.open().use {
+        session ->
+        val size = session.size()
+        check(size.columns == 80L && size.rows == 24L, "ConPTY initial size")
+        session.enableRawMode()
+        session.writeAllBytes("READY:INPUT\r\n".toByteArray())
+        expect(session, KeyCode.Char('中'))
+        expect(session, KeyCode.Char('🙂'))
+        expect(session, KeyCode.Left, KeyModifiers().with(KeyModifier.Control))
+        session.writeAllBytes("READY:RESIZE\r\n".toByteArray())
+        check(session.poll(Duration.seconds(2L)), "ConPTY resize timed out")
+        check(session.read() == Event.Resize(81L, 25L), "ConPTY resize event")
+        for (byte in "OUT:中🙂\r\n".toByteArray())
+            session.writeAllBytes([byte])
+        gcCollect()
+        session.writeAllBytes("pty: passed\r\n".toByteArray())
+    }
+}
+
+@Extern(name = "windows_terminal_conpty")
+internal fun conpty(): Boolean

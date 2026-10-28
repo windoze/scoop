@@ -241,6 +241,8 @@ stdout／stderr 继续遵守既有字节输出合同：Windows startup 将有效
 
 子进程通过 CreateProcessW 接收 UTF-16 参数、环境与 cwd，使用独立的进程 HANDLE 和限定标准流的 HANDLE_LIST；wait 保留完整 32 位退出码，terminate／kill 使用 Windows 的实际终止操作。同步 communicate 用最多两个 reader 线程和调用线程推进三路管道，失败先请求一次终止并在返回前 join／wait；POSIX 保持 spawn／poll 与 signal 语义。精确的 PATH、参数引用、环境名称、退出与资源责任见[平台规范 11](../specs/SCOOP-PLATFORM-SPEC.md#11-匿名管道与子进程)。
 
+终端会话使用自有 CONIN$／CONOUT$、VT 输入／输出及宽字符 console records，复用现有 UTF-8 协议解析器；尺寸取 viewport，raw 与 close 恢复实际模式和输出 code page。没有 console 的 GUI 程序不隐式分配 console。Windows records 不提供 ReadConsole 行编辑的差异及输入／resize／恢复合同见[终端规范 7](../specs/SCOOP-TERMINAL-SPEC.md#7-终端会话尺寸与-raw-mode)。
+
 ### 5.3 Rust 文本后端是必须单独闭合的依赖
 
 `sysroot/native/text_backend` 当前依赖 Rust `std`，不是可在两个 CRT 间任意复用的纯对象集合。保留现有 C API 和“由文本后端分配、由文本后端释放”的 owner 规则，继续 `panic = "abort"`，Rust panic 不进入 Scoop EH。
