@@ -1,18 +1,15 @@
 use std::path::{Path, PathBuf};
 
 use scoop::{ArtifactCacheRoot, BuildProfile, BuildResult, BuildRootInput};
-use scoop_manifest::{CurrentConeInput, classify_current_cone_operand};
+use scoop_manifest::SingleFileLocator;
 
 use super::commands::{absolute, config};
 
-pub(super) fn build_root(cwd: &Path, input: Option<PathBuf>) -> BuildResult<BuildRootInput> {
-    let input = absolute(cwd, input.unwrap_or_else(|| PathBuf::from("Cone.toml")))?;
-    match classify_current_cone_operand(input)
-        .map_err(|error| config(&error).at_host(error.path()))?
-    {
-        CurrentConeInput::Manifest { root } => BuildRootInput::manifest(root).map_err(config),
-        CurrentConeInput::SingleFile { source } => Ok(BuildRootInput::single_file(source)),
-    }
+pub(super) fn single_file_root(cwd: &Path, input: PathBuf) -> BuildResult<BuildRootInput> {
+    let input = absolute(cwd, input)?;
+    SingleFileLocator::from_path(input)
+        .map(BuildRootInput::single_file)
+        .map_err(config)
 }
 
 pub(super) fn build_cache(

@@ -75,24 +75,28 @@ impl Inputs {
             Self::Workspace(prepared) => prepared
                 .resolutions
                 .into_iter()
-                .map(|resolution| ResolvedBuildGraph::from_package(resolution, context.clone()))
+                .map(|resolution| {
+                    let root = BuildRootInput::prepared(resolution).map_err(config)?;
+                    ResolvedBuildGraph::load(root, context.clone())
+                })
                 .collect(),
         }
     }
 }
 
 pub(in crate::cli) fn prepare(input: PrepareInput<'_>) -> BuildResult<Inputs> {
-    if input
+    if let Some(source) = input
         .input
         .as_ref()
-        .is_some_and(|path| path.extension().is_some_and(|ext| ext == "scoop"))
+        .filter(|path| path.extension().is_some_and(|ext| ext == "scoop"))
     {
         if input.options.selects_members() {
             return Err(config(
                 "workspace member selection requires a manifest input",
             ));
         }
-        return crate::cli::paths::build_root(input.cwd, input.input).map(Inputs::SingleFile);
+        return crate::cli::paths::single_file_root(input.cwd, source.clone())
+            .map(Inputs::SingleFile);
     }
     let path = |path: &Path| HostPathCarrier::from_path(path).map_err(config);
     let request = PrepareRequestV1 {

@@ -1,19 +1,21 @@
 //! Project an exact PM graph into the existing compiler schedule.
 
 use super::*;
+use crate::ResolvedBuildGraph;
 use crate::discovery::ManifestLocatorKind;
 use crate::locator::PrebuiltArtifactProjection;
-use crate::{BuildFailure, BuildFailurePhase, BuildResult, BuildRootInput, LoadedBuildRoot};
+use crate::{BuildFailure, BuildGraphDiscoveryError, BuildResult, BuildRootInput, LoadedBuildRoot};
 use scoop_manifest::{DependencyCoordinateKey, LoadedConeManifest};
 use scoop_protocol::package::{PreparedConeV1, PreparedResolutionV1};
 
-impl ResolvedBuildGraph {
+impl DiscoveredBuildGraph {
     /// The caller has decoded and checked the package protocol boundary.
     /// This projection does not load manifests, inspect artifacts, or resolve versions.
-    pub fn from_package(
+    pub(crate) fn from_package(
+        root: ConeIdentity,
         resolution: PreparedResolutionV1,
         context: BuildContext,
-    ) -> BuildResult<Self> {
+    ) -> Result<Self, BuildGraphDiscoveryError> {
         if resolution.target != context.target.canonical_triple()
             || resolution.purpose != context.purpose
         {
@@ -21,7 +23,6 @@ impl ResolvedBuildGraph {
                 "prepared graph target or purpose differs from the request",
             ));
         }
-        let root = resolution.coordinate.identity().map_err(error)?;
         let mut nodes = BTreeMap::new();
         let mut pending = Vec::new();
         for node in resolution.nodes {
@@ -48,16 +49,6 @@ impl ResolvedBuildGraph {
             pending.push((identity, node.dependencies, node.test_dependencies));
             nodes.insert(identity, graph_node);
         }
-        let root_node = nodes
-            .get(&root)
-            .ok_or_else(|| error("prepared root is absent"))?;
-        if !matches!(root_node, GraphNode::ManifestSource(_)) {
-            return Err(error("prepared root must be a source Cone"));
-        }
-        let root_kind = match context.purpose {
-            scoop_protocol::CompilationPurpose::Production => node_kind(root_node),
-            scoop_protocol::CompilationPurpose::Test => RequestedConeKind::Executable,
-        };
         let mut edges = BTreeMap::new();
         for (dependent, production, tests) in pending {
             let node = &nodes[&dependent];
@@ -72,25 +63,16 @@ impl ResolvedBuildGraph {
                 );
             }
         }
-        validate_reachability(root, &nodes, &edges).map_err(BuildFailure::classified)?;
-        let adjacency = canonical_adjacency(&nodes, &edges);
-        let dependency_first = stable_kahn(&nodes, &adjacency).map_err(BuildFailure::classified)?;
-        let source_inputs = source_dependency_projections(&nodes, &adjacency);
         Ok(Self {
             root,
             nodes,
-            edges: edges
-                .into_iter()
-                .map(|(key, inner)| (key, ResolvedDependencyEdge { inner }))
-                .collect(),
-            dependency_first,
-            source_inputs,
-            root_kind,
-            target_selection: context.target.lir_target_selection(),
+            edges,
             context,
         })
     }
+}
 
+impl ResolvedBuildGraph {
     pub fn load(root: BuildRootInput, context: BuildContext) -> BuildResult<Self> {
         LoadedBuildRoot::from_input(root, context)
             .map_err(BuildFailure::root)?
@@ -105,7 +87,7 @@ fn edge_origin(
     dependent: ConeIdentity,
     node: &GraphNode,
     coordinate: &ConeCoordinate,
-) -> BuildResult<(EdgeOrigin, Option<DependencyRecord>)> {
+) -> Result<(EdgeOrigin, Option<DependencyRecord>), BuildGraphDiscoveryError> {
     match node {
         GraphNode::ManifestSource(manifest) => {
             let key = DependencyCoordinateKey::from_coordinate(coordinate);
@@ -164,10 +146,6 @@ fn edge_origin(
     }
 }
 
-fn error(message: impl std::fmt::Display) -> Box<BuildFailure> {
-    BuildFailure::tool(
-        "SCOOP_PACKAGE_GRAPH",
-        BuildFailurePhase::GraphIdentity,
-        message,
-    )
+fn error(message: impl std::fmt::Display) -> BuildGraphDiscoveryError {
+    BuildGraphDiscoveryError::PreparedGraph(message.to_string())
 }

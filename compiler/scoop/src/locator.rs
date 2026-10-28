@@ -1,10 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use scoop_identity::{ConeCoordinate, ConeIdentity, RequestedConeKind};
-use scoop_manifest::{
-    DependencyCoordinateKey, DependencyLocator, LoadedConeManifest, ManifestRootLocator,
-};
+use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_slib::{ArtifactFingerprint, ArtifactManifestSummaryV1, ConeKind, ConeSourceForm};
 
 use crate::{ArtifactCacheRoot, ArtifactSearchRoot, BuildArtifact};
@@ -19,27 +16,6 @@ pub(crate) use default_library::locate_build_dependency;
 
 pub(crate) fn artifact_candidate_path(root: &Path, coordinate: &ConeCoordinate) -> PathBuf {
     scoop_toolchain::artifact_candidate_path(root, coordinate)
-}
-
-#[derive(Debug)]
-pub(crate) enum LocatedDependencyClaim {
-    Source(Box<ManifestSourceProjection>),
-    Prebuilt(Box<PrebuiltArtifactProjection>),
-}
-
-#[derive(Debug)]
-pub(crate) struct ManifestSourceProjection {
-    manifest: LoadedConeManifest,
-}
-
-impl ManifestSourceProjection {
-    pub(crate) const fn manifest(&self) -> &LoadedConeManifest {
-        &self.manifest
-    }
-
-    pub(crate) fn into_manifest(self) -> LoadedConeManifest {
-        self.manifest
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -139,122 +115,21 @@ impl PrebuiltArtifactProjection {
     }
 }
 
-pub(crate) fn locate_manifest_dependency(
-    parent: &LoadedConeManifest,
-    key: &DependencyCoordinateKey,
-    search_roots: &[ArtifactSearchRoot],
-    target: scoop_lir::ValidatedLirTargetSelection,
-    cache: &ArtifactCacheRoot,
-) -> Result<LocatedDependencyClaim, DependencyLocatorError> {
-    let production = parent
-        .parsed()
-        .semantic()
-        .dependency_iter()
-        .find(|(candidate, _)| *candidate == key);
-    let (coordinate, locator) = if let Some((_, coordinate)) = production {
-        let locator = parent
-            .parsed()
-            .locators()
-            .get(key)
-            .ok_or_else(|| DependencyLocatorError::MissingLocatorProjection(key.clone()))?;
-        (coordinate, locator)
-    } else {
-        let (_, declaration) = parent
-            .parsed()
-            .tests()
-            .dependency_iter()
-            .find(|(candidate, _)| *candidate == key)
-            .ok_or_else(|| DependencyLocatorError::UndeclaredDependency(key.clone()))?;
-        (declaration.coordinate(), declaration.locator())
-    };
-
-    match locator {
-        DependencyLocator::SourcePath(path) => locate_source_dependency(
-            parent,
-            coordinate,
-            resolve_from_manifest(parent, path.as_path()),
-            cache,
-        )
-        .map(|source| LocatedDependencyClaim::Source(Box::new(source))),
-        DependencyLocator::ArtifactPath(path) => locate_artifact_dependency(
-            resolve_from_manifest(parent, path.as_path()),
-            coordinate,
-            target,
-            cache,
-        ),
-        DependencyLocator::SearchRoots => {
-            locate_from_search_roots(coordinate, search_roots, target, cache)
-                .map(|prebuilt| LocatedDependencyClaim::Prebuilt(Box::new(prebuilt)))
-        }
-    }
-}
-
 fn locate_artifact_dependency(
     path: PathBuf,
     coordinate: &ConeCoordinate,
     target: scoop_lir::ValidatedLirTargetSelection,
     cache: &ArtifactCacheRoot,
-) -> Result<LocatedDependencyClaim, DependencyLocatorError> {
+) -> Result<PrebuiltArtifactProjection, DependencyLocatorError> {
     let candidate = probe_artifact_candidate(path, coordinate, target, cache)?;
-    Ok(LocatedDependencyClaim::Prebuilt(Box::new(
-        PrebuiltArtifactProjection {
-            coordinate: coordinate.clone(),
-            artifact_fingerprint: candidate.summary().artifact_fingerprint(),
-            candidates: NonEmptyPrebuiltArtifactCandidates {
-                first: candidate,
-                rest: Vec::new(),
-            },
+    Ok(PrebuiltArtifactProjection {
+        coordinate: coordinate.clone(),
+        artifact_fingerprint: candidate.summary().artifact_fingerprint(),
+        candidates: NonEmptyPrebuiltArtifactCandidates {
+            first: candidate,
+            rest: Vec::new(),
         },
-    )))
-}
-
-fn resolve_from_manifest(parent: &LoadedConeManifest, locator: &Path) -> PathBuf {
-    if locator.is_absolute() {
-        locator.to_path_buf()
-    } else {
-        parent.real_root().join(locator)
-    }
-}
-
-fn locate_source_dependency(
-    parent: &LoadedConeManifest,
-    expected: &ConeCoordinate,
-    path: PathBuf,
-    cache: &ArtifactCacheRoot,
-) -> Result<ManifestSourceProjection, DependencyLocatorError> {
-    let manifest = load_dependency_manifest(expected, path, cache)?;
-    if manifest.real_root() == parent.real_root() {
-        return Err(DependencyLocatorError::SelfSourceLocator {
-            coordinate: expected.clone(),
-            root: manifest.real_root().to_path_buf(),
-        });
-    }
-    Ok(ManifestSourceProjection { manifest })
-}
-
-pub(crate) fn load_dependency_manifest(
-    expected: &ConeCoordinate,
-    path: PathBuf,
-    cache: &ArtifactCacheRoot,
-) -> Result<LoadedConeManifest, DependencyLocatorError> {
-    let locator = ManifestRootLocator::from_path(path).map_err(DependencyLocatorError::Manifest)?;
-    let manifest = cache
-        .load_manifest(&locator)
-        .map_err(DependencyLocatorError::Manifest)?;
-    if manifest.coordinate() != expected {
-        return Err(DependencyLocatorError::CoordinateMismatch {
-            expected: Box::new(expected.clone()),
-            actual: Box::new(manifest.coordinate().clone()),
-            path: manifest.manifest_path().to_path_buf(),
-        });
-    }
-    if manifest.parsed().semantic().requested_kind() != RequestedConeKind::Library {
-        return Err(DependencyLocatorError::ExecutableDependency {
-            coordinate: expected.clone(),
-            path: manifest.manifest_path().to_path_buf(),
-        });
-    }
-    Ok(manifest)
+    })
 }
 
 pub(crate) fn locate_from_search_roots(

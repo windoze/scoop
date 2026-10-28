@@ -5,7 +5,7 @@ use scoop::{BuildFailure, BuildFailurePhase, BuildResult};
 
 use super::args::MessageFormat;
 use super::commands::{absolute, config};
-use super::paths::build_root;
+use super::paths::single_file_root;
 use super::presentation::Reporter;
 
 #[derive(Args)]
@@ -32,9 +32,9 @@ pub(super) fn execute(
             .root_input
             .as_ref()
             .filter(|path| path.extension().is_some_and(|ext| ext == "scoop"))
-            .map(|path| build_root(&cwd, Some(path.clone())))
+            .map(|path| single_file_root(&cwd, path.clone()))
             .transpose()?
-            .is_some_and(|root| root.manifest_root().is_none());
+            .is_some();
         if single_file {
             cwd.join("target")
         } else {

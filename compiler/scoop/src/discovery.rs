@@ -5,17 +5,11 @@ use std::ops::Range;
 use std::path::PathBuf;
 
 use scoop_identity::{ConeCoordinate, ConeIdentity};
-use scoop_manifest::{
-    DependencyCoordinateKey, DependencyLocator, LoadedConeManifest, ManifestRootError,
-    SingleFileLocator,
-};
+use scoop_manifest::{DependencyCoordinateKey, LoadedConeManifest, SingleFileLocator};
 use scoop_slib::DependencyRecord;
 use scoop_wire::HashError;
 
-use crate::locator::{
-    DependencyLocatorError, LocatedDependencyClaim, ManifestSourceProjection,
-    PrebuiltArtifactProjection, locate_build_dependency, locate_manifest_dependency,
-};
+use crate::locator::{DependencyLocatorError, PrebuiltArtifactProjection, locate_build_dependency};
 use crate::request::{BuildGraphRequestParts, BuildRootInputKind};
 use crate::{
     ArtifactCacheRoot, ArtifactSearchRoot, BuildGraphRequest, DiagnosticsPolicy,
@@ -23,12 +17,12 @@ use crate::{
 };
 
 mod builder;
+mod package;
 mod plans;
 mod root;
 mod target;
 use builder::DiscoveryBuilder;
 pub use root::LoadedBuildRoot;
-use root::LoadedRootInput;
 pub use target::GraphTarget;
 
 #[derive(Clone, Debug)]
@@ -336,14 +330,12 @@ pub(crate) fn compare_coordinates(left: &ConeCoordinate, right: &ConeCoordinate)
 
 #[derive(Debug)]
 pub enum LoadBuildRootError {
-    RootManifest(ManifestRootError),
     SingleFile(scoop_manifest::SingleFileInputError),
 }
 
 impl fmt::Display for LoadBuildRootError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::RootManifest(error) => write!(formatter, "invalid build root: {error}"),
             Self::SingleFile(error) => error.fmt(formatter),
         }
     }
@@ -352,7 +344,6 @@ impl fmt::Display for LoadBuildRootError {
 impl std::error::Error for LoadBuildRootError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::RootManifest(error) => Some(error),
             Self::SingleFile(error) => Some(error),
         }
     }
@@ -360,6 +351,7 @@ impl std::error::Error for LoadBuildRootError {
 
 #[derive(Debug)]
 pub enum BuildGraphDiscoveryError {
+    PreparedGraph(String),
     Locator(Box<DependencyLocatorError>),
 
     Identity(HashError),
@@ -395,6 +387,7 @@ pub enum BuildGraphDiscoveryError {
 impl fmt::Display for BuildGraphDiscoveryError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::PreparedGraph(message) => formatter.write_str(message),
             Self::Locator(error) => error.fmt(formatter),
 
             Self::Identity(error) => error.fmt(formatter),

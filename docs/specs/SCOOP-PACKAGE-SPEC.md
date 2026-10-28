@@ -19,6 +19,8 @@ Scoop 尚未发布。本次直接重定义 `Cone.toml` 的初始 schema，与仓
 
 `scoop-pm` 是独立可执行程序和可独立测试的 Rust crate，不依赖 LLVM 或编译 stage 实现。driver 不链接 resolver、Git 或 HTTP 客户端。共享代码限于 manifest 数据、精确图/请求的数据格式和已有产物 reader；不另建任务 DSL、通用插件系统或服务进程。
 
+`driver` 库的源码 Cone 入口同样只接受已通过 PM 协议边界检查的精确图，不保留从原始 manifest 查找来源的旁路。其单 Cone 配置通过展开字段组装，不重新解析文本；包图的版本、来源及闭合性沿 PM 结果复用，driver 只建立实际构建顺序与 direct/support 投影。单文件入口继续读取自己的精确依赖头，并查找预编译产物闭包。
+
 `scoop pm <command> …` 等价于 `scoop-pm <command> …`，转发剩余 argv、退出状态及标准流。默认使用 `scoop` 同目录的配套程序，允许 `--package-manager <path>` 显式选择。`pm` 是明确的配套入口，优先于现有 `<SYSROOT>/commands/` 外部命令查找；该既有机制保持，不增加新的插件框架。
 
 包管理分发单位仍是 Cone，语言中的 `package` 仍只是 namespace。首版 registry 分发源码，不分发跨工具链通用的预编译包；现有显式 `.slib` 与 sysroot 消费继续保留。

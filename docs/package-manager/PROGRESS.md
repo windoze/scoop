@@ -135,6 +135,12 @@ PM 生成和维护 `Cone.lock`；`scoop` 消费锁定图及其本地投影，向
 - 两个遗留产物消费清单改为显式精确版本；产物摘要更新专测转为观察实际承担摘要读取的 PM 缓存，保留真实产物、修改/touch、更新记录和编译调用次数验证。双来源冲突的 negative 清单保持原测试意图。
 - macOS/Linux 发行脚本 7 项测试通过，覆盖 PM 复制、可执行位和独立依赖许可证收集。macOS 的 artifact-summary（16 个进程步骤）与 generator prebuilt（8 个步骤）通过；未重新构建完整 LLVM 发行包。
 
+### Driver 原始清单入口退役
+
+- driver 的库入口只接收 PM 已检查的精确图或独立单文件；删除原始清单解析缓存、源码依赖递归查找及重复的来源选择。普通命令和库调用共用相同投影与调度入口。
+- PM 图直接建立编译顺序及 direct/support 产物关系，不重放版本约束、图闭合和 core 选择；单文件头部的精确产物发现保持。源码图测试经真实 PM 生成输入，独立单文件继续覆盖原产物查找。
+- 全 workspace lint 与 macOS driver 110 项测试通过；Linux library 76 项通过，其中 musl 用例在显式准备对应 libunwind 后单独复跑。完整 CLI fixture 回归发现旧裸产物声明和开发 sysroot 资源需要迁移/更新，正在闭合。
+
 ## 验证记录
 
 - `cargo clippy --workspace --all-targets` 通过。
