@@ -16,7 +16,7 @@ import tomllib
 from collections import Counter
 from pathlib import Path
 
-from .cores import prepare_class_core, prepare_test_core
+from .cores import prepare_class_core, prepare_inheritance_core, prepare_test_core
 from .discovery import discover
 from .model import ConfigurationError, EnvironmentError
 from .suite import run_suite
@@ -104,8 +104,12 @@ def environment(repo, work, fixtures, args):
         import ctypes
 
         missing_file = ctypes.FormatError(2).strip()
+        directory_error = 5
+        output_directory = ctypes.FormatError(directory_error).strip()
     else:
         missing_file = os.strerror(errno.ENOENT)
+        directory_error = errno.EISDIR
+        output_directory = os.strerror(directory_error)
     cache = Path(
         args.cache_dir or os.environ.get("SCOOP_CACHE_DIR") or repo / "target/fixture-cache"
     ).resolve()
@@ -117,12 +121,14 @@ def environment(repo, work, fixtures, args):
         "sysroot": str(sysroot),
         "test_core": str(work / "test-core"),
         "class_core": str(work / "class-core"),
+        "inheritance_core": str(work / "inheritance-core"),
         "target": target,
         "llvm_target": target,
         "target_profile": TARGET_PROFILES[target],
         "symbol_prefix": "_" if target == "aarch64-apple-darwin" else "",
         "errno_eloop": errno.ELOOP,
         "file_not_found_error": f"{missing_file} (os error 2)",
+        "directory_write_error": f"{output_directory} (os error {directory_error})",
         "python": sys.executable,
         "compile_args": ["--target", target],
         "cc_args": [],
@@ -234,6 +240,8 @@ def environment(repo, work, fixtures, args):
         prepare_test_core(repo, work, sysroot)
     if any("${class_core}" in json.dumps(fixture.data) for fixture in applicable):
         prepare_class_core(repo, work, sysroot)
+    if any("${inheritance_core}" in json.dumps(fixture.data) for fixture in applicable):
+        prepare_inheritance_core(repo, work, sysroot)
     cache.mkdir(parents=True, exist_ok=True)
     return common
 

@@ -1,4 +1,4 @@
-"""Prepare the two unchanged core source sets used by many language fixtures."""
+"""Prepare shared core source sets used by ordinary language fixtures."""
 
 import shutil
 
@@ -46,4 +46,19 @@ def prepare_class_core(repo, work, sysroot):
         text = path.read_text(encoding="utf-8")
         if text.count(old) != 1:
             raise ValueError(f"{path}: expected one class-fixture replacement: {old!r}")
-        path.write_text(text.replace(old, new), encoding="utf-8")
+        path.write_text(text.replace(old, new), encoding="utf-8", newline="\n")
+
+
+def prepare_inheritance_core(repo, work, sysroot):
+    destination = work / "inheritance-core"
+    if destination.exists():
+        return
+    prepare_class_core(repo, work, sysroot)
+    shutil.copytree(work / "class-core", destination, symlinks=True)
+    source = destination / "src/user_class.scoop"
+    parent = repo / "tests/fixtures/language/imported-classes/core-inheritance-provider.scoop"
+    source.write_text(
+        source.read_text(encoding="utf-8") + parent.read_text(encoding="utf-8"),
+        encoding="utf-8",
+        newline="\n",
+    )

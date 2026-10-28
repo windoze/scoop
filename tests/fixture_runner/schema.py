@@ -69,6 +69,7 @@ BUILTINS = {
     "sysroot",
     "test_core",
     "class_core",
+    "inheritance_core",
     "cache",
     "scoop",
     "scoopc",
@@ -93,6 +94,7 @@ BUILTINS = {
     "symbol_prefix",
     "errno_eloop",
     "file_not_found_error",
+    "directory_write_error",
     "python",
 }
 

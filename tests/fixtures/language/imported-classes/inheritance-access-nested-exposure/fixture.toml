@@ -1,56 +1,18 @@
 schema = 1
 name = "imported-class-inheritance-access-nested-exposure"
-inputs = ["../support/stage3_test.scoop", "../core-provider.scoop", "../core-inheritance-provider.scoop", "../core-cast-direct.scoop", "../core-arithmetic-direct.scoop", "../provider.scoop", "../inheritance-provider.scoop", "../inheritance-access-provider.scoop", "class-provider", "inheritance-access-nested-exposure", "../inheritance-access-nested-exposure.scoop"]
+inputs = ["../provider.scoop", "../inheritance-provider.scoop", "../inheritance-access-provider.scoop", "class-provider", "inheritance-access-nested-exposure", "../inheritance-access-nested-exposure.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["imported-classes", "core-rebuild", "negative", "language"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
+tags = ["imported-classes", "negative", "language"]
 
 [[steps]]
-name = "prepare_core"
-files = [
-  {"copy" = {"from" = "${sysroot}/src/scoop.core", "to" = "${work}/core-source"}},
-  {"copy" = {"from" = "${fixture}/../support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
-  {"mkdir" = {"path" = "${work}/artifacts"}},
-]
-
-[[steps]]
-name = "original_core"
-argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/core-source", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-original_core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/original-core.slib"]
+name = "core"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${inheritance_core}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-
-[[steps]]
-name = "read_core-provider"
-await_file = "${fixture}/../core-provider.scoop"
-
-[[steps]]
-name = "read_core-inheritance-provider"
-await_file = "${fixture}/../core-inheritance-provider.scoop"
-
-[[steps]]
-name = "read_cast"
-await_file = "${fixture}/../core-cast-direct.scoop"
-
-[[steps]]
-name = "read_arithmetic"
-await_file = "${fixture}/../core-arithmetic-direct.scoop"
-
-[[steps]]
-name = "modify_core"
-files = [{"write" = {"path" = "${work}/core-source/src/user_class.scoop", "data" = "${read_core-provider.bytes}${read_core-inheritance-provider.bytes}"}}, {"replace" = {"path" = "${work}/core-source/src/integer_long.scoop", "old" = "    Equals<Long>, ToString, Hash {", "new" = "    Equals<Long>, ToString, Hash, RebuiltReadable {\n    public override fun read(): Long = this + stage3CoreAnswer() - 43"}}, {"replace" = {"path" = "${work}/core-source/src/stage3_test.scoop", "old" = "= 42", "new" = "= 43"}}, {"replace" = {"path" = "${work}/core-source/src/throwable.scoop", "old" = "public class ClassCastException public constructor() : Exception(Some(\"invalid cast\"))\n", "new" = "${read_cast.bytes}"}}, {"replace" = {"path" = "${work}/core-source/src/throwable.scoop", "old" = "public class ArithmeticException public constructor() : Exception(Some(\"arithmetic error\"))\n", "new" = "${read_arithmetic.bytes}"}}]
-
-[[steps]]
-name = "rebuilt_core"
-argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/core-source", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-rebuilt_core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
-exit = 0
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = []
-checks = [{"actual" = "${rebuilt_core.result.root.artifact_fingerprint}", "not_equals" = "${original_core.result.root.artifact_fingerprint}"}]
 
 [[steps]]
 name = "read_provider"

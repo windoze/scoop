@@ -117,7 +117,7 @@ PTY fixture 声明 `tools = ["scoop", "scoopc", "terminal-host"]`，以普通 ar
 `SCOOP_TEST_PAIRED_TERMINAL_HOST`、`target/debug/terminal-host`。
 runner 仅在选中用例需要时检查该可执行文件，不自动构建工具。
 `${step.result.output}` 等引用前一步实际 JSON；数组使用 `.0`，`.length` 取长度。
-路径的 `.canonical` 按宿主解析绝对路径（Windows 包含 verbatim 前缀），也可表示缺失输入的诊断路径；`.filename` 返回工具或文件的末级名称。`${file_not_found_error}` 保存宿主的文件不存在错误文本，包含系统本地化和 OS error 编号。
+路径的 `.canonical` 按宿主解析绝对路径（Windows 包含 verbatim 前缀），也可表示缺失输入的诊断路径；`.filename` 返回工具或文件的末级名称。`${file_not_found_error}` 与 `${directory_write_error}` 分别保存宿主的文件不存在、向目录写文件的错误文本，包含系统本地化和 OS error 编号。
 
 文本或 bytes 的 `.hex` 返回十六进制字节表示；文本使用文件系统编码并保留原始字节，
 可组合 `${work.hex}2fff` 这类期望来比较 JSON 中的非 UTF-8 路径。字典的 `hex` 字段仍按普通字段读取。
@@ -189,6 +189,8 @@ canonical source、span、code、message 或 notes。stdout/stderr 仍严格比�
 `${class_core}` 同样共享导入类用例已有的固定 core 声明（RebuiltReadable、直接异常基类
 和辅助值 43）。这些普通语言用例只消费该输入；core 更新前后的比较由 rebuilt-core
 与需要不同 core 声明的专测覆盖，不在每个类规则中重复两次冷构建。
+`${inheritance_core}` 在同一固定输入上加入 `RebuiltParent`，供继承规则用例共享。
+`imported-class-inheritance-core` 保留真实修改 core 后重新编译、比较产物和运行 consumer 的覆盖。
 `normalize` 的公共规则为 `paths`、`newlines`、`native-digests` 和 `native-link-plan`。
 `native-link-plan` 只允许用于显式 snapshot：要求完整 `program-link v3` 的唯一 section
 边界，比较 `link inputs:` 到 `startup object references:` 之前的原生链接区段。
