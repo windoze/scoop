@@ -172,3 +172,7 @@ W3 首批基础类型已实现：OsString 的显式 UTF-16 转换使用 WTF-8，
 Path 已按目标区分 Windows 与 POSIX 词法：盘符相对、当前盘 rooted、UNC 与 namespace 前缀分别处理，parent／components 不越过前缀，normalize 不改写 verbatim 名称。向 namespace base 连接普通 child 时将其分隔符写成反斜杠，保留 dot 组件。OperatingSystem 增加 Windows，纯目标识别从系统查询中分离；原 POSIX 路径测试继续按目标选择。
 
 上述临时 Cone 加入实际路径实现与 Windows 测试后，三个 target 各 5 个容器／21 项测试全部通过，包含中文 UNC、非配对 surrogate 名称、原始路径比较与混合分隔符。Scoop／C 格式化和三环境目标识别 C 的严格告警检查通过。POSIX 路径运行回归留待完整本地 Windows 实现之后的远端阶段；完整 platform 和协程 GC 用例仍未宣布通过。
+
+runtime 的私有 platform primitives 改用 `scoop_runtime_platform_` 函数前缀，修复与普通 platform 库的线程／同步 native 接口重名且签名不同的问题；对象布局与公开 runtime ABI 不变。全部实际调用方和原生测试已同步，C 格式化、三个环境的严格编译及四项 Windows runtime 组件测试通过。
+
+三个 target 的普通／GC-stress runtime 已按实际源码重新准备；`parallel-threads` 与 `roots-gc-context` 正式 fixture 各目标通过 4 个变体／26 个进程步骤。实际 platform 线程与同步源码在临时 Cone 中和 runtime 一起链接运行通过，确认两套接口可以共存；该子集验证仍不代表完整 platform 已发布。

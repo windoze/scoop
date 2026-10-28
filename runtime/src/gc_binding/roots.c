@@ -20,13 +20,13 @@ _Noreturn void scoop_gc_roots_fatal(const char *message) {
 }
 
 void scoop_gc_roots_lock(void) {
-    if (scoop_platform_mutex_lock(&roots_lock) != 0) {
+    if (scoop_runtime_platform_mutex_lock(&roots_lock) != 0) {
         scoop_gc_roots_fatal("failed to lock the root registry");
     }
 }
 
 void scoop_gc_roots_unlock(void) {
-    if (scoop_platform_mutex_unlock(&roots_lock) != 0) {
+    if (scoop_runtime_platform_mutex_unlock(&roots_lock) != 0) {
         scoop_gc_roots_fatal("failed to unlock the root registry");
     }
 }

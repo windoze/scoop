@@ -117,9 +117,9 @@ int wmain(int argc, uint16_t **argv) {
     assert(name != NULL);
     ScoopPlatformThread threads[4];
     for (uintptr_t index = 0; index < 4; ++index)
-        assert(scoop_platform_thread_create(&threads[index], worker, (void *)index) == 0);
+        assert(scoop_runtime_platform_thread_create(&threads[index], worker, (void *)index) == 0);
     for (unsigned index = 0; index < 4; ++index)
-        assert(scoop_platform_thread_join(threads[index]) == 0);
+        assert(scoop_runtime_platform_thread_join(threads[index]) == 0);
     assert(_configthreadlocale(0) == _DISABLE_PER_THREAD_LOCALE);
     assert(strcmp(setlocale(LC_NUMERIC, NULL), name) == 0);
     free(name);

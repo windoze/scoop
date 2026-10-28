@@ -8,12 +8,12 @@ extern double scoop_gdtoa_strtod(const char *text, char **end);
 static ScoopPlatformMutex locks[2] = {SCOOP_PLATFORM_MUTEX_INIT, SCOOP_PLATFORM_MUTEX_INIT};
 
 void scoop_gdtoa_lock(unsigned index) {
-    if (scoop_platform_mutex_lock(&locks[index]) != 0)
+    if (scoop_runtime_platform_mutex_lock(&locks[index]) != 0)
         scoop_shape_fatal("cannot lock the numeric parser");
 }
 
 void scoop_gdtoa_unlock(unsigned index) {
-    if (scoop_platform_mutex_unlock(&locks[index]) != 0)
+    if (scoop_runtime_platform_mutex_unlock(&locks[index]) != 0)
         scoop_shape_fatal("cannot unlock the numeric parser");
 }
 

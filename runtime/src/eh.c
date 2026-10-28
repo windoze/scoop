@@ -24,13 +24,13 @@ static _Noreturn void scoop_eh_state_error(const char *reason) {
 }
 
 static void scoop_eh_lock_active_records(void) {
-    if (scoop_platform_mutex_lock(&active_records_lock) != 0) {
+    if (scoop_runtime_platform_mutex_lock(&active_records_lock) != 0) {
         scoop_eh_state_error("failed to lock the active record registry");
     }
 }
 
 static void scoop_eh_unlock_active_records(void) {
-    if (scoop_platform_mutex_unlock(&active_records_lock) != 0) {
+    if (scoop_runtime_platform_mutex_unlock(&active_records_lock) != 0) {
         scoop_eh_state_error("failed to unlock the active record registry");
     }
 }

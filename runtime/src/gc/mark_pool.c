@@ -17,9 +17,9 @@ void scoop_gc_mark_notify_work(void) {
     if (scoop_gc_marker.active_workers == 1) {
         return;
     }
-    scoop_platform_mutex_lock(&scoop_gc_marker.lock);
-    scoop_platform_condition_broadcast(&scoop_gc_marker.work_available);
-    scoop_platform_mutex_unlock(&scoop_gc_marker.lock);
+    scoop_runtime_platform_mutex_lock(&scoop_gc_marker.lock);
+    scoop_runtime_platform_condition_broadcast(&scoop_gc_marker.work_available);
+    scoop_runtime_platform_mutex_unlock(&scoop_gc_marker.lock);
 }
 
 static void run_worker(ScoopGcMarkWorker *worker, size_t task_limit) {
@@ -29,14 +29,14 @@ static void run_worker(ScoopGcMarkWorker *worker, size_t task_limit) {
         ScoopGcMarkTask task;
         bool found = scoop_gc_mark_queue_take(worker, &task);
         if (!found) {
-            scoop_platform_mutex_lock(&scoop_gc_marker.lock);
+            scoop_runtime_platform_mutex_lock(&scoop_gc_marker.lock);
             /* Search again under the wake lock so publication cannot be missed. */
             while (atomic_load_explicit(&scoop_gc_marker.pending, memory_order_acquire) != 0 &&
                    !(found = scoop_gc_mark_queue_take(worker, &task))) {
-                scoop_platform_condition_wait(&scoop_gc_marker.work_available,
-                                              &scoop_gc_marker.lock);
+                scoop_runtime_platform_condition_wait(&scoop_gc_marker.work_available,
+                                                      &scoop_gc_marker.lock);
             }
-            scoop_platform_mutex_unlock(&scoop_gc_marker.lock);
+            scoop_runtime_platform_mutex_unlock(&scoop_gc_marker.lock);
             if (!found) {
                 break;
             }
@@ -66,10 +66,11 @@ static void run_worker(ScoopGcMarkWorker *worker, size_t task_limit) {
 static void *worker_main(void *context) {
     ScoopGcMarkWorker *worker = context;
     uint64_t observed = worker->initial_phase;
-    scoop_platform_mutex_lock(&scoop_gc_marker.lock);
+    scoop_runtime_platform_mutex_lock(&scoop_gc_marker.lock);
     for (;;) {
         while (!scoop_gc_marker.stopping && observed == scoop_gc_marker.phase) {
-            scoop_platform_condition_wait(&scoop_gc_marker.phase_changed, &scoop_gc_marker.lock);
+            scoop_runtime_platform_condition_wait(&scoop_gc_marker.phase_changed,
+                                                  &scoop_gc_marker.lock);
         }
         if (scoop_gc_marker.stopping) {
             break;
@@ -78,23 +79,23 @@ static void *worker_main(void *context) {
         if (worker->id >= scoop_gc_marker.phase_workers) {
             continue;
         }
-        scoop_platform_mutex_unlock(&scoop_gc_marker.lock);
+        scoop_runtime_platform_mutex_unlock(&scoop_gc_marker.lock);
         run_worker(worker, scoop_gc_marker.task_limit);
-        scoop_platform_mutex_lock(&scoop_gc_marker.lock);
+        scoop_runtime_platform_mutex_lock(&scoop_gc_marker.lock);
         scoop_gc_marker.finished_workers++;
-        scoop_platform_condition_signal(&scoop_gc_marker.finished);
+        scoop_runtime_platform_condition_signal(&scoop_gc_marker.finished);
     }
-    scoop_platform_mutex_unlock(&scoop_gc_marker.lock);
+    scoop_runtime_platform_mutex_unlock(&scoop_gc_marker.lock);
     return NULL;
 }
 
 static void stop_threads(void) {
-    scoop_platform_mutex_lock(&scoop_gc_marker.lock);
+    scoop_runtime_platform_mutex_lock(&scoop_gc_marker.lock);
     scoop_gc_marker.stopping = true;
-    scoop_platform_condition_broadcast(&scoop_gc_marker.phase_changed);
-    scoop_platform_mutex_unlock(&scoop_gc_marker.lock);
+    scoop_runtime_platform_condition_broadcast(&scoop_gc_marker.phase_changed);
+    scoop_runtime_platform_mutex_unlock(&scoop_gc_marker.lock);
     for (size_t index = 1; index <= scoop_gc_marker.created_workers; index++) {
-        if (scoop_platform_thread_join(scoop_gc_marker.workers[index].thread) != 0) {
+        if (scoop_runtime_platform_thread_join(scoop_gc_marker.workers[index].thread) != 0) {
             heap_fatal("failed to join a GC marker");
         }
     }
@@ -120,7 +121,7 @@ static void initialize(void) {
     for (size_t index = 0; index < GC_MARK_MAX_WORKERS; index++) {
         ScoopGcMarkWorker *worker = &scoop_gc_marker.workers[index];
         worker->id = index;
-        if (scoop_platform_mutex_init(&worker->queue.lock) != 0) {
+        if (scoop_runtime_platform_mutex_init(&worker->queue.lock) != 0) {
             heap_fatal("failed to initialize a mark queue");
         }
     }
@@ -141,7 +142,7 @@ void scoop_gc_mark_pool_prepare(bool minor) {
         for (size_t index = 1; index < count; index++) {
             ScoopGcMarkWorker *worker = &scoop_gc_marker.workers[index];
             worker->initial_phase = scoop_gc_marker.phase;
-            if (scoop_platform_thread_create(&worker->thread, worker_main, worker) != 0) {
+            if (scoop_runtime_platform_thread_create(&worker->thread, worker_main, worker) != 0) {
                 stop_threads();
                 scoop_gc_marker.configured_workers = count = 1;
                 scoop_gc_heap_state.metrics.worker_creation_failures++;
@@ -150,27 +151,27 @@ void scoop_gc_mark_pool_prepare(bool minor) {
             scoop_gc_marker.created_workers++;
         }
     }
-    scoop_platform_mutex_lock(&scoop_gc_marker.lock);
+    scoop_runtime_platform_mutex_lock(&scoop_gc_marker.lock);
     scoop_gc_marker.active_workers = count;
-    scoop_platform_mutex_unlock(&scoop_gc_marker.lock);
+    scoop_runtime_platform_mutex_unlock(&scoop_gc_marker.lock);
 }
 
 void scoop_gc_mark_pool_run(size_t task_limit) {
-    scoop_platform_mutex_lock(&scoop_gc_marker.lock);
+    scoop_runtime_platform_mutex_lock(&scoop_gc_marker.lock);
     scoop_gc_marker.task_limit = task_limit;
     /* Preparing another collection must not add delayed inactive workers to
      * a phase which has already completed. Publish membership with the phase. */
     scoop_gc_marker.phase_workers = scoop_gc_marker.active_workers;
     scoop_gc_marker.finished_workers = 0;
     scoop_gc_marker.phase++;
-    scoop_platform_condition_broadcast(&scoop_gc_marker.phase_changed);
-    scoop_platform_mutex_unlock(&scoop_gc_marker.lock);
+    scoop_runtime_platform_condition_broadcast(&scoop_gc_marker.phase_changed);
+    scoop_runtime_platform_mutex_unlock(&scoop_gc_marker.lock);
     run_worker(&scoop_gc_marker.workers[0], task_limit);
-    scoop_platform_mutex_lock(&scoop_gc_marker.lock);
+    scoop_runtime_platform_mutex_lock(&scoop_gc_marker.lock);
     while (scoop_gc_marker.finished_workers + 1 != scoop_gc_marker.phase_workers) {
-        scoop_platform_condition_wait(&scoop_gc_marker.finished, &scoop_gc_marker.lock);
+        scoop_runtime_platform_condition_wait(&scoop_gc_marker.finished, &scoop_gc_marker.lock);
     }
-    scoop_platform_mutex_unlock(&scoop_gc_marker.lock);
+    scoop_runtime_platform_mutex_unlock(&scoop_gc_marker.lock);
 }
 
 void scoop_gc_shutdown(void) {
@@ -186,7 +187,7 @@ void scoop_gc_shutdown(void) {
         free(worker->blocks);
         worker->queue.tasks = NULL;
         worker->blocks = NULL;
-        scoop_platform_mutex_destroy(&worker->queue.lock);
+        scoop_runtime_platform_mutex_destroy(&worker->queue.lock);
     }
     scoop_gc_marker.initialized = false;
 }

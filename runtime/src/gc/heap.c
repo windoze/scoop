@@ -23,13 +23,13 @@ _Noreturn void heap_fatal(const char *message) {
 }
 
 void lock_heap(void) {
-    if (scoop_platform_mutex_lock(&heap_lock) != 0) {
+    if (scoop_runtime_platform_mutex_lock(&heap_lock) != 0) {
         heap_fatal("failed to lock the heap");
     }
 }
 
 void unlock_heap(void) {
-    if (scoop_platform_mutex_unlock(&heap_lock) != 0) {
+    if (scoop_runtime_platform_mutex_unlock(&heap_lock) != 0) {
         heap_fatal("failed to unlock the heap");
     }
 }
@@ -94,8 +94,8 @@ void scoop_gc_heap_init(void) {
         char *end;
         errno = 0;
         unsigned long long mib = strtoull(nursery, &end, 10);
-        if (nursery[0] < '0' || nursery[0] > '9' || *end != '\0' || errno == ERANGE ||
-            mib == 0 || mib > SIZE_MAX / GC_NURSERY_MIN_CAPACITY) {
+        if (nursery[0] < '0' || nursery[0] > '9' || *end != '\0' || errno == ERANGE || mib == 0 ||
+            mib > SIZE_MAX / GC_NURSERY_MIN_CAPACITY) {
             heap_fatal("SCOOP_GC_NURSERY_MAX_MIB must be a positive representable MiB count");
         }
         scoop_gc_heap_state.nursery_limit = (size_t)mib * GC_NURSERY_MIN_CAPACITY;

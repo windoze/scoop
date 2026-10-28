@@ -161,9 +161,9 @@ int wmain(void) {
     for (size_t i = 0; i < stackmaps.record_count; ++i)
         assert(platform->managed_frames->validate_record(&stackmaps.records[i], &error));
     ScoopPlatformThread worker;
-    assert(scoop_platform_thread_create(&worker, run_probes, NULL) == 0);
+    assert(scoop_runtime_platform_thread_create(&worker, run_probes, NULL) == 0);
     run_probes(NULL);
-    assert(scoop_platform_thread_join(worker) == 0);
+    assert(scoop_runtime_platform_thread_join(worker) == 0);
     reject_bad_roots();
     scoop_stackmap_dispose_index(&stackmaps);
     platform->metadata_images->dispose_images(&images);

@@ -661,6 +661,8 @@ worker pool 的每次 phase 发布在原锁内固定该阶段的参与数量，w
 
 runtime 使用 platform 层提供当前实际需要的 mutex、condition、once、worker create/join、对齐分配和计时操作。Darwin／Linux 使用 pthread 与 POSIX；Windows 使用 SRW exclusive lock、condition variable、InitOnce、所选 CRT 的 `_beginthreadex` 和系统 thread handle，不要求额外 pthread DLL。condition wait 原子释放并重新取得锁，调用者继续循环检查条件；停稳轮询的有限等待按 OS 定时粒度向上取整，不通过修改全局计时器分辨率维持 Unix 的微秒数值。内部对齐分配必须由同一平台配对释放；单调时间和线程 CPU 时间分别测量，不将 wall time 当作 CPU time。上述操作不改变现有 GC 协调、TLS attachment 或 runtime ABI。
 
+这些内部 primitives 的 C 函数使用 `scoop_runtime_platform_` 前缀，与普通 `scoop.platform` 库的 `scoop_platform_` native 接口区分。二者可同处一个 executable，不共享私有同步对象布局或调用签名；内部名称不属于公开 runtime ABI。
+
 collector 持有 heap／roots 的独占阶段后，发布不可变的 region、对象起点、精确大小、pin 和 immortal 对象视图。marker 使用明确的 STW reader／原子 marker 接口，不要求各 worker 重新取得 coordinator 持有的锁。每个参与 block 在本轮取得临时统计索引，worker 私有计数按该索引归并；它不是持久对象身份，也不进入产物或 generated-code ABI。存活清单以稳定的分块存储保留对象指针，任务发布后不得由扩容使其失效。
 
 marker 可以在本次停顿内复用已经经页表定位的普通 region：每个 worker 私有保存有限数量的地址范围与 region 指针，命中完整范围后直接计算 block。首次查询、大对象和未命中地址仍使用原页表；命中只省去地址映射查询，对齐、活动 block、精确对象起点及首次标记的大小／scan 检查保持。缓存不含 managed roots，不保活对象，不进入对象头、产物或 generated-code ABI；每次开始标记及增量周期恢复下一片时，在发布 roots／任务前清空全部参与 worker 的缓存，不能跨 mutator 执行、搬迁或 mapping 退役复用旧地址与元数据。

@@ -16,7 +16,7 @@ _Noreturn void scoop_gc_mutator_fatal(const char *message) {
 
 ScoopGcMutator *scoop_gc_mutator_create(void) {
     void *storage =
-        scoop_platform_aligned_allocate(_Alignof(ScoopGcMutator), sizeof(ScoopGcMutator));
+        scoop_runtime_platform_aligned_allocate(_Alignof(ScoopGcMutator), sizeof(ScoopGcMutator));
     if (storage == NULL) {
         scoop_gc_mutator_fatal("out of memory creating GC mutator state");
     }
@@ -55,5 +55,5 @@ ScoopGcAllocationTotals scoop_gc_detached_allocations_locked(void) { return deta
 void scoop_gc_mutator_detach(ScoopGcMutator *mutator) {
     scoop_gc_add_mutator_totals(mutator, &detached_allocations);
     scoop_rt_allocation_context = NULL;
-    scoop_platform_aligned_free(mutator);
+    scoop_runtime_platform_aligned_free(mutator);
 }

@@ -29,22 +29,23 @@ typedef pthread_t ScoopPlatformThread;
 #endif
 
 /* Zero denotes success. Timed waits report ETIMEDOUT after reacquiring the lock. */
-int scoop_platform_mutex_init(ScoopPlatformMutex *mutex);
-int scoop_platform_mutex_lock(ScoopPlatformMutex *mutex);
-int scoop_platform_mutex_unlock(ScoopPlatformMutex *mutex);
-void scoop_platform_mutex_destroy(ScoopPlatformMutex *mutex);
-int scoop_platform_condition_wait(ScoopPlatformCondition *condition, ScoopPlatformMutex *mutex);
-int scoop_platform_condition_wait_for(ScoopPlatformCondition *condition, ScoopPlatformMutex *mutex,
-                                      uint32_t microseconds);
-int scoop_platform_condition_signal(ScoopPlatformCondition *condition);
-int scoop_platform_condition_broadcast(ScoopPlatformCondition *condition);
-int scoop_platform_once(ScoopPlatformOnce *once, void (*initialize)(void));
-int scoop_platform_thread_create(ScoopPlatformThread *thread, void *(*entry)(void *),
-                                 void *argument);
-int scoop_platform_thread_join(ScoopPlatformThread thread);
-void *scoop_platform_aligned_allocate(size_t alignment, size_t size);
-void scoop_platform_aligned_free(void *pointer);
-bool scoop_platform_monotonic_ns(uint64_t *value);
-bool scoop_platform_thread_cpu_ns(uint64_t *value);
+int scoop_runtime_platform_mutex_init(ScoopPlatformMutex *mutex);
+int scoop_runtime_platform_mutex_lock(ScoopPlatformMutex *mutex);
+int scoop_runtime_platform_mutex_unlock(ScoopPlatformMutex *mutex);
+void scoop_runtime_platform_mutex_destroy(ScoopPlatformMutex *mutex);
+int scoop_runtime_platform_condition_wait(ScoopPlatformCondition *condition,
+                                          ScoopPlatformMutex *mutex);
+int scoop_runtime_platform_condition_wait_for(ScoopPlatformCondition *condition,
+                                              ScoopPlatformMutex *mutex, uint32_t microseconds);
+int scoop_runtime_platform_condition_signal(ScoopPlatformCondition *condition);
+int scoop_runtime_platform_condition_broadcast(ScoopPlatformCondition *condition);
+int scoop_runtime_platform_once(ScoopPlatformOnce *once, void (*initialize)(void));
+int scoop_runtime_platform_thread_create(ScoopPlatformThread *thread, void *(*entry)(void *),
+                                         void *argument);
+int scoop_runtime_platform_thread_join(ScoopPlatformThread thread);
+void *scoop_runtime_platform_aligned_allocate(size_t alignment, size_t size);
+void scoop_runtime_platform_aligned_free(void *pointer);
+bool scoop_runtime_platform_monotonic_ns(uint64_t *value);
+bool scoop_runtime_platform_thread_cpu_ns(uint64_t *value);
 
 #endif

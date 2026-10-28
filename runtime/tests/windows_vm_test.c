@@ -71,8 +71,8 @@ int wmain(int argc, uint16_t **argv) {
     (void)argv;
     grow_stack(16);
     ScoopPlatformThread thread;
-    assert(scoop_platform_thread_create(&thread, worker, NULL) == 0);
-    assert(scoop_platform_thread_join(thread) == 0);
+    assert(scoop_runtime_platform_thread_create(&thread, worker, NULL) == 0);
+    assert(scoop_runtime_platform_thread_join(thread) == 0);
     size_t page = vm->page_size();
     assert(page >= 4096 && vm->processor_count() != 0);
     ScoopPlatformError error = {0};

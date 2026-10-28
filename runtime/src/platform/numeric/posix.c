@@ -20,7 +20,7 @@ static void initialize_number_locale(void) {
 }
 
 static locale_t numeric_locale(void) {
-    if (scoop_platform_once(&locale_once, initialize_number_locale) != 0)
+    if (scoop_runtime_platform_once(&locale_once, initialize_number_locale) != 0)
         scoop_shape_fatal("cannot initialize the C numeric locale");
     return number_locale;
 }

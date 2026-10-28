@@ -36,7 +36,7 @@ typedef struct StartupMetrics {
 
 static uint64_t startup_time_ns(void) {
     uint64_t value;
-    if (!scoop_platform_monotonic_ns(&value)) {
+    if (!scoop_runtime_platform_monotonic_ns(&value)) {
         scoop_startup_fatal("cannot measure startup time");
     }
     return value;
