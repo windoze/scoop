@@ -9,20 +9,21 @@ typedef struct {
 
 static void execute_next(ScoopIoWork *native) {
     DirectoryNext *request = (void *)native;
-    const char *name = scoop_platform_directory_next(request->directory->handle);
-    int saved_errno = errno;
+    ScoopPlatformDirectoryEntry entry =
+        scoop_platform_directory_owner_next(request->directory->handle);
     ScoopIoEvent *event = &request->work.completion.event;
-    if (!name) {
-        event->kind = saved_errno ? SCOOP_IO_POSIX_ERROR : SCOOP_IO_EOF;
-        event->code = saved_errno;
+    if (!entry.name) {
+        event->kind = SCOOP_IO_EOF;
+        scoop_io_platform_error(event, entry.error);
         return;
     }
-    char *copy = strdup(name);
+    ScoopIoChar *copy = calloc((size_t)entry.length + 1, sizeof(*copy));
     if (!copy) {
         event->kind = SCOOP_IO_POSIX_ERROR;
         event->code = ENOMEM;
         return;
     }
+    memcpy(copy, entry.name, (size_t)entry.length * sizeof(*copy));
     event->kind = SCOOP_IO_DIRECTORY_NAME;
     event->resource = copy;
 }
@@ -44,4 +45,4 @@ int scoop_io_directory_next(ScoopIoDirectory *directory, int64_t id) {
     return status;
 }
 
-void scoop_io_directory_name_free(char *name) { free(name); }
+void scoop_io_directory_name_free(ScoopIoChar *name) { free(name); }

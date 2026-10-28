@@ -1,6 +1,5 @@
 package scoop.asyncio
 
-import scoop.platform.fs.copyNativeString
 import scoop.platform.system.OsString
 
 internal fun takeDirectoryName(pointer: Ptr<Unit>): OsString {
@@ -8,7 +7,7 @@ internal fun takeDirectoryName(pointer: Ptr<Unit>): OsString {
     {
         val name = pointer.cast<Byte>()
         try {
-            return copyNativeString(name)
+            return copyIoString(name)
         }
         finally {
             nativeDirectoryNameFree(name)

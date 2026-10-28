@@ -121,6 +121,9 @@ path = "native/common/paths.c"
 path = "native/common/resolve.c"
 
 [[native.sources]]
+path = "native/common/strings.c"
+
+[[native.sources]]
 path = "native/darwin/endpoint.c"
 when = { os = "darwin" }
 

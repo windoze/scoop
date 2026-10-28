@@ -131,6 +131,8 @@ Windows 的单次数据请求通过 CancelIoEx 撤销，真实 packet 到达后�
 
 resolve 保留 OsString 原始名称字节，port 检查 0..65535，family None 表示双族。使用后端 native worker 调用 platform 的 getaddrinfo helper，保留 AddressResolution code 和 EAI_SYSTEM 的立即 errno；不执行额外 IDNA 转换。无效内嵌 NUL 在提交 worker 前报参数错误。
 
+Windows 的 DNS、路径与目录请求在提交时取得独立 UTF-16 副本，保留非配对 surrogate；POSIX 保持原始字节。DNS worker 复用 platform 的 GetAddrInfoW／FreeAddrInfoW，地址解码失败保留 Winsock。路径修改及目录 open／next／close 复用 platform 的 wide helper 和同次 Win32 error，目录名称按实际 UTF-16 长度复制后交付。已开始的 worker 不因取消提前释放名称或句柄，迟到结果仍按第 3 节消费／清理；排队取消不执行 OS 操作。
+
 ```scoop
 public interface AsyncFile : AsyncByteSource, AsyncByteSink, AsyncCloseable {
     public suspend fun metadata(): FileMetadata

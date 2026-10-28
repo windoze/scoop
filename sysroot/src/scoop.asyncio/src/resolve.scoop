@@ -1,6 +1,5 @@
 package scoop.asyncio
 
-import scoop.platform.fs.withNativeString
 import scoop.platform.net.*
 import scoop.platform.system.*
 
@@ -29,10 +28,10 @@ internal suspend fun resolveOnLoop(
                     native,
                     id -> @Unsafe
                     {
-                        return@LoopOperation host.withNativeString {
+                        return@LoopOperation host.withIoString {
                             pointer -> @Unsafe
                             {
-                                return@withNativeString nativeStatus(
+                                return@withIoString nativeStatus(
                                     id,
                                     nativeResolve(native, id, pointer, port, selector)
                                 )
@@ -80,9 +79,9 @@ private fun resolutionResult(host: OsString, result: IoResult, selected: Throwab
                 @Unsafe
                 {
                     while (current != None) {
-                        val(address, status) = nativeResolveAddress(current!!)
-                        if (address.family == 0) {
-                            val error = NativeError(NativeErrorDomain.PosixErrno, status)
+                        val result = nativeResolveAddress(current!!)
+                        if (result.status.code != 0) {
+                            val error = nativeStatusError(result.status)
                             throw PlatformException(
                                 "resolve address",
                                 error.kind,
@@ -90,7 +89,7 @@ private fun resolutionResult(host: OsString, result: IoResult, selected: Throwab
                                 Some(host)
                             )
                         }
-                        values.add(ioSocketAddress(address))
+                        values.add(ioSocketAddress(result.address))
                         current = nativeResolveNext(current!!)
                     }
                 }
@@ -115,18 +114,3 @@ private fun resolutionResult(host: OsString, result: IoResult, selected: Throwab
         )
     }
 }
-
-@Extern(name = "scoop_io_resolve")
-private fun nativeResolve(loop: Ptr<Unit>, id: Long, host: Ptr<Byte>, port: Int, family: Int): Int
-
-@Extern(name = "scoop_io_work_cancel")
-internal fun nativeWorkCancel(loop: Ptr<Unit>, id: Long)
-
-@Extern(name = "scoop_platform_resolve_next")
-private fun nativeResolveNext(entry: Ptr<Unit>): Ptr<Unit>?
-
-@Extern(name = "scoop_platform_resolve_address", captureErrno = true)
-private fun nativeResolveAddress(entry: Ptr<Unit>): (IoAddress, Int)
-
-@Extern(name = "scoop_platform_resolve_free")
-private fun nativeResolveFree(head: Ptr<Unit>)

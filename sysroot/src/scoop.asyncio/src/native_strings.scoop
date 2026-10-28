@@ -1,0 +1,6 @@
+package scoop.asyncio
+
+import scoop.platform.fs.Path
+
+@Unsafe
+internal fun <R> Path.withIoPath(block: (Ptr<Byte>) -> R): R = toOsString().withIoString(block)

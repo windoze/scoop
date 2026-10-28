@@ -58,6 +58,10 @@ path = "native/windows/udp.c"
 when = { os = "windows" }
 
 [[native.sources]]
+path = "native/windows/paths.c"
+when = { os = "windows" }
+
+[[native.sources]]
 path = "native/host_darwin.c"
 when = { os = "darwin" }
 

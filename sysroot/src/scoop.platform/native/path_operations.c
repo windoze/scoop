@@ -1,5 +1,5 @@
 #define _GNU_SOURCE 1
-#include "file_handles.h"
+#include "paths.h"
 
 #ifdef _WIN32
 ScoopPlatformFileResult scoop_platform_path_mkdir_result(const void *path, int32_t mode) {

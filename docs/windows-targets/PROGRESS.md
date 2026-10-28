@@ -234,3 +234,7 @@ IOCP 基础组件已实现：每 loop 一个完成端口、原生收集线程和
 Windows TCP／UDP 已接入 ConnectEx、AcceptEx 和 Winsock overlapped 数据操作，地址查询用同次 domain／code 结果；POSIX 查询同步内部结果形状。请求在实际 IOCP packet 后退休，取消后的健康 socket 可继续使用；关闭等待两个方向完成，UDP 截断保留前缀与包边界。所有新 socket 不可继承，接收连接不预读业务数据，并在交付前更新 context。
 
 三个 target 的实际网络组件 Cone 各 1 个容器／7 项测试全部通过，覆盖 IPv4／IPv6、accept／read 取消后重用、双向传输、半关闭／EOF、待收发期间关闭、UDP pending／已排队截断、空包／超长失败，以及地址／datagram 的 C-layout 和 GC 期间 native buffer 借用；cl 与两个 MinGW CRT 的独立 native 探针通过。Scoop／C 格式化和三套 Clang／cl 严格检查通过；cl 优化编译发现的局部变量初始化告警已修复并复测。仍未发布完整 Windows asyncio；文件／目录／DNS、异步 TTY、host 运行和 POSIX 回归继续实施。
+
+DNS、路径修改和目录枚举现通过共享 worker 调用 platform 的 Windows helper；提交取得独立 UTF-16 副本，保留非配对 surrogate，完成同时带回原错误。目录名称不借用 platform 的枚举缓冲；DNS 地址解码去掉 errno 桥接并带回实际错误域。POSIX 沿同一普通生命周期和 byte string，已有 worker 测试屏障增加 SRW lock／condition variable 分支。
+
+三个 target 的实际 worker 组件 Cone 各 1 个容器／7 项测试全部通过，覆盖 surrogate／非 BMP 路径、mkdir／move／delete、Win32 错误、关闭目录后的名称快照、真实 worker 饱和下取消、输入副本、数字 IPv4／IPv6 DNS 与族不匹配，以及 GC／NUL 字符串边界。Scoop／C 格式化、三套 Clang／cl 严格检查及共享源码语义检查通过；cl 对既有测试屏障的 C flexible array 仅关闭 C4200。文件读写／控制／临时文件、异步 TTY、host 运行和完整 asyncio 验收继续实施，尚未开始远端验证。
