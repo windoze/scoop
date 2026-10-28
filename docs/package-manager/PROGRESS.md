@@ -92,6 +92,13 @@ PM 生成和维护 `Cone.lock`；`scoop` 消费锁定图及其本地投影，向
 - 默认 `scoop build/run` 在没有 lock 时自动调用 PM、成功生成 lock 后继续执行，无需手动 resolve；已有选择优先复用。首次构建/运行及 locked/frozen 缺锁拒绝分别验证，单文件模式保持独立。
 
 
+
+### 只读 metadata
+
+- `scoop pm metadata [--offline]` 返回与 prepare 相同的版本 1 项目模型，支持成员、用途、目标及本地输入选择；始终要求有效 lock，不生成或更新依赖选择。`--json` 错误保留现有结构化诊断。
+- 命中准备记录时直接复用；离线只使用已有 Git checkout / registry 源码目录，缺少时提示 fetch，不因本机已有 objects 或归档而隐式展开。普通 fetch 的离线展开能力保持，在线 metadata 可获取已锁定的缺少来源。
+- 本批提供 LSP 所需的只读接口；语言服务接入与 deps --why 仍待后续完成。
+
 ## 验证记录
 
 - `cargo clippy --workspace --all-targets` 通过。
@@ -110,4 +117,5 @@ PM 生成和维护 `Cone.lock`；`scoop` 消费锁定图及其本地投影，向
 - 本地工具批次：全 workspace lint 通过；两端 manifest 77 项、protocol 42 项、Scoop CLI（macOS 33 项、Linux 34 项）及 PM 基础 CLI 2 项通过。两端既有 8 组格式化 fixture 与新 workspace 工具用例通过，后者使用不可连接的 registry 和保留的 lock 验证纯本地操作；macOS 完整的 Cone cache/clean 用例也通过。新用例的版本要求已改为合同要求的完整 SemVer 后复跑闭合。
 - 文档混合来源补充：macOS/Linux 的绑定用例扩展为各 17 次实际调用，复用真实构建出的 `.slib` 与另一个上游版本的源码一起生成文档，验证独立 catalog、re-export 不错误连接以及全部本地链接；两端通过。
 - 编译器入口退役批次：全 workspace lint 通过；macOS/Linux 的请求与 CLI 15 项、底层 core/依赖 preflight 12 项及真实展开配置 child 用例通过。两端共 59 个相关文件 fixture 全部闭合（Linux 本批 273 次进程调用），覆盖首次 build/run 自动创建 lock、locked/frozen 缺锁拒绝、生产/测试隔离、core 自举、精确产物及 native/链接错误顺序；迁移中发现的旧声明和诊断期望已修正并仅复跑受影响用例。
+- metadata 批次：workspace lint 与两端 PM 34 项单元、2 项基础 CLI、16 项解析/准备场景通过。真实命令覆盖缺锁/陈旧 lock 拒绝、共享准备记录、保留 lock、Git objects-only 与 registry archives-only 的离线读取边界，以及显式 fetch 后读取和在线获取；源码、归档和工具保持在位。首轮复用断言的测试 sysroot 路径与实际 CLI 默认值不同，改为显式共同路径后闭合。
 - 原始日志与临时工作文件在仓库外。按阶段清理 `target/debug/incremental`，保留当前二进制与依赖构建结果。

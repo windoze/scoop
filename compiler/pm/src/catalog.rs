@@ -45,6 +45,8 @@ pub struct CatalogOptions {
     pub artifact_roots: Vec<PathBuf>,
     pub default_registry: Option<RegistryUrl>,
     pub offline: bool,
+    /// Metadata inspection must not materialize sources even from cached objects/archives.
+    pub local_sources_only: bool,
 }
 
 #[derive(Clone)]
@@ -211,13 +213,23 @@ impl<'a> Catalog<'a> {
         for candidate in solution.packages.values() {
             if let LockedSource::Registry { registry, .. } = &candidate.source {
                 let version = &self.versions[&(candidate.key(), candidate.choice())];
-                let cached = registry::fetch(
-                    &self.http,
-                    registry,
-                    &candidate.coordinate,
-                    version,
-                    self.options.offline,
-                )?;
+                let cached = if self.options.local_sources_only {
+                    registry::cached(self.cache, registry, &candidate.coordinate, version)?
+                        .ok_or_else(|| {
+                            PmError::new(format!(
+                                "sources for {} are not cached; run scoop pm fetch",
+                                candidate.coordinate
+                            ))
+                        })?
+                } else {
+                    registry::fetch(
+                        &self.http,
+                        registry,
+                        &candidate.coordinate,
+                        version,
+                        self.options.offline,
+                    )?
+                };
                 let member =
                     Workspace::packaged(cached.root, cached.manifest_text, cached.document)?;
                 self.packages.insert(

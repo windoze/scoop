@@ -7,6 +7,7 @@ use scoop_protocol::HostPathCarrier;
 use scoop_protocol::package::{PACKAGE_PROTOCOL_VERSION, PackageMemberV1, PackageMembersV1};
 
 mod deps;
+mod metadata;
 mod resolve;
 
 #[derive(Parser)]
@@ -27,6 +28,8 @@ enum Command {
     Members(MembersArgs),
     /// Read exact dependency graphs from Cone.lock without fetching or updating.
     Deps(deps::DepsArgs),
+    /// Return the locked local project model as versioned JSON without updating Cone.lock.
+    Metadata(metadata::MetadataArgs),
     /// Resolve selected dependency graphs and prepare their source packages.
     Resolve(resolve::ResolveArgs),
     /// Fetch the exact source packages from existing selected lock records.
@@ -57,7 +60,8 @@ struct MembersArgs {
 pub fn run() -> Result<(), (PmError, bool)> {
     let cli = Cli::parse();
     let machine = matches!(&cli.command, Command::Prepare { .. })
-        || matches!(&cli.command, Command::Members(args) if args.json);
+        || matches!(&cli.command, Command::Members(args) if args.json)
+        || matches!(&cli.command, Command::Metadata(args) if args.json());
     execute(cli).map_err(|error| (error, machine))
 }
 
@@ -66,6 +70,7 @@ fn execute(cli: Cli) -> PmResult<()> {
         Command::New { workspace } => create_workspace(&workspace),
         Command::Members(args) => members(args),
         Command::Deps(args) => deps::execute(args),
+        Command::Metadata(args) => metadata::execute(args),
         Command::Resolve(args) => resolve::execute(args, false, None, None),
         Command::Fetch(args) => resolve::execute(args, true, None, None),
         Command::Update(args) => resolve::update(args),

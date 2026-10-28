@@ -62,6 +62,20 @@ impl Locations {
     }
 }
 
+pub(crate) fn cached(
+    cache: &PackageCache,
+    registry: &RegistryUrl,
+    coordinate: &ConeCoordinate,
+    version: &RegistryVersion,
+) -> PmResult<Option<CachedPackage>> {
+    let locations = Locations::new(cache, registry, coordinate);
+    let package = locations.cached(&version.sha256)?;
+    if let Some(package) = &package {
+        same_publication(&package.metadata, version, &locations.source)?;
+    }
+    Ok(package)
+}
+
 pub fn fetch_locked(
     client: &RegistryClient<'_>,
     registry: &RegistryUrl,

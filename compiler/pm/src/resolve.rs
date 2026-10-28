@@ -52,6 +52,13 @@ pub struct ResolvedWorkspace {
 }
 
 pub fn resolve(request: ResolveRequest) -> PmResult<ResolvedWorkspace> {
+    resolve_with_sources(request, false)
+}
+
+pub(crate) fn resolve_with_sources(
+    request: ResolveRequest,
+    local_sources_only: bool,
+) -> PmResult<ResolvedWorkspace> {
     if request.locked && request.update.is_some() {
         return Err(PmError::new(
             "update cannot be combined with --locked/--frozen",
@@ -98,6 +105,7 @@ pub fn resolve(request: ResolveRequest) -> PmResult<ResolvedWorkspace> {
             .collect(),
         default_registry: config.registry,
         offline: request.offline,
+        local_sources_only,
     };
     let mut roots = Vec::new();
     let mut catalog = Catalog::new(&cache, &workspace, &ResolvePolicy::default(), options);

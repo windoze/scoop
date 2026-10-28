@@ -21,6 +21,19 @@ use crate::{
 mod record;
 
 pub fn prepare(request: PrepareRequestV1) -> PmResult<PreparedWorkspaceV1> {
+    prepare_with_sources(request, false)
+}
+
+pub fn metadata(mut request: PrepareRequestV1) -> PmResult<PreparedWorkspaceV1> {
+    request.locked = true;
+    let local_sources_only = request.offline;
+    prepare_with_sources(request, local_sources_only)
+}
+
+fn prepare_with_sources(
+    request: PrepareRequestV1,
+    local_sources_only: bool,
+) -> PmResult<PreparedWorkspaceV1> {
     request.validate().map_err(PmError::new)?;
     let cwd = path(&request.cwd)?;
     let explicit_cache = request.package_cache.as_ref().map(path).transpose()?;
@@ -56,7 +69,7 @@ pub fn prepare(request: PrepareRequestV1) -> PmResult<PreparedWorkspaceV1> {
         update: None,
         precise: None,
     };
-    let resolved = crate::resolve::resolve(request)?;
+    let resolved = crate::resolve::resolve_with_sources(request, local_sources_only)?;
     let inputs = record::Inputs::capture(&resolved)?;
     let prepared = project(resolved)?;
     record.publish(&prepared, &inputs)?;

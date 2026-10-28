@@ -22,6 +22,7 @@ mod fetch;
 mod index;
 mod manifest;
 
+pub(crate) use fetch::cached;
 pub use fetch::{CachedPackage, fetch, fetch_locked};
 pub use index::load_index;
 pub use manifest::published_manifest;

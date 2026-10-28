@@ -3,7 +3,7 @@ use std::{fs, path::Path};
 use super::prepare::failure;
 use super::{prepare::*, support::*};
 
-fn records(root: &Path) -> Vec<(std::path::PathBuf, std::time::SystemTime)> {
+pub(super) fn records(root: &Path) -> Vec<(std::path::PathBuf, std::time::SystemTime)> {
     let mut records: Vec<_> = fs::read_dir(root.join("cache/records/prepared-v1"))
         .unwrap()
         .map(|entry| {

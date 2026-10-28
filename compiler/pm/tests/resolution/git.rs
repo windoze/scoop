@@ -4,7 +4,7 @@ use scoop_pm::lockfile::LockedSource;
 
 use super::support::*;
 
-fn git(path: &Path, args: &[&str]) -> String {
+pub(super) fn git(path: &Path, args: &[&str]) -> String {
     success(
         Command::new("git")
             .current_dir(path)
@@ -16,14 +16,14 @@ fn git(path: &Path, args: &[&str]) -> String {
     .into()
 }
 
-fn init(path: &Path) {
+pub(super) fn init(path: &Path) {
     fs::create_dir_all(path).unwrap();
     git(path, &["init", "--initial-branch", "main"]);
     git(path, &["config", "user.name", "PM Test"]);
     git(path, &["config", "user.email", "pm@example.org"]);
 }
 
-fn commit(path: &Path) -> String {
+pub(super) fn commit(path: &Path) -> String {
     git(path, &["add", "."]);
     git(path, &["commit", "-m", "test"]);
     git(path, &["rev-parse", "HEAD"])

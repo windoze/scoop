@@ -19,6 +19,27 @@ pub struct GitCheckout {
     pub root: PathBuf,
 }
 
+pub(crate) fn cached_checkout(
+    cache: &PackageCache,
+    repository: &str,
+    commit: &str,
+) -> PmResult<Option<GitCheckout>> {
+    validate_commit(commit)?;
+    let root = cache.git(repository).join("checkouts").join(commit);
+    if root
+        .try_exists()
+        .map_err(|error| PmError::io(&root, error))?
+    {
+        Ok(Some(GitCheckout {
+            repository: repository.to_owned(),
+            commit: commit.to_owned(),
+            root,
+        }))
+    } else {
+        Ok(None)
+    }
+}
+
 /// The caller supplies a locked commit for normal builds. An unpinned request
 /// is a first resolution or explicit update; offline requests use local refs.
 pub fn checkout(
@@ -36,24 +57,16 @@ pub fn checkout(
         commit: commit.to_owned(),
         root: checkouts.join(commit),
     };
-    if let Some(commit) = locked {
-        validate_commit(commit)?;
-        if cached(commit)
-            .root
-            .try_exists()
-            .map_err(|error| PmError::io(&checkouts, error))?
-        {
-            return Ok(cached(commit));
-        }
+    if let Some(commit) = locked
+        && let Some(checkout) = cached_checkout(cache, &repository, commit)?
+    {
+        return Ok(checkout);
     }
     let _guard = cache.lock("git", repository.as_bytes())?;
     if let Some(commit) = locked
-        && cached(commit)
-            .root
-            .try_exists()
-            .map_err(|error| PmError::io(&checkouts, error))?
+        && let Some(checkout) = cached_checkout(cache, &repository, commit)?
     {
-        return Ok(cached(commit));
+        return Ok(checkout);
     }
     let db = directory.join("db");
     let exists = db.try_exists().map_err(|error| PmError::io(&db, error))?;

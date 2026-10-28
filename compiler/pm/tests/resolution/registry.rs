@@ -4,7 +4,12 @@ use scoop_pm::sources::registry::{RegistryIndex, RegistryVersion, published_mani
 
 use super::{server::Server, support::*};
 
-fn publish(server: &Server, name: &str, version: &str, dependencies: &str) -> RegistryVersion {
+pub(super) fn publish(
+    server: &Server,
+    name: &str,
+    version: &str,
+    dependencies: &str,
+) -> RegistryVersion {
     let text = format!("{}\n[dependencies]\n{dependencies}\n", cone(name, version));
     let (coordinate, kind, dependencies, _) = published_manifest(&text).unwrap();
     let encoder = zstd::stream::Encoder::new(Vec::new(), 1).unwrap();
@@ -30,7 +35,7 @@ fn publish(server: &Server, name: &str, version: &str, dependencies: &str) -> Re
     version
 }
 
-fn index(server: &Server, name: &str, versions: Vec<RegistryVersion>) {
+pub(super) fn index(server: &Server, name: &str, versions: Vec<RegistryVersion>) {
     server.set("/config.json", br#"{"format":1}"#.to_vec());
     server.set(
         &format!("/packages/org.example/{name}.json"),

@@ -66,13 +66,24 @@ impl Catalog<'_> {
         let checkout = match self.git_refs.get(&ref_key) {
             Some(checkout) => checkout.clone(),
             None => {
-                let checkout = git::checkout(
-                    self.cache,
-                    source,
-                    base,
-                    pinned.as_deref(),
-                    self.options.offline,
-                )?;
+                let checkout = if self.options.local_sources_only {
+                    let commit = pinned.as_deref().ok_or_else(|| {
+                        PmError::new("metadata requires a locked Git commit; run scoop pm resolve")
+                    })?;
+                    git::cached_checkout(self.cache, &repository, commit)?.ok_or_else(|| {
+                        PmError::new(format!(
+                            "Git checkout {repository}#{commit} is not cached; run scoop pm fetch"
+                        ))
+                    })?
+                } else {
+                    git::checkout(
+                        self.cache,
+                        source,
+                        base,
+                        pinned.as_deref(),
+                        self.options.offline,
+                    )?
+                };
                 self.git_refs.insert(ref_key, checkout.clone());
                 checkout
             }
@@ -108,6 +119,12 @@ impl Catalog<'_> {
             let was_cached = cache_path
                 .try_exists()
                 .map_err(|error| PmError::io(&cache_path, error))?;
+            if self.options.local_sources_only && !was_cached {
+                return Err(PmError::new(format!(
+                    "registry metadata for {} is not cached; run scoop pm fetch",
+                    requirement.key
+                )));
+            }
             let index = registry::load_index(
                 &self.http,
                 registry,
