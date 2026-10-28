@@ -1,12 +1,11 @@
-# 编译期 intrinsic 与包限定表达式实施记录
+# 编译期 intrinsic 实施记录
 
-目标：完整实现本目录及 `../qualified-expressions/DESIGN.md` 的设计，按功能完成验证并提交。当前处于实施中，不能将单项完成视为整组能力完成。
+目标：完整实现本目录的编译期 intrinsic 与常量设计，按功能完成验证并提交。当前处于实施中，不能将单项完成视为整组能力完成。
 
 ## 交付清单
 
 - [x] currentSourceLocation 的明确语义诊断，包含 alias、依赖与 FunPtr；错误下保留声明导航。新 intrinsic 随后接入。
 - [x] 带 payload 的 enum 静态初值数据通路：HIR／MIR／LIR、LLVM 发射与既有静态存储 relocation。
-- [ ] 包限定调用、值与 place、构造／variant／object／companion、成员引用的左侧限定目标，以及 formatter／LSP。
 - [ ] enum／Option 常量及 Elvis／when、独立静态常量身份、泛型／跨 Cone 共享与发射。
 - [ ] core 的 scoop.compiler 声明、includeStr／includeBytes／env、Cone 目录范围及 SCOOP_ 名称限制。
 - [ ] includeDir、glob、逐项目录／symlink 范围检查与 EmbeddedDir API。
@@ -39,4 +38,4 @@ Darwin 验证：格式化、全 workspace lint 通过；四个相关 crate 的 `
 
 ## 范围调整
 
-2026-10-28：按用户要求取消前置点分声明引用 `::a.b.f`，撤回尚未提交的 AST／parser 改动和关联机械测试修改。保留既有 `::name`／`receiver::member`；跨包声明引用通过 import／alias 使用。包限定直接调用、值／place 和本组编译期 intrinsic 的实现目标继续保留。撤回后的编译器代码与已验证提交 `74f4c2eb8` 完全一致，本次仅更新设计与规范，不重复构建测试。
+2026-10-28：按用户条件取消普通包限定表达式及前置点分声明引用 `::a.b.f`。点表达式的包分支需要协调现有 receiver、遮蔽、重载、类型别名和 property／place 流程，超出本组 intrinsic 所需的导入能力。相关未提交代码及测试已全部撤回，编译器代码回到已验证的 `d1b83f4e6`；本次仅同步文档，不重复构建测试。`scoop.compiler` package、显式 import／alias、intrinsic 引用诊断及常量实现目标保留。

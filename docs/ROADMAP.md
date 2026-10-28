@@ -784,20 +784,13 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 各里程碑"涵盖但只实现了部分"的事项，按来源里程碑整理。标注→的为目标里程碑（已知时）；未标注的待排期。
 
-### 包限定表达式（设计完成，待实施）
+### 编译期文件／环境 intrinsic 与共享常量（实施中）
 
-- [设计](qualified-expressions/DESIGN.md)与语言规范 12.4.5 补齐无需 import 的顶层调用、值／属性读写、构造、enum、object／companion，以及成员引用左侧的真实类型／值。
-- 普通点表达式保留首段遮蔽规则，再尝试最长可见 package。可见性、重载、泛型、初始化与 FFI 条件保持，类型／注解／模式路径沿既有规则。
-- 按用户范围调整取消 `::a.b.f`，保留 `::name` 与 `receiver::member`；跨包声明引用先 import，必要时使用 alias。相关 AST／parser 扩展已撤回。
-- 编译期 intrinsic 的限定直接调用仍在范围内。其短名／alias／re-export 引用按实际 kind 报 HIR 语义错误；currentSourceLocation 的不可引用诊断和错误下导航已实现，新文件／环境入口随后接入。验收进度见[实施记录](compile-time-intrinsics/PROGRESS.md)。
-
-### 编译期文件／环境 intrinsic 与共享常量（设计完成，待实施）
-
-- [设计](compile-time-intrinsics/DESIGN.md)与语言规范 11.19 将 `includeStr`、`includeBytes`、`includeDir`、`env` 放入 core Cone 的 `scoop.compiler` package，使用显式导入或通用包限定表达式，不加入默认 prelude。
+- [设计](compile-time-intrinsics/DESIGN.md)与语言规范 11.19 将 `includeStr`、`includeBytes`、`includeDir`、`env` 放入 core Cone 的 `scoop.compiler` package，使用显式导入，不加入默认 prelude。
 - 文件与环境在定义 Cone 的 HIR 阶段求值；`env` 返回完整 `Option<String>`，补齐 enum payload 常量和 Option 常量解包。目录使用 include／exclude glob 选择，返回稳定有序的不可变文件表。
 - include 目标路径及解析全部 symlink 后的实际目标必须位于定义 Cone 内，includeDir 对每项检查，包括 glob 排除项；越界明确诊断。env 首版仅接受精确 `SCOOP_` 前缀，非法名称在查询环境前报错。
 - 独立常量池及跨 Cone 引用保证相同嵌入数据不随泛型特化、默认参数或内联重复发射；本组常量在同一 provider 内按完整类型与内容合并，沿现有布局和 immortal 登记发射。
-- 构建／check／doc／分析缓存跟踪实际文件、目录匹配集合、路径／链接目标和已查询环境变量；命中只判断输入更新，新增匹配文件须重编，链接改指或排除项越界不能复用旧值。实施按常量与 namespace、单文件／env、目录、增量与跨 Cone 验收推进；本次仅完成设计与 spec 同步。
+- 构建／check／doc／分析缓存跟踪实际文件、目录匹配集合、路径／链接目标和已查询环境变量；命中只判断输入更新，新增匹配文件须重编，链接改指或排除项越界不能复用旧值。实施按常量与声明、单文件／env、目录、增量与跨 Cone 验收推进。currentSourceLocation 的不可引用诊断及静态 enum payload 数据通路已完成，见[实施记录](compile-time-intrinsics/PROGRESS.md)。普通包限定表达式与 `::a.b.f` 已取消，使用既有 import／alias。
 
 
 ### EventLoop 平台后端与 GUI 主循环（已实现）

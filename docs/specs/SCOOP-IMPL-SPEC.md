@@ -235,15 +235,11 @@ return/throw 与 Elvis 复用正常值和终止路径的封闭表示；只有正
 
 整型枚举在源码 HIR 中具有明确的表示类别、底层整数 kind 和已检查的有序 variant 常量；父子关系、继承数值成员、普通上转及接口关系在 HIR lowering 完成。共享源码定义与表示数据保留 enum/variant identity、底层整数和数值，消费方不重新求值 initializer，也不按纯 unit variant 猜测枚举类别。依赖成员查找沿实际整数父类型继续遍历其接口，仅对接口节点读取接口方法与分派选择，不能把整数父类型当成 interface application。数值上转与引用上转均为已检查的单向类型适配；上转结果按目标类型继续参与装箱。
 
-#### 2.2.1 包限定表达式（设计，待实施）
+#### 2.2.1 表达式名称解析范围
 
-语言规范 12.4.5 在现有导入／限定类型查询上补齐包限定函数、值、place 与构造。parser／AST 保留原有 `::name` 与 `receiver::member` 结构，不增加前置点分声明选择器；跨包声明引用通过普通 import／alias 定位。普通点表达式、显式调用类型参数、命名实参、尾随 lambda 与原有 postfix 沿既有语法处理；恢复语法和 formatter 保持其结合规则。
+语言规范 12.4.5 保持普通 import 与既有限定类型查询的边界。普通表达式不新增 package 起始的名称查找分支，parser／AST 保留 `::name` 与 `receiver::member`，不增加前置点分声明选择器。跨包函数、值与声明引用由 import／alias 定位，再消费普通 typed 候选；既有类型、注解与模式路径不受影响。
 
-HIR 使用普通表达式限定目标的原候选／遮蔽规则，必要时从已知可见 package 的最长前缀继续选择。包／静态 owner 只是解析状态，遇到真实值才生成普通值读取；成功输出仍是既有 typed call、构造、variant、property／place 或函数引用，不把 package 值、FQN 字符串或待解析 selector 传给 MIR。package 路由选择后复用当前 namespace 的完整候选分区、MSC、绑定参数和可见性结果；不得将导入路径当作运行期字段链，也不得扫描整个依赖闭包匹配字符串。
-
-函数调用、函数值 invoke、property 读取／赋值／更新、下标 place、addressOf、构造、enum variant、object／companion 以及成员引用左侧的限定目标共享已解析声明和来源事实，再各自执行原操作规则。更新仍只求值一次真实 receiver／index；绑定引用保存创建时 receiver；泛型、默认值与跨 Cone 正文保存实际 typed 身份。语言规范 11.19 的编译期输入操作沿本规范 2.10.1 求值；它们及 current_source_location 的声明引用沿 2.10 报告明确的 intrinsic 语义错误，短名／alias／re-export 保留具体拒绝原因。
-
-语言服务记录路径各段的 namespace／声明来源与末端实际绑定，复用既有引用、签名和重命名查询；包段不冒充函数／property，跨 Cone 无源码时保持原导航限制。普通 type／annotation／pattern 的限定查询不被表达式遮蔽策略覆盖。此项不增加 runtime ABI、链接协议或语义 ID 种类；只有实际持久编码变化才升级相应 section，不为本次名称查找扩展重发未变化的 IR。范围与验收见[配套设计](../qualified-expressions/DESIGN.md)。
+语言规范 11.19 的编译期入口由普通导入定位，沿本规范 2.10.1 求值；它们及 current_source_location 的声明引用沿 2.10 报告明确的 intrinsic 语义错误，短名／alias／re-export 保留具体拒绝原因。此能力不要求扩展普通包限定表达式或新增 runtime ABI。
 
 ### 2.3 MIR
 

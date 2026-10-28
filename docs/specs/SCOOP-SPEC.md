@@ -900,9 +900,9 @@ lambda 参与重载决议时，每个候选先提供自己的期望函数类型�
 - `receiver::member`：创建绑定接收者的成员函数引用，`receiver` 在创建时求值且只求值一次；限定名解析到 object/companion 时使用其 singleton value，完整泛型宿主 application、透明 alias 或限定路径都不把它变成未绑定引用；
 - `::extension`：创建未绑定扩展函数引用，其函数类型把扩展接收者作为第一个普通参数；`receiver::extension` 则创建绑定形式。
 
-12.4.5 的包限定表达式不扩展前置声明引用语法；跨包函数、构造器和扩展函数仍先 import 后使用 `::name`。普通成员引用的左侧可沿该节规划定位实际类型／值，例如 `demo.api.Type::method` 或 `demo.api.Singleton::method`。目标类别、泛型推导、重载及运行期入口继续遵守本节；package 本身不成为 receiver。
+跨包函数、构造器和扩展函数先 import 后使用 `::name`，不增加 `::a.b.f`。普通成员引用保留既有的类型／值 receiver 解析；package 本身不成为 receiver，见 12.4.5。
 
-13.1 规定的不可引用 intrinsic 使用合法的声明引用语法，但在 HIR 语义检查中拒绝；诊断必须指出已解析的 intrinsic 名称及禁止引用的具体原因。该诊断合同与 12.4.5 一起设计、待实施，适用于 managed 函数值、无期望类型和 FunPtr 上下文，不以语法错误或未找到函数代替。
+13.1 规定的不可引用 intrinsic 使用合法的声明引用语法，但在 HIR 语义检查中拒绝；诊断必须指出已解析的 intrinsic 名称及禁止引用的具体原因。位置 intrinsic 的诊断已实现，11.19 新入口随后接入；该合同适用于 managed 函数值、无期望类型和 FunPtr 上下文，不以语法错误或未找到函数代替。
 
 若目标是 virtual / interface 成员，绑定引用在每次调用时按已保存接收者、未绑定引用按本次传入接收者做动态分派。managed 分支中的重载目标由期望函数类型与普通重载规则共同确定；没有期望类型时，只有唯一且能独立确定完整签名的候选才能自行确定函数类型。泛型宿主和泛型 final 方法的全部实参须在创建点确定，不产生多态函数值；目标仍有歧义时报告编译错误。
 
@@ -2762,7 +2762,7 @@ use 以 receiver 调用 block 恰好一次，正文正常返回或抛出后调�
 
 ### 11.19 编译期输入 intrinsic（设计，待实施）
 
-本节与[编译期 intrinsic 设计](../compile-time-intrinsics/DESIGN.md)规定首批文件／环境输入能力及必要的静态常量支持，当前尚未实现。声明位于 reserved core Cone `scoop:scoop.core:0.1.0` 的普通 package `scoop.compiler`；该 package 的声明不进入默认 prelude，也不在根 package 转导出。使用方可显式 `import scoop.compiler.includeStr`、`import scoop.compiler.env as compileEnv` 或 `import scoop.compiler.*`；12.4.5 规划的通用包限定表达式完成后，也可以直接写 `scoop.compiler.env("SCOOP_BUILD_TAG")`。两种写法使用同一 typed intrinsic 语义，不为本组单设 FQN 解析；package 本身仍不是 exact import 的合法终点。后续编译期 intrinsic 同样在此 package 组织；package 本身不赋予编译器能力，识别仍遵守 13.1 的 typed registry。
+本节与[编译期 intrinsic 设计](../compile-time-intrinsics/DESIGN.md)规定首批文件／环境输入能力及必要的静态常量支持，当前尚未实现。声明位于 reserved core Cone `scoop:scoop.core:0.1.0` 的普通 package `scoop.compiler`；该 package 的声明不进入默认 prelude，也不在根 package 转导出。使用方可显式 `import scoop.compiler.includeStr`、`import scoop.compiler.env as compileEnv` 或 `import scoop.compiler.*`，导入后调用短名或 alias，不增加无 import 的包限定调用。各导入形式使用同一 typed intrinsic 语义；package 本身仍不是 exact import 的合法终点。后续编译期 intrinsic 同样在此 package 组织；package 本身不赋予编译器能力，识别仍遵守 13.1 的 typed registry。
 
 ```scoop
 package scoop.compiler
@@ -2988,7 +2988,7 @@ ImportSelector = QualifiedName | QualifiedName . *
 - `package`至多一次且必须先于所有import/declaration；import只允许出现在文件头。exact import可写`as`，alias只改变当前文件中的短binding名；star import不能写alias；
 - 普通import只影响当前source file。`public import`同时建立当前文件的普通exact/star import，并在**当前文件package**下为当前Cone建立re-export binding；其destination name是`as` alias或target短名；
 - `public`在这里是上下文关键字，只修饰import；不存在`internal import`或`private import`；
-- import selector与qualified type path都先解析最长的可见package binding前缀，再沿static nested nominal、object或companion的typed owner edge查找；最长package前缀一旦选定便不回退到较短前缀重猜。exact import的终点必须是importable binding，star import的终点必须是importable namespace；不能把点连接的字符串直接当作FQN扫描全部artifact。当前已实现的top-level value/function表达式通过import后的短名或普通receiver语法访问；无import的package限定表达式扩展见12.4.5，尚待实施。不新增dependency-coordinate-qualified源码名称。
+- import selector与qualified type path都先解析最长的可见package binding前缀，再沿static nested nominal、object或companion的typed owner edge查找；最长package前缀一旦选定便不回退到较短前缀重猜。exact import的终点必须是importable binding，star import的终点必须是importable namespace；不能把点连接的字符串直接当作FQN扫描全部artifact。top-level value/function表达式通过import后的短名或普通receiver语法访问；包名与表达式的边界见12.4.5。不新增dependency-coordinate-qualified源码名称。
 - 限定类型路径的 package 前缀同时考虑当前 Cone 与 direct dependency 的公开包（含 re-export）。同一最长包中的当前与外来类型在同层合并，按 typed origin 去重并诊断不同实体的同名冲突；仅含 value binding 的公开包仍是可见包，不能因其中缺少目标类型而回退。仅供模板、布局或链接使用的 support dependency 不增加可见包。路径末端的普通类型、泛型 application 和 typealias 使用与短名查找相同的类型实参、可见性及展开规则。
 
 #### 12.4.2 import可到达性与re-export
@@ -3057,33 +3057,13 @@ import 指向原声明；经不同依赖路径或 re-export 到达同一声明�
 
 `main` 返回时仍有已 attach 的非主线程、活动 callback 或未释放的 callback token ownership，属于 shutdown 失败：报告剩余计数，刷新输出后以 `1` 退出，覆盖本次 main 的返回码，不等待线程自动结束。程序应在 main 返回前完成 join 和 token 释放；M33 不提供 daemon 线程。需要带着后台线程结束整个进程时可显式调用 core 的 `exit(code: Int): Nothing`，它先刷新输出再终止进程，不做上述 shutdown 检查、不等待 join，也不执行 finally 或 release hook；刷新允许等待，见运行时规范第 7 章。
 
-#### 12.4.5 包限定表达式（设计，待实施）
+#### 12.4.5 表达式中的包名与 import
 
-本节及[配套设计](../qualified-expressions/DESIGN.md)补齐无需 import 的 package 限定表达式。当前限定类型名已实现；本节新增的函数／值表达式尚未实现；不扩展前置 `::` 声明引用语法。统一能力适用于当前 Cone 与直接依赖／re-export 的可见 binding，包括 core 的普通非 prelude package，不仅适用于 11.19。
+跨 package 的顶层函数和值通过 exact／star import 或 import alias 引入，再按普通短名规则使用。不增加 `scoop.compiler.env(...)` 这样的包限定函数调用、值或 place 表达式；11.19 的入口使用 `import scoop.compiler.env` 后调用 `env("SCOOP_BUILD_TAG")`。package 本身不是运行期值，也不是 exact import 的合法终点。
 
-| 位置 | 规划支持的形式 |
-| --- | --- |
-| 函数调用 | `demo.api.f(args)`、`demo.api.f<T>(name = value)`，沿既有默认参数／vararg／尾随 lambda 规则 |
-| 顶层值与 place | `demo.api.VALUE`、`demo.api.state`、`demo.api.state = value`、`demo.api.count += 1`、`demo.api.count++` |
-| 取得值后的操作 | `demo.api.callback(args)`、`demo.api.values[index]`、`demo.api.optional?.member()` |
-| 构造与变体 | `demo.api.Type<T>(args)`、`demo.api.Alias(args)`、`demo.api.Enum.Variant(args)`、unit variant 静态值 |
-| 对象与 companion | `demo.api.Singleton`、`demo.api.Type.Companion.member` 及已有的 companion 转发形式 |
-| 成员引用 | `demo.api.Type::method`、`demo.api.Type<T>::method`、`demo.api.Singleton::method` |
-| place 地址 | `addressOf(demo.api.rawGlobal)`，仍满足 13.10 的原有全部条件 |
+前置 `::` 后仍只读取一个声明名称，不将 `::a.b.f` 解释为包限定声明引用。跨包函数、构造器、扩展函数和 native callback 先 import 后写 `::name` 或 alias。后置 `receiver::member` 保持原语法及类型／值 receiver 规则；不增加包作为 receiver 的形式。
 
-普通 `a.b...` 表达式先保留首段原有表达式绑定／遮蔽规则：该层存在值、类型或其他已绑定目标时，沿该实际目标处理，不因某个依赖新增同名 package 而改变原表达式。只有首段没有可用的普通限定目标时，才尝试可见 package 的最长前缀；未找到成员、目标不可访问或重载不适用后不退回另一路重猜。package 路由确定后，末端类型／值／函数使用该 namespace 的普通候选选择规则，不能按返回类型猜目标或跳到不相关 import 候选。
-
-前置 `::` 后仍只读取一个声明名称，不将 `::a.b.f` 解释为包限定声明引用，也不改变既有 postfix 结合规则。跨包函数、构造器、扩展函数和 native callback 先 import 后写 `::name` 或 alias。后置 `receiver::member` 右侧仍是单个成员名，真实 receiver 按创建点求值一次；package 不是值，不引入 `demo.api::f`。
-
-所有表达式继续使用原 typed 声明身份、可见性、生产／测试来源、direct dependency、重载、泛型／默认参数及 effect 规则。package 限定不绕过 private／internal、未声明依赖或仅用于模板／链接的 support dependency；相同最长包中的候选按实际 origin 合并，歧义正常诊断。普通 object／companion 的读取仍触发原初始化语义；可变属性读写、复合更新和下标 place 保留 receiver／index／getter／setter 的求值次数与顺序。
-
-函数与构造器的短名引用继续沿 8.1.4 规则选择，泛型按期望函数类型完成实例化，不新增 `::f<T>`。扩展函数的未绑定引用保留 receiver 为首参数，不增加 `pkg.extension(receiver, args)` 这种扩展调用形式。成员引用沿原有 `Type::member`／`value::member` 规则解析。
-
-函数类型的属性可通过 `pkg.callback` 取得已有函数值，并按原 invoke 规则调用；本次不增加 property reference。函数名作为普通值仍不隐式转换。FunPtr 继续要求 13.10 的非泛型、非挂起、非 extern、NoGC 顶层函数和精确 C-safe 签名，使用导入后的短名引用。
-
-导入后的 `::env`、`::includeStr` 等引用按 13.1 报告明确的 intrinsic 语义原因；11.12 的位置 intrinsic 同样禁止引用。诊断要求覆盖短名、alias 和 re-export，不为取消的前置点分声明引用增加专门解析或诊断。
-
-类型注解、typealias、泛型 bound、is／as、注解名和 enum 模式中的既有限定路径继续使用原规则；本节补齐表达式，不改变这些位置的可用性。parser／formatter／LSP 必须保留每段标识符和原 span，诊断、导航、引用、重命名和完成候选沿实际选中声明工作，不把 FQN 文本作为实体身份。实现职责见编译器与产物规范 2.2.1。
+既有限定类型、注解和模式路径继续按原规则解析，不扩展普通表达式的名称查找。导入后的 `::env`、`::includeStr` 等引用沿 13.1 报告实际 intrinsic 的明确语义原因；这一诊断不依赖包限定表达式。
 
 ### 12.5 编译产物 `.slib`
 
@@ -3099,7 +3079,7 @@ import 指向原声明；经不同依赖路径或 re-export 到达同一声明�
 
 ### 12.6 核心库
 
-第11章的核心库是reserved library Cone **`scoop:scoop.core:0.1.0`**，以独立`.slib`提供，sysroot只提供默认查找位置。`scoop.core` 是 Cone `name`，不是自动生成的源码 package；基础 core 声明位于默认根 package，显式导入采用 `import List` 等形式。11.19 规划的编译期 API 位于同一 Cone 的 `scoop.compiler` package，使用普通显式导入或 12.4.5 规划的包限定表达式，不加入默认 prelude 或根 package 转导出。Cone identity 与源码 package 没有推导关系。
+第11章的核心库是reserved library Cone **`scoop:scoop.core:0.1.0`**，以独立`.slib`提供，sysroot只提供默认查找位置。`scoop.core` 是 Cone `name`，不是自动生成的源码 package；基础 core 声明位于默认根 package，显式导入采用 `import List` 等形式。11.19 规划的编译期 API 位于同一 Cone 的 `scoop.compiler` package，使用普通显式导入，不加入默认 prelude 或根 package 转导出。Cone identity 与源码 package 没有推导关系。
 
 core 是可修改、扩展和重建的普通 library Cone。intrinsic 与脱糖所需的声明按第 13 章解析；其余类型、可见性、ABI、产物与链接规则和普通库相同。sysroot 只提供默认 locator，不构成来源授权。
 
@@ -3178,7 +3158,7 @@ public struct Int : Equals<Int>, ToString, Hash {
 
 - 11.19 的四个编译期输入 intrinsic 只允许定义处可常量求值的直接使用，在 Export HIR 完成前展开；没有动态分派、函数引用或运行期后备入口。其源码位置、外部输入及结果共享规则由该节规定，不因同属 intrinsic 就继承位置 intrinsic 的调用处观察语义。参数／结果仍按真实 core 类型与普通 import 解析，不按 `scoop.compiler` 的名称赋予用户声明特殊能力。
 
-- **不可引用 intrinsic 与诊断**：11.19 的四个编译期输入操作及 11.12 的 `currentSourceLocation` 不支持 callable reference。完成普通名称与可见性解析后，以实际声明的 typed intrinsic kind 判断，短名、import alias、re-export 及跨 Cone 使用一致；同名普通函数不受此限制，其他 intrinsic 保留各自原有的引用合同。诊断定位引用表达式，给出实际声明名称、禁止函数引用的事实及具体原因：前四者在编译期求值且无运行期入口；位置 intrinsic 依赖直接调用处的源码来源，普通间接调用不提供该信息。managed／无期望类型／FunPtr 三种上下文均保留这一原因，不能把它静默过滤后只报告 unknown name、syntax error 或 no applicable candidate；涉及多候选时保留该候选的具体失败原因，其他候选仍按原重载规则处理。可提示合法的直接调用或显式传值，不自动合成 lambda／adapter 来规避限制。位置 intrinsic 的短名／alias／依赖引用诊断已实现；11.19 新入口及 12.4.5 限定表达式仍待实施。
+- **不可引用 intrinsic 与诊断**：11.19 的四个编译期输入操作及 11.12 的 `currentSourceLocation` 不支持 callable reference。完成普通名称与可见性解析后，以实际声明的 typed intrinsic kind 判断，短名、import alias、re-export 及跨 Cone 使用一致；同名普通函数不受此限制，其他 intrinsic 保留各自原有的引用合同。诊断定位引用表达式，给出实际声明名称、禁止函数引用的事实及具体原因：前四者在编译期求值且无运行期入口；位置 intrinsic 依赖直接调用处的源码来源，普通间接调用不提供该信息。managed／无期望类型／FunPtr 三种上下文均保留这一原因，不能把它静默过滤后只报告 unknown name、syntax error 或 no applicable candidate；涉及多候选时保留该候选的具体失败原因，其他候选仍按原重载规则处理。可提示合法的直接调用或显式传值，不自动合成 lambda／adapter 来规避限制。位置 intrinsic 的短名／alias／依赖引用诊断已实现；11.19 新入口仍待实施。
 
 - 11.15 的 `core_maybe_uninit` 登记为单参数 intrinsic struct；`maybe_uninit_zero`、`maybe_uninit_initialized` 是相应 companion 的静态操作，`maybe_uninit_assume_init` 是 wrapper 实例操作，后者必须带 `@Unsafe`。它们保留 wrapper 与 payload 的完整类型，不凭相同布局抹除初始化契约；不允许其他 annotation 组合绕过既有 NoGC／unsafe 检查。
 
