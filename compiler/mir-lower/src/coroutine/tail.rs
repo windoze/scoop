@@ -56,6 +56,7 @@ pub(super) fn rewrite(
         };
         call.args.push(completion.clone());
         let result = function.body.locals.alloc(mir::Local {
+            debug_origin: Default::default(),
             name: format!("$tail_step.{}", site.resume.state),
             ty: function.return_ty.clone(),
             mutable: false,
@@ -71,6 +72,7 @@ pub(super) fn rewrite(
         let span = block.statements[site.resume.statement].span;
         block.statements.truncate(site.resume.statement);
         block.statements.push(mir::Statement {
+            debug_origin: Default::default(),
             kind: mir::StatementKind::Call(mir::CallEffect::Value {
                 destination: result,
                 call,

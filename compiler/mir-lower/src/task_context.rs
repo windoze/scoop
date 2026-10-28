@@ -17,6 +17,7 @@ impl TaskSwitch {
     ) -> Self {
         let storage = mir::ContextStorageType::new(core, mir::ContextStorageRole::SwitchGuard);
         let guard = locals.alloc(mir::Local {
+            debug_origin: Default::default(),
             name: "$context_guard".to_string(),
             ty: mir::Type::Context(storage),
             mutable: false,
@@ -79,6 +80,7 @@ pub(super) fn fork(
         mir::ContextStorageRole::Task,
     ));
     let child = locals.alloc(mir::Local {
+        debug_origin: Default::default(),
         name: "$child_context".to_string(),
         ty: ty.clone(),
         mutable: false,
@@ -116,6 +118,7 @@ fn cleanup(
         })),
     );
     blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: name.to_string(),
         statements,
         terminator: mir::Terminator::Resume,
@@ -125,6 +128,7 @@ fn cleanup(
 
 fn stmt(kind: mir::StatementKind) -> mir::Statement {
     mir::Statement {
+        debug_origin: Default::default(),
         kind,
         span: mir::SourceSpan::new(0, 0).expect("the generated span is ordered"),
     }

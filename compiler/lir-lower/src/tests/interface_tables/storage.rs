@@ -64,6 +64,7 @@ fn tables_are_not_carried_into_successor_blocks_or_loops() {
         let entry = body.entry;
         let second = body.blocks[entry].statements.pop().unwrap();
         let next = body.blocks.alloc(mir::BasicBlock {
+            terminator_origin: Default::default(),
             name: "next".into(),
             statements: vec![second],
             terminator: if backedge {
@@ -84,6 +85,7 @@ fn lir_invoke_continuations_clear_the_cache_inside_a_mir_block() {
     let (mut module, scope) = fixture();
     let body = &mut module.functions[scope].body;
     let cleanup = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "cleanup".into(),
         statements: vec![stmt(mir::StatementKind::Eh(mir::EhStatement::LandingPad {
             cleanup: true,

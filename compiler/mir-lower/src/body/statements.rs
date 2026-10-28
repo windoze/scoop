@@ -7,7 +7,20 @@ impl BodyLowerer<'_> {
     ) -> Vec<smir::Statement> {
         let mut out = Vec::new();
         for statement in statements {
+            let start = out.len();
             self.lower_statement(statement, &mut out);
+            let source = self
+                .module
+                .debug_sources
+                .function(self.current_materialization, self.debug_records);
+            let origin = self.module.debug_sources.in_source(
+                &source,
+                statement.span.start,
+                self.debug_records,
+            );
+            for lowered in &mut out[start..] {
+                lowered.debug_origin = origin.clone();
+            }
         }
         out
     }
@@ -173,7 +186,11 @@ impl BodyLowerer<'_> {
                 smir::StatementKind::Throw(value)
             }
         };
-        out.push(smir::Statement { kind, span });
+        out.push(smir::Statement {
+            debug_origin: Default::default(),
+            kind,
+            span,
+        });
     }
 
     /// `try` translates one-to-one: body, ordered catches (the catch
@@ -278,6 +295,7 @@ impl BodyLowerer<'_> {
             let init = self.lower_expr(init);
             self.drain_prelude(span, out);
             out.push(smir::Statement {
+                debug_origin: Default::default(),
                 kind: smir::StatementKind::ValDecl { local, init },
                 span,
             });
@@ -288,6 +306,7 @@ impl BodyLowerer<'_> {
         self.drain_prelude(span, out);
         let slot = self.new_hidden("bind", ty.clone(), false);
         out.push(smir::Statement {
+            debug_origin: Default::default(),
             kind: smir::StatementKind::ValDecl { local: slot, init },
             span,
         });
@@ -300,6 +319,7 @@ impl BodyLowerer<'_> {
         debug_assert!(steps.is_empty(), "destructuring patterns are irrefutable");
         for (local, init) in bindings {
             out.push(smir::Statement {
+                debug_origin: Default::default(),
                 kind: smir::StatementKind::ValDecl { local, init },
                 span,
             });
@@ -340,6 +360,7 @@ impl BodyLowerer<'_> {
             "structured loop remapping is lexically nested"
         );
         out.push(smir::Statement {
+            debug_origin: Default::default(),
             kind: smir::StatementKind::While {
                 loop_kind,
                 target: loop_id,

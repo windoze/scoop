@@ -54,14 +54,37 @@ fn retained_call_in_an_inlined_body_keeps_its_source_path_and_span() {
         .unwrap()
         .0;
     let source_span = mir::SourceSpan::new(17, 29).unwrap();
+    let source_origin = mir::DebugRecords::default().source(
+        std::sync::Arc::new(scoop_identity::SourceIdentity::single_file()),
+        4,
+        7,
+    );
     for (_, block) in module.functions[wrapper].body.blocks.iter_mut() {
         for statement in &mut block.statements {
             if matches!(statement.kind, mir::StatementKind::Call(_)) {
                 statement.span = source_span;
+                statement.debug_origin = source_origin.clone();
             }
         }
     }
     let report = crate::optimization::run_observed(&mut module, MirOptimizationOptions::RELEASE);
+    let retained = module.functions[main]
+        .body
+        .blocks
+        .iter()
+        .flat_map(|(_, block)| &block.statements)
+        .find(|statement| {
+            statement.span == source_span && matches!(statement.kind, mir::StatementKind::Call(_))
+        })
+        .expect("recursive call remains in the inlined wrapper");
+    let mir::DebugOrigin::Source(location) = &retained.debug_origin else {
+        panic!("inlining retains the callee source location");
+    };
+    assert_eq!((location.line, location.column), (4, 7));
+    assert_eq!(
+        location.inlined_at.as_ref().unwrap().function.as_ref(),
+        "wrapper"
+    );
     assert!(report.events.iter().any(|event| event.site.function == main
         && event.site.inline_path == [mir::Callee::User(main), mir::Callee::User(wrapper)]
         && event.site.span == source_span

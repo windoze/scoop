@@ -161,6 +161,7 @@ pub(super) fn array_metadata<'a>(module: &'a lir::Module, name: &str) -> &'a lir
 
 pub(super) fn local(name: &str, ty: mir::Type) -> mir::Local {
     mir::Local {
+        debug_origin: Default::default(),
         name: name.to_string(),
         ty,
         mutable: false,
@@ -169,6 +170,7 @@ pub(super) fn local(name: &str, ty: mir::Type) -> mir::Local {
 
 pub(super) fn var(name: &str, ty: mir::Type) -> mir::Local {
     mir::Local {
+        debug_origin: Default::default(),
         name: name.to_string(),
         ty,
         mutable: true,
@@ -177,6 +179,7 @@ pub(super) fn var(name: &str, ty: mir::Type) -> mir::Local {
 
 pub(super) fn stmt(kind: mir::StatementKind) -> mir::Statement {
     mir::Statement {
+        debug_origin: Default::default(),
         kind,
         span: mir::SourceSpan::new(0, 0).unwrap(),
     }
@@ -309,6 +312,7 @@ pub(super) fn body_with_terminator(
 ) -> mir::Body {
     let mut blocks = Arena::new();
     let entry = blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         statements,
         terminator,
@@ -328,6 +332,7 @@ pub(super) fn returning_body(locals: Arena<mir::Local>, value: mir::Expr) -> mir
 
 pub(super) fn cfg_block(blocks: &mut Arena<mir::BasicBlock>, name: &str) -> mir::BlockId {
     blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: name.to_string(),
         statements: Vec::new(),
         terminator: mir::Terminator::Unreachable,

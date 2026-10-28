@@ -28,21 +28,25 @@ impl Lowerer {
         let throwable_carrier = mir::Type::Any;
         let mut locals = Arena::new();
         let state = locals.alloc(mir::Local {
+            debug_origin: Default::default(),
             name: "$init.state".to_string(),
             ty: mir::Type::MachineScalar(mir::MachineScalarKind::InitializationOutcome),
             mutable: false,
         });
         let caught = locals.alloc(mir::Local {
+            debug_origin: Default::default(),
             name: "$init.caught".to_string(),
             ty: throwable_carrier.clone(),
             mutable: false,
         });
         let failure = locals.alloc(mir::Local {
+            debug_origin: Default::default(),
             name: "$init.failure".to_string(),
             ty: throwable_carrier.clone(),
             mutable: false,
         });
         let message = locals.alloc(mir::Local {
+            debug_origin: Default::default(),
             name: "$init.message".to_string(),
             ty: message_ty.clone(),
             mutable: false,
@@ -183,7 +187,11 @@ impl Lowerer {
 }
 
 fn statement(kind: smir::StatementKind, span: Span) -> smir::Statement {
-    smir::Statement { kind, span }
+    smir::Statement {
+        debug_origin: Default::default(),
+        kind,
+        span,
+    }
 }
 
 fn unit_address(unit: mir::InitializationUnitId) -> smir::Expr {

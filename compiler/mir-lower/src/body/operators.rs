@@ -78,6 +78,7 @@ impl BodyLowerer<'_> {
         // the same short-circuit edge as the expression that uses their values.
         let result = self.new_hidden("logic", mir::Type::Boolean, true);
         let assign = |value| smir::Statement {
+            debug_origin: Default::default(),
             kind: smir::StatementKind::Assign {
                 local: result,
                 value,
@@ -86,7 +87,11 @@ impl BodyLowerer<'_> {
         };
         let mut rhs_body: Vec<_> = setup
             .into_iter()
-            .map(|kind| smir::Statement { kind, span })
+            .map(|kind| smir::Statement {
+                debug_origin: Default::default(),
+                kind,
+                span,
+            })
             .collect();
         rhs_body.push(assign(rhs));
         let short_value = matches!(op, smir::LogicOp::Or);

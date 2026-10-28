@@ -21,6 +21,7 @@ impl BodyLowerer<'_> {
                 self.drain_prelude(span, out);
                 let local = self.new_hidden("when", ty.clone(), false);
                 out.push(smir::Statement {
+                    debug_origin: Default::default(),
                     kind: smir::StatementKind::ValDecl { local, init },
                     span,
                 });
@@ -63,6 +64,7 @@ impl BodyLowerer<'_> {
                 hir::WhenFallback::Else(body) => self.lower_statements(body),
                 hir::WhenFallback::Fallthrough => Vec::new(),
                 hir::WhenFallback::Impossible(_) => vec![smir::Statement {
+                    debug_origin: Default::default(),
                     kind: smir::StatementKind::Unreachable,
                     span: fallback_span,
                 }],
@@ -77,6 +79,7 @@ impl BodyLowerer<'_> {
                     self.lower_matched_arm(arm, rest, fallback, fallback_span, condition);
                 let next = self.lower_arms(rest, fallback, fallback_span, condition);
                 setup.push(smir::Statement {
+                    debug_origin: Default::default(),
                     kind: smir::StatementKind::If {
                         cond: value,
                         then_body,
@@ -102,6 +105,7 @@ impl BodyLowerer<'_> {
                 }
                 let else_body = self.lower_arms(rest, fallback, fallback_span, condition);
                 vec![smir::Statement {
+                    debug_origin: Default::default(),
                     kind: smir::StatementKind::PatternDecision(smir::PatternDecision {
                         steps,
                         then_body: bindings,
@@ -130,6 +134,7 @@ impl BodyLowerer<'_> {
         let then_body = self.lower_statements(&arm.body);
         let next = self.lower_arms(rest, fallback, fallback_span, condition);
         out.push(smir::Statement {
+            debug_origin: Default::default(),
             kind: smir::StatementKind::If {
                 cond,
                 then_body,

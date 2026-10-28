@@ -91,6 +91,7 @@ pub(super) fn run(module: &mut mir::Module, registry: &mut LocalValueRegistry) {
                     .collect()
             };
             let counter = function.body.locals.alloc(mir::Local {
+                debug_origin: Default::default(),
                 name: format!("$poll.remaining.{}", function.body.locals.len()),
                 ty: mir::Type::Integer(counted.kind),
                 mutable: true,
@@ -155,8 +156,10 @@ fn expand(
         )
     };
     let clamp = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("poll.clamp.{}", body.blocks.len()),
         statements: vec![mir::Statement {
+            debug_origin: Default::default(),
             kind: mir::StatementKind::Assign {
                 local: counter,
                 value: constant(CHUNK),
@@ -169,6 +172,7 @@ fn expand(
     let mut full_entry = clamp;
     for length in guards.iter().rev() {
         full_entry = body.blocks.alloc(mir::BasicBlock {
+            terminator_origin: Default::default(),
             name: format!("poll.bounds.{}", body.blocks.len()),
             statements: Vec::new(),
             terminator: mir::Terminator::Branch {
@@ -187,8 +191,10 @@ fn expand(
         });
     }
     let chunk = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("poll.chunk.{}", body.blocks.len()),
         statements: vec![mir::Statement {
+            debug_origin: Default::default(),
             kind: mir::StatementKind::ValDecl {
                 local: counter,
                 init: mir::Expr::integer_binary(
@@ -215,6 +221,7 @@ fn expand(
     *then_block = chunk;
     for inner in std::iter::once(full).chain(guards.is_empty().then_some(inner)) {
         body.blocks[inner.latch].statements.push(mir::Statement {
+            debug_origin: Default::default(),
             kind: mir::StatementKind::Assign {
                 local: counter,
                 value: mir::Expr::integer_binary(

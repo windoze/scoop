@@ -99,6 +99,7 @@ impl BodyLowerer<'_> {
                 some.variant,
             ),
             then_body: vec![smir::Statement {
+                debug_origin: Default::default(),
                 kind: smir::StatementKind::ValDecl {
                     local: result,
                     init: payload,

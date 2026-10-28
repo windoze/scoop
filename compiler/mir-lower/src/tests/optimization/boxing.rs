@@ -89,6 +89,7 @@ fn value(body: &mir::Body, name: &str) -> mir::Expr {
 
 fn node(kind: mir::StatementKind) -> mir::Statement {
     mir::Statement {
+        debug_origin: Default::default(),
         kind,
         span: crate::source_span(SPAN),
     }
@@ -174,12 +175,14 @@ fn failing_type_check_prunes_only_the_impossible_success_path() {
         _ => panic!("last check is Int is Boolean"),
     };
     let success = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "impossible".into(),
         statements: vec![node(mir::StatementKind::Expr(value(body, "alias")))],
         terminator: mir::Terminator::Return { value: number(1) },
         unwind: None,
     });
     let failure = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "failure".into(),
         statements: Vec::new(),
         terminator: mir::Terminator::Trap {

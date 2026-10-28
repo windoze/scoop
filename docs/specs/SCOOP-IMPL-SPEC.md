@@ -1857,6 +1857,8 @@ Throwable 从普通空基类改为 intrinsic 前缀会改变所有派生异常�
 
 2.1／2.2 保留 SourceIdentity、定义及求值来源、准确 byte span 与已有行列记录。HIR 的源码变量保留真实声明关系和词法作用域；生成变量明确分类。2.3 在 CFG、内联、闭包和协程变换中转移实际来源及变量绑定，保留内联调用点链；2.4 将它们关联到真实存储和 ABI，指令、terminator 与新增生成操作同步维护位置。启用的调试记录必须结构完整；无源码对应的生成操作使用明确分支，不继承上一条用户指令的位置。后端不反查 parser／HIR stage，也不从可读名称重建实体身份。
 
+文件身份、位置、源码作用域与变量声明集中在公共源码／调试记录中，IR 节点使用有类型的共享引用，不在每层复制完整记录。记录经 IR crate 传递，复用已有声明和变量身份；优化、内联、单态化、closure capture 与协程 saved slot 只新增实际变化的关联。持久化只保留跨 Cone 模板下游真正需要的来源和声明，沿用 HIR 已有来源表；MIR／LIR 的会话调试旁表不作为完整快照重复写入 `.slib`。定义来源与求值来源的用途保持独立，即使它们引用同一位置记录。
+
 2.5 使用 LLVM 22.1 的标准调试元数据和 debug records，在优化之前 finalize。当前目标采用 DWARF 5、`DW_LANG_C` 静态类型视图，producer 标明 scoopc；Scoop 基础类型通过 typedef 保留名称。每个实际发射对象保存自身需要的编译单元、文件、函数和类型；函数同时保存源码名称与既有精确 linkageName。所有字段偏移、大小、对齐与参数分片来自已有目标布局／ABI。引用按真实原生地址描述，不将 LLVM GC address space 当作硬件地址空间。ZST 不因调试增加 payload 存储。
 
 语言规范 11.12 的 canonical semantic source path 与 debugger 文件路径独立。本地源码使用 driver 已知的实际位置；导入正文沿现有来源记录传递，可定位时关联本地源码根，否则保留可由 sourceMap 映射的逻辑路径。路径配置只影响调试生产，不重写 currentSourceLocation。不得在链接时读取源码以重建行表。

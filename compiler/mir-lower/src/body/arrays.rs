@@ -227,7 +227,11 @@ impl BodyLowerer<'_> {
         });
         let target = smir::LoopId::from_raw(self.next_loop_id);
         self.next_loop_id += 1;
-        let statement = |kind| smir::Statement { kind, span };
+        let statement = |kind| smir::Statement {
+            debug_origin: Default::default(),
+            kind,
+            span,
+        };
         self.prelude.push(smir::StatementKind::While {
             loop_kind: hir::LoopKind::While,
             target,

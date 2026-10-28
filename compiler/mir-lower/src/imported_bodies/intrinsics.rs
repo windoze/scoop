@@ -51,6 +51,7 @@ impl Lowerer {
                     let ty = lowerer.lower_type(source_type(exact));
                     let name = format!("arg{index}");
                     let local = lowerer.locals.alloc(mir::Local {
+                        debug_origin: Default::default(),
                         name: name.clone(),
                         ty: ty.clone(),
                         mutable: false,
@@ -73,9 +74,14 @@ impl Lowerer {
             let mut statements = lowerer
                 .prelude
                 .into_iter()
-                .map(|kind| smir::Statement { kind, span })
+                .map(|kind| smir::Statement {
+                    debug_origin: Default::default(),
+                    kind,
+                    span,
+                })
                 .collect::<Vec<_>>();
             statements.push(smir::Statement {
+                debug_origin: Default::default(),
                 kind: smir::StatementKind::Return { value },
                 span,
             });
@@ -93,6 +99,7 @@ impl Lowerer {
             bodies.functions.insert(
                 callable,
                 mir::Function {
+                    debug_origin: Default::default(),
                     name: "imported intrinsic".into(),
                     gc_effect,
                     params,

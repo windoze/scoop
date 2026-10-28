@@ -20,6 +20,7 @@ fn looping(parameter: bool) -> (mir::Module, mir::FunctionId, mir::BlockId, mir:
         panic!("guarded fixture")
     };
     let query = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "query".into(),
         statements: Vec::new(),
         terminator: condition,
@@ -195,6 +196,7 @@ fn exceptional_retries_reuse_parameters_but_not_repeated_initializers() {
         let (mut module, scope, _, success) = looping(parameter);
         let body = &mut module.functions[scope].body;
         let retry = body.blocks.alloc(mir::BasicBlock {
+            terminator_origin: Default::default(),
             name: "retry".into(),
             statements: vec![
                 stmt(mir::StatementKind::Eh(mir::EhStatement::LandingPad {

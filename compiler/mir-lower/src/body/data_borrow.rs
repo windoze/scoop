@@ -48,6 +48,7 @@ impl BodyLowerer<'_> {
         );
         self.prelude.push(smir::StatementKind::Try(smir::Try {
             body: vec![smir::Statement {
+                debug_origin: Default::default(),
                 span,
                 kind: smir::StatementKind::ValDecl {
                     local: result,
@@ -56,6 +57,7 @@ impl BodyLowerer<'_> {
             }],
             catches: Vec::new(),
             finally_body: Some(vec![smir::Statement {
+                debug_origin: Default::default(),
                 span,
                 kind: smir::StatementKind::Expr(borrow_operation(
                     mir::Type::Unit,

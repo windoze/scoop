@@ -26,6 +26,7 @@ impl BodyLowerer<'_> {
     ) -> smir::Statement {
         let exception_ty = mir::Type::Class(class_id);
         smir::Statement {
+            debug_origin: Default::default(),
             kind: smir::StatementKind::Throw(smir::Expr::new(
                 exception_ty.clone(),
                 smir::ExprKind::ClassNew {

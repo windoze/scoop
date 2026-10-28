@@ -6,6 +6,7 @@ pub struct Module {
     /// Producer Cone preserved from Export HIR. Generated definitions must
     /// use this identity rather than a request-local source or arena id.
     pub cone: scoop_identity::ConeIdentity,
+    pub debug_sources: DebugSources,
     pub types: Arena<Type>,
     /// Total persistent identity relation aligned with `types`. Local-
     /// concrete HIR cannot represent an open type, so every entry is exact.

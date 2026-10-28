@@ -37,6 +37,7 @@ pub(crate) struct CoroutineEhMode {
 
 #[derive(Debug)]
 pub(crate) struct Statement {
+    pub(crate) debug_origin: mir::DebugOrigin,
     pub(crate) kind: StatementKind,
     pub(crate) span: Span,
 }
@@ -140,13 +141,18 @@ pub(crate) enum StatementKind {
 /// type from an enclosing statement or expected context.
 #[derive(Debug, Clone)]
 pub(crate) struct Expr {
+    pub(crate) debug_origin: mir::DebugOrigin,
     pub(crate) ty: mir::Type,
     pub(crate) kind: ExprKind,
 }
 
 impl Expr {
     pub(crate) fn new(ty: mir::Type, kind: ExprKind) -> Self {
-        Self { ty, kind }
+        Self {
+            ty,
+            kind,
+            debug_origin: mir::DebugOrigin::Generated,
+        }
     }
 
     pub(crate) fn local(local: mir::LocalId, ty: mir::Type) -> Self {

@@ -23,6 +23,7 @@ impl BodyLowerer<'_> {
         let mark_ty = self.context_type(mir::ContextStorageRole::Mark);
         let mark = self.new_hidden("context_mark", mark_ty.clone(), false);
         out.push(smir::Statement {
+            debug_origin: Default::default(),
             span,
             kind: smir::StatementKind::ValDecl {
                 local: mark,
@@ -37,6 +38,7 @@ impl BodyLowerer<'_> {
         });
         let body = self.lower_statements(body);
         let restore = smir::Statement {
+            debug_origin: Default::default(),
             span,
             kind: smir::StatementKind::Expr(smir::Expr::new(
                 mir::Type::Unit,
@@ -46,6 +48,7 @@ impl BodyLowerer<'_> {
             )),
         };
         out.push(smir::Statement {
+            debug_origin: Default::default(),
             span,
             kind: smir::StatementKind::Try(smir::Try {
                 body,
@@ -149,6 +152,7 @@ impl BodyLowerer<'_> {
             },
         );
         smir::Statement {
+            debug_origin: Default::default(),
             span,
             kind: smir::StatementKind::Throw(smir::Expr::new(
                 mir::Type::Class(class),

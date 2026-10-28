@@ -33,7 +33,7 @@ pub struct LineIndex {
 }
 
 impl LineIndex {
-    pub(crate) fn new(source: &str, universal_newlines: bool) -> Self {
+    pub fn new(source: &str, universal_newlines: bool) -> Self {
         let mut starts = vec![0];
         let mut ends = Vec::new();
         let mut wide = Vec::new();

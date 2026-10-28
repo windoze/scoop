@@ -212,6 +212,7 @@ fn lower_with_dependencies(
     };
     Lowerer {
         output,
+        debug_records: mir::DebugRecords::default(),
         coroutine_elision,
         core_protocols: module.core_protocols.clone(),
         functions: Arena::new(),
@@ -306,6 +307,7 @@ fn defined_protocols(protocols: &hir::ConcreteCoreProtocols) -> &hir::DefinedCon
 
 struct Lowerer {
     output: LoweringOutput,
+    debug_records: mir::DebugRecords,
     /// Complete typed protocol declarations retained from the HIR input.
     core_protocols: hir::ConcreteCoreProtocols,
     functions: Arena<mir::Function>,

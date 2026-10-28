@@ -122,6 +122,7 @@ impl Concretizer<'_> {
 
         let module = concrete::Module {
             cone: self.source.cone,
+            debug_sources: concrete::DebugSources::new(self.source),
             types: self.types,
             exact_type_identities,
             local_value_identities,

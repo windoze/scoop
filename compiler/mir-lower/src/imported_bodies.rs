@@ -40,6 +40,7 @@ impl Lowerer {
             for (id, local) in source.body.locals.iter() {
                 let ty = lowerer.lower_type(local.ty);
                 let local = lowerer.locals.alloc(mir::Local {
+                    debug_origin: Default::default(),
                     name: local.name.clone(),
                     ty,
                     mutable: local.mutable,
@@ -66,6 +67,7 @@ impl Lowerer {
             bodies.insert(
                 callable,
                 mir::Function {
+                    debug_origin: Default::default(),
                     name: "imported inline body".into(),
                     gc_effect,
                     params,

@@ -21,14 +21,20 @@ pub(super) fn build(
         &mut locals,
     );
     let exception = locals.alloc(mir::Local {
+        debug_origin: Default::default(),
         name: "$caught".to_string(),
         ty: throwable.clone(),
         mutable: false,
     });
-    let statement = |kind| mir::Statement { kind, span };
+    let statement = |kind| mir::Statement {
+        debug_origin: Default::default(),
+        kind,
+        span,
+    };
     let mut blocks = Arena::new();
     let switch = crate::task_context::TaskSwitch::new(core, &mut locals, &mut blocks);
     let catch = blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "callback.failure".to_string(),
         statements: vec![
             statement(mir::StatementKind::Eh(mir::EhStatement::LandingPad {
@@ -64,6 +70,7 @@ pub(super) fn build(
         ))));
     } else {
         let value = locals.alloc(mir::Local {
+            debug_origin: Default::default(),
             name: "$value".to_string(),
             ty: signature.return_type.clone(),
             mutable: false,
@@ -81,6 +88,7 @@ pub(super) fn build(
     }
     success.push(switch.leave());
     let invoke = blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "callback.invoke".to_string(),
         statements: success,
         terminator: status(mir::ForeignCallbackStatus::Returned),
@@ -88,12 +96,14 @@ pub(super) fn build(
     });
     let (fork, task) = crate::task_context::fork(core, storage.snapshot, &mut locals);
     let entry = blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         statements: vec![fork, switch.enter(task)],
         terminator: mir::Terminator::Goto(invoke),
         unwind: None,
     });
     mir::Function {
+        debug_origin: Default::default(),
         gc_effect: mir::GcEffect::Managed,
         name: format!("foreign callback adapter {index}"),
         params: storage.params,

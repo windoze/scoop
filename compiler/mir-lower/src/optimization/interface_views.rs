@@ -90,7 +90,9 @@ impl Rewriter<'_> {
             self.changed = true;
         }
         if expression.ty == operand.ty {
-            *expression = (**operand).clone();
+            *expression = (**operand)
+                .clone()
+                .with_debug_origin(expression.debug_origin.clone());
             self.changed = true;
         }
     }

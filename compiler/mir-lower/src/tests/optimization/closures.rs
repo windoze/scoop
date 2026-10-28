@@ -96,6 +96,7 @@ fn identity_observation_keeps_the_environment_after_inlining() {
     body.blocks[body.entry].statements.insert(
         position,
         mir::Statement {
+            debug_origin: Default::default(),
             kind: mir::StatementKind::Expr(mir::Expr::new(
                 mir::Type::Boolean,
                 mir::ExprKind::Binary {
@@ -148,6 +149,7 @@ fn snapshots_follow_capture_evaluation_order_and_keep_physical_field_indices() {
         });
         if let Some(creation) = creation {
             let updates = expected.iter().map(|&(_, local)| mir::Statement {
+                debug_origin: Default::default(),
                 kind: mir::StatementKind::Assign {
                     local,
                     value: mir::Expr::integer(mir::MirIntegerConstant::Signed32(99)),

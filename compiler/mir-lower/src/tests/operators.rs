@@ -239,6 +239,7 @@ fn all_integer_constants_and_conversions_preserve_exact_kinds() {
         let source = crate::types::lower_integer_kind(source);
         let target = crate::types::lower_integer_kind(target);
         let mir::StatementKind::Expr(mir::Expr {
+            debug_origin: _,
             ty,
             kind:
                 mir::ExprKind::IntegerConversion {

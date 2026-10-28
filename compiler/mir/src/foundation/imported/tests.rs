@@ -20,8 +20,10 @@ fn ordinary_module(callable: crate::ExternalCallableUse) -> Module {
     let callable = external_callables.alloc(callable);
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         statements: vec![Statement {
+            debug_origin: Default::default(),
             kind: StatementKind::Call(CallEffect::Unit(Call {
                 target: CallTarget::Direct(Callee::External(callable)),
                 args: Vec::new(),
@@ -35,6 +37,7 @@ fn ordinary_module(callable: crate::ExternalCallableUse) -> Module {
     });
     let mut functions = Arena::new();
     functions.alloc(Function {
+        debug_origin: Default::default(),
         gc_effect: GcEffect::Managed,
         name: "ordinary".to_string(),
         params: Vec::new(),

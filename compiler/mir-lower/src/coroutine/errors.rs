@@ -45,6 +45,7 @@ pub(super) fn protocol_error_block(
     };
     let exception = locals.alloc(local("$protocol_error", mir::Type::Class(mir_class)));
     blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "coroutine.protocol_error".to_string(),
         statements: vec![
             statement(mir::StatementKind::ValDecl {
