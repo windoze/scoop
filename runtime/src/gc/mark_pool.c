@@ -55,6 +55,10 @@ static void run_worker(ScoopGcMarkWorker *worker, size_t task_limit) {
                 break;
             }
         }
+        uint64_t references_before = 0;
+        if (task_limit != 0) {
+            references_before = worker->reference_slots + worker->old_slots;
+        }
         if (task.kind == SCOOP_RESERVE_CHUNK_TASK) {
             scoop_gc_reserve_run_task(worker, task.data.reserve.plans, task.data.reserve.chunk);
         } else if (task.kind == SCOOP_COPY_BLOCK_TASK) {
@@ -67,7 +71,9 @@ static void run_worker(ScoopGcMarkWorker *worker, size_t task_limit) {
         }
         scoop_gc_mark_task_done();
         if (task_limit != 0) {
-            completed += task.kind == SCOOP_MARK_DIRTY_TASK ? 4 : 1;
+            uint64_t references = worker->reference_slots + worker->old_slots - references_before;
+            /* Arrays and dirty ranges consume the same reference work as object batches. */
+            completed += references == 0 ? 1 : (references - 1) / 128 + 1;
         }
     }
     /* A bounded publisher may leave its lone successor for a waiting peer. */

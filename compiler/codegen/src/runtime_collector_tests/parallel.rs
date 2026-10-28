@@ -2,6 +2,29 @@ use super::compile::compile_and_run_configuration;
 use super::{compile_and_run_with_flags, workspace_root};
 
 #[test]
+fn bounded_marking_counts_actual_array_and_remembered_references() {
+    for (stress, optimization) in [(false, "-O2"), (true, "-O0")] {
+        let output = compile_and_run_configuration(
+            &workspace_root(),
+            "mark_slice_references_test",
+            "runtime/tests/mark_slice_references_test.c",
+            stress,
+            stress,
+            &[optimization],
+        );
+        assert!(
+            output.status.success(),
+            "stress={stress}, optimization={optimization}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"bounded marking counts actual array and remembered references before draining\n"
+        );
+    }
+}
+
+#[test]
 fn wrapped_and_growing_queues_preserve_owner_and_thief_order() {
     for optimization in ["-O0", "-O2"] {
         let output = compile_and_run_with_flags(
