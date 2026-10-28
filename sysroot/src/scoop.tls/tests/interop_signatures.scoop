@@ -8,7 +8,8 @@ import scoop.test.*
 private class OpenSslSignatureTests {
     @Test
     fun `independent OpenSSL CLI verifies all signature formats produced by crypto`() {
-        InteropDirectory().use { tree ->
+        InteropDirectory().use {
+            tree ->
             tree.child("message").writeText("Scoop outbound signature interoperability")
             verifyOutput(tree, SignatureAlgorithm.RsaPkcs1Sha256) { PrivateKey.generateRsa() }
             verifyOutput(tree, SignatureAlgorithm.RsaPssSha256) { PrivateKey.generateRsa() }
@@ -18,27 +19,47 @@ private class OpenSslSignatureTests {
     }
 }
 
-private fun verifyOutput(tree: InteropDirectory, algorithm: SignatureAlgorithm, create: () -> PrivateKey) {
-    create().use { key ->
+private fun verifyOutput(
+    tree: InteropDirectory,
+    algorithm: SignatureAlgorithm,
+    create: () -> PrivateKey
+) {
+    create().use {
+        key ->
         key.publicKey().use { publicKey -> tree.child("public.pem").writeText(publicKey.toPem()) }
-        tree.child("signature").writeAllBytes(sign(algorithm, key, tree.child("message").readAllBytes()))
+        tree.child("signature").writeAllBytes(
+            sign(algorithm, key, tree.child("message").readAllBytes())
+        )
     }
     val arguments = ArrayList<String>()
     if (algorithm == SignatureAlgorithm.Ed25519) {
-        arguments.add("pkeyutl"); arguments.add("-verify"); arguments.add("-rawin"); arguments.add("-pubin")
-        arguments.add("-inkey"); arguments.add(tree.child("public.pem").decodeUtf8())
-        arguments.add("-sigfile"); arguments.add(tree.child("signature").decodeUtf8())
+        arguments.add("pkeyutl");
+        arguments.add("-verify");
+        arguments.add("-rawin");
+        arguments.add("-pubin")
+        arguments.add("-inkey");
+        arguments.add("public.pem")
+        arguments.add("-sigfile");
+        arguments.add("signature")
         arguments.add("-in")
     } else {
-        arguments.add("dgst"); arguments.add("-sha256"); arguments.add("-verify")
-        arguments.add(tree.child("public.pem").decodeUtf8())
-        arguments.add("-signature"); arguments.add(tree.child("signature").decodeUtf8())
+        arguments.add("dgst");
+        arguments.add("-sha256");
+        arguments.add("-verify")
+        arguments.add("public.pem")
+        arguments.add("-signature");
+        arguments.add("signature")
         if (algorithm == SignatureAlgorithm.RsaPssSha256) {
-            arguments.add("-sigopt"); arguments.add("rsa_padding_mode:pss")
-            arguments.add("-sigopt"); arguments.add("rsa_pss_saltlen:32")
-            arguments.add("-sigopt"); arguments.add("rsa_mgf1_md:sha256")
+            arguments.add("-sigopt");
+            arguments.add("rsa_padding_mode:pss")
+            arguments.add("-sigopt");
+            arguments.add("rsa_pss_saltlen:32")
+            arguments.add("-sigopt");
+            arguments.add("rsa_mgf1_md:sha256")
         }
     }
-    arguments.add(tree.child("message").decodeUtf8())
-    peerCommand("openssl", arguments).spawn(searchPath = true).use { child -> peerSucceeded(child.communicate()) }
+    arguments.add("message")
+    peerCommand("openssl", arguments, workingDirectory = tree.path).spawn(searchPath = true).use {
+        child -> peerSucceeded(child.communicate())
+    }
 }

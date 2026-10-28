@@ -258,3 +258,7 @@ PCRE2 10.49 的静态 8-bit／Unicode／JIT 后端已按三个 Windows target �
 OpenSSL 3.5.9 已按三个 Windows target 分别正式构建并安装静态库：Microsoft 使用 native Perl／NMake／clang-cl 和 `/MD`，MinGW 使用 MSYS Perl／GNU Make 及所选 CRT prefix 的 Clang／archive 工具。Microsoft 安装保留真实公共和生成头文件，将 COFF archive 发布为约定的 `.a` 名称；clang-cl 不生成上游安装规则假定的 compiler PDB，因此只复制实际存在的 PDB。依赖记录读取真实 `/showIncludes` 和 Make depfile，未变化准备先于工具探测直接复用。
 
 三个 target 的 crypto 正式 release Cone 各 10 个容器／25 项测试、跨 Cone consumer 各 4 个容器／5 项测试全部通过；生产 json／crypto 已发布到开发 sysroot。三套 PE 导入符合对应 CRT，OpenSSL 保持静态链接。三套原生严格告警检查、Python Ruff 和三项维护脚本测试通过；后者覆盖真实编译器头文件更新与跨进程构建锁。三个 OpenSSL 准备命令重复执行均复用，archive 时间戳保持，源码与工具仍在原位。TLS、asyncio 广覆盖、其他第三方后端及完整发行验收继续实施，未开始远端测试。
+
+TLS 的 Windows System 信任现使用 Crypt32 当前用户链引擎及 SSL 服务端策略，保留用户／机器信任、用途、时间和 DNS／IP 名称校验，禁止 AIA 等网络获取，失败保存完整平台码与 UTF-8 原因。测试通过独立内存根和真实 chain engine 验证平台策略，不修改系统信任库。异步 TLS 的测试屏障已接入 Windows SRW lock／condition variable，并声明实际使用的 asyncio 依赖。
+
+三个 target 的正式 release TLS 各 12 个容器／28 项测试、异步 TLS 各 10 个容器／22 项测试、两组跨 Cone consumer 各 3 项测试全部通过；生产 TLS／异步 TLS 已发布开发 sysroot。覆盖独立 OpenSSL／Python 互操作、双向身份、TLS 1.2／1.3、系统信任拒绝与隔离锚成功、挂起验证、取消与关闭后的资源生命周期。外部 OpenSSL CLI 不接受 Windows verbatim 文件名的问题由测试使用明确 cwd 和相对文件名闭合，Python peer 使用 LF 协议输出。Scoop／C 格式化与三套原生严格告警检查通过。asyncio 全量、其余系统库、发行和远端验证继续实施。
