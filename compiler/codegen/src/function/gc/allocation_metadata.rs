@@ -3,7 +3,7 @@
 use super::*;
 
 pub(super) fn allocation_context_type(context: &Context) -> inkwell::types::StructType<'_> {
-    context.struct_type(&[ptr_ty(context).into(); 5], false)
+    context.struct_type(&[ptr_ty(context).into(); 4], false)
 }
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
@@ -53,7 +53,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             AtomicOrdering::Release,
         )?;
 
-        let counters = self.allocation_pointer(allocation, 4, "tlab_counters")?;
+        let counters = self.byte_gep(
+            allocation,
+            scoop_lir::ALLOCATION_COUNTERS_OFFSET,
+            "tlab_counters",
+        )?;
         for (field, increment) in [(0, constant(1)), (1, size)] {
             let slot = self.allocation_word(counters, constant(field))?;
             let value = self.allocation_atomic_load(slot)?;

@@ -16,7 +16,8 @@ _Static_assert(offsetof(ScoopGcMutator, allocation) == 0,
                "the generated TLAB context must be the mutator prefix");
 _Static_assert(offsetof(ScoopGcMutator, counters) % 128 == 0 && _Alignof(ScoopGcMutator) == 128,
                "allocation counters must occupy a separate cache line");
-_Static_assert(offsetof(ScoopGcMutator, counters) == 128 && sizeof(ScoopGcMutator) == 256,
+_Static_assert(offsetof(ScoopGcMutator, counters) == SCOOP_ALLOCATION_COUNTERS_OFFSET &&
+                   sizeof(ScoopGcMutator) == 256,
                "block reserves must fit existing mutator alignment space");
 
 _Noreturn void scoop_gc_mutator_fatal(const char *message);

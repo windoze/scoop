@@ -141,7 +141,13 @@ fn release_allocations_with_known_layout_publish_ordered_metadata_inline() {
         assert!(!ir.contains("store i16"), "{ir}");
         assert!(!ir.contains("alloc.lines."), "{ir}");
         assert!(!ir.contains("tlab_occupied_lines"), "{ir}");
-        assert!(ir.contains("{ ptr, ptr, ptr, ptr, ptr }"), "{ir}");
+        assert!(ir.contains("{ ptr, ptr, ptr, ptr }"), "{ir}");
+        assert!(
+            ir.lines()
+                .any(|line| line.contains("tlab_counters = getelementptr i8")
+                    && line.ends_with(", i64 128")),
+            "the stable mutator holds the counters at a fixed offset: {ir}"
+        );
         assert_eq!(
             ir.lines()
                 .filter(|line| line.contains("tlab_counter_next") && line.contains(" = add i64"))
@@ -172,7 +178,7 @@ fn debug_and_unknown_allocations_keep_the_shared_finish_entry() {
             "{ir}"
         );
         assert!(!ir.contains("alloc.lines.second"), "{ir}");
-        assert!(ir.contains("{ ptr, ptr, ptr, ptr, ptr }"), "{ir}");
+        assert!(ir.contains("{ ptr, ptr, ptr, ptr }"), "{ir}");
         if !known_descriptor {
             assert!(ir.contains("allocation_alignment = load"), "{ir}");
             assert!(ir.contains("allocation_hook = load"), "{ir}");
