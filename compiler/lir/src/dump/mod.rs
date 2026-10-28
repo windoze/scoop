@@ -30,6 +30,12 @@ pub fn dump(module: &Module) -> String {
                 definition.provider(),
                 global.scan.dump()
             )),
+            GlobalInit::ByteArrayConst {
+                array_type, bytes, ..
+            } => out.push_str(&format!(
+                "  global @{} = bytes {bytes:?} array={array_type:?}\n",
+                global.symbol()
+            )),
             GlobalInit::StringConst { value, .. } => {
                 out.push_str(&format!("  global @{} = {:?}\n", global.symbol(), value));
             }

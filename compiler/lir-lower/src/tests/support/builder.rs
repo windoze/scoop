@@ -6,7 +6,7 @@ use super::*;
 pub(in crate::tests) struct Builder {
     pub(in crate::tests) functions: Arena<mir::Function>,
     pub(in crate::tests) extern_functions: Arena<mir::ExternFunction>,
-    pub(in crate::tests) strings: Arena<mir::StringConst>,
+    pub(in crate::tests) immortals: Arena<mir::ImmortalConst>,
     pub(in crate::tests) structs: Arena<mir::StructDef>,
     pub(in crate::tests) enums: Arena<mir::EnumDef>,
     pub(in crate::tests) classes: Arena<mir::ClassDef>,
@@ -21,7 +21,7 @@ impl Builder {
         Builder {
             functions: Arena::new(),
             extern_functions: Arena::new(),
-            strings: Arena::new(),
+            immortals: Arena::new(),
             structs: Arena::new(),
             enums: Arena::new(),
             classes: Arena::new(),
@@ -90,8 +90,8 @@ impl Builder {
         }
     }
 
-    pub(in crate::tests) fn string(&mut self, value: &str) -> mir::StringConstId {
-        let ordinal = u32::try_from(self.strings.len()).expect("test string count fits u32");
+    pub(in crate::tests) fn string(&mut self, value: &str) -> mir::ImmortalConstId {
+        let ordinal = u32::try_from(self.immortals.len()).expect("test string count fits u32");
         let identity = mir::ImmortalObjectKey::string_constant(
             mir::ImmortalObjectOwner::Property(property_owner("testStringConstants")),
             mir::StructuralDefinitionPath::from_first(
@@ -102,10 +102,10 @@ impl Builder {
                 [],
             ),
         );
-        self.strings.alloc(mir::StringConst {
+        self.immortals.alloc(mir::ImmortalConst {
             identity,
-            value: value.to_string(),
-            source: mir::StringConstSource::CurrentCone,
+            value: mir::ImmortalConstValue::String(value.to_string()),
+            source: mir::ImmortalConstSource::CurrentCone,
         })
     }
 

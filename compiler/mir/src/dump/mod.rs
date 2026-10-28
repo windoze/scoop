@@ -5,7 +5,7 @@ mod functions;
 mod statements;
 mod types;
 
-use crate::{FunctionId, StringConstId};
+use crate::{FunctionId, ImmortalConstId};
 
 pub use declarations::dump;
 pub use types::type_name;
@@ -18,6 +18,10 @@ fn function_ref(id: FunctionId) -> String {
     format!("@fn{}", id.into_raw().into_u32())
 }
 
-fn string_ref(id: StringConstId) -> String {
+fn byte_array_ref(id: ImmortalConstId) -> String {
+    format!("@bytes{}", id.into_raw().into_u32())
+}
+
+fn string_ref(id: ImmortalConstId) -> String {
     format!("@str{}", id.into_raw().into_u32())
 }

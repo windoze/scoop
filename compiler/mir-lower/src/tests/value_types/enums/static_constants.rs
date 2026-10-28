@@ -282,14 +282,20 @@ fn static_enum_constants_preserve_exact_refs_and_payloads_through_hir_and_mir() 
     let [mir::MirConstantImage::String(string)] = fields.as_slice() else {
         panic!("nested string")
     };
-    assert_eq!(module.strings[*string].value, "nested");
+    assert_eq!(
+        module.immortals[*string].value,
+        mir::ImmortalConstValue::String("nested".into())
+    );
     let mir::MirConstantImage::Enum { fields, .. } = payload("someString") else {
         panic!("string enum")
     };
     let [mir::MirConstantImage::String(string)] = fields.as_slice() else {
         panic!("string payload")
     };
-    assert_eq!(module.strings[*string].value, "payload");
+    assert_eq!(
+        module.immortals[*string].value,
+        mir::ImmortalConstValue::String("payload".into())
+    );
     assert_eq!(payload("unit"), &mir::MirConstantImage::Unit);
     let mir::MirConstantImage::Tuple(elements) = payload("tuple") else {
         panic!("tuple constant")
@@ -302,5 +308,8 @@ fn static_enum_constants_preserve_exact_refs_and_payloads_through_hir_and_mir() 
     let mir::MirConstantImage::String(string) = elements[2] else {
         panic!("tuple string")
     };
-    assert_eq!(module.strings[string].value, "tuple");
+    assert_eq!(
+        module.immortals[string].value,
+        mir::ImmortalConstValue::String("tuple".into())
+    );
 }

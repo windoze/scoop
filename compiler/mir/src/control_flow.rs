@@ -681,8 +681,9 @@ pub enum ExprKind {
     },
     Context(ContextOperation<Expr>),
     DataBorrow(DataBorrowOperation<Expr>),
-    StringConst(StringConstId),
-    /// One allocation from already evaluated strings and merged UTF-8 literals.
+    ByteArrayConst(ImmortalConstId),
+    StringConst(ImmortalConstId),
+    /// One allocation from already evaluated immortals and merged UTF-8 literals.
     StringConcat(Vec<StringConcatPart>),
     StringCopy(Box<crate::StringCopyOperation<Expr>>),
     StringByte(Box<crate::StringByteOperation<Expr>>),

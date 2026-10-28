@@ -13,3 +13,9 @@ fun invalid(path: String) {
 fun <T> unused(value: T): String = embed("")
 fun defaulted(value: String = embed("")) {}
 fun main() {}
+fun invalidBytes(path: String) {
+    import scoop.compiler.includeBytes
+    val dynamic = includeBytes(path)
+    val reference = ::includeBytes
+    val symlink = includeBytes("escape.txt")
+}

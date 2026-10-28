@@ -99,6 +99,7 @@ fn global_storage(module: &lir::Module, global: lir::GlobalId) -> bool {
                 thread_local: true,
                 ..
             } | lir::GlobalInit::StringConst { .. }
+                | lir::GlobalInit::ByteArrayConst { .. }
                 | lir::GlobalInit::CString { .. }
         )
 }

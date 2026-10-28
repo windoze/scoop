@@ -225,7 +225,7 @@ impl Builder {
             closure_classes: Arena::new(),
             closure_invoke_functions: Arena::new(),
             top_level: self.top_level,
-            strings: self.strings,
+            immortals: self.immortals,
             structs: self.structs,
             enums: self.enums,
             classes: self.classes,

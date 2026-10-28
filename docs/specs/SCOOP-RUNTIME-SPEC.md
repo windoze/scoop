@@ -183,7 +183,7 @@ typed 数组 clone 的源／目标 element exact type 与 layout 已一致时，
 
 ArrayList、StringBuilder 等普通库类型使用其声明的 class/value 表示，其公开行为由语言规范第 11 章规定。
 
-语言规范 11.19 的编译期文件输入使用同一 String／Array 布局；includeStr 已沿普通静态 String 发射。includeBytes 的 Array<Byte>、includeDir 的 Array<EmbeddedFile> 及其 String／字节数组引用由编译器静态发射并沿已有 image 机制登记为 immortal；EmbeddedFile／EmbeddedDir 是普通 struct。对象图只能包含完整合法的值与其他不可移动静态对象引用，符合 3.3 的 immortal 合同，没有指向可移动对象的槽。值相同的常量对象是否共享存储属于编译器优化，identity 遵守语言规范 9.1.2；不新增 runtime intern 表、文件系统 API、对象头字段或 GC 扫描协议。显式转换为 MutableArray 仍按普通语义分配独立对象。数组与目录部分当前为设计，待编译器实现。
+语言规范 11.19 的编译期文件输入使用同一 String／Array 布局；includeStr 已沿普通静态 String 发射。includeBytes 的 Array<Byte>、includeDir 的 Array<EmbeddedFile> 及其 String／字节数组引用由编译器静态发射并沿已有 image 机制登记为 immortal；EmbeddedFile／EmbeddedDir 是普通 struct。对象图只能包含完整合法的值与其他不可移动静态对象引用，符合 3.3 的 immortal 合同，没有指向可移动对象的槽。值相同的常量对象是否共享存储属于编译器优化，identity 遵守语言规范 9.1.2；不新增 runtime intern 表、文件系统 API、对象头字段或 GC 扫描协议。显式转换为 MutableArray 仍按普通语义分配独立对象。includeBytes 的静态 Array<Byte> 已实现；includeDir 的目录表仍为设计，待编译器实现。
 
 `MutableArray<MaybeUninit<T>>` 复用 InlineArray shape，logical size 为 capacity，元素 size／stride 为 T 的 exact size，ZST 仍为零。所有容量槽都保存合法 wrapper，完整 GC 按 capacity 扫描；ArrayList 的 elementCount 不进入 GC 协议。删除与 clear 必须清零不再使用的槽，StringBuilder 复用同一 ArrayList 扩容。
 

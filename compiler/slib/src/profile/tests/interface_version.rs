@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v84_preserves_compile_time_file_intrinsics() {
+fn source_interface_v85_preserves_static_byte_array_templates() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        84,
+        85,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );

@@ -188,6 +188,8 @@ pub enum ExprKind {
     Unreachable,
     MaybeUninit(MaybeUninitOperation<Box<Expr>>),
     ContextLookup(crate::ContextRequirementRef),
+    /// Raw bytes embedded by a compiler input intrinsic.
+    ByteArrayLiteral(Vec<u8>),
     StringLiteral {
         value: String,
         owner: StringConstantOwner<PropertyId>,

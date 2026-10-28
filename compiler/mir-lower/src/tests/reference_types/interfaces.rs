@@ -182,7 +182,7 @@ fn abstract_methods_lower_to_trap_stubs() {
         &stub.body.blocks[stub.body.entry].terminator,
         mir::Terminator::Trap { message } if message == "call to abstract method `Base.id`"
     ));
-    assert!(module.strings.is_empty());
+    assert!(module.immortals.is_empty());
 }
 
 #[test]

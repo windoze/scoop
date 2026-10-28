@@ -244,6 +244,7 @@ fn expression_requirement(
         } => unavailable_array(roots, *source_type)
             .or_else(|| unavailable_array(roots, *target_type)),
         mir::ExprKind::StringConst(_)
+        | mir::ExprKind::ByteArrayConst(_)
         | mir::ExprKind::IntegerLiteral(_)
         | mir::ExprKind::MachineScalarLiteral(_)
         | mir::ExprKind::CharLiteral(_)

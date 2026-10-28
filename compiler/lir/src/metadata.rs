@@ -821,7 +821,8 @@ impl CallableCStringIdentity {
 impl Global {
     pub fn symbol(&self) -> &str {
         match &self.init {
-            GlobalInit::StringConst { identity, .. } => identity.symbol(),
+            GlobalInit::StringConst { identity, .. }
+            | GlobalInit::ByteArrayConst { identity, .. } => identity.symbol(),
             GlobalInit::CString { identity, .. } => identity.symbol(),
             GlobalInit::Storage { identity, .. } | GlobalInit::RawStorage { identity, .. } => {
                 identity.symbol()
@@ -835,7 +836,8 @@ impl Global {
         &self,
     ) -> Option<scoop_identity::PersistentSymbolRequest> {
         match &self.init {
-            GlobalInit::StringConst { identity, .. } => Some(identity.symbol_request()),
+            GlobalInit::StringConst { identity, .. }
+            | GlobalInit::ByteArrayConst { identity, .. } => Some(identity.symbol_request()),
             GlobalInit::Storage { identity, .. } | GlobalInit::RawStorage { identity, .. } => {
                 Some(identity.symbol_request())
             }
@@ -1199,6 +1201,11 @@ pub enum GlobalInit {
     },
     /// A `ScoopString` constant whose header points at the typed String
     /// descriptor selected by `WellKnownTypeDescriptors`.
+    ByteArrayConst {
+        identity: ImmortalObjectIdentity,
+        array_type: ArrayTypeId,
+        bytes: Vec<u8>,
+    },
     StringConst {
         identity: ImmortalObjectIdentity,
         value: String,

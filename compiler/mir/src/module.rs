@@ -29,7 +29,7 @@ pub struct Module {
     pub closure_invoke_functions: Arena<ClosureInvokeFunction>,
     /// User functions in declaration order (builtins have no MIR body).
     pub top_level: Vec<FunctionId>,
-    pub strings: Arena<StringConst>,
+    pub immortals: Arena<ImmortalConst>,
     pub structs: Arena<StructDef>,
     pub enums: Arena<EnumDef>,
     pub classes: Arena<ClassDef>,
@@ -652,7 +652,7 @@ pub enum MirConstantImage {
     Boolean(bool),
     Char(char),
     Float(scoop_identity::FloatConstant),
-    String(StringConstId),
+    String(ImmortalConstId),
     PointerNull(MirPointerNull),
     Enum {
         variant: MirVariantRef,
@@ -1384,15 +1384,22 @@ pub struct DispatchTable {
 }
 
 #[derive(Debug)]
-pub struct StringConst {
+pub struct ImmortalConst {
     /// Canonical, arena-independent identity seed for this immutable object.
     pub identity: ImmortalObjectKey,
-    pub value: String,
-    pub source: StringConstSource,
+    pub value: ImmortalConstValue,
+    pub source: ImmortalConstSource,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum StringConstSource {
+pub enum ImmortalConstSource {
     CurrentCone,
     Imported(ConeIdentity),
+}
+
+/// Static managed data embedded in the output image.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ImmortalConstValue {
+    String(String),
+    ByteArray { array_type: ClassId, bytes: Vec<u8> },
 }

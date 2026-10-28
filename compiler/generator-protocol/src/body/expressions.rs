@@ -27,6 +27,9 @@ impl Serialize for BodyJson<'_, hir::DefaultExpressionKindV1> {
             } => {
                 object!(serializer, {"kind": "releaseFieldLoad", "ownerType": self.child(owner_type), "declaration": Reference::from(*declaration)})
             }
+            ByteArrayLiteral(bytes) => {
+                object!(serializer, {"kind": "byteArrayLiteral", "bytes": bytes})
+            }
             StringLiteral { value, owner } => {
                 object!(serializer, {"kind": "stringLiteral", "value": value, "owner": QueryJson(owner)})
             }

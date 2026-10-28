@@ -141,5 +141,44 @@
       "start": 414
     },
     "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`includeBytes` requires a compile-time constant String path",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 583,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 579
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "compiler intrinsic `includeBytes` does not support callable references\nnote: this intrinsic is evaluated at compile time and has no runtime callable entry\nhelp: import and call it directly with a constant path",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 619,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 605
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "include symlink target `${work}/outside.txt` is outside the defining Cone directory `${work}/cone`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 663,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 651
+    },
+    "severity": "error"
   }
 ]

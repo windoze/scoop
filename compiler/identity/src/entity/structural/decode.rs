@@ -29,6 +29,7 @@ impl WireDecode for StructuralDefinitionSiteRole {
             10 => Ok(Self::SynthesizedBridge),
             11 => Ok(Self::SyntheticValue),
             12 => Ok(Self::StringConstant),
+            13 => Ok(Self::ArrayConstant),
             tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
         }
     }
@@ -513,8 +514,8 @@ mod tests {
         );
 
         let unknown_role =
-            decode_canonical::<StructuralPathSegment>(b"\xa2\x01\x0d\x02\x00").unwrap_err();
-        assert_eq!(unknown_role.kind(), &WireErrorKind::UnknownTag { tag: 13 });
+            decode_canonical::<StructuralPathSegment>(b"\xa2\x01\x0e\x02\x00").unwrap_err();
+        assert_eq!(unknown_role.kind(), &WireErrorKind::UnknownTag { tag: 14 });
 
         let bad_name =
             decode_canonical::<DecodedDeclarationName>(b"\xa2\x00\x01\x01\x69not`valid").unwrap();

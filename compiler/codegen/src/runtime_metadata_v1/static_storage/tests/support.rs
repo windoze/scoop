@@ -50,7 +50,10 @@ pub(super) fn static_storage_plan() -> StrongStaticStorageRegistrationPlanSetV1 
         .globals
         .iter()
         .find_map(|(_, global)| match &global.init {
-            GlobalInit::StringConst { identity, .. } => Some(identity.identity_record().clone()),
+            GlobalInit::StringConst { identity, .. }
+            | GlobalInit::ByteArrayConst { identity, .. } => {
+                Some(identity.identity_record().clone())
+            }
             GlobalInit::CString { .. }
             | GlobalInit::Storage { .. }
             | GlobalInit::RawStorage { .. }
@@ -78,6 +81,7 @@ pub(super) fn static_storage_plan() -> StrongStaticStorageRegistrationPlanSetV1 
                     }
                     GlobalInit::CString { .. }
                     | GlobalInit::StringConst { .. }
+                    | GlobalInit::ByteArrayConst { .. }
                     | GlobalInit::RawStorage { .. }
                     | GlobalInit::ImportedImmortal { .. }
                     | GlobalInit::ImportedStorage { .. } => None,
@@ -99,6 +103,7 @@ pub(super) fn static_storage_plan() -> StrongStaticStorageRegistrationPlanSetV1 
                     }
                     GlobalInit::CString { .. }
                     | GlobalInit::StringConst { .. }
+                    | GlobalInit::ByteArrayConst { .. }
                     | GlobalInit::RawStorage { .. }
                     | GlobalInit::ImportedImmortal { .. }
                     | GlobalInit::ImportedStorage { .. } => None,
@@ -117,6 +122,7 @@ pub(super) fn static_storage_plan() -> StrongStaticStorageRegistrationPlanSetV1 
                     }
                     GlobalInit::CString { .. }
                     | GlobalInit::StringConst { .. }
+                    | GlobalInit::ByteArrayConst { .. }
                     | GlobalInit::RawStorage { .. }
                     | GlobalInit::ImportedImmortal { .. }
                     | GlobalInit::ImportedStorage { .. } => None,

@@ -501,13 +501,17 @@ pub(super) fn copy_trusted_core_sources(sysroot: &Path) {
     let destination = sysroot.join("src/scoop.core");
     std::fs::create_dir_all(destination.join("src")).unwrap();
     std::fs::copy(source.join("Cone.toml"), destination.join("Cone.toml")).unwrap();
-    for entry in std::fs::read_dir(source.join("src")).unwrap() {
-        let entry = entry.unwrap();
-        assert!(entry.file_type().unwrap().is_file());
-        std::fs::copy(
-            entry.path(),
-            destination.join("src").join(entry.file_name()),
-        )
-        .unwrap();
+    fn copy_sources(source: &Path, destination: &Path) {
+        std::fs::create_dir_all(destination).unwrap();
+        for entry in std::fs::read_dir(source).unwrap() {
+            let entry = entry.unwrap();
+            let target = destination.join(entry.file_name());
+            if entry.file_type().unwrap().is_dir() {
+                copy_sources(&entry.path(), &target);
+            } else {
+                std::fs::copy(entry.path(), target).unwrap();
+            }
+        }
     }
+    copy_sources(&source.join("src"), &destination.join("src"));
 }

@@ -6,6 +6,7 @@ pub(super) struct LoweredModule {
     pub module: lir::Module,
 }
 
+mod immortals;
 mod prepared;
 pub use prepared::{PreparedLir, prepare};
 
@@ -22,8 +23,6 @@ pub(super) fn lower_graph(
         external_type_descriptors,
         dependency_types,
         imported_runtime_string,
-        mut globals,
-        string_global_map,
         enums,
         structs,
         external_callables,
@@ -52,23 +51,6 @@ pub(super) fn lower_graph(
         &native_abi.native_externals,
         &signatures,
     )?;
-    let globals::LoweredGlobals {
-        storage: storage_globals,
-        native: native_globals,
-        bridges: native_global_bridges,
-    } = lower_globals(
-        GlobalLoweringInputs {
-            context: &context,
-            identity_roots: &identity_roots,
-            module,
-            selected_layout,
-            structs: &structs,
-            enums: &enums,
-            string_globals: &string_global_map,
-            native_externals: &native_abi.native_externals,
-        },
-        &mut globals,
-    )?;
     let callable_bodies = input
         .materialization()
         .callable_roots()
@@ -96,6 +78,42 @@ pub(super) fn lower_graph(
             (id, reference)
         })
         .collect::<HashMap<_, _>>();
+    let (type_descriptors, type_descriptor_refs, well_known_type_descriptors) = type_descriptors(
+        &context,
+        &identity_roots,
+        module,
+        &enums,
+        &local_function_map,
+        &external_callable_map,
+        dependency_types,
+    )?;
+    let (arrays, array_type_map) = array_types(
+        &context,
+        &identity_roots,
+        module,
+        &enums,
+        &type_descriptor_refs,
+    )?;
+
+    let (mut globals, immortal_global_map) =
+        immortals::lower_immortals(input, &identity_roots, selected_layout, &array_type_map)?;
+    let globals::LoweredGlobals {
+        storage: storage_globals,
+        native: native_globals,
+        bridges: native_global_bridges,
+    } = lower_globals(
+        GlobalLoweringInputs {
+            context: &context,
+            identity_roots: &identity_roots,
+            module,
+            selected_layout,
+            structs: &structs,
+            enums: &enums,
+            string_globals: &immortal_global_map,
+            native_externals: &native_abi.native_externals,
+        },
+        &mut globals,
+    )?;
     let root_gateway_ref = match input.production().entry_bridge() {
         mir::EntryMirBridgeBranchV1::Library => None,
         mir::EntryMirBridgeBranchV1::Executable(_) => {
@@ -182,23 +200,6 @@ pub(super) fn lower_graph(
     );
     let initialization_units =
         lower_initialization_units(module, &storage_globals, &local_function_map);
-    let (type_descriptors, type_descriptor_refs, well_known_type_descriptors) = type_descriptors(
-        &context,
-        &identity_roots,
-        module,
-        &enums,
-        &local_function_map,
-        &external_callable_map,
-        dependency_types,
-    )?;
-    let (arrays, array_type_map) = array_types(
-        &context,
-        &identity_roots,
-        module,
-        &enums,
-        &type_descriptor_refs,
-    )?;
-
     let mut lower_body = |body_identity, body, signature, known_receiver| {
         lower_function(
             &context,
@@ -209,7 +210,7 @@ pub(super) fn lower_graph(
             body,
             signature,
             known_receiver,
-            &string_global_map,
+            &immortal_global_map,
             &storage_globals,
             &mut globals,
             &structs,

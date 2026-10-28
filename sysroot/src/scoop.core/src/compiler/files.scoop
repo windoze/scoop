@@ -1,7 +1,13 @@
 package scoop.compiler
 
 import String
+import Array
+import Byte
 
 /** Embeds the exact UTF-8 contents of a file inside the defining Cone. */
 @Intrinsic("include_str")
 public fun includeStr(path: String): String
+
+/** Embeds the exact bytes of a file inside the defining Cone. */
+@Intrinsic("include_bytes")
+public fun includeBytes(path: String): Array<Byte>

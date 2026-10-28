@@ -64,7 +64,7 @@ pub(super) fn run(module: &mut mir::Module) {
             fuse(
                 block,
                 &uses,
-                &module.strings,
+                &module.immortals,
                 site.numerator > site.denominator,
             );
         }
@@ -74,7 +74,7 @@ pub(super) fn run(module: &mut mir::Module) {
 fn fuse(
     block: &mut mir::BasicBlock,
     uses: &Uses,
-    strings: &la_arena::Arena<mir::StringConst>,
+    strings: &la_arena::Arena<mir::ImmortalConst>,
     hot: bool,
 ) {
     let mut origins: HashMap<mir::LocalId, Origin> = HashMap::new();
@@ -145,7 +145,7 @@ fn fuse(
 fn origin(
     expr: &mir::Expr,
     uses: &Uses,
-    strings: &la_arena::Arena<mir::StringConst>,
+    strings: &la_arena::Arena<mir::ImmortalConst>,
     origins: &HashMap<mir::LocalId, Origin>,
 ) -> Option<Origin> {
     let part = match expr.kind {
@@ -158,7 +158,9 @@ fn origin(
             mir::StringConcatPart::Value(expr.clone())
         }
         mir::ExprKind::StringConst(id) => {
-            let text = &strings[id].value;
+            let mir::ImmortalConstValue::String(text) = &strings[id].value else {
+                unreachable!("StringConst refers to String data")
+            };
             if text.len() <= MAX_LITERAL_BYTES {
                 mir::StringConcatPart::Literal(text.clone())
             } else {

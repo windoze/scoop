@@ -344,11 +344,15 @@ impl WireEncode for ImmortalObjectOwner {
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum ImmortalObjectRole {
     StringConstant,
+    ArrayConstant,
 }
 
 impl WireEncode for ImmortalObjectRole {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(1)
+        encoder.unsigned(match self {
+            Self::StringConstant => 1,
+            Self::ArrayConstant => 2,
+        })
     }
 }
 
@@ -367,6 +371,17 @@ impl ImmortalObjectKey {
         Self {
             owner,
             role: ImmortalObjectRole::StringConstant,
+            path,
+        }
+    }
+
+    pub const fn array_constant(
+        owner: ImmortalObjectOwner,
+        path: StructuralDefinitionPath,
+    ) -> Self {
+        Self {
+            owner,
+            role: ImmortalObjectRole::ArrayConstant,
             path,
         }
     }

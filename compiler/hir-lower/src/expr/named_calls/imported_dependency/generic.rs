@@ -312,8 +312,9 @@ impl Lowerer {
                 },
             }
         } else if let hir::CallableImplementationV1::Intrinsic(
-            kind
-            @ (hir::IntrinsicFunctionKind::CompileEnv | hir::IntrinsicFunctionKind::IncludeStr),
+            kind @ (hir::IntrinsicFunctionKind::CompileEnv
+            | hir::IntrinsicFunctionKind::IncludeStr
+            | hir::IntrinsicFunctionKind::IncludeBytes),
         ) = candidate.interface().effects().implementation()
         {
             ImportedCallImplementation::Intrinsic {

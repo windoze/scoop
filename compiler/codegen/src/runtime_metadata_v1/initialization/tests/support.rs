@@ -78,6 +78,7 @@ pub(super) fn initialization_plan(lazy: bool) -> StrongInitializationUnitRegistr
                     GlobalInit::Storage { identity, .. } => identity.identity_record().clone(),
                     GlobalInit::CString { .. }
                     | GlobalInit::StringConst { .. }
+                    | GlobalInit::ByteArrayConst { .. }
                     | GlobalInit::RawStorage { .. }
                     | GlobalInit::ImportedImmortal { .. }
                     | GlobalInit::ImportedStorage { .. } => unreachable!(),

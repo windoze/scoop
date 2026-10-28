@@ -246,7 +246,9 @@ impl Lowerer {
         if let hir::FunctionKind::Intrinsic(intrinsic) = self.functions[function].kind
             && matches!(
                 intrinsic.kind,
-                hir::IntrinsicFunctionKind::CompileEnv | hir::IntrinsicFunctionKind::IncludeStr
+                hir::IntrinsicFunctionKind::CompileEnv
+                    | hir::IntrinsicFunctionKind::IncludeStr
+                    | hir::IntrinsicFunctionKind::IncludeBytes
             )
         {
             self.check_call_effects(hir::Callable::Function(function), call.span);

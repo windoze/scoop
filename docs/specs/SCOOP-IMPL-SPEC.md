@@ -1089,7 +1089,7 @@ intrinsic 的识别来自实际声明及其完整 name/target/shape/signature，
 
 类型与目标已经确定且使用方式合法的 intrinsic 调用必须下降为该操作规定的 IR、编译期值或 runtime helper。本地／跨 Cone 的直接调用、泛型具体化后的约束实现选择、语义允许的静态函数引用以及去虚拟化得到的唯一目标遵守同一合同；后续内联或传播暴露的新目标也必须消费。此下降独立于普通函数内联开关、成本阈值与 debug／release 模式；优化模式只影响是否推导出额外的目标事实。默认实参、访问器、初始化器和闭包正文没有例外。动态目标尚不唯一时保留分派，合法动态引用所需的 callable 入口继续发射；语言规范 13.1 禁止引用的 intrinsic 不生成这类入口。
 
-不可引用 intrinsic 的检查与诊断（current_source_location 已实现，2.10.1 新入口待实施）：HIR 的 managed／native 引用候选检查复用实际声明已有的 typed intrinsic kind，封闭匹配 current_source_location 与 2.10.1 四个操作及其拒绝原因，不新增独立能力表、持久 flag 或 FQN 名称判断。完成正常查找与访问检查后，保留专门的引用失败原因；唯一目标直接报告该 intrinsic 不支持引用，多候选诊断保留相应原因，不通过静默删除候选退化成未找到函数或笼统签名错误。检查先于 closure／adapter／FunctionAddress 构造，错误不推迟到 MIR 或链接。主位置为原引用表达式，消息标明实际声明名称；LSP 仍可利用已解析目标导航到声明。current_source_location 不捕获引用创建点或生成正文的位置冒充间接调用处；直接调用继续使用原 evaluation origin。其他 intrinsic 的合法引用下降保持。
+不可引用 intrinsic 的检查与诊断（current_source_location、compile_env、include_str、include_bytes 已实现，include_dir 随入口接通）：HIR 的 managed／native 引用候选检查复用实际声明已有的 typed intrinsic kind，封闭匹配 current_source_location 与 2.10.1 四个操作及其拒绝原因，不新增独立能力表、持久 flag 或 FQN 名称判断。完成正常查找与访问检查后，保留专门的引用失败原因；唯一目标直接报告该 intrinsic 不支持引用，多候选诊断保留相应原因，不通过静默删除候选退化成未找到函数或笼统签名错误。检查先于 closure／adapter／FunctionAddress 构造，错误不推迟到 MIR 或链接。主位置为原引用表达式，消息标明实际声明名称；LSP 仍可利用已解析目标导航到声明。current_source_location 不捕获引用创建点或生成正文的位置冒充间接调用处；直接调用继续使用原 evaluation origin。其他 intrinsic 的合法引用下降保持。
 
 具体化将约束选择得到的 primitive intrinsic 归一化为完整的标量操作，与早期直接调用一致；除法／余数同时物化原有异常依赖。所用操作身份来自本地声明或依赖 HIR 中的 typed implementation，不靠函数名或普通外部函数体推断。
 
@@ -1162,6 +1162,10 @@ const property 的本地值与静态初值共用 HirConstantImage，完整 prope
 `env` 的 `compile_env` intrinsic 使用 callable intrinsic sum 的 tag 30，无额外 payload；完整签名仍由普通 callable declaration 保存。此编码对应 `cross-cone-interface/83`，不改变固定 core bootstrap protocol 或 runtime ABI。
 
 `includeStr` 的 `include_str` intrinsic 使用 callable intrinsic sum 的 tag 31，无额外 payload；完整签名为 String → String，对应 `cross-cone-interface/84`。环境与文件输入的成功记录使用闭合种类（tag 1／2）；文件记录保存原 Cone 根、实际根、原 locator、解析后目标、长度与修改时间。machine protocol 20 的成功 field 6、编译缓存 field 4 及 check／doc 的第三项统一保存该输入序列；缓存域同步升级。展开的 Cone 配置保留原输入根，供 include 的词法范围检查使用，实际源码发现仍使用原有 real root。
+
+`includeBytes` 复用同一文件宿主，HIR 保存带完整 `Array<Byte>` 类型的静态字节数组表达式，数据使用原始 byte string；普通数组字面量仍沿原有分配语义执行，不因元素恰为常量而改为共享对象。默认／泛型模板保存这份数据，消费时不再读取文件。MIR 的既有 immortal 对象表扩展为 String 或字节数组的闭合数据种类；字节数组项同时保存实际 class application、原始字节、对象身份和定义来源。String 优化只消费 String 项。LIR 的字节数组 global 关联既有 ArrayType 布局与 TD，直接发射 header、logical count 和字节内容，并沿共有 immortal 登记与链接引用链消费，不经过运行期数组分配或拷贝。本轮只接通 intrinsic 的静态结果，不扩展 9.1.2 已推迟的静态对象 const 组合。
+
+该扩展为 callable intrinsic 增加 tag 32、默认表达式增加 tag 77（byte string payload），对应 `cross-cone-interface/85`；immortal 对象角色新增 ArrayConstant=2、结构位置角色新增 ArrayConstant=13，对应 LIR `identity-foundation/10`。原有 String 编码及角色保持；runtime ABI 与文件输入协议不变。
 
 文件定位／读取、目录筛选和环境查询由输入宿主提供给 HIR 的窄输入接口完成，driver 与分析宿主供给实际实现。HIR 负责语言语义并保存结果，IR/meta crate 只保存 typed 数据，不自行读取文件或环境，也不依赖 driver／上游 stage 的实现。每次编译中同一实际请求的结果及已记录输入直接复用，不因常量试探、模板发布或下游 stage 重读。失败的试探不发布常量与绑定事实；输入读取的缓存不赋予失败表达式成功语义。
 

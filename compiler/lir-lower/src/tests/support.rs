@@ -202,7 +202,7 @@ pub(super) fn local_expr(local: mir::LocalId, ty: mir::Type) -> mir::Expr {
     mir::Expr::local(local, ty)
 }
 
-pub(super) fn string_expr(id: mir::StringConstId) -> mir::Expr {
+pub(super) fn string_expr(id: mir::ImmortalConstId) -> mir::Expr {
     expr(mir::Type::String, mir::ExprKind::StringConst(id))
 }
 

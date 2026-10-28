@@ -13,7 +13,7 @@
 - [x] core 的 scoop.compiler.env、Option<String> 常量、SCOOP_ 名称限制、泛型／默认值及跨 Cone 传递。
 - [x] env 的 build／check／doc 缓存更新、定义处求值及语言服务的共享 HIR 输入宿主。
 - [x] includeStr、Cone 目录范围检查与文件输入更新。
-- [ ] includeBytes 及静态字节数组。
+- [x] includeBytes 及静态字节数组。
 - [ ] includeDir、glob、逐项目录／symlink 范围检查与 EmbeddedDir API。
 - [ ] 文件／目录输入的构建／check／doc／LSP 更新和缓存复用、资源的定义来源。
 - [ ] Darwin 与 Linux 必要组合验证、对应规范状态更新及功能提交。
@@ -95,6 +95,16 @@ Darwin：格式化、全 workspace lint 通过；文件宿主、HIR 展开、协
 2026-10-29 按用户要求合并 `origin/main` 的 `1de3cd2eb`，无冲突；本组 intrinsic／常量改动保留。上游变更新增 GC／分配优化，并将 runtime ABI 从 24 升至 26。两机显式更新本次验证所需的 core、std、公开头文件与普通 runtime；其他内置 Cone 和 stress 产物在后续使用前按新 ABI 准备。
 
 合并后 Darwin 格式化、全 workspace lint、23 项分配、5 项静态数据及 1 项 runtime ABI Rust 测试通过；Linux 格式化、相关 crate lint、23 项分配和 6 项静态数据测试通过。两机各自的 env 值／缓存 15 步与跨 Cone 产物 4 步均通过，没有运行完整套件。原始日志继续保存在仓库外。
+
+### includeBytes（定向验证完成，全量验收进行中）
+
+core 的 `scoop.compiler.includeBytes` 复用定义处文件宿主与已有路径限制，直接保存原始 bytes；默认／泛型模板携带已读数据。MIR 的原 String 表扩展为实际 String／字节数组的共享 immortal 表，字节数组保存完整 class application。LIR／LLVM 发射只读数组 header、count 和数据，使用实际 Array<Byte> TD 与既有 immortal 登记；不运行数组构造或复制。普通数组字面量仍按原语义分配，通用 const／常量表达式资格保持本轮收缩后的范围。
+
+callable intrinsic 新增 tag 32，默认模板表达式 tag 77；HIR `cross-cone-interface` 升至 85。ArrayConstant 对象角色／结构位置分别为 2／13，LIR `identity-foundation` 升至 10。runtime ABI 和文件输入协议不变。
+
+Darwin／Linux 的 3 项普通 Cone 测试均通过，覆盖 256 种 byte、空数组、实际动态类型与可变副本。两平台定义处跨 Cone fixture 均通过 release 和 debug＋moving GC 两个变体，共 8 步；覆盖 global、泛型、默认值、普通函数及 provider 输入变化后消费已发布值。前端输入、字节模板编码、immortal 身份、数组登记布局和 LLVM 静态发射定向测试通过。Darwin 全 workspace lint、202 项 MIR lowering、357 项 identity、17 项 profile、92 项 driver 和 108 项 runtime 相关 Rust 测试通过；fixture runner 的 59 项规则测试通过。Linux 的完整 intrinsic 标签回归通过：9 项 fixture、10 个变体、54 个进程步骤，覆盖 env、includeStr 与 includeBytes。
+
+按用户要求以 `30af1bdfa` 合并 origin/main 的 `726a38a96`，无冲突。全量 Rust 验收未全部通过：4 项 codegen 分配器／GC 断言已在原提交 `c9ba66107` 复现；合并后其中的 region GC 用例及相关 runtime 回归通过，其余分配器断言仍未改动。另有使用旧 CLI 参数的 linker 集成测试、runtime EH 契约与 slib 旧向量失败，留待独立处理。正式 CLI 全量验收继续运行，不能将本次定向验证记为全量通过。本次也修正了 driver 测试复制 core 源码时只接受平铺文件的辅助代码，以覆盖 scoop.compiler 子目录。旧对照构建 target 已清理，原始日志保留在仓库外。
 
 ## 范围调整
 

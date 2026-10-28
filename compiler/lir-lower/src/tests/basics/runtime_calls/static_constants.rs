@@ -53,7 +53,7 @@ fn static_enum_constants_lower_payloads_and_string_references() {
         },
         scan: lir::RefScan::References(vec![16]),
     });
-    let string = mir::StringConstId::from_raw(3.into());
+    let string = mir::ImmortalConstId::from_raw(3.into());
     let global = lir::GlobalId::from_raw(7.into());
     let image = lower_constant_image(
         &mir::MirConstantImage::Enum {

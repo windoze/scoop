@@ -67,16 +67,32 @@ pub(super) fn emit<'ctx>(
                 llvm_global.set_alignment(logical_alignment);
                 globals.insert(id, llvm_global);
             }
-            GlobalInit::StringConst { identity, value } => {
+            GlobalInit::StringConst { identity, .. }
+            | GlobalInit::ByteArrayConst { identity, .. } => {
                 // { ptr td, i64 gc_word, i64 len, [N x i8] data }
                 // (runtime spec 2.4; the 16-byte header is M9).
-                let bytes = value.as_bytes();
+                let (bytes, descriptor) = match &global.init {
+                    GlobalInit::StringConst { value, .. } => (
+                        value.as_bytes(),
+                        module.meta.well_known_type_descriptors.string,
+                    ),
+                    GlobalInit::ByteArrayConst {
+                        array_type, bytes, ..
+                    } => (
+                        bytes.as_slice(),
+                        module.meta.arrays[*array_type].type_descriptor,
+                    ),
+                    _ => unreachable!("only immutable byte payloads are emitted here"),
+                };
+                let length = u32::try_from(bytes.len()).map_err(|_| {
+                    CodegenError("static byte payload exceeds LLVM constant array length".into())
+                })?;
                 let ty = context.struct_type(
                     &[
                         ptr_ty.into(),
                         i64_ty.into(),
                         i64_ty.into(),
-                        i8_ty.array_type(bytes.len() as u32).into(),
+                        i8_ty.array_type(length).into(),
                     ],
                     false,
                 );
@@ -84,13 +100,10 @@ pub(super) fn emit<'ctx>(
                     llvm.add_global(ty, Some(managed_address_space.inkwell()), global.symbol());
                 llvm_global.set_constant(true);
                 if selection.defines_non_callable() {
-                    let string_td = type_descriptor_global(
-                        module.meta.well_known_type_descriptors.string,
-                        descriptors,
-                    )?;
+                    let object_td = type_descriptor_global(descriptor, descriptors)?;
                     llvm_global.set_initializer(&context.const_struct(
                         &[
-                            string_td.as_pointer_value().into(),
+                            object_td.as_pointer_value().into(),
                             i64_ty.const_zero().into(),
                             i64_ty.const_int(bytes.len() as u64, false).into(),
                             context.const_string(bytes, false).into(),

@@ -34,6 +34,12 @@ impl WireEncode for IndexedDefaultExpressionKindV1<'_> {
                 &U32Wire(parameter.0),
                 *diagnostic,
             ),
+            Self::ByteArrayLiteral(value) => {
+                encoder.map(2)?;
+                encode_tag(encoder, 77)?;
+                encoder.field(1)?;
+                encoder.bytes(value)
+            }
             Self::StringLiteral { value, owner } => {
                 encoder.map(3)?;
                 encode_tag(encoder, 1)?;

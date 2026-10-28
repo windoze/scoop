@@ -87,6 +87,7 @@ impl DefaultPatternV1 {
                 | DefaultExpressionKindV1::FloatLiteral(_)
                 | DefaultExpressionKindV1::BooleanLiteral(_)
                 | DefaultExpressionKindV1::StringLiteral { .. }
+                | DefaultExpressionKindV1::ByteArrayLiteral(_)
         ) {
             return Err(DefaultPatternBuildError::InvalidLiteralExpression);
         }

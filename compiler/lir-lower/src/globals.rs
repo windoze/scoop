@@ -15,7 +15,7 @@ pub(super) struct GlobalLoweringInputs<'a> {
     pub(super) selected_layout: Option<&'a lir::StrongProductionDependencySelectionV2<'a>>,
     pub(super) structs: &'a lir::StructDefs,
     pub(super) enums: &'a lir::EnumDefs,
-    pub(super) string_globals: &'a HashMap<mir::StringConstId, lir::GlobalId>,
+    pub(super) string_globals: &'a HashMap<mir::ImmortalConstId, lir::GlobalId>,
     pub(super) native_externals: &'a lir::NativeExternalMetadata,
 }
 
@@ -274,7 +274,7 @@ pub(super) fn static_storage_layout(
 pub(super) fn lower_static_initial_state(
     state: &mir::MirStaticInitialState,
     enums: &lir::EnumDefs,
-    string_globals: &HashMap<mir::StringConstId, lir::GlobalId>,
+    string_globals: &HashMap<mir::ImmortalConstId, lir::GlobalId>,
 ) -> lir::LirStaticInitialState {
     match state {
         mir::MirStaticInitialState::ZeroedForRuntimeUnit => {
@@ -291,7 +291,7 @@ pub(super) fn lower_static_initial_state(
 pub(super) fn lower_constant_image(
     value: &mir::MirConstantImage,
     enums: &lir::EnumDefs,
-    string_globals: &HashMap<mir::StringConstId, lir::GlobalId>,
+    string_globals: &HashMap<mir::ImmortalConstId, lir::GlobalId>,
 ) -> lir::LirConstantImage {
     match value {
         mir::MirConstantImage::Unit => lir::LirConstantImage::Aggregate(Vec::new()),

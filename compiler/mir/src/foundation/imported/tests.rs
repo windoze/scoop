@@ -66,7 +66,7 @@ fn ordinary_module(callable: crate::ExternalCallableUse) -> Module {
         closure_classes: Arena::new(),
         closure_invoke_functions: Arena::new(),
         top_level: Vec::new(),
-        strings: Arena::new(),
+        immortals: Arena::new(),
         structs: Arena::new(),
         enums: Arena::new(),
         classes: Arena::new(),

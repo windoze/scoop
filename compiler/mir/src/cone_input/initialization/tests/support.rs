@@ -206,7 +206,7 @@ fn base_module() -> Module {
         closure_classes: Arena::new(),
         closure_invoke_functions: Arena::new(),
         top_level: vec![entry],
-        strings: Arena::new(),
+        immortals: Arena::new(),
         structs: Arena::new(),
         enums: Arena::new(),
         classes: Arena::new(),

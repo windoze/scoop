@@ -58,6 +58,9 @@ impl BodyProjection<'_, '_> {
                     self.generic_delegate_reference(reference)?,
                 )
             }
+            ExprKind::ByteArrayLiteral(value) => {
+                DefaultExpressionKindV1::ByteArrayLiteral(value.clone())
+            }
             ExprKind::StringLiteral { value, owner } => DefaultExpressionKindV1::StringLiteral {
                 value: value.clone(),
                 owner: match owner {

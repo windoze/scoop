@@ -70,6 +70,7 @@ impl DecodedDefaultExpressionKindV1 {
                 parameter,
                 diagnostic,
             },
+            Self::ByteArrayLiteral(value) => DefaultExpressionKindV1::ByteArrayLiteral(value),
             Self::StringLiteral { value, owner } => DefaultExpressionKindV1::StringLiteral {
                 value,
                 owner: owner

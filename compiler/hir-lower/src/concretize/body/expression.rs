@@ -88,6 +88,9 @@ impl Concretizer<'_> {
                     index,
                 }
             }
+            export::ExprKind::ByteArrayLiteral(value) => {
+                concrete::ExprKind::ByteArrayLiteral(value.clone())
+            }
             export::ExprKind::StringLiteral { value, owner } => concrete::ExprKind::StringLiteral {
                 value: value.clone(),
                 owner: match *owner {

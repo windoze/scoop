@@ -1,4 +1,4 @@
-//! Semantic plans for immutable String objects and their type registrations.
+//! Semantic plans for immutable String and byte-array objects and their type registrations.
 
 use crate::{GlobalInit, LirTargetProfile, Module, PointerKind, RefScan, TypeDescriptorRef};
 use scoop_identity::{
@@ -77,12 +77,7 @@ impl StrongImmortalObjectSemanticPlanSetV1 {
         module: &Module,
     ) -> Result<Self, StrongImmortalObjectSemanticPlanBuildError> {
         let string_type = string_type_registration(module)?;
-        Self::from_globals(
-            module.cone,
-            module.meta.target_profile,
-            &module.globals,
-            string_type,
-        )
+        Self::from_globals(module.cone, &module.meta, &module.globals, string_type)
     }
 
     pub(crate) const fn from_artifact(
@@ -94,15 +89,48 @@ impl StrongImmortalObjectSemanticPlanSetV1 {
 
     pub(super) fn from_globals(
         producer: ConeIdentity,
-        target: LirTargetProfile,
+        meta: &crate::LirMeta,
         globals: &la_arena::Arena<crate::Global>,
         string_type: ImmortalObjectTypeRegistrationRefV1,
     ) -> Result<Self, StrongImmortalObjectSemanticPlanBuildError> {
         let mut objects = BTreeMap::new();
         for (_, global) in globals.iter() {
-            let GlobalInit::StringConst { identity, value } = &global.init else {
-                continue;
-            };
+            let (identity, object_size, required_alignment, type_registration) =
+                match &global.init {
+                    GlobalInit::StringConst { identity, value } => (
+                        identity,
+                        string_object_size(meta.target_profile, value.len())?,
+                        string_object_alignment(meta.target_profile),
+                        string_type,
+                    ),
+                    GlobalInit::ByteArrayConst {
+                        identity,
+                        array_type,
+                        bytes,
+                    } => {
+                        let array = &meta.arrays[*array_type];
+                        if array.kind != crate::ArrayKind::Immutable
+                            || array.element != crate::LirType::I8
+                        {
+                            return Err(StrongImmortalObjectSemanticPlanBuildError::ByteArrayType(
+                                *array_type,
+                            ));
+                        }
+                        let count = u64::try_from(bytes.len()).map_err(|_| {
+                            StrongImmortalObjectSemanticPlanBuildError::ObjectSizeOverflow
+                        })?;
+                        let size = array.layout.allocation_size(count).ok_or(
+                            StrongImmortalObjectSemanticPlanBuildError::ObjectSizeOverflow,
+                        )?;
+                        (
+                            identity,
+                            size,
+                            array.layout.instance().instance_alignment(),
+                            type_registration(meta, array.type_descriptor)?,
+                        )
+                    }
+                    _ => continue,
+                };
             if global.address_kind != PointerKind::Managed {
                 return Err(StrongImmortalObjectSemanticPlanBuildError::AddressKind {
                     object: identity.identity_record().id(),
@@ -125,13 +153,12 @@ impl StrongImmortalObjectSemanticPlanSetV1 {
                     actual: symbol.linkage(),
                 });
             }
-            let object_size = string_object_size(target, value.len())?;
             let plan = StrongImmortalObjectSemanticPlanV1 {
                 object: identity.identity_record().id(),
                 symbol,
                 object_size,
-                required_alignment: string_object_alignment(target),
-                type_registration: string_type,
+                required_alignment,
+                type_registration,
             };
             if objects.insert(plan.object, plan).is_some() {
                 return Err(StrongImmortalObjectSemanticPlanBuildError::DuplicateObject(
@@ -157,24 +184,27 @@ impl StrongImmortalObjectSemanticPlanSetV1 {
 fn string_type_registration(
     module: &Module,
 ) -> Result<ImmortalObjectTypeRegistrationRefV1, StrongImmortalObjectSemanticPlanBuildError> {
-    match module.meta.well_known_type_descriptors.string {
+    type_registration(&module.meta, module.meta.well_known_type_descriptors.string)
+}
+
+fn type_registration(
+    meta: &crate::LirMeta,
+    descriptor: TypeDescriptorRef,
+) -> Result<ImmortalObjectTypeRegistrationRefV1, StrongImmortalObjectSemanticPlanBuildError> {
+    match descriptor {
         TypeDescriptorRef::Local(id) => {
-            if id.into_raw().into_u32() as usize >= module.meta.type_descriptors.len() {
-                return Err(
-                    StrongImmortalObjectSemanticPlanBuildError::MissingStringTypeDescriptor,
-                );
+            if id.into_raw().into_u32() as usize >= meta.type_descriptors.len() {
+                return Err(StrongImmortalObjectSemanticPlanBuildError::MissingTypeDescriptor);
             }
             Ok(ImmortalObjectTypeRegistrationRefV1::Local(
-                module.meta.type_descriptors[id].identity.exact_type(),
+                meta.type_descriptors[id].identity.exact_type(),
             ))
         }
         TypeDescriptorRef::External(id) => {
-            if id.into_raw().into_u32() as usize >= module.meta.external_type_descriptors.len() {
-                return Err(
-                    StrongImmortalObjectSemanticPlanBuildError::MissingStringTypeDescriptor,
-                );
+            if id.into_raw().into_u32() as usize >= meta.external_type_descriptors.len() {
+                return Err(StrongImmortalObjectSemanticPlanBuildError::MissingTypeDescriptor);
             }
-            let descriptor = module.meta.external_type_descriptors[id];
+            let descriptor = meta.external_type_descriptors[id];
             Ok(ImmortalObjectTypeRegistrationRefV1::DependencyExternal {
                 provider: descriptor.provider(),
                 exact: descriptor.target(),
@@ -222,7 +252,8 @@ fn string_object_size(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongImmortalObjectSemanticPlanBuildError {
-    MissingStringTypeDescriptor,
+    MissingTypeDescriptor,
+    ByteArrayType(crate::ArrayTypeId),
 
     DuplicateObject(PersistentImmortalObjectId),
     AddressKind {

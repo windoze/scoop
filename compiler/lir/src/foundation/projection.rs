@@ -48,6 +48,7 @@ impl CanonicalLirFoundation {
                     .filter_map(|(_, global)| match &global.init {
                         crate::GlobalInit::Storage { layout, .. } => layout.local(),
                         crate::GlobalInit::StringConst { .. }
+                        | crate::GlobalInit::ByteArrayConst { .. }
                         | crate::GlobalInit::ImportedImmortal { .. }
                         | crate::GlobalInit::ImportedStorage { .. }
                         | crate::GlobalInit::CString { .. }
@@ -233,7 +234,8 @@ impl CanonicalLirFoundation {
                         identity.odr_member_record(),
                     )?;
                 }
-                crate::GlobalInit::StringConst { identity, .. } => {
+                crate::GlobalInit::StringConst { identity, .. }
+                | crate::GlobalInit::ByteArrayConst { identity, .. } => {
                     insert_materialization_records(
                         &mut groups,
                         &mut members,
@@ -263,6 +265,7 @@ impl CanonicalLirFoundation {
                         Some(identity.identity_record().clone())
                     }
                     crate::GlobalInit::StringConst { .. }
+                    | crate::GlobalInit::ByteArrayConst { .. }
                     | crate::GlobalInit::CString { .. }
                     | crate::GlobalInit::ImportedImmortal { .. }
                     | crate::GlobalInit::ImportedStorage { .. } => None,
@@ -273,7 +276,8 @@ impl CanonicalLirFoundation {
             globals
                 .iter()
                 .filter_map(|(_, global)| match &global.init {
-                    crate::GlobalInit::StringConst { identity, .. } => {
+                    crate::GlobalInit::StringConst { identity, .. }
+                    | crate::GlobalInit::ByteArrayConst { identity, .. } => {
                         Some(identity.identity_record().clone())
                     }
                     crate::GlobalInit::CString { .. }

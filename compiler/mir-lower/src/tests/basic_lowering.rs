@@ -80,14 +80,17 @@ fn lowers_hello_world() {
     // order: function bodies are lowered in declaration order, so
     // core's `println(String)` contributes its `"\n"` first).
     let strings: Vec<&str> = module
-        .strings
+        .immortals
         .iter()
-        .map(|(_, s)| s.value.as_str())
+        .filter_map(|(_, s)| match &s.value {
+            mir::ImmortalConstValue::String(text) => Some(text.as_str()),
+            mir::ImmortalConstValue::ByteArray { .. } => None,
+        })
         .collect();
     assert_eq!(strings, ["\n", "!", "hello, world"]);
     assert_eq!(
         module
-            .strings
+            .immortals
             .iter()
             .map(|(_, string)| &string.identity)
             .collect::<Vec<_>>(),
@@ -158,9 +161,12 @@ fn repeated_literals_get_separate_constants_deterministically() {
     let hir_module = executable_output(hir_module, main_id);
     let module = lower(&hir_module);
     let values: Vec<&str> = module
-        .strings
+        .immortals
         .iter()
-        .map(|(_, s)| s.value.as_str())
+        .filter_map(|(_, s)| match &s.value {
+            mir::ImmortalConstValue::String(text) => Some(text.as_str()),
+            mir::ImmortalConstValue::ByteArray { .. } => None,
+        })
         .collect();
     assert_eq!(values, ["\n", "!", "hello, world", "hello, world"]);
 }

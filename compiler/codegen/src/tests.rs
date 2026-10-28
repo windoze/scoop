@@ -52,6 +52,7 @@ mod c_bridge_objects;
 mod c_layout;
 mod closures;
 mod dependency_external;
+mod embedded_bytes;
 mod enums;
 mod errno;
 mod exceptions;

@@ -83,6 +83,7 @@ pub(super) fn expected_operation_owner(
         | IntrinsicFunctionKind::CurrentSourceLocation
         | IntrinsicFunctionKind::CompileEnv
         | IntrinsicFunctionKind::IncludeStr
+        | IntrinsicFunctionKind::IncludeBytes
         | IntrinsicFunctionKind::ForeignCallbackRegister
         | IntrinsicFunctionKind::ForeignCallbackRetain
         | IntrinsicFunctionKind::ForeignCallbackRelease

@@ -29,7 +29,7 @@ impl fmt::Display for ReferenceFailureReason {
 
 fn restriction(kind: hir::IntrinsicFunctionKind) -> Option<&'static str> {
     match kind {
-        hir::IntrinsicFunctionKind::IncludeStr => Some(
+        hir::IntrinsicFunctionKind::IncludeStr | hir::IntrinsicFunctionKind::IncludeBytes => Some(
             "this intrinsic is evaluated at compile time and has no runtime callable entry\nhelp: import and call it directly with a constant path",
         ),
         hir::IntrinsicFunctionKind::CompileEnv => Some(

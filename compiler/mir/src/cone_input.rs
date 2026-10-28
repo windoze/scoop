@@ -10,8 +10,8 @@ use scoop_identity::{
 use crate::{
     CallableSignatureSubject, CanonicalMirFoundation, CoreBootstrapBridgeSectionV1,
     DependencyMirOutput, ExternFunctionId, ExternalCallableUseId, FunctionId,
-    GeneratedExactTypeLocation, GlobalId, InitializationUnitId, Module, ObjectId,
-    SelectedExternalMirSet, SourceExactTypeOwner, StringConstId, Type,
+    GeneratedExactTypeLocation, GlobalId, ImmortalConstId, InitializationUnitId, Module, ObjectId,
+    SelectedExternalMirSet, SourceExactTypeOwner, Type,
 };
 
 mod errors;
@@ -206,7 +206,7 @@ pub struct ConeMirMaterializationPlan {
     initialization_units: Vec<InitializationUnitId>,
     initialization_roots: Vec<StrongInitializationUnitMaterializationRoot>,
     objects: Vec<ObjectId>,
-    strings: Vec<StringConstId>,
+    immortals: Vec<ImmortalConstId>,
 }
 
 impl ConeMirMaterializationPlan {
@@ -272,8 +272,8 @@ impl ConeMirMaterializationPlan {
         &self.objects
     }
 
-    pub fn strings(&self) -> &[StringConstId] {
-        &self.strings
+    pub fn immortals(&self) -> &[ImmortalConstId] {
+        &self.immortals
     }
 }
 
@@ -349,7 +349,7 @@ impl ConeMirInput {
                 .collect(),
             initialization_roots,
             objects: module.objects.iter().map(|(id, _)| id).collect(),
-            strings: module.strings.iter().map(|(id, _)| id).collect(),
+            immortals: module.immortals.iter().map(|(id, _)| id).collect(),
         };
         Ok(Self {
             module,

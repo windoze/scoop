@@ -37,7 +37,7 @@ fn lower(
     inputs: Arc<Inputs>,
 ) -> Result<hir::DependencyExportHirOutput, Vec<scoop_ast::Diagnostic>> {
     let mut declarations = super::super::complete_core_file();
-    let declaration = "@Intrinsic(\"compile_env\") public fun env(name: String): Option<String>\n@Intrinsic(\"include_str\") public fun includeStr(path: String): String";
+    let declaration = "@Intrinsic(\"compile_env\") public fun env(name: String): Option<String>\n@Intrinsic(\"include_str\") public fun includeStr(path: String): String\n@Intrinsic(\"include_bytes\") public fun includeBytes(path: String): Array<Int8>";
     declarations
         .declarations
         .extend(scoop_parser::parse(declaration).unwrap().declarations);
@@ -269,5 +269,70 @@ fn include_str_rejects_invalid_paths_references_runtime_arguments_and_utf8() {
             "{diagnostics:?}"
         );
         assert_eq!(!inputs.queries.lock().unwrap().is_empty(), queried);
+    }
+}
+
+#[test]
+fn include_bytes_embeds_non_utf8_in_generic_bodies_and_defaults() {
+    let inputs = Arc::new(Inputs::default());
+    let output = lower(
+        r#"
+        import includeBytes as embed
+        public fun <T> generic(v: T): Array<Int8> = embed("invalid-utf8")
+        public fun defaulted(v: Array<Int8> = embed("default.bin")): Array<Int8> = v
+        public fun read(): Array<Int8> = embed("invalid-utf8")
+    "#,
+        inputs.clone(),
+    )
+    .unwrap();
+    for name in ["generic", "read"] {
+        let function = output
+            .export
+            .module()
+            .functions
+            .iter()
+            .find(|(_, f)| f.name == name)
+            .unwrap()
+            .1;
+        let hir::FunctionKind::User(body) = &function.kind else {
+            panic!("ordinary body")
+        };
+        let [statement] = body.statements.as_slice() else {
+            panic!("no runtime argument evaluation")
+        };
+        let hir::StatementKind::Return { value } = &statement.kind else {
+            panic!("return")
+        };
+        assert!(
+            matches!(&value.kind, hir::ExprKind::ByteArrayLiteral(bytes) if bytes == b"ok\xff")
+        );
+    }
+    assert!(
+        inputs
+            .queries
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|path| path == "default.bin")
+    );
+}
+
+#[test]
+fn include_bytes_rejects_runtime_paths_and_callable_references() {
+    for (expression, expected) in [
+        (
+            "embed(path)",
+            "requires a compile-time constant String path",
+        ),
+        ("::embed", "does not support callable references"),
+        ("embed(\"\")", "must be nonempty"),
+    ] {
+        let inputs = Arc::new(Inputs::default());
+        let diagnostics = lower(&format!("import includeBytes as embed\nfun invalid(path: String) {{ val result = {expression} }}"), inputs.clone()).err().expect("invalid include");
+        assert!(
+            diagnostics.iter().any(|d| d.message.contains(expected)),
+            "{diagnostics:?}"
+        );
+        assert!(inputs.queries.lock().unwrap().is_empty());
     }
 }

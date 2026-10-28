@@ -2765,7 +2765,7 @@ use 以 receiver 调用 block 恰好一次，正文正常返回或抛出后调�
 
 ### 11.19 编译期输入 intrinsic（实施中）
 
-本节与[编译期 intrinsic 设计](../compile-time-intrinsics/DESIGN.md)规定首批文件／环境输入能力及必要的静态表示。env／includeStr 已实现，includeBytes／includeDir 继续实施；本轮不追加 9.1.2 中尚未实现的常量控制表达式。声明位于 reserved core Cone `scoop:scoop.core:0.1.0` 的普通 package `scoop.compiler`；该 package 的声明不进入默认 prelude，也不在根 package 转导出。使用方可显式 `import scoop.compiler.includeStr`、`import scoop.compiler.env as compileEnv` 或 `import scoop.compiler.*`，导入后调用短名或 alias，不增加无 import 的包限定调用。各导入形式使用同一 typed intrinsic 语义；package 本身仍不是 exact import 的合法终点。后续编译期 intrinsic 同样在此 package 组织；package 本身不赋予编译器能力，识别仍遵守 13.1 的 typed registry。
+本节与[编译期 intrinsic 设计](../compile-time-intrinsics/DESIGN.md)规定首批文件／环境输入能力及必要的静态表示。env／includeStr／includeBytes 已实现，includeDir 继续实施；本轮不追加 9.1.2 中尚未实现的常量控制表达式。声明位于 reserved core Cone `scoop:scoop.core:0.1.0` 的普通 package `scoop.compiler`；该 package 的声明不进入默认 prelude，也不在根 package 转导出。使用方可显式 `import scoop.compiler.includeStr`、`import scoop.compiler.env as compileEnv` 或 `import scoop.compiler.*`，导入后调用短名或 alias，不增加无 import 的包限定调用。各导入形式使用同一 typed intrinsic 语义；package 本身仍不是 exact import 的合法终点。后续编译期 intrinsic 同样在此 package 组织；package 本身不赋予编译器能力，识别仍遵守 13.1 的 typed registry。
 
 ```scoop
 package scoop.compiler
@@ -2820,7 +2820,7 @@ public struct EmbeddedDir(val files: Array<EmbeddedFile>) {
 
 筛选无隐式 `.gitignore`、隐藏文件或平台排除规则；`include = []` 或无匹配结果产生空目录值，根目录仍须存在，逐项范围检查及遍历错误检查仍执行。目录内仅选中的文件读取内容；实际遍历错误及匹配到的非法文件类型正常诊断。输出不包含空目录、mtime、权限或宿主绝对路径，路径须可表示为 UTF-8 String，按完整相对路径的 UTF-8 byte order 排序。路径和文件内容形成不可变文件表；两个不同逻辑路径即使指向同一文件仍保留两条路径记录。EmbeddedDir／EmbeddedFile 为普通 struct，构造与副本更新保持普通语义，`get` 按数组顺序精确匹配并返回第一项，无匹配为 None，不执行文件系统定位或 glob。
 
-`env` 首版只接受以 ASCII `SCOOP_` 精确开头的常量名称，前缀检查区分大小写，不做改写；名字仍不得为空或含 `=`／NUL。先检查名称，再查询本次编译的宿主进程环境，交叉编译也不读取目标机器环境。`env("HOME")`、`env("scoop_TAG")` 等在查询环境前报编译错误，明确指出只允许 `SCOOP_` 前缀，不能返回 None 或默认值来掩盖非法名称。合法名称查找沿宿主环境规则：变量不存在为 `None`，存在且为空为 `Some("")`，存在非空值为 `Some(value)`；非法 Unicode 值是编译错误，不当作缺失。`String?` 与 `Option<String>` 相同，不另设 envOrNull 或缺失即失败的重载。`const val TAG: Option<String> = env("SCOOP_TAG")` 及 `const val VERSION: String = env("SCOOP_VERSION") ?: "dev"` 均由 9.1.2 求值；首版不提供额外前缀、任意环境变量或放宽此限制的选项。
+`env` 首版只接受以 ASCII `SCOOP_` 精确开头的常量名称，前缀检查区分大小写，不做改写；名字仍不得为空或含 `=`／NUL。先检查名称，再查询本次编译的宿主进程环境，交叉编译也不读取目标机器环境。`env("HOME")`、`env("scoop_TAG")` 等在查询环境前报编译错误，明确指出只允许 `SCOOP_` 前缀，不能返回 None 或默认值来掩盖非法名称。合法名称查找沿宿主环境规则：变量不存在为 `None`，存在且为空为 `Some("")`，存在非空值为 `Some(value)`；非法 Unicode 值是编译错误，不当作缺失。`String?` 与 `Option<String>` 相同，不另设 envOrNull 或缺失即失败的重载。`const val TAG: Option<String> = env("SCOOP_TAG")` 可由现有 9.1.2 求值；包含常量 Elvis 的 `const val VERSION: String = env("SCOOP_VERSION") ?: "dev"` 留到常量表达式专项；首版不提供额外前缀、任意环境变量或放宽此限制的选项。
 
 这些结果是类型完整的静态值；Option／struct 保持普通值语义，String／不可变数组使用静态对象引用。常量对象的 identity 遵守 9.1.2，不额外保证不同调用、泛型特化、默认参数展开、内联或消费 Cone 中的结果共享或独占某一对象。编译器可以合并满足条件的常量存储，原文件／环境输入依赖和目录中各自路径仍须保留。普通运行期构造、clone／数组转换的对象身份保持。具体 pipeline、产物和更新合同见实现规范 2.10.1，对象表示见运行时规范 2.4～2.5。
 

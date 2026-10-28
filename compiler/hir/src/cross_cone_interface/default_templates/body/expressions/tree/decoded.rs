@@ -43,6 +43,8 @@ enum DecodedDefaultExpressionKindV1 {
         parameter: crate::ContextParameterIndex,
         diagnostic: crate::ContextDiagnostic,
     },
+    /// Raw bytes embedded by a compiler input intrinsic.
+    ByteArrayLiteral(Vec<u8>),
     StringLiteral {
         value: String,
         owner: DecodedDefaultStringOwnerV1,

@@ -1,5 +1,5 @@
 use super::super::*;
-use super::{block_number, function_ref, string_ref, type_name};
+use super::{block_number, byte_array_ref, function_ref, string_ref, type_name};
 
 pub fn dump(module: &Module) -> String {
     let mut out = String::from("Module\n");
@@ -503,8 +503,16 @@ pub fn dump(module: &Module) -> String {
             instance.display_name
         ));
     }
-    for (id, string) in module.strings.iter() {
-        out.push_str(&format!("  str {} {:?}\n", string_ref(id), string.value));
+    for (id, string) in module.immortals.iter() {
+        match &string.value {
+            ImmortalConstValue::String(value) => {
+                out.push_str(&format!("  str {} {:?}\n", string_ref(id), value))
+            }
+            ImmortalConstValue::ByteArray { array_type, bytes } => out.push_str(&format!(
+                "  bytes {} {array_type:?} {bytes:?}\n",
+                byte_array_ref(id)
+            )),
+        }
     }
     match module.output {
         MirOutput::Library => out.push_str("  output library\n"),

@@ -255,9 +255,10 @@ fn every_expression_variant_keeps_its_frozen_wire_tag() {
         })),
         DefaultExpressionKindV1::Unreachable,
         DefaultExpressionKindV1::AnnotationKey(fixture.annotation),
+        DefaultExpressionKindV1::ByteArrayLiteral(vec![0, 0xff, 0x80]),
     ];
 
-    assert_eq!(cases.len(), 61);
+    assert_eq!(cases.len(), 62);
     for (index, kind) in cases.into_iter().enumerate() {
         let expected_tag = match index {
             43 => 57,
@@ -266,6 +267,7 @@ fn every_expression_variant_keeps_its_frozen_wire_tag() {
             58 => 72,
             59 => 74,
             60 => 75,
+            61 => 77,
             _ => u64::try_from(index + 1).unwrap(),
         };
         let expression = expression(kind, &fixture);

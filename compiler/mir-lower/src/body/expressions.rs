@@ -38,18 +38,29 @@ impl BodyLowerer<'_> {
                 class: self.class_map[class],
                 index: *index,
             },
+            hir::ExprKind::ByteArrayLiteral(bytes) => {
+                let mir::Type::Class(array_type) = ty else {
+                    unreachable!("embedded bytes have an Array<Byte> type")
+                };
+                smir::ExprKind::ByteArrayConst(self.intern_current_immortal(
+                    mir::ImmortalConstValue::ByteArray {
+                        array_type,
+                        bytes: bytes.clone(),
+                    },
+                ))
+            }
             hir::ExprKind::StringLiteral { value, owner } => {
                 let id = match *owner {
                     hir::StringConstantOwner::CurrentDefinition => {
                         self.intern_current_string(value.clone())
                     }
-                    hir::StringConstantOwner::Property(property) => self.strings.intern(
+                    hir::StringConstantOwner::Property(property) => self.immortals.intern(
                         mir::ImmortalObjectOwner::Property(property),
                         0,
                         value.clone(),
                     ),
                     hir::StringConstantOwner::PropertyElement { property, ordinal } => {
-                        self.strings.intern(
+                        self.immortals.intern(
                             mir::ImmortalObjectOwner::Property(property),
                             ordinal,
                             value.clone(),

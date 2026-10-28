@@ -68,6 +68,9 @@ impl Lowerer {
                     field: field.field,
                 })
             }
+            hir::ExprKind::ByteArrayLiteral(bytes) => {
+                hir::ExprKind::ByteArrayLiteral(bytes.clone())
+            }
             hir::ExprKind::StringLiteral { value, owner } => hir::ExprKind::StringLiteral {
                 value: value.clone(),
                 owner: *owner,

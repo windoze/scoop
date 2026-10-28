@@ -168,6 +168,7 @@ impl Lowerer {
                 self.release_expression(operand, values, facts);
             }
             E::StringLiteral { .. }
+            | E::ByteArrayLiteral(_)
             | E::ClassInit { .. }
             | E::ConstructorReceiver
             | E::GenericDelegateStorageRead(_)

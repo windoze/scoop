@@ -1,0 +1,40 @@
+package compiler.inputs.tests
+
+import scoop.compiler.includeBytes
+import scoop.test.*
+
+private val stored: Array<Byte> = includeBytes("data/all.bin")
+private fun <T> embedded(v: T): Array<Byte> = includeBytes("data/all.bin")
+
+@Test
+private class EmbeddedBytes {
+    @Test
+    fun `raw bytes preserve all bit patterns and exact array type`() {
+        assertEquals(256, stored.size)
+        assertEquals<Byte>(0, stored[0])
+        assertEquals<Byte>(127, stored[127])
+        assertEquals<Byte>(-128, stored[128])
+        assertEquals<Byte>(-1, stored[255])
+        val value: Any = stored
+        assertTrue(value is Array<Byte>)
+    }
+
+    @Test
+    fun `empty inputs produce an empty array`() {
+        val empty = includeBytes("data/empty.bin")
+        assertEquals(0, empty.size)
+        val value: Any = empty
+        assertTrue(value is Array<Byte>)
+    }
+
+    @Test
+    fun `generic uses retain bytes and mutable conversion copies`() {
+        val a = embedded(1)
+        val b = embedded("type")
+        val copy = a.toMutableArray()
+        copy[255] = 7
+        assertEquals<Byte>(7, copy[255])
+        assertEquals<Byte>(-1, a[255])
+        assertEquals<Byte>(-1, b[255])
+    }
+}

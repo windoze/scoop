@@ -51,6 +51,9 @@ impl Lowerer {
                     hir::IntrinsicFunctionKind::IncludeStr => {
                         "`includeStr` requires a compile-time constant String path"
                     }
+                    hir::IntrinsicFunctionKind::IncludeBytes => {
+                        "`includeBytes` requires a compile-time constant String path"
+                    }
                     _ => unreachable!(
                         "only String-parameter input intrinsics enter this normalization"
                     ),
@@ -59,8 +62,11 @@ impl Lowerer {
             );
             return None;
         };
-        if kind == hir::IntrinsicFunctionKind::IncludeStr {
-            return self.normalize_include_str(value, name.span, span, result_type);
+        if matches!(
+            kind,
+            hir::IntrinsicFunctionKind::IncludeStr | hir::IntrinsicFunctionKind::IncludeBytes
+        ) {
+            return self.normalize_include_file(kind, value, name.span, span, result_type);
         }
         let name = match hir::CompileTimeEnvironmentName::parse(&value) {
             Ok(name) => name,
@@ -122,8 +128,9 @@ impl Lowerer {
         ))
     }
 
-    fn normalize_include_str(
+    fn normalize_include_file(
         &mut self,
+        kind: hir::IntrinsicFunctionKind,
         value: String,
         path_span: Span,
         span: Span,
@@ -132,31 +139,52 @@ impl Lowerer {
         let result = hir::CompileTimePath::parse(&value)
             .map_err(str::to_owned)
             .and_then(|path| {
-                let inputs = self
-                    .compile_time_inputs
-                    .as_ref()
-                    .ok_or("no compile-time input host was supplied for `includeStr`")?;
-                let bytes = inputs.file(self.source_identity(self.current_file), &path)?;
-                std::str::from_utf8(&bytes)
-                    .map(str::to_owned)
-                    .map_err(|error| format!(
-                        "includeStr input `{value}` must be valid UTF-8 (invalid sequence at byte offset {})",
-                        error.valid_up_to()
-                    ))
+                let inputs = self.compile_time_inputs.as_ref().ok_or_else(|| {
+                    format!(
+                        "no compile-time input host was supplied for `{}`",
+                        match kind {
+                            hir::IntrinsicFunctionKind::IncludeStr => "includeStr",
+                            hir::IntrinsicFunctionKind::IncludeBytes => "includeBytes",
+                            _ => unreachable!("only file input intrinsics are normalized here"),
+                        }
+                    )
+                })?;
+                inputs.file(self.source_identity(self.current_file), &path)
             });
-        let value = match result {
+        let bytes = match result {
             Ok(value) => value,
             Err(message) => {
                 self.error(path_span, message);
                 return None;
             }
         };
-        Some(self.constant_expression(
-            hir::HirConstantImage::String(value),
+        let kind = match kind {
+            hir::IntrinsicFunctionKind::IncludeBytes => {
+                hir::ExprKind::ByteArrayLiteral(bytes.to_vec())
+            }
+            hir::IntrinsicFunctionKind::IncludeStr => {
+                let value = match std::str::from_utf8(&bytes) {
+                    Ok(value) => value.to_owned(),
+                    Err(error) => {
+                        self.error(path_span, format!(
+                            "includeStr input `{value}` must be valid UTF-8 (invalid sequence at byte offset {})",
+                            error.valid_up_to()
+                        ));
+                        return None;
+                    }
+                };
+                hir::ExprKind::StringLiteral {
+                    value,
+                    owner: hir::StringConstantOwner::CurrentDefinition,
+                }
+            }
+            _ => unreachable!("only file input intrinsics are normalized here"),
+        };
+        Some(hir::Expr {
+            kind,
             ty,
-            hir::StringConstantOwner::CurrentDefinition,
             span,
-            self.expression_origin(span),
-        ))
+            origin: self.expression_origin(span),
+        })
     }
 }
