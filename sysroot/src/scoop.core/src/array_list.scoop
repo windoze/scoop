@@ -2,7 +2,7 @@
  * A growable indexed list. Appending grows storage geometrically; insertion and removal shift
  * later elements. Clearing releases references in occupied slots.
  */
-public class ArrayList<T> public constructor(initialCapacity: Long = 0L) : MutableList<T> {
+public class ArrayList<T> public constructor(initialCapacity: Long = 0L): MutableList<T> {
     private var storage: MutableArray<MaybeUninit<T>> =
         MutableArray<MaybeUninit<T>>(initialCapacity) { _ -> MaybeUninit<T>.uninit() }
     private var elementCount: Long = 0L
@@ -12,25 +12,42 @@ public class ArrayList<T> public constructor(initialCapacity: Long = 0L) : Mutab
      */
     public override val size: Long get() = elementCount
 
-    // Used by StringBuilder's concrete parts boundary inside scoop.core.
-    internal val backing: MutableArray<MaybeUninit<T>> get() = storage
-
     private fun checkIndex(index: Long) {
-        if (index < 0L || index >= elementCount) { throw IndexOutOfBoundsException() }
+        if (index < 0L || index >= elementCount) {
+            throw IndexOutOfBoundsException()
+        }
     }
 
     private fun ensureRoom() {
-        if (elementCount == 9223372036854775807L) { coreAllocationOverflow() }
+        if (elementCount == storage.size) {
+            grow()
+        }
+    }
+
+    private fun grow() {
+        if (elementCount == 9223372036854775807L) {
+            coreAllocationOverflow()
+        }
         val required = elementCount + 1L
         val capacity = storage.size
-        if (required <= capacity) { return }
-        val nextCapacity = if (capacity == 0L) { 8L } else {
-            if (capacity > 4611686018427387903L) { required } else { capacity * 2L }
-        }
+        val nextCapacity =
+            if (capacity == 0L) {
+                8L
+            } else {
+                if (capacity > 4611686018427387903L) {
+                    required
+                } else {
+                    capacity * 2L
+                }
+            }
         val old = storage
         val count = elementCount
-        val replacement = MutableArray<MaybeUninit<T>>(nextCapacity) { index ->
-            if (index < count) { old[index] } else { MaybeUninit<T>.uninit() }
+        val replacement =
+            MutableArray<MaybeUninit<T>>(nextCapacity) { _ -> MaybeUninit<T>.uninit() }
+        var index = 0L
+        while (index < count) {
+            replacement[index] = old[index]
+            index += 1L
         }
         storage = replacement
     }
@@ -41,7 +58,10 @@ public class ArrayList<T> public constructor(initialCapacity: Long = 0L) : Mutab
      */
     public override operator fun get(index: Long): T {
         checkIndex(index)
-        @Unsafe { return storage[index].assumeInit() }
+        @Unsafe
+        {
+            return storage[index].assumeInit()
+        }
     }
 
     /**
@@ -57,9 +77,10 @@ public class ArrayList<T> public constructor(initialCapacity: Long = 0L) : Mutab
      * elements.
      */
     public override fun add(value: T) {
+        val count = elementCount
         ensureRoom()
-        storage[elementCount] = MaybeUninit<T>.initialized(value)
-        elementCount = elementCount + 1L
+        storage[count] = MaybeUninit<T>.initialized(value)
+        elementCount = count + 1L
     }
 
     /**
@@ -67,15 +88,19 @@ public class ArrayList<T> public constructor(initialCapacity: Long = 0L) : Mutab
      * elements.
      */
     public override fun add(index: Long, value: T) {
-        if (index < 0L || index > elementCount) { throw IndexOutOfBoundsException() }
+        val count = elementCount
+        if (index < 0L || index > count) {
+            throw IndexOutOfBoundsException()
+        }
         ensureRoom()
-        var cursor = elementCount
+        val target = storage
+        var cursor = count
         while (cursor > index) {
-            storage[cursor] = storage[cursor - 1L]
+            target[cursor] = target[cursor - 1L]
             cursor = cursor - 1L
         }
-        storage[index] = MaybeUninit<T>.initialized(value)
-        elementCount = elementCount + 1L
+        target[index] = MaybeUninit<T>.initialized(value)
+        elementCount = count + 1L
     }
 
     /**
@@ -84,15 +109,17 @@ public class ArrayList<T> public constructor(initialCapacity: Long = 0L) : Mutab
      */
     public override fun removeAt(index: Long): T {
         checkIndex(index)
-        @Unsafe {
-            val result = storage[index].assumeInit()
+        @Unsafe
+        {
+            val target = storage
+            val result = target[index].assumeInit()
             val last = elementCount - 1L
             var cursor = index
             while (cursor < last) {
-                storage[cursor] = storage[cursor + 1L]
+                target[cursor] = target[cursor + 1L]
                 cursor = cursor + 1L
             }
-            storage[last] = MaybeUninit<T>.uninit()
+            target[last] = MaybeUninit<T>.uninit()
             elementCount = last
             return result
         }
@@ -102,9 +129,11 @@ public class ArrayList<T> public constructor(initialCapacity: Long = 0L) : Mutab
      * Releases all occupied element slots and sets the size to zero.
      */
     public override fun clear() {
+        val target = storage
+        val count = elementCount
         var cursor = 0L
-        while (cursor < elementCount) {
-            storage[cursor] = MaybeUninit<T>.uninit()
+        while (cursor < count) {
+            target[cursor] = MaybeUninit<T>.uninit()
             cursor = cursor + 1L
         }
         elementCount = 0L
@@ -114,18 +143,30 @@ public class ArrayList<T> public constructor(initialCapacity: Long = 0L) : Mutab
     public fun toArray(): Array<T> {
         val count = elementCount
         val source = storage
-        return Array<T>(count, fun(index: Long): T {
-            @Unsafe { return source[index].assumeInit() }
-        })
+        return Array<T>(
+            count,
+            fun(index: Long): T {
+                @Unsafe
+                {
+                    return source[index].assumeInit()
+                }
+            }
+        )
     }
 
     /** Copies the initialized elements into independent mutable array slots. */
     public fun toMutableArray(): MutableArray<T> {
         val count = elementCount
         val source = storage
-        return MutableArray<T>(count, fun(index: Long): T {
-            @Unsafe { return source[index].assumeInit() }
-        })
+        return MutableArray<T>(
+            count,
+            fun(index: Long): T {
+                @Unsafe
+                {
+                    return source[index].assumeInit()
+                }
+            }
+        )
     }
 
     /**
@@ -140,27 +181,31 @@ public class ArrayList<T> public constructor(initialCapacity: Long = 0L) : Mutab
         /**
          * Builds a sequence inspector using the supplied element inspector.
          */
-        public fun inspector(element: ValueInspector<T>): ValueInspector<ArrayList<T>> = ArrayListInspector<T>(element)
+        public fun inspector(element: ValueInspector<T>): ValueInspector<ArrayList<T>> =
+            ArrayListInspector<T>(element)
 
         /**
          * Builds a sequence encoder using the supplied element encoder.
          */
-        public fun encoder(element: ValueEncoder<T>): ValueEncoder<ArrayList<T>> = ArrayListEncoder<T>(element)
+        public fun encoder(element: ValueEncoder<T>): ValueEncoder<ArrayList<T>> =
+            ArrayListEncoder<T>(element)
 
         /**
          * Builds a sequence decoder using the supplied element decoder.
          */
-        public fun decoder(element: ValueDecoder<T>): ValueDecoder<ArrayList<T>> = ArrayListDecoder<T>(element)
+        public fun decoder(element: ValueDecoder<T>): ValueDecoder<ArrayList<T>> =
+            ArrayListDecoder<T>(element)
 
-        override interface ValueEncoder<ArrayList<T>> where T.Companion : ValueEncoder<T> {
+        override interface ValueEncoder<ArrayList<T>> where T.Companion: ValueEncoder<T> {
             /** Encodes logical elements using the element companion. */
             public override fun encode(value: ArrayList<T>, encoder: Encoder): Unit =
                 encodeList(value, T.Companion, encoder)
         }
 
-        override interface ValueDecoder<ArrayList<T>> where T.Companion : ValueDecoder<T> {
+        override interface ValueDecoder<ArrayList<T>> where T.Companion: ValueDecoder<T> {
             /** Decodes a new list using the element companion. */
-            public override fun decode(decoder: Decoder): ArrayList<T> = decodeSequence(decoder, T.Companion)
+            public override fun decode(decoder: Decoder): ArrayList<T> =
+                decodeSequence(decoder, T.Companion)
         }
     }
 }

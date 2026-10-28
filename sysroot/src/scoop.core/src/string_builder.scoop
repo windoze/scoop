@@ -1,37 +1,154 @@
 /**
- * Accumulates string parts and joins them when converted to text.
+ * Accumulates UTF-8 bytes and copies immutable snapshots when converted to text.
+ * The optional initial capacity reserves bytes without adding content.
  */
-public class StringBuilder public constructor() : ToString {
-    private val parts: ArrayList<String> = ArrayList<String>()
+public class StringBuilder public constructor(initialCapacity: Long = 0L): ToString {
+    private var storage: MutableArray<UInt8> = MutableArray<UInt8>(initialCapacity) { _ -> 0u }
+    private var byteCount: Long = 0L
 
-    /**
-     * Appends text or the value's ToString result and returns this builder for chaining.
-     */
+    private fun ensureRoom(extra: Long) {
+        if (extra > storage.size - byteCount) {
+            grow(extra)
+        }
+    }
+
+    private fun grow(extra: Long) {
+        val required = coreStringAddLength(byteCount, extra)
+        val capacity = storage.size
+        val doubled =
+            if (capacity > 4611686018427387888L) {
+                required
+            } else {
+                capacity * 2L
+            }
+        val nextCapacity =
+            if (required > doubled) {
+                required
+            } else {
+                doubled
+            }
+        val replacement =
+            MutableArray<UInt8>(
+                if (nextCapacity < 32L) {
+                    32L
+                } else {
+                    nextCapacity
+                }
+            ) { _ -> 0u }
+        @Unsafe
+        {
+            coreBytesCopyPrefixUnchecked(storage, replacement, byteCount)
+        }
+        storage = replacement
+    }
+
+    /** Appends text and returns this builder for chaining. */
     public fun append(value: String): StringBuilder {
-        parts.add(value)
+        val length = value.byteLength
+        ensureRoom(length)
+        @Unsafe
+        {
+            coreStringCopyToBytesUnchecked(value, storage, byteCount)
+        }
+        byteCount += length
         return this
     }
 
-    /**
-     * Appends text or the value's ToString result and returns this builder for chaining.
-     */
-    public fun <T : ToString> append(value: T): StringBuilder {
+    /** Appends a signed integer without allocating an intermediate String. */
+    public fun append(value: Long): StringBuilder {
+        var digits = (0u, 0u, 0u, 0u, 0u)
+        @Unsafe
+        {
+            val bytes = addressOf(digits).cast<Byte>()
+            val length = coreWriteSignedDecimal(value, bytes)
+            return appendBytes(bytes + (20L - length), length)
+        }
+    }
+
+    /** Appends an unsigned integer without allocating an intermediate String. */
+    public fun append(value: ULong): StringBuilder {
+        var digits = (0u, 0u, 0u, 0u, 0u)
+        @Unsafe
+        {
+            val bytes = addressOf(digits).cast<Byte>()
+            val length = coreWriteUnsignedDecimal(value, bytes)
+            return appendBytes(bytes + (20L - length), length)
+        }
+    }
+
+    /** Appends the decimal representation of a signed integer. */
+    public fun append(value: Int): StringBuilder = append(value.toLong())
+    /** Appends the decimal representation of a signed integer. */
+    public fun append(value: Int16): StringBuilder = append(value.toLong())
+    /** Appends the decimal representation of a signed integer. */
+    public fun append(value: Int8): StringBuilder = append(value.toLong())
+    /** Appends the decimal representation of an unsigned integer. */
+    public fun append(value: UInt): StringBuilder = append(value.toULong())
+    /** Appends the decimal representation of an unsigned integer. */
+    public fun append(value: UInt16): StringBuilder = append(value.toULong())
+    /** Appends the decimal representation of an unsigned integer. */
+    public fun append(value: UInt8): StringBuilder = append(value.toULong())
+
+    /** Appends one Unicode scalar without allocating an intermediate String. */
+    public fun append(value: Char): StringBuilder {
+        val code = value.code.toUInt()
+        val word = coreUtf8Word(code)
+        val width = coreUtf8Width(code)
+        ensureRoom(width)
+        val target = storage
+        val start = byteCount
+        target[start] = word.toUByte()
+        if (width > 1L) {
+            target[start + 1L] = word.shr(8L).toUByte()
+        }
+        if (width > 2L) {
+            target[start + 2L] = word.shr(16L).toUByte()
+        }
+        if (width > 3L) {
+            target[start + 3L] = word.shr(24L).toUByte()
+        }
+        byteCount = start + width
+        return this
+    }
+
+    /** Appends the fixed Boolean text without allocating an intermediate String. */
+    public fun append(value: Boolean): StringBuilder =
+        append(
+            if (value) {
+                "true"
+            } else {
+                "false"
+            }
+        )
+
+    /** Converts once before appending, preserving reentrant builder modifications. */
+    public fun <T: ToString> append(value: T): StringBuilder {
         val text = value.toString()
-        parts.add(text)
+        return append(text)
+    }
+
+    @Unsafe
+    private fun appendBytes(bytes: Ptr<Byte>, length: Long): StringBuilder {
+        ensureRoom(length)
+        coreBytesCopyRawUnchecked(bytes, length, storage, byteCount)
+        byteCount += length
         return this
     }
 
-    /**
-     * Joins all appended parts in order into an immutable string.
-     */
-    public override fun toString(): String = coreStringJoinParts(parts.backing, parts.size)
+    /** Copies the current UTF-8 prefix into an immutable string. */
+    public override fun toString(): String {
+        if (byteCount == 0L) {
+            return ""
+        }
+        @Unsafe
+        {
+            return coreStringFromBytePrefixUnchecked(storage, byteCount)
+        }
+    }
 
-    /** Removes accumulated parts, preserving previously returned string snapshots. */
+    /** Removes content in constant time, preserving capacity and existing snapshots. */
     public fun clear(): StringBuilder {
-        parts.clear()
+        byteCount = 0L
         return this
     }
 }
-
-@Extern(name = "scoop_rt_string_join_parts", abi = "scoop")
-internal fun coreStringJoinParts(storage: MutableArray<MaybeUninit<String>>, partCount: Long): String

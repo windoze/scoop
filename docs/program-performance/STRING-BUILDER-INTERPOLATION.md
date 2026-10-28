@@ -1,6 +1,6 @@
 # f-string 就地展开与 StringBuilder 后续优化
 
-状态：短 f-string 已实现，三目标验证和实际编译器对照见第 6.1 节；本轮仅交付这一阶段，第 7 节 StringBuilder 字节缓冲留待后续。2026-10-27 对照基线 `d90538338`；第 5 节保留实现前的可行性探针，不能与正式验收数据混用。
+状态：短 f-string 已实现，三目标验证和实际编译器对照见第 6.1 节。2026-10-29 已实现第 7 节字节缓冲方案，并补齐八种整数、Char、Boolean 的 append 重载，见 [ArrayList 与 StringBuilder 优化记录](ARRAYLIST-STRINGBUILDER.md)。下文保留分阶段设计与各阶段基线；第 8 节标量插值融合尚未实施。2026-10-27 对照基线 `d90538338`；第 5 节保留实现前的可行性探针，不能与正式验收数据混用。
 
 ## 1. 结论与实施范围
 
@@ -21,7 +21,7 @@
 | --- | --- |
 | [HIR 插值下降](../../compiler/hir-lower/src/expr/interpolation.rs) | 无论片段数，先构造隐藏的 core StringBuilder，再逐段调用 append，最后调用 toString。绑定来自实际 core 声明，保留源位置。 |
 | [core StringBuilder](../../sysroot/src/scoop.core/src/string_builder.scoop) | 持有 `ArrayList<String>`；generic append 立即转换；toString 调用 `coreStringJoinParts`。 |
-| [parts 后备](../../runtime/src/string_parts.c) | 多片段时已是 checked 求和、一次结果分配及按序复制；单片段直接返回原 String。因此 f-string 本轮主要消除 builder、parts 存储与追加调用，不应将收益描述为把原来的多次结果拼接改成一次。 |
+| `parts` 后备（原 `runtime/src/string_parts.c`） | 多片段时已是 checked 求和、一次结果分配及按序复制；单片段直接返回原 String。因此 f-string 本轮主要消除 builder、parts 存储与追加调用，不应将收益描述为把原来的多次结果拼接改成一次。 |
 | [HIR 拼接操作](../../compiler/hir/src/body.rs)、[MIR 下降](../../compiler/mir-lower/src/body/operators/primitive.rs) | 已有 typed 二元 StringConcat，不必从普通方法名或 extern 符号猜测操作。 |
 | [MIR 拼接融合](../../compiler/mir-lower/src/optimization/strings.rs) | 最多八段；同块、稳定局部值、单用中间结果；其他调用和可变写入会结束融合。两次及以上连续 concat 可以融合；单个二元 concat 只对热调用点或全短常量展开。 |
 | [StringConcat codegen](../../compiler/codegen/src/function/instruction/strings.rs) | 已实现长度检查、一次分配、GC 后重读输入和精确复制；短常量直接写入结果。 |

@@ -179,6 +179,7 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::EndCatch
         | Instruction::Throw { .. }
         | Instruction::ArraySet { .. }
+        | Instruction::ByteCopy { .. }
         | Instruction::StringByteStore { .. } => None,
     };
     let second = match instruction {

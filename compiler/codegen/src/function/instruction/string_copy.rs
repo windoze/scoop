@@ -88,6 +88,20 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .inline_offset();
                 (self.copy_byte_count(array)?, word.const_int(offset, false))
             }
+            Source::BytePrefix {
+                array_type, length, ..
+            } => {
+                let offset = self
+                    .array_type(array_type)
+                    .0
+                    .layout
+                    .instance()
+                    .inline_offset();
+                (
+                    self.value(length)?.into_int_value(),
+                    word.const_int(offset, false),
+                )
+            }
             Source::String(string) => (self.copy_byte_count(string)?, word.const_int(24, false)),
         };
         let (descriptor, bytes, layout, destination_offset) = match *target {
@@ -146,7 +160,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Source::Zeroed(_) => unreachable!("zero initialization completed above"),
             Source::Utf8 { pointer, .. } => self.value(pointer)?,
             Source::Slice { string, .. } | Source::String(string) => self.value(string)?,
-            Source::Bytes { array, .. } => self.value(array)?,
+            Source::Bytes { array, .. } | Source::BytePrefix { array, .. } => self.value(array)?,
         }
         .into_pointer_value();
         // SAFETY: the typed copy contract bounds this range; raw memory stays stable.
@@ -161,7 +175,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         Ok(())
     }
 
-    fn copy_byte_count(&mut self, object: Value) -> Result<IntValue<'ctx>, CodegenError> {
+    pub(super) fn copy_byte_count(
+        &mut self,
+        object: Value,
+    ) -> Result<IntValue<'ctx>, CodegenError> {
         let object = self.value(object)?.into_pointer_value();
         let count = self.byte_gep(object, 16, "copy.count_ptr")?;
         self.builder
