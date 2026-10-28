@@ -6,4 +6,4 @@ version = "0.1.0"
 kind = "executable"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"dev.example:qualified-diamond" = "0.1.0"
+"dev.example:qualified-diamond" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/qualified-diamond/0.1.0/cone.slib" }

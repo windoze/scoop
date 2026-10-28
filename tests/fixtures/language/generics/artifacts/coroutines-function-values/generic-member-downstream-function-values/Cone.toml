@@ -6,4 +6,4 @@ version = "0.1.0"
 kind = "library"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"dev.example:generic-member-function-values" = "0.1.0"
+"dev.example:generic-member-function-values" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/generic-member-function-values/0.1.0/cone.slib" }

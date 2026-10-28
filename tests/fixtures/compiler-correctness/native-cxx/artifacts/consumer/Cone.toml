@@ -5,4 +5,4 @@ name = "cxx-consumer"
 version = "0.1.0"
 kind = "executable"
 [dependencies]
-"dev.m33:cxx-middle" = "0.1.0"
+"dev.m33:cxx-middle" = { version = "=0.1.0", artifact = "../../artifacts/dev.m33/cxx-middle/0.1.0/cone.slib" }

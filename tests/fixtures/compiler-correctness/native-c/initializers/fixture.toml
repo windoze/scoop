@@ -8,7 +8,7 @@ variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", var
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/cone", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${profile}", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/cone", "--lockfile", "${work}/source-lock-0.lock", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${profile}", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

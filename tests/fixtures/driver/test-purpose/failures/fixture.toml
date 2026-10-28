@@ -16,7 +16,7 @@ diagnostics = []
 
 [[steps]]
 name = "production"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/production", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/production", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -34,7 +34,7 @@ diagnostics = []
 
 [[steps]]
 name = "compile"
-argv = ["${scoop}", "build", {each = "${compile_args}"}, "${fixture}/program", "--tests", "--profile", "${profile}", "-o", "${work}/tests.slib", "--sysroot", "${sysroot}", "--emit-slib", "--cache-dir", "${cache}", "--target-dir", "${work}/compiler-output", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${compile_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--tests", "--profile", "${profile}", "-o", "${work}/tests.slib", "--sysroot", "${sysroot}", "--emit-slib", "--cache-dir", "${cache}", "--target-dir", "${work}/compiler-output", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

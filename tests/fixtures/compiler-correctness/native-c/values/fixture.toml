@@ -11,7 +11,7 @@ variants = [
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${fixture}/cone", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${fixture}/cone", "--lockfile", "${work}/source-lock-0.lock", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -28,7 +28,7 @@ files = [
 
 [[steps]]
 name = "manual"
-argv = ["${scoop}", "build", {each = "${compile_args}"}, "${fixture}/cone", "--profile", "${profile}", "--sysroot", "${work}/manual-sysroot", "-o", "${work}/manual.slib", "--emit-slib", "--cache-dir", "${cache}", "--target-dir", "${work}/compiler-output", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${compile_args}"}, "${fixture}/cone", "--lockfile", "${work}/source-lock-0.lock", "--profile", "${profile}", "--sysroot", "${work}/manual-sysroot", "-o", "${work}/manual.slib", "--emit-slib", "--cache-dir", "${cache}", "--target-dir", "${work}/compiler-output", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

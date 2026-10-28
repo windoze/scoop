@@ -16,7 +16,7 @@ files = [
 
 [[steps]]
 name = "reject"
-argv = ["${scoop}", "build", "--release", "${fixture}/../../compiler-correctness/native-libraries/negative/bad-explicit/cone", {"each" = "${link_args}"}, "--sysroot", "${work}/sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+argv = ["${scoop}", "build", "--release", "${fixture}/../../compiler-correctness/native-libraries/negative/bad-explicit/cone", "--lockfile", "${work}/source-lock-0.lock", {"each" = "${link_args}"}, "--sysroot", "${work}/sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
 exit = 1
 stdout = ""
 stderr = ""

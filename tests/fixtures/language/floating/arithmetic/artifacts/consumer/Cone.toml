@@ -6,6 +6,6 @@ version = "0.1.0"
 kind = "executable"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"dev.m30:floating-provider" = "0.1.0"
-"dev.m30:floating-facade" = "0.1.0"
+"dev.m30:floating-provider" = { version = "=0.1.0", artifact = "../../artifacts/dev.m30/floating-provider/0.1.0/cone.slib" }
+"dev.m30:floating-facade" = { version = "=0.1.0", artifact = "../../artifacts/dev.m30/floating-facade/0.1.0/cone.slib" }
 "scoop:scoop.json" = "0.1.0"

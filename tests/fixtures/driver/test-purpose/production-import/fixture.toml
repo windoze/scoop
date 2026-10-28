@@ -7,7 +7,7 @@ tags = ["test-purpose", "negative", "source-role", "driver"]
 
 [[steps]]
 name = "reject"
-argv = ["${scoop}", "build", "--release", {each = "${compile_args}"}, "${fixture}/program", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--emit-slib", "--tests", "-o", "${work}/tests.slib"]
+argv = ["${scoop}", "build", "--release", {each = "${compile_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--emit-slib", "--tests", "-o", "${work}/tests.slib"]
 exit = 1
 stdout = ""
 stderr = """

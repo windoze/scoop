@@ -5,4 +5,4 @@ name = "suspend-consumer"
 version = "0.1.0"
 kind = "executable"
 [dependencies]
-"test:suspend-support" = "0.1.0"
+"test:suspend-support" = { version = "=0.1.0", artifact = "../../artifacts/test/suspend-support/0.1.0/cone.slib" }

@@ -6,4 +6,4 @@ version = "1.0.0"
 kind = "executable"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"dev.example:generic-odr-conflict-left" = "0.1.0"
+"dev.example:generic-odr-conflict-left" = { version = "=0.1.0", artifact = "../../left/artifacts/dev.example/generic-odr-conflict-left/0.1.0/cone.slib" }

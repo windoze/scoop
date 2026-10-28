@@ -10,7 +10,7 @@ variants = [
 
 [[steps]]
 name = "production"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/../test-filter-selection/cone", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/../test-filter-selection/cone", "--lockfile", "${work}/source-lock-0.lock", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -23,7 +23,7 @@ checks = [
 
 [[steps]]
 name = "build-tests"
-argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/../test-filter-selection/cone", "--no-run", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/../test-filter-selection/cone", "--lockfile", "${work}/source-lock-0.lock", "--no-run", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -37,7 +37,7 @@ checks = [
 
 [[steps]]
 name = "run-tests"
-argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/../test-filter-selection/cone", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/../test-filter-selection/cone", "--lockfile", "${work}/source-lock-0.lock", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

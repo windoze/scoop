@@ -6,4 +6,4 @@ version = "0.1.0"
 kind = "executable"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"m54:native-requirements" = "0.1.0"
+"m54:native-requirements" = { version = "=0.1.0", artifact = "../../cones/m54/native-requirements/0.1.0/cone.slib" }

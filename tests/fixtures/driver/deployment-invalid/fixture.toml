@@ -15,7 +15,7 @@ vars = {version = "27.x", reason = "non-numeric component"}
 
 [[steps]]
 name = "reject"
-argv = ["${scoop}", "build", "--release", "${fixture}/../deployment/cone", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--message-format", "json", "-o", "${work}/program"]
+argv = ["${scoop}", "build", "--release", "${fixture}/../deployment/cone", "--lockfile", "${work}/source-lock-0.lock", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--message-format", "json", "-o", "${work}/program"]
 env = {MACOSX_DEPLOYMENT_TARGET = "${version}"}
 exit = 1
 stdout = ""

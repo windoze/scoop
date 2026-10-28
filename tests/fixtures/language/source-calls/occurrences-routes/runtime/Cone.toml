@@ -6,5 +6,5 @@ version = "1.0.0"
 kind = "executable"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"test:scoop-hir-lower" = "0.0.0"
-"test:occurrence-provider" = "1.0.0"
+"test:scoop-hir-lower" = { version = "=0.0.0", artifact = "../../artifacts/test/scoop-hir-lower/0.0.0/cone.slib" }
+"test:occurrence-provider" = { version = "=1.0.0", artifact = "../../artifacts/test/occurrence-provider/1.0.0/cone.slib" }

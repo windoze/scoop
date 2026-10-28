@@ -6,4 +6,4 @@ version = "0.1.0"
 kind = "library"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"dev.example:generic-constructor-inferred-defaults" = "0.1.0"
+"dev.example:generic-constructor-inferred-defaults" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/generic-constructor-inferred-defaults/0.1.0/cone.slib" }

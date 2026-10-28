@@ -7,7 +7,7 @@ tags = ["test-command", "test-list", "driver"]
 variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
 [[steps]]
 name = "list"
-argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--list", "--message-format", "json"]
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--list", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = {file = "list.json"}
@@ -16,7 +16,7 @@ diagnostics = []
 
 [[steps]]
 name = "cached-list"
-argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--list", "--message-format", "json"]
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--list", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = {file = "list.json"}
@@ -29,14 +29,14 @@ checks = [
 
 [[steps]]
 name = "human-list"
-argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--list"]
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--list"]
 exit = 0
 stdout = {file = "list.stdout"}
 stderr = "built ${work}/outputs/${target}/${profile}/dev.m43/list-tests/tests/list-tests (${profile})\n"
 
 [[steps]]
 name = "ignored-list"
-argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--list", "--ignored", "--filter", "Cases::skipped", "--message-format", "json"]
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--list", "--ignored", "--filter", "Cases::skipped", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = {file = "ignored.json"}

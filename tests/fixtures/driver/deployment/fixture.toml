@@ -32,7 +32,7 @@ stderr = ""
 
 [[steps]]
 name = "changed"
-argv = ["${scoop}", "build", "--release", "${fixture}/cone", {"each" = "${options}"}]
+argv = ["${scoop}", "build", "--release", "${fixture}/cone", "--lockfile", "${work}/source-lock-0.lock", {"each" = "${options}"}]
 env = {MACOSX_DEPLOYMENT_TARGET = "27.0.2"}
 exit = 0
 stdout = ""
@@ -50,7 +50,7 @@ stderr = ""
 
 [[steps]]
 name = "warm"
-argv = ["${scoop}", "build", "--release", "${fixture}/cone", {"each" = "${options}"}]
+argv = ["${scoop}", "build", "--release", "${fixture}/cone", "--lockfile", "${work}/source-lock-0.lock", {"each" = "${options}"}]
 env = {MACOSX_DEPLOYMENT_TARGET = "27.0.2"}
 exit = 0
 stdout = ""

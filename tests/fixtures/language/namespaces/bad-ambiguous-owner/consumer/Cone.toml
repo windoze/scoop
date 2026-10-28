@@ -6,6 +6,6 @@ version = "0.1.0"
 kind = "library"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"dev.example:namespace-first" = "0.1.0"
-"dev.example:namespace-second" = "0.1.0"
-"dev.example:namespace-conflict-provider" = "0.1.0"
+"dev.example:namespace-first" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/namespace-first/0.1.0/cone.slib" }
+"dev.example:namespace-second" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/namespace-second/0.1.0/cone.slib" }
+"dev.example:namespace-conflict-provider" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/namespace-conflict-provider/0.1.0/cone.slib" }

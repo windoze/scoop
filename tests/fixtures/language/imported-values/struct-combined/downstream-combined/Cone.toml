@@ -6,5 +6,5 @@ version = "0.1.0"
 kind = "library"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"dev.example:struct-provider" = "0.1.0"
-"dev.example:struct-combined" = "0.1.0"
+"dev.example:struct-provider" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/struct-provider/0.1.0/cone.slib" }
+"dev.example:struct-combined" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/struct-combined/0.1.0/cone.slib" }

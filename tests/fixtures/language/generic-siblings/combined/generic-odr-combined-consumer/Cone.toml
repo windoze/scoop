@@ -6,6 +6,6 @@ version = "0.1.0"
 kind = "library"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"dev.example:generic-odr-provider" = "0.1.0"
-"dev.example:generic-odr-combined-left" = "0.1.0"
-"dev.example:generic-odr-combined-right" = "0.1.0"
+"dev.example:generic-odr-provider" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/generic-odr-provider/0.1.0/cone.slib" }
+"dev.example:generic-odr-combined-left" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/generic-odr-combined-left/0.1.0/cone.slib" }
+"dev.example:generic-odr-combined-right" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/generic-odr-combined-right/0.1.0/cone.slib" }

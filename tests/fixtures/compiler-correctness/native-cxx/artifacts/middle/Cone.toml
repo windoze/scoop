@@ -5,4 +5,4 @@ name = "cxx-middle"
 version = "0.1.0"
 kind = "library"
 [dependencies]
-"dev.m33:cxx-provider" = "0.1.0"
+"dev.m33:cxx-provider" = { version = "=0.1.0", artifact = "../../artifacts/dev.m33/cxx-provider/0.1.0/cone.slib" }

@@ -6,4 +6,4 @@ version = "0.1.0"
 kind = "executable"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"dev.example:imported-callable-values-provider" = "0.1.0"
+"dev.example:imported-callable-values-provider" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/imported-callable-values-provider/0.1.0/cone.slib" }

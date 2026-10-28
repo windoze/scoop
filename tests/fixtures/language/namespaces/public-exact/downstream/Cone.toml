@@ -6,4 +6,4 @@ version = "0.1.0"
 kind = "library"
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
-"dev.example:namespace-public-exact" = "0.1.0"
+"dev.example:namespace-public-exact" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/namespace-public-exact/0.1.0/cone.slib" }

@@ -7,7 +7,7 @@ tags = ["test-selection", "negative", "driver"]
 
 [[steps]]
 name = "reject-unselected-method"
-argv = ["${scoop}", "test", "--release", {"each" = "${link_args}"}, "${fixture}/program", "--filter", "Cases::valid", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+argv = ["${scoop}", "test", "--release", {"each" = "${link_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--filter", "Cases::valid", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
 exit = 1
 stdout = ""
 stderr = ""

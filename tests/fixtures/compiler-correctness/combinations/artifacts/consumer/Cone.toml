@@ -5,4 +5,4 @@ name = "combinations-consumer"
 version = "0.1.0"
 kind = "executable"
 [dependencies]
-"dev.m35:combinations-provider" = "0.1.0"
+"dev.m35:combinations-provider" = { version = "=0.1.0", artifact = "../../artifacts/dev.m35/combinations-provider/0.1.0/cone.slib" }

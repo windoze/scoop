@@ -141,6 +141,12 @@ PM 生成和维护 `Cone.lock`；`scoop` 消费锁定图及其本地投影，向
 - PM 图直接建立编译顺序及 direct/support 产物关系，不重放版本约束、图闭合和 core 选择；单文件头部的精确产物发现保持。源码图测试经真实 PM 生成输入，独立单文件继续覆盖原产物查找。
 - 全 workspace lint 与 macOS driver 110 项测试通过；Linux library 76 项通过，其中 musl 用例在显式准备对应 libunwind 后单独复跑。完整 CLI fixture 回归发现旧裸产物声明和开发 sysroot 资源需要迁移/更新，正在闭合。
 
+### 既有产物 fixture 清单迁移
+
+- 将 2477 份实际产物消费者清单的裸版本改为精确版本及显式 artifact 路径；路径按各用例的真实复制位置、产物输出与搜索根确定，保留传递产物的精确查找。专门验证非法字段/版本、缺少 registry 和生产/测试隔离的声明保持测试意图。
+- 直接读取仓库源码的正式命令用独立测试工作目录保存 lock；开发 sysroot 准备也将 lock 放到维护工作目录，避免测试/发行准备修改随包源码。
+- 全部变更 TOML 解析及差异检查通过，Python 脚本格式化/lint 与 7 项发行脚本测试通过。macOS 首批 7 组正式 fixture（8 个变体、45 个进程步骤）通过，覆盖产物传递、ODR 冲突、profile 替换、native 要求及精确语言诊断；全量回归继续完成。
+
 ## 验证记录
 
 - `cargo clippy --workspace --all-targets` 通过。
