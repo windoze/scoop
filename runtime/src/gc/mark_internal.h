@@ -120,6 +120,7 @@ typedef struct ScoopGcMarkWorker {
     void *const *pending_objects;
     size_t pending_count;
     uint64_t pending_scans;
+    ScoopGcMarkTask *continuation;
     uint64_t marked;
     uint64_t traced;
     uint64_t root_slots;

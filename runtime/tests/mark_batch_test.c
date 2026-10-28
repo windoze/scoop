@@ -48,6 +48,7 @@ static void collect_and_check(size_t workers, size_t objects, size_t references)
     for (size_t index = 0; index < GC_MARK_MAX_WORKERS; index++) {
         const ScoopGcMarkWorker *worker = &scoop_gc_marker.workers[index];
         assert(worker->live == NULL && worker->pending_count == 0);
+        assert(worker->continuation == NULL);
         if (index >= workers || objects == 0) {
             assert(worker->spare_live == NULL);
         }
@@ -65,7 +66,38 @@ static bool is_node(size_t index, unsigned pattern) {
            (pattern == 2 && (index % 64 == 0 || index % 64 == 63 || index % 3 == 0));
 }
 
-static void run_case(size_t workers) {
+static void check_bounded_continuation(size_t workers) {
+    _Alignas(16) uintptr_t frame[4] = {0};
+    frame[2] = (uintptr_t)scoop_thread_current_required()->managed_stack_boundary;
+    ScoopManagedAnchor anchor;
+    scoop_thread_push_managed_anchor(&anchor, 0x1010, (uintptr_t)frame, (uintptr_t)&frame[2]);
+    assert(scoop_gc_stop_world());
+    scoop_gc_heap_lock();
+    scoop_gc_roots_lock();
+    scoop_gc_set_pin_frames_locked(true);
+    scoop_gc_retire_allocations();
+    uint64_t references_before = scoop_gc_heap_state.metrics.mark_reference_slots;
+    size_t blocks = scoop_gc_heap_begin_collection_locked(false);
+    scoop_gc_mark_begin(false, blocks);
+    scoop_gc_mark_roots();
+    scoop_gc_mark_publish();
+    scoop_gc_mark_pool_run(1);
+    size_t queued = 0;
+    for (size_t index = 0; index < workers; index++) {
+        const ScoopGcMarkWorker *worker = &scoop_gc_marker.workers[index];
+        assert(worker->continuation == NULL && worker->pending_scans == 0);
+        queued += worker->queue.count;
+    }
+    /* A slice has no active parent: every retained successor must be stealable. */
+    assert(queued != 0 && atomic_load(&scoop_gc_marker.pending) == queued);
+    assert(scoop_gc_mark_step(true));
+    assert(atomic_load(&scoop_gc_marker.pending) == 0);
+    assert(scoop_gc_mark_complete(false) == ROOT_COUNT * 2);
+    assert(scoop_gc_heap_state.metrics.mark_reference_slots - references_before == ROOT_COUNT * 2);
+    _exit(0);
+}
+
+static void run_case(size_t workers, bool bounded) {
     char setting[8];
     snprintf(setting, sizeof setting, "%zu", workers);
     assert(setenv("SCOOP_GC_WORKERS", setting, 1) == 0);
@@ -88,7 +120,7 @@ static void run_case(size_t workers) {
     assert(nursery_node(7)->value == 7);
 
     const size_t counts[] = {0, 1, 63, 64, 65, 1023, 1024, 1025};
-    for (unsigned pattern = 0; pattern < 3; pattern++) {
+    for (unsigned pattern = 0; !bounded && pattern < 3; pattern++) {
         for (size_t variant = 0; variant < sizeof counts / sizeof *counts; variant++) {
             size_t count = counts[variant];
             memset(objects, 0, sizeof objects);
@@ -132,6 +164,9 @@ static void run_case(size_t workers) {
         objects[1] = NULL;
     }
     objects[2] = objects[0];
+    if (bounded) {
+        check_bounded_continuation(workers);
+    }
     for (size_t round = 0; round < 2; round++) {
         collect_and_check(workers, ROOT_COUNT * 2, ROOT_COUNT * 2);
         assert(objects[0] == objects[2]);
@@ -155,15 +190,18 @@ static void run_case(size_t workers) {
 int main(void) {
     alarm(40);
     for (size_t workers = 1; workers <= 4; workers *= 4) {
-        pid_t child = fork();
-        assert(child >= 0);
-        if (child == 0) {
-            run_case(workers);
-            _exit(0);
+        for (unsigned bounded = 0; bounded < 2; bounded++) {
+            pid_t child = fork();
+            assert(child >= 0);
+            if (child == 0) {
+                alarm(20);
+                run_case(workers, bounded != 0);
+                _exit(0);
+            }
+            int status = 0;
+            assert(waitpid(child, &status, 0) == child);
+            assert(WIFEXITED(status) && WEXITSTATUS(status) == 0);
         }
-        int status = 0;
-        assert(waitpid(child, &status, 0) == child);
-        assert(WIFEXITED(status) && WEXITSTATUS(status) == 0);
     }
     puts("live chunk reuse preserves exact scans, relocation, shrinking and shutdown");
 }

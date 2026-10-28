@@ -34,6 +34,45 @@ void scoop_gc_mark_notify_work(bool complete) {
     pthread_mutex_unlock(&scoop_gc_marker.lock);
 }
 
+static size_t run_task(ScoopGcMarkWorker *worker, ScoopGcMarkTask task, size_t task_limit) {
+    ScoopGcMarkTask continuation = {0};
+    worker->continuation = &continuation;
+    size_t completed = 0;
+    for (;;) {
+        uint64_t references_before = 0;
+        if (task_limit != 0) {
+            references_before = worker->reference_slots + worker->old_slots;
+        }
+        if (task.kind == SCOOP_RESERVE_CHUNK_TASK) {
+            scoop_gc_reserve_run_task(worker, task.data.reserve.plans, task.data.reserve.chunk);
+        } else if (task.kind == SCOOP_COPY_BLOCK_TASK) {
+            scoop_gc_copy_run_task(task.data.copy_group);
+        } else if (scoop_gc_marker.updating) {
+            scoop_gc_update_run_task(worker, task);
+        } else {
+            scoop_gc_mark_run_task(worker, task);
+            scoop_gc_mark_flush(worker);
+        }
+        if (task_limit != 0) {
+            uint64_t references = worker->reference_slots + worker->old_slots - references_before;
+            /* Arrays and dirty ranges consume the same reference work as object batches. */
+            completed += references == 0 ? 1 : (references - 1) / 128 + 1;
+        }
+        if (continuation.data.batch.scans == 0) {
+            break;
+        }
+        task = continuation;
+        continuation.data.batch.scans = 0;
+        if (task_limit != 0 && completed >= task_limit) {
+            /* Publish before releasing the current outstanding task. */
+            scoop_gc_mark_queue_push(worker, task);
+            break;
+        }
+    }
+    worker->continuation = NULL;
+    return completed;
+}
+
 static void run_worker(ScoopGcMarkWorker *worker, size_t task_limit) {
     uint64_t started = scoop_gc_thread_cpu_ns();
     size_t completed = 0;
@@ -55,26 +94,8 @@ static void run_worker(ScoopGcMarkWorker *worker, size_t task_limit) {
                 break;
             }
         }
-        uint64_t references_before = 0;
-        if (task_limit != 0) {
-            references_before = worker->reference_slots + worker->old_slots;
-        }
-        if (task.kind == SCOOP_RESERVE_CHUNK_TASK) {
-            scoop_gc_reserve_run_task(worker, task.data.reserve.plans, task.data.reserve.chunk);
-        } else if (task.kind == SCOOP_COPY_BLOCK_TASK) {
-            scoop_gc_copy_run_task(task.data.copy_group);
-        } else if (scoop_gc_marker.updating) {
-            scoop_gc_update_run_task(worker, task);
-        } else {
-            scoop_gc_mark_run_task(worker, task);
-            scoop_gc_mark_flush(worker);
-        }
+        completed += run_task(worker, task, task_limit == 0 ? 0 : task_limit - completed);
         scoop_gc_mark_task_done();
-        if (task_limit != 0) {
-            uint64_t references = worker->reference_slots + worker->old_slots - references_before;
-            /* Arrays and dirty ranges consume the same reference work as object batches. */
-            completed += references == 0 ? 1 : (references - 1) / 128 + 1;
-        }
     }
     /* A bounded publisher may leave its lone successor for a waiting peer. */
     if (task_limit != 0 && completed >= task_limit) {

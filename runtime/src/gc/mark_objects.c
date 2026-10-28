@@ -9,10 +9,14 @@
 
 void scoop_gc_mark_flush(ScoopGcMarkWorker *worker) {
     if (worker->pending_scans != 0) {
-        scoop_gc_mark_queue_push(worker,
-                                 (ScoopGcMarkTask){
-                                     .data.batch = {worker->pending_objects, worker->pending_scans},
-                                 });
+        ScoopGcMarkTask task = {
+            .data.batch = {worker->pending_objects, worker->pending_scans},
+        };
+        if (worker->continuation != NULL && worker->continuation->data.batch.scans == 0) {
+            *worker->continuation = task;
+        } else {
+            scoop_gc_mark_queue_push(worker, task);
+        }
     }
     worker->pending_objects = NULL;
     worker->pending_count = 0;
