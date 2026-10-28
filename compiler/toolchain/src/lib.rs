@@ -15,6 +15,8 @@ pub use c_bridge_invocation::{
     CBridgeToolchainInvocationError, ValidatedCBridgeToolchainInvocation,
 };
 mod compiler;
+mod debug;
+pub use debug::{DebugFileKind, NativeDebugTools, debug_tool_configuration};
 mod cxx;
 mod final_link;
 mod generators;

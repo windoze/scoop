@@ -60,6 +60,26 @@ fn symbol_maps_are_an_explicit_final_link_option() {
 }
 
 #[test]
+fn independent_debug_files_are_an_explicit_final_link_option() {
+    for command in ["build", "run", "test"] {
+        assert!(Cli::try_parse_from(["scoop", command, "--release", "--emit-debug-file"]).is_ok());
+    }
+    assert!(
+        Cli::try_parse_from([
+            "scoop",
+            "link",
+            "--root-slib",
+            "root.slib",
+            "-o",
+            "program",
+            "--emit-debug-file"
+        ])
+        .is_ok()
+    );
+    assert!(Cli::try_parse_from(["scoop", "check", "--emit-debug-file"]).is_err());
+}
+
+#[test]
 fn output_capture_only_applies_to_actual_execution() {
     for flag in ["--list", "--no-run"] {
         assert!(Cli::try_parse_from(["scoop", "test", flag, "--nocapture"]).is_err());

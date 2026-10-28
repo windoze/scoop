@@ -9,6 +9,8 @@ use scoop_wire::{Digest256, Encoder, WireEncode, domain_separated_cbor_hash, sha
 use crate::{LinkError, RuntimeObjectSet, error, program::ProgramInputs, startup::StartupObject};
 
 mod darwin;
+mod debug;
+pub use debug::{DebugFile, replace_debug_bundle};
 mod elf;
 mod response;
 
@@ -35,6 +37,7 @@ impl std::fmt::Display for ResolvedLinkPlanFingerprint {
 pub struct ProgramLinkOptions {
     pub keep_symbols: bool,
     pub emit_symbol_map: bool,
+    pub emit_debug_file: bool,
 }
 
 #[derive(Debug)]
@@ -42,6 +45,7 @@ pub struct ProgramLinkOutput {
     pub path: PathBuf,
     /// Native linker address map for this exact executable.
     pub symbol_map: Option<PathBuf>,
+    pub debug_file: Option<DebugFile>,
     pub fingerprint: ResolvedLinkPlanFingerprint,
     pub plan_dump: String,
     /// Actual native files and lookup candidates used by this link.
@@ -87,7 +91,14 @@ fn link_inputs(
     for input in &inputs.objects {
         paths.push(input.path(cache)?);
     }
-    let candidate = directory.path().join("program");
+    let basename = output
+        .file_name()
+        .ok_or_else(|| error("executable has no basename"))?;
+    let candidate = directory.path().join(basename);
+    let debug_tools = options
+        .emit_debug_file
+        .then(|| scoop_toolchain::NativeDebugTools::resolve(profile.target()).map_err(error))
+        .transpose()?;
     let candidate_map = options
         .emit_symbol_map
         .then(|| directory.path().join("program.map"));
@@ -98,7 +109,7 @@ fn link_inputs(
             directory.path(),
             &paths,
             &candidate,
-            options.keep_symbols,
+            options.keep_symbols || options.emit_debug_file,
             candidate_map.as_deref(),
         )?,
         ValidatedFinalLinkProfile::Linux(linux) => elf::link(
@@ -107,14 +118,18 @@ fn link_inputs(
             directory.path(),
             &paths,
             &candidate,
-            options.keep_symbols,
+            options.keep_symbols || options.emit_debug_file,
             candidate_map.as_deref(),
         )?,
     }
+    let debug_file = debug_tools
+        .as_ref()
+        .map(|tools| debug::generate(tools, &candidate, options.keep_symbols))
+        .transpose()?;
     let profile_fingerprint = profile.fingerprint().map_err(error)?;
     let fingerprint = ResolvedLinkPlanFingerprint(
         domain_separated_cbor_hash(
-            "scoop-resolved-link-plan-v4",
+            "scoop-resolved-link-plan-v5",
             &Plan {
                 closure,
                 runtime,
@@ -122,6 +137,7 @@ fn link_inputs(
                 startup: &startup,
                 profile: profile_fingerprint,
                 keep_symbols: options.keep_symbols,
+                debug_basename: options.emit_debug_file.then_some(basename),
             },
         )
         .map_err(error)?,
@@ -134,6 +150,20 @@ fn link_inputs(
             Ok::<_, LinkError>(symbol_map)
         })
         .transpose()?;
+    let debug_file = debug_file
+        .map(|file| {
+            let path = file.kind.output_path(&output);
+            match file.kind {
+                scoop_toolchain::DebugFileKind::Dsym => replace_debug_bundle(&file.path, &path),
+                scoop_toolchain::DebugFileKind::Elf => std::fs::rename(&file.path, &path),
+            }
+            .map_err(error)?;
+            Ok::<_, LinkError>(DebugFile {
+                kind: file.kind,
+                path,
+            })
+        })
+        .transpose()?;
     std::fs::rename(candidate, &output).map_err(|err| {
         error(format!(
             "cannot publish executable {}: {err}",
@@ -143,6 +173,7 @@ fn link_inputs(
     Ok(ProgramLinkOutput {
         path: output,
         symbol_map,
+        debug_file,
         fingerprint,
         plan_dump,
         input_paths: inputs
@@ -150,6 +181,11 @@ fn link_inputs(
             .input_paths()
             .into_iter()
             .chain(inputs.namespace.input_paths())
+            .chain(
+                debug_tools
+                    .iter()
+                    .flat_map(|tools| tools.input_paths().iter().cloned()),
+            )
             .collect(),
     })
 }
@@ -177,10 +213,11 @@ struct Plan<'a> {
     startup: &'a StartupObject,
     profile: Digest256,
     keep_symbols: bool,
+    debug_basename: Option<&'a std::ffi::OsStr>,
 }
 impl WireEncode for Plan<'_> {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        e.map(10)?;
+        e.map(11)?;
         e.field(1)?;
         self.closure.root().encode(e)?;
         e.field(2)?;
@@ -215,6 +252,11 @@ impl WireEncode for Plan<'_> {
         self.inputs.namespace.encode(e)?;
         e.field(10)?;
         e.unsigned(u64::from(self.keep_symbols))?;
+        e.field(11)?;
+        e.array(u64::from(self.debug_basename.is_some()))?;
+        if let Some(name) = self.debug_basename {
+            e.bytes(name.as_encoded_bytes())?;
+        }
         Ok(())
     }
 }

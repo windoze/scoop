@@ -97,12 +97,24 @@ pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
         scoop_linker::ProgramLinkOptions {
             keep_symbols: request.final_link.keep_symbols,
             emit_symbol_map: request.final_link.emit_symbol_map,
+            emit_debug_file: request.final_link.emit_debug_file,
         },
         &request.library_paths,
-        &directory.path().join("program"),
+        &directory.path().join(
+            output
+                .path()
+                .file_name()
+                .expect("resolved output has a basename"),
+        ),
         &request.cache_dir,
     )
     .map_err(failure)?;
+    if let Some(file) = &linked.debug_file {
+        OutputLocation::new(&file.kind.output_path(output.path()))
+            .map_err(failure)?
+            .publish(&file.path, None)
+            .map_err(failure)?;
+    }
     if let Some(symbol_map) = &linked.symbol_map {
         OutputLocation::new(&scoop_linker::symbol_map_path(output.path()))
             .map_err(failure)?

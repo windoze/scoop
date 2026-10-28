@@ -30,6 +30,7 @@ impl NativeOptions {
                 mode: self.link_mode.map(Into::into),
                 keep_symbols: self.keep_symbols,
                 emit_symbol_map: self.emit_symbol_map,
+                emit_debug_file: self.emit_debug_file,
             },
         ))
     }
