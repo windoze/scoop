@@ -7,7 +7,7 @@ extern const ScoopTypeDescriptor union_interface __asm__("UNION_INTERFACE_TD");
 
 static const void *const *interface_slots(const ScoopTypeDescriptor *td) {
     for (uint64_t index = 0; index < td->itable_count; index++) {
-        if (td->itables[index].interface == &union_interface) {
+        if (td->itables[index].interface_type == &union_interface) {
             return td->itables[index].slots;
         }
     }
@@ -22,9 +22,8 @@ static bool union_metadata_check(void) {
     const void *const *left_slots = interface_slots(left);
     const void *const *right_slots = interface_slots(right);
     const void *const *other_slots = interface_slots(other);
-    return left == right && left != other && left_slots != NULL &&
-           right_slots != NULL && other_slots != NULL &&
-           left_slots[UNION_READ_SLOT] != NULL &&
+    return left == right && left != other && left_slots != NULL && right_slots != NULL &&
+           other_slots != NULL && left_slots[UNION_READ_SLOT] != NULL &&
            left_slots[UNION_READ_SLOT] == right_slots[UNION_READ_SLOT];
 }
 
