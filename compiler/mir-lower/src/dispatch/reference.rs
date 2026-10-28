@@ -64,7 +64,7 @@ impl Lowerer {
         }
         let mut locals = Arena::new();
         let this = locals.alloc(mir::Local {
-            debug_origin: Default::default(),
+            debug_variable: Default::default(),
             name: "this".into(),
             ty: receiver_type.clone(),
             mutable: false,
@@ -83,7 +83,7 @@ impl Lowerer {
         )];
         for (index, ty) in lowered.parameters.iter().skip(1).enumerate() {
             let local = locals.alloc(mir::Local {
-                debug_origin: Default::default(),
+                debug_variable: Default::default(),
                 name: method.params[index].name.clone(),
                 ty: ty.clone(),
                 mutable: false,

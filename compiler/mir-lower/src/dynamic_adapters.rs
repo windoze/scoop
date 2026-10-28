@@ -177,7 +177,7 @@ impl Lowerer {
             let dynamic = types::dynamic_function_type(module, target);
             let mut locals = Arena::new();
             let closure = locals.alloc(mir::Local {
-                debug_origin: Default::default(),
+                debug_variable: Default::default(),
                 name: "$closure".to_string(),
                 ty: mir::Type::Function(target),
                 mutable: false,
@@ -199,7 +199,7 @@ impl Lowerer {
             for (index, ty) in signature.parameters().enumerate() {
                 let name = format!("arg{index}");
                 let local = locals.alloc(mir::Local {
-                    debug_origin: Default::default(),
+                    debug_variable: Default::default(),
                     name: name.clone(),
                     ty: ty.clone(),
                     mutable: false,

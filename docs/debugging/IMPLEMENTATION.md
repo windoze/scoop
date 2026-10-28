@@ -37,3 +37,5 @@ LLVM 后端已按独立级别发射 DWARF 5 行表、源码函数名／精确 li
 源码 CLI、machine protocol 和编译缓存已贯通独立调试级别；目前接受 none／line-tables，完整变量发射完成后再开放 full。debug 暂默认 line-tables，release 默认 none，开启时自动生成伴随调试文件。协议升级为 19。HIR 单独保存实际 debugger 路径，避免语言的语义来源路径覆盖它。
 
 协议往返、缓存级别隔离、CLI 参数及实际前端路径回归通过。真实 Scoop 程序使用预编译 core／std 生成含空格名称的 dSYM，程序输出正确、DWARF 验证通过、LLDB 按源码绝对路径解析断点；重复构建没有 child 调用。本机 Xcode LLDB 和上游 LLVM 22 LLDB 均在启动普通 C 对照程序时卡住，进程内断点／栈验收仍待解决，不能以离线断点解析代替。
+
+公共记录已增加共享源码变量声明和词法父子关系。MIR 源码局部复用 PersistentLocalValueId；内联复制共享原声明，保留源码名称并更新位置链，生成结果仍显式分类。作用域由已有 HIR 嵌套正文、catch 和 pattern 绑定投影，LLVM 行表使用对应的词法块。三项共享记录测试、实际 MIR 内联变量回归及四组合 DWARF／statepoint 测试通过；此批仍未开放 full，也未增加 `.slib` 调试快照。

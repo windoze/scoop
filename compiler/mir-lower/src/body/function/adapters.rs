@@ -143,7 +143,7 @@ impl BodyLowerer<'_> {
 
         let mut locals = Arena::new();
         let closure = locals.alloc(mir::Local {
-            debug_origin: Default::default(),
+            debug_variable: Default::default(),
             name: "$closure".to_string(),
             ty: mir::Type::Function(target),
             mutable: false,
@@ -169,7 +169,7 @@ impl BodyLowerer<'_> {
             .enumerate()
         {
             let local = locals.alloc(mir::Local {
-                debug_origin: Default::default(),
+                debug_variable: Default::default(),
                 name: format!("arg{index}"),
                 ty: target_ty.clone(),
                 mutable: false,

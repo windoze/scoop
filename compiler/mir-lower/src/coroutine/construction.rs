@@ -375,7 +375,7 @@ pub(super) fn statement(kind: mir::StatementKind) -> mir::Statement {
 
 pub(super) fn local(name: &str, ty: mir::Type) -> mir::Local {
     mir::Local {
-        debug_origin: Default::default(),
+        debug_variable: Default::default(),
         name: name.to_string(),
         ty,
         mutable: false,

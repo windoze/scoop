@@ -42,6 +42,7 @@ impl Lowerer {
         string_owner: mir::ImmortalObjectOwner,
     ) -> BodyLowerer<'a> {
         BodyLowerer {
+            debug_scope: None,
             module,
             debug_records: &mut self.debug_records,
             core_protocols: &self.core_protocols,

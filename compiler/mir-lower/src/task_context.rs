@@ -17,7 +17,7 @@ impl TaskSwitch {
     ) -> Self {
         let storage = mir::ContextStorageType::new(core, mir::ContextStorageRole::SwitchGuard);
         let guard = locals.alloc(mir::Local {
-            debug_origin: Default::default(),
+            debug_variable: Default::default(),
             name: "$context_guard".to_string(),
             ty: mir::Type::Context(storage),
             mutable: false,
@@ -80,7 +80,7 @@ pub(super) fn fork(
         mir::ContextStorageRole::Task,
     ));
     let child = locals.alloc(mir::Local {
-        debug_origin: Default::default(),
+        debug_variable: Default::default(),
         name: "$child_context".to_string(),
         ty: ty.clone(),
         mutable: false,

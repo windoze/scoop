@@ -58,7 +58,7 @@ pub(super) fn apply(
         let mut definition = caller.body.locals[destination].clone();
         definition.name = format!("$inline.{}.result", index(continuation));
         definition.mutable = true;
-        definition.debug_origin = mir::DebugOrigin::Generated;
+        definition.debug_variable = mir::DebugVariable::Generated;
         let ty = definition.ty.clone();
         let temporary = caller.body.locals.alloc(definition);
         registry.record_generated_local(
@@ -108,7 +108,7 @@ pub(super) fn apply(
     let mut locals = vec![None; callee.body.locals.len()];
     for local in needed {
         let mut definition = callee.body.locals[local].clone();
-        definition.debug_origin = debug_records.inlined(&definition.debug_origin, &inline_site);
+        debug_records.inline_variable(&mut definition.debug_variable, &inline_site);
         definition.name = format!("$inline.{}.{}", index(continuation), definition.name);
         let cloned = caller.body.locals.alloc(definition);
         locals[index(local)] = Some(cloned);

@@ -93,6 +93,12 @@ impl BodyLowerer<'_> {
                 steps,
                 mut bindings,
             } => {
+                let parent = self.enter_debug_scope(arm.span);
+                for binding in &bindings {
+                    if let smir::StatementKind::ValDecl { local, .. } = binding.kind {
+                        self.bind_debug_local(local);
+                    }
+                }
                 bindings.extend(self.lower_matched_arm(
                     arm,
                     rest,
@@ -100,6 +106,7 @@ impl BodyLowerer<'_> {
                     fallback_span,
                     condition,
                 ));
+                self.debug_scope = parent;
                 if steps.is_empty() {
                     return bindings;
                 }

@@ -51,7 +51,7 @@ pub(super) fn fixture() -> Module {
     let body = &mut module.functions[cycle_thrower];
     body.gc_effect = GcEffect::Managed;
     let local = body.body.locals.alloc(Local {
-        debug_origin: Default::default(),
+        debug_variable: Default::default(),
         name: "path".into(),
         ty: Type::String,
         mutable: false,

@@ -12,10 +12,11 @@ impl BodyLowerer<'_> {
         } else {
             value
         };
-        value.debug_origin = self
+        let origin = self
             .module
             .debug_sources
             .expression(source.origin.definition, self.debug_records);
+        value.debug_origin = self.debug_records.scoped(&origin, self.debug_scope.clone());
         value
     }
 }

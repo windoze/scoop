@@ -158,13 +158,13 @@ fn transform_function(
     )
     .expect("a coroutine source has one persistent driver identity");
     let frame_local = body.locals.alloc(mir::Local {
-        debug_origin: Default::default(),
+        debug_variable: Default::default(),
         name: "$frame".to_string(),
         ty: mir::Type::Class(frame_class),
         mutable: false,
     });
     let dispatch_state = body.locals.alloc(mir::Local {
-        debug_origin: Default::default(),
+        debug_variable: Default::default(),
         name: "$dispatch_state".to_string(),
         ty: mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState),
         mutable: false,

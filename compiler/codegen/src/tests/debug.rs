@@ -13,6 +13,8 @@ fn dwarf_lines_and_inline_calls_survive_optimization_and_statepoints() {
     });
     let definition = records.source(file.clone(), 2, 1);
     let call = records.source(file.clone(), 7, 9);
+    let scope = records.scope(None, &call);
+    let call = records.scoped(&call, scope);
     let call_site = records.source(file.clone(), 12, 5);
     let inline = records.inline_site("concatenate", definition.clone(), call_site);
     let function = &mut module.functions[0];

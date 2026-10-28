@@ -166,6 +166,7 @@ impl Lowerer {
         let class = constructor.class;
         let mir_class = self.class_map[&class];
         let mut lowerer = BodyLowerer {
+            debug_scope: None,
             module,
             debug_records: &mut self.debug_records,
             core_protocols: &self.core_protocols,
@@ -236,7 +237,7 @@ impl Lowerer {
         };
         let receiver_ty = mir::Type::Class(mir_class);
         let receiver = lowerer.locals.alloc(mir::Local {
-            debug_origin: Default::default(),
+            debug_variable: Default::default(),
             name: "this".into(),
             ty: receiver_ty.clone(),
             mutable: false,
@@ -255,7 +256,7 @@ impl Lowerer {
         for (declaration_index, parameter) in constructor.parameters.iter().enumerate() {
             let ty = lowerer.lower_type(parameter.ty);
             let local = lowerer.locals.alloc(mir::Local {
-                debug_origin: Default::default(),
+                debug_variable: Default::default(),
                 name: parameter.name.clone(),
                 ty: ty.clone(),
                 mutable: false,
@@ -299,6 +300,7 @@ impl Lowerer {
         let constructor = module.struct_constructors[constructor_id].clone();
         let structure = constructor.structure;
         let mut lowerer = BodyLowerer {
+            debug_scope: None,
             module,
             debug_records: &mut self.debug_records,
             core_protocols: &self.core_protocols,
@@ -373,7 +375,7 @@ impl Lowerer {
         for (declaration_index, parameter) in constructor.parameters.iter().enumerate() {
             let ty = lowerer.lower_type(parameter.ty);
             let local = lowerer.locals.alloc(mir::Local {
-                debug_origin: Default::default(),
+                debug_variable: Default::default(),
                 name: parameter.name.clone(),
                 ty: ty.clone(),
                 mutable: false,
@@ -424,7 +426,7 @@ impl Lowerer {
                     .map(|argument| lowerer.lower_expr(argument))
                     .collect();
                 let receiver = lowerer.locals.alloc(mir::Local {
-                    debug_origin: Default::default(),
+                    debug_variable: Default::default(),
                     name: "$this".into(),
                     ty: return_ty.clone(),
                     mutable: false,

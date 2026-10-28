@@ -91,7 +91,7 @@ pub(super) fn run(module: &mut mir::Module, registry: &mut LocalValueRegistry) {
                     .collect()
             };
             let counter = function.body.locals.alloc(mir::Local {
-                debug_origin: Default::default(),
+                debug_variable: Default::default(),
                 name: format!("$poll.remaining.{}", function.body.locals.len()),
                 ty: mir::Type::Integer(counted.kind),
                 mutable: true,

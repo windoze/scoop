@@ -57,3 +57,23 @@ fn nested_inlining_keeps_each_call_site_and_shares_repeated_locations() {
         DebugOrigin::Generated
     ));
 }
+
+#[test]
+fn lexical_scopes_share_parents_and_survive_inline_locations() {
+    let mut records = DebugRecords::default();
+    let outer = records.source(source_file(), 2, 5);
+    let inner = records.source(source_file(), 4, 9);
+    let parent = records.scope(None, &outer).unwrap();
+    let child = records.scope(Some(parent.clone()), &inner).unwrap();
+    let repeated = records.scope(Some(parent.clone()), &inner).unwrap();
+    assert!(Arc::ptr_eq(&child, &repeated));
+    assert!(Arc::ptr_eq(child.parent.as_ref().unwrap(), &parent));
+    let scoped = records.scoped(&inner, Some(child.clone()));
+    let site = records.inline_site("callee", outer.clone(), outer);
+    let inline = records.inlined(&scoped, &site);
+    assert!(Arc::ptr_eq(
+        location(&inline).scope.as_ref().unwrap(),
+        &child
+    ));
+    assert!(location(&inline).inlined_at.is_some());
+}

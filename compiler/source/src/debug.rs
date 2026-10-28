@@ -5,6 +5,9 @@ use std::sync::Arc;
 
 use scoop_identity::SourceIdentity;
 
+mod variables;
+pub use variables::{DebugDeclaration, DebugScope, DebugVariable};
+
 #[cfg(test)]
 mod tests;
 
@@ -27,6 +30,8 @@ pub struct DebugLocation {
     pub file: Arc<DebugFile>,
     pub line: u32,
     pub column: u32,
+    /// Lexical source nesting within the original callable; `None` is its root.
+    pub scope: Option<Arc<DebugScope>>,
     pub inlined_at: Option<Arc<DebugInlineSite>>,
 }
 
@@ -45,6 +50,8 @@ pub struct DebugRecords {
     names: HashSet<Arc<str>>,
     locations: HashSet<Arc<DebugLocation>>,
     inline_sites: HashSet<Arc<DebugInlineSite>>,
+    scopes: HashSet<Arc<DebugScope>>,
+    declarations: HashSet<Arc<DebugDeclaration>>,
 }
 
 impl DebugRecords {
@@ -60,6 +67,7 @@ impl DebugRecords {
             file,
             line,
             column,
+            scope: None,
             inlined_at: None,
         })
     }

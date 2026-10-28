@@ -18,7 +18,7 @@ impl Lowerer {
         for (index, ty) in signature.params.iter().enumerate() {
             let name = format!("arg{index}");
             let local = locals.alloc(mir::Local {
-                debug_origin: Default::default(),
+                debug_variable: Default::default(),
                 name: name.clone(),
                 ty: ty.clone(),
                 mutable: false,

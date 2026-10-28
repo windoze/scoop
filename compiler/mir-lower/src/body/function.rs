@@ -89,14 +89,17 @@ impl BodyLowerer<'_> {
         );
         for ((hir_id, local), identity) in locals.iter().zip(identities) {
             let ty = self.lower_type(local.ty);
+            let origin = match local.definition {
+                hir::LocalValueDefinitionSite::Source(origin) => self
+                    .module
+                    .debug_sources
+                    .expression(origin, self.debug_records),
+                hir::LocalValueDefinitionSite::Synthetic => mir::DebugOrigin::Generated,
+            };
             let mir_id = self.locals.alloc(mir::Local {
-                debug_origin: match local.definition {
-                    hir::LocalValueDefinitionSite::Source(origin) => self
-                        .module
-                        .debug_sources
-                        .expression(origin, self.debug_records),
-                    hir::LocalValueDefinitionSite::Synthetic => mir::DebugOrigin::Generated,
-                },
+                debug_variable: self
+                    .debug_records
+                    .variable(identity.id(), &local.name, origin),
                 name: local.name.clone(),
                 ty,
                 mutable: local.mutable,
@@ -218,7 +221,7 @@ impl BodyLowerer<'_> {
     ) -> mir::LocalId {
         self.hidden_count += 1;
         let local = self.locals.alloc(mir::Local {
-            debug_origin: mir::DebugOrigin::Generated,
+            debug_variable: Default::default(),
             name: format!("${prefix}.{}", self.hidden_count),
             ty,
             mutable,

@@ -22,7 +22,7 @@ impl Storage {
         let mut params = Vec::new();
         let mut parameter = |name: &str, ty: mir::Type| {
             let local = locals.alloc(mir::Local {
-                debug_origin: Default::default(),
+                debug_variable: Default::default(),
                 name: name.to_string(),
                 ty: ty.clone(),
                 mutable: false,

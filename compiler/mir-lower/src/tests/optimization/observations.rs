@@ -54,7 +54,8 @@ fn retained_call_in_an_inlined_body_keeps_its_source_path_and_span() {
         .unwrap()
         .0;
     let source_span = mir::SourceSpan::new(17, 29).unwrap();
-    let source_origin = mir::DebugRecords::default().source(
+    let mut debug_records = mir::DebugRecords::default();
+    let source_origin = debug_records.source(
         std::sync::Arc::new(mir::DebugFile {
             identity: std::sync::Arc::new(scoop_identity::SourceIdentity::single_file()),
             path: "/workspace/main.scoop".into(),
@@ -62,6 +63,20 @@ fn retained_call_in_an_inlined_body_keeps_its_source_path_and_span() {
         4,
         7,
     );
+    let parameter = module.functions[wrapper].params[0].local;
+    let identity = module
+        .meta
+        .local_values
+        .get(wrapper, parameter)
+        .unwrap()
+        .identity_record()
+        .id();
+    let debug_variable = debug_records.variable(identity, "input", source_origin.clone());
+    let mir::DebugVariable::Source { declaration, .. } = &debug_variable else {
+        panic!("the parameter has its source declaration");
+    };
+    let declaration = declaration.clone();
+    module.functions[wrapper].body.locals[parameter].debug_variable = debug_variable;
     for (_, block) in module.functions[wrapper].body.blocks.iter_mut() {
         for statement in &mut block.statements {
             if matches!(statement.kind, mir::StatementKind::Call(_)) {
@@ -86,6 +101,25 @@ fn retained_call_in_an_inlined_body_keeps_its_source_path_and_span() {
     assert_eq!((location.line, location.column), (4, 7));
     assert_eq!(
         location.inlined_at.as_ref().unwrap().function.as_ref(),
+        "wrapper"
+    );
+    let (variable, position) = module.functions[main]
+        .body
+        .locals
+        .iter()
+        .filter_map(|(_, local)| match &local.debug_variable {
+            mir::DebugVariable::Source {
+                declaration,
+                location,
+            } => Some((declaration, location)),
+            mir::DebugVariable::Generated => None,
+        })
+        .find(|(value, _)| value.identity == identity)
+        .expect("the inline copy retains the source declaration");
+    assert!(std::sync::Arc::ptr_eq(variable, &declaration));
+    assert_eq!(variable.name.as_ref(), "input");
+    assert_eq!(
+        position.inlined_at.as_ref().unwrap().function.as_ref(),
         "wrapper"
     );
     assert!(report.events.iter().any(|event| event.site.function == main

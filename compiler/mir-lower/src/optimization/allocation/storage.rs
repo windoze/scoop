@@ -41,7 +41,7 @@ pub(super) fn create(
                     Projection::Field(field) => format!("field.{field}"),
                 };
                 let local = function.body.locals.alloc(mir::Local {
-                    debug_origin: Default::default(),
+                    debug_variable: Default::default(),
                     name: format!("$allocation.{}.{field}", index(creation.local)),
                     ty: ty.clone(),
                     mutable: matches!(projection, Projection::Field(_)),

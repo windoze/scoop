@@ -161,7 +161,7 @@ pub(super) fn array_metadata<'a>(module: &'a lir::Module, name: &str) -> &'a lir
 
 pub(super) fn local(name: &str, ty: mir::Type) -> mir::Local {
     mir::Local {
-        debug_origin: Default::default(),
+        debug_variable: Default::default(),
         name: name.to_string(),
         ty,
         mutable: false,
@@ -170,7 +170,7 @@ pub(super) fn local(name: &str, ty: mir::Type) -> mir::Local {
 
 pub(super) fn var(name: &str, ty: mir::Type) -> mir::Local {
     mir::Local {
-        debug_origin: Default::default(),
+        debug_variable: Default::default(),
         name: name.to_string(),
         ty,
         mutable: true,

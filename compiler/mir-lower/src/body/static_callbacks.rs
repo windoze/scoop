@@ -116,7 +116,7 @@ impl BodyLowerer<'_> {
         } else {
             let ty = mir::Type::Ptr(Box::new(signature_def.return_type.clone()));
             let local = locals.alloc(mir::Local {
-                debug_origin: Default::default(),
+                debug_variable: Default::default(),
                 name: "$result".to_string(),
                 ty: ty.clone(),
                 mutable: false,
@@ -134,7 +134,7 @@ impl BodyLowerer<'_> {
             let name = format!("$arg{index}");
             let pointer_type = mir::Type::Ptr(Box::new(parameter_type.clone()));
             let local = locals.alloc(mir::Local {
-                debug_origin: Default::default(),
+                debug_variable: Default::default(),
                 name: name.clone(),
                 ty: pointer_type.clone(),
                 mutable: false,
@@ -161,7 +161,7 @@ impl BodyLowerer<'_> {
         let mut statements = Vec::new();
         if let Some(result_storage) = result_storage {
             let result = locals.alloc(mir::Local {
-                debug_origin: Default::default(),
+                debug_variable: Default::default(),
                 name: "$value".to_string(),
                 ty: signature_def.return_type.clone(),
                 mutable: false,

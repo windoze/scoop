@@ -50,7 +50,7 @@ impl Lowerer {
         let (target_identity, _) = exact_function_identity(module, target);
         let mut locals = Arena::new();
         let closure = locals.alloc(mir::Local {
-            debug_origin: Default::default(),
+            debug_variable: Default::default(),
             name: "$source".to_string(),
             ty: mir::Type::Function(source),
             mutable: false,
@@ -68,7 +68,7 @@ impl Lowerer {
             .enumerate()
         {
             let local = locals.alloc(mir::Local {
-                debug_origin: Default::default(),
+                debug_variable: Default::default(),
                 name: format!("arg{index}"),
                 ty: target_ty.clone(),
                 mutable: false,

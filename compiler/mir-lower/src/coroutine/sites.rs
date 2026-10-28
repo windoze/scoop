@@ -96,7 +96,7 @@ pub(super) fn rewrite_site(
         None,
     );
     let adapter_local = body.locals.alloc(mir::Local {
-        debug_origin: Default::default(),
+        debug_variable: Default::default(),
         name: format!("$adapter.{}", site.state),
         ty: mir::Type::Class(adapter.class),
         mutable: false,
@@ -111,7 +111,7 @@ pub(super) fn rewrite_site(
         .step_metadata_for_type(&step_ty)
         .completed_payload();
     let step_local = body.locals.alloc(mir::Local {
-        debug_origin: Default::default(),
+        debug_variable: Default::default(),
         name: format!("$step.{}", site.state),
         ty: step_ty.clone(),
         mutable: false,

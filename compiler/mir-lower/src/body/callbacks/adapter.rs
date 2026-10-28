@@ -21,7 +21,7 @@ pub(super) fn build(
         &mut locals,
     );
     let exception = locals.alloc(mir::Local {
-        debug_origin: Default::default(),
+        debug_variable: Default::default(),
         name: "$caught".to_string(),
         ty: throwable.clone(),
         mutable: false,
@@ -70,7 +70,7 @@ pub(super) fn build(
         ))));
     } else {
         let value = locals.alloc(mir::Local {
-            debug_origin: Default::default(),
+            debug_variable: Default::default(),
             name: "$value".to_string(),
             ty: signature.return_type.clone(),
             mutable: false,

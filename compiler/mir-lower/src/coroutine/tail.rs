@@ -56,7 +56,7 @@ pub(super) fn rewrite(
         };
         call.args.push(completion.clone());
         let result = function.body.locals.alloc(mir::Local {
-            debug_origin: Default::default(),
+            debug_variable: Default::default(),
             name: format!("$tail_step.{}", site.resume.state),
             ty: function.return_ty.clone(),
             mutable: false,

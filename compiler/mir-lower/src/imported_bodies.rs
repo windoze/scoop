@@ -40,7 +40,7 @@ impl Lowerer {
             for (id, local) in source.body.locals.iter() {
                 let ty = lowerer.lower_type(local.ty);
                 let local = lowerer.locals.alloc(mir::Local {
-                    debug_origin: Default::default(),
+                    debug_variable: Default::default(),
                     name: local.name.clone(),
                     ty,
                     mutable: local.mutable,

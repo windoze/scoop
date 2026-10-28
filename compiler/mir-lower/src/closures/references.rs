@@ -126,7 +126,7 @@ impl Lowerer {
             let closure_ty = mir::Type::Function(function_type);
             let mut locals = Arena::new();
             let closure = locals.alloc(mir::Local {
-                debug_origin: Default::default(),
+                debug_variable: Default::default(),
                 name: "$closure".to_string(),
                 ty: closure_ty.clone(),
                 mutable: false,
@@ -348,7 +348,7 @@ fn reference_parameter(
 ) -> smir::Expr {
     let name = format!("arg{index}");
     let local = locals.alloc(mir::Local {
-        debug_origin: Default::default(),
+        debug_variable: Default::default(),
         name: name.clone(),
         ty: ty.clone(),
         mutable: false,

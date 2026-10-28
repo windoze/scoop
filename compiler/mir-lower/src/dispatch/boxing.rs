@@ -90,7 +90,7 @@ impl Lowerer {
         };
         let mut locals = Arena::new();
         let this = locals.alloc(mir::Local {
-            debug_origin: Default::default(),
+            debug_variable: Default::default(),
             name: "this".to_string(),
             ty: mir::Type::Class(boxed_class),
             mutable: false,
@@ -114,7 +114,7 @@ impl Lowerer {
             );
             target_params.push(ty.clone());
             let local = locals.alloc(mir::Local {
-                debug_origin: Default::default(),
+                debug_variable: Default::default(),
                 name: param.name.clone(),
                 ty: ty.clone(),
                 mutable: false,

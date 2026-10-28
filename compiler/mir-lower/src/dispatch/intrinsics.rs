@@ -34,7 +34,7 @@ impl Lowerer {
                 let ty = lowerer.lower_type(*source);
                 let name = format!("arg{index}");
                 let local = lowerer.locals.alloc(mir::Local {
-                    debug_origin: Default::default(),
+                    debug_variable: Default::default(),
                     name: name.clone(),
                     ty: ty.clone(),
                     mutable: false,

@@ -13,7 +13,7 @@ use inkwell::debug_info::{
 };
 use inkwell::module::{FlagBehavior, Module};
 use inkwell::values::FunctionValue;
-use scoop_source::{DebugFile, DebugInlineSite, DebugLocation, DebugOrigin};
+use scoop_source::{DebugFile, DebugInlineSite, DebugLocation, DebugOrigin, DebugScope};
 
 use crate::ValidatedBackendProfile;
 
@@ -130,6 +130,7 @@ impl<'ctx> DebugContext<'ctx> {
             context: self,
             scope: subprogram.as_debug_info_scope(),
             scopes: HashMap::new(),
+            lexical_scopes: HashMap::new(),
             inline_functions: HashMap::new(),
             locations: HashMap::new(),
         })
@@ -144,6 +145,7 @@ pub(crate) struct FunctionDebug<'a, 'ctx> {
     context: &'a DebugContext<'ctx>,
     scope: DIScope<'ctx>,
     scopes: HashMap<(usize, Arc<DebugFile>), DIScope<'ctx>>,
+    lexical_scopes: HashMap<(usize, Arc<DebugScope>), DIScope<'ctx>>,
     inline_functions: HashMap<Arc<DebugInlineSite>, DIScope<'ctx>>,
     locations: HashMap<Arc<DebugLocation>, DILocation<'ctx>>,
 }
@@ -188,6 +190,7 @@ impl<'ctx> FunctionDebug<'_, 'ctx> {
             }
             None => (self.scope, None),
         };
+        let scope = self.lexical_scope(scope, location.scope.as_ref());
         let scope = *self
             .scopes
             .entry((scope.as_mut_ptr() as usize, location.file.clone()))
@@ -206,6 +209,33 @@ impl<'ctx> FunctionDebug<'_, 'ctx> {
         );
         self.locations.insert(location.clone(), emitted);
         emitted
+    }
+
+    fn lexical_scope(
+        &mut self,
+        root: DIScope<'ctx>,
+        source: Option<&Arc<DebugScope>>,
+    ) -> DIScope<'ctx> {
+        let Some(source) = source else {
+            return root;
+        };
+        let key = (root.as_mut_ptr() as usize, source.clone());
+        if let Some(scope) = self.lexical_scopes.get(&key) {
+            return *scope;
+        }
+        let parent = self.lexical_scope(root, source.parent.as_ref());
+        let scope = self
+            .context
+            .builder
+            .create_lexical_block(
+                parent,
+                self.context.file(&source.file),
+                source.line,
+                source.column,
+            )
+            .as_debug_info_scope();
+        self.lexical_scopes.insert(key, scope);
+        scope
     }
 }
 

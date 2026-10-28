@@ -50,25 +50,25 @@ impl CoroutineRegistry {
 
         let mut locals = Arena::new();
         let task = locals.alloc(mir::Local {
-            debug_origin: Default::default(),
+            debug_variable: Default::default(),
             name: "task".to_string(),
             ty: mir::Type::Interface(task_interface),
             mutable: false,
         });
         let completion = locals.alloc(mir::Local {
-            debug_origin: Default::default(),
+            debug_variable: Default::default(),
             name: "completion".to_string(),
             ty: mir::Type::Interface(continuation_interface),
             mutable: false,
         });
         let step = locals.alloc(mir::Local {
-            debug_origin: Default::default(),
+            debug_variable: Default::default(),
             name: "$step".to_string(),
             ty: step_ty.clone(),
             mutable: false,
         });
         let exception = locals.alloc(mir::Local {
-            debug_origin: Default::default(),
+            debug_variable: Default::default(),
             name: "$exception".to_string(),
             ty: throwable.clone(),
             mutable: false,
