@@ -199,13 +199,16 @@ pub(super) fn exact_layouts(
 pub(super) fn local_function(function: PersistentFunctionId) -> Function {
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_owned(),
-        instructions: Vec::new(),
+        instructions: Default::default(),
         terminator: Terminator::Return {
             value: Some(Value::NullPointer(PointerKind::Managed)),
         },
     });
     Function {
+        debug_name: Default::default(),
+        debug_origin: Default::default(),
         callable_body: CallableBodyIdentity::for_function(function).unwrap(),
         gc_effect: crate::GcEffect::Managed,
         signature: pointer_result_signature(),

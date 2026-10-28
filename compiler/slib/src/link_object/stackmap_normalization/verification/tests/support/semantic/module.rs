@@ -17,6 +17,7 @@ pub(super) fn semantic_module() -> (Module, CallableBodyIdentity, Vec<SafepointI
     });
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![
             Instruction::ManagedPoll {
@@ -35,10 +36,13 @@ pub(super) fn semantic_module() -> (Module, CallableBodyIdentity, Vec<SafepointI
                     live: StatepointLiveSet::default(),
                 },
             },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return { value: None },
     });
     let function = Function {
+        debug_name: Default::default(),
+        debug_origin: Default::default(),
         callable_body: body.clone(),
         gc_effect: GcEffect::Managed,
         signature: ScoopAbiSignature::new(

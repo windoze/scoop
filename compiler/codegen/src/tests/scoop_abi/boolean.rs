@@ -5,17 +5,21 @@ fn boolean_function(symbol: &str, effect: GcEffect) -> Function {
     let result = temps.alloc(Temp { ty: LirType::I1 });
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".into(),
         instructions: vec![Instruction::UnaryOp {
             out: result,
             op: scoop_lir::UnOp::Not,
             operand: Value::Param(0),
-        }],
+        }]
+        .into(),
         terminator: Terminator::Return {
             value: Some(Value::Temp(result)),
         },
     });
     Function {
+        debug_name: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body(symbol),
         safepoints: Default::default(),
         gc_effect: effect,
@@ -65,8 +69,9 @@ fn boolean_invoke() -> Function {
         unreachable!("boolean caller returns its result");
     };
     let normal = function.blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "normal".into(),
-        instructions: Vec::new(),
+        instructions: Vec::new().into(),
         terminator: Terminator::Return { value },
     });
     let record = function.temps.alloc(Temp {
@@ -75,6 +80,7 @@ fn boolean_invoke() -> Function {
     let raw = function.temps.alloc(Temp { ty: RAW_PTR });
     let caught = function.temps.alloc(Temp { ty: MANAGED_PTR });
     let unwind = function.blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "unwind".into(),
         instructions: vec![
             Instruction::LandingPad { record, raw },
@@ -83,7 +89,8 @@ fn boolean_invoke() -> Function {
                 raw: Value::Temp(raw),
             },
             Instruction::EndCatch,
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return {
             value: Some(Value::Param(0)),
         },
@@ -115,7 +122,7 @@ fn boolean_module() -> Module {
         result,
         vec![Value::Param(0)],
     );
-    dispatch.blocks[dispatch.entry].instructions = vec![Instruction::Call { site }];
+    dispatch.blocks[dispatch.entry].instructions = vec![Instruction::Call { site }].into();
     dispatch.blocks[dispatch.entry].terminator = Terminator::Return {
         value: Some(Value::Temp(result)),
     };

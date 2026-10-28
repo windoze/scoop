@@ -48,6 +48,7 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
     let nested_array = temps.alloc(Temp { ty: MANAGED_PTR });
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![
             Instruction::ArrayAlloc {
@@ -64,7 +65,8 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
                 safepoint: test_safepoint(2),
                 live: scoop_lir::StatepointLiveSet::default(),
             },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return { value: None },
     });
     meta.type_descriptors.alloc(TypeDescriptor {
@@ -102,6 +104,8 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
+            debug_name: Default::default(),
+            debug_origin: Default::default(),
             callable_body: callable_body_at(file!(), line!()),
             safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,

@@ -17,13 +17,16 @@ fn module_with_functions(functions: Vec<Function>) -> Module {
 fn constant_function(symbol: &str, constant: LirIntegerConstant) -> Function {
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
-        instructions: Vec::new(),
+        instructions: Vec::new().into(),
         terminator: Terminator::Return {
             value: Some(Value::IntegerConst(constant)),
         },
     });
     Function {
+        debug_name: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,
@@ -48,11 +51,14 @@ fn instruction_module(
         .collect::<Vec<_>>();
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
-        instructions: make_instructions(&results),
+        instructions: make_instructions(&results).into(),
         terminator: Terminator::Return { value: None },
     });
     module_with_functions(vec![Function {
+        debug_name: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,

@@ -1,10 +1,14 @@
 use super::*;
 
+mod list;
+pub use list::{InstructionList, InstructionRecord};
+
 #[derive(Debug)]
 pub struct BasicBlock {
     pub name: String,
-    pub instructions: Vec<Instruction>,
+    pub instructions: InstructionList,
     pub terminator: Terminator,
+    pub terminator_origin: scoop_source::DebugOrigin,
 }
 
 /// Address-only operand for one outbound C-ABI bridge parameter.

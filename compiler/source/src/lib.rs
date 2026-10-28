@@ -2,7 +2,7 @@
 
 mod debug;
 mod diagnostic;
-pub use debug::{DebugInlineSite, DebugLocation, DebugOrigin, DebugRecords};
+pub use debug::{DebugFile, DebugInlineSite, DebugLocation, DebugOrigin, DebugRecords};
 mod edit;
 mod line_index;
 mod position;

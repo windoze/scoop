@@ -205,13 +205,15 @@ fn allocation_context_reuse_does_not_load_tls_on_the_no_allocation_path() {
     let function = &mut module.functions[1];
     function.signature = plain_scoop_signature(vec![LirType::I1], LirType::Void);
     let skip = function.blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "skip_allocation".into(),
-        instructions: Vec::new(),
+        instructions: Vec::new().into(),
         terminator: Terminator::Return { value: None },
     });
     function.entry = function.blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "allocation_guard".into(),
-        instructions: Vec::new(),
+        instructions: Vec::new().into(),
         terminator: Terminator::CondBr {
             cond: Value::Param(0),
             then_block: function.entry,

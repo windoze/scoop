@@ -162,13 +162,16 @@ fn native_calls_publish_roots_transition_and_reload() {
     }]);
     let mut safe_blocks = Arena::default();
     let safe_entry = safe_blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
-        instructions: vec![Instruction::Call { site: safe_site }],
+        instructions: vec![Instruction::Call { site: safe_site }].into(),
         terminator: Terminator::Return {
             value: Some(Value::Param(0)),
         },
     });
     let safe = Function {
+        debug_name: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -218,15 +221,19 @@ fn native_calls_publish_roots_transition_and_reload() {
     });
     let mut borrowed_blocks = Arena::default();
     let borrowed_entry = borrowed_blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![Instruction::Call {
             site: borrowed_site,
-        }],
+        }]
+        .into(),
         terminator: Terminator::Return {
             value: Some(Value::Temp(result)),
         },
     });
     let borrowed_function = Function {
+        debug_name: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -303,6 +310,7 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
     });
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![
             Instruction::MachineAtomicLoad {
@@ -329,7 +337,8 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
                     CoroutineAdapterState::Consumed,
                 )),
             },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return {
             value: Some(Value::Temp(observed)),
         },
@@ -348,6 +357,8 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
+            debug_name: Default::default(),
+            debug_origin: Default::default(),
             callable_body: callable_body_at(file!(), line!()),
             safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,

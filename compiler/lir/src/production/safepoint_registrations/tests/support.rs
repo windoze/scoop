@@ -228,6 +228,7 @@ fn semantic_module(
     });
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![
             poll(
@@ -236,10 +237,13 @@ fn semantic_module(
                 StatepointLiveSet::default(),
             ),
             poll(target, SafepointSiteRef::from_u32(1), live_roots()),
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return { value: None },
     });
     let function = Function {
+        debug_name: Default::default(),
+        debug_origin: Default::default(),
         callable_body: body.clone(),
         gc_effect: GcEffect::Managed,
         signature: ScoopAbiSignature::new(

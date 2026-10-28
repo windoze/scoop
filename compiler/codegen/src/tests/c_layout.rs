@@ -3,8 +3,9 @@ use super::*;
 pub(super) fn foreign_callback_adapter(symbol: &str) -> Function {
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
-        instructions: vec![],
+        instructions: vec![].into(),
         terminator: Terminator::Return {
             value: Some(Value::MachineScalar(
                 MachineScalarValue::ForeignCallbackStatus(
@@ -14,6 +15,8 @@ pub(super) fn foreign_callback_adapter(symbol: &str) -> Function {
         },
     });
     Function {
+        debug_name: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -32,12 +35,15 @@ pub(super) fn foreign_callback_adapter(symbol: &str) -> Function {
 fn static_callback_bridge(module: &mut Module, symbol: &str) -> scoop_lir::NoGcLocalFunctionRef {
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
-        instructions: Vec::new(),
+        instructions: Vec::new().into(),
         terminator: Terminator::Return { value: None },
     });
     let index = module.functions.len();
     module.functions.push(Function {
+        debug_name: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,
@@ -513,6 +519,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
     });
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![
             Instruction::MakeAggregate {
@@ -550,7 +557,8 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
                 index: signed64(0),
                 array_type: outer_array,
             },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return { value: None },
     });
     let mut module = Module {
@@ -567,6 +575,8 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
+            debug_name: Default::default(),
+            debug_origin: Default::default(),
             callable_body: callable_body_at(file!(), line!()),
             safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,

@@ -147,11 +147,14 @@ fn roundtrip_module(ty: LirType, size: u64, offsets: &[u64]) -> Module {
     });
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".into(),
-        instructions,
+        instructions: instructions.into(),
         terminator: Terminator::Return { value: Some(value) },
     });
     module.functions = vec![Function {
+        debug_name: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body("boxRoundtrip"),
         gc_effect: GcEffect::Managed,
         signature: plain_scoop_signature(vec![ty.clone()], ty),

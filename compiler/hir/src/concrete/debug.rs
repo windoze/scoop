@@ -6,7 +6,7 @@ use std::sync::Arc;
 use scoop_identity::{
     CallableMaterialization, CallableTemplateOwner, DefinitionOriginSubject, SourceIdentity,
 };
-use scoop_source::{DebugOrigin, DebugRecords, LineIndex, PositionEncoding};
+use scoop_source::{DebugFile, DebugOrigin, DebugRecords, LineIndex, PositionEncoding};
 
 #[derive(Clone, Debug, Default)]
 pub struct DebugSources {
@@ -17,7 +17,7 @@ pub struct DebugSources {
 
 #[derive(Clone, Debug)]
 struct DebugSourceFile {
-    identity: Arc<SourceIdentity>,
+    file: Arc<DebugFile>,
     coordinates: SourceCoordinates,
 }
 
@@ -33,7 +33,10 @@ impl DebugSources {
             .source_files
             .iter()
             .map(|file| DebugSourceFile {
-                identity: Arc::new(file.identity.clone()),
+                file: Arc::new(DebugFile {
+                    identity: Arc::new(file.identity.clone()),
+                    path: file.name.as_str().into(),
+                }),
                 coordinates: match &file.canonical_record {
                     Some(record) => SourceCoordinates::Imported(record.clone()),
                     None => {
@@ -46,7 +49,7 @@ impl DebugSources {
             indices: files
                 .iter()
                 .enumerate()
-                .map(|(i, file)| (file.identity.clone(), i))
+                .map(|(i, file)| (file.file.identity.clone(), i))
                 .collect(),
             files,
             definitions: module.export_definition_origins.clone(),
@@ -72,9 +75,11 @@ impl DebugSources {
     ) -> DebugOrigin {
         match source {
             DebugOrigin::Generated => DebugOrigin::Generated,
-            DebugOrigin::Source(location) => {
-                self.position(self.indices[&location.source], u64::from(offset), records)
-            }
+            DebugOrigin::Source(location) => self.position(
+                self.indices[&location.file.identity],
+                u64::from(offset),
+                records,
+            ),
         }
     }
 
@@ -127,7 +132,7 @@ impl DebugSources {
             },
         };
         records.source(
-            file.identity.clone(),
+            file.file.clone(),
             u32::try_from(line).expect("source lines fit u32"),
             u32::try_from(column).expect("source columns fit u32"),
         )
@@ -150,7 +155,10 @@ mod tests {
         for coordinates in [current, imported] {
             let sources = DebugSources {
                 files: vec![DebugSourceFile {
-                    identity: Arc::new(identity.clone()),
+                    file: Arc::new(DebugFile {
+                        identity: Arc::new(identity.clone()),
+                        path: "/workspace/中文.scoop".into(),
+                    }),
                     coordinates,
                 }],
                 indices: HashMap::from([(Arc::new(identity.clone()), 0)]),
@@ -161,7 +169,8 @@ mod tests {
             else {
                 panic!("source coordinate is available");
             };
-            assert_eq!(location.source.as_ref(), &identity);
+            assert_eq!(location.file.identity.as_ref(), &identity);
+            assert_eq!(location.file.path.as_ref(), "/workspace/中文.scoop");
             assert_eq!((location.line, location.column), (2, 14));
         }
     }

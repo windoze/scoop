@@ -26,7 +26,8 @@ fn reference_arrays() -> Vec<Module> {
             element.clone(),
             &[0],
         )]),
-    }];
+    }]
+    .into();
     let mut assembly = arrays_clone::reference_clone_module();
     let overflow_message = assembly
         .globals
@@ -58,7 +59,8 @@ fn reference_arrays() -> Vec<Module> {
             statepoint_value(scoop_lir::CallerRootSource::Param(0), MANAGED_PTR, &[0]),
             statepoint_value(scoop_lir::CallerRootSource::Param(1), element, &[0]),
         ]),
-    }];
+    }]
+    .into();
     vec![clone, literal, assembly]
 }
 

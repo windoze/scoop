@@ -55,7 +55,10 @@ fn retained_call_in_an_inlined_body_keeps_its_source_path_and_span() {
         .0;
     let source_span = mir::SourceSpan::new(17, 29).unwrap();
     let source_origin = mir::DebugRecords::default().source(
-        std::sync::Arc::new(scoop_identity::SourceIdentity::single_file()),
+        std::sync::Arc::new(mir::DebugFile {
+            identity: std::sync::Arc::new(scoop_identity::SourceIdentity::single_file()),
+            path: "/workspace/main.scoop".into(),
+        }),
         4,
         7,
     );

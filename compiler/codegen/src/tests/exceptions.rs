@@ -9,13 +9,17 @@ pub(super) fn exceptions_module() -> Module {
     // LLVM `unreachable` after the noreturn runtime call.
     let mut thrower_blocks = Arena::default();
     let thrower_entry = thrower_blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![Instruction::Throw {
             exception: Value::Param(0),
-        }],
+        }]
+        .into(),
         terminator: Terminator::Unreachable,
     });
     let thrower = Function {
+        debug_name: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -29,13 +33,16 @@ pub(super) fn exceptions_module() -> Module {
 
     let mut may_throw_blocks = Arena::default();
     let may_throw_entry = may_throw_blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
-        instructions: Vec::new(),
+        instructions: Vec::new().into(),
         terminator: Terminator::Return {
             value: Some(signed64(1)),
         },
     });
     let may_throw = Function {
+        debug_name: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -72,8 +79,9 @@ pub(super) fn exceptions_module() -> Module {
     let mut blocks = Arena::default();
     let placeholder = |blocks: &mut Arena<BasicBlock>, name: &str| {
         blocks.alloc(BasicBlock {
+            terminator_origin: Default::default(),
             name: name.to_string(),
-            instructions: vec![],
+            instructions: vec![].into(),
             terminator: Terminator::Unreachable,
         })
     };
@@ -119,20 +127,25 @@ pub(super) fn exceptions_module() -> Module {
         Vec::new(),
     );
     blocks[entry] = BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![Instruction::Invoke {
             site: managed_invoke(first_invoke, normal, lpad),
-        }],
+        }]
+        .into(),
         terminator: Terminator::Br(normal),
     };
     blocks[normal] = BasicBlock {
+        terminator_origin: Default::default(),
         name: "normal".to_string(),
         instructions: vec![Instruction::Invoke {
             site: managed_invoke(second_invoke, done, lpad),
-        }],
+        }]
+        .into(),
         terminator: Terminator::Br(done),
     };
     blocks[done] = BasicBlock {
+        terminator_origin: Default::default(),
         name: "done".to_string(),
         instructions: vec![Instruction::IntegerBinary {
             out: t2,
@@ -140,12 +153,14 @@ pub(super) fn exceptions_module() -> Module {
             operation: IntegerBinaryOperation::Add,
             lhs: Value::Temp(t0),
             rhs: Value::Temp(t1),
-        }],
+        }]
+        .into(),
         terminator: Terminator::Return {
             value: Some(Value::Temp(t2)),
         },
     };
     blocks[lpad] = BasicBlock {
+        terminator_origin: Default::default(),
         name: "lpad".to_string(),
         instructions: vec![
             Instruction::LandingPad {
@@ -159,17 +174,20 @@ pub(super) fn exceptions_module() -> Module {
             Instruction::Invoke {
                 site: managed_invoke(handler_invoke, handler_done, cleanup),
             },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Br(handler_done),
     };
     blocks[handler_done] = BasicBlock {
+        terminator_origin: Default::default(),
         name: "handler_done".to_string(),
-        instructions: vec![Instruction::EndCatch],
+        instructions: vec![Instruction::EndCatch].into(),
         terminator: Terminator::Return {
             value: Some(signed64(0)),
         },
     };
     blocks[cleanup] = BasicBlock {
+        terminator_origin: Default::default(),
         name: "cleanup".to_string(),
         instructions: vec![
             Instruction::CleanupPad {
@@ -177,12 +195,15 @@ pub(super) fn exceptions_module() -> Module {
                 raw: t7,
             },
             Instruction::EndCatch,
-        ],
+        ]
+        .into(),
         terminator: Terminator::Resume {
             exception: Value::Temp(t6),
         },
     };
     let eh_test = Function {
+        debug_name: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,

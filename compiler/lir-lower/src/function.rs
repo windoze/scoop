@@ -189,8 +189,9 @@ pub(super) fn lower_function<'a>(
     for (mir_id, block) in function.body.blocks.iter() {
         let lir_id = blocks.alloc(lir::BasicBlock {
             name: block.name.clone(),
-            instructions: Vec::new(),
+            instructions: Default::default(),
             terminator: lir::Terminator::Unreachable,
+            terminator_origin: mir::DebugOrigin::Generated,
         });
         block_map.insert(mir_id, lir_id);
     }
@@ -203,6 +204,7 @@ pub(super) fn lower_function<'a>(
         .collect();
     let mut pending_safepoints = safepoints::PendingSafepointSites::default();
     let mut lowerer = FunctionLowerer {
+        current_origin: mir::DebugOrigin::Generated,
         context,
         producer,
         callable_body: &callable_body,
@@ -269,6 +271,7 @@ pub(super) fn lower_function<'a>(
     for (mir_id, block) in function.body.blocks.iter() {
         let lir_id = lowerer.block_map[&mir_id];
         lowerer.enter(lir_id);
+        lowerer.current_origin = mir::DebugOrigin::Generated;
         lowerer.interface_tables.enter_mir(
             interface_checks
                 .incoming
@@ -279,6 +282,7 @@ pub(super) fn lower_function<'a>(
         let interface_check = interface_checks.checks.get(&mir_id).copied();
         lowerer.lower_statements(&block.statements, interface_check)?;
         if !lowerer.current_sealed {
+            lowerer.current_origin = block.terminator_origin.clone();
             lowerer.lower_terminator(
                 &block.terminator,
                 interface_check.and_then(|check| match check.location {
@@ -291,6 +295,8 @@ pub(super) fn lower_function<'a>(
     }
     Ok(LoweredFunction {
         function: lir::Function {
+            debug_origin: function.debug_origin.clone(),
+            debug_name: function.name.clone(),
             gc_effect: match function.gc_effect {
                 mir::GcEffect::Managed => lir::GcEffect::Managed,
                 mir::GcEffect::NoGc => lir::GcEffect::NoGc,
@@ -326,6 +332,7 @@ enum LocalSlot {
 /// block was already sealed (by a `return`, or by a trap call), so
 /// structured control flow does not seal it again with a branch.
 struct FunctionLowerer<'a> {
+    current_origin: mir::DebugOrigin,
     context: &'a LoweringContext,
     producer: scoop_identity::ConeIdentity,
     callable_body: &'a lir::CallableBodyIdentity,
@@ -401,14 +408,16 @@ impl<'a> FunctionLowerer<'a> {
         self.block_count += 1;
         self.blocks.alloc(lir::BasicBlock {
             name: format!("{base}.{}", self.block_count),
-            instructions: Vec::new(),
+            instructions: Default::default(),
             terminator: lir::Terminator::Return { value: None }, // placeholder, see struct docs
+            terminator_origin: mir::DebugOrigin::Generated,
         })
     }
 
     /// Seal the current block with its terminator.
     fn seal(&mut self, terminator: lir::Terminator) {
         self.blocks[self.current].terminator = terminator;
+        self.blocks[self.current].terminator_origin = self.current_origin.clone();
         self.current_sealed = true;
     }
 
@@ -420,7 +429,9 @@ impl<'a> FunctionLowerer<'a> {
     }
 
     fn push(&mut self, instruction: lir::Instruction) {
-        self.blocks[self.current].instructions.push(instruction);
+        self.blocks[self.current]
+            .instructions
+            .push_located(instruction, self.current_origin.clone());
     }
 
     fn new_temp(&mut self, ty: lir::LirType) -> lir::TempId {

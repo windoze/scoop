@@ -80,7 +80,7 @@ impl FnEmitter<'_, '_> {
         let mut start = self.current_instruction + 1;
         let mut visited = HashSet::from([block]);
         'path: loop {
-            for instruction in &self.function.blocks[block].instructions[start..] {
+            for instruction in self.function.blocks[block].instructions.iter().skip(start) {
                 if !aliases.advance(instruction, addressed) {
                     break 'path;
                 }

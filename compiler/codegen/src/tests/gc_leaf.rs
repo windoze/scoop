@@ -149,15 +149,19 @@ fn check_gc_leaf(
     };
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".into(),
         instructions: vec![Instruction::Call {
             site: CallSite::NativeGcLeaf(scoop_lir::NativeGcLeafCallSite { call }),
-        }],
+        }]
+        .into(),
         terminator: Terminator::Return {
             value: Some(Value::Param(0)),
         },
     });
     let function = Function {
+        debug_name: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: Default::default(),
         gc_effect: GcEffect::Managed,

@@ -377,11 +377,14 @@ mod tests {
         });
         let mut blocks = Arena::default();
         let entry = blocks.alloc(lir::BasicBlock {
+            terminator_origin: Default::default(),
             name: "entry".to_string(),
-            instructions: Vec::new(),
+            instructions: Default::default(),
             terminator: lir::Terminator::Unreachable,
         });
         let function = lir::Function {
+            debug_name: Default::default(),
+            debug_origin: Default::default(),
             callable_body: callable_body(),
             gc_effect: lir::GcEffect::Managed,
             signature: lir::ScoopAbiSignature::new(

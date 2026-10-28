@@ -173,6 +173,7 @@ fn poll_function(
     });
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![Instruction::ManagedPoll {
             site: ManagedPollSite {
@@ -181,7 +182,8 @@ fn poll_function(
                 safepoint: reference,
                 live,
             },
-        }],
+        }]
+        .into(),
         terminator: Terminator::Return { value: None },
     });
     let identity = match identity_mode {
@@ -202,6 +204,8 @@ fn poll_function(
         SafepointIdentities::checked(vec![(reference, identity.unwrap())]).unwrap()
     });
     Function {
+        debug_name: Default::default(),
+        debug_origin: Default::default(),
         callable_body: body,
         gc_effect: effect,
         signature: ScoopAbiSignature::new(
@@ -225,11 +229,14 @@ fn function_with_unused_identity(name: &str) -> Function {
         SafepointIdentity::new(callable_body.id(), SafepointSiteRole::ManagedPoll, 0).unwrap();
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
-        instructions: Vec::new(),
+        instructions: Default::default(),
         terminator: Terminator::Return { value: None },
     });
     Function {
+        debug_name: Default::default(),
+        debug_origin: Default::default(),
         callable_body,
         gc_effect: GcEffect::Managed,
         signature: ScoopAbiSignature::new(

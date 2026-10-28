@@ -20,13 +20,16 @@ fn callable_modules_declare_their_own_data_and_keep_complete_metadata_definition
         .map(|(ordinal, &global)| {
             let mut blocks = Arena::default();
             let entry = blocks.alloc(BasicBlock {
+                terminator_origin: Default::default(),
                 name: "entry".into(),
-                instructions: Vec::new(),
+                instructions: Vec::new().into(),
                 terminator: Terminator::Return {
                     value: Some(Value::Global(global)),
                 },
             });
             Function {
+                debug_name: Default::default(),
+                debug_origin: Default::default(),
                 callable_body: callable_body(&format!("selectData{ordinal}")),
                 gc_effect: GcEffect::NoGc,
                 signature: plain_scoop_signature(Vec::new(), MANAGED_PTR),

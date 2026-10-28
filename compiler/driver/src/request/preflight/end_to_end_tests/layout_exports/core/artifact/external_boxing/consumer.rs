@@ -144,8 +144,9 @@ pub(super) fn roundtrip(
     });
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".into(),
-        instructions,
+        instructions: instructions.into(),
         terminator: Terminator::Return { value: Some(value) },
     });
     let safepoints = SafepointIdentities::checked(vec![(
@@ -154,6 +155,8 @@ pub(super) fn roundtrip(
     )])
     .unwrap();
     Function {
+        debug_name: Default::default(),
+        debug_origin: Default::default(),
         callable_body,
         gc_effect: GcEffect::Managed,
         signature: ScoopAbiSignature::new(vec![argument], returned, CallingConvention::Cdecl),

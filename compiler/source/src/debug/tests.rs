@@ -1,5 +1,12 @@
 use super::*;
 
+fn source_file() -> Arc<DebugFile> {
+    Arc::new(DebugFile {
+        identity: Arc::new(SourceIdentity::single_file()),
+        path: "/workspace/main.scoop".into(),
+    })
+}
+
 fn location(origin: &DebugOrigin) -> &Arc<DebugLocation> {
     let DebugOrigin::Source(location) = origin else {
         panic!("the test requested a source location")
@@ -9,15 +16,15 @@ fn location(origin: &DebugOrigin) -> &Arc<DebugLocation> {
 
 #[test]
 fn records_share_source_facts_and_survive_the_builder() {
-    let source = Arc::new(SourceIdentity::single_file());
+    let source = source_file();
     let mut records = DebugRecords::default();
     let first = records.source(source.clone(), 4, 7);
     let repeated = records.source(Arc::new((*source).clone()), 4, 7);
     let different_line = records.source(source, 5, 3);
     assert!(Arc::ptr_eq(location(&first), location(&repeated)));
     assert!(Arc::ptr_eq(
-        &location(&first).source,
-        &location(&different_line).source,
+        &location(&first).file,
+        &location(&different_line).file,
     ));
     drop(records);
     assert_eq!((location(&first).line, location(&first).column), (4, 7));
@@ -26,7 +33,7 @@ fn records_share_source_facts_and_survive_the_builder() {
 
 #[test]
 fn nested_inlining_keeps_each_call_site_and_shares_repeated_locations() {
-    let source = Arc::new(SourceIdentity::single_file());
+    let source = source_file();
     let mut records = DebugRecords::default();
     let definition = records.source(source.clone(), 2, 1);
     let operation = records.source(source.clone(), 4, 7);

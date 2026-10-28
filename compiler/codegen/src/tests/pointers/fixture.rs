@@ -9,13 +9,16 @@ fn module_with_function(
     let mut module = values_module();
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
-        instructions,
+        instructions: instructions.into(),
         terminator: Terminator::Return {
             value: Some(result),
         },
     });
     module.functions = vec![Function {
+        debug_name: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body("pointerStorage"),
         gc_effect: GcEffect::NoGc,
         signature,

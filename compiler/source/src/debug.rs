@@ -1,4 +1,4 @@
-//! Source observations carried by IR transformations, independent of host paths.
+//! Shared source observations and debugger paths carried by IR transformations.
 
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -16,8 +16,15 @@ pub enum DebugOrigin {
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct DebugFile {
+    pub identity: Arc<SourceIdentity>,
+    /// The current input locator or an imported logical path for source mapping.
+    pub path: Arc<str>,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct DebugLocation {
-    pub source: Arc<SourceIdentity>,
+    pub file: Arc<DebugFile>,
     pub line: u32,
     pub column: u32,
     pub inlined_at: Option<Arc<DebugInlineSite>>,
@@ -34,23 +41,23 @@ pub struct DebugInlineSite {
 /// dropped; transformations never need the complete earlier-stage IR.
 #[derive(Debug, Default)]
 pub struct DebugRecords {
-    files: HashSet<Arc<SourceIdentity>>,
+    files: HashSet<Arc<DebugFile>>,
     names: HashSet<Arc<str>>,
     locations: HashSet<Arc<DebugLocation>>,
     inline_sites: HashSet<Arc<DebugInlineSite>>,
 }
 
 impl DebugRecords {
-    pub fn source(&mut self, source: Arc<SourceIdentity>, line: u32, column: u32) -> DebugOrigin {
-        let source = match self.files.get(source.as_ref()) {
-            Some(source) => source.clone(),
+    pub fn source(&mut self, file: Arc<DebugFile>, line: u32, column: u32) -> DebugOrigin {
+        let file = match self.files.get(file.as_ref()) {
+            Some(file) => file.clone(),
             None => {
-                self.files.insert(source.clone());
-                source
+                self.files.insert(file.clone());
+                file
             }
         };
         self.location(DebugLocation {
-            source,
+            file,
             line,
             column,
             inlined_at: None,

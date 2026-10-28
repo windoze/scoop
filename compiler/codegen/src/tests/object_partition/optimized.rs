@@ -124,13 +124,15 @@ fn dead_invokes_module() -> Module {
     let second = function.temps.alloc(Temp { ty: LirType::I64 });
     let condition = function.temps.alloc(Temp { ty: LirType::I1 });
     let done = function.blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "skip_invokes".into(),
-        instructions: Vec::new(),
+        instructions: Vec::new().into(),
         terminator: Terminator::Return {
             value: Some(signed64(42)),
         },
     });
     let entry = function.blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "equal_expressions".into(),
         instructions: vec![
             Instruction::IntegerBinary {
@@ -154,7 +156,8 @@ fn dead_invokes_module() -> Module {
                 lhs: Value::Temp(first),
                 rhs: Value::Temp(second),
             },
-        ],
+        ]
+        .into(),
         terminator: Terminator::CondBr {
             cond: Value::Temp(condition),
             then_block: done,

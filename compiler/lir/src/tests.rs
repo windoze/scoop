@@ -674,11 +674,14 @@ fn function_parameters_keep_logical_types_across_abi_conventions() {
     );
     let mut blocks = la_arena::Arena::new();
     let entry = blocks.alloc(super::BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
-        instructions: Vec::new(),
+        instructions: Default::default(),
         terminator: super::Terminator::Return { value: None },
     });
     let function = super::Function {
+        debug_name: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body("logical_params"),
         gc_effect: GcEffect::NoGc,
         signature,

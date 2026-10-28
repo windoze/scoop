@@ -76,8 +76,10 @@ fn canonical_reverse_postorder(function: &lir::Function) -> Vec<lir::BlockId> {
 
 fn semantic_successors(block: &lir::BasicBlock) -> Vec<lir::BlockId> {
     assert!(
-        !block.instructions[..block.instructions.len().saturating_sub(1)]
+        !block
+            .instructions
             .iter()
+            .take(block.instructions.len().saturating_sub(1))
             .any(|instruction| matches!(instruction, lir::Instruction::Invoke { .. })),
         "an LIR invoke must be the final instruction of its block"
     );
@@ -129,8 +131,9 @@ mod tests {
 
     fn placeholder(name: &str) -> lir::BasicBlock {
         lir::BasicBlock {
+            terminator_origin: Default::default(),
             name: name.to_string(),
-            instructions: Vec::new(),
+            instructions: Default::default(),
             terminator: lir::Terminator::Unreachable,
         }
     }
@@ -179,6 +182,7 @@ mod tests {
         let array_type = lir::ArrayTypeId::from_raw(RawIdx::from_u32(0));
         let native_global = lir::NativeGlobalId::from_raw(RawIdx::from_u32(0));
         blocks[entry] = lir::BasicBlock {
+            terminator_origin: Default::default(),
             name: "entry".to_string(),
             instructions: vec![lir::Instruction::ArrayAlloc {
                 out: array,
@@ -186,7 +190,8 @@ mod tests {
                 array_type,
                 safepoint: entry_site,
                 live: lir::StatepointLiveSet::default(),
-            }],
+            }]
+            .into(),
             terminator: lir::Terminator::CondBr {
                 cond: lir::Value::BoolConst(true),
                 then_block,
@@ -194,6 +199,7 @@ mod tests {
             },
         };
         blocks[then_block] = lir::BasicBlock {
+            terminator_origin: Default::default(),
             name: "then".to_string(),
             instructions: vec![lir::Instruction::NativeGlobalAddress {
                 out: then_address,
@@ -202,10 +208,12 @@ mod tests {
                     safepoint: then_site,
                     roots: lir::NativeSafeRootSet::default(),
                 },
-            }],
+            }]
+            .into(),
             terminator: lir::Terminator::Return { value: None },
         };
         blocks[else_block] = lir::BasicBlock {
+            terminator_origin: Default::default(),
             name: "else".to_string(),
             instructions: vec![lir::Instruction::NativeGlobalAddress {
                 out: else_address,
@@ -214,11 +222,14 @@ mod tests {
                     safepoint: else_site,
                     roots: lir::NativeSafeRootSet::default(),
                 },
-            }],
+            }]
+            .into(),
             terminator: lir::Terminator::Return { value: None },
         };
 
         let mut function = lir::Function {
+            debug_name: Default::default(),
+            debug_origin: Default::default(),
             callable_body: callable_body(),
             gc_effect: lir::GcEffect::Managed,
             signature: lir::ScoopAbiSignature::new(
