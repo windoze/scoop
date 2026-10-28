@@ -34,8 +34,8 @@ int main(void) {
     roots[0] = nursery_allocate(&plain_td, 1 << 20);
     roots[1] = nursery_allocate(&references_td, 24 + 4096 * sizeof(void *));
     ((ScoopArray *)roots[1])->size = 4096;
-    assert(pointer_block(roots[0])->kind == SCOOP_BLOCK_KIND_LARGE);
-    assert(pointer_block(roots[1])->kind == SCOOP_BLOCK_KIND_LARGE);
+    assert(pointer_block(roots[0])->head->kind == SCOOP_BLOCK_KIND_LARGE);
+    assert(pointer_block(roots[1])->head->kind == SCOOP_BLOCK_KIND_LARGE);
     for (uint64_t round = 0; round < 4; round++) {
         unsigned char *bytes = roots[0];
         bytes[(1 << 20) - 1] = (unsigned char)(71 + round);

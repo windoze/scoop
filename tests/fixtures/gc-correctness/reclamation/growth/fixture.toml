@@ -39,6 +39,8 @@ checks = []
 name = "run"
 timeout = 180
 argv = ["${build.result.output}"]
+# The two-region bound exercises ordinary Immix placement, not old-slot placement.
+env = {SCOOP_GC_OLD_SLOTS = "0"}
 exit = 0
 stdout = "region reclamation\n"
 stderr = ""

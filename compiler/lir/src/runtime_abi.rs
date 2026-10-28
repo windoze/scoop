@@ -27,6 +27,9 @@ pub const POLL_THREAD_MANAGED: u64 = 1;
 /// Published terminal state in the runtime-private initialization cell.
 pub const INITIALIZATION_CELL_READY: u64 = 2;
 
+/// Counters within the stable mutator whose prefix is the generated TLAB view.
+pub const ALLOCATION_COUNTERS_OFFSET: u64 = 128;
+
 mod machine;
 pub use machine::{CompilerNativeContractV1, CompilerNativeValueV1};
 
@@ -70,7 +73,7 @@ impl WireEncode for RuntimeAbiContract {
         for field in 1..=3 {
             encoder.field(field)?;
             encoder.unsigned(match field {
-                1 => 24,
+                1 => 26,
                 3 => 2,
                 _ => INITIAL_SCHEMA,
             })?;
@@ -760,11 +763,11 @@ mod tests {
     fn runtime_abi_contract_versions_current_metadata_layout() {
         assert_eq!(
             hex(&encode(&RuntimeAbiContract).unwrap()),
-            "a301181802010302"
+            "a301181a02010302"
         );
         assert_eq!(
             RuntimeAbiContract.fingerprint().unwrap().to_string(),
-            "bb9864bc384f0bbc0189adc8f58724a2dae5de6fc1c2aed41e65090614acdfc5"
+            "df4c3d1ce88c2a8cd969cf48c5d6442a3a539854326d3f0c733871ca7d8b093c"
         );
     }
 

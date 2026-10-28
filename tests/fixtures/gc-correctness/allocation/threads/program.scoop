@@ -1,14 +1,15 @@
 @Extern(lib = "m34_allocation_threads", name = "m13_run_many")
 fun workers(function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, base: Int, count: Int): Int
 
-class Node(val value: Int)
+class Node(val value: Int, val previous: Node?)
 fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
 
 fun churn(worker: Int): Int {
     val values = MutableArray<Node?>(80L) { index -> None }
     var index = 0L
     while (index < values.size) {
-        values[index] = Some(Node(worker + index.toInt()))
+        val previous = if (index == 0L) None else values[index - 1L]
+        values[index] = Some(Node(worker + index.toInt(), previous))
         if (index % 17L == 0L) { gcCollect() }
         index += 1L
     }
@@ -16,7 +17,12 @@ fun churn(worker: Int): Int {
     check(gcStats() >= 80uL)
     var sum = 0
     index = 0L
-    while (index < values.size) { sum += values[index]!!.value; index += 1L }
+    while (index < values.size) {
+        val node = values[index]!!
+        sum += node.value
+        if (index != 0L) { check(node.previous!!.value == worker + index.toInt() - 1) }
+        index += 1L
+    }
     return sum
 }
 

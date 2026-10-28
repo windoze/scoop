@@ -1,4 +1,4 @@
-use super::{compile_and_run, workspace_root};
+use super::{compile_and_run, compile_and_run_configuration, workspace_root};
 
 #[test]
 fn bitmap_sweep_preserves_boundary_starts_pins_and_release() {
@@ -40,13 +40,13 @@ fn insufficient_full_capacity_skips_target_sweep_and_retries_after_reclamation()
 
 #[test]
 fn resolved_forwarding_rejects_invalid_collection_metadata() {
-    for verify in [false, true] {
+    for (verify, stress) in [(false, false), (true, false), (false, true)] {
         let output = super::compile::compile_and_run_configuration(
             &workspace_root(),
             "forwarding_validation_test",
             "runtime/tests/forwarding_validation_test.c",
             verify,
-            verify,
+            stress,
             &["-O2"],
         );
         assert!(
@@ -63,21 +63,25 @@ fn resolved_forwarding_rejects_invalid_collection_metadata() {
 
 #[test]
 fn region_growth_and_large_mapping_exceed_one_gibibyte() {
-    let output = compile_and_run(
-        &workspace_root(),
-        "region_heap_test",
-        "runtime/tests/region_heap_test.c",
-        true,
-    );
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert_eq!(
-        output.stdout,
-        b"region growth and independent mappings exceed the former 1 GiB limit\n"
-    );
+    for (verify, stress, optimization) in [(true, true, "-O0"), (false, false, "-O2")] {
+        let output = super::compile::compile_and_run_configuration(
+            &workspace_root(),
+            "region_heap_test",
+            "runtime/tests/region_heap_test.c",
+            verify,
+            stress,
+            &[optimization],
+        );
+        assert!(
+            output.status.success(),
+            "{optimization}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"region growth and independent mappings exceed the former 1 GiB limit\n"
+        );
+    }
 }
 
 #[test]
@@ -120,21 +124,25 @@ fn sparse_regions_compact_into_live_holes_and_shrink_around_pins() {
 
 #[test]
 fn empty_pages_preserve_cross_page_pins_and_retry_failed_discard() {
-    let output = compile_and_run(
-        &workspace_root(),
-        "page_discard_test",
-        "runtime/tests/page_discard_test.c",
-        true,
-    );
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert_eq!(
-        output.stdout,
-        b"discard preserves cross-page pins, retries failure and reuses zeroed storage\n"
-    );
+    for (stress, optimization) in [(false, "-O2"), (true, "-O0"), (true, "-O2")] {
+        let output = compile_and_run_configuration(
+            &workspace_root(),
+            &format!("page_discard_{stress}_{optimization}"),
+            "runtime/tests/page_discard_test.c",
+            true,
+            stress,
+            &[optimization],
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"discard preserves cross-page pins, retries failure and reuses zeroed storage\n"
+        );
+    }
 }
 
 #[test]

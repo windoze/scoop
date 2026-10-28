@@ -47,7 +47,7 @@ static void dense_without_copy(void **roots) {
     assert(scoop_gc_heap_state.copied_bytes == copied && after.update_ns == start.update_ns);
     assert(after.promoted_bytes == start.promoted_bytes + 800 * sizeof(NurseryNode));
     ScoopGcBlockMeta *block = pointer_block(before);
-    assert(scoop_heap_forwarding_address(before) == NULL && block->generation == SCOOP_GC_OLD);
+    assert(scoop_heap_forwarding_address(before) == NULL && block->head->generation == SCOOP_GC_OLD);
     bool reusable = false;
     for (ScoopGcFreeRun *run = free_runs; run != NULL; run = run->next) {
         reusable |= run->block == block && run->line_count != 0;
@@ -86,6 +86,7 @@ static void mixed_sources_and_old_writes(void **roots) {
 }
 
 int main(void) {
+    assert(setenv("SCOOP_GC_OLD_SLOTS", "0", 1) == 0);
     assert(setenv("SCOOP_GC_PROMOTE_IN_PLACE", "1", 1) == 0);
 #ifdef SCOOP_TEST_PROMOTION_PARALLEL
     assert(setenv("SCOOP_GC_WORKERS", "4", 1) == 0);

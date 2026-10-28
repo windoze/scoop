@@ -14,6 +14,8 @@ ScoopGcHeapState scoop_gc_heap_state = {
     .nursery_capacity = GC_NURSERY_MIN_CAPACITY,
     .nursery_limit = GC_NURSERY_DEFAULT_MAX_CAPACITY,
     .nursery_floor = GC_NURSERY_MIN_CAPACITY,
+    .old_slots_level = 2,
+    .incremental_enabled = true,
 };
 #define collection_threshold (scoop_gc_heap_state.collection_threshold)
 
@@ -39,12 +41,6 @@ void scoop_gc_heap_unlock(void) { unlock_heap(); }
 
 size_t scoop_heap_block_bytes(const ScoopGcBlockMeta *block) {
     return block->region->large ? block->region->size : GC_BLOCK_SIZE;
-}
-
-bool active_head(const ScoopGcBlockMeta *block) {
-    return block->state == SCOOP_BLOCK_MUTATOR || block->state == SCOOP_BLOCK_EVACUATION_SOURCE ||
-           block->state == SCOOP_BLOCK_EVACUATION_TARGET ||
-           block->state == SCOOP_BLOCK_PINNED_PARTIAL;
 }
 
 void free_run_nodes(void) {
@@ -84,8 +80,9 @@ void scoop_gc_heap_init(void) {
     }
     const char *slots = getenv("SCOOP_GC_OLD_SLOTS");
     if (slots != NULL) {
-        if (strcmp(slots, "0") != 0 && strcmp(slots, "1") != 0 && strcmp(slots, "2") != 0) {
-            heap_fatal("SCOOP_GC_OLD_SLOTS must be 0, 1 or 2");
+        if (strcmp(slots, "0") != 0 && strcmp(slots, "1") != 0 && strcmp(slots, "2") != 0 &&
+            strcmp(slots, "3") != 0) {
+            heap_fatal("SCOOP_GC_OLD_SLOTS must be 0, 1, 2 or 3");
         }
         scoop_gc_heap_state.old_slots_level = (uint8_t)(slots[0] - '0');
     }
@@ -165,10 +162,7 @@ void bit_set(uint64_t *bits, size_t index) { bits[index / 64] |= UINT64_C(1) << 
 void bit_clear(uint64_t *bits, size_t index) { bits[index / 64] &= ~(UINT64_C(1) << (index % 64)); }
 
 static void ensure_small_metadata(ScoopGcBlockMeta *block) {
-    if (block->starts == NULL) {
-        block->starts = calloc(GC_BITMAP_WORDS, sizeof(uint64_t));
-        block->marks = calloc(GC_BITMAP_WORDS, sizeof(uint64_t));
-        block->pins = calloc(GC_BITMAP_WORDS, sizeof(uint64_t));
+    if (block->line_live == NULL) {
 #if SCOOP_GC_TRACK_RELOCATION
         block->scanned = calloc(GC_BITMAP_WORDS, sizeof(uint64_t));
         if (block->scanned == NULL) {
@@ -176,8 +170,7 @@ static void ensure_small_metadata(ScoopGcBlockMeta *block) {
         }
 #endif
         block->line_live = calloc(GC_LINE_BITMAP_WORDS, sizeof(uint64_t));
-        if (block->starts == NULL || block->marks == NULL || block->pins == NULL ||
-            block->line_live == NULL) {
+        if (block->line_live == NULL) {
             heap_fatal("out of memory allocating small-block side metadata");
         }
     }
@@ -187,7 +180,9 @@ static void reset_small_metadata(ScoopGcBlockMeta *block) {
     ensure_small_metadata(block);
     memset(block->starts, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
     memset(block->marks, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
-    memset(block->pins, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
+    if (block->pins != NULL) {
+        memset(block->pins, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
+    }
 #if SCOOP_GC_TRACK_RELOCATION
     memset(block->scanned, 0, GC_BITMAP_WORDS * sizeof(uint64_t));
 #endif
@@ -238,19 +233,19 @@ ScoopGcBlockMeta *activate_small_block(ScoopGcBlockState state, bool allow_growt
     if (block == NULL) {
         return NULL;
     }
-    if (block->state != SCOOP_BLOCK_NEVER_USED && block->state != SCOOP_BLOCK_FREE) {
+    if (block->head->state != SCOOP_BLOCK_NEVER_USED && block->head->state != SCOOP_BLOCK_FREE) {
         heap_fatal("region allocator selected an active block");
     }
     reset_small_metadata(block);
-    block->state = state;
-    block->kind = SCOOP_BLOCK_KIND_SMALL;
-    block->generation = SCOOP_GC_OLD;
+    block->head->state = state;
+    block->head->kind = SCOOP_BLOCK_KIND_SMALL;
+    block->head->generation = SCOOP_GC_OLD;
     block->survivor = false;
     block->retained_young = false;
     block->exact_size = 0;
     block->live_bytes = 0;
     block->movable_live_bytes = 0;
-    block->mark_index = SIZE_MAX;
+    block->head->mark_index = SIZE_MAX;
     block->discard_pending = true;
     committed_bytes += GC_BLOCK_SIZE;
     active_block_heads++;
@@ -267,13 +262,13 @@ ScoopGcBlockMeta *activate_large_block(size_t exact_size, ScoopGcBlockState stat
         return NULL;
     }
     ScoopGcBlockMeta *block = region->blocks;
-    block->state = state;
-    block->kind = SCOOP_BLOCK_KIND_LARGE;
-    block->generation = SCOOP_GC_OLD;
+    block->head->state = state;
+    block->head->kind = SCOOP_BLOCK_KIND_LARGE;
+    block->head->generation = SCOOP_GC_OLD;
     block->survivor = false;
     block->retained_young = false;
     block->exact_size = exact_size;
-    block->mark_index = SIZE_MAX;
+    block->head->mark_index = SIZE_MAX;
     region->next_block = 1;
     committed_bytes += region->size;
     active_block_heads++;

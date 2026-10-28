@@ -6,9 +6,9 @@ static void retire_metadata(ScoopGcBlockMeta *block, ScoopGcBlockState state) {
     if (!active_head(block)) {
         heap_fatal("attempted to retire an inactive block");
     }
-    block->state = state;
-    block->kind = SCOOP_BLOCK_KIND_NONE;
-    block->generation = SCOOP_GC_OLD;
+    block->head->state = state;
+    block->head->kind = SCOOP_BLOCK_KIND_NONE;
+    block->head->generation = SCOOP_GC_OLD;
     block->survivor = false;
     block->retained_young = false;
     block->exact_size = 0;

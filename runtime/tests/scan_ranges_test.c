@@ -2,8 +2,7 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#include "../src/gc_binding.h"
-#include "scoop_rt.h"
+#include "../src/gc_binding/scan.h"
 
 typedef struct Value {
     void *first;
@@ -37,6 +36,12 @@ static void check(void *base, const uint64_t *scan, const Visited *expected, uin
                   uintptr_t end) {
     Visited actual = {0};
     scoop_gc_scan_descriptor(base, scan, record, &actual, begin, end);
+    Visited direct = {0};
+    scoop_gc_scan_range(base, scan, record, &direct, begin, end);
+    assert(direct.count == actual.count);
+    for (size_t index = 0; index < actual.count; index++) {
+        assert(direct.slots[index] == actual.slots[index]);
+    }
     size_t next = 0;
     for (size_t index = 0; index < expected->count; index++) {
         void **slot = expected->slots[index];
@@ -45,6 +50,14 @@ static void check(void *base, const uint64_t *scan, const Visited *expected, uin
         }
     }
     assert(next == actual.count);
+    if (begin == 0 && end == UINTPTR_MAX) {
+        Visited whole = {0};
+        scoop_gc_scan_object(base, scan, record, &whole);
+        assert(whole.count == actual.count);
+        for (size_t index = 0; index < whole.count; index++) {
+            assert(whole.slots[index] == actual.slots[index]);
+        }
+    }
 }
 
 static void check_ranges(void *base, size_t size, const uint64_t *scan, const Visited *expected) {
@@ -62,6 +75,15 @@ static void check_ranges(void *base, size_t size, const uint64_t *scan, const Vi
 static void replace(void **slot, void *context) { *slot = context; }
 
 static void flat_and_sequence(void) {
+    Value value = {.metadata = 0xabad, .padding = 0xcafe};
+    Visited fields = {0};
+    record(&value.first, &fields);
+    record(&value.second, &fields);
+    check_ranges(&value, sizeof value, pair_scan, &fields);
+    scoop_gc_scan_object(&value, pair_scan, replace, &value);
+    assert(value.first == &value && value.second == &value);
+    assert(value.metadata == 0xabad && value.padding == 0xcafe);
+
     Array array = {.count = 6};
     for (size_t index = 0; index < 6; index++) {
         array.elements[index].metadata = 0xabad;
@@ -102,6 +124,43 @@ static void flat_and_sequence(void) {
     check_ranges(&array, sizeof array, (uint64_t[]){0}, &(Visited){0});
 }
 
+static void single_reference_strides(void) {
+    struct {
+        uint64_t count;
+        void *elements[56];
+    } array;
+    const size_t strides[] = {1, 2, 3, 5, 8};
+    const size_t counts[] = {0, 1, 7};
+    for (size_t shape = 0; shape < sizeof strides / sizeof *strides; shape++) {
+        size_t stride = strides[shape];
+        for (size_t offset = 0; offset < stride; offset++) {
+            uint64_t child[] = {1, offset * sizeof(void *)};
+            uint64_t scan[] = {SCOOP_REFS_ARRAY, 0, sizeof(uint64_t),
+                               stride * sizeof(void *), (uintptr_t)child};
+            for (size_t sample = 0; sample < sizeof counts / sizeof *counts; sample++) {
+                size_t count = counts[sample];
+                array.count = count;
+                for (size_t index = 0; index < 56; index++) {
+                    array.elements[index] = NULL;
+                }
+                Visited expected = {0};
+                for (size_t index = 0; index < count; index++) {
+                    record(&array.elements[index * stride + offset], &expected);
+                }
+                check_ranges(&array, sizeof(uint64_t) + count * stride * sizeof(void *),
+                              scan, &expected);
+                check(&array, scan, &expected, UINTPTR_MAX - 63, UINTPTR_MAX);
+                scoop_gc_scan_descriptor(&array, scan, replace, &array, 0, UINTPTR_MAX);
+                for (size_t index = 0; index < 56; index++) {
+                    bool reference = index < count * stride && index % stride == offset;
+                    assert(array.elements[index] == (reference ? &array : NULL));
+                }
+                assert(array.count == count);
+            }
+        }
+    }
+}
+
 static void recursive_array(void) {
     struct {
         uint64_t count;
@@ -125,6 +184,7 @@ static void recursive_array(void) {
 
 int main(void) {
     flat_and_sequence();
+    single_reference_strides();
     recursive_array();
     puts("flat and recursive array scans preserve exact slot ranges, order and metadata");
     return 0;

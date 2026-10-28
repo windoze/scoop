@@ -852,11 +852,12 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
     );
     assert!(
         ir.contains(&format!(
-            "@scoop_runtime_finish_tlab_alloc(ptr addrspace(1) %tlab_object, ptr @\"{array_outer_symbol}\", i64 %alloc_size)"
+            "@scoop_runtime_finish_tlab_alloc(ptr addrspace(1) %tlab_object, ptr @\"{array_outer_symbol}\", i64 64)"
         )) && ir.contains(&format!(
             "@scoop_runtime_alloc_slow(ptr @\"{array_outer_symbol}\", i64 64)"
-        )) && ir.contains("%alloc_size_plus_align = add i64 64, %allocation_alignment_mask")
-            && ir.contains("%alloc_is_regular = icmp ule i64 %alloc_size, 32640"),
+        )) && ir.contains("%tlab_cursor_plus_align = add i64 %tlab_cursor_int, 15")
+            && ir.contains("%tlab_aligned_cursor = and i64 %tlab_cursor_plus_align, -16")
+            && ir.contains("%tlab_next_int = add i64 %tlab_aligned_cursor, 64"),
         "one 32-byte element plus the aligned 32-byte header must flow through the regular TLAB check:\n{ir}"
     );
 }

@@ -38,6 +38,14 @@ static inline const uint64_t *scoop_gc_object_scan(const void *object) {
 }
 
 static inline void scoop_gc_validate_object(const void *object, size_t size) {
+#if !(SCOOP_ENABLE_GC_STRESS || (defined(SCOOP_GC_VERIFY_HEAP) && SCOOP_GC_VERIFY_HEAP))
+    /* Allocation establishes the immutable fixed layout. Variable counts still
+     * need their range check; diagnostic builds cross-check every object. */
+    uint32_t kind = ((const ScoopObjectHeader *)object)->td->instance_shape.instance_kind;
+    if (kind == SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1 || kind == SCOOP_TYPE_INSTANCE_BOXED_VALUE_V1) {
+        return;
+    }
+#endif
     scoop_shape_validate_object(object, size);
 }
 

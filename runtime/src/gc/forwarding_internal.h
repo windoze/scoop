@@ -13,7 +13,7 @@ static inline
     if (!object_marked(source, word_index)) {
         heap_fatal("unmarked object reached relocation");
     }
-    if (source->state != SCOOP_BLOCK_EVACUATION_SOURCE || object_pinned(source, word_index)) {
+    if (source->head->state != SCOOP_BLOCK_EVACUATION_SOURCE || object_pinned(source, word_index)) {
         return object;
     }
     void *forwarded = scoop_heap_forwarding_address(object);

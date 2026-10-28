@@ -40,6 +40,7 @@ static NurseryNode *publish_node(ScoopGcBlockMeta *block, size_t offset, uint64_
 }
 
 int main(void) {
+    assert(setenv("SCOOP_GC_OLD_SLOTS", "0", 1) == 0);
     alarm(30);
     assert(setenv("SCOOP_GC_WORKERS", "4", 1) == 0);
     const ScoopTypeDescriptor *types[] = {&nursery_node_td};
