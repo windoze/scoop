@@ -43,7 +43,7 @@ Darwin 验证：`cargo fmt --all`、`cargo clippy --workspace --all-targets` 通
 
 Darwin 验证：格式化、全 workspace lint 通过；四个相关 crate 的 `static_enum_constants` 测试共 4 项通过，覆盖 Export HIR → concrete HIR → MIR → LIR、嵌套 Option、String relocation、浮点位型与 LLVM verifier；HIR 的 `static_variants` 编辑器回归 5 项通过；正式 CLI `native-raw-globals-and-tls` release 用例通过。编译器及配套 CLI 已构建。
 
-本项仅完成常量数据表示与发射，不宣称源码 enum const／env 已可用。前端初值求值早于默认参数模板注册，enum 构造、默认 payload、const property 与控制表达式需在后续常量求值项中统一接通；当前未加入提前解析默认值的特殊路径。
+本项仅完成常量数据表示与发射，不宣称源码 enum const／env 已可用。按后续范围简化，普通构造调用及默认 payload 不进入本版常量求值，不调整构造器默认值注册顺序；const property 与控制表达式仍需接通。
 
 ### Unit／tuple 静态初值
 
@@ -52,6 +52,8 @@ HIR／MIR 保存 Unit 和递归 tuple 元素，LIR 使用 aggregate 初值；完
 Darwin 验证：格式化、全 workspace lint 通过；6 项定向 Rust 测试通过，覆盖 HIR 至 LLVM、tuple／enum 嵌套、单位值、浮点位模式、引用重定位及静态／运行期初值选择。`tests/cones/aggregate-constants` 的 2 项 release 测试与正式 CLI `native-raw-globals-and-tls` fixture 通过。编译器及配套 CLI 已构建。编译期间磁盘空间不足已通过清理旧增量缓存解决；失败构建后相应验证通过。Linux 已确认 LLVM 22.1.2 可用，实际运行仍留在平台验收项。
 
 ## 范围调整
+
+2026-10-28：按用户要求简化本版，不支持构造器求值，只组合允许的常量表达式；struct 主／次构造、enum payload 构造和默认实参求值均移出本版。聚合常量表示、intrinsic 直接生成的 struct／enum 值及字段／模式读取保持。当前语言没有独立 struct／enum 花括号字面量，本次尚未引入新语法。
 
 2026-10-28：按用户要求去掉只扩展 enum 的类型限制；常量按完整类型与实际值组成判断，包含 struct、tuple、Unit、空 struct 及编译期输入的不可变对象引用。enum 只检查选中 variant，不因其他分支携带运行期对象而拒绝 None。类型能表示常量不等于任意 initializer 都能编译期执行，保留本版不解释用户函数／次构造器正文的求值边界。尚未完成源码实现，不能将本次规范修订计为聚合常量功能交付。
 

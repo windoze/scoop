@@ -172,7 +172,7 @@ error: compile-time environment variable name must start with `SCOOP_`
 
 enum 只检查选中 variant 的 payload；`None: Option<SomeClass>` 不因另一个 variant 可包含对象而被拒绝。静态引用继续要求完整合法且不可变的对象图，String 和 includeBytes／includeDir 已产生的数组、目录满足此要求，因此也可用 `const val` 保存或成为聚合常量字段。运行期对象／地址、可变存储和未知类型不能直接嵌入；Ptr／FunPtr／MaybeUninit 按 intrinsic representation 判断，不能误当作源码无字段的空 struct。
 
-常量表达式补齐 struct 主构造、enum variant 构造、tuple／Unit、真实字段／tuple 位置读取、Option Elvis 和 when 模式解包。构造沿普通参数映射，采用的默认字段／payload 必须也是常量；when 复用普通类型／模式／穷尽性规则，pattern binding 指向已知常量，guard 与分支结果限于常量表达式。类型可常量化与求值器支持哪些表达式是两个问题：本版不解释任意用户函数、computed getter 或 secondary constructor body，也不能跳过其校验、副作用或异常。这不构成对其返回的值类型的排除。
+常量表达式补齐 tuple／Unit、无 payload 的 enum variant 值、真实字段／tuple 位置读取、Option Elvis 和 when 模式解包；已有 const 引用和本组 intrinsic 的结果可继续组成聚合常量。when 复用普通类型／模式／穷尽性规则，pattern binding 指向已知常量，guard 与分支结果限于常量表达式。本版不求值任何普通构造调用，包括 struct 主／次构造、带 payload 的 enum variant 及其默认实参；也不解释任意用户函数或 computed getter。即使显式参数全为常量，源码 `S(...)`／`Some(...)` 仍不在本版常量表达式集合内。env／include 直接生成完整的常量值，不经源码构造器执行；这与结果类型能表示常量是两个问题。本次不新增 `S { field: value }` 或 enum 字面量语法。
 
 分支均正常检查表达式是否合法，纯常量运算只求值实际选择的分支。本组外部输入 intrinsic 先按第 3 节展开，因此 `env("SCOOP_A") ?: env("SCOOP_B")` 中两个被检查的调用都记录输入；存在 SCOOP_A 不意味着可以略去 SCOOP_B 的语义检查和编译期读取。所选结果仍按 Elvis 正常选择，不生成运行期环境查询。
 
@@ -259,7 +259,7 @@ LSP 在正常按需分析到声明或正文时求值，并将输入观察关联�
 
 ## 11. 实施步骤
 
-1. **常量与命名空间基础。** 扩展现有 typed 常量表示以容纳 struct／tuple／Unit、enum payload 和静态数据引用，补齐构造、字段读取、const Option 与 Elvis／模式解包；明确 core 非根 package 的普通导出与非 prelude 行为。此步直接服务下一步四个入口，不预建通用求值插件层。
+1. **常量与命名空间基础。** 扩展现有 typed 常量表示以容纳 struct／tuple／Unit、enum payload 和静态数据引用，补齐字面量、常量字段读取、const Option 与 Elvis／模式解包；普通构造调用不进入本版求值范围。明确 core 非根 package 的普通导出与非 prelude 行为。此步直接服务下一步四个入口，不预建通用求值插件层。
 2. **单文件和 env 闭环。** 增加 core 声明／registry、定义来源与 Cone 根输入接口、路径及 symlink 范围检查、env 的 SCOOP_ 名称限制、独立常量池、静态字节数组发射与普通更新记录；实际完成 includeStr／includeBytes／env 的源码到 .slib、消费、链接和运行。
 3. **目录闭环。** 增加 includeDir、普通 EmbeddedFile／EmbeddedDir、逐项范围检查、glob 选择、匹配集合／链接更新和目录静态数据图；接入同一常量池与产物引用。
 4. **跨 Cone 和工具验收。** 验证泛型／inline／默认参数的共享、导出 Option 常量、check／doc／LSP 输入失效、包内相对资源和完整缓存更新；验证四个入口的普通导入调用，以及导入短名／alias 后的引用拒绝。对实际变更格式统一升级并显式准备开发 sysroot。
@@ -274,8 +274,8 @@ LSP 在正常按需分析到声明或正文时求值，并将输入观察关联�
 | --- | --- |
 | package 与解析 | exact／star／alias import；未 import 的裸名称错误；短名／alias 函数引用均拒绝；同名普通函数不获得 intrinsic 能力 |
 | String／bytes | 空文件、UTF-8／BOM／CRLF／NUL、二进制高位字节；非法 UTF-8 与非文件诊断 |
-| Option 常量 | None、Some 空串／非空串、显式 Some／None、嵌套 Option、Elvis／when、跨 Cone const 消费 |
-| 聚合常量 | struct／tuple／Unit／空 struct、嵌套字段、完整泛型 application、phantom 参数、实际 variant payload、字段读取与跨 Cone 消费；默认值及次构造器运行期行为的拒绝 |
+| Option 常量 | None、env 产生的 Some 空串／非空串、Elvis／when、跨 Cone const 消费；源码 Some 调用拒绝 |
+| 聚合常量 | struct／tuple／Unit／空 struct 的值表示、嵌套字段、完整泛型 application、phantom 参数、实际 variant payload、intrinsic 结果字段读取与跨 Cone 消费；普通主／次构造及 enum payload 构造拒绝 |
 | env 名称 | SCOOP_ 前缀、精确大小写、前缀本身、非法名称在宿主查询前失败；HOME 等即使缺失或带默认值也报错；仅已查询合法名称影响更新 |
 | 常量限制 | 动态参数／局部 val／运行期数组／未知泛型输入错误，const 循环与错误位置；函数引用按真实 intrinsic 报专用语义错误，覆盖短名／alias／re-export 与三种引用上下文 |
 | 目录选择 | 根目录及嵌套文件、** 零层匹配、多 include／exclude、重叠去重、隐藏文件、Unicode、空结果、非法 pattern |

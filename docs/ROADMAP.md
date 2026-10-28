@@ -787,7 +787,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 ### 编译期文件／环境 intrinsic 与共享常量（实施中）
 
 - [设计](compile-time-intrinsics/DESIGN.md)与语言规范 11.19 将 `includeStr`、`includeBytes`、`includeDir`、`env` 放入 core Cone 的 `scoop.compiler` package，使用显式导入，不加入默认 prelude。
-- 文件与环境在定义 Cone 的 HIR 阶段求值；`env` 返回完整 `Option<String>`，补齐 struct／tuple／Unit／enum 聚合常量、字段读取和 Option 常量解包，按实际值递归判断常量资格。目录使用 include／exclude glob 选择，返回稳定有序的不可变文件表。
+- 文件与环境在定义 Cone 的 HIR 阶段求值；`env` 返回完整 `Option<String>`，补齐 struct／tuple／Unit／enum 聚合常量、字段读取和 Option 常量解包，按实际值递归判断常量资格。本版只组合常量表达式，不求值普通构造调用及其默认实参；intrinsic 直接产生完整聚合值。目录使用 include／exclude glob 选择，返回稳定有序的不可变文件表。
 - include 目标路径及解析全部 symlink 后的实际目标必须位于定义 Cone 内，includeDir 对每项检查，包括 glob 排除项；越界明确诊断。env 首版仅接受精确 `SCOOP_` 前缀，非法名称在查询环境前报错。
 - 独立常量池及跨 Cone 引用保证相同嵌入数据不随泛型特化、默认参数或内联重复发射；本组常量在同一 provider 内按完整类型与内容合并，沿现有布局和 immortal 登记发射。
 - 构建／check／doc／分析缓存跟踪实际文件、目录匹配集合、路径／链接目标和已查询环境变量；命中只判断输入更新，新增匹配文件须重编，链接改指或排除项越界不能复用旧值。实施按常量与声明、单文件／env、目录、增量与跨 Cone 验收推进。currentSourceLocation 的不可引用诊断及静态 enum payload 数据通路已完成，见[实施记录](compile-time-intrinsics/PROGRESS.md)。普通包限定表达式与 `::a.b.f` 已取消，使用既有 import／alias。

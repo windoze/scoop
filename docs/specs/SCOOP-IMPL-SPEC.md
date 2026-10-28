@@ -1143,9 +1143,9 @@ LLVM 的 wrapper 存储以不超过 64 位、满足现有对齐的整数单元�
 
 语言规范 11.19 的四个 API 与两个普通值类型位于 core Cone 的 `scoop.compiler` package，普通导入和 typed registry 负责识别。prelude 只消费其实际登记的 binding，不因 core 拥有此 package 就将其公开成员注入短名称候选；新增声明不在根 package 转导出。现有位置、布局等 intrinsic 不随本次扩展迁移。
 
-HIR 在普通名称、参数和完整类型选择后对编译期输入操作求值，复用现有 const 依赖环检查及数值常量语义，补齐 struct／tuple／Unit、带 payload 的 enum、字段读取、Option Elvis 和模式解包。成功输出保存聚合值的完整类型、实际 application／variant 和按声明顺序的全部字段／元素常量；不使用 env 专属 OptionString 表示、运行期 constructor call 或缺失的类型信息。常量资格按实际值递归检查，enum 不检查未选择 variant 的 payload；普通 struct 与 intrinsic representation 分开处理，不能仅用空字段列表认定后者为 ZST。const property、正文、默认模板与跨 Cone 接口共用同一常量值表示，ordinary val 的静态初值也消费该结果。语言规范 9.1.2 区分可表示的常量值与当前支持的求值表达式，不通过解释任意用户正文或省略 constructor 行为来填充常量。
+HIR 在普通名称、参数和完整类型选择后对编译期输入操作求值，复用现有 const 依赖环检查及数值常量语义，补齐 struct／tuple／Unit、带 payload 的 enum、字段读取、Option Elvis 和模式解包。成功输出保存聚合值的完整类型、实际 application／variant 和按声明顺序的全部字段／元素常量；不使用 env 专属 OptionString 表示、运行期 constructor call 或缺失的类型信息。常量资格按实际值递归检查，enum 不检查未选择 variant 的 payload；普通 struct 与 intrinsic representation 分开处理，不能仅用空字段列表认定后者为 ZST。const property、正文、默认模板与跨 Cone 接口共用同一常量值表示，ordinary val 的静态初值也消费该结果。语言规范 9.1.2 区分可表示的常量值与当前支持的求值表达式；本版不求值 struct 主／次构造、enum payload 构造及其默认实参，不为常量求值调整普通构造器的默认值注册／准备顺序。输入 intrinsic 直接产生完整常量，源码只组合本版允许的常量表达式。
 
-静态 enum 初值的数据通路已实现：初值保存实际 application／variant 与按声明序齐全的字段；空 variant 使用空字段序列。HIR 至 LIR 逐层保留实际 variant 和字段，LLVM 按既有 integral／niche／tagged 布局发射；inactive GC slot 与 padding 保持零，String payload 保留 immortal relocation。该表示能力服务本节的常量求值扩展，不单独扩大源码 const 表达式集合。前端 enum 常量构造及默认 payload 的求值待随本节接入。
+静态 enum 初值的数据通路已实现：初值保存实际 application／variant 与按声明序齐全的字段；空 variant 使用空字段序列。HIR 至 LIR 逐层保留实际 variant 和字段，LLVM 按既有 integral／niche／tagged 布局发射；inactive GC slot 与 padding 保持零，String payload 保留 immortal relocation。该表示能力服务本节的常量求值扩展，不单独扩大源码 const 表达式集合；普通 enum 构造调用及默认 payload 的求值不属于本版范围。
 
 Unit 与 tuple 的静态初值沿同一数据通路保存。完整存储类型提供每个 tuple 元素的类型，元素初值按源码顺序递归编码；LIR 将 Unit 表示为无元素的 aggregate。显式标注类型的 ordinary top-level property 若由 Unit／tuple 字面量及现有静态常量表达式组成，直接采用 EncodedStaticValue；包含运行期表达式时保留完整 initializer 的正常求值顺序。tuple 使用既有自然对齐，嵌套 String 保留 immortal relocation，Unit／空 tuple 的 storage token 遵守运行时规范 2.8；不新增 ABI 或产物编码。
 
