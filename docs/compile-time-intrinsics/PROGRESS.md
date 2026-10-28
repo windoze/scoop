@@ -1,6 +1,6 @@
 # 编译期 intrinsic 实施记录
 
-目标：实现本目录的编译期输入 intrinsic，按功能完成验证并提交。按用户 2026-10-29 的范围调整，常量与常量表达式的进一步扩展留到后续专项；本轮只继续 intrinsic 所需的静态表示与发射。当前处于实施中，不能将单项完成视为整组能力完成。
+目标：实现本目录的编译期输入 intrinsic，按功能完成验证并提交。本轮首批能力已实现；按用户 2026-10-29 的范围调整，常量与常量表达式的进一步扩展留到后续专项，只完成 intrinsic 所需的静态表示与发射。整组定向验证通过，完整回归的未闭合项见“最终验收与限制”。
 
 ## 交付清单
 
@@ -16,7 +16,7 @@
 - [x] includeBytes 及静态字节数组。
 - [x] includeDir、glob、逐项目录／symlink 范围检查与 EmbeddedDir API。
 - [x] 文件／目录输入的构建／check／doc／LSP 更新和缓存复用、资源的定义来源。
-- [ ] Darwin 与 Linux 必要组合验证、对应规范状态更新及功能提交。
+- [x] Darwin 与 Linux 必要组合验证、对应规范状态更新及功能提交。
 
 ## 验证与工作目录
 
@@ -146,6 +146,27 @@ Linux 在 includeDir 与 LSP 接通后通过整组 12 项 intrinsic fixture（14
 Linux 补齐块级 import 与位置 intrinsic 的平台验收：普通 Cone 的 5 项 release 行为测试通过，块级 import 诊断、source location 引用拒绝、annotation query 引用诊断及默认值／泛型／协程位置组合共 4 项 fixture、6 个进程步骤通过。
 
 完整回归发现 combinations-artifacts、containers-artifacts、containers-updates 的 debug 重链接同样遗漏 keep-symbols。补齐与 consumer build 一致的选项后，两平台各自通过 3 项 fixture、6 个变体、24 个进程步骤，保留链接指纹比较与实际程序输出断言。
+
+### 最终验收与限制
+
+四个输入 intrinsic、块级 import、不可引用诊断、构建／check／doc 输入更新及 LSP 主动诊断均已分项提交。Darwin／Linux 的整组 intrinsic fixture、普通 Cone 行为和相关 HIR／静态发射／GC／编辑器定向验证通过；Linux 只做相关测试，没有运行完整套件。
+
+Darwin 完整 CLI 选择覆盖 4310 项，按每项最后一次明确验证汇总为 **4143 通过、144 失败、6 项 fixture 配置错误、17 项目标不适用**，没有未完成的 fixture。为提高效率，前两批保留已完成结果，最后 2195 项仅使用当前源码构建的 Rust release 工具续跑；Scoop 的各 fixture profile 与断言不变。切换前 includeDir 跨 Cone／GC 用例通过，耗时由约 36 秒降至 7.7 秒。7 项失败经前述 fixture 修正闭合；JSON 库测试使用 release 工具在原 600 秒时限内以 307 秒通过，合计闭合 8 项。失败用例停止后的步骤不计为通过。
+
+剩余问题按实际失败位置归组，不将全部失败推定为本分支之前已有，也不将本次结果记为全量通过：
+
+| 类别 | 数量 | 当前证据与限制 |
+| --- | ---: | --- |
+| 诊断预期 | 63 | 包含 PM 接管配置诊断、core 源码位置变化及扩展候选原因增加。扩展失败合并实现与 origin/main 的 `158d94d3c` 完全一致；其余保留实际差异。 |
+| 链接计划指纹比较 | 55 | 已修正的代表用例证明 build／link 符号选项不一致会造成该差异；剩余同类用例尚未逐项修正。 |
+| MIR／LIR 或归档成员快照 | 12 | 保留完整差异，未批量更新快照。部分同类问题在此前 fmt／check 验收中已有记录。 |
+| 优化／符号断言 | 6 | 两项 array-inlining、counted-array-bounds、两项 reference-array 和 type-pruning。counted-array-bounds 的 release 程序运行通过，其 IR 断言仍失败。 |
+| 其他运行／fixture 设置 | 8 | 包括两项运行失败、缺少 scoop-pm／map 文件、旧 artifact 版本约束、registry 配置及 root 列表差异，见下文。 |
+| fixture 源码替换配置 | 6 | imported-class-primitive-inherited 用例的旧 strings.scoop 替换片段无法匹配；未进入编译验证。 |
+
+两项运行失败为 client-observer-lifetime 的 Completed／caller cancellation 类型断言，以及 generic-delegate-siblings-consumer 的 IllegalStateException。前者用已生成程序单独运行仍失败，尚未完成基线归因；后者在此前 [fmt／check 验收](../fmt-check/VALIDATION.md) 有基线复现记录。其他设置问题分别位于 cli-core-locator-cache、cli-input-manifest-roots、executable-native、installed-tools、odr-selection 和 test-selection。本轮不扩大为这些已有子系统的修复任务。
+
+完整 Rust 测试保留前述 12 项未闭合失败；formatter corpus 和顺序 doc tests 已通过。完整与定向报告、失败分组和日志留在仓库外，文档只记录范围与限制。新输入 intrinsic 的 12 项正式 fixture 全部通过，未因上述失败放宽其输入限制、诊断、缓存、产物或 GC 断言。末次收尾清除 45 个测试生成的未跟踪 Cone.lock，并在 Cargo 构建锁内清理约 530 MiB 新增 Rust 增量缓存。
 
 ## 范围调整
 

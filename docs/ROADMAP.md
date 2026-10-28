@@ -784,7 +784,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 各里程碑"涵盖但只实现了部分"的事项，按来源里程碑整理。标注→的为目标里程碑（已知时）；未标注的待排期。
 
-### 编译期文件／环境 intrinsic（已实现，回归验收中）
+### 编译期文件／环境 intrinsic（已实现）
 
 - [设计](compile-time-intrinsics/DESIGN.md)与语言规范 11.19 将 `includeStr`、`includeBytes`、`includeDir`、`env` 放入 core Cone 的 `scoop.compiler` package，使用显式导入，不加入默认 prelude。
 - 文件与环境在定义 Cone 的 HIR 阶段求值；`env` 返回完整 `Option<String>`，include 系列直接产生静态 String／字节数组／目录表。目录使用 include／exclude glob 选择，返回稳定有序的不可变文件表。已提交的聚合值通路保留；按用户范围调整，常量 Elvis／when、普通构造调用及其他常量表达式扩展留到后续专项。
