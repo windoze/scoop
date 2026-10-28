@@ -77,9 +77,14 @@ typedef struct ScoopGcBlockHead {
     ScoopGcBlockState state;
     uint8_t kind;
     uint8_t generation;
+    union {
+        size_t mark_index;
+        /* All marker counters have been folded before target reservation. */
+        ScoopGcCopyBlock *copy_group;
+    };
 } ScoopGcBlockHead;
 
-_Static_assert(sizeof(ScoopGcBlockHead) == 8, "compact block head layout drifted");
+_Static_assert(sizeof(ScoopGcBlockHead) == 16, "compact block head layout drifted");
 
 typedef struct ScoopGcBlockMeta {
     ScoopGcRegion *region;
@@ -111,11 +116,6 @@ typedef struct ScoopGcBlockMeta {
         size_t movable_live_bytes;
         /* Ordinary slot minors select whole blocks using their current pins. */
         size_t nursery_slot_size;
-    };
-    union {
-        size_t mark_index;
-        /* The marker has folded its counters before target reservation starts. */
-        ScoopGcCopyBlock *copy_group;
     };
     bool large_published;
     bool large_marked;

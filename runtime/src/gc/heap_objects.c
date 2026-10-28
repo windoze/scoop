@@ -149,7 +149,7 @@ size_t scoop_gc_heap_begin_collection_locked(bool minor) {
         }
         block->live_bytes = 0;
         block->movable_live_bytes = 0;
-        block->mark_index = mark_blocks++;
+        block->head->mark_index = mark_blocks++;
         block->large_marked = false;
 #if SCOOP_GC_TRACK_RELOCATION
         block->large_scanned = false;

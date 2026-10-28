@@ -66,9 +66,9 @@ append_live(ScoopGcMarkWorker *worker, void *object, bool scan) {
 }
 
 static inline __attribute__((always_inline)) bool
-first_mark(ScoopGcBlockMeta *block, size_t word, uint64_t *marks) {
+first_mark(ScoopGcBlockMeta *large, size_t word, uint64_t *marks) {
     if (marks == NULL) {
-        return !__atomic_exchange_n(&block->large_marked, true, __ATOMIC_RELAXED);
+        return !__atomic_exchange_n(&large->large_marked, true, __ATOMIC_RELAXED);
     }
     uint64_t mask = UINT64_C(1) << (word % 64);
     uint64_t *bits = &marks[word / 64];
@@ -130,8 +130,9 @@ reference_region(ScoopGcMarkWorker *worker, const void *object) {
     return region;
 }
 
-static inline __attribute__((always_inline)) ScoopGcBlockMeta *
-markable_block(ScoopGcMarkWorker *worker, const void *object, size_t *word, uint64_t **marks) {
+static inline __attribute__((always_inline)) ScoopGcBlockHead *
+markable_head(ScoopGcMarkWorker *worker, const void *object, size_t *word, uint64_t **marks,
+              ScoopGcBlockMeta **large) {
     ScoopGcRegion *region = reference_region(worker, object);
     /* The coordinator owns heap/roots; these metadata remain immutable during mark. */
     if (region == NULL) {
@@ -143,25 +144,29 @@ markable_block(ScoopGcMarkWorker *worker, const void *object, size_t *word, uint
         return NULL;
     }
     size_t index = 0;
+    ScoopGcBlockHead *head;
     if (region->large) {
-        if (!scoop_heap_object_meta_in_block(object, &region->blocks[0], word)) {
+        *large = &region->blocks[0];
+        head = (*large)->head;
+        if (!scoop_heap_object_meta_in_block(object, *large, word)) {
             heap_fatal("managed slot is not a current heap object start");
         }
     } else {
         uintptr_t offset = (uintptr_t)object - region->base;
         index = offset / GC_BLOCK_SIZE;
-        if (!scoop_heap_small_object_meta_at(offset % GC_BLOCK_SIZE, &region->heads[index],
+        head = &region->heads[index];
+        if (!scoop_heap_small_object_meta_at(offset % GC_BLOCK_SIZE, head,
                                              &region->starts[index * GC_BITMAP_WORDS], word)) {
             heap_fatal("managed slot is not a current heap object start");
         }
     }
-    if (worker->minor && region->heads[index].generation != SCOOP_GC_YOUNG) {
+    if (worker->minor && head->generation != SCOOP_GC_YOUNG) {
         return NULL;
     }
-    if (!region->large) {
+    if (*large == NULL) {
         *marks = &region->marks[index * GC_BITMAP_WORDS];
     }
-    return &region->blocks[index];
+    return head;
 }
 
 static void record_remembered_slot(ScoopGcMarkWorker *worker, void **slot) {
@@ -188,27 +193,26 @@ static inline __attribute__((always_inline)) void
 mark_target(ScoopGcMarkWorker *worker, void *object, void **remembered_slot) {
     size_t word;
     uint64_t *marks = NULL;
-    ScoopGcBlockMeta *block = markable_block(worker, object, &word, &marks);
-    if (block == NULL) {
+    ScoopGcBlockMeta *large = NULL;
+    ScoopGcBlockHead *head = markable_head(worker, object, &word, &marks, &large);
+    if (head == NULL) {
         return;
     }
     if (remembered_slot != NULL) {
         record_remembered_slot(worker, remembered_slot);
     }
-    if (!first_mark(block, word, marks)) {
+    if (!first_mark(large, word, marks)) {
         return;
     }
     uint64_t gc_word = scoop_heap_current_gc_word(object);
-    size_t size = block->head->kind == SCOOP_BLOCK_KIND_LARGE
-                      ? block->exact_size
-                      : gc_word & GC_SMALL_SIZE_MASK;
+    size_t size = marks == NULL ? large->exact_size : gc_word & GC_SMALL_SIZE_MASK;
     scoop_gc_validate_object(object, size);
-    ScoopGcMarkBlockCount *counts = &worker->blocks[block->mark_index];
+    ScoopGcMarkBlockCount *counts = &worker->blocks[head->mark_index];
     counts->live_bytes += size;
     if (worker->slot_layout) {
         mark_slot_layout(counts, word, size);
     } else {
-        if (!worker->minor && block->head->kind == SCOOP_BLOCK_KIND_SMALL) {
+        if (!worker->minor && marks != NULL) {
             scoop_gc_record_live_lines(counts->live_lines, word, size);
         }
         if ((gc_word & GC_PIN_BIT) == 0) {

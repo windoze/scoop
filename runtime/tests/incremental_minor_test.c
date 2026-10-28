@@ -128,7 +128,7 @@ static void changed_edges(void **roots) {
 
     scoop_gc_mutator_invalidate(scoop_gc_current_mutator());
     roots[2] = nursery_node(806);
-    assert(pointer_block(roots[2])->mark_index == SIZE_MAX);
+    assert(pointer_block(roots[2])->head->mark_index == SIZE_MAX);
     for (size_t index = 7; index < ARRAY_LENGTH; index += 67) {
         elements(roots)[index] = roots[2];
         scoop_rt_gc_write_barrier(&elements(roots)[index], sizeof(void *));

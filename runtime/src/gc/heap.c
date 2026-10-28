@@ -245,7 +245,7 @@ ScoopGcBlockMeta *activate_small_block(ScoopGcBlockState state, bool allow_growt
     block->exact_size = 0;
     block->live_bytes = 0;
     block->movable_live_bytes = 0;
-    block->mark_index = SIZE_MAX;
+    block->head->mark_index = SIZE_MAX;
     block->discard_pending = true;
     committed_bytes += GC_BLOCK_SIZE;
     active_block_heads++;
@@ -268,7 +268,7 @@ ScoopGcBlockMeta *activate_large_block(size_t exact_size, ScoopGcBlockState stat
     block->survivor = false;
     block->retained_young = false;
     block->exact_size = exact_size;
-    block->mark_index = SIZE_MAX;
+    block->head->mark_index = SIZE_MAX;
     region->next_block = 1;
     committed_bytes += region->size;
     active_block_heads++;

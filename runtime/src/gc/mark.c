@@ -290,7 +290,7 @@ uint64_t scoop_gc_mark_complete(bool minor) {
         }
         for (size_t index = 0; index < scoop_gc_marker.active_workers; index++) {
             const ScoopGcMarkBlockCount *counts =
-                &scoop_gc_marker.workers[index].blocks[block->mark_index];
+                &scoop_gc_marker.workers[index].blocks[block->head->mark_index];
             block->live_bytes += counts->live_bytes;
             if (slot_layout) {
                 size_t size = counts->slot_size;

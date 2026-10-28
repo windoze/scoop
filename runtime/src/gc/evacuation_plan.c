@@ -78,7 +78,7 @@ static void discard_copy_groups(MovingPlan *plan) {
         ScoopGcCopyBlock *group = plan->copy_groups;
         plan->copy_groups = group->next;
         group->block->copy_reserved = false;
-        group->block->mark_index = SIZE_MAX;
+        group->block->head->mark_index = SIZE_MAX;
         free(group);
     }
 }
@@ -94,11 +94,11 @@ static bool append_move(MovingPlan *plan, PendingMove *move, ScoopGcBlockMeta *t
             group->block = target;
             group->next = plan->copy_groups;
             plan->copy_groups = group;
-            target->copy_group = group;
+            target->head->copy_group = group;
             target->copy_reserved = true;
         }
-        first = &target->copy_group->first;
-        last = &target->copy_group->last;
+        first = &target->head->copy_group->first;
+        last = &target->head->copy_group->last;
     }
     if (*last == NULL) {
         *first = move;

@@ -178,7 +178,7 @@ static bool incremental_step(bool minor, bool finish, bool *finished) {
         size_t total_blocks = heap->incremental_blocks;
         for (ScoopGcBlockMeta *block = heap->young_blocks; block != heap->incremental_young_head;
              block = block->next_collection) {
-            block->mark_index = total_blocks++;
+            block->head->mark_index = total_blocks++;
         }
         scoop_gc_mark_resume(heap->incremental_blocks, total_blocks);
         heap->incremental_blocks = total_blocks;

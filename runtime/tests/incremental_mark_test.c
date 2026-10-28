@@ -144,7 +144,7 @@ static void changed_edges(void **roots) {
     ((NurseryNode *)roots[2])->next = detach_white_tail(roots);
     scoop_rt_gc_write_barrier(&((NurseryNode *)roots[2])->next, sizeof(void *));
     assert(scoop_gc_heap_state.incremental_active);
-    assert(pointer_block(roots[2])->mark_index == SIZE_MAX);
+    assert(pointer_block(roots[2])->head->mark_index == SIZE_MAX);
     for (size_t index = 7; index < ARRAY_LENGTH; index += 67) {
         NurseryNode **slots = elements(roots);
         slots[index] = roots[2];
