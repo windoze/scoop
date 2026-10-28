@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include "../gc_binding/object.h"
-#include "allocation_metadata.h"
+#include "copy_metadata.h"
 #include "gc_internal.h"
 #include "heap_internal.h"
 #include "mark_internal.h"
@@ -336,6 +336,7 @@ static CopyTotals copy_reserved_objects(PendingMove *move, ScoopGcBlockMeta *own
     ScoopGcBlockMeta *target_block = owned_block;
     uintptr_t target_base = owned_block == NULL ? 0 : (uintptr_t)block_base(owned_block);
     CopyTotals totals = {0};
+    ScoopGcCopyMetadata metadata = {0};
     while (move != NULL) {
         /* Copying destroys the temporary header, so take both fields first. */
         PendingMove *next = move->next;
@@ -354,17 +355,20 @@ static CopyTotals copy_reserved_objects(PendingMove *move, ScoopGcBlockMeta *own
             block = target_block;
         }
         memcpy(move, source, size);
-        totals.bytes += size;
         if (size <= GC_REGULAR_MAX) {
-            scoop_heap_record_small_metadata(block, move, size, true, true);
+            scoop_gc_copy_record_metadata(&metadata, block, (uintptr_t)move - target_base, size,
+                                           totals.bytes);
         } else {
+            scoop_gc_copy_finish_metadata(&metadata, totals.bytes);
             publish_large_object(block, true);
         }
+        totals.bytes += size;
         __atomic_store_n(&source->gc_word, (uintptr_t)move | GC_FORWARDED_BIT, __ATOMIC_RELAXED);
         *entry = move;
         totals.objects++;
         move = next;
     }
+    scoop_gc_copy_finish_metadata(&metadata, totals.bytes);
     return totals;
 }
 

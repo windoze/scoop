@@ -44,10 +44,24 @@ static const ScoopTypeDescriptor wide_td = {
     .object_scan = wide_scan,
 };
 
+enum {
+    SMALL_COUNT = 2 * GC_BLOCK_SIZE / sizeof(NurseryNode) + 19,
+    LARGE_VALUE = SMALL_COUNT + 1,
+    WIDE_VALUE = SMALL_COUNT + 2,
+    LIVE_COUNT = SMALL_COUNT + 2,
+};
+
+typedef struct ExpectedBlock {
+    ScoopGcBlockMeta *block;
+    size_t bytes;
+} ExpectedBlock;
+
 typedef struct ExpectedLiveSet {
-    void *original[6];
-    uint64_t gc_words[6];
-    unsigned seen;
+    void *original[LIVE_COUNT];
+    uint64_t gc_words[LIVE_COUNT];
+    bool seen[LIVE_COUNT];
+    ExpectedBlock targets[LIVE_COUNT];
+    size_t target_count;
 } ExpectedLiveSet;
 
 static void check_copy_metadata(void *object, void *original, uint64_t gc_word) {
@@ -70,7 +84,6 @@ static void check_copy_metadata(void *object, void *original, uint64_t gc_word) 
         size_t last = (offset + size - 1) / GC_LINE_SIZE;
         for (size_t line = offset / GC_LINE_SIZE; line <= last; line++) {
             assert(bit_test(block->line_live, line));
-            assert(bit_test(block->line_live, line));
         }
     }
 }
@@ -82,10 +95,9 @@ static void check_current_entry(void **entry, void *context) {
     uint64_t value = td == &large_td  ? ((LargeNode *)object)->value
                      : td == &wide_td ? ((WideNode *)object)->value
                                       : ((NurseryNode *)object)->value;
-    assert(value >= 1 && value <= 6);
-    unsigned bit = 1u << (value - 1);
-    assert((expected->seen & bit) == 0);
-    expected->seen |= bit;
+    assert(value >= 1 && value <= LIVE_COUNT);
+    assert(!expected->seen[value - 1]);
+    expected->seen[value - 1] = true;
     void *original = expected->original[value - 1];
     assert((object == original) == (value == 3));
     ScoopGcBlockMeta *source;
@@ -93,6 +105,18 @@ static void check_current_entry(void **entry, void *context) {
     assert(object_meta(original, &source, &word));
     assert(scoop_heap_forward_object(original, source, word) == object);
     check_copy_metadata(object, original, expected->gc_words[value - 1]);
+    ScoopGcBlockMeta *target = pointer_block(object);
+    if (object != original && target->head->kind == SCOOP_BLOCK_KIND_SMALL) {
+        size_t index = 0;
+        while (index < expected->target_count && expected->targets[index].block != target) {
+            index++;
+        }
+        if (index == expected->target_count) {
+            expected->targets[index].block = target;
+            expected->target_count++;
+        }
+        expected->targets[index].bytes += scoop_gc_object_size_locked(object);
+    }
     assert(!scoop_gc_object_was_scanned_locked(object));
     if (td->object_scan != NULL) {
         scoop_heap_claim_current_object(object);
@@ -113,31 +137,38 @@ static void run_case(size_t workers) {
     assert(nursery_metrics().full_collections == 1);
 
     ExpectedLiveSet expected = {0};
-    void **slots[6];
-    for (size_t index = 0; index < 6; index++) {
+    void **slots[LIVE_COUNT];
+    for (size_t index = 0; index < LIVE_COUNT; index++) {
         slots[index] = &expected.original[index];
     }
     ScoopNativeRootFrame roots;
-    scoop_rt_push_native_roots(&roots, slots, 6);
+    scoop_rt_push_native_roots(&roots, slots, LIVE_COUNT);
     for (size_t index = 0; index < 3; index++) {
         expected.original[index] = nursery_node(index + 1);
     }
     NurseryNode *leaf = nursery_allocate(&leaf_td, sizeof *leaf);
     leaf->value = 4;
     expected.original[3] = leaf;
+    for (size_t index = 4; index < SMALL_COUNT; index++) {
+        expected.original[index] = nursery_node(index + 1);
+    }
     LargeNode *large = nursery_allocate(&large_td, sizeof *large);
-    large->value = 5;
+    large->value = LARGE_VALUE;
     large->child = expected.original[0];
-    expected.original[4] = large;
+    expected.original[LARGE_VALUE - 1] = large;
     WideNode *wide = nursery_allocate(&wide_td, sizeof *wide);
-    wide->value = 6;
+    wide->value = WIDE_VALUE;
     wide->child = expected.original[1];
     memset(wide->padding, 0x6d, sizeof wide->padding);
-    expected.original[5] = wide;
+    expected.original[WIDE_VALUE - 1] = wide;
     ((NurseryNode *)expected.original[0])->next = expected.original[1];
     ((NurseryNode *)expected.original[2])->next = expected.original[1];
+    for (size_t index = 4; index < SMALL_COUNT; index++) {
+        ((NurseryNode *)expected.original[index])->next =
+            expected.original[(index + 313) % SMALL_COUNT];
+    }
     assert(scoop_rt_pin(expected.original[2]) == expected.original[2]);
-    for (size_t index = 0; index < 6; index++) {
+    for (size_t index = 0; index < LIVE_COUNT; index++) {
         expected.gc_words[index] = ((ScoopObjectHeader *)expected.original[index])->gc_word;
     }
 
@@ -155,12 +186,20 @@ static void run_case(size_t workers) {
     size_t blocks = scoop_gc_heap_begin_collection_locked(false);
     scoop_gc_mark_begin(false, blocks);
     scoop_gc_mark_roots();
-    assert(scoop_gc_mark_finish(false) == 6);
+    assert(scoop_gc_mark_finish(false) == LIVE_COUNT);
     ScoopGcSurvivors survivors;
     assert(scoop_gc_heap_plan_moving_locked(false, &survivors));
-    assert(moved_objects == 5 && survivors.objects == 0);
+    assert(moved_objects == LIVE_COUNT - 1 && survivors.objects == 0);
     scoop_gc_mark_visit_live(check_current_entry, &expected);
-    assert(expected.seen == 63);
+    for (size_t index = 0; index < LIVE_COUNT; index++) {
+        assert(expected.seen[index]);
+    }
+    assert(expected.target_count >= 3);
+    for (size_t index = 0; index < expected.target_count; index++) {
+        const ExpectedBlock *target = &expected.targets[index];
+        assert(target->block->live_bytes == target->bytes);
+        assert(target->block->movable_live_bytes == target->bytes);
+    }
     /* The child intentionally ends at this boundary; full-cycle tests cover update/reclaim. */
     _exit(0);
 }

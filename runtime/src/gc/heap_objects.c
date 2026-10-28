@@ -63,7 +63,7 @@ void record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_siz
          (UINT64_C(1) << (word % 64))) != 0) {
         heap_fatal("small object overlaps invalid storage");
     }
-    scoop_heap_record_small_metadata(block, object, exact_size, false, false);
+    scoop_heap_record_small_metadata(block, object, exact_size, false);
 }
 
 void publish_large_object(ScoopGcBlockMeta *block, bool marked) {
