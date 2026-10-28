@@ -257,7 +257,15 @@ fn emit_llvm_module_with_surface<'ctx, R>(
             .iter()
             .filter(|function| selection.defines_callable(function.callable_body.id()))
             .find_map(|function| crate::debug::source_file(function))
-            .map(|source| crate::debug::DebugContext::new(context, &llvm, profile, source))
+            .map(|source| {
+                crate::debug::DebugContext::new(
+                    context,
+                    &llvm,
+                    profile,
+                    source,
+                    &module.meta.debug_types,
+                )
+            })
     };
     let module_ctx = ModuleCtx {
         debug: debug.as_ref(),

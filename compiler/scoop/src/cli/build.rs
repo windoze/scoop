@@ -32,7 +32,7 @@ pub(super) fn requests(
         BuildProfile::Debug
     });
     let debug_info = args.debug_info.unwrap_or(match profile {
-        BuildProfile::Debug => scoop_lir::DebugInfoLevel::LineTables,
+        BuildProfile::Debug => scoop_lir::DebugInfoLevel::Full,
         BuildProfile::Release => scoop_lir::DebugInfoLevel::None,
     });
     let sysroot = absolute(

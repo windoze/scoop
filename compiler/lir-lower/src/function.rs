@@ -196,7 +196,7 @@ pub(super) fn lower_function<'a>(
         block_map.insert(mir_id, lir_id);
     }
     let mut entry = block_map[&function.body.entry];
-    let debug_variables = function
+    let debug_variables: Vec<_> = function
         .body
         .locals
         .iter()
@@ -204,6 +204,7 @@ pub(super) fn lower_function<'a>(
             let mir::DebugVariable::Source {
                 declaration,
                 location,
+                parameter,
             } = &definition.debug_variable
             else {
                 return None;
@@ -216,14 +217,31 @@ pub(super) fn lower_function<'a>(
                     LocalSlot::Param(index) => lir::DebugStorage::Parameter(index),
                     LocalSlot::Slot(id) => lir::DebugStorage::Local(id),
                 },
-                parameter: function
-                    .params
-                    .iter()
-                    .position(|param| param.local == local)
-                    .map(|index| std::num::NonZeroU32::new(index as u32 + 1).unwrap()),
+                parameter: parameter.or_else(|| {
+                    function
+                        .params
+                        .iter()
+                        .position(|param| param.local == local)
+                        .map(|index| std::num::NonZeroU32::new(index as u32 + 1).unwrap())
+                }),
             })
         })
         .collect();
+    let debug_signature = if matches!(function.debug_origin, mir::DebugOrigin::Generated)
+        && debug_variables.is_empty()
+    {
+        lir::DebugSignature::Generated
+    } else {
+        lir::DebugSignature::Source {
+            parameters: function
+                .params
+                .iter()
+                .map(|param| exact_type_record(module, &param.ty).id())
+                .collect(),
+            result: (function.return_ty != mir::Type::Unit)
+                .then(|| exact_type_record(module, &function.return_ty).id()),
+        }
+    };
     let loop_header_polls = function
         .body
         .loop_header_polls
@@ -326,6 +344,7 @@ pub(super) fn lower_function<'a>(
             debug_origin: function.debug_origin.clone(),
             debug_name: function.name.clone(),
             debug_variables,
+            debug_signature,
             gc_effect: match function.gc_effect {
                 mir::GcEffect::Managed => lir::GcEffect::Managed,
                 mir::GcEffect::NoGc => lir::GcEffect::NoGc,

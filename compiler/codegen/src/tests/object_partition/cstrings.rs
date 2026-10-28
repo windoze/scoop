@@ -40,6 +40,7 @@ fn message_module(odr: bool) -> (Module, ObjectDefinitionAtomId) {
     module.functions = vec![Function {
         debug_name: Default::default(),
         debug_variables: Vec::new(),
+        debug_signature: Default::default(),
         debug_origin: Default::default(),
         callable_body: body,
         gc_effect: GcEffect::NoGc,

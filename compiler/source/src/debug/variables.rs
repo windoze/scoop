@@ -26,6 +26,7 @@ pub enum DebugVariable {
     Source {
         declaration: Arc<DebugDeclaration>,
         location: Arc<DebugLocation>,
+        parameter: Option<std::num::NonZeroU32>,
     },
 }
 
@@ -89,6 +90,7 @@ impl DebugRecords {
         DebugVariable::Source {
             declaration,
             location,
+            parameter: None,
         }
     }
 

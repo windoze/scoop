@@ -230,6 +230,7 @@ mod tests {
         let mut function = lir::Function {
             debug_name: Default::default(),
             debug_variables: Vec::new(),
+            debug_signature: Default::default(),
             debug_origin: Default::default(),
             callable_body: callable_body(),
             gc_effect: lir::GcEffect::Managed,

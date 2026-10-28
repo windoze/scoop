@@ -210,6 +210,7 @@ pub(super) fn local_function(function: PersistentFunctionId) -> Function {
     Function {
         debug_name: Default::default(),
         debug_variables: Vec::new(),
+        debug_signature: Default::default(),
         debug_origin: Default::default(),
         callable_body: CallableBodyIdentity::for_function(function).unwrap(),
         gc_effect: crate::GcEffect::Managed,

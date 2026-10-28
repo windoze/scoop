@@ -22,11 +22,22 @@ pub enum DebugStorage {
     Parameter(u32),
 }
 
+#[derive(Debug, Default)]
+pub enum DebugSignature {
+    #[default]
+    Generated,
+    Source {
+        parameters: Vec<scoop_identity::PersistentExactTypeId>,
+        result: Option<scoop_identity::PersistentExactTypeId>,
+    },
+}
+
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub enum DebugInfoLevel {
     #[default]
     None,
     LineTables,
+    Full,
 }
 
 impl DebugInfoLevel {
@@ -34,6 +45,7 @@ impl DebugInfoLevel {
         match self {
             Self::None => "none",
             Self::LineTables => "line-tables",
+            Self::Full => "full",
         }
     }
 }
@@ -45,7 +57,8 @@ impl std::str::FromStr for DebugInfoLevel {
         match value {
             "none" => Ok(Self::None),
             "line-tables" => Ok(Self::LineTables),
-            _ => Err("expected none or line-tables"),
+            "full" => Ok(Self::Full),
+            _ => Err("expected none, line-tables or full"),
         }
     }
 }
@@ -61,6 +74,7 @@ impl WireEncode for DebugInfoLevel {
         encoder.unsigned(match self {
             Self::None => 0,
             Self::LineTables => 1,
+            Self::Full => 2,
         })
     }
 }
@@ -70,6 +84,7 @@ impl WireDecode for DebugInfoLevel {
         match decoder.unsigned()? {
             0 => Ok(Self::None),
             1 => Ok(Self::LineTables),
+            2 => Ok(Self::Full),
             tag => Err(WireError::new(
                 WireErrorKind::UnknownTag { tag },
                 decoder.path().clone(),

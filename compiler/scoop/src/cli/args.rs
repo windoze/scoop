@@ -90,7 +90,7 @@ pub(super) struct BuildOptions {
     pub profile: Option<BuildProfile>,
     #[arg(long, conflicts_with = "profile")]
     pub release: bool,
-    /// Native source debug information: none or line-tables; debug defaults to line-tables.
+    /// Native source debug information: none, line-tables or full; debug defaults to full.
     #[arg(long)]
     pub debug_info: Option<scoop_lir::DebugInfoLevel>,
     #[arg(long)]

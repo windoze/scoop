@@ -43,6 +43,7 @@ pub(super) fn semantic_module() -> (Module, CallableBodyIdentity, Vec<SafepointI
     let function = Function {
         debug_name: Default::default(),
         debug_variables: Vec::new(),
+        debug_signature: Default::default(),
         debug_origin: Default::default(),
         callable_body: body.clone(),
         gc_effect: GcEffect::Managed,

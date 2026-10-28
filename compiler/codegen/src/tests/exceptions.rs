@@ -20,6 +20,7 @@ pub(super) fn exceptions_module() -> Module {
     let thrower = Function {
         debug_name: Default::default(),
         debug_variables: Vec::new(),
+        debug_signature: Default::default(),
         debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
@@ -44,6 +45,7 @@ pub(super) fn exceptions_module() -> Module {
     let may_throw = Function {
         debug_name: Default::default(),
         debug_variables: Vec::new(),
+        debug_signature: Default::default(),
         debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
@@ -206,6 +208,7 @@ pub(super) fn exceptions_module() -> Module {
     let eh_test = Function {
         debug_name: Default::default(),
         debug_variables: Vec::new(),
+        debug_signature: Default::default(),
         debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),

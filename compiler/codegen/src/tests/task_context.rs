@@ -67,6 +67,7 @@ fn switched_context_module() -> Module {
     module.functions = vec![Function {
         debug_name: Default::default(),
         debug_variables: Vec::new(),
+        debug_signature: Default::default(),
         debug_origin: Default::default(),
         callable_body: callable_body("switch_context"),
         safepoints: test_safepoints("switch_context", &blocks, entry),

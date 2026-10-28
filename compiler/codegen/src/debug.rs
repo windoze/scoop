@@ -9,7 +9,7 @@ use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::debug_info::{
     AsDIScope, DICompileUnit, DIFile, DIFlags, DIFlagsConstants, DILocation, DIScope, DISubprogram,
-    DWARFEmissionKind, DWARFSourceLanguage, DebugInfoBuilder,
+    DIType, DWARFEmissionKind, DWARFSourceLanguage, DebugInfoBuilder,
 };
 use inkwell::module::{FlagBehavior, Module};
 use inkwell::values::FunctionValue;
@@ -17,20 +17,29 @@ use scoop_source::{DebugFile, DebugInlineSite, DebugLocation, DebugOrigin, Debug
 
 use crate::ValidatedBackendProfile;
 
-pub(crate) struct DebugContext<'ctx> {
+mod types;
+mod variables;
+
+use variables::Variable;
+
+pub(crate) struct DebugContext<'a, 'ctx> {
     context: &'ctx Context,
     builder: DebugInfoBuilder<'ctx>,
     unit: DICompileUnit<'ctx>,
     optimized: bool,
     files: RefCell<HashMap<Arc<DebugFile>, DIFile<'ctx>>>,
+    source_types: &'a scoop_lir::DebugTypes,
+    types: RefCell<HashMap<scoop_lir::PersistentExactTypeId, DIType<'ctx>>>,
+    full: bool,
 }
 
-impl<'ctx> DebugContext<'ctx> {
+impl<'a, 'ctx> DebugContext<'a, 'ctx> {
     pub(crate) fn new(
         context: &'ctx Context,
         module: &Module<'ctx>,
         profile: ValidatedBackendProfile,
         source: &DebugFile,
+        source_types: &'a scoop_lir::DebugTypes,
     ) -> Self {
         let (filename, directory) = path_parts(source);
         let optimized = profile.optimization() == scoop_lir::OptimizationMode::Release;
@@ -44,7 +53,11 @@ impl<'ctx> DebugContext<'ctx> {
             "",
             0,
             "",
-            DWARFEmissionKind::LineTablesOnly,
+            if profile.debug_info() == scoop_lir::DebugInfoLevel::Full {
+                DWARFEmissionKind::Full
+            } else {
+                DWARFEmissionKind::LineTablesOnly
+            },
             0,
             true,
             false,
@@ -69,6 +82,9 @@ impl<'ctx> DebugContext<'ctx> {
             unit,
             optimized,
             files: RefCell::default(),
+            source_types,
+            types: RefCell::default(),
+            full: profile.debug_info() == scoop_lir::DebugInfoLevel::Full,
         }
     }
 
@@ -89,11 +105,23 @@ impl<'ctx> DebugContext<'ctx> {
         linkage: &str,
         source: &Arc<DebugFile>,
         line: u32,
+        signature: &scoop_lir::DebugSignature,
     ) -> DISubprogram<'ctx> {
         let file = self.file(source);
-        let signature = self
-            .builder
-            .create_subroutine_type(file, None, &[], DIFlags::PUBLIC);
+        let (parameters, result) = if self.full {
+            match signature {
+                scoop_lir::DebugSignature::Generated => (Vec::new(), None),
+                scoop_lir::DebugSignature::Source { parameters, result } => (
+                    parameters.iter().map(|ty| self.source_type(*ty)).collect(),
+                    result.map(|ty| self.source_type(ty)),
+                ),
+            }
+        } else {
+            (Vec::new(), None)
+        };
+        let signature =
+            self.builder
+                .create_subroutine_type(file, result, &parameters, DIFlags::PUBLIC);
         self.builder.create_function(
             self.unit.as_debug_info_scope(),
             name,
@@ -109,11 +137,11 @@ impl<'ctx> DebugContext<'ctx> {
         )
     }
 
-    pub(crate) fn function<'a>(
-        &'a self,
+    pub(crate) fn function<'b>(
+        &'b self,
         function: &scoop_lir::Function,
         llvm: FunctionValue<'ctx>,
-    ) -> Option<FunctionDebug<'a, 'ctx>> {
+    ) -> Option<FunctionDebug<'b, 'ctx>> {
         let source = source_file(function)?;
         let line = match &function.debug_origin {
             DebugOrigin::Source(origin) => origin.line,
@@ -124,7 +152,13 @@ impl<'ctx> DebugContext<'ctx> {
         } else {
             &function.debug_name
         };
-        let subprogram = self.subprogram(name, function.symbol(), source, line);
+        let subprogram = self.subprogram(
+            name,
+            function.symbol(),
+            source,
+            line,
+            &function.debug_signature,
+        );
         llvm.set_subprogram(subprogram);
         Some(FunctionDebug {
             context: self,
@@ -133,6 +167,7 @@ impl<'ctx> DebugContext<'ctx> {
             lexical_scopes: HashMap::new(),
             inline_functions: HashMap::new(),
             locations: HashMap::new(),
+            variables: HashMap::new(),
         })
     }
 
@@ -142,12 +177,13 @@ impl<'ctx> DebugContext<'ctx> {
 }
 
 pub(crate) struct FunctionDebug<'a, 'ctx> {
-    context: &'a DebugContext<'ctx>,
+    context: &'a DebugContext<'a, 'ctx>,
     scope: DIScope<'ctx>,
     scopes: HashMap<(usize, Arc<DebugFile>), DIScope<'ctx>>,
     lexical_scopes: HashMap<(usize, Arc<DebugScope>), DIScope<'ctx>>,
     inline_functions: HashMap<Arc<DebugInlineSite>, DIScope<'ctx>>,
     locations: HashMap<Arc<DebugLocation>, DILocation<'ctx>>,
+    variables: HashMap<scoop_lir::DebugStorage, Vec<Variable<'ctx>>>,
 }
 
 impl<'ctx> FunctionDebug<'_, 'ctx> {
@@ -183,7 +219,13 @@ impl<'ctx> FunctionDebug<'_, 'ctx> {
                             DebugOrigin::Generated => (&location.file, 0),
                         };
                         self.context
-                            .subprogram(&site.function, "", file, line)
+                            .subprogram(
+                                &site.function,
+                                "",
+                                file,
+                                line,
+                                &scoop_lir::DebugSignature::Generated,
+                            )
                             .as_debug_info_scope()
                     });
                 (scope, Some(call_site))

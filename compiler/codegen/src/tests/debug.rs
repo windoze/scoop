@@ -3,6 +3,9 @@ use object::{Object, ObjectSection};
 use scoop_source::{DebugFile, DebugRecords};
 use std::sync::Arc;
 
+mod managed;
+mod variables;
+
 #[test]
 fn dwarf_lines_and_inline_calls_survive_optimization_and_statepoints() {
     let mut module = values_module();
@@ -36,6 +39,7 @@ fn dwarf_lines_and_inline_calls_survive_optimization_and_statepoints() {
         for level in [
             scoop_lir::DebugInfoLevel::None,
             scoop_lir::DebugInfoLevel::LineTables,
+            scoop_lir::DebugInfoLevel::Full,
         ] {
             let profile = host_profile()
                 .with_optimization(mode)
@@ -52,7 +56,6 @@ fn dwarf_lines_and_inline_calls_survive_optimization_and_statepoints() {
             assert_eq!(ir.contains("!DICompileUnit("), enabled, "{ir}");
             if enabled {
                 for expected in [
-                    "emissionKind: LineTablesOnly",
                     "filename: \"debug program.scoop\", directory: \"/workspace\"",
                     "name: \"main\"",
                     "name: \"concatenate\"",
@@ -62,6 +65,11 @@ fn dwarf_lines_and_inline_calls_survive_optimization_and_statepoints() {
                 ] {
                     assert!(ir.contains(expected), "missing {expected}: {ir}");
                 }
+                assert!(ir.contains(if level == scoop_lir::DebugInfoLevel::Full {
+                    "emissionKind: FullDebug"
+                } else {
+                    "emissionKind: LineTablesOnly"
+                }));
                 assert!(ir.contains(&format!(
                     "linkageName: \"{}\"",
                     module.functions[0].symbol()

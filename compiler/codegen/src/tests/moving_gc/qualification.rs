@@ -43,6 +43,7 @@ pub(in crate::tests) fn stackmap_qualification_module() -> Module {
         Function {
             debug_name: Default::default(),
             debug_variables: Vec::new(),
+            debug_signature: Default::default(),
             debug_origin: Default::default(),
             callable_body: callable_body(symbol),
             safepoints: test_safepoints(symbol, &blocks, entry),

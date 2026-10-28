@@ -17,6 +17,7 @@ pub(super) fn foreign_callback_adapter(symbol: &str) -> Function {
     Function {
         debug_name: Default::default(),
         debug_variables: Vec::new(),
+        debug_signature: Default::default(),
         debug_origin: Default::default(),
         callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
@@ -45,6 +46,7 @@ fn static_callback_bridge(module: &mut Module, symbol: &str) -> scoop_lir::NoGcL
     module.functions.push(Function {
         debug_name: Default::default(),
         debug_variables: Vec::new(),
+        debug_signature: Default::default(),
         debug_origin: Default::default(),
         callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
@@ -579,6 +581,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         functions: vec![Function {
             debug_name: Default::default(),
             debug_variables: Vec::new(),
+            debug_signature: Default::default(),
             debug_origin: Default::default(),
             callable_body: callable_body_at(file!(), line!()),
             safepoints: scoop_lir::SafepointIdentities::default(),

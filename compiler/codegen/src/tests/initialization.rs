@@ -42,6 +42,7 @@ fn initialization_ready_path_keeps_roots_and_runtime_only_on_the_slow_edge() {
     module.functions = vec![Function {
         debug_name: Default::default(),
         debug_variables: Vec::new(),
+        debug_signature: Default::default(),
         debug_origin: Default::default(),
         callable_body: callable_body("ready"),
         safepoints: test_safepoints("ready", &blocks, entry),

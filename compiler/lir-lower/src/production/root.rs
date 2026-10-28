@@ -129,6 +129,7 @@ pub(super) fn root_gateway(
         function: scoop_lir::Function {
             debug_name: Default::default(),
             debug_variables: Vec::new(),
+            debug_signature: Default::default(),
             debug_origin: Default::default(),
             callable_body,
             gc_effect: scoop_lir::GcEffect::Managed,

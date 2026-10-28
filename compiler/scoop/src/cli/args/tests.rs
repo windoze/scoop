@@ -82,7 +82,7 @@ fn independent_debug_files_are_an_explicit_final_link_option() {
 #[test]
 fn debug_information_is_an_independent_source_compilation_option() {
     for command in ["build", "run", "test"] {
-        for level in ["none", "line-tables"] {
+        for level in ["none", "line-tables", "full"] {
             let cli = Cli::try_parse_from(["scoop", command, "--release", "--debug-info", level])
                 .unwrap();
             let options = match cli.command {

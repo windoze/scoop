@@ -261,6 +261,7 @@ mod tests {
         for level in [
             crate::DebugInfoLevel::None,
             crate::DebugInfoLevel::LineTables,
+            crate::DebugInfoLevel::Full,
         ] {
             for mode in [
                 crate::OptimizationMode::Debug,

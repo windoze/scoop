@@ -155,6 +155,7 @@ fn roundtrip_module(ty: LirType, size: u64, offsets: &[u64]) -> Module {
     module.functions = vec![Function {
         debug_name: Default::default(),
         debug_variables: Vec::new(),
+        debug_signature: Default::default(),
         debug_origin: Default::default(),
         callable_body: callable_body("boxRoundtrip"),
         gc_effect: GcEffect::Managed,

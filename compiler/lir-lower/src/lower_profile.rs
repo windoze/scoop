@@ -24,16 +24,6 @@ fn canonicalize(
     module: &mut lir::Module,
     diagnostics: &impl ExactTypeDiagnosticGraph,
 ) -> Result<(), LirLoweringError> {
-    for (&exact, ty) in &mut module.meta.debug_types {
-        ty.name = CanonicalExactTypeDiagnosticName::from_validated_graph(exact, diagnostics)
-            .map_err(LirLoweringError::Diagnostic)?
-            .into_string();
-        if let lir::DebugTypeKind::Pointer(lir::DebugTypeRef::Inline(object)) = &mut ty.kind
-            && matches!(object.kind, lir::DebugTypeKind::Record(_))
-        {
-            object.name.clone_from(&ty.name);
-        }
-    }
     for (_, descriptor) in module.meta.type_descriptors.iter_mut() {
         descriptor.diagnostic_name = CanonicalExactTypeDiagnosticName::from_validated_graph(
             descriptor.identity.exact_type(),

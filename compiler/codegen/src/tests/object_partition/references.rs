@@ -30,6 +30,7 @@ fn callable_modules_declare_their_own_data_and_keep_complete_metadata_definition
             Function {
                 debug_name: Default::default(),
                 debug_variables: Vec::new(),
+                debug_signature: Default::default(),
                 debug_origin: Default::default(),
                 callable_body: callable_body(&format!("selectData{ordinal}")),
                 gc_effect: GcEffect::NoGc,

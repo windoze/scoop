@@ -31,6 +31,11 @@ fn debug_info_changes_code_reuse_without_changing_semantic_dependencies() {
         .clone()
         .with_debug_info(scoop_lir::DebugInfoLevel::LineTables);
     assert_ne!(none.key().unwrap(), lines.key().unwrap());
+    let full = none
+        .clone()
+        .with_debug_info(scoop_lir::DebugInfoLevel::Full);
+    assert_ne!(lines.key().unwrap(), full.key().unwrap());
+    assert_ne!(none.key().unwrap(), full.key().unwrap());
     assert_eq!(none.dependencies(), lines.dependencies());
     assert_eq!(none.current_semantic(), lines.current_semantic());
     assert_eq!(none.backend, lines.backend);

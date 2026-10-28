@@ -35,6 +35,20 @@ pub(super) fn types(
         .values()
         .chain(module.release_hooks.values().map(|hook| &hook.code))
     {
+        if matches!(function.debug_origin, mir::DebugOrigin::Source(_))
+            || function
+                .body
+                .locals
+                .values()
+                .any(|local| matches!(local.debug_variable, mir::DebugVariable::Source { .. }))
+        {
+            for parameter in &function.params {
+                builder.source(&parameter.ty)?;
+            }
+            if function.return_ty != mir::Type::Unit {
+                builder.source(&function.return_ty)?;
+            }
+        }
         for local in function.body.locals.values() {
             if matches!(local.debug_variable, mir::DebugVariable::Source { .. }) {
                 builder.source(&local.ty)?;
@@ -59,7 +73,13 @@ impl Types<'_> {
     fn source(&mut self, ty: &mir::Type) -> StorageResult<DebugTypeRef> {
         let id = exact_type_record(self.module, ty).id();
         if self.visited.insert(id) {
-            let shape = self.describe(ty)?;
+            let mut shape = self.describe(ty)?;
+            shape.name = mir::type_name(self.module, ty);
+            if let DebugTypeKind::Pointer(DebugTypeRef::Inline(object)) = &mut shape.kind
+                && matches!(object.kind, DebugTypeKind::Record(_))
+            {
+                object.name.clone_from(&shape.name);
+            }
             self.types.insert(id, shape);
         }
         Ok(DebugTypeRef::Source(id))

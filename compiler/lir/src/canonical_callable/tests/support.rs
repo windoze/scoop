@@ -91,6 +91,7 @@ pub(super) fn function(name: &str, arguments: Vec<AbiArgument>, result: AbiRetur
     Function {
         debug_name: Default::default(),
         debug_variables: Vec::new(),
+        debug_signature: Default::default(),
         debug_origin: Default::default(),
         callable_body: crate::tests::callable_body(name),
         gc_effect: GcEffect::NoGc,

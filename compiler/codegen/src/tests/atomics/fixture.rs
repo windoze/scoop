@@ -93,6 +93,7 @@ fn function(kind: AtomicValueKind) -> Function {
     Function {
         debug_name: Default::default(),
         debug_variables: Vec::new(),
+        debug_signature: Default::default(),
         debug_origin: Default::default(),
         callable_body: callable_body(kind.registry_key()),
         safepoints: Default::default(),

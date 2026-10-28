@@ -58,6 +58,7 @@ fn managed_live_plan_produces_as1_relocation() {
         functions: vec![Function {
             debug_name: Default::default(),
             debug_variables: Vec::new(),
+            debug_signature: Default::default(),
             debug_origin: Default::default(),
             callable_body: callable_body("scoop.live_root"),
             safepoints: test_safepoints("scoop.live_root", &blocks, entry),
@@ -99,6 +100,7 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
     let callee = Function {
         debug_name: Default::default(),
         debug_variables: Vec::new(),
+        debug_signature: Default::default(),
         debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
@@ -196,6 +198,7 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
     let caller = Function {
         debug_name: Default::default(),
         debug_variables: Vec::new(),
+        debug_signature: Default::default(),
         debug_origin: Default::default(),
         callable_body: callable_body("scoop.invoke_caller"),
         safepoints: test_safepoints("scoop.invoke_caller", &blocks, entry),

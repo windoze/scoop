@@ -2,6 +2,7 @@ use super::*;
 
 mod abi_parts;
 mod call;
+mod debug;
 mod gc;
 mod instruction;
 mod interface_values;
@@ -13,6 +14,7 @@ mod thread_address;
 /// Per-function emission state: everything instruction translation
 /// needs, bundled to keep signatures small.
 struct FnEmitter<'a, 'ctx> {
+    debug: Option<std::cell::RefCell<crate::debug::FunctionDebug<'a, 'ctx>>>,
     context: &'ctx Context,
     managed_address_space: ManagedAddressSpace,
     optimize_allocations: bool,
@@ -301,6 +303,7 @@ pub(super) fn emit_function<'ctx>(
     }
 
     let mut emitter = FnEmitter {
+        debug: debug.map(std::cell::RefCell::new),
         context,
         managed_address_space: module_ctx.managed_address_space,
         optimize_allocations: module_ctx.optimize_allocations,
@@ -364,6 +367,7 @@ pub(super) fn emit_function<'ctx>(
     builder.position_at_end(blocks[arena_index(function.entry)]);
     emitter.allocate_locals()?;
     emitter.prepare_root_storage()?;
+    emitter.initialize_debug_variables()?;
     let mut initialization_successors = None;
     let mut young_successors = HashMap::new();
     for (block_id, block) in function.blocks.iter() {
@@ -380,8 +384,10 @@ pub(super) fn emit_function<'ctx>(
         // the first of its block (LLVM requires the landingpad first).
         let mut invoke_terminated = false;
         for (index, instruction) in block.instructions.iter().enumerate() {
-            if let Some(debug) = &mut debug {
-                debug.set_location(builder, block.instructions.origin(index));
+            if let Some(debug) = &emitter.debug {
+                debug
+                    .borrow_mut()
+                    .set_location(builder, block.instructions.origin(index));
             }
             emitter.current_instruction = index;
             let is_invoke = matches!(instruction, Instruction::Invoke { .. });
@@ -409,6 +415,15 @@ pub(super) fn emit_function<'ctx>(
                     emitter.sync_root_temp(temp)?;
                 }
             }
+            if instruction.safepoint().is_some()
+                && let Some(debug) = &emitter.debug
+            {
+                debug.borrow().invalidate_managed(
+                    builder
+                        .get_insert_block()
+                        .expect("an emitted instruction has a block"),
+                );
+            }
             invoke_terminated = is_invoke;
         }
         if invoke_terminated {
@@ -428,8 +443,10 @@ pub(super) fn emit_function<'ctx>(
             }
             continue;
         }
-        if let Some(debug) = &mut debug {
-            debug.set_location(builder, &block.terminator_origin);
+        if let Some(debug) = &emitter.debug {
+            debug
+                .borrow_mut()
+                .set_location(builder, &block.terminator_origin);
         }
         match &block.terminator {
             Terminator::Br(target) => {

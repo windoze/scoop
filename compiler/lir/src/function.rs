@@ -17,6 +17,7 @@ pub struct Function {
     pub debug_origin: scoop_source::DebugOrigin,
     pub debug_name: String,
     pub debug_variables: Vec<DebugBinding>,
+    pub debug_signature: DebugSignature,
     /// Persistent identity and canonical runtime key of this emitted Scoop
     /// machine body. Native/runtime declarations use their own typed targets
     /// and never fabricate a callable-body identity.

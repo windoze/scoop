@@ -111,6 +111,7 @@ fn retained_call_in_an_inlined_body_keeps_its_source_path_and_span() {
             mir::DebugVariable::Source {
                 declaration,
                 location,
+                ..
             } => Some((declaration, location)),
             mir::DebugVariable::Generated => None,
         })

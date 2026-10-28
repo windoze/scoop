@@ -88,6 +88,7 @@ fn empty_initialization_function(callable_body: CallableBodyIdentity) -> Functio
     Function {
         debug_name: Default::default(),
         debug_variables: Vec::new(),
+        debug_signature: Default::default(),
         debug_origin: Default::default(),
         callable_body,
         gc_effect: crate::GcEffect::Managed,

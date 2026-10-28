@@ -21,6 +21,7 @@ fn empty_leaf(name: &str) -> Function {
     Function {
         debug_name: Default::default(),
         debug_variables: Vec::new(),
+        debug_signature: Default::default(),
         debug_origin: Default::default(),
         callable_body: callable_body(name),
         gc_effect: GcEffect::NoGc,

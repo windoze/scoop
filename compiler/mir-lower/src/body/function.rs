@@ -120,6 +120,13 @@ impl BodyLowerer<'_> {
             .locals()
             .expect("source implementations and abstract slots have local environments");
         self.allocate_function_locals(function_id, locals);
+        for (index, param) in function.params.iter().enumerate() {
+            if let mir::DebugVariable::Source { parameter, .. } =
+                &mut self.locals[self.local_map[&param.local]].debug_variable
+            {
+                *parameter = std::num::NonZeroU32::new(index as u32 + 1);
+            }
+        }
         let params = function
             .params
             .iter()

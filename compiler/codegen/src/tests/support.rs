@@ -357,6 +357,7 @@ pub(super) fn append_executable_entry(module: &mut Module, identity_seed: &str) 
     module.functions.push(Function {
         debug_name: Default::default(),
         debug_variables: Vec::new(),
+        debug_signature: Default::default(),
         debug_origin: Default::default(),
         callable_body: callable_body(identity_seed),
         safepoints: scoop_lir::SafepointIdentities::default(),
@@ -1200,6 +1201,7 @@ pub(super) fn values_module() -> Module {
         functions: vec![Function {
             debug_name: Default::default(),
             debug_variables: Vec::new(),
+            debug_signature: Default::default(),
             debug_origin: Default::default(),
             callable_body: callable_body("scoop_main"),
             safepoints: test_safepoints("scoop_main", &blocks, entry),

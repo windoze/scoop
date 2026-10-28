@@ -160,6 +160,7 @@ fn pointer_nulls_preserve_raw_and_code_provenance_in_lir() {
     let function = lir::Function {
         debug_name: Default::default(),
         debug_variables: Vec::new(),
+        debug_signature: Default::default(),
         debug_origin: Default::default(),
         callable_body: test_callable_body("null_provenance"),
         gc_effect: lir::GcEffect::NoGc,

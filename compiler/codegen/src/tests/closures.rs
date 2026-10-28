@@ -129,6 +129,7 @@ fn closure_abi_module() -> Module {
         functions: vec![Function {
             debug_name: Default::default(),
             debug_variables: Vec::new(),
+            debug_signature: Default::default(),
             debug_origin: Default::default(),
             callable_body: callable_body_at(file!(), line!()),
             safepoints: scoop_lir::SafepointIdentities::default(),
@@ -271,6 +272,7 @@ fn elided_zst_calls_keep_logical_values_without_physical_abi_slots() {
     let callee = Function {
         debug_name: Default::default(),
         debug_variables: Vec::new(),
+        debug_signature: Default::default(),
         debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
@@ -314,6 +316,7 @@ fn elided_zst_calls_keep_logical_values_without_physical_abi_slots() {
     let caller = Function {
         debug_name: Default::default(),
         debug_variables: Vec::new(),
+        debug_signature: Default::default(),
         debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
