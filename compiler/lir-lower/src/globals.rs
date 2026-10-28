@@ -294,6 +294,13 @@ pub(super) fn lower_constant_image(
     string_globals: &HashMap<mir::StringConstId, lir::GlobalId>,
 ) -> lir::LirConstantImage {
     match value {
+        mir::MirConstantImage::Unit => lir::LirConstantImage::Aggregate(Vec::new()),
+        mir::MirConstantImage::Tuple(elements) => lir::LirConstantImage::Aggregate(
+            elements
+                .iter()
+                .map(|element| lower_constant_image(element, enums, string_globals))
+                .collect(),
+        ),
         mir::MirConstantImage::Integer(value) => {
             lir::LirConstantImage::Integer(integer_constant(*value))
         }

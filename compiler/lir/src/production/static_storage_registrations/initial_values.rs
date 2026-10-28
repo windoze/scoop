@@ -3,6 +3,7 @@
 use super::*;
 
 pub(super) struct StaticInitialStateEncoder<'a> {
+    pub(super) target: LirTargetProfile,
     pub(super) globals: &'a la_arena::Arena<crate::Global>,
     pub(super) structs: &'a crate::StructDefs,
     pub(super) enums: &'a crate::EnumDefs,
@@ -24,6 +25,37 @@ impl StaticInitialStateEncoder<'_> {
             kind: StaticStorageInitialValueFailureV1::TypeMismatch,
         };
         match value {
+            LirConstantImage::Aggregate(fields) => {
+                let LirType::Aggregate(types) = expected else {
+                    return Err(type_mismatch());
+                };
+                if fields.len() != types.len() {
+                    return Err(StrongStaticStorageSemanticPlanBuildError::InitialValue {
+                        storage,
+                        kind: StaticStorageInitialValueFailureV1::AggregateFieldCount,
+                    });
+                }
+                let shape_error =
+                    |kind| StrongStaticStorageSemanticPlanBuildError::Shape { storage, kind };
+                let mut offset = 0_u64;
+                for (field, ty) in fields.iter().zip(types) {
+                    let (size, alignment) =
+                        storage_shape(self.target, self.structs, self.enums, ty)
+                            .map_err(shape_error)?;
+                    offset = align_up(offset, alignment).map_err(shape_error)?;
+                    let base = base_offset.checked_add(offset).ok_or(
+                        StrongStaticStorageSemanticPlanBuildError::InitialValue {
+                            storage,
+                            kind: StaticStorageInitialValueFailureV1::OffsetOverflow,
+                        },
+                    )?;
+                    self.collect(ty, field, base)?;
+                    offset = offset
+                        .checked_add(size)
+                        .ok_or_else(|| shape_error(StaticStorageShapeFailureV1::Overflow))?;
+                }
+                Ok(())
+            }
             LirConstantImage::Integer(value) if &value.scalar_type() == expected => {
                 let width = usize::try_from(value.kind().width().bits() / 8)
                     .expect("source integer widths fit usize");

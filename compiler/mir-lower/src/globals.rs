@@ -50,6 +50,31 @@ pub(super) fn lower_global_constant(
     next_string_ordinal: &mut u32,
 ) -> mir::MirConstantImage {
     match (value, ty) {
+        (hir::HirConstantImage::Unit, mir::Type::Unit) => mir::MirConstantImage::Unit,
+        (hir::HirConstantImage::Tuple(elements), mir::Type::Tuple(types)) => {
+            assert_eq!(
+                elements.len(),
+                types.len(),
+                "typed tuple constants preserve element arity"
+            );
+            mir::MirConstantImage::Tuple(
+                elements
+                    .iter()
+                    .zip(types)
+                    .map(|(element, ty)| {
+                        lower_global_constant(
+                            element,
+                            ty,
+                            structs,
+                            enums,
+                            strings,
+                            owner,
+                            next_string_ordinal,
+                        )
+                    })
+                    .collect(),
+            )
+        }
         (hir::HirConstantImage::Integer(value), mir::Type::Integer(kind)) => {
             let value = lower_integer_constant(*value);
             assert_eq!(

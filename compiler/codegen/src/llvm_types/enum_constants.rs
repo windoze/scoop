@@ -10,6 +10,7 @@ pub(super) fn enum_constant<'ctx>(
     enums: &EnumDefs,
     globals: &BTreeMap<scoop_lir::GlobalId, GlobalValue<'ctx>>,
     managed_address_space: ManagedAddressSpace,
+    target_data: &inkwell::targets::TargetData,
     expected: &LirType,
     variant: scoop_lir::LirVariantRef,
     fields: &[LirConstantImage],
@@ -26,6 +27,7 @@ pub(super) fn enum_constant<'ctx>(
         enums,
         globals,
         managed_address_space,
+        target_data,
         bytes: Vec::new(),
         references: BTreeMap::new(),
     };
@@ -49,6 +51,7 @@ pub(super) fn enum_constant<'ctx>(
                     enums,
                     globals,
                     managed_address_space,
+                    target_data,
                     &kind.storage_type(),
                     &fields[0],
                 )
@@ -122,6 +125,7 @@ struct EnumConstantEncoder<'a, 'ctx> {
     enums: &'a EnumDefs,
     globals: &'a BTreeMap<scoop_lir::GlobalId, GlobalValue<'ctx>>,
     managed_address_space: ManagedAddressSpace,
+    target_data: &'a inkwell::targets::TargetData,
     bytes: Vec<u8>,
     references: BTreeMap<u64, PointerValue<'ctx>>,
 }
@@ -181,6 +185,35 @@ impl<'ctx> EnumConstantEncoder<'_, 'ctx> {
         offset: u64,
     ) -> Result<(), CodegenError> {
         match value {
+            LirConstantImage::Aggregate(fields) => {
+                let LirType::Aggregate(types) = ty else {
+                    return Err(CodegenError(
+                        "tuple constant does not match its storage type".into(),
+                    ));
+                };
+                require_fields(fields, types.len())?;
+                let carrier = basic_ty(
+                    self.context,
+                    self.structs,
+                    self.enums,
+                    self.managed_address_space,
+                    ty,
+                )?
+                .into_struct_type();
+                for (index, (field, ty)) in fields.iter().zip(types).enumerate() {
+                    let index = u32::try_from(index).map_err(|_| bounds_error())?;
+                    let displacement = self
+                        .target_data
+                        .offset_of_element(&carrier, index)
+                        .ok_or_else(bounds_error)?;
+                    self.field(
+                        ty,
+                        field,
+                        offset.checked_add(displacement).ok_or_else(bounds_error)?,
+                    )?;
+                }
+                Ok(())
+            }
             LirConstantImage::Enum { variant, fields }
                 if ty == &LirType::Enum(variant.definition()) =>
             {
@@ -236,6 +269,7 @@ impl<'ctx> EnumConstantEncoder<'_, 'ctx> {
                     self.enums,
                     self.globals,
                     self.managed_address_space,
+                    self.target_data,
                     ty,
                     value,
                 )?

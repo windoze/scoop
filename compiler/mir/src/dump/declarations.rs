@@ -566,6 +566,15 @@ fn static_initial_state_name(module: &Module, state: &MirStaticInitialState) -> 
 
 fn constant_image_name(module: &Module, image: &MirConstantImage) -> String {
     match image {
+        MirConstantImage::Unit => "()".to_string(),
+        MirConstantImage::Tuple(elements) => format!(
+            "({})",
+            elements
+                .iter()
+                .map(|element| constant_image_name(module, element))
+                .collect::<Vec<_>>()
+                .join(",")
+        ),
         MirConstantImage::Integer(value) => {
             format!("{}:0x{:x}", value.kind().canonical_name(), value.raw_bits())
         }

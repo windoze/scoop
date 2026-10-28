@@ -1,0 +1,24 @@
+package compiler.constants.tests
+
+import compiler.constants.*
+import scoop.test.*
+
+@Test
+private class AggregateConstants {
+    @Test
+    fun `static tuple values preserve nested elements`() {
+        assertEquals((), unit)
+        assertEquals(42, single._1)
+        assertEquals<Int8>(127, values._1)
+        assertEquals((), values._2._1)
+        assertEquals("embedded", values._2._2)
+        assertTrue(values._3 == None)
+    }
+
+    @Test
+    fun `runtime tuple initializers retain ordered effects`() {
+        assertEquals(1, runtimeValues._1)
+        assertEquals(2, runtimeValues._2)
+        assertEquals(2, runtimeSteps())
+    }
+}

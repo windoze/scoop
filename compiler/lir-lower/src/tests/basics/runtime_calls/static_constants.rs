@@ -79,4 +79,22 @@ fn static_enum_constants_lower_payloads_and_string_references() {
             ],
         }
     );
+    let tuple = lower_constant_image(
+        &mir::MirConstantImage::Tuple(vec![
+            mir::MirConstantImage::Unit,
+            mir::MirConstantImage::Tuple(vec![mir::MirConstantImage::String(string)]),
+        ]),
+        &enums,
+        &HashMap::from([(string, global)]),
+    );
+    assert_eq!(
+        tuple,
+        lir::LirConstantImage::Aggregate(vec![
+            lir::LirConstantImage::Aggregate(Vec::new()),
+            lir::LirConstantImage::Aggregate(vec![lir::LirConstantImage::GlobalPointer {
+                global,
+                kind: lir::PointerKind::Managed,
+            }]),
+        ])
+    );
 }

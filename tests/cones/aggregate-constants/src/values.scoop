@@ -1,0 +1,15 @@
+package compiler.constants
+
+private const val seed: Int = 40
+public val unit: Unit = ()
+public val single: (Int,) = (seed + 2,)
+public val values: (Int8, (Unit, String), String?) = (127, ((), "embedded"), None)
+
+private var steps: Int = 0
+private fun next(): Int {
+    steps = steps + 1
+    return steps
+}
+
+public val runtimeValues: (Int, Int) = (next(), next())
+public fun runtimeSteps(): Int = steps

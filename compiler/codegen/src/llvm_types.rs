@@ -89,12 +89,14 @@ pub(crate) fn basic_ty<'ctx>(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn llvm_constant<'ctx>(
     context: &'ctx Context,
     structs: &StructDefs,
     enums: &EnumDefs,
     globals: &BTreeMap<scoop_lir::GlobalId, GlobalValue<'ctx>>,
     managed_address_space: ManagedAddressSpace,
+    target_data: &inkwell::targets::TargetData,
     expected_lir_ty: &LirType,
     value: &LirConstantImage,
 ) -> Result<BasicValueEnum<'ctx>, CodegenError> {
@@ -106,6 +108,35 @@ pub(crate) fn llvm_constant<'ctx>(
         expected_lir_ty,
     )?;
     Ok(match value {
+        LirConstantImage::Aggregate(elements) => {
+            let LirType::Aggregate(types) = expected_lir_ty else {
+                return Err(CodegenError(
+                    "tuple constant does not match its storage type".into(),
+                ));
+            };
+            if elements.len() != types.len() {
+                return Err(CodegenError(
+                    "tuple constant has the wrong element count".into(),
+                ));
+            }
+            let values = elements
+                .iter()
+                .zip(types)
+                .map(|(element, ty)| {
+                    llvm_constant(
+                        context,
+                        structs,
+                        enums,
+                        globals,
+                        managed_address_space,
+                        target_data,
+                        ty,
+                        element,
+                    )
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            ty.into_struct_type().const_named_struct(&values).into()
+        }
         LirConstantImage::Integer(value) => {
             if expected_lir_ty != &value.scalar_type() {
                 return Err(CodegenError(format!(
@@ -177,6 +208,7 @@ pub(crate) fn llvm_constant<'ctx>(
             enums,
             globals,
             managed_address_space,
+            target_data,
             expected_lir_ty,
             *variant,
             fields,
@@ -209,6 +241,7 @@ pub(crate) fn llvm_constant<'ctx>(
                                 enums,
                                 globals,
                                 managed_address_space,
+                                target_data,
                                 &field.ty,
                                 value,
                             )
@@ -245,6 +278,7 @@ pub(crate) fn llvm_constant<'ctx>(
                             enums,
                             globals,
                             managed_address_space,
+                            target_data,
                             &storage_type,
                             value,
                         )?);

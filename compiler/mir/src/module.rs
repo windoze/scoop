@@ -646,6 +646,8 @@ pub enum MirPointerNull {
 /// different semantic states.
 #[derive(Debug, Clone, PartialEq)]
 pub enum MirConstantImage {
+    Unit,
+    Tuple(Vec<MirConstantImage>),
     Integer(MirIntegerConstant),
     Boolean(bool),
     Char(char),

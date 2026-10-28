@@ -438,6 +438,8 @@ pub enum HirStaticInitialState {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HirConstantImage {
+    Unit,
+    Tuple(Vec<HirConstantImage>),
     Integer(HirIntegerConstant),
     Boolean(bool),
     Char(char),

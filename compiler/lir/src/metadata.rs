@@ -1459,6 +1459,8 @@ pub enum LirStaticInitialState {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LirConstantImage {
+    /// Tuple elements, or an empty aggregate for Unit.
+    Aggregate(Vec<LirConstantImage>),
     Integer(LirIntegerConstant),
     Float(LirFloatConstant),
     Bool(bool),

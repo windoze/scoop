@@ -37,6 +37,23 @@ impl Lowerer {
         expression: &ast::Expr,
         expected: hir::TypeId,
     ) -> Option<hir::HirConstantImage> {
+        match (self.types[expected].clone(), expression) {
+            (hir::Type::Unit, ast::Expr::UnitLiteral { .. }) => {
+                return Some(hir::HirConstantImage::Unit);
+            }
+            (hir::Type::Tuple(types), ast::Expr::TupleLiteral { elements, .. }) => {
+                if elements.len() != types.len() {
+                    return None;
+                }
+                let elements = elements
+                    .iter()
+                    .zip(types)
+                    .map(|(element, ty)| self.evaluate_static_property_constant(element, ty))
+                    .collect::<Option<Vec<_>>>()?;
+                return Some(hir::HirConstantImage::Tuple(elements));
+            }
+            _ => {}
+        }
         if let Some(variant) = self.static_unit_variant_constant(expression, expected) {
             return Some(variant);
         }

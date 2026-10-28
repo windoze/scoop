@@ -1147,6 +1147,8 @@ HIR 在普通名称、参数和完整类型选择后对编译期输入操作求�
 
 静态 enum 初值的数据通路已实现：初值保存实际 application／variant 与按声明序齐全的字段；空 variant 使用空字段序列。HIR 至 LIR 逐层保留实际 variant 和字段，LLVM 按既有 integral／niche／tagged 布局发射；inactive GC slot 与 padding 保持零，String payload 保留 immortal relocation。该表示能力服务本节的常量求值扩展，不单独扩大源码 const 表达式集合。前端 enum 常量构造及默认 payload 的求值待随本节接入。
 
+Unit 与 tuple 的静态初值沿同一数据通路保存。完整存储类型提供每个 tuple 元素的类型，元素初值按源码顺序递归编码；LIR 将 Unit 表示为无元素的 aggregate。显式标注类型的 ordinary top-level property 若由 Unit／tuple 字面量及现有静态常量表达式组成，直接采用 EncodedStaticValue；包含运行期表达式时保留完整 initializer 的正常求值顺序。tuple 使用既有自然对齐，嵌套 String 保留 immortal relocation，Unit／空 tuple 的 storage token 遵守运行时规范 2.8；不新增 ABI 或产物编码。
+
 文件定位／读取、目录筛选和环境查询由输入宿主提供给 HIR 的窄输入接口完成，driver 与分析宿主供给实际实现。HIR 负责语言语义并保存结果，IR/meta crate 只保存 typed 数据，不自行读取文件或环境，也不依赖 driver／上游 stage 的实现。每次编译中同一实际请求的结果及已记录输入直接复用，不因常量试探、模板发布或下游 stage 重读。失败的试探不发布常量与绑定事实；输入读取的缓存不赋予失败表达式成功语义。
 
 输入宿主使用定义 Cone 的根目录执行 include 范围检查；manifest 模式沿已有 Cone root，single-file 沿解析入口 symlink 后的实际文件父目录。按语言规范 11.19 同时检查定位路径和解析全部链接后的实际目标，父目录 symlink、链式链接与路径中的 `..` 按实际文件系统语义处理，不能仅比较字符串前缀或只检查末段链接。includeDir 对根及每个遍历条目检查，包括 glob 排除项；进入目录前先确认其目标仍在 Cone 内。合法链接的输出名称保留逻辑相对路径，内容去重不省略另一条路径的范围检查。这里只实施 include 资源的目录边界，不增加 owner／权限归属／inode 审计，也不修改普通源码、native 输入或包管理的路径合同。

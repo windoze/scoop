@@ -2,6 +2,8 @@ use super::*;
 use scoop_ast as ast;
 use scoop_hir as hir;
 
+mod aggregates;
+
 const SOURCE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/language/imported-core-const/operators.scoop"

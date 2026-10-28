@@ -317,6 +317,7 @@ impl StrongStaticStorageSemanticPlanSetV1 {
                     initial_template.resize(template_length, 0);
                     let mut immortal_relocations = Vec::new();
                     StaticInitialStateEncoder {
+                        target,
                         globals,
                         structs,
                         enums,
@@ -626,6 +627,7 @@ pub enum StaticStorageInitialValueFailureV1 {
     EnumFieldCount,
     UnknownStruct,
     StructFieldCount,
+    AggregateFieldCount,
     OffsetOverflow,
     TemplateBounds,
 }

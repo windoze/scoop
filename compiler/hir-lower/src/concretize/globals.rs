@@ -160,6 +160,13 @@ impl Concretizer<'_> {
         value: &export::HirConstantImage,
     ) -> concrete::HirConstantImage {
         match value {
+            export::HirConstantImage::Unit => concrete::HirConstantImage::Unit,
+            export::HirConstantImage::Tuple(elements) => concrete::HirConstantImage::Tuple(
+                elements
+                    .iter()
+                    .map(|element| self.lower_constant(element))
+                    .collect(),
+            ),
             export::HirConstantImage::Float(value) => concrete::HirConstantImage::Float(*value),
             export::HirConstantImage::Char(value) => concrete::HirConstantImage::Char(*value),
             export::HirConstantImage::Enum { variant, fields } => {

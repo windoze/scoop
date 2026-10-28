@@ -3,6 +3,8 @@ use super::*;
 #[test]
 fn static_enum_constants_preserve_exact_refs_and_payloads_through_hir_and_mir() {
     let mut h = Harness::new();
+    let unit = h.unit;
+    let tuple = h.tuple(&[h.int, h.unit, h.string]);
     let option_int = h.option(h.int);
     let option_string = h.option(h.string);
     let int_application = h.enum_application_of(option_int);
@@ -69,7 +71,7 @@ fn static_enum_constants_preserve_exact_refs_and_payloads_through_hir_and_mir() 
         },
         fields: vec![hir::HirConstantImage::String("nested".into())],
     };
-    for (name, ty, variant, fields) in [
+    let mut images = [
         ("noneInt", option_int, int_none, Vec::new()),
         ("noneString", option_string, string_none, Vec::new()),
         (
@@ -87,7 +89,33 @@ fn static_enum_constants_preserve_exact_refs_and_payloads_through_hir_and_mir() 
             vec![hir::HirConstantImage::String("payload".into())],
         ),
         ("nested", nested, nested_some, vec![nested_payload]),
-    ] {
+    ]
+    .into_iter()
+    .map(|(name, ty, variant, fields)| {
+        (
+            name,
+            ty,
+            hir::HirConstantImage::Enum {
+                variant: hir::EnumVariantApplication {
+                    owner: variant.application(),
+                    variant: export.enum_member_identities[variant.declaration()].id(),
+                },
+                fields,
+            },
+        )
+    })
+    .collect::<Vec<_>>();
+    images.push(("unit", unit, hir::HirConstantImage::Unit));
+    images.push((
+        "tuple",
+        tuple,
+        hir::HirConstantImage::Tuple(vec![
+            hir::HirConstantImage::Integer(hir::HirIntegerConstant::Signed32(42)),
+            hir::HirConstantImage::Unit,
+            hir::HirConstantImage::String("tuple".into()),
+        ]),
+    ));
+    for (name, ty, payload) in images {
         let global = hir::GlobalId::from_raw((export.globals.len() as u32).into());
         let property = hir::PropertyId::from_raw((export.properties.len() as u32).into());
         let getter = export.property_getters.alloc(hir::PropertyGetter {
@@ -96,19 +124,13 @@ fn static_enum_constants_preserve_exact_refs_and_payloads_through_hir_and_mir() 
             attributes: hir::FunctionAttributes::default(),
             span: SPAN,
         });
-        let variant = hir::EnumVariantApplication {
-            owner: variant.application(),
-            variant: export.enum_member_identities[variant.declaration()].id(),
-        };
         let actual_global = export.globals.alloc(hir::Global {
             name: name.to_string(),
             property,
             ty,
             mutable: false,
             storage: hir::GlobalStorage::Managed {
-                state: hir::HirStaticInitialState::EncodedStaticValue {
-                    payload: hir::HirConstantImage::Enum { variant, fields },
-                },
+                state: hir::HirStaticInitialState::EncodedStaticValue { payload },
             },
             span: SPAN,
         });
@@ -268,4 +290,17 @@ fn static_enum_constants_preserve_exact_refs_and_payloads_through_hir_and_mir() 
         panic!("string payload")
     };
     assert_eq!(module.strings[*string].value, "payload");
+    assert_eq!(payload("unit"), &mir::MirConstantImage::Unit);
+    let mir::MirConstantImage::Tuple(elements) = payload("tuple") else {
+        panic!("tuple constant")
+    };
+    assert_eq!(
+        elements[0],
+        mir::MirConstantImage::Integer(mir::MirIntegerConstant::Signed32(42))
+    );
+    assert_eq!(elements[1], mir::MirConstantImage::Unit);
+    let mir::MirConstantImage::String(string) = elements[2] else {
+        panic!("tuple string")
+    };
+    assert_eq!(module.strings[string].value, "tuple");
 }
