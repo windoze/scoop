@@ -1,0 +1,32 @@
+package scoop.platform.fs
+
+import scoop.platform.memory.nativeMemoryFree
+import scoop.platform.system.*
+
+@CLayout
+internal struct NativeOsString(val data: Ptr<Byte>?, val length: Long, val error: Int) {
+    @Unsafe
+    fun takeString(operation: String, context: OsString? = None): OsString {
+        if (error != 0)
+            failOperatingSystem(operation, error, context)
+        try {
+            return copyPlatformString(data!!, length)
+        }
+        finally {
+            nativeMemoryFree(data!!)
+        }
+    }
+
+    @Unsafe
+    fun takeOptionalString(operation: String, context: OsString? = None): OsString? {
+        if (error != 0)
+            failOperatingSystem(operation, error, context)
+        if (data == None)
+            return None
+        return Some(takeString(operation, context))
+    }
+
+    @Unsafe
+    fun takePath(operation: String, context: OsString? = None): Path =
+        Path.fromOsString(takeString(operation, context))
+}

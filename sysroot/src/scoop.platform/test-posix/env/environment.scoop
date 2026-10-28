@@ -1,0 +1,26 @@
+package scoop.platform.env
+
+import scoop.platform.fs.*
+import scoop.platform.system.OsString
+import scoop.test.*
+
+@Test
+private class PosixEnvironmentTest {
+    @Test
+    fun `directory queries copy configured POSIX paths`() {
+        val configured = environmentVariable("TMPDIR")
+        val expected =
+            if (configured != None && configured!!.toByteArray().size != 0L)
+                configured!!
+            else
+                OsString.fromString("/tmp")
+        assertEquals(expected, temporaryDirectory().toOsString())
+        when (environmentVariable("HOME")) {
+            case Some(value) -> if (value.toByteArray().size != 0L)
+                assertEquals(value, homeDirectory()!!.toOsString())
+            case None -> {
+                homeDirectory()
+            }
+        }
+    }
+}

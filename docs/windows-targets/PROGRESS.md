@@ -7,7 +7,7 @@
 | W0 工具链与 ABI | 关键路线实验通过 | 复现入口与范围见下文；正式编译器集成在 W1／W2 完成 |
 | W1 编译／链接 | 实施中 | 三目标开发 CLI 已支持 subsystem、RC、DLL 数据与跨 Cone C++；函数入口的 CodeView／PDB 定位通过，继续源位置覆盖与 ABI 组合验收 |
 | W2 core runtime | 实施中 | core／std／test 已构建且 Cone 测试通过，异常、移动 GC、callback、TLS、初始化、shutdown 与并行 GC 的定向程序通过；继续其余 ABI／GC 组合验收 |
-| W3 系统库 | 实施中 | 字符串／路径、错误、线程／同步、时钟／熵、同步 socket、文件 HANDLE、目录枚举、链接与临时路径已有定向验证；继续环境／进程、console、IOCP、全部 native 组件及真实 consumer |
+| W3 系统库 | 实施中 | 字符串／路径、错误、线程／同步、时钟／熵、同步 socket、文件 HANDLE、目录枚举、链接／临时路径、环境变量与目录查询已有定向验证；继续参数／系统信息／进程、console、IOCP、全部 native 组件及真实 consumer |
 | W4 宿主与发行 | 基础实施中 | 进程中断已实现；继续 Windows 命令、维护脚本、DLL／SDK 布局与打包、交叉编译 |
 
 本地实现和完整验收完成后，才在 Linux `nuc12w.0d0a.com` 与 macOS `mm.0d0a.com` 的 `~/repos` 下新建测试目录，运行与变更范围相称的回归。原始日志与构建目录放在仓库外。
@@ -198,3 +198,7 @@ File 与匿名 pipe 已改用独立的完整宽度文件 handle，Windows 实现
 符号链接、junction 读取与 canonicalize 已接入宽字符 Win32 API。createSymbolicLink 新增默认 false 的 targetIsDirectory，Windows 目录目标（包括悬空目录）显式传 true，POSIX 忽略该参数；两个实际目录链接调用点已同步。readSymbolicLink 读取实际 substitute name，并将绝对 NT 前缀转为可用的 Win32 extended 路径；canonicalize 保留系统返回的真实规范路径。临时目录使用 GetTempPath2W／旧系统 GetTempPathW，工厂保留完整前缀，在规范父目录下用随机名称与排他创建，不将 DOS device 名称当成普通临时文件；POSIX 的 mkostemp／mkdtemp 与 asyncio 共享入口保留。
 
 三个 target 的实际源码子集各通过 25 个容器／89 项测试，新增覆盖非配对 surrogate 链接目标、绝对／相对与悬空链接、链接删除保留目标、长路径 buffer 扩展、完整临时前缀、排他创建、显式删除、DOS 保留名称和错误原码。完整 platform 的测试源码语义检查、Scoop 格式化、三个 Clang 环境与 cl 的严格 C 检查通过。实际原生探针在 cl、MinGW MSVCRT／UCRT 均验证 junction 的 substitute name 不受不同 print name 影响、canonicalize、nofollow metadata、删除保留目标及含 surrogate 的临时目录独立副本。完整 platform 尚未发布；环境／进程、console、IOCP、原生边界 GC fixture、其余系统库及远端 POSIX 回归仍待完成。
+
+环境变量与目录查询已接入 GetEnvironmentVariableW／GetEnvironmentStringsW、GetCurrentDirectoryW 和 USERPROFILE／GetUserProfileDirectoryW。原生结果在 managed 分配前保存独立的字符串与本次错误，区分缺失和空值；环境快照保留名称拼写与完整值，单项查询使用 Windows 大小写规则。路径与环境共用已有的 owned 字符串结果形状；POSIX 的 getenv／environ、getcwd 与 HOME／passwd 语义保持，原始 argv 访问单独成文件。
+
+三个 target 的实际子集各通过 27 个容器／96 项测试，新增覆盖缺失／空值、大小写查询、修改后的快照独立性、600 个 UTF-16 code unit 的值、非配对 surrogate 名称／值、用户 profile 回退及实际 cwd 修改后查询和恢复。完整 platform 测试源码语义检查、Scoop 格式化、三个 Clang 环境与 cl 的严格 C 检查通过。尚未发布完整 platform；Windows startup 仍提前严格解码 argv，后续需与无参数 main 的原始参数合同对齐，再继续系统信息／进程、console、IOCP 和完整验收。远端 POSIX 回归尚未开始。

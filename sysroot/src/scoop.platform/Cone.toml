@@ -46,6 +46,14 @@ when = {os = "windows"}
 name = "ws2_32"
 when = {os = "windows"}
 
+[[native.libraries]]
+name = "userenv"
+when = {os = "windows"}
+
+[[native.libraries]]
+name = "advapi32"
+when = {os = "windows"}
+
 [[native.sources]]
 path = "native/errors.c"
 
@@ -87,6 +95,8 @@ when = {os = ["darwin", "linux"]}
 path = "native/directory_owner.c"
 [[native.sources]]
 path = "native/environment.c"
+[[native.sources]]
+path = "native/environment_directories.c"
 [[native.sources]]
 path = "native/system.c"
 [[native.sources]]

@@ -230,7 +230,11 @@ safe fd 输出不因断开的 pipe/socket 默认杀死进程。Linux 普通 fd �
 
 `environmentVariable(name: OsString): OsString?` 及 String 便利重载区分缺失与空值，名称非空且不含 NUL 或 `=`。`environment(): Map<OsString, OsString>` 返回独立只读快照；按第一个 `=` 拆分，不损坏原始字节。仅包含有非空名称和分隔符的环境项，同名项以第一个为准，与单项查询一致。没有进程全局环境修改 API；调用者不能同时通过外部 native 代码违反 libc 环境访问的线程合同，库内锁不能代替该前提。
 
-currentDirectory(): Path 查询实际 cwd，不读取 PWD；homeDirectory(): Path? 优先使用非空 HOME，否则查询当前真实 uid 的 passwd 目录，没有记录或空目录时返回 None，实际查询错误抛 PlatformException。temporaryDirectory(): Path 在 POSIX 使用非空 TMPDIR，否则为 `/tmp`；Windows 查询 GetTempPath2W，系统未提供该入口时使用 GetTempPathW，保留返回的 UTF-16。普通 Windows 进程沿系统的 TMP、TEMP、USERPROFILE、Windows 目录顺序，SYSTEM 进程沿 GetTempPath2W 的 SystemTemp 规则。查询返回独立副本，不保证路径存在、可访问或之后仍可创建文件；不提供全局 chdir。
+Windows 单项查询使用 GetEnvironmentVariableW，缺失返回 None，空值返回 Some(empty)，其他失败保留本次 Win32 code。名称查询遵守 Windows 的不区分大小写规则；名称和值无损保留 UTF-16，包括非配对 surrogate。快照复制 GetEnvironmentStringsW 的实际条目并释放原生 block，保留 OS 给出的名称拼写；返回 Map 的 OsString 键仍按原始编码比较，调用者不能用改写大小写的键替代单项查询。以 `=` 开头的系统 drive-directory 项不属于公开名称，快照不包含它们；值里的后续 `=` 完整保留。POSIX 继续复制 getenv／environ 的原始字节。原生结果在 managed 分配前取得独立存储，成功、缺失与失败分开表示，复制后在所有出口释放。
+
+currentDirectory(): Path 查询实际 cwd，不读取 PWD；POSIX 的 homeDirectory(): Path? 优先使用非空 HOME，否则查询当前真实 uid 的 passwd 目录，没有记录或空目录时返回 None，实际查询错误抛 PlatformException。temporaryDirectory(): Path 在 POSIX 使用非空 TMPDIR，否则为 `/tmp`；Windows 查询 GetTempPath2W，系统未提供该入口时使用 GetTempPathW，保留返回的 UTF-16。普通 Windows 进程沿系统的 TMP、TEMP、USERPROFILE、Windows 目录顺序，SYSTEM 进程沿 GetTempPath2W 的 SystemTemp 规则。查询返回独立副本，不保证路径存在、可访问或之后仍可创建文件；不提供全局 chdir。
+
+Windows 的 currentDirectory 使用 GetCurrentDirectoryW；homeDirectory 优先使用非空 USERPROFILE，否则通过当前进程的 TOKEN_QUERY handle 查询 GetUserProfileDirectoryW，并关闭该临时 handle。空 profile 返回 None，实际查询失败保留 Win32 code；不读取 HOME、PWD 或把不存在的用户配置拼成路径。查询结果无损保留 UTF-16，路径存在性仍由后续实际文件系统操作判断。POSIX 的 HOME／passwd 规则保持。
 
 `scoop.platform.system` 提供 OperatingSystem(Darwin/Linux/Windows)、Architecture(Aarch64/X86_64)、operatingSystem 与 architecture 只读值，标识当前构建目标。POSIX 的 systemVersion(): String 返回 uname 的系统 release，logicalProcessorCount: Long 返回 OS 报告的在线逻辑 CPU 数；失败照常抛系统错误，不推导容器配额或调度能力。
 

@@ -4,7 +4,7 @@
 #include <string.h>
 
 #ifdef _WIN32
-ScoopPlatformPathString scoop_platform_temporary_directory_result(void) {
+ScoopPlatformString scoop_platform_temporary_directory_result(void) {
     typedef DWORD(WINAPI * TempPath)(DWORD, LPWSTR);
     FARPROC entry = GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "GetTempPath2W");
     TempPath query = GetTempPathW;
@@ -18,29 +18,29 @@ ScoopPlatformPathString scoop_platform_temporary_directory_result(void) {
         WCHAR *resized = realloc(buffer, (size_t)capacity * sizeof(WCHAR));
         if (resized == NULL) {
             free(buffer);
-            return (ScoopPlatformPathString){NULL, 0, ERROR_NOT_ENOUGH_MEMORY};
+            return (ScoopPlatformString){NULL, 0, ERROR_NOT_ENOUGH_MEMORY};
         }
         buffer = resized;
         DWORD count = query(capacity, buffer);
         if (count == 0) {
             DWORD error = GetLastError();
             free(buffer);
-            return (ScoopPlatformPathString){NULL, 0, (int32_t)error};
+            return (ScoopPlatformString){NULL, 0, (int32_t)error};
         }
         if (count < capacity)
-            return (ScoopPlatformPathString){buffer, (int64_t)count, 0};
+            return (ScoopPlatformString){buffer, (int64_t)count, 0};
         capacity = count;
     }
 }
 #else
 #include <errno.h>
 
-ScoopPlatformPathString scoop_platform_temporary_directory_result(void) {
+ScoopPlatformString scoop_platform_temporary_directory_result(void) {
     const char *configured = getenv("TMPDIR");
     const char *path = configured != NULL && configured[0] != '\0' ? configured : "/tmp";
     char *copy = strdup(path);
     if (copy == NULL)
-        return (ScoopPlatformPathString){NULL, 0, errno};
-    return (ScoopPlatformPathString){copy, (int64_t)strlen(copy), 0};
+        return (ScoopPlatformString){NULL, 0, errno};
+    return (ScoopPlatformString){copy, (int64_t)strlen(copy), 0};
 }
 #endif

@@ -1,6 +1,5 @@
 package scoop.platform.fs
 
-import scoop.platform.memory.nativeMemoryFree
 import scoop.platform.system.*
 
 /**
@@ -65,21 +64,6 @@ public fun Path.canonicalize(): Path {
     }
 }
 
-@CLayout
-internal struct NativePathString(val data: Ptr<Byte>?, val length: Long, val error: Int) {
-    @Unsafe
-    fun takePath(operation: String, context: OsString? = None): Path {
-        if (error != 0)
-            failOperatingSystem(operation, error, context)
-        try {
-            return Path.fromOsString(copyPlatformString(data!!, length))
-        }
-        finally {
-            nativeMemoryFree(data!!)
-        }
-    }
-}
-
 @Extern(name = "scoop_platform_path_symlink_result")
 private fun nativePathSymlink(
     link: Ptr<Byte>,
@@ -88,7 +72,7 @@ private fun nativePathSymlink(
 ): NativeFileResult
 
 @Extern(name = "scoop_platform_path_readlink_result")
-private fun nativePathReadlink(path: Ptr<Byte>): NativePathString
+private fun nativePathReadlink(path: Ptr<Byte>): NativeOsString
 
 @Extern(name = "scoop_platform_path_canonical_result")
-private fun nativePathCanonical(path: Ptr<Byte>): NativePathString
+private fun nativePathCanonical(path: Ptr<Byte>): NativeOsString

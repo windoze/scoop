@@ -3,11 +3,11 @@
 #include <stdlib.h>
 
 #ifdef _WIN32
-ScoopPlatformPathString scoop_platform_path_canonical_result(const void *path) {
+ScoopPlatformString scoop_platform_path_canonical_result(const void *path) {
     HANDLE handle = CreateFileW(path, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                                 NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
     if (handle == INVALID_HANDLE_VALUE)
-        return (ScoopPlatformPathString){NULL, 0, (int32_t)GetLastError()};
+        return (ScoopPlatformString){NULL, 0, (int32_t)GetLastError()};
     DWORD capacity = 256;
     WCHAR *buffer = NULL;
     for (;;) {
@@ -15,7 +15,7 @@ ScoopPlatformPathString scoop_platform_path_canonical_result(const void *path) {
         if (resized == NULL) {
             free(buffer);
             CloseHandle(handle);
-            return (ScoopPlatformPathString){NULL, 0, ERROR_NOT_ENOUGH_MEMORY};
+            return (ScoopPlatformString){NULL, 0, ERROR_NOT_ENOUGH_MEMORY};
         }
         buffer = resized;
         DWORD count = GetFinalPathNameByHandleW(handle, buffer, capacity,
@@ -24,11 +24,11 @@ ScoopPlatformPathString scoop_platform_path_canonical_result(const void *path) {
             DWORD error = GetLastError();
             free(buffer);
             CloseHandle(handle);
-            return (ScoopPlatformPathString){NULL, 0, (int32_t)error};
+            return (ScoopPlatformString){NULL, 0, (int32_t)error};
         }
         if (count < capacity) {
             CloseHandle(handle);
-            return (ScoopPlatformPathString){buffer, (int64_t)count, 0};
+            return (ScoopPlatformString){buffer, (int64_t)count, 0};
         }
         capacity = count;
     }
@@ -37,10 +37,10 @@ ScoopPlatformPathString scoop_platform_path_canonical_result(const void *path) {
 #include <errno.h>
 #include <string.h>
 
-ScoopPlatformPathString scoop_platform_path_canonical_result(const void *path) {
+ScoopPlatformString scoop_platform_path_canonical_result(const void *path) {
     char *resolved = realpath(path, NULL);
     if (resolved == NULL)
-        return (ScoopPlatformPathString){NULL, 0, errno};
-    return (ScoopPlatformPathString){resolved, (int64_t)strlen(resolved), 0};
+        return (ScoopPlatformString){NULL, 0, errno};
+    return (ScoopPlatformString){resolved, (int64_t)strlen(resolved), 0};
 }
 #endif

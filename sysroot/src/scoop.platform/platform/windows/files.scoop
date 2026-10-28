@@ -4,7 +4,13 @@ import scoop.platform.system.OsString
 
 @Unsafe
 internal fun <R> Path.withPlatformPath(block: (Ptr<Byte>) -> R): R {
-    val units = toOsString().toUtf16()
+    return toOsString().withPlatformString(block)
+}
+
+// Internal callers have already checked that the native string contains no NUL.
+@Unsafe
+internal fun <R> OsString.withPlatformString(block: (Ptr<Byte>) -> R): R {
+    val units = toUtf16()
     if (units.size == Long.MAX_VALUE)
         throw ArithmeticException()
     val terminated =
