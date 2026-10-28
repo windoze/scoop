@@ -31,6 +31,10 @@ pub(super) fn requests(
     } else {
         BuildProfile::Debug
     });
+    let debug_info = args.debug_info.unwrap_or(match profile {
+        BuildProfile::Debug => scoop_lir::DebugInfoLevel::LineTables,
+        BuildProfile::Release => scoop_lir::DebugInfoLevel::None,
+    });
     let sysroot = absolute(
         &cwd,
         scoop_toolchain::configured_sysroot_root(sysroot).map_err(config)?,
@@ -61,7 +65,8 @@ pub(super) fn requests(
             .map_err(config)?
             .with_file_name(format!("scoopc{}", std::env::consts::EXE_SUFFIX)),
     };
-    let (c_toolchain, final_link) = args.native.resolve(&cwd, &sysroot)?;
+    let (c_toolchain, mut final_link) = args.native.resolve(&cwd, &sysroot)?;
+    final_link.emit_debug_file |= debug_info != scoop_lir::DebugInfoLevel::None;
     let target = scoop_toolchain::ResolvedTargetProfile::resolve_request_cached(
         &super::native::target_request(triple, &c_toolchain)?,
         cache.as_path(),
@@ -89,6 +94,7 @@ pub(super) fn requests(
         compiler: PairedScoopcLocator::new(compiler).map_err(config)?,
         diagnostics: DiagnosticsPolicy::Structured,
         optimization: profile.optimization(),
+        debug_info,
         purpose,
         jobs: args.jobs.unwrap_or_else(|| {
             std::thread::available_parallelism().unwrap_or(std::num::NonZeroUsize::MIN)

@@ -25,6 +25,19 @@ fn optimization_changes_only_the_current_compile_key() {
 }
 
 #[test]
+fn debug_info_changes_code_reuse_without_changing_semantic_dependencies() {
+    let none = input(1, "compiler");
+    let lines = none
+        .clone()
+        .with_debug_info(scoop_lir::DebugInfoLevel::LineTables);
+    assert_ne!(none.key().unwrap(), lines.key().unwrap());
+    assert_eq!(none.dependencies(), lines.dependencies());
+    assert_eq!(none.current_semantic(), lines.current_semantic());
+    assert_eq!(none.backend, lines.backend);
+    assert_eq!(none.optimization, lines.optimization);
+}
+
+#[test]
 fn test_purpose_and_source_roles_are_independent_key_inputs() {
     let production = input(1, "same compiler");
     let test = production.clone().with_purpose(CompilationPurpose::Test);

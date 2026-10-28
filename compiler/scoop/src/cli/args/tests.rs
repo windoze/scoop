@@ -80,6 +80,26 @@ fn independent_debug_files_are_an_explicit_final_link_option() {
 }
 
 #[test]
+fn debug_information_is_an_independent_source_compilation_option() {
+    for command in ["build", "run", "test"] {
+        for level in ["none", "line-tables"] {
+            let cli = Cli::try_parse_from(["scoop", command, "--release", "--debug-info", level])
+                .unwrap();
+            let options = match cli.command {
+                Command::Build(args) => args.options,
+                Command::Run(args) => args.options,
+                Command::Test(args) => args.options,
+                _ => panic!("source compilation command"),
+            };
+            assert!(options.release);
+            assert_eq!(options.debug_info.unwrap().as_str(), level);
+        }
+    }
+    assert!(Cli::try_parse_from(["scoop", "build", "--debug-info", "invalid"]).is_err());
+    assert!(Cli::try_parse_from(["scoop", "link", "--debug-info", "line-tables"]).is_err());
+}
+
+#[test]
 fn output_capture_only_applies_to_actual_execution() {
     for flag in ["--list", "--no-run"] {
         assert!(Cli::try_parse_from(["scoop", "test", flag, "--nocapture"]).is_err());

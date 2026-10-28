@@ -521,6 +521,7 @@ impl Harness {
             identity: scoop_identity::SourceIdentity::single_file(),
             provider: hir::IntrinsicProviderId::from_raw(0),
             name: "<test>".to_string(),
+            debug_path: "<test>".into(),
             source: String::new(),
             canonical_record: None,
         }];

@@ -35,7 +35,7 @@ impl DebugSources {
             .map(|file| DebugSourceFile {
                 file: Arc::new(DebugFile {
                     identity: Arc::new(file.identity.clone()),
-                    path: file.name.as_str().into(),
+                    path: file.debug_path.clone(),
                 }),
                 coordinates: match &file.canonical_record {
                     Some(record) => SourceCoordinates::Imported(record.clone()),

@@ -35,9 +35,21 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
         &parsed,
         scoop_hir_lower::CoreProtocolInput::CurrentDeclarations,
         &world,
-        Default::default(),
+        std::collections::BTreeMap::from([(ConeIdentity::CORE, "scoop:scoop.core:0.1.0".into())]),
     )
     .unwrap();
+    for source in &hir.hir.output().export.source_files {
+        if let Some(path) = parsed
+            .diagnostic_context()
+            .display_locator(&source.identity)
+        {
+            assert_eq!(source.debug_path.as_ref(), path.to_str().unwrap());
+            assert_eq!(
+                source.name,
+                format!("scoop:scoop.core:0.1.0/{}", source.identity.logical_path())
+            );
+        }
+    }
     let input = hir.machine_input();
     assert_eq!(input.output.imported_dependencies().callable_count(), 1);
     let dependencies = selection::mir(&input);

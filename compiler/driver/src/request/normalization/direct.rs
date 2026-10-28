@@ -3,6 +3,7 @@ use super::*;
 #[derive(Debug, Default)]
 pub struct DirectBuildOptions {
     pub optimization: scoop_lir::OptimizationMode,
+    pub debug_info: scoop_lir::DebugInfoLevel,
     pub target: Option<String>,
     pub sysroot: Option<PathBuf>,
     pub c_toolchain: scoop_toolchain::CToolchainOptions,
@@ -132,6 +133,7 @@ fn normalize_direct(
             .with_native_sysroot(sysroot)
             .with_generators(generators)
             .with_optimization(options.optimization)
+            .with_debug_info(options.debug_info)
     })
     .map_err(BuildRequestNormalizationError::Request)
 }
