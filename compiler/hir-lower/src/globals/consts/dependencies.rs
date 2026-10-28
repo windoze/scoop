@@ -105,6 +105,17 @@ impl Lowerer {
             ast::Expr::Unary { operand, .. } => {
                 self.collect_const_dependencies(operand, owner, file, declarations, dependencies)
             }
+            ast::Expr::Call(call) => {
+                for argument in &call.args {
+                    self.collect_const_dependencies(
+                        &argument.expression,
+                        owner,
+                        file,
+                        declarations,
+                        dependencies,
+                    );
+                }
+            }
             ast::Expr::Binary { lhs, rhs, .. } => {
                 self.collect_const_dependencies(lhs, owner, file, declarations, dependencies);
                 self.collect_const_dependencies(rhs, owner, file, declarations, dependencies);

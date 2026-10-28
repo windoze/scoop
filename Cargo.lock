@@ -1324,6 +1324,7 @@ version = "0.0.0"
 dependencies = [
  "fs4",
  "object",
+ "scoop-hir",
  "scoop-identity",
  "scoop-lir",
  "scoop-manifest",

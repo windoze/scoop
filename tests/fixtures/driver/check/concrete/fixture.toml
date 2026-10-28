@@ -19,7 +19,7 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {file = "diagnostics.json"}
-checks = [{glob = "${work}/cache/checks-v1/*/record.json", equals = []}]
+checks = [{glob = "${work}/cache/checks-v2/*/record.json", equals = []}]
 
 [[steps]]
 name = "build"

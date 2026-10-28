@@ -81,6 +81,7 @@ pub(super) fn expected_operation_owner(
         | IntrinsicFunctionKind::CoroutineStart
         | IntrinsicFunctionKind::CoroutineSuspend
         | IntrinsicFunctionKind::CurrentSourceLocation
+        | IntrinsicFunctionKind::CompileEnv
         | IntrinsicFunctionKind::ForeignCallbackRegister
         | IntrinsicFunctionKind::ForeignCallbackRetain
         | IntrinsicFunctionKind::ForeignCallbackRelease

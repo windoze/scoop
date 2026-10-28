@@ -11,6 +11,9 @@ impl Lowerer {
         sink: &[hir::Statement],
     ) -> Option<hir::Expr> {
         match operation {
+            ImportedIntrinsicCall::CompileEnv { source } => {
+                self.normalize_compile_env(&arguments, source.as_ref(), result_type, span)
+            }
             ImportedIntrinsicCall::MaybeUninit(kind) => {
                 Some(self.normalize_maybe_uninit(kind, receiver, arguments, result_type, span))
             }

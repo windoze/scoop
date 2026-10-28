@@ -1,0 +1,9 @@
+package scoop.tests
+
+import scoop.tests.compilerinput.*
+
+fun main() {
+    println(embedded ?: "missing")
+    println(generic(1) ?: "missing")
+    println(defaulted() ?: "missing")
+}

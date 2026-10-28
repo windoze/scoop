@@ -45,6 +45,15 @@ impl Lowerer {
             return self.evaluate_bound_const_reference(expression, expected);
         }
         match expression {
+            ast::Expr::Call(call) => self.evaluate_const_input_call(
+                call,
+                expected,
+                file,
+                declarations,
+                ordinary,
+                states,
+                stack,
+            ),
             ast::Expr::UnitLiteral { .. } => Some(EvaluatedConst {
                 value: hir::HirConstantImage::Unit,
                 ty: self.unit,

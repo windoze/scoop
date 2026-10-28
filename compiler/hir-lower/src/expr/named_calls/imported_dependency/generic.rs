@@ -311,6 +311,16 @@ impl Lowerer {
                     native_type: solution.callable[0],
                 },
             }
+        } else if matches!(
+            candidate.interface().effects().implementation(),
+            hir::CallableImplementationV1::Intrinsic(hir::IntrinsicFunctionKind::CompileEnv)
+        ) {
+            ImportedCallImplementation::Intrinsic {
+                template,
+                operation: ImportedIntrinsicCall::CompileEnv {
+                    source: call.arguments.source(0).cloned(),
+                },
+            }
         } else if let Some(kind) = candidate.maybe_uninit_intrinsic()
             && (kind == hir::MaybeUninitIntrinsic::AssumeInit
                 || matches!(&receiver, ImportedCallReceiver::Member { value: ImportedMemberReceiver::Value(value), .. } if matches!(value.kind, hir::ExprKind::SingletonValue(_))))

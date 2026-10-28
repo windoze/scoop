@@ -77,9 +77,17 @@ pub(super) fn run(
     used.extend_from_slice(result.used_generators());
     used.sort_by(|left, right| left.registration().name().cmp(right.registration().name()));
     used.dedup();
+    let mut environment_inputs = completed
+        .iter()
+        .flat_map(|node| node.environment_inputs().iter().cloned())
+        .collect::<Vec<_>>();
+    environment_inputs.extend_from_slice(result.environment_inputs());
+    environment_inputs.sort();
+    environment_inputs.dedup();
     let success = cache::Messages {
         warnings,
         used_generators: used,
+        environment_inputs,
     };
     Ok((
         cache::Record {

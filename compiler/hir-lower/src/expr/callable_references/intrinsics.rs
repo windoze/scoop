@@ -29,6 +29,9 @@ impl fmt::Display for ReferenceFailureReason {
 
 fn restriction(kind: hir::IntrinsicFunctionKind) -> Option<&'static str> {
     match kind {
+        hir::IntrinsicFunctionKind::CompileEnv => Some(
+            "this intrinsic is evaluated at compile time and has no runtime callable entry\nhelp: import and call it directly with a constant name",
+        ),
         hir::IntrinsicFunctionKind::CurrentSourceLocation => Some(
             "this intrinsic requires the source location of a direct call; indirect calls do not provide it\nhelp: call it directly where the location is needed, or pass a SourceLocation value explicitly",
         ),

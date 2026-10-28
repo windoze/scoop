@@ -11,6 +11,7 @@ mod atomics;
 mod callbacks;
 mod characters;
 mod common;
+mod compiler_inputs;
 mod context;
 mod coroutines;
 mod data_borrow;

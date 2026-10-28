@@ -1,0 +1,11 @@
+package scoop.compiler
+
+import Option
+import String
+
+/**
+ * Reads a SCOOP_-prefixed environment variable while compiling this Cone.
+ * Missing values return None; an empty value returns Some("").
+ */
+@Intrinsic("compile_env")
+public fun env(name: String): Option<String>

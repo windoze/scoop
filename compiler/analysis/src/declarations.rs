@@ -108,11 +108,14 @@ impl AnalysisSnapshot {
                     .map_err(|error| DeclarationAnalysisError::SourceLength(*error))?,
             );
         }
-        let analysis = scoop_hir_lower::analyze_declarations(
+        let analysis = scoop_hir_lower::analyze_declarations_with_inputs(
             &sources,
             core,
             world,
             &cone.test_dependencies,
+            Some(std::sync::Arc::new(
+                scoop_toolchain::CompileTimeInputs::default(),
+            )),
             || is_cancelled() || self.check_cancelled().is_err(),
         )
         .map_err(|error| match error {

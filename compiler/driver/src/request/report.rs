@@ -203,6 +203,7 @@ pub struct SingleConeProductionSuccess {
     warnings: CurrentConeDiagnosticSet,
     emitted_dumps: Vec<EmittedStageDump>,
     used_generators: Vec<scoop_protocol::GeneratorToolInputV1>,
+    environment_inputs: Vec<scoop_protocol::EnvironmentInputV1>,
     pub(in crate::request) documentation: Option<PublishedDocumentation>,
 }
 
@@ -212,18 +213,24 @@ impl SingleConeProductionSuccess {
         warnings: CurrentConeDiagnosticSet,
         emitted_dumps: Vec<EmittedStageDump>,
         used_generators: Vec<scoop_protocol::GeneratorToolInputV1>,
+        environment_inputs: Vec<scoop_protocol::EnvironmentInputV1>,
     ) -> Self {
         Self {
             artifact,
             warnings,
             emitted_dumps,
             used_generators,
+            environment_inputs,
             documentation: None,
         }
     }
 
     pub const fn artifact(&self) -> &PublishedCrossConeArtifact {
         &self.artifact
+    }
+
+    pub fn environment_inputs(&self) -> &[scoop_protocol::EnvironmentInputV1] {
+        &self.environment_inputs
     }
 
     pub fn used_generators(&self) -> &[scoop_protocol::GeneratorToolInputV1] {
@@ -255,9 +262,14 @@ pub enum SingleConeCompilation {
 pub struct SingleConeCheckSuccess {
     pub(in crate::request) warnings: CurrentConeDiagnosticSet,
     pub(in crate::request) used_generators: Vec<scoop_protocol::GeneratorToolInputV1>,
+    pub(in crate::request) environment_inputs: Vec<scoop_protocol::EnvironmentInputV1>,
 }
 
 impl SingleConeCheckSuccess {
+    pub fn environment_inputs(&self) -> &[scoop_protocol::EnvironmentInputV1] {
+        &self.environment_inputs
+    }
+
     pub fn used_generators(&self) -> &[scoop_protocol::GeneratorToolInputV1] {
         &self.used_generators
     }

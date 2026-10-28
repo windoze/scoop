@@ -44,6 +44,9 @@ enum ImportedCallImplementation {
 }
 
 enum ImportedIntrinsicCall {
+    CompileEnv {
+        source: Option<ast::Expr>,
+    },
     MaybeUninit(hir::MaybeUninitIntrinsic),
     Atomic(hir::AtomicIntrinsic),
     Expression(hir::Expr),

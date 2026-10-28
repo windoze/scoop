@@ -5,6 +5,7 @@ pub(in crate::request::preflight) struct CurrentConeHir {
     pub generated_sources: Vec<scoop_hir::GeneratedMethodSource>,
     pub generator_warnings: Vec<scoop_ast::Diagnostic>,
     pub used_generators: Vec<scoop_protocol::GeneratorToolInputV1>,
+    pub environment_inputs: Vec<scoop_protocol::EnvironmentInputV1>,
 }
 
 impl CurrentConeHir {
@@ -17,9 +18,11 @@ impl CurrentConeHir {
         documentation: bool,
         programs: &scoop_toolchain::GeneratorPrograms,
     ) -> Result<Self, CurrentConeHirStageError> {
+        let inputs = std::sync::Arc::new(scoop_toolchain::CompileTimeInputs::default());
         let mut sources = scoop_hir_lower::CurrentConeSources::try_new(parsed, protocols, world)
             .map_err(CurrentConeHirStageError::Input)?
-            .with_source_names(source_names);
+            .with_source_names(source_names)
+            .with_compile_time_inputs(inputs.clone());
         if documentation {
             sources = sources
                 .with_documentation(
@@ -45,6 +48,7 @@ impl CurrentConeHir {
             generated_sources: generator.sources,
             generator_warnings: generator.warnings,
             used_generators: generator.used,
+            environment_inputs: inputs.environment_inputs(),
         })
     }
 
@@ -57,9 +61,11 @@ impl CurrentConeHir {
         programs: &scoop_toolchain::GeneratorPrograms,
     ) -> Result<Self, CurrentConeHirStageError> {
         let parsed_sources = sources;
+        let inputs = std::sync::Arc::new(scoop_toolchain::CompileTimeInputs::default());
         let sources = scoop_hir_lower::CurrentConeSources::try_new(sources, protocols, world)
             .map_err(CurrentConeHirStageError::Input)?
             .with_source_names(source_names)
+            .with_compile_time_inputs(inputs.clone())
             .with_test_dependencies(test_dependencies)
             .map_err(CurrentConeHirStageError::Input)?;
         let mut generator = crate::generation::ExternalGenerator::new(programs);
@@ -70,6 +76,7 @@ impl CurrentConeHir {
             generated_sources: generator.sources,
             generator_warnings: generator.warnings,
             used_generators: generator.used,
+            environment_inputs: inputs.environment_inputs(),
         })
     }
 }

@@ -209,6 +209,13 @@ impl Lowerer {
         sink: &mut [hir::Statement],
     ) -> Option<hir::Expr> {
         let function = resolved.function();
+        self.record_constant_call(
+            call.span,
+            match self.functions[function].kind {
+                hir::FunctionKind::Intrinsic(intrinsic) => Some(intrinsic.kind),
+                _ => None,
+            },
+        );
         self.observe_callable_reference(call.callee.span, hir::SemanticCallable::Current(function));
         if let Some(core) = self.foreign_callback_core {
             if function == core.register {
@@ -236,6 +243,17 @@ impl Lowerer {
             return self.lower_pointer_top_level_intrinsic(function, call, resolved);
         }
         let ty = resolved.return_ty;
+        if matches!(self.functions[function].kind, hir::FunctionKind::Intrinsic(intrinsic)
+            if intrinsic.kind == hir::IntrinsicFunctionKind::CompileEnv)
+        {
+            self.check_call_effects(hir::Callable::Function(function), call.span);
+            return self.normalize_compile_env(
+                &resolved.args,
+                Some(&call.args[0].expression),
+                ty,
+                call.span,
+            );
+        }
         let callee = self.materialize_resolved_callee(&resolved);
         self.check_call_effects(callee, call.span);
         Some(hir::Expr {

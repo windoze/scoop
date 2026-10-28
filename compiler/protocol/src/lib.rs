@@ -7,6 +7,8 @@ mod capability;
 mod diagnostic;
 mod dump;
 pub use dump::{StageDumpKindV1, StageDumpPolicyV1, StageDumpSet};
+mod environment;
+pub use environment::EnvironmentInputV1;
 mod framing;
 mod generators;
 pub use generators::{GeneratorRegistrationV1, GeneratorToolInputV1};
@@ -40,7 +42,7 @@ pub use response::{
 };
 
 /// Version selected by the unique `scoopc` machine transport entrypoint.
-pub const PROTOCOL_VERSION: u32 = 18;
+pub const PROTOCOL_VERSION: u32 = 19;
 
 pub(crate) const MAX_EMITTED_DUMPS: usize = StageDumpKindV1::ALL.len();
 

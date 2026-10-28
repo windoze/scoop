@@ -462,6 +462,8 @@ impl Lowerer {
             intrinsic_sources: Shared::default(),
             test_dependencies: Default::default(),
             source_names: std::collections::BTreeMap::new(),
+            compile_time_inputs: None,
+            constant_call_context: None,
             imported_source_files: Vec::new(),
             imported_source_indices: HashMap::new(),
             intrinsic_policy: IntrinsicDeclarationPolicy::CoreOnly,

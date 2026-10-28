@@ -1,0 +1,53 @@
+schema = 1
+name = "compile-env-definition-site-artifacts"
+inputs = ["provider", "consumer"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["compiler-intrinsics", "compiler-correctness", "artifacts"]
+
+[vars]
+options = ["--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/provider", to = "${work}/provider"}}, {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}}]
+
+[[steps]]
+name = "provider"
+env = {SCOOP_ENV_PROVIDER = "provider"}
+argv = ["${scoop}", "build", "${work}/provider", {each = "${link_args}"}, {each = "${options}"}, "-o", "${work}/provider.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "consumer"
+env = {SCOOP_ENV_PROVIDER = "consumer"}
+argv = ["${scoop}", "build", "${work}/consumer", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${consumer.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "run"
+env = {SCOOP_ENV_PROVIDER = "runtime"}
+argv = ["${consumer.result.output}"]
+exit = 0
+stdout = "provider\nprovider\nprovider\n"
+stderr = ""
+
+[[steps]]
+name = "warm"
+env = {SCOOP_ENV_PROVIDER = "changed consumer"}
+argv = ["${scoop}", "build", "${work}/consumer", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.observations.child_invocations.length}", equals = 0}]

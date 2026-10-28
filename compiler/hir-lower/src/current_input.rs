@@ -25,6 +25,7 @@ pub struct CurrentConeSources<'input, 'world> {
     source_names: BTreeMap<ConeIdentity, String>,
     test_dependencies: BTreeSet<ConeIdentity>,
     documentation: Option<Vec<ast::SourceDocumentation>>,
+    compile_time_inputs: Option<std::sync::Arc<dyn hir::CompileTimeInputHost>>,
 }
 
 impl<'input, 'world> CurrentConeSources<'input, 'world> {
@@ -42,6 +43,7 @@ impl<'input, 'world> CurrentConeSources<'input, 'world> {
             source_names: BTreeMap::new(),
             test_dependencies: BTreeSet::new(),
             documentation: None,
+            compile_time_inputs: None,
         })
     }
 
@@ -49,6 +51,20 @@ impl<'input, 'world> CurrentConeSources<'input, 'world> {
     pub fn with_source_names(mut self, names: BTreeMap<ConeIdentity, String>) -> Self {
         self.source_names = names;
         self
+    }
+
+    pub fn with_compile_time_inputs(
+        mut self,
+        inputs: std::sync::Arc<dyn hir::CompileTimeInputHost>,
+    ) -> Self {
+        self.compile_time_inputs = Some(inputs);
+        self
+    }
+
+    pub(crate) fn compile_time_inputs(
+        &self,
+    ) -> Option<&std::sync::Arc<dyn hir::CompileTimeInputHost>> {
+        self.compile_time_inputs.as_ref()
     }
 
     pub fn with_test_dependencies(

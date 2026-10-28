@@ -368,6 +368,13 @@ pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::NONE,
     },
+    IntrinsicSpec {
+        name: "compile_env",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicFunctionKind::CompileEnv,
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NONE,
+    },
     intrinsic_method(
         PrimitiveUnaryKind::BooleanNot.name(),
         IntrinsicFunctionKind::PrimitiveUnary(PrimitiveUnaryKind::BooleanNot),

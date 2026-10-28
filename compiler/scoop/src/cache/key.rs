@@ -19,7 +19,7 @@ use crate::PairedCompilerFingerprintV1;
 mod testing;
 pub use testing::TestCompileConfiguration;
 
-const CACHE_KEY_DOMAIN: &str = "scoop-cone-compile-cache-v7";
+const CACHE_KEY_DOMAIN: &str = "scoop-cone-compile-cache-v8";
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ConeCompileCacheKeyV1([u8; 32]);

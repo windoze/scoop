@@ -93,7 +93,8 @@ impl ArtifactInputs {
             let core = core(current, &providers)?;
             let sources = scoop_hir_lower::CurrentConeSources::try_new(&parsed, core, &world)
                 .and_then(|sources| sources.with_documentation(comments))
-                .map_err(|error| Error::Dependency(error.to_string()))?;
+                .map_err(|error| Error::Dependency(error.to_string()))?
+                .with_compile_time_inputs(Arc::new(scoop_toolchain::CompileTimeInputs::default()));
             let cancellation = check.clone();
             let output = scoop_hir_lower::lower_current_export_with_cancellation(
                 input.manifest.parsed().semantic().requested_kind(),

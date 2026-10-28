@@ -10,11 +10,13 @@
 - [x] 带 payload 的 enum 静态初值数据通路：HIR／MIR／LIR、LLVM 发射与既有静态存储 relocation。
 - [x] Unit／tuple 静态初值数据通路，以及显式类型 ordinary top-level property 的递归字面量初值求值。
 - [x] const property 与静态初值共用聚合值表示；Unit／tuple／无负载 enum／None、前向引用、字段读取与跨 Cone 值编码。
-- [ ] Option Elvis／when 常量求值、intrinsic 产生的聚合值及泛型／跨 Cone 传递。
+- [ ] Option Elvis／when 常量求值。
 - [ ] 常量存储合并优化：尽量共享可以安全合并的数据，保持不同常量实体身份；不作为源码合法性或唯一对象身份的强制要求。
-- [ ] core 的 scoop.compiler 声明、includeStr／includeBytes／env、Cone 目录范围及 SCOOP_ 名称限制。
+- [x] core 的 scoop.compiler.env、Option<String> 常量、SCOOP_ 名称限制、泛型／默认值及跨 Cone 传递。
+- [x] env 的 build／check／doc 缓存更新、定义处求值及语言服务的共享 HIR 输入宿主。
+- [ ] includeStr／includeBytes、Cone 目录范围检查。
 - [ ] includeDir、glob、逐项目录／symlink 范围检查与 EmbeddedDir API。
-- [ ] 构建／check／doc／LSP 的外部输入更新和缓存复用，资源／环境的定义来源。
+- [ ] 文件／目录输入的构建／check／doc／LSP 更新和缓存复用、资源的定义来源。
 - [ ] Darwin 与 Linux 必要组合验证、对应规范状态更新及功能提交。
 
 ## 验证与工作目录
@@ -22,6 +24,8 @@
 代码在独立 worktree 的 `codex/compiler-intrinsics` 分支实现。原工作区其他设计变更不纳入本分支。临时输入、原始日志放在仓库外的 `scoop-work/compiler-intrinsics` 中，不使用 `/tmp`，不提交逐次原始报告。
 
 每批代码先格式化及 lint，再运行与变更相关的 Rust／正式 CLI 测试。内置库变化后显式准备开发 sysroot；普通测试复用未变化产物。阶段完成后记录实际命令、覆盖与结果摘要。定期检查 target 占用，只在没有相关构建进程时清理可再生缓存。
+
+按用户 2026-10-29 的补充要求，不涉及 LIR／codegen 的改动不跑完整测试套件；Linux 同样只做相关定向测试。Linux 独立验证环境位于 `nuc12:~/repos/scoop-compiler-intrinsics`，不修改该机器原有源码 checkout。
 
 ## 已完成
 
@@ -62,6 +66,18 @@ const property 复用 HirConstantImage，保存完整类型下的 Unit／tuple�
 Darwin 验证：格式化、全 workspace lint 通过；329 项常量相关 Rust 测试通过，随后补充的聚合 wire／泛型默认值组合和 String owner 编码测试通过。原 Cone 的 4 项及实际 `.slib` consumer 的 2 项 release 测试通过；新增诊断 fixture 覆盖构造调用拒绝、元素类型／数量和字段依赖环；3 项既有诊断 fixture 已按实际求值范围更新并通过。静态运行期 ABI 不变；新聚合值和默认模板 String owner 扩展 HIR metadata 的 tag，`cross-cone-interface` 升至 82，旧产物需要重建。Linux 仍留在平台验收项。
 
 格式版本补充验证：17 项 profile 测试通过，覆盖旧 section 拒绝、必要 section 清单与实际编码／指纹；新版 CLI 下的跨 Cone consumer 两项 release 测试通过。已显式准备 Darwin 开发 sysroot，25 个内置 Cone 和 runtime 全部完成。
+
+### env 编译期输入
+
+core 新增 `scoop.compiler.env(name: String): Option<String>`，通过显式 import／alias 使用。普通名称和重载解析选中实际 intrinsic 后，在定义处直接展开为完整 Option 常量；泛型正文、默认值及 const property 沿既有聚合值通路发布，消费预编译依赖时保留 provider 的值。普通同名函数及构造调用不取得编译期执行资格。引用 env 给出无运行期入口的语义诊断，非法前缀、`=`／NUL、非常量参数在查询宿主前拒绝；非 Unicode 值报错，缺失与空值分别保存为 None 和 Some("")。
+
+driver 和语言服务供给同一窄输入宿主，同次编译内按实际变量复用查询结果。成功编译返回实际环境输入；build／check／doc 在源码读取和工具探测前比较记录，只查询已使用的名字。父 driver 原样传递可查询的 SCOOP_ 环境，内部对象缓存改由 child 命令参数传递，避免覆盖用户设置的 SCOOP_SYSROOT／SCOOP_CACHE_DIR。环境记录不成为纯预编译消费者的输入。
+
+本项新增 callable intrinsic tag 30，HIR `cross-cone-interface` 升至 83；machine protocol 升至 19，编译／check／doc 缓存域同步升级。没有改动 LIR、codegen 或 runtime ABI。Option Elvis／when 的常量求值仍是独立待完成项。
+
+Darwin 验证：格式化及全 workspace lint 通过；env 定向 Rust 测试、protocol、profile、缓存及 child transport 测试通过。正式 CLI 的 env 值／缓存用例共 15 步、定义处跨 Cone 产物用例共 4 步、3 项 env 诊断 fixture 和 5 项既有 const 诊断 fixture 均通过。值／缓存用例覆盖缺失、空值、变化、未查询变量变化、运行期环境不影响产物、泛型／默认值，以及 build／check／doc 复用。已显式重建 25 个 Darwin 内置 Cone，并完成 runtime 准备。
+
+Linux 验证：使用 LLVM 22.1.2，在独立目录构建所需 CLI、core／std 与普通 GNU runtime；相同 15 步值／缓存、4 步跨 Cone 产物、3 项诊断 fixture 及输入宿主定向测试均通过。初次复用的旧 runtime 索引与当前编译器不兼容，已在独立测试 sysroot 重建并复验通过。未跑全套测试或 GC stress。
 
 ## 范围调整
 

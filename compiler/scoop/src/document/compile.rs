@@ -107,7 +107,11 @@ pub(super) fn graph(
                     .iter()
                     .flat_map(|input| input.warnings().iter().cloned())
                     .collect::<Vec<_>>();
-                entry.save(&result, &warnings)?;
+                let environment_inputs = inputs
+                    .iter()
+                    .flat_map(|input| input.environment_inputs().iter().cloned())
+                    .collect::<Vec<_>>();
+                entry.save(&result, &warnings, &environment_inputs)?;
             }
             if invoked {
                 compiled.push(identity);

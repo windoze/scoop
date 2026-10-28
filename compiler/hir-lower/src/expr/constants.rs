@@ -138,6 +138,20 @@ impl Lowerer {
             E::CharLiteral(value) => C::Char(*value),
             E::BoolLiteral(value) => C::Boolean(*value),
             E::StringLiteral { value, .. } => C::String(value.clone()),
+            E::PrimitiveBinary {
+                kind: hir::PrimitiveBinaryKind::StringConcat,
+                lhs,
+                rhs,
+            } => {
+                let (C::String(mut lhs), C::String(rhs)) = (
+                    self.expression_constant(lhs)?,
+                    self.expression_constant(rhs)?,
+                ) else {
+                    return None;
+                };
+                lhs.push_str(&rhs);
+                C::String(lhs)
+            }
             E::TupleLiteral(elements) => C::Tuple(
                 elements
                     .iter()

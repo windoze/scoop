@@ -40,6 +40,9 @@
 use scoop_ast as ast;
 use scoop_hir as hir;
 
+mod compiler_inputs;
+pub(crate) use compiler_inputs::ConstantCallContext;
+
 use ast::Span;
 use hir::{ExprKind, Type, TypeId};
 

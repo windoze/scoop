@@ -170,6 +170,11 @@ pub(super) fn expected_operation_signature(
             Vec::new(),
             SignatureTypeKey::Nominal(surface.source_location_protocol.location),
         ),
+        IntrinsicFunctionKind::CompileEnv => (
+            Effect::Ordinary,
+            vec![string.clone()],
+            signature_application(surface.option_protocol.option, string),
+        ),
         IntrinsicFunctionKind::ForeignCallbackRegister => {
             let callback = &surface.foreign_callback_protocol;
             (
@@ -380,6 +385,7 @@ pub(super) fn operation_own_type_parameter_count(kind: IntrinsicFunctionKind) ->
         IntrinsicFunctionKind::GcCollect
         | IntrinsicFunctionKind::GcStats
         | IntrinsicFunctionKind::CurrentSourceLocation
+        | IntrinsicFunctionKind::CompileEnv
         | IntrinsicFunctionKind::Integer(_)
         | IntrinsicFunctionKind::Float(_)
         | IntrinsicFunctionKind::Char(_)

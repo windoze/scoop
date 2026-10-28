@@ -67,6 +67,13 @@ impl Lowerer {
             ..
         } = probe;
         *self = *state;
+        self.record_constant_call(
+            call_span,
+            match candidate.interface().effects().implementation() {
+                hir::CallableImplementationV1::Intrinsic(kind) => Some(kind),
+                _ => None,
+            },
+        );
         self.observe_dependency_constructor_name(
             call_span,
             candidate.interface().declaration(),
@@ -100,6 +107,19 @@ impl Lowerer {
             self.require_unsafe_operation(
                 call_span,
                 &format!("calling an unsafe dependency {}", candidate.description()),
+            );
+        }
+
+        if let super::ImportedCallImplementation::Intrinsic {
+            operation: super::ImportedIntrinsicCall::CompileEnv { source },
+            ..
+        } = &implementation
+        {
+            return self.normalize_compile_env(
+                &source_args,
+                source.as_ref(),
+                result_type,
+                call_span,
             );
         }
 

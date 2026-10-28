@@ -61,7 +61,7 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{file = "${work}/cone/target/${target}/build/release/checks-v1", type = "directory"}]
+checks = [{file = "${work}/cone/target/${target}/build/release/checks-v2", type = "directory"}]
 
 [[steps]]
 name = "doc"
@@ -71,7 +71,7 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{file = "${work}/cone/target/${target}/build/debug/documentation-v1", type = "directory"}]
+checks = [{file = "${work}/cone/target/${target}/build/debug/documentation-v2", type = "directory"}]
 
 [[steps]]
 name = "relocated"
