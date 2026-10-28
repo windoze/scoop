@@ -1,0 +1,148 @@
+package scoop.platform.fs
+
+import scoop.platform.system.Architecture
+import scoop.platform.system.OperatingSystem
+import scoop.platform.system.OsString
+import scoop.platform.system.architecture
+import scoop.platform.system.operatingSystem
+import scoop.test.*
+
+@Test
+private class WindowsPathTest {
+    @Test
+    fun absolutePathsDistinguishDriveRelativeAndCurrentDriveRoots() {
+        assertTrue(operatingSystem == OperatingSystem.Windows)
+        assertTrue(architecture == Architecture.X86_64)
+        for (
+            text in [
+                "C:\\a",
+                "d:/a",
+                "\\\\server\\share",
+                "//server/share/a",
+                "\\\\?\\C:\\a",
+                "\\\\?\\UNC\\server\\share\\a",
+                "\\\\.\\pipe\\name"
+            ]
+        ) {
+            assertTrue(Path.fromString(text).isAbsolute)
+        }
+        for (text in ["", "a", "C:", "C:a", "\\a", "/a", "\\\\server"]) {
+            assertFalse(Path.fromString(text).isAbsolute)
+        }
+    }
+
+    @Test
+    fun namesAndParentsDoNotConsumeDriveOrUncPrefixes() {
+        assertEquals("b", Path.fromString("C:\\a//b\\").fileName!!.decodeUtf8())
+        assertEquals("C:\\a", Path.fromString("C:\\a//b\\").parent!!.decodeUtf8())
+        assertEquals("C:\\", Path.fromString("C:\\a").parent!!.decodeUtf8())
+        assertEquals("C:", Path.fromString("C:a").parent!!.decodeUtf8())
+        assertEquals("", Path.fromString("a").parent!!.decodeUtf8())
+        assertEquals(
+            "\\\\server\\share\\",
+            Path.fromString("\\\\server\\share\\a").parent!!.decodeUtf8()
+        )
+        for (text in ["", "C:", "C:\\", "\\\\server\\share", "\\\\server\\share\\", "\\"]) {
+            val path = Path.fromString(text)
+            assertTrue(path.parent == None)
+            assertTrue(path.fileName == None)
+        }
+        assertTrue(Path.fromString("C:\\a\\..").fileName == None)
+    }
+
+    @Test
+    fun componentsPreserveDotsAndOmitPrefixes() {
+        for (text in ["C:\\a/./../b\\", "C:a/./../b", "\\\\server\\share\\a\\.\\..\\b"]) {
+            val parts = Path.fromString(text).components()
+            assertEquals(4L, parts.size)
+            assertEquals("a", parts[0L].decodeUtf8())
+            assertEquals(".", parts[1L].decodeUtf8())
+            assertEquals("..", parts[2L].decodeUtf8())
+            assertEquals("b", parts[3L].decodeUtf8())
+        }
+        assertEquals(0L, Path.fromString("\\\\server\\share").components().size)
+    }
+
+    @Test
+    fun resolutionRetainsAPrefixOnlyForARootRelativeChild() {
+        val base = Path.fromString("C:\\base")
+        assertEquals("C:\\base\\child", base.resolve(Path.fromString("child")).decodeUtf8())
+        assertEquals("C:\\child", base.resolve(Path.fromString("\\child")).decodeUtf8())
+        assertEquals("C:/child", base.resolve(Path.fromString("/child")).decodeUtf8())
+        assertEquals("D:child", base.resolve(Path.fromString("D:child")).decodeUtf8())
+        assertEquals("D:\\child", base.resolve(Path.fromString("D:\\child")).decodeUtf8())
+        assertEquals(
+            "C:child",
+            Path.fromString("C:").resolve(Path.fromString("child")).decodeUtf8()
+        )
+        assertEquals(
+            "C:base\\child",
+            Path.fromString("C:base").resolve(Path.fromString("child")).decodeUtf8()
+        )
+        assertEquals(
+            "\\\\server\\share\\child",
+            Path.fromString("\\\\server\\share\\base").resolve(
+                Path.fromString("\\child")
+            ).decodeUtf8()
+        )
+        assertEquals(
+            "\\\\server\\share\\child",
+            Path.fromString("\\\\server\\share").resolve(Path.fromString("child")).decodeUtf8()
+        )
+        assertSame(base, base.resolve(Path.fromString("")))
+    }
+
+    @Test
+    fun normalizationDoesNotClimbAboveARoot() {
+        assertEquals("C:\\b", Path.fromString("C:/a/../../b//.").normalizeLexically().decodeUtf8())
+        assertEquals("C:..\\b", Path.fromString("C:a/../../b/.").normalizeLexically().decodeUtf8())
+        assertEquals("\\b", Path.fromString("/a/../../b").normalizeLexically().decodeUtf8())
+        assertEquals(
+            "\\\\server\\share\\b",
+            Path.fromString("//server/share/a/../../b").normalizeLexically().decodeUtf8()
+        )
+        assertEquals("..\\..\\a", Path.fromString("../../a").normalizeLexically().decodeUtf8())
+        assertEquals("C:", Path.fromString("C:a/..").normalizeLexically().decodeUtf8())
+        assertEquals(".", Path.fromString("a/..").normalizeLexically().decodeUtf8())
+        assertEquals(".", Path.fromString("").normalizeLexically().decodeUtf8())
+        assertEquals("\\", Path.fromString("///").normalizeLexically().decodeUtf8())
+        assertFalse(Path.fromString("C:/a") == Path.fromString("C:\\a"))
+        assertFalse(Path.fromString("C:\\a") == Path.fromString("c:\\a"))
+    }
+
+    @Test
+    fun verbatimAndDeviceNamespacesPreserveLiteralNames() {
+        val path = Path.fromString("\\\\?\\C:\\a\\..\\b/part")
+        assertSame(path, path.normalizeLexically())
+        assertEquals("b/part", path.fileName!!.decodeUtf8())
+        assertEquals(3L, path.components().size)
+        assertEquals(
+            "\\\\?\\C:\\a\\b\\part",
+            Path.fromString("\\\\?\\C:\\a").resolve(Path.fromString("b/part")).decodeUtf8()
+        )
+        assertEquals("\\\\?\\C:\\b\\part", path.resolve(Path.fromString("/b/part")).decodeUtf8())
+        assertEquals("\\\\?\\C:\\a\\..", path.parent!!.decodeUtf8())
+        assertEquals("\\\\?\\C:\\child", path.resolve(Path.fromString("\\child")).decodeUtf8())
+        val unc = Path.fromString("\\\\?\\UNC\\服务器\\share\\name")
+        assertTrue(unc.isAbsolute)
+        assertEquals(1L, unc.components().size)
+        assertEquals("\\\\?\\UNC\\服务器\\share\\", unc.parent!!.decodeUtf8())
+        val pipe = Path.fromString("\\\\.\\pipe\\name")
+        assertSame(pipe, pipe.normalizeLexically())
+        assertEquals("name", pipe.fileName!!.decodeUtf8())
+        assertEquals("\\\\.\\pipe\\", pipe.parent!!.decodeUtf8())
+    }
+
+    @Test
+    fun utf16NamesRetainUnpairedSurrogatesAndRejectNul() {
+        val units: Array<UShort> = [67.toUShort(), 58.toUShort(), 92.toUShort(), 0xd800.toUShort()]
+        val path = Path.fromOsString(OsString.fromUtf16(units))
+        assertEquals(0xd800.toUShort(), path.fileName!!.toUtf16()[0L])
+        assertEquals("C:\\", path.parent!!.decodeUtf8())
+        assertEquals(path, Path.fromOsString(path.toOsString()))
+        assertEquals(path.hash(), Path.fromOsString(path.toOsString()).hash())
+        assertFailsWith<CharacterCodingException> { path.decodeUtf8() }
+        val nul: Array<UShort> = [0.toUShort()]
+        assertFailsWith<IllegalArgumentException> { Path.fromOsString(OsString.fromUtf16(nul)) }
+    }
+}

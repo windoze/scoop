@@ -20,6 +20,10 @@ path = "tests"
 path = "test-windows"
 when = {os = "windows"}
 
+[[test.sources]]
+path = "test-posix"
+when = {os = ["darwin", "linux"]}
+
 [native]
 c_flags = ["-Wextra", "-Werror"]
 
@@ -43,6 +47,8 @@ path = "native/directory.c"
 path = "native/environment.c"
 [[native.sources]]
 path = "native/system.c"
+[[native.sources]]
+path = "native/target.c"
 [[native.sources]]
 path = "native/time.c"
 [[native.sources]]

@@ -51,6 +51,14 @@ Windows OS 返回的原生名称使用上述无损表示；进入 Windows wide A
 
 词法归一化不解析 symlink，不保证保持 symlink 路径的 OS 解析结果，不是权限检查。canonicalize 是后续文件系统 API 的显式操作。相对路径在实际 OS 调用时按当时的 cwd 解析。
 
+以上表格描述 POSIX 词法规则。Windows 按目标而非宿主使用以下规则，构造仍只拒绝 NUL，不访问文件系统或替 OS 检查名称是否合法：
+
+- 普通路径同时识别 `/` 和 `\` 分隔符。`C:\a`、完整 UNC `\\server\share\a` 是 absolute；`C:a` 为指定盘符的相对路径，`\a`／`/a` 为当前盘符的 rooted 路径，二者的 isAbsolute 均为 false。
+- 盘符和 UNC server/share 属于前缀，components 不包含前缀或根。fileName／parent 不越过前缀或根；`C:a` 的 parent 为 `C:`，`C:\a` 的 parent 为 `C:\`，UNC 根没有 parent。
+- resolve 的带前缀 child 替换 base，包括 drive-relative child；没有前缀但 rooted 的 child 保留 base 的前缀并替换其余内容。普通 relative child 以 `\` 连接，只有 base 恰为 `C:` 一类 drive-relative 前缀时不插入分隔符。空 child 保留 base。
+- normalizeLexically 保留盘符／UNC 前缀，使用 `\` 连接组件，消除重复分隔符和 `.`，折叠 `..`；rooted 路径不越过根，drive-relative 路径保留未配对 `..`。空的普通 relative 结果为 `.`；只剩 drive-relative 前缀时保留该前缀。
+- `\\?\` 与 `\\.\` 命名空间路径保留前缀，只将 `\` 作为分隔符；前者识别 drive 与 `UNC\server\share`，其他名称以命名空间后的首组件作为前缀。其 normalizeLexically 返回原路径，避免改写交给 OS 的字面名称。向这种 base 连接普通 child 时，将 child 的分隔符写为 `\`，不折叠其 dot 组件。比较与 hash 始终使用原始字节，不把不同拼写当成相等路径。
+
 ## 3. 系统错误
 
 `scoop.platform.system.PlatformErrorKind` 包含 NotFound、AlreadyExists、PermissionDenied、NotDirectory、IsDirectory、InvalidInput、NoMemory、NoSpace、BrokenPipe、ConnectionRefused、ConnectionReset、AddressInUse、AddressUnavailable、TimedOut、Interrupted、WouldBlock、Unsupported、Other。未知错误归 Other，必须保留原始错误数据；Unsupported 仅用于 OS 实际报告不支持。
@@ -209,7 +217,7 @@ safe fd 输出不因断开的 pipe/socket 默认杀死进程。Linux 普通 fd �
 
 currentDirectory(): Path 查询实际 cwd，不读取 PWD；homeDirectory(): Path? 优先使用非空 HOME，否则查询当前真实 uid 的 passwd 目录，没有记录或空目录时返回 None，实际查询错误抛 PlatformException。temporaryDirectory(): Path 使用非空 TMPDIR，否则为 `/tmp`。查询返回字节副本，不保证路径存在、可访问或之后仍可创建文件；不提供全局 chdir。
 
-`scoop.platform.system` 提供 OperatingSystem(Darwin/Linux)、Architecture(Aarch64/X86_64)、operatingSystem 与 architecture 只读值，标识当前构建目标。systemVersion(): String 返回 uname 的系统 release，logicalProcessorCount: Long 返回 OS 报告的在线逻辑 CPU 数；失败照常抛系统错误，不推导容器配额或调度能力。
+`scoop.platform.system` 提供 OperatingSystem(Darwin/Linux/Windows)、Architecture(Aarch64/X86_64)、operatingSystem 与 architecture 只读值，标识当前构建目标。POSIX 的 systemVersion(): String 返回 uname 的系统 release，logicalProcessorCount: Long 返回 OS 报告的在线逻辑 CPU 数；失败照常抛系统错误，不推导容器配额或调度能力。
 
 ## 8. 时钟与阻塞 sleep
 

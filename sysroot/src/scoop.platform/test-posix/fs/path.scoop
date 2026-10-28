@@ -4,7 +4,7 @@ import scoop.platform.system.OsString
 import scoop.test.*
 
 @Test
-private class PathTest {
+private class PosixPathTest {
     @Test
     fun `path names and parents preserve lexical bytes`() {
         val path = Path.fromString("/alpha//beta/")
@@ -37,14 +37,26 @@ private class PathTest {
         assertEquals("/beta", base.resolve(Path.fromString("/beta")).decodeUtf8())
         assertSame(base, base.resolve(Path.fromString("")))
         assertEquals("beta", Path.fromString("").resolve(Path.fromString("beta")).decodeUtf8())
-        assertEquals("alpha/beta", Path.fromString("alpha/").resolve(Path.fromString("beta")).decodeUtf8())
+        assertEquals(
+            "alpha/beta",
+            Path.fromString("alpha/").resolve(Path.fromString("beta")).decodeUtf8()
+        )
     }
 
     @Test
     fun `normalization preserves unresolved relative parents`() {
-        assertEquals("../beta", Path.fromString("alpha/../../beta/.").normalizeLexically().decodeUtf8())
-        assertEquals("/beta", Path.fromString("/alpha/../../beta//").normalizeLexically().decodeUtf8())
-        assertEquals("../../alpha", Path.fromString("../../alpha").normalizeLexically().decodeUtf8())
+        assertEquals(
+            "../beta",
+            Path.fromString("alpha/../../beta/.").normalizeLexically().decodeUtf8()
+        )
+        assertEquals(
+            "/beta",
+            Path.fromString("/alpha/../../beta//").normalizeLexically().decodeUtf8()
+        )
+        assertEquals(
+            "../../alpha",
+            Path.fromString("../../alpha").normalizeLexically().decodeUtf8()
+        )
         assertEquals(".", Path.fromString("alpha/..").normalizeLexically().decodeUtf8())
         assertEquals(".", Path.fromString("").normalizeLexically().decodeUtf8())
         assertEquals("/", Path.fromString("///").normalizeLexically().decodeUtf8())

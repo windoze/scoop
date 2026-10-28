@@ -6,25 +6,7 @@
 #include <unistd.h>
 #include <signal.h>
 
-int scoop_platform_process_suspend(void) {
-    return kill(getpid(), SIGTSTP);
-}
-
-int scoop_platform_operating_system(void) {
-#ifdef __APPLE__
-    return 0;
-#else
-    return 1;
-#endif
-}
-
-int scoop_platform_architecture(void) {
-#ifdef __aarch64__
-    return 0;
-#else
-    return 1;
-#endif
-}
+int scoop_platform_process_suspend(void) { return kill(getpid(), SIGTSTP); }
 
 int64_t scoop_platform_processor_count(void) {
     errno = 0;
