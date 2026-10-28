@@ -1,155 +1,17 @@
 package scoop.platform.fs
 
-import scoop.platform.io.*
-import scoop.platform.memory.NativeByteBuffer
-import scoop.platform.memory.nativeMemoryFree
-import scoop.platform.native.temporaryPathPattern
 import scoop.platform.env.temporaryDirectory
-import scoop.platform.system.*
-
-/**
- * Creates a symbolic link at this path containing the supplied target path.
- */
-public fun Path.createSymbolicLink(target: Path) {
-    @Unsafe
-    {
-        this.withNativePath {
-            name -> @Unsafe
-            {
-                target.withNativePath {
-                    destination -> @Unsafe
-                    {
-                        val(status, error) = nativePathSymlink(name, destination)
-                        checkNativeStatus(
-                            status,
-                            error,
-                            "create symbolic link",
-                            Some(this.toOsString())
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * Reads the stored target of a symbolic link without resolving it.
- */
-public fun Path.readSymbolicLink(): Path {
-    return NativeByteBuffer.allocate(256L).use {
-        buffer -> @Unsafe
-        {
-            return@use this.withNativePath {
-                name -> @Unsafe
-                {
-                    while (true) {
-                        buffer.clear()
-                        val count =
-                            buffer.withWritableBytes {
-                                pointer,
-                                capacity -> @Unsafe
-                                {
-                                    val(read, error) = nativePathReadlink(name, pointer!!, capacity)
-                                    return@withWritableBytes checkNative(
-                                        read,
-                                        error,
-                                        "read symbolic link",
-                                        Some(this.toOsString())
-                                    )
-                                }
-                            }
-                        if (count < buffer.capacity)
-                            return@withNativePath Path.fromOsString(
-                                OsString.fromByteArray(buffer.readBytes(count))
-                            )
-                        if (buffer.capacity == Long.MAX_VALUE)
-                            throw ArithmeticException()
-                        val needed = buffer.capacity + 1L
-                        buffer.clear()
-                        buffer.ensureWritable(needed)
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * Resolves the path through the filesystem, including symbolic links, into a canonical absolute
- * path.
- */
-public fun Path.canonicalize(): Path {
-    @Unsafe
-    {
-        return this.withNativePath {
-            name -> @Unsafe
-            {
-                val(pointer, error) = nativePathRealpath(name)
-                if (pointer == None)
-                    failNative("canonicalize", error, Some(this.toOsString()))
-                try {
-                    return@withNativePath Path.fromOsString(copyNativeString(pointer!!))
-                }
-                finally {
-                    nativeMemoryFree(pointer!!)
-                }
-            }
-        }
-    }
-}
 
 /**
  * Creates a unique temporary file in the chosen parent and returns its path. The caller owns
  * deletion responsibility.
  */
 public fun createTempFile(parent: Path? = None, prefix: String = "scoop-"): Path =
-    temporaryPath(parent, prefix, false)
+    createPlatformTemporaryPath(parent ?: temporaryDirectory(), prefix, false)
 
 /**
  * Creates a unique temporary directory in the chosen parent. The caller owns deletion
  * responsibility.
  */
 public fun createTempDirectory(parent: Path? = None, prefix: String = "scoop-"): Path =
-    temporaryPath(parent, prefix, true)
-
-private fun temporaryPath(parent: Path?, prefix: String, directory: Boolean): Path {
-    val base = parent ?: temporaryDirectory()
-    val pattern = temporaryPathPattern(base, prefix).toOsString().toByteArray()
-    @Unsafe
-    {
-        if (pattern.size == Long.MAX_VALUE)
-            throw ArithmeticException()
-        val writable =
-            MutableArray<Byte>(pattern.size + 1L) {
-                index -> if (index == pattern.size)
-                    0.toByte()
-                else
-                    pattern[index]
-            }
-        return writable.withDataPointer {
-            pointer,
-            _ -> @Unsafe
-            {
-                val(status, error) = nativePathTemporary(pointer, directory)
-                checkNativeStatus(status, error, "create temporary path", Some(base.toOsString()))
-                return@withDataPointer Path.fromOsString(copyNativeString(pointer))
-            }
-        }
-    }
-}
-
-@Extern(name = "scoop_platform_path_symlink", captureErrno = true)
-private fun nativePathSymlink(link: Ptr<Byte>, target: Ptr<Byte>): (Int, Int)
-
-@Extern(name = "scoop_platform_path_readlink", captureErrno = true)
-private fun nativePathReadlink(path: Ptr<Byte>, buffer: Ptr<Byte>, capacity: Long): (Long, Int)
-
-@Extern(name = "scoop_platform_path_realpath", captureErrno = true)
-private fun nativePathRealpath(path: Ptr<Byte>): (Ptr<Byte>?, Int)
-
-@Extern(name = "scoop_platform_temporary_directory")
-internal fun nativeTemporaryDirectory(): Ptr<Byte>
-
-@Extern(name = "scoop_platform_path_temporary", captureErrno = true)
-private fun nativePathTemporary(pattern: Ptr<Byte>, directory: Boolean): (Int, Int)
+    createPlatformTemporaryPath(parent ?: temporaryDirectory(), prefix, true)

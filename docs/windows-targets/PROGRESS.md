@@ -7,7 +7,7 @@
 | W0 工具链与 ABI | 关键路线实验通过 | 复现入口与范围见下文；正式编译器集成在 W1／W2 完成 |
 | W1 编译／链接 | 实施中 | 三目标开发 CLI 已支持 subsystem、RC、DLL 数据与跨 Cone C++；函数入口的 CodeView／PDB 定位通过，继续源位置覆盖与 ABI 组合验收 |
 | W2 core runtime | 实施中 | core／std／test 已构建且 Cone 测试通过，异常、移动 GC、callback、TLS、初始化、shutdown 与并行 GC 的定向程序通过；继续其余 ABI／GC 组合验收 |
-| W3 系统库 | 实施中 | 字符串／路径、错误、线程／同步、时钟／熵、同步 socket、文件 HANDLE 与目录枚举已有定向验证；继续链接／临时路径／环境／进程、console、IOCP、全部 native 组件及真实 consumer |
+| W3 系统库 | 实施中 | 字符串／路径、错误、线程／同步、时钟／熵、同步 socket、文件 HANDLE、目录枚举、链接与临时路径已有定向验证；继续环境／进程、console、IOCP、全部 native 组件及真实 consumer |
 | W4 宿主与发行 | 基础实施中 | 进程中断已实现；继续 Windows 命令、维护脚本、DLL／SDK 布局与打包、交叉编译 |
 
 本地实现和完整验收完成后，才在 Linux `nuc12w.0d0a.com` 与 macOS `mm.0d0a.com` 的 `~/repos` 下新建测试目录，运行与变更范围相称的回归。原始日志与构建目录放在仓库外。
@@ -194,3 +194,7 @@ File 与匿名 pipe 已改用独立的完整宽度文件 handle，Windows 实现
 三个 target 的实际源码子集各通过 22 个容器／81 项测试，新增覆盖非 BMP／非配对 surrogate 文件名、原始 LF／CR／NUL／0x1a／0xff、共享文件位置、追加／截断／同步、同文件复制拒绝、替换移动、Windows shared／exclusive 锁、错误后的 buffer／owner 状态，以及 128 KiB 管道、EOF 与 broken pipe。Scoop 格式化、三套 Clang 与 cl 的严格 C 检查通过；完整 platform 的源码与测试语义检查通过。实际 native helper 探针在 cl、MinGW MSVCRT／UCRT 均验证不可继承属性、GetStdHandle 重定向／缺失句柄、独立关闭和原码保存。此批未发布完整 platform，完整目录／环境／进程、console、IOCP、原生边界 GC fixture 与远端 POSIX 回归仍待完成。
 
 目录枚举已使用独立的 Windows HANDLE 和 FileFullDirectoryInfo，以实际长度复制 UTF-16 名称；EOF、提前 close 与 GC 兜底共用一次释放路径。POSIX 的 opendir／readdir／closedir helper 继续供 asyncio 和同步 wrapper 使用；目录递归操作从其余路径工厂中分离。三个 target 的实际子集各通过 23 个容器／84 项测试，新增覆盖空目录、提前／异常关闭、385 个条目跨批次读取无遗漏或重复、名称快照与 GC、非配对 surrogate、嵌套目录和递归删除。Scoop 格式化、三套 Clang 与 cl 的严格 C 检查及完整 platform 测试源码语义检查通过；未将此子集发布成完整 platform，链接／临时路径与其余 W3／W4 工作继续实施。
+
+符号链接、junction 读取与 canonicalize 已接入宽字符 Win32 API。createSymbolicLink 新增默认 false 的 targetIsDirectory，Windows 目录目标（包括悬空目录）显式传 true，POSIX 忽略该参数；两个实际目录链接调用点已同步。readSymbolicLink 读取实际 substitute name，并将绝对 NT 前缀转为可用的 Win32 extended 路径；canonicalize 保留系统返回的真实规范路径。临时目录使用 GetTempPath2W／旧系统 GetTempPathW，工厂保留完整前缀，在规范父目录下用随机名称与排他创建，不将 DOS device 名称当成普通临时文件；POSIX 的 mkostemp／mkdtemp 与 asyncio 共享入口保留。
+
+三个 target 的实际源码子集各通过 25 个容器／89 项测试，新增覆盖非配对 surrogate 链接目标、绝对／相对与悬空链接、链接删除保留目标、长路径 buffer 扩展、完整临时前缀、排他创建、显式删除、DOS 保留名称和错误原码。完整 platform 的测试源码语义检查、Scoop 格式化、三个 Clang 环境与 cl 的严格 C 检查通过。实际原生探针在 cl、MinGW MSVCRT／UCRT 均验证 junction 的 substitute name 不受不同 print name 影响、canonicalize、nofollow metadata、删除保留目标及含 surrogate 的临时目录独立副本。完整 platform 尚未发布；环境／进程、console、IOCP、原生边界 GC fixture、其余系统库及远端 POSIX 回归仍待完成。

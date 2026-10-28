@@ -1,0 +1,123 @@
+package scoop.platform.fs
+
+import scoop.platform.random.SystemRandom
+import scoop.platform.system.*
+import scoop.text.startsWith
+import scoop.test.*
+
+private fun <R> withWindowsLinks(block: (Path) -> R): R {
+    val path = Path.fromString("scoop-links-" + SystemRandom.nextLong().toString())
+    path.createDirectory()
+    val absolute = path.canonicalize()
+    try {
+        return block(absolute)
+    }
+    finally {
+        absolute.deleteRecursively()
+    }
+}
+
+@Test
+private class WindowsLinksTest {
+    @Test
+    fun `file links preserve UTF16 names and resolve the actual target`() {
+        withWindowsLinks {
+            directory ->
+            val units: Array<UShort> =
+                [0x4e2d.toUShort(), 0xd83d.toUShort(), 0xde00.toUShort(), 0xdc00.toUShort()]
+            val relative = Path.fromOsString(OsString.fromUtf16(units))
+            val target = directory.resolve(relative)
+            target.writeText("original")
+            val link = directory.resolve(Path.fromString("链接😀"))
+            link.createSymbolicLink(relative)
+            val stored = link.readSymbolicLink()
+            assertEquals(relative, stored)
+            gcCollect()
+            val copied = stored.toOsString().toUtf16()
+            assertEquals(units.size, copied.size)
+            for (index in 0L ..< units.size)
+                assertEquals(units[index], copied[index])
+            assertEquals("original", link.readText())
+            assertTrue(link.metadata(followLinks = false).kind == FileKind.SymbolicLink)
+            assertTrue(link.metadata().kind == FileKind.Regular)
+            assertEquals(target.canonicalize(), link.canonicalize())
+            val absolute = target.canonicalize()
+            assertTrue(absolute.isAbsolute)
+            assertTrue(absolute.toOsString().decodeUtf8Lossy().startsWith("\\\\?\\"))
+            val absoluteLink = directory.resolve(Path.fromString("absolute"))
+            absoluteLink.createSymbolicLink(absolute)
+            assertEquals(absolute, absoluteLink.readSymbolicLink())
+            assertEquals("original", absoluteLink.readSymbolicLink().readText())
+            val exists = assertFailsWith<PlatformException> { link.createSymbolicLink(relative) }
+            assertTrue(exists.kind == PlatformErrorKind.AlreadyExists)
+            assertEquals(link.toOsString(), exists.context!!)
+            val plain = assertFailsWith<PlatformException> { target.readSymbolicLink() }
+            assertTrue(plain.nativeError!!.domain == NativeErrorDomain.Win32)
+            assertEquals(4390, plain.nativeError!!.code)
+            assertEquals(target.toOsString(), plain.context!!)
+        }
+    }
+
+    @Test
+    fun `directory and dangling links delete only the link itself`() {
+        withWindowsLinks {
+            directory ->
+            val outside = directory.resolve(Path.fromString("outside"))
+            outside.createDirectory()
+            outside.resolve(Path.fromString("keep")).writeText("kept")
+            val inside = directory.resolve(Path.fromString("inside"))
+            inside.createDirectory()
+            val link = inside.resolve(Path.fromString("link"))
+            val relative = Path.fromString("..\\outside")
+            link.createSymbolicLink(relative, targetIsDirectory = true)
+            assertEquals(relative, link.readSymbolicLink())
+            assertTrue(link.metadata().kind == FileKind.Directory)
+            assertEquals(outside.canonicalize(), link.canonicalize())
+            inside.deleteRecursively()
+            assertEquals("kept", outside.resolve(Path.fromString("keep")).readText())
+            val dangling = directory.resolve(Path.fromString("dangling"))
+            val missing = Path.fromString("not-yet")
+            dangling.createSymbolicLink(missing, targetIsDirectory = true)
+            assertFalse(dangling.exists())
+            assertTrue(dangling.exists(followLinks = false))
+            assertTrue(dangling.metadata(followLinks = false).kind == FileKind.SymbolicLink)
+            assertEquals(missing, dangling.readSymbolicLink())
+            val error = assertFailsWith<PlatformException> { dangling.canonicalize() }
+            assertTrue(error.nativeError!!.domain == NativeErrorDomain.Win32)
+            assertTrue(error.kind == PlatformErrorKind.NotFound)
+            assertEquals(dangling.toOsString(), error.context!!)
+            directory.resolve(missing).createDirectory()
+            assertTrue(dangling.metadata().kind == FileKind.Directory)
+            dangling.delete()
+            assertTrue(directory.resolve(missing).exists())
+            val fileLink = directory.resolve(Path.fromString("file-link"))
+            fileLink.createSymbolicLink(Path.fromString("missing-file"))
+            assertFalse(fileLink.exists())
+            assertTrue(fileLink.exists(followLinks = false))
+            fileLink.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `canonical and stored targets grow past the initial native buffer`() {
+        withWindowsLinks {
+            directory ->
+            val base = directory.canonicalize()
+            var deep = base
+            for (index in 0 ..< 24) {
+                deep = deep.resolve(Path.fromString("long-component-" + index.toString()))
+                deep.createDirectory()
+            }
+            val file = deep.resolve(Path.fromString("kept"))
+            file.writeText("long")
+            val resolved = file.canonicalize()
+            assertTrue(resolved.toOsString().toUtf16().size > 256L)
+            assertEquals(file, resolved)
+            val link = base.resolve(Path.fromString("long-link"))
+            link.createSymbolicLink(resolved)
+            assertEquals(resolved, link.readSymbolicLink())
+            assertEquals("long", link.readText())
+            assertEquals(resolved, link.canonicalize())
+        }
+    }
+}

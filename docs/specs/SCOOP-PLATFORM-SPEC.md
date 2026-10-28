@@ -185,7 +185,7 @@ Windows 使用 LockFileEx／UnlockFileEx 锁定从零开始、长度为 UINT64_M
 
 ### 6.2 文件系统操作
 
-`scoop.platform.fs` 提供 Path 扩展 readAllBytes/readText/readTextLossy、writeAllBytes/writeText、copyTo(destination, replaceExisting = false)、moveTo(destination, replaceExisting = false)、delete/deleteRecursively、metadata/exists、createDirectory/createDirectories、readSymbolicLink/createSymbolicLink(target)、canonicalize、entries。接收者是被读取、修改或作为源的 Path；File.open(path, options) 仍负责创建文件句柄。createTempFile/createTempDirectory 是同 package 的顶层工厂。普通 import 即可使用这些入口，不保留 Files 工具 object。
+`scoop.platform.fs` 提供 Path 扩展 readAllBytes/readText/readTextLossy、writeAllBytes/writeText、copyTo(destination, replaceExisting = false)、moveTo(destination, replaceExisting = false)、delete/deleteRecursively、metadata/exists、createDirectory/createDirectories、readSymbolicLink/createSymbolicLink(target, targetIsDirectory = false)、canonicalize、entries。接收者是被读取、修改或作为源的 Path；File.open(path, options) 仍负责创建文件句柄。createTempFile/createTempDirectory 是同 package 的顶层工厂。普通 import 即可使用这些入口，不保留 Files 工具 object。
 
 - writeAllBytes/writeText 默认创建或截断，支持显式 append；copyTo 默认不替换，replaceExisting=true 才允许覆盖。copyTo 不承诺原子性或复制全部 metadata，不允许把同一 OS 文件作为源与目标后先截断源内容。
 - moveTo 默认不替换，使用 Darwin renamex_np(RENAME_EXCL) 或 Linux renameat2(RENAME_NOREPLACE) 的真实排他操作；replaceExisting=true 使用 rename。跨文件系统与不支持的错误照常报告，不以有竞争的 exists 预检查模拟排他，不暗中 copy+delete。
@@ -193,8 +193,10 @@ Windows 使用 LockFileEx／UnlockFileEx 锁定从零开始、长度为 UINT64_M
 - Path.metadata(followLinks=true) 返回 FileMetadata。FileKind 区分 Regular、Directory、SymbolicLink、BlockDevice、CharacterDevice、Fifo、Socket、Other；metadata 包含 size、permissions、accessedAt、modifiedAt、changedAt 和可选 createdAt，时间复用 scoop.time.Instant。Darwin 使用 birth time，Linux stat 不提供 birth time 时为 None；不可用时间不以零冒充有效值。
 - exists 仅把 NotFound 和路径组件的 NotDirectory 转为 false，权限与其他 IO 错误继续抛出。查询不消除之后操作的文件系统竞争。
 - createDirectory 默认 mode=0777，受 umask 影响；createDirectories 接受已存在目录，其他类型照常报错。delete 删除单个文件、symlink 或空目录；deleteRecursively 不主动跟随 symlink，调用方须排除并发替换目录树，API 不提供抵抗恶意路径替换的来源审计或安全沙箱。
-- Path.createSymbolicLink(target) 保留 target 字节；readSymbolicLink 不解析目标，canonicalize 才解析实际路径与 symlink。所有 Path 都保留原始名称字节；实际文件系统可以拒绝非法编码，库保留该 OS 错误与原始 context，不提前损坏或重新编码路径。
-- createTempFile/createTempDirectory(parent: Path? = None, prefix: String = "scoop-") 使用 OS 排他创建，prefix 不含 NUL 或 `/`。默认 parent 使用系统临时目录查询，失败照常报告；返回实际 Path，不因关闭或 GC 自动删除。临时文件 mode 为 0600，目录为 0700，仍受 umask 约束。
+- Path.createSymbolicLink(target, targetIsDirectory: Boolean = false) 创建文件或目录符号链接。POSIX 保留 target 原始字节并忽略类型参数；Windows 使用 CreateSymbolicLinkW，调用者为目录目标（包括尚不存在的目录）指定 targetIsDirectory=true。Windows 尝试允许非提权创建的标志，旧系统不识别该标志时沿普通权限再调用；缺少所需权限时报告真实 Win32 错误，不修改系统设置。相对目标按所在链接目录解析，盘符相对等 Windows 路径沿系统 API 的语义。
+- readSymbolicLink 不解析目标。Windows 读取符号链接或 junction 的实际 reparse substitute name，保留 UTF-16 code units；相对名称保留 OS 存储的拼写，绝对名称的 NT `\??\` 前缀转为可供 Win32 使用的 `\\?\`。不使用仅供显示的 print name；其他 reparse tag 报错。POSIX 返回 readlink 的原始字节。目标可以不存在。
+- canonicalize 解析实际存在的文件或目录与链接。Windows 打开目标后使用 GetFinalPathNameByHandleW 的 normalized DOS 路径，保留返回的 `\\?\` 前缀与 UTF-16；POSIX 使用 realpath。结果是 OS 的规范名称，不保证与输入字面相等。不存在、访问失败或不支持的路径查询照常报告；原生分配的结果在复制期间保持有效，并在所有出口释放。
+- createTempFile/createTempDirectory(parent: Path? = None, prefix: String = "scoop-") 使用 OS 排他创建，prefix 不含 NUL 或 `/`，Windows 还拒绝 `\` 与 `:`，防止前缀改变父目录或选择 alternate data stream。默认 parent 使用系统临时目录查询，失败照常报告；返回实际 Path，不因关闭或 GC 自动删除。POSIX 临时文件 mode 为 0600，目录为 0700，仍受 umask 约束。Windows 使用系统随机后缀及 CREATE_NEW／CreateDirectoryW，只在名称已存在时重试，ACL 沿系统默认规则；先规范化实际 parent 并在返回的 extended 路径下创建，以保留完整前缀并避免 DOS device 名称被当作临时文件。临时文件关闭失败时尝试删除刚创建的文件，错误沿正常清理组合规则报告。
 
 ### 6.3 DirectoryEntries
 
@@ -214,7 +216,7 @@ Windows 的 metadata helper 保持上述字段形状，失败使用同次保存�
 
 共享路径头公开既有 `path_mkdir`、`path_delete`、`path_move` helper，分别沿 mkdir、remove 和排他／替换 rename 的 OS 合同。`scoop.platform.native.requireFileMode(mode: Int): Unit` 统一同步文件、目录与 asyncio 的权限参数检查；有效范围为 0..0xfff，非法值抛 IllegalArgumentException，不增加独立的文件系统规则。
 
-`scoop.platform.native.temporaryPathPattern(parent: Path, prefix: String): Path` 检查 prefix 并构造尾部为 XXXXXX 的路径模板；默认父目录复用既有 `scoop.platform.env.temporaryDirectory()`，这些步骤不创建文件。同步临时路径工厂与 asyncio 共用这些步骤。共享 `scoop_platform_file_temporary(char *pattern)` 通过 mkostemp(O_CLOEXEC) 一次排他创建并返回仍然打开的读写 fd，实际名称写回调用者拥有的模板；文件初始权限为 0600、长度与位置为零。原同步 createTempFile 复用该 helper 后关闭 fd，异步工厂则交付文件 owner。
+`scoop.platform.native.temporaryPathPattern(parent: Path, prefix: String): Path` 按当前目标检查 prefix 并构造尾部为 XXXXXX 的路径模板；默认父目录复用既有 `scoop.platform.env.temporaryDirectory()`，这些步骤不创建文件。POSIX 同步临时路径工厂与 asyncio 共用这些步骤。共享 `scoop_platform_file_temporary(char *pattern)` 通过 mkostemp(O_CLOEXEC) 一次排他创建并返回仍然打开的读写 fd，实际名称写回调用者拥有的模板；文件初始权限为 0600、长度与位置为零。POSIX 同步 createTempFile 复用该 helper 后关闭 fd，异步工厂则交付文件 owner。
 
 `native/directory.h` 声明既有 directory_open／directory_next／directory_close helper，供 asyncio 调度同一 opendir／readdir／closedir 实现。next 跳过点目录，返回名称借用到本句柄的下一次读取或关闭之前；NULL 且 errno 为零表示 EOF，NULL 且 errno 非零表示错误。异步调用者必须在同一次串行工作内复制名称，不跨工作保留 readdir 的内部存储。
 
@@ -228,7 +230,7 @@ safe fd 输出不因断开的 pipe/socket 默认杀死进程。Linux 普通 fd �
 
 `environmentVariable(name: OsString): OsString?` 及 String 便利重载区分缺失与空值，名称非空且不含 NUL 或 `=`。`environment(): Map<OsString, OsString>` 返回独立只读快照；按第一个 `=` 拆分，不损坏原始字节。仅包含有非空名称和分隔符的环境项，同名项以第一个为准，与单项查询一致。没有进程全局环境修改 API；调用者不能同时通过外部 native 代码违反 libc 环境访问的线程合同，库内锁不能代替该前提。
 
-currentDirectory(): Path 查询实际 cwd，不读取 PWD；homeDirectory(): Path? 优先使用非空 HOME，否则查询当前真实 uid 的 passwd 目录，没有记录或空目录时返回 None，实际查询错误抛 PlatformException。temporaryDirectory(): Path 使用非空 TMPDIR，否则为 `/tmp`。查询返回字节副本，不保证路径存在、可访问或之后仍可创建文件；不提供全局 chdir。
+currentDirectory(): Path 查询实际 cwd，不读取 PWD；homeDirectory(): Path? 优先使用非空 HOME，否则查询当前真实 uid 的 passwd 目录，没有记录或空目录时返回 None，实际查询错误抛 PlatformException。temporaryDirectory(): Path 在 POSIX 使用非空 TMPDIR，否则为 `/tmp`；Windows 查询 GetTempPath2W，系统未提供该入口时使用 GetTempPathW，保留返回的 UTF-16。普通 Windows 进程沿系统的 TMP、TEMP、USERPROFILE、Windows 目录顺序，SYSTEM 进程沿 GetTempPath2W 的 SystemTemp 规则。查询返回独立副本，不保证路径存在、可访问或之后仍可创建文件；不提供全局 chdir。
 
 `scoop.platform.system` 提供 OperatingSystem(Darwin/Linux/Windows)、Architecture(Aarch64/X86_64)、operatingSystem 与 architecture 只读值，标识当前构建目标。POSIX 的 systemVersion(): String 返回 uname 的系统 release，logicalProcessorCount: Long 返回 OS 报告的在线逻辑 CPU 数；失败照常抛系统错误，不推导容器配额或调度能力。
 

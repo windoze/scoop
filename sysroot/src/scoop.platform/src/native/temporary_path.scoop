@@ -1,13 +1,26 @@
 package scoop.platform.native
 
 import scoop.platform.fs.Path
+import scoop.platform.system.OperatingSystem
+import scoop.platform.system.operatingSystem
 
 /**
  * Builds a temporary-file template from a parent path and validated prefix.
  */
 public fun temporaryPathPattern(parent: Path, prefix: String): Path {
-    for (byte in prefix.toByteArray()) {
-        if (byte == 0 || byte == 47) throw IllegalArgumentException(Some("invalid temporary path prefix"))
-    }
+    requireTemporaryPrefix(prefix)
     return parent.resolve(Path.fromString(prefix + "XXXXXX"))
+}
+
+internal fun requireTemporaryPrefix(prefix: String) {
+    for (byte in prefix.toByteArray()) {
+        if (
+            byte ==
+                0 ||
+                byte ==
+                47 ||
+                (operatingSystem == OperatingSystem.Windows && (byte == 92 || byte == 58))
+        )
+            throw IllegalArgumentException(Some("invalid temporary path prefix"))
+    }
 }

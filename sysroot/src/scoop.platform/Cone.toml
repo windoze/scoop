@@ -71,6 +71,13 @@ path = "native/file_handle_metadata.c"
 path = "native/path_operations.c"
 [[native.sources]]
 path = "native/paths.c"
+when = {os = ["darwin", "linux"]}
+[[native.sources]]
+path = "native/path_links.c"
+[[native.sources]]
+path = "native/path_canonical.c"
+[[native.sources]]
+path = "native/temporary_directory.c"
 [[native.sources]]
 path = "native/strings.c"
 [[native.sources]]

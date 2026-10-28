@@ -13,9 +13,13 @@ import scoop.platform.system.OsString
  * argument.
  */
 public fun arguments(): Array<OsString> {
-    @Unsafe {
-        return Array<OsString>(nativeArgumentCount().toLong()) { index ->
-            @Unsafe { return@Array copyNativeString(nativeArgument(index.toInt())!!) }
+    @Unsafe
+    {
+        return Array<OsString>(nativeArgumentCount().toLong()) {
+            index -> @Unsafe
+            {
+                return@Array copyNativeString(nativeArgument(index.toInt())!!)
+            }
         }
     }
 }
@@ -24,7 +28,8 @@ public fun arguments(): Array<OsString> {
  * Returns the selected process environment value, or None when absent. Operating-system bytes need
  * not be valid UTF-8.
  */
-public fun environmentVariable(name: String): OsString? = environmentVariable(OsString.fromString(name))
+public fun environmentVariable(name: String): OsString? =
+    environmentVariable(OsString.fromString(name))
 
 /**
  * Returns the selected process environment value, or None when absent. Operating-system bytes need
@@ -32,13 +37,17 @@ public fun environmentVariable(name: String): OsString? = environmentVariable(Os
  */
 public fun environmentVariable(name: OsString): OsString? {
     val bytes = name.toByteArray()
-    if (bytes.size == 0L) throw IllegalArgumentException(Some("empty environment name"))
+    if (bytes.size == 0L)
+        throw IllegalArgumentException(Some("empty environment name"))
     for (byte in bytes) {
-        if (byte == 0 || byte == 61) throw IllegalArgumentException(Some("invalid environment name"))
+        if (byte == 0 || byte == 61)
+            throw IllegalArgumentException(Some("invalid environment name"))
     }
-    @Unsafe {
-        return name.withNativeString { pointer ->
-            @Unsafe {
+    @Unsafe
+    {
+        return name.withNativeString {
+            pointer -> @Unsafe
+            {
                 return@withNativeString when (nativeEnvironmentValue(pointer)) {
                     case Some(value) -> Some(copyNativeString(value))
                     case None -> None
@@ -53,18 +62,24 @@ public fun environmentVariable(name: OsString): OsString? {
  */
 public fun environment(): Map<OsString, OsString> {
     val result = LinkedHashMap<OsString, OsString>()
-    @Unsafe {
+    @Unsafe
+    {
         val entries = nativeEnvironment()
         var index = 0L
         while (entries.load(index) != None) {
             val bytes = copyNativeString(entries.load(index)!!).toByteArray()
             var separator = 0L
-            while (separator < bytes.size && bytes[separator] != 61) separator += 1L
+            while (separator < bytes.size && bytes[separator] != 61)
+                separator += 1L
             if (separator > 0L && separator < bytes.size) {
                 val split = separator
                 val name = OsString.fromByteArray(Array<Byte>(split) { bytes[it] })
-                val value = OsString.fromByteArray(Array<Byte>(bytes.size - split - 1L) { bytes[split + 1L + it] })
-                if (!result.containsKey(name)) result.put(name, value)
+                val value =
+                    OsString.fromByteArray(
+                        Array<Byte>(bytes.size - split - 1L) { bytes[split + 1L + it] }
+                    )
+                if (!result.containsKey(name))
+                    result.put(name, value)
             }
             index += 1L
         }
@@ -76,11 +91,17 @@ public fun environment(): Map<OsString, OsString> {
  * Queries the current working directory.
  */
 public fun currentDirectory(): Path {
-    @Unsafe {
-        val (pointer, error) = nativeCurrentDirectory()
-        if (pointer == None) failNative("current directory", error)
-        try { return Path.fromOsString(copyNativeString(pointer!!)) }
-        finally { nativeMemoryFree(pointer!!) }
+    @Unsafe
+    {
+        val(pointer, error) = nativeCurrentDirectory()
+        if (pointer == None)
+            failNative("current directory", error)
+        try {
+            return Path.fromOsString(copyNativeString(pointer!!))
+        }
+        finally {
+            nativeMemoryFree(pointer!!)
+        }
     }
 }
 
@@ -89,36 +110,43 @@ public fun currentDirectory(): Path {
  */
 public fun homeDirectory(): Path? {
     when (environmentVariable("HOME")) {
-        case Some(value) -> if (value.toByteArray().size != 0L) return Some(Path.fromOsString(value))
+        case Some(value) -> if (value.toByteArray().size != 0L)
+            return Some(Path.fromOsString(value))
         case None -> {}
     }
-    @Unsafe {
-        val (pointer, error) = nativeHomeDirectory()
+    @Unsafe
+    {
+        val(pointer, error) = nativeHomeDirectory()
         if (pointer == None) {
-            if (error != 0) failNative("home directory", error)
+            if (error != 0)
+                failNative("home directory", error)
             return None
         }
-        try { return Some(Path.fromOsString(copyNativeString(pointer!!))) }
-        finally { nativeMemoryFree(pointer!!) }
+        try {
+            return Some(Path.fromOsString(copyNativeString(pointer!!)))
+        }
+        finally {
+            nativeMemoryFree(pointer!!)
+        }
     }
 }
 
-/**
- * Returns the configured or platform-default directory for temporary files.
- */
-public fun temporaryDirectory(): Path {
-    @Unsafe { return Path.fromOsString(copyNativeString(nativeTemporaryDirectory())) }
-}
-
-@GCLeaf @Extern(name = "scoop_rt_program_argc")
+@GCLeaf
+@Extern(name = "scoop_rt_program_argc")
 private fun nativeArgumentCount(): Int
-@GCLeaf @Extern(name = "scoop_rt_program_argv")
+
+@GCLeaf
+@Extern(name = "scoop_rt_program_argv")
 private fun nativeArgument(index: Int): Ptr<Byte>?
+
 @Extern(name = "scoop_platform_environment_value")
 private fun nativeEnvironmentValue(name: Ptr<Byte>): Ptr<Byte>?
+
 @Extern(name = "scoop_platform_environment")
 private fun nativeEnvironment(): Ptr<Ptr<Byte>?>
+
 @Extern(name = "scoop_platform_current_directory", captureErrno = true)
 private fun nativeCurrentDirectory(): (Ptr<Byte>?, Int)
+
 @Extern(name = "scoop_platform_home_directory", captureErrno = true)
 private fun nativeHomeDirectory(): (Ptr<Byte>?, Int)

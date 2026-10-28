@@ -65,7 +65,7 @@ private class AsyncPathModificationTest {
             val child = directory.resolve(Path.fromString("child"))
             child.writeText("keep")
             val link = tree.child("link")
-            link.createSymbolicLink(directory)
+            link.createSymbolicLink(directory, targetIsDirectory = true)
             val moved = tree.child("moved-link")
             val loop: EventLoop = PlatformEventLoop()
             loop.run suspend {
