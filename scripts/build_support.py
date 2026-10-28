@@ -1,13 +1,42 @@
 """Input metadata and output reuse shared by native maintenance builds."""
 
+import errno
 import json
 import os
 import re
 import subprocess
+from contextlib import contextmanager
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 RELEASE_CONFIG = ROOT / "scripts/release.toml"
+
+
+@contextmanager
+def build_lock(path):
+    with path.open("a+b") as lock:
+        if os.name == "nt":
+            import msvcrt
+
+            lock.seek(0)
+            while True:
+                try:
+                    msvcrt.locking(lock.fileno(), msvcrt.LK_LOCK, 1)
+                    break
+                except OSError as error:
+                    # LK_LOCK retries for ten seconds; a real build can take longer.
+                    if error.errno not in (errno.EACCES, errno.EDEADLK):
+                        raise
+            try:
+                yield
+            finally:
+                lock.seek(0)
+                msvcrt.locking(lock.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            yield
 
 
 def metadata(path):

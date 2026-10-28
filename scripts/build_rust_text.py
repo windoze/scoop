@@ -1,6 +1,5 @@
 """Build the shared Rust text archive from locked, vendored dependencies."""
 
-import fcntl
 import json
 import os
 import shutil
@@ -9,7 +8,7 @@ import tarfile
 import tomllib
 from pathlib import Path
 
-from build_support import RELEASE_CONFIG, ROOT, metadata, reusable, source_metadata
+from build_support import RELEASE_CONFIG, ROOT, build_lock, metadata, reusable, source_metadata
 
 LIBRARY = "libscoop_text_backend.a"
 HEADER = "scoop_text_backend.h"
@@ -22,8 +21,7 @@ def prepare(args):
     archive = ROOT / "sysroot/vendor/text_backend/crates.tar.gz"
     build = args.build_dir / "rust"
     build.mkdir(parents=True, exist_ok=True)
-    with (build / "build.lock").open("a") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+    with build_lock(build / "build.lock"):
         prepare_locked(args, source, archive, build)
 
 

@@ -250,3 +250,5 @@ Windows 异步临时文件现由 worker 规范化父目录、保留完整前缀�
 Windows 异步 TTY 已接入已有 worker：输入等待自有 console HANDLE 与单次取消 event，复用 platform 的 Unicode／resize／EOF 转换；输出实际返回后才释放借用。关闭等两个方向结束再恢复模式并消费 owner。控制结果同次返回 Win32／PosixErrno，POSIX 同步内部 C-layout；TTY 与 timer 共用 QPC 截止时间算法。测试辅助库的 worker／socket／完成观察增加 Windows 分支，POSIX 专属 PTY hangup 和 controlling-terminal 用例按平台选择。
 
 三个 target 的完整 asyncio 源码配合所选 TTY、loop、host 与 NativeWork 测试，各 11 个容器／38 项测试全部通过；包含真实隐藏 console 的 raw 恢复、Unicode、resize／超时、运行中取消后复用、关闭时 GC 借用、排队输出取消、同步／异步单 owner、迟到 open 取消与断开错误。cl 原生探针及三套 Clang／cl 严格检查通过，正式 MSVC Cone 构建成功。宿主测试原先假定提交总有第二次通知，已改为只消费实际待处理通知并复测，未为 IOCP 添加无用唤醒。完整文件／网络高层组合和依赖 crypto 的 consumer 验收、第三方 native 库与远端回归继续实施；尚未声明 Windows 全量验收完成。
+
+PCRE2 10.49 的静态 8-bit／Unicode／JIT 后端已按三个 Windows target 分别构建，Microsoft 使用 `/MD`；clang-cl 和 cl 两种上游构建通过。正则 Cone 使用所选目标头文件及 `PCRE2_STATIC`，沿 driver 的 C11 默认参数，移除会在 clang-cl 下改变含义的重复选项。三个 target 的正式 release Cone 各 4 个容器／19 项测试全部通过，生产 slib 已更新开发 sysroot。构建复用保留 archive 时间戳，输入与工具仍在原位。共享维护构建锁补上 Windows 分支，跨进程等待及真实 Ninja 头文件更新测试通过；测试曾遇到 PATH 上 ANSI Ninja 的中文路径失败，改用 UTF-8 Ninja 后复测通过。OpenSSL 等其他后端及 asyncio 广覆盖验收仍在继续，未开始远端测试。

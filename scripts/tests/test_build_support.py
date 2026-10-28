@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from build_support import metadata, reusable, save_record
+from build_support import build_lock, metadata, reusable, save_record
 
 
 def ninja_path(path):
@@ -59,6 +59,36 @@ class NinjaDependencyTests(unittest.TestCase):
             self.assertTrue(reusable(record, inputs, outputs))
             self.assertTrue(source.is_file())
             self.assertTrue(header.is_file())
+
+
+class BuildLockTests(unittest.TestCase):
+    def test_another_process_waits_until_the_build_releases_its_lock(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "build.lock"
+            script = (
+                "import sys\n"
+                "from pathlib import Path\n"
+                "from build_support import build_lock\n"
+                "print('ready', flush=True)\n"
+                "with build_lock(Path(sys.argv[1])):\n"
+                "    print('acquired', flush=True)\n"
+            )
+            environment = dict(os.environ, PYTHONPATH=str(Path(__file__).resolve().parents[1]))
+            with build_lock(path):
+                process = subprocess.Popen(
+                    [sys.executable, "-c", script, str(path)],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    env=environment,
+                )
+                self.addCleanup(process.kill)
+                self.assertEqual(process.stdout.readline(), "ready\n")
+                with self.assertRaises(subprocess.TimeoutExpired):
+                    process.communicate(timeout=0.2)
+            output, error = process.communicate(timeout=15)
+            self.assertEqual(process.returncode, 0, error)
+            self.assertEqual(output, "acquired\n")
 
 
 if __name__ == "__main__":
