@@ -2662,7 +2662,7 @@ Relaxed 只保证该原子位置的原子性与修改顺序。release 写与读�
 
 四个原子类还提供 `getAndUpdate(update: (V) -> V): V` 与 `updateAndGet(update: (V) -> V): V`，分别返回成功更新前后的值。它们是同一类中的普通 Scoop CAS 循环，读取与 CAS 使用 SeqCst；更新函数可分配、抛出异常并因竞争重试。异常发生前未成功的 CAS 不写入；更新函数自己的副作用不回滚，不增加 intrinsic。
 
-core 的普通 final class `Atomic<T : value>` 由 AtomicBoolean 锁和 T 字段组成，公开 `Atomic(initial: T)`、`load(): T`、`store(value: T): Unit` 与 `exchange(value: T): T`。全部读写在同一锁内复制完整值，exchange 返回原值；不要求 T 实现 Equals。锁采用 Acquire/Relaxed CAS 与 Release 解锁，提供互斥及相应的 happens-before，不接受 MemoryOrder 参数，也不承诺跨不同 Atomic 对象的 SeqCst 全序。成功加锁后只进行值复制、必要的引用屏障与解锁，没有用户回调或 safepoint；失败自旋保留普通循环 safepoint，并周期性调用 sched_yield。
+core 的普通 final class `Atomic<T : value>` 由 AtomicBoolean 锁和 T 字段组成，公开 `Atomic(initial: T)`、`load(): T`、`store(value: T): Unit` 与 `exchange(value: T): T`。全部读写在同一锁内复制完整值，exchange 返回原值；不要求 T 实现 Equals。锁采用 Acquire/Relaxed CAS 与 Release 解锁，提供互斥及相应的 happens-before，不接受 MemoryOrder 参数，也不承诺跨不同 Atomic 对象的 SeqCst 全序。成功加锁后只进行值复制、必要的引用屏障与解锁，没有用户回调或 safepoint；失败自旋保留普通循环 safepoint，并周期性让出当前线程的执行机会：Darwin／Linux 调用 sched_yield，Windows 调用 SwitchToThread。让出操作不影响锁和内存序语义。
 
 无符号宽度包装也可由普通库组合既有原子类型实现；上述组合不赋予普通字段、数组元素或 aggregate copy 原子语义。首版不提供 `Ptr<T>` 所指 native 内存上的原子操作，后续按平台库的实际需求增加。
 
