@@ -11,6 +11,7 @@ pub(super) struct LoadedManifest {
 pub(super) struct Manifests {
     loaded: BTreeMap<PathBuf, Arc<LoadedManifest>>,
     cache: Option<crate::cache::PackageCache>,
+    overlays: ManifestOverlays,
     pub inputs: Vec<(PathBuf, crate::cache::FileStamp)>,
     pub missing_inputs: BTreeSet<PathBuf>,
 }
@@ -22,24 +23,31 @@ struct Record {
 }
 
 impl Manifests {
-    pub fn new(cache: Option<crate::cache::PackageCache>) -> Self {
+    pub fn new(cache: Option<crate::cache::PackageCache>, overlays: ManifestOverlays) -> Self {
         Self {
             loaded: BTreeMap::new(),
             cache,
+            overlays,
             inputs: Vec::new(),
             missing_inputs: BTreeSet::new(),
         }
     }
 
     pub fn load(&mut self, path: &Path) -> PmResult<Arc<LoadedManifest>> {
-        let canonical = std::fs::canonicalize(path).map_err(|error| PmError::io(path, error))?;
-        if path != canonical {
+        let canonical = self
+            .canonicalize(path)
+            .map_err(|error| PmError::io(path, error))?;
+        if path != canonical && self.overlays.text(&canonical).is_none() {
             self.inputs
                 .push((path.to_owned(), crate::cache::FileStamp::read(path)?));
         }
         let path = canonical;
         if let Some(loaded) = self.loaded.get(&path) {
             return Ok(loaded.clone());
+        }
+        if let Some(text) = self.overlays.text(&path) {
+            let record = Record::parse(&path, text.to_owned())?;
+            return Ok(self.insert(path, record));
         }
         let stamp = crate::cache::FileStamp::read(&path)?;
         let record_path = self
@@ -62,22 +70,8 @@ impl Manifests {
             None => {
                 let text =
                     std::fs::read_to_string(&path).map_err(|error| PmError::io(&path, error))?;
-                let document = scoop_manifest::package::parse_package_manifest(
-                    &text,
-                    scoop_toolchain::SOURCE_TARGETS,
-                )
-                .map_err(|error| {
-                    let mut result = PmError::new(format!("{}: {error}", path.display()));
-                    if let Some(span) = error.span() {
-                        result.origins.push(ManifestOrigin {
-                            manifest: path.clone(),
-                            span: span.range(),
-                        });
-                    }
-                    result
-                })?;
+                let record = Record::parse(&path, text)?;
                 stamp.unchanged(&path)?;
-                let record = Record { text, document };
                 if let Some(path) = record_path {
                     let bytes = serde_json::to_vec(&record)
                         .map_err(|error| PmError::new(error.to_string()))?;
@@ -87,6 +81,10 @@ impl Manifests {
             }
         };
         self.inputs.push((path.clone(), stamp));
+        Ok(self.insert(path, record))
+    }
+
+    fn insert(&mut self, path: PathBuf, record: Record) -> Arc<LoadedManifest> {
         let loaded = Arc::new(LoadedManifest {
             directory: path
                 .parent()
@@ -97,16 +95,42 @@ impl Manifests {
             text: record.text,
         });
         self.loaded.insert(path, loaded.clone());
-        Ok(loaded)
+        loaded
+    }
+
+    pub fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf> {
+        self.overlays.canonicalize(path)
+    }
+
+    pub fn overlay_exists(&self, path: &Path) -> bool {
+        self.overlays.contains(path)
     }
 
     pub fn exists(&mut self, path: &Path) -> PmResult<bool> {
-        if crate::cache::FileStamp::optional(path)?.is_some() {
+        if self.overlay_exists(path) || crate::cache::FileStamp::optional(path)?.is_some() {
             Ok(true)
         } else {
             self.missing_inputs.insert(path.to_owned());
             Ok(false)
         }
+    }
+}
+
+impl Record {
+    fn parse(path: &Path, text: String) -> PmResult<Self> {
+        let document =
+            scoop_manifest::package::parse_package_manifest(&text, scoop_toolchain::SOURCE_TARGETS)
+                .map_err(|error| {
+                    let mut result = PmError::new(format!("{}: {error}", path.display()));
+                    if let Some(span) = error.span() {
+                        result.origins.push(ManifestOrigin {
+                            manifest: path.to_owned(),
+                            span: span.range(),
+                        });
+                    }
+                    result
+                })?;
+        Ok(Self { text, document })
     }
 }
 

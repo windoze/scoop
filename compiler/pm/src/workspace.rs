@@ -13,6 +13,9 @@ use crate::{ManifestOrigin, PmError, PmResult};
 mod discover;
 mod expand;
 mod load;
+mod overlays;
+
+pub use overlays::ManifestOverlays;
 
 use load::LoadedManifest;
 
@@ -59,6 +62,7 @@ pub struct Workspace {
     invoking_member: Option<DependencyCoordinateKey>,
     pub(crate) inputs: Vec<(PathBuf, crate::cache::FileStamp)>,
     pub(crate) missing_inputs: BTreeSet<PathBuf>,
+    pub(crate) overlays: ManifestOverlays,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -104,7 +108,15 @@ impl Workspace {
     }
 
     pub fn discover(cwd: &Path, input: Option<&Path>) -> PmResult<Self> {
-        discover::discover(cwd, input, None, None)
+        Self::discover_with_overlays(cwd, input, ManifestOverlays::default())
+    }
+
+    pub fn discover_with_overlays(
+        cwd: &Path,
+        input: Option<&Path>,
+        overlays: ManifestOverlays,
+    ) -> PmResult<Self> {
+        discover::discover(cwd, input, None, None, overlays)
     }
 
     pub(crate) fn discover_cached(
@@ -112,8 +124,9 @@ impl Workspace {
         input: Option<&Path>,
         cache: &crate::cache::PackageCache,
         boundary: Option<&Path>,
+        overlays: ManifestOverlays,
     ) -> PmResult<Self> {
-        discover::discover(cwd, input, Some(cache), boundary)
+        discover::discover(cwd, input, Some(cache), boundary, overlays)
     }
 
     pub(crate) fn packaged(

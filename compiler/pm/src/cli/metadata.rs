@@ -24,6 +24,9 @@ pub(super) struct MetadataArgs {
     /// Only use existing source directories; do not download or unpack dependencies.
     #[arg(long)]
     offline: bool,
+    /// Read unsaved local Cone.toml texts as versioned JSON from stdin.
+    #[arg(long, requires = "offline")]
+    overlays_stdin: bool,
 }
 
 impl MetadataArgs {
@@ -33,6 +36,10 @@ impl MetadataArgs {
 }
 
 pub(super) fn execute(args: MetadataArgs) -> PmResult<()> {
+    let overlays = args
+        .overlays_stdin
+        .then(|| read_overlays(true))
+        .transpose()?;
     let cwd = std::env::current_dir().map_err(|error| PmError::new(error.to_string()))?;
     let host = |path: PathBuf| {
         HostPathCarrier::from_path(&cwd.join(path)).map_err(|error| PmError::new(error.to_string()))
@@ -74,10 +81,23 @@ pub(super) fn execute(args: MetadataArgs) -> PmResult<()> {
         locked: true,
         offline: args.offline,
     };
-    let result = scoop_pm::prepare::metadata(request)?;
+    let result = if let Some(overlays) = overlays {
+        scoop_pm::prepare::metadata_with_overlays(request, overlays)?
+    } else {
+        scoop_pm::prepare::metadata(request)?
+    };
     println!(
         "{}",
         serde_json::to_string_pretty(&result).map_err(|error| PmError::new(error.to_string()))?
     );
     Ok(())
+}
+
+pub(super) fn read_overlays(enabled: bool) -> PmResult<scoop_pm::ManifestOverlays> {
+    if !enabled {
+        return Ok(scoop_pm::ManifestOverlays::default());
+    }
+    let input = serde_json::from_reader(std::io::stdin().lock())
+        .map_err(|error| PmError::new(format!("invalid manifest overlays: {error}")))?;
+    scoop_pm::ManifestOverlays::new(input)
 }

@@ -11,10 +11,12 @@ use crate::{CompilationPurpose, HostPathCarrier};
 
 mod diagnostic;
 mod members;
+mod overlays;
 mod summary;
 mod validate;
 
 pub use members::{PackageMemberV1, PackageMembersV1};
+pub use overlays::{ManifestOverlayV1, ManifestOverlaysV1};
 
 pub const PACKAGE_PROTOCOL_VERSION: u32 = 1;
 

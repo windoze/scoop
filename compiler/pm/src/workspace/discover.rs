@@ -5,8 +5,9 @@ pub(super) fn discover(
     input: Option<&Path>,
     cache: Option<&crate::cache::PackageCache>,
     boundary: Option<&Path>,
+    overlays: ManifestOverlays,
 ) -> PmResult<Workspace> {
-    let mut manifests = Manifests::new(cache.cloned());
+    let mut manifests = Manifests::new(cache.cloned(), overlays.clone());
     let input = input_manifest(cwd, input, &mut manifests)?;
     let selected = manifests.load(&input)?;
     let owner = find_owner(&selected, &mut manifests, boundary)?;
@@ -106,6 +107,7 @@ pub(super) fn discover(
         invoking_member,
         inputs: manifests.inputs,
         missing_inputs: manifests.missing_inputs,
+        overlays,
     })
 }
 
@@ -133,7 +135,7 @@ fn find_owner(
                     .join(member.value.as_path())
                     .join("Cone.toml");
                 // An unrelated, unlisted Cone does not validate other workspace members.
-                let member_path = match std::fs::canonicalize(&path) {
+                let member_path = match manifests.canonicalize(&path) {
                     Ok(path) => path,
                     Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                         manifests.missing_inputs.insert(path);
@@ -162,6 +164,9 @@ fn input_manifest(
         } else {
             cwd.join(input)
         };
+        if manifests.overlay_exists(&path) {
+            return Ok(path);
+        }
         let metadata = std::fs::metadata(&path).map_err(|error| PmError::io(&path, error))?;
         return if metadata.is_dir() {
             Ok(path.join("Cone.toml"))

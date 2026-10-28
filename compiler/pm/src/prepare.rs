@@ -30,6 +30,26 @@ pub fn metadata(mut request: PrepareRequestV1) -> PmResult<PreparedWorkspaceV1> 
     prepare_with_sources(request, local_sources_only)
 }
 
+/// Inspect unsaved local declarations without publishing their project model.
+pub fn metadata_with_overlays(
+    mut request: PrepareRequestV1,
+    overlays: crate::ManifestOverlays,
+) -> PmResult<PreparedWorkspaceV1> {
+    request.locked = true;
+    request.offline = true;
+    if overlays.is_empty() {
+        return metadata(request);
+    }
+    request.validate().map_err(PmError::new)?;
+    let cwd = path(&request.cwd)?;
+    let explicit_cache = request.package_cache.as_ref().map(path).transpose()?;
+    let cache = crate::cache::PackageCache::resolve(&cwd, explicit_cache.as_deref())?;
+    let request = resolve_request(request, &cache)?;
+    project(crate::resolve::resolve_with_overlays(
+        request, true, overlays,
+    )?)
+}
+
 fn prepare_with_sources(
     request: PrepareRequestV1,
     local_sources_only: bool,
@@ -43,8 +63,20 @@ fn prepare_with_sources(
     if let Some(prepared) = record.load()? {
         return Ok(prepared);
     }
-    let request = ResolveRequest {
-        cwd,
+    let request = resolve_request(request, &cache)?;
+    let resolved = crate::resolve::resolve_with_sources(request, local_sources_only)?;
+    let inputs = record::Inputs::capture(&resolved)?;
+    let prepared = project(resolved)?;
+    record.publish(&prepared, &inputs)?;
+    Ok(prepared)
+}
+
+fn resolve_request(
+    request: PrepareRequestV1,
+    cache: &crate::cache::PackageCache,
+) -> PmResult<ResolveRequest> {
+    Ok(ResolveRequest {
+        cwd: path(&request.cwd)?,
         input: request.input.as_ref().map(path).transpose()?,
         members: match request.members {
             PackageMemberSelectionV1::Default => MemberSelection::Default,
@@ -68,12 +100,7 @@ fn prepare_with_sources(
         offline: request.offline,
         update: None,
         precise: None,
-    };
-    let resolved = crate::resolve::resolve_with_sources(request, local_sources_only)?;
-    let inputs = record::Inputs::capture(&resolved)?;
-    let prepared = project(resolved)?;
-    record.publish(&prepared, &inputs)?;
-    Ok(prepared)
+    })
 }
 
 pub fn prepare_files(request: &Path, response: &Path) -> PmResult<()> {

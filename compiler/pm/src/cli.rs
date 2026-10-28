@@ -26,7 +26,7 @@ enum Command {
         workspace: PathBuf,
     },
     /// List local members and expanded source selections without resolving dependencies.
-    Members(MembersArgs),
+    Members(LocalMembersArgs),
     /// Add or replace one dependency declaration without resolving or fetching.
     Add(edit::AddArgs),
     /// Remove one dependency declaration without updating Cone.lock.
@@ -62,10 +62,19 @@ struct MembersArgs {
     json: bool,
 }
 
+#[derive(Args)]
+struct LocalMembersArgs {
+    #[command(flatten)]
+    members: MembersArgs,
+    /// Read unsaved local Cone.toml texts as versioned JSON from stdin.
+    #[arg(long)]
+    overlays_stdin: bool,
+}
+
 pub fn run() -> Result<(), (PmError, bool)> {
     let cli = Cli::parse();
     let machine = matches!(&cli.command, Command::Prepare { .. })
-        || matches!(&cli.command, Command::Members(args) if args.json)
+        || matches!(&cli.command, Command::Members(args) if args.members.json)
         || matches!(&cli.command, Command::Metadata(args) if args.json());
     execute(cli).map_err(|error| (error, machine))
 }
@@ -110,9 +119,11 @@ fn create_workspace(directory: &std::path::Path) -> PmResult<()> {
     Ok(())
 }
 
-fn members(args: MembersArgs) -> PmResult<()> {
+fn members(args: LocalMembersArgs) -> PmResult<()> {
     let cwd = std::env::current_dir().map_err(|error| PmError::new(error.to_string()))?;
-    let workspace = Workspace::discover(&cwd, args.input.as_deref())?;
+    let overlays = metadata::read_overlays(args.overlays_stdin)?;
+    let args = args.members;
+    let workspace = Workspace::discover_with_overlays(&cwd, args.input.as_deref(), overlays)?;
     let selection = if args.workspace {
         MemberSelection::All
     } else if args.package.is_empty() {

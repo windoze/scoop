@@ -304,6 +304,8 @@ single-file build/run 和 artifact-only `scoop link` 保持现有精确输入方
 
 LSP使用同一已展开数据模型；已有本地准备结果可直接消费，缺少结果时可执行PM的`metadata --offline`读取，不修改lock。缺少锁定源码提示fetch，缺少适用lock则提示resolve；仍可展示本地members和语法诊断。文档编辑或补全不自动触发网络。formatter只需本地成员发现和源码清单展开，使用PM的members输出，不要求先成功求解依赖。
 
+`members --overlays-stdin` 与 `metadata --offline --overlays-stdin` 为编辑器接收未保存的清单文本。stdin 是版本 1 JSON：`version` 与 `manifests` 数组，每项含无损绝对 host `path` 及 UTF-8 `text`；路径必须指向 `Cone.toml` 且不重复。PM 对这些本地 workspace/path/Git 清单使用同一解析、继承和锁定匹配规则，关闭 buffer 后恢复磁盘输入。覆盖文本不写回清单、lock、共享源码或持久准备记录；未覆盖的输入继续复用既有缓存。metadata 的此模式强制离线，只接受现有锁定选择；新增或改变依赖导致 lock 不适用时提示保存后 resolve。成员发现仍可在无 lock 时工作，新增但未保存的成员清单沿普通本地路径参与发现。原路径与覆盖文本保留给诊断，不生成临时源码树。
+
 `members --json` 的格式 1 同样由 `scoop-protocol` 定义：返回 workspace root、所有成员的 coordinate/kind/相对路径/本地目录/清单路径、selected 标记及生产/测试 SourceSelection；本地路径使用无损 host path 载体。formatter 消费所选成员的源码集合，clean 使用 workspace root 定位统一 target；两者不调用 prepare，不创建或读取 lock。JSON 失败使用与 prepare 相同的结构化诊断记录。`fmt` 支持 `--workspace` 和可重复 `-p`，成员选择只接受一个 workspace 输入；多个显式文件仍可合并格式化。显式 `.scoop` 文件模式独立于 PM。
 
 ## 8. 源码 registry

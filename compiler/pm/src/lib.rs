@@ -13,5 +13,5 @@ mod workspace;
 
 pub use error::{ManifestOrigin, PmError, PmResult};
 pub use workspace::{
-    ExpandedCone, ExpandedDependency, MemberSelection, Workspace, WorkspaceMember,
+    ExpandedCone, ExpandedDependency, ManifestOverlays, MemberSelection, Workspace, WorkspaceMember,
 };

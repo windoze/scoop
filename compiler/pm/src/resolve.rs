@@ -67,6 +67,18 @@ pub(crate) fn resolve_with_sources(
     request: ResolveRequest,
     local_sources_only: bool,
 ) -> PmResult<ResolvedWorkspace> {
+    resolve_with_overlays(
+        request,
+        local_sources_only,
+        crate::workspace::ManifestOverlays::default(),
+    )
+}
+
+pub(crate) fn resolve_with_overlays(
+    request: ResolveRequest,
+    local_sources_only: bool,
+    overlays: crate::workspace::ManifestOverlays,
+) -> PmResult<ResolvedWorkspace> {
     if request.locked && request.update.is_some() {
         return Err(PmError::new(
             "update cannot be combined with --locked/--frozen",
@@ -76,8 +88,13 @@ pub(crate) fn resolve_with_sources(
         .map_err(|error| PmError::new(error.to_string()))?;
     let target_name = target.target().contract().canonical_triple();
     let cache = PackageCache::resolve(&request.cwd, request.package_cache.as_deref())?;
-    let workspace =
-        Workspace::discover_cached(&request.cwd, request.input.as_deref(), &cache, None)?;
+    let workspace = Workspace::discover_cached(
+        &request.cwd,
+        request.input.as_deref(),
+        &cache,
+        None,
+        overlays,
+    )?;
     let lockfile = request
         .lockfile
         .as_ref()

@@ -79,6 +79,7 @@ pub struct Catalog<'a> {
     refreshable_indexes: BTreeSet<Key>,
     versions: BTreeMap<(Key, Choice), RegistryVersion>,
     git_refs: BTreeMap<(String, String), GitCheckout>,
+    overlays: crate::workspace::ManifestOverlays,
 }
 
 impl<'a> Catalog<'a> {
@@ -109,6 +110,7 @@ impl<'a> Catalog<'a> {
             })
             .collect();
         Self {
+            overlays: workspace.overlays.clone(),
             cache,
             http: RegistryClient::new(cache),
             policy: policy.clone(),
@@ -278,8 +280,13 @@ impl<'a> Catalog<'a> {
             Context::Git(checkout) => Some(checkout.root.as_path()),
             _ => None,
         };
-        let workspace =
-            Workspace::discover_cached(&directory, Some(&directory), self.cache, boundary)?;
+        let workspace = Workspace::discover_cached(
+            &directory,
+            Some(&directory),
+            self.cache,
+            boundary,
+            self.overlays.clone(),
+        )?;
         self.inputs.extend(workspace.inputs);
         self.missing_inputs.extend(workspace.missing_inputs);
         let member = workspace
