@@ -99,6 +99,7 @@ pub(super) fn discover(
     Ok(Workspace {
         root: owner.directory.clone(),
         manifest: owner.path.clone(),
+        manifest_text: owner.text.clone(),
         document: owner.document.clone(),
         members,
         defaults,

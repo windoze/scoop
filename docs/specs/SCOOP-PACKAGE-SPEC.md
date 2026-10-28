@@ -1,10 +1,12 @@
 # Scoop 包管理规范
 
-状态：M63 实施中；完成范围见[实施记录](../package-manager/PROGRESS.md)。更新日期：2026-10-28。
+状态：M63 本地功能实施中；registry 与源码发布移至下一阶段。完成范围见[实施记录](../package-manager/PROGRESS.md)。更新日期：2026-10-28。
 
 本规范规定独立 `scoop-pm` 的 workspace、依赖来源、版本解析、`Cone.lock`、源码 registry 及其与构建 driver 的接口。实现步骤与设计取舍见[包管理设计](../package-manager/DESIGN.md)，调度、编译和链接继续遵守[编译器与产物规范 2.7～2.8](SCOOP-IMPL-SPEC.md#27-scoop-与-single-cone-scoopc)。
 
 Scoop 尚未发布。本次直接重定义 `Cone.toml` 的初始 schema，与仓库内清单、工具和测试一起实施，不提供旧清单兼容层。以下是完整目标合同，不表示当前命令已经支持全部能力。
+
+本轮交付 workspace、path/Git/sysroot/artifact 依赖、版本与 lock、本地清单编辑、构建与 LSP 接入及配套工具发行。第 8～9 节的 registry 与源码发布合同留至下一阶段；已有 registry 消费实现保留，但本轮不继续扩展或以发布闭环作为完成条件。
 
 ## 1. 职责与交付边界
 
@@ -284,6 +286,14 @@ driver 消费的是 lock 的精确图和本次已准备好的本地输入。port
 
 普通 manifest build/run/test/check/doc 在构建前调用配套 PM 的 prepare。`scoop build/run` 在 `Cone.lock` 不存在时自动调用 PM 解析依赖、准备来源并生成 lock，成功后继续构建／运行，无需用户先执行 resolve。已有有效 lock 时优先复用锁定选择和本地准备结果，不查询新版本。显式 `--locked` 或 `--frozen` 遇到缺少适用 lock 时失败；普通 `--offline` 仍可用足够的本地来源生成 lock。`scoop build --lockfile <file> -p group:name --locked` 是显式消费锁定图的入口；没有 `-p` 时仍按所在 workspace 的默认选择。driver 本身从不修改 lock。
 
+首次构建也使用同一次 prepare 请求：
+
+1. `scoop` 将本次根选择、用途、target 和锁定/离线模式交给 PM，不先要求用户创建 lock。
+2. PM 在默认模式下为缺少的锁定记录求解，准备选中来源；全部成功后原子写入 `Cone.lock`，返回该图的本地准备结果。
+3. `scoop` 收到成功响应后，才按精确图调度编译和链接；`run` 在本次构建成功后运行程序。
+
+PM 启动、协议、求解或获取失败时，本次命令立即失败，不进入编译或运行。driver 不另行先执行 resolve 再解析清单，也不在 PM 失败后自行选版本。后续编译或链接失败保留已经成功生成的 lock，便于修复源码后重试；lock 的存在不表示构建成功。
+
 `scoop` 根据 lock 的精确图安排依赖优先的构建，将每个单 Cone 的配置、源码输入、精确 direct/support 产物及目标/用途参数通过现有 machine request 交给 `scoopc`。PM 完成版本要求与来源的绑定，`scoop` 将已绑定的边落实为具体产物参数；两者都不把选择工作交回编译器。原清单文本及 span 只供诊断，不能作为 child 再次解析的输入，也不能通过生成临时源码树改变诊断路径。
 
 `scoopc` 不读取 `Cone.toml` 或 `Cone.lock`，不处理 workspace、版本要求、来源定位或声明与产物的匹配。普通 Cone 的 build/check/test/doc 和 AST 观察均走上层 `scoop`；现有独立 manifest 入口退役，不为其增加新版清单适配。`scoopc` 保留精确 direct 集合、support 闭包、单版本、产物语义指纹和 target/ABI 的普通编译输入检查，不重复 PM 的版本范围判断。只观察 AST 时沿用不加载依赖产物的规则。
@@ -297,6 +307,8 @@ LSP使用同一已展开数据模型；已有本地准备结果可直接消费�
 `members --json` 的格式 1 同样由 `scoop-protocol` 定义：返回 workspace root、所有成员的 coordinate/kind/相对路径/本地目录/清单路径、selected 标记及生产/测试 SourceSelection；本地路径使用无损 host path 载体。formatter 消费所选成员的源码集合，clean 使用 workspace root 定位统一 target；两者不调用 prepare，不创建或读取 lock。JSON 失败使用与 prepare 相同的结构化诊断记录。`fmt` 支持 `--workspace` 和可重复 `-p`，成员选择只接受一个 workspace 输入；多个显式文件仍可合并格式化。显式 `.scoop` 文件模式独立于 PM。
 
 ## 8. 源码 registry
+
+本节属于下一阶段，不纳入 M63 本地功能的完成验收。
 
 ### 8.1 静态读取协议
 
@@ -335,6 +347,8 @@ archive 是 HTTP(S) URL 或相对 base 的 URL，sha256 是归档字节的 64 �
 归档 reader 检查格式、边界和解包路径，拒绝绝对路径、路径逃逸、冲突条目与非法文件类型；这些是正常解包职责，不检查 owner、权限、inode 或输入目录的物理归属。实际缺失输入和 I/O 失败正常报告；不设计“外部破坏缓存后自动恢复”的独立流程。
 
 ## 9. 源码打包与静态发布
+
+本节与 registry 一起留至下一阶段，包含 package/list/check、静态目录维护和 HTTP 发布消费闭环。
 
 `scoop pm package`为所选Cone在workspace（独立Cone即自身）的`target/package/<group>/<name>/`下产生`<version>.tar.zst`和`<version>.json`版本metadata，`--target-dir`可替换target根；多个成员不会因拼接包名而覆盖。归档根直接包含独立`Cone.toml`和该Cone的源码/资源。默认纳入Cone目录内的普通文件，排除`.git`、`.scoop`、`target`、`Cone.lock`及本次package输出；`[publish] include`可显式列出完整相对文件/目录清单，exclude再排除子集，首版均不解释glob。排序稳定，归档中的owner/时间不承载本机状态。
 
@@ -377,6 +391,10 @@ from 是相对当前 Cone 的普通文件/目录路径，to 是归档内相对�
 `deps --why <group:name>` 对包含该包的每个选中解析单位输出锁定版本/来源、所有直接约束边、声明位置，以及从根到各约束边的一条确定路径；测试边明确标记。根自身说明为选中的 root。解释的是当前 lock 和有效声明，不保存历史求解轨迹，也不声称保留的版本一定是远端最新版本。该命令始终只读本地来源，不下载、不展开缺少的远端源码、不更新 lock；缺少源码/索引提示 fetch，声明已不满足 lock 则要求 resolve。`--json` 输出 `format/resolutions`，每个 resolution 包含 `root/purpose/target/selected/source/requirements`（root/selected 为精确坐标），要求记录包含 `from/path/versions/source/test/origins`；origin 使用无损 host path 与声明 span。普通不带 why 的 deps 仍只需读取锁定图。
 
 `metadata` 返回与 prepare 相同的版本 1 `PreparedWorkspace` JSON，接受本地根/成员、用途、target、sysroot、artifact search roots、lockfile 和 PM cache 选择；始终要求已有且满足声明的锁定记录，不写 lock。`--json` 同时选择结构化错误，供 LSP 消费。在线时可获取已锁定但本机缺少的来源；`--offline` 只使用已展开的 Git checkout 与 registry 源码目录，不能从已有 Git objects 或源码归档隐式展开缺少的来源，缺少时明确提示 `scoop pm fetch`。有效的本地准备记录沿既有更新规则直接复用；普通 metadata 缓存写入不修改项目声明或依赖选择。
+
+清单编辑使用 `scoop pm add <group:name> [input]` / `remove <group:name> [input]`，可用 `-p group:name` 选目标成员；默认发现与成员选择沿用 workspace 规则，必须唯一选中一个 Cone，多成员默认选择要求显式 `-p`。`--purpose production|test` 选择依赖表。add 的 `--version` 是完整版本要求；`--path`、`--git`、`--github`、`--registry`、`--artifact` 选择来源，Git 另接受 branch/tag/rev/subdir。无来源时按普通声明默认来源处理，必须给 version；不联网推测版本。`--inherit` 写入完整的 `{ workspace = true }`，不能与 version/source 混用，必须能从所属 workspace 继承该 key。path/artifact 及本地 Git 路径以调用 cwd 为基准，写成相对目标成员的路径。
+
+add 新建或整体替换所选表中的该条声明，不隐式合并旧来源字段；保留该条的行注释及无关 TOML 内容、顺序和注释。remove 删除所选表中的该条，不修改另一用途或 workspace.dependencies；缺少该条时报错。编辑仅验证新清单及 workspace 继承的合法性，不要求声明的包/路径当前可获取，不编译、不读写 lock。
 
 add/remove 先验证拟写的 TOML，再原子替换该 manifest；解析由后续 resolve/build 触发，避免承诺 manifest 与 lock 的跨文件事务。取消、网络失败、无解和工具退出均明确返回失败；已有可用 lock、下载结果或构建结果只按各自成功边界发布。没有成功准备结果时 driver 不运行旧程序充当本次成功。
 

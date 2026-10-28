@@ -7,6 +7,7 @@ use scoop_protocol::HostPathCarrier;
 use scoop_protocol::package::{PACKAGE_PROTOCOL_VERSION, PackageMemberV1, PackageMembersV1};
 
 mod deps;
+mod edit;
 mod metadata;
 mod resolve;
 
@@ -26,6 +27,10 @@ enum Command {
     },
     /// List local members and expanded source selections without resolving dependencies.
     Members(MembersArgs),
+    /// Add or replace one dependency declaration without resolving or fetching.
+    Add(edit::AddArgs),
+    /// Remove one dependency declaration without updating Cone.lock.
+    Remove(edit::EditArgs),
     /// Read exact dependency graphs from Cone.lock without fetching or updating.
     Deps(deps::DepsArgs),
     /// Return the locked local project model as versioned JSON without updating Cone.lock.
@@ -69,6 +74,8 @@ fn execute(cli: Cli) -> PmResult<()> {
     match cli.command {
         Command::New { workspace } => create_workspace(&workspace),
         Command::Members(args) => members(args),
+        Command::Add(args) => edit::add(args),
+        Command::Remove(args) => edit::remove(args),
         Command::Deps(args) => deps::execute(args),
         Command::Metadata(args) => metadata::execute(args),
         Command::Resolve(args) => resolve::execute(args, false, None, None),

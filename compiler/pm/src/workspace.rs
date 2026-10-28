@@ -52,6 +52,7 @@ pub struct WorkspaceMember {
 pub struct Workspace {
     pub root: PathBuf,
     pub manifest: PathBuf,
+    pub manifest_text: String,
     pub members: BTreeMap<DependencyCoordinateKey, WorkspaceMember>,
     pub document: Arc<PackageDocument>,
     defaults: Vec<DependencyCoordinateKey>,
@@ -69,6 +70,39 @@ pub enum MemberSelection {
 }
 
 impl Workspace {
+    pub(crate) fn validate_edited_member(
+        &self,
+        member: &WorkspaceMember,
+        text: &str,
+    ) -> PmResult<()> {
+        let document =
+            scoop_manifest::package::parse_package_manifest(text, scoop_toolchain::SOURCE_TARGETS)
+                .map_err(|error| {
+                    let mut result =
+                        PmError::new(format!("{}: {error}", member.manifest.display()));
+                    if let Some(span) = error.span() {
+                        result.origins.push(ManifestOrigin {
+                            manifest: member.manifest.clone(),
+                            span: span.range(),
+                        });
+                    }
+                    result
+                })?;
+        let loaded = LoadedManifest {
+            path: member.manifest.clone(),
+            directory: member.directory.clone(),
+            document: Arc::new(document),
+            text: text.into(),
+        };
+        let owner = LoadedManifest {
+            path: self.manifest.clone(),
+            directory: self.root.clone(),
+            document: self.document.clone(),
+            text: self.manifest_text.clone(),
+        };
+        expand::expand(&loaded, self.document.workspace.as_ref().map(|_| &owner)).map(|_| ())
+    }
+
     pub fn discover(cwd: &Path, input: Option<&Path>) -> PmResult<Self> {
         discover::discover(cwd, input, None, None)
     }

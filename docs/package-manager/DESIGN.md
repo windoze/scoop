@@ -4,6 +4,8 @@
 
 采用独立 `scoop-pm` 可执行程序：它处理 workspace、版本求解、GitHub/Git、registry、源码打包和 `Cone.lock`；`scoop` 取得 lock 的精确图与本地输入后继续使用现有构建调度、缓存和链接。`scoopc` 仍只编译一个 Cone。这将新增复杂度集中在 PM，便于在不启动 LLVM 的测试中验证解析和下载行为。
 
+本轮按用户调整后的范围完成本地功能和工具接入：workspace、path/Git/sysroot/artifact、lock、清单编辑、LSP、帮助/模板与发行。registry 与源码打包/发布移至下一阶段，现有获取实现保留；不继续扩展 registry，也不等待其发布闭环才交付本轮。
+
 ## 1. 为什么这样拆分
 
 现有 `scoop` 已经有可复用的精确图：`compiler/scoop/src/graph.rs` 的 `ResolvedBuildGraph` 保存 root、节点、边和依赖优先顺序；`discovery/` 从 manifest/artifact 收集图，`schedule.rs` 调度单 Cone 编译。新增 PM 应替换前面的“发现和选择”，不重写后面的构建执行。
@@ -12,6 +14,7 @@
 
 ```mermaid
 flowchart TD
+    Command["scoop build/run（包括无 lock 的首次调用）"] -->|prepare 请求| PM
     Manifest["Cone.toml 与 workspace"] --> PM["scoop-pm"]
     Remote["Git 与静态 registry"] --> PM
     Lock["Cone.lock"] <--> PM
@@ -84,7 +87,7 @@ PM 的 library 入口供自身命令与单元测试使用；构建 driver 通过
 
 ## 5. 实施步骤与完成条件
 
-每步都更新实际进度；设计完成不等于实现完成。阶段可独立验证，但正式 M63 完成需全部闭合。中间步骤只接入已实现的来源，不能将未支持分支以空实现发布为完成。
+每步都更新实际进度；设计完成不等于实现完成。M63 本轮完成第一至第四步及第六步的本地工具/发行工作，第五步完整移至下一阶段。中间步骤只接入已实现的来源，不能将未支持分支以空实现发布为完成。
 
 ### 第一步：数据边界与独立程序
 
@@ -93,6 +96,8 @@ PM 的 library 入口供自身命令与单元测试使用；构建 driver 通过
 当前进度：自动 manifest 命令与协议 18 的已展开 child 输入已接通，单文件和 artifact-only link 保持独立。`scoopc` 的独立 manifest 入口与重复清单加载已删除，对应调用者和测试迁至普通 `scoop` 或具体编译请求；不实现直接 `scoopc` 的版本要求匹配。默认 build/run 在缺少 lock 时自动调用 PM 解析并生成，locked/frozen 才禁止创建。仓库清单统一迁移仍待完成。
 
 验收：PM 可单独 build/test，无 LLVM stage 依赖；独立进程产生完整图；`scoop` 消费 lock 的本地投影完成真实构建，`scoopc` 只消费其精确参数。普通 manifest 场景迁到 `scoop` fixture，低层 direct/support 错误通过具体编译请求保留代表性测试；不在 fixture 中另写清单解析器，不为旧低层入口维护版本语义。原始 manifest 和源码保持在位，以真实调用验证继承与版本选择只发生在 PM。
+
+首次调用必须直接验证没有 `Cone.lock` 的 `scoop build` 与 `scoop run`：自动 prepare 成功生成 lock 后继续编译/运行，无需预先 resolve。配套覆盖已有 lock 保持选择、locked/frozen 缺少 lock 时失败、offline 使用足够缓存生成 lock，以及 PM 失败不启动编译/运行；后续编译失败则保留已经正确生成的 lock。
 
 ### 第二步：workspace 与多根构建
 
@@ -116,6 +121,8 @@ PM 的 library 入口供自身命令与单元测试使用；构建 driver 通过
 
 ### 第五步：registry、打包与静态发布
 
+下一阶段实施，不作为本轮完成条件。
+
 实现静态协议、metadata 候选、选中归档获取、一次下载校验、yank 以及源码 package。完成 workspace/path/Git 依赖的发布转换、native vendor 映射和 package --check；交付本地 registry add/yank/unyank 命令与部署说明。
 
 验收：本地 HTTP 服务提供两个有传递依赖的包，真实打包、加入索引、消费、锁定、离线构建和更新；索引求解不下载所有候选源码；两个项目先后及并发消费相同版本共用一次成功下载/解包，不同registry同名版本保持分离；撤回不破坏旧 lock；坏归档/metadata 不发布结果，同版本不能覆盖。至少一个带共享 vendor native 文件的包通过真实编译，源码/工具保持存在。
@@ -134,7 +141,7 @@ PM 的 library 入口供自身命令与单元测试使用；构建 driver 通过
 | 求解 | 内存图及各版本边界、来源冲突 | path + Git + registry 菱形图，单程序无解/多程序可解 |
 | Lock | round-trip、未知格式、缺节点、模式与原子写 | 两个根并发更新保留彼此条目；编译失败保留正确 lock |
 | 获取 | 本地 Git、HTTP 索引与归档、失败清理 | 有效 lock 不查新版本；缺缓存的 locked fetch；无网络 frozen |
-| 构建边界 | prepare 请求/响应格式、配套工具失败 | scoop → PM → scoopc → 链接/运行，两个闭包的实际依赖绑定 |
+| 构建边界 | prepare 请求/响应格式、配套工具失败 | 无 lock 的 build/run 自动 prepare → 生成 lock → 编译/链接/运行；PM 失败不启动编译，两个闭包的实际依赖绑定 |
 | 生产/测试 | 只启用根测试依赖、正确源码角色 | 普通构建不下载测试包，测试配置修改不失效生产结果 |
 | 产物与缓存 | 精确 prebuilt 约束、实际输入更新 | 旧 slib 不能重绑定；未变化不重复读取摘要/探测/复制 |
 | 发布 | 清单展开、path 转换、Git 固定、归档文件集 | 归档解包后普通编译；HTTP 消费 native vendor 包 |
@@ -144,6 +151,6 @@ PM 的 library 入口供自身命令与单元测试使用；构建 driver 通过
 
 ## 7. 本期明确不做的扩展
 
-多版本同程序、任意 feature/variant、build scripts、Gradle 式任务图、远端构建执行、二进制 registry、公共账号/上传网站、来源签名和包授权体系均不属于 M63。Git SemVer tag 自动枚举、registry 搜索服务和依赖平台条件也不作为交付前置项。
+registry 与源码打包/静态发布已移至下一阶段；本轮验收矩阵只执行本地功能、Git、构建和工具接入相关项。多版本同程序、任意 feature/variant、build scripts、Gradle 式任务图、远端构建执行、二进制 registry、公共账号/上传网站、来源签名和包授权体系均不属于 M63。Git SemVer tag 自动枚举、registry 搜索服务和依赖平台条件也不作为交付前置项。
 
-未来扩展应由实际使用场景驱动，并单独修改规范。当前完成条件是 workspace + Git + registry + lock 经独立 PM 到现有编译/链接的完整可用闭环。
+未来扩展应由实际使用场景驱动，并单独修改规范。当前完成条件是 workspace + path/Git/sysroot/artifact + lock 经独立 PM 到编译/链接、LSP 和配套发行的可用闭环。

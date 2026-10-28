@@ -2,6 +2,7 @@
 
 pub mod cache;
 pub mod catalog;
+pub mod edit;
 mod error;
 pub mod lockfile;
 pub mod prepare;

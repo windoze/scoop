@@ -755,6 +755,8 @@ scoop link --root-slib root.slib --runtime-objects index [--dependency-slib dep.
 scoopc build <file.scoop> [--direct-slib direct.slib]... [--support-slib support.slib]... --out-slib current.slib
 ```
 
+无 lock 的首次 build/run 与已有 lock 的构建使用同一个 prepare 入口，具体顺序见[包管理规范 7.2](SCOOP-PACKAGE-SPEC.md#72-自动准备与低层调用)。PM 完成解析、来源准备和 lock 发布后，driver 才调度编译；PM 失败则停止本次命令。后续编译或链接失败保留正确生成的 lock，run 不执行旧程序。
+
 低层 `scoop-link` 使用相同的普通产物链接合同。manifest build/run省略root时按包管理规范3.1从cwd定位最近清单及所属workspace，成员内默认该成员，workspace根采用default-members；`run -- args`也采用该选择，必须得到唯一executable。低层scoopc输入必需。single-file与artifact-only link不启动PM或读取相邻workspace。
 
 `scoop` 优先解析内置子命令；其余子命令名称必须是单个文件名，并直接执行所选 `<SYSROOT>/commands/scoop-<名称>`。目标可以是任意宿主可执行程序（包括带解释器声明的脚本），不经过 shell 解释或 PATH 搜索。子命令名称之后的全部参数原样传递，包含选项、`--`、空字符串及宿主原始参数字节；`scoop` 自身的选项必须放在外部子命令之前。`--sysroot` 采用本节既有的显式参数、`SCOOP_SYSROOT`、安装根优先顺序，对内置子命令仍可放在子命令前后。外部程序继承 cwd、环境和标准输入输出，正常退出码与信号终止状态由 `scoop` 传回；程序缺失、不可执行或启动失败按实际路径报告，不触发编译、链接或工具探测。

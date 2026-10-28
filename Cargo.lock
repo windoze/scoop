@@ -1247,6 +1247,7 @@ dependencies = [
  "tar",
  "tempfile",
  "toml",
+ "toml_edit",
  "ureq",
  "url",
  "zstd",
