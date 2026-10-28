@@ -1240,7 +1240,7 @@ base class的全部constructor body与初始化项先于derived自有字段。�
 
 #### 9.1.2 `const val`
 
-本节的聚合值常量、Option 解包及编译期输入 intrinsic 扩展与 11.19 一起设计、待实施；已有标量／String 常量规则保持。
+已有标量／String、已实现的聚合值与 env 常量通路保持。按本轮范围调整，常量与常量表达式的进一步扩展另行实施；下述 Option Elvis／when 常量求值及更完整的静态对象常量组合属于后续设计，不作为 11.19 输入 intrinsic 的本轮交付要求。
 
 - `const val`只允许声明在top level、`object`或`companion object`中；必须有显式type和initializer，不能是extension/local、`var`、delegate或带accessor。常量资格按完整类型及实际值的组成判断，不以 enum／struct／tuple 分类限制：`Boolean`、基本数值类型、`Char`、`String`、`Unit`，以及字段／元素递归为常量的 struct、tuple 和 enum 值均可表示为常量。聚合值保留实际 exact application；泛型实参通过实例化后的实际存储字段检查，不因没有参与存储的 phantom 参数而拒绝常量。方法、computed property、interface conformance 与 companion 不属于实例 payload，不影响类型表示常量的能力。
 - enum 只检查当前 variant 实际携带的 payload；其他 variant 不参与该值的递归检查。例如 `None: Option<SomeClass>` 不包含对象引用，可成为常量。普通 struct／tuple 的全部字段／元素均须具有完整合法的常量值；Unit 和没有字段的普通 struct 自然满足此条件。内联布局循环仍按 3.1 拒绝，不新增另一套常量类型循环规则。
@@ -2763,16 +2763,15 @@ use 以 receiver 调用 block 恰好一次，正文正常返回或抛出后调�
 
 这些声明经普通 core public prelude 和 `.slib` 泛型模板提供，不新增语法、compiler-known 角色、MIR cleanup 节点或 runtime 释放机制。拥有 native 资源的平台库按[平台库规范](SCOOP-PLATFORM-SPEC.md)实现具体所有权合同。
 
-### 11.19 编译期输入 intrinsic（设计，待实施）
+### 11.19 编译期输入 intrinsic（实施中）
 
-本节与[编译期 intrinsic 设计](../compile-time-intrinsics/DESIGN.md)规定首批文件／环境输入能力及必要的静态常量支持，当前尚未实现。声明位于 reserved core Cone `scoop:scoop.core:0.1.0` 的普通 package `scoop.compiler`；该 package 的声明不进入默认 prelude，也不在根 package 转导出。使用方可显式 `import scoop.compiler.includeStr`、`import scoop.compiler.env as compileEnv` 或 `import scoop.compiler.*`，导入后调用短名或 alias，不增加无 import 的包限定调用。各导入形式使用同一 typed intrinsic 语义；package 本身仍不是 exact import 的合法终点。后续编译期 intrinsic 同样在此 package 组织；package 本身不赋予编译器能力，识别仍遵守 13.1 的 typed registry。
+本节与[编译期 intrinsic 设计](../compile-time-intrinsics/DESIGN.md)规定首批文件／环境输入能力及必要的静态表示。env 已实现，include 系列继续实施；本轮不追加 9.1.2 中尚未实现的常量控制表达式。声明位于 reserved core Cone `scoop:scoop.core:0.1.0` 的普通 package `scoop.compiler`；该 package 的声明不进入默认 prelude，也不在根 package 转导出。使用方可显式 `import scoop.compiler.includeStr`、`import scoop.compiler.env as compileEnv` 或 `import scoop.compiler.*`，导入后调用短名或 alias，不增加无 import 的包限定调用。各导入形式使用同一 typed intrinsic 语义；package 本身仍不是 exact import 的合法终点。后续编译期 intrinsic 同样在此 package 组织；package 本身不赋予编译器能力，识别仍遵守 13.1 的 typed registry。
 
 ```scoop
 package scoop.compiler
 
 import Array
 import Byte
-import Intrinsic
 import Option
 import Option.*
 import String
@@ -2806,6 +2805,8 @@ public struct EmbeddedDir(val files: Array<EmbeddedFile>) {
 ```
 
 四个函数都是非泛型、非 suspend、无 receiver 的编译期操作，无运行期 callable 入口。实参须在定义 Cone 的 HIR 检查中确定：String 实参沿 9.1.2 的常量表达式规则，include／exclude 接受元素均为常量 String 的数组字面量；它们在编译期读取，不构造运行期筛选数组。普通函数形参、局部 val、运行期数组及依赖类型参数的计算不能充当这些输入；内联、优化或调用处传入字面量不改变此规则。对这些 intrinsic 取函数引用／FunPtr 是 13.1 的语义错误，诊断须说明实际 intrinsic 不支持函数引用，因为它在编译期求值且没有运行期 callable 入口。短名、import alias 和 re-export 使用同一规则，不能报告成引用语法错误。普通同名声明沿既有解析规则处理。
+
+本轮 String 输入只使用已实现的常量表达式集合，不为输入参数另行开放常量 Elvis／when；例如 `includeStr(env("SCOOP_FILE") ?: "default.txt")` 留到常量表达式专项。普通 `val version = env("SCOOP_VERSION") ?: "dev"` 仍合法：env 已展开为静态 Option，Elvis 沿普通运行期语义处理。intrinsic 结果的静态嵌入与源码 const 表达式集合是不同要求。
 
 调用在所属源码被选中且完成相应 HIR 语义检查时展开，包括泛型、默认参数、闭包和运行期不可达分支。其路径采用原表达式的定义来源，环境采用本次定义 Cone 编译时的宿主环境；不观察默认参数的 evaluation origin。已导出模板只保存已完成的常量值／引用，下游实例化与内联不重复外部输入操作。11.12 的位置 intrinsic 保持原语义。
 

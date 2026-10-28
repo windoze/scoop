@@ -2,6 +2,8 @@
 
 状态：实施中。日期：2026-10-28。已完成范围与验证见 [PROGRESS.md](PROGRESS.md)；本文同时记录后续实现合同。
 
+2026-10-29 范围调整：常量与常量表达式的进一步扩展留到后续专项，本轮不继续补常量 Elvis／when，也不新增通用常量合并机制。已完成的聚合值与 env 通路保留；本文中尚未实现的常量表达式设计仅作后续参考。四个输入 intrinsic 的定义处求值、静态嵌入、输入限制和更新仍属于本轮。
+
 权威合同已同步到[语言规范](../specs/SCOOP-SPEC.md) 8.5.3、9.1.2、11.19、12.6、13.1，[实现规范](../specs/SCOOP-IMPL-SPEC.md) 2.10.1，以及[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md) 2.4～2.5。本文说明实现选择、改动面和验收顺序。
 
 ## 1. 目标与范围
@@ -23,7 +25,6 @@ package scoop.compiler
 
 import Array
 import Byte
-import Intrinsic
 import Option
 import Option.*
 import String
@@ -70,7 +71,7 @@ import scoop.compiler.includeStr
 
 const val LICENSE: String = includeStr("../LICENSE")
 const val BUILD_TAG: Option<String> = env("SCOOP_BUILD_TAG")
-const val VERSION: String = env("SCOOP_APP_VERSION") ?: "dev"
+val version: String = env("SCOOP_APP_VERSION") ?: "dev"
 
 val logo = includeBytes("../assets/logo.png")
 val assets = includeDir(
@@ -82,7 +83,7 @@ val assets = includeDir(
 
 ## 3. 求值时机与输入限制
 
-String 实参复用常量表达式规则：字面量、const 引用、允许的内建运算及本组操作的已展开结果。include／exclude 只接受元素为常量 String 的数组字面量，可为空；不接受运行期数组、spread 或普通函数返回的数组。默认的 `["**"]`／`[]` 在编译期消费，不沿普通调用生成数组分配。
+String 实参复用已实现的常量表达式规则：字面量、const 引用、允许的内建运算及本组操作的已展开结果；本轮不为输入参数另补 Option Elvis／when 常量求值。上例普通 val 的 Elvis 仍沿已有运行期语义处理已嵌入的 Option。include／exclude 只接受元素为常量 String 的数组字面量，可为空；不接受运行期数组、spread 或普通函数返回的数组。默认的 `["**"]`／`[]` 在编译期消费，不沿普通调用生成数组分配。
 
 普通函数参数、局部 val 和未确定的类型参数不成为编译期输入；例如 `fun load(path: String): String = includeStr(path)` 非法，即使所有调用都传字面量或函数标注 inline。`::env`、`::includeBytes` 及相应 FunPtr 取得同样非法，因为这些操作没有运行期 callable 后备。函数体里固定参数的直接调用、lambda 内的直接调用合法，运行时仅取得已确定值。
 
@@ -92,7 +93,7 @@ String 实参复用常量表达式规则：字面量、const 引用、允许的�
 
 默认参数保留原有定义／求值双来源；本组操作使用定义来源，展开后模板中只剩已求出的常量值或静态引用。缺省参数被采用时，再按通常规则实例化其余表达式。`currentSourceLocation()` 仍观察求值来源；两者不共用“把位置改成调用者”的特殊机制。
 
-同次 HIR 的常量试探、正常绑定和模板发布共用已经完成的输入读取。嵌套如 `includeStr(env("SCOOP_TEXT_FILE") ?: "../default.txt")` 先得到常量路径，再通过 Cone 范围检查后读取文件，并记录两种输入；路径来自环境变量也不能绕过目录限制。原 const 依赖图检查循环；不引入用户函数递归解释器或工作量预算。
+同次 HIR 的常量试探、正常绑定和模板发布共用已经完成的输入读取。原 const 依赖图检查循环；不引入用户函数递归解释器或工作量预算。`includeStr(env("SCOOP_TEXT_FILE") ?: "../default.txt")` 依赖尚未实现的常量 Elvis，留到常量表达式专项；将来开放这类组合时，环境提供的路径同样须通过 Cone 范围检查，并记录两种实际输入。
 
 ## 4. 文件路径与内容
 
@@ -166,7 +167,7 @@ error: compile-time environment variable name must start with `SCOOP_`
 
 通过前缀检查后，实际名称查找的大小写等规则沿宿主环境。读取的是发起本次源码编译的进程环境，交叉编译也如此。父 scoop 与 scoopc 子进程保持同一继承环境，不能因内部工具的环境覆盖而改变该语义。结果不是 runtime env API，也不注入虚构的 target／包元数据变量。首版没有额外前缀列表、任意环境读取入口或放宽限制的开关；以后调整时再修订语言合同。
 
-`String?` 就是 Option<String>；不再提供 envOrNull 或缺失即报错的 env 重载。调用方可在允许的常量表达式中选择默认值，运行期也可照常模式匹配已嵌入的 Option。
+`String?` 就是 Option<String>；不再提供 envOrNull 或缺失即报错的 env 重载。调用方可用普通 Elvis 或模式匹配处理已嵌入的 Option；相应常量控制表达式留到后续专项。以下常量类型与表达式设计保留为后续参考，已实现部分见实施记录，不作为本轮继续扩展的要求。
 
 `const val` 保留原声明位置与显式类型要求，按实际值而非 enum／struct／tuple 分类判断常量资格。primitive、String、Unit，以及递归由常量组成的 struct、tuple、enum 均可常量化；空 struct 也是常量。泛型看实例化后的实际字段，不把没有存入 payload 的 phantom 参数当作字段。普通方法、只读 computed property、interface conformance 和 companion 不增加实例存储，不影响该资格。
 
@@ -179,6 +180,8 @@ enum 只检查选中 variant 的 payload；`None: Option<SomeClass>` 不因另�
 注解参数的类型集合不随 const 扩展自动增加 struct／tuple／Option／代数 enum；已有 String 注解参数可以引用已经求出的 String const，仍遵守语言规范 9.4 的值语法。
 
 ## 7. 常量存储合并（内部优化）
+
+本轮复用已有优化，不新增通用常量合并机制；以下为后续优化的语义边界。
 
 值相同的 const object，其运行期 identity 不保证一定相同，也不保证一定不同。不同泛型特化中的常量实体各自独立；泛型类的不同 companion application 及其中的 const 也保持各自的实体身份。编译器可以让这些常量引用同一只读对象，但不能因此合并声明、泛型 application 或 companion 对象，也不能改变类型、值、初始化及其他规定行为。
 
@@ -245,10 +248,10 @@ LSP 在正常按需分析到声明或正文时求值，并将输入观察关联�
 
 ## 11. 实施步骤
 
-1. **常量与命名空间基础。** 扩展现有 typed 常量表示以容纳 struct／tuple／Unit、enum payload 和静态数据引用，补齐字面量、常量字段读取、const Option 与 Elvis／模式解包；普通构造调用不进入本版求值范围。明确 core 非根 package 的普通导出与非 prelude 行为。此步直接服务下一步四个入口，不预建通用求值插件层。
+1. **输入值与命名空间基础。** 复用已经完成的 struct／tuple／Unit、enum payload 常量数据通路，按 include 实际需要补充静态资源表示。明确 core 非根 package 的普通导出与非 prelude 行为。常量 Elvis／模式解包及其他通用常量表达式改由后续专项实现，不预建通用求值插件层。
 2. **单文件和 env 闭环。** 增加 core 声明／registry、定义来源与 Cone 根输入接口、路径及 symlink 范围检查、env 的 SCOOP_ 名称限制、静态字节数组发射与普通更新记录；实际完成 includeStr／includeBytes／env 的源码到 .slib、消费、链接和运行。
 3. **目录闭环。** 增加 includeDir、普通 EmbeddedFile／EmbeddedDir、逐项范围检查、glob 选择、匹配集合／链接更新和目录静态数据图；接入同一常量表示与产物引用。
-4. **跨 Cone 和工具验收。** 验证泛型／inline／默认参数中的常量值、导出 Option 常量、check／doc／LSP 输入失效、包内相对资源和完整缓存更新；验证四个入口的普通导入调用，以及导入短名／alias 后的引用拒绝。常量合并策略以独立优化测试验证，不将合并数量作为语言语义验收门槛。对实际变更格式统一升级并显式准备开发 sysroot。
+4. **跨 Cone 和工具验收。** 验证泛型／inline／默认参数中的静态输入值、导出 Option 常量、check／doc／LSP 输入失效、包内相对资源和完整缓存更新；验证四个入口的普通导入调用，以及导入短名／alias 后的引用拒绝。不将进一步常量表达式扩展或新增合并优化作为本轮验收门槛。对实际变更格式统一升级并显式准备开发 sysroot。
 
 各步完成代码后先按仓库要求格式化／lint，再运行相关测试；首批新 API 在其端到端能力完成后才加入已实现能力清单。不保留“暂时生成运行期读文件”的后备路径。
 
@@ -260,8 +263,8 @@ LSP 在正常按需分析到声明或正文时求值，并将输入观察关联�
 | --- | --- |
 | package 与解析 | exact／star／alias import；未 import 的裸名称错误；短名／alias 函数引用均拒绝；同名普通函数不获得 intrinsic 能力 |
 | String／bytes | 空文件、UTF-8／BOM／CRLF／NUL、二进制高位字节；非法 UTF-8 与非文件诊断 |
-| Option 常量 | None、env 产生的 Some 空串／非空串、Elvis／when、跨 Cone const 消费；源码 Some 调用拒绝 |
-| 聚合常量 | struct／tuple／Unit／空 struct 的值表示、嵌套字段、完整泛型 application、phantom 参数、实际 variant payload、intrinsic 结果字段读取与跨 Cone 消费；普通主／次构造及 enum payload 构造拒绝 |
+| Option 输入值 | None、env 产生的 Some 空串／非空串、普通运行期 Elvis／when、跨 Cone const 消费；不增加常量控制表达式 |
+| 聚合输入值 | intrinsic 结果的完整类型、实际 variant payload、静态数组／目录数据、字段读取与跨 Cone 消费；普通构造的常量求值不开放 |
 | env 名称 | SCOOP_ 前缀、精确大小写、前缀本身、非法名称在宿主查询前失败；HOME 等即使缺失或带默认值也报错；仅已查询合法名称影响更新 |
 | 常量限制 | 动态参数／局部 val／运行期数组／未知泛型输入错误，const 循环与错误位置；函数引用按真实 intrinsic 报专用语义错误，覆盖短名／alias／re-export 与三种引用上下文 |
 | 目录选择 | 根目录及嵌套文件、** 零层匹配、多 include／exclude、重叠去重、隐藏文件、Unicode、空结果、非法 pattern |
@@ -269,7 +272,7 @@ LSP 在正常按需分析到声明或正文时求值，并将输入观察关联�
 | 路径来源 | manifest、single-file、不同 cwd、生成正文、默认参数与跨 Cone 定义来源；采用定义 Cone 根而非 workspace／消费方根 |
 | 路径范围 | Cone 内相对／绝对路径、合法 ..、词法越界、同名前缀兄弟目录；文件／目录／父目录／链式 symlink、外部链接指回、Cone 根 symlink、link/..、断链与实际循环 |
 | 目录逐项检查 | 根与深层条目、被 glob 排除的越界链接、空 include 仍检查；Cone 内但 includeDir 根外的合法链接，输出保持逻辑相对路径 |
-| 常量发射与优化 | 多种 T、泛型 companion、多个消费 Cone、重复 include／相同内容、inline／default 克隆的值与类型正确；已实现的合并策略另测实际存储数量，不断言语言保证唯一对象 |
+| 静态输入发射 | 多种 T、泛型 companion、多个消费 Cone、重复 include／相同内容、inline／default 克隆的值与类型正确；不将新合并优化作为本轮要求，不断言语言保证唯一对象 |
 | 表示／GC／链接 | Option niche、不可变数组图、现有 GC 下可访问、toMutableArray 独立副本、实际引用保留与无用数据裁剪 |
 | 输入更新 | 内容更新、增加／删除／改名匹配文件、新嵌套目录、筛选参数变化、env 三态变化；链接改指 Cone 内／外、父目录链接变化、相同目标 metadata 下的改指、排除项新增越界链接；真实缺失输入、失败不发布、普通并发 |
 | 复用 | 所有输入保留且未变时没有源码／资源正文读取及编译调用；排除文件内容、无关 env 变化不重编 |
