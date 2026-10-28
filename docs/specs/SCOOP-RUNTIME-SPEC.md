@@ -821,7 +821,7 @@ Cycle 的 path 在复制为 managed String 之前保持稳定，随后调用已�
 
 活跃链同时包含 in-flight、caught 和 rethrowing record。所属线程只在 managed 状态下改变链和 catch 栈，GC 按 3.5 的既有握手取得静止线程后，通过 3.3 的线程根扫描访问每条活跃记录的引用槽，搬迁时原位回写；异常不经过全局 GcHandle 表或额外对象根系统。记录可按非 LIFO 顺序删除，例如新异常展开旧 handler 的 cleanup；注销只更新所属线程的链，不扫描其他记录。线程 detach 和正常 shutdown 要求活跃链与 catch 栈为空。
 
-`exception_cleanup` 是注销并释放 record 的最终出口，unwinder 按 Level I 契约只调用一次。已释放的 native record 不能再用于 BeginCatch 或 cleanup，不为此维护全局地址成员表。exception class、owner、状态转换与 catch 栈的 LIFO 规则仍在实际入口检查。unwinder 私有字段只由 unwind library 使用。`_Unwind_RaiseException` 返回表示无 handler 或 unwind 失败，必须在 record 仍保活原对象时打印诊断，再清理并终止。
+`exception_cleanup` 是注销并释放 record 的最终出口，unwinder 按 Level I 契约只调用一次。已释放的 native record 不能再用于 BeginCatch 或 cleanup，不为此维护全局地址成员表。exception class、owner、状态转换与 catch 栈的 LIFO 规则仍在实际入口检查。unwinder 私有字段只由 unwind library 使用。`_Unwind_RaiseException` 返回表示无 handler 或 unwind 失败，必须在 record 仍保活原对象时取得诊断所需的类型与已有栈快照；若终止路径单向进入 NativeSafe，先取得不再依赖可移动引用的输出数据并完成 record 清理，再打印和终止。无 handler 与内部 unwind 错误分别遵守第 7 章的退出码／fatal 规则。
 
 ### 5.2 Personality 与 landing pad
 
@@ -862,6 +862,22 @@ native exception record 不能跨线程共享或跨挂起保存；可以保存�
 除零、强制类型转换、Option unwrap、数组越界等语言异常，由 managed 代码构造实际 core 异常并抛出。native helper 不得把源码异常藏在穿越 FFI frame 的 unwind 中。
 
 异常不得穿越 C ABI frame，违反属于未定义行为；Scoop ABI native callee 不得向 managed caller 展开，违反时终止。managed callback 和 startup gateway 在返回 C 前完成捕获、保存原 managed 引用与 EndCatch。
+
+### 5.6 Throwable 栈快照与 trap 诊断
+
+语言规范 11.7 的 Throwable 是可继承的 intrinsic FixedObject。公共对象头仍为 16 bytes；offset 16 为一个 8-byte、可空的 managed 栈快照引用，基类前缀共 24 bytes。null 表示尚未抛出，非 null 指向一份不可变快照；无可用帧或截断状态属于该快照的内容。普通派生字段在这个基类前缀之后按现有布局规则排列。TD 使用普通 FixedObject 形状与完整 scan，扫描并搬迁此引用以及派生字段，不新增实例种类、全局异常表或独立 GC root 系统。Exception 的 message 仍是其普通声明字段。
+
+快照使用普通 GC 管理的无引用 byte-array 存储，由 runtime 的采集／读取代码解释；内容仅含帧地址、必要的 native 模块信息及诊断状态，不含 managed 裸地址、异常 record、栈局部地址或指向已退出栈帧的指针。编译器提供实际 byte-array 的 TD 与布局；不另建手工分配和特殊回收的 native trace 对象。raw PC 与符号查询地址须区分；普通返回地址按 unwind provider 的 IP 语义调整，确切指令 PC 不减一。跨 ASLR 的定位使用实际模块的链接地址与可用 UUID／build-id；必要的模块数据在采集时复制，不能把所有平台的 image base 都当作 ELF load bias，也不能将已卸载模块的地址归给后来复用该范围的另一个模块。
+
+首次抛出前执行一个允许 GC 的 typed 准备操作：保活原 Throwable，采集尚未展开的栈，分配并填完快照，再以 release 发布；观察使用 acquire。并发准备只发布一个完整快照，未获胜快照按普通 GC 回收。发布和 collector 回写遵守已有 managed 原子引用及 3.6 写屏障规则。准备操作返回经过可能搬迁后的同一对象引用，调用方必须消费该结果。空值快路和原子发布不能读取半成品。
+
+实际 `_Unwind_RaiseException` 入口仍为现有 NoGc throw；它不隐式分配 managed 快照。同步 rethrow 复用已有快照，不重新采集；其他保存／再次抛出路径同样不覆盖。原对象跨 native record 删除、GC 搬迁、callback observer、初始化 failure root 与协程 frame 后，快照仍按普通字段保活。采集／打印内部帧可以按已知边界省略，但不能靠固定跳过若干层在不同优化模式中误删用户帧。
+
+物理采集优先使用 target 已选 unwind provider 的 `_Unwind_Backtrace`，不因符号化再次选择另一套 unwind provider。所有可能位于诊断栈上的 Scoop 函数、runtime 及 generated-C bridge 必须保留所需 unwind 信息；这个要求独立于 debug profile、普通符号表和 DWARF 行表。无法展开的 native 边界保留部分结果并标记，不把读栈扩展为运行时语义验证。诊断缓冲的必要截断只影响输出，不成为程序的合法性或资源配额规则。
+
+`printStackTrace()` 及未捕获异常报告消费已有快照；语言 trap 则在进入终止路径之前采集当前栈，不分配 Throwable、不建立 exception record。文件查询、符号化与 stdio 等可能阻塞的工作在 NativeSafe 执行；此前对所需快照 bytes 使用现有 pin／借用协议，或复制为 native 数据。进入 NativeSafe 后不能继续跟随未经固定的 managed 引用，不能持有 GC／线程 registry 锁进行符号解析或 I/O。已经在 NativeSafe 的 startup failure 路径，经现有协调读取 rooted failure 并取得稳定输出数据，不回调 managed 打印方法。
+
+符号化延迟到打印，复用同一版本 executable、dSYM 或 ELF 分离调试文件。调试文件不可用时输出模块、可用 UUID／build-id、链接地址和原始地址；不能只输出无法事后定位的 `<unknown>`。这项读取属于诊断，不加入构建缓存命中校验。普通符号／文件／输出错误不替换原异常；栈或堆已损坏、内存耗尽等 fatal 情况不承诺完整诊断，仍遵守原终止合同。本节不安装信号处理器，不把外部 SIGSEGV／SIGILL 等转换成 Scoop 异常。
 
 ## 6. 核心类型的运行时后备
 
@@ -939,7 +955,7 @@ core 的 `exit(code: Int): Nothing` 显式请求结束整个进程：先刷新 s
 
 `scoop_rt_exit(int32_t code)` 使用 Scoop ABI，Nothing 保持既有 managed-reference 返回 carrier，但入口永不返回。终止路径在任何可能阻塞的诊断或刷新前单向发布 NativeSafe；此后不得再访问未固定 managed 引用或恢复 managed 执行。当前没有后续使用的 managed 局部不要求新建栈图，既有 caller/native/compiler roots、pin 帧、外层冻结段和 TaskContext 槽保持有效且不被拆除，供并发 collector 扫描。启动 coordinator 已处于 NativeSafe；内部 collector/park 协议执行中请求这一公开终止入口属于 ABI 错误，不能以终止替代未完成的 collector 操作。
 
-语言级 panic、启动阶段未捕获异常与异常逃离 main 的进程退出码固定为 `1`，适用于全部四种 main。异常路径打印已发布异常的类型名与必要的初始化路径，不调用用户 toString；随后刷新 stdout/stderr，并调用 `_exit(1)` 终止进程。输出等待使用 NativeSafe 协议，不因等待 stdio 锁或 I/O 阻止其他线程推进 GC；允许刷新等待，不承诺退出耗时上限。这条失败退出路径不等待其他 Scoop 线程 join、不销毁仍可能被它们访问的 GC 状态。语言级 panic 可直接进入同一诊断／终止路径，不伪造 Throwable 或带空 failure root 的 gateway 失败状态。runtime 内部 ABI／不变量破坏仍使用 fatal 诊断与 `abort()`；外部信号终止保持目标系统的 signal 状态。
+语言级 panic／语言 trap、启动阶段未捕获异常与异常逃离 main 的进程退出码固定为 `1`，适用于全部四种 main。异常路径打印已发布异常的类型名、已有的首次抛出栈与必要的初始化路径，不调用用户 toString，也不把 gateway 的当前栈当作原抛出栈；随后刷新 stdout/stderr，并调用 `_exit(1)` 终止进程。输出等待使用 NativeSafe 协议，不因等待 stdio 锁或 I/O 阻止其他线程推进 GC；允许刷新等待，不承诺退出耗时上限。这条失败退出路径不等待其他 Scoop 线程 join、不销毁仍可能被它们访问的 GC 状态。语言级 panic／trap 在终止前采集并打印触发位置的当前栈，可直接进入同一诊断／终止路径，不伪造 Throwable 或带空 failure root 的 gateway 失败状态。runtime 内部 ABI／不变量破坏仍使用 fatal 诊断与 `abort()`；编译器显式生成的此类 trap 经过可打印原因及部分栈的 fatal 入口，不因统一打印而改为语言异常或退出码 1。外部信号终止保持目标系统的 signal 状态。快照和输出数据的稳定性遵守 5.6。
 
 ## 8. 协程
 

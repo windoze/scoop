@@ -1025,9 +1025,9 @@ Darwin 支持 `.o`、`.a`、dylib/framework 与所选 SDK 的系统 providers。
 
 Darwin 使用所选系统 linker、按 native 需求选择的 C／C++ 链接 driver、SDK/deployment 与 libSystem，Level I unwind 经系统正常导出解析；C++ 模式同时使用配套 libc++ 与 C++ ABI 运行库。final-link 不使用 dead_strip、不同 body 的 function ICF、LTO 或 raw 用户 linker options。stackmap relocation 后位于只读 `__DATA_CONST`，采用传统 rebase/bind（no_fixup_chains）格式；普通绑定与随后执行的 weak coalescing 分别解释，允许同一指针对相同符号和 addend 具有这两阶段记录。实际需要的 ad-hoc signing 属于平台装载格式。
 
-最终 executable 的普通 release 默认清除不再参与动态链接的内部符号；debug 默认保留，`scoop build/run/test/link --keep-symbols` 与独立 `scoop-link --keep-symbols` 显式保留。artifact-only link 默认清除，不通过读取更多 Compile 数据推测生产 profile。Darwin 沿已有 `_scoop$1$*` 本地化后使用 linker 的 `-x -S`，ELF 使用 `--strip-all`；必要 native 动态导入／导出、GC／stackmap、EH 和登记数据继续保留。清理在最终 linker 内完成，Darwin signing 随正常最终产物生成；不后改签名文件，不截短持久 ID，也不改变参与链接的 `.slib`／`.o` 符号及定义边界。
+最终 executable 的普通 release 默认清除不再参与动态链接的内部符号；debug 默认保留，`scoop build/run/test/link --keep-symbols` 与独立 `scoop-link --keep-symbols` 显式保留。artifact-only link 默认清除，不通过读取更多 Compile 数据推测生产 profile。未请求独立调试文件时沿用 linker 内裁剪；请求时先保留调试信息完成链接，再按 2.22 生成调试文件、裁剪程序，Darwin 最后重新完成 ad-hoc signing。必要 native 动态导入／导出、GC／stackmap、EH 和登记数据继续保留；不截短持久 ID，也不改变参与链接的 `.slib`／`.o` 符号及定义边界。
 
-debug profile 的最终链接默认使用目标 linker 的正常 map 输出，随 executable 发布 `<output>.map`，内容包含实际链接地址、段／符号范围及名字。release profile 默认不生成 map，可用 `scoop build/run/test --emit-symbol-map` 显式开启；artifact-only 的 `scoop link` 与独立 `scoop-link` 同样默认关闭并支持该选项。map 选项独立于保留程序符号表的 `--keep-symbols` 和逻辑符号观察的 `--emit symbols`。map 不进入程序、持久 ID、ABI 或 Code；是否请求 map 及其路径不改变 link plan 指纹，只区分最终结果缓存。它与显式 symbols 观察共同支持离线函数归因，不自动生成 DWARF、指令行表或运行时测量代码。缓存复用 executable 及请求生成的 map，命中时不读取二者内容；未请求时不生成、发布或要求 map 文件。map 生成或链接失败不得报告成功。已有输出旁的旧 map 可通过 `scoop clean` 一并清除。
+独立调试文件按 2.22 替换原文本 map 的伴随输出与结果复用通路；迁移完成后移除 `--emit-symbol-map` 和 map parser，不将旧选项静默解释成另一种产物。`--emit symbols` 继续提供逻辑符号观察，离线地址归因使用 llvm-symbolizer 与实际 executable／独立调试文件。此替换不增加运行时测量代码。
 
 Linux 接受 `.o`、`.a`，动态模式另接受 ELF `.so`；framework 与静态程序的动态库需求为错误。用户 `.so` 必须是 DSO，不是 PIE executable 或 linker script。未版本化的源码 extern 只匹配默认导出版本，DT_NEEDED 不等于显式库 re-export；TLS、IFUNC、版本化导入按实际 kind/version 检查。
 
@@ -1093,6 +1093,7 @@ intrinsic 的识别来自实际声明及其完整 name/target/shape/signature，
 | atomic operation | 实际 AtomicInt/Long/Boolean/Ref application、值类型、操作种类及完整成功/失败内存序；遵守语言规范 11.14。 |
 | MaybeUninit operation | 独立 wrapper 与 payload 的完整类型，以及零构造、合法值包装或 unsafe 取值种类；遵守语言规范 11.15，不保存初始化证明或隐藏标记。 |
 | managed callback | native/managed 签名、context index、mode、原 registration 与实际 application。 |
+| Throwable 与栈快照 | 实际 core Throwable identity、可继承的固定前缀、普通 byte-array TD、Managed 的首次抛出准备及 printStackTrace 操作；遵守语言规范 11.7、运行时规范 5.6。 |
 
 每个 intrinsic 只承担其指定语义，展开后是普通 typed 运算、内存访问或有明确 runtime 合同的操作。Const 能力只来自声明允许的操作集合，不能由同名用户函数取得。
 
@@ -1831,3 +1832,41 @@ VS Code 扩展通过标准 LSP 客户端启动 `scoop-lsp --stdio`，管理初�
 宿主按文件更新时间与长度复用未变的磁盘文本和已打开产物；打开的文档覆盖磁盘，Cone.toml 也遵守这一规则。配置或监听通知（包括 Cone.lock 变化）重新选择项目输入，关闭文档恢复磁盘文本；实际文本未变时保留语法结果。依赖产物只打开一次并按需读取所需 HIR，目录及成员缓冲可在输入宿主与分析线程间共享，文件定位读取互斥；不为共享再解析或核对相同目录。源文件、配置与依赖选择一起进入分析快照，旧项目结果不混入更新后的请求。
 
 进程内分析复用和 2.7、2.8 的构建缓存分别按各自实际输入更新，不增加缓存内容复核、源码镜像、来源认证或通用资源计费。语言服务只读取所需的依赖语义 metadata，不为查询进入 MIR／LIR、机器具体化、LLVM 或 native 链接准备。
+
+### 2.21 异常与 trap 的原生栈诊断
+
+语言规范 11.7 的 Throwable 使用实际 core intrinsic class 声明，仍可作为普通 class 的基类。HIR 确定它的 nominal identity、继承关系、构造与 printStackTrace 操作；MIR 保留封闭的表示／操作类别，LIR 给出运行时规范 5.6 的 24-byte 基类前缀、完整派生布局和 GC scan。不能只把 Exception 特化而遗漏直接继承 Throwable 的 class，也不能按类型显示名或机器符号重新识别该根类型。
+
+所有首次抛出路径在异常实参求值后、native unwind 前执行 typed Managed 准备操作，包括源码 throw、编译器生成的语言异常及保存后再次抛出。操作完成原对象的保活、物理栈采集、普通 byte-array 快照分配和一次性原子发布；已有快照时直接复用。准备结果为可能搬迁后的同一 Throwable，随后用该结果调用现有 NoGc throw。同步 rethrow 不重新准备或采集。准备操作的真实 GC／内存效果进入常规调用、roots、relocation 和写屏障规划，不能放在现有 NoGc throw 实现中隐式分配，也不能在 roots／statepoint 生成之后补插可能 GC 的调用。
+
+首次抛出准备、throw 与 trap 保留各自实际来源。禁止将采集提前到异常构造、提升到其他用户调用之前，或在 catch／顶层 gateway 中采集当前栈代替原抛出栈。编译器生成的采集及适配 helper 标记为人工位置；已执行的源码内联保留原 inline 调用关系。共用 trap 消息字符串不等于共用触发位置；按 message 合并的 trap block 必须同时保留可区分的 source origin，必要时按位置分块并对诊断调用使用 no-merge／no-tail 约束，不能把不同源码失败点报告成同一行。
+
+所有 profile 保留物理回溯所需的 unwind 信息，覆盖 Scoop 正文、runtime 与实际参与调用链的 generated-C bridge；其生产不依赖源码调试级别。frame pointer 不自动替代 unwind table，删除普通符号表或分离 DWARF 不能删除 `.eh_frame`／目标 compact unwind、必要的异常表及 GC stackmap。用户 native 代码的可展开性遵守其工具链配置，不能通过调试器假造缺失帧。跨 native 帧回溯不放宽运行时规范 5.5 禁止异常跨 C ABI 传播的合同。
+
+语言 trap 进入能采集当前栈并以状态 1 终止的 runtime 入口；编译器可预见的 ABI／不变量 fatal 进入保留 abort 语义的诊断入口。不以直接 `llvm.trap` 代替要求打印诊断的这两条路径，也不将优化器推导的 unreachable 或外部硬件信号统一改为可捕获异常。
+
+运行时在实际打印时消费标准 native 符号与已有的 dSYM／ELF 分离调试信息；原始地址采集不解析 DWARF、不启动外部 llvm-symbolizer／LLDB 进程。缺少调试文件时仍保留可离线归因的模块标识和地址。独立调试文件的生产改造、运行时符号器接入及验收见 [原生调试设计](../debugging/DESIGN.md) 与 [异常和 trap 栈诊断设计](../debugging/STACK_TRACES.md)。实际外部调试文件不参与运行产物缓存的内容复核。
+
+Throwable 从普通空基类改为 intrinsic 前缀会改变所有派生异常布局，并新增 typed intrinsic／Managed 准备操作。实施时递增实际受影响的 IR／meta 编码和 runtime ABI contract，编译器、runtime、core 及依赖机器产物配套重建；不能混用旧异常对象布局，也不以 runtime ABI 号之外的旁表补救。本文不提前占用尚未编码的 wire tag 或 ABI 版本号。
+
+### 2.22 原生源码调试与独立调试文件
+
+本节确定基础调试的实现合同，实施状态与定向验收见 [调试设计](../debugging/DESIGN.md) 及其实施记录。基础调试不以 2.21 的 Throwable 布局变更或正式 Scoop 表达式求值为前提。
+
+`scoop build/run/test` 与 `scoopc` 接受 `--debug-info=none|line-tables|full`。none 不发射调试元数据；line-tables 保存文件、行列、函数和内联位置；full 再保存静态类型、词法作用域、参数、局部变量及全局存储。最终默认 debug=full、release=none，显式设置覆盖默认值；阶段性交付只公开已经实现的级别。优化 profile 与调试级别正交，不改变 O0／O2、语言语义、实体身份、物理 ABI 或 GC roots。级别沿本次源码编译图传递，预编译依赖保留自身对象已有内容，不为补调试数据自动重建。
+
+2.1／2.2 保留 SourceIdentity、定义及求值来源、准确 byte span 与已有行列记录。HIR 的源码变量保留真实声明关系和词法作用域；生成变量明确分类。2.3 在 CFG、内联、闭包和协程变换中转移实际来源及变量绑定，保留内联调用点链；2.4 将它们关联到真实存储和 ABI，指令、terminator 与新增生成操作同步维护位置。启用的调试记录必须结构完整；无源码对应的生成操作使用明确分支，不继承上一条用户指令的位置。后端不反查 parser／HIR stage，也不从可读名称重建实体身份。
+
+2.5 使用 LLVM 22.1 的标准调试元数据和 debug records，在优化之前 finalize。当前目标采用 DWARF 5、`DW_LANG_C` 静态类型视图，producer 标明 scoopc；Scoop 基础类型通过 typedef 保留名称。每个实际发射对象保存自身需要的编译单元、文件、函数和类型；函数同时保存源码名称与既有精确 linkageName。所有字段偏移、大小、对齐与参数分片来自已有目标布局／ABI。引用按真实原生地址描述，不将 LLVM GC address space 当作硬件地址空间。ZST 不因调试增加 payload 存储。
+
+语言规范 11.12 的 canonical semantic source path 与 debugger 文件路径独立。本地源码使用 driver 已知的实际位置；导入正文沿现有来源记录传递，可定位时关联本地源码根，否则保留可由 sourceMap 映射的逻辑路径。路径配置只影响调试生产，不重写 currentSourceLocation。不得在链接时读取源码以重建行表。
+
+2.19 的 SROA、mem2reg、内联与 GC relocation 必须维护调试值。地址变量使用实际存储，SSA 值使用 value／fragment 记录；managed 值跨 safepoint 后只描述更新后的引用。不可定位或已消除的值显示 unavailable，不显示过期旧地址。实现不得为调试额外延长对象生存期、增加 roots、关闭 moving GC 或执行 managed getter／toString。完整 Scoop 求值和 managed 写入另行设计。
+
+2.6 的对象内容及 Code 更新关系包含实际调试信息；影响持久模板数据时才递增对应 meta 编码，不能只为 native DWARF 无条件改 ABI。2.7 的正常更新键包含生产级别及实际路径配置。没有源码行信息的对象不能由 linker 补齐；`scoop link` 和 `scoop-link` 只接受 `--emit-debug-file` 生成已有内容的外置文件，`--keep-symbols` 仍独立控制 executable 普通符号表。
+
+Darwin 输出 `<output>.dSYM/Contents/Resources/DWARF/<basename>`：保留 Mach-O debug map 完成链接，在输入对象仍可用时执行所选 dsymutil，再按符号策略 strip，最后签名。Linux GNU／musl 输出 `<output>.debug`：完整链接后用 llvm-objcopy `--only-keep-debug`，按符号策略裁剪 executable，再写入 `.gnu_debuglink`。所有模式保留展开表、必要 EH、GC stackmap 与运行登记数据；generated-C 桥保留物理回溯需要的 unwind 数据。目标工具、输入及失败按普通 toolchain／linker 合同处理，不增加输出内容审计。
+
+最终结果缓存同时记录程序及请求的调试结果。请求外置文件时，最终 executable basename 进入结果键并用于内部生成文件名，保证换输出目录可复用、换 basename 时重新生成匹配的 debuglink／dSYM；上游 Cone 不因此重编译。命中只检查输入更新与所需结果存在，不读取／哈希调试文件内容，不启动调试工具或重新准备链接输入。dSYM 目录按普通暂存、复制及 rename 发布；工具失败不发布部分新结果。UUID／debuglink 仅承担平台文件关联。
+
+编辑器复用官方 lldb-dap，scoop-lsp 保持语言服务职责。VS Code 提供源码 breakpoints、构建到 executable 的启动配置、attach、参数／cwd／环境／终端及 sourceMap，按需导入只读 Python formatter。发行包包含匹配平台的 lldb、lldb-dap、LLDB library、Python 支持及实际所需附加文件。不得把 C 兼容 evaluator、通用异常筛选或硬件 watchpoint 宣称为完整 Scoop 求值、Scoop 异常过滤或 GC 感知数据断点。

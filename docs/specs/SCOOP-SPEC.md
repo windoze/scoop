@@ -2117,6 +2117,28 @@ clear 将有效字节数置零、保留容量并返回同一 builder，时间复
 
 throw 与 catch 传递同一个 Throwable 对象，保持引用身份、动态类型和可变字段的别名关系。重新抛出、跨协程挂起保存和普通库捕获也遵守这一规则；native unwind record 的生命周期与对象独立，见运行时规范 5.1～5.4。
 
+`Throwable` 是全部可抛出值的共同基类，采用可继承的 core intrinsic class 表示；`Exception` 保持它的普通 open 子类，已有 `message: String?` 成员及构造接口不变。用户可以直接继承 Throwable，也可以继承 Exception；两条路径均继承栈快照能力。intrinsic 只确定 Throwable 的基类存储与必要操作，不改变普通派生类的字段、构造、exact 类型身份或 catch 匹配规则。
+
+Throwable 增加以下公共成员；原零参数构造不采集栈，也不增加公共 stack trace setter：
+
+```scoop
+@Intrinsic("core_throwable")
+public open class Throwable public constructor() {
+    @Intrinsic("throwable_print_stack_trace")
+    public final fun printStackTrace(): Unit
+}
+```
+
+栈快照采用以下语义：
+
+1. `throw e` 完成实参求值后，在该对象首次抛出的调用栈尚未展开时采集。只构造对象不采集；`printStackTrace()` 不用打印位置的当前栈代替异常栈。
+2. 后续 `throw e`、同一异常的同步 rethrow、跨 catch／线程／协程保存和再次传播均保留原快照。创建新异常对象后再抛出，采集新对象自己的栈。对同一对象并发首次抛出，以原子发布成功的一份快照为准，其后不覆盖；不承诺并发事件的墙钟先后次序。
+3. `printStackTrace()` 向 stderr 输出动态异常类型及所保存的调用栈，按距离首次抛出点由近到远排列。不调用用户 `toString`、getter 或其他可覆写的格式化方法。未抛出的对象明确显示“尚未采集”；展开不完整或诊断截断时明确标记，不伪造缺失帧。本文不冻结输出的具体排版。
+4. 基础快照描述物理调用栈；可用调试信息可展开 inline 调用并显示源码位置。优化省略的帧、已结束的调用及跨 suspend 的逻辑调用链不由物理快照自动恢复。向 `resumeWithException` 直接传入尚未抛出的对象本身不隐式制造一次 throw；若后来实际抛出，按那次首次 throw 采集。
+5. 缺少符号、调试文件或源码，不改变异常的传播和 catch 结果；打印可降级为模块及地址信息。符号查询和输出的普通失败不转成另一条 Scoop 异常，I/O 行为遵守 14.4；普通分配失败仍遵守运行时既有的内存耗尽规则，不增加可捕获的 OOM 类型。
+
+快照存储、GC、NativeSafe 与栈展开合同见运行时规范 5.6，编译职责见实现规范 2.21。
+
 - `Throwable`（引用类型，可被 `throw` / `catch`）及其最小子类：
   - `Exception(message: String?)`：通用异常基类；
   - `UnwrapException`：`!!` 失败时抛出（见 7.3）；
@@ -2129,7 +2151,7 @@ throw 与 catch 传递同一个 Throwable 对象，保持引用身份、动态�
   - `IllegalArgumentException(message: String? = Some("illegal argument"))`：实参值违反普通core API的运行期前置条件；11.8的非正range step使用该异常；
   - `IllegalStateException(message: String? = Some("illegal state"))`：运行期状态协议被破坏；默认参数保持既有零实参调用，initialization cycle使用显式message报告稳定unit path。
 - `try` / `catch` / `finally` / `throw` 语法与 Kotlin 一致。多个 `catch` 按声明顺序匹配；前一个 `catch` 的类型是后一个的父类型（含相等）时，后者不可达，是编译错误。
-- `throw` 与 `catch` 的类型必须是 `Throwable` 的子类型。未捕获的异常导致进程终止：先输出异常诊断并刷新输出，再以退出码 `1` 结束；eager 初始化失败与异常逃离 `main` 使用同一规则，不调用用户 `toString` 生成诊断。程序因语言级 panic 终止时也使用退出码 `1`。入口的正常返回规则见 12.4.4；runtime 内部 ABI 错误的终止规则见运行时规范第 7 章。
+- `throw` 与 `catch` 的类型必须是 `Throwable` 的子类型。未捕获的异常导致进程终止：先向 stderr 输出异常类型、已有的首次抛出栈及必要的初始化路径，刷新输出，再以退出码 `1` 结束；eager 初始化失败与异常逃离 `main` 使用同一规则，不调用用户 `toString` 生成诊断。不能在顶层 catch 之后采集当前栈来冒充原抛出栈。程序因语言级 panic／语言 trap 终止时也使用退出码 `1`，在终止前打印 trap 原因与触发时的调用栈；trap 不构造 Throwable，不变为可捕获异常，不执行栈展开或 finally。入口的正常返回规则见 12.4.4；runtime 内部 ABI 错误和外部信号的终止规则见运行时规范第 7 章。
 
 core 提供安全的 `fun exit(code: Int): Nothing`，刷新 stdout/stderr 后以完整 Int 请求结束整个进程。它不展开调用栈，不执行 finally、release hook、线程/token shutdown 检查或 join，也不调用 C atexit；当前 POSIX target 对父进程显示退出码的低 8 位。输出刷新允许等待，期间其他线程仍可推进 GC；具体 NativeSafe 和进程终止合同见运行时规范第 7 章。
 
