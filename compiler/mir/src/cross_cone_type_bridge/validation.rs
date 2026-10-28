@@ -165,6 +165,7 @@ impl MirTypeBridgeAuthority<'_> {
                                 | MirParamFreeIntrinsicV1::AtomicBoolean
                                 | MirParamFreeIntrinsicV1::Any
                                 | MirParamFreeIntrinsicV1::Nothing
+                                | MirParamFreeIntrinsicV1::Throwable
                         )
                     )
                 );
@@ -271,7 +272,8 @@ impl MirTypeBridgeAuthority<'_> {
                 | MirParamFreeIntrinsicV1::AtomicLong
                 | MirParamFreeIntrinsicV1::AtomicBoolean
                 | MirParamFreeIntrinsicV1::Any
-                | MirParamFreeIntrinsicV1::Nothing,
+                | MirParamFreeIntrinsicV1::Nothing
+                | MirParamFreeIntrinsicV1::Throwable,
             )
             | Repr::Class { .. }
             | Repr::InlineArray { .. }

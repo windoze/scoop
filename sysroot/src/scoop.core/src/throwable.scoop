@@ -5,6 +5,7 @@
 /**
  * The common reference base for values that can be thrown and caught.
  */
+@Intrinsic("core_throwable")
 public open class Throwable public constructor()
 
 /**

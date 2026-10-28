@@ -1738,7 +1738,7 @@ public fun <T> decodeFrom(decoder: Decoder, codec: ValueDecoder<T>): T =
 
 `TypeRef.describe()` 惰性产生一层 `TypeDescription(type, annotations, shape)`。子类型只以引用或 `TypeUseInfo` 保存，不立即展开；同型递归不需要递归初始化整棵描述树。描述值、数组、字符串及描述闭包使用普通分配、异常和 GC 规则，不保证无分配或 NoGC。编译器生成的描述不调用被描述类型的 constructor、default、getter 或 companion 初始化。
 
-`TypeShape` 是封闭 enum，分支为 Struct、Enum、IntegerEnum、Class、Object、Interface、Tuple、Unit、Intrinsic、Function、Pointer。各分支使用对应的 `*Info` 记录；Intrinsic 保留布尔、整数位宽及符号、浮点精度、字符、字符串、数组、Any、Nothing、MaybeUninit 和 atomic 的实际类别。Ptr 保存 pointee，FunPtr 保存完整函数签名。零字段普通 nominal 仍与 Unit 和 intrinsic 类型不同。
+`TypeShape` 是封闭 enum，分支为 Struct、Enum、IntegerEnum、Class、Object、Interface、Tuple、Unit、Intrinsic、Function、Pointer。各分支使用对应的 `*Info` 记录；Intrinsic 保留布尔、整数位宽及符号、浮点精度、字符、字符串、数组、Any、Nothing、Throwable、MaybeUninit 和 atomic 的实际类别。Ptr 保存 pointee，FunPtr 保存完整函数签名。零字段普通 nominal 仍与 Unit 和 intrinsic 类型不同。
 
 这些类型是普通库数据，构造器和闭包遵守普通访问规则。自行构造描述值不产生语言声明、可访问权限或可实例化的运行期类型；由调用者提供的 describe 闭包按其普通正文执行。compiler 生成引用所用的 identity 字符串编码既有 persistent/exact identity，展示名不参与该编码；不同种类引用不能互相代用。
 
@@ -2128,6 +2128,8 @@ public open class Throwable public constructor() {
     public final fun printStackTrace(): Unit
 }
 ```
+
+`core_throwable` 是 intrinsic class 构造规则的一个明确例外：声明为 public、open、无类型参数，显式保留 public 零参数 primary constructor；不允许源码存储字段、init block、secondary constructor 或 class 基类。该构造沿普通构造身份和调用链生成空 initializer，快照槽由对象分配的零初始化提供。普通派生类继续使用完整的基类前缀，其构造规则不变。
 
 栈快照采用以下语义：
 

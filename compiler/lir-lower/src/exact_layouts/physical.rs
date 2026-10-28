@@ -199,7 +199,8 @@ impl Projection<'_> {
         }
         self.validate_scan(instance.identity(), instance.shape().object_scan(), actual)?;
         match instance.representation().kind() {
-            lir::InstanceRepresentationKindV1::Atomic(_)
+            lir::InstanceRepresentationKindV1::Throwable
+            | lir::InstanceRepresentationKindV1::Atomic(_)
                 if actual.fields.is_empty()
                     && matches!(actual.kind, lir::LayoutKind::Plain { .. }) =>
             {

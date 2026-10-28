@@ -182,6 +182,9 @@ impl Lowerer {
                         hir::IntrinsicTypeRepresentation::Nothing => {
                             mir::IntrinsicClassRepresentation::Nothing
                         }
+                        hir::IntrinsicTypeRepresentation::Throwable => {
+                            mir::IntrinsicClassRepresentation::Throwable
+                        }
                         hir::IntrinsicTypeRepresentation::String => {
                             mir::IntrinsicClassRepresentation::String
                         }

@@ -185,6 +185,7 @@ pub enum IntrinsicClassRepresentation {
     Any,
     Nothing,
     String,
+    Throwable,
     Array { element: Type },
     MutableArray { element: Type },
 }
@@ -211,7 +212,8 @@ pub fn array_type<'a>(module: &'a Module, ty: &Type) -> Option<(ArrayKind, &'a T
             IntrinsicClassRepresentation::String
             | IntrinsicClassRepresentation::Atomic(_)
             | IntrinsicClassRepresentation::Any
-            | IntrinsicClassRepresentation::Nothing,
+            | IntrinsicClassRepresentation::Nothing
+            | IntrinsicClassRepresentation::Throwable,
         ) => None,
     }
 }

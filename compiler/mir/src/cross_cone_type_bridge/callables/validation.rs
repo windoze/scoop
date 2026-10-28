@@ -253,7 +253,9 @@ impl MirCallableBridgeAuthority<'_> {
         let lowered = binding.lowered.exact();
         if !matches!(
             self.type_export(owner)?.representation(),
-            MirTypeRepresentationV1::Class { .. } | MirTypeRepresentationV1::ObjectBacking { .. }
+            MirTypeRepresentationV1::Class { .. }
+                | MirTypeRepresentationV1::ObjectBacking { .. }
+                | MirTypeRepresentationV1::Intrinsic(crate::MirParamFreeIntrinsicV1::Throwable)
         ) || semantic.result() != owner
             || lowered.receiver() != OptionalExactOwner::Present(owner)
             || !lowered.parameters().iter().copied().eq(semantic

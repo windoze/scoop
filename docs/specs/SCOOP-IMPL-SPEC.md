@@ -597,9 +597,9 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 | 位置 / namespace | section 与 major |
 | --- | --- |
 | Manifest / `org.scoop-lang.manifest` | `single-cone-production/9` |
-| HIR / `org.scoop-lang.hir` | `identity-foundation/10`、`core-bootstrap-interface/16`、`cross-cone-interface/82`、`cross-cone-type-semantics/30` |
-| MIR / `org.scoop-lang.mir` | `identity-foundation/8`、`core-bootstrap-bridge/2`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/19` |
-| LIR / `org.scoop-lang.lir` | `identity-foundation/9`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/17`、`cone-production/14`、`link-identity-closure/19`、`link-support/1` |
+| HIR / `org.scoop-lang.hir` | `identity-foundation/10`、`core-bootstrap-interface/16`、`cross-cone-interface/83`、`cross-cone-type-semantics/31` |
+| MIR / `org.scoop-lang.mir` | `identity-foundation/8`、`core-bootstrap-bridge/2`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/20` |
+| LIR / `org.scoop-lang.lir` | `identity-foundation/9`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/18`、`cone-production/14`、`link-identity-closure/19`、`link-support/1` |
 
 各 section 按消费用途检查 required inventory。Compile 需要完整语言与相邻 IR 合同；Link 只消费 identity、ABI、对象、native、production 和链接支持数据，不为链接展开 HIR 模板。profile fingerprint 覆盖 descriptor 的实际内容。
 
@@ -1103,7 +1103,7 @@ codegen 在现有 typed call 合同检查后展开普通 byte-length／byte-at�
 
 LIR 的非零 boxed descriptor 同时保留选定 shape 的 payload offset，供 codegen 消费既有布局结果；不重新推导目标布局，也不增加持久 wire 字段。typed UnboxValue 生成 TD 相等的快速路径与原 leaf 慢路径：快速路径从 AS1 对象地址向已有 typed local 复制完整 payload 字节（包含 padding），ZST 不产生虚假存储。非 exact 的 enum 父整数解箱继续由慢路径处理。普通优化、最终根计划和 RS4GC 顺序保持；不把含引用的 payload 指针转成 raw pointer 后跨 GC 使用。
 
-boxed descriptor 同时保存已选 shape 的实例 size／alignment，供所有 profile 的实际装箱复用普通 managed allocation 生成路径；不从名称或表示相似性识别 native 调用，不在 codegen 重建 shape。去掉专用 box C 后备及其 128 B 选择条件，实际 TLAB 完成条件仍由已有分配策略决定。当前实例不超过 128 B 时采用 LLVM memcpy，较大实例使用共享 NoGC memcpy 控制复制代码体积；两者都从已更新的源 place 复制完整 payload。含引用源 place 由 BoxValue 的既有 safepoint root plan 管理，复制前从搬迁后的规范存储重读，复制后按实际年轻分配事实及完整扫描布局执行必要写屏障。全 profile 使用相同物理 box 布局与 ABI；无消费者的 runtime call identity、专属递归根计划投影和 Array clone／Context fork 调用目录项退役，旧 wire tag 不复用。native RecursiveRegion API 保留自己的真实 native 消费者。普通 extern、局部非逃逸 box 消除、真实分配及动态拆箱慢路径保持，详见运行时规范 2.3。该次入口退役由 runtime ABI contract 21 引入，当前统一 contract 22；已有产物与缓存沿当前版本机制重建，无兼容分支。 Context 的 current／enter／leave 降低为两种 typed LIR 指令 TaskContextLoad／TaskContextStore，直接访问既有线程根槽，不再以不存在的 C 函数表示生成操作。snapshot 复用该 load 与既有堆字段读取，restore 复用实际 TaskContext 字段布局和普通 HeapStore／写屏障；不增加 safepoint、对象字段或新的运行配置。
+boxed descriptor 同时保存已选 shape 的实例 size／alignment，供所有 profile 的实际装箱复用普通 managed allocation 生成路径；不从名称或表示相似性识别 native 调用，不在 codegen 重建 shape。去掉专用 box C 后备及其 128 B 选择条件，实际 TLAB 完成条件仍由已有分配策略决定。当前实例不超过 128 B 时采用 LLVM memcpy，较大实例使用共享 NoGC memcpy 控制复制代码体积；两者都从已更新的源 place 复制完整 payload。含引用源 place 由 BoxValue 的既有 safepoint root plan 管理，复制前从搬迁后的规范存储重读，复制后按实际年轻分配事实及完整扫描布局执行必要写屏障。全 profile 使用相同物理 box 布局与 ABI；无消费者的 runtime call identity、专属递归根计划投影和 Array clone／Context fork 调用目录项退役，旧 wire tag 不复用。native RecursiveRegion API 保留自己的真实 native 消费者。普通 extern、局部非逃逸 box 消除、真实分配及动态拆箱慢路径保持，详见运行时规范 2.3。该次入口退役由 runtime ABI contract 21 引入，当前统一 contract 28；已有产物与缓存沿当前版本机制重建，无兼容分支。 Context 的 current／enter／leave 降低为两种 typed LIR 指令 TaskContextLoad／TaskContextStore，直接访问既有线程根槽，不再以不存在的 C 函数表示生成操作。snapshot 复用该 load 与既有堆字段读取，restore 复用实际 TaskContext 字段布局和普通 HeapStore／写屏障；不增加 safepoint、对象字段或新的运行配置。
 
 typed ArrayClone 复用 LIR 已有的源 live root 与完整数组布局。源／目标 element exact type 和 layout 一致时，codegen 从有效源对象读取 count，使用同一 sizing 计算及普通分配路径；唯一原 site 附着于实际分配慢调用，分配后重新加载源根，按 AS1 完整复制元素字节，再执行必要的范围屏障。目标对象使用目标 nominal TD，Array／MutableArray 互转不复用源身份；ZST 不访问 payload。该展开在最终 roots／RS4GC 之前完成，不删除入口／源码循环 poll，不新增 ABI 或跨过程分析。
 
@@ -1257,7 +1257,7 @@ OdrMemberKey 为 `{1=group, 2=role, 3=typed discriminator}`，`OdrMemberId = H("
 
 ### 2.14 Runtime image 与初始化
 
-runtime metadata ABI 9、runtime ABI contract 22 的字段与启动协议由运行时规范 2.7、2.8、9.2 定义。RootEntry 的物理大小为 128 bytes，旧版 ABI 不可混用。每个 `.slib` 的机器对象保存完整候选 registration，metadata 保存链接所需的 identity 与物理归属；最终 image 表只包含选中的 producer records。
+runtime metadata ABI 9、runtime ABI contract 28 的字段与启动协议由运行时规范 2.7、2.8、9.2 定义。RootEntry 的物理大小为 128 bytes，旧版 ABI 不可混用。每个 `.slib` 的机器对象保存完整候选 registration，metadata 保存链接所需的 identity 与物理归属；最终 image 表只包含选中的 producer records。
 
 image、root entry、main body、root gateway、initializer、ensure、startup gateway 和 release hook 使用各自身份。根、cell、storage 和失败状态完整关联，不以可空函数指针或命名约定推断 unit kind。
 
@@ -1848,6 +1848,8 @@ VS Code 扩展通过标准 LSP 客户端启动 `scoop-lsp --stdio`，管理初�
 运行时在实际打印时消费标准 native 符号与已有的 dSYM／ELF 分离调试信息；原始地址采集不解析 DWARF、不启动外部 llvm-symbolizer／LLDB 进程。缺少调试文件时仍保留可离线归因的模块标识和地址。独立调试文件的生产改造、运行时符号器接入及验收见 [原生调试设计](../debugging/DESIGN.md) 与 [异常和 trap 栈诊断设计](../debugging/STACK_TRACES.md)。实际外部调试文件不参与运行产物缓存的内容复核。
 
 Throwable 从普通空基类改为 intrinsic 前缀会改变所有派生异常布局，并新增 typed intrinsic／Managed 准备操作。实施时递增实际受影响的 IR／meta 编码和 runtime ABI contract，编译器、runtime、core 及依赖机器产物配套重建；不能混用旧异常对象布局，也不以 runtime ABI 号之外的旁表补救。本文不提前占用尚未编码的 wire tag 或 ABI 版本号。
+
+Throwable intrinsic 前缀落地后，HIR nominal intrinsic representation 使用 tag 15，MIR param-free intrinsic 使用 tag 12，LIR instance representation 使用 tag 7；HIR nominal interface 也使用同一 intrinsic 编码，相关 section 升至 cross-cone-interface/83、cross-cone-type-semantics/31、cross-cone-type-bridge/20、cross-cone-layout-abi/18。runtime ABI contract 从 27 升至 28，metadata ABI 9 不变。派生 class 的 base prefix 引用 Throwable 的真实 instance layout，扫描组合直接继承其隐藏引用槽，不制造源码字段身份。旧库和消费者沿版本更新机制重建。
 
 ### 2.22 原生源码调试与独立调试文件
 

@@ -87,6 +87,21 @@ impl Types<'_> {
                 mir::IntrinsicClassRepresentation::Any
                 | mir::IntrinsicClassRepresentation::Nothing => Ok(self.header_object(name)),
                 mir::IntrinsicClassRepresentation::String => Ok(self.string_object()),
+                mir::IntrinsicClassRepresentation::Throwable => {
+                    let shape = lir::throwable_instance_shape(self.context.target_profile())?;
+                    let mut fields = self.header_fields();
+                    fields.push(field(
+                        "__scoop_snapshot",
+                        lir::THROWABLE_SNAPSHOT_OFFSET,
+                        self.address(),
+                    ));
+                    Ok(DebugType {
+                        name: name.clone(),
+                        size: shape.minimum_size(),
+                        align: shape.instance_alignment(),
+                        kind: DebugTypeKind::Record(fields),
+                    })
+                }
                 mir::IntrinsicClassRepresentation::Array { element }
                 | mir::IntrinsicClassRepresentation::MutableArray { element } => {
                     let instance = match self.arrays.get(&exact) {

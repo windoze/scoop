@@ -83,6 +83,7 @@ impl Lowerer {
                             }
                         }
                         hir::IntrinsicTypeRepresentation::String
+                        | hir::IntrinsicTypeRepresentation::Throwable
                         | hir::IntrinsicTypeRepresentation::Atomic(_)
                         | hir::IntrinsicTypeRepresentation::Any
                         | hir::IntrinsicTypeRepresentation::Nothing

@@ -61,6 +61,9 @@ impl Lowerer {
             let mut fields = match declared.base_class {
                 Some(base) => match &self.classes[self.class_map[&base]].representation {
                     mir::ClassRepresentation::Declared(base) => clone_fields(&base.fields),
+                    mir::ClassRepresentation::Intrinsic(
+                        mir::IntrinsicClassRepresentation::Throwable,
+                    ) => Vec::new(),
                     mir::ClassRepresentation::Intrinsic(_) => {
                         unreachable!("declared inheritance preserves a declared base")
                     }

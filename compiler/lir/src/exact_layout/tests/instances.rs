@@ -22,6 +22,59 @@ fn backing(
 }
 
 #[test]
+fn throwable_prefix_keeps_its_hidden_root_through_multiple_subclasses() {
+    let owner = source("Throwable", SourceNominalKind::Class, 0);
+    let bound = Bound::instance(exact(&owner));
+    let throwable = ExactInstanceLayoutV1::throwable(bound.identity, &bound.foundation).unwrap();
+    assert_eq!(throwable.shape().minimum_size(), 24);
+    assert_eq!(
+        throwable.shape().object_scan(),
+        &RefScan::References(vec![16])
+    );
+    let byte = integer("Byte", IntegerKind::SIGNED_8);
+    let reference = managed();
+    let owner = source("Exception", SourceNominalKind::Class, 0);
+    let message = backing(&owner, "message");
+    let bound = Bound::instance(exact(&owner));
+    let exception = ExactInstanceLayoutV1::class(
+        bound.identity,
+        ClassLayoutBaseV1::Base(&throwable),
+        &[NominalLayoutFieldInputV1 {
+            field: &message,
+            value: reference.value(),
+        }],
+        &bound.foundation,
+    )
+    .unwrap();
+    let owner = source("CustomFailure", SourceNominalKind::Class, 0);
+    let code = backing(&owner, "code");
+    let bound = Bound::instance(exact(&owner));
+    let derived = ExactInstanceLayoutV1::class(
+        bound.identity,
+        ClassLayoutBaseV1::Base(&exception),
+        &[NominalLayoutFieldInputV1 {
+            field: &code,
+            value: byte.value(),
+        }],
+        &bound.foundation,
+    )
+    .unwrap();
+    assert_eq!(derived.shape().minimum_size(), 40);
+    assert_eq!(
+        derived.shape().object_scan(),
+        &RefScan::References(vec![16, 24])
+    );
+    let InstanceRepresentationKindV1::ClassObject(layout) = derived.representation().kind() else {
+        panic!("class");
+    };
+    assert_eq!(layout.complete_fields().len(), 2);
+    assert_eq!(layout.declared_fields()[0].storage().offset().get(), 32);
+    assert_wire_roundtrip(throwable);
+    assert_wire_roundtrip(exception);
+    assert_wire_roundtrip(derived);
+}
+
+#[test]
 fn class_record_preserves_complete_base_prefix_and_identity_bound_fields() {
     let base = source("Base", SourceNominalKind::Class, 0);
     let derived = source("Derived", SourceNominalKind::Class, 0);

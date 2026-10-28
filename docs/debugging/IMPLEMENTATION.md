@@ -50,4 +50,6 @@ Full DWARF 已接通源码参数、局部、词法作用域和精确静态类型
 
 跨 Cone 模板的现有局部记录增加源码名称字段，默认表达式、构造片段和泛型正文实例化保留原名称；HIR cross-cone-interface 升至 82，MIR／LIR 不增加持久化快照。接口测试 600 项、中文名称往返和生产端声明测试通过；真实 core／泛型 provider／consumer 流水线通过，并确认 catch／finally 局部名保留。该组合测试同时发现并修复生成协程 helper 的调试签名分类：内部机器参数不要求源码 exact type，frame 内部字段仅提供物理类型描述。
 
+Throwable 已改为可继承的 intrinsic FixedObject，保留公共零参数构造；24-byte 前缀中的 offset 16 是私有快照引用，普通派生字段跟在完整前缀后，继承扫描保留这个隐藏根。实际 core 的 Throwable／Exception 布局、跨库构造与泛型消费、两层继承及 metadata 往返通过，HIR 相关规则回归 34 项通过。HIR 两项 capability 升至 83／31，MIR type-bridge 升至 20，LIR layout-abi 升至 18，runtime ABI 升至 28，metadata ABI 保持 9。编译器、runtime 与系统库必须配套重建；这一批只完成存储和构造，首次采集与打印继续实施。
+
 LLDB 名称显示问题已定位到上游 LLVM 22 的 DWARFASTParserClang：存在 DW_AT_linkage_name 时，Function 的 Mangled 名称未保留 DW_AT_name，导致帧显示与按源码名查询使用编码后的符号。发行集成需要验证一个保留两种名称的小型兼容修补，不能通过丢弃精确 linkage 身份规避。官方 macOS 预编译 LLDB 包没有 Python 支持，发行打包也需使用启用 Python 的构建。两项尚未完成，不影响已验证的 DWARF 类型、行表和变量记录结果。

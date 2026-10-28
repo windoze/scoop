@@ -6,10 +6,11 @@ impl Lowerer {
     pub(crate) fn resolve_class(&mut self, id: ClassId, decl: ast::ClassSource<'_>) {
         self.remember_class_construction(id, decl);
         self.type_params_in_scope = self.classes[id].type_params.clone();
-        if matches!(
+        let intrinsic = matches!(
             self.classes[id].representation,
             hir::ClassRepresentation::Intrinsic(_)
-        ) {
+        );
+        if intrinsic {
             for member in decl.members {
                 let valid = match member {
                     ast::ClassMember::Function(_)
@@ -24,11 +25,18 @@ impl Lowerer {
                     self.error(member.span(), "an intrinsic class cannot declare stored properties, init blocks, or constructors".into());
                 }
             }
-            self.resolve_class_properties(id, decl, &mut std::collections::HashSet::new(), true);
-            let interfaces = self.resolve_supertype_interface_list(&decl.supertypes);
-            self.classes[id].interfaces = interfaces;
-            self.type_params_in_scope.clear();
-            return;
+            if !self.classes[id].has_source_constructors() {
+                self.resolve_class_properties(
+                    id,
+                    decl,
+                    &mut std::collections::HashSet::new(),
+                    true,
+                );
+                let interfaces = self.resolve_supertype_interface_list(&decl.supertypes);
+                self.classes[id].interfaces = interfaces;
+                self.type_params_in_scope.clear();
+                return;
+            }
         }
         let mut seen = std::collections::HashMap::new();
         let mut parameters = Vec::new();
@@ -83,8 +91,7 @@ impl Lowerer {
             }
             parameter_calling.push(calling);
         }
-        fields.extend(self.resolve_class_properties(id, decl, &mut field_names, false));
-        self.classes[id].representation = hir::ClassRepresentation::Declared;
+        fields.extend(self.resolve_class_properties(id, decl, &mut field_names, intrinsic));
         self.classes[id].fields = fields;
         let has_explicit_primary = !decl.constructor.is_omitted();
         let should_synthesize_primary =
@@ -195,7 +202,12 @@ impl Lowerer {
             self.class_parameter_calling.insert(constructor, callings);
         }
 
-        self.resolve_class_supertypes(id, &decl.supertypes, "a class");
+        if intrinsic {
+            let interfaces = self.resolve_supertype_interface_list(&decl.supertypes);
+            self.classes[id].interfaces = interfaces;
+        } else {
+            self.resolve_class_supertypes(id, &decl.supertypes, "a class");
+        }
         self.type_params_in_scope.clear();
     }
 

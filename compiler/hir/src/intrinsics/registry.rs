@@ -87,6 +87,10 @@ pub const INTRINSIC_TYPE_REGISTRY: &[IntrinsicTypeSpec] = &[
         kind: IntrinsicTypeKind::Boolean,
     },
     IntrinsicTypeSpec {
+        name: "core_throwable",
+        kind: IntrinsicTypeKind::Throwable,
+    },
+    IntrinsicTypeSpec {
         name: "core_string",
         kind: IntrinsicTypeKind::String,
     },

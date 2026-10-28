@@ -11,6 +11,9 @@ impl Projection<'_> {
         use mir::{MirParamFreeIntrinsicV1 as Intrinsic, MirTypeRepresentationV1 as Kind};
         let foundation = self.output.foundation();
         Ok(match source.representation() {
+            Kind::Intrinsic(Intrinsic::Throwable) => {
+                lir::ExactInstanceLayoutV1::throwable(identity, foundation)?
+            }
             Kind::Intrinsic(Intrinsic::AtomicInt) => {
                 lir::ExactInstanceLayoutV1::atomic(identity, lir::AtomicValueKind::Int, foundation)?
             }

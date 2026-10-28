@@ -7,14 +7,19 @@ impl FunctionLowerer<'_> {
         &mut self,
         class_id: &mir::ClassId,
     ) -> StorageResult<lir::Value> {
-        let mir::ClassRepresentation::Declared(declared) =
-            &self.module.classes[*class_id].representation
-        else {
-            return Err(StorageLoweringError::InvalidRepresentation(
-                "source class allocation requires a declared class",
-            ));
+        let size = match &self.module.classes[*class_id].representation {
+            mir::ClassRepresentation::Declared(declared) => {
+                class_shape(self.context, self.module, self.enums, declared)?.1
+            }
+            mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Throwable) => {
+                lir::throwable_instance_shape(self.context.target_profile())?.minimum_size()
+            }
+            mir::ClassRepresentation::Intrinsic(_) => {
+                return Err(StorageLoweringError::InvalidRepresentation(
+                    "source class allocation requires a source constructor",
+                ));
+            }
         };
-        let (_, size, _) = class_shape(self.context, self.module, self.enums, declared)?;
         let td = self.td_ref(&mir::Type::Class(*class_id));
         self.emit_plain_call(
             LoweredCallDestination::managed_runtime(lir::ManagedRuntimeFunction::Alloc),

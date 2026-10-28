@@ -65,6 +65,15 @@ pub struct ConstructorArguments {
 }
 
 impl ClassDecl {
+    /// Source constructors also initialize the intrinsic Throwable prefix.
+    pub fn has_source_constructors(&self) -> bool {
+        matches!(
+            self.representation,
+            ClassRepresentation::Declared
+                | ClassRepresentation::Intrinsic(IntrinsicTypeKind::Throwable)
+        )
+    }
+
     pub fn is_declared(&self) -> bool {
         matches!(self.representation, ClassRepresentation::Declared)
     }

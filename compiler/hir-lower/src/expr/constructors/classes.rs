@@ -19,10 +19,7 @@ impl Lowerer {
             span,
         } = call;
         let name = self.classes[class_id].name.clone();
-        if matches!(
-            self.classes[class_id].representation,
-            hir::ClassRepresentation::Intrinsic(_)
-        ) {
+        if !self.classes[class_id].has_source_constructors() {
             self.error(
                 span,
                 format!("intrinsic class `{name}` has no source constructor"),

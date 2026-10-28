@@ -19,6 +19,7 @@ impl MirDispatchSchemaAuthority<'_> {
                     | crate::MirParamFreeIntrinsicV1::AtomicBoolean
                     | crate::MirParamFreeIntrinsicV1::Any
                     | crate::MirParamFreeIntrinsicV1::Nothing
+                    | crate::MirParamFreeIntrinsicV1::Throwable
             ) | MirTypeRepresentationV1::Class { .. }
                 | MirTypeRepresentationV1::InlineArray { .. }
                 | MirTypeRepresentationV1::AtomicReference { .. }

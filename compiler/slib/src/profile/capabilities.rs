@@ -34,7 +34,7 @@ pub fn hir_core_bootstrap_interface_capability() -> CapabilityId {
 }
 
 pub fn hir_cross_cone_interface_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.hir", "cross-cone-interface", 82)
+    CapabilityId::new("org.scoop-lang.hir", "cross-cone-interface", 83)
         .expect("built-in capability id is valid")
 }
 
@@ -63,17 +63,17 @@ pub fn lir_strong_production_capability() -> CapabilityId {
 }
 
 pub fn hir_cross_cone_type_semantics_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.hir", "cross-cone-type-semantics", 30)
+    CapabilityId::new("org.scoop-lang.hir", "cross-cone-type-semantics", 31)
         .expect("built-in capability id is valid")
 }
 
 pub fn mir_cross_cone_type_bridge_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.mir", "cross-cone-type-bridge", 19)
+    CapabilityId::new("org.scoop-lang.mir", "cross-cone-type-bridge", 20)
         .expect("built-in capability id is valid")
 }
 
 pub fn lir_cross_cone_layout_abi_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.lir", "cross-cone-layout-abi", 17)
+    CapabilityId::new("org.scoop-lang.lir", "cross-cone-layout-abi", 18)
         .expect("built-in capability id is valid")
 }
 

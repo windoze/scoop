@@ -173,6 +173,10 @@ pub(crate) fn class_type_descriptor(
             lir::TypeInstanceShapeV1::abstract_ref(),
             lir::TypeDescriptorInlineScanV1::Null,
         ),
+        mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Throwable) => (
+            lir::throwable_instance_shape(context.target_profile())?,
+            lir::TypeDescriptorInlineScanV1::Null,
+        ),
         mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::String) => (
             lir::TypeInstanceShapeV1::inline_bytes(context.target_profile())?,
             lir::TypeDescriptorInlineScanV1::Null,

@@ -163,6 +163,10 @@ public enum IntrinsicKind {
      */
     Nothing,
     /**
+     * The inheritable exception prefix with a private stack snapshot.
+     */
+    Throwable,
+    /**
      * Possibly uninitialized value storage.
      */
     MaybeUninit,

@@ -30,10 +30,13 @@ impl Concretizer<'_> {
         let mut index = u32::try_from(own_index).expect("class field indices fit in u32");
         let mut base = declared.base_class;
         while let Some(parent) = base {
-            let concrete::ClassRepresentation::Declared(parent) =
-                &self.classes[parent].representation
-            else {
-                unreachable!("a declared class has a declared base")
+            let parent = match &self.classes[parent].representation {
+                concrete::ClassRepresentation::Declared(parent) => parent,
+                concrete::ClassRepresentation::Intrinsic {
+                    application: concrete::IntrinsicTypeRepresentation::Throwable,
+                    ..
+                } => break,
+                _ => unreachable!("only Throwable has an inheritable intrinsic prefix"),
             };
             index = index
                 .checked_add(

@@ -194,6 +194,16 @@ impl<'a> Projection<'a> {
             | (Kind::Intrinsic(Intrinsic::Boolean), mir::Type::Boolean)
             | (Kind::Intrinsic(Intrinsic::String), mir::Type::String)
             | (Kind::Interface, mir::Type::Interface(_)) => Ok(()),
+            (Kind::Intrinsic(Intrinsic::Throwable), mir::Type::Class(id))
+                if matches!(
+                    self.module.classes[*id].representation,
+                    mir::ClassRepresentation::Intrinsic(
+                        mir::IntrinsicClassRepresentation::Throwable
+                    )
+                ) =>
+            {
+                Ok(())
+            }
             (Kind::Intrinsic(Intrinsic::Nothing), mir::Type::Class(id))
                 if matches!(
                     self.module.classes[*id].representation,

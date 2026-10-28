@@ -9,6 +9,7 @@ pub enum IntrinsicTypeKind {
     Char,
     Float(crate::FloatKind),
     String,
+    Throwable,
     Array,
     MutableArray,
     Ptr,
@@ -28,6 +29,7 @@ impl IntrinsicTypeKind {
             Self::Char => "core_char",
             Self::Float(kind) => kind.intrinsic_name(),
             Self::String => "core_string",
+            Self::Throwable => "core_throwable",
             Self::Array => "core_array",
             Self::MutableArray => "core_mutable_array",
             Self::Ptr => "core_ptr",
@@ -50,6 +52,7 @@ impl IntrinsicTypeKind {
             Self::Char => "Char",
             Self::Float(kind) => kind.canonical_name(),
             Self::String => "String",
+            Self::Throwable => "Throwable",
             Self::Array => "Array",
             Self::MutableArray => "MutableArray",
             Self::Ptr => "Ptr",
@@ -72,6 +75,7 @@ impl IntrinsicTypeKind {
             | Self::MaybeUninit
             | Self::FunPtr => IntrinsicTypeTarget::Struct,
             Self::String
+            | Self::Throwable
             | Self::Array
             | Self::MutableArray
             | Self::Any
@@ -88,6 +92,7 @@ impl IntrinsicTypeKind {
             | Self::Float(_)
             | Self::Char
             | Self::String
+            | Self::Throwable
             | Self::Any
             | Self::Nothing
             | Self::Atomic(
@@ -110,6 +115,7 @@ impl IntrinsicTypeKind {
             (Self::Char, []) => IntrinsicTypeRepresentation::Char,
             (Self::Float(kind), []) => IntrinsicTypeRepresentation::Float(kind),
             (Self::String, []) => IntrinsicTypeRepresentation::String,
+            (Self::Throwable, []) => IntrinsicTypeRepresentation::Throwable,
             (Self::Any, []) => IntrinsicTypeRepresentation::Any,
             (Self::Nothing, []) => IntrinsicTypeRepresentation::Nothing,
             (Self::Atomic(AtomicValueKind::Int), []) => {
@@ -152,6 +158,7 @@ pub enum IntrinsicTypeRepresentation {
     Char,
     Float(crate::FloatKind),
     String,
+    Throwable,
     Array { element: TypeId },
     MutableArray { element: TypeId },
     Ptr { pointee: TypeId },
