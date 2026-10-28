@@ -19,26 +19,32 @@ void scoop_gc_mark_flush(ScoopGcMarkWorker *worker) {
     worker->pending_scans = 0;
 }
 
-static void append_live(ScoopGcMarkWorker *worker, void *object, bool scan) {
+static __attribute__((cold)) void extend_live(ScoopGcMarkWorker *worker) {
+    scoop_gc_mark_flush(worker);
+    ScoopGcLiveChunk *chunk = worker->spare_live;
+    if (chunk != NULL) {
+        worker->spare_live = chunk->next;
+    } else {
+        chunk = malloc(sizeof *chunk);
+        if (chunk == NULL) {
+            heap_fatal("out of memory retaining the marked object set");
+        }
+    }
+    chunk->next = NULL;
+    chunk->used = 0;
+    if (worker->tail == NULL) {
+        worker->live = chunk;
+    } else {
+        worker->tail->next = chunk;
+    }
+    worker->tail = chunk;
+}
+
+/* Keep the per-object append in its marker; chunk acquisition is shared. */
+static inline __attribute__((always_inline)) void
+append_live(ScoopGcMarkWorker *worker, void *object, bool scan) {
     if (worker->tail == NULL || worker->tail->used == GC_MARK_CHUNK) {
-        scoop_gc_mark_flush(worker);
-        ScoopGcLiveChunk *chunk = worker->spare_live;
-        if (chunk != NULL) {
-            worker->spare_live = chunk->next;
-        } else {
-            chunk = malloc(sizeof *chunk);
-            if (chunk == NULL) {
-                heap_fatal("out of memory retaining the marked object set");
-            }
-        }
-        chunk->next = NULL;
-        chunk->used = 0;
-        if (worker->tail == NULL) {
-            worker->live = chunk;
-        } else {
-            worker->tail->next = chunk;
-        }
-        worker->tail = chunk;
+        extend_live(worker);
     }
     void **entry = &worker->tail->objects[worker->tail->used++];
     *entry = object;
