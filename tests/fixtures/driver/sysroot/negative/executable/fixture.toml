@@ -20,10 +20,12 @@ files = [
 
 [[steps]]
 name = "library"
-argv = ["${scoopc}", "build", "--profile", "release", {"each" = "${compile_args}"}, "${work}/sysroot/src/scoop.platform", "--sysroot", "${work}/sysroot", "--out-slib", "${work}/sysroot/lib/${target}/scoop.platform.slib"]
+argv = ["${scoop}", "build", "--profile", "release", {each = "${compile_args}"}, "${work}/sysroot/src/scoop.platform", "--sysroot", "${work}/sysroot", "-o", "${work}/sysroot/lib/${target}/scoop.platform.slib", "--emit-slib", "--cache-dir", "${cache}", "--target-dir", "${work}/compiler-output", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
+json = "stderr"
+diagnostics = []
 
 [[steps]]
 name = "reject"

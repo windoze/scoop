@@ -20,9 +20,9 @@ pub(super) fn standard_library(
     .unwrap();
     let output = root.join("scoop.std.slib");
     SingleConeBuildRequest::new(
-        CurrentConeInput::Manifest {
-            root: scoop_manifest::ManifestRootLocator::cone_directory(&root),
-        },
+        crate::request::test_support::expanded_fixture(
+            scoop_manifest::ManifestRootLocator::cone_directory(&root),
+        ),
         ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
         TrustedCoreInput::Artifact(HostArtifactLocator::new(core).unwrap()),
         target.clone(),

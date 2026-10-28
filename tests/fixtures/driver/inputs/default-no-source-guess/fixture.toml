@@ -34,7 +34,7 @@ name = "producer"
 argv = ["${scoopc}", "build", "--profile", "release", "${work}/only/Cone.toml", "--sysroot", "${sysroot}", "--target", "${target}", "--out-slib", "${work}/producer.slib"]
 exit = 1
 stdout = ""
-stderr = "error: invalid current Cone operand ${work}/only/Cone.toml: cannot inspect: No such file or directory (os error 2)\n"
+stderr = "error: scoopc does not read Cone.toml; use scoop build/check for Cone projects\n"
 cwd = "${work}/only"
 checks = [
   {"file" = "${work}/producer.slib", "exists" = false},
@@ -45,7 +45,7 @@ name = "human"
 argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "-o", "${work}/previous.slib", {"each" = "${human_options}"}]
 exit = 1
 stdout = ""
-stderr = "${work}/only/Cone.toml: error[SCOOP_CLI_CONFIG]: invalid current Cone operand ${work}/only/Cone.toml: cannot inspect: No such file or directory (os error 2)\n"
+stderr = "error[SCOOP_PACKAGE_PREPARE]: no Cone.toml found from ${work}/only or its parents\n"
 cwd = "${work}/only"
 checks = [
   {"file" = "${work}/previous.slib", "equals" = "previous output\n"},

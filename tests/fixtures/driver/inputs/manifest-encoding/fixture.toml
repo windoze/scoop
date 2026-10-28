@@ -33,7 +33,7 @@ name = "producer"
 argv = ["${scoopc}", "build", "--profile", "release", "${work}/cone", "--sysroot", "${sysroot}", "--target", "${target}", "--out-slib", "${work}/producer.slib"]
 exit = 1
 stdout = ""
-stderr = "error: invalid Cone manifest root ${work}/cone/Cone.toml: Cone.toml is not valid UTF-8\n"
+stderr = "error: scoopc does not read Cone.toml; use scoop build/check for Cone projects\n"
 checks = [
   {"file" = "${work}/producer.slib", "exists" = false},
 ]
@@ -43,7 +43,7 @@ name = "human"
 argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/cone", "-o", "${work}/previous.slib", {"each" = "${human_options}"}]
 exit = 1
 stdout = ""
-stderr = "${work}/cone/Cone.toml: error[SCOOP_BUILD_FAILED]: invalid build root: invalid Cone manifest root ${work}/cone/Cone.toml: Cone.toml is not valid UTF-8\n"
+stderr = "error[SCOOP_PACKAGE_PREPARE]: ${work}/cone/Cone.toml: stream did not contain valid UTF-8\n"
 checks = [
   {"file" = "${work}/previous.slib", "equals" = "previous output\n"},
 ]

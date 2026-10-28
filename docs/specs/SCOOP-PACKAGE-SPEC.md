@@ -282,7 +282,7 @@ driver 消费的是 lock 的精确图和本次已准备好的本地输入。port
 
 ### 7.2 自动准备与低层调用
 
-普通 manifest build/run/test/check/doc 在构建前调用配套 PM 的 prepare；有效 lock 使用已缓存结果，无网络查询和求解。缺少 lock 时默认允许 PM 创建；`--locked` 可禁止。`scoop build --lockfile <file> -p group:name --locked` 是显式消费锁定图的入口；没有 `-p` 时仍按所在 workspace 的默认选择。driver 本身从不修改 lock。
+普通 manifest build/run/test/check/doc 在构建前调用配套 PM 的 prepare。`scoop build/run` 在 `Cone.lock` 不存在时自动调用 PM 解析依赖、准备来源并生成 lock，成功后继续构建／运行，无需用户先执行 resolve。已有有效 lock 时优先复用锁定选择和本地准备结果，不查询新版本。显式 `--locked` 或 `--frozen` 遇到缺少适用 lock 时失败；普通 `--offline` 仍可用足够的本地来源生成 lock。`scoop build --lockfile <file> -p group:name --locked` 是显式消费锁定图的入口；没有 `-p` 时仍按所在 workspace 的默认选择。driver 本身从不修改 lock。
 
 `scoop` 根据 lock 的精确图安排依赖优先的构建，将每个单 Cone 的配置、源码输入、精确 direct/support 产物及目标/用途参数通过现有 machine request 交给 `scoopc`。PM 完成版本要求与来源的绑定，`scoop` 将已绑定的边落实为具体产物参数；两者都不把选择工作交回编译器。原清单文本及 span 只供诊断，不能作为 child 再次解析的输入，也不能通过生成临时源码树改变诊断路径。
 

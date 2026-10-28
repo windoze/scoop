@@ -1,10 +1,10 @@
 # M63 包管理实施记录
 
-状态：实施中。更新日期：2026-10-28。目标合同见[包管理规范](../specs/SCOOP-PACKAGE-SPEC.md)，阶段完成条件见[设计](DESIGN.md#5-实施步骤与完成条件)。普通 manifest 命令、跨根构建/测试调度与文档绑定隔离已接入 PM；低层原始清单入口退役、发布及工具/发行收尾尚未完成。
+状态：实施中。更新日期：2026-10-28。目标合同见[包管理规范](../specs/SCOOP-PACKAGE-SPEC.md)，阶段完成条件见[设计](DESIGN.md#5-实施步骤与完成条件)。普通 manifest 命令、跨根构建/测试调度与文档绑定隔离已接入 PM；低层原始清单入口已退役；发布及工具/发行收尾尚未完成。
 
 ## 职责边界修订
 
-PM 生成和维护 `Cone.lock`；`scoop` 消费锁定图及其本地投影，向 `scoopc` 传递单 Cone 的具体编译参数。`scoopc` 不读取包声明/lock，也不匹配版本要求。已撤回为独立 `scoopc` 增加原始清单与版本绑定的未完成改动；现有 machine request 已使用展开配置，旧的直接 manifest 入口及其调用者迁移仍待实施。此项是设计修正，不计为入口退役已经完成。
+PM 生成和维护 `Cone.lock`；`scoop` 消费锁定图及其本地投影，向 `scoopc` 传递单 Cone 的具体编译参数。`scoopc` 不读取包声明/lock，也不匹配版本要求。machine request 使用展开配置，旧的直接 manifest 入口已删除，正式 Cone 调用者已迁至 `scoop`，底层专测使用具体编译请求。默认 build/run 在缺少 lock 时由 PM 自动解析并生成，保留直接开始构建的使用方式。
 
 ## 已完成的功能
 
@@ -85,6 +85,13 @@ PM 生成和维护 `Cone.lock`；`scoop` 消费锁定图及其本地投影，向
 - 输出意图不进入编译键；后续普通build/test复用同一产物完成链接和运行。此能力用于将旧低层manifest调用迁回scoop，不给scoopc增加清单解析入口。
 - macOS/Linux的正式用例各6次调用通过，覆盖workspace继承、范围依赖、锁文件、普通与测试产物、无重复编译的链接运行及多根输出。全workspace lint、CLI测试（34/35项）和fixture runner 59项通过；runner已识别新的`artifact`结果类型。
 
+### 编译器原始清单入口退役
+
+- 删除 `scoopc` 请求中的原始 manifest 分支及清单读取；machine request 只消费展开后的配置和具体 direct/support 产物。独立 build/check 只接受显式 `.scoop`，目录或 `Cone.toml` 给出使用 `scoop` 的提示；测试用途由 `scoop test/check --tests/build --emit-slib --tests` 传递。
+- 原有底层编译专测改用显式已展开请求；正式产物、ABI、native 链接及测试用途 fixture 迁至 `scoop build --emit-slib`。过期依赖专测显式绑定原 `.slib`，保持先检查依赖再查 native 符号的规则。
+- 默认 `scoop build/run` 在没有 lock 时自动调用 PM、成功生成 lock 后继续执行，无需手动 resolve；已有选择优先复用。首次构建/运行及 locked/frozen 缺锁拒绝分别验证，单文件模式保持独立。
+
+
 ## 验证记录
 
 - `cargo clippy --workspace --all-targets` 通过。
@@ -102,4 +109,5 @@ PM 生成和维护 `Cone.lock`；`scoop` 消费锁定图及其本地投影，向
 - 文档绑定批次：两端文档库 24 项测试、共享/不同绑定用例各 15 次正式进程调用通过，检查实际页面链接、依赖版本、冻结复用、单页 README 更新和 no-deps。macOS 既有 5 组文档 CLI 回归通过，覆盖多版本路由、并发发布、失败保留与资源更新；Linux 基础和路由用例通过。检查脚本的 HTML 转义误判已修正并复跑闭合。
 - 本地工具批次：全 workspace lint 通过；两端 manifest 77 项、protocol 42 项、Scoop CLI（macOS 33 项、Linux 34 项）及 PM 基础 CLI 2 项通过。两端既有 8 组格式化 fixture 与新 workspace 工具用例通过，后者使用不可连接的 registry 和保留的 lock 验证纯本地操作；macOS 完整的 Cone cache/clean 用例也通过。新用例的版本要求已改为合同要求的完整 SemVer 后复跑闭合。
 - 文档混合来源补充：macOS/Linux 的绑定用例扩展为各 17 次实际调用，复用真实构建出的 `.slib` 与另一个上游版本的源码一起生成文档，验证独立 catalog、re-export 不错误连接以及全部本地链接；两端通过。
+- 编译器入口退役批次：全 workspace lint 通过；macOS/Linux 的请求与 CLI 15 项、底层 core/依赖 preflight 12 项及真实展开配置 child 用例通过。两端共 59 个相关文件 fixture 全部闭合（Linux 本批 273 次进程调用），覆盖首次 build/run 自动创建 lock、locked/frozen 缺锁拒绝、生产/测试隔离、core 自举、精确产物及 native/链接错误顺序；迁移中发现的旧声明和诊断期望已修正并仅复跑受影响用例。
 - 原始日志与临时工作文件在仓库外。按阶段清理 `target/debug/incremental`，保留当前二进制与依赖构建结果。

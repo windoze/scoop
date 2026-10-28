@@ -18,9 +18,9 @@ fn publication_failure_retains_current_warnings_for_core_and_ordinary_libraries(
     let core_output = temp.path().join("core.slib");
     let core_request = || {
         SingleConeBuildRequest::new(
-            CurrentConeInput::Manifest {
-                root: ManifestRootLocator::cone_directory(&core_root),
-            },
+            crate::request::test_support::expanded_fixture(ManifestRootLocator::cone_directory(
+                &core_root,
+            )),
             ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
             TrustedCoreInput::BootstrapSelf,
             target.clone(),
@@ -45,9 +45,9 @@ fn publication_failure_retains_current_warnings_for_core_and_ordinary_libraries(
     );
     let ordinary_output = temp.path().join("ordinary.slib");
     let ordinary = SingleConeBuildRequest::new(
-        CurrentConeInput::Manifest {
-            root: ManifestRootLocator::cone_directory(&ordinary_root),
-        },
+        crate::request::test_support::expanded_fixture(ManifestRootLocator::cone_directory(
+            &ordinary_root,
+        )),
         ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
         TrustedCoreInput::Artifact(HostArtifactLocator::new(&core_output).unwrap()),
         target,

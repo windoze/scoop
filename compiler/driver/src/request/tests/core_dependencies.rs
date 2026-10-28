@@ -14,14 +14,19 @@ fn core_request_retains_direct_and_support_inputs_for_common_preflight() {
     let support = directory.0.join("support.slib");
     std::fs::write(&direct, b"malformed helper artifact").unwrap();
     std::fs::write(&support, b"malformed support artifact").unwrap();
-    let request = normalize_direct_build_request(
-        &directory.0,
-        vec![direct.clone()],
-        vec![support.clone()],
-        directory.0.join("core.slib"),
+    let request = SingleConeBuildRequest::new(
+        crate::request::test_support::expanded_fixture(ManifestRootLocator::cone_directory(
+            &directory.0,
+        )),
+        ExplicitDependencyInputs::new(
+            vec![HostArtifactLocator::new(&direct).unwrap()],
+            vec![HostArtifactLocator::new(&support).unwrap()],
+        ),
+        TrustedCoreInput::BootstrapSelf,
+        ResolvedTargetProfile::resolve_host().unwrap(),
+        SlibOutputDestination::new(directory.0.join("core.slib")).unwrap(),
         DiagnosticOutputPolicy::Human,
         StageDumpPolicy::None,
-        Default::default(),
     )
     .unwrap();
     assert!(matches!(

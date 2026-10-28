@@ -33,7 +33,7 @@ name = "producer"
 argv = ["${scoopc}", "build", "--profile", "release", "${work}/input.scoop", "--sysroot", "${sysroot}", "--target", "${target}", "--out-slib", "${work}/producer.slib"]
 exit = 1
 stdout = ""
-stderr = "error: invalid Cone manifest root ${work}/input.scoop/Cone.toml: cannot inspect: No such file or directory (os error 2)\n"
+stderr = "error: invalid single-file input ${work}/input.scoop: resolved input is not a regular file\n"
 checks = [
   {"file" = "${work}/producer.slib", "exists" = false},
 ]

@@ -99,11 +99,20 @@ files = [{"write" = {"path" = "${work}/sources/root/src/main.scoop", "data" = "$
 checks = []
 
 [[steps]]
+name = "bind_original_library"
+files = [
+  {copy = {from = "${build.result.dependencies.1.path}", to = "${work}/original-library.slib"}},
+  {replace = {path = "${work}/sources/root/Cone.toml", old = 'version = "0.1.0", path = "../library"', new = 'version = "=0.1.0", artifact = "../../original-library.slib"'}},
+]
+
+[[steps]]
 name = "compile_unresolved"
-argv = ["${scoopc}", "build", "--profile", "release", "${work}/sources/root", {"each" = "${compile_args}"}, "--sysroot", "${sysroot}", "--direct-slib", "${build.result.dependencies.0.path}", "--direct-slib", "${build.result.dependencies.1.path}", "--out-slib", "${work}/unresolved.slib"]
+argv = ["${scoop}", "build", "--profile", "release", "${work}/sources/root", {each = "${compile_args}"}, "--sysroot", "${sysroot}", "-o", "${work}/unresolved.slib", "--emit-slib", "--cache-dir", "${cache}", "--target-dir", "${work}/compiler-output", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
+json = "stderr"
+diagnostics = []
 
 [[steps]]
 name = "prepare_link_inputs_isolate"

@@ -19,9 +19,9 @@ fn documentation_pipeline_checks_bodies_and_shares_hir_with_artifact_production(
     let artifact_path = workspace.path().join("library.slib");
     let make_request = || {
         SingleConeBuildRequest::documentation(
-            CurrentConeInput::Manifest {
-                root: ManifestRootLocator::cone_directory(&root),
-            },
+            crate::request::test_support::expanded_fixture(ManifestRootLocator::cone_directory(
+                &root,
+            )),
             ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
             TrustedCoreInput::Artifact(HostArtifactLocator::new(core.artifact().path()).unwrap()),
             target.lir_target_selection(),

@@ -17,9 +17,7 @@ fn request(
             .collect()
     };
     SingleConeBuildRequest::new(
-        CurrentConeInput::Manifest {
-            root: ManifestRootLocator::cone_directory(root),
-        },
+        crate::request::test_support::expanded_fixture(ManifestRootLocator::cone_directory(root)),
         ExplicitDependencyInputs::new(locators(direct), locators(support)),
         TrustedCoreInput::DependenciesOrDefault {
             sysroot: sysroot.to_owned(),

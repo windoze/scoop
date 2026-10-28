@@ -727,7 +727,7 @@ MIR `identity-foundation/6` 与 LIR foundation 保存实际实现的实体目录
 
 `scoop` 负责精确依赖图的构建顺序、全局构建缓存、runtime 构建和程序链接；`scoopc` 一次只编译指定的一个 Cone，不跟随上游 manifest locator 或读取上游源码。
 
-**M63包管理设计，待实施。** manifest/workspace根选择、版本要求、Git/registry获取和`Cone.lock`由独立`scoop-pm`负责，完整合同见[包管理规范](SCOOP-PACKAGE-SPEC.md)，实施步骤见[包管理设计](../package-manager/DESIGN.md)。`scoop pm`转发到配套可执行程序；普通manifest构建通过一次prepare请求取得lock的精确图、本地源码/产物位置和已展开配置，再接入现有调度。driver不链接PM实现，不处理网络或再次求解；registry源码缓存默认放在`~/.scoop/packages/`供多个项目共享。以下workspace/锁定输入规则是该里程碑的目标合同，现有实现与machine protocol版本在对应段落单独说明。
+**M63包管理，实施中。** manifest/workspace根选择、版本要求、Git/registry获取和`Cone.lock`由独立`scoop-pm`负责，完整合同见[包管理规范](SCOOP-PACKAGE-SPEC.md)，实施步骤见[包管理设计](../package-manager/DESIGN.md)。`scoop pm`转发到配套可执行程序；普通manifest构建通过一次prepare请求取得lock的精确图、本地源码/产物位置和已展开配置，再接入现有调度。默认build/run遇到缺失lock时仍调用PM自动解析并创建，成功后继续构建；只有显式locked/frozen才禁止创建。driver不链接PM实现，不处理网络或再次求解；registry源码缓存默认放在`~/.scoop/packages/`供多个项目共享。以下workspace/锁定输入规则是该里程碑的目标合同，现有实现与machine protocol版本在对应段落单独说明。
 
 `Cone.lock`只保存可移植的精确选择；PM返回的本地准备结果是该图与清单的投影，不是另一份锁文件或构建成功收据。按root/purpose/target分别构图，不将workspace多个程序合并为一个单版本图；跨根共享任务时必须比较实际配置、来源和依赖结果，不能仅按ConeIdentity合并。`scoop`消费该锁定图，向`scoopc`传递展开后的单Cone编译配置与具体direct/support产物。`scoopc`不读取原manifest或lock，不匹配版本要求；旧独立manifest入口退役，普通Cone统一由scoop编排，不能为保留低层入口另建一套清单绑定。
 
@@ -793,9 +793,9 @@ SingleFile 的 coordinate 为保留值 `scoop:single-file:0.0.0`，kind 为 Exec
 
 单文件头部解析记录使用独立 `single-file-headers-v1` namespace，以实际输入路径、mtime、大小判断更新，先读取记录再读取源码。记录命中不打开源码或读取命中产物复核；输入变化才重读头部并发现依赖。实际编译的 scoopc 在一次源文件读取中复用文本处理头部与语法，保留 shebang、注释和 package 的原文与位置。默认依赖只在共享读取器中定义，图、子请求、direct 集合校验和编译缓存均使用该集合；模式与依赖改变通过实际输入及现有结果指纹判断更新。
 
-测试配置遵守语言规范 12.2.4。manifest 解码保留独立的测试源码清单、测试依赖及其 locator/span；生产语义投影仅含生产字段。普通 build/run 与生产用途的 scoopc 不发现测试文件或展开测试依赖，缓存键不包含测试配置或测试文件摘要。manifest 未变化时使用记录的解析结果；变化时解析一次并按有效配置判断相应用途是否更新。原始文本供实际需要的诊断与编译使用，文本变化本身不等于生产语义变化。父进程的根、显式源码依赖与默认标准库使用同一 `manifests-v3` 解析记录：按实际 manifest 路径、mtime、大小和解析器 target catalog 判断更新，保存已解析的生产／测试／native 配置、locator、诊断区间及对应文本。命中不打开原 manifest 或重跑 TOML parser；缺失输入仍先报告普通定位错误。记录格式或解析规则改变时升级 namespace，不迁移旧记录或重放语言规则。实际编译的 scoopc 仍读取本次自己的 manifest 输入。
+测试配置遵守语言规范 12.2.4。PM 的包声明保留独立的测试源码清单、测试依赖及其 locator/span；生产语义投影仅含生产字段。普通 build/run 与生产用途的 scoopc 不发现测试文件或定位测试依赖，编译缓存键不包含测试配置或测试文件摘要。PM 按 manifest/lock/config 的路径、mtime、大小和工具版本复用已有解析及准备记录，未变化时不打开原清单或重跑 TOML parser；变化时按有效配置判断相应用途是否更新，缺失输入仍报告普通定位错误。原始文本与 span 只用于诊断，文本变化本身不等于生产语义变化。记录格式或解析规则改变时升级 namespace，不迁移旧记录或重放语言规则。
 
-上述`manifests-v3`与child自读manifest描述退役前的旧路径。M63的普通manifest入口已将workspace/依赖展开交给PM，协议18在单Cone请求中交付有效配置；child只读取实际源码，不重解析清单。剩余直接manifest入口应删除，不增加新版声明解析或版本绑定。保留生产/测试分别判断更新、普通输入缺失报错和不重放检查的合同，不同时维护两套解析语义。
+普通 manifest 入口通过 PM 展开 workspace/依赖，协议 18 将有效配置交付给 scoopc；child 只读取实际源码，不重解析清单。直接 manifest 入口已删除，不保留另一套新版声明解析或版本绑定；生产/测试分别判断更新及不重放检查的合同保持。
 
 single-Cone编译请求显式携带Production或Test用途，默认Production；`scoop test`及`scoop check --tests`使用PM为测试根锁定的图，并向scoopc传入Test用途及具体生产/测试依赖。测试编译只接受ExpandedCone，support仍恰为其余传递闭包；scoopc不读取声明、求解或补建缺失的测试依赖。解析时使用已展开的生产/测试源码配置，将仅用于测试的依赖身份交给前端，并以原ConeIdentity产生具有TestEntry的executable `.slib`，不要求改写源码manifest kind。该字段自machine protocol 6加入；当前协议版本见下文，旧版本拒绝协商；普通生产请求的用途必须显式编码，不能靠源码目录或输出名推断。
 

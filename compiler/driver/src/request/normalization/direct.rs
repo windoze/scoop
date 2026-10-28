@@ -3,7 +3,6 @@ use super::*;
 #[derive(Debug, Default)]
 pub struct DirectBuildOptions {
     pub optimization: scoop_lir::OptimizationMode,
-    pub purpose: CompilationPurpose,
     pub target: Option<String>,
     pub sysroot: Option<PathBuf>,
     pub c_toolchain: scoop_toolchain::CToolchainOptions,
@@ -12,7 +11,6 @@ pub struct DirectBuildOptions {
 
 #[derive(Debug, Default)]
 pub struct DirectCheckOptions {
-    pub purpose: CompilationPurpose,
     pub target: Option<String>,
     pub sysroot: Option<PathBuf>,
     pub generators: Vec<std::ffi::OsString>,
@@ -33,7 +31,6 @@ pub fn normalize_direct_check_request(
         diagnostics,
         StageDumpPolicy::None,
         DirectBuildOptions {
-            purpose: options.purpose,
             target: options.target,
             sysroot: options.sysroot,
             generators: options.generators,
@@ -84,15 +81,16 @@ fn normalize_direct(
         scoop_toolchain::GeneratorPrograms::from_cli(&options.generators, &cwd)
             .map_err(BuildRequestNormalizationError::Generators)?
     };
-    let current = classify_current_cone_operand(operand)
-        .map_err(BuildRequestNormalizationError::CurrentOperand)?;
-    if options.purpose == CompilationPurpose::Test
-        && matches!(current, CurrentConeInput::SingleFile { .. })
+    let path = operand.into();
+    if path.file_name().is_some_and(|name| name == "Cone.toml")
+        || (!path.extension().is_some_and(|ext| ext == "scoop") && path.is_dir())
     {
-        return Err(BuildRequestNormalizationError::Request(
-            SingleConeBuildRequestError::TestRequiresManifest,
-        ));
+        return Err(BuildRequestNormalizationError::ManifestRequiresScoop);
     }
+    let current = CurrentConeInput::SingleFile {
+        source: SingleFileLocator::from_path(path)
+            .map_err(BuildRequestNormalizationError::SingleFile)?,
+    };
     let dependencies = explicit_dependencies(direct, support)?;
     let triple = match options.target.as_deref() {
         Some(triple) => triple,
@@ -115,28 +113,10 @@ fn normalize_direct(
         .map_err(BuildRequestNormalizationError::Backend)?;
         target::SelectedTarget::Production(Box::new(target))
     };
-    let is_core = match &current {
-        CurrentConeInput::ExpandedManifest { manifest } => {
-            manifest.coordinate() == &scoop_identity::ConeCoordinate::reserved_core()
-        }
-        CurrentConeInput::Manifest { root } => {
-            scoop_toolchain::load_cone_manifest(root)
-                .map_err(BuildRequestNormalizationError::ManifestRoot)?
-                .parsed()
-                .semantic()
-                .coordinate()
-                == &scoop_identity::ConeCoordinate::reserved_core()
-        }
-        CurrentConeInput::SingleFile { .. } => false,
-    };
     let sysroot = scoop_toolchain::configured_sysroot_root(options.sysroot)
         .map_err(BuildRequestNormalizationError::Target)?;
-    let trusted_core = if is_core {
-        TrustedCoreInput::BootstrapSelf
-    } else {
-        TrustedCoreInput::DependenciesOrDefault {
-            sysroot: sysroot.clone(),
-        }
+    let trusted_core = TrustedCoreInput::DependenciesOrDefault {
+        sysroot: sysroot.clone(),
     };
     SingleConeBuildRequest::new_selected(
         current,
@@ -147,12 +127,11 @@ fn normalize_direct(
         diagnostics,
         emit,
     )
-    .and_then(|request| {
+    .map(|request| {
         request
             .with_native_sysroot(sysroot)
             .with_generators(generators)
             .with_optimization(options.optimization)
-            .with_purpose(options.purpose)
     })
     .map_err(BuildRequestNormalizationError::Request)
 }

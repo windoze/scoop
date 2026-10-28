@@ -11,6 +11,17 @@ options = ["--release", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache
 [[steps]]
 name = "prepare"
 files = [{copy = {from = "${fixture}/workspace", to = "${work}/project"}}]
+checks = [{file = "${work}/project/Cone.lock", exists = false}]
+
+[[steps]]
+name = "locked_missing"
+argv = ["${scoop}", "build", "${work}/project", "--locked", "--emit-slib", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = [{code = "SCOOP_PACKAGE_PREPARE", message = "no locked resolution for dev.pm:app:0.1.0 / production / ${target}; run scoop pm resolve", notes = [], origin = {kind = "none"}, severity = "error"}]
+checks = [{file = "${work}/project/Cone.lock", exists = false}]
 
 [[steps]]
 name = "artifact"
@@ -92,3 +103,28 @@ checks = [
   {actual = "${workspace.records.1.kind}", equals = "artifact"},
   {file = "${work}/project/target/${target}/release/dev.pm/value/value.slib", exists = true},
 ]
+
+[[steps]]
+name = "fresh_run_project"
+files = [{copy = {from = "${fixture}/workspace", to = "${work}/run-project"}}]
+checks = [{file = "${work}/run-project/Cone.lock", exists = false}]
+
+[[steps]]
+name = "frozen_missing"
+argv = ["${scoop}", "run", "${work}/run-project", "--frozen", {each = "${link_args}"}, {each = "${options}"}]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = [{code = "SCOOP_PACKAGE_PREPARE", message = "no locked resolution for dev.pm:app:0.1.0 / production / ${target}; run scoop pm resolve", notes = [], origin = {kind = "none"}, severity = "error"}]
+checks = [{file = "${work}/run-project/Cone.lock", exists = false}]
+
+[[steps]]
+name = "run_missing"
+argv = ["${scoop}", "run", "${work}/run-project", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{file = "${work}/run-project/Cone.lock", contains = 'coordinate = "dev.pm:value:0.1.0"'}]

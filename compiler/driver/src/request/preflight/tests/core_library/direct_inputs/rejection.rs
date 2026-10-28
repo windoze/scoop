@@ -44,12 +44,4 @@ pub(super) fn check(
     );
     assert!(!output.exists());
     assert!(!absent.exists());
-
-    let invalid = workspace.join("invalid-direct-manifest");
-    std::fs::create_dir_all(&invalid).unwrap();
-    std::fs::write(invalid.join("Cone.toml"), "invalid manifest").unwrap();
-    assert!(matches!(
-        request(root_target, &invalid, &output, &absent, &[&damaged], &[]).load_preflight(),
-        Err(SingleConePreflightError::Manifest(_))
-    ));
 }

@@ -19,6 +19,7 @@ argv = ["${python}", "${fixture}/setup.py", "${work}", "${scoop-pm}"]
 exit = 0
 stdout = ""
 stderr = ""
+checks = [{file = "${work}/project/Cone.lock", exists = false}]
 
 [[steps]]
 name = "build"

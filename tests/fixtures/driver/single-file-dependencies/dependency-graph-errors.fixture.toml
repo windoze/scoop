@@ -37,9 +37,18 @@ json = "stderr"
 diagnostics = []
 
 [[steps]]
+name = "bind_local_dependency"
+files = [
+  {copy = {from = "${executable.result.root.path}", to = "${work}/executable.slib"}},
+  {replace = {path = "${work}/consumer/Cone.toml", old = '"scoop:single-file" = "0.0.0"', new = '"scoop:single-file" = { version = "=0.0.0", artifact = "../executable.slib" }'}},
+]
+
+[[steps]]
 name = "reject_local_dependency"
-argv = ["${scoopc}", "build", "${work}/consumer", {"each" = "${compile_args}"}, "--profile", "release", "--sysroot", "${sysroot}", "--direct-slib", "${executable.result.root.path}", "--support-slib", "${sysroot}/lib/${target}/scoop.std.slib", "--out-slib", "${work}/failed.slib"]
+argv = ["${scoop}", "build", "${work}/consumer", {each = "${compile_args}"}, "--release", "--sysroot", "${sysroot}", "--emit-slib", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "-o", "${work}/failed.slib"]
 exit = 1
 stdout = ""
-stderr = "error: dependency direct artifact 0 ${executable.result.root.path} must be a manifest library, found Executable/SingleFile\n"
+stderr = ""
+json = "stderr"
+diagnostics = {file = "local-dependency.json"}
 checks = [{"file" = "${work}/failed.slib", "exists" = false}]

@@ -32,7 +32,7 @@ name = "producer"
 argv = ["${scoopc}", "build", "--profile", "release", "${work}/missing.scoop", "--sysroot", "${sysroot}", "--target", "${target}", "--out-slib", "${work}/producer.slib"]
 exit = 1
 stdout = ""
-stderr = "error: invalid current Cone operand ${work}/missing.scoop: cannot inspect: No such file or directory (os error 2)\n"
+stderr = "error: invalid single-file input ${work}/missing.scoop: cannot canonicalize: No such file or directory (os error 2)\n"
 checks = [
   {"file" = "${work}/producer.slib", "exists" = false},
 ]

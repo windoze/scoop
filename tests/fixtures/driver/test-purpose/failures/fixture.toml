@@ -34,10 +34,12 @@ diagnostics = []
 
 [[steps]]
 name = "compile"
-argv = ["${scoopc}", "build", {each = "${compile_args}"}, "${fixture}/program", "--test", "--profile", "${profile}", "--direct-slib", "${library.result.root.path}", {each = "${library.result.dependencies}", field = "path", prefix = "--direct-slib"}, "--out-slib", "${work}/tests.slib"]
+argv = ["${scoop}", "build", {each = "${compile_args}"}, "${fixture}/program", "--tests", "--profile", "${profile}", "-o", "${work}/tests.slib", "--sysroot", "${sysroot}", "--emit-slib", "--cache-dir", "${cache}", "--target-dir", "${work}/compiler-output", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
+json = "stderr"
+diagnostics = []
 
 [[steps]]
 name = "link"

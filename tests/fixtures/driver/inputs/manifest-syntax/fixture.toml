@@ -33,7 +33,7 @@ name = "producer"
 argv = ["${scoopc}", "build", "--profile", "release", "${work}/cone", "--sysroot", "${sysroot}", "--target", "${target}", "--out-slib", "${work}/producer.slib"]
 exit = 1
 stdout = ""
-stderr = "error: invalid Cone manifest root ${work}/cone/Cone.toml: invalid Cone.toml: TOML parse error at line 1, column 12\n  |\n1 | schema = [\n  |            ^\ninvalid array\nexpected `]`\n\n"
+stderr = "error: scoopc does not read Cone.toml; use scoop build/check for Cone projects\n"
 checks = [
   {"file" = "${work}/producer.slib", "exists" = false},
 ]
@@ -43,7 +43,7 @@ name = "human"
 argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/cone", "-o", "${work}/previous.slib", {"each" = "${human_options}"}]
 exit = 1
 stdout = ""
-stderr = "${work}/cone/Cone.toml:11..11: error[SCOOP_BUILD_FAILED]: invalid build root: invalid Cone manifest root ${work}/cone/Cone.toml: invalid Cone.toml: TOML parse error at line 1, column 12\n  |\n1 | schema = [\n  |            ^\ninvalid array\nexpected `]`\n\n"
+stderr = "${work}/cone/Cone.toml:bytes 11..11: error[SCOOP_PACKAGE_PREPARE]: ${work}/cone/Cone.toml: invalid Cone.toml: TOML parse error at line 1, column 12\n  |\n1 | schema = [\n  |            ^\ninvalid array\nexpected `]`\n\n"
 checks = [
   {"file" = "${work}/previous.slib", "equals" = "previous output\n"},
 ]
