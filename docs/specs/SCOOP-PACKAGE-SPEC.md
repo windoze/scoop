@@ -116,6 +116,8 @@ default-members 必须是成员子集；省略时，有根 Cone 则选根 Cone�
 
 `run` 必须最终选中唯一 executable；多个根的 build/test/check/doc 共用调度并分别报告结果。单一 `-o` 不接受多个根。成员的默认输出放在 `target/<target>/<profile>/<group>/<name>/` 下，测试位于其 `tests/` 子目录，避免不同 group 的同名 Cone 覆盖。源码依赖构建结果仍使用共享 Cone cache。
 
+文档也保留各根的实际绑定。同身份源码在不同根中绑定不同依赖时，按根建立独立页面和搜索范围，由共同首页连接；输入相容时保留共同站点。文档编译按完整输入键共享，页面范围不进入语言身份，详见编译器与产物规范 2.7 的文档合同。
+
 ### 3.2 显式继承
 
 可继承的 Cone 字段仅为 group、version、license、repository；name、kind、源码/native 清单不继承。依赖的 `{ workspace = true }` 必须是完整 value，不允许再混入 version/source 字段；引用 `[workspace.dependencies]` 同 key 的完整声明。该表不自动添加依赖，也不覆盖传递依赖。成员依赖彼此必须使用显式 path（可经共享依赖声明）；同名 registry 依赖不自动变成本地 member。

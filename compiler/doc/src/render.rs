@@ -7,11 +7,13 @@ use std::collections::BTreeMap;
 mod catalog;
 mod markdown;
 mod pages;
+mod roots;
 mod routes;
 mod search;
 mod views;
 
 pub use catalog::{ConeLinkInputs, SiteCatalog};
+pub use roots::{RootReference, render_roots};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct SiteOptions {
@@ -82,6 +84,7 @@ type Result<T> = std::result::Result<T, RenderError>;
 pub struct SiteRenderer<'catalog, 'input> {
     catalog: &'catalog SiteCatalog<'input>,
     templates: minijinja::Environment<'static>,
+    root: Option<String>,
 }
 
 impl<'catalog, 'input> SiteRenderer<'catalog, 'input> {
@@ -98,7 +101,17 @@ impl<'catalog, 'input> SiteRenderer<'catalog, 'input> {
         ] {
             templates.add_template(name, source)?;
         }
-        Ok(Self { catalog, templates })
+        Ok(Self {
+            catalog,
+            templates,
+            root: None,
+        })
+    }
+
+    /// The caller publishes this catalog below r/<root-key>/ in a larger site.
+    pub fn with_root(mut self, name: String) -> Self {
+        self.root = Some(name);
+        self
     }
 
     fn template(&self, name: &str, context: impl Serialize) -> Result<String> {

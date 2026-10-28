@@ -1,13 +1,14 @@
 schema = 1
 name = "pm-workspace-bindings"
-inputs = ["workspace", "shared", "value1", "value2"]
-tools = ["scoop", "scoopc", "scoop-pm"]
+inputs = ["workspace", "shared", "value1", "value2", "check_docs.py"]
+tools = ["scoop", "scoopc", "scoop-pm", "python"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["driver", "pm", "workspace", "cache", "test-command"]
 
 [vars]
 options = ["--release", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--package-cache", "${work}/packages", "--message-format", "json", "--target-dir", "${work}/outputs"]
 members = ["${work}/project", "--workspace", "--cone-path", "${work}/artifacts", "--jobs", "2"]
+doc_options = ["--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--package-cache", "${work}/packages", "--message-format", "json", "--output-dir", "${work}/docs"]
 
 [[steps]]
 name = "copy"
@@ -71,6 +72,70 @@ checks = [
   {actual = "${frozen.records.0.observations.child_invocations}", equals = []},
   {actual = "${frozen.records.1.observations.child_invocations}", equals = []},
   {actual = "${frozen.records.2.observations.child_invocations}", equals = []},
+]
+
+[[steps]]
+name = "doc_cold"
+argv = ["${scoop}", "doc", {each = "${members}"}, {each = "${compile_args}"}, {each = "${doc_options}"}, "--frozen"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${doc_cold.result.cones.length}", equals = 6},
+  {actual = "${doc_cold.result.observations.child_invocations.length}", equals = 5},
+]
+
+[[steps]]
+name = "doc_warm"
+argv = ["${scoop}", "doc", {each = "${members}"}, {each = "${compile_args}"}, {each = "${doc_options}"}, "--frozen"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${doc_warm.result.observations.child_invocations}", equals = []},
+  {actual = "${doc_warm.result.rendered}", equals = false},
+]
+
+[[steps]]
+name = "inspect_docs"
+argv = ["${python}", "${fixture}/check_docs.py", "${work}/docs"]
+exit = 0
+stdout = "Root bindings and local links verified.\n"
+stderr = ""
+
+[[steps]]
+name = "root_readme"
+files = [{write = {path = "${work}/project/one/README.md", data = "One root only.\n"}}]
+
+[[steps]]
+name = "doc_readme"
+argv = ["${scoop}", "doc", {each = "${members}"}, {each = "${compile_args}"}, {each = "${doc_options}"}, "--frozen"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${doc_readme.result.observations.child_invocations}", equals = []},
+  {actual = "${doc_readme.result.observations.rendered_files.length}", equals = 1},
+  {file = "${doc_readme.result.observations.rendered_files.0}", contains = "One root only."},
+]
+
+[[steps]]
+name = "doc_roots_only"
+argv = ["${scoop}", "doc", {each = "${members}"}, {each = "${compile_args}"}, {each = "${doc_options}"}, "--frozen", "--no-deps"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${doc_roots_only.result.cones.length}", equals = 3},
+  {actual = "${doc_roots_only.result.observations.child_invocations}", equals = []},
 ]
 
 [[steps]]
