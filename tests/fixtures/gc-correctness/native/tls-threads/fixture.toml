@@ -36,7 +36,7 @@ stderr = ""
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "--enable-gc-stress", "build", {"each" = "${link_args}"}, "${work}/source/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}/native/lib", "--message-format", "json"]
+argv = ["${scoop}", "--enable-gc-stress", "build", {"each" = "${link_args}"}, "${work}/source/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}/native/lib", "--message-format", "json", "-o", "${work}/programs/build/program"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -53,7 +53,7 @@ stderr = ""
 
 [[steps]]
 name = "link"
-argv = ["${scoop}", "--enable-gc-stress", "link", "--keep-symbols", {"each" = "${link_args}"}, "--root-slib", "${build.result.root.path}", {"each" = "${build.result.dependencies}", "field" = "path", "prefix" = "--dependency-slib"}, "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--library-path", "${work}/native/lib", "-o", "${work}/relinked", "--message-format", "json"]
+argv = ["${scoop}", "--enable-gc-stress", "link", "--emit-debug-file", "--keep-symbols", {"each" = "${link_args}"}, "--enable-stack-trace=true", "--root-slib", "${build.result.root.path}", {"each" = "${build.result.dependencies}", "field" = "path", "prefix" = "--dependency-slib"}, "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--library-path", "${work}/native/lib", "-o", "${work}/programs/link/program", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

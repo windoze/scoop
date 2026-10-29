@@ -18,7 +18,7 @@ files = [{"copy" = {"from" = "${fixture}/gc", "to" = "${work}/sources/gc"}}, {"c
 [[steps]]
 name = "build"
 timeout = 300
-argv = ["${scoop}", "--enable-gc-stress", "build", {"each" = "${link_args}"}, "${work}/sources/gc", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native"]
+argv = ["${scoop}", "--enable-gc-stress", "build", {"each" = "${link_args}"}, "${work}/sources/gc", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "-o", "${work}/programs/build/program"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -39,7 +39,7 @@ stderr = ""
 
 [[steps]]
 name = "link"
-argv = ["${scoop}", "--enable-gc-stress", "link", "--root-slib", "${build.result.root.path}", "--dependency-slib", "${build.result.dependencies.0.path}", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "-o", "${work}/artifacts/program", "--message-format", "json", "--library-path", "${work}/native"]
+argv = ["${scoop}", "--enable-gc-stress", "link", "--emit-debug-file", "--enable-stack-trace=true", "--keep-symbols", "--root-slib", "${build.result.root.path}", "--dependency-slib", "${build.result.dependencies.0.path}", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "-o", "${work}/artifacts/program", "--message-format", "json", "--library-path", "${work}/native"]
 exit = 0
 stdout = ""
 stderr = ""

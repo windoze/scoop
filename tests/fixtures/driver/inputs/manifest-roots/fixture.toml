@@ -62,6 +62,7 @@ checks = [
 ]
 
 [[steps]]
+# Each input root records its own compiler inputs; repeating that locator reuses the cache.
 name = "directory_symlink"
 argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "alias", {"each" = "${options}"}]
 exit = 0
@@ -73,7 +74,22 @@ cwd = "${work}"
 checks = [
   {"actual" = "${directory_symlink.result.root.artifact_fingerprint}", "equals" = "${baseline.result.root.artifact_fingerprint}"},
   {"file" = "${directory_symlink.result.root.path}", "same_as" = "${baseline.result.root.path}"},
-  {"actual" = "${directory_symlink.result.observations.child_invocations}", "equals" = []},
+  {"actual" = "${directory_symlink.result.observations.child_invocations}", "equals" = ["${baseline.result.root.identity}"]},
+]
+
+[[steps]]
+name = "directory_symlink_warm"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "alias", {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+cwd = "${work}"
+checks = [
+  {"actual" = "${directory_symlink_warm.result.root.artifact_fingerprint}", "equals" = "${baseline.result.root.artifact_fingerprint}"},
+  {"file" = "${directory_symlink_warm.result.root.path}", "same_as" = "${baseline.result.root.path}"},
+  {"actual" = "${directory_symlink_warm.result.observations.child_invocations}", "equals" = []},
 ]
 
 [[steps]]
@@ -88,7 +104,22 @@ cwd = "${work}"
 checks = [
   {"actual" = "${manifest_symlink.result.root.artifact_fingerprint}", "equals" = "${baseline.result.root.artifact_fingerprint}"},
   {"file" = "${manifest_symlink.result.root.path}", "same_as" = "${baseline.result.root.path}"},
-  {"actual" = "${manifest_symlink.result.observations.child_invocations}", "equals" = []},
+  {"actual" = "${manifest_symlink.result.observations.child_invocations}", "equals" = ["${baseline.result.root.identity}"]},
+]
+
+[[steps]]
+name = "manifest_symlink_warm"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/manifest-alias/Cone.toml", {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+cwd = "${work}"
+checks = [
+  {"actual" = "${manifest_symlink_warm.result.root.artifact_fingerprint}", "equals" = "${baseline.result.root.artifact_fingerprint}"},
+  {"file" = "${manifest_symlink_warm.result.root.path}", "same_as" = "${baseline.result.root.path}"},
+  {"actual" = "${manifest_symlink_warm.result.observations.child_invocations}", "equals" = []},
 ]
 
 [[steps]]

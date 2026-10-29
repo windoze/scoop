@@ -31,8 +31,10 @@ for name in ("guardedUse", "guardedDirect"):
     function = body(name)
     assert "landing_pad" in function and "throw " in function, name
     if release:
-        for token in ("ClassAlloc", "ClosureAlloc", "ClosureCapture", "      call "):
+        for token in ("ClassAlloc", "ClosureAlloc", "ClosureCapture"):
             assert token not in function, (name, token)
+        calls = re.findall(r"^      call (.*)$", function, re.M)
+        assert calls and all(call.endswith("@scoop_rt_prepare_throwable direct") for call in calls)
     elif name == "guardedUse":
         assert "ClosureAlloc" in function and calls_use(function), name
 

@@ -4,11 +4,11 @@ inputs = ["program.scoop", "probe.py"]
 tools = ["scoop", "scoop-link", "python"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["runtime", "diagnostics", "compiler-correctness"]
-variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
+variants = [{name = "debug", vars = {profile = "debug", stack_trace = "true", symbol_args = ["--keep-symbols", "--emit-debug-file"]}}, {name = "release", vars = {profile = "release", stack_trace = "false", symbol_args = []}}]
 
 [[steps]]
 name = "ordinary"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/program.scoop", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "-o", "${work}/ordinary", "--message-format", "json"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${fixture}/program.scoop", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "-o", "${work}/programs/ordinary/program", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -17,7 +17,7 @@ diagnostics = []
 
 [[steps]]
 name = "stats"
-argv = ["${scoop}", "--enable-startup-stats", "build", {each = "${link_args}"}, "${fixture}/program.scoop", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "-o", "${work}/stats", "--message-format", "json"]
+argv = ["${scoop}", "--enable-startup-stats", "build", {"each" = "${link_args}"}, "${fixture}/program.scoop", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "-o", "${work}/programs/stats/program", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -31,7 +31,7 @@ checks = [
 
 [[steps]]
 name = "combined"
-argv = ["${scoop}", "build", "--enable-startup-stats", "--enable-gc-stress", {each = "${link_args}"}, "${fixture}/program.scoop", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "-o", "${work}/combined", "--message-format", "json"]
+argv = ["${scoop}", "build", "--enable-startup-stats", "--enable-gc-stress", {"each" = "${link_args}"}, "${fixture}/program.scoop", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "-o", "${work}/programs/combined/program", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -45,7 +45,7 @@ checks = [
 
 [[steps]]
 name = "ordinary_again"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/program.scoop", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "-o", "${work}/ordinary-again", "--message-format", "json"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${fixture}/program.scoop", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "-o", "${work}/programs/ordinary_again/program", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -59,7 +59,7 @@ checks = [
 
 [[steps]]
 name = "link_stats"
-argv = ["${scoop}", "link", "--enable-startup-stats", "--root-slib", "${ordinary.result.root.path}", {each = "${ordinary.result.dependencies}", field = "path", prefix = "--dependency-slib"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "-o", "${work}/linked", "--message-format", "json"]
+argv = ["${scoop}", "link", "--enable-startup-stats", "--enable-stack-trace=${stack_trace}", {"each" = "${symbol_args}"}, "--root-slib", "${ordinary.result.root.path}", {"each" = "${ordinary.result.dependencies}", "field" = "path", "prefix" = "--dependency-slib"}, {"each" = "${link_args}"}, "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "-o", "${work}/programs/link_stats/program", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -69,7 +69,7 @@ checks = [{actual = "${link_stats.result.link_plan_fingerprint}", equals = "${st
 
 [[steps]]
 name = "low_link_stats"
-argv = ["${scoop-link}", "--enable-startup-stats", "--root-slib", "${ordinary.result.root.path}", {each = "${ordinary.result.dependencies}", field = "path", prefix = "--dep-slib"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "-o", "${work}/low-linked"]
+argv = ["${scoop-link}", "--enable-startup-stats", "--enable-stack-trace=${stack_trace}", {"each" = "${symbol_args}"}, "--root-slib", "${ordinary.result.root.path}", {"each" = "${ordinary.result.dependencies}", "field" = "path", "prefix" = "--dep-slib"}, {"each" = "${link_args}"}, "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "-o", "${work}/programs/low_link_stats/program"]
 exit = 0
 stdout = "link-plan ${stats.result.link_plan_fingerprint}\n"
 stderr = ""
@@ -92,7 +92,7 @@ checks = [{file = "${work}/rejected", exists = false}]
 
 [[steps]]
 name = "diagnostics"
-argv = ["${python}", "${fixture}/probe.py", "${ordinary.result.output}", "${ordinary_again.result.output}", "${stats.result.output}", "${combined.result.output}", "${link_stats.result.output}", "${work}/low-linked"]
+argv = ["${python}", "${fixture}/probe.py", "${ordinary.result.output}", "${ordinary_again.result.output}", "${stats.result.output}", "${combined.result.output}", "${link_stats.result.output}", "${work}/programs/low_link_stats/program"]
 exit = 0
 stdout = "startup metrics passed\n"
 stderr = ""

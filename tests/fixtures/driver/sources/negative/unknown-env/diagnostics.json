@@ -1,7 +1,7 @@
 [
   {
-    "code": "SCOOP_BUILD_FAILED",
-    "message": "invalid build root: invalid Cone manifest root ${work}/cone/Cone.toml: unknown target predicate \"env\" value \"glibc\"",
+    "code": "SCOOP_PACKAGE_PREPARE",
+    "message": "${work}/cone/Cone.toml: unknown target predicate \"env\" value \"glibc\"",
     "notes": [],
     "origin": {
       "end": 61,
@@ -9,7 +9,6 @@
       "path": "${work}/cone/Cone.toml",
       "start": 54
     },
-    "phase": "Root",
     "severity": "error"
   }
 ]

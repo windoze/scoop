@@ -5,7 +5,7 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 4938,
+      "end": 6762,
       "kind": "source",
       "path": "src/array_list.scoop",
       "start": 0
@@ -22,6 +22,214 @@
       "kind": "source",
       "path": "src/process.scoop",
       "start": 166
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`encode` is marked `override` but does not override any method",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 1486,
+      "kind": "source",
+      "path": "src/option.scoop",
+      "start": 1480
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`decode` is marked `override` but does not override any method",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 1831,
+      "kind": "source",
+      "path": "src/option.scoop",
+      "start": 1825
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`encode` is marked `override` but does not override any method",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 6238,
+      "kind": "source",
+      "path": "src/array_list.scoop",
+      "start": 6232
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`decode` is marked `override` but does not override any method",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 6549,
+      "kind": "source",
+      "path": "src/array_list.scoop",
+      "start": 6543
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`encode` is marked `override` but does not override any method",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 2053,
+      "kind": "source",
+      "path": "src/arrays.scoop",
+      "start": 2047
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`decode` is marked `override` but does not override any method",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 2358,
+      "kind": "source",
+      "path": "src/arrays.scoop",
+      "start": 2352
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`encode` is marked `override` but does not override any method",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 4885,
+      "kind": "source",
+      "path": "src/arrays.scoop",
+      "start": 4879
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`decode` is marked `override` but does not override any method",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 5212,
+      "kind": "source",
+      "path": "src/arrays.scoop",
+      "start": 5206
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "the generic environment does not require a public companion for `T`",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 1575,
+      "kind": "source",
+      "path": "src/option.scoop",
+      "start": 1564
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "the generic environment does not require a public companion for `T`",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 1907,
+      "kind": "source",
+      "path": "src/option.scoop",
+      "start": 1896
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "the generic environment does not require a public companion for `T`",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 6331,
+      "kind": "source",
+      "path": "src/array_list.scoop",
+      "start": 6320
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "the generic environment does not require a public companion for `T`",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 6635,
+      "kind": "source",
+      "path": "src/array_list.scoop",
+      "start": 6624
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "the generic environment does not require a public companion for `T`",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 2142,
+      "kind": "source",
+      "path": "src/arrays.scoop",
+      "start": 2131
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "the generic environment does not require a public companion for `T`",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 2440,
+      "kind": "source",
+      "path": "src/arrays.scoop",
+      "start": 2429
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "the generic environment does not require a public companion for `T`",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 4981,
+      "kind": "source",
+      "path": "src/arrays.scoop",
+      "start": 4970
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "the generic environment does not require a public companion for `T`",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 5301,
+      "kind": "source",
+      "path": "src/arrays.scoop",
+      "start": 5290
     },
     "severity": "error"
   }

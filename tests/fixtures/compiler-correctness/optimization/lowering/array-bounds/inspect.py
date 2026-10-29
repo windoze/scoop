@@ -38,5 +38,17 @@ if not roots:
     repeated = body("repeatSum")
     # Both the initializer and the inlined reduction must have a bounded inner.
     assert repeated.count(" poll.full.") == (2 if release else 0)
-    for name in ["sideEffect", "rebound", "stepped", "negative"]:
+    for name in ["sideEffect", "stepped", "negative"]:
         assert "poll.full." not in body(name), name
+    rebound = body("rebound")
+    assert "poll.bounds." not in rebound
+    if release:
+        # Rebinding allows bounded chunks, but each iteration still checks the
+        # current array; its length cannot be hoisted into a chunk guard.
+        full = re.search(r"^    bb\d+ poll.full.*?(?=^    bb|\Z)", rebound, re.M | re.S)
+        assert full and "ArrayLen MutableArray<Int>" in full.group()
+        assert "Local current" in full.group() and "      branch " in full.group()
+        assert "ClassAlloc IndexOutOfBoundsException" in rebound
+        assert "      throw" in rebound
+    else:
+        assert "poll.full." not in rebound

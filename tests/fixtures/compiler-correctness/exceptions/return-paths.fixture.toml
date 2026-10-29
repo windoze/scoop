@@ -1,8 +1,8 @@
 schema = 1
 name = "exceptions-return-paths"
 root = "../../language/exceptions/return-paths.scoop"
-inputs = ["../../language/exceptions/return-paths.scoop"]
-tools = ["scoop", "scoopc"]
+inputs = ["inspect_returns.py", "../../language/exceptions/return-paths.scoop"]
+tools = ["python", "scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["stage-structure", "single-file", "run", "compiler-correctness"]
 
@@ -14,9 +14,15 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump/${build.result.root.identity}/mir.txt", contains = "  fun afterReturn @fn0() -> Int\n    bb0 entry\n      return\n        Type Int\n        IntegerLiteral Int value=1 bits=0x00000001\n  fun fromIf @fn1(flag: Boolean) -> Int\n    bb0 entry\n      branch bb1 bb2\n        Type Boolean\n        Local flag\n    bb1 if.then.1\n      return\n        Type Int\n        IntegerLiteral Int value=10 bits=0x0000000a\n    bb2 if.else.2\n      return\n        Type Int\n        IntegerLiteral Int value=11 bits=0x0000000b\n    bb3 if.merge.3\n      unreachable\n  fun fromWhen @fn2(choice: Choice) -> Int\n    bb0 entry\n      val $when.1: Choice\n        Type Choice\n        Local choice\n      val $pattern.subject.2: Choice\n        Type Choice\n        Local $when.1\n      branch bb1 bb2\n        Type Boolean\n        VariantTest Choice v0\n          Type Choice\n          Local $pattern.subject.2\n    bb1 pattern.pass.1\n      return\n        Type Int\n        IntegerLiteral Int value=20 bits=0x00000014\n    bb2 pattern.else.2\n      val $pattern.subject.3: Choice\n        Type Choice\n        Local $when.1\n      branch bb4 bb5\n        Type Boolean\n        VariantTest Choice v1\n          Type Choice\n          Local $pattern.subject.3\n    bb3 pattern.merge.3\n      unreachable\n    bb4 pattern.pass.4\n      return\n        Type Int\n        IntegerLiteral Int value=21 bits=0x00000015\n    bb5 pattern.else.5\n      unreachable\n    bb6 pattern.merge.6\n      unreachable\n  fun fromFinally @fn3() -> Int\n    bb0 entry\n      goto bb6\n    bb1 try.unwind.1\n      landing_pad cleanup=false\n      goto bb2\n    bb2 try.dispatch.2\n      begin_catch\n      goto bb8\n    bb3 try.exit_pad.3\n      landing_pad cleanup=true\n      goto bb4\n    bb4 try.exit_cleanup.4\n      end_catch\n      resume\n    bb5 try.end.5\n      unreachable\n    bb6 try.body.6 unwind bb1\n      val $return.1: Int\n        Type Int\n        IntegerLiteral Int value=30 bits=0x0000001e\n      goto bb7\n    bb7 scope.7\n      return\n        Type Int\n        IntegerLiteral Int value=31 bits=0x0000001f\n    bb8 scope.8 unwind bb3\n      val $return.2: Int\n        Type Int\n        IntegerLiteral Int value=31 bits=0x0000001f\n      end_catch\n      goto bb9\n    bb9 scope.9\n      return\n        Type Int\n        Local $return.2\n  fun exceptionReplacedByFinally @fn4() -> Int\n    bb0 entry\n      goto bb6\n    bb1 try.unwind.1\n      landing_pad cleanup=false\n      goto bb2\n    bb2 try.dispatch.2\n      begin_catch\n      goto bb7\n    bb3 try.exit_pad.3\n      landing_pad cleanup=true\n      goto bb4\n    bb4 try.exit_cleanup.4\n      end_catch\n      resume\n    bb5 try.end.5\n      unreachable\n    bb6 try.body.6 unwind bb1\n      assign $new.1\n        Type UnwrapException\n        ClassAlloc UnwrapException\n      call external2 direct\n        Type UnwrapException\n        Local $new.1\n      throw unwind bb1\n        Type UnwrapException\n        Local $new.1\n    bb7 scope.7 unwind bb3\n      val $return.2: Int\n        Type Int\n        IntegerLiteral Int value=40 bits=0x00000028\n      end_catch\n      goto bb8\n    bb8 scope.8\n      return\n        Type Int\n        Local $return.2\n  fun branchingFinally @fn5(flag: Boolean) -> Int\n    bb0 entry\n      goto bb6\n    bb1 try.unwind.1\n      landing_pad cleanup=false\n      goto bb2\n    bb2 try.dispatch.2\n      begin_catch\n      goto bb11\n    bb3 try.exit_pad.3\n      landing_pad cleanup=true\n      goto bb4\n    bb4 try.exit_cleanup.4\n      end_catch\n      resume\n    bb5 try.end.5\n      unreachable\n    bb6 try.body.6 unwind bb1\n      val $dependency.argument.0: String\n        Type String\n        StringConst @str1\n      val $dependency.parameter.value: String\n        Type String\n        Local $dependency.argument.0\n      call @fn7 direct\n        Type String\n        Local $dependency.parameter.value\n      goto bb7\n    bb7 scope.7\n      branch bb8 bb9\n        Type Boolean\n        Local flag\n    bb8 if.then.8\n      return\n        Type Int\n        IntegerLiteral Int value=50 bits=0x00000032\n    bb9 if.else.9\n      return\n        Type Int\n        IntegerLiteral Int value=51 bits=0x00000033\n    bb10 if.merge.10\n      unreachable\n    bb11 scope.11 unwind bb3\n      branch bb12 bb13\n        Type Boolean\n        Local flag\n    bb12 if.then.12 unwind bb3\n      val $return.1: Int\n        Type Int\n        IntegerLiteral Int value=50 bits=0x00000032\n      end_catch\n      goto bb15\n    bb13 if.else.13 unwind bb3\n      val $return.2: Int\n        Type Int\n        IntegerLiteral Int value=51 bits=0x00000033\n      end_catch\n      goto bb16\n    bb14 if.merge.14 unwind bb3\n      unreachable\n    bb15 scope.15\n      return\n        Type Int\n        Local $return.1\n    bb16 scope.16\n      return\n        Type Int\n        Local $return.2\n  fun main @fn6() -> Unit\n"},
-]
+
+
+[[steps]]
+name = "control_flow"
+argv = ["${python}", "${fixture}/inspect_returns.py", "${work}/dump/${build.result.root.identity}/mir.txt", "${work}/returns.txt"]
+exit = 0
+stdout = ""
+stderr = ""
+checks = [{file = "${work}/returns.txt", snapshot = "return-paths.control-flow.txt"}]
 
 [[steps]]
 name = "run"

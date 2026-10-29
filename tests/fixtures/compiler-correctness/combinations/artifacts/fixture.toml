@@ -5,8 +5,8 @@ tools = ["scoop", "scoopc", "scoop-link"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["when", "generics", "compiler-correctness"]
 variants = [
-  {name = "debug", vars = {profile = "debug", provider_profile = "release", symbol_args = ["--keep-symbols"]}},
-  {name = "release", vars = {profile = "release", provider_profile = "debug", symbol_args = []}},
+  {name = "debug", vars = {profile = "debug", stack_trace = "true", provider_profile = "release", symbol_args = ["--keep-symbols", "--emit-debug-file"]}},
+  {name = "release", vars = {profile = "release", stack_trace = "false", provider_profile = "debug", symbol_args = []}},
 ]
 
 [[steps]]
@@ -29,7 +29,7 @@ checks = []
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/consumer", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/consumer", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/programs/consumer/program"]
 timeout = 300
 exit = 0
 stdout = ""
@@ -40,14 +40,14 @@ checks = []
 
 [[steps]]
 name = "link"
-argv = ["${scoop-link}", {"each" = "${link_args}"}, {each = "${symbol_args}"}, "--root-slib", "${consumer.result.root.path}", {"each" = "${consumer.result.dependencies}", "field" = "path", "prefix" = "--dep-slib"}, "--runtime-objects", "${consumer.result.runtime_index}", "-o", "${work}/relinked", "--cache-dir", "${cache}", "--sysroot", "${sysroot}"]
+argv = ["${scoop-link}", {"each" = "${link_args}"}, {"each" = "${symbol_args}"}, "--enable-stack-trace=${stack_trace}", "--root-slib", "${consumer.result.root.path}", {"each" = "${consumer.result.dependencies}", "field" = "path", "prefix" = "--dep-slib"}, "--runtime-objects", "${consumer.result.runtime_index}", "-o", "${work}/programs/link/program", "--cache-dir", "${cache}", "--sysroot", "${sysroot}"]
 exit = 0
 stdout = "link-plan ${consumer.result.link_plan_fingerprint}\n"
 stderr = ""
 
 [[steps]]
 name = "run"
-argv = ["${work}/relinked"]
+argv = ["${work}/programs/link/program"]
 exit = 0
 stdout = "7\n70\n5\n24\n140\n4\n11\n7\n6\nfallback\nshared-live\n"
 stderr = ""
