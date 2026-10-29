@@ -258,9 +258,14 @@ def validate_step(step):
         if (
             step.get("json") in {"stderr", "test-stderr", "batch-stderr"}
             and "diagnostics" not in step
+            and not any(
+                ref == f"{step['name']}.diagnostics"
+                or ref.startswith(f"{step['name']}.diagnostics.")
+                for ref in references(step.get("checks", []))
+            )
         ):
             raise ConfigurationError(
-                "structured stderr requires the complete diagnostics expectation"
+                "structured stderr requires a diagnostics expectation or explicit diagnostic checks"
             )
         if "diagnostics" in step and step.get("json") not in {
             "stderr",

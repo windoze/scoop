@@ -34,7 +34,7 @@ SEH personality 与 LSDA decoder、真实 statepoint invoke、多层／大栈帧
 
 Windows 主驱动的安装名为 **`sco.exe`**，帮助和版本信息使用 `sco`。Cargo 内部 binary 名、其他可执行程序、外部命令 `scoop-` 前缀和 `SCOOP_*` 环境变量不变；macOS／Linux 继续使用 `scoop`。归档布局测试覆盖三个宿主，实际 Windows `sco new/run/test`、`sco pm`、`sco example` 均通过。
 
-文件 fixture 的 Windows 扩展仍在验收。公共 runner 的格式化／Ruff 通过，67 项规则测试完成（其中 3 项按宿主跳过）。33 个继承规则用例复用固定的共享 core 后全部通过；6 个 primitive inherited-method 用例也已通过，其中五个共享固定输入，combined 保留修改前后的真实 core 构建。较大的完整 core 构建步骤采用 900 秒测试时限；普通运行与诊断断言不变。Windows 本地化错误、LF 字节位置、COFF archive 成员、当前 runtime 字段以及泛型初始化登记的断言按实际合同调整，不通过隐藏输入或工具验收复用。
+文件 fixture 的 Windows 扩展仍在验收。公共 runner 的格式化／Ruff 通过，68 项规则测试完成（其中 3 项按宿主跳过）。33 个继承规则用例复用固定的共享 core 后全部通过；6 个 primitive inherited-method 用例也已通过，其中五个共享固定输入，combined 保留修改前后的真实 core 构建。6 个根类型错误用例精确断言被测规则诊断，去除对其他 core 源码连带错误的完整快照依赖，均已通过。较大的完整 core 构建步骤采用 900 秒测试时限；普通运行断言不变。Windows 本地化错误、LF 字节位置、COFF archive 成员、当前 runtime 字段以及泛型初始化登记的断言按实际合同调整，不通过隐藏输入或工具验收复用。
 
 ## 系统库与 native 后端
 
