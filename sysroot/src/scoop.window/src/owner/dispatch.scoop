@@ -15,7 +15,7 @@ internal fun ApplicationOwner.pump(stage: Int) {
                 beginExit()
             }
         }
-        val events = ArrayList<ApplicationEvent>()
+        val events = ArrayList<NativeNotification>()
         @Unsafe
         {
             var count = 0
@@ -35,18 +35,7 @@ internal fun ApplicationOwner.pump(stage: Int) {
         val redraw = ArrayList<WindowOwner>()
         for (window in windows) {
             if (window.phase == WindowState.Open && window.dirty) {
-                val value = window.snapshot()
-                if (
-                    value.visible !=
-                        0 &&
-                        value.occluded ==
-                        0 &&
-                        value.pixelWidth >
-                        0.0 &&
-                        value.pixelHeight >
-                        0.0
-                ) {
-                    window.dirty = false
+                if (window.readyToDraw()) {
                     redraw.add(window)
                 }
             }
@@ -130,25 +119,28 @@ internal fun ApplicationOwner.deliver(event: ApplicationEvent) {
     deliverBusiness { handler!!.onEvent(active, event) }
 }
 
-internal fun ApplicationOwner.deliverWindow(window: WindowOwner, event: WindowEvent) {
+internal fun ApplicationOwner.deliverWindow(
+    window: WindowOwner,
+    event: WindowEvent,
+    generation: Long = window.generation
+) {
     deliverBusiness {
-        if (window.phase == WindowState.Open) {
+        if (
+            (window.phase == WindowState.Open || window.phase == WindowState.PendingConfigure) &&
+                generation ==
+                window.generation
+        ) {
             var ready = true
             when (event) {
-                case GeometryChanged(value) -> window.metrics = Some(value);
+                case GeometryChanged(value) -> {
+                    window.phase = WindowState.Open
+                    window.metrics = Some(value)
+                    window.dirty = true
+                    mailbox.wake()
+                }
                 case RedrawRequested -> {
-                    val value = window.snapshot()
-                    ready =
-                        value.visible !=
-                            0 &&
-                            value.occluded ==
-                            0 &&
-                            value.pixelWidth >
-                            0.0 &&
-                            value.pixelHeight >
-                            0.0
-                    if (!ready)
-                        window.dirty = true
+                    ready = window.readyToDraw()
+                    window.dirty = !ready
                 }
                 else -> {}
             }
@@ -158,11 +150,21 @@ internal fun ApplicationOwner.deliverWindow(window: WindowOwner, event: WindowEv
     }
 }
 
-internal fun ApplicationOwner.dispatchNative(event: ApplicationEvent) {
+internal fun ApplicationOwner.dispatchNative(notification: NativeNotification) {
+    val event = notification.event
+    val generation = notification.generation
     when (event) {
         case Window(identity, notification) -> {
             val window = findWindow(identity.value) ?: return
-            deliverWindow(window, notification)
+            when (notification) {
+                case RedrawRequested -> deliverBusiness {
+                    if (window.phase == WindowState.Open && window.generation == generation) {
+                        window.dirty = true
+                        mailbox.wake()
+                    }
+                }
+                else -> deliverWindow(window, notification, generation)
+            }
         }
         case MonitorsChanged -> {
             refreshMonitors();

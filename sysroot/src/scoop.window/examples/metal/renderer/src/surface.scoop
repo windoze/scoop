@@ -70,6 +70,9 @@ public class MetalSurface private constructor(
                     val pointer =
                         when (lease.handle) {
                             case AppKit(_, view) -> nativeCreate(view)
+                            else -> throw IllegalStateException(
+                                Some("expected AppKit native handle")
+                            )
                         } ?:
                             throw WindowException(
                                 "create Metal surface",

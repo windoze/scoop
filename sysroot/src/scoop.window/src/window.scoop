@@ -19,6 +19,8 @@ public class WindowAttributes public constructor(
     public var contentProtected: Boolean = false
 ) {
     internal var titlebarFlags: Int = 0
+    internal var applicationId: String = "scoop"
+    internal var applicationInstance: String = "scoop"
 }
 
 /** An explicitly destroyed native window owned by its application's thread. */
@@ -51,19 +53,22 @@ public class Window internal constructor(internal val owner: WindowOwner) {
         size.toPhysical(1.0)
         @Unsafe
         {
-            nativeWindowSize(owner.pointer!!, size.width, size.height)
+            return owner.result(
+                nativeWindowSize(owner.pointer!!, size.width, size.height),
+                "request size"
+            )
         }
-        return RequestStatus.Requested
     }
     public fun setTitle(title: String) {
         owner.requireOpen()
+        checkNativeText(title)
         @Unsafe
         {
             title.withUtf8Bytes {
                 pointer,
                 count -> @Unsafe
                 {
-                    nativeWindowTitle(owner.pointer!!, pointer, count)
+                    owner.result(nativeWindowTitle(owner.pointer!!, pointer, count), "set title")
                 }
             }
         }
@@ -72,50 +77,82 @@ public class Window internal constructor(internal val owner: WindowOwner) {
         owner.requireOpen()
         @Unsafe
         {
-            nativeWindowVisible(
-                owner.pointer!!,
-                if (visible)
-                    1
-                else
-                    0
-            )
+            val status =
+                owner.result(
+                    nativeWindowVisible(
+                        owner.pointer!!,
+                        if (visible)
+                            1
+                        else
+                            0
+                    ),
+                    "set visibility"
+                )
+            owner.configure(nativeWindowSnapshot(owner.pointer!!))
+            if (status != RequestStatus.Unsupported)
+                owner.renderVisible = visible
+            owner.application.mailbox.wake()
+            return status
         }
-        owner.application.mailbox.wake()
-        return RequestStatus.Applied
     }
-    /** Asks AppKit to activate this window, with focus confirmed by native events. */
+    /** Requests activation, with focus confirmed by native events. */
     public fun requestFocus(): RequestStatus {
         owner.requireOpen()
         @Unsafe
         {
-            nativeWindowFocus(owner.pointer!!)
+            return owner.result(nativeWindowFocus(owner.pointer!!), "request focus")
         }
-        return RequestStatus.Requested
     }
     public val isVisible: Boolean get() = owner.snapshot().visible != 0
     public val isFocused: Boolean get() = owner.snapshot().focused != 0
     public val isOccluded: Boolean get() = owner.snapshot().occluded != 0
     public val observedTheme: Theme? get() =
-        Some(
-            if (owner.snapshot().dark != 0)
-                Theme.Dark
-            else
-                Theme.Light
-        )
+        when (owner.snapshot().dark) {
+            0 -> Some(Theme.Light)
+            1 -> Some(Theme.Dark)
+            else -> None
+        }
     public val desktopPosition: DesktopPosition? get() {
         val value = owner.snapshot();
+        if (value.positionKnown == 0)
+            return None
         return Some(DesktopPosition(value.x, value.y))
     }
     public val outerBounds: DesktopRect? get() {
         val value = owner.snapshot();
+        if (value.positionKnown == 0)
+            return None
         return Some(
             DesktopRect(DesktopPosition(value.x, value.y), value.outerWidth, value.outerHeight)
         )
     }
-    /** AppKit needs no frame callback; actual presentation belongs to the renderer. */
+    /** Arms native frame pacing before the renderer's actual buffer submission. */
     public fun prePresentNotify() {
         owner.requireOpen()
+        val snapshot = owner.snapshot()
+        if (
+            !owner.renderVisible ||
+                snapshot.configured ==
+                0 ||
+                snapshot.visible ==
+                0 ||
+                !snapshot.metrics().physicalSize.isDrawable
+        )
+            throw WindowException(
+                "pre-present requires a drawable window",
+                WindowErrorKind.InvalidState,
+                owner.application.backend
+            )
+        @Unsafe
+        {
+            owner.result(nativeWindowPrePresent(owner.pointer!!), "pre-present")
+        }
     }
+}
+
+internal fun checkNativeText(text: String) {
+    for (byte in text.toByteArray())
+        requireWindow(byte != 0, "native text contains NUL")
 }
 
 internal class WindowOwner(val application: ApplicationOwner, val id: WindowId, native: Ptr<Unit>) {
@@ -125,8 +162,55 @@ internal class WindowOwner(val application: ApplicationOwner, val id: WindowId, 
     var phase: WindowState = WindowState.Open
     var metrics: WindowMetrics? = None
     var dirty: Boolean = false
+    var renderVisible: Boolean = false
     var closingDelivered: Boolean = false
     var leases: Long = 0L
+    var generation: Long = 0L
+    fun configure(value: NativeSnapshot) {
+        generation = value.generation
+        if (value.configured == 0) {
+            phase = WindowState.PendingConfigure
+            metrics = None
+        } else {
+            phase = WindowState.Open
+            metrics = Some(value.metrics())
+        }
+    }
+    fun result(status: Int, operation: String): RequestStatus =
+        when (status) {
+            0 -> RequestStatus.Applied
+            1 -> RequestStatus.Requested
+            2 -> RequestStatus.Unsupported
+            else -> throw application.nativeError(operation)
+        }
+    fun readyToDraw(): Boolean {
+        if (phase != WindowState.Open)
+            return false
+        val published = metrics ?: return false
+        val value = snapshot()
+        return value.configured !=
+            0 &&
+            value.redrawReady !=
+            0 &&
+            value.visible !=
+            0 &&
+            value.occluded ==
+            0 &&
+            value.pixelWidth >
+            0.0 &&
+            value.pixelHeight >
+            0.0 &&
+            published.logicalSize.width ==
+            value.width &&
+            published.logicalSize.height ==
+            value.height &&
+            published.physicalSize.width.toDouble() ==
+            value.pixelWidth &&
+            published.physicalSize.height.toDouble() ==
+            value.pixelHeight &&
+            published.scaleFactor ==
+            value.scale
+    }
     fun requireOpen() {
         application.checkThread()
         if (phase != WindowState.Open && phase != WindowState.PendingConfigure)

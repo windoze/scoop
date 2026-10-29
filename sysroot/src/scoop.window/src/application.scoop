@@ -28,7 +28,7 @@ public enum WindowEvent {
     ), ThemeChanged(Theme?),
     Keyboard(KeyEvent), ModifiersChanged(Modifiers), Pointer(PointerEvent), TextInput(
         TextInputEvent
-    )
+    ), FileDrop(FileDropEvent)
 }
 
 /** Receives serial application events on the native owner thread. */
@@ -40,13 +40,13 @@ public interface ApplicationHandler {
 public class ApplicationOptions public constructor(
     public var lastWindowPolicy: LastWindowPolicy = LastWindowPolicy.KeepRunning
 ) {
-    internal var activationPolicy: Int = 0
+    internal val platformOptions: PlatformApplicationOptions = PlatformApplicationOptions()
 }
 
 /** The one application and one native main-loop run owned by this process. */
 public class Application public constructor(options: ApplicationOptions = ApplicationOptions()) {
     internal val owner: ApplicationOwner = createApplicationOwner(options)
-    /** Runs the AppKit loop until explicit, fully drained shutdown. */
+    /** Runs the native loop until explicit, fully drained shutdown. */
     public fun run(handler: ApplicationHandler) {
         owner.run(handler, None)
     }
@@ -56,6 +56,11 @@ public class Application public constructor(options: ApplicationOptions = Applic
 
 /** Owner-thread operations available while the native application is active. */
 public class ActiveApplication internal constructor(internal val owner: ApplicationOwner) {
+    /** The display backend actually connected by this application. */
+    public val backend: WindowBackend get() {
+        owner.checkThread()
+        return owner.backend!!
+    }
     /** Creates an independent native window from a snapshot of these attributes. */
     public fun createWindow(attributes: WindowAttributes = WindowAttributes()): Window =
         owner.createWindow(attributes)
@@ -88,5 +93,5 @@ private object ApplicationSlot {
 private fun createApplicationOwner(options: ApplicationOptions): ApplicationOwner {
     if (!ApplicationSlot.claimed.compareAndSet(false, true))
         throw IllegalStateException(Some("one Application per process"))
-    return ApplicationOwner(options.lastWindowPolicy, options.activationPolicy)
+    return ApplicationOwner(options.lastWindowPolicy, options.platformOptions.copy())
 }

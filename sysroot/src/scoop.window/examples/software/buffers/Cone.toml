@@ -1,0 +1,32 @@
+schema = 1
+
+[cone]
+group = "scoop.examples.window"
+name = "software-buffers"
+version = "0.1.0"
+kind = "library"
+
+[[sources]]
+path = "src"
+when = { os = "linux" }
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.platform" = "0.1.0"
+
+[native]
+c_flags = ["-D_GNU_SOURCE", "-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter"]
+
+[[native.sources]]
+path = "native/buffers.c"
+when = { os = "linux" }
+
+[[native.libraries]]
+name = "wayland-client"
+kind = "dynamic"
+when = { os = "linux" }
+
+[[native.libraries]]
+name = "X11"
+kind = "dynamic"
+when = { os = "linux" }

@@ -2,9 +2,11 @@ package scoop.window.native
 
 import scoop.window.*
 
-/** Borrowed AppKit objects; native GUI operations still require the owner thread. */
+/** Borrowed native objects; native GUI operations still require the owner thread. */
 public enum NativeWindowHandle {
-    AppKit(val nsWindow: Ptr<Unit>, val nsView: Ptr<Unit>)
+    AppKit(val nsWindow: Ptr<Unit>, val nsView: Ptr<Unit>),
+    Wayland(val display: Ptr<Unit>, val surface: Ptr<Unit>),
+    Xlib(val display: Ptr<Unit>, val windowId: ULong, val visualId: ULong, val screen: Int)
 }
 
 /** An explicit native borrow that prevents active destruction until owner-side retirement. */
@@ -15,10 +17,7 @@ public class NativeWindowLease internal constructor(private val owner: WindowOwn
         owner.application.checkThread()
         if (closed.load())
             throw IllegalStateException(Some("native window lease is closed"))
-        return NativeWindowHandle.AppKit(
-            nativeNSWindow(owner.pointer!!),
-            nativeNSView(owner.pointer!!)
-        )
+        return platformWindowHandle(owner.pointer!!)
     }
     /** Ends the borrow once, from any thread; actual release remains on the owner. */
     public override fun close() {

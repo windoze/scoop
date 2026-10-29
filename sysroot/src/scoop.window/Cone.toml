@@ -8,11 +8,27 @@ kind = "library"
 
 [[sources]]
 path = "src"
+when = { os = ["darwin", "linux"] }
+
+[[sources]]
+path = "platform/darwin"
 when = { os = "darwin" }
+
+[[sources]]
+path = "platform/linux"
+when = { os = "linux" }
 
 [[test.sources]]
 path = "tests"
+when = { os = ["darwin", "linux"] }
+
+[[test.sources]]
+path = "test-platform/darwin"
 when = { os = "darwin" }
+
+[[test.sources]]
+path = "test-platform/linux"
+when = { os = "linux" }
 
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
@@ -24,6 +40,7 @@ when = { os = "darwin" }
 "scoop.tests:window-native" = { version = "0.1.0", path = "test-native" }
 
 [native]
+c_flags = ["-D_GNU_SOURCE", "-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter"]
 objc_flags = ["-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter"]
 
 [[native.sources]]
@@ -61,15 +78,170 @@ when = { os = "darwin" }
 [[native.libraries]]
 name = "AppKit"
 kind = "framework"
+when = { os = "darwin" }
 
 [[native.libraries]]
 name = "Foundation"
 kind = "framework"
+when = { os = "darwin" }
 
 [[native.libraries]]
 name = "CoreFoundation"
 kind = "framework"
+when = { os = "darwin" }
 
 [[native.libraries]]
 name = "CoreGraphics"
 kind = "framework"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "native/linux/application.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/events.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/window.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/monitors.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/keyboard.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/wayland.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/wayland_window.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/wayland_input.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/wayland_text.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/x11.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/x11_window.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/x11_input.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/x11_pointer.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/x11_monitors.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/drop.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/wayland_drop.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/x11_drop.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/protocols/fractional-scale-v1.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/protocols/text-input-unstable-v3.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/protocols/viewporter.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/protocols/xdg-activation-v1.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/protocols/xdg-decoration-unstable-v1.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/protocols/xdg-output-unstable-v1.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/protocols/xdg-shell.c"
+when = { os = "linux" }
+
+[[native.libraries]]
+name = "wayland-client"
+kind = "dynamic"
+when = { os = "linux" }
+
+[[native.libraries]]
+name = "wayland-cursor"
+kind = "dynamic"
+when = { os = "linux" }
+
+[[native.libraries]]
+name = "xkbcommon"
+kind = "dynamic"
+when = { os = "linux" }
+
+[[native.libraries]]
+name = "decor-0"
+kind = "dynamic"
+when = { os = "linux" }
+
+[[native.libraries]]
+name = "X11"
+kind = "dynamic"
+when = { os = "linux" }
+
+[[native.libraries]]
+name = "Xi"
+kind = "dynamic"
+when = { os = "linux" }
+
+[[native.libraries]]
+name = "X11-xcb"
+kind = "dynamic"
+when = { os = "linux" }
+
+[[native.libraries]]
+name = "xkbcommon-x11"
+kind = "dynamic"
+when = { os = "linux" }
+
+[[native.libraries]]
+name = "Xrandr"
+kind = "dynamic"
+when = { os = "linux" }
+
+[[native.libraries]]
+name = "Xcursor"
+kind = "dynamic"
+when = { os = "linux" }
+
+[[native.libraries]]
+name = "Xrender"
+kind = "dynamic"
+when = { os = "linux" }

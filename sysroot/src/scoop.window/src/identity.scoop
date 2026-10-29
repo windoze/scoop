@@ -20,7 +20,7 @@ public struct DeviceId(val value: Long): Equals<DeviceId>, Hash {
 
 /** The implemented window-system backend. */
 public enum WindowBackend {
-    AppKit
+    AppKit, Wayland, X11
 }
 
 /** Whether an operation was observed, requested, or has no platform implementation. */
@@ -37,7 +37,7 @@ public enum WindowErrorKind {
 public class WindowException public constructor(
     public val operation: String,
     public val kind: WindowErrorKind,
-    public val backend: WindowBackend = WindowBackend.AppKit,
+    public val backend: WindowBackend? = None,
     public val nativeCode: Long? = None
 ): Exception(Some("window operation failed: " + operation))
 

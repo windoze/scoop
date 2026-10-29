@@ -1,0 +1,97 @@
+package scoop.window.platform.linux
+
+import scoop.window.*
+
+/** Copies surrounding text for text-input-v3; XIM has no corresponding operation. */
+public fun Window.setLinuxTextInputState(state: TextInputState): RequestStatus {
+    owner.requireOpen()
+    state.validate()
+    checkNativeText(state.surroundingText)
+    val surrounding = linuxSurrounding(state) ?: return RequestStatus.Unsupported
+    @Unsafe
+    {
+        return surrounding.text.withUtf8Bytes(
+            fun(bytes: Ptr<UInt8>, length: Long): RequestStatus {
+                @Unsafe
+                {
+                    return owner.result(
+                        nativeLinuxTextState(
+                            owner.pointer!!,
+                            bytes,
+                            length,
+                            surrounding.selection.anchor.toInt(),
+                            surrounding.selection.cursor.toInt(),
+                            state.revision,
+                            state.caretRect.origin.x,
+                            state.caretRect.origin.y,
+                            state.caretRect.size.width,
+                            state.caretRect.size.height
+                        ),
+                        "set text input state"
+                    )
+                }
+            }
+        )
+    }
+}
+
+internal struct LinuxSurrounding(val text: String, val selection: Utf8Selection)
+
+internal fun linuxSurrounding(state: TextInputState): LinuxSurrounding? {
+    var text = state.surroundingText
+    var anchor = state.selection.anchor
+    var cursor = state.selection.cursor
+    when (state.markedRange) {
+        case Some(range) -> {
+            text =
+                textSlice(text, Utf8Range(0L, range.start)) +
+                    textSlice(text, Utf8Range(range.end, text.byteLength))
+            anchor = withoutMarked(anchor, range)
+            cursor = withoutMarked(cursor, range)
+        }
+        case None -> {}
+    }
+    val selection = Utf8Selection(anchor, cursor).range
+    if (selection.end - selection.start > 4000L)
+        return None
+    val bytes = text.toByteArray()
+    var start = selection.start - (4000L - (selection.end - selection.start)) / 2L
+    if (start < 0L)
+        start = 0L
+    while (start < selection.start && bytes[start].toInt().and(192) == 128)
+        start += 1L
+    var end = start + 4000L
+    if (end > bytes.size)
+        end = bytes.size
+    while (end < bytes.size && bytes[end].toInt().and(192) == 128)
+        end -= 1L
+    return Some(
+        LinuxSurrounding(
+            textSlice(text, Utf8Range(start, end)),
+            Utf8Selection(anchor - start, cursor - start)
+        )
+    )
+}
+
+private fun withoutMarked(offset: Long, range: Utf8Range): Long =
+    if (offset <= range.start)
+        offset
+    else
+        if (offset >= range.end)
+            offset - (range.end - range.start)
+        else
+            range.start
+
+@Extern(name = "scoop_window_linux_text_state")
+private fun nativeLinuxTextState(
+    window: Ptr<Unit>,
+    bytes: Ptr<UInt8>,
+    length: Long,
+    anchor: Int,
+    cursor: Int,
+    revision: Long,
+    x: Double,
+    y: Double,
+    width: Double,
+    height: Double
+): Int

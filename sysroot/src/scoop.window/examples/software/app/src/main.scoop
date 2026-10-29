@@ -1,0 +1,151 @@
+package scoop.examples.window.software
+
+import scoop.examples.window.buffers.SoftwareBuffers
+import scoop.platform.env.environmentVariable
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+import scoop.window.*
+import scoop.window.native.*
+import scoop.window.platform.linux.*
+
+public fun main() {
+    runSoftwareWindow(false)
+}
+
+internal struct RunResult(val frames: Int, val closed: Boolean, val destroyed: Boolean)
+
+internal fun runSoftwareWindow(test: Boolean): RunResult {
+    val options = ApplicationOptions(LastWindowPolicy.Exit)
+    val backend = environmentVariable("SCOOP_WINDOW_BACKEND")?.decodeUtf8() ?: "automatic"
+    options.setLinuxBackend(
+        when (backend) {
+            "x11" -> LinuxBackend.X11Only
+            "wayland" -> LinuxBackend.WaylandOnly
+            "automatic" -> LinuxBackend.Automatic
+            else -> throw IllegalArgumentException(Some("unknown window backend"))
+        }
+    )
+    val handler = SoftwareWindow(test)
+    Application(options).run(handler)
+    return RunResult(handler.frames, handler.closed, handler.destroyed)
+}
+
+private class SoftwareWindow(val test: Boolean): ApplicationHandler {
+    var window: Window? = None
+    var lease: NativeWindowLease? = None
+    var buffers: SoftwareBuffers? = None
+    var text = TextInputState("", Utf8Selection(0L, 0L))
+    var frames = 0
+    var closed = false
+    var destroyed = false
+
+    public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
+        when (event) {
+            case Resumed -> start(application)
+            case NewEvents(StartCause.Deadline) -> throw IllegalStateException(
+                Some("software window timed out")
+            )
+            case Window(_, WindowEvent.RedrawRequested) -> draw()
+            case Window(_, WindowEvent.CloseRequested) -> application.requestExit()
+            case Window(_, WindowEvent.Keyboard(value)) -> {
+                if (value.state == ElementState.Pressed) {
+                    when (value.logicalKey) {
+                        case Named(NamedKey.Escape) -> application.requestExit()
+                        else -> window!!.requestRedraw()
+                    }
+                }
+            }
+            case Window(_, WindowEvent.TextInput(TextInputEvent.Edit(batch))) -> {
+                try {
+                    text = text.apply(batch)
+                } catch (_: IllegalStateException) {}
+                window!!.setLinuxTextInputState(text)
+                window!!.setTitle("Scoop — " + text.surroundingText)
+                window!!.requestRedraw()
+            }
+            case Window(_, WindowEvent.FileDrop(FileDropEvent.Drop(paths))) -> {
+                if (paths.size > 0L)
+                    window!!.setTitle(paths[0L].display())
+                window!!.requestRedraw()
+            }
+            case Window(_, WindowEvent.Closing) -> {
+                try {
+                    when (buffers) {
+                        case Some(value) -> value.close();
+                        case None -> {}
+                    }
+                } finally {
+                    when (lease) {
+                        case Some(value) -> value.close();
+                        case None -> {}
+                    }
+                    closed = true
+                }
+            }
+            case Window(_, WindowEvent.Destroyed) -> destroyed = true
+            else -> {}
+        }
+    }
+
+    private fun start(application: ActiveApplication) {
+        val attributes =
+            WindowAttributes(
+                "Scoop software window",
+                LogicalSize(640.0, 400.0),
+                requestActivation = false
+            )
+        attributes.setLinuxApplicationId("org.scoop.SoftwareWindow")
+        val value = application.createWindow(attributes)
+        window = Some(value)
+        @Unsafe
+        {
+            val held = value.acquireNativeWindow()
+            lease = Some(held)
+            buffers =
+                Some(
+                    when (held.handle) {
+                        case Wayland(display, surface) -> SoftwareBuffers.forWayland(
+                            display,
+                            surface
+                        )
+                        case Xlib(display, id, visual, screen) -> SoftwareBuffers.forXlib(
+                            display,
+                            id,
+                            visual,
+                            screen
+                        )
+                        case AppKit(_, _) -> throw IllegalStateException(
+                            Some("software example requires Linux")
+                        )
+                    }
+                )
+        }
+        value.setLinuxTextInputState(text)
+        value.setImeAllowed(true)
+        value.requestRedraw()
+        if (test)
+            application.setControlFlow(
+                ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(10L))
+            )
+    }
+
+    private fun draw() {
+        val value = window!!
+        val metrics = value.metrics ?: return
+        if (!value.isVisible || !metrics.physicalSize.isDrawable)
+            return
+        value.prePresentNotify()
+        buffers!!.present(
+            metrics.physicalSize.width,
+            metrics.physicalSize.height,
+            0x3aaed8u + frames.toUInt() * 0x001909u
+        )
+        frames += 1
+        if (test) {
+            if (frames == 5)
+                value.requestDestroy()
+            else
+                value.requestRedraw()
+        }
+    }
+}

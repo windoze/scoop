@@ -5,26 +5,7 @@
 #import <CoreFoundation/CoreFoundation.h>
 #include <stdint.h>
 
-typedef int32_t (*SWCallback)(void *, int64_t, int32_t);
-typedef struct {
-  int64_t window;
-  int32_t kind, flags;
-  int64_t a, b, c, d;
-  double x, y, z, w, scale, dx, dy;
-  const uint8_t *text;
-  int64_t text_length;
-} SWEventData;
-typedef struct {
-  int32_t kind;
-  int64_t anchor, cursor;
-  const uint8_t *text;
-  int64_t text_length;
-} SWTextEditData;
-typedef struct {
-  double width, height, pixel_width, pixel_height, scale;
-  double x, y, outer_width, outer_height;
-  int32_t visible, occluded, focused, minimized, maximized, dark;
-} SWSnapshot;
+#include "../abi.h"
 
 @class SWApplication, SWWindow;
 
@@ -82,13 +63,6 @@ typedef struct {
 - (void)cancelComposition;
 @end
 
-enum {
-  SWKeyboard = 10,
-  SWModifiers = 11,
-  SWPointer = 12,
-  SWTextBatch = 13,
-  SWImeState = 14
-};
 void sw_commit(SWView *view, NSString *text);
 void sw_modifiers(SWView *view, NSEventModifierFlags flags);
 

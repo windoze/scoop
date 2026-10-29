@@ -6,8 +6,40 @@ name = "window-native"
 version = "0.1.0"
 kind = "library"
 
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+"scoop:scoop.platform" = "0.1.0"
+"scoop:scoop.test" = "0.1.0"
+
+[[sources]]
+path = "common"
+
+[[sources]]
+path = "src"
+when = { os = "darwin" }
+
+[[sources]]
+path = "platform/linux"
+when = { os = "linux" }
+
 [native]
+c_flags = ["-D_GNU_SOURCE", "-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter"]
 objc_flags = ["-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter"]
+
+[[native.sources]]
+path = "../examples/software/buffers/native/buffers.c"
+when = { os = "linux" }
+
+[[native.libraries]]
+name = "wayland-client"
+kind = "dynamic"
+when = { os = "linux" }
+
+[[native.libraries]]
+name = "X11"
+kind = "dynamic"
+when = { os = "linux" }
 
 [[native.sources]]
 path = "native/modes.m"
@@ -24,11 +56,14 @@ when = { os = "darwin" }
 [[native.libraries]]
 name = "AppKit"
 kind = "framework"
+when = { os = "darwin" }
 
 [[native.libraries]]
 name = "CoreFoundation"
 kind = "framework"
+when = { os = "darwin" }
 
 [[native.libraries]]
 name = "CoreGraphics"
 kind = "framework"
+when = { os = "darwin" }

@@ -1,0 +1,66 @@
+package scoop.window
+
+import scoop.window.native.NativeWindowHandle
+
+internal class PlatformApplicationOptions {
+    var activationPolicy: Int = 0
+    fun copy(): PlatformApplicationOptions {
+        val result = PlatformApplicationOptions()
+        result.activationPolicy = activationPolicy
+        return result
+    }
+}
+
+@Unsafe
+internal fun platformApplicationCreate(
+    callback: FunPtr<(Ptr<Unit>, Long, Int) -> Int>,
+    context: Ptr<Unit>,
+    options: PlatformApplicationOptions
+): Ptr<Unit>? = nativeApplicationCreate(callback, context, options.activationPolicy)
+
+internal fun platformCreationError(): WindowException =
+    WindowException("create application", WindowErrorKind.NativeFailure, Some(WindowBackend.AppKit))
+
+@Unsafe
+internal fun platformBackend(application: Ptr<Unit>): WindowBackend = WindowBackend.AppKit
+
+@Unsafe
+internal fun platformNativeError(application: Ptr<Unit>, operation: String): WindowException =
+    WindowException(operation, WindowErrorKind.NativeFailure, Some(WindowBackend.AppKit))
+
+@Unsafe
+internal fun platformWindowHandle(window: Ptr<Unit>): NativeWindowHandle =
+    NativeWindowHandle.AppKit(nativeNSWindow(window), nativeNSView(window))
+
+internal fun applyPlatformCreationProperties(owner: WindowOwner, attributes: WindowAttributes) {
+    @Unsafe
+    {
+        nativeWindowTitlebar(owner.pointer!!, attributes.titlebarFlags)
+    }
+}
+
+internal fun platformPhysicalKey(code: Long): PhysicalKey = darwinPhysicalKey(code)
+
+internal fun platformNamedKey(event: NativeEvent): NamedKey? = darwinNamedKey(event.a)
+
+internal fun platformKeyLocation(code: Long): KeyLocation = darwinKeyLocation(code)
+
+internal fun platformNativeKeyCode(code: Long): NativeKeyCode = NativeKeyCode.Darwin(code.toUInt())
+
+internal fun platformModifiers(flags: Long): Modifiers = darwinModifiers(flags)
+
+@Extern(name = "scoop_window_application_create")
+private fun nativeApplicationCreate(
+    callback: FunPtr<(Ptr<Unit>, Long, Int) -> Int>,
+    context: Ptr<Unit>,
+    policy: Int
+): Ptr<Unit>?
+
+@Extern(name = "scoop_window_ns_window")
+private fun nativeNSWindow(window: Ptr<Unit>): Ptr<Unit>
+
+@Extern(name = "scoop_window_ns_view")
+private fun nativeNSView(window: Ptr<Unit>): Ptr<Unit>
+
+@Extern(name = "scoop_window_titlebar")
+internal fun nativeWindowTitlebar(window: Ptr<Unit>, flags: Int)

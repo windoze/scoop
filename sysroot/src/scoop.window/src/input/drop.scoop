@@ -1,0 +1,129 @@
+package scoop.window
+
+import scoop.platform.fs.Path
+import scoop.platform.system.OsString
+
+/** An accepted local-file drag ends with Drop or Leave after Enter. */
+public enum FileDropEvent {
+    Enter(Array<Path>), Drop(Array<Path>), Leave
+}
+
+internal fun copyNativeFileDrop(event: NativeEvent): FileDropEvent {
+    if (event.flags == 2)
+        return FileDropEvent.Leave
+    @Unsafe
+    {
+        val bytes =
+            Array<Byte>(
+                event.textLength,
+                fun(index: Long): Byte {
+                    @Unsafe
+                    {
+                        return event.text!!.load(index).toByte()
+                    }
+                }
+            )
+        val paths = localFileUris(bytes)
+        return when (event.flags) {
+            0 -> FileDropEvent.Enter(paths)
+            1 -> FileDropEvent.Drop(paths)
+            else -> throw WindowException("unknown file drop event", WindowErrorKind.NativeFailure)
+        }
+    }
+}
+
+/** URI escaping is decoded into native bytes, without a lossy Unicode conversion. */
+internal fun localFileUris(bytes: Array<Byte>): Array<Path> {
+    val paths = ArrayList<Path>()
+    var start = 0L
+    while (start < bytes.size) {
+        var end = start
+        while (end < bytes.size && bytes[end] != 10)
+            end += 1L
+        var contentEnd = end
+        if (contentEnd > start && bytes[contentEnd - 1L] == 13)
+            contentEnd -= 1L
+        when (localFileUri(bytes, start, contentEnd)) {
+            case Some(path) -> paths.add(path)
+            case None -> {}
+        }
+        start = end + 1L
+    }
+    return paths.toArray()
+}
+
+private fun asciiLower(value: Byte): Int {
+    val code = value.toInt().and(255)
+    return if (code >= 65 && code <= 90)
+        code + 32
+    else
+        code
+}
+
+private fun localFileUri(bytes: Array<Byte>, start: Long, end: Long): Path? {
+    if (
+        end -
+            start <
+            6L ||
+            asciiLower(bytes[start]) !=
+            102 ||
+            asciiLower(bytes[start + 1L]) !=
+            105 ||
+            asciiLower(bytes[start + 2L]) !=
+            108 ||
+            asciiLower(bytes[start + 3L]) !=
+            101 ||
+            bytes[start + 4L] !=
+            58
+    )
+        return None
+    var cursor = start + 5L
+    if (bytes[cursor] != 47)
+        return None
+    if (cursor + 1L < end && bytes[cursor + 1L] == 47) {
+        cursor += 2L
+        val authority = cursor
+        while (cursor < end && bytes[cursor] != 47)
+            cursor += 1L
+        if (cursor == end)
+            return None
+        if (cursor != authority) {
+            val local = "localhost".toByteArray()
+            if (cursor - authority != local.size)
+                return None
+            for (index in 0L ..< local.size)
+                if (asciiLower(bytes[authority + index]) != local[index].toInt())
+                    return None
+        }
+    }
+    val decoded = ArrayList<Byte>()
+    while (cursor < end) {
+        var byte = bytes[cursor]
+        if (byte == 37) {
+            if (cursor + 2L >= end)
+                return None
+            val high = uriHex(bytes[cursor + 1L])
+            val low = uriHex(bytes[cursor + 2L])
+            if (high < 0 || low < 0)
+                return None
+            byte = (high * 16 + low).toByte()
+            cursor += 2L
+        } else
+            if (byte == 35 || byte == 63 || byte.toInt().and(255) <= 32)
+                return None
+        if (byte == 0)
+            return None
+        decoded.add(byte)
+        cursor += 1L
+    }
+    return Some(Path.fromOsString(OsString.fromByteArray(decoded)))
+}
+
+private fun uriHex(value: Byte): Int {
+    val code = asciiLower(value)
+    if (code >= 48 && code <= 57)
+        return code - 48
+    if (code >= 97 && code <= 102)
+        return code - 87
+    return -1
+}

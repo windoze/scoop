@@ -1,0 +1,299 @@
+package scoop.window
+
+import scoop.tests.window.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.concurrent.currentThreadId
+import scoop.platform.env.environmentVariable
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+import scoop.test.*
+import scoop.window.native.*
+import scoop.window.platform.linux.*
+
+internal fun linuxTestOptions(): ApplicationOptions {
+    val options = ApplicationOptions(LastWindowPolicy.Exit)
+    val name = environmentVariable("SCOOP_WINDOW_BACKEND")?.decodeUtf8() ?: "automatic"
+    options.setLinuxBackend(
+        when (name) {
+            "wayland" -> LinuxBackend.WaylandOnly
+            "x11" -> LinuxBackend.X11Only
+            "automatic" -> LinuxBackend.Automatic
+            else -> throw IllegalArgumentException(Some("unknown SCOOP_WINDOW_BACKEND"))
+        }
+    )
+    return options
+}
+
+@Unsafe
+internal fun testBuffers(lease: NativeWindowLease): Ptr<Unit> =
+    when (lease.handle) {
+        case Wayland(display, surface) -> createWaylandTestBuffers(display, surface)!!
+        case Xlib(display, window, visual, screen) -> createXlibTestBuffers(
+            display,
+            window,
+            visual,
+            screen
+        )!!
+        case AppKit(_, _) -> throw IllegalStateException(Some("unexpected AppKit handle on Linux"))
+    }
+
+@Test
+private class LinuxApplicationTest {
+    @Test
+    fun `real windows remap and submit buffers before cross-thread leases retire`() {
+        runWindowTest("real windows remap and submit buffers before cross-thread leases retire") {
+            val app = Application(linuxTestOptions())
+            val handler = LinuxLifecycle(app.proxy())
+            assertTrue(app.proxy().post { _ -> handler.order.add(1) })
+            assertTrue(app.proxy().post { _ -> handler.order.add(2) })
+            app.run(handler)
+            handler.worker!!.join()
+            handler.releaseWorker!!.join()
+            assertEquals(3, handler.frames)
+            assertEquals(2, handler.closing)
+            assertEquals(2, handler.destroyed)
+            assertEquals(1, handler.exiting)
+            assertTrue(handler.wrongThread.load())
+            assertEquals(3L, handler.order.size)
+            for (index in 0L ..< 3L)
+                assertEquals((index + 1L).toInt(), handler.order[index])
+            assertEquals(WindowState.Destroyed, handler.window!!.state)
+            assertFalse(app.proxy().post { _ -> fail() })
+            assertFalse(app.proxy().requestExit())
+            assertFailsWith<WindowException> { handler.window!!.setTitle("closed") }
+            assertFailsWith<IllegalStateException> { app.run(handler) }
+        }
+    }
+
+    @Test
+    fun `explicit unavailable backend fails without falling back to a live display`() {
+        runWindowTest("explicit unavailable backend fails without falling back to a live display") {
+            val options = ApplicationOptions()
+            options.setLinuxBackend(LinuxBackend.WaylandOnly, Some("scoop-window-does-not-exist"))
+            val app = Application(options)
+            val error = assertFailsWith<WindowException> { app.run(UnexpectedHandler()) }
+            assertEquals(WindowErrorKind.Unavailable, error.kind)
+            assertEquals(Some(WindowBackend.Wayland), error.backend)
+            assertFailsWith<IllegalStateException> { app.run(UnexpectedHandler()) }
+        }
+    }
+
+    @Test
+    fun `wait until wakes at the monotonic deadline without a window`() {
+        runWindowTest("wait until wakes at the monotonic deadline without a window") {
+            val app = Application(linuxTestOptions())
+            val handler = DeadlineHandler()
+            app.run(handler)
+            assertEquals(1, handler.deadlines)
+            assertEquals(1, handler.exits)
+        }
+    }
+}
+
+private class UnexpectedHandler: ApplicationHandler {
+    public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
+        fail(Some("unavailable display dispatched an event"))
+    }
+}
+
+private class DeadlineHandler: ApplicationHandler {
+    var deadlines = 0
+    var exits = 0
+    public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
+        when (event) {
+            case Resumed -> application.setControlFlow(
+                ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.milliseconds(20L))
+            )
+            case NewEvents(StartCause.Deadline) -> {
+                deadlines += 1;
+                application.requestExit()
+            }
+            case Exiting -> exits += 1
+            else -> {}
+        }
+    }
+}
+
+private class LinuxLifecycle(val proxy: ApplicationProxy): ApplicationHandler {
+    val thread = currentThreadId()
+    val wrongThread = AtomicBoolean(false)
+    val order = ArrayList<Int>()
+    var window: Window? = None
+    var lease: NativeWindowLease? = None
+    var buffers: Ptr<Unit>? = None
+    var worker: Thread? = None
+    var releaseWorker: Thread? = None
+    var frames = 0
+    var closing = 0
+    var destroyed = 0
+    var exiting = 0
+    var depth = 0
+
+    public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
+        assertEquals(thread, currentThreadId())
+        assertEquals(0, depth)
+        depth += 1
+        try {
+            when (event) {
+                case Resumed -> start(application)
+                case NewEvents(StartCause.Deadline) -> fail(
+                    Some("Linux window deadline: frames=" + frames.toString())
+                )
+                case Window(identity, WindowEvent.GeometryChanged(value)) -> {
+                    if (identity == window!!.id) {
+                        assertEquals(value, window!!.metrics!!)
+                        assertEquals(
+                            value.logicalSize.toPhysical(value.scaleFactor),
+                            value.physicalSize
+                        )
+                    }
+                }
+                case Window(identity, WindowEvent.RedrawRequested) -> {
+                    assertEquals(window!!.id, identity)
+                    draw(application)
+                }
+                case Window(identity, WindowEvent.Closing) -> {
+                    closing += 1
+                    if (identity == window!!.id) {
+                        assertFailsWith<WindowException> {
+                            @Unsafe
+                            {
+                                window!!.acquireNativeWindow()
+                            }
+                        }
+                        @Unsafe
+                        {
+                            destroyTestBuffers(buffers!!)
+                        }
+                        val held = lease!!
+                        releaseWorker =
+                            Some(
+                                Thread.start {
+                                    held.close();
+                                    held.close()
+                                }
+                            )
+                    }
+                }
+                case Window(_, WindowEvent.Destroyed) -> destroyed += 1
+                case Exiting -> exiting += 1
+                else -> {}
+            }
+        } finally {
+            depth -= 1
+        }
+    }
+
+    private fun start(application: ActiveApplication) {
+        val attributes =
+            WindowAttributes(
+                "Scoop Linux lifecycle",
+                LogicalSize(320.0, 180.0),
+                visible = false,
+                requestActivation = false
+            )
+        attributes.setLinuxApplicationId("org.scoop.Lifecycle", "lifecycle")
+        val first = application.createWindow(attributes)
+        window = Some(first)
+        assertFalse(first.isVisible)
+        if (application.backend == WindowBackend.Wayland) {
+            assertEquals(WindowState.PendingConfigure, first.state)
+            assertEquals(None, first.metrics)
+            assertEquals(None, first.desktopPosition)
+            assertEquals(None, application.primaryMonitor())
+            assertEquals(
+                RequestStatus.Unsupported,
+                first.requestPosition(DesktopPosition(5.0, 7.0))
+            )
+        } else {
+            assertEquals(WindowBackend.X11, application.backend)
+            assertEquals(LogicalSize(320.0, 180.0), first.metrics!!.logicalSize)
+            assertTrue(first.desktopPosition != None)
+        }
+        for (monitor in application.monitors()) {
+            assertTrue(monitor.scaleFactor > 0.0)
+            assertTrue(monitor.physicalSize.width > 0)
+        }
+        assertEquals(
+            RequestStatus.Requested,
+            first.setSizeConstraints(
+                WindowSizeConstraints(
+                    Some(LogicalSize(100.0, 80.0)),
+                    Some(LogicalSize(640.0, 480.0))
+                )
+            )
+        )
+        assertFailsWith<IllegalArgumentException> { first.requestSize(LogicalSize(700.0, 100.0)) }
+        first.setTitle("Scoop Linux remap")
+        first.requestRedraw();
+        first.requestRedraw()
+        val second =
+            application.createWindow(WindowAttributes(visible = false, requestActivation = false))
+        assertNotEquals(first.id, second.id)
+        second.requestDestroy();
+        second.requestDestroy()
+        @Unsafe
+        {
+            lease = Some(first.acquireNativeWindow())
+            buffers = Some(testBuffers(lease!!))
+        }
+        worker =
+            Some(
+                Thread.start {
+                    assertFailsWith<IllegalStateException> { first.setTitle("wrong thread") }
+                    wrongThread.store(true)
+                    assertTrue(
+                        proxy.post {
+                            _ ->
+                            order.add(3);
+                            first.setVisible(true);
+                            first.requestRedraw()
+                        }
+                    )
+                }
+            )
+        application.setControlFlow(
+            ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(10L))
+        )
+    }
+
+    private fun draw(application: ActiveApplication) {
+        val first = window!!
+        val metrics = first.metrics!!
+        assertEquals(WindowState.Open, first.state)
+        assertTrue(first.isVisible && metrics.physicalSize.isDrawable)
+        first.prePresentNotify()
+        @Unsafe
+        {
+            assertEquals(
+                0,
+                presentTestBuffers(
+                    buffers!!,
+                    metrics.physicalSize.width,
+                    metrics.physicalSize.height,
+                    0x3aaed8u
+                )
+            )
+        }
+        frames += 1
+        if (frames == 1) {
+            first.requestRedraw();
+            first.requestRedraw()
+        }
+        else
+            if (frames == 2) {
+                first.setVisible(false)
+                if (application.backend == WindowBackend.Wayland) {
+                    assertEquals(WindowState.PendingConfigure, first.state)
+                    assertEquals(None, first.metrics)
+                    assertFailsWith<WindowException> { first.prePresentNotify() }
+                }
+                first.requestSize(LogicalSize(360.0, 210.0))
+                first.setVisible(true)
+                first.requestRedraw()
+            } else {
+                assertEquals(LogicalSize(360.0, 210.0), metrics.logicalSize)
+                first.requestDestroy()
+            }
+    }
+}

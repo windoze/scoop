@@ -17,7 +17,7 @@ public class WindowLoopHost public constructor(private val host: ApplicationHost
                 host.watchReadable(descriptor, ready)
             )
             case WindowsEvent(_) -> throw IllegalArgumentException(
-                Some("AppKit requires a readable descriptor")
+                Some("this window backend requires a readable descriptor")
             )
         }
     }

@@ -16,7 +16,7 @@ public struct TitlebarOptions(
 
 /** Copies the desired AppKit activation policy into construction options. */
 public fun ApplicationOptions.setMacOSActivationPolicy(policy: ActivationPolicy) {
-    activationPolicy =
+    platformOptions.activationPolicy =
         when (policy) {
             case Regular -> 0;
             case Accessory -> 1;

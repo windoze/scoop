@@ -2,7 +2,7 @@
 
 状态：基础架构与 macOS GUI 骨架已实现，Linux Wayland／X11 阶段实施中。更新：2026-10-30。当前阶段按第 10 节与第 12 节第 3 项完成 Linux；Windows 及其他窗口后端另行实施。macOS 验收见 [PROGRESS.md](PROGRESS.md)，Linux 实施与验收见 [LINUX-PROGRESS.md](LINUX-PROGRESS.md)，使用方式见[窗口库 README](../../sysroot/src/scoop.window/README.md)。
 
-本轮按 winit 的职责搭建可供 GUI 使用的骨架：真实窗口／主循环、显式生命周期与 proxy、基础窗口属性、DPI／显示器快照、键盘／指针／滚轮／文本输入、native lease、renderer 和 asyncio 接入。winit 的完整能力地图用于确定边界和后续扩展方向，不要求本轮复制它的全部平台扩展。全屏控制／显示模式切换、全局原始设备监听、触摸／高级手势、光标捕获、文件拖放及平台专有的复杂窗口交互分批补充；未实施项不以 Unsupported 伪装成平台不支持。控件、布局、菜单体系和应用编辑器仍由上层 GUI 实现。
+本轮按 winit 的职责搭建可供 GUI 使用的骨架：真实窗口／主循环、显式生命周期与 proxy、基础窗口属性、DPI／显示器快照、键盘／指针／滚轮／文本输入、native lease、renderer 和 asyncio 接入。winit 的完整能力地图用于确定边界和后续扩展方向，不要求本轮复制它的全部平台扩展。全屏控制／显示模式切换、全局原始设备监听、触摸／高级手势、光标捕获及平台专有的复杂窗口交互分批补充；Linux 文件拖放在第 10 节阶段实施；未实施项不以 Unsupported 伪装成平台不支持。控件、布局、菜单体系和应用编辑器仍由上层 GUI 实现。
 
 目标是为 Skia／HarfBuzz 上层 GUI 提供 winit 对应的窗口、输入、显示器与主循环能力。公共 API 使用 Scoop，平台实现使用成熟的系统／协议库。功能基线取 [winit 0.30.13](https://docs.rs/winit/0.30.13/winit/)，另参考 0.31 beta 的演进方向，不追随其未稳定 API；逐项范围见 [WINIT-MAPPING.md](WINIT-MAPPING.md)，目标合同见[窗口库规范草案](../specs/SCOOP-WINDOW-SPEC.md)。
 
@@ -228,7 +228,7 @@ Linux 扩展 `ApplicationOptions.setLinuxBackend(LinuxBackend, displayName?)` �
 
 ### 10.2 Wayland
 
-使用 libwayland-client；协议优先 xdg-shell，按 compositor 宣告协商 text-input-v3、fractional-scale／viewporter、pointer-constraints／relative-pointer、pointer-gestures、xdg-activation、xdg-decoration 等。协议缺失通过能力和 Unsupported 表达，不承诺全局定位、强制聚焦、独占显示模式或任意鼠标 warp。
+使用 libwayland-client，要求 wl_compositor v4 或更新版本；协议优先 xdg-shell，按 compositor 宣告协商 text-input-v3、fractional-scale／viewporter、pointer-constraints／relative-pointer、pointer-gestures、xdg-activation、xdg-decoration 等。协议缺失通过能力和 Unsupported 表达，不承诺全局定位、强制聚焦、独占显示模式或任意鼠标 warp。
 
 等待严格执行 dispatch_pending → prepare_read → flush → poll → read_events／cancel_read，再 dispatch；prepare 成功后每条退出路径必须 read 或 cancel。flush 返回 EAGAIN 时临时监听可写；其他 fd 唤醒也要取消已准备的读取。禁止直接用 io_uring recv 消费 wl_display fd，或让多个 reader 争用同一协议队列。[Wayland client 合同](https://wayland.freedesktop.org/docs/html/apb.html)。
 
@@ -240,7 +240,7 @@ setVisible(false) 先与 renderer 串行停止新 buffer 提交，再以 null bu
 
 ### 10.3 X11
 
-Xlib 持有唯一 Display 与事件读取；XKB／libxkbcommon 归一键位，XIM／XIC 和 UTF-8 lookup 负责输入法，XInput2 负责可用的 raw／touch，XRandR 负责显示器／模式／热插拔，Xcursor 负责光标。不能混用 Xlib 与 XCB 作为同一连接的独立事件消费者。[libxkbcommon 官方说明](https://xkbcommon.org/doc/current/)。
+Xlib 持有唯一 Display 与事件读取；XKB／libxkbcommon 归一键位，XIM／XIC 和 UTF-8 lookup 负责输入法，XInput2 负责指针及平滑滚轮，raw／touch 随后续公共设备接口实施，XRandR 负责显示器／模式／热插拔，Xcursor 负责光标。不能混用 Xlib 与 XCB 作为同一连接的独立事件消费者。[libxkbcommon 官方说明](https://xkbcommon.org/doc/current/)。
 
 实现 WM_DELETE_WINDOW、EWMH 状态、configure、焦点与 XDND 文件拖放。尺寸、置顶、激活和全屏请求需等待 WM 事实确认；窗口管理器可以忽略建议。X11 error handler 的进程级属性必须由本库自有 Application 边界管理，捕获请求相关错误，不能把异步 X error 当一次 setter 已成功，也不能静默覆盖宿主的既有 Xlib 策略。
 
@@ -250,7 +250,7 @@ Linux 首期按真实桌面依赖动态链接，GNU／musl 各自使用兼容 he
 
 生成的 Wayland 协议 C 源码在维护／发行准备阶段用固定 scanner 版本生成并作为普通输入携带；消费预编译 Cone 不临时联网、不自动运行依赖安装器。缺失库和 display 按普通构建／运行错误报告。是否允许无显示器环境启动由明确的测试宿主决定，不用一个假窗口后端冒充桌面实现。
 
-本阶段固定 wayland-scanner 1.24.0 与 wayland-protocols 1.47，协议 XML、许可证及生成的 client header／private C code 随仓库保存。桌面构建基线为 libwayland 1.24.0、libxkbcommon 1.13.1、libdecor 0.2.5，装饰使用 C cairo 插件；X11 使用发行版维护的 Xlib／XKB、XI2、XRandR 和 Xcursor。它们通过普通 Cone 的动态 native libraries 声明进入依赖闭包，不新增 compiler/runtime 桌面后端。
+本阶段固定 wayland-scanner 1.24.0 与 wayland-protocols 1.47，协议 XML、许可证及生成的 client header／private C code 随仓库保存。桌面构建基线为 libwayland 1.24.0、libxkbcommon 1.13.1、libdecor 0.2.5，发行装饰基线使用 C cairo 插件；X11 使用发行版维护的 Xlib／XKB、Xlib-xcb／libxkbcommon-x11、XI2、XRandR 和 Xcursor。它们通过普通 Cone 的动态 native libraries 声明进入依赖闭包，不新增 compiler/runtime 桌面后端。
 
 ## 11. Windows 基础与后续窗口后端
 
@@ -278,7 +278,7 @@ Windows 后端要求创建窗口的 owner 使用 Per-Monitor V2。应用优先�
 4. 在已有基础光标、monitor、主题和窗口属性之上，按映射表分批补充 touch／gesture／raw device、全屏控制及高级可选属性；每项“平台不支持”均有真实 capability 依据和明确结果。
 5. 每个阶段以配套示例、真实目标测试和明确限制独立交付。当前基础架构／macOS 骨架阶段与完整能力地图分别记录；Linux、Windows 窗口及平台专测另行安排，平台基础分支通过不等于窗口可用。
 
-纯值／归一规则、状态、错误与普通 API 行为用所属 Cone 的 scoop.test；真实窗口与 callback 测试使用主线程测试程序，必要的 OS 进程控制／ABI／native 编译能力才用少量 fixture。当前目标为真实 macOS；后续 Linux 验收覆盖 Wayland compositor、X11 WM 及 GNU／musl 库。Xvfb 或 headless compositor 可覆盖自动化行为，但不能替代实体显示器、输入法候选交互与真实用户拖动的手工验证。
+纯值／归一规则、状态、错误与普通 API 行为用所属 Cone 的 scoop.test；真实窗口与 callback 测试使用主线程测试程序，必要的 OS 进程控制／ABI／native 编译能力才用少量 fixture。macOS 已有验收记录；本阶段 Linux 验收覆盖 Wayland compositor、X11 WM 及 GNU／musl 库。Xvfb 或 headless compositor 可覆盖自动化行为，但不能替代实体显示器、输入法候选交互与真实用户拖动的手工验证。
 
 重点组合：多个窗口与任务并存；关闭／外线程投递竞争；移动 GC 下事件文本和 ForeignCallback；关闭中 surface lease 未释放；用户 handler／清理抛错；菜单、拖动、模态期间 timer／网络／取消推进；混合 DPI 跨屏与热插拔；零 drawable 与 Wayland 零尺寸提示的区别；隐藏／重显后真实 buffer 提交；中文／日文组合、emoji／UTF-16 range、dead keys、重复输入与失焦；同批 delete／commit／preedit、选择方向、协议 serial 与文本 revision 的区别；Wayland flush EAGAIN／prepared-read 取消；X11 WM 忽略请求；display 断开；退出时 I/O、window、watch 各自先完成及没有窗口的顺序。
 

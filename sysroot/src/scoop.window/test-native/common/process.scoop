@@ -1,0 +1,44 @@
+package scoop.tests.window
+
+import scoop.collections.toMutableMap
+import scoop.platform.env.*
+import scoop.platform.fs.Path
+import scoop.platform.process.*
+import scoop.platform.system.OsString
+import scoop.test.*
+
+/** Each native Application needs a fresh process and its actual process main thread. */
+public fun runWindowTest(name: String, body: () -> Unit) {
+    if (environmentVariable("SCOOP_WINDOW_TEST_CASE")?.decodeUtf8() == Some(name)) {
+        try {
+            body()
+        }
+        catch (error: Throwable) {
+            println("window child test failed: " + name)
+            if (error is Exception)
+                println(error.message ?: "exception has no message")
+            throw error
+        }
+        return
+    }
+    val variables = environment().toMutableMap()
+    variables.remove(OsString.fromString("SCOOP_TEST_RUN_DIR"))
+    variables.put(OsString.fromString("SCOOP_WINDOW_TEST_CASE"), OsString.fromString(name))
+    val command =
+        Command(
+            Path.fromOsString(arguments()[0L]),
+            arguments = [OsString.fromString("--scoop-test-filter"), OsString.fromString(name)],
+            environment = variables,
+            stdout = Stdio.Pipe,
+            stderr = Stdio.Pipe
+        )
+    command.spawn().use {
+        child ->
+        val output = child.communicate()
+        assertEquals(
+            ExitStatus.Exited(0),
+            output.status,
+            Some(String.fromUtf8Lossy(output.stdout) + String.fromUtf8Lossy(output.stderr))
+        )
+    }
+}

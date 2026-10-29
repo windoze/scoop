@@ -1,27 +1,25 @@
 package scoop.window
 
-/** Enables AppKit composition for this window; ordinary text uses the same edit channel. */
+/** Enables native composition; ordinary text uses the same edit channel. */
 public fun Window.setImeAllowed(allowed: Boolean): RequestStatus {
     owner.requireOpen()
     @Unsafe
     {
-        if (
+        return owner.result(
             nativeImeAllowed(
                 owner.pointer!!,
                 if (allowed)
                     1
                 else
                     0
-            ) !=
-                0
+            ),
+            "set IME allowed"
         )
-            throw WindowException("native text input", WindowErrorKind.Unavailable)
     }
-    return RequestStatus.Applied
 }
 
 /** Publishes a candidate-window rectangle in logical content coordinates. */
-public fun Window.setImeCursorArea(area: LogicalRect) {
+public fun Window.setImeCursorArea(area: LogicalRect): RequestStatus {
     owner.requireOpen()
     checkRect(area)
     requireWindow(
@@ -31,12 +29,15 @@ public fun Window.setImeCursorArea(area: LogicalRect) {
     )
     @Unsafe
     {
-        nativeImeCaret(
-            owner.pointer!!,
-            area.origin.x,
-            area.origin.y,
-            area.size.width,
-            area.size.height
+        return owner.result(
+            nativeImeCaret(
+                owner.pointer!!,
+                area.origin.x,
+                area.origin.y,
+                area.size.width,
+                area.size.height
+            ),
+            "set IME cursor area"
         )
     }
 }
@@ -54,7 +55,13 @@ internal struct NativeTextEdit(
 internal fun nativeImeAllowed(window: Ptr<Unit>, allowed: Int): Int
 
 @Extern(name = "scoop_window_ime_caret")
-internal fun nativeImeCaret(window: Ptr<Unit>, x: Double, y: Double, width: Double, height: Double)
+internal fun nativeImeCaret(
+    window: Ptr<Unit>,
+    x: Double,
+    y: Double,
+    width: Double,
+    height: Double
+): Int
 
 @Extern(name = "scoop_window_text_count")
 internal fun nativeTextCount(event: Ptr<Unit>): Long
@@ -67,6 +74,8 @@ internal fun copyNativeTextBatch(pointer: Ptr<Unit>): TextInputBatch {
     @Unsafe
     {
         val count = nativeTextCount(pointer)
+        if (count < 0L)
+            throw WindowException("copy native text batch", WindowErrorKind.NativeFailure)
         val operations = ArrayList<TextInputOperation>()
         for (index in 0L ..< count) {
             val edit = nativeTextEdit(pointer, index)
@@ -86,6 +95,8 @@ internal fun copyNativeTextBatch(pointer: Ptr<Unit>): TextInputBatch {
                         TextReplacement.CurrentSelection
                     )
                     1 -> TextInputOperation.Commit(text, TextReplacement.CurrentSelection)
+                    2 -> TextInputOperation.DeleteSurrounding(edit.anchor, edit.cursor)
+                    3 -> TextInputOperation.ClearPreedit
                     else -> throw WindowException(
                         "unknown native text operation",
                         WindowErrorKind.NativeFailure
@@ -93,6 +104,16 @@ internal fun copyNativeTextBatch(pointer: Ptr<Unit>): TextInputBatch {
                 }
             )
         }
-        return TextInputBatch(None, operations)
+        val revision = nativeTextRevision(pointer)
+        return TextInputBatch(
+            if (revision < 0L)
+                None
+            else
+                Some(revision),
+            operations
+        )
     }
 }
+
+@Extern(name = "scoop_window_text_revision")
+internal fun nativeTextRevision(event: Ptr<Unit>): Long

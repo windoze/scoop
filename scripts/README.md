@@ -131,7 +131,7 @@ LLVM 源码与归档优先复用 vendor 的固定版本位置；缺失时在工�
 
 Windows 的宿主 DLL 分别放在实际使用它们的 `bin`、外部命令目录及 `libexec/llvm/bin`；两个 MinGW prefix 保留自身的 DLL 和目录关系。LLVM、libc++／libc++abi、libunwind、compiler-rt、MinGW runtime 与 Rust 的许可随包收集，版本与目标信息进入组件清单。
 
-构建与文档共用 `sysroot/src/*/Cone.toml` 的目标生产清单：显式非空 `sources` 中至少一项满足该目标的条件才进入清单；缺省或显式空表仍由编译器处理。选中库依赖该目标未提供的内置库时报告错误。只有 Darwin 源码的窗口 Cone 因此不进入 Linux 发布资源，不需要空后端。
+构建与文档共用 `sysroot/src/*/Cone.toml` 的目标生产清单：显式非空 `sources` 中至少一项满足该目标的条件才进入清单；缺省或显式空表仍由编译器处理。选中库依赖该目标未提供的内置库时报告错误。窗口 Cone 的 Darwin／Linux source 条件使其进入对应目标的发布资源；Windows 尚无对应 source，不需要空后端。
 
 文档使用本次配套 `scoop`／`scoopc`，显式选择上述目标清单，以 `--no-deps --deny-doc-warnings` 为每个发行目标生成共同站点。嵌套测试／辅助 Cone 不进入发行清单。工作目录下的 `documentation/<target>`、`doc-target` 和普通 `cache` 保留更新结果；重复打包复用未变化的文档，随后复制到组装目录。站点更新记录只保留在工作目录，不放入发行包。所有目标的文档成功后才开始归档，文档失败保留上一次完整归档。
 
@@ -168,3 +168,9 @@ Windows 对应的入口是 `bin/scoop-lldb.exe` 和 `bin/scoop-lldb-dap.exe`，�
 以仅保留系统 PATH 的环境启动 LLDB，验证 formatter、Python 标准模块和动态库加载。
 未移走或隐藏原工具；通过 dyld 加载记录确认没有引用原 Homebrew／构建目录的私有动态库。
 Linux 的同类检查还包括 ELF loader 记录、GNU／musl 实际 DAP 会话及静态 TLS；可重复入口见[调试器验收说明](../tooling/vscode-scoop/test/debugger/README.md)，本轮结果见[实施记录](../docs/debugging/IMPLEMENTATION.md)。
+
+## Linux 窗口资源
+
+准备含 `scoop.window` 的 Linux sysroot 时，需要所选目标的 libwayland-client／cursor、libxkbcommon／xkbcommon-x11、libdecor、Xlib／Xlib-xcb、Xi、XRandR、Xcursor 和 Xrender 开发资源。GNU 与 musl 各自使用兼容的 headers、动态库和 libdecor／XIM 模块；musl 程序显式选择动态链接。通过 `--cc` 与 `--native-sysroot` 选择实际 native 开发环境，不能用 glibc 桌面库填补 musl 依赖。
+
+Wayland XML 与生成的 C 输入已随 Cone 保存。只有维护协议版本时运行 `python3 scripts/generate_window_protocols.py`，该脚本要求 wayland-scanner 1.24.0；普通准备、构建和预编译消费者不调用 scanner。窗口测试需要真实 compositor／WM，运行方式见 [窗口 README](../sysroot/src/scoop.window/README.md)。

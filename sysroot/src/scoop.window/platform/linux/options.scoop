@@ -1,0 +1,39 @@
+package scoop.window.platform.linux
+
+import scoop.window.*
+
+/** Automatic connects Wayland first, then X11 before any window has been created. */
+public enum LinuxBackend {
+    Automatic, WaylandOnly, X11Only
+}
+
+/** Selects a backend before constructing Application; an explicit name requires an explicit backend. */
+public fun ApplicationOptions.setLinuxBackend(backend: LinuxBackend, displayName: String? = None) {
+    requireWindow(
+        backend != LinuxBackend.Automatic || displayName == None,
+        "an explicit display name requires WaylandOnly or X11Only"
+    )
+    when (displayName) {
+        case Some(name) -> {
+            requireWindow(name.byteLength > 0L, "empty display name")
+            checkNativeText(name)
+        }
+        case None -> {}
+    }
+    platformOptions.backend =
+        when (backend) {
+            case Automatic -> 0
+            case WaylandOnly -> 1
+            case X11Only -> 2
+        }
+    platformOptions.displayName = displayName
+}
+
+/** Sets Wayland app_id and X11 resource class/instance on the creation snapshot. */
+public fun WindowAttributes.setLinuxApplicationId(id: String, instance: String = "scoop") {
+    requireWindow(id.byteLength > 0L && instance.byteLength > 0L, "empty application identity")
+    checkNativeText(id)
+    checkNativeText(instance)
+    applicationId = id
+    applicationInstance = instance
+}

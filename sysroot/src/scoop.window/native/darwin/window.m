@@ -32,6 +32,10 @@ SWSnapshot sw_snapshot(SWWindow *owner) {
   result.y = sw_desktop_top() - NSMaxY(frame);
   result.outer_width = frame.size.width;
   result.outer_height = frame.size.height;
+  result.configured = 1;
+  result.position_known = 1;
+  result.redraw_ready =
+      window.visible && (window.occlusionState & NSWindowOcclusionStateVisible);
   result.visible = window.visible;
   result.occluded = !(window.occlusionState & NSWindowOcclusionStateVisible);
   result.focused = window.keyWindow;
@@ -213,28 +217,34 @@ void *scoop_window_ns_view(void *pointer) {
   return (__bridge void *)((__bridge SWWindow *)pointer).view;
 }
 
-void scoop_window_title(void *pointer, const uint8_t *text, int64_t length) {
+int32_t scoop_window_title(void *pointer, const uint8_t *text, int64_t length) {
   ((__bridge SWWindow *)pointer).window.title =
       [[NSString alloc] initWithBytes:text
                                length:(NSUInteger)length
                              encoding:NSUTF8StringEncoding];
+  return 0;
 }
-void scoop_window_size(void *pointer, double width, double height) {
+int32_t scoop_window_size(void *pointer, double width, double height) {
   SWWindow *owner = (__bridge SWWindow *)pointer;
   [owner.window setContentSize:NSMakeSize(width, height)];
   [owner emit:2];
+  return 1;
 }
-void scoop_window_visible(void *pointer, int32_t value) {
+int32_t scoop_window_visible(void *pointer, int32_t value) {
   SWWindow *owner = (__bridge SWWindow *)pointer;
   if (value)
     [owner.window orderFront:nil];
   else
     [owner.window orderOut:nil];
   [owner emit:5];
+  return 0;
 }
 
-void scoop_window_focus(void *pointer) {
+int32_t scoop_window_focus(void *pointer) {
   SWWindow *owner = (__bridge SWWindow *)pointer;
   [NSApp activate];
   [owner.window makeKeyAndOrderFront:nil];
+  return 1;
 }
+
+int32_t scoop_window_pre_present(void *pointer) { return 0; }

@@ -13,11 +13,12 @@ internal struct NativeMonitor(
     val pixelHeight: Double,
     val scale: Double,
     val name: Ptr<UInt8>?,
-    val nameLength: Long
+    val nameLength: Long,
+    val positionKnown: Int
 )
 
 @Extern(name = "scoop_window_monitors")
-internal fun nativeMonitors(): Ptr<Unit>?
+internal fun nativeMonitors(application: Ptr<Unit>): Ptr<Unit>?
 
 @Extern(name = "scoop_window_monitors_count")
 internal fun nativeMonitorsCount(snapshot: Ptr<Unit>): Long

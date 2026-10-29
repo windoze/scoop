@@ -240,6 +240,7 @@ private class LifecycleHandler(val proxy: ApplicationProxy): ApplicationHandler 
                     assertTrue(window.toULong() != 0uL);
                     assertTrue(view.toULong() != 0uL)
                 }
+                else -> throw IllegalStateException(Some("expected AppKit native handle"))
             }
             lease = Some(held)
         }

@@ -231,7 +231,7 @@ int32_t scoop_window_ime_allowed(void *pointer, int32_t allowed) {
     return 0;
   NSTextInputContext *context = view.inputContext;
   if (allowed && !context)
-    return 1;
+    return 2;
   if (!allowed)
     [view cancelComposition];
   view.imeAllowed = allowed != 0;
@@ -249,12 +249,13 @@ int32_t scoop_window_ime_allowed(void *pointer, int32_t allowed) {
   return 0;
 }
 
-void scoop_window_ime_caret(void *pointer, double x, double y, double width,
-                            double height) {
+int32_t scoop_window_ime_caret(void *pointer, double x, double y, double width,
+                               double height) {
   SWView *view = ((__bridge SWWindow *)pointer).view;
   view.imeCaret = NSMakeRect(x, y, width, height);
   if (view.imeAllowed)
     [view.inputContext invalidateCharacterCoordinates];
+  return SWApplied;
 }
 
 int64_t scoop_window_text_count(void *pointer) {
@@ -268,3 +269,5 @@ SWTextEditData scoop_window_text_edit(void *pointer, int64_t index) {
   data.text_length = (int64_t)edit.text.length;
   return data;
 }
+
+int64_t scoop_window_text_revision(void *pointer) { return -1; }

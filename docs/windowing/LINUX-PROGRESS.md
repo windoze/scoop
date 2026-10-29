@@ -16,8 +16,8 @@
 ## 当前证据
 
 - 起点为 main 的 `2ae2534a1`（macOS 窗口合入）；新分支已建立，工作树无继承修改。
-- 本机为 Linux x86_64，具有 LLVM 22.1、GNU／musl 工具链与现成系统库产物。正在重建配套命令并显式准备开发 sysroot。
-- Linux 桌面开发依赖、Weston、Xvfb 和 Openbox 已安装；尚未据此宣称窗口测试通过。
+- 本机为 Linux x86_64，具有 LLVM 22.1、GNU／musl 工具链与现成系统库产物。配套 release 命令与 GNU 开发 sysroot 已完成准备。
+- Linux 桌面开发依赖、Weston、Xvfb 和 Openbox 已安装；真实窗口验证见批次 2。
 
 ## 已完成批次
 
@@ -26,3 +26,20 @@
 明确后端选择、异步 configure、可选快照、真实请求结果、Wayland 等待与重显、IME／拖放和 GNU／musl 动态依赖合同。固定 7 份 wayland-protocols 1.47 XML 及其许可，用 wayland-scanner 1.24.0 生成 14 个普通 native 输入；消费 Cone 不运行生成器。
 
 验证：生成脚本通过 Ruff 0.16.10 format／check；再次生成的全部文件逐字节相同；7 份生成 C 源码通过 C11、Wall／Wextra／Werror 编译检查。此批验证仅覆盖协议输入，窗口功能仍在实施。
+
+### 2. 双后端、共享生命周期与集成
+
+两个普通 Cone 已选入 Linux 生产清单。共享层支持实际后端、typed native handle、PendingConfigure、配置代次、可选状态和真实 RequestStatus；Wayland 使用 xdg-shell／libdecor、frame callback、viewport／scale、xkbcommon、text-input-v3 和 data offer；X11 使用 Xlib／XKB／XI2／XIM／XRandR／XDND。文本与 URI 在 native 边界复制后交给 Scoop，编辑器值规则保留在 Scoop 层。软件 buffer 与应用分别是 renderer／consumer Cone。
+
+验证环境为 Ubuntu 26.04.1、LLVM 22.1.2；显式准备 GNU 开发 sysroot。全部手写及生成 Linux C 通过 C11、Wall／Wextra／Werror 检查，Scoop 源码经格式化与 production／test check，成功生成预编译 `.slib`。真实桌面测试如下：
+
+| 环境 | window | window.asyncio | 软件绘制 consumer |
+| --- | --- | --- | --- |
+| Xvfb＋Openbox，显式 X11 | 16／16 | 2／2 | 1／1 |
+| Weston headless＋libdecor，显式 Wayland | 16／16 | 2／2 | 1／1 |
+
+window 验证包含文本值规则、URI 原始路径字节、选项快照、实际窗口／buffer、隐藏重显、外线程投递、lease 关闭和 deadline。Wayland 窗口重显在收到新配置后提交真实 wl_shm buffer；软件 consumer 使用预编译 window，两个后端均完成五帧和 renderer→lease→window 关闭。
+
+asyncio 组合测试发现并先修复了 LoopMailbox 的关闭竞争：根先取消并停止业务投递后，主动 requestClose 仍须记录关闭意图。独立宿主 6／6 通过，随后两套窗口集成各 2／2 通过；修复单独提交 `6f15d0c52`。多 Application 用例使用 scoop.test 现有过滤入口在独立进程主线程执行。
+
+此批尚未以协议事件验证全部 IME、拖放、能力差异和断连分支；musl 依赖与同源验收继续实施。Linux 主机不能执行 AppKit／Metal，Darwin 已同步共享 ABI 与枚举调用方，尚未在本批重跑 macOS。headless 结果不替代真实输入法候选界面、实体混合 DPI 或人工拖动。

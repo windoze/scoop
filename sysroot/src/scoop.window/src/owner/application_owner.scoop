@@ -10,7 +10,7 @@ import scoop.window.native.dispatchWatch
 
 internal class ApplicationOwner(
     val lastWindowPolicy: LastWindowPolicy,
-    private val activationPolicy: Int
+    private val platformOptions: PlatformApplicationOptions
 ) {
     val mailbox: ApplicationMailbox = ApplicationMailbox()
     val windows: ArrayList<WindowOwner> = ArrayList<WindowOwner>()
@@ -20,6 +20,7 @@ internal class ApplicationOwner(
     var nextWatch: Long = 1L
     val active: ActiveApplication get() = ActiveApplication(this)
     var native: Ptr<Unit>? = None
+    var backend: WindowBackend? = None
     var handler: ApplicationHandler? = None
     var attachment: ApplicationAttachment? = None
     var attached: Boolean = false
@@ -79,13 +80,14 @@ internal class ApplicationOwner(
                 )
             try {
                 val pointer =
-                    nativeApplicationCreate(
+                    platformApplicationCreate(
                         callback.function,
                         callback.context,
-                        activationPolicy
+                        platformOptions
                     ) ?:
-                        throw WindowException("create application", WindowErrorKind.NativeFailure)
+                        throw platformCreationError()
                 native = Some(pointer)
+                backend = Some(platformBackend(pointer))
                 mailbox.bind(pointer)
                 try {
                     when (attach) {
@@ -104,13 +106,7 @@ internal class ApplicationOwner(
                 while (!stopped) {
                     val status = nativeApplicationRun(pointer)
                     if (!stopped) {
-                        recordFailure(
-                            WindowException(
-                                "native application loop",
-                                WindowErrorKind.NativeFailure,
-                                nativeCode = Some(status.toLong())
-                            )
-                        )
+                        recordFailure(nativeError("native application loop"))
                         beginExit()
                         pump(0)
                     }
@@ -152,6 +148,7 @@ internal class ApplicationOwner(
         if (exiting || native == None)
             throw WindowException("create window", WindowErrorKind.InvalidState)
         validateAttributes(attributes)
+        checkNativeText(attributes.title)
         attributes.size.toPhysical(1.0)
         if (nextWindow == 9223372036854775807L)
             throw WindowException("window identity", WindowErrorKind.NativeFailure)
@@ -183,22 +180,22 @@ internal class ApplicationOwner(
                         }
                     }
                 ) ?:
-                    throw WindowException("create window", WindowErrorKind.NativeFailure)
+                    throw nativeError("create window")
             val owner = WindowOwner(this, identity, pointer)
             try {
                 applyCreationProperties(owner, attributes)
-                owner.metrics = Some(nativeWindowSnapshot(pointer).metrics())
+                owner.configure(nativeWindowSnapshot(pointer))
+                if (attributes.visible) {
+                    Window(owner).setVisible(true)
+                    if (attributes.requestActivation)
+                        Window(owner).requestFocus()
+                }
             } catch (error: Throwable) {
                 nativeWindowDestroy(pointer)
                 throw error
             }
             windows.add(owner)
             createdWindow = true
-            if (attributes.visible) {
-                nativeWindowVisible(pointer, 1)
-                if (attributes.requestActivation)
-                    nativeWindowFocus(pointer)
-            }
             return Window(owner)
         }
     }
@@ -290,5 +287,12 @@ internal class ApplicationOwner(
                 LastWindowPolicy.Exit
         )
             beginExit()
+    }
+
+    fun nativeError(operation: String): WindowException {
+        @Unsafe
+        {
+            return platformNativeError(native!!, operation)
+        }
     }
 }

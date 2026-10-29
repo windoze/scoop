@@ -46,9 +46,7 @@ internal fun ApplicationOwner.refreshMonitors(): Array<Monitor> {
     val result = ArrayList<Monitor>()
     @Unsafe
     {
-        val pointer =
-            nativeMonitors() ?:
-                throw WindowException("enumerate monitors", WindowErrorKind.NativeFailure)
+        val pointer = nativeMonitors(native!!) ?: throw nativeError("enumerate monitors")
         try {
             val count = nativeMonitorsCount(pointer)
             var index = 0L
@@ -63,13 +61,16 @@ internal fun ApplicationOwner.refreshMonitors(): Array<Monitor> {
                     Monitor(
                         monitorIdentity(value.key),
                         name,
-                        Some(
-                            DesktopRect(
-                                DesktopPosition(value.x, value.y),
-                                value.width,
-                                value.height
-                            )
-                        ),
+                        if (value.positionKnown == 0)
+                            None
+                        else
+                            Some(
+                                DesktopRect(
+                                    DesktopPosition(value.x, value.y),
+                                    value.width,
+                                    value.height
+                                )
+                            ),
                         PhysicalSize(value.pixelWidth.toInt(), value.pixelHeight.toInt()),
                         value.scale,
                         if (value.refreshMilliHertz > 0L)

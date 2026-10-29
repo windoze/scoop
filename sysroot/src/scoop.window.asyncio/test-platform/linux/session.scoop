@@ -1,0 +1,167 @@
+package scoop.window.asyncio
+
+import scoop.tests.window.*
+import scoop.asyncio.*
+import scoop.platform.concurrent.currentThreadId
+import scoop.platform.env.environmentVariable
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+import scoop.test.*
+import scoop.window.*
+import scoop.window.native.*
+import scoop.window.platform.linux.*
+
+private fun testOptions(): ApplicationOptions {
+    val options = ApplicationOptions()
+    val backend = environmentVariable("SCOOP_WINDOW_BACKEND")?.decodeUtf8() ?: "automatic"
+    options.setLinuxBackend(
+        when (backend) {
+            "wayland" -> LinuxBackend.WaylandOnly
+            "x11" -> LinuxBackend.X11Only
+            else -> LinuxBackend.Automatic
+        }
+    )
+    return options
+}
+
+@Test
+private class LinuxWindowAsyncioTest {
+    @Test
+    fun `root cancellation keeps the native loop alive through child cleanup and lease release`() {
+        runWindowTest(
+            "root cancellation keeps the native loop alive through child cleanup and lease release"
+        ) {
+            val handler = CancellationHandler()
+            Application(testOptions()).runWithAsyncio(handler)
+            assertTrue(handler.childStarted)
+            assertTrue(handler.childFinished)
+            assertTrue(handler.closing)
+            assertTrue(handler.destroyed)
+            assertEquals(1, handler.exiting)
+            assertTrue(handler.batches < 20)
+            assertFailsWith<MissingContextException> { currentApplicationScope() }
+        }
+    }
+
+    @Test
+    fun `io timers wake a windowless native loop and retire its borrowed notification`() {
+        runWindowTest(
+            "io timers wake a windowless native loop and retire its borrowed notification"
+        ) {
+            val handler = TimerHandler()
+            Application(testOptions()).runWithAsyncio(handler)
+            assertEquals(3, handler.ticks)
+            assertEquals(1, handler.exits)
+            assertTrue(handler.batches < 10)
+        }
+    }
+}
+
+private class CancellationHandler: ApplicationHandler {
+    val thread = currentThreadId()
+    var window: Window? = None
+    var lease: NativeWindowLease? = None
+    var childStarted = false
+    var childFinished = false
+    var closing = false
+    var destroyed = false
+    var exiting = 0
+    var batches = 0
+
+    public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
+        assertEquals(thread, currentThreadId())
+        when (event) {
+            case NewEvents(StartCause.Deadline) -> fail(
+                Some("Linux asyncio shutdown deadline expired")
+            )
+            case NewEvents(_) -> batches += 1
+            case Resumed -> start(application)
+            case Exiting -> {
+                exiting += 1
+                assertFailsWith<MissingContextException> { currentApplicationScope() }
+            }
+            case Window(_, WindowEvent.Closing) -> {
+                closing = true
+                assertFalse(childFinished)
+                assertFailsWith<MissingContextException> { currentApplicationScope() }
+            }
+            case Window(_, WindowEvent.Destroyed) -> {
+                assertTrue(childFinished)
+                destroyed = true
+                assertFailsWith<MissingContextException> { currentApplicationScope() }
+            }
+            else -> {}
+        }
+    }
+
+    private fun start(application: ActiveApplication) {
+        val value =
+            application.createWindow(WindowAttributes(visible = false, requestActivation = false))
+        window = Some(value)
+        @Unsafe
+        {
+            lease = Some(value.acquireNativeWindow())
+        }
+        application.setControlFlow(
+            ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(5L))
+        )
+        val scope = currentApplicationScope()
+        val loop = currentEventLoop()
+        scope.launch suspend {
+            childStarted = true
+            try {
+                loop.sleep(Duration.seconds(10L))
+            }
+            finally {
+                nonCancellableScope<Unit> suspend {
+                    _ ->
+                    loop.sleep(Duration.milliseconds(10L))
+                    try {
+                        assertTrue(closing)
+                    }
+                    finally {
+                        childFinished = true;
+                        lease!!.close()
+                    }
+                }
+            }
+        }
+        scope.launch suspend {
+            loop.sleep(Duration.milliseconds(10L))
+            assertTrue(childStarted)
+            scope.job.cancel()
+        }
+    }
+}
+
+private class TimerHandler: ApplicationHandler {
+    val thread = currentThreadId()
+    var ticks = 0
+    var exits = 0
+    var batches = 0
+    public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
+        assertEquals(thread, currentThreadId())
+        when (event) {
+            case Resumed -> {
+                application.setControlFlow(
+                    ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(5L))
+                )
+                val loop = currentEventLoop()
+                currentApplicationScope().launch suspend {
+                    for (_ in 0 ..< 3) {
+                        loop.sleep(Duration.milliseconds(10L))
+                        assertEquals(thread, currentThreadId())
+                        ticks += 1
+                    }
+                    application.requestExit()
+                }
+            }
+            case NewEvents(StartCause.Deadline) -> fail(
+                Some("Linux asyncio timer deadline expired")
+            )
+            case NewEvents(_) -> batches += 1
+            case Exiting -> exits += 1
+            else -> {}
+        }
+    }
+}

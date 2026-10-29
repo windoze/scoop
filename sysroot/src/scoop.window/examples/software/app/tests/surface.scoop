@@ -1,0 +1,14 @@
+package scoop.examples.window.software
+
+import scoop.test.*
+
+@Test
+private class SoftwareWindowTest {
+    @Test
+    fun `renderer presents real buffers and closes before the native window`() {
+        val result = runSoftwareWindow(true)
+        assertEquals(5, result.frames)
+        assertTrue(result.closed)
+        assertTrue(result.destroyed)
+    }
+}

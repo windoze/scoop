@@ -85,6 +85,7 @@ private class AsyncHandler: ApplicationHandler {
         {
             when (lease!!.handle) {
                 case AppKit(window, _) -> scheduleNativeMode(window, 1, 0.15)
+                else -> throw IllegalStateException(Some("expected AppKit native handle"))
             }
         }
         scope.launch suspend {
@@ -125,6 +126,9 @@ private class AsyncHandler: ApplicationHandler {
                         menuStarted = true
                         when (lease!!.handle) {
                             case AppKit(window, _) -> scheduleNativeMode(window, 2, 0.15)
+                            else -> throw IllegalStateException(
+                                Some("expected AppKit native handle")
+                            )
                         }
                     }
                 }

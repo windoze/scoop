@@ -1,0 +1,50 @@
+package scoop.window
+
+import scoop.window.platform.linux.*
+import scoop.test.*
+
+@Test
+private class LinuxWindowValueTest {
+    @Test
+    fun `native text snapshots remove marked text and preserve selection direction`() {
+        val state =
+            TextInputState("a组合z", Utf8Selection(7L, 1L), Some(Utf8Range(1L, 7L)), revision = 42L)
+        state.validate()
+        val value = linuxSurrounding(state)!!
+        assertEquals("az", value.text)
+        assertEquals(Utf8Selection(1L, 1L), value.selection)
+        val reverse = linuxSurrounding(TextInputState("a中z", Utf8Selection(4L, 1L)))!!
+        assertEquals(Utf8Selection(4L, 1L), reverse.selection)
+    }
+    @Test
+    fun `surrounding context fits the actual Wayland message without splitting UTF8`() {
+        val text = StringBuilder()
+        for (_ in 0 ..< 2000)
+            text.append("中")
+        val value = linuxSurrounding(TextInputState(text.toString(), Utf8Selection(3000L, 3003L)))!!
+        assertTrue(value.text.byteLength <= 4000L)
+        assertTrue(value.text.byteLength >= 3993L)
+        TextInputState(value.text, value.selection).validate()
+        assertEquals(
+            None,
+            linuxSurrounding(TextInputState(text.toString(), Utf8Selection(0L, 6000L)))
+        )
+    }
+    @Test
+    fun `backend names and application identity validate before native calls`() {
+        val options = ApplicationOptions()
+        assertFailsWith<IllegalArgumentException> {
+            options.setLinuxBackend(LinuxBackend.Automatic, Some(":2"))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            options.setLinuxBackend(LinuxBackend.X11Only, Some(""))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            options.setLinuxBackend(LinuxBackend.WaylandOnly, Some("bad\u0000name"))
+        }
+        val attributes = WindowAttributes()
+        attributes.setLinuxApplicationId("org.scoop.Test", "test")
+        assertEquals("org.scoop.Test", attributes.applicationId)
+        assertEquals("test", attributes.applicationInstance)
+    }
+}

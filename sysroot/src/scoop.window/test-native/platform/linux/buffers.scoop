@@ -1,0 +1,19 @@
+package scoop.tests.window
+
+/** Reuses the sample's actual software buffers for window lifecycle tests. */
+@Extern(name = "scoop_example_buffers_wayland")
+public fun createWaylandTestBuffers(display: Ptr<Unit>, surface: Ptr<Unit>): Ptr<Unit>?
+
+@Extern(name = "scoop_example_buffers_xlib")
+public fun createXlibTestBuffers(
+    display: Ptr<Unit>,
+    windowId: ULong,
+    visualId: ULong,
+    screen: Int
+): Ptr<Unit>?
+
+@Extern(name = "scoop_example_buffers_present")
+public fun presentTestBuffers(buffers: Ptr<Unit>, width: Int, height: Int, color: UInt): Int
+
+@Extern(name = "scoop_example_buffers_destroy")
+public fun destroyTestBuffers(buffers: Ptr<Unit>)

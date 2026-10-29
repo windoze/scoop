@@ -1,0 +1,86 @@
+package scoop.examples.window.buffers
+
+import scoop.platform.concurrent.currentThreadId
+import scoop.platform.concurrent.ThreadId
+
+/** Owns software drawing buffers; its caller retains the native window lease until close. */
+public class SoftwareBuffers private constructor(
+    pointer: Ptr<Unit>,
+    private val thread: ThreadId
+): Closeable {
+    private var pointer: Ptr<Unit>? = Some(pointer)
+
+    /** Submits one opaque checkerboard at the window's published physical size. */
+    public fun present(width: Int, height: Int, color: UInt) {
+        checkThread()
+        if (width <= 0 || height <= 0)
+            throw IllegalArgumentException(Some("nonpositive buffer size"))
+        val value = pointer ?: throw IllegalStateException(Some("software buffers are closed"))
+        @Unsafe
+        {
+            val result = nativePresent(value, width, height, color)
+            if (result != 0)
+                throw IllegalStateException(
+                    Some("software buffer submission failed: " + result.toString())
+                )
+        }
+    }
+
+    public override fun close() {
+        checkThread()
+        when (pointer) {
+            case Some(value) -> {
+                pointer = None
+                @Unsafe
+                {
+                    nativeDestroy(value)
+                }
+            }
+            case None -> {}
+        }
+    }
+
+    private fun checkThread() {
+        if (thread != currentThreadId())
+            throw IllegalStateException(Some("software buffers require their owner thread"))
+    }
+
+    public companion object {
+        /** The display and surface remain borrowed from a live, owner-thread window lease. */
+        @Unsafe
+        public fun forWayland(display: Ptr<Unit>, surface: Ptr<Unit>): SoftwareBuffers {
+            val pointer =
+                nativeWayland(display, surface) ?:
+                    throw IllegalStateException(Some("create Wayland software buffers"))
+            return SoftwareBuffers(pointer, currentThreadId())
+        }
+
+        /** XID is an integer; visual selection is taken from the actual window handle. */
+        @Unsafe
+        public fun forXlib(
+            display: Ptr<Unit>,
+            windowId: ULong,
+            visualId: ULong,
+            screen: Int
+        ): SoftwareBuffers {
+            val pointer =
+                nativeXlib(display, windowId, visualId, screen) ?:
+                    throw IllegalStateException(Some("create Xlib software buffers"))
+            return SoftwareBuffers(pointer, currentThreadId())
+        }
+    }
+}
+
+@Extern(name = "scoop_example_buffers_wayland")
+private fun nativeWayland(display: Ptr<Unit>, surface: Ptr<Unit>): Ptr<Unit>?
+
+@Extern(name = "scoop_example_buffers_xlib")
+private fun nativeXlib(display: Ptr<Unit>, windowId: ULong, visualId: ULong, screen: Int): Ptr<
+    Unit
+>?
+
+@Extern(name = "scoop_example_buffers_present")
+private fun nativePresent(buffers: Ptr<Unit>, width: Int, height: Int, color: UInt): Int
+
+@Extern(name = "scoop_example_buffers_destroy")
+private fun nativeDestroy(buffers: Ptr<Unit>)

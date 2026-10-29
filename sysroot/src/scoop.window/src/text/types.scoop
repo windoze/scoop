@@ -38,7 +38,7 @@ public enum TextInputEvent {
     Enabled, Disabled, Edit(TextInputBatch)
 }
 
-/** The editor's immutable UTF-8 snapshot; it is not published to the native input context. */
+/** The editor's immutable UTF-8 snapshot; platform extensions can publish a copy explicitly. */
 public struct TextInputState(
     val surroundingText: String,
     val selection: Utf8Selection,

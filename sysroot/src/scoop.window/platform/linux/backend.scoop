@@ -1,0 +1,154 @@
+package scoop.window
+
+import scoop.window.native.NativeWindowHandle
+
+internal class PlatformApplicationOptions {
+    var backend: Int = 0
+    var displayName: String? = None
+    fun copy(): PlatformApplicationOptions {
+        val result = PlatformApplicationOptions()
+        result.backend = backend
+        result.displayName = displayName
+        return result
+    }
+}
+
+@Unsafe
+internal fun platformApplicationCreate(
+    callback: FunPtr<(Ptr<Unit>, Long, Int) -> Int>,
+    context: Ptr<Unit>,
+    options: PlatformApplicationOptions
+): Ptr<Unit>? {
+    return (options.displayName ?: "").withUtf8Bytes(
+        fun(bytes: Ptr<UInt8>, length: Long): Ptr<Unit>? {
+            @Unsafe
+            {
+                return nativeLinuxCreate(callback, context, options.backend, bytes, length)
+            }
+        }
+    )
+}
+
+internal fun platformCreationError(): WindowException {
+    @Unsafe
+    {
+        return nativeLinuxCreationError().exception("connect display")
+    }
+}
+
+@Unsafe
+internal fun platformBackend(application: Ptr<Unit>): WindowBackend =
+    linuxBackend(nativeLinuxBackend(application))
+
+@Unsafe
+internal fun platformNativeError(application: Ptr<Unit>, operation: String): WindowException =
+    nativeLinuxError(application).exception(operation)
+
+@Unsafe
+internal fun platformWindowHandle(window: Ptr<Unit>): NativeWindowHandle {
+    val handle = nativeLinuxHandle(window)
+    return when (handle.backend) {
+        1 -> NativeWindowHandle.Wayland(handle.display, handle.surface!!)
+        2 -> NativeWindowHandle.Xlib(
+            handle.display,
+            handle.windowId,
+            handle.visualId,
+            handle.screen
+        )
+        else -> throw IllegalStateException(Some("invalid native window backend"))
+    }
+}
+
+internal fun applyPlatformCreationProperties(owner: WindowOwner, attributes: WindowAttributes) {
+    @Unsafe
+    {
+        attributes.applicationId.withUtf8Bytes {
+            id,
+            idLength -> @Unsafe
+            {
+                attributes.applicationInstance.withUtf8Bytes {
+                    instance,
+                    instanceLength -> @Unsafe
+                    {
+                        owner.result(
+                            nativeLinuxIdentity(
+                                owner.pointer!!,
+                                id,
+                                idLength,
+                                instance,
+                                instanceLength
+                            ),
+                            "set application identity"
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun linuxBackend(value: Int): WindowBackend =
+    when (value) {
+        1 -> WindowBackend.Wayland
+        2 -> WindowBackend.X11
+        else -> throw IllegalStateException(Some("invalid native window backend"))
+    }
+
+@CLayout
+private struct NativeLinuxFailure(val backend: Int, val kind: Int, val code: Int) {
+    fun exception(operation: String): WindowException =
+        WindowException(
+            operation,
+            when (kind) {
+                1 -> WindowErrorKind.Unavailable
+                3 -> WindowErrorKind.Disconnected
+                4 -> WindowErrorKind.Unsupported
+                else -> WindowErrorKind.NativeFailure
+            },
+            Some(linuxBackend(backend)),
+            if (code == 0)
+                None
+            else
+                Some(code.toLong())
+        )
+}
+
+@CLayout
+private struct NativeLinuxHandle(
+    val display: Ptr<Unit>,
+    val surface: Ptr<Unit>?,
+    val windowId: ULong,
+    val visualId: ULong,
+    val screen: Int,
+    val backend: Int
+)
+
+@Extern(name = "scoop_window_linux_application_create")
+private fun nativeLinuxCreate(
+    callback: FunPtr<(Ptr<Unit>, Long, Int) -> Int>,
+    context: Ptr<Unit>,
+    backend: Int,
+    name: Ptr<UInt8>,
+    length: Long
+): Ptr<Unit>?
+
+@Extern(name = "scoop_window_linux_creation_error")
+private fun nativeLinuxCreationError(): NativeLinuxFailure
+
+@Extern(name = "scoop_window_linux_error")
+private fun nativeLinuxError(application: Ptr<Unit>): NativeLinuxFailure
+
+@Extern(name = "scoop_window_linux_backend")
+private fun nativeLinuxBackend(application: Ptr<Unit>): Int
+
+@Extern(name = "scoop_window_linux_handle")
+private fun nativeLinuxHandle(window: Ptr<Unit>): NativeLinuxHandle
+
+@Extern(name = "scoop_window_linux_identity")
+private fun nativeLinuxIdentity(
+    window: Ptr<Unit>,
+    id: Ptr<UInt8>,
+    idLength: Long,
+    instance: Ptr<UInt8>,
+    instanceLength: Long
+): Int

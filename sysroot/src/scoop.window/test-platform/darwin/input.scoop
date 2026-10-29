@@ -47,6 +47,7 @@ internal class InputProbe {
         {
             when (lease.handle) {
                 case AppKit(_, view) -> assertEquals(0, exerciseNativeInput(view))
+                else -> throw IllegalStateException(Some("expected AppKit native handle"))
             }
         }
         window.setCursorVisible(true)

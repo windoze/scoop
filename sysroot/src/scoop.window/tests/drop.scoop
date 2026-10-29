@@ -1,0 +1,36 @@
+package scoop.window
+
+import scoop.platform.fs.Path
+import scoop.platform.system.OsString
+import scoop.test.*
+
+@Test
+private class FileUriTest {
+    @Test
+    fun `file URI lists preserve native bytes and ignore remote or malformed entries`() {
+        val paths =
+            localFileUris(
+                (
+                    "# files\r\nfile:///tmp/a%20b\r\nfile://localhost/tmp/%FF\n" +
+                        "https://example.com/x\nfile://remote/tmp/x\nfile:///bad%0\nfile:///bad%00\n" +
+                        "file:///a?query\nFiLe:/tmp/%E4%B8%AD"
+                ).toByteArray()
+            )
+        assertEquals(3L, paths.size)
+        assertEquals(Path.fromString("/tmp/a b"), paths[0L])
+        assertEquals(
+            Path.fromOsString(
+                OsString.fromByteArray(
+                    Array<Byte>(6L) {
+                        index -> if (index == 5L)
+                            (-1).toByte()
+                        else
+                            "/tmp/".toByteArray()[index]
+                    }
+                )
+            ),
+            paths[1L]
+        )
+        assertEquals(Path.fromString("/tmp/中"), paths[2L])
+    }
+}

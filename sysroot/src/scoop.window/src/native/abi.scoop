@@ -36,7 +36,11 @@ internal struct NativeSnapshot(
     val focused: Int,
     val minimized: Int,
     val maximized: Int,
-    val dark: Int
+    val dark: Int,
+    val configured: Int,
+    val positionKnown: Int,
+    val redrawReady: Int,
+    val generation: Long
 ) {
     fun metrics(): WindowMetrics =
         WindowMetrics(
@@ -48,13 +52,6 @@ internal struct NativeSnapshot(
 
 @Extern(name = "scoop_window_is_main_thread")
 internal fun nativeIsMainThread(): Int
-
-@Extern(name = "scoop_window_application_create")
-internal fun nativeApplicationCreate(
-    callback: FunPtr<(Ptr<Unit>, Long, Int) -> Int>,
-    context: Ptr<Unit>,
-    policy: Int
-): Ptr<Unit>?
 
 @Extern(name = "scoop_window_application_run")
 internal fun nativeApplicationRun(application: Ptr<Unit>): Int
@@ -97,20 +94,17 @@ internal fun nativeWindowSnapshot(window: Ptr<Unit>): NativeSnapshot
 @Extern(name = "scoop_window_destroy")
 internal fun nativeWindowDestroy(window: Ptr<Unit>)
 
-@Extern(name = "scoop_window_ns_window")
-internal fun nativeNSWindow(window: Ptr<Unit>): Ptr<Unit>
-
-@Extern(name = "scoop_window_ns_view")
-internal fun nativeNSView(window: Ptr<Unit>): Ptr<Unit>
-
 @Extern(name = "scoop_window_title")
-internal fun nativeWindowTitle(window: Ptr<Unit>, text: Ptr<UInt8>, length: Long)
+internal fun nativeWindowTitle(window: Ptr<Unit>, text: Ptr<UInt8>, length: Long): Int
 
 @Extern(name = "scoop_window_size")
-internal fun nativeWindowSize(window: Ptr<Unit>, width: Double, height: Double)
+internal fun nativeWindowSize(window: Ptr<Unit>, width: Double, height: Double): Int
 
 @Extern(name = "scoop_window_visible")
-internal fun nativeWindowVisible(window: Ptr<Unit>, visible: Int)
+internal fun nativeWindowVisible(window: Ptr<Unit>, visible: Int): Int
 
 @Extern(name = "scoop_window_focus")
-internal fun nativeWindowFocus(window: Ptr<Unit>)
+internal fun nativeWindowFocus(window: Ptr<Unit>): Int
+
+@Extern(name = "scoop_window_pre_present")
+internal fun nativeWindowPrePresent(window: Ptr<Unit>): Int

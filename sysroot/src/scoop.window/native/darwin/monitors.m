@@ -2,13 +2,6 @@
 #import <CoreGraphics/CoreGraphics.h>
 #include <math.h>
 
-typedef struct {
-  int64_t key, primary, refresh_millihertz;
-  double x, y, width, height, pixel_width, pixel_height, scale;
-  const uint8_t *name;
-  int64_t name_length;
-} SWMonitorData;
-
 @interface SWMonitorRecord : NSObject
 @property(nonatomic) SWMonitorData data;
 @property(nonatomic, strong) NSData *name;
@@ -16,7 +9,7 @@ typedef struct {
 @implementation SWMonitorRecord
 @end
 
-void *scoop_window_monitors(void) {
+void *scoop_window_monitors(void *application) {
   @autoreleasepool {
     NSArray<NSScreen *> *screens = NSScreen.screens;
     NSMutableArray<SWMonitorRecord *> *result = [NSMutableArray new];
@@ -26,6 +19,7 @@ void *scoop_window_monitors(void) {
       SWMonitorData data = {0};
       CGDirectDisplayID display =
           [screen.deviceDescription[@"NSScreenNumber"] unsignedIntValue];
+      data.position_known = 1;
       data.key = display;
       data.primary = screen == screens.firstObject;
       NSRect frame = screen.frame;
