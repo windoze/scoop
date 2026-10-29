@@ -161,6 +161,7 @@ def windows_system(name):
         "ole32.dll",
         "oleaut32.dll",
         "psapi.dll",
+        "propsys.dll",
         "rpcrt4.dll",
         "secur32.dll",
         "shell32.dll",

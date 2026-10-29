@@ -32,7 +32,7 @@ class WindowsDependenciesTests(unittest.TestCase):
             (llvm / "support.dll").write_bytes(b"selected support")
             (build / "runtime.dll").write_bytes(b"different runtime")
             imports = {
-                "scoop.exe": ["KERNEL32.dll", "runtime.dll"],
+                "scoop.exe": ["KERNEL32.dll", "PROPSYS.dll", "runtime.dll"],
                 "scoop-example.exe": ["api-ms-win-crt-runtime-l1-1-0.dll", "runtime.dll"],
                 "clang.exe": ["runtime.dll"],
                 "runtime.dll": ["support.dll"],

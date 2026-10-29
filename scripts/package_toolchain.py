@@ -176,7 +176,7 @@ def assemble(root, targets, binaries, args, release, extension):
         else:
             shutil.copytree(vendor, destination)
     cones = [
-        tomllib.loads(path.read_text())["cone"]
+        tomllib.loads(path.read_text(encoding="utf-8"))["cone"]
         for path in sorted((sysroot / "src").glob("*/Cone.toml"))
     ]
     for target in targets:
@@ -291,14 +291,15 @@ def assemble(root, targets, binaries, args, release, extension):
         f"{package['name']} = {json.dumps(release[package['name']])}"
         for package in COMPRESSION_PACKAGES
     ]
-    uring = (sysroot / "vendor/liburing/2.15/liburing.spec").read_text()
+    uring = (sysroot / "vendor/liburing/2.15/liburing.spec").read_text(encoding="utf-8")
     uring_version = re.search(r"^Version:\s+(\S+)", uring, re.MULTILINE)[1]
     manifest += [
         f"liburing = {json.dumps(uring_version)}",
         "ryu_revision = "
         + json.dumps(
             re.search(
-                r"固定 commit：`([0-9a-f]+)`", (sysroot / "vendor/ryu/README.scoop.md").read_text()
+                r"固定 commit：`([0-9a-f]+)`",
+                (sysroot / "vendor/ryu/README.scoop.md").read_text(encoding="utf-8"),
             )[1]
         ),
     ]
@@ -313,7 +314,7 @@ def assemble(root, targets, binaries, args, release, extension):
             "[[cones]]",
             f"coordinate = {json.dumps(':'.join(cone[key] for key in ('group', 'name', 'version')))}",
         ]
-    (share / "toolchain.toml").write_text("\n".join(manifest) + "\n")
+    (share / "toolchain.toml").write_text("\n".join(manifest) + "\n", encoding="utf-8")
 
 
 def archive(directory, destination, *, arcname="."):
@@ -381,7 +382,7 @@ def main():
     windows = "windows" in args.host
     if windows and (args.mingw_msvcrt is None or args.mingw_ucrt is None):
         parser.error("Windows packaging requires --mingw-msvcrt and --mingw-ucrt")
-    release = tomllib.loads(RELEASE_CONFIG.read_text())
+    release = tomllib.loads(RELEASE_CONFIG.read_text(encoding="utf-8"))
     args.version = args.version or release["version"]
     if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._+-]*", args.version) is None:
         parser.error("--version must be usable as an archive name")

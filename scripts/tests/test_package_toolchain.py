@@ -49,7 +49,7 @@ class ToolchainArchiveTests(unittest.TestCase):
                 for relative, content in files.items():
                     path = repository / relative
                     path.parent.mkdir(parents=True, exist_ok=True)
-                    path.write_text(content)
+                    path.write_text(content, encoding="utf-8")
                 skill_path = Path("tooling/scoop-programming")
                 skill_source = package_toolchain.ROOT / skill_path
                 shutil.copytree(skill_source, repository / skill_path)
