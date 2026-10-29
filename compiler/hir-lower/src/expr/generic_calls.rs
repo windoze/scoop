@@ -209,6 +209,13 @@ impl Lowerer {
         sink: &mut [hir::Statement],
     ) -> Option<hir::Expr> {
         let function = resolved.function();
+        self.record_constant_call(
+            call.span,
+            match self.functions[function].kind {
+                hir::FunctionKind::Intrinsic(intrinsic) => Some(intrinsic.kind),
+                _ => None,
+            },
+        );
         self.observe_callable_reference(call.callee.span, hir::SemanticCallable::Current(function));
         if let Some(core) = self.foreign_callback_core {
             if function == core.register {
@@ -236,6 +243,34 @@ impl Lowerer {
             return self.lower_pointer_top_level_intrinsic(function, call, resolved);
         }
         let ty = resolved.return_ty;
+        if let hir::FunctionKind::Intrinsic(intrinsic) = self.functions[function].kind
+            && matches!(
+                intrinsic.kind,
+                hir::IntrinsicFunctionKind::CompileEnv
+                    | hir::IntrinsicFunctionKind::IncludeStr
+                    | hir::IntrinsicFunctionKind::IncludeBytes
+                    | hir::IntrinsicFunctionKind::IncludeDir
+            )
+        {
+            self.check_call_effects(hir::Callable::Function(function), call.span);
+            let sources = resolved
+                .argument_inputs
+                .iter()
+                .map(|parameter| match parameter.input {
+                    crate::call_resolution::arguments::ResolvedParameterInput::Explicit(source) => {
+                        Some(call.args[source.index()].expression.clone())
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            return self.normalize_compiler_input(
+                intrinsic.kind,
+                &resolved.args,
+                &sources,
+                ty,
+                call.span,
+            );
+        }
         let callee = self.materialize_resolved_callee(&resolved);
         self.check_call_effects(callee, call.span);
         Some(hir::Expr {

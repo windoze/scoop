@@ -161,7 +161,7 @@ fn const_values_convert_losslessly_to_and_from_local_hir() {
     ];
 
     for value in values {
-        let canonical = CanonicalConstValueV1::from(value.clone());
+        let canonical = CanonicalConstValueV1::try_from(value.clone()).unwrap();
         assert_eq!(ConstPropertyValue::from(canonical), value);
     }
 }

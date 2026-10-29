@@ -1,6 +1,6 @@
 # 主题与示例内容清单
 
-状态：首批 24 个主题已交付；第二、三节保留为后续内容规划。日期：2026-10-27。命令和编辑约定见 [DESIGN.md](DESIGN.md)，实际输出形态见 [SAMPLES.md](SAMPLES.md)。
+状态：已发布 26 个主题，其中首批 24 个，新增编译期输入与 import 两个主题；第二、三节保留为后续内容规划。日期：2026-10-29。命令和编辑约定见 [DESIGN.md](DESIGN.md)，实际输出形态见 [SAMPLES.md](SAMPLES.md)。
 
 首批表中的“复用”“新增”“拆出”记录内容来源与编辑方式，均已落实到[发布索引](../../sysroot/share/scoop/examples/catalog.toml)。后续规划未注册到索引。
 
@@ -50,6 +50,15 @@
 | test/assertions | 怎样给 Cone 写测试？除法 API 与两个测试 | 两个测试通过，包含预期异常断言 | tests 源码、package、test-dependencies、@Test；assertEquals 的实际能力约束；filter/list 是测试命令选项 | 复用 [assertions Cone](../../sysroot/src/scoop.test/examples/assertions/Cone.toml) 及其生产/测试源码 |
 
 首批主题已经独立编译与运行验证。related 的首批集合限定为以上 24 项，例如 json/typed 暂时不指向尚未交付的 json/tree。
+
+### 1.4 后续已发布主题
+
+| ID | 用户的问题与完整程序 | 应观察到的结果 | 必须说明 | 来源 |
+| --- | --- | --- | --- | --- |
+| language/compiler-inputs | 怎样把文本、字节、目录和构建版本嵌入产物？一个 Cone 与四个资源文件 | 编译期版本、原样文本、字节数、筛选排序后的路径、缺失查询；环境缺失与空值不同 | scoop.compiler 显式导入；`Option<String>`；源码相对路径与 Cone／symlink 边界；glob；不能取函数引用；不扩展常量表达式能力 | [完整项目](../../sysroot/share/scoop/examples/programs/language/compiler-inputs/)、[使用说明](../../sysroot/share/scoop/examples/topics/language/compiler-inputs.md) |
+| language/imports | 怎样在局部块中导入名称？同一 Cone 的两个 package 提供 greeting | 声明前后与离块后的不同问候，lambda 内的 star import | exact／alias／star；声明之后生效、嵌套继承、离块恢复；不能局部 public import；仍需声明依赖 | [完整项目](../../sysroot/share/scoop/examples/programs/language/imports/)、[使用说明](../../sysroot/share/scoop/examples/topics/language/imports.md) |
+
+新增主题已注册到发布索引，可以作为 related 目标。它们与首批内容共享同一阅读器和实际运行验证脚本。
 
 ## 2. 现有库示例的后续主题映射
 

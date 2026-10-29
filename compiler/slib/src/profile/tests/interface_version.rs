@@ -1,30 +1,30 @@
 use super::*;
 
 #[test]
-fn source_interface_v81_preserves_applied_member_conditions() {
+fn source_interface_v87_preserves_compiler_inputs_and_debug_metadata() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        81,
+        87,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
 
 #[test]
-fn type_semantics_v30_preserves_annotation_queries() {
+fn type_semantics_v31_preserves_debug_field_origins() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        30,
+        31,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
 
 #[test]
-fn mir_type_bridge_v19_preserves_maybe_uninit_representation() {
+fn mir_type_bridge_v20_preserves_debug_field_origins() {
     assert_retired_version(
         mir_cross_cone_type_bridge_capability(),
-        19,
+        20,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
@@ -41,10 +41,10 @@ fn mir_foundation_v8_preserves_annotation_description_owners() {
 }
 
 #[test]
-fn lir_layout_abi_v17_preserves_interface_table_projections() {
+fn lir_layout_abi_v18_preserves_debug_type_layouts() {
     assert_retired_version(
         lir_cross_cone_layout_abi_capability(),
-        17,
+        18,
         MemberPurposeSet::COMPILE_AND_LINK,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
@@ -61,10 +61,10 @@ fn lir_param_free_v3_retains_target_coercions() {
 }
 
 #[test]
-fn compiler_protocol_v16_preserves_type_info_queries() {
+fn compiler_protocol_v17_preserves_throwable_stack_traces() {
     assert_retired_version(
         hir_core_bootstrap_interface_capability(),
-        16,
+        17,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
@@ -118,6 +118,16 @@ fn hir_foundation_v10_preserves_annotation_description_owners() {
     assert_retired_version(
         hir_identity_foundation_capability(),
         10,
+        MemberPurposeSet::COMPILE_AND_LINK,
+        &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
+    );
+}
+
+#[test]
+fn lir_foundation_v11_preserves_static_directory_objects() {
+    assert_retired_version(
+        lir_identity_foundation_capability(),
+        11,
         MemberPurposeSet::COMPILE_AND_LINK,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );

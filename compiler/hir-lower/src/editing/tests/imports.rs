@@ -2,6 +2,7 @@ use super::*;
 use crate::tests::m23_ordinary_core_only::support::trusted_core;
 use hir::EditingReferenceTarget as Target;
 
+mod blocks;
 mod failures;
 mod reexports;
 

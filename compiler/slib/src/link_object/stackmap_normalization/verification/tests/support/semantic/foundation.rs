@@ -43,7 +43,11 @@ pub(super) fn foundation(
         .globals
         .iter()
         .find_map(|(_, global)| match &global.init {
-            GlobalInit::StringConst { identity, .. } => Some(identity.identity_record().clone()),
+            GlobalInit::StringConst { identity, .. }
+            | GlobalInit::ByteArrayConst { identity, .. }
+            | GlobalInit::EmbeddedFileArrayConst { identity, .. } => {
+                Some(identity.identity_record().clone())
+            }
             GlobalInit::CString { .. }
             | GlobalInit::Storage { .. }
             | GlobalInit::RawStorage { .. }

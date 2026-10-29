@@ -37,6 +37,23 @@ impl Lowerer {
         expression: &ast::Expr,
         expected: hir::TypeId,
     ) -> Option<hir::HirConstantImage> {
+        match (self.types[expected].clone(), expression) {
+            (hir::Type::Unit, ast::Expr::UnitLiteral { .. }) => {
+                return Some(hir::HirConstantImage::Unit);
+            }
+            (hir::Type::Tuple(types), ast::Expr::TupleLiteral { elements, .. }) => {
+                if elements.len() != types.len() {
+                    return None;
+                }
+                let elements = elements
+                    .iter()
+                    .zip(types)
+                    .map(|(element, ty)| self.evaluate_static_property_constant(element, ty))
+                    .collect::<Option<Vec<_>>>()?;
+                return Some(hir::HirConstantImage::Tuple(elements));
+            }
+            _ => {}
+        }
         if let Some(variant) = self.static_unit_variant_constant(expression, expected) {
             return Some(variant);
         }
@@ -44,13 +61,7 @@ impl Lowerer {
         if !self.types_equal(evaluated.ty, expected) {
             return None;
         }
-        Some(match evaluated.value {
-            hir::ConstPropertyValue::Integer(value) => hir::HirConstantImage::Integer(value),
-            hir::ConstPropertyValue::Float(value) => hir::HirConstantImage::Float(value),
-            hir::ConstPropertyValue::Char(value) => hir::HirConstantImage::Char(value),
-            hir::ConstPropertyValue::Boolean(value) => hir::HirConstantImage::Boolean(value),
-            hir::ConstPropertyValue::String(value) => hir::HirConstantImage::String(value),
-        })
+        Some(evaluated.value)
     }
 
     fn evaluate_static_value(
@@ -267,6 +278,7 @@ impl Lowerer {
                     hir::ConstPropertyValue::Integer(_)
                     | hir::ConstPropertyValue::Float(_)
                     | hir::ConstPropertyValue::Char(_) => lhs.ty,
+                    _ => unreachable!("scalar operators produce scalar values"),
                 };
                 Some(StaticValue { value, ty })
             }

@@ -77,6 +77,13 @@ impl Lowerer {
             | ReferenceExtensionMode::UnboundMember(_) => None,
         };
         let mut view = state.callable_view(candidate, extension_receiver.is_some());
+        if let Some(reason) = state.local_intrinsic_reference_failure(function) {
+            return Err(ReferenceFailure {
+                signature: callable_source_signature(&state, context.name, &view),
+                layer: callable_layer_name(&state, std::slice::from_ref(&view)),
+                reason,
+            });
+        }
         let before = state.diagnostics.len();
         view.signature.return_type =
             state
@@ -88,12 +95,13 @@ impl Lowerer {
                         .iter()
                         .map(|diagnostic| diagnostic.message.as_str())
                         .collect::<Vec<_>>()
-                        .join(", "),
+                        .join(", ")
+                        .into(),
                 })?;
         let fail = |state: &Lowerer, reason: String| ReferenceFailure {
             signature: callable_source_signature(state, context.name, &view),
             layer: callable_layer_name(state, std::slice::from_ref(&view)),
-            reason,
+            reason: reason.into(),
         };
         if let hir::FunctionKind::Intrinsic(intrinsic) = state.functions[function].kind
             && matches!(intrinsic.kind, hir::IntrinsicFunctionKind::Atomic(_))

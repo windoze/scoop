@@ -36,7 +36,8 @@ impl DiscoveredBuildGraph {
                         config.manifest,
                         config.metadata,
                     )
-                    .map_err(error)?;
+                    .map_err(error)?
+                    .with_input_root(config.input_root.to_path_buf().map_err(error)?);
                     GraphNode::ManifestSource(Box::new(manifest))
                 }
                 PreparedConeV1::Prebuilt { artifact, summary } => {

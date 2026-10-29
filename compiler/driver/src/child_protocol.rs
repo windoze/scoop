@@ -15,10 +15,10 @@ const CHILD_TRANSPORT_FAILURE_EXIT: u8 = 2;
 const CHILD_REQUEST_ERROR_CODE: &str = "SCOOPC_CHILD_REQUEST_INVALID";
 const CHILD_BUILD_ERROR_CODE: &str = "SCOOPC_BUILD_FAILED";
 
-pub(crate) fn run(version: u32) -> ExitCode {
+pub(crate) fn run(version: u32, object_cache: Option<std::path::PathBuf>) -> ExitCode {
     let stdin = io::stdin();
     let stdout = io::stdout();
-    match run_transport(version, stdin.lock(), stdout.lock()) {
+    match run_transport(version, stdin.lock(), stdout.lock(), object_cache) {
         Ok(ChildProtocolExit::Success) => ExitCode::SUCCESS,
         Ok(ChildProtocolExit::CompilerFailure) => ExitCode::from(CHILD_COMPILER_FAILURE_EXIT),
         Err(error) => {
@@ -32,6 +32,7 @@ fn run_transport(
     version: u32,
     mut input: impl Read,
     mut output: impl Write,
+    object_cache: Option<std::path::PathBuf>,
 ) -> Result<ChildProtocolExit, ChildProtocolError> {
     if version != scoop_protocol::PROTOCOL_VERSION {
         return Err(ChildProtocolError::UnsupportedVersion(version));
@@ -39,7 +40,7 @@ fn run_transport(
     let frame = read_one_frame(&mut input)?;
     let request =
         scoop_protocol::decode_request_frame(&frame).map_err(ChildProtocolError::DecodeRequest)?;
-    let response = execute_request(request)?;
+    let response = execute_request(request, object_cache)?;
     let exit = match response {
         ScoopcResponseEnvelopeV1::Success { .. } | ScoopcResponseEnvelopeV1::Observed { .. } => {
             ChildProtocolExit::Success
@@ -65,6 +66,7 @@ fn read_one_frame(input: &mut impl Read) -> Result<Vec<u8>, ChildProtocolError> 
 
 fn execute_request(
     request: ScoopcRequestEnvelopeV1,
+    object_cache: Option<std::path::PathBuf>,
 ) -> Result<ScoopcResponseEnvelopeV1, ChildProtocolError> {
     let request_id = request.request_id();
     if request.build().diagnostics() != DiagnosticOutputPolicyV1::Structured {
@@ -75,7 +77,7 @@ fn execute_request(
         );
     }
     let build = match scoopc::normalize_protocol_build_request(request.build()) {
-        Ok(build) => build,
+        Ok(build) => build.with_object_cache_root(object_cache),
         Err(error) => {
             return failure_response(request_id, CHILD_REQUEST_ERROR_CODE, error.to_string());
         }
@@ -159,7 +161,8 @@ fn success_response(
             };
             let result = ScoopcSuccessV1::new(product, warnings, dumps)
                 .map_err(ChildProtocolError::ConstructResponse)?
-                .with_used_generators(success.used_generators().to_vec());
+                .with_used_generators(success.used_generators().to_vec())
+                .with_compiler_inputs(success.compiler_inputs().to_vec());
             Ok(ScoopcResponseEnvelopeV1::success(request_id, result))
         }
         scoopc::SingleConeCompilation::Documented(success) => {
@@ -171,14 +174,16 @@ fn success_response(
                 dumps,
             )
             .map_err(ChildProtocolError::ConstructResponse)?
-            .with_used_generators(success.used_generators().to_vec());
+            .with_used_generators(success.used_generators().to_vec())
+            .with_compiler_inputs(success.compiler_inputs().to_vec());
             Ok(ScoopcResponseEnvelopeV1::success(request_id, result))
         }
         scoopc::SingleConeCompilation::Checked(success) => {
             let result =
                 ScoopcSuccessV1::new(scoop_protocol::ScoopcProductV1::Check, warnings, dumps)
                     .map_err(ChildProtocolError::ConstructResponse)?
-                    .with_used_generators(success.used_generators().to_vec());
+                    .with_used_generators(success.used_generators().to_vec())
+                    .with_compiler_inputs(success.compiler_inputs().to_vec());
             Ok(ScoopcResponseEnvelopeV1::success(request_id, result))
         }
         scoopc::SingleConeCompilation::Observed(_) => Ok(ScoopcResponseEnvelopeV1::Observed {
@@ -343,6 +348,7 @@ mod tests {
             scoop_protocol::PROTOCOL_VERSION,
             Cursor::new(request_frame),
             &mut response_frame,
+            None,
         )
         .unwrap();
 
@@ -370,6 +376,7 @@ mod tests {
                 scoop_protocol::PROTOCOL_VERSION,
                 Cursor::new(trailing),
                 &mut response,
+                None,
             ),
             Err(ChildProtocolError::DecodeRequest(_))
         ));

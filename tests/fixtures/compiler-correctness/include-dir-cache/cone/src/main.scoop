@@ -1,0 +1,6 @@
+package scoop.tests
+import scoop.compiler.includeDir
+fun main() {
+    val directory = includeDir("../assets", include = ["**/*.txt"])
+    for (file in directory.files) println(file.path + ":" + file.bytes.size.toString())
+}

@@ -65,7 +65,7 @@ pub(super) struct ApplicableReference {
 pub(super) struct ReferenceFailure {
     pub(super) signature: String,
     pub(super) layer: &'static str,
-    pub(super) reason: String,
+    pub(super) reason: ReferenceFailureReason,
 }
 
 impl ReferenceDeclaration {

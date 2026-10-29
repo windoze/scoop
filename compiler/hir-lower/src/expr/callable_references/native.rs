@@ -146,6 +146,11 @@ impl Lowerer {
         failures: &[NativeReferenceFailure],
         span: Span,
     ) {
+        if let [failure] = failures
+            && self.report_intrinsic_reference_failure(span, &failure.reason)
+        {
+            return;
+        }
         let Some(first) = failures.first() else {
             self.error(span, format!("no eligible `@NoGC` top-level function `::{}` exactly matches the expected FunPtr signature", name.text));
             return;

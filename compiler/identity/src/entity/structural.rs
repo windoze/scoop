@@ -27,6 +27,7 @@ pub enum StructuralDefinitionSiteRole {
     SynthesizedBridge,
     SyntheticValue,
     StringConstant,
+    ArrayConstant,
 }
 
 impl StructuralDefinitionSiteRole {
@@ -44,6 +45,7 @@ impl StructuralDefinitionSiteRole {
             Self::SynthesizedBridge => 10,
             Self::SyntheticValue => 11,
             Self::StringConstant => 12,
+            Self::ArrayConstant => 13,
         }
     }
 }

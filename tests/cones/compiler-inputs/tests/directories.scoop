@@ -1,0 +1,71 @@
+package compiler.inputs.tests
+
+import scoop.compiler.*
+import scoop.test.*
+
+private val directory = includeDir("data/directory")
+private fun <T> genericDirectory(value: T): EmbeddedDir = includeDir("data/directory")
+private const val textPattern: String = "**/" + "*.txt"
+
+@Test
+private class EmbeddedDirectories {
+    @Test
+    fun `default selection preserves sorted logical paths and raw bytes`() {
+        val files = directory.files
+        assertEquals(5, files.size)
+        assertEquals(".hidden", files[0].path)
+        assertEquals("a.txt", files[1].path)
+        assertEquals("empty.bin", files[2].path)
+        assertEquals("nested/data.bin", files[3].path)
+        assertEquals("雨.txt", files[4].path)
+        assertEquals(0, files[2].bytes.size)
+        assertEquals<Byte>(0, files[3].bytes[0])
+        assertEquals<Byte>(-128, files[3].bytes[1])
+        assertEquals<Byte>(-1, files[3].bytes[2])
+        val boxed: Any = files
+        assertTrue(boxed is Array<EmbeddedFile>)
+    }
+
+    @Test
+    fun `named filters use constant strings and exclude after include`() {
+        val selected = includeDir(exclude = ["nested/**"], path = "data/directory",
+            include = [textPattern, "**/*.bin", "**/*.txt"])
+        assertEquals(3, selected.files.size)
+        assertEquals("a.txt", selected.files[0].path)
+        assertEquals("empty.bin", selected.files[1].path)
+        assertEquals("雨.txt", selected.files[2].path)
+        assertEquals(0, includeDir("data/directory", include = []).files.size)
+        assertEquals(0, includeDir("data/directory", include = ["*.missing"]).files.size)
+    }
+
+    @Test
+    fun `lookup uses exact paths and supports empty files`() {
+        assertEquals<Byte>(97, directory["a.txt"]!![0])
+        assertEquals(0, directory["empty.bin"]!!.size)
+        assertTrue(absent("missing"))
+        assertTrue(absent("./a.txt"))
+        assertTrue(absent("A.txt"))
+    }
+
+    @Test
+    fun `generic specializations retain bytes and mutable conversion copies`() {
+        val first = genericDirectory(1)
+        val second = genericDirectory("type")
+        val copy = first["nested/data.bin"]!!.toMutableArray()
+        copy[2] = 7
+        assertEquals<Byte>(7, copy[2])
+        assertEquals<Byte>(-1, first["nested/data.bin"]!![2])
+        assertEquals<Byte>(-1, second["nested/data.bin"]!![2])
+    }
+
+    @Test
+    fun `ordinary directory construction preserves first matching entry`() {
+        val value = EmbeddedDir([EmbeddedFile("duplicate", [1]), EmbeddedFile("duplicate", [2])])
+        assertEquals<Byte>(1, value["duplicate"]!![0])
+    }
+}
+
+private fun absent(path: String): Boolean = when (directory[path]) {
+    case None -> true
+    case Some(_) -> false
+}

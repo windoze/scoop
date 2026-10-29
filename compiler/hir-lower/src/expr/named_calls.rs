@@ -22,7 +22,7 @@ mod values;
 
 struct NamedValueLayer {
     read: SuccessfulExprLayer,
-    rank: usize,
+    rank: crate::imports::lookup::calls::ImportLookupRank,
     origin: PropertyExtensionInvokeOrigin,
 }
 
@@ -158,7 +158,7 @@ impl Lowerer {
                     }
                     implicit_properties.push(NamedValueLayer {
                         read,
-                        rank: 0,
+                        rank: crate::imports::lookup::calls::ImportLookupRank::ImplicitReceiver,
                         origin: PropertyExtensionInvokeOrigin::ImplicitMember(binding.binding),
                     });
                 }
@@ -196,7 +196,7 @@ impl Lowerer {
                 }
                 implicit_properties.push(NamedValueLayer {
                     read,
-                    rank: 0,
+                    rank: crate::imports::lookup::calls::ImportLookupRank::ImplicitReceiver,
                     origin: PropertyExtensionInvokeOrigin::Member(property_id),
                 });
             }

@@ -8,7 +8,7 @@ impl Lowerer {
         &self,
         bindings: &[NamedCallBinding],
         name: &ast::Ident,
-        rank: usize,
+        rank: crate::imports::lookup::calls::ImportLookupRank,
     ) -> Result<Option<RankedValue>, U> {
         let mut values =
             bindings

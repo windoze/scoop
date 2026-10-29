@@ -24,18 +24,13 @@ pub struct Fold {
 
 pub fn folding_ranges(root: &SyntaxNode) -> Vec<Fold> {
     let mut folds = Vec::new();
-    let mut imports: Option<Span> = None;
     for node in root.descendants() {
+        if node.kind() != SyntaxKind::Statement {
+            import_folds(&node, &mut folds);
+        }
         let range = node.text_range();
         let span = Span::new(range.start().into(), range.end().into());
         match node.kind() {
-            SyntaxKind::ImportHeader => {
-                if let Some(imports) = &mut imports {
-                    imports.end = span.end;
-                } else {
-                    imports = Some(span);
-                }
-            }
             SyntaxKind::Block
             | SyntaxKind::ClassBody
             | SyntaxKind::StructBody
@@ -69,15 +64,39 @@ pub fn folding_ranges(root: &SyntaxNode) -> Vec<Fold> {
             });
         }
     }
+    folds.sort_by_key(|fold| (fold.span.start, fold.span.end));
+    folds.dedup_by_key(|fold| fold.span);
+    folds
+}
+
+fn import_folds(parent: &SyntaxNode, folds: &mut Vec<Fold>) {
+    let mut imports: Option<Span> = None;
+    for child in parent.children() {
+        let import = match child.kind() {
+            SyntaxKind::ImportHeader => Some(child),
+            SyntaxKind::Statement => child
+                .children()
+                .find(|node| node.kind() == SyntaxKind::ImportHeader),
+            _ => None,
+        };
+        if let Some(import) = import {
+            let range = import.text_range();
+            imports
+                .get_or_insert(Span::new(range.start().into(), range.end().into()))
+                .end = range.end().into();
+        } else if let Some(span) = imports.take() {
+            folds.push(Fold {
+                span,
+                kind: FoldKind::Imports,
+            });
+        }
+    }
     if let Some(span) = imports {
         folds.push(Fold {
             span,
             kind: FoldKind::Imports,
         });
     }
-    folds.sort_by_key(|fold| (fold.span.start, fold.span.end));
-    folds.dedup_by_key(|fold| fold.span);
-    folds
 }
 
 /// Smallest first. Adjacent tokens remain usable at EOF and between tokens.

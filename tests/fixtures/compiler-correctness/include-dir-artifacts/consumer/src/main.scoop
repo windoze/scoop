@@ -1,0 +1,16 @@
+package scoop.tests
+import scoop.compiler.EmbeddedDir
+import scoop.compiler.EmbeddedFile
+import scoop.tests.compilerinput.*
+fun inspect(directory: EmbeddedDir): Boolean {
+    val files: Any = directory.files
+    val bytes = directory["nested/value.bin"]!!
+    return files is Array<EmbeddedFile> && directory.files.size == 2 && directory.files[0].path == "empty.bin"
+        && directory["empty.bin"]!!.size == 0 && bytes.size == 4
+        && bytes[0] == 0 && bytes[1] == 127 && bytes[2] == -128 && bytes[3] == -1
+}
+fun main() {
+    val values = [embedded, generic(1), generic("type"), defaulted(), direct(), inlined()]
+    gcCollect()
+    for (value in values) println(inspect(value))
+}

@@ -165,10 +165,7 @@ fn evaluate_hir_integer_constant_inner(
                 } if left.kind() == *kind => {
                     match evaluate_integer_no_gc_operation(*operation, left, right)? {
                         hir::ConstPropertyValue::Integer(value) => Some(value),
-                        hir::ConstPropertyValue::Boolean(_)
-                        | hir::ConstPropertyValue::Float(_)
-                        | hir::ConstPropertyValue::Char(_)
-                        | hir::ConstPropertyValue::String(_) => None,
+                        _ => None,
                     }
                 }
                 hir::IntegerOperation::Managed {

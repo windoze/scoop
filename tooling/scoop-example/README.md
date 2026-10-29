@@ -9,6 +9,8 @@ scoop example
 scoop example --list
 scoop example language
 scoop example language/option
+scoop example language/compiler-inputs
+scoop example language/imports
 scoop example --search "JSON 序列化"
 scoop example json/typed --format source
 scoop example http/get --format source --file client.scoop
@@ -38,7 +40,7 @@ SCOOP_SYSROOT="$PWD/sysroot" scoop example --list
 
 编辑 [catalog.toml](../../sysroot/share/scoop/examples/catalog.toml) 注册已完成的主题。`document` 相对索引目录，`source` 相对安装根，`path` 是用户保存文件时的相对路径。已有库例子引用原源码；新增教学程序放在 `programs/<主题 ID>/`。正文使用“运行、预期结果、关键说明、常见误用”四节，不复制源码代码块。相关主题必须已经发布。
 
-首批是 24 个完整主题；后续内容按[主题清单](../../docs/scoop-example/TOPICS.md)补充。新增主题时同步增加下述独立行为验证；不要将待补内容先放进 catalog。主题目录和三个输出形态详见[设计](../../docs/scoop-example/DESIGN.md)。
+当前有 26 个完整主题，包括编译期资源／环境和块级 import；后续内容按[主题清单](../../docs/scoop-example/TOPICS.md)补充。新增主题时同步增加下述独立行为验证；不要将待补内容先放进 catalog。主题目录和三个输出形态详见[设计](../../docs/scoop-example/DESIGN.md)。
 
 ## 独立验证
 
@@ -53,7 +55,7 @@ python3 -m unittest discover -s scripts/tests -p test_package_toolchain.py
 python3 -m unittest discover -s scripts/tests -p test_package_licenses.py
 ```
 
-使用已经准备好的本机工具链验证发布示例。下面的脚本从真实 `scoop example --format json` 还原显示文件，编译并运行首批 24 个主题，检查固定输出、两个测试用例、命令行帮助/错误、临时资源清理以及本机 HTTP 会话：
+使用已经准备好的本机工具链验证发布示例。下面的脚本从真实 `scoop example --format json` 还原显示文件，编译并运行全部已发布主题，检查固定输出、两个测试用例、命令行帮助/错误、临时资源清理以及本机 HTTP 会话。编译期输入示例还检查环境变量有值、缺失、空值三种构建，以及运行期环境不影响嵌入值：
 
 ```sh
 python3 tooling/scoop-example/tests/run_examples.py \
@@ -63,3 +65,5 @@ python3 tooling/scoop-example/tests/run_examples.py \
 ```
 
 使用 release 和共享 Cone cache。HTTP 例子需要空闲的 127.0.0.1:8080；脚本只终止自己启动的服务进程。`--topics language/option json/typed` 可选择复验范围。日志、还原文件与编译输出保留在 work-dir，不提交。该脚本不运行编译器测试套件，也不准备或重编系统库。
+
+仅验证本次编译期输入和导入示例时，追加 `--topics language/compiler-inputs language/imports`。

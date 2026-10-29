@@ -13,6 +13,29 @@ fn cone(name: &str) -> String {
     )
 }
 
+#[cfg(unix)]
+#[test]
+fn include_root_preserves_workspace_and_member_locators() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = std::fs::canonicalize(directory.path()).unwrap();
+    write(
+        &root,
+        "real",
+        "schema = 1\n[workspace]\nmembers = ['app']\n",
+    );
+    write(&root, "real/app", &cone("app"));
+    std::os::unix::fs::symlink(root.join("real"), root.join("alias")).unwrap();
+    let workspace = Workspace::discover(&root, Some(&root.join("alias"))).unwrap();
+    let member = workspace.members.values().next().unwrap();
+    assert_eq!(member.directory, root.join("real/app"));
+    assert_eq!(member.input_directory, root.join("alias/app"));
+    let workspace = Workspace::discover(&root, Some(&root.join("alias/app"))).unwrap();
+    assert_eq!(
+        workspace.members.values().next().unwrap().input_directory,
+        root.join("alias/app")
+    );
+}
+
 #[test]
 fn expands_shared_fields_and_dependency_paths_at_the_definition() {
     let dir = tempfile::tempdir().unwrap();

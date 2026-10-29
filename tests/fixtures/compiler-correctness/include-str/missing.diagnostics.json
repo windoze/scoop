@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cannot read include input `${work}/cone/src/../linked.txt`: No such file or directory (os error 2)",
+    "notes": [],
+    "origin": {
+      "cone": "7bbc4684fe1b30a14c50dbfcf15b16c737d18919343d376ff8b901eceddb6288",
+      "end": 324,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 309
+    },
+    "severity": "error"
+  }
+]

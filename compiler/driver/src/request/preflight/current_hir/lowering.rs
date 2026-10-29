@@ -5,9 +5,11 @@ pub(in crate::request::preflight) struct CurrentConeHir {
     pub generated_sources: Vec<scoop_hir::GeneratedMethodSource>,
     pub generator_warnings: Vec<scoop_ast::Diagnostic>,
     pub used_generators: Vec<scoop_protocol::GeneratorToolInputV1>,
+    pub compiler_inputs: Vec<scoop_protocol::CompilerInputV1>,
 }
 
 impl CurrentConeHir {
+    #[allow(clippy::too_many_arguments)]
     pub(in crate::request::preflight) fn lower_with_documentation(
         requested: scoop_identity::RequestedConeKind,
         parsed: &scoop_ast::CurrentConeParsedSources,
@@ -16,10 +18,12 @@ impl CurrentConeHir {
         source_names: std::collections::BTreeMap<scoop_identity::ConeIdentity, String>,
         documentation: bool,
         programs: &scoop_toolchain::GeneratorPrograms,
+        inputs: std::sync::Arc<scoop_toolchain::CompileTimeInputs>,
     ) -> Result<Self, CurrentConeHirStageError> {
         let mut sources = scoop_hir_lower::CurrentConeSources::try_new(parsed, protocols, world)
             .map_err(CurrentConeHirStageError::Input)?
-            .with_source_names(source_names);
+            .with_source_names(source_names)
+            .with_compile_time_inputs(inputs.clone());
         if documentation {
             sources = sources
                 .with_documentation(
@@ -45,6 +49,7 @@ impl CurrentConeHir {
             generated_sources: generator.sources,
             generator_warnings: generator.warnings,
             used_generators: generator.used,
+            compiler_inputs: inputs.compiler_inputs(),
         })
     }
 
@@ -55,11 +60,13 @@ impl CurrentConeHir {
         source_names: std::collections::BTreeMap<scoop_identity::ConeIdentity, String>,
         test_dependencies: std::collections::BTreeSet<scoop_identity::ConeIdentity>,
         programs: &scoop_toolchain::GeneratorPrograms,
+        inputs: std::sync::Arc<scoop_toolchain::CompileTimeInputs>,
     ) -> Result<Self, CurrentConeHirStageError> {
         let parsed_sources = sources;
         let sources = scoop_hir_lower::CurrentConeSources::try_new(sources, protocols, world)
             .map_err(CurrentConeHirStageError::Input)?
             .with_source_names(source_names)
+            .with_compile_time_inputs(inputs.clone())
             .with_test_dependencies(test_dependencies)
             .map_err(CurrentConeHirStageError::Input)?;
         let mut generator = crate::generation::ExternalGenerator::new(programs);
@@ -70,6 +77,7 @@ impl CurrentConeHir {
             generated_sources: generator.sources,
             generator_warnings: generator.warnings,
             used_generators: generator.used,
+            compiler_inputs: inputs.compiler_inputs(),
         })
     }
 }

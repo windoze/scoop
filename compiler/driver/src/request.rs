@@ -107,6 +107,7 @@ pub struct SingleConeBuildRequest {
     purpose: CompilationPurpose,
     native_inputs: NativeInputOrigin,
     generators: scoop_toolchain::GeneratorPrograms,
+    object_cache_root: Option<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -162,11 +163,17 @@ impl SingleConeBuildRequest {
             purpose: CompilationPurpose::Production,
             native_inputs: NativeInputOrigin::Source { sysroot: None },
             generators: scoop_toolchain::GeneratorPrograms::default(),
+            object_cache_root: None,
         })
     }
 
     pub fn with_optimization(mut self, mode: scoop_lir::OptimizationMode) -> Self {
         self.optimization = mode;
+        self
+    }
+
+    pub fn with_object_cache_root(mut self, root: Option<PathBuf>) -> Self {
+        self.object_cache_root = root;
         self
     }
 

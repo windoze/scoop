@@ -82,6 +82,8 @@ pub(super) fn static_storage_artifacts(module: &Module) -> StaticStorageArtifact
             } => Some((identity, layout, initial_state)),
             GlobalInit::CString { .. }
             | GlobalInit::StringConst { .. }
+            | GlobalInit::ByteArrayConst { .. }
+            | GlobalInit::EmbeddedFileArrayConst { .. }
             | GlobalInit::RawStorage { .. }
             | GlobalInit::ImportedImmortal { .. }
             | GlobalInit::ImportedStorage { .. } => None,

@@ -10,6 +10,7 @@ pub(super) fn dump_block(block: &Block, indent: usize, out: &mut String) {
 fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
     let pad = "  ".repeat(indent);
     match &statement.kind {
+        StatementKind::Import(import) => super::headers::dump_import(import, indent, out),
         StatementKind::Expr(expr) => dump_expr(expr, indent, out),
         StatementKind::TypeAlias(alias) => super::declarations::dump_type_alias(alias, indent, out),
         StatementKind::LocalType(declaration) => {

@@ -127,7 +127,7 @@ fn ordinary_top_level_properties_own_managed_storage_and_backing_accessors() {
         optional.storage,
         hir::GlobalStorage::Managed {
             state: hir::HirStaticInitialState::EncodedStaticValue {
-                payload: hir::HirConstantImage::EnumUnit { .. }
+                payload: hir::HirConstantImage::Enum { .. }
             }
         }
     ));

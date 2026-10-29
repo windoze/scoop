@@ -1,0 +1,25 @@
+package examples.imports
+
+import examples.imports.friendly.greeting
+
+fun main() {
+    println(greeting("Ada"))
+
+    import examples.imports.formal.greeting as formalGreeting
+    println(formalGreeting("Ada"))
+
+    if (true) {
+        println(greeting("Lin"))
+        import examples.imports.formal.greeting
+        println(greeting("Lin"))
+    }
+    println(greeting("Lin"))
+
+    val greet: (String) -> String =
+        {
+            name ->
+            import examples.imports.formal.*
+            greeting(name)
+        }
+    println(greet("Grace"))
+}

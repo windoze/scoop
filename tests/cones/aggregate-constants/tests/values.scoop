@@ -1,0 +1,47 @@
+package compiler.constants.tests
+
+import compiler.constants.*
+import scoop.test.*
+
+@Test
+private class AggregateConstants {
+    @Test
+    fun `static tuple values preserve nested elements`() {
+        assertEquals((), unit)
+        assertEquals(42, single._1)
+        assertEquals<Int8>(127, values._1)
+        assertEquals((), values._2._1)
+        assertEquals("embedded", values._2._2)
+        assertTrue(values._3 == None)
+    }
+
+    @Test
+    fun `runtime tuple initializers retain ordered effects`() {
+        assertEquals(1, runtimeValues._1)
+        assertEquals(2, runtimeValues._2)
+        assertEquals(2, runtimeSteps())
+    }
+    @Test
+    fun `const aggregates and projections preserve every field`() {
+        assertEquals((), constantValues._1)
+        assertEquals(42, constantValues._2._1)
+        assertEquals("constant", constantValues._2._2)
+        assertTrue(constantValues._3 == None)
+        assertEquals("second", copiedLabel)
+        assertEquals("first", labels._1)
+        assertEquals("second", labels._2)
+        assertTrue(when (missingPayload) { case None -> true; case Some(_) -> false })
+        assertTrue(when (emptyChoice) { case Empty -> true; case Value(_) -> false })
+    }
+
+    @Test
+    fun `generic constant reads keep distinct string elements`() {
+        val a = genericLabels(1)
+        val b = genericLabels("argument")
+        assertEquals("first", a._1)
+        assertEquals("second", a._2)
+        assertEquals(a._1, b._1)
+        assertEquals(a._2, b._2)
+    }
+
+}

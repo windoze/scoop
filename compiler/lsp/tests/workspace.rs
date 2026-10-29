@@ -1,3 +1,6 @@
+#[cfg(unix)]
+#[path = "workspace/compiler_inputs.rs"]
+mod compiler_inputs;
 mod support;
 
 use std::path::{Path, PathBuf};

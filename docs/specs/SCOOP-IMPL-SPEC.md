@@ -237,6 +237,14 @@ return/throw 与 Elvis 复用正常值和终止路径的封闭表示；只有正
 
 整型枚举在源码 HIR 中具有明确的表示类别、底层整数 kind 和已检查的有序 variant 常量；父子关系、继承数值成员、普通上转及接口关系在 HIR lowering 完成。共享源码定义与表示数据保留 enum/variant identity、底层整数和数值，消费方不重新求值 initializer，也不按纯 unit variant 猜测枚举类别。依赖成员查找沿实际整数父类型继续遍历其接口，仅对接口节点读取接口方法与分派选择，不能把整数父类型当成 interface application。数值上转与引用上转均为已检查的单向类型适配；上转结果按目标类型继续参与装箱。
 
+#### 2.2.1 表达式名称解析范围
+
+语言规范 12.4.5 保持普通 import 与既有限定类型查询的边界。普通表达式不新增 package 起始的名称查找分支，parser／AST 保留 `::name` 与 `receiver::member`，不增加前置点分声明选择器。跨包函数、值与声明引用由 import／alias 定位，再消费普通 typed 候选；既有类型、注解与模式路径不受影响。
+
+语言规范 11.19 的编译期入口由普通导入定位，沿本规范 2.10.1 求值；它们及 current_source_location 的声明引用沿 2.10 报告明确的 intrinsic 语义错误，短名／alias／re-export 保留具体拒绝原因。此能力不要求扩展普通包限定表达式或新增 runtime ABI。
+
+语言规范 12.4.6 的块级 import 由 AST 保存原 selector、alias 与 span；parser／formatter 保持语句顺序，不把它移动到文件头。HIR lowering 在 import 语句处复用普通 namespace selector，向当前词法 scope 加入已解析 binding，退出 scope 时恢复；import 不产生运行期 HIR statement。闭包、局部函数、局部类型及默认值沿既有定义处 scope 快照继承导入。查询、operator／extension 分层与语言服务消费相同的作用域和 typed origin，不另建 intrinsic 专用导入入口。此能力不改变 MIR／LIR、runtime ABI 或已有 `.slib` 编码。
+
 ### 2.3 MIR
 
 MIR 只接收 LocalConcreteHir 和实际选用的依赖 MIR metadata，不接受 ExportHir 模板或执行泛型推断。每个 expression 具有本层 exact type；GC-free、ZST、字段和 variant 身份完整保留，synthetic 类型在产生时也完整定义。foundation 从已生成的 Module 提取实际身份记录，不先完整重放类型、CFG、ABI、coroutine、callback、release、constant image 或 GC 语义检查；IR/meta crate 不保留独立的语言验证器及其测试专用入口。具体转换的查询与格式／引用边界继续在实际使用处处理。MIR 输入组装直接复用同次生产的 foundation、entry bridge 与 Module；初始化物化从实际 unit 及 callable 索引取得 initializer／ensure，不再重建 generated ID、ODR key、物理／逻辑签名或比较两份 callable surface。
@@ -329,7 +337,7 @@ ARM64 release 的 TLAB context 地址在每次函数调用内按首次使用取�
 
 `ManagedPoll` 表示运行时规范 3.2 的条件 poll，携带唯一慢路径 site 与完整 live set。codegen 发射 acquire 检查和快／慢分支，只在慢分支物化该站点的 managed leaves、调用协调入口并回写 relocation；后续使用通过普通 canonical storage／SSA 合流取得快路径原值或慢路径新值。Full 模式用于已激活的普通 managed 执行，只读取 world phase；Gateway 模式保留入口 pending 的 mode／epoch 检查，不能仅按 world phase 删除首次激活。TLS 与全局数据引用使用闭合 runtime ABI 目录中的普通数据合同。
 
-普通 Managed call 的 LIR 根计划分别记录调用期间所需的来源与返回后是否需要恢复。直接 ABI 的 managed pointer／接口 object 实参由 LLVM 的实际 AS1 call operand 保持为调用期间的 root；返回后已死的来源不生成恢复 `llvm.fake.use` 或 leaf 写回。正常后继仍活跃的来源保留恢复；Indirect／byval 实参的内部 leaves 沿显式 leaf 暴露与恢复路径保留，不能把 AS0 storage 地址当作 managed root。codegen 展开分配、装箱、数组与 String 复制时，分配后仍使用的输入同样必须恢复，即使源码层操作之后不再读取它们。poll 的活跃值全部需要恢复。invoke 按已有 normal／unwind 两份使用条件恢复显式 compiler roots；native transition 保持原发布、borrow 与返回握手协议。最终逻辑根身份只要求实际恢复的 leaves，物理 root 数继续消费 RS4GC 的实际结果，包含只有调用期间用途的 direct AS1 实参。此内部 LIR 信息不改变 `.slib`、调用 ABI 或 runtime stackmap 格式，全部 profile 遵守相同规则。debug 的既有 SROA／mem2reg／SCCP 之后也执行普通 EarlyCSE，将无中间写入的重复读取在 RS4GC 前合并，避免调用实参与后继根的等值读取直到机器下降才合并；release 复用原有该步骤，不增加独立根等价分析。
+普通 Managed call 的 LIR 根计划分别记录调用期间所需的来源与返回后是否需要恢复。直接 ABI 的 managed pointer／接口 object 实参由 LLVM 的实际 AS1 call operand 保持为调用期间的 root；返回后已死的来源不生成恢复 `llvm.fake.use` 或 leaf 写回。正常后继仍活跃的来源保留恢复；Indirect／byval 实参的内部 leaves 沿显式 leaf 暴露与恢复路径保留，不能把 AS0 storage 地址当作 managed root。codegen 展开分配、装箱、数组与 String 复制时，分配后仍使用的输入同样必须恢复，即使源码层操作之后不再读取它们。poll 的活跃值全部需要恢复。invoke 按已有 normal／unwind 两份使用条件恢复显式 compiler roots；native transition 保持原发布、borrow 与返回握手协议。最终逻辑根身份只要求实际恢复的 leaves，物理 root 数继续消费 RS4GC 的实际结果，包含只有调用期间用途的 direct AS1 实参。此内部 LIR 信息不改变 `.slib`、调用 ABI 或 runtime stackmap 格式，全部 profile 遵守相同规则。debug 在既有 SROA／mem2reg／SCCP 后同样执行普通 InstCombine 与 EarlyCSE：将聚合字段读取规范化为标量读取，再合并无中间写入的重复读取，避免调用实参与后继根的等值读取直到机器下降才合并。两种模式都在晚期聚合分解和 RS4GC 前完成此规范化；release 复用原有步骤，不增加独立根等价分析。
 
 LIR lowering 在最终 CFG 上按运行时规范 3.2 省去有界普通叶函数的入口 poll，普通入口与循环选 Full。root／initialization startup gateway 由已有的完整 callable body key 区分，入口始终选 Gateway；callback adapter 沿 runtime 已激活协议选择普通模式。叶函数资格由明确的操作集合、无环直线路径和小值复制决定，不依赖源函数名称或调用方推测；codegen 消费已选模式，不再重做资格分析。所有 profile 一致，缺少 poll 的合法 body 仍有 callable registration；既有 `.slib` 与 ABI 相容，不新增跨 Cone 效果承诺。
 
@@ -599,9 +607,11 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 | 位置 / namespace | section 与 major |
 | --- | --- |
 | Manifest / `org.scoop-lang.manifest` | `single-cone-production/9` |
-| HIR / `org.scoop-lang.hir` | `identity-foundation/10`、`core-bootstrap-interface/17`、`cross-cone-interface/84`、`cross-cone-type-semantics/31` |
+| HIR / `org.scoop-lang.hir` | `identity-foundation/10`、`core-bootstrap-interface/17`、`cross-cone-interface/87`、`cross-cone-type-semantics/31` |
 | MIR / `org.scoop-lang.mir` | `identity-foundation/8`、`core-bootstrap-bridge/2`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/20` |
-| LIR / `org.scoop-lang.lir` | `identity-foundation/9`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/18`、`cone-production/15`、`link-identity-closure/19`、`link-support/1` |
+| LIR / `org.scoop-lang.lir` | `identity-foundation/11`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/18`、`cone-production/15`、`link-identity-closure/19`、`link-support/1` |
+
+本次合并采用 HIR `cross-cone-interface/87`，同时保存编译期输入与调试信息需要的源码接口。callable intrinsic tag 30 保留 main 的 `ThrowablePrintStackTrace`；`CompileEnv` 使用 tag 34，`IncludeStr`／`IncludeBytes`／`IncludeDir` 保持 31／32／33。旧分支与 main 的不兼容 profile 均按通常版本规则重建；不协商或混用两份同号接口。
 
 各 section 按消费用途检查 required inventory。Compile 需要完整语言与相邻 IR 合同；Link 只消费 identity、ABI、对象、native、production 和链接支持数据，不为链接展开 HIR 模板。profile fingerprint 覆盖 descriptor 的实际内容。
 
@@ -921,7 +931,7 @@ PM的全局源码/解析缓存与编译缓存职责分离，默认布局和覆�
 
 输入缺失是普通源码构建错误，输出缺失只生成该输出。manifest 仅测试配置变化不使生产节点失效；未选中源码、程序 argv、测试过滤及显示方式不使编译失效。工具变化可以直接失效，不为恢复内容可能相同的命中强制读取整个程序。尚未使用的 generator 配置不影响构建；实际使用的工具按同一规则记录。
 
-machine transport 为一次 request/response 的 length-prefixed canonical CBOR，protocol version 为 20（增加 full 静态变量调试级别；当前 Cone 采用已展开配置，已有 Check、观察、生成器配置、工具输入和片段诊断原文保持），stdout 只含协议 frame。build request field 6 为输出选择：Artifact、Documentation、ArtifactWithDocumentation，保存各自实际输出 locator；Check 使用新 tag 4 的单字段 map，只保存 tag、不含 locator；成功 response 的 field 2 使用对应 product 选择，Artifact 与 ArtifactWithDocumentation 变体携带 artifact summary，文档输出保存渲染输入 locator 和独立文档 warning；Check product 同样使用 tag 4 的单字段 map，warning 与实际 generator 输入沿共有成功字段保存。Check 拒绝 dump、observation-only 与非空 native 对象输入。build request field 9 为 OptimizationMode（Debug=1、Release=2），field 10 为按归一化路径排序的选中 native 源码所对应的已编译 native 对象 locator 数组，机器生产时数量必须与 manifest 的实际 target 选择一致；没有 native 源码或仅文档时为空。field 11 为当前 Cone 的 CompilationPurpose（Production=1、Test=2）；field 12 为按名称排序且唯一的 generator 注册数组，保存名称与已按接收 CLI cwd 解析的绝对宿主程序路径，未使用的注册不探测程序。build request field 13 为 DebugInfoLevel（none=0、line-tables=1、full=2）；和 field 9 的优化模式独立，生产级别进入源码 Cone 的编译更新键。target request 保存 canonical triple，以及待解析的 C driver／native sysroot 选择或已解析的 C 工具调用记录。parent 将已得到的记录直接交给 child，child 解码后用于实际编译，不重复执行探测；独立 scoopc 请求仍执行正常工具发现。调用记录保存普通版本／deployment 配置、host locator 和本机输入摘要，不是产物验证资格，host locator 不进入 artifact identity。旧或不匹配协议拒绝。request envelope field 5 为 observation-only 标志（unsigned 0／1）；为 true 时必须请求非空 dump 集合，沿同一编译实现执行到最后一个所需阶段，不发布机器对象或 `.slib`。观察成功使用 response tag 3，携带 warning 和 dump 描述，不伪造产物摘要。
+machine transport 为一次 request/response 的 length-prefixed canonical CBOR，protocol version 为 22（合并 full 静态变量调试级别与编译期环境、文件及目录输入；展开配置保留原 Cone 根定位；当前 Cone 采用已展开配置，已有 Check、观察、生成器配置、工具输入和片段诊断原文保持），stdout 只含协议 frame。build request field 6 为输出选择：Artifact、Documentation、ArtifactWithDocumentation，保存各自实际输出 locator；Check 使用新 tag 4 的单字段 map，只保存 tag、不含 locator；成功 response 的 field 2 使用对应 product 选择，Artifact 与 ArtifactWithDocumentation 变体携带 artifact summary，文档输出保存渲染输入 locator 和独立文档 warning；Check product 同样使用 tag 4 的单字段 map，warning 与实际 generator 输入沿共有成功字段保存。Check 拒绝 dump、observation-only 与非空 native 对象输入。build request field 9 为 OptimizationMode（Debug=1、Release=2），field 10 为按归一化路径排序的选中 native 源码所对应的已编译 native 对象 locator 数组，机器生产时数量必须与 manifest 的实际 target 选择一致；没有 native 源码或仅文档时为空。field 11 为当前 Cone 的 CompilationPurpose（Production=1、Test=2）；field 12 为按名称排序且唯一的 generator 注册数组，保存名称与已按接收 CLI cwd 解析的绝对宿主程序路径，未使用的注册不探测程序。build request field 13 为 DebugInfoLevel（none=0、line-tables=1、full=2）；和 field 9 的优化模式独立，生产级别进入源码 Cone 的编译更新键。target request 保存 canonical triple，以及待解析的 C driver／native sysroot 选择或已解析的 C 工具调用记录。parent 将已得到的记录直接交给 child，child 解码后用于实际编译，不重复执行探测；独立 scoopc 请求仍执行正常工具发现。调用记录保存普通版本／deployment 配置、host locator 和本机输入摘要，不是产物验证资格，host locator 不进入 artifact identity。旧或不匹配协议拒绝。request envelope field 5 为 observation-only 标志（unsigned 0／1）；为 true 时必须请求非空 dump 集合，沿同一编译实现执行到最后一个所需阶段，不发布机器对象或 `.slib`。观察成功使用 response tag 3，携带 warning 和 dump 描述，不伪造产物摘要。
 
 成功响应直接携带生产时得到的产物摘要：Cone、直接依赖、target、产物 profile、各语义指纹、artifact fingerprint 及测试目录，并携带 warning 和 dump 描述。parent 将该摘要与产物实际位置保存为普通构建记录，不重新打开 child 产物、重读摘要或逐字段核对响应与归档。摘要是后续编译、链接及测试列举需要的数据，不是验证资格；不得包含无人消费的归档长度或成员数来支持复核。protocol 8 用此摘要替换原独立的七个指纹字段。
 
@@ -1081,14 +1091,17 @@ qualified super 保存实际 direct target。dispatch 数据不重新进行 over
 
 intrinsic 的识别来自实际声明及其完整 name/target/shape/signature，普通候选和效果规则先确定其合法使用。成功 HIR 保存封闭 typed kind，后续不得按 symbol、FQN 或 annotation 文本重新识别。
 
-类型与目标已经确定的 intrinsic 调用必须下降为该操作规定的 IR 或 runtime helper。本地／跨 Cone 的直接调用、泛型具体化后的约束实现选择、静态函数引用以及去虚拟化得到的唯一目标遵守同一合同；后续内联或传播暴露的新目标也必须消费。此下降独立于普通函数内联开关、成本阈值与 debug／release 模式；优化模式只影响是否推导出额外的目标事实。默认实参、访问器、初始化器和闭包正文没有例外。动态目标尚不唯一时保留分派，真实动态引用所需的 callable 入口继续发射。
+类型与目标已经确定且使用方式合法的 intrinsic 调用必须下降为该操作规定的 IR、编译期值或 runtime helper。本地／跨 Cone 的直接调用、泛型具体化后的约束实现选择、语义允许的静态函数引用以及去虚拟化得到的唯一目标遵守同一合同；后续内联或传播暴露的新目标也必须消费。此下降独立于普通函数内联开关、成本阈值与 debug／release 模式；优化模式只影响是否推导出额外的目标事实。默认实参、访问器、初始化器和闭包正文没有例外。动态目标尚不唯一时保留分派，合法动态引用所需的 callable 入口继续发射；语言规范 13.1 禁止引用的 intrinsic 不生成这类入口。
+
+不可引用 intrinsic 的检查与诊断（current_source_location、compile_env、include_str、include_bytes 已实现，include_dir 随入口接通）：HIR 的 managed／native 引用候选检查复用实际声明已有的 typed intrinsic kind，封闭匹配 current_source_location 与 2.10.1 四个操作及其拒绝原因，不新增独立能力表、持久 flag 或 FQN 名称判断。完成正常查找与访问检查后，保留专门的引用失败原因；唯一目标直接报告该 intrinsic 不支持引用，多候选诊断保留相应原因，不通过静默删除候选退化成未找到函数或笼统签名错误。检查先于 closure／adapter／FunctionAddress 构造，错误不推迟到 MIR 或链接。主位置为原引用表达式，消息标明实际声明名称；LSP 仍可利用已解析目标导航到声明。current_source_location 不捕获引用创建点或生成正文的位置冒充间接调用处；直接调用继续使用原 evaluation origin。其他 intrinsic 的合法引用下降保持。
 
 具体化将约束选择得到的 primitive intrinsic 归一化为完整的标量操作，与早期直接调用一致；除法／余数同时物化原有异常依赖。所用操作身份来自本地声明或依赖 HIR 中的 typed implementation，不靠函数名或普通外部函数体推断。
 
 | 合同 | 必须确定的内容 |
 | --- | --- |
 | intrinsic type | 原 nominal identity、完整 application 与表示 kind；LIR 给出目标布局。 |
-| current_source_location | 当前表达式的 evaluation origin，结果为普通 SourceLocation 值。 |
+| current_source_location | 直接调用表达式的 evaluation origin，结果为普通 SourceLocation 值；规划的引用检查在 HIR 明确拒绝 callable reference，不能合成动态调用处。 |
+| include_str / include_bytes / include_dir / compile_env | 语言规范 11.19 规划的定义处常量输入、原定义来源、完整结果类型和独立常量引用；在 Export HIR 完成前展开，具体合同见 2.10.1。 |
 | Ptr/FunPtr/addressOf | 实际 pointee/signature/place、unsafe 与非零条件，不取普通按值实参的临时副本。 |
 | sizeOf/alignOf | 完整被查询类型，结果由目标布局产生。 |
 | integer/float operation | 完整 operand/result kind 与语言操作，不保留待决议源码调用。 |
@@ -1136,6 +1149,56 @@ LLVM 的 wrapper 存储以不超过 64 位、满足现有对齐的整数单元�
 上述扩展对应 HIR interface 69／type semantics 27、MIR type bridge 19、LIR layout ABI 15／layout link closure 8。MIR representation 的 tag 13 保存 payload exact type；LIR value representation 的 tag 9 保存 payload value layout 引用，由该 layout 得到 exact type、size、alignment 和 scan，不伪造源码字段。未改变编码的 section 保留原版本，旧 section 产物重建。
 
 共有 CallableSourceEffects 的 implementation 为 Scoop=1、Intrinsic=2、SourceExternScoop=3 或 SourceExternC=4；仅 Intrinsic 带完整 kind payload。ordinary/suspend、GC effect、release callability 与 implementation 的组合必须一致，不能用缺失字段或另一个表补出。
+
+#### 2.10.1 编译期输入与静态数据
+
+语言规范 11.19 的四个 API 与两个普通值类型位于 core Cone 的 `scoop.compiler` package，普通导入和 typed registry 负责识别。prelude 只消费其实际登记的 binding，不因 core 拥有此 package 就将其公开成员注入短名称候选；新增声明不在根 package 转导出。现有位置、布局等 intrinsic 不随本次扩展迁移。
+
+HIR 在普通名称、参数和完整类型选择后对编译期输入操作求值，复用现有 const 依赖环检查、数值常量语义及已经实现的聚合值通路。本轮不继续扩展通用常量与常量表达式，不补 Option Elvis／when 常量求值或新增通用常量合并机制。成功输出保存聚合值的完整类型、实际 application／variant 和按声明顺序的全部字段／元素常量；不使用 env 专属 OptionString 表示、运行期 constructor call 或缺失的类型信息。已实现的常量资格按实际值递归检查，enum 不检查未选择 variant 的 payload；普通 struct 与 intrinsic representation 分开处理，不能仅用空字段列表认定后者为 ZST。const property、正文、默认模板与跨 Cone 接口复用已有常量值表示，ordinary val 的静态初值也消费该结果。语言规范 9.1.2 区分可表示的常量值与当前支持的求值表达式；本版不求值 struct 主／次构造、enum payload 构造及其默认实参，不为常量求值调整普通构造器的默认值注册／准备顺序。include 系列的静态资源表示和发射已实现，输入参数只组合已经实现的常量表达式。
+
+静态 enum 初值的数据通路已实现：初值保存实际 application／variant 与按声明序齐全的字段；空 variant 使用空字段序列。HIR 至 LIR 逐层保留实际 variant 和字段，LLVM 按既有 integral／niche／tagged 布局发射；inactive GC slot 与 padding 保持零，String payload 保留 immortal relocation。该表示能力服务本节的常量求值扩展，不单独扩大源码 const 表达式集合；普通 enum 构造调用及默认 payload 的求值不属于本版范围。
+
+Unit 与 tuple 的静态初值沿同一数据通路保存。完整存储类型提供每个 tuple 元素的类型，元素初值按源码顺序递归编码；LIR 将 Unit 表示为无元素的 aggregate。显式标注类型的 ordinary top-level property 若由 Unit／tuple 字面量及现有静态常量表达式组成，直接采用 EncodedStaticValue；包含运行期表达式时保留完整 initializer 的正常求值顺序。tuple 使用既有自然对齐，嵌套 String 保留 immortal relocation，Unit／空 tuple 的 storage token 遵守运行时规范 2.8；不新增 ABI 或产物编码。
+
+const property 的本地值与静态初值共用 HirConstantImage，完整 property／表达式类型提供递归元素类型。读取常量只物化普通 literal、StructConstruct 或 VariantConstruct，不经过 StructInit 或任何源码 constructor。跨 Cone 的聚合常量使用独立于注解标量的 canonical 值结构；标量沿用原表示，聚合项按完整 property signature 的字段类型解释，enum 另保留实际 typed variant identity。共享接口仅保存该常量事实，消费方不重放其 initializer。类型／字段匹配在实际物化边界检查，保留格式、typed 引用和 property 接口闭包检查；不在 meta crate 中保留仅供测试调用的语义重放 authority。常量中的多个 String 使用 property identity 与元素序号区分，避免将不同字段错误合并。
+
+聚合 const 值将 `cross-cone-interface` 升至 82：canonical const value 的标量 tag 1～5 不变，Unit／tuple／struct／enum 分别使用 tag 6／7／8／9；默认模板的 String owner 增加 tag 3，保存 property identity 与元素序号。其他 section 和 runtime ABI 保持不变；旧 HIR section 及依赖它的产物需要重建，不提供兼容 reader。
+
+`env` 的 `compile_env` intrinsic 使用 callable intrinsic sum 的 tag 34，无额外 payload；完整签名仍由普通 callable declaration 保存。此编码对应 `cross-cone-interface/87`，不改变固定 core bootstrap protocol 或 runtime ABI。
+
+`includeStr` 的 `include_str` intrinsic 使用 callable intrinsic sum 的 tag 31，无额外 payload；完整签名为 String → String，对应 `cross-cone-interface/84`。环境与文件输入的成功记录使用闭合种类（tag 1／2）；文件记录保存原 Cone 根、实际根、原 locator、解析后目标、长度与修改时间。machine protocol 20 的成功 field 6、编译缓存 field 4 及 check／doc 的第三项统一保存该输入序列；缓存域同步升级。展开的 Cone 配置保留原输入根，供 include 的词法范围检查使用，实际源码发现仍使用原有 real root。
+
+`includeBytes` 复用同一文件宿主，HIR 保存带完整 `Array<Byte>` 类型的静态字节数组表达式，数据使用原始 byte string；普通数组字面量仍沿原有分配语义执行，不因元素恰为常量而改为共享对象。默认／泛型模板保存这份数据，消费时不再读取文件。MIR 的既有 immortal 对象表扩展为 String 或字节数组的闭合数据种类；字节数组项同时保存实际 class application、原始字节、对象身份和定义来源。String 优化只消费 String 项。LIR 的字节数组 global 关联既有 ArrayType 布局与 TD，直接发射 header、logical count 和字节内容，并沿共有 immortal 登记与链接引用链消费，不经过运行期数组分配或拷贝。本轮只接通 intrinsic 的静态结果，不扩展 9.1.2 已推迟的静态对象 const 组合。
+
+该扩展为 callable intrinsic 增加 tag 32、默认表达式增加 tag 77（byte string payload），对应 `cross-cone-interface/85`；immortal 对象角色新增 ArrayConstant=2、结构位置角色新增 ArrayConstant=13，对应 LIR `identity-foundation/10`。原有 String 编码及角色保持；runtime ABI 与文件输入协议不变。
+
+`includeDir` 在普通参数绑定后消费 path、include 和 exclude，包括命名实参与默认数组；这些参数不留下运行期数组构造或求值临时变量。HIR 用普通 StructConstruct 表示 EmbeddedDir，其 files 字段为带完整 Array<EmbeddedFile> 类型的静态文件表表达式，逐项保存逻辑路径 String 与原始字节。默认／泛型模板沿同一表示传递。MIR 将每项路径、字节数组和文件表登记为已有 immortal 对象，文件表保留对子对象的 typed 引用。LIR 使用实际 Array<EmbeddedFile> 的布局与 TD，按普通 EmbeddedFile 字段布局发射引用；链接从文件表的实际引用闭包选择子对象。此扩展为 callable intrinsic 增加 tag 33、默认表达式增加 tag 78（路径文本与 byte string 的条目数组），对应 `cross-cone-interface/86` 与 LIR `identity-foundation/11`；不新增 intrinsic type、runtime ABI 或通用常量求值规则。
+
+includeDir 的目录输入记录使用 CompilerInputV1 的 tag 3，保存定义 Cone 根、实际根、原目录 locator、实际目录、include／exclude 与按逻辑相对路径排序的条目。每项保留实际目标；目录与未选中条目只记录其种类，选中文件另保存长度和修改时间。更新检查重新枚举目录和解析链接，比较这份记录，不读取文件内容，也不将未选中文件的修改时间作为输入。递归循环按当前祖先目录的实际路径检测；同一目标经不同非循环逻辑路径出现时保持独立条目。glob 使用 glob 0.3.4 的 Pattern 匹配器，配合 11.19 的路径语法检查，不使用该库的文件系统遍历。此输入扩展将 machine protocol 升至 21，compile cache key 域升至 v10，check／doc 缓存目录升至 v4。
+
+文件定位／读取、目录筛选和环境查询由输入宿主提供给 HIR 的窄输入接口完成，driver 与分析宿主供给实际实现。HIR 负责语言语义并保存结果，IR/meta crate 只保存 typed 数据，不自行读取文件或环境，也不依赖 driver／上游 stage 的实现。每次编译中同一实际请求的结果及已记录输入直接复用，不因常量试探、模板发布或下游 stage 重读。失败的试探不发布常量与绑定事实；输入读取的缓存不赋予失败表达式成功语义。
+
+输入宿主使用定义 Cone 的根目录执行 include 范围检查；manifest 模式沿已有 Cone root，single-file 沿解析入口 symlink 后的实际文件父目录。按语言规范 11.19 同时检查定位路径和解析全部链接后的实际目标，父目录 symlink、链式链接与路径中的 `..` 按实际文件系统语义处理，不能仅比较字符串前缀或只检查末段链接。includeDir 对根及每个遍历条目检查，包括 glob 排除项；进入目录前先确认其目标仍在 Cone 内。合法链接的输出名称保留逻辑相对路径，内容去重不省略另一条路径的范围检查。这里只实施 include 资源的目录边界，不增加 owner／权限归属／inode 审计，也不修改普通源码、native 输入或包管理的路径合同。
+
+HIR 在完成常量名称求值后、请求宿主查询环境前，拒绝空、含 `=`／NUL 或非精确 `SCOOP_` 前缀的 env 名称；错误定位 name 实参并说明允许的前缀，不把拒绝结果表示为 Option::None。只观察实际查询的合法名称，不枚举或记录其余环境。文件越界诊断定位原 path 实参，并补充具体条目、解析后目标及定义 Cone 根；非法输入不产生常量或成功依赖记录。
+
+编译期输入操作在原定义的语义检查中完成，泛型／default／inline body 随后保存已求出的常量值或静态引用；运行期不可达性和未使用默认参数不延后读取。生成正文以目标声明的原实际文件作为相对路径基准，single-file 以真实入口定位。诊断保留精确调用／实参位置与实际读取路径；宿主 locator 只存在于输入记录与诊断，不成为值、常量身份或可移植模板。
+
+常量存储合并属于内部优化，编译器应尽量合并可以安全共享的数据，范围包括普通常量和 intrinsic 结果。候选比较完整 exact type 与内容；浮点等已有常量保持原始位型，不能以数值相等混淆不同表示。哈希若用于索引，命中仍用完整 key 相等判断。不同泛型特化及泛型类 companion 中的声明、application 和常量实体身份保持独立，不能因值相同就合并语言实体或 companion 对象。原输入依赖单独按输入记录，不能因内容相同而删除另一文件或环境变量依赖。
+
+泛型具体化、默认参数展开、闭包、内联及跨 Cone 消费可以复用常量数据，但没有统一对象身份或唯一物理副本的强制合同。是否合并、在何阶段合并以及不同 profile 的选择由实际优化实现决定；未合并不能导致源码错误。复用既有 typed 常量、静态对象和产物定义／引用关系，不以本功能为由预建跨阶段的全局常量身份框架。普通字符串常量同样适用语言规范 9.1.2 的 identity 规则；普通运行期对象构造及要求独立副本的操作仍保留既有语义。
+
+MIR 保存完整常量值／对象引用，LIR 沿已有布局生成静态数组、enum／struct 值和 immortal relocation。Option<String> 使用运行时规范 2.5 的既有 niche；Some 空字符串引用实际非 null String。代码、初始化静态值和其他常量通过普通 relocation 引用实际发射的数据定义。链接按实际引用选择定义及其既有 immortal 登记，不将全部常量变成无条件根，未引用的数据可裁剪。debug／release 都直接生成静态内容，不在程序启动时构造数组、解码文件或组装目录；这一静态求值要求不等于必须合并相同内容。
+
+沿 2.7 的成功响应／构建记录增加实际输入：定义 Cone 根与解析后的实际根、单文件的 host locator／实际目标／长度／修改时间；目录根及 include／exclude、归一化匹配集合、所选文件 metadata，以及条目范围和遍历更新所需的目录／链接解析状态；实际查询的合法 SCOOP_ 环境变量名称与缺失／有效值状态。成功记录只在整次编译成功时发布。下一次先按记录判断更新：目录必须发现新增、删除、改名及链接解析目标变化，不能只检查旧匹配文件；glob 排除项的新增或链接改指也须满足目录范围。实际目标变更使相关输入重新求值，越界／断链则按原源码位置报告并使本次构建失败，不能继续使用旧结果；未匹配普通文件的内容变化不触发源码重编。env 的缺失与空值不同，未查询变量不影响复用。全部输入未变且输出存在时直接复用，只观察必要 metadata、目录条目、链接解析结果与已查询环境值，不读取源码、资源内容、命中 `.slib` 或执行工具探测；文件内容更新沿既有修改时间／长度规则，不增设内容 hash 验证。目录与链接状态服务匹配集合和实际目标更新，不能只依赖根目录 mtime 发现深层变化；同次观察结果直接复用，不在后续 stage 重做范围检查。
+
+父 driver 向实际编译子进程原样传递可查询的 `SCOOP_` 环境变量，包括空值和非 Unicode 值；不以内部 sysroot／缓存配置覆盖这些名字。内部 child 命令用显式 `--object-cache-dir` 传递对象缓存位置，源码查询仍读取原继承值。记录以完成求值的实际输入为准；target 与 runtime 环境不参与查询。文件／环境变化只使重新编译源码的 provider 失效，纯预编译依赖消费保留其中的旧常量。正常失败不发布结果，同键并发沿现有锁协调；不为构建中外部替换输入增加快照复制、稳定性重试或来源审计。
+
+env 的实际更新记录使用名称与 `Option<String>`，空数组表示变量缺失，单元素数组保存存在的值。这些值作为环境种类进入上述 machine protocol 21 的输入序列，以及编译／check／doc 缓存记录。记录随 build、check 和 doc 的实际 HIR 结果返回，不写入供纯预编译消费的环境查询要求。重新构建时，非法 Unicode 的当前值使旧记录失效，再由源码求值给出诊断。
+
+build、check、doc 和 LSP 的共享 HIR 路径使用同一求值规则。check／doc 的缓存同样记录相关文件、目录和 env 输入；LSP 在分析到相应区域时求值，输入更新使依赖该输入的语义结果失效，未完成结果不发布。语言服务不为这些值进入机器生成或启动外部生成器；其环境来自语言服务进程，外部父 shell 改值不会自动改变已启动进程的环境。
+
+新增常量种类、独立对象身份、模板引用及构建输入按实际编码改变升级相应 IR section／成功响应／缓存 schema，并一并重建开发 core；不在设计阶段占用未实现的 wire tag 或版本号。无变化的格式保持原版本，旧缓存按现有机制失效，不提供迁移或兼容 reader。实现范围、glob 选择与分层验收见[设计](../compile-time-intrinsics/DESIGN.md)。
 
 ### 2.11 输出完备性与 typed identity
 
@@ -1551,7 +1614,7 @@ release 在 roots 定稿前以 MemorySSA 消除跨无写入分支的重复加载
 
 GC 转换后每个 post-site managed use 必须来自正确更新的引用；invoke 的 normal/unwind 与 native transition 继续使用各自显式 root frames。不能在 root plan 定稿后增加未经描述的 safepoint、重复 site、外来 owner 或异常边。backend contract field 28 为 1，表示此最终根与发射合同。
 
-ODR 只比较 key 与 shared ABI，按实际需要选择物理 member。body 的机器码、EH、stackmap、callable/safepoint registration、关联常量与 Context cells 必须同选；独立 helper 可分别选择。共享同一完整接口数组的 dispatch definition 也必须同选，重复候选按这组实际物理 definitions 整组复用；不能将父表 alias 与其数组分别选自不同对象。shared TD、storage、cell 与初始化保持唯一，native linker 不得改变已确定选择。
+ODR 只比较 key 与 shared ABI，按实际需要选择物理 member。body 的机器码、EH、stackmap、callable/safepoint registration、函数私有常量与 Context cells 必须同选；独立 helper 可分别选择。2.10.1 规划的共享常量通过真实引用单独选择，不归入每个 callable materialization 的私有数据组。共享同一完整接口数组的 dispatch definition 也必须同选，重复候选按这组实际物理 definitions 整组复用；不能将父表 alias 与其数组分别选自不同对象。shared TD、storage、cell 与初始化保持唯一，native linker 不得改变已确定选择。
 
 program-link 在上述 ODR 选择之后，按已保存的逐物理 member 定义／引用关系裁剪不可达 callable 与类型／shape 元数据，对全部 profile 默认生效。保留 root entry、静态存储及根登记、immortal 及登记、初始化 cell／登记和 generated-C bridge；这些 member 是遍历入口，不以候选 image 的完整登记表、类型或派发表本身作为入口。runtime 的引用、typed runtime data alias 的目标，以及已声明 native 输入中对象的 Scoop 符号引用也作为入口；native archive 的候选引用保守保留对应 Scoop 定义，不因此提前抽取 archive member。沿实际机器符号引用传递保留完整物理 member，包含函数地址、动态派发表、release hook、callback、初始化与跨 Cone 调用。未到达的类型和递归引用环可以整体删除；保留的初始化等记录仍可能使其引用的类型或函数留下。
 
@@ -1832,6 +1895,10 @@ VS Code 扩展通过标准 LSP 客户端启动 `scoop-lsp --stdio`，管理初�
 工作区配置明确选取根 Cone、target、Production／Test、sysroot 与产物搜索目录；同一物理源码可属于多份配置，共享文本但分别保存项目语义输入。根 Cone 的 Test 配置使用既有 production／test 源码与依赖选择，源码依赖仍使用 Production。目录、显式源码依赖、显式产物、版本依赖和默认 core 的选择沿普通构建规则；配置错误保留为 manifest 位置诊断，不移除已经加载的源码语法输入，也不隐式执行编译、sysroot 准备或生成器。未归属已选 Cone 的文档仅提供语法服务。
 
 宿主按文件更新时间与长度复用未变的磁盘文本和已打开产物；打开的文档覆盖磁盘，Cone.toml 也遵守这一规则。配置或监听通知（包括 Cone.lock 变化）重新选择项目输入，关闭文档恢复磁盘文本；实际文本未变时保留语法结果。依赖产物只打开一次并按需读取所需 HIR，目录及成员缓冲可在输入宿主与分析线程间共享，文件定位读取互斥；不为共享再解析或核对相同目录。源文件、配置与依赖选择一起进入分析快照，旧项目结果不混入更新后的请求。
+
+编译期 include 输入沿同一分析宿主记录。动态资源监听只为已查询文件／目录输入的源码 Cone 注册根及后代，包含失败请求与源码依赖；定位根和实际根不同则同时注册。资源通知先比较现有输入记录，输入未变不重新分析；失败请求在相应 Cone 的通知后重试。实际输入更新独立推进 revision，使旧快照失效并调度打开文档诊断，无需重载不变的项目配置；普通源码／清单／产物事件仍沿原项目更新路径处理。监听集合随当前配置和分析结果更新，不支持动态注册的客户端保留主动通知与查询时检查。环境值来自语言服务进程，继承父进程新环境需要重启。
+
+支持 relativePatternSupport 的客户端使用以 Cone 父目录为 baseUri 的 RelativePattern，覆盖工作区外的源码依赖，以及 Cone 根自身的删除／重建；目录名中的 glob 元字符按字面量转义。否则使用字符串模式，并保留查询时的输入检查。
 
 进程内分析复用和 2.7、2.8 的构建缓存分别按各自实际输入更新，不增加缓存内容复核、源码镜像、来源认证或通用资源计费。语言服务只读取所需的依赖语义 metadata，不为查询进入 MIR／LIR、机器具体化、LLVM 或 native 链接准备。
 

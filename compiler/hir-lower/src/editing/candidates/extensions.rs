@@ -73,8 +73,8 @@ impl Lowerer {
         &mut self,
         call: &ast::RecoveredCall,
         value: &hir::Expr,
-        property_rank: usize,
-        rank: usize,
+        property_rank: crate::imports::lookup::calls::ImportLookupRank,
+        rank: crate::imports::lookup::calls::ImportLookupRank,
         is_cancelled: &impl Fn() -> bool,
     ) -> Result<CallCandidates, EditingCancelled> {
         if matches!(

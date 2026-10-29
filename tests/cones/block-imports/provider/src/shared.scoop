@@ -1,0 +1,11 @@
+package scoped.shared
+
+public fun<T> importedEcho(value: T): T {
+    import scoped.first.echo
+    return echo(value)
+}
+
+public fun defaultCallback(callback: (Int) -> Int = { value ->
+    import scoped.first.adjust
+    adjust(value)
+}): (Int) -> Int = callback

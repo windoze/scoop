@@ -21,7 +21,12 @@ impl ReferenceBuilder {
         lowerer: &mut Lowerer,
         check: &Rc<dyn Fn() -> bool>,
     ) -> Result<(), EditingCancelled> {
-        for file in lowerer.imports.files.values() {
+        for file in lowerer
+            .imports
+            .files
+            .values()
+            .chain(lowerer.imports.block_declarations.values())
+        {
             for import in &file.unavailable {
                 if check() {
                     return Err(EditingCancelled);
@@ -37,12 +42,14 @@ impl ReferenceBuilder {
             .imports
             .files
             .values()
+            .chain(lowerer.imports.block_declarations.values())
             .flat_map(|file| file.exact.iter().cloned())
             .collect::<Vec<_>>();
         let stars = lowerer
             .imports
             .files
             .values()
+            .chain(lowerer.imports.block_declarations.values())
             .flat_map(|file| file.stars.iter().cloned())
             .collect::<Vec<_>>();
         let mut imports = HashMap::new();

@@ -87,14 +87,8 @@ pub enum PropertyRepresentation {
     NativeStorage { storage: GlobalId },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ConstPropertyValue {
-    Integer(HirIntegerConstant),
-    Boolean(bool),
-    Char(char),
-    Float(scoop_identity::FloatConstant),
-    String(String),
-}
+/// Compile-time properties and static initializers share one value representation.
+pub type ConstPropertyValue = HirConstantImage;
 
 #[derive(Debug, Clone)]
 pub struct DelegateStorage {

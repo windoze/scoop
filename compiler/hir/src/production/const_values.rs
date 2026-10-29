@@ -7,10 +7,10 @@ use scoop_identity::{
 };
 
 use crate::{
-    CanonicalConstValueKindV1, CanonicalConstValueV1, CanonicalExportConstValuesV1,
-    DeclaredVisibility, ExportConstValueSetBuildError, ExportConstValueV1,
-    ExportDefinitionSourceV1, ExportHir, HirPropertyIdentity, HirSignatureTypeMapper,
-    HirSignatureTypeMappingError, PropertyCapability, PropertyId, PropertyRepresentation, Type,
+    CanonicalConstValueV1, CanonicalExportConstValuesV1, DeclaredVisibility,
+    ExportConstValueSetBuildError, ExportConstValueV1, ExportDefinitionSourceV1, ExportHir,
+    HirPropertyIdentity, HirSignatureTypeMapper, HirSignatureTypeMappingError, PropertyCapability,
+    PropertyId, PropertyRepresentation,
 };
 
 impl CanonicalExportConstValuesV1 {
@@ -63,15 +63,8 @@ impl CanonicalExportConstValuesV1 {
                     source,
                 }
             })?;
-            let value = CanonicalConstValueV1::from(value.clone());
-            let actual_type = const_type_kind(export, property.ty);
-            if actual_type != Some(value.kind()) {
-                return Err(ExportConstValueBuildError::ValueTypeMismatch {
-                    property: persistent,
-                    value: value.kind(),
-                    actual_type,
-                });
-            }
+            let value = canonical_value(value.clone())
+                .ok_or(ExportConstValueBuildError::RawPointerConstant(persistent))?;
             let origin = export
                 .export_definition_origins
                 .get(DefinitionOriginSubject::Property(persistent))
@@ -103,28 +96,34 @@ fn property_declaration(export: &ExportHir, property: PropertyId) -> Option<&cra
         .then(|| &export.properties[property])
 }
 
-fn const_type_kind(export: &ExportHir, ty: crate::TypeId) -> Option<CanonicalConstValueKindV1> {
-    if ty.into_raw().into_u32() as usize >= export.types.len() {
-        return None;
-    }
-    match export.types[ty] {
-        Type::Struct(application) => match export
-            .struct_definition(export.struct_applications[application].template)
-            .representation
-        {
-            crate::StructRepresentation::Intrinsic(crate::IntrinsicTypeKind::Char) => {
-                Some(CanonicalConstValueKindV1::Char)
-            }
-            crate::StructRepresentation::Intrinsic(crate::IntrinsicTypeKind::Float(kind)) => {
-                Some(CanonicalConstValueKindV1::Float(kind))
-            }
-            _ => None,
+fn canonical_value(value: crate::HirConstantImage) -> Option<crate::CanonicalValueConstantV1> {
+    use crate::{CanonicalValueConstantV1 as C, HirConstantImage as H};
+    Some(match value {
+        H::Unit => C::Unit,
+        H::Tuple(elements) => C::Tuple(
+            elements
+                .into_iter()
+                .map(canonical_value)
+                .collect::<Option<_>>()?,
+        ),
+        H::Struct { fields, .. } => C::Struct(
+            fields
+                .into_iter()
+                .map(canonical_value)
+                .collect::<Option<_>>()?,
+        ),
+        H::Enum { variant, fields } => C::Enum {
+            variant: variant.variant,
+            fields: fields
+                .into_iter()
+                .map(canonical_value)
+                .collect::<Option<_>>()?,
         },
-        Type::Integer(kind) => Some(CanonicalConstValueKindV1::Integer(kind)),
-        Type::Boolean => Some(CanonicalConstValueKindV1::Boolean),
-        Type::String => Some(CanonicalConstValueKindV1::String),
-        _ => None,
-    }
+        H::NullPointer(_) => return None,
+        scalar => C::Scalar(
+            CanonicalConstValueV1::try_from(scalar).expect("all aggregate images were handled"),
+        ),
+    })
 }
 
 fn raw_property(property: PropertyId) -> u32 {
@@ -148,11 +147,7 @@ pub enum ExportConstValueBuildError {
         property: PersistentPropertyId,
         source: HirSignatureTypeMappingError,
     },
-    ValueTypeMismatch {
-        property: PersistentPropertyId,
-        value: CanonicalConstValueKindV1,
-        actual_type: Option<CanonicalConstValueKindV1>,
-    },
+    RawPointerConstant(PersistentPropertyId),
     MissingDefinitionOrigin(PersistentPropertyId),
     ForeignDefinitionOrigin {
         property: PersistentPropertyId,
@@ -204,13 +199,9 @@ impl fmt::Display for ExportConstValueBuildError {
                     "cannot map const property {property} type: {source}"
                 )
             }
-            Self::ValueTypeMismatch {
-                property,
-                value,
-                actual_type,
-            } => write!(
+            Self::RawPointerConstant(property) => write!(
                 formatter,
-                "const property {property} has {value:?} value but HIR type {actual_type:?}"
+                "const property {property} contains a raw storage null"
             ),
             Self::MissingDefinitionOrigin(property) => write!(
                 formatter,

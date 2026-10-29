@@ -181,6 +181,7 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
                 collect_expr(value, out);
             }
             mir::ExprKind::StringConst(_)
+            | mir::ExprKind::ArrayConst(_)
             | mir::ExprKind::IntegerLiteral(_)
             | mir::ExprKind::MachineScalarLiteral(_)
             | mir::ExprKind::CharLiteral(_)

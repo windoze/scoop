@@ -18,9 +18,8 @@ void scoop_image_immortals(ScoopImageRegistry *registry) {
         }
         const ScoopTypeDescriptor *td = object->type_registration->descriptor;
         if (object->object_size < sizeof(ScoopObjectHeader) ||
-            object->required_alignment != td->instance_shape.instance_alignment ||
-            td->object_scan != NULL) {
-            scoop_metadata_fatal(&check, "object size, alignment or reference scan");
+            object->required_alignment != td->instance_shape.instance_alignment) {
+            scoop_metadata_fatal(&check, "object size or alignment");
         }
         scoop_metadata_range(&check, object->object_start, object->object_size, 1,
                              (size_t)object->required_alignment, "object range");

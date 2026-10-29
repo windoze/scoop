@@ -476,7 +476,7 @@ fn nullable_pointer_storage_accepts_none_as_an_encoded_constant_image() {
         assert!(matches!(
             global.storage,
             hir::GlobalStorage::Local {
-                initializer: hir::HirConstantImage::EnumUnit { .. },
+                initializer: hir::HirConstantImage::Enum { .. },
                 ..
             }
         ));

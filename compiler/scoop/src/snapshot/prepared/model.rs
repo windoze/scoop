@@ -29,6 +29,7 @@ pub struct ManifestSourceInput {
     pub(super) manifest_semantic: ConeManifestSemantic,
     pub(super) test_config: Option<scoop_manifest::TestManifestConfig>,
     pub(super) manifest_locator: PathBuf,
+    pub(super) input_root: PathBuf,
     pub(super) sources: SelectedManifestSources,
     pub(super) native: SourceNativeInput,
 }

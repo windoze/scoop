@@ -2,10 +2,12 @@ use super::*;
 
 mod bound;
 mod constructors;
+mod intrinsics;
 mod local;
 mod native;
 mod resolution;
 mod unbound;
+use intrinsics::ReferenceFailureReason;
 use resolution::ReferenceCandidate;
 
 pub(super) enum ReferenceTarget {

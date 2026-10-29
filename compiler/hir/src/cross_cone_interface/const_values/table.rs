@@ -5,7 +5,7 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use super::{
     DecodedExportConstValueV1, ExportConstValueResolutionError, ExportConstValueResolver,
-    ExportConstValueSemanticAuthority, ExportConstValueSemanticValidationError, ExportConstValueV1,
+    ExportConstValueV1,
 };
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -42,21 +42,6 @@ impl CanonicalExportConstValuesV1 {
 
     pub fn is_empty(&self) -> bool {
         self.records.is_empty()
-    }
-
-    pub fn validate_semantics<A, E>(
-        &self,
-        authority: &mut A,
-    ) -> Result<(), ExportConstValueSetSemanticValidationError<E>>
-    where
-        A: ExportConstValueSemanticAuthority<E>,
-    {
-        for (index, record) in self.records.iter().enumerate() {
-            record.validate_semantics(authority).map_err(|error| {
-                ExportConstValueSetSemanticValidationError::Record { index, error }
-            })?;
-        }
-        Ok(())
     }
 }
 
@@ -179,32 +164,6 @@ impl<E: fmt::Display> fmt::Display for ExportConstValueSetValidationError<E> {
 }
 
 impl<E: std::error::Error + 'static> std::error::Error for ExportConstValueSetValidationError<E> {}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum ExportConstValueSetSemanticValidationError<E> {
-    Record {
-        index: usize,
-        error: ExportConstValueSemanticValidationError<E>,
-    },
-}
-
-impl<E: fmt::Display> fmt::Display for ExportConstValueSetSemanticValidationError<E> {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Record { index, error } => {
-                write!(
-                    formatter,
-                    "invalid exported const value semantics {index}: {error}"
-                )
-            }
-        }
-    }
-}
-
-impl<E: std::error::Error + 'static> std::error::Error
-    for ExportConstValueSetSemanticValidationError<E>
-{
-}
 
 #[cfg(test)]
 mod tests;

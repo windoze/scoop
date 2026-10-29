@@ -1,0 +1,218 @@
+schema = 1
+name = "include-str-values-and-cache"
+inputs = ["cone", "single"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["compiler-intrinsics", "compiler-correctness", "cache"]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}, {symlink = {from = "${work}/cone/one.txt", to = "${work}/cone/linked.txt"}}, {symlink = {from = "${work}/cone", to = "${work}/alias"}}, {replace = {path = "${work}/cone/src/main.scoop", old = "ABSOLUTE_ALIAS", new = "${work}/alias/data.txt"}}]
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "build", "${work}/alias", "--release", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${cold.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "run_cold"
+argv = ["${cold.result.output}"]
+exit = 0
+stdout = "alpha\nalpha\nalpha\nalpha\ntrue\none\ntrue\n"
+stderr = ""
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "${work}/alias", "--release", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "change_changed"
+files = [{write = {path = "${work}/cone/data.txt", data = "beta"}}]
+
+[[steps]]
+name = "changed"
+argv = ["${scoop}", "build", "${work}/alias", "--release", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${changed.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "run_changed"
+argv = ["${changed.result.output}"]
+exit = 0
+stdout = "beta\nbeta\nbeta\nbeta\ntrue\none\ntrue\n"
+stderr = ""
+
+[[steps]]
+name = "change_retarget"
+files = [{remove = {path = "${work}/cone/linked.txt"}}, {symlink = {from = "${work}/cone/two.txt", to = "${work}/cone/linked.txt"}}]
+
+[[steps]]
+name = "retarget"
+argv = ["${scoop}", "build", "${work}/alias", "--release", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${retarget.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "run_retarget"
+argv = ["${retarget.result.output}"]
+exit = 0
+stdout = "beta\nbeta\nbeta\nbeta\ntrue\ntwo\ntrue\n"
+stderr = ""
+
+[[steps]]
+name = "break_link"
+files = [{remove = {path = "${work}/cone/linked.txt"}}]
+
+[[steps]]
+name = "missing"
+argv = ["${scoop}", "build", "${work}/alias", "--release", {each = "${link_args}"}, {each = "${options}"}]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "missing.diagnostics.json"}
+
+[[steps]]
+name = "previous_output"
+argv = ["${retarget.result.output}"]
+exit = 0
+stdout = "beta\nbeta\nbeta\nbeta\ntrue\ntwo\ntrue\n"
+stderr = ""
+
+[[steps]]
+name = "restore_link"
+files = [{symlink = {from = "${work}/cone/two.txt", to = "${work}/cone/linked.txt"}}]
+
+[[steps]]
+name = "recovered"
+argv = ["${scoop}", "build", "${work}/alias", "--release", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${recovered.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "change_unrelated"
+files = [{write = {path = "${work}/cone/unread.txt", data = "unused"}}]
+
+[[steps]]
+name = "unrelated"
+argv = ["${scoop}", "build", "${work}/alias", "--release", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${unrelated.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "check_cold"
+argv = ["${scoop}", "check", "${work}/alias", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${check_cold.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "check_warm"
+argv = ["${scoop}", "check", "${work}/alias", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${check_warm.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "change_check_changed"
+files = [{write = {path = "${work}/cone/data.txt", data = "check-value"}}]
+
+[[steps]]
+name = "check_changed"
+argv = ["${scoop}", "check", "${work}/alias", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${check_changed.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "doc_cold"
+argv = ["${scoop}", "doc", "${work}/alias", {each = "${compile_args}"}, {each = "${options}"}, "--no-deps", "--output-dir", "${work}/site"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${doc_cold.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "doc_warm"
+argv = ["${scoop}", "doc", "${work}/alias", {each = "${compile_args}"}, {each = "${options}"}, "--no-deps", "--output-dir", "${work}/site"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${doc_warm.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "change_doc_changed"
+files = [{write = {path = "${work}/cone/data.txt", data = "doc-value"}}]
+
+[[steps]]
+name = "doc_changed"
+argv = ["${scoop}", "doc", "${work}/alias", {each = "${compile_args}"}, {each = "${options}"}, "--no-deps", "--output-dir", "${work}/site"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${doc_changed.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "single_prepare"
+files = [{copy = {from = "${fixture}/single", to = "${work}/single"}}, {symlink = {from = "${work}/single/main.scoop", to = "${work}/entry.scoop"}}, {write = {path = "${work}/payload.txt", data = "wrong directory"}}]
+
+[[steps]]
+name = "single"
+argv = ["${scoop}", "build", "${work}/entry.scoop", "--release", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "single_run"
+argv = ["${single.result.output}"]
+exit = 0
+stdout = "actual source directory\ntrue\n"
+stderr = ""

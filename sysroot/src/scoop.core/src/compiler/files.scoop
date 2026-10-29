@@ -1,0 +1,24 @@
+package scoop.compiler
+
+import String
+import Array
+import Byte
+
+/**
+ * Embeds the exact UTF-8 contents of a file inside the defining Cone.
+ * The constant path is relative to this call's source directory. Both the
+ * path and its resolved symlink target must stay inside the Cone directory.
+ * Invalid UTF-8 is a compile error; BOM and line endings are preserved.
+ * The file is read at compile time. This intrinsic has no function reference.
+ */
+@Intrinsic("include_str")
+public fun includeStr(path: String): String
+
+/**
+ * Embeds the exact bytes of a file as an immutable Array<Byte>.
+ * The constant path is relative to this call's source directory. Both the
+ * path and its resolved symlink target must stay inside the Cone directory.
+ * The file is read at compile time. This intrinsic has no function reference.
+ */
+@Intrinsic("include_bytes")
+public fun includeBytes(path: String): Array<Byte>

@@ -80,7 +80,7 @@ impl Installation {
 #[test]
 fn published_catalog_has_complete_documents_and_real_files() {
     let catalog = Catalog::parse(&catalog_text()).unwrap();
-    assert_eq!(catalog.topics.len(), 24);
+    assert_eq!(catalog.topics.len(), 26);
     let root = repository().join("sysroot");
     for topic in catalog.topics {
         assert!(!topic.title.is_empty() && !topic.summary.is_empty());
@@ -156,7 +156,7 @@ fn directories_aliases_search_and_version_use_the_executable_installation() {
     assert_eq!(install.json(&[])["version"], "test-install\nrevision: abc");
     assert_eq!(install.json(&[])["kind"], "index");
     let all = install.json(&["--list"]);
-    assert_eq!(all["topics"].as_array().unwrap().len(), 24);
+    assert_eq!(all["topics"].as_array().unwrap().len(), 26);
     let group = install.json(&["scoop.json"]);
     assert_eq!(group["kind"], "group");
     assert_eq!(group["topics"][0]["id"], "json/typed");

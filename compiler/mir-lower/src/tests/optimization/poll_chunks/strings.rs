@@ -9,7 +9,7 @@ fn copied_runtime_read_defines_the_copied_temporary() {
         .get(id)
         .unwrap()
         .materialization();
-    let string = module.strings.alloc(mir::StringConst {
+    let string = module.immortals.alloc(mir::ImmortalConst {
         identity: mir::ImmortalObjectKey::string_constant(
             mir::ImmortalObjectOwner::Callable(owner),
             mir::StructuralDefinitionPath::from_first(
@@ -20,8 +20,8 @@ fn copied_runtime_read_defines_the_copied_temporary() {
                 [],
             ),
         ),
-        value: "text".into(),
-        source: mir::StringConstSource::CurrentCone,
+        value: mir::ImmortalConstValue::String("text".into()),
+        source: mir::ImmortalConstSource::CurrentCone,
     });
     let body = &mut module.functions[id].body;
     let header = body.loop_header_polls[0].header();

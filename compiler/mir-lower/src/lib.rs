@@ -144,11 +144,11 @@ mod nominals;
 mod optimization;
 mod throwable;
 pub use optimization::MirOptimizationOptions;
+mod immortals;
 mod pipeline;
 mod production;
 mod singletons;
 mod source_callables;
-mod strings;
 mod structured;
 mod types;
 
@@ -159,10 +159,10 @@ pub use production::{MirProductionLoweringError, lower_production_section};
 use context::*;
 use dynamic_adapters::{DynamicAdapterDefinitions, request_dynamic_adapter};
 use globals::*;
+use immortals::ImmortalRegistry;
 use local_values::*;
 use lowering_support::*;
 use source_callables::*;
-use strings::StringRegistry;
 
 use coroutine_registry::{CoroutineRegistry, SuspendSource};
 use instances::InstanceRegistry;
@@ -241,7 +241,7 @@ fn lower_with_dependencies(
         foreign_callback_bridges: Arena::new(),
         foreign_callback_by_application: HashMap::new(),
         top_level: Vec::new(),
-        strings: StringRegistry::default(),
+        immortals: ImmortalRegistry::default(),
         structs: StructRegistry::default(),
         struct_map: HashMap::new(),
         classes: Arena::new(),
@@ -341,7 +341,7 @@ struct Lowerer {
         HashMap<hir::PersistentCallbackApplicationId, mir::ForeignCallbackBridgeId>,
     /// User functions in declaration order (intrinsics have no MIR body).
     top_level: Vec<mir::FunctionId>,
-    strings: StringRegistry,
+    immortals: ImmortalRegistry,
     /// MIR struct definitions transposed from local-concrete HIR.
     structs: StructRegistry,
     /// Local-concrete HIR struct -> MIR struct.

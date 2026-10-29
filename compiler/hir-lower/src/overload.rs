@@ -40,6 +40,7 @@ pub(crate) struct ResolvedCallee {
     /// The arguments, lowered once and adapted (boxed where needed) to
     /// the winner's parameter types.
     pub(crate) args: Vec<hir::Expr>,
+    pub(crate) argument_inputs: Vec<crate::call_resolution::arguments::ParameterInput>,
     /// Materialized instance receiver. Extension receivers are normalized to
     /// the hidden first direct-call argument instead.
     pub(crate) receiver: Option<hir::Expr>,

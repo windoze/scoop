@@ -4,6 +4,9 @@ use scoop_analysis::{AnalysisHost, WorkspaceLoader};
 use scoop_protocol::CompilationPurpose;
 use scoop_source::SourceText;
 
+#[cfg(unix)]
+#[path = "workspace/compiler_inputs.rs"]
+mod compiler_inputs;
 #[path = "workspace/support.rs"]
 mod support;
 use support::{resolve, setup, write};

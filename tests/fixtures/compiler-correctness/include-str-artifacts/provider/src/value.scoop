@@ -1,0 +1,5 @@
+package scoop.tests.compilerinput
+import scoop.compiler.includeStr
+public val embedded: String = includeStr("payload.txt")
+public fun <T> generic(value: T): String = includeStr("payload.txt")
+public fun defaulted(value: String = includeStr("payload.txt")): String = value

@@ -1,0 +1,7 @@
+package scoop.tests.compilerinput
+
+import scoop.compiler.env
+
+public const val embedded: String? = env("SCOOP_ENV_PROVIDER")
+public fun <T> generic(value: T): String? = env("SCOOP_ENV_PROVIDER")
+public fun defaulted(value: String? = env("SCOOP_ENV_PROVIDER")): String? = value

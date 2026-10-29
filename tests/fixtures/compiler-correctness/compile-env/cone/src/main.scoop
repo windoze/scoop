@@ -1,0 +1,21 @@
+package scoop.tests
+
+import scoop.compiler.env as compileEnv
+
+const val value: String? = compileEnv(KEY + "VALUE")
+const val KEY: String = "SCOOP_ENV_FIXTURE_"
+
+fun <T> generic(value: T): String? = compileEnv("SCOOP_ENV_FIXTURE_VALUE")
+fun defaulted(value: String? = compileEnv("SCOOP_ENV_FIXTURE_VALUE")): String? = value
+fun display(value: String?): String = when (value) {
+    case Some(text) -> "[" + text + "]"
+    case None -> "missing"
+}
+fun main() {
+    println(display(value))
+    println(display(generic<Int>(1)))
+    println(display(generic<UInt>(1U)))
+    println(display(defaulted()))
+    println(display(compileEnv("SCOOP_CACHE_DIR")))
+    println(display(compileEnv("SCOOP_SYSROOT")))
+}

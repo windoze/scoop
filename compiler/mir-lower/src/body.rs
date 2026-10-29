@@ -8,6 +8,7 @@ mod coroutines;
 mod data_borrow;
 mod debug;
 mod diverging;
+mod embedded_files;
 mod exceptions;
 mod expressions;
 mod function;
@@ -39,8 +40,8 @@ pub(super) struct BodyLowerer<'a> {
     pub(super) local_values: &'a mut LocalValueRegistry,
     pub(super) current_owner: crate::local_values::BodyOwner,
     pub(super) current_materialization: hir::CallableMaterialization,
-    pub(super) current_string_owner: mir::ImmortalObjectOwner,
-    pub(super) next_string_ordinal: u32,
+    pub(super) current_immortal_owner: mir::ImmortalObjectOwner,
+    pub(super) next_immortal_ordinal: u32,
     pub(super) struct_map: &'a HashMap<hir::StructId, mir::StructId>,
     pub(super) class_map: &'a HashMap<hir::ClassId, mir::ClassId>,
     pub(super) interfaces: &'a mut InterfaceRegistry,
@@ -73,7 +74,7 @@ pub(super) struct BodyLowerer<'a> {
     /// Local-concrete constructor callable -> MIR function.
     pub(super) ctors: &'a HashMap<hir::ClassConstructorId, mir::FunctionId>,
     pub(super) struct_ctors: &'a HashMap<hir::StructConstructorId, mir::FunctionId>,
-    pub(super) strings: &'a mut StringRegistry,
+    pub(super) immortals: &'a mut ImmortalRegistry,
     pub(super) functions: &'a mut Arena<mir::Function>,
     pub(super) top_level: &'a mut Vec<mir::FunctionId>,
     pub(super) instances: &'a mut InstanceRegistry,
@@ -135,20 +136,29 @@ pub(super) struct BodyLowerer<'a> {
 }
 
 impl BodyLowerer<'_> {
-    pub(super) fn intern_current_string(&mut self, value: String) -> mir::StringConstId {
-        let ordinal = self.next_string_ordinal;
-        self.next_string_ordinal = self
-            .next_string_ordinal
+    pub(super) fn intern_current_string(&mut self, value: String) -> mir::ImmortalConstId {
+        self.intern_current_immortal(mir::ImmortalConstValue::String(value))
+    }
+
+    pub(super) fn intern_current_immortal(
+        &mut self,
+        value: mir::ImmortalConstValue,
+    ) -> mir::ImmortalConstId {
+        let ordinal = self.next_immortal_ordinal;
+        self.next_immortal_ordinal = self
+            .next_immortal_ordinal
             .checked_add(1)
-            .expect("one string-constant owner has at most u32::MAX direct children");
+            .expect("one immortal-constant owner has at most u32::MAX direct children");
         let source = match self.current_owner {
-            crate::local_values::BodyOwner::Emitted(_) => mir::StringConstSource::CurrentCone,
-            crate::local_values::BodyOwner::Imported(callable) => mir::StringConstSource::Imported(
-                self.external_callables[callable].reference().provider(),
-            ),
+            crate::local_values::BodyOwner::Emitted(_) => mir::ImmortalConstSource::CurrentCone,
+            crate::local_values::BodyOwner::Imported(callable) => {
+                mir::ImmortalConstSource::Imported(
+                    self.external_callables[callable].reference().provider(),
+                )
+            }
         };
-        self.strings
-            .intern_from(self.current_string_owner, ordinal, value, source)
+        self.immortals
+            .intern_value(self.current_immortal_owner, ordinal, value, source)
     }
 }
 

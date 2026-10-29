@@ -78,6 +78,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
             CurrentConeProductionError::after_hir(CurrentConeProductionFailure::Hir(e), warnings)
         })?;
         let used_generators = std::mem::take(&mut hir.used_generators);
+        let compiler_inputs = std::mem::take(&mut hir.compiler_inputs);
         let mut source_warnings = packages::single_file_warnings(&self.sources);
         source_warnings.extend(hir.hir.output().warnings.clone());
         source_warnings.extend(hir.generator_warnings.clone());
@@ -94,6 +95,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                 crate::SingleConeCheckSuccess {
                     warnings,
                     used_generators,
+                    compiler_inputs,
                 },
             ));
         }
@@ -160,6 +162,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                     warnings,
                     dumps: dump,
                     used_generators,
+                    compiler_inputs,
                 },
             ));
         }
@@ -175,8 +178,10 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
             else {
                 return Ok(ControlFlow::Break(()));
             };
-            let cache = scoop_toolchain::configured_cache_root(None)
-                .map_err(CurrentConeProductionFailure::ObjectOutput)?;
+            let cache = scoop_toolchain::configured_cache_root(
+                self.request.request.object_cache_root.clone(),
+            )
+            .map_err(CurrentConeProductionFailure::ObjectOutput)?;
             for (digest, bytes) in artifact.object_payloads() {
                 scoop_toolchain::store_object(&cache, digest, bytes)
                     .map_err(CurrentConeProductionFailure::ObjectOutput)?;
@@ -212,6 +217,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                     warnings,
                     dump,
                     used_generators,
+                    compiler_inputs,
                 );
                 success.documentation = documentation;
                 Ok(SingleConeCompilation::Published(Box::new(success)))
@@ -249,6 +255,23 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
             }
         };
         source_names.insert(self.sources.cone(), current_coordinate);
+        let input_root = match self.request.current() {
+            ValidatedCurrentConeInput::Manifest { manifest } => manifest.input_root(),
+            ValidatedCurrentConeInput::SingleFile { source } => source
+                .resolved_path()
+                .parent()
+                .expect("an input source has a parent"),
+        };
+        let inputs =
+            std::sync::Arc::new(scoop_toolchain::CompileTimeInputs::default().with_sources(
+                input_root.to_owned(),
+                self.sources.iter().map(|source| {
+                    (
+                        source.text().identity().clone(),
+                        source.diagnostic().display_locator().to_owned(),
+                    )
+                }),
+            ));
         if self.request.purpose() == CompilationPurpose::Test {
             let ValidatedCurrentConeInput::Manifest { manifest } = self.request.current() else {
                 unreachable!("test request normalization requires a manifest")
@@ -271,6 +294,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                 source_names,
                 test_dependencies,
                 self.request.generators(),
+                inputs,
             );
         }
         current_hir::CurrentConeHir::lower_with_documentation(
@@ -281,6 +305,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
             source_names,
             self.request.output().documentation().is_some(),
             self.request.generators(),
+            inputs,
         )
     }
 }

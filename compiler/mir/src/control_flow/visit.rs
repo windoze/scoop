@@ -159,6 +159,7 @@ pub fn walk_expr(expr: &Expr, visitor: &mut impl FnMut(&Expr)) {
             visit_expr(rhs, visitor);
         }
         ExprKind::StringConst(_)
+        | ExprKind::ArrayConst(_)
         | ExprKind::IntegerLiteral(_)
         | ExprKind::MachineScalarLiteral(_)
         | ExprKind::CharLiteral(_)
@@ -337,6 +338,7 @@ pub fn walk_expr_mut(expr: &mut Expr, visitor: &mut impl FnMut(&mut Expr)) {
             visit_expr_mut(rhs, visitor);
         }
         ExprKind::StringConst(_)
+        | ExprKind::ArrayConst(_)
         | ExprKind::IntegerLiteral(_)
         | ExprKind::MachineScalarLiteral(_)
         | ExprKind::CharLiteral(_)

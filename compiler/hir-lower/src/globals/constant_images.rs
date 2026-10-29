@@ -63,8 +63,9 @@ impl Lowerer {
             }
             _ => self.enum_member_identities.as_ref()?[self.option_core?.none()].id(),
         };
-        Some(hir::HirConstantImage::EnumUnit {
+        Some(hir::HirConstantImage::Enum {
             variant: hir::EnumVariantApplication { owner, variant },
+            fields: Vec::new(),
         })
     }
 
@@ -94,11 +95,12 @@ impl Lowerer {
         }
         probe.observe_static_variant(expression.span(), variant, expected);
         *self = probe;
-        Some(hir::HirConstantImage::EnumUnit {
+        Some(hir::HirConstantImage::Enum {
             variant: hir::EnumVariantApplication {
                 owner,
                 variant: variant.variant,
             },
+            fields: Vec::new(),
         })
     }
 

@@ -10,7 +10,7 @@ pub(super) enum Constant {
     Boolean(bool),
     Integer(mir::MirIntegerConstant),
     Character { owner: mir::StructId, value: char },
-    String(mir::StringConstId),
+    String(mir::ImmortalConstId),
 }
 
 impl Constant {

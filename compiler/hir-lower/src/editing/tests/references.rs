@@ -9,6 +9,19 @@ fn origin(offset: usize, length: usize) -> hir::SemanticSourceLocation {
 }
 
 #[test]
+fn rejected_intrinsic_references_keep_the_direct_call_target() {
+    let text = "fun direct() { currentSourceLocation() }\nfun editing() { val inferred = ::currentSourceLocation; val managed: () -> SourceLocation = ::currentSourceLocation; val native: FunPtr<() -> Int> = ::currentSourceLocation }";
+    let mut analysis = analyze(text);
+    let index = analysis.reference_index(|| false).unwrap();
+    let targets = text
+        .match_indices("currentSourceLocation")
+        .map(|(offset, name)| index.targets_at(&origin(offset, name.len())))
+        .collect::<Vec<_>>();
+    assert_eq!(targets[0].len(), 1);
+    assert!(targets.iter().all(|target| *target == targets[0]));
+}
+
+#[test]
 fn reference_index_distinguishes_overloads_and_merges_generic_applications() {
     let text = "fun choose(value: Boolean): Boolean = value\nfun choose(value: String): Boolean = true\nfun <T> same(value: T): T = value\nfun editing(): Boolean { val first = choose(true); val second = choose(\"text\"); val third = same(\"text\"); return same(first) }";
     let mut analysis = analyze(text);

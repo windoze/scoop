@@ -1,29 +1,22 @@
 use std::fmt;
 
 use scoop_identity::{
-    ConeIdentity, DecodedPersistentId, DecodedSignatureTypeKey, PersistentIdResolver,
-    PersistentKeyResolver, PersistentPropertyId, PersistentSourceContextId, SignatureTypeKey,
-    SourceContextKey, SourceOriginResolutionError,
+    ConeIdentity, DecodedPersistentId, DecodedSignatureTypeKey, PersistentEnumVariantId,
+    PersistentIdResolver, PersistentKeyResolver, PersistentPropertyId, PersistentSourceContextId,
+    SignatureTypeKey, SourceContextKey, SourceOriginResolutionError,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
-use super::CanonicalConstValueV1;
+use super::{CanonicalValueConstantV1, DecodedValueConstantV1};
 use crate::{
     DecodedExportDefinitionSourceV1, ExportDefinitionSourceV1, SignatureTypeReferenceResolver,
-};
-
-mod semantics;
-
-pub use semantics::{
-    ConstPropertyDeclarationSourceV1, ExportConstValueSemanticAuthority,
-    ExportConstValueSemanticValidationError,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExportConstValueV1 {
     property: PersistentPropertyId,
     value_type: SignatureTypeKey,
-    value: CanonicalConstValueV1,
+    value: CanonicalValueConstantV1,
     definition_origin: ExportDefinitionSourceV1,
 }
 
@@ -31,13 +24,13 @@ impl ExportConstValueV1 {
     pub fn new(
         property: PersistentPropertyId,
         value_type: SignatureTypeKey,
-        value: CanonicalConstValueV1,
+        value: impl Into<CanonicalValueConstantV1>,
         definition_origin: ExportDefinitionSourceV1,
     ) -> Self {
         Self {
             property,
             value_type,
-            value,
+            value: value.into(),
             definition_origin,
         }
     }
@@ -50,7 +43,7 @@ impl ExportConstValueV1 {
         &self.value_type
     }
 
-    pub const fn value(&self) -> &CanonicalConstValueV1 {
+    pub const fn value(&self) -> &CanonicalValueConstantV1 {
         &self.value
     }
 
@@ -77,7 +70,7 @@ impl WireEncode for ExportConstValueV1 {
 pub struct DecodedExportConstValueV1 {
     property: DecodedPersistentId<PersistentPropertyId>,
     value_type: DecodedSignatureTypeKey,
-    value: CanonicalConstValueV1,
+    value: DecodedValueConstantV1,
     definition_origin: DecodedExportDefinitionSourceV1,
 }
 
@@ -103,7 +96,9 @@ impl DecodedExportConstValueV1 {
         Ok(ExportConstValueV1::new(
             property,
             value_type,
-            self.value,
+            self.value
+                .resolve(resolver)
+                .map_err(ExportConstValueResolutionError::Value)?,
             definition_origin,
         ))
     }
@@ -129,7 +124,7 @@ impl WireDecode for DecodedExportConstValueV1 {
         Ok(Self {
             property: decoder.field(1, DecodedPersistentId::decode)?,
             value_type: decoder.field(2, DecodedSignatureTypeKey::decode)?,
-            value: decoder.field(3, CanonicalConstValueV1::decode)?,
+            value: decoder.field(3, DecodedValueConstantV1::decode)?,
             definition_origin: decoder.field(4, DecodedExportDefinitionSourceV1::decode)?,
         })
     }
@@ -138,6 +133,7 @@ impl WireDecode for DecodedExportConstValueV1 {
 pub trait ExportConstValueResolver<E>:
     SignatureTypeReferenceResolver<E>
     + PersistentIdResolver<PersistentPropertyId, Error = E>
+    + PersistentIdResolver<PersistentEnumVariantId, Error = E>
     + PersistentIdResolver<ConeIdentity, Error = E>
     + PersistentKeyResolver<PersistentSourceContextId, SourceContextKey, Error = E>
 {
@@ -146,6 +142,7 @@ pub trait ExportConstValueResolver<E>:
 impl<R, E> ExportConstValueResolver<E> for R where
     R: SignatureTypeReferenceResolver<E>
         + PersistentIdResolver<PersistentPropertyId, Error = E>
+        + PersistentIdResolver<PersistentEnumVariantId, Error = E>
         + PersistentIdResolver<ConeIdentity, Error = E>
         + PersistentKeyResolver<PersistentSourceContextId, SourceContextKey, Error = E>
 {
@@ -155,6 +152,7 @@ impl<R, E> ExportConstValueResolver<E> for R where
 pub enum ExportConstValueResolutionError<E> {
     Property(E),
     ValueType(E),
+    Value(E),
     DefinitionOrigin(SourceOriginResolutionError<E>),
 }
 
@@ -163,6 +161,7 @@ impl<E: fmt::Display> fmt::Display for ExportConstValueResolutionError<E> {
         match self {
             Self::Property(error) => write!(formatter, "invalid const property: {error}"),
             Self::ValueType(error) => write!(formatter, "invalid const value type: {error}"),
+            Self::Value(error) => write!(formatter, "invalid const value: {error}"),
             Self::DefinitionOrigin(error) => {
                 write!(formatter, "invalid const definition origin: {error}")
             }

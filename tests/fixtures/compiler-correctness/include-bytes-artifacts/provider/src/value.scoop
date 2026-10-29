@@ -1,0 +1,6 @@
+package scoop.tests.compilerinput
+import scoop.compiler.includeBytes
+public val embedded: Array<Byte> = includeBytes("data.bin")
+public fun <T> generic(v: T): Array<Byte> = includeBytes("data.bin")
+public fun defaulted(v: Array<Byte> = includeBytes("data.bin")): Array<Byte> = v
+public fun direct(): Array<Byte> = includeBytes("data.bin")

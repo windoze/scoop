@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "scoop.tests"
+name = "include-dir-cache"
+version = "0.1.0"
+kind = "executable"

@@ -78,6 +78,7 @@ impl WireDecode for ImmortalObjectRole {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::StringConstant),
+            2 => Ok(Self::ArrayConstant),
             tag => Err(unknown_tag(decoder, tag)),
         }
     }
@@ -107,6 +108,9 @@ impl DecodedImmortalObjectKey {
     {
         let owner = self.owner.resolve(resolver)?;
         match self.role {
+            ImmortalObjectRole::ArrayConstant => {
+                Ok(ImmortalObjectKey::array_constant(owner, self.path))
+            }
             ImmortalObjectRole::StringConstant => {
                 Ok(ImmortalObjectKey::string_constant(owner, self.path))
             }

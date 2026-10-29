@@ -1,0 +1,4 @@
+package scoop.tests.resources
+import scoop.compiler.includeStr as embed
+public fun <T> generic(value: T): String = embed("../../data.txt")
+public fun defaulted(value: String = embed("../../data.txt")): String = value

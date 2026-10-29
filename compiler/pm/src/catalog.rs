@@ -259,6 +259,7 @@ impl<'a> Catalog<'a> {
     }
 
     fn local(&mut self, directory: &Path, context: &Context) -> PmResult<Candidate> {
+        let input_directory = directory;
         let git_subdir = match context {
             Context::Git(checkout) => Some(relative(directory, &checkout.root)?),
             Context::Local => None,
@@ -282,7 +283,7 @@ impl<'a> Catalog<'a> {
         };
         let workspace = Workspace::discover_cached(
             &directory,
-            Some(&directory),
+            Some(input_directory),
             self.cache,
             boundary,
             self.overlays.clone(),

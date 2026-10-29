@@ -6,6 +6,7 @@ use scoop_hir as hir;
 use std::collections::{BTreeMap, HashMap};
 
 mod bindings;
+mod blocks;
 mod collect;
 mod exports;
 pub(crate) mod lookup;
@@ -26,6 +27,8 @@ pub(crate) use reexports::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ImportLookupLayer {
+    BlockExact(usize),
+    BlockStar(usize),
     Exact,
     CurrentPackage(PackageId),
     QualifiedPackage,
@@ -120,7 +123,7 @@ pub(crate) struct CurrentUnitImports {
     pub(crate) bindings: Vec<CurrentUnitBinding>,
     namespaces: HashMap<ResolvedNamespace, BTreeMap<String, Vec<CurrentUnitBindingId>>>,
     static_targets: HashMap<CurrentUnitBindingId, StaticNamespace>,
-    direct_package_types: std::sync::Arc<packages::DirectPackageTypeIndex>,
+    direct_packages: std::sync::Arc<packages::DirectPackageIndex>,
     source_property_count: usize,
     source_extension_properties: std::collections::HashSet<SourcePropertyId>,
     global_property_sources: Vec<PropertyImportSource>,
@@ -134,6 +137,7 @@ pub(crate) struct CurrentUnitImports {
         BTreeMap<String, Vec<hir::DirectImportedTargetBinding>>,
     >,
     pub(crate) files: BTreeMap<usize, FrozenFileImports>,
+    pub(crate) block_declarations: BTreeMap<(usize, u32, u32), FrozenFileImports>,
     unknown_packages: BTreeMap<String, Vec<CurrentUnitBindingId>>,
     pub(crate) reexports: Vec<FrozenReexportBinding>,
     diagnostic_suppressions: ImportDiagnosticSuppressions,

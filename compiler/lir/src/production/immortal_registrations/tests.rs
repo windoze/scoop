@@ -17,6 +17,70 @@ use crate::{
 };
 
 #[test]
+fn byte_array_registration_uses_actual_array_type_and_aligned_extent() {
+    let mut module = crate::test_support::module(Vec::new());
+    let exact = exact_type("ByteArray");
+    let descriptor = module
+        .meta
+        .external_type_descriptors
+        .alloc(crate::ExternalTypeDescriptor::new(ConeIdentity::CORE, exact).unwrap());
+    let array = module.meta.arrays.alloc(crate::ArrayType {
+        identity: crate::LayoutIdentity::managed_array(
+            exact,
+            module.meta.target_profile,
+            MaterializationRoot::cone_owned(),
+        )
+        .unwrap(),
+        kind: crate::ArrayKind::Immutable,
+        element_exact: exact_type("Byte"),
+        element: crate::LirType::I8,
+        layout: crate::ArrayLayoutV1::new(
+            module.meta.target_profile,
+            crate::ArrayElementStorageV1::inline(1, 1, RefScan::None).unwrap(),
+        )
+        .unwrap(),
+        type_descriptor: crate::TypeDescriptorRef::External(descriptor),
+    });
+    for (ordinal, bytes) in [vec![], vec![0, 255, 128], vec![1; 9]]
+        .into_iter()
+        .enumerate()
+    {
+        let key = ImmortalObjectKey::array_constant(
+            immortal_key(0).owner(),
+            StructuralDefinitionPath::from_first(
+                StructuralPathSegment::new(
+                    StructuralDefinitionSiteRole::ArrayConstant,
+                    ordinal as u32,
+                ),
+                [],
+            ),
+        );
+        module.globals.alloc(Global {
+            address_kind: PointerKind::Managed,
+            scan: RefScan::None,
+            init: GlobalInit::ByteArrayConst {
+                identity: ImmortalObjectIdentity::from_key(key, MaterializationRoot::cone_owned())
+                    .unwrap(),
+                array_type: array,
+                bytes,
+            },
+        });
+    }
+    let plans = StrongImmortalObjectSemanticPlanSetV1::from_module(&module).unwrap();
+    let mut sizes = plans
+        .objects()
+        .iter()
+        .map(|plan| {
+            assert_eq!(plan.type_registration(), exact);
+            assert_eq!(plan.required_alignment(), 8);
+            plan.object_size()
+        })
+        .collect::<Vec<_>>();
+    sizes.sort_unstable();
+    assert_eq!(sizes, [24, 32, 40]);
+}
+
+#[test]
 fn semantic_plans_are_sorted_and_bind_utf8_object_extent() {
     let string_type = exact_type("String");
     let mut globals = Arena::new();
@@ -35,7 +99,7 @@ fn semantic_plans_are_sorted_and_bind_utf8_object_extent() {
 
     let plans = StrongImmortalObjectSemanticPlanSetV1::from_globals(
         ConeIdentity::SINGLE_FILE,
-        crate::target_fixtures::DARWIN_AARCH64,
+        &crate::test_support::module(Vec::new()).meta,
         &globals,
         ImmortalObjectTypeRegistrationRefV1::DependencyExternal {
             provider: ConeIdentity::CORE,
@@ -74,7 +138,7 @@ fn semantic_plans_reject_duplicate_identity_and_invalid_global_shape() {
     assert!(matches!(
         StrongImmortalObjectSemanticPlanSetV1::from_globals(
             ConeIdentity::SINGLE_FILE,
-            crate::target_fixtures::DARWIN_AARCH64,
+            &crate::test_support::module(Vec::new()).meta,
             &globals,
             ImmortalObjectTypeRegistrationRefV1::DependencyExternal {
                 provider: ConeIdentity::CORE,
@@ -93,7 +157,7 @@ fn semantic_plans_reject_duplicate_identity_and_invalid_global_shape() {
     assert!(matches!(
         StrongImmortalObjectSemanticPlanSetV1::from_globals(
             ConeIdentity::SINGLE_FILE,
-            crate::target_fixtures::DARWIN_AARCH64,
+            &crate::test_support::module(Vec::new()).meta,
             &wrong_address,
             ImmortalObjectTypeRegistrationRefV1::DependencyExternal {
                 provider: ConeIdentity::CORE,
@@ -110,7 +174,7 @@ fn semantic_plans_reject_duplicate_identity_and_invalid_global_shape() {
     assert!(matches!(
         StrongImmortalObjectSemanticPlanSetV1::from_globals(
             ConeIdentity::SINGLE_FILE,
-            crate::target_fixtures::DARWIN_AARCH64,
+            &crate::test_support::module(Vec::new()).meta,
             &wrong_scan,
             ImmortalObjectTypeRegistrationRefV1::DependencyExternal {
                 provider: ConeIdentity::CORE,
@@ -476,7 +540,7 @@ fn semantic_fixture(
     globals.alloc(string_global(2, "second"));
     StrongImmortalObjectSemanticPlanSetV1::from_globals(
         ConeIdentity::SINGLE_FILE,
-        crate::target_fixtures::DARWIN_AARCH64,
+        &crate::test_support::module(Vec::new()).meta,
         &globals,
         string_type,
     )

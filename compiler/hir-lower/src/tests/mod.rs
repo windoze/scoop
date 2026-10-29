@@ -125,6 +125,7 @@ mod m7;
 mod m8;
 mod m9;
 mod semantic_queries;
+mod source_location_references;
 
 use super::*;
 use ast::{

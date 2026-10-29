@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "scoop.tests"
+name = "include-bytes-provider"
+version = "0.1.0"
+kind = "library"

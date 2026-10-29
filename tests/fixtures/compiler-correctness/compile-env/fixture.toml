@@ -1,0 +1,167 @@
+schema = 1
+name = "compile-env-values-and-cache"
+inputs = ["cone"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["compiler-intrinsics", "compiler-correctness", "cache"]
+variants = [{name = "release", env = {SCOOP_CACHE_DIR = "caller-cache-value", SCOOP_SYSROOT = "caller-sysroot-value"}}]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}]
+
+
+[[steps]]
+name = "missing"
+argv = ["/usr/bin/env", "-u", "SCOOP_ENV_FIXTURE_VALUE", "${scoop}", "build", "${work}/cone", "--release", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${missing.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "run_missing"
+env = {SCOOP_ENV_FIXTURE_VALUE = "runtime change"}
+argv = ["${missing.result.output}"]
+exit = 0
+stdout = "missing\nmissing\nmissing\nmissing\n[caller-cache-value]\n[caller-sysroot-value]\n"
+stderr = ""
+
+[[steps]]
+name = "empty"
+env = {SCOOP_ENV_FIXTURE_VALUE = "", SCOOP_ENV_FIXTURE_UNREAD = "empty"}
+argv = ["${scoop}", "build", "${work}/cone", "--release", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${empty.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "run_empty"
+env = {SCOOP_ENV_FIXTURE_VALUE = "runtime change"}
+argv = ["${empty.result.output}"]
+exit = 0
+stdout = "[]\n[]\n[]\n[]\n[caller-cache-value]\n[caller-sysroot-value]\n"
+stderr = ""
+
+[[steps]]
+name = "present"
+env = {SCOOP_ENV_FIXTURE_VALUE = "alpha", SCOOP_ENV_FIXTURE_UNREAD = "present"}
+argv = ["${scoop}", "build", "${work}/cone", "--release", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${present.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "run_present"
+env = {SCOOP_ENV_FIXTURE_VALUE = "runtime change"}
+argv = ["${present.result.output}"]
+exit = 0
+stdout = "[alpha]\n[alpha]\n[alpha]\n[alpha]\n[caller-cache-value]\n[caller-sysroot-value]\n"
+stderr = ""
+
+[[steps]]
+name = "warm"
+env = {SCOOP_ENV_FIXTURE_VALUE = "alpha", SCOOP_ENV_FIXTURE_UNREAD = "warm"}
+argv = ["${scoop}", "build", "${work}/cone", "--release", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "changed"
+env = {SCOOP_ENV_FIXTURE_VALUE = "beta", SCOOP_ENV_FIXTURE_UNREAD = "changed"}
+argv = ["${scoop}", "build", "${work}/cone", "--release", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${changed.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "run_changed"
+env = {SCOOP_ENV_FIXTURE_VALUE = "runtime change"}
+argv = ["${changed.result.output}"]
+exit = 0
+stdout = "[beta]\n[beta]\n[beta]\n[beta]\n[caller-cache-value]\n[caller-sysroot-value]\n"
+stderr = ""
+
+[[steps]]
+name = "check_cold"
+env = {SCOOP_ENV_FIXTURE_VALUE = "alpha"}
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}, "--release"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${check_cold.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "check_warm"
+env = {SCOOP_ENV_FIXTURE_VALUE = "alpha"}
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}, "--release"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${check_warm.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "check_changed"
+env = {SCOOP_ENV_FIXTURE_VALUE = ""}
+argv = ["${scoop}", "check", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}, "--release"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${check_changed.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "doc_cold"
+env = {SCOOP_ENV_FIXTURE_VALUE = "alpha"}
+argv = ["${scoop}", "doc", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}, "--no-deps", "--output-dir", "${work}/site"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${doc_cold.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "doc_warm"
+env = {SCOOP_ENV_FIXTURE_VALUE = "alpha"}
+argv = ["${scoop}", "doc", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}, "--no-deps", "--output-dir", "${work}/site"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${doc_warm.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "doc_changed"
+env = {SCOOP_ENV_FIXTURE_VALUE = ""}
+argv = ["${scoop}", "doc", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}, "--no-deps", "--output-dir", "${work}/site"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${doc_changed.result.observations.child_invocations.length}", equals = 1}]

@@ -1,4 +1,4 @@
-"""Run only the 24 published examples, using files returned by scoop example."""
+"""Run published examples, using files returned by scoop example."""
 
 import argparse
 import contextlib
@@ -25,6 +25,13 @@ EXPECTED = {
     "language/visibility": "Hello, Ada!\n",
     "language/companion": "origin=(0, 0)\ndiagonal=(3, 3)\n",
     "language/errors": "count=3\nfinished\ncount must be positive\nfinished\n",
+    "language/compiler-inputs": (
+        "version=1.2.3\nHello, Scoop!\nbytes=14, first=72\n"
+        "file=banner.txt\nfile=docs/help.txt\nhelp bytes=12\nprivate bytes=0\n"
+    ),
+    "language/imports": (
+        "Hello, Ada!\nGood day, Ada.\nHello, Lin!\nGood day, Lin.\nHello, Lin!\nGood day, Grace.\n"
+    ),
     "text/strings": "Hello, Ada!\n${name}\nscalars=2, bytes=4\nA|中|\n",
     "collections/list": "snapshot: Ada\nsnapshot: Lin\ncurrent first: Grace\nsizes=2,3\n",
     "collections/map": "red=2\nblue=1\nmissing=0\n",
@@ -107,6 +114,30 @@ def validate(topic, command, work, environment):
     environment = {**environment, "TMPDIR": str(temporary) + "/"}
     if id == "http/get":
         stdout = http_client(command, directory, environment, logs)
+    elif id == "language/compiler-inputs":
+        executable = directory / "embedded-example"
+        for label, value in (("present", "1.2.3"), ("missing", None), ("empty", "")):
+            build_environment = environment.copy()
+            if value is None:
+                build_environment.pop("SCOOP_EXAMPLE_VERSION", None)
+            else:
+                build_environment["SCOOP_EXAMPLE_VERSION"] = value
+            run(
+                command + ["build", "--release", ".", "-o", str(executable)],
+                directory,
+                build_environment,
+                logs / f"{label}-build.log",
+            )
+            stdout = run(
+                [str(executable)],
+                directory,
+                {**environment, "SCOOP_EXAMPLE_VERSION": "runtime"},
+                logs / f"{label}-run.log",
+            )
+            version = "dev" if value is None else value
+            expected = EXPECTED[id].replace("version=1.2.3\n", f"version={version}\n", 1)
+            assert stdout == expected, f"{id} ({label}): unexpected stdout {stdout!r}"
+        return
     elif id == "test/assertions":
         stdout = run(
             command + ["test", "--release", "."], directory, environment, logs / "test.log"
@@ -131,7 +162,7 @@ def validate(topic, command, work, environment):
         if id == "language/visibility":
             directory = directory / "app"
             source = "."
-        elif id == "start/cone":
+        elif id in ("start/cone", "language/imports"):
             source = "."
         else:
             source = topic["files"][0]["path"]

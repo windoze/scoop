@@ -1,0 +1,11 @@
+schema = 1
+[cone]
+group = "compiler"
+name = "aggregate-constant-consumer"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"compiler:aggregate-constants" = { version = "0.1.0", path = ".." }
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"

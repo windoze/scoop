@@ -171,7 +171,17 @@ impl Lowerer {
         Self::retain_highest_rank_origins(&mut extension_layers);
         Self::retain_highest_rank_origins(&mut invoke_layers);
         Self::retain_highest_rank_origins(&mut extension_property_layers);
-        for rank in 0..=3 {
+        let ranks = extension_layers
+            .iter()
+            .map(|layer| layer.kind.call_rank())
+            .chain(
+                extension_property_layers
+                    .iter()
+                    .map(|layer| layer.kind.call_rank()),
+            )
+            .chain(invoke_layers.iter().map(|layer| layer.kind.call_rank()))
+            .collect::<std::collections::BTreeSet<_>>();
+        for rank in ranks {
             let unavailable = extension_layers
                 .iter()
                 .filter(|layer| layer.kind.call_rank() == rank)
@@ -477,7 +487,7 @@ impl Lowerer {
 
     fn extension_candidates_at_rank<T: Clone>(
         layers: &[crate::imports::lookup::LookupLayer<T>],
-        rank: usize,
+        rank: crate::imports::lookup::calls::ImportLookupRank,
         predicate: impl Fn(&T) -> bool,
     ) -> Vec<T> {
         layers
@@ -491,7 +501,7 @@ impl Lowerer {
 
     fn suppressed_extensions_at_rank<T>(
         layers: &[crate::imports::lookup::LookupLayer<T>],
-        rank: usize,
+        rank: crate::imports::lookup::calls::ImportLookupRank,
         predicate: impl Fn(hir::FunctionId) -> bool,
     ) -> bool {
         layers
@@ -505,7 +515,7 @@ impl Lowerer {
         layers: &[crate::imports::lookup::LookupLayer<
             crate::imports::lookup::calls::ExtensionPropertyTarget,
         >],
-        rank: usize,
+        rank: crate::imports::lookup::calls::ImportLookupRank,
     ) -> Vec<crate::imports::lookup::calls::ExtensionPropertyTarget> {
         layers
             .iter()
@@ -530,13 +540,7 @@ impl Lowerer {
         }
     }
 
-    fn extension_layer_name(rank: usize) -> &'static str {
-        match rank {
-            0 => "exact import",
-            1 => "current package",
-            2 => "star import",
-            3 => "core prelude",
-            _ => unreachable!("extension layer ranks are a closed four-layer set"),
-        }
+    fn extension_layer_name(rank: crate::imports::lookup::calls::ImportLookupRank) -> &'static str {
+        rank.name()
     }
 }

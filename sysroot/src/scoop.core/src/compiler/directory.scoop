@@ -1,0 +1,42 @@
+package scoop.compiler
+
+import Array
+import Byte
+import Option.*
+import String
+
+/**
+ * Embeds selected files from a directory inside the defining Cone.
+ * The constant path is relative to this call's source directory. Every entry
+ * and resolved symlink target must stay inside the Cone, even when excluded.
+ * Include and exclude are array literals of constant String patterns. Include
+ * patterns form a union; exclude patterns remove matches. Matching uses full,
+ * case-sensitive relative paths with '/' separators. '*' stays in a component;
+ * '**' spans zero or more directory levels, including the root directory.
+ * Defaults include all files, including hidden files; no gitignore is applied.
+ * Files are ordered by relative path in UTF-8 byte order. Empty directories
+ * are omitted. This compile-time intrinsic cannot be used as a function reference.
+ */
+@Intrinsic("include_dir")
+public fun includeDir(
+    path: String,
+    include: Array<String> = ["**"],
+    exclude: Array<String> = []
+): EmbeddedDir
+
+/** One immutable file with its logical path relative to the included directory. */
+public struct EmbeddedFile(val path: String, val bytes: Array<Byte>)
+
+/**
+ * An immutable file table. Lookup returns the first exact path match, or None.
+ * Lookup does not expand globs, normalize paths, or access the file system.
+ */
+public struct EmbeddedDir(val files: Array<EmbeddedFile>) {
+    public operator fun get(path: String): Array<Byte>? {
+        for (file in files) {
+            if (file.path == path)
+                return Some(file.bytes)
+        }
+        return None
+    }
+}

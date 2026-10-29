@@ -128,7 +128,7 @@ pub(super) fn type_context(
         closure_classes: Arena::new(),
         closure_invoke_functions: Arena::new(),
         top_level: Vec::new(),
-        strings: Arena::new(),
+        immortals: Arena::new(),
         structs: shell_structs,
         enums: shell_enums,
         classes: shell_classes,

@@ -32,6 +32,8 @@ enum IndexedDefaultExpressionKindV1<'a> {
         parameter: crate::ContextParameterIndex,
         diagnostic: &'a crate::ContextDiagnostic,
     },
+    ByteArrayLiteral(&'a [u8]),
+    EmbeddedFileArrayLiteral(&'a [crate::CompileTimeFile]),
     StringLiteral {
         value: &'a str,
         owner: &'a DefaultStringOwnerV1,
@@ -278,6 +280,12 @@ impl DefaultExpressionV1 {
                 parameter: *parameter,
                 diagnostic,
             },
+            DefaultExpressionKindV1::ByteArrayLiteral(value) => {
+                IndexedDefaultExpressionKindV1::ByteArrayLiteral(value)
+            }
+            DefaultExpressionKindV1::EmbeddedFileArrayLiteral(value) => {
+                IndexedDefaultExpressionKindV1::EmbeddedFileArrayLiteral(value)
+            }
             DefaultExpressionKindV1::StringLiteral { value, owner } => {
                 IndexedDefaultExpressionKindV1::StringLiteral { value, owner }
             }

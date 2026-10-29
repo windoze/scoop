@@ -93,6 +93,8 @@ pub(super) fn inputs(lazy: bool) -> SemanticInputs {
                     GlobalInit::Storage { identity, .. } => identity.identity_record().clone(),
                     GlobalInit::CString { .. }
                     | GlobalInit::StringConst { .. }
+                    | GlobalInit::ByteArrayConst { .. }
+                    | GlobalInit::EmbeddedFileArrayConst { .. }
                     | GlobalInit::RawStorage { .. }
                     | GlobalInit::ImportedImmortal { .. }
                     | GlobalInit::ImportedStorage { .. } => unreachable!(),

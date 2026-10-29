@@ -29,9 +29,14 @@ pub struct SingleConeDocumentationSuccess {
     pub(in crate::request) warnings: CurrentConeDiagnosticSet,
     pub(in crate::request) dumps: Vec<EmittedStageDump>,
     pub(in crate::request) used_generators: Vec<scoop_protocol::GeneratorToolInputV1>,
+    pub(in crate::request) compiler_inputs: Vec<scoop_protocol::CompilerInputV1>,
 }
 
 impl SingleConeDocumentationSuccess {
+    pub fn compiler_inputs(&self) -> &[scoop_protocol::CompilerInputV1] {
+        &self.compiler_inputs
+    }
+
     pub fn used_generators(&self) -> &[scoop_protocol::GeneratorToolInputV1] {
         &self.used_generators
     }

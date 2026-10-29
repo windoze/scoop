@@ -28,6 +28,10 @@ impl Lowerer {
             return;
         }
         let kind = match &statement.kind {
+            ast::StatementKind::Import(import) => {
+                self.lower_block_import(import);
+                return;
+            }
             ast::StatementKind::Expr(expr) => {
                 let mut sink = Vec::new();
                 let Some(lowered) = self.lower_expr(expr, &mut sink, None) else {

@@ -54,7 +54,15 @@ pub(in crate::request::preflight) fn collect_mir_references(
             provider,
             lir::ExternalStrongShapeSubjectV1::TypeDescriptor(exact),
         ));
-        if source.ty() == &mir::Type::String && !input.materialization().strings().is_empty() {
+        if input.materialization().immortals().iter().any(|id| {
+            match &input.module().immortals[*id].value {
+                mir::ImmortalConstValue::String(_) => source.ty() == &mir::Type::String,
+                mir::ImmortalConstValue::ByteArray { array_type, .. }
+                | mir::ImmortalConstValue::EmbeddedFileArray { array_type, .. } => {
+                    source.ty() == &mir::Type::Class(*array_type)
+                }
+            }
+        }) {
             physical.push((
                 provider,
                 lir::ExternalStrongShapeSubjectV1::TypeRegistration(exact),

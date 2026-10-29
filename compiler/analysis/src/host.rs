@@ -82,6 +82,11 @@ impl AnalysisHost {
         self.revision
     }
 
+    /// Resource input changes cancel old snapshots without discarding unchanged source text.
+    pub fn invalidate_compiler_inputs(&mut self) {
+        self.advance();
+    }
+
     pub fn add_source(&mut self, text: SourceText) -> SourceId {
         let id = SourceId(self.next_source);
         self.next_source = self
