@@ -13,7 +13,10 @@ pub(in crate::optimization) fn call(
         let Constant::String(id) = value(expression)? else {
             return None;
         };
-        Some(module.strings[id].value.as_bytes())
+        let mir::ImmortalConstValue::String(text) = &module.immortals[id].value else {
+            unreachable!("StringConst refers to String data")
+        };
+        Some(text.as_bytes())
     };
     use mir::MirIntegerConstant as I;
     let result = match (operation, call.args.as_slice()) {

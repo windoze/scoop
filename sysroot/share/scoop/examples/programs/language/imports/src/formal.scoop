@@ -1,0 +1,3 @@
+package examples.imports.formal
+
+fun greeting(name: String): String = f"Good day, ${name}."

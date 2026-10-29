@@ -163,6 +163,14 @@ impl Lowerer {
                 expr.span,
                 "context lookup is not allowed in `@NoGC` code".into(),
             )),
+            ExprKind::EmbeddedFileArrayLiteral(_) => out.push((
+                expr.span,
+                "embedded file arrays are not allowed in `@NoGC` code".into(),
+            )),
+            ExprKind::ByteArrayLiteral(_) => out.push((
+                expr.span,
+                "embedded byte arrays are not allowed in `@NoGC` code".into(),
+            )),
             ExprKind::StringLiteral { .. } => out.push((
                 expr.span,
                 "string literals are not allowed in `@NoGC` code".to_string(),

@@ -5,6 +5,7 @@ use callable_declarations::CallableDeclarations;
 
 mod global_declarations;
 mod global_references;
+mod immortals;
 use global_references::{ConeDeclarations, GlobalReferences};
 
 mod initialization;

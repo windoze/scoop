@@ -8,11 +8,12 @@ pub struct CompileBuildRecordV1 {
     pub summary: ArtifactManifestSummaryV1,
     pub warnings: Vec<StructuredDiagnosticV1>,
     pub used_generators: Vec<scoop_protocol::GeneratorToolInputV1>,
+    pub compiler_inputs: Vec<scoop_protocol::CompilerInputV1>,
 }
 
 impl WireEncode for CompileBuildRecordV1 {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        e.map(3)?;
+        e.map(4)?;
         e.field(1)?;
         self.summary.encode(e)?;
         e.field(2)?;
@@ -25,13 +26,18 @@ impl WireEncode for CompileBuildRecordV1 {
         for input in &self.used_generators {
             input.encode(e)?;
         }
+        e.field(4)?;
+        e.array(self.compiler_inputs.len() as u64)?;
+        for input in &self.compiler_inputs {
+            input.encode(e)?;
+        }
         Ok(())
     }
 }
 
 impl WireDecode for CompileBuildRecordV1 {
     fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
-        d.expect_map(3)?;
+        d.expect_map(4)?;
         Ok(Self {
             summary: d.field(1, ArtifactManifestSummaryV1::decode)?,
             warnings: d.field(2, |d| {
@@ -39,6 +45,9 @@ impl WireDecode for CompileBuildRecordV1 {
             })?,
             used_generators: d.field(3, |d| {
                 d.decode_array(|d, _| scoop_protocol::GeneratorToolInputV1::decode(d))
+            })?,
+            compiler_inputs: d.field(4, |d| {
+                d.decode_array(|d, _| scoop_protocol::CompilerInputV1::decode(d))
             })?,
         })
     }

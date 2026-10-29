@@ -315,7 +315,7 @@ impl Lowerer {
                         .expect("reference lookup has a dependency catalog")
                         .callable_candidate(binding)
                         .map_err(|error| {
-                            invalid(format!("invalid imported callable reference: {error}"))
+                            invalid(format!("invalid imported callable reference: {error}").into())
                         })?,
                 ))
             }
@@ -327,12 +327,15 @@ impl Lowerer {
                 unreachable!("local references use their local declaration view")
             }
         };
-        let declaration =
-            ImportedReferenceDeclaration::resolve(&mut state, candidate).map_err(invalid)?;
-        let fail = |state: &Lowerer, reason| ReferenceFailure {
+        if let Some(reason) = state.imported_intrinsic_reference_failure(&candidate) {
+            return Err(invalid(reason));
+        }
+        let declaration = ImportedReferenceDeclaration::resolve(&mut state, candidate)
+            .map_err(|reason| invalid(reason.into()))?;
+        let fail = |state: &Lowerer, reason: String| ReferenceFailure {
             signature: declaration.signature(state, context.name),
             layer: declaration.layer(),
-            reason,
+            reason: reason.into(),
         };
         let extension = declaration.extension();
         let bound_receiver = match context.extension_mode {

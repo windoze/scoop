@@ -19,7 +19,7 @@ pub(super) fn discover(
     if let Some(definition) = definition {
         for member in &definition.members {
             let path = owner
-                .directory
+                .input_directory
                 .join(member.value.as_path())
                 .join("Cone.toml");
             let loaded = manifests.load(&path)?;
@@ -57,6 +57,7 @@ pub(super) fn discover(
         members.insert(
             key,
             WorkspaceMember {
+                input_directory: loaded.input_directory.clone(),
                 relative_path,
                 directory: loaded.directory.clone(),
                 manifest: loaded.path.clone(),

@@ -1,0 +1,22 @@
+import scoop.compiler.includeDir as embed
+import scoop.compiler.EmbeddedDir
+
+fun invalid(path: String, patterns: Array<String>) {
+    val dynamic = embed(path)
+    val array = embed(".", include = patterns)
+    val element = embed(".", exclude = [path])
+    val reference = ::embed
+    val managed: (String, Array<String>, Array<String>) -> EmbeddedDir = ::embed
+    val native: FunPtr<(String, Array<String>, Array<String>) -> EmbeddedDir> = ::embed
+    val include = embed(".", include = ["**", "a**"])
+    val exclude = embed(".", exclude = ["[abc"])
+    val outside = embed("../outside")
+    val excludedLink = embed("escape", include = [])
+    val broken = embed("broken", include = [])
+    val cycle = embed("cycle", include = [])
+    val notDirectory = embed("errors.scoop")
+    val missing = embed("missing")
+}
+fun <T> unused(value: T): EmbeddedDir = embed(".", include = ["../*"])
+fun defaulted(value: EmbeddedDir = embed(".", exclude = ["a\\b"])) {}
+fun main() {}

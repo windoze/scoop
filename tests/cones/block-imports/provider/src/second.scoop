@@ -1,0 +1,4 @@
+package scoped.second
+
+public fun choose(): Int = 2
+public fun adjust(value: Int): Int = value + 20

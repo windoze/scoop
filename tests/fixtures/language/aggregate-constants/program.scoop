@@ -1,0 +1,7 @@
+struct Pair(val x: Int, val name: String)
+const val structure: Pair = Pair(1, "value")
+const val payload: Int? = Some(42)
+const val badTuple: (Int, String) = (1, 2)
+const val shortTuple: (Int, Int) = (1,)
+const val cycle: (Int,) = (cycle._1,)
+fun main() {}

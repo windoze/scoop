@@ -42,14 +42,17 @@ pub enum HirStaticInitialState {
 /// into the program image. Raw storage accepts only its GC-free subset.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HirConstantImage {
+    Unit,
+    Tuple(Vec<HirConstantImage>),
     Integer(HirIntegerConstant),
     Boolean(bool),
     Char(char),
     Float(scoop_identity::FloatConstant),
     String(String),
     NullPointer(HirPointerNullKind),
-    EnumUnit {
+    Enum {
         variant: EnumVariantApplication,
+        fields: Vec<HirConstantImage>,
     },
     Struct {
         application: StructApplicationId,

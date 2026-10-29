@@ -340,6 +340,9 @@ impl Lowerer {
         } else {
             evaluation_receiver
         };
+        let compile_input = matches!(self.functions[candidate.function].kind,
+            hir::FunctionKind::Intrinsic(intrinsic) if intrinsic.kind.is_compile_time_input());
+        let mut compile_input_setup = Vec::new();
         let (materialized_receiver, mut args) = self.materialize_callable_arguments(
             crate::argument_materialization::CallableArgumentMaterialization {
                 function: candidate.function,
@@ -349,13 +352,17 @@ impl Lowerer {
                 source_args: args,
                 argument_sinks,
                 call_span: candidate.call_span,
-                evaluation: if source_arguments {
+                evaluation: if source_arguments && !compile_input {
                     crate::argument_materialization::ArgumentEvaluation::Source
                 } else {
                     crate::argument_materialization::ArgumentEvaluation::Lowered
                 },
             },
-            sink,
+            if compile_input {
+                &mut compile_input_setup
+            } else {
+                sink
+            },
         )?;
         let instance_receiver = if extension {
             args.insert(
@@ -373,6 +380,7 @@ impl Lowerer {
                 source: candidate.source,
             },
             source: candidate.source,
+            argument_inputs: argument_map.parameters.clone(),
             type_args,
             args,
             receiver: instance_receiver,

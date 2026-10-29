@@ -110,6 +110,8 @@ impl Flow<'_> {
             },
             E::ContextLookup(_)
             | E::StringLiteral { .. }
+            | E::ByteArrayLiteral(_)
+            | E::EmbeddedFileArrayLiteral(_)
             | E::IntegerLiteral(_)
             | E::BoolLiteral(_)
             | E::CharLiteral(_)

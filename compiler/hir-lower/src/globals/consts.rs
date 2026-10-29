@@ -4,7 +4,9 @@ use scoop_hir as hir;
 use super::{PendingConst, PendingOrdinary};
 use crate::Lowerer;
 
+mod aggregate;
 mod binary;
+mod compiler_inputs;
 mod enumerations;
 mod expression;
 mod floating_calls;
@@ -194,22 +196,6 @@ impl Lowerer {
             stack,
         );
         let result = evaluated.and_then(|evaluated| {
-            if !matches!(
-                self.types[evaluated.ty],
-                hir::Type::Integer(_) | hir::Type::Boolean | hir::Type::String
-            ) && !self.is_char_type(evaluated.ty)
-                && self.float_kind(evaluated.ty).is_none()
-            {
-                self.error(
-                    declaration.declaration.type_span(),
-                    format!(
-                        "const property `{}` has unsupported type {}",
-                        declaration.declaration.name.text,
-                        self.type_name(evaluated.ty)
-                    ),
-                );
-                return None;
-            }
             if declaration
                 .ty
                 .is_none_or(|expected| self.types_equal(evaluated.ty, expected))

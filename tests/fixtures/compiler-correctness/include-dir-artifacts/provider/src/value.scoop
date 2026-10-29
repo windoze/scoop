@@ -1,0 +1,7 @@
+package scoop.tests.compilerinput
+import scoop.compiler.*
+public val embedded: EmbeddedDir = includeDir("data")
+public fun <T> generic(v: T): EmbeddedDir = includeDir("data")
+public fun defaulted(v: EmbeddedDir = includeDir("data")): EmbeddedDir = v
+public fun direct(): EmbeddedDir = includeDir("data")
+public inline fun inlined(): EmbeddedDir = includeDir("data")

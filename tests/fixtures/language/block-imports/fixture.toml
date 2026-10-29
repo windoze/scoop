@@ -1,0 +1,25 @@
+schema = 1
+name = "block-import-diagnostics"
+root = "project"
+inputs = ["project/Cone.toml", "project/src/api.scoop", "project/src/consumer.scoop", "public.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["imports", "negative", "language", "expected-error"]
+
+[[steps]]
+name = "scope-and-selectors"
+argv = ["${scoop}", "build", "--release", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "scope.diagnostics.json"}
+
+[[steps]]
+name = "public-import"
+argv = ["${scoop}", "build", "--release", {each = "${link_args}"}, "${fixture}/public.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/public-target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "public.diagnostics.json"}

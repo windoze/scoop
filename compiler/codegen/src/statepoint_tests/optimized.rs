@@ -62,7 +62,7 @@ fn final_ssa_roots_merge_aliases_and_exclude_null_without_identity_allocas() {
 }
 
 #[test]
-fn release_simplifies_redundant_integer_expressions() {
+fn scalar_normalization_simplifies_redundant_integer_expressions() {
     let source = r#"
 define i64 @f(i64 %value) #0 gc "statepoint-example" {
 entry:
@@ -83,13 +83,8 @@ attributes #0 = { "disable-tail-calls"="true" "frame-pointer"="all" }
         crate::statepoint::rewrite(&llvm, &machine, &manifest(None), profile).unwrap();
 
         let ir = llvm.print_to_string().to_string();
-        // Debug also performs EarlyCSE before finalizing roots.
+        // Both profiles normalize scalar expressions before finalizing roots.
         assert!(ir.contains("ret i64 0"), "{ir}");
-        assert_eq!(
-            ir.contains("add i64"),
-            mode == OptimizationMode::Debug,
-            "{ir}"
-        );
     }
 }
 

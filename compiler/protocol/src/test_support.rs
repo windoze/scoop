@@ -8,6 +8,7 @@ pub(crate) fn manifest(root: &str) -> CurrentConeRequestV1 {
         config: Box::new(ExpandedConeInputV1 {
             root: HostPathCarrier::from_path(&root).unwrap(),
             manifest_path: HostPathCarrier::from_path(&root.join("Cone.toml")).unwrap(),
+            input_root: HostPathCarrier::from_path(&root).unwrap(),
             manifest_text: text.into(),
             manifest: scoop_manifest::parse_cone_manifest(text, &[]).unwrap(),
             metadata: Default::default(),

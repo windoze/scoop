@@ -1,0 +1,5 @@
+package compiler.constant.consumer
+
+import compiler.constants.labels
+
+public const val forwardedLabel: String = labels._2

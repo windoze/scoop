@@ -17,6 +17,13 @@ fn string_owner_variants_have_fixed_wire_and_round_trip() {
     assert_eq!(bytes[2], 2);
     let decoded: DecodedDefaultStringOwnerV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(decoded.resolve(&mut fixture.resolver()), Ok(property));
+    let element = DefaultStringOwnerV1::PropertyElement {
+        property: fixture.property,
+        ordinal: 2,
+    };
+    let bytes = encode(&element).unwrap();
+    let decoded: DecodedDefaultStringOwnerV1 = decode_canonical(&bytes).unwrap();
+    assert_eq!(decoded.resolve(&mut fixture.resolver()), Ok(element));
 }
 
 #[test]
@@ -35,8 +42,8 @@ fn string_owner_reports_property_resolution_failure() {
 
 #[test]
 fn string_owner_decoder_rejects_unknown_tags_and_non_exact_maps() {
-    let error = decode_canonical::<DecodedDefaultStringOwnerV1>(&[0xa1, 0x00, 0x03]).unwrap_err();
-    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
+    let error = decode_canonical::<DecodedDefaultStringOwnerV1>(&[0xa1, 0x00, 0x04]).unwrap_err();
+    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 4 });
 
     let error = decode_canonical::<DecodedDefaultStringOwnerV1>(&[0xa2, 0x00, 0x01, 0x01, 0x00])
         .unwrap_err();

@@ -1,14 +1,14 @@
 [
   {
     "code": "SCOOP_PACKAGE_PREPARE",
-    "message": "dependency resolution failed:\nBecause dev.m43:version-helper 0.1.0 [path ../helper] depends on dev.m43:values 0.2.0 [path ../two] and dev.m43:version-root 0.1.0 [path .] depends on dev.m43:version-helper 0.1.0 [path ../helper], dev.m43:version-root 0.1.0 [path .] depends on dev.m43:values 0.2.0 [path ../two].\nAnd because dev.m43:version-root 0.1.0 [path .] depends on dev.m43:values 0.1.0 [path ../one], dev.m43:version-root 0.1.0 [path .] is forbidden.\n  dev.m43:version-root -> dev.m43:values: dev.m43:version-root:0.1.0 requires 0.1.0 from path ${fixture}/one\n    ${fixture}/program/Cone.toml (bytes 128..164)\n    candidate 0.1.0 [path ../one]: other version or source constraints conflict\n    candidate 0.2.0 [path ../two]: does not satisfy 0.1.0\n  dev.m43:version-root -> dev.m43:version-helper: dev.m43:version-root:0.1.0 requires 0.1.0 from path ${fixture}/helper\n    ${fixture}/program/Cone.toml (bytes 213..252)\n    candidate 0.1.0 [path ../helper]: other version or source constraints conflict\n  dev.m43:version-root -> dev.m43:version-helper -> dev.m43:values: dev.m43:version-helper:0.1.0 requires 0.2.0 from path ${fixture}/two\n    ${fixture}/helper/Cone.toml (bytes 130..166)\n    candidate 0.1.0 [path ../one]: does not satisfy 0.2.0\n    candidate 0.2.0 [path ../two]: other version or source constraints conflict",
+    "message": "dependency resolution failed:\nBecause dev.m43:version-helper 0.1.0 [path ../helper] depends on dev.m43:values 0.2.0 [path ../two] and dev.m43:version-root 0.1.0 [path .] depends on dev.m43:version-helper 0.1.0 [path ../helper], dev.m43:version-root 0.1.0 [path .] depends on dev.m43:values 0.2.0 [path ../two].\nAnd because dev.m43:version-root 0.1.0 [path .] depends on dev.m43:values 0.1.0 [path ../one], dev.m43:version-root 0.1.0 [path .] is forbidden.\n  dev.m43:version-root -> dev.m43:values: dev.m43:version-root:0.1.0 requires 0.1.0 from path ${work}/one\n    ${work}/program/Cone.toml (bytes 128..164)\n    candidate 0.1.0 [path ../one]: other version or source constraints conflict\n    candidate 0.2.0 [path ../two]: does not satisfy 0.1.0\n  dev.m43:version-root -> dev.m43:version-helper: dev.m43:version-root:0.1.0 requires 0.1.0 from path ${work}/helper\n    ${work}/program/Cone.toml (bytes 213..252)\n    candidate 0.1.0 [path ../helper]: other version or source constraints conflict\n  dev.m43:version-root -> dev.m43:version-helper -> dev.m43:values: dev.m43:version-helper:0.1.0 requires 0.2.0 from path ${work}/two\n    ${work}/helper/Cone.toml (bytes 130..166)\n    candidate 0.1.0 [path ../one]: does not satisfy 0.2.0\n    candidate 0.2.0 [path ../two]: other version or source constraints conflict",
     "notes": [
       {
         "message": "related declaration",
         "origin": {
           "end": 252,
           "kind": "host",
-          "path": "${fixture}/program/Cone.toml",
+          "path": "${work}/program/Cone.toml",
           "start": 213
         }
       },
@@ -17,7 +17,7 @@
         "origin": {
           "end": 166,
           "kind": "host",
-          "path": "${fixture}/helper/Cone.toml",
+          "path": "${work}/helper/Cone.toml",
           "start": 130
         }
       }
@@ -25,7 +25,7 @@
     "origin": {
       "end": 164,
       "kind": "host",
-      "path": "${fixture}/program/Cone.toml",
+      "path": "${work}/program/Cone.toml",
       "start": 128
     },
     "severity": "error"

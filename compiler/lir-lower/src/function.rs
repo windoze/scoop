@@ -114,7 +114,7 @@ pub(super) fn lower_function<'a>(
     function: &'a mir::Function,
     signature: &'a lir::ScoopAbiSignature,
     known_receiver_class: Option<mir::ClassId>,
-    global_map: &HashMap<mir::StringConstId, lir::GlobalId>,
+    global_map: &HashMap<mir::ImmortalConstId, lir::GlobalId>,
     storage_globals: &HashMap<mir::GlobalId, StorageGlobal>,
     globals: &mut Arena<lir::Global>,
     structs: &lir::StructDefs,
@@ -406,7 +406,7 @@ struct FunctionLowerer<'a> {
     known_receiver: Option<(mir::LocalId, mir::ClassId)>,
     interface_tables: interface_tables::TableCache,
     interface_queries: interface_queries::QueryCache,
-    global_map: &'a HashMap<mir::StringConstId, lir::GlobalId>,
+    global_map: &'a HashMap<mir::ImmortalConstId, lir::GlobalId>,
     storage_globals: &'a HashMap<mir::GlobalId, StorageGlobal>,
     /// Sink for ordinary globals such as trap-message C strings.
     globals: &'a mut Arena<lir::Global>,

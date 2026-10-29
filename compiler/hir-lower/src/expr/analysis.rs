@@ -7,7 +7,8 @@ pub(super) fn block_contains_return(block: &ast::Block) -> bool {
 fn statement_contains_return(statement: &ast::Statement) -> bool {
     match &statement.kind {
         ast::StatementKind::Return { .. } => true,
-        ast::StatementKind::TypeAlias(_)
+        ast::StatementKind::Import(_)
+        | ast::StatementKind::TypeAlias(_)
         | ast::StatementKind::LocalFunction(_)
         | ast::StatementKind::LocalType(_) => false,
         ast::StatementKind::Expr(expr) | ast::StatementKind::Throw(expr) => {

@@ -1,0 +1,16 @@
+schema = 1
+name = "compiler-env-no-prelude"
+root = "no-prelude.scoop"
+inputs = ["no-prelude.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["compiler-intrinsics", "negative", "language"]
+
+[[steps]]
+name = "check"
+argv = ["${scoop}", "check", "${root}", "--release", {each = "${compile_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "no-prelude.diagnostics.json"}

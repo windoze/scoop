@@ -15,7 +15,7 @@
 
 伴随文件参与正常结果存在判断和发布，最终 basename 进入调试结果更新键。同 basename 换目录可复用，换 basename 重新生成最终调试文件；命中不启动调试工具、不重读产物内容。旧 `--emit-symbol-map`、map 字段和性能 map parser 已移除。性能工具使用 LLVM JSON、标准调试文件与精确 linkage identity，支持 inline 链、Darwin slide 和 Linux load bias。
 
-machine protocol 为 20，runtime ABI contract 为 30，metadata ABI 保持 9；当前 HIR cross-cone-interface 为 84。contract 30 为程序启动入口增加栈快照开关；编译器、runtime 和机器产物须沿正常 ABI 边界配套重建。该开关不再改变 Throwable 前缀或模板编码。
+合并 compiler intrinsics 后，machine protocol 为 22，runtime ABI contract 为 30，metadata ABI 保持 9；当前 HIR cross-cone-interface 为 87。contract 30 为程序启动入口增加栈快照开关；编译器、runtime 和机器产物须沿正常 ABI 边界配套重建。该开关不再改变 Throwable 前缀或模板编码。
 
 ## 来源共享与 `.slib`
 
@@ -68,9 +68,9 @@ VS Code 扩展 0.3.0 注册 Scoop debug type 和源码断点。构建／launch �
 
 ## 栈快照开关的定向验证与性能
 
-后续分支 `codex/stack-trace-toggle`（2026-10-29）在本地完成实现后验证：workspace fmt／clippy、29 项相关 Rust 测试、61 项 fixture runner 规则测试通过。Darwin 的调试专测 7 个变体通过，覆盖 profile 默认值、显式覆盖、三种调试信息级别、真实隐藏快照槽、预编译 core 抛出、两种产物链接入口、移动 GC、并发首次抛出和链接缓存。受默认输出变化影响的 22 个既有 fixture，以及 2 个启动生命周期 fixture 全部通过；未运行完整 fixture 套件。
+后续分支 `codex/stack-trace-toggle`（2026-10-29）在本地完成实现后验证：workspace fmt／clippy、29 项相关 Rust 测试、61 项 fixture runner 规则测试通过。Darwin 的调试专测 7 个变体通过，覆盖 profile 默认值、显式覆盖、三种调试信息级别、真实隐藏快照槽、预编译 core 抛出、两种产物链接入口、移动 GC、并发首次抛出和链接缓存。受默认输出变化影响的 22 个既有 fixture，以及 2 个启动生命周期 fixture 全部通过；未运行完整 fixture 套件。合并 main 的 compiler intrinsics 后，重新构建配套库，workspace lint、runtime ABI／CLI 定向测试及全部 7 个调试变体再次通过。
 
-性能对照在 Apple M3 Ultra 上使用同一份 release／debug-info=none 机器产物，只切换最终链接开关。每轮预先构造 4,000 个异常对象，在计时区间执行 throw/catch；先预热 64 次，计时前主动 GC，排除对象构造及打印时间。每组交替开／关顺序执行 7 轮，以下为每次 throw/catch 的墙钟中位数，递归深度指额外的递归调用层数，0 仍有普通调用栈。
+性能对照基于功能提交 `dd6286231`，在 Apple M3 Ultra 上使用同一份 release／debug-info=none 机器产物，只切换最终链接开关。每轮预先构造 4,000 个异常对象，在计时区间执行 throw/catch；先预热 64 次，计时前主动 GC，排除对象构造及打印时间。每组交替开／关顺序执行 7 轮，以下为每次 throw/catch 的墙钟中位数，递归深度指额外的递归调用层数，0 仍有普通调用栈。
 
 | 额外递归层数 | 关闭快照 | 开启，首次抛出 | 首次捕获增加 |
 | --- | --- | --- | --- |

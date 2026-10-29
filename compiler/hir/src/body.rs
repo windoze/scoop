@@ -188,6 +188,10 @@ pub enum ExprKind {
     Unreachable,
     MaybeUninit(MaybeUninitOperation<Box<Expr>>),
     ContextLookup(crate::ContextRequirementRef),
+    /// Raw bytes embedded by a compiler input intrinsic.
+    ByteArrayLiteral(Vec<u8>),
+    /// A statically embedded Array<EmbeddedFile> with ordinary struct elements.
+    EmbeddedFileArrayLiteral(Vec<crate::CompileTimeFile>),
     StringLiteral {
         value: String,
         owner: StringConstantOwner<PropertyId>,
@@ -460,6 +464,7 @@ pub enum ExprKind {
 pub enum StringConstantOwner<P> {
     CurrentDefinition,
     Property(P),
+    PropertyElement { property: P, ordinal: u32 },
 }
 
 pub type HirIntegerOperation = IntegerExpression<Box<Expr>>;

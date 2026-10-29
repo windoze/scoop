@@ -1,0 +1,20 @@
+schema = 1
+name = "compiler-include-str-errors"
+root = "errors.scoop"
+inputs = ["errors.scoop", "invalid.bin"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["compiler-intrinsics", "negative", "language"]
+
+[[steps]]
+name = "prepare"
+files = [{mkdir = {path = "${work}/cone"}}, {copy = {from = "${fixture}/errors.scoop", to = "${work}/cone/errors.scoop"}}, {copy = {from = "${fixture}/invalid.bin", to = "${work}/cone/invalid.bin"}}, {write = {path = "${work}/outside.txt", data = "outside"}}, {symlink = {from = "${work}/outside.txt", to = "${work}/cone/escape.txt"}}]
+
+[[steps]]
+name = "check"
+argv = ["${scoop}", "check", "${work}/cone/errors.scoop", "--release", {each = "${compile_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "errors.diagnostics.json"}

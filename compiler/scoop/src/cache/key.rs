@@ -19,7 +19,7 @@ use crate::PairedCompilerFingerprintV1;
 mod testing;
 pub use testing::TestCompileConfiguration;
 
-const CACHE_KEY_DOMAIN: &str = "scoop-cone-compile-cache-v7";
+const CACHE_KEY_DOMAIN: &str = "scoop-cone-compile-cache-v10";
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ConeCompileCacheKeyV1([u8; 32]);
@@ -191,6 +191,7 @@ impl WireEncode for CompileDependencyInputV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CurrentConeSemanticProjectionV1 {
     Manifest {
+        input_root: Box<std::path::Path>,
         coordinate: ConeCoordinate,
         requested_kind: RequestedConeKind,
         dependencies: Vec<ConeCoordinate>,
@@ -205,6 +206,7 @@ impl WireEncode for CurrentConeSemanticProjectionV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Manifest {
+                input_root,
                 coordinate,
                 requested_kind,
                 dependencies,
@@ -212,7 +214,7 @@ impl WireEncode for CurrentConeSemanticProjectionV1 {
                 tests,
                 native,
             } => {
-                encoder.map(7)?;
+                encoder.map(8)?;
                 encoder.field(0)?;
                 encoder.unsigned(1)?;
                 encoder.field(1)?;
@@ -230,7 +232,8 @@ impl WireEncode for CurrentConeSemanticProjectionV1 {
                 if let Some(tests) = tests {
                     tests.encode(encoder)?;
                 }
-                Ok(())
+                encoder.field(7)?;
+                encoder.bytes(input_root.as_os_str().as_encoded_bytes())
             }
             Self::SingleFile => {
                 encoder.map(3)?;

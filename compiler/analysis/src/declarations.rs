@@ -94,6 +94,23 @@ impl AnalysisSnapshot {
         world: &hir::ImportedSemanticWorld<'_>,
         is_cancelled: impl Fn() -> bool,
     ) -> Result<DeclarationAnalysis, DeclarationAnalysisError> {
+        self.analyze_declarations_with_inputs(
+            cone,
+            core,
+            world,
+            std::sync::Arc::new(cone.compiler_inputs()),
+            is_cancelled,
+        )
+    }
+
+    pub(crate) fn analyze_declarations_with_inputs(
+        &self,
+        cone: &SourceConeInput,
+        core: &CoreProtocolInput,
+        world: &hir::ImportedSemanticWorld<'_>,
+        inputs: std::sync::Arc<scoop_toolchain::CompileTimeInputs>,
+        is_cancelled: impl Fn() -> bool,
+    ) -> Result<DeclarationAnalysis, DeclarationAnalysisError> {
         let mut sources = Vec::with_capacity(cone.sources.len());
         for file in &cone.sources {
             if is_cancelled() {
@@ -108,11 +125,12 @@ impl AnalysisSnapshot {
                     .map_err(|error| DeclarationAnalysisError::SourceLength(*error))?,
             );
         }
-        let analysis = scoop_hir_lower::analyze_declarations(
+        let analysis = scoop_hir_lower::analyze_declarations_with_inputs(
             &sources,
             core,
             world,
             &cone.test_dependencies,
+            Some(inputs),
             || is_cancelled() || self.check_cancelled().is_err(),
         )
         .map_err(|error| match error {

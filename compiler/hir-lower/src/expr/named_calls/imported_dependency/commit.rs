@@ -67,6 +67,13 @@ impl Lowerer {
             ..
         } = probe;
         *self = *state;
+        self.record_constant_call(
+            call_span,
+            match candidate.interface().effects().implementation() {
+                hir::CallableImplementationV1::Intrinsic(kind) => Some(kind),
+                _ => None,
+            },
+        );
         self.observe_dependency_constructor_name(
             call_span,
             candidate.interface().declaration(),
@@ -166,6 +173,14 @@ impl Lowerer {
             };
             parameters[0].1 = source_args[source.index()].ty;
         }
+        let compile_input = matches!(
+            &implementation,
+            super::ImportedCallImplementation::Intrinsic {
+                operation: super::ImportedIntrinsicCall::CompileInput { .. },
+                ..
+            }
+        );
+        let mut compile_input_setup = Vec::new();
         let (receiver, parameter_values) = self.materialize_argument_inputs(
             ResolvedArgumentMaterialization {
                 parameters: &parameters,
@@ -174,10 +189,18 @@ impl Lowerer {
                 source_args,
                 argument_sinks,
                 call_span,
-                evaluation,
+                evaluation: if compile_input {
+                    ArgumentEvaluation::Lowered
+                } else {
+                    evaluation
+                },
                 temporary_prefix: "$dependency.",
             },
-            sink,
+            if compile_input {
+                &mut compile_input_setup
+            } else {
+                sink
+            },
             |state, template, context| {
                 let Some(prepared) = default_plan.get(*template) else {
                     state.error(

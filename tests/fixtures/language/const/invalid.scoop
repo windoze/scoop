@@ -1,5 +1,5 @@
 const var mutable: Int = 1
-const val unsupported: Unit = Unit
+const val unitLiteral: Unit = Unit
 
 @Global
 var ordinary: Int = 3

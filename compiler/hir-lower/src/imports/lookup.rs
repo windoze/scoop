@@ -330,15 +330,19 @@ impl Lowerer {
             self.dependency_type_candidates(
                 self.imports.canonicalize_dependencies(
                     self.imports
-                        .direct_package_types
+                        .direct_packages
                         .get(&package.path)
                         .into_iter()
                         .flatten()
                         .filter(|contribution| {
                             self.dependency_in_source_scope(contribution.provider)
                         })
-                        .flat_map(|contribution| contribution.types.get(name))
-                        .flatten()
+                        .flat_map(|contribution| &contribution.groups)
+                        .filter(|group| {
+                            group.namespace() == scoop_identity::BindingNamespace::Type
+                                && group.name().as_str() == name
+                        })
+                        .flat_map(|group| group.targets())
                         .cloned(),
                 ),
             ),
@@ -389,13 +393,7 @@ impl Lowerer {
                 candidates,
             ),
             LookupResult::Ambiguous { layer, candidates } => {
-                let layer = match layer {
-                    ImportLookupLayer::Exact => "exact import",
-                    ImportLookupLayer::CurrentPackage(_) => "current package",
-                    ImportLookupLayer::QualifiedPackage => "qualified package",
-                    ImportLookupLayer::Star => "star import",
-                    ImportLookupLayer::CorePrelude => "core prelude",
-                };
+                let layer = layer.call_name();
                 (
                     format!("type `{}` is ambiguous in the {layer} layer", name.text),
                     candidates,

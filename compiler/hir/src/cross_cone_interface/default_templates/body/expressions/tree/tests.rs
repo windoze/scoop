@@ -255,9 +255,20 @@ fn every_expression_variant_keeps_its_frozen_wire_tag() {
         })),
         DefaultExpressionKindV1::Unreachable,
         DefaultExpressionKindV1::AnnotationKey(fixture.annotation),
+        DefaultExpressionKindV1::ByteArrayLiteral(vec![0, 0xff, 0x80]),
+        DefaultExpressionKindV1::EmbeddedFileArrayLiteral(vec![
+            crate::CompileTimeFile {
+                path: "nested/雨.bin".into(),
+                bytes: vec![0, 255, 128].into(),
+            },
+            crate::CompileTimeFile {
+                path: "empty".into(),
+                bytes: vec![].into(),
+            },
+        ]),
     ];
 
-    assert_eq!(cases.len(), 61);
+    assert_eq!(cases.len(), 63);
     for (index, kind) in cases.into_iter().enumerate() {
         let expected_tag = match index {
             43 => 57,
@@ -266,6 +277,8 @@ fn every_expression_variant_keeps_its_frozen_wire_tag() {
             58 => 72,
             59 => 74,
             60 => 75,
+            61 => 77,
+            62 => 78,
             _ => u64::try_from(index + 1).unwrap(),
         };
         let expression = expression(kind, &fixture);

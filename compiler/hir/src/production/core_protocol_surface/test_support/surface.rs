@@ -285,6 +285,7 @@ pub(super) fn install_with_intrinsics_at(
                     | IntrinsicFunctionKind::TypeReference
                     | IntrinsicFunctionKind::TypeDescription
                     | IntrinsicFunctionKind::AnnotationKey
+                    | IntrinsicFunctionKind::IncludeDir
             )
         })
         .map(|kind| {

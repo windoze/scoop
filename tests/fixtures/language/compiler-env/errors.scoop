@@ -1,0 +1,12 @@
+import scoop.compiler.env as compileEnv
+fun invalid(name: String) {
+    val system = compileEnv("HOME")
+    val lower = compileEnv("scoop_VALUE")
+    val equals = compileEnv("SCOOP_A=B")
+    val nul = compileEnv("SCOOP_A\u{0}")
+    val dynamic = compileEnv(name)
+    val reference = ::compileEnv
+}
+fun <T> unused(value: T): String? = compileEnv("HOME")
+fun defaulted(value: String? = compileEnv("HOME")) {}
+fun main() {}

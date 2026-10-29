@@ -45,14 +45,14 @@ fn request_requires_supported_version_absolute_cwd_and_nonempty_selection() {
         serde_json::from_slice::<PrepareRequestV1>(&encoded).unwrap(),
         request
     );
-    request.version = 2;
+    request.version = PACKAGE_PROTOCOL_VERSION + 1;
     assert!(
         request
             .validate()
             .unwrap_err()
             .contains("unsupported package protocol")
     );
-    request.version = 1;
+    request.version = PACKAGE_PROTOCOL_VERSION;
     request.members = PackageMemberSelectionV1::Packages { keys: Vec::new() };
     assert!(
         request

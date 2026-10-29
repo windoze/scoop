@@ -92,6 +92,8 @@ pub(super) fn operands(expression: &hir::Expr) -> Vec<&hir::Expr> {
             .collect(),
         E::ContextLookup(_)
         | E::StringLiteral { .. }
+        | E::ByteArrayLiteral(_)
+        | E::EmbeddedFileArrayLiteral(_)
         | E::IntegerLiteral(_)
         | E::CharLiteral(_)
         | E::FloatLiteral(_)

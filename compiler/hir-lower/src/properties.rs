@@ -168,22 +168,13 @@ impl Lowerer {
                 else {
                     unreachable!("constant accessors belong only to const properties")
                 };
-                let kind = match value {
-                    hir::ConstPropertyValue::Integer(value) => hir::ExprKind::IntegerLiteral(value),
-                    hir::ConstPropertyValue::Float(value) => hir::ExprKind::FloatLiteral(value),
-                    hir::ConstPropertyValue::Char(value) => hir::ExprKind::CharLiteral(value),
-                    hir::ConstPropertyValue::Boolean(value) => hir::ExprKind::BoolLiteral(value),
-                    hir::ConstPropertyValue::String(value) => hir::ExprKind::StringLiteral {
-                        value,
-                        owner: hir::StringConstantOwner::Property(property),
-                    },
-                };
-                Some(hir::Expr {
-                    kind,
+                Some(self.constant_expression(
+                    value,
                     ty,
+                    hir::StringConstantOwner::Property(property),
                     span,
-                    origin: self.expression_origin(span),
-                })
+                    self.expression_origin(span),
+                ))
             }
             hir::PropertyAccessorImplementation::Body(function)
             | hir::PropertyAccessorImplementation::StorageBody(function)

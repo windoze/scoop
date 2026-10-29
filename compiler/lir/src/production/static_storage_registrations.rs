@@ -3,6 +3,9 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
+mod initial_values;
+use initial_values::StaticInitialStateEncoder;
+
 use scoop_identity::{
     ConeIdentity, LinkageClass, PersistentImmortalObjectId, PersistentLayoutId,
     PersistentSymbolRequest, RepresentationRole, ScanRole,
@@ -314,6 +317,7 @@ impl StrongStaticStorageSemanticPlanSetV1 {
                     initial_template.resize(template_length, 0);
                     let mut immortal_relocations = Vec::new();
                     StaticInitialStateEncoder {
+                        target,
                         globals,
                         structs,
                         enums,
@@ -601,173 +605,6 @@ fn shift_scan(scan: &RefScan, base_offset: u64) -> Result<RefScan, StaticStorage
     }
 }
 
-struct StaticInitialStateEncoder<'a> {
-    globals: &'a la_arena::Arena<crate::Global>,
-    structs: &'a crate::StructDefs,
-    enums: &'a crate::EnumDefs,
-    storage: PersistentStaticStorageId,
-    template: &'a mut [u8],
-    relocations: &'a mut Vec<StaticImmortalRelocationPlanV1>,
-}
-
-impl StaticInitialStateEncoder<'_> {
-    fn collect(
-        &mut self,
-        expected: &LirType,
-        value: &LirConstantImage,
-        base_offset: u64,
-    ) -> Result<(), StrongStaticStorageSemanticPlanBuildError> {
-        let storage = self.storage;
-        let type_mismatch = || StrongStaticStorageSemanticPlanBuildError::InitialValue {
-            storage,
-            kind: StaticStorageInitialValueFailureV1::TypeMismatch,
-        };
-        match value {
-            LirConstantImage::Integer(value) if &value.scalar_type() == expected => {
-                let width = usize::try_from(value.kind().width().bits() / 8)
-                    .expect("source integer widths fit usize");
-                self.write(base_offset, &value.raw_bits().to_le_bytes()[..width])
-            }
-            LirConstantImage::Bool(value) if expected == &LirType::I1 => {
-                self.write(base_offset, &[u8::from(*value)])
-            }
-            LirConstantImage::NullPointer(kind) if expected == &LirType::Ptr(*kind) => Ok(()),
-            LirConstantImage::GlobalPointer { global, kind }
-                if expected == &LirType::Ptr(*kind) && *kind == PointerKind::Managed =>
-            {
-                let index = global.into_raw().into_u32() as usize;
-                if index >= self.globals.len() {
-                    return Err(StrongStaticStorageSemanticPlanBuildError::InitialValue {
-                        storage,
-                        kind: StaticStorageInitialValueFailureV1::MissingGlobal,
-                    });
-                }
-                let target = &self.globals[*global];
-                let GlobalInit::StringConst { identity, .. } = &target.init else {
-                    return Err(StrongStaticStorageSemanticPlanBuildError::InitialValue {
-                        storage,
-                        kind: StaticStorageInitialValueFailureV1::NonImmortalTarget,
-                    });
-                };
-                if target.address_kind != PointerKind::Managed {
-                    return Err(StrongStaticStorageSemanticPlanBuildError::InitialValue {
-                        storage,
-                        kind: StaticStorageInitialValueFailureV1::TargetAddressKind,
-                    });
-                }
-                self.relocations.push(StaticImmortalRelocationPlanV1 {
-                    pointer_offset: base_offset,
-                    target: identity.identity_record().id(),
-                });
-                Ok(())
-            }
-            LirConstantImage::EnumUnit { variant } => {
-                let LirType::Enum(expected_enum) = expected else {
-                    return Err(type_mismatch());
-                };
-                if variant.definition() != *expected_enum || !self.enums.contains_variant(*variant)
-                {
-                    return Err(StrongStaticStorageSemanticPlanBuildError::InitialValue {
-                        storage,
-                        kind: StaticStorageInitialValueFailureV1::InvalidEnumVariant,
-                    });
-                }
-                let has_payload = match &self.enums[*expected_enum].repr {
-                    EnumRepr::Integral { .. } => false,
-                    EnumRepr::Niche {
-                        payload_variant, ..
-                    } => variant.index() == *payload_variant,
-                    EnumRepr::Tagged { variants, .. } => {
-                        !variants[variant.index() as usize].fields.is_empty()
-                    }
-                };
-                if has_payload {
-                    return Err(StrongStaticStorageSemanticPlanBuildError::InitialValue {
-                        storage,
-                        kind: StaticStorageInitialValueFailureV1::PayloadEnumVariant,
-                    });
-                }
-                match &self.enums[*expected_enum].repr {
-                    EnumRepr::Niche { .. } => Ok(()),
-                    EnumRepr::Integral { kind, values } => self.write(
-                        base_offset,
-                        &values[variant.index() as usize].to_le_bytes()
-                            [..kind.width().bytes() as usize],
-                    ),
-                    EnumRepr::Tagged { .. } => {
-                        self.write(base_offset, &u64::from(variant.index()).to_le_bytes())
-                    }
-                }
-            }
-            LirConstantImage::Struct { struct_id, fields } => {
-                if expected != &LirType::Struct(*struct_id) {
-                    return Err(type_mismatch());
-                }
-                let index = struct_id.into_raw().into_u32() as usize;
-                if index >= self.structs.len() {
-                    return Err(StrongStaticStorageSemanticPlanBuildError::InitialValue {
-                        storage,
-                        kind: StaticStorageInitialValueFailureV1::UnknownStruct,
-                    });
-                }
-                let definition = &self.structs[*struct_id];
-                if fields.len() != definition.field_count() {
-                    return Err(StrongStaticStorageSemanticPlanBuildError::InitialValue {
-                        storage,
-                        kind: StaticStorageInitialValueFailureV1::StructFieldCount,
-                    });
-                }
-                for (index, field) in fields.iter().enumerate() {
-                    let field_type = definition.field_storage_type(index).ok_or(
-                        StrongStaticStorageSemanticPlanBuildError::InitialValue {
-                            storage,
-                            kind: StaticStorageInitialValueFailureV1::UnknownStruct,
-                        },
-                    )?;
-                    let offset = definition
-                        .field_layout(index)
-                        .and_then(|layout| base_offset.checked_add(layout.offset))
-                        .ok_or(StrongStaticStorageSemanticPlanBuildError::InitialValue {
-                            storage,
-                            kind: StaticStorageInitialValueFailureV1::OffsetOverflow,
-                        })?;
-                    self.collect(&field_type, field, offset)?;
-                }
-                Ok(())
-            }
-            _ => Err(type_mismatch()),
-        }
-    }
-
-    fn write(
-        &mut self,
-        offset: u64,
-        bytes: &[u8],
-    ) -> Result<(), StrongStaticStorageSemanticPlanBuildError> {
-        let storage = self.storage;
-        let start = usize::try_from(offset).map_err(|_| {
-            StrongStaticStorageSemanticPlanBuildError::InitialValue {
-                storage,
-                kind: StaticStorageInitialValueFailureV1::TemplateBounds,
-            }
-        })?;
-        let end = start.checked_add(bytes.len()).ok_or(
-            StrongStaticStorageSemanticPlanBuildError::InitialValue {
-                storage,
-                kind: StaticStorageInitialValueFailureV1::TemplateBounds,
-            },
-        )?;
-        let target = self.template.get_mut(start..end).ok_or(
-            StrongStaticStorageSemanticPlanBuildError::InitialValue {
-                storage,
-                kind: StaticStorageInitialValueFailureV1::TemplateBounds,
-            },
-        )?;
-        target.copy_from_slice(bytes);
-        Ok(())
-    }
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StaticStorageShapeFailureV1 {
     Void,
@@ -787,9 +624,10 @@ pub enum StaticStorageInitialValueFailureV1 {
     NonImmortalTarget,
     TargetAddressKind,
     InvalidEnumVariant,
-    PayloadEnumVariant,
+    EnumFieldCount,
     UnknownStruct,
     StructFieldCount,
+    AggregateFieldCount,
     OffsetOverflow,
     TemplateBounds,
 }

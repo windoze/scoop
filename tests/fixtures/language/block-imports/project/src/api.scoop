@@ -1,0 +1,6 @@
+package scoped.api
+
+public fun answer(): Int = 1
+private fun hidden(): Int = 2
+public const val first: Int = 3
+public const val second: Int = 4

@@ -1,4 +1,5 @@
 use super::*;
+mod blocks;
 mod dependency;
 mod dependency_fixture;
 mod materialization;

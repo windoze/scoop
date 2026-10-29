@@ -15,7 +15,7 @@ pub(super) struct GlobalLoweringInputs<'a> {
     pub(super) selected_layout: Option<&'a lir::StrongProductionDependencySelectionV2<'a>>,
     pub(super) structs: &'a lir::StructDefs,
     pub(super) enums: &'a lir::EnumDefs,
-    pub(super) string_globals: &'a HashMap<mir::StringConstId, lir::GlobalId>,
+    pub(super) string_globals: &'a HashMap<mir::ImmortalConstId, lir::GlobalId>,
     pub(super) native_externals: &'a lir::NativeExternalMetadata,
 }
 
@@ -289,7 +289,7 @@ pub(super) fn static_storage_layout(
 pub(super) fn lower_static_initial_state(
     state: &mir::MirStaticInitialState,
     enums: &lir::EnumDefs,
-    string_globals: &HashMap<mir::StringConstId, lir::GlobalId>,
+    string_globals: &HashMap<mir::ImmortalConstId, lir::GlobalId>,
 ) -> lir::LirStaticInitialState {
     match state {
         mir::MirStaticInitialState::ZeroedForRuntimeUnit => {
@@ -306,9 +306,16 @@ pub(super) fn lower_static_initial_state(
 pub(super) fn lower_constant_image(
     value: &mir::MirConstantImage,
     enums: &lir::EnumDefs,
-    string_globals: &HashMap<mir::StringConstId, lir::GlobalId>,
+    string_globals: &HashMap<mir::ImmortalConstId, lir::GlobalId>,
 ) -> lir::LirConstantImage {
     match value {
+        mir::MirConstantImage::Unit => lir::LirConstantImage::Aggregate(Vec::new()),
+        mir::MirConstantImage::Tuple(elements) => lir::LirConstantImage::Aggregate(
+            elements
+                .iter()
+                .map(|element| lower_constant_image(element, enums, string_globals))
+                .collect(),
+        ),
         mir::MirConstantImage::Integer(value) => {
             lir::LirConstantImage::Integer(integer_constant(*value))
         }
@@ -327,8 +334,12 @@ pub(super) fn lower_constant_image(
                 mir::MirPointerNull::Code => lir::PointerKind::Code,
             })
         }
-        mir::MirConstantImage::EnumUnit { variant } => lir::LirConstantImage::EnumUnit {
+        mir::MirConstantImage::Enum { variant, fields } => lir::LirConstantImage::Enum {
             variant: variant_ref(enums, *variant),
+            fields: fields
+                .iter()
+                .map(|field| lower_constant_image(field, enums, string_globals))
+                .collect(),
         },
         mir::MirConstantImage::Struct { struct_id, fields } => lir::LirConstantImage::Struct {
             struct_id: struct_def_id(*struct_id),

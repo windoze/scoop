@@ -93,6 +93,10 @@ pub enum DefaultExpressionKindV1 {
         owner_type: SignatureTypeKey,
         declaration: scoop_identity::PersistentFieldId,
     },
+    /// Raw bytes embedded by a compiler input intrinsic.
+    ByteArrayLiteral(Vec<u8>),
+    /// A statically embedded Array<EmbeddedFile> with ordinary struct elements.
+    EmbeddedFileArrayLiteral(Vec<crate::CompileTimeFile>),
     StringLiteral {
         value: String,
         owner: DefaultStringOwnerV1,
@@ -475,6 +479,8 @@ fn validate_kind(kind: &DefaultExpressionKindV1) -> Result<(), DefaultExpression
         }
         DefaultExpressionKindV1::ContextLookup { .. }
         | DefaultExpressionKindV1::StringLiteral { .. }
+        | DefaultExpressionKindV1::ByteArrayLiteral(_)
+        | DefaultExpressionKindV1::EmbeddedFileArrayLiteral(_)
         | DefaultExpressionKindV1::IntegerLiteral(_)
         | DefaultExpressionKindV1::CharLiteral(_)
         | DefaultExpressionKindV1::FloatLiteral(_)

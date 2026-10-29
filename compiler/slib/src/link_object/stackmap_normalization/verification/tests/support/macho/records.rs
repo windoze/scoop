@@ -173,6 +173,8 @@ pub(super) fn push_immortal_object(
                 Some((identity, value))
             }
             scoop_lir::GlobalInit::StringConst { .. }
+            | scoop_lir::GlobalInit::ByteArrayConst { .. }
+            | scoop_lir::GlobalInit::EmbeddedFileArrayConst { .. }
             | scoop_lir::GlobalInit::Storage { .. }
             | scoop_lir::GlobalInit::CString { .. }
             | scoop_lir::GlobalInit::RawStorage { .. }

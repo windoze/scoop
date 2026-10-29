@@ -205,7 +205,7 @@ pub(crate) fn parsed_ordinary_at(
     parsed_sources(identity, source, "<dependency-main>", "")
 }
 
-fn parsed_sources(
+pub(super) fn parsed_sources(
     identity: SourceIdentity,
     source: scoop_ast::SourceFile,
     display: &str,

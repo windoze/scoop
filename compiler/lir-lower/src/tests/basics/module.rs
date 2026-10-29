@@ -47,7 +47,7 @@ fn lowers_hello_world() {
         })
         .collect::<Vec<_>>();
     let expected_immortal_objects = source
-        .strings
+        .immortals
         .iter()
         .map(|(_, string)| {
             CborIdentityRecord::from_key(string.identity.clone())
@@ -76,7 +76,9 @@ fn lowers_hello_world() {
             lir::GlobalInit::Storage { .. }
             | lir::GlobalInit::RawStorage { .. }
             | lir::GlobalInit::ImportedImmortal { .. }
-            | lir::GlobalInit::ImportedStorage { .. } => None,
+            | lir::GlobalInit::ImportedStorage { .. }
+            | lir::GlobalInit::ByteArrayConst { .. }
+            | lir::GlobalInit::EmbeddedFileArrayConst { .. } => None,
         })
         .collect();
     assert_eq!(
@@ -95,7 +97,9 @@ fn lowers_hello_world() {
             | lir::GlobalInit::Storage { .. }
             | lir::GlobalInit::RawStorage { .. }
             | lir::GlobalInit::ImportedImmortal { .. }
-            | lir::GlobalInit::ImportedStorage { .. } => None,
+            | lir::GlobalInit::ImportedStorage { .. }
+            | lir::GlobalInit::ByteArrayConst { .. }
+            | lir::GlobalInit::EmbeddedFileArrayConst { .. } => None,
         })
         .collect::<Vec<_>>();
     assert_eq!(
@@ -117,7 +121,9 @@ fn lowers_hello_world() {
             | lir::GlobalInit::StringConst { .. }
             | lir::GlobalInit::CString { .. }
             | lir::GlobalInit::ImportedImmortal { .. }
-            | lir::GlobalInit::ImportedStorage { .. } => None,
+            | lir::GlobalInit::ImportedStorage { .. }
+            | lir::GlobalInit::ByteArrayConst { .. }
+            | lir::GlobalInit::EmbeddedFileArrayConst { .. } => None,
         })
         .collect::<Vec<_>>();
     assert_eq!(failure_roots.len(), 1);
@@ -322,7 +328,7 @@ fn strong_writer_projects_a_deterministic_library_section() {
 #[test]
 fn globals_carry_complete_scans_from_their_concrete_storage_types() {
     let mut module = hello_world();
-    let (initial_string, _) = module.strings.iter().next().expect("hello-world string");
+    let (initial_string, _) = module.immortals.iter().next().expect("hello-world string");
     let backing_owner = property_owner("managedRoot");
     module.globals.alloc(mir::Global {
         debug_origin: Default::default(),

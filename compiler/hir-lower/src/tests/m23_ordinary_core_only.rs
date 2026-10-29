@@ -5,6 +5,7 @@ use super::{call, file, fun, fun_expr, sp, stmt, ty_named, var};
 use crate::{CurrentConeSources, lower_current_cone};
 
 mod aliases;
+mod compiler_inputs;
 mod constants;
 mod equality;
 mod implicit_arrays;

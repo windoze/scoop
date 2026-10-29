@@ -153,7 +153,9 @@ impl<'a> Traversal<'a> {
                     }
                 }
             }
-            ExprKind::StringLiteral { .. }
+            ExprKind::ByteArrayLiteral(_)
+            | ExprKind::EmbeddedFileArrayLiteral(_)
+            | ExprKind::StringLiteral { .. }
             | ExprKind::TypeIdentityLiteral(_)
             | ExprKind::IntegerLiteral(_)
             | ExprKind::CharLiteral(_)

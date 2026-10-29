@@ -14,6 +14,8 @@ pub struct Statement {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum StatementKind {
+    /// A lexical import effective after this statement until the block ends.
+    Import(crate::ImportSyntax),
     Expr(Expr),
     /// A named function declared in a block. Its name is visible in its own
     /// body and from this statement to the end of the lexical scope.

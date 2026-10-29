@@ -1,0 +1,13 @@
+package scoop.tests
+import scoop.compiler.includeStr
+import scoop.tests.resources.*
+
+fun main() {
+    println(includeStr("../data.txt"))
+    println(generic(1))
+    println(generic("value"))
+    println(defaulted())
+    println(includeStr("../literal.txt") == "\u{feff}hello\r\n\u{0}")
+    println(includeStr("../linked.txt"))
+    println(includeStr("ABSOLUTE_ALIAS") == includeStr("../data.txt"))
+}

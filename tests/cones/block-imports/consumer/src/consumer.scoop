@@ -1,0 +1,6 @@
+package scoped.consumer
+
+public fun localChoice(): Int {
+    import scoped.first.choose
+    return choose()
+}

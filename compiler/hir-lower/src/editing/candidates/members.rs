@@ -97,7 +97,7 @@ impl Lowerer {
                 let extension = property.state.editing_value_extensions_at(
                     call,
                     &property.expression,
-                    0,
+                    crate::imports::lookup::calls::ImportLookupRank::ImplicitReceiver,
                     rank,
                     is_cancelled,
                 )?;

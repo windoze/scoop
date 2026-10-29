@@ -95,7 +95,7 @@ fn generated_entry_formats_require_the_updated_hir_and_mir_sections() {
     for (current, version) in [
         (hir_identity_foundation_capability(), 10),
         (mir_identity_foundation_capability(), 8),
-        (hir_core_bootstrap_interface_capability(), 16),
+        (hir_core_bootstrap_interface_capability(), 17),
         (mir_core_bootstrap_bridge_capability(), 2),
     ] {
         assert_eq!(current.major_version(), version);

@@ -18,6 +18,7 @@ pub(crate) struct BodyObservation {
     pub(super) callable_names: imbl::HashMap<ast::Span, ast::Span>,
     pub(super) delegation_name: Option<ast::Span>,
     pub(super) callables: imbl::HashMap<ast::Span, Vec<hir::EditingCallableReference>>,
+    pub(super) rejected_callables: imbl::HashMap<ast::Span, hir::EditingCallableReference>,
     pub(super) property_names: imbl::HashMap<ast::Span, ast::Span>,
     pub(super) properties: imbl::HashMap<ast::Span, hir::EditingPropertyReference>,
     pub(super) local_functions: imbl::HashMap<hir::FunctionId, hir::EditingFunction>,
@@ -40,6 +41,7 @@ pub(in crate::editing) struct ObservedContext {
 #[derive(Clone)]
 pub(crate) struct ObservedBody {
     pub(super) facts: V<hir::EditingBodyFacts>,
+    pub(super) rejected_callables: Vec<hir::EditingCallableReference>,
     pub(super) selectors: Vec<hir::EditingSelector>,
     pub(super) selector_members: imbl::HashMap<ast::Span, V<hir::EditingMembers>>,
     pub(super) calls: Vec<hir::EditingAppliedCall>,
@@ -74,6 +76,7 @@ impl BodyObservation {
             callable_names: Default::default(),
             delegation_name: None,
             callables: Default::default(),
+            rejected_callables: Default::default(),
             property_names: Default::default(),
             properties: Default::default(),
             local_functions: Default::default(),
@@ -153,6 +156,12 @@ impl BodyObservation {
             .flat_map(|(_, references)| references)
             .collect::<Vec<_>>();
         callables.sort_by_key(|reference| (reference.span.start, reference.span.end));
+        let mut rejected_callables = self
+            .rejected_callables
+            .into_iter()
+            .map(|(_, value)| value)
+            .collect::<Vec<_>>();
+        rejected_callables.sort_by_key(|reference| (reference.span.start, reference.span.end));
         let mut properties = self
             .properties
             .into_iter()
@@ -184,6 +193,7 @@ impl BodyObservation {
             .collect::<Vec<_>>();
         calls.sort_by_key(|call| (call.span.start, call.span.end));
         ObservedBody {
+            rejected_callables,
             facts: if complete {
                 V::Known(hir::EditingBodyFacts {
                     types,

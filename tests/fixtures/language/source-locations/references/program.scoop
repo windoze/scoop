@@ -1,0 +1,7 @@
+import currentSourceLocation as location
+
+fun main() {
+    val inferred = ::currentSourceLocation
+    val managed: () -> SourceLocation = ::location
+    val native: FunPtr<() -> Int> = ::location
+}

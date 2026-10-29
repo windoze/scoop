@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "includeDir entry `excluded-directory`: include symlink target `${work}/outside` is outside the defining Cone directory `${work}/cone`",
+    "notes": [],
+    "origin": {
+      "cone": "8d7a4d95e085ec5f02adc590e778e83ba1a3c76b6cffdc0a84f034e4e8768d24",
+      "end": 108,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 97
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown variable `directory`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "8d7a4d95e085ec5f02adc590e778e83ba1a3c76b6cffdc0a84f034e4e8768d24",
+      "end": 160,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 151
+    },
+    "severity": "error"
+  }
+]

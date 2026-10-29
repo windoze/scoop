@@ -534,7 +534,8 @@ fn emits_m6_heap_access_and_typed_descriptors() {
         "generated code must not route every allocation through the compatibility entry:\n{ir}"
     );
     assert!(
-        ir.contains("%alloc_is_regular = icmp ule i64 %alloc_size, 32640")
+        ir.contains("%tlab_next_int = add i64 %tlab_aligned_cursor, 32")
+            && ir.contains("%alloc_within_tlab = icmp ule i64 %tlab_next_int, %tlab_limit_int")
             && !ir.contains("tlab_line_base"),
         "the inline allocator must accept contiguous objects across Immix lines:\n{ir}"
     );

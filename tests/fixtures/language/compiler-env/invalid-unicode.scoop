@@ -1,0 +1,3 @@
+import scoop.compiler.env
+const val value: String? = env("SCOOP_ENV_INVALID_UNICODE")
+fun main() {}

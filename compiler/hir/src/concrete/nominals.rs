@@ -439,14 +439,17 @@ pub enum HirStaticInitialState {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HirConstantImage {
+    Unit,
+    Tuple(Vec<HirConstantImage>),
     Integer(HirIntegerConstant),
     Boolean(bool),
     Char(char),
     Float(scoop_identity::FloatConstant),
     String(String),
     NullPointer(HirPointerNullKind),
-    EnumUnit {
+    Enum {
         variant: EnumVariantRef,
+        fields: Vec<HirConstantImage>,
     },
     Struct {
         struct_id: StructId,

@@ -29,7 +29,7 @@ pub struct Module {
     pub closure_invoke_functions: Arena<ClosureInvokeFunction>,
     /// User functions in declaration order (builtins have no MIR body).
     pub top_level: Vec<FunctionId>,
-    pub strings: Arena<StringConst>,
+    pub immortals: Arena<ImmortalConst>,
     pub structs: Arena<StructDef>,
     pub enums: Arena<EnumDef>,
     pub classes: Arena<ClassDef>,
@@ -647,14 +647,17 @@ pub enum MirPointerNull {
 /// different semantic states.
 #[derive(Debug, Clone, PartialEq)]
 pub enum MirConstantImage {
+    Unit,
+    Tuple(Vec<MirConstantImage>),
     Integer(MirIntegerConstant),
     Boolean(bool),
     Char(char),
     Float(scoop_identity::FloatConstant),
-    String(StringConstId),
+    String(ImmortalConstId),
     PointerNull(MirPointerNull),
-    EnumUnit {
+    Enum {
         variant: MirVariantRef,
+        fields: Vec<MirConstantImage>,
     },
     Struct {
         struct_id: StructId,
@@ -1382,15 +1385,36 @@ pub struct DispatchTable {
 }
 
 #[derive(Debug)]
-pub struct StringConst {
+pub struct ImmortalConst {
     /// Canonical, arena-independent identity seed for this immutable object.
     pub identity: ImmortalObjectKey,
-    pub value: String,
-    pub source: StringConstSource,
+    pub value: ImmortalConstValue,
+    pub source: ImmortalConstSource,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum StringConstSource {
+pub enum ImmortalConstSource {
     CurrentCone,
     Imported(ConeIdentity),
+}
+
+/// Static managed data embedded in the output image.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ImmortalConstValue {
+    String(String),
+    ByteArray {
+        array_type: ClassId,
+        bytes: Vec<u8>,
+    },
+    EmbeddedFileArray {
+        array_type: ClassId,
+        files: Vec<EmbeddedFileConst>,
+    },
+}
+
+/// References from an embedded file-table element to its static child objects.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmbeddedFileConst {
+    pub path: ImmortalConstId,
+    pub bytes: ImmortalConstId,
 }
