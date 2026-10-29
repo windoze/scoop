@@ -9,9 +9,9 @@
 | W1 编译／链接 | 三目标 ABI、COFF、C/C++、PE、PDB、subsystem 与 RC 已实现；ABI 30 定向组合通过 | 无独立 W1 阻塞 |
 | W2 core runtime | Win32 primitives、SEH、精确 roots、GC、线程与初始化已实现；ABI 30 栈诊断开关组合通过 | 无独立 W2 阻塞 |
 | W3 系统库 | Windows 实现及所需 native 后端已完成；ABI 30 三目标各 25 个 Cone 与四种 runtime 已准备完成；高层 HTTP 失败用例已闭合 | 无独立 W3 阻塞 |
-| W4 宿主与发行 | ABI 30 候选归档、本机回归与两个远端的三目标交叉编译／Windows 执行通过 | 更新包含 runtime schema 7 的候选归档并验证安装 |
+| W4 宿主与发行 | 包含 runtime schema 7 的新版候选归档通过实际安装；本机回归与两个远端的三目标交叉编译／Windows 执行通过 | 无独立 W4 阻塞 |
 
-Windows 本地实现与验收完成后，在 Linux `nuc12w.0d0a.com` 与 macOS `mm.0d0a.com` 的 `~/repos/scoop-windows-20261030` 下分别新建 checkout。跨宿主回归现已完成，正在更新包含其修复的候选归档。原始日志、报告、归档和构建副本保存在仓库外。
+Windows 本地实现与验收完成后，在 Linux `nuc12w.0d0a.com` 与 macOS `mm.0d0a.com` 的 `~/repos/scoop-windows-20261030` 下分别新建 checkout。跨宿主回归及包含其修复的新版候选归档安装验收均已完成。原始日志、报告、归档和构建副本保存在仓库外。
 
 ## 环境与三个目标
 
@@ -110,4 +110,6 @@ runtime index 已改为 schema 7：对象 locator 保存 UTF-8 相对路径和 `
 
 Linux 与 macOS 各交叉生成 18 个 Windows 程序：每个目标覆盖 C++ debug／release、interface SSA debug／release 移动 GC、并发 Throwable 历史与 GUI／RC。36 个程序及相邻 PDB 传回真实 Windows 后全部通过执行、CRT imports、移动／minor GC、异常快照和 PE subsystem／资源内容检查。两端直接消费同一份 Windows 准备的目标 `.slib`／runtime／unwind；Linux SDK 副本按所需文件名大小写补齐符号链接，保留原文件与上游 include 内容。
 
-剩余工作为：更新包含跨宿主路径修复和 schema 7 runtime 的候选归档，完成实际安装验证，并提交、推送、合并主线。完成这些步骤前不声明全部 Windows 验收完成。
+`d70f20f36` 新版候选包包含跨宿主路径修复及三个 Windows target 的全部 schema 7 runtime 配置。复用正式入口已经组装的目录，以较快的 XZ preset 0 完成归档；实际解压到新的中文／空格路径后，在仅含公开 bin 和 Windows 系统目录的 PATH 下通过 13 个公开命令的名称／版本、LLVM COFF 工具操作、三目标 new/run/test、9 项 C++／RC／subsystem fixture、CRT imports、交替构建、三个文档站点和 VSIX 内容检查。源码归档也已生成；此前候选的调试器与 server consumer 验收记录保持原范围，不扩大为本次重复执行。
+
+本设计 W0～W4 的实现与约定验收已完成。后续 windowing／target 重构设计属于独立任务。
