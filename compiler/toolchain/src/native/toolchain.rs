@@ -81,7 +81,9 @@ impl NativeToolchain {
         language: NativeSourceLanguage,
     ) -> Result<Command, ToolchainError> {
         match language {
-            NativeSourceLanguage::C => Ok(self.c.driver_command()),
+            NativeSourceLanguage::C | NativeSourceLanguage::ObjectiveC => {
+                Ok(self.c.driver_command())
+            }
             NativeSourceLanguage::Cxx => self
                 .cxx
                 .as_ref()

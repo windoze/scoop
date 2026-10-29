@@ -92,6 +92,10 @@ fn flags_cannot_replace_driver_owned_inputs_or_outputs() {
         "-include-pch",
         "-fpreprocessed",
         "-fpch-preprocess",
+        "-ObjC",
+        "-ObjC++",
+        "-fno-objc-arc",
+        "-fobjc-runtime=gnustep",
     ] {
         let source = format!("{CONE}\n[native]\nc_flags = ['{flag}']");
         let error = parse_cone_manifest(&source).unwrap_err();
@@ -100,6 +104,35 @@ fn flags_cannot_replace_driver_owned_inputs_or_outputs() {
             "{flag}: {error}"
         );
         assert_eq!(&source[error.span().unwrap().range()], format!("'{flag}'"));
+    }
+}
+
+#[test]
+fn objective_c_has_independent_flags_and_requires_darwin_after_selection() {
+    let source = format!(
+        "{CONE}\n[native]\nobjc_flags = ['-DOBJC_ONLY=1', '-std=c17']\n[[native.sources]]\npath = 'view.m'\nwhen = {{os = 'darwin'}}"
+    );
+    let parsed = parse_cone_manifest(&source).unwrap();
+    let native = parsed.semantic().native();
+    assert!(!native.cxx());
+    assert!(native.c_flags().is_empty());
+    assert!(native.cxx_flags().is_empty());
+    assert_eq!(native.objc_flags().len(), 2);
+    let entry = &native.sources()[0];
+    for target in crate::test_catalog::SOURCE_TARGETS {
+        let language = native.source_language(entry.path(), *target);
+        if target.os == "darwin" {
+            assert!(entry.predicate().matches(target.id));
+            assert_eq!(language.unwrap(), NativeSourceLanguage::ObjectiveC);
+        } else {
+            assert!(!entry.predicate().matches(target.id));
+            assert!(language.unwrap_err().contains("require a Darwin target"));
+        }
+    }
+    for flag in ["-fno-objc-arc", "-xobjective-c++", "-fobjc-runtime=gnustep"] {
+        assert!(
+            parse_cone_manifest(&format!("{CONE}\n[native]\nobjc_flags = ['{flag}']")).is_err()
+        );
     }
 }
 

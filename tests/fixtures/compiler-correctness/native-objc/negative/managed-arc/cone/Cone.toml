@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "dev.objc"
+name = "rejected"
+version = "0.1.0"
+kind = "executable"
+[native]
+objc_flags = ["-fno-objc-arc"]

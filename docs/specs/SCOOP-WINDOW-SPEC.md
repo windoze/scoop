@@ -1,16 +1,16 @@
-# Scoop 桌面窗口库规范草案
+# Scoop 桌面窗口库规范
 
-状态：设计，待实施。日期：2026-10-27。本文件描述计划中的普通 Cone `scoop.window` 与 `scoop.window.asyncio`，不代表已发布 API。依据 [设计](../windowing/DESIGN.md)与 [winit 能力映射](../windowing/WINIT-MAPPING.md)；不修改现有语言或 runtime 的生效合同。
+状态：实施中。日期：2026-10-30。本文件描述普通 Cone `scoop.window` 与 `scoop.window.asyncio` 的当前目标合同；实际交付与验证范围见[实施记录](../windowing/PROGRESS.md)。依据 [设计](../windowing/DESIGN.md)与 [winit 能力映射](../windowing/WINIT-MAPPING.md)。
 
 ## 1. 分层与目标
 
-window 依赖 core／std／platform；window.asyncio 另依赖 asyncio。首期目标为 Darwin ARM64、Linux x86-64 GNU／musl，Linux 同时设计 Wayland 与 X11。Windows 仅保留统一 API、事件语义及 native／wake source 表示，不增加 target 或实现。
+window 依赖 core／std／platform；window.asyncio 另依赖 asyncio。本阶段实施基础架构与 Darwin ARM64／AppKit。Linux Wayland／X11、Windows 及其他后端留待后续；不添加没有后端的 native handle 变体或假窗口实现。两个库及其原生薄层、测试、示例均以普通 Cone 组织，窗口逻辑不进入编译器或 runtime。
 
 公共应用对象不暴露 fd、HWND、XID、dispatch queue 或 ring。现有 Job／CoroutineScope、Context、ForeignCallback、时间、路径与异常规则继续适用；窗口库不承担布局、排版、绘制设备、I/O 调度或另一套任务树。
 
 ## 2. 应用与线程
 
-Application 构造接收 ApplicationOptions，run 接收 ApplicationHandler。handler 只有 `onEvent(application: ActiveApplication, event: ApplicationEvent)` 一个分发入口。每进程一个 Application、一次 run；入口要求进程主线程、当前 Job 和 I/O EventLoop binding 外。ActiveApplication 负责 createWindow、monitors、primaryMonitor、setControlFlow、requestExit。
+Application 构造接收 ApplicationOptions 并取得独立快照，run 接收 ApplicationHandler。handler 只有 `onEvent(application: ActiveApplication, event: ApplicationEvent)` 一个分发入口。每进程一个 Application、一次 run；入口要求进程主线程和当前 Job 外。构造只建立 managed 状态，接受 run 后才建立原生应用；启动失败消费已取得资源且不能重用该 Application。基础库不认识 I/O Context，集成入口另由 PlatformEventLoop.attach 拒绝活动 I/O EventLoop binding。ActiveApplication 负责 createWindow、monitors、primaryMonitor、setControlFlow、requestExit。
 
 ApplicationProxy 提供跨线程 post 与 requestExit；post 为 `(ActiveApplication) -> Unit`，返回 Boolean，异步排队。false 表示拒绝且不保留闭包；true 不保证之后关闭时仍执行。关闭停止业务投递，清理通知继续处理。所有原生窗口操作只在 owner 线程；WindowId／DeviceId／MonitorId 和不可变快照可跨线程保存。
 
@@ -30,7 +30,7 @@ NewEvents 原因区分 Init、Poll、Wake 与 Deadline；平台没有信息时�
 
 WindowAttributes、Window 的目标能力与方法分组以映射表为完整首期清单。请求返回 Applied／Requested／Unsupported；Requested 不保证系统采纳，实际状态由通知／快照决定。查询无法知道时返回 None；不把 desired state 写成 observed state。创建所需属性不支持时明确失败，不悄悄改变含义。
 
-WindowException 保留 WindowErrorKind、operation、backend 和可选 native code；类别包含 Unsupported、Unavailable、PermissionDenied、InvalidState、ResourceBusy、Disconnected、NativeFailure。参数错误使用现有参数异常；backend 表示 AppKit／Wayland／X11／Win32，不假定原生 code 都是 errno。能力提示不替代实际操作错误。
+WindowException 保留 WindowErrorKind、operation、backend 和可选 native code；类别包含 Unsupported、Unavailable、PermissionDenied、InvalidState、ResourceBusy、Disconnected、NativeFailure。参数错误使用现有参数异常；backend 随实际后端提供，本阶段为 AppKit，不假定原生 code 都是 errno。能力提示不替代实际操作错误。
 
 WindowId、DeviceId、MonitorId、TouchId 为不同值类型，只在一次 Application 生命周期内比较，不暴露原生身份，不复用活过的编号。Monitor 保存可选 name、desktopBounds、refreshRateMilliHertz 与视频模式；失效后的控制请求报告 unavailable。primaryMonitor 可为 None。
 
@@ -42,22 +42,22 @@ WindowMetrics 包含 logicalSize、physicalSize、scaleFactor，scaleFactor 必�
 
 ## 5. 输入与文本
 
-KeyEvent 分离 PhysicalKey、LogicalKey、KeyLocation、state、repeat、modifiers 和 synthetic；LogicalKey 支持 Named／Character(String)／Dead／Unidentified，未知 native 键码带 Darwin／XKB／Win32 来源。修饰键含 Shift、Control、Alt、Super、锁定状态和可取得的左右侧信息。
+KeyEvent 分离 PhysicalKey、LogicalKey、KeyLocation、state、repeat、modifiers 和 synthetic；LogicalKey 支持 Named／Character(String)／Dead／Unidentified，未知 native 键码保留实际编码来源，本阶段为 Darwin。修饰键含 Shift、Control、Alt、Super、锁定状态和可取得的左右侧信息。
 
-文字统一由 TextInputEvent.Commit 交付；普通键、compose、IME 不得重复插入。IME 提供 Enabled／Preedit／Commit／Disabled，以及基于 TextInputState 快照的替换／surrounding 删除编辑。范围为 UTF-8 字节区间且位于字符边界，平台 UTF-16 索引在 native 边界转换；陈旧 revision 的编辑不得应用于新快照。未知范围用 None，非法 native 范围触发状态重同步，不越界访问。
+文字统一由 `TextInputEvent.Edit(TextInputBatch)` 中的 Commit 操作交付；普通键、compose、IME 不得重复插入。TextInputEvent 只有 Enabled／Disabled／Edit。一次 AppKit 输入解释形成一个编辑批次，以一个事件调用 handler。范围为 UTF-8 字节区间且位于字符边界，平台 UTF-16 索引在 native 边界转换；非法 native 范围触发状态重同步，不越界访问。
 
-TextInputState 包含 surroundingText、selection、markedRange?、caretRect、revision；setImeAllowed、setImePurpose、setImeCursorArea 与 updateTextInput 只在 owner 上更新。系统同步询问从 native 副本回答；password 模式不发布密码正文。组合与真实编辑状态由上层编辑器持有，窗口库不负责排版或 grapheme 导航。
+TextInputState 包含 surroundingText、selection、markedRange?、caretRect、revision。selection 保存 anchor／cursor，不能排序后丢失选择活动端；markedRange 为 Utf8Range。setImeAllowed、setImePurpose、setImeCursorArea 与 updateTextInput 只在 owner 上更新。系统同步询问从 native 副本回答；password 模式不发布密码正文。只修改候选窗位置不推进文本 revision。组合与真实编辑状态由上层编辑器持有，窗口库不负责排版或 grapheme 导航。
 
-TextInputEvent 的数据合同如下；Utf8Range 是非负、半开的 Long 字节区间，start 不大于 end：
+TextInputBatch 保存可选 baseRevision 与有序的 TextInputOperation 数组。Utf8Range 是非负、半开的 Long 字节区间，start 不大于 end；Utf8Selection 的两端均非负。操作如下：
 
 | 变体 | 载荷与语义 |
 | --- | --- |
-| Enabled／Disabled | 开始／停止接受该窗口的原生组合输入 |
-| Preedit | text、可选 selection（相对 preedit）、可选 replacement（带已发布快照 revision 和范围）；空 text 清除组合 |
-| Commit | text、replacement；replacement 为 CurrentSelection 或 Range(revision, Utf8Range)，前者用于无需引用旧快照的普通输入 |
-| DeleteSurrounding | revision、beforeBytes、afterBytes；相对该快照 selection 的两侧，须校验长度与字符边界 |
+| ClearPreedit | 清除当前组合状态 |
+| Preedit | text、可选 selection（相对 preedit，保留活动端）、replacement；空 text 清除组合 |
+| Commit | text、replacement；replacement 为 CurrentSelection 或 Range(Utf8Range)，范围引用该批前序操作产生的临时文本 |
+| DeleteSurrounding | beforeBytes、afterBytes；相对当前 selection 两侧，须校验长度与字符边界 |
 
-普通 Commit 不因没有 surrounding 快照而丢失；只有明确引用旧 revision 的范围编辑才受快照一致性约束。IME 目的统一 Normal／Password／Terminal，平台不能完全满足某种 purpose 时仅作为建议，不改变实际文本的编码。
+批次开始时核对 baseRevision，按顺序在临时文本上解释范围，整批通过后发布一次新快照。任何范围或 revision 失效均拒绝整批并重新同步，不能部分应用；原生协议 serial 独立于编辑器 revision。普通 CurrentSelection Commit 不因没有 surrounding 快照而丢失。IME 目的统一 Normal／Password／Terminal，平台不能完全满足某种 purpose 时仅作为建议，不改变实际文本的编码。
 
 Pointer 区分位置、按钮、进入／离开、滚轮；滚轮区分行／像素并保留相位。raw motion 是设备单位；Touch 含 contact id、phase 和可选压力；Gesture 只报告原生手势。DeviceId 不可得时为 None。失焦清理组合与按下状态，必要的补发 release 标记 synthetic。
 
@@ -67,11 +67,11 @@ Pointer 区分位置、按钮、进入／离开、滚轮；滚轮区分行／像
 
 requestRedraw 合并 dirty，RedrawRequested 不递归触发；隐藏、遮挡或零尺寸时保留 pending redraw，恢复后再处理。prePresentNotify 是提交前通知，不能等价为 present、vsync 或 GPU 完成。图形设备与渲染管线由上层 renderer 管理。
 
-native 子包提供 Unsafe 的 acquireNativeWindow，返回 NativeWindowLease；handle 具有 AppKit、Wayland、Xlib、Win32 四种明确载荷，分别保存真正需要的指针／句柄／整数 XID。取得 lease 和查询 handle 只在 owner 上进行，lease 保活窗口和 display connection；窗口 Closing 后不能取得新 lease。
+native 子包提供 Unsafe 的 acquireNativeWindow，返回 NativeWindowLease；本阶段 handle 为 `NativeWindowHandle.AppKit(nsWindow: Ptr<Unit>, nsView: Ptr<Unit>)`。其他变体随实际后端增加。取得 lease 和查询 handle 只在 owner 上进行，lease 保活窗口和 display connection；窗口 Closing 后不能取得新 lease。
 
 lease.close 可跨线程且幂等，原子结束借用并把实际释放排入 owner 内部收尾队列，不直接在调用线程操作 GUI，不依赖已经停止接受业务的 ApplicationProxy。调用后不能再使用 handle；队列实际消费前继续保活原生对象。GC release 不得代替这个显式操作。
 
-已有 lease 阻止库主动销毁原生窗口，但不保证显示服务器永远可用，也不扩展平台图形对象的线程权限。renderer 先结束 surface 及有关原生使用，再释放 lease；GC release 不调用窗口 API。Windows handle variant 只有表示合同，本期没有可产生它的后端。
+已有 lease 阻止库主动销毁原生窗口，但不保证显示服务器永远可用，也不扩展平台图形对象的线程权限。renderer 先结束 surface 及有关原生使用，再释放 lease；GC release 不调用窗口 API。lease 不授权在隐藏、零尺寸、待配置或 Closing 时提交帧。
 
 ## 7. 窗口及应用关闭
 
@@ -87,10 +87,17 @@ Application.runWithAsyncio(handler) 是独立 Cone 的扩展，复用 PlatformEv
 
 原始 Application.run 不初始化 io_uring；集成入口继承 asyncio 的平台要求。第三方挂起函数不自动获得 UI 线程亲和性；跨线程窗口操作通过 proxy 返回 owner。
 
-EventLoopHost 的 planned wake-source 兼容扩展见[asyncio 规范第 12 节](SCOOP-ASYNCIO-SPEC.md)。窗口公共对象不继承该低层接口，Windows 使用 manual-reset event 的表示已经确定；加入后端无需改窗口应用入口或事件签名。
+`scoop.window.native` 为当前集成 Cone 提供以下公开低层接口，不暴露 internal owner：
+
+- `@Unsafe Application.runAttached(handler, attach: (ApplicationHost) -> ApplicationAttachment)` 与 run 共用单次入口；原生宿主可服务后、首个业务事件前调用 attach。安装失败回滚所有原生资源。
+- ApplicationAttachment 是普通接口，`post(block: () -> Unit): Boolean` 投递业务闭包，`requestClose()` 请求现有 session 收尾；基础库不依赖 CoroutineScope／EventLoop 类型。
+- ApplicationHost 提供 `isCurrentThread()`、Darwin 的 `@Unsafe watchReadable(descriptor: Int, ready: () -> Unit): ApplicationWatch`；监听不读取或关闭借入 fd、不内联 ready。ApplicationWatch.remove 在 owner 上注销，当前 ready 退出、排队通知退休后回调一次。
+- `postControl(block: () -> Unit): Boolean` 在关闭业务队列后继续接受收尾工作；`complete(failure: Throwable?)` 由 session.onClosed 在 owner 调用一次。无窗口时仍等待附着完成、watch 注销和已接受控制工作执行完。
+
+WindowLoopHost 将这些实际操作适配为[asyncio 规范 11.3](SCOOP-ASYNCIO-SPEC.md#113-宿主接入合同)的 EventLoopNotification／watch。根取消订阅只排入控制队列，不跨线程直接操作窗口；集成 scope 仅在业务回调期间绑定。通知派发与纯 I/O／watch 维护唤醒不自行产生新一轮 NewEvents／AboutToWait，避免空闲自唤醒。
 
 ## 9. 构建与验收边界
 
-Darwin 需要先按设计补齐普通 native Objective-C `.m` 编译与 Mach-O 链接验证；Linux 使用目标兼容的 Wayland／X11／输入／装饰库。具体编译与发行规则在实施前同步语言规范 12.2.1、实现规范 2.7；本草案不宣称当前编译器已支持 `.m`。
+Darwin 使用语言规范 12.2.1、实现规范 2.7 的普通 native Objective-C `.m`／ARC 与 framework 声明。AppKit backend 由 NSApplication 正常循环驱动，以 stop 和唤醒返回；不调用 terminate。通知监听以 dispatch READ source 观察 fd，通过 common／tracking／modal modes 的 CFRunLoopSource 在 owner 派发；等待消费时暂停重复通知，注销先平衡暂停并等待 cancel handler，再退休 owner source。渲染层自行管理实际 layer／surface。
 
-验收覆盖真实 AppKit、Wayland 与 X11，GNU／musl 分别验证；状态／值行为以 Cone 测试为主，必要 native ABI／外部进程控制使用少量 fixture。Windows 此阶段只有合同审查，没有平台验收；完整范围与验收组合见设计第 12 节。
+本阶段以所属 Cone 的 scoop.test 验证值、输入归一、API、真实 AppKit、native callback 与 asyncio 收尾；`.m` 编译／链接／诊断使用必要的 compiler fixture。真实 surface 示例用单独 renderer Cone 消费 native lease。显示器热插拔、混合 DPI、输入法候选交互与真实用户拖动等依赖实际硬件／桌面输入的验收单独记录，不能用合成事件冒充。Linux／其他平台验收留待后续。

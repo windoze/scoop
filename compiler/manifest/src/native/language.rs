@@ -1,10 +1,11 @@
 use super::{NativeCompileFlag, NativeConfig};
-use crate::ConeRelativePath;
+use crate::{ConeRelativePath, SourceTarget};
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum NativeSourceLanguage {
     C,
     Cxx,
+    ObjectiveC,
 }
 
 impl NativeSourceLanguage {
@@ -12,6 +13,7 @@ impl NativeSourceLanguage {
         match self {
             Self::C => "c",
             Self::Cxx => "c++",
+            Self::ObjectiveC => "objective-c",
         }
     }
 
@@ -19,18 +21,28 @@ impl NativeSourceLanguage {
         match self {
             Self::C => "cpp-output",
             Self::Cxx => "c++-cpp-output",
+            Self::ObjectiveC => "objective-c-cpp-output",
         }
     }
 }
 
 impl NativeConfig {
-    pub fn source_language(&self, path: &ConeRelativePath) -> Result<NativeSourceLanguage, String> {
+    pub fn source_language(
+        &self,
+        path: &ConeRelativePath,
+        target: SourceTarget<'_>,
+    ) -> Result<NativeSourceLanguage, String> {
         match path
             .as_path()
             .extension()
             .and_then(|extension| extension.to_str())
         {
             Some("c") => Ok(NativeSourceLanguage::C),
+            Some("m") if target.os == "darwin" => Ok(NativeSourceLanguage::ObjectiveC),
+            Some("m") => Err(format!(
+                "{}: Objective-C native sources require a Darwin target",
+                path.as_str()
+            )),
             Some("cc" | "cpp" | "cxx" | "C") if self.cxx => Ok(NativeSourceLanguage::Cxx),
             Some("cc" | "cpp" | "cxx" | "C") => {
                 Err(format!("{} requires native.cxx = true", path.as_str()))
@@ -46,6 +58,7 @@ impl NativeConfig {
         match language {
             NativeSourceLanguage::C => &self.c_flags,
             NativeSourceLanguage::Cxx => &self.cxx_flags,
+            NativeSourceLanguage::ObjectiveC => &self.objc_flags,
         }
     }
 }

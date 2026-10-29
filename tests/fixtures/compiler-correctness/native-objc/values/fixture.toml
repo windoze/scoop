@@ -1,0 +1,61 @@
+schema = 1
+name = "native-objc-values"
+inputs = ["cone"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin"]
+tags = ["native", "objc", "compiler-correctness"]
+variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "reused"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${reused.result.observations.child_invocations}", equals = []}]
+
+[[steps]]
+name = "change_flags"
+files = [
+    {replace = {path = "${work}/cone/Cone.toml", old = "-DOBJC_VALUE=36", new = "-DOBJC_VALUE=37"}},
+    {replace = {path = "${work}/cone/src/main.scoop", old = "!= 42", new = "!= 43"}},
+]
+
+[[steps]]
+name = "changed"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${changed.result.root.artifact_fingerprint}", not_equals = "${build.result.root.artifact_fingerprint}"}]
+
+[[steps]]
+name = "run_changed"
+argv = ["${changed.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""

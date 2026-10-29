@@ -15,7 +15,7 @@ pub(super) fn base(
     let mut command = compiler.command(language)?;
     command.env("SOURCE_DATE_EPOCH", "0").args([
         match language {
-            NativeSourceLanguage::C => "-std=c11",
+            NativeSourceLanguage::C | NativeSourceLanguage::ObjectiveC => "-std=c11",
             NativeSourceLanguage::Cxx => "-std=c++20",
         },
         "-fPIC",
@@ -24,6 +24,9 @@ pub(super) fn base(
             OptimizationMode::Release => "-O2",
         },
     ]);
+    if language == NativeSourceLanguage::ObjectiveC {
+        command.arg("-fobjc-arc");
+    }
     Ok(command)
 }
 
@@ -115,6 +118,7 @@ pub(super) fn compile(
     let source = directory_path.join(match language {
         NativeSourceLanguage::C => "unit.i",
         NativeSourceLanguage::Cxx => "unit.ii",
+        NativeSourceLanguage::ObjectiveC => "unit.mi",
     });
     std::fs::write(&source, input.preprocessed()).map_err(error)?;
     let mut command = base(compiler, language, optimization)?;

@@ -1,0 +1,13 @@
+package dev.objc
+
+@Extern(name = "scoop_objc_value")
+private fun nativeValue(): Int
+
+fun main() {
+    @Unsafe
+    {
+        if (nativeValue() != 42) {
+            throw IllegalStateException(Some("Objective-C ARC or AppKit bridge failed"))
+        }
+    }
+}

@@ -1,6 +1,6 @@
 # 桌面窗口与事件库设计
 
-状态：设计，待实施。更新：2026-10-30。本窗口库首期实施 macOS、Linux Wayland／X11；Windows 窗口后端另行实施，参考正在推进的 `codex/windows-targets` 平台移植。
+状态：实施中。更新：2026-10-30。本阶段完成基础架构与 macOS；Linux Wayland／X11、Windows 及其他窗口后端留到后续阶段。下文 Linux／Windows 章节保留设计方向，不是本阶段验收项。实施进展见 [PROGRESS.md](PROGRESS.md)。
 
 目标是为 Skia／HarfBuzz 上层 GUI 提供 winit 对应的窗口、输入、显示器与主循环能力。公共 API 使用 Scoop，平台实现使用成熟的系统／协议库。功能基线取 [winit 0.30.13](https://docs.rs/winit/0.30.13/winit/)，另参考 0.31 beta 的演进方向，不追随其未稳定 API；逐项范围见 [WINIT-MAPPING.md](WINIT-MAPPING.md)，目标合同见[窗口库规范草案](../specs/SCOOP-WINDOW-SPEC.md)。
 

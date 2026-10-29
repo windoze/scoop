@@ -77,6 +77,19 @@ pub(super) fn resolve(
         if inputs.linker_defined(&symbol) {
             continue;
         }
+        if inputs.target.native_object_format() == scoop_lir::NativeObjectFormat::MachO64
+            && !declarations.contains_key(&symbol)
+            && !inputs.definitions.contains_key(&symbol)
+            && symbol
+                .strip_prefix("_objc_msgSend$")
+                .is_some_and(|selector| !selector.is_empty())
+        {
+            // Darwin's linker emits the selector stub; only its dispatcher is imported.
+            let dispatcher = "_objc_msgSend".to_owned();
+            inputs.requirements.insert(dispatcher.clone());
+            pending.insert(dispatcher);
+            continue;
+        }
         let binding = declarations
             .get(&symbol)
             .map_or(NativeLibraryBinding::DefaultNativeNamespace, |decl| {

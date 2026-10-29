@@ -2908,9 +2908,9 @@ kind = "library" # 或 "executable"
 - 单文件依赖头部仅到首个语言 token（包括被忽略的 package）之前；允许首行 shebang、空白和普通注释穿插。只有真实行注释 `//! dep: group:name:version` 指定精确坐标；不读取块注释、文档正文或字符串中的相似文本。dep 缺少冒号/坐标、非法 coordinate/SemVer、重复显式坐标均定位到原始注释行报错；其他 `//!` 与 token 后的所有注释按普通注释处理。默认依赖始终为 `scoop:scoop.core:0.1.0` 和 `scoop:scoop.std:0.1.0`，显式相同坐标只合并边，重复源码声明仍报错；不同版本沿现有版本冲突规则处理。普通 manifest build/test/doc 不解释这些注释。依赖不隐式导入名称，core prelude 保持；
 - manifest Cone的source identity是`(ConeIdentity, normalized Cone-relative source path)`，保留从Cone根开始的完整路径，不以显式源码根为基准截短；single-file 的原始输入使用相同pair形态，第一项固定为由reserved `scoop:single-file:0.0.0`计算的`ConeIdentity`，第二项固定为`main.scoop`。生成方法体在同一 Cone 下保留自己的逻辑来源，不成为额外的输入文件或顶层声明。host绝对路径、CLI relative/absolute/symlink spelling、inode、mtime、目录枚举顺序与临时输出路径不进入语义identity；只有语言允许跨文件同名的file-private/hidden实体才把该source identity加入其declaration key。single-file构建记录另外区分实际source及其修改时间／大小、实际依赖结果、compiler/schema/target/toolchain；需要编译时源码内容参与正常语义计算，不因共用reserved identity而冒用另一输入的缓存；
 
-#### 12.2.1 Native C/C++ 源码
+#### 12.2.1 Native C/C++／Objective-C 源码
 
-manifest Cone 可在 `[native]` 中配置 `include`、`c_flags`、`cxx_flags` 与 `cxx`，并以 `[[native.sources]]` 的 `path` 和可选 `when` 列出源码。`native.sources` 只选择单个 regular file；`.c` 按 C 编译，`.cc`、`.cpp`、`.cxx` 和 `.C` 按 C++ 编译，不递归发现其他 native 源码。省略的数组为空；`include` 是头文件搜索目录，允许普通相对路径（含 `..`）或绝对路径；相对路径以 Cone 根为基准，保留路径分量供实际文件系统解析。native.sources 使用 Cone 相对路径，沿用 12.2.2 的分隔符、空路径、绝对路径、盘符、NUL 与 glob 限制，词法折叠重复分隔符、`.` 及可以消去的 `..`，但允许保留越出 Cone 根的前置 `..`，以引用共用的 vendor 源码；Scoop 源码的逻辑路径规则不变。条件筛选先于选中文件的存在性、后缀与语言开关检查。native 源码以声明的归一化路径区分 translation unit，不比较 inode 或将指向同一物理文件的不同路径合并。
+manifest Cone 可在 `[native]` 中配置 `include`、`c_flags`、`cxx_flags`、`objc_flags` 与 `cxx`，并以 `[[native.sources]]` 的 `path` 和可选 `when` 列出源码。`native.sources` 只选择单个 regular file；`.c` 按 C 编译，`.cc`、`.cpp`、`.cxx` 和 `.C` 按 C++ 编译，Darwin 的 `.m` 按 Objective-C 编译，不递归发现其他 native 源码。省略的数组为空；`include` 是头文件搜索目录，允许普通相对路径（含 `..`）或绝对路径；相对路径以 Cone 根为基准，保留路径分量供实际文件系统解析。native.sources 使用 Cone 相对路径，沿用 12.2.2 的分隔符、空路径、绝对路径、盘符、NUL 与 glob 限制，词法折叠重复分隔符、`.` 及可以消去的 `..`，但允许保留越出 Cone 根的前置 `..`，以引用共用的 vendor 源码；Scoop 源码的逻辑路径规则不变。条件筛选先于选中文件的存在性、后缀与语言开关检查。native 源码以声明的归一化路径区分 translation unit，不比较 inode 或将指向同一物理文件的不同路径合并。
 
 native 预处理除编译器的目标宏外，还定义当前 target 对应的 `SCOOP_TARGET_OS_DARWIN`／`SCOOP_TARGET_OS_LINUX`、`SCOOP_TARGET_ARCH_AARCH64`／`SCOOP_TARGET_ARCH_X86_64` 及 `SCOOP_TARGET_ENV_NONE`／`SCOOP_TARGET_ENV_GNU`／`SCOOP_TARGET_ENV_MUSL`；每组只定义匹配项，值为 `1`。
 
@@ -2935,6 +2935,8 @@ cxx_flags = ["-std=c++20"]
 - **当前不支持 C++ 与 musl target 的组合**，包括 musl 的静态和动态链接模式。当前 Scoop musl 工具链没有配套的 C++ 标准库与 C++ ABI 运行库；musl 提供 libc 本身，不包含这些库。这是当前工具链集成范围的限制，不是 musl 原理上不能支持 C++。musl 下当前 Cone 开启 `cxx`，或依赖闭包要求 C++，都必须给出明确的不支持诊断。
 - C++ 支持目前覆盖 Darwin/AArch64 与 Linux/amd64 GNU。Scoop 与 C++ 之间通过现有 C ABI 和 `extern "C"` 包装函数互操作；C++ 异常必须在 native 一侧处理，不能穿越 Scoop 的 FFI 边界。工具链、产物与链接细则见实现规范 2.7～2.8，异常边界见运行时规范 5.5。
 - single-file 模式不读取 `[native]`，不启用该配置。
+
+Darwin 选中的 `.m` 使用同一目标的 Apple Clang，以 Objective-C、C11 和 ARC 编译；`objc_flags` 只作用于这些 translation unit，可覆盖 C 标准而不能覆盖输入语言、ARC 或 Objective-C runtime ABI。无需开启 `cxx`，也不隐式引入 C++ 运行库。`.c`、generated-C bridge 和 runtime 仍按 C 编译；C／C++ flags 不传给 Objective-C。非 Darwin 选中 `.m` 明确诊断，条件未选中的 `.m` 不检查存在性或启动 Objective-C 工具；`.mm` 不在支持范围。AppKit、Foundation 等 framework 通过 12.2.3 的普通 native libraries 声明，native 层使用 C ABI 包装并在返回 Scoop 前处理 Objective-C 异常。此能力不增加 Scoop 的 Objective-C 语法或 runtime 调度 ABI。
 
 #### 12.2.2 Scoop 源码选择与平台条件
 

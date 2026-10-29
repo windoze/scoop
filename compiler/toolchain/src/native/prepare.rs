@@ -42,11 +42,12 @@ pub(super) fn prepare(
             ..PreparedNativeInputs::default()
         });
     }
+    let target_facts = crate::manifest::source_target(target)?;
     let sources = sources
         .into_iter()
         .map(|source| {
             config
-                .source_language(source.path())
+                .source_language(source.path(), target_facts)
                 .map(|language| (source, language))
                 .map_err(error)
         })
@@ -72,7 +73,6 @@ pub(super) fn prepare(
         .prefix("scoop-preprocess-")
         .tempdir()
         .map_err(error)?;
-    let target_facts = crate::manifest::source_target(target)?;
     let mut result = PreparedNativeInputs {
         libraries: libraries.clone(),
         cxx,
@@ -175,6 +175,9 @@ pub(super) fn prepare(
     }
     if languages.contains(&NativeSourceLanguage::Cxx) {
         result.cxx_flags = flags(config, target, NativeSourceLanguage::Cxx);
+    }
+    if languages.contains(&NativeSourceLanguage::ObjectiveC) {
+        result.objc_flags = flags(config, target, NativeSourceLanguage::ObjectiveC);
     }
     Ok(result)
 }
