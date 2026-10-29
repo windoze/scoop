@@ -252,7 +252,7 @@ class Children:
 def __lldb_init_module(debugger, _internal_dict):
     for command in (
         "type category define Scoop",
-        f"type summary add -w Scoop -e --recognizer-function -F {__name__}.summary {__name__}.recognizes",
+        f"type summary add -w Scoop -e -v --recognizer-function -F {__name__}.summary {__name__}.recognizes",
         f"type synthetic add -w Scoop --recognizer-function -l {__name__}.Children {__name__}.recognizes",
         "type category enable Scoop",
     ):

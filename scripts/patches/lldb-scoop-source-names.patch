@@ -21,3 +21,44 @@
                die.GetParent().Tag() == DW_TAG_partial_unit) &&
               Language::LanguageIsCPlusPlus(
                   SymbolFileDWARF::GetLanguage(*die.GetCU())) &&
+--- a/lldb/source/Target/StackFrame.cpp
++++ b/lldb/source/Target/StackFrame.cpp
+@@ -471,5 +471,25 @@
+         m_variable_list_sp->AddVariables(global_variable_list_sp.get());
+       else
+         m_variable_list_sp = global_variable_list_sp;
++      // Scoop keeps each callable and static definition in a separate CU.
++      // Reuse this frame's context so TLS is read from the selected thread.
++      GetSymbolContext(eSymbolContextFunction | eSymbolContextModule);
++      if (m_sc.function && m_sc.module_sp &&
++          m_sc.function->GetMangled()
++              .GetMangledName()
++              .GetStringRef()
++              .starts_with("scoop$1$")) {
++        SymbolContextList units;
++        m_sc.module_sp->FindCompileUnits(m_sc.comp_unit->GetPrimaryFile(),
++                                         units);
++        for (size_t index = 0; index < units.GetSize(); ++index) {
++          SymbolContext unit;
++          if (units.GetContextAtIndex(index, unit) && unit.comp_unit &&
++              unit.comp_unit != m_sc.comp_unit) {
++            auto variables = unit.comp_unit->GetVariableList(true);
++            m_variable_list_sp->AddVariables(variables.get());
++          }
++        }
++      }
+     }
+   }
+--- a/lldb/source/Symbol/Variable.cpp
++++ b/lldb/source/Symbol/Variable.cpp
+@@ -49,4 +49,9 @@
+       m_owner_scope(context), m_scope_range(scope_range),
+       m_declaration(decl_ptr), m_location_list(location_list), m_external(external),
+       m_artificial(artificial), m_loc_is_const_data(location_is_constant_data),
+-      m_static_member(static_member) {}
++      m_static_member(static_member) {
++  if (mangled && llvm::StringRef(mangled).starts_with("scoop$1$")) {
++    m_mangled.SetMangledName(ConstString(mangled));
++    m_mangled.SetDemangledName(m_name);
++  }
++}

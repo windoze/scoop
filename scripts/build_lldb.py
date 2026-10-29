@@ -17,6 +17,35 @@ PATCH = ROOT / "scripts/patches/lldb-scoop-source-names.patch"
 SOURCE_PARTS = ("lldb", "cmake", "llvm/cmake", "llvm/utils", "third-party")
 
 
+def copy_sources(source, copied):
+    previous = (
+        {
+            Path(path).relative_to(copied): (mtime, size)
+            for path, mtime, size in source_metadata(copied, SOURCE_PARTS)
+        }
+        if copied.exists()
+        else {}
+    )
+
+    def copy_updated(original, destination):
+        result = shutil.copy2(original, destination)
+        info = Path(destination).stat()
+        old = previous.get(Path(destination).relative_to(copied))
+        if old is not None and old != (
+            info.st_mtime_ns,
+            info.st_size,
+        ):
+            # Removing a patch restores the archive's older timestamp. Ninja
+            # must still rebuild that changed source, without touching others.
+            os.utime(destination, None)
+        return result
+
+    if copied.exists():
+        shutil.rmtree(copied)
+    for component in SOURCE_PARTS:
+        shutil.copytree(source / component, copied / component, copy_function=copy_updated)
+
+
 def configure(source, build, prefix, llvm, python, host, release):
     target = release["targets"][host]
     options = {
@@ -113,10 +142,7 @@ def main():
     if actual != VERSION:
         parser.error(f"LLDB requires LLVM {VERSION}, found {actual}")
     copied = build / "source"
-    if copied.exists():
-        shutil.rmtree(copied)
-    for component in SOURCE_PARTS:
-        shutil.copytree(source / component, copied / component)
+    copy_sources(source, copied)
     subprocess.run(["patch", "-p1", "-i", str(PATCH)], cwd=copied, check=True)
     release = tomllib.loads(RELEASE_CONFIG.read_text())
     subprocess.run(configure(copied, build, prefix, llvm, python, host, release), check=True)

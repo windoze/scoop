@@ -89,7 +89,9 @@ def launch(client, configuration, source):
     globals_ = variables(client, frames[0], globals_=True)
     integer(globals_["counter"], 40)
     integer(globals_["threadCounter"], 2)
-    assert json.loads(values["text"]["value"]) == "hé\u0000llo", values["text"]
+    # DAP prepends the native pointer to a pointer type's summary.
+    text = values["text"]["value"]
+    assert '"' in text and json.loads(text[text.index('"') :]) == "hé\u0000llo", values["text"]
     assert "size=3" in values["values"]["value"], values["values"]
     middle = children(client, values["values"], start=1, count=1)
     assert len(middle) == 1 and middle[0]["name"] == "[1]", middle
