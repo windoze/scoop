@@ -209,10 +209,6 @@ fn empty_function(callable_body: CallableBodyIdentity) -> Function {
         terminator_origin: scoop_source::DebugOrigin::Generated,
     });
     Function {
-        debug_name: Default::default(),
-        debug_variables: Vec::new(),
-        debug_signature: Default::default(),
-        debug_origin: Default::default(),
         callable_body,
         debug_name: String::new(),
         debug_origin: scoop_source::DebugOrigin::Generated,

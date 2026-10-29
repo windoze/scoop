@@ -11,7 +11,7 @@
 | W3 系统库 | Windows 实现及所需 native 后端已完成；ABI 30 三目标各 25 个 Cone 与四种 runtime 已准备完成；高层 HTTP 失败用例已闭合 | 无独立 W3 阻塞 |
 | W4 宿主与发行 | ABI 30 新版候选归档通过三目标实际安装使用、调试器与更新后的 server consumer 验收 | 跨宿主原生回归与 Windows 交叉编译 |
 
-Windows 本地实现与验收已完成。接下来在 Linux `nuc12w.0d0a.com` 与 macOS `mm.0d0a.com` 的 `~/repos` 下新建测试目录，目前尚未开始远端测试。原始日志、报告、归档和构建副本保存在仓库外。
+Windows 本地实现与验收已完成。随后在 Linux `nuc12w.0d0a.com` 与 macOS `mm.0d0a.com` 的 `~/repos/scoop-windows-20261030` 下分别新建 checkout，远端回归已开始。原始日志、报告、归档和构建副本保存在仓库外。
 
 ## 环境与三个目标
 
@@ -100,4 +100,6 @@ ABI 30 的 `0fa053fd1` 新版候选归档及 LLVM 源码归档已经生成，纳
 
 此前安装验收发现示例阅读器的帮助仍写旧 Windows 驱动名；帮助、目录提示和错误文本已按宿主选择 `sco example` 或 `scoop example`，其文件名保持不变。Rust fmt／Clippy 与 9 项 CLI 测试通过；原样源码输出测试使用实际文件字节，保留 Windows checkout 的 CRLF。新版候选包的实际帮助输出也已通过检查。
 
-剩余工作为：执行设计约定的 Linux／macOS 原生回归与三个 Windows target 的交叉编译，并在 Windows 运行交叉产物；继续按变更提交、推送并合并主线。完成这些步骤前不声明全部 Windows 验收完成。
+两个远端宿主的 Rust fmt／workspace Clippy、POSIX debugger launcher、4 项归档布局／发布测试、70 项 fixture runner 规则（3 项宿主跳过）与 83 项 manifest 测试通过。Linux 专属 metadata fixture 中合并后重复初始化的四个 debug 字段已去重；15 项 ELF codegen 测试通过，覆盖 GNU／musl 的 metadata、stackmap、EH、generated-C、TLS 与 callback。macOS 配套 LLVM 22.1.8 已在新目录构建完成，Linux 构建仍在进行。
+
+剩余工作为：完成 Linux／macOS 原生 CLI 回归与三个 Windows target 的交叉编译，并在 Windows 运行交叉产物；继续按变更提交、推送并合并主线。完成这些步骤前不声明全部 Windows 验收完成。
