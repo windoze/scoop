@@ -2,7 +2,7 @@ schema = 1
 name = "imported-constructor-wrong-tuple-identity"
 inputs = ["../../imported-classes/support/stage3_test.scoop", "../../imported-constructors/provider.scoop", "constructor-provider", "../../imported-constructors/wrong-tuple-identity.scoop", "wrong-tuple-identity"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["imported-values", "constructor", "negative", "language"]
 
 [[steps]]

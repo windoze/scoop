@@ -2,7 +2,7 @@ schema = 1
 name = "shared-abstract-combined"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../shared-abstract/provider.scoop", "generic-member-combined", "../../../shared-abstract/combined.scoop", "generic-member-downstream-combined", "../../../shared-abstract/downstream.scoop", "runtime-fixture", "../../../imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "abstract_methods_and_accessors_preserve_dispatch_through_artifacts", "language"]
 
 [[steps]]

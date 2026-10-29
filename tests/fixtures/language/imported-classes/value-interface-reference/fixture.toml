@@ -2,7 +2,7 @@ schema = 1
 name = "imported-class-value-interface-reference"
 inputs = ["../support/stage3_test.scoop", "../core-provider.scoop", "../core-cast-direct.scoop", "../core-arithmetic-direct.scoop", "../provider.scoop", "class-provider", "classes-value-interface-reference", "../value-interface-reference.scoop", "class-downstream-value-interface-reference", "../downstream.scoop", "../support/main.scoop", "../support/gc.c", "runtime-fixture"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["imported-classes", "core-rebuild", "language"]
 [[steps]]
 name = "rebuilt_core"

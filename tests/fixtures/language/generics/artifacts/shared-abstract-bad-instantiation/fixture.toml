@@ -2,7 +2,7 @@ schema = 1
 name = "shared-abstract-bad-instantiation"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../shared-abstract/provider.scoop", "bad-instantiation", "../../../shared-abstract/bad-instantiation.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "abstract_methods_and_accessors_preserve_dispatch_through_artifacts", "negative", "language"]
 
 [[steps]]
