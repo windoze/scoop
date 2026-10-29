@@ -1,0 +1,23 @@
+--- a/lldb/source/Plugins/SymbolFile/DWARF/DWARFASTParserClang.cpp
++++ b/lldb/source/Plugins/SymbolFile/DWARF/DWARFASTParserClang.cpp
+@@ -2535,9 +2535,17 @@
+                                decl_line, decl_column, call_file, call_line,
+                                call_column, &frame_base)) {
+     Mangled func_name;
+-    if (mangled)
+-      func_name.SetValue(ConstString(mangled));
+-    else if ((die.GetParent().Tag() == DW_TAG_compile_unit ||
++    if (mangled) {
++      const char *producer = die.GetCU()->GetUnitDIEOnly().GetAttributeValueAsString(
++          DW_AT_producer, "");
++      if (name && llvm::StringRef(producer).starts_with("scoopc")) {
++        // Scoop's source display name and exact linkage identity are distinct.
++        func_name.SetMangledName(ConstString(mangled));
++        func_name.SetDemangledName(ConstString(name));
++      } else {
++        func_name.SetValue(ConstString(mangled));
++      }
++    } else if ((die.GetParent().Tag() == DW_TAG_compile_unit ||
+               die.GetParent().Tag() == DW_TAG_partial_unit) &&
+              Language::LanguageIsCPlusPlus(
+                  SymbolFileDWARF::GetLanguage(*die.GetCU())) &&

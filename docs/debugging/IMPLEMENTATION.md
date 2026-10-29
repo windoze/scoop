@@ -71,3 +71,5 @@ Throwable 首次抛出准备已进入最终 MIR，返回经过潜在 GC 搬迁�
 协程逻辑栈评估：现有 CoroutineFrame 已有 owner、state、completion 和 saved value identity，字段构造保留 `local$<name>`；但原生调试产物没有状态到挂起行的映射，生成的 poll／resume 函数没有可观察的当前 frame 参数，completion 链还包含 adapter 与终端对象。完整链重建须补齐这些实际映射，并处理恢复后线程迁移及合成帧局部读取，不属于低成本 formatter 工作。本轮保留物理调用栈和已有存储的静态展示，逻辑协程栈／logical step 留待后续；不能将任务树或生成 helper 的重命名当作实现。
 
 VS Code 0.3.0 已接通 Scoop debug type、源码断点注册、build／launch／attach、终端与 sourceMap 配置。构建通过 JSON executable 记录取得实际输出，支持 `scoop test --no-run` 与现有测试过滤参数。formatter 读取 DWARF 的实际字段，String 按 UTF-8 长度预览，数组按请求范围延迟读取，tagged／niche enum 仅显示当前变体，保留 raw 视图。扩展 TypeScript／Biomes 检查、15 项测试与 esbuild 构建通过，VSIX 内容包含调试资源；真实 Scoop 验证程序在移动及 minor GC 下通过，LLDB 离线 SBValue 测试覆盖真实 DWARF 的 enum／niche／空值及数组元素布局。进程内 DAP 验收仍待最后 Linux 阶段。
+
+发行脚本已增加 LLVM／Clang SDK、调试文件工具及单独的 Python-enabled LLDB 构建；源码显示名兼容修补随源码包分发。打包纳入 lldb／lldb-dap、argdumper、平台 debugserver／lldb-server、匹配 Python 与原生模块、Clang resources、formatter 和实际非系统动态依赖。八项打包测试通过，正式 LLDB recipe 配置通过；真实调试器包移动至含空格的目录后，在系统 PATH 环境可启动、加载 Python 标准模块与 formatter，并通过真实 Scoop DWARF 的离线用例和源码函数查询。dyld 记录中没有来自原 Homebrew 或构建位置的私有动态库。进程启动的本机限制保持：普通 C 控制程序同样卡在调试器 launch，最终 Linux 阶段验证进程内 DAP。

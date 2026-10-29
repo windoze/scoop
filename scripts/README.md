@@ -6,7 +6,7 @@
 
 五个命令（`scoop`、`scoopc`、`scoop-link`、`scoop-lsp`、`scoop-pm`）的 `--version` 显示相同发行版本与源码 revision。开发构建读取默认版本和当前 Git revision；发行构建显式设置 `SCOOP_RELEASE_VERSION` 与 `SCOOP_SOURCE_REVISION`，不在运行时读取 Git 或发行清单。
 
-`build_llvm.py` 从 [固定的 LLVM 22.1.8 上游输入](../sysroot/vendor/llvm-project/22.1.8/README.md) 构建宿主动态库，仅启用 AArch64／X86 后端，并安装 Rust 构建所需的 llvm-config、头文件和 CMake 资料。关闭未使用的压缩、XML、编辑器、HTTP 和插件依赖，不移除 GC／EH 或 statepoint 后端。默认工作位置为 `tmp/llvm/<host>`，可用 `--source`、`--build-dir`、`--prefix` 选择其他位置。
+`build_llvm.py` 从 [固定的 LLVM 22.1.8 上游输入](../sysroot/vendor/llvm-project/22.1.8/README.md) 构建宿主 LLVM／Clang 动态库，仅启用 AArch64／X86 后端，并安装 Rust／LLDB 构建所需的 llvm-config、头文件、Clang resources 和 CMake 资料，以及 dsymutil、llvm-objcopy、llvm-strip、llvm-symbolizer。关闭未使用的压缩、XML、编辑器、HTTP 和插件依赖，不移除 GC／EH 或 statepoint 后端。默认工作位置为 `tmp/llvm/<host>`，可用 `--source`、`--build-dir`、`--prefix` 选择其他位置。
 
 ```sh
 python3 scripts/build_llvm.py --jobs 6
@@ -56,7 +56,7 @@ python3 scripts/prepare_sysroot.py \
 
 `package_toolchain.py` 是完整安装包的唯一入口：取得固定 LLVM 输入、按 lockfile 构建 VS Code 扩展、构建 LLVM、五个 release 宿主命令与独立的 scoop-example、准备该宿主支持的全部 native／slib／runtime 资源、为全部内置库生成 API 文档，随包复制 Scoop 编程 skill，最后生成工具包与 LLVM 源码包。无需事先逐个执行其他准备或扩展打包脚本。默认工作位置为 `tmp/package/<host>`，归档位于 `tmp/dist`；用 `--work-dir`、`--output-dir` 可选择外置盘目录。脚本不自动运行测试。
 
-构建机需要 Python 3.12+、Rust/Cargo、C/C++ 开发工具链、CMake、Make、Perl、Node.js 22.18+ 和 npm。npm 依赖、首次缺失的 LLVM 归档以及 Tree-sitter WASM 工具链需要联网取得；其余 native 上游输入已在 vendor 中。已有 WASI SDK／Binaryen 可按 [tooling 说明](../tooling/README.md) 选择。
+构建机需要 Python 3.12+ 及其开发文件、SWIG 4、Ninja、Rust/Cargo、C/C++ 开发工具链、CMake、Make、Perl、Node.js 22.18+ 和 npm。npm 依赖、首次缺失的 LLVM 归档以及 Tree-sitter WASM 工具链需要联网取得；其余 native 上游输入已在 vendor 中。已有 WASI SDK／Binaryen 可按 [tooling 说明](../tooling/README.md) 选择。
 
 ```sh
 python3 scripts/package_toolchain.py --jobs 6
@@ -80,7 +80,10 @@ LLVM 源码与归档优先复用 vendor 的固定版本位置；缺失时在工�
   src/                 全部内置 Cone 源码
   vendor/              native 上游输入和补丁
   native/              Rust 文本后端维护源码
-  libexec/llvm/lib/     宿主工具所需动态库
+  libexec/llvm/lib/     宿主工具所需动态库及 Clang resources
+  libexec/lldb/bin/     LLDB、DAP、argdumper 和平台进程调试 helper
+  libexec/lldb/python/  匹配的 Python interpreter、标准库及 LLDB Python module
+  share/scoop/debugger/ Scoop 只读变量 formatter
   docs/                离线 API 文档
   share/               示例主题、发行说明、组件清单及许可证
   tooling/             scoop-language-support-<extension-version>.vsix、scoop-programming/
@@ -105,3 +108,23 @@ LLVM 源码与归档优先复用 vendor 的固定版本位置；缺失时在工�
 ## 独立示例命令
 
 `python3 scripts/build_scoop_example.py` 仅构建 `tooling/scoop-example` 并将命令安装到开发 sysroot，不调用编译器。它使用独立 Cargo lockfile；新增示例与正文位于 `sysroot/share/scoop/examples`，已有库示例保持原文件。可用 `--sysroot` 安装到另一份配套工具链，用 `--target-dir` 指定构建缓存。完整打包入口自动完成这一步，并复制所有主题材料。内容维护和独立测试见[阅读器说明](../tooling/scoop-example/README.md)。
+
+
+## 调试器发行资源
+
+`package_toolchain.py` 在 LLVM／Clang SDK 后调用 `build_lldb.py`，固定 LLVM 22.1.8，
+启用 Python，构建 lldb、lldb-dap、lldb-argdumper 和 debugserver／lldb-server。
+源码兼容修补保留 Scoop 的 DW_AT_name 与精确 linkage identity，修补文件也进入 llvm-sources 包。
+可用 `--debugger-prefix` 复用匹配的已构建调试器，`--debugger-python` 指定构建时所用 Python；
+只有 LLVM SDK 时仍正常构建 LLDB，要求 SDK 包含 Clang headers／CMake targets／clang-cpp。
+
+`package_debugger.py` 收集匹配的 Python 标准库、原生模块和解释器，排除用户 site-packages、
+测试、Tk／IDLE 与 pip；包中不依赖用户 Python。Python 许可证随包保留，安装中缺失时可用
+`--python-license` 明确提供。所有实际非系统动态依赖统一收集并改为相对加载路径；
+Darwin 对最终文件重新签名，保留 debugserver 的 entitlements。
+`bin/lldb` 和 `bin/lldb-dap` 通过相对安装根设置 Python 与 helper 路径，lldb 自动加载 formatter。
+
+本地调试器专项验证使用启用 Python 的真实 LLDB 构建：将打包目录移动到含空格的路径，
+以仅保留系统 PATH 的环境启动 LLDB，验证 formatter、Python 标准模块和动态库加载。
+未移走或隐藏原工具；通过 dyld 加载记录确认没有引用原 Homebrew／构建目录的私有动态库。
+Linux 的同类检查与进程内 DAP 验证在最终 Linux 阶段完成。
