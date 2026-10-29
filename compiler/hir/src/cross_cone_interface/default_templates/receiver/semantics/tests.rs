@@ -191,6 +191,7 @@ fn local_table(
 ) -> CanonicalTemplateLocalTableV1 {
     CanonicalTemplateLocalTableV1::try_new(vec![
         TemplateLocalRecordV1::try_new(
+            "local".into(),
             LocalValueSelector::This,
             value_type,
             mutable,

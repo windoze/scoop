@@ -469,7 +469,7 @@ TLAB bump 由 codegen GC 层消费同一布局常量与运行时规范 3.1 的�
 
 nursery 容量、full 压力、可选 survivor 与 minor／full 分片标记归 runtime 私有实现（运行时规范 3.1、3.9），不作为 LIR 常量、构建 profile 或 `.slib` 字段导出；现有生成代码继续只消费稳定的 allocation context 与分配慢入口。调整这些策略不重编依赖或改变精确 roots；generated card store 在 mutator 阶段仍只写 1，collector 私有的保留卡状态不进入生成代码。分片之间不移动对象、不并发扫描普通字段，复用已有引用写入屏障记录已发布 owner 的改写；minor 清除扫描卡前保留最终 remembered 回写所需位图，年轻初始化屏障省略的既有证明仍成立。各片继续通过原 safepoint 与根计划停稳／恢复，普通 ABI 消费者无需感知某次暂停是否完成整个周期。
 
-该共享快路径沿用 runtime ABI contract 17 引入的卡组登记，当前统一 contract 为 27，metadata ABI 9 和 `.slib` 容器格式保持。旧 ABI 产物必须按现有 runtime contract 兼容性边界重建；不添加混合布局或运行时全堆扫描的兼容模式。region prefix 和卡组布局由 codegen GC 模块与 runtime 共同实现，LIR 仍只承载完整托管写入及实际 runtime 符号合同。
+该共享快路径沿用 runtime ABI contract 17 引入的卡组登记，当前统一 contract 为 29，metadata ABI 9 和 `.slib` 容器格式保持。旧 ABI 产物必须按现有 runtime contract 兼容性边界重建；不添加混合布局或运行时全堆扫描的兼容模式。region prefix 和卡组布局由 codegen GC 模块与 runtime 共同实现，LIR 仍只承载完整托管写入及实际 runtime 符号合同。
 
 ARM64 默认对 ArraySet 的单引用槽屏障使用已有数组对象基址查询 mapping；按运行时规范 3.1 的 mapping 合同读取 GC 字大小位，选择 small 的 16 MiB 对齐地址或 large 的首行前缀地址，再读取 owner region。只选择地址而不预读两条路径，共用原 region prefix 与登记；实际 card 地址仍取被写入的元素引用槽；一个对象的全部存储属于同一 mapping。多引用值继续使用原范围屏障，不按元素大小推定相邻槽属于同一卡。release 可以按 2.19 提升有界内层中的不变查询；其他 profile 与未命中路径保持原位置的完整操作。x86_64 的直接查询在大数组随机写入中回退，默认保留已有页表生成路径；没有按函数名称选择优化或新增策略开关。
 
@@ -563,7 +563,7 @@ writer 按上述目录与 header 规则生成归档。普通 reader 根据目录
 
 三种 metadata 各恰有一个成员；完整生产产物具有非空 LinkObject 集合。role 与 stable-key tag 必须匹配，成员由目录身份识别，不由物理名、ordinal 或数量推断 producer。
 
-Manifest、三层 metadata 和 DiagnosticAttachment 各自使用单个、无字典且带原始长度的 Zstandard frame；writer 使用 fast level 3（API compression level `-3`），不设置压缩开关或按压缩率选择编码。LinkObject 和 ExtensionBlob 保存原始 bytes。成员 record 的 byte_length 与 sha256 描述实际存储 bytes，ar header 的 size 也使用存储长度；成员身份和三层语义指纹仍由既有逻辑内容确定。依赖发现只解压 manifest；成员首次实际使用时解压并缓存结果，后续请求复用该缓冲区。frame 解码只承担长度、截断和格式等局部正确性检查，不复核成员摘要或重放语义。
+Manifest、三层 metadata 和 DiagnosticAttachment 各自使用单个、无字典且带原始长度的 Zstandard frame；writer 统一使用标准 compression level `3`，不设置压缩开关或按压缩率选择编码。LinkObject 和 ExtensionBlob 保存原始 bytes。成员 record 的 byte_length 与 sha256 描述实际存储 bytes，ar header 的 size 也使用存储长度；成员身份和三层语义指纹仍由既有逻辑内容确定。依赖发现只解压 manifest；成员首次实际使用时解压并缓存结果，后续请求复用该缓冲区。frame 解码只承担长度、截断和格式等局部正确性检查，不复核成员摘要或重放语义。此前 level `-3` 生成的 frame 仍是相同格式的合法输入；压缩参数调整不递增容器／metadata schema，不要求重建未变化的预编译库。
 
 容器 1、manifest 1 和旧 profile 不提供兼容读取，必须重建。压缩库是编译器宿主依赖，与 sysroot 中面向目标平台的 Zstandard 库分开。方案、测量依据和最小验证范围见 [存储精简与压缩方案](../slib-storage/DESIGN.md)。
 
@@ -597,9 +597,9 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 | 位置 / namespace | section 与 major |
 | --- | --- |
 | Manifest / `org.scoop-lang.manifest` | `single-cone-production/9` |
-| HIR / `org.scoop-lang.hir` | `identity-foundation/10`、`core-bootstrap-interface/16`、`cross-cone-interface/81`、`cross-cone-type-semantics/30` |
-| MIR / `org.scoop-lang.mir` | `identity-foundation/8`、`core-bootstrap-bridge/2`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/19` |
-| LIR / `org.scoop-lang.lir` | `identity-foundation/9`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/17`、`cone-production/14`、`link-identity-closure/19`、`link-support/1` |
+| HIR / `org.scoop-lang.hir` | `identity-foundation/10`、`core-bootstrap-interface/17`、`cross-cone-interface/84`、`cross-cone-type-semantics/31` |
+| MIR / `org.scoop-lang.mir` | `identity-foundation/8`、`core-bootstrap-bridge/2`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/20` |
+| LIR / `org.scoop-lang.lir` | `identity-foundation/9`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/18`、`cone-production/15`、`link-identity-closure/19`、`link-support/1` |
 
 各 section 按消费用途检查 required inventory。Compile 需要完整语言与相邻 IR 合同；Link 只消费 identity、ABI、对象、native、production 和链接支持数据，不为链接展开 HIR 模板。profile fingerprint 覆盖 descriptor 的实际内容。
 
@@ -621,7 +621,7 @@ manifest 保存 canonical coordinate、ConeIdentity、kind/source form、完整 
 
 production 与 Link metadata 保存消费方实际使用的 body/type/site ID、Strong/ODR 定义、shared ABI、object/bridge unit 到 member/range 的映射、registration identities、静态存储与初始化单元、image/root entry 归属、defined symbol owners、未定义符号使用以及 native contracts 与逻辑 library requirements。只用于 codegen 的对象定义计划、digest finalization、shape/bridge 生产计划、重复的 callable/shape ABI 和 runtime registration 生产副本保留在生产阶段内存中，不写入 production section。完整 runtime/GC 记录仍正常发射到机器对象。
 
-`cone-production/14` 仅保存字段 2 canonical definitions、5 registration production、6 image plan、7 entry plan。共用该生产投影的 `strong-production` section 编码升至 24；旧 Strong profile 仍不作为消费入口。registration production 仅保存字段 1 identities、6 static storages、7 initialization units；image plan 仅保存字段 4 symbol、6 support atoms，support atoms 仅保存字段 11 array-bounds message 和 12 array-size-overflow message。其余生产字段没有下游消费者，当前格式不编码也不解码这些副本。
+`cone-production/15` 仅保存字段 2 canonical definitions、5 registration production、6 image plan、7 entry plan。共用该生产投影的 `strong-production` section 编码为 25；旧 Strong profile 仍不作为消费入口。registration production 仅保存字段 1 identities、6 static storages、7 initialization units；image plan 仅保存字段 4 symbol、6 support atoms，support atoms 仅保存字段 11 array-bounds message 和 12 array-size-overflow message。其余生产字段没有下游消费者，当前格式不编码也不解码这些副本。
 
 `link-identity-closure/19` 的字段 5 保存按 `(source member, symbol bytes)` 排序、去重的全部跨物理 member 符号使用，每项仅有字段 1 member 和 2 symbol。生产时直接投影已经解析的实际 relocation，包含同 Cone、跨 Cone callable／shape、ODR、generated-C、runtime 和 native 引用；不能只投影 legacy undefined requirement 子集而遗漏跨 Cone 使用。对象内部已经闭合的引用不重复保存。18 及以前版本的使用表不满足完整引用合同，最终链接需要重建这些输入，不从机器对象补扫。完整 relocation 和 requirement 继续用于生产阶段的对象处理与 Code 指纹，不作为链接器不消费的副本落盘。defined symbol owner 中的 definition boundary 记录仅保存字段 1 member 和 3 owner，省略可由 atom ID、Start/End 和 target 原生符号规范化确定的字段 2 名称；普通符号继续保存三个字段及其实际名称。所有表具有明确排序与唯一性；不保存 producer 的绝对搜索路径。该修正不改变机器对象、源码实体或 runtime ABI。
 
@@ -639,7 +639,7 @@ Export HIR 的当前目标测试目录按语言规范 16.4 保留 typed class／
 
 测试用途产物在可选 manifest section `org.scoop-lang.manifest/test-directory/1` 中保存该目录的展示投影：容器限定名、用例方法名与完整显示名、各自的 Cone-relative 源码路径及一基行列、忽略原因。目录按前端顺序嵌套保存容器与用例，不通过解析显示名恢复关系；可执行调用仍使用 HIR 中的 typed 引用。该 section 不参与 Compile／Link 的语义要求，受普通 ArtifactFingerprint 覆盖；生产产物不写入，测试产物即使无容器也写入空目录。manifest summary 在读取边界解码并复用该投影，缓存命中不重新发现测试或加载完整 HIR。
 
-入口的四种 ABI 形态、完整签名、root gateway 的实际 C ABI 与定义指纹随各层 typed entry 保留，并进入对应语义／ABI fingerprints 和承载它们的 section profile。Link 投影保留精确 entry、gateway 与 failure-root 引用，使 artifact-only 链接无需源码或名称推断。当前 runtime ABI contract 27、metadata ABI 9 同时进入兼容检查、runtime 与启动对象的构建输入；旧 ABI 的薄接口、物理签名、poll／card／初始化发布／Context 槽合同及产物必须重建或拒绝，不能用缺省字段或 bitcast 混用。contract 20 同时退役无生产消费者的标量格式化、hash、equals 及专用打印 C 入口；沿用现有 runtime 输入更新与 ABI 重建边界，不增加兼容分支。新 ABI 的 debug／release 仍互通；各批次的实际实现与 section 版本见 [M34 记录](../milestone34/PROGRESS.md)。
+入口的四种 ABI 形态、完整签名、root gateway 的实际 C ABI 与定义指纹随各层 typed entry 保留，并进入对应语义／ABI fingerprints 和承载它们的 section profile。Link 投影保留精确 entry、gateway 与 failure-root 引用，使 artifact-only 链接无需源码或名称推断。当前 runtime ABI contract 29、metadata ABI 9 同时进入兼容检查、runtime 与启动对象的构建输入；旧 ABI 的薄接口、物理签名、poll／card／初始化发布／Context 槽合同及产物必须重建或拒绝，不能用缺省字段或 bitcast 混用。contract 20 同时退役无生产消费者的标量格式化、hash、equals 及专用打印 C 入口；沿用现有 runtime 输入更新与 ABI 重建边界，不增加兼容分支。新 ABI 的 debug／release 仍互通；各批次的实际实现与 section 版本见 [M34 记录](../milestone34/PROGRESS.md)。
 
 operator equals 的成员签名、operator 标记、已绑定调用及必要的派生正文使用既有 callable、模板与 exact-type metadata。`Equals<T>.equals` 的显式 conformance、接口 slot、实现和分派适配使用普通 interface metadata；该 slot 使用源码显式声明的 operator 实现，不按结构比较补齐接口，也不保存 Equals 专用的 core protocol 或条件接口规则。
 
@@ -803,7 +803,7 @@ SingleFile 的 coordinate 为保留值 `scoop:single-file:0.0.0`，kind 为 Exec
 
 测试配置遵守语言规范 12.2.4。PM 的包声明保留独立的测试源码清单、测试依赖及其 locator/span；生产语义投影仅含生产字段。普通 build/run 与生产用途的 scoopc 不发现测试文件或定位测试依赖，编译缓存键不包含测试配置或测试文件摘要。PM 按 manifest/lock/config 的路径、mtime、大小和工具版本复用已有解析及准备记录，未变化时不打开原清单或重跑 TOML parser；变化时按有效配置判断相应用途是否更新，缺失输入仍报告普通定位错误。原始文本与 span 只用于诊断，文本变化本身不等于生产语义变化。记录格式或解析规则改变时升级 namespace，不迁移旧记录或重放语言规则。
 
-普通 manifest 入口通过 PM 展开 workspace/依赖，协议 18 将有效配置交付给 scoopc；child 只读取实际源码，不重解析清单。直接 manifest 入口已删除，不保留另一套新版声明解析或版本绑定；生产/测试分别判断更新及不重放检查的合同保持。
+普通 manifest 入口通过 PM 展开 workspace/依赖，协议 19 将有效配置交付给 scoopc；child 只读取实际源码，不重解析清单。直接 manifest 入口已删除，不保留另一套新版声明解析或版本绑定；生产/测试分别判断更新及不重放检查的合同保持。
 
 single-Cone编译请求显式携带Production或Test用途，默认Production；`scoop test`及`scoop check --tests`使用PM为测试根锁定的图，并向scoopc传入Test用途及具体生产/测试依赖。测试编译只接受ExpandedCone，support仍恰为其余传递闭包；scoopc不读取声明、求解或补建缺失的测试依赖。解析时使用已展开的生产/测试源码配置，将仅用于测试的依赖身份交给前端，并以原ConeIdentity产生具有TestEntry的executable `.slib`，不要求改写源码manifest kind。该字段自machine protocol 6加入；当前协议版本见下文，旧版本拒绝协商；普通生产请求的用途必须显式编码，不能靠源码目录或输出名推断。
 
@@ -887,7 +887,7 @@ build/run 接受 `--profile debug|release`，默认 debug；`--release` 为 rele
 
 新结果在临时输出位置生成，工具成功后 rename 发布，再更新构建记录；失败不发布部分结果。普通构建锁协调相同结果的生产，取得锁后重查记录即可复用，不比较两份完整产物。不同输入的结果不得覆盖正在使用的同一缓存输出。用户首次指定另一输出位置时可发布一次，此后命中不重读、哈希或覆盖已有文件。不进行写后读回、sync_all、目录同步、只读封存、私有目录或路径来源审计。
 
-最终程序使用 `executables-v3` 普通构建记录：键采用当前图的 Code 结果、runtime 构建结果、target、优化模式、最终链接选项（含是否生成 linker map）、library roots 和实际 Scoop／C 工具输入及生效调用配置。记录保存稳定 executable、按请求生成的可选 linker map 路径、link plan 摘要，以及上次真实链接使用的工具、系统输入、库文件、脚本和会影响库选择的候选路径 metadata。缺失候选也参与正常更新判断；新增候选、symlink 选择变化或实际库更新时重新解析并链接。命中判断先于 Link 闭包读取、final 工具发现、startup／response file 生成和对象物化；不读取命中 executable 内容。所需 executable 或已请求的 linker map 缺失时更新，用户输出或已请求的 `.map` 缺失、首次选择另一输出位置时只发布已有结果，不重新链接。编译或链接失败不发布新记录；同键构建使用普通锁，锁内重查。
+最终程序使用 `executables-v4` 普通构建记录：键采用当前图的 Code 结果、runtime 构建结果、target、优化模式、最终链接选项、调试文件种类及所需 executable basename、library roots 和实际 Scoop／C 工具输入及生效调用配置。记录保存稳定 executable、可选独立调试文件路径、link plan 摘要，以及上次真实链接使用的工具、系统输入、库文件、脚本和会影响库选择的候选路径 metadata。缺失候选也参与正常更新判断；新增候选、symlink 选择变化或实际库更新时重新解析并链接。命中判断先于 Link 闭包读取、final 工具发现、startup／response file 生成和对象物化；不读取命中 executable 内容。所需 executable 或已请求的独立调试文件缺失时更新；用户输出或已请求的独立调试文件缺失，或选择另一相同 basename 的输出位置时，只发布已有结果，不重新链接。改变带调试文件的 executable basename 时正常重新链接，以保持 ELF debuglink 与平台调试文件关联。编译或链接失败不发布新记录；同键构建使用普通锁，锁内重查。
 
 用户 library／executable 输出共用按结果标识保存的发布记录，命中且文件存在时直接返回。发布通过临时文件与 rename 完成，只在需要新位置或新结果时复制一次；不检查输入／输出 inode、owner、符号链接来源或缓存目录归属，不制作 execution copy，也不同步落盘。run／test 使用本次结果的稳定缓存路径，argv[0] 保留用户输出位置；另一构建并发发布不同结果不会改变已选执行目标。普通文件创建、复制、rename 和工具执行错误照常报告。
 
@@ -919,11 +919,11 @@ PM的全局源码/解析缓存与编译缓存职责分离，默认布局和覆�
 
 输入缺失是普通源码构建错误，输出缺失只生成该输出。manifest 仅测试配置变化不使生产节点失效；未选中源码、程序 argv、测试过滤及显示方式不使编译失效。工具变化可以直接失效，不为恢复内容可能相同的命中强制读取整个程序。尚未使用的 generator 配置不影响构建；实际使用的工具按同一规则记录。
 
-machine transport 为一次 request/response 的 length-prefixed canonical CBOR，protocol version 为 18（当前 Cone 改用已展开配置；已有 Check、观察、生成器配置、工具输入和片段诊断原文保持），stdout 只含协议 frame。build request field 6 为输出选择：Artifact、Documentation、ArtifactWithDocumentation，保存各自实际输出 locator；Check 使用新 tag 4 的单字段 map，只保存 tag、不含 locator；成功 response 的 field 2 使用对应 product 选择，Artifact 与 ArtifactWithDocumentation 变体携带 artifact summary，文档输出保存渲染输入 locator 和独立文档 warning；Check product 同样使用 tag 4 的单字段 map，warning 与实际 generator 输入沿共有成功字段保存。Check 拒绝 dump、observation-only 与非空 native 对象输入。build request field 9 为 OptimizationMode（Debug=1、Release=2），field 10 为按归一化路径排序的选中 native 源码所对应的已编译 native 对象 locator 数组，机器生产时数量必须与 manifest 的实际 target 选择一致；没有 native 源码或仅文档时为空。field 11 为当前 Cone 的 CompilationPurpose（Production=1、Test=2）；field 12 为按名称排序且唯一的 generator 注册数组，保存名称与已按接收 CLI cwd 解析的绝对宿主程序路径，未使用的注册不探测程序。target request 保存 canonical triple，以及待解析的 C driver／native sysroot 选择或已解析的 C 工具调用记录。parent 将已得到的记录直接交给 child，child 解码后用于实际编译，不重复执行探测；独立 scoopc 请求仍执行正常工具发现。调用记录保存普通版本／deployment 配置、host locator 和本机输入摘要，不是产物验证资格，host locator 不进入 artifact identity。旧或不匹配协议拒绝。request envelope field 5 为 observation-only 标志（unsigned 0／1）；为 true 时必须请求非空 dump 集合，沿同一编译实现执行到最后一个所需阶段，不发布机器对象或 `.slib`。观察成功使用 response tag 3，携带 warning 和 dump 描述，不伪造产物摘要。
+machine transport 为一次 request/response 的 length-prefixed canonical CBOR，protocol version 为 20（增加 full 静态变量调试级别；当前 Cone 采用已展开配置，已有 Check、观察、生成器配置、工具输入和片段诊断原文保持），stdout 只含协议 frame。build request field 6 为输出选择：Artifact、Documentation、ArtifactWithDocumentation，保存各自实际输出 locator；Check 使用新 tag 4 的单字段 map，只保存 tag、不含 locator；成功 response 的 field 2 使用对应 product 选择，Artifact 与 ArtifactWithDocumentation 变体携带 artifact summary，文档输出保存渲染输入 locator 和独立文档 warning；Check product 同样使用 tag 4 的单字段 map，warning 与实际 generator 输入沿共有成功字段保存。Check 拒绝 dump、observation-only 与非空 native 对象输入。build request field 9 为 OptimizationMode（Debug=1、Release=2），field 10 为按归一化路径排序的选中 native 源码所对应的已编译 native 对象 locator 数组，机器生产时数量必须与 manifest 的实际 target 选择一致；没有 native 源码或仅文档时为空。field 11 为当前 Cone 的 CompilationPurpose（Production=1、Test=2）；field 12 为按名称排序且唯一的 generator 注册数组，保存名称与已按接收 CLI cwd 解析的绝对宿主程序路径，未使用的注册不探测程序。build request field 13 为 DebugInfoLevel（none=0、line-tables=1、full=2）；和 field 9 的优化模式独立，生产级别进入源码 Cone 的编译更新键。target request 保存 canonical triple，以及待解析的 C driver／native sysroot 选择或已解析的 C 工具调用记录。parent 将已得到的记录直接交给 child，child 解码后用于实际编译，不重复执行探测；独立 scoopc 请求仍执行正常工具发现。调用记录保存普通版本／deployment 配置、host locator 和本机输入摘要，不是产物验证资格，host locator 不进入 artifact identity。旧或不匹配协议拒绝。request envelope field 5 为 observation-only 标志（unsigned 0／1）；为 true 时必须请求非空 dump 集合，沿同一编译实现执行到最后一个所需阶段，不发布机器对象或 `.slib`。观察成功使用 response tag 3，携带 warning 和 dump 描述，不伪造产物摘要。
 
 成功响应直接携带生产时得到的产物摘要：Cone、直接依赖、target、产物 profile、各语义指纹、artifact fingerprint 及测试目录，并携带 warning 和 dump 描述。parent 将该摘要与产物实际位置保存为普通构建记录，不重新打开 child 产物、重读摘要或逐字段核对响应与归档。摘要是后续编译、链接及测试列举需要的数据，不是验证资格；不得包含无人消费的归档长度或成员数来支持复核。protocol 8 用此摘要替换原独立的七个指纹字段。
 
-protocol 18 的 current 输入为 ExpandedCone（tag 3）或 SingleFile（tag 2）；旧 ManifestRoot tag 1 不再接受。ExpandedCone 的 field 1 保存包管理规范 7.1 的 ExpandedConeInputV1 UTF-8 JSON 字节，沿用现有 CBOR frame，不生成临时清单或源码树。parent 交付已绑定依赖的生产/测试配置、原始清单诊断文本及 host 路径；child 只解码必要格式与引用，不重新读取或解释原始清单。native 准备同样复用 parent 已加载的配置。独立 scoop-pm 的 JSON prepare 协议由包管理规范 7 定义；两种协议各自检查版本，不扩展成可协商任意构建任务的服务协议。
+protocol 19 的 current 输入为 ExpandedCone（tag 3）或 SingleFile（tag 2）；旧 ManifestRoot tag 1 不再接受。ExpandedCone 的 field 1 保存包管理规范 7.1 的 ExpandedConeInputV1 UTF-8 JSON 字节，沿用现有 CBOR frame，不生成临时清单或源码树。parent 交付已绑定依赖的生产/测试配置、原始清单诊断文本及 host 路径；child 只解码必要格式与引用，不重新读取或解释原始清单。native 准备同样复用 parent 已加载的配置。独立 scoop-pm 的 JSON prepare 协议由包管理规范 7 定义；两种协议各自检查版本，不扩展成可协商任意构建任务的服务协议。
 
 本机编译结果保存在 `compile-v3`：按输入键保存普通 `record.cbor`（生产摘要、warning 与实际 generator 工具输入）。成功 response 的 field 5 返回实际调用的名称、所选程序路径、generator 协议版本和程序修改时间／大小；v1 没有额外生成器选项，程序更新状态表示实际工具版本，不额外启动版本探测。命中先按已用名称比较当前绑定和程序状态，未使用的注册不参与输入键或失效；缺失／变化使该 Cone 正常重编译。默认 scoop.codec 程序相对于实际选中的 scoopc 安装位置解析。
 
@@ -945,7 +945,7 @@ generator 的 stderr 沿 driver 日志目标输出。scoop 在取得合法的 ch
 
 该观察是可供 `sample`／`perf` 原始文本按确切符号注释的旁置映射，不是最终链接存活符号清单，也不提供地址范围或指令行表。声明 byte span 不得当作采样 PC 的执行行号；LLVM 内联／克隆、native／runtime 正文及无法识别的符号保留原始采样信息，不推测内联调用栈。Darwin 工具展示的单个目标前缀下划线可按目标符号规则处理，原符号、地址偏移和采样权重不得因可读名相同而合并。采样工具选择了定义边界起始符号时，旁置工具可读取显式给定二进制的 LLVM nm 结果，仅将与一个已知 callable body 唯一同址的实际边界符号关联到该正文；多个正文同址时保留歧义，不猜测身份。macOS sample 将同址别名折叠为 `<deduplicated_symbol>` 时，旁置工具可显式接收本次构建的 Mach-O 程序，用报告的主镜像加载地址及 LLVM readobj 的实际 __TEXT 地址消除 ASLR，再批量调用 LLVM symbolizer。只为明确列出的、位于该主镜像内的 PC 附加已识别符号；保留原帧、折叠计数及省略号，不把多个地址或省略的样本重新分配到函数。采样仍由成熟平台工具完成，不引入插桩、PGO 输入、通用事件格式或运行时查询。
 
-最终程序移除普通内部符号后，旁置工具可用本次 linker map 提供的实际地址范围和同次 symbols 观察做归因。Darwin sample 继续用程序 `__TEXT` 与报告主镜像加载地址计算 ASLR slide；显式链接地址也可直接查询 map。仅使用真实范围，零长度或同址多个 callable 无法唯一判断时保留未知，不按名字合并或推测内联栈。Linux 的运行地址须由实际加载信息转换为链接地址，不能把 PIE 运行地址直接当作 map 地址。
+最终程序移除普通内部符号后，旁置工具使用 llvm-symbolizer 读取 executable 与独立调试文件，按精确 linkage name 关联同次 symbols 观察，同时保留 DWARF 行号与 inline 链。Darwin sample 用程序 `__TEXT` 与报告主镜像加载地址计算 ASLR slide；Linux PIE 使用实际映射的 load bias，不能直接把运行地址当作链接地址。没有信息的地址保留未知，不按可读名称合并重载／泛型实例，不推测内联帧。
 
 所有 profile 可显式请求 symbols，未请求时不收集或渲染该映射。它不进入 `.slib`、语言身份、ABI、Code 或优化输入，不改变机器代码、GC roots 或程序行为；仅请求缺失的 symbols 时沿 observation-only 路径停在 LIR，已有机器产物和最终链接继续复用。缓存命中仅复制已有观察。文档模式只允许 AST／HIR 的约定保持。
 
@@ -1025,9 +1025,9 @@ Darwin 支持 `.o`、`.a`、dylib/framework 与所选 SDK 的系统 providers。
 
 Darwin 使用所选系统 linker、按 native 需求选择的 C／C++ 链接 driver、SDK/deployment 与 libSystem，Level I unwind 经系统正常导出解析；C++ 模式同时使用配套 libc++ 与 C++ ABI 运行库。final-link 不使用 dead_strip、不同 body 的 function ICF、LTO 或 raw 用户 linker options。stackmap relocation 后位于只读 `__DATA_CONST`，采用传统 rebase/bind（no_fixup_chains）格式；普通绑定与随后执行的 weak coalescing 分别解释，允许同一指针对相同符号和 addend 具有这两阶段记录。实际需要的 ad-hoc signing 属于平台装载格式。
 
-最终 executable 的普通 release 默认清除不再参与动态链接的内部符号；debug 默认保留，`scoop build/run/test/link --keep-symbols` 与独立 `scoop-link --keep-symbols` 显式保留。artifact-only link 默认清除，不通过读取更多 Compile 数据推测生产 profile。Darwin 沿已有 `_scoop$1$*` 本地化后使用 linker 的 `-x -S`，ELF 使用 `--strip-all`；必要 native 动态导入／导出、GC／stackmap、EH 和登记数据继续保留。清理在最终 linker 内完成，Darwin signing 随正常最终产物生成；不后改签名文件，不截短持久 ID，也不改变参与链接的 `.slib`／`.o` 符号及定义边界。
+最终 executable 的普通 release 默认清除不再参与动态链接的内部符号；debug 默认保留，`scoop build/run/test/link --keep-symbols` 与独立 `scoop-link --keep-symbols` 显式保留。artifact-only link 默认清除，不通过读取更多 Compile 数据推测生产 profile。未请求独立调试文件时沿用 linker 内裁剪；请求时先保留调试信息完成链接，再按 2.22 生成调试文件、裁剪程序，Darwin 最后重新完成 ad-hoc signing。必要 native 动态导入／导出、GC／stackmap、EH 和登记数据继续保留；不截短持久 ID，也不改变参与链接的 `.slib`／`.o` 符号及定义边界。
 
-debug profile 的最终链接默认使用目标 linker 的正常 map 输出，随 executable 发布 `<output>.map`，内容包含实际链接地址、段／符号范围及名字。release profile 默认不生成 map，可用 `scoop build/run/test --emit-symbol-map` 显式开启；artifact-only 的 `scoop link` 与独立 `scoop-link` 同样默认关闭并支持该选项。map 选项独立于保留程序符号表的 `--keep-symbols` 和逻辑符号观察的 `--emit symbols`。map 不进入程序、持久 ID、ABI 或 Code；是否请求 map 及其路径不改变 link plan 指纹，只区分最终结果缓存。它与显式 symbols 观察共同支持离线函数归因，不自动生成 DWARF、指令行表或运行时测量代码。缓存复用 executable 及请求生成的 map，命中时不读取二者内容；未请求时不生成、发布或要求 map 文件。map 生成或链接失败不得报告成功。已有输出旁的旧 map 可通过 `scoop clean` 一并清除。
+独立调试文件按 2.22 替换原文本 map 的伴随输出与结果复用通路；不再提供 `--emit-symbol-map` 或原 map parser，不将旧选项静默解释成另一种产物。`--emit symbols` 继续提供逻辑符号观察，离线地址归因使用 llvm-symbolizer 与实际 executable／独立调试文件。此替换不增加运行时测量代码。
 
 Linux 接受 `.o`、`.a`，动态模式另接受 ELF `.so`；framework 与静态程序的动态库需求为错误。用户 `.so` 必须是 DSO，不是 PIE executable 或 linker script。未版本化的源码 extern 只匹配默认导出版本，DT_NEEDED 不等于显式库 re-export；TLS、IFUNC、版本化导入按实际 kind/version 检查。
 
@@ -1093,6 +1093,7 @@ intrinsic 的识别来自实际声明及其完整 name/target/shape/signature，
 | atomic operation | 实际 AtomicInt/Long/Boolean/Ref application、值类型、操作种类及完整成功/失败内存序；遵守语言规范 11.14。 |
 | MaybeUninit operation | 独立 wrapper 与 payload 的完整类型，以及零构造、合法值包装或 unsafe 取值种类；遵守语言规范 11.15，不保存初始化证明或隐藏标记。 |
 | managed callback | native/managed 签名、context index、mode、原 registration 与实际 application。 |
+| Throwable 与栈快照 | 实际 core Throwable identity、可继承的固定前缀、普通 byte-array TD、Managed 的首次抛出准备及 printStackTrace 操作；遵守语言规范 11.7、运行时规范 5.6。 |
 
 每个 intrinsic 只承担其指定语义，展开后是普通 typed 运算、内存访问或有明确 runtime 合同的操作。Const 能力只来自声明允许的操作集合，不能由同名用户函数取得。
 
@@ -1102,7 +1103,7 @@ codegen 在现有 typed call 合同检查后展开普通 byte-length／byte-at�
 
 LIR 的非零 boxed descriptor 同时保留选定 shape 的 payload offset，供 codegen 消费既有布局结果；不重新推导目标布局，也不增加持久 wire 字段。typed UnboxValue 生成 TD 相等的快速路径与原 leaf 慢路径：快速路径从 AS1 对象地址向已有 typed local 复制完整 payload 字节（包含 padding），ZST 不产生虚假存储。非 exact 的 enum 父整数解箱继续由慢路径处理。普通优化、最终根计划和 RS4GC 顺序保持；不把含引用的 payload 指针转成 raw pointer 后跨 GC 使用。
 
-boxed descriptor 同时保存已选 shape 的实例 size／alignment，供所有 profile 的实际装箱复用普通 managed allocation 生成路径；不从名称或表示相似性识别 native 调用，不在 codegen 重建 shape。去掉专用 box C 后备及其 128 B 选择条件，实际 TLAB 完成条件仍由已有分配策略决定。当前实例不超过 128 B 时采用 LLVM memcpy，较大实例使用共享 NoGC memcpy 控制复制代码体积；两者都从已更新的源 place 复制完整 payload。含引用源 place 由 BoxValue 的既有 safepoint root plan 管理，复制前从搬迁后的规范存储重读，复制后按实际年轻分配事实及完整扫描布局执行必要写屏障。全 profile 使用相同物理 box 布局与 ABI；无消费者的 runtime call identity、专属递归根计划投影和 Array clone／Context fork 调用目录项退役，旧 wire tag 不复用。native RecursiveRegion API 保留自己的真实 native 消费者。普通 extern、局部非逃逸 box 消除、真实分配及动态拆箱慢路径保持，详见运行时规范 2.3。该次入口退役由 runtime ABI contract 21 引入，当前统一 contract 22；已有产物与缓存沿当前版本机制重建，无兼容分支。 Context 的 current／enter／leave 降低为两种 typed LIR 指令 TaskContextLoad／TaskContextStore，直接访问既有线程根槽，不再以不存在的 C 函数表示生成操作。snapshot 复用该 load 与既有堆字段读取，restore 复用实际 TaskContext 字段布局和普通 HeapStore／写屏障；不增加 safepoint、对象字段或新的运行配置。
+boxed descriptor 同时保存已选 shape 的实例 size／alignment，供所有 profile 的实际装箱复用普通 managed allocation 生成路径；不从名称或表示相似性识别 native 调用，不在 codegen 重建 shape。去掉专用 box C 后备及其 128 B 选择条件，实际 TLAB 完成条件仍由已有分配策略决定。当前实例不超过 128 B 时采用 LLVM memcpy，较大实例使用共享 NoGC memcpy 控制复制代码体积；两者都从已更新的源 place 复制完整 payload。含引用源 place 由 BoxValue 的既有 safepoint root plan 管理，复制前从搬迁后的规范存储重读，复制后按实际年轻分配事实及完整扫描布局执行必要写屏障。全 profile 使用相同物理 box 布局与 ABI；无消费者的 runtime call identity、专属递归根计划投影和 Array clone／Context fork 调用目录项退役，旧 wire tag 不复用。native RecursiveRegion API 保留自己的真实 native 消费者。普通 extern、局部非逃逸 box 消除、真实分配及动态拆箱慢路径保持，详见运行时规范 2.3。该次入口退役由 runtime ABI contract 21 引入，当前统一 contract 28；已有产物与缓存沿当前版本机制重建，无兼容分支。 Context 的 current／enter／leave 降低为两种 typed LIR 指令 TaskContextLoad／TaskContextStore，直接访问既有线程根槽，不再以不存在的 C 函数表示生成操作。snapshot 复用该 load 与既有堆字段读取，restore 复用实际 TaskContext 字段布局和普通 HeapStore／写屏障；不增加 safepoint、对象字段或新的运行配置。
 
 typed ArrayClone 复用 LIR 已有的源 live root 与完整数组布局。源／目标 element exact type 和 layout 一致时，codegen 从有效源对象读取 count，使用同一 sizing 计算及普通分配路径；唯一原 site 附着于实际分配慢调用，分配后重新加载源根，按 AS1 完整复制元素字节，再执行必要的范围屏障。目标对象使用目标 nominal TD，Array／MutableArray 互转不复用源身份；ZST 不访问 payload。该展开在最终 roots／RS4GC 之前完成，不删除入口／源码循环 poll，不新增 ABI 或跨过程分析。
 
@@ -1256,7 +1257,7 @@ OdrMemberKey 为 `{1=group, 2=role, 3=typed discriminator}`，`OdrMemberId = H("
 
 ### 2.14 Runtime image 与初始化
 
-runtime metadata ABI 9、runtime ABI contract 22 的字段与启动协议由运行时规范 2.7、2.8、9.2 定义。RootEntry 的物理大小为 128 bytes，旧版 ABI 不可混用。每个 `.slib` 的机器对象保存完整候选 registration，metadata 保存链接所需的 identity 与物理归属；最终 image 表只包含选中的 producer records。
+runtime metadata ABI 9、runtime ABI contract 28 的字段与启动协议由运行时规范 2.7、2.8、9.2 定义。RootEntry 的物理大小为 128 bytes，旧版 ABI 不可混用。每个 `.slib` 的机器对象保存完整候选 registration，metadata 保存链接所需的 identity 与物理归属；最终 image 表只包含选中的 producer records。
 
 image、root entry、main body、root gateway、initializer、ensure、startup gateway 和 release hook 使用各自身份。根、cell、storage 和失败状态完整关联，不以可空函数指针或命名约定推断 unit kind。
 
@@ -1831,3 +1832,61 @@ VS Code 扩展通过标准 LSP 客户端启动 `scoop-lsp --stdio`，管理初�
 宿主按文件更新时间与长度复用未变的磁盘文本和已打开产物；打开的文档覆盖磁盘，Cone.toml 也遵守这一规则。配置或监听通知（包括 Cone.lock 变化）重新选择项目输入，关闭文档恢复磁盘文本；实际文本未变时保留语法结果。依赖产物只打开一次并按需读取所需 HIR，目录及成员缓冲可在输入宿主与分析线程间共享，文件定位读取互斥；不为共享再解析或核对相同目录。源文件、配置与依赖选择一起进入分析快照，旧项目结果不混入更新后的请求。
 
 进程内分析复用和 2.7、2.8 的构建缓存分别按各自实际输入更新，不增加缓存内容复核、源码镜像、来源认证或通用资源计费。语言服务只读取所需的依赖语义 metadata，不为查询进入 MIR／LIR、机器具体化、LLVM 或 native 链接准备。
+
+### 2.21 异常与 trap 的原生栈诊断
+
+语言规范 11.7 的 Throwable 使用实际 core intrinsic class 声明，仍可作为普通 class 的基类。HIR 确定它的 nominal identity、继承关系、构造与 printStackTrace 操作；MIR 保留封闭的表示／操作类别，LIR 给出运行时规范 5.6 的 24-byte 基类前缀、完整派生布局和 GC scan。不能只把 Exception 特化而遗漏直接继承 Throwable 的 class，也不能按类型显示名或机器符号重新识别该根类型。
+
+所有首次抛出路径在异常实参求值后、native unwind 前执行 typed Managed 准备操作，包括源码 throw、编译器生成的语言异常及保存后再次抛出。操作完成原对象的保活、物理栈采集、普通 byte-array 快照分配和一次性原子发布；已有快照时直接复用。准备结果为可能搬迁后的同一 Throwable，随后用该结果调用现有 NoGc throw。同步 rethrow 不重新准备或采集。准备操作的真实 GC／内存效果进入常规调用、roots、relocation 和写屏障规划，不能放在现有 NoGc throw 实现中隐式分配，也不能在 roots／statepoint 生成之后补插可能 GC 的调用。
+
+首次抛出准备、throw 与 trap 保留各自实际来源。禁止将采集提前到异常构造、提升到其他用户调用之前，或在 catch／顶层 gateway 中采集当前栈代替原抛出栈。编译器生成的采集及适配 helper 标记为人工位置；已执行的源码内联保留原 inline 调用关系。共用 trap 消息字符串不等于共用触发位置；按 message 合并的 trap block 必须同时保留可区分的 source origin，必要时按位置分块并对诊断调用使用 no-merge／no-tail 约束，不能把不同源码失败点报告成同一行。
+
+所有 profile 保留物理回溯所需的 unwind 信息，覆盖 Scoop 正文、runtime 与实际参与调用链的 generated-C bridge；其生产不依赖源码调试级别。frame pointer 不自动替代 unwind table，删除普通符号表或分离 DWARF 不能删除 `.eh_frame`／目标 compact unwind、必要的异常表及 GC stackmap。用户 native 代码的可展开性遵守其工具链配置，不能通过调试器假造缺失帧。跨 native 帧回溯不放宽运行时规范 5.5 禁止异常跨 C ABI 传播的合同。
+
+语言 trap 进入能采集当前栈并以状态 1 终止的 runtime 入口；编译器可预见的 ABI／不变量 fatal 进入保留 abort 语义的诊断入口。不以直接 `llvm.trap` 代替要求打印诊断的这两条路径，也不将优化器推导的 unreachable 或外部硬件信号统一改为可捕获异常。
+
+运行时在实际打印时消费标准 native 符号与已有的 dSYM／ELF 分离调试信息；原始地址采集不解析 DWARF、不启动外部 llvm-symbolizer／LLDB 进程。缺少调试文件时仍保留可离线归因的模块标识和地址。独立调试文件的生产改造、运行时符号器接入及验收见 [原生调试设计](../debugging/DESIGN.md) 与 [异常和 trap 栈诊断设计](../debugging/STACK_TRACES.md)。实际外部调试文件不参与运行产物缓存的内容复核。
+
+Throwable 从普通空基类改为 intrinsic 前缀会改变所有派生异常布局，并新增 typed intrinsic／Managed 准备操作。实施时递增实际受影响的 IR／meta 编码和 runtime ABI contract，编译器、runtime、core 及依赖机器产物配套重建；不能混用旧异常对象布局，也不以 runtime ABI 号之外的旁表补救。本文不提前占用尚未编码的 wire tag 或 ABI 版本号。
+
+Throwable intrinsic 前缀落地后，HIR nominal intrinsic representation 使用 tag 15，MIR param-free intrinsic 使用 tag 12，LIR instance representation 使用 tag 7；HIR nominal interface 也使用同一 intrinsic 编码，相关 section 升至 cross-cone-interface/83、cross-cone-type-semantics/31、cross-cone-type-bridge/20、cross-cone-layout-abi/18。runtime ABI contract 从 27 升至 28，metadata ABI 9 不变。派生 class 的 base prefix 引用 Throwable 的真实 instance layout，扫描组合直接继承其隐藏引用槽，不制造源码字段身份。旧库和消费者沿版本更新机制重建。
+
+Throwable 准备在 MIR 的具体正文与协程转换、内联完成后展开为普通 Managed runtime 调用，其结果直接供随后的 NoGc throw 消费。Export HIR／LocalConcrete HIR 仅保留实际 `Array<UInt8>` 的会话内类型引用，MIR 准备调用携带该 exact class，LIR 将其转换为现有 TD 引用；不增加独立类型描述表或调试快照。准备调用和普通打印调用均参与常规 GC 根／statepoint 规划。同步 rethrow 无需重复准备。
+
+`throwable_print_stack_trace` 为 core 的顶层普通效果 intrinsic，参数为实际 Throwable、结果为 Unit；公共 final `printStackTrace` 方法通过它输出。intrinsic 编码使用 tag 30，HIR core-bootstrap-interface／cross-cone-interface 分别升至 17／84。LIR Managed runtime 新增 prepare／print 的 tag 17／18，NoGc fatal 为 tag 26；cone-production／strong-production 分别升至 15／25。runtime ABI contract 升至 29，metadata ABI 保持 9。generated C 的 canonical flags 启用 unwind／asynchronous unwind tables，分别使用新 flag tag 17／18；Darwin 以 tag 19 保留包含叶函数的 frame pointer，使所有桥统一产生完整 EH frame 及 compact unwind，真实输入变化自然更新桥对象。生成 C 桥的主定义携带 EhFrame 关联 atom，Darwin 另携带 CompactUnwind atom，边界和 relocation 与桥正文一起进入现有对象指纹及链接选择。旧编译器、runtime、core 和系统库沿正常版本边界配套重建。
+
+### 2.22 原生源码调试与独立调试文件
+
+本节确定基础调试的实现合同，实施状态与定向验收见 [调试设计](../debugging/DESIGN.md) 及其实施记录。基础调试不以 2.21 的 Throwable 布局变更或正式 Scoop 表达式求值为前提。
+
+`scoop build/run/test` 与 `scoopc` 接受 `--debug-info=none|line-tables|full`。none 不发射调试元数据；line-tables 保存文件、行列、函数和内联位置；full 再保存静态类型、词法作用域、参数、局部变量及全局存储。默认 debug=full、release=none，显式设置覆盖默认值。优化 profile 与调试级别正交，不改变 O0／O2、语言语义、实体身份、物理 ABI 或 GC roots。级别沿本次源码编译图传递，预编译依赖保留自身对象已有内容，不为补调试数据自动重建。
+
+2.1／2.2 保留 SourceIdentity、定义及求值来源、准确 byte span 与已有行列记录。HIR 的源码变量保留真实声明关系和词法作用域；生成变量明确分类。2.3 在 CFG、内联、闭包和协程变换中转移实际来源及变量绑定，保留内联调用点链；2.4 将它们关联到真实存储和 ABI，指令、terminator 与新增生成操作同步维护位置。启用的调试记录必须结构完整；无源码对应的生成操作使用明确分支，不继承上一条用户指令的位置。后端不反查 parser／HIR stage，也不从可读名称重建实体身份。
+
+文件身份、位置、源码作用域与变量声明集中在公共源码／调试记录中，IR 节点使用有类型的共享引用，不在每层复制完整记录。记录经 IR crate 传递，复用已有声明和变量身份；优化、内联、单态化、closure capture 与协程 saved slot 只新增实际变化的关联。持久化只保留跨 Cone 模板下游真正需要的来源和声明，沿用 HIR 已有来源表；MIR／LIR 的会话调试旁表不作为完整快照重复写入 `.slib`。定义来源与求值来源的用途保持独立，即使它们引用同一位置记录。
+
+跨 Cone 模板的现有局部表增加必填 field 5，保存声明时的局部名称；selector、类型、可变性与定义来源仍占原 field 1–4。该字段在 `cross-cone-interface/82` 引入；包含 2.21 栈诊断 intrinsic 的当前完整编码为 2.6 列出的 `/84`，旧模板产物沿版本机制重建。MIR／LIR 不新增调试 wire 快照。模板实例化、默认表达式及构造片段直接保留该名称，生成项仍由原定义分支区分。源码局部声明复用 PersistentLocalValueId，名称与声明记录共享；内联副本保留原声明，只更新声明所在位置的内联链。词法父子关系从 HIR 已绑定的结构化正文与声明投影，MIR CFG 化前建立公共作用域记录；不为同一正文另存一份作用域树快照。源码参数序号和具体类型沿实际参数／局部关系传给 LIR，不从机器参数名反推。调试类型显示名复用具体化 MIR 的可读类型名称和实参，类型引用及 DWARF 唯一标识仍由 exact type id 确定。全局与 TLS 的调试绑定沿原 property／singleton 定义来源关联到实际静态存储，只在定义该存储的对象中发射；托管全局观察 GC 原本更新的静态根，TLS 使用目标原生定位。生成的失败根和 delegate 协议存储显式无源码变量，不执行 getter 或初始化函数来提供变量值。
+
+非引用局部使用真实存储的 declare 记录，SSA 参数及分片使用 value／fragment 记录，并在实际读取时更新其位置。含 managed 引用的变量只观察程序已实际产生的值，不为调试新增读取、栈槽或 root；safepoint 后使未确认的位置 unavailable，已按该边 live set 回写的 canonical root storage 可立即提供新位置，其余变量等后续真实读取／赋值再更新。normal／unwind 边分别使用该边实际恢复的根，调用结果在旧观察失效之后建立位置。被复制、拆分或消除的聚合不能继续显示旧叶子地址。
+
+已有 canonical root storage 先使用 declare，使 SROA 能按真实布局转移存储分片；GC lowering 后统一转换成带解引用及原 fragment 的 value 记录，避免机器发射将静态 declare 和失效位置混用。参数声明及其观察位置属于实际函数作用域，内联参数属于对应内联函数，不能使用没有正文的独立文件词法块。RS4GC 更新机器 SSA 后，调试观察同步使用支配观察点的最新真实 relocation；无法确定的合流位置保持 unavailable，不为调试建立额外 phi、读取或 root。转换只修改 LLVM 调试记录，不加入读取、栈槽或保活用途的指令。LLVM C API 未提供的记录替换、表达式拼接及支配查询通过小型 C++ 绑定调用对应 LLVM 22.1 API。聚合拆分删除的旧 SSA 节点不得用零值替代其调试观察；未能迁移的观察保持 unavailable。
+
+2.5 使用 LLVM 22.1 的标准调试元数据和 debug records，在优化之前 finalize。当前目标采用 DWARF 5、`DW_LANG_C` 静态类型视图，producer 标明 scoopc；Scoop 基础类型通过 typedef 保留名称。每个实际发射对象保存自身需要的编译单元、文件、函数和类型；函数同时保存源码名称与既有精确 linkageName，包括 line-tables 的最终 DWARF；LLVM 的发射模式不得省略该精确身份。line-tables 只创建函数／位置记录，不创建变量和类型定义。所有字段偏移、大小、对齐与参数分片来自已有目标布局／ABI。引用按真实原生地址描述，不将 LLVM GC address space 当作硬件地址空间。ZST 不因调试增加 payload 存储。
+
+语言规范 11.12 的 canonical semantic source path 与 debugger 文件路径独立。本地源码使用 driver 已知的实际位置；导入正文沿现有来源记录传递，可定位时关联本地源码根，否则保留可由 sourceMap 映射的逻辑路径。路径配置只影响调试生产，不重写 currentSourceLocation。不得在链接时读取源码以重建行表。
+
+2.19 的 SROA、mem2reg、内联与 GC relocation 必须维护调试值。地址变量使用实际存储，SSA 值使用 value／fragment 记录；managed 值跨 safepoint 后只描述更新后的引用。不可定位或已消除的值显示 unavailable，不显示过期旧地址。实现不得为调试额外延长对象生存期、增加 roots、关闭 moving GC 或执行 managed getter／toString。完整 Scoop 求值和 managed 写入另行设计。
+
+2.6 的对象内容及 Code 更新关系包含实际调试信息；影响持久模板数据时才递增对应 meta 编码，不能只为 native DWARF 无条件改 ABI。2.7 的正常更新键包含生产级别及实际路径配置。没有源码行信息的对象不能由 linker 补齐；`scoop link` 和 `scoop-link` 只接受 `--emit-debug-file` 生成已有内容的外置文件，`--keep-symbols` 仍独立控制 executable 普通符号表。
+
+Darwin 输出 `<output>.dSYM/Contents/Resources/DWARF/<basename>`：保留 Mach-O debug map 完成链接，在输入对象仍可用时执行所选 dsymutil，再按符号策略 strip，最后签名。Linux GNU／musl 链接使用标准 SHA-1 build-id，为动态及静态程序的栈快照保留模块匹配标识；该标识不承担授权或防伪用途。输出 `<output>.debug` 时，完整链接后用 llvm-objcopy `--only-keep-debug`，按符号策略裁剪 executable，再写入 `.gnu_debuglink`。所有模式保留展开表、必要 EH、GC stackmap 与运行登记数据；generated-C 桥保留物理回溯需要的 unwind 数据。目标工具、输入及失败按普通 toolchain／linker 合同处理，不增加输出内容审计。
+
+generated-C 桥没有用户源码映射，继续使用 `-g0`，通过实际符号和展开表参与物理回溯；不为人工桥生成伪造的 Scoop 源码行。用户 native 源码沿其原有编译配置提供调试信息。
+
+最终结果缓存同时记录程序及请求的调试结果。请求外置文件时，最终 executable basename 进入结果键并用于内部生成文件名，保证换输出目录可复用、换 basename 时重新生成匹配的 debuglink／dSYM；上游 Cone 不因此重编译。命中只检查输入更新与所需结果存在，不读取／哈希调试文件内容，不启动调试工具或重新准备链接输入。dSYM 目录按普通暂存、复制及 rename 发布；工具失败不发布部分新结果。UUID／debuglink 仅承担平台文件关联。
+
+编辑器复用官方 lldb-dap，scoop-lsp 保持语言服务职责。VS Code 提供源码 breakpoints、构建到 executable 的启动配置、attach、参数／cwd／环境／终端及 sourceMap，按需导入只读 Python formatter。发行包包含匹配平台的 lldb、lldb-dap、LLDB library、Python 支持及实际所需附加文件。不得把 C 兼容 evaluator、通用异常筛选或硬件 watchpoint 宣称为完整 Scoop 求值、Scoop 异常过滤或 GC 感知数据断点。
+
+Linux/amd64 静态程序的 TLS 调试定位遵循目标的 variant II TLS 布局：使用当前线程的 thread pointer 与主 executable 的 PT_TLS 大小、对齐和起始偏移，不依赖不存在的动态 linker link map，也不读取其他线程的 TLS。该兼容处理位于 LLDB 的目标地址解析中；编译器继续发射标准 DW_OP_form_tls_address，不增加 runtime 调试入口或执行目标函数。动态加载模块仍使用原动态 loader 定位。
+
+闭包捕获值的调试观察复用 ClosureEnvironment 中的真实 captured-value 身份和共享声明，只在现有字段读取产生 LIR temporary 后记录值；不为调试读取捕获对象、延长生命期或增加 GC roots。相同声明／内联作用域复用一个 DWARF 变量，managed 观察在 safepoint 后失效。人工 helper 使用 DW_AT_artificial，源码 inline 函数仍保留用户属性。

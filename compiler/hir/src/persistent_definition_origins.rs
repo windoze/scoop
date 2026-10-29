@@ -1,6 +1,7 @@
 //! Canonical definition origins established by Export HIR.
 
 use std::fmt;
+use std::sync::Arc;
 
 use scoop_identity::{DefinitionOriginRecord, DefinitionOriginSubject};
 
@@ -10,7 +11,7 @@ use scoop_identity::{DefinitionOriginRecord, DefinitionOriginSubject};
 /// callable materialization.
 #[derive(Clone, Debug, Default)]
 pub struct HirExportDefinitionOrigins {
-    records: Vec<DefinitionOriginRecord>,
+    records: Arc<[DefinitionOriginRecord]>,
 }
 
 impl HirExportDefinitionOrigins {
@@ -28,7 +29,9 @@ impl HirExportDefinitionOrigins {
                 pair[0].subject(),
             ));
         }
-        Ok(Self { records })
+        Ok(Self {
+            records: records.into(),
+        })
     }
 
     pub fn records(&self) -> &[DefinitionOriginRecord] {

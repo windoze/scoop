@@ -17,7 +17,7 @@ def license_files(directory):
     )
 
 
-def collect(root, repository, source, host, native, targets):
+def collect(root, repository, source, host, native, targets, *, python_license=None):
     destination = root / "share/licenses"
     destination.mkdir(parents=True)
     rows = [
@@ -41,6 +41,8 @@ def collect(root, repository, source, host, native, targets):
     own = license_files(repository)
     add("Scoop", "See project license" if own else "Not yet selected by the maintainer", own)
     add("LLVM", "Apache-2.0 WITH LLVM-exception", [source / "llvm/LICENSE.TXT"])
+    if python_license is not None:
+        add("Python", "PSF-2.0 and included notices", [python_license])
     for target in targets:
         notices = repository / "sysroot/lib" / target / NOTICE_DIRECTORY
         add("Rust-std-" + target, "See included documents", sorted(notices.iterdir()))

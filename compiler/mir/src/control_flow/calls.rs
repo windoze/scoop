@@ -120,6 +120,11 @@ pub enum RuntimeFn {
     /// Test-only GC hooks (not in the spec, milestone9 DESIGN 5.2).
     GcCollect,
     GcStats,
+    /// Prepare the first stack snapshot using this actual Array<UInt8> descriptor.
+    PrepareThrowable {
+        trace_bytes: ClassId,
+    },
+    ThrowablePrintStackTrace,
     StringConcat,
     StringCompare,
     StringByteLength,
@@ -143,6 +148,8 @@ impl RuntimeFn {
             RuntimeFn::ReleaseHandle => "scoop_rt_release_handle",
             RuntimeFn::GcCollect => "scoop_rt_gc_collect",
             RuntimeFn::GcStats => "scoop_rt_gc_stats",
+            RuntimeFn::PrepareThrowable { .. } => "scoop_rt_prepare_throwable",
+            RuntimeFn::ThrowablePrintStackTrace => "scoop_rt_throwable_print_stack_trace",
             RuntimeFn::StringConcat => "scoop_rt_string_concat",
             RuntimeFn::StringCompare => "scoop_rt_string_compare",
             RuntimeFn::StringByteLength => "scoop_rt_string_byte_length_leaf",

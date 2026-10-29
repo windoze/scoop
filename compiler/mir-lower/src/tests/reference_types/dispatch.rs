@@ -176,10 +176,10 @@ fn final_methods_are_direct_while_final_overrides_keep_the_base_slot() {
     );
     let module = lower(&h.finish(main));
 
-    let base_vtable = &module.classes[class_index(0)].vtable;
+    let base_vtable = &class_named(&module, "Base").1.vtable;
     assert_eq!(base_vtable.len(), 1);
     assert_eq!(slot_fn(&module, &base_vtable[0]), "Base.openMethod");
-    let derived_vtable = &module.classes[class_index(1)].vtable;
+    let derived_vtable = &class_named(&module, "Derived").1.vtable;
     assert_eq!(derived_vtable.len(), 1);
     assert_eq!(slot_fn(&module, &derived_vtable[0]), "Derived.openMethod");
 

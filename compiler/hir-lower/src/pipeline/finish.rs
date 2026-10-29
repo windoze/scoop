@@ -9,6 +9,7 @@ impl Lowerer {
         warnings: Vec<Diagnostic>,
         core_protocols: hir::CoreProtocols,
         documentation: Option<hir::ConeDocumentation>,
+        throwable_trace_bytes: hir::TypeId,
     ) -> Result<(hir::Module, Vec<Diagnostic>, LoweringCompletion), Vec<Diagnostic>> {
         let native_callback_signatures = self.prepare_native_callback_signatures(current_cone);
         let completion = LoweringCompletion {
@@ -401,6 +402,7 @@ impl Lowerer {
             unit: self.unit,
             boolean: self.boolean,
             string: self.string,
+            throwable_trace_bytes,
             core_protocols,
             instantiations: self.instantiations.into_arena(),
         };

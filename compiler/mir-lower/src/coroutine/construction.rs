@@ -110,6 +110,7 @@ pub(super) fn wrapper_body(
         },
     )));
     let entry = blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         statements,
         terminator: mir::Terminator::Return {
@@ -133,6 +134,7 @@ pub(super) fn dispatch_block(
     otherwise: mir::BlockId,
 ) -> mir::BlockId {
     blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.dispatch.{state}"),
         statements: Vec::new(),
         terminator: mir::Terminator::Branch {
@@ -365,6 +367,7 @@ pub(super) fn atomic_field_compare_exchange(
 
 pub(super) fn statement(kind: mir::StatementKind) -> mir::Statement {
     mir::Statement {
+        debug_origin: Default::default(),
         kind,
         span: mir::SourceSpan::new(0, 0).expect("synthetic span is ordered"),
     }
@@ -372,6 +375,7 @@ pub(super) fn statement(kind: mir::StatementKind) -> mir::Statement {
 
 pub(super) fn local(name: &str, ty: mir::Type) -> mir::Local {
     mir::Local {
+        debug_variable: Default::default(),
         name: name.to_string(),
         ty,
         mutable: false,

@@ -46,12 +46,15 @@
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call @fn17 direct
+      call @fn21 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      call $prepared.throwable: IndexOutOfBoundsException = @scoop_rt_prepare_throwable direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
         Type IndexOutOfBoundsException
-        Local $new.2
+        Local $prepared.throwable
     bb5 if.merge.5
       val x: Int
         Type Int
@@ -107,12 +110,15 @@
       assign $new.4
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call @fn17 direct
+      call @fn21 direct
+        Type IndexOutOfBoundsException
+        Local $new.4
+      call $prepared.throwable: IndexOutOfBoundsException = @scoop_rt_prepare_throwable direct
         Type IndexOutOfBoundsException
         Local $new.4
       throw
         Type IndexOutOfBoundsException
-        Local $new.4
+        Local $prepared.throwable
     bb10 if.merge.10
       array_set MutableArray<Int>
         Type MutableArray<Int>

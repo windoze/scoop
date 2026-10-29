@@ -21,4 +21,4 @@ name = "run"
 argv = ["${build.result.output}"]
 exit = 1
 stdout = ""
-stderr = "scoop: uncaught exception: n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=M25UncaughtError)\n"
+stderr = {regex = "scoop:\\ uncaught\\ exception:\\ n\\(c=scoop%3Asingle\\-file%3A0\\.0\\.0;p=;o=\\-;k=C;x=M25UncaughtError\\)\\\n(?:  at [^\\n]+\\n)+(?:  <[^\\n]+>\\n)*"}

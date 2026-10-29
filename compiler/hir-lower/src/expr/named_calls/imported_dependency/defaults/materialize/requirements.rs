@@ -161,7 +161,7 @@ impl Lowerer {
                     binding,
                     selector: record.selector().clone(),
                     definition,
-                    name: "$requirement.local".into(),
+                    name: record.name().to_owned(),
                     ty,
                     mutable: record.mutable().into(),
                 });

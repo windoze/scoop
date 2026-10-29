@@ -28,6 +28,7 @@ fn hello_world() -> mir::Module {
 }
 
 mod control_flow;
+mod debug;
 mod gateway;
 mod layouts;
 mod leaf_polls;

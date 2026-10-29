@@ -45,7 +45,7 @@ impl Lowerer {
     }
 
     fn lower_class_initialization(&mut self, owner: ClassId, declaration: ast::ClassSource<'_>) {
-        if !self.classes[owner].is_declared() {
+        if !self.classes[owner].has_source_constructors() {
             return;
         }
         let constructors = self.classes[owner].constructors.clone();

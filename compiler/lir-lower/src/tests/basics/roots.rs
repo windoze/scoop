@@ -14,6 +14,7 @@ fn string_copy_restores_an_input_that_dies_at_the_source_operation() {
         vec![val_decl(
             result,
             mir::Expr {
+                debug_origin: Default::default(),
                 ty: mir::Type::String,
                 kind: mir::ExprKind::StringCopy(Box::new(mir::StringCopyOperation::Slice {
                     string: local_expr(input, mir::Type::String),
@@ -120,6 +121,7 @@ fn string_copy_roots_a_byte_prefix_even_when_the_array_dies_at_the_call() {
         vec![val_decl(
             result,
             mir::Expr {
+                debug_origin: Default::default(),
                 ty: mir::Type::String,
                 kind: mir::ExprKind::StringCopy(Box::new(
                     mir::StringCopyOperation::FromBytePrefix {

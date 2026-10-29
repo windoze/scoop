@@ -58,7 +58,7 @@ impl Lowerer {
                     binding,
                     selector: local.selector().clone(),
                     definition,
-                    name: format!("$default.local.{}", self.locals.len()),
+                    name: local.name().to_owned(),
                     ty,
                     mutable: local.mutable().into(),
                 });

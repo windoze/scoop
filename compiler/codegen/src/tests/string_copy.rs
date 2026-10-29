@@ -18,6 +18,7 @@ fn string_copy_reloads_its_only_input_after_allocation() {
     let byte = temps.alloc(Temp { ty: LirType::I8 });
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".into(),
         instructions: vec![
             Instruction::StringCopy {
@@ -46,12 +47,17 @@ fn string_copy_reloads_its_only_input_after_allocation() {
                 index: signed64(0),
                 value: Value::Temp(byte),
             },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return {
             value: Some(Value::Temp(copy)),
         },
     });
     module.functions[0] = Function {
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body("scoop_main"),
         safepoints: test_safepoints("scoop_main", &blocks, entry),
         gc_effect: GcEffect::Managed,
@@ -113,6 +119,7 @@ fn byte_buffer_copies_write_and_restore_the_managed_prefix() {
     let copy = temps.alloc(Temp { ty: MANAGED_PTR });
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".into(),
         instructions: vec![
             Instruction::ByteCopy {
@@ -156,12 +163,17 @@ fn byte_buffer_copies_write_and_restore_the_managed_prefix() {
                     &[0],
                 )]),
             },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return {
             value: Some(Value::Temp(copy)),
         },
     });
     module.functions[0] = Function {
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body("scoop_main"),
         safepoints: test_safepoints("scoop_main", &blocks, entry),
         gc_effect: GcEffect::Managed,

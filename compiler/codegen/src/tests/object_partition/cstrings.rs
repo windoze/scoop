@@ -30,13 +30,18 @@ fn message_module(odr: bool) -> (Module, ObjectDefinitionAtomId) {
     });
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".into(),
-        instructions: Vec::new(),
+        instructions: Vec::new().into(),
         terminator: Terminator::Return {
             value: Some(Value::Global(message)),
         },
     });
     module.functions = vec![Function {
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: body,
         gc_effect: GcEffect::NoGc,
         signature: plain_scoop_signature(Vec::new(), RAW_PTR),

@@ -80,11 +80,16 @@ fn initialization_function(
 fn empty_initialization_function(callable_body: CallableBodyIdentity) -> Function {
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_owned(),
-        instructions: Vec::new(),
+        instructions: Default::default(),
         terminator: Terminator::Return { value: None },
     });
     Function {
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body,
         gc_effect: crate::GcEffect::Managed,
         signature: ScoopAbiSignature::new(

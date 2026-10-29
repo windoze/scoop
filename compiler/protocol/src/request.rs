@@ -12,7 +12,7 @@ pub use output::ScoopcOutputRequestV1;
 use target::DecodedTargetSelectionRequestV1;
 pub use target::TargetSelectionRequestV1;
 
-use crate::OptimizationMode;
+use crate::{DebugInfoLevel, OptimizationMode};
 mod documentation;
 use documentation::validate_documentation;
 
@@ -120,6 +120,7 @@ pub struct ScoopcBuildRequestV1 {
     diagnostics: DiagnosticOutputPolicyV1,
     emit: StageDumpPolicyV1,
     optimization: OptimizationMode,
+    debug_info: DebugInfoLevel,
     purpose: crate::CompilationPurpose,
     native_inputs: Vec<HostPathCarrier>,
     generators: Vec<crate::GeneratorRegistrationV1>,
@@ -155,6 +156,7 @@ impl ScoopcBuildRequestV1 {
             diagnostics,
             emit,
             optimization: OptimizationMode::Debug,
+            debug_info: DebugInfoLevel::None,
             purpose: crate::CompilationPurpose::Production,
             native_inputs: Vec::new(),
             generators: Vec::new(),
@@ -164,6 +166,15 @@ impl ScoopcBuildRequestV1 {
     pub fn with_optimization(mut self, optimization: OptimizationMode) -> Self {
         self.optimization = optimization;
         self
+    }
+
+    pub fn with_debug_info(mut self, level: DebugInfoLevel) -> Self {
+        self.debug_info = level;
+        self
+    }
+
+    pub const fn debug_info(&self) -> DebugInfoLevel {
+        self.debug_info
     }
 
     pub fn with_purpose(
@@ -254,7 +265,7 @@ impl ScoopcBuildRequestV1 {
 
 impl WireEncode for ScoopcBuildRequestV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(12)?;
+        encoder.map(13)?;
         encoder.field(1)?;
         self.current.encode(encoder)?;
         encoder.field(2)?;
@@ -282,7 +293,8 @@ impl WireEncode for ScoopcBuildRequestV1 {
         for generator in &self.generators {
             generator.encode(encoder)?;
         }
-        Ok(())
+        encoder.field(13)?;
+        self.debug_info.encode(encoder)
     }
 }
 

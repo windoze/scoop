@@ -12,6 +12,25 @@ from fixture_runner.model import AssertionFailure
 
 
 class AssertionTests(unittest.TestCase):
+    def test_regex_matches_the_complete_stream_without_implicit_wildcards(self):
+        step = {
+            "name": "trace",
+            "exit": 1,
+            "stdout": "",
+            "stderr": {"regex": r"trap\n  at 0x[0-9a-f]+\n"},
+        }
+        result = {
+            "returncode": 1,
+            "stdout": b"",
+            "stderr": b"trap\n  at 0x12af\n",
+            "raw_stderr": b"",
+        }
+        process_expectations(step, result, {}, Path.cwd())
+        for invalid in [b"trap\n", b"trap\n  at 0x12af\nextra\n", b"prefix\ntrap\n  at 0x12af\n"]:
+            result["stderr"] = invalid
+            with self.assertRaises(AssertionFailure):
+                process_expectations(step, result, {}, Path.cwd())
+
     def test_stream_snapshots_update_only_the_explicit_golden(self):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)

@@ -4,6 +4,16 @@ impl<'a> CfgLowerer<'a> {
     /// Normalize an expression into a call-free MIR expression, emitting
     /// calls in source evaluation order as explicit effect statements.
     pub(super) fn lower_expr(&mut self, expr: &smir::Expr, span: Span) -> Option<mir::Expr> {
+        let previous = std::mem::replace(&mut self.current_origin, expr.debug_origin.clone());
+        let value = self.lower_expr_inner(expr, span);
+        self.current_origin = previous;
+        value.map(|mut value| {
+            value.debug_origin = expr.debug_origin.clone();
+            value
+        })
+    }
+
+    fn lower_expr_inner(&mut self, expr: &smir::Expr, span: Span) -> Option<mir::Expr> {
         let kind = match &expr.kind {
             smir::ExprKind::StringByte(operation) => {
                 let mut values = self.lower_operands(operation.operands(), span)?.into_iter();

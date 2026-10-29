@@ -76,26 +76,40 @@ impl Lowerer {
             hir::ClassApplicationId::from_raw((self.class_applications.len() as u32).into());
         let representation = match checked.intrinsic {
             Some(spec) => {
+                let throwable = spec.kind == hir::IntrinsicTypeKind::Throwable;
+                let valid_constructor = if throwable {
+                    matches!(&decl.constructor, ast::ClassConstructorDecl::Declared(constructor)
+                        if constructor.parameters.is_empty() && matches!(constructor.visibility,
+                            ast::VisibilitySyntax::Explicit { visibility: ast::DeclaredVisibility::Public, .. }))
+                } else {
+                    decl.constructor.is_omitted()
+                };
+                if throwable && !valid_constructor {
+                    self.error(decl.span, "intrinsic type `core_throwable` requires a public zero-argument primary constructor".into());
+                    return None;
+                }
                 if !self.validate_intrinsic_type_source_shape(
                     spec,
                     &decl.name,
                     &decl.type_params,
                     decl.where_clause.as_ref(),
-                    decl.constructor.is_omitted(),
+                    valid_constructor,
                     decl.span,
                 ) {
                     return None;
                 }
-                let required_modifier = if spec.kind == hir::IntrinsicTypeKind::Any {
-                    hir::ClassModifier::Abstract
-                } else {
-                    hir::ClassModifier::Final
+                let required_modifier = match spec.kind {
+                    hir::IntrinsicTypeKind::Any => hir::ClassModifier::Abstract,
+                    hir::IntrinsicTypeKind::Throwable => hir::ClassModifier::Open,
+                    _ => hir::ClassModifier::Final,
                 };
                 if modifier != required_modifier {
                     self.error(
                         decl.span,
                         if spec.kind == hir::IntrinsicTypeKind::Any {
                             "intrinsic type `core_any` must be abstract".to_string()
+                        } else if throwable {
+                            "intrinsic type `core_throwable` must be open".to_string()
                         } else {
                             "an intrinsic class declaration must be final".to_string()
                         },

@@ -1,5 +1,66 @@
 use super::*;
 
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+#[test]
+fn generated_c_unwind_bytes_have_boundaries_owned_by_the_bridge() {
+    use object::{Object, ObjectSection, ObjectSymbol};
+    let target = scoop_toolchain::ResolvedTargetProfile::resolve("aarch64-apple-darwin").unwrap();
+    let input = scoop_lir::ConeLirOutput::try_new(bridge_module(1), Vec::new()).unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    let invocation = target.c_bridge_toolchain();
+    let emitted = emit_c_bridge_object_set(
+        &input,
+        directory.path(),
+        invocation.profile(),
+        |source, object| {
+            invocation
+                .compile_object(source, object)
+                .map_err(|error| CodegenError(error.to_string()))
+        },
+    )
+    .unwrap();
+    let surface = scoop_lir::ObjectSymbolSurfaceV1::from_foundation(input.foundation()).unwrap();
+    for member in emitted.members() {
+        let bytes = std::fs::read(member.object_path()).unwrap();
+        let file = object::File::parse(bytes.as_slice()).unwrap();
+        let plan = surface
+            .plans()
+            .iter()
+            .find(|plan| {
+                plan.owner().kind()
+                    == scoop_lir::StrongDefinitionEntityKind::GeneratedBridgeAtom(
+                        member.plan().primary_atom(),
+                    )
+            })
+            .unwrap();
+        for (section, role) in [
+            (
+                "__compact_unwind",
+                scoop_lir::DefinitionAtomRole::CompactUnwind,
+            ),
+            ("__eh_frame", scoop_lir::DefinitionAtomRole::EhFrame),
+        ] {
+            let unwind = file.section_by_name(section).unwrap();
+            assert!(unwind.relocations().next().is_some());
+            let boundary = plan
+                .atom_boundaries()
+                .iter()
+                .find(|boundary| boundary.atom_role() == role)
+                .unwrap();
+            let symbol = |request: scoop_lir::PersistentSymbolRequest| {
+                file.symbol_by_name(&format!("_{}", request.symbol()))
+                    .unwrap()
+            };
+            let start = symbol(boundary.start());
+            let end = symbol(boundary.end());
+            assert_eq!(start.section_index(), Some(unwind.index()));
+            assert_eq!(end.section_index(), Some(unwind.index()));
+            assert_eq!(start.address(), unwind.address());
+            assert_eq!(end.address(), unwind.address() + unwind.size());
+        }
+    }
+}
+
 #[test]
 fn empty_bridge_plan_produces_an_empty_owned_object_set_without_compiling() {
     let module = values_module();

@@ -28,6 +28,7 @@ fn switched_context_module() -> Module {
     )]);
     let mut blocks = Arena::default();
     let active = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "active".into(),
         instructions: vec![
             Instruction::TaskContextLoad { out: previous },
@@ -39,21 +40,24 @@ fn switched_context_module() -> Module {
             Instruction::TaskContextStore {
                 value: Value::Temp(previous),
             },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return {
             value: Some(Value::Temp(current)),
         },
     });
     let skip = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "skip".into(),
-        instructions: vec![],
+        instructions: vec![].into(),
         terminator: Terminator::Return {
             value: Some(Value::Param(0)),
         },
     });
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".into(),
-        instructions: vec![],
+        instructions: vec![].into(),
         terminator: Terminator::CondBr {
             cond: Value::Param(1),
             then_block: active,
@@ -61,6 +65,10 @@ fn switched_context_module() -> Module {
         },
     });
     module.functions = vec![Function {
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body("switch_context"),
         safepoints: test_safepoints("switch_context", &blocks, entry),
         gc_effect: GcEffect::Managed,

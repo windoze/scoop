@@ -9,6 +9,7 @@ fn an_overwritten_source_does_not_change_its_old_snapshot() {
     function.body.blocks[function.body.entry].statements.insert(
         1,
         mir::Statement {
+            debug_origin: Default::default(),
             kind: mir::StatementKind::Assign {
                 local: value,
                 value: mir::Expr::local(replacement, function.params[1].ty.clone()),
@@ -32,6 +33,7 @@ fn addressed_storage_is_not_used_as_a_stable_view_source() {
     function.body.blocks[function.body.entry].statements.insert(
         1,
         mir::Statement {
+            debug_origin: Default::default(),
             kind: mir::StatementKind::Expr(mir::Expr::new(
                 mir::Type::Ptr(Box::new(ty.clone())),
                 mir::ExprKind::AddressOf {
@@ -55,6 +57,7 @@ fn views_do_not_cross_ordinary_loop_or_exception_entries() {
         let second = body.blocks[entry].statements.pop().unwrap();
         assert!(matches!(second.kind, mir::StatementKind::Call(_)));
         let next = body.blocks.alloc(mir::BasicBlock {
+            terminator_origin: Default::default(),
             name: edge.to_owned(),
             statements: vec![second],
             terminator: if edge == "loop" {

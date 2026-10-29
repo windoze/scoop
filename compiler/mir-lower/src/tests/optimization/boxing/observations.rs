@@ -72,6 +72,7 @@ fn allocation_reports_elision_escape_mixed_origin_and_exception_flow() {
             }
             _ => {
                 let landing = body.blocks.alloc(mir::BasicBlock {
+                    terminator_origin: Default::default(),
                     name: "landing".into(),
                     statements: Vec::new(),
                     terminator: mir::Terminator::Unreachable,

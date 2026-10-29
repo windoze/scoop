@@ -64,14 +64,19 @@ def main(argv=None):
         "--address",
         type=lambda value: int(value, 0),
         action="append",
-        help="Linked address to resolve with --link-map; may be repeated",
+        help="PC to resolve with --binary; may be repeated",
     )
     parser.add_argument("--output", type=Path, help="Annotated text; default stdout")
     parser.add_argument(
         "--binary", type=Path, help="Sampled executable; resolve real symbol aliases"
     )
     parser.add_argument("--llvm-tools", type=Path, help="Directory of paired LLVM utilities")
-    parser.add_argument("--link-map", type=Path, help="Address map from the same final link")
+    parser.add_argument(
+        "--load-bias",
+        type=lambda value: int(value, 0),
+        default=0,
+        help="Actual image load bias for --address; defaults to linked addresses",
+    )
     args = parser.parse_args(argv)
     try:
         inputs = {path.resolve() for path in args.symbols}
@@ -79,41 +84,32 @@ def main(argv=None):
             inputs.add(args.input.resolve())
         if args.binary:
             inputs.add(args.binary.resolve())
-        if args.link_map:
-            inputs.add(args.link_map.resolve())
         if args.output and args.output.resolve() in inputs:
-            raise ValueError("output must not overwrite the report, map or sampled binary")
+            raise ValueError("output must not overwrite the report, symbols or sampled binary")
         names = labels(args.symbols)
-        addresses = None
-        if args.link_map:
-            import link_map
-
-            addresses = link_map.load(args.link_map)
-        if args.binary and not args.link_map:
+        if args.binary and not args.address:
             import binary_symbols
 
             names = binary_symbols.load(names, args.binary, args.llvm_tools)
         if args.address:
-            if addresses is None:
-                raise ValueError("--address requires --link-map")
-            lines = []
-            for address in args.address:
-                entry = addresses.resolve(address)
-                label = "<unresolved>"
-                if entry:
-                    symbol, offset = entry
-                    label = f"{names.get(symbol, symbol)} {{{symbol}}}+0x{offset:x}"
-                lines.append(f"0x{address:x} = {label}\n")
-            output = "".join(lines)
+            if args.binary is None:
+                raise ValueError("--address requires --binary")
+            import dwarf_symbols
+
+            frames = dwarf_symbols.resolve(
+                args.binary, args.address, names, args.llvm_tools, args.load_bias
+            )
+            output = "".join(
+                f"0x{address:x} = {frames.get(address, '<unresolved>')}\n"
+                for address in args.address
+            )
         else:
             raw = args.input.read_text(encoding="utf-8")
             output = annotate(raw, names)
             if args.binary and raw.startswith("Analysis of sampling "):
                 import sample_symbols
 
-                output = sample_symbols.annotate(
-                    output, names, args.binary, args.llvm_tools, addresses
-                )
+                output = sample_symbols.annotate(output, names, args.binary, args.llvm_tools)
         if args.output:
             args.output.write_text(output, encoding="utf-8")
         else:

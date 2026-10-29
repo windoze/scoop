@@ -129,6 +129,7 @@ fn template_with_parameter(fixture: &Fixture) -> ExportDefaultTemplateV1 {
     let local = fixture.local();
     let locals = CanonicalTemplateLocalTableV1::try_new(vec![
         TemplateLocalRecordV1::try_new(
+            "local".into(),
             local.clone(),
             value_type.clone(),
             CanonicalBooleanV1::False,

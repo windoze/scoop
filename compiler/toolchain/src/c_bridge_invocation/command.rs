@@ -32,8 +32,8 @@ impl ValidatedCBridgeToolchainInvocation {
                         "-fno-common",
                         "-fno-ident",
                         "-fno-stack-protector",
-                        "-fno-unwind-tables",
-                        "-fno-asynchronous-unwind-tables",
+                        "-funwind-tables",
+                        "-fasynchronous-unwind-tables",
                         "-fno-builtin",
                         "-fPIC",
                     ]);
@@ -100,11 +100,14 @@ fn canonical_object_compilation_command(
             CanonicalCBridgeFlagV1::NoStackProtector => {
                 command.arg("-fno-stack-protector");
             }
-            CanonicalCBridgeFlagV1::NoUnwindTables => {
-                command.arg("-fno-unwind-tables");
+            CanonicalCBridgeFlagV1::PreserveAllFramePointers => {
+                command.args(["-fno-omit-frame-pointer", "-mno-omit-leaf-frame-pointer"]);
             }
-            CanonicalCBridgeFlagV1::NoAsynchronousUnwindTables => {
-                command.arg("-fno-asynchronous-unwind-tables");
+            CanonicalCBridgeFlagV1::UnwindTables => {
+                command.arg("-funwind-tables");
+            }
+            CanonicalCBridgeFlagV1::AsynchronousUnwindTables => {
+                command.arg("-fasynchronous-unwind-tables");
             }
             CanonicalCBridgeFlagV1::NoBuiltinSubstitution => {
                 command.arg("-fno-builtin");

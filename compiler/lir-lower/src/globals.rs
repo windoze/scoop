@@ -20,6 +20,7 @@ pub(super) struct GlobalLoweringInputs<'a> {
 }
 
 pub(super) struct LoweredGlobals {
+    pub(super) debug: std::collections::BTreeMap<lir::GlobalId, lir::DebugGlobal>,
     pub(super) storage: HashMap<mir::GlobalId, StorageGlobal>,
     pub(super) native: Arena<lir::NativeGlobal>,
     pub(super) bridges: lir::NativeGlobalBridges,
@@ -40,6 +41,7 @@ pub(super) fn lower_globals(
         native_externals,
     } = inputs;
     let mut map = HashMap::new();
+    let mut debug = std::collections::BTreeMap::new();
     let mut native = Arena::new();
     let mut bridges = lir::NativeGlobalBridges::default();
     for (id, global) in module.globals.iter() {
@@ -152,9 +154,22 @@ pub(super) fn lower_globals(
                 StorageGlobal::Native(lir_id)
             }
         };
+        if let StorageGlobal::Local(id) = storage
+            && let mir::DebugOrigin::Source(location) = &global.debug_origin
+        {
+            debug.insert(
+                id,
+                lir::DebugGlobal {
+                    name: global.name.as_str().into(),
+                    location: location.clone(),
+                    ty: exact_type_record(module, &global.ty).id(),
+                },
+            );
+        }
         map.insert(id, storage);
     }
     Ok(LoweredGlobals {
+        debug,
         storage: map,
         native,
         bridges,

@@ -45,7 +45,8 @@ fn constructed_projection() -> (Module, usize, scoop_lir::LocalId) {
             local: second,
             value: Value::Local(first),
         },
-    ];
+    ]
+    .into();
     function.blocks[function.entry].terminator = Terminator::Br(matched);
     let Instruction::VariantPayloadProject { operand, .. } =
         &mut function.blocks[matched].instructions[0]

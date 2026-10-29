@@ -65,7 +65,7 @@ checks = [{actual = "${run.result.observations.child_invocations}", equals = []}
 
 [[steps]]
 name = "link"
-argv = ["${scoop}", "link", "--keep-symbols", "--emit-symbol-map", {"each" = "${link_args}"}, "--root-slib", "${build.result.root.path}", {"each" = "${build.result.dependencies}", "field" = "path", "prefix" = "--dependency-slib"}, "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "-o", "${work}/relinked", "--dump-plan", "--message-format", "json", "--cache-dir", "${cache}"]
+argv = ["${scoop}", "link", "--keep-symbols", "--emit-debug-file", {"each" = "${link_args}"}, "--root-slib", "${build.result.root.path}", {"each" = "${build.result.dependencies}", "field" = "path", "prefix" = "--dependency-slib"}, "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "-o", "${work}/hello", "--dump-plan", "--message-format", "json", "--cache-dir", "${cache}"]
 exit = 0
 stdout = ""
 stderr = ""

@@ -17,6 +17,7 @@ fn exit_reads_the_current_iteration_snapshot_from_either_body() {
     };
     let snapshot = mir::Expr::local(saved, mir::Type::Integer(mir::IntegerKind::SIGNED_64));
     let exit = function.body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "found.snapshot".into(),
         statements: Vec::new(),
         terminator: mir::Terminator::Return {
@@ -25,6 +26,7 @@ fn exit_reads_the_current_iteration_snapshot_from_either_body() {
         unwind: None,
     });
     let latch = function.body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "search.update".into(),
         statements: source.statements[1..].to_vec(),
         terminator: mir::Terminator::Goto(header),

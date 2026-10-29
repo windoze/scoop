@@ -10,6 +10,15 @@ impl RawInstance {
         identities: &mut ValidatedIdentityGraph,
     ) -> Result<InstanceRepresentationV1, LinkDataError> {
         Ok(InstanceRepresentationV1(match self {
+            Self::Throwable => InstanceRepresentation::Throwable(Box::new(ClassStorageLayoutV1 {
+                exact: identity.exact(),
+                layout: identity.layout(),
+                target: identity.target(),
+                base_prefix: ClassBasePrefixV1::NoBase,
+                shape: shape.clone(),
+                declared_fields: Vec::new(),
+                complete_fields: Vec::new(),
+            })),
             Self::Atomic(kind) => InstanceRepresentation::Atomic(kind),
             Self::InlineBytes => InstanceRepresentation::InlineBytes,
             Self::AbstractReference => InstanceRepresentation::AbstractReference,

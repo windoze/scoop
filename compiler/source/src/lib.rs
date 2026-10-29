@@ -1,6 +1,11 @@
 //! Shared source text, byte ranges and diagnostics, independent of syntax and HIR.
 
+mod debug;
 mod diagnostic;
+pub use debug::{
+    DebugDeclaration, DebugFile, DebugInlineSite, DebugLocation, DebugOrigin, DebugRecords,
+    DebugScope, DebugVariable,
+};
 mod edit;
 mod line_index;
 mod position;

@@ -92,6 +92,7 @@ impl Fixture {
         let function = module.functions.iter_mut().next().unwrap().1;
         let statements = &mut function.body.blocks[function.body.entry].statements;
         statements.push(Statement {
+            debug_origin: Default::default(),
             kind: StatementKind::Call(CallEffect::Unit(Call {
                 target: CallTarget::Direct(Callee::External(protocol)),
                 args: Vec::new(),

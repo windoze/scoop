@@ -17,12 +17,15 @@
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @fn17 direct
+      call @fn21 direct
+        Type ArithmeticException
+        Local $new.1
+      call $prepared.throwable: ArithmeticException = @scoop_rt_prepare_throwable direct
         Type ArithmeticException
         Local $new.1
       throw
         Type ArithmeticException
-        Local $new.1
+        Local $prepared.throwable
     bb2 if.merge.2
       branch bb3 bb4
         Type Boolean

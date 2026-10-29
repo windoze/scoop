@@ -12,7 +12,7 @@ const OPTIONS: &[&str] = &[
     "-pthread",
     "-Wl,--eh-frame-hdr",
     "-Wl,--enable-new-dtags",
-    "-Wl,--build-id=none",
+    "-Wl,--build-id=sha1",
     "-Wl,-z,relro,-z,now,-z,noexecstack,-z,text",
     "-Wl,--no-undefined",
 ];

@@ -87,6 +87,10 @@ pub const INTRINSIC_TYPE_REGISTRY: &[IntrinsicTypeSpec] = &[
         kind: IntrinsicTypeKind::Boolean,
     },
     IntrinsicTypeSpec {
+        name: "core_throwable",
+        kind: IntrinsicTypeKind::Throwable,
+    },
+    IntrinsicTypeSpec {
         name: "core_string",
         kind: IntrinsicTypeKind::String,
     },
@@ -255,6 +259,13 @@ pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
         kind: IntrinsicFunctionKind::GcReleaseHandleRaw,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "throwable_print_stack_trace",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicFunctionKind::ThrowablePrintStackTrace,
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NONE,
     },
     IntrinsicSpec {
         name: "rt_gc_collect",

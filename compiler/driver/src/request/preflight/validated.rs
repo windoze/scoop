@@ -88,6 +88,10 @@ impl<'input> ValidatedSingleConeBuildRequest<'input> {
         self.request.optimization
     }
 
+    pub const fn debug_info(&self) -> scoop_lir::DebugInfoLevel {
+        self.request.debug_info
+    }
+
     pub const fn purpose(&self) -> CompilationPurpose {
         self.request.purpose
     }

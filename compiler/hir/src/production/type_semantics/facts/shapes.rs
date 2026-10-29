@@ -71,7 +71,8 @@ impl FactProjector<'_> {
                             | concrete::IntrinsicTypeRepresentation::FunPtr { .. } => {
                                 FactShape::Pointer
                             }
-                            concrete::IntrinsicTypeRepresentation::String
+                            concrete::IntrinsicTypeRepresentation::Throwable
+                            | concrete::IntrinsicTypeRepresentation::String
                             | concrete::IntrinsicTypeRepresentation::Atomic(_)
                             | concrete::IntrinsicTypeRepresentation::Any
                             | concrete::IntrinsicTypeRepresentation::Nothing

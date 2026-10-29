@@ -69,7 +69,7 @@ impl ArtifactLinkRequest {
             &profile,
             crate::ProgramLinkOptions {
                 keep_symbols: self.final_link.keep_symbols,
-                emit_symbol_map: self.final_link.emit_symbol_map,
+                emit_debug_file: self.final_link.emit_debug_file,
             },
             &self.library_paths,
             &self.output,

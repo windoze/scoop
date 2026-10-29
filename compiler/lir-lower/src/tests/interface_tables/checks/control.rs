@@ -30,6 +30,7 @@ fn a_merge_reuses_only_a_guard_shared_by_every_reachable_predecessor() {
         let body = &mut module.functions[scope].body;
         let calls = std::mem::take(&mut body.blocks[success].statements);
         let merge = body.blocks.alloc(mir::BasicBlock {
+            terminator_origin: Default::default(),
             name: "merge".into(),
             statements: calls,
             terminator: body.blocks[success].terminator.clone(),
@@ -38,6 +39,7 @@ fn a_merge_reuses_only_a_guard_shared_by_every_reachable_predecessor() {
         body.blocks[success].terminator = mir::Terminator::Goto(merge);
         if checked_paths {
             let other = body.blocks.alloc(mir::BasicBlock {
+                terminator_origin: Default::default(),
                 name: "other_checked".into(),
                 statements: vec![],
                 terminator: mir::Terminator::Goto(merge),
@@ -70,6 +72,7 @@ fn invoke_normal_continuations_keep_guarded_metadata() {
     let (mut module, scope, success) = guarded(false);
     let body = &mut module.functions[scope].body;
     let cleanup = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "cleanup".into(),
         statements: vec![stmt(mir::StatementKind::Eh(mir::EhStatement::LandingPad {
             cleanup: true,

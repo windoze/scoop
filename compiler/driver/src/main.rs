@@ -49,6 +49,9 @@ struct BuildArgs {
     /// Compiler optimization profile.
     #[arg(long, value_enum, default_value_t = Profile::Debug)]
     profile: Profile,
+    /// Native source debug information: none, line-tables or full.
+    #[arg(long)]
+    debug_info: Option<scoop_lir::DebugInfoLevel>,
     /// Core sysroot; defaults to SCOOP_SYSROOT and the development layout.
     #[arg(long)]
     sysroot: Option<PathBuf>,
@@ -112,6 +115,7 @@ fn main() -> ExitCode {
                 native_sysroot,
                 generators,
                 profile,
+                debug_info,
             } = *args;
             build(
                 input,
@@ -121,6 +125,10 @@ fn main() -> ExitCode {
                 emit,
                 scoopc::DirectBuildOptions {
                     optimization: profile.optimization(),
+                    debug_info: debug_info.unwrap_or(match profile {
+                        Profile::Debug => scoop_lir::DebugInfoLevel::Full,
+                        Profile::Release => scoop_lir::DebugInfoLevel::None,
+                    }),
                     target,
                     sysroot,
                     generators,

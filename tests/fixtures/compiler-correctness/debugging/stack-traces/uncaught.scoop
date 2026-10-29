@@ -1,0 +1,11 @@
+fun originalThrow() {
+    throw IllegalStateException()
+}
+
+fun main() {
+    try {
+        originalThrow()
+    } finally {
+        gcCollect()
+    }
+}

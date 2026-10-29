@@ -89,7 +89,8 @@ impl Concretizer<'_> {
                     concrete::IntrinsicTypeRepresentation::Array { .. }
                     | concrete::IntrinsicTypeRepresentation::Atomic(_)
                     | concrete::IntrinsicTypeRepresentation::MutableArray { .. }
-                    | concrete::IntrinsicTypeRepresentation::Nothing,
+                    | concrete::IntrinsicTypeRepresentation::Nothing
+                    | concrete::IntrinsicTypeRepresentation::Throwable,
                 ..
             } => concrete::TypeKind::Class(id),
             concrete::ClassRepresentation::Intrinsic {

@@ -164,7 +164,7 @@ fn abstract_methods_lower_to_trap_stubs() {
 
     // The abstract method is emitted (the abstract class's vtable
     // slot references it) and traps like a pure-virtual stub.
-    let base_def = &module.classes[class_index(0)];
+    let base_def = class_named(&module, "Base").1;
     assert_eq!(slot_fn(&module, &base_def.vtable[0]), "Base.id");
     let stub = module
         .functions
@@ -205,7 +205,7 @@ fn interface_implementations_resolve_qualified_method_names() {
     let main = empty_main(&mut h);
     let module = lower(&h.finish(main));
 
-    let doc_def = &module.classes[class_index(0)];
+    let doc_def = class_named(&module, "Doc").1;
     assert_eq!(doc_def.itables.len(), 1);
     assert_eq!(
         slot_fn(&module, &doc_def.itables[0].slots[0]),

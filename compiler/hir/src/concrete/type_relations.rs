@@ -121,6 +121,7 @@ impl<'a> ConcreteTypeRelations<'a> {
             | IntrinsicTypeRepresentation::Char
             | IntrinsicTypeRepresentation::Boolean
             | IntrinsicTypeRepresentation::String
+            | IntrinsicTypeRepresentation::Throwable
             | IntrinsicTypeRepresentation::Any
             | IntrinsicTypeRepresentation::Nothing => Ok(()),
         }

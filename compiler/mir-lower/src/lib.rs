@@ -142,6 +142,7 @@ mod lowering_support;
 mod members;
 mod nominals;
 mod optimization;
+mod throwable;
 pub use optimization::MirOptimizationOptions;
 mod pipeline;
 mod production;
@@ -185,7 +186,10 @@ pub fn lower(
     let hir::ConcreteCoreProtocols::Defined(_) = &output.module().core_protocols else {
         return Err(DefinedCoreMirLoweringError::ImportedProtocols);
     };
-    Ok(lower_with_dependencies(output, Arena::new(), HashMap::new(), Vec::new(), &[], false).0)
+    let mut module =
+        lower_with_dependencies(output, Arena::new(), HashMap::new(), Vec::new(), &[], false).0;
+    throwable::prepare(&mut module, output.module());
+    Ok(module)
 }
 
 mod imported_bodies;
@@ -212,6 +216,7 @@ fn lower_with_dependencies(
     };
     Lowerer {
         output,
+        debug_records: mir::DebugRecords::default(),
         coroutine_elision,
         core_protocols: module.core_protocols.clone(),
         functions: Arena::new(),
@@ -306,6 +311,7 @@ fn defined_protocols(protocols: &hir::ConcreteCoreProtocols) -> &hir::DefinedCon
 
 struct Lowerer {
     output: LoweringOutput,
+    debug_records: mir::DebugRecords,
     /// Complete typed protocol declarations retained from the HIR input.
     core_protocols: hir::ConcreteCoreProtocols,
     functions: Arena<mir::Function>,

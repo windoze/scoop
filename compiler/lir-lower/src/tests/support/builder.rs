@@ -301,6 +301,7 @@ impl Builder {
         return_ty: mir::Type,
     ) -> mir::FunctionId {
         self.functions.alloc(mir::Function {
+            debug_origin: Default::default(),
             gc_effect: mir::GcEffect::Managed,
             name: name.to_string(),
             params,
@@ -335,12 +336,14 @@ impl Builder {
             mir::Terminator::Unreachable
         };
         let entry = blocks.alloc(mir::BasicBlock {
+            terminator_origin: Default::default(),
             name: "entry".to_string(),
             statements,
             terminator,
             unwind: None,
         });
         let id = self.functions.alloc(mir::Function {
+            debug_origin: Default::default(),
             gc_effect: mir::GcEffect::Managed,
             name: name.to_string(),
             params,
@@ -364,6 +367,7 @@ impl Builder {
         body: mir::Body,
     ) -> mir::FunctionId {
         let id = self.functions.alloc(mir::Function {
+            debug_origin: Default::default(),
             gc_effect: mir::GcEffect::Managed,
             name: name.to_string(),
             params,

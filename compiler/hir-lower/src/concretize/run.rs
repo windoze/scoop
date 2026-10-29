@@ -28,6 +28,7 @@ impl Concretizer<'_> {
             unit,
             boolean,
             string,
+            throwable_trace_bytes,
             native_callback_signatures,
             core_protocols,
         } = prepared;
@@ -122,6 +123,7 @@ impl Concretizer<'_> {
 
         let module = concrete::Module {
             cone: self.source.cone,
+            debug_sources: concrete::DebugSources::new(self.source),
             types: self.types,
             exact_type_identities,
             local_value_identities,
@@ -164,6 +166,7 @@ impl Concretizer<'_> {
             unit,
             boolean,
             string,
+            throwable_trace_bytes,
             core_protocols,
         };
         Ok((module, extra))

@@ -22,13 +22,15 @@ fn fixture(element: LirType, size: u64, scan: RefScan) -> Module {
     function.temps = Arena::default();
     function.blocks = Arena::default();
     function.entry = function.blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".into(),
         instructions: vec![Instruction::ArraySet {
             array: Value::Param(0),
             index: Value::Param(1),
             value: Value::Param(2),
             array_type,
-        }],
+        }]
+        .into(),
         terminator: Terminator::Return { value: None },
     });
     refresh_module_safepoints(&mut module);
@@ -153,7 +155,8 @@ fn unchanged_and_null_references_remove_marks_but_keep_scalar_updates() {
                 value: Value::Temp(new),
                 array_type,
             },
-        ];
+        ]
+        .into();
         let ir = body(&module, OptimizationMode::Release, true);
         assert!(!ir.contains("load atomic ptr"), "{ir}");
         assert!(!ir.contains("store atomic i8 1"), "{ir}");

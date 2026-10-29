@@ -116,6 +116,7 @@ impl BodyLowerer<'_> {
         } else {
             let ty = mir::Type::Ptr(Box::new(signature_def.return_type.clone()));
             let local = locals.alloc(mir::Local {
+                debug_variable: Default::default(),
                 name: "$result".to_string(),
                 ty: ty.clone(),
                 mutable: false,
@@ -133,6 +134,7 @@ impl BodyLowerer<'_> {
             let name = format!("$arg{index}");
             let pointer_type = mir::Type::Ptr(Box::new(parameter_type.clone()));
             let local = locals.alloc(mir::Local {
+                debug_variable: Default::default(),
                 name: name.clone(),
                 ty: pointer_type.clone(),
                 mutable: false,
@@ -159,11 +161,13 @@ impl BodyLowerer<'_> {
         let mut statements = Vec::new();
         if let Some(result_storage) = result_storage {
             let result = locals.alloc(mir::Local {
+                debug_variable: Default::default(),
                 name: "$value".to_string(),
                 ty: signature_def.return_type.clone(),
                 mutable: false,
             });
             statements.push(mir::Statement {
+                debug_origin: Default::default(),
                 kind: mir::StatementKind::Call(mir::CallEffect::Value {
                     destination: result,
                     call,
@@ -171,6 +175,7 @@ impl BodyLowerer<'_> {
                 span,
             });
             statements.push(mir::Statement {
+                debug_origin: Default::default(),
                 kind: mir::StatementKind::Expr(mir::Expr::new(
                     mir::Type::Unit,
                     mir::ExprKind::PtrStore {
@@ -190,6 +195,7 @@ impl BodyLowerer<'_> {
             });
         } else {
             statements.push(mir::Statement {
+                debug_origin: Default::default(),
                 kind: mir::StatementKind::Call(mir::CallEffect::Unit(call)),
                 span,
             });
@@ -197,6 +203,7 @@ impl BodyLowerer<'_> {
 
         let mut blocks = Arena::new();
         let entry = blocks.alloc(mir::BasicBlock {
+            terminator_origin: Default::default(),
             name: "entry".to_string(),
             statements,
             terminator: mir::Terminator::Return {
@@ -205,6 +212,7 @@ impl BodyLowerer<'_> {
             unwind: None,
         });
         let bridge_function = self.functions.alloc(mir::Function {
+            debug_origin: Default::default(),
             gc_effect: mir::GcEffect::NoGc,
             name: format!("callback bridge for {source_name}"),
             params,

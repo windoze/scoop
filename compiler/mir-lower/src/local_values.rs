@@ -212,6 +212,20 @@ impl LocalValueRegistry {
     }
 }
 
+pub(super) fn callable_owner(
+    module: &mir::Module,
+    function: mir::FunctionId,
+) -> Option<hir::CallableMaterialization> {
+    if let Some(source) = module.meta.source_callable_materializations.get(function) {
+        return Some(source.materialization());
+    }
+    let generated = module.meta.generated_callables.get(function)?;
+    Some(hir::CallableMaterialization::new(
+        hir::CallableTemplateOwner::Generated(generated.identity_record().id()),
+        hir::CallableMaterializationContext::NoSubstitution,
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use scoop_identity::{

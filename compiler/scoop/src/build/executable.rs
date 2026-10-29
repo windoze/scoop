@@ -17,6 +17,7 @@ pub(super) struct Request<'a> {
     pub options: &'a scoop_toolchain::FinalLinkOptions,
     pub libraries: &'a [PathBuf],
     pub explicit_runtime: bool,
+    pub output: &'a Path,
 }
 
 impl Request<'_> {
@@ -24,21 +25,21 @@ impl Request<'_> {
         self.options.keep_symbols || self.profile == crate::BuildProfile::Debug
     }
 
-    fn emit_symbol_map(&self) -> bool {
-        self.options.emit_symbol_map || self.profile == crate::BuildProfile::Debug
+    fn emit_debug_file(&self) -> bool {
+        self.options.emit_debug_file
     }
 }
 
 pub(super) struct Executable {
     pub path: PathBuf,
-    pub symbol_map: Option<PathBuf>,
+    pub debug_file: Option<scoop_linker::DebugFile>,
     pub fingerprint: ResolvedLinkPlanFingerprint,
     pub result_key: [u8; 32],
 }
 
 pub(super) fn get(request: Request<'_>) -> BuildResult<Executable> {
     let key = key::of(&request)?;
-    let namespace = request.cache.join("executables-v3");
+    let namespace = request.cache.join("executables-v4");
     let entry = namespace.join(format!("{key}.json"));
     if let Some(executable) = record::load(&entry)? {
         return Ok(executable);
@@ -70,10 +71,17 @@ pub(super) fn get(request: Request<'_>) -> BuildResult<Executable> {
         &profile,
         scoop_linker::ProgramLinkOptions {
             keep_symbols: request.keep_symbols(),
-            emit_symbol_map: request.emit_symbol_map(),
+            emit_debug_file: request.emit_debug_file(),
         },
         request.libraries,
-        &directory.path().join("program"),
+        &directory.path().join(if request.emit_debug_file() {
+            request
+                .output
+                .file_name()
+                .ok_or_else(|| failure("executable has no basename"))?
+        } else {
+            std::ffi::OsStr::new("program")
+        }),
         request.cache,
     )
     .map_err(failure)?;
@@ -91,7 +99,7 @@ pub(super) fn get(request: Request<'_>) -> BuildResult<Executable> {
             .as_array();
     let executable = Executable {
         path: linked.path,
-        symbol_map: linked.symbol_map,
+        debug_file: linked.debug_file,
         fingerprint: linked.fingerprint,
         result_key,
     };

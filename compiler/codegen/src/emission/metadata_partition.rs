@@ -66,6 +66,10 @@ impl<'ctx> MetadataModule<'ctx> {
             unsafe {
                 LLVMSetInitializer(global.as_value_ref(), std::ptr::null_mut());
                 LLVMSetComdat(global.as_value_ref(), std::ptr::null_mut());
+                llvm_sys::core::LLVMGlobalEraseMetadata(
+                    global.as_value_ref(),
+                    llvm.get_context().get_kind_id("dbg"),
+                );
             }
             global.set_name(declaration);
             global.set_linkage(Linkage::External);
@@ -111,6 +115,10 @@ impl<'ctx> MetadataModule<'ctx> {
 }
 
 fn global_dce(llvm: &Module<'_>, machine: &TargetMachine) -> Result<(), CodegenError> {
-    llvm.run_passes("globaldce", machine, PassBuilderOptions::create())
-        .map_err(|error| CodegenError(format!("cannot partition metadata: {error}")))
+    llvm.run_passes(
+        "globaldce,strip-dead-debug-info",
+        machine,
+        PassBuilderOptions::create(),
+    )
+    .map_err(|error| CodegenError(format!("cannot partition metadata: {error}")))
 }

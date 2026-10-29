@@ -924,6 +924,7 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
         suspended.terminator,
         mir::Terminator::Return {
             value: mir::Expr {
+                debug_origin: _,
                 ty: mir::Type::Unit,
                 kind: mir::ExprKind::UnitLiteral
             }

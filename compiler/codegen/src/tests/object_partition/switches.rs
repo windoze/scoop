@@ -25,8 +25,9 @@ fn numeric_switch(odr: bool, has_table: bool, with_constant: bool) -> Module {
     if !has_table {
         function.blocks = Arena::new();
         function.entry = function.blocks.alloc(BasicBlock {
+            terminator_origin: Default::default(),
             name: "constant".into(),
-            instructions: Vec::new(),
+            instructions: Vec::new().into(),
             terminator: Terminator::Return {
                 value: Some(signed64(7)),
             },

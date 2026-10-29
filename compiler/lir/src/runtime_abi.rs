@@ -30,6 +30,21 @@ pub const INITIALIZATION_CELL_READY: u64 = 2;
 /// Counters within the stable mutator whose prefix is the generated TLAB view.
 pub const ALLOCATION_COUNTERS_OFFSET: u64 = 128;
 
+/// The inherited intrinsic Throwable prefix (runtime spec 5.6).
+pub const THROWABLE_SNAPSHOT_OFFSET: u64 = 16;
+pub const THROWABLE_PREFIX_SIZE: u64 = 24;
+
+pub fn throwable_instance_shape(
+    target: LirTargetProfile,
+) -> Result<crate::TypeInstanceShapeV1, crate::TypeInstanceShapeError> {
+    crate::TypeInstanceShapeV1::fixed_object(
+        target,
+        THROWABLE_PREFIX_SIZE,
+        8,
+        crate::RefScan::References(vec![THROWABLE_SNAPSHOT_OFFSET]),
+    )
+}
+
 mod machine;
 pub use machine::{CompilerNativeContractV1, CompilerNativeValueV1};
 
@@ -73,7 +88,7 @@ impl WireEncode for RuntimeAbiContract {
         for field in 1..=3 {
             encoder.field(field)?;
             encoder.unsigned(match field {
-                1 => 27,
+                1 => 29,
                 3 => 2,
                 _ => INITIAL_SCHEMA,
             })?;
@@ -123,7 +138,7 @@ pub enum RuntimeAbiSymbolV1 {
 }
 
 impl RuntimeAbiSymbolV1 {
-    pub const ALL: [Self; 59] = [
+    pub const ALL: [Self; 62] = [
         Self::ContextSlot,
         Self::PollState,
         Self::WorldPhase,
@@ -140,6 +155,12 @@ impl RuntimeAbiSymbolV1 {
         Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::Safepoint)),
         Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::Alloc)),
         Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::GcCollect)),
+        Self::LirCall(RuntimeFunction::Managed(
+            ManagedRuntimeFunction::PrepareThrowable,
+        )),
+        Self::LirCall(RuntimeFunction::Managed(
+            ManagedRuntimeFunction::ThrowablePrintStackTrace,
+        )),
         Self::LirCall(RuntimeFunction::Managed(
             ManagedRuntimeFunction::StringConcat,
         )),
@@ -173,6 +194,7 @@ impl RuntimeAbiSymbolV1 {
             NoGcRuntimeFunction::StringCharacterAtByte,
         )),
         Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Trap)),
+        Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Fatal)),
         Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Throw)),
         Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Rethrow)),
         Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::UnboxZst)),
@@ -223,6 +245,12 @@ impl RuntimeAbiSymbolV1 {
             Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::GcCollect)) => {
                 "scoop_rt_gc_collect"
             }
+            Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::PrepareThrowable)) => {
+                "scoop_rt_prepare_throwable"
+            }
+            Self::LirCall(RuntimeFunction::Managed(
+                ManagedRuntimeFunction::ThrowablePrintStackTrace,
+            )) => "scoop_rt_throwable_print_stack_trace",
             Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::StringConcat)) => {
                 "scoop_rt_string_concat"
             }
@@ -274,6 +302,7 @@ impl RuntimeAbiSymbolV1 {
                 "scoop_rt_string_character_at_byte_leaf"
             }
             Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Trap)) => "scoop_rt_trap",
+            Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Fatal)) => "scoop_rt_fatal",
             Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Throw)) => "scoop_rt_throw",
             Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Rethrow)) => {
                 "scoop_rt_rethrow"
@@ -763,11 +792,11 @@ mod tests {
     fn runtime_abi_contract_versions_current_metadata_layout() {
         assert_eq!(
             hex(&encode(&RuntimeAbiContract).unwrap()),
-            "a301181b02010302"
+            "a301181d02010302"
         );
         assert_eq!(
             RuntimeAbiContract.fingerprint().unwrap().to_string(),
-            "71ae5a2106f9a083d40e4fe35749871551758a8a9b76b5c35d425899cfd50542"
+            "76aa7d2fea8acb5766c1cbcc8794b5121ae87ceebb9754acebf15eda8a28f147"
         );
     }
 

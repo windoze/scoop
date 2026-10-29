@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the LLVM 22.1.8 shared backend used by Scoop host distributions."""
+"""Build the LLVM/Clang 22.1.8 SDK and tools used by Scoop and LLDB."""
 
 import argparse
 import os
@@ -36,9 +36,13 @@ def configure(source, build, prefix, cc, cxx, host, release):
         "LLVM_LINK_LLVM_DYLIB": "ON",
         "BUILD_SHARED_LIBS": "OFF",
         "LLVM_DYLIB_COMPONENTS": "all",
-        "LLVM_ENABLE_PROJECTS": "",
+        "LLVM_ENABLE_PROJECTS": "clang",
+        "CLANG_LINK_CLANG_DYLIB": "ON",
         "LLVM_ENABLE_RUNTIMES": "",
-        "LLVM_DISTRIBUTION_COMPONENTS": "LLVM;llvm-config;llvm-headers;cmake-exports",
+        "LLVM_DISTRIBUTION_COMPONENTS": (
+            "LLVM;clang-cpp;clang-headers;clang-cmake-exports;clang-resource-headers;"
+            "llvm-config;llvm-headers;cmake-exports;dsymutil;llvm-objcopy;llvm-strip;llvm-symbolizer;llvm-nm;llvm-readobj"
+        ),
         "LLVM_INCLUDE_TESTS": "OFF",
         "LLVM_INCLUDE_DOCS": "OFF",
         "LLVM_INCLUDE_EXAMPLES": "OFF",
@@ -93,7 +97,7 @@ def main():
     build = (args.build_dir or ROOT / "tmp/llvm" / host).resolve()
     prefix = (args.prefix or build / "installed").resolve()
     inputs = {
-        "source": source_metadata(source, ("llvm", "cmake", "third-party")),
+        "source": source_metadata(source, ("llvm", "clang", "cmake", "third-party")),
         "tools": [
             metadata(path)
             for path in (cc, cxx, __file__, ROOT / "scripts/build_support.py", RELEASE_CONFIG)
@@ -101,12 +105,24 @@ def main():
         "host": host,
         "prefix": str(prefix),
     }
-    outputs = [prefix / "bin/llvm-config", prefix / "include/llvm-c/Core.h"]
+    outputs = [
+        prefix / "bin" / name
+        for name in (
+            "llvm-config",
+            "dsymutil",
+            "llvm-objcopy",
+            "llvm-strip",
+            "llvm-symbolizer",
+            "llvm-nm",
+            "llvm-readobj",
+        )
+    ]
+    outputs += [prefix / "include/llvm-c/Core.h", prefix / "lib/cmake/clang/ClangConfig.cmake"]
     outputs += list(
         (prefix / "lib").glob("libLLVM*.dylib" if host.endswith("darwin") else "libLLVM*.so*")
     )
     record = build / "inputs.json"
-    if len(outputs) > 2 and reusable(record, inputs, outputs):
+    if len(outputs) > 9 and reusable(record, inputs, outputs):
         print(f"Reusing LLVM {VERSION}: {prefix}")
         return
     release = tomllib.loads(RELEASE_CONFIG.read_text())

@@ -3,6 +3,7 @@
 import difflib
 import glob
 import json
+import re
 import signal
 
 from .dependency_digests import normalize_dependency_digests
@@ -56,6 +57,12 @@ def process_expectations(step, result, context, base, update=False):
                 base,
                 update,
             )
+        elif isinstance(criterion, dict) and set(criterion) == {"regex"}:
+            pattern = expand(criterion["regex"], context).encode()
+            if re.fullmatch(pattern, result[stream]) is None:
+                raise AssertionFailure(
+                    f"{step['name']} {stream} does not fully match {pattern!r}: {result[stream]!r}"
+                )
         else:
             equal(
                 result[stream],

@@ -39,12 +39,12 @@ impl Projection<'_> {
             {
                 let base = arena_get(&self.module.classes, *id)
                     .ok_or(ExactLayoutLoweringError::SourceBase(exact))?;
-                let mir::ClassRepresentation::Declared(mir::DeclaredClass {
-                    fields: base_fields,
-                    ..
-                }) = &base.representation
-                else {
-                    return Err(ExactLayoutLoweringError::SourceBase(exact));
+                let base_fields = match &base.representation {
+                    mir::ClassRepresentation::Declared(base) => base.fields.as_slice(),
+                    mir::ClassRepresentation::Intrinsic(
+                        mir::IntrinsicClassRepresentation::Throwable,
+                    ) => &[],
+                    _ => return Err(ExactLayoutLoweringError::SourceBase(exact)),
                 };
                 if fields.len() < base_fields.len() {
                     return Err(ExactLayoutLoweringError::SourceBase(exact));

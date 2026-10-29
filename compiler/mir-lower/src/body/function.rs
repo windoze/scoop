@@ -89,7 +89,17 @@ impl BodyLowerer<'_> {
         );
         for ((hir_id, local), identity) in locals.iter().zip(identities) {
             let ty = self.lower_type(local.ty);
+            let origin = match local.definition {
+                hir::LocalValueDefinitionSite::Source(origin) => self
+                    .module
+                    .debug_sources
+                    .expression(origin, self.debug_records),
+                hir::LocalValueDefinitionSite::Synthetic => mir::DebugOrigin::Generated,
+            };
             let mir_id = self.locals.alloc(mir::Local {
+                debug_variable: self
+                    .debug_records
+                    .variable(identity.id(), &local.name, origin),
                 name: local.name.clone(),
                 ty,
                 mutable: local.mutable,
@@ -110,6 +120,13 @@ impl BodyLowerer<'_> {
             .locals()
             .expect("source implementations and abstract slots have local environments");
         self.allocate_function_locals(function_id, locals);
+        for (index, param) in function.params.iter().enumerate() {
+            if let mir::DebugVariable::Source { parameter, .. } =
+                &mut self.locals[self.local_map[&param.local]].debug_variable
+            {
+                *parameter = std::num::NonZeroU32::new(index as u32 + 1);
+            }
+        }
         let params = function
             .params
             .iter()
@@ -128,6 +145,7 @@ impl BodyLowerer<'_> {
         let return_ty = self.lower_type(function.return_ty);
         let statements = match &function.kind {
             hir::FunctionKind::Abstract { .. } => vec![smir::Statement {
+                debug_origin: Default::default(),
                 kind: smir::StatementKind::Trap {
                     message: format!("call to abstract method `{}`", fn_name(function)),
                 },
@@ -210,6 +228,7 @@ impl BodyLowerer<'_> {
     ) -> mir::LocalId {
         self.hidden_count += 1;
         let local = self.locals.alloc(mir::Local {
+            debug_variable: Default::default(),
             name: format!("${prefix}.{}", self.hidden_count),
             ty,
             mutable,
@@ -227,10 +246,10 @@ impl BodyLowerer<'_> {
     /// Emit the queued prelude statements (the trap tests of `!!`)
     /// before the statement they belong to.
     pub(super) fn drain_prelude(&mut self, span: Span, out: &mut Vec<smir::Statement>) {
-        out.extend(
-            self.prelude
-                .drain(..)
-                .map(|kind| smir::Statement { kind, span }),
-        );
+        out.extend(self.prelude.drain(..).map(|kind| smir::Statement {
+            debug_origin: Default::default(),
+            kind,
+            span,
+        }));
     }
 }

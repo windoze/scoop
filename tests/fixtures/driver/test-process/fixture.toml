@@ -51,7 +51,7 @@ checks = [
     {actual = "${panic.test_result.counts.failed}", equals = 1},
     {actual = "${panic.test_result.counts.not_run}", equals = 1},
     {actual = "${panic.test_result.containers.0.cases.0.output.stdout.text}", equals = "before\nbody\n"},
-    {actual = "${panic.test_result.containers.0.cases.0.output.stderr.text}", equals = "scoop: trap: m43 test panic\n"},
+    {actual = "${panic.test_result.containers.0.cases.0.output.stderr.text}", contains = "scoop: trap: m43 test panic\n  at "},
 ]
 
 [[steps]]

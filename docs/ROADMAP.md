@@ -1,5 +1,7 @@
 # Scoop 实现路线图
 
+原生基础调试及程序栈诊断已实现（2026-10-29，见 [设计](debugging/DESIGN.md) 与 [实施记录](debugging/IMPLEMENTATION.md)）：按实现规范 2.22 贯通共享源码记录、静态变量和 moving GC 后的位置，生成 dSYM／ELF 分离调试文件，迁移 map 消费者，并集成 LLDB、lldb-dap、VS Code 与发行打包。2.21 的 Throwable 首次抛出栈、重抛保留、printStackTrace 及 trap 栈打印已完成三目标定向验收。GNU／musl 实际 DAP 会话通过；macOS 本机 launch 的环境限制及其他验证边界记在实施记录中。完整 Scoop 求值与协程逻辑栈留待后续，较大 `.slib` 优化见[体积调查](slib-storage/FOLLOW_UP.md)。
+
 旧 identity-only 产物 profile、平行来源 reader 和发布/Link 凭证策略退役；三个完整生产 profile 升为 `/3`，descriptor 只保留实际必需 section 清单，旧产物与缓存重建。此调整不改变 runtime C ABI、String 表示、初始化或 GC 语义；类型、对象范围和实际引用检查仍在对应消费边界完成。具体格式见实现规范 2.6 与 M23-2 设计 8.3。
 
 静态存储与初始化失败根按其实际值类型引用 layout/scan。当前 Cone 只发射自身拥有的布局与扫描定义；外来类型的静态根复用共有依赖查询取得的完整 value-layout 和 scan 记录，保留实际 provider、typed identity、定义与 relocation，不因本地持有该类型的值而重发射 foreign Strong。layout/scan 指纹节点引用已经解析的实际记录，不要求该类型在当前 Cone 定义。MIR 必须携带生成失败根所需的实际 Any 声明，LIR 不再缺省重建固定 core 身份。static-storage 语义记录新增 field 32 保存 layout provider，完整记录使用 fields 1～32；语义投影使用 fields 1～10 与 32。共有 strong-production 两种格式当前为 /13、/14；在静态根的 /11、/12 之后增加实际 callable 正文的 canonical LIR 摘要（实现规范 §2.5），旧产物和缓存重建。runtime C ABI、String 表示、初始化状态与失败缓存语义不变，不引入 ODR 或多 image 启动。

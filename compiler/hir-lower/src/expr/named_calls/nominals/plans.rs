@@ -207,10 +207,7 @@ impl Lowerer {
                     );
                     return Err(());
                 }
-                if matches!(
-                    self.classes[id].representation,
-                    hir::ClassRepresentation::Intrinsic(_)
-                ) {
+                if !self.classes[id].has_source_constructors() {
                     self.error(
                         call.span,
                         format!(

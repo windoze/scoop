@@ -152,11 +152,16 @@ fn pointer_nulls_preserve_raw_and_code_provenance_in_lir() {
 
     let mut blocks = Arena::new();
     let entry = blocks.alloc(lir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
-        instructions: Vec::new(),
+        instructions: Default::default(),
         terminator: lir::Terminator::Return { value: None },
     });
     let function = lir::Function {
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: test_callable_body("null_provenance"),
         gc_effect: lir::GcEffect::NoGc,
         signature: lir::ScoopAbiSignature::new(

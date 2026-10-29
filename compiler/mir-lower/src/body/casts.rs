@@ -153,6 +153,7 @@ impl BodyLowerer<'_> {
         self.prelude.push(smir::StatementKind::If {
             cond,
             then_body: vec![smir::Statement {
+                debug_origin: Default::default(),
                 kind: smir::StatementKind::Assign {
                     local: result,
                     value: some_value,
@@ -160,6 +161,7 @@ impl BodyLowerer<'_> {
                 span,
             }],
             else_body: Some(vec![smir::Statement {
+                debug_origin: Default::default(),
                 kind: smir::StatementKind::Assign {
                     local: result,
                     value: none_value,

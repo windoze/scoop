@@ -55,13 +55,13 @@ fn overridden_overload_replaces_the_base_slot_in_place() {
     let module = lower(&h.finish(main));
 
     // A: one slot per overload.
-    let a_def = &module.classes[class_index(0)];
+    let a_def = class_named(&module, "A").1;
     assert_eq!(a_def.vtable.len(), 2);
     assert_eq!(slot_fn(&module, &a_def.vtable[0]), "A.s");
     assert_eq!(slot_fn(&module, &a_def.vtable[1]), "A.s");
     // B: the `s(Int)` override replaces slot 0 in place; the
     // inherited `s(String)` keeps slot 1.
-    let b_def = &module.classes[class_index(1)];
+    let b_def = class_named(&module, "B").1;
     assert_eq!(b_def.vtable.len(), 2);
     assert_eq!(slot_fn(&module, &b_def.vtable[0]), "B.s");
     assert_eq!(slot_fn(&module, &b_def.vtable[1]), "A.s");
@@ -166,7 +166,7 @@ fn overloaded_interface_methods_get_one_itable_slot_each() {
     let main = empty_main(&mut h);
     let module = lower(&h.finish(main));
 
-    let c_def = &module.classes[class_index(0)];
+    let c_def = class_named(&module, "C").1;
     assert_eq!(c_def.itables.len(), 1);
     let record = &c_def.itables[0];
     assert_eq!(record.slots.len(), 2);

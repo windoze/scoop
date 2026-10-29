@@ -182,6 +182,9 @@ impl Lowerer {
                         hir::IntrinsicTypeRepresentation::Nothing => {
                             mir::IntrinsicClassRepresentation::Nothing
                         }
+                        hir::IntrinsicTypeRepresentation::Throwable => {
+                            mir::IntrinsicClassRepresentation::Throwable
+                        }
                         hir::IntrinsicTypeRepresentation::String => {
                             mir::IntrinsicClassRepresentation::String
                         }
@@ -287,6 +290,9 @@ impl Lowerer {
         let function = &module.functions[hir_id];
         let name = fn_name(function);
         let id = self.functions.alloc(mir::Function {
+            debug_origin: module
+                .debug_sources
+                .function(function.materialization, &mut self.debug_records),
             gc_effect: if matches!(function.kind, hir::FunctionKind::Extern(id)
                 if !matches!(module.extern_functions[id].abi,
                     hir::ExternAbi::C(scoop_identity::CAbiCallMode::GcLeaf)))

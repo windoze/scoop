@@ -249,6 +249,7 @@ fn local_table(
             .iter()
             .map(|(position, value_type, mutable)| {
                 TemplateLocalRecordV1::try_new(
+                    "local".into(),
                     parameter_selector(*position),
                     value_type.clone(),
                     *mutable,

@@ -70,7 +70,8 @@ pub(super) fn scalar(shuffled: bool) -> Module {
             lhs: Value::Temp(sum),
             rhs: Value::IntegerConst(LirIntegerConstant::Signed64(7)),
         },
-    ];
+    ]
+    .into();
     entry.terminator = Terminator::CondBr {
         cond: Value::Param(2),
         then_block: yes,
@@ -88,6 +89,10 @@ pub(super) fn function(name: &str, arguments: Vec<AbiArgument>, result: AbiRetur
     let mut blocks = Arena::new();
     let entry = blocks.alloc(block("entry"));
     Function {
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: crate::tests::callable_body(name),
         gc_effect: GcEffect::NoGc,
         signature: ScoopAbiSignature::new(arguments, result, CallingConvention::Cdecl),
@@ -102,8 +107,9 @@ pub(super) fn function(name: &str, arguments: Vec<AbiArgument>, result: AbiRetur
 
 pub(super) fn block(name: &str) -> BasicBlock {
     BasicBlock {
+        terminator_origin: Default::default(),
         name: name.to_string(),
-        instructions: Vec::new(),
+        instructions: Default::default(),
         terminator: Terminator::Unreachable,
     }
 }

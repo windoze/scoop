@@ -236,7 +236,10 @@ impl Lowerer {
             .find(|constructor| self.class_constructors[*constructor].parameters.is_empty());
         let valid_throwable = declaration.modifier == hir::ClassModifier::Open
             && declaration.type_params.is_empty()
-            && declaration.is_declared()
+            && matches!(
+                declaration.representation,
+                hir::ClassRepresentation::Intrinsic(hir::IntrinsicTypeKind::Throwable)
+            )
             && zero_arg.is_some();
         if !valid_throwable {
             self.error(

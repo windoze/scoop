@@ -19,12 +19,15 @@
       assign $new.1
         Type ClassCastException
         ClassAlloc ClassCastException
-      call @fn21 direct
+      call @fn25 direct
+        Type ClassCastException
+        Local $new.1
+      call $prepared.throwable: ClassCastException = @scoop_rt_prepare_throwable direct
         Type ClassCastException
         Local $new.1
       throw
         Type ClassCastException
-        Local $new.1
+        Local $prepared.throwable
     bb2 if.merge.2
       val $ub.2: S
         Type S

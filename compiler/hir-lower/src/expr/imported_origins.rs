@@ -117,6 +117,7 @@ impl Lowerer {
         self.imported_source_files.push(hir::SourceFileMetadata {
             provider,
             identity: record.identity().clone(),
+            debug_path: name.as_str().into(),
             name,
             source: String::new(),
             canonical_record: Some(record.clone()),

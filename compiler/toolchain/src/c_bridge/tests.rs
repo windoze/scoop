@@ -87,8 +87,10 @@ fn validated_profile_builds_only_the_canonical_object_command() {
             "-fno-common",
             "-fno-ident",
             "-fno-stack-protector",
-            "-fno-unwind-tables",
-            "-fno-asynchronous-unwind-tables",
+            "-fno-omit-frame-pointer",
+            "-mno-omit-leaf-frame-pointer",
+            "-funwind-tables",
+            "-fasynchronous-unwind-tables",
             "-fno-builtin",
         ]
     );

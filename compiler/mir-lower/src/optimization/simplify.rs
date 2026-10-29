@@ -39,7 +39,9 @@ fn fold_blocks(
                         | mir::ExprKind::StringConst(_)
                 ) && let Some(value) = analysis.expression(expression, &state).constant
                 {
-                    *expression = value.expression();
+                    *expression = value
+                        .expression()
+                        .with_debug_origin(expression.debug_origin.clone());
                     changed = true;
                 } else if let mir::ExprKind::Local(local) = expression.kind
                     && let Some(alias) = analysis.expression(expression, &state).alias
@@ -56,7 +58,9 @@ fn fold_blocks(
             {
                 statement.kind = mir::StatementKind::ValDecl {
                     local: *destination,
-                    init: value.expression(),
+                    init: value
+                        .expression()
+                        .with_debug_origin(statement.debug_origin.clone()),
                 };
                 changed = true;
             }
@@ -70,7 +74,9 @@ fn fold_blocks(
                     | mir::ExprKind::StringConst(_)
             ) && let Some(value) = analysis.expression(expression, &state).constant
             {
-                *expression = value.expression();
+                *expression = value
+                    .expression()
+                    .with_debug_origin(expression.debug_origin.clone());
                 changed = true;
             } else if let mir::ExprKind::Local(local) = expression.kind
                 && let Some(alias) = analysis.expression(expression, &state).alias

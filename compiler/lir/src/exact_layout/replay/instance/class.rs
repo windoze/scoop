@@ -10,6 +10,23 @@ pub enum ClassLayoutBaseV1<'a> {
 }
 
 impl ExactInstanceLayoutV1 {
+    pub fn throwable(
+        identity: ExactLayoutIdentityV1,
+        foundation: &ConeLirFoundation,
+    ) -> Result<Self, ExactLayoutReplayError> {
+        require_roles(&identity, &[RepresentationRole::ManagedObject])?;
+        nominal(identity.exact_key())?;
+        let layout =
+            ClassStorageLayoutV1::throwable(identity.target(), identity.layout_key().clone())?;
+        finish_instance(
+            identity,
+            layout.shape().clone(),
+            InstanceRepresentation::Throwable(Box::new(layout)),
+            ScanRole::ManagedObject,
+            foundation,
+        )
+    }
+
     pub fn class(
         identity: ExactLayoutIdentityV1,
         base: ClassLayoutBaseV1<'_>,
@@ -68,8 +85,10 @@ fn replay_class(
             if base.identity.target() != identity.target() {
                 return Err(ExactLayoutReplayError::DependencyTarget);
             }
-            let InstanceRepresentation::ClassObject(layout) = &base.representation.0 else {
-                return Err(ExactLayoutReplayError::BaseKind);
+            let layout = match &base.representation.0 {
+                InstanceRepresentation::ClassObject(layout)
+                | InstanceRepresentation::Throwable(layout) => layout,
+                _ => return Err(ExactLayoutReplayError::BaseKind),
             };
 
             // Reserve the inherited projection and duplicate-id set before

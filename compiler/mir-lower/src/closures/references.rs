@@ -126,6 +126,7 @@ impl Lowerer {
             let closure_ty = mir::Type::Function(function_type);
             let mut locals = Arena::new();
             let closure = locals.alloc(mir::Local {
+                debug_variable: Default::default(),
                 name: "$closure".to_string(),
                 ty: closure_ty.clone(),
                 mutable: false,
@@ -136,6 +137,7 @@ impl Lowerer {
                 local: closure,
             }];
             let function = self.functions.alloc(mir::Function {
+                debug_origin: Default::default(),
                 gc_effect: mir::GcEffect::Managed,
                 name: format!("$reference.{}", id.into_raw()),
                 params: Vec::new(),
@@ -251,6 +253,7 @@ impl Lowerer {
                         .prelude
                         .into_iter()
                         .map(|kind| smir::Statement {
+                            debug_origin: Default::default(),
                             kind,
                             span: reference.span,
                         })
@@ -284,11 +287,13 @@ impl Lowerer {
                 smir::StatementKind::Return { value: call }
             };
             statements.push(smir::Statement {
+                debug_origin: Default::default(),
                 kind: statement,
                 span: reference.span,
             });
             if signature.return_type == mir::Type::Unit {
                 statements.push(smir::Statement {
+                    debug_origin: Default::default(),
                     kind: smir::StatementKind::Return {
                         value: smir::Expr::unit(),
                     },
@@ -343,6 +348,7 @@ fn reference_parameter(
 ) -> smir::Expr {
     let name = format!("arg{index}");
     let local = locals.alloc(mir::Local {
+        debug_variable: Default::default(),
         name: name.clone(),
         ty: ty.clone(),
         mutable: false,

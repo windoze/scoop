@@ -32,6 +32,7 @@ pub fn type_name(module: &Module, ty: &Type) -> String {
             ClassRepresentation::Declared(DeclaredClass { .. })
             | ClassRepresentation::Intrinsic(
                 IntrinsicClassRepresentation::String
+                | IntrinsicClassRepresentation::Throwable
                 | IntrinsicClassRepresentation::Any
                 | IntrinsicClassRepresentation::Nothing,
             ) => nominal_name(

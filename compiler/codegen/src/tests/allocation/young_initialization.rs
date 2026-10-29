@@ -179,8 +179,9 @@ fn reference_initialization_crosses_unique_edges_but_not_joins() {
                 value: Value::Temp(out),
             });
         let next = function.blocks.alloc(BasicBlock {
+            terminator_origin: Default::default(),
             name: "initialize".into(),
-            instructions: vec![store(Value::Local(local))],
+            instructions: vec![store(Value::Local(local))].into(),
             terminator: Terminator::Return { value: None },
         });
         function.blocks[function.entry].terminator = Terminator::Br(next);
@@ -188,16 +189,19 @@ fn reference_initialization_crosses_unique_edges_but_not_joins() {
             function.signature =
                 plain_scoop_signature(vec![MANAGED_PTR, LirType::I1], LirType::Void);
             let existing = function.blocks.alloc(BasicBlock {
+                terminator_origin: Default::default(),
                 name: "existing".into(),
                 instructions: vec![Instruction::Store {
                     local,
                     value: Value::Param(0),
-                }],
+                }]
+                .into(),
                 terminator: Terminator::Br(next),
             });
             function.entry = function.blocks.alloc(BasicBlock {
+                terminator_origin: Default::default(),
                 name: "choose".into(),
-                instructions: vec![],
+                instructions: vec![].into(),
                 terminator: Terminator::CondBr {
                     cond: Value::Param(1),
                     then_block: function.entry,

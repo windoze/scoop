@@ -74,13 +74,15 @@ pub(super) fn lower_initialization_startup_gateway(
     let mut pending_safepoints = PendingSafepointSites::default();
     let mut blocks = Arena::new();
     let entry = blocks.alloc(scoop_lir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
-        instructions: Vec::new(),
+        instructions: Default::default(),
         terminator: scoop_lir::Terminator::Unreachable,
     });
     let success = blocks.alloc(scoop_lir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "success".to_string(),
-        instructions: Vec::new(),
+        instructions: Default::default(),
         terminator: scoop_lir::Terminator::Return {
             value: Some(scoop_lir::Value::IntegerConst(
                 scoop_lir::LirIntegerConstant::Unsigned32(0),
@@ -88,8 +90,9 @@ pub(super) fn lower_initialization_startup_gateway(
         },
     });
     let failure = blocks.alloc(scoop_lir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "failure".to_string(),
-        instructions: Vec::new(),
+        instructions: Default::default(),
         terminator: scoop_lir::Terminator::Return {
             value: Some(scoop_lir::Value::IntegerConst(
                 scoop_lir::LirIntegerConstant::Unsigned32(1),
@@ -134,6 +137,10 @@ pub(super) fn lower_initialization_startup_gateway(
     ]);
     LoweredFunction {
         function: scoop_lir::Function {
+            debug_name: Default::default(),
+            debug_variables: Vec::new(),
+            debug_signature: Default::default(),
+            debug_origin: Default::default(),
             callable_body,
             gc_effect: scoop_lir::GcEffect::Managed,
             signature: gateway_signature.clone(),

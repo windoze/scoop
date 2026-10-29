@@ -83,3 +83,18 @@ scoop build my-cone --target x86_64-unknown-linux-musl
 Darwin 默认最低版本由发行配置确定；`MACOSX_DEPLOYMENT_TARGET` 可显式选择兼容的部署版本。默认 runtime 的最低要求不能高于所选版本。较老系统的支持必须另经实际验证，不能通过降低此变量得到保证。
 
 升级时可将旧 `~/.scoop` 移到备份位置，再创建新的 `~/.scoop` 并解压完整包，避免旧版本文件残留；也可安装到另一目录并调整 PATH 或软链接。无需删除整个用户缓存。第三方许可见 `../licenses/README.md`；Scoop 自身的许可状态也列在该文件中，应以维护者确定的项目许可为准。
+
+
+工具包包含 Python-enabled LLVM 22 的 `lldb` 和 `lldb-dap`，以及 Python 和平台 helper。
+使用 `scoop build --debug-info full` 后可运行 `lldb <program>`；调试文件跟随 executable 发布，
+Darwin 使用 `.dSYM`，Linux 使用 `.debug`。debug 默认 full，release 默认 none；release 也可显式 full。
+LLDB 自动导入只读 Scoop formatter，提供 String、数组和当前 enum 变体的展示。
+
+在 VS Code 中按 F5 选择 Scoop，或执行 `Scoop: Debug Current File`，扩展可自动构建并启动调试。
+`build.tests: true` 调试 Cone 测试，`build.filter` 选择测试名称；`program` 配合 `build: false` 调试已有产物。
+`request: "attach"` 配合 `pid` 附加现有进程。移动到其他安装根时同时设置
+`scoop.debug.adapterPath` 和 `scoop.debug.compilerPath`。源码映射使用
+`sourceMap: [["/original/root", "/local/root"]]`。完整 Scoop 表达式求值和协程逻辑栈不在本版范围。
+
+Throwable 首次 throw 会保存历史物理栈，重抛保留原快照；`printStackTrace()`、未捕获异常和 trap
+打印带模块身份的栈。有调试文件时显示源码函数与行号，否则保留地址。该记录不保存局部值或堆快照。

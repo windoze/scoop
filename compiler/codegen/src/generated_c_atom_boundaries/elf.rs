@@ -1,4 +1,4 @@
-use object::ObjectSymbol;
+use object::{Object, ObjectSection, ObjectSymbol};
 use scoop_lir::LinkageClass;
 
 use super::*;
@@ -22,14 +22,29 @@ pub(super) fn materialize(
             .checked_add(primary.size())
             .ok_or_else(|| CodegenError("ELF bridge extent overflows".into()))?;
         output.existing_boundary(name.as_str(), LinkageClass::ConeStrong, false)?;
-        let boundary = definition.atom_boundaries()[0];
-        for (symbol, value) in [(boundary.start(), start), (boundary.end(), end)] {
-            output.boundary(
-                symbol.symbol().as_str(),
-                section_index,
-                value,
-                LinkageClass::ConeStrong,
-            )?;
+        for boundary in definition.atom_boundaries() {
+            let (section, start, end) = match boundary.atom_role() {
+                scoop_lir::DefinitionAtomRole::Primary => (section_index, start, end),
+                scoop_lir::DefinitionAtomRole::EhFrame => {
+                    let section = output.file.section_by_name(".eh_frame").ok_or_else(|| {
+                        CodegenError("ELF generated-C bridge has no unwind table".into())
+                    })?;
+                    (section.index(), 0, section.size())
+                }
+                role => {
+                    return Err(CodegenError(format!(
+                        "unexpected generated-C ELF atom {role:?}"
+                    )));
+                }
+            };
+            for (symbol, value) in [(boundary.start(), start), (boundary.end(), end)] {
+                output.boundary(
+                    symbol.symbol().as_str(),
+                    section,
+                    value,
+                    LinkageClass::ConeStrong,
+                )?;
+            }
         }
     }
     output.finish()

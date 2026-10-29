@@ -117,6 +117,7 @@ pub(super) fn rewrite_intrinsic_site(
         args: vec![adapter.reference(adapter_local)],
     };
     let register_call = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.register.{}", site.state),
         statements: vec![statement(mir::StatementKind::Call(mir::CallEffect::Unit(
             call,
@@ -127,6 +128,7 @@ pub(super) fn rewrite_intrinsic_site(
     body.blocks[site.block].terminator = mir::Terminator::Goto(register_call);
 
     let success = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.registered_success.{}", site.state),
         statements: {
             let mut statements = vec![atomic_field_store(
@@ -157,6 +159,7 @@ pub(super) fn rewrite_intrinsic_site(
         unwind,
     });
     let failure = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.registered_failure.{}", site.state),
         statements: vec![
             atomic_field_store(
@@ -187,6 +190,7 @@ pub(super) fn rewrite_intrinsic_site(
         unwind,
     });
     let suspended = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.registered_suspend.{}", site.state),
         statements: Vec::new(),
         terminator: mir::Terminator::Return {
@@ -196,6 +200,7 @@ pub(super) fn rewrite_intrinsic_site(
     });
     let invalid = protocol_error_block(lowerer, module, &mut body.locals, &mut body.blocks, unwind);
     let claim_success_frame = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.claim_success_frame.{}", site.state),
         statements: vec![statement(mir::StatementKind::ValDecl {
             local: frame_claim,
@@ -220,6 +225,7 @@ pub(super) fn rewrite_intrinsic_site(
         unwind,
     });
     let claim_failure_frame = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.claim_failure_frame.{}", site.state),
         statements: vec![statement(mir::StatementKind::ValDecl {
             local: frame_claim,
@@ -244,6 +250,7 @@ pub(super) fn rewrite_intrinsic_site(
         unwind,
     });
     let check_latched_failure = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.check_latched_failure.{}", site.state),
         statements: Vec::new(),
         terminator: mir::Terminator::Branch {
@@ -261,6 +268,7 @@ pub(super) fn rewrite_intrinsic_site(
         unwind,
     });
     let check_latched_success = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.check_latched_success.{}", site.state),
         statements: Vec::new(),
         terminator: mir::Terminator::Branch {
@@ -278,12 +286,14 @@ pub(super) fn rewrite_intrinsic_site(
         unwind,
     });
     let completion_spin = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.completion_backoff.{}", site.state),
         statements: Vec::new(),
         terminator: mir::Terminator::Unreachable,
         unwind: None,
     });
     let check_completing_failure = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.check_completing_failure.{}", site.state),
         statements: Vec::new(),
         terminator: mir::Terminator::Branch {
@@ -301,6 +311,7 @@ pub(super) fn rewrite_intrinsic_site(
         unwind,
     });
     let completion_wait = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.completion_wait.{}", site.state),
         statements: Vec::new(),
         terminator: mir::Terminator::Branch {
@@ -321,6 +332,7 @@ pub(super) fn rewrite_intrinsic_site(
         .push(mir::LoopHeaderPollTarget::new(completion_wait));
     body.blocks[completion_spin].terminator = mir::Terminator::Goto(completion_wait);
     let register_return = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.register_return.{}", site.state),
         statements: vec![statement(mir::StatementKind::ValDecl {
             local: registration_claim,
@@ -345,6 +357,7 @@ pub(super) fn rewrite_intrinsic_site(
         unwind,
     });
     let registration_propagate = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.registration_propagate.{}", site.state),
         statements: Vec::new(),
         terminator: mir::Terminator::Throw {
@@ -354,6 +367,7 @@ pub(super) fn rewrite_intrinsic_site(
         unwind,
     });
     let registration_claim_frame = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.registration_claim_frame.{}", site.state),
         statements: vec![statement(mir::StatementKind::ValDecl {
             local: frame_claim,
@@ -378,6 +392,7 @@ pub(super) fn rewrite_intrinsic_site(
         unwind,
     });
     let registration_protocol = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.registration_protocol.{}", site.state),
         statements: vec![atomic_field_store(
             mir::Expr::local(adapter_local, mir::Type::Class(adapter.class)),
@@ -388,6 +403,7 @@ pub(super) fn rewrite_intrinsic_site(
         unwind,
     });
     let registration_protocol_claim_frame = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.registration_protocol_claim_frame.{}", site.state),
         statements: vec![statement(mir::StatementKind::ValDecl {
             local: frame_claim,
@@ -412,12 +428,14 @@ pub(super) fn rewrite_intrinsic_site(
         unwind,
     });
     let registration_spin = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.registration_backoff.{}", site.state),
         statements: Vec::new(),
         terminator: mir::Terminator::Unreachable,
         unwind: None,
     });
     let registration_check_completing_failure = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!(
             "coroutine.registration_check_completing_failure.{}",
             site.state
@@ -438,6 +456,7 @@ pub(super) fn rewrite_intrinsic_site(
         unwind,
     });
     let registration_wait = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.registration_wait.{}", site.state),
         statements: Vec::new(),
         terminator: mir::Terminator::Branch {
@@ -458,6 +477,7 @@ pub(super) fn rewrite_intrinsic_site(
         .push(mir::LoopHeaderPollTarget::new(registration_wait));
     body.blocks[registration_spin].terminator = mir::Terminator::Goto(registration_wait);
     let registration_failure = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.registration_failure.{}", site.state),
         statements: vec![
             statement(mir::StatementKind::Eh(mir::EhStatement::LandingPad {
@@ -516,6 +536,7 @@ pub(super) fn rewrite_intrinsic_site(
         ));
     }
     let resume_block = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.resume.{}", site.state),
         statements: resume_statements,
         terminator: mir::Terminator::Goto(post),

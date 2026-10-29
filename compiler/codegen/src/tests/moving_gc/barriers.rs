@@ -58,26 +58,31 @@ fn barrier_module() -> Module {
         });
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
-        instructions: vec![],
+        instructions: vec![].into(),
         terminator: Terminator::Unreachable, // placeholder, filled below
     });
     let header = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "while.cond".to_string(),
-        instructions: vec![],
+        instructions: vec![].into(),
         terminator: Terminator::Unreachable,
     });
     let body = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "while.body".to_string(),
-        instructions: vec![],
+        instructions: vec![].into(),
         terminator: Terminator::Unreachable,
     });
     let exit = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "while.exit".to_string(),
-        instructions: vec![],
+        instructions: vec![].into(),
         terminator: Terminator::Return { value: None },
     });
     blocks[entry] = BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![
             Instruction::ManagedPoll {
@@ -100,10 +105,12 @@ fn barrier_module() -> Module {
                 value: signed64(7),
                 array_type: int_array,
             },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Br(header),
     };
     blocks[header] = BasicBlock {
+        terminator_origin: Default::default(),
         name: "while.cond".to_string(),
         instructions: vec![Instruction::ManagedPoll {
             site: scoop_lir::ManagedPollSite {
@@ -112,7 +119,8 @@ fn barrier_module() -> Module {
                 safepoint: test_safepoint(3),
                 live: scoop_lir::StatepointLiveSet::default(),
             },
-        }],
+        }]
+        .into(),
         terminator: Terminator::CondBr {
             cond: Value::BoolConst(true),
             then_block: body,
@@ -120,8 +128,9 @@ fn barrier_module() -> Module {
         },
     };
     blocks[body] = BasicBlock {
+        terminator_origin: Default::default(),
         name: "while.body".to_string(),
-        instructions: vec![],
+        instructions: vec![].into(),
         terminator: Terminator::Br(header),
     };
     let mut module = Module {
@@ -138,6 +147,10 @@ fn barrier_module() -> Module {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
+            debug_name: Default::default(),
+            debug_variables: Vec::new(),
+            debug_signature: Default::default(),
+            debug_origin: Default::default(),
             callable_body: callable_body_at(file!(), line!()),
             safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,

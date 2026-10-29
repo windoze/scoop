@@ -53,6 +53,7 @@ pub(super) fn generate_resume_method(
         outer_failure,
     );
     let valid = blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "valid".to_string(),
         statements: {
             let mut statements = vec![exits.switch.enter(frame_field(
@@ -94,6 +95,7 @@ pub(super) fn generate_resume_method(
         unwind: Some(exits.catch_pad),
     });
     let invalid_frame = blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "invalid_frame".to_string(),
         statements: vec![atomic_field_store(
             mir::Expr::local(this, mir::Type::Class(adapter)),
@@ -104,6 +106,7 @@ pub(super) fn generate_resume_method(
         unwind: None,
     });
     let claim_frame = blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "claim_frame".to_string(),
         statements: vec![statement(mir::StatementKind::ValDecl {
             local: frame_claim,
@@ -128,6 +131,7 @@ pub(super) fn generate_resume_method(
         unwind: None,
     });
     let claim_waiting = blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "claim_waiting".to_string(),
         statements: vec![statement(mir::StatementKind::ValDecl {
             local: adapter_claim,
@@ -153,6 +157,7 @@ pub(super) fn generate_resume_method(
     });
     let entry = if let Some(latch) = latch.as_ref() {
         let latched = blocks.alloc(mir::BasicBlock {
+            terminator_origin: Default::default(),
             name: "latched".to_string(),
             statements: vec![
                 field_set(
@@ -172,6 +177,7 @@ pub(super) fn generate_resume_method(
             unwind: None,
         });
         blocks.alloc(mir::BasicBlock {
+            terminator_origin: Default::default(),
             name: "entry".to_string(),
             statements: vec![statement(mir::StatementKind::ValDecl {
                 local: adapter_claim,
@@ -199,6 +205,7 @@ pub(super) fn generate_resume_method(
         claim_waiting
     };
     let function = lowerer.functions.alloc(mir::Function {
+        debug_origin: Default::default(),
         gc_effect: mir::GcEffect::Managed,
         name: format!("CoroutineAdapter.resume${state}"),
         params: vec![

@@ -4,6 +4,7 @@
 #include "../image/registry.h"
 #include "../thread/internal.h"
 #include "internal.h"
+#include "../throwable.h"
 
 _Noreturn void scoop_startup_fatal(const char *message) {
     fprintf(stderr, "scoop startup: %s\n", message);
@@ -12,24 +13,29 @@ _Noreturn void scoop_startup_fatal(const char *message) {
 
 _Noreturn void scoop_startup_report_failure(const ScoopStaticStorageDescriptorV1 *failure,
                                             const ScoopInitializationUnitDescriptorV1 *unit) {
-    /* Only the stable slot crosses the wait. The exception address is read and
-     * consumed while the running world is held; the resulting name is readonly. */
-    scoop_thread_registry_lock();
-    scoop_thread_wait_for_running_world();
-    const ScoopObjectHeader *exception = *(const ScoopObjectHeader **)failure->writable_base;
-    if (exception == NULL ||
-        (unit != NULL && __atomic_load_n(&unit->cell->state, __ATOMIC_RELAXED) != 3)) {
-        scoop_startup_fatal("gateway failure has no published exception");
+    ScoopThrowableReport report = {0};
+    for (;;) {
+        scoop_thread_registry_lock();
+        scoop_thread_wait_for_running_world();
+        const ScoopThrowable *exception = *(const ScoopThrowable **)failure->writable_base;
+        if (exception == NULL ||
+            (unit != NULL && __atomic_load_n(&unit->cell->state, __ATOMIC_RELAXED) != 3)) {
+            scoop_startup_fatal("gateway failure has no published exception");
+        }
+        scoop_image_require_type(exception->header.td);
+        size_t required = scoop_throwable_report_copy(exception, &report);
+        scoop_thread_registry_unlock();
+        if (required == 0) break;
+        scoop_throwable_report_reserve(&report, required);
     }
-    scoop_image_require_type(exception->td);
-    ScoopByteSpanV1 name = exception->td->diagnostic_name;
-    scoop_thread_registry_unlock();
     fputs("scoop: uncaught exception: ", stderr);
-    fwrite(name.data, 1, (size_t)name.length, stderr);
+    fwrite(report.bytes, 1, report.name_length, stderr);
     if (unit != NULL) {
         fputs(" during initialization of ", stderr);
         fwrite(unit->diagnostic_path.data, 1, (size_t)unit->diagnostic_path.length, stderr);
     }
     fputc('\n', stderr);
+    scoop_throwable_report_render_frames(&report, stderr);
+    free(report.bytes);
     scoop_rt_exit(1);
 }

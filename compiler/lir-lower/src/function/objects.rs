@@ -7,14 +7,19 @@ impl FunctionLowerer<'_> {
         &mut self,
         class_id: &mir::ClassId,
     ) -> StorageResult<lir::Value> {
-        let mir::ClassRepresentation::Declared(declared) =
-            &self.module.classes[*class_id].representation
-        else {
-            return Err(StorageLoweringError::InvalidRepresentation(
-                "source class allocation requires a declared class",
-            ));
+        let size = match &self.module.classes[*class_id].representation {
+            mir::ClassRepresentation::Declared(declared) => {
+                class_shape(self.context, self.module, self.enums, declared)?.1
+            }
+            mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Throwable) => {
+                lir::throwable_instance_shape(self.context.target_profile())?.minimum_size()
+            }
+            mir::ClassRepresentation::Intrinsic(_) => {
+                return Err(StorageLoweringError::InvalidRepresentation(
+                    "source class allocation requires a source constructor",
+                ));
+            }
         };
-        let (_, size, _) = class_shape(self.context, self.module, self.enums, declared)?;
         let td = self.td_ref(&mir::Type::Class(*class_id));
         self.emit_plain_call(
             LoweredCallDestination::managed_runtime(lir::ManagedRuntimeFunction::Alloc),
@@ -102,7 +107,32 @@ impl FunctionLowerer<'_> {
         );
         let (capture_offsets, _, _, _) = closure_shape(self.context, self.module, self.enums, def)?;
         let closure = self.lower_expr(closure)?;
-        self.load_heap_value(closure, capture_offsets[*index as usize], ty)
+        let value = self.load_heap_value(closure, capture_offsets[*index as usize], ty)?;
+        if let lir::Value::Temp(temporary) = value
+            && let mir::DebugOrigin::Source(location) = &self.current_origin
+            && let Some(environment) = self
+                .module
+                .meta
+                .closure_environments
+                .iter()
+                .find(|environment| environment.class() == *class)
+            && let Some(declaration) = self.debug_declarations.get(
+                &environment.identity().fields()[*index as usize]
+                    .value_record()
+                    .id(),
+            )
+        {
+            self.debug_variables.push(lir::DebugBinding {
+                declaration: declaration.clone(),
+                location: location.clone(),
+                ty: exact_type_record(self.module, ty).id(),
+                storage: lir::DebugStorage::Temporary(temporary),
+                managed: ref_scan(self.context, self.module, self.enums, ty, 0)?
+                    .contains_reference(),
+                parameter: None,
+            });
+        }
+        Ok(value)
     }
 
     pub(super) fn lower_field_access(

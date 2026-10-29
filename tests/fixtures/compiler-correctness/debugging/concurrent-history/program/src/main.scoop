@@ -1,0 +1,48 @@
+package dev.debug.trace
+
+import scoop.platform.concurrent.*
+
+class SharedFailure(val number: Int, val text: String): Throwable()
+
+fun racingThrow(value: SharedFailure, ready: AtomicInt, proceed: AtomicBoolean) {
+    ready.fetchAdd(1)
+    while (!proceed.load()) {
+        yield()
+    }
+    try {
+        throw value
+    } catch (caught: SharedFailure) {
+        gcCollect()
+        if (caught.number != 73 || caught.text != "shared") {
+            throw IllegalStateException()
+        }
+    }
+}
+
+fun raceOnce() {
+    val error = SharedFailure(73, "shared")
+    val ready = AtomicInt(0)
+    val proceed = AtomicBoolean(false)
+    val first = Thread.start { racingThrow(error, ready, proceed) }
+    val second = Thread.start { racingThrow(error, ready, proceed) }
+    while (ready.load() != 2) {
+        yield()
+    }
+    proceed.store(true)
+    first.join()
+    second.join()
+    gcCollect()
+    error.printStackTrace()
+    try {
+        throw error
+    } catch (caught: SharedFailure) {
+        gcCollect()
+        caught.printStackTrace()
+    }
+}
+
+fun main() {
+    for (index in 0..<4) {
+        raceOnce()
+    }
+}

@@ -74,6 +74,7 @@ impl WireEncode for MirParamFreeIntrinsicV1 {
             Self::String => tag(encoder, 1, 4),
             Self::Any => tag(encoder, 1, 7),
             Self::Nothing => tag(encoder, 1, 8),
+            Self::Throwable => tag(encoder, 1, 12),
             Self::Char => tag(encoder, 1, 5),
             Self::Float(kind) => {
                 tag(encoder, 2, 6)?;
@@ -120,6 +121,7 @@ impl WireDecode for MirParamFreeIntrinsicV1 {
             4 => Ok(Self::String),
             7 => Ok(Self::Any),
             8 => Ok(Self::Nothing),
+            12 => Ok(Self::Throwable),
             5 => Ok(Self::Char),
             6 => Ok(Self::Float(decoder.field(1, crate::FloatKind::decode)?)),
             2 => {

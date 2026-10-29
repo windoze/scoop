@@ -255,18 +255,31 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 CodegenError(format!("branch on callback state: {error}"))
                             })?;
                         builder.position_at_end(invalid_block);
-                        let trap = self.llvm.get_function("llvm.trap").unwrap_or_else(|| {
-                            self.llvm.add_function(
-                                "llvm.trap",
-                                context.void_type().fn_type(&[], false),
-                                None,
+                        let trap = self.gc_leaf_fn(
+                            scoop_lir::RuntimeAbiSymbolV1::LirCall(
+                                scoop_lir::RuntimeFunction::NoGc(
+                                    scoop_lir::NoGcRuntimeFunction::Fatal,
+                                ),
                             )
-                        });
-                        builder
-                            .build_call(trap, &[], "callback_state_trap")
+                            .logical_symbol(),
+                            context
+                                .void_type()
+                                .fn_type(&[ptr_ty(context).into()], false),
+                        );
+                        let reason = builder
+                            .build_global_string_ptr(
+                                "invalid callback state",
+                                "callback_state_reason",
+                            )
+                            .map_err(|error| {
+                                CodegenError(format!("callback state reason: {error}"))
+                            })?;
+                        let call = builder
+                            .build_call(trap, &[reason.as_pointer_value().into()], "")
                             .map_err(|error| {
                                 CodegenError(format!("trap invalid callback state: {error}"))
                             })?;
+                        self.mark_stack_trace_site(call);
                         builder.build_unreachable().map_err(|error| {
                             CodegenError(format!("trap invalid callback state: {error}"))
                         })?;

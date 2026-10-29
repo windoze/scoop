@@ -34,6 +34,7 @@ impl<'a, 'hir> ConstructorProjection<'a, 'hir> {
         let mut inputs = Vec::new();
         inputs.push(
             TemplateLocalRecordV1::try_new(
+                "this".into(),
                 LocalValueSelector::This,
                 owner.clone(),
                 CanonicalBooleanV1::from(false),
@@ -64,6 +65,7 @@ impl<'a, 'hir> ConstructorProjection<'a, 'hir> {
             let definition = definition_source(entities.inputs(), parameter.definition)?;
             inputs.push(
                 TemplateLocalRecordV1::try_new(
+                    parameter.name.clone(),
                     selector,
                     value_type,
                     CanonicalBooleanV1::from(false),

@@ -57,6 +57,9 @@ class ToolchainArchiveTests(unittest.TestCase):
                     host="aarch64-apple-darwin",
                     llvm_prefix=work / "llvm",
                     llvm_source=work / "llvm-source",
+                    debugger_prefix=work / "lldb",
+                    debugger_python=sys.executable,
+                    python_license=None,
                 )
                 root = work / "installation"
                 pm = work / "scoop-pm"
@@ -66,6 +69,11 @@ class ToolchainArchiveTests(unittest.TestCase):
                 with (
                     patch.object(package_toolchain, "ROOT", repository),
                     patch.object(package_toolchain.package_native, "darwin", return_value=[]),
+                    patch.object(
+                        package_toolchain.package_debugger,
+                        "stage",
+                        return_value=({}, "3.14", work / "LICENSE.txt"),
+                    ),
                     patch.object(package_toolchain.package_licenses, "collect"),
                 ):
                     assemble(root, [], [pm], args, release, extension)
@@ -78,6 +86,8 @@ class ToolchainArchiveTests(unittest.TestCase):
                 self.assertTrue((installed / "bin/scoop-pm").stat().st_mode & 0o111)
                 metadata = tomllib.loads((installed / "share/scoop/toolchain.toml").read_text())
                 self.assertEqual(metadata["liburing"], "2.15")
+                self.assertEqual(metadata["debugger_python"], "3.14")
+                self.assertEqual(metadata["lldb"], release["llvm"])
                 self.assertNotIn("libuv", metadata)
                 self.assertEqual(metadata["programming_skill"], skill_path.as_posix())
                 skill_files = {
