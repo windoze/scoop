@@ -8,7 +8,7 @@
 | W0 工具链与 ABI | 三种 native 环境的关键路线均已通过，正式准备脚本已接入 | 无独立 W0 阻塞 |
 | W1 编译／链接 | 三目标 ABI、COFF、C/C++、PE、PDB、subsystem 与 RC 已实现并通过定向验证 | Windows 文件 fixture 广覆盖仍在运行 |
 | W2 core runtime | Win32 primitives、SEH、精确 roots、GC、线程与初始化已实现并通过定向验证 | 配合 W1 完成剩余语言／产物组合用例 |
-| W3 系统库 | Windows 实现及所需 native 后端已完成，下表各组通过 | JSON 完整 API、高层异步 HTTP／client／server 验收仍在运行 |
+| W3 系统库 | Windows 实现及所需 native 后端已完成，下表各组通过 | 高层异步 HTTP／client／server 验收仍在运行 |
 | W4 宿主与发行 | Windows 宿主、命令发现、私有 LLVM、SDK 选择和发行入口已实现；首个实际安装包通过三目标使用验收 | 使用最新 core／库重新生成最终归档并复测；随后进行跨宿主回归 |
 
 本地实现和完整验收完成后，才在 Linux `nuc12w.0d0a.com` 与 macOS `mm.0d0a.com` 的 `~/repos` 下新建测试目录。目前尚未开始远端测试。原始日志、报告、归档和构建副本保存在仓库外。
@@ -34,7 +34,7 @@ SEH personality 与 LSDA decoder、真实 statepoint invoke、多层／大栈帧
 
 Windows 主驱动的安装名为 **`sco.exe`**，帮助和版本信息使用 `sco`。Cargo 内部 binary 名、其他可执行程序、外部命令 `scoop-` 前缀和 `SCOOP_*` 环境变量不变；macOS／Linux 继续使用 `scoop`。归档布局测试覆盖三个宿主，实际 Windows `sco new/run/test`、`sco pm`、`sco example` 均通过。
 
-文件 fixture 的 Windows 扩展仍在验收。公共 runner 的格式化／Ruff 通过，67 项规则测试完成（其中 3 项按宿主跳过）。33 个继承规则用例复用固定的共享 core 后全部通过；专门的 core 输入变化用例保留真实重建验证。Windows 本地化错误、LF 字节位置、COFF archive 成员、当前 runtime 字段以及泛型初始化登记的断言按实际合同调整，不通过隐藏输入或工具验收复用。
+文件 fixture 的 Windows 扩展仍在验收。公共 runner 的格式化／Ruff 通过，67 项规则测试完成（其中 3 项按宿主跳过）。33 个继承规则用例复用固定的共享 core 后全部通过；6 个 primitive inherited-method 用例也已通过，其中五个共享固定输入，combined 保留修改前后的真实 core 构建。较大的完整 core 构建步骤采用 900 秒测试时限；普通运行与诊断断言不变。Windows 本地化错误、LF 字节位置、COFF archive 成员、当前 runtime 字段以及泛型初始化登记的断言按实际合同调整，不通过隐藏输入或工具验收复用。
 
 ## 系统库与 native 后端
 
@@ -60,7 +60,7 @@ PCRE2 10.49、OpenSSL 3.5.9、uriparser 1.0.2、Rust 文本后端、Zstandard、
 
 数学库保持系统行为，不加入结果修正 workaround。规范、设计与库文档记录 C pow 与 Java Math 的差异，以及所用 LLVM-MinGW MSVCRT 的 FMA 中间溢出；Microsoft `_hypotf` 薄 wrapper 仅适配导出名。
 
-终端异步、log、console log 和 CLI 的 MSVC／MinGW UCRT 测试已通过。JSON 完整 API 和高层 HTTP 组合仍待闭合。此前并行大型编译触及内存上限，已降低并发；没有修改编译器语义或增加资源预算机制。
+终端异步、log、console log 和 CLI 的 MSVC／MinGW UCRT 测试已通过。JSON 完整 API 在默认 MSVC 目标上 71 个容器／101 项全部通过；高层 HTTP 组合仍待闭合。此前并行大型编译触及内存上限，已降低并发；没有修改编译器语义或增加资源预算机制。
 
 ## 发行与剩余工作
 

@@ -16,7 +16,12 @@ import tomllib
 from collections import Counter
 from pathlib import Path
 
-from .cores import prepare_class_core, prepare_inheritance_core, prepare_test_core
+from .cores import (
+    prepare_class_core,
+    prepare_inheritance_core,
+    prepare_member_defaults_core,
+    prepare_test_core,
+)
 from .discovery import discover
 from .model import ConfigurationError, EnvironmentError
 from .suite import run_suite
@@ -122,6 +127,7 @@ def environment(repo, work, fixtures, args):
         "test_core": str(work / "test-core"),
         "class_core": str(work / "class-core"),
         "inheritance_core": str(work / "inheritance-core"),
+        "member_defaults_core": str(work / "member-defaults-core"),
         "target": target,
         "llvm_target": target,
         "target_profile": TARGET_PROFILES[target],
@@ -242,6 +248,8 @@ def environment(repo, work, fixtures, args):
         prepare_class_core(repo, work, sysroot)
     if any("${inheritance_core}" in json.dumps(fixture.data) for fixture in applicable):
         prepare_inheritance_core(repo, work, sysroot)
+    if any("${member_defaults_core}" in json.dumps(fixture.data) for fixture in applicable):
+        prepare_member_defaults_core(repo, work, sysroot)
     cache.mkdir(parents=True, exist_ok=True)
     return common
 

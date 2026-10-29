@@ -191,6 +191,8 @@ canonical source、span、code、message 或 notes。stdout/stderr 仍严格比�
 与需要不同 core 声明的专测覆盖，不在每个类规则中重复两次冷构建。
 `${inheritance_core}` 在同一固定输入上加入 `RebuiltParent`，供继承规则用例共享。
 `imported-class-inheritance-core` 保留真实修改 core 后重新编译、比较产物和运行 consumer 的覆盖。
+`${member_defaults_core}` 为 Long、Boolean 和 String 加入同一个 `RebuiltDefaults` 接口，
+供 primitive inherited-method 用例共享；combined 用例保留修改前后的真实 core 构建。
 `normalize` 的公共规则为 `paths`、`newlines`、`native-digests` 和 `native-link-plan`。
 `native-link-plan` 只允许用于显式 snapshot：要求完整 `program-link v3` 的唯一 section
 边界，比较 `link inputs:` 到 `startup object references:` 之前的原生链接区段。

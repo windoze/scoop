@@ -70,6 +70,7 @@ BUILTINS = {
     "test_core",
     "class_core",
     "inheritance_core",
+    "member_defaults_core",
     "cache",
     "scoop",
     "scoopc",

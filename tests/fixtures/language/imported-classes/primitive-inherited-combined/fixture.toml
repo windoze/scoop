@@ -2,7 +2,7 @@ schema = 1
 name = "imported-class-primitive-inherited-combined"
 inputs = ["../support/stage3_test.scoop", "../core-provider.scoop", "../core-member-defaults.scoop", "../core-cast-direct.scoop", "../core-arithmetic-direct.scoop", "../provider.scoop", "class-provider", "classes-primitive-inherited-combined", "../primitive-inherited-combined.scoop", "class-downstream-primitive-inherited-combined", "../downstream.scoop", "../support/main.scoop", "../support/gc.c", "runtime-fixture"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["imported-classes", "core-rebuild", "language"]
 [[steps]]
 name = "prepare_core"
@@ -14,6 +14,7 @@ files = [
 
 [[steps]]
 name = "original_core"
+timeout = 900
 argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/core-source", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-original_core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/original-core.slib"]
 exit = 0
 stdout = ""
@@ -39,10 +40,11 @@ await_file = "${fixture}/../core-arithmetic-direct.scoop"
 
 [[steps]]
 name = "modify_core"
-files = [{"write" = {"path" = "${work}/core-source/src/user_class.scoop", "data" = "${read_core-provider.bytes}${read_core-member-defaults.bytes}"}}, {"replace" = {"path" = "${work}/core-source/src/integer_long.scoop", "old" = "    Equals<Long>, ToString, Hash {", "new" = "    Equals<Long>, ToString, Hash, RebuiltReadable {\n    public override fun read(): Long = this + stage3CoreAnswer() - 43"}}, {"replace" = {"path" = "${work}/core-source/src/stage3_test.scoop", "old" = "= 42", "new" = "= 43"}}, {"replace" = {"path" = "${work}/core-source/src/integer_long.scoop", "old" = "    Equals<Long>, ToString, Hash, RebuiltReadable {", "new" = "    Equals<Long>, ToString, Hash, RebuiltReadable, RebuiltDefaults {"}}, {"replace" = {"path" = "${work}/core-source/src/types.scoop", "old" = "public struct Boolean : Not<Boolean>, Equals<Boolean>, ToString, Hash {", "new" = "public struct Boolean : Not<Boolean>, Equals<Boolean>, ToString, Hash, RebuiltDefaults {"}}, {"replace" = {"path" = "${work}/core-source/src/strings.scoop", "old" = "public class String : IndexGet<Long, Char>, Compare<String>, Add<String, String>, Equals<String>, ToString, Hash, Iterable<Char> {", "new" = "public class String : IndexGet<Long, Char>, Compare<String>, Add<String, String>, Equals<String>, ToString, Hash, Iterable<Char>, RebuiltDefaults {"}}, {"replace" = {"path" = "${work}/core-source/src/throwable.scoop", "old" = "public class ClassCastException public constructor() : Exception(Some(\"invalid cast\"))\n", "new" = "${read_cast.bytes}"}}, {"replace" = {"path" = "${work}/core-source/src/throwable.scoop", "old" = "public class ArithmeticException public constructor() : Exception(Some(\"arithmetic error\"))\n", "new" = "${read_arithmetic.bytes}"}}]
+files = [{"write" = {"path" = "${work}/core-source/src/user_class.scoop", "data" = "${read_core-provider.bytes}${read_core-member-defaults.bytes}"}}, {"replace" = {"path" = "${work}/core-source/src/integer_long.scoop", "old" = "    Equals<Long>, ToString, Hash {", "new" = "    Equals<Long>, ToString, Hash, RebuiltReadable {\n    public override fun read(): Long = this + stage3CoreAnswer() - 43"}}, {"replace" = {"path" = "${work}/core-source/src/stage3_test.scoop", "old" = "= 42", "new" = "= 43"}}, {"replace" = {"path" = "${work}/core-source/src/integer_long.scoop", "old" = "    Equals<Long>, ToString, Hash, RebuiltReadable {", "new" = "    Equals<Long>, ToString, Hash, RebuiltReadable, RebuiltDefaults {"}}, {"replace" = {"path" = "${work}/core-source/src/types.scoop", "old" = "public struct Boolean : Not<Boolean>, Equals<Boolean>, ToString, Hash {", "new" = "public struct Boolean : Not<Boolean>, Equals<Boolean>, ToString, Hash, RebuiltDefaults {"}}, {"replace" = {"path" = "${work}/core-source/src/strings.scoop", "old" = "public class String : Compare<String>, Add<String, String>, Equals<String>, ToString, Hash, Iterable<Char> {", "new" = "public class String : Compare<String>, Add<String, String>, Equals<String>, ToString, Hash, Iterable<Char>, RebuiltDefaults {"}}, {"replace" = {"path" = "${work}/core-source/src/throwable.scoop", "old" = "public class ClassCastException public constructor() : Exception(Some(\"invalid cast\"))\n", "new" = "${read_cast.bytes}"}}, {"replace" = {"path" = "${work}/core-source/src/throwable.scoop", "old" = "public class ArithmeticException public constructor() : Exception(Some(\"arithmetic error\"))\n", "new" = "${read_arithmetic.bytes}"}}]
 
 [[steps]]
 name = "rebuilt_core"
+timeout = 900
 argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/core-source", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-rebuilt_core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
