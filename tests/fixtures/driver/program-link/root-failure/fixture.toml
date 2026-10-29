@@ -26,7 +26,7 @@ checks = [
 name = "run_built"
 argv = ["${build.result.output}"]
 stdout = ""
-stderr = "scoop: uncaught exception: n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IllegalStateException)\n"
+stderr = {regex = "scoop:\\ uncaught\\ exception:\\ n\\(c=scoop%3Ascoop\\.core%3A0\\.1\\.0;p=;o=\\-;k=C;x=IllegalStateException\\)\\\n(?:  at [^\\n]+\\n)+(?:  <[^\\n]+>\\n)*"}
 exit = 1
 
 [[steps]]
@@ -50,5 +50,5 @@ checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${buil
 name = "run_linked"
 argv = ["${link.result.output}"]
 stdout = ""
-stderr = "scoop: uncaught exception: n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IllegalStateException)\n"
+stderr = {regex = "scoop:\\ uncaught\\ exception:\\ n\\(c=scoop%3Ascoop\\.core%3A0\\.1\\.0;p=;o=\\-;k=C;x=IllegalStateException\\)\\\n(?:  at [^\\n]+\\n)+(?:  <[^\\n]+>\\n)*"}
 exit = 1

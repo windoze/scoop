@@ -1,0 +1,10 @@
+schema = 1
+
+[cone]
+group = "dev.debug.trace"
+name = "concurrent-history"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"scoop:scoop.platform" = "0.1.0"

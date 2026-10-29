@@ -1,0 +1,8 @@
+fun overflowingArray(size: Long) {
+    val impossible = MutableArray<Int>(size) { 0 }
+    println(impossible.size)
+}
+
+fun main() {
+    overflowingArray(9223372036854775807L)
+}

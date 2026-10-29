@@ -70,6 +70,8 @@ pub struct Module {
     pub unit: TypeId,
     pub boolean: TypeId,
     pub string: TypeId,
+    /// The actual core Array<UInt8> used by managed Throwable snapshots.
+    pub throwable_trace_bytes: TypeId,
     /// The single compiler-protocol authority for this LocalConcrete graph.
     ///
     /// Bootstrap graphs define the complete protocol product locally;

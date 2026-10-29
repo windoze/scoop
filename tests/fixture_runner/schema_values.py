@@ -79,6 +79,12 @@ def process_values(step):
             value = step[stream]
             if stream != "stdin" and isinstance(value, dict) and set(value) == {"snapshot"}:
                 string(value["snapshot"], f"{stream} snapshot", nonempty=True)
+            elif stream != "stdin" and isinstance(value, dict) and set(value) == {"regex"}:
+                string(value["regex"], f"{stream} regex")
+                try:
+                    re.compile(value["regex"].encode())
+                except re.error as error:
+                    raise ConfigurationError(f"{stream}: invalid regular expression") from error
             else:
                 byte_value(value, stream)
     if "env" in step:

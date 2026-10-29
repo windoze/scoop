@@ -104,7 +104,7 @@ fn linux_generated_c_functions_tls_and_callback_link_and_run() {
             .unwrap();
             scoop_slib::verify_member_object_relocations_v1(definitions).unwrap();
             let file = object::File::parse(bytes.as_slice()).unwrap();
-            assert!(file.section_by_name(".eh_frame").is_none());
+            assert!(file.section_by_name(".eh_frame").is_some());
             for atom in std::iter::once(member.plan().primary_atom_authority())
                 .chain(member.plan().materialized_associated_atom_authorities())
             {
@@ -119,9 +119,11 @@ fn linux_generated_c_functions_tls_and_callback_link_and_run() {
                 let primary = file
                     .symbol_by_name(plan.primary_symbol().symbol().as_str())
                     .unwrap();
-                let [boundary] = plan.atom_boundaries() else {
-                    panic!("one bridge extent")
-                };
+                let boundary = plan
+                    .atom_boundaries()
+                    .iter()
+                    .find(|boundary| boundary.atom_role() == scoop_lir::DefinitionAtomRole::Primary)
+                    .unwrap();
                 let start = file
                     .symbol_by_name(boundary.start().symbol().as_str())
                     .unwrap();

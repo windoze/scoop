@@ -24,6 +24,7 @@ mod reference_types;
 mod singletons;
 mod snapshots;
 mod source_exact_types;
+mod throwable;
 use snapshots::check_mir_snapshot;
 mod value_types;
 
@@ -56,6 +57,10 @@ impl TestExecutableEntry for hir::LocalConcreteHirOutput {
 }
 
 fn lower(module: &hir::ExportHirOutput) -> mir::Module {
+    lower_test_input(module, true)
+}
+
+fn lower_test_input(module: &hir::ExportHirOutput, prepare_snapshots: bool) -> mir::Module {
     let concrete =
         scoop_hir_lower::concretize_output(module).expect("concrete type applications are valid");
     let output_kind = concrete.output_kind().clone();
@@ -72,8 +77,22 @@ fn lower(module: &hir::ExportHirOutput) -> mir::Module {
     let concrete =
         hir::LocalConcreteHirOutput::try_new(concrete_module, output_kind, materialization)
             .expect("the filtered MIR fixture remains a valid LocalConcrete HIR output");
-    let mut module = super::lower(&concrete)
-        .expect("test LocalConcrete HIR carries locally defined core protocols");
+    let mut module = if prepare_snapshots {
+        super::lower(&concrete)
+            .expect("test LocalConcrete HIR carries locally defined core protocols")
+    } else {
+        // Optimization tests inspect the same intermediate graph used by
+        // lower_current_cone, before final first-throw preparation.
+        super::lower_with_dependencies(
+            &concrete,
+            Arena::new(),
+            HashMap::new(),
+            Vec::new(),
+            &[],
+            false,
+        )
+        .0
+    };
     // Handcrafted unit modules use hidden, valid exception shells to satisfy
     // LocalConcreteHir's complete core contract. Keep their constructor
     // functions out of unrelated top-level ordering/dump assertions.
@@ -846,8 +865,12 @@ fn empty_main(h: &mut Harness) -> hir::FunctionId {
     )
 }
 
-fn class_index(raw: u32) -> mir::ClassId {
-    la_arena::Idx::from_raw(raw.into())
+fn class_named<'a>(module: &'a mir::Module, name: &str) -> (mir::ClassId, &'a mir::ClassDef) {
+    module
+        .classes
+        .iter()
+        .find(|(_, class)| class.name == name)
+        .unwrap_or_else(|| panic!("missing test class `{name}`"))
 }
 
 // ---- M6: reference types ----

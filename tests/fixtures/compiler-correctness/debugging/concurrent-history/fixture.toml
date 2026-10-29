@@ -1,0 +1,23 @@
+schema = 1
+name = "concurrent-throwable-history"
+inputs = ["program", "verify.py"]
+tools = ["scoop", "scoopc", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["debugging", "exceptions", "gc", "compiler-correctness"]
+variants = [{name = "moving", env = {SCOOP_GC_STRESS_MOVE = "1", SCOOP_GC_STRESS_MINOR = "1"}}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${fixture}/program", {each = "${link_args}"}, "--release", "--debug-info", "line-tables", "--enable-gc-stress", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "observe"
+argv = ["${python}", "${fixture}/verify.py", "${build.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""

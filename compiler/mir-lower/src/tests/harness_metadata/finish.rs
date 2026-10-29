@@ -129,6 +129,7 @@ impl Harness {
             CanonicalTypePlan::Existing(self.string),
         );
         let intrinsic_array = self.intrinsic_array_class(hir::IntrinsicTypeKind::Array);
+        let throwable_trace_bytes = self.array(self.integer(hir::IntegerKind::UNSIGNED_8));
         let intrinsic_mutable_array =
             self.intrinsic_array_class(hir::IntrinsicTypeKind::MutableArray);
         let character_type =
@@ -685,6 +686,7 @@ impl Harness {
             unit: self.unit,
             boolean: self.boolean,
             string: self.string,
+            throwable_trace_bytes,
             core_protocols: hir::CoreProtocols::Defined(Box::new(hir::DefinedCoreProtocols {
                 program_arguments: entry,
                 type_reference: entry,

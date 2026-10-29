@@ -1,10 +1,13 @@
+#include "process.h"
+#include "stack_trace.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include "scoop_rt.h"
 #include "thread/internal.h"
 
-static void prepare_termination(void) {
+void scoop_process_prepare_termination(void) {
     ScoopThreadState *state = scoop_thread_current();
     if (state == NULL) {
         return;
@@ -29,14 +32,30 @@ static _Noreturn void terminate_process(int32_t code) {
 }
 
 _Noreturn void *scoop_rt_exit(int32_t code) {
-    prepare_termination();
+    scoop_process_prepare_termination();
     terminate_process(code);
 }
 
 _Noreturn void scoop_rt_trap(const char *message) {
-    prepare_termination();
+    ScoopTraceFrames frames;
+    scoop_trace_capture_frames(&frames, (uintptr_t)__builtin_return_address(0));
+    scoop_process_prepare_termination();
+    ScoopTraceBuffer trace = scoop_trace_complete(&frames);
     fprintf(stderr, "scoop: trap: %s\n", message);
+    scoop_trace_render(trace.bytes, stderr);
+    free(trace.bytes);
     terminate_process(1);
+}
+
+_Noreturn void scoop_rt_fatal(const char *message) {
+    ScoopTraceFrames frames;
+    scoop_trace_capture_frames(&frames, (uintptr_t)__builtin_return_address(0));
+    scoop_process_prepare_termination();
+    ScoopTraceBuffer trace = scoop_trace_complete(&frames);
+    fprintf(stderr, "scoop: fatal: %s\n", message);
+    scoop_trace_render(trace.bytes, stderr);
+    free(trace.bytes);
+    abort();
 }
 
 _Noreturn void scoop_rt_allocation_overflow(void) { scoop_rt_trap("array size overflow"); }

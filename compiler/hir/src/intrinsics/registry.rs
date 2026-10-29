@@ -261,6 +261,13 @@ pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
         effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
+        name: "throwable_print_stack_trace",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicFunctionKind::ThrowablePrintStackTrace,
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NONE,
+    },
+    IntrinsicSpec {
         name: "rt_gc_collect",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicFunctionKind::GcCollect,

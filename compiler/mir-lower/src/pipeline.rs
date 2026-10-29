@@ -289,7 +289,7 @@ impl Lowerer {
             .required_types(module)
             .into_iter()
             .chain(crate::types::owned_builtin_types(module))
-            .chain(std::iter::once(module.string))
+            .chain([module.string, module.throwable_trace_bytes])
         {
             Types {
                 module,

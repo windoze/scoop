@@ -29,12 +29,12 @@ pub fn manifest_test_directory_capability() -> CapabilityId {
 }
 
 pub fn hir_core_bootstrap_interface_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.hir", "core-bootstrap-interface", 16)
+    CapabilityId::new("org.scoop-lang.hir", "core-bootstrap-interface", 17)
         .expect("built-in capability id is valid")
 }
 
 pub fn hir_cross_cone_interface_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.hir", "cross-cone-interface", 83)
+    CapabilityId::new("org.scoop-lang.hir", "cross-cone-interface", 84)
         .expect("built-in capability id is valid")
 }
 
@@ -58,7 +58,7 @@ pub fn lir_cross_cone_link_closure_capability() -> CapabilityId {
 }
 
 pub fn lir_strong_production_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.lir", "strong-production", 24)
+    CapabilityId::new("org.scoop-lang.lir", "strong-production", 25)
         .expect("a fixed capability identity is valid")
 }
 
@@ -83,7 +83,7 @@ pub fn lir_cross_cone_layout_link_closure_capability() -> CapabilityId {
 }
 
 pub fn lir_cone_production_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.lir", "cone-production", 14)
+    CapabilityId::new("org.scoop-lang.lir", "cone-production", 15)
         .expect("built-in capability id is valid")
 }
 

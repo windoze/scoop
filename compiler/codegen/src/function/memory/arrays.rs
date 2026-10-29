@@ -139,9 +139,6 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         &mut self,
         message: scoop_lir::GlobalId,
     ) -> Result<inkwell::basic_block::BasicBlock<'ctx>, CodegenError> {
-        if let Some(&block) = self.array_size_trap_blocks.get(&message) {
-            return Ok(block);
-        }
         let builder = self.builder;
         let current = builder
             .get_insert_block()
@@ -160,7 +157,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .context
             .append_basic_block(self.llvm_function, "array_size_trap");
         builder.position_at_end(block);
-        builder
+        let call = builder
             .build_call(trap, &[message_pointer.into()], "trap")
             .map_err(|error| {
                 CodegenError(format!(
@@ -168,6 +165,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     symbol = self.function.symbol()
                 ))
             })?;
+        self.mark_stack_trace_site(call);
         builder.build_unreachable().map_err(|error| {
             CodegenError(format!(
                 "array size trap @{symbol}: {error}",
@@ -175,7 +173,6 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             ))
         })?;
         builder.position_at_end(current);
-        self.array_size_trap_blocks.insert(message, block);
         Ok(block)
     }
 }

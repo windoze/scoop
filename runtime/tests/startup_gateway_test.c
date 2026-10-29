@@ -16,6 +16,7 @@
 
 typedef struct Failure {
     ScoopObjectHeader header;
+    ScoopArray *snapshot;
     uint64_t value;
 } Failure;
 

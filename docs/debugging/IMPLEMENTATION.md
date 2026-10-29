@@ -53,3 +53,9 @@ Full DWARF 已接通源码参数、局部、词法作用域和精确静态类型
 Throwable 已改为可继承的 intrinsic FixedObject，保留公共零参数构造；24-byte 前缀中的 offset 16 是私有快照引用，普通派生字段跟在完整前缀后，继承扫描保留这个隐藏根。实际 core 的 Throwable／Exception 布局、跨库构造与泛型消费、两层继承及 metadata 往返通过，HIR 相关规则回归 34 项通过。HIR 两项 capability 升至 83／31，MIR type-bridge 升至 20，LIR layout-abi 升至 18，runtime ABI 升至 28，metadata ABI 保持 9。编译器、runtime 与系统库必须配套重建；这一批只完成存储和构造，首次采集与打印继续实施。
 
 LLDB 名称显示问题已定位到上游 LLVM 22 的 DWARFASTParserClang：存在 DW_AT_linkage_name 时，Function 的 Mangled 名称未保留 DW_AT_name，导致帧显示与按源码名查询使用编码后的符号。发行集成需要验证一个保留两种名称的小型兼容修补，不能通过丢弃精确 linkage 身份规避。官方 macOS 预编译 LLDB 包没有 Python 支持，发行打包也需使用启用 Python 的构建。两项尚未完成，不影响已验证的 DWARF 类型、行表和变量记录结果。
+
+Throwable 首次抛出准备已进入最终 MIR，返回经过潜在 GC 搬迁后的原对象。runtime 保存 immutable byte-array 快照，重抛保留原栈，公共 `printStackTrace`、startup／uncaught 和语言 trap 消费稳定数据；内部 compiler fatal 保留 abort 语义。Mach-O 复制 UUID／slide／模块路径，ELF 复制 build-id／load bias／路径，当前打印地址和模块事实，可读 DWARF 符号化继续实施。新 Managed prepare／print 与 NoGc fatal 将 runtime ABI 升至 29，metadata 9 不变。
+
+真实 Scoop 首次抛出、finally 重抛、派生字段、快照保活和未抛出状态已在 full／line-tables／none 三种配置验收，包含移动及 minor GC；未捕获退出码 1、trap 退出码 1 与原始／查询 PC 关系通过。MIR 返回引用、runtime ABI 固定向量、生成 C flags、异常 record 生命周期和 startup failure roots 定向测试通过。跨库 ODR 组合还修复了 Mach-O 非零偏移 interface-view alias 的弱链接标志；全部对象／注册／共享内容检查通过。生成 C 桥开启展开信息后，unwind section 作为主定义的关联 atom 参与边界与 relocation，Darwin C 桥的 EH frame／compact unwind 实际对象边界与 relocation 检查通过；两个线程竞争同一异常对象的首次抛出、移动与 minor GC、重抛后快照不变的真实程序验收通过。MIR 优化专测在最终采集准备前运行，保持与产品流水线相同的顺序。
+
+本批收尾回归：MIR 单元测试 202 项通过，代表快照仅增加 prepare 调用／更新内部函数编号；旧未捕获异常、trap 重链接和 runtime image 初始化失败三项 CLI 用例通过。初始化失败专测显式使用 release，使构建与重链接保持同一调试产物策略。全 workspace clippy、C 严格编译检查与 fixture runner 61 项规则测试通过；未运行无关完整测试套件。

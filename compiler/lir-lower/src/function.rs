@@ -428,7 +428,7 @@ struct FunctionLowerer<'a> {
     call_targets: lir::CallTargets,
     /// The shared trap blocks of this function, one per message,
     /// created on first use.
-    trap_blocks: HashMap<String, lir::BlockId>,
+    trap_blocks: HashMap<(String, mir::DebugOrigin), lir::BlockId>,
     trap_messages: HashMap<String, lir::GlobalId>,
     /// Whether the current block was already sealed.
     current_sealed: bool,

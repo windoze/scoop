@@ -73,6 +73,9 @@ void scoop_runtime_finish_tlab_alloc(void *object, const ScoopTypeDescriptor *td
  * implementation declared in managed_entries.h. */
 void *scoop_runtime_alloc_slow(const ScoopTypeDescriptor *td, size_t size);
 void scoop_rt_safepoint(void);
+_Noreturn void scoop_rt_fatal(const char *message);
+void *scoop_rt_prepare_throwable(void *exception, const ScoopTypeDescriptor *trace_bytes_td);
+void scoop_rt_throwable_print_stack_trace(void *exception);
 const ScoopString *scoop_rt_string_concat(const ScoopString *left, const ScoopString *right);
 /* NoGC leaves: exact type validation and copying cannot safepoint. */
 void scoop_rt_unbox_zst(const void *object, const ScoopTypeDescriptor *expected_td);

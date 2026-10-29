@@ -118,6 +118,7 @@ pub fn lower_current_cone(
         imported_bodies,
         report,
     );
+    throwable::prepare(&mut module, hir);
     mir::DependencyMirOutput::try_new(module, selected_callables)
         .map_err(CurrentConeMirLoweringError::InvalidOutput)
 }

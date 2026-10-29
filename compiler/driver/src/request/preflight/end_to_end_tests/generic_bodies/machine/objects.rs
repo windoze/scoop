@@ -21,6 +21,7 @@ pub(super) fn verify(
     imports: &scoop_lir::CanonicalExternalShapeLinkImportsV1,
     dependencies: &scoop_slib::ValidatedCrossConeArtifactClosure,
     expected_bodies: usize,
+    core_bodies: &std::collections::BTreeSet<PersistentCallableBodyId>,
 ) -> BTreeMap<PersistentCallableBodyId, CallableFingerprints> {
     let prepared = crate::object_production::layout::prepare(emitted, generated).unwrap();
     let (callables, safepoints) = prepared.callable_metadata();
@@ -45,10 +46,11 @@ pub(super) fn verify(
         .registrations()
         .iter()
         .filter(|entry| {
-            matches!(
-                entry.definition_owner(),
-                RegistrationDefinitionOwner::Odr { .. }
-            )
+            !core_bodies.contains(&entry.body())
+                && matches!(
+                    entry.definition_owner(),
+                    RegistrationDefinitionOwner::Odr { .. }
+                )
         })
         .count();
     assert_eq!(actual_odr, expected_bodies);
@@ -180,7 +182,12 @@ pub(super) fn check(
                 .unwrap();
             let weak = plan.primary_symbol().linkage() == LinkageClass::OdrWeak;
             assert!(primary.is_definition());
-            assert_eq!(primary.is_weak(), weak);
+            assert_eq!(
+                primary.is_weak(),
+                weak,
+                "{}",
+                symbol_name(plan.primary_symbol())
+            );
             for boundary in plan.atom_boundaries() {
                 let start = object
                     .symbol_by_name(&symbol_name(boundary.start()))

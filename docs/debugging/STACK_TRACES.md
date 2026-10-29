@@ -2,7 +2,7 @@
 
 日期：2026-10-29。
 
-状态：调研与设计，尚未实施。用户已选择“首次抛出时采集，重抛保留原栈”，并允许在必要时使用 intrinsic class。本文将所需合同同步到语言规范 11.7、运行时规范 5.6／第 7 章、实现规范 2.10／2.21；不是当前编译器能力的声明。独立调试文件及 debugger 支持沿用 [主设计](DESIGN.md)。
+状态：实施中。Throwable 存储、首次抛出准备和地址栈输出已落地；DWARF 符号化与剩余集成继续实施，实际验收范围见 [实施记录](IMPLEMENTATION.md)。原设计决策：用户已选择“首次抛出时采集，重抛保留原栈”，并允许在必要时使用 intrinsic class。本文将所需合同同步到语言规范 11.7、运行时规范 5.6／第 7 章、实现规范 2.10／2.21；不是当前编译器能力的声明。独立调试文件及 debugger 支持沿用 [主设计](DESIGN.md)。
 
 ## 1. 方案
 
@@ -191,7 +191,7 @@ root／eager 失败报告已在 native coordinator 中，不能回调一个会�
 | dSYM／ELF debug、PIE／ASLR、普通 FFI、路径含中文与空格 | 标识、地址归一化和源码路径正确；比较规范化结果，不 golden 实际随机地址 |
 | 向慢 stderr 输出时并发 GC | 输出使用 NativeSafe；不存在持 registry 锁查文件或借用移动前地址的路径 |
 
-语义／身份行为能用 Cone 测试的放在 Cone；stderr、独立调试产物、跨进程终止和外部符号工具使用少量 compiler-correctness fixture。缺少调试信息用真实的 none 构建覆盖，不通过删除源码、工具或原产物制造缓存要求。此次只有文档修改和独立 native 实验，未运行或声称通过 Scoop 特性验收。
+语义／身份行为能用 Cone 测试的放在 Cone；stderr、独立调试产物、跨进程终止和外部符号工具使用少量 compiler-correctness fixture。缺少调试信息用真实的 none 构建覆盖，不通过删除源码、工具或原产物制造缓存要求。原调研阶段仅进行了文档与独立 native 实验；后续实际 Scoop 验收范围和结果见 [实施记录](IMPLEMENTATION.md)。
 
 ## 10. 依据
 

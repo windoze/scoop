@@ -91,8 +91,6 @@ struct FnEmitter<'a, 'ctx> {
     /// One ordinary field-write region, never retained across control flow or
     /// operations that can change the reference or publish/collect heap state.
     field_barrier: Option<gc::FieldBarrierCache<'ctx>>,
-    /// Checked array-size failures share one block per callable-owned message.
-    array_size_trap_blocks: HashMap<scoop_lir::GlobalId, inkwell::basic_block::BasicBlock<'ctx>>,
 }
 
 struct NativeTransition<'ctx> {
@@ -358,7 +356,6 @@ pub(super) fn emit_function<'ctx>(
         allocation_addressed_locals: None,
         young_allocation: None,
         field_barrier: None,
-        array_size_trap_blocks: HashMap::new(),
     };
 
     // All locals are stack slots allocated at the top of the entry block;

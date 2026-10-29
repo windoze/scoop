@@ -28,6 +28,7 @@ impl Concretizer<'_> {
             unit,
             boolean,
             string,
+            throwable_trace_bytes,
             native_callback_signatures,
             core_protocols,
         } = prepared;
@@ -165,6 +166,7 @@ impl Concretizer<'_> {
             unit,
             boolean,
             string,
+            throwable_trace_bytes,
             core_protocols,
         };
         Ok((module, extra))

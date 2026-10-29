@@ -23,3 +23,11 @@ pub(crate) fn native_float_environment_source() -> &'static str {
         host => panic!("no runtime floating environment component for {host}"),
     }
 }
+
+pub(crate) fn native_trace_module_source() -> &'static str {
+    match std::env::consts::OS {
+        "linux" => "runtime/src/stack_trace/elf.c",
+        "macos" => "runtime/src/stack_trace/macho.c",
+        host => panic!("no stack-trace module source for {host}"),
+    }
+}

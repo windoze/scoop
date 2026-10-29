@@ -11,6 +11,7 @@ use scoop_wire::{WirePath, decode_canonical, encode};
 use super::*;
 
 mod objects;
+mod odr_origins;
 
 #[test]
 fn actual_generic_library_emits_shared_odr_objects() {
@@ -41,8 +42,9 @@ fn actual_generic_library_emits_shared_odr_objects() {
     for (case, name, expected_bodies) in [
         ("standalone", "generic-machine-standalone", 1),
         ("control-flow", "generic-machine-control-flow", 4),
-        ("combined", "generic-machine-first", 11),
-        ("combined", "generic-machine-second", 11),
+        // Core's value helpers and trace-array methods are checked separately.
+        ("combined", "generic-machine-first", 7),
+        ("combined", "generic-machine-second", 7),
     ] {
         let coordinate = ConeCoordinate::new("dev.example", name, "0.1.0").unwrap();
         let root = sysroot.path().join(name);
@@ -221,6 +223,7 @@ fn actual_generic_library_emits_shared_odr_objects() {
                 &[],
             )
             .unwrap();
+        let core_bodies = odr_origins::core_bodies(&lir, &identities);
         let objects = scoop_codegen::emit_object_set_v2(
             &lir,
             production.clone(),
@@ -251,6 +254,16 @@ fn actual_generic_library_emits_shared_odr_objects() {
         expected_members.sort_unstable();
         assert_eq!(actual_bodies, expected_members);
         let native_bodies = objects::check(&objects);
+        if case == "standalone" {
+            let size = core_bodies
+                .iter()
+                .map(|body| native_bodies[body].len())
+                .sum::<usize>();
+            eprintln!(
+                "shared core support: {} callable objects, {size} native object bytes",
+                core_bodies.len()
+            );
+        }
         let generated = crate::generated_c::emit_c_bridge_object_set(
             &lir,
             sysroot.path(),
@@ -264,6 +277,7 @@ fn actual_generic_library_emits_shared_odr_objects() {
             selected_layout.physical_imports(),
             &machine_dependencies,
             expected_bodies,
+            &core_bodies,
         );
         if case == "control-flow" {
             for role in [
@@ -297,6 +311,7 @@ fn actual_generic_library_emits_shared_odr_objects() {
                     selected_layout.physical_imports(),
                     &machine_dependencies,
                     expected_bodies,
+                    &core_bodies,
                 );
                 for (body, original) in &object_fingerprints {
                     if *body == changed_body {
@@ -344,6 +359,7 @@ fn actual_generic_library_emits_shared_odr_objects() {
             .closure_records::<OdrMemberId, OdrMemberKey>(&WirePath::root())
             .unwrap();
         let mut bodies = BTreeMap::<PersistentCallableBodyId, Vec<Vec<u8>>>::new();
+        let mut support_bodies = BTreeMap::new();
         for function in &lir.module().functions {
             let body = &function.callable_body;
             let key = body.definition_plan_key(lir.module().cone);
@@ -420,7 +436,11 @@ fn actual_generic_library_emits_shared_odr_objects() {
                 }));
                 records.push(encode(registration).unwrap());
             }
-            bodies.insert(body.id(), records);
+            if core_bodies.contains(&body.id()) {
+                support_bodies.insert(body.id(), records);
+            } else {
+                bodies.insert(body.id(), records);
+            }
         }
         assert_eq!(bodies.len(), expected_bodies);
         if case != "standalone" {
@@ -430,12 +450,20 @@ fn actual_generic_library_emits_shared_odr_objects() {
                     .any(|atom| { atom.key().role() == DefinitionAtomRole::Lsda })
             );
         }
-        outputs.push(bodies);
+        outputs.push((bodies, support_bodies));
     }
     for (first, second, expected_shared) in [(0, 1, 1), (1, 2, 4), (2, 3, 4)] {
         let mut shared = 0;
-        for (body, records) in &outputs[first] {
-            if let Some(other) = outputs[second].get(body) {
+        for (body, records) in &outputs[first].1 {
+            if let Some(other) = outputs[second].1.get(body) {
+                assert_eq!(
+                    records, other,
+                    "shared core body {body} differs between consumers"
+                );
+            }
+        }
+        for (body, records) in &outputs[first].0 {
+            if let Some(other) = outputs[second].0.get(body) {
                 assert!(
                     records == other,
                     "shared ODR body {body} differs between consumers {first} and {second}, record {:?}",
