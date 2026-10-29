@@ -68,7 +68,9 @@ fn wide_array_writes_guard_the_actual_reference_slot_after_the_full_store() {
     let new = ir
         .find("write.new_reference = load ptr addrspace(1)")
         .unwrap();
-    let mark = ir.find("load atomic ptr").unwrap();
+    let mark = ir
+        .find("store atomic i8 1")
+        .unwrap_or_else(|| panic!("missing card mark after the guarded store:\n{ir}"));
     assert!(old < store && store < new && new < mark, "{ir}");
     assert!(ir.contains("ptr addrspace(1) %element_ptr, i64 8"), "{ir}");
     assert!(

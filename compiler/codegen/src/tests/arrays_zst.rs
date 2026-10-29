@@ -137,7 +137,8 @@ fn zst_arrays_keep_count_checks_without_payload_access() {
         "clone allocates its target nominal descriptor:\n{ir}"
     );
     assert!(
-        ir.contains("allocation_alignment") && ir.contains("tlab_aligned_cursor"),
-        "TLAB allocation consumes descriptor alignment:\n{ir}"
+        !ir.contains("allocation_alignment = load")
+            && ir.contains("%tlab_aligned_cursor = and i64 %tlab_cursor_plus_align, -8"),
+        "TLAB allocation uses the known descriptor alignment:\n{ir}"
     );
 }

@@ -166,7 +166,15 @@ Darwin 完整 CLI 选择覆盖 4310 项，按每项最后一次明确验证汇�
 
 两项运行失败为 client-observer-lifetime 的 Completed／caller cancellation 类型断言，以及 generic-delegate-siblings-consumer 的 IllegalStateException。前者用已生成程序单独运行仍失败，尚未完成基线归因；后者在此前 [fmt／check 验收](../fmt-check/VALIDATION.md) 有基线复现记录。其他设置问题分别位于 cli-core-locator-cache、cli-input-manifest-roots、executable-native、installed-tools、odr-selection 和 test-selection。本轮不扩大为这些已有子系统的修复任务。
 
-完整 Rust 测试保留前述 12 项未闭合失败；formatter corpus 和顺序 doc tests 已通过。完整与定向报告、失败分组和日志留在仓库外，文档只记录范围与限制。新输入 intrinsic 的 12 项正式 fixture 全部通过，未因上述失败放宽其输入限制、诊断、缓存、产物或 GC 断言。末次收尾清除 45 个测试生成的未跟踪 Cone.lock，并在 Cargo 构建锁内清理约 530 MiB 新增 Rust 增量缓存。
+上述完整 Rust 运行当时保留 12 项失败，其后续定向闭合见下节；formatter corpus 和顺序 doc tests 已通过。完整与定向报告、失败分组和日志留在仓库外，文档只记录范围与限制。新输入 intrinsic 的 12 项正式 fixture 全部通过，未因上述失败放宽其输入限制、诊断、缓存、产物或 GC 断言。末次收尾清除 45 个测试生成的未跟踪 Cone.lock，并在 Cargo 构建锁内清理约 530 MiB 新增 Rust 增量缓存。
+
+### Rust 遗留 12 项闭合
+
+按用户要求，以 `150c34db9` 合并最新 origin/main `0bded827b`。保留 main 的调试信息与本分支编译期输入，合并后的 machine protocol 为 22、HIR `cross-cone-interface` 为 87；main 的栈追踪 intrinsic 保留 tag 30，env 改用独立 tag 34，并验证两者编码与完整往返。同步合并引起的接口版本、缓存、语义指纹及协议负例的字段位置预期。
+
+原 12 项失败全部闭合：3 项 codegen 断言验证实际的常量对齐、TLAB 容量及写入后的原子 card mark；4 项 ABI 固定向量同步 main 的 runtime ABI 29；5 项 linker 测试使用 main 已迁移的 scoop 构建入口和预编译资源，实际链接、更新输入、符号裁剪及程序运行均通过。原 `final_link_strips_internal_names_and_keeps_address_map_and_runtime_data` 随 main 改名为 `final_link_strips_internal_names_and_keeps_runtime_data`。
+
+Darwin／Linux 均通过格式检查与 workspace lint，各通过 138 项定向 Rust 测试（86 项接口／缓存／ABI／分配／写屏障检查、5 项 linker、47 项协议）。Linux 的 linker 组合以 ELF 动态库更新用例替代 Darwin 专有符号用例。两平台额外通过 env 与 includeDir 跨 Cone fixture，共各 3 个变体、12 个进程步骤，包含 debug moving GC。使用仓库外单独准备的 core／std 与 runtime，原始日志和报告不入库。本轮没有重跑完整测试套件，之前完整 CLI 的其他失败状态不变；收尾在 Cargo 构建锁内清理约 4.46 GiB 本地增量缓存。
 
 ## 范围调整
 
