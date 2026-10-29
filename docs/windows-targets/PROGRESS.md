@@ -24,6 +24,8 @@
 
 ## 编译器、runtime 与构建
 
+Windows final linker 保留显式指定的输出路径，包括无扩展名的文件。五种 native 工具组合的实际执行／PDB 检查，以及 Atomic 跨产物 CLI 重链接用例通过；MSVC 与 MinGW 驱动的自动 `.exe` 补全不再改变临时输出名。
+
 三个环境的实际程序已覆盖 Win64 标量／aggregate／sret、C 与 Scoop 双向调用、跨 Cone 与 callback、普通 COFF／bigobj／COMDAT、短／长 import library、混合 archive、DLL 数据、Unicode 启动参数、CRT imports 和目标不匹配诊断。Microsoft clang-cl／cl、LLD／LINK 及两个 MinGW CRT 的五种 C++ 组合通过 STL、RTTI、内部异常、静态初始化／析构和 native backtrace。Debug 包含 CodeView 与相邻 PDB，函数入口的源文件／行定位已验证。
 
 SEH personality 与 LSDA decoder、真实 statepoint invoke、多层／大栈帧的系统 unwind、移动根恢复、throw／catch／finally／rethrow、初始化失败、线程异常根、park／TLS／callback／shutdown 与并行 GC 已通过定向测试。GC stress 只用于相应正确性用例。Windows 的锁、condition、once、线程、对齐分配和计时使用 Win32／CRT primitives，Unix 保留原行为。

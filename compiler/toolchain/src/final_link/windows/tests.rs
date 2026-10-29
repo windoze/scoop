@@ -119,8 +119,8 @@ fn windows_final_link_profiles_link_real_crt_unwind_cpp_and_pdb() {
                 .arg(profile.unwind_prefix().join("include")),
         )
         .unwrap();
-        let binary = scratch.join("程序.exe");
-        let pdb = scratch.join("程序.exe.pdb");
+        let binary = scratch.join("程序");
+        let pdb = scratch.join("程序.pdb");
         let mut command = profile.command(&scratch, &binary).unwrap();
         command.arg(&object);
         if let Some(cxx) = &profile.data.cxx {
@@ -154,7 +154,12 @@ fn windows_final_link_profiles_link_real_crt_unwind_cpp_and_pdb() {
             }
         };
         assert!(String::from_utf8_lossy(&output.stdout).contains("PE CRT"));
-        let bytes = std::fs::read(&binary).unwrap();
+        let bytes = std::fs::read(&binary).unwrap_or_else(|error| {
+            panic!(
+                "case {index}: missing exact output {}: {error}",
+                binary.display()
+            )
+        });
         probe::check_image(&bytes, target.id()).unwrap();
         let pe = object::read::pe::PeFile64::parse(bytes.as_slice()).unwrap();
         let header = pe.nt_headers().optional_header();
@@ -165,7 +170,7 @@ fn windows_final_link_profiles_link_real_crt_unwind_cpp_and_pdb() {
         assert_eq!(header.size_of_stack_commit.get(object::LittleEndian), 4096);
         let file = object::File::parse(bytes.as_slice()).unwrap();
         let info = file.pdb_info().unwrap().unwrap();
-        assert_eq!(std::str::from_utf8(info.path()).unwrap(), "程序.exe.pdb");
+        assert_eq!(std::str::from_utf8(info.path()).unwrap(), "程序.pdb");
         assert!(
             std::fs::read(&pdb)
                 .unwrap()

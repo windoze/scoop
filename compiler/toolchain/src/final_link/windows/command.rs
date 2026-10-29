@@ -47,6 +47,12 @@ impl WindowsFinalLinkProfile {
                 );
             }
             command.arg(joined("/Fe", dunce::simplified(output).as_os_str()));
+            // /Fe appends .exe to an extensionless name. Preserve the exact
+            // requested output path at the linker boundary.
+            self.linker_arg(
+                &mut command,
+                joined("/out:", dunce::simplified(output).as_os_str()),
+            );
             command
         } else {
             let mut command = self.startup.driver_command_with(&self.data.driver);
@@ -65,6 +71,9 @@ impl WindowsFinalLinkProfile {
                 command.arg("-stdlib=libc++");
             }
             command.arg("-o").arg(dunce::simplified(output));
+            // The MinGW driver also adds .exe before invoking LLD.
+            self.linker_arg(&mut command, "-o");
+            self.linker_arg(&mut command, dunce::simplified(output));
             command
         };
         command
