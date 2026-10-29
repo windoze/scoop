@@ -80,6 +80,8 @@ PCRE2 10.49、OpenSSL 3.5.9、uriparser 1.0.2、Rust 文本后端、Zstandard、
 
 HTTP client 的 ABI 29 完整测试程序在默认 MSVC 目标运行 193 项，首轮 191 项通过。SSE duplex 用例在客户端关闭前显式等待测试服务端完成发送，消除最后一帧与关闭的竞争；修改后的原函数及 helper 通过独立 consumer Cone 的 5 次定向执行，不改变库行为。剩余失败已按名称定位为连接拒绝后的重试用例（case 150），不是共享等待 helper 所在的 backoff 取消用例（case 148）；原完整程序的后者单独运行通过，去掉诊断打印的原函数与 SSE consumer 定向 Cone 共 2 项也通过。连接拒绝、server 及 consumer 验收继续进行；不将这组结果记为全部通过。
 
+HTTP server 的 ABI 29 完整测试程序在默认 MSVC 目标运行 51 个容器／147 项，首轮 143 项通过。三个目录响应错误已按既有 404 合同修正：只在打开失败为 PermissionDenied 时查询目录类型，无法确认则保留原访问拒绝，不增加正常文件响应的路径查询。原生文件名测试在 Windows 使用可表示未配对 UTF-16 surrogate 的 WTF-8 名称，Unix 保留原字节名。覆盖四个失败用例及相关行为的 3 个容器／5 项定向测试全部通过；普通 consumer 验收和三个目标预编译 server 资源更新仍在进行。
+
 ## 发行与剩余工作
 
 打包入口组装五个宿主命令、递归解析的宿主 DLL、私有 LLVM、两个 MinGW CRT prefix、三个目标的 slib／runtime／unwind、实际许可证、三个 API 文档站点、VSIX、示例和编程 skill。源码副本排除生成的 target 和 Cone.lock。10 项打包测试、Python Ruff 和 workspace/all-targets Clippy 已通过。
