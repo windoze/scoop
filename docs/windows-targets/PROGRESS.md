@@ -8,8 +8,8 @@
 | W0 工具链与 ABI | 三种 native 环境的关键路线均已通过，正式准备脚本已接入 | 无独立 W0 阻塞 |
 | W1 编译／链接 | 三目标 ABI、COFF、C/C++、PE、PDB、subsystem 与 RC 已实现；ABI 30 定向组合通过 | 无独立 W1 阻塞 |
 | W2 core runtime | Win32 primitives、SEH、精确 roots、GC、线程与初始化已实现；ABI 30 栈诊断开关组合通过 | 无独立 W2 阻塞 |
-| W3 系统库 | Windows 实现及所需 native 后端已完成，下表各组通过 | ABI 30 资源重建与高层 HTTP client／server 验收进行中 |
-| W4 宿主与发行 | Windows 宿主、命令发现、私有 LLVM、SDK 选择和发行入口已实现；首个实际安装包通过三目标使用验收 | 使用最新 core／库重新生成最终归档并复测；随后进行跨宿主回归 |
+| W3 系统库 | Windows 实现及所需 native 后端已完成；ABI 30 三目标各 25 个 Cone 与四种 runtime 已准备完成 | 高层 HTTP client／server 验收进行中 |
+| W4 宿主与发行 | ABI 30 候选归档通过三目标实际安装使用与调试器验收 | 纳入示例命令帮助修正；随后进行跨宿主回归 |
 
 本地实现和完整验收完成后，才在 Linux `nuc12w.0d0a.com` 与 macOS `mm.0d0a.com` 的 `~/repos` 下新建测试目录。目前尚未开始远端测试。原始日志、报告、归档和构建副本保存在仓库外。
 
@@ -38,7 +38,7 @@ Windows 主驱动的安装名为 **`sco.exe`**，帮助和版本信息使用 `sc
 
 主线调试整合复用共享 DebugOrigin／变量记录，并将 Windows PDB 接入统一伴随文件发布。原生栈诊断使用所选 LLVM unwinder 与串行 DbgHelp 查询；三个 Windows target 的 O0／O2、中文源码／安装路径、实际 PDB 行号、无 PDB 地址输出、并发查询和模块卸载后的历史地址测试已通过。Throwable 历史、并发首次抛出与 GC 组合已在 ABI 30 的三个目标定向验收中通过。
 
-ABI 30 的程序级栈诊断开关通过 Windows UTF-16 入口原样传递，release 默认关闭、debug 默认开启，显式设置覆盖默认值。四种原生链接组合验证开／关参数、Unicode、PE／PDB 与 trap；6 项 runtime ABI、3 项开关默认值／CLI 测试、workspace Clippy 和 70 项 fixture runner 规则测试（3 项宿主跳过）通过。完整资源重建前保留此前测试产物，新资源位于独立外部目录，复用未变化的 native 后端。
+ABI 30 的程序级栈诊断开关通过 Windows UTF-16 入口原样传递，release 默认关闭、debug 默认开启，显式设置覆盖默认值。四种原生链接组合验证开／关参数、Unicode、PE／PDB 与 trap；6 项 runtime ABI、3 项开关默认值／CLI 测试、workspace Clippy 和 70 项 fixture runner 规则测试（3 项宿主跳过）通过。三个目标各 25 个 Cone 与四种 runtime 已在独立外部目录准备完成，复用未变化的 native 后端；此前测试产物保留。
 
 ABI 30 的三个目标各通过 13 项定向 fixture，覆盖开关与重链接、Throwable 历史／并发／GC、三种调试级别、Unicode 启动参数、PDB、RC、subsystem、native DLL 数据、终端及四种编译期输入。MSVC 首轮两个缺少配套库的用例在准备 platform／terminal 后定向复测通过；两个 MinGW 分别完成 11 项公共组合和 2 项终端／并发组合。
 
@@ -74,7 +74,9 @@ PCRE2 10.49、OpenSSL 3.5.9、uriparser 1.0.2、Rust 文本后端、Zstandard、
 
 数学库保持系统行为，不加入结果修正 workaround。规范、设计与库文档记录 C pow 与 Java Math 的差异，以及所用 LLVM-MinGW MSVCRT 的 FMA 中间溢出；Microsoft `_hypotf` 薄 wrapper 仅适配导出名。
 
-终端异步、log、console log 和 CLI 的 MSVC／MinGW UCRT 测试已通过。JSON 完整 API 在默认 MSVC 目标上 71 个容器／101 项全部通过。HTTP asyncio 在 ABI 29 的默认 MSVC 目标运行 55 个容器／145 项，144 项通过；唯一失败是收到连接错误便假定异步关闭已完成的测试时序。按既有 isClosing／isClosed 合同显式等待 close 后，原测试源码与必要 helper 的小型 Cone 定向验证 2 项全部通过，失败闭合；库行为未改。HTTP client／server 及 consumer 继续验收。此前并行大型编译触及内存上限，已降低并发；没有修改编译器语义或增加资源预算机制。
+终端异步、log、console log 和 CLI 的 MSVC／MinGW UCRT 测试已通过。JSON 完整 API 在默认 MSVC 目标上 71 个容器／101 项全部通过。HTTP asyncio 在 ABI 29 的默认 MSVC 目标运行 55 个容器／145 项，144 项通过；唯一失败是收到连接错误便假定异步关闭已完成的测试时序。按既有 isClosing／isClosed 合同显式等待 close 后，原测试源码与必要 helper 的小型 Cone 定向验证 2 项全部通过，失败闭合；库行为未改。此前并行大型编译触及内存上限，已降低并发；没有修改编译器语义或增加资源预算机制。
+
+HTTP client 的 ABI 29 完整测试程序在默认 MSVC 目标运行 193 项，首轮 191 项通过。SSE duplex 用例在客户端关闭前显式等待测试服务端完成发送，消除最后一帧与关闭的竞争；修改后的原函数及 helper 通过独立 consumer Cone 的 5 次定向执行，不改变库行为。另一项重试等待失败仍在定位，server 及 consumer 验收继续进行；不将这组结果记为全部通过。
 
 ## 发行与剩余工作
 
@@ -90,4 +92,8 @@ ABI 30 的三个 target 均通过上述真实 DAP launch 与离线 formatter 检
 
 首个归档已解压到中文及空格路径。在仅含安装 bin 和 Windows 系统目录的 PATH 下，三个目标的默认 SDK／工具发现、new/run/test、C++、console／GUI 和 RC 均通过；检查实际 PE imports 确认所选 CRT。随后修复了 canonical native sysroot 路径，并用更新的程序完成实际安装目录回归。该原型归档不是最终发行物。
 
-剩余工作为：完成 ABI 30 三目标预编译资源重建与剩余高层库测试；重新生成并验证最终 release 归档；提交、推送并合并主线；最后执行设计约定的 Linux／macOS 回归。完成这些步骤前不声明全部 Windows 验收完成。
+ABI 30 的 `1a5e07c6f` 候选归档及 LLVM 源码归档已经生成。候选包解压到新的中文／空格目录后，在仅含公开 bin 和 Windows 系统目录的 PATH 下通过三目标 new/run/test、9 项 C++／subsystem／RC fixture、实际 CRT imports、交替构建、文档与 VSIX 检查。13 个公开命令的名称与版本、带前缀的 LLVM nm／objcopy／strip 对真实 COFF 的符号读取、section 写入／读回和默认符号剥离均通过。三个目标的真实 DAP launch、源码映射、离线 formatter 和私有 Python 模块再次通过。
+
+安装验收发现示例阅读器的帮助仍写旧 Windows 驱动名；帮助、目录提示和错误文本已按宿主选择 `sco example` 或 `scoop example`，其文件名保持不变。Rust fmt／Clippy 与 9 项 CLI 测试通过；原样源码输出测试使用实际文件字节，保留 Windows checkout 的 CRLF。该帮助修正仍需纳入后续归档。
+
+剩余工作为：完成高层 HTTP 测试并将已验证修正纳入发行物；提交、推送并合并主线；最后执行设计约定的 Linux／macOS 原生回归与三个 Windows target 的交叉编译，并在 Windows 运行交叉产物。完成这些步骤前不声明全部 Windows 验收完成。

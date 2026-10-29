@@ -54,13 +54,16 @@ MinGW 环境采用 [LLVM-MinGW 构建配方](https://github.com/mstorsjo/llvm-mi
 
 ### 2.2 安装布局与选择
 
-Windows 宿主的主驱动安装为 `sco.exe`，避免与已有 Scoop 包管理器命令重名；macOS／Linux 继续使用 `scoop`。选择 Windows 应用 target 不改变其他宿主的命令名。其他可执行程序及外部命令前缀保持不变，例如 `sco pm` 调用 `scoop-pm.exe`，`sco example` 调用 `scoop-example.exe`。Cargo 的内部构建产物仍为 `scoop.exe`，安装与归档阶段使用 `sco.exe`；不随包提供同名 `scoop.exe` 别名。
+Windows 宿主的主驱动安装为 `sco.exe`，避免与已有 Scoop 包管理器命令重名；macOS／Linux 继续使用 `scoop`。选择 Windows 应用 target 不改变其他宿主的命令名。其他 Scoop 可执行程序及外部命令前缀保持不变，例如 `sco pm` 调用 `scoop-pm.exe`，`sco example` 调用 `scoop-example.exe`。Cargo 的内部构建产物仍为 `scoop.exe`，安装与归档阶段使用 `sco.exe`；不随包提供同名 `scoop.exe` 别名。
+
+所有宿主发行包公开 `bin` 中的 LLVM／LLDB 命令统一使用 `scoop-` 前缀，包括 `scoop-lldb`、`scoop-lldb-dap`、`scoop-dsymutil`、`scoop-llvm-objcopy`、`scoop-llvm-strip`、`scoop-llvm-symbolizer`、`scoop-llvm-nm` 和 `scoop-llvm-readobj`；Windows 附加 `.exe`。不保留无前缀别名，避免安装目录加入 PATH 后与其他 LLVM 安装冲突。编译器相邻工具查找、编辑器默认 adapter 和配套脚本使用上述发行名称；私有 `libexec` 与构建 SDK 内的工具保留上游名称。
 
 继续使用现有 Scoop sysroot；Windows 的 C 开发资源是其中按目标选择的 native sysroot，二者不是同一个目录：
 
 ```text
 <install>/
   bin/                                      sco.exe、scoopc.exe、scoop-link.exe、scoop-lsp.exe、scoop-pm.exe
+                                            scoop-lldb.exe、scoop-lldb-dap.exe 及其他带 scoop- 前缀的 LLVM 命令
   libexec/llvm/bin/                          宿主 Clang、LLD、LLVM 工具
   libexec/llvm/lib/                          宿主 LLVM 库
   libexec/llvm/lib/clang/<version>/include/   Clang resource headers

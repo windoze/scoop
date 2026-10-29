@@ -32,7 +32,6 @@ internal fun withSsePeer(
                             connection ->
                             val request = connection.acceptRequest()!!
                             assertEquals("POST", String.fromUtf8(request.head.method))
-                            received.signal()
                             request.stream.sendResponse(
                                 HttpResponseHead(
                                     HttpVersion.Http2,
@@ -50,6 +49,7 @@ internal fun withSsePeer(
                             )
                             sseWrite(request.stream, sseLifetimeBody)
                             request.stream.finish()
+                            received.signal()
                             finish.await()
                         }
                     } else

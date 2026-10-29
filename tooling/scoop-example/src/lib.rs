@@ -5,6 +5,19 @@ pub mod search;
 use clap::{Parser, ValueEnum};
 use std::path::{Path, PathBuf};
 
+pub const DRIVER_NAME: &str = if cfg!(windows) { "sco" } else { "scoop" };
+pub const COMMAND_NAME: &str = if cfg!(windows) {
+    "sco example"
+} else {
+    "scoop example"
+};
+
+fn examples_help() -> String {
+    format!(
+        "示例：\n  {COMMAND_NAME} language/option\n  {COMMAND_NAME} --search \"JSON 序列化\"\n  {COMMAND_NAME} http/get --format source --file client.scoop\n\n选择其他安装根：{DRIVER_NAME} --sysroot /path/to/scoop example <topic>\n本命令只读取材料，不编译或运行程序。"
+    )
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, ValueEnum)]
 pub enum Format {
     #[default]
@@ -15,10 +28,10 @@ pub enum Format {
 
 #[derive(Debug, Parser)]
 #[command(
-    name = "scoop example",
+    name = COMMAND_NAME,
     color = clap::ColorChoice::Never,
     about = "查询配套工具链的完整示例与中文说明",
-    after_help = "示例：\n  scoop example language/option\n  scoop example --search \"JSON 序列化\"\n  scoop example http/get --format source --file client.scoop\n\n选择其他安装根：scoop --sysroot /path/to/scoop example <topic>\n本命令只读取材料，不编译或运行程序。"
+    after_help = examples_help()
 )]
 pub struct Args {
     /// 分类、主题 ID 或显式别名
@@ -68,9 +81,9 @@ pub fn installation_root(executable: &Path) -> Result<PathBuf, Error> {
         .and_then(Path::parent)
         .map(Path::to_path_buf)
         .ok_or_else(|| {
-            Error::content(
-                "请先将 scoop-example 安装到 <SYSROOT>/commands，再通过 scoop example 查询。",
-            )
+            Error::content(format!(
+                "请先将 scoop-example 安装到 <SYSROOT>/commands，再通过 {COMMAND_NAME} 查询。"
+            ))
         })
 }
 
