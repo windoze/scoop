@@ -1885,4 +1885,6 @@ Darwin 输出 `<output>.dSYM/Contents/Resources/DWARF/<basename>`：保留 Mach-
 
 编辑器复用官方 lldb-dap，scoop-lsp 保持语言服务职责。VS Code 提供源码 breakpoints、构建到 executable 的启动配置、attach、参数／cwd／环境／终端及 sourceMap，按需导入只读 Python formatter。发行包包含匹配平台的 lldb、lldb-dap、LLDB library、Python 支持及实际所需附加文件。不得把 C 兼容 evaluator、通用异常筛选或硬件 watchpoint 宣称为完整 Scoop 求值、Scoop 异常过滤或 GC 感知数据断点。
 
+Linux/amd64 静态程序的 TLS 调试定位遵循目标的 variant II TLS 布局：使用当前线程的 thread pointer 与主 executable 的 PT_TLS 大小、对齐和起始偏移，不依赖不存在的动态 linker link map，也不读取其他线程的 TLS。该兼容处理位于 LLDB 的目标地址解析中；编译器继续发射标准 DW_OP_form_tls_address，不增加 runtime 调试入口或执行目标函数。动态加载模块仍使用原动态 loader 定位。
+
 闭包捕获值的调试观察复用 ClosureEnvironment 中的真实 captured-value 身份和共享声明，只在现有字段读取产生 LIR temporary 后记录值；不为调试读取捕获对象、延长生命期或增加 GC roots。相同声明／内联作用域复用一个 DWARF 变量，managed 观察在 safepoint 后失效。人工 helper 使用 DW_AT_artificial，源码 inline 函数仍保留用户属性。

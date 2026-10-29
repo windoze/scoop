@@ -5,6 +5,19 @@ import lldb
 
 def __lldb_init_module(debugger, _internal_dict):
     target = debugger.GetSelectedTarget()
+    functions = target.FindFunctions("inspectValues", lldb.eFunctionNameTypeFull)
+    assert functions.GetSize() == 1
+    function = functions.GetContextAtIndex(0).GetFunction()
+    assert function.GetName() == "inspectValues"
+    exact = function.GetMangledName()
+    assert exact.startswith("scoop$1$cb$")
+    source_breakpoint = target.BreakpointCreateByName("inspectValues")
+    exact_breakpoint = target.BreakpointCreateByName(exact)
+    assert source_breakpoint.GetNumLocations() == exact_breakpoint.GetNumLocations() == 1
+    assert (
+        source_breakpoint.GetLocationAtIndex(0).GetAddress()
+        == exact_breakpoint.GetLocationAtIndex(0).GetAddress()
+    )
     for name in ("Choice", "Option<String>", "String", "MutableArray<Long>", "Box", "Value"):
         assert target.FindFirstType(name).IsValid(), name
 

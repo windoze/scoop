@@ -114,7 +114,7 @@ LLVM 源码与归档优先复用 vendor 的固定版本位置；缺失时在工�
 
 `package_toolchain.py` 在 LLVM／Clang SDK 后调用 `build_lldb.py`，固定 LLVM 22.1.8，
 启用 Python，构建 lldb、lldb-dap、lldb-argdumper 和 debugserver／lldb-server。
-源码兼容修补保留 Scoop 的 DW_AT_name 与精确 linkage identity，修补文件也进入 llvm-sources 包。
+源码兼容修补保留 Scoop 的 DW_AT_name 与精确 linkage identity，将同源文件的独立编译单元全局量放回当前栈帧，并补齐 Linux/amd64 静态程序的原生 TLS 定位；修补文件也进入 llvm-sources 包。
 可用 `--debugger-prefix` 复用匹配的已构建调试器，`--debugger-python` 指定构建时所用 Python；
 只有 LLVM SDK 时仍正常构建 LLDB，要求 SDK 包含 Clang headers／CMake targets／clang-cpp。
 

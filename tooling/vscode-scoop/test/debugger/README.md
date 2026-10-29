@@ -29,7 +29,8 @@ PR_SET_PTRACER 只允许该次适配器访问该次目标，不改系统 ptrace 
 成功标记为 `SCOOP_DAP_OK`；超时会关闭本次适配器与目标。
 
 `--mode initialize` 只检查打包后的 DAP 握手，不代表进程内调试验收。
-`offline.py` 在 LLDB 中对真实 program DWARF 的 SBValue 检查 enum、空引用和数组布局：
+`offline.py` 在 LLDB 中检查源码名与精确 linkage 名命中相同断点，并对真实 program DWARF
+的 SBValue 检查 enum、空引用和数组布局：
 
 ```sh
 lldb -b /tmp/scoop-debug-program \
@@ -38,3 +39,15 @@ lldb -b /tmp/scoop-debug-program \
 ```
 
 完整变量求值、写入 managed heap 和协程逻辑栈不在本批验收范围。
+
+Linux 静态 TLS 的原生定向用例覆盖 `.tdata`、`.tbss`、64-byte 对齐及两个线程的独立值。
+它验证调试器的目标 TLS 地址解析，编译和运行只需一个小型 C 程序：
+
+```sh
+musl-gcc -std=c11 -g -O0 -static -pthread tooling/vscode-scoop/test/debugger/tls.c \
+  -o /tmp/scoop-debug-tls
+lldb -b /tmp/scoop-debug-tls \
+  -o 'command script import tooling/vscode-scoop/test/debugger/tls.py' -o quit
+```
+
+成功标记为 `SCOOP_STATIC_TLS_OK`。此用例与 `program.scoop` 的实际 Scoop TLS 断言共同验收。
