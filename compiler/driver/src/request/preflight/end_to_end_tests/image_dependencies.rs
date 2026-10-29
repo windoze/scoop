@@ -87,7 +87,10 @@ fn published_image_preserves_all_direct_dependencies_in_both_views() {
         .current_compile()
         .production()
         .lir_cross_cone()
-        .selected();
+        .selected()
+        .iter()
+        .filter(|selection| selection.provider() != ConeIdentity::CORE)
+        .collect::<Vec<_>>();
     assert_eq!(selected.len(), 1);
     assert_eq!(selected[0].provider(), coordinates[0].identity().unwrap());
 

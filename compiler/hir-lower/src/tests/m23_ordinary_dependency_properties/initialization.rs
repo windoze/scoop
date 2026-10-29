@@ -31,7 +31,7 @@ fn with_shared(
             &provider,
             &["Int"],
         );
-    let source_foundation = hir::OdrFreeHirFoundation::try_new(foundation.clone()).unwrap();
+    let source_foundation = foundation.clone();
     let foundation = core.import_dependency_foundation(&coordinate, &foundation, 57);
     let fixture = DependencyPropertyFixture {
         core,
@@ -75,12 +75,11 @@ fn with_shared(
         foundation
             .complete_cross_cone_interface_source_points(local, &public)
             .unwrap();
-        let foundation = hir::OdrFreeHirFoundation::try_new(foundation).unwrap();
         let graph = identities(
             &[
                 fixture.core.source_foundation.as_ref(),
-                fixture.source_foundation.as_canonical(),
-                foundation.as_canonical(),
+                &fixture.source_foundation,
+                &foundation,
             ],
             &[ConeIdentity::CORE, provider, local.cone],
         );

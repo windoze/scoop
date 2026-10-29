@@ -2,12 +2,10 @@ use super::*;
 
 #[test]
 fn nested_constructor_captures_read_the_enclosing_closure() {
-    let source = scoop_parser::parse(
-        "class Callback(seed: Int) { val nested: () -> () -> Int = { val inner: () -> Int = { seed }; inner } }\n\
-         fun main() { Callback(42).nested()() }",
-    )
-    .unwrap();
-    let output = lower_user_output(source).unwrap();
+    let source = "class Callback(seed: Int) { val nested: () -> () -> Int = { val inner: () -> Int = { seed }; inner } }\n\
+         fun main() { Callback(42).nested()() }";
+    let output =
+        lower_with_source(&[core_file(), scoop_parser::parse(source).unwrap()], source).unwrap();
     let mut captures = output
         .export
         .lambdas
@@ -46,6 +44,7 @@ fn constructor_captures_compose_with_anonymous_local_and_generic_functions() {
         )),
         "\nfun main() { Callback<Int>(42).local() }"
     );
-    let output = lower_user_output(scoop_parser::parse(source).unwrap()).unwrap();
+    let output =
+        lower_with_source(&[core_file(), scoop_parser::parse(source).unwrap()], source).unwrap();
     scoop_mir_lower::lower(&output.local).unwrap();
 }

@@ -58,6 +58,7 @@ fn materialized_types_include_parents_and_exclude_unevaluated_defaults() {
             materialized,
             BTreeSet::from(
                 [
+                    "Array",
                     "Boolean",
                     "Continuation",
                     "Deferred",
@@ -70,6 +71,7 @@ fn materialized_types_include_parents_and_exclude_unevaluated_defaults() {
                     "SuspendRegistration",
                     "SuspendTask",
                     "Throwable",
+                    "UInt8",
                     "Unit"
                 ]
                 .map(str::to_owned)
@@ -93,7 +95,8 @@ fn materialized_types_include_shapes_signatures_captures_and_type_tests() {
             used,
             BTreeSet::from(
                 [
-                    "Any", "Boolean", "Cell", "Envelope", "Packet", "Reader", "String", "Unit"
+                    "Any", "Array", "Boolean", "Cell", "Envelope", "Packet", "Reader", "String",
+                    "UInt8", "Unit"
                 ]
                 .map(str::to_owned)
             )
@@ -110,7 +113,10 @@ fn materialized_types_include_explicit_non_result_type_operands() {
         assert_eq!(
             names(&local),
             BTreeSet::from(
-                ["Any", "Boolean", "Int8", "UInt8", "ULong", "UInt16"].map(str::to_owned)
+                [
+                    "Any", "Array", "Boolean", "Int8", "UInt8", "ULong", "UInt16"
+                ]
+                .map(str::to_owned)
             )
         );
         let mut operations = [false; 3];
@@ -145,7 +151,7 @@ fn materialized_initialization_adds_its_implicit_string_type() {
             .unwrap();
         assert_eq!(
             names(local),
-            BTreeSet::from(["Boolean", "String", "Unit"].map(str::to_owned))
+            BTreeSet::from(["Array", "Boolean", "String", "UInt8", "Unit"].map(str::to_owned))
         );
     });
 }

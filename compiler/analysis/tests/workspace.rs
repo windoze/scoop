@@ -13,7 +13,7 @@ use support::{resolve, setup, write};
 
 #[test]
 fn opened_files_and_manifests_override_disk_and_close_restores_disk() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
     let root = directory.path();
     let configuration = setup(root);
     let path = root.join("app/src/value.scoop");
@@ -96,7 +96,7 @@ fn opened_files_and_manifests_override_disk_and_close_restores_disk() {
 
 #[test]
 fn targets_purposes_and_unsaved_files_share_text_but_keep_project_membership() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
     let root = directory.path();
     let mut production = setup(root);
     let manifest = root.join("app/Cone.toml");
@@ -155,7 +155,7 @@ fn targets_purposes_and_unsaved_files_share_text_but_keep_project_membership() {
 
 #[test]
 fn configuration_failures_preserve_selected_source_inputs() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
     let root = directory.path();
     let configuration = setup(root);
     let manifest = root.join("app/Cone.toml");
@@ -190,7 +190,7 @@ fn configuration_failures_preserve_selected_source_inputs() {
 
 #[test]
 fn semantic_inputs_keep_unavailable_source_dependencies_in_the_selected_graph() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
     let configuration = setup(directory.path());
     let mut host = AnalysisHost::default();
     let mut loader = WorkspaceLoader::default();
@@ -253,7 +253,7 @@ fn semantic_inputs_keep_unavailable_source_dependencies_in_the_selected_graph() 
 
 #[test]
 fn workspace_symbol_indexes_follow_selected_sources_updates_and_cancellation() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
     let first = setup(directory.path());
     let mut second = first.clone();
     second.name = "alternate".into();

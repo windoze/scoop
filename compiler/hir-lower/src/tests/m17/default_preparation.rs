@@ -9,7 +9,10 @@ mod local_captures;
 mod local_owner_arguments;
 
 fn lower_source(source: &str) -> Result<hir::Output, Vec<Diagnostic>> {
-    lower(&[complete_core_file(), scoop_parser::parse(source).unwrap()])
+    lower_with_source(
+        &[complete_core_file(), scoop_parser::parse(source).unwrap()],
+        source,
+    )
 }
 
 #[test]

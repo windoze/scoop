@@ -1,4 +1,5 @@
 use super::*;
+use crate::request::preflight::end_to_end_tests::layout_exports::core::artifact::assert_exports;
 
 pub(in super::super) fn open(
     artifact: &scoop_slib::AssembledCrossConeLayoutArtifactV1,
@@ -115,7 +116,7 @@ pub(super) fn check(
         .map(|physical| {
             assert_eq!(physical.dependency_first().count(), 2);
             let current = physical.artifact(layout.provider()).unwrap();
-            assert_eq!(current.lir_exports(), layout.exports());
+            assert_exports(current.lir_exports(), layout.exports());
             assert_eq!(
                 current.lir_physical_imports().records().len(),
                 if current.identity() == layout.provider() {
@@ -142,9 +143,9 @@ pub(super) fn check(
                     }
                 );
             }
-            assert_eq!(
+            assert_exports(
                 physical.artifact(layout.provider()).unwrap().lir_exports(),
-                layout.exports()
+                layout.exports(),
             );
         })
         .unwrap();

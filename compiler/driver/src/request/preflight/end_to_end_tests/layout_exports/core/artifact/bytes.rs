@@ -1,4 +1,5 @@
 use super::*;
+use crate::request::preflight::end_to_end_tests::layout_exports::core::artifact::assert_exports;
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn check(
@@ -96,7 +97,7 @@ pub(super) fn check(
     assert_eq!(complete.current(), ConeIdentity::CORE);
     assert_eq!(complete.dependency_first().count(), 1);
     let current = complete.artifact(ConeIdentity::CORE).unwrap();
-    assert_eq!(current.lir_exports(), lir.exports());
+    assert_exports(current.lir_exports(), lir.exports());
     assert_eq!(current.initialization_units(), mir.initialization_units());
     assert!(current.lir_physical_imports().records().is_empty());
 }

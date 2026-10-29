@@ -97,20 +97,30 @@ fn published_machine_callables_follow_actual_bodies_and_default_evaluation() {
         )
         .unwrap();
         let production = closure.current_compile().production();
-        // The metadata case has a runtime initializer, which also calls the
-        // ordinary initialization-cycle function from its actual provider.
-        let machine_selected = selected + usize::from(case == "metadata");
+        // Core support includes initialization and materialized generic bodies.
+        // The fixture providers must retain exactly the evaluated source calls.
         assert_eq!(
-            production.mir_cross_cone().selected().len(),
-            machine_selected
+            production
+                .mir_cross_cone()
+                .selected()
+                .iter()
+                .filter(|selection| selection.provider() != ConeIdentity::CORE)
+                .count(),
+            selected
         );
         assert_eq!(
-            production.lir_cross_cone().selected().len(),
-            machine_selected
+            production
+                .lir_cross_cone()
+                .selected()
+                .iter()
+                .filter(|selection| selection.provider() != ConeIdentity::CORE)
+                .count(),
+            selected
         );
         let references = production.hir_interface().external_references().records();
         let concrete = references
             .iter()
+            .filter(|record| record.origin() != ConeIdentity::CORE)
             .filter(|record| {
                 record
                     .roles()
@@ -122,6 +132,7 @@ fn published_machine_callables_follow_actual_bodies_and_default_evaluation() {
             let sites = references
                 .iter()
                 .flat_map(|record| record.call_sites().records())
+                .filter(|site| site.origin().evaluation().source().cone() == identity)
                 .collect::<Vec<_>>();
             assert_eq!(sites.len(), 8);
             assert_eq!(

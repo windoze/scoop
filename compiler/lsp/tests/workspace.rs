@@ -72,7 +72,7 @@ fn initialize(client: &mut Client, roots: &[PathBuf], options: Value) {
 
 #[test]
 fn manifest_buffers_are_versioned_and_configuration_errors_leave_syntax_available() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
     let root = directory.path();
     let original = setup(root);
     let manifest = root.join("app/Cone.toml");
@@ -128,7 +128,7 @@ fn manifest_buffers_are_versioned_and_configuration_errors_leave_syntax_availabl
 
 #[test]
 fn target_and_test_dependency_changes_refresh_configuration_diagnostics() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
     let root = directory.path();
     let mut manifest = setup(root);
     manifest.push_str("[test-dependencies]\n 'test:checks' = '1.0.0'\n");
@@ -182,7 +182,7 @@ fn target_and_test_dependency_changes_refresh_configuration_diagnostics() {
 
 #[test]
 fn workspace_folders_are_independent_and_removal_clears_old_errors() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
     let root = directory.path();
     setup(root);
     let other = root.join("other");
@@ -228,7 +228,7 @@ fn workspace_symbols(client: &mut Client, query: &str) -> Value {
 
 #[test]
 fn workspace_symbols_follow_buffers_disk_and_project_membership() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
     let root = directory.path();
     setup(root);
     let source = root.join("app/src/value.scoop");
