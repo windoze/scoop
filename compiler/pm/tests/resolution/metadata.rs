@@ -132,7 +132,10 @@ fn offline_metadata_does_not_checkout_available_git_objects() {
     assert!(!checkout.exists());
     assert!(original_source.join("Cone.toml").exists());
     success(pm(&isolated, &app, &["fetch", "--offline"]));
-    assert_eq!(source(&metadata(&isolated, &app), "lib"), checkout);
+    assert_eq!(
+        source(&metadata(&isolated, &app), "lib"),
+        fs::canonicalize(checkout).unwrap()
+    );
     assert_eq!(fs::read(app.join("Cone.lock")).unwrap(), before);
 }
 

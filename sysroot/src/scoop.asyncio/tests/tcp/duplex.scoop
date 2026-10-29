@@ -64,7 +64,7 @@ private class AsyncTcpDuplexTest {
             }
             catch (error: PlatformException) {
                 assertTrue(error.kind == PlatformErrorKind.ConnectionRefused)
-                assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+                assertTrue(error.nativeError!!.domain == testSocketErrorDomain())
                 assertTrue(error.nativeError!!.code > 0)
             }
             val(_, client, _) = tcpPair(loop, scope)

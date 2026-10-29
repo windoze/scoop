@@ -5,19 +5,18 @@
 typedef struct {
     ScoopIoWork work;
     ScoopIoFile *file;
-    char *path;
+    ScoopIoChar *path;
     bool follow;
 } MetadataWork;
 
 static void execute_metadata(ScoopIoWork *native) {
     MetadataWork *request = (void *)native;
-    ScoopPlatformFileMetadata data = scoop_platform_file_metadata(
-        request->file ? request->file->fd : -1, request->path, request->follow);
-    int saved_errno = errno;
+    ScoopPlatformFileMetadataResult data =
+        request->file ? scoop_platform_handle_metadata(request->file->handle)
+                      : scoop_platform_path_metadata_result(request->path, request->follow);
     ScoopIoEvent *event = &request->work.completion.event;
-    if (data.kind < 0) {
-        event->kind = SCOOP_IO_POSIX_ERROR;
-        event->code = saved_errno;
+    if (data.error) {
+        scoop_io_platform_error(event, data.error);
         return;
     }
     ScoopPlatformFileMetadata *result = malloc(sizeof(*result));
@@ -26,7 +25,7 @@ static void execute_metadata(ScoopIoWork *native) {
         event->code = ENOMEM;
         return;
     }
-    *result = data;
+    *result = data.data;
     event->kind = SCOOP_IO_METADATA;
     event->resource = result;
 }
@@ -37,15 +36,15 @@ static void finish_metadata(ScoopIoWork *native, int status) {
     scoop_io_work_finished(&request->work, status);
 }
 
-static int submit_metadata(ScoopIoLoop *loop, int64_t id, ScoopIoFile *file, const char *path,
-                           bool follow) {
+static int submit_metadata(ScoopIoLoop *loop, int64_t id, ScoopIoFile *file,
+                           const ScoopIoChar *path, bool follow) {
     MetadataWork *request = calloc(1, sizeof(*request));
     if (!request)
         return -ENOMEM;
     request->file = file;
     request->follow = follow;
     if (path) {
-        request->path = strdup(path);
+        request->path = scoop_io_string_copy(path);
         if (!request->path) {
             free(request);
             return -ENOMEM;
@@ -63,7 +62,7 @@ int scoop_io_file_metadata(ScoopIoFile *file, int64_t id) {
     return submit_metadata(file->loop, id, file, NULL, true);
 }
 
-int scoop_io_path_metadata(ScoopIoLoop *loop, int64_t id, const char *path, bool follow) {
+int scoop_io_path_metadata(ScoopIoLoop *loop, int64_t id, const ScoopIoChar *path, bool follow) {
     return submit_metadata(loop, id, NULL, path, follow);
 }
 

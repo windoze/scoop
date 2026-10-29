@@ -43,6 +43,7 @@ fn compile_files_with_core(
         role: scoop_identity::SourceRole::Production,
         identity: crate::tests::core_source_identity("src/core.scoop"),
         name: "core.scoop".into(),
+
         source: String::new(),
     }];
     for (index, &(path, source)) in files.iter().enumerate() {
@@ -53,6 +54,7 @@ fn compile_files_with_core(
             role: scoop_identity::SourceRole::Production,
             identity: crate::tests::test_source_identity(path),
             name: path.rsplit('/').next().unwrap().into(),
+
             source: source.into(),
         });
     }

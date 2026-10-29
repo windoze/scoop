@@ -19,6 +19,10 @@ def lookup(name, context):
                 value = len(value)
             elif part == "hex" and isinstance(value, (str, bytes)):
                 value = os.fsencode(value).hex()
+            elif part == "canonical" and isinstance(value, (str, bytes, os.PathLike)):
+                value = canonical_host_path(value)
+            elif part == "filename" and isinstance(value, (str, bytes, os.PathLike)):
+                value = Path(os.fsdecode(value)).name
             elif isinstance(value, list):
                 value = value[int(part)]
             else:
@@ -26,6 +30,14 @@ def lookup(name, context):
     except (KeyError, IndexError, ValueError, TypeError) as error:
         raise ConfigurationError(f"unresolved reference ${{{name}}}") from error
     return value
+
+
+def canonical_host_path(value):
+    """Match native canonical paths, including Rust's Windows verbatim prefix."""
+    result = str(Path(os.fsdecode(value)).resolve())
+    if os.name == "nt" and not result.startswith("\\\\?\\"):
+        result = "\\\\?\\UNC\\" + result[2:] if result.startswith("\\\\") else "\\\\?\\" + result
+    return result
 
 
 def expand(value, context):
@@ -95,7 +107,7 @@ def byte_value(value, base):
 
 def json_value(value, base):
     if isinstance(value, dict) and set(value) == {"file"}:
-        return json.loads(path(value["file"], base).read_text())
+        return json.loads(path(value["file"], base).read_text(encoding="utf-8"))
     return value
 
 

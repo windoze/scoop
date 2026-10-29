@@ -124,13 +124,19 @@ fn complete_file_reads_only_requested_members_and_reuses_their_buffers() {
 #[test]
 fn directory_input_reports_the_actual_read_error() {
     let directory = tempfile::tempdir().unwrap();
-    let file = ArtifactFile::open(
+    let opened = ArtifactFile::open(
         directory.path(),
         scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
-    )
-    .unwrap();
-    assert!(matches!(file.summary(), Err(SlibReadError::Io(error))
-        if error.kind() == io::ErrorKind::IsADirectory));
+    );
+    // Windows rejects a directory at open; Unix rejects the later read.
+    if cfg!(windows) {
+        assert_eq!(opened.unwrap_err().kind(), io::ErrorKind::PermissionDenied);
+    } else {
+        assert!(
+            matches!(opened.unwrap().summary(), Err(SlibReadError::Io(error))
+            if error.kind() == io::ErrorKind::IsADirectory)
+        );
+    }
 }
 
 #[test]

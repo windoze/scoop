@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #ifdef SCOOP_TARGET_OS_DARWIN
 #include "../../native/verification_darwin.h"
+#elif defined(SCOOP_TARGET_OS_WINDOWS)
+#include "../../native/verification_windows.h"
 #endif
 
 int scoop_test_tls_isolated_verify(ScoopTlsVerification *work,
@@ -35,6 +37,26 @@ int scoop_test_tls_isolated_verify(ScoopTlsVerification *work,
     CFRelease(bytes);
     CFRelease(trust);
   }
+#elif defined(SCOOP_TARGET_OS_WINDOWS)
+  HCERTSTORE anchors = CertOpenStore(CERT_STORE_PROV_MEMORY, 0, 0,
+                                     CERT_STORE_CREATE_NEW_FLAG, NULL);
+  unsigned char *der = NULL;
+  int count = i2d_X509(root, &der);
+  if (!anchors || count <= 0 ||
+      !CertAddEncodedCertificateToStore(anchors, X509_ASN_ENCODING, der,
+                                        (DWORD)count, CERT_STORE_ADD_ALWAYS,
+                                        NULL))
+    abort();
+  OPENSSL_free(der);
+  CERT_CHAIN_ENGINE_CONFIG configuration = {0};
+  configuration.cbSize = sizeof(configuration);
+  configuration.hExclusiveRoot = anchors;
+  HCERTCHAINENGINE engine = NULL;
+  if (!CertCreateCertificateChainEngine(&configuration, &engine))
+    abort();
+  work->result = scoop_tls_windows_verify(work, engine);
+  CertFreeCertificateChainEngine(engine);
+  CertCloseStore(anchors, 0);
 #else
   X509_STORE *store = X509_STORE_new();
   if (!store || !X509_STORE_add_cert(store, root))

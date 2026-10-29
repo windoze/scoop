@@ -33,7 +33,7 @@ pub(crate) fn declare_function<'ctx>(
         context,
         structs,
         enums,
-        managed_address_space,
+        profile,
         llvm_function,
         &function.signature,
     )?;
@@ -55,7 +55,7 @@ pub(crate) fn declare_external_callable<'ctx>(
     llvm: &LlvmModule<'ctx>,
     structs: &StructDefs,
     enums: &EnumDefs,
-    managed_address_space: ManagedAddressSpace,
+    profile: ValidatedBackendProfile,
     callable: &scoop_lir::ExternalCallable,
 ) -> Result<(), CodegenError> {
     let symbol = callable.expected_symbol().symbol();
@@ -69,7 +69,7 @@ pub(crate) fn declare_external_callable<'ctx>(
         llvm,
         structs,
         enums,
-        managed_address_space,
+        profile,
         symbol.as_str(),
         callable.signature(),
     )?;

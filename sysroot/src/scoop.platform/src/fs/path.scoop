@@ -9,21 +9,25 @@ import scoop.platform.system.byteContentsHash
  * An immutable native byte path with no embedded NUL. Lexical operations do not access the
  * filesystem or resolve symbolic links; equality compares stored bytes.
  */
-public class Path private constructor(private val bytes: Array<Byte>) : Equals<Path>, Hash {
+public class Path private constructor(private val bytes: Array<Byte>): Equals<Path>, Hash {
+    private val syntax: PathSyntax = pathSyntax(bytes)
     /**
-     * Whether the stored path begins at the filesystem root.
+     * Whether the path is fully qualified under the compilation target's rules.
      */
-    public val isAbsolute: Boolean get() = bytes.size > 0L && bytes[0L] == 47
+    public val isAbsolute: Boolean get() = syntax.isAbsolute
 
     /**
      * The last non-separator component, or None for a root, empty path, dot, or dot-dot component.
      */
     public val fileName: OsString? get() {
         val end = endWithoutSeparators()
-        if (end == 0L) return None
+        if (end == syntax.rootEnd)
+            return None
         val start = componentStart(end)
-        val name = OsString.fromByteArray(Array<Byte>(end - start) { index -> bytes[start + index] })
-        if (name == OsString.fromString(".") || name == OsString.fromString("..")) return None
+        val name =
+            OsString.fromByteArray(Array<Byte>(end - start) { index -> bytes[start + index] })
+        if (name == OsString.fromString(".") || name == OsString.fromString(".."))
+            return None
         return Some(name)
     }
 
@@ -32,51 +36,95 @@ public class Path private constructor(private val bytes: Array<Byte>) : Equals<P
      */
     public val parent: Path? get() {
         val end = endWithoutSeparators()
-        if (end == 0L) return None
+        if (end == syntax.rootEnd)
+            return None
         var start = componentStart(end)
-        while (start > 1L && bytes[start - 1L] == 47) start -= 1L
-        val count = start
+        while (start > syntax.rootEnd && syntax.isSeparator(bytes[start - 1L]))
+            start -= 1L
+        val count =
+            if (start == syntax.rootEnd && syntax.rootEnd > syntax.prefixLength)
+                syntax.prefixLength + 1L
+            else
+                start
         return Some(Path(Array<Byte>(count) { index -> bytes[index] }))
     }
 
     private fun endWithoutSeparators(): Long {
         var end = bytes.size
-        while (end > 0L && bytes[end - 1L] == 47) end -= 1L
+        while (end > syntax.rootEnd && syntax.isSeparator(bytes[end - 1L]))
+            end -= 1L
         return end
     }
 
     private fun componentStart(end: Long): Long {
         var start = end
-        while (start > 0L && bytes[start - 1L] != 47) start -= 1L
+        while (start > syntax.rootEnd && !syntax.isSeparator(bytes[start - 1L]))
+            start -= 1L
         return start
     }
 
     /**
-     * Returns nonempty slash-separated components as byte strings.
+     * Returns nonempty components after the target's native path prefix and root.
      */
     public fun components(): Array<OsString> {
         val parts = ArrayList<OsString>()
-        var cursor = 0L
+        var cursor = syntax.rootEnd
         while (cursor < bytes.size) {
-            if (bytes[cursor] == 47) { cursor += 1L; continue }
+            if (syntax.isSeparator(bytes[cursor])) {
+                cursor += 1L;
+                continue
+            }
             val start = cursor
-            while (cursor < bytes.size && bytes[cursor] != 47) cursor += 1L
-            parts.add(OsString.fromByteArray(Array<Byte>(cursor - start) { index -> bytes[start + index] }))
+            while (cursor < bytes.size && !syntax.isSeparator(bytes[cursor]))
+                cursor += 1L
+            parts.add(
+                OsString.fromByteArray(
+                    Array<Byte>(cursor - start) { index -> bytes[start + index] }
+                )
+            )
         }
         return parts.toArray()
     }
 
     /**
-     * Joins a relative child to this path; an absolute child replaces the base.
+     * Joins a relative child to this path. A prefixed or absolute child replaces the base; a
+     * Windows rooted child retains the base's prefix.
      */
     public fun resolve(child: Path): Path {
-        if (child.isAbsolute || bytes.size == 0L) return child
-        if (child.bytes.size == 0L) return this
+        if (child.isAbsolute || child.syntax.prefixLength > 0L || bytes.size == 0L)
+            return child
+        if (child.bytes.size == 0L)
+            return this
         val result = ByteArrayBuilder()
+        if (child.syntax.hasRoot) {
+            result.append(Array<Byte>(syntax.prefixLength) { index -> bytes[index] })
+            appendChild(result, child)
+            return Path(result.toByteArray())
+        }
         result.append(bytes)
-        if (bytes[bytes.size - 1L] != 47) result.append(47.toByte())
-        result.append(child.bytes)
+        if (
+            !syntax.isSeparator(bytes[bytes.size - 1L]) &&
+                !(syntax.prefixLength == bytes.size && !syntax.hasRoot)
+        )
+            result.append(syntax.separator)
+        appendChild(result, child)
         return Path(result.toByteArray())
+    }
+
+    private fun appendChild(result: ByteArrayBuilder, child: Path) {
+        if (syntax.verbatim && !child.syntax.verbatim) {
+            result.append(
+                Array<Byte>(child.bytes.size) {
+                    index ->
+                    val byte = child.bytes[index]
+                    if (child.syntax.isSeparator(byte))
+                        syntax.separator
+                    else
+                        byte
+                }
+            )
+        } else
+            result.append(child.bytes)
     }
 
     /**
@@ -84,25 +132,42 @@ public class Path private constructor(private val bytes: Array<Byte>) : Equals<P
      * follow links or guarantee equivalence through symbolic links.
      */
     public fun normalizeLexically(): Path {
-        val absolute = isAbsolute
+        if (syntax.verbatim)
+            return this
         val dot = OsString.fromString(".")
         val up = OsString.fromString("..")
         val parts = ArrayList<OsString>()
         for (part in components()) {
-            if (part == dot) continue
+            if (part == dot)
+                continue
             if (part == up) {
-                if (parts.size > 0L && parts[parts.size - 1L] != up) parts.removeAt(parts.size - 1L)
-                else if (!absolute) parts.add(part)
-            } else parts.add(part)
+                if (parts.size > 0L && parts[parts.size - 1L] != up)
+                    parts.removeAt(parts.size - 1L)
+                else
+                    if (!syntax.hasRoot)
+                        parts.add(part)
+            } else
+                parts.add(part)
         }
         val result = ByteArrayBuilder()
-        if (absolute) result.append(47.toByte())
-        val prefix = if (absolute) 1L else 0L
+        for (byte in Array<Byte>(syntax.prefixLength) { index -> bytes[index] }) {
+            result.append(
+                if (syntax.isSeparator(byte))
+                    syntax.separator
+                else
+                    byte
+            )
+        }
+        if (syntax.hasRoot)
+            result.append(syntax.separator)
+        val prefix = result.size
         for (part in parts) {
-            if (result.size > prefix) result.append(47.toByte())
+            if (result.size > prefix)
+                result.append(syntax.separator)
             result.append(part.toByteArray())
         }
-        if (result.size == 0L) result.append(46.toByte())
+        if (result.size == 0L)
+            result.append(46.toByte())
         return Path(result.toByteArray())
     }
 
@@ -125,7 +190,8 @@ public class Path private constructor(private val bytes: Array<Byte>) : Equals<P
     /**
      * Compares the exact stored byte sequences.
      */
-    public override operator fun equals(other: Path): Boolean = byteContentsEqual(bytes, other.bytes)
+    public override operator fun equals(other: Path): Boolean =
+        byteContentsEqual(bytes, other.bytes)
     /**
      * Hashes the stored bytes consistently with equality.
      */
@@ -145,7 +211,8 @@ public class Path private constructor(private val bytes: Array<Byte>) : Equals<P
         public fun fromOsString(value: OsString): Path {
             val bytes = value.toByteArray()
             for (byte in bytes) {
-                if (byte == 0) throw IllegalArgumentException(Some("path contains NUL"))
+                if (byte == 0)
+                    throw IllegalArgumentException(Some("path contains NUL"))
             }
             return Path(bytes)
         }

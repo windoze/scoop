@@ -138,15 +138,3 @@ private suspend fun <R> fileControl(
         reservation.dispose()
     }
 }
-
-@Extern(name = "scoop_io_file_metadata")
-private fun nativeFileMetadata(file: Ptr<Unit>, id: Long): Int
-
-@Extern(name = "scoop_io_file_seek")
-private fun nativeFileSeek(file: Ptr<Unit>, id: Long, offset: Long, current: Boolean): Int
-
-@Extern(name = "scoop_io_file_truncate")
-private fun nativeFileTruncate(file: Ptr<Unit>, id: Long, size: Long): Int
-
-@Extern(name = "scoop_io_file_sync")
-private fun nativeFileSync(file: Ptr<Unit>, id: Long, dataOnly: Boolean): Int

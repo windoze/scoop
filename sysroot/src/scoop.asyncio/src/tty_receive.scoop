@@ -24,12 +24,10 @@ internal suspend fun receiveTty(
         try {
             if (count == 0L)
                 return TtyRead.Bytes(0L)
-            when (tty.pendingResize) {
-                case Some(value) -> {
-                    tty.pendingResize = None;
-                    return value
-                }
-                case None -> {}
+            val pending = tty.pendingResize
+            if (pending != None) {
+                tty.pendingResize = None
+                return pending!!
             }
             return suspendCoroutine<TtyRead> {
                 continuation ->

@@ -3,17 +3,19 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use crate::{LinkError, error};
 
-/// The target already distinguishes GNU and musl; Darwin also needs a minimum OS.
+/// The full target carries its OS baseline; Darwin also selects a minimum OS.
 #[derive(Clone, Copy, Debug)]
 pub(super) enum RuntimeDeployment {
-    Linux,
+    TargetBaseline,
     Darwin(DarwinPackedVersionV1),
 }
 
 impl RuntimeDeployment {
     pub fn for_toolchain(toolchain: &CBridgeToolchainProfileV1) -> Self {
         match toolchain.contract().platform() {
-            CBridgePlatformContractV1::Linux { .. } => Self::Linux,
+            CBridgePlatformContractV1::Linux { .. } | CBridgePlatformContractV1::Windows { .. } => {
+                Self::TargetBaseline
+            }
             CBridgePlatformContractV1::Darwin { deployment, .. } => {
                 Self::Darwin(deployment.minimum_os())
             }
@@ -22,7 +24,7 @@ impl RuntimeDeployment {
 
     pub fn check(self, toolchain: &CBridgeToolchainProfileV1) -> Result<(), LinkError> {
         match (self, Self::for_toolchain(toolchain)) {
-            (Self::Linux, Self::Linux) => Ok(()),
+            (Self::TargetBaseline, Self::TargetBaseline) => Ok(()),
             (Self::Darwin(required), Self::Darwin(selected)) if required <= selected => Ok(()),
             (Self::Darwin(required), Self::Darwin(selected)) => Err(error(format!(
                 "runtime requires macOS {required}, but the selected deployment is {selected}"
@@ -37,7 +39,7 @@ impl RuntimeDeployment {
 impl WireEncode for RuntimeDeployment {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(match self {
-            Self::Linux => 0,
+            Self::TargetBaseline => 0,
             Self::Darwin(version) => u64::from(version.packed()),
         })
     }
@@ -46,7 +48,7 @@ impl WireEncode for RuntimeDeployment {
 impl WireDecode for RuntimeDeployment {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.u32()? {
-            0 => Ok(Self::Linux),
+            0 => Ok(Self::TargetBaseline),
             packed => Ok(Self::Darwin(
                 DarwinPackedVersionV1::new(packed).expect("nonzero packed version"),
             )),

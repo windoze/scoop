@@ -70,10 +70,15 @@ private class FloatingTests {
         assertEquals(5f, hypot(3f, 4f))
         assertEquals(8.0, pow(2.0, 3.0))
         assertEquals(1f, pow(Float.NaN, 0f))
-        assertTrue(pow(1.0, Double.NaN).isNaN())
-        assertTrue(pow(-1.0, Double.POSITIVE_INFINITY).isNaN())
+        assertEquals(1.0, pow(1.0, Double.NaN))
+        assertEquals(1.0, pow(-1.0, Double.POSITIVE_INFINITY))
+        assertEquals(1f, pow(1f, Float.NaN))
+        assertEquals(1f, pow(-1f, Float.NEGATIVE_INFINITY))
         assertTrue(sqrt(-1f).isNaN())
         assertEquals(Double.POSITIVE_INFINITY, hypot(Double.NaN, Double.POSITIVE_INFINITY))
+        assertEquals(Double.POSITIVE_INFINITY, hypot(Double.POSITIVE_INFINITY, Double.NaN))
+        assertEquals(Float.POSITIVE_INFINITY, hypot(Float.NaN, Float.POSITIVE_INFINITY))
+        assertEquals(Float.POSITIVE_INFINITY, hypot(Float.POSITIVE_INFINITY, Float.NaN))
         assertTrue(abs(toDegrees(toRadians(90.0)) - 90.0) < 0.000000001)
     }
 }

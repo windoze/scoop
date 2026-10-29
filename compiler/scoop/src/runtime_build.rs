@@ -83,7 +83,7 @@ pub fn build_runtime(
     request: RuntimeBuildRequest<'_>,
 ) -> Result<RuntimeBuildOutput, RuntimeBuildError> {
     let inputs = inputs::Inputs::read(&request)?;
-    let namespace = request.cache_root.join("runtime-v7");
+    let namespace = request.cache_root.join("runtime-v8");
     let entry = namespace.join(format!("{}.json", inputs.base_key));
     if let Some(output) = record::load(&entry, request.target)? {
         return Ok(output);

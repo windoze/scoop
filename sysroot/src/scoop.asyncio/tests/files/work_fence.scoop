@@ -19,7 +19,7 @@ internal class WorkFence(private val loop: PlatformEventLoop) {
                         id -> @Unsafe
                         {
                             val result = createFence(native, id, spare)
-                            if (result.status < 0)
+                            if (result.status.code != 0)
                                 return@LoopOperation nativeStatus(id, result.status)
                             pointer = result.pointer
                             when (cancelAfterPriorWork) {

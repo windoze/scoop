@@ -148,7 +148,7 @@ unwind 信息与 DWARF 分工不同：前者找下一帧，后者解释帧。`--
 | Linux 外置 DWARF | elf.c 处理 build-id、`.gnu_debuglink` 搜索及 CRC |
 | inline 来源 | pcinfo 可为一个机器 PC 回调多条 inline 信息 |
 | 多线程使用 | 单个持久 state 以 threaded 标志初始化；不能每个异常创建 state，该库没有 free_state |
-| Windows | PE/COFF + DWARF 支持不等于 PDB 支持；将来 PDB 需目标专用符号器 |
+| Windows | PE／CodeView／PDB 通过 DbgHelp 解析；调用串行化，复制路径及 GUID／age，模块卸载后保留历史地址；见运行时规范 5.6 |
 
 首轮不默认链接整套 LLVM C++ symbolizer 库，也不在每次 throw／打印时启动 llvm-symbolizer。LLVM 工具继续承担开发、离线归因和交叉验收；运行时库只在真正打印时查符号。外置文件不可用则使用 native 符号／模块地址降级。
 

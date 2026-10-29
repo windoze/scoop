@@ -1,0 +1,88 @@
+schema = 1
+name = "windows-native-data-static-and-dll"
+root = "cone/Cone.toml"
+inputs = ["cone", "native", "build_dll.py"]
+tools = ["scoop", "scoopc", "cc", "ar", "python"]
+targets = ["x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
+tags = ["windows", "native-link", "abi", "compiler-correctness"]
+
+[vars]
+build_args = ["${work}/cone", "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}/static", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}, {mkdir = {path = "${work}/static"}}, {mkdir = {path = "${work}/dynamic"}}]
+
+[[steps]]
+name = "native_data"
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-c", "${fixture}/native/provider.c", "-o", "${work}/static/provider.obj"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "native_constant"
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-c", "${fixture}/native/constant.c", "-o", "${work}/static/constant.obj"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive"
+argv = ["${ar}", "rcs", "${work}/static/scoop_data.lib", "${work}/static/provider.obj", "${work}/static/constant.obj"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "dll"
+argv = ["${python}", "${fixture}/build_dll.py", "${cc}", "${target}", "${work}/dynamic", "${fixture}/native", {each = "${cc_args}"}]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "build", {each = "${link_args}"}, {each = "${build_args}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "static_run"
+argv = ["${cold.result.output}"]
+exit = 53
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "dll_relink"
+argv = ["${scoop}", "link", {each = "${link_args}"}, "--root-slib", "${cold.result.root.path}", {each = "${cold.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--library-path", "${work}/dynamic", "-o", "${work}/dynamic/program.exe", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "dll_run"
+argv = ["${dll_relink.result.output}"]
+exit = 79
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", {each = "${link_args}"}, {each = "${build_args}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+    {actual = "${warm.result.observations.child_invocations}", equals = []},
+    {actual = "${warm.result.root.artifact_fingerprint}", equals = "${cold.result.root.artifact_fingerprint}"},
+    {actual = "${warm.result.link_plan_fingerprint}", equals = "${cold.result.link_plan_fingerprint}"},
+]

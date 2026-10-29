@@ -72,7 +72,10 @@ fn parse_flags(flags: Vec<Spanned<String>>) -> Result<Vec<NativeCompileFlag>, Ma
     let mut result = Vec::new();
     while let Some(flag) = flags.next() {
         let argument = flag.get_ref();
-        if !argument.starts_with('-') || argument == "-" || argument.contains('\0') {
+        if (!argument.starts_with('-') && !argument.starts_with('/'))
+            || matches!(argument.as_str(), "-" | "/")
+            || argument.contains('\0')
+        {
             return Err(error(&flag, "expected one compiler option"));
         }
         if flags::driver_managed(argument) {
@@ -89,7 +92,7 @@ fn parse_flags(flags: Vec<Spanned<String>>) -> Result<Vec<NativeCompileFlag>, Ma
                 native_path(suffix).map_err(|reason| error(&flag, reason))?
             };
             result.push(NativeCompileFlag::Include { kind, path });
-        } else if matches!(argument.as_str(), "-D" | "-U") {
+        } else if matches!(argument.as_str(), "-D" | "-U" | "/D" | "/U") {
             let value = flags
                 .next()
                 .ok_or_else(|| error(&flag, "macro option requires a value"))?;

@@ -69,7 +69,7 @@ userinfo 能解析和显式序列化，但 HTTP client 不把它自动转成 Aut
 
 `UrlParseException` 保存 component、输入 UTF-8 字节位置和说明；无法精确归属单字节的组合错误使用可选位置，不伪造 index。IDNA 失败作为 host 错误的明确原因保留；后端运行错误不被 parseOrNone 吞掉。没有 DNS 名称是否存在的预检查。
 
-uriparser 源码与许可按 M52 vendor 布局交付，三个目标提供静态库和头文件；仅构建库所需的窄字符 API，不引入系统 locale。C 返回前复制解析结果，错误路径也释放临时存储。所有 native 依赖通过普通 Cone manifest 传递。
+uriparser 源码与许可按 M52 vendor 布局交付，Darwin、Linux GNU／musl、Windows MSVC UCRT／LLVM-MinGW MSVCRT／LLVM-MinGW UCRT 六个目标分别提供静态库和头文件；仅构建库所需的窄字符 API，不引入系统 locale。Windows 使用上游 CMake 配置和所选目标编译器，Microsoft 使用 `/MD`，两个 MinGW 目标使用各自 CRT 的 LLVM-MinGW prefix；COFF 静态库统一发布为 `liburiparser.a`。C 返回前复制解析结果，错误路径也释放临时存储。所有 native 依赖通过普通 Cone manifest 传递。
 
 独立库测试覆盖 RFC 3986 的正常／异常相对解析向量、Unicode host、A-label、IPv4／IPv6、显式默认端口、根点、空组件、有序重复 query、表单加号、百分号双重编码、非法 UTF-8、userinfo 和 CR／LF 注入。验证 parse／build／resolve 的组合结果及与上游 uriparser 的交叉行为；不要求该 RFC profile 与浏览器容错结果一致。
 

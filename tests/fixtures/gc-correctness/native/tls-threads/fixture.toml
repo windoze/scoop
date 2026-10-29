@@ -1,8 +1,8 @@
 schema = 1
 name = "native-tls-cross-cone-callback-threads"
-inputs = ["provider", "facade", "consumer", "native.c"]
+inputs = ["provider", "facade", "consumer", "native.c", "../../../language/callback/threading.h"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["native", "tls", "callback", "threads", "reexport", "moving-gc", "gc-correctness"]
 [[variants]]
 name = "normal"
@@ -36,7 +36,7 @@ stderr = ""
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "--enable-gc-stress", "build", {"each" = "${link_args}"}, "${work}/source/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}/native/lib", "--message-format", "json", "-o", "${work}/programs/build/program"]
+argv = ["${scoop}", "--enable-gc-stress", "build", {"each" = "${link_args}"}, "${work}/source/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}/native/lib", "--message-format", "json", "-o", "${work}/programs/build/program.exe"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -53,7 +53,7 @@ stderr = ""
 
 [[steps]]
 name = "link"
-argv = ["${scoop}", "--enable-gc-stress", "link", "--emit-debug-file", "--keep-symbols", {"each" = "${link_args}"}, "--enable-stack-trace=true", "--root-slib", "${build.result.root.path}", {"each" = "${build.result.dependencies}", "field" = "path", "prefix" = "--dependency-slib"}, "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--library-path", "${work}/native/lib", "-o", "${work}/programs/link/program", "--message-format", "json"]
+argv = ["${scoop}", "--enable-gc-stress", "link", "--emit-debug-file", "--keep-symbols", {"each" = "${link_args}"}, "--enable-stack-trace=true", "--root-slib", "${build.result.root.path}", {"each" = "${build.result.dependencies}", "field" = "path", "prefix" = "--dependency-slib"}, "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--library-path", "${work}/native/lib", "-o", "${work}/programs/link/program.exe", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

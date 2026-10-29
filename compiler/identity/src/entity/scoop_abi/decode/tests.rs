@@ -89,6 +89,8 @@ fn all_scoop_argument_and_return_kinds_round_trip_and_recheck_shape() {
         ScoopAbiReturn::elided_zst(zero(second_type())).unwrap(),
         ScoopAbiReturn::direct(scalar(second_type())).unwrap(),
         ScoopAbiReturn::indirect(aggregate(second_type())).unwrap(),
+        ScoopAbiReturn::indirect(storage(second_type(), 16, ScoopAbiValueShape::Interface))
+            .unwrap(),
         ScoopAbiReturn::direct_parts(
             storage(second_type(), 16, ScoopAbiValueShape::Interface),
             crate::AbiCoercion::interface(),

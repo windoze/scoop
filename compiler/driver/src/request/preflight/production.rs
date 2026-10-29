@@ -51,9 +51,30 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                 scoop_slib::ConeSourceForm::SingleFile,
             ),
         };
-        let cone = cone.map_err(|e| {
-            CurrentConeProductionError::before_hir(CurrentConeProductionFailure::Cone(e))
-        })?;
+        let cone = cone
+            .and_then(|cone| {
+                if cone.kind() != scoop_slib::ConeKind::Executable
+                    || self
+                        .request
+                        .target_selection()
+                        .target()
+                        .native_object_format()
+                        != scoop_lir::NativeObjectFormat::Coff64
+                {
+                    return Ok(cone);
+                }
+                let subsystem = match (self.request.purpose(), self.request.current()) {
+                    (
+                        CompilationPurpose::Production,
+                        ValidatedCurrentConeInput::Manifest { manifest },
+                    ) => manifest.parsed().semantic().windows().subsystem(),
+                    _ => scoop_identity::WindowsSubsystem::Console,
+                };
+                cone.with_windows_subsystem(subsystem)
+            })
+            .map_err(|e| {
+                CurrentConeProductionError::before_hir(CurrentConeProductionFailure::Cone(e))
+            })?;
         let requested = match cone.kind() {
             scoop_slib::ConeKind::Library => scoop_identity::RequestedConeKind::Library,
             scoop_slib::ConeKind::Executable => scoop_identity::RequestedConeKind::Executable,

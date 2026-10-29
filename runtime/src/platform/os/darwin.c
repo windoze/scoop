@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include "../platform.h"
+#include "posix_mapping.h"
 
 #if !defined(__APPLE__) || !defined(__aarch64__)
 #error "the Darwin OS component requires macOS on AArch64"
@@ -43,19 +44,9 @@ static size_t darwin_processor_count(void) {
     return count > 0 ? (size_t)count : 1;
 }
 
-static bool darwin_reserve_read_write(uintptr_t preferred_address, size_t size, void **mapping,
+static bool darwin_reserve_read_write(size_t size, size_t alignment, void **mapping,
                                       ScoopPlatformError *error) {
-    if (size == 0 || mapping == NULL || error == NULL) {
-        return false;
-    }
-    void *reserved = mmap((void *)preferred_address, size, PROT_READ | PROT_WRITE,
-                          MAP_PRIVATE | MAP_ANON, -1, 0);
-    if (reserved == MAP_FAILED) {
-        error->code = SCOOP_PLATFORM_VM_OPERATION_FAILED;
-        return false;
-    }
-    *mapping = reserved;
-    return true;
+    return scoop_posix_reserve_read_write(size, alignment, darwin_page_size(), mapping, error);
 }
 
 static bool darwin_protect_none(void *base, size_t size, ScoopPlatformError *error) {

@@ -14,12 +14,13 @@ typedef struct {
 static void prepare(ScoopIoRequest *native, unsigned index, struct io_uring_sqe *sqe) {
     (void)index;
     FileIo *request = (void *)native;
+    int fd = scoop_file_handle(request->file->handle);
     if (request->syncing)
-        io_uring_prep_fsync(sqe, request->file->fd, request->data_only ? IORING_FSYNC_DATASYNC : 0);
+        io_uring_prep_fsync(sqe, fd, request->data_only ? IORING_FSYNC_DATASYNC : 0);
     else if (request->writing)
-        io_uring_prep_write(sqe, request->file->fd, request->bytes, request->count, (__u64)-1);
+        io_uring_prep_write(sqe, fd, request->bytes, request->count, (__u64)-1);
     else
-        io_uring_prep_read(sqe, request->file->fd, request->bytes, request->count, (__u64)-1);
+        io_uring_prep_read(sqe, fd, request->bytes, request->count, (__u64)-1);
     sqe->flags |= IOSQE_ASYNC;
 }
 static void result(ScoopIoRequest *native, unsigned index, int status) {

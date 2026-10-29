@@ -17,6 +17,7 @@ pub(super) fn coercion(
     let maximum = match abi {
         ProcedureAbi::DarwinAarch64 => 32,
         ProcedureAbi::SysvAmd64 => 16,
+        ProcedureAbi::Win64 => 8,
     };
     if value.layout().size().get() > maximum {
         return None;
@@ -26,7 +27,9 @@ pub(super) fn coercion(
         alignment: value.layout().alignment().get(),
         leaves: Vec::new(),
     };
-    collect(input, id, 0, &mut layout.leaves);
+    if !matches!(abi, ProcedureAbi::Win64) {
+        collect(input, id, 0, &mut layout.leaves);
+    }
     aggregate::coercion(&layout, abi, position)
 }
 

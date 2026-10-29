@@ -8,19 +8,36 @@ typedef struct {
     bool truncate, current;
 } FileControl;
 
+static ScoopPlatformFileResult seek_file(FileControl *request) {
+    ScoopIoFile *file = request->file;
+    int64_t offset = request->offset;
+    bool current = request->current;
+#ifdef _WIN32
+    if (file->overlapped && current) {
+        if (offset > INT64_MAX - file->position)
+            return (ScoopPlatformFileResult){-1, ERROR_ARITHMETIC_OVERFLOW};
+        offset += file->position;
+        current = false;
+    }
+#endif
+    ScoopPlatformFileResult result = scoop_platform_handle_seek(file->handle, offset, current);
+#ifdef _WIN32
+    if (!result.error && file->overlapped)
+        file->position = result.value;
+#endif
+    return result;
+}
+
 static void execute(ScoopIoWork *native) {
     FileControl *request = (void *)native;
-    int64_t result =
-        request->truncate
-            ? scoop_platform_file_truncate(request->file->fd, request->offset)
-            : scoop_platform_file_seek(request->file->fd, request->offset, request->current);
-    int error = errno;
-    if (result < 0) {
-        native->completion.event.kind = SCOOP_IO_POSIX_ERROR;
-        native->completion.event.code = error;
-    } else if (!request->truncate) {
+    ScoopPlatformFileResult result =
+        request->truncate ? scoop_platform_handle_truncate(request->file->handle, request->offset)
+                          : seek_file(request);
+    if (result.error)
+        scoop_io_platform_error(&native->completion.event, result.error);
+    else if (!request->truncate) {
         native->completion.event.kind = SCOOP_IO_POSITION;
-        native->completion.event.count = result;
+        native->completion.event.count = result.value;
     }
 }
 static void finish(ScoopIoWork *work, int status) { scoop_io_work_finished(work, status); }
@@ -45,13 +62,9 @@ int scoop_io_file_truncate(ScoopIoFile *file, int64_t id, int64_t size) {
 }
 static void close_execute(ScoopIoWork *native) {
     ScoopIoFile *file = (void *)native;
-    int status = scoop_platform_fd_close(file->fd);
-    int error = errno;
-    file->fd = -1;
-    if (status < 0) {
-        native->completion.event.kind = SCOOP_IO_POSIX_ERROR;
-        native->completion.event.code = error;
-    }
+    ScoopPlatformFileResult result = scoop_platform_handle_close(file->handle);
+    file->handle.value = UINT64_MAX;
+    scoop_io_platform_error(&native->completion.event, result.error);
 }
 int scoop_io_file_close(ScoopIoFile *file, int64_t id) {
     // An opened file already has a live worker set; this preallocated work cannot fail to queue.

@@ -1,0 +1,37 @@
+package scoop.readline
+
+import scoop.test.*
+import scoop.tests.readline.Pty
+import scoop.platform.env.arguments
+import scoop.platform.io.*
+import scoop.platform.system.PlatformException
+import scoop.platform.system.PlatformErrorKind
+
+@Test
+private class WindowsSuspendTest {
+    @Test
+    fun unsupportedSuspendRestoresConsole() {
+        Pty.open(arguments()[0L], "WindowsSuspendChildTest::suspendUnsupported").use {
+            pty ->
+            pty.expect("edit>")
+            pty.writeText("\u001a")
+            pty.expect("restored")
+            pty.writeText("\r")
+            assertEquals(0, pty.waitForExit())
+        }
+    }
+}
+
+@Test
+private class WindowsSuspendChildTest {
+    @Test
+    @Ignore("Launched inside ConPTY by WindowsSuspendTest")
+    fun suspendUnsupported() {
+        Pty.captureModes()
+        val error = assertFailsWith<PlatformException> { Editor().readLine("edit> ") }
+        assertEquals(PlatformErrorKind.Unsupported, error.kind)
+        assertTrue(Pty.currentModesRestored())
+        println("restored")
+        standardInput.readLine()
+    }
+}

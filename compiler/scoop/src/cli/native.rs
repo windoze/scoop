@@ -16,12 +16,14 @@ impl NativeOptions {
         Ok((
             CToolchainOptions {
                 compiler: self.cc,
+                cxx_compiler: self.cxx,
                 native_sysroot: self
                     .native_sysroot
                     .map(|path| absolute(cwd, path))
                     .transpose()?,
             },
             FinalLinkOptions {
+                linker: self.linker,
                 sysroot: Some(sysroot.to_owned()),
                 unwind_prefix: self
                     .unwind_prefix

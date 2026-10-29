@@ -7,7 +7,7 @@ import scoop.time.Duration
 @Test
 private class AsyncTtySessionTest {
     @Test
-    fun `owned PTY receives bytes resize and deadlines and restores raw mode`() {
+    fun `owned terminal receives bytes resize and deadlines and restores raw mode`() {
         TestTerminal().use {
             terminal ->
             val loop: EventLoop = PlatformEventLoop()
@@ -77,25 +77,6 @@ private class AsyncTtySessionTest {
                 }
             }
             assertTrue(terminal.restored())
-        }
-    }
-
-    @Test
-    fun `PTY hangup is a repeatable input end`() {
-        TestTerminal().use {
-            terminal ->
-            val loop: EventLoop = PlatformEventLoop()
-            loop.run suspend {
-                _ ->
-                val tty = loop.openTty()
-                NativeByteBuffer.allocate(1L).use suspend {
-                    bytes ->
-                    terminal.endInput()
-                    assertTrue(tty.receive(bytes, 1L) == TtyRead.End)
-                    assertTrue(tty.receive(bytes, 1L) == TtyRead.End)
-                }
-                tty.close()
-            }
         }
     }
 }

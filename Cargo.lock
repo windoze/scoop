@@ -258,6 +258,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "dunce"
+version = "1.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
+
+[[package]]
 name = "encode_unicode"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -963,6 +969,7 @@ name = "scoop"
 version = "0.0.0"
 dependencies = [
  "clap",
+ "dunce",
  "fs4",
  "pulldown-cmark",
  "rustix",
@@ -1030,6 +1037,7 @@ name = "scoop-codegen"
 version = "0.0.0"
 dependencies = [
  "cc",
+ "dunce",
  "inkwell",
  "la-arena",
  "llvm-sys",
@@ -1110,6 +1118,7 @@ dependencies = [
  "scoop-mir",
  "scoop-mir-lower",
  "scoop-parser",
+ "scoop-source",
  "scoop-wire",
  "serde_json",
 ]
@@ -1198,6 +1207,7 @@ dependencies = [
  "scoop-wire",
  "semver",
  "serde",
+ "serde_json",
  "tempfile",
  "toml",
  "toml_edit",
@@ -1243,6 +1253,7 @@ name = "scoop-pm"
 version = "0.0.0"
 dependencies = [
  "clap",
+ "dunce",
  "fs4",
  "pathdiff",
  "pubgrub",
@@ -1273,6 +1284,8 @@ version = "0.0.0"
 dependencies = [
  "rustix",
  "signal-hook",
+ "tempfile",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1333,6 +1346,8 @@ dependencies = [
 name = "scoop-toolchain"
 version = "0.0.0"
 dependencies = [
+ "dunce",
+ "find-msvc-tools",
  "fs4",
  "glob",
  "object",

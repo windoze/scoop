@@ -2,7 +2,7 @@ schema = 1
 name = "source-nominals-parameters"
 inputs = ["provider", "runtime", "../../type-source-nominals/parameters.scoop", "factory"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["source-nominals", "language"]
 [[steps]]
 name = "prepare_provider"

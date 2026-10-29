@@ -81,7 +81,7 @@ typedef struct ScoopGcMarkTask {
 } ScoopGcMarkTask;
 
 typedef struct ScoopGcMarkQueue {
-    pthread_mutex_t lock;
+    ScoopPlatformMutex lock;
     ScoopGcMarkTask *tasks;
     size_t capacity;
     size_t first;
@@ -106,7 +106,7 @@ typedef struct ScoopGcMarkRegion {
 typedef struct ScoopGcMarkWorker {
     _Alignas(128) ScoopGcMarkQueue queue;
     _Alignas(128) size_t id;
-    pthread_t thread;
+    ScoopPlatformThread thread;
     uint64_t initial_phase;
     bool minor;
     bool slot_layout;
@@ -136,10 +136,10 @@ typedef struct ScoopGcMarkWorker {
 } ScoopGcMarkWorker;
 
 typedef struct ScoopGcMarker {
-    pthread_mutex_t lock;
-    pthread_cond_t phase_changed;
-    pthread_cond_t work_available;
-    pthread_cond_t finished;
+    ScoopPlatformMutex lock;
+    ScoopPlatformCondition phase_changed;
+    ScoopPlatformCondition work_available;
+    ScoopPlatformCondition finished;
     _Atomic(size_t) pending;
     _Atomic(size_t) waiting_workers;
     size_t configured_workers;

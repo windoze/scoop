@@ -1,0 +1,190 @@
+package test
+
+import scoop.platform.io.*
+import scoop.platform.system.*
+import scoop.terminal.*
+import scoop.terminal.event.*
+import scoop.time.Duration
+
+private class ScopeFailure: Exception(None)
+
+fun main(args: Array<String>) {
+    if (args[1L] == "pty-host") {
+        @Unsafe
+        {
+            check(conpty(), "real ConPTY session")
+        }
+        println("pty-host: passed")
+        return
+    }
+    if (args[1L] == "pty") {
+        pseudoConsole()
+        return
+    }
+    if (args[1L] == "unavailable") {
+        unavailable()
+        println("unavailable: passed")
+        return
+    }
+    @Unsafe
+    {
+        check(setup(), "open console probe")
+    }
+    check(
+        !isTerminal(StandardStream.Input) && !isTerminal(StandardStream.Output),
+        "redirected streams are not consoles"
+    )
+    val session = TerminalSession.open(escapeDelay = Duration.ZERO)
+    if (args[1L] == "disconnect") {
+        disconnection(session)
+        println("disconnect: passed")
+        return
+    }
+    check(!session.isClosed && !session.isRawMode, "initial terminal state")
+    @Unsafe
+    {
+        check(modes(false), "configured console modes")
+    }
+    val size = session.size()
+    check(
+        size.columns > 1L && size.rows > 0L && size.widthPixels == 0L && size.heightPixels == 0L,
+        "console viewport"
+    )
+    var busy = false
+    try {
+        TerminalSession.open().close()
+    }
+    catch (error: PlatformException) {
+        busy =
+            error.nativeError?.domain ==
+                Some(NativeErrorDomain.Win32) &&
+                error.nativeError?.code ==
+                Some(170)
+    }
+    check(busy, "one console input owner")
+    feed(110, 78)
+    expect(session, KeyCode.Char('n'))
+    session.use {
+        session.withRawMode {
+            @Unsafe
+            {
+                check(modes(true), "raw console modes")
+            }
+            session.withRawMode { gcCollect() }
+            check(session.isRawMode, "nested raw scope")
+            feed(97, 65, repeats = 3)
+            for (index in 0L ..< 3L)
+                expect(session, KeyCode.Char('a'))
+            feed(0xd83d)
+            check(!session.poll(Duration.ZERO), "high surrogate is incomplete")
+            gcCollect()
+            feed(0xde42)
+            expect(session, KeyCode.Char('🙂'))
+            feed(0, 37, 8)
+            expect(session, KeyCode.Left, KeyModifiers().with(KeyModifier.Control))
+            feed(0, 32, 8)
+            expect(session, KeyCode.Char(' '), KeyModifiers().with(KeyModifier.Control))
+            feed(27, 27)
+            expect(session, KeyCode.Esc)
+            feed(0, 16, 16)
+            check(
+                !session.poll(Duration.milliseconds(10L)),
+                "modifier does not produce EOF or input"
+            )
+            var columns = -1L
+            @Unsafe
+            {
+                columns = resize()
+            }
+            check(columns == size.columns - 1L, "resize native viewport")
+            check(session.poll(Duration.seconds(2L)), "resize timed out")
+            check(session.read() == Event.Resize(columns, size.rows), "resize event")
+            check(!session.poll(Duration.ZERO), "resize is not repeated")
+            @Unsafe
+            {
+                check(position(), "reset cursor")
+            }
+            for (byte in "中Z".toByteArray())
+                session.writeAllBytes([byte])
+            @Unsafe
+            {
+                check(outputMatches(), "UTF-8 output split at every byte")
+            }
+        }
+        @Unsafe
+        {
+            check(modes(false), "raw mode restoration")
+        }
+        try {
+            session.withRawMode { throw ScopeFailure() }
+        }
+        catch (error: ScopeFailure) {
+            check(!session.isRawMode, "exception restores raw scope")
+        }
+        @Unsafe
+        {
+            check(position(), "reset cursor for query")
+        }
+        check(session.cursorPosition() == CursorPosition(0L, 0L), "real console query reply")
+        check(!session.isRawMode, "query restores raw scope")
+        session.enableRawMode()
+        session.enableRawMode()
+    }
+    session.close()
+    check(session.isClosed, "idempotent close")
+    @Unsafe
+    {
+        check(restored(), "close restores original modes and code pages")
+    }
+    var closed = false
+    try {
+        session.flush()
+    } catch (error: IllegalStateException) {
+        closed = true
+    }
+    check(closed, "closed session rejects operations")
+    TerminalSession.open().close()
+    println("session: passed")
+}
+
+private fun unavailable() {
+    check(
+        !isTerminal(StandardStream.Input) && !isTerminal(StandardStream.Output),
+        "no console detection"
+    )
+    for (attempt in 0L ..< 2L) {
+        var failed = false
+        try {
+            TerminalSession.open().close()
+        }
+        catch (error: PlatformException) {
+            failed = error.nativeError?.domain == Some(NativeErrorDomain.Win32)
+        }
+        check(failed, "missing console reports Win32 error without allocating one")
+    }
+}
+
+private fun disconnection(session: TerminalSession) {
+    session.enableRawMode()
+    @Unsafe
+    {
+        check(disconnect(), "detach console")
+    }
+    var ended = false
+    try {
+        session.read()
+    } catch (error: TerminalDisconnectedException) {
+        ended = true
+    }
+    check(ended, "console detach reports EOF")
+    var restoreFailed = false
+    try {
+        session.close()
+    }
+    catch (error: PlatformException) {
+        restoreFailed = error.nativeError?.domain == Some(NativeErrorDomain.Win32)
+    }
+    check(restoreFailed && session.isClosed, "failed restoration still consumes the owner")
+    session.close()
+    unavailable()
+}

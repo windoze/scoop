@@ -1,0 +1,21 @@
+schema = 1
+
+[cone]
+group = "dev.windows"
+name = "resources"
+version = "0.1.0"
+kind = "executable"
+
+[windows]
+subsystem = "gui"
+rc = "resources/app.rc"
+
+[native]
+include = ["include"]
+c_flags = ["-DSCOOP_RESOURCE_C_ONLY=1", "-Wall", "-Wextra", "-Werror"]
+
+[[native.sources]]
+path = "native.c"
+
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"

@@ -12,7 +12,7 @@
 | --- | --- | --- | --- |
 | Darwin/AArch64 | Mach-O 中的 DWARF | `<output>.dSYM/` | 保留 debug map 的最终链接，再执行 dsymutil |
 | Linux/amd64 GNU、musl | ELF 中的 DWARF | `<output>.debug` | 完整链接，再用 llvm-objcopy 分离，程序保留 .gnu_debuglink |
-| 将来的 Windows 目标 | COFF 中的 CodeView | PDB，通常为 `<program-stem>.pdb` | 支持 Windows 的 linker 在链接时生成 |
+| Windows 目标 | COFF 中的 CodeView | PDB，命名为 `<output>.pdb` | 支持 Windows 的 linker 在链接时生成 |
 
 现有文本 `.map` 只记录链接地址、范围和符号，不能恢复已经丢失的源码行、词法作用域或变量类型。改造可以复用输出管理，但调试内容必须在对象生成前建立。Darwin 的 Mach-O **debug map** 是 dsymutil 使用的对象定位信息，与当前 `-map` 生成的文本文件是两个不同概念。[R1][R2]
 
@@ -22,7 +22,7 @@
 
 程序自身的异常／trap stack trace 是相关的独立能力，由 `--enable-stack-trace[=true|false]` 控制，源码构建 debug 默认开启、release 默认关闭。开启时 Throwable 在首次抛出时保存快照，printStackTrace 和未捕获报告读取原栈，trap 即时采集并打印；关闭时不采集，打印不可用提示。采集不依赖 LLDB 或 DWARF；源码符号化复用本设计的调试文件。其布局、GC、符号器与实施顺序见 [栈诊断设计](STACK_TRACES.md)。
 
-Windows 本轮只说明职责与产物方向。其 target、COFF、调用 ABI、runtime、GC / EH 和链接支持须由 Windows 移植完成；当前实现不增加没有消费者的 PDB 分支。
+Windows target、COFF、调用 ABI、runtime、GC / EH 与链接支持由 [Windows 移植](../windows-targets/DESIGN.md)实现；调试信息复用本设计的共享源码记录，选择 CodeView／PDB 后端。实际 Windows 验收范围和剩余工作见[实施进度](../windows-targets/PROGRESS.md)。
 
 ## 2. 实施前的仓库基线
 
@@ -67,7 +67,7 @@ LLVM 22.1 的标准调试元数据和 debug records 足以承担底层表示；i
 | DAP 初始化的异常过滤列表 | C++、Objective-C、Swift 的 catch / throw；没有 Scoop | Scoop 异常过滤需要额外支持 |
 | llvm-symbolizer 使用 executable、dSYM 和 linkage / JSON 输出 | 返回 main、probe.scoop 第 3 行第 5 列及函数起始地址 | 可用标准工具接替 map 的地址归因基础 |
 
-上述最小实验未覆盖 Linux 分离后的实际程序调试、复合类型、优化后的变量位置和 moving GC；后续 Scoop 验收的实际范围见实施记录。Windows PDB 留待移植阶段。编译器后端与 debugger 的 LLVM 主版本不必相同，兼容性应通过目标格式和实际调试行为确认。
+上述最小实验未覆盖 Linux 分离后的实际程序调试、复合类型、优化后的变量位置和 moving GC；后续 Scoop 验收的实际范围见实施记录。Windows PDB 的移植进度见 [Windows 实施记录](../windows-targets/PROGRESS.md)。编译器后端与 debugger 的 LLVM 主版本不必相同，兼容性应通过目标格式和实际调试行为确认。
 
 ## 4. 用户接口与默认行为
 
@@ -260,7 +260,7 @@ llvm-objcopy --strip-debug --add-gnu-debuglink=app.debug app.unstripped app
 
 .debug 仍是标准 ELF 调试文件，不能只将若干 section dump 成自定义字节包。runtime 展开信息继续留在 executable 中；外置源码调试信息不替代 EH / 栈展开。
 
-### 8.3 Windows：将来在链接阶段输出 PDB
+### 8.3 Windows：在链接阶段输出 PDB
 
 Windows 应共享前端到 LLVM 的逻辑调试数据，在 Windows codegen 中选择 CodeView module flags，发射带 CodeView 的 COFF 对象；由 link.exe 或 lld-link 的 `/DEBUG`、`/PDB:` 等选项输出 PDB。LLVM 官方提供从同一类 IR 调试元数据发射 CodeView 的路线，LLD 支持 PDB。[R1][R8]
 
@@ -282,7 +282,7 @@ PE 与 PDB 的路径／GUID／age 匹配按平台规则处理。PDB 通常由最
 
 首版将最终 executable basename 传给调试结果生成，统一决定 debuglink 文件名、dSYM 内文件名及伴随文件名。basename 在请求调试文件时进入最终结果键：不同目录、同 basename 可复用；换 basename 可重新生成最终链接结果，但不重编译上游 Cone。不为仅有这个需求引入另一套中间 executable 缓存。
 
-标准 UUID、debuglink 和将来的 PDB 标识仅用于平台调试文件关联，不扩展为产物来源认证或每次运行前的检查。
+标准 UUID、debuglink 和 PDB 标识仅用于平台调试文件关联，不扩展为产物来源认证或每次运行前的检查。
 
 ## 10. LLDB、lldb-dap 与编辑器
 
@@ -298,7 +298,7 @@ VS Code 扩展实现以下接入：
 4. 为逻辑来源／预编译库配置 sourceMap，按需通过 initCommands 导入 formatter。
 5. 验证启动、attach、程序退出、stdin / TTY 和测试入口。交互终端使用所选 adapter 版本实际支持的配置。
 
-Scoop 扩展需要可定位的 lldb-dap 可执行文件，由 Scoop 发行包提供或通过扩展设置指定；其协议能力来自官方 adapter。[R4]
+Scoop 扩展需要可定位的 lldb-dap 可执行文件，由 Scoop 发行包以 `scoop-lldb-dap` 提供或通过扩展设置指定；其协议能力来自官方 adapter。[R4]
 
 调试已有程序的基础 launch 配置：
 

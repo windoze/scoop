@@ -158,7 +158,17 @@ impl CanonicalObjectRelocationV1 {
         let start = usize::try_from(self.offset_within_atom)
             .map_err(|_| ObjectDefinitionRelocationFailureV1::Range)?;
         match self.form {
-            VerifiedObjectRelocationFormV1::ElfX86_64Rela { width, .. } => {
+            VerifiedObjectRelocationFormV1::CoffAmd64 {
+                kind: object::pe::IMAGE_REL_AMD64_SECREL7,
+                width: 1,
+            } => {
+                let byte = bytes
+                    .get_mut(start)
+                    .ok_or(ObjectDefinitionRelocationFailureV1::Range)?;
+                *byte &= 0x80;
+            }
+            VerifiedObjectRelocationFormV1::ElfX86_64Rela { width, .. }
+            | VerifiedObjectRelocationFormV1::CoffAmd64 { width, .. } => {
                 let slot = bytes
                     .get_mut(start..start + usize::from(width))
                     .ok_or(ObjectDefinitionRelocationFailureV1::Range)?;

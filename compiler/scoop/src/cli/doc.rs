@@ -46,6 +46,8 @@ pub(super) struct DocArgs {
     #[arg(long)]
     pub cc: Option<PathBuf>,
     #[arg(long)]
+    pub cxx: Option<PathBuf>,
+    #[arg(long)]
     pub native_sysroot: Option<PathBuf>,
     #[arg(long, default_value = "human")]
     pub message_format: MessageFormat,
@@ -75,6 +77,7 @@ pub(super) fn execute(
     let selection = scoop_toolchain::select_target(&triple).map_err(config)?;
     let target = scoop_toolchain::CToolchainOptions {
         compiler: args.cc,
+        cxx_compiler: args.cxx,
         native_sysroot: args
             .native_sysroot
             .map(|path| absolute(&cwd, path))
@@ -84,11 +87,7 @@ pub(super) fn execute(
     .map_err(config)?;
     let compiler = match args.scoopc {
         Some(path) => absolute(&cwd, path)?,
-        None => scoop_toolchain::installed_executable()
-            .map_err(config)?
-            .parent()
-            .ok_or_else(|| config("scoop executable has no parent"))?
-            .join("scoopc"),
+        None => scoop_toolchain::installed_host_tool("scoopc").map_err(config)?,
     };
     let sysroot = absolute(
         &cwd,

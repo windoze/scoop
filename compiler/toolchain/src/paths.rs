@@ -1,3 +1,4 @@
+use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 
 pub fn configured_cache_root(explicit: Option<PathBuf>) -> Result<PathBuf, crate::ToolchainError> {
@@ -5,11 +6,19 @@ pub fn configured_cache_root(explicit: Option<PathBuf>) -> Result<PathBuf, crate
         .or_else(|| std::env::var_os("SCOOP_CACHE_DIR").map(PathBuf::from))
         .or_else(default_cache)
         .ok_or_else(|| {
-            crate::ToolchainError("no usable HOME; provide --cache-dir or SCOOP_CACHE_DIR".into())
+            crate::ToolchainError(
+                "no usable platform cache directory; provide --cache-dir or SCOOP_CACHE_DIR".into(),
+            )
         })
 }
 
 fn default_cache() -> Option<PathBuf> {
+    if cfg!(windows) {
+        return std::env::var_os("LOCALAPPDATA")
+            .map(PathBuf::from)
+            .filter(|path| path.is_absolute())
+            .map(|path| path.join("Scoop/Cache"));
+    }
     let home = std::env::var_os("HOME")
         .map(PathBuf::from)
         .filter(|path| path.is_absolute());
@@ -56,6 +65,45 @@ pub fn installed_executable() -> Result<PathBuf, crate::ToolchainError> {
     std::env::current_exe()
         .and_then(std::fs::canonicalize)
         .map_err(|error| crate::ToolchainError(format!("cannot locate executable: {error}")))
+}
+
+pub fn host_executable_name(name: impl AsRef<OsStr>) -> OsString {
+    let mut name = name.as_ref().to_owned();
+    name.push(std::env::consts::EXE_SUFFIX);
+    name
+}
+
+pub fn installed_host_tool(name: &str) -> Result<PathBuf, crate::ToolchainError> {
+    installed_executable().map(|path| path.with_file_name(host_executable_name(name)))
+}
+
+pub(crate) fn executable_path(program: &OsStr) -> PathBuf {
+    let path = Path::new(program);
+    if cfg!(windows) && path.extension().is_none() {
+        path.with_extension("exe")
+    } else {
+        path.to_owned()
+    }
+}
+
+/// Keep argv[0]'s driver spelling: resolving clang++'s symlink changes link defaults.
+pub(crate) fn find_program(
+    program: &OsStr,
+    search_path: &OsStr,
+) -> Result<PathBuf, crate::ToolchainError> {
+    let program = executable_path(program);
+    let candidate = if program.components().count() > 1 {
+        program.is_file().then_some(program.clone())
+    } else {
+        std::env::split_paths(search_path)
+            .map(|root| root.join(&program))
+            .find(|path| path.is_file())
+    };
+    let candidate = candidate.ok_or_else(|| {
+        crate::ToolchainError(format!("native tool not found: {}", program.display()))
+    })?;
+    std::path::absolute(dunce::simplified(&candidate))
+        .map_err(|e| crate::ToolchainError(e.to_string()))
 }
 
 pub fn development_runtime_root() -> PathBuf {

@@ -115,7 +115,7 @@ typedef struct ScoopTypeDescriptor ScoopTypeDescriptor;
 typedef void (*ScoopReleaseHookV1)(void *object_start);
 
 typedef struct ScoopItableEntryV1 {
-  const ScoopTypeDescriptor *interface;
+  const ScoopTypeDescriptor *interface_type;
   const void *const *slots;
 } ScoopItableEntryV1;
 
@@ -301,7 +301,7 @@ SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeInstanceShapeV1, inline_stride, 40);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeInstanceShapeV1, inline_alignment, 48);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeInstanceShapeV1, inline_scan, 56);
 SCOOP_METADATA_ASSERT_LAYOUT(ScoopItableEntryV1, 16, 8);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopItableEntryV1, interface, 0);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopItableEntryV1, interface_type, 0);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopItableEntryV1, slots, 8);
 SCOOP_METADATA_ASSERT_LAYOUT(ScoopTypeDescriptor, 152, 8);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, type_id, 0);

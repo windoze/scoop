@@ -2,7 +2,7 @@ schema = 1
 name = "core-operations-equality-combined"
 inputs = ["../../core-library/extension.scoop", "../../core-library/metadata.scoop", "../../core-library/abi.scoop", "../../core-library/type-aliases.scoop", "../../core-library/integer-defaults.scoop", "../../core-library/default-data-flow.scoop", "../../reference-source-fields/standalone.scoop", "../../reference-source-fields/combined.scoop", "../../imported-core-members/equality.scoop", "../../imported-core-members/equality-patterns.scoop", "../../imported-core-members/equality-combined.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["core-operations", "single-file", "language"]
 [[steps]]
 name = "runtime_vendor"

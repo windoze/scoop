@@ -384,6 +384,9 @@ mod tests {
             scoop_target_data::DARWIN_AARCH64_ID => "arm64-apple-macosx14.0",
             scoop_target_data::LINUX_X86_64_GNU_ID => "x86_64-linux-gnu",
             scoop_target_data::LINUX_X86_64_MUSL_ID => "x86_64-linux-musl",
+            scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID
+            | scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID
+            | scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_ID => canonical,
             _ => panic!("test host must be supported by the driver"),
         };
         let first = make(canonical, ["z", "a", "a"]);

@@ -12,7 +12,7 @@
 
 计时不包含 runtime 入口前的 dyld／CRT、root gateway 的 managed 参数构造、main、shutdown 和打印报告；阶段失败不输出伪造的完整记录。eager 自身的 stderr 可以出现在记录之前。完整进程成本仍用外部 A/B 测量，不能把这一时钟解释为全部启动时间。
 
-runtime 的 `SCOOP_ENABLE_STARTUP_STATS=0/1` 进入编译 flags、构建记录和 index 配置。index schema 6 的配置 field 5 保存该布尔值，开发缓存使用 `runtime-v7`。普通／GC stress 与启动统计的两个布尔配置分别选择 `runtime`、`runtime-stress`、`runtime-startup-stats`、`runtime-stress-startup-stats`。准备与打包脚本都覆盖四者；显式 index 也检查请求一致，不能默认误链统计版。该配置只影响 runtime 与最终链接，不改变 Scoop Cone 编译结果、`.slib` 或 ABI。
+runtime 的 `SCOOP_ENABLE_STARTUP_STATS=0/1` 进入编译 flags、构建记录和 index 配置。index schema 7 的配置 field 5 保存该布尔值，开发缓存使用 `runtime-v8`。普通／GC stress 与启动统计的两个布尔配置分别选择 `runtime`、`runtime-stress`、`runtime-startup-stats`、`runtime-stress-startup-stats`。准备与打包脚本都覆盖四者；显式 index 也检查请求一致，不能默认误链统计版。该配置只影响 runtime 与最终链接，不改变 Scoop Cone 编译结果、`.slib` 或 ABI。
 
 ## 定向验证
 

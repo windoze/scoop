@@ -17,13 +17,13 @@ internal suspend fun moveFileOnLoop(
             native,
             id -> @Unsafe
             {
-                return@pathModification source.withNativePath {
+                return@pathModification source.withIoPath {
                     from -> @Unsafe
                     {
-                        return@withNativePath destination.withNativePath {
+                        return@withIoPath destination.withIoPath {
                             to -> @Unsafe
                             {
-                                return@withNativePath nativePathMove(native, id, from, to, replace)
+                                return@withIoPath nativePathMove(native, id, from, to, replace)
                             }
                         }
                     }
@@ -62,10 +62,10 @@ internal fun deleteFileForCleanup(loop: LoopOwner, path: Path, complete: (Throwa
 private fun deletePathNative(path: Path, native: Ptr<Unit>, id: Long): Int {
     @Unsafe
     {
-        return path.withNativePath {
+        return path.withIoPath {
             name -> @Unsafe
             {
-                return@withNativePath nativePathDelete(native, id, name)
+                return@withIoPath nativePathDelete(native, id, name)
             }
         }
     }
@@ -80,10 +80,10 @@ internal suspend fun createDirectoryOnLoop(loop: LoopOwner, path: Path, mode: In
             native,
             id -> @Unsafe
             {
-                return@pathModification path.withNativePath {
+                return@pathModification path.withIoPath {
                     name -> @Unsafe
                     {
-                        return@withNativePath nativePathMkdir(native, id, name, mode)
+                        return@withIoPath nativePathMkdir(native, id, name, mode)
                     }
                 }
             }

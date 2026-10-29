@@ -39,7 +39,7 @@ def resolved_frames(output, names, bias):
 def resolve(binary, addresses, names, tools=None, bias=0):
     if not addresses:
         return {}
-    symbolizer = str(tools / "llvm-symbolizer") if tools else "llvm-symbolizer"
+    symbolizer = str(tools / "llvm-symbolizer") if tools else "scoop-llvm-symbolizer"
     binary = Path(binary)
     # LLVM 22 prefers executable symbols over DWARF names. In a stripped Mach-O,
     # its remaining C entry symbol can incorrectly cover later Scoop functions.

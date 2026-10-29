@@ -1,0 +1,11 @@
+package dev.windows
+
+import scoop.test.*
+
+@Test
+private class Entry {
+    @Test
+    fun keepsExitCode() {
+        assertEquals(73, exitCode())
+    }
+}

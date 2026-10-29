@@ -274,7 +274,8 @@ int main(void) {
         probes[index].old_exceptions[1] = new_leaf(probes[index].value * 10 + 1);
     }
 #ifndef TEST_MINOR_GC
-    // All C roots are constructed before workers start; this probe requires explicit movement.
+    // All C roots are constructed before workers start; this probe requires
+    // explicit movement.
     scoop_gc_heap_state.stress_move = true;
 #endif
     for (size_t index = 0; index < 3; index++) {

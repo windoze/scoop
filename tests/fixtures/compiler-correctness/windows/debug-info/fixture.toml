@@ -1,0 +1,98 @@
+schema = 1
+name = "windows-debug-source-declarations"
+root = "cone/Cone.toml"
+inputs = ["cone", "inspect.c"]
+tools = ["scoop", "scoopc", "cc"]
+targets = ["x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
+tags = ["windows", "debug-info", "link", "cli", "compiler-correctness"]
+
+[vars]
+build_args = ["${work}/cone", "--profile", "debug", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}, {mkdir = {path = "${work}/relinked"}}]
+
+[[steps]]
+name = "inspector"
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "${fixture}/inspect.c", "-ldbghelp", "-lshell32", "-o", "${work}/inspect.exe"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "build", {each = "${link_args}"}, {each = "${build_args}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "original_line"
+argv = ["${work}/inspect.exe", "${cold.result.output}", "${work}/cone/src/debug_entry.scoop", "3"]
+exit = 0
+stdout = "line=3\r\n"
+stderr = ""
+
+[[steps]]
+name = "original_run"
+argv = ["${cold.result.output}"]
+exit = 42
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", {each = "${link_args}"}, {each = "${build_args}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.observations.child_invocations}", equals = []}]
+
+[[steps]]
+name = "shift_source"
+files = [{replace = {path = "${work}/cone/src/debug_entry.scoop", old = "fun debugTarget", new = "// shifted\nfun debugTarget"}}]
+
+[[steps]]
+name = "changed"
+argv = ["${scoop}", "build", {each = "${link_args}"}, {each = "${build_args}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${changed.result.root.artifact_fingerprint}", not_equals = "${cold.result.root.artifact_fingerprint}"}]
+
+[[steps]]
+name = "changed_line"
+argv = ["${work}/inspect.exe", "${changed.result.output}", "${work}/cone/src/debug_entry.scoop", "4"]
+exit = 0
+stdout = "line=4\r\n"
+stderr = ""
+
+[[steps]]
+name = "relink"
+argv = ["${scoop}", "link", {each = "${link_args}"}, "--root-slib", "${changed.result.root.path}", {each = "${changed.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--keep-symbols", "--emit-debug-file", "-o", "${work}/relinked/debug-entry.exe", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "relinked_line"
+argv = ["${work}/inspect.exe", "${relink.result.output}", "${work}/cone/src/debug_entry.scoop", "4"]
+exit = 0
+stdout = "line=4\r\n"
+stderr = ""
+
+[[steps]]
+name = "relinked_run"
+argv = ["${relink.result.output}"]
+exit = 42
+stdout = ""
+stderr = ""

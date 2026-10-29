@@ -1,12 +1,13 @@
 package scoop.platform.io
 
-import scoop.platform.fs.File
+import scoop.platform.fs.*
+import scoop.platform.system.failOperatingSystem
 import scoop.platform.memory.NativeByteBuffer
 
 /**
  * The owned read side of a native pipe.
  */
-public class PipeSource internal constructor(internal val file: File) : ByteSource, Closeable {
+public class PipeSource internal constructor(internal val file: File): ByteSource, Closeable {
     /**
      * Whether this owned resource has been closed.
      */
@@ -15,18 +16,21 @@ public class PipeSource internal constructor(internal val file: File) : ByteSour
      * Reads into the selected writable region, returning actual bytes and permitting short reads.
      * Zero for a positive request denotes EOF.
      */
-    public override fun readInto(buffer: NativeByteBuffer, count: Long): Long = file.readInto(buffer, count)
+    public override fun readInto(buffer: NativeByteBuffer, count: Long): Long =
+        file.readInto(buffer, count)
     /**
      * Closes the owned native descriptor; subsequent I/O through this owner is invalid.
      */
-    public override fun close() { file.close() }
+    public override fun close() {
+        file.close()
+    }
     internal fun borrowed(): ByteSource = BorrowedSource(file)
 }
 
 /**
  * The owned write side of a native pipe.
  */
-public class PipeSink internal constructor(internal val file: File) : ByteSink, Closeable {
+public class PipeSink internal constructor(internal val file: File): ByteSink, Closeable {
     /**
      * Whether this owned resource has been closed.
      */
@@ -35,24 +39,34 @@ public class PipeSink internal constructor(internal val file: File) : ByteSink, 
      * Consumes the selected readable region, returning the actual accepted byte count and
      * permitting short writes.
      */
-    public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = file.writeFrom(buffer, count)
+    public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long =
+        file.writeFrom(buffer, count)
     /**
      * Checks the unbuffered pipe endpoint state; it does not wait for the reader to consume bytes.
      */
-    public override fun flush() { file.flush() }
+    public override fun flush() {
+        file.flush()
+    }
     /**
      * Closes the owned native descriptor; subsequent I/O through this owner is invalid.
      */
-    public override fun close() { file.close() }
+    public override fun close() {
+        file.close()
+    }
     internal fun borrowed(): ByteSink = BorrowedSink(file)
 }
 
-private class BorrowedSource(private val file: File) : ByteSource {
-    public override fun readInto(buffer: NativeByteBuffer, count: Long): Long = file.readInto(buffer, count)
+private class BorrowedSource(private val file: File): ByteSource {
+    public override fun readInto(buffer: NativeByteBuffer, count: Long): Long =
+        file.readInto(buffer, count)
 }
-private class BorrowedSink(private val file: File) : ByteSink {
-    public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = file.writeFrom(buffer, count)
-    public override fun flush() { file.flush() }
+
+private class BorrowedSink(private val file: File): ByteSink {
+    public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long =
+        file.writeFrom(buffer, count)
+    public override fun flush() {
+        file.flush()
+    }
 }
 
 /**
@@ -66,7 +80,8 @@ public class Pipe private constructor(
     /**
      * The write endpoint, which the caller must close.
      */
-    public val sink: PipeSink) {
+    public val sink: PipeSink
+) {
     /**
      * Creates native pipes with separate endpoint ownership.
      */
@@ -76,21 +91,25 @@ public class Pipe private constructor(
          */
         public fun open(): Pipe {
             val pipe = Pipe(PipeSource(File.newOwner()), PipeSink(File.newOwner()))
-            val descriptors = MutableArray<Int>(2L) { -1 }
-            @Unsafe {
-                descriptors.withDataPointer { pointer, _ ->
-                    @Unsafe {
-                        val (status, error) = nativePipe(pointer)
-                        checkNativeStatus(status, error, "create pipe")
-                    }
-                }
+            @Unsafe
+            {
+                val opened = nativePipe()
+                if (opened.error != 0)
+                    failOperatingSystem("create pipe", opened.error)
+                pipe.source.file.adoptHandle(opened.source)
+                pipe.sink.file.adoptHandle(opened.sink)
             }
-            pipe.source.file.adoptDescriptor(descriptors[0L])
-            pipe.sink.file.adoptDescriptor(descriptors[1L])
             return pipe
         }
     }
 }
 
-@Extern(name = "scoop_platform_pipe_open", captureErrno = true)
-private fun nativePipe(descriptors: Ptr<Int>): (Int, Int)
+@CLayout
+private struct NativePipeOpened(
+    val source: NativeFileHandle,
+    val sink: NativeFileHandle,
+    val error: Int
+)
+
+@Extern(name = "scoop_platform_handle_pipe")
+private fun nativePipe(): NativePipeOpened

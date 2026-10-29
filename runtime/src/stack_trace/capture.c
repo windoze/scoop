@@ -25,6 +25,17 @@ char *scoop_trace_copy_path(const char *path) {
     return copy;
 }
 
+void scoop_trace_symbols_free(ScoopTraceSymbols *symbols) {
+    for (ScoopTraceSymbol *symbol = symbols->first; symbol != NULL;) {
+        ScoopTraceSymbol *next = symbol->next;
+        free(symbol->function);
+        free(symbol->filename);
+        free(symbol);
+        symbol = next;
+    }
+    symbols->first = symbols->last = NULL;
+}
+
 static _Unwind_Reason_Code collect_frame(struct _Unwind_Context *context, void *argument) {
     ScoopTraceFrames *frames = argument;
     int before_instruction = 0;

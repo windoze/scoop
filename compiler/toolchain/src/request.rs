@@ -8,13 +8,30 @@ impl CToolchainOptions {
         let path = |value: &Option<std::path::PathBuf>| {
             value
                 .as_deref()
-                .map(HostPathCarrier::from_path)
+                .map(|p| {
+                    let p = if p.components().count() > 1 {
+                        std::path::absolute(p).map_err(|e| ToolchainError(e.to_string()))?
+                    } else {
+                        p.to_owned()
+                    };
+                    HostPathCarrier::from_path(&p).map_err(|e| ToolchainError(e.to_string()))
+                })
                 .transpose()
-                .map_err(|error| ToolchainError(error.to_string()))
         };
         Ok(TargetSelectionRequestV1::new(triple)
             .map_err(|error| ToolchainError(error.to_string()))?
-            .with_c_toolchain(path(&self.compiler)?, path(&self.native_sysroot)?))
+            .with_native_toolchain(
+                path(&self.compiler)?,
+                path(
+                    &self
+                        .native_sysroot
+                        .as_deref()
+                        .map(std::path::absolute)
+                        .transpose()
+                        .map_err(|e| ToolchainError(e.to_string()))?,
+                )?,
+                path(&self.cxx_compiler)?,
+            ))
     }
 
     pub fn from_request(request: &TargetSelectionRequestV1) -> Result<Self, ToolchainError> {
@@ -26,6 +43,7 @@ impl CToolchainOptions {
         };
         Ok(Self {
             compiler: path(request.compiler())?,
+            cxx_compiler: path(request.cxx_compiler())?,
             native_sysroot: path(request.native_sysroot())?,
         })
     }

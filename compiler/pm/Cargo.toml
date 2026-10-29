@@ -14,6 +14,7 @@ url.workspace = true
 semver.workspace = true
 pubgrub = "0.4.0"
 pathdiff.workspace = true
+dunce.workspace = true
 scoop-slib.workspace = true
 scoop-lir.workspace = true
 sha2.workspace = true

@@ -1,0 +1,210 @@
+package scoop.asyncio
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.system.*
+import scoop.test.*
+
+@Test
+private class WindowsAsyncTtyTest {
+    @Test
+    fun `asynchronous and synchronous terminal sessions share one native owner`() {
+        TestTerminal().use {
+            terminal ->
+            @Unsafe
+            {
+                val synchronous = nativeSyncTtyOpen()!!
+                try {
+                    val loop: EventLoop = PlatformEventLoop()
+                    loop.run suspend {
+                        _ -> try {
+                            loop.openTty()
+                            fail(Some("duplicate terminal owner accepted"))
+                        } catch (error: PlatformException) {
+                            assertEquals(NativeErrorDomain.Win32, error.nativeError!!.domain)
+                            assertEquals(170, error.nativeError!!.code)
+                        }
+                    }
+                } finally {
+                    assertEquals(0, nativeSyncTtyClose(synchronous))
+                }
+            }
+            assertTrue(terminal.restored())
+        }
+    }
+
+    @Test
+    fun `late cancelled open restores the terminal before another owner opens`() {
+        TestTerminal().use {
+            terminal ->
+            val loop = PlatformEventLoop()
+            loop.run suspend {
+                scope ->
+                val opening =
+                    scope.launch suspend {
+                        loop.openTty()
+                        fail(Some("cancelled terminal owner delivered"))
+                    }
+                val fence = WorkFence(loop)
+                fence.start(cancelAfterPriorWork = Some(opening))
+                fence.close()
+                opening.join()
+                assertTrue(opening.isCancelled)
+                assertTrue(terminal.restored())
+                loop.openTty().useAsync suspend {
+                    tty ->
+                    tty.enableRawMode()
+                    assertTrue(tty.isRawMode())
+                }
+            }
+            assertTrue(terminal.restored())
+        }
+    }
+
+    @Test
+    fun `running console wait cancels without consuming later Unicode input`() {
+        TestTerminal().use {
+            terminal ->
+            val loop = PlatformEventLoop()
+            loop.run suspend {
+                scope -> loop.openTty().useAsync suspend {
+                    tty ->
+                    tty.enableRawMode()
+                    NativeByteBuffer.allocate(8L).use suspend {
+                        bytes ->
+                        val reading = scope.launch suspend { tty.receive(bytes, 8L) }
+                        waitReadStarted(loop, tty)
+                        gcCollect()
+                        assertFailsWith<IllegalStateException> { bytes.clear() }
+                        reading.cancel()
+                        reading.join()
+                        assertTrue(reading.isCancelled)
+                        bytes.clear()
+                        terminal.send(0x4e2d)
+                        assertTrue(tty.receive(bytes, 8L) == TtyRead.Bytes(3L))
+                        assertEquals(0xe4.toByte(), bytes.readByte())
+                        assertEquals(0xb8.toByte(), bytes.readByte())
+                        assertEquals(0xad.toByte(), bytes.readByte())
+                    }
+                }
+            }
+            assertTrue(terminal.restored())
+        }
+    }
+
+    @Test
+    fun `close drains an active console wait before restoring modes and releasing the buffer`() {
+        TestTerminal().use {
+            terminal ->
+            val loop = PlatformEventLoop()
+            loop.run suspend {
+                scope ->
+                val tty = loop.openTty()
+                tty.enableRawMode()
+                NativeByteBuffer.allocate(1L).use suspend {
+                    bytes ->
+                    val reading =
+                        scope.async<Boolean> suspend {
+                            try {
+                                tty.receive(bytes, 1L)
+                                false
+                            } catch (_: IoClosedException) {
+                                true
+                            }
+                        }
+                    waitReadStarted(loop, tty)
+                    tty.close()
+                    assertTrue(reading.await())
+                    assertTrue(tty.isClosed)
+                    bytes.clear()
+                }
+            }
+            assertTrue(terminal.restored())
+        }
+    }
+
+    @Test
+    fun `cancelled queued output leaves console contents unchanged`() {
+        TestTerminal().use {
+            terminal ->
+            val loop = PlatformEventLoop()
+            loop.run suspend {
+                scope -> loop.openTty().useAsync suspend {
+                    tty ->
+                    val before = terminal.receive()
+                    val fence = WorkFence(loop)
+                    fence.start()
+                    fence.waitStarted()
+                    NativeByteBuffer.allocate(1L).use suspend {
+                        bytes ->
+                        bytes.writeByte(88)
+                        val writing = scope.launch suspend { tty.writeFrom(bytes, 1L) }
+                        suspendCoroutine<Unit> {
+                            continuation -> loop.state.post { continuation.resume(Unit) }
+                        }
+                        writing.cancel()
+                        writing.join()
+                        assertTrue(writing.isCancelled)
+                        assertEquals(0L, bytes.readPosition)
+                        // Read from the same cursor in a fresh observer.
+                        TestTerminal().use { observer -> assertEquals(before, observer.receive()) }
+                    }
+                    fence.close()
+                }
+            }
+            assertTrue(terminal.restored())
+        }
+    }
+
+    @Test
+    fun `console disconnect preserves EOF and reports Win32 control and restoration errors`() {
+        TestTerminal().use {
+            terminal ->
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                _ ->
+                val tty = loop.openTty()
+                terminal.endInput()
+                NativeByteBuffer.allocate(1L).use suspend {
+                    bytes ->
+                    assertTrue(tty.receive(bytes, 1L) == TtyRead.End)
+                    assertTrue(tty.receive(bytes, 1L) == TtyRead.End)
+                }
+                try {
+                    tty.size()
+                    fail(Some("disconnected size succeeded"))
+                } catch (error: PlatformException) {
+                    assertEquals(NativeErrorDomain.Win32, error.nativeError!!.domain)
+                    assertEquals(6, error.nativeError!!.code)
+                }
+                try {
+                    tty.close()
+                    fail(Some("disconnected restoration succeeded"))
+                } catch (error: PlatformException) {
+                    assertEquals(NativeErrorDomain.Win32, error.nativeError!!.domain)
+                }
+                assertTrue(tty.isClosed)
+            }
+        }
+    }
+}
+
+private suspend fun waitReadStarted(loop: PlatformEventLoop, tty: AsyncTty) {
+    suspendCoroutine<Unit> {
+        continuation -> loop.state.post {
+            @Unsafe
+            {
+                assertEquals(0, nativeTtyReadStarted((tty as TtyEndpoint).owner.pointer))
+            }
+            continuation.resume(Unit)
+        }
+    }
+}
+
+@Extern(name = "scoop_test_tty_read_started")
+private fun nativeTtyReadStarted(tty: Ptr<Unit>): Int
+
+@Extern(name = "scoop_terminal_open")
+private fun nativeSyncTtyOpen(): Ptr<Unit>?
+
+@Extern(name = "scoop_terminal_close")
+private fun nativeSyncTtyClose(terminal: Ptr<Unit>): Int

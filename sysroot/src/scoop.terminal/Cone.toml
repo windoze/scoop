@@ -8,9 +8,6 @@ kind = "library"
 
 [[sources]]
 path = "src"
-[[sources]]
-path = "platform/unix"
-when = {os = ["darwin", "linux"]}
 
 [dependencies]
 "scoop:scoop.core" = "0.1.0"

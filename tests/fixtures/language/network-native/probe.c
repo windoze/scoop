@@ -173,14 +173,14 @@ ssize_t m45_network_recvmsg(int descriptor, struct msghdr *message, int options)
         m45_network_send_packet(descriptor);
     return recvmsg(descriptor, message, options);
 }
-ssize_t m45_network_read(int descriptor, void *bytes, size_t count) {
+ssize_t m45_network_recv(int descriptor, void *bytes, size_t count, int options) {
     if (take(32)) {
         errno = EINTR;
         return -1;
     }
     collect();
     assert(fcntl(descriptor, F_GETFD) == FD_CLOEXEC);
-    return read(descriptor, bytes, count);
+    return recv(descriptor, bytes, count, options);
 }
 
 int m45_network_getaddrinfo(const char *host, const char *service, const struct addrinfo *hints,

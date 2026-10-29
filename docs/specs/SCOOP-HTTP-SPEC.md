@@ -10,6 +10,8 @@
 
 HTTP/1 使用 llhttp 9.4.3；HTTP/2 使用 nghttp2 1.70.0 的完整上游协议核心，通过 `nghttp2_session_mem_recv2`／`nghttp2_session_mem_send2` 接入。帧、HPACK、HTTP messaging、流状态与 SETTINGS 校验交给 nghttp2；Scoop 不再重放一套接收校验。
 
+三个 Windows 目标均消费各自预编译的 nghttp2 静态库；Microsoft UCRT 使用动态 CRT（`/MD`），LLVM-MinGW 使用目标 CRT 的编译器 prefix。发布位置统一为 `sysroot/lib/<target>/nghttp2/lib/libnghttp2.a` 与同 prefix 的 `include`；llhttp 仍作为 HTTP Cone 的 native C 源码编译。协议处理与公共 API 不随 Windows CRT 改变。
+
 协议引擎不增加连接池、自动重试、路由、Cookie jar、响应缓存或下载目的地选择；这些客户端策略由独立 client 库承担。M54 的字段、Cookie 数据、multipart、SSE 与 WebSocket 协议补充见第 9 节，内容压缩由独立 compression 库提供。HTTP/2 的库核心保持完整，普通消息接口不提供 server push 或通用扩展插件。客户端明确声明禁用 push；这不等于裁掉后端机器码。HTTP/3 不在本规范范围。
 
 ## 2. 消息、字段与错误
@@ -174,6 +176,8 @@ HTTP/2 的 upgraded 所有权工厂另外接收已完成 HTTP/1 请求的方法�
 `AsyncHttp2Connection.isDraining` 是本地已提交或已收到 GOAWAY 的只读状态快照，在对应通知之前更新；它不表示已有流都已结束，也不替代 isClosed。仍开放但已经 draining 的连接在 openRequest 提交新流之前抛出 Http2ConnectionDrainingException，不分配 stream ID 或发出新请求。已经提交的流继续按 GOAWAY 的最后 stream ID 和实际流事件完成；对端明确未处理的流保留 REFUSED_STREAM 的原始错误码，不把任意连接失败解释成未处理。
 
 `AsyncHttp2Connection.isClosing` 是连接已经开始本地关闭的只读状态快照：显式 close、所有者取消或连接失败选择终止时立即为 true，完成收尾后仍为 true。isClosed 只在实际传输与协议资源收尾完成后为 true。连接池不得把两者之间的关闭等待期当作可接受新请求的状态；这一判断不执行 I/O，也不改变 GOAWAY 和实际连接失败的分类。
+
+关闭期间新发起的流操作可以立即报告已经选择的连接失败；收到这个异常不表示异步收尾已经完成。需要观察已完成关闭时，调用并等待 `close`，再检查 `isClosed`；已正常完成的其他流仍按下文保留可读取的响应。
 
 Http2Notice.StreamFailure(streamId, cause) 在已存在的流因协议错误、请求取消、I/O 或时限而异常结束时交付一次原始 Throwable，包括连接结束时尚未正常完成的流；即使没有正在等待的 read／write／receiveResponse，也必须交付。它在流状态定稿后、锁外执行，不取代描述线上事件的 StreamClosed 或后端 Failure。正常完成和调用者显式 close 本流不额外产生 StreamFailure；close 仍按原有合同放弃数据并完成本地清理。AsyncHttp2Stream.failure 是该流已选择的终止原因快照，显式 close 的本地原因是 IoClosedException，正常完成不设置失败；异常结束后的快照与通知引用同一原因，后续 close 不覆盖它。使用者可在登记流之后查询一次快照，衔接此前已经交付的通知，不需要轮询或另建计时器。
 

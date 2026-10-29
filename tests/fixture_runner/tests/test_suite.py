@@ -93,5 +93,26 @@ class SuiteTests(unittest.TestCase):
             self.assertEqual([result.status for result in results], ["interrupted", "interrupted"])
             self.assertEqual([result.processes for result in results], [1, 0])
             self.assertFalse((base / "cases/1/normal/ready").exists())
-            with self.assertRaises(ProcessLookupError):
-                os.kill(int(ready.read_text()), 0)
+            if os.name == "nt":
+                import ctypes
+                from ctypes import wintypes
+
+                from fixture_runner.windows_process import close_handle, function
+
+                open_process = function(
+                    "OpenProcess", wintypes.HANDLE, wintypes.DWORD, wintypes.BOOL, wintypes.DWORD
+                )
+                wait = function(
+                    "WaitForSingleObject", wintypes.DWORD, wintypes.HANDLE, wintypes.DWORD
+                )
+                handle = open_process(0x00100000, False, int(ready.read_text()))
+                if handle:
+                    try:
+                        self.assertEqual(wait(handle, 0), 0)
+                    finally:
+                        close_handle(handle)
+                else:
+                    self.assertEqual(ctypes.get_last_error(), 87)  # Process no longer exists.
+            else:
+                with self.assertRaises(ProcessLookupError):
+                    os.kill(int(ready.read_text()), 0)

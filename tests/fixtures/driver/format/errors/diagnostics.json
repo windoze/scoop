@@ -1,4 +1,4 @@
 [
-  {"code":"SCOOPC_PARSE_ERROR","message":"expected expression, found `@`","notes":[],"origin":{"kind":"host","path":"${work}/bad.scoop","start":15,"end":16},"severity":"error"},
-  {"code":"SCOOP_FMT_IO","message":"stream did not contain valid UTF-8","notes":[],"origin":{"kind":"host","path":"${work}/bad-utf8.scoop","start":null,"end":null},"phase":"Request","severity":"error"}
+  {"code":"SCOOPC_PARSE_ERROR","message":"expected expression, found `@`","notes":[],"origin":{"kind":"host","path":"${bad_source.canonical}","start":15,"end":16},"severity":"error"},
+  {"code":"SCOOP_FMT_IO","message":"stream did not contain valid UTF-8","notes":[],"origin":{"kind":"host","path":"${invalid_utf8.canonical}","start":null,"end":null},"phase":"Request","severity":"error"}
 ]

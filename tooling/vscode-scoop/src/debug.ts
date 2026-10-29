@@ -158,7 +158,7 @@ export function registerDebugging(context: vscode.ExtensionContext): void {
           session.workspaceFolder?.uri,
         );
         const command = await toolCommand(
-          "lldb-dap",
+          "scoop-lldb-dap",
           settings.get("debug.adapterPath", ""),
         );
         return new vscode.DebugAdapterExecutable(command, [

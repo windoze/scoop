@@ -1,0 +1,125 @@
+package scoop.platform.process
+
+import scoop.platform.concurrent.Thread
+import scoop.platform.io.*
+
+private class ProcessPipeReader(private val source: PipeSource?) {
+    private var worker: Thread? = None
+    private var bytes: Array<Byte> = []
+
+    fun start(abort: () -> Unit) {
+        when (source) {
+            case None -> {}
+            case Some(pipe) -> worker =
+                Some(
+                    Thread.start {
+                        try {
+                            bytes = pipe.use { it.readAllBytes() }
+                        } catch (failure: Throwable) {
+                            var reported = failure
+                            try {
+                                abort()
+                            }
+                            catch (cleanup: Throwable) {
+                                reported = ResourceUseException(reported, cleanup)
+                            }
+                            throw reported
+                        }
+                    }
+                )
+        }
+    }
+
+    fun finish(): Array<Byte> {
+        var failure: Throwable? = None
+        try {
+            worker?.join()
+        }
+        catch (error: Throwable) {
+            failure = Some(error)
+        }
+        try {
+            source?.close()
+        }
+        catch (error: Throwable) {
+            failure = Some(combineProcessFailure(failure, error))
+        }
+        when (failure) {
+            case Some(error) -> throw error
+            case None -> return bytes
+        }
+    }
+}
+
+internal fun ChildProcess.transferPipes(
+    input: PipeSink?,
+    output: PipeSource?,
+    error: PipeSource?,
+    bytes: Array<Byte>?
+): (Array<Byte>, Array<Byte>) {
+    val stdout = ProcessPipeReader(output)
+    val stderr = ProcessPipeReader(error)
+    val stopping = AtomicBoolean(false)
+    val abort: () -> Unit =
+        {
+            if (stopping.compareAndSet(false, true))
+                kill()
+        }
+    var failure: Throwable? = None
+    try {
+        stdout.start(abort)
+        stderr.start(abort)
+        val contents = bytes ?: Array<Byte>(0L) { 0.toByte() }
+        input?.use { sink -> sink.writeAllBytes(contents) }
+    } catch (error: Throwable) {
+        failure = Some(error)
+        try {
+            abort()
+        }
+        catch (cleanup: Throwable) {
+            failure = Some(combineProcessFailure(failure, cleanup))
+        }
+    }
+    try {
+        input?.close()
+    }
+    catch (cleanup: Throwable) {
+        failure = Some(combineProcessFailure(failure, cleanup))
+        try {
+            abort()
+        }
+        catch (stoppingFailure: Throwable) {
+            failure = Some(combineProcessFailure(failure, stoppingFailure))
+        }
+    }
+    var out: Array<Byte> = []
+    var err: Array<Byte> = []
+    try {
+        out = stdout.finish()
+    }
+    catch (cleanup: Throwable) {
+        failure = Some(combineProcessFailure(failure, cleanup))
+        try {
+            abort()
+        }
+        catch (stoppingFailure: Throwable) {
+            failure = Some(combineProcessFailure(failure, stoppingFailure))
+        }
+    }
+    try {
+        err = stderr.finish()
+    }
+    catch (cleanup: Throwable) {
+        failure = Some(combineProcessFailure(failure, cleanup))
+        try {
+            abort()
+        }
+        catch (stoppingFailure: Throwable) {
+            failure = Some(combineProcessFailure(failure, stoppingFailure))
+        }
+    }
+    when (failure) {
+        case Some(error) -> throw error
+        case None -> return (out, err)
+    }
+}

@@ -2,6 +2,7 @@
 
 import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -11,6 +12,29 @@ from fixture_runner.values import argv_values, expand, path_bytes, references
 
 
 class ValueTests(unittest.TestCase):
+    def test_canonical_reference_names_the_actual_host_input(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            (base / "nested").mkdir()
+            source = base / "值.txt"
+            source.write_bytes(b"source")
+            value = expand("${source.canonical}", {"source": base / "nested/../值.txt"})
+            self.assertEqual(Path(value).read_bytes(), b"source")
+            self.assertNotIn("..", Path(value).parts)
+            if os.name == "nt":
+                self.assertTrue(value.startswith("\\\\?\\"))
+            self.assertEqual(expand("${record.canonical}", {"record": {"canonical": 7}}), 7)
+
+    def test_host_paths_cover_missing_inputs_and_cli_executable_names(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            value = expand("${source.canonical}", {"source": base / "missing.scoop"})
+            self.assertFalse(Path(value).exists())
+            self.assertTrue(Path(value).parent.samefile(base))
+            self.assertEqual(expand("${tool.filename}", {"tool": base / "sco.exe"}), "sco.exe")
+            self.assertEqual(expand("${tool.filename}", {"tool": base / "scoop"}), "scoop")
+            self.assertEqual(expand("${record.filename}", {"record": {"filename": 7}}), 7)
+
     def test_text_and_bytes_hex_compose_raw_arguments_and_json_paths(self):
         context = {"work": "/tmp/中文 path", "suffix": b"/source-\xff.scoop"}
         encoded = "${work.hex}${suffix.hex}"

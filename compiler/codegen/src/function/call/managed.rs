@@ -227,7 +227,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     self.context,
                     self.structs,
                     self.enums,
-                    self.managed_address_space,
+                    self.profile,
                     call,
                     &signature,
                 )?;
@@ -283,7 +283,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     self.context,
                     self.structs,
                     self.enums,
-                    self.managed_address_space,
+                    self.profile,
                     call,
                     &signature,
                 )?;

@@ -116,6 +116,40 @@ fn c_bridge_toolchain_contract_and_fingerprints_match_fixed_vectors() {
 }
 
 #[test]
+fn windows_c_profiles_separate_environments_and_preserve_seh_flags() {
+    let compiler =
+        WindowsClangCompilerIdentityV1::new([22, 1, 8], scoop_wire::sha256(b"selected headers"));
+    let profiles = [
+        crate::target_fixtures::WINDOWS_X86_64_MSVC_UCRT,
+        crate::target_fixtures::WINDOWS_X86_64_MINGW_MSVCRT,
+        crate::target_fixtures::WINDOWS_X86_64_MINGW_UCRT,
+    ]
+    .map(|target| {
+        crate::target_fixtures::windows_c_bridge_profile(target, compiler.clone()).unwrap()
+    });
+    let fingerprints = profiles
+        .iter()
+        .map(|profile| profile.fingerprint().to_string())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(fingerprints.len(), 3);
+    for profile in profiles {
+        assert!(profile.contract().deployment().is_err());
+    }
+    assert!(
+        crate::target_fixtures::windows_c_bridge_profile(
+            crate::target_fixtures::LINUX_X86_64_GNU,
+            compiler
+        )
+        .is_err()
+    );
+    let flags = CanonicalCBridgeFlagContractV1::WindowsClang.flags();
+    assert!(flags.contains(&CanonicalCBridgeFlagV1::WindowsSeh));
+    assert!(flags.contains(&CanonicalCBridgeFlagV1::ReproducibleCoff));
+    assert!(flags.contains(&CanonicalCBridgeFlagV1::UnwindTables));
+    assert!(flags.contains(&CanonicalCBridgeFlagV1::AsynchronousUnwindTables));
+}
+
+#[test]
 fn profile_fingerprint_commits_deployment_sdk_tool_and_compiler_identity() {
     let baseline = fixture_profile().fingerprint();
     for changed in [

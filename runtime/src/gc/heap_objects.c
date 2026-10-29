@@ -3,12 +3,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "allocation_metadata.h"
 #include "gc_internal.h"
 #include "heap_internal.h"
-#include "allocation_metadata.h"
 #include "object_metadata.h"
 
-/* Read-only under the heap lock, or the coordinator's immutable STW mark view. */
+/* Read-only under the heap lock, or the coordinator's immutable STW mark view.
+ */
 bool object_meta(const void *object, ScoopGcBlockMeta **result, size_t *word_index) {
     ScoopGcBlockMeta *block = pointer_block(object);
     if (!scoop_heap_object_meta_in_block(object, block, word_index)) {

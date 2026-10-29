@@ -2,6 +2,7 @@ use super::*;
 use serde::{Deserialize, Serialize};
 
 mod record;
+mod replace;
 mod site;
 use record::Record;
 
@@ -119,22 +120,7 @@ pub(super) fn publish(
         })
         .map_err(error)?,
     )?;
-    if request
-        .output
-        .try_exists()
-        .map_err(|e| io_error(&request.output, e))?
-    {
-        rustix::fs::renameat_with(
-            rustix::fs::CWD,
-            stage.path(),
-            rustix::fs::CWD,
-            &request.output,
-            rustix::fs::RenameFlags::EXCHANGE,
-        )
-        .map_err(|e| io_error(&request.output, e))?;
-    } else {
-        std::fs::rename(stage.path(), &request.output).map_err(|e| io_error(&request.output, e))?;
-    }
+    replace::replace(stage.path(), &request.output).map_err(|e| io_error(&request.output, e))?;
     Ok((
         true,
         rendered

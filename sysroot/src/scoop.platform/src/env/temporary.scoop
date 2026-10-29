@@ -1,0 +1,18 @@
+package scoop.platform.env
+
+import scoop.platform.fs.Path
+import scoop.platform.fs.NativeOsString
+
+/**
+ * Returns an independent copy of the system's temporary directory path. The query does not
+ * guarantee that the directory exists or is writable.
+ */
+public fun temporaryDirectory(): Path {
+    @Unsafe
+    {
+        return nativeTemporaryDirectory().takePath("temporary directory")
+    }
+}
+
+@Extern(name = "scoop_platform_temporary_directory_result")
+private fun nativeTemporaryDirectory(): NativeOsString

@@ -17,7 +17,8 @@ def license_files(directory):
     )
 
 
-def collect(root, repository, source, host, native, targets, *, python_license=None):
+def collect(root, repository, source, host, native, targets, *, sysroot=None, python_license=None):
+    sysroot = sysroot or repository / "sysroot"
     destination = root / "share/licenses"
     destination.mkdir(parents=True)
     rows = [
@@ -41,12 +42,25 @@ def collect(root, repository, source, host, native, targets, *, python_license=N
     own = license_files(repository)
     add("Scoop", "See project license" if own else "Not yet selected by the maintainer", own)
     add("LLVM", "Apache-2.0 WITH LLVM-exception", [source / "llvm/LICENSE.TXT"])
+    if "windows" in host:
+        for component in ("libcxx", "libcxxabi", "libunwind", "compiler-rt"):
+            add(component, "See included documents", [source / component / "LICENSE.TXT"])
     if python_license is not None:
         add("Python", "PSF-2.0 and included notices", [python_license])
     for target in targets:
-        notices = repository / "sysroot/lib" / target / NOTICE_DIRECTORY
+        notices = sysroot / "lib" / target / NOTICE_DIRECTORY
         add("Rust-std-" + target, "See included documents", sorted(notices.iterdir()))
-    for vendor in (repository / "sysroot/vendor").iterdir():
+        if "llvm-mingw" in target:
+            prefix = root / "lib" / target / "toolchain"
+            add(
+                "LLVM-MinGW-" + target,
+                "See included documents",
+                [
+                    prefix / "LICENSE.TXT",
+                    *license_files(prefix / "x86_64-w64-mingw32/share/mingw32"),
+                ],
+            )
+    for vendor in (sysroot / "vendor").iterdir():
         if vendor.is_dir() and vendor.name != "llvm-project":
             license_root = vendor / "2.15" if vendor.name == "liburing" else vendor
             add(vendor.name, "See included documents", license_files(license_root))

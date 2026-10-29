@@ -1,0 +1,23 @@
+diff --git a/llvm/lib/Target/X86/X86MCInstLower.cpp b/llvm/lib/Target/X86/X86MCInstLower.cpp
+--- a/llvm/lib/Target/X86/X86MCInstLower.cpp
++++ b/llvm/lib/Target/X86/X86MCInstLower.cpp
+@@ -834,7 +834,6 @@ void X86AsmPrinter::LowerSTATEPOINT(const MachineInstr &MI,
+     CallInst.setOpcode(CallOpcode);
+     CallInst.addOperand(CallTargetMCOp);
+     OutStreamer->emitInstruction(CallInst, getSubtargetInfo());
+-    maybeEmitNopAfterCallForWindowsEH(&MI);
+   }
+ 
+   // Record our statepoint node in the same section used by STACKMAP
+@@ -844,6 +843,11 @@ void X86AsmPrinter::LowerSTATEPOINT(const MachineInstr &MI,
+   MCSymbol *MILabel = Ctx.createTempSymbol();
+   OutStreamer->emitLabel(MILabel);
+   SM.recordStatepoint(*MILabel, MI);
++
++  // The stack map describes the return address, before any WinEH padding.
++  // Keep the padding itself so EH state changes and epilogues stay distinct.
++  if (!SOpers.getNumPatchBytes())
++    maybeEmitNopAfterCallForWindowsEH(&MI);
+ }
+ 
+ void X86AsmPrinter::LowerFAULTING_OP(const MachineInstr &FaultingMI,

@@ -61,7 +61,7 @@ void scoop_thread_enter_callback(ScoopCallbackThreadEntry *entry,
                SCOOP_WORLD_RUNNING) {
         scoop_thread_park_current_locked(state);
     }
-    if (atomic_load_explicit(&state->poll.mode, memory_order_acquire) != previous) {
+    if (atomic_load_explicit(&state->poll.mode, memory_order_acquire) != (uint32_t)previous) {
         scoop_thread_registry_unlock();
         scoop_thread_fatal("native mode changed during managed callback entry");
     }
@@ -191,7 +191,7 @@ static void return_from_native_safe(ScoopThreadState *state) {
 static void leave_native(ScoopThreadTransition *transition, ScoopThreadMode expected_mode) {
     ScoopThreadState *state = scoop_thread_current_required();
     if (transition == NULL || state->current_transition != transition ||
-        atomic_load_explicit(&state->poll.mode, memory_order_acquire) != expected_mode ||
+        atomic_load_explicit(&state->poll.mode, memory_order_acquire) != (uint32_t)expected_mode ||
         transition->native_mode != (uint32_t)expected_mode ||
         transition->previous_mode != (uint32_t)SCOOP_THREAD_MANAGED) {
         scoop_thread_fatal("native transitions must be left in LIFO order");

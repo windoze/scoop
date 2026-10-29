@@ -273,7 +273,7 @@ driver 消费的是 lock 的精确图和本次已准备好的本地输入。port
 
 请求的必需信息是：协议版本、cwd/显式 root、成员选择、purpose、canonical target、sysroot、artifact search roots、PM cache 位置和 locked/offline 策略；可选指定 lock 路径。profile、编译参数、native 工具位置和输出调度不参与求解。响应的必需信息是：协议版本、workspace/lock 位置、所选解析单位，以及每个单位的完整精确节点和边。节点用 `SourceCone` 或 `PrebuiltCone` 闭合表示：
 
-- SourceCone：完整 coordinate、kind、本地 Cone 根、已展开的 manifest 生产配置、所选根需要的测试配置、manifest 诊断来源，以及已绑定的精确 direct 边和测试边。配置含现有源码选择、native 声明和文档元数据，不含源码正文或完整输入镜像。
+- SourceCone：完整 coordinate、kind、本地 Cone 根、已展开的 manifest 生产配置、所选根需要的测试配置、manifest 诊断来源，以及已绑定的精确 direct 边和测试边。配置含现有源码选择、native 声明、Windows executable 的 subsystem／RC 设置和文档元数据，不含源码正文或完整输入镜像。Windows 设置按语言规范 12.2 解析，保留到单 Cone 编译配置；PM 不读取 RC 内容或发现资源工具。
 - PrebuiltCone：完整 coordinate、本地 `.slib` 位置和精确依赖记录；sysroot 和 artifact 来源均落实为该形式。PM 提取过的必要摘要可随结果交付，但不能作为跳过实际 reader 所需格式/ABI 检查的授权凭据。
 
 版本 1 的共享数据类型位于 `scoop-protocol`，不依赖 PM 的求解或获取实现。请求字段为 `version/cwd/input/members/purpose/target/sysroot/artifact_roots/package_cache/lockfile/locked/offline`；`members` 区分 `default`、`all` 和 `packages`，purpose 为 `production/test`。响应使用 `version/workspace/lockfile/resolutions`，每个 resolution 包含根相对路径、根 coordinate、purpose、target 和 nodes。节点包含 `cone`、精确 `dependencies` 与 `test_dependencies`；`cone.input` 区分 `source/prebuilt`。source 交付完整 `ParsedConeManifest`、本地根、原清单路径与文本、展开的文档 metadata。原清单文本仅服务诊断，不作为再次解析的输入；继承条目的诊断 span 指向成员的继承声明。prebuilt 交付本地路径和已有 `ArtifactManifestSummaryV1` 的 canonical CBOR 字节表示，复用既有摘要格式。

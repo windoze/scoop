@@ -31,7 +31,7 @@ private class EventLoopHostProgressTest {
         val cpu = hostClock(1)
         @Unsafe
         {
-            assertEquals(0, nativeTestHostPoll(host.descriptor, 50))
+            assertEquals(0, testNotificationPoll(host.notification!!, 50))
         }
         println("host_idle_cpu_ns=" + (hostClock(1) - cpu).toString())
         assertEquals(callbacks, host.callbacks)
@@ -115,9 +115,9 @@ private class EventLoopHostProgressTest {
         }
         while (!progress.started)
             host.step()
-        // Enter the receive, then publish its SQE or finish its source registration.
+        // Submit the receive; drain a separate publication wake only if the backend needs one.
         host.step()
-        host.step()
+        host.step(0)
         gcCollect()
         Thread.start {
             session.requestClose()

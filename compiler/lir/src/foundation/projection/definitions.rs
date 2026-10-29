@@ -212,17 +212,21 @@ impl CanonicalLirFoundation {
                 atom.key().atom(),
                 GeneratedBridgeAtomRoleKey::PrimaryEntry { .. }
             ) {
-                let mut atoms =
-                    vec![(DefinitionAtomRole::EhFrame, DefinitionAtomSubkey::Singleton)];
-                if module.meta.target_profile.native_object_format()
-                    == crate::NativeObjectFormat::MachO64
-                {
-                    atoms.push((
+                let roles: &[_] = match module.meta.target_profile.native_object_format() {
+                    crate::NativeObjectFormat::MachO64 => &[
+                        DefinitionAtomRole::EhFrame,
                         DefinitionAtomRole::CompactUnwind,
-                        DefinitionAtomSubkey::Singleton,
-                    ));
-                }
-                atoms
+                    ],
+                    crate::NativeObjectFormat::Elf64 => &[DefinitionAtomRole::EhFrame],
+                    crate::NativeObjectFormat::Coff64 => &[
+                        DefinitionAtomRole::WindowsUnwindTable,
+                        DefinitionAtomRole::WindowsUnwindInfo,
+                    ],
+                };
+                roles
+                    .iter()
+                    .map(|&role| (role, DefinitionAtomSubkey::Singleton))
+                    .collect()
             } else {
                 Vec::new()
             };
@@ -339,11 +343,15 @@ pub(super) fn callable_body_associated_atoms(
         }));
     }
     if function.callable_body.release_owner().is_none() {
-        let role = match target.native_object_format() {
-            crate::NativeObjectFormat::MachO64 => DefinitionAtomRole::CompactUnwind,
-            crate::NativeObjectFormat::Elf64 => DefinitionAtomRole::EhFrame,
+        let roles: &[_] = match target.native_object_format() {
+            crate::NativeObjectFormat::MachO64 => &[DefinitionAtomRole::CompactUnwind],
+            crate::NativeObjectFormat::Elf64 => &[DefinitionAtomRole::EhFrame],
+            crate::NativeObjectFormat::Coff64 => &[
+                DefinitionAtomRole::WindowsUnwindTable,
+                DefinitionAtomRole::WindowsUnwindInfo,
+            ],
         };
-        associated.push((role, subkey()));
+        associated.extend(roles.iter().map(|&role| (role, subkey())));
     }
     if !function.safepoints.is_empty() {
         associated.push((DefinitionAtomRole::Stackmap, subkey()));
@@ -357,7 +365,7 @@ pub(super) fn callable_body_associated_atoms(
         associated.push((DefinitionAtomRole::Lsda, subkey()));
         if target.native_object_format() == crate::NativeObjectFormat::MachO64 {
             associated.push((DefinitionAtomRole::EhFrame, subkey()));
-        } else {
+        } else if target.native_object_format() == crate::NativeObjectFormat::Elf64 {
             associated.push((DefinitionAtomRole::AddressTakenConstant, subkey()));
         }
     }

@@ -6,11 +6,13 @@ import scoop.text.*
  * An IP prefix whose stored network address has host bits cleared. Membership requires a
  * compatible address family and matching prefix.
  */
-public class IpNetwork public constructor(address: IpAddress,
+public class IpNetwork public constructor(
+    address: IpAddress,
     /**
      * The number of leading address bits belonging to the network prefix.
      */
-    public val prefixLength: Int) : Equals<IpNetwork>, Hash, ToString {
+    public val prefixLength: Int
+): Equals<IpNetwork>, Hash, ToString {
     /**
      * The normalized network address with host bits cleared.
      */
@@ -24,12 +26,14 @@ public class IpNetwork public constructor(address: IpAddress,
      * Tests whether a compatible candidate shares this network prefix.
      */
     public fun contains(candidate: IpAddress): Boolean {
-        if (candidate.family != family) return false
+        if (candidate.family != family)
+            return false
         val expected = address.toByteArray()
         val actual = candidate.toByteArray()
-        for (index in 0L..<expected.size) {
+        for (index in 0L ..< expected.size) {
             val mask = networkMask(prefixLength, index)
-            if ((actual[index].toInt() and mask) != (expected[index].toInt() and 255)) return false
+            if ((actual[index].toInt() and mask) != (expected[index].toInt() and 255))
+                return false
         }
         return true
     }
@@ -38,7 +42,8 @@ public class IpNetwork public constructor(address: IpAddress,
      * Compares the complete normalized address identity, including its relevant family, scope,
      * prefix, or port.
      */
-    public override operator fun equals(other: IpNetwork): Boolean = prefixLength == other.prefixLength && address == other.address
+    public override operator fun equals(other: IpNetwork): Boolean =
+        prefixLength == other.prefixLength && address == other.address
     /**
      * Hashes the same address identity used by equality.
      */
@@ -57,25 +62,43 @@ public class IpNetwork public constructor(address: IpAddress,
          */
         public fun parse(text: String): IpNetwork {
             val separator = text.indexOf('/')
-            if (separator <= 0L) throw IllegalArgumentException(Some("CIDR requires an IP address and prefix length"))
+            if (separator <= 0L)
+                throw IllegalArgumentException(
+                    Some("CIDR requires an IP address and prefix length")
+                )
             val prefix = decimal(text.slice(separator + 1L, text.charLength))
-            if (prefix > 128u) throw IllegalArgumentException(Some("CIDR prefix length is out of range"))
+            if (prefix > 128u)
+                throw IllegalArgumentException(Some("CIDR prefix length is out of range"))
             return IpNetwork(IpAddress.parse(text.slice(0L, separator)), prefix.toInt())
         }
     }
 }
 
 private fun networkAddress(address: IpAddress, prefixLength: Int): IpAddress {
-    val bits = if (address.family == AddressFamily.Ipv4) 32 else 128
+    val bits =
+        if (address.family == AddressFamily.Ipv4)
+            32
+        else
+            128
     if (prefixLength < 0 || prefixLength > bits || address.scopeId != 0u)
-        throw IllegalArgumentException(Some("CIDR requires an unscoped address and valid prefix length"))
+        throw IllegalArgumentException(
+            Some("CIDR requires an unscoped address and valid prefix length")
+        )
     val bytes = address.toByteArray()
-    return IpAddress.fromByteArray(Array<Byte>(bytes.size) { index ->
-        (bytes[index].toInt() and networkMask(prefixLength, index)).toByte()
-    })
+    return IpAddress.fromByteArray(
+        Array<Byte>(bytes.size) {
+            index -> (bytes[index].toInt() and networkMask(prefixLength, index)).toByte()
+        }
+    )
 }
 
 private fun networkMask(prefixLength: Int, index: Long): Int {
     val remaining = prefixLength.toLong() - index * 8L
-    return if (remaining <= 0L) 0 else if (remaining >= 8L) 255 else (255 shl (8L - remaining)) and 255
+    return if (remaining <= 0L)
+        0
+    else
+        if (remaining >= 8L)
+            255
+        else
+            (255 shl (8L - remaining)) and 255
 }

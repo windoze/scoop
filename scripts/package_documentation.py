@@ -7,7 +7,7 @@ import subprocess
 from prepare_sysroot import cone_order
 
 
-def generate(sysroot, targets, binaries, work_dir, environment):
+def generate(sysroot, targets, binaries, work_dir, environment, *, native_sysroots=None):
     sites = {}
     for target in targets:
         selection = work_dir / "doc-cones" / target
@@ -16,6 +16,7 @@ def generate(sysroot, targets, binaries, work_dir, environment):
             sysroot / "src" / name / "Cone.toml" for name in cone_order(sysroot, selection, target)
         ]
         site = work_dir / "documentation" / target
+        native = (native_sysroots or {}).get(target)
         subprocess.run(
             [
                 str(binaries[0]),
@@ -35,6 +36,7 @@ def generate(sysroot, targets, binaries, work_dir, environment):
                 str(work_dir / "doc-target"),
                 "--output-dir",
                 str(site),
+                *(["--native-sysroot", str(native)] if native is not None else []),
             ],
             check=True,
             env=environment,

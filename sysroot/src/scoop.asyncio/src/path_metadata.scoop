@@ -33,10 +33,10 @@ internal suspend fun metadataOnLoop(
                     native,
                     id -> @Unsafe
                     {
-                        return@LoopOperation path.withNativePath {
+                        return@LoopOperation path.withIoPath {
                             pointer -> @Unsafe
                             {
-                                return@withNativePath nativeStatus(
+                                return@withIoPath nativeStatus(
                                     id,
                                     nativePathMetadata(native, id, pointer, followLinks)
                                 )
@@ -65,9 +65,3 @@ internal suspend fun metadataOnLoop(
         loop.submit(operation)
     }
 }
-
-@Extern(name = "scoop_io_path_metadata")
-private fun nativePathMetadata(loop: Ptr<Unit>, id: Long, path: Ptr<Byte>, follow: Boolean): Int
-
-@Extern(name = "scoop_io_metadata_take")
-private fun nativeTakeMetadata(pointer: Ptr<Unit>): NativeFileMetadata

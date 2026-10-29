@@ -118,6 +118,8 @@ pub struct PackageDocument {
     pub sources: SourceSelection,
     pub test_sources: SourceSelection,
     pub native: NativeConfig,
+    #[serde(default)]
+    pub windows: crate::WindowsConfig,
     pub publish: PublishConfig,
 }
 

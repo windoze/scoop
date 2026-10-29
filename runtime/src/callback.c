@@ -1,5 +1,5 @@
 /* M13 managed foreign-callback token registry and invocation gateway. */
-#include <pthread.h>
+#include "platform/primitives.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -15,8 +15,7 @@
 #define CALLBACK_SLOT_MASK ((UINT64_C(1) << CALLBACK_SLOT_BITS) - 1)
 #define CALLBACK_GENERATION_MAX ((UINT32_C(1) << (47 - CALLBACK_SLOT_BITS)) - 1)
 
-_Static_assert(UINTPTR_MAX == UINT64_MAX,
-               "M13 callback cookies require a 64-bit uintptr_t");
+_Static_assert(UINTPTR_MAX == UINT64_MAX, "M13 callback cookies require a 64-bit uintptr_t");
 
 typedef struct ScoopCallbackToken {
     const void *signature;
@@ -41,7 +40,7 @@ typedef struct ReleasedHandles {
     uint64_t failure;
 } ReleasedHandles;
 
-static pthread_mutex_t callback_lock = PTHREAD_MUTEX_INITIALIZER;
+static ScoopPlatformMutex callback_lock = SCOOP_PLATFORM_MUTEX_INIT;
 static ScoopCallbackToken *callback_tokens;
 static size_t callback_tokens_len;
 static size_t callback_tokens_cap;
@@ -56,33 +55,30 @@ static _Noreturn void callback_fatal(const char *message) {
 }
 
 static void lock_callbacks(void) {
-    if (pthread_mutex_lock(&callback_lock) != 0) {
+    if (scoop_runtime_platform_mutex_lock(&callback_lock) != 0) {
         callback_fatal("failed to lock callback registry");
     }
 }
 
 static void unlock_callbacks(void) {
-    if (pthread_mutex_unlock(&callback_lock) != 0) {
+    if (scoop_runtime_platform_mutex_unlock(&callback_lock) != 0) {
         callback_fatal("failed to unlock callback registry");
     }
 }
 
 static uintptr_t encode_cookie(size_t index, uint32_t generation) {
     uint64_t slot = (uint64_t)index + 1;
-    if (slot > CALLBACK_SLOT_MASK || generation == 0 ||
-        generation > CALLBACK_GENERATION_MAX) {
+    if (slot > CALLBACK_SLOT_MASK || generation == 0 || generation > CALLBACK_GENERATION_MAX) {
         callback_fatal("callback cookie payload exhausted");
     }
     return (uintptr_t)(((uint64_t)generation << CALLBACK_SLOT_BITS) | slot);
 }
 
-static ScoopCallbackToken *resolve_cookie_locked(void *context,
-                                                 size_t *index_out) {
+static ScoopCallbackToken *resolve_cookie_locked(void *context, size_t *index_out) {
     uintptr_t cookie = (uintptr_t)context;
     uint64_t encoded_slot = cookie & CALLBACK_SLOT_MASK;
     uint32_t generation = (uint32_t)(cookie >> CALLBACK_SLOT_BITS);
-    if (encoded_slot == 0 || generation == 0 ||
-        generation > CALLBACK_GENERATION_MAX) {
+    if (encoded_slot == 0 || generation == 0 || generation > CALLBACK_GENERATION_MAX) {
         return NULL;
     }
     size_t index = (size_t)encoded_slot - 1;
@@ -99,8 +95,7 @@ static ScoopCallbackToken *resolve_cookie_locked(void *context,
     return token;
 }
 
-static ScoopCallbackToken *require_cookie_locked(void *context,
-                                                 size_t *index_out) {
+static ScoopCallbackToken *require_cookie_locked(void *context, size_t *index_out) {
     ScoopCallbackToken *token = resolve_cookie_locked(context, index_out);
     if (token == NULL) {
         callback_fatal("invalid or stale callback cookie");
@@ -108,8 +103,7 @@ static ScoopCallbackToken *require_cookie_locked(void *context,
     return token;
 }
 
-static ReleasedHandles finalize_locked(size_t index,
-                                       ScoopCallbackToken *token) {
+static ReleasedHandles finalize_locked(size_t index, ScoopCallbackToken *token) {
     if (!token->live || token->owners != 0 || token->active != 0) {
         callback_fatal("attempted to finalize an active callback token");
     }
@@ -149,15 +143,13 @@ static void release_handles(ReleasedHandles handles) {
 }
 
 void scoop_callback_runtime_init(void) {
-    uintptr_t round_trip_probe =
-        encode_cookie(CALLBACK_SLOT_MASK - 1, CALLBACK_GENERATION_MAX);
+    uintptr_t round_trip_probe = encode_cookie(CALLBACK_SLOT_MASK - 1, CALLBACK_GENERATION_MAX);
     if ((uintptr_t)(void *)round_trip_probe != round_trip_probe) {
         callback_fatal("callback cookie does not round-trip through void pointer");
     }
 
     lock_callbacks();
-    if (callback_initialized || callback_tokens_len != 0 ||
-        callback_live_count != 0) {
+    if (callback_initialized || callback_tokens_len != 0 || callback_live_count != 0) {
         unlock_callbacks();
         callback_fatal("callback runtime initialized more than once");
     }
@@ -190,13 +182,10 @@ ScoopCallbackShutdownCounts scoop_callback_prepare_shutdown(void) {
     return counts;
 }
 
-void *scoop_runtime_callback_register(const void *closure,
-                                      ScoopForeignCallbackAdapter adapter,
-                                      const void *signature_descriptor,
-                                      uint32_t mode) {
+void *scoop_runtime_callback_register(const void *closure, ScoopForeignCallbackAdapter adapter,
+                                      const void *signature_descriptor, uint32_t mode) {
     if (closure == NULL || adapter == NULL || signature_descriptor == NULL ||
-        (mode != SCOOP_FOREIGN_CALLBACK_REUSABLE &&
-         mode != SCOOP_FOREIGN_CALLBACK_ONE_SHOT)) {
+        (mode != SCOOP_FOREIGN_CALLBACK_REUSABLE && mode != SCOOP_FOREIGN_CALLBACK_ONE_SHOT)) {
         callback_fatal("invalid callback registration");
     }
     ReleasedHandles captured = {
@@ -230,10 +219,8 @@ void *scoop_runtime_callback_register(const void *closure,
             callback_fatal("callback cookie slots exhausted");
         }
         if (callback_tokens_len == callback_tokens_cap) {
-            size_t new_cap =
-                callback_tokens_cap == 0 ? 16 : callback_tokens_cap * 2;
-            ScoopCallbackToken *grown =
-                realloc(callback_tokens, new_cap * sizeof *grown);
+            size_t new_cap = callback_tokens_cap == 0 ? 16 : callback_tokens_cap * 2;
+            ScoopCallbackToken *grown = realloc(callback_tokens, new_cap * sizeof *grown);
             if (grown == NULL) {
                 unlock_callbacks();
                 release_handles(captured);
@@ -310,9 +297,8 @@ const void *scoop_runtime_callback_failure(void *context) {
     return failure == 0 ? NULL : scoop_rt_resolve_handle(failure);
 }
 
-uint32_t scoop_runtime_callback_invoke(
-    void *context, const void *signature_descriptor, void *result_storage,
-    const void *const *argument_storage) {
+uint32_t scoop_runtime_callback_invoke(void *context, const void *signature_descriptor,
+                                       void *result_storage, const void *const *argument_storage) {
     ScoopForeignCallbackAdapter adapter;
     uint64_t closure_handle;
     uint64_t snapshot_handle;
@@ -357,14 +343,12 @@ uint32_t scoop_runtime_callback_invoke(
     scoop_thread_enter_callback(&entry, __builtin_frame_address(0));
 
     const void *closure = scoop_rt_resolve_handle(closure_handle);
-    const void *snapshot =
-        snapshot_handle == 0 ? NULL : scoop_rt_resolve_handle(snapshot_handle);
+    const void *snapshot = snapshot_handle == 0 ? NULL : scoop_rt_resolve_handle(snapshot_handle);
     void *exception = NULL;
     void **root_slots[] = {(void **)&closure, (void **)&snapshot, &exception};
     ScoopNativeRootFrame roots;
     scoop_rt_push_native_roots(&roots, root_slots, 3);
-    uint64_t status =
-        adapter(closure, snapshot, result_storage, argument_storage, &exception);
+    uint64_t status = adapter(closure, snapshot, result_storage, argument_storage, &exception);
     uint64_t failure_handle = 0;
     if (status == SCOOP_FOREIGN_CALLBACK_THREW) {
         if (exception == NULL) {

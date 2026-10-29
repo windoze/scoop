@@ -70,7 +70,9 @@ def main(argv=None):
     parser.add_argument(
         "--binary", type=Path, help="Sampled executable; resolve real symbol aliases"
     )
-    parser.add_argument("--llvm-tools", type=Path, help="Directory of paired LLVM utilities")
+    parser.add_argument(
+        "--llvm-tools", type=Path, help="External LLVM bin directory (upstream command names)"
+    )
     parser.add_argument(
         "--load-bias",
         type=lambda value: int(value, 0),

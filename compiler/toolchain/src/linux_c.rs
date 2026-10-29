@@ -12,6 +12,7 @@ use scoop_wire::sha256;
 
 use crate::ToolchainError;
 use crate::linux_target::{LinuxLibc, LinuxTarget};
+use crate::paths::find_program;
 
 pub fn resolve_linux_c_toolchain(
     target: LirTargetProfile,
@@ -188,26 +189,6 @@ fn underlying_compiler(
 
 #[cfg(test)]
 mod discovery_tests;
-
-pub(crate) fn find_program(
-    program: &OsStr,
-    search_path: &OsStr,
-) -> Result<PathBuf, ToolchainError> {
-    let path = Path::new(program);
-    if path.components().count() > 1 {
-        return std::fs::canonicalize(path).map_err(error);
-    }
-    for root in std::env::split_paths(search_path) {
-        let candidate = root.join(path);
-        if candidate.is_file() {
-            return std::fs::canonicalize(candidate).map_err(error);
-        }
-    }
-    Err(error(format!(
-        "C tool not found in the selected PATH: {}",
-        path.display()
-    )))
-}
 
 fn run(command: &mut Command) -> Result<Output, ToolchainError> {
     let output = command.scoop_output().map_err(error)?;

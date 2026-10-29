@@ -13,6 +13,20 @@ fn runtime_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../runtime")
 }
 
+fn unwind_prefix() -> Option<PathBuf> {
+    #[cfg(windows)]
+    {
+        Some(PathBuf::from(
+            std::env::var_os("SCOOP_TEST_UNWIND_MSVC")
+                .expect("SCOOP_TEST_UNWIND_MSVC is required for Windows runtime tests"),
+        ))
+    }
+    #[cfg(not(windows))]
+    {
+        None
+    }
+}
+
 #[test]
 fn missing_runtime_vendor_reports_the_selected_path() {
     let target = ResolvedTargetProfile::resolve_host().unwrap();
@@ -26,7 +40,7 @@ fn missing_runtime_vendor_reports_the_selected_path() {
         vendor_root: &missing,
         cache_root: directory.path(),
         optimization: RuntimeOptimization::Optimized,
-        unwind_prefix: None,
+        unwind_prefix: unwind_prefix().as_deref(),
     })
     .unwrap_err();
     assert!(
@@ -34,7 +48,7 @@ fn missing_runtime_vendor_reports_the_selected_path() {
             .to_string()
             .contains(&format!("vendor source root {}:", missing.display()))
     );
-    assert!(!directory.path().join("runtime-v7").exists());
+    assert!(!directory.path().join("runtime-v8").exists());
 }
 
 #[test]
@@ -50,7 +64,7 @@ fn actual_runtime_objects_roundtrip_and_reuse_paths() {
             vendor_root: &vendor_root(),
             cache_root: cache.path(),
             optimization: RuntimeOptimization::None,
-            unwind_prefix: None,
+            unwind_prefix: unwind_prefix().as_deref(),
         })
         .unwrap()
     };
@@ -165,6 +179,8 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
     copy_tree(&runtime_root(), &source);
     let vendor = workspace.path().join("vendor");
     copy_tree(&vendor_root().join("ryu"), &vendor.join("ryu"));
+    #[cfg(windows)]
+    copy_tree(&vendor_root().join("gdtoa"), &vendor.join("gdtoa"));
     copy_tree(
         &vendor_root().join("libbacktrace"),
         &vendor.join("libbacktrace"),
@@ -186,7 +202,7 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
             vendor_root: &vendor,
             cache_root: &cache,
             optimization,
-            unwind_prefix: None,
+            unwind_prefix: unwind_prefix().as_deref(),
         })
         .unwrap()
     };
@@ -221,7 +237,7 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
     assert!(!build(RuntimeOptimization::None).cache_hit());
     assert!(!build(RuntimeOptimization::Optimized).cache_hit());
     let records = || {
-        std::fs::read_dir(cache.join("runtime-v7"))
+        std::fs::read_dir(cache.join("runtime-v8"))
             .unwrap()
             .map(|e| e.unwrap().path())
             .filter(|p| p.extension().is_some_and(|e| e == "json"))
@@ -238,7 +254,7 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
         vendor_root: &vendor,
         cache_root: &cache,
         optimization: RuntimeOptimization::None,
-        unwind_prefix: None,
+        unwind_prefix: unwind_prefix().as_deref(),
     });
     assert!(failed.is_err());
     assert_eq!(records(), before);
@@ -252,7 +268,7 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
             vendor_root: &vendor,
             cache_root: &cache,
             optimization: RuntimeOptimization::None,
-            unwind_prefix: None,
+            unwind_prefix: unwind_prefix().as_deref(),
         })
         .is_err()
     );

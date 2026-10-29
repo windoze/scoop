@@ -2,6 +2,7 @@ use scoop_identity::{CapabilityId, ConeCoordinate};
 use scoop_wire::encode;
 
 use super::*;
+mod windows;
 use crate::{
     ArtifactCapabilityProfile, BootstrapManifestError, CompatibilityRecord, ExtensionRequirement,
     LogicalMemberKey, ManifestSectionError, MemberPurposeSet, MemberStableKey, SlibMember,

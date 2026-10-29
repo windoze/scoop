@@ -79,7 +79,7 @@ fn indirect(abi: ProcedureAbi, value: lir::AbiValue) -> lir::DirectCArgument {
 
 pub fn c_indirect_passing(abi: ProcedureAbi, value: &lir::AbiValue) -> lir::CIndirectPassing {
     match abi {
-        ProcedureAbi::DarwinAarch64 => lir::CIndirectPassing::CallerCopy,
+        ProcedureAbi::DarwinAarch64 | ProcedureAbi::Win64 => lir::CIndirectPassing::CallerCopy,
         ProcedureAbi::SysvAmd64 => lir::CIndirectPassing::ByValue {
             alignment: NonZeroU64::new(value.layout().alignment().get().max(8))
                 .expect("nonzero C byval alignment"),
@@ -90,6 +90,10 @@ pub fn c_indirect_passing(abi: ProcedureAbi, value: &lir::AbiValue) -> lir::CInd
 pub fn c_integer_extension(abi: ProcedureAbi, ty: &lir::CType) -> lir::CIntegerExtension {
     use lir::CIntegerExtension as Extension;
     match abi {
+        ProcedureAbi::Win64 => match ty {
+            lir::CType::Boolean => Extension::Zero,
+            _ => Extension::None,
+        },
         ProcedureAbi::DarwinAarch64 | ProcedureAbi::SysvAmd64 => match ty {
             lir::CType::Integer(kind) | lir::CType::IntegralEnum { kind, .. }
                 if kind.width().bits() < 32 =>

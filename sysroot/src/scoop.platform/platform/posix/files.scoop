@@ -1,0 +1,20 @@
+package scoop.platform.fs
+
+import scoop.platform.system.OsString
+
+@Unsafe
+internal fun <R> Path.withPlatformPath(block: (Ptr<Byte>) -> R): R = withNativePath(block)
+
+@Unsafe
+internal fun <R> OsString.withPlatformString(block: (Ptr<Byte>) -> R): R = withNativeString(block)
+
+@Unsafe
+internal fun copyPlatformString(pointer: Ptr<Byte>, length: Long): OsString =
+    OsString.fromByteArray(
+        Array<Byte>(length) {
+            index -> @Unsafe
+            {
+                return@Array pointer.load(index)
+            }
+        }
+    )

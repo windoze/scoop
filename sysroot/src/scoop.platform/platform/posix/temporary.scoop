@@ -1,0 +1,33 @@
+package scoop.platform.fs
+
+import scoop.platform.io.*
+import scoop.platform.native.temporaryPathPattern
+import scoop.platform.system.*
+
+internal fun createPlatformTemporaryPath(base: Path, prefix: String, directory: Boolean): Path {
+    val pattern = temporaryPathPattern(base, prefix).toOsString().toByteArray()
+    @Unsafe
+    {
+        if (pattern.size == Long.MAX_VALUE)
+            throw ArithmeticException()
+        val writable =
+            MutableArray<Byte>(pattern.size + 1L) {
+                index -> if (index == pattern.size)
+                    0.toByte()
+                else
+                    pattern[index]
+            }
+        return writable.withDataPointer {
+            pointer,
+            _ -> @Unsafe
+            {
+                val(status, error) = nativePathTemporary(pointer, directory)
+                checkNativeStatus(status, error, "create temporary path", Some(base.toOsString()))
+                return@withDataPointer Path.fromOsString(copyNativeString(pointer))
+            }
+        }
+    }
+}
+
+@Extern(name = "scoop_platform_path_temporary", captureErrno = true)
+private fun nativePathTemporary(pattern: Ptr<Byte>, directory: Boolean): (Int, Int)

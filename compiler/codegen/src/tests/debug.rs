@@ -1,4 +1,5 @@
 use super::*;
+#[cfg(unix)]
 use object::{Object, ObjectSection};
 use scoop_source::{DebugFile, DebugRecords};
 use std::sync::Arc;
@@ -8,6 +9,7 @@ mod managed;
 mod variables;
 
 #[test]
+#[cfg(unix)]
 fn dwarf_lines_and_inline_calls_survive_optimization_and_statepoints() {
     let mut module = values_module();
     let mut records = DebugRecords::default();

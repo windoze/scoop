@@ -72,6 +72,7 @@ pub(super) fn configuration(
         flags(NativeSourceLanguage::Cxx),
         flags(NativeSourceLanguage::ObjectiveC),
         compiler.cxx_fingerprint().map(|fp| *fp.as_array()),
+        compiler.c_fingerprint().map(|fp| *fp.as_array()),
         libraries,
         scoop_wire::encode(&optimization).map_err(error)?,
         (!sources.is_empty())

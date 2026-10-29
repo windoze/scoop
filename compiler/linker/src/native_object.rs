@@ -9,6 +9,7 @@ use scoop_lir::{CBridgeToolchainProfileV1, DarwinCBridgeDeploymentContractV1};
 
 use crate::{LinkError, error};
 
+pub(crate) mod coff;
 mod elf;
 mod wire;
 
@@ -34,6 +35,7 @@ impl NativeSymbolBinding {
         match (self, format) {
             (Self::Strong, _) => 2,
             (Self::Common, scoop_lir::NativeObjectFormat::Elf64)
+            | (Self::Common, scoop_lir::NativeObjectFormat::Coff64)
             | (Self::Weak, scoop_lir::NativeObjectFormat::MachO64) => 1,
             _ => 0,
         }
@@ -69,6 +71,9 @@ impl NativeObjectInfo {
             scoop_target_data::LINUX_X86_64_GNU_ID | scoop_target_data::LINUX_X86_64_MUSL_ID => {
                 elf::read(bytes)
             }
+            scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID
+            | scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID
+            | scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_ID => coff::read(bytes),
             _ => Err(error("unsupported native object target")),
         }
     }

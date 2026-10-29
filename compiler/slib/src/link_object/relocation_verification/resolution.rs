@@ -9,6 +9,22 @@ pub(super) fn resolve_shape(
 ) -> Result<VerifiedObjectRelocationShapeV1, ObjectRelocationValidationError> {
     let shape = match shape {
         crate::link_object::ObjectRelocationShapeV1::DarwinArm64(shape) => shape,
+        crate::link_object::ObjectRelocationShapeV1::CoffAmd64 {
+            kind,
+            target_symbol,
+            width,
+        } => {
+            let target = resolve_target(
+                DarwinArm64RelocationTargetV1::SymbolTableIndex(target_symbol),
+                definitions,
+                local_symbol_owners,
+            )?;
+            return Ok(VerifiedObjectRelocationShapeV1::CoffAmd64 {
+                kind,
+                width,
+                target,
+            });
+        }
         crate::link_object::ObjectRelocationShapeV1::ElfX86_64Rela {
             kind,
             target_symbol,

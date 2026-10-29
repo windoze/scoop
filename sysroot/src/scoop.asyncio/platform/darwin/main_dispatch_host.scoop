@@ -72,7 +72,7 @@ private class MainDispatchWatch(private val ready: () -> Unit): EventLoopWatch {
                 observer.function,
                 observer.context
             )
-        if (created.status < 0) {
+        if (created.status.code != 0) {
             releaseForeignCallback(notification)
             releaseForeignCallback(observer)
             this.notification = None

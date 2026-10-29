@@ -139,27 +139,21 @@ private class EventLoopSessionTest {
         )
         @Unsafe
         {
-            assertFalse(nativeTestDescriptorOpen(host.descriptor))
+            assertFalse(testNotificationOpen(host.notification!!))
         }
         assertFailsWith<IllegalStateException> { loop.run suspend { _ -> } }
     }
 }
 
 private class FailingHost(private val problem: Throwable): EventLoopHost {
-    var descriptor: Int = -1
+    var notification: EventLoopNotification? = None
     public override fun isCurrentThread(): Boolean = true
     @Unsafe
     public override fun watch(
         notification: EventLoopNotification,
         ready: () -> Unit
     ): EventLoopWatch {
-        this.descriptor =
-            when (notification) {
-                case ReadableDescriptor(value) -> value
-                case WindowsEvent(_) -> throw IllegalArgumentException(
-                    Some("test host requires a descriptor")
-                )
-            }
+        this.notification = Some(notification)
         throw problem
     }
 }

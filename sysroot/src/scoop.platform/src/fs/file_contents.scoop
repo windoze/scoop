@@ -1,0 +1,69 @@
+package scoop.platform.fs
+
+import scoop.platform.io.*
+
+/**
+ * Collects all remaining input into an independent byte array. Path overloads open and close their
+ * own file handle.
+ */
+public fun Path.readAllBytes(): Array<Byte> = File.open(this).use { it.readAllBytes() }
+
+/**
+ * Reads all remaining bytes and validates them as UTF-8.
+ */
+public fun Path.readText(): String = File.open(this).use { it.readText() }
+
+/**
+ * Reads all remaining bytes as UTF-8, replacing malformed sequences.
+ */
+public fun Path.readTextLossy(): String = File.open(this).use { it.readTextLossy() }
+
+/**
+ * Writes all supplied bytes. Path overloads create/open and close their own file handle, with
+ * explicit append selection.
+ */
+public fun Path.writeAllBytes(bytes: List<Byte>, append: Boolean = false) {
+    val input = bytes.toArray()
+    File.open(this, outputOptions(append)).use { it.writeAllBytes(input) }
+}
+
+/**
+ * Writes the complete UTF-8 encoding of the text without appending a newline.
+ */
+public fun Path.writeText(text: String, append: Boolean = false) {
+    File.open(this, outputOptions(append)).use { it.writeText(text) }
+}
+
+/**
+ * Copies input to a destination and returns actual bytes transferred. Byte-source copies borrow
+ * both endpoints; path copies own their temporary handles and honor replaceExisting.
+ */
+public fun Path.copyTo(destination: Path, replaceExisting: Boolean = false): Long {
+    return File.open(this).use {
+        input ->
+        val options =
+            OpenOptions(read = false, write = true, create = true, createNew = !replaceExisting)
+        File.open(destination, options).use {
+            output ->
+            input.withHandle {
+                sourceFd -> output.withHandle {
+                    destinationFd -> @Unsafe
+                    {
+                        val same =
+                            nativeSameFile(sourceFd, destinationFd).checked(
+                                "compare files",
+                                Some(destination.toOsString())
+                            )
+                        if (same != 0L)
+                            throw IllegalArgumentException(Some("cannot copy a file onto itself"))
+                    }
+                }
+            }
+            output.truncate(0L)
+            input.copyTo(output)
+        }
+    }
+}
+
+private fun outputOptions(append: Boolean): OpenOptions =
+    OpenOptions(read = false, write = true, create = true, append = append, truncate = !append)

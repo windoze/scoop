@@ -18,19 +18,21 @@ class LldbBuildTests(unittest.TestCase):
             copied = Path(temporary) / "copied"
             for component in build_lldb.SOURCE_PARTS:
                 (source / component).mkdir(parents=True, exist_ok=True)
-            original = source / "lldb/changed.cpp"
+            for component in build_lldb.SOURCE_FILES:
+                (source / component).write_text("build configuration")
+            original = source / "lldb/source/changed.cpp"
             original.write_text("original source")
-            unchanged = source / "lldb/unchanged.cpp"
+            unchanged = source / "lldb/source/unchanged.cpp"
             unchanged.write_text("unchanged source")
             for file in (original, unchanged):
                 os.utime(file, ns=(1_000_000_000, 1_000_000_000))
             build_lldb.copy_sources(source, copied)
-            changed = copied / "lldb/changed.cpp"
+            changed = copied / "lldb/source/changed.cpp"
             changed.write_text("patched source")
             os.utime(changed, ns=(2_000_000_000, 2_000_000_000))
             # The compiler's dependency timestamp for the unchanged file is
             # preserved even though the original archive predates the build.
-            stable = copied / "lldb/unchanged.cpp"
+            stable = copied / "lldb/source/unchanged.cpp"
             build_lldb.copy_sources(source, copied)
             self.assertEqual(changed.read_text(), "original source")
             self.assertGreater(changed.stat().st_mtime_ns, 2_000_000_000)

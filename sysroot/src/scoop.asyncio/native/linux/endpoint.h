@@ -1,7 +1,7 @@
 #ifndef SCOOP_ASYNCIO_LINUX_ENDPOINT_H
 #define SCOOP_ASYNCIO_LINUX_ENDPOINT_H
 
-#include "../../../scoop.platform/native/socket_native.h"
+#include "../common/socket.h"
 #include "../../../scoop.platform/native/tty/terminal.h"
 #include "backend.h"
 
@@ -15,11 +15,6 @@ typedef struct ScoopIoEndpoint {
     scoop_terminal *terminal;
     int64_t columns, rows;
 } ScoopIoEndpoint;
-
-typedef struct {
-    struct ScoopSocketAddress address;
-    int status;
-} ScoopIoSocketName;
 
 int scoop_io_nonblocking(int fd);
 void scoop_io_endpoint_idle(ScoopIoEndpoint *endpoint);

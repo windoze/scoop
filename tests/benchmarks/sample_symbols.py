@@ -62,7 +62,7 @@ def annotate(text, names, binary, tools=None):
     )
     if not addresses:
         return text
-    readobj = str(tools / "llvm-readobj") if tools else "llvm-readobj"
+    readobj = str(tools / "llvm-readobj") if tools else "scoop-llvm-readobj"
     headers = subprocess.run(
         [readobj, "--macho-segment", str(binary)], capture_output=True, text=True, check=True
     )

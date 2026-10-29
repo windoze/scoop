@@ -27,9 +27,14 @@ struct Cli {
     runtime_index: Option<PathBuf>,
     #[arg(long)]
     target: String,
-    /// Linux C compiler driver.
+    /// Native C compiler driver for the selected target.
     #[arg(long)]
     cc: Option<PathBuf>,
+    #[arg(long)]
+    cxx: Option<PathBuf>,
+    /// Final Windows linker executable.
+    #[arg(long)]
+    linker: Option<PathBuf>,
     #[arg(long)]
     native_sysroot: Option<PathBuf>,
     /// Scoop sysroot containing the target runtime and native libraries.
@@ -87,9 +92,11 @@ fn main() -> ExitCode {
         target: cli.target,
         c_toolchain: scoop_toolchain::CToolchainOptions {
             compiler: cli.cc,
+            cxx_compiler: cli.cxx,
             native_sysroot: cli.native_sysroot,
         },
         final_link: scoop_toolchain::FinalLinkOptions {
+            linker: cli.linker,
             sysroot: cli.sysroot,
             keep_symbols: cli.keep_symbols,
             emit_debug_file: cli.emit_debug_file,

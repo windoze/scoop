@@ -89,7 +89,19 @@ public enum NativeErrorDomain {
     /**
      * A native address-resolution error code.
      */
-    AddressResolution
+    AddressResolution,
+    /**
+     * A Win32 error code captured from the failing operation.
+     */
+    Win32,
+    /**
+     * A Windows Sockets error code captured from the failing operation.
+     */
+    Winsock,
+    /**
+     * An NTSTATUS returned directly by a Windows native operation.
+     */
+    NtStatus
 }
 
 /**
@@ -110,6 +122,9 @@ public struct NativeError(
                 when (domain) {
                     case PosixErrno -> 0
                     case AddressResolution -> 1
+                    case Win32 -> 2
+                    case Winsock -> 3
+                    case NtStatus -> 4
                 }
             val category = nativeErrorKind(domainCode, code, systemCode ?: 0)
             return errorKind(category)

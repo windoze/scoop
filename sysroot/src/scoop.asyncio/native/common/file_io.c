@@ -12,27 +12,25 @@ typedef struct {
 
 static void execute(ScoopIoWork *native) {
     FileIo *request = (void *)native;
-    int fd = request->file->fd;
-    int64_t result;
+    ScoopPlatformFileHandle handle = request->file->handle;
+    ScoopPlatformFileResult result = {0};
     switch (request->action) {
     case FILE_READ:
-        result = scoop_platform_fd_read(fd, request->bytes, request->count);
+        result = scoop_platform_handle_read(handle, request->bytes, request->count);
         break;
     case FILE_WRITE:
-        result = scoop_platform_fd_write(fd, request->bytes, request->count);
+        result = scoop_platform_handle_write(handle, request->bytes, request->count);
         break;
     case FILE_SYNC_DATA:
     case FILE_SYNC_ALL:
-        result = scoop_platform_file_sync(fd, request->action == FILE_SYNC_DATA);
+        result = scoop_platform_handle_sync(handle, request->action == FILE_SYNC_DATA);
         break;
     }
-    int error = errno;
-    if (result < 0) {
-        native->completion.event.kind = SCOOP_IO_POSIX_ERROR;
-        native->completion.event.code = error;
-    } else if (request->action == FILE_READ || request->action == FILE_WRITE) {
+    if (result.error)
+        scoop_io_platform_error(&native->completion.event, result.error);
+    else if (request->action == FILE_READ || request->action == FILE_WRITE) {
         native->completion.event.kind = SCOOP_IO_BYTES;
-        native->completion.event.count = result;
+        native->completion.event.count = result.value;
     }
 }
 static void finish(ScoopIoWork *work, int status) { scoop_io_work_finished(work, status); }
@@ -49,10 +47,16 @@ static int submit(ScoopIoFile *file, int64_t id, FileAction action, void *bytes,
         free(request);
     return status;
 }
-int scoop_io_file_transfer(ScoopIoFile *file, int64_t id, void *bytes, int64_t count,
-                           bool writing) {
+int scoop_io_file_transfer_work(ScoopIoFile *file, int64_t id, void *bytes, int64_t count,
+                                bool writing) {
     return submit(file, id, writing ? FILE_WRITE : FILE_READ, bytes, count);
 }
+#ifndef _WIN32
+int scoop_io_file_transfer(ScoopIoFile *file, int64_t id, void *bytes, int64_t count,
+                           bool writing) {
+    return scoop_io_file_transfer_work(file, id, bytes, count, writing);
+}
+#endif
 int scoop_io_file_sync(ScoopIoFile *file, int64_t id, bool data_only) {
     return submit(file, id, data_only ? FILE_SYNC_DATA : FILE_SYNC_ALL, NULL, 0);
 }

@@ -14,6 +14,7 @@ use scoop_lir::{AtomBoundarySymbolsV1, ObjectDefinitionAtomId, ObjectSymbolSurfa
 
 use crate::CodegenError;
 
+mod coff;
 pub(crate) mod elf;
 
 #[derive(Clone, Copy, Debug)]
@@ -119,6 +120,9 @@ pub(crate) fn materialize_global_linkages_v1(
 ) -> Result<(), CodegenError> {
     if target.native_object_format() == scoop_lir::NativeObjectFormat::Elf64 {
         return elf::materialize(path, surface, definitions);
+    }
+    if target.native_object_format() == scoop_lir::NativeObjectFormat::Coff64 {
+        return coff::materialize(path, surface, definitions);
     }
     let normalization = target.contract().native_symbol_normalization();
     let mut names = Vec::new();

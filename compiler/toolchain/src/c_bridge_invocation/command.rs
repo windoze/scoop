@@ -39,6 +39,27 @@ impl ValidatedCBridgeToolchainInvocation {
                     ]);
                 command
             }
+            CBridgeCommandParameters::Windows(_) => {
+                let mut command = self.driver_command();
+                command
+                    .args([
+                        "-mno-incremental-linker-compatible",
+                        "-fno-omit-frame-pointer",
+                        "-mno-omit-leaf-frame-pointer",
+                        "-std=c11",
+                        self.optimization.c_flag(),
+                        "-g0",
+                        "-fno-common",
+                        "-fno-ident",
+                        "-fno-stack-protector",
+                        "-fno-builtin",
+                    ])
+                    .arg("-c")
+                    .arg(source)
+                    .arg("-o")
+                    .arg(object);
+                command
+            }
         };
         command.env(
             "TMPDIR",
@@ -117,6 +138,12 @@ fn canonical_object_compilation_command(
             }
             CanonicalCBridgeFlagV1::X86_64Baseline => {
                 command.arg("-march=x86-64");
+            }
+            CanonicalCBridgeFlagV1::WindowsSeh
+            | CanonicalCBridgeFlagV1::WindowsCrt
+            | CanonicalCBridgeFlagV1::Windows10Baseline
+            | CanonicalCBridgeFlagV1::ReproducibleCoff => {
+                unreachable!("Windows flags use the Windows command producer");
             }
         }
     }

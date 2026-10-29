@@ -160,11 +160,11 @@ scale 边界、全零尾数、进位增加 precision、负数定向舍入和精�
 
 abs、min/max、符号、指数、相邻值、round 和可直接表达的受检/位运算使用普通 Scoop。调用成熟 libm 的范围是超越函数及 sqrt/fma/remainder/scalbn 等相应标量操作；Float 使用真实的 f32 入口。
 
-首期使用目标已有 libm：Darwin 由系统数学库提供，Linux GNU/musl 使用各自目标资源。通过普通 extern 声明和 native 链接配置选择，不按平台分叉公共 API，也不增加编译器按名字识别 sin/sqrt 的逻辑。只有真实存在符号或 ABI 差异的地方才增加薄 C shim，不创建第二套数值 runtime。
+首期使用目标已有 libm：Darwin 由系统数学库提供，Linux GNU/musl 使用各自目标资源，Windows 使用完整 target 所选的 CRT 和配套数学实现。通过普通 extern 声明和 native 链接配置选择，不按平台分叉公共 API，也不增加编译器按名字识别 sin/sqrt 的逻辑。只有真实存在符号或 ABI 差异的地方才增加薄 C shim，不创建第二套数值 runtime。
 
 这些调用只有固定大小的数值参数，不分配 Scoop 对象、不回调、不持有 managed 内存。符合语言规范 13.4.1 的具体入口使用 `@GCLeaf @Extern(abi = "c")`，由安全的普通 Scoop 函数包装；C extern 不标 `@NoGC`。不捕获 errno，不把 libm 的 errno 转成 Scoop 算术异常。GCLeaf 不等于 readonly/纯函数，也不保证所有 target 的误差一致。
 
-额外的 Scoop 分支只实现规范明确要求的表面差异，例如 pow(1,NaN)、pow(±1,Infinity) 与 C 的区别，以及 NaN 传播和 signed zero 的选择。它不是一套补偿 libm 精度的自制超越算法。fma 必须调用融合语义入口；strict FP 下普通 `a*b+c` 仍保持两次舍入。
+系统数学入口保留对应 libm／CRT 的精度和特殊值行为，不增加 `pow`、`hypot` 或 `fma` 的结果修正分支。`pow(1,NaN)`、`pow(±1,Infinity)` 与 Java Math 的区别，以及 LLVM-MinGW MSVCRT 的 FMA 中间溢出，在规范 4.3 和库说明中记录。`fma` 直接调用系统同名入口；strict FP 下普通 `a*b+c` 仍保持两次舍入。Scoop 自行定义的 `min`／`max` 等 API 继续按其合同选择 NaN 与 signed zero。
 
 精度边界已在规范 4.3 明示。若未来实际需要逐位可复现的初等函数，再独立评估固定实现；不能把使用系统 libm 描述成已拥有 Java StrictMath 保证。维护中的 [Rust libm](https://github.com/rust-lang/compiler-builtins) 是可研究的固定实现来源，但本期不引入它或另加 backend 选择层；旧 rust-lang/libm 仓库已迁移，不能以旧仓库归档状态判断当前项目无人维护。
 

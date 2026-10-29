@@ -6,9 +6,11 @@
 
 库显式依赖 core、std、json，提供内存中的密码、密钥、证书和 JWS 操作，不依赖 platform、asyncio 或 libssl。文件、网络、系统 CA、在线 JWKS 和 claims 策略由调用者负责。安全随机与密钥生成使用系统熵。
 
-三个目标统一使用 OpenSSL 3.5.9 LTS，Apache-2.0 许可证。上游完整源码归档位于 `sysroot/vendor/openssl/`，普通准备脚本 `scripts/build_openssl.py --target <triple>` 在仓库外构建；选项和来源见 vendor README。使用上游默认 provider、正常汇编与线程支持，关闭动态模块、engine、自动配置加载及共享库。不在运行时搜索或替换后端，不调用进程级 OPENSSL_cleanup。
+Darwin、Linux GNU／musl 和三个 Windows 完整 target 统一使用 OpenSSL 3.5.9 LTS，Apache-2.0 许可证。上游完整源码归档位于 `sysroot/vendor/openssl/`，普通准备脚本 `scripts/build_openssl.py --target <triple>` 在仓库外构建；选项和来源见 vendor README。使用上游默认 provider、正常汇编与线程支持，关闭动态模块、engine、自动配置加载及共享库。不在运行时搜索或替换后端，不调用进程级 OPENSSL_cleanup。
 
 生成的头文件与 `libcrypto.a`、`libssl.a` 位于 `sysroot/lib/<triple>/openssl/{include,lib}`。manifest 使用语言规范 12.2.1 的条件 include 选择目标头文件，crypto 声明 static `crypto`，TLS 声明 static `ssl` 并使用传递的 crypto 要求；最终命令使用 `--library-path <sysroot>/lib/<triple>/openssl/lib`。发行包必须包含这组目标资源，musl 不使用宿主 GNU 库或要求发行版 musl OpenSSL 包。源代码准备与应用构建分离，未准备头文件时普通 include 诊断报告目标路径缺失，准备步骤见 [M51 使用说明](../milestone51/USAGE.md)；不自动下载或退回系统头文件。
+
+Windows Microsoft 环境使用上游 `VC-WIN64A`、clang-cl／cl、NASM 和所选 SDK／MSVC 开发资源，以 `/MD` 链接动态 UCRT；两个 LLVM-MinGW 环境分别使用对应 CRT prefix 的 Clang 与上游 `mingw64`。Microsoft 构建需要原生 Windows Perl 和 NMake，MinGW 构建需要完整 MSYS Perl、GNU Make 与 Unix shell；这些是维护构建工具，不是应用运行依赖。静态 `.lib` 以相同 COFF archive 内容发布到上述 `.a` 名称。crypto 在 Windows 声明上游所需的 ws2_32、gdi32、advapi32、crypt32、user32 系统库，POSIX 保留 pthread。不同 target 的头文件、对象与 archive 不互相复用。
 
 ## 2. 数据、错误与生命周期
 

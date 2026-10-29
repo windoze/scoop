@@ -30,7 +30,7 @@ pub(super) fn resolve(
         .map(|file| NativeObjectId::Direct(file.id))
         .collect();
     for id in direct {
-        selection::include(inputs, id, "direct input")?;
+        selection::include(inputs, runtime, id, "direct input")?;
     }
     for (symbol, declaration) in declarations {
         let result = (|| {
@@ -63,7 +63,7 @@ pub(super) fn resolve(
                         NativeExternalContract::ReadOnlyTls { .. }
                             | NativeExternalContract::MutableTls { .. }
                     );
-                    if tls != binding.is_tls() {
+                    if binding.is_tls().is_some_and(|actual| actual != tls) {
                         return Err(error(format!("native TLS storage mismatch for {symbol}")));
                     }
                     if let Some(definition) = binding.definition() {
@@ -80,7 +80,7 @@ pub(super) fn resolve(
             ))
         })?;
     }
-    selection::resolve(inputs, declarations)?;
+    selection::resolve(inputs, declarations, runtime)?;
     inputs
         .namespace
         .project(&inputs.definitions, library_paths, profile)?;

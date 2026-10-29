@@ -56,11 +56,15 @@ pub(in crate::program) fn read(
     }
     let mut libraries = BTreeMap::new();
     for (artifact, symbols) in closure.artifacts() {
-        if symbols.native_requirements().cxx() {
+        let target = symbols.native_requirements().target();
+        // Windows supplies its C++ runtime through the selected final-link
+        // profile and native object directives, rather than a Unix library name.
+        if symbols.native_requirements().cxx()
+            && target.native_object_format() != scoop_lir::NativeObjectFormat::Coff64
+        {
             use scoop_identity::{
                 CanonicalNativeLibraryName, NativeLibraryGrouping, NativeLibraryKind,
             };
-            let target = symbols.native_requirements().target();
             let name = match target.id() {
                 scoop_target_data::DARWIN_AARCH64_ID => "c++",
                 scoop_target_data::LINUX_X86_64_GNU_ID => "stdc++",

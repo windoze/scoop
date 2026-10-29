@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use inkwell::context::Context;
 use llvm_sys::core::LLVMAddAlias2;
 

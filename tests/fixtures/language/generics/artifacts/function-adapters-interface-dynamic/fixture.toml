@@ -2,7 +2,7 @@ schema = 1
 name = "function-adapters-interface-dynamic"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../function-adapters/provider.scoop", "generic-member-interface-dynamic", "../../../function-adapters/interface-dynamic.scoop", "generic-member-downstream-interface-dynamic", "../../../function-adapters/downstream.scoop", "runtime-fixture", "../../../imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "dynamic_function_variance_keeps_interface_ancestry", "language"]
 
 [[steps]]

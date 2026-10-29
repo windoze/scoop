@@ -95,6 +95,8 @@ fn encode_section_role(
         BuiltinObjectSectionRoleV1::ThreadLocalZeroFill => 11,
         BuiltinObjectSectionRoleV1::ThreadLocalVariables => 12,
         BuiltinObjectSectionRoleV1::ObjectMetadata => 13,
+        BuiltinObjectSectionRoleV1::WindowsUnwindTable => 14,
+        BuiltinObjectSectionRoleV1::WindowsUnwindInfo => 15,
     })
 }
 
@@ -114,6 +116,14 @@ fn encode_relocation_form(
     form: VerifiedObjectRelocationFormV1,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     match form {
+        VerifiedObjectRelocationFormV1::CoffAmd64 { kind, width } => {
+            encoder.map(3)?;
+            encode_tag(encoder, 12)?;
+            encoder.field(1)?;
+            encoder.unsigned(u64::from(kind))?;
+            encoder.field(2)?;
+            encoder.unsigned(u64::from(width))
+        }
         VerifiedObjectRelocationFormV1::ElfX86_64Rela {
             kind,
             addend,

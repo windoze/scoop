@@ -1,0 +1,19 @@
+package scoop.platform.net
+
+import scoop.platform.fs.withNativeString
+import scoop.platform.system.OsString
+
+internal fun platformResolve(host: OsString, port: Int, family: Int): NativeResolution {
+    @Unsafe
+    {
+        return host.withNativeString {
+            pointer -> @Unsafe
+            {
+                return@withNativeString nativeResolve(pointer, port, family)
+            }
+        }
+    }
+}
+
+@Extern(name = "scoop_platform_resolve")
+private fun nativeResolve(host: Ptr<Byte>, port: Int, family: Int): NativeResolution

@@ -1,46 +1,83 @@
 package scoop.platform.net
 
-import scoop.platform.fs.File
-import scoop.platform.io.failNative
-
 /**
  * The native socket-address bridge representation, including family, port, IPv6 scope, and address
  * words.
  */
 @CLayout
 public struct NativeSocketAddress(
-    val family: Int, val port: Int, val scopeId: UInt,
-    val a: UInt, val b: UInt, val c: UInt, val d: UInt
+    val family: Int,
+    val port: Int,
+    val scopeId: UInt,
+    val a: UInt,
+    val b: UInt,
+    val c: UInt,
+    val d: UInt
 )
 
 @CLayout
-internal struct NativeDatagram(val source: NativeSocketAddress, val count: Long, val truncated: Boolean)
+internal struct NativeDatagram(
+    val source: NativeSocketAddress,
+    val count: Long,
+    val truncated: Boolean
+)
 
 @CLayout
-internal struct NativeResolution(val head: Ptr<Unit>?, val code: Int, val systemCode: Int, val hasSystemCode: Boolean)
+internal struct NativeSocketReceived(val packet: NativeDatagram, val error: Int)
+
+@CLayout
+internal struct NativeSocketAddressResult(val address: NativeSocketAddress, val error: Int)
+
+@CLayout
+internal struct NativeResolution(
+    val head: Ptr<Unit>?,
+    val code: Int,
+    val systemCode: Int,
+    val hasSystemCode: Boolean
+)
 
 internal fun nativeAddress(address: SocketAddress): NativeSocketAddress {
     val value = address.address.native
-    return NativeSocketAddress(value.family, address.port, value.scopeId, value.a, value.b, value.c, value.d)
+    return NativeSocketAddress(
+        value.family,
+        address.port,
+        value.scopeId,
+        value.a,
+        value.b,
+        value.c,
+        value.d
+    )
 }
 
 internal fun socketAddress(value: NativeSocketAddress, error: Int): SocketAddress {
-    if (value.family == 0) failNative("socket address", error)
+    checkSocketError("socket address", error)
     return SocketAddress(IpAddress.fromNative(value), value.port)
 }
 
-internal fun File.socketAddress(peer: Boolean): SocketAddress = withDescriptor { descriptor ->
-    @Unsafe {
-        val (address, error) = nativeSocketAddress(descriptor, peer)
-        return@withDescriptor socketAddress(address, error)
+internal fun SocketOwner.socketAddress(peer: Boolean): SocketAddress =
+    withHandle {
+        handle -> @Unsafe
+        {
+            val result = nativeSocketAddress(handle, peer)
+            return@withHandle socketAddress(result.address, result.error)
+        }
     }
-}
 
 internal fun requirePort(port: Int) {
-    if (port < 0 || port > 65535) throw IllegalArgumentException(Some("port is outside 0..65535"))
+    if (port < 0 || port > 65535)
+        throw IllegalArgumentException(Some("port is outside 0..65535"))
 }
 
-@Extern(name = "scoop_platform_socket_address", captureErrno = true)
-private fun nativeSocketAddress(descriptor: Int, peer: Boolean): (NativeSocketAddress, Int)
-@Extern(name = "scoop_platform_socket_bind", captureErrno = true)
-internal fun nativeSocketBind(address: NativeSocketAddress, datagram: Boolean, reuse: Boolean, backlog: Int): (Int, Int)
+@Extern(name = "scoop_platform_socket_address")
+private fun nativeSocketAddress(
+    handle: NativeSocketHandle,
+    peer: Boolean
+): NativeSocketAddressResult
+
+@Extern(name = "scoop_platform_socket_bind_owned")
+internal fun nativeSocketBind(
+    address: NativeSocketAddress,
+    datagram: Boolean,
+    reuse: Boolean,
+    backlog: Int
+): NativeSocketOpened

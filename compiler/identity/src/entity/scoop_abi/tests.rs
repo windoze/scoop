@@ -30,6 +30,25 @@ fn passing_constructors_reject_wrong_size_and_shape() {
 }
 
 #[test]
+fn interface_results_admit_indirect_storage_without_changing_argument_shape() {
+    let exact = PersistentExactTypeId(ConeIdentity::CORE.0);
+    let interface = storage(exact, 16, ScoopAbiValueShape::Interface);
+    assert_eq!(
+        ScoopAbiReturn::indirect(interface),
+        Ok(ScoopAbiReturn::Indirect(interface))
+    );
+    assert_eq!(
+        ScoopAbiArgument::indirect(interface),
+        Err(ScoopAbiError::PassingShapeMismatch)
+    );
+    for size in [0, 8, 24] {
+        assert!(
+            ScoopAbiReturn::indirect(storage(exact, size, ScoopAbiValueShape::Interface)).is_err()
+        );
+    }
+}
+
+#[test]
 fn signature_rejects_exact_type_mismatch() {
     let parameter = PersistentExactTypeId(ConeIdentity::CORE.0);
     let result = PersistentExactTypeId(ConeIdentity::SINGLE_FILE.0);

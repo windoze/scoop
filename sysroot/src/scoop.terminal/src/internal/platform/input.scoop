@@ -1,0 +1,64 @@
+package scoop.terminal.internal.platform
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.system.*
+import scoop.time.Duration
+
+internal fun TerminalHandle.waitInput(timeout: Duration?): Int =
+    withPointer {
+        pointer -> @Unsafe
+        {
+            val result = nativeWait(pointer, waitMilliseconds(timeout))
+            val ready = result.value
+            if (ready < 0) {
+                if (terminalError(result.error).kind == PlatformErrorKind.Interrupted)
+                    return@withPointer 0
+                failTerminal("wait terminal input", result.error)
+            }
+            return@withPointer ready
+        }
+    }
+
+internal fun TerminalHandle.readInput(hungUp: Boolean): Array<Byte>? =
+    withPointer {
+        pointer -> NativeByteBuffer.allocate(4096L).use {
+            buffer -> @Unsafe
+            {
+                val borrow = buffer.borrowWritable(4096L)
+                val result = nativeRead(pointer, borrow.pointer()!!, borrow.length, hungUp)
+                val count = result.value
+                borrow.complete(
+                    if (count < 0L)
+                        0L
+                    else
+                        count
+                )
+                if (count < 0L) {
+                    val kind = terminalError(result.error).kind
+                    if (
+                        kind ==
+                            PlatformErrorKind.Interrupted ||
+                            kind ==
+                            PlatformErrorKind.WouldBlock
+                    )
+                        return@use None
+                    failTerminal("read terminal input", result.error)
+                }
+                return@use Some(buffer.readBytes(count))
+            }
+        }
+    }
+
+private fun waitMilliseconds(timeout: Duration?): Int {
+    if (timeout == None)
+        return -1
+    val duration = timeout!!
+    if (duration.floorSeconds > 2147483L)
+        return Int.MAX_VALUE
+    val milliseconds =
+        duration.floorSeconds * 1000L + (duration.nanosecondsOfSecond.toLong() + 999999L) / 1000000L
+    return if (milliseconds > Int.MAX_VALUE.toLong())
+        Int.MAX_VALUE
+    else
+        milliseconds.toInt()
+}

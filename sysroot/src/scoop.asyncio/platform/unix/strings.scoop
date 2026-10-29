@@ -1,0 +1,11 @@
+package scoop.asyncio
+
+import scoop.platform.fs.copyNativeString
+import scoop.platform.fs.withNativeString
+import scoop.platform.system.OsString
+
+@Unsafe
+internal fun <R> OsString.withIoString(block: (Ptr<Byte>) -> R): R = withNativeString(block)
+
+@Unsafe
+internal fun copyIoString(pointer: Ptr<Byte>): OsString = copyNativeString(pointer)

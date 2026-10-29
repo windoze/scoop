@@ -74,7 +74,9 @@ impl GeneratorPrograms {
 
     pub fn program_for_compiler(&self, name: &str, compiler: &Path) -> Option<PathBuf> {
         self.explicit.get(name).cloned().or_else(|| {
-            (name == "scoop.codec").then(|| compiler.with_file_name("scoop-codec-generator"))
+            (name == "scoop.codec").then(|| {
+                compiler.with_file_name(crate::host_executable_name("scoop-codec-generator"))
+            })
         })
     }
 
@@ -84,8 +86,7 @@ impl GeneratorPrograms {
             return Ok(Some(path.clone()));
         }
         if name == "scoop.codec" {
-            return crate::installed_executable()
-                .map(|executable| Some(executable.with_file_name("scoop-codec-generator")));
+            return crate::installed_host_tool("scoop-codec-generator").map(Some);
         }
         Ok(None)
     }

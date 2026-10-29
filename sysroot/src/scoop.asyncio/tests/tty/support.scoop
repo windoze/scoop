@@ -46,7 +46,7 @@ private fun openTestTerminal(): Ptr<Unit> {
     @Unsafe
     {
         val created = nativeTestOpen()
-        if (created.status < 0)
+        if (created.status.code != 0)
             throw backendFailure("test PTY open", created.status)
         return created.pointer!!
     }

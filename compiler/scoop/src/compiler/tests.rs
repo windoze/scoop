@@ -1,3 +1,6 @@
+// These compiler fixtures are POSIX shell executables.
+#![cfg(unix)]
+
 use std::os::unix::fs::PermissionsExt;
 
 use scoop_protocol::encode_machine_capability_frame;

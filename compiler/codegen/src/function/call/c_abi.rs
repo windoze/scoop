@@ -26,6 +26,17 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         local: scoop_lir::LocalId,
     ) -> Result<PointerValue<'ctx>, CodegenError> {
         let pointer = self.local_pointer(local)?;
+        if !self.profile.indirect_arguments_use_byval() {
+            let allocation = pointer
+                .as_instruction_value()
+                .expect("caller copy is an alloca");
+            let alignment = allocation
+                .get_alignment()
+                .map_err(|error| CodegenError(format!("read caller-copy alignment: {error}")))?;
+            allocation
+                .set_alignment(alignment.max(16))
+                .map_err(|error| CodegenError(format!("align Win64 caller copy: {error}")))?;
+        }
         if let Some(DirectCArgument::Indirect {
             value,
             passing: CIndirectPassing::ByValue { alignment },

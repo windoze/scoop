@@ -2,6 +2,8 @@
 
 [scoop-example](scoop-example/README.md) 是独立的 `scoop example` 阅读器，按主题提供完整程序与说明，使用自己的 Cargo 项目和测试。[scoop-programming](scoop-programming/SKILL.md) 是面向 AI 的 Scoop 编程 skill，组合示例、库文档及 CLI 完成程序开发与验证。
 
+Windows 主驱动使用 `sco.exe`，下文的 `scoop ...` 在 Windows 上对应 `sco ...`。例如 `sco example` 仍运行 `scoop-example.exe`；编辑器继续使用 `scoop-lsp.exe`。macOS／Linux 的命令名保持不变。
+
 ## Scoop 编程 skill
 
 `scoop-programming/` 包含 `SKILL.md`、`agents/openai.yaml` 和按需阅读的 `references/`，用于编写、修改、调试和测试 Scoop 程序，不用于同名 Windows 包管理器。内容覆盖示例查询与文件还原、语言差异、库 API 查找、Cone 依赖、格式化、检查、构建、测试及运行；完整示例仍由配套 `scoop example` 提供，不在 skill 中另存副本。

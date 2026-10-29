@@ -9,7 +9,7 @@ pub(super) fn check_relocation_and_compatible_toolchains(
     target: &ResolvedTargetProfile,
 ) {
     let relocated = tempfile::tempdir().unwrap();
-    let directory = relocated.path().join("installed runtime with spaces");
+    let directory = relocated.path().join("installed runtime 空格");
     copy_tree(build.index().parent().unwrap(), &directory);
     let index = directory.join("index.cbor");
     let consumer = compatible_consumer(target);
@@ -54,6 +54,16 @@ pub(super) fn check_relocation_and_compatible_toolchains(
 
 fn compatible_consumer(target: &ResolvedTargetProfile) -> CBridgeToolchainProfileV1 {
     match target.c_bridge_toolchain().profile().contract().platform() {
+        scoop_lir::CBridgePlatformContractV1::Windows { compiler } => {
+            scoop_target_data::windows_c_bridge_profile(
+                target.lir_target(),
+                scoop_lir::WindowsClangCompilerIdentityV1::new(
+                    compiler.version(),
+                    scoop_wire::sha256(b"different compiler"),
+                ),
+            )
+            .unwrap()
+        }
         CBridgePlatformContractV1::Darwin {
             deployment,
             compiler,

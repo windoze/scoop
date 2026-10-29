@@ -1,0 +1,113 @@
+package scoop.platform.fs
+
+import scoop.collections.HashSet
+import scoop.platform.random.SystemRandom
+import scoop.platform.system.*
+import scoop.test.*
+
+private fun <R> withWindowsDirectory(block: (Path) -> R): R {
+    val path = Path.fromString("scoop-directory-" + SystemRandom.nextLong().toString())
+    path.createDirectory()
+    try {
+        return block(path)
+    }
+    finally {
+        path.deleteRecursively()
+    }
+}
+
+@Test
+private class WindowsDirectoryTest {
+    @Test
+    fun `empty and early closed directories keep distinct iterator states`() {
+        withWindowsDirectory {
+            path ->
+            path.entries().use {
+                entries ->
+                assertSame(entries, entries.iterator())
+                assertTrue(entries.next() == None)
+                assertTrue(entries.isClosed)
+                assertTrue(entries.next() == None)
+            }
+            val early = path.entries()
+            early.close()
+            assertTrue(early.isClosed)
+            assertFailsWith<IllegalStateException> { early.next() }
+            early.close()
+            val identity = Throwable()
+            val failed = path.entries()
+            assertSame(identity, assertFailsWith<Throwable> { failed.use { throw identity } })
+            assertTrue(failed.isClosed)
+            val missing = path.resolve(Path.fromString("missing"))
+            val error = assertFailsWith<PlatformException> { missing.entries() }
+            assertTrue(error.nativeError!!.domain == NativeErrorDomain.Win32)
+            assertEquals(missing.toOsString(), error.context!!)
+            assertTrue(error.kind == PlatformErrorKind.NotFound)
+        }
+    }
+
+    @Test
+    fun `directory entries preserve independent UTF16 names across batches and collection`() {
+        withWindowsDirectory {
+            path ->
+            val expected = HashSet<OsString>()
+            val suffix: Array<UShort> =
+                [0x4e2d.toUShort(), 0xd83d.toUShort(), 0xde00.toUShort(), 0xdc00.toUShort()]
+            val unusual = OsString.fromUtf16(suffix)
+            expected.add(unusual)
+            path.resolve(Path.fromOsString(unusual)).writeText("kept")
+            val padding = StringBuilder()
+            for (_ in 0 ..< 100)
+                padding.append("x")
+            for (index in 0 ..< 384) {
+                val name = OsString.fromString(index.toString() + padding.toString())
+                expected.add(name)
+                File.open(
+                    path.resolve(Path.fromOsString(name)),
+                    OpenOptions(write = true, createNew = true)
+                ).close()
+            }
+            val observed = HashSet<OsString>()
+            path.entries().use {
+                entries ->
+                for (entry in entries) {
+                    assertTrue(expected.contains(entry.name))
+                    assertFalse(observed.contains(entry.name))
+                    observed.add(entry.name)
+                    assertEquals(path.resolve(Path.fromOsString(entry.name)), entry.path)
+                    if (observed.size % 31L == 0L)
+                        gcCollect()
+                }
+                assertTrue(entries.isClosed)
+                assertEquals(expected.size, observed.size)
+            }
+            gcCollect()
+            assertTrue(observed.contains(unusual))
+            assertEquals("kept", path.resolve(Path.fromOsString(unusual)).readText())
+        }
+    }
+
+    @Test
+    fun `nested directories create idempotently and recursive deletion closes enumerators`() {
+        withWindowsDirectory {
+            path ->
+            val nested = path.resolve(Path.fromString("名字\\one\\two"))
+            nested.createDirectories(mode = 0)
+            nested.createDirectories()
+            assertTrue(nested.metadata().kind == FileKind.Directory)
+            assertEquals(0x1ff, nested.metadata().permissions)
+            assertTrue(
+                assertFailsWith<PlatformException> { nested.createDirectory() }.kind ==
+                    PlatformErrorKind.AlreadyExists
+            )
+            val file = nested.resolve(Path.fromString("data"))
+            file.writeText("data")
+            assertFailsWith<PlatformException> { nested.delete() }
+            assertFailsWith<PlatformException> { file.entries() }
+            val branch = path.resolve(Path.fromString("名字"))
+            branch.deleteRecursively()
+            assertFalse(branch.exists())
+            path.entries().use { assertTrue(it.next() == None) }
+        }
+    }
+}

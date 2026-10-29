@@ -1,4 +1,5 @@
 #include "../../../scoop.platform/native/paths.h"
+#include "platform.h"
 #include "work.h"
 #include <errno.h>
 #include <string.h>
@@ -6,7 +7,7 @@
 typedef enum { PATH_MOVE, PATH_DELETE, PATH_MKDIR } PathAction;
 typedef struct {
     ScoopIoWork work;
-    char *first, *second;
+    ScoopIoChar *first, *second;
     PathAction action;
     int mode;
     bool replace;
@@ -14,25 +15,21 @@ typedef struct {
 
 static void execute_path(ScoopIoWork *native) {
     PathWork *request = (void *)native;
-    int result;
+    ScoopPlatformFileResult result;
     switch (request->action) {
     case PATH_MOVE:
-        result = scoop_platform_path_move(request->first, request->second, request->replace);
+        result = scoop_platform_path_move_result(request->first, request->second, request->replace);
         break;
     case PATH_DELETE:
-        result = scoop_platform_path_delete(request->first);
+        result = scoop_platform_path_delete_result(request->first);
         break;
     case PATH_MKDIR:
-        result = scoop_platform_path_mkdir(request->first, request->mode);
+        result = scoop_platform_path_mkdir_result(request->first, request->mode);
         break;
     default:
         abort();
     }
-    int saved_errno = errno;
-    if (result < 0) {
-        request->work.completion.event.kind = SCOOP_IO_POSIX_ERROR;
-        request->work.completion.event.code = saved_errno;
-    }
+    scoop_io_platform_error(&request->work.completion.event, result.error);
 }
 
 static void finish_path(ScoopIoWork *native, int status) {
@@ -42,13 +39,13 @@ static void finish_path(ScoopIoWork *native, int status) {
     scoop_io_work_finished(&request->work, status);
 }
 
-static int submit_path(ScoopIoLoop *loop, int64_t id, PathAction action, const char *first,
-                       const char *second, int mode, bool replace) {
+static int submit_path(ScoopIoLoop *loop, int64_t id, PathAction action, const ScoopIoChar *first,
+                       const ScoopIoChar *second, int mode, bool replace) {
     PathWork *request = calloc(1, sizeof(*request));
     if (!request)
         return -ENOMEM;
-    request->first = strdup(first);
-    request->second = second ? strdup(second) : NULL;
+    request->first = scoop_io_string_copy(first);
+    request->second = second ? scoop_io_string_copy(second) : NULL;
     if (!request->first || (second && !request->second)) {
         free(request->first);
         free(request->second);
@@ -67,15 +64,15 @@ static int submit_path(ScoopIoLoop *loop, int64_t id, PathAction action, const c
     return status;
 }
 
-int scoop_io_path_move(ScoopIoLoop *loop, int64_t id, const char *from, const char *to,
-                       bool replace) {
+int scoop_io_path_move(ScoopIoLoop *loop, int64_t id, const ScoopIoChar *from,
+                       const ScoopIoChar *to, bool replace) {
     return submit_path(loop, id, PATH_MOVE, from, to, 0, replace);
 }
 
-int scoop_io_path_delete(ScoopIoLoop *loop, int64_t id, const char *path) {
+int scoop_io_path_delete(ScoopIoLoop *loop, int64_t id, const ScoopIoChar *path) {
     return submit_path(loop, id, PATH_DELETE, path, NULL, 0, false);
 }
 
-int scoop_io_path_mkdir(ScoopIoLoop *loop, int64_t id, const char *path, int mode) {
+int scoop_io_path_mkdir(ScoopIoLoop *loop, int64_t id, const ScoopIoChar *path, int mode) {
     return submit_path(loop, id, PATH_MKDIR, path, NULL, mode, false);
 }

@@ -10,14 +10,14 @@ Scoop 是静态类型、编译到原生代码的语言，语法借鉴 Kotlin，�
 
 ## 确认工具链和项目
 
-先查看项目已有的 `Cone.toml`、源码、测试及项目约定，保留既有组织方式。使用用户指定的 `scoop`；未指定时从 PATH 查找，常见安装位置是 `~/.scoop/bin/scoop`。
+先查看项目已有的 `Cone.toml`、源码、测试及项目约定，保留既有组织方式。优先使用用户指定的主驱动路径；未指定时在 Windows 上从 PATH 查找 `sco.exe`，macOS／Linux 查找 `scoop`，常见安装目录是 `~/.scoop/bin/`。Windows 的 `scoop` 命令可能属于同名包管理器，不将其当作本语言驱动。
 
 ```sh
 scoop --version
 scoop example --help
 ```
 
-本文命令中的 `scoop` 均指这份可执行文件。`<SYSROOT>` 指所选安装根：显式 `--sysroot` 优先，其次为 `SCOOP_SYSROOT`，否则使用实际可执行文件所属安装根。示例、库声明和编译运行使用同一套资源。指定安装根查询示例时，参数放在外部子命令前：
+本文及所附参考资料命令中的 `scoop` 均指这份可执行文件；Windows 上替换为 `sco`，例如 `sco --version`、`sco example --help`。其他工具名保持不变，包括 `scoopc.exe`、`scoop-pm.exe`、`scoop-lsp.exe` 和 `scoop-example.exe`。`<SYSROOT>` 指所选安装根：显式 `--sysroot` 优先，其次为 `SCOOP_SYSROOT`，否则使用实际可执行文件所属安装根。示例、库声明和编译运行使用同一套资源。指定安装根查询示例时，参数放在外部子命令前：
 
 ```sh
 scoop --sysroot /path/to/scoop example language/option

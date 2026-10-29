@@ -12,7 +12,7 @@ use scoop_source::{DebugFile, DebugOrigin, DebugRecords, LineIndex, PositionEnco
 pub struct DebugSources {
     files: Vec<DebugSourceFile>,
     indices: HashMap<Arc<SourceIdentity>, usize>,
-    definitions: crate::HirExportDefinitionOrigins,
+    definitions: HashMap<DefinitionOriginSubject, (usize, u64)>,
 }
 
 #[derive(Clone, Debug)]
@@ -45,14 +45,49 @@ impl DebugSources {
                 },
             })
             .collect();
+        let indices: HashMap<_, _> = files
+            .iter()
+            .enumerate()
+            .map(|(i, file)| (file.file.identity.clone(), i))
+            .collect();
+        let mut definitions: HashMap<_, _> = module
+            .export_definition_origins
+            .records()
+            .iter()
+            .map(|record| {
+                let origin = record.origin();
+                (
+                    record.subject(),
+                    (indices[origin.source()], origin.span().start_byte()),
+                )
+            })
+            .collect();
+        for (_, template) in module.imported_generic_templates.iter() {
+            if let Some(subject) =
+                function_subject(template.declaration.body_owner().template_owner())
+            {
+                definitions.insert(
+                    subject,
+                    (
+                        template.origin.file as usize,
+                        u64::from(template.origin.span.start),
+                    ),
+                );
+            }
+        }
+        for (_, template) in module.imported_constructor_templates.iter() {
+            definitions.insert(
+                DefinitionOriginSubject::Constructor(template.declaration),
+                (
+                    template.origin.file as usize,
+                    u64::from(template.origin.span.start),
+                ),
+            );
+        }
         Self {
-            indices: files
-                .iter()
-                .enumerate()
-                .map(|(i, file)| (file.file.identity.clone(), i))
-                .collect(),
+            indices,
             files,
-            definitions: module.export_definition_origins.clone(),
+            definitions,
         }
     }
 
@@ -88,16 +123,8 @@ impl DebugSources {
         function: CallableMaterialization,
         records: &mut DebugRecords,
     ) -> DebugOrigin {
-        let subject = match function.template() {
-            CallableTemplateOwner::Function(id) => DefinitionOriginSubject::Function(id),
-            CallableTemplateOwner::GenericFunction(id) => {
-                DefinitionOriginSubject::GenericFunction(id)
-            }
-            CallableTemplateOwner::Constructor(id) => DefinitionOriginSubject::Constructor(id),
-            CallableTemplateOwner::Accessor(id) => DefinitionOriginSubject::PropertyAccessor(id),
-            CallableTemplateOwner::Generated(id) => DefinitionOriginSubject::GeneratedCallable(id),
-            CallableTemplateOwner::VariantConstructor(_)
-            | CallableTemplateOwner::ReleaseHook(_) => return DebugOrigin::Generated,
+        let Some(subject) = function_subject(function.template()) else {
+            return DebugOrigin::Generated;
         };
         self.definition(subject, records)
     }
@@ -107,15 +134,8 @@ impl DebugSources {
         subject: DefinitionOriginSubject,
         records: &mut DebugRecords,
     ) -> DebugOrigin {
-        match self.definitions.get(subject) {
-            Some(record) => {
-                let origin = record.origin();
-                self.position(
-                    self.indices[origin.source()],
-                    origin.span().start_byte(),
-                    records,
-                )
-            }
+        match self.definitions.get(&subject) {
+            Some(&(file, offset)) => self.position(file, offset, records),
             None => DebugOrigin::Generated,
         }
     }
@@ -145,6 +165,19 @@ impl DebugSources {
             u32::try_from(column).expect("source columns fit u32"),
         )
     }
+}
+
+fn function_subject(owner: CallableTemplateOwner) -> Option<DefinitionOriginSubject> {
+    Some(match owner {
+        CallableTemplateOwner::Function(id) => DefinitionOriginSubject::Function(id),
+        CallableTemplateOwner::GenericFunction(id) => DefinitionOriginSubject::GenericFunction(id),
+        CallableTemplateOwner::Constructor(id) => DefinitionOriginSubject::Constructor(id),
+        CallableTemplateOwner::Accessor(id) => DefinitionOriginSubject::PropertyAccessor(id),
+        CallableTemplateOwner::Generated(id) => DefinitionOriginSubject::GeneratedCallable(id),
+        CallableTemplateOwner::VariantConstructor(_) | CallableTemplateOwner::ReleaseHook(_) => {
+            return None;
+        }
+    })
 }
 
 #[cfg(test)]

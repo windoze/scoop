@@ -4,121 +4,103 @@ import scoop.collections.LinkedHashMap
 import scoop.collections.Map
 import scoop.collections.toMap
 import scoop.platform.fs.*
-import scoop.platform.io.failNative
-import scoop.platform.memory.nativeMemoryFree
 import scoop.platform.system.OsString
 
 /**
- * Returns a snapshot of process arguments as operating-system byte strings, including the program
- * argument.
+ * Returns an independent value snapshot, distinguishing absence from an empty string.
+ * Names and values retain the operating system's native encoding.
  */
-public fun arguments(): Array<OsString> {
-    @Unsafe {
-        return Array<OsString>(nativeArgumentCount().toLong()) { index ->
-            @Unsafe { return@Array copyNativeString(nativeArgument(index.toInt())!!) }
-        }
-    }
-}
+public fun environmentVariable(name: String): OsString? =
+    environmentVariable(OsString.fromString(name))
 
 /**
- * Returns the selected process environment value, or None when absent. Operating-system bytes need
- * not be valid UTF-8.
- */
-public fun environmentVariable(name: String): OsString? = environmentVariable(OsString.fromString(name))
-
-/**
- * Returns the selected process environment value, or None when absent. Operating-system bytes need
- * not be valid UTF-8.
+ * Returns an independent value snapshot, distinguishing absence from an empty string.
+ * Windows name lookup follows the system's case-insensitive rules.
  */
 public fun environmentVariable(name: OsString): OsString? {
     val bytes = name.toByteArray()
-    if (bytes.size == 0L) throw IllegalArgumentException(Some("empty environment name"))
+    if (bytes.size == 0L)
+        throw IllegalArgumentException(Some("empty environment name"))
     for (byte in bytes) {
-        if (byte == 0 || byte == 61) throw IllegalArgumentException(Some("invalid environment name"))
+        if (byte == 0 || byte == 61)
+            throw IllegalArgumentException(Some("invalid environment name"))
     }
-    @Unsafe {
-        return name.withNativeString { pointer ->
-            @Unsafe {
-                return@withNativeString when (nativeEnvironmentValue(pointer)) {
-                    case Some(value) -> Some(copyNativeString(value))
-                    case None -> None
-                }
+    @Unsafe
+    {
+        return name.withPlatformString {
+            pointer -> @Unsafe
+            {
+                return@withPlatformString nativeEnvironmentValue(pointer).takeOptionalString(
+                    "environment variable",
+                    Some(name)
+                )
             }
         }
     }
 }
 
 /**
- * Returns a snapshot of process environment names and values.
+ * Returns an immutable snapshot with the original spelling of environment names. Map key
+ * equality remains OsString equality, including on Windows.
  */
 public fun environment(): Map<OsString, OsString> {
     val result = LinkedHashMap<OsString, OsString>()
-    @Unsafe {
-        val entries = nativeEnvironment()
-        var index = 0L
-        while (entries.load(index) != None) {
-            val bytes = copyNativeString(entries.load(index)!!).toByteArray()
-            var separator = 0L
-            while (separator < bytes.size && bytes[separator] != 61) separator += 1L
-            if (separator > 0L && separator < bytes.size) {
+    @Unsafe
+    {
+        val bytes = nativeEnvironment().takeString("environment").toByteArray()
+        var start = 0L
+        while (start < bytes.size) {
+            var end = start
+            while (end < bytes.size && bytes[end] != 0)
+                end += 1L
+            var separator = start
+            while (separator < end && bytes[separator] != 61)
+                separator += 1L
+            if (separator > start && separator < end) {
+                val first = start
                 val split = separator
-                val name = OsString.fromByteArray(Array<Byte>(split) { bytes[it] })
-                val value = OsString.fromByteArray(Array<Byte>(bytes.size - split - 1L) { bytes[split + 1L + it] })
-                if (!result.containsKey(name)) result.put(name, value)
+                val name = OsString.fromByteArray(Array<Byte>(split - first) { bytes[first + it] })
+                val value =
+                    OsString.fromByteArray(Array<Byte>(end - split - 1L) { bytes[split + 1L + it] })
+                if (!result.containsKey(name))
+                    result.put(name, value)
             }
-            index += 1L
+            start = end + 1L
         }
+        return result.toMap()
     }
-    return result.toMap()
 }
 
-/**
- * Queries the current working directory.
- */
+/** Queries the actual current working directory, without consulting PWD. */
 public fun currentDirectory(): Path {
-    @Unsafe {
-        val (pointer, error) = nativeCurrentDirectory()
-        if (pointer == None) failNative("current directory", error)
-        try { return Path.fromOsString(copyNativeString(pointer!!)) }
-        finally { nativeMemoryFree(pointer!!) }
+    @Unsafe
+    {
+        return nativeCurrentDirectory().takePath("current directory")
     }
 }
 
 /**
- * Returns the available home directory or None when none can be determined.
+ * Queries the user's home directory. Windows prefers USERPROFILE then the process user's
+ * profile; POSIX prefers HOME then the current uid's passwd record.
  */
 public fun homeDirectory(): Path? {
-    when (environmentVariable("HOME")) {
-        case Some(value) -> if (value.toByteArray().size != 0L) return Some(Path.fromOsString(value))
-        case None -> {}
-    }
-    @Unsafe {
-        val (pointer, error) = nativeHomeDirectory()
-        if (pointer == None) {
-            if (error != 0) failNative("home directory", error)
-            return None
+    @Unsafe
+    {
+        return when (nativeHomeDirectory().takeOptionalString("home directory")) {
+            case Some(value) -> Some(Path.fromOsString(value))
+            case None -> None
         }
-        try { return Some(Path.fromOsString(copyNativeString(pointer!!))) }
-        finally { nativeMemoryFree(pointer!!) }
     }
 }
 
-/**
- * Returns the configured or platform-default directory for temporary files.
- */
-public fun temporaryDirectory(): Path {
-    @Unsafe { return Path.fromOsString(copyNativeString(nativeTemporaryDirectory())) }
-}
+@Extern(name = "scoop_platform_environment_value_result")
+private fun nativeEnvironmentValue(name: Ptr<Byte>): NativeOsString
 
-@GCLeaf @Extern(name = "scoop_rt_program_argc")
-private fun nativeArgumentCount(): Int
-@GCLeaf @Extern(name = "scoop_rt_program_argv")
-private fun nativeArgument(index: Int): Ptr<Byte>?
-@Extern(name = "scoop_platform_environment_value")
-private fun nativeEnvironmentValue(name: Ptr<Byte>): Ptr<Byte>?
-@Extern(name = "scoop_platform_environment")
-private fun nativeEnvironment(): Ptr<Ptr<Byte>?>
-@Extern(name = "scoop_platform_current_directory", captureErrno = true)
-private fun nativeCurrentDirectory(): (Ptr<Byte>?, Int)
-@Extern(name = "scoop_platform_home_directory", captureErrno = true)
-private fun nativeHomeDirectory(): (Ptr<Byte>?, Int)
+@Extern(name = "scoop_platform_environment_result")
+private fun nativeEnvironment(): NativeOsString
+
+@Extern(name = "scoop_platform_current_directory_result")
+private fun nativeCurrentDirectory(): NativeOsString
+
+@Extern(name = "scoop_platform_home_directory_result")
+private fun nativeHomeDirectory(): NativeOsString

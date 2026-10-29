@@ -113,14 +113,14 @@ void scoop_heap_record_old_slots(ScoopGcBlockMeta *block, size_t live_bytes) {
     make_available(slots);
 }
 
-void *scoop_heap_reserve_old_slot(ScoopGcOldSlotPlan *plan, size_t size,
-                                 ScoopGcBlockMeta **target, pthread_mutex_t *reservation_lock) {
+void *scoop_heap_reserve_old_slot(ScoopGcOldSlotPlan *plan, size_t size, ScoopGcBlockMeta **target,
+                                  ScoopPlatformMutex *reservation_lock) {
     size_t index = class_index(size);
     for (;;) {
         ScoopGcOldSlots *slots = plan->current[index];
         if (slots == NULL) {
             if (reservation_lock != NULL) {
-                pthread_mutex_lock(reservation_lock);
+                scoop_runtime_platform_mutex_lock(reservation_lock);
             }
             slots = scoop_gc_heap_state.old_slots_available[index];
             if (slots != NULL) {
@@ -130,7 +130,7 @@ void *scoop_heap_reserve_old_slot(ScoopGcOldSlotPlan *plan, size_t size,
                 ScoopGcBlockMeta *block = activate_small_block(SCOOP_BLOCK_EVACUATION_TARGET, true);
                 if (block == NULL) {
                     if (reservation_lock != NULL) {
-                        pthread_mutex_unlock(reservation_lock);
+                        scoop_runtime_platform_mutex_unlock(reservation_lock);
                     }
                     return NULL;
                 }
@@ -150,7 +150,7 @@ void *scoop_heap_reserve_old_slot(ScoopGcOldSlotPlan *plan, size_t size,
             scoop_gc_heap_state.old_slots_reserved = slots;
             plan->current[index] = slots;
             if (reservation_lock != NULL) {
-                pthread_mutex_unlock(reservation_lock);
+                scoop_runtime_platform_mutex_unlock(reservation_lock);
             }
         }
         if (seek_empty(slots)) {

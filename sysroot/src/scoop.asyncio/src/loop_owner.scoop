@@ -22,7 +22,7 @@ internal class LoopOwner {
         @Unsafe
         {
             val created = nativeLoopCreate()
-            if (created.status < 0)
+            if (created.status.code != 0)
                 throw backendFailure("create event loop", created.status)
             lock.withLock {
                 binding = Some(loop);
@@ -137,7 +137,7 @@ internal class LoopOwner {
         @Unsafe
         {
             val status = nativeLoopPoll(native, wait)
-            if (status < 0) {
+            if (status.code != 0) {
                 val failed =
                     lock.withLock {
                         if (backendFailed)
@@ -225,7 +225,7 @@ internal class LoopOwner {
         @Unsafe
         {
             val status = nativeLoopDestroy(native)
-            if (status < 0)
+            if (status.code != 0)
                 cleanupFailed(backendFailure("close event loop", status))
         }
         return lock.withLock { failure }

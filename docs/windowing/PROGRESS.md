@@ -86,3 +86,9 @@
 原生事件在离开队列前转换为自有 Scoop 事件，UTF-8 文本复制后才释放 native owner。移除没有实现入口的 WindowFeature、触摸身份及激活结果预留。记录 winit 平台参考与许可证，硬件键码另按 Apple SDK 核对。
 
 验证：格式化／check 与 native 警告检查通过，4 个容器的 12 项 release 测试全部通过。真实 NSEvent 调用实际视图，覆盖按键重复、未知键码、左右 Shift、synthetic release、普通文本唯一通道、GC 后载荷、指针位置、滚轮单位／相位及光标隐藏恢复；发现并修正 backing 点原点与公开左上内容坐标的混用。AppKit 自动化窗口置顶以排除桌面遮挡；协议调用不视为真实键盘布局或输入法交互验收。
+
+### 10. 同步远端 main 的 Windows 基础能力
+
+合入 main 的 `b0de037002`，保留其 Windows native driver、统一 native I/O 状态及通知实现，同时保留本分支的 Darwin `.m`／ARC 和窗口 Cone。compiler protocol 更新为 24，package protocol 保持 3；失败版本测试按实际 CBOR 整数长度构造，不再假设版本只有一个编码字节。开发 sysroot 和文档清单同步全部目标筛选，消除合并后的重复 Unix source 声明；修正 macOS 临时目录规范路径的测试期望。
+
+验证：workspace fmt／clippy、184 项 manifest／protocol／toolchain 测试及 14 项 linker 测试通过；脚本与 fixture runner 公共规则测试通过，目标不适用项正常跳过。Objective-C 3 个 fixture／4 个变体／12 次进程调用和 C++ 10 个适用 fixture／13 个变体／40 次进程调用通过。显式重建 Darwin 的 27 个 Cone 与四种 runtime 产物；asyncio 的 64 个容器／153 项 release 测试、window 的 12 项测试、窗口 asyncio 模态／取消测试及 Metal 首帧测试全部通过。Windows 窗口后端仍留待后续阶段。

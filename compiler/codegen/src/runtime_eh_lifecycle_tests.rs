@@ -34,6 +34,7 @@ fn scoop_exception_record_lifecycle_uses_only_the_level_one_unwinder_abi() {
         .arg("-I")
         .arg(workspace.join("runtime/src"))
         .arg(workspace.join("runtime/src/eh.c"))
+        .arg(workspace.join("runtime/src/platform/primitives/posix.c"))
         .arg(workspace.join("runtime/src/process.c"))
         .arg(workspace.join("runtime/src/value_shape.c"))
         .arg(workspace.join("runtime/src/stack_trace/capture.c"))

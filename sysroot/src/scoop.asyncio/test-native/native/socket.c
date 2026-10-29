@@ -1,3 +1,19 @@
+#ifdef _WIN32
+#include "../../native/windows/socket.h"
+
+int scoop_test_socket_break_output(ScoopIoSocket *socket) {
+    return shutdown(socket->socket, SD_SEND);
+}
+
+int scoop_test_socket_output_blocked(ScoopIoSocket *socket) {
+    WSAPOLLFD wait = {.fd = socket->socket, .events = POLLOUT};
+    if (WSAPoll(&wait, 1, 0) < 0)
+        return -WSAGetLastError();
+    if (wait.revents & (POLLERR | POLLHUP | POLLNVAL))
+        return -WSAECONNRESET;
+    return !(wait.revents & POLLOUT);
+}
+#else
 #ifdef __APPLE__
 #include "../../native/darwin/endpoint.h"
 #else
@@ -30,3 +46,4 @@ int scoop_test_socket_output_blocked(void *pointer) {
         return -EIO;
     return !(wait.revents & POLLOUT);
 }
+#endif

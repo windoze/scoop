@@ -17,7 +17,7 @@ mod tests_forwarding;
 
 #[derive(Parser)]
 #[command(
-    name = "scoop",
+    name = if cfg!(windows) { "sco" } else { "scoop" },
     version = scoop_toolchain::VERSION,
     about = "Build, check, format, test, run, and link Scoop programs",
     after_help = "Other commands run <SYSROOT>/commands/scoop-<command> with all following arguments unchanged. Put Scoop options before an external command."
@@ -225,9 +225,15 @@ pub(super) struct LinkArgs {
 
 #[derive(Args)]
 pub(super) struct NativeOptions {
-    /// Linux C compiler driver.
+    /// Native C compiler driver for the selected target.
     #[arg(long)]
     pub cc: Option<PathBuf>,
+    /// Native C++ compiler driver; otherwise use the paired driver.
+    #[arg(long)]
+    pub cxx: Option<PathBuf>,
+    /// Final Windows linker executable (lld-link, link.exe, or MinGW LLD).
+    #[arg(long)]
+    pub linker: Option<PathBuf>,
     /// Target C development sysroot, separate from the Scoop sysroot.
     #[arg(long)]
     pub native_sysroot: Option<PathBuf>,

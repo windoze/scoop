@@ -34,7 +34,7 @@ static ScoopEhByteRange scoop_eh_runtime_lsda_range(const uint8_t *bytes, uintpt
         return (ScoopEhByteRange){.bytes = bytes, .length = 1};
     }
     bool has_type_table = bytes[1] != SCOOP_EH_DW_PE_OMIT;
-    if (has_type_table && bytes[1] != SCOOP_EH_DW_PE_PCREL_SDATA4_INDIRECT) {
+    if (has_type_table && bytes[1] != SCOOP_EH_TTYPE_ENCODING) {
         return (ScoopEhByteRange){.bytes = bytes, .length = 2};
     }
     if (!has_type_table && bytes[2] != SCOOP_EH_DW_PE_ULEB128) {
@@ -124,3 +124,10 @@ _Unwind_Reason_Code scoop_eh_personality(int version, _Unwind_Action actions,
     }
     return _URC_CONTINUE_UNWIND;
 }
+
+#if defined(_WIN32)
+EXCEPTION_DISPOSITION scoop_eh_personality_seh(EXCEPTION_RECORD *exception, void *frame,
+                                               CONTEXT *context, DISPATCHER_CONTEXT *dispatcher) {
+    return _GCC_specific_handler(exception, frame, context, dispatcher, scoop_eh_personality);
+}
+#endif

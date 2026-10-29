@@ -81,7 +81,7 @@ private class AsyncTcpConnectHostTest {
                 assertEquals(1L, error.attempts.size)
                 assertEquals(address, error.attempts[0L].address)
                 val failure = error.attempts[0L].cause as PlatformException
-                assertTrue(failure.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+                assertTrue(failure.nativeError!!.domain == testSocketErrorDomain())
                 assertTrue(failure.nativeError!!.code > 0)
                 assertEquals(1L, error.resolutionFailures.size)
                 assertTrue(error.resolutionFailures[0L].family == AddressFamily.Ipv6)

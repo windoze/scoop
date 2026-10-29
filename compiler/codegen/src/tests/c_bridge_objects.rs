@@ -1,5 +1,8 @@
 use super::*;
 
+#[cfg(windows)]
+mod windows;
+
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 #[test]
 fn generated_c_unwind_bytes_have_boundaries_owned_by_the_bridge() {
@@ -186,19 +189,30 @@ fn generated_c_object_set_discards_all_partial_outputs_on_compiler_failure() {
 }
 
 fn bridge_module(count: u8) -> Module {
+    bridge_module_for_target(count, scoop_target_data::DARWIN_AARCH64)
+}
+
+fn bridge_module_for_target(count: u8, target: scoop_lir::LirTargetProfile) -> Module {
     let mut module = values_module();
+    module.meta = string_metadata_for(target);
     for seed in 1..=count {
-        install_test_native_function_contract(&mut module, seed);
+        let contract = native_function_contract_for_target(
+            seed,
+            c_signature(seed).signature().clone(),
+            target,
+        );
+        let entry = outbound_bridge_for_contract(&contract);
+        install_test_native_contract(&mut module, contract);
         module.extern_functions.alloc_c(scoop_lir::CExternFunction {
             call_mode: scoop_identity::CAbiCallMode::NativeSafe,
             identity: scoop_lir::ExternFunctionIdentity {
                 source_name: format!("bridge{seed}"),
-                native_symbol: format!("native_bridge_{seed}"),
+                native_symbol: format!("test_bridge_{seed}"),
                 library: "fixture".to_owned(),
                 calling_convention: scoop_lir::CallingConvention::Cdecl,
             },
             call_plan: scoop_lir::CAbiCallPlan::StorageBridge {
-                entry: Box::new(outbound_bridge(seed)),
+                entry: Box::new(entry),
                 result: scoop_identity::CResultAdaptation::Direct,
             },
             signature: scoop_lir::CFunctionType {

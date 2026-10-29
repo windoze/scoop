@@ -1,0 +1,23 @@
+schema = 1
+name = "windows-terminal-session"
+root = "consumer/Cone.toml"
+inputs = ["consumer", "host.py"]
+tools = ["scoop", "scoopc", "python"]
+targets = ["x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
+tags = ["windows", "terminal", "native", "libraries"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${fixture}/consumer", "--release", {each = "${link_args}"}, "--lockfile", "${work}/source.lock", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "console"
+argv = ["${python}", "${fixture}/host.py", "${build.result.output}"]
+exit = 0
+stdout = "windows terminal: passed\n"
+stderr = ""

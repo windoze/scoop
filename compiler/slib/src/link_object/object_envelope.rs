@@ -13,6 +13,7 @@ mod macho;
 pub enum ObjectEnvelopeFormatV1 {
     DarwinArm64,
     Elf64 { target: TargetProfileId },
+    CoffAmd64 { target: TargetProfileId },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -38,7 +39,8 @@ impl ValidatedObjectEnvelopeV1 {
     pub const fn target(&self) -> TargetProfileId {
         match self.format {
             ObjectEnvelopeFormatV1::DarwinArm64 => scoop_target_data::DARWIN_AARCH64_ID,
-            ObjectEnvelopeFormatV1::Elf64 { target, .. } => target,
+            ObjectEnvelopeFormatV1::Elf64 { target, .. }
+            | ObjectEnvelopeFormatV1::CoffAmd64 { target } => target,
         }
     }
     pub fn sections(&self) -> &[ObservedObjectSectionV1] {
@@ -56,6 +58,7 @@ impl ValidatedObjectEnvelopeV1 {
 pub enum ObjectSectionFlagsV1 {
     MachO(u32),
     Elf { section_type: u32, flags: u64 },
+    Coff { characteristics: u32 },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -114,6 +117,26 @@ pub enum ObjectSymbolAttributesV1 {
         info: u8,
         other: u8,
     },
+    Coff {
+        storage_class: u8,
+        symbol_type: u16,
+        auxiliary: CoffSymbolAuxiliaryV1,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CoffSymbolAuxiliaryV1 {
+    None,
+    Section {
+        selection: u8,
+        associative_section: Option<NonZeroU32>,
+    },
+    WeakExternal {
+        default_symbol: u32,
+        search: u32,
+    },
+    /// Occupied COFF symbol-table slot, never a relocation target.
+    AuxiliaryRecord,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -160,6 +183,7 @@ impl ObservedObjectSymbolV1 {
                 private_external, ..
             } => private_external,
             ObjectSymbolAttributesV1::Elf { other, .. } => other & 3 == object::elf::STV_HIDDEN,
+            ObjectSymbolAttributesV1::Coff { .. } => false,
         }
     }
 }
@@ -173,13 +197,18 @@ pub enum ObjectRelocationShapeV1 {
         addend: i64,
         width: u8,
     },
+    CoffAmd64 {
+        kind: u16,
+        target_symbol: u32,
+        width: u8,
+    },
 }
 
 impl ObjectRelocationShapeV1 {
     pub const fn width_bytes(self) -> u8 {
         match self {
             Self::DarwinArm64(shape) => shape.width_bytes(),
-            Self::ElfX86_64Rela { width, .. } => width,
+            Self::ElfX86_64Rela { width, .. } | Self::CoffAmd64 { width, .. } => width,
         }
     }
 }

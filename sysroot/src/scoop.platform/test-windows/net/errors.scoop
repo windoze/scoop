@@ -1,0 +1,54 @@
+package scoop.platform.net
+
+import scoop.platform.concurrent.Thread
+import scoop.platform.io.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.system.*
+import scoop.test.*
+
+private fun assertWinsock(error: PlatformException, code: Int) {
+    assertTrue(error.nativeError!!.domain == NativeErrorDomain.Winsock)
+    assertEquals(code, error.nativeError!!.code)
+    assertTrue(error.nativeError!!.systemCode == None)
+}
+
+@Test
+private class WindowsSocketErrorsTest {
+    @Test
+    fun failedCreationPreservesTheWinsockCodeAfterNativeCleanup() {
+        TcpListener.bind(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).use {
+            listener ->
+            assertWinsock(
+                assertFailsWith<PlatformException> { TcpListener.bind(listener.localAddress()) },
+                10048
+            )
+            Thread.start { listener.accept().use { it.readAllBytes() } }.use {
+                TcpStream.connect(listener.localAddress()).use {
+                    stream ->
+                    stream.shutdownOutput()
+                    assertWinsock(
+                        assertFailsWith<PlatformException> { stream.writeText("closed") },
+                        10058
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun oversizeDatagramsPreserveTheOriginalCodeAndUnreadBytes() {
+        UdpSocket.bind(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).use {
+            socket -> NativeByteBuffer.allocate(70000L).use {
+                buffer ->
+                buffer.writeBytes(Array<Byte>(70000L) { 1.toByte() })
+                assertWinsock(
+                    assertFailsWith<PlatformException> {
+                        socket.sendTo(buffer, socket.localAddress())
+                    },
+                    10040
+                )
+                assertEquals(70000L, buffer.readableBytes)
+            }
+        }
+    }
+}

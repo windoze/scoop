@@ -63,6 +63,7 @@ fn emit_llvm_module_with_surface<'ctx, R>(
     context: &'ctx Context,
     module: &Module,
     surface: &scoop_lir::ObjectSymbolSurfaceV1,
+    symbol_plans: &crate::symbol_plan::SymbolPlanIndex,
     runtime_scan_plans: &scoop_lir::StrongCallableRuntimeScanPlanSetV1,
     machine: &TargetMachine,
     profile: ValidatedBackendProfile,
@@ -194,7 +195,7 @@ fn emit_llvm_module_with_surface<'ctx, R>(
             &llvm,
             &module.structs,
             &module.enums,
-            managed_address_space,
+            profile,
             callable,
         )?;
     }
@@ -292,6 +293,7 @@ fn emit_llvm_module_with_surface<'ctx, R>(
     }
     let module_ctx = ModuleCtx {
         debug: debug.as_ref(),
+        profile,
         // Snapshot forwarding regressed AArch64 reference-copy kernels.
         reuse_interface_values: profile.optimization() == scoop_lir::OptimizationMode::Release
             && machine.get_target().get_name() == c"x86-64",
@@ -352,9 +354,12 @@ fn emit_llvm_module_with_surface<'ctx, R>(
             )?;
         }
     }
+    if module.meta.target_profile.native_object_format() == scoop_lir::NativeObjectFormat::Coff64 {
+        crate::coff_llvm::prepare(&llvm, symbol_plans)?;
+    }
     if module.meta.target_profile.native_object_format() == scoop_lir::NativeObjectFormat::Elf64 {
         if !matches!(selection, StrongObjectEmissionSelection::CallableBody(_)) {
-            crate::elf_llvm::prepare(&llvm, surface)?;
+            symbol_plans.prepare(&llvm)?;
         }
         for &global in external_type_tds.values() {
             crate::elf_llvm::apply_visibility(global);
@@ -456,10 +461,12 @@ pub(crate) fn emit_llvm_module<'ctx>(
         .map_err(|error| CodegenError(format!("strong symbol projection failed: {error}")))?;
     let runtime_scans = scoop_lir::StrongCallableRuntimeScanPlanSetV1::from_module(module)
         .map_err(|error| CodegenError(format!("callable runtime scan planning failed: {error}")))?;
+    let symbol_plans = crate::symbol_plan::SymbolPlanIndex::new(&surface);
     emit_llvm_module_with_surface(
         context,
         module,
         &surface,
+        &symbol_plans,
         &runtime_scans,
         machine,
         profile,

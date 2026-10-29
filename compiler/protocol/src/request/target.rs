@@ -15,6 +15,7 @@ enum ToolchainSelection<P> {
     Discover {
         compiler: Option<P>,
         native_sysroot: Option<P>,
+        cxx_compiler: Option<P>,
     },
     Resolved(Vec<u8>),
 }
@@ -34,18 +35,29 @@ impl TargetSelectionRequestV1 {
             toolchain: ToolchainSelection::Discover {
                 compiler: None,
                 native_sysroot: None,
+                cxx_compiler: None,
             },
         })
     }
 
     pub fn with_c_toolchain(
+        self,
+        compiler: Option<HostPathCarrier>,
+        native_sysroot: Option<HostPathCarrier>,
+    ) -> Self {
+        self.with_native_toolchain(compiler, native_sysroot, None)
+    }
+
+    pub fn with_native_toolchain(
         mut self,
         compiler: Option<HostPathCarrier>,
         native_sysroot: Option<HostPathCarrier>,
+        cxx_compiler: Option<HostPathCarrier>,
     ) -> Self {
         self.toolchain = ToolchainSelection::Discover {
             compiler,
             native_sysroot,
+            cxx_compiler,
         };
         self
     }
@@ -69,6 +81,13 @@ impl TargetSelectionRequestV1 {
     pub fn native_sysroot(&self) -> Option<&HostPathCarrier> {
         match &self.toolchain {
             ToolchainSelection::Discover { native_sysroot, .. } => native_sysroot.as_ref(),
+            ToolchainSelection::Resolved(_) => None,
+        }
+    }
+
+    pub fn cxx_compiler(&self) -> Option<&HostPathCarrier> {
+        match &self.toolchain {
+            ToolchainSelection::Discover { cxx_compiler, .. } => cxx_compiler.as_ref(),
             ToolchainSelection::Resolved(_) => None,
         }
     }
@@ -101,12 +120,17 @@ impl DecodedTargetSelectionRequestV1 {
             ToolchainSelection::Discover {
                 compiler,
                 native_sysroot,
-            } => request.with_c_toolchain(
+                cxx_compiler,
+            } => request.with_native_toolchain(
                 compiler
                     .map(DecodedHostPathCarrier::validate)
                     .transpose()
                     .map_err(ProtocolValidationError::HostPath)?,
                 native_sysroot
+                    .map(DecodedHostPathCarrier::validate)
+                    .transpose()
+                    .map_err(ProtocolValidationError::HostPath)?,
+                cxx_compiler
                     .map(DecodedHostPathCarrier::validate)
                     .transpose()
                     .map_err(ProtocolValidationError::HostPath)?,
@@ -134,11 +158,13 @@ fn encode(
         ToolchainSelection::Discover {
             compiler,
             native_sysroot,
+            cxx_compiler,
         } => {
-            encoder.array(3)?;
+            encoder.array(4)?;
             encoder.unsigned(0)?;
             encode_path(encoder, compiler)?;
-            encode_path(encoder, native_sysroot)
+            encode_path(encoder, native_sysroot)?;
+            encode_path(encoder, cxx_compiler)
         }
         ToolchainSelection::Resolved(record) => {
             encoder.array(2)?;
@@ -168,10 +194,11 @@ impl WireDecode for DecodedTargetSelectionRequestV1 {
                 let count = d.array()?;
                 match d.index(0, Decoder::unsigned)? {
                     0 => {
-                        crate::framing::expect_sum_length(d, count, 3)?;
+                        crate::framing::expect_sum_length(d, count, 4)?;
                         Ok(ToolchainSelection::Discover {
                             compiler: d.index(1, decode_path)?,
                             native_sysroot: d.index(2, decode_path)?,
+                            cxx_compiler: d.index(3, decode_path)?,
                         })
                     }
                     1 => {

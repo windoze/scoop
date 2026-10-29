@@ -48,19 +48,43 @@ impl WireEncode for BackendProfileContract {
             match self.artifact_inspection {
                 crate::NativeObjectFormat::MachO64 => 1,
                 crate::NativeObjectFormat::Elf64 => 2,
+                crate::NativeObjectFormat::Coff64 => 3,
             },
         )?;
         if let Some(frame) = self.machine_frame {
-            encode_unsigned_field(encoder, 26, 1)?;
+            let (tag, sp, fp, slot, record) = match frame {
+                BackendMachineFrameV1::FixedFrame {
+                    stack_pointer_register,
+                    frame_pointer_register,
+                    root_slot_bytes,
+                    frame_record_bytes,
+                } => (
+                    1,
+                    stack_pointer_register,
+                    frame_pointer_register,
+                    root_slot_bytes,
+                    Some(frame_record_bytes),
+                ),
+                BackendMachineFrameV1::WindowsSeh {
+                    stack_pointer_register,
+                    frame_pointer_register,
+                    root_slot_bytes,
+                } => (
+                    2,
+                    stack_pointer_register,
+                    frame_pointer_register,
+                    root_slot_bytes,
+                    None,
+                ),
+            };
+            encode_unsigned_field(encoder, 26, tag)?;
             encoder.field(27)?;
-            encoder.map(4)?;
-            for (field, value) in [
-                (1, u64::from(frame.stack_pointer_register)),
-                (2, u64::from(frame.frame_pointer_register)),
-                (3, u64::from(frame.root_slot_bytes)),
-                (4, u64::from(frame.frame_record_bytes)),
-            ] {
+            encoder.map(if record.is_some() { 4 } else { 3 })?;
+            for (field, value) in [(1, u64::from(sp)), (2, u64::from(fp)), (3, u64::from(slot))] {
                 encode_unsigned_field(encoder, field, value)?;
+            }
+            if let Some(bytes) = record {
+                encode_unsigned_field(encoder, 4, u64::from(bytes))?;
             }
         }
         // Qualified ordinary passes and final physical GC/EH emission plans.

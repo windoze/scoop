@@ -10,7 +10,7 @@ def run(path, expected):
     result = subprocess.run([path], capture_output=True, timeout=30)
     assert result.returncode == expected, (result.returncode, result.stderr)
     assert result.stdout == b"", result.stdout
-    return result.stderr.decode()
+    return result.stderr.decode().replace("\r\n", "\n")
 
 
 history = run(sys.argv[1], 0)
@@ -37,7 +37,12 @@ for report in [reports[1], uncaught, trap]:
     assert report.count("  at ") >= 2, report
 
 for trace in [reports[1], uncaught, trap]:
-    assert re.search(r"\b(?:uuid|build-id)=[0-9a-f]+, link=0x[0-9a-f]+", trace), trace
+    identity = (
+        "module-id unavailable"
+        if sys.platform == "win32" and sys.argv[4] == "none"
+        else r"(?:uuid|build-id|codeview)=[0-9a-f]+"
+    )
+    assert re.search(identity + r", link=0x[0-9a-f]+", trace), trace
     pc, query = re.search(r"\(pc=0x([0-9a-f]+), query=0x([0-9a-f]+)\)", trace).groups()
     assert int(pc, 16) - int(query, 16) == 1, trace
 

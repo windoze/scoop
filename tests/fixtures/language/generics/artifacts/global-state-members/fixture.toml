@@ -2,7 +2,7 @@ schema = 1
 name = "global-state-members"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../global-state/provider.scoop", "generic-member-members", "../../../global-state/members.scoop", "generic-member-downstream-members", "../../../global-state/downstream.scoop", "runtime-fixture", "../../../imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "generic_global_state_republishes_and_executes_from_artifacts", "language"]
 
 [[steps]]

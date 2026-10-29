@@ -11,25 +11,55 @@ import scoop.text.toHexString
 private class OpenSslServerTests {
     @Test
     fun `OpenSSL CLI clients verify and exchange data with Scoop TLS servers`() {
-        for (version in [TlsVersion.Tls12, TlsVersion.Tls13]) opensslClient(version)
+        for (version in [TlsVersion.Tls12, TlsVersion.Tls13])
+            opensslClient(version)
     }
 }
 
 private fun opensslClient(version: TlsVersion) {
-    InteropDirectory().use { tree ->
+    InteropDirectory().use {
+        tree ->
         tree.certificates()
         val protocol = "proto-client".toByteArray().toArray()
-        serverContext(TlsOptions(version, version, [protocol])).use { context ->
-            TcpListener.bind(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).use { listener ->
-                val arguments: Array<String> = ["s_client", "-connect", "127.0.0.1:" + listener.localAddress().port.toString(),
-                    "-CAfile", tree.child("root.pem").decodeUtf8(), "-verify_return_error", "-verify_hostname", "localhost",
-                    "-servername", "localhost", "-alpn", "proto-client", "-quiet", "-ign_eof",
-                    if (version == TlsVersion.Tls12) "-tls1_2" else "-tls1_3"]
-                val child = peerCommand("openssl", arguments, Stdio.Pipe).spawn(searchPath = true)
+        serverContext(TlsOptions(version, version, [protocol])).use {
+            context -> TcpListener.bind(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).use {
+                listener ->
+                val arguments: Array<String> =
+                    [
+                        "s_client",
+                        "-connect",
+                        "127.0.0.1:" + listener.localAddress().port.toString(),
+                        "-CAfile",
+                        "root.pem",
+                        "-verify_return_error",
+                        "-verify_hostname",
+                        "localhost",
+                        "-servername",
+                        "localhost",
+                        "-alpn",
+                        "proto-client",
+                        "-quiet",
+                        "-ign_eof",
+                        if (version == TlsVersion.Tls12)
+                            "-tls1_2"
+                        else
+                            "-tls1_3"
+                    ]
+                val child =
+                    peerCommand(
+                        "openssl",
+                        arguments,
+                        Stdio.Pipe,
+                        workingDirectory = tree.path
+                    ).spawn(searchPath = true)
                 try {
                     Thread.start {
-                        TlsStream.takeOwnershipAsServer(listener.accept(), context).use { server ->
-                            assertEquals(protocol.toHexString(), server.connectionInfo.alpn!!.toHexString())
+                        TlsStream.takeOwnershipAsServer(listener.accept(), context).use {
+                            server ->
+                            assertEquals(
+                                protocol.toHexString(),
+                                server.connectionInfo.alpn!!.toHexString()
+                            )
                             assertEquals("from peer", server.readLine()!!)
                             server.writeText("from scoop\n")
                             server.shutdownGracefully()
@@ -37,9 +67,16 @@ private fun opensslClient(version: TlsVersion) {
                     }.use {
                         val output = child.communicate(Some("from peer\n".toByteArray().toArray()))
                         peerSucceeded(output)
-                        assertEquals("from scoop\n".toByteArray().toHexString(), output.stdout.toHexString())
+                        assertEquals(
+                            "from scoop\n".toByteArray().toHexString(),
+                            output.stdout.toHexString()
+                        )
                     }
-                } finally { child.kill(); child.wait(); child.dispose() }
+                } finally {
+                    child.kill();
+                    child.wait();
+                    child.dispose()
+                }
             }
         }
     }

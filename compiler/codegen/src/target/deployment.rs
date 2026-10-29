@@ -5,6 +5,7 @@ use scoop_lir::{CBridgePlatformContractV1, CBridgeToolchainContractV1, DarwinPac
 pub(super) enum ObjectDeployment {
     Darwin(DarwinPackedVersionV1),
     Linux,
+    Windows,
 }
 
 impl ObjectDeployment {
@@ -27,6 +28,7 @@ impl ObjectDeployment {
                 Self::Darwin(deployment.minimum_os())
             }
             CBridgePlatformContractV1::Linux { .. } => Self::Linux,
+            CBridgePlatformContractV1::Windows { .. } => Self::Windows,
         })
     }
 
@@ -34,6 +36,7 @@ impl ObjectDeployment {
         match self {
             Self::Darwin(version) => format!("aarch64-apple-macosx{version}"),
             Self::Linux => canonical.into(),
+            Self::Windows => canonical.into(),
         }
     }
 }

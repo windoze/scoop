@@ -48,8 +48,20 @@ fn elf_native_files_and_archives_index_member_requirements() {
         let NativeContent::Archive(members) = &file.content else {
             panic!("expected archive")
         };
-        assert!(members[0].index.definitions.contains_key("api"));
-        assert!(members[1].index.requirements.contains("__cxa_throw"));
+        assert!(
+            members[0]
+                .object_index()
+                .unwrap()
+                .definitions
+                .contains_key("api")
+        );
+        assert!(
+            members[1]
+                .object_index()
+                .unwrap()
+                .requirements
+                .contains("__cxa_throw")
+        );
         let thin = path.join("libthin.a");
         checked(Command::new("ar").arg("crsT").arg(&thin).arg(&object));
         let failure = match locate::read(&thin, NativeFileKind::Archive, &profile, false) {

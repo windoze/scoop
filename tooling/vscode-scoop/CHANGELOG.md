@@ -12,7 +12,7 @@
 
 ## 0.3.0
 
-- Add native Scoop debugging with the bundled Python-enabled LLVM 22 lldb-dap.
+- Add native Scoop debugging with the bundled Python-enabled LLVM 22 adapter, published as `scoop-lldb-dap` to avoid PATH conflicts with other LLVM installations.
 - Build full debug targets and test executables through the compiler's JSON output.
 - Add read-only String, array, enum and object formatters, launch/attach configurations,
   source mapping, terminal support and commands for debugging the current file.

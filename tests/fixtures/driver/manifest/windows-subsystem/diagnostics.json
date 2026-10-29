@@ -1,0 +1,14 @@
+[
+  {
+    "code": "SCOOP_PACKAGE_PREPARE",
+    "message": "${manifest.canonical}: windows.subsystem must be \"console\" or \"gui\"",
+    "notes": [],
+    "origin": {
+      "end": 130,
+      "kind": "host",
+      "path": "${manifest.canonical}",
+      "start": 125
+    },
+    "severity": "error"
+  }
+]

@@ -18,6 +18,13 @@ pub(crate) enum RequestedKind {
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(remote = "scoop_identity::WindowsSubsystem")]
+pub(crate) enum Subsystem {
+    Console,
+    Gui,
+}
+
+#[derive(Serialize, Deserialize)]
 #[serde(remote = "NativeLibraryKind")]
 pub(crate) enum LibraryKind {
     TargetDefault,

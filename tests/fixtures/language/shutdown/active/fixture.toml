@@ -1,14 +1,14 @@
 schema = 1
 name = "shutdown-active"
 root = "program.scoop"
-inputs = ["program.scoop", "../native.c"]
+inputs = ["program.scoop", "../native.c", "../../callback/threading.h"]
 tools = ["scoop", "scoop-link", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["ffi", "shutdown", "language"]
 variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
 [[steps]]
 name = "native"
-argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-pthread", "-O2", "-Wall", "-Wextra", "-Werror", "-I", "${runtime}/include", "-c", "${fixture}/../native.c", "-o", "${work}/native.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-I", "${runtime}/include", "-c", "${fixture}/../native.c", "-o", "${work}/native.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -37,14 +37,14 @@ checks = []
 
 [[steps]]
 name = "link"
-argv = ["${scoop-link}", {"each" = "${link_args}"}, "--library-path", "${work}", "--root-slib", "${build.result.root.path}", {"each" = "${build.result.dependencies}", "field" = "path", "prefix" = "--dep-slib"}, "--runtime-objects", "${build.result.runtime_index}", "-o", "${work}/relinked", "--cache-dir", "${cache}", "--sysroot", "${sysroot}"]
+argv = ["${scoop-link}", {"each" = "${link_args}"}, "--library-path", "${work}", "--root-slib", "${build.result.root.path}", {"each" = "${build.result.dependencies}", "field" = "path", "prefix" = "--dep-slib"}, "--runtime-objects", "${build.result.runtime_index}", "-o", "${work}/relinked.exe", "--cache-dir", "${cache}", "--sysroot", "${sysroot}"]
 exit = 0
 stdout = "link-plan ${build.result.link_plan_fingerprint}\n"
 stderr = ""
 
 [[steps]]
 name = "run"
-argv = ["${work}/relinked"]
+argv = ["${work}/relinked.exe"]
 timeout = 30
 exit = 1
 stdout = "buffered-output"

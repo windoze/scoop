@@ -12,7 +12,7 @@
 
 M63 复用 `compiler/scoop/src/graph.rs` 的 `ResolvedBuildGraph` 保存 root、节点、边和依赖优先顺序，`schedule.rs` 调度单 Cone 编译。普通项目的发现和选择已移至 PM；driver 的 `discovery/` 将精确图投影到现有调度，只保留独立单文件的产物查找。
 
-原始包声明与已解析单 Cone 配置已分开，machine protocol 18 用 `ExpandedCone` 交付已绑定配置，child 不再读取原 manifest。独立 PM 已能准备完整图，普通构建入口已消费该结果；`compiler/analysis/src/workspace/` 也已通过离线 metadata 接入锁定项目模型。`scoopc` 不读取包声明或 lock，也不根据版本要求匹配产物；旧的独立 manifest 入口已删除，普通 Cone 统一由 `scoop` 传递具体编译参数。
+原始包声明与已解析单 Cone 配置已分开，machine protocol 19 用 `ExpandedCone` 交付已绑定配置，并保留 Windows 分支的 C++ driver locator，child 不再读取原 manifest。独立 PM 已能准备完整图，普通构建入口已消费该结果；`compiler/analysis/src/workspace/` 也已通过离线 metadata 接入锁定项目模型。`scoopc` 不读取包声明或 lock，也不根据版本要求匹配产物；旧的独立 manifest 入口已删除，普通 Cone 统一由 `scoop` 传递具体编译参数。
 
 ```mermaid
 flowchart TD
@@ -95,7 +95,7 @@ PM 的 library 入口供自身命令与单元测试使用；构建 driver 通过
 
 建立 `scoop-pm`、`scoop pm` 转发和 prepare 数据合同。先用 path/sysroot/artifact 的精确图连接现有调度；将已展开 Cone 配置传到 child。当前 manifest 的版本要求开始区分声明与已解析 coordinate，既有“固定版本”意图统一改写为 `=...`。
 
-当前进度：自动 manifest 命令与协议 18 的已展开 child 输入已接通，单文件和 artifact-only link 保持独立。`scoopc` 的独立 manifest 入口与重复清单加载已删除，对应调用者和测试迁至普通 `scoop` 或具体编译请求；不实现直接 `scoopc` 的版本要求匹配。默认 build/run 在缺少 lock 时自动调用 PM 解析并生成，locked/frozen 才禁止创建。仓库内显式 artifact 声明已迁为精确要求；非法声明用例保留其原始测试意图。
+当前进度：自动 manifest 命令与协议 19 的已展开 child 输入已接通，单文件和 artifact-only link 保持独立。`scoopc` 的独立 manifest 入口与重复清单加载已删除，对应调用者和测试迁至普通 `scoop` 或具体编译请求；不实现直接 `scoopc` 的版本要求匹配。默认 build/run 在缺少 lock 时自动调用 PM 解析并生成，locked/frozen 才禁止创建。仓库内显式 artifact 声明已迁为精确要求；非法声明用例保留其原始测试意图。
 
 验收：PM 可单独 build/test，无 LLVM stage 依赖；独立进程产生完整图；`scoop` 消费 lock 的本地投影完成真实构建，`scoopc` 只消费其精确参数。普通 manifest 场景迁到 `scoop` fixture，低层 direct/support 错误通过具体编译请求保留代表性测试；不在 fixture 中另写清单解析器，不为旧低层入口维护版本语义。原始 manifest 和源码保持在位，以真实调用验证继承与版本选择只发生在 PM。
 

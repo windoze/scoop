@@ -30,13 +30,13 @@ void scoop_gc_mark_queue_push(ScoopGcMarkWorker *worker, ScoopGcMarkTask task) {
     /* The parent remains outstanding until every child has been published. */
     size_t previous = atomic_fetch_add_explicit(&scoop_gc_marker.pending, 1, memory_order_relaxed);
     ScoopGcMarkQueue *queue = &worker->queue;
-    pthread_mutex_lock(&queue->lock);
+    scoop_runtime_platform_mutex_lock(&queue->lock);
     if (queue->count == queue->capacity) {
         grow_queue(queue);
     }
     queue->tasks[queue_index(queue, queue->first + queue->count)] = task;
     queue->count++;
-    pthread_mutex_unlock(&queue->lock);
+    scoop_runtime_platform_mutex_unlock(&queue->lock);
     /* A lone successor can be consumed by its active publisher without waking the pool. */
     if (previous >= 2) {
         scoop_gc_mark_notify_work(false);
@@ -58,9 +58,9 @@ void scoop_gc_mark_enqueue_remembered(void) {
             continue;
         }
         scoop_gc_mark_queue_push(&scoop_gc_marker.workers[owner], (ScoopGcMarkTask){
-            .kind = SCOOP_MARK_DIRTY_TASK,
-            .data.dirty.group = group,
-        });
+                                                                      .kind = SCOOP_MARK_DIRTY_TASK,
+                                                                      .data.dirty.group = group,
+                                                                  });
         if (++owner == scoop_gc_marker.active_workers) {
             owner = 0;
         }
@@ -68,7 +68,7 @@ void scoop_gc_mark_enqueue_remembered(void) {
 }
 
 static bool take(ScoopGcMarkQueue *queue, bool steal, ScoopGcMarkTask *task) {
-    pthread_mutex_lock(&queue->lock);
+    scoop_runtime_platform_mutex_lock(&queue->lock);
     bool found = queue->count != 0;
     if (found) {
         size_t index = steal ? queue->first : queue_index(queue, queue->first + queue->count - 1);
@@ -78,7 +78,7 @@ static bool take(ScoopGcMarkQueue *queue, bool steal, ScoopGcMarkTask *task) {
         }
         queue->count--;
     }
-    pthread_mutex_unlock(&queue->lock);
+    scoop_runtime_platform_mutex_unlock(&queue->lock);
     return found;
 }
 

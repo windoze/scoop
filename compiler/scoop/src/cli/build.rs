@@ -61,9 +61,7 @@ pub(super) fn requests(
     )?;
     let compiler = match args.scoopc {
         Some(path) => absolute(&cwd, path)?,
-        None => scoop_toolchain::installed_executable()
-            .map_err(config)?
-            .with_file_name(format!("scoopc{}", std::env::consts::EXE_SUFFIX)),
+        None => scoop_toolchain::installed_host_tool("scoopc").map_err(config)?,
     };
     let (c_toolchain, mut final_link) = args.native.resolve(&cwd, &sysroot)?;
     final_link.emit_debug_file |= debug_info != scoop_lir::DebugInfoLevel::None;

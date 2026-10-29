@@ -26,6 +26,14 @@ IO 端点、文件／进程观察权和 native buffer 使用 core Closeable.clos
 
 OsString 可以保存任意字节，包括 NUL。实际进入 C 字符串位置的 API 在调用前拒绝内嵌 NUL；环境变量名另须非空且不含 `=`。拒绝抛 IllegalArgumentException，不能静默截断或改写输入。
 
+Windows 原生字符串需要无损保留全部 UTF-16 code unit，包括非配对 surrogate。`OsString` 增加以下显式转换，已有字节工厂与 UTF-8 解码合同保持不变：
+
+- `fromUtf16(value: List<UShort>): OsString` 复制输入并使用 [WTF-8](https://wtf-8.codeberg.page/) 表示：配对 surrogate 编码为一个普通 UTF-8 scalar，非配对 surrogate 保留其三字节编码，NUL 也保留。
+- `toUtf16(): Array<UShort>` 将 UTF-8／WTF-8 转成独立 code-unit 数组，不替换非配对 surrogate。非法或非最短字节序列、超过 U+10FFFF 的值，以及分别编码的相邻高／低 surrogate 对，抛 CharacterCodingException；byteOffset 指向该非法序列的首字节。
+- 两个转换在所有 target 上可用，互转保留任意 UTF-16 输入。有效 Unicode 的存储字节与 `fromString` 相同；相等和 hash 继续只取决于保存的字节。任意 POSIX 字节不能保证可转换为 UTF-16。
+
+Windows OS 返回的原生名称使用上述无损表示；进入 Windows wide API 时需可转换为 UTF-16，不经过 ANSI code page 或有损 String。这个系统字符串表示不扩展 managed `String` 的 Unicode scalar 合同，也不放宽程序启动参数的严格解码规则。具体 Windows OS 接口的实施与验收见 [Windows targets](../windows-targets/DESIGN.md)。
+
 ### 2.2 Path
 
 `scoop.platform.fs.Path` 是不可变 final class，实现 `Equals<Path>` 和 `Hash`。`fromString(String)` 与 `fromOsString(OsString)` 工厂保留原始字节并拒绝 NUL，不查询文件系统。相等和 hash 比较保存的字节，不折叠大小写、分隔符或 symlink。
@@ -43,11 +51,21 @@ OsString 可以保存任意字节，包括 NUL。实际进入 C 字符串位置�
 
 词法归一化不解析 symlink，不保证保持 symlink 路径的 OS 解析结果，不是权限检查。canonicalize 是后续文件系统 API 的显式操作。相对路径在实际 OS 调用时按当时的 cwd 解析。
 
+以上表格描述 POSIX 词法规则。Windows 按目标而非宿主使用以下规则，构造仍只拒绝 NUL，不访问文件系统或替 OS 检查名称是否合法：
+
+- 普通路径同时识别 `/` 和 `\` 分隔符。`C:\a`、完整 UNC `\\server\share\a` 是 absolute；`C:a` 为指定盘符的相对路径，`\a`／`/a` 为当前盘符的 rooted 路径，二者的 isAbsolute 均为 false。
+- 盘符和 UNC server/share 属于前缀，components 不包含前缀或根。fileName／parent 不越过前缀或根；`C:a` 的 parent 为 `C:`，`C:\a` 的 parent 为 `C:\`，UNC 根没有 parent。
+- resolve 的带前缀 child 替换 base，包括 drive-relative child；没有前缀但 rooted 的 child 保留 base 的前缀并替换其余内容。普通 relative child 以 `\` 连接，只有 base 恰为 `C:` 一类 drive-relative 前缀时不插入分隔符。空 child 保留 base。
+- normalizeLexically 保留盘符／UNC 前缀，使用 `\` 连接组件，消除重复分隔符和 `.`，折叠 `..`；rooted 路径不越过根，drive-relative 路径保留未配对 `..`。空的普通 relative 结果为 `.`；只剩 drive-relative 前缀时保留该前缀。
+- `\\?\` 与 `\\.\` 命名空间路径保留前缀，只将 `\` 作为分隔符；前者识别 drive 与 `UNC\server\share`，其他名称以命名空间后的首组件作为前缀。其 normalizeLexically 返回原路径，避免改写交给 OS 的字面名称。向这种 base 连接普通 child 时，将 child 的分隔符写为 `\`，不折叠其 dot 组件。比较与 hash 始终使用原始字节，不把不同拼写当成相等路径。
+
 ## 3. 系统错误
 
 `scoop.platform.system.PlatformErrorKind` 包含 NotFound、AlreadyExists、PermissionDenied、NotDirectory、IsDirectory、InvalidInput、NoMemory、NoSpace、BrokenPipe、ConnectionRefused、ConnectionReset、AddressInUse、AddressUnavailable、TimedOut、Interrupted、WouldBlock、Unsupported、Other。未知错误归 Other，必须保留原始错误数据；Unsupported 仅用于 OS 实际报告不支持。
 
-`NativeErrorDomain` 区分 PosixErrno 与 AddressResolution。普通值类型 `NativeError(domain, code, systemCode: Int? = None)` 保存原始 Int 错误码；AddressResolution 的 EAI_SYSTEM 还保存同次失败的 errno。只读属性 `kind` 依据目标系统的实际常量分类，不假设两个 target 的 errno／EAI 数值相同。pthread 直接返回的 errno 风格错误属于 PosixErrno，不能改读线程 errno。
+`NativeErrorDomain` 区分 PosixErrno、AddressResolution、Win32、Winsock 与 NtStatus。普通值类型 `NativeError(domain, code, systemCode: Int? = None)` 保存原始 Int 错误码；AddressResolution 的 POSIX EAI_SYSTEM 还保存同次失败的 errno，Windows 保存地址解析函数直接返回的 WSA／EAI 码，不另取 errno。只读属性 `kind` 依据目标系统的实际常量分类，不假设两个 target 的 errno／EAI 数值相同；当前目标没有的错误域分类为 Other，仍保存原值。pthread 直接返回的 errno 风格错误属于 PosixErrno，不能改读线程 errno。NtStatus 保存 BCrypt 等 API 直接返回的 NTSTATUS 全部 32 位，不将它当作 GetLastError 或翻译成另一错误码；未知值仍归 Other。
+
+Win32 保存失败调用后立即取得的 GetLastError，Winsock 保存立即取得的 WSAGetLastError；DWORD 的完整位模式保存在 Int 中。native shim 在任何清理、回调或返回 managed 代码之前保存错误，不将 Windows 错误翻译成伪造 errno，也不通过后续独立 FFI 调用重新读取线程错误。Windows CRT 本身产生的 errno 仍属于 PosixErrno。EOF、pending、取消和 close 是具体操作协议的结果，不因有相应 native code 就一律当成失败。错误域分类不会改写原始 code。
 
 asyncio 的 syscall 与 io_uring 负结果均转换为 PosixErrno；保留实际 errno，不再提供失去消费者的 Libuv 错误域。EOF 与主动取消／关闭由 I/O 协议解释。
 
@@ -125,6 +143,8 @@ BufferedSource 不把未读数据交回 endpoint；BufferedSink.close 尝试 flu
 
 standardInput、standardOutput、standardError 是使用调用时 fd 0/1/2 的借用视图，不实现 Closeable。duplicateStandardInput/Output/Error 返回独立拥有、close-on-exec 的 File 副本，与原描述符共享 OS 文件位置／状态，关闭副本不关闭标准 fd。标准流重定向后，后续操作使用新 fd；与 core libc stdio 混用时需要显式 flush，不承诺自动排序。
 
+Windows 的借用视图在每次操作时调用 GetStdHandle，使用实际输入／输出／错误 HANDLE；它们与 CRT fd 分开建模，不依赖二者数值或重定向状态相同。没有标准句柄（例如 GUI 进程）时，正长度传输与 duplicate 报 Win32 ERROR_INVALID_HANDLE，不分配 console。零长度传输保持字节协议，不访问 OS。DuplicateHandle 创建不可继承的独立 owner，仍共享底层文件位置；CloseHandle 不影响原标准句柄。ReadFile／WriteFile 传递字节，不执行 CRT text-mode 换行转换；与 core stdio 混用的 flush 与排序责任保持。
+
 ### 5.1 终端库共用的 native TTY 资源
 
 M59 的同步 terminal 与 asyncio TTY 共用 platform 中的 native TTY 实现，
@@ -138,15 +158,24 @@ TTY 与通知 fd 属于同一个 opaque owner；同步 poll 和异步平台后�
 再恢复 termios 并释放 owner。每进程独占状态由该共同实现维护，因此同步与
 异步会话不能各自成功打开一个竞争读取者。该限制不约束普通 stdout 输出。
 
+Windows 使用同一 opaque owner 管理独立 CONIN$／CONOUT$ HANDLE、console 模式
+快照、UTF-16 输入分片与 resize 通知。同步终端与后续 IOCP TTY 适配共用这些实际
+helper，不把 HANDLE 当作 fd；managed 调用以 C-layout 结果同次取得值与原 Win32
+错误，POSIX wrapper 同次保存 errno。模式、编码和恢复规则见终端规范第 7 节。
+
 ## 6. 文件与目录
 
 ### 6.1 File 与 OpenOptions
 
 `scoop.platform.fs.File` 为 final class，实现 ByteSource、ByteSink、Closeable。`File.open(path, options: OpenOptions = OpenOptions())` 创建 close-on-exec fd。OpenOptions 为值类型，默认 read=true，其余 write/append/create/createNew/truncate 标志默认为 false，mode 默认为 0666；至少允许一种读写，append/truncate/create/createNew 要求 write，append 与 truncate 冲突，mode 只允许 POSIX 07777 位。createNew 使用原生排他创建，优先于 create；实际 mode 仍受 umask 影响。
 
+Windows File 独占 CreateFileW 返回的完整宽度 HANDLE，与 SOCKET、CRT fd 分开表示；路径使用第 2 节的无损 UTF-16 转换。打开不允许继承，允许其他打开者共享读／写／删除；OS、ACL 或其他打开者仍可拒绝操作。createNew／create／truncate 分别沿 CREATE_NEW、OPEN_ALWAYS 或 CREATE_ALWAYS／TRUNCATE_EXISTING；append 只授予追加数据权限，seek 不改变后续写入必须追加的行为。mode 仍检查合法位，但不将 POSIX 位模拟为 ACL；新文件沿系统默认 ACL，mode 不改变 Windows 权限。
+
 除字节协议外，File 提供 position()、size() 外部查询函数与 isClosed 状态属性，List<Byte> 写入／MutableArray<Byte> 读取重载，以及 seek(position: Long)、truncate(size: Long)、syncData、syncAll、metadata、duplicate、close。seek 为绝对非负偏移，truncate 非负且不改变当前文件位置；append 通过 OS append 标志实现。flush 对原始 fd 无用户态缓冲可提交，但仍检查 open 状态。同步操作都保活 owner 直到 native 返回和退出清理，不能仅保留整数 fd。与关闭不竞争、各次使用独立或已同步 buffer 时，同一 File 允许 OS 支持的并发 IO；共享偏移与数据顺序遵守 OS 行为。活动调用期间重入 close 会拒绝，但关闭／配置改变与 IO 的跨线程竞争仍须调用方同步，不提供通过 close 取消阻塞 IO 的保证。
 
 显式关闭先清除 owned fd，再调用一次 close；成功或失败均终结 owner，不无条件重试，包括 EINTR。当前 Linux 的 fd 在 close 错误报告前已被消费；Darwin 的普通 fd 关闭同样沿实际内核消费路径，不能由错误码假定仍可重试。hook 只兜底尝试 raw close，不重放已消费的 fd，不 flush 或等待用户代码。close 结果不能证明远程文件已经持久化，必要时先显式 sync。
+
+Windows 使用相同的 owner／活动调用／关闭规则，原生清理由 CloseHandle 承担；不经 CRT 包装。同步 ReadFile／WriteFile 允许短传输，单次不超过 DWORD 字节上限；pipe 的 ERROR_BROKEN_PIPE 在读取端表示 EOF。seek 使用 SetFilePointerEx，truncate 使用 FileEndOfFileInfo 保持当前 offset；syncData／syncAll 均由 FlushFileBuffers 实现。原生结果记录在本次调用中带回 Win32 code，duplicate 失败不产生新 owner，成功副本共享文件位置并独立关闭。
 
 File.size()／position() 和同步 socket 的地址／选项查询访问当前 OS 状态，可能失败，因此采用函数。isClosed 只读取对象自身状态，保持属性；FileMetadata.size 等已取得的值也保持属性。
 
@@ -157,17 +186,22 @@ File.size()／position() 和同步 socket 的地址／选项查询访问当前 O
 withLock 在正文所有出口解锁，正文与解锁同时失败沿 ResourceUseException；
 调用者不得嵌套或并发操作同一 owner 的锁作用域。它不阻止不遵循锁协议的其他写入者。
 
+Windows 使用 LockFileEx／UnlockFileEx 锁定从零开始、长度为 UINT64_MAX 的区间；tryLock 只将 ERROR_LOCK_VIOLATION 转为 false。与 Unix advisory lock 不同，该锁限制实际 ReadFile／WriteFile：exclusive 锁拒绝其他打开句柄的读写，shared 锁也禁止持锁者写入；memory-mapped view 不受该机制约束。重复锁定、复制句柄与关闭的细节遵守 Windows 文件锁合同，调用者应通过取得锁的 owner 显式解锁，不依赖 duplicate 延长锁寿命；withLock 的异常组合规则保持。[Windows 锁合同](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-lockfileex)。
+
 ### 6.2 文件系统操作
 
-`scoop.platform.fs` 提供 Path 扩展 readAllBytes/readText/readTextLossy、writeAllBytes/writeText、copyTo(destination, replaceExisting = false)、moveTo(destination, replaceExisting = false)、delete/deleteRecursively、metadata/exists、createDirectory/createDirectories、readSymbolicLink/createSymbolicLink(target)、canonicalize、entries。接收者是被读取、修改或作为源的 Path；File.open(path, options) 仍负责创建文件句柄。createTempFile/createTempDirectory 是同 package 的顶层工厂。普通 import 即可使用这些入口，不保留 Files 工具 object。
+`scoop.platform.fs` 提供 Path 扩展 readAllBytes/readText/readTextLossy、writeAllBytes/writeText、copyTo(destination, replaceExisting = false)、moveTo(destination, replaceExisting = false)、delete/deleteRecursively、metadata/exists、createDirectory/createDirectories、readSymbolicLink/createSymbolicLink(target, targetIsDirectory = false)、canonicalize、entries。接收者是被读取、修改或作为源的 Path；File.open(path, options) 仍负责创建文件句柄。createTempFile/createTempDirectory 是同 package 的顶层工厂。普通 import 即可使用这些入口，不保留 Files 工具 object。
 
 - writeAllBytes/writeText 默认创建或截断，支持显式 append；copyTo 默认不替换，replaceExisting=true 才允许覆盖。copyTo 不承诺原子性或复制全部 metadata，不允许把同一 OS 文件作为源与目标后先截断源内容。
 - moveTo 默认不替换，使用 Darwin renamex_np(RENAME_EXCL) 或 Linux renameat2(RENAME_NOREPLACE) 的真实排他操作；replaceExisting=true 使用 rename。跨文件系统与不支持的错误照常报告，不以有竞争的 exists 预检查模拟排他，不暗中 copy+delete。
+- Windows 的 moveTo 使用 MoveFileExW，只在 replaceExisting=true 时指定 MOVEFILE_REPLACE_EXISTING，不启用跨卷 copy。createDirectory 使用 CreateDirectoryW，mode 只检查位范围，ACL 沿系统默认规则；delete 依据当前对象属性调用 DeleteFileW 或 RemoveDirectoryW，目录 reparse point 只删除链接本身。readonly、共享冲突、非空目录、跨卷等错误保留 Win32 原码，不擅自改变属性再重试。
 - Path.metadata(followLinks=true) 返回 FileMetadata。FileKind 区分 Regular、Directory、SymbolicLink、BlockDevice、CharacterDevice、Fifo、Socket、Other；metadata 包含 size、permissions、accessedAt、modifiedAt、changedAt 和可选 createdAt，时间复用 scoop.time.Instant。Darwin 使用 birth time，Linux stat 不提供 birth time 时为 None；不可用时间不以零冒充有效值。
 - exists 仅把 NotFound 和路径组件的 NotDirectory 转为 false，权限与其他 IO 错误继续抛出。查询不消除之后操作的文件系统竞争。
 - createDirectory 默认 mode=0777，受 umask 影响；createDirectories 接受已存在目录，其他类型照常报错。delete 删除单个文件、symlink 或空目录；deleteRecursively 不主动跟随 symlink，调用方须排除并发替换目录树，API 不提供抵抗恶意路径替换的来源审计或安全沙箱。
-- Path.createSymbolicLink(target) 保留 target 字节；readSymbolicLink 不解析目标，canonicalize 才解析实际路径与 symlink。所有 Path 都保留原始名称字节；实际文件系统可以拒绝非法编码，库保留该 OS 错误与原始 context，不提前损坏或重新编码路径。
-- createTempFile/createTempDirectory(parent: Path? = None, prefix: String = "scoop-") 使用 OS 排他创建，prefix 不含 NUL 或 `/`。默认 parent 使用系统临时目录查询，失败照常报告；返回实际 Path，不因关闭或 GC 自动删除。临时文件 mode 为 0600，目录为 0700，仍受 umask 约束。
+- Path.createSymbolicLink(target, targetIsDirectory: Boolean = false) 创建文件或目录符号链接。POSIX 保留 target 原始字节并忽略类型参数；Windows 使用 CreateSymbolicLinkW，调用者为目录目标（包括尚不存在的目录）指定 targetIsDirectory=true。Windows 尝试允许非提权创建的标志，旧系统不识别该标志时沿普通权限再调用；缺少所需权限时报告真实 Win32 错误，不修改系统设置。相对目标按所在链接目录解析，盘符相对等 Windows 路径沿系统 API 的语义。Windows 相对目标使用 reparse name 的反斜杠分隔语法，库不重写其原始拼写；可移植调用通过 Path.resolve 组合相对目标。
+- readSymbolicLink 不解析目标。Windows 读取符号链接或 junction 的实际 reparse substitute name，保留 UTF-16 code units；相对名称保留 OS 存储的拼写，绝对名称的 NT `\??\` 前缀转为可供 Win32 使用的 `\\?\`。不使用仅供显示的 print name；其他 reparse tag 报错。POSIX 返回 readlink 的原始字节。目标可以不存在。
+- canonicalize 解析实际存在的文件或目录与链接。Windows 打开目标后使用 GetFinalPathNameByHandleW 的 normalized DOS 路径，保留返回的 `\\?\` 前缀与 UTF-16；POSIX 使用 realpath。结果是 OS 的规范名称，不保证与输入字面相等。不存在、访问失败或不支持的路径查询照常报告；原生分配的结果在复制期间保持有效，并在所有出口释放。
+- createTempFile/createTempDirectory(parent: Path? = None, prefix: String = "scoop-") 使用 OS 排他创建，prefix 不含 NUL 或 `/`，Windows 还拒绝 `\` 与 `:`，防止前缀改变父目录或选择 alternate data stream。默认 parent 使用系统临时目录查询，失败照常报告；返回实际 Path，不因关闭或 GC 自动删除。POSIX 临时文件 mode 为 0600，目录为 0700，仍受 umask 约束。Windows 使用系统随机后缀及 CREATE_NEW／CreateDirectoryW，只在名称已存在时重试，ACL 沿系统默认规则；先规范化实际 parent 并在返回的 extended 路径下创建，以保留完整前缀并避免 DOS device 名称被当作临时文件。临时文件关闭失败时尝试删除刚创建的文件，错误沿正常清理组合规则报告。
 
 ### 6.3 DirectoryEntries
 
@@ -175,15 +209,19 @@ withLock 在正文所有出口解锁，正文与解锁同时失败沿 ResourceUs
 
 EOF 时自动关闭枚举句柄，之后 next 仍返回 None；提前 close 后再 next 抛 IllegalStateException。提前退出循环或正文失败由 use 清理，for 不自动关闭 iterator。native 枚举和复制名称期间保活 owner；不支持重入／并发枚举或关闭。hook 只兜底 closedir。
 
+Windows 枚举独占不可继承的目录 HANDLE，以 CreateFileW 的目录访问和 GetFileInformationByHandleEx 的 FileFullDirectoryInfo 读取实际条目，不将路径拼成 wildcard 搜索。名称按返回的 UTF-16 长度复制为独立 OsString，不要求 native 名称带 NUL；复制期间 owner 与枚举 buffer 保持有效。跳过 `.`／`..`，不排序、不重新启动游标；ERROR_NO_MORE_FILES 表示 EOF。CloseHandle 和 native buffer 释放共用一次关闭路径；失败在清理前保存 Win32 code，分配失败报告 ERROR_NOT_ENOUGH_MEMORY。POSIX 保留 opendir／readdir／closedir 供 asyncio 复用，managed 同步边界返回带名称长度和本次错误的记录。
+
 ### 6.4 native 传输、信号与错误
 
 阻塞 open/read/write、文件 metadata／同步、目录和路径操作使用 NativeSafe。read/write 只在没有交付字节的 EINTR 时重试，一次传输受平台 ssize_t／实际 syscall 上限限制。errno 在本次失败后立即保存，任何信号状态恢复或返回握手都不能覆盖它。
 
 供 asyncio 的实际文件工作复用，`scoop.platform.native.NativeFileMetadata` 公开既有 GC-free CLayout 记录：kind、permissions 为 Int，其余 size 及四组秒／纳秒为 Long；创建时间纳秒为负表示不可用。普通 `decodeFileMetadata(data, error, context)` 将它转换为 FileMetadata，复用同步文件的种类、时间和错误映射；失败记录的 kind 为负，error 是原调用中保存的 errno。共享 C 头声明既有 metadata、seek、truncate helper，不在 asyncio 再实现 stat 字段转换或 OS 偏移规则。
 
+Windows 的 metadata helper 保持上述字段形状，失败使用同次保存的 Win32 code；POSIX helper 继续保存 errno。文件 HANDLE 读取实际 size、access／write／change／creation time，100 ns FILETIME 转成 Unix 秒／纳秒。permissions 只是 readonly 属性的便捷投影：普通文件为 0444 或 0666，目录再加入 0111；它不是 ACL 或可访问性证明。不支持文件信息查询的 pipe／console 等端点保留实际 OS 查询错误，不伪造磁盘 metadata 或时间。路径 no-follow 查询将 symlink 与 junction 记为 SymbolicLink，防止递归删除跟进其目标；其他 reparse tag 不冒充符号链接。
+
 共享路径头公开既有 `path_mkdir`、`path_delete`、`path_move` helper，分别沿 mkdir、remove 和排他／替换 rename 的 OS 合同。`scoop.platform.native.requireFileMode(mode: Int): Unit` 统一同步文件、目录与 asyncio 的权限参数检查；有效范围为 0..0xfff，非法值抛 IllegalArgumentException，不增加独立的文件系统规则。
 
-`scoop.platform.native.temporaryPathPattern(parent: Path, prefix: String): Path` 检查 prefix 并构造尾部为 XXXXXX 的路径模板；默认父目录复用既有 `scoop.platform.env.temporaryDirectory()`，这些步骤不创建文件。同步临时路径工厂与 asyncio 共用这些步骤。共享 `scoop_platform_file_temporary(char *pattern)` 通过 mkostemp(O_CLOEXEC) 一次排他创建并返回仍然打开的读写 fd，实际名称写回调用者拥有的模板；文件初始权限为 0600、长度与位置为零。原同步 createTempFile 复用该 helper 后关闭 fd，异步工厂则交付文件 owner。
+`scoop.platform.native.temporaryPathPattern(parent: Path, prefix: String): Path` 按当前目标检查 prefix 并构造尾部为 XXXXXX 的路径模板；默认父目录复用既有 `scoop.platform.env.temporaryDirectory()`，这些步骤不创建文件。POSIX 同步临时路径工厂与 asyncio 共用这些步骤。共享 `scoop_platform_file_temporary(char *pattern)` 通过 mkostemp(O_CLOEXEC) 一次排他创建并返回仍然打开的读写 fd，实际名称写回调用者拥有的模板；文件初始权限为 0600、长度与位置为零。POSIX 同步 createTempFile 复用该 helper 后关闭 fd，异步工厂则交付文件 owner。
 
 `native/directory.h` 声明既有 directory_open／directory_next／directory_close helper，供 asyncio 调度同一 opendir／readdir／closedir 实现。next 跳过点目录，返回名称借用到本句柄的下一次读取或关闭之前；NULL 且 errno 为零表示 EOF，NULL 且 errno 非零表示错误。异步调用者必须在同一次串行工作内复制名称，不跨工作保留 readdir 的内部存储。
 
@@ -193,19 +231,29 @@ safe fd 输出不因断开的 pipe/socket 默认杀死进程。Linux 普通 fd �
 
 ## 7. 原始参数、环境与系统信息
 
-`scoop.platform.env.arguments(): Array<OsString>` 复制包括 argv[0] 的原始进程参数，复用 runtime 的只读 argc/argv 入口。无参数 main 可以保留坏 UTF-8 参数；有参数 main 的启动解码规则保持语言／runtime 规范不变。
+`scoop.platform.env.arguments(): Array<OsString>` 复制包括 argv[0] 的原始进程参数，复用 runtime 的只读 argc/argv 入口。POSIX 保留原始字节；Windows startup 将原始 UTF-16 编为 canonical WTF-8，OsString.toUtf16 可无损还原，包括非配对 surrogate。无参数 main 不要求参数为有效 Unicode；有 Array<String> 参数的 main 继续使用 core 的严格 UTF-8 解码，非法输入（包括 argv[0]）在进入 main 正文前沿现有失败路径报告，见 runtime 规范 2.8。
 
 `environmentVariable(name: OsString): OsString?` 及 String 便利重载区分缺失与空值，名称非空且不含 NUL 或 `=`。`environment(): Map<OsString, OsString>` 返回独立只读快照；按第一个 `=` 拆分，不损坏原始字节。仅包含有非空名称和分隔符的环境项，同名项以第一个为准，与单项查询一致。没有进程全局环境修改 API；调用者不能同时通过外部 native 代码违反 libc 环境访问的线程合同，库内锁不能代替该前提。
 
-currentDirectory(): Path 查询实际 cwd，不读取 PWD；homeDirectory(): Path? 优先使用非空 HOME，否则查询当前真实 uid 的 passwd 目录，没有记录或空目录时返回 None，实际查询错误抛 PlatformException。temporaryDirectory(): Path 使用非空 TMPDIR，否则为 `/tmp`。查询返回字节副本，不保证路径存在、可访问或之后仍可创建文件；不提供全局 chdir。
+Windows 单项查询使用 GetEnvironmentVariableW，缺失返回 None，空值返回 Some(empty)，其他失败保留本次 Win32 code。名称查询遵守 Windows 的不区分大小写规则；名称和值无损保留 UTF-16，包括非配对 surrogate。快照复制 GetEnvironmentStringsW 的实际条目并释放原生 block，保留 OS 给出的名称拼写；返回 Map 的 OsString 键仍按原始编码比较，调用者不能用改写大小写的键替代单项查询。以 `=` 开头的系统 drive-directory 项不属于公开名称，快照不包含它们；值里的后续 `=` 完整保留。POSIX 继续复制 getenv／environ 的原始字节。原生结果在 managed 分配前取得独立存储，成功、缺失与失败分开表示，复制后在所有出口释放。
 
-`scoop.platform.system` 提供 OperatingSystem(Darwin/Linux)、Architecture(Aarch64/X86_64)、operatingSystem 与 architecture 只读值，标识当前构建目标。systemVersion(): String 返回 uname 的系统 release，logicalProcessorCount: Long 返回 OS 报告的在线逻辑 CPU 数；失败照常抛系统错误，不推导容器配额或调度能力。
+currentDirectory(): Path 查询实际 cwd，不读取 PWD；POSIX 的 homeDirectory(): Path? 优先使用非空 HOME，否则查询当前真实 uid 的 passwd 目录，没有记录或空目录时返回 None，实际查询错误抛 PlatformException。temporaryDirectory(): Path 在 POSIX 使用非空 TMPDIR，否则为 `/tmp`；Windows 查询 GetTempPath2W，系统未提供该入口时使用 GetTempPathW，保留返回的 UTF-16。普通 Windows 进程沿系统的 TMP、TEMP、USERPROFILE、Windows 目录顺序，SYSTEM 进程沿 GetTempPath2W 的 SystemTemp 规则。查询返回独立副本，不保证路径存在、可访问或之后仍可创建文件；不提供全局 chdir。
+
+Windows 的 currentDirectory 使用 GetCurrentDirectoryW；homeDirectory 优先使用非空 USERPROFILE，否则通过当前进程的 TOKEN_QUERY handle 查询 GetUserProfileDirectoryW，并关闭该临时 handle。空 profile 返回 None，实际查询失败保留 Win32 code；不读取 HOME、PWD 或把不存在的用户配置拼成路径。查询结果无损保留 UTF-16，路径存在性仍由后续实际文件系统操作判断。POSIX 的 HOME／passwd 规则保持。
+
+`scoop.platform.system` 提供 OperatingSystem(Darwin/Linux/Windows)、Architecture(Aarch64/X86_64)、operatingSystem 与 architecture 只读值，标识当前构建目标。POSIX 的 systemVersion(): String 返回 uname 的系统 release，logicalProcessorCount: Long 返回 OS 报告的在线逻辑 CPU 数；失败照常抛系统错误，不推导容器配额或调度能力。
+
+Windows 的 systemVersion 使用 [RtlGetVersion](https://learn.microsoft.com/en-us/windows/win32/devnotes/rtlgetversion)，将实际 major、minor 与 build 以十进制 `major.minor.build` 返回，不追加产品名称或补丁 revision，也不根据此字符串推断 API 可用性。logicalProcessorCount 使用 [GetActiveProcessorCount](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-getactiveprocessorcount) 的 ALL_PROCESSOR_GROUPS，返回全部处理器组的活动逻辑 CPU 总数，不缩减为当前线程 affinity 或进程配额。版本查询失败保存 NtStatus，CPU 查询失败保存 Win32 code；原生调用在返回时携带本次结果与错误，managed 分配不改变错误来源。
 
 ## 8. 时钟与阻塞 sleep
 
 `scoop.platform.time.SystemClock` 实现 scoop.time.Clock，now 返回实时钟的 Instant；`MonotonicTimeSource` 实现 TimeSource，markNow 返回以自身为 source、以 CLOCK_MONOTONIC 读数构造 Duration 的 TimeMark。实时钟可以回拨，monotonic 不与 epoch 混用，同源比较仍由 std 检查。native 读取失败抛 PlatformException，不伪造零读数；转换遵守 std 的范围规则。
 
+Windows 实时钟使用 GetSystemTimePreciseAsFileTime，将 1601 epoch 的 100 ns tick 转为 Unix epoch 的规范化秒／纳秒；monotonic 使用 QueryPerformanceCounter／QueryPerformanceFrequency，整数缩放不溢出或丢失整秒精度。native 时钟结果同时保存本次错误码，Windows 使用 Win32，POSIX 使用原 errno。
+
 sleep(duration: Duration) 拒绝负值，零直接返回。sleep 与 ConditionVariable 的 native 时间分量使用 Duration.floorSeconds／nanosecondsOfSecond；toComponents 是面向调用者的趋零分解，不用于替代规范化的 native 分量。正值通过 NativeSafe 等待；使用 monotonic 截止时间在 EINTR 后继续，允许调度造成延迟，不承诺精确唤醒。截止时间超出目标表示范围时报告溢出错误；不以通用超时配额限制有效时长。等待不阻止其他 mutator 推进或 GC。
+
+Windows 将剩余时长按毫秒向上取整后 Sleep，单次最多 INFINITE-1 毫秒；每次醒来重新读取 QPC，直到 monotonic 截止时间，避免 tick 粒度导致提前返回，也不把有限时长转换成无限等待。超出秒截止时间表示范围报告 ERROR_ARITHMETIC_OVERFLOW；不改变全局 timer resolution。
 
 TimeMark.elapsedNow() 为 `source.markNow() - this`。measureTime(source: TimeSource = MonotonicTimeSource, block: () -> Unit) 与 measureTimedValue<T>(source: TimeSource = MonotonicTimeSource, block: () -> T) 同步调用正文一次，后者返回 TimedValue<T>(value, duration)；正文失败直接传播，不额外读取时钟覆盖原异常。不支持 suspend、timer queue 或调度器。
 
@@ -214,6 +262,8 @@ TimeMark.elapsedNow() 为 `source.markNow() - this`。measureTime(source: TimeSo
 `scoop.platform.random.SystemRandom` 实现 scoop.random.Random，nextBits 按 0..32 的既有合同返回位值；0 不调用 OS。覆盖 nextBytes(size) 与 nextBytes(MutableArray, fromIndex, toIndex) 的批量路径，不逐字节请求。fill(buffer: NativeByteBuffer, count: Long = buffer.writableBytes) 检查当前尾部容量，返回成功填充数量；零请求不执行 native 操作。
 
 Linux 使用 getrandom、Darwin 使用 getentropy，按目标单次上限分块并重试未产生数据的 EINTR；允许短结果后继续。NativeByteBuffer 每次只提交本次成功的前缀，后续失败保留已提交进度，未初始化尾部仍不可读；数组失败保留已写区间。native 正请求无进度作为 IO 错误处理，不忙循环或退化为 PRNG。所有系统熵操作使用 NativeSafe，可以与 GC 并行。Uuid.random(SystemRandom) 与既有 Random 默认方法沿普通接口组合，不增加隐式随机源或密码学算法。
+
+Windows 使用 BCryptGenRandom 的 BCRYPT_USE_SYSTEM_PREFERRED_RNG，按 ULONG 长度范围分块；失败同次返回原 NTSTATUS，成功后才提交本段进度。按 target 声明系统 bcrypt 导入库，不管理额外 provider handle 或使用 CRT PRNG 代替系统熵。
 
 目标依据：[getentropy](https://man7.org/linux/man-pages/man3/getentropy.3.html)、[nanosleep](https://man7.org/linux/man-pages/man2/nanosleep.2.html)、[clock_nanosleep](https://man7.org/linux/man-pages/man2/clock_nanosleep.2.html) 以及当前目标 SDK。环境、时钟和熵均不新增 runtime ABI。
 
@@ -225,11 +275,17 @@ Thread 实现 Disposable，提供 isFinished、join、dispose。isFinished 表�
 
 Thread hook 只做非阻塞 pthread_detach 并释放 native 观察权。控制记录由 worker 与观察者分别持有原生存活权，最后一方释放；不保存 managed 指针、不等待正文、不操作 callback ownership。丢弃 Thread 不承诺 worker 已完成或 runtime 正常退出；程序需显式 join/use。currentThreadId(): ThreadId 返回有 Equals/Hash 的不透明 pthread 标识，线程结束后允许复用，不等同于进程 id；yield() 请求让出当前 native 线程。
 
+Windows 使用所选 CRT 的 `_beginthreadex`，join 以 WaitForSingleObject 等待后 CloseHandle，hook 只 CloseHandle 并释放观察权。两份 native 存活权与 callback 规则保持；currentThreadId 使用系统 thread ID，yield 使用 SwitchToThread，没有可切换线程不算失败。创建和分配失败保留 CRT 的实际 errno；join、mutex 与 condition 的 Windows 失败属于 Win32，self-join 报 ERROR_POSSIBLE_DEADLOCK 且保留观察权。
+
 Mutex() 为 final Disposable class，使用非递归 ERRORCHECK mutex，提供 lock、tryLock、unlock、withLock<T>(block: () -> T)、isDisposed。tryLock 忙时返回 false；重入 lock 和非持有者 unlock 报 native 错误。withLock 在 finally 解锁，支持泛型结果和异常，只有普通同步回调，没有 suspend 重载。
 
 ConditionVariable(mutex: Mutex) 保活并绑定一个 Mutex，提供 await()、await(timeout: Duration): Boolean、signal、broadcast、dispose 和 isDisposed。await 要求当前线程持有该 mutex，原子释放／等待／重新取得；超时重载 true 表示唤醒，false 表示超时。任何返回都不能证明谓词成立，调用方使用 while 循环。负时长拒绝，零超时仍执行释放／重新取得；Linux 使用 CLOCK_MONOTONIC cond clock，Darwin 使用相对等待接口，避免 realtime 校时改变超时。超出目标时间表示范围按实际错误报告。
 
 同步对象的活动调用保活 owner；ConditionVariable.await 同时保活相关 Mutex，native 等待使用 NativeSafe。dispose 要求没有并发操作，mutex 未持有、cond 无等待者；不满足时拒绝并保留对象。关闭成功才清除 owner，重复关闭无操作。Mutex 的 native 持有状态避免对忙碌 mutex 调用具有未定义行为的 destroy；hook 不解锁、不唤醒，只在合法销毁前提满足时释放，忙碌对象不被强行 free。禁止外部 native 代码直接操作这些私有同步句柄。
+
+Windows mutex 使用 SRW exclusive lock，并记录 owner 以实现相同的非递归／错误检查合同；同线程 tryLock 返回 false，重入 lock、非持有者 unlock、持有时 destroy 分别报告 ERROR_POSSIBLE_DEADLOCK、ERROR_NOT_OWNER、ERROR_BUSY。condition 使用 SleepConditionVariableSRW，唤醒后恢复 owner。定时等待按毫秒向上取整，单次最多等待 INFINITE-1 毫秒，不把有限等待误转成 INFINITE；以 GetTickCount64 的 monotonic 经过时间判断总时长是否到期，单次到期但总时长未到时按允许的伪唤醒返回，让调用方重查谓词，不在库内重新等待而丢失两次等待之间的通知。无法用 64-bit 毫秒表示时报告 ERROR_ARITHMETIC_OVERFLOW。零超时仍调用原子释放／等待／重获操作。
+
+库内部同步 FFI 以普通 C-layout `{status: Int, code: Int}` 同次返回结果：status 为 0（成功）、1（tryLock 忙或 wait 超时）或 -1（失败），code 保存实际错误。POSIX 的 pthread 返回码直接保存，Windows 在失败后立即保存 GetLastError，不借 errno 转运。该 private native 结果只服务库的实际同步调用，不进入 runtime ABI。
 
 依据：[POSIX mutex 销毁前提](https://pubs.opengroup.org/onlinepubs/9799919799/functions/pthread_mutex_destroy.html)、[条件等待](https://pubs.opengroup.org/onlinepubs/9799919799/functions/pthread_cond_clockwait.html)、[Darwin 相对条件等待](https://github.com/apple-oss-distributions/libpthread/blob/main/src/pthread_cond.c)。这些 API 复用既有 callback、Context、原子与 GC 合同，不新增线程 runtime 协议或强制停止机制。
 
@@ -238,6 +294,7 @@ ConditionVariable(mutex: Mutex) 保活并绑定一个 Mutex，提供 await()、a
 `scoop.platform.process.suspendCurrentProcess()` 在 Unix 向本进程发送 SIGTSTP，
 按操作系统 job-control 规则暂停，收到 SIGCONT 后返回。调用者先恢复终端模式；
 被忽略/屏蔽的信号及 orphan process group 沿 OS 行为，不改写进程信号处理策略。
+Windows 没有对应的 Unix job-control 操作，该调用抛 PlatformException(Unsupported)，不暂停任意 native thread 或模拟信号。
 
 ### 11.1 管道与命令快照
 
@@ -249,6 +306,10 @@ spawn(searchPath: Boolean = false): ChildProcess 启动进程；默认按明确 
 
 使用 posix_spawn 和真实 cwd file action，不在 managed 进程中 fork 后执行 Scoop。输入字符串只在本次同步 native 调用期间借用；pipe、临时 fd、副本、argv/env 指针表及 file actions 在失败时回滚。重定向先复制到非标准 fd，再设置 child 的 0/1/2，避免别名覆盖。Darwin 使用 CLOEXEC_DEFAULT 与显式标准流动作，Linux 使用 O_CLOEXEC 管道；库不提供继承任意 fd 的接口。child 使用空信号屏蔽集与默认 SIGPIPE，父进程 mask／handler 保持原样，不把临时屏蔽传给 child。
 
+Windows 使用 CreateProcessW，executable、argv、环境与 cwd 无损传入 UTF-16；显式 lpApplicationName 不触发系统 PATH 或 shell 搜索，工作目录和可执行路径先按请求的 cwd 解析。命令行沿 Microsoft CRT 的参数引号／反斜杠规则编码，argv[0] 保留原始 executable；只保证采用该常规解析规则的 child 能逐项还原参数，不把 cmd／PowerShell 的脚本语法当作普通 argv 规则。Windows 的 searchPath 对含 `/`、`\\` 或 drive prefix 的 executable 按路径启动，否则按命令环境中不区分大小写的 PATH、以分号分隔的目录顺序查找；空项或缺失 PATH 使用 child cwd。每项先尝试原名，无扩展名时再尝试 `.exe`，不通过 PATHEXT 启动脚本。成对包围目录项的引号被去掉，其余字符保留。
+
+Windows 环境按名称的不区分大小写 ordinal 顺序构造双 NUL 结尾的 Unicode block，拒绝大小写不同但等价的重复名称。stdin／stdout／stderr 的临时 child 句柄使用可继承副本，STARTUPINFOEX 的 HANDLE_LIST 仅包含这三个流；父端管道不可继承，Redirect 不转移原 File 的所有权，Null 使用 NUL，缺失的继承标准句柄仍为空。创建成功后关闭 primary-thread handle 和临时 child 副本，仅移交进程 HANDLE 与父端 pipes；失败关闭全部临时资源并保留本次 Win32 code。
+
 ### 11.2 观察、端点转移与释放
 
 ChildProcess 实现 Closeable，拥有子进程观察／reap 责任和本次创建的父端 pipes。stdin: ByteSink?、stdout/stderr: ByteSource? 返回借用视图；takeStdin/Stdout/Stderr 返回相应 owned 端点并清除 child 的关闭责任，缺失或已取出返回 None。对象操作与配置／关闭由调用方串行化，不提供竞争回收同一 pid 的保证。
@@ -259,6 +320,8 @@ wait(): ExitStatus 等待并回收；tryWait(): ExitStatus? 非阻塞查询。Ex
 
 close 逐一关闭仍拥有的父端 pipes，再尝试 wait；关闭失败也不能跳过后续关闭／回收，多个失败按 ResourceUseException 组合。close 不隐式终止进程，可能阻塞；成功后重复关闭无操作。hook 最多尝试一次 waitpid(WNOHANG)，不等待、不终止、不启动后台 reap，pipe owners 各自负责 raw close。因此 GC 不能替代显式 wait/use。
 
+Windows 使用独立的完整宽度进程 HANDLE，不以 pid 代替 owner。wait／tryWait 使用 WaitForSingleObject 与 GetExitCodeProcess；先确认进程已结束，因此退出码 259 仍是普通退出码。Exited.code 保留 DWORD 的完整 32 位模式（高位设置时为负 Int），不会生成 POSIX Signaled；成功观察后关闭 HANDLE 并缓存结果。terminate 与 kill 均请求 TerminateProcess(handle, 1)，不承诺普通 Windows 程序接受 POSIX 风格的温和信号；已结束的 child 不因此报错。hook 只关闭观察 HANDLE，不等待或终止 child。平台私有 C-layout 结果将状态与同次错误一起返回，POSIX 保留原 errno 及 ECHILD 消费规则。
+
 ### 11.3 communicate
 
 communicate(input: List<Byte>? = None): ProcessOutput 收集 stdout/stderr 的独立字节数组及 ExitStatus。提供输入要求配置 stdin Pipe，已经 take 的配置 pipe 拒绝自动通信；输入列表的快照与参数检查发生在消费任何端点之前，getter 失败照常传播。未配置输出 pipe 时对应数组为空，合并 stderr 时只收集 stdout。
@@ -267,7 +330,10 @@ communicate(input: List<Byte>? = None): ProcessOutput 收集 stdout/stderr 的�
 
 通信驱动失败时关闭其端点，显式 kill 并 reap 本次负责的 child，再传播原异常及必要清理失败；没有遗留工作线程或跨调用 buffer 借用。正常 communicate 不终止 child。普通用户自管 pipes／wait 仍需安排三方向进度；继承管道的后代进程可能延迟 EOF，API 不承诺超时或管理整个进程树。
 
+Windows 的同步管道通信为实际配置的 stdout／stderr 各启动一个库内 Thread 排空，调用线程写 stdin 并在输入结束后关闭。各线程独立拥有其管道和 buffer，读取失败先请求终止本次 child，使其余方向能结束；线程创建或写入失败同样先终止 child，再等待已启动的 reader。同一次通信的失败共享一次终止请求，避免在异步终止期间重复请求并覆盖原始 I/O 错误。所有 reader 在返回前 join，端点逐一关闭，失败按既有 ResourceUseException 规则合并；不建立线程池、后台进程管理器或异步调度器。后代保留 pipe 导致的 EOF 延迟仍适用前述限制。
+
 依据：[POSIX spawn 与 file actions](https://pubs.opengroup.org/onlinepubs/9799919799/functions/posix_spawn.html)、[Linux posix_spawn](https://man7.org/linux/man-pages/man3/posix_spawn.3.html) 以及当前 Darwin SDK 的 spawn 扩展。上述能力均为普通 platform 库，不增加 runtime 进程管理协议。
+Windows 依据：[CreateProcessW](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessw)、[HANDLE_LIST](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-updateprocthreadattribute)、[CRT 参数解析](https://learn.microsoft.com/en-us/cpp/c-language/parsing-c-command-line-arguments) 与 [TerminateProcess](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-terminateprocess)。
 
 ## 12. 阻塞 DNS、TCP 与 UDP
 
@@ -281,11 +347,17 @@ SocketAddress(address: IpAddress, port: Int) 检查 0..65535，实现 Equals／H
 
 resolve(host: OsString, port: Int, family: AddressFamily? = None) 与 String 重载使用阻塞 getaddrinfo，返回实际地址数组，不承诺排序或去重。名称与 IP parse 分开，不做 IDNA 或隐式构造器联网；名称字节不含 NUL。错误保存 AddressResolution 的 EAI code；仅 EAI_SYSTEM 另保存同次 errno。native 结果在复制后 freeaddrinfo，包括复制失败路径；不使用外部 DNS 服务作为测试前提。
 
+Windows 使用 GetAddrInfoW／FreeAddrInfoW，名称通过 OsString.toUtf16 无损传入，拒绝 NUL；设置 AI_NUMERICSERV 与 AI_DISABLE_IDN_ENCODING，不经过 ANSI code page 或隐式 IDNA。错误保留函数直接返回的 WSA／EAI 值。数字 IP parse／format 使用 InetPtonA／InetNtopA，其输入输出是 ASCII 数字文本。
+
 ### 12.2 TCP 与端点所有权
 
 TcpListener.bind(address, backlog: Int = 128, reuseAddress: Boolean = false) 返回 owned listener；backlog 必须为正，实际队列长度由 OS 决定。提供 localAddress()、accept(): TcpStream、isClosed 与 close。TcpStream.connect(address) 返回 owned stream，提供 localAddress()、peerAddress()、ByteSource／ByteSink、shutdownInput、shutdownOutput、isClosed、close，以及 noDelay()／keepAlive() 查询和 setNoDelay(value)／setKeepAlive(value) 设置。
 
 所有 socket 为 close-on-exec。创建、配置、bind/listen/connect 或 accept 后配置失败都会关闭未移交的 fd；显式关闭复用第 6.1 节的单次消费语义，hook 仅 raw close。活动 accept/read/write/地址查询／配置保活 owner，操作与 close／配置改变的竞争由调用方同步。stream 支持 OS 允许的并发读写，但不保证复合操作原子。
+
+socket 使用独立的 native handle 值和 managed owner，不借 File 保存端点。Windows 保存完整 UINT_PTR 宽度的 SOCKET，INVALID_SOCKET 表示无所有权，释放使用 closesocket；不转为 CRT fd 或交给 CloseHandle。Windows 进程内首次网络使用完成一次 WSAStartup(2.2)，该引用覆盖库的进程存活期；实际初始化失败按原 Winsock 错误报告。WSASocketW 使用 WSA_FLAG_OVERLAPPED／WSA_FLAG_NO_HANDLE_INHERIT，accept 继承 listener 的不可继承属性；POSIX 仍使用原 close-on-exec fd 和关闭规则。
+
+Windows socket 操作在失败后立即保存 WSAGetLastError，和返回值一起通过普通 C-layout 记录传回 managed 层；POSIX 同次保存 errno。bind 的 reuseAddress 仍精确映射 SO_REUSEADDR，不以 Windows 的 SO_EXCLUSIVEADDRUSE 替代；实际端口共享与冲突规则由目标 OS 决定。
 
 TCP 是字节流：允许短读写，正请求读取零表示输入 EOF，写入无进度抛 WriteZeroException；游标只提交实际字节。shutdownOutput 只关闭输出方向，之后仍可读取；shutdownInput 与整个关闭区分，按 OS 报告错误。flush 只检查状态，不承诺对端收到或持久化。可恢复的 read/write/accept EINTR 重试；连接创建若失败或被中断，关闭本次 fd 并报告实际错误，不重复使用未确定状态的 socket。
 
@@ -295,13 +367,17 @@ UdpSocket.bind(address, reuseAddress: Boolean = false) 返回 owned socket，提
 
 receiveFrom(buffer: NativeByteBuffer, count: Long = buffer.writableBytes): Datagram 返回 source: SocketAddress、count: Long、truncated: Boolean。count 参数必须为正且不超过可写尾部。使用 recvmsg 的实际复制长度与 MSG_TRUNC；只提交复制字节，不把截断后的长度称为原包总长。空 datagram 返回 count=0、truncated=false，仍消费该报文，不代表 EOF；不足容量时消费整包并标记截断，下一次接收是下一包。
 
+Windows 同步 UDP 接收使用 WSARecvFrom；WSAEMSGSIZE 表示本包已复制可容纳前缀并丢弃余部，按实际复制长度返回 truncated=true，不把该结果作为无进度失败。发送长度超过 native 单次长度表示范围时报告 WSAEMSGSIZE，不拆成多个 datagram；空包仍执行一次发送。TCP 的单次长度按 WinSock int 范围截取；其余短传输与游标规则保持。
+
 socket 输出在 Linux 使用 MSG_NOSIGNAL，Darwin 在新建／accept 后设置 SO_NOSIGPIPE；错误路径不安装或修改全局 signal handler。pipe/fd 的既有策略不变。DNS、连接、accept、传输和可能阻塞的操作使用 NativeSafe，复用已有精确根、借用与 FFI ABI。地址的 C 对应结构只是普通 @CLayout 值，不新增 compiler/runtime 协议、连接池、异步调度或网络安全框架。
 
 依据：[getaddrinfo](https://man7.org/linux/man-pages/man3/getaddrinfo.3.html)、[recvmsg／MSG_TRUNC 与空包](https://man7.org/linux/man-pages/man2/recvmsg.2.html) 及目标 socket headers。验收使用 loopback、动态端口与显式线程同步。
 
 ### 12.4 普通 native helper 复用
 
-`native/socket_native.h` 是本库网络 helper 的 C11 声明边界，供 asyncio 等显式依赖者复用。Scoop 对应的公开 `@CLayout NativeSocketAddress(family: Int, port: Int, scopeId: UInt, a: UInt, b: UInt, c: UInt, d: UInt)` 由 platform 定义，复用同一 C 符号的 Scoop 声明使用该类型身份，不自行重声明同形 nominal。ScoopSocketAddress 的字段及 encode／decode、socket_bind 均保持现有 C ABI；family 为 4／6，port 为主机序 0..65535，地址 a～d 为按网络字节顺序组装的主机 UInt32 值，scope 为 IPv6 scope id。socket_bind 返回 owned close-on-exec fd，reuse 精确配置 SO_REUSEADDR，TCP 在返回前完成 bind/listen；失败返回 -1 并保留 errno，内部未交付 fd 已关闭。
+`native/socket_native.h` 是本库网络 helper 的 C11 声明边界，供 asyncio 等显式依赖者复用。Scoop 对应的公开 `@CLayout NativeSocketAddress(family: Int, port: Int, scopeId: UInt, a: UInt, b: UInt, c: UInt, d: UInt)` 由 platform 定义，复用同一 C 符号的 Scoop 声明使用该类型身份，不自行重声明同形 nominal。ScoopSocketAddress 的字段与 encode／decode 保持现有 C ABI；family 为 4／6，port 为主机序 0..65535，地址 a～d 为按网络字节顺序组装的主机 UInt32 值，scope 为 IPv6 scope id。POSIX 的 socket_bind 继续返回 owned close-on-exec fd，reuse 精确配置 SO_REUSEADDR，TCP 在返回前完成 bind/listen；失败返回 -1 并保留 errno，内部未交付 fd 已关闭。
+
+同步 managed 端点使用独立 C-layout socket handle 及同次错误记录，socket_bind_owned 在 POSIX 复用上述 fd helper，在 Windows 返回不可继承的 SOCKET。解析链在 Windows 为 owned ADDRINFOW，由 FreeAddrInfoW 配对释放；POSIX 仍为 addrinfo／freeaddrinfo。共享地址值布局保持，目标选择只改变实际名称编码和 OS 资源类型。
 
 这是普通 GC-free C helper 边界，不提供 managed File／TcpStream 的私有句柄访问。使用者自行拥有新获得的 fd，可交给其事件后端；只能移交一次。native 头文件作为实际 include 输入参与普通构建，预编译 `.slib` 消费不再次编译这些 helper。错误、对象身份与缓存沿既有合同处理，不增加 runtime API 或特殊 native dependency 机制。
 

@@ -1,0 +1,13 @@
+#include <winres.h>
+#include <resource_ids.h>
+
+#ifdef SCOOP_RESOURCE_C_ONLY
+#error native C flags must not be applied to RC
+#endif
+
+RESOURCE_ID RCDATA "payload.txt"
+
+STRINGTABLE
+BEGIN
+    9 "Resource fixture"
+END

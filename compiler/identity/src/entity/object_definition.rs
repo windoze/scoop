@@ -370,6 +370,8 @@ pub enum DefinitionAtomRole {
     Stackmap,
     RuntimeRecord,
     AddressTakenConstant,
+    WindowsUnwindTable,
+    WindowsUnwindInfo,
 }
 
 impl WireEncode for DefinitionAtomRole {
@@ -384,6 +386,8 @@ impl WireEncode for DefinitionAtomRole {
             Self::AddressTakenConstant => 7,
             Self::ContextKeyCell => 8,
             Self::ContextKeyTable => 9,
+            Self::WindowsUnwindTable => 10,
+            Self::WindowsUnwindInfo => 11,
         })
     }
 }

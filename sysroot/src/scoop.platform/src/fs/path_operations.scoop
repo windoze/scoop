@@ -1,0 +1,110 @@
+package scoop.platform.fs
+
+import scoop.platform.native.decodeFileMetadata
+import scoop.platform.native.requireFileMode
+import scoop.platform.system.*
+
+/**
+ * Moves the path to the destination, replacing an existing entry only when requested.
+ */
+public fun Path.moveTo(destination: Path, replaceExisting: Boolean = false) {
+    @Unsafe
+    {
+        this.withPlatformPath {
+            from -> @Unsafe
+            {
+                destination.withPlatformPath {
+                    to -> @Unsafe
+                    {
+                        nativePathMove(from, to, replaceExisting).checked(
+                            "move",
+                            Some(destination.toOsString())
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Queries path metadata, following symbolic links unless followLinks is false.
+ */
+public fun Path.metadata(followLinks: Boolean = true): FileMetadata {
+    @Unsafe
+    {
+        return this.withPlatformPath {
+            pointer -> @Unsafe
+            {
+                val result = nativePathMetadata(pointer, followLinks)
+                return@withPlatformPath decodeFileMetadata(
+                    result.data,
+                    result.error,
+                    Some(this.toOsString())
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Tests whether path metadata is available; ordinary absence returns false while other platform
+ * failures propagate.
+ */
+public fun Path.exists(followLinks: Boolean = true): Boolean {
+    try {
+        this.metadata(followLinks);
+        return true
+    }
+    catch (error: PlatformException) {
+        if (
+            error.kind == PlatformErrorKind.NotFound || error.kind == PlatformErrorKind.NotDirectory
+        )
+            return false
+        throw error
+    }
+}
+
+/**
+ * Creates one directory with requested permissions, subject to umask.
+ */
+public fun Path.createDirectory(mode: Int = 0x1ff) {
+    requireFileMode(mode)
+    @Unsafe
+    {
+        this.withPlatformPath {
+            pointer -> @Unsafe
+            {
+                nativePathMkdir(pointer, mode).checked("create directory", Some(this.toOsString()))
+            }
+        }
+    }
+}
+
+/**
+ * Removes the selected file or empty directory.
+ */
+public fun Path.delete() {
+    @Unsafe
+    {
+        this.withPlatformPath {
+            pointer -> @Unsafe
+            {
+                nativePathDelete(pointer).checked("delete", Some(this.toOsString()))
+            }
+        }
+    }
+}
+
+@Extern(name = "scoop_platform_path_mkdir_result")
+private fun nativePathMkdir(path: Ptr<Byte>, mode: Int): NativeFileResult
+
+@Extern(name = "scoop_platform_path_delete_result")
+private fun nativePathDelete(path: Ptr<Byte>): NativeFileResult
+
+@Extern(name = "scoop_platform_path_move_result")
+private fun nativePathMove(
+    source: Ptr<Byte>,
+    destination: Ptr<Byte>,
+    replace: Boolean
+): NativeFileResult

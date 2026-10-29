@@ -1,0 +1,178 @@
+package scoop.platform.env
+
+import scoop.platform.fs.*
+import scoop.platform.random.SystemRandom
+import scoop.platform.system.*
+import scoop.test.*
+
+private fun setWindowsEnvironment(name: OsString, value: OsString?) {
+    @Unsafe
+    {
+        name.withPlatformString {
+            key -> @Unsafe
+            {
+                when (value) {
+                    case Some(text) -> text.withPlatformString {
+                        data -> @Unsafe
+                        {
+                            assertTrue(nativeSetEnvironment(key, Some(data)) != 0)
+                        }
+                    }
+                    case None -> assertTrue(nativeSetEnvironment(key, None) != 0)
+                }
+            }
+        }
+    }
+}
+
+private fun <R> withWindowsEnvironment(name: OsString, value: OsString?, block: () -> R): R {
+    val previous = environmentVariable(name)
+    setWindowsEnvironment(name, value)
+    try {
+        return block()
+    }
+    finally {
+        setWindowsEnvironment(name, previous)
+    }
+}
+
+private fun setWindowsDirectory(path: Path) {
+    @Unsafe
+    {
+        path.withPlatformPath {
+            pointer -> @Unsafe
+            {
+                assertTrue(nativeSetDirectory(pointer) != 0)
+            }
+        }
+    }
+}
+
+@Test
+private class WindowsEnvironmentTest {
+    @Test
+    fun `missing empty and changed values retain case lookup and independent snapshots`() {
+        val suffix = SystemRandom.nextLong().toString()
+        val name = OsString.fromString("SCOOP_ENV_" + suffix)
+        val lower = OsString.fromString("scoop_env_" + suffix)
+        withWindowsEnvironment(name, None) {
+            assertTrue(environmentVariable(name) == None)
+            setWindowsEnvironment(name, Some(OsString.fromString("")))
+            assertEquals(OsString.fromString(""), environmentVariable(lower)!!)
+            assertEquals(OsString.fromString(""), environment()[name]!!)
+            val original = OsString.fromString("before=one=two")
+            setWindowsEnvironment(name, Some(original))
+            val single = environmentVariable(lower)!!
+            val snapshot = environment()
+            assertEquals(original, snapshot[name]!!)
+            assertFalse(snapshot.containsKey(lower))
+            setWindowsEnvironment(name, Some(OsString.fromString("after")))
+            gcCollect()
+            assertEquals(original, single)
+            assertEquals(original, snapshot[name]!!)
+            assertEquals(OsString.fromString("after"), environmentVariable(name)!!)
+            setWindowsEnvironment(name, None)
+            assertTrue(environmentVariable(lower) == None)
+            assertFalse(environment().containsKey(name))
+            for ((key, _) in snapshot) {
+                assertTrue(key.toByteArray().size > 0L)
+                assertFalse(key.toByteArray()[0L] == 61)
+            }
+        }
+    }
+
+    @Test
+    fun `wide names and large values preserve unpaired UTF16 units`() {
+        val prefix = OsString.fromString("SCOOP_" + SystemRandom.nextLong().toString()).toUtf16()
+        val name =
+            OsString.fromUtf16(
+                Array<UShort>(prefix.size + 1L) {
+                    if (it == prefix.size)
+                        0xd800.toUShort()
+                    else
+                        prefix[it]
+                }
+            )
+        val units =
+            Array<UShort>(600L) {
+                when (it % 5L) {
+                    case 0L -> 0x4e2d.toUShort()
+                    case 1L -> 0xd800.toUShort()
+                    case 2L -> 0x3d.toUShort()
+                    case 3L -> 0xdc00.toUShort()
+                    else -> 0x61.toUShort()
+                }
+            }
+        val value = OsString.fromUtf16(units)
+        withWindowsEnvironment(name, Some(value)) {
+            assertEquals(value, environmentVariable(name)!!)
+            val snapshot = environment()
+            gcCollect()
+            assertEquals(value, snapshot[name]!!)
+            val copied = snapshot[name]!!.toUtf16()
+            assertEquals(units.size, copied.size)
+            for (index in 0L ..< units.size)
+                assertEquals(units[index], copied[index])
+        }
+    }
+
+    @Test
+    fun `home prefers USERPROFILE and falls back to the process user profile`() {
+        val name = OsString.fromString("USERPROFILE")
+        val raw =
+            OsString.fromUtf16(
+                [
+                    0x43.toUShort(),
+                    0x3a.toUShort(),
+                    0x5c.toUShort(),
+                    0x4e2d.toUShort(),
+                    0xd800.toUShort()
+                ]
+            )
+        withWindowsEnvironment(name, Some(raw)) {
+            assertEquals(raw, homeDirectory()!!.toOsString())
+        }
+        val fallback =
+            withWindowsEnvironment(name, Some(OsString.fromString(""))) { homeDirectory()!! }
+        assertTrue(fallback.isAbsolute)
+        withWindowsEnvironment(OsString.fromString("HOME"), Some(OsString.fromString("ignored"))) {
+            withWindowsEnvironment(name, None) { assertEquals(fallback, homeDirectory()!!) }
+        }
+    }
+
+    @Test
+    fun `current directory uses wide OS state instead of PWD`() {
+        val original = currentDirectory()
+        val parent = createTempDirectory(prefix = "scoop-cwd-")
+        val raw =
+            parent.resolve(
+                Path.fromOsString(OsString.fromUtf16([0x4e2d.toUShort(), 0xd800.toUShort()]))
+            )
+        raw.createDirectory()
+        try {
+            withWindowsEnvironment(
+                OsString.fromString("PWD"),
+                Some(OsString.fromString("ignored"))
+            ) {
+                try {
+                    setWindowsDirectory(raw)
+                    assertEquals(raw, currentDirectory().canonicalize())
+                    gcCollect()
+                    assertEquals(raw, currentDirectory().canonicalize())
+                }
+                finally {
+                    setWindowsDirectory(original)
+                }
+            }
+        }
+        finally {
+            parent.deleteRecursively()
+        }
+    }
+}
+
+@Extern(name = "SetEnvironmentVariableW")
+private fun nativeSetEnvironment(name: Ptr<Byte>, value: Ptr<Byte>?): Int
+
+@Extern(name = "SetCurrentDirectoryW")
+private fun nativeSetDirectory(path: Ptr<Byte>): Int

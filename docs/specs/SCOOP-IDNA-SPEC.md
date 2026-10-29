@@ -50,11 +50,13 @@ URL 从已解析的 host 组件调用 IDNA；百分号解码和 IP 识别属于 
 
 ## 5. 构建与验收
 
-维护脚本从固定 Rust package 与锁定依赖准备三个目标的 `libscoop_text_backend.a` 和 C 头文件；源码及许可沿 M52 布局交付。`idna` 使用 MIT／Apache-2.0，ICU4X 与 Unicode 数据使用 Unicode-3.0。普通应用只消费 `.slib` 和静态归档，不执行 Cargo 或探测 Rust 工具链。共同归档复用现有 native library 闭包去重与目标链接规则，见实现规范 §2.8。
+维护脚本从固定 Rust package 与锁定依赖准备 Darwin、Linux GNU／musl、Windows MSVC UCRT／LLVM-MinGW MSVCRT／LLVM-MinGW UCRT 六个目标的 `libscoop_text_backend.a` 和 C 头文件；源码及许可沿 M52 布局交付。Windows 使用发行配置固定的 Rust 版本，分别映射到 `x86_64-pc-windows-msvc`、`x86_64-pc-windows-gnu`、`x86_64-pc-windows-gnullvm`，Microsoft COFF archive 以相同的 `.a` 名称发布，各目标产物独立。Windows 原生系统依赖为 kernel32、ntdll、userenv、ws2_32、dbghelp；CRT 与 Scoop 展开辅助库沿完整目标的普通链接配置提供，不另带 GCC DLL 或第二套展开实现。
+
+`idna` 使用 MIT／Apache-2.0，ICU4X 与 Unicode 数据使用 Unicode-3.0。普通应用只消费 `.slib` 和静态归档，不执行 Cargo 或探测 Rust 工具链。共同归档复用现有 native library 闭包去重与目标链接规则，见实现规范 §2.8。
 
 测试验证 Scoop 自有的 profile 参数适配、根点与单标签边界、异常映射及结果所有权。Unicode 算法和数据由固定的成熟 Rust 依赖提供，不引入官方一致性数据，也不新增针对上游 Unicode 兼容性或完备性的正例、负例。
 
-三个目标运行真实 C ABI 调用及 Scoop 消费，检查长度、状态和释放责任。公开行为在 scoop.test 中验证，不增加 fixture；已有直接消费者结果按实际变更范围复用，不因数据更新扩展到无关消费者。
+各目标运行真实 C ABI 调用及 Scoop 消费，检查长度、状态和释放责任。公开行为在 scoop.test 中验证，不增加 fixture；已有直接消费者结果按实际变更范围复用，不因数据更新扩展到无关消费者。
 
 ## 6. 依据
 

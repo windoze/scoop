@@ -6,6 +6,17 @@ name = "scoop.platform"
 version = "0.1.0"
 kind = "library"
 
+[[sources]]
+path = "src"
+
+[[sources]]
+path = "platform/windows"
+when = {os = "windows"}
+
+[[sources]]
+path = "platform/posix"
+when = {os = ["darwin", "linux"]}
+
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
 "scoop:scoop.std" = "0.1.0"
@@ -13,8 +24,39 @@ kind = "library"
 [test-dependencies]
 "scoop:scoop.test" = "0.1.0"
 
+[[test.sources]]
+path = "tests"
+
+[[test.sources]]
+path = "test-windows"
+when = {os = "windows"}
+
+[[test.sources]]
+path = "test-posix"
+when = {os = ["darwin", "linux"]}
+
 [native]
-c_flags = ["-std=c11", "-Wall", "-Wextra", "-Werror"]
+c_flags = ["-Wextra", "-Werror"]
+
+[[native.libraries]]
+name = "bcrypt"
+when = {os = "windows"}
+
+[[native.libraries]]
+name = "ws2_32"
+when = {os = "windows"}
+
+[[native.libraries]]
+name = "userenv"
+when = {os = "windows"}
+
+[[native.libraries]]
+name = "advapi32"
+when = {os = "windows"}
+
+[[native.libraries]]
+name = "ntdll"
+when = {os = "windows"}
 
 [[native.sources]]
 path = "native/errors.c"
@@ -24,18 +66,45 @@ path = "native/memory.c"
 
 [[native.sources]]
 path = "native/io.c"
+when = {os = ["darwin", "linux"]}
 [[native.sources]]
 path = "native/files.c"
+when = {os = ["darwin", "linux"]}
 [[native.sources]]
 path = "native/file_metadata.c"
+when = {os = ["darwin", "linux"]}
+[[native.sources]]
+path = "native/file_handles.c"
+[[native.sources]]
+path = "native/file_handle_io.c"
+[[native.sources]]
+path = "native/file_handle_metadata.c"
+[[native.sources]]
+path = "native/path_operations.c"
 [[native.sources]]
 path = "native/paths.c"
+when = {os = ["darwin", "linux"]}
+[[native.sources]]
+path = "native/path_links.c"
+[[native.sources]]
+path = "native/path_canonical.c"
+[[native.sources]]
+path = "native/temporary_directory.c"
+[[native.sources]]
+path = "native/strings.c"
 [[native.sources]]
 path = "native/directory.c"
+when = {os = ["darwin", "linux"]}
+[[native.sources]]
+path = "native/directory_owner.c"
 [[native.sources]]
 path = "native/environment.c"
 [[native.sources]]
+path = "native/environment_directories.c"
+[[native.sources]]
 path = "native/system.c"
+[[native.sources]]
+path = "native/target.c"
 [[native.sources]]
 path = "native/time.c"
 [[native.sources]]
@@ -48,8 +117,16 @@ path = "native/mutex.c"
 path = "native/condition.c"
 [[native.sources]]
 path = "native/pipes.c"
+when = {os = ["darwin", "linux"]}
 [[native.sources]]
 path = "native/process.c"
+when = {os = ["darwin", "linux"]}
+[[native.sources]]
+path = "native/process_windows.c"
+when = {os = "windows"}
+[[native.sources]]
+path = "native/process_windows_strings.c"
+when = {os = "windows"}
 [[native.sources]]
 path = "native/process_wait.c"
 [[native.sources]]
@@ -62,11 +139,25 @@ path = "native/socket_io.c"
 path = "native/resolve.c"
 
 [[native.sources]]
+path = "native/tty/managed.c"
+[[native.sources]]
 path = "native/tty/session.c"
+when = {os = ["darwin", "linux"]}
 [[native.sources]]
 path = "native/tty/control.c"
+when = {os = ["darwin", "linux"]}
 [[native.sources]]
 path = "native/tty/input.c"
+when = {os = ["darwin", "linux"]}
+[[native.sources]]
+path = "native/tty/windows_session.c"
+when = {os = "windows"}
+[[native.sources]]
+path = "native/tty/windows_control.c"
+when = {os = "windows"}
+[[native.sources]]
+path = "native/tty/windows_input.c"
+when = {os = "windows"}
 [[native.sources]]
 path = "native/tty/resize_linux.c"
 when = {os = "linux"}

@@ -146,7 +146,8 @@ fn relative(cwd: &Path, member: &Path, path: &Path) -> PmResult<String> {
         return Err(PmError::new("dependency path must not be empty"));
     }
     let absolute = cwd.join(path);
-    let relative = pathdiff::diff_paths(&absolute, member).unwrap_or(absolute);
+    let relative = pathdiff::diff_paths(dunce::simplified(&absolute), dunce::simplified(member))
+        .unwrap_or(absolute);
     relative
         .to_str()
         .map(str::to_owned)

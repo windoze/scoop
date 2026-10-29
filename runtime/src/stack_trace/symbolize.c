@@ -64,17 +64,6 @@ static void collect_symbol_name(void *data, uintptr_t pc, const char *name,
     collect_symbol(data, pc, NULL, 0, name);
 }
 
-void scoop_trace_symbols_free(ScoopTraceSymbols *symbols) {
-    for (ScoopTraceSymbol *symbol = symbols->first; symbol != NULL;) {
-        ScoopTraceSymbol *next = symbol->next;
-        free(symbol->function);
-        free(symbol->filename);
-        free(symbol);
-        symbol = next;
-    }
-    symbols->first = symbols->last = NULL;
-}
-
 void scoop_trace_symbolize(uint64_t generation, uintptr_t pc, ScoopTraceSymbols *symbols) {
     pthread_once(&symbols_once, initialize_symbols);
     if (!symbols_stable || generation != symbols_generation ||

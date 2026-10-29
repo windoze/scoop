@@ -13,6 +13,7 @@ from prepare_sysroot import cone_order, has_target_sources
 
 DARWIN = "aarch64-apple-darwin"
 LINUX = "x86_64-unknown-linux-gnu"
+WINDOWS = "x86_64-pc-windows-msvc-ucrt"
 
 
 class SysrootSelectionTests(unittest.TestCase):
@@ -37,6 +38,7 @@ class SysrootSelectionTests(unittest.TestCase):
             with patch("prepare_sysroot.tomllib.load", side_effect=AssertionError("cache miss")):
                 self.assertEqual(cone_order(root, root, DARWIN), expected)
             self.assertEqual(cone_order(root, root, LINUX), expected[:2])
+            self.assertEqual(cone_order(root, root, WINDOWS), expected[:2])
             self.write_cone(
                 root, "scoop.consumer", '[dependencies]\n"scoop:scoop.window" = "0.1.0"\n'
             )
@@ -49,6 +51,10 @@ class SysrootSelectionTests(unittest.TestCase):
         sources = {"sources": [{"path": "src", "when": {"os": ["darwin", "linux"], "env": "none"}}]}
         self.assertTrue(has_target_sources(sources, DARWIN))
         self.assertFalse(has_target_sources(sources, LINUX))
+        self.assertFalse(has_target_sources(sources, WINDOWS))
+        windows = {"sources": [{"path": "src", "when": {"os": "windows", "env": "msvc-ucrt"}}]}
+        self.assertTrue(has_target_sources(windows, WINDOWS))
+        self.assertFalse(has_target_sources(windows, DARWIN))
         with self.assertRaisesRegex(ValueError, "unknown target predicate"):
             has_target_sources({"sources": [{"path": "src", "when": {"os": "dawr in"}}]}, DARWIN)
 

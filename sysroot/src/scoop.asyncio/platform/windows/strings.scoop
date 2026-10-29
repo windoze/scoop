@@ -1,0 +1,46 @@
+package scoop.asyncio
+
+import scoop.platform.system.OsString
+
+@Unsafe
+internal fun <R> OsString.withIoString(block: (Ptr<Byte>) -> R): R {
+    val units = toUtf16()
+    for (unit in units) {
+        if (unit == 0.toUShort())
+            throw IllegalArgumentException(Some("native string contains NUL"))
+    }
+    if (units.size == Long.MAX_VALUE)
+        throw ArithmeticException()
+    val terminated =
+        Array<UShort>(units.size + 1L) {
+            index -> if (index == units.size)
+                0.toUShort()
+            else
+                units[index]
+        }
+    return terminated.withDataPointer {
+        pointer,
+        _ -> @Unsafe
+        {
+            return@withDataPointer block(pointer.cast<Byte>())
+        }
+    }
+}
+
+@Unsafe
+internal fun copyIoString(pointer: Ptr<Byte>): OsString {
+    val length = nativeIoStringLength(pointer)
+    val units = pointer.cast<UShort>()
+    return OsString.fromUtf16(
+        Array<UShort>(length) {
+            index -> @Unsafe
+            {
+                return@Array units.load(index)
+            }
+        }
+    )
+}
+
+@GCLeaf
+@Extern(name = "scoop_io_string_length")
+private fun nativeIoStringLength(pointer: Ptr<Byte>): Long

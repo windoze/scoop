@@ -33,6 +33,7 @@ enum CBridgeCommandParameters {
         real_gcc: Option<PathBuf>,
         search_path: OsString,
     },
+    Windows(crate::windows_c::WindowsCEnvironment),
 }
 
 impl ValidatedCBridgeToolchainInvocation {
@@ -96,7 +97,7 @@ impl ValidatedCBridgeToolchainInvocation {
     pub fn sdk_root(&self) -> Result<&Path, scoop_lir::CBridgePlatformError> {
         match &self.parameters {
             CBridgeCommandParameters::Darwin { sdk_root, .. } => Ok(sdk_root),
-            CBridgeCommandParameters::Linux { .. } => {
+            CBridgeCommandParameters::Linux { .. } | CBridgeCommandParameters::Windows(_) => {
                 Err(scoop_lir::CBridgePlatformError::ExpectedDarwin)
             }
         }
@@ -153,6 +154,7 @@ impl ValidatedCBridgeToolchainInvocation {
         match &self.parameters {
             CBridgeCommandParameters::Darwin { sdk_root, .. } => Some(sdk_root),
             CBridgeCommandParameters::Linux { native_sysroot, .. } => native_sysroot.as_deref(),
+            CBridgeCommandParameters::Windows(environment) => environment.native_sysroot.as_deref(),
         }
     }
 
@@ -171,6 +173,13 @@ impl ValidatedCBridgeToolchainInvocation {
                 Some(("PATH", search_path.as_os_str())),
                 real_gcc.as_ref().map(|path| ("REALGCC", path.as_os_str())),
             ]),
+            CBridgeCommandParameters::Windows(environment) => Some([
+                Some(("PATH", environment.search_path.as_os_str())),
+                environment
+                    .system_root
+                    .as_ref()
+                    .map(|root| ("SystemRoot", root.as_os_str())),
+            ]),
         }
         .into_iter()
         .flatten()
@@ -184,6 +193,14 @@ impl ValidatedCBridgeToolchainInvocation {
 
     /// Use a paired native driver with the same target and environment.
     pub fn driver_command_with(&self, driver: &Path) -> Command {
+        if let CBridgeCommandParameters::Windows(environment) = &self.parameters {
+            return environment.command(
+                driver,
+                crate::windows_c::machine_triple(self.target.id())
+                    .expect("validated Windows target"),
+                self.target.id() == scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID,
+            );
+        }
         let mut command = Command::new(driver);
         command
             .env_clear()
@@ -209,8 +226,59 @@ impl ValidatedCBridgeToolchainInvocation {
                     command.arg("--sysroot").arg(root);
                 }
             }
+            CBridgeCommandParameters::Windows(_) => {
+                unreachable!("Windows command was handled above")
+            }
         }
         command
+    }
+
+    pub(crate) fn new_windows(
+        target: LirTargetProfile,
+        profile: CBridgeToolchainProfileV1,
+        compiler_driver: PathBuf,
+        environment: crate::windows_c::WindowsCEnvironment,
+    ) -> Result<Self, CBridgeToolchainInvocationError> {
+        if crate::windows_c::machine_triple(target.id()).is_err()
+            || !matches!(
+                profile.contract().platform(),
+                scoop_lir::CBridgePlatformContractV1::Windows { .. }
+            )
+        {
+            return Err(CBridgeToolchainInvocationError::Platform(
+                scoop_lir::CBridgePlatformError::ExpectedWindows,
+            ));
+        }
+        if !compiler_driver.is_absolute() {
+            return Err(CBridgeToolchainInvocationError::RelativeCompilerDriver);
+        }
+        if environment
+            .native_sysroot
+            .iter()
+            .chain(&environment.includes)
+            .chain(&environment.libraries)
+            .any(|path| !path.is_absolute())
+        {
+            return Err(CBridgeToolchainInvocationError::RelativeNativeSysroot);
+        }
+        let value = Self {
+            target,
+            profile,
+            compiler_driver,
+            parameters: CBridgeCommandParameters::Windows(environment),
+            optimization: scoop_lir::OptimizationMode::Debug,
+        };
+        value.validate_target(target)?;
+        Ok(value)
+    }
+
+    pub(crate) fn windows_environment(
+        &self,
+    ) -> Result<&crate::windows_c::WindowsCEnvironment, scoop_lir::CBridgePlatformError> {
+        match &self.parameters {
+            CBridgeCommandParameters::Windows(environment) => Ok(environment),
+            _ => Err(scoop_lir::CBridgePlatformError::ExpectedWindows),
+        }
     }
 
     pub fn validate_target(

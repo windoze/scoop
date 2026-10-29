@@ -1,0 +1,38 @@
+package scoop.asyncio
+
+import scoop.platform.fs.Path
+
+@CLayout
+internal struct NativeTemporaryFile(
+    val file: Ptr<Unit>,
+    val path: Ptr<Byte>,
+    val status: NativeIoStatus
+)
+
+internal struct CreatedTemporaryFile(
+    val file: Ptr<Unit>,
+    val path: Path,
+    val status: NativeIoStatus
+)
+
+internal fun takeTemporaryFile(pointer: Ptr<Unit>): CreatedTemporaryFile {
+    @Unsafe
+    {
+        val value = nativeTakeTemporary(pointer)
+        try {
+            return CreatedTemporaryFile(
+                value.file,
+                Path.fromOsString(copyIoString(value.path)),
+                value.status
+            )
+        } finally {
+            nativeFreeTemporaryPath(value.path)
+        }
+    }
+}
+
+@Extern(name = "scoop_io_temporary_take")
+private fun nativeTakeTemporary(pointer: Ptr<Unit>): NativeTemporaryFile
+
+@Extern(name = "scoop_io_temporary_path_free")
+private fun nativeFreeTemporaryPath(path: Ptr<Byte>)

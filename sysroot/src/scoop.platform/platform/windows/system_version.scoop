@@ -1,0 +1,27 @@
+package scoop.platform.system
+
+/**
+ * Returns the running Windows version as major.minor.build.
+ */
+public fun systemVersion(): String {
+    @Unsafe
+    {
+        val value = nativeSystemVersion()
+        if (value.error != 0) {
+            val error = NativeError(NativeErrorDomain.NtStatus, value.error)
+            throw PlatformException("system version", error.kind, Some(error))
+        }
+        return f"${value.major}.${value.minor}.${value.build}"
+    }
+}
+
+@CLayout
+private struct NativeSystemVersion(
+    val major: UInt,
+    val minor: UInt,
+    val build: UInt,
+    val error: Int
+)
+
+@Extern(name = "scoop_platform_system_version")
+private fun nativeSystemVersion(): NativeSystemVersion

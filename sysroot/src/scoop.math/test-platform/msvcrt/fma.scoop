@@ -1,0 +1,13 @@
+package scoop.math.tests.scalar
+
+import scoop.math.fma
+import scoop.test.*
+
+@Test
+private class SystemFmaTests {
+    @Test
+    fun preservesSystemOverflowBehavior() {
+        assertEquals(Double.POSITIVE_INFINITY, fma(Double.MAX_VALUE, 2.0, -Double.MAX_VALUE))
+        assertEquals(Float.POSITIVE_INFINITY, fma(Float.MAX_VALUE, 2f, -Float.MAX_VALUE))
+    }
+}

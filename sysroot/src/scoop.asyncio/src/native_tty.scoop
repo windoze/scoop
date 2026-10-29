@@ -1,24 +1,46 @@
 package scoop.asyncio
 
 @CLayout
-internal struct NativeTtySize(val columns: Long, val rows: Long, val widthPixels: Long, val heightPixels: Long)
+internal struct NativeTtySize(
+    val columns: Long,
+    val rows: Long,
+    val widthPixels: Long,
+    val heightPixels: Long
+)
+
+@CLayout
+internal struct NativeTtySizeResult(val size: NativeTtySize, val status: NativeIoStatus)
 
 @Extern(name = "scoop_io_tty_open")
 internal fun nativeTtyOpen(loop: Ptr<Unit>, id: Long): Int
+
 @Extern(name = "scoop_io_tty_close")
 internal fun nativeTtyClose(tty: Ptr<Unit>, id: Long): Int
+
 @Extern(name = "scoop_io_tty_receive")
-internal fun nativeTtyReceive(tty: Ptr<Unit>, id: Long, bytes: Ptr<Byte>?, count: Long,
-    seconds: Long, nanos: Int): Int
+internal fun nativeTtyReceive(
+    tty: Ptr<Unit>,
+    id: Long,
+    bytes: Ptr<Byte>?,
+    count: Long,
+    seconds: Long,
+    nanos: Int
+): Int
+
 @Extern(name = "scoop_io_tty_write")
 internal fun nativeTtyWrite(tty: Ptr<Unit>, id: Long, bytes: Ptr<Byte>?, count: Long): Int
+
 @Extern(name = "scoop_io_tty_cancel_read")
 internal fun nativeTtyCancelRead(tty: Ptr<Unit>, id: Long)
+
 @Extern(name = "scoop_io_tty_cancel_write")
 internal fun nativeTtyCancelWrite(tty: Ptr<Unit>, id: Long)
-@Extern(name = "scoop_io_tty_set_raw", captureErrno = true)
-internal fun nativeTtyRaw(tty: Ptr<Unit>, enabled: Boolean): (Int, Int)
+
+@Extern(name = "scoop_io_tty_set_raw")
+internal fun nativeTtyRaw(tty: Ptr<Unit>, enabled: Boolean): NativeIoStatus
+
 @Extern(name = "scoop_io_tty_is_raw")
 internal fun nativeTtyIsRaw(tty: Ptr<Unit>): Boolean
-@Extern(name = "scoop_io_tty_size", captureErrno = true)
-internal fun nativeTtySize(tty: Ptr<Unit>): (NativeTtySize, Int)
+
+@Extern(name = "scoop_io_tty_size")
+internal fun nativeTtySize(tty: Ptr<Unit>): NativeTtySizeResult

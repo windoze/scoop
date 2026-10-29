@@ -1,5 +1,5 @@
 use clap::Parser;
-use scoop_example::{Args, Error, Format};
+use scoop_example::{Args, COMMAND_NAME, Error, Format};
 use std::io::{self, Write};
 use std::process::ExitCode;
 
@@ -12,7 +12,7 @@ fn report(error: Error, json: bool) -> ExitCode {
             })
         );
     } else {
-        eprintln!("scoop example: {}", error.message);
+        eprintln!("{COMMAND_NAME}: {}", error.message);
     }
     ExitCode::from(error.code)
 }

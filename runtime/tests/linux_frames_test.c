@@ -138,13 +138,12 @@ int main(void) {
     size_t page = scoop_linux_thread_vm_ops.page_size();
     void *mapping;
     assert(page != 0);
-    assert(scoop_linux_thread_vm_ops.reserve_read_write(0, page, &mapping,
-                                                        &error));
+    assert(scoop_linux_thread_vm_ops.reserve_read_write(page, page, &mapping, &error));
     *(volatile char *)mapping = 42;
     assert(!scoop_linux_thread_vm_ops.protect_none((char *)mapping + 1, page,
                                                    &error));
     assert(scoop_linux_thread_vm_ops.protect_none(mapping, page, &error));
-    assert(munmap(mapping, page) == 0);
+    assert(scoop_linux_thread_vm_ops.release_mapping(mapping, page, &error));
     scoop_stackmap_dispose_index(&stackmaps);
     puts("amd64 anchors, relocated roots and Linux VM passed");
 }

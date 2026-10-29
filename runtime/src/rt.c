@@ -49,10 +49,10 @@ int64_t scoop_rt_string_compare(const ScoopString *a, const ScoopString *b) {
     return (a->len > b->len) - (a->len < b->len);
 }
 
-static const ScoopItableEntryV1 *find_itable_entry(
-    const ScoopTypeDescriptor *source, const ScoopTypeDescriptor *interface) {
+static const ScoopItableEntryV1 *find_itable_entry(const ScoopTypeDescriptor *source,
+                                                   const ScoopTypeDescriptor *interface_type) {
     for (uint64_t i = 0; i < source->itable_count; i++) {
-        if (source->itables[i].interface == interface) {
+        if (source->itables[i].interface_type == interface_type) {
             return &source->itables[i];
         }
     }

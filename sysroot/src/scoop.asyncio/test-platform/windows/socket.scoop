@@ -1,0 +1,146 @@
+package scoop.asyncio
+
+import scoop.test.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.platform.system.NativeErrorDomain
+
+@Test
+private class WindowsSocketCompletionTest {
+    @Test
+    fun `IPv4 connects accepts and transfers in both directions`() {
+        @Unsafe
+        {
+            assertEquals(0, testTcp(false))
+        }
+    }
+    @Test
+    fun `IPv6 connects accepts and transfers in both directions`() {
+        @Unsafe
+        {
+            assertEquals(0, testTcp(true))
+        }
+    }
+    @Test
+    fun `socket close waits for both pending directions`() {
+        @Unsafe
+        {
+            assertEquals(0, testSocketClose())
+        }
+    }
+    @Test
+    fun `pending UDP receives preserve truncation and cancellation boundaries`() {
+        @Unsafe
+        {
+            assertEquals(0, testUdp(false))
+        }
+    }
+    @Test
+    fun `queued UDP packets preserve truncation and cancellation boundaries`() {
+        @Unsafe
+        {
+            assertEquals(0, testUdp(true))
+        }
+    }
+    @Test
+    fun `socket addresses and status cross the native boundary`() {
+        @Unsafe
+        {
+            for (ipv6 in [false, true]) {
+                val result = testSocketName(ipv6)
+                assertEquals(0, result.status.code)
+                val address = ioSocketAddress(result.address)
+                assertEquals(
+                    if (ipv6)
+                        IpAddress.IPV6_LOOPBACK
+                    else
+                        IpAddress.IPV4_LOOPBACK,
+                    address.address
+                )
+                assertTrue(address.port > 0)
+            }
+            val error = nativeStatusError(NativeIoStatus(10, 10040))
+            assertEquals(NativeErrorDomain.Winsock, error.domain)
+            assertEquals(10040, error.code)
+        }
+    }
+    @Test
+    fun `datagram records and borrowed buffers survive GC until completion`() {
+        @Unsafe
+        {
+            val created = nativeLoopCreate()
+            assertEquals(0, created.status.code)
+            val loop = created.pointer!!
+            assertEquals(
+                0,
+                nativeUdpBind(loop, 1L, ioAddress(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)), false)
+            )
+            val opened = testSocketNext(loop)
+            assertEquals(3, opened.kind)
+            val socket = opened.resource!!
+            val address = udpAddress(socket)
+            val input = NativeByteBuffer.allocate(3L)
+            val output = NativeByteBuffer.allocate(5L)
+            output.writeBytes([0.toByte(), 255.toByte(), 128.toByte(), 4.toByte(), 5.toByte()])
+            val read = input.borrowWritable(3L)
+            val write = output.borrowReadable(5L)
+            assertEquals(0, nativeUdpReceive(socket, 2L, read.pointer(), read.length))
+            gcCollect()
+            assertEquals(
+                0,
+                nativeUdpSend(socket, 3L, write.pointer(), write.length, ioAddress(address))
+            )
+            gcCollect()
+            var seen = 0
+            for (index in 0 ..< 2) {
+                val event = testSocketNext(loop)
+                if (event.id == 2L) {
+                    assertEquals(8, event.kind)
+                    val packet = takeDatagram(event.resource!!)
+                    assertEquals(address, packet.source)
+                    assertEquals(3L, packet.count)
+                    assertTrue(packet.truncated)
+                    read.complete(packet.count)
+                    seen = seen or 1
+                } else {
+                    assertEquals(3L, event.id)
+                    assertEquals(1, event.kind)
+                    assertEquals(5L, event.count)
+                    write.complete(event.count)
+                    seen = seen or 2
+                }
+            }
+            assertEquals(3, seen)
+            assertEquals(3L, input.readableBytes)
+            assertEquals(0L, output.readableBytes)
+            assertEquals(0.toByte(), input.readByte())
+            assertEquals(255.toByte(), input.readByte())
+            assertEquals(128.toByte(), input.readByte())
+            assertEquals(0, nativeUdpClose(socket, 4L))
+            val closed = testSocketNext(loop)
+            assertEquals(4L, closed.id)
+            assertEquals(0, closed.kind)
+            input.close()
+            output.close()
+            assertEquals(0, testSocketDrain(loop))
+        }
+    }
+}
+
+@Extern(name = "scoop_test_iocp_tcp")
+private fun testTcp(ipv6: Boolean): Int
+
+@Extern(name = "scoop_test_iocp_socket_close")
+private fun testSocketClose(): Int
+
+@Extern(name = "scoop_test_iocp_udp")
+private fun testUdp(prefill: Boolean): Int
+
+@Extern(name = "scoop_test_iocp_socket_name")
+private fun testSocketName(ipv6: Boolean): NativeSocketName
+
+@Extern(name = "scoop_test_iocp_socket_next")
+private fun testSocketNext(loop: Ptr<Unit>): NativeRecord
+
+@Extern(name = "scoop_test_iocp_socket_drain")
+private fun testSocketDrain(loop: Ptr<Unit>): Int

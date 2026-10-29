@@ -35,14 +35,14 @@ static void timer_start(void *context) {
     scoop_io_action_end(loop);
 }
 
-int scoop_io_timer_start(ScoopIoLoop *loop, int64_t id, int64_t seconds, int nanos) {
+ScoopIoStatus scoop_io_timer_start(ScoopIoLoop *loop, int64_t id, int64_t seconds, int nanos) {
     ScoopIoTimer *timer = calloc(1, sizeof(*timer));
     if (!timer)
-        return -ENOMEM;
+        return scoop_io_errno(-ENOMEM);
     timer->deadline = scoop_io_deadline(seconds, nanos);
     timer->wait.finish = timer_finish;
     scoop_io_request_submit(&timer->wait.request, loop, id, timer_start, timer_cancel);
-    return 0;
+    return scoop_io_errno(0);
 }
 
 void scoop_io_timer_cancel(ScoopIoLoop *loop, int64_t id) { scoop_io_request_cancel(loop, id); }

@@ -156,14 +156,25 @@ impl RuntimeObjectSet {
                         object.id
                     )));
                 }
-                if merged
-                    .definitions
-                    .insert(symbol.clone(), *definition)
-                    .is_some()
-                {
-                    return Err(error(format!(
-                        "runtime has multiple definitions of {symbol}"
-                    )));
+                match merged.definitions.entry(symbol.clone()) {
+                    std::collections::btree_map::Entry::Vacant(entry) => {
+                        entry.insert(*definition);
+                    }
+                    std::collections::btree_map::Entry::Occupied(entry)
+                        if target.native_object_format()
+                            == scoop_lir::NativeObjectFormat::Coff64
+                            && definition.binding == crate::NativeSymbolBinding::Weak
+                            && entry.get() == definition =>
+                    {
+                        // CRT inline helpers/refptrs coalesce in the real PE
+                        // link. Every ABI export must still be strong below.
+                        continue;
+                    }
+                    _ => {
+                        return Err(error(format!(
+                            "runtime has multiple definitions of {symbol}"
+                        )));
+                    }
                 }
             }
             merged
@@ -279,3 +290,5 @@ fn check_exports(target: LirTargetProfile, merged: &NativeObjectInfo) -> Result<
 
 #[cfg(all(test, target_os = "linux", target_arch = "x86_64"))]
 mod tests;
+#[cfg(all(test, windows, target_arch = "x86_64"))]
+mod windows_tests;

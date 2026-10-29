@@ -1,5 +1,5 @@
 use crate::catalog::{Catalog, Topic};
-use crate::{Args, Error, Format, read, search};
+use crate::{Args, COMMAND_NAME, Error, Format, read, search};
 use serde_json::{Value, json};
 use std::path::Path;
 
@@ -172,7 +172,7 @@ pub fn render(
             .map(|h| h.topic.id.as_str())
             .collect::<Vec<_>>();
         return Err(Error::content(format!(
-            "未知分类或主题：{name}。使用 scoop example --list 或 --search 查询。{}",
+            "未知分类或主题：{name}。使用 {COMMAND_NAME} --list 或 --search 查询。{}",
             if hints.is_empty() {
                 String::new()
             } else {
@@ -204,7 +204,9 @@ pub fn render(
             markdown,
         );
     }
-    let mut markdown = "# Scoop 示例\n\n使用 `scoop example <分类/主题>` 阅读，或用 `--search \"关键词\"` 搜索。\n".to_owned();
+    let mut markdown = format!(
+        "# Scoop 示例\n\n使用 `{COMMAND_NAME} <分类/主题>` 阅读，或用 `--search \"关键词\"` 搜索。\n"
+    );
     if !args.list {
         append_recommendations(&mut markdown, catalog, &catalog.recommended);
     }

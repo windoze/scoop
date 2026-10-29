@@ -32,6 +32,15 @@ impl NativeIncludeFlag {
     }
 
     pub(crate) fn split(argument: &str) -> Option<(Self, &str)> {
+        if let Some(path) = argument.strip_prefix("/I") {
+            return Some((Self::Search, path));
+        }
+        if let Some(path) = argument
+            .strip_prefix("/FI")
+            .or_else(|| argument.strip_prefix("-FI"))
+        {
+            return Some((Self::ForcedHeader, path));
+        }
         [
             Self::Search,
             Self::Quote,
@@ -50,6 +59,71 @@ impl NativeIncludeFlag {
 }
 
 pub(super) fn driver_managed(argument: &str) -> bool {
+    if let Some(msvc) = argument.strip_prefix('-')
+        && driver_managed_microsoft(&format!("/{msvc}"))
+    {
+        return true;
+    }
+    driver_managed_microsoft(argument) || driver_managed_gnu(argument)
+}
+
+fn driver_managed_microsoft(argument: &str) -> bool {
+    if argument.starts_with('/') {
+        return [
+            "/c",
+            "/E",
+            "/EP",
+            "/P",
+            "/X",
+            "/TC",
+            "/TP",
+            "/MD",
+            "/MDd",
+            "/MT",
+            "/MTd",
+            "/LD",
+            "/LDd",
+            "/Zs",
+            "/MP",
+            "/link",
+            "/Zi",
+            "/ZI",
+            "/showIncludes",
+        ]
+        .contains(&argument)
+            || [
+                "/Fo",
+                "/Fe",
+                "/Fd",
+                "/Fi",
+                "/Fa",
+                "/FA",
+                "/Fm",
+                "/Fp",
+                "/FR",
+                "/Fr",
+                "/Tc",
+                "/Tp",
+                "/Y",
+                "/GL",
+                "/sourceDependencies",
+                "/scanDependencies",
+                "/ifc",
+                "/reference",
+                "/headerUnit",
+                "/translateInclude",
+                "/clang:",
+                "/external:I",
+                "/external:env:",
+                "/machine:",
+            ]
+            .iter()
+            .any(|prefix| argument.starts_with(prefix));
+    }
+    false
+}
+
+fn driver_managed_gnu(argument: &str) -> bool {
     argument.starts_with('@')
         || [
             "-c",

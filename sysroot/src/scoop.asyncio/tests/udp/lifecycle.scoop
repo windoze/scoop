@@ -73,8 +73,14 @@ private class AsyncUdpLifecycleTest {
                     fail(Some("exclusive binding acquired twice"))
                 }
                 catch (error: PlatformException) {
-                    assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
-                    assertTrue(error.kind == PlatformErrorKind.AddressInUse)
+                    assertTrue(error.nativeError!!.domain == testSocketErrorDomain())
+                    assertTrue(
+                        error.kind ==
+                            if (operatingSystem == OperatingSystem.Windows)
+                                PlatformErrorKind.PermissionDenied
+                            else
+                                PlatformErrorKind.AddressInUse
+                    )
                 }
                 original.close()
                 val binding = scope.launch suspend { loop.bindUdp(address) }

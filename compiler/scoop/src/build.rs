@@ -271,6 +271,8 @@ fn output_path(
     };
     if emit_slib || graph.root_kind() == RequestedConeKind::Library {
         name.push_str(".slib");
+    } else if target.lir_target().native_object_format() == scoop_lir::NativeObjectFormat::Coff64 {
+        name.push_str(".exe");
     }
     let mut directory = target_dir
         .unwrap_or_else(|| root.join("target"))

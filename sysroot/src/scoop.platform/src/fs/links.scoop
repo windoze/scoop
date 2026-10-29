@@ -1,0 +1,78 @@
+package scoop.platform.fs
+
+import scoop.platform.system.*
+
+/**
+ * Creates a symbolic link at this path. On Windows, set targetIsDirectory for directory targets,
+ * including directories that do not yet exist. POSIX ignores this flag.
+ */
+public fun Path.createSymbolicLink(target: Path, targetIsDirectory: Boolean = false) {
+    @Unsafe
+    {
+        this.withPlatformPath {
+            name -> @Unsafe
+            {
+                target.withPlatformPath {
+                    destination -> @Unsafe
+                    {
+                        nativePathSymlink(name, destination, targetIsDirectory).checked(
+                            "create symbolic link",
+                            Some(this.toOsString())
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Reads the stored target without resolving it. Windows returns the actual symlink or junction
+ * substitute name, with an absolute NT prefix converted to its Win32 spelling.
+ */
+public fun Path.readSymbolicLink(): Path {
+    @Unsafe
+    {
+        return this.withPlatformPath {
+            name -> @Unsafe
+            {
+                return@withPlatformPath nativePathReadlink(name).takePath(
+                    "read symbolic link",
+                    Some(this.toOsString())
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Resolves an existing path and its symbolic links into the operating system's canonical absolute
+ * path. Windows retains the extended path prefix returned by the system.
+ */
+public fun Path.canonicalize(): Path {
+    @Unsafe
+    {
+        return this.withPlatformPath {
+            name -> @Unsafe
+            {
+                return@withPlatformPath nativePathCanonical(name).takePath(
+                    "canonicalize",
+                    Some(this.toOsString())
+                )
+            }
+        }
+    }
+}
+
+@Extern(name = "scoop_platform_path_symlink_result")
+private fun nativePathSymlink(
+    link: Ptr<Byte>,
+    target: Ptr<Byte>,
+    directory: Boolean
+): NativeFileResult
+
+@Extern(name = "scoop_platform_path_readlink_result")
+private fun nativePathReadlink(path: Ptr<Byte>): NativeOsString
+
+@Extern(name = "scoop_platform_path_canonical_result")
+private fun nativePathCanonical(path: Ptr<Byte>): NativeOsString

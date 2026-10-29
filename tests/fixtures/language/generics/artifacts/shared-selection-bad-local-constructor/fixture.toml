@@ -2,7 +2,7 @@ schema = 1
 name = "shared-selection-bad-local-constructor"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../shared-selection/provider.scoop", "bad-local-constructor", "../../../shared-selection/bad-local-constructor.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "shared_specificity_survives_artifact_republication", "negative", "language"]
 
 [[steps]]

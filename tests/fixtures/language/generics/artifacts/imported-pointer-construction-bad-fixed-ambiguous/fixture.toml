@@ -2,7 +2,7 @@ schema = 1
 name = "imported-pointer-construction-bad-fixed-ambiguous"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../imported-pointer-construction/provider.scoop", "bad-fixed-ambiguous", "../../../imported-pointer-construction/bad-fixed-ambiguous.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "imported_pointer_construction_republishes_and_executes_from_artifacts", "negative", "language"]
 
 [[steps]]

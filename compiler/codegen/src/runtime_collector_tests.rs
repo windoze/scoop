@@ -190,6 +190,7 @@ fn initialization_coordinator_is_exactly_once_and_gc_cooperative() {
         .arg("-I")
         .arg(workspace.join("runtime/include"))
         .arg(workspace.join("runtime/src/thread.c"))
+        .arg(workspace.join("runtime/src/platform/primitives/posix.c"))
         .arg(workspace.join("runtime/src/gc/mutator.c"))
         .arg(workspace.join(native_float_environment_source()))
         .arg(workspace.join("runtime/src/thread/collection.c"))

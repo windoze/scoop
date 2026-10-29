@@ -39,7 +39,7 @@ static void check_relations(const ScoopImageRegistry *registry, size_t index) {
     }
     for (size_t slot = 0; slot < td->itable_count; slot++) {
         const ScoopItableEntryV1 *entry = &td->itables[slot];
-        registered_type(registry, &check, entry->interface);
+        registered_type(registry, &check, entry->interface_type);
         if (entry->slots != NULL) {
             scoop_metadata_range(&check, entry->slots, 0, sizeof(void *), 8, "itable slots range");
         }

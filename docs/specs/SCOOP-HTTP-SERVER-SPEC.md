@@ -150,7 +150,7 @@ requestBodyLimit 继续统计 HTTP 去定界后的实际编码输入，setLimit 
 
 file(path, FileResponseOptions) 创建 HttpBody.File(HttpFileBody)，仅保存不可变路径与选项，不打开文件。FileResponseOptions 可显式指定 contentType、entityTag、contentEncoding、lastModifiedIsStrong，bufferSize 默认 8192 且须为正；媒体类型必须合法，编码须为实际 token。默认媒体类型来自有限扩展名表，未知为 application/octet-stream；不读正文猜格式，不探测预压缩旁文件。显式编码文件的路径、长度、标签均针对其实际表示，应用选择多种变体时自行设置 Vary。
 
-响应执行器先打开 AsyncFile，从同一句柄读取 metadata，随后把媒体类型、准确长度、Last-Modified、可选 ETag／Content-Encoding 交给通常的 beforeCommit。Last-Modified 截到秒且不晚于当前系统时钟；不从大小和 mtime 伪造强 ETag，也不读取文件求摘要。只能发送普通文件；目录在没有显式首页选项时为 404。打开／选择中的 NotFound、NotDirectory 为 404，PermissionDenied 为 403；其他 I/O、内存、取消和清理失败保留实际原因。文件关闭覆盖成功、HEAD、304、412、416、406、回调失败和错误替换，不把打开的句柄交给可能被丢弃的 handler 返回值。
+响应执行器先打开 AsyncFile，从同一句柄读取 metadata，随后把媒体类型、准确长度、Last-Modified、可选 ETag／Content-Encoding 交给通常的 beforeCommit。Last-Modified 截到秒且不晚于当前系统时钟；不从大小和 mtime 伪造强 ETag，也不读取文件求摘要。只能发送普通文件；目录在没有显式首页选项时为 404。打开／选择中的 NotFound、NotDirectory 为 404，PermissionDenied 为 403；若 OS 用访问拒绝表示无法将目录作为文件打开，可在该失败路径查询一次 metadata，确认目录后返回 404，不能确认则保留原访问拒绝。其他 I/O、内存、取消和清理失败保留实际原因。文件关闭覆盖成功、HEAD、304、412、416、406、回调失败和错误替换，不把打开的句柄交给可能被丢弃的 handler 返回值。
 
 文件表示始终禁用动态压缩。最终草稿中的实际 Content-Encoding 必须被请求 Accept-Encoding 接受，未编码表示按 identity 判断；缺失 Accept-Encoding 允许显式编码文件。不可接受时使用空 406，非法请求协商字段为 400。此选择只执行一次，其后的 304／412／416 不重新协商；已知无效的 Accept-Encoding 不在错误响应重放解析。
 
@@ -166,7 +166,7 @@ StaticFileOptions.fallbackFile 默认 None；显式 Path 与 file(path) 一样�
 
 fallback 在提交前选择实际文件，随后复用同一文件响应执行器，fileOptions 也适用于 fallback。媒体类型、长度、修改时间、条件请求、HEAD 和 Range 均针对所选文件，beforeCommit 只执行一次。它不会重新路由，也不触发 RouterBuilder／RouteGroup 的未匹配路径 fallback。作用范围由注册的静态路由决定，不猜测扩展名或 Accept；需保留缺失资源的 404 时，将资源挂到更具体且没有 fallbackFile 的静态路由。挂载根的空后缀仍显式注册 file(fallbackFile)，不改变末尾通配的匹配规则。
 
-路径从已解码的原始片段逐段构造，保留非 UTF-8 文件名，不从已拼接的解码尾串重新切分或再次百分号解码。拒绝中间空片段、点／点点、NUL、斜线／反斜线和驱动器前缀，输入无效为 400。末尾空片段只表示必须是目录，显式首页才可产生文件结果，否则为 404。路径拼接不检查 owner、权限位、inode、canonical path 或 symlink 来源；链接遵守普通 OS 语义，不承诺 root 是隔离沙箱。
+路径从已解码的原始片段逐段构造，保留目标 OS 可表示的原生文件名：Unix 保留非 UTF-8 字节，Windows 使用 UTF-8／WTF-8 表示 UTF-16 名称（包括未配对 surrogate），不保证任意 Unix 字节序列可用于 Windows 文件名。不从已拼接的解码尾串重新切分或再次百分号解码。拒绝中间空片段、点／点点、NUL、斜线／反斜线和驱动器前缀，输入无效为 400。末尾空片段只表示必须是目录，显式首页才可产生文件结果，否则为 404。路径拼接不检查 owner、权限位、inode、canonical path 或 symlink 来源；链接遵守普通 OS 语义，不承诺 root 是隔离沙箱。
 
 ## 13. H1 WebSocket 升级与会话
 

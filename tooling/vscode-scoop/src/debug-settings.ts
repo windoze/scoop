@@ -21,6 +21,9 @@ export async function toolCommand(
       ? path.join(os.homedir(), configured.slice(2))
       : configured;
   }
+  if (process.platform === "win32") {
+    name = name === "scoop" ? "sco.exe" : `${name}.exe`;
+  }
   const installed = path.join(os.homedir(), ".scoop/bin", name);
   try {
     await access(installed, constants.X_OK);

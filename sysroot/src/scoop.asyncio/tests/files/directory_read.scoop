@@ -65,7 +65,7 @@ private class AsyncDirectoryReadTest {
                 }
                 catch (error: PlatformException) {
                     assertTrue(error.kind == PlatformErrorKind.NotFound)
-                    assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+                    assertTrue(error.nativeError!!.domain == testFileErrorDomain())
                     assertEquals(missing.toOsString(), error.context!!)
                 }
                 try {
@@ -73,7 +73,14 @@ private class AsyncDirectoryReadTest {
                     fail(Some("ordinary file opened as directory"))
                 }
                 catch (error: PlatformException) {
-                    assertTrue(error.kind == PlatformErrorKind.NotDirectory)
+                    assertTrue(
+                        error.kind ==
+                            if (operatingSystem == OperatingSystem.Windows)
+                                PlatformErrorKind.InvalidInput
+                            else
+                                PlatformErrorKind.NotDirectory
+                    )
+                    assertTrue(error.nativeError!!.domain == testFileErrorDomain())
                     assertEquals(file.toOsString(), error.context!!)
                 }
             }

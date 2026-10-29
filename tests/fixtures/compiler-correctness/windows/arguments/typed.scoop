@@ -1,0 +1,6 @@
+fun main(arguments: Array<String>) {
+    gcCollect()
+    println("typed")
+    for (argument in arguments)
+        println(argument)
+}

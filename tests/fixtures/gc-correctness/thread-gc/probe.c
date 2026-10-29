@@ -1,4 +1,5 @@
 #define _GNU_SOURCE 1
+#include "sync_result.h"
 #include <assert.h>
 #include <errno.h>
 #include <pthread.h>
@@ -97,9 +98,9 @@ void m45_condition_free(void *pointer) {
 }
 
 /* Only the probe keeps this raw handle, to clean up its intentionally abandoned lock. */
-extern int scoop_platform_mutex_unlock(void *);
-extern int scoop_platform_mutex_destroy(void *);
+extern struct ScoopPlatformSyncResult scoop_platform_mutex_unlock(void *);
+extern struct ScoopPlatformSyncResult scoop_platform_mutex_destroy(void *);
 void m45_cleanup_held_mutex(void) {
-    assert(scoop_platform_mutex_unlock(last_mutex) == 0);
-    assert(scoop_platform_mutex_destroy(last_mutex) == 0);
+    assert(scoop_platform_mutex_unlock(last_mutex).status == 0);
+    assert(scoop_platform_mutex_destroy(last_mutex).status == 0);
 }

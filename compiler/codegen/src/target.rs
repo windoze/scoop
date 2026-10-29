@@ -195,6 +195,7 @@ impl ValidatedBackendProfile {
         let deployment = match selection.target().native_object_format() {
             scoop_lir::NativeObjectFormat::MachO64 => deployment::ObjectDeployment::DARWIN_TEST,
             scoop_lir::NativeObjectFormat::Elf64 => deployment::ObjectDeployment::Linux,
+            scoop_lir::NativeObjectFormat::Coff64 => deployment::ObjectDeployment::Windows,
         };
         Self::select(selection, deployment)
     }
@@ -230,6 +231,21 @@ impl ValidatedBackendProfile {
                     ..Self::DARWIN_AARCH64
                 }
             }
+            scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID
+            | scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID
+            | scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_ID => Self {
+                lir_target_selection: selection,
+                deployment,
+                canonical_triple: selection.target().contract().canonical_triple(),
+                cpu: selection.backend().contract().cpu,
+                features: selection.backend().contract().features,
+                object_format: ObjectFormat::Coff64,
+                writable_storage_section: ".data",
+                zero_fill_storage_section: ".bss",
+                c_string_section: ".rdata$scoop.strings",
+                llvm_target_backend: CodeArchitecture::X86_64,
+                ..Self::DARWIN_AARCH64
+            },
             id => {
                 return Err(CodegenError(format!(
                     "unsupported codegen target {}/{}",
@@ -283,6 +299,19 @@ impl ValidatedBackendProfile {
         self.canonical_triple
     }
 
+    pub fn llvm_triple(self) -> &'static str {
+        match self.id() {
+            scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID => "x86_64-pc-windows-msvc",
+            scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID
+            | scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_ID => "x86_64-w64-windows-gnu",
+            _ => self.canonical_triple,
+        }
+    }
+
+    pub(crate) fn indirect_arguments_use_byval(self) -> bool {
+        self.object_format != ObjectFormat::Coff64
+    }
+
     pub fn managed_address_space(self) -> u32 {
         self.managed_address_space.llvm()
     }
@@ -303,6 +332,7 @@ impl ValidatedBackendProfile {
         match self.object_format {
             ObjectFormat::MachO64 => "__DATA_CONST,__const",
             ObjectFormat::Elf64 => ".data.rel.ro.scoop.metadata",
+            ObjectFormat::Coff64 => ".rdata$scoop.metadata",
         }
     }
 
@@ -374,7 +404,7 @@ impl ValidatedBackendProfile {
     ) -> Result<TargetMachine, CodegenError> {
         machine::initialize_options();
         self.llvm_target_backend.initialize();
-        let triple = TargetTriple::create(&self.deployment.triple(self.canonical_triple));
+        let triple = TargetTriple::create(&self.deployment.triple(self.llvm_triple()));
         let target = Target::from_triple(&triple).map_err(|error| {
             CodegenError(format!("no target for {}: {error}", self.canonical_triple))
         })?;

@@ -2,11 +2,12 @@ schema = 1
 name = "generic-siblings-adapters"
 inputs = ["../../imported-classes/support/stage3_test.scoop", "generic-odr-provider", "../../odr-member-unions/provider.scoop", "generic-odr-adapters-left", "../../odr-member-unions/adapters-left.scoop", "generic-odr-adapters-right", "../../odr-member-unions/adapters-right.scoop", "generic-odr-adapters-consumer", "../../odr-member-unions/adapters-consumer.scoop", "../../odr-member-unions/addresses.c", "runtime-fixture", "../../imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generic-siblings", "adapters", "language"]
 
 [[steps]]
 name = "core"
+timeout = 900
 argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${test_core}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""

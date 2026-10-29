@@ -2,7 +2,7 @@ schema = 1
 name = "shared-struct-definitions-wrong-type"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../shared-struct-definitions/provider.scoop", "wrong-type", "../../../shared-struct-definitions/wrong-type.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "struct_definitions_share_recursive_fields_and_copy_updates", "negative", "language"]
 
 [[steps]]

@@ -57,7 +57,13 @@ private class AsyncTlsCaFileTests {
                     fail(Some("missing CA file accepted"))
                 }
                 catch (error: PlatformException) {
-                    assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+                    assertTrue(
+                        error.nativeError!!.domain ==
+                            if (operatingSystem == OperatingSystem.Windows)
+                                NativeErrorDomain.Win32
+                            else
+                                NativeErrorDomain.PosixErrno
+                    )
                     assertEquals(missing.decodeUtf8(), error.context!!.decodeUtf8())
                 }
                 for (path in [malformed, empty]) {

@@ -8,21 +8,25 @@ use scoop_process::CommandExt;
 use scoop_wire::{Digest256, sha256};
 
 use crate::ToolchainError;
+use crate::native_driver::{NativeDriver, NativeDriverDiscovery as Discovery, NativeDriverKind};
 
 mod discovery;
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ValidatedCxxToolchain {
-    #[serde(with = "crate::build_record::values::path")]
-    driver: PathBuf,
-    #[serde(with = "crate::build_record::values::digest")]
-    fingerprint: Digest256,
-    inputs: Vec<crate::build_record::Input>,
+    native: NativeDriver,
 }
 
 impl ValidatedCxxToolchain {
     pub fn resolve(c: &ValidatedCBridgeToolchainInvocation) -> Result<Self, ToolchainError> {
-        Self::from_record(Self::probe(c)?)
+        Self::resolve_with(c, None)
+    }
+
+    pub fn resolve_with(
+        c: &ValidatedCBridgeToolchainInvocation,
+        driver: Option<&Path>,
+    ) -> Result<Self, ToolchainError> {
+        Self::from_record(Self::probe(c, driver)?)
     }
 
     pub fn resolve_cached(
@@ -33,33 +37,54 @@ impl ValidatedCxxToolchain {
             &crate::native_record::ResolvedRecord::from_target(target)?,
         )?;
         let record = crate::build_record::cached(
-            &cache.join("cxx-tools-v1"),
+            &cache.join("cxx-tools-v3"),
             key,
             |_| Ok(true),
-            || Self::probe(target.c_bridge_toolchain()),
+            || Self::probe(target.c_bridge_toolchain(), target.native_cxx_driver()),
         )?;
         Self::from_record(record)
     }
 
     fn from_record(record: crate::build_record::Record<Discovery>) -> Result<Self, ToolchainError> {
         Ok(Self {
-            driver: record.result.driver.to_path_buf().map_err(error)?,
-            fingerprint: crate::build_record::fingerprint(&(
-                record.result.configuration,
-                &record.inputs,
-            ))?,
-            inputs: record.inputs,
+            native: NativeDriver::from_record(record)?,
         })
     }
 
     fn probe(
         c: &ValidatedCBridgeToolchainInvocation,
+        selected: Option<&Path>,
     ) -> Result<crate::build_record::Record<Discovery>, ToolchainError> {
         if c.profile().contract().target().id() == scoop_target_data::LINUX_X86_64_MUSL_ID {
             return Err(error("native.cxx = true is not supported for Linux musl"));
         }
-        let driver = discovery::paired_driver(c)?;
+        if crate::windows_native::is_windows(c) {
+            let default = crate::windows_native::paired_driver(
+                c,
+                scoop_manifest::NativeSourceLanguage::Cxx,
+                None,
+            );
+            return crate::windows_native::discover(
+                c,
+                scoop_manifest::NativeSourceLanguage::Cxx,
+                selected.unwrap_or(&default),
+            );
+        }
+        let driver = match selected {
+            Some(path) => crate::paths::find_program(
+                path.as_os_str(),
+                &std::env::var_os("PATH").unwrap_or_default(),
+            )?,
+            None => discovery::paired_driver(c)?,
+        };
         let mut inputs = std::collections::BTreeSet::new();
+        if let Some(selected) = selected {
+            crate::native_record::program_candidates(
+                selected.as_os_str(),
+                &std::env::var_os("PATH").unwrap_or_default(),
+                &mut inputs,
+            );
+        }
         discovery::inputs(c, &driver, &mut inputs)?;
         let headers = run(c
             .driver_command_with(&driver)
@@ -96,28 +121,38 @@ impl ValidatedCxxToolchain {
             result: Discovery {
                 driver: scoop_protocol::HostPathCarrier::from_path(&driver).map_err(error)?,
                 configuration: *sha256(&macros.stdout).as_array(),
+                kind: NativeDriverKind::Gnu,
             },
         })
     }
 
     pub(crate) fn input_paths(&self) -> Result<Vec<PathBuf>, ToolchainError> {
-        self.inputs.iter().map(|input| input.path()).collect()
+        self.native
+            .inputs()
+            .iter()
+            .map(|input| input.path())
+            .collect()
     }
 
     pub(crate) fn input_metadata(&self) -> &[crate::NativeInputMetadata] {
-        &self.inputs
+        self.native.inputs()
     }
 
     pub fn driver(&self) -> &Path {
-        &self.driver
+        self.native.path()
     }
 
     pub fn fingerprint(&self) -> Digest256 {
-        self.fingerprint
+        self.native.fingerprint()
     }
 
     pub fn command(&self, c: &ValidatedCBridgeToolchainInvocation) -> Command {
-        c.driver_command_with(&self.driver)
+        self.native
+            .command(c, scoop_manifest::NativeSourceLanguage::Cxx)
+    }
+
+    pub(crate) fn kind(&self) -> NativeDriverKind {
+        self.native.kind()
     }
 }
 
@@ -137,10 +172,4 @@ fn text(command: &mut Command) -> Result<String, ToolchainError> {
 
 fn error(value: impl std::fmt::Display) -> ToolchainError {
     ToolchainError(format!("native C++ toolchain: {value}"))
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-struct Discovery {
-    driver: scoop_protocol::HostPathCarrier,
-    configuration: [u8; 32],
 }

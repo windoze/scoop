@@ -15,6 +15,15 @@ Python 3.11+ 只用标准库；Python peer 和辅助进程统一使用 `${python
 Linux amd64 默认选择 glibc；用 `--target x86_64-unknown-linux-musl` 运行 musl 用例，
 fixture 的 Scoop 命令通过 `${target}` 传递该选择。`${cc}` 默认分别为 GCC / musl-gcc，
 可用 `--cc` 覆盖；Linux 不提供 Darwin 的 `${sdk}` / `${deployment}`。
+Windows x64 可选择三个完整 Windows target，默认 Microsoft UCRT；命令默认使用 `.exe`。
+Windows 安装包的主驱动为 `sco.exe`，验证安装包时传 `--scoop <安装根>/bin/sco.exe`；
+`${scoop}` 与 `--scoop` 仍是 runner 的逻辑名称。未覆盖工具路径时使用 Cargo 内部构建产物 `target/debug/scoop.exe`，其他工具名不变。
+`--native-sysroot` 与 `--unwind-prefix` 可指定所选目标的开发资源；省略时使用 sysroot 中的目标目录。
+`--linker` 选择最终 executable linker（例如 Microsoft `link.exe`），仅加入 `${link_args}`。
+Windows native companion 使用 Clang 的 GNU 风格命令行，`${cc_args}` 提供实际 machine triple 和目标资源，
+MinGW 默认使用所选 prefix 的 Clang，Microsoft 使用宿主 Clang 并由 SDK／Build Tools 或 `msvc.toml` 取得开发环境。
+Microsoft companion 使用动态 CRT；GNU driver 的额外静态 CRT 默认参数被省略，链接沿用对象中的正常默认库指令。
+`--ar` 可覆盖 companion archiver；只为当前适用且实际使用 native 工具的用例准备这些参数。
 共有 fixture 使用 `{each = "${compile_args}"}` 给 `scoopc build` 传目标参数，
 使用 `{each = "${link_args}"}` 给 `scoop build/run/link` 或 `scoop-link` 传目标及最终链接参数。
 普通功能 fixture 和内置 Cone 测试显式使用 release：Scoop 命令传 `--release`，
@@ -42,9 +51,14 @@ ELF 的 `${llvm_target}` 与 `${target}` 相同；Darwin 包含当前 deployment
 只为适用 target 的用例发现工具，目标不适用项仍单列，不计为通过。
 每个用例的步骤与变体保持有序；报告按发现顺序保存。中断时清理运行中的进程，
 未完成项标记 `interrupted`，退出码为 130。
+Windows 执行保留完整 32-bit exit code；`signal` 退出断言只用于 POSIX。
+每个 Windows fixture 进程在开始执行前加入独立 Job，结束、超时或中断时关闭 Job，
+回收该进程及其后代；不设置 CPU／内存配额。参数使用 Windows Unicode 表示，标准流仍按原始字节断言。
 
 每个用例选择一种载体：相邻 `name.fixture.toml`、目录中的 `fixture.toml`，
 或源码开头 `// fixture:begin` 到 `// fixture:end` 之间每行带 `//` 的 TOML。
+`tests/fixtures/.gitattributes` 固定文本 checkout 使用 LF，保持源码字节位置与 golden 的跨宿主一致性；
+专门的二进制输入沿用 `-text` 属性，runner 不归一化源码或诊断中的位置。
 源码注释不会被删除，编译器读取原始源码。相对文件名以描述所在目录为基准。
 发现阶段仅解码内联条件注释；源码正文中的非法 UTF-8 留给实际 compiler 诊断。
 
@@ -103,6 +117,8 @@ PTY fixture 声明 `tools = ["scoop", "scoopc", "terminal-host"]`，以普通 ar
 `SCOOP_TEST_PAIRED_TERMINAL_HOST`、`target/debug/terminal-host`。
 runner 仅在选中用例需要时检查该可执行文件，不自动构建工具。
 `${step.result.output}` 等引用前一步实际 JSON；数组使用 `.0`，`.length` 取长度。
+路径的 `.canonical` 按宿主解析绝对路径（Windows 包含 verbatim 前缀），也可表示缺失输入的诊断路径；`.filename` 返回工具或文件的末级名称。`${file_not_found_error}` 与 `${directory_write_error}` 分别保存宿主的文件不存在、向目录写文件的错误文本，包含系统本地化和 OS error 编号。
+
 文本或 bytes 的 `.hex` 返回十六进制字节表示；文本使用文件系统编码并保留原始字节，
 可组合 `${work.hex}2fff` 这类期望来比较 JSON 中的非 UTF-8 路径。字典的 `hex` 字段仍按普通字段读取。
 传作 argv 时先在 vars 中声明 `raw_hex = "${work.hex}2fff"`，再写 `{hex = "${raw_hex}"}`；
@@ -150,8 +166,12 @@ stdout/stderr 也可显式声明 `{snapshot = "symbols.${target}.txt"}`，沿用
 `scoop check` 返回无产物的 `check` 结果，包含根身份、target、用途、缓存命中和实际 child 调用；调用区分根检查与源码依赖的 artifact 编译。
 `scoop fmt` 返回 `format` 结果，包含写回／检查模式、成功状态、有序文件状态与计数；格式差异或部分文件失败时仍返回完整结果，进程退出 1。
 `scoop clean` 返回 `clean` 结果，包含选中的 `target_dir` 和是否实际删除目录的 `removed`；目录不存在时同样成功。
-这种模式必须声明完整 `diagnostics` 数组或 JSON 期望文件；仅剥离 display，不改变
-canonical source、span、code、message 或 notes。stdout/stderr 仍严格比较剩余原始字节。
+这种模式必须声明 `diagnostics` 数组／JSON 期望文件，或用该步骤的 `checks` 显式检查
+`${step.diagnostics...}`。通常比较完整诊断；破坏 core 根声明等会引发大量无关连带错误的
+规则用例可以只精确检查首个规则诊断，保留其 code、message、notes 和实际声明的源码位置。
+缺失声明的全 Cone 错误不锁定任意首个源码文件的回退位置。runner 仅剥离 display，不改变
+canonical source、span、code、message 或 notes；stdout/stderr 仍严格比较剩余原始字节。
+期望中的 `${input.canonical}` 可取得已存在宿主输入的真实路径；Windows 保留 Rust 文件系统 API 使用的 `\\?\` 前缀，并按宿主路径分隔符拼接。先把完整输入路径放入变量（如 `manifest = "${fixture}/program/Cone.toml"`），再在完整诊断的 message／host origin 中引用 `${manifest.canonical}`。这只构造期望，不归一化实际诊断或逻辑源码身份。
 `json = "stdout"` 用于普通工具的逐行 JSON，保留原 stdout。步骤结果还包含
 `records`、`diagnostics`、`returncode`、`pid`、`stdout`、`stderr`、`raw_stderr`。
 
@@ -173,6 +193,10 @@ canonical source、span、code、message 或 notes。stdout/stderr 仍严格比�
 `${class_core}` 同样共享导入类用例已有的固定 core 声明（RebuiltReadable、直接异常基类
 和辅助值 43）。这些普通语言用例只消费该输入；core 更新前后的比较由 rebuilt-core
 与需要不同 core 声明的专测覆盖，不在每个类规则中重复两次冷构建。
+`${inheritance_core}` 在同一固定输入上加入 `RebuiltParent`，供继承规则用例共享。
+`imported-class-inheritance-core` 保留真实修改 core 后重新编译、比较产物和运行 consumer 的覆盖。
+`${member_defaults_core}` 为 Long、Boolean 和 String 加入同一个 `RebuiltDefaults` 接口，
+供 primitive inherited-method 用例共享；combined 用例保留修改前后的真实 core 构建。
 `normalize` 的公共规则为 `paths`、`newlines`、`native-digests` 和 `native-link-plan`。
 `native-link-plan` 只允许用于显式 snapshot：要求完整 `program-link v3` 的唯一 section
 边界，比较 `link inputs:` 到 `startup object references:` 之前的原生链接区段。

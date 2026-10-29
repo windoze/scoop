@@ -1,0 +1,5 @@
+package dev.windows
+
+fun debugTarget(): Int = 42
+
+fun main(): Int = debugTarget()

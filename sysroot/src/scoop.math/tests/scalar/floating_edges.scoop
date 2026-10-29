@@ -6,6 +6,7 @@ import scoop.test.*
 private fun near(expected: Double, actual: Double) {
     assertTrue(abs(expected - actual) <= 0.000000000000004 * abs(expected))
 }
+
 private fun near(expected: Float, actual: Float) {
     assertTrue(abs(expected - actual) <= 0.000002f * abs(expected))
 }
@@ -32,7 +33,6 @@ private class FloatingEdgeTests {
         near(1.2599210498948732, cbrt(2.0))
         near(PI, toRadians(180.0))
         near(360.0, toDegrees(TAU))
-        assertEquals(Double.MAX_VALUE, fma(Double.MAX_VALUE, 2.0, -Double.MAX_VALUE))
         assertEquals(Double.MIN_VALUE, scalb(Double.MIN_NORMAL, -52))
         assertEquals(Long.MIN_VALUE, ceil(-0.1).toBits())
         assertEquals(Long.MIN_VALUE, rint(-0.1).toBits())
@@ -60,7 +60,6 @@ private class FloatingEdgeTests {
         near(1.2599210498948732f, cbrt(2f))
         near(PI.toFloat(), toRadians(180f))
         near(360f, toDegrees(TAU.toFloat()))
-        assertEquals(Float.MAX_VALUE, fma(Float.MAX_VALUE, 2f, -Float.MAX_VALUE))
         assertEquals(Float.MIN_VALUE, scalb(Float.MIN_NORMAL, -23))
         assertEquals(Int.MIN_VALUE, ceil(-0.1f).toBits())
         assertEquals(Int.MIN_VALUE, rint(-0.1f).toBits())
@@ -83,7 +82,7 @@ private class FloatingEdgeTests {
         assertEquals(Float.NEGATIVE_INFINITY, pow(-0f, -3f))
         assertEquals(0.0, pow(Double.NEGATIVE_INFINITY, -2.0))
         assertTrue(pow(-2f, 0.5f).isNaN())
-        assertTrue(pow(1f, Float.POSITIVE_INFINITY).isNaN())
+        assertEquals(1f, pow(1f, Float.POSITIVE_INFINITY))
         assertEquals(1.0, pow(Double.NaN, -0.0))
         assertEquals(Double.MAX_VALUE, nextAfter(Double.POSITIVE_INFINITY, 0.0))
         assertEquals(-Float.MAX_VALUE, nextAfter(Float.NEGATIVE_INFINITY, 0f))

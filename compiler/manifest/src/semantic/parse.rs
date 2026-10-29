@@ -19,6 +19,7 @@ struct RawManifest {
     test_dependencies: BTreeMap<String, Spanned<RawDependency>>,
     #[serde(default)]
     native: crate::native::RawNativeConfig,
+    windows: Option<Spanned<crate::windows::RawWindowsConfig>>,
 }
 
 #[derive(Default, Deserialize)]
@@ -152,6 +153,7 @@ pub fn parse_cone_manifest(
             dependencies,
             sources: crate::selection::parse_sources(raw.sources, catalog)?,
             native: raw.native.parse(catalog)?,
+            windows: crate::windows::parse(raw.windows, requested_kind)?,
         },
         locators: DependencyLocatorTable(locators),
         diagnostic_spans: ManifestDiagnosticSpans {

@@ -55,10 +55,10 @@ internal suspend fun openDirectoryOnLoop(loop: LoopOwner, path: Path): AsyncDire
                     native,
                     id -> @Unsafe
                     {
-                        return@LoopOperation path.withNativePath {
+                        return@LoopOperation path.withIoPath {
                             name -> @Unsafe
                             {
-                                return@withNativePath nativeStatus(
+                                return@withIoPath nativeStatus(
                                     id,
                                     nativeDirectoryOpen(native, id, name)
                                 )

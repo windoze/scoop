@@ -18,7 +18,7 @@ typedef struct ScoopTraceModule {
     intptr_t load_bias;
     uint32_t path_offset;
     uint32_t path_length;
-    uint32_t id_kind; /* 0: unavailable; 1: Mach-O UUID; 2: ELF build-id */
+    uint32_t id_kind; /* 0: unavailable; 1: Mach-O UUID; 2: ELF build-id; 3: PE GUID/age */
     uint32_t id_length;
     unsigned char id[SCOOP_TRACE_MAX_ID];
 } ScoopTraceModule;

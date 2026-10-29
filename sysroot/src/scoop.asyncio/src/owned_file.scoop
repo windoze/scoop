@@ -142,6 +142,3 @@ internal class FileReservation(private val owner: OwnedFile): Disposable {
             owner.releaseOperation()
     }
 }
-
-@Extern(name = "scoop_io_file_close")
-private fun nativeFileClose(file: Ptr<Unit>, id: Long): Int

@@ -49,6 +49,7 @@ pub(crate) fn present(
             {
                 Some(CallableConstantKind::Relocatable)
             }
+            (NativeObjectFormat::Coff64, ".rdata") => Some(CallableConstantKind::Relocatable),
             _ => None,
         };
         if let Some(kind) = kind.filter(|_| section.size() != 0) {
