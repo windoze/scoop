@@ -289,6 +289,9 @@ def main():
     parser.add_argument("--work-dir", type=Path)
     parser.add_argument("--output-dir", type=Path, default=ROOT / "tmp/dist")
     parser.add_argument(
+        "--vscode-extension", type=Path, help="Reuse an already built matching VS Code extension"
+    )
+    parser.add_argument(
         "--llvm-source",
         type=Path,
         help="Use an existing LLVM source directory instead of extracting the fixed archive",
@@ -352,7 +355,7 @@ def main():
     args.llvm_source, args.llvm_archive = package_llvm.prepare(
         args.work_dir, args.llvm_source, args.llvm_archive
     )
-    extension = package_tooling.build(args.work_dir, environment)
+    extension = args.vscode_extension or package_tooling.build(args.work_dir, environment)
     if args.llvm_prefix is None:
         args.llvm_prefix = args.work_dir / "llvm/installed"
         run_script(
@@ -399,8 +402,6 @@ def main():
     environment["LLVM_SYS_221_PREFIX"] = str(args.llvm_prefix)
     environment["CARGO_ENCODED_RUSTFLAGS"] = "\x1f".join(
         [
-            "-C",
-            "target-cpu=" + release["targets"][args.host]["cpu"],
             "-C",
             f"link-arg=-Wl,-rpath,{args.llvm_prefix / 'lib'}",
         ]
