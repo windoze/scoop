@@ -47,8 +47,9 @@ fn fixture() -> (Module, [LocalId; 4], TempId) {
         value = Value::Local(local);
     }
     function.entry = function.blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "copies".into(),
-        instructions,
+        instructions: instructions.into(),
         terminator: Terminator::Return { value: Some(value) },
     });
     refresh_module_safepoints(&mut module);
@@ -283,8 +284,9 @@ fn boundary(kind: Boundary) -> Module {
         }),
         Boundary::Block => {
             let next = function.blocks.alloc(BasicBlock {
+                terminator_origin: Default::default(),
                 name: "next".into(),
-                instructions: vec![],
+                instructions: vec![].into(),
                 terminator: Terminator::Return {
                     value: Some(Value::Local(locals[3])),
                 },

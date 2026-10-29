@@ -44,7 +44,8 @@ impl Projection<'_> {
                 | Intrinsic::Nothing
                 | Intrinsic::AtomicInt
                 | Intrinsic::AtomicLong
-                | Intrinsic::AtomicBoolean,
+                | Intrinsic::AtomicBoolean
+                | Intrinsic::Throwable,
             )
             | Kind::Class { .. }
             | Kind::InlineArray { .. }

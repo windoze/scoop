@@ -25,6 +25,18 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         ) {
             self.apply_nounwind(call);
         }
+        if matches!(
+            destination,
+            scoop_lir::CallDestination::Runtime(
+                scoop_lir::RuntimeFunction::Managed(
+                    scoop_lir::ManagedRuntimeFunction::PrepareThrowable
+                ) | scoop_lir::RuntimeFunction::NoGc(
+                    scoop_lir::NoGcRuntimeFunction::Trap | scoop_lir::NoGcRuntimeFunction::Fatal
+                )
+            )
+        ) {
+            self.mark_stack_trace_site(call);
+        }
         if let Some(safepoint) = protocol.safepoint() {
             self.apply_safepoint_id(call, safepoint);
         }
@@ -43,6 +55,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             destination,
             scoop_lir::CallDestination::Runtime(scoop_lir::RuntimeFunction::NoGc(
                 scoop_lir::NoGcRuntimeFunction::Trap
+                    | scoop_lir::NoGcRuntimeFunction::Fatal
                     | scoop_lir::NoGcRuntimeFunction::Throw
                     | scoop_lir::NoGcRuntimeFunction::Rethrow
             ))
@@ -53,6 +66,18 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .create_enum_attribute(Attribute::get_named_enum_kind_id("noreturn"), 0),
             );
         }
+    }
+
+    pub(in crate::function) fn mark_stack_trace_site(
+        &self,
+        call: inkwell::values::CallSiteValue<'ctx>,
+    ) {
+        call.add_attribute(
+            AttributeLoc::Function,
+            self.context
+                .create_enum_attribute(Attribute::get_named_enum_kind_id("nomerge"), 0),
+        );
+        call.set_tail_call_kind(inkwell::values::LLVMTailCallKind::LLVMTailCallKindNoTail);
     }
 
     pub(in crate::function) fn apply_nounwind(&self, call: inkwell::values::CallSiteValue<'ctx>) {

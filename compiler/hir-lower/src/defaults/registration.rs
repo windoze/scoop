@@ -154,10 +154,7 @@ impl Lowerer {
                 continue;
             }
             self.current_file = file;
-            if matches!(
-                self.classes[class].representation,
-                hir::ClassRepresentation::Declared
-            ) {
+            if self.classes[class].has_source_constructors() {
                 let primary =
                     self.classes[class]
                         .constructors

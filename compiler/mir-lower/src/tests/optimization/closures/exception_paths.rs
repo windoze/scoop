@@ -10,10 +10,12 @@ fn protected() -> (mir::Module, mir::FunctionId) {
         .0;
     let body = &mut module.functions[helper].body;
     let statement = |kind| mir::Statement {
+        debug_origin: Default::default(),
         kind,
         span: crate::source_span(SPAN),
     };
     let caught = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "caught".into(),
         statements: vec![
             statement(mir::StatementKind::Eh(mir::EhStatement::BeginCatch)),
@@ -25,6 +27,7 @@ fn protected() -> (mir::Module, mir::FunctionId) {
         unwind: None,
     });
     let pad = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "landing".into(),
         statements: vec![statement(mir::StatementKind::Eh(
             mir::EhStatement::LandingPad { cleanup: false },

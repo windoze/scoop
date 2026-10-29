@@ -88,6 +88,7 @@ impl Lowerer {
             hir::IntrinsicTypeKind::String => fundamental.string().persistent(),
             hir::IntrinsicTypeKind::Any => fundamental.any().persistent(),
             hir::IntrinsicTypeKind::Nothing => fundamental.nothing().persistent(),
+            hir::IntrinsicTypeKind::Throwable => protocols.exceptions().throwable().persistent(),
             hir::IntrinsicTypeKind::Float(_)
             | hir::IntrinsicTypeKind::Atomic(_)
             | hir::IntrinsicTypeKind::MaybeUninit

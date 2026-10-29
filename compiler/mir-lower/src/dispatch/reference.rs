@@ -64,6 +64,7 @@ impl Lowerer {
         }
         let mut locals = Arena::new();
         let this = locals.alloc(mir::Local {
+            debug_variable: Default::default(),
             name: "this".into(),
             ty: receiver_type.clone(),
             mutable: false,
@@ -82,6 +83,7 @@ impl Lowerer {
         )];
         for (index, ty) in lowered.parameters.iter().skip(1).enumerate() {
             let local = locals.alloc(mir::Local {
+                debug_variable: Default::default(),
                 name: method.params[index].name.clone(),
                 ty: ty.clone(),
                 mutable: false,
@@ -110,10 +112,12 @@ impl Lowerer {
         let statements = if lowered.return_type == mir::Type::Unit {
             vec![
                 smir::Statement {
+                    debug_origin: Default::default(),
                     kind: smir::StatementKind::Expr(call),
                     span: method.span,
                 },
                 smir::Statement {
+                    debug_origin: Default::default(),
                     kind: smir::StatementKind::Return {
                         value: smir::Expr::unit(),
                     },
@@ -128,6 +132,7 @@ impl Lowerer {
                 .identity_record()
                 .id();
             vec![smir::Statement {
+                debug_origin: Default::default(),
                 kind: smir::StatementKind::Return {
                     value: self.adapt_variance_bridge(
                         module,
@@ -151,7 +156,7 @@ impl Lowerer {
             &self.classes,
         );
         let function = self.functions.alloc(mir::Function {
-            debug_source: None,
+            debug_origin: Default::default(),
             name: format!(
                 "receiver<{}> {}.{}",
                 self.classes[class].name, self.interfaces.defs[iface].name, method.name

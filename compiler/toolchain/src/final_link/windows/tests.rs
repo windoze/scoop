@@ -121,7 +121,6 @@ fn windows_final_link_profiles_link_real_crt_unwind_cpp_and_pdb() {
         .unwrap();
         let binary = scratch.join("程序.exe");
         let pdb = scratch.join("程序.exe.pdb");
-        let map = scratch.join("程序.exe.map");
         let mut command = profile.command(&scratch, &binary).unwrap();
         command.arg(&object);
         if let Some(cxx) = &profile.data.cxx {
@@ -145,7 +144,7 @@ fn windows_final_link_profiles_link_real_crt_unwind_cpp_and_pdb() {
             command.arg(object);
         }
         profile.append_system_libraries(&mut command);
-        profile.configure_outputs(&mut command, Some(&pdb), Some(&map));
+        profile.configure_outputs(&mut command, Some(&pdb), false);
         probe::run(&mut command).unwrap();
         let output = match probe::run(Command::new(&binary).arg("值")) {
             Ok(output) => output,
@@ -172,6 +171,5 @@ fn windows_final_link_profiles_link_real_crt_unwind_cpp_and_pdb() {
                 .unwrap()
                 .starts_with(b"Microsoft C/C++ MSF 7.00")
         );
-        assert!(map.metadata().unwrap().len() > 0);
     }
 }

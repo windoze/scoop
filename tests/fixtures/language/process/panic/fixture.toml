@@ -33,4 +33,4 @@ name = "run"
 argv = ["${work}/relinked"]
 exit = 1
 stdout = "panic-buffer"
-stderr = "scoop: trap: array size overflow\n"
+stderr = {regex = "scoop:\\ trap:\\ array\\ size\\ overflow\\\n(?:  at [^\\n]+\\n)+(?:  <[^\\n]+>\\n)*"}

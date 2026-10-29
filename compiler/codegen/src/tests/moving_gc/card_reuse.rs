@@ -19,8 +19,9 @@ fn fixture(instructions: Vec<Instruction>) -> Module {
     function.temps = Arena::default();
     function.blocks = Arena::default();
     function.entry = function.blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "fields".into(),
-        instructions,
+        instructions: instructions.into(),
         terminator: Terminator::Return { value: None },
     });
     refresh_module_safepoints(&mut module);
@@ -57,8 +58,9 @@ fn field_barriers_do_not_cross_atomic_publication_or_blocks() {
     let mut module = fixture(vec![field(0, 16)]);
     let function = &mut module.functions[0];
     let next = function.blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "next".into(),
-        instructions: vec![field(0, 16)],
+        instructions: vec![field(0, 16)].into(),
         terminator: Terminator::Return { value: None },
     });
     function.blocks[function.entry].terminator = Terminator::Br(next);

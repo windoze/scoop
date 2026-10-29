@@ -33,4 +33,4 @@ name = "run"
 argv = ["${work}/relinked"]
 exit = 1
 stdout = "stdout-buffer"
-stderr = "stderr-buffer\nscoop: uncaught exception: n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=ProcessFailure)\n"
+stderr = {regex = "stderr\\-buffer\\\nscoop:\\ uncaught\\ exception:\\ n\\(c=scoop%3Asingle\\-file%3A0\\.0\\.0;p=;o=\\-;k=C;x=ProcessFailure\\)\\\n(?:  at [^\\n]+\\n)+(?:  <[^\\n]+>\\n)*"}

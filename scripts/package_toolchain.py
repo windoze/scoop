@@ -15,6 +15,7 @@ import tomllib
 from pathlib import Path
 
 import build_scoop_example
+import package_debugger
 import package_documentation
 import package_licenses
 import package_llvm
@@ -229,18 +230,34 @@ def assemble(root, targets, binaries, args, release, extension):
                 shutil.copy2(
                     source / component / "lib" / name, destination / component / "lib" / name
                 )
+    debugger_files, python_version, python_license = package_debugger.stage(
+        root,
+        args.llvm_prefix,
+        args.debugger_prefix,
+        args.debugger_python,
+        args.host,
+        args.python_license,
+        windows_compiler=args.mingw_ucrt / "bin/clang.exe" if "windows" in args.host else None,
+    )
     if "windows" in args.host:
         package_windows.install(root, targets, args)
-        native = package_native.windows(root, binaries, args.llvm_prefix / "bin")
+        native = package_native.windows(root, binaries, args.llvm_prefix / "bin", debugger_files)
     else:
         native = (package_native.darwin if args.host.endswith("darwin") else package_native.linux)(
-            root, binaries, args.llvm_prefix / "lib"
+            root, binaries, args.llvm_prefix / "lib", debugger_files
         )
     package_licenses.collect(
-        root, ROOT, args.llvm_source, args.host, native, targets, sysroot=sysroot
+        root,
+        ROOT,
+        args.llvm_source,
+        args.host,
+        native,
+        targets,
+        sysroot=sysroot,
+        python_license=python_license,
     )
     share = root / "share/scoop"
-    share.mkdir(parents=True)
+    share.mkdir(parents=True, exist_ok=True)
     shutil.copytree(sysroot / "share/scoop/examples", share / "examples")
     for name in ("README.md", "RELEASE-NOTES.md"):
         shutil.copy2(ROOT / "scripts/distribution" / name, share / name)
@@ -252,6 +269,9 @@ def assemble(root, targets, binaries, args, release, extension):
         f"vscode_extension = {json.dumps('tooling/' + extension.name)}",
         'programming_skill = "tooling/scoop-programming"',
         f"llvm = {json.dumps(release['llvm'])}",
+        f"lldb = {json.dumps(release['llvm'])}",
+        f"debugger_python = {json.dumps(python_version)}",
+        'debugger_formatters = "share/scoop/debugger/scoop_lldb.py"',
         f"openssl = {json.dumps(release['openssl'])}",
         f"llhttp = {json.dumps(release['llhttp'])}",
         f"nghttp2 = {json.dumps(release['nghttp2'])}",
@@ -328,6 +348,19 @@ def main():
         "--prepared-sysroot",
         type=Path,
         help="Use an explicitly prepared sysroot without rebuilding native backends, Cones, or runtime",
+    )
+    parser.add_argument(
+        "--debugger-prefix",
+        type=Path,
+        help="Reuse a matching Python-enabled Scoop LLDB installation",
+    )
+    parser.add_argument(
+        "--debugger-python", default=sys.executable, help="Python used to build and bundle LLDB"
+    )
+    parser.add_argument(
+        "--python-license",
+        type=Path,
+        help="Explicit Python license when absent from its installation",
     )
     parser.add_argument("--gnu-cc", default="gcc")
     parser.add_argument("--musl-cc", default="musl-gcc")
@@ -418,6 +451,37 @@ def main():
     ).strip()
     if actual_llvm != release["llvm"]:
         parser.error(f"release requires LLVM {release['llvm']}, found {actual_llvm}")
+    if args.debugger_prefix is None:
+        args.debugger_prefix = args.work_dir / "lldb/installed"
+        run_script(
+            "build_lldb.py",
+            [
+                "--source",
+                args.llvm_source,
+                "--llvm-prefix",
+                args.llvm_prefix,
+                "--build-dir",
+                args.work_dir / "lldb",
+                "--prefix",
+                args.debugger_prefix,
+                "--python",
+                args.debugger_python,
+                *(
+                    [
+                        "--cc",
+                        args.mingw_ucrt / "bin/clang.exe",
+                        "--cxx",
+                        args.mingw_ucrt / "bin/clang++.exe",
+                    ]
+                    if windows
+                    else []
+                ),
+                "--jobs",
+                args.jobs,
+            ],
+            environment,
+        )
+    args.debugger_prefix = args.debugger_prefix.resolve()
     environment["LLVM_SYS_221_PREFIX"] = str(args.llvm_prefix)
     host_target = "x86_64-w64-windows-llvm-mingw-ucrt" if windows else args.host
     flags = ["-C", "target-cpu=" + release["targets"][host_target]["cpu"]]
@@ -487,6 +551,10 @@ def main():
         vendor = sources / "vendor/llvm-project" / VERSION
         shutil.copytree(
             ROOT / "sysroot/vendor/llvm-project" / VERSION / "patches", vendor / "patches"
+        )
+        shutil.copy2(
+            ROOT / "scripts/patches/lldb-scoop-source-names.patch",
+            vendor / "patches/lldb-scoop-source-names.patch",
         )
         shutil.copy2(
             ROOT / "sysroot/vendor/llvm-project" / VERSION / "README.md", vendor / "README.md"

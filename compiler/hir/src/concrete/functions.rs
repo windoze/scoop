@@ -14,8 +14,6 @@ pub struct ImportedInlineBody {
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
-    /// Absent for generated helpers that have no source declaration.
-    pub debug_source: Option<scoop_source::FunctionDebugSource>,
     /// Persistent template plus the exact substitution context in which this
     /// body exists. Declaration, application, and generated-template ids are
     /// distinct kinds and cannot be reconstructed from names or arena ids.

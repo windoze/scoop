@@ -10,9 +10,8 @@ pub struct SourceFileMetadata {
     pub provider: IntrinsicProviderId,
     pub identity: scoop_identity::SourceIdentity,
     pub name: String,
-    /// Current-session file locator for debugger source lookup. This is not
-    /// the semantic display name and is never written to a SourceRecord.
-    pub debug_path: Option<String>,
+    /// Debugger locator, separate from the semantic display name used by source observations.
+    pub debug_path: std::sync::Arc<str>,
     pub source: String,
     /// Canonical metadata copied from a decoded dependency artifact.
     /// Current-source entries keep this absent and derive the record from

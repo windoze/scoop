@@ -30,6 +30,7 @@ impl Lowerer {
         for (source_id, source) in module.initialization_failure_roots.iter() {
             let raw = source_id.into_raw().into_u32();
             let global = self.globals.alloc(mir::Global {
+                debug_origin: Default::default(),
                 name: format!("$init$failure${raw}"),
                 storage_owner: mir::StaticStorageOwner::InitializationFailureRoot(
                     module.initialization_units[source.unit].identity.id(),
@@ -311,6 +312,24 @@ impl Lowerer {
                 }
             };
             let id = self.globals.alloc(mir::Global {
+                debug_origin: if matches!(
+                    global.storage_owner,
+                    hir::PropertyStorageOwner::Backing(_)
+                ) {
+                    let subject = match property_owner {
+                        scoop_identity::PropertyOwner::Property(id) => {
+                            scoop_identity::DefinitionOriginSubject::Property(id)
+                        }
+                        scoop_identity::PropertyOwner::ExtensionProperty(id) => {
+                            scoop_identity::DefinitionOriginSubject::ExtensionProperty(id)
+                        }
+                    };
+                    module
+                        .debug_sources
+                        .definition(subject, &mut self.debug_records)
+                } else {
+                    mir::DebugOrigin::Generated
+                },
                 name: global.name.clone(),
                 storage_owner,
                 ty,

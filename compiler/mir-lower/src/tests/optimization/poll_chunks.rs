@@ -238,6 +238,7 @@ fn linear_inline_blocks_merge_without_sharing_assigned_temporaries() {
     };
     function.body.locals[saved].mutable = true;
     function.body.blocks[inner].statements = vec![mir::Statement {
+        debug_origin: Default::default(),
         kind: mir::StatementKind::Assign {
             local: saved,
             value: init,

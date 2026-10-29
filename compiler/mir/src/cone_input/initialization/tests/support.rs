@@ -51,6 +51,7 @@ pub(super) fn fixture() -> Module {
     let body = &mut module.functions[cycle_thrower];
     body.gc_effect = GcEffect::Managed;
     let local = body.body.locals.alloc(Local {
+        debug_variable: Default::default(),
         name: "path".into(),
         ty: Type::String,
         mutable: false,
@@ -78,7 +79,7 @@ pub(super) fn fixture() -> Module {
             })
             .unwrap();
         let function = module.functions.alloc(Function {
-            debug_source: None,
+            debug_origin: Default::default(),
             gc_effect: GcEffect::Managed,
             name: format!("{role:?}"),
             params: vec![],
@@ -105,6 +106,7 @@ pub(super) fn fixture() -> Module {
         unreachable!()
     };
     let storage = module.globals.alloc(Global {
+        debug_origin: Default::default(),
         name: "setting".into(),
         storage_owner: StaticStorageOwner::PropertyBacking(PropertyOwner::Property(property)),
         ty: Type::Unit,
@@ -114,6 +116,7 @@ pub(super) fn fixture() -> Module {
         },
     });
     let failure = module.globals.alloc(Global {
+        debug_origin: Default::default(),
         name: "failure".into(),
         storage_owner: StaticStorageOwner::InitializationFailureRoot(unit.id()),
         ty: Type::Any,
@@ -181,7 +184,7 @@ fn base_module() -> Module {
     };
     let mut functions = Arena::new();
     let entry = functions.alloc(Function {
-        debug_source: None,
+        debug_origin: Default::default(),
         gc_effect: GcEffect::NoGc,
         name: "cycle".to_string(),
         params: Vec::new(),

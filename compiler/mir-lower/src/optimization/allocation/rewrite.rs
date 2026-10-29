@@ -52,6 +52,7 @@ pub(super) fn apply(
                         expression(module, plan, &values, site, expr);
                     });
                     block.statements.push(mir::Statement {
+                        debug_origin: statement.debug_origin.clone(),
                         kind: mir::StatementKind::ValDecl {
                             local: storage.local,
                             init,
@@ -109,10 +110,12 @@ fn expression(
             else {
                 return false;
             };
-            *expr = mir::Expr::local(storage.local, expr.ty.clone());
+            *expr = mir::Expr::local(storage.local, expr.ty.clone())
+                .with_debug_origin(expr.debug_origin.clone());
         }
         Replacement::Boolean(value) => {
             *expr = mir::Expr::new(mir::Type::Boolean, mir::ExprKind::BoolLiteral(value))
+                .with_debug_origin(expr.debug_origin.clone())
         }
     }
     true

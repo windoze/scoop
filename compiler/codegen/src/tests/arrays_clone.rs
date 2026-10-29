@@ -26,6 +26,7 @@ pub(super) fn reference_clone_module() -> Module {
     let copy = temps.alloc(Temp { ty: MANAGED_PTR });
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".into(),
         instructions: vec![Instruction::ArrayClone {
             out: copy,
@@ -38,13 +39,17 @@ pub(super) fn reference_clone_module() -> Module {
                 MANAGED_PTR,
                 &[0],
             )]),
-        }],
+        }]
+        .into(),
         terminator: Terminator::Return {
             value: Some(Value::Temp(copy)),
         },
     });
     module.functions[0] = Function {
-        debug_source: None,
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body("scoop_main"),
         safepoints: test_safepoints("scoop_main", &blocks, entry),
         gc_effect: GcEffect::Managed,

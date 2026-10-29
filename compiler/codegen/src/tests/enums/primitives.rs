@@ -16,27 +16,32 @@ fn append_variant_projection_function(
     });
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
-        instructions: Vec::new(),
+        instructions: Vec::new().into(),
         terminator: Terminator::Unreachable,
     });
     let matched = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "matched".to_string(),
-        instructions: Vec::new(),
+        instructions: Vec::new().into(),
         terminator: Terminator::Unreachable,
     });
     let missed = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "missed".to_string(),
-        instructions: Vec::new(),
+        instructions: Vec::new().into(),
         terminator: Terminator::Unreachable,
     });
     blocks[entry] = BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![Instruction::VariantTest {
             out: tested,
             operand: Value::Param(0),
             variant: field.variant(),
-        }],
+        }]
+        .into(),
         terminator: Terminator::CondBr {
             cond: Value::Temp(tested),
             then_block: matched,
@@ -44,12 +49,14 @@ fn append_variant_projection_function(
         },
     };
     blocks[matched] = BasicBlock {
+        terminator_origin: Default::default(),
         name: "matched".to_string(),
         instructions: vec![Instruction::VariantPayloadProject {
             out: projected,
             operand: Value::Param(0),
             field,
-        }],
+        }]
+        .into(),
         terminator: Terminator::Return {
             value: Some(Value::Temp(projected)),
         },
@@ -67,15 +74,19 @@ fn append_variant_projection_function(
         _ => signed64(0),
     };
     blocks[missed] = BasicBlock {
+        terminator_origin: Default::default(),
         name: "missed".to_string(),
-        instructions: Vec::new(),
+        instructions: Vec::new().into(),
         terminator: Terminator::Return {
             value: Some(fallback),
         },
     };
     let index = module.functions.len();
     module.functions.push(Function {
-        debug_source: None,
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,
@@ -106,19 +117,24 @@ fn append_variant_test_function(
     let tested = temps.alloc(Temp { ty: result_ty });
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![Instruction::VariantTest {
             out: tested,
             operand: Value::Param(0),
             variant,
-        }],
+        }]
+        .into(),
         terminator: Terminator::Return {
             value: Some(Value::Temp(tested)),
         },
     });
     let index = module.functions.len();
     module.functions.push(Function {
-        debug_source: None,
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,

@@ -16,20 +16,23 @@ fn debug_declarations_keep_current_and_imported_source_coordinates_through_mir()
         "import debug.source.original\n\nfun localDebug(): Int = original<Int>(7)\n",
         |output, _, _, _, _| {
             let local = output.output().local.module();
+            let mut records = scoop_source::DebugRecords::default();
             let expected = ["original", "localDebug"].map(|name| {
-                let source = local
+                let function = local
                     .functions
                     .values()
                     .find(|function| function.name == name)
-                    .unwrap()
-                    .debug_source
-                    .clone()
                     .unwrap();
-                assert_eq!(source.name, name);
+                let origin = local
+                    .debug_sources
+                    .function(function.materialization, &mut records);
+                let scoop_source::DebugOrigin::Source(source) = &origin else {
+                    panic!("source function {name} must retain its declaration");
+                };
                 assert_eq!((source.line, source.column), (3, 1));
-                source
+                origin
             });
-            assert_ne!(expected[0].file, expected[1].file);
+            assert_ne!(expected[0], expected[1]);
             let dependencies =
                 scoop_mir::SelectedExternalMirSet::try_from_callables(local.cone, Vec::new())
                     .unwrap();
@@ -45,7 +48,7 @@ fn debug_declarations_keep_current_and_imported_source_coordinates_through_mir()
                     mir.module()
                         .functions
                         .values()
-                        .any(|function| { function.debug_source.as_ref() == Some(&expected) })
+                        .any(|function| function.debug_origin == expected)
                 );
             }
         },

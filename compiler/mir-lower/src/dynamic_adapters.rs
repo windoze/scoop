@@ -23,7 +23,7 @@ pub(crate) fn request_dynamic_adapter(
     let signature = &shell.function_types[target];
     let name = mir::type_name(shell, &mir::Type::Function(target));
     let function = definitions.functions.alloc(mir::Function {
-        debug_source: None,
+        debug_origin: Default::default(),
         gc_effect: mir::GcEffect::Managed,
         name: format!("$dynamic_adapter.{name}"),
         params: Vec::new(),
@@ -177,6 +177,7 @@ impl Lowerer {
             let dynamic = types::dynamic_function_type(module, target);
             let mut locals = Arena::new();
             let closure = locals.alloc(mir::Local {
+                debug_variable: Default::default(),
                 name: "$closure".to_string(),
                 ty: mir::Type::Function(target),
                 mutable: false,
@@ -198,6 +199,7 @@ impl Lowerer {
             for (index, ty) in signature.parameters().enumerate() {
                 let name = format!("arg{index}");
                 let local = locals.alloc(mir::Local {
+                    debug_variable: Default::default(),
                     name: name.clone(),
                     ty: ty.clone(),
                     mutable: false,
@@ -224,10 +226,12 @@ impl Lowerer {
             let statements = if signature.return_type == mir::Type::Unit {
                 vec![
                     smir::Statement {
+                        debug_origin: Default::default(),
                         kind: smir::StatementKind::Expr(call),
                         span,
                     },
                     smir::Statement {
+                        debug_origin: Default::default(),
                         kind: smir::StatementKind::Return {
                             value: smir::Expr::unit(),
                         },
@@ -236,6 +240,7 @@ impl Lowerer {
                 ]
             } else {
                 vec![smir::Statement {
+                    debug_origin: Default::default(),
                     kind: smir::StatementKind::Return {
                         value: self.dynamic_unbox(module, call, &signature.return_type),
                     },

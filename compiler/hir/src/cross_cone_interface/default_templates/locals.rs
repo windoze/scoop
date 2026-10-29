@@ -128,6 +128,7 @@ impl WireDecode for DecodedTemplateLocalDefinitionV1 {
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct TemplateLocalRecordV1 {
+    name: String,
     selector: LocalValueSelector,
     value_type: SignatureTypeKey,
     mutable: CanonicalBooleanV1,
@@ -136,6 +137,7 @@ pub struct TemplateLocalRecordV1 {
 
 impl TemplateLocalRecordV1 {
     pub fn try_new(
+        name: String,
         selector: LocalValueSelector,
         value_type: SignatureTypeKey,
         mutable: CanonicalBooleanV1,
@@ -143,6 +145,7 @@ impl TemplateLocalRecordV1 {
     ) -> Result<Self, TemplateLocalRecordBuildError> {
         validate_definition_shape(&selector, &definition)?;
         Ok(Self {
+            name,
             selector,
             value_type,
             mutable,
@@ -152,6 +155,10 @@ impl TemplateLocalRecordV1 {
 
     pub const fn selector(&self) -> &LocalValueSelector {
         &self.selector
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     pub const fn value_type(&self) -> &SignatureTypeKey {
@@ -169,7 +176,7 @@ impl TemplateLocalRecordV1 {
 
 impl WireEncode for TemplateLocalRecordV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
+        encoder.map(5)?;
         encoder.field(1)?;
         self.selector.encode(encoder)?;
         encoder.field(2)?;
@@ -177,12 +184,15 @@ impl WireEncode for TemplateLocalRecordV1 {
         encoder.field(3)?;
         self.mutable.encode(encoder)?;
         encoder.field(4)?;
-        self.definition.encode(encoder)
+        self.definition.encode(encoder)?;
+        encoder.field(5)?;
+        encoder.text(&self.name)
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedTemplateLocalRecordV1 {
+    name: String,
     selector: LocalValueSelector,
     value_type: DecodedSignatureTypeKey,
     mutable: CanonicalBooleanV1,
@@ -205,14 +215,20 @@ impl DecodedTemplateLocalRecordV1 {
             .definition
             .resolve(resolver)
             .map_err(TemplateLocalRecordResolutionError::Definition)?;
-        TemplateLocalRecordV1::try_new(self.selector, value_type, self.mutable, definition)
-            .map_err(TemplateLocalRecordResolutionError::Shape)
+        TemplateLocalRecordV1::try_new(
+            self.name,
+            self.selector,
+            value_type,
+            self.mutable,
+            definition,
+        )
+        .map_err(TemplateLocalRecordResolutionError::Shape)
     }
 }
 
 impl WireEncode for DecodedTemplateLocalRecordV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
+        encoder.map(5)?;
         encoder.field(1)?;
         self.selector.encode(encoder)?;
         encoder.field(2)?;
@@ -220,18 +236,21 @@ impl WireEncode for DecodedTemplateLocalRecordV1 {
         encoder.field(3)?;
         self.mutable.encode(encoder)?;
         encoder.field(4)?;
-        self.definition.encode(encoder)
+        self.definition.encode(encoder)?;
+        encoder.field(5)?;
+        encoder.text(&self.name)
     }
 }
 
 impl WireDecode for DecodedTemplateLocalRecordV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(4)?;
+        decoder.expect_map(5)?;
         Ok(Self {
             selector: decoder.field(1, LocalValueSelector::decode)?,
             value_type: decoder.field(2, DecodedSignatureTypeKey::decode)?,
             mutable: decoder.field(3, CanonicalBooleanV1::decode)?,
             definition: decoder.field(4, DecodedTemplateLocalDefinitionV1::decode)?,
+            name: decoder.field(5, Decoder::owned_text)?,
         })
     }
 }

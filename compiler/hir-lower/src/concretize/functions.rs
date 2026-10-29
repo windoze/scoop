@@ -1,7 +1,6 @@
 use super::*;
 
 mod captures;
-mod debug_source;
 mod definition;
 mod intrinsics;
 
@@ -9,7 +8,6 @@ use definition::DefinitionReceiver;
 
 pub(super) struct PendingFunction {
     pub(super) name: String,
-    pub(super) debug_source: Option<scoop_source::FunctionDebugSource>,
     pub(super) is_suspend: bool,
     pub(super) modifiers: export::CallableModifiers,
     pub(super) params: Vec<concrete::Param>,
@@ -28,7 +26,6 @@ impl PendingFunction {
     ) -> concrete::Function {
         concrete::Function {
             name: self.name,
-            debug_source: self.debug_source,
             materialization,
             is_suspend: self.is_suspend,
             modifiers: self.modifiers,
@@ -207,7 +204,6 @@ impl Concretizer<'_> {
             .collect();
         PendingFunction {
             name: signature.name.to_owned(),
-            debug_source: self.function_debug_source(key, signature),
             is_suspend: signature.is_suspend,
             modifiers: signature.modifiers,
             params,

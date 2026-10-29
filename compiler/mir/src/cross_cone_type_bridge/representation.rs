@@ -37,6 +37,7 @@ pub enum MirParamFreeIntrinsicV1 {
     AtomicBoolean,
     Any,
     Nothing,
+    Throwable,
     Unit,
     Integer(IntegerKind),
     Boolean,

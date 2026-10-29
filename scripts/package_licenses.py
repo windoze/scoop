@@ -17,7 +17,7 @@ def license_files(directory):
     )
 
 
-def collect(root, repository, source, host, native, targets, *, sysroot=None):
+def collect(root, repository, source, host, native, targets, *, sysroot=None, python_license=None):
     sysroot = sysroot or repository / "sysroot"
     destination = root / "share/licenses"
     destination.mkdir(parents=True)
@@ -45,6 +45,8 @@ def collect(root, repository, source, host, native, targets, *, sysroot=None):
     if "windows" in host:
         for component in ("libcxx", "libcxxabi", "libunwind", "compiler-rt"):
             add(component, "See included documents", [source / component / "LICENSE.TXT"])
+    if python_license is not None:
+        add("Python", "PSF-2.0 and included notices", [python_license])
     for target in targets:
         notices = sysroot / "lib" / target / NOTICE_DIRECTORY
         add("Rust-std-" + target, "See included documents", sorted(notices.iterdir()))

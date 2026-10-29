@@ -61,6 +61,9 @@ impl Lowerer {
             let mut fields = match declared.base_class {
                 Some(base) => match &self.classes[self.class_map[&base]].representation {
                     mir::ClassRepresentation::Declared(base) => clone_fields(&base.fields),
+                    mir::ClassRepresentation::Intrinsic(
+                        mir::IntrinsicClassRepresentation::Throwable,
+                    ) => Vec::new(),
                     mir::ClassRepresentation::Intrinsic(_) => {
                         unreachable!("declared inheritance preserves a declared base")
                     }
@@ -108,7 +111,7 @@ impl Lowerer {
         let decl = &module.classes[constructor.class];
         let name = format!("init.{}.$c{}", decl.name, constructor.source_discriminator);
         let id = self.functions.alloc(mir::Function {
-            debug_source: None,
+            debug_origin: Default::default(),
             gc_effect: mir::GcEffect::Managed,
             name,
             params: Vec::new(),
@@ -140,7 +143,7 @@ impl Lowerer {
             }
         };
         let id = self.functions.alloc(mir::Function {
-            debug_source: None,
+            debug_origin: Default::default(),
             gc_effect,
             name,
             params: Vec::new(),
@@ -166,7 +169,9 @@ impl Lowerer {
         let class = constructor.class;
         let mir_class = self.class_map[&class];
         let mut lowerer = BodyLowerer {
+            debug_scope: None,
             module,
+            debug_records: &mut self.debug_records,
             core_protocols: &self.core_protocols,
             external_callables: &self.external_callables,
             source_exact_types: &mut self.source_exact_types,
@@ -235,6 +240,7 @@ impl Lowerer {
         };
         let receiver_ty = mir::Type::Class(mir_class);
         let receiver = lowerer.locals.alloc(mir::Local {
+            debug_variable: Default::default(),
             name: "this".into(),
             ty: receiver_ty.clone(),
             mutable: false,
@@ -253,6 +259,7 @@ impl Lowerer {
         for (declaration_index, parameter) in constructor.parameters.iter().enumerate() {
             let ty = lowerer.lower_type(parameter.ty);
             let local = lowerer.locals.alloc(mir::Local {
+                debug_variable: Default::default(),
                 name: parameter.name.clone(),
                 ty: ty.clone(),
                 mutable: false,
@@ -296,7 +303,9 @@ impl Lowerer {
         let constructor = module.struct_constructors[constructor_id].clone();
         let structure = constructor.structure;
         let mut lowerer = BodyLowerer {
+            debug_scope: None,
             module,
+            debug_records: &mut self.debug_records,
             core_protocols: &self.core_protocols,
             external_callables: &self.external_callables,
             source_exact_types: &mut self.source_exact_types,
@@ -369,6 +378,7 @@ impl Lowerer {
         for (declaration_index, parameter) in constructor.parameters.iter().enumerate() {
             let ty = lowerer.lower_type(parameter.ty);
             let local = lowerer.locals.alloc(mir::Local {
+                debug_variable: Default::default(),
                 name: parameter.name.clone(),
                 ty: ty.clone(),
                 mutable: false,
@@ -393,6 +403,7 @@ impl Lowerer {
         }
         let statements = match &constructor.kind {
             hir::StructConstructorKind::Primary => vec![smir::Statement {
+                debug_origin: Default::default(),
                 kind: smir::StatementKind::Return {
                     value: smir::Expr::new(
                         return_ty.clone(),
@@ -418,6 +429,7 @@ impl Lowerer {
                     .map(|argument| lowerer.lower_expr(argument))
                     .collect();
                 let receiver = lowerer.locals.alloc(mir::Local {
+                    debug_variable: Default::default(),
                     name: "$this".into(),
                     ty: return_ty.clone(),
                     mutable: false,
@@ -431,6 +443,7 @@ impl Lowerer {
                         .expect("secondary constructor receivers have persistent identities"),
                 );
                 statements.push(smir::Statement {
+                    debug_origin: Default::default(),
                     kind: smir::StatementKind::ValDecl {
                         local: receiver,
                         init: smir::Expr::new(
@@ -451,6 +464,7 @@ impl Lowerer {
                 lowerer.allocate_struct_body_locals(constructor_id, body);
                 statements.extend(lowerer.lower_statements(&body.statements));
                 statements.push(smir::Statement {
+                    debug_origin: Default::default(),
                     kind: smir::StatementKind::Return {
                         value: smir::Expr::local(receiver, return_ty.clone()),
                     },

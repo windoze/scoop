@@ -794,7 +794,7 @@ fn nominal_descriptor_symbols_use_exact_type_identity() {
             CallableMaterializationContext::NoSubstitution,
         );
         let invoke_function = source.functions.alloc(mir::Function {
-            debug_source: None,
+            debug_origin: Default::default(),
             gc_effect: mir::GcEffect::Managed,
             name: format!("$closure{index}.invoke"),
             params: Vec::new(),
@@ -1356,6 +1356,7 @@ fn canonical_c_abi_metadata_includes_external_global_layouts() {
     );
     let source_contract_id = source_contract.id();
     source.globals.alloc(mir::Global {
+        debug_origin: Default::default(),
         name: "header".to_string(),
         storage_owner: mir::StaticStorageOwner::PropertyBacking(property_owner("header")),
         ty: mir::Type::Struct(header),
@@ -1609,7 +1610,7 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
     let application = application_identity.id();
     let exact_signature = exact_callback_signature();
     let adapter_function = module.functions.alloc(mir::Function {
-        debug_source: None,
+        debug_origin: Default::default(),
         gc_effect: mir::GcEffect::Managed,
         name: "foreign callback adapter".to_string(),
         params: Vec::new(),

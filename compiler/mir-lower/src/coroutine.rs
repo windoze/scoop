@@ -143,7 +143,7 @@ fn transform_function(
     );
 
     let driver = lowerer.functions.alloc(mir::Function {
-        debug_source: None,
+        debug_origin: Default::default(),
         gc_effect: mir::GcEffect::Managed,
         name: format!("{source_name}$drive"),
         params: Vec::new(),
@@ -158,11 +158,13 @@ fn transform_function(
     )
     .expect("a coroutine source has one persistent driver identity");
     let frame_local = body.locals.alloc(mir::Local {
+        debug_variable: Default::default(),
         name: "$frame".to_string(),
         ty: mir::Type::Class(frame_class),
         mutable: false,
     });
     let dispatch_state = body.locals.alloc(mir::Local {
+        debug_variable: Default::default(),
         name: "$dispatch_state".to_string(),
         ty: mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState),
         mutable: false,
@@ -238,6 +240,7 @@ fn transform_function(
 
     let original_entry = body.entry;
     let initial = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "coroutine.initial".to_string(),
         statements: source_params
             .iter()

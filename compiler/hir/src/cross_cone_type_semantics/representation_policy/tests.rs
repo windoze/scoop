@@ -56,6 +56,7 @@ fn intrinsic_family_keeps_integer_width_and_signedness_and_generic_family_distin
             IntrinsicTypeKind::Char,
             IntrinsicTypeKind::Boolean,
             IntrinsicTypeKind::String,
+            IntrinsicTypeKind::Throwable,
             IntrinsicTypeKind::Array,
             IntrinsicTypeKind::MutableArray,
             IntrinsicTypeKind::Ptr,
@@ -72,7 +73,7 @@ fn intrinsic_family_keeps_integer_width_and_signedness_and_generic_family_distin
             family
         );
     }
-    assert_eq!(encodings.len(), 16);
+    assert_eq!(encodings.len(), 17);
 }
 
 #[test]

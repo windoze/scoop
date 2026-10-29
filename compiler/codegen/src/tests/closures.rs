@@ -94,6 +94,7 @@ fn closure_abi_module() -> Module {
     set_managed_live(&mut aggregate_suspend_site, closure_roots());
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![
             Instruction::Store {
@@ -107,7 +108,8 @@ fn closure_abi_module() -> Module {
             Instruction::Call {
                 site: aggregate_suspend_site,
             },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return { value: None },
     });
 
@@ -125,7 +127,10 @@ fn closure_abi_module() -> Module {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
-            debug_source: None,
+            debug_name: Default::default(),
+            debug_variables: Vec::new(),
+            debug_signature: Default::default(),
+            debug_origin: Default::default(),
             callable_body: callable_body_at(file!(), line!()),
             safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,
@@ -247,6 +252,7 @@ fn elided_zst_calls_keep_logical_values_without_physical_abi_slots() {
     let parameter_address = callee_temps.alloc(Temp { ty: RAW_PTR });
     let mut callee_blocks = Arena::default();
     let callee_entry = callee_blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![
             Instruction::Store {
@@ -257,13 +263,17 @@ fn elided_zst_calls_keep_logical_values_without_physical_abi_slots() {
                 out: parameter_address,
                 local: parameter_place,
             },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return {
             value: Some(Value::Param(0)),
         },
     });
     let callee = Function {
-        debug_source: None,
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,
@@ -291,6 +301,7 @@ fn elided_zst_calls_keep_logical_values_without_physical_abi_slots() {
     );
     let mut caller_blocks = Arena::default();
     let caller_entry = caller_blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![
             Instruction::MakeAggregate {
@@ -298,11 +309,15 @@ fn elided_zst_calls_keep_logical_values_without_physical_abi_slots() {
                 elements: Vec::new(),
             },
             Instruction::Call { site },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return { value: None },
     });
     let caller = Function {
-        debug_source: None,
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,

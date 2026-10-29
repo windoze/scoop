@@ -2,9 +2,13 @@
 
 ## 实现与开启条件
 
-普通 release 和 artifact-only link 默认清理普通内部符号；debug 或 `--keep-symbols` 保留。Darwin 在已有符号本地化之后使用 linker `-x -S`，GNU／musl 使用 `--strip-all`。参与链接的 `.slib`／`.o`、持久 ID、可达性选择、GC／EH 数据和必要动态符号保持。清理在最终链接和签名流程中完成，无运行时开关或诊断代码。
+普通 release 和 artifact-only link 默认清理普通内部符号；debug 或 `--keep-symbols` 保留。请求独立调试文件时，先完成链接并提取 DWARF，再清理最终程序，Darwin 在清理后签名；ELF 增加 `.gnu_debuglink`。参与链接的 `.slib`／`.o`、持久 ID、可达性选择、GC／EH 数据和必要动态符号保持。
 
-debug 默认旁置 `<output>.map`，release 和 artifact-only link 通过 `--emit-symbol-map` 显式开启，保存真实链接地址与范围；与 `--emit symbols` 的逻辑函数观察配合做离线归因。请求的 map 与 executable 一起缓存和发布，`executables-v3` 更新键包含符号保留策略及 map 开关，命中不读取文件内容。map 开关独立于 `--keep-symbols`，默认 release 不产生这份额外文件。下文既有体积和性能测量使用带 map 的配置。
+源码构建的 `--debug-info line-tables|full` 自动旁置 `<output>.dSYM`（Darwin）或 `<output>.debug`（GNU／musl）；debug 默认 full，release 默认 none。artifact-only link 可用 `--emit-debug-file` 提取已有对象的调试信息，不会补造预编译对象缺失的行表。`executables-v4` 缓存和发布 executable 及调试文件，更新键区分调试文件开关与 basename；相同 basename 的跨目录发布可复用。命中只检查普通更新条件。
+
+性能分析使用匹配的 executable、独立调试文件及 `--emit symbols` 观察，经 llvm-symbolizer 取得 PC 对应的行与内联链；`--keep-symbols` 仍服务 nm／perf 的符号表工作流。旧 map 选项与 parser 已退役，命令见[采样说明](../../tests/benchmarks/PROFILING.md)。
+
+以下表格及 map 测量保留 **2026-10-27 的历史结果**，不能当作当前调试文件配置的体积或耗时；本批调试能力的验证另见[实现记录](../debugging/IMPLEMENTATION.md)。
 
 ## 文件体积
 

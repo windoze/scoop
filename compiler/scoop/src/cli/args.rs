@@ -90,6 +90,9 @@ pub(super) struct BuildOptions {
     pub profile: Option<BuildProfile>,
     #[arg(long, conflicts_with = "profile")]
     pub release: bool,
+    /// Native source debug information: none, line-tables or full; debug defaults to full.
+    #[arg(long)]
+    pub debug_info: Option<scoop_lir::DebugInfoLevel>,
     #[arg(long)]
     pub target_dir: Option<PathBuf>,
     #[arg(long)]
@@ -243,9 +246,9 @@ pub(super) struct NativeOptions {
     /// Keep ordinary executable symbols; debug builds already retain them.
     #[arg(long)]
     pub keep_symbols: bool,
-    /// Emit <output>.map with native symbol addresses; debug builds already emit it.
+    /// Produce a .dSYM bundle or .debug file from existing object debug information.
     #[arg(long)]
-    pub emit_symbol_map: bool,
+    pub emit_debug_file: bool,
 }
 
 #[derive(Clone, Copy, ValueEnum)]

@@ -336,6 +336,10 @@ fn validate_pe(profile: &ValidatedFinalLinkProfile, scratch: &Path) {
         "src/image/ranges.c",
         "src/io.c",
         "src/process.c",
+        "src/stack_trace/capture.c",
+        "src/stack_trace/render.c",
+        "src/stack_trace/windows.c",
+        "src/stack_trace/windows_symbols.c",
     ] {
         let source = runtime.join(source);
         let object = scratch
@@ -350,7 +354,6 @@ fn validate_pe(profile: &ValidatedFinalLinkProfile, scratch: &Path) {
     compile_runtime(profile, &boundary_source, &boundary_object, &runtime);
     let executable = scratch.join("程序.exe");
     let pdb = scratch.join("公布 程序.exe.pdb");
-    let map = scratch.join("程序.exe.map");
     runtime_objects.extend([startup_path, boundary_object, extracted]);
     let traced = pe::link(
         windows,
@@ -359,7 +362,7 @@ fn validate_pe(profile: &ValidatedFinalLinkProfile, scratch: &Path) {
         &runtime_objects,
         &executable,
         Some(&pdb),
-        Some(&map),
+        false,
     )
     .unwrap();
     assert!(traced.iter().any(|path| {
@@ -394,14 +397,16 @@ fn validate_pe(profile: &ValidatedFinalLinkProfile, scratch: &Path) {
             ]
             .concat(),
         );
-        assert_eq!(
-            output.stderr,
-            [
-                binary_stderr.as_slice(),
-                if trap { b"scoop: trap: test\n" } else { b"" }
-            ]
-            .concat(),
-        );
+        if trap {
+            assert!(
+                output
+                    .stderr
+                    .starts_with(&[binary_stderr.as_slice(), b"scoop: trap: test\n"].concat())
+            );
+            assert!(String::from_utf8_lossy(&output.stderr).contains("  at "));
+        } else {
+            assert_eq!(output.stderr, binary_stderr);
+        }
     }
     let bytes = std::fs::read(executable).unwrap();
     let pe = object::File::parse(bytes.as_slice()).unwrap();
@@ -414,7 +419,6 @@ fn validate_pe(profile: &ValidatedFinalLinkProfile, scratch: &Path) {
             .unwrap()
             .starts_with(b"Microsoft C/C++ MSF 7.00")
     );
-    assert!(map.metadata().unwrap().len() > 0);
     let maps = pe.section_by_name(".smap").unwrap();
     assert!(maps.data().unwrap().starts_with(b"SCOOPMAP"));
     assert!(
@@ -434,11 +438,23 @@ fn compile_runtime(
     object: &Path,
     runtime: &Path,
 ) {
+    let ValidatedFinalLinkProfile::Windows(windows) = profile else {
+        panic!("Windows validation requires the Windows link profile");
+    };
     checked(
         profile
             .startup_toolchain()
             .object_compilation_command(source, object)
-            .args(["-Wall", "-Wextra", "-Werror", "-g", "-gcodeview"])
+            .args([
+                "-Wall",
+                "-Wextra",
+                "-Werror",
+                "-g",
+                "-gcodeview",
+                "-D__SEH__",
+            ])
+            .arg("-I")
+            .arg(windows.unwind_prefix().join("include"))
             .arg("-I")
             .arg(runtime.join("include"))
             .arg("-I")

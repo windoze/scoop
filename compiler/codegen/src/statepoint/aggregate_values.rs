@@ -133,7 +133,7 @@ impl<'ctx> Splitter<'ctx> {
             unsafe {
                 LLVMReplaceAllUsesWith(
                     value.as_value_ref(),
-                    value.get_type().const_zero().as_value_ref(),
+                    inkwell::llvm_sys::core::LLVMGetUndef(LLVMTypeOf(value.as_value_ref())),
                 );
             }
         }

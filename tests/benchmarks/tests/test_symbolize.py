@@ -90,37 +90,6 @@ class SymbolizeTests(unittest.TestCase):
             self.assertNotEqual(completed.returncode, 0)
             self.assertIn("expected symbols schema 1", completed.stderr)
 
-    def test_cli_resolves_linked_addresses_without_an_embedded_symbol_table(self):
-        with self.maps() as directory:
-            root = Path(directory)
-            mapping = self.write_map(root / "symbols.json", self.first, "answer")
-            addresses = root / "program.map"
-            addresses.write_text(
-                "# Sections:\n0x1000 0x100 __TEXT __text\n# Symbols:\n"
-                f"0x1000 0x20 [1] _{self.first}\n"
-            )
-            completed = subprocess.run(
-                [
-                    sys.executable,
-                    str(BENCHMARKS / "symbolize.py"),
-                    "--symbols",
-                    str(mapping),
-                    "--link-map",
-                    str(addresses),
-                    "--address",
-                    "0x1004",
-                    "--address",
-                    "0x1020",
-                ],
-                capture_output=True,
-                text=True,
-            )
-            self.assertEqual(completed.returncode, 0, completed.stderr)
-            self.assertEqual(
-                completed.stdout,
-                f"0x1004 = answer {{{self.first}}}+0x4\n0x1020 = <unresolved>\n",
-            )
-
     def maps(self):
         root = BENCHMARKS.parents[1] / "tmp"
         root.mkdir(exist_ok=True)

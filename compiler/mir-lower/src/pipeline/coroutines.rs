@@ -93,6 +93,7 @@ impl Lowerer {
                 crate::coroutine_registry::lowered_signature(module, &source.logical_signature);
             let function = &mut self.functions[source.function];
             let completion = function.body.locals.alloc(mir::Local {
+                debug_variable: Default::default(),
                 name: "$completion".to_string(),
                 ty: continuation_ty.clone(),
                 mutable: false,

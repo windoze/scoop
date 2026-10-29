@@ -33,12 +33,15 @@
       assign $new.1
         Type MyError
         ClassAlloc MyError
-      call @fn13 direct
+      call @fn17 direct
+        Type MyError
+        Local $new.1
+      call $prepared.throwable: MyError = @scoop_rt_prepare_throwable direct
         Type MyError
         Local $new.1
       throw unwind bb1
         Type MyError
-        Local $new.1
+        Local $prepared.throwable
     bb9 try.catch.9
       val e: MyError
         Type MyError

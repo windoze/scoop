@@ -68,6 +68,10 @@ class ToolchainArchiveTests(unittest.TestCase):
                     llvm_prefix=work / "llvm",
                     llvm_source=work / "llvm-source",
                     prepared_sysroot=sysroot if populated else None,
+                    debugger_prefix=work / "lldb",
+                    debugger_python=sys.executable,
+                    python_license=None,
+                    mingw_ucrt=work / "mingw-ucrt",
                 )
                 if "windows" in host:
                     (args.llvm_prefix / "bin").mkdir(parents=True)
@@ -86,6 +90,11 @@ class ToolchainArchiveTests(unittest.TestCase):
                     patch.object(package_toolchain.package_native, "darwin", return_value=[]),
                     patch.object(package_toolchain.package_native, "linux", return_value=[]),
                     patch.object(package_toolchain.package_native, "windows", return_value=[]),
+                    patch.object(
+                        package_toolchain.package_debugger,
+                        "stage",
+                        return_value=({}, "3.14", work / "LICENSE.txt"),
+                    ),
                     patch.object(package_toolchain.package_licenses, "collect"),
                 ):
                     assemble(root, [], binaries, args, release, extension)
@@ -119,6 +128,8 @@ class ToolchainArchiveTests(unittest.TestCase):
                         self.assertEqual(metadata[name], release[name])
                     else:
                         self.assertNotIn(name, metadata)
+                self.assertEqual(metadata["debugger_python"], "3.14")
+                self.assertEqual(metadata["lldb"], release["llvm"])
                 self.assertNotIn("libuv", metadata)
                 self.assertEqual(
                     (installed / "src/library/main.scoop").read_text(), "fun main() {}"

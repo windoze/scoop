@@ -51,8 +51,9 @@ pub enum CanonicalCBridgeFlagV1 {
     NoCommonSymbols,
     OmitCompilerIdentification,
     NoStackProtector,
-    NoUnwindTables,
-    NoAsynchronousUnwindTables,
+    PreserveAllFramePointers,
+    UnwindTables,
+    AsynchronousUnwindTables,
     NoBuiltinSubstitution,
     PositionIndependent,
     X86_64Baseline,
@@ -63,7 +64,7 @@ pub enum CanonicalCBridgeFlagV1 {
 }
 
 impl CanonicalCBridgeFlagV1 {
-    pub const WINDOWS_CLANG: [Self; 15] = [
+    pub const WINDOWS_CLANG: [Self; 18] = [
         Self::ExplicitCanonicalTarget,
         Self::ExplicitResolvedSdkRoot,
         Self::X86_64Baseline,
@@ -76,6 +77,9 @@ impl CanonicalCBridgeFlagV1 {
         Self::NoStackProtector,
         Self::NoBuiltinSubstitution,
         Self::WindowsSeh,
+        Self::PreserveAllFramePointers,
+        Self::UnwindTables,
+        Self::AsynchronousUnwindTables,
         Self::WindowsCrt,
         Self::Windows10Baseline,
         Self::ReproducibleCoff,
@@ -89,12 +93,12 @@ impl CanonicalCBridgeFlagV1 {
         Self::NoCommonSymbols,
         Self::OmitCompilerIdentification,
         Self::NoStackProtector,
-        Self::NoUnwindTables,
-        Self::NoAsynchronousUnwindTables,
+        Self::UnwindTables,
+        Self::AsynchronousUnwindTables,
         Self::NoBuiltinSubstitution,
         Self::PositionIndependent,
     ];
-    pub const ALL: [Self; 13] = [
+    pub const ALL: [Self; 14] = [
         Self::ExplicitCanonicalTarget,
         Self::ExplicitResolvedSdkRoot,
         Self::ExplicitMinimumDeployment,
@@ -105,8 +109,9 @@ impl CanonicalCBridgeFlagV1 {
         Self::NoCommonSymbols,
         Self::OmitCompilerIdentification,
         Self::NoStackProtector,
-        Self::NoUnwindTables,
-        Self::NoAsynchronousUnwindTables,
+        Self::PreserveAllFramePointers,
+        Self::UnwindTables,
+        Self::AsynchronousUnwindTables,
         Self::NoBuiltinSubstitution,
     ];
 
@@ -122,15 +127,16 @@ impl CanonicalCBridgeFlagV1 {
             Self::NoCommonSymbols => 8,
             Self::OmitCompilerIdentification => 9,
             Self::NoStackProtector => 10,
-            Self::NoUnwindTables => 11,
-            Self::NoAsynchronousUnwindTables => 12,
+            Self::PreserveAllFramePointers => 19,
+            Self::UnwindTables => 17,
+            Self::AsynchronousUnwindTables => 18,
             Self::NoBuiltinSubstitution => 13,
             Self::PositionIndependent => 14,
             Self::X86_64Baseline => 16,
-            Self::WindowsSeh => 17,
-            Self::WindowsCrt => 18,
-            Self::Windows10Baseline => 19,
-            Self::ReproducibleCoff => 20,
+            Self::WindowsSeh => 20,
+            Self::WindowsCrt => 21,
+            Self::Windows10Baseline => 22,
+            Self::ReproducibleCoff => 23,
         }
     }
 }

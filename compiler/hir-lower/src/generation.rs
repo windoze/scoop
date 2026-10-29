@@ -89,8 +89,9 @@ impl Lowerer {
         self.imported_source_files.push(hir::SourceFileMetadata {
             provider: self.intrinsic_sources[lexical_file].provider,
             identity: generated.source.identity,
+            debug_path: generated.source.name.as_str().into(),
             name: generated.source.name,
-            debug_path: None,
+
             source: generated.source.text.as_str().to_owned(),
             canonical_record: None,
         });
@@ -146,8 +147,9 @@ impl Lowerer {
             .map(|source| hir::SourceFileMetadata {
                 provider: source.provider,
                 identity: source.identity.clone(),
+                debug_path: source.name.as_str().into(),
                 name: source.name.clone(),
-                debug_path: source.debug_path.clone(),
+
                 source: source.source.clone(),
                 canonical_record: None,
             })

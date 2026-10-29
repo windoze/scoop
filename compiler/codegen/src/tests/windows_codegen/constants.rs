@@ -32,13 +32,18 @@ pub(super) fn floating_function(name: &str, odr: bool) -> Function {
                 operation: FloatUnaryOperator::Negate,
                 operand: Value::Temp(sum),
             },
-        ],
+        ]
+        .into(),
+        terminator_origin: Default::default(),
         terminator: Terminator::Return {
             value: Some(Value::Temp(result)),
         },
     });
     Function {
-        debug_source: None,
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: if odr {
             odr_callable_body(name)
         } else {

@@ -48,9 +48,18 @@ impl OutputLocation {
                 return Ok(());
             }
         }
-        let candidate = tempfile::NamedTempFile::new_in(&self.parent)?;
-        std::fs::copy(source, candidate.path())?;
-        candidate.persist(&self.path).map_err(|error| error.error)?;
+        if source.is_dir() {
+            let staging = tempfile::Builder::new()
+                .prefix(".scoop-bundle-")
+                .tempdir_in(&self.parent)?;
+            let candidate = staging.path().join("bundle");
+            copy_directory(source, &candidate)?;
+            scoop_linker::replace_debug_bundle(&candidate, &self.path)?;
+        } else {
+            let candidate = tempfile::NamedTempFile::new_in(&self.parent)?;
+            std::fs::copy(source, candidate.path())?;
+            candidate.persist(&self.path).map_err(|error| error.error)?;
+        }
         if let Some(result) = result {
             let mut candidate = tempfile::NamedTempFile::new_in(&self.parent)?;
             candidate.write_all(result)?;
@@ -88,4 +97,18 @@ impl OutputLocation {
 
 fn invalid(message: impl Into<String>) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidInput, message.into())
+}
+
+fn copy_directory(source: &Path, destination: &Path) -> io::Result<()> {
+    std::fs::create_dir(destination)?;
+    for entry in std::fs::read_dir(source)? {
+        let entry = entry?;
+        let destination = destination.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_directory(&entry.path(), &destination)?;
+        } else {
+            std::fs::copy(entry.path(), destination)?;
+        }
+    }
+    Ok(())
 }

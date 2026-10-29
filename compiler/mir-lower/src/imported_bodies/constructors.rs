@@ -55,6 +55,7 @@ impl Lowerer {
                     let ty = lowerer.lower_type(source_type(exact));
                     let name = format!("arg{index}");
                     let local = lowerer.locals.alloc(mir::Local {
+                        debug_variable: Default::default(),
                         name: name.clone(),
                         ty: ty.clone(),
                         mutable: false,
@@ -70,6 +71,7 @@ impl Lowerer {
                 smir::Body {
                     locals: lowerer.locals,
                     statements: vec![smir::Statement {
+                        debug_origin: Default::default(),
                         kind: smir::StatementKind::Return {
                             value: smir::Expr::new(
                                 return_ty.clone(),
@@ -88,7 +90,7 @@ impl Lowerer {
             bodies.functions.insert(
                 callable,
                 mir::Function {
-                    debug_source: None,
+                    debug_origin: Default::default(),
                     name: "imported primary value constructor".into(),
                     gc_effect,
                     params,

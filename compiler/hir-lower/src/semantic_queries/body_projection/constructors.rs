@@ -55,7 +55,7 @@ impl BodyQueries<'_> {
             return Ok(None);
         }
         let owner = self.lowerer.class_constructors[id].owner;
-        if !self.lowerer.classes[owner].is_declared() {
+        if !self.lowerer.classes[owner].has_source_constructors() {
             return Ok(Some(Availability::NoBody));
         }
         let declaration = data

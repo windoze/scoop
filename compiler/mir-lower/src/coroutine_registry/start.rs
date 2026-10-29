@@ -50,30 +50,39 @@ impl CoroutineRegistry {
 
         let mut locals = Arena::new();
         let task = locals.alloc(mir::Local {
+            debug_variable: Default::default(),
             name: "task".to_string(),
             ty: mir::Type::Interface(task_interface),
             mutable: false,
         });
         let completion = locals.alloc(mir::Local {
+            debug_variable: Default::default(),
             name: "completion".to_string(),
             ty: mir::Type::Interface(continuation_interface),
             mutable: false,
         });
         let step = locals.alloc(mir::Local {
+            debug_variable: Default::default(),
             name: "$step".to_string(),
             ty: step_ty.clone(),
             mutable: false,
         });
         let exception = locals.alloc(mir::Local {
+            debug_variable: Default::default(),
             name: "$exception".to_string(),
             ty: throwable.clone(),
             mutable: false,
         });
         let span = mir::SourceSpan::new(0, 0).expect("synthetic span is ordered");
-        let statement = |kind| mir::Statement { kind, span };
+        let statement = |kind| mir::Statement {
+            debug_origin: Default::default(),
+            kind,
+            span,
+        };
         let mut blocks = Arena::new();
         let switch = crate::task_context::TaskSwitch::new(core, &mut locals, &mut blocks);
         let suspended = blocks.alloc(mir::BasicBlock {
+            terminator_origin: Default::default(),
             name: "suspended".to_string(),
             statements: vec![switch.leave()],
             terminator: mir::Terminator::Return {
@@ -82,6 +91,7 @@ impl CoroutineRegistry {
             unwind: None,
         });
         let completed = blocks.alloc(mir::BasicBlock {
+            terminator_origin: Default::default(),
             name: "completed".to_string(),
             statements: vec![statement(mir::StatementKind::Call(mir::CallEffect::Unit(
                 mir::Call {
@@ -105,6 +115,7 @@ impl CoroutineRegistry {
             unwind: Some(switch.unwind),
         });
         let failed = blocks.alloc(mir::BasicBlock {
+            terminator_origin: Default::default(),
             name: "failed".to_string(),
             statements: vec![statement(mir::StatementKind::Call(mir::CallEffect::Unit(
                 mir::Call {
@@ -121,6 +132,7 @@ impl CoroutineRegistry {
             unwind: Some(switch.unwind),
         });
         let catch_pad = blocks.alloc(mir::BasicBlock {
+            terminator_origin: Default::default(),
             name: "body_failure".to_string(),
             statements: vec![
                 statement(mir::StatementKind::Eh(mir::EhStatement::LandingPad {
@@ -137,6 +149,7 @@ impl CoroutineRegistry {
             unwind: Some(switch.catch_unwind),
         });
         let run_body = blocks.alloc(mir::BasicBlock {
+            terminator_origin: Default::default(),
             name: "run".to_string(),
             statements: vec![statement(mir::StatementKind::Call(
                 mir::CallEffect::Value {
@@ -165,6 +178,7 @@ impl CoroutineRegistry {
         blocks[failed].statements.push(switch.leave());
         let (fork, child) = crate::task_context::fork_current(core, &mut locals);
         let entry = blocks.alloc(mir::BasicBlock {
+            terminator_origin: Default::default(),
             name: "entry".to_string(),
             statements: vec![fork, switch.enter(child)],
             terminator: mir::Terminator::Goto(run_body),
@@ -172,7 +186,7 @@ impl CoroutineRegistry {
         });
         let result_name = mir::type_name(shell, result);
         let function = functions.alloc(mir::Function {
-            debug_source: None,
+            debug_origin: Default::default(),
             gc_effect: mir::GcEffect::Managed,
             name: format!("startCoroutine<{result_name}>"),
             params: vec![

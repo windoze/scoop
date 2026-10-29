@@ -16,6 +16,8 @@ static _Thread_local unsigned expected_depth, visits;
 #define UNUSED_ENTRY(name)                                                                         \
     void name(void) { abort(); }
 UNUSED_ENTRY(scoop_rt_gc_collect_impl)
+UNUSED_ENTRY(scoop_rt_prepare_throwable_impl)
+UNUSED_ENTRY(scoop_rt_throwable_print_stack_trace_impl)
 UNUSED_ENTRY(scoop_runtime_alloc_slow_impl)
 UNUSED_ENTRY(scoop_rt_init_enter_impl)
 UNUSED_ENTRY(scoop_rt_init_succeed_impl)

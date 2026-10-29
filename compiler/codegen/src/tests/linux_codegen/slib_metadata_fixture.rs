@@ -204,12 +204,20 @@ fn empty_function(callable_body: CallableBodyIdentity) -> Function {
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
         name: "entry".to_owned(),
-        instructions: Vec::new(),
+        instructions: Default::default(),
         terminator: Terminator::Return { value: None },
+        terminator_origin: scoop_source::DebugOrigin::Generated,
     });
     Function {
-        debug_source: None,
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body,
+        debug_name: String::new(),
+        debug_origin: scoop_source::DebugOrigin::Generated,
+        debug_signature: scoop_lir::DebugSignature::Generated,
+        debug_variables: Vec::new(),
         gc_effect: GcEffect::Managed,
         signature: scoop_lir::ScoopAbiSignature::new(
             Vec::new(),

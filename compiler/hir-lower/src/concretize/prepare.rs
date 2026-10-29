@@ -4,6 +4,7 @@ pub(super) struct PreparedSource {
     pub unit: concrete::TypeId,
     pub boolean: concrete::TypeId,
     pub string: concrete::TypeId,
+    pub throwable_trace_bytes: concrete::TypeId,
     pub native_callback_signatures: Vec<concrete::NativeCallbackSignature>,
     pub core_protocols: concrete::ConcreteCoreProtocols,
 }
@@ -35,6 +36,7 @@ impl Concretizer<'_> {
         }
         let boolean = self.lower_type(self.source.boolean, &[]);
         let string = self.lower_type(self.source.string, &[]);
+        let throwable_trace_bytes = self.lower_type(self.source.throwable_trace_bytes, &[]);
 
         self.lower_extern_functions();
         self.lower_globals();
@@ -134,6 +136,7 @@ impl Concretizer<'_> {
             unit,
             boolean,
             string,
+            throwable_trace_bytes,
             native_callback_signatures,
             core_protocols,
         })

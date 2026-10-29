@@ -147,6 +147,7 @@ fn value(body: &mir::Body, name: &str) -> mir::Expr {
 
 fn node(kind: mir::StatementKind) -> mir::Statement {
     mir::Statement {
+        debug_origin: Default::default(),
         kind,
         span: crate::source_span(SPAN),
     }

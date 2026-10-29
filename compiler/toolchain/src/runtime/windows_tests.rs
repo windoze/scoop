@@ -3,7 +3,7 @@ use scoop_process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-fn tool(name: &str) -> PathBuf {
+pub(super) fn tool(name: &str) -> PathBuf {
     std::env::var_os(name)
         .map(PathBuf::from)
         .unwrap_or_else(|| panic!("{name} is required"))
@@ -238,7 +238,7 @@ fn run_windows_runtime_test_with_optimizations(
     }
 }
 
-fn checked(command: &mut Command) {
+pub(super) fn checked(command: &mut Command) {
     let output = command.scoop_output().unwrap();
     assert!(
         output.status.success(),

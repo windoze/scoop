@@ -14,7 +14,7 @@ pub(super) fn lowerer() -> Lowerer {
             role: scoop_identity::SourceRole::Production,
             identity: crate::tests::test_source_identity("src/solver.scoop"),
             name: "solver.scoop".to_owned(),
-            debug_path: None,
+
             source: String::new(),
         }],
         IntrinsicDeclarationPolicy::CoreOnly,

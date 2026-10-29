@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the LLVM 22.1.8 shared backend and native tools for Scoop hosts."""
+"""Build the LLVM/Clang 22.1.8 SDK and tools used by Scoop and LLDB."""
 
 import argparse
 import os
@@ -22,6 +22,7 @@ HOSTS = {
 }
 
 TOOLS = (
+    "dsymutil",
     "llvm-config",
     "clang",
     "clang++",
@@ -81,6 +82,8 @@ def configure(source, build, prefix, cc, cxx, host, release):
             (
                 "LLVM",
                 "clang-cpp",
+                "clang-headers",
+                "clang-cmake-exports",
                 "llvm-headers",
                 "cmake-exports",
                 "clang-resource-headers",
@@ -183,7 +186,7 @@ def main():
         "prefix": str(prefix),
     }
     outputs = [prefix / "bin" / (name + suffix) for name in TOOLS]
-    outputs += [prefix / "include/llvm-c/Core.h"]
+    outputs += [prefix / "include/llvm-c/Core.h", prefix / "lib/cmake/clang/ClangConfig.cmake"]
     outputs += [prefix / "lib/clang/22/include/stddef.h"]
     outputs += [prefix / "bin" / path.name for path in companions]
     if windows:

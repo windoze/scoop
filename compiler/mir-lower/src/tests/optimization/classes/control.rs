@@ -14,12 +14,14 @@ fn an_outer_iteration_object_keeps_mutable_state_through_an_inner_loop() {
         body.locals[named(body, "before")].ty.clone(),
     ))));
     let outer = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "outer.creation".into(),
         statements: creation,
         terminator: mir::Terminator::Unreachable,
         unwind: None,
     });
     let inner = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "inner.update".into(),
         statements: reads,
         terminator: mir::Terminator::Unreachable,

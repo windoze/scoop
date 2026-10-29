@@ -90,6 +90,7 @@ pub fn normalize_protocol_build_request(
     .and_then(|request| {
         request
             .with_optimization(build.optimization())
+            .with_debug_info(build.debug_info())
             .with_generators(
                 scoop_toolchain::GeneratorPrograms::from_registrations(build.generators())
                     .map_err(BuildRequestNormalizationError::Generators)?,

@@ -549,7 +549,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .cloned()
             .unwrap_or_default();
         self.validate_compiler_root_sources(sources.iter().copied())?;
-        let reloaded = self.reload_published_roots(sources)?;
+        let reloaded = self.reload_published_roots(sources.iter().copied())?;
         let pop = self.gc_leaf_fn(
             scoop_lir::RuntimeAbiSymbolV1::PopTopCompilerRoots.logical_symbol(),
             self.context.void_type().fn_type(&[], false),
@@ -558,6 +558,16 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .build_call(pop, &[], "pop_unwind_compiler_roots")
             .map_err(|error| CodegenError(format!("pop unwind compiler roots: {error}")))?;
         self.restore_reloaded_roots(reloaded)?;
+        if let Some(debug) = &self.debug {
+            debug.borrow().invalidate_managed(
+                self.builder
+                    .get_insert_block()
+                    .expect("unwind continuation"),
+            );
+            for source in sources {
+                self.observe_debug_root(source)?;
+            }
+        }
         Ok(())
     }
 }

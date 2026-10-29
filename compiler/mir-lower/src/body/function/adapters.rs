@@ -104,7 +104,7 @@ impl BodyLowerer<'_> {
         let name = format!("$Closure$adapter${source_name}${target_name}");
 
         let function = self.functions.alloc(mir::Function {
-            debug_source: None,
+            debug_origin: Default::default(),
             gc_effect: mir::GcEffect::Managed,
             name: format!("$adapter.{source_name}.{target_name}"),
             params: Vec::new(),
@@ -143,6 +143,7 @@ impl BodyLowerer<'_> {
 
         let mut locals = Arena::new();
         let closure = locals.alloc(mir::Local {
+            debug_variable: Default::default(),
             name: "$closure".to_string(),
             ty: mir::Type::Function(target),
             mutable: false,
@@ -168,6 +169,7 @@ impl BodyLowerer<'_> {
             .enumerate()
         {
             let local = locals.alloc(mir::Local {
+                debug_variable: Default::default(),
                 name: format!("arg{index}"),
                 ty: target_ty.clone(),
                 mutable: false,
@@ -199,10 +201,12 @@ impl BodyLowerer<'_> {
         let mut statements = if target_signature.return_type == mir::Type::Unit {
             vec![
                 smir::Statement {
+                    debug_origin: Default::default(),
                     kind: smir::StatementKind::Expr(call),
                     span,
                 },
                 smir::Statement {
+                    debug_origin: Default::default(),
                     kind: smir::StatementKind::Return {
                         value: smir::Expr::unit(),
                     },
@@ -211,6 +215,7 @@ impl BodyLowerer<'_> {
             ]
         } else {
             vec![smir::Statement {
+                debug_origin: Default::default(),
                 kind: smir::StatementKind::Return {
                     value: self.adapt_mir_subtype(
                         call,

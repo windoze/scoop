@@ -11,6 +11,11 @@
  * callsite SP and FP before entering here (a Win64 call, otherwise a tail
  * branch). Runtime C code calls its
  * internal operations instead of these entry implementations. */
+void *scoop_rt_prepare_throwable_impl(void *exception, const ScoopTypeDescriptor *trace_bytes_td,
+                                      uintptr_t return_pc, uintptr_t stack_pointer,
+                                      uintptr_t frame_pointer);
+void scoop_rt_throwable_print_stack_trace_impl(void *exception, uintptr_t return_pc,
+                                               uintptr_t stack_pointer, uintptr_t frame_pointer);
 void scoop_rt_safepoint_impl(uintptr_t return_pc, uintptr_t stack_pointer,
                              uintptr_t frame_pointer);
 void *scoop_runtime_alloc_slow_impl(const ScoopTypeDescriptor *td, size_t size,

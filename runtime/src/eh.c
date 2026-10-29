@@ -1,4 +1,6 @@
 #include "eh_internal.h"
+#include "throwable.h"
+#include "process_termination.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -117,23 +119,21 @@ static _Noreturn void scoop_eh_finish_failed_raise(ScoopExceptionRecord *record,
     if (record->state != SCOOP_EXCEPTION_IN_FLIGHT || record->caught_previous != NULL) {
         scoop_eh_state_error("failed raise left a corrupt exception record");
     }
-    const ScoopObjectHeader *payload = record->object;
-    if (reason == _URC_END_OF_STACK) {
-        fputs("scoop: uncaught exception: ", stderr);
-        if (payload->td != NULL && payload->td->diagnostic_name.data != NULL &&
-            payload->td->diagnostic_name.length != 0 &&
-            payload->td->diagnostic_name.length <= SIZE_MAX) {
-            fwrite(payload->td->diagnostic_name.data, 1,
-                   (size_t)payload->td->diagnostic_name.length, stderr);
-        } else {
-            fputs("<unknown>", stderr);
-        }
-        fputc('\n', stderr);
-    } else {
-        fprintf(stderr, "scoop: fatal unwind error: %s: %s\n", phase, scoop_eh_reason_name(reason));
+    ScoopThrowableReport report = {0};
+    size_t required;
+    while ((required = scoop_throwable_report_copy(record->object, &report)) != 0) {
+        scoop_throwable_report_reserve(&report, required);
     }
     record->state = SCOOP_EXCEPTION_DELETING;
     _Unwind_DeleteException(&record->unwind);
+    scoop_process_prepare_termination();
+    if (reason == _URC_END_OF_STACK) {
+        fputs("scoop: uncaught exception: ", stderr);
+    } else {
+        fprintf(stderr, "scoop: fatal unwind error: %s: %s\n", phase, scoop_eh_reason_name(reason));
+    }
+    scoop_throwable_report_render(&report, stderr);
+    free(report.bytes);
     abort();
 }
 

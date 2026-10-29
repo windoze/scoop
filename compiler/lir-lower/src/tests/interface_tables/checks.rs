@@ -20,12 +20,14 @@ fn guarded(negated: bool) -> (mir::Module, mir::FunctionId, mir::BlockId) {
     };
     let interface = *interface;
     let success = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "matched".into(),
         statements: calls,
         terminator: body.blocks[entry].terminator.clone(),
         unwind: None,
     });
     let failure = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "missing".into(),
         statements: vec![],
         terminator: body.blocks[entry].terminator.clone(),

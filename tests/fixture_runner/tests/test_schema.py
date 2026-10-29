@@ -36,6 +36,18 @@ class CriteriaTests(unittest.TestCase):
         with self.assertRaises(ConfigurationError):
             validate(data)
 
+    def test_stream_regex_is_validated_and_cannot_supply_stdin(self):
+        step = self.data["steps"][0]
+        step["stderr"] = {"regex": r"trace 0x[0-9a-f]+\n"}
+        validate(self.data)
+        step["stderr"] = {"regex": "["}
+        with self.assertRaisesRegex(ConfigurationError, "invalid regular expression"):
+            validate(self.data)
+        step["stderr"] = ""
+        step["stdin"] = {"regex": ".*"}
+        with self.assertRaises(ConfigurationError):
+            validate(self.data)
+
     def test_concat_validates_parts_and_their_references(self):
         operation = {"path": "combined", "parts": [{"file": "first"}, "\n", {"hex": "00ff"}]}
         self.data["steps"].insert(0, {"name": "combine", "files": [{"concat": operation}]})

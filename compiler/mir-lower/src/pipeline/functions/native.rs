@@ -18,6 +18,7 @@ impl Lowerer {
         for (index, ty) in signature.params.iter().enumerate() {
             let name = format!("arg{index}");
             let local = locals.alloc(mir::Local {
+                debug_variable: Default::default(),
                 name: name.clone(),
                 ty: ty.clone(),
                 mutable: false,
@@ -51,10 +52,12 @@ impl Lowerer {
         let statements = if result == mir::Type::Unit {
             vec![
                 smir::Statement {
+                    debug_origin: Default::default(),
                     kind: smir::StatementKind::Expr(call),
                     span,
                 },
                 smir::Statement {
+                    debug_origin: Default::default(),
                     kind: smir::StatementKind::Return {
                         value: smir::Expr::unit(),
                     },
@@ -63,6 +66,7 @@ impl Lowerer {
             ]
         } else {
             vec![smir::Statement {
+                debug_origin: Default::default(),
                 kind: smir::StatementKind::Return { value: call },
                 span,
             }]

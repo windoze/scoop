@@ -278,6 +278,7 @@ pub struct InterfaceMethod {
 
 #[derive(Debug, Clone)]
 pub struct Local {
+    pub debug_variable: DebugVariable,
     pub name: String,
     pub ty: Type,
     pub mutable: bool,

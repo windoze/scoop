@@ -26,6 +26,8 @@
 
 SCOOP_MANAGED_ENTRY scoop_rt_safepoint, scoop_rt_safepoint_impl, %rcx, %rdx, %r8
 SCOOP_MANAGED_ENTRY scoop_rt_gc_collect, scoop_rt_gc_collect_impl, %rcx, %rdx, %r8
+SCOOP_MANAGED_ENTRY scoop_rt_prepare_throwable, scoop_rt_prepare_throwable_impl, %r8, %r9, 32(%rsp)
+SCOOP_MANAGED_ENTRY scoop_rt_throwable_print_stack_trace, scoop_rt_throwable_print_stack_trace_impl, %rdx, %r8, %r9
 SCOOP_MANAGED_ENTRY scoop_runtime_alloc_slow, scoop_runtime_alloc_slow_impl, %r8, %r9, 32(%rsp)
 SCOOP_MANAGED_ENTRY scoop_rt_string_concat, scoop_rt_string_concat_impl, %r8, %r9, 32(%rsp)
 SCOOP_MANAGED_ENTRY scoop_rt_init_enter, scoop_rt_init_enter_impl, %rdx, %r8, %r9

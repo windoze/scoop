@@ -76,7 +76,7 @@ stderr = ""
 
 [[steps]]
 name = "relink"
-argv = ["${scoop}", "link", {each = "${link_args}"}, "--root-slib", "${changed.result.root.path}", {each = "${changed.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--keep-symbols", "-o", "${work}/relinked/debug-entry.exe", "--message-format", "json"]
+argv = ["${scoop}", "link", {each = "${link_args}"}, "--root-slib", "${changed.result.root.path}", {each = "${changed.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--keep-symbols", "--emit-debug-file", "-o", "${work}/relinked/debug-entry.exe", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

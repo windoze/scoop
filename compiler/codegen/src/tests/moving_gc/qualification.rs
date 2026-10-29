@@ -25,6 +25,7 @@ pub(in crate::tests) fn stackmap_qualification_module() -> Module {
             });
         let mut blocks = Arena::default();
         let entry = blocks.alloc(BasicBlock {
+            terminator_origin: Default::default(),
             name: "entry".to_string(),
             instructions: vec![Instruction::ManagedPoll {
                 site: scoop_lir::ManagedPollSite {
@@ -33,13 +34,17 @@ pub(in crate::tests) fn stackmap_qualification_module() -> Module {
                     safepoint: test_safepoint(safepoint),
                     live,
                 },
-            }],
+            }]
+            .into(),
             terminator: Terminator::Return {
                 value: return_value,
             },
         });
         Function {
-            debug_source: None,
+            debug_name: Default::default(),
+            debug_variables: Vec::new(),
+            debug_signature: Default::default(),
+            debug_origin: Default::default(),
             callable_body: callable_body(symbol),
             safepoints: test_safepoints(symbol, &blocks, entry),
             gc_effect: GcEffect::Managed,

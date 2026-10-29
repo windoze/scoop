@@ -5,7 +5,16 @@
 /**
  * The common reference base for values that can be thrown and caught.
  */
-public open class Throwable public constructor()
+@Intrinsic("core_throwable")
+public open class Throwable public constructor() {
+    /** Prints the first throw's physical stack, or reports that no stack was captured. */
+    public final fun printStackTrace(): Unit {
+        __scoopPrintThrowableStackTrace(this)
+    }
+}
+
+@Intrinsic("throwable_print_stack_trace")
+private fun __scoopPrintThrowableStackTrace(exception: Throwable): Unit
 
 /**
  * An ordinary throwable carrying an optional human-readable message.

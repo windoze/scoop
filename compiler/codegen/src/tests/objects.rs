@@ -13,14 +13,18 @@ pub(super) fn classes_module_for(target: scoop_lir::LirTargetProfile) -> Module 
     let describe = |symbol: &str| {
         let mut blocks = Arena::default();
         let entry = blocks.alloc(BasicBlock {
+            terminator_origin: Default::default(),
             name: "entry".to_string(),
-            instructions: vec![],
+            instructions: vec![].into(),
             terminator: Terminator::Return {
                 value: Some(Value::Param(0)),
             },
         });
         Function {
-            debug_source: None,
+            debug_name: Default::default(),
+            debug_variables: Vec::new(),
+            debug_signature: Default::default(),
+            debug_origin: Default::default(),
             callable_body: callable_body(symbol),
             safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,
@@ -79,17 +83,22 @@ pub(super) fn classes_module_for(target: scoop_lir::LirTargetProfile) -> Module 
     );
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![
             Instruction::Call { site: result_call },
             Instruction::Call { site: void_call },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return {
             value: Some(Value::Temp(t0)),
         },
     });
     let main = Function {
-        debug_source: None,
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -265,14 +274,18 @@ pub(super) fn heap_module_for(target: scoop_lir::LirTargetProfile) -> Module {
     // slot material).
     let mut describe_blocks = Arena::default();
     let describe_entry = describe_blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
-        instructions: vec![],
+        instructions: vec![].into(),
         terminator: Terminator::Return {
             value: Some(Value::Param(0)),
         },
     });
     let describe = Function {
-        debug_source: None,
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -378,6 +391,7 @@ pub(super) fn heap_module_for(target: scoop_lir::LirTargetProfile) -> Module {
     );
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![
             Instruction::Call { site: alloc_site },
@@ -426,11 +440,15 @@ pub(super) fn heap_module_for(target: scoop_lir::LirTargetProfile) -> Module {
             Instruction::Call {
                 site: dispatch_site,
             },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return { value: None },
     });
     let main = Function {
-        debug_source: None,
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,

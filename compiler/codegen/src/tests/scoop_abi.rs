@@ -24,14 +24,18 @@ fn aggregate_signature() -> scoop_lir::ScoopAbiSignature {
 fn aggregate_identity(symbol: &str, gc_effect: GcEffect) -> Function {
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
-        instructions: Vec::new(),
+        instructions: Vec::new().into(),
         terminator: Terminator::Return {
             value: Some(Value::Param(0)),
         },
     });
     Function {
-        debug_source: None,
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect,
@@ -100,6 +104,7 @@ fn ordinary_caller(symbol: &str, gc_effect: GcEffect, protocol: TestCallProtocol
     let site = aggregate_call(&mut call_targets, protocol, argument, result, &locals);
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![
             make_value,
@@ -108,11 +113,15 @@ fn ordinary_caller(symbol: &str, gc_effect: GcEffect, protocol: TestCallProtocol
                 value: Value::Temp(value),
             },
             Instruction::Call { site },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return { value: None },
     });
     Function {
-        debug_source: None,
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body(symbol),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect,
@@ -147,16 +156,19 @@ fn invoke_caller() -> Function {
     );
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
-        instructions: Vec::new(),
+        instructions: Vec::new().into(),
         terminator: Terminator::Unreachable,
     });
     let normal = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "normal".to_string(),
-        instructions: Vec::new(),
+        instructions: Vec::new().into(),
         terminator: Terminator::Return { value: None },
     });
     let unwind = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "unwind".to_string(),
         instructions: vec![
             Instruction::LandingPad { record, raw },
@@ -165,10 +177,12 @@ fn invoke_caller() -> Function {
                 raw: Value::Temp(raw),
             },
             Instruction::EndCatch,
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return { value: None },
     });
     blocks[entry] = BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![
             make_value,
@@ -179,11 +193,15 @@ fn invoke_caller() -> Function {
             Instruction::Invoke {
                 site: managed_invoke(site, normal, unwind),
             },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Br(normal),
     };
     Function {
-        debug_source: None,
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body("scoop.aggregate_invoke_caller"),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -214,6 +232,7 @@ fn aggregate_dispatch_caller() -> Function {
     );
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![
             make_value,
@@ -222,11 +241,15 @@ fn aggregate_dispatch_caller() -> Function {
                 value: Value::Temp(value),
             },
             Instruction::Call { site },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return { value: None },
     });
     Function {
-        debug_source: None,
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body("scoop.aggregate_dispatch_caller"),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -374,6 +397,7 @@ fn native_aggregate_module() -> Module {
 
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![
             Instruction::MakeAggregate {
@@ -385,11 +409,15 @@ fn native_aggregate_module() -> Module {
                 value: Value::Temp(literal),
             },
             Instruction::Call { site },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return { value: None },
     });
     let caller = Function {
-        debug_source: None,
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body("scoop.native_aggregate_caller"),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,

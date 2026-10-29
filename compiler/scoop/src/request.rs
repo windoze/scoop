@@ -176,6 +176,7 @@ pub struct BuildGraphRequest {
     compiler: PairedScoopcLocator,
     diagnostics: DiagnosticsPolicy,
     optimization: scoop_lir::OptimizationMode,
+    debug_info: scoop_lir::DebugInfoLevel,
     purpose: CompilationPurpose,
     jobs: std::num::NonZeroUsize,
     generators: scoop_toolchain::GeneratorPrograms,
@@ -190,6 +191,7 @@ pub(crate) struct BuildGraphRequestParts {
     pub(crate) compiler: PairedScoopcLocator,
     pub(crate) diagnostics: DiagnosticsPolicy,
     pub(crate) optimization: scoop_lir::OptimizationMode,
+    pub(crate) debug_info: scoop_lir::DebugInfoLevel,
     pub(crate) purpose: CompilationPurpose,
     pub(crate) jobs: std::num::NonZeroUsize,
     pub(crate) generators: scoop_toolchain::GeneratorPrograms,
@@ -220,6 +222,7 @@ impl BuildGraphRequest {
             compiler,
             diagnostics,
             optimization: scoop_lir::OptimizationMode::Debug,
+            debug_info: scoop_lir::DebugInfoLevel::None,
             purpose: CompilationPurpose::Production,
             jobs: std::thread::available_parallelism().unwrap_or(std::num::NonZeroUsize::MIN),
             generators: Default::default(),
@@ -228,6 +231,11 @@ impl BuildGraphRequest {
 
     pub fn with_optimization(mut self, mode: scoop_lir::OptimizationMode) -> Self {
         self.optimization = mode;
+        self
+    }
+
+    pub fn with_debug_info(mut self, level: scoop_lir::DebugInfoLevel) -> Self {
+        self.debug_info = level;
         self
     }
 
@@ -290,6 +298,7 @@ impl BuildGraphRequest {
             compiler: self.compiler,
             diagnostics: self.diagnostics,
             optimization: self.optimization,
+            debug_info: self.debug_info,
             purpose: self.purpose,
             jobs: self.jobs,
             generators: self.generators,

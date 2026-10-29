@@ -99,6 +99,7 @@ impl BodyLowerer<'_> {
                 some.variant,
             ),
             then_body: vec![smir::Statement {
+                debug_origin: Default::default(),
                 kind: smir::StatementKind::ValDecl {
                     local: result,
                     init: payload,
@@ -224,6 +225,9 @@ impl BodyLowerer<'_> {
             hir::IntrinsicFunctionKind::GcReleaseHandleRaw => mir::RuntimeFn::ReleaseHandle,
             hir::IntrinsicFunctionKind::GcCollect => mir::RuntimeFn::GcCollect,
             hir::IntrinsicFunctionKind::GcStats => mir::RuntimeFn::GcStats,
+            hir::IntrinsicFunctionKind::ThrowablePrintStackTrace => {
+                mir::RuntimeFn::ThrowablePrintStackTrace
+            }
             hir::IntrinsicFunctionKind::CoroutineStart
             | hir::IntrinsicFunctionKind::CoroutineSuspend => {
                 unreachable!("coroutine intrinsics are lowered through the typed protocol")

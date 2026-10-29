@@ -10,8 +10,7 @@ pub use visit_mut::*;
 
 #[derive(Debug, Clone)]
 pub struct Function {
-    /// Absent for generated helpers that have no source declaration.
-    pub debug_source: Option<scoop_source::FunctionDebugSource>,
+    pub debug_origin: DebugOrigin,
     /// Whether this body participates in managed GC instrumentation.
     pub gc_effect: GcEffect,
     pub name: String,
@@ -182,6 +181,7 @@ impl Body {
     pub fn unreachable(locals: Arena<Local>) -> Self {
         let mut blocks = Arena::new();
         let entry = blocks.alloc(BasicBlock {
+            terminator_origin: Default::default(),
             name: "entry".to_string(),
             statements: Vec::new(),
             terminator: Terminator::Unreachable,
@@ -198,6 +198,7 @@ impl Body {
 
 #[derive(Debug, Clone)]
 pub struct BasicBlock {
+    pub terminator_origin: DebugOrigin,
     pub name: String,
     pub statements: Vec<Statement>,
     pub terminator: Terminator,
@@ -208,6 +209,7 @@ pub struct BasicBlock {
 
 #[derive(Debug, Clone)]
 pub struct Statement {
+    pub debug_origin: DebugOrigin,
     pub kind: StatementKind,
     pub span: SourceSpan,
 }
@@ -314,13 +316,23 @@ pub enum Terminator {
 /// shape, surrounding local or expected context is forbidden.
 #[derive(Debug, Clone)]
 pub struct Expr {
+    pub debug_origin: DebugOrigin,
     pub ty: Type,
     pub kind: ExprKind,
 }
 
 impl Expr {
+    pub fn with_debug_origin(mut self, origin: DebugOrigin) -> Self {
+        self.debug_origin = origin;
+        self
+    }
+
     pub fn new(ty: Type, kind: ExprKind) -> Self {
-        Self { ty, kind }
+        Self {
+            ty,
+            kind,
+            debug_origin: DebugOrigin::Generated,
+        }
     }
 
     pub fn local(local: LocalId, ty: Type) -> Self {

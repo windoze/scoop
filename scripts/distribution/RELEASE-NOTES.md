@@ -47,3 +47,9 @@ HTTP/3、HTTP/2 WebSocket，以及跨 origin H2 合并、证书固定／对端�
 仓库中的准备、LLVM 构建和打包脚本供维护者显式调用；常规 CLI 测试和 CI 不自动运行打包，也不要求先生成归档。M54 功能实现与三目标验收已完成，库测试、正式消费者、复用范围和失败闭合见仓库的 M54 验收记录。此包的部署配置、源码 revision 与实际组件列表见 `toolchain.toml`。
 
 项目维护者尚未选定 Scoop 自身的 LICENSE 时，包只用于当前本地构建和功能验收；此说明不授予新的对外分发许可。已有第三方许可随组件保留。
+
+
+原生调试：提供源码 DWARF、断点、静态变量和物理调用栈；debug 默认 full，release 默认 none，
+优化与调试级别可以独立选择。发行包新增 Python-enabled LLDB／lldb-dap、所需依赖及 formatter，
+VS Code 扩展提供构建、启动、附加与测试调试入口。Throwable 历史栈、重抛保留及 trap 栈输出已接入。
+调试来源使用会话内共享记录，MIR／LIR 不增加持久化调试快照；slib 默认改用 Zstd level 3。

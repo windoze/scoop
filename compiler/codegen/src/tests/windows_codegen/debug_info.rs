@@ -15,18 +15,32 @@ fn windows_debug_functions_retain_source_declarations_in_codeview() {
         scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID,
         scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_ID,
     ] {
-        for optimization in [
+        for (optimization, debug_info) in [
             scoop_lir::OptimizationMode::Debug,
             scoop_lir::OptimizationMode::Release,
-        ] {
+        ]
+        .into_iter()
+        .flat_map(|optimization| {
+            [
+                scoop_lir::DebugInfoLevel::None,
+                scoop_lir::DebugInfoLevel::LineTables,
+                scoop_lir::DebugInfoLevel::Full,
+            ]
+            .map(move |level| (optimization, level))
+        }) {
             let mut function = super::constants::floating_function("codeViewValue", false);
             let symbol = function.symbol().to_owned();
-            function.debug_source = Some(scoop_lir::FunctionDebugSource {
-                name: "debugProduct".to_owned(),
-                file: source.to_str().unwrap().to_owned(),
-                line: 9,
-                column: 1,
-            });
+            function.debug_name = "debugProduct".to_owned();
+            let mut records = scoop_source::DebugRecords::default();
+            function.debug_origin = records.source(
+                std::sync::Arc::new(scoop_source::DebugFile {
+                    identity: std::sync::Arc::new(scoop_identity::SourceIdentity::single_file()),
+                    path: source.to_str().unwrap().into(),
+                }),
+                9,
+                1,
+            );
+            function.blocks[function.entry].terminator_origin = function.debug_origin.clone();
             let mut module = values_module();
             module.meta = string_metadata_for(scoop_target_data::layout(target).unwrap());
             module.output = scoop_lir::LirOutput::Library;
@@ -37,7 +51,8 @@ fn windows_debug_functions_retain_source_declarations_in_codeview() {
                 scoop_target_data::selection(target).unwrap(),
             )
             .unwrap()
-            .with_optimization(optimization);
+            .with_optimization(optimization)
+            .with_debug_info(debug_info);
             let emitted = emit_object_set(
                 &input,
                 &scoop_lir::ConeCoordinate::reserved_single_file(),
@@ -62,7 +77,7 @@ fn windows_debug_functions_retain_source_declarations_in_codeview() {
                     .sections()
                     .filter(|section| section.name().is_ok_and(|name| name == ".debug$S"))
                     .collect::<Vec<_>>();
-                if optimization == scoop_lir::OptimizationMode::Release {
+                if debug_info == scoop_lir::DebugInfoLevel::None {
                     assert!(debug.is_empty());
                     continue;
                 }

@@ -32,7 +32,42 @@ fn struct_values_keep_named_lir_identity() {
             ),
         ],
     );
-    let module = lower(b.finish(main));
+    let mut source = b.finish(main);
+    let mut records = mir::DebugRecords::default();
+    let origin = records.source(
+        std::sync::Arc::new(mir::DebugFile {
+            identity: std::sync::Arc::new(scoop_identity::SourceIdentity::single_file()),
+            path: "/workspace/point.scoop".into(),
+        }),
+        3,
+        5,
+    );
+    let owner = source
+        .meta
+        .source_callable_materializations
+        .get(main)
+        .unwrap()
+        .materialization();
+    let key = scoop_identity::LocalValueKey::new(
+        owner,
+        scoop_identity::LocalValueSelector::LocalDeclaration {
+            path: scoop_identity::StructuralDefinitionPath::from_first(
+                scoop_identity::StructuralPathSegment::new(
+                    scoop_identity::StructuralDefinitionSiteRole::LocalDeclaration,
+                    0,
+                ),
+                [],
+            ),
+        },
+    );
+    let identity =
+        scoop_identity::CborIdentityRecord::<scoop_identity::PersistentLocalValueId, _>::from_key(
+            key,
+        )
+        .unwrap()
+        .id();
+    source.functions[main].body.locals[p].debug_variable = records.variable(identity, "p", origin);
+    let module = lower(source);
 
     let function = &module.functions[0];
     let local_types: Vec<lir::LirType> = function
@@ -71,6 +106,28 @@ fn struct_values_keep_named_lir_identity() {
         .expect("a layout per struct");
     assert_eq!((layout.size, layout.align), (8, 4));
     assert!(plain_refs(layout).is_empty());
+    let binding = &function.debug_variables[0];
+    assert_eq!(binding.declaration.identity, identity);
+    assert_eq!(binding.declaration.name.as_ref(), "p");
+    let lir::DebugStorage::Local(slot) = binding.storage else {
+        panic!("the source aggregate lives in its existing local slot");
+    };
+    assert_eq!(
+        function.locals[slot].ty(),
+        &lir::LirType::Struct(struct_def_id(point))
+    );
+    let ty = &module.meta.debug_types[&binding.ty];
+    assert_eq!((ty.size, ty.align), (layout.size, layout.align));
+    let lir::DebugTypeKind::Record(fields) = &ty.kind else {
+        panic!("the source struct describes its physical fields");
+    };
+    assert_eq!(
+        fields
+            .iter()
+            .map(|field| (field.name.as_str(), field.offset))
+            .collect::<Vec<_>>(),
+        [("x", 0), ("y", 4)]
+    );
 }
 
 #[test]

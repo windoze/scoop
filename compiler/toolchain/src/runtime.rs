@@ -4,6 +4,8 @@ use scoop_lir::LirTargetProfile;
 mod sources;
 #[cfg(all(test, windows, target_arch = "x86_64"))]
 mod windows_tests;
+#[cfg(all(test, windows, target_arch = "x86_64"))]
+mod windows_trace_tests;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ValidatedRuntimeBuildProfile {
@@ -77,9 +79,15 @@ impl ValidatedRuntimeBuildProfile {
 
     pub fn runtime_sources(self) -> Vec<&'static str> {
         let components = self.components;
+        let trace = if self.target.native_object_format() == scoop_lir::NativeObjectFormat::Coff64 {
+            sources::WINDOWS_TRACE
+        } else {
+            sources::UNIX_TRACE
+        };
         sources::COMMON
             .iter()
             .copied()
+            .chain(trace.iter().copied())
             .chain([components.profile])
             .chain(components.os.iter().copied())
             .chain(components.image.iter().copied())

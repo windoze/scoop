@@ -80,6 +80,10 @@ impl Lowerer {
         {
             self.error(Span::new(0, 0), error);
         }
+        let throwable_trace_bytes = self.diagnostics.is_empty().then(|| {
+            let byte = self.integer_type(hir::IntegerKind::UNSIGNED_8);
+            self.array_type(crate::types::ArrayKind::Immutable, byte)
+        });
         self.complete_imported_generic_bodies();
         PhaseFailure::check(check)?;
         if self.diagnostics.is_empty()
@@ -155,12 +159,19 @@ impl Lowerer {
             .finish_documentation(world, check)
             .map_err(PhaseFailure::Cancelled)?;
         PhaseFailure::check(check)?;
-        self.finish(current_cone, warnings, core_protocols, documentation)
-            .map_err(|mut diagnostics| {
-                for diagnostic in &mut diagnostics {
-                    diagnostic.resolve_sources(&sources);
-                }
-                diagnostics.into()
-            })
+        self.finish(
+            current_cone,
+            warnings,
+            core_protocols,
+            documentation,
+            throwable_trace_bytes
+                .expect("successful source lowering prepares the actual trace array"),
+        )
+        .map_err(|mut diagnostics| {
+            for diagnostic in &mut diagnostics {
+                diagnostic.resolve_sources(&sources);
+            }
+            diagnostics.into()
+        })
     }
 }

@@ -1,14 +1,14 @@
 # Windows targets 实施进度
 
-分支：`codex/windows-targets`。更新于 2026-10-29；当前已合并主线 `5c245cb7f`。
+分支：`codex/windows-targets`。更新于 2026-10-29；已整合主线 `0bded827b` 的原生调试与 Throwable 栈快照。
 本文只记录当前实现、验证结果和未完成项；设计合同见 [DESIGN.md](DESIGN.md)。
 
 | 阶段 | 当前状态 | 剩余验收 |
 | --- | --- | --- |
 | W0 工具链与 ABI | 三种 native 环境的关键路线均已通过，正式准备脚本已接入 | 无独立 W0 阻塞 |
-| W1 编译／链接 | 三目标 ABI、COFF、C/C++、PE、PDB、subsystem 与 RC 已实现并通过定向验证 | Windows 文件 fixture 广覆盖仍在运行 |
+| W1 编译／链接 | 三目标 ABI、COFF、C/C++、PE、PDB、subsystem 与 RC 已实现并通过定向验证 | ABI 29 资源重建后继续文件 fixture 广覆盖 |
 | W2 core runtime | Win32 primitives、SEH、精确 roots、GC、线程与初始化已实现并通过定向验证 | 配合 W1 完成剩余语言／产物组合用例 |
-| W3 系统库 | Windows 实现及所需 native 后端已完成，下表各组通过 | 高层异步 HTTP／client／server 验收仍在运行 |
+| W3 系统库 | Windows 实现及所需 native 后端已完成，下表各组通过 | 高层异步 HTTP／client／server 验收待恢复 |
 | W4 宿主与发行 | Windows 宿主、命令发现、私有 LLVM、SDK 选择和发行入口已实现；首个实际安装包通过三目标使用验收 | 使用最新 core／库重新生成最终归档并复测；随后进行跨宿主回归 |
 
 本地实现和完整验收完成后，才在 Linux `nuc12w.0d0a.com` 与 macOS `mm.0d0a.com` 的 `~/repos` 下新建测试目录。目前尚未开始远端测试。原始日志、报告、归档和构建副本保存在仓库外。
@@ -18,7 +18,7 @@
 - Windows x64 `10.0.26300`；MSVC toolset `14.44.35207`，SDK `10.0.26100.0`。
 - LLVM `22.1.8`；LLVM-MinGW `20260616`，分别提供 MSVCRT 与 UCRT prefix。
 - Rust `1.99.1`；Windows 宿主使用 `x86_64-pc-windows-gnullvm`。
-- 当前 runtime ABI 为 28。上述版本是实际构建／验收环境，不是未经验证的最低支持环境承诺。
+- 合并后的 runtime ABI 为 29，子进程协议为 21。原先 ABI 28 的通过记录保留为历史验证；当前配套编译器、runtime 和系统库需要一起重建。上述版本是实际构建／验收环境，不是未经验证的最低支持环境承诺。
 
 正式 target 为 `x86_64-pc-windows-msvc-ucrt`、`x86_64-w64-windows-llvm-mingw-msvcrt` 和 `x86_64-w64-windows-llvm-mingw-ucrt`。两种 UCRT target 的 native ABI 和资源保持独立。W0 复现入口见 [experiments](../../spikes/windows-targets/README.md)。
 
@@ -34,11 +34,15 @@ SEH personality 与 LSDA decoder、真实 statepoint invoke、多层／大栈帧
 
 Windows 主驱动的安装名为 **`sco.exe`**，帮助和版本信息使用 `sco`。Cargo 内部 binary 名、其他可执行程序、外部命令 `scoop-` 前缀和 `SCOOP_*` 环境变量不变；macOS／Linux 继续使用 `scoop`。归档布局测试覆盖三个宿主，实际 Windows `sco new/run/test`、`sco pm`、`sco example` 均通过。
 
+主线调试整合复用共享 DebugOrigin／变量记录，并将 Windows PDB 接入统一伴随文件发布。原生栈诊断使用所选 LLVM unwinder 与串行 DbgHelp 查询；三个 Windows target 的 O0／O2、中文源码／安装路径、实际 PDB 行号、无 PDB 地址输出、并发查询和模块卸载后的历史地址测试已通过。首次抛出／重抛及 GC 的语言级组合仍需在 ABI 29 系统库重建后验证。
+
+合并后的 12 项 Windows toolchain 测试、8 项 Windows codegen 测试和 4 项通用调试元数据测试通过。C 桥额外覆盖三个 target 的 debug／release 展开 atom 与真实执行；PE 链接覆盖 LLD／LINK、Unicode 参数、相邻 PDB、CRT 和新的 trap 栈输出。导入 callable／constructor 的声明位置进入共享调试记录，当前／导入来源经 HIR→MIR、Unicode／CRLF 坐标及泛型 constructor 回归通过。fixture runner 当前 70 项规则测试完成，其中 3 项按宿主跳过。
+
 文件 fixture 的 Windows 扩展仍在验收。公共 runner 的格式化／Ruff 通过，68 项规则测试完成（其中 3 项按宿主跳过）。33 个继承规则用例复用固定的共享 core 后全部通过；6 个 primitive inherited-method 用例也已通过，其中五个共享固定输入，combined 保留修改前后的真实 core 构建。6 个根类型错误用例精确断言被测规则诊断，去除对其他 core 源码连带错误的完整快照依赖，均已通过。较大的完整 core 构建步骤采用 900 秒测试时限；普通运行断言不变。Windows 本地化错误、LF 字节位置、COFF archive 成员、当前 runtime 字段以及泛型初始化登记的断言按实际合同调整，不通过隐藏输入或工具验收复用。
 
 ## 系统库与 native 后端
 
-以下结果均来自三个 Windows target 的正式 release Cone，测试源码和工具保持存在；仅列主要计数。
+以下结果来自 ABI 28 的三个 Windows target 正式 release Cone，测试源码和工具保持存在；仅列主要计数。
 
 | 验证组 | 每目标结果 |
 | --- | --- |
@@ -66,6 +70,8 @@ PCRE2 10.49、OpenSSL 3.5.9、uriparser 1.0.2、Rust 文本后端、Zstandard、
 
 打包入口组装五个宿主命令、递归解析的宿主 DLL、私有 LLVM、两个 MinGW CRT prefix、三个目标的 slib／runtime／unwind、实际许可证、三个 API 文档站点、VSIX、示例和编程 skill。源码副本排除生成的 target 和 Cone.lock。10 项打包测试、Python Ruff 和 workspace/all-targets Clippy 已通过。
 
+新增 LLDB 整合后，打包测试 12 项完成，其中 1 项 POSIX launcher 测试按宿主跳过；Windows 原生 launcher 的 Unicode／空格路径迁移、参数、环境和退出码通过真实子进程验证。VS Code 的 16 项测试及 lint 通过，Windows 调试构建默认使用 `sco.exe`，其他宿主仍用 `scoop`。完整 LLVM／Clang SDK 正在重建，启用 Python 的 Windows LLDB 构建与实际 DAP 会话尚待完成。
+
 首个归档已解压到中文及空格路径。在仅含安装 bin 和 Windows 系统目录的 PATH 下，三个目标的默认 SDK／工具发现、new/run/test、C++、console／GUI 和 RC 均通过；检查实际 PE imports 确认所选 CRT。随后修复了 canonical native sysroot 路径，并用更新的程序完成实际安装目录回归。该原型归档不是最终发行物。
 
-剩余工作为：完成正在运行的本地 fixture 与库测试；更新三个目标的预编译资源；重新生成并验证最终 release 归档；提交、推送并合并主线；最后执行设计约定的 Linux／macOS 回归。完成这些步骤前不声明全部 Windows 验收完成。
+剩余工作为：完成 Windows LLDB 实际验收；以 ABI 29 重建三个目标的预编译资源，恢复本地 fixture 与库测试；重新生成并验证最终 release 归档；提交、推送并合并主线；最后执行设计约定的 Linux／macOS 回归。完成这些步骤前不声明全部 Windows 验收完成。

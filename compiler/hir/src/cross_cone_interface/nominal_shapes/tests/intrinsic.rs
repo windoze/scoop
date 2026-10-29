@@ -12,6 +12,7 @@ fn families() -> impl Iterator<Item = IntrinsicTypeKind> {
             IntrinsicTypeKind::Boolean,
             IntrinsicTypeKind::Char,
             IntrinsicTypeKind::String,
+            IntrinsicTypeKind::Throwable,
             IntrinsicTypeKind::Array,
             IntrinsicTypeKind::MutableArray,
             IntrinsicTypeKind::Ptr,
@@ -56,7 +57,7 @@ fn intrinsic_source_shapes_keep_every_family_and_fixed_tag_through_both_readers(
             shape
         );
     }
-    assert_eq!(encodings.len(), 20);
+    assert_eq!(encodings.len(), 21);
 }
 
 #[test]

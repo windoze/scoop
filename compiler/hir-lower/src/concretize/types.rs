@@ -120,6 +120,9 @@ impl Concretizer<'_> {
                 )
             }
             export::IntrinsicTypeRepresentation::Any => concrete::IntrinsicTypeRepresentation::Any,
+            export::IntrinsicTypeRepresentation::Throwable => {
+                concrete::IntrinsicTypeRepresentation::Throwable
+            }
             export::IntrinsicTypeRepresentation::Nothing => {
                 concrete::IntrinsicTypeRepresentation::Nothing
             }

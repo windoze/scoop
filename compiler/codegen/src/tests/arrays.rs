@@ -83,6 +83,7 @@ pub(super) fn arrays_module() -> Module {
 
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![
             Instruction::ArrayAlloc {
@@ -207,7 +208,8 @@ pub(super) fn arrays_module() -> Module {
                 operand: Value::Temp(t10),
                 array_type: int_array,
             },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return { value: None },
     });
 
@@ -225,7 +227,10 @@ pub(super) fn arrays_module() -> Module {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
-            debug_source: None,
+            debug_name: Default::default(),
+            debug_variables: Vec::new(),
+            debug_signature: Default::default(),
+            debug_origin: Default::default(),
             callable_body,
             safepoints: test_safepoints("scoop_main", &blocks, entry),
             gc_effect: GcEffect::Managed,

@@ -90,6 +90,16 @@ fn producer_projects_a_typed_default_and_exact_reference_closure() {
 
     let template = templates.get(key).expect("the default key must be present");
     assert_eq!(
+        template
+            .locals()
+            .get(&scoop_identity::LocalValueSelector::Parameter {
+                declaration_index: 0,
+            })
+            .unwrap()
+            .name(),
+        "required",
+    );
+    assert_eq!(
         template.result(),
         &SignatureTypeKey::Binder { depth: 0, index: 0 }
     );

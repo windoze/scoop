@@ -27,6 +27,17 @@ pub(super) fn project(
         {
             Repr::Intrinsic(mir::MirParamFreeIntrinsicV1::Nothing)
         }
+        (mir::Type::Class(id), Source::Intrinsic { representation })
+            if representation.family() == hir::IntrinsicTypeKind::Throwable
+                && matches!(
+                    module.classes[*id].representation,
+                    mir::ClassRepresentation::Intrinsic(
+                        mir::IntrinsicClassRepresentation::Throwable
+                    )
+                ) =>
+        {
+            Repr::Intrinsic(mir::MirParamFreeIntrinsicV1::Throwable)
+        }
         (mir::Type::Unit, Source::Intrinsic { representation })
             if representation.family() == hir::IntrinsicTypeKind::Unit =>
         {

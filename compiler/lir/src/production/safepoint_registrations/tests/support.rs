@@ -228,6 +228,7 @@ fn semantic_module(
     });
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![
             poll(
@@ -236,11 +237,15 @@ fn semantic_module(
                 StatepointLiveSet::default(),
             ),
             poll(target, SafepointSiteRef::from_u32(1), live_roots()),
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return { value: None },
     });
     let function = Function {
-        debug_source: None,
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: body.clone(),
         gc_effect: GcEffect::Managed,
         signature: ScoopAbiSignature::new(
@@ -347,6 +352,8 @@ fn metadata() -> LirMeta {
         itables: Vec::new(),
     });
     LirMeta {
+        debug_types: Default::default(),
+        debug_globals: Default::default(),
         exact_types: Vec::new(),
         target_profile: crate::target_fixtures::DARWIN_AARCH64,
         canonical_c_abi: CanonicalCAbiMetadata::default(),

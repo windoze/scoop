@@ -125,6 +125,7 @@ impl Lowerer {
                         | hir::IntrinsicTypeKind::MutableArray
                         | hir::IntrinsicTypeKind::Any
                         | hir::IntrinsicTypeKind::Nothing
+                        | hir::IntrinsicTypeKind::Throwable
                 ) =>
             {
                 self.imported_class_type(declaration, arguments)

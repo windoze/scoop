@@ -133,12 +133,16 @@ fn generated_body(
 fn function(callable_body: CallableBodyIdentity) -> Function {
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
-        instructions: Vec::new(),
+        instructions: Vec::new().into(),
         terminator: Terminator::Return { value: None },
     });
     Function {
-        debug_source: None,
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body,
         gc_effect: GcEffect::Managed,
         signature: ScoopAbiSignature::new(
@@ -202,6 +206,8 @@ fn metadata() -> LirMeta {
         ExternalTypeDescriptor::new(scoop_identity::ConeIdentity::CORE, string_type).unwrap(),
     );
     LirMeta {
+        debug_types: Default::default(),
+        debug_globals: Default::default(),
         exact_types: Vec::new(),
         target_profile: scoop_target_data::DARWIN_AARCH64,
         canonical_c_abi: CanonicalCAbiMetadata::default(),

@@ -86,6 +86,7 @@ fn unmatched_unbox_retains_the_allocation_while_unrelated_unwinds_do_not() {
         let body = &mut module.functions[id].body;
         if exception_region {
             let unwind = body.blocks.alloc(mir::BasicBlock {
+                terminator_origin: Default::default(),
                 name: "unwind".into(),
                 statements: Vec::new(),
                 terminator: mir::Terminator::Resume,

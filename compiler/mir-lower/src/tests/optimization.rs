@@ -16,6 +16,10 @@ mod poll_chunks;
 mod priority;
 mod value_calls;
 
+fn lower(module: &hir::ExportHirOutput) -> mir::Module {
+    super::lower_test_input(module, false)
+}
+
 fn optimize(module: &mut mir::Module) {
     let selected = mir::SelectedExternalMirSet::empty(module.cone);
     crate::optimization::run(module, &selected, MirOptimizationOptions::RELEASE);

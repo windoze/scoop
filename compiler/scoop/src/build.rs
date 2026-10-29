@@ -121,18 +121,12 @@ fn prepare(
                 options: &request.final_link,
                 libraries: &request.library_paths,
                 explicit_runtime: matches!(&request.runtime, RuntimeInput::ObjectIndex(_)),
-                published_output: output.path(),
+                output: output.path(),
             })?;
-            if let Some(symbol_map) = &linked.symbol_map {
-                OutputLocation::new(&scoop_linker::symbol_map_path(output.path()))
+            if let Some(file) = &linked.debug_file {
+                OutputLocation::new(&file.kind.output_path(output.path()))
                     .map_err(output_error)?
-                    .publish(symbol_map, Some(&linked.result_key))
-                    .map_err(output_error)?;
-            }
-            if let Some(pdb) = &linked.pdb {
-                OutputLocation::new(&scoop_linker::pdb_path(output.path()))
-                    .map_err(output_error)?
-                    .publish(pdb, Some(&linked.result_key))
+                    .publish(&file.path, Some(&linked.result_key))
                     .map_err(output_error)?;
             }
             output

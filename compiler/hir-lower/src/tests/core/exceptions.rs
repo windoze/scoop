@@ -1,6 +1,21 @@
 use super::super::*;
 
 pub(super) fn exception_core_declarations() -> Vec<Decl> {
+    let mut throwable = class_decl(
+        ast::ClassModifier::Open,
+        "Throwable",
+        vec![],
+        None,
+        vec![],
+        vec![],
+    );
+    if let Decl::Class(class) = &mut throwable {
+        class
+            .annotations
+            .push(super::intrinsic_types::intrinsic_annotation(
+                "core_throwable",
+            ));
+    }
     let subclass = |name: &str, message: &str| {
         class_decl(
             ast::ClassModifier::Final,
@@ -46,14 +61,7 @@ pub(super) fn exception_core_declarations() -> Vec<Decl> {
             Some(ty_generic("Array", vec![ty_named("String")])),
             vec![throw_stmt(call("IllegalStateException", vec![]))],
         ),
-        class_decl(
-            ast::ClassModifier::Open,
-            "Throwable",
-            vec![],
-            None,
-            vec![],
-            vec![],
-        ),
+        throwable,
         class_decl(
             ast::ClassModifier::Open,
             "Exception",

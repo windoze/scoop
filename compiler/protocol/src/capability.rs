@@ -6,7 +6,7 @@ use crate::{PROTOCOL_VERSION, ProtocolValidationError};
 const CAPABILITY_MAGIC: &str = "scoopc-machine-capability";
 const MACHINE_IDENTITY_MAGIC: &str = "scoopc-machine-identity";
 const REQUEST_SCHEMA_V2: &[u8] =
-    b"scoopc-request-envelope-v2:magic,version,request-id,build-request,ordered-file-dumps,mir-optimization-observation";
+    b"scoopc-request-envelope-v2:magic,version,request-id,build-request,ordered-file-dumps,mir-optimization-observation,debug-info";
 const RESPONSE_SCHEMA_V2: &[u8] =
     b"scoopc-response-envelope-v2:magic,version,request-id,result,diagnostics,ordered-file-dumps,mir-optimization-observation";
 

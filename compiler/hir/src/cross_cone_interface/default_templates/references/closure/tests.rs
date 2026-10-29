@@ -183,6 +183,7 @@ fn local_types_use_their_source_origin_and_binder_roots_are_not_references() {
     let nominal = SignatureTypeKey::Nominal(fixture.type_id);
     let locals = CanonicalTemplateLocalTableV1::try_new(vec![
         TemplateLocalRecordV1::try_new(
+            "local".into(),
             LocalValueSelector::Parameter {
                 declaration_index: 0,
             },

@@ -1,8 +1,8 @@
 {
   "name": "scoop-language-support",
   "displayName": "Scoop Language Support",
-  "description": "Scoop language server support with Tree-sitter highlighting, folding and indentation",
-  "version": "0.2.0",
+  "description": "Scoop language services and native debugging with the Scoop LLDB toolchain",
+  "version": "0.3.0",
   "publisher": "scoop",
   "private": true,
   "type": "module",
@@ -16,7 +16,8 @@
     "vscode": "^1.100.0"
   },
   "categories": [
-    "Programming Languages"
+    "Programming Languages",
+    "Debuggers"
   ],
   "keywords": [
     "scoop",
@@ -24,16 +25,20 @@
     "syntax",
     "highlighting",
     "lsp",
-    "completion"
+    "completion",
+    "debugger",
+    "lldb"
   ],
   "main": "./dist/extension.cjs",
   "activationEvents": [
-    "onLanguage:scoop"
+    "onLanguage:scoop",
+    "onDebug:scoop",
+    "onCommand:scoop.debugFile"
   ],
   "capabilities": {
     "untrustedWorkspaces": {
       "supported": "limited",
-      "description": "Tree-sitter highlighting, folding and indentation are available. The language server runs in trusted workspaces."
+      "description": "Tree-sitter features are available. The language server and debugger run in trusted workspaces."
     }
   },
   "contributes": {
@@ -140,6 +145,14 @@
       {
         "command": "scoop.showLanguageServerOutput",
         "title": "Scoop: Show Language Server Output"
+      },
+      {
+        "command": "scoop.debugFile",
+        "title": "Scoop: Debug Current File"
+      },
+      {
+        "command": "scoop.showDebugOutput",
+        "title": "Scoop: Show Debug Output"
       }
     ],
     "configuration": {
@@ -281,9 +294,275 @@
           "default": "",
           "description": "Explicit Cone.lock path for analysis, relative to the configuration root or absolute. Empty uses the workspace lock.",
           "scope": "window"
+        },
+        "scoop.debug.adapterPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "markdownDescription": "Path to the Python-enabled Scoop `lldb-dap`. Empty tries `~/.scoop/bin/lldb-dap`, then PATH (Windows uses `lldb-dap.exe`). Runs on the workspace host."
+        },
+        "scoop.debug.compilerPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "markdownDescription": "Path to the Scoop driver for debug builds. Empty tries `~/.scoop/bin/scoop`, then PATH; Windows uses `sco.exe`. Supports `~/`."
         }
       }
-    }
+    },
+    "breakpoints": [
+      {
+        "language": "scoop"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "scoop",
+        "label": "Scoop",
+        "languages": [
+          "scoop"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "Executable to debug. Launch builds the target when omitted."
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Working directory of the debuggee; defaults to the workspace."
+              },
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              },
+              "env": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "sourceMap": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "minItems": 2,
+                  "maxItems": 2,
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "description": "Source path pairs: [[build path, local path]]."
+              },
+              "initCommands": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "default": false
+              },
+              "console": {
+                "type": "string",
+                "enum": [
+                  "integratedTerminal",
+                  "internalConsole",
+                  "externalTerminal"
+                ],
+                "default": "integratedTerminal"
+              },
+              "stdio": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Optional stdin, stdout and stderr file paths."
+              },
+              "enableSyntheticChildDebugging": {
+                "type": "boolean",
+                "default": true,
+                "description": "Show a [raw] child beside Scoop formatted values."
+              },
+              "build": {
+                "oneOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "input": {
+                        "type": "string",
+                        "description": "One Cone directory, Cone.toml, or .scoop file."
+                      },
+                      "tests": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Build the Cone test executable without running it."
+                      },
+                      "filter": {
+                        "type": "string",
+                        "description": "Substring of the full test name to run under the debugger."
+                      },
+                      "profile": {
+                        "type": "string",
+                        "enum": [
+                          "debug",
+                          "release"
+                        ],
+                        "default": "debug"
+                      },
+                      "args": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Additional scoop build/test arguments, such as --target-dir or --cache-dir."
+                      }
+                    }
+                  }
+                ],
+                "description": "Build before launch with full debug information. Defaults to true when program is omitted."
+              }
+            }
+          },
+          "attach": {
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "Executable to debug. Launch builds the target when omitted."
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Working directory of the debuggee; defaults to the workspace."
+              },
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              },
+              "env": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "sourceMap": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "minItems": 2,
+                  "maxItems": 2,
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "description": "Source path pairs: [[build path, local path]]."
+              },
+              "initCommands": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "default": false
+              },
+              "console": {
+                "type": "string",
+                "enum": [
+                  "integratedTerminal",
+                  "internalConsole",
+                  "externalTerminal"
+                ],
+                "default": "integratedTerminal"
+              },
+              "stdio": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Optional stdin, stdout and stderr file paths."
+              },
+              "enableSyntheticChildDebugging": {
+                "type": "boolean",
+                "default": true,
+                "description": "Show a [raw] child beside Scoop formatted values."
+              },
+              "pid": {
+                "oneOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "description": "Process ID to attach."
+              }
+            },
+            "required": [
+              "pid"
+            ]
+          }
+        },
+        "configurationSnippets": [
+          {
+            "label": "Scoop: Build and debug",
+            "body": {
+              "type": "scoop",
+              "request": "launch",
+              "name": "Scoop: Build and debug",
+              "build": {
+                "input": "${workspaceFolder}"
+              },
+              "console": "integratedTerminal"
+            }
+          },
+          {
+            "label": "Scoop: Debug tests",
+            "body": {
+              "type": "scoop",
+              "request": "launch",
+              "name": "Scoop: Debug tests",
+              "build": {
+                "input": "${workspaceFolder}",
+                "tests": true
+              },
+              "console": "integratedTerminal"
+            }
+          },
+          {
+            "label": "Scoop: Debug existing executable",
+            "body": {
+              "type": "scoop",
+              "request": "launch",
+              "name": "Scoop: Debug executable",
+              "program": "${workspaceFolder}/target/program",
+              "build": false
+            }
+          },
+          {
+            "label": "Scoop: Attach",
+            "body": {
+              "type": "scoop",
+              "request": "attach",
+              "name": "Scoop: Attach",
+              "pid": "${1:1234}"
+            }
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "build": "node scripts/build.mjs",

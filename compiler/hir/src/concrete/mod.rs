@@ -76,3 +76,5 @@ pub use release::*;
 
 mod executable_expressions;
 pub use executable_expressions::*;
+mod debug;
+pub use debug::DebugSources;

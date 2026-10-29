@@ -133,6 +133,14 @@ pub(crate) fn materialize_global_linkages_v1(
         if plan.primary_symbol().linkage() != scoop_lir::LinkageClass::OdrWeak {
             continue;
         }
+        if plan.definition_role() == scoop_lir::StrongDefinitionRole::DispatchTable {
+            // A nonzero-offset interface view is an external LLVM alias too.
+            names.push(
+                normalization
+                    .compiler_generated_object_symbol(plan.primary_symbol().symbol().as_str())
+                    .into_bytes(),
+            );
+        }
         for boundary in plan.atom_boundaries() {
             if plan.definition_role() == scoop_lir::StrongDefinitionRole::CallableBody
                 && !matches!(

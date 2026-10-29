@@ -196,6 +196,8 @@ Scoop metadata 和 stackmaps 使用 COFF 可表达的 section 与明确边界符
 
 调试信息使用 Windows CodeView／PDB 路线：LLVM 对象与 Clang native 对象采用相容配置，由 LLD 产生最终 PDB；输出位置纳入既有构建结果。调试信息不代替 GC stackmap 或 SEH frame 表，release 的必要 GC／EH 信息不能随 debug 信息一起删除。
 
+调试级别与优化级别独立，复用实现规范 2.22 的 `none`／`line-tables`／`full` 和共享源码记录。最终 PDB 命名为 `<output>.pdb`，PE 只保存相邻 PDB 的 basename；它与其他平台的独立调试文件共用更新和发布通路。Throwable／trap 的物理栈通过目标 LLVM unwinder 采集，Windows 打印时调用 DbgHelp 解析本地 PDB，保留 PE CodeView GUID／age 与链接地址。模块卸载后不把历史 PC 归给新模块，具体合同见运行时规范 5.6。
+
 ### 4.3 异常
 
 Scoop 自身采用 LLVM libunwind 的 Windows SEH 后端，保留 exception class、强 GcHandle、catch／rethrow／cleanup 与 FFI 禁止异常穿越的合同。Windows personality 增加符合 SEH 调用签名的薄入口，经 `_GCC_specific_handler` 接入 Scoop 的 LSDA 处理；Scoop 类型匹配不使用 C++ RTTI。MSVC target 中，这个辅助库须用相应的 CRT／headers 配套构建，并与 MSVC machine triple 的 LLVM emission 一起验证。

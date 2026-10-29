@@ -130,6 +130,7 @@ pub(super) fn execute(
         compiler: compiler.clone(),
         diagnostics: DiagnosticsPolicy::Structured,
         optimization: profile.optimization(),
+        debug_info: scoop_lir::DebugInfoLevel::None,
         purpose,
         jobs: args.jobs.unwrap_or_else(|| {
             std::thread::available_parallelism().unwrap_or(std::num::NonZeroUsize::MIN)

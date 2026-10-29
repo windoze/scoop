@@ -64,6 +64,7 @@ impl BodyLowerer<'_> {
                     bindings: bindings
                         .into_iter()
                         .map(|(local, init)| smir::Statement {
+                            debug_origin: Default::default(),
                             kind: smir::StatementKind::ValDecl { local, init },
                             span,
                         })

@@ -32,16 +32,22 @@ pub(super) fn of(request: &Request<'_>) -> BuildResult<Digest256> {
         encode(&request.target.lir_target().wire_id()).map_err(failure)?,
         request.profile.as_str(),
         request.keep_symbols(),
-        request.emit_symbol_map(),
+        (
+            request.emit_debug_file(),
+            request.emit_debug_file().then(|| {
+                request
+                    .output
+                    .file_name()
+                    .map(std::ffi::OsStr::as_encoded_bytes)
+            }),
+            request
+                .emit_debug_file()
+                .then(scoop_toolchain::debug_tool_configuration),
+        ),
         mode,
         options.sysroot.as_deref().map(path).transpose()?,
         options.unwind_prefix.as_deref().map(path).transpose()?,
         options.linker.as_deref().map(path).transpose()?,
-        request
-            .pdb_name()
-            .as_deref()
-            .map(|name| path(Path::new(name)))
-            .transpose()?,
         request
             .libraries
             .iter()

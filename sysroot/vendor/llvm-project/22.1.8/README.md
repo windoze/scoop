@@ -11,3 +11,9 @@ The local source directory is `llvm-project-22.1.8.src/`. The archive and expand
 Binary packages carry the installed host libraries and target libunwind artifacts. The complete upstream source and these patches are distributed in the matching vendor source archive, under the same versioned directory. LLVM's Apache-2.0-with-LLVM-exception licenses accompany both distributions.
 
 `scripts/build_windows_unwind.py` builds each Windows target's static libunwind from this source. For the Microsoft target, `patches/llvm-libunwind-msvc-seh.patch` adds an explicit clang-cl x64 static Level-I SEH build option. It preserves exception metadata on the C unwinding functions and disables C++ exceptions and RTTI within libunwind. It does not provide an Itanium C++ ABI on MSVC targets or replace VCRuntime's C++ exception handler. The patch is applied only to the preparation work directory; Microsoft objects use `/MD`, and MinGW objects use the selected CRT prefix.
+
+The host SDK also includes Clang headers, clang-cpp, resource headers and debug-file
+tools. `scripts/build_lldb.py` builds Python-enabled LLDB and applies
+`scripts/patches/lldb-scoop-source-names.patch` to its own source copy. This local
+compatibility patch preserves Scoop source names without dropping exact linkage
+names. The matching source package includes this patch in its `patches/` folder.

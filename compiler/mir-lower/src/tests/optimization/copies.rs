@@ -131,6 +131,7 @@ fn a_mutated_or_addressed_source_does_not_replace_its_snapshot() {
         function.body.blocks[function.body.entry]
             .statements
             .push(mir::Statement {
+                debug_origin: Default::default(),
                 kind,
                 span: crate::source_span(SPAN),
             });

@@ -40,7 +40,9 @@ fn linux_runtime_sources_compile_and_define_the_complete_runtime_abi() {
                 .arg("-I")
                 .arg(&unwind)
                 .arg("-I")
-                .arg(workspace.join("sysroot/vendor/ryu"));
+                .arg(workspace.join("sysroot/vendor/ryu"))
+                .arg("-I")
+                .arg(workspace.join("sysroot/vendor/libbacktrace"));
             for include in profile.include_directories() {
                 command
                     .arg("-I")

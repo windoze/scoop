@@ -50,6 +50,7 @@ impl Lowerer {
         let (target_identity, _) = exact_function_identity(module, target);
         let mut locals = Arena::new();
         let closure = locals.alloc(mir::Local {
+            debug_variable: Default::default(),
             name: "$source".to_string(),
             ty: mir::Type::Function(source),
             mutable: false,
@@ -67,6 +68,7 @@ impl Lowerer {
             .enumerate()
         {
             let local = locals.alloc(mir::Local {
+                debug_variable: Default::default(),
                 name: format!("arg{index}"),
                 ty: target_ty.clone(),
                 mutable: false,
@@ -94,6 +96,7 @@ impl Lowerer {
             }),
         );
         let statements = vec![smir::Statement {
+            debug_origin: Default::default(),
             kind: smir::StatementKind::Return {
                 value: self.dynamic_box(call),
             },
@@ -114,7 +117,7 @@ impl Lowerer {
             &self.classes,
         );
         let function = self.functions.alloc(mir::Function {
-            debug_source: None,
+            debug_origin: Default::default(),
             gc_effect: mir::GcEffect::Managed,
             name,
             params,

@@ -15,12 +15,13 @@ fn root_failure_publishes_the_original_exception_before_ending_the_catch() {
         .map(|(_, block)| block)
         .find(|block| block.name == "failure")
         .unwrap();
+    let instructions = failure.instructions.iter().collect::<Vec<_>>();
     let [
         lir::Instruction::LandingPad { .. },
         lir::Instruction::BeginCatch { out: payload, .. },
         lir::Instruction::GlobalStore { global, value },
         lir::Instruction::EndCatch,
-    ] = failure.instructions.as_slice()
+    ] = instructions.as_slice()
     else {
         panic!("root failure must publish the original exception before ending the catch");
     };

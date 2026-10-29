@@ -9,6 +9,8 @@ use scoop_wire::{Digest256, Encoder, WireEncode, domain_separated_cbor_hash, sha
 use crate::{LinkError, RuntimeObjectSet, error, program::ProgramInputs, startup::StartupObject};
 
 mod darwin;
+mod debug;
+pub use debug::{DebugFile, replace_debug_bundle};
 mod elf;
 mod pe;
 mod response;
@@ -35,20 +37,15 @@ impl std::fmt::Display for ResolvedLinkPlanFingerprint {
 }
 
 #[derive(Clone, Copy, Debug, Default)]
-pub struct ProgramLinkOptions<'a> {
+pub struct ProgramLinkOptions {
     pub keep_symbols: bool,
-    pub emit_symbol_map: bool,
-    /// Published PDB basename when the executable is first linked in a cache.
-    pub pdb_name: Option<&'a std::ffi::OsStr>,
+    pub emit_debug_file: bool,
 }
 
 #[derive(Debug)]
 pub struct ProgramLinkOutput {
     pub path: PathBuf,
-    /// Native linker address map for this exact executable.
-    pub symbol_map: Option<PathBuf>,
-    /// CodeView/PDB sidecar for a Windows executable with retained symbols.
-    pub pdb: Option<PathBuf>,
+    pub debug_file: Option<DebugFile>,
     pub fingerprint: ResolvedLinkPlanFingerprint,
     pub plan_dump: String,
     /// Actual native files and lookup candidates used by this link.
@@ -59,7 +56,7 @@ pub fn link_program(
     closure: &ProgramLinkClosure,
     runtime: &RuntimeObjectSet,
     profile: &ValidatedFinalLinkProfile,
-    options: ProgramLinkOptions<'_>,
+    options: ProgramLinkOptions,
     library_paths: &[PathBuf],
     output: &Path,
     cache: &Path,
@@ -72,7 +69,7 @@ fn link_inputs(
     closure: &ProgramLinkClosure,
     runtime: &RuntimeObjectSet,
     profile: &ValidatedFinalLinkProfile,
-    options: ProgramLinkOptions<'_>,
+    options: ProgramLinkOptions,
     inputs: &ProgramInputs<'_>,
     output: &Path,
     cache: &Path,
@@ -94,26 +91,17 @@ fn link_inputs(
     for input in &inputs.objects {
         paths.push(input.path(cache)?);
     }
-    let candidate = directory.path().join(
-        if matches!(profile, ValidatedFinalLinkProfile::Windows(_)) {
-            "program.exe"
-        } else {
-            "program"
-        },
-    );
-    let candidate_map = options
-        .emit_symbol_map
-        .then(|| directory.path().join("program.map"));
-    let candidate_pdb = (options.keep_symbols
+    let basename = output
+        .file_name()
+        .ok_or_else(|| error("executable has no basename"))?;
+    let candidate = directory.path().join(basename);
+    let debug_tools = options
+        .emit_debug_file
+        .then(|| scoop_toolchain::NativeDebugTools::resolve(profile.target()).map_err(error))
+        .transpose()?;
+    let candidate_pdb = (options.emit_debug_file
         && matches!(profile, ValidatedFinalLinkProfile::Windows(_)))
-    .then(|| {
-        let default = pdb_path(&output);
-        directory.path().join(
-            options
-                .pdb_name
-                .unwrap_or_else(|| default.file_name().expect("PDB filename")),
-        )
-    });
+    .then(|| scoop_toolchain::DebugFileKind::Pdb.output_path(&candidate));
     let mut link_input_paths = Vec::new();
     match profile {
         ValidatedFinalLinkProfile::Darwin(_) => darwin::link(
@@ -122,8 +110,7 @@ fn link_inputs(
             directory.path(),
             &paths,
             &candidate,
-            options.keep_symbols,
-            candidate_map.as_deref(),
+            options.keep_symbols || options.emit_debug_file,
         )?,
         ValidatedFinalLinkProfile::Linux(linux) => elf::link(
             linux,
@@ -131,8 +118,7 @@ fn link_inputs(
             directory.path(),
             &paths,
             &candidate,
-            options.keep_symbols,
-            candidate_map.as_deref(),
+            options.keep_symbols || options.emit_debug_file,
         )?,
         ValidatedFinalLinkProfile::Windows(windows) => {
             link_input_paths = pe::link(
@@ -142,14 +128,18 @@ fn link_inputs(
                 &paths,
                 &candidate,
                 candidate_pdb.as_deref(),
-                candidate_map.as_deref(),
+                options.keep_symbols,
             )?;
         }
     }
+    let debug_file = debug_tools
+        .as_ref()
+        .map(|tools| debug::generate(tools, &candidate, options.keep_symbols))
+        .transpose()?;
     let profile_fingerprint = profile.fingerprint().map_err(error)?;
     let fingerprint = ResolvedLinkPlanFingerprint(
         domain_separated_cbor_hash(
-            "scoop-resolved-link-plan-v6",
+            "scoop-resolved-link-plan-v7",
             &Plan {
                 closure,
                 runtime,
@@ -157,27 +147,26 @@ fn link_inputs(
                 startup: &startup,
                 profile: profile_fingerprint,
                 keep_symbols: options.keep_symbols,
-                pdb_name: candidate_pdb.as_deref().and_then(Path::file_name),
+                debug_basename: options.emit_debug_file.then_some(basename),
             },
         )
         .map_err(error)?,
     );
     let plan_dump = dump(closure, runtime, inputs, &startup, options.keep_symbols);
-    let symbol_map = candidate_map
-        .map(|candidate| {
-            let symbol_map = symbol_map_path(&output);
-            std::fs::rename(candidate, &symbol_map).map_err(error)?;
-            Ok::<_, LinkError>(symbol_map)
-        })
-        .transpose()?;
-    let pdb = candidate_pdb
-        .map(|candidate| {
-            let path = output
-                .parent()
-                .expect("absolute output parent")
-                .join(candidate.file_name().expect("PDB filename"));
-            std::fs::rename(candidate, &path).map_err(error)?;
-            Ok::<_, LinkError>(path)
+    let debug_file = debug_file
+        .map(|file| {
+            let path = file.kind.output_path(&output);
+            match file.kind {
+                scoop_toolchain::DebugFileKind::Dsym => replace_debug_bundle(&file.path, &path),
+                scoop_toolchain::DebugFileKind::Elf | scoop_toolchain::DebugFileKind::Pdb => {
+                    std::fs::rename(&file.path, &path)
+                }
+            }
+            .map_err(error)?;
+            Ok::<_, LinkError>(DebugFile {
+                kind: file.kind,
+                path,
+            })
         })
         .transpose()?;
     std::fs::rename(candidate, &output).map_err(|err| {
@@ -188,8 +177,7 @@ fn link_inputs(
     })?;
     Ok(ProgramLinkOutput {
         path: output,
-        symbol_map,
-        pdb,
+        debug_file,
         fingerprint,
         plan_dump,
         input_paths: inputs
@@ -198,21 +186,13 @@ fn link_inputs(
             .into_iter()
             .chain(inputs.namespace.input_paths())
             .chain(link_input_paths)
+            .chain(
+                debug_tools
+                    .iter()
+                    .flat_map(|tools| tools.input_paths().iter().cloned()),
+            )
             .collect(),
     })
-}
-
-/// Sidecar naming is shared by final linking and cached output publication.
-pub fn symbol_map_path(output: &Path) -> PathBuf {
-    let mut path = output.as_os_str().to_os_string();
-    path.push(".map");
-    PathBuf::from(path)
-}
-
-pub fn pdb_path(output: &Path) -> PathBuf {
-    let mut path = output.as_os_str().to_os_string();
-    path.push(".pdb");
-    PathBuf::from(path)
 }
 
 fn write_new(path: &Path, bytes: &[u8]) -> Result<(), LinkError> {
@@ -231,7 +211,7 @@ struct Plan<'a> {
     startup: &'a StartupObject,
     profile: Digest256,
     keep_symbols: bool,
-    pdb_name: Option<&'a std::ffi::OsStr>,
+    debug_basename: Option<&'a std::ffi::OsStr>,
 }
 impl WireEncode for Plan<'_> {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
@@ -271,12 +251,9 @@ impl WireEncode for Plan<'_> {
         e.field(10)?;
         e.unsigned(u64::from(self.keep_symbols))?;
         e.field(11)?;
-        match self.pdb_name {
-            Some(name) => {
-                e.array(1)?;
-                e.bytes(name.as_encoded_bytes())?;
-            }
-            None => e.array(0)?,
+        e.array(u64::from(self.debug_basename.is_some()))?;
+        if let Some(name) = self.debug_basename {
+            e.bytes(name.as_encoded_bytes())?;
         }
         e.field(12)?;
         self.inputs.windows_subsystem.encode(e)?;

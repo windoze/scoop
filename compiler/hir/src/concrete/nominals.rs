@@ -287,6 +287,7 @@ pub enum IntrinsicTypeRepresentation {
     Char,
     Float(crate::FloatKind),
     String,
+    Throwable,
     Array { element: TypeId },
     MutableArray { element: TypeId },
     Ptr { pointee: TypeId },

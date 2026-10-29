@@ -93,14 +93,14 @@ fn c_bridge_toolchain_contract_and_fingerprints_match_fixed_vectors() {
     let profile = fixture_profile();
     assert_eq!(
         hex(&encode(profile.contract()).unwrap()),
-        "a801a301781d6f72672e73636f6f702d6c616e672e7461726765742d70726f66696c65026e64617277696e2d616172636836340301025820cc523d2d7c0d71d946b5d5c37da4a00d5a47547475bbb8a327cc7612466fa0210374616172636836342d6170706c652d64617277696e04a40101021a000d0100031a000e02000481a20101021a1000020005a40115020003000472636c616e672d323130302e312e312e3130310658208ac00afbad40f12a1adfb1edcdc945866557bed31662810985927e4cc7df6cdb0758208f314440b379f395521bfef94a78be5baf19a3cc62add05363b83d3ea242b1fd08a301800261430363555443"
+        "a801a301781d6f72672e73636f6f702d6c616e672e7461726765742d70726f66696c65026e64617277696e2d616172636836340301025820cc523d2d7c0d71d946b5d5c37da4a00d5a47547475bbb8a327cc7612466fa0210374616172636836342d6170706c652d64617277696e04a40101021a000d0100031a000e02000481a20101021a1000020005a40115020003000472636c616e672d323130302e312e312e313031065820697290aeee34a7c9c2ef092c7a1fadcf6aaeabddd7f7026aa18a0efa78f8092d0758208f314440b379f395521bfef94a78be5baf19a3cc62add05363b83d3ea242b1fd08a301800261430363555443"
     );
     assert_eq!(
         CanonicalCBridgeFlagContractV1::CURRENT
             .fingerprint()
             .unwrap()
             .to_string(),
-        "8ac00afbad40f12a1adfb1edcdc945866557bed31662810985927e4cc7df6cdb"
+        "697290aeee34a7c9c2ef092c7a1fadcf6aaeabddd7f7026aa18a0efa78f8092d"
     );
     assert_eq!(
         GeneratedCSourceTemplateContractV1::CURRENT
@@ -111,7 +111,7 @@ fn c_bridge_toolchain_contract_and_fingerprints_match_fixed_vectors() {
     );
     assert_eq!(
         profile.fingerprint().to_string(),
-        "20350fbb651a6f46897ce2b54cc53ab3833d7e80519239a4ad4c42fe08aef037"
+        "b08cddc18206fee4a4607ef7ec57c13a05b94bf2e49312e7cace3f4b320cb009"
     );
 }
 
@@ -145,8 +145,8 @@ fn windows_c_profiles_separate_environments_and_preserve_seh_flags() {
     let flags = CanonicalCBridgeFlagContractV1::WindowsClang.flags();
     assert!(flags.contains(&CanonicalCBridgeFlagV1::WindowsSeh));
     assert!(flags.contains(&CanonicalCBridgeFlagV1::ReproducibleCoff));
-    assert!(!flags.contains(&CanonicalCBridgeFlagV1::NoUnwindTables));
-    assert!(!flags.contains(&CanonicalCBridgeFlagV1::NoAsynchronousUnwindTables));
+    assert!(flags.contains(&CanonicalCBridgeFlagV1::UnwindTables));
+    assert!(flags.contains(&CanonicalCBridgeFlagV1::AsynchronousUnwindTables));
 }
 
 #[test]

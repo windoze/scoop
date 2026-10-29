@@ -78,7 +78,8 @@ fn windows_aggregate_values_roundtrip_between_scoop_and_native_c() {
                 value: Value::Param(0),
             },
             Instruction::Call { site },
-        ];
+        ]
+        .into();
         caller.blocks[caller.entry].terminator = Terminator::Return {
             value: Some(Value::Local(result)),
         };

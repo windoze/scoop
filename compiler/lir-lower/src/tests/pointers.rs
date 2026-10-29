@@ -74,7 +74,8 @@ fn zst_pointer_offsets_preserve_bits_at_signed_and_compiler_offset_extremes() {
         let lowered = lower(builder.finish(main));
         let function = &lowered.functions[0];
         let block = &function.blocks[function.entry];
-        let [lir::Instruction::ULongToPtr { out, value }] = block.instructions.as_slice() else {
+        let instructions = block.instructions.iter().collect::<Vec<_>>();
+        let [lir::Instruction::ULongToPtr { out, value }] = instructions.as_slice() else {
             panic!("zero stride must emit only the original pointer conversion");
         };
         assert_eq!(

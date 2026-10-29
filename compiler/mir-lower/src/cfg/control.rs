@@ -16,6 +16,7 @@ impl<'a> CfgLowerer<'a> {
     ) -> mir::BlockId {
         self.block_count += 1;
         self.blocks.alloc(mir::BasicBlock {
+            terminator_origin: Default::default(),
             name: format!("{base}.{}", self.block_count),
             statements: Vec::new(),
             terminator: mir::Terminator::Unreachable,
@@ -38,6 +39,7 @@ impl<'a> CfgLowerer<'a> {
             "a MIR block is terminated exactly once"
         );
         self.blocks[self.current].terminator = terminator;
+        self.blocks[self.current].terminator_origin = self.current_origin.clone();
         self.current_sealed = true;
     }
 
@@ -63,6 +65,7 @@ impl<'a> CfgLowerer<'a> {
     pub(super) fn push(&mut self, kind: mir::StatementKind, span: Span) {
         self.ensure_unwind_context();
         self.blocks[self.current].statements.push(mir::Statement {
+            debug_origin: self.current_origin.clone(),
             kind,
             span: crate::source_span(span),
         });
@@ -74,7 +77,10 @@ impl<'a> CfgLowerer<'a> {
                 break;
             }
             self.ensure_unwind_context();
+            let previous =
+                std::mem::replace(&mut self.current_origin, statement.debug_origin.clone());
             self.lower_statement(statement);
+            self.current_origin = previous;
         }
     }
 

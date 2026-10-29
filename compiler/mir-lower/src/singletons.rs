@@ -42,6 +42,7 @@ impl Lowerer {
                 &mut self.shell,
             );
             let global = self.globals.alloc(mir::Global {
+                debug_origin: Default::default(),
                 name: format!("$singleton${}", object.value()),
                 storage_owner: mir::StaticStorageOwner::SingletonPublishedRoot(*owner),
                 ty,
@@ -107,6 +108,18 @@ impl Lowerer {
                 )
             };
             let global = self.globals.alloc(mir::Global {
+                debug_origin: module.debug_sources.definition(
+                    match exact.key() {
+                        scoop_identity::ExactTypeKey::Nominal(owner) => {
+                            scoop_identity::DefinitionOriginSubject::Type(*owner)
+                        }
+                        scoop_identity::ExactTypeKey::NominalApplication { origin, .. } => {
+                            scoop_identity::DefinitionOriginSubject::GenericType(*origin)
+                        }
+                        _ => unreachable!("a singleton has a nominal source type"),
+                    },
+                    &mut self.debug_records,
+                ),
                 name: format!("$singleton${}", module.objects[value.declaration].name),
                 storage_owner,
                 ty,

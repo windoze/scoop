@@ -257,6 +257,35 @@ mod tests {
     }
 
     #[test]
+    fn debug_level_round_trips_independently_of_optimization() {
+        for level in [
+            crate::DebugInfoLevel::None,
+            crate::DebugInfoLevel::LineTables,
+            crate::DebugInfoLevel::Full,
+        ] {
+            for mode in [
+                crate::OptimizationMode::Debug,
+                crate::OptimizationMode::Release,
+            ] {
+                let original = request();
+                let request = ScoopcRequestEnvelopeV1::new(
+                    original.request_id(),
+                    original
+                        .build()
+                        .clone()
+                        .with_optimization(mode)
+                        .with_debug_info(level),
+                );
+                let decoded =
+                    decode_request_frame(&encode_request_frame(&request).unwrap()).unwrap();
+                assert_eq!(decoded.build().debug_info(), level);
+                assert_eq!(decoded.build().optimization(), mode);
+                assert_eq!(decoded, request);
+            }
+        }
+    }
+
+    #[test]
     fn observation_request_preserves_only_the_missing_stages() {
         let request = request_with_emit(StageDumpPolicyV1::Files {
             stages: crate::StageDumpSet::all(),

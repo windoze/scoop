@@ -21,22 +21,25 @@ pub(super) fn lookup_module() -> Module {
     let mut blocks = Arena::new();
     let mut temps = Arena::new();
     let mut entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "default".into(),
-        instructions: Vec::new(),
+        instructions: Vec::new().into(),
         terminator: Terminator::Return {
             value: Some(Value::Global(values[0])),
         },
     });
     for index in (0..12).rev() {
         let result = blocks.alloc(BasicBlock {
+            terminator_origin: Default::default(),
             name: format!("result-{index}"),
-            instructions: Vec::new(),
+            instructions: Vec::new().into(),
             terminator: Terminator::Return {
                 value: Some(Value::Global(values[index])),
             },
         });
         let condition = temps.alloc(Temp { ty: LirType::I1 });
         entry = blocks.alloc(BasicBlock {
+            terminator_origin: Default::default(),
             name: format!("test-{index}"),
             instructions: vec![Instruction::IntegerCompare {
                 out: condition,
@@ -44,7 +47,8 @@ pub(super) fn lookup_module() -> Module {
                 comparison: IntegerComparison::Equal,
                 lhs: Value::Param(0),
                 rhs: signed64(index as u64),
-            }],
+            }]
+            .into(),
             terminator: Terminator::CondBr {
                 cond: Value::Temp(condition),
                 then_block: result,
@@ -53,7 +57,10 @@ pub(super) fn lookup_module() -> Module {
         });
     }
     module.functions = vec![Function {
-        debug_source: None,
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body("lookup"),
         gc_effect: GcEffect::NoGc,
         signature: plain_scoop_signature(vec![LirType::I64], MANAGED_PTR),

@@ -1,0 +1,45 @@
+schema = 1
+name = "throwable-history-and-trap-stacks"
+inputs = ["history.scoop", "uncaught.scoop", "trap.scoop", "verify.py"]
+tools = ["scoop", "scoopc", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
+tags = ["debugging", "exceptions", "gc", "compiler-correctness"]
+variants = [
+  {name = "full", vars = {profile = "debug", level = "full"}, env = {SCOOP_GC_STRESS_MOVE = "1"}},
+  {name = "lines", vars = {profile = "release", level = "line-tables"}, env = {SCOOP_GC_STRESS_MOVE = "1", SCOOP_GC_STRESS_MINOR = "1"}},
+  {name = "none", vars = {profile = "release", level = "none"}},
+]
+
+[[steps]]
+name = "history"
+argv = ["${scoop}", "build", "${fixture}/history.scoop", {each = "${link_args}"}, "--profile", "${profile}", "--debug-info", "${level}", "--enable-gc-stress", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/history", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "uncaught"
+argv = ["${scoop}", "build", "${fixture}/uncaught.scoop", {each = "${link_args}"}, "--profile", "${profile}", "--debug-info", "${level}", "--enable-gc-stress", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/uncaught", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "trap"
+argv = ["${scoop}", "build", "${fixture}/trap.scoop", {each = "${link_args}"}, "--profile", "${profile}", "--debug-info", "${level}", "--enable-gc-stress", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/trap", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "observe"
+argv = ["${python}", "${fixture}/verify.py", "${history.result.output}", "${uncaught.result.output}", "${trap.result.output}", "${level}", "${fixture}"]
+exit = 0
+stdout = ""
+stderr = ""

@@ -110,9 +110,14 @@ impl WindowsFinalLinkProfile {
         command.arg(dunce::simplified(
             &self.data.unwind_prefix.join("lib/libunwind.a"),
         ));
+        command.arg(if self.microsoft() {
+            "dbghelp.lib"
+        } else {
+            "-ldbghelp"
+        });
     }
 
-    pub fn configure_outputs(&self, command: &mut Command, pdb: Option<&Path>, map: Option<&Path>) {
+    pub fn configure_outputs(&self, command: &mut Command, pdb: Option<&Path>, keep_symbols: bool) {
         if let Some(pdb) = pdb {
             if self.microsoft() {
                 self.linker_arg(command, "/debug:full");
@@ -131,17 +136,9 @@ impl WindowsFinalLinkProfile {
                     ),
                 );
             }
-        } else if !self.microsoft() {
-            self.linker_arg(command, "--strip-all");
         }
-        if let Some(map) = map {
-            self.linker_arg(
-                command,
-                joined(
-                    if self.microsoft() { "/map:" } else { "-Map=" },
-                    dunce::simplified(map).as_os_str(),
-                ),
-            );
+        if !self.microsoft() && !keep_symbols {
+            self.linker_arg(command, "--strip-all");
         }
     }
 

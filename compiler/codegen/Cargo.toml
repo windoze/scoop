@@ -13,9 +13,13 @@ la-arena.workspace = true
 llvm-sys.workspace = true
 object.workspace = true
 scoop-lir.workspace = true
+scoop-source.workspace = true
 tempfile.workspace = true
 
 [dev-dependencies]
 scoop-identity.workspace = true
 scoop-toolchain.workspace = true
 scoop-slib.workspace = true
+
+[build-dependencies]
+cc.workspace = true

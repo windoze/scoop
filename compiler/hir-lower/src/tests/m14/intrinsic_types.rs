@@ -208,6 +208,35 @@ fn intrinsic_type_shape_is_validated_at_its_source() {
 }
 
 #[test]
+fn throwable_intrinsic_preserves_only_its_public_empty_source_constructor() {
+    let output = lower_user_output(file(vec![fun(
+        "main",
+        vec![val("exception", call("Throwable", vec![]))],
+    )]))
+    .expect("Throwable keeps its source construction entry");
+    let exceptions = defined_export_core(output.export.module()).exceptions;
+    assert!(matches!(
+        output.export.classes[exceptions.throwable.class()].representation,
+        hir::ClassRepresentation::Intrinsic(hir::IntrinsicTypeKind::Throwable)
+    ));
+
+    let mut core = core_file();
+    let throwable = core
+        .declarations
+        .iter_mut()
+        .find_map(|declaration| match declaration {
+            Decl::Class(class) if class.name.text == "Throwable" => Some(class),
+            _ => None,
+        })
+        .unwrap();
+    throwable.constructor = ast::ClassConstructorDecl::Omitted;
+    let errors = lower(&[core, file(vec![fun("main", vec![])])])
+        .expect_err("the intrinsic prefix has one explicit constructor contract");
+    assert!(errors.iter().any(|error| error.message
+        == "intrinsic type `core_throwable` requires a public zero-argument primary constructor"));
+}
+
+#[test]
 fn intrinsic_types_do_not_acquire_zero_argument_source_constructors() {
     let errors = lower_user_output(file(vec![fun(
         "main",

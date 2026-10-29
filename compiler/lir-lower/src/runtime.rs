@@ -20,6 +20,12 @@ pub(super) fn lower_runtime_function(function: mir::RuntimeFn) -> lir::RuntimeFu
             lir::RuntimeFunction::Managed(lir::ManagedRuntimeFunction::GcCollect)
         }
         mir::RuntimeFn::GcStats => lir::RuntimeFunction::NoGc(lir::NoGcRuntimeFunction::GcStats),
+        mir::RuntimeFn::PrepareThrowable { .. } => {
+            lir::RuntimeFunction::Managed(lir::ManagedRuntimeFunction::PrepareThrowable)
+        }
+        mir::RuntimeFn::ThrowablePrintStackTrace => {
+            lir::RuntimeFunction::Managed(lir::ManagedRuntimeFunction::ThrowablePrintStackTrace)
+        }
         mir::RuntimeFn::StringConcat => {
             lir::RuntimeFunction::Managed(lir::ManagedRuntimeFunction::StringConcat)
         }

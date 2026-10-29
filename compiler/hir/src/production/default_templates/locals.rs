@@ -47,6 +47,7 @@ impl TemplateLocalProjection {
                 LocalValueDefinitionSite::Synthetic => TemplateLocalDefinitionV1::Synthetic,
             };
             let record = TemplateLocalRecordV1::try_new(
+                local.name.clone(),
                 selector.clone(),
                 entities
                     .type_key(local.ty, binders)

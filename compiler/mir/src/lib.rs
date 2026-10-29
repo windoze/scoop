@@ -134,3 +134,7 @@ mod dump;
 pub use dump::{dump, type_name};
 
 pub type MirFloatConversion = scoop_identity::FloatConversion<IntegerKind>;
+pub use scoop_source::{
+    DebugDeclaration, DebugFile, DebugInlineSite, DebugLocation, DebugOrigin, DebugRecords,
+    DebugScope, DebugVariable,
+};

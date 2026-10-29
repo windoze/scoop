@@ -8,7 +8,7 @@
 
 Windows 安装包将主驱动命名为 `sco.exe`，其版本信息使用 `sco`；其他可执行程序保持原名，macOS／Linux 仍用 `scoop`。Cargo package 和内部输出名继续为 `scoop`／`scoop.exe`，`package_toolchain.py` 组装时只重命名 Windows 主驱动。维护脚本的 `--scoop` 接受实际路径：开发构建可传 `.../release/scoop.exe`，安装包验证传 `.../bin/sco.exe`；外部命令仍以 `scoop-` 开头。
 
-`build_llvm.py` 从 [固定的 LLVM 22.1.8 上游输入](../sysroot/vendor/llvm-project/22.1.8/README.md) 构建宿主动态库，仅启用 AArch64／X86 后端，并安装 Rust 构建所需的 llvm-config、头文件和 CMake 资料，以及 Clang／Clang++／clang-cl、LLD 和 LLVM 对象／归档／资源工具。关闭未使用的压缩、XML、编辑器、HTTP 和插件依赖，不移除 GC／EH 或 statepoint 后端。默认工作位置为 `tmp/llvm/<host>`，可用 `--source`、`--build-dir`、`--prefix` 选择其他位置。
+`build_llvm.py` 从 [固定的 LLVM 22.1.8 上游输入](../sysroot/vendor/llvm-project/22.1.8/README.md) 构建宿主 LLVM／Clang 动态库，仅启用 AArch64／X86 后端，并安装 Rust／LLDB 构建所需的 llvm-config、头文件、Clang resources 和 CMake 资料，以及 Clang／Clang++／clang-cl、LLD、LLVM 归档／资源工具和 dsymutil、llvm-objcopy、llvm-strip、llvm-symbolizer、llvm-nm、llvm-readobj。关闭未使用的压缩、XML、编辑器、HTTP 和插件依赖，不移除 GC／EH 或 statepoint 后端。默认工作位置为 `tmp/llvm/<host>`，可用 `--source`、`--build-dir`、`--prefix` 选择其他位置。
 
 Windows RC 构建使用 LLVM 22.1 的 `llvm-windres` 和 `llvm-cvtres`；前者是 LLVM RC 的 windres 入口，用于明确选择目标 Clang 预处理器并取得头文件依赖。默认从已选 Clang 的相邻目录查找，再检查所选 native prefix 的 `bin` 和 PATH，只有实际声明 RC 且需要更新时才调用。`build_llvm.py` 安装这两个工具，外部工具也必须可在宿主执行。
 
@@ -82,6 +82,8 @@ Windows 在 x64 MSVC／Windows SDK 开发环境中运行，提供 `--mingw-msvcr
 
 构建机需要 Python 3.12+、Git、Rust/Cargo、C/C++ 开发工具链、CMake、Make、Perl、Node.js 22.18+ 和 npm。npm 依赖、首次缺失的 LLVM 归档以及 Tree-sitter WASM 工具链需要联网取得；其余 native 上游输入已在 vendor 中。已有 WASI SDK／Binaryen 可按 [tooling 说明](../tooling/README.md) 选择。
 
+构建机需要 Python 3.12+ 及其开发文件、SWIG 4、Ninja、Rust/Cargo、C/C++ 开发工具链、CMake、Make、Perl、Node.js 22.18+ 和 npm。npm 依赖、首次缺失的 LLVM 归档以及 Tree-sitter WASM 工具链需要联网取得；其余 native 上游输入已在 vendor 中。已有 WASI SDK／Binaryen 可按 [tooling 说明](../tooling/README.md) 选择。
+
 ```sh
 python3 scripts/package_toolchain.py --jobs 6
 ```
@@ -104,7 +106,10 @@ LLVM 源码与归档优先复用 vendor 的固定版本位置；缺失时在工�
   src/                 全部内置 Cone 源码
   vendor/              native 上游输入和补丁
   native/              Rust 文本后端维护源码
-  libexec/llvm/lib/     宿主工具所需动态库
+  libexec/llvm/lib/     宿主工具所需动态库及 Clang resources
+  libexec/lldb/bin/     LLDB、DAP、argdumper 和平台进程调试 helper
+  libexec/lldb/python/  匹配的 Python interpreter、标准库及 LLDB Python module
+  share/scoop/debugger/ Scoop 只读变量 formatter
   docs/                离线 API 文档
   share/               示例主题、发行说明、组件清单及许可证
   tooling/             scoop-language-support-<extension-version>.vsix、scoop-programming/
@@ -131,3 +136,24 @@ Windows 的宿主 DLL 分别放在实际使用它们的 `bin`、外部命令目�
 ## 独立示例命令
 
 `python3 scripts/build_scoop_example.py` 仅构建 `tooling/scoop-example` 并将命令安装到开发 sysroot，不调用编译器。它使用独立 Cargo lockfile；新增示例与正文位于 `sysroot/share/scoop/examples`，已有库示例保持原文件。可用 `--sysroot` 安装到另一份配套工具链，用 `--target-dir` 指定构建缓存。完整打包入口自动完成这一步，并复制所有主题材料。内容维护和独立测试见[阅读器说明](../tooling/scoop-example/README.md)。
+
+
+## 调试器发行资源
+
+`package_toolchain.py` 在 LLVM／Clang SDK 后调用 `build_lldb.py`，固定 LLVM 22.1.8，
+启用 Python，构建 lldb、lldb-dap、lldb-argdumper 和 debugserver／lldb-server。
+源码兼容修补保留 Scoop 的 DW_AT_name 与精确 linkage identity，将同源文件的独立编译单元全局量放回当前栈帧，并补齐 Linux/amd64 静态程序的原生 TLS 定位；修补文件也进入 llvm-sources 包。
+可用 `--debugger-prefix` 复用匹配的已构建调试器，`--debugger-python` 指定构建时所用 Python；
+只有 LLVM SDK 时仍正常构建 LLDB，要求 SDK 包含 Clang headers／CMake targets／clang-cpp。
+
+`package_debugger.py` 收集匹配的 Python 标准库、原生模块和解释器，排除用户 site-packages、
+测试、Tk／IDLE 与 pip；包中不依赖用户 Python。Python 许可证随包保留，安装中缺失时可用
+`--python-license` 明确提供。所有实际非系统动态依赖统一收集并改为相对加载路径；
+Darwin 对最终文件重新签名，保留 debugserver 的 entitlements。
+`bin/lldb` 和 `bin/lldb-dap` 通过相对安装根设置 Python 与 helper 路径，lldb 自动加载 formatter。
+Windows 对应的入口是 `bin/lldb.exe` 和 `bin/lldb-dap.exe`，由原生启动程序设置随包 Python 路径，保留 Unicode 参数、标准流与子进程退出码；无需 POSIX shell。Windows LLDB 与宿主 LLVM 使用同一个 LLVM-MinGW UCRT C/C++ 工具链，独立运行 `build_lldb.py` 时以 `--cc`／`--cxx` 指定它。维护构建需 SWIG 4、Python 开发文件和 Ninja；应用使用发行包无需这些构建工具。
+
+本地调试器专项验证使用启用 Python 的真实 LLDB 构建：将打包目录移动到含空格的路径，
+以仅保留系统 PATH 的环境启动 LLDB，验证 formatter、Python 标准模块和动态库加载。
+未移走或隐藏原工具；通过 dyld 加载记录确认没有引用原 Homebrew／构建目录的私有动态库。
+Linux 的同类检查还包括 ELF loader 记录、GNU／musl 实际 DAP 会话及静态 TLS；可重复入口见[调试器验收说明](../tooling/vscode-scoop/test/debugger/README.md)，本轮结果见[实施记录](../docs/debugging/IMPLEMENTATION.md)。

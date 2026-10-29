@@ -82,6 +82,7 @@ fn initialization_follows_unconditional_blocks_and_local_snapshots() {
             value: Value::Temp(out),
         });
     let next = function.blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "initialize_copy".into(),
         instructions: vec![
             Instruction::Store {
@@ -94,7 +95,8 @@ fn initialization_follows_unconditional_blocks_and_local_snapshots() {
             },
             store(Value::Local(second), 16),
             store(Value::Local(second), 24),
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return { value: None },
     });
     function.blocks[function.entry].terminator = Terminator::Br(next);
@@ -255,13 +257,15 @@ fn initialization_does_not_assume_conditional_writes_execute() {
     let function = &mut module.functions[1];
     function.signature = plain_scoop_signature(vec![LirType::I1], LirType::Void);
     let written = function.blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "written".into(),
-        instructions: vec![store(Value::Temp(out), 24)],
+        instructions: vec![store(Value::Temp(out), 24)].into(),
         terminator: Terminator::Return { value: None },
     });
     let skipped = function.blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "skipped".into(),
-        instructions: Vec::new(),
+        instructions: Vec::new().into(),
         terminator: Terminator::Return { value: None },
     });
     function.blocks[function.entry].terminator = Terminator::CondBr {

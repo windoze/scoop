@@ -9,7 +9,7 @@ pub(super) fn link(
     paths: &[PathBuf],
     candidate: &Path,
     pdb: Option<&Path>,
-    symbol_map: Option<&Path>,
+    keep_symbols: bool,
 ) -> Result<Vec<PathBuf>, LinkError> {
     let crate::namespace::NativeNamespace::Coff(namespace) = &inputs.namespace else {
         return Err(error("PE link requires a COFF namespace"));
@@ -26,7 +26,7 @@ pub(super) fn link(
         .command_with_subsystem(directory, candidate, inputs.windows_subsystem)
         .map_err(error)?;
     profile.append_system_libraries(&mut command);
-    profile.configure_outputs(&mut command, pdb, symbol_map);
+    profile.configure_outputs(&mut command, pdb, keep_symbols);
     if profile.microsoft() {
         profile.linker_arg(&mut command, format!("@{}", response::FILE_NAME));
     } else {

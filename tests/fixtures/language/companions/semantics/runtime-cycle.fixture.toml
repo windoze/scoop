@@ -21,4 +21,4 @@ name = "run"
 argv = ["${build.result.output}"]
 exit = 1
 stdout = ""
-stderr = "scoop: uncaught exception: n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IllegalStateException)\n"
+stderr = {regex = "scoop:\\ uncaught\\ exception:\\ n\\(c=scoop%3Ascoop\\.core%3A0\\.1\\.0;p=;o=\\-;k=C;x=IllegalStateException\\)\\\n(?:  at [^\\n]+\\n)+(?:  <[^\\n]+>\\n)*"}

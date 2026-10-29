@@ -1,0 +1,17 @@
+@Extern(name = "getchar")
+fun readCharacter(): Int
+@Extern(name = "isatty")
+fun isTerminal(descriptor: Int): Int
+
+@Unsafe
+fun main(): Int {
+    println("debugger-input")
+    flushOutput()
+    val input = readCharacter()
+    val answer = input + 1 // BREAK: console
+    if (answer != 66) return 1
+    if (isTerminal(0) == 1) println("debugger-tty")
+    else println("debugger-pipe")
+    println("debugger-io-ok")
+    return 0
+}

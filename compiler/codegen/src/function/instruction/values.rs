@@ -10,7 +10,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
     ) -> Result<BasicValueEnum<'ctx>, CodegenError> {
         let context = self.context;
         let function = self.function;
-        Ok(match value {
+        let observed = match value {
             Value::Local(id) => {
                 let ty = basic_ty(
                     context,
@@ -174,7 +174,16 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     "C argument storage address escaped its native-safe call operand".to_string(),
                 ));
             }
-        })
+        };
+        let storage = match value {
+            Value::Local(id) => Some(scoop_lir::DebugStorage::Local(id)),
+            Value::Param(index) => Some(scoop_lir::DebugStorage::Parameter(index)),
+            _ => None,
+        };
+        if let Some(storage) = storage {
+            self.observe_debug_value(storage, observed);
+        }
+        Ok(observed)
     }
 
     /// Materialize a typed call operand. Exact C argument storage is an
