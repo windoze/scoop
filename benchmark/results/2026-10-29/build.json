@@ -1,0 +1,176 @@
+{
+  "versions": {
+    "scoop": "scoop 0.0.0-dev (ae13036d9ce6740517df96152707a30934ed4c3e)",
+    "go": "go version go1.27.3 darwin/arm64",
+    "java": "java version \"21.0.12\" 2026-07-21 LTS\nJava(TM) SE Runtime Environment Oracle GraalVM 21.0.12+7.1 (build 21.0.12+7-LTS-jvmci-23.1-b96)\nJava HotSpot(TM) 64-Bit Server VM Oracle GraalVM 21.0.12+7.1 (build 21.0.12+7-LTS-jvmci-23.1-b96, mixed mode, sharing)"
+  },
+  "builds": [
+    {
+      "name": "scoop",
+      "cache": "existing dependency caches, first suite build",
+      "command": [
+        "/Users/chenxu/.scoop/bin/scoop",
+        "build",
+        "/Users/chenxu/repos/scoop/benchmark/scoop",
+        "--release",
+        "--cache-dir",
+        "/Users/chenxu/repos/scoop/benchmark/build/app-cache",
+        "--target-dir",
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-target",
+        "-o",
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 4.836696167,
+      "user_cpu_seconds": 3.584249,
+      "system_cpu_seconds": 1.72376,
+      "cpu_seconds": 5.308009,
+      "peak_rss_bytes": 1387626496,
+      "stdout": "",
+      "stderr": "built /Users/chenxu/repos/scoop/benchmark/build/scoop-bench (release)\n"
+    },
+    {
+      "name": "go",
+      "cache": "existing dependency caches, first suite build",
+      "command": [
+        "go",
+        "build",
+        "-o",
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench",
+        "/Users/chenxu/repos/scoop/benchmark/go/libraries.go",
+        "/Users/chenxu/repos/scoop/benchmark/go/main.go",
+        "/Users/chenxu/repos/scoop/benchmark/go/numeric.go",
+        "/Users/chenxu/repos/scoop/benchmark/go/objects.go"
+      ],
+      "wall_seconds": 0.325505042,
+      "user_cpu_seconds": 0.11588,
+      "system_cpu_seconds": 0.155584,
+      "cpu_seconds": 0.271464,
+      "peak_rss_bytes": 72433664,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "javac",
+      "cache": "existing dependency caches, first suite build",
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/javac",
+        "-Xlint:all",
+        "-Werror",
+        "-d",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "/Users/chenxu/repos/scoop/benchmark/java/Bench.java",
+        "/Users/chenxu/repos/scoop/benchmark/java/Libraries.java",
+        "/Users/chenxu/repos/scoop/benchmark/java/Numeric.java",
+        "/Users/chenxu/repos/scoop/benchmark/java/Objects.java"
+      ],
+      "wall_seconds": 0.353961917,
+      "user_cpu_seconds": 0.645505,
+      "system_cpu_seconds": 0.08770299999999999,
+      "cpu_seconds": 0.733208,
+      "peak_rss_bytes": 163643392,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "java-native",
+      "cache": "full AOT image build",
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/native-image",
+        "--no-fallback",
+        "-O2",
+        "--parallelism=6",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench",
+        "-o",
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native"
+      ],
+      "wall_seconds": 23.995980209,
+      "user_cpu_seconds": 103.484957,
+      "system_cpu_seconds": 2.6326359999999998,
+      "cpu_seconds": 106.117593,
+      "peak_rss_bytes": 1053360128,
+      "stdout": "========================================================================================================================\nGraalVM Native Image: Generating 'java-native' (executable)...\n========================================================================================================================\nFor detailed information and explanations on the build output, visit:\nhttps://github.com/oracle/graal/blob/master/docs/reference-manual/native-image/BuildOutput.md\n------------------------------------------------------------------------------------------------------------------------\n[1/8] Initializing...                                                                                    (5.3s @ 0.15GB)\n Java version: 21.0.12+7-LTS, vendor version: Oracle GraalVM 21.0.12+7.1\n Graal compiler: optimization level: 2, target machine: armv8-a, PGO: ML-inferred\n C compiler: cc (apple, arm64, 21.0.0)\n Garbage collector: Serial GC (max heap size: 80% of RAM)\n 1 user-specific feature(s):\n - com.oracle.svm.thirdparty.gson.GsonFeature\n------------------------------------------------------------------------------------------------------------------------\nBuild resources:\n - 26.49GB of memory (41.4% of 64.00GB system memory, determined at start)\n - 6 thread(s) (42.9% of 14 available processor(s), set via '--parallelism=6')\n[2/8] Performing analysis...  [******]                                                                   (4.1s @ 0.33GB)\n    3,205 reachable types   (71.0% of    4,514 total)\n    3,777 reachable fields  (49.8% of    7,577 total)\n   15,910 reachable methods (45.9% of   34,644 total)\n    1,065 types,    58 fields, and   534 methods registered for reflection\n       57 types,    56 fields, and    52 methods registered for JNI access\n        4 native libraries: -framework Foundation, dl, pthread, z\n[3/8] Building universe...                                                                               (0.7s @ 0.38GB)\n[4/8] Parsing methods...      [*]                                                                        (1.6s @ 0.35GB)\n[5/8] Inlining methods...     [***]                                                                      (0.4s @ 0.33GB)\n[6/8] Compiling methods...    [***]                                                                      (7.3s @ 0.39GB)\n[7/8] Laying out methods...   [*]                                                                        (0.7s @ 0.43GB)\n[8/8] Creating image...       [*]                                                                        (1.0s @ 0.48GB)\n   6.12MB (47.08%) for code area:     8,011 compilation units\n   6.50MB (50.02%) for image heap:   99,261 objects and 76 resources\n 385.70kB ( 2.90%) for other data\n  13.00MB in total\n------------------------------------------------------------------------------------------------------------------------\nTop 10 origins of code area:                                Top 10 object types in image heap:\n   4.34MB java.base                                            1.64MB byte[] for code metadata\n   1.32MB svm.jar (Native Image)                               1.22MB byte[] for java.lang.String\n 144.81kB java.logging                                       740.58kB java.lang.String\n 100.16kB com.oracle.svm.svm_enterprise                      537.72kB java.lang.Class\n  30.12kB org.graalvm.nativeimage.base                       479.90kB byte[] for general heap data\n  29.54kB org.graalvm.collections                            250.11kB heap alignment\n  21.78kB jdk.proxy2                                         236.22kB java.util.HashMap$Node\n  19.91kB jdk.proxy1                                         150.23kB com.oracle.svm.core.hub.DynamicHubCompanion\n  19.12kB jdk.internal.vm.compiler                           149.78kB byte[] for reflection metadata\n  14.44kB jdk.internal.vm.ci                                 145.88kB char[]\n  51.14kB for 15 more packages                                 1.01MB for 864 more object types\n                              Use '-H:+BuildReport' to create a report with more details.\n------------------------------------------------------------------------------------------------------------------------\nSecurity report:\n - Binary includes Java deserialization.\n - Use '--enable-sbom' to embed a Software Bill of Materials (SBOM) in the binary.\n------------------------------------------------------------------------------------------------------------------------\nRecommendations:\n PGO:  Use Profile-Guided Optimizations ('--pgo') for improved throughput.\n INIT: Adopt '--strict-image-heap' to prepare for the next GraalVM release.\n HEAP: Set max heap for improved and more predictable memory usage.\n CPU:  Enable more CPU features with '-march=native' for improved performance.\n QBM:  Use the quick build mode ('-Ob') to speed up builds during development.\n------------------------------------------------------------------------------------------------------------------------\n                        0.8s (3.5% of total time) in 310 GCs | Peak RSS: 0.98GB | CPU load: 4.47\n------------------------------------------------------------------------------------------------------------------------\nProduced artifacts:\n /Users/chenxu/repos/scoop/benchmark/build/java-native (executable)\n========================================================================================================================\nFinished generating 'java-native' in 23.0s.\n",
+      "stderr": ""
+    },
+    {
+      "name": "scoop",
+      "cache": "unchanged repeat",
+      "command": [
+        "/Users/chenxu/.scoop/bin/scoop",
+        "build",
+        "/Users/chenxu/repos/scoop/benchmark/scoop",
+        "--release",
+        "--cache-dir",
+        "/Users/chenxu/repos/scoop/benchmark/build/app-cache",
+        "--target-dir",
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-target",
+        "-o",
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.050148375,
+      "user_cpu_seconds": 0.006409,
+      "system_cpu_seconds": 0.015380999999999999,
+      "cpu_seconds": 0.021789999999999997,
+      "peak_rss_bytes": 9093120,
+      "stdout": "",
+      "stderr": "built /Users/chenxu/repos/scoop/benchmark/build/scoop-bench (release)\n"
+    },
+    {
+      "name": "go",
+      "cache": "unchanged repeat",
+      "command": [
+        "go",
+        "build",
+        "-o",
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench",
+        "/Users/chenxu/repos/scoop/benchmark/go/libraries.go",
+        "/Users/chenxu/repos/scoop/benchmark/go/main.go",
+        "/Users/chenxu/repos/scoop/benchmark/go/numeric.go",
+        "/Users/chenxu/repos/scoop/benchmark/go/objects.go"
+      ],
+      "wall_seconds": 0.158521125,
+      "user_cpu_seconds": 0.040687999999999995,
+      "system_cpu_seconds": 0.090767,
+      "cpu_seconds": 0.131455,
+      "peak_rss_bytes": 27574272,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "javac",
+      "cache": "unchanged repeat",
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/javac",
+        "-Xlint:all",
+        "-Werror",
+        "-d",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "/Users/chenxu/repos/scoop/benchmark/java/Bench.java",
+        "/Users/chenxu/repos/scoop/benchmark/java/Libraries.java",
+        "/Users/chenxu/repos/scoop/benchmark/java/Numeric.java",
+        "/Users/chenxu/repos/scoop/benchmark/java/Objects.java"
+      ],
+      "wall_seconds": 0.336981791,
+      "user_cpu_seconds": 0.714847,
+      "system_cpu_seconds": 0.038658,
+      "cpu_seconds": 0.753505,
+      "peak_rss_bytes": 168984576,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "sizes_bytes": {
+    "scoop-bench": 2222408,
+    "go-bench": 2499074,
+    "java-native": 13626296,
+    "java-classfiles": 20509,
+    "go-bench-stripped": 1638242
+  },
+  "tools": {
+    "go": "/opt/homebrew/bin/go",
+    "scoop": "/Users/chenxu/.scoop/bin/scoop",
+    "java_home": "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home"
+  },
+  "size_note": "Scoop release and Native Image omit debug info; default Go output retains debug/symbol info. go-bench-stripped was additionally built with -ldflags=-s -w for size only, and was not used for timing."
+}

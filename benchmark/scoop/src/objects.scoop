@@ -1,0 +1,129 @@
+package dev.benchmark
+
+struct Particle(val x: Long, val y: Long, val z: Long)
+
+class ParticleRef(val x: Long, val y: Long, val z: Long)
+
+class Box(val a: Long, val b: Long)
+
+var escaped: Any? = None
+
+fun valueRecords(n: Long, seed: Long): Long {
+    val a = MutableArray<Particle>(n) { i -> Particle(i + seed, i * 2L, i * 3L) }
+    var i = 0L
+    while (i < n) {
+        val p = a[i];
+        a[i] = Particle(p.y + 1L, p.z + 2L, p.x + 3L);
+        i += 1L
+    }
+    var sum = 0L
+    i = 0L
+    while (i < n) {
+        val p = a[i];
+        sum += p.x + p.y * 2L + p.z * 3L;
+        i += 1L
+    }
+    escaped = Some(a)
+    return sum
+}
+
+fun referenceRecords(n: Long, seed: Long): Long {
+    val a = MutableArray<ParticleRef>(n) { i -> ParticleRef(i + seed, i * 2L, i * 3L) }
+    var i = 0L
+    while (i < n) {
+        val p = a[i];
+        a[i] = ParticleRef(p.y + 1L, p.z + 2L, p.x + 3L);
+        i += 1L
+    }
+    var sum = 0L
+    i = 0L
+    while (i < n) {
+        val p = a[i];
+        sum += p.x + p.y * 2L + p.z * 3L;
+        i += 1L
+    }
+    escaped = Some(a)
+    return sum
+}
+
+fun allocationRing(n: Long, seed: Long): Long {
+    val zero = Box(0L, 0L)
+    val ring = MutableArray<Box>(1024L) { _ -> zero }
+    escaped = Some(ring)
+    var sum = 0L
+    var i = 0L
+    while (i < n) {
+        val slot = i.and(1023L)
+        val old = ring[slot]
+        sum += old.a.xor(old.b)
+        ring[slot] = Box(i, i + seed)
+        i += 1L
+    }
+    return sum + ring[(n - 1L).and(1023L)].b
+}
+
+class Tree(val left: Tree?, val right: Tree?, val value: Long)
+
+fun makeTree(depth: Int, seed: Long): Tree {
+    if (depth == 0)
+        return Tree(None, None, seed.and(1023L))
+    return Tree(Some(makeTree(depth - 1, seed + 1L)), Some(makeTree(depth - 1, seed + 2L)), 0L)
+}
+
+fun checkTree(tree: Tree): Long {
+    return when (tree.left) {
+        case Some(left) -> checkTree(left) + checkTree(tree.right!!)
+        case None -> tree.value
+    }
+}
+
+fun trees(n: Long, seed: Long): Long {
+    var sum = 0L
+    var i = 0L
+    while (i < n) {
+        val root = makeTree(12, seed + i)
+        escaped = Some(root)
+        sum += checkTree(root)
+        i += 1L
+    }
+    return sum
+}
+
+interface Operation {
+    fun apply(x: Long): Long
+}
+
+class Add(val k: Long): Operation {
+    override fun apply(x: Long): Long = x + k
+}
+
+class Xor(val k: Long): Operation {
+    override fun apply(x: Long): Long = x.xor(k)
+}
+
+class Multiply(val k: Long): Operation {
+    override fun apply(x: Long): Long = x * k
+}
+
+class Shift(val k: Long): Operation {
+    override fun apply(x: Long): Long = x.shr(1) + k
+}
+
+fun dispatch(n: Long, seed: Long): Long {
+    val ops =
+        MutableArray<Operation>(64L) {
+            i -> when (i.and(3L)) {
+                case 0L -> Add(i + seed)
+                case 1L -> Xor(i + seed)
+                case 2L -> Multiply(i + seed)
+                else -> Shift(i + seed)
+            }
+        }
+    var x = seed
+    var i = 0L
+    while (i < n) {
+        x = ops[i.and(63L)].apply(x).and(2147483647L);
+        i += 1L
+    }
+    return x
+}

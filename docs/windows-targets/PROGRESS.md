@@ -1,6 +1,6 @@
 # Windows targets 实施进度
 
-分支：`codex/windows-targets`。更新于 2026-10-29；已整合主线 `ae13036d9`，包含原生调试、Throwable 栈快照开关、编译期输入 intrinsic 与 debug aggregate 优化修正。
+分支：`codex/windows-targets`。更新于 2026-10-29；已整合主线 `7aff531f0`，包含原生调试、Throwable 栈快照开关、编译期输入 intrinsic、debug aggregate 优化修正和独立 benchmark 资料。最后一项合并未改动编译器或库代码。
 本文只记录当前实现、验证结果和未完成项；设计合同见 [DESIGN.md](DESIGN.md)。
 
 | 阶段 | 当前状态 | 剩余验收 |
