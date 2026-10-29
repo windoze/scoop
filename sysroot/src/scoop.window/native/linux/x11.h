@@ -11,8 +11,17 @@
 #include <X11/extensions/Xrandr.h>
 #include <X11/extensions/Xrender.h>
 #include <setjmp.h>
+#include <signal.h>
 
 typedef struct SWXDevice SWXDevice;
+
+typedef struct {
+  sigset_t previous;
+  bool consume;
+} SWX11Signals;
+
+int sw_x11_signals_begin(SWX11Signals *signals);
+void sw_x11_signals_end(SWX11Signals *signals);
 
 struct SWX11 {
   SWApp *app;
@@ -58,14 +67,25 @@ struct SWXWindow {
 
 // Every scope using Xlib restores its predecessor before returning to Scoop.
 #define SW_X11_BEGIN(x, failure)                                               \
+  SWX11Signals sw_signals;                                                     \
+  int sw_signal_error = sw_x11_signals_begin(&sw_signals);                     \
+  if (sw_signal_error) {                                                       \
+    sw_error((x)->app, SWErrorNative, sw_signal_error);                        \
+    return failure;                                                            \
+  }                                                                            \
   jmp_buf sw_trap;                                                             \
   jmp_buf *sw_previous_trap = (x)->trap;                                       \
   if (setjmp(sw_trap)) {                                                       \
     (x)->trap = sw_previous_trap;                                              \
+    sw_x11_signals_end(&sw_signals);                                           \
     return failure;                                                            \
   }                                                                            \
   (x)->trap = &sw_trap
-#define SW_X11_END(x) ((x)->trap = sw_previous_trap)
+#define SW_X11_END(x)                                                          \
+  do {                                                                         \
+    (x)->trap = sw_previous_trap;                                              \
+    sw_x11_signals_end(&sw_signals);                                           \
+  } while (0)
 
 Atom sw_xatom(SWX11 *x, const char *name);
 bool sw_x11_supported(SWX11 *x, const char *name);

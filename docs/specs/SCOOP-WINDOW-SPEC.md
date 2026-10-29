@@ -132,12 +132,22 @@ Wayland 必需 wl_compositor v4 或更新版本与 xdg-shell；可选协议按 r
 
 Wayland 有 fractional-scale 与 viewporter 时按协议比例及向上取整后的像素尺寸配置 viewport；否则采用进入输出的整数 scale。native snapshot 分别报告配置有效与可重绘，frame callback 只节流下一次重绘；prePresentNotify 在 renderer 的实际 commit 前请求 callback，不替代提交。全局窗口位置、primary monitor 和 compositor 未提供的最小化／主题事实返回 None。要求装饰时使用 xdg-decoration 的服务端装饰或 libdecor 的 C 装饰插件（发行基线使用 cairo）；缺少两者不能创建一个伪装成功的有装饰窗口。
 
+Wayland 显示器的 physicalSize 按 wl_output 当前 mode 与 transform 归一到桌面上的方向，90°／270° 及相应翻转变换交换像素宽高；desktopBounds 只采用 xdg-output 提供的逻辑坐标与尺寸。wl_output 移除后从当前快照及窗口关联中退休，重新公布的输出取得新 MonitorId，已交付的快照保持不变。
+
+Wayland 的标题与 app id 必须能放入协议单条消息的 4096 字节上限；扣除消息头、字符串长度、结尾 NUL 与对齐后，UTF-8 正文最多 4083 字节。超限在创建或设置边界报告 Unsupported，不发送非法消息，不改变旧标题，也不截断应用文本。surrounding 使用下文定义的独立 4000 字节窗口。
+
 X11 由 Xlib 读取事件，使用 XKB／libxkbcommon-x11、XIM／XIC、XRandR、Xcursor 和实际可用的 XI2 指针及平滑滚轮。Xlib-xcb 仅供 xkbcommon-x11 请求服务器 keymap，不接管事件读取。WM_DELETE_WINDOW 只产生 CloseRequested；尺寸、焦点、最小化／最大化和 EWMH 层级请求返回 Requested，实际状态从事件和查询取得。WM 不支持的协议返回 Unsupported，不写入伪造的 observed state。Xlib 进程级 error handler 在自有 Application 生命周期内安装和恢复，不接管其他 Display 的错误；异步请求错误及显示断开进入应用错误／关闭路径。
+
+X11 主循环在每次阻塞前检查 Xlib 已读取的事件队列；交付 Scoop 回调不能消费掉该队列仍有工作的事实。队列非空时仍以非阻塞 poll 服务其他通知源，再继续分发 X 事件，不能只等待显示 socket 再次可读。
+
+X11 原生调用期间局部处理连接写入产生的 SIGPIPE，使关闭竞争进入 Disconnected 收尾而非终止进程。调用退出或 I/O error 跳转后恢复调用线程原有信号 mask；不安装进程级 SIGPIPE handler，不消费调用方原先阻塞或已待处理的信号。
 
 IME 使用 text-input-v3 或 XIM，普通输入使用 xkbcommon compose；只通过 TextInputBatch 提交文字。Wayland 每个 done 形成一个批次，依次撤销旧 preedit、删除 surrounding、commit、发布新 preedit，保留选择活动端。协议 serial 与应用文档 revision 独立；启用后不同时通过普通键再提交同一文字。缺少协议／输入上下文时 setImeAllowed 返回 Unsupported，普通键与 compose 仍可用。失焦、关闭输入法和销毁清理组合与按下状态。
 
 Linux 扩展 `Window.setLinuxTextInputState(state)` 显式复制应用的 TextInputState 到 Wayland 输入上下文，返回 RequestStatus；XIM 没有对应接口时返回 Unsupported。快照须通过普通范围验证，发布内容不含 NUL。发布时移除 marked range，并保留选择活动端；按字符边界截取包含完整 selection 的最多 4000 字节上下文，这是 text-input-v3 的消息限制。selection 本身超过限制时返回 Unsupported。候选矩形改变不推进应用 revision。每次协议 commit 记录当时的应用 revision；done 的 serial 只用于关联该快照和协议状态，不直接充当 revision，不因 serial 与最新提交不同而丢弃输入。surrounding 删除必须对应已发布的快照并满足其边界；无效原生批次整体拒绝，撤销既有 preedit 并重新同步输入上下文。应用仍应通过 TextInputState.apply 核对 baseRevision，在实际编辑后重新发布快照。
 
 Linux 文件拖放由 WindowEvent.FileDrop 的 Enter／Drop／Leave 表达；Enter／Drop 的载荷为自有 Path 数组，Leave 不带路径。只接受 text/uri-list 中的本地 file URI，按 URI 转义解码保留原始路径字节，不把远程 URL 当成本地文件。Wayland data offer 与 XDND selection 使用异步接收，保持事件顺序和退出时的 fd／offer 释放；不在用户 handler 中阻塞读取传输。
+
+xdg-toplevel 提供 wm_capabilities 时，后续最大化／最小化请求遵守其实际集合；未收到首个 configure 的最大化快照为 None。尚未收到能力通知时可以排队请求，首次通知明确拒绝创建所需状态时报告 Unsupported。configure_bounds 是建议，不覆盖应用已提供的有效尺寸。surrounding 与候选矩形的一次发布使用同一次协议 commit，避免中间状态作为独立文档快照交给输入法。
 
 GNU／musl 使用同一 Scoop 实现及测试源码，动态链接各自兼容的桌面库和装饰／输入法模块。固定 scanner／protocol 输入和生成结果由维护阶段准备，普通 Cone 构建及预编译消费者不执行扫描器、下载或依赖安装。Linux 验收包含真实 Wayland compositor、X11 WM、buffer 提交、输入／批次和 asyncio／lease 关闭；headless 自动化与人工桌面验证分别记录。

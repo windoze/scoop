@@ -15,6 +15,20 @@ public fun runWindowTest(name: String, body: () -> Unit) {
         }
         catch (error: Throwable) {
             println("window child test failed: " + name)
+            if (error is AssertionFailure) {
+                println(
+                    error.location.file + ":" + error.location.line.toString() + ": " + error.kind
+                )
+                println(error.message ?: "")
+                when (error.expected) {
+                    case Text(value) -> println("expected: " + value);
+                    else -> {}
+                }
+                when (error.actual) {
+                    case Text(value) -> println("actual: " + value);
+                    else -> {}
+                }
+            }
             if (error is Exception)
                 println(error.message ?: "exception has no message")
             throw error
@@ -35,10 +49,20 @@ public fun runWindowTest(name: String, body: () -> Unit) {
     command.spawn().use {
         child ->
         val output = child.communicate()
+        val status =
+            when (output.status) {
+                case Exited(code) -> "exit code " + code.toString()
+                case Signaled(signal) -> "signal " + signal.toString()
+            }
         assertEquals(
             ExitStatus.Exited(0),
             output.status,
-            Some(String.fromUtf8Lossy(output.stdout) + String.fromUtf8Lossy(output.stderr))
+            Some(
+                status +
+                    "\n" +
+                    String.fromUtf8Lossy(output.stdout) +
+                    String.fromUtf8Lossy(output.stderr)
+            )
         )
     }
 }

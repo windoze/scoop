@@ -44,6 +44,7 @@ struct SWOutput {
   struct zxdg_output_v1 *description;
   SWMonitor *monitor;
   int scale, logical_width, logical_height, logical_x, logical_y;
+  int pixel_width, pixel_height, transform;
   bool logical_size, logical_position;
   SWOutput *next;
 };
@@ -67,6 +68,7 @@ struct SWWLWindow {
   uint32_t pending_states;
   bool use_decor, need_decor;
   bool requested_maximized;
+  bool capabilities_known, can_maximize, can_minimize;
   double fractional_scale;
 };
 
@@ -113,6 +115,13 @@ struct SWSeat {
 
 void sw_wayland_output_description(SWOutput *output);
 void sw_wayland_scale(SWWindow *window);
+int sw_wayland_dimension(int configured, double requested, double previous,
+                         double fallback, double minimum, double maximum);
+void sw_wayland_configured(SWWindow *window, int width, int height,
+                           bool maximized);
+int sw_wayland_visibility(SWWindow *window, bool visible);
+void sw_wayland_limits(SWWindow *window);
+void sw_wayland_buttons(SWWindow *window);
 void sw_wayland_seat(SWWayland *wayland, uint32_t name, uint32_t version);
 void sw_wayland_seat_destroy(SWSeat *seat);
 void sw_wayland_cursor(SWSeat *seat);

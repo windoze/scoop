@@ -1,8 +1,8 @@
 # winit 能力映射与分阶段范围
 
-状态：macOS 骨架阶段已实现，其余分阶段实施；更新于 2026-10-30。与 [DESIGN.md](DESIGN.md) 和[规范](../specs/SCOOP-WINDOW-SPEC.md)一起阅读。基线为 winit 0.30.13 的桌面能力；下表是完整能力地图，实际交付与验收边界以 [PROGRESS.md](PROGRESS.md) 为准。
+状态：macOS 与 Linux Wayland／X11 骨架已实现，其余分阶段实施；更新于 2026-10-30。与 [DESIGN.md](DESIGN.md) 和[规范](../specs/SCOOP-WINDOW-SPEC.md)一起阅读。基线为 winit 0.30.13 的桌面能力；下表是完整能力地图，实际交付与验收边界见 [macOS 记录](PROGRESS.md)及 [Linux 记录](LINUX-PROGRESS.md)。
 
-当前阶段交付 macOS GUI 骨架：应用／窗口、proxy／关闭／lease、基础属性、显示器与 DPI、键盘／鼠标／滚轮／IME、renderer 与 asyncio 接入。全屏控制／显示模式切换、全局 raw device、触摸／高级手势、光标捕获、文件拖放和复杂平台窗口交互后续补充。下表的“本期”均指当前骨架阶段，不要求实现完整 AppKit GUI。
+当前阶段交付 macOS 与 Linux GUI 骨架：应用／窗口、proxy／关闭／lease、基础属性、显示器与 DPI、键盘／鼠标／滚轮／IME、renderer 与 asyncio 接入；Linux 另包含文件拖放及显式 Wayland surrounding 快照。全屏控制／显示模式切换、全局 raw device、触摸／高级手势、光标捕获、Darwin 文件拖放和复杂平台窗口交互后续补充。下表的“本期”均指已实施的骨架范围，不要求复制完整桌面 GUI。
 
 范围分为：本期通用、本期按平台能力、平台扩展、后续／范围外。不承诺逐字复制 Rust API、trait、Drop 或所有平台扩展。Scoop 尚未发布；本表随实际实现直接修订，不保留旧草案签名兼容层，也不为未来平台穷举无实现的变体。窗口后端使用原生系统／协议库；全项目 Rust 依赖汇总和统一 staticlib 构建属于独立流水线工作，不在本表范围内。
 
@@ -45,8 +45,9 @@
 | KeyboardInput／ModifiersChanged | KeyEvent／ModifiersChanged | 本期，物理键／逻辑键／位置／repeat／synthetic 分离 |
 | KeyEvent.text 与 IME Commit | TextInputEvent.Edit 批次中的 Commit 操作 | 本期统一文字入口；同批删除、提交和组合更新只调用一次 handler |
 | Ime Preedit／Enabled／Disabled | 批次内 Preedit 及 Enabled／Disabled 事件 | 本期；UTF-8 字节范围、选择活动端、candidate rect；取消用空 Preedit 删除当前组合，开关变化才发 Enabled／Disabled |
-| IME allowed／cursor area、dead-key reset | setImeAllowed／setImeCursorArea、失焦撤销组合 | 本阶段；只保存 native marked text，UTF-16 转 UTF-8，不发布应用文档 |
-| IME purpose、surrounding 文档与重转换 | 后续文本输入扩展 | 后续；TextInputState 当前为应用纯值辅助，不要求窗口层维护编辑器镜像 |
+| IME allowed／cursor area、dead-key reset | setImeAllowed／setImeCursorArea、失焦撤销组合 | 本期；AppKit 转换 UTF-16 范围，Linux 归一 text-input-v3／XIM 批次，普通 compose 使用 xkbcommon |
+| IME surrounding 文档 | Linux setLinuxTextInputState | Wayland 已实施；显式裁剪快照、UTF-8 选区与 revision，窗口层不维护编辑器镜像 |
+| IME purpose、重转换 | 后续文本输入扩展 | 后续按实际平台协议及编辑器需求实施 |
 | CursorEntered／Left／Moved／MouseInput | 指针事件与按钮 | 本期；坐标和设备来源明确 |
 | MouseWheel | LineDelta／PixelDelta、phase／momentumPhase | 本期；行数与物理像素分开，保留原生滚动方向 |
 | DeviceEvent、AxisMotion、raw motion 与监听策略 | 后续设备事件扩展 | 后续；不隐式打开全局监听，设备单位不冒充像素 |
@@ -55,19 +56,19 @@
 | cursor icon／visibility | CursorIcon／setCursorIcon／setCursorVisible | 本期；原生基础图标，隐藏状态在离开窗口和销毁时恢复 |
 | custom cursor | 后续 CustomCursor | 后续；自定义 RGBA 图像／hotspot 需复制并明确寿命 |
 | cursor grab／warp／hittest | 后续捕获与定位接口 | 后续；按平台实际约束实施 |
-| HoveredFile／DroppedFile／HoveredFileCancelled | 后续 FileDrop Enter／Drop／Leave | 后续；Path／OsString 保留平台路径，不把任意 URI 强转路径 |
+| HoveredFile／DroppedFile／HoveredFileCancelled | FileDropEvent.Enter／Drop／Leave | Linux 已实施 Wayland data offer 与 XDND（含 INCR）；Path／OsString 保留原始路径字节，Darwin 后续 |
 | RedrawRequested／request_redraw | 同名绘制请求 | 本期；合并、无递归、零 drawable 与隐藏节流，重新 configure 后恢复 |
 | pre_present_notify | prePresentNotify | 本期；为提交前通知，不是 present／GPU fence |
 | monitor／primary monitor | Monitor／monitors／primaryMonitor／currentMonitor | 本期快照；毫赫兹、可选字段、桌面坐标与 DPI |
 | video modes | 后续 VideoMode | 后续，与模式控制和失效规则一起实施 |
-| ActivationTokenDone、startup notification | 后续 Linux 平台扩展 | 随 Linux 后端按协议实施；OS token 不进入普通窗口身份或权限机制 |
+| ActivationTokenDone、startup notification | Linux 激活请求及后续 startup 扩展 | requestFocus／requestAttention 内部使用 xdg-activation；公开 startup token 接口后续，不进入窗口身份或权限机制 |
 
 ## 3. 平台扩展和范围外能力
 
 | 类别 | 决策 |
 | --- | --- |
 | macOS activation policy、透明标题栏／content view、应用标识 | `scoop.window.platform.macos` 普通选项；不把 NSWindow style mask 放到公共属性 |
-| Linux backend／display name、Wayland app id、X11 class／instance、visual 选择 | `scoop.window.platform.linux` 与必要的 wayland／x11 子包；不向全平台代码提供 XID 操作 |
+| Linux backend／display name、Wayland app id、X11 class／instance | 已通过 `scoop.window.platform.linux` 提供；显式 visual 选择后续，不向全平台代码提供 XID 操作 |
 | Windows owner HWND、taskbar／DWM、TSF／COM、Win32 样式扩展 | 后续 `platform.windows`；复用 Windows 分支平台基础，补窗口创建前的 Per-Monitor V2 与系统模态循环接入 |
 | 任意 native parent／child window 嵌入、run-on-demand | 后续专项，不能用 WindowId 假装支持外部句柄所有权 |
 | Android／iOS／Web／orbital 的专用入口与扩展 | 范围外 |

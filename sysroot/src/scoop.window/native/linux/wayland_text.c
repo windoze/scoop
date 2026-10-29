@@ -300,3 +300,31 @@ int sw_wayland_ime(SWWindow *window, bool allowed) {
   sw_emit(window, SWImeState, allowed);
   return SWApplied;
 }
+
+int sw_wayland_text_state(SWWindow *window, const uint8_t *bytes,
+                          int64_t length, int32_t anchor, int32_t cursor,
+                          int64_t revision, double x, double y, double width,
+                          double height) {
+  if (!window->wl || !window->app->wayland->text_manager)
+    return SWUnsupported;
+  if (floor(x) < INT32_MIN || floor(x) > INT32_MAX || floor(y) < INT32_MIN ||
+      floor(y) > INT32_MAX || ceil(width) > INT32_MAX ||
+      ceil(height) > INT32_MAX)
+    return sw_error(window->app, SWErrorNative, EOVERFLOW);
+  char *text = sw_string(bytes, length);
+  if (!text)
+    return sw_error(window->app, SWErrorNative, errno);
+  free(window->surrounding);
+  window->surrounding = text;
+  window->selection_anchor = anchor;
+  window->selection_cursor = cursor;
+  window->text_revision = revision;
+  window->caret_x = x;
+  window->caret_y = y;
+  window->caret_width = width;
+  window->caret_height = height;
+  for (SWSeat *seat = window->app->wayland->seats; seat; seat = seat->next)
+    if (seat->text_window == window)
+      sw_wayland_text_update(seat);
+  return SWApplied;
+}

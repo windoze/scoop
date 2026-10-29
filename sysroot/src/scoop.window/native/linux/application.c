@@ -101,6 +101,8 @@ static int timeout_ms(SWApp *app) {
   }
   if (app->pump || app->events || app->error_pending)
     return 0;
+  if (app->x11 && !app->disconnected && sw_x11_pending(app))
+    return 0;
   if (deadline < 0)
     return -1;
   int64_t remaining = deadline - sw_now();

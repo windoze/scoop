@@ -7,6 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PROTOCOLS = ROOT / "sysroot/vendor/wayland-protocols/1.47"
 OUTPUT = ROOT / "sysroot/src/scoop.window/native/linux/protocols"
+TEST_OUTPUT = ROOT / "sysroot/src/scoop.window/test-native/protocols"
 SCANNER_VERSION = "wayland-scanner 1.24.0"
 
 
@@ -20,12 +21,19 @@ def main() -> None:
     if (version.stdout + version.stderr).strip() != SCANNER_VERSION:
         parser.error(f"requires {SCANNER_VERSION}")
     OUTPUT.mkdir(parents=True, exist_ok=True)
+    TEST_OUTPUT.mkdir(parents=True, exist_ok=True)
     for source in sorted(PROTOCOLS.glob("*.xml")):
         for mode, suffix in [("client-header", ".h"), ("private-code", ".c")]:
             subprocess.run(
                 [args.scanner, mode, str(source), str(OUTPUT / (source.stem + suffix))],
                 check=True,
             )
+        header = TEST_OUTPUT / (source.stem + ".h")
+        subprocess.run([args.scanner, "server-header", str(source), str(header)], check=True)
+        # The scanner can retain trailing whitespace in protocol documentation.
+        header.write_text(
+            "\n".join(line.rstrip() for line in header.read_text().splitlines()) + "\n"
+        )
 
 
 if __name__ == "__main__":

@@ -58,7 +58,9 @@ private class SoftwareWindow(val test: Boolean): ApplicationHandler {
             case Window(_, WindowEvent.TextInput(TextInputEvent.Edit(batch))) -> {
                 try {
                     text = text.apply(batch)
-                } catch (_: IllegalStateException) {}
+                } catch (_: IllegalStateException) {
+                    // A stale IME batch is rejected; republish the editor's current revision below.
+                }
                 window!!.setLinuxTextInputState(text)
                 window!!.setTitle("Scoop — " + text.surroundingText)
                 window!!.requestRedraw()

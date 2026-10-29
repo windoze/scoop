@@ -67,3 +67,44 @@ when = { os = "darwin" }
 name = "CoreGraphics"
 kind = "framework"
 when = { os = "darwin" }
+
+[[native.sources]]
+path = "native/linux/wayland_host.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/wayland_input.c"
+when = { os = "linux" }
+
+[[native.libraries]]
+name = "wayland-server"
+kind = "dynamic"
+when = { os = "linux" }
+
+[[native.libraries]]
+name = "xkbcommon"
+kind = "dynamic"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/x11_peer.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "native/linux/x11_im.c"
+when = { os = "linux" }
+
+[[native.libraries]]
+name = "Xtst"
+kind = "dynamic"
+when = { os = "linux" }
+
+[[native.libraries]]
+name = "xcb"
+kind = "dynamic"
+when = { os = "linux" }
+
+[[native.libraries]]
+name = "xcb-imdkit"
+kind = "dynamic"
+when = { os = "linux" }

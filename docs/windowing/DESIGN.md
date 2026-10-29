@@ -1,6 +1,6 @@
 # 桌面窗口与事件库设计
 
-状态：基础架构与 macOS GUI 骨架已实现，Linux Wayland／X11 阶段实施中。更新：2026-10-30。当前阶段按第 10 节与第 12 节第 3 项完成 Linux；Windows 及其他窗口后端另行实施。macOS 验收见 [PROGRESS.md](PROGRESS.md)，Linux 实施与验收见 [LINUX-PROGRESS.md](LINUX-PROGRESS.md)，使用方式见[窗口库 README](../../sysroot/src/scoop.window/README.md)。
+状态：基础架构、macOS GUI 骨架与 Linux Wayland／X11 阶段已实现。更新：2026-10-30。Linux 按第 10 节与第 12 节第 3 项交付；Windows 及其他窗口后端另行实施。macOS 验收见 [PROGRESS.md](PROGRESS.md)，Linux 的 GNU／musl 自动化结果与硬件验证边界见 [LINUX-PROGRESS.md](LINUX-PROGRESS.md)，使用方式见[窗口库 README](../../sysroot/src/scoop.window/README.md)。
 
 本轮按 winit 的职责搭建可供 GUI 使用的骨架：真实窗口／主循环、显式生命周期与 proxy、基础窗口属性、DPI／显示器快照、键盘／指针／滚轮／文本输入、native lease、renderer 和 asyncio 接入。winit 的完整能力地图用于确定边界和后续扩展方向，不要求本轮复制它的全部平台扩展。全屏控制／显示模式切换、全局原始设备监听、触摸／高级手势、光标捕获及平台专有的复杂窗口交互分批补充；Linux 文件拖放在第 10 节阶段实施；未实施项不以 Unsupported 伪装成平台不支持。控件、布局、菜单体系和应用编辑器仍由上层 GUI 实现。
 
@@ -21,7 +21,7 @@ Scoop 尚未发布任何版本。语言、库 API、runtime ABI、native 产物�
 | [EventLoopHost](../../sysroot/src/scoop.asyncio/src/host/host.scoop) | 已迁入 Windows 分支的 EventLoopNotification 与 watch；remove 等 ready 退出 | 提供真实窗口宿主适配 |
 | [MainDispatchHost](../../sysroot/src/scoop.asyncio/platform/darwin/main_dispatch_host.scoop) | 主队列通知及 ForeignCallback 保活／异常观察 | 继续验证菜单跟踪、拖动和模态，不把 CFRunLoop 测试当成完整 AppKit 验收 |
 
-[实施记录](../asyncio-backends/PROGRESS.md)已报告 Darwin／GNU／musl、Linux 6.1、取消竞争和定向 moving GC 验收。本次复核 Darwin 常规 release 测试及真实 AppKit 模态／菜单 tracking，未重跑 Linux 或完整 GC stress 专测。[性能记录](../asyncio-backends/PERFORMANCE.md)是窗口接入前的基线；本阶段不预设新窗口层具有性能优势。
+[实施记录](../asyncio-backends/PROGRESS.md)已报告 Darwin／GNU／musl、Linux 6.1、取消竞争和定向 moving GC 验收。macOS 窗口阶段复核了 Darwin 常规 release 及真实 AppKit 模态／菜单 tracking；Linux 窗口阶段完成 GNU／musl 的窗口宿主、取消／lease 收尾和无窗口等待组合测试，见对应窗口验收记录。窗口阶段未重跑完整 GC stress 专测。[性能记录](../asyncio-backends/PERFORMANCE.md)是窗口接入前的基线，不代表新窗口层的性能结论。
 
 当前工作是窗口系统集成。主线已实现 IOCP、manual-reset event 通知及对应 attach 路径；窗口集成直接采用这组接口，不再另建 wake-source enum 或旧宿主兼容层。接口、实现和实际调用方已同步，见第 4 节。平台基础的 I/O 验收不等于对应窗口后端已经完成。
 
@@ -274,9 +274,9 @@ Windows 后端要求创建窗口的 owner 使用 Per-Monitor V2。应用优先�
 
 1. 按本草案定义最小端到端子集，先落实实际需要的 `.m` native 管线，并采用 Windows 分支的 EventLoopNotification／watch；同步实际宿主与调用方，不新增旧签名兼容层。
 2. 用真实 window／window.asyncio 两个 Cone 完成公开宿主接入、窗口创建、输入、提交一帧及退出。持有 renderer lease 和活动 I/O 时请求退出，确认窗口、session、watch 与 lease 能依次或交错收尾；没有窗口时也能等待 session 完成。渲染使用小型实际 surface 适配，不建设完整 GUI 或通用渲染框架。
-3. 后续 Linux 阶段完成 Wayland 的首次配置、零尺寸提示、隐藏／重显、DPI、IME 批次、装饰、frame、拖放及协议能力差异，并实现 X11 对应行为。GNU／musl 共用 Scoop 层，不复制测试实现。
+3. Linux 阶段已完成 Wayland 的首次配置、零尺寸提示、隐藏／重显、DPI、IME 批次、装饰、frame、拖放及协议能力差异，并实现 X11 对应行为。GNU／musl 共用 Scoop 层及同一套 Cone 测试。
 4. 在已有基础光标、monitor、主题和窗口属性之上，按映射表分批补充 touch／gesture／raw device、全屏控制及高级可选属性；每项“平台不支持”均有真实 capability 依据和明确结果。
-5. 每个阶段以配套示例、真实目标测试和明确限制独立交付。当前基础架构／macOS 骨架阶段与完整能力地图分别记录；Linux、Windows 窗口及平台专测另行安排，平台基础分支通过不等于窗口可用。
+5. 每个阶段以配套示例、真实目标测试和明确限制独立交付。基础架构／macOS 骨架、Linux 阶段与完整能力地图分别记录；Windows 窗口及其平台专测另行安排，平台基础分支通过不等于窗口可用。
 
 纯值／归一规则、状态、错误与普通 API 行为用所属 Cone 的 scoop.test；真实窗口与 callback 测试使用主线程测试程序，必要的 OS 进程控制／ABI／native 编译能力才用少量 fixture。macOS 已有验收记录；本阶段 Linux 验收覆盖 Wayland compositor、X11 WM 及 GNU／musl 库。Xvfb 或 headless compositor 可覆盖自动化行为，但不能替代实体显示器、输入法候选交互与真实用户拖动的手工验证。
 

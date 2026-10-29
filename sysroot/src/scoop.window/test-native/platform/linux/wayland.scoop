@@ -1,0 +1,63 @@
+package scoop.tests.window
+
+/** Owns a real libwayland-server protocol peer on its own native thread. */
+public class WaylandTestServer public constructor(features: Boolean = true): Closeable {
+    private val pointer: Ptr<Unit> =
+        createServer(
+            if (features)
+                1
+            else
+                0
+        )
+    private var closed = false
+    public val displayName: String get() {
+        @Unsafe
+        {
+            return String.fromCString(nativeName(pointer))
+        }
+    }
+    public fun command(value: Int, minimumSerial: Int = 0) {
+        @Unsafe
+        {
+            nativeCommand(pointer, value, minimumSerial)
+        }
+    }
+    public fun statistic(index: Int): Int {
+        @Unsafe
+        {
+            return nativeStatistic(pointer, index)
+        }
+    }
+    public override fun close() {
+        if (!closed) {
+            closed = true
+            @Unsafe
+            {
+                nativeStop(pointer)
+            }
+        }
+    }
+}
+
+private fun createServer(features: Int): Ptr<Unit> {
+    @Unsafe
+    {
+        return nativeStart(features) ?:
+            throw IllegalStateException(Some("could not start protocol server"))
+    }
+}
+
+@Extern(name = "scoop_test_wayland_start")
+private fun nativeStart(features: Int): Ptr<Unit>?
+
+@Extern(name = "scoop_test_wayland_name")
+private fun nativeName(pointer: Ptr<Unit>): Ptr<Int8>
+
+@Extern(name = "scoop_test_wayland_command")
+private fun nativeCommand(pointer: Ptr<Unit>, command: Int, minimumSerial: Int)
+
+@Extern(name = "scoop_test_wayland_stat")
+private fun nativeStatistic(pointer: Ptr<Unit>, index: Int): Int
+
+@Extern(name = "scoop_test_wayland_stop")
+private fun nativeStop(pointer: Ptr<Unit>)

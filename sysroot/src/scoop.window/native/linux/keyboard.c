@@ -80,8 +80,13 @@ static void emit_key(SWWindow *window, SWKeyboardState *keyboard,
     event->data.flags |= 8;
   if (key->text) {
     event->data.text = (const uint8_t *)strdup(key->text);
-    if (event->data.text)
-      event->data.text_length = (int64_t)strlen(key->text);
+    if (!event->data.text) {
+      sw_event_free(event);
+      sw_error(window->app, SWErrorNative, ENOMEM);
+      window->app->error_pending = true;
+      return;
+    }
+    event->data.text_length = (int64_t)strlen(key->text);
   }
   sw_enqueue(window->app, event);
 }
@@ -139,6 +144,12 @@ void sw_key(SWWindow *window, SWKeyboardState *keyboard, uint32_t code,
     key->code = code;
     key->symbol = symbol;
     key->text = text ? strdup(text) : NULL;
+    if (text && !key->text) {
+      free(key);
+      sw_error(window->app, SWErrorNative, ENOMEM);
+      window->app->error_pending = true;
+      return;
+    }
     *link = key;
   }
   if (!pressed)
@@ -158,6 +169,15 @@ void sw_keyboard_key(SWWindow *window, SWKeyboardState *keyboard, uint32_t code,
   if (!keyboard->state)
     return;
   uint32_t symbol = xkb_state_key_get_one_sym(keyboard->state, code);
+  if (xkb_state_mod_name_is_active(keyboard->state, XKB_MOD_NAME_CTRL,
+                                   XKB_STATE_MODS_EFFECTIVE) > 0) {
+    // Control affects commands, but the logical key remains its layout
+    // character.
+    char text[8] = {0};
+    xkb_keysym_to_utf8(symbol, text, sizeof(text));
+    sw_key(window, keyboard, code, symbol, text, pressed, repeat, commit);
+    return;
+  }
   int length = xkb_state_key_get_utf8(keyboard->state, code, NULL, 0);
   char *text = calloc((size_t)length + 1, 1);
   if (!text) {

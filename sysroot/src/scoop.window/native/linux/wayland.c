@@ -10,6 +10,7 @@ static void output_geometry(void *data, struct wl_output *native, int32_t x,
                             int32_t subpixel, const char *make,
                             const char *model, int32_t transform) {
   SWOutput *output = data;
+  output->transform = transform;
   if (!output->monitor->data.name && model && *model) {
     output->monitor->data.name = (const uint8_t *)strdup(model);
     output->monitor->data.name_length = (int64_t)strlen(model);
@@ -20,13 +21,19 @@ static void output_mode(void *data, struct wl_output *native, uint32_t flags,
   if (!(flags & WL_OUTPUT_MODE_CURRENT))
     return;
   SWOutput *output = data;
-  output->monitor->data.pixel_width = width;
-  output->monitor->data.pixel_height = height;
+  output->pixel_width = width;
+  output->pixel_height = height;
   output->monitor->data.refresh_millihertz = refresh > 0 ? refresh : 0;
 }
 static void output_done(void *data, struct wl_output *native) {
   SWOutput *output = data;
   SWMonitorData *monitor = &output->monitor->data;
+  bool rotated = output->transform == WL_OUTPUT_TRANSFORM_90 ||
+                 output->transform == WL_OUTPUT_TRANSFORM_270 ||
+                 output->transform == WL_OUTPUT_TRANSFORM_FLIPPED_90 ||
+                 output->transform == WL_OUTPUT_TRANSFORM_FLIPPED_270;
+  monitor->pixel_width = rotated ? output->pixel_height : output->pixel_width;
+  monitor->pixel_height = rotated ? output->pixel_width : output->pixel_height;
   monitor->scale = output->scale;
   monitor->position_known = output->logical_position && output->logical_size;
   monitor->x = output->logical_x;
@@ -57,7 +64,9 @@ static void output_name(void *data, struct wl_output *native,
   output->monitor->data.name_length = (int64_t)strlen(copy);
 }
 static void output_description(void *data, struct wl_output *native,
-                               const char *description) {}
+                               const char *description) {
+  // Monitor exposes the output name, not a second human-readable description.
+}
 static const struct wl_output_listener output_listener = {
     .geometry = output_geometry,
     .mode = output_mode,
@@ -87,7 +96,9 @@ static void logical_name(void *data, struct zxdg_output_v1 *native,
   output_name(data, NULL, name);
 }
 static void logical_description(void *data, struct zxdg_output_v1 *native,
-                                const char *description) {}
+                                const char *description) {
+  // Monitor exposes the output name, not a second human-readable description.
+}
 static const struct zxdg_output_v1_listener logical_listener = {
     .logical_position = logical_position,
     .logical_size = logical_size,

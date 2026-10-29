@@ -89,7 +89,11 @@ target/debug/scoop test sysroot/src/scoop.window/examples/metal/app --release
 
 Wayland 首次配置与重新显示期间 `metrics=None`、状态为 PendingConfigure。等待 GeometryChanged 后按实际像素尺寸分配 buffer，再在 RedrawRequested 中提交。全局位置、primary monitor、最小化和主题等协议没有提供的事实为 None；能力缺失的操作返回 Unsupported。X11 的 WM 请求是否采纳由后续事件确认。
 
-在已运行的 Wayland compositor／X11 WM 上，设置 DISPLAY、WAYLAND_DISPLAY、XDG_RUNTIME_DIR 后运行：
+Wayland 标题和 app id 的 UTF-8 正文最多 4083 字节，以满足单条协议消息的长度限制。超限时创建／设置抛出 `kind=Unsupported` 的 `WindowException`，保留旧标题和显示连接；库不截断文本。
+
+完整窗口测试需要同时运行 Wayland compositor 与 X11 WM，并额外安装测试目标的 libwayland-server、XTest（libXtst）和 [xcb-imdkit 1.0.9](https://github.com/fcitx/xcb-imdkit/tree/1.0.9) 开发库。它们只由 `test-native` Cone 使用：Wayland 测试连接真实 libwayland-server 协议对端；X11 测试通过 XTest、XDND 和独立 XIM server 发送事件，所有行为断言仍在 `scoop.test` 中。应用的生产依赖不包含这些测试库。
+
+设置 DISPLAY、WAYLAND_DISPLAY、XDG_RUNTIME_DIR 后运行：
 
 ```sh
 export SCOOP_SYSROOT="$PWD/sysroot"
@@ -99,4 +103,8 @@ target/release/scoop test --release sysroot/src/scoop.window.asyncio
 target/release/scoop test --release sysroot/src/scoop.window/examples/software/app
 ```
 
-Application 用例通过 scoop.test 的过滤入口在独立子进程主线程上执行。测试均属于 Cone；[Linux 验收记录](../../../docs/windowing/LINUX-PROGRESS.md)区分真实 Weston／Xvfb、协议对端测试与人工桌面覆盖。
+分别以 `SCOOP_WINDOW_BACKEND=wayland` 和 `x11` 运行这三个 Cone。变量只选择真实桌面／renderer 用例的后端，Wayland／X11 专门的协议用例始终验证各自后端。自动化可使用 Weston headless（pixman renderer）及 Xvfb＋Openbox；XTest 会注入键盘和指针事件，应将测试 DISPLAY 指向独立测试服务器。
+
+musl 使用相同命令和测试源码，额外传入 `--target x86_64-unknown-linux-musl --link-mode dynamic --cc <musl-cc> --native-sysroot <musl-sdk>`，库位于非默认目录时用 `--library-path` 选择相应的目标目录。开发 sysroot 也需事先用同一工具链显式准备。对独立 SDK，运行环境的 `LIBDECOR_PLUGIN_DIR`、`XKB_CONFIG_ROOT`、`XLOCALEDIR` 应指向该 SDK 的插件与数据。不要将 musl 的 `LD_LIBRARY_PATH` 用于 GNU 宿主的 Scoop 命令；需要额外动态库搜索路径时，先 `scoop test --no-run`，只给生成的测试程序设置。
+
+Application 用例通过 scoop.test 的过滤入口在独立子进程主线程上执行。[Linux 验收记录](../../../docs/windowing/LINUX-PROGRESS.md)记录 GNU／musl 工具链、真实 Weston／Xvfb、协议对端测试和人工桌面覆盖的边界。

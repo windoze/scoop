@@ -136,8 +136,7 @@ enum SWAction {
   SWImeAllowed,
   SWImeCaret,
   SWPrePresent,
-  SWAppId,
-  SWSurrounding
+  SWAppId
 };
 
 int64_t sw_now(void);
@@ -187,10 +186,15 @@ int sw_wayland_action(SWWindow *window, enum SWAction action, double a,
 void *sw_wayland_display(SWApp *app);
 void *sw_wayland_surface(SWWindow *window);
 int64_t sw_wayland_current_monitor(SWWindow *window);
+int sw_wayland_text_state(SWWindow *window, const uint8_t *bytes,
+                          int64_t length, int32_t anchor, int32_t cursor,
+                          int64_t revision, double x, double y, double width,
+                          double height);
 
 bool sw_x11_connect(SWApp *app, const char *display);
 void sw_x11_destroy(SWApp *app);
 void sw_x11_dispatch(SWApp *app);
+bool sw_x11_pending(SWApp *app);
 bool sw_x11_create(SWWindow *window);
 void sw_x11_destroy_window(SWWindow *window);
 int sw_x11_action(SWWindow *window, enum SWAction action, double a, double b,

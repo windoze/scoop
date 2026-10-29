@@ -285,6 +285,11 @@ static int action(SWWindow *window, enum SWAction op, double a, double b,
       XMoveWindow(x->display, id, (int)a, (int)b);
     return SWRequested;
   case SWConstraints:
+    if (a * x->scale > INT_MAX || b * x->scale > INT_MAX ||
+        c * x->scale > INT_MAX || d * x->scale > INT_MAX)
+      return sw_error(window->app, SWErrorNative, EOVERFLOW);
+    if (c == 0 || d == 0)
+      return SWUnsupported;
     window->min_width = a;
     window->min_height = b;
     window->max_width = c;
@@ -297,6 +302,8 @@ static int action(SWWindow *window, enum SWAction op, double a, double b,
                                 : fmin(d, window->snapshot.height)),
                   0, 0, NULL);
   case SWIncrements:
+    if (a * x->scale > INT_MAX || b * x->scale > INT_MAX)
+      return sw_error(window->app, SWErrorNative, EOVERFLOW);
     window->increment_width = a;
     window->increment_height = b;
     size_hints(window);
@@ -414,8 +421,6 @@ static int action(SWWindow *window, enum SWAction op, double a, double b,
   case SWAppId:
     identity(window);
     return SWApplied;
-  case SWSurrounding:
-    return SWUnsupported;
   }
   return sw_error(window->app, SWErrorNative, EINVAL);
 }

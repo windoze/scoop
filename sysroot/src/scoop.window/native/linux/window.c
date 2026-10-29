@@ -1,5 +1,8 @@
 #include "window.h"
 
+// One Wayland string request: 8-byte header, 4-byte length, NUL and padding.
+static const int64_t wayland_string_max = 4083;
+
 int sw_action(SWWindow *window, enum SWAction action, double a, double b,
               double c, double d, const char *text) {
   if (window->app->disconnected)
@@ -24,6 +27,10 @@ void *scoop_window_create(void *pointer, int64_t identity, const uint8_t *title,
     sw_error(app, SWErrorDisconnected, EPIPE);
     return NULL;
   }
+  if (app->wayland && length > wayland_string_max) {
+    sw_error(app, SWErrorUnsupported, E2BIG);
+    return NULL;
+  }
   SWWindow *window = calloc(1, sizeof(*window));
   if (!window) {
     sw_error(app, SWErrorNative, ENOMEM);
@@ -39,7 +46,8 @@ void *scoop_window_create(void *pointer, int64_t identity, const uint8_t *title,
   window->snapshot.height = height;
   window->snapshot.scale = 1;
   window->snapshot.generation = 1;
-  window->snapshot.dark = window->snapshot.minimized = -1;
+  window->snapshot.dark = window->snapshot.minimized =
+      window->snapshot.maximized = -1;
   window->decorations = (flags & 1) != 0;
   window->resizable = (flags & 2) != 0;
   window->transparent = (flags & 4) != 0;
@@ -89,6 +97,8 @@ void scoop_window_destroy(void *pointer) {
 
 int32_t scoop_window_title(void *pointer, const uint8_t *text, int64_t length) {
   SWWindow *window = pointer;
+  if (window->wl && length > wayland_string_max)
+    return sw_error(window->app, SWErrorUnsupported, E2BIG);
   char *value = sw_string(text, length);
   if (!value)
     return sw_error(window->app, SWErrorNative, errno);
@@ -156,26 +166,18 @@ int32_t scoop_window_linux_text_state(void *pointer, const uint8_t *bytes,
                                       double x, double y, double width,
                                       double height) {
   SWWindow *window = pointer;
-  if (!window->wl)
-    return SWUnsupported;
-  int result = sw_action(window, SWImeCaret, x, y, width, height, NULL);
-  if (result < 0 || result == SWUnsupported)
-    return result;
-  char *text = sw_string(bytes, length);
-  if (!text)
-    return sw_error(window->app, SWErrorNative, errno);
-  free(window->surrounding);
-  window->surrounding = text;
-  window->selection_anchor = anchor;
-  window->selection_cursor = cursor;
-  window->text_revision = revision;
-  return sw_action(window, SWSurrounding, 0, 0, 0, 0, NULL);
+  if (window->app->disconnected)
+    return sw_error(window->app, SWErrorDisconnected, EPIPE);
+  return sw_wayland_text_state(window, bytes, length, anchor, cursor, revision,
+                               x, y, width, height);
 }
 
 int32_t scoop_window_linux_identity(void *pointer, const uint8_t *id,
                                     int64_t id_length, const uint8_t *instance,
                                     int64_t instance_length) {
   SWWindow *window = pointer;
+  if (window->wl && id_length > wayland_string_max)
+    return sw_error(window->app, SWErrorUnsupported, E2BIG);
   char *app_id = sw_string(id, id_length);
   char *app_instance = sw_string(instance, instance_length);
   if (!app_id || !app_instance) {

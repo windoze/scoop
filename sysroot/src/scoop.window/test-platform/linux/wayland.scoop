@@ -1,0 +1,440 @@
+package scoop.window
+
+import scoop.tests.window.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.concurrent.currentThreadId
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+import scoop.test.*
+import scoop.window.native.*
+import scoop.window.platform.linux.*
+
+private enum WireScenario {
+    Capabilities, Input, Text, Disconnect, Repeat, Stale, Backpressure, Monitors
+}
+
+@Test
+private class WaylandProtocolTest {
+    @Test
+    fun `zero configure and missing optional protocols retain actual capabilities`() {
+        runWire(
+            "zero configure and missing optional protocols retain actual capabilities",
+            WireScenario.Capabilities
+        )
+    }
+    @Test
+    fun `fractional pointer keys compose shortcuts and focus releases cross the protocol`() {
+        runWire(
+            "fractional pointer keys compose shortcuts and focus releases cross the protocol",
+            WireScenario.Input
+        )
+    }
+    @Test
+    fun `text input revisions ordered edits invalid deletion and URI transfer are atomic`() {
+        runWire(
+            "text input revisions ordered edits invalid deletion and URI transfer are atomic",
+            WireScenario.Text
+        )
+    }
+    @Test
+    fun `display disconnect drains native leases and reports the actual backend`() {
+        runWire(
+            "display disconnect drains native leases and reports the actual backend",
+            WireScenario.Disconnect
+        )
+    }
+    @Test
+    fun `seat repeat deadlines wake a waiting loop and stop after release`() {
+        runWire(
+            "seat repeat deadlines wake a waiting loop and stop after release",
+            WireScenario.Repeat
+        )
+    }
+    @Test
+    fun `older IME serials retain their revision and resume publication after acknowledgment`() {
+        runWire(
+            "older IME serials retain their revision and resume publication after acknowledgment",
+            WireScenario.Stale
+        )
+    }
+    @Test
+    fun `Wayland flush backpressure still services the deadline and cancels prepared reads`() {
+        runWire(
+            "Wayland flush backpressure still services the deadline and cancels prepared reads",
+            WireScenario.Backpressure
+        )
+    }
+    @Test
+    fun `output rotation scale changes and reconnects preserve owned monitor snapshots`() {
+        runWire(
+            "output rotation scale changes and reconnects preserve owned monitor snapshots",
+            WireScenario.Monitors
+        )
+    }
+}
+
+private fun runWire(name: String, scenario: WireScenario) {
+    runWindowTest(name) {
+        WaylandTestServer(scenario != WireScenario.Capabilities).use {
+            server ->
+            val options = ApplicationOptions(LastWindowPolicy.Exit)
+            options.setLinuxBackend(LinuxBackend.WaylandOnly, Some(server.displayName))
+            val handler = WireHandler(server, scenario)
+            val app = Application(options)
+            if (scenario == WireScenario.Disconnect) {
+                val error = assertFailsWith<WindowException> { app.run(handler) }
+                assertEquals(WindowErrorKind.Disconnected, error.kind)
+                assertEquals(Some(WindowBackend.Wayland), error.backend)
+            } else
+                app.run(handler)
+            when (handler.release) {
+                case Some(worker) -> worker.use { it.join() }
+                case None -> {}
+            }
+            assertTrue(handler.closing)
+            assertTrue(handler.destroyed)
+            assertTrue(handler.initialized)
+            assertEquals(0, server.statistic(5))
+        }
+    }
+}
+
+private class WireHandler(
+    val server: WaylandTestServer,
+    val scenario: WireScenario
+): ApplicationHandler {
+    val thread = currentThreadId()
+    var window: Window? = None
+    var lease: NativeWindowLease? = None
+    var release: Thread? = None
+    var initialized = false
+    var closing = false
+    var destroyed = false
+    var keys = 0
+    var synthetic = 0
+    var shortcuts = 0
+    var buttons = 0
+    var wheels = 0
+    var repeats = 0
+    var stopping = false
+    var released = false
+    var unpaused = false
+    var staleObserved = false
+    var edits = 0
+    var drops = 0
+    var originalMonitor: Monitor? = None
+    var text = TextInputState("", Utf8Selection(0L, 0L))
+
+    public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
+        assertEquals(thread, currentThreadId())
+        when (event) {
+            case Resumed -> {
+                assertEquals(WindowBackend.Wayland, application.backend)
+                val value =
+                    application.createWindow(
+                        WindowAttributes(
+                            "Scoop protocol",
+                            LogicalSize(301.0, 181.0),
+                            requestActivation = false
+                        )
+                    )
+                window = Some(value)
+                assertEquals(WindowState.PendingConfigure, value.state)
+                assertEquals(None, value.metrics)
+                assertEquals(None, value.isMaximized)
+                assertEquals(None, value.desktopPosition)
+                assertEquals(None, value.outerBounds)
+                assertEquals(None, value.isMinimized)
+                assertEquals(None, application.primaryMonitor())
+                assertFailsWith<IllegalArgumentException> { value.setTitle("invalid\u0000title") }
+                if (scenario == WireScenario.Text || scenario == WireScenario.Stale) {
+                    text = TextInputState("ab", Utf8Selection(1L, 1L), revision = 40L)
+                    assertEquals(RequestStatus.Applied, value.setLinuxTextInputState(text))
+                    assertEquals(RequestStatus.Applied, value.setImeAllowed(true))
+                }
+                @Unsafe
+                {
+                    lease = Some(value.acquireNativeWindow())
+                }
+                application.setControlFlow(
+                    ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(5L))
+                )
+            }
+            case NewEvents(StartCause.Deadline) -> {
+                if (scenario == WireScenario.Repeat && !stopping) {
+                    assertTrue(repeats >= 2)
+                    stopping = true
+                    server.command(9)
+                    application.setControlFlow(
+                        ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(5L))
+                    )
+                } else
+                    if (scenario == WireScenario.Backpressure && !unpaused) {
+                        unpaused = true
+                        server.command(11)
+                        application.setControlFlow(
+                            ControlFlow.WaitUntil(
+                                MonotonicTimeSource.markNow() + Duration.seconds(5L)
+                            )
+                        )
+                    } else
+                        fail(Some("Wayland protocol deadline expired"))
+            }
+            case Window(_, WindowEvent.GeometryChanged(metrics)) -> geometry(application, metrics)
+            case Window(_, WindowEvent.Keyboard(key)) -> {
+                keys += 1
+                if (scenario == WireScenario.Repeat && key.state == ElementState.Released)
+                    released = true
+                if (key.synthetic) {
+                    synthetic += 1
+                    assertEquals(ElementState.Released, key.state)
+                }
+                if (key.physicalKey == PhysicalKey.Code(KeyCode.KeyC)) {
+                    shortcuts += 1
+                    assertEquals(LogicalKey.Character("c"), key.logicalKey)
+                    assertTrue(key.modifiers.control)
+                    assertEquals(Some(true), key.modifiers.controlSides.left)
+                }
+                if (key.isRepeat) {
+                    assertFalse(released)
+                    assertEquals(ElementState.Pressed, key.state)
+                    repeats += 1
+                }
+            }
+            case Window(_, WindowEvent.Pointer(PointerEvent.Button(state, button, _, _))) -> {
+                buttons += 1
+                assertEquals(MouseButton.Left, button)
+                assertEquals(LogicalPosition(18.5, 30.25), state.logicalPosition)
+                assertEquals(PhysicalPosition(23.125, 37.8125), state.physicalPosition)
+            }
+            case Window(_, WindowEvent.Pointer(PointerEvent.Wheel(_, delta, phase, momentum))) -> {
+                wheels += 1
+                assertEquals(ScrollDelta.LineDelta(0.0, -1.0), delta)
+                assertEquals(ScrollPhase.None, phase)
+                assertEquals(ScrollPhase.None, momentum)
+            }
+            case Window(_, WindowEvent.TextInput(TextInputEvent.Edit(batch))) -> edit(batch)
+            case Window(_, WindowEvent.FileDrop(FileDropEvent.Enter(paths))) -> {
+                assertEquals(0, drops)
+                assertEquals(2L, paths.size)
+                assertEquals("/tmp/a b", paths[0L].display())
+                drops += 1
+            }
+            case Window(_, WindowEvent.FileDrop(FileDropEvent.Drop(paths))) -> {
+                assertEquals(1, drops)
+                assertEquals(2L, paths.size)
+                assertEquals(0xff.toByte(), paths[1L].toOsString().toByteArray()[5L])
+                drops += 1
+                server.command(7)
+            }
+            case Window(_, WindowEvent.Closing) -> {
+                closing = true
+                if (scenario == WireScenario.Disconnect)
+                    release = Some(Thread.start { lease!!.close() })
+                else
+                    lease!!.close()
+            }
+            case Window(_, WindowEvent.Destroyed) -> destroyed = true
+            else -> {}
+        }
+    }
+
+    private fun geometry(application: ActiveApplication, metrics: WindowMetrics) {
+        if (!initialized) {
+            initialized = true
+            assertEquals(LogicalSize(301.0, 181.0), metrics.logicalSize)
+            if (scenario == WireScenario.Capabilities) {
+                assertEquals(2.0, metrics.scaleFactor)
+                assertEquals(PhysicalSize(602, 362), metrics.physicalSize)
+                assertEquals(RequestStatus.Unsupported, window!!.setImeAllowed(true))
+                assertEquals(RequestStatus.Unsupported, window!!.requestMaximized(true))
+                assertEquals(RequestStatus.Unsupported, window!!.requestMinimized(true))
+                assertEquals(
+                    RequestStatus.Unsupported,
+                    window!!.requestPosition(DesktopPosition(1.0, 2.0))
+                )
+                assertEquals(RequestStatus.Unsupported, window!!.requestTheme(Some(Theme.Dark)))
+                val tooLong = String.fromUtf8(Array<Byte>(4084L) { _ -> 65.toByte() })
+                val titleError = assertFailsWith<WindowException> { window!!.setTitle(tooLong) }
+                assertEquals(WindowErrorKind.Unsupported, titleError.kind)
+                val createError =
+                    assertFailsWith<WindowException> {
+                        application.createWindow(WindowAttributes(tooLong))
+                    }
+                assertEquals(WindowErrorKind.Unsupported, createError.kind)
+                val attributes = WindowAttributes("oversized app id")
+                attributes.setLinuxApplicationId(tooLong)
+                val identityError =
+                    assertFailsWith<WindowException> { application.createWindow(attributes) }
+                assertEquals(WindowErrorKind.Unsupported, identityError.kind)
+                window!!.setTitle(String.fromUtf8(Array<Byte>(4083L) { _ -> 65.toByte() }))
+                window!!.requestDestroy()
+                return
+            }
+            assertEquals(1.25, metrics.scaleFactor)
+            assertEquals(PhysicalSize(377, 227), metrics.physicalSize)
+            when (scenario) {
+                case Input -> server.command(1)
+                case Text -> server.command(2, 1)
+                case Stale -> server.command(2, 1)
+                case Backpressure -> server.command(10)
+                case Disconnect -> server.command(6)
+                case Repeat -> {
+                    server.command(8)
+                    application.setControlFlow(
+                        ControlFlow.WaitUntil(
+                            MonotonicTimeSource.markNow() + Duration.milliseconds(150L)
+                        )
+                    )
+                }
+                case Monitors -> {
+                    assertEquals(1L, application.monitors().size)
+                    originalMonitor = window!!.currentMonitor()
+                    assertEquals(PhysicalSize(1600, 900), originalMonitor!!.physicalSize)
+                    assertEquals(2.0, originalMonitor!!.scaleFactor)
+                    assertEquals(None, originalMonitor!!.desktopBounds)
+                    assertEquals(Some(60000L), originalMonitor!!.refreshRateMilliHertz)
+                    assertEquals(RequestStatus.Requested, window!!.requestMaximized(true))
+                    server.command(13)
+                }
+                case Capabilities -> fail()
+            }
+            return
+        }
+        when (scenario) {
+            case Backpressure -> {
+                if (metrics.logicalSize.width == 309.0) {
+                    val title = String.fromUtf8(Array<Byte>(4000L) { _ -> 65.toByte() })
+                    for (_ in 0 ..< 512)
+                        window!!.setTitle(title)
+                    window!!.setTitle("scoop-backpressure-end")
+                    application.setControlFlow(
+                        ControlFlow.WaitUntil(
+                            MonotonicTimeSource.markNow() + Duration.milliseconds(50L)
+                        )
+                    )
+                } else
+                    if (metrics.logicalSize.width == 311.0) {
+                        assertTrue(unpaused)
+                        window!!.requestDestroy()
+                    }
+            }
+            case Stale -> {
+                if (metrics.logicalSize.width == 305.0) {
+                    assertTrue(staleObserved)
+                    assertEquals(4, server.statistic(0))
+                    assertEquals("new", text.surroundingText)
+                    window!!.requestDestroy()
+                }
+            }
+            case Input -> {
+                if (metrics.logicalSize.width == 303.0) {
+                    assertEquals(16, keys)
+                    assertEquals(1, synthetic)
+                    assertEquals(2, shortcuts)
+                    assertEquals(2, buttons)
+                    assertEquals(1, wheels)
+                    assertEquals("aAéa", text.surroundingText)
+                    assertEquals(1, server.statistic(3))
+                    assertEquals(301, server.statistic(1))
+                    assertEquals(181, server.statistic(2))
+                    window!!.requestDestroy()
+                }
+            }
+            case Text -> {
+                if (metrics.logicalSize.width == 305.0) {
+                    assertEquals(3, edits)
+                    assertEquals(2, drops)
+                    assertEquals(1, server.statistic(4))
+                    window!!.requestDestroy()
+                }
+            }
+            case Repeat -> {
+                if (metrics.logicalSize.width == 307.0) {
+                    assertTrue(released)
+                    window!!.requestDestroy()
+                }
+            }
+            case Monitors -> {
+                if (metrics.logicalSize.width == 313.0) {
+                    assertEquals(RequestStatus.Unsupported, window!!.requestMaximized(true))
+                    val current = window!!.currentMonitor()!!
+                    assertEquals(originalMonitor!!.id, current.id)
+                    assertEquals(PhysicalSize(900, 1600), current.physicalSize)
+                    assertEquals(3.0, current.scaleFactor)
+                    assertEquals(1.5, metrics.scaleFactor)
+                    assertEquals(PhysicalSize(470, 290), metrics.physicalSize)
+                    assertEquals(PhysicalSize(1600, 900), originalMonitor!!.physicalSize)
+                    server.command(14)
+                } else
+                    if (metrics.logicalSize.width == 315.0) {
+                        assertEquals(0L, application.monitors().size)
+                        assertEquals(None, window!!.currentMonitor())
+                        server.command(15)
+                    } else
+                        if (metrics.logicalSize.width == 317.0) {
+                            assertEquals(1L, application.monitors().size)
+                            val current = window!!.currentMonitor()!!
+                            assertNotEquals(originalMonitor!!.id, current.id)
+                            assertEquals(PhysicalSize(1600, 900), current.physicalSize)
+                            assertEquals(2.0, originalMonitor!!.scaleFactor)
+                            window!!.requestDestroy()
+                        }
+            }
+            case Capabilities -> {}
+            case Disconnect -> {}
+        }
+    }
+
+    private fun edit(batch: TextInputBatch) {
+        if (scenario == WireScenario.Stale) {
+            edits += 1
+            if (edits == 1) {
+                text = text.apply(batch)
+                window!!.setLinuxTextInputState(text)
+                text = TextInputState("new", Utf8Selection(3L, 3L), revision = 42L)
+                window!!.setLinuxTextInputState(text)
+                server.command(12, 3)
+            } else {
+                assertEquals(2, edits)
+                assertEquals(Some(41L), batch.baseRevision)
+                assertFailsWith<IllegalStateException> { text.apply(batch) }
+                staleObserved = true
+                window!!.setLinuxTextInputState(text)
+                server.command(7, 4)
+            }
+            return
+        }
+        if (scenario != WireScenario.Text) {
+            text = text.apply(batch)
+            return
+        }
+        edits += 1
+        if (edits == 1) {
+            assertEquals(Some(40L), batch.baseRevision)
+            text = text.apply(batch)
+            assertEquals("a中🙂b", text.surroundingText)
+            assertEquals(Utf8Selection(8L, 4L), text.selection)
+            assertEquals(Some(Utf8Range(1L, 8L)), text.markedRange)
+            window!!.setLinuxTextInputState(text)
+            server.command(3, 2)
+        } else
+            if (edits == 2) {
+                assertEquals(Some(41L), batch.baseRevision)
+                assertEquals(4L, batch.operations.size)
+                text = text.apply(batch)
+                assertEquals("é🙂", text.surroundingText)
+                assertEquals(Utf8Selection(6L, 2L), text.selection)
+                window!!.setLinuxTextInputState(text)
+                server.command(4, 3)
+            } else
+                if (edits == 3) {
+                    assertEquals(1L, batch.operations.size)
+                    text = text.apply(batch)
+                    assertEquals("é", text.surroundingText)
+                    assertEquals(None, text.markedRange)
+                    server.command(5)
+                } else
+                    fail(Some("IME produced a duplicate edit"))
+    }
+}

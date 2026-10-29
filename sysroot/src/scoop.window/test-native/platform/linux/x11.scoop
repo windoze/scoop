@@ -1,0 +1,76 @@
+package scoop.tests.window
+
+/** Observes the caller's signal mask before and after the native application. */
+public fun x11SigpipeBlocked(): Boolean {
+    @Unsafe
+    {
+        val value = nativeSigpipeBlocked()
+        if (value < 0)
+            throw IllegalStateException(Some("could not read caller signal mask"))
+        return value != 0
+    }
+}
+
+/** A second X11 client that supplies XTest input, XDND data, and an actual XIM server. */
+public class X11TestPeer public constructor(ime: Boolean = false): Closeable {
+    private val pointer = createPeer(ime)
+    private var closed = false
+    public fun command(window: ULong, value: Int) {
+        @Unsafe
+        {
+            nativeCommand(pointer, window, value)
+        }
+    }
+    public fun disconnect(window: ULong) {
+        @Unsafe
+        {
+            nativeDisconnect(pointer, window)
+        }
+    }
+    public val errors: Int get() {
+        @Unsafe
+        {
+            return nativeErrors(pointer)
+        }
+    }
+    public override fun close() {
+        if (!closed) {
+            closed = true
+            @Unsafe
+            {
+                nativeStop(pointer)
+            }
+        }
+    }
+}
+
+private fun createPeer(ime: Boolean): Ptr<Unit> {
+    @Unsafe
+    {
+        return nativeStart(
+            if (ime)
+                1
+            else
+                0
+        ) ?:
+            throw IllegalStateException(Some("could not start X11 protocol peer"))
+    }
+}
+
+@Extern(name = "scoop_test_x11_peer_start")
+private fun nativeStart(ime: Int): Ptr<Unit>?
+
+@Extern(name = "scoop_test_x11_sigpipe_blocked")
+private fun nativeSigpipeBlocked(): Int
+
+@Extern(name = "scoop_test_x11_peer_command")
+private fun nativeCommand(pointer: Ptr<Unit>, window: ULong, command: Int)
+
+@Extern(name = "scoop_test_x11_peer_errors")
+private fun nativeErrors(pointer: Ptr<Unit>): Int
+
+@Extern(name = "scoop_test_x11_peer_disconnect")
+private fun nativeDisconnect(pointer: Ptr<Unit>, window: ULong)
+
+@Extern(name = "scoop_test_x11_peer_stop")
+private fun nativeStop(pointer: Ptr<Unit>)

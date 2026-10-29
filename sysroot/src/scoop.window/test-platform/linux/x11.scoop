@@ -1,0 +1,256 @@
+package scoop.window
+
+import scoop.tests.window.*
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+import scoop.test.*
+import scoop.window.native.*
+import scoop.window.platform.linux.*
+
+private enum XScenario {
+    Input, Drop, Ime, Disconnect, DisconnectWrite
+}
+
+@Test
+private class X11ProtocolTest {
+    @Test
+    fun `XTest keys pointer wheel and focus changes reach the Xlib backend`() {
+        runXTest(
+            "XTest keys pointer wheel and focus changes reach the Xlib backend",
+            XScenario.Input
+        )
+    }
+    @Test
+    fun `XDND normal and INCR selections deliver complete native path arrays`() {
+        runXTest(
+            "XDND normal and INCR selections deliver complete native path arrays",
+            XScenario.Drop
+        )
+    }
+    @Test
+    fun `XIM callbacks preserve Unicode changes commit once and reject invalid preedit ranges`() {
+        runXTest(
+            "XIM callbacks preserve Unicode changes commit once and reject invalid preedit ranges",
+            XScenario.Ime
+        )
+    }
+    @Test
+    fun `X11 connection loss closes leased windows and returns a disconnected error`() {
+        runXTest(
+            "X11 connection loss closes leased windows and returns a disconnected error",
+            XScenario.Disconnect
+        )
+    }
+    @Test
+    fun `X11 writes after connection loss report an error without terminating the process`() {
+        runXTest(
+            "X11 writes after connection loss report an error without terminating the process",
+            XScenario.DisconnectWrite
+        )
+    }
+}
+
+private fun runXTest(name: String, scenario: XScenario) {
+    runWindowTest(name) {
+        X11TestPeer(scenario == XScenario.Ime).use {
+            peer ->
+            val blocked = x11SigpipeBlocked()
+            val options = ApplicationOptions(LastWindowPolicy.Exit)
+            options.setLinuxBackend(LinuxBackend.X11Only)
+            val handler = XHandler(peer, scenario)
+            val app = Application(options)
+            if (scenario == XScenario.Disconnect || scenario == XScenario.DisconnectWrite) {
+                val error = assertFailsWith<WindowException> { app.run(handler) }
+                assertEquals(WindowErrorKind.Disconnected, error.kind)
+                assertEquals(Some(WindowBackend.X11), error.backend)
+            } else
+                app.run(handler)
+            assertTrue(handler.started)
+            assertTrue(handler.closing)
+            assertTrue(handler.destroyed)
+            assertEquals(0, peer.errors)
+            assertEquals(blocked, x11SigpipeBlocked())
+        }
+    }
+}
+
+private class XHandler(val peer: X11TestPeer, val scenario: XScenario): ApplicationHandler {
+    var window: Window? = None
+    var lease: NativeWindowLease? = None
+    var nativeId: ULong = 0uL
+    var started = false
+    var closing = false
+    var destroyed = false
+    var keys = 0
+    var shortcuts = 0
+    var synthetic = 0
+    var buttons = 0
+    var wheels = 0
+    var drops = 0
+    var imePhase = 0
+    var commits = 0
+    var text = TextInputState("", Utf8Selection(0L, 0L))
+
+    public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
+        when (event) {
+            case Resumed -> {
+                assertEquals(WindowBackend.X11, application.backend)
+                val value =
+                    application.createWindow(
+                        WindowAttributes(
+                            "Scoop X11 protocol",
+                            LogicalSize(301.0, 181.0),
+                            requestActivation = false
+                        )
+                    )
+                window = Some(value)
+                @Unsafe
+                {
+                    lease = Some(value.acquireNativeWindow())
+                    when (lease!!.handle) {
+                        case Xlib(_, id, _, _) -> nativeId = id
+                        else -> fail(Some("expected Xlib handle"))
+                    }
+                }
+                if (scenario == XScenario.Ime) {
+                    assertEquals(RequestStatus.Applied, value.setImeAllowed(true))
+                    assertEquals(RequestStatus.Unsupported, value.setLinuxTextInputState(text))
+                }
+                value.requestRedraw()
+                application.setControlFlow(
+                    ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(5L))
+                )
+            }
+            case NewEvents(StartCause.Deadline) -> fail(Some("X11 protocol deadline expired"))
+            case Window(_, WindowEvent.RedrawRequested) -> {
+                if (!started) {
+                    started = true
+                    when (scenario) {
+                        case Input -> peer.command(nativeId, 1)
+                        case Drop -> peer.command(nativeId, 2)
+                        case Disconnect -> peer.command(nativeId, 8)
+                        case DisconnectWrite -> {
+                            peer.disconnect(nativeId)
+                            val error =
+                                assertFailsWith<WindowException> {
+                                    window!!.setTitle("disconnected")
+                                }
+                            assertEquals(WindowErrorKind.Disconnected, error.kind)
+                        }
+                        case Ime -> {
+                            imePhase = 1;
+                            peer.command(nativeId, 4)
+                        }
+                    }
+                }
+            }
+            case Window(_, WindowEvent.Keyboard(key)) -> {
+                keys += 1
+                if (key.synthetic) {
+                    synthetic += 1
+                    assertEquals(ElementState.Released, key.state)
+                }
+                if (key.physicalKey == PhysicalKey.Code(KeyCode.KeyC)) {
+                    assertEquals(LogicalKey.Character("c"), key.logicalKey)
+                    assertTrue(key.modifiers.control)
+                    assertEquals(Some(true), key.modifiers.controlSides.left)
+                    shortcuts += 1
+                }
+            }
+            case Window(_, WindowEvent.Pointer(PointerEvent.Button(state, button, _, _))) -> {
+                buttons += 1
+                assertEquals(MouseButton.Left, button)
+                assertEquals(PhysicalPosition(18.0, 30.0), state.physicalPosition)
+            }
+            case Window(_, WindowEvent.Pointer(PointerEvent.Wheel(_, delta, _, _))) -> {
+                wheels += 1
+                assertEquals(ScrollDelta.LineDelta(0.0, 1.0), delta)
+            }
+            case Window(_, WindowEvent.TextInput(TextInputEvent.Edit(batch))) -> edit(batch)
+            case Window(_, WindowEvent.FileDrop(FileDropEvent.Enter(paths))) -> {
+                assertTrue(drops == 0 || drops == 2)
+                assertEquals(2L, paths.size)
+                assertEquals("/tmp/first file", paths[0L].display())
+                drops += 1
+            }
+            case Window(_, WindowEvent.FileDrop(FileDropEvent.Drop(paths))) -> {
+                assertTrue(drops == 1 || drops == 3)
+                assertEquals(2L, paths.size)
+                assertEquals((-1).toByte(), paths[1L].toOsString().toByteArray()[5L])
+                drops += 1
+            }
+            case Window(_, WindowEvent.GeometryChanged(metrics)) -> {
+                if (started && scenario == XScenario.Input && metrics.physicalSize.width == 319) {
+                    assertEquals(12, keys)
+                    assertEquals(1, synthetic)
+                    assertEquals(2, shortcuts)
+                    assertEquals(2, buttons)
+                    assertEquals(1, wheels)
+                    assertEquals("aAa", text.surroundingText)
+                    window!!.requestDestroy()
+                } else
+                    if (scenario == XScenario.Drop && metrics.physicalSize.width == 321) {
+                        assertEquals(2, drops)
+                        peer.command(nativeId, 3)
+                    } else
+                        if (scenario == XScenario.Drop && metrics.physicalSize.width == 322) {
+                            assertEquals(4, drops)
+                            window!!.requestDestroy()
+                        }
+            }
+            case Window(_, WindowEvent.Closing) -> {
+                closing = true;
+                lease!!.close()
+            }
+            case Window(_, WindowEvent.Destroyed) -> destroyed = true
+            else -> {}
+        }
+    }
+
+    private fun edit(batch: TextInputBatch) {
+        assertEquals(None, batch.baseRevision)
+        for (operation in batch.operations) {
+            when (operation) {
+                case Commit(_, _) -> commits += 1
+                else -> {}
+            }
+        }
+        text = text.apply(batch)
+        if (scenario != XScenario.Ime)
+            return
+        when (imePhase) {
+            1 -> {
+                assertEquals("中🙂", text.surroundingText)
+                assertEquals(Utf8Selection(7L, 7L), text.selection)
+                imePhase = 2
+                peer.command(nativeId, 5)
+            }
+            2 -> {
+                assertEquals("文🙂", text.surroundingText)
+                assertEquals(Utf8Selection(7L, 7L), text.selection)
+                imePhase = 3
+                peer.command(nativeId, 6)
+            }
+            3 -> {
+                if (text.surroundingText == "完成🙂") {
+                    assertEquals(1, commits)
+                    imePhase = 4
+                    peer.command(nativeId, 4)
+                } else
+                    assertEquals("", text.surroundingText)
+            }
+            4 -> {
+                assertEquals("完成🙂中🙂", text.surroundingText)
+                imePhase = 5
+                peer.command(nativeId, 7)
+            }
+            5 -> {
+                assertEquals("完成🙂", text.surroundingText)
+                assertEquals(None, text.markedRange)
+                assertEquals(1, commits)
+                window!!.requestDestroy()
+            }
+            else -> fail(Some("unexpected XIM batch"))
+        }
+    }
+}

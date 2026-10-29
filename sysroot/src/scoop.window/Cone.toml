@@ -124,6 +124,10 @@ path = "native/linux/wayland_window.c"
 when = { os = "linux" }
 
 [[native.sources]]
+path = "native/linux/wayland_properties.c"
+when = { os = "linux" }
+
+[[native.sources]]
 path = "native/linux/wayland_input.c"
 when = { os = "linux" }
 

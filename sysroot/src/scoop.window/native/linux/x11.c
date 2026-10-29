@@ -1,7 +1,53 @@
 #include "x11.h"
 #include <locale.h>
+#include <pthread.h>
 
 static SWX11 *active_x11;
+
+int sw_x11_signals_begin(SWX11Signals *signals) {
+  sigset_t blocked, pending;
+  sigemptyset(&blocked);
+  sigaddset(&blocked, SIGPIPE);
+  int error = pthread_sigmask(SIG_BLOCK, &blocked, &signals->previous);
+  if (error)
+    return error;
+  if (sigpending(&pending) < 0) {
+    error = errno;
+    pthread_sigmask(SIG_SETMASK, &signals->previous, NULL);
+    return error;
+  }
+  signals->consume = !sigismember(&signals->previous, SIGPIPE) &&
+                     !sigismember(&pending, SIGPIPE);
+  return 0;
+}
+
+void sw_x11_signals_end(SWX11Signals *signals) {
+  int error = errno;
+  if (signals->consume) {
+    sigset_t blocked;
+    sigemptyset(&blocked);
+    sigaddset(&blocked, SIGPIPE);
+    struct timespec timeout = {0};
+    // libxcb may use writev without MSG_NOSIGNAL. Consume only a signal
+    // generated during this Xlib scope, before restoring the caller's mask.
+    while (sigtimedwait(&blocked, NULL, &timeout) < 0 && errno == EINTR) {
+    }
+  }
+  pthread_sigmask(SIG_SETMASK, &signals->previous, NULL);
+  errno = error;
+}
+
+static Display *open_display(const char *name) {
+  SWX11Signals signals;
+  int error = sw_x11_signals_begin(&signals);
+  if (error) {
+    errno = error;
+    return NULL;
+  }
+  Display *display = XOpenDisplay(name);
+  sw_x11_signals_end(&signals);
+  return display;
+}
 
 static int x_error(Display *display, XErrorEvent *event) {
   SWX11 *x = active_x11;
@@ -138,7 +184,7 @@ bool sw_x11_connect(SWApp *app, const char *display) {
     return false;
   }
   x->app = app;
-  x->display = XOpenDisplay(display);
+  x->display = open_display(display);
   if (!x->display) {
     free(x);
     sw_error(app, SWErrorUnavailable, errno);
@@ -379,6 +425,10 @@ void sw_x11_dispatch(SWApp *app) {
     app->pump = true;
   XFlush(x->display);
   SW_X11_END(x);
+}
+
+bool sw_x11_pending(SWApp *app) {
+  return XEventsQueued(app->x11->display, QueuedAlready) != 0;
 }
 
 void *sw_x11_display(SWApp *app) { return app->x11->display; }
