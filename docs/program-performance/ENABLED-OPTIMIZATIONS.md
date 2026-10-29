@@ -12,7 +12,6 @@
 
 | 已采纳方案 | 开启条件 | 适用范围与主要限制 |
 | --- | --- | --- |
-| [异常查找与线程内记录管理](EXCEPTION-RUNTIME.md) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | LSDA 按 PC 读取必要前缀，活跃记录由线程根扫描保活，移除全局 EH／handle 锁及重复对象归属查询。保留 moving GC、嵌套／重抛与状态规则；每次新 throw 的 calloc/free 和系统 unwinder 保持。本批实际验证与测量为 Darwin ARM64。 |
 | [标记直接消费连续 block head](GC-EVOLUTION.md#第七十七阶段标记直接消费连续-block-head) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 标记索引／复制分组移入已有 head，普通对象省去完整 block 读取并复用检查时的局部值；总 metadata 结构大小保持。两平台 mark 和单 worker 大图改善，部分完整暂停缩短；吞吐、分片和线程尾部的有限回退见记录，无对象、屏障、根或 ABI 增量。 |
 | [pin 位图按实际使用建立](GC-EVOLUTION.md#第七十五阶段pin-位图按实际使用建立) | 新版 runtime 所有 profile 默认；重链接即可，无新开关 | 小块首次显式／临时 pin 才分配位图，未建立时直接判定无 pin；已有缓冲保留复用。两平台清扫减少约 20%～29%，部分完整暂停改善；GNU 线程尾部／部分吞吐与树形 RSS 代价见记录。无新增字段、分配指令或 ABI。 |
 | [清扫后复用精确槽存活量](GC-EVOLUTION.md#第七十四阶段清扫后复用精确槽存活量) | 新版 runtime 随既有旧槽等级 1～3 生效、默认 2；所有 profile，无新开关 | 完整存活量在清扫局部保留，省去登记余量时的 64-word popcount；失败回滚仍按 starts 恢复。两平台清扫和主要 minor 尾部改善，接受有限吞吐／CPU 和部分尾部回退；无新增存储、分配指令或 ABI。 |

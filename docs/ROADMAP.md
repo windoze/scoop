@@ -786,6 +786,12 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 各里程碑"涵盖但只实现了部分"的事项，按来源里程碑整理。标注→的为目标里程碑（已知时）；未标注的待排期。
 
+### Target 边界重构（设计完成，待实施）
+
+- [设计](target-refactor/DESIGN.md)承接 M39，以进行中的 `codex/windows-targets` 合入后的六个 target 为回归基线，统一静态目标目录，分开 ABI／frame／对象格式、native 环境和宿主工具；保留现有完整 LIR 交接及 Windows 的 SEH、COFF／PE、PDB、RC 和 C++ 支持。
+- 收口 runtime 平台组件、target sysroot include、资源准备／打包及 fixture 的目标选择；新增路径语义先同步规范，不引入任意 target 插件或缓存复核。
+- 后续按 Linux ARM64 GNU／musl、OpenHarmony AMD64／ARM64 分批移植；Darwin x86_64 在对象和工具链边界就绪后可独立推进。本文仅完成设计，不登记未实现目标，不扩大 Windows 分支已有验收结论。
+
 ### 编译期文件／环境 intrinsic（已实现）
 
 - [设计](compile-time-intrinsics/DESIGN.md)与语言规范 11.19 将 `includeStr`、`includeBytes`、`includeDir`、`env` 放入 core Cone 的 `scoop.compiler` package，使用显式导入，不加入默认 prelude。
