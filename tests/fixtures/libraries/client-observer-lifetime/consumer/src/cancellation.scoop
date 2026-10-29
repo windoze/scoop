@@ -47,11 +47,14 @@ internal fun observerLifetime(trust: TrustStore, where: HttpCallEventKind, stop:
                     val request = if (where == HttpCallEventKind.RequestProgress)
                         HttpRequest(url, "POST", body = RequestBody.fromText("x"), options = options) else HttpRequest.get(url, options = options)
                     val response = client.execute(request)
-                    try {
+                    response.useAsync suspend { response ->
                         response.body.bytes(4L)
-                        if (where == HttpCallEventKind.Completed) hold.returned.await()
+                        if (where == HttpCallEventKind.Completed) {
+                            hold.returned.await()
+                            ensureActive()
+                        }
                         Unit
-                    } finally { response.close() }
+                    }
                 }
             } catch (error: Throwable) { failed.value = Some(error) }
             assertTrue(hold.finished)

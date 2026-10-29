@@ -57,7 +57,7 @@ private class AwsEventStreamHeaderTests {
         val message = readAwsTestMessage(wire.toByteArray(), 8191L)
         assertEquals(3L, message.headers.size)
         for (header in message.headers) {
-            when (header.value) { case Text(value) -> assertEquals(65535L, value.length); else -> fail() }
+            when (header.value) { case Text(value) -> assertEquals(65535L, value.byteLength); else -> fail() }
         }
     }
 

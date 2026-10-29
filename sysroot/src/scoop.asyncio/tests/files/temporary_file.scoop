@@ -106,7 +106,7 @@ private class AsyncTemporaryFileTest {
                 loop.deleteFile(emptyPrefix)
                 val defaultPath =
                     loop.createTempFile().useAsync suspend { temporary -> temporary.path }
-                assertEquals(temporaryDirectory(), defaultPath.parent!!)
+                assertEquals(temporaryDirectory().normalizeLexically(), defaultPath.parent!!.normalizeLexically())
                 loop.deleteFile(defaultPath)
             }
         }
