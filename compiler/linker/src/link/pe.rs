@@ -15,8 +15,14 @@ pub(super) fn link(
         return Err(error("PE link requires a COFF namespace"));
     };
     let mut paths = paths.to_vec();
-    for id in namespace.selected() {
-        let file = &inputs.native.files[&id];
+    let selected = namespace.selected();
+    for file in inputs
+        .native
+        .ordered_files()
+        .into_iter()
+        .filter(|file| selected.contains(&file.id))
+    {
+        let id = file.id;
         let path = directory.join(format!("{id}.lib"));
         write_new(&path, &file.bytes[file.slice.clone()])?;
         paths.push(path);

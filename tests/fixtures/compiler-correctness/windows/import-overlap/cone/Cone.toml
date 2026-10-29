@@ -1,0 +1,16 @@
+schema = 1
+
+[cone]
+group = "dev.windows"
+name = "import-overlap"
+version = "0.1.0"
+kind = "executable"
+
+[[native.sources]]
+path = "imports.c"
+
+[[native.libraries]]
+name = "kernel32"
+
+[[native.libraries]]
+name = "ntdll"
