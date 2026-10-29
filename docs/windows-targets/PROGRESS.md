@@ -104,4 +104,6 @@ ABI 30 的 `0fa053fd1` 新版候选归档及 LLVM 源码归档已经生成，纳
 
 Linux 的 CMake Makefile linker depfile 以目标目录为相对路径基准，且包含空依赖规则；准备脚本已按此解析。真实外部静态库的链接／执行、未变化复用和库变化后更新测试通过；Windows 原有 Ninja／Microsoft 依赖与并发协调测试通过。修复后复用已完成的 LLVM 构建并成功发布更新记录，没有重新进行完整编译。
 
+macOS 原生 CLI 的 6 项 fixture／9 个变体通过，覆盖 native C++、scalar／aggregate 结果、并发 Throwable 历史、interface SSA 移动 GC，以及跨 Cone TLS／线程 callback。交叉编译发现 clang-cl 将 `/Users/...` 文件路径识别为 `/U` 选项，已通过 Clang 文件参数通道修正；Windows 的四种 native C/C++ 编译组合和五种实际 PE／PDB 链接组合通过。交叉编译随后暴露预编译 runtime index 使用生产宿主路径编码的问题，正在修正其跨宿主相对路径表示。
+
 剩余工作为：完成 Linux／macOS 原生 CLI 回归与三个 Windows target 的交叉编译，并在 Windows 运行交叉产物；继续按变更提交、推送并合并主线。完成这些步骤前不声明全部 Windows 验收完成。

@@ -36,21 +36,26 @@ pub(super) fn check(
         if cxx.kind().microsoft() {
             compile
                 .args(["/c", "/Z7"])
-                .arg(&source)
                 .arg(format!("/Fo{}", object.display()));
         } else {
             compile
                 .args(["-c", "-g", "-gcodeview"])
-                .arg(&source)
                 .arg("-o")
                 .arg(&object);
         }
+        crate::windows_native::input(&mut compile, cxx.kind(), &source);
         run(&mut compile)?;
         objects.push(object);
     }
     let output = directory.path().join("probe.exe");
     let mut command = profile.command(directory.path(), &output)?;
-    command.args(objects);
+    for object in objects {
+        crate::windows_native::input(
+            &mut command,
+            crate::windows_native::kind(profile.linker_driver()),
+            &object,
+        );
+    }
     if profile.cxx() {
         profile.linker_arg(
             &mut command,

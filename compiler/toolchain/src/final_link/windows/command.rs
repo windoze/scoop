@@ -116,9 +116,11 @@ impl WindowsFinalLinkProfile {
     }
 
     pub fn append_system_libraries(&self, command: &mut Command) {
-        command.arg(dunce::simplified(
+        crate::windows_native::input(
+            command,
+            crate::windows_native::kind(&self.data.driver),
             &self.data.unwind_prefix.join("lib/libunwind.a"),
-        ));
+        );
         command.arg(if self.microsoft() {
             "dbghelp.lib"
         } else {

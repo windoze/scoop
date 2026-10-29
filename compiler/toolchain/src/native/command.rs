@@ -225,15 +225,14 @@ pub(super) fn compile(
         // be forwarded after all inputs and trigger an unused-option warning.
         command
             .arg("/c")
-            .arg(dunce::simplified(&source))
             .arg(crate::windows_native::joined("/Fo", output));
     } else {
         command
             .args(["-x", language.preprocessed_name(), "-c"])
-            .arg(dunce::simplified(&source))
             .arg("-o")
             .arg(output);
     }
+    crate::windows_native::input(&mut command, kind, &source);
     run(&mut command, input.path().as_str())?;
     Ok(())
 }

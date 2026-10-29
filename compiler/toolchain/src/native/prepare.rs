@@ -147,7 +147,7 @@ pub(super) fn prepare(
             command.args(["-E", "-dI", "-x", language.input_name()]);
         }
         crate::windows_native::dependencies(&mut command, kind, &depfile, "native-unit");
-        command.arg(dunce::simplified(&input));
+        crate::windows_native::input(&mut command, kind, &input);
         let output = command::run(&mut command, source.path().as_str())?;
         let dependencies = crate::windows_native::read_dependencies(kind, &depfile, "native-unit")?;
         if kind == NativeDriverKind::Msvc {

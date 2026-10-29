@@ -56,6 +56,16 @@ pub(crate) fn kind(driver: &Path) -> NativeDriverKind {
     }
 }
 
+pub(crate) fn input(command: &mut Command, kind: NativeDriverKind, path: &Path) {
+    let path = dunce::simplified(path);
+    // Use Clang's GNU argument parser for filenames so /Users is not /U.
+    if kind == NativeDriverKind::ClangCl {
+        command.arg(joined("/clang:", path));
+    } else {
+        command.arg(path);
+    }
+}
+
 pub(crate) fn command(
     c: &ValidatedCBridgeToolchainInvocation,
     driver: &Path,
@@ -158,10 +168,11 @@ pub(crate) fn discover(
     });
     dependencies(&mut compiler, kind, &depfile, "native-probe");
     if kind.microsoft() {
-        compiler.arg("/c").arg(&source).arg(joined("/Fo", &object));
+        compiler.arg("/c").arg(joined("/Fo", &object));
     } else {
-        compiler.arg("-c").arg(&source).arg("-o").arg(&object);
+        compiler.arg("-c").arg("-o").arg(&object);
     }
+    input(&mut compiler, kind, &source);
     let output = compiler.scoop_output().map_err(error)?;
     if !output.status.success() {
         return Err(error(format!(
