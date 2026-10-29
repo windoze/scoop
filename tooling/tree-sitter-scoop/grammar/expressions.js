@@ -143,7 +143,7 @@ module.exports = {
     prec(
       PREC.POSTFIX,
       seq(
-        field("function", $._expression),
+        field("function", choice($._expression, prec.dynamic(-1, $.user_type))),
         optional($.type_arguments),
         choice(
           $.arguments,
@@ -216,7 +216,7 @@ module.exports = {
       repeat(choice(";", seq($._statement, $._terminator))),
       "}",
     ),
-  lambda_parameters: ($) => seq(commaSep1($.lambda_parameter), "->"),
+  lambda_parameters: ($) => seq(commaSep($.lambda_parameter), "->"),
   lambda_parameter: ($) =>
     seq(
       field("name", $._binding_pattern),

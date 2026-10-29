@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
-import { errors, parser } from "./helpers.mjs";
+import { errors, parser, query } from "./helpers.mjs";
 
 after(() => parser.delete());
 
@@ -128,4 +128,57 @@ test("a prefix operator on the next line starts a new statement", () => {
       ["call_expression", "unary_expression"],
     );
   });
+});
+
+test("conditional conformances remain members of their generic type", () => {
+  check(
+    "struct Box<T> { override interface Equals<Box<T>> where T: Equals<T> { override fun equals(other: Box<T>): Boolean = true } }",
+    (root) => {
+      const members = root.descendantsOfType("conditional_conformance");
+      assert.equal(members.length, 1);
+      assert.equal(members[0].childForFieldName("type").text, "Equals<Box<T>>");
+      assert.equal(members[0].descendantsOfType("where_clause").length, 1);
+    },
+  );
+});
+
+test("get and set identifiers begin new statements after a newline", () => {
+  check(
+    "fun f() {\nval get = source\nval set = target\nget.clear()\nset.clear()\n}",
+    (root) => {
+      assert.equal(root.descendantsOfType("property_declaration").length, 2);
+      assert.equal(root.descendantsOfType("call_expression").length, 2);
+    },
+  );
+});
+
+test("a lambda can spell its empty parameter list", () => {
+  check("val f: () -> Int = { -> 42 }", (root) => {
+    const parameters = root.descendantsOfType("lambda_parameters");
+    assert.equal(parameters.length, 1);
+    assert.equal(parameters[0].namedChildCount, 0);
+  });
+});
+
+test("receiver function types in generic calls keep their callable highlight", async () => {
+  const source = "val info = typeInfo<String.(Int, Long) -> Boolean>().type";
+  const highlights = await query("highlights");
+  try {
+    check(source, (root) => {
+      const types = root.descendantsOfType("function_type");
+      assert.equal(types.length, 1);
+      assert.equal(types[0].childForFieldName("receiver").text, "String");
+      assert.equal(root.descendantsOfType("call_expression").length, 1);
+      assert.ok(
+        highlights
+          .captures(root)
+          .some(
+            ({ name, node }) =>
+              name === "function.call" && node.text === "typeInfo",
+          ),
+      );
+    });
+  } finally {
+    highlights.delete();
+  }
 });

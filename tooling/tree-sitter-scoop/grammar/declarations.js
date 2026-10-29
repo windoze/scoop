@@ -245,9 +245,21 @@ module.exports = {
   _member: ($) =>
     choice(
       $._declaration,
+      $.conditional_conformance,
       $.secondary_constructor,
       $.init_block,
       $.release_block,
+    ),
+  conditional_conformance: ($) =>
+    prec(
+      2,
+      seq(
+        "override",
+        "interface",
+        field("type", $._type),
+        $.where_clause,
+        $.class_body,
+      ),
     ),
   secondary_constructor: ($) =>
     prec.right(
@@ -277,7 +289,12 @@ module.exports = {
     seq(
       "{",
       repeat(seq($.enum_variant, choice(",", $._automatic_semicolon))),
-      repeat(choice(";", seq($._declaration, $._terminator))),
+      repeat(
+        choice(
+          ";",
+          seq(choice($._declaration, $.conditional_conformance), $._terminator),
+        ),
+      ),
       "}",
     ),
   enum_variant: ($) =>

@@ -4,11 +4,11 @@
 
 ## 选择输入形式
 
-| 形式 | 入口与规则 |
-| --- | --- |
-| 单文件 | `scoop run main.scoop --release` 只编译这个文件，不读取邻近 `Cone.toml` 或其他源码。默认依赖 core 和 std，名称仍需相应 import。 |
-| 可执行 Cone | `scoop run app --release` 或 `scoop run app/Cone.toml --release` 选择完整项目。默认从 `src/` 递归选择 `.scoop` 文件。 |
-| library Cone | `scoop build library --release` 产生库产物；通过库测试或真实消费者验证，不给库添加虚假 main 来运行。 |
+| 形式         | 入口与规则                                                                                                                      |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| 单文件       | `scoop run main.scoop --release` 只编译这个文件，不读取邻近 `Cone.toml` 或其他源码。默认依赖 core 和 std，名称仍需相应 import。 |
+| 可执行 Cone  | `scoop run app --release` 或 `scoop run app/Cone.toml --release` 选择完整项目。默认从 `src/` 递归选择 `.scoop` 文件。           |
+| library Cone | `scoop build library --release` 产生库产物；通过库测试或真实消费者验证，不给库添加虚假 main 来运行。                            |
 
 build/run/check/test/doc 省略输入时从当前目录向上查找最近的 `Cone.toml` 及其 workspace；成员目录默认选该成员，workspace 根使用 `default-members`。测试与文档要求 manifest Cone。已有项目直接修改；新项目可使用：
 
@@ -76,18 +76,18 @@ Git/GitHub 可指定 branch、tag 或 rev，最终完整 commit 写入 `Cone.loc
 
 ## 按目的选择命令
 
-| 目的 | 命令示例 | 结果与限制 |
-| --- | --- | --- |
-| 格式化 | `scoop fmt .` | 写回所选生产及测试源码；也可传多个 Cone 或显式文件。 |
-| CI 格式检查 | `scoop fmt . --check` | 不写源码，差异或错误退出 1。 |
-| 生产语义检查 | `scoop check . --release` | 检查前端及生产入口，不生成根机器产物；需要更新的源码依赖仍可能构建。 |
-| 测试语义检查 | `scoop check . --tests --release` | 检查生产和测试源码及生成的测试入口，不检查生产 main。 |
-| 编译／链接 | `scoop build . --release` | 完成当前 Cone 产物及可执行 Cone 的链接，`-o` 选择输出位置。 |
-| 仅生成产物 | `scoop build . --emit-slib --release` | 发布根 `.slib`，不准备 runtime 或执行最终链接；测试产物可再加 `--tests`。 |
-| 执行 | `scoop run . --release -- Alice --count 2` | `--` 后原样传给程序。程序的 `--help` 也放在分隔符后。 |
-| 测试 | `scoop test . --release` | 编译并运行 manifest Cone 的测试，保持测试依赖在 `[test-dependencies]`。 |
-| 选择测试 | `scoop test . --release --filter "zero count"` | 按完整测试名称的子串筛选；`--list` 列举，`--no-run` 仅构建，`--nocapture` 显示输出。 |
-| API 文档 | `scoop doc . --no-deps --deny-doc-warnings` | 生成所选根的离线文档；多根可同时传入，`--output-dir` 选择站点位置。 |
+| 目的         | 命令示例                                       | 结果与限制                                                                           |
+| ------------ | ---------------------------------------------- | ------------------------------------------------------------------------------------ |
+| 格式化       | `scoop fmt .`                                  | 写回所选生产及测试源码；也可传多个 Cone 或显式文件。                                 |
+| CI 格式检查  | `scoop fmt . --check`                          | 不写源码，差异或错误退出 1。                                                         |
+| 生产语义检查 | `scoop check . --release`                      | 检查前端及生产入口，不生成根机器产物；需要更新的源码依赖仍可能构建。                 |
+| 测试语义检查 | `scoop check . --tests --release`              | 检查生产和测试源码及生成的测试入口，不检查生产 main。                                |
+| 编译／链接   | `scoop build . --release`                      | 完成当前 Cone 产物及可执行 Cone 的链接，`-o` 选择输出位置。                          |
+| 仅生成产物   | `scoop build . --emit-slib --release`          | 发布根 `.slib`，不准备 runtime 或执行最终链接；测试产物可再加 `--tests`。            |
+| 执行         | `scoop run . --release -- Alice --count 2`     | `--` 后原样传给程序。程序的 `--help` 也放在分隔符后。                                |
+| 测试         | `scoop test . --release`                       | 编译并运行 manifest Cone 的测试，保持测试依赖在 `[test-dependencies]`。              |
+| 选择测试     | `scoop test . --release --filter "zero count"` | 按完整测试名称的子串筛选；`--list` 列举，`--no-run` 仅构建，`--nocapture` 显示输出。 |
+| API 文档     | `scoop doc . --no-deps --deny-doc-warnings`    | 生成所选根的离线文档；多根可同时传入，`--output-dir` 选择站点位置。                  |
 
 普通应用验证使用 release，已有项目的明确 profile 要求优先。选择其他 target 时先确认工具包及 native 环境确实支持它，使用 `--target <triple>`，不从规划文档推断已支持的平台。
 

@@ -15,22 +15,22 @@
 
 下面是配套库的查找入口，不是固定 API 清单；以当前安装根实际文件为准。
 
-| 需求 | Cone 与材料 |
-| --- | --- |
-| Option、值类型、基本容器、StringBuilder、资源协议 | `scoop.core`；`language/*`、`text/strings`、`collections/list` |
-| 编译期嵌入文件／目录、读取构建环境 | `scoop.core` 的 `scoop.compiler` package；`language/compiler-inputs` |
-| 集合算法、字典、字节／文本、日期与 Duration | `scoop.std`；`collections/map` 和库 `examples/` |
-| 文件、目录、系统资源、线程 | `scoop.platform`；`io/files`、`io/resources` |
-| 事件循环、任务、异步 I/O | `scoop.asyncio`；`async/tasks` |
-| JSON 与类型 codec | `scoop.json`；`json/typed` |
-| HTTP 请求、服务端、路由及流式交互 | `scoop.http.client`、`scoop.http.server`；`http/get` 及各库 README |
-| HTTP 协议与异步传输适配 | `scoop.http`、`scoop.http.asyncio`；仅在需要协议层时使用 |
-| 命令行参数与测试 | `scoop.cli`、`scoop.test`；`cli/options`、`test/assertions` |
-| 正则、URL、IDNA、字符集与压缩 | `scoop.regex`、`scoop.url`、`scoop.idna`、`scoop.charset`、`scoop.compression` 的 README／示例 |
-| 密码与 TLS | `scoop.crypto`、`scoop.tls`、`scoop.tls.asyncio` 的示例与 API 文档 |
-| 数学、大整数和十进制数 | `scoop.math` 的 README／示例 |
-| 日志与控制台 provider | `scoop.log`、`scoop.log.console` 的 README／示例 |
-| 终端、异步终端与交互行编辑 | `scoop.terminal`、`scoop.terminal.asyncio`、`scoop.readline` 的示例 |
+| 需求                                              | Cone 与材料                                                                                    |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Option、值类型、基本容器、StringBuilder、资源协议 | `scoop.core`；`language/*`、`text/strings`、`collections/list`                                 |
+| 编译期嵌入文件／目录、读取构建环境                | `scoop.core` 的 `scoop.compiler` package；`language/compiler-inputs`                           |
+| 集合算法、字典、字节／文本、日期与 Duration       | `scoop.std`；`collections/map` 和库 `examples/`                                                |
+| 文件、目录、系统资源、线程                        | `scoop.platform`；`io/files`、`io/resources`                                                   |
+| 事件循环、任务、异步 I/O                          | `scoop.asyncio`；`async/tasks`                                                                 |
+| JSON 与类型 codec                                 | `scoop.json`；`json/typed`                                                                     |
+| HTTP 请求、服务端、路由及流式交互                 | `scoop.http.client`、`scoop.http.server`；`http/get` 及各库 README                             |
+| HTTP 协议与异步传输适配                           | `scoop.http`、`scoop.http.asyncio`；仅在需要协议层时使用                                       |
+| 命令行参数与测试                                  | `scoop.cli`、`scoop.test`；`cli/options`、`test/assertions`                                    |
+| 正则、URL、IDNA、字符集与压缩                     | `scoop.regex`、`scoop.url`、`scoop.idna`、`scoop.charset`、`scoop.compression` 的 README／示例 |
+| 密码与 TLS                                        | `scoop.crypto`、`scoop.tls`、`scoop.tls.asyncio` 的示例与 API 文档                             |
+| 数学、大整数和十进制数                            | `scoop.math` 的 README／示例                                                                   |
+| 日志与控制台 provider                             | `scoop.log`、`scoop.log.console` 的 README／示例                                               |
+| 终端、异步终端与交互行编辑                        | `scoop.terminal`、`scoop.terminal.asyncio`、`scoop.readline` 的示例                            |
 
 ## JSON 与 DTO
 

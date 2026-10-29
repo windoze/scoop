@@ -1,4 +1,11 @@
-import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  realpath,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,7 +38,13 @@ await build({
   external: ["vscode"],
 });
 
-const temporary = await mkdtemp(path.join(os.tmpdir(), "scoop-vscode-test-"));
+const temporary = await mkdtemp(
+  // macOS's per-user temporary path can exceed Electron's Unix socket limit.
+  path.join(
+    await realpath(process.platform === "darwin" ? "/tmp" : os.tmpdir()),
+    "scoop-vscode-test-",
+  ),
+);
 const workspace = path.join(temporary, "workspace");
 await mkdir(path.join(workspace, ".vscode"), { recursive: true });
 await writeFile(
