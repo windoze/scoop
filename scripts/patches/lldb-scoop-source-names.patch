@@ -387,3 +387,37 @@
 +    return LLDB_INVALID_ADDRESS;
 +  return storage + (tls_file_addr - start);
 +}
+--- a/lldb/source/Symbol/SymbolFile.cpp
++++ b/lldb/source/Symbol/SymbolFile.cpp
+@@ -58,6 +58,9 @@
+     // iterate over all of them to find the best one for the job.
+ 
+     uint32_t best_symfile_abilities = 0;
++    // MinGW CRT objects can add DWARF to a program whose own debug info is PDB.
++    // Keep looking for a matching PDB before selecting those CRT-only units.
++    const bool prefer_pdb = objfile_sp->GetPluginName() == "pe-coff";
+ 
+     SymbolFileCreateInstance create_callback;
+     for (uint32_t idx = 0;
+@@ -68,12 +71,17 @@
+ 
+       if (curr_symfile_up) {
+         const uint32_t sym_file_abilities = curr_symfile_up->GetAbilities();
+-        if (sym_file_abilities > best_symfile_abilities) {
++        const bool is_pdb =
++            prefer_pdb && (curr_symfile_up->GetPluginName() == "native-pdb" ||
++                           curr_symfile_up->GetPluginName() == "pdb");
++        if (sym_file_abilities > best_symfile_abilities ||
++            (is_pdb && sym_file_abilities != 0)) {
+           best_symfile_abilities = sym_file_abilities;
+           best_symfile_up.reset(curr_symfile_up.release());
+-          // If any symbol file parser has all of the abilities, then we should
+-          // just stop looking.
+-          if ((kAllAbilities & sym_file_abilities) == kAllAbilities)
++          // A matching PDB owns PE debug info; otherwise retain the normal
++          // ability-based fallback without discarding existing DWARF.
++          if (is_pdb || (!prefer_pdb &&
++                         (kAllAbilities & sym_file_abilities) == kAllAbilities))
+             break;
+         }
+       }

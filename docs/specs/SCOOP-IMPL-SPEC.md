@@ -2055,6 +2055,8 @@ generated-C 桥没有用户源码映射，继续使用 `-g0`，通过实际符�
 
 Windows 的 `bin/scoop-lldb.exe` 与 `bin/scoop-lldb-dap.exe` 使用原生 launcher，定位安装根下的私有 LLDB、Python 和 formatter，并保留用户参数、工作目录、标准流及子进程退出码。LLDB 的 Clang resource headers 与其 DLL 按相对安装布局一同发布，使迁移安装目录后的表达式解析仍可使用配套头文件。
 
+随包 LLDB 为 PE 优先选择已匹配的 PDB；LLVM-MinGW CRT 自带的 DWARF 不能遮蔽程序的 CodeView／PDB 源码、类型和变量。没有匹配 PDB 时仍使用可用的 DWARF 或普通符号，不删除链接输入中的其他调试节，也不改变非 PE 的符号格式选择。
+
 Windows PDB 的 procedure 源码名称用于调试器显示，原生符号名仍保留用于地址关联。调试类型中的 `uintptr_t` 使用目标指针宽度的无符号整数编码；零长度数组和零大小成员保留其实际类型及偏移，不为调试增加 payload。PDB reader 推导的匿名 union 视图由只读 formatter 按原成员读取，不执行目标代码。
 
 Windows/x86_64 的 PDB TLS 位置按选中线程的 TEB、模块 PE TLS index 和变量在模板中的偏移解析到该线程的实际存储，不把初始化模板当作变量值。无法取得对应线程或模块 TLS 时显示 unavailable；调试器不调用目标函数来查询 TLS。

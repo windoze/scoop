@@ -158,6 +158,8 @@ Darwin 对最终文件重新签名，保留 debugserver 的 entitlements。
 `bin/scoop-lldb` 和 `bin/scoop-lldb-dap` 通过相对安装根设置 Python 与 helper 路径，`scoop-lldb` 自动加载 formatter。
 Windows 对应的入口是 `bin/scoop-lldb.exe` 和 `bin/scoop-lldb-dap.exe`，由原生启动程序设置随包 Python 路径，保留 Unicode 参数、标准流与子进程退出码；无需 POSIX shell。Windows LLDB 与宿主 LLVM 使用同一个 LLVM-MinGW UCRT C/C++ 工具链，独立运行 `build_lldb.py` 时以 `--cc`／`--cxx` 指定它。维护构建需 SWIG 4、Python 开发文件和 Ninja；应用使用发行包无需这些构建工具。
 
+随包 LLDB 优先使用 PE 的匹配 PDB，避免 LLVM-MinGW CRT 的 DWARF 遮蔽 Scoop 程序的调试信息；没有匹配 PDB 时保留 DWARF 回退。相关修正在 `patches/lldb-scoop-source-names.patch`，与源码名称、类型布局和线程 TLS 修正一起应用。
+
 本地调试器专项验证使用启用 Python 的真实 LLDB 构建：将打包目录移动到含空格的路径，
 以仅保留系统 PATH 的环境启动 LLDB，验证 formatter、Python 标准模块和动态库加载。
 未移走或隐藏原工具；通过 dyld 加载记录确认没有引用原 Homebrew／构建目录的私有动态库。

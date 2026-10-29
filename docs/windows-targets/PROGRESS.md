@@ -40,6 +40,8 @@ Windows 主驱动的安装名为 **`sco.exe`**，帮助和版本信息使用 `sc
 
 ABI 30 的程序级栈诊断开关通过 Windows UTF-16 入口原样传递，release 默认关闭、debug 默认开启，显式设置覆盖默认值。四种原生链接组合验证开／关参数、Unicode、PE／PDB 与 trap；6 项 runtime ABI、3 项开关默认值／CLI 测试、workspace Clippy 和 70 项 fixture runner 规则测试（3 项宿主跳过）通过。完整资源重建前保留此前测试产物，新资源位于独立外部目录，复用未变化的 native 后端。
 
+ABI 30 的默认 MSVC 目标已通过 13 项定向 fixture，覆盖开关与重链接、Throwable 历史／并发／GC、三种调试级别、Unicode 启动参数、PDB、RC、subsystem、native DLL 数据、终端及四种编译期输入。两个缺少配套库的用例在准备 platform／terminal 后定向复测通过。两个 MinGW target 各 11 项公共组合也已通过，终端／并发组合继续验收。
+
 合并后的 12 项 Windows toolchain 测试、8 项 Windows codegen 测试和 4 项通用调试元数据测试通过。C 桥额外覆盖三个 target 的 debug／release 展开 atom 与真实执行；PE 链接覆盖 LLD／LINK、Unicode 参数、相邻 PDB、CRT 和新的 trap 栈输出。导入 callable／constructor 的声明位置进入共享调试记录，当前／导入来源经 HIR→MIR、Unicode／CRLF 坐标及泛型 constructor 回归通过。fixture runner 当前 70 项规则测试完成，其中 3 项按宿主跳过。
 
 编译期输入主线整合后，47 项协议、11 项产物固定向量、7 项缓存键及 8 项 Windows codegen 测试通过。Windows 环境输入覆盖缺失、空值、Unicode 和无效 UTF-16；child 复用原有 Windows 工具环境，并保留调用者的 `SCOOP_*` 值。macOS 打包采用主线修正后的 Rust 默认 CPU baseline，Windows 宿主命名和 target 选择保持独立。
@@ -83,6 +85,8 @@ PCRE2 10.49、OpenSSL 3.5.9、uriparser 1.0.2、Rust 文本后端、Zstandard、
 所有宿主公开 `bin` 中的 LLVM／LLDB 命令统一带 `scoop-` 前缀；编译器相邻调试工具查找、VS Code 默认 adapter、性能分析脚本与文档已同步。Windows 主驱动仍为 `sco.exe`，其他宿主仍为 `scoop`。Windows launcher 的 Unicode／空格路径迁移、参数、环境、退出码及公开文件名集合通过真实子进程验证；POSIX launcher 用例按宿主跳过。VS Code 16 项测试、相关源码 lint／类型检查、workspace Clippy、7 项性能分析规则和 4 项 DLL 打包测试通过，VSIX 已重新生成；整个 tooling 的 Markdown 格式检查仍有既有差异。
 
 真实调试器包迁移到中文与空格目录、仅保留发行 bin 和 Windows 系统 PATH 后，6 个 LLVM 命令、LLDB 的私有 Python／原生模块／formatter 与 DAP initialize 均通过。MSVC/PDB 完整 launch 会话的源码映射、函数名、断点／单步、参数、全局／修改后的 TLS、String／数组／enum／对象、闭包及 moving GC 引用检查通过；离线原生符号名／源码名断点与真实类型布局检查通过。修复 CodeView 的 uintptr 编码、PDB reader 的零大小字段丢失和 TLS 模板误读；CodeView 无法描述的部分计算值／聚合分片仍显示 unavailable，不加入调试专用存储或保活。4 项后端调试测试与 workspace Clippy 通过。
+
+ABI 30 的三个 target 均通过上述真实 DAP launch 与离线 formatter 检查。MinGW CRT 同时携带 DWARF 时，LLDB 现在优先选择程序匹配的 PDB，解决源码断点与变量被 CRT 调试单元遮蔽的问题。真实混合格式程序、普通 MSVC/PDB 程序及只有 DWARF 的 PE 均通过；不删除调试节，不改变非 PE 的选择。上游补丁通过干净源码应用检查及 C++ 格式化，配套 LLDB 已重新构建。
 
 首个归档已解压到中文及空格路径。在仅含安装 bin 和 Windows 系统目录的 PATH 下，三个目标的默认 SDK／工具发现、new/run/test、C++、console／GUI 和 RC 均通过；检查实际 PE imports 确认所选 CRT。随后修复了 canonical native sysroot 路径，并用更新的程序完成实际安装目录回归。该原型归档不是最终发行物。
 
