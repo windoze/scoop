@@ -59,6 +59,8 @@ TextInputBatch 保存可选 baseRevision 与有序的 TextInputOperation 数组�
 
 批次开始时核对 baseRevision，按顺序在临时文本上解释范围，整批通过后发布一次新快照。任何范围或 revision 失效均拒绝整批并重新同步，不能部分应用；原生协议 serial 独立于编辑器 revision。普通 CurrentSelection Commit 不因没有 surrounding 快照而丢失。IME 目的统一 Normal／Password／Terminal，平台不能完全满足某种 purpose 时仅作为建议，不改变实际文本的编码。
 
+`TextInputState.apply(batch)` 提供上述字节编辑规则的纯值实现，供输入归一和应用同步快照使用，不承担文档布局。CurrentSelection 在存在 marked range 时替换组合文本，否则替换 selection；ClearPreedit 只清除 marked 标记。Preedit 插入后设置 marked range，并把相对 selection 平移到新文本；Commit 清除组合，光标落在插入末尾。DeleteSurrounding 删除 selection 之前／之后指定字节，保留选区正文与活动端方向，清除组合标记。成功批次统一使 revision 加一，空批次保持原值；过期 revision 报 IllegalStateException，非法范围、尺寸或 revision 溢出报 IllegalArgumentException，原快照保持不变。
+
 Pointer 区分位置、按钮、进入／离开、滚轮；滚轮区分行／像素并保留相位。raw motion 是设备单位；Touch 含 contact id、phase 和可选压力；Gesture 只报告原生手势。DeviceId 不可得时为 None。失焦清理组合与按下状态，必要的补发 release 标记 synthetic。
 
 光标模式为 None／Confined／Locked，warp 与相对输入分离；custom cursor 的 RGBA 与 hotspot 在创建时复制。移动／resize／系统窗口菜单请求需要有效输入上下文的平台，由后端保留原生 serial 并核对，不能靠定时回调伪造用户操作。

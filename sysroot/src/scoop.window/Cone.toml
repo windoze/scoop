@@ -1,0 +1,23 @@
+schema = 1
+
+[cone]
+group = "scoop"
+name = "scoop.window"
+version = "0.1.0"
+kind = "library"
+
+[[sources]]
+path = "src"
+when = { os = "darwin" }
+
+[[test.sources]]
+path = "tests"
+when = { os = "darwin" }
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+"scoop:scoop.platform" = "0.1.0"
+
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"

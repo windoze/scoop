@@ -101,7 +101,9 @@ LLVM 源码与归档优先复用 vendor 的固定版本位置；缺失时在工�
 
 脚本读取宿主命令的实际动态依赖，将所需非系统库复制到 `libexec/llvm/lib`，为实际引用这些私有库的 Darwin 文件设置相对加载路径。目标资源和许可说明按实际组件收集；归档在完整写入后才替换同名文件。安装方法、系统开发环境要求及升级说明随包放在 `share/scoop`。
 
-文档使用本次配套 `scoop`／`scoopc`，显式选择 `sysroot/src/*/Cone.toml` 的全部生产库，以 `--no-deps --deny-doc-warnings` 为每个发行目标生成共同站点。嵌套测试／辅助 Cone 不进入发行清单。工作目录下的 `documentation/<target>`、`doc-target` 和普通 `cache` 保留更新结果；重复打包复用未变化的文档，随后复制到组装目录。站点更新记录只保留在工作目录，不放入发行包。所有目标的文档成功后才开始归档，文档失败保留上一次完整归档。
+构建与文档共用 `sysroot/src/*/Cone.toml` 的目标生产清单：显式非空 `sources` 中至少一项满足该目标的条件才进入清单；缺省或显式空表仍由编译器处理。选中库依赖该目标未提供的内置库时报告错误。只有 Darwin 源码的窗口 Cone 因此不进入 Linux 发布资源，不需要空后端。
+
+文档使用本次配套 `scoop`／`scoopc`，显式选择上述目标清单，以 `--no-deps --deny-doc-warnings` 为每个发行目标生成共同站点。嵌套测试／辅助 Cone 不进入发行清单。工作目录下的 `documentation/<target>`、`doc-target` 和普通 `cache` 保留更新结果；重复打包复用未变化的文档，随后复制到组装目录。站点更新记录只保留在工作目录，不放入发行包。所有目标的文档成功后才开始归档，文档失败保留上一次完整归档。
 
 安装根的 `docs/index.html` 提供目标选择，具体站点位于 `docs/<canonical-target-triple>/`。Darwin 包包含 Darwin 站点；Linux 包包含 GNU／musl 两个站点。源码原文嵌入 HTML，搜索和资源均在本地；`.slib` 不保存完整源码。手工验收时检查解压后的目标及库清单、跨库链接、源码页、离线搜索与重复生成的复用情况；详细范围见 [M60 设计](../docs/milestone60/DESIGN.md)。
 

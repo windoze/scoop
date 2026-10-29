@@ -1,0 +1,100 @@
+package scoop.window
+
+import scoop.test.*
+
+private fun edits(vararg operations: TextInputOperation): TextInputBatch =
+    TextInputBatch(None, operations)
+
+@Test
+private class TextInputTest {
+    @Test
+    fun `compose and commit retain one insertion channel and advance once`() {
+        val state = TextInputState("a中😀z", Utf8Selection(8L, 1L), revision = 7L)
+        val batch =
+            edits(
+                TextInputOperation.Preedit(
+                    "你好",
+                    Some(Utf8Selection(6L, 0L)),
+                    TextReplacement.CurrentSelection
+                ),
+                TextInputOperation.Commit("好😀", TextReplacement.CurrentSelection)
+            )
+        val result = state.apply(batch)
+        assertEquals("a好😀z", result.surroundingText)
+        assertEquals(Utf8Selection(8L, 8L), result.selection)
+        assertEquals(8L, result.revision)
+        assertTrue(result.markedRange == None)
+        assertEquals("a中😀z", state.surroundingText)
+        assertEquals(Utf8Selection(8L, 1L), state.selection)
+    }
+    @Test
+    fun `surrounding deletion preserves the selected bytes and selection direction`() {
+        val state = TextInputState("a中😀z", Utf8Selection(8L, 4L))
+        val result = state.apply(edits(TextInputOperation.DeleteSurrounding(3L, 1L)))
+        assertEquals("a😀", result.surroundingText)
+        assertEquals(Utf8Selection(5L, 1L), result.selection)
+    }
+    @Test
+    fun `later operations use the temporary text rather than the old snapshot`() {
+        val state = TextInputState("xyz", Utf8Selection(1L, 1L))
+        val result =
+            state.apply(
+                edits(
+                    TextInputOperation.Commit("中文", TextReplacement.CurrentSelection),
+                    TextInputOperation.Commit("😀", TextReplacement.Range(Utf8Range(4L, 7L)))
+                )
+            )
+        assertEquals("x中😀yz", result.surroundingText)
+        assertEquals(1L, result.revision)
+    }
+    @Test
+    fun `invalid later edits reject the entire batch without modifying the snapshot`() {
+        val state = TextInputState("中z", Utf8Selection(3L, 3L), revision = 2L)
+        assertFailsWith<IllegalArgumentException> {
+            state.apply(
+                edits(
+                    TextInputOperation.Commit("x", TextReplacement.CurrentSelection),
+                    TextInputOperation.Commit("!", TextReplacement.Range(Utf8Range(1L, 2L)))
+                )
+            )
+        }
+        assertEquals("中z", state.surroundingText)
+        assertEquals(2L, state.revision)
+        assertFailsWith<IllegalArgumentException> {
+            state.apply(edits(TextInputOperation.DeleteSurrounding(1L, 0L)))
+        }
+    }
+    @Test
+    fun `stale revisions and invalid snapshots are explicit errors`() {
+        val state = TextInputState("😀", Utf8Selection(4L, 4L), revision = 9L)
+        val operations =
+            edits(TextInputOperation.Commit("x", TextReplacement.CurrentSelection)).operations
+        assertFailsWith<IllegalStateException> { state.apply(TextInputBatch(Some(8L), operations)) }
+        assertFailsWith<IllegalArgumentException> {
+            TextInputState("😀", Utf8Selection(2L, 4L)).validate()
+        }
+        assertFailsWith<IllegalArgumentException> {
+            TextInputState("", Utf8Selection(0L, 0L), revision = 9223372036854775807L).apply(
+                TextInputBatch(None, operations)
+            )
+        }
+        assertEquals(9L, state.apply(edits()).revision)
+    }
+    @Test
+    fun `preedit offsets preserve the active end and batches copy their input list`() {
+        val operations = ArrayList<TextInputOperation>()
+        operations.add(
+            TextInputOperation.Preedit(
+                "中😀",
+                Some(Utf8Selection(7L, 3L)),
+                TextReplacement.CurrentSelection
+            )
+        )
+        val batch = TextInputBatch(None, operations)
+        operations.clear()
+        val result = TextInputState("ab", Utf8Selection(1L, 1L)).apply(batch)
+        assertEquals("a中😀b", result.surroundingText)
+        assertEquals(Utf8Selection(8L, 4L), result.selection)
+        assertEquals(Some(Utf8Range(1L, 8L)), result.markedRange)
+    }
+}

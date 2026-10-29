@@ -1,0 +1,89 @@
+package scoop.window
+
+/** A half-open UTF-8 byte range. Operations validate bounds and character boundaries. */
+public struct Utf8Range(val start: Long, val end: Long)
+
+/** Selection endpoints preserve the anchor and active cursor direction. */
+public struct Utf8Selection(val anchor: Long, val cursor: Long) {
+    public val range: Utf8Range get() =
+        if (anchor <= cursor)
+            Utf8Range(anchor, cursor)
+        else
+            Utf8Range(cursor, anchor)
+}
+
+/** The purpose of native text input; Password never publishes document contents. */
+public enum ImePurpose {
+    Normal, Password, Terminal
+}
+
+/** Replacement coordinates refer to the temporary text after preceding batch operations. */
+public enum TextReplacement {
+    CurrentSelection, Range(Utf8Range)
+}
+
+/** One ordered edit within a native input transaction. */
+public enum TextInputOperation {
+    ClearPreedit,
+    Preedit(val text: String, val selection: Utf8Selection?, val replacement: TextReplacement),
+    Commit(val text: String, val replacement: TextReplacement),
+    DeleteSurrounding(val beforeBytes: Long, val afterBytes: Long)
+}
+
+/** An owned, ordered edit transaction against an optional editor revision. */
+public class TextInputBatch public constructor(
+    public val baseRevision: Long?,
+    operations: List<TextInputOperation>
+) {
+    public val operations: Array<TextInputOperation> = operations.toArray()
+}
+
+/** Text has exactly one insertion channel, including ordinary printable keys. */
+public enum TextInputEvent {
+    Enabled, Disabled, Edit(TextInputBatch)
+}
+
+/** The editor's immutable UTF-8 snapshot used to answer synchronous native IME queries. */
+public struct TextInputState(
+    val surroundingText: String,
+    val selection: Utf8Selection,
+    val markedRange: Utf8Range? = None,
+    val caretRect: LogicalRect = LogicalRect(LogicalPosition(0.0, 0.0), LogicalSize(0.0, 0.0)),
+    val revision: Long = 0L
+) {
+    /** Validates the complete snapshot, including both directional selection endpoints. */
+    public fun validate() {
+        requireWindow(revision >= 0L, "negative text revision")
+        val bytes = surroundingText.toByteArray()
+        checkTextRange(bytes, selection.range)
+        when (markedRange) {
+            case Some(range) -> checkTextRange(bytes, range);
+            case None -> {}
+        }
+        checkRect(caretRect)
+    }
+    /** Applies one transaction atomically to a new value; this snapshot remains unchanged. */
+    public fun apply(batch: TextInputBatch): TextInputState = applyTextBatch(this, batch)
+}
+
+internal fun checkTextRange(bytes: Array<Byte>, range: Utf8Range) {
+    requireWindow(
+        range.start >= 0L && range.start <= range.end && range.end <= bytes.size,
+        "invalid UTF-8 range"
+    )
+    requireWindow(
+        textBoundary(bytes, range.start) && textBoundary(bytes, range.end),
+        "range splits a UTF-8 character"
+    )
+}
+
+private fun textBoundary(bytes: Array<Byte>, offset: Long): Boolean =
+    offset == bytes.size || bytes[offset].toInt().and(192) != 128
+
+internal fun textSlice(text: String, range: Utf8Range): String {
+    val bytes = text.toByteArray()
+    checkTextRange(bytes, range)
+    return String.fromUtf8(
+        Array<Byte>(range.end - range.start) { index -> bytes[range.start + index] }
+    )
+}

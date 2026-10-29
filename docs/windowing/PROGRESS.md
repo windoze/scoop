@@ -23,3 +23,11 @@
 - 同步窗口规范中已过时的文本编辑批次、native lease 与跨 Cone 宿主接口；Linux／其他后端不属于本阶段。
 
 验证：workspace fmt／clippy 通过；manifest／protocol／toolchain 共 176 个 Rust 测试通过，linker 测试通过；fixture runner 公共规则测试通过。Objective-C 3 个 fixture、4 个变体、12 次真实进程调用通过，覆盖 debug／release、ARC 弱引用、AppKit／Foundation、混合 C、直接复用、flags 变化及错误位置。现有 native C++ 10 个适用 fixture（13 个变体、40 次进程调用）通过；其余 3 个目标不适用项未计为通过。开发 sysroot 的 25 个 Cone 与 runtime 已显式准备。
+
+### 2. 普通窗口 Cone 的值基础
+
+- 新增 `scoop.window`，提供独立实体 id、窗口错误／状态／能力类型、逻辑与物理坐标、完整 metrics，以及向上取整与溢出检查。
+- 文本输入提供带方向的 UTF-8 选区、快照、有序编辑批次及纯值应用；整批校验、一次 revision 更新，覆盖临时文本范围、组合替换与 surrounding 删除。
+- sysroot 维护构建与文档共用目标源码清单；Darwin 专用 Cone 不进入 Linux 清单，依赖不可用仍正常报错，不增加编译器配置或平台空实现。
+
+验证：Scoop 格式化／check 通过，所属 Cone 的 9 个 release 测试通过；Ruff 0.16.10 格式化／lint 通过，脚本的 12 个测试通过。AppKit 后端与应用对象尚在下一批实施。
