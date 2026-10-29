@@ -50,7 +50,7 @@ name = "human"
 argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/pipe.scoop", "-o", "${work}/previous.slib", {"each" = "${human_options}"}]
 exit = 1
 stdout = ""
-stderr = "${work}/pipe.scoop: error[SCOOP_CLI_CONFIG]: invalid current Cone operand ${work}/pipe.scoop: operand must resolve to a directory or regular file\n"
+stderr = "${work}/pipe.scoop: error[SCOOP_CLI_CONFIG]: invalid single-file input ${work}/pipe.scoop: resolved input is not a regular file\n"
 checks = [
   {"file" = "${work}/previous.slib", "equals" = "previous output\n"},
 ]

@@ -803,7 +803,7 @@ scoop build [root-input] --emit-slib [--tests] [-o output.slib]
 单Cone编译输入为两种封闭形式；workspace在PM层展开成多个已绑定Cone，不成为第三种语言编译单元：
 
 - ExpandedCone：PM已从Cone.toml展开workspace与依赖，scoop传入单Cone身份、kind、生产/测试源码及native配置、精确依赖和诊断来源。scoopc不定位或解析Cone.toml。未配置`sources`时递归扫描`src/`；显式配置按语言规范12.2.2选择当前target的源码，不追加默认目录。目录只收集扩展名精确为`.scoop`的regular files，也可显式选择单个`.scoop`文件；最终按标准化Cone-relative UTF-8路径排序。
-- SingleFile：operand 扩展名精确为 `.scoop`，解析 symlink 后为存在的 regular file。只编译该文件，logical path 固定 main.scoop；不读取相邻 manifest、Scoop/C/C++ source 或 blob。
+- SingleFile：operand 扩展名精确为 `.scoop`，解析 symlink 后为存在的 regular file。目录输入始终按 manifest／workspace 定位，即使目录名以 `.scoop` 结尾。只编译该文件，logical path 固定 main.scoop；不读取相邻 manifest、Scoop/C/C++ source 或 blob。
 `scoop build --emit-slib`保留完整PM/lock准备、依赖编译、native对象生产及根`.slib`发布，跳过runtime和最终链接，用于分离产物编译与程序链接。`--tests`仅与此选项共用，编译Test用途的根产物；默认Production。输出规则见包管理规范7.2，输出意图不改变编译键；后续普通build复用相同产物再链接，不把executable Cone伪装为library。
 
 

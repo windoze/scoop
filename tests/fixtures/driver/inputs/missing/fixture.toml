@@ -42,7 +42,7 @@ name = "human"
 argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/missing.scoop", "-o", "${work}/previous.slib", {"each" = "${human_options}"}]
 exit = 1
 stdout = ""
-stderr = "${work}/missing.scoop: error[SCOOP_CLI_CONFIG]: invalid current Cone operand ${work}/missing.scoop: cannot inspect: No such file or directory (os error 2)\n"
+stderr = "${work}/missing.scoop: error[SCOOP_CLI_CONFIG]: invalid single-file input ${work}/missing.scoop: cannot canonicalize: No such file or directory (os error 2)\n"
 checks = [
   {"file" = "${work}/previous.slib", "equals" = "previous output\n"},
 ]

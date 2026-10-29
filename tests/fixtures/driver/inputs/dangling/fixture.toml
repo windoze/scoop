@@ -43,7 +43,7 @@ name = "human"
 argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/dangling.scoop", "-o", "${work}/previous.slib", {"each" = "${human_options}"}]
 exit = 1
 stdout = ""
-stderr = "${work}/dangling.scoop: error[SCOOP_CLI_CONFIG]: invalid current Cone operand ${work}/dangling.scoop: cannot inspect: No such file or directory (os error 2)\n"
+stderr = "${work}/dangling.scoop: error[SCOOP_CLI_CONFIG]: invalid single-file input ${work}/dangling.scoop: cannot canonicalize: No such file or directory (os error 2)\n"
 checks = [
   {"file" = "${work}/previous.slib", "equals" = "previous output\n"},
 ]
