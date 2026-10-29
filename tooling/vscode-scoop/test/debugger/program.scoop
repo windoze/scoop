@@ -1,3 +1,6 @@
+private var counter: Long = 40L
+@ThreadLocal private var threadCounter: Long = 2L
+
 interface Value { fun number(): Long }
 class Box(val value: Long) : Value {
     public override fun number(): Long = value
@@ -35,6 +38,7 @@ fun makeCallback(offset: Long): (Long) -> Long = { value ->
     adjusted + 1L
 }
 fun main(): Int {
+    if (counter + threadCounter != 42L) return 2
     val text = makeText("llo")
     val values = MutableArray<Long>(3L) { index -> index + 10L }
     val box = Box(20L)

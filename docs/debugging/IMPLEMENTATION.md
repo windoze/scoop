@@ -77,3 +77,5 @@ VS Code 0.3.0 已接通 Scoop debug type、源码断点注册、build／launch�
 旧 `--emit-symbol-map`、map 输出字段与性能 map parser 已移除。性能工具通过 LLVM JSON 读取相邻 dSYM／ELF debug file，保留精确 linkage 身份、行号与 inline 链，Darwin 自动计算 ASLR slide，Linux 地址查询接受实际 load bias。最终 DWARF 的 line-tables 模式保留函数 linkage（LLVM 的 LineTablesOnly 会省略它），仍不发射类型和变量。LLVM 22 会优先采用 executable 中残留的符号，因此离线工具优先把匹配的独立调试文件交给标准 reader，避免 C 入口覆盖后续函数名。
 
 本地 23 项性能脚本测试、20 项 CLI 参数测试、六组合 DWARF 对象／statepoint 专测与真实链接器符号裁剪测试通过。两个正式 CLI／缓存 fixture 共 36 个进程步骤通过，覆盖伴随文件恢复、basename 相同的跨目录发布、真实源码更新与独立链接。真实 stripped release 程序在 line-tables 下可从 dSYM 解析准确函数／源行，零和非零 load bias 均通过；程序输出正确。发行增加实际消费者所需的 llvm-nm／llvm-readobj，独立复制与依赖重定位后可从系统 PATH 环境运行。旧链接测试助手改用正常 scoop 项目入口及预编译 core/runtime，避免重复重建与失效的 scoopc Cone.toml 调用。
+
+补充可重复的 DAP 验证入口，直接消费显式构建的 Scoop 程序，覆盖 launch、sourceMap、断点／单步、变量分页、全局／TLS、closure，以及终端和 Linux attach。客户端只为本次目标授权本次 adapter，协议日志指定到仓库外。本机真实打包后的 lldb-dap 握手通过；两个验证程序编译及运行通过，full + GC stress 程序和真实 DWARF formatter 离线用例通过。进程内断言将在最后 Linux 阶段执行，不将握手或离线检查计作 DAP 功能通过。

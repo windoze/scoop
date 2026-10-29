@@ -76,7 +76,7 @@ npm run build
 npm test
 npm run test:vscode
 npm run package
-code --install-extension vscode-scoop/scoop-language-support-0.2.0.vsix
+code --install-extension vscode-scoop/scoop-language-support-0.3.0.vsix
 ```
 
 `npm test` 包含 Tree-sitter grammar 与扩展单元测试；只运行扩展单元测试可使用
