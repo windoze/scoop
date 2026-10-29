@@ -4,6 +4,8 @@
 
 发行配置集中在 `release.toml`。当前 Darwin 基线为 macOS 27.0.1／SDK 27.0，Linux 构建环境为 Ubuntu 26.04.1、glibc 2.43／musl 1.2.5；只在相应环境完成验证后声明支持，不推定更老系统可用。LLVM 固定 22.1.8，CPU 使用 AArch64 generic／x86-64。工具构建时写入默认 Darwin 最低版本，普通命令的 `MACOSX_DEPLOYMENT_TARGET` 覆盖贯通 Scoop 对象、C bridge、native、runtime 与最终链接；预编译 runtime 的最低版本仍必须兼容。OpenSSL 准备使用同一设置。
 
+宿主 Rust 命令保留 rustc 对应目标的默认 CPU 基线，Darwin/AArch64 使用 Apple Silicon 平台特性，Linux/amd64 使用 x86-64；Scoop backend 的 generic CPU 设置不传给宿主 Cargo 构建，以免移除 Apple 平台依赖所需的 AES／SHA2 等特性。
+
 五个命令（`scoop`、`scoopc`、`scoop-link`、`scoop-lsp`、`scoop-pm`）的 `--version` 显示相同发行版本与源码 revision。开发构建读取默认版本和当前 Git revision；发行构建显式设置 `SCOOP_RELEASE_VERSION` 与 `SCOOP_SOURCE_REVISION`，不在运行时读取 Git 或发行清单。
 
 `build_llvm.py` 从 [固定的 LLVM 22.1.8 上游输入](../sysroot/vendor/llvm-project/22.1.8/README.md) 构建宿主 LLVM／Clang 动态库，仅启用 AArch64／X86 后端，并安装 Rust／LLDB 构建所需的 llvm-config、头文件、Clang resources 和 CMake 资料，以及 dsymutil、llvm-objcopy、llvm-strip、llvm-symbolizer、llvm-nm、llvm-readobj。关闭未使用的压缩、XML、编辑器、HTTP 和插件依赖，不移除 GC／EH 或 statepoint 后端。默认工作位置为 `tmp/llvm/<host>`，可用 `--source`、`--build-dir`、`--prefix` 选择其他位置。
@@ -57,6 +59,8 @@ python3 scripts/prepare_sysroot.py \
 `package_toolchain.py` 是完整安装包的唯一入口：取得固定 LLVM 输入、按 lockfile 构建 VS Code 扩展、构建 LLVM、五个 release 宿主命令与独立的 scoop-example、准备该宿主支持的全部 native／slib／runtime 资源、为全部内置库生成 API 文档，随包复制 Scoop 编程 skill，最后生成工具包与 LLVM 源码包。无需事先逐个执行其他准备或扩展打包脚本。默认工作位置为 `tmp/package/<host>`，归档位于 `tmp/dist`；用 `--work-dir`、`--output-dir` 可选择外置盘目录。脚本不自动运行测试。
 
 构建机需要 Python 3.12+ 及其开发文件、SWIG 4、Ninja、Rust/Cargo、C/C++ 开发工具链、CMake、Make、Perl、Node.js 22.18+ 和 npm。npm 依赖、首次缺失的 LLVM 归档以及 Tree-sitter WASM 工具链需要联网取得；其余 native 上游输入已在 vendor 中。已有 WASI SDK／Binaryen 可按 [tooling 说明](../tooling/README.md) 选择。
+
+`--vscode-extension /path/to/scoop-language-support-<version>.vsix` 可复用已经构建的当前扩展，跳过 npm 安装和扩展构建；未指定时仍自动构建。这样重试工具链打包时无需重新下载 Tree-sitter CLI。
 
 ```sh
 python3 scripts/package_toolchain.py --jobs 6

@@ -22,6 +22,8 @@ backend contract 使用 LLVM 22.1、LLVM stackmap v3 和本规范的 GC/EH 约�
 
 仓库的 `scripts/release.toml` 记录发行所用 LLVM 精确版本、系统与 CPU 基线。构建宿主命令时将默认 Darwin 部署版本编入工具；普通命令不读取打包配置或发行清单。`MACOSX_DEPLOYMENT_TARGET` 可为一次编译／链接选择明确的 `major.minor[.patch]`，非法值必须诊断。未覆盖时使用编入的基线，不查询运行机器的系统版本。所选最低版本贯通 LLVM 对象、generated-C、用户 native、runtime 和最终链接，进入原有生产配置与更新键；SDK 版本继续只记录实际 SDK。Linux 使用既有 x86-64 CPU 基线和所选 libc 工具链，发行最低 libc 版本由对应构建／验证环境确定，不能仅靠一个版本参数降低实际动态依赖。
 
+宿主 Rust 命令使用 rustc 对应目标的默认 CPU 基线，不使用构建机器的 native CPU，也不以 Scoop backend 的 `generic` 配置覆盖平台必需特性；Darwin/AArch64 因而保留 Apple Silicon 的 AES／SHA2 等平台特性，Linux/amd64 仍使用 x86-64 基线。
+
 三个宿主命令的 `--version` 使用同一份构建版本与源码 revision。维护脚本显式设置发行版本和 revision，普通开发构建使用仓库默认版本及当前 Git revision；源码归档没有 Git 信息时明确显示 revision 未提供。版本文本不替代配套工具的协议协商或产物兼容判断。
 
 Linux GNU 直接执行所选 GCC driver，不注入 musl wrapper 专用的 `REALGCC`；musl 将显式 `REALGCC` 或 PATH 中的 gcc 作为 wrapper 的实际 compiler。两者均通过真实 header/object probe 检查 libc 与机器，误选另一 libc 的 driver 必须得到不匹配诊断。
