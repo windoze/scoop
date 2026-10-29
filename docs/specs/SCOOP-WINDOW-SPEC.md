@@ -1,10 +1,10 @@
 # Scoop 桌面窗口库规范
 
-状态：基础架构与 macOS GUI 骨架已实现。日期：2026-10-30。本文件描述普通 Cone `scoop.window` 与 `scoop.window.asyncio` 的当前合同及后续平台设计方向；实际交付与验证范围见[实施记录](../windowing/PROGRESS.md)。依据 [设计](../windowing/DESIGN.md)与 [winit 能力映射](../windowing/WINIT-MAPPING.md)。
+状态：基础架构与 macOS GUI 骨架已实现，Linux 阶段实施中。日期：2026-10-30。本文件描述普通 Cone `scoop.window` 与 `scoop.window.asyncio` 的合同；实际交付与验证范围见 [macOS 实施记录](../windowing/PROGRESS.md)与 [Linux 实施记录](../windowing/LINUX-PROGRESS.md)。依据 [设计](../windowing/DESIGN.md)与 [winit 能力映射](../windowing/WINIT-MAPPING.md)。
 
 ## 1. 分层与目标
 
-window 依赖 core／std／platform；window.asyncio 另依赖 asyncio。本阶段实施基础架构与 Darwin ARM64／AppKit。Linux Wayland／X11、Windows 及其他后端留待后续；不添加没有后端的 native handle 变体或假窗口实现。两个库及其原生薄层、测试、示例均以普通 Cone 组织，窗口逻辑不进入编译器或 runtime。
+window 依赖 core／std／platform；window.asyncio 另依赖 asyncio。已有 Darwin ARM64／AppKit，本阶段加入 Linux amd64 GNU／musl 的 Wayland／X11；Windows 及其他后端留待后续。两个库及其原生薄层、测试、示例均以普通 Cone 组织，窗口逻辑不进入编译器或 runtime。
 
 本轮范围按 winit 定位为 GUI 骨架：应用／窗口与基础属性、基础输入／IME、DPI／显示器快照、渲染句柄和 I/O 集成。下文的完整窗口层模型同时保留后续扩展方向；全屏控制／视频模式切换、全局 raw device、触摸／高级手势、光标捕获、文件拖放及复杂平台窗口交互不作为当前骨架验收项。未实施接口随实际需求再增加，不为占据 API 名称加入空实现。
 
@@ -87,6 +87,8 @@ requestRedraw 合并 dirty，RedrawRequested 不递归触发；隐藏、遮挡�
 
 native 子包提供 Unsafe 的 acquireNativeWindow，返回 NativeWindowLease；本阶段 handle 为 `NativeWindowHandle.AppKit(nsWindow: Ptr<Unit>, nsView: Ptr<Unit>)`。其他变体随实际后端增加。取得 lease 和查询 handle 只在 owner 上进行，lease 保活窗口和 display connection；窗口 Closing 后不能取得新 lease。
 
+Linux 实施加入 `Wayland(display: Ptr<Unit>, surface: Ptr<Unit>)` 与 `Xlib(display: Ptr<Unit>, windowId: ULong, visualId: ULong, screen: Int)`。整数 XID 与指针分别表达，renderer 仅消费实际后端的载荷。
+
 lease.close 可跨线程且幂等，原子结束借用并把实际释放排入 owner 内部收尾队列，不直接在调用线程操作 GUI，不依赖已经停止接受业务的 ApplicationProxy。调用后不能再使用 handle；队列实际消费前继续保活原生对象。GC release 不得代替这个显式操作。
 
 已有 lease 阻止库主动销毁原生窗口，但不保证显示服务器永远可用，也不扩展平台图形对象的线程权限。renderer 先结束 surface 及有关原生使用，再释放 lease；GC release 不调用窗口 API。lease 不授权在隐藏、零尺寸、待配置或 Closing 时提交帧。
@@ -109,7 +111,7 @@ Application.runWithAsyncio(handler) 是独立 Cone 的扩展，复用 PlatformEv
 
 - `@Unsafe Application.runAttached(handler, attach: (ApplicationHost) -> ApplicationAttachment)` 与 run 共用单次入口；原生宿主可服务后、首个业务事件前调用 attach。安装失败回滚所有原生资源。
 - ApplicationAttachment 是普通接口，`post(block: () -> Unit): Boolean` 投递业务闭包，`requestClose()` 请求现有 session 收尾；基础库不依赖 CoroutineScope／EventLoop 类型。
-- ApplicationHost 提供 `isCurrentThread()`、Darwin 的 `@Unsafe watchReadable(descriptor: Int, ready: () -> Unit): ApplicationWatch`；监听不读取或关闭借入 fd、不内联 ready。ApplicationWatch.remove 在 owner 上注销，当前 ready 退出、排队通知退休后回调一次。
+- ApplicationHost 提供 `isCurrentThread()`、Darwin／Linux 的 `@Unsafe watchReadable(descriptor: Int, ready: () -> Unit): ApplicationWatch`；监听不读取或关闭借入 fd、不内联 ready。ApplicationWatch.remove 在 owner 上注销，当前 ready 退出、排队通知退休后回调一次。
 - `postControl(block: () -> Unit): Boolean` 在关闭业务队列后继续接受收尾工作；控制闭包用 `requestExit()` 在 owner 开始关闭。`complete(failure: Throwable?)` 由 session.onClosed 在 owner 调用一次。无窗口时仍等待附着完成、watch 注销和已接受控制工作执行完。
 
 WindowLoopHost 将这些实际操作适配为[asyncio 规范 11.3](SCOOP-ASYNCIO-SPEC.md#113-宿主接入合同)的 EventLoopNotification／watch。根取消订阅只排入控制队列，不跨线程直接操作窗口；集成 scope 仅在业务回调期间绑定。通知派发与纯 I/O／watch 维护唤醒不自行产生新一轮 NewEvents／AboutToWait，避免空闲自唤醒。
@@ -118,4 +120,22 @@ WindowLoopHost 将这些实际操作适配为[asyncio 规范 11.3](SCOOP-ASYNCIO
 
 Darwin 使用语言规范 12.2.1、实现规范 2.7 的普通 native Objective-C `.m`／ARC 与 framework 声明。AppKit backend 由 NSApplication 正常循环驱动，以 stop 和唤醒返回；不调用 terminate。通知监听以 dispatch READ source 观察 fd，通过 common／tracking／modal modes 的 CFRunLoopSource 在 owner 派发；等待消费时暂停重复通知，注销先平衡暂停并等待 cancel handler，再退休 owner source。渲染层自行管理实际 layer／surface。
 
-本阶段以所属 Cone 的 scoop.test 验证值、输入归一、API、真实 AppKit、native callback 与 asyncio 收尾；`.m` 编译／链接／诊断使用必要的 compiler fixture。真实 surface 示例用单独 renderer Cone 消费 native lease。显示器热插拔、混合 DPI、输入法候选交互与真实用户拖动等依赖实际硬件／桌面输入的验收单独记录，不能用合成事件冒充。Linux／其他平台验收留待后续。
+所属 Cone 的 scoop.test 验证值、输入归一、API、真实窗口、native callback 与 asyncio 收尾；native 编译／链接／诊断使用必要的 compiler fixture。真实 surface 示例用单独 renderer Cone 消费 native lease。显示器热插拔、混合 DPI、输入法候选交互与真实用户拖动等依赖实际硬件／桌面输入的验收单独记录，不能用合成事件冒充。
+
+## 10. Linux
+
+Linux 扩展包 `scoop.window.platform.linux` 的 LinuxBackend 为 Automatic／WaylandOnly／X11Only，`ApplicationOptions.setLinuxBackend(backend, displayName?)` 在 Application 构造前选定并复制设置；Automatic 不接收显式 display name，依次尝试环境指定的 Wayland 和 X11。显式后端失败不回退，已经建立的连接失联后不迁移窗口。ActiveApplication.backend 报告实际后端；原生错误保留后端及错误码，未进入特定后端的普通状态错误可没有 backend。
+
+Linux 原生等待同时服务显示连接、proxy eventfd、宿主借入通知、键重复和 ControlFlow deadline，使用普通 NativeSafe FFI。窗口库是显示连接的唯一事件消费者；asyncio eventfd 由其自己的 ready 回调消费。Wait 没有固定轮询周期，watch 注册不内联执行，remove 在回调退出与排队通知退休后完成。
+
+Wayland 必需 wl_compositor 与 xdg-shell；可选协议按 registry 版本协商。等待遵守 dispatch_pending、prepare_read、flush、poll、read_events／cancel_read 顺序，flush 的 EAGAIN 临时监听 POLLOUT；其他唤醒或错误出口必须取消已准备读取。首次无 buffer commit 后等待 configure／ack，宽高为零的 configure 维度采用有效尺寸请求、上次实际值或创建默认值。未配置时状态为 PendingConfigure、metrics=None，属性更新与销毁仍可用。隐藏以 null buffer commit unmap 并使配置失效；重新显示重新发送初始属性和无 buffer commit，等待新 configure 后再交付 GeometryChanged 与保留的 redraw。旧配置事件不能在重新映射后恢复过期 metrics。
+
+Wayland 有 fractional-scale 与 viewporter 时按协议比例及向上取整后的像素尺寸配置 viewport；否则采用进入输出的整数 scale。native snapshot 分别报告配置有效与可重绘，frame callback 只节流下一次重绘；prePresentNotify 在 renderer 的实际 commit 前请求 callback，不替代提交。全局窗口位置、primary monitor 和 compositor 未提供的最小化／主题事实返回 None。要求装饰时使用 xdg-decoration 的服务端装饰或 libdecor 的 C cairo 插件；缺少两者不能创建一个伪装成功的有装饰窗口。
+
+X11 由 Xlib 读取事件，使用 XKB／libxkbcommon、XIM／XIC、XRandR、Xcursor 和实际可用的 XI2。WM_DELETE_WINDOW 只产生 CloseRequested；尺寸、焦点、最小化／最大化和 EWMH 层级请求返回 Requested，实际状态从事件和查询取得。WM 不支持的协议返回 Unsupported，不写入伪造的 observed state。Xlib 进程级 error handler 在自有 Application 生命周期内安装和恢复，不接管其他 Display 的错误；异步请求错误及显示断开进入应用错误／关闭路径。
+
+IME 使用 text-input-v3 或 XIM，普通输入使用 xkbcommon compose；只通过 TextInputBatch 提交文字。Wayland 每个 done 形成一个批次，依次撤销旧 preedit、删除 surrounding、commit、发布新 preedit，保留选择活动端。协议 serial 与应用文档 revision 独立；启用后不同时通过普通键再提交同一文字。缺少协议／输入上下文时 setImeAllowed 返回 Unsupported，普通键与 compose 仍可用。失焦、关闭输入法和销毁清理组合与按下状态。
+
+Linux 文件拖放由 WindowEvent.FileDrop 的 Enter／Drop／Leave 表达，载荷为自有 Path 数组；只接受 text/uri-list 中的本地 file URI，按 URI 转义解码保留原始路径字节，不把远程 URL 当成本地文件。Wayland data offer 与 XDND selection 使用异步接收，保持事件顺序和退出时的 fd／offer 释放；不在用户 handler 中阻塞读取传输。
+
+GNU／musl 使用同一 Scoop 实现及测试源码，动态链接各自兼容的桌面库和装饰／输入法模块。固定 scanner／protocol 输入和生成结果由维护阶段准备，普通 Cone 构建及预编译消费者不执行扫描器、下载或依赖安装。Linux 验收包含真实 Wayland compositor、X11 WM、buffer 提交、输入／批次和 asyncio／lease 关闭；headless 自动化与人工桌面验证分别记录。

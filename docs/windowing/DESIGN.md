@@ -1,6 +1,6 @@
 # 桌面窗口与事件库设计
 
-状态：基础架构与 macOS GUI 骨架已实现。更新：2026-10-30。Linux Wayland／X11、Windows 及其他窗口后端留到后续阶段。下文 Linux／Windows 章节保留设计方向，不是本阶段验收项。实现、验收边界与硬件交互限制见 [PROGRESS.md](PROGRESS.md)，使用方式见[窗口库 README](../../sysroot/src/scoop.window/README.md)。
+状态：基础架构与 macOS GUI 骨架已实现，Linux Wayland／X11 阶段实施中。更新：2026-10-30。当前阶段按第 10 节与第 12 节第 3 项完成 Linux；Windows 及其他窗口后端另行实施。macOS 验收见 [PROGRESS.md](PROGRESS.md)，Linux 实施与验收见 [LINUX-PROGRESS.md](LINUX-PROGRESS.md)，使用方式见[窗口库 README](../../sysroot/src/scoop.window/README.md)。
 
 本轮按 winit 的职责搭建可供 GUI 使用的骨架：真实窗口／主循环、显式生命周期与 proxy、基础窗口属性、DPI／显示器快照、键盘／指针／滚轮／文本输入、native lease、renderer 和 asyncio 接入。winit 的完整能力地图用于确定边界和后续扩展方向，不要求本轮复制它的全部平台扩展。全屏控制／显示模式切换、全局原始设备监听、触摸／高级手势、光标捕获、文件拖放及平台专有的复杂窗口交互分批补充；未实施项不以 Unsupported 伪装成平台不支持。控件、布局、菜单体系和应用编辑器仍由上层 GUI 实现。
 
@@ -220,6 +220,10 @@ framework 链接已有合同可复用；仍需实际验证本仓库 Mach-O linke
 
 Linux 自动模式优先连接有效的 Wayland 桌面，再在建立任何窗口前尝试 X11；可通过 `scoop.window.platform.linux` 显式选择 WaylandOnly／X11Only 及 display name。明确指定的后端失败不得静默切换；开始运行后失联也不能把既有窗口迁到另一显示服务器。该 Linux 专用选项不放进公共 ApplicationOptions。
 
+Linux 扩展 `ApplicationOptions.setLinuxBackend(LinuxBackend, displayName?)` 在构造 Application 前配置选择；Automatic 只使用环境中的显示名称，显式名称必须配合 WaylandOnly 或 X11Only。选项随 Application 构造取快照。`ActiveApplication.backend` 报告实际建立的后端，失败在 WindowException 中保留已尝试的后端和原生错误码。窗口 app id／X11 class、instance 由 Linux 扩展设置，不增加全平台参数。
+
+共享层在创建和显示变化后读取后端的配置有效性：未配置时 WindowState 为 PendingConfigure、metrics 为 None，仍允许更新标题、尺寸请求、属性和销毁；只有收到新的有效配置才进入 Open。native 快照分别表达配置有效、桌面位置已知、可重绘及未知主题／最小化状态，不用零值伪造事实。属性 setter 返回实际 Applied／Requested／Unsupported；创建所需的非默认属性无法满足时回滚窗口并报告 Unsupported。
+
 窗口 native 后端把显示连接、app proxy 通知、ApplicationHost 注册的通知源、键重复／ControlFlow deadline 组合在一次原生等待中。显示连接只由窗口后端读取；集成 Cone 的 WindowLoopHost 注册 asyncio 的 eventfd 并接收 ready，asyncio 消费自己的通知。所有原生等待走 NativeSafe，空闲不轮询；已有批次未处理或即将关闭时不进入阻塞等待。
 
 ### 10.2 Wayland
@@ -245,6 +249,8 @@ Xlib 持有唯一 Display 与事件读取；XKB／libxkbcommon 归一键位，XI
 Linux 首期按真实桌面依赖动态链接，GNU／musl 各自使用兼容 headers、库及 libdecor／XIM 模块；不能让 musl 程序加载 glibc 插件。完整静态桌面分发不是首期验收承诺；native 声明与显式链接模式冲突走现有链接诊断。桌面库不进入无窗口程序的依赖闭包。
 
 生成的 Wayland 协议 C 源码在维护／发行准备阶段用固定 scanner 版本生成并作为普通输入携带；消费预编译 Cone 不临时联网、不自动运行依赖安装器。缺失库和 display 按普通构建／运行错误报告。是否允许无显示器环境启动由明确的测试宿主决定，不用一个假窗口后端冒充桌面实现。
+
+本阶段固定 wayland-scanner 1.24.0 与 wayland-protocols 1.47，协议 XML、许可证及生成的 client header／private C code 随仓库保存。桌面构建基线为 libwayland 1.24.0、libxkbcommon 1.13.1、libdecor 0.2.5，装饰使用 C cairo 插件；X11 使用发行版维护的 Xlib／XKB、XI2、XRandR 和 Xcursor。它们通过普通 Cone 的动态 native libraries 声明进入依赖闭包，不新增 compiler/runtime 桌面后端。
 
 ## 11. Windows 基础与后续窗口后端
 
