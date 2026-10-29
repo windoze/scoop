@@ -33,7 +33,7 @@ pub(crate) fn cached_checkout(
         Ok(Some(GitCheckout {
             repository: repository.to_owned(),
             commit: commit.to_owned(),
-            root,
+            root: fs::canonicalize(&root).map_err(|error| PmError::io(&root, error))?,
         }))
     } else {
         Ok(None)
@@ -123,15 +123,16 @@ pub fn checkout(
         };
         resolve_commit(&db, &reference)?
     };
-    let result = cached(&commit);
-    if result
+    let mut result = cached(&commit);
+    if !result
         .root
         .try_exists()
         .map_err(|error| PmError::io(&result.root, error))?
     {
-        return Ok(result);
+        materialize(&db, &result, offline)?;
     }
-    materialize(&db, &result, offline)?;
+    result.root =
+        fs::canonicalize(&result.root).map_err(|error| PmError::io(&result.root, error))?;
     Ok(result)
 }
 

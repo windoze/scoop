@@ -32,6 +32,7 @@ fn relocated_runtime_index_links_the_copied_objects() {
         crate::ProgramLinkOptions {
             keep_symbols: true,
             emit_debug_file: false,
+            enable_stack_trace: false,
         },
         &fixture.library_paths,
         &directory.join("program"),
@@ -59,6 +60,7 @@ fn native_alias_link_tracks_real_input_updates_and_missing_input() {
         crate::ProgramLinkOptions {
             keep_symbols: true,
             emit_debug_file: false,
+            enable_stack_trace: false,
         },
         std::slice::from_ref(&alias_directory),
         &quoted_directory.join("program"),
@@ -84,6 +86,7 @@ fn native_alias_link_tracks_real_input_updates_and_missing_input() {
         crate::ProgramLinkOptions {
             keep_symbols: true,
             emit_debug_file: false,
+            enable_stack_trace: false,
         },
         &fixture.library_paths,
         &directory.join("changed"),
@@ -102,6 +105,7 @@ fn native_alias_link_tracks_real_input_updates_and_missing_input() {
         crate::ProgramLinkOptions {
             keep_symbols: true,
             emit_debug_file: false,
+            enable_stack_trace: false,
         },
         &[alias_directory],
         &output.path,
@@ -136,6 +140,7 @@ fn final_link_strips_internal_names_and_keeps_runtime_data() {
         crate::ProgramLinkOptions {
             keep_symbols: false,
             emit_debug_file: false,
+            enable_stack_trace: false,
         },
         &fixture.library_paths,
         &fixture.directory.path().join("stripped"),
@@ -244,6 +249,7 @@ fn elf_shared_library_link_tracks_real_symbol_version_updates() {
             crate::ProgramLinkOptions {
                 keep_symbols: true,
                 emit_debug_file: false,
+                enable_stack_trace: false,
             },
             std::slice::from_ref(&libraries),
             &directory.join("dso-program"),

@@ -32,6 +32,7 @@ pub(super) fn of(request: &Request<'_>) -> BuildResult<Digest256> {
         encode(&request.target.lir_target().wire_id()).map_err(failure)?,
         request.profile.as_str(),
         request.keep_symbols(),
+        request.enable_stack_trace(),
         (
             request.emit_debug_file(),
             request.emit_debug_file().then(|| {

@@ -47,7 +47,9 @@ void scoop_throwable_report_render(const ScoopThrowableReport *report, FILE *str
 }
 
 void scoop_throwable_report_render_frames(const ScoopThrowableReport *report, FILE *stream) {
-    if (report->captured) {
+    if (!scoop_stack_trace_enabled) {
+        fputs(SCOOP_TRACE_DISABLED_MESSAGE, stream);
+    } else if (report->captured) {
         scoop_trace_render((const char *)report->bytes + report->trace_offset, stream);
     } else {
         fputs("  <stack not captured: this object has not been thrown>\n", stream);

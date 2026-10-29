@@ -4,6 +4,8 @@
 #include <string.h>
 #include <unwind.h>
 
+bool scoop_stack_trace_enabled;
+
 void *scoop_trace_allocate(size_t bytes) {
     void *result = malloc(bytes);
     if (result == NULL) {
@@ -80,9 +82,10 @@ ScoopTraceBuffer scoop_trace_complete(ScoopTraceFrames *frames) {
         length += path_length + 1;
     }
     char *bytes = scoop_trace_allocate(length);
-    ScoopTraceHeader header = {
-        .frame_count = frames->count, .module_count = count, .flags = frames->flags,
-        .generation = generation};
+    ScoopTraceHeader header = {.frame_count = frames->count,
+                               .module_count = count,
+                               .flags = frames->flags,
+                               .generation = generation};
     memcpy(bytes, &header, sizeof header);
     memcpy(bytes + sizeof header, frames->frames, frames->count * sizeof(ScoopTraceFrame));
     char *module_bytes = bytes + sizeof header + frames->count * sizeof(ScoopTraceFrame);

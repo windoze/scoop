@@ -15,7 +15,7 @@
 
 伴随文件参与正常结果存在判断和发布，最终 basename 进入调试结果更新键。同 basename 换目录可复用，换 basename 重新生成最终调试文件；命中不启动调试工具、不重读产物内容。旧 `--emit-symbol-map`、map 字段和性能 map parser 已移除。性能工具使用 LLVM JSON、标准调试文件与精确 linkage identity，支持 inline 链、Darwin slide 和 Linux load bias。
 
-machine protocol 为 20，runtime ABI contract 为 29，metadata ABI 保持 9；当前 HIR cross-cone-interface 为 84。Throwable 前缀和实际模板字段已改变，编译器、runtime、core、派生异常所在库及消费者须沿正常版本机制配套重建。
+合并 compiler intrinsics 后，machine protocol 为 22，runtime ABI contract 为 30，metadata ABI 保持 9；当前 HIR cross-cone-interface 为 87。contract 30 为程序启动入口增加栈快照开关；编译器、runtime 和机器产物须沿正常 ABI 边界配套重建。该开关不再改变 Throwable 前缀或模板编码。
 
 ## 来源共享与 `.slib`
 
@@ -35,7 +35,9 @@ machine protocol 为 20，runtime ABI contract 为 29，metadata ABI 保持 9；
 
 Throwable 是可继承的 intrinsic FixedObject，保留公共零参数构造；24-byte 前缀中 offset 16 保存私有快照引用，普通派生字段从完整前缀后开始，GC 扫描继承该隐藏根。
 
-首次 throw 的 Managed 准备采集物理地址、分配普通 immutable byte array 并一次发布，返回潜在搬迁后的同一异常对象；重抛和延迟打印保留原栈。同对象并发采集只发布一份完整快照。`printStackTrace()`、未捕获报告及语言 trap 使用稳定数据输出；语言 trap 保持退出码 1，内部 compiler fatal 保持 abort 语义。
+`--enable-stack-trace[=true|false]` 是程序级链接选项，源码构建 debug 默认开启、release 默认关闭；`scoop link`／`scoop-link` 默认关闭，可显式开启。它独立于 DWARF 和符号保留，不增加 runtime 变体或 `.slib` 数据。关闭时准备入口直接返回原对象，快照槽保持空；`printStackTrace()`、未捕获报告和 trap 在类型／原因之后输出 `  <stack trace unavailable: disabled>`。链接更新键使用生效后的布尔值，切换只重新链接。
+
+开启时，首次 throw 的 Managed 准备采集物理地址、分配普通 immutable byte array 并一次发布，返回潜在搬迁后的同一异常对象；重抛和延迟打印保留原栈。同对象并发采集只发布一份完整快照。大栈缓冲仅位于不可内联的采集慢路径，关闭及已有快照的快路径无需该缓冲或 stack probe。`printStackTrace()`、未捕获报告及语言 trap 使用稳定数据输出；语言 trap 保持退出码 1，内部 compiler fatal 保持 abort 语义。
 
 运行期符号化使用固定 libbacktrace 版本及源码名／DWARF 5 完整路径修补，不启动外部 LLVM 或 LLDB 进程。快照保存原始 PC、查询 PC、模块 UUID／build-id、load bias 和路径。没有调试信息时保留模块与地址；检测到 loader 变化时保守降级，避免用新模块误解释旧地址。
 
@@ -63,6 +65,22 @@ VS Code 扩展 0.3.0 注册 Scoop debug type 和源码断点。构建／launch �
 可重复的外部协议和静态值用例见[调试验收入口](../../tooling/vscode-scoop/test/debugger/README.md)，栈诊断用例位于 `tests/fixtures/compiler-correctness/debugging/`。
 
 本机 macOS 的进程 launch 仍受环境限制：系统及上游 LLDB 对普通 C 对照程序也会卡住。本机验收覆盖真实 Scoop 运行、对象／dSYM 校验、调试器加载和离线观察，进程内 DAP 结论来自 Linux。未运行 VS Code extension host 的图形调试会话；扩展通过构建／单元测试和实际 adapter 协议验证。发行验证针对调试器及其依赖，没有重跑全部 25 库的完整工具链发行构建。
+
+## 栈快照开关的定向验证与性能
+
+后续分支 `codex/stack-trace-toggle`（2026-10-29）在本地完成实现后验证：workspace fmt／clippy、29 项相关 Rust 测试、61 项 fixture runner 规则测试通过。Darwin 的调试专测 7 个变体通过，覆盖 profile 默认值、显式覆盖、三种调试信息级别、真实隐藏快照槽、预编译 core 抛出、两种产物链接入口、移动 GC、并发首次抛出和链接缓存。受默认输出变化影响的 22 个既有 fixture，以及 2 个启动生命周期 fixture 全部通过；未运行完整 fixture 套件。合并 main 的 compiler intrinsics 后，重新构建配套库，workspace lint、runtime ABI／CLI 定向测试及全部 7 个调试变体再次通过。
+
+随后使用 nuc12 的 `~/repos/scoop-stack-trace-toggle-20261029` 独立目录验证 Linux。相关 crate 的 fmt／clippy、编译器构建通过；重建匹配的系统库和 runtime 后，GNU、musl 各 7 个调试变体全部通过。启动边界测试另覆盖 GNU 动态、musl 静态及动态三种链接模式，确认新增开关值正确传入 runtime。验证复用已有 Cargo 和 libunwind 构建结果，未运行无关完整测试套件。
+
+性能对照基于功能提交 `dd6286231`，在 Apple M3 Ultra 上使用同一份 release／debug-info=none 机器产物，只切换最终链接开关。每轮预先构造 4,000 个异常对象，在计时区间执行 throw/catch；先预热 64 次，计时前主动 GC，排除对象构造及打印时间。每组交替开／关顺序执行 7 轮，以下为每次 throw/catch 的墙钟中位数，递归深度指额外的递归调用层数，0 仍有普通调用栈。
+
+| 额外递归层数 | 关闭快照 | 开启，首次抛出 | 首次捕获增加 |
+| --- | --- | --- | --- |
+| 0 | 4.29 µs | 12.53 µs | 8.24 µs（总耗时约 2.92 倍） |
+| 8 | 10.40 µs | 22.01 µs | 11.61 µs（约 2.12 倍） |
+| 32 | 28.78 µs | 50.05 µs | 21.27 µs（约 1.74 倍） |
+
+同一批对象先抛出一次、再计时其再次抛出时，三个深度的开／关中位数差异均在 1% 以内；短调用链分别为 4.28／4.27 µs。首次捕获的回溯、模块信息复制和快照分配有明显成本，但它不发生在没有 throw 的正常路径；本次数据不是所有平台或应用的固定比例。关闭后仍保留 Throwable 的 8-byte 可空引用槽及准备入口的常数开销，不改变实例布局、GC 或真正的异常展开流程。原始数据、基准源码和脚本保存在仓库外，未提交原始日志。
 
 ## 后续范围
 

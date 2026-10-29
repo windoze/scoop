@@ -232,11 +232,13 @@ impl<'a> FunctionLowerer<'a> {
                     mir::ForeignCallbackOperation::State(family) => {
                         let out_ty = self.value_type(ty);
                         let out = self.new_temp(out_ty);
+                        let invalid_message = self.trap_message("invalid callback state");
                         self.push(lir::Instruction::ForeignCallbackOperation(
                             lir::ForeignCallbackOperation::State {
                                 family: lir::ForeignCallbackFamilyId::from_raw(family.into_raw()),
                                 out,
                                 callback,
+                                invalid_message,
                             },
                         ));
                         lir::Value::Temp(out)

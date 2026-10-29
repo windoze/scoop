@@ -45,6 +45,9 @@ struct Cli {
     /// Produce a .dSYM bundle or .debug file from existing object debug information.
     #[arg(long)]
     emit_debug_file: bool,
+    /// Capture exception/trap stacks; artifact-only links default to false.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true", require_equals = true)]
+    enable_stack_trace: Option<bool>,
     /// Search these explicit roots for libraries required by the artifacts.
     #[arg(long = "library-path")]
     library_paths: Vec<PathBuf>,
@@ -90,6 +93,7 @@ fn main() -> ExitCode {
             sysroot: cli.sysroot,
             keep_symbols: cli.keep_symbols,
             emit_debug_file: cli.emit_debug_file,
+            enable_stack_trace: cli.enable_stack_trace,
             unwind_prefix: cli.unwind_prefix,
             mode: cli.link_mode.map(|mode| match mode {
                 LinkMode::Static => scoop_toolchain::LinkMode::Static,

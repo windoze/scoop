@@ -51,6 +51,35 @@ fn known_runner_options_keep_their_meaning_before_forwarding() {
 }
 
 #[test]
+fn optional_stack_trace_value_does_not_consume_the_root_or_program_arguments() {
+    for (option, expected) in [
+        ("--enable-stack-trace", true),
+        ("--enable-stack-trace=true", true),
+        ("--enable-stack-trace=false", false),
+    ] {
+        for arguments in [
+            vec!["scoop", "run", option, "file.scoop", "Alice", "--help"],
+            vec!["scoop", "run", "file.scoop", option, "Alice", "--help"],
+        ] {
+            let Command::Run(run) = parse(&arguments).unwrap().command else {
+                panic!("expected run")
+            };
+            assert_eq!(run.options.root_input, Some(PathBuf::from("file.scoop")));
+            assert_eq!(run.options.native.enable_stack_trace, Some(expected));
+            assert_eq!(run.program_args, ["Alice", "--help"]);
+        }
+        let Command::Run(run) = parse(&["scoop", "run", "file.scoop", "Alice", option])
+            .unwrap()
+            .command
+        else {
+            panic!("expected run")
+        };
+        assert_eq!(run.options.native.enable_stack_trace, None);
+        assert_eq!(run.program_args, ["Alice", option]);
+    }
+}
+
+#[test]
 fn option_values_are_not_roots_or_program_arguments() {
     for options in [
         vec!["--target-dir", "other.scoop", "-j", "2"],

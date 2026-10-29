@@ -1766,6 +1766,22 @@ fn refined_c_pointer_references_reject_managed_niches() {
 #[test]
 fn foreign_callback_state_decodes_only_the_closed_wire_codes() {
     let mut module = values_module();
+    let invalid_message = module.globals.alloc(Global {
+        address_kind: PointerKind::Raw,
+        scan: RefScan::None,
+        init: GlobalInit::CString {
+            identity: scoop_lir::CallableCStringIdentity::new(
+                module.cone,
+                &module.functions[0].callable_body,
+                StructuralDefinitionPath::from_first(
+                    StructuralPathSegment::new(StructuralDefinitionSiteRole::StringConstant, 0),
+                    [],
+                ),
+            )
+            .unwrap(),
+            value: "invalid callback state".into(),
+        },
+    });
     let family = foreign_callback_family(&mut module);
     let callback = module.foreign_callback_families[family].callback;
     let states = module.foreign_callback_families[family].states;
@@ -1787,6 +1803,7 @@ fn foreign_callback_state_decodes_only_the_closed_wire_codes() {
                 family,
                 out,
                 callback: Value::Param(0),
+                invalid_message,
             },
         ));
 
@@ -1794,7 +1811,11 @@ fn foreign_callback_state_decodes_only_the_closed_wire_codes() {
     for expected in [
         "icmp ule i32 %callback_state, 3",
         "label %callback_state_invalid",
-        "call void @llvm.trap()",
+        &format!(
+            "notail call void @scoop_rt_fatal(ptr @\"{}\")",
+            module.globals[invalid_message].symbol()
+        ),
+        "invalid callback state",
         "unreachable",
         "select i1 %callback_state_case, i64 2, i64 3",
         "i64 1, i64 %callback_state_tag",

@@ -37,7 +37,7 @@ fn source(result: &PreparedWorkspaceV1, name: &str) -> std::path::PathBuf {
 
 #[test]
 fn metadata_requires_a_current_lock_and_reuses_the_prepared_model_without_writing_it() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
     let root = directory.path();
     core(root);
     app(
@@ -75,7 +75,7 @@ fn metadata_requires_a_current_lock_and_reuses_the_prepared_model_without_writin
 
 #[test]
 fn offline_metadata_does_not_checkout_available_git_objects() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
     let root = directory.path();
     core(root);
     let repo = root.join("repo");
@@ -141,7 +141,7 @@ fn offline_metadata_does_not_extract_cached_registry_archives() {
     let server = Server::new();
     let version = registry::publish(&server, "lib", "1.0.0", "");
     registry::index(&server, "lib", vec![version]);
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
     let root = directory.path();
     core(root);
     app(

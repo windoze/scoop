@@ -223,7 +223,7 @@ unit 由 `PersistentInitializationUnitId` 标识；diagnostic path 只用于显�
 
 ### 2.8 多 image 登记与启动 ABI
 
-runtime ABI contract 为 **29**，metadata ABI 为 **9**。contract 29 增加 5.6 的 Managed 首次抛出准备与打印入口；准备返回经过可能搬迁后的原对象引用。contract 28 加入 5.6 的 intrinsic Throwable 固定前缀，派生类的实例布局与 GC 扫描一起变化，compiler、runtime、core 及派生异常所在库必须配套重建。contract 27 退役无消费者的 String join C 入口，详见第 6 节。contract 26 删除分配视图中的计数器指针，统一使用四指针前缀；生成代码直接从同一稳定线程状态的 offset 128 取得既有计数器。计数、原子发布和线程生命周期保持，所有编译器、runtime 与系统库机器正文须配套重建。contract 25 将分配计数改为 nursery 与直接旧代分配两个互斥域，生成代码每次只更新 nursery 的对象数和字节数；总量在读取时相加，所有机器正文与 runtime 配套重建。contract 24 删除生成分配视图的 occupied-line 指针，统一使用五指针布局；分配只发布精确大小和 starts，collector 独立形成存活 line。编译器、runtime 与所有系统库机器正文须配套重建。contract 23 允许生成代码依赖 3.1 的 mapping owner；支持 GC stress 的 runtime 保留 region 首 block，编译器、runtime 与系统库须配套重建。contract 22 将小对象精确大小放入现有 GC 字、移动 pin 索引字段并将 TLAB 视图减为六指针；生成分配、runtime 和全部机器产物须一起重建。contract 20／21 退役无生产消费者的标量、打印、专用装箱、Array clone 与 Context 生成操作 C 入口；所有 profile 复用相同 typed 布局与根计划。contract 19 增加 9.2 的线程 Context 根槽地址视图；contract 18 的初始化状态原子访问及 release／acquire 发布保持，不能把生成的快速读取与旧 runtime 的普通写入混用。contract 17 的脏卡组登记与 region prefix、contract 15 的接口查询入口保持；contract 16 的七指针 TLAB 视图由本版替换。对象、接口值、TD、初始化 cell、注册记录和扫描布局不变。metadata 9 删除 runtime 不消费的 body、descriptor、layout、scan、stackmap、gateway、source signature 与 image 内容指纹字段；实体 identity、实际地址、类型布局、扫描与 stackmap 合同保持。producer、公共头、runtime 和启动代码一起更新，旧产物与开发 sysroot 必须重建。带 prefix 的 descriptor 以 `{ u64 magic; u32 abi_version; u32 struct_size; }` 开头，`abi_version == 9`，size 与本节布局精确一致，reserved fields 为 0。公共 C 声明见 [scoop_runtime_metadata_v1.h](../../runtime/include/scoop_runtime_metadata_v1.h)。不保留空的兼容槽或以 bitcast 混用旧布局。
+runtime ABI contract 为 **30**，metadata ABI 为 **9**。contract 30 在 2.8 的程序启动入口增加 `enable_stack_trace` 参数，按 5.6 控制整个进程的栈诊断；对象和 metadata 布局不变。contract 29 增加 5.6 的 Managed 首次抛出准备与打印入口；准备返回经过可能搬迁后的原对象引用。contract 28 加入 5.6 的 intrinsic Throwable 固定前缀，派生类的实例布局与 GC 扫描一起变化，compiler、runtime、core 及派生异常所在库必须配套重建。contract 27 退役无消费者的 String join C 入口，详见第 6 节。contract 26 删除分配视图中的计数器指针，统一使用四指针前缀；生成代码直接从同一稳定线程状态的 offset 128 取得既有计数器。计数、原子发布和线程生命周期保持，所有编译器、runtime 与系统库机器正文须配套重建。contract 25 将分配计数改为 nursery 与直接旧代分配两个互斥域，生成代码每次只更新 nursery 的对象数和字节数；总量在读取时相加，所有机器正文与 runtime 配套重建。contract 24 删除生成分配视图的 occupied-line 指针，统一使用五指针布局；分配只发布精确大小和 starts，collector 独立形成存活 line。编译器、runtime 与所有系统库机器正文须配套重建。contract 23 允许生成代码依赖 3.1 的 mapping owner；支持 GC stress 的 runtime 保留 region 首 block，编译器、runtime 与系统库须配套重建。contract 22 将小对象精确大小放入现有 GC 字、移动 pin 索引字段并将 TLAB 视图减为六指针；生成分配、runtime 和全部机器产物须一起重建。contract 20／21 退役无生产消费者的标量、打印、专用装箱、Array clone 与 Context 生成操作 C 入口；所有 profile 复用相同 typed 布局与根计划。contract 19 增加 9.2 的线程 Context 根槽地址视图；contract 18 的初始化状态原子访问及 release／acquire 发布保持，不能把生成的快速读取与旧 runtime 的普通写入混用。contract 17 的脏卡组登记与 region prefix、contract 15 的接口查询入口保持；contract 16 的七指针 TLAB 视图由本版替换。对象、接口值、TD、初始化 cell、注册记录和扫描布局不变。metadata 9 删除 runtime 不消费的 body、descriptor、layout、scan、stackmap、gateway、source signature 与 image 内容指纹字段；实体 identity、实际地址、类型布局、扫描与 stackmap 合同保持。producer、公共头、runtime 和启动代码一起更新，旧产物与开发 sysroot 必须重建。带 prefix 的 descriptor 以 `{ u64 magic; u32 abi_version; u32 struct_size; }` 开头，`abi_version == 9`，size 与本节布局精确一致，reserved fields 为 0。公共 C 声明见 [scoop_runtime_metadata_v1.h](../../runtime/include/scoop_runtime_metadata_v1.h)。不保留空的兼容槽或以 bitcast 混用旧布局。
 
 | descriptor | magic | size（bytes） |
 | --- | --- | --- |
@@ -268,7 +268,8 @@ int scoop_rt_run_program(
     uint64_t image_count,
     const ScoopRootEntryDescriptorV1 *root_entry,
     int32_t argc,
-    const char *const *argv);
+    const char *const *argv,
+    uint32_t enable_stack_trace);
 
 int32_t scoop_rt_program_argc(void);
 const char *scoop_rt_program_argv(int32_t index);
@@ -869,7 +870,11 @@ native exception record 不能跨线程共享或跨挂起保存；可以保存�
 
 ### 5.6 Throwable 栈快照与 trap 诊断
 
-语言规范 11.7 的 Throwable 是可继承的 intrinsic FixedObject。公共对象头仍为 16 bytes；offset 16 为一个 8-byte、可空的 managed 栈快照引用，基类前缀共 24 bytes。null 表示尚未抛出，非 null 指向一份不可变快照；无可用帧或截断状态属于该快照的内容。普通派生字段在这个基类前缀之后按现有布局规则排列。TD 使用普通 FixedObject 形状与完整 scan，扫描并搬迁此引用以及派生字段，不新增实例种类、全局异常表或独立 GC root 系统。Exception 的 message 仍是其普通声明字段。
+2.8 的启动参数 `enable_stack_trace` 为程序级开关，0 关闭、1 开启。runtime 在任何 managed 初始化及工作线程启动之前保存该值，整个进程生命周期保持不变；当前 Cone、预编译库、callback 和协程的诊断统一遵循它，不增加 runtime 构建变体。默认值及显式覆盖由实现规范 2.21 的最终链接入口决定。
+
+关闭时，Throwable 准备操作直接返回原对象，不回溯、查询模块、进入 NativeSafe 或分配快照。`printStackTrace()` 及未捕获异常报告保留动态类型，在其后输出一行 `  <stack trace unavailable: disabled>`；语言 trap 与 compiler fatal 保留原因及原退出／abort 行为，输出同一不可用提示而不采集当前栈。该开关不删除异常处理、GC 或调试器需要的 unwind 数据。下述采集和符号化流程仅在开启时执行。
+
+语言规范 11.7 的 Throwable 是可继承的 intrinsic FixedObject。公共对象头仍为 16 bytes；offset 16 为一个 8-byte、可空的 managed 栈快照引用，基类前缀共 24 bytes。null 表示尚未采集（未抛出或开关关闭），非 null 指向一份不可变快照；无可用帧或截断状态属于该快照的内容。普通派生字段在这个基类前缀之后按现有布局规则排列。TD 使用普通 FixedObject 形状与完整 scan，扫描并搬迁此引用以及派生字段，不新增实例种类、全局异常表或独立 GC root 系统。Exception 的 message 仍是其普通声明字段。
 
 快照使用普通 GC 管理的无引用 byte-array 存储，由 runtime 的采集／读取代码解释；内容仅含帧地址、必要的 native 模块信息及诊断状态，不含 managed 裸地址、异常 record、栈局部地址或指向已退出栈帧的指针。编译器提供实际 byte-array 的 TD 与布局；不另建手工分配和特殊回收的 native trace 对象。raw PC 与符号查询地址须区分；普通返回地址按 unwind provider 的 IP 语义调整，确切指令 PC 不减一。跨 ASLR 的定位使用实际模块的链接地址与可用 UUID／build-id；必要的模块数据在采集时复制，不能把所有平台的 image base 都当作 ELF load bias，也不能将已卸载模块的地址归给后来复用该范围的另一个模块。
 

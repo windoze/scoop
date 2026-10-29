@@ -57,14 +57,14 @@ name = "invalid_utf8"
 argv = ["${work}/relinked", "valid", {hex = "ff"}]
 exit = 1
 stdout = ""
-stderr = {regex = "invalid\\ UTF\\-8\\ in\\ argv\\[2\\]\\\nscoop:\\ uncaught\\ exception:\\ n\\(c=scoop%3Ascoop\\.core%3A0\\.1\\.0;p=;o=\\-;k=C;x=CharacterCodingException\\)\\\n(?:  at [^\\n]+\\n)+(?:  <[^\\n]+>\\n)*"}
+stderr = {regex = "invalid\\ UTF\\-8\\ in\\ argv\\[2\\]\\\nscoop:\\ uncaught\\ exception:\\ n\\(c=scoop%3Ascoop\\.core%3A0\\.1\\.0;p=;o=\\-;k=C;x=CharacterCodingException\\)\\\n  <stack trace unavailable: disabled>\\n"}
 
 [[steps]]
 name = "invalid_argv0"
 argv = ["${work}/launcher", "${work}/relinked", "bad"]
 exit = 1
 stdout = ""
-stderr = {regex = "invalid\\ UTF\\-8\\ in\\ argv\\[0\\]\\\nscoop:\\ uncaught\\ exception:\\ n\\(c=scoop%3Ascoop\\.core%3A0\\.1\\.0;p=;o=\\-;k=C;x=CharacterCodingException\\)\\\n(?:  at [^\\n]+\\n)+(?:  <[^\\n]+>\\n)*"}
+stderr = {regex = "invalid\\ UTF\\-8\\ in\\ argv\\[0\\]\\\nscoop:\\ uncaught\\ exception:\\ n\\(c=scoop%3Ascoop\\.core%3A0\\.1\\.0;p=;o=\\-;k=C;x=CharacterCodingException\\)\\\n  <stack trace unavailable: disabled>\\n"}
 
 [[steps]]
 name = "verbatim_argv0"
