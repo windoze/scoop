@@ -1,0 +1,53 @@
+private var counter: Long = 40L
+@ThreadLocal private var threadCounter: Long = 2L
+
+interface Value { fun number(): Long }
+class Box(val value: Long) : Value {
+    public override fun number(): Long = value
+}
+enum Choice {
+    Number(Long)
+    Text(String)
+    Empty
+}
+
+fun inspectValues(number: Long, text: String, values: MutableArray<Long>, box: Box,
+                  tagged: Choice, optional: Option<String>, absent: Option<String>, view: Value): Long {
+    val local = number + 1L // BREAK: values
+    val before = text.charLength + values[1L] + box.value
+    val discarded = Box(99L)
+    if (discarded.value != 99L) return 0L // BREAK: discarded
+    gcCollect()
+    val after = text.charLength + values[0L] + box.value // BREAK: after-gc
+    val payload = when (tagged) {
+        case Number(n) -> n
+        else -> 0L
+    }
+    val present = when (optional) {
+        case Some(s) -> s.charLength
+        case None -> 0L
+    }
+    val empty = when (absent) {
+        case Some(s) -> s.charLength
+        case None -> 0L
+    }
+    return local + before + after + payload + present + empty + view.number()
+}
+
+fun makeText(suffix: String): String = "hé\u0000" + suffix
+fun makeCallback(offset: Long): (Long) -> Long = { value ->
+    val adjusted = offset + value // BREAK: capture
+    adjusted + 1L
+}
+fun main(): Int {
+    if (counter + threadCounter != 42L) return 2
+    val text = makeText("llo")
+    val values = MutableArray<Long>(3L) { index -> index + 10L }
+    val box = Box(20L)
+    val result = inspectValues(41L, text, values, box, Choice.Number(7L), Some(text), None, box)
+    if (text.charLength != 6L) return 3
+    val callback = makeCallback(40L)
+    if (callback(1L) != 42L || result != 148L) return 1
+    println("debugging-ok")
+    return 0
+}

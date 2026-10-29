@@ -14,12 +14,14 @@ fn diamond(variant: usize) -> (mir::Module, mir::FunctionId) {
     };
     let source = function.body.blocks[inner].clone();
     let latch = function.body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "joined.update".into(),
         statements: source.statements[1..].to_vec(),
         terminator: mir::Terminator::Goto(header),
         unwind: None,
     });
     let left = function.body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "left.snapshot".into(),
         statements: source.statements[..1].to_vec(),
         terminator: mir::Terminator::Goto(latch),

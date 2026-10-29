@@ -13,6 +13,7 @@ fn applied_defaults_preserve_local_generic_scope_and_independent_requirement_fra
     };
     let locals = hir::CanonicalTemplateLocalTableV1::try_new(vec![
         hir::TemplateLocalRecordV1::try_new(
+            "local".into(),
             parameter.clone(),
             binder(0, 0),
             hir::CanonicalBooleanV1::False,

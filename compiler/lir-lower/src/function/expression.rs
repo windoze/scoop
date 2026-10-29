@@ -4,6 +4,13 @@ impl<'a> FunctionLowerer<'a> {
     /// Lower a fully typed MIR expression, appending its instructions to
     /// the current block and returning the value it evaluates to.
     pub(super) fn lower_expr(&mut self, expr: &mir::Expr) -> StorageResult<lir::Value> {
+        let previous = std::mem::replace(&mut self.current_origin, expr.debug_origin.clone());
+        let value = self.lower_expr_inner(expr);
+        self.current_origin = previous;
+        value
+    }
+
+    fn lower_expr_inner(&mut self, expr: &mir::Expr) -> StorageResult<lir::Value> {
         let ty = &expr.ty;
         Ok(match &expr.kind {
             mir::ExprKind::StringConcat(parts) => self.lower_string_concat(parts)?,

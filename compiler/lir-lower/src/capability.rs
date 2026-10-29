@@ -121,6 +121,17 @@ fn validate_call(
     call: &mir::Call,
 ) -> Result<(), StrongLirCapabilityError> {
     match &call.target {
+        mir::CallTarget::Direct(mir::Callee::Runtime(mir::RuntimeFn::PrepareThrowable {
+            trace_bytes,
+        })) => {
+            require_descriptor(
+                module,
+                roots,
+                dependencies,
+                function,
+                &mir::Type::Class(*trace_bytes),
+            )?;
+        }
         mir::CallTarget::Interface { interface, .. } => {
             require_descriptor(
                 module,

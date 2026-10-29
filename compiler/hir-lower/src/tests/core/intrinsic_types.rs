@@ -1,6 +1,6 @@
 use super::super::*;
 
-fn intrinsic_annotation(name: &str) -> ast::Annotation {
+pub(super) fn intrinsic_annotation(name: &str) -> ast::Annotation {
     ast::Annotation {
         use_site: None,
         name: ident("Intrinsic").into(),

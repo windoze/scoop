@@ -12,10 +12,11 @@ impl WireEncode for IntrinsicFunctionKind {
             Self::GcReleaseHandleRaw => encode_empty_sum(encoder, 4),
             Self::GcCollect => encode_empty_sum(encoder, 5),
             Self::GcStats => encode_empty_sum(encoder, 6),
+            Self::ThrowablePrintStackTrace => encode_empty_sum(encoder, 30),
             Self::CoroutineStart => encode_empty_sum(encoder, 7),
             Self::CoroutineSuspend => encode_empty_sum(encoder, 8),
             Self::CurrentSourceLocation => encode_empty_sum(encoder, 9),
-            Self::CompileEnv => encode_empty_sum(encoder, 30),
+            Self::CompileEnv => encode_empty_sum(encoder, 34),
             Self::IncludeStr => encode_empty_sum(encoder, 31),
             Self::IncludeBytes => encode_empty_sum(encoder, 32),
             Self::IncludeDir => encode_empty_sum(encoder, 33),
@@ -60,7 +61,7 @@ impl WireDecode for IntrinsicFunctionKind {
         }
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
-            30 => decode_empty_intrinsic(decoder, fields, Self::CompileEnv),
+            34 => decode_empty_intrinsic(decoder, fields, Self::CompileEnv),
             31 => decode_empty_intrinsic(decoder, fields, Self::IncludeStr),
             32 => decode_empty_intrinsic(decoder, fields, Self::IncludeBytes),
             33 => decode_empty_intrinsic(decoder, fields, Self::IncludeDir),
@@ -91,6 +92,7 @@ impl WireDecode for IntrinsicFunctionKind {
             4 => decode_empty_intrinsic(decoder, fields, Self::GcReleaseHandleRaw),
             5 => decode_empty_intrinsic(decoder, fields, Self::GcCollect),
             6 => decode_empty_intrinsic(decoder, fields, Self::GcStats),
+            30 => decode_empty_intrinsic(decoder, fields, Self::ThrowablePrintStackTrace),
             7 => decode_empty_intrinsic(decoder, fields, Self::CoroutineStart),
             8 => decode_empty_intrinsic(decoder, fields, Self::CoroutineSuspend),
             9 => decode_empty_intrinsic(decoder, fields, Self::CurrentSourceLocation),

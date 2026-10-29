@@ -1,7 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use scoop::{RuntimeBuildRequest, RuntimeOptimization, build_runtime};
 use scoop_toolchain::{ResolvedTargetProfile, ValidatedFinalLinkProfile};
 
 use crate::{ProgramLinkOutput, RuntimeObjectSet, link_program, read_program_artifacts};
@@ -42,21 +41,26 @@ fn build_fixture(root_fixture: &str, native: bool) -> Fixture {
         compiler.is_file(),
         "build the paired scoopc before program-link tests"
     );
-    let core = path.join("core.slib");
-    checked(
-        Command::new(&compiler)
-            .arg("build")
-            .arg(workspace.join("sysroot/src/scoop.core"))
-            .arg("--out-slib")
-            .arg(&core),
-    );
+    let triple = if cfg!(target_os = "linux") {
+        "x86_64-unknown-linux-gnu"
+    } else {
+        "aarch64-apple-darwin"
+    };
+    let target = ResolvedTargetProfile::resolve(triple).unwrap();
+    let sysroot = std::env::var_os("SCOOP_SYSROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| workspace.join("sysroot"));
+    let core =
+        scoop_toolchain::TrustedCoreSlotLayoutV1::new(&sysroot, target.lir_target_selection())
+            .artifact()
+            .to_owned();
     let library = compile(
         &compiler,
         path,
         "library",
         "library",
-        &core,
-        &[],
+        &sysroot,
+        false,
         "basic-library.scoop",
     );
     let root = compile(
@@ -64,30 +68,13 @@ fn build_fixture(root_fixture: &str, native: bool) -> Fixture {
         path,
         "root",
         "executable",
-        &core,
-        &[&library],
+        &sysroot,
+        true,
         root_fixture,
     );
-    let triple = if cfg!(target_os = "linux") {
-        "x86_64-unknown-linux-gnu"
-    } else {
-        "aarch64-apple-darwin"
-    };
-    let target = ResolvedTargetProfile::resolve(triple).unwrap();
-    let runtime_build = build_runtime(RuntimeBuildRequest {
-        enable_gc_stress: false,
-        enable_startup_stats: false,
-        target: &target,
-        runtime_root: &workspace.join("runtime"),
-        vendor_root: &workspace.join("sysroot/vendor"),
-        cache_root: &path.join("runtime"),
-        optimization: RuntimeOptimization::Optimized,
-        unwind_prefix: None,
-    })
-    .unwrap();
     let profile = ValidatedFinalLinkProfile::resolve(triple).unwrap();
     let runtime = RuntimeObjectSet::read_index(
-        runtime_build.index(),
+        &scoop_toolchain::default_runtime_index(&sysroot, target.lir_target(), false, false),
         profile.target(),
         profile.startup_toolchain().profile(),
     )
@@ -117,7 +104,7 @@ fn build_fixture(root_fixture: &str, native: bool) -> Fixture {
         &profile,
         crate::ProgramLinkOptions {
             keep_symbols: true,
-            emit_symbol_map: true,
+            emit_debug_file: false,
         },
         &library_paths,
         &path.join("program"),
@@ -139,8 +126,8 @@ fn compile(
     path: &Path,
     name: &str,
     kind: &str,
-    core: &Path,
-    dependencies: &[&Path],
+    sysroot: &Path,
+    has_library: bool,
     fixture: &str,
 ) -> PathBuf {
     let source = path.join(name);
@@ -148,8 +135,8 @@ fn compile(
     let mut manifest = format!(
         "schema = 1\n[cone]\ngroup = \"dev.programlink\"\nname = \"{name}\"\nversion = \"0.1.0\"\nkind = \"{kind}\"\n"
     );
-    if !dependencies.is_empty() {
-        manifest.push_str("[dependencies]\n\"dev.programlink:library\" = \"0.1.0\"\n");
+    if has_library {
+        manifest.push_str("[dependencies]\n\"dev.programlink:library\" = { version = \"0.1.0\", path = \"../library\" }\n");
     }
     std::fs::write(source.join("Cone.toml"), manifest).unwrap();
     std::fs::copy(
@@ -160,16 +147,19 @@ fn compile(
     )
     .unwrap();
     let output = path.join(format!("{name}.slib"));
-    let mut command = Command::new(compiler);
-    command
-        .arg("build")
-        .arg(&source)
-        .arg("--direct-slib")
-        .arg(core);
-    for dependency in dependencies {
-        command.arg("--direct-slib").arg(dependency);
-    }
-    checked(command.arg("--out-slib").arg(&output));
+    checked(
+        Command::new(compiler.with_file_name("scoop"))
+            .arg("build")
+            .arg(&source)
+            .args(["--release", "--emit-slib", "--sysroot"])
+            .arg(sysroot)
+            .arg("--scoopc")
+            .arg(compiler)
+            .arg("--cache-dir")
+            .arg(path.join("compile-cache"))
+            .arg("-o")
+            .arg(&output),
+    );
     output
 }
 

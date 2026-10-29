@@ -144,6 +144,7 @@ fn enum_module_with(
     let t8 = tagged_temps.alloc(Temp { ty: LirType::I64 }); // t3 + t7
     let mut tagged_blocks = Arena::default();
     let tagged_entry = tagged_blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![
             Instruction::EnumWrap {
@@ -203,12 +204,17 @@ fn enum_module_with(
                 lhs: Value::Temp(t3),
                 rhs: Value::Temp(t7),
             },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return {
             value: Some(Value::Temp(t8)),
         },
     });
     let tagged = Function {
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -255,6 +261,7 @@ fn enum_module_with(
     }); // enum_tag o2 (local)
     let mut niche_blocks = Arena::default();
     let niche_entry = niche_blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![
             Instruction::EnumTag {
@@ -293,12 +300,17 @@ fn enum_module_with(
                 enum_id: option,
                 operand: Value::Local(o2),
             },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return {
             value: Some(Value::Temp(n5)),
         },
     });
     let niche = Function {
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -328,11 +340,16 @@ fn enum_module_with(
     );
     let mut trap_blocks = Arena::default();
     let trap_entry = trap_blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
-        instructions: vec![Instruction::Call { site: trap_site }],
+        instructions: vec![Instruction::Call { site: trap_site }].into(),
         terminator: Terminator::Unreachable,
     });
     let trap_on_none = Function {
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: trap_callable_body,
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -353,17 +370,23 @@ fn enum_module_with(
     });
     let mut produce_blocks = Arena::default();
     let produce_entry = produce_blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![Instruction::EnumWrap {
             out: produced,
             variant: shape_v1,
             fields: vec![signed64(9)],
-        }],
+        }]
+        .into(),
         terminator: Terminator::Return {
             value: Some(Value::Temp(produced)),
         },
     });
     let produce = Function {
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -404,6 +427,7 @@ fn enum_module_with(
     );
     let mut consume_blocks = Arena::default();
     let consume_entry = consume_blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![
             Instruction::Call { site: produce_site },
@@ -412,12 +436,17 @@ fn enum_module_with(
                 enum_id: shape,
                 operand: Value::Local(received),
             },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return {
             value: Some(Value::Temp(tag)),
         },
     });
     let consume = Function {
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -454,6 +483,7 @@ fn enum_module_with(
     );
     let mut indirect_blocks = Arena::default();
     let indirect_entry = indirect_blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![
             Instruction::Call {
@@ -464,12 +494,17 @@ fn enum_module_with(
                 enum_id: shape,
                 operand: Value::Local(indirect_received),
             },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return {
             value: Some(Value::Temp(indirect_tag)),
         },
     });
     let consume_indirect = Function {
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,

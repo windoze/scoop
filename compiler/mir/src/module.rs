@@ -502,6 +502,7 @@ impl ForeignCallbackOperation {
 #[derive(Debug, Clone)]
 pub struct Global {
     pub name: String,
+    pub debug_origin: crate::DebugOrigin,
     /// Semantic owner used by LIR to derive the one persistent static-storage
     /// identity appropriate for the final physical layout.
     pub storage_owner: StaticStorageOwner,

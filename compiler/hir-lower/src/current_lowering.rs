@@ -197,8 +197,17 @@ fn lower_current_export_inner<C>(
         CoreProtocolInput::CurrentDeclarations => lowerer,
         CoreProtocolInput::Imported(core) => lowerer.with_imported_core(core),
     };
-    let (module, mut warnings, completion) =
+    let (mut module, mut warnings, completion) =
         lowerer.run_with_dependencies(&files, world, generator, check)?;
+    for file in &mut module.source_files {
+        if let Some(path) = input
+            .sources()
+            .diagnostic_context()
+            .display_locator(&file.identity)
+        {
+            file.debug_path = path.to_string_lossy().as_ref().into();
+        }
+    }
     PhaseFailure::check(check)?;
     let output_kind = if tests {
         crate::test_entry::output_kind(&module)?

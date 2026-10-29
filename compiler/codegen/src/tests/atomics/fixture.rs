@@ -85,11 +85,16 @@ fn function(kind: AtomicValueKind) -> Function {
     }
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".into(),
-        instructions,
+        instructions: instructions.into(),
         terminator: Terminator::Return { value: None },
     });
     Function {
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body(kind.registry_key()),
         safepoints: Default::default(),
         gc_effect: GcEffect::NoGc,

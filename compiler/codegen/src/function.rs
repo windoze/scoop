@@ -2,6 +2,7 @@ use super::*;
 
 mod abi_parts;
 mod call;
+mod debug;
 mod gc;
 mod instruction;
 mod interface_values;
@@ -13,6 +14,7 @@ mod thread_address;
 /// Per-function emission state: everything instruction translation
 /// needs, bundled to keep signatures small.
 struct FnEmitter<'a, 'ctx> {
+    debug: Option<std::cell::RefCell<crate::debug::FunctionDebug<'a, 'ctx>>>,
     context: &'ctx Context,
     managed_address_space: ManagedAddressSpace,
     optimize_allocations: bool,
@@ -89,8 +91,6 @@ struct FnEmitter<'a, 'ctx> {
     /// One ordinary field-write region, never retained across control flow or
     /// operations that can change the reference or publish/collect heap state.
     field_barrier: Option<gc::FieldBarrierCache<'ctx>>,
-    /// Checked array-size failures share one block per callable-owned message.
-    array_size_trap_blocks: HashMap<scoop_lir::GlobalId, inkwell::basic_block::BasicBlock<'ctx>>,
 }
 
 struct NativeTransition<'ctx> {
@@ -226,6 +226,13 @@ pub(super) fn emit_function<'ctx>(
     let llvm_function = llvm
         .get_function(function.symbol())
         .expect("function declared in the first pass");
+    let mut debug = module_ctx
+        .debug
+        .and_then(|debug| debug.function(function, llvm_function));
+    builder.unset_current_debug_location();
+    if let Some(debug) = &mut debug {
+        debug.set_location(builder, &scoop_source::DebugOrigin::Generated);
+    }
 
     // A function containing a landing pad needs Scoop's closed-profile
     // personality (M25, runtime spec 5). Setting it also makes LLVM emit the
@@ -294,6 +301,7 @@ pub(super) fn emit_function<'ctx>(
     }
 
     let mut emitter = FnEmitter {
+        debug: debug.map(std::cell::RefCell::new),
         context,
         managed_address_space: module_ctx.managed_address_space,
         optimize_allocations: module_ctx.optimize_allocations,
@@ -348,7 +356,6 @@ pub(super) fn emit_function<'ctx>(
         allocation_addressed_locals: None,
         young_allocation: None,
         field_barrier: None,
-        array_size_trap_blocks: HashMap::new(),
     };
 
     // All locals are stack slots allocated at the top of the entry block;
@@ -357,6 +364,7 @@ pub(super) fn emit_function<'ctx>(
     builder.position_at_end(blocks[arena_index(function.entry)]);
     emitter.allocate_locals()?;
     emitter.prepare_root_storage()?;
+    emitter.initialize_debug_variables()?;
     let mut initialization_successors = None;
     let mut young_successors = HashMap::new();
     for (block_id, block) in function.blocks.iter() {
@@ -373,6 +381,11 @@ pub(super) fn emit_function<'ctx>(
         // the first of its block (LLVM requires the landingpad first).
         let mut invoke_terminated = false;
         for (index, instruction) in block.instructions.iter().enumerate() {
+            if let Some(debug) = &emitter.debug {
+                debug
+                    .borrow_mut()
+                    .set_location(builder, block.instructions.origin(index));
+            }
             emitter.current_instruction = index;
             let is_invoke = matches!(instruction, Instruction::Invoke { .. });
             if is_invoke && index + 1 != block.instructions.len() {
@@ -394,9 +407,22 @@ pub(super) fn emit_function<'ctx>(
                 )));
             }
             emitter.instruction(instruction)?;
-            if !is_invoke {
-                for temp in instruction_temp_defs(instruction).into_iter().flatten() {
+            emitter.finish_debug_safepoint(instruction)?;
+            for temp in instruction_temp_defs(instruction).into_iter().flatten() {
+                if !is_invoke {
                     emitter.sync_root_temp(temp)?;
+                }
+                if let Some(debug) = &emitter.debug
+                    && let Some(value) = emitter.temps.get(&temp)
+                {
+                    debug.borrow().value(
+                        scoop_lir::DebugStorage::Temporary(temp),
+                        *value,
+                        None,
+                        builder
+                            .get_insert_block()
+                            .expect("an emitted value has a block"),
+                    );
                 }
             }
             invoke_terminated = is_invoke;
@@ -417,6 +443,11 @@ pub(super) fn emit_function<'ctx>(
                 }
             }
             continue;
+        }
+        if let Some(debug) = &emitter.debug {
+            debug
+                .borrow_mut()
+                .set_location(builder, &block.terminator_origin);
         }
         match &block.terminator {
             Terminator::Br(target) => {
@@ -534,5 +565,6 @@ pub(super) fn emit_function<'ctx>(
             }
         }
     }
+    builder.unset_current_debug_location();
     emitter.runtime_scans.finish()
 }

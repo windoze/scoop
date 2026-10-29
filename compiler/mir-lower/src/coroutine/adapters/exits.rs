@@ -40,6 +40,7 @@ pub(super) fn drive_exit_blocks(
         .result()
         .clone();
     let completed = blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "completed".to_string(),
         statements: vec![
             atomic_field_store(
@@ -69,6 +70,7 @@ pub(super) fn drive_exit_blocks(
         unwind: Some(switch.unwind),
     });
     let suspended = blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "suspended".to_string(),
         statements: vec![switch.leave()],
         terminator: mir::Terminator::Return {
@@ -77,6 +79,7 @@ pub(super) fn drive_exit_blocks(
         unwind: None,
     });
     let failed = blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "failed".to_string(),
         statements: vec![
             atomic_field_store(
@@ -99,6 +102,7 @@ pub(super) fn drive_exit_blocks(
         unwind: Some(switch.unwind),
     });
     let catch_pad = blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "body_failure".to_string(),
         statements: vec![
             statement(mir::StatementKind::Eh(mir::EhStatement::LandingPad {

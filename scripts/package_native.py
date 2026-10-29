@@ -30,12 +30,13 @@ def loader_path(name, source, executable):
     return Path(name)
 
 
-def darwin(root, binaries, llvm_lib):
+def darwin(root, binaries, llvm_lib, additional=None):
     private = root / "libexec/llvm/lib"
-    private.mkdir(parents=True)
+    private.mkdir(parents=True, exist_ok=True)
     files = {path.resolve(): root / "bin" / path.name for path in binaries}
+    files.update(additional or {})
     executable = binaries[0].parent
-    queue = [(path.resolve(), []) for path in binaries]
+    queue = [(path, []) for path in files]
     libraries = {}
     edits = []
     while queue:
@@ -71,11 +72,7 @@ def darwin(root, binaries, llvm_lib):
         has_private_dependencies = bool(arguments)
         for path in rpaths:
             arguments += ["-delete_rpath", path]
-        relative = (
-            "@loader_path"
-            if destination.parent == private
-            else "@executable_path/../libexec/llvm/lib"
-        )
+        relative = "@loader_path/" + os.path.relpath(private, destination.parent)
         if has_private_dependencies:
             arguments += ["-add_rpath", relative]
         if own_name is not None:
@@ -84,7 +81,10 @@ def darwin(root, binaries, llvm_lib):
             edits.append((destination, arguments))
     for destination, arguments in reversed(edits):
         subprocess.run(["install_name_tool", *arguments, str(destination)], check=True)
-        subprocess.run(["codesign", "--force", "--sign", "-", str(destination)], check=True)
+        signing = ["codesign", "--force", "--sign", "-"]
+        if destination.name == "debugserver":
+            signing += ["--preserve-metadata=entitlements"]
+        subprocess.run([*signing, str(destination)], check=True)
     return list(libraries.values())
 
 
@@ -95,13 +95,14 @@ def linux_system(name):
     )
 
 
-def linux(root, binaries, llvm_lib):
+def linux(root, binaries, llvm_lib, additional=None):
     if shutil.which("patchelf") is None:
         raise ValueError("Linux packaging requires patchelf")
     private = root / "libexec/llvm/lib"
-    private.mkdir(parents=True)
+    private.mkdir(parents=True, exist_ok=True)
     files = {path.resolve(): root / "bin" / path.name for path in binaries}
-    queue = [path.resolve() for path in binaries]
+    files.update(additional or {})
+    queue = list(files)
     libraries = {}
     edits = []
     environment = dict(os.environ, LC_ALL="C", LD_LIBRARY_PATH=str(llvm_lib))
@@ -133,7 +134,7 @@ def linux(root, binaries, llvm_lib):
                 queue.append(dependency)
             arguments += ["--replace-needed", name, dependency.name]
         destination = files[source]
-        relative = "$ORIGIN" if destination.parent == private else "$ORIGIN/../libexec/llvm/lib"
+        relative = "$ORIGIN/" + os.path.relpath(private, destination.parent)
         arguments += ["--set-rpath", relative]
         if destination.parent == private:
             arguments += ["--set-soname", destination.name]

@@ -25,6 +25,7 @@ fn managed_live_plan_produces_as1_relocation() {
     });
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![Instruction::Call {
             site: CallSite::Managed(scoop_lir::ManagedCallSite {
@@ -35,7 +36,8 @@ fn managed_live_plan_produces_as1_relocation() {
                 safepoint: test_safepoint(1),
                 live,
             }),
-        }],
+        }]
+        .into(),
         terminator: Terminator::Return {
             value: Some(Value::Param(0)),
         },
@@ -54,6 +56,10 @@ fn managed_live_plan_produces_as1_relocation() {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
+            debug_name: Default::default(),
+            debug_variables: Vec::new(),
+            debug_signature: Default::default(),
+            debug_origin: Default::default(),
             callable_body: callable_body("scoop.live_root"),
             safepoints: test_safepoints("scoop.live_root", &blocks, entry),
             gc_effect: GcEffect::Managed,
@@ -84,13 +90,18 @@ fn managed_live_plan_produces_as1_relocation() {
 fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() {
     let mut callee_blocks = Arena::default();
     let callee_entry = callee_blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
-        instructions: Vec::new(),
+        instructions: Vec::new().into(),
         terminator: Terminator::Return {
             value: Some(Value::Param(0)),
         },
     });
     let callee = Function {
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -124,8 +135,9 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
     let mut blocks = Arena::default();
     let placeholder = |blocks: &mut Arena<BasicBlock>, name: &str| {
         blocks.alloc(BasicBlock {
+            terminator_origin: Default::default(),
             name: name.to_string(),
-            instructions: Vec::new(),
+            instructions: Vec::new().into(),
             terminator: Terminator::Unreachable,
         })
     };
@@ -133,6 +145,7 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
     let normal = placeholder(&mut blocks, "normal");
     let unwind = placeholder(&mut blocks, "unwind");
     blocks[entry] = BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![Instruction::Invoke {
             site: scoop_lir::InvokeSite::Managed(scoop_lir::ManagedInvokeSite {
@@ -154,17 +167,20 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
                 normal,
                 unwind,
             }),
-        }],
+        }]
+        .into(),
         terminator: Terminator::Br(normal),
     };
     blocks[normal] = BasicBlock {
+        terminator_origin: Default::default(),
         name: "normal".to_string(),
-        instructions: Vec::new(),
+        instructions: Vec::new().into(),
         terminator: Terminator::Return {
             value: Some(Value::Param(0)),
         },
     };
     blocks[unwind] = BasicBlock {
+        terminator_origin: Default::default(),
         name: "unwind".to_string(),
         instructions: vec![
             Instruction::LandingPad { record, raw },
@@ -173,12 +189,17 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
                 raw: Value::Temp(raw),
             },
             Instruction::EndCatch,
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return {
             value: Some(Value::Param(0)),
         },
     };
     let caller = Function {
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body("scoop.invoke_caller"),
         safepoints: test_safepoints("scoop.invoke_caller", &blocks, entry),
         gc_effect: GcEffect::Managed,

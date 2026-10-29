@@ -77,7 +77,7 @@ fn specialize(
             array_access |= matches!(statement.kind, mir::StatementKind::ArraySet { .. });
             mir::visit_statement_exprs_mut(statement, &mut |expr| {
                 if let Value::Boolean(value) = state.expression(expr) {
-                    *expr = mir::Expr::bool(value);
+                    *expr = mir::Expr::bool(value).with_debug_origin(expr.debug_origin.clone());
                 }
             });
             state.statement(statement);

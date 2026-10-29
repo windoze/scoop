@@ -263,6 +263,7 @@ pub struct ConeCompileCacheInputV1 {
     c_bridge_toolchain: CBridgeToolchainFingerprint,
     native_tool_inputs: scoop_wire::Digest256,
     optimization: scoop_lir::OptimizationMode,
+    debug_info: scoop_lir::DebugInfoLevel,
     purpose: CompilationPurpose,
 }
 
@@ -296,12 +297,18 @@ impl ConeCompileCacheInputV1 {
             c_bridge_toolchain,
             native_tool_inputs,
             optimization: scoop_lir::OptimizationMode::Debug,
+            debug_info: scoop_lir::DebugInfoLevel::None,
             purpose: CompilationPurpose::Production,
         }
     }
 
     pub(crate) fn with_optimization(mut self, mode: scoop_lir::OptimizationMode) -> Self {
         self.optimization = mode;
+        self
+    }
+
+    pub(crate) fn with_debug_info(mut self, level: scoop_lir::DebugInfoLevel) -> Self {
+        self.debug_info = level;
         self
     }
 
@@ -341,7 +348,7 @@ impl ConeCompileCacheInputV1 {
 
 impl WireEncode for ConeCompileCacheInputV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(15)?;
+        encoder.map(16)?;
         encoder.field(1)?;
         encoder.unsigned(1)?;
         encoder.field(2)?;
@@ -371,7 +378,9 @@ impl WireEncode for ConeCompileCacheInputV1 {
         encoder.field(14)?;
         self.purpose.encode(encoder)?;
         encoder.field(15)?;
-        self.native_tool_inputs.encode(encoder)
+        self.native_tool_inputs.encode(encoder)?;
+        encoder.field(16)?;
+        self.debug_info.encode(encoder)
     }
 }
 

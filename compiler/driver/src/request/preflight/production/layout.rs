@@ -287,7 +287,8 @@ pub(super) fn assemble(
         request.target().c_bridge_toolchain().profile().contract(),
     )
     .map_err(Error::Codegen)?
-    .with_optimization(request.optimization());
+    .with_optimization(request.optimization())
+    .with_debug_info(request.debug_info());
     let objects = scoop_codegen::emit_object_set_v2(&lir, registration, temporary_parent, backend)
         .map_err(Error::Codegen)?;
     let generated = crate::generated_c::emit_c_bridge_object_set(

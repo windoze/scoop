@@ -19,6 +19,7 @@ fn module() -> lir::Module {
             CallableMaterializationContext::NoSubstitution,
         ),
         code: mir::Function {
+            debug_origin: Default::default(),
             gc_effect: mir::GcEffect::NoGc,
             name: "Owner::release".into(),
             params: Vec::new(),

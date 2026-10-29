@@ -19,6 +19,8 @@ pub(crate) fn runtime_signature(
                 P,
             ),
             Managed::StringConcat => (vec![P, P], P),
+            Managed::PrepareThrowable => (vec![P, M], P),
+            Managed::ThrowablePrintStackTrace => (vec![P], T::Void),
             Managed::InitializationEnter => (
                 vec![M],
                 T::MachineScalar(lir::MachineScalarKind::InitializationOutcome),
@@ -38,7 +40,7 @@ pub(crate) fn runtime_signature(
             Leaf::StringByteLength => (vec![P], T::I64),
             Leaf::StringByteAt => (vec![P, T::I64], T::I8),
             Leaf::StringCharacterAtByte => (vec![P, T::I64], T::I32),
-            Leaf::Trap => (vec![R], T::Void),
+            Leaf::Trap | Leaf::Fatal => (vec![R], T::Void),
             Leaf::Throw => (vec![P], T::Void),
             Leaf::Rethrow => (vec![], T::Void),
             Leaf::UnboxZst => (vec![P, M], T::Void),

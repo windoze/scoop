@@ -392,6 +392,7 @@ fn terminating_while_still_marks_its_loop_header_poll() {
         header.terminator,
         mir::Terminator::Return {
             value: mir::Expr {
+                debug_origin: _,
                 ty: mir::Type::Unit,
                 kind: mir::ExprKind::UnitLiteral
             }
@@ -738,6 +739,7 @@ fn generic_unit_return_evaluates_result_before_finally() {
         &finally_block.terminator,
         mir::Terminator::Return {
             value: mir::Expr {
+                debug_origin: _,
                 ty: mir::Type::Unit,
                 kind: mir::ExprKind::UnitLiteral
             }

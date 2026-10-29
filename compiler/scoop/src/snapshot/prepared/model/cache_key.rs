@@ -118,6 +118,7 @@ impl PreparedBuildGraph {
             target.native_tool_inputs(),
         )
         .with_optimization(self.context.optimization)
+        .with_debug_info(self.context.debug_info)
         .with_purpose(self.compilation_purpose(identity)))
     }
 

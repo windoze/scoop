@@ -18,6 +18,7 @@
 
 typedef struct TestException {
     ScoopObjectHeader header;
+    ScoopArray *snapshot;
     uint64_t code;
     void *reference;
 } TestException;
@@ -29,7 +30,7 @@ static const ScoopTypeDescriptor test_exception_td = {
             .instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
             .inline_storage_kind = SCOOP_INLINE_STORAGE_NONE_V1,
             .minimum_size = sizeof(TestException),
-            .instance_alignment = 32,
+            .instance_alignment = _Alignof(TestException),
         },
     .object_scan = NULL,
     .parent = NULL,
@@ -528,6 +529,8 @@ static void test_invalid_catch_states_abort_with_stable_diagnostics(void) {
                              "scoop: fatal exception state error: begin-catch observed an invalid "
                              "record state\n");
 }
+
+_Noreturn void scoop_thread_fatal(const char *message) { test_fail(message, __LINE__); }
 
 ScoopThreadState *scoop_thread_current(void) { return &test_thread; }
 

@@ -14,6 +14,14 @@ pub(crate) fn class_layout(
     def: &mir::ClassDef,
 ) -> StorageResult<(u64, u64, lir::RefScan)> {
     match &def.representation {
+        mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Throwable) => {
+            let shape = lir::throwable_instance_shape(context.target_profile())?;
+            Ok((
+                shape.minimum_size(),
+                shape.instance_alignment(),
+                shape.object_scan().clone(),
+            ))
+        }
         mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Atomic(storage)) => {
             let layout = atomic_object_layout(context, storage.kind())?;
             Ok((layout.size, layout.align, layout.scan))
@@ -50,8 +58,22 @@ pub(crate) fn class_shape(
     enums: &lir::EnumDefs,
     def: &mir::DeclaredClass,
 ) -> StorageResult<(Vec<u64>, u64, u64)> {
+    let (offsets, size, align, _) = class_shape_with_prefix(context, module, enums, def)?;
+    Ok((offsets, size, align))
+}
+
+fn class_shape_with_prefix(
+    context: &LoweringContext,
+    module: &mir::Module,
+    enums: &lir::EnumDefs,
+    def: &mir::DeclaredClass,
+) -> StorageResult<(Vec<u64>, u64, u64, lir::RefScan)> {
     let mut chain = vec![def];
     let mut current = def;
+    let header = context.object_header_layout();
+    let mut prefix =
+        lir::StorageGeometryV1::new(context.target_profile(), header.size, header.align)?;
+    let mut prefix_scan = lir::RefScan::None;
     let mut seen = std::collections::HashSet::new();
     while let Some(base) = current.base_class {
         // Integer subtype boxes share one scalar payload with the parent box.
@@ -71,6 +93,16 @@ pub(crate) fn class_shape(
         }
         current = match &module.classes[base].representation {
             mir::ClassRepresentation::Declared(base) => base,
+            mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Throwable) => {
+                let shape = lir::throwable_instance_shape(context.target_profile())?;
+                prefix = lir::StorageGeometryV1::new(
+                    context.target_profile(),
+                    shape.minimum_size(),
+                    shape.instance_alignment(),
+                )?;
+                prefix_scan = shape.object_scan().clone();
+                break;
+            }
             mir::ClassRepresentation::Intrinsic(_) => {
                 return Err(StorageLoweringError::InvalidRepresentation(
                     "a declared class requires a declared base",
@@ -80,9 +112,6 @@ pub(crate) fn class_shape(
         chain.push(current);
     }
     let enum_shape = |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));
-    let header = context.object_header_layout();
-    let mut prefix =
-        lir::StorageGeometryV1::new(context.target_profile(), header.size, header.align)?;
     let mut offsets = Vec::new();
     let mut inherited_fields: &[mir::Field] = &[];
     for definition in chain.into_iter().rev() {
@@ -107,7 +136,12 @@ pub(crate) fn class_shape(
         prefix = cursor.finish()?;
         inherited_fields = fields;
     }
-    Ok((offsets, prefix.size(), prefix.alignment().get()))
+    Ok((
+        offsets,
+        prefix.size(),
+        prefix.alignment().get(),
+        prefix_scan,
+    ))
 }
 
 fn declared_class_layout(
@@ -116,13 +150,17 @@ fn declared_class_layout(
     enums: &lir::EnumDefs,
     declared: &mir::DeclaredClass,
 ) -> StorageResult<(Vec<u64>, u64, u64, lir::RefScan)> {
-    let (offsets, size, align) = class_shape(context, module, enums, declared)?;
+    let (offsets, size, align, prefix_scan) =
+        class_shape_with_prefix(context, module, enums, declared)?;
     let fields: Vec<_> = declared
         .fields
         .iter()
         .map(|field| field.ty.clone())
         .collect();
-    let scan = scan_fields(context, module, enums, &fields, &offsets, 0)?;
+    let scan = sequence([
+        prefix_scan,
+        scan_fields(context, module, enums, &fields, &offsets, 0)?,
+    ])?;
     Ok((offsets, size, align, scan))
 }
 
@@ -164,6 +202,21 @@ pub(crate) fn class_definition_layout(
         }
         mir::ClassRepresentation::Intrinsic(representation) => {
             let (size, align, kind) = match representation {
+                mir::IntrinsicClassRepresentation::Throwable => {
+                    let shape = lir::throwable_instance_shape(context.target_profile())?;
+                    return Ok(lir::Layout {
+                        identity,
+                        name: def.name.clone(),
+                        size: shape.minimum_size(),
+                        align: shape.instance_alignment(),
+                        fields: Vec::new(),
+                        c_layout: None,
+                        interior_mutable: false,
+                        kind: lir::LayoutKind::Plain {
+                            scan: shape.object_scan().clone(),
+                        },
+                    });
+                }
                 mir::IntrinsicClassRepresentation::Atomic(storage) => {
                     let layout = atomic_object_layout(context, storage.kind())?;
                     return Ok(lir::Layout {

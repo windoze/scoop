@@ -189,12 +189,14 @@ pub(crate) fn lower(
     } = body;
     let mut blocks = Arena::new();
     let entry = blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         statements: Vec::new(),
         terminator: mir::Terminator::Unreachable,
         unwind: None,
     });
     let mut lowerer = CfgLowerer {
+        current_origin: mir::DebugOrigin::Generated,
         locals,
         blocks,
         entry,
@@ -247,6 +249,7 @@ pub(crate) fn lower(
 }
 
 struct CfgLowerer<'a> {
+    current_origin: mir::DebugOrigin,
     locals: Arena<mir::Local>,
     blocks: Arena<mir::BasicBlock>,
     entry: mir::BlockId,

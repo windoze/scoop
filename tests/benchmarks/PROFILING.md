@@ -1,9 +1,9 @@
 # 函数级采样归因
 
-先用普通 release 构建取得程序，再请求同一次构建的符号映射：
+用 release 优化及行表构建程序，同时取得该次构建的逻辑符号观察：
 
 ```sh
-target/release/scoop build PATH --release --emit-symbol-map --emit symbols \
+target/release/scoop build PATH --release --debug-info line-tables --emit symbols \
   --dump-dir "$PWD/tmp/profile/dumps" -o "$PWD/tmp/profile/program"
 ```
 
@@ -16,13 +16,15 @@ target/release/scoop build PATH --release --emit-symbol-map --emit symbols \
 producer、typed implementation、模板／实例、可用的完整 exact signature 和声明来源。
 泛型实例、重载与 adapter 仍是不同符号；显示名不参与身份判断。它包含可能被最终链接
 去掉的正文，不是存活函数清单。声明位置是原始 byte span，**不是采样 PC 的执行行号**；
-缺失来源保留 null。本能力不生成指令行表、DWARF 内联栈或 PGO 输入。
+缺失来源保留 null。`--emit symbols` 本身不生成指令行表、DWARF 内联栈或 PGO 输入；
+指令位置由独立的 `--debug-info` 控制。
 
-release 默认从最终程序移除普通内部符号，显式 `--emit-symbol-map` 生成 `program.map`，保存实际链接
-地址与符号范围。离线归因需保留这份 map、同次 `symbols.json` 及匹配的程序；map 中
-只含最终存活的地址，symbols 观察提供逻辑函数名与声明来源。二者都在程序外部。
-debug 默认保留程序内符号并生成 map；release 加 `--keep-symbols` 可保留原有 nm／perf 工作流，但不会自动生成 map。
-切换保留策略只影响最终链接，既有 `.slib` 和对象可以复用。
+release 默认清理普通内部符号；`--debug-info line-tables` 或 `full` 保留 DWARF，
+并发布相邻的 `program.dSYM`（Darwin）或 `program.debug`（ELF）。离线归因须保留
+同次 executable、独立调试文件和 `symbols.json`。LLVM 工具负责 DWARF 地址／行号／
+内联链解析，symbols 观察按精确 linkage name 补充逻辑名称与角色。
+debug 默认使用 full 并保留程序内符号；release 默认 none。`--keep-symbols` 只控制
+普通符号表，不代替调试信息。旧 `--emit-symbol-map` 与 map parser 已移除。
 
 ## macOS
 
@@ -44,8 +46,7 @@ wait "$profile_pid"
 使用本机已配置权限的 `perf`，对用户态 cycles 采样并记录已有物理调用栈：
 
 下述按名称读取 perf 报告的流程使用 `--release --keep-symbols` 构建。已清理符号的程序
-也能记录 PC；须从 perf 的实际映射信息取得 load bias，再按后文查询链接地址，不能把
-PIE 的运行地址直接送入 map。本工具不自动解析 perf.data 的进程映射事件。
+也能记录 PC；须从 perf 的实际映射信息取得 load bias，再以 `--load-bias` 提供给后文的 PC 查询。本工具不自动解析 perf.data 的进程映射事件。
 
 ```sh
 perf record -e cycles:u -F 199 --call-graph fp \
@@ -86,30 +87,30 @@ Mach-O 程序，让配套 LLVM 工具从报告中的 PC 恢复符号：
 python3 tests/benchmarks/symbolize.py \
   --symbols tmp/profile/dumps/ConeIdentity/symbols.json \
   --input tmp/profile/sample.txt --output tmp/profile/sample-named.txt \
-  --link-map tmp/profile/program.map \
   --binary tmp/profile/program --llvm-tools "$LLVM_SYS_221_PREFIX/bin"
 ```
 
 省略 `--llvm-tools` 时从 PATH 使用 llvm-nm、llvm-readobj 和 llvm-symbolizer。对 sample
-原始报告，工具自动用主镜像的
-实际加载范围筛选 PC，以 __TEXT 地址还原 ASLR，再按 map 的真实范围查询。未提供 map
-时沿原有 LLVM symbolizer 路径，要求程序保留可用符号。每行仅附加明确列出的
-地址所对应的函数及偏移，原始 `<deduplicated_symbol>`、折叠计数与省略号均保留。
+原始报告，工具自动用主镜像的实际加载范围筛选 PC，以 __TEXT 地址计算 ASLR slide，
+再调用 llvm-symbolizer 读取相邻调试文件（没有时读取 executable）。
+这也避免 LLVM 22 用裁剪后残留的 C 入口符号覆盖 DWARF 函数名。每行仅附加明确列出的地址所对应的
+函数、有效偏移、文件／行和内联链，原始 `<deduplicated_symbol>`、折叠计数与省略号均保留。
 一个折叠帧可能覆盖多个地址，不能将该行总计数分别算到这些函数，也不能补造省略样本；
 没有地址的汇总行保持原样。分析时需要更精细的分布，应重新选择采集工具或选项。
 
-也可直接查询一个或多个链接地址，例如从反汇编取得的 PC，或扣除实际 load bias 后的
-Linux 采样 PC：
+也可直接查询一个或多个链接地址，例如反汇编中的 PC：
 
 ```sh
 python3 tests/benchmarks/symbolize.py \
   --symbols tmp/profile/dumps/ConeIdentity/symbols.json \
-  --link-map tmp/profile/program.map --address 0x100012340
+  --binary tmp/profile/program --address 0x100012340
 ```
 
-`--address` 可重复。返回函数名、完整符号与函数内偏移；不在已知正文范围、零长度且
-没有同址有长度的 atom，或多个 callable 同址无法区分时保留未知。原生 linker map
-还保留 native／runtime 符号，但此工具只为已知 Scoop callable 添加逻辑名字。
+`--address` 可重复。Linux PIE 的运行 PC 同时提供 `--load-bias 0x...`，其值必须来自
+实际采样进程的映射；省略时按链接地址处理。本工具不自动解析 perf.data 的映射事件。
+只为包含已知 Scoop 精确符号的地址添加逻辑注释；LLVM 返回的内联帧逐帧保留。
+若内联 DWARF 仅有可读名称，则保留该名称和行号，不据此猜测实体身份。未知 PC 保留
+`<unresolved>`，缺少的行号或内联帧不补造；运行程序不依赖这些离线工具。
 
 采样与普通 A/B 计时分别运行。先核对输出，再用相同程序和输入比较开启／关闭采样的
 扰动；训练输入、反馈编译与 PGO 消费者不属于这个工作流。函数热点定位后，可用平台

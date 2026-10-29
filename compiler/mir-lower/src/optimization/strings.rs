@@ -111,6 +111,7 @@ fn fuse(
                         block.statements[index].kind = mir::StatementKind::ValDecl {
                             local: destination,
                             init: mir::Expr {
+                                debug_origin: Default::default(),
                                 ty: mir::Type::String,
                                 kind: mir::ExprKind::StringConcat(chain.parts.clone()),
                             },

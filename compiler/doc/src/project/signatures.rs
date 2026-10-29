@@ -81,7 +81,7 @@ impl Projection<'_> {
                     K::FunPtr => N::GenericTemplate(core.fun_ptr().persistent()),
                     K::Any => N::Concrete(core.any().persistent()),
                     K::Nothing => N::Concrete(core.nothing().persistent()),
-                    K::Atomic(_) | K::MaybeUninit => return None,
+                    K::Atomic(_) | K::MaybeUninit | K::Throwable => return None,
                 })
             }
             hir::CoreProtocols::Defined(core) => {
@@ -101,7 +101,7 @@ impl Projection<'_> {
                     K::FunPtr => N::Struct(core.fun_ptr),
                     K::Any => N::Class(core.any),
                     K::Nothing => N::Class(core.nothing),
-                    K::Atomic(_) | K::MaybeUninit => return None,
+                    K::Atomic(_) | K::MaybeUninit | K::Throwable => return None,
                 };
                 Some(match owner {
                     N::Struct(id) => self.export.nominal_identities[id].declaration_id(),

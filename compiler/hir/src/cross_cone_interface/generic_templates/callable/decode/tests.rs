@@ -254,6 +254,7 @@ fn body(
 
 fn local(fixture: &Fixture, selector: LocalValueSelector) -> TemplateLocalRecordV1 {
     TemplateLocalRecordV1::try_new(
+        "local".into(),
         selector,
         fixture.value_type(),
         CanonicalBooleanV1::False,

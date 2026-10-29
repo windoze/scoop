@@ -171,6 +171,7 @@ pub use strong_production_v2::{
     StrongProductionV2ProjectionError, project_external_initialization_uses_v2,
 };
 
+mod debug;
 mod lower_profile;
 mod lowering;
 pub use lowering::{PreparedLir, prepare};

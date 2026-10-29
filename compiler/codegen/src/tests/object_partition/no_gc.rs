@@ -7,16 +7,22 @@ fn empty_leaf(name: &str) -> Function {
     let result = temps.alloc(Temp { ty: empty.clone() });
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![Instruction::MakeAggregate {
             out: result,
             elements: Vec::new(),
-        }],
+        }]
+        .into(),
         terminator: Terminator::Return {
             value: Some(Value::Temp(result)),
         },
     });
     Function {
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body(name),
         gc_effect: GcEffect::NoGc,
         signature: plain_scoop_signature(Vec::new(), empty),

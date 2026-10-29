@@ -36,6 +36,7 @@ pub(super) fn rewrite_site(
     let terminator = std::mem::replace(&mut block.terminator, mir::Terminator::Unreachable);
     let unwind = block.unwind;
     let post = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.post.{}", site.state),
         statements: suffix,
         terminator,
@@ -95,6 +96,7 @@ pub(super) fn rewrite_site(
         None,
     );
     let adapter_local = body.locals.alloc(mir::Local {
+        debug_variable: Default::default(),
         name: format!("$adapter.{}", site.state),
         ty: mir::Type::Class(adapter.class),
         mutable: false,
@@ -109,6 +111,7 @@ pub(super) fn rewrite_site(
         .step_metadata_for_type(&step_ty)
         .completed_payload();
     let step_local = body.locals.alloc(mir::Local {
+        debug_variable: Default::default(),
         name: format!("$step.{}", site.state),
         ty: step_ty.clone(),
         mutable: false,
@@ -151,6 +154,7 @@ pub(super) fn rewrite_site(
     )));
 
     let completed = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.completed.{}", site.state),
         statements: {
             let mut statements = Vec::new();
@@ -182,6 +186,7 @@ pub(super) fn rewrite_site(
         mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState),
     ));
     let claim_frame = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.completed_claim_frame.{}", site.state),
         statements: vec![statement(mir::StatementKind::ValDecl {
             local: frame_claim,
@@ -206,6 +211,7 @@ pub(super) fn rewrite_site(
         unwind,
     });
     let claim_completed = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.completed_claim_adapter.{}", site.state),
         statements: vec![statement(mir::StatementKind::ValDecl {
             local: adapter_claim,
@@ -230,6 +236,7 @@ pub(super) fn rewrite_site(
         unwind,
     });
     let suspended = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.suspended.{}", site.state),
         statements: Vec::new(),
         terminator: mir::Terminator::Return {
@@ -264,6 +271,7 @@ pub(super) fn rewrite_site(
         ));
     }
     let resume_block = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.resume.{}", site.state),
         statements: resume_statements,
         terminator: mir::Terminator::Goto(post),
@@ -309,6 +317,7 @@ pub(super) fn failure_resume_block(
         }
     }
     body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: format!("coroutine.failure.{}", site.state),
         statements,
         terminator: mir::Terminator::Throw {

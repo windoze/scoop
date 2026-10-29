@@ -25,6 +25,24 @@ fn optimization_changes_only_the_current_compile_key() {
 }
 
 #[test]
+fn debug_info_changes_code_reuse_without_changing_semantic_dependencies() {
+    let none = input(1, "compiler");
+    let lines = none
+        .clone()
+        .with_debug_info(scoop_lir::DebugInfoLevel::LineTables);
+    assert_ne!(none.key().unwrap(), lines.key().unwrap());
+    let full = none
+        .clone()
+        .with_debug_info(scoop_lir::DebugInfoLevel::Full);
+    assert_ne!(lines.key().unwrap(), full.key().unwrap());
+    assert_ne!(none.key().unwrap(), full.key().unwrap());
+    assert_eq!(none.dependencies(), lines.dependencies());
+    assert_eq!(none.current_semantic(), lines.current_semantic());
+    assert_eq!(none.backend, lines.backend);
+    assert_eq!(none.optimization, lines.optimization);
+}
+
+#[test]
 fn test_purpose_and_source_roles_are_independent_key_inputs() {
     let production = input(1, "same compiler");
     let test = production.clone().with_purpose(CompilationPurpose::Test);
@@ -215,9 +233,9 @@ fn compile_cache_key_has_a_fixed_canonical_vector() {
     // The vector includes the directory-input cache domain, runtime ABI and machine protocol.
     assert_eq!(
         input.key().unwrap().to_string(),
-        "d0f1bae9a9c34f085b9584a13abdaa7f264f4263c500e9898946f1a4a384d3c0"
+        "7043b00314374e1a9997ee107a8de9ee62615fdfefe744996ebda74d6bb478af"
     );
-    assert_eq!(encode(&input).unwrap().first(), Some(&0xaf));
+    assert_eq!(encode(&input).unwrap().first(), Some(&0xb0));
 }
 
 #[test]

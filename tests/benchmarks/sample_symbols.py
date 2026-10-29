@@ -1,8 +1,9 @@
 """Resolve explicit main-image PCs when macOS sample folds symbol aliases."""
 
-import json
 import re
 import subprocess
+
+import dwarf_symbols
 
 ADDRESS = r"0x[0-9a-fA-F]+"
 FRAME = re.compile(r"\(in [^)]+\).*\[(?P<addresses>0x[^\]]+)\]")
@@ -39,26 +40,6 @@ def text_base(output):
     raise ValueError("LLVM readobj found no Mach-O __TEXT segment")
 
 
-def resolved_frames(output, names, slide):
-    frames = {}
-    for line in output.splitlines():
-        value = json.loads(line)
-        for result in value if isinstance(value, list) else [value]:
-            address = int(result["Address"], 16)
-            symbols = result.get("Symbol", [])
-            if len(symbols) != 1:
-                continue
-            symbol = symbols[0]["FunctionName"].removeprefix("_")
-            if symbol not in names:
-                continue
-            label = f"{names[symbol]} {{{symbol}}}"
-            start = symbols[0].get("StartAddress")
-            if start:
-                label += f"+0x{address - slide - int(start, 16):x}"
-            frames[address] = label
-    return frames
-
-
 def append_frames(text, frames, start, end):
     lines = []
     for line in text.splitlines(keepends=True):
@@ -74,7 +55,7 @@ def append_frames(text, frames, start, end):
     return "".join(lines)
 
 
-def annotate(text, names, binary, tools=None, link_addresses=None):
+def annotate(text, names, binary, tools=None):
     start, end = image_range(text)
     addresses = sorted(
         {address for line in text.splitlines() for address in frame_addresses(line, start, end)}
@@ -82,25 +63,10 @@ def annotate(text, names, binary, tools=None, link_addresses=None):
     if not addresses:
         return text
     readobj = str(tools / "llvm-readobj") if tools else "llvm-readobj"
-    symbolizer = str(tools / "llvm-symbolizer") if tools else "llvm-symbolizer"
     headers = subprocess.run(
         [readobj, "--macho-segment", str(binary)], capture_output=True, text=True, check=True
     )
     slide = start - text_base(headers.stdout)
-    if link_addresses is not None:
-        return append_frames(text, link_addresses.frames(addresses, names, slide), start, end)
-    result = subprocess.run(
-        [
-            symbolizer,
-            f"--obj={binary}",
-            f"--adjust-vma={slide}",
-            "--functions=linkage",
-            "--no-inlines",
-            "--output-style=JSON",
-        ],
-        input="".join(f"0x{address:x}\n" for address in addresses),
-        capture_output=True,
-        text=True,
-        check=True,
+    return append_frames(
+        text, dwarf_symbols.resolve(binary, addresses, names, tools, slide), start, end
     )
-    return append_frames(text, resolved_frames(result.stdout, names, slide), start, end)

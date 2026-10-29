@@ -3,6 +3,7 @@ use super::*;
 fn local_records(fixture: &Fixture) -> CanonicalTemplateLocalTableV1 {
     CanonicalTemplateLocalTableV1::try_new(vec![
         TemplateLocalRecordV1::try_new(
+            "local".into(),
             LocalValueSelector::Parameter {
                 declaration_index: 0,
             },
@@ -12,6 +13,7 @@ fn local_records(fixture: &Fixture) -> CanonicalTemplateLocalTableV1 {
         )
         .unwrap(),
         TemplateLocalRecordV1::try_new(
+            "local".into(),
             LocalValueSelector::Synthetic {
                 path: definition_path(),
                 role: scoop_identity::SyntheticLocalRole::Temporary,

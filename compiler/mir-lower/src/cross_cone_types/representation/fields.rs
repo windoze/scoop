@@ -41,6 +41,7 @@ pub(in crate::cross_cone_types) fn own_class_fields<'a>(
     let inherited = match class.base_class {
         Some(base) => match &module.classes[base].representation {
             mir::ClassRepresentation::Declared(base) => base.fields.len(),
+            mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Throwable) => 0,
             mir::ClassRepresentation::Intrinsic(_) => return None,
         },
         None => 0,

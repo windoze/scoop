@@ -119,6 +119,7 @@ fn table_with_type(
 ) -> CanonicalTemplateLocalTableV1 {
     CanonicalTemplateLocalTableV1::try_new(vec![
         TemplateLocalRecordV1::try_new(
+            "local".into(),
             synthetic(path),
             value_type,
             CanonicalBooleanV1::False,

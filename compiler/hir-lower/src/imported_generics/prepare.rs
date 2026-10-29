@@ -321,7 +321,7 @@ impl Lowerer {
                 binding: self.fresh_binding(),
                 selector: local.selector().clone(),
                 definition,
-                name: format!("$dependency.local.{}", locals.len()),
+                name: local.name().to_owned(),
                 ty,
                 mutable: local.mutable().into(),
             });

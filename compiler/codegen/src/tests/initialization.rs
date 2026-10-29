@@ -32,13 +32,18 @@ fn initialization_ready_path_keeps_roots_and_runtime_only_on_the_slow_edge() {
     )]);
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".into(),
-        instructions: vec![Instruction::Call { site }],
+        instructions: vec![Instruction::Call { site }].into(),
         terminator: Terminator::Return {
             value: Some(Value::Param(1)),
         },
     });
     module.functions = vec![Function {
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body("ready"),
         safepoints: test_safepoints("ready", &blocks, entry),
         gc_effect: GcEffect::Managed,

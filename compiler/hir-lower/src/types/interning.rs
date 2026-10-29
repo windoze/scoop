@@ -256,7 +256,8 @@ impl Lowerer {
                 hir::IntrinsicTypeRepresentation::Array { .. }
                 | hir::IntrinsicTypeRepresentation::MutableArray { .. }
                 | hir::IntrinsicTypeRepresentation::Atomic(_)
-                | hir::IntrinsicTypeRepresentation::Nothing,
+                | hir::IntrinsicTypeRepresentation::Nothing
+                | hir::IntrinsicTypeRepresentation::Throwable,
             )
             | hir::ClassApplicationRepresentation::Declared => {
                 hir::TypeId::from_raw((self.types.len() as u32).into())

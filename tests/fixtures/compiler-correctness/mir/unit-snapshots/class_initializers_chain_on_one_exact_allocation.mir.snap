@@ -3,7 +3,7 @@
       assign $new.1
         Type Point
         ClassAlloc Point
-      call @fn27 direct
+      call @fn31 direct
         Type Point
         Local $new.1
         Type Int
@@ -14,7 +14,7 @@
       return
         Type Unit
         UnitLiteral
-  fun init.Root.$c0 @fn25(this: Root, label: String) -> Unit
+  fun init.Root.$c0 @fn29(this: Root, label: String) -> Unit
     bb0 entry
       field_set 0
         Type Root
@@ -24,9 +24,9 @@
       return
         Type Unit
         UnitLiteral
-  fun init.Base.$c1 @fn26(this: Base, name: String) -> Unit
+  fun init.Base.$c1 @fn30(this: Base, name: String) -> Unit
     bb0 entry
-      call @fn25 direct
+      call @fn29 direct
         Type Root
         Retype Root
           Type Base
@@ -41,9 +41,9 @@
       return
         Type Unit
         UnitLiteral
-  fun init.Point.$c2 @fn27(this: Point, x: Int) -> Unit
+  fun init.Point.$c2 @fn31(this: Point, x: Int) -> Unit
     bb0 entry
-      call @fn26 direct
+      call @fn30 direct
         Type Base
         Retype Base
           Type Point

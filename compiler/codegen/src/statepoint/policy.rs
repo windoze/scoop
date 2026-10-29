@@ -127,6 +127,7 @@ pub(crate) fn lower(
     // after that cleanup, so dead relocates before unreachable do not inflate
     // registration counts. Returning calls retain their call-duration roots.
     lowered::discard_terminal_relocations(module);
+    crate::debug::finalize_values(module);
     Ok(lowered::collect(module))
 }
 

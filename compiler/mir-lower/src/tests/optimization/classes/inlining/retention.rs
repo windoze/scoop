@@ -24,12 +24,14 @@ fn merge_foreign(body: &mut mir::Body, in_callee: bool) {
         mir::Terminator::Unreachable,
     );
     let join = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "merge".into(),
         statements: tail,
         terminator,
         unwind: None,
     });
     let change = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "foreign".into(),
         statements: vec![node(mir::StatementKind::Assign {
             local: destination,

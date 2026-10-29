@@ -208,7 +208,25 @@ impl CanonicalLirFoundation {
             }
             let entity = StrongDefinitionEntity::generated_bridge_atom(atom.key())
                 .map_err(LirFoundationBuildError::DefinitionIdentity)?;
-            writer.define(entity, StrongDefinitionRole::GeneratedBridge, Vec::new())?;
+            let associated = if matches!(
+                atom.key().atom(),
+                GeneratedBridgeAtomRoleKey::PrimaryEntry { .. }
+            ) {
+                let mut atoms =
+                    vec![(DefinitionAtomRole::EhFrame, DefinitionAtomSubkey::Singleton)];
+                if module.meta.target_profile.native_object_format()
+                    == crate::NativeObjectFormat::MachO64
+                {
+                    atoms.push((
+                        DefinitionAtomRole::CompactUnwind,
+                        DefinitionAtomSubkey::Singleton,
+                    ));
+                }
+                atoms
+            } else {
+                Vec::new()
+            };
+            writer.define(entity, StrongDefinitionRole::GeneratedBridge, associated)?;
         }
 
         let image_support = [

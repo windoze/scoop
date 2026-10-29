@@ -229,6 +229,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         scoop_lir::ManagedRuntimeFunction::ContextEnsureRoot => {
                             (vec![scoop_lir::METADATA_PTR], scoop_lir::MANAGED_PTR)
                         }
+                        scoop_lir::ManagedRuntimeFunction::PrepareThrowable => (
+                            vec![scoop_lir::MANAGED_PTR, scoop_lir::METADATA_PTR],
+                            scoop_lir::MANAGED_PTR,
+                        ),
+                        scoop_lir::ManagedRuntimeFunction::ThrowablePrintStackTrace => {
+                            (vec![scoop_lir::MANAGED_PTR], LirType::Void)
+                        }
                         scoop_lir::ManagedRuntimeFunction::StringConcat => (
                             vec![scoop_lir::MANAGED_PTR, scoop_lir::MANAGED_PTR],
                             scoop_lir::MANAGED_PTR,
@@ -301,7 +308,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         scoop_lir::NoGcRuntimeFunction::StringCharacterAtByte => {
                             (vec![scoop_lir::MANAGED_PTR, LirType::I64], LirType::I32)
                         }
-                        scoop_lir::NoGcRuntimeFunction::Trap => {
+                        scoop_lir::NoGcRuntimeFunction::Trap
+                        | scoop_lir::NoGcRuntimeFunction::Fatal => {
                             (vec![scoop_lir::RAW_PTR], LirType::Void)
                         }
                         scoop_lir::NoGcRuntimeFunction::Throw => {

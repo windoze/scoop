@@ -294,6 +294,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             )
                             .map_err(|e| CodegenError(format!("copy aggregate local: {e}")))?;
                     }
+                    self.observe_debug_copy(*local)?;
                     return Ok(());
                 }
                 let operand = self.value(*v)?;
@@ -302,6 +303,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     CodegenError(format!("store %{}: {e}", function.locals[*local].name))
                 })?;
                 self.remember_interface_value(&value_ty, storage, operand);
+                self.observe_debug_value(scoop_lir::DebugStorage::Local(*local), operand);
             }
             _ => {
                 unreachable!("instruction dispatcher routes only address and storage instructions")

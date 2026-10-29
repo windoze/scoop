@@ -7,6 +7,7 @@ fn natural_loop_depth_merges_latches_and_accounts_for_unwind_nodes() {
     let ids = (0..7)
         .map(|id| {
             blocks.alloc(mir::BasicBlock {
+                terminator_origin: Default::default(),
                 name: format!("b{id}"),
                 statements: Vec::new(),
                 terminator: mir::Terminator::Unreachable,

@@ -89,6 +89,13 @@ pub(super) fn expected_operation_signature(
         }
         IntrinsicFunctionKind::GcCollect => (Effect::Ordinary, Vec::new(), unit.clone()),
         IntrinsicFunctionKind::GcStats => (Effect::Ordinary, Vec::new(), ulong.clone()),
+        IntrinsicFunctionKind::ThrowablePrintStackTrace => (
+            Effect::Ordinary,
+            vec![SignatureTypeKey::Nominal(
+                surface.exception_protocol.throwable,
+            )],
+            unit.clone(),
+        ),
         IntrinsicFunctionKind::String(kind) => match kind {
             crate::StringIntrinsic::ByteLength => (Effect::Ordinary, vec![string], long),
             crate::StringIntrinsic::ByteAt | crate::StringIntrinsic::ByteAtUnchecked => (
@@ -424,6 +431,7 @@ pub(super) fn operation_own_type_parameter_count(kind: IntrinsicFunctionKind) ->
         ) => 1,
         IntrinsicFunctionKind::GcCollect
         | IntrinsicFunctionKind::GcStats
+        | IntrinsicFunctionKind::ThrowablePrintStackTrace
         | IntrinsicFunctionKind::CurrentSourceLocation
         | IntrinsicFunctionKind::CompileEnv
         | IntrinsicFunctionKind::IncludeStr

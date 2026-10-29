@@ -88,6 +88,7 @@ pub(in crate::optimization) fn run(lowerer: &mut Lowerer) {
                 &template.function,
                 choice,
                 &mut lowerer.local_values,
+                &mut lowerer.debug_records,
                 owner,
                 id,
                 &mut state.ancestry,

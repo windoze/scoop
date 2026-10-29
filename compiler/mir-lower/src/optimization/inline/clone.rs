@@ -10,17 +10,19 @@ pub(super) struct Expansion {
     pub(super) result_prefix: usize,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn apply(
     caller: &mut mir::Function,
     callee: &mir::Function,
     choice: Choice,
     registry: &mut LocalValueRegistry,
+    debug_records: &mut mir::DebugRecords,
     owner: CallableMaterialization,
     caller_id: mir::FunctionId,
     ancestry: &mut Vec<Vec<super::Target>>,
 ) -> Expansion {
     let caller_ancestry = ancestry[index(choice.block)].clone();
-    let (statement, tail, terminator, unwind) = {
+    let (statement, tail, terminator, terminator_origin, unwind) = {
         let block = &mut caller.body.blocks[choice.block];
         let tail = block.statements.split_off(choice.statement + 1);
         let statement = block
@@ -28,8 +30,14 @@ pub(super) fn apply(
             .pop()
             .expect("selected call has a statement");
         let terminator = std::mem::replace(&mut block.terminator, mir::Terminator::Unreachable);
-        (statement, tail, terminator, block.unwind)
+        let origin = std::mem::take(&mut block.terminator_origin);
+        (statement, tail, terminator, origin, block.unwind)
     };
+    let inline_site = debug_records.inline_site(
+        &callee.name,
+        callee.debug_origin.clone(),
+        statement.debug_origin.clone(),
+    );
     let mir::StatementKind::Call(effect) = statement.kind else {
         unreachable!("only a selected call is expanded")
     };
@@ -39,6 +47,7 @@ pub(super) fn apply(
     };
     let call = choice.call;
     let continuation = caller.body.blocks.alloc(mir::BasicBlock {
+        terminator_origin,
         name: format!("inline.cont.{}", caller.body.blocks.len()),
         statements: tail,
         terminator,
@@ -49,6 +58,7 @@ pub(super) fn apply(
         let mut definition = caller.body.locals[destination].clone();
         definition.name = format!("$inline.{}.result", index(continuation));
         definition.mutable = true;
+        definition.debug_variable = mir::DebugVariable::Generated;
         let ty = definition.ty.clone();
         let temporary = caller.body.locals.alloc(definition);
         registry.record_generated_local(
@@ -61,6 +71,7 @@ pub(super) fn apply(
         caller.body.blocks[continuation].statements.insert(
             0,
             mir::Statement {
+                debug_origin: statement.debug_origin.clone(),
                 kind: mir::StatementKind::ValDecl {
                     local: destination,
                     init: mir::Expr::new(ty, mir::ExprKind::Local(temporary)),
@@ -97,6 +108,7 @@ pub(super) fn apply(
     let mut locals = vec![None; callee.body.locals.len()];
     for local in needed {
         let mut definition = callee.body.locals[local].clone();
+        debug_records.inline_variable(&mut definition.debug_variable, &inline_site);
         definition.name = format!("$inline.{}.{}", index(continuation), definition.name);
         let cloned = caller.body.locals.alloc(definition);
         locals[index(local)] = Some(cloned);
@@ -115,6 +127,7 @@ pub(super) fn apply(
     nested_ancestry.push(choice.callee);
     for (source, block) in &choice.blocks {
         let cloned = caller.body.blocks.alloc(mir::BasicBlock {
+            terminator_origin: Default::default(),
             name: format!("inline.{}.{}", index(continuation), block.name),
             statements: Vec::new(),
             terminator: mir::Terminator::Unreachable,
@@ -128,6 +141,7 @@ pub(super) fn apply(
     let prefix = &mut caller.body.blocks[choice.block];
     for (parameter, argument) in callee.params.iter().zip(call.args) {
         prefix.statements.push(mir::Statement {
+            debug_origin: statement.debug_origin.clone(),
             kind: mir::StatementKind::ValDecl {
                 local: local(parameter.local),
                 init: argument,
@@ -136,8 +150,13 @@ pub(super) fn apply(
         });
     }
     prefix.terminator = mir::Terminator::Goto(target(callee.body.entry));
+    prefix.terminator_origin = statement.debug_origin.clone();
 
     for (old, mut block) in choice.blocks {
+        block.terminator_origin = debug_records.inlined(&block.terminator_origin, &inline_site);
+        mir::visit_block_exprs_mut(&mut block, &mut |expression| {
+            expression.debug_origin = debug_records.inlined(&expression.debug_origin, &inline_site);
+        });
         mir::visit_block_exprs_mut(&mut block, &mut |expression| match &mut expression.kind {
             mir::ExprKind::Local(id) | mir::ExprKind::AddressOf { local: id, .. } => {
                 *id = local(*id)
@@ -145,6 +164,7 @@ pub(super) fn apply(
             _ => {}
         });
         for statement in &mut block.statements {
+            statement.debug_origin = debug_records.inlined(&statement.debug_origin, &inline_site);
             match &mut statement.kind {
                 mir::StatementKind::ValDecl { local: id, .. }
                 | mir::StatementKind::Assign { local: id, .. }
@@ -168,6 +188,7 @@ pub(super) fn apply(
             },
             mir::Terminator::Return { value } => {
                 block.statements.push(mir::Statement {
+                    debug_origin: block.terminator_origin.clone(),
                     kind: match result {
                         Some(destination) => mir::StatementKind::Assign {
                             local: destination,

@@ -16,7 +16,11 @@ impl<'a> FunctionLowerer<'a> {
                 interface_checks::Location::Statement(at) if at == index => Some(check.entry),
                 _ => None,
             });
-            self.lower_statement(statement, check)?;
+            let previous =
+                std::mem::replace(&mut self.current_origin, statement.debug_origin.clone());
+            let lowered = self.lower_statement(statement, check);
+            self.current_origin = previous;
+            lowered?;
             self.interface_tables.written(statement);
         }
         Ok(())

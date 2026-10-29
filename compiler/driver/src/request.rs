@@ -103,6 +103,7 @@ pub struct SingleConeBuildRequest {
     diagnostics: DiagnosticOutputPolicy,
     emit: StageDumpPolicy,
     optimization: scoop_lir::OptimizationMode,
+    debug_info: scoop_lir::DebugInfoLevel,
     purpose: CompilationPurpose,
     native_inputs: NativeInputOrigin,
     generators: scoop_toolchain::GeneratorPrograms,
@@ -158,6 +159,7 @@ impl SingleConeBuildRequest {
             diagnostics,
             emit,
             optimization: scoop_lir::OptimizationMode::Debug,
+            debug_info: scoop_lir::DebugInfoLevel::None,
             purpose: CompilationPurpose::Production,
             native_inputs: NativeInputOrigin::Source { sysroot: None },
             generators: scoop_toolchain::GeneratorPrograms::default(),
@@ -172,6 +174,11 @@ impl SingleConeBuildRequest {
 
     pub fn with_object_cache_root(mut self, root: Option<PathBuf>) -> Self {
         self.object_cache_root = root;
+        self
+    }
+
+    pub fn with_debug_info(mut self, level: scoop_lir::DebugInfoLevel) -> Self {
+        self.debug_info = level;
         self
     }
 

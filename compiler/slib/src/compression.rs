@@ -20,7 +20,7 @@ impl From<std::io::Error> for CompressionError {
 }
 
 pub(crate) fn compress(input: &[u8]) -> Result<Vec<u8>, CompressionError> {
-    zstd::bulk::compress(input, -3).map_err(CompressionError::from)
+    zstd::bulk::compress(input, 3).map_err(CompressionError::from)
 }
 
 pub(crate) fn decompress(input: &[u8]) -> Result<Vec<u8>, CompressionError> {

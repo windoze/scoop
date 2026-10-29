@@ -31,6 +31,22 @@ pub struct ClassStorageLayoutV1 {
 }
 
 impl ClassStorageLayoutV1 {
+    pub(crate) fn throwable(
+        target: LirTargetProfile,
+        key: LayoutKey,
+    ) -> Result<Self, StorageReplayError> {
+        require_key(target, &key, true)?;
+        Ok(Self {
+            exact: key.exact_type(),
+            layout: PersistentLayoutId::from_key(&key).map_err(StorageReplayError::Hash)?,
+            target,
+            base_prefix: ClassBasePrefixV1::NoBase,
+            declared_fields: Vec::new(),
+            complete_fields: Vec::new(),
+            shape: crate::throwable_instance_shape(target).map_err(StorageReplayError::Shape)?,
+        })
+    }
+
     pub fn replay(
         target: LirTargetProfile,
         key: LayoutKey,
@@ -78,8 +94,17 @@ impl ClassStorageLayoutV1 {
             seen,
         )?;
         let size = placed.geometry.size();
+        let inherited_scan = match base {
+            ClassBaseStorageV1::NoBase => RefScan::None,
+            ClassBaseStorageV1::Base(base) => base.shape.object_scan().clone(),
+        };
+        let scan = CheckedRefScanV1::normalize(RefScan::Sequence(vec![
+            inherited_scan,
+            aggregate::field_scan(&placed.fields)?,
+        ]))
+        .map_err(StorageReplayError::Scan)?
+        .into_ref_scan();
         complete_fields.extend(placed.fields.iter().cloned());
-        let scan = aggregate::field_scan(&complete_fields)?;
         let shape = TypeInstanceShapeV1::fixed_object(
             target,
             size,

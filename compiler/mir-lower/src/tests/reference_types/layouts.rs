@@ -61,8 +61,8 @@ fn class_fields_are_base_prefix_then_own() {
             .count(),
         2
     );
-    let base_def = &module.classes[class_index(0)];
-    let derived_def = &module.classes[class_index(1)];
+    let (base_id, base_def) = class_named(&module, "Base");
+    let derived_def = class_named(&module, "Derived").1;
     let field_names = |def: &mir::ClassDef| {
         declared_class(def)
             .fields
@@ -75,7 +75,7 @@ fn class_fields_are_base_prefix_then_own() {
     // follow the same flattened order.
     assert_eq!(field_names(derived_def), ["a", "b"]);
     assert_eq!(declared_class(derived_def).fields[1].ty, mir::Type::String);
-    assert_eq!(derived_def.base_class(), Some(class_index(0)));
+    assert_eq!(derived_def.base_class(), Some(base_id));
     assert_eq!(derived_def.modifier, mir::ClassModifier::Final);
     assert_eq!(base_def.modifier, mir::ClassModifier::Open);
 
@@ -126,13 +126,13 @@ fn vtable_layout_copies_the_base_prefix_and_replaces_overrides() {
     // Ordinary member functions are the whole vtable; Any does not
     // reserve compiler-owned slots.
     assert_eq!(
-        vtable_names(&module.classes[class_index(0)]),
+        vtable_names(class_named(&module, "Base").1),
         ["Base.m1", "Base.m2"]
     );
     // The base prefix is preserved; the override replaces slot 1
     // in place; the new method appends at slot 2.
     assert_eq!(
-        vtable_names(&module.classes[class_index(1)]),
+        vtable_names(class_named(&module, "Derived").1),
         ["Base.m1", "Derived.m2", "Derived.m3"]
     );
 }
@@ -161,7 +161,7 @@ fn itables_follow_the_interface_method_order() {
     let main = empty_main(&mut h);
     let module = lower(&h.finish(main));
 
-    let class_def = &module.classes[class_index(0)];
+    let class_def = class_named(&module, "C").1;
     assert_eq!(class_def.itables.len(), 1);
     let record = &class_def.itables[0];
     assert_eq!(record.interface, la_arena::Idx::from_raw(0.into()));
@@ -172,7 +172,7 @@ fn itables_follow_the_interface_method_order() {
         .collect();
     assert_eq!(slots, ["C.a", "C.b"]);
 
-    let derived_def = &module.classes[class_index(1)];
+    let derived_def = class_named(&module, "D").1;
     assert_eq!(derived_def.itables.len(), 1);
     let record = &derived_def.itables[0];
     let slots: Vec<&str> = record

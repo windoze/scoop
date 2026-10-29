@@ -144,6 +144,8 @@ pub(super) fn module(
         foreign_callback_bridges: Arena::new(),
         output: LirOutput::Library,
         meta: LirMeta {
+            debug_types: Default::default(),
+            debug_globals: Default::default(),
             exact_types,
             target_profile: TARGET,
             canonical_c_abi: CanonicalCAbiMetadata::default(),
@@ -199,13 +201,18 @@ pub(super) fn exact_layouts(
 pub(super) fn local_function(function: PersistentFunctionId) -> Function {
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_owned(),
-        instructions: Vec::new(),
+        instructions: Default::default(),
         terminator: Terminator::Return {
             value: Some(Value::NullPointer(PointerKind::Managed)),
         },
     });
     Function {
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: CallableBodyIdentity::for_function(function).unwrap(),
         gc_effect: crate::GcEffect::Managed,
         signature: pointer_result_signature(),

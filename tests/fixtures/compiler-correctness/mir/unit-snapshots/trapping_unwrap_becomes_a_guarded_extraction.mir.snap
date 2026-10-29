@@ -24,12 +24,15 @@
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call @fn17 direct
+      call @fn21 direct
+        Type UnwrapException
+        Local $new.1
+      call $prepared.throwable: UnwrapException = @scoop_rt_prepare_throwable direct
         Type UnwrapException
         Local $new.1
       throw
         Type UnwrapException
-        Local $new.1
+        Local $prepared.throwable
     bb3 if.merge.3
       val y: Int
         Type Int

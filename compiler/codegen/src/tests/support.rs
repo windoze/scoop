@@ -348,12 +348,17 @@ pub(super) fn no_gc_local_function_ref(index: usize) -> scoop_lir::NoGcLocalFunc
 pub(super) fn append_executable_entry(module: &mut Module, identity_seed: &str) {
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
-        instructions: Vec::new(),
+        instructions: Vec::new().into(),
         terminator: Terminator::Return { value: None },
     });
     let index = module.functions.len();
     module.functions.push(Function {
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body(identity_seed),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
@@ -952,6 +957,8 @@ pub(super) fn string_metadata_for(target: scoop_lir::LirTargetProfile) -> LirMet
         itables: Vec::new(),
     });
     LirMeta {
+        debug_types: Default::default(),
+        debug_globals: Default::default(),
         exact_types: Vec::new(),
         target_profile: target,
         canonical_c_abi: scoop_lir::CanonicalCAbiMetadata::default(),
@@ -1084,8 +1091,9 @@ pub(super) fn values_module() -> Module {
     let mut blocks = Arena::default();
     let placeholder = |blocks: &mut Arena<BasicBlock>, name: &str| {
         blocks.alloc(BasicBlock {
+            terminator_origin: Default::default(),
             name: name.to_string(),
-            instructions: vec![],
+            instructions: vec![].into(),
             terminator: Terminator::Return { value: None },
         })
     };
@@ -1095,6 +1103,7 @@ pub(super) fn values_module() -> Module {
     let end = placeholder(&mut blocks, "end");
 
     blocks[entry] = BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![
             Instruction::IntegerBinary {
@@ -1129,7 +1138,8 @@ pub(super) fn values_module() -> Module {
                 rhs: signed64(100),
             },
             Instruction::Call { site: concat },
-        ],
+        ]
+        .into(),
         terminator: Terminator::CondBr {
             cond: Value::Temp(t3),
             then_block,
@@ -1137,25 +1147,30 @@ pub(super) fn values_module() -> Module {
         },
     };
     blocks[then_block] = BasicBlock {
+        terminator_origin: Default::default(),
         name: "then".to_string(),
         instructions: vec![Instruction::IntegerUnary {
             out: t4,
             kind: IntegerKind::SIGNED_64,
             operation: IntegerUnaryOperation::Negate,
             operand: Value::Temp(t2),
-        }],
+        }]
+        .into(),
         terminator: Terminator::Br(end),
     };
     blocks[else_block] = BasicBlock {
+        terminator_origin: Default::default(),
         name: "else".to_string(),
         instructions: vec![Instruction::UnaryOp {
             out: t5,
             op: UnOp::Not,
             operand: Value::BoolConst(true),
-        }],
+        }]
+        .into(),
         terminator: Terminator::Br(end),
     };
     blocks[end] = BasicBlock {
+        terminator_origin: Default::default(),
         name: "end".to_string(),
         instructions: vec![
             Instruction::MakeAggregate {
@@ -1166,7 +1181,8 @@ pub(super) fn values_module() -> Module {
                 local: unit,
                 value: Value::Temp(t7),
             },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return { value: None },
     };
 
@@ -1184,6 +1200,10 @@ pub(super) fn values_module() -> Module {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
+            debug_name: Default::default(),
+            debug_variables: Vec::new(),
+            debug_signature: Default::default(),
+            debug_origin: Default::default(),
             callable_body: callable_body("scoop_main"),
             safepoints: test_safepoints("scoop_main", &blocks, entry),
             gc_effect: GcEffect::Managed,

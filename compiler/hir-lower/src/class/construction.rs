@@ -114,7 +114,7 @@ impl Lowerer {
     }
 
     fn resolve_class_constructor_edges(&mut self, id: ClassId, decl: ast::ClassSource<'_>) {
-        if !self.classes[id].is_declared() {
+        if !self.classes[id].has_source_constructors() {
             return;
         }
         let constructors = self.classes[id].constructors.clone();

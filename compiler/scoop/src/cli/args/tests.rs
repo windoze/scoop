@@ -41,9 +41,9 @@ fn clean_is_builtin_and_accepts_only_cleanup_options() {
 }
 
 #[test]
-fn symbol_maps_are_an_explicit_final_link_option() {
+fn retired_symbol_map_option_is_rejected() {
     for command in ["build", "run", "test"] {
-        assert!(Cli::try_parse_from(["scoop", command, "--release", "--emit-symbol-map"]).is_ok());
+        assert!(Cli::try_parse_from(["scoop", command, "--release", "--emit-symbol-map"]).is_err());
     }
     assert!(
         Cli::try_parse_from([
@@ -55,8 +55,48 @@ fn symbol_maps_are_an_explicit_final_link_option() {
             "program",
             "--emit-symbol-map"
         ])
+        .is_err()
+    );
+}
+
+#[test]
+fn independent_debug_files_are_an_explicit_final_link_option() {
+    for command in ["build", "run", "test"] {
+        assert!(Cli::try_parse_from(["scoop", command, "--release", "--emit-debug-file"]).is_ok());
+    }
+    assert!(
+        Cli::try_parse_from([
+            "scoop",
+            "link",
+            "--root-slib",
+            "root.slib",
+            "-o",
+            "program",
+            "--emit-debug-file"
+        ])
         .is_ok()
     );
+    assert!(Cli::try_parse_from(["scoop", "check", "--emit-debug-file"]).is_err());
+}
+
+#[test]
+fn debug_information_is_an_independent_source_compilation_option() {
+    for command in ["build", "run", "test"] {
+        for level in ["none", "line-tables", "full"] {
+            let cli = Cli::try_parse_from(["scoop", command, "--release", "--debug-info", level])
+                .unwrap();
+            let options = match cli.command {
+                Command::Build(args) => args.options,
+                Command::Run(args) => args.options,
+                Command::Test(args) => args.options,
+                _ => panic!("source compilation command"),
+            };
+            assert!(options.release);
+            assert_eq!(options.debug_info.unwrap().as_str(), level);
+        }
+    }
+    assert!(Cli::try_parse_from(["scoop", "build", "--debug-info", "invalid"]).is_err());
+    assert!(Cli::try_parse_from(["scoop", "link", "--debug-info", "line-tables"]).is_err());
 }
 
 #[test]

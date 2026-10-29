@@ -17,6 +17,7 @@ fn loop_local_boxes_and_dominating_preheader_boxes_can_be_removed() {
             panic!("sample return");
         };
         let header = body.blocks.alloc(mir::BasicBlock {
+            terminator_origin: Default::default(),
             name: "loop".into(),
             statements,
             terminator: mir::Terminator::Unreachable,
@@ -26,6 +27,7 @@ fn loop_local_boxes_and_dominating_preheader_boxes_can_be_removed() {
             .statements
             .push(node(mir::StatementKind::Expr(unboxed)));
         let exit = body.blocks.alloc(mir::BasicBlock {
+            terminator_origin: Default::default(),
             name: "exit".into(),
             statements: Vec::new(),
             terminator: mir::Terminator::Return { value: number(0) },
@@ -61,12 +63,14 @@ fn outer_iteration_snapshot_can_be_reused_by_an_inner_loop() {
     checks.push(node(mir::StatementKind::Expr(value)));
     let statements = std::mem::take(&mut body.blocks[entry].statements);
     let creation = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "outer.creation".into(),
         statements,
         terminator: mir::Terminator::Unreachable,
         unwind: None,
     });
     let inner = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "inner".into(),
         statements: checks,
         terminator: mir::Terminator::Unreachable,
@@ -95,18 +99,21 @@ fn previous_iteration_alias_is_not_replaced_by_the_latest_payload() {
     let bind = body.blocks[entry].statements.remove(1);
     let checks = body.blocks[entry].statements.split_off(1);
     let header = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "create".into(),
         statements: vec![creation],
         terminator: mir::Terminator::Unreachable,
         unwind: None,
     });
     let first = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "first".into(),
         statements: vec![bind],
         terminator: mir::Terminator::Unreachable,
         unwind: None,
     });
     let later = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "later".into(),
         statements: checks,
         terminator: mir::Terminator::Unreachable,
@@ -157,12 +164,14 @@ fn unique_static_origin_without_creation_dominance_is_retained() {
         mir::Terminator::Unreachable,
     );
     let use_block = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "use".into(),
         statements: vec![unbox],
         terminator: result,
         unwind: None,
     });
     let creation = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "creation".into(),
         statements: tail,
         terminator: mir::Terminator::Goto(use_block),

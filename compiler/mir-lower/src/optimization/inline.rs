@@ -2,9 +2,7 @@ use std::cell::OnceCell;
 use std::collections::{HashMap, HashSet};
 
 use la_arena::Arena;
-use scoop_identity::{
-    CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
-};
+use scoop_identity::CallableMaterialization;
 
 use super::observation::Observer;
 pub(super) use policy::heats;
@@ -314,6 +312,7 @@ impl Context<'_, '_> {
         state: &mut CallerState,
     ) -> (mir::Body, bool) {
         let mut function = self.module.functions[id].clone();
+        let mut debug_records = mir::DebugRecords::default();
         let mut changed = false;
         loop {
             let choices = self.choose(id, &function, &state.ancestry, &mut state.growth);
@@ -330,6 +329,7 @@ impl Context<'_, '_> {
                     callee,
                     choice,
                     registry,
+                    &mut debug_records,
                     owner,
                     id,
                     &mut state.ancestry,
@@ -344,16 +344,4 @@ impl Context<'_, '_> {
     }
 }
 
-pub(super) fn owner(
-    module: &mir::Module,
-    function: mir::FunctionId,
-) -> Option<CallableMaterialization> {
-    if let Some(source) = module.meta.source_callable_materializations.get(function) {
-        return Some(source.materialization());
-    }
-    let generated = module.meta.generated_callables.get(function)?;
-    Some(CallableMaterialization::new(
-        CallableTemplateOwner::Generated(generated.identity_record().id()),
-        CallableMaterializationContext::NoSubstitution,
-    ))
-}
+pub(super) use crate::local_values::callable_owner as owner;

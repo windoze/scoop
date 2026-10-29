@@ -17,7 +17,7 @@
         FieldAccess 1
           Type (Int, String)
           Local $bind.1
-      call p: Point = @fn25 direct
+      call p: Point = @fn29 direct
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
         Type Int

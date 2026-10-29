@@ -9,3 +9,10 @@
 ## 0.1.0
 
 首版 Scoop 编辑器支持：Tree-sitter 高亮、折叠、输入时缩进及文档／选区重新缩进。
+
+## 0.3.0
+
+- Add native Scoop debugging with the bundled Python-enabled LLVM 22 lldb-dap.
+- Build full debug targets and test executables through the compiler's JSON output.
+- Add read-only String, array, enum and object formatters, launch/attach configurations,
+  source mapping, terminal support and commands for debugging the current file.

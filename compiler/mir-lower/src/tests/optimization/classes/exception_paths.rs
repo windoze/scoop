@@ -3,6 +3,7 @@ use mir::optimization_report::{AllocationKind, AllocationOutcome, OptimizationDe
 
 fn handler(body: &mut mir::Body, value: mir::Expr) -> mir::BlockId {
     body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "handler".into(),
         statements: vec![
             node(mir::StatementKind::Eh(mir::EhStatement::LandingPad {
@@ -50,6 +51,7 @@ fn initialized_fields_are_replaced_in_both_normal_and_exception_paths() {
     let handler = handler(body, current);
     let updates = body.blocks[entry].statements.split_off(4);
     let protected = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "protected".into(),
         statements: updates,
         terminator: body.blocks[entry].terminator.clone(),
@@ -98,6 +100,7 @@ fn later_alias_definitions_do_not_hide_the_previous_iteration_from_a_handler() {
     let alias = body.blocks[entry].statements.remove(3);
     body.blocks[entry].statements.truncate(3);
     let update = body.blocks.alloc(mir::BasicBlock {
+        terminator_origin: Default::default(),
         name: "update.alias".into(),
         statements: vec![alias],
         terminator: mir::Terminator::Goto(entry),

@@ -30,12 +30,13 @@ impl FunctionLowerer<'_> {
         global
     }
 
-    /// The shared trap block for `message` in this function (one per
-    /// message, created on first use): calls the runtime trap —
+    /// Reuse a trap only when both the message and source origin match.
+    /// The block calls the runtime trap —
     /// `void scoop_rt_trap(ptr)`, noreturn — with the message global
     /// and ends `unreachable`.
     pub(super) fn trap_block(&mut self, message: &str) -> StorageResult<lir::BlockId> {
-        if let Some(&block) = self.trap_blocks.get(message) {
+        let key = (message.to_string(), self.current_origin.clone());
+        if let Some(&block) = self.trap_blocks.get(&key) {
             return Ok(block);
         }
         let global = self.trap_message(message);
@@ -56,7 +57,7 @@ impl FunctionLowerer<'_> {
         );
         self.push(lir::Instruction::Call { site });
         self.seal(lir::Terminator::Unreachable);
-        self.trap_blocks.insert(message.to_string(), block);
+        self.trap_blocks.insert(key, block);
         self.current = saved;
         self.current_sealed = saved_sealed;
         Ok(block)

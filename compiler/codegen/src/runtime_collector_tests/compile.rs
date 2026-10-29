@@ -53,6 +53,7 @@ pub(super) fn compile_and_run_configuration(
     if verify_heap {
         compile.arg("-DSCOOP_GC_VERIFY_HEAP=1");
     }
+    crate::tests::platform_support::native_trace_symbols(&mut compile, workspace);
     compile
         .args(flags)
         .args([
@@ -74,6 +75,10 @@ pub(super) fn compile_and_run_configuration(
         "runtime/tests/platform/stackmap_fixture.c",
         "runtime/src/startup/failure.c",
         "runtime/src/process.c",
+        "runtime/src/stack_trace/capture.c",
+        "runtime/src/stack_trace/render.c",
+        "runtime/src/stack_trace/throwable_report.c",
+        crate::tests::platform_support::native_trace_module_source(),
         "runtime/src/startup/gateway.c",
         "runtime/src/boxing.c",
         "runtime/src/task_context.c",

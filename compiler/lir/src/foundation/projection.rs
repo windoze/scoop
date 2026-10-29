@@ -959,13 +959,15 @@ mod tests {
             signature,
         });
         let normal = function.blocks.alloc(BasicBlock {
+            terminator_origin: Default::default(),
             name: "normal".to_string(),
-            instructions: Vec::new(),
+            instructions: Default::default(),
             terminator: Terminator::Return { value: None },
         });
         let unwind = function.blocks.alloc(BasicBlock {
+            terminator_origin: Default::default(),
             name: "unwind".to_string(),
-            instructions: Vec::new(),
+            instructions: Default::default(),
             terminator: Terminator::Return { value: None },
         });
         function.blocks[function.entry]
@@ -1123,11 +1125,16 @@ mod tests {
     fn function(callable_body: CallableBodyIdentity, safepoints: SafepointIdentities) -> Function {
         let mut blocks = Arena::new();
         let entry = blocks.alloc(BasicBlock {
+            terminator_origin: Default::default(),
             name: "entry".to_string(),
-            instructions: Vec::new(),
+            instructions: Default::default(),
             terminator: Terminator::Return { value: None },
         });
         Function {
+            debug_name: Default::default(),
+            debug_variables: Vec::new(),
+            debug_signature: Default::default(),
+            debug_origin: Default::default(),
             callable_body,
             gc_effect: GcEffect::Managed,
             signature: ScoopAbiSignature::new(

@@ -40,6 +40,7 @@ impl Concretizer<'_> {
             K::MutableArray => ("MutableArray", Vec::new()),
             K::Any => ("Any", Vec::new()),
             K::Nothing => ("Nothing", Vec::new()),
+            K::Throwable => ("Throwable", Vec::new()),
             K::MaybeUninit => ("MaybeUninit", Vec::new()),
             K::Unit | K::Ptr | K::FunPtr => {
                 unreachable!("Unit and pointer representations have their own shapes")

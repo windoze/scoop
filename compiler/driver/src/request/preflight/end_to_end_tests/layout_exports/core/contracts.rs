@@ -58,6 +58,7 @@ pub(super) fn check(
         _ => &[],
     };
     for name in [
+        "Throwable",
         "ArithmeticException",
         "ClassCastException",
         "Exception",
@@ -78,7 +79,22 @@ pub(super) fn check(
             .unwrap();
         let exact = local.identity_record().id();
         assert!(input.bridge.types().get(exact).is_some());
-        assert!(result.descriptors().get(exact).is_some());
+        let descriptor = result.descriptors().get(exact).unwrap();
+        if name == "Throwable" || name == "Exception" {
+            let shape = descriptor.instance_layout().shape();
+            assert_eq!(
+                shape.minimum_size(),
+                if name == "Throwable" { 24 } else { 32 }
+            );
+            assert_eq!(
+                shape.object_scan(),
+                &lir::RefScan::References(if name == "Throwable" {
+                    vec![16]
+                } else {
+                    vec![16, 24]
+                })
+            );
+        }
     }
     assert!(
         names.is_empty(),

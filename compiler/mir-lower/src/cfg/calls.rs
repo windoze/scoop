@@ -164,6 +164,7 @@ impl CfgLowerer<'_> {
     ) -> mir::LocalId {
         self.hidden_count += 1;
         let local = self.locals.alloc(mir::Local {
+            debug_variable: Default::default(),
             name: format!("${prefix}.{}", self.hidden_count),
             ty,
             mutable: false,

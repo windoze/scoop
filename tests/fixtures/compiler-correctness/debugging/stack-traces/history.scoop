@@ -1,0 +1,34 @@
+class Failure(val code: Int, val text: String): Throwable()
+
+fun firstThrow(value: Failure): Failure {
+    try {
+        throw value
+    } catch (caught: Failure) {
+        return caught
+    }
+}
+
+fun throwAgain(value: Failure) {
+    try {
+        try {
+            throw value
+        } finally {
+            gcCollect()
+        }
+    } catch (caught: Failure) {
+        caught.printStackTrace()
+    }
+}
+
+fun main() {
+    Throwable().printStackTrace()
+    val error = firstThrow(Failure(42, "retained field"))
+    gcCollect()
+    if (error.code != 42 || error.text != "retained field") {
+        throw IllegalStateException()
+    }
+    error.printStackTrace()
+    throwAgain(error)
+    gcCollect()
+    error.printStackTrace()
+}

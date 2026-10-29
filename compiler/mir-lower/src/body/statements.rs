@@ -5,10 +5,20 @@ impl BodyLowerer<'_> {
         &mut self,
         statements: &[hir::Statement],
     ) -> Vec<smir::Statement> {
+        let Some(first) = statements.first() else {
+            return Vec::new();
+        };
+        let parent = self.enter_debug_scope(first.span);
         let mut out = Vec::new();
         for statement in statements {
+            let start = out.len();
             self.lower_statement(statement, &mut out);
+            let origin = self.statement_origin(statement.span);
+            for lowered in &mut out[start..] {
+                lowered.debug_origin = origin.clone();
+            }
         }
+        self.debug_scope = parent;
         out
     }
 
@@ -173,7 +183,11 @@ impl BodyLowerer<'_> {
                 smir::StatementKind::Throw(value)
             }
         };
-        out.push(smir::Statement { kind, span });
+        out.push(smir::Statement {
+            debug_origin: Default::default(),
+            kind,
+            span,
+        });
     }
 
     /// `try` translates one-to-one: body, ordered catches (the catch
@@ -184,11 +198,18 @@ impl BodyLowerer<'_> {
         let catches = try_
             .catches
             .iter()
-            .map(|catch| smir::CatchClause {
-                local: self.local_map[&catch.local],
-                ty: Box::new(self.lower_type(catch.ty)),
-                body: self.lower_statements(&catch.body),
-                span: catch.span,
+            .map(|catch| {
+                let parent = self.enter_debug_scope(catch.span);
+                let local = self.local_map[&catch.local];
+                self.bind_debug_local(local);
+                let lowered = smir::CatchClause {
+                    local,
+                    ty: Box::new(self.lower_type(catch.ty)),
+                    body: self.lower_statements(&catch.body),
+                    span: catch.span,
+                };
+                self.debug_scope = parent;
+                lowered
             })
             .collect();
         let finally_body = try_
@@ -275,9 +296,11 @@ impl BodyLowerer<'_> {
     ) {
         if let hir::Pattern::Binding { local } = pattern {
             let local = self.local_map[local];
+            self.bind_debug_local(local);
             let init = self.lower_expr(init);
             self.drain_prelude(span, out);
             out.push(smir::Statement {
+                debug_origin: Default::default(),
                 kind: smir::StatementKind::ValDecl { local, init },
                 span,
             });
@@ -288,6 +311,7 @@ impl BodyLowerer<'_> {
         self.drain_prelude(span, out);
         let slot = self.new_hidden("bind", ty.clone(), false);
         out.push(smir::Statement {
+            debug_origin: Default::default(),
             kind: smir::StatementKind::ValDecl { local: slot, init },
             span,
         });
@@ -299,7 +323,9 @@ impl BodyLowerer<'_> {
         // binding / wildcard) in destructuring declarations.
         debug_assert!(steps.is_empty(), "destructuring patterns are irrefutable");
         for (local, init) in bindings {
+            self.bind_debug_local(local);
             out.push(smir::Statement {
+                debug_origin: Default::default(),
                 kind: smir::StatementKind::ValDecl { local, init },
                 span,
             });
@@ -340,6 +366,7 @@ impl BodyLowerer<'_> {
             "structured loop remapping is lexically nested"
         );
         out.push(smir::Statement {
+            debug_origin: Default::default(),
             kind: smir::StatementKind::While {
                 loop_kind,
                 target: loop_id,

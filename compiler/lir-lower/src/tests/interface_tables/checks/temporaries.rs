@@ -69,7 +69,7 @@ fn stored_boolean_checks_keep_the_original_evaluation_site() {
                 lir::Instruction::Call { site } if site.destination(&function.call_targets)
                     == lir::CallDestination::Runtime(lir::RuntimeFunction::NoGc(lir::NoGcRuntimeFunction::ITableFind))
             )).unwrap();
-            assert!(instructions[query + 1..].iter().any(|instruction| matches!(instruction,
+            assert!(instructions.iter().skip(query + 1).any(|instruction| matches!(instruction,
                 lir::Instruction::Store { local, .. } if function.locals[*local].ty() == &lir::LirType::I1
             )));
         }

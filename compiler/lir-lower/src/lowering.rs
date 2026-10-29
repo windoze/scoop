@@ -98,6 +98,7 @@ pub(super) fn lower_graph(
     let (mut globals, immortal_global_map) =
         immortals::lower_immortals(input, &identity_roots, selected_layout, &array_type_map)?;
     let globals::LoweredGlobals {
+        debug: debug_globals,
         storage: storage_globals,
         native: native_globals,
         bridges: native_global_bridges,
@@ -200,12 +201,14 @@ pub(super) fn lower_graph(
     );
     let initialization_units =
         lower_initialization_units(module, &storage_globals, &local_function_map);
+    let debug_declarations = debug::declarations(module);
     let mut lower_body = |body_identity, body, signature, known_receiver| {
         lower_function(
             &context,
             optimization,
             module.cone,
             module,
+            &debug_declarations,
             body_identity,
             body,
             signature,
@@ -345,6 +348,7 @@ pub(super) fn lower_graph(
         .iter()
         .map(|(_, descriptor)| descriptor.target())
         .collect::<std::collections::HashSet<_>>();
+    let debug_types = debug::types(&context, module, &structs, &enums, &layouts, &arrays)?;
     let module = lir::Module {
         cone: module.cone,
         globals,
@@ -366,6 +370,8 @@ pub(super) fn lower_graph(
             },
         },
         meta: lir::LirMeta {
+            debug_types,
+            debug_globals,
             exact_types: materialized_exact_types(input, &external_exact_types),
             target_profile: context.target_profile(),
             canonical_c_abi: native_abi.canonical_c_abi,

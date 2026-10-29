@@ -6,6 +6,7 @@ mod calls;
 mod casts;
 mod coroutines;
 mod data_borrow;
+mod debug;
 mod diverging;
 mod embedded_files;
 mod exceptions;
@@ -27,6 +28,8 @@ pub(super) use maybe_uninit::maybe_uninit_value;
 
 /// Per-function-body lowering state.
 pub(super) struct BodyLowerer<'a> {
+    pub(super) debug_scope: Option<std::sync::Arc<mir::DebugScope>>,
+    pub(super) debug_records: &'a mut mir::DebugRecords,
     pub(super) imported_singleton_map: &'a HashMap<
         scoop_identity::PersistentObjectValueId,
         (mir::ExternalCallableUseId, mir::GlobalId),

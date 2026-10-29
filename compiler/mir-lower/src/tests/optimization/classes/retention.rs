@@ -71,6 +71,7 @@ fn release_hooks_retain_allocations_while_unrelated_unwinds_do_not() {
             };
         } else {
             let unwind = body.blocks.alloc(mir::BasicBlock {
+                terminator_origin: Default::default(),
                 name: "unwind".into(),
                 statements: vec![],
                 terminator: mir::Terminator::Resume,

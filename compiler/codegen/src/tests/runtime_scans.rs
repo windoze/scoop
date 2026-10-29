@@ -97,6 +97,7 @@ fn managed_poll_test_module() -> Module {
         });
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![Instruction::ManagedPoll {
             site: scoop_lir::ManagedPollSite {
@@ -105,10 +106,15 @@ fn managed_poll_test_module() -> Module {
                 safepoint: test_safepoint(703),
                 live: scoop_lir::StatepointLiveSet::default(),
             },
-        }],
+        }]
+        .into(),
         terminator: Terminator::Return { value: None },
     });
     let function = Function {
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body_at(file!(), line!()),
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,

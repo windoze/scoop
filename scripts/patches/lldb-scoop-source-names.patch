@@ -1,0 +1,186 @@
+--- a/lldb/source/Plugins/SymbolFile/DWARF/DWARFASTParserClang.cpp
++++ b/lldb/source/Plugins/SymbolFile/DWARF/DWARFASTParserClang.cpp
+@@ -2535,9 +2535,17 @@
+                                decl_line, decl_column, call_file, call_line,
+                                call_column, &frame_base)) {
+     Mangled func_name;
+-    if (mangled)
+-      func_name.SetValue(ConstString(mangled));
+-    else if ((die.GetParent().Tag() == DW_TAG_compile_unit ||
++    if (mangled) {
++      const char *producer = die.GetCU()->GetUnitDIEOnly().GetAttributeValueAsString(
++          DW_AT_producer, "");
++      if (name && llvm::StringRef(producer).starts_with("scoopc")) {
++        // Scoop's source display name and exact linkage identity are distinct.
++        func_name.SetMangledName(ConstString(mangled));
++        func_name.SetDemangledName(ConstString(name));
++      } else {
++        func_name.SetValue(ConstString(mangled));
++      }
++    } else if ((die.GetParent().Tag() == DW_TAG_compile_unit ||
+               die.GetParent().Tag() == DW_TAG_partial_unit) &&
+              Language::LanguageIsCPlusPlus(
+                  SymbolFileDWARF::GetLanguage(*die.GetCU())) &&
+--- a/lldb/source/Target/StackFrame.cpp
++++ b/lldb/source/Target/StackFrame.cpp
+@@ -471,5 +471,25 @@
+         m_variable_list_sp->AddVariables(global_variable_list_sp.get());
+       else
+         m_variable_list_sp = global_variable_list_sp;
++      // Scoop keeps each callable and static definition in a separate CU.
++      // Reuse this frame's context so TLS is read from the selected thread.
++      GetSymbolContext(eSymbolContextFunction | eSymbolContextModule);
++      if (m_sc.function && m_sc.module_sp &&
++          m_sc.function->GetMangled()
++              .GetMangledName()
++              .GetStringRef()
++              .starts_with("scoop$1$")) {
++        SymbolContextList units;
++        m_sc.module_sp->FindCompileUnits(m_sc.comp_unit->GetPrimaryFile(),
++                                         units);
++        for (size_t index = 0; index < units.GetSize(); ++index) {
++          SymbolContext unit;
++          if (units.GetContextAtIndex(index, unit) && unit.comp_unit &&
++              unit.comp_unit != m_sc.comp_unit) {
++            auto variables = unit.comp_unit->GetVariableList(true);
++            m_variable_list_sp->AddVariables(variables.get());
++          }
++        }
++      }
+     }
+   }
+--- a/lldb/source/Symbol/Variable.cpp
++++ b/lldb/source/Symbol/Variable.cpp
+@@ -49,6 +49,11 @@
+       m_owner_scope(context), m_scope_range(scope_range),
+       m_declaration(decl_ptr), m_location_list(location_list), m_external(external),
+       m_artificial(artificial), m_loc_is_const_data(location_is_constant_data),
+-      m_static_member(static_member) {}
++      m_static_member(static_member) {
++  if (mangled && llvm::StringRef(mangled).starts_with("scoop$1$")) {
++    m_mangled.SetMangledName(ConstString(mangled));
++    m_mangled.SetDemangledName(m_name);
++  }
++}
+
+ Variable::~Variable() = default;
+--- a/lldb/source/Plugins/DynamicLoader/POSIX-DYLD/CMakeLists.txt
++++ b/lldb/source/Plugins/DynamicLoader/POSIX-DYLD/CMakeLists.txt
+@@ -12,4 +12,5 @@
+     lldbTarget
+     lldbPluginProcessElfCore
+     lldbPluginProcessUtility
++    lldbPluginObjectFileELF
+   )
+--- a/lldb/source/Plugins/DynamicLoader/POSIX-DYLD/DynamicLoaderPOSIXDYLD.cpp
++++ b/lldb/source/Plugins/DynamicLoader/POSIX-DYLD/DynamicLoaderPOSIXDYLD.cpp
+@@ -9,6 +9,7 @@
+ // Main header include
+ #include "DynamicLoaderPOSIXDYLD.h"
+
++#include "Plugins/ObjectFile/ELF/ObjectFileELF.h"
+ #include "lldb/Breakpoint/BreakpointLocation.h"
+ #include "lldb/Core/Debugger.h"
+ #include "lldb/Core/Module.h"
+@@ -26,6 +27,7 @@
+ #include "lldb/Utility/LLDBLog.h"
+ #include "lldb/Utility/Log.h"
+ #include "lldb/Utility/ProcessInfo.h"
++#include "llvm/Support/MathExtras.h"
+ #include "llvm/Support/ThreadPool.h"
+
+ #include <memory>
+@@ -794,10 +796,49 @@
+   return m_entry_point;
+ }
+
++static addr_t GetStaticTLSAddress(Process &process, const ModuleSP &module,
++                                  Thread &thread, addr_t offset) {
++  Target &target = process.GetTarget();
++  const llvm::Triple &triple = target.GetArchitecture().GetTriple();
++  if (triple.getOS() != llvm::Triple::Linux ||
++      triple.getArch() != llvm::Triple::x86_64 ||
++      module != target.GetExecutableModule())
++    return LLDB_INVALID_ADDRESS;
++  auto *object = llvm::dyn_cast_or_null<ObjectFileELF>(module->GetObjectFile());
++  if (!object)
++    return LLDB_INVALID_ADDRESS;
++
++  const elf::ELFProgramHeader *tls = nullptr;
++  for (const auto &header : object->ProgramHeaders()) {
++    if (header.p_type == llvm::ELF::PT_INTERP)
++      return LLDB_INVALID_ADDRESS;
++    if (header.p_type == llvm::ELF::PT_TLS)
++      tls = &header;
++  }
++  if (!tls || offset >= tls->p_memsz)
++    return LLDB_INVALID_ADDRESS;
++
++  // AMD64 variant II places the executable's static TLS below the thread
++  // pointer, preserving the image's offset within its alignment boundary.
++  uint64_t alignment = std::max<uint64_t>(tls->p_align, 1);
++  if (!llvm::isPowerOf2_64(alignment))
++    return LLDB_INVALID_ADDRESS;
++  uint64_t padding = (-tls->p_vaddr - tls->p_memsz) & (alignment - 1);
++  uint64_t size = tls->p_memsz + padding;
++  addr_t tp = thread.GetThreadPointer();
++  if (size < tls->p_memsz || tp == LLDB_INVALID_ADDRESS || tp < size)
++    return LLDB_INVALID_ADDRESS;
++  return tp - size + offset;
++}
++
+ lldb::addr_t
+ DynamicLoaderPOSIXDYLD::GetThreadLocalData(const lldb::ModuleSP module_sp,
+                                            const lldb::ThreadSP thread,
+                                            lldb::addr_t tls_file_addr) {
++  addr_t static_address =
++      GetStaticTLSAddress(*m_process, module_sp, *thread, tls_file_addr);
++  if (static_address != LLDB_INVALID_ADDRESS)
++    return static_address;
+   Log *log = GetLog(LLDBLog::DynamicLoader);
+   std::optional<addr_t> link_map_addr_opt = GetLoadedModuleLinkAddr(module_sp);
+   if (!link_map_addr_opt.has_value()) {
+--- a/lldb/source/Plugins/SymbolFile/DWARF/ManualDWARFIndex.cpp
++++ b/lldb/source/Plugins/SymbolFile/DWARF/ManualDWARFIndex.cpp
+@@ -335,7 +335,11 @@
+           else
+             set.function_basenames.Insert(ConstString(name), ref);
+
+-          if (!is_method && !mangled_cstr && !is_objc_method)
++          // Scoop uses the C view with a separate exact linkage identity.
++          // DW_AT_name still names the full source callable for breakpoints.
++          bool is_scoop = mangled_cstr &&
++                          llvm::StringRef(mangled_cstr).starts_with("scoop$1$");
++          if (!is_method && (!mangled_cstr || is_scoop) && !is_objc_method)
+             set.function_fullnames.Insert(ConstString(name), ref);
+         }
+         if (mangled_cstr) {
+--- a/lldb/source/Plugins/SymbolFile/DWARF/DWARFIndex.cpp
++++ b/lldb/source/Plugins/SymbolFile/DWARF/DWARFIndex.cpp
+@@ -30,11 +30,15 @@
+     llvm::function_ref<IterationAction(DWARFDIE die)> callback) {
+   llvm::StringRef name = lookup_info.GetLookupName().GetStringRef();
+   FunctionNameType name_type_mask = lookup_info.GetNameTypeMask();
++  const char *mangled_name = die.GetMangledName();
++  bool is_scoop = mangled_name &&
++                  llvm::StringRef(mangled_name).starts_with("scoop$1$");
+
+   if (!(name_type_mask & eFunctionNameTypeFull)) {
+     ConstString name_to_match_against;
+     if (const char *mangled_die_name = die.GetMangledName()) {
+-      name_to_match_against = ConstString(mangled_die_name);
++      name_to_match_against =
++          ConstString(is_scoop ? die.GetName() : mangled_die_name);
+     } else {
+       SymbolFileDWARF *symbols = die.GetDWARF();
+       if (ConstString demangled_die_name =
+@@ -60,7 +64,8 @@
+     return IterationAction::Continue;
+
+   // In case of a full match, we just insert everything we find.
+-  if (name_type_mask & eFunctionNameTypeFull && die.GetMangledName() == name)
++  if (name_type_mask & eFunctionNameTypeFull &&
++      (mangled_name == name || (is_scoop && die.GetName() == name)))
+     return callback(die);
+
+   // If looking for ObjC selectors, we need to also check if the name is a

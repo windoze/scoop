@@ -78,6 +78,7 @@ pub(super) fn expected_operation_owner(
         | IntrinsicFunctionKind::GcReleaseHandleRaw
         | IntrinsicFunctionKind::GcCollect
         | IntrinsicFunctionKind::GcStats
+        | IntrinsicFunctionKind::ThrowablePrintStackTrace
         | IntrinsicFunctionKind::CoroutineStart
         | IntrinsicFunctionKind::CoroutineSuspend
         | IntrinsicFunctionKind::CurrentSourceLocation

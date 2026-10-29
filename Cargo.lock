@@ -1029,6 +1029,7 @@ dependencies = [
 name = "scoop-codegen"
 version = "0.0.0"
 dependencies = [
+ "cc",
  "inkwell",
  "la-arena",
  "llvm-sys",
@@ -1038,6 +1039,7 @@ dependencies = [
  "scoop-lir",
  "scoop-process",
  "scoop-slib",
+ "scoop-source",
  "scoop-target-data",
  "scoop-toolchain",
  "tempfile",
@@ -1146,6 +1148,7 @@ version = "0.0.0"
 dependencies = [
  "la-arena",
  "scoop-identity",
+ "scoop-source",
  "scoop-wire",
 ]
 
@@ -1208,6 +1211,7 @@ dependencies = [
  "la-arena",
  "scoop-hir",
  "scoop-identity",
+ "scoop-source",
  "scoop-wire",
 ]
 

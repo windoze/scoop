@@ -250,7 +250,48 @@ fn emit_llvm_module_with_surface<'ctx, R>(
             type_descriptor_globals,
         )?;
     }
+    let debug = if profile.debug_info() == scoop_lir::DebugInfoLevel::None {
+        None
+    } else {
+        declarations
+            .functions
+            .iter()
+            .filter(|function| selection.defines_callable(function.callable_body.id()))
+            .find_map(|function| crate::debug::source_file(function))
+            .or_else(|| {
+                if profile.debug_info() != scoop_lir::DebugInfoLevel::Full {
+                    return None;
+                }
+                globals.iter().find_map(|(id, global)| {
+                    global.get_initializer()?;
+                    module
+                        .meta
+                        .debug_globals
+                        .get(id)
+                        .map(|binding| &binding.location.file)
+                })
+            })
+            .map(|source| {
+                crate::debug::DebugContext::new(
+                    context,
+                    &llvm,
+                    profile,
+                    source,
+                    &module.meta.debug_types,
+                )
+            })
+    };
+    if let Some(debug) = &debug {
+        for (id, global) in &globals {
+            if global.get_initializer().is_some()
+                && let Some(binding) = module.meta.debug_globals.get(id)
+            {
+                debug.global(binding, *global);
+            }
+        }
+    }
     let module_ctx = ModuleCtx {
+        debug: debug.as_ref(),
         // Snapshot forwarding regressed AArch64 reference-copy kernels.
         reuse_interface_values: profile.optimization() == scoop_lir::OptimizationMode::Release
             && machine.get_target().get_name() == c"x86-64",
@@ -333,6 +374,9 @@ fn emit_llvm_module_with_surface<'ctx, R>(
                 crate::elf_llvm::apply_visibility(function.as_global_value());
             }
         }
+    }
+    if let Some(debug) = debug {
+        debug.finish();
     }
     Ok((llvm, runtime_metadata))
 }

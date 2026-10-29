@@ -158,8 +158,10 @@ json = "stderr"
 diagnostics = []
 checks = [
   {actual = "${single_file.result.root.path}", contains = "${work}/target/${target}/build/release/compile-v3/"},
-  {file = "${single_file.result.output}.map", exists = false},
-  {glob = "${work}/target/${target}/build/release/executables-v3/program-*/program.map", equals = []},
+  {file = "${single_file.result.output}.dSYM", exists = false},
+  {file = "${single_file.result.output}.debug", exists = false},
+  {glob = "${work}/target/${target}/build/release/executables-v4/program-*/program.dSYM", equals = []},
+  {glob = "${work}/target/${target}/build/release/executables-v4/program-*/program.debug", equals = []},
   {file = "${work}/source/target", exists = false},
 ]
 

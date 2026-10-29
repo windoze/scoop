@@ -783,6 +783,7 @@ version = "0.0.0"
 dependencies = [
  "la-arena",
  "scoop-identity",
+ "scoop-source",
  "scoop-wire",
 ]
 
@@ -806,6 +807,7 @@ version = "0.0.0"
 dependencies = [
  "la-arena",
  "scoop-identity",
+ "scoop-source",
  "scoop-wire",
 ]
 

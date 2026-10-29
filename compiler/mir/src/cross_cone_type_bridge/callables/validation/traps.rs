@@ -32,6 +32,7 @@ impl MirCallableBridgeAuthority<'_> {
             || !matches!(
                 self.type_export(root_owner)?.representation(),
                 MirTypeRepresentationV1::Class { .. }
+                    | MirTypeRepresentationV1::Intrinsic(crate::MirParamFreeIntrinsicV1::Throwable)
             )
             || !matches!(
                 self.type_export(owner)?.representation(),

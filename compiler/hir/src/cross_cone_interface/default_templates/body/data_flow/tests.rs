@@ -478,6 +478,7 @@ fn source_record(
     mutable: CanonicalBooleanV1,
 ) -> TemplateLocalRecordV1 {
     TemplateLocalRecordV1::try_new(
+        "local".into(),
         selector,
         binder(),
         mutable,

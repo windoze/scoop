@@ -12,6 +12,7 @@ fn places_module(address_logical: bool) -> Module {
     let second_address = temps.alloc(Temp { ty: RAW_PTR });
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
+        terminator_origin: Default::default(),
         name: "entry".to_string(),
         instructions: vec![
             Instruction::Store {
@@ -38,10 +39,15 @@ fn places_module(address_logical: bool) -> Module {
                 out: second_address,
                 local: if address_logical { logical } else { second },
             },
-        ],
+        ]
+        .into(),
         terminator: Terminator::Return { value: None },
     });
     module.functions = vec![Function {
+        debug_name: Default::default(),
+        debug_variables: Vec::new(),
+        debug_signature: Default::default(),
+        debug_origin: Default::default(),
         callable_body: callable_body("zstPlaces"),
         gc_effect: GcEffect::NoGc,
         signature: plain_scoop_signature(vec![LirType::Aggregate(Vec::new())], LirType::Void),
