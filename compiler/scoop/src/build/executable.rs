@@ -25,10 +25,6 @@ impl Request<'_> {
         self.options.keep_symbols || self.profile == crate::BuildProfile::Debug
     }
 
-    fn emit_symbol_map(&self) -> bool {
-        self.options.emit_symbol_map || self.profile == crate::BuildProfile::Debug
-    }
-
     fn emit_debug_file(&self) -> bool {
         self.options.emit_debug_file
     }
@@ -36,7 +32,6 @@ impl Request<'_> {
 
 pub(super) struct Executable {
     pub path: PathBuf,
-    pub symbol_map: Option<PathBuf>,
     pub debug_file: Option<scoop_linker::DebugFile>,
     pub fingerprint: ResolvedLinkPlanFingerprint,
     pub result_key: [u8; 32],
@@ -76,7 +71,6 @@ pub(super) fn get(request: Request<'_>) -> BuildResult<Executable> {
         &profile,
         scoop_linker::ProgramLinkOptions {
             keep_symbols: request.keep_symbols(),
-            emit_symbol_map: request.emit_symbol_map(),
             emit_debug_file: request.emit_debug_file(),
         },
         request.libraries,
@@ -105,7 +99,6 @@ pub(super) fn get(request: Request<'_>) -> BuildResult<Executable> {
             .as_array();
     let executable = Executable {
         path: linked.path,
-        symbol_map: linked.symbol_map,
         debug_file: linked.debug_file,
         fingerprint: linked.fingerprint,
         result_key,

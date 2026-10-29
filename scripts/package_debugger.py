@@ -8,7 +8,14 @@ from pathlib import Path
 
 from build_support import ROOT
 
-LLVM_TOOLS = ("dsymutil", "llvm-objcopy", "llvm-strip", "llvm-symbolizer")
+LLVM_TOOLS = (
+    "dsymutil",
+    "llvm-objcopy",
+    "llvm-strip",
+    "llvm-symbolizer",
+    "llvm-nm",
+    "llvm-readobj",
+)
 
 
 def python_paths(executable):

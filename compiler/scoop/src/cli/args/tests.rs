@@ -41,9 +41,9 @@ fn clean_is_builtin_and_accepts_only_cleanup_options() {
 }
 
 #[test]
-fn symbol_maps_are_an_explicit_final_link_option() {
+fn retired_symbol_map_option_is_rejected() {
     for command in ["build", "run", "test"] {
-        assert!(Cli::try_parse_from(["scoop", command, "--release", "--emit-symbol-map"]).is_ok());
+        assert!(Cli::try_parse_from(["scoop", command, "--release", "--emit-symbol-map"]).is_err());
     }
     assert!(
         Cli::try_parse_from([
@@ -55,7 +55,7 @@ fn symbol_maps_are_an_explicit_final_link_option() {
             "program",
             "--emit-symbol-map"
         ])
-        .is_ok()
+        .is_err()
     );
 }
 

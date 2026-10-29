@@ -8,27 +8,33 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import dwarf_symbols  # noqa: E402
 import sample_symbols  # noqa: E402
-from link_map import AddressMap  # noqa: E402
 
 
 class SampleSymbolsTests(unittest.TestCase):
-    def test_stripped_sample_uses_external_ranges_after_aslr_adjustment(self):
+    def test_stripped_sample_uses_dwarf_after_aslr_adjustment(self):
         symbol = "scoop$1$cb$" + "a" * 64
         text = """Load Address: 0x100600000
   10 ??? (in program) [0x100600104,0x100600120]
 Binary Images:
   0x100600000 - 0x10060ffff +program (0)
 """
-        addresses = AddressMap([(0x100000100, 0x100000120, symbol)])
+        symbols = json.dumps(
+            {
+                "Address": "0x100600104",
+                "Symbol": [{"FunctionName": symbol, "StartAddress": "0x100000100"}],
+            }
+        )
         headers = "Segment {\nName: __TEXT\nvmaddr: 0x100000000\n}"
         with patch(
-            "sample_symbols.subprocess.run", return_value=SimpleNamespace(stdout=headers)
+            "sample_symbols.subprocess.run",
+            side_effect=[SimpleNamespace(stdout=headers), SimpleNamespace(stdout=symbols)],
         ) as run:
-            output = sample_symbols.annotate(
-                text, {symbol: "work"}, Path("program"), None, addresses
-            )
-        run.assert_called_once()
+            output = sample_symbols.annotate(text, {symbol: "work"}, Path("program"), None)
+        self.assertEqual(run.call_count, 2)
+        self.assertIn("--adjust-vma=6291456", run.call_args.args[0])
+        self.assertIn("--inlines", run.call_args.args[0])
         self.assertIn("10 ??? (in program) [0x100600104,0x100600120]", output)
         self.assertIn(f"0x100600104 = work {{{symbol}}}+0x4", output)
         self.assertNotIn("0x100600120 =", output)
@@ -57,7 +63,7 @@ Binary Images:
             },
         ]
         output = "\n".join(json.dumps(result) for result in results)
-        frames = sample_symbols.resolved_frames(output, names, 0x600000)
+        frames = dwarf_symbols.resolved_frames(output, names, 0x600000)
         start, end = sample_symbols.image_range(text)
         annotated = sample_symbols.append_frames(text, frames, start, end)
         self.assertIn("10 <deduplicated_symbol>", annotated)
@@ -69,7 +75,7 @@ Binary Images:
 
     def test_unknown_symbols_and_missing_image_information(self):
         result = json.dumps([{"Address": "0x100000100", "Symbol": [{"FunctionName": "unknown"}]}])
-        self.assertEqual(sample_symbols.resolved_frames(result, {}, 0), {})
+        self.assertEqual(dwarf_symbols.resolved_frames(result, {}, 0), {})
         with self.assertRaisesRegex(ValueError, "Load Address"):
             sample_symbols.image_range("no header")
         with self.assertRaisesRegex(ValueError, "Binary Images"):

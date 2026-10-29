@@ -96,7 +96,6 @@ pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
         &profile,
         scoop_linker::ProgramLinkOptions {
             keep_symbols: request.final_link.keep_symbols,
-            emit_symbol_map: request.final_link.emit_symbol_map,
             emit_debug_file: request.final_link.emit_debug_file,
         },
         &request.library_paths,
@@ -113,12 +112,6 @@ pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
         OutputLocation::new(&file.kind.output_path(output.path()))
             .map_err(failure)?
             .publish(&file.path, None)
-            .map_err(failure)?;
-    }
-    if let Some(symbol_map) = &linked.symbol_map {
-        OutputLocation::new(&scoop_linker::symbol_map_path(output.path()))
-            .map_err(failure)?
-            .publish(symbol_map, None)
             .map_err(failure)?;
     }
     output.publish(&linked.path, None).map_err(failure)?;

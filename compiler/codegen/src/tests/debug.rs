@@ -72,11 +72,11 @@ fn dwarf_lines_and_inline_calls_survive_optimization_and_statepoints() {
                 ] {
                     assert!(ir.contains(expected), "missing {expected}: {ir}");
                 }
-                assert!(ir.contains(if level == scoop_lir::DebugInfoLevel::Full {
-                    "emissionKind: FullDebug"
-                } else {
-                    "emissionKind: LineTablesOnly"
-                }));
+                assert!(ir.contains("emissionKind: FullDebug"));
+                if level == scoop_lir::DebugInfoLevel::LineTables {
+                    assert!(!ir.contains("!DILocalVariable("));
+                    assert!(!ir.contains("!DIBasicType("));
+                }
                 assert!(ir.contains(&format!(
                     "linkageName: \"{}\"",
                     module.functions[0].symbol()
@@ -94,6 +94,21 @@ fn dwarf_lines_and_inline_calls_survive_optimization_and_statepoints() {
                 matches!(section.name(), Ok("__debug_line" | ".debug_line")) && section.size() > 0
             });
             assert_eq!(has_lines, enabled);
+            if enabled {
+                let strings = object
+                    .sections()
+                    .find(|section| matches!(section.name(), Ok("__debug_str" | ".debug_str")))
+                    .unwrap()
+                    .uncompressed_data()
+                    .unwrap();
+                let linkage = module.functions[0].symbol();
+                assert!(
+                    strings
+                        .windows(linkage.len())
+                        .any(|bytes| bytes == linkage.as_bytes()),
+                    "final DWARF must retain the exact linkage name at {level}"
+                );
+            }
         }
     }
 }

@@ -73,3 +73,7 @@ Throwable 首次抛出准备已进入最终 MIR，返回经过潜在 GC 搬迁�
 VS Code 0.3.0 已接通 Scoop debug type、源码断点注册、build／launch／attach、终端与 sourceMap 配置。构建通过 JSON executable 记录取得实际输出，支持 `scoop test --no-run` 与现有测试过滤参数。formatter 读取 DWARF 的实际字段，String 按 UTF-8 长度预览，数组按请求范围延迟读取，tagged／niche enum 仅显示当前变体，保留 raw 视图。扩展 TypeScript／Biomes 检查、15 项测试与 esbuild 构建通过，VSIX 内容包含调试资源；真实 Scoop 验证程序在移动及 minor GC 下通过，LLDB 离线 SBValue 测试覆盖真实 DWARF 的 enum／niche／空值及数组元素布局。进程内 DAP 验收仍待最后 Linux 阶段。
 
 发行脚本已增加 LLVM／Clang SDK、调试文件工具及单独的 Python-enabled LLDB 构建；源码显示名兼容修补随源码包分发。打包纳入 lldb／lldb-dap、argdumper、平台 debugserver／lldb-server、匹配 Python 与原生模块、Clang resources、formatter 和实际非系统动态依赖。八项打包测试通过，正式 LLDB recipe 配置通过；真实调试器包移动至含空格的目录后，在系统 PATH 环境可启动、加载 Python 标准模块与 formatter，并通过真实 Scoop DWARF 的离线用例和源码函数查询。dyld 记录中没有来自原 Homebrew 或构建位置的私有动态库。进程启动的本机限制保持：普通 C 控制程序同样卡在调试器 launch，最终 Linux 阶段验证进程内 DAP。
+
+旧 `--emit-symbol-map`、map 输出字段与性能 map parser 已移除。性能工具通过 LLVM JSON 读取相邻 dSYM／ELF debug file，保留精确 linkage 身份、行号与 inline 链，Darwin 自动计算 ASLR slide，Linux 地址查询接受实际 load bias。最终 DWARF 的 line-tables 模式保留函数 linkage（LLVM 的 LineTablesOnly 会省略它），仍不发射类型和变量。LLVM 22 会优先采用 executable 中残留的符号，因此离线工具优先把匹配的独立调试文件交给标准 reader，避免 C 入口覆盖后续函数名。
+
+本地 23 项性能脚本测试、20 项 CLI 参数测试、六组合 DWARF 对象／statepoint 专测与真实链接器符号裁剪测试通过。两个正式 CLI／缓存 fixture 共 36 个进程步骤通过，覆盖伴随文件恢复、basename 相同的跨目录发布、真实源码更新与独立链接。真实 stripped release 程序在 line-tables 下可从 dSYM 解析准确函数／源行，零和非零 load bias 均通过；程序输出正确。发行增加实际消费者所需的 llvm-nm／llvm-readobj，独立复制与依赖重定位后可从系统 PATH 环境运行。旧链接测试助手改用正常 scoop 项目入口及预编译 core/runtime，避免重复重建与失效的 scoopc Cone.toml 调用。

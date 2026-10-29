@@ -40,7 +40,7 @@ Windows 本轮只说明职责与产物方向。其 target、COFF、调用 ABI、
 | map 与 strip | debug 默认保留符号并生成 map；Darwin release 使用 -x -S，ELF 使用 --strip-all | [executable.rs](../../compiler/scoop/src/build/executable.rs)、[darwin.rs](../../compiler/linker/src/link/darwin.rs)、[elf.rs](../../compiler/linker/src/link/elf.rs) |
 | 结果管理 | map 已有缓存键、结果路径与发布通路，但 OutputLocation.publish 通过文件复制发布，不能直接发布 dSYM 目录包 | [key.rs](../../compiler/scoop/src/build/executable/key.rs)、[record.rs](../../compiler/scoop/src/build/executable/record.rs)、[materialize.rs](../../compiler/scoop/src/materialize.rs) |
 | 编辑器 | VS Code 扩展已有 LSP、语法和格式化贡献，没有 breakpoints / debuggers 贡献或调试启动配置 | [package.json](../../tooling/vscode-scoop/package.json) |
-| map 消费方 | 性能符号化脚本确实解析 map；替换输出必须同时迁移这些生产用途 | [symbolize.py](../../tests/benchmarks/symbolize.py)、[link_map.py](../../tests/benchmarks/link_map.py)、[PROFILING.md](../../tests/benchmarks/PROFILING.md) |
+| 性能消费方 | 原 map 用途已迁移到 executable、独立 DWARF 与精确 linkage name | [symbolize.py](../../tests/benchmarks/symbolize.py)、[dwarf_symbols.py](../../tests/benchmarks/dwarf_symbols.py)、[PROFILING.md](../../tests/benchmarks/PROFILING.md) |
 
 [实现规范 2.8](../specs/SCOOP-IMPL-SPEC.md) 目前明确规定 map 不生成 DWARF，且 Darwin 在 linker 内 strip、签名后不再改程序。增加 dSYM 及 Linux 分离调试信息需要先修订这些条款。
 
@@ -376,12 +376,12 @@ logical step 还要处理恢复点、挂起后转移线程和目标帧的持续�
 
 ## 11. 性能符号化与 map 消费者迁移
 
-`tests/benchmarks/link_map.py` 当前解析 Darwin / GNU map，`symbolize.py --link-map` 将地址关联到逻辑符号观察。替换 map 时必须同时迁移：
+原有 Darwin／GNU map parser 和 `symbolize.py --link-map` 已移除，性能工具迁移遵守以下合同：
 
 - 由 llvm-symbolizer 消费 executable 及其独立调试文件，获取文件／行、内联帧和 linkage name；使用其现有 JSON 输出等结构化接口，不新写 DWARF 地址解析器。
 - 继续通过既有 symbols 观察补充 Scoop 实体角色；地址关联使用精确 linkage name，不能仅按可读函数名合并重载或泛型实例。
 - 保留 Darwin ASLR slide 与 Linux PIE load bias 的现有处理。采样中的运行地址必须先按实际映射归一化。
-- 更新 `PROFILING.md`、CPU-PROFILING、EXECUTABLE-SYMBOLS 及相关脚本测试；完成迁移后删除 map parser 和 map 专用分支。
+- `PROFILING.md`、CPU-PROFILING、EXECUTABLE-SYMBOLS 及脚本测试同步更新；原始历史测量与当前行为分开记录。
 
 llvm-symbolizer 是显式性能分析工具的依赖，不成为普通程序运行依赖。line-tables 模式也要验证离线函数归因，不能以丢失当前 map 用途换取源码调试。
 

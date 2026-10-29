@@ -129,12 +129,6 @@ fn prepare(
                     .publish(&file.path, Some(&linked.result_key))
                     .map_err(output_error)?;
             }
-            if let Some(symbol_map) = &linked.symbol_map {
-                OutputLocation::new(&scoop_linker::symbol_map_path(output.path()))
-                    .map_err(output_error)?
-                    .publish(symbol_map, Some(&linked.result_key))
-                    .map_err(output_error)?;
-            }
             output
                 .publish(&linked.path, Some(&linked.result_key))
                 .map_err(output_error)?;

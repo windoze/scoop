@@ -28,8 +28,6 @@ pub struct FinalLinkOptions {
     pub mode: Option<LinkMode>,
     /// Retain the ordinary symbol table in the final executable.
     pub keep_symbols: bool,
-    /// Generate a native linker address map alongside the executable.
-    pub emit_symbol_map: bool,
     /// Extract existing object debug information into a platform debug file.
     pub emit_debug_file: bool,
 }

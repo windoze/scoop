@@ -41,7 +41,7 @@ def configure(source, build, prefix, cc, cxx, host, release):
         "LLVM_ENABLE_RUNTIMES": "",
         "LLVM_DISTRIBUTION_COMPONENTS": (
             "LLVM;clang-cpp;clang-headers;clang-cmake-exports;clang-resource-headers;"
-            "llvm-config;llvm-headers;cmake-exports;dsymutil;llvm-objcopy;llvm-strip;llvm-symbolizer"
+            "llvm-config;llvm-headers;cmake-exports;dsymutil;llvm-objcopy;llvm-strip;llvm-symbolizer;llvm-nm;llvm-readobj"
         ),
         "LLVM_INCLUDE_TESTS": "OFF",
         "LLVM_INCLUDE_DOCS": "OFF",
@@ -113,6 +113,8 @@ def main():
             "llvm-objcopy",
             "llvm-strip",
             "llvm-symbolizer",
+            "llvm-nm",
+            "llvm-readobj",
         )
     ]
     outputs += [prefix / "include/llvm-c/Core.h", prefix / "lib/cmake/clang/ClangConfig.cmake"]
@@ -120,7 +122,7 @@ def main():
         (prefix / "lib").glob("libLLVM*.dylib" if host.endswith("darwin") else "libLLVM*.so*")
     )
     record = build / "inputs.json"
-    if len(outputs) > 7 and reusable(record, inputs, outputs):
+    if len(outputs) > 9 and reusable(record, inputs, outputs):
         print(f"Reusing LLVM {VERSION}: {prefix}")
         return
     release = tomllib.loads(RELEASE_CONFIG.read_text())

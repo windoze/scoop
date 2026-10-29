@@ -5,7 +5,7 @@ tools = ["scoop", "scoopc", "scoop-link", "python"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["executable", "cache", "multi-cone", "compiler-correctness"]
 [vars]
-options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--runtime-root", "${runtime}", "--target-dir", "${work}/target", "--message-format", "json"]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
 
 [[steps]]
 name = "prepare"
@@ -13,13 +13,15 @@ files = [{copy = {from = "${repo}/tests/fixtures/driver/executable-record/progra
 
 [[steps]]
 name = "cold"
-argv = ["${scoop}", "build", "--profile", "debug", "${work}/program-source", {"each" = "${link_args}"}, {"each" = "${options}"}]
+argv = ["${scoop}", "build", "--profile", "debug", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}, "-o", "${work}/first/program"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{actual = "${cold.result.observations.child_invocations.length}", equals = 2}, {file = "${cold.result.output}.map", exists = true}]
+checks = [
+  {actual = "${cold.result.observations.child_invocations.length}", equals = 2},
+]
 
 [[steps]]
 name = "run_cold"
@@ -29,95 +31,108 @@ stdout = ""
 stderr = ""
 
 [[steps]]
-name = "save_cold"
-argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "save", "${work}/cache", "${cold.result.output}", "${work}/unchanged.json"]
+name = "debug_file"
+argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "debug", "${work}/cache", "${work}/first/program", "${work}/unchanged.json"]
 exit = 0
 stdout = ""
 stderr = ""
 
 [[steps]]
 name = "one_result"
-argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "count", "${work}/cache", "${cold.result.output}", "1"]
+argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "count", "${work}/cache", "${work}/first/program", "1"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "save_cold"
+argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "save", "${work}/cache", "${work}/first/program", "${work}/unchanged.json"]
 exit = 0
 stdout = ""
 stderr = ""
 
 [[steps]]
 name = "warm"
-argv = ["${scoop}", "build", "--profile", "debug", "${work}/program-source", {"each" = "${link_args}"}, {"each" = "${options}"}]
+argv = ["${scoop}", "build", "--profile", "debug", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}, "-o", "${work}/first/program"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{actual = "${warm.result.link_plan_fingerprint}", equals = "${cold.result.link_plan_fingerprint}"}, {actual = "${warm.result.observations.child_invocations.length}", equals = 0}]
+checks = [
+  {actual = "${warm.result.link_plan_fingerprint}", equals = "${cold.result.link_plan_fingerprint}"},
+  {actual = "${warm.result.observations.child_invocations.length}", equals = 0},
+]
 
 [[steps]]
 name = "unchanged_warm"
-argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "same", "${work}/cache", "${cold.result.output}", "${work}/unchanged.json"]
-exit = 0
-stdout = ""
-stderr = ""
-
-[[steps]]
-name = "run_warm"
-argv = ["${scoop}", "run", "--profile", "debug", "${work}/program-source", {"each" = "${link_args}"}, {"each" = "${options}"}, "--", "unused argument"]
-exit = 42
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = []
-checks = [{actual = "${run_warm.result.observations.child_invocations.length}", equals = 0}]
-
-[[steps]]
-name = "unchanged_run"
-argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "same", "${work}/cache", "${cold.result.output}", "${work}/unchanged.json"]
+argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "same", "${work}/cache", "${work}/first/program", "${work}/unchanged.json"]
 exit = 0
 stdout = ""
 stderr = ""
 
 [[steps]]
 name = "another_output"
-argv = ["${scoop}", "build", "--profile", "debug", "${work}/program-source", {"each" = "${link_args}"}, {"each" = "${options}"}, "-o", "${work}/another"]
+argv = ["${scoop}", "build", "--profile", "debug", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}, "-o", "${work}/second/program"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{actual = "${another_output.result.link_plan_fingerprint}", equals = "${cold.result.link_plan_fingerprint}"}, {actual = "${another_output.result.observations.child_invocations.length}", equals = 0}]
+checks = [
+  {actual = "${another_output.result.link_plan_fingerprint}", equals = "${cold.result.link_plan_fingerprint}"},
+  {actual = "${another_output.result.observations.child_invocations.length}", equals = 0},
+]
+
+[[steps]]
+name = "debug_file_another"
+argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "debug", "${work}/cache", "${work}/second/program", "${work}/unchanged.json"]
+exit = 0
+stdout = ""
+stderr = ""
 
 [[steps]]
 name = "unchanged_another"
-argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "same", "${work}/cache", "${cold.result.output}", "${work}/unchanged.json"]
+argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "same", "${work}/cache", "${work}/first/program", "${work}/unchanged.json"]
 exit = 0
 stdout = ""
 stderr = ""
 
 [[steps]]
-name = "run_another"
-argv = ["${another_output.result.output}"]
-exit = 42
-stdout = ""
-stderr = ""
-
-[[steps]]
-name = "remove_output"
-files = [{remove = {path = "${work}/another"}}]
+name = "remove_publication"
+files = [{remove = {path = "${work}/second"}}]
 
 [[steps]]
 name = "restore_output"
-argv = ["${scoop}", "build", "--profile", "debug", "${work}/program-source", {"each" = "${link_args}"}, {"each" = "${options}"}, "-o", "${work}/another"]
+argv = ["${scoop}", "build", "--profile", "debug", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}, "-o", "${work}/second/program"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{actual = "${restore_output.result.link_plan_fingerprint}", equals = "${cold.result.link_plan_fingerprint}"}, {actual = "${restore_output.result.observations.child_invocations.length}", equals = 0}]
+checks = [
+  {actual = "${restore_output.result.link_plan_fingerprint}", equals = "${cold.result.link_plan_fingerprint}"},
+  {actual = "${restore_output.result.observations.child_invocations.length}", equals = 0},
+]
+
+[[steps]]
+name = "debug_file_restored"
+argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "debug", "${work}/cache", "${work}/second/program", "${work}/unchanged.json"]
+exit = 0
+stdout = ""
+stderr = ""
 
 [[steps]]
 name = "unchanged_restored"
-argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "same", "${work}/cache", "${cold.result.output}", "${work}/unchanged.json"]
+argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "same", "${work}/cache", "${work}/first/program", "${work}/unchanged.json"]
 exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run_restored"
+argv = ["${restore_output.result.output}"]
+exit = 42
 stdout = ""
 stderr = ""
 
@@ -127,7 +142,7 @@ files = [{replace = {path = "${work}/provider/src/value.scoop", old = "Int = 40"
 
 [[steps]]
 name = "provider_changed"
-argv = ["${scoop}", "build", "--profile", "debug", "${work}/program-source", {"each" = "${link_args}"}, {"each" = "${options}"}]
+argv = ["${scoop}", "build", "--profile", "debug", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}, "-o", "${work}/first/program"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -143,7 +158,7 @@ stderr = ""
 
 [[steps]]
 name = "two_results"
-argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "count", "${work}/cache", "${cold.result.output}", "2"]
+argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "count", "${work}/cache", "${work}/first/program", "2"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -154,13 +169,15 @@ files = [{replace = {path = "${work}/program-source/src/main.scoop", old = "valu
 
 [[steps]]
 name = "root_changed"
-argv = ["${scoop}", "build", "--profile", "debug", "${work}/program-source", {"each" = "${link_args}"}, {"each" = "${options}"}]
+argv = ["${scoop}", "build", "--profile", "debug", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}, "-o", "${work}/first/program"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{actual = "${root_changed.result.observations.child_invocations.length}", equals = 1}]
+checks = [
+  {actual = "${root_changed.result.observations.child_invocations.length}", equals = 1},
+]
 
 [[steps]]
 name = "run_root_changed"
@@ -171,20 +188,26 @@ stderr = ""
 
 [[steps]]
 name = "three_results"
-argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "count", "${work}/cache", "${cold.result.output}", "3"]
+argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "count", "${work}/cache", "${work}/first/program", "3"]
 exit = 0
 stdout = ""
 stderr = ""
 
 [[steps]]
 name = "release"
-argv = ["${scoop}", "build", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}, "--release"]
+argv = ["${scoop}", "build", "--profile", "release", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}, "-o", "${work}/release/program"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{file = "${release.result.output}.map", exists = false}]
+
+[[steps]]
+name = "release_has_no_debug_file"
+argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "none", "${work}/cache", "${work}/release/program", "${work}/unchanged.json"]
+exit = 0
+stdout = ""
+stderr = ""
 
 [[steps]]
 name = "run_release"
@@ -194,161 +217,68 @@ stdout = ""
 stderr = ""
 
 [[steps]]
-name = "two_profiles"
-argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "count", "${work}/cache", "${cold.result.output}", "4"]
-exit = 0
-stdout = ""
-stderr = ""
-
-[[steps]]
-name = "debug_again"
-argv = ["${scoop}", "build", "--profile", "debug", "${work}/program-source", {"each" = "${link_args}"}, {"each" = "${options}"}]
-exit = 0
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = []
-checks = [{actual = "${debug_again.result.link_plan_fingerprint}", equals = "${root_changed.result.link_plan_fingerprint}"}, {actual = "${debug_again.result.observations.child_invocations.length}", equals = 0}]
-
-[[steps]]
-name = "reuse_debug"
-argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "count", "${work}/cache", "${cold.result.output}", "4"]
-exit = 0
-stdout = ""
-stderr = ""
-
-[[steps]]
-name = "debug_keep_symbols"
-argv = ["${scoop}", "build", "--profile", "debug", "--keep-symbols", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}]
-exit = 0
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = []
-checks = [{actual = "${debug_keep_symbols.result.link_plan_fingerprint}", equals = "${root_changed.result.link_plan_fingerprint}"}, {actual = "${debug_keep_symbols.result.observations.child_invocations.length}", equals = 0}]
-
-[[steps]]
 name = "release_keep_symbols"
-argv = ["${scoop}", "build", "--release", "--keep-symbols", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}]
-exit = 0
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = []
-checks = [{actual = "${release_keep_symbols.result.root.path}", equals = "${release.result.root.path}"}, {actual = "${release_keep_symbols.result.link_plan_fingerprint}", not_equals = "${release.result.link_plan_fingerprint}"}, {actual = "${release_keep_symbols.result.observations.child_invocations.length}", equals = 0}, {file = "${release_keep_symbols.result.output}.map", exists = false}]
-
-[[steps]]
-name = "run_keep_symbols"
-argv = ["${release_keep_symbols.result.output}"]
-exit = 44
-stdout = ""
-stderr = ""
-
-[[steps]]
-name = "release_strip_again"
-argv = ["${scoop}", "build", "--release", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}]
-exit = 0
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = []
-checks = [{actual = "${release_strip_again.result.link_plan_fingerprint}", equals = "${release.result.link_plan_fingerprint}"}, {actual = "${release_strip_again.result.observations.child_invocations.length}", equals = 0}]
-
-[[steps]]
-name = "two_symbol_policies"
-argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "count", "${work}/cache", "${cold.result.output}", "5"]
-exit = 0
-stdout = ""
-stderr = ""
-
-[[steps]]
-name = "release_map"
-argv = ["${scoop}", "build", "--release", "--emit-symbol-map", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}]
+argv = ["${scoop}", "build", "--profile", "release", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}, "-o", "${work}/release/program", "--keep-symbols"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {actual = "${release_map.result.root.path}", equals = "${release.result.root.path}"},
-  {actual = "${release_map.result.link_plan_fingerprint}", equals = "${release.result.link_plan_fingerprint}"},
-  {actual = "${release_map.result.observations.child_invocations.length}", equals = 0},
-  {file = "${release_map.result.output}.map", exists = true},
+  {actual = "${release_keep_symbols.result.root.path}", equals = "${release.result.root.path}"},
+  {actual = "${release_keep_symbols.result.link_plan_fingerprint}", not_equals = "${release.result.link_plan_fingerprint}"},
+  {actual = "${release_keep_symbols.result.observations.child_invocations.length}", equals = 0},
 ]
 
 [[steps]]
-name = "map_adds_only_link_result"
-argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "count", "${work}/cache", "${cold.result.output}", "6"]
+name = "two_profiles_and_symbol_policy"
+argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "count", "${work}/cache", "${work}/first/program", "5"]
 exit = 0
 stdout = ""
 stderr = ""
 
 [[steps]]
-name = "release_map_warm"
-argv = ["${scoop}", "run", "--release", "--emit-symbol-map", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}]
-exit = 44
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = []
-checks = [{actual = "${release_map_warm.result.observations.child_invocations.length}", equals = 0}]
-
-[[steps]]
-name = "map_reuses_link_result"
-argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "count", "${work}/cache", "${cold.result.output}", "6"]
-exit = 0
-stdout = ""
-stderr = ""
-
-[[steps]]
-name = "release_without_map_new_output"
-argv = ["${scoop}", "build", "--release", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}, "-o", "${work}/without-map"]
+name = "debug_again"
+argv = ["${scoop}", "build", "--profile", "debug", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}, "-o", "${work}/first/program"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{file = "${work}/without-map.map", exists = false}, {actual = "${release_without_map_new_output.result.observations.child_invocations.length}", equals = 0}]
+checks = [
+  {actual = "${debug_again.result.link_plan_fingerprint}", equals = "${root_changed.result.link_plan_fingerprint}"},
+  {actual = "${debug_again.result.observations.child_invocations.length}", equals = 0},
+]
 
 [[steps]]
-name = "no_map_reuses_original_result"
-argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "count", "${work}/cache", "${cold.result.output}", "6"]
-exit = 0
-stdout = ""
-stderr = ""
-
-[[steps]]
-name = "link_without_map"
-argv = ["${scoop}", "link", "--root-slib", "${release.result.root.path}", {each = "${release.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${release.result.runtime_index}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", {each = "${link_args}"}, "-o", "${work}/link-without-map", "--message-format", "json"]
+name = "artifact_link"
+argv = ["${scoop}", "link", "--keep-symbols", "--emit-debug-file", "--root-slib", "${root_changed.result.root.path}", {each = "${root_changed.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${root_changed.result.runtime_index}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", {each = "${link_args}"}, "-o", "${work}/artifact/program", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{file = "${link_without_map.result.output}.map", exists = false}]
+checks = [
+  {actual = "${artifact_link.result.link_plan_fingerprint}", equals = "${root_changed.result.link_plan_fingerprint}"},
+]
 
 [[steps]]
-name = "link_with_map"
-argv = ["${scoop}", "link", "--emit-symbol-map", "--root-slib", "${release.result.root.path}", {each = "${release.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${release.result.runtime_index}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", {each = "${link_args}"}, "-o", "${work}/link-with-map", "--message-format", "json"]
+name = "artifact_debug_file"
+argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "debug", "${work}/cache", "${work}/artifact/program", "${work}/unchanged.json"]
 exit = 0
 stdout = ""
 stderr = ""
-json = "stderr"
-diagnostics = []
-checks = [{file = "${link_with_map.result.output}.map", exists = true}, {actual = "${link_with_map.result.link_plan_fingerprint}", equals = "${link_without_map.result.link_plan_fingerprint}"}]
 
 [[steps]]
-name = "standalone_without_map"
-argv = ["${scoop-link}", "--root-slib", "${release.result.root.path}", {each = "${release.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${release.result.runtime_index}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", {each = "${link_args}"}, "-o", "${work}/standalone-without-map"]
+name = "standalone_link"
+argv = ["${scoop-link}", "--keep-symbols", "--emit-debug-file", "--root-slib", "${root_changed.result.root.path}", {each = "${root_changed.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${root_changed.result.runtime_index}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", {each = "${link_args}"}, "-o", "${work}/standalone/program"]
 exit = 0
-stdout = "link-plan ${link_without_map.result.link_plan_fingerprint}\n"
+stdout = "link-plan ${root_changed.result.link_plan_fingerprint}\n"
 stderr = ""
-checks = [{file = "${work}/standalone-without-map.map", exists = false}]
 
 [[steps]]
-name = "standalone_with_map"
-argv = ["${scoop-link}", "--emit-symbol-map", "--root-slib", "${release.result.root.path}", {each = "${release.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${release.result.runtime_index}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", {each = "${link_args}"}, "-o", "${work}/standalone-with-map"]
+name = "standalone_debug_file"
+argv = ["${python}", "${repo}/tests/fixtures/driver/executable-record/state.py", "debug", "${work}/cache", "${work}/standalone/program", "${work}/unchanged.json"]
 exit = 0
-stdout = "link-plan ${link_with_map.result.link_plan_fingerprint}\n"
+stdout = ""
 stderr = ""
-checks = [{file = "${work}/standalone-with-map.map", exists = true}]

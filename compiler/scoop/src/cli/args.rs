@@ -240,9 +240,6 @@ pub(super) struct NativeOptions {
     /// Keep ordinary executable symbols; debug builds already retain them.
     #[arg(long)]
     pub keep_symbols: bool,
-    /// Emit <output>.map with native symbol addresses; debug builds already emit it.
-    #[arg(long)]
-    pub emit_symbol_map: bool,
     /// Produce a .dSYM bundle or .debug file from existing object debug information.
     #[arg(long)]
     pub emit_debug_file: bool,

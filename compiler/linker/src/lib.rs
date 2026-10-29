@@ -17,7 +17,7 @@ mod test_support;
 pub use artifacts::{ArtifactLinkRequest, read_program_artifacts, resolve_program_link_profile};
 pub use link::{
     DebugFile, ProgramLinkOptions, ProgramLinkOutput, ResolvedLinkPlanFingerprint, link_program,
-    replace_debug_bundle, symbol_map_path,
+    replace_debug_bundle,
 };
 pub use native_object::{
     NativeObjectInfo, NativeSymbolBinding, NativeSymbolDefinition, NativeSymbolKind,

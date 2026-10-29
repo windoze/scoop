@@ -887,7 +887,7 @@ build/run 接受 `--profile debug|release`，默认 debug；`--release` 为 rele
 
 新结果在临时输出位置生成，工具成功后 rename 发布，再更新构建记录；失败不发布部分结果。普通构建锁协调相同结果的生产，取得锁后重查记录即可复用，不比较两份完整产物。不同输入的结果不得覆盖正在使用的同一缓存输出。用户首次指定另一输出位置时可发布一次，此后命中不重读、哈希或覆盖已有文件。不进行写后读回、sync_all、目录同步、只读封存、私有目录或路径来源审计。
 
-最终程序使用 `executables-v3` 普通构建记录：键采用当前图的 Code 结果、runtime 构建结果、target、优化模式、最终链接选项（含是否生成 linker map）、library roots 和实际 Scoop／C 工具输入及生效调用配置。记录保存稳定 executable、按请求生成的可选 linker map 路径、link plan 摘要，以及上次真实链接使用的工具、系统输入、库文件、脚本和会影响库选择的候选路径 metadata。缺失候选也参与正常更新判断；新增候选、symlink 选择变化或实际库更新时重新解析并链接。命中判断先于 Link 闭包读取、final 工具发现、startup／response file 生成和对象物化；不读取命中 executable 内容。所需 executable 或已请求的 linker map 缺失时更新，用户输出或已请求的 `.map` 缺失、首次选择另一输出位置时只发布已有结果，不重新链接。编译或链接失败不发布新记录；同键构建使用普通锁，锁内重查。
+最终程序使用 `executables-v4` 普通构建记录：键采用当前图的 Code 结果、runtime 构建结果、target、优化模式、最终链接选项、调试文件种类及所需 executable basename、library roots 和实际 Scoop／C 工具输入及生效调用配置。记录保存稳定 executable、可选独立调试文件路径、link plan 摘要，以及上次真实链接使用的工具、系统输入、库文件、脚本和会影响库选择的候选路径 metadata。缺失候选也参与正常更新判断；新增候选、symlink 选择变化或实际库更新时重新解析并链接。命中判断先于 Link 闭包读取、final 工具发现、startup／response file 生成和对象物化；不读取命中 executable 内容。所需 executable 或已请求的独立调试文件缺失时更新；用户输出或已请求的独立调试文件缺失，或选择另一相同 basename 的输出位置时，只发布已有结果，不重新链接。改变带调试文件的 executable basename 时正常重新链接，以保持 ELF debuglink 与平台调试文件关联。编译或链接失败不发布新记录；同键构建使用普通锁，锁内重查。
 
 用户 library／executable 输出共用按结果标识保存的发布记录，命中且文件存在时直接返回。发布通过临时文件与 rename 完成，只在需要新位置或新结果时复制一次；不检查输入／输出 inode、owner、符号链接来源或缓存目录归属，不制作 execution copy，也不同步落盘。run／test 使用本次结果的稳定缓存路径，argv[0] 保留用户输出位置；另一构建并发发布不同结果不会改变已选执行目标。普通文件创建、复制、rename 和工具执行错误照常报告。
 
@@ -945,7 +945,7 @@ generator 的 stderr 沿 driver 日志目标输出。scoop 在取得合法的 ch
 
 该观察是可供 `sample`／`perf` 原始文本按确切符号注释的旁置映射，不是最终链接存活符号清单，也不提供地址范围或指令行表。声明 byte span 不得当作采样 PC 的执行行号；LLVM 内联／克隆、native／runtime 正文及无法识别的符号保留原始采样信息，不推测内联调用栈。Darwin 工具展示的单个目标前缀下划线可按目标符号规则处理，原符号、地址偏移和采样权重不得因可读名相同而合并。采样工具选择了定义边界起始符号时，旁置工具可读取显式给定二进制的 LLVM nm 结果，仅将与一个已知 callable body 唯一同址的实际边界符号关联到该正文；多个正文同址时保留歧义，不猜测身份。macOS sample 将同址别名折叠为 `<deduplicated_symbol>` 时，旁置工具可显式接收本次构建的 Mach-O 程序，用报告的主镜像加载地址及 LLVM readobj 的实际 __TEXT 地址消除 ASLR，再批量调用 LLVM symbolizer。只为明确列出的、位于该主镜像内的 PC 附加已识别符号；保留原帧、折叠计数及省略号，不把多个地址或省略的样本重新分配到函数。采样仍由成熟平台工具完成，不引入插桩、PGO 输入、通用事件格式或运行时查询。
 
-最终程序移除普通内部符号后，旁置工具可用本次 linker map 提供的实际地址范围和同次 symbols 观察做归因。Darwin sample 继续用程序 `__TEXT` 与报告主镜像加载地址计算 ASLR slide；显式链接地址也可直接查询 map。仅使用真实范围，零长度或同址多个 callable 无法唯一判断时保留未知，不按名字合并或推测内联栈。Linux 的运行地址须由实际加载信息转换为链接地址，不能把 PIE 运行地址直接当作 map 地址。
+最终程序移除普通内部符号后，旁置工具使用 llvm-symbolizer 读取 executable 与独立调试文件，按精确 linkage name 关联同次 symbols 观察，同时保留 DWARF 行号与 inline 链。Darwin sample 用程序 `__TEXT` 与报告主镜像加载地址计算 ASLR slide；Linux PIE 使用实际映射的 load bias，不能直接把运行地址当作链接地址。没有信息的地址保留未知，不按可读名称合并重载／泛型实例，不推测内联帧。
 
 所有 profile 可显式请求 symbols，未请求时不收集或渲染该映射。它不进入 `.slib`、语言身份、ABI、Code 或优化输入，不改变机器代码、GC roots 或程序行为；仅请求缺失的 symbols 时沿 observation-only 路径停在 LIR，已有机器产物和最终链接继续复用。缓存命中仅复制已有观察。文档模式只允许 AST／HIR 的约定保持。
 
@@ -1027,7 +1027,7 @@ Darwin 使用所选系统 linker、按 native 需求选择的 C／C++ 链接 dri
 
 最终 executable 的普通 release 默认清除不再参与动态链接的内部符号；debug 默认保留，`scoop build/run/test/link --keep-symbols` 与独立 `scoop-link --keep-symbols` 显式保留。artifact-only link 默认清除，不通过读取更多 Compile 数据推测生产 profile。未请求独立调试文件时沿用 linker 内裁剪；请求时先保留调试信息完成链接，再按 2.22 生成调试文件、裁剪程序，Darwin 最后重新完成 ad-hoc signing。必要 native 动态导入／导出、GC／stackmap、EH 和登记数据继续保留；不截短持久 ID，也不改变参与链接的 `.slib`／`.o` 符号及定义边界。
 
-独立调试文件按 2.22 替换原文本 map 的伴随输出与结果复用通路；迁移完成后移除 `--emit-symbol-map` 和 map parser，不将旧选项静默解释成另一种产物。`--emit symbols` 继续提供逻辑符号观察，离线地址归因使用 llvm-symbolizer 与实际 executable／独立调试文件。此替换不增加运行时测量代码。
+独立调试文件按 2.22 替换原文本 map 的伴随输出与结果复用通路；不再提供 `--emit-symbol-map` 或原 map parser，不将旧选项静默解释成另一种产物。`--emit symbols` 继续提供逻辑符号观察，离线地址归因使用 llvm-symbolizer 与实际 executable／独立调试文件。此替换不增加运行时测量代码。
 
 Linux 接受 `.o`、`.a`，动态模式另接受 ELF `.so`；framework 与静态程序的动态库需求为错误。用户 `.so` 必须是 DSO，不是 PIE executable 或 linker script。未版本化的源码 extern 只匹配默认导出版本，DT_NEEDED 不等于显式库 re-export；TLS、IFUNC、版本化导入按实际 kind/version 检查。
 
@@ -1869,7 +1869,7 @@ Throwable 准备在 MIR 的具体正文与协程转换、内联完成后展开�
 
 非引用局部使用真实存储的 declare 记录，SSA 参数及分片使用 value／fragment 记录。含 managed 引用的变量只观察程序已实际产生的值，不为调试新增读取、栈槽或 root；safepoint 后使未确认的位置 unavailable，后续真实读取／赋值再更新位置。被复制、拆分或消除的聚合不能继续显示旧叶子地址。
 
-2.5 使用 LLVM 22.1 的标准调试元数据和 debug records，在优化之前 finalize。当前目标采用 DWARF 5、`DW_LANG_C` 静态类型视图，producer 标明 scoopc；Scoop 基础类型通过 typedef 保留名称。每个实际发射对象保存自身需要的编译单元、文件、函数和类型；函数同时保存源码名称与既有精确 linkageName。所有字段偏移、大小、对齐与参数分片来自已有目标布局／ABI。引用按真实原生地址描述，不将 LLVM GC address space 当作硬件地址空间。ZST 不因调试增加 payload 存储。
+2.5 使用 LLVM 22.1 的标准调试元数据和 debug records，在优化之前 finalize。当前目标采用 DWARF 5、`DW_LANG_C` 静态类型视图，producer 标明 scoopc；Scoop 基础类型通过 typedef 保留名称。每个实际发射对象保存自身需要的编译单元、文件、函数和类型；函数同时保存源码名称与既有精确 linkageName，包括 line-tables 的最终 DWARF；LLVM 的发射模式不得省略该精确身份。line-tables 只创建函数／位置记录，不创建变量和类型定义。所有字段偏移、大小、对齐与参数分片来自已有目标布局／ABI。引用按真实原生地址描述，不将 LLVM GC address space 当作硬件地址空间。ZST 不因调试增加 payload 存储。
 
 语言规范 11.12 的 canonical semantic source path 与 debugger 文件路径独立。本地源码使用 driver 已知的实际位置；导入正文沿现有来源记录传递，可定位时关联本地源码根，否则保留可由 sourceMap 映射的逻辑路径。路径配置只影响调试生产，不重写 currentSourceLocation。不得在链接时读取源码以重建行表。
 

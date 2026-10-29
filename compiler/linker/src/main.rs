@@ -42,9 +42,6 @@ struct Cli {
     /// Keep the ordinary symbol table in the final executable.
     #[arg(long)]
     keep_symbols: bool,
-    /// Emit <output>.map with native symbol addresses.
-    #[arg(long)]
-    emit_symbol_map: bool,
     /// Produce a .dSYM bundle or .debug file from existing object debug information.
     #[arg(long)]
     emit_debug_file: bool,
@@ -92,7 +89,6 @@ fn main() -> ExitCode {
         final_link: scoop_toolchain::FinalLinkOptions {
             sysroot: cli.sysroot,
             keep_symbols: cli.keep_symbols,
-            emit_symbol_map: cli.emit_symbol_map,
             emit_debug_file: cli.emit_debug_file,
             unwind_prefix: cli.unwind_prefix,
             mode: cli.link_mode.map(|mode| match mode {

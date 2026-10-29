@@ -54,11 +54,9 @@ impl<'a, 'ctx> DebugContext<'a, 'ctx> {
             "",
             0,
             "",
-            if profile.debug_info() == scoop_lir::DebugInfoLevel::Full {
-                DWARFEmissionKind::Full
-            } else {
-                DWARFEmissionKind::LineTablesOnly
-            },
+            // LLVM's LineTablesOnly omits DW_AT_linkage_name. Keep exact function
+            // identities after stripping; `full` below still gates types/variables.
+            DWARFEmissionKind::Full,
             0,
             true,
             false,

@@ -36,15 +36,12 @@ impl std::fmt::Display for ResolvedLinkPlanFingerprint {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ProgramLinkOptions {
     pub keep_symbols: bool,
-    pub emit_symbol_map: bool,
     pub emit_debug_file: bool,
 }
 
 #[derive(Debug)]
 pub struct ProgramLinkOutput {
     pub path: PathBuf,
-    /// Native linker address map for this exact executable.
-    pub symbol_map: Option<PathBuf>,
     pub debug_file: Option<DebugFile>,
     pub fingerprint: ResolvedLinkPlanFingerprint,
     pub plan_dump: String,
@@ -99,9 +96,6 @@ fn link_inputs(
         .emit_debug_file
         .then(|| scoop_toolchain::NativeDebugTools::resolve(profile.target()).map_err(error))
         .transpose()?;
-    let candidate_map = options
-        .emit_symbol_map
-        .then(|| directory.path().join("program.map"));
     match profile {
         ValidatedFinalLinkProfile::Darwin(_) => darwin::link(
             profile,
@@ -110,7 +104,6 @@ fn link_inputs(
             &paths,
             &candidate,
             options.keep_symbols || options.emit_debug_file,
-            candidate_map.as_deref(),
         )?,
         ValidatedFinalLinkProfile::Linux(linux) => elf::link(
             linux,
@@ -119,7 +112,6 @@ fn link_inputs(
             &paths,
             &candidate,
             options.keep_symbols || options.emit_debug_file,
-            candidate_map.as_deref(),
         )?,
     }
     let debug_file = debug_tools
@@ -143,13 +135,6 @@ fn link_inputs(
         .map_err(error)?,
     );
     let plan_dump = dump(closure, runtime, inputs, &startup, options.keep_symbols);
-    let symbol_map = candidate_map
-        .map(|candidate| {
-            let symbol_map = symbol_map_path(&output);
-            std::fs::rename(candidate, &symbol_map).map_err(error)?;
-            Ok::<_, LinkError>(symbol_map)
-        })
-        .transpose()?;
     let debug_file = debug_file
         .map(|file| {
             let path = file.kind.output_path(&output);
@@ -172,7 +157,6 @@ fn link_inputs(
     })?;
     Ok(ProgramLinkOutput {
         path: output,
-        symbol_map,
         debug_file,
         fingerprint,
         plan_dump,
@@ -188,13 +172,6 @@ fn link_inputs(
             )
             .collect(),
     })
-}
-
-/// Sidecar naming is shared by final linking and cached output publication.
-pub fn symbol_map_path(output: &Path) -> PathBuf {
-    let mut path = output.as_os_str().to_os_string();
-    path.push(".map");
-    PathBuf::from(path)
 }
 
 fn write_new(path: &Path, bytes: &[u8]) -> Result<(), LinkError> {
