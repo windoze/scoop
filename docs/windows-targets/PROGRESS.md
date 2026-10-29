@@ -72,7 +72,7 @@ PCRE2 10.49、OpenSSL 3.5.9、uriparser 1.0.2、Rust 文本后端、Zstandard、
 
 数学库保持系统行为，不加入结果修正 workaround。规范、设计与库文档记录 C pow 与 Java Math 的差异，以及所用 LLVM-MinGW MSVCRT 的 FMA 中间溢出；Microsoft `_hypotf` 薄 wrapper 仅适配导出名。
 
-终端异步、log、console log 和 CLI 的 MSVC／MinGW UCRT 测试已通过。JSON 完整 API 在默认 MSVC 目标上 71 个容器／101 项全部通过；高层 HTTP 组合仍待闭合。此前并行大型编译触及内存上限，已降低并发；没有修改编译器语义或增加资源预算机制。
+终端异步、log、console log 和 CLI 的 MSVC／MinGW UCRT 测试已通过。JSON 完整 API 在默认 MSVC 目标上 71 个容器／101 项全部通过。HTTP asyncio 在 ABI 29 的默认 MSVC 目标运行 55 个容器／145 项，144 项通过；唯一失败是收到连接错误便假定异步关闭已完成的测试时序。按既有 isClosing／isClosed 合同显式等待 close 后，原测试源码与必要 helper 的小型 Cone 定向验证 2 项全部通过，失败闭合；库行为未改。HTTP client／server 及 consumer 继续验收。此前并行大型编译触及内存上限，已降低并发；没有修改编译器语义或增加资源预算机制。
 
 ## 发行与剩余工作
 

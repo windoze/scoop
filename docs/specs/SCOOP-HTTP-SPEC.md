@@ -177,6 +177,8 @@ HTTP/2 的 upgraded 所有权工厂另外接收已完成 HTTP/1 请求的方法�
 
 `AsyncHttp2Connection.isClosing` 是连接已经开始本地关闭的只读状态快照：显式 close、所有者取消或连接失败选择终止时立即为 true，完成收尾后仍为 true。isClosed 只在实际传输与协议资源收尾完成后为 true。连接池不得把两者之间的关闭等待期当作可接受新请求的状态；这一判断不执行 I/O，也不改变 GOAWAY 和实际连接失败的分类。
 
+关闭期间新发起的流操作可以立即报告已经选择的连接失败；收到这个异常不表示异步收尾已经完成。需要观察已完成关闭时，调用并等待 `close`，再检查 `isClosed`；已正常完成的其他流仍按下文保留可读取的响应。
+
 Http2Notice.StreamFailure(streamId, cause) 在已存在的流因协议错误、请求取消、I/O 或时限而异常结束时交付一次原始 Throwable，包括连接结束时尚未正常完成的流；即使没有正在等待的 read／write／receiveResponse，也必须交付。它在流状态定稿后、锁外执行，不取代描述线上事件的 StreamClosed 或后端 Failure。正常完成和调用者显式 close 本流不额外产生 StreamFailure；close 仍按原有合同放弃数据并完成本地清理。AsyncHttp2Stream.failure 是该流已选择的终止原因快照，显式 close 的本地原因是 IoClosedException，正常完成不设置失败；异常结束后的快照与通知引用同一原因，后续 close 不覆盖它。使用者可在登记流之后查询一次快照，衔接此前已经交付的通知，不需要轮询或另建计时器。
 
 HTTP/2 已正常关闭的流保留尚未被应用取走的完整响应头与 body，即使连接随后结束也可读取；连接已经释放后不再归还无效窗口。未完成或收到错误 reset 的流在关闭时释放排队数据并报告相应异常。
