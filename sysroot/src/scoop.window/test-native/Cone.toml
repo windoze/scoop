@@ -17,6 +17,10 @@ when = { os = "darwin" }
 path = "native/input.m"
 when = { os = "darwin" }
 
+[[native.sources]]
+path = "native/text.m"
+when = { os = "darwin" }
+
 [[native.libraries]]
 name = "AppKit"
 kind = "framework"

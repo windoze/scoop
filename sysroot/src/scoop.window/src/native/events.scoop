@@ -38,18 +38,12 @@ internal fun copyNativeEvent(pointer: Ptr<Unit>): ApplicationEvent {
                 10 -> WindowEvent.Keyboard(copyKeyEvent(event))
                 11 -> WindowEvent.ModifiersChanged(darwinModifiers(event.a))
                 12 -> WindowEvent.Pointer(copyPointerEvent(event))
-                13 -> WindowEvent.TextInput(
-                    TextInputEvent.Edit(
-                        TextInputBatch(
-                            None,
-                            Array<TextInputOperation>(1L) {
-                                _ -> TextInputOperation.Commit(
-                                    copyNativeText(event),
-                                    TextReplacement.CurrentSelection
-                                )
-                            }
-                        )
-                    )
+                13 -> WindowEvent.TextInput(TextInputEvent.Edit(copyNativeTextBatch(pointer)))
+                14 -> WindowEvent.TextInput(
+                    if (event.flags != 0)
+                        TextInputEvent.Enabled
+                    else
+                        TextInputEvent.Disabled
                 )
                 else -> throw WindowException(
                     "unknown native window event",

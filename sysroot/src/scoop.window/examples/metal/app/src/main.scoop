@@ -24,6 +24,7 @@ private class MetalWindowHandler(val closeAfterFrame: Boolean): ApplicationHandl
     var redraws = 0
     var closed = false
     var destroyed = false
+    var text = TextInputState("", Utf8Selection(0L, 0L))
 
     public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
         when (event) {
@@ -43,6 +44,12 @@ private class MetalWindowHandler(val closeAfterFrame: Boolean): ApplicationHandl
                 window = Some(value)
                 surface = Some(MetalSurface.create(value))
                 value.requestFocus()
+                if (!closeAfterFrame) {
+                    value.setImeCursorArea(
+                        LogicalRect(LogicalPosition(12.0, 34.0), LogicalSize(2.0, 18.0))
+                    )
+                    value.setImeAllowed(true)
+                }
                 value.requestRedraw()
                 if (closeAfterFrame)
                     application.setControlFlow(
@@ -79,6 +86,19 @@ private class MetalWindowHandler(val closeAfterFrame: Boolean): ApplicationHandl
                 }
             }
             case Window(_, WindowEvent.CloseRequested) -> application.requestExit()
+            case Window(_, WindowEvent.TextInput(TextInputEvent.Edit(batch))) -> {
+                text = text.apply(batch)
+                window!!.setTitle("Scoop · Metal · " + text.surroundingText)
+            }
+            case Window(_, WindowEvent.Keyboard(value)) -> {
+                if (
+                    value.logicalKey ==
+                        LogicalKey.Named(NamedKey.Escape) &&
+                        value.state ==
+                        ElementState.Pressed
+                )
+                    application.requestExit()
+            }
             case Window(_, WindowEvent.Closing) -> {
                 when (surface) {
                     case Some(value) -> value.close();

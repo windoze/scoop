@@ -1,6 +1,14 @@
 #import "window.h"
 #include <float.h>
 
+static void set_style(SWWindow *owner, NSWindowStyleMask style) {
+  if (owner.window.styleMask == style)
+    return;
+  owner.window.styleMask = style;
+  // AppKit can replace the first responder while changing the frame style.
+  [owner.window makeFirstResponder:owner.view];
+}
+
 void scoop_window_position(void *pointer, double x, double y) {
   SWWindow *owner = (__bridge SWWindow *)pointer;
   [owner.window setFrameTopLeftPoint:NSMakePoint(x, sw_desktop_top() - y)];
@@ -28,22 +36,19 @@ void scoop_window_resize_increments(void *pointer, double width,
 }
 
 void scoop_window_resizable(void *pointer, int32_t value) {
-  NSWindow *window = ((__bridge SWWindow *)pointer).window;
-  if (value)
-    window.styleMask |= NSWindowStyleMaskResizable;
-  else
-    window.styleMask &= ~NSWindowStyleMaskResizable;
+  SWWindow *owner = (__bridge SWWindow *)pointer;
+  NSWindowStyleMask style = owner.window.styleMask;
+  set_style(owner, value ? style | NSWindowStyleMaskResizable
+                         : style & ~NSWindowStyleMaskResizable);
 }
 
 void scoop_window_decorations(void *pointer, int32_t value) {
-  NSWindow *window = ((__bridge SWWindow *)pointer).window;
+  SWWindow *owner = (__bridge SWWindow *)pointer;
   NSWindowStyleMask decorations = NSWindowStyleMaskTitled |
                                   NSWindowStyleMaskClosable |
                                   NSWindowStyleMaskMiniaturizable;
-  if (value)
-    window.styleMask |= decorations;
-  else
-    window.styleMask &= ~decorations;
+  NSWindowStyleMask style = owner.window.styleMask;
+  set_style(owner, value ? style | decorations : style & ~decorations);
 }
 
 void scoop_window_buttons(void *pointer, int32_t close, int32_t minimize,
@@ -131,14 +136,14 @@ void scoop_window_attention(void *pointer, int32_t kind) {
 }
 
 void scoop_window_titlebar(void *pointer, int32_t flags) {
-  NSWindow *window = ((__bridge SWWindow *)pointer).window;
+  SWWindow *owner = (__bridge SWWindow *)pointer;
+  NSWindow *window = owner.window;
   window.titlebarAppearsTransparent = (flags & 1) != 0;
   window.titleVisibility =
       (flags & 2) ? NSWindowTitleHidden : NSWindowTitleVisible;
-  if (flags & 4)
-    window.styleMask |= NSWindowStyleMaskFullSizeContentView;
-  else
-    window.styleMask &= ~NSWindowStyleMaskFullSizeContentView;
+  NSWindowStyleMask style = window.styleMask;
+  set_style(owner, (flags & 4) ? style | NSWindowStyleMaskFullSizeContentView
+                               : style & ~NSWindowStyleMaskFullSizeContentView);
 }
 
 typedef struct {

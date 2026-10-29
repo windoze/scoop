@@ -12,11 +12,6 @@ public struct Utf8Selection(val anchor: Long, val cursor: Long) {
             Utf8Range(cursor, anchor)
 }
 
-/** The purpose of native text input; Password never publishes document contents. */
-public enum ImePurpose {
-    Normal, Password, Terminal
-}
-
 /** Replacement coordinates refer to the temporary text after preceding batch operations. */
 public enum TextReplacement {
     CurrentSelection, Range(Utf8Range)
@@ -43,7 +38,7 @@ public enum TextInputEvent {
     Enabled, Disabled, Edit(TextInputBatch)
 }
 
-/** The editor's immutable UTF-8 snapshot used to answer synchronous native IME queries. */
+/** The editor's immutable UTF-8 snapshot; it is not published to the native input context. */
 public struct TextInputState(
     val surroundingText: String,
     val selection: Utf8Selection,

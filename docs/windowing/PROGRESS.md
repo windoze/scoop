@@ -1,5 +1,7 @@
 # 窗口基础架构与 macOS 实施
 
+状态：本阶段代码与自动化验收已完成（2026-10-30）。使用方式见[窗口库 README](../../sysroot/src/scoop.window/README.md)。实际硬件／输入法交互的验证边界在各批次与文末记录。
+
 本阶段：基础架构、`scoop.window`、`scoop.window.asyncio` 与真实 AppKit 后端。Linux／Windows／其他后端后续实施，不添加空实现。窗口逻辑、平台适配与测试均归属普通 Cone；编译器只补齐实际需要的 `.m` native 能力及实施中暴露的底层缺口。
 
 当前交付按用户进一步明确的 winit 定位收敛为 GUI 骨架，先完成窗口、基础属性／输入／IME、DPI／显示器、renderer 与 asyncio。完整能力地图中的高级平台扩展分批补充，不把完整 AppKit GUI 或全部 winit 扩展变成当前验收门槛。
@@ -92,3 +94,13 @@
 合入 main 的 `b0de037002`，保留其 Windows native driver、统一 native I/O 状态及通知实现，同时保留本分支的 Darwin `.m`／ARC 和窗口 Cone。compiler protocol 更新为 24，package protocol 保持 3；失败版本测试按实际 CBOR 整数长度构造，不再假设版本只有一个编码字节。开发 sysroot 和文档清单同步全部目标筛选，消除合并后的重复 Unix source 声明；修正 macOS 临时目录规范路径的测试期望。
 
 验证：workspace fmt／clippy、184 项 manifest／protocol／toolchain 测试及 14 项 linker 测试通过；脚本与 fixture runner 公共规则测试通过，目标不适用项正常跳过。Objective-C 3 个 fixture／4 个变体／12 次进程调用和 C++ 10 个适用 fixture／13 个变体／40 次进程调用通过。显式重建 Darwin 的 27 个 Cone 与四种 runtime 产物；asyncio 的 64 个容器／153 项 release 测试、window 的 12 项测试、窗口 asyncio 模态／取消测试及 Metal 首帧测试全部通过。Windows 窗口后端仍留待后续阶段。
+
+### 11. AppKit IME 与本阶段交付
+
+新增 setImeAllowed／setImeCursorArea 和真实 NSTextInputClient。普通文字与 IME 使用同一组自有编辑批次；marked segment 内的 UTF-16 替换及选区转为 UTF-8，支持同批提交后继续组合。无效批次全部拒绝，只撤销先前已交付的组合，保留应用原选区；失焦、禁用及销毁清理 native marked 状态。Enabled 先于本次开启产生的编辑，重复设置不重复通知，确认组合的按键不会再执行普通编辑。
+
+按 winit 的 AppKit 规则补齐无装饰窗口的 key／main 能力，以及 style mask 变更后的 first responder 恢复。Metal 示例在标题栏显示普通／IME 文字结果；增加窗口 asyncio 定时标题示例。公共 README、规范与能力映射明确当前骨架、后续平台与高级功能的边界，移除未实施的 purpose 预留。
+
+验证：Scoop 格式化／check、native clang-format／Wall／Wextra／Werror 通过。window 的 12 项 release 测试通过，其中真实 AppKit 集成覆盖无装饰窗口焦点、interpretKeyEvents 命令键、11 个有序文本批次、组合内替换、emoji 边界、非法范围整批拒绝、重复 unmark／开关、候选窗坐标及 GC 后载荷。更新 27 个 Cone 的开发 sysroot 后，窗口 asyncio 模态／取消测试和 Metal 实际 GPU 首帧复核通过；定时标题示例通过 release 检查和链接。
+
+本阶段提供可用的 macOS 窗口／输入／renderer／asyncio 骨架。Linux、Windows 和其他窗口后端，以及全屏控制、raw device、触摸／高级手势、捕获和文件拖放留待后续。显示器热插拔、混合 DPI、各键盘布局、系统输入法候选交互及真实用户拖动未做人工验收；原生协议调用和实际 modal／menu tracking 测试不替代这些硬件／桌面交互验证。

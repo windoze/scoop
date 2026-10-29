@@ -1,6 +1,6 @@
 # winit 能力映射与分阶段范围
 
-状态：分阶段实施；更新于 2026-10-30。与 [DESIGN.md](DESIGN.md) 和[规范](../specs/SCOOP-WINDOW-SPEC.md)一起阅读。基线为 winit 0.30.13 的桌面能力；下表是完整能力地图，实际交付以 [PROGRESS.md](PROGRESS.md) 为准。
+状态：macOS 骨架阶段已实现，其余分阶段实施；更新于 2026-10-30。与 [DESIGN.md](DESIGN.md) 和[规范](../specs/SCOOP-WINDOW-SPEC.md)一起阅读。基线为 winit 0.30.13 的桌面能力；下表是完整能力地图，实际交付与验收边界以 [PROGRESS.md](PROGRESS.md) 为准。
 
 当前阶段交付 macOS GUI 骨架：应用／窗口、proxy／关闭／lease、基础属性、显示器与 DPI、键盘／鼠标／滚轮／IME、renderer 与 asyncio 接入。全屏控制／显示模式切换、全局 raw device、触摸／高级手势、光标捕获、文件拖放和复杂平台窗口交互后续补充。下表的“本期”均指当前骨架阶段，不要求实现完整 AppKit GUI。
 
@@ -44,7 +44,7 @@
 | Moved／Focused／Occluded／ThemeChanged | 位置、焦点、遮挡、主题事件 | 本期；平台不知道的状态保持未知 |
 | KeyboardInput／ModifiersChanged | KeyEvent／ModifiersChanged | 本期，物理键／逻辑键／位置／repeat／synthetic 分离 |
 | KeyEvent.text 与 IME Commit | TextInputEvent.Edit 批次中的 Commit 操作 | 本期统一文字入口；同批删除、提交和组合更新只调用一次 handler |
-| Ime Preedit／Enabled／Disabled | 批次内 Preedit／ClearPreedit 及 Enabled／Disabled 事件 | 本期；UTF-8 字节范围、选择活动端、candidate rect；完整操作见窗口规范第 5 节 |
+| Ime Preedit／Enabled／Disabled | 批次内 Preedit 及 Enabled／Disabled 事件 | 本期；UTF-8 字节范围、选择活动端、candidate rect；取消用空 Preedit 删除当前组合，开关变化才发 Enabled／Disabled |
 | IME allowed／cursor area、dead-key reset | setImeAllowed／setImeCursorArea、失焦撤销组合 | 本阶段；只保存 native marked text，UTF-16 转 UTF-8，不发布应用文档 |
 | IME purpose、surrounding 文档与重转换 | 后续文本输入扩展 | 后续；TextInputState 当前为应用纯值辅助，不要求窗口层维护编辑器镜像 |
 | CursorEntered／Left／Moved／MouseInput | 指针事件与按钮 | 本期；坐标和设备来源明确 |

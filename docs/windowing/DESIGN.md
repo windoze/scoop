@@ -1,8 +1,8 @@
 # 桌面窗口与事件库设计
 
-状态：实施中。更新：2026-10-30。本阶段完成基础架构与 macOS；Linux Wayland／X11、Windows 及其他窗口后端留到后续阶段。下文 Linux／Windows 章节保留设计方向，不是本阶段验收项。实施进展见 [PROGRESS.md](PROGRESS.md)。
+状态：基础架构与 macOS GUI 骨架已实现。更新：2026-10-30。Linux Wayland／X11、Windows 及其他窗口后端留到后续阶段。下文 Linux／Windows 章节保留设计方向，不是本阶段验收项。实现、验收边界与硬件交互限制见 [PROGRESS.md](PROGRESS.md)，使用方式见[窗口库 README](../../sysroot/src/scoop.window/README.md)。
 
-本轮按 winit 的职责搭建可供 GUI 使用的骨架：真实窗口／主循环、显式生命周期与 proxy、基础窗口属性、DPI／显示器快照、键盘／指针／滚轮／文本输入、native lease、renderer 和 asyncio 接入。winit 的完整能力地图用于确定边界和后续扩展方向，不要求本轮复制它的全部平台扩展。独占显示模式、全局原始设备监听、触摸／高级手势、光标捕获及平台专有的复杂窗口交互分批补充；未实施项不以 Unsupported 伪装成平台不支持。控件、布局、菜单体系和应用编辑器仍由上层 GUI 实现。
+本轮按 winit 的职责搭建可供 GUI 使用的骨架：真实窗口／主循环、显式生命周期与 proxy、基础窗口属性、DPI／显示器快照、键盘／指针／滚轮／文本输入、native lease、renderer 和 asyncio 接入。winit 的完整能力地图用于确定边界和后续扩展方向，不要求本轮复制它的全部平台扩展。全屏控制／显示模式切换、全局原始设备监听、触摸／高级手势、光标捕获、文件拖放及平台专有的复杂窗口交互分批补充；未实施项不以 Unsupported 伪装成平台不支持。控件、布局、菜单体系和应用编辑器仍由上层 GUI 实现。
 
 目标是为 Skia／HarfBuzz 上层 GUI 提供 winit 对应的窗口、输入、显示器与主循环能力。公共 API 使用 Scoop，平台实现使用成熟的系统／协议库。功能基线取 [winit 0.30.13](https://docs.rs/winit/0.30.13/winit/)，另参考 0.31 beta 的演进方向，不追随其未稳定 API；逐项范围见 [WINIT-MAPPING.md](WINIT-MAPPING.md)，目标合同见[窗口库规范草案](../specs/SCOOP-WINDOW-SPEC.md)。
 
@@ -10,7 +10,7 @@ Scoop 尚未发布任何版本。语言、库 API、runtime ABI、native 产物�
 
 ## 1. 已落地 async backend 的接入结论
 
-本设计核对主线源码，并参考 Windows 分支的 [0fa053fd](https://github.com/windoze/scoop/tree/0fa053fd11c11e641e2f17212ce4948d5d52447a)。下表区分已有机制与窗口层需要完成的工作：
+本设计核对主线源码，实施期间已合入 Windows 基础能力的 [b0de037002](https://github.com/windoze/scoop/tree/b0de037002)。下表区分已有机制与窗口层的责任：
 
 | 已有实现 | 可复用的事实 | 窗口层的责任 |
 | --- | --- | --- |
@@ -21,9 +21,9 @@ Scoop 尚未发布任何版本。语言、库 API、runtime ABI、native 产物�
 | [EventLoopHost](../../sysroot/src/scoop.asyncio/src/host/host.scoop) | 已迁入 Windows 分支的 EventLoopNotification 与 watch；remove 等 ready 退出 | 提供真实窗口宿主适配 |
 | [MainDispatchHost](../../sysroot/src/scoop.asyncio/platform/darwin/main_dispatch_host.scoop) | 主队列通知及 ForeignCallback 保活／异常观察 | 继续验证菜单跟踪、拖动和模态，不把 CFRunLoop 测试当成完整 AppKit 验收 |
 
-[实施记录](../asyncio-backends/PROGRESS.md)已报告 Darwin／GNU／musl、Linux 6.1、取消竞争和定向 moving GC 验收；本次没有重跑这些测试。[性能记录](../asyncio-backends/PERFORMANCE.md)也明确窗口系统尚未验证，Darwin 部分指标低于原 libuv 基线，因此本设计不预设新窗口层具有性能优势。
+[实施记录](../asyncio-backends/PROGRESS.md)已报告 Darwin／GNU／musl、Linux 6.1、取消竞争和定向 moving GC 验收。本次复核 Darwin 常规 release 测试及真实 AppKit 模态／菜单 tracking，未重跑 Linux 或完整 GC stress 专测。[性能记录](../asyncio-backends/PERFORMANCE.md)是窗口接入前的基线；本阶段不预设新窗口层具有性能优势。
 
-当前工作是窗口系统集成。Windows 分支已实现 IOCP、manual-reset event 通知及对应 attach 路径；窗口集成直接采用这组接口，不再另建 wake-source enum 或旧宿主兼容层。主线迁入时同步修改接口、实现和实际调用方，见第 4 节。平台分支的 I/O 验收不等于窗口系统已经完成。
+当前工作是窗口系统集成。主线已实现 IOCP、manual-reset event 通知及对应 attach 路径；窗口集成直接采用这组接口，不再另建 wake-source enum 或旧宿主兼容层。接口、实现和实际调用方已同步，见第 4 节。平台基础的 I/O 验收不等于对应窗口后端已经完成。
 
 ## 2. 分层与交付边界
 
@@ -150,7 +150,7 @@ WindowAttributes 使用普通属性／值类型，包含标题、内容尺寸约
 
 全局位置单独用 `DesktopPosition`／`DesktopRect`，表示当前显示系统的桌面坐标；不能用某一个窗口的 scaleFactor 在混合 DPI 桌面上进行全局换算。桌面位置与尺寸查询允许 None，Wayland 不伪造全局窗口位置或 primary monitor。窗口内物理／逻辑换算只在同一 metrics 快照中进行，像素分配尺寸向上取整。
 
-MonitorId、WindowId、DeviceId、TouchId 均为不同值类型，库内分配且在本次 Application 内不复用；不暴露 XID、指针或数组下标作为公共 id。Monitor 快照可保存，热拔插后控制操作报告 unavailable；名称、位置、刷新率等未知时为 None，刷新率使用可选整数毫赫兹，不能假定 60 Hz。
+MonitorId、WindowId、DeviceId 为不同值类型，库内分配且在本次 Application 内不复用；不暴露 XID、指针或数组下标作为公共 id。Monitor 是可保存的自有快照，屏幕离开后不再出现在新枚举中，旧快照内容仍可读取；名称、位置、刷新率等未知时为 None，刷新率使用可选整数毫赫兹，不能假定 60 Hz。触摸身份和显示模式控制随对应后续能力加入。
 
 ## 6. 输入与 IME
 
@@ -268,11 +268,11 @@ Windows 后端要求创建窗口的 owner 使用 Per-Monitor V2。应用优先�
 
 1. 按本草案定义最小端到端子集，先落实实际需要的 `.m` native 管线，并采用 Windows 分支的 EventLoopNotification／watch；同步实际宿主与调用方，不新增旧签名兼容层。
 2. 用真实 window／window.asyncio 两个 Cone 完成公开宿主接入、窗口创建、输入、提交一帧及退出。持有 renderer lease 和活动 I/O 时请求退出，确认窗口、session、watch 与 lease 能依次或交错收尾；没有窗口时也能等待 session 完成。渲染使用小型实际 surface 适配，不建设完整 GUI 或通用渲染框架。
-3. 在这条闭环中修订接口和规范，再完成 Wayland 的首次配置、零尺寸提示、隐藏／重显、DPI、IME 批次、装饰、frame、拖放及协议能力差异；实现 X11 对应行为。GNU／musl 共用 Scoop 层，不复制测试实现。
-4. 按映射表分批交付光标、touch／gesture／raw device、monitor、全屏、主题和可选属性；每项“平台不支持”均有真实 capability 依据和明确结果。阶段成果标明实际范围，不以整张映射表完成前禁止交付可用子集。
-5. 配套示例与三目标验收逐批完成后更新实现状态；整个映射表完成后标记本设计交付。Windows 窗口后端的实现和平台专测另行安排，平台基础分支通过不等于窗口可用。
+3. 后续 Linux 阶段完成 Wayland 的首次配置、零尺寸提示、隐藏／重显、DPI、IME 批次、装饰、frame、拖放及协议能力差异，并实现 X11 对应行为。GNU／musl 共用 Scoop 层，不复制测试实现。
+4. 在已有基础光标、monitor、主题和窗口属性之上，按映射表分批补充 touch／gesture／raw device、全屏控制及高级可选属性；每项“平台不支持”均有真实 capability 依据和明确结果。
+5. 每个阶段以配套示例、真实目标测试和明确限制独立交付。当前基础架构／macOS 骨架阶段与完整能力地图分别记录；Linux、Windows 窗口及平台专测另行安排，平台基础分支通过不等于窗口可用。
 
-纯值／归一规则、状态、错误与普通 API 行为用所属 Cone 的 scoop.test；真实窗口与 callback 测试优先使用主线程测试程序，必要的 OS 进程控制／ABI／native 编译能力才用少量 fixture。目标环境至少包含真实 macOS、Wayland compositor、X11 WM，并分别使用 GNU／musl 库；Xvfb 或 headless compositor 可覆盖自动化行为，但不能替代实体显示器、IME 与 AppKit 的手工验证。
+纯值／归一规则、状态、错误与普通 API 行为用所属 Cone 的 scoop.test；真实窗口与 callback 测试使用主线程测试程序，必要的 OS 进程控制／ABI／native 编译能力才用少量 fixture。当前目标为真实 macOS；后续 Linux 验收覆盖 Wayland compositor、X11 WM 及 GNU／musl 库。Xvfb 或 headless compositor 可覆盖自动化行为，但不能替代实体显示器、输入法候选交互与真实用户拖动的手工验证。
 
 重点组合：多个窗口与任务并存；关闭／外线程投递竞争；移动 GC 下事件文本和 ForeignCallback；关闭中 surface lease 未释放；用户 handler／清理抛错；菜单、拖动、模态期间 timer／网络／取消推进；混合 DPI 跨屏与热插拔；零 drawable 与 Wayland 零尺寸提示的区别；隐藏／重显后真实 buffer 提交；中文／日文组合、emoji／UTF-16 range、dead keys、重复输入与失焦；同批 delete／commit／preedit、选择方向、协议 serial 与文本 revision 的区别；Wayland flush EAGAIN／prepared-read 取消；X11 WM 忽略请求；display 断开；退出时 I/O、window、watch 各自先完成及没有窗口的顺序。
 

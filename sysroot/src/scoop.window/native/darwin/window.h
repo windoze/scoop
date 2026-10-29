@@ -15,6 +15,12 @@ typedef struct {
   int64_t text_length;
 } SWEventData;
 typedef struct {
+  int32_t kind;
+  int64_t anchor, cursor;
+  const uint8_t *text;
+  int64_t text_length;
+} SWTextEditData;
+typedef struct {
   double width, height, pixel_width, pixel_height, scale;
   double x, y, outer_width, outer_height;
   int32_t visible, occluded, focused, minimized, maximized, dark;
@@ -22,9 +28,15 @@ typedef struct {
 
 @class SWApplication, SWWindow;
 
+@interface SWTextEdit : NSObject
+@property(nonatomic) SWTextEditData data;
+@property(nonatomic, strong) NSData *text;
+@end
+
 @interface SWEvent : NSObject
 @property(nonatomic) SWEventData data;
 @property(nonatomic, strong) NSData *text;
+@property(nonatomic, strong) NSArray<SWTextEdit *> *edits;
 @end
 
 @interface SWApplication : NSObject <NSApplicationDelegate>
@@ -48,6 +60,14 @@ typedef struct {
 @property(nonatomic, strong) NSTrackingArea *tracking;
 @property(nonatomic, strong) NSCursor *cursor;
 @property(nonatomic) BOOL pointerInside, cursorVisible, cursorHidden;
+@property(nonatomic) BOOL imeAllowed, discardingText;
+@property(nonatomic) NSRect imeCaret;
+@property(nonatomic, strong) NSString *markedText;
+@property(nonatomic) NSRange markedSelection;
+@property(nonatomic, strong) NSMutableArray<SWTextEdit *> *textEdits;
+@property(nonatomic) NSUInteger textBatchDepth;
+@property(nonatomic) BOOL textBatchHadMarked, textBatchInvalid;
+@property(nonatomic) BOOL compositionConsumed, compositionCommitted, forwardKey;
 @end
 
 @interface SWView (Input)
@@ -56,8 +76,19 @@ typedef struct {
 @interface SWView (Pointer)
 - (void)updateCursor;
 @end
+@interface SWView (Text) <NSTextInputClient>
+- (void)beginTextBatch;
+- (void)endTextBatch;
+- (void)cancelComposition;
+@end
 
-enum { SWKeyboard = 10, SWModifiers = 11, SWPointer = 12, SWTextCommit = 13 };
+enum {
+  SWKeyboard = 10,
+  SWModifiers = 11,
+  SWPointer = 12,
+  SWTextBatch = 13,
+  SWImeState = 14
+};
 void sw_commit(SWView *view, NSString *text);
 void sw_modifiers(SWView *view, NSEventModifierFlags flags);
 

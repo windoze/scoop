@@ -11,20 +11,6 @@ void sw_modifiers(SWView *view, NSEventModifierFlags flags) {
   [view.owner.application enqueue:event];
 }
 
-void sw_commit(SWView *view, NSString *text) {
-  if (!text.length)
-    return;
-  unichar first = [text characterAtIndex:0];
-  if (first < 0x20 || first == 0x7f || (first >= 0xf700 && first <= 0xf8ff))
-    return;
-  NSData *bytes = [text dataUsingEncoding:NSUTF8StringEncoding];
-  if (!bytes)
-    return;
-  SWEvent *event = sw_event(view.owner, SWTextCommit);
-  event.text = bytes;
-  [view.owner.application enqueue:event];
-}
-
 static void key(SWView *view, NSEvent *native, BOOL down) {
   NSNumber *code = @(native.keyCode);
   if (!down && !view.pressedKeys[code])
@@ -60,10 +46,19 @@ static void key(SWView *view, NSEvent *native, BOOL down) {
 @implementation SWView (Input)
 - (void)keyDown:(NSEvent *)event {
   sw_modifiers(self, event.modifierFlags);
-  key(self, event, YES);
-  if (!(event.modifierFlags &
-        (NSEventModifierFlagControl | NSEventModifierFlagCommand)))
-    sw_commit(self, event.characters);
+  BOOL shortcut = (event.modifierFlags & (NSEventModifierFlagControl |
+                                          NSEventModifierFlagCommand)) != 0;
+  [self beginTextBatch];
+  @try {
+    if (self.imeAllowed && !shortcut)
+      [self interpretKeyEvents:@[ event ]];
+    else if (!shortcut)
+      sw_commit(self, event.characters);
+    if (shortcut || !self.compositionConsumed || self.forwardKey)
+      key(self, event, YES);
+  } @finally {
+    [self endTextBatch];
+  }
 }
 - (void)keyUp:(NSEvent *)event {
   sw_modifiers(self, event.modifierFlags);
@@ -136,6 +131,7 @@ static void key(SWView *view, NSEvent *native, BOOL down) {
     key(self, event, down);
 }
 - (void)resetInput {
+  [self cancelComposition];
   NSEventModifierFlags locks = self.modifiers & NSEventModifierFlagCapsLock;
   for (NSNumber *code in [[self.pressedKeys allKeys]
            sortedArrayUsingSelector:@selector(compare:)]) {

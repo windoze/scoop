@@ -1,6 +1,18 @@
 #import "window.h"
 #include <math.h>
 
+@interface SWAppKitWindow : NSWindow
+@end
+
+@implementation SWAppKitWindow
+- (BOOL)canBecomeKeyWindow {
+  return YES;
+}
+- (BOOL)canBecomeMainWindow {
+  return YES;
+}
+@end
+
 double sw_desktop_top(void) {
   return NSMaxY(NSScreen.screens.firstObject.frame);
 }
@@ -95,6 +107,8 @@ SWEvent *sw_event(SWWindow *window, int32_t kind) {
   [self emit:3];
 }
 - (void)windowDidBecomeKey:(NSNotification *)notification {
+  if (self.view.imeAllowed)
+    [self.view.inputContext activate];
   NSPoint point =
       [self.view convertPoint:self.window.mouseLocationOutsideOfEventStream
                      fromView:nil];
@@ -105,6 +119,8 @@ SWEvent *sw_event(SWWindow *window, int32_t kind) {
 }
 - (void)windowDidResignKey:(NSNotification *)notification {
   [self.view resetInput];
+  if (self.view.imeAllowed)
+    [self.view.inputContext deactivate];
   [self emit:4];
 }
 - (void)windowDidChangeOcclusionState:(NSNotification *)notification {
@@ -133,11 +149,11 @@ void *scoop_window_create(void *application, int64_t identity,
                NSWindowStyleMaskMiniaturizable;
     if (flags & 2)
       style |= NSWindowStyleMaskResizable;
-    owner.window =
-        [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, width, height)
-                                    styleMask:style
-                                      backing:NSBackingStoreBuffered
-                                        defer:NO];
+    owner.window = [[SWAppKitWindow alloc]
+        initWithContentRect:NSMakeRect(0, 0, width, height)
+                  styleMask:style
+                    backing:NSBackingStoreBuffered
+                      defer:NO];
     if (!owner.window)
       return NULL;
     owner.view = [[SWView alloc] initWithFrame:NSMakeRect(0, 0, width, height)];

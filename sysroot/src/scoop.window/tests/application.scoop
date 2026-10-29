@@ -39,7 +39,7 @@ private class AppKitApplicationTest {
         }
         handler.worker!!.join()
         handler.releaseWorker!!.join()
-        assertEquals(2, handler.redraws)
+        assertEquals(3, handler.redraws)
         assertEquals(2, handler.closing)
         assertEquals(2, handler.destroyed)
         assertEquals(1, handler.exiting)
@@ -52,6 +52,7 @@ private class AppKitApplicationTest {
         assertFalse(proxy.requestExit())
         assertEquals(WindowState.Destroyed, handler.window!!.state)
         assertFailsWith<WindowException> { handler.window!!.setTitle("late") }
+        assertFailsWith<WindowException> { handler.window!!.setImeAllowed(true) }
         assertFailsWith<IllegalStateException> { application.run(handler) }
         assertFailsWith<IllegalStateException> { Application() }
     }
@@ -71,6 +72,7 @@ private class LifecycleHandler(val proxy: ApplicationProxy): ApplicationHandler 
     var exiting = 0
     var depth = 0
     val input = InputProbe()
+    val ime = ImeProbe()
 
     public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
         assertEquals(ownerThread, currentThreadId())
@@ -108,16 +110,33 @@ private class LifecycleHandler(val proxy: ApplicationProxy): ApplicationHandler 
                         window!!.requestRedraw();
                         window!!.requestRedraw()
                     }
-                    else {
-                        input.verify()
-                        window!!.requestDestroy()
-                    }
+                    else
+                        if (redraws == 2) {
+                            input.verify()
+                            ime.start(window!!, lease!!)
+                            window!!.requestRedraw()
+                        }
+                        else {
+                            ime.verify()
+                            window!!.requestDestroy()
+                        }
                 }
-                case Window(_, WindowEvent.Keyboard(value)) -> input.key(value)
+                case Window(_, WindowEvent.Keyboard(value)) -> {
+                    if (ime.started)
+                        ime.key(value)
+                    else
+                        input.key(value)
+                }
                 case Window(_, WindowEvent.Pointer(value)) -> input.pointer(value)
-                case Window(_, WindowEvent.TextInput(TextInputEvent.Edit(batch))) -> input.edit(
-                    batch
-                )
+                case Window(_, WindowEvent.TextInput(value)) -> {
+                    if (ime.started)
+                        ime.event(value)
+                    else
+                        when (value) {
+                            case Edit(batch) -> input.edit(batch)
+                            else -> {}
+                        }
+                }
                 case Window(identity, WindowEvent.Closing) -> {
                     closing += 1
                     if (identity == window!!.id) {

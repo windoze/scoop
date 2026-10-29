@@ -1,0 +1,38 @@
+//! dep: scoop:scoop.window:0.1.0
+//! dep: scoop:scoop.asyncio:0.1.0
+//! dep: scoop:scoop.window.asyncio:0.1.0
+
+import scoop.window.*
+import scoop.window.asyncio.*
+import scoop.asyncio.*
+import scoop.time.Duration
+
+fun main() {
+    Application().runWithAsyncio(TimerWindow())
+}
+
+private class TimerWindow: ApplicationHandler {
+    public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
+        when (event) {
+            case Resumed -> {
+                val window =
+                    application.createWindow(
+                        WindowAttributes("Scoop · 0 seconds", LogicalSize(420.0, 220.0))
+                    )
+                window.requestFocus()
+                val loop = currentEventLoop()
+                currentApplicationScope().launch suspend {
+                    var seconds = 0L
+                    while (true) {
+                        loop.sleep(Duration.seconds(1L))
+                        seconds += 1L
+                        window.setTitle("Scoop · " + seconds.toString() + " seconds")
+                    }
+                }
+            }
+            case Window(_, WindowEvent.CloseRequested) -> application.requestExit()
+            case ExitRequested(_) -> application.requestExit()
+            else -> {}
+        }
+    }
+}
