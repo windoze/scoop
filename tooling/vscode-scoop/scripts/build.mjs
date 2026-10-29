@@ -9,6 +9,11 @@ const grammar = path.resolve(root, "../tree-sitter-scoop");
 const runtimeEntry = createRequire(import.meta.url).resolve("web-tree-sitter");
 const runtime = path.dirname(runtimeEntry);
 const assets = path.join(root, "dist/assets");
+await mkdir(path.join(root, "dist/debugger"), { recursive: true });
+await copyFile(
+  path.join(root, "debugger/scoop_lldb.py"),
+  path.join(root, "dist/debugger/scoop_lldb.py"),
+);
 await mkdir(assets, { recursive: true });
 await mkdir(path.join(root, "dist/licenses"), { recursive: true });
 await copyFile(

@@ -38,20 +38,20 @@ code --install-extension "$HOME"/.scoop/tooling/scoop-language-support-*.vsix
 }
 ```
 
-| 设置                        | 默认值与用途                                                                                                                 |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `scoop.server.enabled`      | `true`；关闭后仅保留 Tree-sitter 功能                                                                                        |
-| `scoop.server.path`         | 空；按上述顺序发现服务器，修改后自动重启                                                                                     |
-| `scoop.sysroot`             | 空；沿服务端默认规则选取，显式相对路径基于 Cone 根                                                                           |
-| `scoop.target`              | 空；服务端宿主 target triple                                                                                                 |
-| `scoop.purpose`             | `production`；`test` 同时分析根 Cone 的测试输入                                                                              |
-| `scoop.artifactSearchRoots` | `[]`；额外预编译依赖搜索目录                                                                                                 |
-| `scoop.packageManager` | 空；使用 scoop-lsp 同目录的 scoop-pm |
-| `scoop.packageCacheDir` | 空；沿 PM 的共享源码缓存规则 |
-| `scoop.lockfile` | 空；使用 workspace 的 Cone.lock |
+| 设置                        | 默认值与用途                                                                                                                                |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scoop.server.enabled`      | `true`；关闭后仅保留 Tree-sitter 功能                                                                                                       |
+| `scoop.server.path`         | 空；按上述顺序发现服务器，修改后自动重启                                                                                                    |
+| `scoop.sysroot`             | 空；沿服务端默认规则选取，显式相对路径基于 Cone 根                                                                                          |
+| `scoop.target`              | 空；服务端宿主 target triple                                                                                                                |
+| `scoop.purpose`             | `production`；`test` 同时分析根 Cone 的测试输入                                                                                             |
+| `scoop.artifactSearchRoots` | `[]`；额外预编译依赖搜索目录                                                                                                                |
+| `scoop.packageManager`      | 空；使用 scoop-lsp 同目录的 scoop-pm                                                                                                        |
+| `scoop.packageCacheDir`     | 空；沿 PM 的共享源码缓存规则                                                                                                                |
+| `scoop.lockfile`            | 空；使用 workspace 的 Cone.lock                                                                                                             |
 | `scoop.configurations`      | `[]`；命名配置，每项必须有唯一 `name` 和 Cone 根 `rootUri`（file URI），可覆盖 target、sysroot、purpose、artifactSearchRoots 和上述 PM 设置 |
-| `scoop.activeConfiguration` | 空；按文档选择配置，也可指定配置名称                                                                                         |
-| `scoop.trace.server`        | `messages`；可选 `verbose` 增加细节；先通过 `Developer: Set Log Level` 将 Scoop LSP 日志等级设为 Trace                       |
+| `scoop.activeConfiguration` | 空；按文档选择配置，也可指定配置名称                                                                                                        |
+| `scoop.trace.server`        | `messages`；可选 `verbose` 增加细节；先通过 `Developer: Set Log Level` 将 Scoop LSP 日志等级设为 Trace                                      |
 
 分析配置改变后通知现有服务器。空 configurations 使用工作区目录与打开文件最近的
 `Cone.toml` 发现项目；支持多根工作区、未保存的 Scoop／Cone.toml 文本，以及磁盘上
@@ -92,3 +92,50 @@ code --install-extension vscode-scoop/scoop-language-support-0.2.0.vsix
 VSIX 包含语言客户端和运行依赖及许可，无需用户安装 npm 依赖。打包只生成 VSIX，
 不发布 Marketplace。完整工具包的单一入口仍为 `python3 scripts/package_toolchain.py`，
 会一并构建 `scoop-lsp` 和扩展，分别放入 `bin/` 与 `tooling/`。
+
+## 原生调试
+
+安装本发行包的 `lldb-dap`（LLVM 22，启用 Python），按 F5 选择 Scoop，或运行
+`Scoop: Debug Current File`。默认发现 `~/.scoop/bin/scoop` 和
+`~/.scoop/bin/lldb-dap`，随后查询 PATH；可通过 `scoop.debug.compilerPath` 和
+`scoop.debug.adapterPath` 指定路径。调试器在 workspace host 上运行，支持 Remote SSH。
+
+Cone 的最小 `.vscode/launch.json` 配置：
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "scoop",
+      "request": "launch",
+      "name": "Scoop: Build and debug",
+      "build": { "input": "${workspaceFolder}" },
+      "console": "integratedTerminal"
+    }
+  ]
+}
+```
+
+启动前保存文件，调用 `scoop build --profile debug --debug-info full`，从 JSON 结果读取
+实际程序路径；编译仍使用 Scoop 的现有缓存。`build.profile: "release"` 可调试优化程序。
+单文件可用 `build.input: "${file}"`；已有程序设置 `program` 和 `build: false`。
+附加进程使用 `request: "attach"` 和 `pid`，按操作系统的普通调试权限运行。
+
+`build.tests: true` 使用 `scoop test --no-run`，直接启动生成的测试 executable；
+可用 `build.filter` 按完整测试名称的子串选择用例。未指定过滤器时运行非 ignored 用例。
+额外构建选项放入 `build.args`，程序选项放入顶层 `args`。`scoop.sysroot` 同时用于调试构建。
+多 Cone workspace 应通过 `build.input` 选择一个具体 executable Cone。
+
+支持源码断点、单步、物理调用栈、局部值、参数、全局变量以及 String、数组、enum 展示。
+String 按 UTF-8 byte length 读取，保留内嵌 NUL，长文本截断为 4096 字节预览；数组按
+DAP 请求的范围读取元素。enum 仅展示有效变体；`[raw]` 可查看原始字段。
+预编译库应自行带有调试信息；源码路径不同可设置
+`"sourceMap": [["/build/source", "${workspaceFolder}"]]`，邻接的 `.dSYM`／`.debug` 自动加载。
+`env`、`cwd`、`stdio`、`stopOnEntry` 和 `initCommands` 直接传给 LLVM lldb-dap。
+
+调试显示不调用 getter、`toString()` 或任何 inferior 函数，不修改 managed 对象。
+GC 后无法保证的旧变量位置显示 unavailable，程序再次读取后可恢复；在 GC 内部暂停时
+不保证堆可读。闭包捕获值在实际读取区间可见。协程当前使用物理栈，逻辑 completion 链
+及完整 Scoop 表达式求值留待后续。Debug Console 的变量路径及 Clang 标量算式能力不代表
+完整 Scoop 语义；以反引号开头可执行 LLDB 命令。

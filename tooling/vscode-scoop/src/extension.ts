@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { registerDebugging } from "./debug.ts";
 import { folds } from "./folding.ts";
 import { highlights, tokenModifiers, tokenTypes } from "./highlights.ts";
 import { indentLines } from "./indentation.ts";
@@ -10,6 +11,7 @@ let languageServer: ScoopLanguageServer | undefined;
 export async function activate(
   context: vscode.ExtensionContext,
 ): Promise<void> {
+  registerDebugging(context);
   const syntax = await ScoopSyntax.load(context.asAbsolutePath("dist/assets"));
   const selector: vscode.DocumentSelector = { language: "scoop" };
   const legend = new vscode.SemanticTokensLegend(
