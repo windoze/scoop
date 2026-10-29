@@ -2,7 +2,7 @@ schema = 1
 name = "shared-requests-methods-closures"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../shared-requests/provider.scoop", "generic-member-methods-closures", "../../../shared-requests/methods-closures.scoop", "generic-member-downstream-methods-closures", "../../../shared-requests/downstream.scoop", "runtime-fixture", "../../../imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "original_function_requests_republish_and_execute_from_artifacts", "language"]
 
 [[steps]]

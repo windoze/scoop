@@ -2,7 +2,7 @@ schema = 1
 name = "intrinsic-source-shapes-declarations"
 inputs = ["program.scoop", "../declarations.scoop", "factory.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["intrinsic-source-shapes", "modified-core", "language"]
 [[steps]]
 name = "runtime_vendor"
@@ -22,6 +22,7 @@ checks = []
 
 [[steps]]
 name = "core"
+timeout = 900
 argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
