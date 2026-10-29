@@ -20,7 +20,11 @@ fn constructor_materialization_closes_selected_bodies_and_keeps_source_contracts
             )),
         ),
     ] {
-        let output = lower(&[complete_core_file(), scoop_parser::parse(source).unwrap()]).unwrap();
+        let output = lower_with_source(
+            &[complete_core_file(), scoop_parser::parse(source).unwrap()],
+            source,
+        )
+        .unwrap();
         let mut declarations = BTreeMap::new();
         let mut declared_counts = [0; 2];
         for (id, constructor) in output.export.class_constructors.iter() {

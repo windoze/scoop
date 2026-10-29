@@ -56,3 +56,58 @@ attributes #1 = { noduplicate "statepoint-id"="7" }
         }
     }
 }
+
+#[test]
+fn debug_aggregate_reads_preserve_packed_offsets_alignment_and_volatile_accesses() {
+    let profile = ValidatedBackendProfile::darwin_aarch64_for_test();
+    let machine = profile.create_target_machine().unwrap();
+    let context = Context::create();
+    let llvm = parse(
+        &context,
+        r#"
+%Packed = type <{ i8, [2 x ptr addrspace(1)], i32 }>
+define %Packed @ordinary(ptr %source) {
+  %value = load %Packed, ptr %source, align 8
+  ret %Packed %value
+}
+define %Packed @observable(ptr %source) {
+  %value = load volatile %Packed, ptr %source, align 8
+  ret %Packed %value
+}
+"#,
+    );
+    for name in ["ordinary", "observable"] {
+        crate::statepoint::aggregate_values::normalize_loads(
+            llvm.get_function(name).unwrap(),
+            &machine.get_target_data(),
+            profile.managed_address_space_contract(),
+        )
+        .unwrap();
+    }
+    llvm.verify().unwrap();
+    let ordinary = llvm.get_function("ordinary").unwrap();
+    let loads = ordinary
+        .get_first_basic_block()
+        .unwrap()
+        .get_instructions()
+        .filter(|instruction| instruction.get_opcode() == inkwell::values::InstructionOpcode::Load)
+        .collect::<Vec<_>>();
+    let alignments = loads
+        .iter()
+        .map(|load| load.get_alignment().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(alignments, [8, 1, 1, 1]);
+    let ir = llvm.print_to_string().to_string();
+    for offset in [1, 9, 17] {
+        assert!(ir.contains(&format!("getelementptr i8, ptr %source, i64 {offset}")));
+    }
+    let observable = llvm.get_function("observable").unwrap();
+    let accesses = observable
+        .get_first_basic_block()
+        .unwrap()
+        .get_instructions()
+        .filter(|instruction| instruction.get_opcode() == inkwell::values::InstructionOpcode::Load)
+        .collect::<Vec<_>>();
+    assert_eq!(accesses.len(), 1);
+    assert!(accesses[0].get_volatile().unwrap());
+}

@@ -44,7 +44,7 @@ name = "human"
 argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/left.scoop", "-o", "${work}/previous.slib", {"each" = "${human_options}"}]
 exit = 1
 stdout = ""
-stderr = "${work}/left.scoop: error[SCOOP_CLI_CONFIG]: invalid current Cone operand ${work}/left.scoop: cannot inspect: Too many levels of symbolic links (os error ${errno_eloop})\n"
+stderr = "${work}/left.scoop: error[SCOOP_CLI_CONFIG]: invalid single-file input ${work}/left.scoop: cannot canonicalize: Too many levels of symbolic links (os error ${errno_eloop})\n"
 checks = [
   {"file" = "${work}/previous.slib", "equals" = "previous output\n"},
 ]

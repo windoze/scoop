@@ -85,11 +85,9 @@ impl Inputs {
 }
 
 pub(in crate::cli) fn prepare(input: PrepareInput<'_>) -> BuildResult<Inputs> {
-    if let Some(source) = input
-        .input
-        .as_ref()
-        .filter(|path| path.extension().is_some_and(|ext| ext == "scoop"))
-    {
+    if let Some(source) = input.input.as_ref().filter(|path| {
+        path.extension().is_some_and(|ext| ext == "scoop") && !input.cwd.join(path).is_dir()
+    }) {
         if input.options.selects_members() {
             return Err(config(
                 "workspace member selection requires a manifest input",

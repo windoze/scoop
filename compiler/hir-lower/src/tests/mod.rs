@@ -202,6 +202,13 @@ impl TestExecutableEntry for hir::LocalConcreteHirOutput {
 }
 
 fn lower(files: &[ast::SourceFile]) -> Result<hir::Output, Vec<ast::Diagnostic>> {
+    lower_with_source(files, "")
+}
+
+fn lower_with_source(
+    files: &[ast::SourceFile],
+    source_text: &str,
+) -> Result<hir::Output, Vec<ast::Diagnostic>> {
     const CORE_PATHS: [&str; 4] = [
         "src/core.scoop",
         "src/core-extra.scoop",
@@ -239,7 +246,7 @@ fn lower(files: &[ast::SourceFile]) -> Result<hir::Output, Vec<ast::Diagnostic>>
         DefinedTestSources::try_new(core, hir::IntrinsicProviderId::from_raw(1), parsed, |_| {
             CurrentSourceDetails {
                 display_locator: "<user>",
-                source_text: "",
+                source_text,
             }
         })
         .expect("explicit test source identities are valid");

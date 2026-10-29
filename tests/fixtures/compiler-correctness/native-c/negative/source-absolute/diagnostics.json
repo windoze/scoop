@@ -1,7 +1,7 @@
 [
   {
-    "code": "SCOOP_BUILD_FAILED",
-    "message": "invalid build root: invalid Cone manifest root ${work}/cone/Cone.toml: invalid source path \"/outside.c\": path must be relative to the Cone root",
+    "code": "SCOOP_PACKAGE_PREPARE",
+    "message": "${work}/cone/Cone.toml: invalid source path \"/outside.c\": path must be relative to the Cone root",
     "notes": [],
     "origin": {
       "end": 146,
@@ -9,7 +9,6 @@
       "path": "${work}/cone/Cone.toml",
       "start": 134
     },
-    "phase": "Root",
     "severity": "error"
   }
 ]

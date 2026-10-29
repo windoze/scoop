@@ -7,7 +7,9 @@ tags = ["libraries", "cone-tests"]
 [[steps]]
 name = "test"
 argv = ["${scoop}", "test", "${repo}/sysroot/src/scoop.json", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
-timeout = 600
+# This suite compiles all JSON codecs and derived consumer models together.
+# Leave room for the cold release build on the Linux test host.
+timeout = 1800
 exit = 0
 stdout = ""
 stderr = ""

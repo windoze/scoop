@@ -3,6 +3,7 @@
 pub(super) use super::super::super::super::lir_dependencies::reader::open;
 use super::super::super::super::lir_dependencies::reader::{open_link, read, read_link};
 use super::*;
+use crate::request::preflight::end_to_end_tests::layout_exports::core::artifact::assert_exports;
 
 mod link;
 
@@ -57,12 +58,12 @@ pub(super) fn check(
         current.lir_dependency_transport().selected_relations(),
         expected
     );
-    assert_eq!(current.lir_exports(), layout.exports());
+    assert_exports(current.lir_exports(), layout.exports());
     closure
         .read_physical_imports()
         .map(|physical| {
             let current = physical.artifact(layout.provider()).unwrap();
-            assert_eq!(current.lir_exports(), layout.exports());
+            assert_exports(current.lir_exports(), layout.exports());
             let imports = current.lir_physical_imports();
             assert_eq!(
                 encode(imports).unwrap(),

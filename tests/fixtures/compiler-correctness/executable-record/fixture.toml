@@ -252,7 +252,7 @@ checks = [
 
 [[steps]]
 name = "artifact_link"
-argv = ["${scoop}", "link", "--keep-symbols", "--emit-debug-file", "--root-slib", "${root_changed.result.root.path}", {each = "${root_changed.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${root_changed.result.runtime_index}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", {each = "${link_args}"}, "-o", "${work}/artifact/program", "--message-format", "json"]
+argv = ["${scoop}", "link", "--keep-symbols", "--emit-debug-file", "--enable-stack-trace=true", "--root-slib", "${root_changed.result.root.path}", {each = "${root_changed.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${root_changed.result.runtime_index}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", {each = "${link_args}"}, "-o", "${work}/artifact/program", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -271,7 +271,7 @@ stderr = ""
 
 [[steps]]
 name = "standalone_link"
-argv = ["${scoop-link}", "--keep-symbols", "--emit-debug-file", "--root-slib", "${root_changed.result.root.path}", {each = "${root_changed.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${root_changed.result.runtime_index}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", {each = "${link_args}"}, "-o", "${work}/standalone/program"]
+argv = ["${scoop-link}", "--keep-symbols", "--emit-debug-file", "--enable-stack-trace=true", "--root-slib", "${root_changed.result.root.path}", {each = "${root_changed.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${root_changed.result.runtime_index}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", {each = "${link_args}"}, "-o", "${work}/standalone/program"]
 exit = 0
 stdout = "link-plan ${root_changed.result.link_plan_fingerprint}\n"
 stderr = ""

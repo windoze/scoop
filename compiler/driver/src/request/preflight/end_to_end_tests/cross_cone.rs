@@ -135,13 +135,22 @@ public fun invoke(value: Number): Int {
         .unwrap()
         .production();
     assert!(facade_production.lir_cross_cone().exports().is_empty());
-    assert!(facade_production.lir_cross_cone().selected().is_empty());
+    assert!(
+        facade_production
+            .lir_cross_cone()
+            .selected()
+            .iter()
+            .all(|selection| selection.provider() == ConeIdentity::CORE)
+    );
 
     let selected = closure
         .current_compile()
         .production()
         .lir_cross_cone()
-        .selected();
+        .selected()
+        .iter()
+        .filter(|selection| selection.provider() != ConeIdentity::CORE)
+        .collect::<Vec<_>>();
     assert_eq!(selected.len(), 4);
     assert!(
         selected

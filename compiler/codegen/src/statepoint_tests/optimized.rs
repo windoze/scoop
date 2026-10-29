@@ -89,6 +89,58 @@ attributes #0 = { "disable-tail-calls"="true" "frame-pointer"="all" }
 }
 
 #[test]
+fn debug_scalar_calculation_stays_before_following_effects() {
+    let source = r#"
+declare void @observe() #0
+define i64 @f(i64 %value, i1 %condition) gc "statepoint-example" {
+entry:
+  %local = add i64 %value, 1
+  call void @observe()
+  br i1 %condition, label %use, label %skip
+use:
+  %result = add i64 %local, 4
+  ret i64 %result
+skip:
+  ret i64 %value
+}
+attributes #0 = { "gc-leaf-function" }
+"#;
+    for target in [
+        scoop_target_data::DARWIN_AARCH64_ID,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
+    ] {
+        let profile =
+            ValidatedBackendProfile::for_selection(scoop_target_data::selection(target).unwrap())
+                .unwrap()
+                .with_optimization(OptimizationMode::Debug);
+        let machine = profile.create_target_machine().unwrap();
+        let context = Context::create();
+        let llvm = parse(&context, source);
+        crate::statepoint::rewrite(&llvm, &machine, &manifest(None), profile).unwrap();
+        llvm.verify().unwrap();
+        let entry = llvm
+            .get_function("f")
+            .unwrap()
+            .get_first_basic_block()
+            .unwrap();
+        let instructions = entry
+            .get_instructions()
+            .map(|instruction| instruction.get_opcode())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            instructions,
+            [
+                inkwell::values::InstructionOpcode::Add,
+                inkwell::values::InstructionOpcode::Call,
+                inkwell::values::InstructionOpcode::Br,
+            ],
+            "{target:?}: the source calculation must precede the effect and branch"
+        );
+    }
+}
+
+#[test]
 fn terminal_managed_call_keeps_its_root_marker_before_the_volatile_restoration() {
     let source = r#"
 declare void @callee(ptr addrspace(1))

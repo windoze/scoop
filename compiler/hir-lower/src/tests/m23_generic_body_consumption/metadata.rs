@@ -54,7 +54,6 @@ fn actual_generic_calls_publish_applications_and_definition_locations() {
             }
             let mut identities = graphs.pop().unwrap();
             origins::validate(&output, &foundation, provider, core, &mut identities);
-            let provider_types = hir::OdrFreeHirFoundation::try_new(provider.clone()).unwrap();
             let calls = output.committed_dependency_call_occurrences().unwrap();
             let mut observed = 0;
             let mut provider_locations = 0;
@@ -71,7 +70,7 @@ fn actual_generic_calls_publish_applications_and_definition_locations() {
                     let metadata = hir::SharedTypeMetadataV1 {
                         provider: provider_id,
                         identities: &identities,
-                        foundation: &provider_types,
+                        foundation: provider,
                         public: provider_interface,
                     };
                     let nominal_source = |owner| provider_interface.nominal_interfaces().get(owner);

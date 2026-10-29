@@ -165,6 +165,10 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
     copy_tree(&runtime_root(), &source);
     let vendor = workspace.path().join("vendor");
     copy_tree(&vendor_root().join("ryu"), &vendor.join("ryu"));
+    copy_tree(
+        &vendor_root().join("libbacktrace"),
+        &vendor.join("libbacktrace"),
+    );
     std::fs::write(
         source.join("include/m48_candidate.h"),
         "#define M48_VALUE 1\n",

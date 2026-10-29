@@ -17,7 +17,13 @@ fn artifact_cxx_requirement_rejects_both_musl_final_link_modes() {
                 .unwrap()
                 .join("scoopc")
         });
-    let core = path.join("core.slib");
+    let gnu = ResolvedTargetProfile::resolve("x86_64-unknown-linux-gnu").unwrap();
+    let sysroot = std::env::var_os("SCOOP_SYSROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| workspace.join("sysroot"));
+    let core = scoop_toolchain::TrustedCoreSlotLayoutV1::new(&sysroot, gnu.lir_target_selection())
+        .artifact()
+        .to_owned();
     let source = path.join("source");
     let root = path.join("root.slib");
     std::fs::create_dir_all(source.join("src")).unwrap();
@@ -32,28 +38,30 @@ fn artifact_cxx_requirement_rejects_both_musl_final_link_modes() {
         "package dev.m33\n\nfun main() {}\n",
     )
     .unwrap();
-    for (input, output, dependencies) in [
-        (workspace.join("sysroot/src/scoop.core"), &core, vec![]),
-        (source.clone(), &root, vec![&core]),
-    ] {
-        let mut command = Command::new(&compiler);
-        command
-            .arg("build")
-            .arg(input)
-            .args(["--target", "x86_64-unknown-linux-gnu"])
-            .arg("--out-slib")
-            .arg(output);
-        for dependency in dependencies {
-            command.arg("--direct-slib").arg(dependency);
-        }
-        let output = command.output().unwrap();
-        assert!(
-            output.status.success(),
-            "{}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-    let gnu = ResolvedTargetProfile::resolve("x86_64-unknown-linux-gnu").unwrap();
+    let output = Command::new(compiler.with_file_name("scoop"))
+        .arg("build")
+        .arg(&source)
+        .args([
+            "--release",
+            "--emit-slib",
+            "--target",
+            "x86_64-unknown-linux-gnu",
+            "--sysroot",
+        ])
+        .arg(&sysroot)
+        .arg("--scoopc")
+        .arg(&compiler)
+        .arg("--cache-dir")
+        .arg(path.join("compile-cache"))
+        .arg("-o")
+        .arg(&root)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let closure = read_program_artifacts(&root, &[core], gnu.lir_target_selection()).unwrap();
     let musl = ResolvedTargetProfile::resolve("x86_64-unknown-linux-musl").unwrap();
     for mode in [

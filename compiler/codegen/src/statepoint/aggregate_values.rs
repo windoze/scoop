@@ -16,6 +16,8 @@ use super::*;
 
 mod components;
 use components::{contains_managed, extract, insert, shape};
+mod loads;
+pub(super) use loads::normalize_loads;
 mod scalar_merges;
 
 #[derive(Clone)]

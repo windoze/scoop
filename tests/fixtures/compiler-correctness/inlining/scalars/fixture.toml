@@ -1,7 +1,7 @@
 schema = 1
 name = "inlining-scalars"
-inputs = ["program.scoop"]
-tools = ["scoop"]
+inputs = ["program.scoop", "inspect.py"]
+tools = ["scoop", "python"]
 tags = ["inlining", "compiler-correctness"]
 
 [[steps]]
@@ -12,11 +12,6 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump-debug/${debug.result.root.identity}/mir.txt", contains = " = @fn0 direct"},
-  {file = "${work}/dump-debug/${debug.result.root.identity}/mir.txt", contains = " = @fn1 direct"},
-  {file = "${work}/dump-debug/${debug.result.root.identity}/mir.txt", contains = " = @fn2 direct"},
-]
 
 [[steps]]
 name = "run-debug"
@@ -33,15 +28,17 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump-release/${release.result.root.identity}/mir.txt", not_contains = " = @fn0 direct"},
-  {file = "${work}/dump-release/${release.result.root.identity}/mir.txt", not_contains = " = @fn1 direct"},
-  {file = "${work}/dump-release/${release.result.root.identity}/mir.txt", not_contains = " = @fn2 direct"},
-]
 
 [[steps]]
 name = "run-release"
 argv = ["${release.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "inspect"
+argv = ["${python}", "${fixture}/inspect.py", "${work}/dump-debug/${debug.result.root.identity}/mir.txt", "${work}/dump-release/${release.result.root.identity}/mir.txt"]
 exit = 0
 stdout = ""
 stderr = ""

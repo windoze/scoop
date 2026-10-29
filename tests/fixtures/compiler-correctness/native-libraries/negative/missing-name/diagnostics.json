@@ -1,7 +1,7 @@
 [
   {
-    "code": "SCOOP_BUILD_FAILED",
-    "message": "invalid build root: invalid Cone manifest root ${work}/cone/Cone.toml: invalid Cone.toml: TOML parse error at line 7, column 1\n  |\n7 | [[native.libraries]]\n  | ^^^^^^^^^^^^^^^^^^^^\nmissing field `name`\n",
+    "code": "SCOOP_PACKAGE_PREPARE",
+    "message": "${work}/cone/Cone.toml: invalid Cone.toml: TOML parse error at line 7, column 1\n  |\n7 | [[native.libraries]]\n  | ^^^^^^^^^^^^^^^^^^^^\nmissing field `name`\n",
     "notes": [],
     "origin": {
       "end": 136,
@@ -9,7 +9,6 @@
       "path": "${work}/cone/Cone.toml",
       "start": 100
     },
-    "phase": "Root",
     "severity": "error"
   }
 ]

@@ -1,0 +1,134 @@
+afterReturn
+bb0 entry
+  return
+    IntegerLiteral Int value=1 bits=0x00000001
+fromIf
+bb0 entry
+  branch bb1 bb2
+bb1 if.then.1
+  return
+    IntegerLiteral Int value=10 bits=0x0000000a
+bb2 if.else.2
+  return
+    IntegerLiteral Int value=11 bits=0x0000000b
+bb3 if.merge.3
+  unreachable
+fromWhen
+bb0 entry
+  branch bb1 bb2
+bb1 pattern.pass.1
+  return
+    IntegerLiteral Int value=20 bits=0x00000014
+bb2 pattern.else.2
+  branch bb4 bb5
+bb3 pattern.merge.3
+  unreachable
+bb4 pattern.pass.4
+  return
+    IntegerLiteral Int value=21 bits=0x00000015
+bb5 pattern.else.5
+  unreachable
+bb6 pattern.merge.6
+  unreachable
+fromFinally
+bb0 entry
+  goto bb6
+bb1 try.unwind.1
+  landing_pad cleanup=false
+  goto bb2
+bb2 try.dispatch.2
+  begin_catch
+  goto bb8
+bb3 try.exit_pad.3
+  landing_pad cleanup=true
+  goto bb4
+bb4 try.exit_cleanup.4
+  end_catch
+  resume
+bb5 try.end.5
+  unreachable
+bb6 try.body.6 unwind bb1
+    IntegerLiteral Int value=30 bits=0x0000001e
+  goto bb7
+bb7 scope.7
+  return
+    IntegerLiteral Int value=31 bits=0x0000001f
+bb8 scope.8 unwind bb3
+    IntegerLiteral Int value=31 bits=0x0000001f
+  end_catch
+  goto bb9
+bb9 scope.9
+  return
+exceptionReplacedByFinally
+bb0 entry
+  goto bb6
+bb1 try.unwind.1
+  landing_pad cleanup=false
+  goto bb2
+bb2 try.dispatch.2
+  begin_catch
+  goto bb7
+bb3 try.exit_pad.3
+  landing_pad cleanup=true
+  goto bb4
+bb4 try.exit_cleanup.4
+  end_catch
+  resume
+bb5 try.end.5
+  unreachable
+bb6 try.body.6 unwind bb1
+  call external2 direct
+  call $prepared.throwable: UnwrapException = @scoop_rt_prepare_throwable direct
+  throw unwind bb1
+bb7 scope.7 unwind bb3
+    IntegerLiteral Int value=40 bits=0x00000028
+  end_catch
+  goto bb8
+bb8 scope.8
+  return
+branchingFinally
+bb0 entry
+  goto bb6
+bb1 try.unwind.1
+  landing_pad cleanup=false
+  goto bb2
+bb2 try.dispatch.2
+  begin_catch
+  goto bb11
+bb3 try.exit_pad.3
+  landing_pad cleanup=true
+  goto bb4
+bb4 try.exit_cleanup.4
+  end_catch
+  resume
+bb5 try.end.5
+  unreachable
+bb6 try.body.6 unwind bb1
+  call @println direct
+  goto bb7
+bb7 scope.7
+  branch bb8 bb9
+bb8 if.then.8
+  return
+    IntegerLiteral Int value=50 bits=0x00000032
+bb9 if.else.9
+  return
+    IntegerLiteral Int value=51 bits=0x00000033
+bb10 if.merge.10
+  unreachable
+bb11 scope.11 unwind bb3
+  branch bb12 bb13
+bb12 if.then.12 unwind bb3
+    IntegerLiteral Int value=50 bits=0x00000032
+  end_catch
+  goto bb15
+bb13 if.else.13 unwind bb3
+    IntegerLiteral Int value=51 bits=0x00000033
+  end_catch
+  goto bb16
+bb14 if.merge.14 unwind bb3
+  unreachable
+bb15 scope.15
+  return
+bb16 scope.16
+  return

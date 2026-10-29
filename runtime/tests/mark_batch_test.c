@@ -232,18 +232,26 @@ static void run_case(size_t workers, bool bounded) {
 }
 
 int main(void) {
-    alarm(40);
+    /* O0 stress repeatedly scans the 1025-root graph while it is built. Allow
+     * each child to finish under parallel test load, with an outer guard that
+     * covers all four cases instead of expiring halfway through the run. */
+    alarm(4 * 60 + 10);
     for (size_t workers = 1; workers <= 4; workers *= 4) {
         for (unsigned bounded = 0; bounded < 2; bounded++) {
             pid_t child = fork();
             assert(child >= 0);
             if (child == 0) {
-                alarm(20);
+                alarm(60);
                 run_case(workers, bounded != 0);
                 _exit(0);
             }
             int status = 0;
             assert(waitpid(child, &status, 0) == child);
+            if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+                fprintf(stderr, "mark batch workers=%zu bounded=%u: exit=%d signal=%d\n",
+                        workers, bounded, WIFEXITED(status) ? WEXITSTATUS(status) : -1,
+                        WIFSIGNALED(status) ? WTERMSIG(status) : 0);
+            }
             assert(WIFEXITED(status) && WEXITSTATUS(status) == 0);
         }
     }

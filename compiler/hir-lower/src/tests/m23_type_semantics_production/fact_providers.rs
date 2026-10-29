@@ -19,7 +19,7 @@ fn fact_providers_keep_source_nominals_and_structural_support_in_their_actual_co
             let production = produce_cross_cone_type_semantics(output, &public).unwrap();
             let local = output.output().local.module();
             let records = production.exact_facts().records();
-            assert_eq!(records.len(), if case == "combined" { 27 } else { 5 });
+            assert_eq!(records.len(), if case == "combined" { 28 } else { 6 });
             for fact in production.exact_facts().records() {
                 let ty = local
                     .exact_type_identities

@@ -1,7 +1,7 @@
 schema = 1
 name = "installed-tools"
 inputs = ["cone"]
-tools = ["scoop", "scoopc", "scoop-link"]
+tools = ["scoop", "scoopc", "scoop-link", "scoop-pm"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["sysroot", "native", "test", "driver"]
 
@@ -15,9 +15,11 @@ files = [
  {copy = {from = "${scoop}", to = "${work}/installed tools/bin/scoop"}},
  {copy = {from = "${scoopc}", to = "${work}/installed tools/bin/scoopc"}},
  {copy = {from = "${scoop-link}", to = "${work}/installed tools/bin/scoop-link"}},
+ {copy = {from = "${scoop-pm}", to = "${work}/installed tools/bin/scoop-pm"}},
  {symlink = {from = "${work}/installed tools/bin/scoop", to = "${work}/launch/scoop"}},
  {symlink = {from = "${work}/installed tools/bin/scoopc", to = "${work}/launch/scoopc"}},
  {symlink = {from = "${work}/installed tools/bin/scoop-link", to = "${work}/launch/scoop-link"}},
+ {symlink = {from = "${work}/installed tools/bin/scoop-pm", to = "${work}/launch/scoop-pm"}},
  {symlink = {from = "${sysroot}/lib", to = "${work}/installed tools/lib"}},
  {symlink = {from = "${sysroot}/src", to = "${work}/installed tools/src"}},
  {symlink = {from = "${sysroot}/vendor", to = "${work}/installed tools/vendor"}},
@@ -27,7 +29,7 @@ files = [
 
 [[steps]]
 name = "cold"
-argv = ["/usr/bin/env", "-u", "SCOOP_SYSROOT", "${work}/launch/scoop", "build", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}]
+argv = ["/usr/bin/env", "-u", "SCOOP_SYSROOT", "${work}/launch/scoop", "build", "${work}/cone", {"each" = "${compile_args}"}, {"each" = "${options}"}, "-o", "${work}/programs/cold/program"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -36,7 +38,7 @@ diagnostics = []
 checks = [
  {actual = "${cold.result.observations.child_invocations}", equals = ["${cold.result.root.identity}"]},
  {actual = "${cold.result.runtime_index}", equals = "${work}/installed tools/lib/${target}/runtime/index.cbor"},
- {file = "${work}/cache/runtime-v5", exists = false},
+ {file = "${work}/cache/runtime-v7", exists = false},
 ]
 
 [[steps]]
@@ -47,7 +49,7 @@ stdout = ""
 stderr = ""
 [[steps]]
 name = "warm_run"
-argv = ["/usr/bin/env", "-u", "SCOOP_SYSROOT", "${work}/launch/scoop", "run", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}]
+argv = ["/usr/bin/env", "-u", "SCOOP_SYSROOT", "${work}/launch/scoop", "run", "${work}/cone", {"each" = "${compile_args}"}, {"each" = "${options}"}]
 exit = 42
 stdout = ""
 stderr = ""
@@ -57,15 +59,18 @@ checks = [{actual = "${warm_run.result.observations.child_invocations}", equals 
 
 [[steps]]
 name = "direct_compile"
-argv = ["/usr/bin/env", "-u", "SCOOP_SYSROOT", "${work}/launch/scoopc", "build", "${work}/cone", {each = "${compile_args}"}, "--out-slib", "${work}/direct.slib"]
+argv = ["/usr/bin/env", "-u", "SCOOP_SYSROOT", "${work}/launch/scoop", "build", "${work}/cone", {"each" = "${compile_args}"}, {"each" = "${options}"}, "--emit-slib", "-o", "${work}/direct.slib"]
 env = {SCOOP_CACHE_DIR = "${work}/cache"}
 exit = 0
 stdout = ""
 stderr = ""
 
+json = "stderr"
+diagnostics = []
+
 [[steps]]
 name = "artifact_link"
-argv = ["/usr/bin/env", "-u", "SCOOP_SYSROOT", "${work}/launch/scoop", "link", {each = "${compile_args}"}, "--root-slib", "${work}/direct.slib", "--cache-dir", "${work}/cache", "--message-format", "json", "-o", "${work}/artifact-program"]
+argv = ["/usr/bin/env", "-u", "SCOOP_SYSROOT", "${work}/launch/scoop", "link", {"each" = "${compile_args}"}, "--root-slib", "${work}/direct.slib", "--cache-dir", "${work}/cache", "--message-format", "json", "-o", "${work}/artifact-program"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -81,21 +86,21 @@ stderr = ""
 
 [[steps]]
 name = "low_link"
-argv = ["/usr/bin/env", "-u", "SCOOP_SYSROOT", "${work}/launch/scoop-link", {each = "${compile_args}"}, "--root-slib", "${cold.result.root.path}", {each = "${cold.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--cache-dir", "${work}/cache", "-o", "${work}/low-program"]
+argv = ["/usr/bin/env", "-u", "SCOOP_SYSROOT", "${work}/launch/scoop-link", {"each" = "${compile_args}"}, "--enable-stack-trace", "--keep-symbols", "--emit-debug-file", "--root-slib", "${cold.result.root.path}", {"each" = "${cold.result.dependencies}", "field" = "path", "prefix" = "--dep-slib"}, "--cache-dir", "${work}/cache", "-o", "${work}/programs/low_link/program"]
 exit = 0
 stdout = "link-plan ${cold.result.link_plan_fingerprint}\n"
 stderr = ""
 
 [[steps]]
 name = "low_run"
-argv = ["${work}/low-program"]
+argv = ["${work}/programs/low_link/program"]
 exit = 42
 stdout = ""
 stderr = ""
 
 [[steps]]
 name = "test"
-argv = ["/usr/bin/env", "-u", "SCOOP_SYSROOT", "${work}/launch/scoop", "test", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}]
+argv = ["/usr/bin/env", "-u", "SCOOP_SYSROOT", "${work}/launch/scoop", "test", "${work}/cone", {"each" = "${compile_args}"}, {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""

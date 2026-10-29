@@ -1,4 +1,5 @@
 ---
+
 name: scoop-programming
 description: 编写、修改、调试和测试 Scoop 编程语言的 .scoop 程序与 Cone.toml 项目，使用 scoop example、配套库文档和 CLI 验证语法、依赖与运行行为。适用于 Scoop 语言及其库的应用开发，不用于 Windows Scoop 包管理器。
 ---
@@ -45,14 +46,14 @@ scoop example start/cone --format json
 
 常用入口（具体可用主题以本机列表为准）：
 
-| 要解决的问题 | 主题 |
-| --- | --- |
-| 单文件、依赖、多文件项目 | `start/hello`、`start/single-file`、`start/cone` |
+| 要解决的问题                         | 主题                                                                                               |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| 单文件、依赖、多文件项目             | `start/hello`、`start/single-file`、`start/cone`                                                   |
 | 值、Option、模式匹配、闭包、公开 API | `language/overview`、`language/option`、`language/enum`、`language/lambdas`、`language/visibility` |
-| Unicode 文本与集合 | `text/strings`、`collections/list`、`collections/map` |
-| 文件、资源释放与 JSON | `io/files`、`io/resources`、`json/typed` |
-| 异步任务、HTTP 与命令行参数 | `async/tasks`、`http/get`、`cli/options` |
-| Cone 测试与异常断言 | `test/assertions` |
+| Unicode 文本与集合                   | `text/strings`、`collections/list`、`collections/map`                                              |
+| 文件、资源释放与 JSON                | `io/files`、`io/resources`、`json/typed`                                                           |
+| 异步任务、HTTP 与命令行参数          | `async/tasks`、`http/get`、`cli/options`                                                           |
+| Cone 测试与异常断言                  | `test/assertions`                                                                                  |
 
 ## 写出符合 Scoop 规则的程序
 
@@ -61,7 +62,6 @@ scoop example start/cone --format json
 需要库能力时，按[库与 API 查找](references/libraries.md)确定所属 Cone、import、实际签名及资源生命周期。示例是入口；未展示的 API 应继续查配套文档或源码，不能凭名称猜参数、返回类型或同步／挂起行为。
 
 新建多文件项目优先使用 `scoop new my-app --group example.app`，目标目录必须尚不存在；默认带测试。小型独立程序可以使用单文件模式。具体依赖、package、源码选择、测试和工具选项见[项目与命令](references/projects-and-tools.md)。特别注意：
-
 - 传项目目录或 `Cone.toml` 才会编译整个 Cone；传 `src/main.scoop` 会选择单文件模式。
 - 依赖声明和 import 分别负责可用库与可用名称；单文件 `//! dep:` 注释在 manifest 模式中不起作用。
 - 复用系统库的现有能力；按业务需要处理缺失值、错误、取消和资源关闭。

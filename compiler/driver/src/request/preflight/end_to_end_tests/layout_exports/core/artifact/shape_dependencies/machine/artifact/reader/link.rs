@@ -29,7 +29,7 @@ pub(super) fn check(
                 );
             }
             let current = physical.artifact(layout.provider()).unwrap();
-            assert_eq!(current.lir_exports(), layout.exports());
+            assert_exports(current.lir_exports(), layout.exports());
             let imports = current.lir_physical_imports();
             assert_eq!(
                 encode(imports).unwrap(),

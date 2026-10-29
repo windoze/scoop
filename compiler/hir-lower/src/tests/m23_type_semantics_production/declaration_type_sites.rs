@@ -43,10 +43,7 @@ fn unread_parameters_keep_complete_signature_and_local_value_type_sites() {
         assert!(sites.iter().all(|site| site.as_expression().is_none()));
         assert!(sites.iter().any(|site| matches!(site, Site::CallableSignature { root, position: Part::Parameter(0), exact: ty } if *root == function.materialization && *ty == exact)));
         assert!(sites.iter().any(|site| matches!(site, Site::LocalValue { local, exact: ty } if *local == value && *ty == exact)));
-        let foundation = hir::OdrFreeHirFoundation::try_new(
-            hir::CanonicalHirFoundation::from_dependency_output(output).unwrap(),
-        )
-        .unwrap();
+        let foundation = hir::CanonicalHirFoundation::from_dependency_output(output).unwrap();
         for site in sites {
             foundation
                 .validate_declaration_type_position(local.cone, site.position(), &[])
@@ -66,10 +63,7 @@ fn declaration_type_sites_reject_missing_identities_wrong_providers_and_invalid_
             .unwrap()
             .1;
         let root = function.materialization;
-        let foundation = hir::OdrFreeHirFoundation::try_new(
-            hir::CanonicalHirFoundation::from_dependency_output(output).unwrap(),
-        )
-        .unwrap();
+        let foundation = hir::CanonicalHirFoundation::from_dependency_output(output).unwrap();
         let validate = |current, position| {
             foundation.validate_declaration_type_position(current, position, &[])
         };

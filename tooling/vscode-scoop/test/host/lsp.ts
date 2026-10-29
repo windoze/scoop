@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { setTimeout } from "node:timers/promises";
 import * as vscode from "vscode";
@@ -225,12 +226,15 @@ export async function runLanguageServerTests() {
   );
 
   // A source without an editor buffer is picked up by the dynamic watcher.
-  await write(diskUri, diskText.replace("flag: Boolean", "flag: String"));
+  await writeFile(
+    diskUri.fsPath,
+    diskText.replace("flag: Boolean", "flag: String"),
+  );
   await eventually(
     () => vscode.languages.getDiagnostics(useUri).length > 0,
     "watched dependency edit",
   );
-  await write(diskUri, diskText);
+  await writeFile(diskUri.fsPath, diskText);
   await eventually(
     () => vscode.languages.getDiagnostics(useUri).length === 0,
     "watched dependency correction",
