@@ -103,10 +103,24 @@ fn choose(
         .into_iter()
         .filter(|(_, binding)| binding.precedence(format) == priority);
     let (candidate, binding) = best.next().expect("maximum candidate priority exists");
-    if binding == NativeSymbolBinding::Strong && best.next().is_some() {
+    // ELF's flat dynamic namespace permits overlapping DSO exports. The
+    // candidates already follow the same root order used by the final link.
+    // Object definitions and other platform namespaces retain their conflict rules.
+    if binding == NativeSymbolBinding::Strong
+        && best.any(|(other, _)| !elf_shared(&candidate) || !elf_shared(&other))
+    {
         return Err(error(format!(
             "ambiguous native providers for {symbol}: multiple strong definitions"
         )));
     }
     Ok(Some(candidate))
+}
+
+fn elf_shared(candidate: &Candidate) -> bool {
+    matches!(
+        candidate,
+        Candidate::Dynamic(crate::namespace::NativeBinding::Elf(
+            crate::namespace::elf::ElfBinding::Shared { .. }
+        ))
+    )
 }

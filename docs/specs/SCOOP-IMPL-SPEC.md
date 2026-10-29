@@ -1076,7 +1076,7 @@ Strong 由原 provider 提供。ODR 在普通依赖语义一致后按完整 grou
 
 SourceExtern 按实际 target/native symbol 合并完整 library、kind、TLS、mutability、ABI、calling convention、GC effect 与投影后的 native signature/storage。任一字段冲突均报错并指出来源；随后从实际 native 对象或 provider export 解析定义。`captureErrno`、包装后的 Scoop tuple 结果与 NativeSafe/GcLeaf 是声明的调用行为，不进入 native ABI 合并键；返回 `R` 与捕获后返回 `(R, Int)` 的声明可共用同一 native 定义，Scoop callable 和所需 bridge 仍按各自合同保留。core 与普通 Cone 使用同一规则。
 
-普通 native 对象只读取本次符号选择和 FFI 绑定所需的格式、目标、定义／引用、kind 和可写性；读取字段时保留必要的边界检查，不重复完整验证 relocation、unwind、TLS、段权限或装载结构。对象不含完整函数类型时，FFI 实现履行声明的责任不被伪造的类型证明替代。显式 library 的 symbol 必须由该库按平台规则提供，默认 namespace 的多 provider 歧义不能按搜索目录先后静默解决。
+普通 native 对象只读取本次符号选择和 FFI 绑定所需的格式、目标、定义／引用、kind 和可写性；读取字段时保留必要的边界检查，不重复完整验证 relocation、unwind、TLS、段权限或装载结构。对象不含完整函数类型时，FFI 实现履行声明的责任不被伪造的类型证明替代。显式 library 的 symbol 必须由该库按平台规则提供。Linux ELF 默认 namespace 允许多个 DSO 导出同名强符号，按已解析 link plan 的动态库装载搜索顺序选择；该顺序同时用于最终链接。多个静态强定义仍报冲突，显式 library 绑定仍须能由真实 ELF 装载顺序满足。库文件的搜索目录用于定位输入，不代替符号解析规则。其他平台沿各自 namespace 合同。
 
 参数自由 source extern 的普通 managed 调用经原 provider 的 Scoop 薄入口，包含 native transition 与 caller-root publication，入口的 Scoop GC effect 为 Managed；native callee 自身的 effect 仍是其声明合同。泛型正文在定义方与消费方使用同一入口；NoGc 和 release 的直接 native 调用遵守各自规则。
 
