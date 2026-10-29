@@ -8,10 +8,10 @@
 | W0 工具链与 ABI | 三种 native 环境的关键路线均已通过，正式准备脚本已接入 | 无独立 W0 阻塞 |
 | W1 编译／链接 | 三目标 ABI、COFF、C/C++、PE、PDB、subsystem 与 RC 已实现；ABI 30 定向组合通过 | 无独立 W1 阻塞 |
 | W2 core runtime | Win32 primitives、SEH、精确 roots、GC、线程与初始化已实现；ABI 30 栈诊断开关组合通过 | 无独立 W2 阻塞 |
-| W3 系统库 | Windows 实现及所需 native 后端已完成；ABI 30 三目标各 25 个 Cone 与四种 runtime 已准备完成 | 当前源码的完整 SSE consumer 复测及 server 资源更新进行中 |
-| W4 宿主与发行 | ABI 30 候选归档通过三目标实际安装使用与调试器验收 | 纳入示例命令帮助修正；随后进行跨宿主回归 |
+| W3 系统库 | Windows 实现及所需 native 后端已完成；ABI 30 三目标各 25 个 Cone 与四种 runtime 已准备完成；高层 HTTP 失败用例已闭合 | 无独立 W3 阻塞 |
+| W4 宿主与发行 | ABI 30 新版候选归档通过三目标实际安装使用、调试器与更新后的 server consumer 验收 | 跨宿主原生回归与 Windows 交叉编译 |
 
-本地实现和完整验收完成后，才在 Linux `nuc12w.0d0a.com` 与 macOS `mm.0d0a.com` 的 `~/repos` 下新建测试目录。目前尚未开始远端测试。原始日志、报告、归档和构建副本保存在仓库外。
+Windows 本地实现与验收已完成。接下来在 Linux `nuc12w.0d0a.com` 与 macOS `mm.0d0a.com` 的 `~/repos` 下新建测试目录，目前尚未开始远端测试。原始日志、报告、归档和构建副本保存在仓库外。
 
 ## 环境与三个目标
 
@@ -78,9 +78,9 @@ PCRE2 10.49、OpenSSL 3.5.9、uriparser 1.0.2、Rust 文本后端、Zstandard、
 
 终端异步、log、console log 和 CLI 的 MSVC／MinGW UCRT 测试已通过。JSON 完整 API 在默认 MSVC 目标上 71 个容器／101 项全部通过。HTTP asyncio 在 ABI 29 的默认 MSVC 目标运行 55 个容器／145 项，144 项通过；唯一失败是收到连接错误便假定异步关闭已完成的测试时序。按既有 isClosing／isClosed 合同显式等待 close 后，原测试源码与必要 helper 的小型 Cone 定向验证 2 项全部通过，失败闭合；库行为未改。此前并行大型编译触及内存上限，已降低并发；没有修改编译器语义或增加资源预算机制。
 
-HTTP client 的 ABI 29 完整测试程序在默认 MSVC 目标运行 193 项，首轮 191 项通过。SSE duplex 用例在客户端关闭前显式等待测试服务端完成发送，消除最后一帧与关闭的竞争；修改后的原函数及 helper 通过独立 consumer Cone 的 5 次定向执行，不改变库行为。另一失败已按名称定位为连接拒绝后的重试用例（case 150），不是共享等待 helper 所在的 backoff 取消用例（case 148）。本机 Windows 原生关闭端口连接连续三次约需 2.05 秒才返回 WSAECONNREFUSED，超过测试原有 2 秒等待；仅该用例改用 5 秒等待，保留重试次数与请求体尚未消费等断言，HTTP client 库行为未改。修改后的连接拒绝与原 backoff 用例单独执行均通过。临时组合测试混入修正前的 SSE helper 副本，不作为当前源码通过证据；当前仓库完整 SSE consumer 正在 ABI 30 上独立复测。
+HTTP client 的 ABI 29 完整测试程序在默认 MSVC 目标运行 193 项，首轮 191 项通过。SSE duplex 用例在客户端关闭前显式等待测试服务端完成发送，消除最后一帧与关闭的竞争；修改后的原函数及 helper 通过独立 consumer Cone 的 5 次定向执行，不改变库行为。当前仓库的完整 SSE consumer 随后在 ABI 30 上通过，覆盖原有全部场景。另一失败已按名称定位为连接拒绝后的重试用例（case 150），不是共享等待 helper 所在的 backoff 取消用例（case 148）。本机 Windows 原生关闭端口连接连续三次约需 2.05 秒才返回 WSAECONNREFUSED，超过测试原有 2 秒等待；仅该用例改用 5 秒等待，保留重试次数与请求体尚未消费等断言，HTTP client 库行为未改。修改后的连接拒绝与原 backoff 用例单独执行均通过。
 
-HTTP server 的 ABI 29 完整测试程序在默认 MSVC 目标运行 51 个容器／147 项，首轮 143 项通过。三个目录响应错误已按既有 404 合同修正：只在打开失败为 PermissionDenied 时查询目录类型，无法确认则保留原访问拒绝，不增加正常文件响应的路径查询。原生文件名测试在 Windows 使用可表示未配对 UTF-16 surrogate 的 WTF-8 名称，Unix 保留原字节名。覆盖四个失败用例及相关行为的 3 个容器／5 项定向测试全部通过，另有 5 个容器／5 项普通 consumer 测试全部通过。三个目标的预编译 server 资源更新仍在进行，未变化的其他资源复用。
+HTTP server 的 ABI 29 完整测试程序在默认 MSVC 目标运行 51 个容器／147 项，首轮 143 项通过。三个目录响应错误已按既有 404 合同修正：只在打开失败为 PermissionDenied 时查询目录类型，无法确认则保留原访问拒绝，不增加正常文件响应的路径查询。原生文件名测试在 Windows 使用可表示未配对 UTF-16 surrogate 的 WTF-8 名称，Unix 保留原字节名。覆盖四个失败用例及相关行为的 3 个容器／5 项定向测试全部通过，另有 5 个容器／5 项普通 consumer 测试全部通过。三个目标的 ABI 30 预编译 server 资源均已更新，未变化的其他资源复用。
 
 ## 发行与剩余工作
 
@@ -96,8 +96,8 @@ ABI 30 的三个 target 均通过上述真实 DAP launch 与离线 formatter 检
 
 首个归档已解压到中文及空格路径。在仅含安装 bin 和 Windows 系统目录的 PATH 下，三个目标的默认 SDK／工具发现、new/run/test、C++、console／GUI 和 RC 均通过；检查实际 PE imports 确认所选 CRT。随后修复了 canonical native sysroot 路径，并用更新的程序完成实际安装目录回归。该原型归档不是最终发行物。
 
-ABI 30 的 `1a5e07c6f` 候选归档及 LLVM 源码归档已经生成。候选包解压到新的中文／空格目录后，在仅含公开 bin 和 Windows 系统目录的 PATH 下通过三目标 new/run/test、9 项 C++／subsystem／RC fixture、实际 CRT imports、交替构建、文档与 VSIX 检查。13 个公开命令的名称与版本、带前缀的 LLVM nm／objcopy／strip 对真实 COFF 的符号读取、section 写入／读回和默认符号剥离均通过。三个目标的真实 DAP launch、源码映射、离线 formatter 和私有 Python 模块再次通过。
+ABI 30 的 `0fa053fd1` 新版候选归档及 LLVM 源码归档已经生成，纳入更新后的 server 资源、示例命令帮助与 VSIX。候选包解压到新的中文／空格目录后，在仅含公开 bin 和 Windows 系统目录的 PATH 下通过三目标 new/run/test、9 项 C++／subsystem／RC fixture、实际 CRT imports、交替构建、文档与 VSIX 检查。13 个公开命令的名称与版本、带前缀的 LLVM nm／objcopy／strip 对真实 COFF 的符号读取、section 写入／读回和默认符号剥离均通过。三个目标的真实 DAP launch、源码映射、离线 formatter 和私有 Python 模块再次通过。安装包内更新后的 server 资源通过 MSVC 普通 consumer 的 5 个容器／5 项测试，覆盖文件／静态响应、HTTP/2、SSE、压缩、SPA 和 WebSocket。
 
-安装验收发现示例阅读器的帮助仍写旧 Windows 驱动名；帮助、目录提示和错误文本已按宿主选择 `sco example` 或 `scoop example`，其文件名保持不变。Rust fmt／Clippy 与 9 项 CLI 测试通过；原样源码输出测试使用实际文件字节，保留 Windows checkout 的 CRLF。该帮助修正仍需纳入后续归档。
+此前安装验收发现示例阅读器的帮助仍写旧 Windows 驱动名；帮助、目录提示和错误文本已按宿主选择 `sco example` 或 `scoop example`，其文件名保持不变。Rust fmt／Clippy 与 9 项 CLI 测试通过；原样源码输出测试使用实际文件字节，保留 Windows checkout 的 CRLF。新版候选包的实际帮助输出也已通过检查。
 
-剩余工作为：完成高层 HTTP 测试并将已验证修正纳入发行物；提交、推送并合并主线；最后执行设计约定的 Linux／macOS 原生回归与三个 Windows target 的交叉编译，并在 Windows 运行交叉产物。完成这些步骤前不声明全部 Windows 验收完成。
+剩余工作为：执行设计约定的 Linux／macOS 原生回归与三个 Windows target 的交叉编译，并在 Windows 运行交叉产物；继续按变更提交、推送并合并主线。完成这些步骤前不声明全部 Windows 验收完成。
