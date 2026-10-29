@@ -1,0 +1,137 @@
+package dev.benchmark
+
+fun mix(n: Long, seed: Long): Long {
+    var x = seed.toUInt()
+    var i = 0L
+    while (i < n) {
+        x = x.xor(x.shl(13))
+        x = x.xor(x.shr(17))
+        x = x.xor(x.shl(5))
+        i += 1L
+    }
+    return x.toLong()
+}
+
+fun mandelbrot(n: Long, seed: Long): Long {
+    var total = 0L
+    var y = 0L
+    while (y < n) {
+        var x = 0L
+        while (x < n) {
+            val cr = x.toDouble() * 3.0 / n.toDouble() - 2.0 + seed.toDouble() * 0.000001
+            val ci = y.toDouble() * 2.0 / n.toDouble() - 1.0
+            var zr = 0.0
+            var zi = 0.0
+            var step = 0
+            while (step < 64 && zr * zr + zi * zi <= 4.0) {
+                val next = zr * zr - zi * zi + cr
+                zi = 2.0 * zr * zi + ci
+                zr = next
+                step += 1
+            }
+            total += step.toLong()
+            x += 1L
+        }
+        y += 1L
+    }
+    return total
+}
+
+fun arrayTransform(n: Long, seed: Long): Long {
+    val a = MutableArray<Double>(n) { i -> (i.and(1023L) + seed).toDouble() * 0.25 }
+    val b = MutableArray<Double>(n) { i -> i.and(255L).toDouble() * 0.5 }
+    val c = MutableArray<Double>(n) { _ -> 0.0 }
+    var i = 0L
+    while (i < n) {
+        c[i] = a[i] * 1.25 + b[i];
+        i += 1L
+    }
+    var sum = 0.0
+    i = 0L
+    while (i < n) {
+        sum += c[i];
+        i += 1L
+    }
+    return (sum * 16.0).toLong()
+}
+
+fun branchScan(n: Long, seed: Long): Long {
+    val a = MutableArray<UInt>(n) { _ -> 0u }
+    var state = seed.toUInt()
+    var i = 0L
+    while (i < n) {
+        state = state.xor(state.shl(13))
+        state = state.xor(state.shr(17))
+        state = state.xor(state.shl(5))
+        a[i] = state
+        i += 1L
+    }
+    var sum = 0L
+    i = 0L
+    while (i < n) {
+        val x = a[i]
+        if (x.and(1u) == 0u)
+            sum += x.and(1023u).toLong()
+        else
+            sum -= x.and(1023u).toLong()
+        i += 1L
+    }
+    return sum
+}
+
+fun pointerChase(n: Long, seed: Long): Long {
+    val next = MutableArray<Int>(n) { i -> ((i * 1664525L + 1013904223L).and(n - 1L)).toInt() }
+    var at = seed.and(n - 1L).toInt()
+    var sum = 0L
+    var i = 0L
+    while (i < n * 8L) {
+        at = next[at.toLong()];
+        sum += at.toLong();
+        i += 1L
+    }
+    return sum.and(2147483647L)
+}
+
+fun quicksort(a: MutableArray<Int>, low: Long, high: Long) {
+    var i = low
+    var j = high
+    val pivot = a[(low + high) / 2L]
+    while (i <= j) {
+        while (a[i] < pivot)
+            i += 1L
+        while (a[j] > pivot)
+            j -= 1L
+        if (i <= j) {
+            val v = a[i]
+            a[i] = a[j]
+            a[j] = v
+            i += 1L
+            j -= 1L
+        }
+    }
+    if (low < j)
+        quicksort(a, low, j)
+    if (i < high)
+        quicksort(a, i, high)
+}
+
+fun sortValues(n: Long, seed: Long): Long {
+    val a = MutableArray<Int>(n) { _ -> 0 }
+    var state = seed.toUInt()
+    var i = 0L
+    while (i < n) {
+        state = state.xor(state.shl(13))
+        state = state.xor(state.shr(17))
+        state = state.xor(state.shl(5))
+        a[i] = state.and(2147483647u).toInt()
+        i += 1L
+    }
+    quicksort(a, 0L, n - 1L)
+    var sum = 0L
+    i = 0L
+    while (i < n) {
+        sum += a[i].toLong() * (i % 257L);
+        i += 1L
+    }
+    return sum
+}

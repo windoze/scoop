@@ -1,0 +1,11 @@
+/build/
+/logs/
+**/Cone.lock
+**/target/
+*.class
+*.o
+*.a
+*.dylib
+*.iprof
+*.jfr
+__pycache__/

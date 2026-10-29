@@ -1,0 +1,115 @@
+package dev.benchmark
+
+import scoop.collections.HashMap
+import scoop.platform.concurrent.Thread
+import scoop.text.toLong
+
+fun growList(n: Long, seed: Long): Long {
+    val list = ArrayList<Long>()
+    var i = 0L
+    while (i < n) {
+        list.add(i + seed);
+        i += 1L
+    }
+    var sum = 0L
+    i = 0L
+    while (i < n) {
+        sum += list[i];
+        i += 1L
+    }
+    escaped = Some(list)
+    return sum
+}
+
+fun hashMap(n: Long, seed: Long): Long {
+    val map = HashMap<Long, Long>()
+    var i = 0L
+    var sum = 0L
+    while (i < n) {
+        val key = (i * 17L + seed).and(65535L)
+        map[key] = (map[key] ?: 0L) + 1L
+        sum += map[key]!!
+        i += 1L
+    }
+    escaped = Some(map)
+    return sum
+}
+
+fun decimal(n: Long, seed: Long): Long {
+    val ring = MutableArray<String>(256L) { _ -> "" }
+    escaped = Some(ring)
+    var x = seed.toUInt()
+    var i = 0L
+    var sum = 0L
+    while (i < n) {
+        x = x * 1664525u + 1013904223u
+        val text = x.toLong().toString()
+        ring[i.and(255L)] = text
+        sum += text.byteLength
+        i += 1L
+    }
+    return sum + ring[(n - 1L).and(255L)].getCharAt(0L).code.toLong()
+}
+
+fun buildString(n: Long, seed: Long): Long {
+    val builder = StringBuilder()
+    var i = 0L
+    while (i < n) {
+        builder.append(i.xor(seed).toString());
+        builder.append(",");
+        i += 1L
+    }
+    val text = builder.toString()
+    escaped = Some(text)
+    return text.byteLength + text.getCharAt(0L).code.toLong()
+}
+
+fun unicode(n: Long, seed: Long): Long {
+    val builder = StringBuilder()
+    var i = 0L
+    while (i < 512L) {
+        builder.append("abé雪🙂z");
+        i += 1L
+    }
+    builder.append(seed.toString())
+    val text = builder.toString()
+    var sum = 0L
+    i = 0L
+    while (i < n) {
+        for (c in text)
+            sum += c.code.toLong();
+        i += 1L
+    }
+    return sum
+}
+
+fun parseIntegers(n: Long, seed: Long): Long {
+    val texts = Array<String>(256L) { i -> (i * 1234567L + seed).toString() }
+    var sum = 0L
+    var i = 0L
+    while (i < n) {
+        sum += texts[i.and(255L)].toLong();
+        i += 1L
+    }
+    return sum
+}
+
+fun parallel(n: Long, seed: Long, workers: Long): Long {
+    val results = MutableArray<Long>(8L) { _ -> 0L }
+    val threads =
+        Array<Thread>(workers) {
+            worker -> Thread.start {
+                var shard = worker
+                while (shard < 8L) {
+                    results[shard] = mix(n / 8L, seed + shard)
+                    shard += workers
+                }
+            }
+        }
+    for (thread in threads)
+        thread.join()
+    var sum = 0L
+    for (value in results)
+        sum += value
+    return sum
+}

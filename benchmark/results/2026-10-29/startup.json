@@ -1,0 +1,1921 @@
+{
+  "note": "warm filesystem cache; full suite no-work path; process launch/output/exit included",
+  "runs": [
+    {
+      "language": "java-native",
+      "trial": 0,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.004997625,
+      "user_cpu_seconds": 0.0017929999999999999,
+      "system_cpu_seconds": 0.001622,
+      "cpu_seconds": 0.0034149999999999996,
+      "peak_rss_bytes": 9404416,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 0,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.03395225,
+      "user_cpu_seconds": 0.030188,
+      "system_cpu_seconds": 0.008525999999999999,
+      "cpu_seconds": 0.038714,
+      "peak_rss_bytes": 41926656,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 0,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.003563875,
+      "user_cpu_seconds": 0.000937,
+      "system_cpu_seconds": 0.001284,
+      "cpu_seconds": 0.002221,
+      "peak_rss_bytes": 4423680,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 0,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.005939666,
+      "user_cpu_seconds": 0.003028,
+      "system_cpu_seconds": 0.001294,
+      "cpu_seconds": 0.0043219999999999995,
+      "peak_rss_bytes": 6012928,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 1,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.037765,
+      "user_cpu_seconds": 0.032235,
+      "system_cpu_seconds": 0.011422999999999999,
+      "cpu_seconds": 0.043658,
+      "peak_rss_bytes": 42008576,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 1,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.006515209,
+      "user_cpu_seconds": 0.003261,
+      "system_cpu_seconds": 0.001524,
+      "cpu_seconds": 0.004785,
+      "peak_rss_bytes": 6029312,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 1,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.007740708,
+      "user_cpu_seconds": 0.002232,
+      "system_cpu_seconds": 0.003656,
+      "cpu_seconds": 0.005888,
+      "peak_rss_bytes": 9420800,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 1,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.004498709,
+      "user_cpu_seconds": 0.001015,
+      "system_cpu_seconds": 0.002182,
+      "cpu_seconds": 0.003197,
+      "peak_rss_bytes": 4505600,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 2,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.007225291,
+      "user_cpu_seconds": 0.003289,
+      "system_cpu_seconds": 0.002299,
+      "cpu_seconds": 0.005587999999999999,
+      "peak_rss_bytes": 5996544,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 2,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.035178166,
+      "user_cpu_seconds": 0.030511,
+      "system_cpu_seconds": 0.009267,
+      "cpu_seconds": 0.039778,
+      "peak_rss_bytes": 41893888,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 2,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.00581425,
+      "user_cpu_seconds": 0.002087,
+      "system_cpu_seconds": 0.0019509999999999998,
+      "cpu_seconds": 0.004038,
+      "peak_rss_bytes": 9404416,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 2,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.0034605,
+      "user_cpu_seconds": 0.0008839999999999999,
+      "system_cpu_seconds": 0.001269,
+      "cpu_seconds": 0.002153,
+      "peak_rss_bytes": 4505600,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 3,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.003343333,
+      "user_cpu_seconds": 0.000816,
+      "system_cpu_seconds": 0.001271,
+      "cpu_seconds": 0.002087,
+      "peak_rss_bytes": 4489216,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 3,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.03475125,
+      "user_cpu_seconds": 0.030649,
+      "system_cpu_seconds": 0.008428999999999999,
+      "cpu_seconds": 0.039078,
+      "peak_rss_bytes": 41926656,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 3,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.005873291,
+      "user_cpu_seconds": 0.002068,
+      "system_cpu_seconds": 0.001919,
+      "cpu_seconds": 0.003987,
+      "peak_rss_bytes": 9404416,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 3,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.005820875,
+      "user_cpu_seconds": 0.003055,
+      "system_cpu_seconds": 0.001279,
+      "cpu_seconds": 0.004334,
+      "peak_rss_bytes": 5996544,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 4,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.005883,
+      "user_cpu_seconds": 0.003077,
+      "system_cpu_seconds": 0.00137,
+      "cpu_seconds": 0.0044469999999999996,
+      "peak_rss_bytes": 6012928,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 4,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.003463166,
+      "user_cpu_seconds": 0.000856,
+      "system_cpu_seconds": 0.001217,
+      "cpu_seconds": 0.002073,
+      "peak_rss_bytes": 4407296,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 4,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.005661084,
+      "user_cpu_seconds": 0.001982,
+      "system_cpu_seconds": 0.001896,
+      "cpu_seconds": 0.0038779999999999995,
+      "peak_rss_bytes": 9437184,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 4,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.0345545,
+      "user_cpu_seconds": 0.030715,
+      "system_cpu_seconds": 0.008615,
+      "cpu_seconds": 0.03933,
+      "peak_rss_bytes": 41861120,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 5,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.0060815,
+      "user_cpu_seconds": 0.0031409999999999997,
+      "system_cpu_seconds": 0.0014349999999999999,
+      "cpu_seconds": 0.004575999999999999,
+      "peak_rss_bytes": 6012928,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 5,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.034637417,
+      "user_cpu_seconds": 0.030813999999999998,
+      "system_cpu_seconds": 0.008556,
+      "cpu_seconds": 0.039369999999999995,
+      "peak_rss_bytes": 41943040,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 5,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.005938541,
+      "user_cpu_seconds": 0.0020629999999999997,
+      "system_cpu_seconds": 0.00189,
+      "cpu_seconds": 0.003953,
+      "peak_rss_bytes": 9388032,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 5,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.003454584,
+      "user_cpu_seconds": 0.000882,
+      "system_cpu_seconds": 0.001256,
+      "cpu_seconds": 0.002138,
+      "peak_rss_bytes": 4489216,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 6,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.005229375,
+      "user_cpu_seconds": 0.001839,
+      "system_cpu_seconds": 0.0017909999999999998,
+      "cpu_seconds": 0.0036299999999999995,
+      "peak_rss_bytes": 9437184,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 6,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.034556375,
+      "user_cpu_seconds": 0.030156,
+      "system_cpu_seconds": 0.008868,
+      "cpu_seconds": 0.039023999999999996,
+      "peak_rss_bytes": 41844736,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 6,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.00587525,
+      "user_cpu_seconds": 0.0031209999999999996,
+      "system_cpu_seconds": 0.001437,
+      "cpu_seconds": 0.0045579999999999996,
+      "peak_rss_bytes": 5980160,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 6,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.002966709,
+      "user_cpu_seconds": 0.000812,
+      "system_cpu_seconds": 0.001064,
+      "cpu_seconds": 0.001876,
+      "peak_rss_bytes": 4407296,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 7,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.035452208,
+      "user_cpu_seconds": 0.030678999999999998,
+      "system_cpu_seconds": 0.008709,
+      "cpu_seconds": 0.039388,
+      "peak_rss_bytes": 41992192,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 7,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.003582417,
+      "user_cpu_seconds": 0.0009549999999999999,
+      "system_cpu_seconds": 0.001258,
+      "cpu_seconds": 0.0022129999999999997,
+      "peak_rss_bytes": 4489216,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 7,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.005425666,
+      "user_cpu_seconds": 0.001966,
+      "system_cpu_seconds": 0.0016409999999999999,
+      "cpu_seconds": 0.003607,
+      "peak_rss_bytes": 9437184,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 7,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.005427167,
+      "user_cpu_seconds": 0.0030499999999999998,
+      "system_cpu_seconds": 0.001117,
+      "cpu_seconds": 0.004167,
+      "peak_rss_bytes": 6029312,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 8,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.037058958,
+      "user_cpu_seconds": 0.031179,
+      "system_cpu_seconds": 0.008421999999999999,
+      "cpu_seconds": 0.039601,
+      "peak_rss_bytes": 41893888,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 8,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.003849292,
+      "user_cpu_seconds": 0.000977,
+      "system_cpu_seconds": 0.001413,
+      "cpu_seconds": 0.0023899999999999998,
+      "peak_rss_bytes": 4587520,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 8,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.007419625,
+      "user_cpu_seconds": 0.002051,
+      "system_cpu_seconds": 0.002163,
+      "cpu_seconds": 0.004214,
+      "peak_rss_bytes": 9437184,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 8,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.0061975,
+      "user_cpu_seconds": 0.003245,
+      "system_cpu_seconds": 0.001571,
+      "cpu_seconds": 0.004816,
+      "peak_rss_bytes": 6012928,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 9,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.006306458,
+      "user_cpu_seconds": 0.0020469999999999998,
+      "system_cpu_seconds": 0.0022099999999999997,
+      "cpu_seconds": 0.0042569999999999995,
+      "peak_rss_bytes": 9420800,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 9,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.006999375,
+      "user_cpu_seconds": 0.003205,
+      "system_cpu_seconds": 0.002653,
+      "cpu_seconds": 0.005858,
+      "peak_rss_bytes": 5996544,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 9,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.004321458,
+      "user_cpu_seconds": 0.0010429999999999999,
+      "system_cpu_seconds": 0.001573,
+      "cpu_seconds": 0.002616,
+      "peak_rss_bytes": 4521984,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 9,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.044216125,
+      "user_cpu_seconds": 0.031959,
+      "system_cpu_seconds": 0.01023,
+      "cpu_seconds": 0.042189000000000004,
+      "peak_rss_bytes": 42008576,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 10,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.006251375,
+      "user_cpu_seconds": 0.0032519999999999997,
+      "system_cpu_seconds": 0.00145,
+      "cpu_seconds": 0.004702,
+      "peak_rss_bytes": 6029312,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 10,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.006178584,
+      "user_cpu_seconds": 0.002055,
+      "system_cpu_seconds": 0.001903,
+      "cpu_seconds": 0.003958,
+      "peak_rss_bytes": 9404416,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 10,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.0398665,
+      "user_cpu_seconds": 0.032422,
+      "system_cpu_seconds": 0.009720999999999999,
+      "cpu_seconds": 0.042143,
+      "peak_rss_bytes": 42057728,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 10,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.00352275,
+      "user_cpu_seconds": 0.000931,
+      "system_cpu_seconds": 0.001287,
+      "cpu_seconds": 0.002218,
+      "peak_rss_bytes": 4423680,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 11,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.006012167,
+      "user_cpu_seconds": 0.003126,
+      "system_cpu_seconds": 0.0013809999999999998,
+      "cpu_seconds": 0.004507,
+      "peak_rss_bytes": 5996544,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 11,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.00399775,
+      "user_cpu_seconds": 0.0009329999999999999,
+      "system_cpu_seconds": 0.001491,
+      "cpu_seconds": 0.002424,
+      "peak_rss_bytes": 4571136,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 11,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.039194708,
+      "user_cpu_seconds": 0.031803,
+      "system_cpu_seconds": 0.009415,
+      "cpu_seconds": 0.041218,
+      "peak_rss_bytes": 41975808,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 11,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.006237209,
+      "user_cpu_seconds": 0.0020989999999999997,
+      "system_cpu_seconds": 0.002075,
+      "cpu_seconds": 0.004174,
+      "peak_rss_bytes": 9437184,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 12,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.039775958,
+      "user_cpu_seconds": 0.031668999999999996,
+      "system_cpu_seconds": 0.009656,
+      "cpu_seconds": 0.041324999999999994,
+      "peak_rss_bytes": 41975808,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 12,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.006620709,
+      "user_cpu_seconds": 0.003192,
+      "system_cpu_seconds": 0.0015379999999999999,
+      "cpu_seconds": 0.00473,
+      "peak_rss_bytes": 6029312,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 12,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.003542958,
+      "user_cpu_seconds": 0.0008719999999999999,
+      "system_cpu_seconds": 0.001285,
+      "cpu_seconds": 0.002157,
+      "peak_rss_bytes": 4407296,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 12,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.00572475,
+      "user_cpu_seconds": 0.001949,
+      "system_cpu_seconds": 0.001885,
+      "cpu_seconds": 0.0038339999999999997,
+      "peak_rss_bytes": 9404416,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 13,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.007149583,
+      "user_cpu_seconds": 0.000953,
+      "system_cpu_seconds": 0.0023539999999999998,
+      "cpu_seconds": 0.0033069999999999996,
+      "peak_rss_bytes": 4521984,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 13,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.006037708,
+      "user_cpu_seconds": 0.003085,
+      "system_cpu_seconds": 0.0014119999999999998,
+      "cpu_seconds": 0.004497,
+      "peak_rss_bytes": 6012928,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 13,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.040473459,
+      "user_cpu_seconds": 0.032674999999999996,
+      "system_cpu_seconds": 0.010698,
+      "cpu_seconds": 0.043372999999999995,
+      "peak_rss_bytes": 42008576,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 13,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.006007833,
+      "user_cpu_seconds": 0.002077,
+      "system_cpu_seconds": 0.0022199999999999998,
+      "cpu_seconds": 0.004297,
+      "peak_rss_bytes": 9437184,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 14,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.00622275,
+      "user_cpu_seconds": 0.003133,
+      "system_cpu_seconds": 0.0014789999999999998,
+      "cpu_seconds": 0.004612,
+      "peak_rss_bytes": 6045696,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 14,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.003635917,
+      "user_cpu_seconds": 0.0008839999999999999,
+      "system_cpu_seconds": 0.001317,
+      "cpu_seconds": 0.002201,
+      "peak_rss_bytes": 4521984,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 14,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.005646084,
+      "user_cpu_seconds": 0.002057,
+      "system_cpu_seconds": 0.002052,
+      "cpu_seconds": 0.004109,
+      "peak_rss_bytes": 9404416,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 14,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.039111917,
+      "user_cpu_seconds": 0.033104999999999996,
+      "system_cpu_seconds": 0.010528,
+      "cpu_seconds": 0.04363299999999999,
+      "peak_rss_bytes": 41926656,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 15,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.038992375,
+      "user_cpu_seconds": 0.034159,
+      "system_cpu_seconds": 0.011117,
+      "cpu_seconds": 0.045276000000000004,
+      "peak_rss_bytes": 41975808,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 15,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.006402625,
+      "user_cpu_seconds": 0.003192,
+      "system_cpu_seconds": 0.001527,
+      "cpu_seconds": 0.004719,
+      "peak_rss_bytes": 5996544,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 15,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.003761208,
+      "user_cpu_seconds": 0.000918,
+      "system_cpu_seconds": 0.001359,
+      "cpu_seconds": 0.002277,
+      "peak_rss_bytes": 4521984,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 15,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.005945875,
+      "user_cpu_seconds": 0.002127,
+      "system_cpu_seconds": 0.001974,
+      "cpu_seconds": 0.0041010000000000005,
+      "peak_rss_bytes": 9404416,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 16,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.006005625,
+      "user_cpu_seconds": 0.003191,
+      "system_cpu_seconds": 0.0015329999999999999,
+      "cpu_seconds": 0.004724,
+      "peak_rss_bytes": 5996544,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 16,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.040276667,
+      "user_cpu_seconds": 0.033728,
+      "system_cpu_seconds": 0.012607,
+      "cpu_seconds": 0.046335,
+      "peak_rss_bytes": 42188800,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 16,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.003944292,
+      "user_cpu_seconds": 0.000941,
+      "system_cpu_seconds": 0.001415,
+      "cpu_seconds": 0.002356,
+      "peak_rss_bytes": 4521984,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 16,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.005262292,
+      "user_cpu_seconds": 0.0017859999999999998,
+      "system_cpu_seconds": 0.001829,
+      "cpu_seconds": 0.0036149999999999997,
+      "peak_rss_bytes": 9404416,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 17,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.006169542,
+      "user_cpu_seconds": 0.0032099999999999997,
+      "system_cpu_seconds": 0.0015019999999999999,
+      "cpu_seconds": 0.004711999999999999,
+      "peak_rss_bytes": 6012928,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 17,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.005934167,
+      "user_cpu_seconds": 0.002104,
+      "system_cpu_seconds": 0.002033,
+      "cpu_seconds": 0.004137,
+      "peak_rss_bytes": 9437184,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 17,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.043818375,
+      "user_cpu_seconds": 0.034455,
+      "system_cpu_seconds": 0.013056,
+      "cpu_seconds": 0.047511,
+      "peak_rss_bytes": 42139648,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 17,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.004155583,
+      "user_cpu_seconds": 0.0010329999999999998,
+      "system_cpu_seconds": 0.0014789999999999998,
+      "cpu_seconds": 0.0025119999999999995,
+      "peak_rss_bytes": 4407296,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 18,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.006657667,
+      "user_cpu_seconds": 0.002267,
+      "system_cpu_seconds": 0.002266,
+      "cpu_seconds": 0.004533,
+      "peak_rss_bytes": 9404416,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 18,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.047952958,
+      "user_cpu_seconds": 0.036183,
+      "system_cpu_seconds": 0.016510999999999998,
+      "cpu_seconds": 0.052694,
+      "peak_rss_bytes": 42631168,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 18,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.004404459,
+      "user_cpu_seconds": 0.0010069999999999999,
+      "system_cpu_seconds": 0.001615,
+      "cpu_seconds": 0.0026219999999999998,
+      "peak_rss_bytes": 4440064,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 18,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.00639625,
+      "user_cpu_seconds": 0.0031669999999999997,
+      "system_cpu_seconds": 0.001517,
+      "cpu_seconds": 0.004684,
+      "peak_rss_bytes": 6029312,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 19,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.006041625,
+      "user_cpu_seconds": 0.00311,
+      "system_cpu_seconds": 0.001371,
+      "cpu_seconds": 0.004481,
+      "peak_rss_bytes": 5996544,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 19,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.005921834,
+      "user_cpu_seconds": 0.002116,
+      "system_cpu_seconds": 0.002059,
+      "cpu_seconds": 0.004175,
+      "peak_rss_bytes": 9404416,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 19,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.003674208,
+      "user_cpu_seconds": 0.000901,
+      "system_cpu_seconds": 0.001302,
+      "cpu_seconds": 0.002203,
+      "peak_rss_bytes": 4505600,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 19,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.035351375,
+      "user_cpu_seconds": 0.030747,
+      "system_cpu_seconds": 0.008948,
+      "cpu_seconds": 0.039695,
+      "peak_rss_bytes": 41959424,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 20,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.006371083,
+      "user_cpu_seconds": 0.003212,
+      "system_cpu_seconds": 0.001558,
+      "cpu_seconds": 0.00477,
+      "peak_rss_bytes": 6029312,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 20,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.003570917,
+      "user_cpu_seconds": 0.0008439999999999999,
+      "system_cpu_seconds": 0.0012469999999999998,
+      "cpu_seconds": 0.002091,
+      "peak_rss_bytes": 4407296,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 20,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.034559875,
+      "user_cpu_seconds": 0.030750999999999997,
+      "system_cpu_seconds": 0.008846,
+      "cpu_seconds": 0.03959699999999999,
+      "peak_rss_bytes": 41910272,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 20,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.005871917,
+      "user_cpu_seconds": 0.002065,
+      "system_cpu_seconds": 0.0019619999999999998,
+      "cpu_seconds": 0.004026999999999999,
+      "peak_rss_bytes": 9437184,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 21,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.005854208,
+      "user_cpu_seconds": 0.0030299999999999997,
+      "system_cpu_seconds": 0.0014299999999999998,
+      "cpu_seconds": 0.0044599999999999996,
+      "peak_rss_bytes": 6029312,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 21,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.003695709,
+      "user_cpu_seconds": 0.000919,
+      "system_cpu_seconds": 0.0013189999999999999,
+      "cpu_seconds": 0.002238,
+      "peak_rss_bytes": 4521984,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 21,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.005646459,
+      "user_cpu_seconds": 0.0019399999999999999,
+      "system_cpu_seconds": 0.0018319999999999999,
+      "cpu_seconds": 0.0037719999999999997,
+      "peak_rss_bytes": 9437184,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 21,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.036046875,
+      "user_cpu_seconds": 0.031219999999999998,
+      "system_cpu_seconds": 0.009583999999999999,
+      "cpu_seconds": 0.04080399999999999,
+      "peak_rss_bytes": 41959424,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 22,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.003732625,
+      "user_cpu_seconds": 0.0009249999999999999,
+      "system_cpu_seconds": 0.00131,
+      "cpu_seconds": 0.002235,
+      "peak_rss_bytes": 4489216,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 22,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.005435625,
+      "user_cpu_seconds": 0.002029,
+      "system_cpu_seconds": 0.001802,
+      "cpu_seconds": 0.003831,
+      "peak_rss_bytes": 9404416,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 22,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.005779916,
+      "user_cpu_seconds": 0.0030499999999999998,
+      "system_cpu_seconds": 0.001348,
+      "cpu_seconds": 0.004398,
+      "peak_rss_bytes": 6029312,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 22,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.035292458,
+      "user_cpu_seconds": 0.031473,
+      "system_cpu_seconds": 0.00893,
+      "cpu_seconds": 0.040403,
+      "peak_rss_bytes": 41926656,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 23,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.035718125,
+      "user_cpu_seconds": 0.031174999999999998,
+      "system_cpu_seconds": 0.009368999999999999,
+      "cpu_seconds": 0.040544,
+      "peak_rss_bytes": 41959424,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 23,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.004002167,
+      "user_cpu_seconds": 0.000972,
+      "system_cpu_seconds": 0.0013959999999999999,
+      "cpu_seconds": 0.002368,
+      "peak_rss_bytes": 4505600,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 23,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.005916125,
+      "user_cpu_seconds": 0.00309,
+      "system_cpu_seconds": 0.001375,
+      "cpu_seconds": 0.004465,
+      "peak_rss_bytes": 6029312,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 23,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.005528209,
+      "user_cpu_seconds": 0.0019979999999999998,
+      "system_cpu_seconds": 0.0017599999999999998,
+      "cpu_seconds": 0.0037579999999999996,
+      "peak_rss_bytes": 9404416,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 24,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.005861958,
+      "user_cpu_seconds": 0.003074,
+      "system_cpu_seconds": 0.001325,
+      "cpu_seconds": 0.004399,
+      "peak_rss_bytes": 5996544,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 24,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.005397958,
+      "user_cpu_seconds": 0.001911,
+      "system_cpu_seconds": 0.001802,
+      "cpu_seconds": 0.003713,
+      "peak_rss_bytes": 9404416,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 24,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.00348625,
+      "user_cpu_seconds": 0.00086,
+      "system_cpu_seconds": 0.0012469999999999998,
+      "cpu_seconds": 0.002107,
+      "peak_rss_bytes": 4440064,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 24,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.034890625,
+      "user_cpu_seconds": 0.030607,
+      "system_cpu_seconds": 0.008938,
+      "cpu_seconds": 0.039545,
+      "peak_rss_bytes": 41910272,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 25,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.006245875,
+      "user_cpu_seconds": 0.0031479999999999998,
+      "system_cpu_seconds": 0.0014789999999999998,
+      "cpu_seconds": 0.004626999999999999,
+      "peak_rss_bytes": 6012928,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 25,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.034927792,
+      "user_cpu_seconds": 0.030725,
+      "system_cpu_seconds": 0.008806999999999999,
+      "cpu_seconds": 0.039532,
+      "peak_rss_bytes": 41959424,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 25,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.005481542,
+      "user_cpu_seconds": 0.002031,
+      "system_cpu_seconds": 0.001841,
+      "cpu_seconds": 0.0038719999999999996,
+      "peak_rss_bytes": 9437184,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 25,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.003431584,
+      "user_cpu_seconds": 0.000887,
+      "system_cpu_seconds": 0.001261,
+      "cpu_seconds": 0.0021479999999999997,
+      "peak_rss_bytes": 4505600,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 26,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.005945416,
+      "user_cpu_seconds": 0.003096,
+      "system_cpu_seconds": 0.0013629999999999998,
+      "cpu_seconds": 0.004458999999999999,
+      "peak_rss_bytes": 6012928,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 26,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.00566225,
+      "user_cpu_seconds": 0.002023,
+      "system_cpu_seconds": 0.0018709999999999998,
+      "cpu_seconds": 0.003894,
+      "peak_rss_bytes": 9437184,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 26,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.035437,
+      "user_cpu_seconds": 0.030692999999999998,
+      "system_cpu_seconds": 0.00908,
+      "cpu_seconds": 0.039772999999999996,
+      "peak_rss_bytes": 41877504,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 26,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.003571333,
+      "user_cpu_seconds": 0.0009419999999999999,
+      "system_cpu_seconds": 0.001276,
+      "cpu_seconds": 0.002218,
+      "peak_rss_bytes": 4505600,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 27,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.034380833,
+      "user_cpu_seconds": 0.030327,
+      "system_cpu_seconds": 0.008594,
+      "cpu_seconds": 0.038921,
+      "peak_rss_bytes": 41795584,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 27,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.0056855,
+      "user_cpu_seconds": 0.002003,
+      "system_cpu_seconds": 0.0018419999999999999,
+      "cpu_seconds": 0.003845,
+      "peak_rss_bytes": 9437184,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 27,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.005923125,
+      "user_cpu_seconds": 0.0030889999999999997,
+      "system_cpu_seconds": 0.001364,
+      "cpu_seconds": 0.0044529999999999995,
+      "peak_rss_bytes": 5996544,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 27,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.003545125,
+      "user_cpu_seconds": 0.000886,
+      "system_cpu_seconds": 0.001279,
+      "cpu_seconds": 0.002165,
+      "peak_rss_bytes": 4538368,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 28,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.005431833,
+      "user_cpu_seconds": 0.0019379999999999998,
+      "system_cpu_seconds": 0.0018189999999999999,
+      "cpu_seconds": 0.003757,
+      "peak_rss_bytes": 9404416,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 28,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.003640709,
+      "user_cpu_seconds": 0.0008659999999999999,
+      "system_cpu_seconds": 0.001253,
+      "cpu_seconds": 0.002119,
+      "peak_rss_bytes": 4489216,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 28,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.006028708,
+      "user_cpu_seconds": 0.003055,
+      "system_cpu_seconds": 0.0014759999999999999,
+      "cpu_seconds": 0.004531,
+      "peak_rss_bytes": 6045696,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 28,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.035776417,
+      "user_cpu_seconds": 0.030826,
+      "system_cpu_seconds": 0.009496,
+      "cpu_seconds": 0.040322,
+      "peak_rss_bytes": 41828352,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "go",
+      "trial": 29,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 0.003910375,
+      "user_cpu_seconds": 0.000948,
+      "system_cpu_seconds": 0.0013579999999999998,
+      "cpu_seconds": 0.002306,
+      "peak_rss_bytes": 4423680,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "scoop",
+      "trial": 29,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 0.005856,
+      "user_cpu_seconds": 0.0030589999999999997,
+      "system_cpu_seconds": 0.001294,
+      "cpu_seconds": 0.004352999999999999,
+      "peak_rss_bytes": 6029312,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-native",
+      "trial": 29,
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 0.005806167,
+      "user_cpu_seconds": 0.0020269999999999997,
+      "system_cpu_seconds": 0.0018939999999999999,
+      "cpu_seconds": 0.003920999999999999,
+      "peak_rss_bytes": 9404416,
+      "stdout": "ready\n",
+      "stderr": ""
+    },
+    {
+      "language": "java-jit",
+      "trial": 29,
+      "command": [
+        "/Library/Java/JavaVirtualMachines/graalvm-21.jdk/Contents/Home/bin/java",
+        "-Xms64m",
+        "-Xmx1g",
+        "-cp",
+        "/Users/chenxu/repos/scoop/benchmark/build/java",
+        "Bench"
+      ],
+      "wall_seconds": 0.036854416,
+      "user_cpu_seconds": 0.031563,
+      "system_cpu_seconds": 0.010482,
+      "cpu_seconds": 0.042045,
+      "peak_rss_bytes": 41844736,
+      "stdout": "ready\n",
+      "stderr": ""
+    }
+  ],
+  "summary": {
+    "scoop": {
+      "median_ms": 6.033208,
+      "min_ms": 5.427167,
+      "max_ms": 7.225291,
+      "peak_rss_mib": 5.734375
+    },
+    "go": {
+      "median_ms": 3.6383129999999997,
+      "min_ms": 2.9667090000000003,
+      "max_ms": 7.149583,
+      "peak_rss_mib": 4.2890625
+    },
+    "java-jit": {
+      "median_ms": 35.747271,
+      "min_ms": 33.95225000000001,
+      "max_ms": 47.952957999999995,
+      "peak_rss_mib": 40.0078125
+    },
+    "java-native": {
+      "median_ms": 5.7654585,
+      "min_ms": 4.997625,
+      "max_ms": 7.740708,
+      "peak_rss_mib": 8.96875
+    }
+  }
+}
