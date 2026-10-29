@@ -61,6 +61,16 @@ pub(super) fn bind(
         location,
         ty,
         storage,
+        managed: match storage {
+            DebugStorage::Local(local) => match function.locals[local].storage() {
+                scoop_lir::LocalStorage::NonZero(value) => value.scan().contains_reference(),
+                _ => false,
+            },
+            DebugStorage::Parameter(index) => function.signature.arguments()[index as usize]
+                .scan()
+                .contains_reference(),
+            DebugStorage::Temporary(temp) => function.temps[temp].ty == MANAGED_PTR,
+        },
         parameter: parameter.map(|index| std::num::NonZeroU32::new(index).unwrap()),
     });
 }

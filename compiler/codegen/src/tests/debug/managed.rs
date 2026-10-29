@@ -27,8 +27,16 @@ fn managed_observations_end_at_safepoints_without_adding_roots() {
     function.temps = Arena::default();
     function.call_targets = CallTargets::default();
     let dead = function.locals.alloc(test_local("dead", MANAGED_PTR));
+    let captured = function.temps.alloc(Temp { ty: MANAGED_PTR });
     bind(function, "live", exact, DebugStorage::Parameter(0), Some(1));
     bind(function, "dead", exact, DebugStorage::Local(dead), None);
+    bind(
+        function,
+        "captured",
+        exact,
+        DebugStorage::Temporary(captured),
+        None,
+    );
     let signature = function
         .call_targets
         .void_signatures
@@ -60,6 +68,11 @@ fn managed_observations_end_at_safepoints_without_adding_roots() {
     function.entry = function.blocks.alloc(BasicBlock {
         name: "entry".into(),
         instructions: vec![
+            Instruction::HeapLoad {
+                out: captured,
+                object: Value::Param(0),
+                offset: 16,
+            },
             Instruction::Store {
                 local: dead,
                 value: Value::Param(0),
@@ -105,6 +118,17 @@ fn managed_observations_end_at_safepoints_without_adding_roots() {
                 dead_records.last().unwrap().contains("i8 undef"),
                 "{before}"
             );
+            let captured_records = observations(&before, variable_id(&before, "captured"));
+            assert!(
+                captured_records
+                    .iter()
+                    .any(|line| line.contains("ptr addrspace(1)")),
+                "{before}"
+            );
+            assert!(
+                captured_records.last().unwrap().contains("i8 undef"),
+                "{before}"
+            );
             let live_id = variable_id(&before, "live");
             let live_records = observations(&before, live_id);
             assert!(
@@ -136,6 +160,11 @@ fn managed_observations_end_at_safepoints_without_adding_roots() {
             assert!(
                 dead_records.last().unwrap().contains("undef"),
                 "a stale observation survived: {after}"
+            );
+            let captured_records = observations(&after, variable_id(&after, "captured"));
+            assert!(
+                captured_records.last().unwrap().contains("undef"),
+                "a stale capture survived: {after}"
             );
         } else {
             plain_counts = Some(counts);

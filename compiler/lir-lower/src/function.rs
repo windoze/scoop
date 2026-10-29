@@ -109,6 +109,7 @@ pub(super) fn lower_function<'a>(
     optimization: lir::OptimizationMode,
     producer: scoop_identity::ConeIdentity,
     module: &'a mir::Module,
+    debug_declarations: &'a debug::Declarations,
     callable_body: lir::CallableBodyIdentity,
     function: &'a mir::Function,
     signature: &'a lir::ScoopAbiSignature,
@@ -217,6 +218,17 @@ pub(super) fn lower_function<'a>(
                     LocalSlot::Param(index) => lir::DebugStorage::Parameter(index),
                     LocalSlot::Slot(id) => lir::DebugStorage::Local(id),
                 },
+                managed: match local_map[&local] {
+                    LocalSlot::Param(index) => signature.arguments()[index as usize]
+                        .scan()
+                        .contains_reference(),
+                    LocalSlot::Slot(id) => match locals[id].storage() {
+                        lir::LocalStorage::NonZero(value) => value.scan().contains_reference(),
+                        lir::LocalStorage::LogicalZst(_) | lir::LocalStorage::AddressableZst(_) => {
+                            false
+                        }
+                    },
+                },
                 parameter: parameter.or_else(|| {
                     function
                         .params
@@ -249,6 +261,8 @@ pub(super) fn lower_function<'a>(
     let mut pending_safepoints = safepoints::PendingSafepointSites::default();
     let mut lowerer = FunctionLowerer {
         current_origin: mir::DebugOrigin::Generated,
+        debug_variables,
+        debug_declarations,
         context,
         producer,
         callable_body: &callable_body,
@@ -341,7 +355,7 @@ pub(super) fn lower_function<'a>(
         function: lir::Function {
             debug_origin: function.debug_origin.clone(),
             debug_name: function.name.clone(),
-            debug_variables,
+            debug_variables: lowerer.debug_variables,
             debug_signature,
             gc_effect: match function.gc_effect {
                 mir::GcEffect::Managed => lir::GcEffect::Managed,
@@ -378,6 +392,8 @@ enum LocalSlot {
 /// block was already sealed (by a `return`, or by a trap call), so
 /// structured control flow does not seal it again with a branch.
 struct FunctionLowerer<'a> {
+    debug_declarations: &'a debug::Declarations,
+    debug_variables: Vec<lir::DebugBinding>,
     current_origin: mir::DebugOrigin,
     context: &'a LoweringContext,
     producer: scoop_identity::ConeIdentity,

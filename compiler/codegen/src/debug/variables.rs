@@ -33,28 +33,37 @@ impl<'ctx> FunctionDebug<'_, 'ctx> {
         };
         let file = self.context.file(&binding.location.file);
         let ty = self.context.source_type(binding.ty);
-        let variable = match binding.parameter {
-            Some(parameter) => self.context.builder.create_parameter_variable(
-                scope,
-                &binding.declaration.name,
-                parameter.get(),
-                file,
-                binding.location.line,
-                ty,
-                true,
-                DIFlags::PUBLIC,
-            ),
-            None => self.context.builder.create_auto_variable(
-                scope,
-                &binding.declaration.name,
-                file,
-                binding.location.line,
-                ty,
-                true,
-                DIFlags::PUBLIC,
-                ty.get_align_in_bits(),
-            ),
-        };
+        let key = (
+            binding.declaration.clone(),
+            scope.as_mut_ptr() as usize,
+            binding.ty,
+        );
+        let variable =
+            *self
+                .variable_definitions
+                .entry(key)
+                .or_insert_with(|| match binding.parameter {
+                    Some(parameter) => self.context.builder.create_parameter_variable(
+                        scope,
+                        &binding.declaration.name,
+                        parameter.get(),
+                        file,
+                        binding.location.line,
+                        ty,
+                        true,
+                        DIFlags::PUBLIC,
+                    ),
+                    None => self.context.builder.create_auto_variable(
+                        scope,
+                        &binding.declaration.name,
+                        file,
+                        binding.location.line,
+                        ty,
+                        true,
+                        DIFlags::PUBLIC,
+                        ty.get_align_in_bits(),
+                    ),
+                });
         self.variables
             .entry(binding.storage)
             .or_default()

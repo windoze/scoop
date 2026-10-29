@@ -107,6 +107,7 @@ impl<'a, 'ctx> DebugContext<'a, 'ctx> {
         source: &Arc<DebugFile>,
         line: u32,
         signature: &scoop_lir::DebugSignature,
+        artificial: bool,
     ) -> DISubprogram<'ctx> {
         let file = self.file(source);
         let (parameters, result) = if self.full {
@@ -133,7 +134,11 @@ impl<'a, 'ctx> DebugContext<'a, 'ctx> {
             false,
             true,
             line,
-            DIFlags::PUBLIC,
+            if artificial {
+                DIFlags::PUBLIC | DIFlags::ARTIFICIAL
+            } else {
+                DIFlags::PUBLIC
+            },
             self.optimized,
         )
     }
@@ -159,6 +164,7 @@ impl<'a, 'ctx> DebugContext<'a, 'ctx> {
             source,
             line,
             &function.debug_signature,
+            matches!(function.debug_origin, DebugOrigin::Generated),
         );
         llvm.set_subprogram(subprogram);
         Some(FunctionDebug {
@@ -169,6 +175,7 @@ impl<'a, 'ctx> DebugContext<'a, 'ctx> {
             inline_functions: HashMap::new(),
             locations: HashMap::new(),
             variables: HashMap::new(),
+            variable_definitions: HashMap::new(),
         })
     }
 
@@ -185,6 +192,14 @@ pub(crate) struct FunctionDebug<'a, 'ctx> {
     inline_functions: HashMap<Arc<DebugInlineSite>, DIScope<'ctx>>,
     locations: HashMap<Arc<DebugLocation>, DILocation<'ctx>>,
     variables: HashMap<scoop_lir::DebugStorage, Vec<Variable<'ctx>>>,
+    variable_definitions: HashMap<
+        (
+            Arc<scoop_source::DebugDeclaration>,
+            usize,
+            scoop_lir::PersistentExactTypeId,
+        ),
+        inkwell::debug_info::DILocalVariable<'ctx>,
+    >,
 }
 
 impl<'ctx> FunctionDebug<'_, 'ctx> {
@@ -226,6 +241,7 @@ impl<'ctx> FunctionDebug<'_, 'ctx> {
                                 file,
                                 line,
                                 &scoop_lir::DebugSignature::Generated,
+                                matches!(site.definition, DebugOrigin::Generated),
                             )
                             .as_debug_info_scope()
                     });

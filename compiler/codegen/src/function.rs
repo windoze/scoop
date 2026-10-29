@@ -410,6 +410,18 @@ pub(super) fn emit_function<'ctx>(
             if !is_invoke {
                 for temp in instruction_temp_defs(instruction).into_iter().flatten() {
                     emitter.sync_root_temp(temp)?;
+                    if let Some(debug) = &emitter.debug
+                        && let Some(value) = emitter.temps.get(&temp)
+                    {
+                        debug.borrow().value(
+                            scoop_lir::DebugStorage::Temporary(temp),
+                            *value,
+                            None,
+                            builder
+                                .get_insert_block()
+                                .expect("an emitted value has a block"),
+                        );
+                    }
                 }
             }
             if instruction.safepoint().is_some()

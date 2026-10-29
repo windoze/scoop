@@ -1882,3 +1882,5 @@ Darwin 输出 `<output>.dSYM/Contents/Resources/DWARF/<basename>`：保留 Mach-
 最终结果缓存同时记录程序及请求的调试结果。请求外置文件时，最终 executable basename 进入结果键并用于内部生成文件名，保证换输出目录可复用、换 basename 时重新生成匹配的 debuglink／dSYM；上游 Cone 不因此重编译。命中只检查输入更新与所需结果存在，不读取／哈希调试文件内容，不启动调试工具或重新准备链接输入。dSYM 目录按普通暂存、复制及 rename 发布；工具失败不发布部分新结果。UUID／debuglink 仅承担平台文件关联。
 
 编辑器复用官方 lldb-dap，scoop-lsp 保持语言服务职责。VS Code 提供源码 breakpoints、构建到 executable 的启动配置、attach、参数／cwd／环境／终端及 sourceMap，按需导入只读 Python formatter。发行包包含匹配平台的 lldb、lldb-dap、LLDB library、Python 支持及实际所需附加文件。不得把 C 兼容 evaluator、通用异常筛选或硬件 watchpoint 宣称为完整 Scoop 求值、Scoop 异常过滤或 GC 感知数据断点。
+
+闭包捕获值的调试观察复用 ClosureEnvironment 中的真实 captured-value 身份和共享声明，只在现有字段读取产生 LIR temporary 后记录值；不为调试读取捕获对象、延长生命期或增加 GC roots。相同声明／内联作用域复用一个 DWARF 变量，managed 观察在 safepoint 后失效。人工 helper 使用 DW_AT_artificial，源码 inline 函数仍保留用户属性。

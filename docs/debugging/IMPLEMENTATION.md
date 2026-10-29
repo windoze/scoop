@@ -65,3 +65,5 @@ Throwable 首次抛出准备已进入最终 MIR，返回经过潜在 GC 搬迁�
 真实 Scoop 的 full／line-tables／none 三配置再次通过，包含移动／minor GC、重抛、uncaught 和 trap；有调试信息时精确断言 firstThrow 第 5 行、originalThrow 第 2 行和 overflowingArray 第 2 行，且首帧不包含采集 helper。该验收同时修复 Darwin 大栈帧探测影响 LR 读取的问题，并补齐数组分配展开操作的实际来源。C 记录生命周期、startup failure roots、MIR 数组三项及格式／lint 均通过。
 
 带符号化 runtime 的同对象并发首次抛出、移动与 minor GC、重抛组合再次通过；fixture runner 61 项规则测试通过。Linux GNU／musl 仍按约定留到本地功能完成后验证。
+
+闭包捕获读取已通过原 local identity 关联共享声明，LIR 只记录真实 HeapLoad 结果，LLVM 使用已有临时值发射观察；同一声明和作用域复用变量 DIE。编译器生成函数标为 artificial，用户源码函数及 inline 调用保留普通标记。五项后端调试测试通过，包含 managed capture 在 safepoint 后结束位置且不增加 roots／slots／statepoints；真实闭包程序运行正确，dSYM 中捕获的 String 与 Long 均有对应读取区间。全 workspace clippy 通过。

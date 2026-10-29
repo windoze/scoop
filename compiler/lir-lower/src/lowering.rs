@@ -200,12 +200,14 @@ pub(super) fn lower_graph(
         &type_descriptor_refs,
     )?;
 
+    let debug_declarations = debug::declarations(module);
     let mut lower_body = |body_identity, body, signature, known_receiver| {
         lower_function(
             &context,
             optimization,
             module.cone,
             module,
+            &debug_declarations,
             body_identity,
             body,
             signature,

@@ -12,6 +12,7 @@ pub struct DebugBinding {
     pub location: std::sync::Arc<scoop_source::DebugLocation>,
     pub ty: scoop_identity::PersistentExactTypeId,
     pub storage: DebugStorage,
+    pub managed: bool,
     /// One-based logical source parameter index; inline locals keep their declaration.
     pub parameter: Option<std::num::NonZeroU32>,
 }
@@ -20,6 +21,8 @@ pub struct DebugBinding {
 pub enum DebugStorage {
     Local(crate::LocalId),
     Parameter(u32),
+    /// Observe an existing SSA definition; never allocate storage for it.
+    Temporary(crate::TempId),
 }
 
 /// Source observation of an existing static storage definition.

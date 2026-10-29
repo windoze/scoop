@@ -107,7 +107,32 @@ impl FunctionLowerer<'_> {
         );
         let (capture_offsets, _, _, _) = closure_shape(self.context, self.module, self.enums, def)?;
         let closure = self.lower_expr(closure)?;
-        self.load_heap_value(closure, capture_offsets[*index as usize], ty)
+        let value = self.load_heap_value(closure, capture_offsets[*index as usize], ty)?;
+        if let lir::Value::Temp(temporary) = value
+            && let mir::DebugOrigin::Source(location) = &self.current_origin
+            && let Some(environment) = self
+                .module
+                .meta
+                .closure_environments
+                .iter()
+                .find(|environment| environment.class() == *class)
+            && let Some(declaration) = self.debug_declarations.get(
+                &environment.identity().fields()[*index as usize]
+                    .value_record()
+                    .id(),
+            )
+        {
+            self.debug_variables.push(lir::DebugBinding {
+                declaration: declaration.clone(),
+                location: location.clone(),
+                ty: exact_type_record(self.module, ty).id(),
+                storage: lir::DebugStorage::Temporary(temporary),
+                managed: ref_scan(self.context, self.module, self.enums, ty, 0)?
+                    .contains_reference(),
+                parameter: None,
+            });
+        }
+        Ok(value)
     }
 
     pub(super) fn lower_field_access(

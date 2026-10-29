@@ -56,6 +56,12 @@ fn dwarf_lines_and_inline_calls_survive_optimization_and_statepoints() {
             let enabled = level != scoop_lir::DebugInfoLevel::None;
             assert_eq!(ir.contains("!DICompileUnit("), enabled, "{ir}");
             if enabled {
+                for subprogram in ir.lines().filter(|line| line.contains("!DISubprogram(")) {
+                    assert!(
+                        !subprogram.contains("DIFlagArtificial"),
+                        "source functions and inline calls remain visible: {subprogram}"
+                    );
+                }
                 for expected in [
                     "filename: \"debug program.scoop\", directory: \"/workspace\"",
                     "name: \"main\"",
@@ -90,4 +96,23 @@ fn dwarf_lines_and_inline_calls_survive_optimization_and_statepoints() {
             assert_eq!(has_lines, enabled);
         }
     }
+}
+
+#[test]
+fn generated_helpers_have_artificial_debug_subprograms() {
+    let mut module = values_module();
+    let function = &mut module.functions[0];
+    function.debug_origin = scoop_source::DebugOrigin::Generated;
+    function.blocks[function.entry].terminator_origin = variables::origin(4);
+    let profile = host_profile().with_debug_info(scoop_lir::DebugInfoLevel::Full);
+    let machine = profile.create_target_machine().unwrap();
+    let context = Context::create();
+    let llvm = emit_llvm_module(&context, &module, &machine, profile).unwrap();
+    llvm.verify().unwrap();
+    let ir = llvm.print_to_string().to_string();
+    let subprogram = ir
+        .lines()
+        .find(|line| line.contains("!DISubprogram("))
+        .unwrap();
+    assert!(subprogram.contains("DIFlagArtificial"), "{subprogram}");
 }

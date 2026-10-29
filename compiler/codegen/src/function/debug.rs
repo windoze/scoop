@@ -1,5 +1,5 @@
 use super::*;
-use scoop_lir::{AbiArgument, AbiArgumentLocation, AbiDirectValue, DebugStorage, LocalStorage};
+use scoop_lir::{AbiArgument, AbiArgumentLocation, AbiDirectValue, DebugStorage};
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
     pub(super) fn initialize_debug_variables(&self) -> Result<(), CodegenError> {
@@ -12,18 +12,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         }
         let block = self.entry_block;
         for binding in &self.function.debug_variables {
-            let managed = match binding.storage {
-                DebugStorage::Local(id) => match self.function.locals[id].storage() {
-                    LocalStorage::LogicalZst(_) | LocalStorage::AddressableZst(_) => false,
-                    LocalStorage::NonZero(value) => value.scan().contains_reference(),
-                },
-                DebugStorage::Parameter(index) => self.function.signature.arguments()
-                    [index as usize]
-                    .scan()
-                    .contains_reference(),
-            };
+            let managed = binding.managed;
             debug.register(binding, managed);
             match binding.storage {
+                DebugStorage::Temporary(_) => {}
                 DebugStorage::Local(id) => {
                     if self.function.locals[id].storage().is_zst() {
                         debug.value(

@@ -6,6 +6,23 @@ use std::collections::{BTreeMap, HashSet};
 mod enumerations;
 mod objects;
 
+pub(super) type Declarations =
+    HashMap<scoop_identity::PersistentLocalValueId, std::sync::Arc<mir::DebugDeclaration>>;
+
+pub(super) fn declarations(module: &mir::Module) -> Declarations {
+    module
+        .functions
+        .values()
+        .flat_map(|function| function.body.locals.values())
+        .filter_map(|local| match &local.debug_variable {
+            mir::DebugVariable::Source { declaration, .. } => {
+                Some((declaration.identity, declaration.clone()))
+            }
+            mir::DebugVariable::Generated => None,
+        })
+        .collect()
+}
+
 pub(super) fn types(
     context: &LoweringContext,
     module: &mir::Module,
@@ -47,6 +64,11 @@ pub(super) fn types(
             if matches!(local.debug_variable, mir::DebugVariable::Source { .. }) {
                 builder.source(&local.ty)?;
             }
+        }
+    }
+    for closure in module.closure_classes.values() {
+        for capture in &closure.captures {
+            builder.source(&capture.ty)?;
         }
     }
     for global in module.globals.values() {
