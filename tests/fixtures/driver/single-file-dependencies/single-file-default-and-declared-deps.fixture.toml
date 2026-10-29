@@ -128,7 +128,7 @@ checks = [{"actual" = "${tests.test_result.counts.passed}", "equals" = 1}]
 
 [[steps]]
 name = "docs"
-argv = ["${scoop}", "doc", "${fixture}/ignored", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--output-dir", "${work}/docs", "--no-deps", "--message-format", "json"]
+argv = ["${scoop}", "doc", "${fixture}/ignored", "--target", "${target}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--output-dir", "${work}/docs", "--no-deps", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
