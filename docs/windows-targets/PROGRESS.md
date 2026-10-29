@@ -40,7 +40,7 @@ Windows 主驱动的安装名为 **`sco.exe`**，帮助和版本信息使用 `sc
 
 编译期输入主线整合后，47 项协议、11 项产物固定向量、7 项缓存键及 8 项 Windows codegen 测试通过。Windows 环境输入覆盖缺失、空值、Unicode 和无效 UTF-16；child 复用原有 Windows 工具环境，并保留调用者的 `SCOOP_*` 值。macOS 打包采用主线修正后的 Rust 默认 CPU baseline，Windows 宿主命名和 target 选择保持独立。
 
-文件 fixture 的 Windows 扩展仍在验收。公共 runner 的格式化／Ruff 通过，68 项规则测试完成（其中 3 项按宿主跳过）。33 个继承规则用例复用固定的共享 core 后全部通过；6 个 primitive inherited-method 用例也已通过，其中五个共享固定输入，combined 保留修改前后的真实 core 构建。6 个根类型错误用例精确断言被测规则诊断，去除对其他 core 源码连带错误的完整快照依赖，均已通过。较大的完整 core 构建步骤采用 900 秒测试时限；普通运行断言不变。Windows 本地化错误、LF 字节位置、COFF archive 成员、当前 runtime 字段以及泛型初始化登记的断言按实际合同调整，不通过隐藏输入或工具验收复用。
+文件 fixture 的 Windows 扩展仍在验收。ABI 29／协议 23 下新增验收的 107 个诊断 fixture 全部通过，覆盖 smart cast、类型别名、尾随 lambda、可见性、源码头、UTF-8 与 when 规则；共享预编译 core，共 107 次 CLI 调用。公共 runner 的格式化／Ruff 通过，68 项规则测试完成（其中 3 项按宿主跳过）。33 个继承规则用例复用固定的共享 core 后全部通过；6 个 primitive inherited-method 用例也已通过，其中五个共享固定输入，combined 保留修改前后的真实 core 构建。6 个根类型错误用例精确断言被测规则诊断，去除对其他 core 源码连带错误的完整快照依赖，均已通过。较大的完整 core 构建步骤采用 900 秒测试时限；普通运行断言不变。Windows 本地化错误、LF 字节位置、COFF archive 成员、当前 runtime 字段以及泛型初始化登记的断言按实际合同调整，不通过隐藏输入或工具验收复用。
 
 ## 系统库与 native 后端
 
