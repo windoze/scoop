@@ -1,0 +1,52 @@
+package scoop.window
+
+@Extern(name = "scoop_window_position")
+internal fun nativeWindowPosition(window: Ptr<Unit>, x: Double, y: Double)
+
+@Extern(name = "scoop_window_constraints")
+internal fun nativeWindowConstraints(
+    window: Ptr<Unit>,
+    minWidth: Double,
+    minHeight: Double,
+    maxWidth: Double,
+    maxHeight: Double
+)
+
+@Extern(name = "scoop_window_resize_increments")
+internal fun nativeWindowResizeIncrements(window: Ptr<Unit>, width: Double, height: Double)
+
+@Extern(name = "scoop_window_resizable")
+internal fun nativeWindowResizable(window: Ptr<Unit>, value: Int)
+
+@Extern(name = "scoop_window_decorations")
+internal fun nativeWindowDecorations(window: Ptr<Unit>, value: Int)
+
+@Extern(name = "scoop_window_buttons")
+internal fun nativeWindowButtons(window: Ptr<Unit>, close: Int, minimize: Int, maximize: Int)
+
+@Extern(name = "scoop_window_level")
+internal fun nativeWindowLevel(window: Ptr<Unit>, level: Int)
+
+@Extern(name = "scoop_window_minimized")
+internal fun nativeWindowMinimized(window: Ptr<Unit>, value: Int)
+
+@Extern(name = "scoop_window_maximized")
+internal fun nativeWindowMaximized(window: Ptr<Unit>, value: Int)
+
+@Extern(name = "scoop_window_theme")
+internal fun nativeWindowTheme(window: Ptr<Unit>, value: Int)
+
+@Extern(name = "scoop_window_transparent")
+internal fun nativeWindowTransparent(window: Ptr<Unit>, value: Int)
+
+@Extern(name = "scoop_window_blur")
+internal fun nativeWindowBlur(window: Ptr<Unit>, value: Int)
+
+@Extern(name = "scoop_window_content_protection")
+internal fun nativeWindowContentProtection(window: Ptr<Unit>, value: Int)
+
+@Extern(name = "scoop_window_attention")
+internal fun nativeWindowAttention(window: Ptr<Unit>, value: Int)
+
+@Extern(name = "scoop_window_titlebar")
+internal fun nativeWindowTitlebar(window: Ptr<Unit>, flags: Int)

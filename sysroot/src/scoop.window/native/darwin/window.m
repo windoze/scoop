@@ -136,13 +136,16 @@ void *scoop_window_create(void *application, int64_t identity,
     owner.view = [[SWView alloc] initWithFrame:NSMakeRect(0, 0, width, height)];
     owner.view.owner = owner;
     owner.view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-    owner.window.contentView = owner.view;
+    NSView *content = [[NSView alloc] initWithFrame:owner.view.frame];
+    [content addSubview:owner.view];
+    owner.window.contentView = content;
     owner.window.delegate = owner;
     owner.window.releasedWhenClosed = NO;
     owner.window.title = [[NSString alloc] initWithBytes:title
                                                   length:(NSUInteger)length
                                                 encoding:NSUTF8StringEncoding];
     if (flags & 4) {
+      owner.transparent = YES;
       owner.window.opaque = NO;
       owner.window.backgroundColor = NSColor.clearColor;
     }
@@ -166,6 +169,8 @@ SWSnapshot scoop_window_snapshot(void *pointer) {
 
 void scoop_window_destroy(void *pointer) {
   SWWindow *owner = (__bridge SWWindow *)pointer;
+  if (owner.attentionRequest)
+    [NSApp cancelUserAttentionRequest:owner.attentionRequest];
   owner.window.delegate = nil;
   owner.view.owner = nil;
   [owner.window orderOut:nil];

@@ -1,0 +1,269 @@
+package scoop.window
+
+/** Optional content-size limits; each present size is finite and nonnegative. */
+public struct WindowSizeConstraints(val min: LogicalSize? = None, val max: LogicalSize? = None) {
+    internal fun validate() {
+        when (min) {
+            case Some(value) -> checkSize(value);
+            case None -> {}
+        }
+        when (max) {
+            case Some(value) -> checkSize(value);
+            case None -> {}
+        }
+        when ((min, max)) {
+            case(Some(low), Some(high)) -> requireWindow(
+                low.width <= high.width && low.height <= high.height,
+                "inconsistent size constraints"
+            )
+            else -> {}
+        }
+    }
+    internal fun check(size: LogicalSize) {
+        when (min) {
+            case Some(value) -> requireWindow(
+                size.width >= value.width && size.height >= value.height,
+                "size is below its minimum"
+            );
+            case None -> {}
+        }
+        when (max) {
+            case Some(value) -> requireWindow(
+                size.width <= value.width && size.height <= value.height,
+                "size exceeds its maximum"
+            );
+            case None -> {}
+        }
+    }
+}
+
+/** Requests desktop placement in global display-system coordinates. */
+public fun Window.requestPosition(position: DesktopPosition): RequestStatus {
+    owner.requireOpen()
+    requireWindow(position.x.isFinite() && position.y.isFinite(), "non-finite desktop position")
+    @Unsafe
+    {
+        nativeWindowPosition(owner.pointer!!, position.x, position.y)
+    }
+    return RequestStatus.Requested
+}
+
+/** Updates native limits and requests a clamped content size when necessary. */
+public fun Window.setSizeConstraints(constraints: WindowSizeConstraints): RequestStatus {
+    owner.requireOpen();
+    constraints.validate()
+    val minimum = constraints.min ?: LogicalSize(0.0, 0.0)
+    val maximum = constraints.max ?: LogicalSize(-1.0, -1.0)
+    @Unsafe
+    {
+        nativeWindowConstraints(
+            owner.pointer!!,
+            minimum.width,
+            minimum.height,
+            maximum.width,
+            maximum.height
+        )
+    }
+    owner.constraints = constraints
+    return RequestStatus.Requested
+}
+
+/** Sets positive interactive resize steps, or restores AppKit's default. */
+public fun Window.setResizeIncrements(increments: LogicalSize?): RequestStatus {
+    owner.requireOpen()
+    val value = increments ?: LogicalSize(1.0, 1.0)
+    checkIncrements(value)
+    @Unsafe
+    {
+        nativeWindowResizeIncrements(owner.pointer!!, value.width, value.height)
+    }
+    return RequestStatus.Applied
+}
+
+/** Enables or disables interactive window resizing. */
+public fun Window.setResizable(value: Boolean): RequestStatus {
+    owner.requireOpen()
+    @Unsafe
+    {
+        nativeWindowResizable(owner.pointer!!, flag(value))
+    }
+    return RequestStatus.Applied
+}
+
+/** Changes native decorations while retaining the configured button policy. */
+public fun Window.setDecorations(value: Boolean): RequestStatus {
+    owner.requireOpen()
+    @Unsafe
+    {
+        nativeWindowDecorations(owner.pointer!!, flag(value))
+    }
+    setEnabledButtons(owner.buttons)
+    return RequestStatus.Applied
+}
+
+/** Sets the native close, minimize, and zoom button availability. */
+public fun Window.setEnabledButtons(buttons: WindowButtons): RequestStatus {
+    owner.requireOpen()
+    @Unsafe
+    {
+        nativeWindowButtons(
+            owner.pointer!!,
+            flag(buttons.close),
+            flag(buttons.minimize),
+            flag(buttons.maximize)
+        )
+    }
+    owner.buttons = buttons
+    return RequestStatus.Applied
+}
+
+/** Selects a native ordering level without claiming keyboard focus. */
+public fun Window.setWindowLevel(level: WindowLevel): RequestStatus {
+    owner.requireOpen()
+    val value =
+        when (level) {
+            case Normal -> 0;
+            case AlwaysOnTop -> 1;
+            case AlwaysOnBottom -> -1
+        }
+    @Unsafe
+    {
+        nativeWindowLevel(owner.pointer!!, value)
+    }
+    return RequestStatus.Applied
+}
+
+/** Requests native miniaturization or restoration. */
+public fun Window.requestMinimized(value: Boolean): RequestStatus {
+    owner.requireOpen()
+    @Unsafe
+    {
+        nativeWindowMinimized(owner.pointer!!, flag(value))
+    }
+    return RequestStatus.Requested
+}
+
+/** Requests native zoom or restoration; AppKit determines the actual zoom frame. */
+public fun Window.requestMaximized(value: Boolean): RequestStatus {
+    owner.requireOpen()
+    @Unsafe
+    {
+        nativeWindowMaximized(owner.pointer!!, flag(value))
+    }
+    return RequestStatus.Requested
+}
+
+/** Observes native miniaturization. */
+public val Window.isMinimized: Boolean? get() = Some(owner.snapshot().minimized != 0)
+
+/** Observes native zoom state. */
+public val Window.isMaximized: Boolean? get() = Some(owner.snapshot().maximized != 0)
+
+/** Requests a preferred appearance; None follows the application/system. */
+public fun Window.requestTheme(theme: Theme?): RequestStatus {
+    owner.requireOpen()
+    val value =
+        when (theme) {
+            case Some(Theme.Light) -> 0;
+            case Some(Theme.Dark) -> 1;
+            case None -> -1
+        }
+    @Unsafe
+    {
+        nativeWindowTheme(owner.pointer!!, value)
+    }
+    return RequestStatus.Requested
+}
+
+/** Controls the window background opacity independently of a blur request. */
+public fun Window.setTransparent(value: Boolean): RequestStatus {
+    owner.requireOpen()
+    @Unsafe
+    {
+        nativeWindowTransparent(owner.pointer!!, flag(value))
+    }
+    return RequestStatus.Applied
+}
+
+/** Places a native visual-effect background behind the renderer host view. */
+public fun Window.setBlur(value: Boolean): RequestStatus {
+    owner.requireOpen()
+    @Unsafe
+    {
+        nativeWindowBlur(owner.pointer!!, flag(value))
+    }
+    return RequestStatus.Applied
+}
+
+/** Requests the system's content-sharing hint, without promising capture prevention. */
+public fun Window.setContentProtected(value: Boolean): RequestStatus {
+    owner.requireOpen()
+    @Unsafe
+    {
+        nativeWindowContentProtection(owner.pointer!!, flag(value))
+    }
+    return RequestStatus.Requested
+}
+
+/** Requests or cancels native user attention independently of activation. */
+public fun Window.requestAttention(kind: AttentionKind): RequestStatus {
+    owner.requireOpen()
+    val value =
+        when (kind) {
+            case Informational -> 0;
+            case Critical -> 1;
+            case Cancel -> -1
+        }
+    @Unsafe
+    {
+        nativeWindowAttention(owner.pointer!!, value)
+    }
+    return RequestStatus.Requested
+}
+
+internal fun flag(value: Boolean): Int =
+    if (value)
+        1
+    else
+        0
+
+internal fun checkIncrements(value: LogicalSize) {
+    checkSize(value)
+    requireWindow(value.width > 0.0 && value.height > 0.0, "resize increments must be positive")
+}
+
+internal fun validateAttributes(attributes: WindowAttributes) {
+    checkSize(attributes.size)
+    attributes.constraints.validate()
+    attributes.constraints.check(attributes.size)
+    when (attributes.position) {
+        case Some(value) -> requireWindow(
+            value.x.isFinite() && value.y.isFinite(),
+            "non-finite desktop position"
+        );
+        case None -> {}
+    }
+    when (attributes.resizeIncrements) {
+        case Some(value) -> checkIncrements(value);
+        case None -> {}
+    }
+}
+
+internal fun applyCreationProperties(owner: WindowOwner, attributes: WindowAttributes) {
+    val window = Window(owner)
+    @Unsafe
+    {
+        nativeWindowTitlebar(owner.pointer!!, attributes.titlebarFlags)
+    }
+    window.setSizeConstraints(attributes.constraints)
+    window.setResizeIncrements(attributes.resizeIncrements)
+    window.setEnabledButtons(attributes.buttons)
+    window.setWindowLevel(attributes.level)
+    window.requestTheme(attributes.theme)
+    window.setBlur(attributes.blur)
+    window.setContentProtected(attributes.contentProtected)
+    when (attributes.position) {
+        case Some(value) -> window.requestPosition(value);
+        case None -> {}
+    }
+}

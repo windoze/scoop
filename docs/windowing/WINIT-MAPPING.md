@@ -1,6 +1,8 @@
 # winit 能力映射与首期范围
 
-状态：设计，待实施；更新于 2026-10-30。与 [DESIGN.md](DESIGN.md) 和[规范草案](../specs/SCOOP-WINDOW-SPEC.md)一起阅读。基线为 winit 0.30.13 的桌面能力；“本期”表示本设计要求后续实施，不表示当前已有。
+状态：分阶段实施；更新于 2026-10-30。与 [DESIGN.md](DESIGN.md) 和[规范](../specs/SCOOP-WINDOW-SPEC.md)一起阅读。基线为 winit 0.30.13 的桌面能力；下表是完整能力地图，实际交付以 [PROGRESS.md](PROGRESS.md) 为准。
+
+当前阶段先交付 macOS GUI 骨架：应用／窗口、proxy／关闭／lease、基础属性、显示器与 DPI、键盘／鼠标／滚轮／IME、renderer 与 asyncio 接入。独占显示模式、全局 raw device、触摸／高级手势、光标捕获和复杂平台窗口交互后续补充。表中的“本期”描述原设计的窗口层目标范围，不能据此扩大当前阶段，也不代表要实现完整 AppKit GUI。
 
 范围分为：本期通用、本期按平台能力、平台扩展、后续／范围外。不承诺逐字复制 Rust API、trait、Drop 或所有平台扩展。Scoop 尚未发布；本表随实际实现直接修订，不保留旧草案签名兼容层，也不为未来平台穷举无实现的变体。窗口后端使用原生系统／协议库；全项目 Rust 依赖汇总和统一 staticlib 构建属于独立流水线工作，不在本表范围内。
 
@@ -43,7 +45,8 @@
 | KeyboardInput／ModifiersChanged | KeyEvent／ModifiersChanged | 本期，物理键／逻辑键／位置／repeat／synthetic 分离 |
 | KeyEvent.text 与 IME Commit | TextInputEvent.Edit 批次中的 Commit 操作 | 本期统一文字入口；同批删除、提交和组合更新只调用一次 handler |
 | Ime Preedit／Enabled／Disabled | 批次内 Preedit／ClearPreedit 及 Enabled／Disabled 事件 | 本期；UTF-8 字节范围、选择活动端、candidate rect；完整操作见窗口规范第 5 节 |
-| IME purpose／allowed／cursor area、dead-key reset | 对应窗口方法及 updateTextInput | 本期按能力；使用完整文本快照，整批应用后更新 revision，协议 serial 独立保存 |
+| IME allowed／cursor area、dead-key reset | setImeAllowed／setImeCursorArea、失焦撤销组合 | 本阶段；只保存 native marked text，UTF-16 转 UTF-8，不发布应用文档 |
+| IME purpose、surrounding 文档与重转换 | 后续文本输入扩展 | 后续；TextInputState 当前为应用纯值辅助，不要求窗口层维护编辑器镜像 |
 | CursorEntered／Left／Moved／MouseInput | 指针事件与按钮 | 本期；坐标和设备来源明确 |
 | MouseWheel／AxisMotion | LineDelta／PixelDelta 与轴事件 | 本期按能力；设备单位不冒充像素 |
 | DeviceEvent、raw motion 与监听策略 | ApplicationEvent.Device、FocusedOnly／Always／Never | 本期按能力；不隐式打开全局监听 |
@@ -68,4 +71,4 @@
 | Android／iOS／Web／orbital 的专用入口与扩展 | 范围外 |
 | clipboard、菜单模型、文件对话框、accessibility、IME 编辑器布局、Skia 图形设备 | 不属于 winit 对应基础层，后续库实现 |
 
-平台能力缺失与未实施功能必须区分。实现某一交付批次时，不能把尚未写完的分支永久返回 Unsupported，声称该平台没有能力。先以真实窗口、提交一帧、asyncio 和 lease 关闭完成端到端子集，再扩大能力；每批按实际范围交付并修订 API，完成整个映射表后标记本设计交付。
+平台能力缺失与未实施功能必须区分。实现某一交付批次时，不能把尚未写完的分支永久返回 Unsupported，声称该平台没有能力。先以真实窗口、提交一帧、asyncio 和 lease 关闭完成端到端子集，再扩大能力；每批按实际范围交付并修订 API。当前骨架阶段完成与整个能力地图完成分别记录。

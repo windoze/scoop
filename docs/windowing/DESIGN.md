@@ -2,6 +2,8 @@
 
 状态：实施中。更新：2026-10-30。本阶段完成基础架构与 macOS；Linux Wayland／X11、Windows 及其他窗口后端留到后续阶段。下文 Linux／Windows 章节保留设计方向，不是本阶段验收项。实施进展见 [PROGRESS.md](PROGRESS.md)。
 
+本轮按 winit 的职责搭建可供 GUI 使用的骨架：真实窗口／主循环、显式生命周期与 proxy、基础窗口属性、DPI／显示器快照、键盘／指针／滚轮／文本输入、native lease、renderer 和 asyncio 接入。winit 的完整能力地图用于确定边界和后续扩展方向，不要求本轮复制它的全部平台扩展。独占显示模式、全局原始设备监听、触摸／高级手势、光标捕获及平台专有的复杂窗口交互分批补充；未实施项不以 Unsupported 伪装成平台不支持。控件、布局、菜单体系和应用编辑器仍由上层 GUI 实现。
+
 目标是为 Skia／HarfBuzz 上层 GUI 提供 winit 对应的窗口、输入、显示器与主循环能力。公共 API 使用 Scoop，平台实现使用成熟的系统／协议库。功能基线取 [winit 0.30.13](https://docs.rs/winit/0.30.13/winit/)，另参考 0.31 beta 的演进方向，不追随其未稳定 API；逐项范围见 [WINIT-MAPPING.md](WINIT-MAPPING.md)，目标合同见[窗口库规范草案](../specs/SCOOP-WINDOW-SPEC.md)。
 
 Scoop 尚未发布任何版本。语言、库 API、runtime ABI、native 产物组织和构建流程均可按实际需求调整；不为旧草案保留兼容别名、转发层、双轨实现或预先冻结未来平台的参数与事件。每次变更先更新规范，再同步实现、调用方和必要重建。同一次构建的类型、格式、目标与 ABI 相容性仍是正确性要求。取消历史兼容负担不扩大本次工作范围，跨流水线的新能力仍须独立设计。
@@ -44,7 +46,7 @@ Widgets、布局、状态重组、字体排版、剪贴板、菜单模型、文�
 
 ## 3. 公共对象与运行入口
 
-采用 `Application` 表示窗口系统主循环，避免与 I/O 的 `EventLoop` 同名。以下为主要目标签名，相关值类型与事件字段见规范草案和映射表；这些声明尚未实现。
+采用 `Application` 表示窗口系统主循环，避免与 I/O 的 `EventLoop` 同名。以下为主要接口分组，相关值类型与事件字段见窗口规范和映射表；当前交付与测试见实施记录。
 
 ```scoop
 public class Application public constructor(options: ApplicationOptions = ApplicationOptions()) {
@@ -157,13 +159,15 @@ MonitorId、WindowId、DeviceId、TouchId 均为不同值类型，库内分配�
 
 文字统一通过 `TextInputEvent.Edit(TextInputBatch)` 中的 Commit 操作插入：普通可打印键、dead-key compose 和 IME 都归一到该入口；LogicalKey 用于快捷键和键位语义，不再隐式插入第二份字符。TextInputEvent 只含 Enabled、Disabled、Edit，旧草案的独立 Preedit／Commit／DeleteSurrounding 事件直接替换，不提供兼容别名。失焦时撤销 active preedit、清理按下状态；需要合成 release 时标记 synthetic，不伪造真实输入时间。
 
-输入法基础 API 为 `setImeAllowed`、`setImePurpose`、`setImeCursorArea` 和 `updateTextInput(state: TextInputState)`。快照包含 surroundingText、带 anchor／cursor 的 selection、可选 marked range、caret rect 和 revision；所有范围以该快照 UTF-8 字节为单位并落在字符边界，选择保留活动端方向。平台层转换 AppKit／Win32 的 UTF-16 索引与 Wayland 的字节索引。只改变候选窗位置不推进文本 revision。
+本阶段输入法 API 为 `setImeAllowed` 和 `setImeCursorArea`，对应 winit 的 marked／preedit、commit 与候选窗位置。AppKit 只保存 native marked text，不维护完整编辑器文档镜像，也不提供重转换；purpose 和 surrounding 文档桥后续随上层编辑器需求增加。[winit 0.30.13 的 NSTextInputClient 实现](https://github.com/rust-windowing/winit/blob/v0.30.13/src/platform_impl/macos/view.rs)同样不提供 attributedSubstring 文档查询。
+
+`TextInputState` 保留为应用可选用的纯值编辑辅助，包含 surroundingText、带 anchor／cursor 的 selection、可选 marked range、caret rect 和 revision；所有范围以 UTF-8 字节为单位并落在字符边界，选择保留活动端方向。AppKit 转换实际 marked text 的 UTF-16 选区，产生不依赖文档 revision 的 CurrentSelection 编辑。只改变候选窗位置不推进文本 revision。
 
 TextInputBatch 携带可选 baseRevision 和有序编辑操作，具体载荷见[窗口规范第 5 节](../specs/SCOOP-WINDOW-SPEC.md#5-输入与文本)。一批操作只调用一次 handler，在开始时检查基础快照，按批次内顺序解释后续位置，最后发布一次新快照。不能在删除 surrounding 后立即推进公开 revision，再把同批 commit／preedit 当成过期数据。范围引用失效或 native 数据非法时整批拒绝并重新同步，不部分应用；无需旧快照的普通 CurrentSelection 提交保持可用。
 
 Wayland 每个 text-input-v3.done 形成一个批次，依协议顺序清除旧 preedit、删除 surrounding、提交文字和设置新 preedit。协议 done serial 与编辑器 revision 分别保存，前者不匹配不能直接作为丢弃输入的理由；平台按协议处理状态提交。AppKit 一次输入解释、未来 TSF 一次编辑会话同样保留原生更新边界。[text-input-v3 协议](https://github.com/wayland-mirror/wayland-protocols/blob/main/unstable/text-input/text-input-unstable-v3.xml)给出了顺序与 serial 规则。
 
-平台使用 native 文本副本回答同步询问，归一同一原生批次时顺序维护其临时文本状态，不在 NSTextInputClient／未来 TSF 回调中挂起。password 目的不得向平台提供密码正文，仍可提供候选窗位置和必要长度信息。窗口层只转换文本更新和坐标，编辑器保留真实文档、布局与 grapheme 导航的责任。
+平台使用当前 native marked text 和候选窗矩形回答同步询问，不在 NSTextInputClient／未来 TSF 回调中挂起。当前 AppKit 桥不发布应用文档正文。窗口层只转换文本更新和坐标，编辑器保留真实文档、布局与 grapheme 导航的责任；后续 purpose／surrounding 扩展也不得向平台发布密码正文。
 
 鼠标区分按键、进入／离开、窗口内位置、相对设备位移。滚轮保留 LineDelta 与 PixelDelta，明确相位和惯性信息；不能猜测每行固定像素数。触摸携带独立 contact id、phase、位置和可选 pressure；原生 pinch／rotation／pan／double-tap／pressure 保留事件来源与单位。不支持的原生手势不靠周期采样伪造。
 
@@ -275,4 +279,4 @@ Windows 后端要求创建窗口的 owner 使用 Per-Monitor V2。应用优先�
 
 Windows 的首期工作是审查公共语义与已实现平台基础的接缝：普通窗口参数不携带 fd／HWND，错误和 native 句柄保留实际来源与宽度；通知复用 EventLoopNotification，后续实施满足模态循环和 DPI 初始化合同。无需预留所有未来 enum 分支，也不把静态表示审查或空 stub 当成 Windows 窗口验收。
 
-性能只记录空闲 CPU／唤醒、输入到 handler、redraw 合并、I/O 与 UI 同时繁忙时的延迟及关闭耗时；主循环不引入通用预算或计费。渲染性能与完整 GUI 基准留到实际 renderer 接入。本次没有实现代码、运行新测试或发布任何窗口库产物。
+性能只记录空闲 CPU／唤醒、输入到 handler、redraw 合并、I/O 与 UI 同时繁忙时的延迟及关闭耗时；主循环不引入通用预算或计费。渲染性能与完整 GUI 基准留到实际 renderer 接入。当前代码与验收结果见实施记录。

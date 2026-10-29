@@ -6,6 +6,8 @@
 
 window 依赖 core／std／platform；window.asyncio 另依赖 asyncio。本阶段实施基础架构与 Darwin ARM64／AppKit。Linux Wayland／X11、Windows 及其他后端留待后续；不添加没有后端的 native handle 变体或假窗口实现。两个库及其原生薄层、测试、示例均以普通 Cone 组织，窗口逻辑不进入编译器或 runtime。
 
+本轮范围按 winit 定位为 GUI 骨架：应用／窗口与基础属性、基础输入／IME、DPI／显示器快照、渲染句柄和 I/O 集成。下文的完整窗口层模型同时保留后续扩展方向；独占全屏／视频模式切换、全局 raw device、触摸／高级手势、光标捕获及复杂平台窗口交互不作为当前骨架验收项。未实施接口随实际需求再增加，不为占据 API 名称加入空实现。
+
 公共应用对象不暴露 fd、HWND、XID、dispatch queue 或 ring。现有 Job／CoroutineScope、Context、ForeignCallback、时间、路径与异常规则继续适用；窗口库不承担布局、排版、绘制设备、I/O 调度或另一套任务树。
 
 ## 2. 应用与线程
@@ -40,13 +42,19 @@ WindowMetrics 包含 logicalSize、physicalSize、scaleFactor，scaleFactor 必�
 
 全屏统一为 Windowed／Borderless(Monitor?)／Exclusive(VideoMode)，级别统一为 Normal／AlwaysOnTop／AlwaysOnBottom。不支持的操作明确返回，Windows 实现不能要求新增一个表达同一语义的变体。平台专有选项放在 platform 子包。
 
+尺寸约束分别保存可选 min／max，非负且 min 不大于 max；创建尺寸必须满足约束。运行中收紧约束时请求调整当前内容大小，实际结果由 GeometryChanged 确认。resize increments 为可选的有限正尺寸，None 恢复平台默认。属性在创建返回前复制并应用，再按 visible／activation 请求显示窗口；不会先显示一个忽略所需属性的窗口。
+
+AppKit 使用原生内容尺寸／桌面坐标、titlebar 按钮、window level、miniaturize／zoom、appearance 与 NSVisualEffectView。模糊背景放在 renderer 宿主 view 后面，关闭模糊时恢复独立的 transparent 设置。content protection 使用系统分享提示，返回 Requested，不保证屏幕捕获系统遵守该提示。macOS 的 activation policy 和 titlebar／full-size-content 选项位于 platform.macos；应用标识只查询实际 main bundle，命令行进程没有 bundle identifier 时返回 None。
+
 ## 5. 输入与文本
 
 KeyEvent 分离 PhysicalKey、LogicalKey、KeyLocation、state、repeat、modifiers 和 synthetic；LogicalKey 支持 Named／Character(String)／Dead／Unidentified，未知 native 键码保留实际编码来源，本阶段为 Darwin。修饰键含 Shift、Control、Alt、Super、锁定状态和可取得的左右侧信息。
 
 文字统一由 `TextInputEvent.Edit(TextInputBatch)` 中的 Commit 操作交付；普通键、compose、IME 不得重复插入。TextInputEvent 只有 Enabled／Disabled／Edit。一次 AppKit 输入解释形成一个编辑批次，以一个事件调用 handler。范围为 UTF-8 字节区间且位于字符边界，平台 UTF-16 索引在 native 边界转换；非法 native 范围触发状态重同步，不越界访问。
 
-TextInputState 包含 surroundingText、selection、markedRange?、caretRect、revision。selection 保存 anchor／cursor，不能排序后丢失选择活动端；markedRange 为 Utf8Range。setImeAllowed、setImePurpose、setImeCursorArea 与 updateTextInput 只在 owner 上更新。系统同步询问从 native 副本回答；password 模式不发布密码正文。只修改候选窗位置不推进文本 revision。组合与真实编辑状态由上层编辑器持有，窗口库不负责排版或 grapheme 导航。
+本阶段提供 owner 线程上的 setImeAllowed 与 setImeCursorArea，采用 winit 0.30.13 的 AppKit 文本输入边界：NSTextInputClient 只保存当前 marked text 和候选窗矩形，不向系统发布完整编辑器文档，attributedSubstring 查询返回 nil。原生询问直接从这些 native 值回答，不进入 managed handler 或挂起。完整 surrounding 文档桥接、重转换与 purpose 扩展后续按实际编辑器需求增加。
+
+TextInputState 是应用可选用的纯值编辑辅助，包含 surroundingText、selection、markedRange?、caretRect、revision；它不是本阶段自动发布给 OS 的文档镜像。selection 保存 anchor／cursor，不能排序后丢失选择活动端；markedRange 为 Utf8Range。只修改候选窗位置不推进应用文本 revision。组合与真实编辑状态由上层编辑器持有，窗口库不负责排版或 grapheme 导航。
 
 TextInputBatch 保存可选 baseRevision 与有序的 TextInputOperation 数组。Utf8Range 是非负、半开的 Long 字节区间，start 不大于 end；Utf8Selection 的两端均非负。操作如下：
 
@@ -57,7 +65,7 @@ TextInputBatch 保存可选 baseRevision 与有序的 TextInputOperation 数组�
 | Commit | text、replacement；replacement 为 CurrentSelection 或 Range(Utf8Range)，范围引用该批前序操作产生的临时文本 |
 | DeleteSurrounding | beforeBytes、afterBytes；相对当前 selection 两侧，须校验长度与字符边界 |
 
-批次开始时核对 baseRevision，按顺序在临时文本上解释范围，整批通过后发布一次新快照。任何范围或 revision 失效均拒绝整批并重新同步，不能部分应用；原生协议 serial 独立于编辑器 revision。普通 CurrentSelection Commit 不因没有 surrounding 快照而丢失。IME 目的统一 Normal／Password／Terminal，平台不能完全满足某种 purpose 时仅作为建议，不改变实际文本的编码。
+纯值批次开始时核对 baseRevision，按顺序在临时文本上解释范围，整批通过后发布一次新快照。任何范围或 revision 失效均拒绝整批，不能部分应用。AppKit 基础桥产生 baseRevision=None、CurrentSelection 的 Preedit／Commit；普通文本不依赖 surrounding 快照。取消组合产生空 Preedit，删除应用正在显示的组合内容；不能只用 ClearPreedit 清除标记后再重复插入 Commit。原生 UTF-16 选区必须合法且不切断 surrogate pair，非法批次拒绝并撤销组合。未来需要 surrounding 的协议再接入文档快照与协议 serial，不为当前桥引入独立同步状态机。
 
 `TextInputState.apply(batch)` 提供上述字节编辑规则的纯值实现，供输入归一和应用同步快照使用，不承担文档布局。CurrentSelection 在存在 marked range 时替换组合文本，否则替换 selection；ClearPreedit 只清除 marked 标记。Preedit 插入后设置 marked range，并把相对 selection 平移到新文本；Commit 清除组合，光标落在插入末尾。DeleteSurrounding 删除 selection 之前／之后指定字节，保留选区正文与活动端方向，清除组合标记。成功批次统一使 revision 加一，空批次保持原值；过期 revision 报 IllegalStateException，非法范围、尺寸或 revision 溢出报 IllegalArgumentException，原快照保持不变。
 

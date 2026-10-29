@@ -49,6 +49,9 @@ typedef struct {
 @property(nonatomic) int64_t identity;
 @property(nonatomic, strong) NSWindow *window;
 @property(nonatomic, strong) SWView *view;
+@property(nonatomic, strong) NSVisualEffectView *effect;
+@property(nonatomic) BOOL transparent;
+@property(nonatomic) NSInteger attentionRequest;
 - (void)emit:(int32_t)kind;
 @end
 

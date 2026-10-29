@@ -21,6 +21,7 @@ private class MetalWindowHandler(val closeAfterFrame: Boolean): ApplicationHandl
     var window: Window? = None
     var surface: MetalSurface? = None
     var frames = 0
+    var redraws = 0
     var closed = false
     var destroyed = false
 
@@ -29,7 +30,15 @@ private class MetalWindowHandler(val closeAfterFrame: Boolean): ApplicationHandl
             case Resumed -> {
                 val value =
                     application.createWindow(
-                        WindowAttributes("Scoop · Metal", LogicalSize(480.0, 300.0))
+                        WindowAttributes(
+                            "Scoop · Metal",
+                            LogicalSize(480.0, 300.0),
+                            level =
+                                if (closeAfterFrame)
+                                    WindowLevel.AlwaysOnTop
+                                else
+                                    WindowLevel.Normal
+                        )
                     )
                 window = Some(value)
                 surface = Some(MetalSurface.create(value))
@@ -41,10 +50,28 @@ private class MetalWindowHandler(val closeAfterFrame: Boolean): ApplicationHandl
                     )
             }
             case NewEvents(StartCause.Deadline) -> throw IllegalStateException(
-                Some("Metal frame deadline expired")
+                Some(
+                    "Metal frame deadline expired: redraws=" +
+                        redraws.toString() +
+                        ", visible=" +
+                        window!!.isVisible.toString() +
+                        ", occluded=" +
+                        window!!.isOccluded.toString() +
+                        ", focused=" +
+                        window!!.isFocused.toString() +
+                        ", x=" +
+                        window!!.outerBounds!!.origin.x.toString() +
+                        ", y=" +
+                        window!!.outerBounds!!.origin.y.toString() +
+                        ", width=" +
+                        window!!.metrics!!.physicalSize.width.toString() +
+                        ", height=" +
+                        window!!.metrics!!.physicalSize.height.toString()
+                )
             )
             case Window(_, WindowEvent.GeometryChanged(_)) -> window!!.requestRedraw()
             case Window(_, WindowEvent.RedrawRequested) -> {
+                redraws += 1
                 if (surface!!.present()) {
                     frames += 1
                     if (closeAfterFrame)

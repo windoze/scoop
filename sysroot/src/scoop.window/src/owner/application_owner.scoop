@@ -149,43 +149,18 @@ internal class ApplicationOwner(
         checkThread()
         if (exiting || native == None)
             throw WindowException("create window", WindowErrorKind.InvalidState)
-        checkSize(attributes.size)
+        validateAttributes(attributes)
         attributes.size.toPhysical(1.0)
         if (nextWindow == 9223372036854775807L)
             throw WindowException("window identity", WindowErrorKind.NativeFailure)
         val identity = WindowId(nextWindow)
         nextWindow += 1L
         val flags =
-            (
-                if (attributes.decorations)
-                    1
-                else
-                    0
-            ) +
-                (
-                    if (attributes.resizable)
-                        2
-                    else
-                        0
-                ) +
-                (
-                    if (attributes.transparent)
-                        4
-                    else
-                        0
-                ) +
-                (
-                    if (attributes.visible)
-                        8
-                    else
-                        0
-                ) +
-                (
-                    if (attributes.requestActivation)
-                        16
-                    else
-                        0
-                )
+            flag(attributes.decorations) +
+                flag(attributes.resizable) *
+                2 +
+                flag(attributes.transparent) *
+                4
         val size = attributes.size
         @Unsafe
         {
@@ -208,12 +183,20 @@ internal class ApplicationOwner(
                 ) ?:
                     throw WindowException("create window", WindowErrorKind.NativeFailure)
             val owner = WindowOwner(this, identity, pointer)
-            @Unsafe
-            {
+            try {
+                applyCreationProperties(owner, attributes)
                 owner.metrics = Some(nativeWindowSnapshot(pointer).metrics())
+            } catch (error: Throwable) {
+                nativeWindowDestroy(pointer)
+                throw error
             }
             windows.add(owner)
             createdWindow = true
+            if (attributes.visible) {
+                nativeWindowVisible(pointer, 1)
+                if (attributes.requestActivation)
+                    nativeWindowFocus(pointer)
+            }
             return Window(owner)
         }
     }

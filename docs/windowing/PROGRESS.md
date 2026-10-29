@@ -2,6 +2,8 @@
 
 本阶段：基础架构、`scoop.window`、`scoop.window.asyncio` 与真实 AppKit 后端。Linux／Windows／其他后端后续实施，不添加空实现。窗口逻辑、平台适配与测试均归属普通 Cone；编译器只补齐实际需要的 `.m` native 能力及实施中暴露的底层缺口。
 
+当前交付按用户进一步明确的 winit 定位收敛为 GUI 骨架，先完成窗口、基础属性／输入／IME、DPI／显示器、renderer 与 asyncio。完整能力地图中的高级平台扩展分批补充，不把完整 AppKit GUI 或全部 winit 扩展变成当前验收门槛。
+
 实施顺序：
 
 1. Darwin `.m`／ARC／独立 `objc_flags`，验证正常 framework 与 Objective-C 链接。
@@ -62,3 +64,11 @@
 首帧验收暴露并修复 AppKit 通知遗漏保存计算后载荷的问题：GeometryChanged 现在交付完整实际尺寸／scale，焦点与遮挡通知也保存实际状态；增加事件与已公布 metrics 一致的断言。mailbox 直接复用现有 platform Mutex。
 
 验证：格式化／check 与 native 警告检查通过；Metal 的 release Cone 测试实际提交并等待 GPU 完成后关闭，window 的 10 项回归与 asyncio 的模态／取消组合复核通过。示例仍是单帧 renderer，不承担多帧 GPU 调度。
+
+### 7. 基础窗口属性与 macOS 选项
+
+新增尺寸约束／resize increments、桌面位置、装饰与按钮、窗口层级、miniaturize／zoom、主题、透明与模糊、content-sharing 提示和用户注意请求。创建先复制并应用属性，再显示／激活；运行中以实际原生快照和通知确认结果。AppKit activation policy、titlebar／full-size-content 与 main bundle 标识位于 platform.macos。
+
+按用户明确的 winit 定位收敛当前范围，并核对 winit 0.30.13 的 AppKit IME 边界：本轮只接入 marked／commit 和候选窗位置，不引入完整编辑器文档镜像。TextInputState 保留为应用纯值辅助。
+
+验证：Scoop 格式化／check、native 格式与警告检查通过；window 的 10 项 release 测试、Metal 的实际 GPU 首帧及 asyncio 模态／取消测试通过。Metal 复核曾因桌面遮挡而停在等待；自动关闭的 GPU 测试显式使用置顶窗口，正常示例保持普通层级，并保留超时状态诊断。

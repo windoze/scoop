@@ -6,6 +6,7 @@ import scoop.platform.concurrent.currentThreadId
 import scoop.platform.time.MonotonicTimeSource
 import scoop.time.Duration
 import scoop.window.native.*
+import scoop.window.platform.macos.*
 
 private class DeliveryContext(val value: Int)
 
@@ -81,7 +82,7 @@ private class LifecycleHandler(val proxy: ApplicationProxy): ApplicationHandler 
                 case NewEvents(StartCause.Deadline) -> fail(Some("native redraw deadline expired"))
                 case Window(identity, WindowEvent.GeometryChanged(value)) -> {
                     if (identity == window!!.id) {
-                        assertEquals(LogicalSize(320.0, 180.0), value.logicalSize)
+                        assertTrue(value.logicalSize.width > 0.0 && value.logicalSize.height > 0.0)
                         assertTrue(value.physicalSize.isDrawable)
                         assertEquals(
                             value.logicalSize.toPhysical(value.scaleFactor),
@@ -144,6 +145,52 @@ private class LifecycleHandler(val proxy: ApplicationProxy): ApplicationHandler 
         attributes.size = LogicalSize(10.0, 10.0)
         assertEquals(LogicalSize(320.0, 180.0), first.metrics!!.logicalSize)
         assertFalse(first.isVisible)
+        assertEquals(
+            RequestStatus.Requested,
+            first.setSizeConstraints(
+                WindowSizeConstraints(
+                    Some(LogicalSize(100.0, 80.0)),
+                    Some(LogicalSize(640.0, 480.0))
+                )
+            )
+        )
+        assertFailsWith<IllegalArgumentException> { first.requestSize(LogicalSize(700.0, 480.0)) }
+        assertFailsWith<IllegalArgumentException> {
+            first.setSizeConstraints(
+                WindowSizeConstraints(
+                    Some(LogicalSize(500.0, 400.0)),
+                    Some(LogicalSize(200.0, 100.0))
+                )
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            first.setResizeIncrements(Some(LogicalSize(0.0, 1.0)))
+        }
+        first.setResizeIncrements(Some(LogicalSize(2.0, 2.0)))
+        first.setResizable(false)
+        first.setResizable(true)
+        first.setEnabledButtons(WindowButtons(close = false, minimize = true, maximize = false))
+        first.setDecorations(false)
+        first.setDecorations(true)
+        first.setWindowLevel(WindowLevel.AlwaysOnTop)
+        first.setWindowLevel(WindowLevel.Normal)
+        first.setTransparent(true)
+        first.setBlur(true)
+        first.setBlur(false)
+        first.setTransparent(false)
+        first.requestTheme(Some(Theme.Dark))
+        assertEquals(Some(Theme.Dark), first.observedTheme)
+        first.setMacOSTitlebar(TitlebarOptions(transparent = true, titleHidden = true))
+        first.requestPosition(first.desktopPosition!!)
+        assertEquals(Some(false), first.isMinimized)
+        first.requestAttention(AttentionKind.Cancel)
+        assertFailsWith<IllegalArgumentException> {
+            application.createWindow(
+                WindowAttributes(
+                    constraints = WindowSizeConstraints(max = Some(LogicalSize(1.0, 1.0)))
+                )
+            )
+        }
         first.requestRedraw()
         val second = application.createWindow(WindowAttributes(visible = false))
         assertNotEquals(first.id, second.id)

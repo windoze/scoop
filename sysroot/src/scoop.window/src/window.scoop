@@ -8,8 +8,18 @@ public class WindowAttributes public constructor(
     public var decorations: Boolean = true,
     public var resizable: Boolean = true,
     public var transparent: Boolean = false,
-    public var requestActivation: Boolean = true
-)
+    public var requestActivation: Boolean = true,
+    public var constraints: WindowSizeConstraints = WindowSizeConstraints(),
+    public var position: DesktopPosition? = None,
+    public var resizeIncrements: LogicalSize? = None,
+    public var buttons: WindowButtons = WindowButtons(),
+    public var level: WindowLevel = WindowLevel.Normal,
+    public var theme: Theme? = None,
+    public var blur: Boolean = false,
+    public var contentProtected: Boolean = false
+) {
+    internal var titlebarFlags: Int = 0
+}
 
 /** An explicitly destroyed native window owned by its application's thread. */
 public class Window internal constructor(internal val owner: WindowOwner) {
@@ -37,6 +47,7 @@ public class Window internal constructor(internal val owner: WindowOwner) {
     public fun requestSize(size: LogicalSize): RequestStatus {
         owner.requireOpen();
         checkSize(size);
+        owner.constraints.check(size)
         size.toPhysical(1.0)
         @Unsafe
         {
@@ -108,6 +119,8 @@ public class Window internal constructor(internal val owner: WindowOwner) {
 }
 
 internal class WindowOwner(val application: ApplicationOwner, val id: WindowId, native: Ptr<Unit>) {
+    var constraints: WindowSizeConstraints = WindowSizeConstraints()
+    var buttons: WindowButtons = WindowButtons()
     var pointer: Ptr<Unit>? = Some(native)
     var phase: WindowState = WindowState.Open
     var metrics: WindowMetrics? = None
