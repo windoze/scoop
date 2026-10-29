@@ -1,0 +1,65 @@
+package scoop.llm.client.tests.realtime
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class RealtimeContentTest {
+    @Test
+    fun `Realtime input preserves text roles inline media and native part details`() {
+        val user = rtItem(Message([Text("hello"), Image(Bytes([1.toByte()], "image/png"),
+            [DialectExtension(rtDialect, Json.parse("{\"detail\":\"low\"}"))]), Audio(Bytes([0.toByte(), (-1).toByte()], "audio/pcm;rate=24000;channels=1"),
+            [DialectExtension(rtDialect, Json.parse("{\"transcript\":\"spoken\"}"))])], extensions = [DialectExtension(rtDialect, Json.parse("{\"id\":\"user-1\"}"))]))
+        assertEquals("user", user["role"]!!.asString())
+        assertEquals("user-1", user["id"]!!.asString())
+        val parts = user["content"]!!
+        assertEquals("input_text", parts[0]["type"]!!.asString())
+        assertEquals("data:image/png;base64,AQ==", parts[1]["image_url"]!!.asString())
+        assertEquals("low", parts[1]["detail"]!!.asString())
+        assertEquals("AP8=", parts[2]["audio"]!!.asString())
+        assertEquals("spoken", parts[2]["transcript"]!!.asString())
+        assertEquals("input_text", rtItem(Message([Text("system")], System))["content"]!![0]["type"]!!.asString())
+        assertEquals("output_text", rtItem(Message([Text("assistant")], Assistant))["content"]!![0]["type"]!!.asString())
+        val raw = Json.parse("{\"type\":\"input_text\",\"text\":\"native\",\"future\":[false,null]}")
+        assertEquals(Json.stringify(raw), Json.stringify(rtItem(Message([Native(rtDialect, raw)]))["content"]!![0]))
+    }
+
+    @Test
+    fun `Realtime history preserves ordered native items and item insertion rejects assistant audio`() {
+        val call = Json.parse("{\"type\":\"function_call\",\"call_id\":\"call\",\"name\":\"lookup\",\"arguments\":\"{}\",\"status\":\"completed\"}")
+        val approval = Json.parse("{\"type\":\"mcp_approval_response\",\"id\":\"approval\",\"approval_request_id\":\"request\",\"approve\":false}")
+        val history = LlmInputItem.History(LlmHistory(rtDialect, [call, approval]))
+        val request = RealtimeResponseRequest(input = Some([Message([Text("before")]), history]))
+        val restored = Json.decodeFromString<RealtimeResponseRequest>(Json.encodeToString(request))
+        val items = rtResponse(restored)["input"]!!
+        assertEquals(3L, items.size)
+        assertEquals(Json.stringify(call), Json.stringify(items[1]))
+        assertEquals(Json.stringify(approval), Json.stringify(items[2]))
+        rtFailure("/item") { rtProtocol.encodeItemCreate(history); Unit }
+        val audio = LlmInputItem.Message([Audio(Bytes([1.toByte()], "audio/pcmu;rate=8000"))], Assistant)
+        rtFailure("/item/content/0") { rtProtocol.encodeItemCreate(audio); Unit }
+        val rawAudio = Json.parse("{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_audio\",\"transcript\":\"earlier\"}]}")
+        rtFailure("/item/content/0") { rtProtocol.encodeItemCreate(History(LlmHistory(rtDialect, [rawAudio]))); Unit }
+    }
+
+    @Test
+    fun `Realtime unsupported media and role mismatches report the actual input path`() {
+        for (source in [MediaSource.Url(Url.parse("https://example.test/image.png"), "image/png"),
+            MediaSource.FileReference(LlmFileReference(rtDialect, Json.parse("{}")), "image/png")]) {
+            rtFailure("/input/0/content/0/source") { rtItem(Message([Image(source)])); Unit }
+        }
+        for (part in [ContentPart.Document(Bytes([], "application/pdf")), ContentPart.Video(Bytes([], "video/mp4"))]) {
+            rtFailure("/input/0/content/0") { rtItem(Message([part])); Unit }
+        }
+        for (mime in ["audio/wav", "audio/pcm;rate=16000", "audio/pcm;channels=2"]) {
+            rtFailure("/input/0/content/0/source/mimeType") { rtItem(Message([Audio(Bytes([], mime))])); Unit }
+        }
+        rtFailure("/input/0/role") { rtItem(Message([Text("developer")], Developer)); Unit }
+        rtFailure("/input/0/content/0") { rtItem(Message([Image(Bytes([], "image/png"))], System)); Unit }
+        rtFailure("/input/0/content/0/value/type") { rtItem(Message([Native(rtDialect, Json.parse("{\"type\":\"output_text\",\"text\":\"wrong\"}"))])); Unit }
+        rtFailure("/input/0/history/dialect") { rtItem(History(LlmHistory(GeminiLiveDialect().id, []))); Unit }
+        rtFailure("/input/0/content/0/extensions/0/value/text") { rtItem(Message([Text("first", [DialectExtension(rtDialect, Json.parse("{\"text\":\"other\"}"))])])); Unit }
+    }
+}

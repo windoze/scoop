@@ -1,0 +1,96 @@
+package scoop.llm.client.tests.models
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+import scoop.url.*
+
+@Test
+private class ModelCatalogNetworkTest {
+    @Test
+    fun `model list explicit paging and lookup share authentication timing and serializable native data`() {
+        for ((provider, gemini, anthropic) in [(Providers.openAiResponses(), false, false),
+            (Providers.anthropicMessages(), false, true), (Providers.geminiGenerateContent(), true, false),
+            (Providers.geminiInteractions(), true, false)]) {
+            withLlmServer suspend { _, scope, listener, original ->
+                val auth = RecordingAuth()
+                val endpoint = LlmEndpoint(provider, auth, Some(Url.parse(original.baseUrl.toString() + "/gateway?tenant=one")))
+                val firstQuery = if (gemini) geminiModelsQuery(Some(2UL)) else if (anthropic) anthropicModelsQuery(Some(2UL)) else UrlQuery()
+                val nextQuery = if (gemini) geminiModelsQuery(Some(2UL), Some("cursor /?#"))
+                    else if (anthropic) anthropicModelsQuery(Some(2UL), afterId = Some("one")) else UrlQuery()
+                val entry = if (gemini) "{\"name\":\"models/two\",\"inputTokenLimit\":1000}" else "{\"id\":\"two\",\"owned_by\":\"provider\"}"
+                val page = if (gemini) "{\"models\":[" + entry + "],\"nextPageToken\":\"cursor /?#\"}"
+                    else "{\"data\":[" + entry + "],\"has_more\":true,\"last_id\":\"one\"}"
+                val suffixes = [if (firstQuery.entries.size == 0L) "" else "&" + firstQuery.toString(),
+                    if (nextQuery.entries.size == 0L) "" else "&" + nextQuery.toString(), ""]
+                val serving = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        for (index in [0L, 1L, 2L]) {
+                            val request = connection.receiveRequest()!!
+                            val target = when (request.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                            assertEquals("/v1/gateway/models" + (if (index == 2L) "/two" else "") + "?tenant=one" + suffixes[index], target)
+                            assertEquals("GET", String.fromUtf8(request.head.method))
+                            assertEquals(0L, request.body.readAllBytes(4096L).size)
+                            assertEquals(0L, request.head.fields.findAll("Content-Type".toByteArray()).size)
+                            assertEquals("Bearer attempt-" + (index + 1L).toString(),
+                                String.fromUtf8(request.head.fields.findAll("Authorization".toByteArray())[0].value))
+                            if (anthropic) assertEquals("2026-10-21", String.fromUtf8(request.head.fields.findAll("anthropic-version".toByteArray())[0].value))
+                            assertEquals(target, auth.requests[index].url.httpRequestTarget())
+                            assertEquals(0L, auth.requests[index].body.size)
+                            sendLlmReply(connection, 200U, if (index == 2L) entry else page)
+                        }
+                    }
+                }
+                val finished = FinishedCalls()
+                withLlmClient suspend { client ->
+                    val options = LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))
+                    val first = Json.decodeFromString<LlmModelListResult>(Json.encodeToString(client.listModels(endpoint, firstQuery, options)))
+                    val cursor = first.page.native[if (gemini) "nextPageToken" else "last_id"]!!.asString()
+                    val query = if (gemini) geminiModelsQuery(Some(2UL), Some(cursor))
+                        else if (anthropic) anthropicModelsQuery(Some(2UL), Some(cursor)) else UrlQuery()
+                    val next = client.listModels(endpoint, query, options)
+                    val fetched = Json.decodeFromString<LlmModelResult>(Json.encodeToString(client.retrieveModel(endpoint, next.page.models[0].id!!, options)))
+                    assertEquals(Some("two"), fetched.model.id)
+                    assertEquals("two", fetched.requestedId)
+                    assertEquals(entry, Json.stringify(fetched.model.native))
+                    assertEquals(page, Json.stringify(first.page.native))
+                    for (metadata in [first.metadata, next.metadata, fetched.metadata]) assertModelQueryTiming(metadata)
+                    val binding = endpoint.model(fetched.model.id!!)
+                    assertEquals(None, binding.capabilities.limits.contextWindowTokens)
+                    assertTrue(when (binding.capabilities.streaming) { case Unknown -> true; else -> false })
+                }
+                assertEquals(3L, auth.requests.size)
+                assertEquals(3L, finished.values.size)
+                serving.join()
+            }
+        }
+    }
+
+    @Test
+    fun `a proxy without model listing still generates directly with the caller model ID`() {
+        withLlmServer suspend { _, scope, listener, endpoint ->
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val list = connection.receiveRequest()!!
+                    assertEquals("/v1/models", when (list.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() })
+                    list.body.readAllBytes(4096L)
+                    sendLlmReply(connection, 404U, "{\"error\":{\"message\":\"no catalog\"}}")
+                    val generation = connection.receiveRequest()!!
+                    assertEquals("/v1/chat/completions", when (generation.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() })
+                    assertEquals("unlisted/model:variant", Json.parse(String.fromUtf8(generation.body.readAllBytes(4096L)))["model"]!!.asString())
+                    sendLlmReply(connection, 200U, sampleReply)
+                }
+            }
+            withLlmClient suspend { client ->
+                val model = endpoint.model("unlisted/model:variant")
+                expectLlmFailure<LlmServiceException> suspend { client.listModels(endpoint); Unit }
+                assertEquals("hello", client.generate(model, sampleRequest).text)
+            }
+            serving.join()
+        }
+    }
+}

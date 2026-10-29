@@ -1,0 +1,42 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ResponsesStreamNativeTest {
+    @Test
+    fun `Responses native details retain item and part positions across interleaved output`() {
+        val decoder = responsesStream()
+        responsesItem(decoder, 0L, responsesEmptyMessage)
+        responsesItem(decoder, 1L, "{\"type\":\"message\",\"id\":\"n\",\"role\":\"assistant\",\"content\":[]}")
+        responsesAt(decoder, "response.content_part.added", 1L, "n", "\"content_index\":0,\"part\":{\"type\":\"output_text\",\"text\":\"\"}")
+        val delta = responsesAt(decoder, "response.output_text.delta", 1L, "n", "\"content_index\":0,\"delta\":\"n\",\"logprobs\":[{\"token\":\"n\",\"logprob\":-1}]")
+        assertEquals(2L, delta.events.size)
+        when (delta.events[1L]) {
+            case Native(event) -> {
+                assertEquals(1L, event.location!!.itemIndex)
+                assertEquals(0L, event.value["content_index"]!!.asLong())
+                assertEquals("n", event.value["logprobs"]!![0L]["token"]!!.asString())
+            }
+            else -> fail()
+        }
+        val completed = responsesEvent(decoder, "response.output_item.done", "\"output_index\":1,\"content_index\":0,\"item\":" + responsesMessage("n", "n"))
+        when (completed.events[0L]) {
+            case Native(event) -> assertEquals(0L, event.value["content_index"]!!.asLong())
+            else -> fail()
+        }
+        responsesAt(decoder, "response.future.metadata", 1L, "n", "\"future\":true")
+        val unknown = "{\"type\":\"future_call\",\"id\":\"u\",\"opaque\":{\"final\":true}}"
+        val added = responsesItem(decoder, 2L, unknown)
+        when (added.events[0L]) { case Native(event) -> assertEquals("response.output_item.added", event.event); else -> fail() }
+        val done = responsesItem(decoder, 2L, unknown, true)
+        when (done.events[0L]) { case Native(event) -> assertEquals("response.output_item.done", event.event); else -> fail() }
+        responsesFinish(decoder, "[" + responsesMessage("m") + "," + responsesMessage("n", "n") + "," + unknown + "]")
+        val result = decoder.response()
+        assertEquals(3L, result.nativeEvents.size)
+        assertEquals(1L, result.nativeEvents[2L].location!!.itemIndex)
+        assertTrue(responsesHistory(result)[2L]["opaque"]!!["final"]!!.asBoolean())
+    }
+}

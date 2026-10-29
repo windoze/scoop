@@ -1,0 +1,89 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeRealtimeInput(dialect: DialectId, input: Array<LlmInputItem>): Array<JsonValue> {
+    val result = ArrayList<JsonValue>()
+    var index = 0L
+    for (item in input) {
+        val path = "/input/" + index.toString()
+        when (item) {
+            case Message(content, role, extensions) -> {
+                checkContentExtensions(content, path + "/content")
+                checkDialectExtensions(extensions, path + "/extensions")
+                val name = when (role) { case User -> "user"; case Assistant -> "assistant"; case System -> "system"
+                    case Developer -> throw LlmRequestException(path + "/role", "Realtime has no developer message role") }
+                val parts = ArrayList<JsonValue>()
+                var partIndex = 0L
+                for (part in content) { parts.add(encodeRealtimePart(dialect, part, role, path + "/content/" + partIndex.toString())); partIndex += 1L }
+                val body = llmTypedObject("message").add("role", JsonValue.fromString(name)).add("content", JsonValue.fromArray(parts)).build()
+                result.add(mergeLlmExtensions(body, extensions, dialect, ["type", "role", "content"], path))
+            }
+            case ToolResult(call, content, isError, extensions) -> result.add(encodeRealtimeToolResult(dialect, call, content, isError, extensions, path))
+            case History(history) -> {
+                requireLlmOwner(history.dialect, dialect, path + "/history/dialect")
+                var itemIndex = 0L
+                for (raw in history.items) {
+                    realtimeRequestString(raw, "type", path + "/history/items/" + itemIndex.toString())
+                    result.add(raw); itemIndex += 1L
+                }
+            }
+        }
+        index += 1L
+    }
+    return result.toArray()
+}
+
+private fun encodeRealtimeToolResult(dialect: DialectId, call: ClientToolCallReference, content: Array<ContentPart>,
+    isError: Boolean, extensions: Array<DialectExtension>, path: String): JsonValue {
+    requireLlmOwner(call.dialect, dialect, path + "/call/dialect")
+    val id = requireLlmToolCallId(call.id, path + "/call/id")
+    when (call.context) {
+        case Some(context) -> {
+            if (realtimeRequestString(context, "type", path + "/call/context") != "function_call")
+                throw LlmRequestException(path + "/call/context/type", "Realtime tool result requires a function call")
+            if (realtimeRequestString(context, "call_id", path + "/call/context") != id)
+                throw LlmRequestException(path + "/call/context/call_id", "tool result context belongs to another call")
+        }
+        case None -> {}
+    }
+    if (isError) throw LlmRequestException(path + "/isError", "Realtime function results have no error flag")
+    val text = StringBuilder()
+    var index = 0L
+    for (part in content) {
+        val partPath = path + "/content/" + index.toString()
+        when (part) {
+            case Text(value, values) -> {
+                if (values.size != 0L) throw LlmRequestException(partPath + "/extensions", "function output text has no extension position")
+                text.append(value)
+            }
+            else -> throw LlmRequestException(partPath, "Realtime function output must be text")
+        }
+        index += 1L
+    }
+    checkDialectExtensions(extensions, path + "/extensions")
+    val body = llmTypedObject("function_call_output").add("call_id", JsonValue.fromString(id)).add("output", JsonValue.fromString(text.toString())).build()
+    return mergeLlmExtensions(body, extensions, dialect, ["type", "call_id", "output"], path)
+}
+
+internal fun realtimeRequestString(value: JsonValue, field: String, path: String): String {
+    if (value.kind != JsonValueKind.Object) throw LlmRequestException(path, "Realtime native data must be an object")
+    val item = value[field] ?: throw LlmRequestException(path + "/" + field, "missing Realtime field")
+    if (item.kind != JsonValueKind.String || item.asString().length == 0L)
+        throw LlmRequestException(path + "/" + field, "Realtime field must be a nonempty string")
+    return item.asString()
+}
+
+internal fun checkRealtimeItemInsertion(item: JsonValue) {
+    if (realtimeRequestString(item, "type", "/item") != "message") return
+    val role = item["role"] ?: return
+    if (role.kind != JsonValueKind.String || role.asString() != "assistant") return
+    val content = item["content"] ?: return
+    if (content.kind != JsonValueKind.Array) throw LlmRequestException("/item/content", "Realtime content must be an array")
+    var index = 0L
+    for (part in content.elements()) {
+        if (realtimeRequestString(part, "type", "/item/content/" + index.toString()) == "output_audio")
+            throw LlmRequestException("/item/content/" + index.toString(), "item.create cannot populate assistant audio")
+        index += 1L
+    }
+}

@@ -1,0 +1,70 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ResponsesToolRequestTest {
+    @Test
+    fun `Responses functions custom grammars and search share one tool list with exact selection`() {
+        val dialect = OpenAiResponsesDialect().id
+        val tools: Array<ToolDefinition> = [ClientFunction(ToolKey("fn"), "count", Json.parse("{}"), strict = Some(false),
+            extensions = [DialectExtension(dialect, Json.parse("{\"defer_loading\":false}"))]),
+            ClientCustom(ToolKey("custom"), "code", Grammar("regex", "[0-9]+")),
+            Server(ToolKey("web"), WebSearch(WebSearchOptions(allowedDomains = Some(["example.com"]),
+                location = Some(SearchLocation(city = Some("Shanghai"))), includeSources = Some(true))),
+                [DialectExtension(dialect, Json.parse("{\"external_web_access\":false}"))])]
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        val body = protocol.encodeRequest("m", LlmRequest([], tools = tools, options = LlmGenerationOptions(toolChoice = Specific(ToolKey("fn")))))
+        val encoded = body["tools"]!!
+        assertEquals("function", encoded[0]["type"]!!.asString())
+        assertFalse(encoded[0].containsKey("function"))
+        assertFalse(encoded[0]["strict"]!!.asBoolean())
+        assertFalse(encoded[0]["defer_loading"]!!.asBoolean())
+        assertEquals("regex", encoded[1]["format"]!!["syntax"]!!.asString())
+        assertEquals("[0-9]+", encoded[1]["format"]!!["definition"]!!.asString())
+        assertEquals("example.com", encoded[2]["filters"]!!["allowed_domains"]!![0].asString())
+        assertEquals("Shanghai", encoded[2]["user_location"]!!["city"]!!.asString())
+        assertFalse(encoded[2]["external_web_access"]!!.asBoolean())
+        assertEquals("web_search_call.action.sources", body["include"]!![0].asString())
+        assertEquals("count", body["tool_choice"]!!["name"]!!.asString())
+        val search = protocol.encodeRequest("m", LlmRequest([], tools = tools, options = LlmGenerationOptions(toolChoice = Specific(ToolKey("web")))))
+        assertEquals("allowed_tools", search["tool_choice"]!!["type"]!!.asString())
+        assertEquals("required", search["tool_choice"]!!["mode"]!!.asString())
+        assertEquals("web_search", search["tool_choice"]!!["tools"]!![0]["type"]!!.asString())
+        val disabled = protocol.encodeRequest("m", LlmRequest([], tools = [Server(ToolKey("web"), WebSearch(WebSearchOptions(includeSources = Some(false))))],
+            options = LlmGenerationOptions(toolChoice = None)))
+        assertEquals(0L, disabled["include"]!!.size)
+        assertEquals("none", disabled["tool_choice"]!!.asString())
+    }
+
+    @Test
+    fun `Responses native versions and shell environments retain explicit execution ownership`() {
+        val dialect = OpenAiResponsesDialect().id
+        val tools: Array<ToolDefinition> = [ClientNative(ToolKey("computer"), NativeToolDefinition(dialect, "computer")),
+            ClientNative(ToolKey("local"), NativeToolDefinition(dialect, "shell", Json.parse("{\"environment\":{\"type\":\"local\"}}"))),
+            Server(ToolKey("remote"), Native(NativeToolDefinition(dialect, "shell", Json.parse("{\"environment\":{\"type\":\"container_auto\"}}")))),
+            Server(ToolKey("web"), Native(NativeToolDefinition(dialect, "web_search", version = Some("2025_08_26"))))]
+        val body = ResponsesProtocol(OpenAiResponsesDialect()).encodeRequest("m", LlmRequest([], tools = tools))
+        assertEquals("local", body["tools"]!![1]["environment"]!!["type"]!!.asString())
+        assertEquals("container_auto", body["tools"]!![2]["environment"]!!["type"]!!.asString())
+        assertEquals("web_search_2025_08_26", body["tools"]!![3]["type"]!!.asString())
+        assertResponsesRequestFailure(LlmRequest([], tools = [ClientNative(ToolKey("x"), NativeToolDefinition(dialect, "web_search"))]), "/tools/0/tool/kind")
+        assertResponsesRequestFailure(LlmRequest([], tools = [Server(ToolKey("x"), Native(NativeToolDefinition(dialect, "computer")))]), "/tools/0/tool/kind")
+        assertResponsesRequestFailure(LlmRequest([], tools = [ClientNative(ToolKey("x"), NativeToolDefinition(dialect, "shell"))]), "/tools/0/tool/configuration/environment")
+        assertResponsesRequestFailure(LlmRequest([], tools = [ClientNative(ToolKey("x"), NativeToolDefinition(dialect, "shell", Json.parse("{\"environment\":{\"type\":\"container_auto\"}}")))]), "/tools/0/tool/configuration/environment/type")
+        assertResponsesRequestFailure(LlmRequest([], tools = [ClientNative(ToolKey("x"), NativeToolDefinition(OpenAiChatDialect().id, "computer"))]), "/tools/0/tool/dialect")
+    }
+
+    @Test
+    fun `Responses rejects tool conflicts and search restrictions that lack a wire field`() {
+        val dialect = OpenAiResponsesDialect().id
+        assertResponsesRequestFailure(LlmRequest([], tools = [ClientFunction(ToolKey("a"), "same", Json.parse("{}")), ClientCustom(ToolKey("b"), "same")]), "/tools/1/name")
+        assertResponsesRequestFailure(LlmRequest([], tools = [Server(ToolKey("web"), WebSearch(WebSearchOptions(excludedDomains = Some([]))))]), "/tools/0/tool/options/excludedDomains")
+        assertResponsesRequestFailure(LlmRequest([], options = LlmGenerationOptions(toolChoice = Required)), "/options/toolChoice")
+        assertResponsesRequestFailure(LlmRequest([], tools = [ClientNative(ToolKey("c"), NativeToolDefinition(dialect, "computer", Json.parse("{\"type\":\"other\"}")))]), "/tools/0/tool/configuration/type")
+        assertResponsesRequestFailure(LlmRequest([], tools = [ClientFunction(ToolKey("f"), "f", Json.parse("{}"), extensions = [DialectExtension(dialect, Json.parse("{\"strict\":true}"))])]), "/tools/0/extensions/0/value/strict")
+        assertResponsesRequestFailure(LlmRequest([], tools = [Server(ToolKey("web"), WebSearch())], extensions = [DialectExtension(dialect, Json.parse("{\"include\":[]}"))]), "/extensions/0/value/include")
+    }
+}

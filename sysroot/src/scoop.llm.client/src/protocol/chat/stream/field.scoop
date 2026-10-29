@@ -1,0 +1,33 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+/** One candidate's dialect-owned field group; it occupies one ordered output item. */
+public interface ChatStreamFieldDecoder {
+    public val fields: Array<String>
+    public fun accept(delta: JsonValue, path: String): LlmStreamUpdate
+    public fun finish(): ChatStreamFieldResult
+}
+
+public class ChatStreamFieldResult public constructor(
+    public val item: LlmOutputItem, public val historyFields: JsonValue, public val historyAvailable: Boolean = true
+)
+
+internal fun chatFieldOwns(decoder: ChatStreamFieldDecoder, field: String): Boolean {
+    for (name in decoder.fields) if (name == field) return true
+    return false
+}
+
+internal fun finishChatField(decoder: ChatStreamFieldDecoder, state: ChatStreamCandidate,
+    message: JsonObjectBuilder, output: ArrayList<LlmOutputItem>) {
+    val result = decoder.finish()
+    if (!result.historyAvailable) state.historyAvailable = false
+    if (state.retention != StreamRetention.Result) return
+    output.add(result.item)
+    for ((name, value) in result.historyFields.members()) {
+        if (!chatFieldOwns(decoder, name) || name == "role" || name == "content" || name == "refusal" ||
+            name == "tool_calls" || name == "function_call")
+            throw DecodingException("/delta/" + name, "dialect decoder cannot replace this Chat field")
+        message.add(name, value)
+    }
+}

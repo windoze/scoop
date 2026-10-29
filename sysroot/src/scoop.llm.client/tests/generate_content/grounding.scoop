@@ -1,0 +1,73 @@
+package scoop.llm.client.tests.generatecontent
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class GenerateContentGroundingTest {
+    @Test
+    fun `generateContent grounding citations and absent call IDs survive signed history serialization`() {
+        val parts = "[{\"text\":\"reason\",\"thought\":true,\"thoughtSignature\":\"thinking\"},{\"text\":\"A😀B\"},{\"text\":\"tail\"}," +
+            "{\"functionCall\":{\"name\":\"lookup\",\"args\":{\"count\":7}},\"thoughtSignature\":\"function\"}]"
+        val metadata = ",\"groundingMetadata\":{\"webSearchQueries\":[\"question\"],\"searchEntryPoint\":{\"renderedContent\":\"<span>search</span>\"}," +
+            "\"groundingChunks\":[{\"web\":{\"uri\":\"https://example.test/source\",\"title\":\"Source\"}},{\"retrievedContext\":{\"uri\":\"gs://bucket/doc\",\"text\":\"context\"}}]," +
+            "\"groundingSupports\":[{\"segment\":{\"partIndex\":1,\"startIndex\":1,\"endIndex\":5},\"groundingChunkIndices\":[0]}," +
+            "{\"segment\":{\"partIndex\":2},\"groundingChunkIndices\":[1]}]}"
+        val tools: Array<ToolDefinition> = [ClientFunction(ToolKey("local"), "lookup", Json.parse("{}")), Server(ToolKey("web"), WebSearch())]
+        val body = generateContentBody(parts, extra = metadata)
+        val response = generateContentDecode(body, LlmRequest([], tools = tools))
+        assertEquals("A😀Btail", response.text)
+        assertEquals(1L, response.clientToolCalls.size)
+        assertEquals(None, response.clientToolCalls[0].reference.id)
+        assertEquals(1L, response.serverToolActivities.size)
+        val search = response.serverToolActivities[0]
+        assertEquals(Some(ToolKey("web")), search.toolKey)
+        assertEquals(None, search.id)
+        assertEquals(1L, search.sources.size)
+        assertEquals("<span>search</span>", search.native!!["searchEntryPoint"]!!["renderedContent"]!!.asString())
+        when (response.candidate(0L).items[1]) {
+            case Message(content, _) -> {
+                when (content[0]) {
+                    case Text(_, citations) -> {
+                        assertEquals(TextRangeUnit.Utf8Bytes, citations[0].range!!.unit)
+                        assertEquals(1L, citations[0].range!!.start)
+                        assertEquals(5L, citations[0].range!!.end)
+                        assertEquals(search.sources[0].id, citations[0].source.id)
+                    }
+                    else -> fail()
+                }
+                when (content[1]) { case Text(_, citations) -> { assertFalse(when (citations[0].range) { case Some(_) -> true; case None -> false }); assertEquals(1L, citations.size) }; else -> fail() }
+            }
+            else -> fail()
+        }
+        val saved = Json.decodeFromString<LlmResponse>(Json.encodeToString(response))
+        assertEquals(Json.stringify(body["candidates"]!![0]["content"]!!), Json.stringify(generateContentHistory(saved)))
+        assertEquals("function", saved.clientToolCalls[0].reference.context!!["thoughtSignature"]!!.asString())
+    }
+
+    @Test
+    fun `generateContent search declarations and nonweb grounding do not fabricate search activity`() {
+        val request = LlmRequest([], tools = [Server(ToolKey("web"), WebSearch())])
+        assertEquals(0L, generateContentDecode(generateContentBody("[{\"text\":\"plain\"}]"), request).serverToolActivities.size)
+        val result = generateContentDecode(generateContentBody("[{\"text\":\"plain\"}]", extra =
+            ",\"groundingMetadata\":{\"groundingChunks\":[{\"maps\":{\"uri\":\"https://example.test/map\"}}],\"webSearchQueries\":[]}"), request)
+        assertEquals(0L, result.serverToolActivities.size)
+        when (result.candidate(0L).items[1]) { case Native(_, value) -> assertTrue(value.containsKey("groundingMetadata")); else -> fail() }
+    }
+
+    @Test
+    fun `generateContent recitation citations use explicit byte ranges only with unambiguous text ownership`() {
+        val extra = ",\"citationMetadata\":{\"citationSources\":[{\"uri\":\"https://example.test/code\",\"license\":\"MIT\",\"endIndex\":4}]}"
+        val result = generateContentDecode(generateContentBody("[{\"text\":\"😀\"}]", extra = extra))
+        when (result.candidate(0L).items[0]) {
+            case Message(content, _) -> when (content[0]) {
+                case Text(_, citations) -> { assertEquals(0L, citations[0].range!!.start); assertEquals(4L, citations[0].range!!.end); assertEquals("MIT", citations[0].source.native!!["license"]!!.asString()) }
+                else -> fail()
+            }
+            else -> fail()
+        }
+        val ambiguous = generateContentDecode(generateContentBody("[{\"text\":\"one\"},{\"text\":\"two\"}]", extra = extra))
+        when (ambiguous.candidate(0L).items[1]) { case Native(_, value) -> assertTrue(value.containsKey("citationMetadata")); else -> fail() }
+    }
+}

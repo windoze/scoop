@@ -1,0 +1,83 @@
+package scoop.llm.client.tests.models
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.*
+
+@Test
+private class ModelCatalogDataTest {
+    @Test
+    fun `model catalog bindings preserve native model and page fields through codecs`() {
+        for (provider in [Providers.openAiChat(), Providers.openAiResponses(), Providers.deepSeekChat(),
+            Providers.deepSeekResponses(), Providers.anthropicMessages()]) {
+            val catalog = modelCatalog(provider)
+            for (extra in ["", ",\"capabilities\":null,\"billing\":null", ",\"capabilities\":[{\"future\":true}],\"billing\":17",
+                ",\"capabilities\":\"changed\",\"billing\":{\"value\":18446744073709551615}"]) {
+                val raw = Json.parse("{\"data\":[{\"id\":\"organization/model:variant\"" + extra + "}],\"has_more\":true,\"last_id\":\"cursor\"}")
+                val page = Json.decodeFromString<LlmModelPage>(Json.encodeToString(catalog.decodeList(raw)))
+                assertEquals(provider.protocol.dialectId, page.dialect)
+                assertEquals(Some("organization/model:variant"), page.models[0].id)
+                assertEquals(provider.protocol.dialectId, page.models[0].dialect)
+                assertEquals(Json.stringify(raw), Json.stringify(page.native))
+                assertEquals(Json.stringify(raw["data"]!![0L]), Json.stringify(page.models[0].native))
+            }
+            assertEquals(0L, catalog.decodeList(Json.parse("{\"data\":[]}")).models.size)
+        }
+        assertFalse(modelCatalog(Providers.deepSeekChat()) is LlmModelLookup)
+        assertFalse(modelCatalog(Providers.deepSeekResponses()) is LlmModelLookup)
+    }
+
+    @Test
+    fun `Gemini model resources expose usable IDs while retaining original names and empty pages`() {
+        for (provider in [Providers.geminiGenerateContent(), Providers.geminiInteractions()]) {
+            val catalog = modelLookup(provider)
+            val raw = Json.parse("{\"name\":\"models/caller-model\",\"displayName\":\"Display\",\"supportedGenerationMethods\":[\"generateContent\"],\"inputTokenLimit\":1000}")
+            val info = Json.decodeFromString<LlmModelInfo>(Json.encodeToString(catalog.decodeModel(raw)))
+            assertEquals(Some("caller-model"), info.id)
+            assertEquals(Json.stringify(raw), Json.stringify(info.native))
+            val page = catalog.decodeList(JsonObjectBuilder().add("models", JsonValue.fromArray([raw])).add("nextPageToken", JsonValue.fromString("opaque")).build())
+            assertEquals(info.id, page.models[0].id)
+            assertEquals("opaque", page.native["nextPageToken"]!!.asString())
+            for (empty in ["{}", "{\"models\":null}", "{\"models\":[]}"]) assertEquals(0L, catalog.decodeList(Json.parse(empty)).models.size)
+        }
+    }
+
+    @Test
+    fun `model query URLs retain prefixes repeated filters and unsigned pagination options`() {
+        val base = Url.parse("https://example.test/gateway/v1?tenant=a%2Fb&flag&pageSize=old&filter=old")
+        val query = geminiModelsQuery(Some(18446744073709551615UL), Some("cursor /?#"))
+            .add("filter", Some("first")).add("filter", Some("second")).add("empty", Some("")).add("switch")
+        val gemini = modelLookup(Providers.geminiGenerateContent())
+        assertEquals("/error", assertFailsWith<LlmProtocolException> {
+            gemini.decodeList(Json.parse("{\"error\":{\"message\":\"unavailable\"}}")); Unit
+        }.path)
+        assertEquals("https://example.test/gateway/v1/models?tenant=a%2Fb&flag&pageSize=18446744073709551615&pageToken=cursor%20%2F%3F%23&filter=first&filter=second&empty=&switch",
+            gemini.listUrl(base, query).toString())
+        assertEquals("https://example.test/v1/models", gemini.listUrl(Url.parse("https://example.test/v1")).toString())
+        assertEquals("https://example.test/v1/models/id%20%2F%3F%23", gemini.retrieveUrl(Url.parse("https://example.test/v1"), "models/id /?#").toString())
+        assertEquals("https://example.test/v1/models/id%20%2F%3F%23",
+            modelLookup(Providers.openAiResponses()).retrieveUrl(Url.parse("https://example.test/v1"), "id /?#").toString())
+        assertEquals("limit=0&after_id=&before_id=cursor%2B", anthropicModelsQuery(Some(0UL), Some(""), Some("cursor+")).toString())
+        assertEquals("", geminiModelsQuery().toString())
+        assertEquals("", anthropicModelsQuery().toString())
+    }
+
+    @Test
+    fun `model catalog decoding rejects malformed core lists and identifiers`() {
+        val catalog = modelLookup(Providers.openAiChat())
+        for ((raw, path) in [("[]", ""), ("{}", "/data"), ("{\"data\":7}", "/data"),
+            ("{\"data\":[{\"id\":\"\"}]}", "/data/0/id"), ("{\"data\":[{\"id\":7}]}", "/data/0/id"),
+            ("{\"data\":[null]}", "/data/0")]) {
+            val error = assertFailsWith<LlmProtocolException> { catalog.decodeList(Json.parse(raw)); Unit }
+            assertEquals(path, error.path)
+            assertEquals(raw, Json.stringify(error.native))
+        }
+        val gemini = modelLookup(Providers.geminiGenerateContent())
+        for (raw in ["{}", "{\"name\":\"models/\"}", "{\"name\":\"unqualified\"}"]) {
+            val error = assertFailsWith<LlmProtocolException> { gemini.decodeModel(Json.parse(raw)); Unit }
+            assertEquals("/name", error.path)
+            assertEquals(raw, Json.stringify(error.native))
+        }
+    }
+}

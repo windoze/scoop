@@ -1,0 +1,68 @@
+package scoop.llm.client.tests.files
+
+import scoop.llm.client.tests.generationProtocol
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class FileDataTest {
+    @Test
+    fun `file metadata remains opaque and saved references encode directly in generation inputs`() {
+        for (provider in [Providers.openAiChat(), Providers.openAiResponses(), Providers.anthropicMessages()]) {
+            val api = provider.protocol.fileApi()!!
+            for (text in ["{\"id\":\"file-1\"}",
+                "{\"id\":\"file-1\",\"filename\":[],\"expires_at\":{},\"size_bytes\":false,\"downloadable\":\"changed\",\"error\":{},\"extra\":null}"]) {
+                val file = Json.decodeFromString<LlmFileInfo>(Json.encodeToString(api.decodeFile(Json.parse(text))))
+                assertEquals(text, Json.stringify(file.native))
+                assertEquals("file-1", file.id)
+                assertEquals(provider.protocol.dialectId, file.reference!!.dialect)
+                val request = LlmRequest([Message([Document(MediaSource.FileReference(file.reference!!, "application/pdf"))])])
+                val body = generationProtocol(provider).encodeRequest("chosen-model", request)
+                val protocol = provider.protocol.dialectId.protocol.value
+                val content = body[if (protocol == "responses") "input" else "messages"]!![0L]["content"]!![0L]
+                val value = if (protocol == "responses") content["file_id"]!! else if (protocol == "messages") content["source"]!!["file_id"]!!
+                    else content["file"]!!["file_id"]!!
+                assertEquals("file-1", value.asString())
+            }
+            val native = Json.parse("{\"data\":[{\"id\":\"file-2\"},{\"id\":\"file-1\"}],\"next_page\":{\"changed\":true}}")
+            val page = Json.decodeFromString<LlmFilePage>(Json.encodeToString(api.decodeList(native)))
+            assertEquals("file-2", page.files[0].id)
+            assertEquals("file-1", page.files[1].id)
+            assertEquals(Json.stringify(native), Json.stringify(page.native))
+            assertEquals(0L, api.decodeList(Json.parse("{\"data\":[]}")).files.size)
+        }
+    }
+
+    @Test
+    fun `Anthropic uploaded plain text and images use file references in both Messages versions`() {
+        for (version in [AnthropicMessagesVersion.V20230601, AnthropicMessagesVersion.V20261021]) {
+            val protocol = MessagesProtocol(AnthropicMessagesDialect(version))
+            val file = protocol.fileApi()!!.decodeFile(Json.parse("{\"id\":\"uploaded\"}"))
+            val body = protocol.encodeRequest("model", LlmRequest([Message([
+                Document(MediaSource.FileReference(file.reference!!, "text/plain")),
+                Image(MediaSource.FileReference(file.reference!!, "image/png"))])]))
+            val content = body["messages"]!![0L]["content"]!!
+            for (index in [0L, 1L]) {
+                assertEquals("file", content[index]["source"]!!["type"]!!.asString())
+                assertEquals("uploaded", content[index]["source"]!!["file_id"]!!.asString())
+            }
+        }
+    }
+
+    @Test
+    fun `file decoding rejects missing core identities and malformed list envelopes with source paths`() {
+        val api = Providers.anthropicMessages().protocol.fileApi()!!
+        for ((raw, listing, path) in [("{}", false, "/id"), ("{\"id\":false}", false, "/id"), ("{\"id\":\"\"}", false, "/id"),
+            ("{\"error\":{}}", false, "/id"), ("{}", true, "/data"), ("{\"data\":{}}", true, "/data"),
+            ("{\"data\":[{\"id\":\"a\"},{}]}", true, "/data/1/id")]) {
+            val error = assertFailsWith<LlmProtocolException> {
+                if (listing) api.decodeList(Json.parse(raw)) else api.decodeFile(Json.parse(raw))
+                Unit
+            }
+            assertEquals(path, error.path)
+            assertEquals(raw, Json.stringify(error.native))
+        }
+    }
+}

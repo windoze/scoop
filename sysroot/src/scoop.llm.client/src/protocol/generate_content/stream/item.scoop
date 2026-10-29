@@ -1,0 +1,57 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+/** Text lengths remain available for citations without retaining the text in EventsOnly mode. */
+internal class GenerateContentStreamItem public constructor(public val location: LlmItemLocation,
+    public val retain: Boolean, public val thought: Boolean = false, public val isText: Boolean = false,
+    public val joinText: Boolean = false, public val partIndex: Long = 0L) {
+    public val text: StringBuilder = StringBuilder()
+    public var byteLength: Long = 0L
+    public val citations: ArrayList<Citation> = ArrayList<Citation>()
+    public var output: LlmOutputItem? = None
+    public var pendingCall: ClientToolCall? = None
+    public var objectArguments: Boolean = false
+    public val followingParts: ArrayList<GenerateContentStreamItem> = ArrayList<GenerateContentStreamItem>()
+
+    public fun append(value: String) {
+        byteLength += value.toByteArray().size
+        if (retain) text.append(value)
+    }
+
+    public fun result(): LlmOutputItem {
+        if (!isText && followingParts.size == 0L) return output!!
+        val parts = ArrayList<OutputPart>()
+        parts.add(contentPart())
+        for (part in followingParts) parts.add(part.contentPart())
+        return if (thought) LlmOutputItem.Reasoning(parts.toArray()) else LlmOutputItem.Message(parts.toArray())
+    }
+
+    private fun contentPart(): OutputPart {
+        if (isText) return OutputPart.Text(text.toString(), citations.toArray())
+        return when (output!!) {
+            case Message(parts, _) -> parts[0L]
+            case Reasoning(parts, _) -> parts[0L]
+            else -> throw IllegalStateException(Some("expected a content part"))
+        }
+    }
+
+    public fun nativePart(value: JsonValue): JsonValue = JsonObjectBuilder().add("partIndex", JsonValue.fromLong(partIndex))
+        .add("part", value).build()
+
+    public fun finishCall(complete: Boolean, batch: LlmStreamBatch): Boolean {
+        val pending = pendingCall ?: return false
+        val raw = when (pending.input) { case Incomplete(value) -> value; else -> throw IllegalStateException(Some("expected pending function input")) }
+        val input = if (!complete) ClientToolInput.Incomplete(raw)
+            else if (!objectArguments) ClientToolInput.Invalid(raw, "function arguments must be an object")
+            else ClientToolInput.JsonArguments(JsonToolArguments(raw))
+        val call = ClientToolCall(pending.reference, input)
+        batch.events.add(LlmEvent.ClientToolCall(location, call))
+        if (retain) output = Some(LlmOutputItem.ClientToolCall(call))
+        pendingCall = None
+        return true
+    }
+}
+
+internal fun generateContentPlainText(raw: JsonValue): Boolean =
+    llmStreamUnknown(raw, ["text", "thought"]).size == 0L

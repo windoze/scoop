@@ -1,0 +1,41 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+/** One server call and its request-local tool identity, retaining required native context. */
+public class ClientToolCallReference public constructor(
+    public val dialect: DialectId,
+    public val toolKey: ToolKey,
+    public val id: String? = None,
+    public val context: JsonValue? = None
+) {
+    public companion object : ValueEncoder<ClientToolCallReference>, ValueDecoder<ClientToolCallReference>
+}
+
+/** Ordered native items selected for replay, not an unprojected HTTP response body. */
+public class LlmHistory public constructor(
+    public val dialect: DialectId,
+    public val items: Array<JsonValue>,
+    public val context: JsonValue? = None
+) {
+    public companion object : ValueEncoder<LlmHistory>, ValueDecoder<LlmHistory>
+}
+
+public enum LlmRole {
+    User,
+    Assistant,
+    System,
+    Developer
+
+    public companion object : ValueEncoder<LlmRole>, ValueDecoder<LlmRole>
+}
+
+/** New content, explicit application tool results, and immutable protocol history share one input. */
+public enum LlmInputItem {
+    Message(val content: Array<ContentPart>, val role: LlmRole = User, val extensions: Array<DialectExtension> = []),
+    ToolResult(val call: ClientToolCallReference, val content: Array<ContentPart>, val isError: Boolean = false,
+        val extensions: Array<DialectExtension> = []),
+    History(val history: LlmHistory)
+
+    public companion object : ValueEncoder<LlmInputItem>, ValueDecoder<LlmInputItem>
+}

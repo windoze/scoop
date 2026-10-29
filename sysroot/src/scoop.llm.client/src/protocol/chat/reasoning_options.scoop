@@ -1,0 +1,42 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeChatReasoning(result: JsonObjectBuilder, reasoning: ReasoningOptions?, deepSeek: Boolean): Boolean {
+    val options = reasoning ?: return deepSeek
+    if (options.budgetTokens != None) throw LlmRequestException("/options/reasoning/budgetTokens", "Chat has no reasoning token budget")
+    var thinking = deepSeek
+    if (options.effort != None) {
+        val effort = options.effort!!
+        val valid = effort == "none" || effort == "minimal" || effort == "low" || effort == "medium" ||
+            effort == "high" || effort == "xhigh" || effort == "max"
+        if (!valid) throw LlmRequestException("/options/reasoning/effort", "unsupported reasoning effort")
+        thinking = effort != "none"
+        if (options.enabled != None && options.enabled!! != thinking)
+            throw LlmRequestException("/options/reasoning/enabled", "reasoning enabled conflicts with effort")
+        result.add("reasoning_effort", JsonValue.fromString(effort))
+    }
+    if (options.enabled != None) {
+        thinking = options.enabled!!
+        if (deepSeek) result.add("thinking", llmTypedObject(if (thinking) "enabled" else "disabled").build())
+        else if (options.effort == None) {
+            if (thinking) throw LlmRequestException("/options/reasoning/enabled", "OpenAI Chat needs an explicit effort to enable reasoning")
+            result.add("reasoning_effort", JsonValue.fromString("none"))
+        }
+    }
+    return thinking
+}
+
+internal fun encodeChatOutputFormat(result: JsonObjectBuilder, format: OutputFormat, deepSeek: Boolean): Unit = when (format) {
+    case Text -> Unit
+    case JsonObject -> { result.add("response_format", llmTypedObject("json_object").build()); Unit }
+    case JsonSchema(schema, name, description, strict) -> {
+        if (deepSeek) throw LlmRequestException("/options/output", "DeepSeek Chat has no JSON Schema output format")
+        requireLlmToolName(name, 64L, "/options/output/name")
+        val value = JsonObjectBuilder().add("name", JsonValue.fromString(name)).add("schema", schema)
+        if (description != None) value.add("description", JsonValue.fromString(description!!))
+        if (strict != None) value.add("strict", JsonValue.fromBoolean(strict!!))
+        result.add("response_format", llmTypedObject("json_schema").add("json_schema", value.build()).build())
+        Unit
+    }
+}

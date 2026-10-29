@@ -1,0 +1,70 @@
+package scoop.llm.client.tests.interactions
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class InteractionsOptionsTest {
+    @Test
+    fun `Interactions output constraints thinking and explicit zero or empty values use their native containers`() {
+        val options = LlmGenerationOptions(maxOutputTokens = Some(0UL), stop = Some([]),
+            reasoning = Some(ReasoningOptions(effort = Some("low"))), output = JsonSchema(Json.parse("{\"type\":\"object\",\"future\":1e400}")))
+        val value = interactionsEncode(LlmRequest([], options = options, extensions = interactionsExtension(
+            "{\"generation_config\":{\"seed\":0,\"thinking_summaries\":\"none\"},\"background\":false}")))
+        val config = value["generation_config"]!!
+        assertEquals(0L, config["max_output_tokens"]!!.asLong())
+        assertEquals(0L, config["stop_sequences"]!!.size)
+        assertEquals("low", config["thinking_level"]!!.asString())
+        assertEquals("none", config["thinking_summaries"]!!.asString())
+        assertEquals("application/json", value["response_format"]!!["mime_type"]!!.asString())
+        assertEquals("1e400", value["response_format"]!!["schema"]!!["future"]!!.asNumberToken())
+        assertFalse(value["background"]!!.asBoolean())
+        assertEquals(2L, interactionsEncode(LlmRequest([], options = LlmGenerationOptions(reasoning = Some(ReasoningOptions())))).size)
+        assertFalse(interactionsEncode(LlmRequest([], options = LlmGenerationOptions(output = JsonObject)))["response_format"]!!.containsKey("schema"))
+    }
+
+    @Test
+    fun `Interactions unsupported controls are rejected even when their explicit values are zero or false`() {
+        for ((options, path) in [(LlmGenerationOptions(temperature = Some(0.0)), "temperature"), (LlmGenerationOptions(topP = Some(0.0)), "topP"),
+            (LlmGenerationOptions(topK = Some(0UL)), "topK"), (LlmGenerationOptions(candidates = Some(1UL)), "candidates"),
+            (LlmGenerationOptions(parallelToolCalls = Some(false)), "parallelToolCalls"),
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(budgetTokens = Some(0UL)))), "reasoning/budgetTokens"),
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(false)))), "reasoning/enabled"),
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(true)))), "reasoning/enabled"),
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(effort = Some("none")))), "reasoning/effort"),
+            (LlmGenerationOptions(output = JsonSchema(Json.parse("{}"), name = "named")), "output/name"),
+            (LlmGenerationOptions(output = JsonSchema(Json.parse("{}"), description = Some(""))), "output/description"),
+            (LlmGenerationOptions(output = JsonSchema(Json.parse("{}"), strict = Some(false))), "output/strict")])
+            assertInteractionsRequestFailure(LlmRequest([], options = options), "/options/" + path)
+    }
+
+    @Test
+    fun `Interactions native media response formats compose with public JSON output constraints`() {
+        val media = "{\"response_format\":{\"type\":\"image\",\"image_size\":\"1K\"}}"
+        val image = interactionsEncode(LlmRequest([], extensions = interactionsExtension(media)))["response_format"]!!
+        assertEquals(JsonValueKind.Object, image.kind)
+        assertEquals("image", image["type"]!!.asString())
+        val combined = interactionsEncode(LlmRequest([], options = LlmGenerationOptions(output = JsonObject), extensions = interactionsExtension(media)))["response_format"]!!
+        assertEquals(2L, combined.size)
+        assertEquals("image", combined[0L]["type"]!!.asString())
+        assertEquals("application/json", combined[1L]["mime_type"]!!.asString())
+        val merged = interactionsEncode(LlmRequest([], options = LlmGenerationOptions(output = JsonObject), extensions = interactionsExtension(
+            "{\"response_format\":[{\"type\":\"text\",\"future\":true},{\"type\":\"audio\"}]}")))["response_format"]!!
+        assertEquals(2L, merged.size)
+        assertTrue(merged[0L]["future"]!!.asBoolean())
+        assertEquals("application/json", merged[0L]["mime_type"]!!.asString())
+    }
+
+    @Test
+    fun `Interactions extensions cannot override routing controls text constraints or existing metadata`() {
+        for ((extension, path) in [("{\"stream\":true}", "stream"), ("{\"model\":\"other\"}", "model"),
+            ("{\"generation_config\":{\"thinking_level\":\"high\"}}", "generation_config/thinking_level"),
+            ("{\"generation_config\":{\"temperature\":0}}", "generation_config/temperature"),
+            ("{\"generation_config\":null}", "generation_config"),
+            ("{\"response_format\":{\"type\":\"text\",\"mime_type\":\"text/plain\"}}", "response_format/mime_type"),
+            ("{\"response_format\":[{\"type\":\"text\"},{\"type\":\"text\"}]}", "response_format/1/type")])
+            assertInteractionsRequestFailure(LlmRequest([], extensions = interactionsExtension(extension)), "/extensions/0/value/" + path)
+        assertInteractionsRequestFailure(LlmRequest([Message([Text("x")], extensions = interactionsExtension("{\"content\":[]}"))]), "/input/0/extensions/0/value/content")
+    }
+}

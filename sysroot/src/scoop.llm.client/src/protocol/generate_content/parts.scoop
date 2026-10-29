@@ -1,0 +1,74 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun readGenerateContentParts(dialect: DialectId, parts: Array<GenerateContentPart>, tools: Array<ToolDefinition>, complete: Boolean,
+    grounding: GenerateContentGrounding, citationMetadata: JsonValue?, path: String): ArrayList<LlmOutputItem> {
+    val result = GenerateContentItems()
+    val ids = ArrayList<String>()
+    val citations = readGenerateContentCitationMetadata(dialect, citationMetadata, parts, path + "/citationMetadata")
+    var index = 0L
+    for (part in parts) {
+        val raw = part.raw
+        val partPath = part.path
+        val kind = part.kind
+        val thought = part.thought
+        if (kind == Some("text")) {
+            val references = ArrayList<Citation>()
+            for (target in grounding.citations) { if (target.part == index) references.add(target.citation) }
+            if (parts.size == 1L) { for (citation in citations) references.add(citation) }
+            result.output(OutputPart.Text(part.text!!, references.toArray()), thought)
+        } else if (kind == Some("inlineData") || kind == Some("fileData")) {
+            result.output(readGenerateContentMedia(dialect, raw, kind!!, partPath), thought)
+        } else if (thought) result.output(OutputPart.Native(dialect, raw), true)
+        else if (kind == Some("functionCall")) result.item(readGenerateContentCall(dialect, raw, tools, complete, ids, partPath))
+        else if (kind == Some("executableCode") || kind == Some("codeExecutionResult") || kind == Some("toolCall") || kind == Some("toolResponse"))
+            result.item(readGenerateContentServerPart(dialect, raw, kind!!, tools, partPath))
+        else result.item(LlmOutputItem.Native(dialect, raw))
+        index += 1L
+    }
+    val items = result.finish()
+    if (llmPresent(citationMetadata) && (parts.size != 1L || parts[0].kind != Some("text")))
+        items.add(LlmOutputItem.Native(dialect, JsonObjectBuilder().add("citationMetadata", citationMetadata!!).build()))
+    return items
+}
+
+internal class GenerateContentPart public constructor(public val raw: JsonValue, public val path: String) {
+    private val header: GenerateContentPartHeader = decodeGenerateContentValue<GenerateContentPartHeader>(raw, path)
+    public val thought: Boolean = header.thought == Some(true)
+    public val kind: String? = generateContentDataField(raw, path)
+    public val text: String? = if (kind == Some("text")) Some(decodeGenerateContentValue<String>(raw["text"]!!, path + "/text")) else None
+}
+
+private fun generateContentDataField(value: JsonValue, path: String): String? {
+    var found: String? = None
+    for (name in ["text", "inlineData", "fileData", "functionCall", "functionResponse", "executableCode", "codeExecutionResult", "toolCall", "toolResponse"]) {
+        val field = value[name]
+        if (llmPresent(field) && field!!.kind != JsonValueKind.Null) {
+            if (found != None) throw DecodingException(path + "/" + name, "generateContent part has multiple data fields")
+            found = Some(name)
+        }
+    }
+    return found
+}
+
+private class GenerateContentItems {
+    private val items: ArrayList<LlmOutputItem> = ArrayList<LlmOutputItem>()
+    private val content: ArrayList<OutputPart> = ArrayList<OutputPart>()
+    private var thought: Boolean = false
+
+    public fun output(part: OutputPart, reasoning: Boolean) {
+        if (thought != reasoning) flush()
+        thought = reasoning
+        content.add(part)
+    }
+
+    public fun item(value: LlmOutputItem) { flush(); items.add(value) }
+    public fun finish(): ArrayList<LlmOutputItem> { flush(); return items }
+
+    private fun flush() {
+        if (content.size == 0L) return
+        items.add(if (thought) LlmOutputItem.Reasoning(content.toArray()) else LlmOutputItem.Message(content.toArray()))
+        content.clear()
+    }
+}

@@ -1,0 +1,45 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+internal fun responsesRequest(tools: Array<ToolDefinition> = []): LlmRequest = LlmRequest([Message([Text("question")])], tools = tools)
+
+internal fun responsesBody(output: String, status: String? = Some("completed"), usage: String? = None, reason: String? = None): JsonValue {
+    val body = JsonObjectBuilder().add("object", JsonValue.fromString("response")).add("output", Json.parse(output))
+    if (status != None) body.add("status", JsonValue.fromString(status!!))
+    if (usage != None) body.add("usage", Json.parse(usage!!))
+    if (reason != None) body.add("incomplete_details", JsonObjectBuilder().add("reason", JsonValue.fromString(reason!!)).build())
+    return body.build()
+}
+
+internal fun responsesCall(arguments: String, id: String = "item", callId: String = "call", name: String = "count",
+    namespace: String? = None, status: String? = None): String {
+    val call = JsonObjectBuilder().add("type", JsonValue.fromString("function_call")).add("id", JsonValue.fromString(id))
+        .add("call_id", JsonValue.fromString(callId)).add("name", JsonValue.fromString(name)).add("arguments", JsonValue.fromString(arguments))
+    if (namespace != None) call.add("namespace", JsonValue.fromString(namespace!!))
+    if (status != None) call.add("status", JsonValue.fromString(status!!))
+    return Json.stringify(call.build())
+}
+
+internal fun responsesHistory(response: LlmResponse): Array<JsonValue> = when (response.toInput()[0]) {
+    case History(history) -> history.items
+    else -> throw IllegalStateException(Some("expected Responses history"))
+}
+
+internal fun assertResponsesFailure(body: JsonValue, path: String) {
+    val error = assertFailsWith<LlmProtocolException> { ResponsesProtocol(OpenAiResponsesDialect()).decodeResponse(body, responsesRequest()); Unit }
+    assertEquals(path, error.path)
+    assertEquals(OpenAiResponsesDialect().id, error.dialect)
+    assertEquals(Json.stringify(body), Json.stringify(error.native))
+}
+
+internal class ResponsesCount public constructor(val count: Long) {
+    public companion object : ValueDecoder<ResponsesCount>
+}
+
+internal fun assertResponsesRequestFailure(request: LlmRequest, path: String) {
+    val error = assertFailsWith<LlmRequestException> { ResponsesProtocol(OpenAiResponsesDialect()).encodeRequest("model", request); Unit }
+    assertEquals(path, error.path)
+}

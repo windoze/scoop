@@ -1,0 +1,65 @@
+package scoop.llm.client.tests.cohere.stream
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.cohere.*
+import scoop.test.*
+
+@Test
+private class CohereStreamCitationsTest {
+    @Test
+    fun `Cohere SSE late citations keep text parts and tool item positions stable after serialization`() {
+        val stream = cohereStream(); cohereBegin(stream)
+        cohereContent(stream, 0L, "first")
+        cohereContent(stream, 1L, "你🙂")
+        cohereToolStart(stream, 0L, cohereCall("a"))
+        stream.accept("", cohereEvent("tool-call-end", Some(0L)))
+        val citation = "{\"content_index\":1,\"start\":1,\"end\":3,\"sources\":[{\"type\":\"document\",\"document\":{\"title\":\"Paper\"}}]}"
+        val update = cohereCite(stream, 0L, citation)
+        when (update.events[0L]) { case Citation(location, part, value) -> {
+            assertEquals(0L, location.itemIndex); assertEquals(1L, part)
+            assertEquals("/message/citations/0/sources/0", value.source.id)
+            assertFalse(llmPresent(value.range))
+        }; else -> fail() }
+        val end = cohereEnd(stream, "TOOL_CALL")
+        when (end.events[0L]) { case ClientToolCall(location, _) -> assertEquals(1L, location.itemIndex); else -> fail() }
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(stream.response()))
+        assertEquals(2L, response.candidates[0L].items.size)
+        when (response.candidates[0L].items[0L]) { case Message(parts, _) -> when (parts[1L]) {
+            case Text(_, values) -> assertEquals(Some("Paper"), values[0L].source.title)
+            else -> fail()
+        }; else -> fail() }
+        assertEquals(citation, Json.stringify(cohereHistory(response)["citations"]!![0L]))
+        assertEquals(0L, response.serverToolActivities.size)
+    }
+
+    @Test
+    fun `Cohere SSE defers future and unindexed citation targets until their final identity is known`() {
+        for (ambiguous in [false, true]) {
+            val stream = cohereStream(); cohereBegin(stream)
+            val sources = "\"sources\":[{\"type\":\"document\"}]"
+            assertEquals(0L, cohereCitationCount(cohereCite(stream, 0L, "{" + sources + "}")))
+            assertEquals(0L, cohereCitationCount(cohereCite(stream, 1L, "{\"content_index\":0," + sources + "}")))
+            cohereContent(stream, 0L, "one")
+            if (ambiguous) cohereContent(stream, 1L, "two")
+            val end = cohereEnd(stream)
+            assertEquals(if (ambiguous) 1L else 2L, cohereCitationCount(end))
+            val ids = ArrayList<String>()
+            for (event in end.events) when (event) { case Citation(_, _, citation) -> ids.add(citation.source.id); else -> {} }
+            if (!ambiguous) assertTrue(ids[0L] != ids[1L])
+        }
+    }
+
+    @Test
+    fun `Cohere SSE attaches thinking and plan citations without promoting sources to server tools`() {
+        val stream = cohereStream(); cohereBegin(stream, "{\"tool_plan\":\"plan\"}")
+        cohereContent(stream, 0L, "reason", "thinking")
+        val sources = "\"sources\":[{\"type\":\"tool\",\"id\":\"external:0\",\"tool_output\":{\"n\":1e400}}]"
+        assertEquals(1L, cohereCitationCount(cohereCite(stream, 0L, "{\"type\":\"PLAN\"," + sources + "}")))
+        assertEquals(1L, cohereCitationCount(cohereCite(stream, 1L, "{\"type\":\"THINKING_CONTENT\",\"content_index\":0," + sources + "}")))
+        assertEquals(0L, cohereCitationCount(cohereCite(stream, 2L, "{\"type\":\"future\",\"content_index\":0," + sources + "}")))
+        cohereEnd(stream)
+        assertEquals(0L, stream.response().serverToolActivities.size)
+        assertEquals(3L, cohereHistory(stream.response())["citations"]!!.size)
+    }
+}

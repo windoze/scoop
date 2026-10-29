@@ -1,0 +1,36 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.text.startsWith
+
+public enum ResponsesWebSocketEventKind {
+    Response, Steering, Error, Native
+    public companion object : ValueEncoder<ResponsesWebSocketEventKind>, ValueDecoder<ResponsesWebSocketEventKind>
+}
+
+/** The complete event stays intact; the views describe only routing and event ownership. */
+public class ResponsesWebSocketEvent public constructor(public val dialect: DialectId, public val native: JsonValue) {
+    @Serialize(ignore = true) private val header: ResponsesWebSocketHeader = decodeResponsesValue<ResponsesWebSocketHeader>(native, "")
+    public val type: String get() = header.type
+    public val streamId: String? get() = header.streamId
+    public val kind: ResponsesWebSocketEventKind get() =
+        if (type == "error") Error else if (type.startsWith("response.steer.")) Steering
+        else if (type.startsWith("response.")) Response else Native
+    init {
+        if (dialect.protocol != ApiProtocolId("responses")) throw IllegalArgumentException(Some("event belongs to another API protocol"))
+        if (header.type.length == 0L) throw DecodingException("/type", "WebSocket event type must not be empty")
+    }
+    public companion object : ValueEncoder<ResponsesWebSocketEvent>, ValueDecoder<ResponsesWebSocketEvent>
+}
+
+private class ResponsesWebSocketHeader public constructor(public val type: String,
+    @Serialize(rename = "stream_id") public val streamId: String? = None) {
+    public companion object : ValueDecoder<ResponsesWebSocketHeader>
+}
+
+internal fun readResponsesWebSocketEvent(dialect: DialectId, data: String): ResponsesWebSocketEvent {
+    val value = try { Json.parse(data) }
+        catch (_: DecodingException) { throw LlmStreamProtocolException(dialect, "invalid WebSocket JSON", Some(data)) }
+    try { return ResponsesWebSocketEvent(dialect, value) }
+    catch (error: DecodingException) { throw LlmProtocolException(dialect, error.path, error.message ?: "invalid WebSocket event", value) }
+}

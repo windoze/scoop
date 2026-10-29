@@ -1,0 +1,47 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+private class OllamaResultContext public constructor(public val function: OllamaResultFunction, public val id: String? = None) {
+    public companion object : ValueDecoder<OllamaResultContext>
+}
+
+private class OllamaResultFunction public constructor(public val name: String) {
+    public companion object : ValueDecoder<OllamaResultFunction>
+}
+
+internal fun encodeOllamaToolResult(dialect: DialectId, call: ClientToolCallReference, content: Array<ContentPart>,
+    isError: Boolean, extensions: Array<DialectExtension>, tools: Array<ToolDefinition>, path: String): JsonValue {
+    requireLlmOwner(call.dialect, dialect, path + "/call/dialect")
+    if (call.id == Some("")) throw LlmRequestException(path + "/call/id", "present call ID must not be empty")
+    if (isError) throw LlmRequestException(path + "/isError", "Ollama tool messages have no error flag")
+    val name = ollamaResultName(call, tools, path + "/call")
+    val message = JsonObjectBuilder().add("role", JsonValue.fromString("tool")).add("tool_name", JsonValue.fromString(name))
+    if (call.id != None) message.add("tool_call_id", JsonValue.fromString(call.id!!))
+    encodeOllamaContent(message, dialect, content, path + "/content")
+    return mergeLlmExtensions(message.build(), extensions, dialect, ollamaMessageFields(), path)
+}
+
+private fun ollamaResultName(call: ClientToolCallReference, tools: Array<ToolDefinition>, path: String): String {
+    val name = when (call.context) {
+        case Some(context) -> {
+            try {
+                val original = decodeOllamaValue<OllamaResultContext>(context, path + "/context")
+                if (original.id != call.id) throw LlmRequestException(path + "/id", "call ID differs from original tool call")
+                original.function.name
+            } catch (error: DecodingException) {
+                throw LlmRequestException(error.path, error.message ?: "invalid tool call context")
+            }
+        }
+        case None -> {
+            var found: String? = None
+            for (tool in tools) { when (tool) {
+                case ClientFunction(key, wireName, _, _, _, _) -> { if (key == call.toolKey) found = Some(wireName) }
+                else -> continue
+            } }
+            found ?: throw LlmRequestException(path + "/context", "tool result needs original context or a matching function declaration")
+        }
+    }
+    if (name.length == 0L) throw LlmRequestException(path + "/context/function/name", "tool name must not be empty")
+    return name
+}

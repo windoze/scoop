@@ -1,0 +1,75 @@
+package scoop.llm.client.tests.responses.deepseek
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+import scoop.time.Duration
+import scoop.time.Instant
+
+@Test
+private class DeepSeekResponsesNetworkTest {
+    @Test
+    fun `DeepSeek Responses mock retries generation then streams full history with fresh auth and actual timing`() {
+        withLlmServer suspend { _, scope, listener, original ->
+            val auth = RecordingAuth()
+            val endpoint = LlmEndpoint(Providers.deepSeekResponses(), auth, Some(original.baseUrl))
+            val request = dsRequest(dsTools())
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    for (attempt in [1L, 2L, 3L]) {
+                        val incoming = connection.receiveRequest()!!
+                        val target = when (incoming.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                        assertEquals("/v1/responses", target)
+                        assertEquals("Bearer attempt-" + attempt.toString(), String.fromUtf8(incoming.head.fields.findAll("Authorization".toByteArray())[0L].value))
+                        val body = Json.parse(String.fromUtf8(incoming.body.readAllBytes(16384L)))
+                        assertEquals("deployment/model", body["model"]!!.asString())
+                        assertFalse(body.containsKey("previous_response_id"))
+                        if (attempt == 1L) sendLlmReply(connection, 503U, "{\"error\":{\"message\":\"busy\",\"code\":\"server_overloaded\"}}")
+                        else if (attempt == 2L) {
+                            assertFalse(body.containsKey("stream"))
+                            sendLlmReply(connection, 200U, Json.stringify(dsBody(dsOutput())))
+                        } else {
+                            assertTrue(body["stream"]!!.asBoolean())
+                            val input = body["input"]!!
+                            assertEquals("consider", input[1L]["content"]!![0L]["text"]!!.asString())
+                            assertEquals("web_search_call", input[2L]["type"]!!.asString())
+                            assertEquals("function_call_output", input[4L]["type"]!!.asString())
+                            assertEquals("call", input[4L]["call_id"]!!.asString())
+                            sendLlmReply(connection, 200U, dsSseReply(), streamFields)
+                        }
+                    }
+                }
+            }
+            withLlmClient suspend { client ->
+                val model = endpoint.model("deployment/model")
+                val generated = client.generate(model, request, LlmCallOptions(retries = LlmRetryOptions(1L, Duration.ZERO, Duration.ZERO)))
+                assertEquals(2L, generated.metadata.attempts.size)
+                assertEquals(Some(503U), generated.metadata.attempts[0L].status)
+                assertEquals(Some("ds-response"), generated.response.id)
+                assertEquals(Some("deployment/model"), generated.response.model)
+                assertEquals(Some(Instant.fromEpochSeconds(0L)), generated.response.createdAt)
+                val saved = Json.decodeFromString<LlmResponse>(Json.encodeToString(generated.response))
+                val stream = client.openStream(model, dsContinuation(request, saved), retention = StreamRetention.Result)
+                val text = StringBuilder()
+                stream.useAsync suspend { opened ->
+                    val deltas = opened.textDeltas()
+                    while (true) { val delta = deltas.next() ?: break; text.append(delta.text) }
+                }
+                assertEquals("answer", text.toString())
+                assertEquals("answer", stream.result().text)
+                assertEquals(Some("stream"), stream.result().response.id)
+                assertEquals(3L, auth.requests.size)
+                val attempt = stream.metadata.attempts[0L]
+                assertTrue(attempt.request.sentAt != None && attempt.response.receivedAt != None)
+                assertTrue(attempt.response.firstOutputAt != None && attempt.response.firstTextAt != None)
+                assertEquals(Some(17L), attempt.usage.tokens.totalTokens)
+                assertEquals(UsageCompleteness.Final, attempt.usage.completeness)
+            }
+            serving.join()
+        }
+    }
+}

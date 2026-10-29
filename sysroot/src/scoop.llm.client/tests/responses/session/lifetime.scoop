@@ -1,0 +1,69 @@
+package scoop.llm.client.tests.responses.session
+
+import scoop.asyncio.*
+import scoop.http.client.HttpClient
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class ResponsesSessionLifetimeTest {
+    @Test
+    fun `Responses session client close cancels pending receive and preserves borrowed HTTP`() {
+        withResponsesPeer(suspend { _ -> Unit }) suspend { _, scope, endpoint ->
+            HttpClient.open(scope).useAsync suspend { http ->
+                val client = LlmClient.open(scope, Some(http))
+                val session = client.openResponsesSession(endpoint)
+                val entered = LlmGate()
+                val reading = scope.launch suspend {
+                    entered.signal()
+                    expectLlmFailure<LlmClientClosedException> suspend { session.receive(); Unit }
+                    Unit
+                }
+                entered.await()
+                currentEventLoop().sleep(Duration.milliseconds(1L))
+                client.close(); reading.join()
+                assertTrue(client.isClosed && session.isClosed)
+                assertFalse(http.isClosed)
+                session.close()
+            }
+        }
+    }
+
+    @Test
+    fun `Responses session single reader guard and caller cancellation retain ownership`() {
+        withResponsesPeer(suspend { _ -> Unit }) suspend { _, scope, endpoint ->
+            withLlmClient suspend { client ->
+                val session = client.openResponsesSession(endpoint)
+                val entered = LlmGate()
+                val reading = scope.launch suspend {
+                    entered.signal()
+                    expectLlmFailure<CancellationException> suspend { session.receive(); Unit }
+                    Unit
+                }
+                entered.await()
+                currentEventLoop().sleep(Duration.milliseconds(1L))
+                expectLlmFailure<IllegalStateException> suspend { session.receive(); Unit }
+                assertFalse(session.isClosed)
+                reading.cancel(); reading.join()
+                assertTrue(session.isClosed)
+                session.close()
+            }
+        }
+    }
+
+    @Test
+    fun `Responses session explicit close releases an idle connection`() {
+        withResponsesPeer(suspend { _ -> Unit }) suspend { _, _, endpoint ->
+            withLlmClient suspend { client ->
+                val session = client.openResponsesSession(endpoint)
+                session.close(); session.close()
+                assertTrue(session.isClosed)
+                assertTrue(when (session.failure) { case None -> true; case Some(_) -> false })
+                assertTrue(when (session.receive()) { case None -> true; case Some(_) -> false })
+                assertFalse(client.isClosed)
+            }
+        }
+    }
+}

@@ -1,0 +1,68 @@
+package scoop.llm.client.tests.stream
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ChatStreamNativeTest {
+    @Test
+    fun `audio bytes and transcript accumulate separately while history only carries its ID`() {
+        val decoder = ChatProtocol(OpenAiChatDialect()).createStreamDecoder(streamRequest(), StreamRetention.Result)
+        decoder.accept("message", streamChunk("{\"audio\":{\"id\":\"audio-1\",\"data\":\"AQ==\",\"transcript\":\"hi\"}}"))
+        val next = decoder.accept("message", streamChunk("{\"audio\":{\"data\":\"Ag==\",\"transcript\":\"!\"}}"))
+        assertTrue(next.hasOutput)
+        assertFalse(next.hasText)
+        decoder.accept("message", streamChunk("{\"audio\":{\"expires_at\":123}}", Some("stop")))
+        decoder.accept("message", "[DONE]")
+        val response = decoder.response()
+        when (response.candidate(0L).items[0L]) {
+            case Native(_, value) -> {
+                assertEquals("AQI=", value["audio"]!!["data"]!!.asString())
+                assertEquals("hi!", value["audio"]!!["transcript"]!!.asString())
+                assertEquals(123L, value["audio"]!!["expires_at"]!!.asLong())
+            }
+            else -> fail()
+        }
+        assertEquals(0L, response.nativeEvents.size)
+        assertEquals(1L, streamHistory(response)["audio"]!!.size)
+        assertEquals("audio-1", streamHistory(response)["audio"]!!["id"]!!.asString())
+        val bad = ChatProtocol(OpenAiChatDialect()).createStreamDecoder(streamRequest())
+        assertEquals("/choices/0/delta/audio/data", assertFailsWith<LlmProtocolException> {
+            bad.accept("message", streamChunk("{\"audio\":{\"data\":\"invalid?\"}}")); Unit
+        }.path)
+    }
+
+    @Test
+    fun `unknown message fields keep exact fragments and invalidate only the affected history`() {
+        val decoder = ChatProtocol(OpenAiChatDialect()).createStreamDecoder(streamRequest(), StreamRetention.Result)
+        decoder.accept("notice", "opaque event text")
+        decoder.accept("message", streamChunk("{\"signature\":\"first\",\"content\":\"answer\"}"))
+        decoder.accept("message", streamChunk("{\"signature\":\"second\"}", Some("stop")))
+        decoder.accept("message", "[DONE]")
+        val response = decoder.response()
+        assertEquals("answer", response.text)
+        assertEquals(3L, response.candidate(0L).items.size)
+        assertEquals(3L, response.nativeEvents.size)
+        assertEquals("opaque event text", response.nativeEvents[0L].value.asString())
+        assertEquals(0L, response.nativeEvents[1L].location!!.itemIndex)
+        assertEquals(2L, response.nativeEvents[2L].location!!.itemIndex)
+        assertEquals(LlmOutputFailure.HistoryUnavailable, assertFailsWith<LlmOutputException> { response.toInput(); Unit }.reason)
+        val restored = Json.decodeFromString<LlmResponse>(Json.encodeToString(response))
+        assertEquals("second", restored.nativeEvents[2L].value["signature"]!!.asString())
+    }
+
+    @Test
+    fun `legacy function calls and unassociated modern calls stay native but replayable`() {
+        val decoder = ChatProtocol(OpenAiChatDialect()).createStreamDecoder(streamRequest(), StreamRetention.Result)
+        decoder.accept("message", streamChunk("{\"function_call\":{\"name\":\"old\",\"arguments\":\"{\"}}"))
+        decoder.accept("message", streamChunk("{\"function_call\":{\"arguments\":\"}\"}}"))
+        decoder.accept("message", streamChunk("{\"tool_calls\":[{\"index\":0,\"id\":\"u\",\"type\":\"function\",\"function\":{\"name\":\"unrequested\",\"arguments\":\"{}\"}}]}"))
+        finishStream(decoder, "function_call")
+        val response = decoder.response()
+        assertEquals(0L, response.clientToolCalls.size)
+        assertEquals(2L, response.candidate(0L).items.size)
+        assertEquals("{}", streamHistory(response)["function_call"]!!["arguments"]!!.asString())
+        assertEquals("unrequested", streamHistory(response)["tool_calls"]!![0L]["function"]!!["name"]!!.asString())
+    }
+}

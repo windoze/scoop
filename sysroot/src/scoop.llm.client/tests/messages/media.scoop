@@ -1,0 +1,44 @@
+package scoop.llm.client.tests.messages
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class MessagesMediaTest {
+    @Test
+    fun `Messages media preserves inline URL and file forms without fetching resources`() {
+        val dialect = AnthropicMessagesDialect()
+        val content: Array<ContentPart> = [Image(MediaSource.Bytes([1.toByte(), 2.toByte()], "image/png")),
+            Image(MediaSource.Url(Url.parse("https://example.test/image"), "image/jpeg")),
+            Image(MediaSource.FileReference(LlmFileReference(dialect.id, JsonValue.fromString("file-image")), "image/webp")),
+            Document(MediaSource.Bytes("plain 文本".toByteArray(), "text/plain")),
+            Document(MediaSource.Url(Url.parse("https://example.test/doc.pdf"), "application/pdf")),
+            Document(MediaSource.FileReference(LlmFileReference(dialect.id, JsonValue.fromString("file-pdf")), "application/pdf"))]
+        val body = MessagesProtocol(dialect).encodeRequest("model", LlmRequest([Message(content)]))
+        val parts = body["messages"]!![0L]["content"]!!
+        assertEquals("AQI=", parts[0L]["source"]!!["data"]!!.asString())
+        assertEquals("https://example.test/image", parts[1L]["source"]!!["url"]!!.asString())
+        assertEquals("file-image", parts[2L]["source"]!!["file_id"]!!.asString())
+        assertEquals("text", parts[3L]["source"]!!["type"]!!.asString())
+        assertEquals("plain 文本", parts[3L]["source"]!!["data"]!!.asString())
+        assertEquals("url", parts[4L]["source"]!!["type"]!!.asString())
+        assertEquals("file-pdf", parts[5L]["source"]!!["file_id"]!!.asString())
+    }
+
+    @Test
+    fun `Messages media rejects unsupported forms roles and foreign file ownership`() {
+        val pdf: MediaSource = Bytes([1.toByte()], "application/pdf")
+        val cases: Array<(ContentPart, String)> = [
+            (Document(pdf, Some("doc.pdf")), "/input/0/content/0/filename"),
+            (Image(MediaSource.Bytes([], "image/png; detail=low")), "/input/0/content/0/source/mimeType"),
+            (Image(MediaSource.FileReference(LlmFileReference(OpenAiChatDialect().id, JsonValue.fromString("file")), "image/png")), "/input/0/content/0/source/reference/dialect"),
+            (Document(MediaSource.Url(Url.parse("https://example.test/text"), "text/plain")), "/input/0/content/0/source"),
+            (Audio(MediaSource.Bytes([], "audio/wav")), "/input/0/content/0")
+        ]
+        for ((part, path) in cases) assertMessagesRequestFailure(LlmRequest([Message([part])]), path)
+        assertMessagesRequestFailure(LlmRequest([Message([Document(pdf)], Assistant)]), "/input/0/content/0")
+        assertMessagesRequestFailure(LlmRequest(messagesRequest().input, system = [Image(MediaSource.Bytes([], "image/png"))]), "/system/0")
+    }
+}

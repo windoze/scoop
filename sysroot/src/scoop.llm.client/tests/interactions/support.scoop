@@ -1,0 +1,41 @@
+package scoop.llm.client.tests.interactions
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+internal val interactionsDialect: DialectId = GeminiInteractionsDialect().id
+
+internal fun interactionsRequest(): LlmRequest = LlmRequest([Message([Text("question")])],
+    tools = [ClientFunction(ToolKey("local"), "lookup", Json.parse("{}"))])
+
+internal fun interactionsBody(steps: String, status: String = "completed", usage: String? = None): JsonValue =
+    Json.parse("{\"id\":\"interaction-1\",\"object\":\"interaction\",\"status\":\"" + status +
+        "\",\"created\":\"2026-10-25T12:34:56.123456789Z\",\"updated\":\"2026-10-25T12:34:57Z\",\"steps\":" + steps +
+        (if (usage == None) "" else ",\"usage\":" + usage!!) + "}")
+
+internal fun interactionsDecode(raw: JsonValue, request: LlmRequest = interactionsRequest()): LlmResponse =
+    InteractionsProtocol(GeminiInteractionsDialect()).decodeResponse(raw, request)
+
+internal fun interactionsReplace(raw: JsonValue, key: String, value: JsonValue?): JsonValue {
+    val builder = JsonObjectBuilder()
+    for ((name, item) in raw.members()) if (name != key) builder.add(name, item)
+    when (value) { case Some(item) -> builder.add(key, item); case None -> return builder.build() }
+    return builder.build()
+}
+
+internal fun assertInteractionsFailure(raw: JsonValue, path: String) {
+    val error = assertFailsWith<LlmProtocolException> { interactionsDecode(raw); Unit }
+    assertEquals(path, error.path)
+    assertEquals(interactionsDialect, error.dialect)
+    assertEquals(Json.stringify(raw), Json.stringify(error.native))
+}
+
+internal fun interactionsHistory(response: LlmResponse): Array<JsonValue> = when (response.toInput()[0L]) {
+    case History(value) -> value.items
+    else -> fail()
+}
+
+internal class InteractionsCount public constructor(public val count: Long) {
+    public companion object : ValueDecoder<InteractionsCount>
+}

@@ -1,0 +1,37 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun readRealtimeFunction(dialect: DialectId, value: JsonValue, tools: Array<ToolDefinition>, complete: Boolean, path: String): LlmOutputItem {
+    val name = realtimeString(value, "name", path)
+    val arguments = realtimeString(value, "arguments", path)
+    val key = resolveChatToolKey(tools, name, false) ?: return LlmOutputItem.Native(dialect, value)
+    val id = realtimeOptionalString(value, "call_id", path) ?: return LlmOutputItem.Native(dialect, value)
+    if (id.length == 0L) throw DecodingException(path + "/call_id", "empty Realtime function call ID")
+    val status = realtimeOptionalString(value, "status", path)
+    val input = if (!complete || (status != None && status != Some("completed"))) ClientToolInput.Incomplete(arguments)
+        else try { ClientToolInput.JsonArguments(JsonToolArguments(arguments)) }
+        catch (error: DecodingException) { ClientToolInput.Invalid(arguments, error.message ?: "invalid JSON arguments") }
+    return LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, key, Some(id), Some(value)), input))
+}
+
+internal fun readRealtimeMcp(dialect: DialectId, value: JsonValue, tools: Array<ToolDefinition>, path: String): LlmOutputItem {
+    val label = realtimeString(value, "server_label", path)
+    var key: ToolKey? = None
+    var matches = 0L
+    for (tool in tools) {
+        val native = when (tool) { case Server(_, Native(native), _) -> Some(native); else -> None }
+        if (!llmPresent(native) || native!!.dialect != dialect || native!!.kind != "mcp" || native!!.version != None) continue
+        val name = if (native!!.configuration.kind == JsonValueKind.Object) native!!.configuration["server_label"] else None
+        if (llmPresent(name) && name!!.kind == JsonValueKind.String && name!!.asString() == label) { key = Some(tool.key); matches += 1L }
+    }
+    val output = value["output"]
+    val error = value["error"]
+    val failed = llmPresent(error) && error!!.kind != JsonValueKind.Null
+    val hasOutput = llmPresent(output) && output!!.kind != JsonValueKind.Null
+    val result: Array<OutputPart> = if (!hasOutput) [] else [if (output!!.kind == JsonValueKind.String)
+        OutputPart.Text(output!!.asString()) else OutputPart.Native(dialect, output!!)]
+    return LlmOutputItem.ServerToolActivity(ServerToolActivity(ServerToolKind.Native,
+        if (failed) ServerToolStatus.Failed else if (hasOutput) ServerToolStatus.Completed else ServerToolStatus.Unknown,
+        if (matches == 1L) key else None, realtimeOptionalString(value, "id", path), result = result, native = Some(value)))
+}

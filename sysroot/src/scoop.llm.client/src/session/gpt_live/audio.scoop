@@ -1,0 +1,20 @@
+package scoop.llm.client
+
+import scoop.http.HttpMediaType
+
+internal fun checkGptLiveAudio(bytes: Array<Byte>, mimeType: String) {
+    val mime = HttpMediaType.parseOrNone(mimeType) ?: throw LlmRequestException("/mimeType", "invalid GPT-Live media type")
+    if (mime.type != "audio" || (mime.subtype != "pcm" && mime.subtype != "pcmu" && mime.subtype != "pcma"))
+        throw LlmRequestException("/mimeType", "GPT-Live requires raw PCM, PCMU or PCMA")
+    val rate = mime.parameter("rate")
+    if (llmPresent(rate)) {
+        val value = String.fromUtf8(rate!!.value)
+        if (if (mime.subtype == "pcm") value != "16000" && value != "24000" else value != "8000")
+            throw LlmRequestException("/mimeType", "audio sample rate is not supported by GPT-Live")
+    }
+    val channels = mime.parameter("channels")
+    if (llmPresent(channels) && String.fromUtf8(channels!!.value) != "1")
+        throw LlmRequestException("/mimeType", "GPT-Live audio must be mono")
+    if (mime.subtype == "pcm" && bytes.size % 2L != 0L)
+        throw LlmRequestException("/audio", "PCM16 audio requires complete two-byte samples")
+}

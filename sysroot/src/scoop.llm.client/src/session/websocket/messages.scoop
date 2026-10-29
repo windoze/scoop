@@ -1,0 +1,36 @@
+package scoop.llm.client
+
+import scoop.asyncio.useAsync
+import scoop.asyncio.writeFully
+import scoop.http.WebSocketMessageType
+import scoop.http.client.HttpWebSocketSession
+import scoop.json.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal suspend fun sendLlmWebSocketMessage(call: LlmCallState, socket: HttpWebSocketSession,
+    command: JsonValue): LlmRequestTiming {
+    val bytes = Json.stringify(command).toByteArray()
+    return NativeByteBuffer.allocate(bytes.size).use suspend { buffer ->
+        buffer.writeBytes(bytes)
+        socket.beginMessage(WebSocketMessageType.Text).useAsync suspend { writer ->
+            val sent = call.point()
+            writer.writeFully(buffer)
+            writer.finish()
+            LlmRequestTiming(Some(sent), Some(call.point()))
+        }
+    }
+}
+
+internal suspend fun <T> receiveLlmWebSocketMessage(call: LlmCallState, socket: HttpWebSocketSession,
+    dialect: DialectId, allowBinaryJson: Boolean, decode: (String) -> T): (T, LlmTimePoint)? {
+    val message = socket.receive() ?: return None
+    val data = message.useAsync suspend { current ->
+        if (current.type == WebSocketMessageType.Text) current.readText()
+        else if (allowBinaryJson) String.fromUtf8OrNone(current.readBytes())
+            ?: throw LlmStreamProtocolException(dialect, "LLM WebSocket JSON message is not valid UTF-8")
+        else
+            throw LlmStreamProtocolException(dialect, "LLM WebSocket requires text messages")
+    }
+    val received = call.point()
+    return Some((decode(data), received))
+}

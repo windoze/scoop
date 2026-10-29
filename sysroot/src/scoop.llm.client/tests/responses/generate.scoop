@@ -1,0 +1,47 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.responses.responsesBody
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class ResponsesGenerationTest {
+    @Test
+    fun `Responses ordinary generation preserves deployment auth usage timestamps and failed model outcomes`() {
+        for (failed in [false, true]) withLlmServer suspend { _, scope, listener, original ->
+            val auth = RecordingAuth()
+            val endpoint = LlmEndpoint(Providers.openAiResponses(), auth, Some(Url.parse(original.baseUrl.toString() + "/deployment?scope=one")))
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val request = connection.receiveRequest()!!
+                    val target = when (request.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                    assertEquals("/v1/deployment/responses?scope=one", target)
+                    assertEquals("Bearer attempt-1", String.fromUtf8(request.head.fields.findAll("authorization".toByteArray())[0L].value))
+                    val body = Json.parse(String.fromUtf8(request.body.readAllBytes(8192L)))
+                    assertEquals(2L, body.size)
+                    assertEquals("proxy/model:v", body["model"]!!.asString())
+                    val output = if (failed) "[]" else "[{\"type\":\"message\",\"id\":\"m\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]}]"
+                    sendLlmReply(connection, 200U, Json.stringify(responsesBody(output, Some(if (failed) "failed" else "completed"),
+                        Some("{\"input_tokens\":12,\"input_tokens_details\":{\"cached_tokens\":4,\"cache_write_tokens\":3},\"output_tokens\":2,\"total_tokens\":14}"))))
+                }
+            }
+            withLlmClient suspend { client ->
+                val result = client.generate(endpoint.model("proxy/model:v"), sampleRequest)
+                assertEquals(if (failed) "" else "hello", result.text)
+                assertEquals(if (failed) LlmCompletion.Failed else LlmCompletion.Complete, result.response.candidate(0L).completion)
+                assertEquals(Some(14L), result.response.usage.tokens.totalTokens)
+                assertEquals(Some(5L), result.response.usage.tokens.nonCachedInputTokens)
+                assertEquals(1L, result.metadata.attempts.size)
+                assertTrue(result.metadata.attempts[0].request.sentAt != None)
+                assertTrue(result.metadata.attempts[0].response.receivedAt != None)
+                assertEquals(1L, auth.requests.size)
+            }
+            serving.join()
+        }
+    }
+}

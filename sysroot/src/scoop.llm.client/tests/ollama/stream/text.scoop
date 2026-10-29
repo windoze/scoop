@@ -1,0 +1,81 @@
+package scoop.llm.client.tests.ollama.stream
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.ollama.*
+import scoop.test.*
+import scoop.time.Instant
+
+@Test
+private class OllamaStreamTextTest {
+    @Test
+    fun `Ollama NDJSON text and thinking keep stable locations structured output and changing service timestamps`() {
+        val stream = ollamaStream()
+        assertFalse(stream.accept(ollamaFrame()).hasOutput)
+        val thought = stream.accept(ollamaFrame(thinking = Some("想🙂"), extra = ",\"created_at\":\"2026-10-25T01:00:00Z\""))
+        assertTrue(thought.hasOutput); assertFalse(thought.hasText)
+        when (thought.events[0L]) { case ReasoningDelta(delta) -> assertEquals(0L, delta.location.itemIndex); else -> fail() }
+        stream.accept(ollamaFrame("{\"count\":"))
+        val next = stream.accept(ollamaFrame("9007199254740993}", Some(" done"), extra = ",\"created_at\":\"2026-10-25T00:00:00Z\""))
+        when (next.events[1L]) { case TextDelta(delta) -> {
+            assertEquals(1L, delta.location.itemIndex); assertEquals(0L, delta.partIndex)
+        }; else -> fail() }
+        ollamaEnd(stream, extra = ",\"created_at\":\"2026-10-25T02:00:00Z\"")
+        assertEquals(0L, stream.endInput().events.size)
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(stream.response()))
+        assertEquals(9007199254740993L, response.decodeOutput<OllamaCount>().count)
+        assertEquals(Some(Instant.parse("2026-10-25T02:00:00Z")), response.createdAt)
+        assertEquals(None, response.id)
+        assertEquals("想🙂 done", ollamaHistory(response)["thinking"]!!.asString())
+        assertEquals(Json.stringify(ollamaHistory(response)), Json.stringify(ollamaEncode(LlmRequest(response.toInput()))["messages"]!![0L]))
+    }
+
+    @Test
+    fun `Ollama NDJSON empty thinking differs from missing thinking and final missing time stays unknown`() {
+        for (thinking in [None, Some("")]) {
+            val stream = ollamaStream()
+            val first = stream.accept(ollamaFrame(thinking = thinking, calls = Some([]), extra = ",\"created_at\":\"2026-10-25T00:00:00Z\""))
+            assertFalse(first.hasOutput); assertFalse(first.hasText)
+            ollamaEnd(stream)
+            val response = stream.response()
+            assertEquals("", response.text)
+            assertEquals(None, response.createdAt)
+            assertEquals(if (thinking == None) 1L else 2L, response.candidates[0L].items.size)
+            assertEquals(thinking != None, ollamaHistory(response).containsKey("thinking"))
+            assertEquals(0L, ollamaHistory(response)["tool_calls"]!!.size)
+        }
+    }
+
+    @Test
+    fun `Ollama NDJSON EventsOnly retains pending tools but releases ordinary content and completed state`() {
+        val stream = OllamaStreamDecoder(OllamaChatDialect(), ollamaRequest(), StreamRetention.EventsOnly)
+        stream.accept(ollamaFrame("large text", Some("private thought"), Some([ollamaCall()])))
+        assertEquals("", stream.text!!.text())
+        assertEquals("", stream.thinking!!.text())
+        assertEquals(0L, stream.slots.size)
+        assertEquals(1L, stream.tools.size)
+        assertEquals(1L, ollamaCallEvents(ollamaEnd(stream)).size)
+        assertEquals(0L, stream.tools.size)
+        assertFalse(llmPresent(stream.text))
+        assertEquals(LlmOutputFailure.ResultNotRetained, assertFailsWith<LlmOutputException> { stream.response(); Unit }.reason)
+    }
+
+    @Test
+    fun `Ollama NDJSON native message changes preserve output but prevent guessed history merging`() {
+        for (messageField in [false, true]) {
+            val stream = ollamaStream()
+            val raw = ollamaBody("one", None, false, if (messageField) ",\"images\":[\"AA==\"],\"future\":1e400" else "",
+                extra = ",\"remote_model\":\"actual\"")
+            stream.accept(Json.stringify(raw))
+            stream.accept(ollamaFrame(" two"))
+            ollamaEnd(stream)
+            val response = stream.response()
+            assertEquals("one two", response.text)
+            assertEquals("actual", response.nativeEvents[0L].value["remote_model"]!!.asString())
+            if (messageField) {
+                assertEquals(LlmOutputFailure.HistoryUnavailable, assertFailsWith<LlmOutputException> { response.toInput(); Unit }.reason)
+                when (response.candidates[0L].items[1L]) { case Native(_, value) -> assertEquals("1e400", value["future"]!!.asNumberToken()); else -> fail() }
+            } else assertEquals(1L, response.toInput().size)
+        }
+    }
+}

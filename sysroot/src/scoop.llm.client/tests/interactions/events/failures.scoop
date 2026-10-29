@@ -1,0 +1,67 @@
+package scoop.llm.client.tests.interactions.events
+
+import scoop.asyncio.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+
+@Test
+private class InteractionsEventsFailuresTest {
+    @Test
+    fun `Interactions event requests reject invalid routing before authentication and notify once`() {
+        withLlmServer suspend { _, _, _, original ->
+            val auth = RecordingAuth()
+            withLlmClient suspend { client ->
+                for ((provider, id, path) in [(Providers.openAiResponses(), "id", "/provider"),
+                    (Providers.geminiInteractions(), "", "/interactionId")]) {
+                    val finished = FinishedCalls()
+                    val error = expectLlmFailure<LlmRequestException> suspend {
+                        client.openInteractionEvents(LlmEndpoint(provider, auth, Some(original.baseUrl)), id,
+                            options = LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                    }
+                    assertEquals(path, error.path)
+                    assertEquals(1L, finished.values.size)
+                    assertEquals(0L, finished.values[0].attempts.size)
+                }
+            }
+            assertEquals(0L, auth.requests.size)
+        }
+    }
+
+    @Test
+    fun `Interactions event media errors and error events retain failure metadata without resuming`() {
+        for (validMedia in [false, true]) {
+            withLlmServer suspend { _, scope, listener, original ->
+                val body = interactionWire("error", "{\"error\":{\"message\":\"unavailable\"},\"extra\":true}")
+                val serving = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        connection.receiveRequest()!!.body.readAllBytes(4096L)
+                        sendLlmReply(connection, 200U, body, if (validMedia) interactionEventFields else [])
+                    }
+                }
+                val finished = FinishedCalls()
+                withLlmClient suspend { client ->
+                    val endpoint = LlmEndpoint(Providers.geminiInteractions(), LlmAuth.none(), Some(original.baseUrl))
+                    val options = LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))
+                    if (validMedia) {
+                        val error = expectLlmFailure<LlmProtocolException> suspend {
+                            client.withInteractionEvents(endpoint, "id", options = options) suspend { stream -> stream.next(); Unit }
+                        }
+                        assertTrue(error.native["extra"]!!.asBoolean())
+                    } else {
+                        expectLlmFailure<LlmStreamProtocolException> suspend {
+                            client.openInteractionEvents(endpoint, "id", options = options); Unit
+                        }
+                    }
+                }
+                assertEquals(1L, finished.values.size)
+                assertEquals(LlmCallOutcome.Failed, finished.values[0].outcome)
+                assertEquals(1L, finished.values[0].attempts.size)
+                assertTrue(finished.values[0].attempts[0].response.receivedAt != None)
+                assertEquals(None, finished.values[0].attempts[0].response.completedAt)
+                serving.join()
+            }
+        }
+    }
+}

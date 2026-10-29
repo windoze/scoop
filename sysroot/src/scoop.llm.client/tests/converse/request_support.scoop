@@ -1,0 +1,15 @@
+package scoop.llm.client.tests.converse
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+internal fun converseEncode(request: LlmRequest, model: String = "unlisted/model:version"): JsonValue =
+    ConverseProtocol(BedrockConverseDialect()).encodeRequest(model, request)
+
+internal fun converseExtension(value: String): Array<DialectExtension> = [DialectExtension(converseDialect, Json.parse(value))]
+
+internal fun assertConverseRequestFailure(request: LlmRequest, path: String) {
+    val error = assertFailsWith<LlmRequestException> { converseEncode(request); Unit }
+    assertEquals(path, error.path)
+}

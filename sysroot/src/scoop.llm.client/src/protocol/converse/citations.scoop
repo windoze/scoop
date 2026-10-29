@@ -1,0 +1,90 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.url.Url
+
+private class ConverseCitedContent public constructor(public val content: Array<JsonValue> = [], public val citations: Array<JsonValue> = []) {
+    public companion object : ValueDecoder<ConverseCitedContent>
+}
+
+private class ConverseCitation public constructor(public val title: String? = None, public val location: JsonValue? = None) {
+    public companion object : ValueDecoder<ConverseCitation>
+}
+
+private class ConverseWebLocation public constructor(public val url: String? = None) {
+    public companion object : ValueDecoder<ConverseWebLocation>
+}
+
+internal fun readConverseCitedBlock(dialect: DialectId, entry: ConverseEntry, items: ArrayList<LlmOutputItem>) {
+    val path = entry.path + "/citationsContent"
+    val fields = decodeConverseValue<ConverseCitedContent>(entry.value, path)
+    val citations = ArrayList<Citation>()
+    var index = 0L
+    for (value in fields.citations) {
+        citations.add(readConverseCitation(dialect, value, path + "/citations/" + index.toString()))
+        index += 1L
+    }
+    val references = citations.toArray()
+    if (fields.content.size == 0L) {
+        attachConverseCitations(items, references)
+        items.add(LlmOutputItem.Native(dialect, entry.raw))
+        return
+    }
+    val parts = ArrayList<OutputPart>()
+    index = 0L
+    for (value in fields.content) {
+        val contentPath = path + "/content/" + index.toString()
+        val (kind, content) = converseUnion(value, contentPath)
+        parts.add(if (kind == "text") OutputPart.Text(decodeConverseValue<String>(content, contentPath + "/text"), references)
+            else OutputPart.Native(dialect, value))
+        index += 1L
+    }
+    items.add(LlmOutputItem.Message(parts.toArray()))
+}
+
+internal fun readConverseCitation(dialect: DialectId, value: JsonValue, path: String): Citation {
+    val fields = decodeConverseValue<ConverseCitation>(value, path)
+    var location = LlmSourceLocation.Native(dialect, value)
+    if (llmPresent(fields.location)) {
+        val (kind, content) = converseUnion(fields.location!!, path + "/location")
+        if (kind == "web") {
+            val web = decodeConverseValue<ConverseWebLocation>(content, path + "/location/web")
+            if (web.url != None) {
+                converseNonempty(web.url!!, path + "/location/web/url")
+                val url = Url.parseOrNone(web.url!!) ?: throw DecodingException(path + "/location/web/url", "invalid citation URL")
+                location = LlmSourceLocation.Url(url)
+            }
+        }
+    }
+    return Citation(LlmSource(path, location, fields.title, Some(value)))
+}
+
+private fun attachConverseCitations(items: ArrayList<LlmOutputItem>, citations: Array<Citation>) {
+    if (items.size == 0L || citations.size == 0L) return
+    var index = items.size - 1L
+    while (index >= 0L) {
+        when (items[index]) {
+            case Native(_, value) -> {
+                if (value.kind != JsonValueKind.Object || !value.containsKey("citationsContent")) return
+                index -= 1L
+            }
+            case Message(parts, id) -> {
+                if (parts.size == 0L) return
+                when (parts[parts.size - 1L]) {
+                    case Text(text, previous) -> {
+                        val merged = ArrayList<Citation>()
+                        for (citation in previous) merged.add(citation)
+                        for (citation in citations) merged.add(citation)
+                        val copy = ArrayList<OutputPart>()
+                        for (part in parts) copy.add(part)
+                        copy[copy.size - 1L] = OutputPart.Text(text, merged.toArray())
+                        items[index] = LlmOutputItem.Message(copy.toArray(), id)
+                    }
+                    else -> return
+                }
+                return
+            }
+            else -> return
+        }
+    }
+}

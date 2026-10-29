@@ -1,0 +1,53 @@
+package scoop.llm.client
+
+import scoop.http.HttpMediaType
+import scoop.io.encoding.Base64
+import scoop.json.*
+
+internal fun encodeGeminiLiveInput(dialect: DialectId, input: GeminiLiveInput): JsonValue {
+    checkDialectExtensions(input.extensions, "/extensions")
+    val body = JsonObjectBuilder()
+    when (input.text) { case Some(text) -> body.add("text", JsonValue.fromString(text)); case None -> {} }
+    when (input.audio) { case Some(audio) -> body.add("audio", encodeGeminiLiveBlob(audio, "audio", "/audio")); case None -> {} }
+    when (input.video) { case Some(video) -> body.add("video", encodeGeminiLiveBlob(video, "image", "/video")); case None -> {} }
+    if (input.activityStart) body.add("activityStart", JsonObjectBuilder().build())
+    if (input.activityEnd) body.add("activityEnd", JsonObjectBuilder().build())
+    if (input.audioStreamEnd != None) body.add("audioStreamEnd", JsonValue.fromBoolean(input.audioStreamEnd!!))
+    val value = mergeLlmExtensions(body.build(), input.extensions, dialect,
+        ["text", "audio", "video", "activityStart", "activity_start", "activityEnd", "activity_end", "audioStreamEnd", "audio_stream_end", "mediaChunks", "media_chunks"], "")
+    return JsonObjectBuilder().add("realtimeInput", value).build()
+}
+
+private fun encodeGeminiLiveBlob(blob: GeminiLiveBlob, type: String, path: String): JsonValue {
+    val mime = HttpMediaType.parseOrNone(blob.mimeType) ?: throw LlmRequestException(path + "/mimeType", "invalid Live media type")
+    if (mime.type != type || mime.subtype == "*") throw LlmRequestException(path + "/mimeType", "Live media type does not match the input field")
+    return JsonObjectBuilder().add("mimeType", JsonValue.fromString(blob.mimeType))
+        .add("data", JsonValue.fromString(Base64.Default.encode(blob.bytes))).build()
+}
+
+internal fun encodeGeminiLiveToolResults(dialect: DialectId, results: Array<GeminiLiveToolResult>, tools: Array<ToolDefinition>): JsonValue {
+    val responses = ArrayList<JsonValue>()
+    var index = 0L
+    for (result in results) {
+        val path = "/results/" + index.toString()
+        requireLlmOwner(result.call.dialect, dialect, path + "/call/dialect")
+        if (result.call.id == None || result.call.id == Some("")) throw LlmRequestException(path + "/call/id", "Live function response requires the actual call ID")
+        if (result.response.kind != JsonValueKind.Object) throw LlmRequestException(path + "/response", "function response requires a JSON object")
+        val body = JsonObjectBuilder().add("id", JsonValue.fromString(result.call.id!!))
+            .add("name", JsonValue.fromString(generateContentResultName(result.call, tools, path + "/call"))).add("response", result.response)
+        val parts = ArrayList<JsonValue>()
+        var partIndex = 0L
+        for (part in result.parts) {
+            val partPath = path + "/parts/" + partIndex.toString()
+            val encoded = encodeGenerateContentPart(dialect, part, partPath)
+            if (!encoded.containsKey("inlineData")) throw LlmRequestException(partPath, "Live function response parts require inline media")
+            parts.add(encoded)
+            partIndex += 1L
+        }
+        if (parts.size != 0L) body.add("parts", JsonValue.fromArray(parts))
+        checkDialectExtensions(result.extensions, path + "/extensions")
+        responses.add(mergeLlmExtensions(body.build(), result.extensions, dialect, ["id", "name", "response", "parts"], path))
+        index += 1L
+    }
+    return JsonObjectBuilder().add("toolResponse", JsonObjectBuilder().add("functionResponses", JsonValue.fromArray(responses)).build()).build()
+}

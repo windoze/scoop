@@ -1,0 +1,37 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal class GenerateContentResponseBody public constructor(
+    public val candidates: Array<JsonValue>? = None,
+    public val responseId: String? = None,
+    public val modelVersion: String? = None,
+    public val usageMetadata: JsonValue? = None
+) {
+    public companion object : ValueDecoder<GenerateContentResponseBody>
+}
+
+internal class GenerateContentCandidateBody public constructor(
+    public val index: Long? = None,
+    public val content: JsonValue? = None,
+    public val finishReason: String? = None,
+    public val groundingMetadata: JsonValue? = None,
+    public val citationMetadata: JsonValue? = None
+) {
+    public companion object : ValueDecoder<GenerateContentCandidateBody>
+}
+
+internal class GenerateContentContent public constructor(public val parts: Array<JsonValue>? = None, public val role: String? = None) {
+    public companion object : ValueDecoder<GenerateContentContent>
+}
+
+internal class GenerateContentPartHeader public constructor(public val thought: Boolean? = None, public val thoughtSignature: String? = None) {
+    public companion object : ValueDecoder<GenerateContentPartHeader>
+}
+
+internal fun <T> decodeGenerateContentValue(value: JsonValue, path: String): T where T.Companion : ValueDecoder<T> {
+    try { return Json.decodeFromValue<T>(value) }
+    catch (error: DecodingException) { throw DecodingException(path + error.path, error.message ?: "invalid generateContent field") }
+}
+
+internal fun generateContentId(value: String?): String? = if (value == Some("")) None else value

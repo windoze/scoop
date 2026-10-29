@@ -1,0 +1,33 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.text.startsWith
+
+internal fun encodeMessagesNativeTool(tool: NativeToolDefinition, extensions: Array<DialectExtension>, dialect: DialectId,
+    server: Boolean, path: String): (String?, JsonValue) {
+    val toolPath = path + "/tool"
+    requireLlmOwner(tool.dialect, dialect, toolPath + "/dialect")
+    if (tool.kind.length == 0L) throw LlmRequestException(toolPath + "/kind", "Messages native tool type must not be empty")
+    if (tool.version == Some("")) throw LlmRequestException(toolPath + "/version", "Messages native tool version must not be empty")
+    val clientFamilies = ["bash", "text_editor", "computer", "browser", "memory"]
+    val serverFamilies = ["web_search", "web_fetch", "code_execution", "tool_search"]
+    for (family in (if (server) clientFamilies else serverFamilies)) {
+        if (tool.kind == family || tool.kind.startsWith(family + "_"))
+            throw LlmRequestException(toolPath + "/kind", "native tool belongs to the other execution side")
+    }
+    if (tool.configuration.containsKey("type")) throw LlmRequestException(toolPath + "/configuration/type", "native configuration cannot override its type")
+    val rawName = tool.configuration["name"]
+    val name = when (rawName) {
+        case Some(value) -> {
+            if (value.kind != JsonValueKind.String) throw LlmRequestException(toolPath + "/configuration/name", "native tool name must be a string")
+            val text = value.asString()
+            requireLlmToolName(text, 128L, toolPath + "/configuration/name")
+            Some(text)
+        }
+        case None -> None
+    }
+    val type = tool.kind + (if (tool.version != None) "_" + tool.version!! else "")
+    val body = llmTypedObject(type)
+    for ((key, value) in tool.configuration.members()) body.add(key, value)
+    return (name, mergeLlmExtensions(body.build(), extensions, dialect, ["type", "name"], path))
+}

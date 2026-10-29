@@ -1,0 +1,83 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.json.Json
+import scoop.llm.client.*
+import scoop.test.*
+
+internal fun nativeToolModel(support: Capability<NativeToolConfigurationCapabilities>, version: String? = None): ModelCapabilities =
+    ModelCapabilities(serverTools = ServerToolCapabilities(nativeTools = Supported(NativeToolCapabilities([
+        NativeToolCapability(OpenAiChatDialect().id, "web_search", support, version)
+    ]))))
+
+internal suspend fun assertToolCapabilityFailure(client: LlmClient, capabilities: ModelCapabilities, tools: Array<ToolDefinition>, path: String) {
+    val auth = RecordingAuth()
+    val model = LlmEndpoint(Providers.openAiChat(), auth).model("m", Some(capabilities))
+    val finished = FinishedCalls()
+    val error = expectLlmFailure<LlmRequestException> suspend {
+        client.generate(model, LlmRequest(sampleRequest.input, tools = tools),
+            LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+    }
+    assertEquals(path, error.path)
+    assertEquals(0L, auth.requests.size)
+    assertEquals(1L, finished.values.size)
+    assertEquals(0L, finished.values[0L].attempts.size)
+    assertEquals(LlmCallOutcome.Failed, finished.values[0L].outcome)
+}
+
+@Test
+private class ToolCapabilityRejectionTest {
+    @Test
+    fun `native support uses the declared executor and exact version before authentication`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            withLlmClient suspend { client ->
+                val native = NativeToolDefinition(OpenAiChatDialect().id, "web_search", version = Some("v1"))
+                assertToolCapabilityFailure(client, ModelCapabilities(clientNativeTools = Unsupported("disabled")),
+                    [ClientNative(ToolKey("local"), native)], "/tools/0")
+                assertToolCapabilityFailure(client, ModelCapabilities(serverTools = ServerToolCapabilities(nativeTools = Unsupported("disabled"))),
+                    [Server(ToolKey("remote"), Native(native))], "/tools/0")
+                assertToolCapabilityFailure(client, nativeToolModel(Unsupported("disabled revision"), Some("v1")),
+                    [Server(ToolKey("remote"), Native(native))], "/tools/0")
+            }
+        }
+    }
+
+    @Test
+    fun `native configuration checks explicit fields and escapes their diagnostic paths`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            withLlmClient suspend { client ->
+                val capabilities = nativeToolModel(Supported(NativeToolConfigurationCapabilities([
+                    NativeToolFieldCapability("x/~", Unsupported("disabled field"))
+                ])))
+                for (value in ["null", "false", "0", "[]"]) {
+                    val native = NativeToolDefinition(OpenAiChatDialect().id, "web_search", Json.parse("{\"x/~\":" + value + "}"))
+                    assertToolCapabilityFailure(client, capabilities, [Server(ToolKey("remote"), Native(native))],
+                        "/tools/0/tool/configuration/x~1~0")
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `mixing restrictions cover client native and multiple server declarations`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            withLlmClient suspend { client ->
+                val search: ToolDefinition = Server(ToolKey("web"), WebSearch())
+                val native = NativeToolDefinition(OpenAiChatDialect().id, "shell")
+                val clients: Array<ToolDefinition> = [
+                    ClientFunction(ToolKey("f"), "f", Json.parse("{}")),
+                    ClientCustom(ToolKey("c"), "c"), ClientNative(ToolKey("n"), native)
+                ]
+                for (local in clients) {
+                    assertToolCapabilityFailure(client, ModelCapabilities(mixedTools = MixedToolCapabilities(clientAndServer = Unsupported("no mixing"))),
+                        [local, search], "/tools")
+                }
+                assertToolCapabilityFailure(client, ModelCapabilities(mixedTools = MixedToolCapabilities(multipleServerTools = Unsupported("only one"))),
+                    [search, Server(ToolKey("second"), WebSearch())], "/tools")
+            }
+        }
+    }
+}

@@ -1,0 +1,58 @@
+package scoop.llm.client.tests.converse
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class ConverseRequestMediaTest {
+    @Test
+    fun `Converse media bytes S3 locations neutral document names and payload extensions retain their meanings`() {
+        val request = LlmRequest([Message([Text("read"), Image(Bytes("img".toByteArray(), "IMAGE/PNG")),
+            Document(Bytes("pdf".toByteArray(), "application/pdf"), extensions = converseExtension("{\"citations\":{\"enabled\":true}}")),
+            Audio(Bytes([], "audio/mpeg")), Video(Url(Url.parse("s3://bucket/video.mp4"), "video/mp4"))])])
+        val parts = converseEncode(request)["messages"]!![0L]["content"]!!
+        assertEquals("aW1n", parts[1L]["image"]!!["source"]!!["bytes"]!!.asString())
+        assertEquals("png", parts[1L]["image"]!!["format"]!!.asString())
+        assertEquals("document", parts[2L]["document"]!!["name"]!!.asString())
+        assertTrue(parts[2L]["document"]!!["citations"]!!["enabled"]!!.asBoolean())
+        assertEquals("mpeg", parts[3L]["audio"]!!["format"]!!.asString())
+        assertEquals("s3://bucket/video.mp4", parts[4L]["video"]!!["source"]!!["s3Location"]!!["uri"]!!.asString())
+        assertEquals(1L, parts[2L].size)
+    }
+
+    @Test
+    fun `Converse file references round trip original S3 metadata and equivalent format aliases`() {
+        val raw = "[{\"audio\":{\"format\":\"mp3\",\"source\":{\"s3Location\":{\"uri\":\"s3://bucket/audio\",\"bucketOwner\":\"123456789012\"}},\"future\":1e400}}]"
+        val response = converseDecode(converseBody(raw))
+        val saved = Json.decodeFromString<LlmResponse>(Json.encodeToString(response))
+        when (saved.candidate(0L).items[0L]) { case Message(output, _) -> when (output[0L]) {
+            case Media(_, source) -> assertEquals(raw, Json.stringify(converseEncode(LlmRequest([Message([Audio(source)])]))["messages"]!![0L]["content"]!!))
+            else -> fail()
+        }; else -> fail() }
+        val file = LlmFileReference(converseDialect, Json.parse("{\"document\":{\"name\":\"original\",\"format\":\"pdf\",\"source\":{\"s3Location\":{\"uri\":\"s3://bucket/doc\"}},\"context\":\"citation context\"}}"))
+        val source = MediaSource.FileReference(file, "application/pdf")
+        val content = converseEncode(LlmRequest([Message([Text("read"), Document(source), Document(source, Some("paper (1)"))])]))["messages"]!![0L]["content"]!!
+        assertEquals("original", content[1L]["document"]!!["name"]!!.asString())
+        assertEquals("paper (1)", content[2L]["document"]!!["name"]!!.asString())
+        assertEquals("citation context", content[2L]["document"]!!["context"]!!.asString())
+    }
+
+    @Test
+    fun `Converse media rejects unsupported forms mismatched file types and invalid message placement`() {
+        for (mime in ["audio/opus", "audio/pcm", "audio/L16;rate=24000", "invalid"])
+            assertConverseRequestFailure(LlmRequest([Message([Audio(Bytes([], mime))])]), "/input/0/content/0/source/mimeType")
+        assertConverseRequestFailure(LlmRequest([Message([Image(Url(Url.parse("https://example.com/image.png"), "image/png"))])]), "/input/0/content/0/source/url")
+        assertConverseRequestFailure(LlmRequest([Message([Image(Bytes([], "image/png"))], Assistant)]), "/input/0/content/0")
+        assertConverseRequestFailure(LlmRequest([Message([Document(Bytes([], "application/pdf"))])]), "/input/0/content")
+        assertConverseRequestFailure(LlmRequest([Message([Text("x"), Document(Bytes([], "application/pdf"), Some(""))])]), "/input/0/content/1/filename")
+        assertConverseRequestFailure(LlmRequest([Message([VideoFrames([])])]), "/input/0/content/0")
+        assertConverseRequestFailure(LlmRequest([Message([Image(Bytes([], "image/png"), converseExtension("{\"source\":{}}"))])]), "/input/0/content/0/extensions/0/value/source")
+        for ((raw, path) in [("{\"audio\":{}}", ""), ("{\"image\":{\"format\":\"jpeg\"}}", "/image/format"),
+            ("{\"image\":{\"format\":\"png\",\"source\":{\"bytes\":\"\"}}}", "/image/source"),
+            ("{\"image\":{\"format\":\"png\",\"source\":{\"s3Location\":{\"uri\":\"https://example.com/image\"}}}}", "/image/source/s3Location/uri")])
+            assertConverseRequestFailure(LlmRequest([Message([Image(FileReference(LlmFileReference(converseDialect, Json.parse(raw)), "image/png"))])]),
+                "/input/0/content/0/source/reference/value" + path)
+    }
+}

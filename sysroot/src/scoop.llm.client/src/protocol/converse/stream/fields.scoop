@@ -1,0 +1,24 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun converseStreamField(raw: JsonValue, name: String, path: String = ""): JsonValue {
+    converseStreamObject(raw, path)
+    return raw[name] ?: throw DecodingException(path + "/" + name, "missing Converse stream field")
+}
+
+internal fun converseStreamString(raw: JsonValue, name: String, path: String = ""): String =
+    decodeConverseValue<String>(converseStreamField(raw, name, path), path + "/" + name)
+
+internal fun converseStreamObject(raw: JsonValue, path: String): JsonValue {
+    if (raw.kind != JsonValueKind.Object) throw DecodingException(path, "expected an object")
+    return raw
+}
+
+internal fun converseStreamReplace(raw: JsonValue, name: String, value: JsonValue): JsonValue {
+    val result = JsonObjectBuilder()
+    for ((key, field) in raw.members()) if (key != name) result.add(key, field)
+    return result.add(name, value).build()
+}
+
+internal fun converseStreamUnion(name: String, value: JsonValue): JsonValue = JsonObjectBuilder().add(name, value).build()

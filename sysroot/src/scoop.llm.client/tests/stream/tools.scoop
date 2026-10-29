@@ -1,0 +1,104 @@
+package scoop.llm.client.tests.stream
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ChatStreamToolTest {
+    @Test
+    fun `interleaved function and custom inputs preserve identities locations and replay`() {
+        val decoder = ChatProtocol(OpenAiChatDialect()).createStreamDecoder(streamRequest(), StreamRetention.Result)
+        val first = decoder.accept("message", streamChunk("{\"tool_calls\":[{\"index\":2,\"function\":{\"name\":\"lookup\",\"arguments\":\"{\\\"x\\\":\"}}]}"))
+        when (first.events[0L]) {
+            case ToolInputDelta(delta) -> {
+                assertTrue(when (delta.reference) { case None -> true; case Some(_) -> false })
+                assertEquals(0L, delta.location.itemIndex)
+            }
+            else -> fail()
+        }
+        decoder.accept("message", streamChunk("{\"tool_calls\":[{\"index\":4,\"id\":\"b\",\"type\":\"custom\",\"custom\":{\"name\":\"program\",\"input\":\"print(\"}},{\"index\":2,\"id\":\"a\",\"type\":\"function\",\"function\":{\"arguments\":\"1}\"}}]}"))
+        decoder.accept("message", streamChunk("{\"tool_calls\":[{\"index\":4,\"id\":\"b\",\"type\":\"custom\",\"custom\":{\"name\":\"program\",\"input\":\"1)\"}}]}"))
+        val completed = finishStream(decoder, "tool_calls")
+        assertFalse(completed.hasOutput)
+        when (completed.events[0L]) {
+            case ClientToolCall(location, call) -> {
+                assertEquals(0L, location.itemIndex)
+                assertEquals(Some("a"), call.reference.id)
+                assertTrue(call.isExecutable)
+            }
+            else -> fail()
+        }
+        val response = decoder.response()
+        assertEquals(2L, response.clientToolCalls.size)
+        assertEquals(Some("b"), response.clientToolCalls[1L].reference.id)
+        when (response.clientToolCalls[1L].input) {
+            case Text(text) -> assertEquals("print(1)", text)
+            else -> fail()
+        }
+        val history = streamHistory(response)["tool_calls"]!!
+        assertEquals("{\"x\":1}", history[0L]["function"]!!["arguments"]!!.asString())
+        assertEquals("print(1)", history[1L]["custom"]!!["input"]!!.asString())
+        val restored = Json.decodeFromString<LlmStreamUpdate>(Json.encodeToString(completed))
+        assertEquals(3L, restored.events.size)
+    }
+
+    @Test
+    fun `invalid and truncated arguments are observable but never executable`() {
+        for ((arguments, reason) in [("not json", "tool_calls"), ("{\"x\":", "length")]) {
+            val decoder = ChatProtocol(DeepSeekChatDialect()).createStreamDecoder(streamRequest())
+            val function = JsonObjectBuilder().add("name", JsonValue.fromString("lookup"))
+                .add("arguments", JsonValue.fromString(arguments)).build()
+            val call = JsonObjectBuilder().add("index", JsonValue.fromLong(0L)).add("id", JsonValue.fromString("id"))
+                .add("type", JsonValue.fromString("function")).add("function", function).build()
+            val delta = Json.stringify(JsonObjectBuilder().add("tool_calls", JsonValue.fromArray([call])).build())
+            decoder.accept("message", streamChunk(delta))
+            val update = finishStream(decoder, reason)
+            when (update.events[0L]) {
+                case ClientToolCall(_, call) -> {
+                    assertFalse(call.isExecutable)
+                    when (call.input) {
+                        case Invalid(raw, _) -> { assertEquals("tool_calls", reason); assertEquals(arguments, raw) }
+                        case Incomplete(raw) -> { assertEquals("length", reason); assertEquals(arguments, raw) }
+                        else -> fail()
+                    }
+                }
+                else -> fail()
+            }
+        }
+    }
+
+    @Test
+    fun `tool identity changes duplicate indices and missing identity fail with paths`() {
+        val initial = "{\"tool_calls\":[{\"index\":0,\"id\":\"a\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]}"
+        for (delta in ["{\"tool_calls\":[{\"index\":0,\"id\":\"b\"}]}",
+            "{\"tool_calls\":[{\"index\":0,\"function\":{\"name\":\"different\"}}]}",
+            "{\"tool_calls\":[{\"index\":0,\"type\":\"custom\"}]}",
+            "{\"tool_calls\":[{\"index\":0},{\"index\":0}]}",
+            "{\"tool_calls\":[{\"index\":-1}]}"]) {
+            val decoder = ChatProtocol(OpenAiChatDialect()).createStreamDecoder(streamRequest())
+            decoder.accept("message", streamChunk(initial))
+            assertFailsWith<LlmProtocolException> { decoder.accept("message", streamChunk(delta)); Unit }
+            assertFalse(decoder.isFinished)
+        }
+        val missing = ChatProtocol(OpenAiChatDialect()).createStreamDecoder(streamRequest())
+        missing.accept("message", streamChunk("{\"tool_calls\":[{\"index\":0,\"type\":\"function\",\"function\":{\"arguments\":\"{}\"}}]}"))
+        assertEquals("/choices/0/delta/tool_calls/0/id", assertFailsWith<LlmProtocolException> { finishStream(missing, "tool_calls"); Unit }.path)
+        val duplicate = ChatProtocol(OpenAiChatDialect()).createStreamDecoder(streamRequest())
+        duplicate.accept("message", streamChunk(initial))
+        duplicate.accept("message", streamChunk("{\"tool_calls\":[{\"index\":1,\"id\":\"a\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]}"))
+        assertFailsWith<LlmProtocolException> { finishStream(duplicate, "tool_calls"); Unit }
+    }
+
+    @Test
+    fun `unknown tool deltas remain native and do not silently produce replay history`() {
+        val decoder = ChatProtocol(OpenAiChatDialect()).createStreamDecoder(streamRequest(), StreamRetention.Result)
+        decoder.accept("message", streamChunk("{\"tool_calls\":[{\"index\":0,\"type\":\"future\",\"id\":\"n\",\"payload\":{\"x\":1}}]}"))
+        finishStream(decoder, "tool_calls")
+        val response = decoder.response()
+        assertEquals(0L, response.clientToolCalls.size)
+        assertEquals(1L, response.nativeEvents.size)
+        assertEquals(1L, response.nativeEvents[0L].value["payload"]!!["x"]!!.asLong())
+        assertEquals(LlmOutputFailure.HistoryUnavailable, assertFailsWith<LlmOutputException> { response.toInput(); Unit }.reason)
+    }
+}

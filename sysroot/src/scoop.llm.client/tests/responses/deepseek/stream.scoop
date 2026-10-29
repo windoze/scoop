@@ -1,0 +1,57 @@
+package scoop.llm.client.tests.responses.deepseek
+
+import scoop.asyncio.*
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class DeepSeekResponsesStreamTest {
+    @Test
+    fun `DeepSeek Responses content reasoning shares streaming positions usage and saved history`() {
+        for (retention in [StreamRetention.EventsOnly, StreamRetention.Result]) {
+            val decoder = dsResponses.createStreamDecoder(dsRequest(), retention)
+            val text = StringBuilder(); val reasoning = StringBuilder()
+            for (data in dsSseEvents()) {
+                val update = decoder.accept(Json.parse(data)["type"]!!.asString(), data)
+                for (event in update.events) when (event) {
+                    case ReasoningDelta(delta) -> { assertEquals(0L, delta.partIndex); reasoning.append(delta.text) }
+                    case TextDelta(delta) -> { assertEquals(0L, delta.partIndex); text.append(delta.text) }
+                    else -> continue
+                }
+            }
+            decoder.endInput()
+            assertEquals("consider", reasoning.toString())
+            assertEquals("answer", text.toString())
+            assertEquals(UsageCompleteness.Final, decoder.usage.completeness)
+            assertEquals(Some(17L), decoder.usage.tokens.totalTokens)
+            if (retention == StreamRetention.Result) {
+                val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(decoder.response()))
+                assertEquals("answer", response.text)
+                val next = dsResponses.encodeRequest("m", LlmRequest(response.toInput()))
+                assertEquals("consider", next["input"]!![0L]["content"]!![0L]["text"]!!.asString())
+            }
+        }
+    }
+
+    @Test
+    fun `DeepSeek Responses unsupported WebSocket operations fail before authentication`() {
+        val url = Url.parse("http://127.0.0.1:1")
+        assertFailsWith<LlmRequestException> { dsResponses.webSocketUrl(url); Unit }
+        assertFailsWith<LlmRequestException> { dsResponses.encodeWebSocketCreate("m", dsRequest()); Unit }
+        assertFailsWith<LlmRequestException> { dsResponses.encodeWebSocketSteer("r", dsRequest().input); Unit }
+        assertFailsWith<LlmRequestException> { dsResponses.decodeWebSocketEvent("{}"); Unit }
+        LibuvEventLoop().run suspend { _ ->
+            val auth = RecordingAuth()
+            withLlmClient suspend { client ->
+                val error = expectLlmFailure<LlmRequestException> suspend {
+                    client.openResponsesSession(LlmEndpoint(Providers.deepSeekResponses(), auth, Some(url))); Unit
+                }
+                assertEquals("/provider", error.path)
+                assertEquals(0L, auth.requests.size)
+            }
+        }
+    }
+}

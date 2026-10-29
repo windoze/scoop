@@ -1,0 +1,95 @@
+package scoop.llm.client.tests.response
+
+import scoop.json.Json
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.*
+
+private fun point(wallSeconds: Long, elapsedMilliseconds: Long): LlmTimePoint =
+    LlmTimePoint(Instant.fromEpochSeconds(wallSeconds), Duration.milliseconds(elapsedMilliseconds))
+
+@Test
+private class ResponseTimingTest {
+    @Test
+    fun `monotonic durations survive wall clock rollback and serialization`() {
+        val sent = point(100L, 200L)
+        val received = point(90L, 350L)
+        val done = point(91L, 2200L)
+        val attempt = LlmAttemptMetadata(1L, LlmRequestTiming(Some(sent)),
+            LlmResponseTiming(received = Some(received), firstOutput = Some(point(90L, 500L)),
+                firstText = Some(point(90L, 700L)), completed = Some(done)),
+            status = Some(200U), usage = LlmUsage(TokenUsage(outputTokens = Some(10L)), Final))
+        val restored = Json.decodeFromString<LlmAttemptMetadata>(Json.encodeToString(attempt))
+        assertEquals(Some(Instant.fromEpochSeconds(100L)), restored.request.sentAt)
+        assertEquals(Some(Instant.fromEpochSeconds(90L)), restored.response.receivedAt)
+        assertEquals(Some(Duration.milliseconds(150L)), restored.timeToHeaders)
+        assertEquals(Some(Duration.milliseconds(300L)), restored.timeToFirstOutput)
+        assertEquals(Some(Duration.milliseconds(500L)), restored.timeToFirstText)
+        assertEquals(Some(Duration.seconds(2L)), restored.responseLatency)
+        assertEquals(Some(5.0), restored.outputTokensPerSecond)
+        assertEquals(None, restored.response.firstEventAt)
+        assertEquals(None, restored.request.bodyCompletedAt)
+    }
+
+    @Test
+    fun `missing and zero durations do not invent a rate or a sent timestamp`() {
+        val absent = LlmAttemptMetadata(1L)
+        assertEquals(None, absent.request.sentAt)
+        assertEquals(None, absent.timeToHeaders)
+        assertEquals(None, absent.outputTokensPerSecond)
+        val now = point(10L, 0L)
+        val timing = LlmResponseTiming(completed = Some(now))
+        val zero = LlmAttemptMetadata(1L, LlmRequestTiming(Some(now)), timing,
+            usage = LlmUsage(TokenUsage(outputTokens = Some(0L)), Final))
+        assertEquals(Some(Duration.ZERO), zero.responseLatency)
+        assertEquals(None, zero.outputTokensPerSecond)
+        val unknown = LlmUsage(completeness = Final)
+        assertEquals(None, unknown.tokens.inputTokens)
+        assertEquals(None, unknown.tokens.totalTokens)
+    }
+
+    @Test
+    fun `retry attempts keep their own timings and usage without implicit totals`() {
+        val first = LlmAttemptMetadata(1L, LlmRequestTiming(Some(point(10L, 50L))),
+            LlmResponseTiming(received = Some(point(10L, 100L))), status = Some(429U))
+        val second = LlmAttemptMetadata(2L, LlmRequestTiming(Some(point(11L, 1050L))),
+            LlmResponseTiming(received = Some(point(11L, 1100L)), completed = Some(point(12L, 2050L))),
+            usage = LlmUsage(TokenUsage(inputTokens = Some(20L)), Final))
+        val metadata = LlmCallMetadata("call", Instant.fromEpochSeconds(10L), [first, second], Some(point(12L, 2100L)), Completed)
+        val response = LlmResponse(responseDialect(), [textCandidate(0L, "{\"count\":2}")], usage = second.usage)
+        val result = Json.decodeFromString<LlmResult>(Json.encodeToString(LlmResult(response, metadata)))
+        assertEquals(2L, result.metadata.attempts.size)
+        assertEquals(None, result.metadata.attempts[0].usage.tokens.inputTokens)
+        assertEquals(Some(Duration.milliseconds(50L)), result.metadata.attempts[1].timeToHeaders)
+        assertEquals(Some(Duration.seconds(1L)), result.metadata.attempts[1].responseLatency)
+        assertEquals(Some(Duration.milliseconds(2100L)), result.metadata.totalDuration)
+        assertEquals(Some(20L), result.response.usage.tokens.inputTokens)
+        assertEquals(2L, result.decodeOutput<CountOutput>().count)
+    }
+
+    @Test
+    fun `failed calls can be saved without fabricating a complete result`() {
+        val metadata = LlmCallMetadata("failed-before-send", Instant.fromEpochSeconds(0L),
+            finished = Some(point(0L, 5L)), outcome = Failed)
+        val restored = Json.decodeFromString<LlmCallMetadata>(Json.encodeToString(metadata))
+        assertEquals(0L, restored.attempts.size)
+        assertEquals(LlmCallOutcome.Failed, restored.outcome)
+        assertEquals(Some(Duration.milliseconds(5L)), restored.totalDuration)
+        assertFailsWith<IllegalArgumentException> { val invalid = LlmResult(LlmResponse(responseDialect(), []), restored); Unit }
+    }
+
+    @Test
+    fun `impossible local timing and call state combinations fail at construction`() {
+        assertFailsWith<IllegalArgumentException> { val invalid = point(0L, -1L); Unit }
+        assertFailsWith<IllegalArgumentException> { val invalid = LlmAttemptMetadata(0L); Unit }
+        assertFailsWith<IllegalArgumentException> {
+            val invalid = LlmAttemptMetadata(1L, LlmRequestTiming(Some(point(0L, 20L))),
+                LlmResponseTiming(received = Some(point(0L, 10L)))); Unit
+        }
+        assertFailsWith<IllegalArgumentException> { val invalid = LlmCallMetadata("x", Instant.fromEpochSeconds(0L), outcome = Completed); Unit }
+        assertFailsWith<IllegalArgumentException> { val invalid = LlmCallMetadata("x", Instant.fromEpochSeconds(0L), finished = Some(point(0L, 1L))); Unit }
+        assertFailsWith<IllegalArgumentException> {
+            val invalid = LlmCallMetadata("x", Instant.fromEpochSeconds(0L), [LlmAttemptMetadata(2L), LlmAttemptMetadata(1L)]); Unit
+        }
+    }
+}

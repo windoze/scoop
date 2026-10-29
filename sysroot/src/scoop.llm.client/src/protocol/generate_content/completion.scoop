@@ -1,0 +1,29 @@
+package scoop.llm.client
+
+internal fun generateContentCompletion(reason: String?): (LlmCompletion, LlmFinishReason) {
+    val value = reason ?: return (LlmCompletion.Incomplete, LlmFinishReason.Unknown)
+    return when (value) {
+        case "STOP" -> (LlmCompletion.Complete, LlmFinishReason.Stop)
+        case "MAX_TOKENS" -> (LlmCompletion.Incomplete, LlmFinishReason.Length)
+        case "CONTINUATION" -> (LlmCompletion.Incomplete, LlmFinishReason.Pause)
+        case "" -> (LlmCompletion.Incomplete, LlmFinishReason.Unknown)
+        case "FINISH_REASON_UNSPECIFIED" -> (LlmCompletion.Incomplete, LlmFinishReason.Unknown)
+        case "SAFETY" -> (LlmCompletion.Refused, LlmFinishReason.ContentFilter)
+        case "RECITATION" -> (LlmCompletion.Refused, LlmFinishReason.ContentFilter)
+        case "BLOCKLIST" -> (LlmCompletion.Refused, LlmFinishReason.ContentFilter)
+        case "PROHIBITED_CONTENT" -> (LlmCompletion.Refused, LlmFinishReason.ContentFilter)
+        case "SPII" -> (LlmCompletion.Refused, LlmFinishReason.ContentFilter)
+        case "IMAGE_SAFETY" -> (LlmCompletion.Refused, LlmFinishReason.ContentFilter)
+        case "IMAGE_PROHIBITED_CONTENT" -> (LlmCompletion.Refused, LlmFinishReason.ContentFilter)
+        case "IMAGE_RECITATION" -> (LlmCompletion.Refused, LlmFinishReason.ContentFilter)
+        case "ESCALATION" -> (LlmCompletion.Refused, LlmFinishReason.ContentFilter)
+        case "PUP_LIMITED_DISABLED" -> (LlmCompletion.Refused, LlmFinishReason.ContentFilter)
+        case "MALFORMED_FUNCTION_CALL" -> (LlmCompletion.Failed, LlmFinishReason.Other(value))
+        case "UNEXPECTED_TOOL_CALL" -> (LlmCompletion.Failed, LlmFinishReason.Other(value))
+        case "MISSING_THOUGHT_SIGNATURE" -> (LlmCompletion.Failed, LlmFinishReason.Other(value))
+        case "MALFORMED_RESPONSE" -> (LlmCompletion.Failed, LlmFinishReason.Other(value))
+        case "NO_IMAGE" -> (LlmCompletion.Failed, LlmFinishReason.Other(value))
+        case "IMAGE_OTHER" -> (LlmCompletion.Failed, LlmFinishReason.Other(value))
+        else -> (LlmCompletion.Incomplete, LlmFinishReason.Other(value))
+    }
+}

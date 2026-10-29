@@ -1,0 +1,72 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.JsonValue
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+/** A Chat mock with separate operation routes, independent of its model ID. */
+private class SeparateStreamRoute : LlmSseProtocol {
+    private val chat = ChatProtocol(OpenAiChatDialect())
+    public override val dialectId: DialectId get() = chat.dialectId
+    public override fun generationUrl(baseUrl: Url, modelId: String): Url =
+        baseUrl.toBuilder().appendPathSegment("generate").build()
+    public override fun streamUrl(baseUrl: Url, modelId: String): Url =
+        baseUrl.toBuilder().appendPathSegment("stream").build()
+    public override fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean): JsonValue =
+        chat.encodeRequest(modelId, request, stream)
+    public override fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse = chat.decodeResponse(value, request)
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        chat.decodeError(status, body, truncated)
+    public override fun createStreamDecoder(request: LlmRequest, retention: StreamRetention): LlmSseDecoder =
+        chat.createStreamDecoder(request, retention)
+}
+
+@Test
+private class LlmStreamRouteTest {
+    @Test
+    fun `existing SSE protocols inherit their ordinary generation route`() {
+        val base = Url.parse("https://example.invalid/proxy/v1?deployment=sample")
+        for (provider in [Providers.openAiChat(), Providers.deepSeekChat(), Providers.anthropicMessages(), Providers.openAiResponses()]) {
+            val protocol = provider.protocol
+            if (!(protocol is LlmSseProtocol)) fail()
+            assertEquals(protocol.generationUrl(base, "opaque-model"), protocol.streamUrl(base, "opaque-model"))
+        }
+    }
+
+    @Test
+    fun `ordinary and SSE requests authenticate and send their distinct protocol routes`() {
+        withLlmServer suspend { _, scope, listener, original ->
+            val base = Url.parse(original.baseUrl.toString() + "/prefix?deployment=sample")
+            val auth = RecordingAuth()
+            val model = LlmEndpoint(LlmProvider("separate-routes", SeparateStreamRoute()), auth, Some(base)).model("same-model")
+            val bodies = ArrayList<Array<Byte>>()
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    for (route in ["generate", "stream"]) {
+                        val request = connection.receiveRequest()!!
+                        val target = when (request.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                        assertEquals("/v1/prefix/" + route + "?deployment=sample", target)
+                        bodies.add(request.body.readAllBytes(4096L))
+                        if (route == "generate") sendLlmReply(connection, 200U, sampleReply)
+                        else sendLlmReply(connection, 200U, streamReply, streamFields)
+                    }
+                }
+            }
+            withLlmClient suspend { client ->
+                assertEquals("hello", client.generate(model, sampleRequest).text)
+                val stream = client.openStream(model, sampleRequest, retention = StreamRetention.Result)
+                stream.useAsync suspend { opened -> drainStream(opened) }
+                assertEquals("hello world", stream.result().text)
+            }
+            serving.join()
+            assertEquals(2L, auth.requests.size)
+            assertEquals(base.toBuilder().appendPathSegment("generate").build(), auth.requests[0L].url)
+            assertEquals(base.toBuilder().appendPathSegment("stream").build(), auth.requests[1L].url)
+            assertLlmBytes(bodies[0L], auth.requests[0L].body)
+            assertLlmBytes(bodies[1L], auth.requests[1L].body)
+        }
+    }
+}

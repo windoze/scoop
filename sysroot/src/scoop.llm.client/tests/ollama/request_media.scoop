@@ -1,0 +1,38 @@
+package scoop.llm.client.tests.ollama
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class OllamaRequestMediaTest {
+    @Test
+    fun `Ollama text and native strings concatenate while inline images keep their own order`() {
+        val content: Array<ContentPart> = [Text("one"), Image(Bytes("a".toByteArray(), "image/png")),
+            Native(ollamaDialect, JsonValue.fromString(" 世界")), Image(Bytes("bc".toByteArray(), "IMAGE/JPEG")), Text(" end")]
+        for (role in [LlmRole.User, LlmRole.Assistant, LlmRole.System]) {
+            val message = ollamaEncode(LlmRequest([Message(content, role)]))["messages"]!![0L]
+            assertEquals("one 世界 end", message["content"]!!.asString())
+            assertEquals("YQ==", message["images"]!![0L].asString())
+            assertEquals("YmM=", message["images"]!![1L].asString())
+        }
+        val empty = ollamaEncode(LlmRequest([Message([])]))["messages"]!![0L]
+        assertEquals("", empty["content"]!!.asString())
+        assertFalse(empty.containsKey("images"))
+    }
+
+    @Test
+    fun `Ollama media remains explicit and unsupported formats or metadata fail before any network access`() {
+        val bytes = MediaSource.Bytes("x".toByteArray(), "image/png")
+        val unsupported: Array<ContentPart> = [Document(bytes), Audio(bytes), Video(bytes), VideoFrames([])]
+        for (part in unsupported) assertOllamaRequestFailure(LlmRequest([Message([part])]), "/input/0/content/0")
+        for (source in [MediaSource.Url(Url.parse("https://example.com/image"), "image/png"),
+            MediaSource.FileReference(LlmFileReference(ollamaDialect, JsonValue.fromString("file")), "image/png")])
+            assertOllamaRequestFailure(LlmRequest([Message([Image(source)])]), "/input/0/content/0/source")
+        for (mime in ["bad", "image/*", "text/plain", "image/png; detail=high"])
+            assertOllamaRequestFailure(LlmRequest([Message([Image(Bytes([], mime))])]), "/input/0/content/0/source/mimeType")
+        for (part in [ContentPart.Text("x", ollamaExtension("{}")), ContentPart.Image(bytes, ollamaExtension("{}"))])
+            assertOllamaRequestFailure(LlmRequest([Message([part])]), "/input/0/content/0/extensions")
+    }
+}

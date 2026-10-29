@@ -1,0 +1,79 @@
+package scoop.llm.client
+
+import scoop.io.encoding.Base64
+import scoop.json.*
+
+internal fun converseStreamContent(block: ConverseStreamBlock): JsonValue {
+    if (block.kind == "text" && block.rawCitations.size == 0L)
+        return converseStreamUnion("text", JsonValue.fromString(block.text.toString()))
+    if (block.kind == "text" || block.kind == "citation") {
+        val cited = JsonObjectBuilder().add("citations", JsonValue.fromArray(block.rawCitations))
+        if (block.kind == "text") cited.add("content", JsonValue.fromArray([converseStreamUnion("text", JsonValue.fromString(block.text.toString()))]))
+        return converseStreamUnion("citationsContent", cited.build())
+    }
+    if (block.kind == "reasoningContent") {
+        if (block.reasoningKind == "text") {
+            val text = JsonObjectBuilder().add("text", JsonValue.fromString(block.text.toString()))
+            if (block.signatureSeen) text.add("signature", JsonValue.fromString(block.signature.toString()))
+            return converseStreamUnion("reasoningContent", converseStreamUnion("reasoningText", text.build()))
+        }
+        if (block.reasoningKind == "redactedContent") return converseStreamUnion("reasoningContent",
+            converseStreamUnion("redactedContent", JsonValue.fromString(Base64.Default.encode(block.bytes.toByteArray()))))
+    }
+    return block.wire ?: converseStreamUnion(block.kind, block.initial)
+}
+
+internal fun converseStreamItem(block: ConverseStreamBlock, dialect: DialectId): LlmOutputItem {
+    when (block.item) { case Some(value) -> return value; case None -> {} }
+    if (block.kind == "text") return LlmOutputItem.Message([OutputPart.Text(block.text.toString(), block.citations.toArray())])
+    if (block.kind == "reasoningContent") {
+        val native = OutputPart.Native(dialect, block.wire!!["reasoningContent"]!!)
+        return LlmOutputItem.Reasoning(if (block.reasoningKind == "text") [OutputPart.Text(block.text.toString()), native] else [native])
+    }
+    return LlmOutputItem.Native(dialect, block.wire!!)
+}
+
+internal fun stopConverseStreamMessage(state: ConverseStreamDecoder, raw: JsonValue, batch: LlmStreamBatch) {
+    if (!state.started || state.reason != None) throw DecodingException("/stopReason", "message is not active")
+    val reason = converseStreamString(raw, "stopReason")
+    converseNonempty(reason, "/stopReason")
+    for (block in state.blocks) if (!block.stopped) throw DecodingException("/stopReason", "message stopped before a content block")
+    state.reason = Some(reason)
+    for (block in state.blocks) {
+        block.tool?.finish(block, state, batch)
+        when (block.result) {
+            case Some(result) -> {
+                val entry = result.entry!!
+                val value = readConverseServerResult(state.dialect, entry, state.calls.toArray(), state.request.tools)
+                if (state.retain) block.item = Some(value)
+            }
+            case None -> {}
+        }
+    }
+    val (completion, finish) = converseCompletion(reason)
+    if (state.retain) {
+        val items = ArrayList<LlmOutputItem>()
+        val content = ArrayList<JsonValue>()
+        var replayable = converseTerminal(reason)
+        for (block in state.blocks) {
+            val item = converseStreamItem(block, state.dialect.id)
+            if (block.location.itemIndex == items.size) items.add(item)
+            else {
+                val index = block.location.itemIndex
+                val previous = when (items[index]) { case Message(parts, _) -> parts; else -> throw IllegalStateException() }
+                val parts = ArrayList<OutputPart>()
+                for (part in previous) parts.add(part)
+                when (item) { case Message(values, _) -> { for (part in values) parts.add(part) }; else -> throw IllegalStateException() }
+                items[index] = LlmOutputItem.Message(parts.toArray())
+            }
+            if (!block.historyAvailable) replayable = false
+            content.add(block.wire!!)
+        }
+        val message = JsonObjectBuilder().add("role", JsonValue.fromString("assistant")).add("content", JsonValue.fromArray(content)).build()
+        val history = if (replayable) Some(LlmHistory(state.dialect.id, [message])) else None
+        state.candidate = Some(LlmCandidate(0L, items.toArray(), completion, finish, history))
+    }
+    batch.events.add(LlmEvent.CandidateFinished(0L, completion, finish))
+    state.blocks.clear()
+    state.calls.clear()
+}

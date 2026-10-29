@@ -1,0 +1,97 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal class OpenRouterReasoningStream public constructor(
+    private val dialect: DialectId, private val location: LlmItemLocation, private val retention: StreamRetention
+) : ChatStreamFieldDecoder {
+    public override val fields: Array<String> = ["reasoning", "reasoning_content", "reasoning_details"]
+    private val details: ArrayList<OpenRouterReasoningBlock> = ArrayList<OpenRouterReasoningBlock>()
+    private var last: OpenRouterReasoningBlock? = None
+    private var nextPart: Long = 0L
+    private val plain: StringBuilder = StringBuilder()
+    private var plainIndex: Long? = None
+    private val reasoning: OpenRouterReasoningScalar = OpenRouterReasoningScalar(retention)
+    private val alias: OpenRouterReasoningScalar = OpenRouterReasoningScalar(retention)
+    private var sawDetails: Boolean = false
+    private var sawArray: Boolean = false
+
+    public override fun accept(delta: JsonValue, path: String): LlmStreamUpdate {
+        val events = ArrayList<LlmEvent>()
+        val native = JsonObjectBuilder()
+        for (name in fields) if (delta.containsKey(name)) native.add(name, delta[name]!!)
+        events.add(LlmEvent.Native(LlmNativeEvent(dialect, "chat.reasoning.delta", native.build(), Some(location))))
+        val primary = reasoning.accept(delta, "reasoning", path)
+        val fallback = alias.accept(delta, "reasoning_content", path)
+        val values = openRouterDetails(delta, path)
+        if (delta.containsKey("reasoning_details")) {
+            sawDetails = true
+            if (delta["reasoning_details"]!!.kind == JsonValueKind.Array) sawArray = true
+        }
+        var hasOutput = false
+        if (values.size != 0L) {
+            var index = 0L
+            for (value in values) {
+                val text = openRouterDetailText(value, path + "/reasoning_details/" + index.toString())
+                val block = detail(value)
+                block.accept(value, text)
+                if (text != None) {
+                    events.add(LlmEvent.ReasoningDelta(LlmTextDelta(location, text!!, block.partIndex)))
+                    if (text!!.length != 0L) hasOutput = true
+                } else hasOutput = true
+                index += 1L
+            }
+        } else {
+            val text = if (primary != None) primary else fallback
+            if (text != None) {
+                if (plainIndex == None) { plainIndex = Some(nextPart); nextPart += 1L }
+                if (retention == StreamRetention.Result) plain.append(text!!)
+                events.add(LlmEvent.ReasoningDelta(LlmTextDelta(location, text!!, plainIndex!!)))
+                hasOutput = text!!.length != 0L
+            }
+        }
+        return LlmStreamUpdate(events.toArray(), hasOutput)
+    }
+
+    private fun detail(value: JsonValue): OpenRouterReasoningBlock {
+        when (last) { case Some(block) -> { if (block.canAppend(value)) return block }; case None -> {} }
+        val block = OpenRouterReasoningBlock(openRouterDetailKind(value), nextPart, retention)
+        nextPart += 1L
+        last = Some(block)
+        if (retention == StreamRetention.Result) details.add(block)
+        return block
+    }
+
+    public override fun finish(): ChatStreamFieldResult {
+        val parts = ArrayList<OutputPart>(); val wire = ArrayList<JsonValue>(); val history = JsonObjectBuilder()
+        reasoning.write(history, "reasoning"); alias.write(history, "reasoning_content")
+        if (retention == StreamRetention.Result) {
+            for (block in details) {
+                if (plainIndex == Some(block.partIndex - 1L)) parts.add(OutputPart.Text(plain.toString()))
+                parts.add(block.output(dialect)); wire.add(block.wire()); block.release()
+            }
+            if (plainIndex == Some(nextPart - 1L)) parts.add(OutputPart.Text(plain.toString()))
+            if (sawDetails) history.add("reasoning_details", if (sawArray) JsonValue.fromArray(wire) else JsonValue.nullValue())
+        }
+        last?.release()
+        details.clear(); last = None; plain.clear()
+        return ChatStreamFieldResult(LlmOutputItem.Reasoning(parts.toArray()), history.build())
+    }
+}
+
+/** Preserve reported scalar fields separately from the visible detailed reasoning. */
+internal class OpenRouterReasoningScalar public constructor(private val retention: StreamRetention) {
+    private val text: StringBuilder = StringBuilder()
+    private var seen: Boolean = false
+    private var hasText: Boolean = false
+    public fun accept(delta: JsonValue, field: String, path: String): String? {
+        if (delta.containsKey(field)) seen = true
+        val value = openRouterString(delta, field, path)
+        if (value != None) { hasText = true; if (retention == StreamRetention.Result) text.append(value!!) }
+        return value
+    }
+    public fun write(result: JsonObjectBuilder, field: String) {
+        if (seen && retention == StreamRetention.Result) result.add(field, if (hasText) JsonValue.fromString(text.toString()) else JsonValue.nullValue())
+        text.clear()
+    }
+}

@@ -1,0 +1,75 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ResponsesToolTest {
+    @Test
+    fun `Responses function and custom calls keep item identity separate from result call identity`() {
+        val tools: Array<ToolDefinition> = [ClientFunction(ToolKey("function"), "count", Json.parse("{}")), ClientCustom(ToolKey("custom"), "code")]
+        val output = "[" + responsesCall("{\"count\":9007199254740993}", "call-b", "call-a") +
+            ", {\"type\":\"custom_tool_call\",\"id\":\"call-a\",\"call_id\":\"call-b\",\"name\":\"code\",\"input\":\"print(1)\\n\",\"caller\":{\"type\":\"direct\"},\"async\":false}]"
+        val result = ResponsesProtocol(OpenAiResponsesDialect()).decodeResponse(responsesBody(output), responsesRequest(tools))
+        assertEquals(2L, result.clientToolCalls.size)
+        val first = result.clientToolCalls[0]
+        assertEquals(ToolKey("function"), first.toolKey)
+        assertEquals(Some("call-a"), first.reference.id)
+        assertEquals("call-b", first.reference.context!!["id"]!!.asString())
+        assertEquals(9007199254740993L, first.decodeArguments<ResponsesCount>().count)
+        when (result.clientToolCalls[1].input) { case Text(text) -> assertEquals("print(1)\n", text); else -> fail() }
+        assertEquals("direct", result.clientToolCalls[1].reference.context!!["caller"]!!["type"]!!.asString())
+        assertEquals(Json.encodeToString(LlmFinishReason.ToolCalls), Json.encodeToString(result.candidate(0L).finishReason))
+        val restored = Json.decodeFromString<LlmResponse>(Json.encodeToString(result))
+        assertEquals(Some("call-a"), restored.clientToolCalls[0].reference.id)
+        assertEquals(9007199254740993L, restored.clientToolCalls[0].decodeArguments<ResponsesCount>().count)
+        assertEquals("call-b", responsesHistory(restored)[1]["call_id"]!!.asString())
+    }
+
+    @Test
+    fun `Responses invalid arguments remain observable without executable inputs`() {
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        val tools: Array<ToolDefinition> = [ClientFunction(ToolKey("count"), "count", Json.parse("{}"))]
+        for (arguments in ["{", "[]", "null", "3", "{} trailing"]) {
+            val result = protocol.decodeResponse(responsesBody("[" + responsesCall(arguments) + "]"), responsesRequest(tools))
+            assertEquals(0L, result.clientToolCalls.size)
+            when (result.candidate(0L).items[0]) {
+                case ClientToolCall(call) -> when (call.input) { case Invalid(raw, _) -> assertEquals(arguments, raw); else -> fail() }
+                else -> fail()
+            }
+            assertEquals(arguments, responsesHistory(result)[0]["arguments"]!!.asString())
+        }
+    }
+
+    @Test
+    fun `Responses association respects namespaces tool categories ownership and ambiguity`() {
+        val dialect = OpenAiResponsesDialect()
+        val protocol = ResponsesProtocol(dialect)
+        val function: ToolDefinition = ClientFunction(ToolKey("one"), "count", Json.parse("{}"))
+        val alternatives: Array<Array<ToolDefinition>> = [[], [ClientCustom(ToolKey("custom"), "count")],
+            [Server(ToolKey("server"), Native(NativeToolDefinition(dialect.id, "count")))],
+            [ClientNative(ToolKey("native"), NativeToolDefinition(dialect.id, "function", Json.parse("{\"name\":\"count\"}")))],
+            [function, ClientFunction(ToolKey("two"), "count", Json.parse("{}"))]]
+        for (tools in alternatives) {
+            val result = protocol.decodeResponse(responsesBody("[" + responsesCall("{}") + "]"), responsesRequest(tools))
+            assertEquals(0L, result.clientToolCalls.size)
+            when (result.candidate(0L).items[0]) { case Native(_, raw) -> assertEquals("count", raw["name"]!!.asString()); else -> fail() }
+        }
+        val namespaced = protocol.decodeResponse(responsesBody("[" + responsesCall("{}", namespace = Some("group")) + "]"), responsesRequest([function]))
+        assertEquals(0L, namespaced.clientToolCalls.size)
+        assertEquals("group", responsesHistory(namespaced)[0]["namespace"]!!.asString())
+    }
+
+    @Test
+    fun `Responses duplicate call declarations fail while result items may refer to the same call`() {
+        assertResponsesFailure(responsesBody("[" + responsesCall("{}", "a") + "," + responsesCall("{}", "b") + "]"), "/output/1/call_id")
+        assertResponsesFailure(responsesBody("[" + responsesCall("{}", callId = "") + "]"), "/output/0/call_id")
+        assertResponsesFailure(responsesBody("[{\"type\":\"function_call\",\"name\":\"count\",\"arguments\":\"{}\"}]"), "/output/0/call_id")
+        assertResponsesFailure(responsesBody("[{\"type\":\"custom_tool_call\",\"call_id\":\"call\",\"name\":\"count\",\"input\":1}]"), "/output/0/input")
+        val result = ResponsesProtocol(OpenAiResponsesDialect()).decodeResponse(responsesBody("[" + responsesCall("{}") +
+            ", {\"type\":\"function_call_output\",\"id\":\"result\",\"call_id\":\"call\",\"output\":\"ok\"}]"), responsesRequest())
+        assertEquals(2L, result.candidate(0L).items.size)
+        assertEquals("call", responsesHistory(result)[1]["call_id"]!!.asString())
+    }
+}

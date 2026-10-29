@@ -1,0 +1,84 @@
+package scoop.llm.client.tests.interactions.stored
+
+import scoop.asyncio.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.llm.client.tests.interactions.*
+import scoop.test.*
+
+@Test
+private class StoredInteractionsFailuresTest {
+    @Test
+    fun `stored Interactions reject another protocol and empty IDs before authentication`() {
+        withLlmServer suspend { _, _, _, original ->
+            val auth = RecordingAuth()
+            withLlmClient suspend { client ->
+                for ((provider, id, path) in [(Providers.openAiResponses(), "id", "/provider"),
+                    (Providers.geminiInteractions(), "", "/interactionId")]) {
+                    val endpoint = LlmEndpoint(provider, auth, Some(original.baseUrl))
+                    for (operation in ["retrieve", "cancel", "delete"]) {
+                        val finished = FinishedCalls()
+                        val options = LlmCallOptions(onFinished = Some(suspend { metadata -> finished.record(metadata) }))
+                        val error = expectLlmFailure<LlmRequestException> suspend {
+                            if (operation == "retrieve") client.retrieveInteraction(endpoint, id, options = options)
+                            else if (operation == "cancel") client.cancelInteraction(endpoint, id, options = options)
+                            else client.deleteInteraction(endpoint, id, options)
+                            Unit
+                        }
+                        assertEquals(path, error.path)
+                        assertEquals(1L, finished.values.size)
+                        assertEquals(0L, finished.values[0].attempts.size)
+                    }
+                }
+            }
+            assertEquals(0L, auth.requests.size)
+        }
+    }
+
+    @Test
+    fun `stored Interactions service rejection and malformed snapshots retain one failed call`() {
+        for (operation in ["retrieve", "cancel", "delete", "malformed"]) {
+            withLlmServer suspend { _, scope, listener, original ->
+                val auth = RecordingAuth()
+                val status = if (operation == "malformed") 200U else 404U
+                val body = if (operation == "malformed") Json.stringify(interactionsReplace(
+                    interactionsBody("[]"), "id", Some(JsonValue.fromString(""))))
+                    else "{\"error\":{\"code\":404,\"status\":\"NOT_FOUND\",\"message\":\"missing interaction\"}}"
+                val serving = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        connection.receiveRequest()!!.body.readAllBytes(4096L)
+                        sendLlmReply(connection, status, body)
+                    }
+                }
+                val finished = FinishedCalls()
+                withLlmClient suspend { client ->
+                    val endpoint = LlmEndpoint(Providers.geminiInteractions(), auth, Some(original.baseUrl))
+                    val options = LlmCallOptions(onFinished = Some(suspend { metadata -> finished.record(metadata) }))
+                    if (operation == "malformed") {
+                        val error = expectLlmFailure<LlmProtocolException> suspend {
+                            client.retrieveInteraction(endpoint, "id", options = options); Unit
+                        }
+                        assertEquals("/id", error.path)
+                    } else {
+                        val error = expectLlmFailure<LlmServiceException> suspend {
+                            if (operation == "retrieve") client.retrieveInteraction(endpoint, "id", options = options)
+                            else if (operation == "cancel") client.cancelInteraction(endpoint, "id", options = options)
+                            else client.deleteInteraction(endpoint, "id", options)
+                            Unit
+                        }
+                        assertEquals(404U, error.status)
+                        assertLlmBytes(body.toByteArray(), error.body)
+                    }
+                }
+                assertEquals(1L, auth.requests.size)
+                assertEquals(1L, finished.values.size)
+                assertEquals(LlmCallOutcome.Failed, finished.values[0].outcome)
+                assertTrue(finished.values[0].attempts[0].response.receivedAt != None)
+                assertEquals(None, finished.values[0].attempts[0].response.completedAt)
+                serving.join()
+            }
+        }
+    }
+}

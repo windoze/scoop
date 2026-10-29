@@ -1,0 +1,70 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.converse.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class ConverseStreamNetworkTest {
+    @Test
+    fun `Converse EventStream mock verifies binary framing route auth trailing usage signed history and actual timestamps`() {
+        withLlmServer suspend { _, scope, listener, original ->
+            val endpoint = LlmEndpoint(Providers.bedrockConverse(), LlmAuth.bearer("mock-only"),
+                Some(Url.parse(original.baseUrl.toString() + "/proxy?deployment=test")))
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val request = connection.receiveRequest()!!
+                    val target = when (request.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                    assertEquals("/v1/proxy/model/unlisted%2Fmodel%3Aversion/converse-stream?deployment=test", target)
+                    assertEquals("Bearer mock-only", String.fromUtf8(request.head.fields.findAll("Authorization".toByteArray())[0L].value))
+                    val body = Json.parse(String.fromUtf8(request.body.readAllBytes(4096L)))
+                    assertEquals(1L, body.size)
+                    assertEquals("hello 世界", body["messages"]!![0L]["content"]!![0L]["text"]!!.asString())
+                    sendConverseStreamBytes(connection, converseStreamBody())
+                }
+            }
+            withLlmClient suspend { client ->
+                val finished = FinishedCalls()
+                val stream = client.openStream(endpoint.model("unlisted/model:version"), sampleRequest,
+                    LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) })), StreamRetention.Result)
+                val text = StringBuilder()
+                stream.useAsync suspend { opened ->
+                    val view = opened.textDeltas()
+                    while (true) { val delta = view.next() ?: break; text.append(delta.text) }
+                    val attempt = opened.metadata.attempts[0L]
+                    assertEquals(UsageCompleteness.Final, attempt.usage.completeness)
+                    assertTrue(attempt.response.completedAt != None)
+                    assertEquals(0L, finished.values.size)
+                }
+                val result = stream.result()
+                assertEquals("hello 世界", text.toString()); assertEquals(text.toString(), result.text)
+                assertEquals(Some(10L), result.response.usage.tokens.inputTokens)
+                assertEquals(Some(12L), result.response.usage.tokens.totalTokens)
+                assertEquals(LlmCallOutcome.Completed, result.metadata.outcome)
+                assertEquals(1L, finished.values.size)
+                val timing = result.metadata.attempts[0L]
+                assertTrue(timing.request.sentAt != None && timing.response.receivedAt != None)
+                assertTrue(timing.response.firstEventAt != None && timing.response.firstOutputAt != None && timing.response.firstTextAt != None)
+                assertEquals(None, timing.responseId)
+                val saved = Json.decodeFromString<LlmResult>(Json.encodeToString(result))
+                when (saved.toInput()[0L]) {
+                    case History(value) -> assertEquals("signed", value.items[0L]["content"]!![0L]["reasoningContent"]!!["reasoningText"]!!["signature"]!!.asString())
+                    else -> fail()
+                }
+            }
+            serving.join()
+        }
+    }
+
+    @Test
+    fun `Converse EventStream rejects SSE media before publishing a stream`() {
+        withConverseStreamReply([], streamFields) suspend { client, model ->
+            expectLlmFailure<LlmStreamProtocolException> suspend { client.openStream(model, sampleRequest); Unit }
+        }
+    }
+}

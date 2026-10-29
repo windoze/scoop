@@ -1,0 +1,30 @@
+package scoop.llm.client.tests.messages
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+internal fun messagesRequest(tools: Array<ToolDefinition> = []): LlmRequest = LlmRequest([Message([Text("question")])], tools = tools)
+
+internal fun messagesBody(content: String, reason: String = "end_turn", usage: String? = None): JsonValue {
+    val body = JsonObjectBuilder().add("type", JsonValue.fromString("message")).add("role", JsonValue.fromString("assistant"))
+        .add("content", Json.parse(content)).add("stop_reason", JsonValue.fromString(reason))
+    if (usage != None) body.add("usage", Json.parse(usage!!))
+    return body.build()
+}
+
+internal fun messagesHistory(response: LlmResponse): JsonValue = when (response.toInput()[0]) {
+    case History(history) -> history.items[0]
+    else -> throw IllegalStateException(Some("expected Messages history"))
+}
+
+internal fun assertMessagesFailure(body: JsonValue, path: String, tools: Array<ToolDefinition> = []) {
+    val error = assertFailsWith<LlmProtocolException> { MessagesProtocol(AnthropicMessagesDialect()).decodeResponse(body, messagesRequest(tools)); Unit }
+    assertEquals(path, error.path)
+    assertEquals(AnthropicMessagesDialect().id, error.dialect)
+    assertEquals(Json.stringify(body), Json.stringify(error.native))
+}
+
+internal class MessagesCount public constructor(val count: Long) {
+    public companion object : ValueDecoder<MessagesCount>
+}

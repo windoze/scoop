@@ -1,0 +1,47 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeInteractionsContent(dialect: DialectId, parts: Array<ContentPart>, path: String, toolResult: Boolean = false): JsonValue {
+    val values = ArrayList<JsonValue>()
+    var index = 0L
+    for (part in parts) {
+        val partPath = path + "/" + index.toString()
+        val value = encodeInteractionsPart(dialect, part, partPath)
+        if (toolResult) {
+            val type = requireInteractionsNativeType(value, partPath)
+            if (type != "text" && type != "image") throw LlmRequestException(partPath, "function result content requires text or image")
+        }
+        values.add(value)
+        index += 1L
+    }
+    return JsonValue.fromArray(values)
+}
+
+private fun encodeInteractionsPart(dialect: DialectId, part: ContentPart, path: String): JsonValue {
+    val (value, extensions): (JsonValue, Array<DialectExtension>) = when (part) {
+        case Text(text, values) -> (llmTypedObject("text").add("text", JsonValue.fromString(text)).build(), values)
+        case Image(source, values) -> (encodeInteractionsMedia(dialect, source, "image", path + "/source"), values)
+        case Document(source, filename, values) -> {
+            if (filename != None) throw LlmRequestException(path + "/filename", "Interactions document content has no filename field")
+            (encodeInteractionsMedia(dialect, source, "document", path + "/source"), values)
+        }
+        case Audio(source, values) -> (encodeInteractionsMedia(dialect, source, "audio", path + "/source"), values)
+        case Video(source, values) -> (encodeInteractionsMedia(dialect, source, "video", path + "/source"), values)
+        case VideoFrames(_, _) -> throw LlmRequestException(path, "Interactions requires video media rather than separate timestamped frames")
+        case Native(owner, raw) -> {
+            requireLlmOwner(owner, dialect, path + "/dialect")
+            requireInteractionsNativeType(raw, path + "/value")
+            (raw, [])
+        }
+    }
+    return mergeLlmExtensions(value, extensions, dialect, ["type", "text", "data", "uri", "mime_type"], path)
+}
+
+internal fun requireInteractionsNativeType(value: JsonValue, path: String): String {
+    if (value.kind != JsonValueKind.Object) throw LlmRequestException(path, "expected a native Interactions object")
+    val type = value["type"] ?: throw LlmRequestException(path + "/type", "missing native type")
+    if (type.kind != JsonValueKind.String || type.asString().length == 0L)
+        throw LlmRequestException(path + "/type", "native type must be a nonempty string")
+    return type.asString()
+}

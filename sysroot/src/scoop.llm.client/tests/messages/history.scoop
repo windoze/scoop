@@ -1,0 +1,44 @@
+package scoop.llm.client.tests.messages
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class MessagesHistoryRequestTest {
+    @Test
+    fun `Messages groups parallel tool results while keeping saved thinking and native history unchanged`() {
+        val protocol = MessagesProtocol(AnthropicMessagesDialect())
+        val tools: Array<ToolDefinition> = [ClientFunction(ToolKey("lookup"), "lookup", Json.parse("{}"))]
+        val content = "[{\"type\":\"thinking\",\"thinking\":\"\",\"signature\":\"opaque\"}," +
+            "{\"type\":\"tool_use\",\"id\":\"first\",\"name\":\"lookup\",\"input\":{}}," +
+            "{\"type\":\"tool_use\",\"id\":\"second\",\"name\":\"lookup\",\"input\":{}},{\"type\":\"future_block\",\"data\":1e400}]"
+        val saved = Json.encodeToString(protocol.decodeResponse(messagesBody(content, "tool_use"), messagesRequest(tools)))
+        val response = Json.decodeFromString<LlmResponse>(saved)
+        val input = ArrayList<LlmInputItem>()
+        input.add(messagesRequest().input[0])
+        for (item in response.toInput()) input.add(item)
+        input.add(ToolResult(response.clientToolCalls[0].reference, [Text("first result")]))
+        input.add(ToolResult(response.clientToolCalls[1].reference, [Text("second error")], true))
+        val body = protocol.encodeRequest("model", LlmRequest(input.toArray()))
+        assertEquals(3L, body["messages"]!!.size)
+        assertEquals(Json.stringify(Json.parse(content)), Json.stringify(body["messages"]!![1L]["content"]!!))
+        val results = body["messages"]!![2L]["content"]!!
+        assertEquals(2L, results.size)
+        assertEquals("first", results[0L]["tool_use_id"]!!.asString())
+        assertFalse(results[0L]["is_error"]!!.asBoolean())
+        assertTrue(results[1L]["is_error"]!!.asBoolean())
+        assertFalse(results[0L].containsKey("context"))
+        assertFalse(body.containsKey("tools"))
+    }
+
+    @Test
+    fun `Messages rejects foreign history and call references before encoding`() {
+        val foreign = OpenAiChatDialect().id
+        val own = AnthropicMessagesDialect().id
+        assertMessagesRequestFailure(LlmRequest([History(LlmHistory(foreign, []))]), "/input/0/history/dialect")
+        assertMessagesRequestFailure(LlmRequest([History(LlmHistory(own, [], Some(Json.parse("{}"))))]), "/input/0/history/context")
+        assertMessagesRequestFailure(LlmRequest([History(LlmHistory(own, [Json.parse("{\"role\":\"user\",\"content\":[]}")]))]), "/input/0/history/items/0/role")
+        assertMessagesRequestFailure(LlmRequest([ToolResult(ClientToolCallReference(foreign, ToolKey("old"), Some("id")), [Text("result")])]), "/input/0/call/dialect")
+    }
+}

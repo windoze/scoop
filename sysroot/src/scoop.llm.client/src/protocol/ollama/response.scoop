@@ -1,0 +1,72 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.url.Url
+
+/** Native Ollama Chat generation, interpreted with an explicitly selected dialect. */
+public class OllamaChatProtocol public constructor(public val dialect: OllamaDialect) : LlmNdjsonProtocol {
+    public override fun modelCatalog(): LlmModelCatalog? = dialect.modelCatalog()
+    public override val dialectId: DialectId get() = dialect.id
+    public override fun generationUrl(baseUrl: Url, modelId: String): Url = baseUrl.toBuilder().appendPathSegment("chat").build()
+    public override fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean): JsonValue =
+        encodeOllamaRequest(dialect, modelId, request, stream)
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        dialect.decodeError(status, body, truncated)
+    public override fun createNdjsonDecoder(request: LlmRequest, retention: StreamRetention): LlmNdjsonDecoder =
+        OllamaStreamDecoder(dialect, request, retention)
+    init {
+        if (dialect.id.protocol != ApiProtocolId("ollama-chat"))
+            throw IllegalArgumentException(Some("Ollama dialect belongs to another API protocol"))
+    }
+
+    public override fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse {
+        try {
+            if (value.kind == JsonValueKind.Object && llmPresent(value["error"]) && value["error"]!!.kind != JsonValueKind.Null)
+                throw DecodingException("/error", "Ollama returned an error response")
+            val body = decodeOllamaValue<OllamaBody>(value, "")
+            ollamaNonempty(body.model, "/model")
+            val message = decodeOllamaValue<OllamaMessage>(body.message, "/message")
+            if (message.role != "assistant") throw DecodingException("/message/role", "expected an assistant message")
+            val calls = message.toolCalls ?: []
+            val (completion, reason) = ollamaCompletion(body.done, body.doneReason, calls.size != 0L)
+            val items = readOllamaContent(dialect.id, body.message, message)
+            appendOllamaCalls(items, dialect.id, calls, request.tools, body.done && body.doneReason == Some("stop"), ArrayList<String>())
+            val history = if (body.done && (body.doneReason == Some("stop") || body.doneReason == Some("length")))
+                Some(LlmHistory(dialect.id, [body.message])) else None
+            val completeness: UsageCompleteness = if (ollamaTerminal(body.done, body.doneReason)) Final else Partial
+            val nativeUsage = ollamaUsageRecord(value)
+            val usage = LlmUsage(dialect.readUsage(value), completeness, if (nativeUsage.size == 0L) None else Some(nativeUsage))
+            return LlmResponse(dialect.id, [LlmCandidate(0L, items.toArray(), completion, reason, history)],
+                model = Some(body.model), createdAt = body.createdAt, usage = usage, native = Some(value))
+        } catch (error: DecodingException) {
+            throw LlmProtocolException(dialect.id, error.path, error.message ?: "invalid Ollama response", value)
+        }
+    }
+}
+
+internal fun ollamaTerminal(done: Boolean, reason: String?): Boolean = done &&
+    (reason == Some("stop") || reason == Some("length") || reason == Some("load") || reason == Some("unload"))
+
+internal fun ollamaCompletion(done: Boolean, reason: String?, hasCalls: Boolean): (LlmCompletion, LlmFinishReason) {
+    if (done) when (reason ?: "") {
+        case "stop" -> return (Complete, if (hasCalls) ToolCalls else Stop)
+        case "length" -> return (Incomplete, Length)
+        case "load" -> return (Complete, Other("load"))
+        case "unload" -> return (Complete, Other("unload"))
+        else -> {}
+    }
+    return (Incomplete, if (reason == None || reason == Some("")) Unknown else Other(reason!!))
+}
+
+private fun readOllamaContent(dialect: DialectId, raw: JsonValue, message: OllamaMessage): ArrayList<LlmOutputItem> {
+    val items = ArrayList<LlmOutputItem>()
+    when (message.thinking) { case Some(text) -> items.add(LlmOutputItem.Reasoning([OutputPart.Text(text)])); case None -> {} }
+    items.add(LlmOutputItem.Message([OutputPart.Text(message.content)]))
+    val extra = JsonObjectBuilder()
+    for ((name, value) in raw.members()) {
+        if (name != "role" && name != "content" && name != "thinking" && name != "tool_calls") extra.add(name, value)
+    }
+    val native = extra.build()
+    if (native.size != 0L) items.add(LlmOutputItem.Native(dialect, native))
+    return items
+}

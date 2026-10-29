@@ -1,0 +1,67 @@
+package scoop.llm.client
+
+import scoop.asyncio.AsyncCloseable
+import scoop.json.JsonValue
+import scoop.time.Instant
+import scoop.url.Url
+
+/** One Realtime connection; explicit sends and receives do not advance an application workflow. */
+public class RealtimeSession internal constructor(private val connection: LlmWebSocketConnection,
+    public val model: LlmModel, public val initialConfiguration: RealtimeConfiguration, public val protocol: RealtimeProtocol,
+    public val opening: LlmCallMetadata, public val sessionCreated: RealtimeReceived,
+    public val configurationSent: RealtimeSent?, public val configurationUpdated: RealtimeReceived?) : AsyncCloseable {
+    public val id: String get() = connection.id
+    public val startedAt: Instant get() = connection.startedAt
+    public val url: Url get() = connection.url
+    public val isClosed: Boolean get() = connection.isClosed
+    public val failure: Throwable? get() = connection.failure
+
+    public suspend fun sendItemCreate(item: LlmInputItem, previousItemId: String? = None, eventId: String? = None): RealtimeSent {
+        connection.checkLoop()
+        checkModelInput(model.capabilities.input, LlmRequest([item]))
+        return send(protocol.encodeItemCreate(item, previousItemId, eventId))
+    }
+
+    public suspend fun sendResponseCreate(request: RealtimeResponseRequest = RealtimeResponseRequest(), eventId: String? = None,
+        tools: Array<ToolDefinition>? = None): RealtimeSent {
+        connection.checkLoop()
+        val context = tools ?: initialConfiguration.tools ?: []
+        checkRealtimeConfiguration(model.capabilities, request.configuration, context)
+        when (request.input) { case Some(input) -> checkModelInput(model.capabilities.input, LlmRequest(input)); case None -> {} }
+        return send(protocol.encodeResponseCreate(request, eventId, context))
+    }
+
+    public suspend fun sendSessionUpdate(configuration: RealtimeConfiguration = RealtimeConfiguration(), eventId: String? = None,
+        tools: Array<ToolDefinition>? = None): RealtimeSent {
+        connection.checkLoop()
+        val context = tools ?: initialConfiguration.tools ?: []
+        checkRealtimeConfiguration(model.capabilities, configuration, context)
+        return send(protocol.encodeSessionUpdate(configuration, eventId, context))
+    }
+
+    public suspend fun sendAudioAppend(bytes: Array<Byte>, mimeType: String, eventId: String? = None): RealtimeSent {
+        connection.checkLoop()
+        checkRealtimeAudioFormat(mimeType, "/mimeType")
+        checkSingleModelMedia(model.capabilities.input, InputMediaKind.Audio, MediaSource.Bytes(bytes, mimeType), "/audio")
+        return send(protocol.encodeAudioAppend(bytes, eventId))
+    }
+
+    public suspend fun sendAudioCommit(eventId: String? = None): RealtimeSent = send(protocol.encodeAudioCommit(eventId))
+    public suspend fun sendAudioClear(eventId: String? = None): RealtimeSent = send(protocol.encodeAudioClear(eventId))
+    public suspend fun sendItemRetrieve(itemId: String, eventId: String? = None): RealtimeSent = send(protocol.encodeItemRetrieve(itemId, eventId))
+    public suspend fun sendItemDelete(itemId: String, eventId: String? = None): RealtimeSent = send(protocol.encodeItemDelete(itemId, eventId))
+    public suspend fun sendItemTruncate(itemId: String, audioEndMilliseconds: ULong, contentIndex: ULong = 0UL, eventId: String? = None): RealtimeSent =
+        send(protocol.encodeItemTruncate(itemId, audioEndMilliseconds, contentIndex, eventId))
+    public suspend fun sendResponseCancel(responseId: String? = None, eventId: String? = None): RealtimeSent = send(protocol.encodeResponseCancel(responseId, eventId))
+    public suspend fun sendNativeCommand(command: RealtimeNativeCommand): RealtimeSent = send(protocol.encodeNativeCommand(command))
+
+    public suspend fun receive(tools: Array<ToolDefinition>? = None): RealtimeReceived? {
+        val (message, received) = connection.receive<RealtimeMessage> { data ->
+            decodeRealtimeSessionMessage(protocol, data, tools ?: initialConfiguration.tools ?: [])
+        } ?: return None
+        return Some(RealtimeReceived(id, message, received))
+    }
+
+    public override suspend fun close() { connection.close() }
+    private suspend fun send(command: JsonValue): RealtimeSent = RealtimeSent(id, command, connection.send(command))
+}

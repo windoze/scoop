@@ -1,0 +1,74 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.Instant
+
+@Test
+private class ResponsesStreamTextTest {
+    @Test
+    fun `Responses text snapshots deliver only missing Unicode tails and finalize cumulative usage`() {
+        for (retention in [StreamRetention.EventsOnly, StreamRetention.Result]) {
+            val decoder = responsesStream(retention)
+            responsesEvent(decoder, "response.in_progress", "\"response\":{\"object\":\"response\",\"status\":\"in_progress\",\"output\":[],\"usage\":{\"input_tokens\":10,\"input_tokens_details\":{\"cached_tokens\":3,\"cache_write_tokens\":2}}}")
+            responsesItem(decoder, 0L, responsesEmptyMessage)
+            responsesAt(decoder, "response.content_part.added", 0L, "m", "\"content_index\":0,\"part\":{\"type\":\"output_text\",\"text\":\"\",\"annotations\":[]}")
+            val delta = responsesAt(decoder, "response.output_text.delta", 0L, "m", "\"content_index\":0,\"delta\":\"你好🌍\"")
+            assertEquals("你好🌍", responsesEventText(delta))
+            assertTrue(delta.hasOutput && delta.hasText)
+            assertEquals("!", responsesEventText(responsesAt(decoder, "response.output_text.done", 0L, "m", "\"content_index\":0,\"text\":\"你好🌍!\"")))
+            assertEquals("", responsesEventText(responsesItem(decoder, 0L, responsesMessage("你好🌍!"), true)))
+            assertFalse(decoder.isFinished)
+            assertEquals(UsageCompleteness.Partial, decoder.usage.completeness)
+            assertEquals("", responsesEventText(responsesFinish(decoder, "[" + responsesMessage("你好🌍!") + "]", usage = Some("{\"input_tokens\":null,\"output_tokens\":4,\"total_tokens\":14}"))))
+            assertEquals(Some(5L), decoder.usage.tokens.nonCachedInputTokens)
+            assertEquals(Some(14L), decoder.usage.tokens.totalTokens)
+            assertEquals(UsageCompleteness.Final, decoder.usage.completeness)
+            if (retention == StreamRetention.Result) {
+                val response = decoder.response()
+                assertEquals("你好🌍!", response.text)
+                assertEquals(Some(Instant.fromEpochSeconds(0L)), response.createdAt)
+                assertEquals(Some("r"), response.id)
+                assertEquals(JsonValueKind.Object, responsesHistory(response)[0L].kind)
+                assertTrue(when (response.native) { case None -> true; else -> false })
+            } else assertEquals(LlmOutputFailure.ResultNotRetained, assertFailsWith<LlmOutputException> { decoder.response(); Unit }.reason)
+        }
+    }
+
+    @Test
+    fun `Responses interleaved reasoning parts keep event positions and final encrypted history`() {
+        val decoder = responsesStream()
+        val initial = "{\"type\":\"reasoning\",\"id\":\"rs\",\"summary\":[],\"encrypted_content\":\"partial\"}"
+        responsesItem(decoder, 0L, initial)
+        val content = responsesAt(decoder, "response.reasoning_text.delta", 0L, "rs", "\"content_index\":0,\"delta\":\"content\"")
+        responsesAt(decoder, "response.reasoning_summary_part.added", 0L, "rs", "\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"\"}")
+        val summary = responsesAt(decoder, "response.reasoning_summary_text.delta", 0L, "rs", "\"summary_index\":0,\"delta\":\"summary\"")
+        for (event in content.events) when (event) { case ReasoningDelta(delta) -> assertEquals(0L, delta.partIndex); else -> continue }
+        for (event in summary.events) when (event) { case ReasoningDelta(delta) -> assertEquals(1L, delta.partIndex); else -> continue }
+        val final = "{\"type\":\"reasoning\",\"id\":\"rs\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"summary\"}],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"content\"}],\"encrypted_content\":\"complete opaque value\"}"
+        responsesItem(decoder, 0L, final, true)
+        responsesFinish(decoder, "[" + final + "]")
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(decoder.response()))
+        when (response.candidate(0L).items[0L]) {
+            case Reasoning(parts, _) -> {
+                when (parts[0L]) { case Text(text, _) -> assertEquals("content", text); else -> fail() }
+                when (parts[1L]) { case Text(text, _) -> assertEquals("summary", text); else -> fail() }
+            }
+            else -> fail()
+        }
+        assertEquals("complete opaque value", responsesHistory(response)[0L]["encrypted_content"]!!.asString())
+    }
+
+    @Test
+    fun `Responses terminal snapshots complete interrupted and previously unseen output`() {
+        val decoder = responsesStream()
+        val update = responsesFinish(decoder, "[" + responsesMessage("partial") + "]", "incomplete")
+        assertEquals("partial", responsesEventText(update))
+        assertEquals(LlmCompletion.Incomplete, decoder.response().candidate(0L).completion)
+        assertEquals(UsageCompleteness.Final, decoder.usage.completeness)
+        val empty = responsesStream()
+        responsesFinish(empty, "[]", "failed")
+        assertEquals(LlmCompletion.Failed, empty.response().candidate(0L).completion)
+    }
+}

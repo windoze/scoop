@@ -1,0 +1,81 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal class GenerateContentCitationTarget public constructor(public val part: Long, public val citation: Citation)
+
+internal class GenerateContentGrounding public constructor(
+    public val citations: Array<GenerateContentCitationTarget> = [],
+    public val webSources: Array<LlmSource> = [],
+    public val search: Boolean = false,
+    public val queries: JsonValue? = None,
+    public val native: JsonValue? = None
+)
+
+internal class GenerateContentGroundingFields public constructor(public val groundingChunks: Array<JsonValue>? = None,
+    public val groundingSupports: Array<JsonValue>? = None, public val webSearchQueries: Array<String>? = None,
+    public val searchEntryPoint: JsonValue? = None) {
+    public companion object : ValueDecoder<GenerateContentGroundingFields>
+}
+
+internal class GenerateContentSupport public constructor(public val groundingChunkIndices: Array<Long>? = None,
+    public val segment: GenerateContentSegment? = None) {
+    public companion object : ValueDecoder<GenerateContentSupport>
+}
+
+internal class GenerateContentSegment public constructor(public val partIndex: Long? = None,
+    public val startIndex: Long? = None, public val endIndex: Long? = None) {
+    public companion object : ValueDecoder<GenerateContentSegment>
+}
+
+internal fun readGenerateContentGrounding(dialect: DialectId, value: JsonValue?, parts: Array<GenerateContentPart>,
+    candidatePath: String): GenerateContentGrounding {
+    val raw = value ?: return GenerateContentGrounding()
+    val path = candidatePath + "/groundingMetadata"
+    val fields = decodeGenerateContentValue<GenerateContentGroundingFields>(raw, path)
+    val sources = ArrayList<LlmSource>()
+    val web = ArrayList<LlmSource>()
+    var index = 0L
+    for (chunk in fields.groundingChunks ?: []) {
+        val (source, fromWeb) = readGenerateContentSource(dialect, chunk, path + "/groundingChunks/" + index.toString())
+        sources.add(source)
+        if (fromWeb) web.add(source)
+        index += 1L
+    }
+    val citations = ArrayList<GenerateContentCitationTarget>()
+    index = 0L
+    for (support in fields.groundingSupports ?: []) {
+        val supportPath = path + "/groundingSupports/" + index.toString()
+        index += 1L
+        val fields = decodeGenerateContentValue<GenerateContentSupport>(support, supportPath)
+        val indices = fields.groundingChunkIndices ?: []
+        for (source in indices) {
+            if (source < 0L || source >= sources.size) throw DecodingException(supportPath + "/groundingChunkIndices", "source index is out of bounds")
+        }
+        when (fields.segment) {
+            case Some(segment) -> {
+                val part = segment.partIndex ?: 0L
+                if (part < 0L || part >= parts.size) throw DecodingException(supportPath + "/segment/partIndex", "part index is out of bounds")
+                when (parts[part].text) {
+                    case Some(text) -> {
+                        val range = generateContentCitationRange(segment.startIndex, segment.endIndex, text, supportPath + "/segment")
+                        for (source in indices) citations.add(GenerateContentCitationTarget(part, Citation(sources[source], range)))
+                    }
+                    case None -> continue
+                }
+            }
+            case None -> continue
+        }
+    }
+    val queries = fields.webSearchQueries ?: []
+    return GenerateContentGrounding(citations.toArray(), web.toArray(),
+        web.size != 0L || queries.size != 0L || llmPresent(fields.searchEntryPoint), raw["webSearchQueries"], Some(raw))
+}
+
+internal fun appendGenerateContentGrounding(items: ArrayList<LlmOutputItem>, dialect: DialectId,
+    value: GenerateContentGrounding, tools: Array<ToolDefinition>) {
+    val raw = value.native ?: return
+    if (value.search) items.add(LlmOutputItem.ServerToolActivity(ServerToolActivity(WebSearch,
+        toolKey = resolveGenerateContentServer(tools, dialect, "googleSearch"), action = value.queries, sources = value.webSources, native = Some(raw))))
+    else items.add(LlmOutputItem.Native(dialect, JsonObjectBuilder().add("groundingMetadata", raw).build()))
+}

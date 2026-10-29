@@ -1,0 +1,33 @@
+package scoop.llm.client
+
+/** Direct generation output kinds. Tool-produced media does not grant these capabilities. */
+public enum OutputMediaKind {
+    Image,
+    Audio,
+    Video,
+    Document
+
+    public companion object : ValueEncoder<OutputMediaKind>, ValueDecoder<OutputMediaKind>
+}
+
+/** Output support, independent of the model's input formats. */
+public class OutputCapabilities public constructor(
+    public val text: Capability<Unit> = Unknown,
+    public val image: Capability<MediaCapabilities> = Unknown,
+    public val audio: Capability<MediaCapabilities> = Unknown,
+    public val video: Capability<MediaCapabilities> = Unknown,
+    public val document: Capability<MediaCapabilities> = Unknown
+) {
+    /** Queries one exact format within the explicitly selected output kind. */
+    public fun forMedia(kind: OutputMediaKind, format: MediaFormat): Capability<MediaLimits> {
+        val capability = when (kind) {
+            case Image -> image
+            case Audio -> audio
+            case Video -> video
+            case Document -> document
+        }
+        return mediaFormatCapability(capability, format)
+    }
+
+    public companion object : ValueEncoder<OutputCapabilities>, ValueDecoder<OutputCapabilities>
+}

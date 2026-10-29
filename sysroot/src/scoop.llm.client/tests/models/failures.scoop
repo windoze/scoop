@@ -1,0 +1,80 @@
+package scoop.llm.client.tests.models
+
+import scoop.asyncio.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class ModelCatalogFailuresTest {
+    @Test
+    fun `unsupported model operations and empty identifiers fail before authentication`() {
+        withLlmServer suspend { _, _, _, original ->
+            val auth = RecordingAuth()
+            withLlmClient suspend { client ->
+                for ((provider, listing, id, path) in [(LlmProvider("no-catalog", CataloglessProtocol()), true, "id", "/provider"),
+                    (Providers.deepSeekChat(), false, "id", "/provider"), (Providers.openAiChat(), false, "", "/modelId"),
+                    (Providers.geminiGenerateContent(), false, "models/", "/modelId"),
+                    (Providers.openRouterChat(), false, "unqualified", "/modelId"),
+                    (Providers.cohereChat(), false, "", "/modelId"), (Providers.ollamaChat(), false, "", "/modelId"),
+                    (Providers.bedrockConverse(), false, "", "/modelId")]) {
+                    val endpoint = LlmEndpoint(provider, auth, Some(original.baseUrl))
+                    val finished = FinishedCalls()
+                    val options = LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))
+                    val error = expectLlmFailure<LlmRequestException> suspend {
+                        if (listing) client.listModels(endpoint, options = options) else client.retrieveModel(endpoint, id, options)
+                        Unit
+                    }
+                    assertEquals(path, error.path)
+                    assertEquals(1L, finished.values.size)
+                    assertEquals(0L, finished.values[0].attempts.size)
+                }
+            }
+            assertEquals(0L, auth.requests.size)
+        }
+    }
+
+    @Test
+    fun `model queries retry explicit service rejection and retain malformed response failures`() {
+        for (malformed in [false, true]) {
+            withLlmServer suspend { _, scope, listener, original ->
+                val auth = RecordingAuth()
+                val serving = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        for (index in [0L, 1L]) {
+                            val request = connection.receiveRequest()!!
+                            assertEquals("GET", String.fromUtf8(request.head.method))
+                            assertEquals(0L, request.body.readAllBytes(4096L).size)
+                            if (index == 0L) sendLlmReply(connection, 429U, "{\"error\":{\"type\":\"rate_limit_error\"}}")
+                            else sendLlmReply(connection, 200U, if (malformed) "{\"data\":[{\"id\":false}]}" else "{\"data\":[]}")
+                        }
+                    }
+                }
+                val finished = FinishedCalls()
+                withLlmClient suspend { client ->
+                    val endpoint = LlmEndpoint(Providers.anthropicMessages(), auth, Some(original.baseUrl))
+                    val options = LlmCallOptions(retries = LlmRetryOptions(maxRetries = 1L, initialDelay = Duration.ZERO),
+                        onFinished = Some(suspend { value -> finished.record(value) }))
+                    if (malformed) {
+                        val error = expectLlmFailure<LlmProtocolException> suspend { client.listModels(endpoint, options = options); Unit }
+                        assertEquals("/data/0/id", error.path)
+                    } else assertEquals(0L, client.listModels(endpoint, options = options).page.models.size)
+                }
+                assertEquals(2L, auth.requests.size)
+                assertEquals(auth.requests[0].url.toString(), auth.requests[1].url.toString())
+                assertEquals(1L, finished.values.size)
+                val metadata = finished.values[0]
+                assertEquals(2L, metadata.attempts.size)
+                assertEquals(Some(429U), metadata.attempts[0].status)
+                if (malformed) {
+                    assertEquals(LlmCallOutcome.Failed, metadata.outcome)
+                    assertEquals(None, metadata.attempts[1].response.completedAt)
+                } else assertModelQueryTiming(metadata)
+                serving.join()
+            }
+        }
+    }
+}

@@ -1,0 +1,47 @@
+package scoop.llm.client.tests.cohere
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class CohereCompositionTest {
+    @Test
+    fun `Cohere dialect binding rejects a foreign protocol`() {
+        assertEquals(ApiProtocolId("cohere-chat-v2"), CohereChatDialect().id.protocol)
+        assertFailsWith<IllegalArgumentException> { val protocol = CohereChatProtocol(ForeignCohereDialect()); Unit }
+    }
+
+    @Test
+    fun `Cohere reasoning citations parallel tools exact usage and saved continuation compose`() {
+        val calls = Json.stringify(JsonValue.fromArray([cohereCall("a", "{\"count\":9007199254740993}"), cohereCall("b")]))
+        val body = cohereBody("[{\"type\":\"thinking\",\"thinking\":\"reason\"},{\"type\":\"text\",\"text\":\"answer\"}]", "TOOL_CALL",
+            ",\"tool_plan\":\"continue\",\"tool_calls\":" + calls + ",\"citations\":[{\"content_index\":1,\"sources\":[{\"type\":\"tool\",\"id\":\"previous:0\",\"tool_output\":{\"value\":1e400}}]}]",
+            Some("{\"tokens\":{\"input_tokens\":20.0,\"output_tokens\":3e0},\"cached_tokens\":12,\"billed_units\":{\"input_tokens\":4}}"))
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(cohereDecode(body)))
+        assertEquals("answer", response.text)
+        assertEquals(2L, response.clientToolCalls.size)
+        assertEquals(9007199254740993L, response.clientToolCalls[0L].decodeArguments<CohereAnswer>().count)
+        assertEquals(Some(8L), response.usage.tokens.nonCachedInputTokens)
+        assertEquals(Some(23L), response.usage.tokens.totalTokens)
+        assertEquals(0L, response.serverToolActivities.size)
+        when (response.candidates[0L].items[1L]) { case Message(parts, _) -> when (parts[0L]) {
+            case Text(_, citations) -> assertEquals("previous:0", citations[0L].source.id)
+            else -> fail()
+        }; else -> fail() }
+        val input = ArrayList<LlmInputItem>()
+        for (item in response.toInput()) input.add(item)
+        for (call in response.clientToolCalls) input.add(ToolResult(call.reference, [Text("done")]))
+        val saved = Json.decodeFromString<LlmRequest>(Json.encodeToString(LlmRequest(input.toArray())))
+        assertEquals(3L, saved.input.size)
+        when (saved.input[0L]) { case History(history) -> assertEquals(Json.stringify(body["message"]!!), Json.stringify(history.items[0L])); else -> fail() }
+    }
+}
+
+private class ForeignCohereDialect : CohereDialect {
+    public override val id: DialectId = DialectId(ApiProtocolId("chat-completions"), "foreign")
+    public override fun encodeOptions(request: LlmRequest): JsonValue = JsonObjectBuilder().build()
+    public override fun readUsage(value: JsonValue): TokenUsage = TokenUsage()
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        LlmServiceException(id, status, body, truncated)
+}

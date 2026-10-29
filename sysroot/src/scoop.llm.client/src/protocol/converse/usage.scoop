@@ -1,0 +1,41 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+private class ConverseUsageFields public constructor(public val inputTokens: Long? = None, public val outputTokens: Long? = None,
+    public val totalTokens: Long? = None, public val cacheReadInputTokens: Long? = None, public val cacheWriteInputTokens: Long? = None,
+    public val cacheDetails: Array<ConverseCacheDetail>? = None) {
+    public companion object : ValueDecoder<ConverseUsageFields>
+}
+
+private class ConverseCacheDetail public constructor(public val inputTokens: Long? = None, public val ttl: String? = None) {
+    public companion object : ValueDecoder<ConverseCacheDetail>
+}
+
+internal fun readConverseUsage(value: JsonValue): TokenUsage {
+    val fields = decodeConverseValue<ConverseUsageFields>(value, "/usage")
+    val ordinary = converseCount(fields.inputTokens, "inputTokens")
+    val output = converseCount(fields.outputTokens, "outputTokens")
+    val total = converseCount(fields.totalTokens, "totalTokens")
+    val read = converseCount(fields.cacheReadInputTokens, "cacheReadInputTokens")
+    val write = converseCount(fields.cacheWriteInputTokens, "cacheWriteInputTokens")
+    var input: Long? = None
+    if (ordinary != None && read != None && write != None)
+        input = Some(sumConverseCounts(sumConverseCounts(ordinary!!, read!!, "cacheReadInputTokens"), write!!, "cacheWriteInputTokens"))
+    var index = 0L
+    for (entry in fields.cacheDetails ?: []) {
+        converseCount(entry.inputTokens, "cacheDetails/" + index.toString() + "/inputTokens")
+        index += 1L
+    }
+    return TokenUsage(input, ordinary, output, total, read, write)
+}
+
+private fun converseCount(value: Long?, path: String): Long? {
+    if (value != None && value!! < 0L) throw DecodingException("/usage/" + path, "token count must not be negative")
+    return value
+}
+
+private fun sumConverseCounts(first: Long, second: Long, path: String): Long {
+    if (first > Long.MAX_VALUE - second) throw DecodingException("/usage/" + path, "input token sum exceeds Long")
+    return first + second
+}

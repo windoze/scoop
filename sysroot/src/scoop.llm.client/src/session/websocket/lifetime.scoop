@@ -1,0 +1,36 @@
+package scoop.llm.client
+
+import scoop.asyncio.useAsync
+import scoop.http.client.*
+import scoop.url.Url
+
+internal suspend fun runLlmWebSocket(state: LlmWebSocketState, caller: Job?, options: LlmCallOptions,
+    webSocketOptions: HttpWebSocketOptions, prepare: () -> Url,
+    initialize: suspend (LlmCallState, HttpWebSocketSession) -> Unit) {
+    val call = state.call
+    var failure: Throwable? = None
+    state.opening.listener = caller?.invokeOnCancellation { error -> state.stop(error) }
+    try {
+        registerLlmCall(call.client, state)
+        coroutineScope suspend { scope ->
+            call.bind(scope.job)
+            ensureActive()
+            val (connection, metadata) = openLlmWebSocketHandshake(state, scope, options, webSocketOptions, prepare, initialize)
+            connection.socket.useAsync suspend { _ ->
+                ensureActive()
+                state.opening.publish(LlmWebSocketOpened(connection, metadata))
+                state.awaitSocketEnd()
+            }
+        }
+    } catch (error: Throwable) { failure = Some(error) }
+    finally { state.opening.listener?.dispose() }
+    val selected = call.finish(failure)
+    val finalFailure = when (selected) { case Some(error) -> if (error === state.earlyClose) None else selected; case None -> None }
+    val waiting = state.lock.withLock {
+        state.failure = finalFailure; state.closed = true; state.closing = true; state.wake = None
+        val waiting = state.closeWaiters.toArray(); state.closeWaiters.clear()
+        waiting
+    }
+    when (finalFailure) { case Some(error) -> state.opening.fail(error); case None -> {} }
+    for (waiter in waiting) waiter.resume(Unit)
+}

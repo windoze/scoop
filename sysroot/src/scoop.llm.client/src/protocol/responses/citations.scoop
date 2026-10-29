@@ -1,0 +1,49 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+import scoop.url.Url
+
+internal fun readResponsesCitations(dialect: DialectId, values: Array<JsonValue>?, path: String): Array<Citation> {
+    val entries = values ?: return []
+    val result = ArrayList<Citation>()
+    var index = 0L
+    for (entry in entries) {
+        val itemPath = path + "/" + index.toString()
+        result.add(readResponsesCitation(dialect, entry, itemPath))
+        index += 1L
+    }
+    return result.toArray()
+}
+
+internal fun readResponsesCitation(dialect: DialectId, entry: JsonValue, path: String): Citation {
+    val kind = decodeResponsesValue<ResponsesItemFields>(entry, path).type
+    val source = when (kind) {
+        case "url_citation" -> readResponsesUrlSource(entry, path)
+        case "file_citation" -> readResponsesFileSource(dialect, entry, path)
+        case "file_path" -> readResponsesFileSource(dialect, entry, path)
+        else -> LlmSource(path, LlmSourceLocation.Native(dialect, entry), native = Some(entry))
+    }
+    // The wire indices do not specify a public TextRange unit or a half-open convention.
+    return Citation(source)
+}
+
+internal fun readResponsesUrlSource(value: JsonValue, path: String): LlmSource {
+    val fields = decodeResponsesValue<ResponsesUrlSource>(value, path)
+    val url = Url.parseOrNone(fields.url) ?: throw DecodingException(path + "/url", "invalid source URL")
+    return LlmSource(path, LlmSourceLocation.Url(url), fields.title, Some(value))
+}
+
+private fun readResponsesFileSource(dialect: DialectId, value: JsonValue, path: String): LlmSource {
+    val fields = decodeResponsesValue<ResponsesFileSource>(value, path)
+    return LlmSource(fields.fileId, LlmSourceLocation.File(LlmFileReference(dialect, JsonValue.fromString(fields.fileId))),
+        fields.filename, Some(value))
+}
+
+private class ResponsesUrlSource public constructor(public val url: String, public val title: String? = None) {
+    public companion object : ValueDecoder<ResponsesUrlSource>
+}
+
+private class ResponsesFileSource public constructor(@Serialize(rename = "file_id") public val fileId: String,
+    public val filename: String? = None) {
+    public companion object : ValueDecoder<ResponsesFileSource>
+}

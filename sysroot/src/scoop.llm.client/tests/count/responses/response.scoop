@@ -1,0 +1,51 @@
+package scoop.llm.client.tests.count
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ResponsesCountResponseTest {
+    @Test
+    fun `Responses token count retains exact integers unknown fields and independent result codecs`() {
+        val counter = Providers.openAiResponses().protocol.tokenCounter()!!
+        val samples: Array<(String, Long?)> = [("", None), (",\"input_tokens\":null", None), (",\"input_tokens\":0", Some(0L)),
+            (",\"input_tokens\":9007199254740993", Some(9007199254740993L)),
+            (",\"input_tokens\":9223372036854775807", Some(Long.MAX_VALUE))]
+        for ((field, expected) in samples) {
+            val counted = Json.decodeFromString<TokenCount>(Json.encodeToString(
+                counter.decodeResponse("requested-model", Json.parse("{\"object\":\"response.input_tokens\"" + field + "}"))))
+            assertEquals(expected, counted.inputTokens)
+            assertEquals("requested-model", counted.model)
+            assertEquals(OpenAiResponsesDialect().id, counted.dialect)
+            assertEquals(TokenCountMethod.Server, counted.method)
+            assertEquals(TokenCountScope.RequestInput, counted.scope)
+            assertEquals(TokenCountPrecision.Exact, counted.precision)
+            assertEquals(None, counted.modelVersion)
+            assertEquals(None, counted.cachedInputTokens)
+            assertEquals(0L, counted.modality.size)
+        }
+        for (extra in ["", ",\"provider_info\":null", ",\"provider_info\":[]", ",\"provider_info\":\"opaque\""]) {
+            val raw = Json.parse("{\"object\":\"response.input_tokens\",\"input_tokens\":11" + extra + "}")
+            val counted = counter.decodeResponse("model", raw)
+            assertEquals(Some(11L), counted.inputTokens)
+            assertEquals(Json.stringify(raw), Json.stringify(counted.native!!))
+        }
+    }
+
+    @Test
+    fun `Responses token count rejects wrong operation errors and invalid counts with original responses`() {
+        val counter = Providers.openAiResponses().protocol.tokenCounter()!!
+        for ((raw, path) in [
+            ("{\"object\":\"response\",\"input_tokens\":1}", "/object"),
+            ("{\"object\":\"response.input_tokens\",\"input_tokens\":-1}", "/input_tokens"),
+            ("{\"object\":\"response.input_tokens\",\"input_tokens\":0.5}", "/input_tokens"),
+            ("{\"object\":\"response.input_tokens\",\"input_tokens\":9223372036854775808}", "/input_tokens"),
+            ("{\"object\":\"response.input_tokens\",\"error\":{\"message\":\"failed\"}}", "/error")]) {
+            val value = Json.parse(raw)
+            val failure = assertFailsWith<LlmProtocolException> { counter.decodeResponse("model", value); Unit }
+            assertEquals(path, failure.path)
+            assertEquals(Json.stringify(value), Json.stringify(failure.native))
+        }
+    }
+}

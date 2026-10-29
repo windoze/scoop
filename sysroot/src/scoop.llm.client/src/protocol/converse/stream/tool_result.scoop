@@ -1,0 +1,67 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+private class ConverseStreamResultStart public constructor(public val toolUseId: String, public val type: String? = None,
+    public val status: String? = None) {
+    public companion object : ValueDecoder<ConverseStreamResultStart>
+}
+
+internal class ConverseStreamResult(val initial: JsonValue) {
+    private val fields = decodeConverseValue<ConverseStreamResultStart>(initial, "/start/toolResult")
+    private val parts = ArrayList<JsonValue>()
+    private val text = StringBuilder()
+    private var textSeen = false
+    var entry: ConverseEntry? = None
+    init {
+        converseNonempty(fields.toolUseId, "/start/toolResult/toolUseId")
+        if (initial.containsKey("content")) throw DecodingException("/start/toolResult/content", "tool result content belongs to delta events")
+    }
+
+    fun append(raw: JsonValue, block: ConverseStreamBlock, batch: LlmStreamBatch) {
+        val values = decodeConverseValue<Array<JsonValue>>(raw, "/delta/toolResult")
+        var index = 0L
+        for (part in values) {
+            val (kind, value) = converseUnion(part, "/delta/toolResult/" + index.toString())
+            if (kind == "text") {
+                text.append(decodeConverseValue<String>(value, "/delta/toolResult/" + index.toString() + "/text"))
+                textSeen = true
+            } else {
+                flushText(); parts.add(part)
+                if (kind != "json") block.historyAvailable = false
+            }
+            index += 1L
+        }
+        batch.native("converse.tool_result.delta", raw, Some(block.location), false)
+        if (values.size != 0L) batch.hasOutput = true
+    }
+
+    fun stop(block: ConverseStreamBlock, state: ConverseStreamDecoder, batch: LlmStreamBatch) {
+        flushText()
+        val value = converseStreamReplace(initial, "content", JsonValue.fromArray(parts))
+        val wire = converseStreamUnion("toolResult", value)
+        block.wire = Some(wire)
+        val parsed = ConverseEntry("toolResult", wire, value, block.path,
+            result = Some(ConverseToolResult(fields.toolUseId, parts.toArray(), fields.status, fields.type)))
+        state.calls.add(parsed)
+        entry = Some(parsed)
+        val output = readConverseServerResult(state.dialect, parsed, state.calls.toArray(), state.request.tools)
+        if (block.retain) block.item = Some(output)
+        when (output) {
+            case ServerToolActivity(activity) -> {
+                batch.hasOutput = true
+                batch.events.add(LlmEvent.ServerToolActivity(block.location, activity))
+            }
+            case Native(_, raw) -> batch.native("converse.tool_result", raw, Some(block.location), false)
+            else -> throw IllegalStateException(Some("unexpected Converse tool result"))
+        }
+        parts.clear()
+    }
+
+    private fun flushText() {
+        if (!textSeen) return
+        parts.add(converseStreamUnion("text", JsonValue.fromString(text.toString())))
+        text.clear()
+        textSeen = false
+    }
+}

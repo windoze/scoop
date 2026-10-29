@@ -1,0 +1,75 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun acceptInteractionsArguments(step: InteractionsStreamStep, raw: JsonValue, batch: LlmStreamBatch) {
+    val value = raw["arguments"]
+    if (!llmPresent(value)) return
+    val text = decodeInteractionsValue<String>(value!!, "/delta/arguments")
+    step.fragmented = true
+    step.argumentText.append(text)
+    if (text.length == 0L) return
+    val name = interactionsStreamString(step.metadata, "name", step.path)
+    val key = resolveInteractionsFunction(step.tools, name)
+    val reference = when (key) {
+        case Some(value) -> Some(ClientToolCallReference(step.dialect, value,
+            Some(interactionsStreamString(step.metadata, "id", step.path)), Some(step.metadata)))
+        case None -> None
+    }
+    batch.events.add(LlmEvent.ToolInputDelta(LlmToolInputDelta(step.location, text, reference)))
+    batch.observe(text)
+}
+
+internal fun finishInteractionsArguments(step: InteractionsStreamStep) {
+    if (step.fragmented) {
+        val parsed = try { Some(Json.parse(step.argumentText.toString())) } catch (_: DecodingException) { None }
+        if (llmPresent(parsed)) step.metadata = replaceInteractionsField(step.metadata, "arguments", parsed!!)
+        else {
+            step.metadata = llmStreamUnknown(step.metadata, ["arguments"])
+            step.argumentError = Some("invalid function argument JSON")
+            step.historySafe = false
+        }
+    } else if (!step.metadata.containsKey("arguments")) {
+        step.argumentError = Some("missing function arguments")
+        step.historySafe = false
+    }
+}
+
+internal fun interactionsStreamClientCall(step: InteractionsStreamStep, status: String, answered: Boolean): LlmOutputItem {
+    val name = interactionsStreamString(step.metadata, "name", step.path)
+    val key = resolveInteractionsFunction(step.tools, name)
+    if (key == None || answered || status == "completed") return LlmOutputItem.Native(step.dialect, step.metadata)
+    val arguments = step.metadata["arguments"]
+    val text = if (step.fragmented) step.argumentText.toString()
+        else when (arguments) { case Some(value) -> Json.stringify(value); case None -> "" }
+    val input = if (status != "requires_action" || step.inputUnknown) ClientToolInput.Incomplete(text)
+        else if (step.argumentError != None) ClientToolInput.Invalid(text, step.argumentError!!)
+        else if (!llmPresent(arguments) || arguments!!.kind != JsonValueKind.Object)
+            ClientToolInput.Invalid(text, "function arguments must be an object")
+        else ClientToolInput.JsonArguments(JsonToolArguments(text))
+    return LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(step.dialect, key!!,
+        Some(interactionsStreamString(step.metadata, "id", step.path)), Some(step.metadata)), input))
+}
+
+internal fun interactionsStreamEntries(state: InteractionsStreamDecoder): Array<InteractionsStep> {
+    val result = ArrayList<InteractionsStep>()
+    for (step in state.steps) result.add(readInteractionsStepFields(step.metadata, step.path))
+    return result.toArray()
+}
+
+internal fun emitInteractionsServer(state: InteractionsStreamDecoder, step: InteractionsStreamStep, batch: LlmStreamBatch) {
+    if (interactionsServerType(step.type) == None) return
+    val entries = interactionsStreamEntries(state)
+    val output = readInteractionsServerStep(step.dialect, entries[step.index], entries, step.tools, true)
+    when (output) {
+        case ServerToolActivity(value) -> {
+            val activity = if (!step.done && llmPresent(entries[step.index].result))
+                ServerToolActivity(value.kind, InProgress, value.toolKey, value.id, value.action, value.result, value.sources, value.native)
+                else value
+            batch.events.add(LlmEvent.ServerToolActivity(step.location, activity))
+            batch.hasOutput = true
+            step.serverEmitted = true
+        }
+        else -> throw DecodingException(step.path, "expected a server activity")
+    }
+}

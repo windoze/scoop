@@ -1,0 +1,55 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeResponsesRequest(dialect: ResponsesDialect, model: String, request: LlmRequest, stream: Boolean): JsonValue {
+    if (model.length == 0L) throw LlmRequestException("/modelId", "model ID must not be empty")
+    val input = encodeResponsesInput(dialect, request.input)
+    val body = JsonObjectBuilder().add("model", JsonValue.fromString(model)).add("input", input)
+    if (request.system.size != 0L) body.add("instructions", JsonValue.fromString(responsesPlainText(request.system, "/system")))
+    for ((name, value) in dialect.encodeOptions(request).members()) {
+        if (name == "model" || name == "input" || name == "instructions" || name == "stream" ||
+            name == "type" || name == "stream_id" || name == "generate")
+            throw LlmRequestException("/options/" + name, "dialect options cannot override Responses routing or transport fields")
+        body.add(name, value)
+    }
+    if (stream) body.add("stream", JsonValue.fromBoolean(true))
+    return mergeLlmExtensions(body.build(), request.extensions, dialect.id, ["model", "input", "instructions", "stream", "tools", "tool_choice",
+        "temperature", "top_p", "top_k", "max_output_tokens", "n", "stop", "parallel_tool_calls", "reasoning", "text", "include",
+        "type", "stream_id", "generate"], "")
+}
+
+internal fun encodeResponsesInput(dialect: ResponsesDialect, items: Array<LlmInputItem>): JsonValue {
+    val input = ArrayList<JsonValue>()
+    var index = 0L
+    for (item in items) {
+        val path = "/input/" + index.toString()
+        when (item) {
+            case Message(content, role, extensions) -> {
+                val wireRole = when (role) { case User -> "user"; case Assistant -> "assistant"; case System -> "system"; case Developer -> "developer" }
+                val message = llmTypedObject("message").add("role", JsonValue.fromString(wireRole))
+                    .add("content", dialect.encodeContent(content, path + "/content", Some(wireRole))).build()
+                input.add(mergeLlmExtensions(message, extensions, dialect.id, ["type", "role", "content"], path))
+            }
+            case ToolResult(call, content, isError, extensions) -> input.add(encodeResponsesToolResult(dialect, call, content, isError, extensions, path))
+            case History(history) -> appendResponsesHistory(input, history, dialect.id, path + "/history")
+        }
+        index += 1L
+    }
+    return JsonValue.fromArray(input)
+}
+
+private fun appendResponsesHistory(input: ArrayList<JsonValue>, history: LlmHistory, dialect: DialectId, path: String) {
+    requireLlmOwner(history.dialect, dialect, path + "/dialect")
+    if (llmPresent(history.context)) throw LlmRequestException(path + "/context", "Responses history has no implicit conversation context")
+    var index = 0L
+    for (item in history.items) {
+        val itemPath = path + "/items/" + index.toString()
+        if (item.kind != JsonValueKind.Object) throw LlmRequestException(itemPath, "Responses history requires output objects")
+        val type = item["type"] ?: throw LlmRequestException(itemPath + "/type", "missing history item type")
+        if (type.kind != JsonValueKind.String || type.asString().length == 0L)
+            throw LlmRequestException(itemPath + "/type", "history item type must be a nonempty string")
+        input.add(item)
+        index += 1L
+    }
+}

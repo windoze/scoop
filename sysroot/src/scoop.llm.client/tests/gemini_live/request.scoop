@@ -1,0 +1,88 @@
+package scoop.llm.client.tests.geminilive
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class GeminiLiveRequestTest {
+    @Test
+    fun `Gemini Live setup defaults and explicit API settings share provider and model bindings`() {
+        val endpoint = LlmEndpoint(Providers.geminiLive(), LlmAuth.none())
+        assertEquals(liveDialect, endpoint.provider.protocol.dialectId)
+        assertTrue(endpoint.provider.protocol is BidiGenerateContentProtocol)
+        assertFalse(endpoint.provider.protocol is LlmGenerationProtocol)
+        assertEquals("wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent",
+            liveProtocol.webSocketUrl(endpoint.baseUrl).toString())
+        assertEquals("ws://proxy.test/custom/live?route=one", liveProtocol.webSocketUrl(Url.parse("http://proxy.test/custom/live?route=one")).toString())
+        val minimal = liveProtocol.encodeSetup(endpoint.model("arbitrary").id)
+        assertEquals("{\"setup\":{\"model\":\"models/arbitrary\"}}", Json.stringify(minimal))
+        val setup = GeminiLiveSetup(system = [Text("system")], tools = liveTools,
+            options = LlmGenerationOptions(temperature = Some(0.0), maxOutputTokens = Some(128UL)),
+            extensions = [DialectExtension(liveDialect, Json.parse("{\"generationConfig\":{\"responseModalities\":[\"AUDIO\"],\"speechConfig\":{}},\"realtimeInputConfig\":{\"automaticActivityDetection\":{\"disabled\":true}},\"outputAudioTranscription\":{}}"))])
+        val body = liveProtocol.encodeSetup("models/chosen", setup)["setup"]!!
+        assertEquals("models/chosen", body["model"]!!.asString())
+        assertEquals("system", body["systemInstruction"]!!["parts"]!![0]["text"]!!.asString())
+        assertEquals(128UL, body["generationConfig"]!!["maxOutputTokens"]!!.asULong())
+        assertEquals("AUDIO", body["generationConfig"]!!["responseModalities"]!![0].asString())
+        assertEquals(2L, body["tools"]!!.size)
+        assertTrue(body["tools"]!![0].containsKey("functionDeclarations"))
+        assertTrue(body["tools"]!![1].containsKey("googleSearch"))
+        val saved = Json.decodeFromString<GeminiLiveSetup>(Json.encodeToString(setup))
+        assertEquals(Json.stringify(body), Json.stringify(liveProtocol.encodeSetup("chosen", saved)["setup"]!!))
+    }
+
+    @Test
+    fun `Gemini Live setup rejects unmapped common settings and managed field overrides`() {
+        for ((setup, path) in [(GeminiLiveSetup(options = LlmGenerationOptions(stop = Some([]))), "/options/stop"),
+            (GeminiLiveSetup(options = LlmGenerationOptions(output = JsonObject)), "/options/output"),
+            (GeminiLiveSetup(options = LlmGenerationOptions(toolChoice = Required)), "/options/toolChoice"),
+            (GeminiLiveSetup(options = LlmGenerationOptions(parallelToolCalls = Some(false))), "/options/parallelToolCalls"),
+            (GeminiLiveSetup(extensions = [DialectExtension(liveDialect, Json.parse("{\"model\":\"other\"}"))]), "/extensions/0/value/model"),
+            (GeminiLiveSetup(extensions = [DialectExtension(liveDialect, Json.parse("{\"generationConfig\":{\"temperature\":1}}"))]), "/extensions/0/value/generationConfig/temperature"),
+            (GeminiLiveSetup(extensions = [DialectExtension(GeminiGenerateContentDialect().id, Json.parse("{}"))]), "/extensions/0/dialect")]) {
+            val error = assertFailsWith<LlmRequestException> { liveProtocol.encodeSetup("model", setup); Unit }
+            assertEquals(path, error.path)
+        }
+    }
+
+    @Test
+    fun `Gemini Live client content preserves roles history and explicit turn completion`() {
+        val history = LlmHistory(liveDialect, [Json.parse("{\"role\":\"model\",\"parts\":[{\"text\":\"previous\",\"thoughtSignature\":\"opaque\"}]}")])
+        val input: Array<LlmInputItem> = [History(history), Message([Text("next")])]
+        val body = liveProtocol.encodeClientContent(input, false)["clientContent"]!!
+        assertFalse(body["turnComplete"]!!.asBoolean())
+        assertEquals("opaque", body["turns"]!![0]["parts"]!![0]["thoughtSignature"]!!.asString())
+        assertEquals("user", body["turns"]!![1]["role"]!!.asString())
+        val empty = liveProtocol.encodeClientContent([])["clientContent"]!!
+        assertTrue(empty["turnComplete"]!!.asBoolean())
+        assertEquals(0L, empty["turns"]!!.size)
+        val call = ClientToolCallReference(liveDialect, ToolKey("local"), Some("call"))
+        assertEquals("/input/0", assertFailsWith<LlmRequestException> {
+            liveProtocol.encodeClientContent([ToolResult(call, [Text("result")])]); Unit
+        }.path)
+    }
+
+    @Test
+    fun `Gemini Live realtime input preserves bytes MIME activity and explicit empty values`() {
+        val input = GeminiLiveInput(text = Some(""), audio = Some(GeminiLiveBlob([0.toByte(), (-1).toByte()], "audio/pcm;rate=16000")),
+            video = Some(GeminiLiveBlob([], "image/jpeg")), activityStart = true, activityEnd = true, audioStreamEnd = Some(false),
+            extensions = [DialectExtension(liveDialect, Json.parse("{\"mediaResolution\":\"MEDIA_RESOLUTION_LOW\"}"))])
+        val saved = Json.decodeFromString<GeminiLiveInput>(Json.encodeToString(input))
+        val body = liveProtocol.encodeRealtimeInput(saved)["realtimeInput"]!!
+        assertEquals("", body["text"]!!.asString())
+        assertEquals("AP8=", body["audio"]!!["data"]!!.asString())
+        assertEquals("audio/pcm;rate=16000", body["audio"]!!["mimeType"]!!.asString())
+        assertEquals("", body["video"]!!["data"]!!.asString())
+        assertEquals(0L, body["activityStart"]!!.size)
+        assertEquals(0L, body["activityEnd"]!!.size)
+        assertFalse(body["audioStreamEnd"]!!.asBoolean())
+        assertEquals(0L, liveProtocol.encodeRealtimeInput(GeminiLiveInput())["realtimeInput"]!!.size)
+        for ((invalid, path) in [(GeminiLiveInput(audio = Some(GeminiLiveBlob([], "image/png"))), "/audio/mimeType"),
+            (GeminiLiveInput(video = Some(GeminiLiveBlob([], "video/mp4"))), "/video/mimeType"),
+            (GeminiLiveInput(extensions = [DialectExtension(liveDialect, Json.parse("{\"audioStreamEnd\":true}"))]), "/extensions/0/value/audioStreamEnd")]) {
+            assertEquals(path, assertFailsWith<LlmRequestException> { liveProtocol.encodeRealtimeInput(invalid); Unit }.path)
+        }
+    }
+}

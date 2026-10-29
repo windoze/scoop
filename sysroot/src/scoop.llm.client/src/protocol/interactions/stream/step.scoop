@@ -1,0 +1,113 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal class InteractionsStreamStep public constructor(public val index: Long, initial: JsonValue,
+    public val dialect: DialectId, public val tools: Array<ToolDefinition>, public val retain: Boolean) {
+    public val path = "/steps/" + index.toString()
+    public val type = interactionsStreamString(initial, "type", path)
+    public val location = LlmItemLocation(0L, index)
+    public val parts = ArrayList<InteractionsStreamPart>()
+    public var metadata: JsonValue = llmStreamUnknown(initial, ["content", "summary"])
+    public var done = false
+    private var contentPresent = false
+    public var historySafe = true
+    public var fragmented = false
+    public var inputUnknown = false
+    public var argumentError: String? = None
+    public val argumentText = StringBuilder()
+    public var serverEmitted = false
+
+    init {
+        interactionsNonempty(Some(type), path + "/type")
+        if (type == "function_call") interactionsNonempty(Some(interactionsStreamString(initial, "name", path)), path + "/name")
+        if (type != "model_output" && type != "thought") metadata = initial
+    }
+
+    public fun contentPath(index: Long): String = path + (if (type == "thought") "/summary/" else "/content/") + index.toString()
+
+    public fun content(raw: JsonValue, batch: LlmStreamBatch, joinText: Boolean = false) {
+        contentPresent = true
+        val kind = interactionsStreamString(raw, "type", path)
+        val reuse = joinText && kind == "text" && parts.size != 0L && parts[parts.size - 1L].type == "text"
+        val part = if (reuse) parts[parts.size - 1L] else InteractionsStreamPart(kind, parts.size, retain)
+        if (!reuse) parts.add(part)
+        part.accept(this, raw, batch, false)
+    }
+
+    public fun snapshot(raw: JsonValue, batch: LlmStreamBatch, final: Boolean) {
+        if (interactionsStreamString(raw, "type", path) != type) throw DecodingException(path + "/type", "step kind changed")
+        checkIdentity(raw)
+        if (type == "model_output" || type == "thought") {
+            val channel = if (type == "thought") "summary" else "content"
+            val incomingContent = raw[channel]
+            if (llmPresent(incomingContent) && incomingContent!!.kind != JsonValueKind.Null) {
+                contentPresent = true
+                val value = incomingContent!!
+                val values = decodeInteractionsValue<Array<JsonValue>>(value, path + "/" + channel)
+                if (values.size < parts.size) throw DecodingException(path + "/" + channel, "snapshot lost an observed content part")
+                var position = 0L
+                for (value in values) {
+                    if (position == parts.size) content(value, batch)
+                    else {
+                        if (interactionsStreamString(value, "type", contentPath(position)) != parts[position].type)
+                            throw DecodingException(contentPath(position) + "/type", "content kind changed")
+                        parts[position].accept(this, value, batch, true)
+                    }
+                    position += 1L
+                }
+            }
+            metadata = mergeInteractionsSnapshot(metadata, llmStreamUnknown(raw, ["content", "summary"]))
+            val signature = metadata["signature"]
+            if (llmPresent(signature)) decodeInteractionsValue<String>(signature!!, path + "/signature")
+        } else {
+            val merged = mergeInteractionsSnapshot(metadata, raw)
+            if (Json.stringify(merged) != Json.stringify(metadata)) serverEmitted = false
+            metadata = merged
+            if (type == "function_call" && final && raw.containsKey("arguments")) {
+                fragmented = false
+                inputUnknown = false
+                argumentError = None
+            }
+        }
+        if (final) {
+            if (completeInteractionsSnapshot(type, raw)) historySafe = true
+            stop(batch)
+        }
+    }
+
+    public fun checkIdentity(raw: JsonValue) {
+        for (name in ["type", "id", "call_id", "name", "server_name", "search_type"]) {
+            val previous = metadata[name]
+            val next = raw[name]
+            if (llmPresent(previous) && llmPresent(next) && Json.stringify(previous!!) != Json.stringify(next!!))
+                throw DecodingException(path + "/" + name, "step identity changed")
+        }
+    }
+
+    public fun stop(batch: LlmStreamBatch) {
+        if (type == "function_call") {
+            finishInteractionsArguments(this)
+            if (argumentError != None) batch.native("step.arguments", JsonValue.fromString(argumentText.toString()), Some(location))
+        }
+        for (part in parts) part.finish(this, batch)
+        done = true
+    }
+
+    public fun output(): LlmOutputItem {
+        val values = ArrayList<OutputPart>()
+        for (part in parts) values.add(part.output(this))
+        val signature = metadata["signature"]
+        if (type == "thought" && llmPresent(signature)) values.add(OutputPart.Native(dialect,
+            JsonObjectBuilder().add("signature", signature!!).build()))
+        return if (type == "thought") LlmOutputItem.Reasoning(values.toArray()) else LlmOutputItem.Message(values.toArray())
+    }
+
+    public fun wire(): JsonValue {
+        if (type != "model_output" && type != "thought") return metadata
+        val values = ArrayList<JsonValue>()
+        for (part in parts) values.add(part.wire())
+        if (!contentPresent && type == "thought") return metadata
+        return replaceInteractionsField(metadata, if (type == "thought") "summary" else "content", JsonValue.fromArray(values))
+    }
+}

@@ -1,0 +1,64 @@
+package scoop.llm.client.tests.realtime.session
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.llm.client.tests.realtime.*
+import scoop.test.*
+
+@Test
+private class RealtimeSessionControlTest {
+    @Test
+    fun explicitAudioAndConversationCommandsPreserveOrderWithoutCreatingResponses() {
+        withRealtimePeer(suspend { socket ->
+            val append = readRealtimeCommand(socket)
+            assertEquals("input_audio_buffer.append", append["type"]!!.asString())
+            assertEquals("AP8=", append["audio"]!!.asString())
+            for (type in ["input_audio_buffer.commit", "input_audio_buffer.clear", "conversation.item.retrieve", "conversation.item.delete"])
+                assertEquals(type, readRealtimeCommand(socket)["type"]!!.asString())
+            val truncate = readRealtimeCommand(socket)
+            assertEquals("conversation.item.truncate", truncate["type"]!!.asString())
+            assertEquals("18446744073709551615", Json.stringify(truncate["audio_end_ms"]!!))
+            assertEquals("r", readRealtimeCommand(socket)["response_id"]!!.asString())
+            assertEquals("custom-command", readRealtimeCommand(socket)["event_id"]!!.asString())
+        }, suspend { _, _, endpoint ->
+            withLlmClient suspend { client ->
+                client.withRealtimeSession(endpoint.model("m")) suspend { session ->
+                    session.sendAudioAppend([0.toByte(), (-1).toByte()], "audio/pcm;rate=24000")
+                    session.sendAudioCommit(); session.sendAudioClear()
+                    session.sendItemRetrieve("item"); session.sendItemDelete("item")
+                    session.sendItemTruncate("item", 18446744073709551615UL)
+                    session.sendResponseCancel(Some("r"))
+                    session.sendNativeCommand(RealtimeNativeCommand(rtDialect, Json.parse("{\"type\":\"conversation.item.retrieve\",\"item_id\":\"item\",\"event_id\":\"custom-command\"}")))
+                }
+            }
+        })
+    }
+
+    @Test
+    fun invalidRequestsAndKnownUnsupportedMediaDoNotCloseTheSession() {
+        withRealtimePeer(suspend { socket ->
+            assertEquals("conversation.item.create", readRealtimeCommand(socket)["type"]!!.asString())
+        }, suspend { _, _, endpoint ->
+            val capabilities = ModelCapabilities(input = InputCapabilities(audio = Unsupported("no audio")),
+                output = OutputCapabilities(audio = Unsupported("no audio output")), limits = ModelLimits(maxOutputTokens = Some(1UL)))
+            withLlmClient suspend { client ->
+                client.withRealtimeSession(endpoint.model("m", Some(capabilities))) suspend { session ->
+                    assertEquals("/mimeType", expectLlmFailure<LlmRequestException> suspend { session.sendAudioAppend([], "audio/wav"); Unit }.path)
+                    assertEquals("/audio", expectLlmFailure<LlmRequestException> suspend { session.sendAudioAppend([], "audio/pcm"); Unit }.path)
+                    assertEquals("/configuration/maxOutputTokens", expectLlmFailure<LlmRequestException> suspend {
+                        session.sendResponseCreate(RealtimeResponseRequest(RealtimeConfiguration(maxOutputTokens = Some(Limited(2UL))))); Unit
+                    }.path)
+                    assertEquals("/configuration/outputModality", expectLlmFailure<LlmRequestException> suspend {
+                        session.sendSessionUpdate(RealtimeConfiguration(outputModality = Some(RealtimeOutputModality.Audio))); Unit
+                    }.path)
+                    assertEquals("/dialect", expectLlmFailure<LlmRequestException> suspend {
+                        session.sendNativeCommand(RealtimeNativeCommand(OpenAiResponsesDialect().id, Json.parse("{\"type\":\"response.create\"}"))); Unit
+                    }.path)
+                    assertFalse(session.isClosed)
+                    session.sendItemCreate(Message([Text("valid")]))
+                }
+            }
+        })
+    }
+}

@@ -1,0 +1,63 @@
+package scoop.llm.client.tests.interactions.stored
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+
+@Test
+private class StoredInteractionsCompatibilityTest {
+    @Test
+    fun `stored Interactions deletion preserves empty or changed response bodies without JSON assumptions`() {
+        for ((status, body) in [(200U, ""), (204U, ""), (200U, "changed representation"), (200U, "{\"extra\":[null,3]}")]) {
+            withLlmServer suspend { _, scope, listener, original ->
+                val serving = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        connection.receiveRequest()!!.body.readAllBytes(4096L)
+                        if (status == 204U) connection.sendResponse(HttpResponseHead(HttpVersion.Http11, status)).finish()
+                        else sendLlmReply(connection, status, body)
+                    }
+                }
+                withLlmClient suspend { client ->
+                    val result = Json.decodeFromString<InteractionsDeletionResult>(Json.encodeToString(client.deleteInteraction(
+                        LlmEndpoint(Providers.geminiInteractions(), LlmAuth.none(), Some(original.baseUrl)), "id")))
+                    assertLlmBytes(body.toByteArray(), result.native)
+                    assertEquals(Some(status), result.metadata.attempts[0].status)
+                    assertInteractionOperationTiming(result.metadata, None)
+                }
+                serving.join()
+            }
+        }
+    }
+
+    @Test
+    fun `stored Interactions retrieval does not register server tool declarations or validate extra information`() {
+        for (extra in ["null", "false", "{\"future\":[1,2]}"]) {
+            withLlmServer suspend { _, scope, listener, original ->
+                val body = Json.parse(storedInteractionBody("requires_action", Some(storedInteractionSteps)))
+                val extended = JsonObjectBuilder()
+                for ((key, value) in body.members()) extended.add(key, value)
+                extended.add("tools", Json.parse("[{\"type\":\"function\",\"name\":\"lookup\",\"parameters\":{}}]"))
+                extended.add("provider_extra", Json.parse(extra))
+                val raw = extended.build()
+                val serving = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        connection.receiveRequest()!!.body.readAllBytes(4096L)
+                        sendLlmReply(connection, 200U, Json.stringify(raw))
+                    }
+                }
+                withLlmClient suspend { client ->
+                    val result = client.retrieveInteraction(LlmEndpoint(Providers.geminiInteractions(), LlmAuth.none(), Some(original.baseUrl)), "id")
+                    assertEquals("ready", result.text)
+                    assertEquals(0L, result.clientToolCalls.size)
+                    assertEquals(Json.stringify(raw), Json.stringify(result.response.native!!))
+                    assertEquals(1L, result.toInput().size)
+                }
+                serving.join()
+            }
+        }
+    }
+}

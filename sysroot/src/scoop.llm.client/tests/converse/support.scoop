@@ -1,0 +1,40 @@
+package scoop.llm.client.tests.converse
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+internal val converseDialect: DialectId = BedrockConverseDialect().id
+
+internal fun converseRequest(): LlmRequest = LlmRequest([Message([Text("question")])],
+    tools = [ClientFunction(ToolKey("local"), "lookup", Json.parse("{}"))])
+
+internal fun converseBody(content: String, stop: String = "end_turn", usage: String? = None): JsonValue =
+    Json.parse("{\"output\":{\"message\":{\"role\":\"assistant\",\"content\":" + content + "}},\"stopReason\":\"" + stop + "\"" +
+        (if (usage == None) "" else ",\"usage\":" + usage!!) + "}")
+
+internal fun converseDecode(value: JsonValue, request: LlmRequest = converseRequest()): LlmResponse =
+    ConverseProtocol(BedrockConverseDialect()).decodeResponse(value, request)
+
+internal fun converseReplace(raw: JsonValue, key: String, value: JsonValue?): JsonValue {
+    val builder = JsonObjectBuilder()
+    for ((name, item) in raw.members()) if (name != key) builder.add(name, item)
+    when (value) { case Some(item) -> builder.add(key, item); case None -> return builder.build() }
+    return builder.build()
+}
+
+internal fun converseHistory(response: LlmResponse): JsonValue = when (response.toInput()[0L]) {
+    case History(value) -> value.items[0L]
+    else -> fail()
+}
+
+internal fun assertConverseFailure(value: JsonValue, path: String) {
+    val error = assertFailsWith<LlmProtocolException> { converseDecode(value); Unit }
+    assertEquals(path, error.path)
+    assertEquals(converseDialect, error.dialect)
+    assertEquals(Json.stringify(value), Json.stringify(error.native))
+}
+
+internal class ConverseAnswer public constructor(public val count: Long) {
+    public companion object : ValueDecoder<ConverseAnswer>
+}

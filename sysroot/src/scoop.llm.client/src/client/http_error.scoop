@@ -1,0 +1,53 @@
+package scoop.llm.client
+
+import scoop.http.*
+import scoop.http.client.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.time.SystemClock
+import scoop.time.Duration
+
+internal suspend fun readLlmRejection(response: HttpResponse, endpoint: LlmEndpoint, options: LlmCallOptions,
+    attempt: LlmAttemptState): LlmServiceException? {
+    identifyLlmRequest(response.fields, attempt)
+    if (response.status >= 200U && response.status < 300U) return None
+    attempt.retryAfter = llmRetryAfter(response.fields)
+    val (prefix, truncated) = readLlmError(response.body, options.maxErrorBytes)
+    return Some(endpoint.provider.protocol.decodeError(response.status, prefix, truncated))
+}
+
+internal fun identifyLlmRequest(fields: Array<HttpField>, attempt: LlmAttemptState) {
+    val primaryId = singleLlmField(fields, "x-request-id")
+    val reportedId = if (llmPresent(primaryId)) primaryId else singleLlmField(fields, "request-id")
+    attempt.identify(when (reportedId) {
+        case Some(value) -> String.fromUtf8OrNone(value)
+        case None -> None
+    })
+}
+
+private fun singleLlmField(fields: Array<HttpField>, name: String): Array<Byte>? {
+    val matching = fields.findAll(name.toByteArray())
+    return if (matching.size == 1L) Some(matching[0L].value) else None
+}
+
+private fun llmRetryAfter(fields: Array<HttpField>): Duration {
+    val value = singleLlmField(fields, "Retry-After") ?: return Duration.ZERO
+    val now = SystemClock.now()
+    return HttpRetryAfter.parseOrNone(value, now)?.delayFrom(now) ?: Duration.ZERO
+}
+
+private suspend fun readLlmError(body: HttpResponseBody, maxBytes: Long): (Array<Byte>, Boolean) {
+    val buffer = NativeByteBuffer.allocate()
+    try {
+        while (buffer.readableBytes < maxBytes) {
+            val remaining = maxBytes - buffer.readableBytes
+            val amount = if (remaining < 8192L) remaining else 8192L
+            buffer.ensureWritable(amount)
+            if (body.readInto(buffer, amount) == 0L)
+                return (buffer.readBytes(buffer.readableBytes), false)
+        }
+        val size = buffer.readableBytes
+        buffer.ensureWritable(1L)
+        val extra = body.readInto(buffer, 1L)
+        return (buffer.readBytes(size), extra != 0L)
+    } finally { buffer.close() }
+}

@@ -1,0 +1,56 @@
+package scoop.llm.client
+
+import scoop.json.JsonObjectBuilder
+import scoop.json.JsonValue
+
+/** A request-local tool reference; it is neither a wire name nor a server call identifier. */
+public struct ToolKey(val value: String) : Equals<ToolKey> {
+    public override operator fun equals(other: ToolKey): Boolean = value == other.value
+    public companion object : ValueEncoder<ToolKey>, ValueDecoder<ToolKey>
+}
+
+public enum ToolChoice {
+    Auto,
+    None,
+    Required,
+    Specific(ToolKey)
+
+    public companion object : ValueEncoder<ToolChoice>, ValueDecoder<ToolChoice>
+}
+
+public enum CustomToolFormat {
+    Text,
+    Grammar(val syntax: String, val definition: String)
+
+    public companion object : ValueEncoder<CustomToolFormat>, ValueDecoder<CustomToolFormat>
+}
+
+/** Provider-defined schema and configuration do not determine who executes the tool. */
+public class NativeToolDefinition public constructor(
+    public val dialect: DialectId,
+    public val kind: String,
+    public val configuration: JsonValue = JsonObjectBuilder().build(),
+    public val version: String? = None
+) {
+    init { requireJsonObject(configuration, "native tool configuration") }
+    public companion object : ValueEncoder<NativeToolDefinition>, ValueDecoder<NativeToolDefinition>
+}
+
+/** Definitions preserve order and execution ownership; no variant contains an execute callback. */
+public enum ToolDefinition {
+    ClientFunction(val key: ToolKey, val name: String, val parameters: JsonValue, val description: String = "",
+        val strict: Boolean? = None, val extensions: Array<DialectExtension> = []),
+    ClientCustom(val key: ToolKey, val name: String, val format: CustomToolFormat = Text,
+        val description: String = "", val extensions: Array<DialectExtension> = []),
+    ClientNative(val key: ToolKey, val tool: NativeToolDefinition, val extensions: Array<DialectExtension> = []),
+    Server(val key: ToolKey, val tool: ServerTool, val extensions: Array<DialectExtension> = [])
+
+    public val key: ToolKey get() = when (this) {
+        case ClientFunction(value, _, _, _, _, _) -> value
+        case ClientCustom(value, _, _, _, _) -> value
+        case ClientNative(value, _, _) -> value
+        case Server(value, _, _) -> value
+    }
+
+    public companion object : ValueEncoder<ToolDefinition>, ValueDecoder<ToolDefinition>
+}

@@ -1,0 +1,62 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeGenerateContentOptions(request: LlmRequest): JsonValue {
+    val options = request.options
+    val result = JsonObjectBuilder()
+    addGenerateContentSampling(result, "temperature", options.temperature, 2.0, "/options/temperature")
+    addGenerateContentSampling(result, "topP", options.topP, 1.0, "/options/topP")
+    if (options.topK != None) result.add("topK", JsonValue.fromULong(options.topK!!))
+    if (options.maxOutputTokens != None) result.add("maxOutputTokens", JsonValue.fromULong(options.maxOutputTokens!!))
+    if (options.candidates != None) result.add("candidateCount", JsonValue.fromULong(options.candidates!!))
+    if (llmPresent(options.stop)) {
+        if (options.stop!!.size > 5L) throw LlmRequestException("/options/stop", "generateContent accepts at most five stop sequences")
+        result.add("stopSequences", Json.encodeToValue(options.stop!!))
+    }
+    if (options.parallelToolCalls != None) throw LlmRequestException("/options/parallelToolCalls", "generateContent has no parallel tool call switch")
+    val thinking = generateContentThinking(options.reasoning)
+    if (thinking.size != 0L) result.add("thinkingConfig", thinking)
+    val output = when (options.output) {
+        case Text -> return result.build()
+        case JsonObject -> JsonObjectBuilder().add("mimeType", JsonValue.fromString("APPLICATION_JSON")).build()
+        case JsonSchema(schema, name, description, strict) -> {
+            if (name != "response") throw LlmRequestException("/options/output/name", "generateContent has no separate schema name")
+            if (description != None) throw LlmRequestException("/options/output/description", "generateContent has no separate schema description")
+            if (strict != None) throw LlmRequestException("/options/output/strict", "generateContent has no schema strictness switch")
+            JsonObjectBuilder().add("mimeType", JsonValue.fromString("APPLICATION_JSON")).add("schema", schema).build()
+        }
+    }
+    return result.add("responseFormat", JsonObjectBuilder().add("text", output).build()).build()
+}
+
+private fun addGenerateContentSampling(result: JsonObjectBuilder, name: String, value: Double?, maximum: Double, path: String) {
+    val setting = value ?: return
+    if (setting < 0.0 || setting > maximum) throw LlmRequestException(path, "sampling value is out of range")
+    result.add(name, JsonValue.fromDouble(setting))
+}
+
+private fun generateContentThinking(reasoning: ReasoningOptions?): JsonValue {
+    val result = JsonObjectBuilder()
+    val options = reasoning ?: return result.build()
+    if (options.effort != None) {
+        if (options.budgetTokens != None) throw LlmRequestException("/options/reasoning/budgetTokens", "thinking budget and level are mutually exclusive")
+        if (options.enabled == Some(false)) throw LlmRequestException("/options/reasoning/enabled", "thinking level conflicts with disabled reasoning")
+        val level = when (options.effort!!) {
+            case "minimal" -> "MINIMAL"
+            case "low" -> "LOW"
+            case "medium" -> "MEDIUM"
+            case "high" -> "HIGH"
+            else -> throw LlmRequestException("/options/reasoning/effort", "unsupported thinking level")
+        }
+        return result.add("thinkingLevel", JsonValue.fromString(level)).build()
+    }
+    if (options.budgetTokens != None) {
+        if (options.enabled != None && options.enabled!! != (options.budgetTokens!! > 0UL))
+            throw LlmRequestException("/options/reasoning/enabled", "thinking budget conflicts with enabled setting")
+        return result.add("thinkingBudget", JsonValue.fromULong(options.budgetTokens!!)).build()
+    }
+    if (options.enabled == Some(true)) throw LlmRequestException("/options/reasoning/enabled", "enabling reasoning requires a budget or level")
+    if (options.enabled == Some(false)) result.add("thinkingBudget", JsonValue.fromLong(0L))
+    return result.build()
+}

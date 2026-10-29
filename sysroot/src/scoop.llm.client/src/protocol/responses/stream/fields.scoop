@@ -1,0 +1,37 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun responsesStreamField(value: JsonValue, name: String): JsonValue =
+    value[name] ?: throw DecodingException("/" + name, "missing Responses stream field")
+
+internal fun responsesStreamString(value: JsonValue, name: String): String =
+    decodeResponsesValue<String>(responsesStreamField(value, name), "/" + name)
+
+internal fun responsesStreamIndex(value: JsonValue, name: String): Long {
+    val index = decodeResponsesValue<Long>(responsesStreamField(value, name), "/" + name)
+    if (index < 0L) throw DecodingException("/" + name, "negative stream index")
+    return index
+}
+
+internal fun replaceResponsesField(value: JsonValue, name: String, field: JsonValue): JsonValue {
+    val result = JsonObjectBuilder()
+    for ((key, entry) in value.members()) if (key != name) result.add(key, entry)
+    return result.add(name, field).build()
+}
+
+internal class ResponsesStreamHeader public constructor(public val type: String,
+    @Serialize(rename = "sequence_number") public val sequence: Long? = None) {
+    public companion object : ValueDecoder<ResponsesStreamHeader>
+}
+
+internal fun responsesStreamIdentity(raw: JsonValue): JsonValue {
+    val result = JsonObjectBuilder()
+    for (name in ["type", "id", "call_id", "name", "namespace", "environment"]) {
+        when (raw[name]) {
+            case Some(value) -> { if (value.kind != JsonValueKind.Null) result.add(name, value) }
+            case None -> continue
+        }
+    }
+    return result.build()
+}

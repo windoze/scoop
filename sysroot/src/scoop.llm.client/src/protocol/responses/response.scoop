@@ -1,0 +1,100 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+import scoop.time.Instant
+import scoop.url.Url
+
+/** Ordered Responses output combined with one explicitly selected dialect. */
+public class ResponsesProtocol public constructor(public val dialect: ResponsesDialect) : LlmSseProtocol {
+    public override fun fileApi(): LlmFileApi? = dialect.fileApi()
+    public override fun modelCatalog(): LlmModelCatalog? = dialect.modelCatalog()
+    public override val dialectId: DialectId get() = dialect.id
+    public override fun tokenCounter(): LlmTokenCounter? = dialect.tokenCounter()
+    public override fun generationUrl(baseUrl: Url, modelId: String): Url = baseUrl.toBuilder().appendPathSegment("responses").build()
+    public override fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean): JsonValue =
+        encodeResponsesRequest(dialect, modelId, request, stream)
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        dialect.decodeError(status, body, truncated)
+    public override fun createStreamDecoder(request: LlmRequest, retention: StreamRetention): LlmSseDecoder =
+        ResponsesStreamDecoder(this, request, retention)
+
+    public fun retrieveUrl(baseUrl: Url, responseId: String, include: Array<String> = []): Url =
+        responsesRetrieveUrl(dialect, baseUrl, responseId, include)
+    public fun cancelUrl(baseUrl: Url, responseId: String): Url =
+        responsesStoredUrl(dialect, baseUrl, responseId).toBuilder().appendPathSegment("cancel").build()
+    public fun deleteUrl(baseUrl: Url, responseId: String): Url = responsesStoredUrl(dialect, baseUrl, responseId)
+    public fun decodeDeletion(value: JsonValue): ResponsesDeletion = readResponsesDeletion(dialect, value)
+
+    public fun compactUrl(baseUrl: Url): Url = responsesCompactionUrl(dialect, baseUrl)
+    public fun encodeCompactionRequest(modelId: String, request: LlmRequest): JsonValue = encodeResponsesCompaction(dialect, modelId, request)
+    public fun decodeCompaction(value: JsonValue): ResponsesCompaction = readResponsesCompaction(dialect, value)
+
+    public fun webSocketUrl(baseUrl: Url): Url {
+        requireResponsesWebSocket(dialect)
+        return responsesWebSocketUrl(baseUrl)
+    }
+    public fun encodeWebSocketCreate(modelId: String, request: LlmRequest,
+        options: ResponsesWebSocketCreateOptions = ResponsesWebSocketCreateOptions()): JsonValue =
+        encodeResponsesWebSocketCreate(dialect, modelId, request, options)
+    public fun encodeWebSocketSteer(previousResponseId: String, input: Array<LlmInputItem>): JsonValue =
+        encodeResponsesWebSocketSteer(dialect, previousResponseId, input)
+    public fun decodeWebSocketEvent(data: String): ResponsesWebSocketEvent {
+        requireResponsesWebSocket(dialect)
+        return readResponsesWebSocketEvent(dialect.id, data)
+    }
+    init {
+        if (dialect.id.protocol != ApiProtocolId("responses"))
+            throw IllegalArgumentException(Some("Responses dialect belongs to another API protocol"))
+    }
+
+    public override fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse {
+        try {
+            val body = decodeResponsesValue<ResponsesBody>(value, "")
+            if (body.objectType != "response") throw DecodingException("/object", "expected a Responses response")
+            val entries = responsesOutputEntries(body.output)
+            val (completion, reason) = responsesCompletion(body, entries)
+            val items = readResponsesOutput(dialect, entries, request.tools, completion == LlmCompletion.Complete)
+            val refused = responsesHasRefusal(items) && completion != LlmCompletion.Failed
+            val candidate = LlmCandidate(0L, if (refused) responsesDisableCalls(items) else items,
+                if (refused) LlmCompletion.Refused else completion, if (refused) LlmFinishReason.Refusal else reason,
+                Some(LlmHistory(dialect.id, dialect.historyItems(body.output))))
+            val usageState: UsageCompleteness = if (responsesTerminal(body.status)) Final else Partial
+            val usage = when (body.usage) {
+                case Some(raw) -> LlmUsage(dialect.readUsage(raw), usageState, Some(raw))
+                case None -> LlmUsage(completeness = usageState)
+            }
+            val created = when (body.createdAt) { case Some(seconds) -> Some(Instant.fromEpochSeconds(seconds)); case None -> None }
+            return LlmResponse(dialect.id, [candidate], body.id, body.model, created, usage, Some(value))
+        } catch (error: DecodingException) {
+            throw LlmProtocolException(dialect.id, error.path, error.message ?: "invalid Responses response", value)
+        }
+    }
+}
+
+internal fun responsesTerminal(status: String?): Boolean = status == Some("completed") || status == Some("failed") ||
+    status == Some("cancelled") || status == Some("incomplete")
+
+private fun responsesCompletion(body: ResponsesBody, items: Array<ResponsesOutputEntry>): (LlmCompletion, LlmFinishReason) {
+    if (body.status == Some("failed")) return (LlmCompletion.Failed, LlmFinishReason.Other("failed"))
+    if (body.status == Some("incomplete")) {
+        val reason = when (body.incompleteDetails) { case Some(details) -> details.reason; case None -> None }
+        val finish: LlmFinishReason = when (reason) {
+            case Some("max_output_tokens") -> Length
+            case Some("max_messages") -> Length
+            case Some("content_filter") -> ContentFilter
+            case Some("steered") -> Pause
+            case Some(value) -> Other(value)
+            case None -> Unknown
+        }
+        return (LlmCompletion.Incomplete, finish)
+    }
+    if (body.status != Some("completed")) return (LlmCompletion.Incomplete,
+        when (body.status) { case Some(status) -> LlmFinishReason.Other(status); case None -> LlmFinishReason.Unknown })
+    var client = false
+    for (item in items) {
+        if (item.status != None && item.status != Some("completed"))
+            return (LlmCompletion.Incomplete, LlmFinishReason.Other("output_" + item.status!!))
+        if (item.client) client = true
+    }
+    return (LlmCompletion.Complete, if (client) LlmFinishReason.ToolCalls else LlmFinishReason.Stop)
+}

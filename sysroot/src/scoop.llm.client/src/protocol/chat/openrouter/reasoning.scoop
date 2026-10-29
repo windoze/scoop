@@ -1,0 +1,47 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun readOpenRouterReasoning(dialect: DialectId, message: JsonValue, path: String): Array<OutputPart> {
+    val details = openRouterDetails(message, path)
+    if (details.size != 0L) {
+        val result = ArrayList<OutputPart>(); var index = 0L
+        for (detail in details) {
+            val text = openRouterDetailText(detail, path + "/reasoning_details/" + index.toString())
+            result.add(when (text) { case Some(value) -> OutputPart.Text(value); case None -> OutputPart.Native(dialect, detail) })
+            index += 1L
+        }
+        return result.toArray()
+    }
+    val primary = openRouterString(message, "reasoning", path)
+    val text = if (primary != None) primary else openRouterString(message, "reasoning_content", path)
+    return when (text) { case Some(value) -> [OutputPart.Text(value)]; case None -> [] }
+}
+
+internal fun openRouterDetails(message: JsonValue, path: String): Array<JsonValue> {
+    val value = message["reasoning_details"] ?: return []
+    if (value.kind == JsonValueKind.Null) return []
+    return decodeChatValue<Array<JsonValue>>(value, path + "/reasoning_details")
+}
+
+internal fun openRouterDetailKind(value: JsonValue): String? {
+    if (value.kind != JsonValueKind.Object) return None
+    val kind = value["type"] ?: return None
+    return if (kind.kind == JsonValueKind.String) Some(kind.asString()) else None
+}
+
+internal fun openRouterDetailField(kind: String?): String? = when (kind) {
+    case Some("reasoning.text") -> Some("text")
+    case Some("reasoning.summary") -> Some("summary")
+    else -> None
+}
+
+internal fun openRouterDetailText(value: JsonValue, path: String): String? {
+    val field = openRouterDetailField(openRouterDetailKind(value)) ?: return None
+    return openRouterString(value, field, path)
+}
+
+internal fun openRouterString(value: JsonValue, name: String, path: String): String? {
+    val field = value[name] ?: return None
+    return if (field.kind == JsonValueKind.Null) None else Some(decodeChatValue<String>(field, path + "/" + name))
+}

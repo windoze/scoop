@@ -1,0 +1,17 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+public enum UsageCompleteness {
+    Partial, Final
+    public companion object : ValueEncoder<UsageCompleteness>, ValueDecoder<UsageCompleteness>
+}
+
+/** Final reports may still omit counts. Native data preserves the provider's accounting basis. */
+public class LlmUsage public constructor(
+    public val tokens: TokenUsage = TokenUsage(),
+    public val completeness: UsageCompleteness = Partial,
+    public val native: JsonValue? = None
+) {
+    public companion object : ValueEncoder<LlmUsage>, ValueDecoder<LlmUsage>
+}

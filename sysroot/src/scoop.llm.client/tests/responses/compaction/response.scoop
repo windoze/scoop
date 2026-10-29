@@ -1,0 +1,66 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.Instant
+
+@Test
+private class ResponsesCompactionResponseTest {
+    @Test
+    fun `Responses compaction codecs keep the complete replacement window and reported usage`() {
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        val raw = compactionBody()
+        val value = Json.decodeFromString<ResponsesCompaction>(Json.encodeToString(protocol.decodeCompaction(raw)))
+        assertEquals(protocol.dialectId, value.dialect)
+        assertEquals("compact-operation", value.id)
+        assertEquals(Some(Instant.fromEpochSeconds(0L)), value.createdAt)
+        assertEquals(UsageCompleteness.Final, value.usage.completeness)
+        assertEquals(Some(100L), value.usage.tokens.inputTokens)
+        assertEquals(Some(5L), value.usage.tokens.outputTokens)
+        assertEquals(Some(2L), value.usage.tokens.reasoningTokens)
+        assertEquals(Json.stringify(raw), Json.stringify(value.native!!))
+        val next = protocol.encodeRequest("model", LlmRequest(value.toInput()))
+        assertEquals(compactedWindow, Json.stringify(next["input"]!!))
+        assertFalse(next.containsKey("previous_response_id"))
+        assertFalse(next.containsKey("instructions"))
+        val active = LlmCallMetadata("active", Instant.fromEpochSeconds(0L))
+        assertFailsWith<IllegalArgumentException> { val invalid = ResponsesCompactionResult(value, active); Unit }
+    }
+
+    @Test
+    fun `Responses compaction unknown output items and optional provider data do not block continuation`() {
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        val future = Json.parse("[{\"type\":\"future_item\",\"payload\":{\"number\":1e400}}]")
+        val extras: Array<JsonValue?> = [None, Some(Json.parse("null")), Some(Json.parse("[1,{}]")), Some(Json.parse("\"changed format\""))]
+        for (extra in extras) {
+            val body = JsonObjectBuilder().add("object", JsonValue.fromString("response.compaction"))
+                .add("id", JsonValue.fromString("future")).add("output", future)
+            when (extra) { case Some(value) -> body.add("provider_data", value); case None -> {} }
+            val value = protocol.decodeCompaction(body.build())
+            assertEquals(None, value.createdAt)
+            assertEquals(None, value.usage.tokens.inputTokens)
+            assertEquals(UsageCompleteness.Final, value.usage.completeness)
+            assertEquals(Json.stringify(future), Json.stringify(protocol.encodeRequest("model", LlmRequest(value.toInput()))["input"]!!))
+        }
+    }
+
+    @Test
+    fun `Responses compaction malformed core fields report their paths and original response`() {
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        for ((source, path) in [
+            ("{\"object\":\"response\",\"id\":\"c\",\"output\":[]}", "/object"),
+            ("{\"object\":\"response.compaction\",\"id\":\"\",\"output\":[]}", "/id"),
+            ("{\"object\":\"response.compaction\",\"id\":\"c\"}", "/output"),
+            ("{\"object\":\"response.compaction\",\"id\":\"c\",\"output\":[null]}", "/output/0"),
+            ("{\"object\":\"response.compaction\",\"id\":\"c\",\"output\":[{}]}", "/output/0/type"),
+            ("{\"object\":\"response.compaction\",\"id\":\"c\",\"output\":[],\"usage\":{\"input_tokens\":-1}}", "/usage/input_tokens"),
+            ("{\"object\":\"response.compaction\",\"id\":\"c\",\"output\":[],\"created_at\":0.5}", "/created_at"),
+            ("{\"object\":\"response.compaction\",\"id\":\"c\",\"output\":[],\"error\":{}}", "/error")]) {
+            val raw = Json.parse(source)
+            val error = assertFailsWith<LlmProtocolException> { protocol.decodeCompaction(raw); Unit }
+            assertEquals(path, error.path)
+            assertEquals(Json.stringify(raw), Json.stringify(error.native))
+        }
+    }
+}

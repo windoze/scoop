@@ -1,0 +1,58 @@
+package scoop.llm.client.tests.chat.openrouter
+
+import scoop.llm.client.tests.generationProtocol
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class OpenRouterRequestTest {
+    @Test
+    fun `OpenRouter Chat defaults preserve literal model IDs and native routing options`() {
+        val provider = Providers.openRouterChat()
+        assertEquals("openrouter-chat", provider.name)
+        assertEquals(router.dialectId, provider.protocol.dialectId)
+        assertEquals("https://openrouter.ai/api/v1", provider.defaultBaseUrl!!.toString())
+        assertEquals("https://example.test/base/chat/completions?x=1",
+            generationProtocol(provider).generationUrl(Url.parse("https://example.test/base?x=1"), "org/model").toString())
+        val minimal = generationProtocol(provider).encodeRequest("org/model", routerRequest())
+        assertEquals(2L, minimal.size)
+        assertEquals("org/model", minimal["model"]!!.asString())
+        assertEquals("question", minimal["messages"]!![0L]["content"]!!.asString())
+        val extension = Json.parse("{\"provider\":{\"order\":[\"example\"]},\"reasoning\":{\"exclude\":true}}")
+        val request = LlmRequest(routerRequest().input, extensions = [DialectExtension(router.dialectId, extension)])
+        val wire = router.encodeRequest("org/model", Json.decodeFromString<LlmRequest>(Json.encodeToString(request)), true)
+        assertTrue(wire["stream"]!!.asBoolean())
+        assertTrue(wire["stream_options"]!!["include_usage"]!!.asBoolean())
+        assertTrue(wire["reasoning"]!!["exclude"]!!.asBoolean())
+        assertEquals("example", wire["provider"]!!["order"]!![0L].asString())
+    }
+
+    @Test
+    fun `OpenRouter Chat explicit controls encode without guessed model reasoning defaults`() {
+        val options = LlmGenerationOptions(temperature = Some(0.0), topP = Some(1.0), topK = Some(0UL),
+            maxOutputTokens = Some(32UL), stop = Some([]), parallelToolCalls = Some(false), candidates = Some(1UL),
+            reasoning = Some(ReasoningOptions(enabled = Some(true), budgetTokens = Some(16UL))),
+            output = JsonSchema(Json.parse("{\"type\":\"object\"}"), "answer", strict = Some(false)))
+        val wire = router.encodeRequest("model", LlmRequest(routerRequest().input, options = options))
+        assertEquals(0L, wire["top_k"]!!.asLong())
+        assertEquals(32L, wire["max_tokens"]!!.asLong())
+        assertEquals(0L, wire["stop"]!!.size)
+        assertFalse(wire["parallel_tool_calls"]!!.asBoolean())
+        assertEquals(16L, wire["reasoning"]!!["max_tokens"]!!.asLong())
+        assertFalse(wire["response_format"]!!["json_schema"]!!["strict"]!!.asBoolean())
+        for ((invalid, path) in [
+            (LlmGenerationOptions(candidates = Some(2UL)), "/options/candidates"),
+            (LlmGenerationOptions(temperature = Some(2.1)), "/options/temperature"),
+            (LlmGenerationOptions(topP = Some(-0.1)), "/options/topP"),
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(effort = Some("high"), budgetTokens = Some(1UL)))), "/options/reasoning"),
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(false), effort = Some("low")))), "/options/reasoning/enabled")
+        ]) assertRouterFailure(LlmRequest(routerRequest().input, options = invalid), path)
+        assertRouterFailure(LlmRequest(routerRequest().input, options = options,
+            extensions = [DialectExtension(router.dialectId, Json.parse("{\"reasoning\":{}}"))]), "/extensions/0/value/reasoning")
+        assertRouterFailure(LlmRequest(routerRequest().input,
+            extensions = [DialectExtension(OpenAiChatDialect().id, Json.parse("{}"))]), "/extensions/0/dialect")
+    }
+}

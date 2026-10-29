@@ -1,0 +1,57 @@
+package scoop.llm.client.tests.generatecontent
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+internal fun encodeGenerateContent(request: LlmRequest): JsonValue = GenerateContentProtocol(GeminiGenerateContentDialect()).encodeRequest("model", request)
+internal fun generateContentExtension(value: String): Array<DialectExtension> = [DialectExtension(GeminiGenerateContentDialect().id, Json.parse(value))]
+internal fun assertGenerateContentRequestFailure(request: LlmRequest, path: String) {
+    assertEquals(path, assertFailsWith<LlmRequestException> { encodeGenerateContent(request); Unit }.path)
+}
+
+@Test
+private class GenerateContentRequestTest {
+    @Test
+    fun `generateContent defaults encode only contents and use an explicit resource route`() {
+        val protocol = GenerateContentProtocol(GeminiGenerateContentDialect())
+        val request = LlmRequest([Message([Text("hello")])])
+        val body = protocol.encodeRequest("m", request)
+        assertEquals("{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello\"}]}]}", Json.stringify(body))
+        assertEquals(Json.stringify(body), Json.stringify(protocol.encodeRequest("m", request, true)))
+        val base = Url.parse("https://example.invalid/proxy/v1beta?deployment=x")
+        assertEquals("https://example.invalid/proxy/v1beta/models/m:generateContent?deployment=x", protocol.generationUrl(base, "m").toString())
+        assertEquals("https://example.invalid/proxy/v1beta/tunedModels/m%3F%23:generateContent?deployment=x", protocol.generationUrl(base, "tunedModels/m?#").toString())
+        assertEquals("/modelId", assertFailsWith<LlmRequestException> { protocol.generationUrl(base, "models/"); Unit }.path)
+        assertEquals("gemini-generate-content", Providers.geminiGenerateContent().name)
+        assertEquals("https://generativelanguage.googleapis.com/v1beta", Providers.geminiGenerateContent().defaultBaseUrl!!.toString())
+    }
+
+    @Test
+    fun `generateContent keeps system text message roles and signed history at their own positions`() {
+        val history = generateContentDecode(generateContentBody("[{\"text\":\"\",\"thoughtSignature\":\"signed\"},{\"future\":1}]"))
+        val request = LlmRequest([Message([Text("user", generateContentExtension("{\"partMetadata\":{\"tag\":1}}"))],
+            extensions = generateContentExtension("{\"messageTag\":2}")), history.toInput()[0], Message([Text("assistant")], Assistant)],
+            system = [Text("system")], extensions = generateContentExtension("{\"cachedContent\":\"cachedContents/c\"}"))
+        val restored = Json.decodeFromString<LlmRequest>(Json.encodeToString(request))
+        val body = encodeGenerateContent(restored)
+        assertEquals("system", body["systemInstruction"]!!["parts"]!![0L]["text"]!!.asString())
+        assertEquals(2L, body["contents"]!![0L]["messageTag"]!!.asLong())
+        assertEquals(1L, body["contents"]!![0L]["parts"]!![0L]["partMetadata"]!!["tag"]!!.asLong())
+        assertEquals(Json.stringify(generateContentHistory(history)), Json.stringify(body["contents"]!![1L]))
+        assertEquals("model", body["contents"]!![2L]["role"]!!.asString())
+        assertEquals("cachedContents/c", body["cachedContent"]!!.asString())
+    }
+
+    @Test
+    fun `generateContent rejects misplaced instructions empty parts and foreign history`() {
+        assertGenerateContentRequestFailure(LlmRequest([]), "/input")
+        assertGenerateContentRequestFailure(LlmRequest([Message([])]), "/input/0/content")
+        for (role in [LlmRole.System, LlmRole.Developer])
+            assertGenerateContentRequestFailure(LlmRequest([Message([Text("s")], role)]), "/input/0/role")
+        assertGenerateContentRequestFailure(LlmRequest([Message([Text("q")])], system = [Image(Bytes([], "image/png"))]), "/system/0")
+        assertGenerateContentRequestFailure(LlmRequest([History(LlmHistory(OpenAiChatDialect().id, []))]), "/input/0/history/dialect")
+        assertGenerateContentRequestFailure(LlmRequest([History(LlmHistory(GeminiGenerateContentDialect().id, [Json.parse("{\"parts\":42}")]))]), "/input/0/history/items/0/parts")
+    }
+}

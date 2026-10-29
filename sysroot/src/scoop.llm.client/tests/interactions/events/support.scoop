@@ -1,0 +1,33 @@
+package scoop.llm.client.tests.interactions.events
+
+import scoop.http.HttpField
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+internal val interactionEventFields = [HttpField("Content-Type".toByteArray(), "text/event-stream".toByteArray())]
+
+internal fun interactionEvent(type: String, fields: String): String {
+    val body = JsonObjectBuilder().add("event_type", JsonValue.fromString(type))
+    for ((name, value) in Json.parse(fields).members()) body.add(name, value)
+    return Json.stringify(body.build())
+}
+
+internal fun interactionWire(type: String, fields: String): String = "event: " + type +
+    "\ndata: " + interactionEvent(type, fields) + "\n\n"
+
+internal fun interactionNative(update: LlmStreamUpdate): LlmNativeEvent {
+    assertFalse(update.hasOutput || update.hasText)
+    assertEquals(1L, update.events.size)
+    return when (update.events[0]) { case Native(value) -> value; else -> fail() }
+}
+
+internal fun assertInteractionEventTiming(metadata: LlmCallMetadata) {
+    val attempt = metadata.attempts[0]
+    assertTrue(attempt.request.sentAt != None && attempt.response.receivedAt != None)
+    assertTrue(attempt.response.firstEventAt != None)
+    assertEquals(None, attempt.response.firstTextAt)
+    assertEquals(None, attempt.response.firstOutputAt)
+    assertEquals(None, attempt.usage.tokens.totalTokens)
+    assertEquals(None, attempt.outputTokensPerSecond)
+}

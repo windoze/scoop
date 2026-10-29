@@ -1,0 +1,43 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun dispatchCohereStream(state: CohereStreamDecoder, type: String, raw: JsonValue,
+    batch: LlmStreamBatch): Array<String> {
+    if (type == "message-start") { startCohereStream(state, raw, batch); return ["type", "id", "delta"] }
+    if (type == "error") throw DecodingException("/type", "server reported a stream error")
+    if (type == "debug") { batch.native(type, raw); return ["type", "prompt"] }
+    if (type == "message-end" || type == "content-start" || type == "content-delta" || type == "content-end" ||
+        type == "tool-plan-delta" || type == "tool-call-start" || type == "tool-call-delta" || type == "tool-call-end" ||
+        type == "citation-start" || type == "citation-end") state.requireActive()
+    return when (type) {
+        case "message-end" -> { finishCohereStream(state, raw, batch); ["type", "id", "delta"] }
+        case "content-start" -> { startCohereStreamContent(state, raw, batch); ["type", "index", "delta"] }
+        case "content-delta" -> { updateCohereStreamContent(state, raw, batch); ["type", "index", "delta"] }
+        case "content-end" -> { cohereStreamContent(state, raw).stop(); ["type", "index"] }
+        case "tool-plan-delta" -> {
+            val (value, _) = cohereStreamMember(state, raw, "tool_plan", batch)
+            val text = decodeCohereValue<String>(value, "/delta/message/tool_plan")
+            cohereStreamPlan(state).append(text, batch)
+            ["type", "delta"]
+        }
+        case "tool-call-start" -> { startCohereStreamTool(state, raw, batch); ["type", "index", "delta"] }
+        case "tool-call-delta" -> { updateCohereStreamTool(state, raw, batch); ["type", "index", "delta"] }
+        case "tool-call-end" -> {
+            val call = cohereStreamTool(state, raw)
+            call.stopped = true
+            ["type", "index"]
+        }
+        case "citation-start" -> { startCohereStreamCitation(state, raw, batch); ["type", "index", "delta"] }
+        case "citation-end" -> {
+            val index = cohereStreamIndex(raw)
+            if (index >= state.citations.size) throw DecodingException("/index", "citation has not started")
+            val citation = state.citations[index]
+            if (citation.stopped) throw DecodingException("/index", "citation already stopped")
+            citation.stopped = true
+            attachCohereStreamCitation(state, citation, false, batch)
+            ["type", "index"]
+        }
+        else -> { state.historyAvailable = false; [] }
+    }
+}

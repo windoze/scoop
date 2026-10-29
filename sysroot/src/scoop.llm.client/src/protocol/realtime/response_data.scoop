@@ -1,0 +1,46 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+/** One server message; native contains the complete wire object. */
+public class RealtimeMessage public constructor(
+    public val dialect: DialectId, public val type: String, public val eventId: String?,
+    public val event: RealtimeEvent, public val native: JsonValue
+) {
+    public companion object : ValueEncoder<RealtimeMessage>, ValueDecoder<RealtimeMessage>
+}
+
+public class RealtimeItemPosition public constructor(
+    public val responseId: String, public val itemId: String, public val outputIndex: ULong
+) {
+    public companion object : ValueEncoder<RealtimeItemPosition>, ValueDecoder<RealtimeItemPosition>
+}
+
+public class RealtimeContentPosition public constructor(public val item: RealtimeItemPosition, public val contentIndex: ULong) {
+    public companion object : ValueEncoder<RealtimeContentPosition>, ValueDecoder<RealtimeContentPosition>
+}
+
+/** Field completion is not response success, playback completion or permission to execute a tool. */
+public enum RealtimeEvent {
+    SessionCreated(val session: JsonValue), SessionUpdated(val session: JsonValue),
+    ResponseCreated(val response: LlmResponse), ResponseDone(val response: LlmResponse),
+    ConversationItem(val item: JsonValue),
+    OutputItemAdded(val responseId: String, val outputIndex: ULong, val item: JsonValue),
+    OutputItemDone(val responseId: String, val outputIndex: ULong, val item: JsonValue),
+    ContentPartAdded(val position: RealtimeContentPosition, val part: JsonValue),
+    ContentPartDone(val position: RealtimeContentPosition, val part: JsonValue),
+    TextDelta(val position: RealtimeContentPosition, val text: String),
+    TextDone(val position: RealtimeContentPosition, val text: String),
+    TranscriptDelta(val position: RealtimeContentPosition, val text: String),
+    TranscriptDone(val position: RealtimeContentPosition, val text: String),
+    AudioDelta(val position: RealtimeContentPosition, val bytes: Array<Byte>),
+    AudioDone(val position: RealtimeContentPosition),
+    FunctionArgumentsDelta(val position: RealtimeItemPosition, val callId: String, val delta: String),
+    FunctionArgumentsDone(val position: RealtimeItemPosition, val callId: String, val name: String, val arguments: String),
+    McpArgumentsDelta(val position: RealtimeItemPosition, val delta: String),
+    McpArgumentsDone(val position: RealtimeItemPosition, val arguments: String),
+    McpActivity(val itemId: String, val status: ServerToolStatus),
+    InputTranscription(val itemId: String, val contentIndex: ULong?, val text: String?, val usage: LlmUsage),
+    Error(val error: JsonValue), Native(val native: JsonValue)
+    public companion object : ValueEncoder<RealtimeEvent>, ValueDecoder<RealtimeEvent>
+}

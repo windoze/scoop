@@ -1,0 +1,39 @@
+package scoop.llm.client
+
+import scoop.asyncio.AsyncCloseable
+
+/** One generation with demand-driven reads and explicit asynchronous cleanup. */
+public class LlmStream internal constructor(private val state: LlmStreamState) : AsyncCloseable {
+    public val metadata: LlmCallMetadata get() = state.metadata()
+    public val isClosed: Boolean get() = state.lock.withLock { state.closed }
+    public suspend fun next(): LlmEvent? = readLlmStream(state, LlmStreamReader.Raw)
+
+    public fun textDeltas(): LlmTextStream {
+        checkLlmStreamLoop(state)
+        state.lock.withLock {
+            if (llmPresent(state.reader)) throw IllegalStateException(Some("LLM stream already has a reader"))
+            state.reader = Some(LlmStreamReader.Text)
+        }
+        return LlmTextStream(state)
+    }
+
+    /** Reads a retained result after cleanup; never consumes remaining events. */
+    public fun result(): LlmResult = state.lock.withLock {
+        if (!state.closed) throw LlmOutputException(Incomplete, "stream cleanup has not completed")
+        when (state.failure) { case Some(error) -> throw error; case None -> {} }
+        if (!state.protocolFinished) throw LlmOutputException(Incomplete, "stream has not finished successfully")
+        if (state.retention != StreamRetention.Result) throw LlmOutputException(ResultNotRetained, "stream result was not retained")
+        LlmResult(state.retained!!, state.finalMetadata!!)
+    }
+
+    public override suspend fun close() { closeLlmStream(state) }
+}
+
+/** A projection of the same single event consumer, retaining candidate/item/part locations. */
+public class LlmTextStream internal constructor(private val state: LlmStreamState) {
+    public suspend fun next(): LlmTextDelta? = when (readLlmStream(state, LlmStreamReader.Text)) {
+        case Some(TextDelta(delta)) -> Some(delta)
+        case None -> None
+        else -> throw IllegalStateException(Some("invalid text stream projection"))
+    }
+}

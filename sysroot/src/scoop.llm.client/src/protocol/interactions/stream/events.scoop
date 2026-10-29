@@ -1,0 +1,67 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.text.endsWith
+
+internal fun dispatchInteractionsStream(state: InteractionsStreamDecoder, type: String, raw: JsonValue, batch: LlmStreamBatch): Array<String> {
+    if (type == "error") throw DecodingException("/error", "server reported an Interactions stream error")
+    if (type == "interaction.created" || type == "interaction.completed") {
+        acceptInteractionsLifecycle(state, type, interactionsStreamField(raw, "interaction"), batch)
+        return ["event_type", "interaction"]
+    }
+    if (type == "interaction.status_update") {
+        state.requireStarted()
+        val id = interactionsStreamString(raw, "interaction_id")
+        if (Some(id) != state.id) throw DecodingException("/interaction_id", "interaction identity changed")
+        interactionsNonempty(Some(interactionsStreamString(raw, "status")), "/status")
+        updateInteractionsStreamUsage(state, raw["usage"], batch)
+        batch.native(type, llmStreamUnknown(raw, ["event_type", "usage"]), retain = false)
+        return ["event_type", "interaction_id", "status", "usage"]
+    }
+    if (type == "step.start") {
+        state.requireStarted()
+        if (interactionsStreamIndex(raw) != state.steps.size) throw DecodingException("/index", "step must start at the next index")
+        addInteractionsStreamStep(state, interactionsStreamField(raw, "step"), batch)
+        return ["event_type", "index", "step"]
+    }
+    if (type == "step.delta") {
+        val step = state.activeStep(raw)
+        acceptInteractionsDelta(state, step, interactionsStreamField(raw, "delta"), batch)
+        val metadata = raw["metadata"]
+        if (llmPresent(metadata) && metadata!!.kind != JsonValueKind.Null) {
+            if (metadata!!.kind != JsonValueKind.Object) throw DecodingException("/metadata", "expected stream metadata object")
+            updateInteractionsStreamUsage(state, metadata!!["total_usage"], batch)
+            val extra = llmStreamUnknown(metadata!!, ["total_usage"])
+            if (extra.size != 0L) batch.native("step.delta.metadata", extra, Some(step.location))
+        }
+        return ["event_type", "index", "delta", "metadata"]
+    }
+    if (type == "step.stop") {
+        val step = state.activeStep(raw)
+        step.stop(batch)
+        emitInteractionsServer(state, step, batch)
+        updateInteractionsStreamUsage(state, raw["usage"], batch)
+        return ["event_type", "index", "usage"]
+    }
+    return []
+}
+
+internal fun addInteractionsStreamStep(state: InteractionsStreamDecoder, raw: JsonValue, batch: LlmStreamBatch): InteractionsStreamStep {
+    val step = InteractionsStreamStep(state.steps.size, raw, state.dialect.id, state.request.tools, state.retention == StreamRetention.Result)
+    val entry = readInteractionsStepFields(raw, step.path)
+    if (llmPresent(entry.call)) for (previous in state.steps) {
+        if (previous.type != "function_call" && (interactionsServerType(previous.type) == None || !previous.type.endsWith("_call"))) continue
+        val id = previous.metadata["id"]
+        if (llmPresent(id) && id!!.kind == JsonValueKind.String && id!!.asString() == entry.call!!.id)
+            throw DecodingException(step.path + "/id", "duplicate tool call ID")
+    }
+    state.steps.add(step)
+    step.snapshot(raw, batch, false)
+    emitInteractionsServer(state, step, batch)
+    if (step.type != "model_output" && step.type != "thought") batch.hasOutput = true
+    val known = if (step.type == "model_output") ["type", "content"]
+        else if (step.type == "thought") ["type", "summary"] else ["type"]
+    val extra = llmStreamUnknown(raw, known)
+    if (extra.size != 0L) batch.native("step.start", extra, Some(step.location), false)
+    return step
+}

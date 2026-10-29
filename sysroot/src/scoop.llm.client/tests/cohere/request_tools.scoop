@@ -1,0 +1,73 @@
+package scoop.llm.client.tests.cohere
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class CohereRequestToolsTest {
+    @Test
+    fun `Cohere functions use a consistent global strict mode and preserve declared tools`() {
+        val tools = [cohereFunction(strict = Some(true)), ClientFunction(ToolKey("second"), "second", Json.parse("{}"),
+            extensions = cohereExtension("{\"future\":1e400}"))]
+        val body = cohereEncode(LlmRequest(cohereInput().input, tools = tools, options = LlmGenerationOptions(toolChoice = Required)))
+        assertEquals(2L, body["tools"]!!.size)
+        assertEquals("lookup", body["tools"]!![0L]["function"]!!["name"]!!.asString())
+        assertEquals("Find a value", body["tools"]!![0L]["function"]!!["description"]!!.asString())
+        assertEquals("1e400", body["tools"]!![1L]["function"]!!["future"]!!.asNumberToken())
+        assertTrue(body["strict_tools"]!!.asBoolean())
+        assertFalse(body["tools"]!![0L]["function"]!!.containsKey("strict"))
+        assertEquals("REQUIRED", body["tool_choice"]!!.asString())
+        assertCohereRequestFailure(LlmRequest(cohereInput().input, tools = [cohereFunction(strict = Some(true)), cohereFunction("second", "second", Some(false))]), "/tools/1/strict")
+        assertCohereRequestFailure(LlmRequest(cohereInput().input, tools = [cohereFunction(), cohereFunction("second")]), "/tools/1/name")
+        assertCohereRequestFailure(LlmRequest(cohereInput().input, tools = tools, options = LlmGenerationOptions(toolChoice = Specific(ToolKey("local")))), "/options/toolChoice")
+    }
+
+    @Test
+    fun `Cohere exact single-function choice and false strictness remain explicit while unsupported tools fail`() {
+        val body = cohereEncode(LlmRequest(cohereInput().input, tools = [cohereFunction(strict = Some(false))],
+            options = LlmGenerationOptions(toolChoice = Specific(ToolKey("local")))))
+        assertEquals("REQUIRED", body["tool_choice"]!!.asString())
+        assertFalse(body["strict_tools"]!!.asBoolean())
+        assertFalse(cohereEncode(LlmRequest(cohereInput().input, tools = [cohereFunction()])).containsKey("tool_choice"))
+        assertEquals("NONE", cohereEncode(cohereInput(LlmGenerationOptions(toolChoice = ToolChoice.None)))["tool_choice"]!!.asString())
+        assertCohereRequestFailure(cohereInput(LlmGenerationOptions(toolChoice = Required)), "/options/toolChoice")
+        val unsupported: Array<ToolDefinition> = [ClientCustom(ToolKey("c"), "custom"),
+            ClientNative(ToolKey("n"), NativeToolDefinition(cohereDialect, "future")), Server(ToolKey("s"), WebSearch())]
+        for (tool in unsupported) assertCohereRequestFailure(LlmRequest(cohereInput().input, tools = [tool]), "/tools/0")
+        assertCohereRequestFailure(LlmRequest(cohereInput().input, tools = [ClientFunction(ToolKey("k"), "f", Json.parse("{}"),
+            extensions = cohereExtension("{\"strict\":true}"))]), "/tools/0/extensions/0/value/strict")
+    }
+
+    @Test
+    fun `Cohere serialized parallel calls replay exact history and independent text or document results`() {
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(cohereCalls([cohereCall("a", "{\"count\":9007199254740993}"), cohereCall("b")])))
+        val document = Json.parse("{\"type\":\"document\",\"document\":{\"id\":\"result-b\",\"data\":{\"value\":1e400}}}")
+        val request = LlmRequest([response.toInput()[0L], ToolResult(response.clientToolCalls[0L].reference, [Text("done")]),
+            ToolResult(response.clientToolCalls[1L].reference, [Native(cohereDialect, document)])])
+        val body = cohereEncode(Json.decodeFromString<LlmRequest>(Json.encodeToString(request)))
+        val messages = body["messages"]!!
+        assertEquals(3L, messages.size)
+        assertEquals(Json.stringify(cohereHistory(response)), Json.stringify(messages[0L]))
+        assertEquals("a", messages[1L]["tool_call_id"]!!.asString())
+        assertEquals("tool", messages[1L]["role"]!!.asString())
+        assertEquals("done", messages[1L]["content"]!![0L]["text"]!!.asString())
+        assertEquals("b", messages[2L]["tool_call_id"]!!.asString())
+        assertEquals(Json.stringify(document), Json.stringify(messages[2L]["content"]!![0L]))
+        assertFalse(body.containsKey("tools"))
+        assertFalse(body.containsKey("documents"))
+    }
+
+    @Test
+    fun `Cohere tool results require real identity matching context and an expressible error status`() {
+        val call = ClientToolCallReference(cohereDialect, ToolKey("old"), Some("a"))
+        assertEquals(0L, cohereEncode(LlmRequest([ToolResult(call, [])]))["messages"]!![0L]["content"]!!.size)
+        for (id in [None, Some("")]) assertCohereRequestFailure(LlmRequest([ToolResult(ClientToolCallReference(cohereDialect, ToolKey("old"), id), [])]), "/input/0/call/id")
+        assertCohereRequestFailure(LlmRequest([ToolResult(ClientToolCallReference(OpenAiChatDialect().id, ToolKey("old"), Some("a")), [])]), "/input/0/call/dialect")
+        assertCohereRequestFailure(LlmRequest([ToolResult(ClientToolCallReference(cohereDialect, ToolKey("old"), Some("different"), Some(cohereCall("a"))), [])]), "/input/0/call/id")
+        assertCohereRequestFailure(LlmRequest([ToolResult(ClientToolCallReference(cohereDialect, ToolKey("old"), Some("a"), Some(Json.parse("{\"type\":\"server\",\"id\":\"a\"}"))), [])]), "/input/0/call/context/type")
+        assertCohereRequestFailure(LlmRequest([ToolResult(call, [Text("error")], true)]), "/input/0/isError")
+        assertCohereRequestFailure(LlmRequest([ToolResult(call, [Image(Bytes([], "image/png"))])]), "/input/0/content/0")
+        assertCohereRequestFailure(LlmRequest([ToolResult(call, [], extensions = cohereExtension("{\"tool_call_id\":\"b\"}"))]), "/input/0/extensions/0/value/tool_call_id")
+    }
+}

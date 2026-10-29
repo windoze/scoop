@@ -1,0 +1,32 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeInteractionsToolResult(dialect: DialectId, call: ClientToolCallReference, content: Array<ContentPart>,
+    isError: Boolean, extensions: Array<DialectExtension>, tools: Array<ToolDefinition>, path: String): JsonValue {
+    requireLlmOwner(call.dialect, dialect, path + "/call/dialect")
+    if (call.id == None || call.id == Some("")) throw LlmRequestException(path + "/call/id", "Interactions function result requires the server call ID")
+    val name = interactionsResultName(call, tools, path + "/call")
+    val result = llmTypedObject("function_result").add("call_id", JsonValue.fromString(call.id!!))
+        .add("name", JsonValue.fromString(name)).add("result", encodeInteractionsContent(dialect, content, path + "/content", true))
+    if (isError) result.add("is_error", JsonValue.fromBoolean(true))
+    return mergeLlmExtensions(result.build(), extensions, dialect, ["type", "call_id", "name", "result", "is_error"], path)
+}
+
+private fun interactionsResultName(call: ClientToolCallReference, tools: Array<ToolDefinition>, path: String): String {
+    if (llmPresent(call.context)) {
+        val raw = call.context!!
+        if (requireInteractionsNativeType(raw, path + "/context") != "function_call")
+            throw LlmRequestException(path + "/context/type", "expected the original function call")
+        try {
+            val fields = decodeInteractionsValue<InteractionsCallFields>(raw, path + "/context")
+            if (Some(fields.id) != call.id) throw LlmRequestException(path + "/id", "call ID differs from original function call")
+            return interactionsNonempty(fields.name, path + "/context/name")
+        } catch (error: DecodingException) { throw LlmRequestException(error.path, error.message ?: "invalid function context") }
+    }
+    for (tool in tools) { when (tool) {
+        case ClientFunction(key, name, _, _, _, _) -> { if (key == call.toolKey) return name }
+        else -> continue
+    } }
+    throw LlmRequestException(path + "/context", "function result needs original context or a matching function declaration")
+}

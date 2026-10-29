@@ -1,0 +1,134 @@
+package scoop.llm.client.tests.converse
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.text.toHexString
+
+@Test
+private class ConverseStreamContentTest {
+    @Test
+    fun `Converse EventStream structured output spans consecutive text blocks without creating ambiguous messages`() {
+        val decoder = converseStream()
+        converseBegin(decoder)
+        converseDelta(decoder, 0L, "{\"text\":\"{\\\"count\\\":\"}"); converseStop(decoder, 0L)
+        converseDelta(decoder, 1L, "{\"text\":\"7}\"}"); converseStop(decoder, 1L)
+        converseEnd(decoder); decoder.endInput()
+        val saved = Json.decodeFromString<LlmResponse>(Json.encodeToString(decoder.response()))
+        assertEquals(7L, saved.decodeOutput<ConverseAnswer>().count)
+    }
+
+    @Test
+    fun `Converse EventStream text starts with deltas and keeps interleaved block and part positions in the final result`() {
+        val decoder = converseStream()
+        converseBegin(decoder)
+        val first = converseTextEvents(converseDelta(decoder, 0L, "{\"text\":\"hello\"}"))[0L]
+        val second = converseTextEvents(converseDelta(decoder, 1L, "{\"text\":\" 世界\"}"))[0L]
+        val again = converseTextEvents(converseDelta(decoder, 0L, "{\"text\":\"!\"}"))[0L]
+        assertEquals(0L, first.location.itemIndex); assertEquals(0L, second.location.itemIndex)
+        assertEquals(0L, again.partIndex); assertEquals(1L, second.partIndex)
+        converseStop(decoder, 1L); converseStop(decoder, 0L); converseEnd(decoder)
+        assertFalse(decoder.isFinished)
+        assertFailsWith<LlmOutputException> { decoder.response(); Unit }
+        decoder.endInput()
+        val response = decoder.response()
+        assertEquals("hello! 世界", response.text)
+        assertEquals(1L, response.candidates[0L].items.size)
+        when (response.candidates[0L].items[0L]) { case Message(parts, _) -> assertEquals(2L, parts.size); else -> fail() }
+        val saved = Json.decodeFromString<LlmResponse>(Json.encodeToString(response))
+        assertEquals("hello!", converseHistory(saved)["content"]!![0L]["text"]!!.asString())
+        assertEquals(None, response.id); assertEquals(None, response.model); assertEquals(None, response.createdAt)
+        assertEquals(0L, decoder.endInput().events.size)
+    }
+
+    @Test
+    fun `Converse EventStream reasoning joins signature fragments and retains binary fragments as decoded bytes`() {
+        val decoder = converseStream()
+        converseBegin(decoder)
+        val thought = converseDelta(decoder, 0L, "{\"reasoningContent\":{\"text\":\"think\"}}")
+        assertTrue(thought.hasOutput); assertFalse(thought.hasText)
+        converseDelta(decoder, 0L, "{\"reasoningContent\":{\"signature\":\"sig\"}}")
+        converseDelta(decoder, 0L, "{\"reasoningContent\":{\"signature\":\"nature\"}}")
+        converseStop(decoder, 0L)
+        converseDelta(decoder, 1L, "{\"reasoningContent\":{\"redactedContent\":\"QQ==\"}}")
+        converseDelta(decoder, 1L, "{\"reasoningContent\":{\"redactedContent\":\"Qg==\"}}")
+        converseStop(decoder, 1L)
+        converseStart(decoder, 2L, "{\"image\":{\"format\":\"png\"}}")
+        converseDelta(decoder, 2L, "{\"image\":{\"source\":{\"bytes\":\"QQ==\"}}}")
+        converseDelta(decoder, 2L, "{\"image\":{\"source\":{\"bytes\":\"Qg==\"}}}")
+        converseStop(decoder, 2L); converseEnd(decoder); decoder.endInput()
+        val saved = Json.decodeFromString<LlmResponse>(Json.encodeToString(decoder.response()))
+        val content = converseHistory(saved)["content"]!!
+        assertEquals("signature", content[0L]["reasoningContent"]!!["reasoningText"]!!["signature"]!!.asString())
+        assertEquals("QUI=", content[1L]["reasoningContent"]!!["redactedContent"]!!.asString())
+        when (saved.candidates[0L].items[2L]) {
+            case Message(parts, _) -> when (parts[0L]) {
+                case Media(Image, Bytes(bytes, mime)) -> { assertEquals("4142", bytes.toHexString()); assertEquals("image/png", mime) }
+                else -> fail()
+            }
+            else -> fail()
+        }
+        val request = LlmRequest(saved.toInput())
+        assertEquals("signature", converseEncode(request)["messages"]!![0L]["content"]!![0L]["reasoningContent"]!!["reasoningText"]!!["signature"]!!.asString())
+    }
+
+    @Test
+    fun `Converse EventStream inline and consecutive standalone citations keep their actual text locations`() {
+        val decoder = converseStream()
+        converseBegin(decoder)
+        converseDelta(decoder, 0L, "{\"text\":\"answer\"}")
+        val citation = "{\"citation\":{\"title\":\"source\",\"location\":{\"web\":{\"url\":\"https://example.com/source\"}}}}"
+        converseDelta(decoder, 0L, citation); converseStop(decoder, 0L)
+        for (index in [1L, 2L]) {
+            val update = converseDelta(decoder, index, citation)
+            when (update.events[0L]) {
+                case Citation(location, part, value) -> {
+                    assertEquals(0L, location.itemIndex); assertEquals(0L, part)
+                    assertTrue(when (value.range) { case None -> true; else -> false })
+                }
+                else -> fail()
+            }
+            converseStop(decoder, index)
+        }
+        converseEnd(decoder); decoder.endInput()
+        val result = decoder.response()
+        when (result.candidates[0L].items[0L]) {
+            case Message(parts, _) -> when (parts[0L]) { case Text(_, values) -> assertEquals(3L, values.size); else -> fail() }
+            else -> fail()
+        }
+        assertEquals(3L, converseHistory(result)["content"]!!.size)
+    }
+
+    @Test
+    fun `Converse EventStream unknown content retains native fragments without claiming replayable history`() {
+        val decoder = converseStream()
+        converseBegin(decoder)
+        converseDelta(decoder, 0L, "{\"future\":{\"exact\":1e400}}")
+        converseDelta(decoder, 0L, "{\"future\":{\"extra\":true}}")
+        converseStop(decoder, 0L); converseEnd(decoder); decoder.endInput()
+        val result = decoder.response()
+        assertTrue(result.nativeEvents.size >= 2L)
+        assertFailsWith<LlmOutputException> { result.toInput(); Unit }
+        when (result.candidates[0L].items[0L]) {
+            case Native(_, value) -> assertEquals("1e400", value["future"]!!["exact"]!!.asNumberToken())
+            else -> fail()
+        }
+    }
+
+    @Test
+    fun `Converse EventStream partial image errors preserve received bytes and native details without replay claims`() {
+        val decoder = converseStream()
+        converseBegin(decoder)
+        converseStart(decoder, 0L, "{\"image\":{\"format\":\"png\"}}")
+        converseDelta(decoder, 0L, "{\"image\":{\"source\":{\"bytes\":\"QQ==\"}}}")
+        converseDelta(decoder, 0L, "{\"image\":{\"error\":{\"message\":\"incomplete\"}}}")
+        converseStop(decoder, 0L); converseEnd(decoder); decoder.endInput()
+        val result = decoder.response()
+        when (result.candidates[0L].items[0L]) {
+            case Native(_, value) -> assertEquals("QQ==", value["image"]!!["source"]!!["bytes"]!!.asString())
+            else -> fail()
+        }
+        assertEquals("incomplete", result.nativeEvents[0L].value["error"]!!["message"]!!.asString())
+        assertFailsWith<LlmOutputException> { result.toInput(); Unit }
+    }
+}

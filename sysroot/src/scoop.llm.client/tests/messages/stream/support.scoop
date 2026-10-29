@@ -1,0 +1,36 @@
+package scoop.llm.client.tests.messages
+
+import scoop.json.*
+import scoop.llm.client.*
+
+internal fun messagesEvent(decoder: LlmSseDecoder, type: String, fields: String = ""): LlmStreamUpdate =
+    decoder.accept(type, "{\"type\":\"" + type + "\"" + (if (fields.length == 0L) "" else "," + fields) + "}")
+
+internal fun messagesStream(retention: StreamRetention = StreamRetention.Result,
+    tools: Array<ToolDefinition> = [], usage: String = "{\"input_tokens\":5,\"cache_read_input_tokens\":3,\"cache_creation_input_tokens\":2,\"output_tokens\":1}"): LlmSseDecoder {
+    val decoder = MessagesProtocol(AnthropicMessagesDialect()).createStreamDecoder(messagesRequest(tools), retention)
+    messagesEvent(decoder, "message_start", "\"message\":{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"m1\",\"model\":\"actual\",\"content\":[],\"stop_reason\":null,\"usage\":" + usage + "}")
+    return decoder
+}
+
+internal fun messagesStartBlock(decoder: LlmSseDecoder, index: Long, raw: String): LlmStreamUpdate =
+    messagesEvent(decoder, "content_block_start", "\"index\":" + index.toString() + ",\"content_block\":" + raw)
+
+internal fun messagesDelta(decoder: LlmSseDecoder, index: Long, raw: String): LlmStreamUpdate =
+    messagesEvent(decoder, "content_block_delta", "\"index\":" + index.toString() + ",\"delta\":" + raw)
+
+internal fun messagesInputDelta(decoder: LlmSseDecoder, index: Long, input: String): LlmStreamUpdate =
+    messagesDelta(decoder, index, Json.stringify(JsonObjectBuilder().add("type", JsonValue.fromString("input_json_delta"))
+        .add("partial_json", JsonValue.fromString(input)).build()))
+
+internal fun messagesStopBlock(decoder: LlmSseDecoder, index: Long): LlmStreamUpdate =
+    messagesEvent(decoder, "content_block_stop", "\"index\":" + index.toString())
+
+internal fun messagesFinish(decoder: LlmSseDecoder, reason: String = "end_turn"): LlmStreamUpdate {
+    val update = messagesEvent(decoder, "message_delta", "\"delta\":{\"stop_reason\":\"" + reason + "\"}")
+    messagesEvent(decoder, "message_stop")
+    decoder.endInput()
+    return update
+}
+
+internal fun messagesStreamFunction(): ToolDefinition = ClientFunction(ToolKey("lookup"), "lookup", Json.parse("{\"type\":\"object\"}"))

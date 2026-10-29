@@ -1,0 +1,31 @@
+package scoop.llm.client
+
+import scoop.time.Duration
+
+/** Actual monotonic phase offsets relative to this logical call, without invented wall times. */
+public class LlmPhaseTiming public constructor(
+    public val started: Duration, public val finished: Duration? = None
+) {
+    init {
+        if (started < Duration.ZERO) throw IllegalArgumentException(Some("phase start offset must not be negative"))
+        if (finished != None && finished!! < started)
+            throw IllegalArgumentException(Some("phase finish offset precedes its start"))
+    }
+
+    /** A finished observation can describe a failed or cancelled phase as well as a successful one. */
+    public val duration: Duration? get() = when (finished) { case Some(end) -> Some(end - started); case None -> None }
+
+    public companion object : ValueEncoder<LlmPhaseTiming>, ValueDecoder<LlmPhaseTiming>
+}
+
+/** Phases not performed on this attempt remain absent, including reused connection setup. */
+public class LlmHttpTiming public constructor(
+    public val queue: LlmPhaseTiming? = None,
+    public val resolve: LlmPhaseTiming? = None,
+    public val connect: LlmPhaseTiming? = None,
+    public val proxyTls: LlmPhaseTiming? = None,
+    public val proxyHandshake: LlmPhaseTiming? = None,
+    public val originTls: LlmPhaseTiming? = None
+) {
+    public companion object : ValueEncoder<LlmHttpTiming>, ValueDecoder<LlmHttpTiming>
+}

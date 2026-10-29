@@ -1,0 +1,48 @@
+package scoop.llm.client.tests.interactions
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class InteractionsMediaTest {
+    @Test
+    fun `Interactions decodes inline media and retains provider file context across all output modalities`() {
+        for ((type, mime, kind) in [("image", "image/png", OutputMediaKind.Image), ("audio", "audio/l16;rate=24000", OutputMediaKind.Audio),
+            ("video", "video/mp4", OutputMediaKind.Video), ("document", "application/pdf", OutputMediaKind.Document)]) {
+            val parts = "[{\"type\":\"" + type + "\",\"mime_type\":\"" + mime + "\",\"data\":\"SGk\"}," +
+                "{\"type\":\"" + type + "\",\"mime_type\":\"" + mime + "\",\"uri\":\"files/resource\",\"future\":true}]"
+            val raw = interactionsBody("[{\"type\":\"model_output\",\"content\":" + parts + "}]")
+            val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(interactionsDecode(raw)))
+            when (response.candidate(0L).items[0L]) {
+                case Message(content, _) -> {
+                    when (content[0L]) { case Media(actual, source) -> { assertEquals(kind, actual); when (source) {
+                        case Bytes(bytes, value) -> { assertEquals("Hi", String.fromUtf8(bytes)); assertEquals(mime, value) }; else -> fail()
+                    } }; else -> fail() }
+                    when (content[1L]) { case Media(actual, source) -> { assertEquals(kind, actual); when (source) {
+                        case FileReference(reference, value) -> {
+                            assertEquals(interactionsDialect, reference.dialect)
+                            assertEquals(mime, value)
+                            assertTrue(reference.value["future"]!!.asBoolean())
+                        }; else -> fail()
+                    } }; else -> fail() }
+                }
+                else -> fail()
+            }
+        }
+    }
+
+    @Test
+    fun `Interactions does not guess absent MIME or ambiguous media and rejects malformed reported data`() {
+        val response = interactionsDecode(interactionsBody("[{\"type\":\"model_output\",\"content\":[{\"type\":\"image\",\"uri\":\"files/x\"}," +
+            "{\"type\":\"image\",\"mime_type\":\"image/png\"},{\"type\":\"image\",\"mime_type\":\"image/png\",\"data\":\"\",\"uri\":\"files/x\"}]}]"))
+        when (response.candidate(0L).items[0L]) { case Message(parts, _) -> for (part in parts) {
+            when (part) { case Native(_, _) -> assertTrue(true); else -> fail() }
+        }; else -> fail() }
+        for ((part, path) in [("{\"type\":\"image\",\"mime_type\":\"image/png\",\"data\":\"%%%\"}", "data"),
+            ("{\"type\":\"image\",\"mime_type\":\"audio/wav\",\"data\":\"\"}", "mime_type"),
+            ("{\"type\":\"audio\",\"mime_type\":\"audio/*\",\"data\":\"\"}", "mime_type"),
+            ("{\"type\":\"video\",\"mime_type\":\"video/mp4\",\"uri\":\"\"}", "uri")])
+            assertInteractionsFailure(interactionsBody("[{\"type\":\"model_output\",\"content\":[" + part + "]}]"), "/steps/0/content/0/" + path)
+    }
+}

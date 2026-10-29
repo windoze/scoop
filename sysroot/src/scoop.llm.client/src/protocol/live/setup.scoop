@@ -1,0 +1,32 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.text.startsWith
+
+internal fun encodeGeminiLiveSetup(dialect: DialectId, modelId: String, setup: GeminiLiveSetup): JsonValue {
+    if (modelId.length == 0L) throw LlmRequestException("/modelId", "model ID must not be empty")
+    val request = LlmRequest([], setup.system, setup.tools, setup.options, setup.extensions)
+    if (llmPresent(setup.options.stop)) throw LlmRequestException("/options/stop", "Live setup has no stop sequence setting")
+    when (setup.options.output) { case Text -> {}; else -> throw LlmRequestException("/options/output", "Live setup has no structured output setting") }
+    if (setup.options.toolChoice != ToolChoice.Auto) throw LlmRequestException("/options/toolChoice", "Live setup has no toolConfig field")
+    val name = if (modelId.startsWith("models/")) modelId else "models/" + modelId
+    val body = JsonObjectBuilder().add("model", JsonValue.fromString(name))
+    if (setup.system.size != 0L) body.add("systemInstruction", JsonObjectBuilder()
+        .add("parts", encodeGenerateContentParts(dialect, setup.system, "/system", true)).build())
+    val options = encodeGenerateContentOptions(request)
+    if (options.size != 0L) body.add("generationConfig", options)
+    encodeGenerateContentTools(body, dialect, request)
+    return mergeGenerateContentExtensions(body.build(), setup.extensions, dialect)
+}
+
+internal fun encodeGeminiLiveContent(dialect: DialectId, input: Array<LlmInputItem>, turnComplete: Boolean): JsonValue {
+    val request = LlmRequest(input)
+    var index = 0L
+    for (item in request.input) {
+        when (item) { case ToolResult(_, _, _, _) -> throw LlmRequestException("/input/" + index.toString(), "Live function results require toolResponse"); else -> {} }
+        index += 1L
+    }
+    val body = JsonObjectBuilder().add("turns", encodeGeminiContents(dialect, request.input, []))
+        .add("turnComplete", JsonValue.fromBoolean(turnComplete)).build()
+    return JsonObjectBuilder().add("clientContent", body).build()
+}

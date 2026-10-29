@@ -1,0 +1,43 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun checkLlmModelResponse(dialect: DialectId, value: JsonValue) {
+    if (value.kind != JsonValueKind.Object) throw LlmProtocolException(dialect, "", "expected a model response object", value)
+    val error = value["error"]
+    if (llmPresent(error) && error!!.kind != JsonValueKind.Null)
+        throw LlmProtocolException(dialect, "/error", "model query returned an error response", value)
+}
+
+internal fun readLlmModelIdentifier(dialect: DialectId, value: JsonValue, field: String, path: String,
+    native: JsonValue, required: Boolean = true): String? {
+    if (value.kind != JsonValueKind.Object) throw LlmProtocolException(dialect, path, "expected a model object", native)
+    val id = value[field]
+    if (!required && (!llmPresent(id) || id!!.kind == JsonValueKind.Null)) return None
+    if (!llmPresent(id) || id!!.kind != JsonValueKind.String || id!!.asString().length == 0L)
+        throw LlmProtocolException(dialect, path + "/" + field, "expected a nonempty model identifier", native)
+    return Some(id!!.asString())
+}
+
+internal fun decodeNamedLlmModelPage(dialect: DialectId, value: JsonValue, listField: String, idField: String,
+    requiredId: Boolean = true): LlmModelPage {
+    checkLlmModelResponse(dialect, value)
+    val entries = value[listField]
+    val path = "/" + listField
+    if (!llmPresent(entries) || entries!!.kind != JsonValueKind.Array)
+        throw LlmProtocolException(dialect, path, "expected a model list array", value)
+    val models = ArrayList<LlmModelInfo>()
+    var index = 0L
+    for (entry in entries!!.elements()) {
+        val id = readLlmModelIdentifier(dialect, entry, idField, path + "/" + index.toString(), value, requiredId)
+        models.add(LlmModelInfo(dialect, id, entry))
+        index += 1L
+    }
+    return LlmModelPage(dialect, models.toArray(), value)
+}
+
+internal fun decodeWrappedLlmModel(dialect: DialectId, value: JsonValue, field: String, idField: String): LlmModelInfo {
+    checkLlmModelResponse(dialect, value)
+    val model = value[field] ?: throw LlmProtocolException(dialect, "/" + field, "missing model object", value)
+    return LlmModelInfo(dialect, readLlmModelIdentifier(dialect, model, idField, "/" + field, value), value)
+}

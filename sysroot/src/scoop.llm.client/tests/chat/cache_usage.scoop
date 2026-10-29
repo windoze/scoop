@@ -1,0 +1,50 @@
+package scoop.llm.client.tests.chat
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class OpenAiCacheUsageTest {
+    @Test
+    fun `OpenAI cache reads writes and ordinary input remain disjoint with exact integers`() {
+        val raw = "{\"prompt_tokens\":100,\"prompt_tokens_details\":{\"cached_tokens\":60,\"cache_write_tokens\":25,\"cache_write_tokens_details\":{\"ttl_1h\":25}}}"
+        val usage = decodeUsage(raw)
+        assertEquals(Some(100L), usage.tokens.inputTokens)
+        assertEquals(Some(60L), usage.tokens.cacheReadTokens)
+        assertEquals(Some(25L), usage.tokens.cacheWriteTokens)
+        assertEquals(Some(15L), usage.tokens.nonCachedInputTokens)
+        assertEquals(Json.stringify(Json.parse(raw)), Json.stringify(usage.native!!))
+        val large = decodeUsage("{\"prompt_tokens\":9223372036854775807,\"prompt_tokens_details\":{\"cached_tokens\":9223372036854775805,\"cache_write_tokens\":2}}")
+        assertEquals(Some(0L), large.tokens.nonCachedInputTokens)
+        val zero = decodeUsage("{\"prompt_tokens\":9,\"prompt_tokens_details\":{\"cached_tokens\":0,\"cache_write_tokens\":0}}")
+        assertEquals(Some(0L), zero.tokens.cacheWriteTokens)
+        assertEquals(Some(9L), zero.tokens.nonCachedInputTokens)
+    }
+
+    @Test
+    fun `OpenAI cache accounting requires all three counts before deriving ordinary input`() {
+        for (raw in ["{\"prompt_tokens\":100,\"prompt_tokens_details\":{\"cached_tokens\":60}}",
+            "{\"prompt_tokens\":100,\"prompt_tokens_details\":{\"cache_write_tokens\":25}}",
+            "{\"prompt_tokens_details\":{\"cached_tokens\":60,\"cache_write_tokens\":25}}",
+            "{\"prompt_tokens\":100,\"prompt_tokens_details\":{\"cached_tokens\":60,\"cache_write_tokens\":null}}"])
+            assertEquals(None, decodeUsage(raw).tokens.nonCachedInputTokens)
+    }
+
+    @Test
+    fun `OpenAI rejects negative or overlapping cache counts without overflowing`() {
+        assertEquals("/usage/prompt_tokens_details/cache_write_tokens", failurePath(
+            "{\"prompt_tokens_details\":{\"cache_write_tokens\":-1}}"))
+        for (raw in ["{\"prompt_tokens\":2,\"prompt_tokens_details\":{\"cache_write_tokens\":3}}",
+            "{\"prompt_tokens\":3,\"prompt_tokens_details\":{\"cached_tokens\":2,\"cache_write_tokens\":2}}",
+            "{\"prompt_tokens\":9223372036854775807,\"prompt_tokens_details\":{\"cached_tokens\":9223372036854775807,\"cache_write_tokens\":9223372036854775807}}"])
+            assertEquals("/usage/prompt_tokens_details", failurePath(raw))
+        assertEquals("/usage/prompt_tokens_details/cache_write_tokens", failurePath(
+            "{\"prompt_tokens_details\":{\"cache_write_tokens\":1.5}}"))
+    }
+
+    private fun decodeUsage(raw: String): LlmUsage = ChatProtocol(OpenAiChatDialect()).decodeResponse(
+        chatBody("{\"role\":\"assistant\",\"content\":\"ok\"}", usage = Some(raw)), chatRequest()).usage
+
+    private fun failurePath(raw: String): String = assertFailsWith<LlmProtocolException> { decodeUsage(raw); Unit }.path
+}

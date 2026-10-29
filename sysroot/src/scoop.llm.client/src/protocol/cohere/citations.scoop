@@ -1,0 +1,70 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+private class CohereCitationFields public constructor(public val start: Long? = None, public val end: Long? = None,
+    @Serialize(rename = "content_index") public val contentIndex: Long? = None,
+    public val type: String? = None, public val sources: Array<JsonValue>? = None) {
+    public companion object : ValueDecoder<CohereCitationFields>
+}
+
+internal fun attachCohereCitations(dialect: DialectId, values: Array<JsonValue>, blocks: ArrayList<CohereBlock>, contentSize: Long) {
+    val kinds = ArrayList<String>()
+    var contentIndex = 0L
+    while (contentIndex < contentSize) { kinds.add(blocks[contentIndex].kind); contentIndex += 1L }
+    val contentKinds = kinds.toArray()
+    var index = 0L
+    for (value in values) {
+        val path = "/message/citations/" + index.toString()
+        val citation = readCohereCitation(dialect, value, path)
+        val target = cohereCitationTarget(contentKinds, blocks.size > contentSize, citation, path)
+        if (target != None) for (source in citation.citations) blocks[target!!].citations.add(source)
+        index += 1L
+    }
+}
+
+internal class CohereCitation public constructor(public val kind: String, public val contentIndex: Long?,
+    public val citations: Array<Citation>)
+
+internal fun readCohereCitation(dialect: DialectId, value: JsonValue, path: String): CohereCitation {
+    val fields = decodeCohereValue<CohereCitationFields>(value, path)
+    if (fields.start != None && fields.start!! < 0L) throw DecodingException(path + "/start", "negative citation start")
+    if (fields.end != None && fields.end!! < 0L) throw DecodingException(path + "/end", "negative citation end")
+    if (fields.start != None && fields.end != None && fields.end!! < fields.start!!)
+        throw DecodingException(path + "/end", "citation end precedes its start")
+    if (fields.contentIndex != None && fields.contentIndex!! < 0L)
+        throw DecodingException(path + "/content_index", "citation content index is out of bounds")
+    val kind = when (fields.type ?: "TEXT_CONTENT") {
+        case "TEXT_CONTENT" -> "text"
+        case "THINKING_CONTENT" -> "thinking"
+        case "PLAN" -> "plan"
+        else -> ""
+    }
+    val sources = ArrayList<Citation>()
+    var index = 0L
+    for (raw in fields.sources ?: []) {
+        sources.add(Citation(readCohereSource(dialect, raw, path + "/sources/" + index.toString())))
+        index += 1L
+    }
+    return CohereCitation(kind, fields.contentIndex, sources.toArray())
+}
+
+internal fun cohereCitationTarget(kinds: Array<String>, hasPlan: Boolean, citation: CohereCitation, path: String): Long? {
+    val kind = citation.kind
+    val contentIndex = citation.contentIndex
+    if (contentIndex != None && contentIndex!! >= kinds.size)
+        throw DecodingException(path + "/content_index", "citation content index is out of bounds")
+    if (kind.length == 0L) return None
+    if (kind == "plan") return if (hasPlan) Some(kinds.size) else None
+    if (contentIndex != None) return if (kinds[contentIndex!!] == kind) contentIndex else None
+    var found: Long? = None
+    var index = 0L
+    for (block in kinds) {
+        if (block == kind) {
+            if (found != None) return None
+            found = Some(index)
+        }
+        index += 1L
+    }
+    return found
+}

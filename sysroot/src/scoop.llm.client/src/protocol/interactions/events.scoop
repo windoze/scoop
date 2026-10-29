@@ -1,0 +1,73 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.url.Url
+
+internal fun interactionsEventsUrl(baseUrl: Url, interactionId: String, lastEventId: String?): Url {
+    val url = interactionsStoredUrl(baseUrl, interactionId)
+    var query = url.queryParameters().set("stream", Some("true")).set("alt", Some("sse"))
+    when (lastEventId) { case Some(id) -> query = query.set("last_event_id", Some(id)); case None -> {} }
+    return url.toBuilder().setQueryParameters(query).build()
+}
+
+/** A resumed stream may start within a step; retain events without inventing its missing prefix. */
+internal class InteractionsEventsDecoder(public val dialect: DialectId) : LlmSseDecoder {
+    private var finished = false
+    private var failed = false
+    private var sentinel = false
+    private var id: String? = None
+
+    public override val isFinished: Boolean get() = finished && !failed
+    public override val responseId: String? get() = id
+    public override val usage: LlmUsage get() = LlmUsage()
+
+    public override fun accept(event: String, data: String): LlmStreamUpdate {
+        try {
+            if (!failed && finished && !sentinel && data == "[DONE]" && (event == "" || event == "message" || event == "done")) {
+                sentinel = true
+                return LlmStreamUpdate([], isKeepAlive = true)
+            }
+            if (finished || failed) throw LlmStreamProtocolException(dialect, "stream is no longer accepting events", Some(data))
+            if (data == "[DONE]") throw LlmStreamProtocolException(dialect, "DONE arrived before interaction.completed", Some(data))
+            val raw = try { Json.parse(data) }
+                catch (_: DecodingException) { throw LlmStreamProtocolException(dialect, "invalid stream JSON", Some(data)) }
+            try {
+                val header = decodeInteractionsValue<InteractionsStreamHeader>(raw, "")
+                interactionsNonempty(Some(header.type), "/event_type")
+                if (event != "" && event != "message" && event != header.type)
+                    throw DecodingException("/event_type", "SSE event name disagrees with Interactions event type")
+                if (header.type == "error") throw DecodingException("/error", "Interactions stream returned an error")
+                val reported = interactionsEventResponseId(header.type, raw)
+                if (reported != None) id = reported
+                if (header.type == "interaction.completed") finished = true
+                return LlmStreamUpdate([Native(LlmNativeEvent(dialect, header.type, raw))])
+            } catch (error: DecodingException) {
+                throw LlmProtocolException(dialect, error.path, error.message ?: "invalid Interactions event", raw)
+            }
+        } catch (error: Throwable) { failed = true; throw error }
+    }
+
+    public override fun endInput(): LlmStreamUpdate {
+        if (!isFinished) {
+            failed = true
+            throw LlmStreamProtocolException(dialect, "Interactions stream ended without interaction.completed")
+        }
+        return LlmStreamUpdate([])
+    }
+
+    public override fun response(): LlmResponse =
+        throw LlmOutputException(ResultNotRetained, "raw Interactions events do not aggregate a response")
+}
+
+private fun interactionsEventResponseId(type: String, raw: JsonValue): String? {
+    if (type == "interaction.status_update") return interactionsEventString(raw["interaction_id"])
+    if (type != "interaction.created" && type != "interaction.completed") return None
+    val value = raw["interaction"]
+    if (!llmPresent(value) || value!!.kind != JsonValueKind.Object) return None
+    return interactionsEventString(value!!["id"])
+}
+
+internal fun interactionsEventString(value: JsonValue?): String? = when (value) {
+    case Some(raw) -> if (raw.kind == JsonValueKind.String) Some(raw.asString()) else None
+    case None -> None
+}

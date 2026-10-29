@@ -1,0 +1,56 @@
+package scoop.llm.client.tests.messages
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class MessagesOptionsTest {
+    @Test
+    fun `Messages version rules preserve explicit zero and empty values instead of dropping them`() {
+        val options = LlmGenerationOptions(temperature = Some(0.0), topP = Some(0.0), topK = Some(0UL),
+            maxOutputTokens = Some(0UL), stop = Some([]), candidates = Some(1UL))
+        val body = MessagesProtocol(AnthropicMessagesDialect(V20230601)).encodeRequest("model", LlmRequest(messagesRequest().input, options = options), true)
+        assertEquals(0.0, body["temperature"]!!.asDouble())
+        assertEquals(0.0, body["top_p"]!!.asDouble())
+        assertEquals(0L, body["top_k"]!!.asLong())
+        assertEquals(0L, body["max_tokens"]!!.asLong())
+        assertEquals(0L, body["stop_sequences"]!!.size)
+        assertTrue(body["stream"]!!.asBoolean())
+        for ((settings, path) in [(LlmGenerationOptions(temperature = Some(0.0)), "/options/temperature"),
+            (LlmGenerationOptions(topP = Some(0.0)), "/options/topP"), (LlmGenerationOptions(topK = Some(0UL)), "/options/topK"),
+            (LlmGenerationOptions(candidates = Some(2UL)), "/options/candidates")])
+            assertMessagesRequestFailure(LlmRequest(messagesRequest().input, options = settings), path)
+        assertMessagesRequestFailure(LlmRequest(messagesRequest().input, options = LlmGenerationOptions(topP = Some(1.1))), "/options/topP", V20230601)
+    }
+
+    @Test
+    fun `Messages reasoning and schema share output_config without overriding each other`() {
+        val schema = Json.parse("{\"type\":\"object\",\"properties\":{\"count\":{\"type\":\"integer\"}},\"required\":[\"count\"],\"additionalProperties\":false}")
+        val body = MessagesProtocol(AnthropicMessagesDialect()).encodeRequest("model", LlmRequest(messagesRequest().input,
+            options = LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(true), effort = Some("low"))), output = JsonSchema(schema, strict = Some(true)))))
+        assertEquals("adaptive", body["thinking"]!!["type"]!!.asString())
+        assertEquals("low", body["output_config"]!!["effort"]!!.asString())
+        assertEquals(Json.stringify(schema), Json.stringify(body["output_config"]!!["format"]!!["schema"]!!))
+        val manual = MessagesProtocol(AnthropicMessagesDialect()).encodeRequest("model", LlmRequest(messagesRequest().input,
+            options = LlmGenerationOptions(reasoning = Some(ReasoningOptions(budgetTokens = Some(1024UL))))))
+        assertEquals("enabled", manual["thinking"]!!["type"]!!.asString())
+        assertEquals(1024L, manual["thinking"]!!["budget_tokens"]!!.asLong())
+        val disabled = MessagesProtocol(AnthropicMessagesDialect()).encodeRequest("model", LlmRequest(messagesRequest().input,
+            options = LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(false))))))
+        assertEquals("disabled", disabled["thinking"]!!["type"]!!.asString())
+    }
+
+    @Test
+    fun `Messages incompatible budgets and unrepresentable output format settings fail precisely`() {
+        val cases: Array<(LlmGenerationOptions, String)> = [
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(budgetTokens = Some(100UL)))), "/options/reasoning/budgetTokens"),
+            (LlmGenerationOptions(maxOutputTokens = Some(1024UL), reasoning = Some(ReasoningOptions(budgetTokens = Some(1024UL)))), "/options/reasoning/budgetTokens"),
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(false), budgetTokens = Some(1024UL)))), "/options/reasoning/budgetTokens"),
+            (LlmGenerationOptions(output = JsonObject), "/options/output"),
+            (LlmGenerationOptions(output = JsonSchema(Json.parse("{}"), name = "named")), "/options/output/name"),
+            (LlmGenerationOptions(output = JsonSchema(Json.parse("{}"), strict = Some(false))), "/options/output/strict")
+        ]
+        for ((options, path) in cases) assertMessagesRequestFailure(LlmRequest(messagesRequest().input, options = options), path)
+    }
+}

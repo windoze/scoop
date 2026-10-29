@@ -1,0 +1,89 @@
+package scoop.llm.client.tests.responses
+
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ResponsesStreamFailureTest {
+    @Test
+    fun `Responses stream requires a terminal lifecycle and distinguishes protocol errors from failed results`() {
+        val empty = responsesStream()
+        assertFailsWith<LlmStreamProtocolException> { empty.endInput(); Unit }
+        assertFailsWith<LlmOutputException> { empty.response(); Unit }
+        val error = responsesStream()
+        assertEquals("/message", assertFailsWith<LlmProtocolException> {
+            responsesEvent(error, "error", "\"message\":\"no\",\"code\":\"failure\""); Unit
+        }.path)
+        assertFalse(error.isFinished)
+        assertFailsWith<LlmStreamProtocolException> { responsesFinish(error, "[]"); Unit }
+        val terminal = responsesStream()
+        responsesFinish(terminal, "[]")
+        assertFailsWith<LlmStreamProtocolException> { responsesEvent(terminal, "response.in_progress", "\"response\":{}"); Unit }
+        assertFalse(terminal.isFinished)
+    }
+
+    @Test
+    fun `Responses event framing identities and present sequence numbers are checked`() {
+        val mismatch = responsesStream()
+        assertEquals("/type", assertFailsWith<LlmProtocolException> { mismatch.accept("other", "{\"type\":\"response.future\"}"); Unit }.path)
+        for (sequence in ["-1", "1.5", "9007199254740994"]) {
+            val decoder = responsesStream()
+            responsesEvent(decoder, "response.future", "\"sequence_number\":9007199254740995")
+            assertEquals("/sequence_number", assertFailsWith<LlmProtocolException> {
+                responsesEvent(decoder, "response.future", "\"sequence_number\":" + sequence); Unit
+            }.path)
+        }
+        val changed = responsesStream()
+        assertEquals("/response/id", assertFailsWith<LlmProtocolException> {
+            responsesEvent(changed, "response.in_progress", "\"response\":{\"object\":\"response\",\"id\":\"different\",\"output\":[]}"); Unit
+        }.path)
+        val wrongStatus = responsesStream()
+        assertEquals("/response/status", assertFailsWith<LlmProtocolException> {
+            responsesEvent(wrongStatus, "response.completed", "\"response\":{\"object\":\"response\",\"status\":\"incomplete\",\"output\":[]}"); Unit
+        }.path)
+    }
+
+    @Test
+    fun `Responses item ordering and tool call identity remain distinct`() {
+        val nullable = responsesStream(tools = [responsesStreamFunction()])
+        responsesItem(nullable, 0L, "{\"type\":\"function_call\",\"id\":\"item\",\"call_id\":\"call\",\"name\":\"count\",\"arguments\":\"\",\"namespace\":null}")
+        responsesItem(nullable, 0L, responsesCall("{}"), true)
+        assertEquals(1L, responsesEventCalls(responsesFinish(nullable, "[" + responsesCall("{}") + "]")).size)
+        val gap = responsesStream()
+        assertEquals("/output_index", assertFailsWith<LlmProtocolException> { responsesItem(gap, 1L, responsesEmptyMessage); Unit }.path)
+        val duplicate = responsesStream()
+        responsesItem(duplicate, 0L, responsesEmptyMessage)
+        assertEquals("/item/id", assertFailsWith<LlmProtocolException> { responsesItem(duplicate, 1L, responsesEmptyMessage); Unit }.path)
+        val wrongId = responsesStream()
+        responsesItem(wrongId, 0L, responsesEmptyMessage)
+        assertEquals("/item_id", assertFailsWith<LlmProtocolException> {
+            responsesAt(wrongId, "response.output_text.delta", 0L, "other", "\"content_index\":0,\"delta\":\"bad\""); Unit
+        }.path)
+        val call = responsesStream(tools = [responsesStreamFunction()])
+        responsesItem(call, 0L, responsesCall(""))
+        assertEquals("/item/call_id", assertFailsWith<LlmProtocolException> {
+            responsesItem(call, 0L, responsesCall("{}", callId = "changed"), true); Unit
+        }.path)
+        val lost = responsesStream()
+        responsesItem(lost, 0L, responsesEmptyMessage)
+        assertEquals("/response/output", assertFailsWith<LlmProtocolException> { responsesFinish(lost, "[]"); Unit }.path)
+    }
+
+    @Test
+    fun `Responses finished text and items reject new deltas and shrinking snapshots`() {
+        for (closedItem in [false, true]) {
+            val decoder = responsesStream()
+            responsesItem(decoder, 0L, responsesEmptyMessage)
+            responsesAt(decoder, "response.content_part.added", 0L, "m", "\"content_index\":0,\"part\":{\"type\":\"output_text\",\"text\":\"ok\"}")
+            if (closedItem) responsesItem(decoder, 0L, responsesMessage("ok"), true)
+            else responsesAt(decoder, "response.output_text.done", 0L, "m", "\"content_index\":0,\"text\":\"ok\"")
+            assertFailsWith<LlmProtocolException> {
+                responsesAt(decoder, "response.output_text.delta", 0L, "m", "\"content_index\":0,\"delta\":\"late\""); Unit
+            }
+        }
+        val shrinking = responsesStream()
+        responsesItem(shrinking, 0L, responsesEmptyMessage)
+        responsesAt(shrinking, "response.content_part.added", 0L, "m", "\"content_index\":0,\"part\":{\"type\":\"output_text\",\"text\":\"long\"}")
+        assertEquals("/part", assertFailsWith<LlmProtocolException> { responsesItem(shrinking, 0L, responsesMessage("x"), true); Unit }.path)
+    }
+}

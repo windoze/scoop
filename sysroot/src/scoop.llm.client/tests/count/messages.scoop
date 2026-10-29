@@ -1,0 +1,75 @@
+package scoop.llm.client.tests.count
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class MessagesCountTest {
+    @Test
+    fun `token count Messages preserves input options without injecting generation output defaults`() {
+        for (version in [AnthropicMessagesVersion.V20230601, AnthropicMessagesVersion.V20261021]) {
+            val dialect = AnthropicMessagesDialect(version)
+            val counter = MessagesProtocol(dialect).tokenCounter()!!
+            val history = Json.parse("{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"signed\"}]}")
+            val request = LlmRequest([History(LlmHistory(dialect.id, [history])), Message([Text("question")])],
+                system = [Text("system")], tools = [ClientFunction(ToolKey("f"), "lookup", Json.parse("{\"type\":\"object\"}"))],
+                options = LlmGenerationOptions(temperature = Some(0.0), stop = Some(["end"]), parallelToolCalls = Some(false),
+                    reasoning = Some(ReasoningOptions(budgetTokens = Some(8192UL), effort = Some("low"))),
+                    output = JsonSchema(Json.parse("{\"type\":\"object\"}"))),
+                extensions = [DialectExtension(dialect.id, Json.parse("{\"cache_control\":{\"type\":\"ephemeral\"},\"speed\":\"standard\"}"))])
+            val body = counter.encodeRequest("model", request)
+            for (name in ["max_tokens", "stream", "temperature", "top_p", "top_k", "stop_sequences"])
+                assertFalse(body.containsKey(name))
+            assertEquals(Json.stringify(history), Json.stringify(body["messages"]!![0L]))
+            assertEquals("system", body["system"]!![0L]["text"]!!.asString())
+            assertEquals(8192L, body["thinking"]!!["budget_tokens"]!!.asLong())
+            assertEquals("low", body["output_config"]!!["effort"]!!.asString())
+            assertEquals("json_schema", body["output_config"]!!["format"]!!["type"]!!.asString())
+            assertTrue(body["tool_choice"]!!["disable_parallel_tool_use"]!!.asBoolean())
+            assertEquals("lookup", body["tools"]!![0L]["name"]!!.asString())
+            assertEquals("ephemeral", body["cache_control"]!!["type"]!!.asString())
+            assertEquals("https://example.test/deployment/v1/messages/count_tokens?x=1",
+                counter.countUrl(Url.parse("https://example.test/deployment/v1?x=1"), "model").toString())
+        }
+    }
+
+    @Test
+    fun `token count Messages keeps explicit thinking budget checks and rejects unsupported native fields`() {
+        val dialect = AnthropicMessagesDialect()
+        val counter = dialect.tokenCounter()!!
+        val invalid = LlmRequest([Message([Text("q")])], options = LlmGenerationOptions(maxOutputTokens = Some(2048UL),
+            reasoning = Some(ReasoningOptions(budgetTokens = Some(4096UL)))))
+        assertEquals("/options/reasoning/budgetTokens", assertFailsWith<LlmRequestException> { counter.encodeRequest("m", invalid); Unit }.path)
+        for (name in ["mcp_servers", "context_management", "future_input"]) {
+            val request = LlmRequest([Message([Text("q")])], extensions = [DialectExtension(dialect.id, JsonObjectBuilder().add(name, Json.parse("[]")).build())])
+            assertEquals("/" + name, assertFailsWith<LlmRequestException> { counter.encodeRequest("m", request); Unit }.path)
+        }
+    }
+
+    @Test
+    fun `token count Messages rejects server tools but preserves the advisor exception`() {
+        val dialect = AnthropicMessagesDialect()
+        val counter = dialect.tokenCounter()!!
+        val config = Json.parse("{\"name\":\"advisor\",\"model\":\"larger-model\"}")
+        for (kind in ["web_fetch", "code_execution", "tool_search", "future_server_tool"]) {
+            val request = LlmRequest([Message([Text("q")])], tools = [Server(ToolKey("tool"),
+                ServerTool.Native(NativeToolDefinition(dialect.id, kind, config)))])
+            assertEquals("/tools/0", assertFailsWith<LlmRequestException> { counter.encodeRequest("m", request); Unit }.path)
+        }
+        val advisor = LlmRequest([Message([Text("q")])], tools = [Server(ToolKey("tool"),
+            ServerTool.Native(NativeToolDefinition(dialect.id, "advisor", config)))])
+        assertEquals("advisor", counter.encodeRequest("m", advisor)["tools"]!![0L]["type"]!!.asString())
+    }
+
+    @Test
+    fun `token count Messages keeps missing zero and exact large integers distinct`() {
+        val counter = Providers.anthropicMessages().protocol.tokenCounter()!!
+        assertEquals(None, counter.decodeResponse("m", Json.parse("{}")).inputTokens)
+        assertEquals(Some(0L), counter.decodeResponse("m", Json.parse("{\"input_tokens\":0}")).inputTokens)
+        assertEquals(Some(Long.MAX_VALUE), counter.decodeResponse("m", Json.parse("{\"input_tokens\":9223372036854775807}")).inputTokens)
+        for (raw in ["{\"input_tokens\":-1}", "{\"input_tokens\":0.5}", "{\"input_tokens\":9223372036854775808}"])
+            assertEquals("/input_tokens", assertFailsWith<LlmProtocolException> { counter.decodeResponse("m", Json.parse(raw)); Unit }.path)
+    }
+}

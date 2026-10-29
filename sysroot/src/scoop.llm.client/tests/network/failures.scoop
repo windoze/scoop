@@ -1,0 +1,60 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class LlmStreamFailureTest {
+    @Test
+    fun `missing terminal fails after delivered text without retrying or repeating the error on close`() {
+        withStreamReply(streamPrefix) suspend { client, model ->
+            val finished = FinishedCalls()
+            val stream = client.openStream(model, sampleRequest,
+                LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) })), StreamRetention.Result)
+            expectLlmFailure<LlmStreamProtocolException> suspend { stream.useAsync suspend { opened -> drainStream(opened) } }
+            assertTrue(stream.isClosed)
+            assertEquals(1L, finished.values.size)
+            assertEquals(1L, stream.metadata.attempts.size)
+            assertEquals(None, stream.metadata.attempts[0L].response.completedAt)
+            assertTrue(stream.metadata.attempts[0L].response.firstTextAt != None)
+            expectLlmFailure<LlmStreamProtocolException> suspend { stream.result(); Unit }
+        }
+    }
+
+    @Test
+    fun `stream body limit uses the existing read limit failure`() {
+        withStreamReply(streamReply) suspend { client, model ->
+            val stream = client.openStream(model, sampleRequest, LlmCallOptions(maxResponseBytes = 5L))
+            val error = expectLlmFailure<ReadLimitException> suspend { stream.useAsync suspend { opened -> drainStream(opened) } }
+            assertEquals(5L, error.maxBytes)
+            assertEquals(LlmCallOutcome.Failed, stream.metadata.outcome)
+        }
+    }
+
+    @Test
+    fun `operation and callback failures are delivered once with both causes`() {
+        withStreamReply("data: invalid\n\n") suspend { client, model ->
+            val stream = client.openStream(model, sampleRequest, LlmCallOptions(onFinished = Some(suspend { _ ->
+                throw IllegalStateException(Some("callback"))
+            })))
+            val error = expectLlmFailure<ResourceUseException> suspend { stream.useAsync suspend { opened -> drainStream(opened) } }
+            assertTrue(error.primaryFailure is LlmStreamProtocolException)
+            assertTrue(error.cleanupFailure is IllegalStateException)
+            stream.close()
+        }
+    }
+
+    @Test
+    fun `completion callback cannot wait for its own stream`() {
+        withStreamReply(streamReply) suspend { client, model ->
+            val saved = ArrayList<LlmStream>()
+            val stream = client.openStream(model, sampleRequest, LlmCallOptions(onFinished = Some(suspend { _ -> saved[0L].close() })))
+            saved.add(stream)
+            val error = expectLlmFailure<IllegalStateException> suspend { stream.useAsync suspend { opened -> drainStream(opened) } }
+            assertTrue(stream.isClosed)
+            assertEquals(LlmCallOutcome.Completed, stream.metadata.outcome)
+            assertEquals(Some("cannot await stream.close from its own generation or callback"), error.message)
+        }
+    }
+}

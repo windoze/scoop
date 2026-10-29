@@ -1,0 +1,66 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeConverseRequest(dialect: ConverseDialect, request: LlmRequest): JsonValue {
+    val messages = ArrayList<JsonValue>()
+    val results = ArrayList<JsonValue>()
+    var index = 0L
+    for (item in request.input) {
+        val path = "/input/" + index.toString()
+        when (item) {
+            case ToolResult(call, content, isError, extensions) ->
+                results.add(encodeConverseToolResult(dialect.id, call, content, isError, extensions, path))
+            case Message(content, role, extensions) -> {
+                flushConverseResults(messages, results)
+                val name = when (role) {
+                    case User -> "user"
+                    case Assistant -> "assistant"
+                    else -> throw LlmRequestException(path + "/role", "Converse global instructions belong to request.system")
+                }
+                val message = JsonObjectBuilder().add("role", JsonValue.fromString(name))
+                    .add("content", encodeConverseContent(dialect.id, content, path + "/content", name)).build()
+                messages.add(mergeLlmExtensions(message, extensions, dialect.id, ["role", "content"], path))
+            }
+            case History(history) -> {
+                flushConverseResults(messages, results)
+                appendConverseHistory(messages, history, dialect.id, path + "/history")
+            }
+        }
+        index += 1L
+    }
+    flushConverseResults(messages, results)
+    val body = JsonObjectBuilder().add("messages", JsonValue.fromArray(messages))
+    if (request.system.size != 0L) body.add("system", encodeConverseSystem(dialect.id, request.system))
+    for ((name, value) in dialect.encodeOptions(request).members()) {
+        if (name == "messages" || name == "system" || name == "toolConfig" || name == "model" || name == "modelId" || name == "stream")
+            throw LlmRequestException("/options", "dialect options cannot override Converse routing, content or tools")
+        body.add(name, value)
+    }
+    val tools = encodeConverseTools(dialect, request)
+    if (llmPresent(tools)) body.add("toolConfig", tools!!)
+    return mergeConverseExtensions(body.build(), request.extensions, dialect.id)
+}
+
+private fun flushConverseResults(messages: ArrayList<JsonValue>, results: ArrayList<JsonValue>) {
+    if (results.size == 0L) return
+    messages.add(JsonObjectBuilder().add("role", JsonValue.fromString("user")).add("content", JsonValue.fromArray(results)).build())
+    results.clear()
+}
+
+private fun appendConverseHistory(messages: ArrayList<JsonValue>, history: LlmHistory, dialect: DialectId, path: String) {
+    requireLlmOwner(history.dialect, dialect, path + "/dialect")
+    if (llmPresent(history.context)) throw LlmRequestException(path + "/context", "Converse history has no implicit server state")
+    var index = 0L
+    for (item in history.items) {
+        val itemPath = path + "/items/" + index.toString()
+        if (item.kind != JsonValueKind.Object) throw LlmRequestException(itemPath, "history requires assistant messages")
+        val role = item["role"] ?: throw LlmRequestException(itemPath + "/role", "missing history role")
+        if (role.kind != JsonValueKind.String || role.asString() != "assistant")
+            throw LlmRequestException(itemPath + "/role", "history requires assistant messages")
+        val content = item["content"] ?: throw LlmRequestException(itemPath + "/content", "missing history content")
+        if (content.kind != JsonValueKind.Array) throw LlmRequestException(itemPath + "/content", "history content must be an array")
+        messages.add(item)
+        index += 1L
+    }
+}

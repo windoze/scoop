@@ -1,0 +1,60 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeGenerateContentTools(result: JsonObjectBuilder, dialect: DialectId, request: LlmRequest) {
+    val tools = ArrayList<JsonValue>()
+    val names = ArrayList<String>()
+    val servers = ArrayList<String>()
+    var selected: String? = None
+    val selectedKey = when (request.options.toolChoice) { case Specific(key) -> Some(key); else -> None }
+    var index = 0L
+    for (tool in request.tools) {
+        val path = "/tools/" + index.toString()
+        when (tool) {
+            case ClientFunction(key, name, parameters, description, strict, extensions) -> {
+                requireGenerateContentFunctionName(name, path + "/name")
+                for (previous in names) if (previous == name) throw LlmRequestException(path + "/name", "duplicate function name")
+                names.add(name)
+                if (strict != None) throw LlmRequestException(path + "/strict", "generateContent has no per-function strict setting")
+                if (selectedKey == Some(key)) selected = Some(name)
+                val declaration = JsonObjectBuilder().add("name", JsonValue.fromString(name)).add("description", JsonValue.fromString(description))
+                    .add("parametersJsonSchema", parameters).build()
+                val extended = mergeLlmExtensions(declaration, extensions, dialect,
+                    ["name", "description", "parameters", "parametersJsonSchema", "parameters_json_schema", "strict"], path)
+                tools.add(JsonObjectBuilder().add("functionDeclarations", JsonValue.fromArray([extended])).build())
+            }
+            case Server(_, definition, extensions) -> {
+                val (kind, value) = encodeGenerateContentServerTool(dialect, definition, extensions, path)
+                for (previous in servers) if (previous == kind && kind != "mcpServers")
+                    throw LlmRequestException(path, "duplicate singleton server tool")
+                servers.add(kind)
+                tools.add(value)
+            }
+            else -> throw LlmRequestException(path, "generateContent requires function declarations or supported server tools")
+        }
+        index += 1L
+    }
+    if (tools.size != 0L) result.add("tools", JsonValue.fromArray(tools))
+    if (request.options.toolChoice == ToolChoice.Auto) return
+    if (servers.size != 0L) throw LlmRequestException("/options/toolChoice", "function calling mode cannot control server tools")
+    val mode = when (request.options.toolChoice) {
+        case None -> "NONE"
+        case Required -> {
+            if (names.size == 0L) throw LlmRequestException("/options/toolChoice", "required tool choice needs functions")
+            "ANY"
+        }
+        case Specific(_) -> "ANY"
+        case Auto -> return
+    }
+    val config = JsonObjectBuilder().add("mode", JsonValue.fromString(mode))
+    if (selected != None) config.add("allowedFunctionNames", Json.encodeToValue([selected!!]))
+    result.add("toolConfig", JsonObjectBuilder().add("functionCallingConfig", config.build()).build())
+}
+
+internal fun requireGenerateContentFunctionName(name: String, path: String) {
+    if (name.length == 0L || name.length > 128L) throw LlmRequestException(path, "function name has an invalid length")
+    for (character in name) if (!((character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z') ||
+        (character >= '0' && character <= '9') || character == '_' || character == '-' || character == ':' || character == '.'))
+        throw LlmRequestException(path, "invalid function name character")
+}

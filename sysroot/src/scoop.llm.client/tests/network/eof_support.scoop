@@ -1,0 +1,54 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.JsonValue
+import scoop.llm.client.*
+import scoop.url.Url
+
+internal enum MockEofMode { Chat, Empty, Unfinished }
+
+/** Exercises transport EOF independently of the provider's event vocabulary. */
+private class MockEofProtocol(val mode: MockEofMode) : LlmSseProtocol {
+    private val chat = ChatProtocol(OpenAiChatDialect())
+    public override val dialectId: DialectId get() = chat.dialectId
+    public override fun generationUrl(baseUrl: Url, modelId: String): Url = chat.generationUrl(baseUrl, modelId)
+    public override fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean): JsonValue = chat.encodeRequest(modelId, request, stream)
+    public override fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse = chat.decodeResponse(value, request)
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException = chat.decodeError(status, body, truncated)
+    public override fun createStreamDecoder(request: LlmRequest, retention: StreamRetention): LlmSseDecoder =
+        MockEofDecoder(chat.createStreamDecoder(request, retention), mode, retention)
+}
+
+private class MockEofDecoder(val inner: LlmSseDecoder, val mode: MockEofMode, val retention: StreamRetention) : LlmSseDecoder {
+    private var emptyFinished = false
+    public override val isFinished: Boolean get() = if (mode == Empty) emptyFinished else inner.isFinished
+    public override val responseId: String? get() = inner.responseId
+    public override val usage: LlmUsage get() = if (emptyFinished) LlmUsage(completeness = Final) else inner.usage
+    public override fun accept(event: String, data: String): LlmStreamUpdate = inner.accept(event, data)
+    public override fun endInput(): LlmStreamUpdate {
+        if (mode == Chat) return inner.accept("message", "[DONE]")
+        if (mode == Empty) emptyFinished = true
+        return LlmStreamUpdate([Usage(usage)])
+    }
+    public override fun response(): LlmResponse {
+        if (mode != Empty) return inner.response()
+        if (!isFinished) throw LlmOutputException(Incomplete, "empty mock stream has not ended")
+        if (retention != StreamRetention.Result) throw LlmOutputException(ResultNotRetained, "empty mock result was not retained")
+        return LlmResponse(OpenAiChatDialect().id, [], usage = usage)
+    }
+}
+
+internal fun withEofReply(body: String, mode: MockEofMode, block: suspend (LlmClient, LlmModel) -> Unit) {
+    withLlmServer suspend { _, scope, listener, original ->
+        val model = LlmEndpoint(LlmProvider("eof-mock", MockEofProtocol(mode)), LlmAuth.none(), Some(original.baseUrl)).model("m")
+        val serving = scope.launch suspend {
+            AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                connection.receiveRequest()!!.body.readAllBytes(4096L)
+                sendLlmReply(connection, 200U, body, streamFields)
+            }
+        }
+        withLlmClient suspend { client -> block(client, model) }
+        serving.join()
+    }
+}

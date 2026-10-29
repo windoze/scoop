@@ -1,0 +1,73 @@
+package scoop.llm.client.tests.interactions
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class InteractionsStreamTextTest {
+    @Test
+    fun `Interactions SSE interleaves steps while preserving text media summary signatures and history`() {
+        val decoder = interactionsStream()
+        interactionsBegin(decoder)
+        interactionsStart(decoder, 0L, "{\"type\":\"thought\"}")
+        interactionsStart(decoder, 1L, "{\"type\":\"model_output\"}")
+        interactionsDelta(decoder, 0L, "{\"type\":\"thought_summary\",\"content\":{\"type\":\"text\",\"text\":\"reason\"}}")
+        interactionsDelta(decoder, 0L, "{\"type\":\"thought_summary\",\"content\":{\"type\":\"text\",\"text\":\"more\"}}")
+        val first = interactionsDelta(decoder, 1L, "{\"type\":\"text\",\"text\":\"你\"}")
+        assertTrue(first.hasText && first.hasOutput)
+        assertEquals("你", interactionsText(first))
+        interactionsDelta(decoder, 1L, "{\"type\":\"text\",\"text\":\"好\"}")
+        interactionsDelta(decoder, 1L, "{\"type\":\"image\",\"mime_type\":\"image/png\",\"data\":\"YQ==\"}")
+        val last = interactionsDelta(decoder, 1L, "{\"type\":\"text\",\"text\":\"!\"}")
+        when (last.events[0L]) { case TextDelta(delta) -> { assertEquals(1L, delta.location.itemIndex); assertEquals(2L, delta.partIndex) }; else -> fail() }
+        interactionsDelta(decoder, 0L, "{\"type\":\"thought_signature\",\"signature\":\"opaque\"}")
+        interactionsStop(decoder, 1L)
+        interactionsStop(decoder, 0L)
+        interactionsEnd(decoder)
+        assertTrue(decoder.isFinished)
+        assertTrue(decoder.accept("done", "[DONE]").isKeepAlive)
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(decoder.response()))
+        assertEquals("你好!", response.text)
+        when (response.candidate(0L).items[1L]) { case Message(parts, _) -> when (parts[1L]) {
+            case Media(OutputMediaKind.Image, MediaSource.Bytes(bytes, _)) -> assertEquals("a", String.fromUtf8(bytes))
+            else -> fail()
+        }; else -> fail() }
+        assertEquals(None, response.createdAt)
+        assertEquals(None, response.model)
+        val history = interactionsHistory(response)
+        assertEquals("opaque", history[0L]["signature"]!!.asString())
+        assertEquals(2L, history[0L]["summary"]!!.size)
+        assertEquals(3L, history[1L]["content"]!!.size)
+        assertEquals("你好", history[1L]["content"]!![0L]["text"]!!.asString())
+        val request = LlmRequest(response.toInput())
+        assertEquals(2L, interactionsEncode(request)["input"]!!.size)
+    }
+
+    @Test
+    fun `Interactions SSE final step snapshots deliver only missing text and preserve observed signatures`() {
+        val decoder = interactionsStream()
+        interactionsBegin(decoder)
+        interactionsStart(decoder, 0L, "{\"type\":\"thought\",\"signature\":\"signed\"}")
+        interactionsStop(decoder, 0L)
+        interactionsStart(decoder, 1L, "{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"{\"}]}")
+        interactionsDelta(decoder, 1L, "{\"type\":\"text\",\"text\":\"\\\"count\\\":\"}")
+        val update = interactionsEnd(decoder, extra = "{\"steps\":[{\"type\":\"thought\"},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"{\\\"count\\\":7}\"}]}]}")
+        assertEquals("7}", interactionsText(update))
+        assertEquals(7L, decoder.response().decodeOutput<InteractionsCount>().count)
+        assertEquals("signed", interactionsHistory(decoder.response())[0L]["signature"]!!.asString())
+    }
+
+    @Test
+    fun `Interactions SSE EventsOnly delivers output and completion without retaining a response`() {
+        val decoder = interactionsStream(EventsOnly)
+        interactionsBegin(decoder)
+        interactionsStart(decoder, 0L, "{\"type\":\"model_output\"}")
+        assertEquals("text", interactionsText(interactionsDelta(decoder, 0L, "{\"type\":\"text\",\"text\":\"text\"}")))
+        interactionsStop(decoder, 0L)
+        interactionsEnd(decoder)
+        assertEquals(UsageCompleteness.Final, decoder.usage.completeness)
+        assertEquals(LlmOutputFailure.ResultNotRetained, assertFailsWith<LlmOutputException> { decoder.response(); Unit }.reason)
+        assertEquals(0L, decoder.endInput().events.size)
+    }
+}

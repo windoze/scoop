@@ -1,0 +1,75 @@
+package scoop.llm.client.tests.converse
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ConverseToolsTest {
+    @Test
+    fun `Converse parallel client calls retain actual IDs names and exact JSON arguments`() {
+        val value = converseBody("[{\"toolUse\":{\"toolUseId\":\"provider-id\",\"name\":\"lookup\",\"input\":{\"count\":9007199254740993}}}," +
+            "{\"toolUse\":{\"toolUseId\":\"second\",\"name\":\"lookup\",\"input\":{\"count\":2}}}]", "tool_use")
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(converseDecode(value)))
+        assertEquals(2L, response.clientToolCalls.size)
+        assertEquals(Some("provider-id"), response.clientToolCalls[0L].reference.id)
+        assertEquals(ToolKey("local"), response.clientToolCalls[0L].toolKey)
+        assertEquals(9007199254740993L, response.clientToolCalls[0L].decodeArguments<ConverseAnswer>().count)
+        assertEquals("lookup", response.clientToolCalls[0L].reference.context!!["toolUse"]!!["name"]!!.asString())
+        assertEquals(2L, converseHistory(response)["content"]!!.size)
+    }
+
+    @Test
+    fun `Converse invalid incomplete unknown and answered client calls are never executable`() {
+        for (reason in ["end_turn", "max_tokens", "malformed_tool_use", "future"]) {
+            val response = converseDecode(converseBody("[{\"toolUse\":{\"toolUseId\":\"one\",\"name\":\"lookup\",\"input\":{}}}]", reason))
+            assertEquals(0L, response.clientToolCalls.size)
+            when (response.candidate(0L).items[0L]) { case ClientToolCall(call) -> when (call.input) { case Incomplete(_) -> assertFalse(call.isExecutable); else -> fail() }; else -> fail() }
+        }
+        val invalid = converseDecode(converseBody("[{\"toolUse\":{\"toolUseId\":\"one\",\"name\":\"lookup\",\"input\":[1]}}]", "tool_use"))
+        when (invalid.candidate(0L).items[0L]) { case ClientToolCall(call) -> when (call.input) { case Invalid(raw, _) -> assertEquals("[1]", raw); else -> fail() }; else -> fail() }
+        val answered = converseDecode(converseBody("[{\"toolUse\":{\"toolUseId\":\"one\",\"name\":\"lookup\",\"input\":{}}}," +
+            "{\"toolResult\":{\"toolUseId\":\"one\",\"content\":[{\"text\":\"done\"}]}}," +
+            "{\"toolUse\":{\"toolUseId\":\"two\",\"name\":\"lookup\",\"type\":\"future\",\"input\":{}}}]", "tool_use"))
+        assertEquals(0L, answered.clientToolCalls.size)
+        for (item in answered.candidate(0L).items) when (item) { case Native(_, _) -> assertTrue(true); else -> fail() }
+        val duplicateNames = LlmRequest([], tools = [ClientFunction(ToolKey("a"), "lookup", Json.parse("{}")), ClientFunction(ToolKey("b"), "lookup", Json.parse("{}"))])
+        assertEquals(0L, converseDecode(converseBody("[{\"toolUse\":{\"toolUseId\":\"a\",\"name\":\"lookup\",\"input\":{}}}]", "tool_use"), duplicateNames).clientToolCalls.size)
+    }
+
+    @Test
+    fun `Converse server results from earlier calls retain kind status and native execution ownership`() {
+        val request = LlmRequest([], tools = [Server(ToolKey("code"), Native(NativeToolDefinition(converseDialect, "systemTool",
+            Json.parse("{\"name\":\"nova_code_interpreter\"}")))), ClientFunction(ToolKey("local-code"), "nova_code_interpreter", Json.parse("{}"))])
+        for ((status, expected) in [("success", ServerToolStatus.Completed), ("error", ServerToolStatus.Failed), ("future", ServerToolStatus.Unknown)]) {
+            val response = converseDecode(converseBody("[{\"toolResult\":{\"toolUseId\":\"old\",\"type\":\"nova_code_interpreter_result\",\"status\":\"" + status +
+                "\",\"content\":[{\"json\":{\"value\":1e400}},{\"text\":\"output\"}]}}]"), request)
+            val activity = response.serverToolActivities[0L]
+            assertEquals(ServerToolKind.CodeExecution, activity.kind)
+            assertEquals(Some(ToolKey("code")), activity.toolKey)
+            assertEquals(expected, activity.status)
+            assertEquals(Some("old"), activity.id)
+            assertEquals(2L, activity.result.size)
+            assertEquals(0L, response.clientToolCalls.size)
+            assertEquals("", response.text)
+        }
+        val unknown = converseDecode(converseBody("[{\"toolResult\":{\"toolUseId\":\"old\",\"type\":\"future\",\"content\":[]}}]"), request)
+        assertEquals(0L, unknown.serverToolActivities.size)
+        val missing = converseDecode(converseBody("[{\"toolResult\":{\"toolUseId\":\"old\",\"type\":\"nova_code_interpreter_result\",\"content\":[]}}]"), request)
+        assertEquals(ServerToolStatus.Unknown, missing.serverToolActivities[0L].status)
+        val server = converseDecode(converseBody("[{\"toolUse\":{\"toolUseId\":\"new\",\"name\":\"nova_code_interpreter\",\"type\":\"server_tool_use\",\"input\":{}}}]", "tool_use"), request)
+        assertEquals(0L, server.clientToolCalls.size)
+        assertEquals(Some(ToolKey("code")), server.serverToolActivities[0L].toolKey)
+    }
+
+    @Test
+    fun `Converse duplicate IDs empty identities and incompatible server results expose wire paths`() {
+        val call = "{\"toolUse\":{\"toolUseId\":\"one\",\"name\":\"lookup\",\"input\":{}}}"
+        assertConverseFailure(converseBody("[" + call + "," + call + "]"), "/output/message/content/1/toolUse/toolUseId")
+        assertConverseFailure(converseBody("[{\"toolUse\":{\"toolUseId\":\"\",\"name\":\"lookup\",\"input\":{}}}]"), "/output/message/content/0/toolUse/toolUseId")
+        assertConverseFailure(converseBody("[{\"toolUse\":{\"toolUseId\":\"one\",\"name\":\"\",\"input\":{}}}]"), "/output/message/content/0/toolUse/name")
+        assertConverseFailure(converseBody("[{\"toolUse\":{\"toolUseId\":\"one\",\"name\":\"lookup\"}}]"), "/output/message/content/0/toolUse/input")
+        assertConverseFailure(converseBody("[" + call + ",{\"toolResult\":{\"toolUseId\":\"one\",\"type\":\"nova_code_interpreter_result\",\"content\":[]}}]"), "/output/message/content/1/toolResult/toolUseId")
+        assertConverseFailure(converseBody("[{\"toolResult\":{\"toolUseId\":\"\",\"content\":[]}}]"), "/output/message/content/0/toolResult/toolUseId")
+    }
+}

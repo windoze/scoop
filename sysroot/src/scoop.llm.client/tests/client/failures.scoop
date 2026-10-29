@@ -1,0 +1,166 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.Duration
+
+private class RejectedAuth(val error: LlmServiceException) : LlmAuth {
+    var count = 0L
+    public override suspend fun fields(request: LlmAuthRequest): Array<HttpField> { count += 1L; throw error }
+}
+
+@Test
+private class LlmFailureTest {
+    @Test
+    fun `authentication failures do not acquire retry eligibility from their exception type`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            withLlmClient suspend { client ->
+                val original = LlmServiceException(DeepSeekChatDialect().id, 503U, [], false, retryable = true)
+                val auth = RejectedAuth(original)
+                val finished = FinishedCalls()
+                val error = expectLlmFailure<LlmServiceException> suspend {
+                    client.generate(LlmEndpoint(Providers.deepSeekChat(), auth).model("m"), sampleRequest,
+                        LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                }
+                assertSame(original, error)
+                assertEquals(1L, auth.count)
+                assertEquals(1L, finished.values[0L].attempts.size)
+                assertEquals(None, finished.values[0L].attempts[0L].request.sentAt)
+            }
+        }
+    }
+
+    @Test
+    fun `Retry After is not shortened by the backoff cap and remains cancellable`() {
+        withLlmServer suspend { _, scope, listener, endpoint ->
+            val release = LlmGate()
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    connection.receiveRequest()!!.body.readAllBytes(4096L)
+                    sendLlmReply(connection, 429U, "{\"error\":{\"code\":\"rate_limit_exceeded\"}}",
+                        [HttpField("Retry-After".toByteArray(), "10".toByteArray())])
+                    release.await()
+                }
+            }
+            val auth = RecordingAuth()
+            val finished = FinishedCalls()
+            try {
+                withLlmClient suspend { client ->
+                    expectLlmFailure<LlmTimeoutException> suspend {
+                        client.generate(LlmEndpoint(endpoint.provider, auth, Some(endpoint.baseUrl)).model("m"), sampleRequest,
+                            LlmCallOptions(timeouts = LlmTimeouts(total = Some(Duration.milliseconds(750L))),
+                                retries = LlmRetryOptions(initialDelay = Duration.ZERO, maxDelay = Duration.ZERO),
+                                onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                    }
+                }
+                assertEquals(1L, auth.requests.size)
+                assertEquals(1L, finished.values[0L].attempts.size)
+                assertEquals(Some(429U), finished.values[0L].attempts[0L].status)
+            } finally { release.signal() }
+            serving.join()
+        }
+    }
+
+    @Test
+    fun `invalid successful JSON is not retried and callback failures preserve the operation error`() {
+        withLlmServer suspend { _, scope, listener, endpoint ->
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    connection.receiveRequest()!!.body.readAllBytes(4096L)
+                    sendLlmReply(connection, 200U, "{invalid")
+                }
+            }
+            val auth = RecordingAuth()
+            val finished = FinishedCalls()
+            val callback = IllegalStateException(Some("callback failed"))
+            withLlmClient suspend { client ->
+                val error = expectLlmFailure<ResourceUseException> suspend {
+                    client.generate(LlmEndpoint(endpoint.provider, auth, Some(endpoint.baseUrl)).model("m"), sampleRequest,
+                        LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value); throw callback }))); Unit
+                }
+                assertTrue(error.primaryFailure is DecodingException)
+                assertSame(callback, error.cleanupFailure)
+            }
+            assertEquals(1L, auth.requests.size)
+            assertEquals(LlmCallOutcome.Failed, finished.values[0L].outcome)
+            assertEquals(Some(200U), finished.values[0L].attempts[0L].status)
+            assertEquals(None, finished.values[0L].attempts[0L].response.completedAt)
+            serving.join()
+        }
+    }
+
+    @Test
+    fun `cancellation after informational headers never invents final receive time`() {
+        for (cancelCaller in [true, false]) {
+            withLlmServer suspend { _, scope, listener, endpoint ->
+                val observed = LlmGate()
+                val release = LlmGate()
+                val serving = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        connection.receiveRequest()!!.body.readAllBytes(4096L)
+                        connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 103U)).finish()
+                        release.await()
+                    }
+                }
+                val httpOptions = HttpClientConfig(observer = Some(HttpObserver(suspend { event ->
+                    if (event.kind == HttpCallEventKind.ResponseHeaders && event.metrics.status == Some(103U)) observed.signal()
+                })))
+                HttpClient.open(scope, httpOptions).useAsync suspend { http ->
+                    val client = LlmClient.open(scope, Some(http))
+                    val finished = FinishedCalls()
+                    val errors = ArrayList<Throwable>()
+                    try {
+                        val executing = scope.launch suspend {
+                            try { client.generate(endpoint.model("m"), sampleRequest,
+                                LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))) }
+                            catch (error: Throwable) { errors.add(error) }
+                            Unit
+                        }
+                        observed.await()
+                        if (cancelCaller) executing.cancel() else client.close()
+                        executing.join()
+                        assertEquals(1L, errors.size)
+                        if (cancelCaller) assertTrue(errors[0L] is CancellationException)
+                        else assertTrue(errors[0L] is LlmClientClosedException)
+                        assertEquals(1L, finished.values.size)
+                        val attempt = finished.values[0L].attempts[0L]
+                        assertTrue(attempt.request.sentAt != None)
+                        assertEquals(None, attempt.response.receivedAt)
+                        assertFalse(http.isClosed)
+                    } finally { client.close(); release.signal() }
+                }
+                serving.join()
+            }
+        }
+    }
+
+    @Test
+    fun `duplicate authentication fields fail before sending and service errors retain invalid bytes`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            withLlmClient suspend { client ->
+                val model = LlmEndpoint(Providers.openAiChat(), LlmAuth.bearer("new"),
+                    fields = [HttpField("authorization".toByteArray(), "Bearer old".toByteArray())]).model("m")
+                val finished = FinishedCalls()
+                expectLlmFailure<IllegalArgumentException> suspend {
+                    client.generate(model, sampleRequest, LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                }
+                assertEquals(1L, finished.values[0L].attempts.size)
+                assertEquals(None, finished.values[0L].attempts[0L].request.sentAt)
+            }
+        }
+        val bytes = [255.toByte()]
+        val openAi = Providers.openAiChat().protocol.decodeError(429U, bytes, false)
+        val deepSeek = Providers.deepSeekChat().protocol.decodeError(503U, bytes, false)
+        assertFalse(openAi.retryable)
+        assertTrue(deepSeek.retryable)
+        assertLlmBytes(bytes, openAi.body)
+        assertLlmBytes(bytes, deepSeek.body)
+        assertEquals(None, deepSeek.code)
+    }
+}

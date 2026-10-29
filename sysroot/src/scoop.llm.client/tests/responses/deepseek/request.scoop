@@ -1,0 +1,82 @@
+package scoop.llm.client.tests.responses.deepseek
+
+import scoop.llm.client.tests.generationProtocol
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class DeepSeekResponsesRequestTest {
+    @Test
+    fun `DeepSeek Responses defaults use a distinct provider without model name routing`() {
+        val provider = Providers.deepSeekResponses()
+        assertEquals("deepseek-responses", provider.name)
+        assertEquals("https://api.deepseek.com", provider.defaultBaseUrl!!.toString())
+        assertEquals(dsResponses.dialectId, provider.protocol.dialectId)
+        assertTrue(provider.protocol is ResponsesProtocol)
+        assertEquals("https://example.test/prefix/responses?deployment=x",
+            generationProtocol(provider).generationUrl(Url.parse("https://example.test/prefix?deployment=x"), "arbitrary/model").toString())
+        val body = generationProtocol(provider).encodeRequest("arbitrary/model", dsRequest())
+        assertEquals(2L, body.size)
+        assertEquals("arbitrary/model", body["model"]!!.asString())
+        assertEquals("question", body["input"]!![0L]["content"]!!.asString())
+        val request = LlmRequest([Message([Text("developer")], Developer)], system = [Text("system")],
+            extensions = [DialectExtension(dsResponses.dialectId, Json.parse("{\"top_logprobs\":0,\"future_option\":null}"))])
+        val restored = Json.decodeFromString<LlmRequest>(Json.encodeToString(request))
+        val wire = generationProtocol(provider).encodeRequest("arbitrary/model", restored, true)
+        assertTrue(wire["stream"]!!.asBoolean())
+        assertEquals("developer", wire["input"]!![0L]["role"]!!.asString())
+        assertEquals("system", wire["instructions"]!!.asString())
+        assertEquals(JsonValueKind.Null, wire["future_option"]!!.kind)
+    }
+
+    @Test
+    fun `DeepSeek Responses thinking controls use explicit top p modes and preserve schema options`() {
+        val defaultThinking = dsResponses.encodeRequest("m", LlmRequest(dsRequest().input,
+            options = LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(true))))))
+        assertFalse(defaultThinking.containsKey("reasoning"))
+        for (effort in ["minimal", "low", "medium", "high", "xhigh", "max"]) {
+            val body = dsResponses.encodeRequest("m", LlmRequest(dsRequest().input,
+                options = LlmGenerationOptions(reasoning = Some(ReasoningOptions(effort = Some(effort))))))
+            assertEquals(effort, body["reasoning"]!!["effort"]!!.asString())
+        }
+        val thinking = ResponsesProtocol(DeepSeekResponsesDialect(DeepSeekTopPMode.Thinking))
+        assertEquals(0.95, thinking.encodeRequest("unknown-model", LlmRequest(dsRequest().input,
+            options = LlmGenerationOptions(topP = Some(0.95))))["top_p"]!!.asDouble())
+        val normal = ResponsesProtocol(DeepSeekResponsesDialect(DeepSeekTopPMode.NonThinking))
+        val options = LlmGenerationOptions(temperature = Some(0.0), topP = Some(0.5), maxOutputTokens = Some(32UL),
+            reasoning = Some(ReasoningOptions(enabled = Some(false))),
+            output = JsonSchema(Json.parse("{\"type\":\"object\"}"), "answer", Some(""), Some(false)))
+        val body = normal.encodeRequest("unknown-model", LlmRequest(dsRequest().input, options = options))
+        assertEquals("none", body["reasoning"]!!["effort"]!!.asString())
+        assertEquals(0.0, body["temperature"]!!.asDouble())
+        assertEquals(32L, body["max_output_tokens"]!!.asLong())
+        assertFalse(body["text"]!!["format"]!!["strict"]!!.asBoolean())
+        for ((invalid, path) in [(LlmGenerationOptions(temperature = Some(1.0)), "/options/temperature"),
+            (LlmGenerationOptions(topP = Some(0.95)), "/options/topP"),
+            (LlmGenerationOptions(parallelToolCalls = Some(false)), "/options/parallelToolCalls"),
+            (LlmGenerationOptions(topK = Some(1UL)), "/options/topK"),
+            (LlmGenerationOptions(stop = Some([])), "/options/stop"),
+            (LlmGenerationOptions(candidates = Some(2UL)), "/options/candidates"),
+            (LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(false), effort = Some("low")))), "/options/reasoning/enabled")])
+            assertDsRequestFailure(LlmRequest(dsRequest().input, options = invalid), path)
+        assertDsRequestFailure(LlmRequest(dsRequest().input, options = LlmGenerationOptions(topP = Some(0.94))), "/options/topP", thinking)
+        assertDsRequestFailure(LlmRequest(dsRequest().input, options = LlmGenerationOptions(topP = Some(0.5))), "/options/topP", normal)
+    }
+
+    @Test
+    fun `DeepSeek Responses refuses ignored stateful fields while retaining extension ownership`() {
+        assertDsRequestFailure(LlmRequest([]), "/input")
+        assertEquals("system", dsResponses.encodeRequest("m", LlmRequest([], system = [Text("system")]))["instructions"]!!.asString())
+        for (name in ["previous_response_id", "conversation", "store", "background", "metadata", "include", "prompt", "truncation",
+            "service_tier", "safety_identifier", "prompt_cache_key", "prompt_cache_retention", "context_management", "stream_options", "max_tool_calls"]) {
+            val value = JsonObjectBuilder().add(name, JsonValue.nullValue()).build()
+            assertDsRequestFailure(LlmRequest(dsRequest().input, extensions = [DialectExtension(dsResponses.dialectId, value)]),
+                "/extensions/0/value/" + name)
+        }
+        assertDsRequestFailure(LlmRequest(dsRequest().input, extensions = [DialectExtension(OpenAiResponsesDialect().id, Json.parse("{}"))]),
+            "/extensions/0/dialect")
+    }
+}

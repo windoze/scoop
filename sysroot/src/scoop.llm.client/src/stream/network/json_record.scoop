@@ -1,0 +1,14 @@
+package scoop.llm.client
+
+import scoop.asyncio.*
+
+/** A single JSON response is one record, including any formatting newlines inside its body. */
+internal class LlmJsonStreamRecord(val source: AsyncByteSource, val limit: Long) {
+    private var consumed = false
+
+    suspend fun next(): String? {
+        if (consumed) return None
+        consumed = true
+        return Some(String.fromUtf8(source.readAllBytes(limit)))
+    }
+}

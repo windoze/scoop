@@ -1,0 +1,38 @@
+package scoop.llm.client
+
+import scoop.http.client.HttpWebSocketSession
+import scoop.json.JsonValue
+import scoop.time.Instant
+import scoop.url.Url
+
+/** Shared transport ownership; protocol setup belongs to each public session. */
+internal class LlmWebSocketConnection(private val state: LlmWebSocketState, val socket: HttpWebSocketSession) {
+    val endpoint: LlmEndpoint get() = state.endpoint
+    val id: String get() = state.call.id
+    val startedAt: Instant get() = state.call.startedAt
+    val url: Url get() = socket.url
+    val isClosed: Boolean get() = state.lock.withLock { state.closed }
+    val failure: Throwable? get() = state.lock.withLock { state.failure }
+    fun checkLoop() { checkLlmWebSocketLoop(state) }
+
+    suspend fun send(command: JsonValue): LlmRequestTiming {
+        beginLlmWebSocketOperation(state, false)
+        val listener = currentJobOrNone()?.invokeOnCancellation { error -> state.stop(error) }
+        try { return sendLlmWebSocketMessage(state.call, socket, command) }
+        catch (error: Throwable) { failLlmWebSocketOperation(state, error) }
+        finally { listener?.dispose(); state.lock.withLock { state.writing = false } }
+    }
+
+    suspend fun <T> receive(allowBinaryJson: Boolean = false, decode: (String) -> T): (T, LlmTimePoint)? {
+        if (!beginLlmWebSocketOperation(state, true)) return None
+        val listener = currentJobOrNone()?.invokeOnCancellation { error -> state.stop(error) }
+        try {
+            val result = receiveLlmWebSocketMessage<T>(state.call, socket, endpoint.provider.protocol.dialectId, allowBinaryJson, decode)
+            if (!llmPresent(result)) awaitLlmWebSocketClosed(state)
+            return result
+        } catch (error: Throwable) { failLlmWebSocketOperation(state, error) }
+        finally { listener?.dispose(); state.lock.withLock { state.reading = false } }
+    }
+
+    suspend fun close() { closeLlmWebSocket(state) }
+}

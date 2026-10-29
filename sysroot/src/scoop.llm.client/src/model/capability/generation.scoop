@@ -1,0 +1,47 @@
+package scoop.llm.client
+
+/** Sampling controls are independent; support never enables or supplies a request value. */
+public class SamplingCapabilities public constructor(
+    public val temperature: Capability<Unit> = Unknown,
+    public val topP: Capability<Unit> = Unknown,
+    public val topK: Capability<Unit> = Unknown,
+    public val stop: Capability<Unit> = Unknown
+) {
+    public companion object : ValueEncoder<SamplingCapabilities>, ValueDecoder<SamplingCapabilities>
+}
+
+/** Each selection mode has its own support status; specific tool kinds may impose further rules. */
+public class ToolChoiceCapabilities public constructor(
+    public val auto: Capability<Unit> = Unknown,
+    public val none: Capability<Unit> = Unknown,
+    public val required: Capability<Unit> = Unknown,
+    public val specific: Capability<Unit> = Unknown
+) {
+    public companion object : ValueEncoder<ToolChoiceCapabilities>, ValueDecoder<ToolChoiceCapabilities>
+}
+
+/** Known JSON Schema dialect and keyword information, without implying arbitrary combinations. */
+public class JsonSchemaCapabilities public constructor(
+    public val dialect: String? = None,
+    public val supportedKeywords: Array<String>? = None
+) {
+    public companion object : ValueEncoder<JsonSchemaCapabilities>, ValueDecoder<JsonSchemaCapabilities>
+}
+
+/** Object output, schema output, and strict schema mode are separate protocol features. */
+public class StructuredOutputCapabilities public constructor(
+    public val jsonObject: Capability<Unit> = Unknown,
+    public val jsonSchema: Capability<JsonSchemaCapabilities> = Unknown,
+    public val strictJsonSchema: Capability<Unit> = Unknown
+) {
+    public companion object : ValueEncoder<StructuredOutputCapabilities>, ValueDecoder<StructuredOutputCapabilities>
+}
+
+/** Availability of reasoning request controls, not a promise of visible reasoning output. */
+public class ReasoningCapabilities public constructor(
+    public val enable: Capability<Unit> = Unknown,
+    public val effort: Capability<Unit> = Unknown,
+    public val budgetTokens: Capability<Unit> = Unknown
+) {
+    public companion object : ValueEncoder<ReasoningCapabilities>, ValueDecoder<ReasoningCapabilities>
+}

@@ -1,0 +1,109 @@
+package scoop.llm.client.tests.gpt_live
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class GptLiveRequestsTest {
+    @Test
+    fun minimumStartupUsesTheSelectedProtocolAndServerDefaults() {
+        val provider = Providers.openAiGptLive()
+        assertEquals(ApiProtocolId("gpt-live"), provider.protocol.dialectId.protocol)
+        assertEquals("openai-gpt-live", provider.name)
+        assertEquals("wss://api.openai.com/v1/live/sessions", gptProtocol.webSocketUrl(provider.defaultBaseUrl!!).toString())
+        assertEquals("ws://example.test/prefix/live/sessions?route=one",
+            gptProtocol.webSocketUrl(Url.parse("http://example.test/prefix?route=one")).toString())
+        assertEquals("{\"type\":\"session.start\",\"session\":{\"model\":\"explicit-model\"}}", Json.stringify(gptProtocol.encodeSessionStart("explicit-model")))
+        assertEquals("{\"type\":\"response.create\"}", Json.stringify(gptProtocol.encodeResponseCreate()))
+        assertEquals("{\"type\":\"session.close\"}", Json.stringify(gptProtocol.encodeSessionClose()))
+        gptFailure("/modelId") { gptProtocol.encodeSessionStart(""); Unit }
+        gptFailure("/endpoint/baseUrl") { gptProtocol.webSocketUrl(Url.parse("wss://example.test")); Unit }
+    }
+
+    @Test
+    fun startupHistoryAndNativeSettingsSurviveSerialization() {
+        val setup = GptLiveSetup(Some(""), [Message([Text("rule")], Developer), Message([Text("hello")]), Message([Text("reply")], Assistant)],
+            [DialectExtension(gptDialect.id, Json.parse("{\"audio\":{\"format\":{\"type\":\"audio/pcm\",\"rate\":16000},\"output\":{\"voice\":\"marin\"}},\"store\":false}"))])
+        val restored = Json.decodeFromString<GptLiveSetup>(Json.encodeToString(setup))
+        val session = gptProtocol.encodeSessionStart("m", restored, Some("start"))["session"]!!
+        assertEquals("", session["instructions"]!!.asString())
+        assertEquals("developer", session["input"]!![0]["role"]!!.asString())
+        assertEquals("input_text", session["input"]!![1]["content"]!![0]["type"]!!.asString())
+        assertEquals("output_text", session["input"]!![2]["content"]!![0]["type"]!!.asString())
+        assertEquals(16000L, session["audio"]!!["format"]!!["rate"]!!.asLong())
+        gptFailure("/input/0/role") { gptProtocol.encodeSessionStart("m", GptLiveSetup(input = [Message([Text("x")], System)])); Unit }
+        gptFailure("/input/0/content") { gptProtocol.encodeSessionStart("m", GptLiveSetup(input = [Message([Text("x"), Text("y")])])); Unit }
+        gptFailure("/input/0/content/0") { gptProtocol.encodeSessionStart("m", GptLiveSetup(input = [Message([Audio(Bytes([], "audio/pcm"))])])); Unit }
+        gptFailure("/extensions/0/value/model") {
+            gptProtocol.encodeSessionStart("m", GptLiveSetup(extensions = [DialectExtension(gptDialect.id, Json.parse("{\"model\":\"other\"}"))])); Unit
+        }
+    }
+
+    @Test
+    fun sparseUpdatesAndContextCommandsKeepTheirActualWireShape() {
+        assertEquals("{\"type\":\"session.update\",\"session\":{}}", Json.stringify(gptProtocol.encodeSessionUpdate()))
+        for (field in ["model", "instructions", "input", "audio", "store"]) {
+            gptFailure("/extensions/0/value/" + field) {
+                gptProtocol.encodeSessionUpdate([DialectExtension(gptDialect.id, JsonObjectBuilder().add(field, Json.parse("null")).build())]); Unit
+            }
+        }
+        val update = gptProtocol.encodeSessionUpdate([DialectExtension(gptDialect.id, Json.parse("{\"triggers\":[]}"))])
+        assertEquals(0L, update["session"]!!["triggers"]!!.size)
+        for (command in [gptProtocol.encodeInstructionsAppend(""), gptProtocol.encodeThinkingAppend("thinking"), gptProtocol.encodeCommentaryAppend("say")]) {
+            assertEquals(JsonValueKind.Null, command["delegation_id"]!!.kind)
+            assertEquals(3L, command.size)
+        }
+        val context = gptProtocol.encodeCommentaryAppend("result", Some("delegated"), Some("sent"))
+        assertEquals("delegated", context["delegation_id"]!!.asString())
+        assertEquals("sent", context["event_id"]!!.asString())
+        assertEquals("AP8=", gptProtocol.encodeAudioAppend([0.toByte(), (-1).toByte()])["audio"]!!.asString())
+        val raw = Json.parse("{\"type\":\"session.output_audio.fixture.play\",\"audio\":\"AAAA\",\"future\":null}")
+        val saved = Json.decodeFromString<GptLiveNativeCommand>(Json.encodeToString(GptLiveNativeCommand(gptDialect.id, raw)))
+        assertEquals(Json.stringify(raw), Json.stringify(gptProtocol.encodeNativeCommand(saved)))
+        gptFailure("/dialect") { gptProtocol.encodeNativeCommand(GptLiveNativeCommand(OpenAiRealtimeDialect().id, raw)); Unit }
+        gptFailure("/value/type") { gptProtocol.encodeNativeCommand(GptLiveNativeCommand(gptDialect.id, Json.parse("{\"type\":false}"))); Unit }
+    }
+
+    @Test
+    fun responsesDelegationUsesExistingClientAndServerToolsWithoutChangingFrontendModel() {
+        val nested = OpenAiResponsesDialect().id
+        val settings = gptDialect.responsesDelegation("backend", [gptFunction, gptSearch], Some("backend rules"),
+            Some(ULong.MAX_VALUE), Some(false), ToolChoice.Specific(ToolKey("lookup")),
+            [DialectExtension(nested, Json.parse("{\"reasoning\":{\"effort\":\"low\"}}"))])
+        val start = gptProtocol.encodeSessionStart("frontend", GptLiveSetup(extensions = [settings]))
+        val session = start["session"]!!
+        assertEquals("frontend", session["model"]!!.asString())
+        val backend = session["delegation"]!!["responses"]!!
+        assertEquals("backend", backend["model"]!!.asString())
+        assertEquals(ULong.MAX_VALUE, Json.decodeFromValue<ULong>(backend["max_output_tokens"]!!))
+        assertEquals(2L, backend["tools"]!!.size)
+        assertEquals("function", backend["tools"]!![0]["type"]!!.asString())
+        assertEquals("web_search", backend["tools"]!![1]["type"]!!.asString())
+        assertEquals("lookup", backend["tool_choice"]!!["name"]!!.asString())
+        gptFailure("/extensions/0/dialect") {
+            gptDialect.responsesDelegation("m", extensions = [DialectExtension(gptDialect.id, Json.parse("{}"))]); Unit
+        }
+        gptFailure("/tools") {
+            gptDialect.responsesDelegation("m", [Server(ToolKey("s"), WebSearch(WebSearchOptions(includeSources = Some(true))))]); Unit
+        }
+    }
+
+    @Test
+    fun responseItemsRetainResponsesOwnershipAndActualCallIdentifiers() {
+        val nested = OpenAiResponsesDialect().id
+        val call = ClientToolCallReference(nested, ToolKey("lookup"), Some("actual-call"),
+            Some(Json.parse("{\"type\":\"function_call\",\"call_id\":\"actual-call\",\"name\":\"lookup\",\"arguments\":\"{}\"}")))
+        val item = gptProtocol.encodeResponseItemCreate(ToolResult(call, [Text("done")]))["item"]!!
+        assertEquals("function_call_output", item["type"]!!.asString())
+        assertEquals("actual-call", item["call_id"]!!.asString())
+        assertEquals("done", item["output"]!!.asString())
+        val history = Json.parse("{\"type\":\"mcp_approval_response\",\"approval_request_id\":\"approval\",\"approve\":false}")
+        assertEquals(Json.stringify(history), Json.stringify(gptProtocol.encodeResponseItemCreate(History(LlmHistory(nested, [history])))["item"]!!))
+        gptFailure("/item") { gptProtocol.encodeResponseItemCreate(History(LlmHistory(nested, []))); Unit }
+        gptFailure("/input/0/call/dialect") {
+            gptProtocol.encodeResponseItemCreate(ToolResult(ClientToolCallReference(gptDialect.id, ToolKey("x"), Some("call")), [Text("")])); Unit
+        }
+    }
+}

@@ -1,0 +1,17 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+public class RealtimeSent public constructor(public val sessionId: String, public val command: JsonValue, public val timing: LlmRequestTiming) {
+    public companion object : ValueEncoder<RealtimeSent>, ValueDecoder<RealtimeSent>
+}
+
+public class RealtimeReceived public constructor(public val sessionId: String, public val message: RealtimeMessage, public val received: LlmTimePoint) {
+    public companion object : ValueEncoder<RealtimeReceived>, ValueDecoder<RealtimeReceived>
+}
+
+public class RealtimeSessionClosedException public constructor() : Exception(Some("Realtime session is closed"))
+
+/** A valid server error while opening; it is not a malformed event or an HTTP response body. */
+public class RealtimeSessionRejectedException public constructor(public val received: RealtimeReceived) :
+    Exception(Some("Realtime session initialization was rejected"))

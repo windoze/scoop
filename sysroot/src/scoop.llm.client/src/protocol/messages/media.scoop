@@ -1,0 +1,37 @@
+package scoop.llm.client
+
+import scoop.http.HttpMediaType
+import scoop.io.encoding.Base64
+import scoop.json.*
+
+internal fun encodeMessagesMedia(source: MediaSource, dialect: DialectId, document: Boolean, path: String): JsonValue {
+    val rawMime = when (source) { case Bytes(_, value) -> value; case Url(_, value) -> value; case FileReference(_, value) -> value }
+    val mime = HttpMediaType.parseOrNone(rawMime) ?: throw LlmRequestException(path + "/mimeType", "invalid media type")
+    if (mime.parameters.size != 0L) throw LlmRequestException(path + "/mimeType", "Messages media mapping cannot express MIME parameters")
+    val type = mime.type + "/" + mime.subtype
+    if (document) {
+        if (type != "application/pdf" && type != "text/plain") throw LlmRequestException(path + "/mimeType", "Messages documents require PDF or plain text")
+    } else if (type != "image/jpeg" && type != "image/png" && type != "image/gif" && type != "image/webp")
+        throw LlmRequestException(path + "/mimeType", "Messages images require JPEG, PNG, GIF or WebP")
+    return when (source) {
+        case Bytes(bytes, _) -> {
+            val data = if (type == "text/plain") try { String.fromUtf8(bytes) }
+                catch (_: CharacterCodingException) { throw LlmRequestException(path + "/bytes", "plain-text document must contain UTF-8") }
+                else Base64.Default.encode(bytes)
+            llmTypedObject(if (type == "text/plain") "text" else "base64").add("media_type", JsonValue.fromString(type))
+                .add("data", JsonValue.fromString(data)).build()
+        }
+        case Url(url, _) -> {
+            if (type == "text/plain") throw LlmRequestException(path, "plain-text Messages document has no URL source mapping")
+            if (url.scheme != Some("http") && url.scheme != Some("https"))
+                throw LlmRequestException(path + "/url", "Messages media URL must use http or https")
+            llmTypedObject("url").add("url", JsonValue.fromString(url.toString())).build()
+        }
+        case FileReference(reference, _) -> {
+            requireLlmOwner(reference.dialect, dialect, path + "/reference/dialect")
+            if (reference.value.kind != JsonValueKind.String || reference.value.asString().length == 0L)
+                throw LlmRequestException(path + "/reference/value", "Messages file reference must be a nonempty string ID")
+            llmTypedObject("file").add("file_id", reference.value).build()
+        }
+    }
+}

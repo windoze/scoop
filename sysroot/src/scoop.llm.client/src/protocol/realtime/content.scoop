@@ -1,0 +1,45 @@
+package scoop.llm.client
+
+import scoop.http.HttpMediaType
+import scoop.io.encoding.Base64
+import scoop.json.*
+
+internal fun encodeRealtimePart(dialect: DialectId, part: ContentPart, role: LlmRole, path: String): JsonValue {
+    val (value, extensions) = when (part) {
+        case Text(text, values) -> (llmTypedObject(if (role == LlmRole.Assistant) "output_text" else "input_text")
+            .add("text", JsonValue.fromString(text)).build(), values)
+        case Image(source, values) -> {
+            if (role != LlmRole.User) throw LlmRequestException(path, "Realtime images require a user message")
+            (realtimeMedia(source, true, "input_image", path + "/source"), values)
+        }
+        case Audio(source, values) -> {
+            if (role == LlmRole.System) throw LlmRequestException(path, "Realtime system messages require text")
+            (realtimeMedia(source, false, if (role == LlmRole.Assistant) "output_audio" else "input_audio", path + "/source"), values)
+        }
+        case Native(owner, value) -> {
+            requireLlmOwner(owner, dialect, path + "/dialect")
+            val type = realtimeRequestString(value, "type", path + "/value")
+            if ((role == LlmRole.System && type != "input_text") ||
+                (role == LlmRole.Assistant && (type == "input_text" || type == "input_audio" || type == "input_image")) ||
+                (role == LlmRole.User && (type == "output_text" || type == "output_audio")))
+                throw LlmRequestException(path + "/value/type", "native content type does not match the Realtime role")
+            return value
+        }
+        else -> throw LlmRequestException(path, "Realtime content has no generic mapping for this media kind")
+    }
+    return mergeLlmExtensions(value, extensions, dialect, ["type", "text", "audio", "image_url"], path)
+}
+
+private fun realtimeMedia(source: MediaSource, image: Boolean, type: String, path: String): JsonValue {
+    val (bytes, mimeType) = when (source) { case Bytes(bytes, mime) -> (bytes, mime)
+        else -> throw LlmRequestException(path, "Realtime media requires inline bytes") }
+    val mime = if (image) HttpMediaType.parseOrNone(mimeType) ?: throw LlmRequestException(path + "/mimeType", "invalid Realtime media type")
+        else checkRealtimeAudioFormat(mimeType, path + "/mimeType")
+    if (image) {
+        if (mime.type != "image" || (mime.subtype != "png" && mime.subtype != "jpeg"))
+            throw LlmRequestException(path + "/mimeType", "Realtime images require PNG or JPEG")
+    }
+    val encoded = Base64.Default.encode(bytes)
+    return llmTypedObject(type).add(if (image) "image_url" else "audio",
+        JsonValue.fromString(if (image) "data:image/" + mime.subtype + ";base64," + encoded else encoded)).build()
+}

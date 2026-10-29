@@ -1,0 +1,92 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun responsesIsClientItem(kind: String, value: JsonValue, path: String): Boolean = when (kind) {
+    case "function_call" -> true
+    case "custom_tool_call" -> true
+    case "computer_call" -> true
+    case "local_shell_call" -> true
+    case "apply_patch_call" -> true
+    case "shell_call" -> responsesShellEnvironment(value, path) == Some("local")
+    else -> false
+}
+
+internal fun responsesShellEnvironment(value: JsonValue, path: String): String? {
+    val fields = decodeResponsesValue<ResponsesShellEnvironment>(value, path)
+    return when (fields.environment) { case Some(environment) -> Some(environment.type); case None -> None }
+}
+
+private class ResponsesShellEnvironment public constructor(public val environment: ResponsesItemFields? = None) {
+    public companion object : ValueDecoder<ResponsesShellEnvironment>
+}
+
+internal fun readResponsesNativeClientCall(dialect: DialectId, entry: ResponsesOutputEntry, tools: Array<ToolDefinition>,
+    complete: Boolean, path: String): LlmOutputItem {
+    val aliases: Array<String> = when (entry.kind) {
+        case "computer_call" -> ["computer", "computer_use", "computer_use_preview"]
+        case "local_shell_call" -> ["local_shell"]
+        case "shell_call" -> ["shell"]
+        case "apply_patch_call" -> ["apply_patch"]
+        else -> []
+    }
+    val input = readResponsesNativeInput(entry.raw, entry.kind, path)
+    val key = resolveResponsesNativeTool(tools, dialect, aliases, false) ?: return LlmOutputItem.Native(dialect, entry.raw)
+    val arguments = if (complete) ClientToolInput.Native(input) else ClientToolInput.Incomplete(Json.stringify(input))
+    return LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, key, entry.callId, Some(entry.raw)), arguments))
+}
+
+private fun readResponsesNativeInput(value: JsonValue, kind: String, path: String): JsonValue {
+    if (kind == "computer_call") {
+        val fields = decodeResponsesValue<ResponsesComputerInput>(value, path)
+        if (llmPresent(fields.action) && llmPresent(fields.actions))
+            throw DecodingException(path, "computer call cannot contain both action and actions")
+        when (fields.actions) {
+            case Some(actions) -> {
+                var index = 0L
+                for (action in actions) {
+                    decodeResponsesValue<ResponsesItemFields>(action, path + "/actions/" + index.toString())
+                    index += 1L
+                }
+            }
+            case None -> {
+                val action = fields.action ?: throw DecodingException(path + "/action", "computer call has no action")
+                decodeResponsesValue<ResponsesItemFields>(action, path + "/action")
+            }
+        }
+        return value
+    }
+    val field = if (kind == "apply_patch_call") "operation" else "action"
+    val input = value[field] ?: throw DecodingException(path + "/" + field, "missing native tool input")
+    if (input.kind != JsonValueKind.Object) throw DecodingException(path + "/" + field, "native tool input must be an object")
+    return input
+}
+
+private class ResponsesComputerInput public constructor(
+    @Serialize(rename = "pending_safety_checks") public val pendingSafetyChecks: Array<JsonValue>,
+    public val action: JsonValue? = None, public val actions: Array<JsonValue>? = None
+) {
+    public companion object : ValueDecoder<ResponsesComputerInput>
+}
+
+internal fun resolveResponsesNativeTool(tools: Array<ToolDefinition>, dialect: DialectId, aliases: Array<String>, server: Boolean): ToolKey? {
+    var found: ToolKey? = None
+    for (tool in tools) {
+        val definition = when (tool) {
+            case ClientNative(_, native, _) -> if (!server) Some(native) else None
+            case Server(_, definition, _) -> if (server) when (definition) {
+                case Native(native) -> Some(native)
+                else -> None
+            } else None
+            else -> None
+        }
+        val native = definition ?: continue
+        if (native.dialect != dialect) continue
+        var matches = false
+        for (alias in aliases) { if (native.kind == alias) matches = true }
+        if (!matches) continue
+        if (found != None) return None
+        found = Some(tool.key)
+    }
+    return found
+}

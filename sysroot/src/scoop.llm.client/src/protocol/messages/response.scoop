@@ -1,0 +1,56 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+import scoop.http.HttpField
+import scoop.url.Url
+
+/** Messages content blocks combined with one explicitly selected dialect. */
+public class MessagesProtocol public constructor(public val dialect: MessagesDialect) : LlmSseProtocol {
+    public override fun fileApi(): LlmFileApi? = dialect.fileApi()
+    public override fun modelCatalog(): LlmModelCatalog? = dialect.modelCatalog()
+    public override fun tokenCounter(): LlmTokenCounter? = dialect.tokenCounter()
+    public override val dialectId: DialectId get() = dialect.id
+    public override fun generationFields(): Array<HttpField> = dialect.requestFields()
+    public override fun defaultMaxOutputTokens(): ULong? = Some(dialect.defaultMaxOutputTokens)
+    public override fun generationUrl(baseUrl: Url, modelId: String): Url = baseUrl.toBuilder().appendPathSegment("messages").build()
+    public override fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean): JsonValue =
+        encodeMessagesRequest(dialect, modelId, request, stream, dialect.encodeOptions(request))
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        dialect.decodeError(status, body, truncated)
+    public override fun createStreamDecoder(request: LlmRequest, retention: StreamRetention): LlmSseDecoder =
+        MessagesStreamDecoder(dialect, request, retention)
+    init {
+        if (dialect.id.protocol != ApiProtocolId("messages"))
+            throw IllegalArgumentException(Some("Messages dialect belongs to another API protocol"))
+    }
+
+    public override fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse {
+        try {
+            val body = decodeMessagesValue<MessagesResponseBody>(value, "")
+            if (body.type != "message") throw DecodingException("/type", "expected a Messages response")
+            if (body.role != "assistant") throw DecodingException("/role", "expected an assistant message")
+            val (completion, reason) = messagesCompletion(body.stopReason)
+            val items = readMessagesBlocks(dialect, body.content, request.tools, completion == LlmCompletion.Complete)
+            val history = LlmHistory(dialect.id, [dialect.historyMessage(value, "")])
+            val candidate = LlmCandidate(0L, items, completion, reason, Some(history))
+            val usage = when (body.usage) {
+                case Some(raw) -> LlmUsage(dialect.readUsage(raw), Final, Some(raw))
+                case None -> LlmUsage(completeness = Final)
+            }
+            return LlmResponse(dialect.id, [candidate], body.id, body.model, usage = usage, native = Some(value))
+        } catch (error: DecodingException) {
+            throw LlmProtocolException(dialect.id, error.path, error.message ?: "invalid Messages response", value)
+        }
+    }
+}
+
+internal fun messagesCompletion(reason: String): (LlmCompletion, LlmFinishReason) = when (reason) {
+    case "end_turn" -> (LlmCompletion.Complete, LlmFinishReason.Stop)
+    case "stop_sequence" -> (LlmCompletion.Complete, LlmFinishReason.Stop)
+    case "tool_use" -> (LlmCompletion.Complete, LlmFinishReason.ToolCalls)
+    case "max_tokens" -> (LlmCompletion.Incomplete, LlmFinishReason.Length)
+    case "model_context_window_exceeded" -> (LlmCompletion.Incomplete, LlmFinishReason.Length)
+    case "pause_turn" -> (LlmCompletion.Incomplete, LlmFinishReason.Pause)
+    case "refusal" -> (LlmCompletion.Refused, LlmFinishReason.Refusal)
+    else -> (LlmCompletion.Incomplete, LlmFinishReason.Other(reason))
+}

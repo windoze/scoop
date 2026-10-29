@@ -1,0 +1,32 @@
+package scoop.llm.client.tests.cohere.stream
+
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class CohereStreamUsageTest {
+    @Test
+    fun `Cohere SSE uses exact terminal tokens and keeps billing separate from token accounting`() {
+        val stream = cohereStream(); cohereBegin(stream)
+        cohereEnd(stream, extra = ",\"usage\":{\"tokens\":{\"input_tokens\":9007199254740993.0,\"output_tokens\":2e0},\"cached_tokens\":3.0,\"billed_units\":{\"input_tokens\":4,\"output_tokens\":1}}")
+        assertEquals(Some(9007199254740995L), stream.usage.tokens.totalTokens)
+        assertEquals(Some(3L), stream.usage.tokens.cacheReadTokens)
+        assertEquals(UsageCompleteness.Final, stream.usage.completeness)
+        for (usage in ["null", "{}", "{\"tokens\":{\"input_tokens\":null,\"output_tokens\":0}}", "{\"billed_units\":{\"input_tokens\":8}}"]) {
+            val empty = cohereStream(); cohereBegin(empty); cohereEnd(empty, extra = ",\"usage\":" + usage)
+            assertEquals(None, empty.usage.tokens.totalTokens)
+        }
+    }
+
+    @Test
+    fun `Cohere SSE unknown and failed terminal reasons preserve their completion and history limits`() {
+        for (reason in ["future", "ERROR", "TIMEOUT"]) {
+            val stream = cohereStream(); cohereBegin(stream); cohereContent(stream, 0L, "partial")
+            cohereEnd(stream, reason, if (reason == "future") "" else ",\"error\":\"service stopped\"")
+            assertTrue(stream.isFinished)
+            assertEquals(if (reason == "future") LlmCompletion.Incomplete else LlmCompletion.Failed, stream.response().candidates[0L].completion)
+            assertEquals(if (reason == "future") UsageCompleteness.Partial else UsageCompleteness.Final, stream.usage.completeness)
+            assertFailsWith<LlmOutputException> { stream.response().toInput(); Unit }
+        }
+    }
+}

@@ -1,0 +1,56 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeResponsesToolResult(dialect: ResponsesDialect, call: ClientToolCallReference, content: Array<ContentPart>,
+    isError: Boolean, extensions: Array<DialectExtension>, path: String): JsonValue {
+    requireLlmOwner(call.dialect, dialect.id, path + "/call/dialect")
+    val callId = requireLlmToolCallId(call.id, path + "/call/id")
+    val context = call.context ?: throw LlmRequestException(path + "/call/context", "Responses tool results require the original call context")
+    val fields = readResponsesResultContext(context, path + "/call/context")
+    if (fields.callId != callId) throw LlmRequestException(path + "/call/context/call_id", "tool result context belongs to another call")
+    if (isError && fields.type != "apply_patch_call") throw LlmRequestException(path + "/isError", "this Responses tool result has no error flag")
+    val (type, output) = when (fields.type) {
+        case "function_call" -> ("function_call_output", dialect.encodeContent(content, path + "/content"))
+        case "custom_tool_call" -> ("custom_tool_call_output", dialect.encodeContent(content, path + "/content"))
+        case "computer_call" -> ("computer_call_output", encodeResponsesScreenshot(dialect.id, content, path + "/content"))
+        case "local_shell_call" -> ("local_shell_call_output", JsonValue.fromString(responsesPlainText(content, path + "/content")))
+        case "shell_call" -> {
+            val environment = responsesResultEnvironment(context, path + "/call/context")
+            if (environment != "local") throw LlmRequestException(path + "/call/context/environment", "only local shell results are client submissions")
+            ("shell_call_output", responsesShellOutput(dialect.id, content, path + "/content"))
+        }
+        case "apply_patch_call" -> ("apply_patch_call_output", JsonValue.fromString(responsesPlainText(content, path + "/content")))
+        else -> throw LlmRequestException(path + "/call/context/type", "unrecognized Responses client call type")
+    }
+    val result = llmTypedObject(type).add("output", output)
+    if (fields.type == "local_shell_call") {
+        val id = fields.id ?: throw LlmRequestException(path + "/call/context/id", "local shell result requires the original item ID")
+        if (id.length == 0L) throw LlmRequestException(path + "/call/context/id", "local shell item ID must not be empty")
+        result.add("id", JsonValue.fromString(id))
+    } else result.add("call_id", JsonValue.fromString(callId))
+    if (fields.type == "apply_patch_call") result.add("status", JsonValue.fromString(if (isError) "failed" else "completed"))
+    if (fields.type != "computer_call" && fields.type != "local_shell_call") {
+        val caller = context["caller"]
+        if (llmPresent(caller)) result.add("caller", caller!!)
+        if (fields.type == "function_call" || fields.type == "custom_tool_call") {
+            for (name in ["name", "namespace"]) { when (context[name]) { case Some(value) -> result.add(name, value); case None -> continue } }
+        }
+    }
+    return mergeLlmExtensions(result.build(), extensions, dialect.id, ["type", "id", "call_id", "output", "status", "caller", "name", "namespace"], path)
+}
+
+private class ResponsesResultContext public constructor(public val type: String, @Serialize(rename = "call_id") public val callId: String,
+    public val id: String? = None) {
+    public companion object : ValueDecoder<ResponsesResultContext>
+}
+
+private fun readResponsesResultContext(value: JsonValue, path: String): ResponsesResultContext {
+    try { return decodeResponsesValue<ResponsesResultContext>(value, path) }
+    catch (error: DecodingException) { throw LlmRequestException(error.path, error.message ?: "invalid Responses call context") }
+}
+
+private fun responsesResultEnvironment(value: JsonValue, path: String): String {
+    try { return responsesShellEnvironment(value, path) ?: "" }
+    catch (error: DecodingException) { throw LlmRequestException(error.path, error.message ?: "invalid shell call environment") }
+}

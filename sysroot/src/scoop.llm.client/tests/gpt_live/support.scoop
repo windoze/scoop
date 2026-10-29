@@ -1,0 +1,62 @@
+package scoop.llm.client.tests.gpt_live
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.platform.net.*
+import scoop.test.*
+import scoop.url.Url
+
+internal val gptDialect = OpenAiGptLiveDialect()
+internal val gptProtocol = GptLiveProtocol(gptDialect)
+internal val gptFunction: ToolDefinition = ClientFunction(ToolKey("lookup"), "lookup", Json.parse("{\"type\":\"object\"}"))
+internal val gptSearch: ToolDefinition = Server(ToolKey("search"), WebSearch())
+
+internal fun gptFailure(path: String, block: () -> Unit) {
+    assertEquals(path, assertFailsWith<LlmRequestException>(block = block).path)
+}
+
+internal fun gptDecode(raw: String): GptLiveMessage = gptProtocol.decodeMessage(Json.parse(raw))
+internal fun gptPrimaryFailure(error: Throwable): Throwable =
+    if (error is ResourceUseException) gptPrimaryFailure(error.primaryFailure) else error
+
+internal fun withGptLivePeer(peer: suspend (AsyncWebSocketSession) -> Unit,
+    block: suspend (EventLoop, CoroutineScope, LlmEndpoint) -> Unit) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+            val done = LlmGate()
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val request = connection.receiveRequest()!!
+                    request.body.readAllBytes(0L)
+                    val target = when (request.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                    assertEquals("/prefix/live/sessions?route=one", target)
+                    connection.sendResponse(WebSocketHandshake.parse(request.head).response()).useAsync suspend { writer -> writer.finish() }
+                    AsyncWebSocketSession.takeOwnership(connection.takeTransport(), scope, HttpRole.Server).useAsync suspend { socket ->
+                        peer(socket); done.await()
+                    }
+                }
+            }
+            val endpoint = LlmEndpoint(Providers.openAiGptLive(), LlmAuth.none(),
+                Some(Url.parse("http://127.0.0.1:" + listener.localAddress.port.toString() + "/prefix?route=one")))
+            try { block(loop, scope, endpoint) }
+            finally { done.signal() }
+            serving.join()
+        }
+    }
+}
+
+internal suspend fun gptCommand(socket: AsyncWebSocketSession): JsonValue =
+    socket.receive()!!.useAsync suspend { message -> Json.parse(message.readText()) }
+
+internal suspend fun gptStart(socket: AsyncWebSocketSession): JsonValue {
+    val command = gptCommand(socket)
+    assertEquals("session.start", command["type"]!!.asString())
+    assertEquals("m", command["session"]!!["model"]!!.asString())
+    socket.sendText("{\"type\":\"session.started\",\"event_id\":\"started\",\"session\":{\"id\":\"server\",\"model\":\"m\",\"status\":\"active\"}}")
+    return command
+}

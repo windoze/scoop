@@ -1,0 +1,33 @@
+package scoop.llm.client.tests.interactions
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class InteractionsDialectTest {
+    @Test
+    fun `Interactions dialect identity and service error codes are distinct from generateContent`() {
+        val dialect = GeminiInteractionsDialect()
+        assertEquals(ApiProtocolId("interactions"), dialect.id.protocol)
+        assertTrue(dialect.id != GeminiGenerateContentDialect().id)
+        val body = "{\"error\":{\"code\":\"https://example.com/errors/capacity\",\"message\":\"busy\"}}".toByteArray()
+        val error = dialect.decodeError(503U, body, false)
+        assertEquals(Some("https://example.com/errors/capacity"), error.code)
+        assertEquals(Some("busy"), error.message)
+        assertFalse(error.retryable)
+        assertEquals(interactionsDialect, error.dialect)
+        val truncated = dialect.decodeError(503U, body, true)
+        assertEquals(None, truncated.code)
+        assertEquals(body.size, truncated.body.size)
+        assertFailsWith<IllegalArgumentException> { val protocol = InteractionsProtocol(ForeignInteractionsDialect()); Unit }
+    }
+}
+
+private class ForeignInteractionsDialect : InteractionsDialect {
+    public override val id: DialectId = GeminiGenerateContentDialect().id
+    public override fun encodeOptions(request: LlmRequest): JsonValue = GeminiInteractionsDialect().encodeOptions(request)
+    public override fun readUsage(value: JsonValue): TokenUsage = TokenUsage()
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        LlmServiceException(id, status, body, truncated)
+}

@@ -1,0 +1,38 @@
+package scoop.llm.client
+
+import scoop.text.replace
+
+internal fun checkModelTools(capabilities: ModelCapabilities, tools: Array<ToolDefinition>) {
+    var clients = 0L
+    var servers = 0L
+    var index = 0L
+    for (tool in tools) {
+        val path = "/tools/" + index.toString()
+        index += 1L
+        when (tool) {
+            case ClientFunction(_, _, _, _, _, _) -> { clients += 1L; requireModelCapability(capabilities.functionTools, path) }
+            case ClientCustom(_, _, _, _, _) -> { clients += 1L; requireModelCapability(capabilities.customTools, path) }
+            case ClientNative(_, definition, _) -> {
+                clients += 1L
+                checkNativeToolCapability(capabilities.forClientNativeTool(definition.dialect, definition.kind, definition.version), definition, path)
+            }
+            case Server(_, definition, _) -> {
+                servers += 1L
+                when (definition) {
+                    case WebSearch(options) -> checkModelWebSearch(capabilities.serverTools.webSearch, options, path)
+                    case Native(native) -> checkNativeToolCapability(capabilities.serverTools.forNativeTool(native.dialect, native.kind, native.version), native, path)
+                }
+            }
+        }
+    }
+    if (clients != 0L && servers != 0L) requireModelCapability(capabilities.mixedTools.clientAndServer, "/tools")
+    if (servers > 1L) requireModelCapability(capabilities.mixedTools.multipleServerTools, "/tools")
+}
+
+private fun checkNativeToolCapability(capability: Capability<NativeToolConfigurationCapabilities>, tool: NativeToolDefinition, path: String) {
+    requireModelCapability(capability, path)
+    val details = when (capability) { case Supported(value) -> value; else -> return }
+    for (name in tool.configuration.keys()) {
+        requireModelCapability(details.forField(name), path + "/tool/configuration/" + name.replace("~", "~0").replace("/", "~1"))
+    }
+}

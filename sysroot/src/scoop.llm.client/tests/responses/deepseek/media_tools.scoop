@@ -1,0 +1,52 @@
+package scoop.llm.client.tests.responses.deepseek
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class DeepSeekResponsesMediaToolsTest {
+    @Test
+    fun `DeepSeek Responses images retain sources and reject unsupported roles and documents`() {
+        val owner = dsResponses.dialectId
+        val image = ContentPart.Image(MediaSource.Bytes([1.toByte()], "image/png"))
+        val content: Array<ContentPart> = [image, Image(MediaSource.Url(Url.parse("https://example.test/a.png"), "image/png")),
+            Image(FileReference(LlmFileReference(owner, JsonValue.fromString("file-api-image")), "image/png"))]
+        val wire = dsResponses.encodeRequest("m", LlmRequest([Message(content, Developer)]))["input"]!![0L]["content"]!!
+        assertEquals("data:image/png;base64,AQ==", wire[0L]["image_url"]!!.asString())
+        assertEquals("https://example.test/a.png", wire[1L]["image_url"]!!.asString())
+        assertEquals("file-api-image", wire[2L]["file_id"]!!.asString())
+        for (role in [LlmRole.System, LlmRole.Assistant]) assertDsRequestFailure(LlmRequest([Message([image], role)]), "/input/0/content")
+        assertDsRequestFailure(LlmRequest([Message([Document(Bytes([], "application/pdf"))])]), "/input/0/content/0")
+        assertDsRequestFailure(LlmRequest([Message([Native(owner, Json.parse("{\"type\":\"input_file\",\"file_id\":\"file\"}"))])]), "/input/0/content/0")
+    }
+
+    @Test
+    fun `DeepSeek Responses function custom and server tools keep their distinct selection rules`() {
+        val name = StringBuilder()
+        var index = 0L
+        while (index < 128L) { name.append("f"); index += 1L }
+        val function = ToolDefinition.ClientFunction(ToolKey("f"), name.toString(), Json.parse("{\"type\":\"object\"}"))
+        val patch = ToolDefinition.ClientCustom(ToolKey("patch"), "apply_patch")
+        val search = ToolDefinition.Server(ToolKey("search"), ServerTool.WebSearch())
+        val body = dsResponses.encodeRequest("m", LlmRequest(dsRequest().input, tools = [function, patch, search],
+            options = LlmGenerationOptions(toolChoice = Specific(function.key))))
+        assertEquals(128L, body["tools"]!![0L]["name"]!!.asString().length)
+        assertEquals("custom", body["tools"]!![1L]["type"]!!.asString())
+        assertEquals("web_search", body["tools"]!![2L]["type"]!!.asString())
+        assertEquals(name.toString(), body["tool_choice"]!!["name"]!!.asString())
+        for (tool in [patch, search]) {
+            assertEquals("required", dsResponses.encodeRequest("m", LlmRequest(dsRequest().input, tools = [tool],
+                options = LlmGenerationOptions(toolChoice = Specific(tool.key))))["tool_choice"]!!.asString())
+            assertDsRequestFailure(LlmRequest(dsRequest().input, tools = [function, tool],
+                options = LlmGenerationOptions(toolChoice = Specific(tool.key))), "/options/toolChoice")
+        }
+        assertDsRequestFailure(dsRequest([ClientFunction(ToolKey("f"), "f", Json.parse("{}"), strict = Some(false))]), "/tools/0/strict")
+        assertDsRequestFailure(dsRequest([ClientCustom(ToolKey("c"), "other")]), "/tools/0/name")
+        assertDsRequestFailure(dsRequest([ClientCustom(ToolKey("c"), "apply_patch", Grammar("lark", "start: X"))]), "/tools/0/format")
+        assertDsRequestFailure(dsRequest([Server(ToolKey("s"), WebSearch(WebSearchOptions(includeSources = Some(false))))]), "/tools/0/tool/options/includeSources")
+        assertDsRequestFailure(dsRequest([ClientNative(ToolKey("n"), NativeToolDefinition(dsResponses.dialectId, "shell"))]), "/tools/0")
+        assertDsRequestFailure(dsRequest([Server(ToolKey("n"), Native(NativeToolDefinition(dsResponses.dialectId, "web_search", version = Some("v1"))))]), "/tools/0/tool/version")
+    }
+}

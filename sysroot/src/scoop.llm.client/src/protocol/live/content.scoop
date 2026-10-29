@@ -1,0 +1,76 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+private class GeminiLiveContentFields public constructor(
+    public val modelTurn: JsonValue? = None, public val groundingMetadata: JsonValue? = None,
+    public val generationComplete: Boolean? = None, public val turnComplete: Boolean? = None,
+    public val interrupted: Boolean? = None, public val waitingForInput: Boolean? = None,
+    public val interactionStatus: String? = None,
+    public val inputTranscription: JsonValue? = None, public val interimInputTranscription: JsonValue? = None,
+    public val outputTranscription: JsonValue? = None
+) {
+    public companion object : ValueDecoder<GeminiLiveContentFields>
+}
+
+private class GeminiLiveTranscriptFields public constructor(public val text: String? = None) {
+    public companion object : ValueDecoder<GeminiLiveTranscriptFields>
+}
+
+internal fun readGeminiLiveContent(dialect: DialectId, value: JsonValue, tools: Array<ToolDefinition>): GeminiLiveContent {
+    val fields = decodeGenerateContentValue<GeminiLiveContentFields>(value, "/serverContent")
+    val parts = ArrayList<GenerateContentPart>()
+    when (fields.modelTurn) {
+        case Some(raw) -> {
+            val turn = decodeGenerateContentValue<GenerateContentContent>(raw, "/serverContent/modelTurn")
+            if (turn.role != None && turn.role != Some("") && turn.role != Some("model"))
+                throw DecodingException("/serverContent/modelTurn/role", "expected model content")
+            var index = 0L
+            for (part in turn.parts ?: []) {
+                parts.add(GenerateContentPart(part, "/serverContent/modelTurn/parts/" + index.toString()))
+                index += 1L
+            }
+        }
+        case None -> {}
+    }
+    val result = ArrayList<LlmOutputItem>()
+    for (item in readGenerateContentParts(dialect, parts.toArray(), tools, true, GenerateContentGrounding(), None, "/serverContent/modelTurn")) {
+        val raw = when (item) { case ClientToolCall(call) -> call.reference.context ?: value; else -> value }
+        result.add(geminiLiveCallable(dialect, item, raw))
+    }
+    appendGenerateContentGrounding(result, dialect, readGeminiLiveGrounding(dialect, fields.groundingMetadata), tools)
+    return GeminiLiveContent(result.toArray(), value, fields.generationComplete, fields.turnComplete, fields.interrupted,
+        fields.waitingForInput, fields.interactionStatus,
+        readGeminiLiveTranscript(fields.inputTranscription, "/serverContent/inputTranscription"),
+        readGeminiLiveTranscript(fields.interimInputTranscription, "/serverContent/interimInputTranscription"),
+        readGeminiLiveTranscript(fields.outputTranscription, "/serverContent/outputTranscription"))
+}
+
+private fun readGeminiLiveTranscript(value: JsonValue?, path: String): GeminiLiveTranscription? {
+    val raw = value ?: return None
+    val fields = decodeGenerateContentValue<GeminiLiveTranscriptFields>(raw, path)
+    return Some(GeminiLiveTranscription(fields.text, raw))
+}
+
+private class GeminiLiveGroundingFields public constructor(public val groundingChunks: Array<JsonValue>? = None,
+    public val webSearchQueries: Array<String>? = None, public val searchEntryPoint: JsonValue? = None) {
+    public companion object : ValueDecoder<GeminiLiveGroundingFields>
+}
+
+private fun readGeminiLiveGrounding(dialect: DialectId, value: JsonValue?): GenerateContentGrounding {
+    val raw = value ?: return GenerateContentGrounding()
+    val path = "/serverContent/groundingMetadata"
+    val fields = decodeGenerateContentValue<GeminiLiveGroundingFields>(raw, path)
+    val web = ArrayList<LlmSource>()
+    var index = 0L
+    for (chunk in fields.groundingChunks ?: []) {
+        val (source, fromWeb) = readGenerateContentSource(dialect, chunk, path + "/groundingChunks/" + index.toString())
+        if (fromWeb) web.add(source)
+        index += 1L
+    }
+    // Supports can refer to previous messages; retain them without inventing local text ranges.
+    val queries = fields.webSearchQueries ?: []
+    return GenerateContentGrounding(webSources = web.toArray(),
+        search = web.size != 0L || queries.size != 0L || llmPresent(fields.searchEntryPoint),
+        queries = raw["webSearchQueries"], native = Some(raw))
+}

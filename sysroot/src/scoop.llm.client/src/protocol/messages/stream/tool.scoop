@@ -1,0 +1,57 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal class MessagesStreamTool public constructor(
+    public val call: MessagesToolUse, private val initial: JsonValue, public val server: Boolean,
+    private val dialect: DialectId, private val tools: Array<ToolDefinition>, public val location: LlmItemLocation
+) {
+    private val input: StringBuilder = StringBuilder()
+    private var streamed: Boolean = false
+    public var wire: JsonValue = initial
+    public var invalid: Boolean = false
+    public val rawInput: String get() = if (streamed) input.toString() else Json.stringify(call.input)
+
+    public fun append(delta: JsonValue, batch: LlmStreamBatch, path: String) {
+        if (call.input.kind != JsonValueKind.Object || call.input.size != 0L)
+            throw DecodingException(path, "streamed tool input requires an initial empty object")
+        val fragment = messagesStreamString(delta, "partial_json", path)
+        streamed = true
+        input.append(fragment)
+        if (server) batch.native("messages.server_tool.input", delta, Some(location), false)
+        else {
+            val binding = resolveMessagesTool(tools, dialect, call.name, false, call.toolsetName)
+            val reference = when (binding) {
+                case Some(value) -> Some(ClientToolCallReference(dialect, value.key, Some(call.id), Some(initial)))
+                case None -> None
+            }
+            batch.events.add(LlmEvent.ToolInputDelta(LlmToolInputDelta(location, fragment, reference)))
+        }
+        batch.observe(fragment)
+    }
+
+    public fun stop(batch: LlmStreamBatch, path: String) {
+        if (!streamed) return
+        val parsed = try { Some(Json.parse(input.toString())) } catch (error: DecodingException) { None }
+        if (!llmPresent(parsed)) {
+            if (server) throw DecodingException(path + "/input", "invalid server tool input JSON")
+            invalid = true
+            batch.native("messages.tool.invalid_input", JsonObjectBuilder().add("block", initial)
+                .add("input", JsonValue.fromString(input.toString())).build(), Some(location))
+        } else wire = replaceMessagesField(initial, "input", parsed!!)
+    }
+
+    public fun clientItem(complete: Boolean): LlmOutputItem {
+        if (!invalid) {
+            val parsed = MessagesToolUse(call.id, call.name, wire["input"]!!, call.toolsetName)
+            return readMessagesClientCall(dialect, parsed, wire, tools, complete)
+        }
+        val binding = resolveMessagesTool(tools, dialect, call.name, false, call.toolsetName)
+            ?: return LlmOutputItem.Native(dialect, JsonObjectBuilder().add("block", initial)
+                .add("invalid_input", JsonValue.fromString(rawInput)).build())
+        val input = if (complete) ClientToolInput.Invalid(rawInput, "tool input is not valid JSON") else ClientToolInput.Incomplete(rawInput)
+        return LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, binding.key, Some(call.id), Some(initial)), input))
+    }
+
+    public fun release() { input.clear() }
+}

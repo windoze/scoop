@@ -1,0 +1,23 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+/** Stateless Responses with DeepSeek's documented controls and full-history continuation. */
+public class DeepSeekResponsesDialect public constructor(public val topPMode: DeepSeekTopPMode = Unknown) : ResponsesDialect {
+    public override fun modelCatalog(): LlmModelCatalog? = Some(JsonModelCatalog(id))
+    public override val id: DialectId = DialectId(ApiProtocolId("responses"), "deepseek-responses")
+    public override val supportsWebSocket: Boolean = false
+    public override fun encodeOptions(request: LlmRequest): JsonValue = encodeDeepSeekResponsesOptions(id, request, topPMode)
+    public override fun encodeContent(content: Array<ContentPart>, path: String, role: String?): JsonValue =
+        encodeDeepSeekResponsesContent(id, content, path, role)
+    public override fun readReasoning(item: JsonValue, path: String): Array<OutputPart> = readResponsesReasoning(id, item, path, false)
+    public override fun readUsage(usage: JsonValue): TokenUsage = readResponsesUsage(usage)
+    public override fun historyItems(items: Array<JsonValue>): Array<JsonValue> = items
+
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException {
+        val value = parseLlmServiceError(body, truncated)
+        val error = when (value) { case Some(root) -> if (root.kind == JsonValueKind.Object) root["error"] else None; case None -> None }
+        return LlmServiceException(id, status, body, truncated, llmServiceErrorString(error, "code"), value,
+            status == 429U || status == 503U, llmServiceErrorString(error, "message") ?: "DeepSeek Responses service rejected the request")
+    }
+}

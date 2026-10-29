@@ -1,0 +1,56 @@
+package scoop.llm.client
+
+/** Known upper bounds for one media kind and format. None leaves the corresponding limit unknown. */
+public class MediaLimits public constructor(
+    /** Decoded content bytes per item, before wire encoding such as base64. */
+    public val maxBytesPerItem: ULong? = None,
+    public val maxItemsPerRequest: ULong? = None,
+    public val maxPagesPerItem: ULong? = None,
+    public val maxDurationMillisecondsPerItem: ULong? = None,
+    public val maxWidthPixels: ULong? = None,
+    public val maxHeightPixels: ULong? = None
+) {
+    public companion object : ValueEncoder<MediaLimits>, ValueDecoder<MediaLimits>
+}
+
+/** Knowledge about one exact MIME and representation combination. */
+public class MediaFormatCapability public constructor(
+    public val format: MediaFormat,
+    public val support: Capability<MediaLimits>
+) {
+    public companion object : ValueEncoder<MediaFormatCapability>, ValueDecoder<MediaFormatCapability>
+}
+
+/** A set of independent format facts. An unlisted combination is unknown, not unsupported. */
+public class MediaCapabilities public constructor(
+    public val formats: Array<MediaFormatCapability> = []
+) {
+    init {
+        var index = 0L
+        while (index < formats.size) {
+            var previous = 0L
+            while (previous < index) {
+                if (formats[index].format.matches(formats[previous].format))
+                    throw IllegalArgumentException(Some("duplicate media capability format"))
+                previous += 1L
+            }
+            index += 1L
+        }
+    }
+
+    /** Looks up the exact combination, preserving explicit rejection and unknown information. */
+    public fun forFormat(format: MediaFormat): Capability<MediaLimits> {
+        for (entry in formats) if (entry.format.matches(format)) return entry.support
+        return Unknown
+    }
+
+    public companion object : ValueEncoder<MediaCapabilities>, ValueDecoder<MediaCapabilities>
+}
+
+internal fun mediaFormatCapability(
+    capability: Capability<MediaCapabilities>, format: MediaFormat
+): Capability<MediaLimits> = when (capability) {
+    case Supported(details) -> details.forFormat(format)
+    case Unsupported(reason) -> Unsupported(reason)
+    case Unknown -> Unknown
+}

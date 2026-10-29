@@ -1,0 +1,35 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeGptLiveSetup(dialect: DialectId, modelId: String, setup: GptLiveSetup): JsonValue {
+    val request = LlmRequest(setup.input)
+    val body = JsonObjectBuilder().add("model", JsonValue.fromString(requireGptLiveId(modelId, "/modelId")))
+    if (setup.instructions != None) body.add("instructions", JsonValue.fromString(setup.instructions!!))
+    if (setup.input.size != 0L) {
+        val items = ArrayList<JsonValue>()
+        var index = 0L
+        for (item in request.input) {
+            items.add(encodeGptLiveInitialItem(dialect, item, "/input/" + index.toString()))
+            index += 1L
+        }
+        body.add("input", JsonValue.fromArray(items))
+    }
+    return mergeLlmExtensions(body.build(), setup.extensions, dialect, ["model", "instructions", "input"], "")
+}
+
+private fun encodeGptLiveInitialItem(dialect: DialectId, item: LlmInputItem, path: String): JsonValue = when (item) {
+    case Message(content, role, extensions) -> {
+        val wireRole = when (role) { case Developer -> "developer"; case User -> "user"; case Assistant -> "assistant"
+            else -> throw LlmRequestException(path + "/role", "Live initial history does not accept this role") }
+        if (content.size != 1L) throw LlmRequestException(path + "/content", "Live initial history requires exactly one text part")
+        val part = when (content[0]) {
+            case Text(text, values) -> mergeLlmExtensions(llmTypedObject(if (role == LlmRole.Assistant) "output_text" else "input_text")
+                .add("text", JsonValue.fromString(text)).build(), values, dialect, ["type", "text"], path + "/content/0")
+            else -> throw LlmRequestException(path + "/content/0", "Live initial history only accepts text")
+        }
+        mergeLlmExtensions(llmTypedObject("message").add("role", JsonValue.fromString(wireRole))
+            .add("content", JsonValue.fromArray([part])).build(), extensions, dialect, ["type", "role", "content"], path)
+    }
+    else -> throw LlmRequestException(path, "Live initial history only accepts text messages")
+}

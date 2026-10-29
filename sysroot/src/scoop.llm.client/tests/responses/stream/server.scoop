@@ -1,0 +1,63 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ResponsesStreamServerTest {
+    @Test
+    fun `Responses stream search activities and citations coexist with local tools`() {
+        for (retention in [StreamRetention.EventsOnly, StreamRetention.Result]) {
+            val decoder = responsesStream(retention, [Server(ToolKey("web"), WebSearch()), responsesStreamFunction()])
+            responsesItem(decoder, 0L, "{\"type\":\"web_search_call\",\"id\":\"web\",\"status\":\"in_progress\"}")
+            val progress = responsesAt(decoder, "response.web_search_call.searching", 0L, "web", "\"sequence_number\":5")
+            when (progress.events[0L]) {
+                case ServerToolActivity(location, activity) -> {
+                    assertEquals(0L, location.itemIndex)
+                    assertEquals(ServerToolStatus.InProgress, activity.status)
+                    assertEquals(Some(ToolKey("web")), activity.toolKey)
+                }
+                else -> fail()
+            }
+            val web = "{\"type\":\"web_search_call\",\"id\":\"web\",\"status\":\"completed\",\"action\":{\"type\":\"search\",\"query\":\"scoop\",\"sources\":[{\"type\":\"url\",\"url\":\"https://example.test\"}]}}"
+            val done = responsesItem(decoder, 0L, web, true)
+            when (done.events[0L]) { case ServerToolActivity(_, activity) -> assertEquals(1L, activity.sources.size); else -> fail() }
+            responsesItem(decoder, 1L, responsesEmptyMessage)
+            responsesAt(decoder, "response.content_part.added", 1L, "m", "\"content_index\":0,\"part\":{\"type\":\"output_text\",\"text\":\"answer\"}")
+            val annotation = "{\"type\":\"url_citation\",\"url\":\"https://example.test\",\"title\":\"source\",\"start_index\":0,\"end_index\":5}"
+            val update = responsesAt(decoder, "response.output_text.annotation.added", 1L, "m", "\"content_index\":0,\"annotation_index\":0,\"annotation\":" + annotation)
+            when (update.events[0L]) {
+                case Citation(location, part, citation) -> {
+                    assertEquals(1L, location.itemIndex); assertEquals(0L, part)
+                    assertTrue(when (citation.range) { case None -> true; else -> false })
+                    assertEquals("/output/1/content/0/annotations/0", citation.source.id)
+                }
+                else -> fail()
+            }
+            val message = "{\"type\":\"message\",\"id\":\"m\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"answer\",\"annotations\":[" + annotation + "]}]}"
+            assertEquals(0L, responsesItem(decoder, 1L, message, true).events.size)
+            val call = responsesCall("{}")
+            val final = responsesFinish(decoder, "[" + web + "," + message + "," + call + "]")
+            assertEquals(1L, responsesEventCalls(final).size)
+            if (retention == StreamRetention.Result) {
+                assertEquals(1L, decoder.response().serverToolActivities.size)
+                assertEquals(3L, responsesHistory(decoder.response()).size)
+            }
+        }
+    }
+
+    @Test
+    fun `Responses unknown deltas and null annotations preserve native facts without losing snapshot history`() {
+        val decoder = responsesStream()
+        responsesItem(decoder, 0L, responsesEmptyMessage)
+        responsesAt(decoder, "response.content_part.added", 0L, "m", "\"content_index\":0,\"part\":{\"type\":\"output_text\",\"text\":\"\"}")
+        responsesAt(decoder, "response.future.delta", 0L, "m", "\"payload\":{\"future\":true}")
+        responsesAt(decoder, "response.output_text.annotation.added", 0L, "m", "\"content_index\":0,\"annotation_index\":0,\"annotation\":null")
+        responsesFinish(decoder, "[" + responsesMessage("ok") + "]")
+        val result = decoder.response()
+        assertEquals(2L, result.nativeEvents.size)
+        assertEquals("ok", result.text)
+        assertEquals(1L, result.toInput().size)
+    }
+}

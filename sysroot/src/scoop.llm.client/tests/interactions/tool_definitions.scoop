@@ -1,0 +1,57 @@
+package scoop.llm.client.tests.interactions
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class InteractionsToolDefinitionsTest {
+    @Test
+    fun `Interactions function choice uses the API name and preserves original schemas`() {
+        val tools: Array<ToolDefinition> = [ClientFunction(ToolKey("local"), "api_name", Json.parse("{\"type\":\"object\",\"future\":1e400}"), "help")]
+        val value = interactionsEncode(LlmRequest([], tools = tools, options = LlmGenerationOptions(toolChoice = Specific(ToolKey("local")))))
+        assertEquals("function", value["tools"]!![0L]["type"]!!.asString())
+        assertEquals("api_name", value["tools"]!![0L]["name"]!!.asString())
+        assertEquals("1e400", value["tools"]!![0L]["parameters"]!!["future"]!!.asNumberToken())
+        assertEquals("api_name", value["generation_config"]!!["tool_choice"]!!["allowed_tools"]!!["tools"]!![0L].asString())
+        for ((choice, expected) in [(ToolChoice.None, "none"), (ToolChoice.Required, "any")]) {
+            val body = interactionsEncode(LlmRequest([], tools = tools, options = LlmGenerationOptions(toolChoice = choice)))
+            assertEquals(expected, body["generation_config"]!!["tool_choice"]!!.asString())
+        }
+        assertFalse(interactionsEncode(LlmRequest([], tools = tools)).containsKey("generation_config"))
+    }
+
+    @Test
+    fun `Interactions server tools use their native types and coexist with client functions in auto mode`() {
+        val tools = ArrayList<ToolDefinition>()
+        tools.add(interactionsRequest().tools[0L])
+        tools.add(Server(ToolKey("web"), WebSearch()))
+        for (type in ["code_execution", "url_context", "file_search", "google_maps"])
+            tools.add(Server(ToolKey(type), Native(NativeToolDefinition(interactionsDialect, type))))
+        for (name in ["one", "two"])
+            tools.add(Server(ToolKey(name), Native(NativeToolDefinition(interactionsDialect, "mcp_server", Json.parse("{\"name\":\"" + name + "\",\"url\":\"https://example.com/mcp\"}")))))
+        val request = LlmRequest([], tools = tools.toArray())
+        val value = interactionsEncode(request)
+        assertEquals(8L, value["tools"]!!.size)
+        assertEquals("web_search", value["tools"]!![1L]["search_types"]!![0L].asString())
+        assertEquals("mcp_server", value["tools"]!![6L]["type"]!!.asString())
+        assertEquals("two", value["tools"]!![7L]["name"]!!.asString())
+        assertFalse(value.containsKey("generation_config"))
+        assertInteractionsRequestFailure(LlmRequest([], tools = request.tools, options = LlmGenerationOptions(toolChoice = None)), "/options/toolChoice")
+    }
+
+    @Test
+    fun `Interactions tool validation rejects ambiguous names ownership versions and unsupported search controls`() {
+        assertInteractionsRequestFailure(LlmRequest([], tools = [ClientFunction(ToolKey("x"), "lookup", Json.parse("{}"), strict = Some(false))]), "/tools/0/strict")
+        assertInteractionsRequestFailure(LlmRequest([], tools = [interactionsRequest().tools[0L], ClientFunction(ToolKey("other"), "lookup", Json.parse("{}"))]), "/tools/1/name")
+        assertInteractionsRequestFailure(LlmRequest([], tools = [ClientCustom(ToolKey("x"), "custom")]), "/tools/0")
+        assertInteractionsRequestFailure(LlmRequest([], options = LlmGenerationOptions(toolChoice = Required)), "/options/toolChoice")
+        assertInteractionsRequestFailure(LlmRequest([], tools = [Server(ToolKey("x"), Native(NativeToolDefinition(GeminiGenerateContentDialect().id, "googleSearch")))]), "/tools/0/tool/dialect")
+        assertInteractionsRequestFailure(LlmRequest([], tools = [Server(ToolKey("x"), Native(NativeToolDefinition(interactionsDialect, "google_search", version = Some("v1"))))]), "/tools/0/tool/version")
+        assertInteractionsRequestFailure(LlmRequest([], tools = [Server(ToolKey("x"), WebSearch(WebSearchOptions(includeSources = Some(false))))]), "/tools/0/tool/options/includeSources")
+        assertInteractionsRequestFailure(LlmRequest([], tools = [Server(ToolKey("x"), WebSearch()), Server(ToolKey("y"), WebSearch())]), "/tools/1")
+        val config = Json.parse("{\"name\":\"same\"}")
+        assertInteractionsRequestFailure(LlmRequest([], tools = [Server(ToolKey("a"), Native(NativeToolDefinition(interactionsDialect, "mcp_server", config))),
+            Server(ToolKey("b"), Native(NativeToolDefinition(interactionsDialect, "mcp_server", config)))]), "/tools/1/tool/configuration/name")
+    }
+}

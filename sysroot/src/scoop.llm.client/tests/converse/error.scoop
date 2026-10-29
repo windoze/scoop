@@ -1,0 +1,24 @@
+package scoop.llm.client.tests.converse
+
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ConverseErrorTest {
+    @Test
+    fun `Converse retries only parsed matching throttling or unavailable rejections and retains original errors`() {
+        val protocol = ConverseProtocol(BedrockConverseDialect())
+        val raw = "{\"__type\":\"com.amazonaws.bedrock#ThrottlingException\",\"message\":\"try later\",\"future\":1}"
+        val error = protocol.decodeError(429U, raw.toByteArray(), false)
+        assertTrue(error.retryable)
+        assertEquals(Some("try later"), error.message)
+        assertEquals(Some("com.amazonaws.bedrock#ThrottlingException"), error.code)
+        assertEquals(converseDialect, error.dialect)
+        assertEquals(raw, String.fromUtf8(error.body))
+        assertTrue(protocol.decodeError(503U, "{\"message\":\"busy\"}".toByteArray(), false).retryable)
+        for (status in [400U, 500U]) assertFalse(protocol.decodeError(status, raw.toByteArray(), false).retryable)
+        for (body in ["broken", "[]", "{\"__type\":\"AccessDeniedException\"}", "{\"__type\":42}"])
+            assertFalse(protocol.decodeError(429U, body.toByteArray(), false).retryable)
+        assertFalse(protocol.decodeError(429U, raw.toByteArray(), true).retryable)
+    }
+}

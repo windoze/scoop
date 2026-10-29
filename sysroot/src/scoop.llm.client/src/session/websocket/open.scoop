@@ -1,0 +1,41 @@
+package scoop.llm.client
+
+import scoop.http.client.*
+import scoop.url.Url
+import scoop.platform.concurrent.Mutex
+
+internal class LlmWebSocketOpened(val connection: LlmWebSocketConnection, val metadata: LlmCallMetadata)
+
+internal suspend fun openLlmWebSocket(client: LlmClientState, endpoint: LlmEndpoint,
+    options: LlmCallOptions, webSocketOptions: HttpWebSocketOptions, closedError: Throwable,
+    prepare: () -> Url, initialize: suspend (LlmCallState, HttpWebSocketSession) -> Unit): LlmWebSocketOpened {
+    val caller = currentJobOrNone()
+    return suspendCoroutine<LlmWebSocketOpened> { continuation ->
+        val opening = LlmWebSocketOpening(continuation)
+        startCoroutine<Unit>(suspend {
+            nonCancellableScope suspend { lifetime ->
+                val call = LlmCallState(client, lifetime.job)
+                val state = LlmWebSocketState(call, endpoint, opening, closedError)
+                context(call) {
+                    try { runLlmWebSocket(state, caller, options, webSocketOptions, prepare, initialize) }
+                    finally { call.contextActive = false; removeLlmCall(client, state) }
+                }
+            }
+        }, opening)
+    }
+}
+
+internal class LlmWebSocketOpening(continuation: Continuation<LlmWebSocketOpened>) : Continuation<Unit> {
+    private val lock = Mutex()
+    private var waiting: Continuation<LlmWebSocketOpened>? = Some(continuation)
+    var listener: Disposable? = None
+    fun publish(value: LlmWebSocketOpened) { take()?.resume(value) }
+    fun fail(error: Throwable) { take()?.resumeWithException(error) }
+    private fun take(): Continuation<LlmWebSocketOpened>? {
+        val current = lock.withLock { val value = waiting; waiting = None; value }
+        listener?.dispose()
+        return current
+    }
+    public override fun resume(value: Unit) { fail(IllegalStateException(Some("LLM WebSocket session ended before opening"))) }
+    public override fun resumeWithException(exception: Throwable) { fail(exception) }
+}

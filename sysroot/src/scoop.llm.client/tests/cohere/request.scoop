@@ -1,0 +1,71 @@
+package scoop.llm.client.tests.cohere
+
+import scoop.llm.client.tests.generationProtocol
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class CohereRequestTest {
+    @Test
+    fun `Cohere generation defaults use the same provider endpoint and protocol without model discovery`() {
+        val provider = Providers.cohereChat()
+        assertEquals(cohereDialect, provider.protocol.dialectId)
+        assertEquals("https://api.cohere.com", provider.defaultBaseUrl!!.toString())
+        assertEquals("https://example.com/proxy/v2/chat?deployment=x", generationProtocol(provider).generationUrl(Url.parse("https://example.com/proxy?deployment=x"), "unlisted:model").toString())
+        val model = LlmEndpoint(provider, LlmAuth.none()).model("unlisted:model")
+        assertEquals("unlisted:model", model.id)
+        val body = cohereEncode(cohereInput(), model.id)
+        assertEquals(2L, body.size)
+        assertEquals("unlisted:model", body["model"]!!.asString())
+        assertEquals("user", body["messages"]!![0L]["role"]!!.asString())
+        assertEquals("hello", body["messages"]!![0L]["content"]!![0L]["text"]!!.asString())
+        assertTrue(generationProtocol(provider).encodeRequest("m", cohereInput(), true)["stream"]!!.asBoolean())
+        assertEquals("/modelId", assertFailsWith<LlmRequestException> { cohereEncode(cohereInput(), ""); Unit }.path)
+        assertCohereRequestFailure(LlmRequest([]), "/input")
+    }
+
+    @Test
+    fun `Cohere saved reasoning plan citations and unknown assistant fields replay in message order`() {
+        val body = cohereBody("[{\"type\":\"thinking\",\"thinking\":\"reason\"},{\"type\":\"text\",\"text\":\"answer\"}]",
+            extra = ",\"tool_plan\":\"plan\",\"citations\":[],\"future\":1e400")
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(cohereDecode(body)))
+        val request = LlmRequest([Message([Text("question", cohereExtension("{\"future\":true}"))]), response.toInput()[0L],
+            Message([Text("later")], System, cohereExtension("{\"future\":false}")),
+            Message([Native(cohereDialect, Json.parse("{\"type\":\"thinking\",\"thinking\":\"explicit\"}"))], Assistant)], system = [Text("first")])
+        val messages = cohereEncode(Json.decodeFromString<LlmRequest>(Json.encodeToString(request)))["messages"]!!
+        assertEquals(5L, messages.size)
+        assertEquals("system", messages[0L]["role"]!!.asString())
+        assertTrue(messages[1L]["content"]!![0L]["future"]!!.asBoolean())
+        assertEquals(Json.stringify(body["message"]!!), Json.stringify(messages[2L]))
+        assertEquals("system", messages[3L]["role"]!!.asString())
+        assertFalse(messages[3L]["future"]!!.asBoolean())
+        assertEquals("explicit", messages[4L]["content"]!![0L]["thinking"]!!.asString())
+    }
+
+    @Test
+    fun `Cohere role ownership and history errors remain local request failures`() {
+        assertCohereRequestFailure(LlmRequest([Message([Text("x")], Developer)]), "/input/0/role")
+        assertCohereRequestFailure(LlmRequest([History(LlmHistory(OpenAiChatDialect().id, []))]), "/input/0/history/dialect")
+        assertCohereRequestFailure(LlmRequest([History(LlmHistory(cohereDialect, [], Some(Json.parse("{}"))))]), "/input/0/history/context")
+        assertCohereRequestFailure(LlmRequest([History(LlmHistory(cohereDialect, [Json.parse("{\"role\":\"user\"}")]))]), "/input/0/history/items/0/role")
+        assertCohereRequestFailure(LlmRequest([Message([Native(cohereDialect, Json.parse("{}"))])]), "/input/0/content/0/value/type")
+        assertCohereRequestFailure(LlmRequest([Message([Native(cohereDialect, Json.parse("{\"type\":\"thinking\",\"thinking\":\"x\"}"))])]), "/input/0/content/0/value/type")
+        assertCohereRequestFailure(LlmRequest([Message([Native(OpenAiChatDialect().id, Json.parse("{}"))])]), "/input/0/content/0/dialect")
+    }
+
+    @Test
+    fun `Cohere RAG and native request fields compose without moving message documents or overriding controls`() {
+        val request = LlmRequest(cohereInput().input, extensions = cohereExtension("{\"documents\":[{\"id\":\"source\",\"data\":{\"text\":\"context\",\"count\":9007199254740993}}],\"citation_options\":{\"mode\":\"accurate\"},\"seed\":0}"))
+        val body = cohereEncode(request)
+        assertEquals(9007199254740993L, body["documents"]!![0L]["data"]!!["count"]!!.asLong())
+        assertEquals("hello", body["messages"]!![0L]["content"]!![0L]["text"]!!.asString())
+        assertEquals(0L, body["seed"]!!.asLong())
+        for (name in ["model", "messages", "stream", "tools", "tool_choice", "strict_tools", "p", "thinking", "response_format"])
+            assertCohereRequestFailure(LlmRequest(cohereInput().input, extensions = cohereExtension("{\"" + name + "\":null}")), "/extensions/0/value/" + name)
+        assertCohereRequestFailure(LlmRequest([Message([Text("x")], extensions = cohereExtension("{\"tool_plan\":\"x\"}"))]), "/input/0/extensions/0/value/tool_plan")
+        assertCohereRequestFailure(LlmRequest([Message([Text("x", cohereExtension("{\"text\":\"replace\"}"))])]), "/input/0/content/0/extensions/0/value/text")
+    }
+}

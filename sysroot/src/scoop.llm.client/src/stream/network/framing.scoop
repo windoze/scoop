@@ -1,0 +1,55 @@
+package scoop.llm.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.http.client.HttpResponse
+
+internal suspend fun readLlmStreamResponse(protocol: LlmStreamProtocol, response: HttpResponse, request: LlmRequest,
+    state: LlmStreamState, options: LlmCallOptions, attempt: LlmAttemptState, timer: Job?) {
+    if (protocol is LlmSseProtocol) {
+        readLlmSseResponse(protocol.createStreamDecoder(request, state.retention), protocol.dialectId,
+            response, state, options, attempt, timer)
+        return
+    }
+    val media = HttpMediaType.parseFields(response.fields)
+    if (protocol is LlmEventStreamProtocol) {
+        if (!llmPresent(media) || media!!.type != "application" || media!!.subtype != "vnd.amazon.eventstream")
+            throw LlmStreamProtocolException(protocol.dialectId, "expected application/vnd.amazon.eventstream response")
+        val decoder = protocol.createEventStreamDecoder(request, state.retention)
+        AwsEventStreamSource(LlmLimitedSource(response.body, options.maxResponseBytes)).useAsync suspend { source ->
+            consumeLlmStream<AwsEventStreamMessage>(state, decoder, protocol.dialectId, attempt, timer,
+                read = suspend { source.next() }, decode = { message -> decoder.accept(message) })
+        }
+        return
+    }
+    if (protocol is LlmNdjsonProtocol) {
+        if (!llmPresent(media) || media!!.type != "application" || (media!!.subtype != "x-ndjson" && media!!.subtype != "json"))
+            throw LlmStreamProtocolException(protocol.dialectId, "expected application/x-ndjson or application/json response")
+        val decoder = protocol.createNdjsonDecoder(request, state.retention)
+        if (media!!.subtype == "json") {
+            val source = LlmJsonStreamRecord(response.body, options.maxResponseBytes)
+            consumeLlmStream<String>(state, decoder, protocol.dialectId, attempt, timer,
+                read = suspend { source.next() }, decode = { record -> decoder.accept(record) })
+            return
+        }
+        NdjsonSource(LlmLimitedSource(response.body, options.maxResponseBytes), maxRecordBytes = options.maxResponseBytes).useAsync suspend { source ->
+            consumeLlmStream<String>(state, decoder, protocol.dialectId, attempt, timer,
+                read = suspend { source.next() }, decode = { record -> decoder.accept(record) })
+        }
+        return
+    }
+    throw LlmRequestException("/stream", "protocol has no supported stream framing")
+}
+
+internal suspend fun readLlmSseResponse(decoder: LlmSseDecoder, dialect: DialectId, response: HttpResponse,
+    state: LlmStreamState, options: LlmCallOptions, attempt: LlmAttemptState, timer: Job?) {
+    val media = HttpMediaType.parseFields(response.fields)
+    if (!llmPresent(media) || media!!.type != "text" || media!!.subtype != "event-stream")
+        throw LlmStreamProtocolException(dialect, "expected text/event-stream response")
+    SseSource(LlmLimitedSource(response.body, options.maxResponseBytes),
+        SseLimits(options.maxResponseBytes, options.maxResponseBytes)).useAsync suspend { source ->
+        consumeLlmStream<SseEvent>(state, decoder, dialect, attempt, timer,
+            read = suspend { source.next() }, decode = { event -> decoder.accept(event.event, event.data) })
+    }
+}

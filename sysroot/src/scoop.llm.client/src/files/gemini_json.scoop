@@ -1,0 +1,44 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun decodeGeminiFileUpload(dialect: DialectId, interactions: Boolean, value: JsonValue): LlmFileInfo {
+    checkGeminiFileObject(dialect, value, "", value)
+    val file = value["file"] ?: throw LlmProtocolException(dialect, "/file", "expected an uploaded file object", value)
+    return decodeGeminiFile(dialect, interactions, file, "/file", value, value)
+}
+
+internal fun decodeGeminiFilePage(dialect: DialectId, interactions: Boolean, value: JsonValue): LlmFilePage {
+    checkGeminiFileObject(dialect, value, "", value)
+    val files = value["files"]
+    val entries = ArrayList<LlmFileInfo>()
+    if (llmPresent(files) && files!!.kind != JsonValueKind.Null) {
+        if (files!!.kind != JsonValueKind.Array) throw LlmProtocolException(dialect, "/files", "expected a file list array", value)
+        var index = 0L
+        for (file in files!!.elements()) {
+            entries.add(decodeGeminiFile(dialect, interactions, file, "/files/" + index.toString(), value, file))
+            index += 1L
+        }
+    }
+    return LlmFilePage(dialect, entries.toArray(), value)
+}
+
+internal fun decodeGeminiFile(dialect: DialectId, interactions: Boolean, value: JsonValue, path: String,
+    source: JsonValue, native: JsonValue): LlmFileInfo {
+    checkGeminiFileObject(dialect, value, path, source)
+    val name = value["name"]
+    if (!llmPresent(name) || name!!.kind != JsonValueKind.String || name!!.asString().length == 0L)
+        throw LlmProtocolException(dialect, path + "/name", "expected a nonempty file resource name", source)
+    var reference: LlmFileReference? = None
+    val uri = value["uri"]
+    if (llmPresent(uri) && uri!!.kind != JsonValueKind.Null) {
+        if (uri!!.kind != JsonValueKind.String) throw LlmProtocolException(dialect, path + "/uri", "expected a file URI string", source)
+        if (uri!!.asString().length != 0L) reference = Some(LlmFileReference(dialect,
+            JsonObjectBuilder().add(if (interactions) "uri" else "fileUri", uri!!).build()))
+    }
+    return LlmFileInfo(dialect, name!!.asString(), reference, native)
+}
+
+private fun checkGeminiFileObject(dialect: DialectId, value: JsonValue, path: String, source: JsonValue) {
+    if (value.kind != JsonValueKind.Object) throw LlmProtocolException(dialect, path, "expected a file response object", source)
+}

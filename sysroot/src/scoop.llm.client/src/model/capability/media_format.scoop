@@ -1,0 +1,46 @@
+package scoop.llm.client
+
+import scoop.http.HttpMediaType
+
+/** The representation used to deliver or return media. */
+public enum MediaForm {
+    Bytes,
+    Url,
+    FileReference
+
+    public companion object : ValueEncoder<MediaForm>, ValueDecoder<MediaForm>
+}
+
+/** An exact MIME and representation pair, retaining parameters and the original MIME spelling. */
+public class MediaFormat public constructor(
+    public val mimeType: String,
+    public val form: MediaForm
+) {
+    @Serialize(ignore = true) internal val parsed: HttpMediaType = checkedMediaType(mimeType)
+
+    /** Matches MIME syntax equivalences without discarding parameters or their exact values. */
+    public fun matches(other: MediaFormat): Boolean {
+        if (form != other.form || parsed.type != other.parsed.type || parsed.subtype != other.parsed.subtype)
+            return false
+        if (parsed.parameters.size != other.parsed.parameters.size) return false
+        for (parameter in parsed.parameters) {
+            val otherParameter = other.parsed.parameter(parameter.name) ?: return false
+            if (parameter.value.size != otherParameter.value.size) return false
+            var index = 0L
+            while (index < parameter.value.size) {
+                if (parameter.value[index] != otherParameter.value[index]) return false
+                index += 1L
+            }
+        }
+        return true
+    }
+
+    public companion object : ValueEncoder<MediaFormat>, ValueDecoder<MediaFormat>
+}
+
+private fun checkedMediaType(value: String): HttpMediaType {
+    val parsed = HttpMediaType.parse(value)
+    if (parsed.type == "*" || parsed.subtype == "*")
+        throw IllegalArgumentException(Some("media capability requires an exact MIME type"))
+    return parsed
+}

@@ -1,0 +1,79 @@
+package scoop.llm.client
+
+import scoop.json.Json
+import scoop.test.*
+
+@Test
+private class TokenUsageTest {
+    @Test
+    fun `omitted fields use the declared defaults without inventing zero counts`() {
+        val usage = Json.decodeFromString<TokenUsage>("{}")
+        assertEquals(None, usage.inputTokens)
+        assertEquals(None, usage.totalTokens)
+        assertEquals(None, usage.cacheReadTokens)
+        assertEquals(0L, usage.modality.size)
+        val encoded = Json.encodeToValue(usage)
+        assertEquals(1L, encoded.size)
+        assertEquals("modality", encoded.keys()[0L])
+    }
+
+    @Test
+    fun `unknown counts and known zero survive serialization distinctly`() {
+        val original = TokenUsage(inputTokens = Some(0L), cacheReadTokens = Some(0L))
+        val restored = Json.decodeFromString<TokenUsage>(Json.encodeToString(original))
+        assertEquals(Some(0L), restored.inputTokens)
+        assertEquals(Some(0L), restored.cacheReadTokens)
+        assertEquals(None, restored.nonCachedInputTokens)
+        assertEquals(None, restored.outputTokens)
+        assertEquals(None, restored.totalTokens)
+        assertEquals(None, restored.reasoningTokens)
+        assertEquals(0L, restored.modality.size)
+    }
+
+    @Test
+    fun `subcounts are preserved without inventing or double counting totals`() {
+        val usage = TokenUsage(inputTokens = Some(100L), nonCachedInputTokens = Some(20L),
+            outputTokens = Some(50L), cacheReadTokens = Some(70L), cacheWriteTokens = Some(10L),
+            reasoningTokens = Some(30L), modality = [
+                ModalityTokenUsage(TokenDirection.Input, TokenModality.Image, 40L),
+                ModalityTokenUsage(TokenDirection.Output, TokenModality.Text, 20L)
+            ])
+        val restored = Json.decodeFromString<TokenUsage>(Json.encodeToString(usage))
+        assertEquals(Some(100L), restored.inputTokens)
+        assertEquals(Some(20L), restored.nonCachedInputTokens)
+        assertEquals(Some(50L), restored.outputTokens)
+        assertEquals(Some(70L), restored.cacheReadTokens)
+        assertEquals(Some(10L), restored.cacheWriteTokens)
+        assertEquals(Some(30L), restored.reasoningTokens)
+        assertEquals(None, restored.totalTokens)
+        assertEquals(2L, restored.modality.size)
+        assertTrue(restored.modality[0L].direction == TokenDirection.Input)
+        assertTrue(restored.modality[0L].modality == TokenModality.Image)
+        assertEquals(40L, restored.modality[0L].tokens)
+        assertTrue(restored.modality[1L].direction == TokenDirection.Output)
+        assertEquals(20L, restored.modality[1L].tokens)
+    }
+
+    @Test
+    fun `large integers and provider modality names remain exact`() {
+        val usage = TokenUsage(totalTokens = Some(9223372036854775807L), modality = [
+            ModalityTokenUsage(TokenDirection.Input, TokenModality.Other("provider-kind"), 9007199254740993L)
+        ])
+        val restored = Json.decodeFromString<TokenUsage>(Json.encodeToString(usage))
+        assertEquals(usage.totalTokens, restored.totalTokens)
+        assertEquals(9007199254740993L, restored.modality[0L].tokens)
+        assertTrue(restored.modality[0L].modality == TokenModality.Other("provider-kind"))
+    }
+
+    @Test
+    fun `negative token counts are rejected at construction`() {
+        assertFailsWith<IllegalArgumentException> { val invalid = TokenUsage(inputTokens = Some(-1L)); Unit }
+        assertFailsWith<IllegalArgumentException> { val invalid = TokenUsage(nonCachedInputTokens = Some(-1L)); Unit }
+        assertFailsWith<IllegalArgumentException> { val invalid = TokenUsage(outputTokens = Some(-1L)); Unit }
+        assertFailsWith<IllegalArgumentException> { val invalid = TokenUsage(totalTokens = Some(-1L)); Unit }
+        assertFailsWith<IllegalArgumentException> { val invalid = TokenUsage(cacheReadTokens = Some(-1L)); Unit }
+        assertFailsWith<IllegalArgumentException> { val invalid = TokenUsage(cacheWriteTokens = Some(-1L)); Unit }
+        assertFailsWith<IllegalArgumentException> { val invalid = TokenUsage(reasoningTokens = Some(-1L)); Unit }
+        assertFailsWith<IllegalArgumentException> { val invalid = ModalityTokenUsage(TokenDirection.Input, TokenModality.Text, -1L); Unit }
+    }
+}

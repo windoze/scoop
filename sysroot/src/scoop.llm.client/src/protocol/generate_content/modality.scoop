@@ -1,0 +1,59 @@
+package scoop.llm.client
+
+internal class GenerateContentTokenDetail public constructor(public val modality: String, public val tokenCount: Long) {
+    public companion object : ValueDecoder<GenerateContentTokenDetail>
+}
+
+internal fun readGenerateContentModality(fields: GenerateContentUsageFields): Array<ModalityTokenUsage> {
+    return readGeminiModality(fields.promptTokensDetails, fields.toolUsePromptTokensDetails,
+        fields.candidatesTokensDetails, fields.cacheTokensDetails, "candidatesTokensDetails")
+}
+
+internal fun readGeminiModality(promptTokensDetails: Array<GenerateContentTokenDetail>?,
+    toolUsePromptTokensDetails: Array<GenerateContentTokenDetail>?, candidatesTokensDetails: Array<GenerateContentTokenDetail>?,
+    cacheTokensDetails: Array<GenerateContentTokenDetail>?, outputName: String): Array<ModalityTokenUsage> {
+    checkGenerateContentDetails(promptTokensDetails, "promptTokensDetails")
+    checkGenerateContentDetails(toolUsePromptTokensDetails, "toolUsePromptTokensDetails")
+    checkGenerateContentDetails(candidatesTokensDetails, outputName)
+    checkGenerateContentDetails(cacheTokensDetails, "cacheTokensDetails")
+    val result = ArrayList<ModalityTokenUsage>()
+    if (llmPresent(promptTokensDetails) && llmPresent(toolUsePromptTokensDetails)) {
+        val details = ArrayList<GenerateContentTokenDetail>()
+        for (item in promptTokensDetails!!) details.add(item)
+        for (item in toolUsePromptTokensDetails!!) details.add(item)
+        val names = ArrayList<String>()
+        for (item in details) {
+            var exists = false
+            for (name in names) { if (name == item.modality) exists = true }
+            if (exists) continue
+            names.add(item.modality)
+            var count = 0L
+            for (entry in details) {
+                if (entry.modality == item.modality)
+                    count = generateContentTokenSum(Some(count), Some(entry.tokenCount), "/usageMetadata/promptTokensDetails")!!
+            }
+            result.add(ModalityTokenUsage(Input, generateContentModality(item.modality), count))
+        }
+    }
+    for (item in candidatesTokensDetails ?: [])
+        result.add(ModalityTokenUsage(Output, generateContentModality(item.modality), item.tokenCount))
+    return result.toArray()
+}
+
+private fun checkGenerateContentDetails(values: Array<GenerateContentTokenDetail>?, name: String) {
+    val details = values ?: return
+    var index = 0L
+    for (item in details) {
+        checkedGenerateContentCount(Some(item.tokenCount), "/usageMetadata/" + name + "/" + index.toString() + "/tokenCount")
+        index += 1L
+    }
+}
+
+internal fun generateContentModality(value: String): TokenModality = when (value) {
+    case "TEXT" -> Text
+    case "IMAGE" -> Image
+    case "AUDIO" -> Audio
+    case "VIDEO" -> Video
+    case "DOCUMENT" -> Document
+    else -> Other(value)
+}

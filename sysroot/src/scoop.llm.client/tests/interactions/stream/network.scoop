@@ -1,0 +1,71 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class InteractionsStreamNetworkTest {
+    @Test
+    fun `Interactions SSE mock verifies route body terminal usage history and actual timestamps`() {
+        withLlmServer suspend { _, scope, listener, original ->
+            val endpoint = LlmEndpoint(Providers.geminiInteractions(), LlmAuth.header("x-goog-api-key", "mock-only"),
+                Some(Url.parse(original.baseUrl.toString() + "/proxy?deployment=test&alt=json")))
+            val body = interactionsSse("interaction.created", "{\"interaction\":{\"id\":\"stream-interactions\",\"status\":\"in_progress\"}}") +
+                interactionsSse("step.start", "{\"index\":0,\"step\":{\"type\":\"thought\",\"signature\":\"signed\"}}") +
+                interactionsSse("step.stop", "{\"index\":0}") +
+                interactionsSse("step.start", "{\"index\":1,\"step\":{\"type\":\"model_output\"}}") +
+                interactionsSse("step.delta", "{\"index\":1,\"delta\":{\"type\":\"text\",\"text\":\"hello\"}}") +
+                interactionsSse("step.delta", "{\"index\":1,\"delta\":{\"type\":\"text\",\"text\":\" world\"}}") +
+                interactionsSse("step.stop", "{\"index\":1,\"usage\":{\"total_input_tokens\":8,\"total_output_tokens\":3}}") +
+                interactionsSse("interaction.completed", "{\"interaction\":{\"id\":\"stream-interactions\",\"status\":\"completed\",\"usage\":{\"total_thought_tokens\":1,\"total_tokens\":12}}}") +
+                "event: done\ndata: [DONE]\n\n"
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val request = connection.receiveRequest()!!
+                    val target = when (request.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                    assertEquals("/v1/proxy/interactions?deployment=test&alt=sse", target)
+                    assertEquals("mock-only", String.fromUtf8(request.head.fields.findAll("x-goog-api-key".toByteArray())[0L].value))
+                    val wire = Json.parse(String.fromUtf8(request.body.readAllBytes(4096L)))
+                    assertEquals(3L, wire.size)
+                    assertTrue(wire["stream"]!!.asBoolean())
+                    assertEquals("unlisted/model", wire["model"]!!.asString())
+                    sendLlmReply(connection, 200U, body, streamFields)
+                }
+            }
+            withLlmClient suspend { client ->
+                val stream = client.openStream(endpoint.model("unlisted/model"), sampleRequest, retention = StreamRetention.Result)
+                val text = StringBuilder()
+                stream.useAsync suspend { opened ->
+                    val view = opened.textDeltas()
+                    while (true) { val delta = view.next() ?: break; text.append(delta.text) }
+                    assertEquals(UsageCompleteness.Final, opened.metadata.attempts[0L].usage.completeness)
+                    assertTrue(opened.metadata.attempts[0L].response.completedAt != None)
+                }
+                val result = stream.result()
+                assertEquals("hello world", text.toString())
+                assertEquals(text.toString(), result.text)
+                assertEquals(Some(12L), result.response.usage.tokens.totalTokens)
+                assertEquals(None, result.response.createdAt)
+                assertEquals(LlmCallOutcome.Completed, result.metadata.outcome)
+                val attempt = result.metadata.attempts[0L]
+                assertEquals(Some("stream-interactions"), attempt.responseId)
+                assertTrue(attempt.request.sentAt != None && attempt.response.receivedAt != None)
+                assertTrue(attempt.response.firstEventAt != None && attempt.response.firstTextAt != None)
+                val saved = Json.decodeFromString<LlmResult>(Json.encodeToString(result))
+                when (saved.toInput()[0L]) { case History(value) -> { assertEquals(2L, value.items.size); assertEquals("signed", value.items[0L]["signature"]!!.asString()) }; else -> fail() }
+            }
+            serving.join()
+        }
+    }
+}
+
+private fun interactionsSse(type: String, value: String): String {
+    val fields = JsonObjectBuilder().add("event_type", JsonValue.fromString(type))
+    for ((name, field) in Json.parse(value).members()) fields.add(name, field)
+    return "event: " + type + "\ndata: " + Json.stringify(fields.build()) + "\n\n"
+}

@@ -1,0 +1,55 @@
+package scoop.llm.client.tests.ollama
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+internal val ollamaDialect = OllamaChatDialect().id
+internal fun ollamaRequest(): LlmRequest = LlmRequest([], tools = [ClientFunction(ToolKey("local"), "lookup", Json.parse("{}"))])
+internal fun ollamaBody(content: String = "answer", reason: String? = Some("stop"), done: Boolean = true,
+    messageExtra: String = "", extra: String = ""): JsonValue = Json.parse(
+    "{\"model\":\"local:model\",\"message\":{\"role\":\"assistant\",\"content\":" + Json.encodeToString(content) + messageExtra + "},\"done\":" +
+    done.toString() + (if (reason == None) "" else ",\"done_reason\":" + Json.encodeToString(reason!!)) + extra + "}")
+
+internal fun ollamaDecode(value: JsonValue, request: LlmRequest = ollamaRequest()): LlmResponse =
+    OllamaChatProtocol(OllamaChatDialect()).decodeResponse(value, request)
+
+internal fun ollamaHistory(response: LlmResponse): JsonValue = when (response.toInput()[0L]) {
+    case History(history) -> history.items[0L]
+    else -> fail()
+}
+
+internal fun ollamaReplace(value: JsonValue, name: String, field: JsonValue?): JsonValue {
+    val result = JsonObjectBuilder()
+    for ((key, raw) in value.members()) if (key != name) result.add(key, raw)
+    when (field) { case Some(raw) -> result.add(name, raw); case None -> {} }
+    return result.build()
+}
+
+internal fun ollamaCall(arguments: String = "{}", name: String = "lookup", id: String? = None, index: Long? = Some(0L)): JsonValue {
+    val function = JsonObjectBuilder().add("name", JsonValue.fromString(name)).add("arguments", Json.parse(arguments))
+    if (index != None) function.add("index", JsonValue.fromLong(index!!))
+    val call = JsonObjectBuilder().add("function", function.build())
+    if (id != None) call.add("id", JsonValue.fromString(id!!))
+    return call.build()
+}
+
+internal fun ollamaCalls(calls: Array<JsonValue>, reason: String? = Some("stop"), done: Boolean = true,
+    request: LlmRequest = ollamaRequest()): LlmResponse = ollamaDecode(ollamaBody("", reason, done,
+        messageExtra = ",\"tool_calls\":" + Json.stringify(JsonValue.fromArray(calls))), request)
+
+internal fun ollamaObservedCall(response: LlmResponse): ClientToolCall {
+    for (item in response.candidates[0L].items) when (item) { case ClientToolCall(call) -> return call; else -> {} }
+    fail()
+}
+
+internal fun assertOllamaFailure(value: JsonValue, path: String) {
+    val error = assertFailsWith<LlmProtocolException> { ollamaDecode(value); Unit }
+    assertEquals(path, error.path)
+    assertEquals(ollamaDialect, error.dialect)
+    assertEquals(Json.stringify(value), Json.stringify(error.native))
+}
+
+internal class OllamaCount public constructor(public val count: Long) {
+    public companion object : ValueDecoder<OllamaCount>
+}

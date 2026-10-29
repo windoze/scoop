@@ -1,0 +1,70 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeMessagesTools(result: JsonObjectBuilder, dialect: DialectId, request: LlmRequest, manualThinking: Boolean) {
+    val tools = ArrayList<JsonValue>()
+    val names = ArrayList<String>()
+    var selected: String? = None
+    val selectedKey = when (request.options.toolChoice) { case Specific(key) -> Some(key); else -> None }
+    var index = 0L
+    for (tool in request.tools) {
+        val path = "/tools/" + index.toString()
+        val (name, value) = encodeMessagesTool(tool, dialect, path)
+        if (name != None) {
+            for (previous in names) if (previous == name!!) throw LlmRequestException(path + "/name", "duplicate Messages tool name")
+            names.add(name!!)
+        }
+        if (selectedKey == Some(tool.key)) selected = name
+        tools.add(value)
+        index += 1L
+    }
+    if (tools.size != 0L) result.add("tools", JsonValue.fromArray(tools))
+    encodeMessagesToolChoice(result, request, selected, manualThinking)
+}
+
+private fun encodeMessagesTool(tool: ToolDefinition, dialect: DialectId, path: String): (String?, JsonValue) = when (tool) {
+    case ClientFunction(_, name, parameters, description, strict, extensions) -> {
+        requireLlmToolName(name, 128L, path + "/name")
+        val body = JsonObjectBuilder().add("name", JsonValue.fromString(name)).add("input_schema", parameters)
+        if (description.length != 0L) body.add("description", JsonValue.fromString(description))
+        if (strict != None) body.add("strict", JsonValue.fromBoolean(strict!!))
+        (Some(name), mergeLlmExtensions(body.build(), extensions, dialect, ["type", "name", "input_schema", "description", "strict"], path))
+    }
+    case ClientCustom(_, _, _, _, _) -> throw LlmRequestException(path, "Messages has no custom-text tool mapping")
+    case ClientNative(_, native, extensions) -> encodeMessagesNativeTool(native, extensions, dialect, false, path)
+    case Server(_, definition, extensions) -> when (definition) {
+        case WebSearch(options) -> (Some("web_search"), encodeMessagesWebSearch(options, extensions, dialect, path))
+        case Native(native) -> encodeMessagesNativeTool(native, extensions, dialect, true, path)
+    }
+}
+
+private fun encodeMessagesToolChoice(result: JsonObjectBuilder, request: LlmRequest, selected: String?, manualThinking: Boolean) {
+    val parallel = request.options.parallelToolCalls
+    val choice = when (request.options.toolChoice) {
+        case Auto -> { if (parallel == None) return; llmTypedObject("auto") }
+        case None -> {
+            if (parallel != None) throw LlmRequestException("/options/parallelToolCalls", "disabled tools have no parallel control")
+            llmTypedObject("none")
+        }
+        case Required -> {
+            requireMessagesForcedChoice(request, manualThinking)
+            llmTypedObject("any")
+        }
+        case Specific(_) -> {
+            requireMessagesForcedChoice(request, manualThinking)
+            val name = selected ?: throw LlmRequestException("/options/toolChoice", "selecting a native toolset requires an explicit member name")
+            llmTypedObject("tool").add("name", JsonValue.fromString(name))
+        }
+    }
+    if (parallel != None) {
+        if (request.tools.size == 0L) throw LlmRequestException("/options/parallelToolCalls", "parallel control requires tools")
+        choice.add("disable_parallel_tool_use", JsonValue.fromBoolean(!parallel!!))
+    }
+    result.add("tool_choice", choice.build())
+}
+
+private fun requireMessagesForcedChoice(request: LlmRequest, manualThinking: Boolean) {
+    if (manualThinking || request.tools.size == 0L)
+        throw LlmRequestException("/options/toolChoice", "forced tool choice requires tools and cannot use manual thinking")
+}

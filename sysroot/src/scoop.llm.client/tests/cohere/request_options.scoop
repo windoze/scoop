@@ -1,0 +1,60 @@
+package scoop.llm.client.tests.cohere
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class CohereRequestOptionsTest {
+    @Test
+    fun `Cohere sampling preserves explicit zero empty stops and native numeric precision`() {
+        val options = LlmGenerationOptions(temperature = Some(0.0), topP = Some(0.99), topK = Some(0UL),
+            maxOutputTokens = Some(100UL), candidates = Some(1UL), stop = Some([]))
+        val body = cohereEncode(LlmRequest(cohereInput(options).input, options = options, extensions = cohereExtension("{\"seed\":9007199254740993,\"logprobs\":false}")))
+        assertEquals(0.0, body["temperature"]!!.asDouble())
+        assertEquals(0.99, body["p"]!!.asDouble())
+        assertEquals(0L, body["k"]!!.asLong())
+        assertEquals(100L, body["max_tokens"]!!.asLong())
+        assertEquals(0L, body["stop_sequences"]!!.size)
+        assertEquals(9007199254740993L, body["seed"]!!.asLong())
+        assertFalse(body.containsKey("candidates"))
+        assertFalse(body["logprobs"]!!.asBoolean())
+        for ((options, path) in [(LlmGenerationOptions(temperature = Some(-0.1)), "temperature"),
+            (LlmGenerationOptions(topP = Some(1.0)), "topP"), (LlmGenerationOptions(topP = Some(0.0)), "topP"),
+            (LlmGenerationOptions(topK = Some(501UL)), "topK"), (LlmGenerationOptions(maxOutputTokens = Some(0UL)), "maxOutputTokens"),
+            (LlmGenerationOptions(candidates = Some(2UL)), "candidates"), (LlmGenerationOptions(parallelToolCalls = Some(false)), "parallelToolCalls"),
+            (LlmGenerationOptions(stop = Some(["a", "b", "c", "d", "e", "f"])), "stop")])
+            assertCohereRequestFailure(cohereInput(options), "/options/" + path)
+    }
+
+    @Test
+    fun `Cohere reasoning activation and budgets are explicit without a guessed effort`() {
+        assertFalse(cohereEncode(cohereInput(LlmGenerationOptions(reasoning = Some(ReasoningOptions())))).containsKey("thinking"))
+        for (enabled in [true, false]) {
+            val body = cohereEncode(cohereInput(LlmGenerationOptions(reasoning = Some(ReasoningOptions(enabled = Some(enabled))))))
+            assertEquals(if (enabled) "enabled" else "disabled", body["thinking"]!!["type"]!!.asString())
+        }
+        val body = cohereEncode(cohereInput(LlmGenerationOptions(reasoning = Some(ReasoningOptions(budgetTokens = Some(500UL))))))
+        assertEquals("enabled", body["thinking"]!!["type"]!!.asString())
+        assertEquals(500L, body["thinking"]!!["token_budget"]!!.asLong())
+        for (options in [ReasoningOptions(budgetTokens = Some(0UL)), ReasoningOptions(enabled = Some(false), budgetTokens = Some(1UL))])
+            assertCohereRequestFailure(cohereInput(LlmGenerationOptions(reasoning = Some(options))), "/options/reasoning/budgetTokens")
+        assertCohereRequestFailure(cohereInput(LlmGenerationOptions(reasoning = Some(ReasoningOptions(effort = Some("low"))))), "/options/reasoning/effort")
+    }
+
+    @Test
+    fun `Cohere JSON constraints preserve schemas and reject incompatible retrieval and tool combinations`() {
+        val schema = Json.parse("{\"type\":\"object\",\"properties\":{\"value\":{\"const\":9007199254740993}}}")
+        val options = LlmGenerationOptions(output = JsonSchema(schema, strict = Some(true)))
+        val body = cohereEncode(cohereInput(options))
+        assertEquals("json_object", body["response_format"]!!["type"]!!.asString())
+        assertEquals(Json.stringify(schema), Json.stringify(body["response_format"]!!["json_schema"]!!))
+        assertEquals("hello", body["messages"]!![0L]["content"]!![0L]["text"]!!.asString())
+        assertEquals(1L, cohereEncode(cohereInput(LlmGenerationOptions(output = JsonObject)))["response_format"]!!.size)
+        assertCohereRequestFailure(LlmRequest(cohereInput().input, tools = [cohereFunction()], options = options), "/options/output")
+        assertCohereRequestFailure(LlmRequest(cohereInput().input, options = options, extensions = cohereExtension("{\"documents\":[]}")), "/options/output")
+        for ((format, path) in [(OutputFormat.JsonSchema(schema, name = "named"), "name"),
+            (OutputFormat.JsonSchema(schema, description = Some("d")), "description"), (OutputFormat.JsonSchema(schema, strict = Some(false)), "strict")])
+            assertCohereRequestFailure(cohereInput(LlmGenerationOptions(output = format)), "/options/output/" + path)
+    }
+}

@@ -1,0 +1,37 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ResponsesCitationTest {
+    @Test
+    fun `Responses file and unknown annotations preserve source ownership and original indices`() {
+        val annotations = "[{\"type\":\"file_citation\",\"file_id\":\"f1\",\"filename\":\"report.pdf\",\"index\":2}," +
+            "{\"type\":\"file_path\",\"file_id\":\"f2\",\"index\":1}," +
+            "{\"type\":\"container_file_citation\",\"container_id\":\"container\",\"file_id\":\"f3\",\"filename\":\"out.csv\",\"start_index\":0,\"end_index\":4}," +
+            "{\"type\":\"future_annotation\",\"data\":1e400}]"
+        val body = responsesBody("[{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"a😀中\",\"annotations\":" + annotations + "}]}]")
+        val result = ResponsesProtocol(OpenAiResponsesDialect()).decodeResponse(body, responsesRequest())
+        when (result.candidate(0L).items[0]) {
+            case Message(parts, _) -> when (parts[0]) {
+                case Text(_, citations) -> {
+                    assertEquals(4L, citations.size)
+                    for (citation in citations) assertTrue(when (citation.range) { case None -> true; case Some(_) -> false })
+                    assertEquals("f1", citations[0].source.id)
+                    assertEquals(Some("report.pdf"), citations[0].source.title)
+                    when (citations[0].source.location) {
+                        case File(file) -> { assertEquals(OpenAiResponsesDialect().id, file.dialect); assertEquals("f1", file.value.asString()) }
+                        else -> fail()
+                    }
+                    when (citations[2].source.location) { case Native(_, raw) -> assertEquals("container", raw["container_id"]!!.asString()); else -> fail() }
+                    assertEquals("1e400", citations[3].source.native!!["data"]!!.asNumberToken())
+                }
+                else -> fail()
+            }
+            else -> fail()
+        }
+        assertResponsesFailure(responsesBody("[{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"x\",\"annotations\":[{\"type\":\"file_citation\"}]}]}]"), "/output/0/content/0/annotations/0/file_id")
+    }
+}

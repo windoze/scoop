@@ -1,0 +1,61 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+private fun responsesStreamReply(): String {
+    val message = "{\"type\":\"message\",\"id\":\"m\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\",\"annotations\":[]}]}"
+    val events = [
+        "{\"type\":\"response.created\",\"response\":{\"object\":\"response\",\"id\":\"stream\",\"output\":[],\"status\":\"in_progress\"}}",
+        "{\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"type\":\"message\",\"id\":\"m\",\"role\":\"assistant\",\"content\":[]}}",
+        "{\"type\":\"response.content_part.added\",\"output_index\":0,\"item_id\":\"m\",\"content_index\":0,\"part\":{\"type\":\"output_text\",\"text\":\"\"}}",
+        "{\"type\":\"response.output_text.delta\",\"output_index\":0,\"item_id\":\"m\",\"content_index\":0,\"delta\":\"hello\"}",
+        "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":" + message + "}",
+        "{\"type\":\"response.completed\",\"response\":{\"object\":\"response\",\"status\":\"completed\",\"output\":[" + message + "],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7}}}"]
+    val body = StringBuilder()
+    for (event in events) body.append("event: " + Json.parse(event)["type"]!!.asString() + "\ndata: " + event + "\n\n")
+    return body.toString()
+}
+
+@Test
+private class ResponsesStreamNetworkTest {
+    @Test
+    fun `Responses network mock shares text result usage and actual timestamp contracts`() {
+        for (retention in [StreamRetention.EventsOnly, StreamRetention.Result]) {
+            withLlmServer suspend { _, scope, listener, original ->
+                val endpoint = LlmEndpoint(Providers.openAiResponses(), LlmAuth.none(), Some(original.baseUrl))
+                val serving = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        val request = connection.receiveRequest()!!
+                        val body = Json.parse(String.fromUtf8(request.body.readAllBytes(8192L)))
+                        assertTrue(body["stream"]!!.asBoolean())
+                        assertFalse(body.containsKey("stream_options"))
+                        assertEquals("m", body["model"]!!.asString())
+                        sendLlmReply(connection, 200U, responsesStreamReply(), streamFields)
+                    }
+                }
+                withLlmClient suspend { client ->
+                    val stream = client.openStream(endpoint.model("m"), sampleRequest, retention = retention)
+                    val text = StringBuilder()
+                    stream.useAsync suspend { opened ->
+                        val deltas = opened.textDeltas()
+                        while (true) { val delta = deltas.next() ?: break; text.append(delta.text) }
+                    }
+                    assertEquals("hello", text.toString())
+                    assertEquals(LlmCallOutcome.Completed, stream.metadata.outcome)
+                    val attempt = stream.metadata.attempts[0L]
+                    assertEquals(UsageCompleteness.Final, attempt.usage.completeness)
+                    assertEquals(Some(7L), attempt.usage.tokens.totalTokens)
+                    assertTrue(attempt.request.sentAt != None && attempt.response.receivedAt != None)
+                    assertTrue(attempt.response.firstEventAt != None && attempt.response.firstTextAt != None && attempt.response.completedAt != None)
+                    if (retention == StreamRetention.Result) assertEquals("hello", stream.result().text)
+                    else expectLlmFailure<LlmOutputException> suspend { stream.result(); Unit }
+                }
+                serving.join()
+            }
+        }
+    }
+}

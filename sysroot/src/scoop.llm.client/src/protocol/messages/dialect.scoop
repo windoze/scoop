@@ -1,0 +1,74 @@
+package scoop.llm.client
+
+import scoop.json.JsonObjectBuilder
+import scoop.json.JsonValue
+import scoop.json.JsonValueKind
+import scoop.http.HttpField
+
+/** Messages-specific interpretation, with all per-response state owned by the decoder. */
+public interface MessagesDialect {
+    public fun fileApi(): LlmFileApi? = None
+    public fun modelCatalog(): LlmModelCatalog? = None
+    public fun tokenCounter(): LlmTokenCounter? = None
+    public val id: DialectId
+    public val defaultMaxOutputTokens: ULong
+    public fun requestFields(): Array<HttpField>
+    public fun encodeOptions(request: LlmRequest): JsonValue
+    public fun encodeContent(content: Array<ContentPart>, role: String, path: String): JsonValue
+    public fun readReasoning(block: JsonValue, path: String): Array<OutputPart>
+    public fun readUsage(usage: JsonValue): TokenUsage
+    public fun historyMessage(message: JsonValue, path: String): JsonValue
+    public fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException
+}
+
+public enum AnthropicMessagesVersion { V20230601, V20261021 }
+
+public class AnthropicMessagesDialect public constructor(
+    public val version: AnthropicMessagesVersion = V20261021,
+    public override val defaultMaxOutputTokens: ULong = 4096UL
+) : MessagesDialect {
+    public override fun fileApi(): LlmFileApi? = Some(MultipartFileApi(id, false))
+    public override fun modelCatalog(): LlmModelCatalog? = Some(JsonModelLookup(id))
+    public override val id: DialectId = DialectId(ApiProtocolId("messages"), "anthropic-messages")
+    public override fun tokenCounter(): LlmTokenCounter? = Some(MessagesTokenCounter(this))
+
+    public override fun requestFields(): Array<HttpField> = [HttpField("anthropic-version".toByteArray(),
+        (if (version == V20261021) "2026-10-21" else "2023-06-01").toByteArray())]
+    public override fun encodeOptions(request: LlmRequest): JsonValue = encodeMessagesOptions(this, request)
+    public override fun encodeContent(content: Array<ContentPart>, role: String, path: String): JsonValue =
+        encodeMessagesContent(id, content, role, version, path)
+
+    public override fun readReasoning(block: JsonValue, path: String): Array<OutputPart> {
+        val kind = decodeMessagesValue<MessagesBlockType>(block, path).type
+        if (kind == "thinking") {
+            val thinking = decodeMessagesValue<MessagesThinkingBlock>(block, path)
+            return [OutputPart.Text(thinking.thinking)]
+        }
+        if (kind != "redacted_thinking") throw DecodingException(path + "/type", "expected a Messages reasoning block")
+        decodeMessagesValue<MessagesRedactedBlock>(block, path)
+        return [OutputPart.Native(id, block)]
+    }
+
+    public override fun readUsage(usage: JsonValue): TokenUsage = readMessagesUsage(usage)
+
+    public override fun historyMessage(message: JsonValue, path: String): JsonValue =
+        JsonObjectBuilder().add("role", JsonValue.fromString("assistant"))
+            .add("content", message["content"] ?: throw DecodingException(path + "/content", "missing Messages content")).build()
+
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException {
+        val value = parseLlmServiceError(body, truncated)
+        val error = when (value) { case Some(root) -> if (root.kind == JsonValueKind.Object) root["error"] else None; case None -> None }
+        val code = llmServiceErrorString(error, "type")
+        val retryable = (status == 429U && code == Some("rate_limit_error")) || (status == 529U && code == Some("overloaded_error"))
+        return LlmServiceException(id, status, body, truncated, code, value, retryable,
+            llmServiceErrorString(error, "message") ?: "Messages service rejected the request")
+    }
+}
+
+private class MessagesThinkingBlock public constructor(public val thinking: String, public val signature: String) {
+    public companion object : ValueDecoder<MessagesThinkingBlock>
+}
+
+private class MessagesRedactedBlock public constructor(public val data: String) {
+    public companion object : ValueDecoder<MessagesRedactedBlock>
+}

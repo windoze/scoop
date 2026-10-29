@@ -1,0 +1,85 @@
+package scoop.llm.client.tests.cohere.stream
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.cohere.*
+import scoop.test.*
+
+@Test
+private class CohereStreamToolsTest {
+    @Test
+    fun `Cohere SSE interleaved tools retain exact arguments and only finish after the message reason`() {
+        for (retention in [StreamRetention.EventsOnly, StreamRetention.Result]) {
+            val stream = cohereStream(retention); cohereBegin(stream)
+            cohereToolStart(stream, 0L, cohereCall("a", "{\"count\":"))
+            cohereToolStart(stream, 1L, cohereCall("b", ""))
+            cohereToolDelta(stream, 1L, "{\"count\":2}")
+            cohereToolDelta(stream, 0L, "9007199254740993}")
+            assertEquals(0L, stream.accept("", cohereEvent("tool-call-end", Some(1L))).events.size)
+            assertEquals(0L, stream.accept("", cohereEvent("tool-call-end", Some(0L))).events.size)
+            val end = cohereEnd(stream, "TOOL_CALL")
+            var calls = 0L
+            for (event in end.events) when (event) {
+                case ClientToolCall(location, call) -> {
+                    assertTrue(call.isExecutable)
+                    assertEquals(if (calls == 0L) 9007199254740993L else 2L, call.decodeArguments<CohereAnswer>().count)
+                    assertEquals(calls, location.itemIndex)
+                    calls += 1L
+                }
+                else -> {}
+            }
+            assertEquals(2L, calls)
+            if (retention == StreamRetention.Result) {
+                val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(stream.response()))
+                val call = response.clientToolCalls[0L]
+                assertEquals("{\"count\":9007199254740993}", call.reference.context!!["function"]!!["arguments"]!!.asString())
+                val next = cohereEncode(LlmRequest([response.toInput()[0L], ToolResult(call.reference, [Text("done")])]))
+                assertEquals("a", next["messages"]!![1L]["tool_call_id"]!!.asString())
+            }
+        }
+    }
+
+    @Test
+    fun `Cohere SSE distinguishes invalid arguments incomplete calls and opaque functions`() {
+        for ((arguments, reason) in [("null", "TOOL_CALL"), ("[]", "TOOL_CALL"), ("{", "TOOL_CALL"), ("{}", "MAX_TOKENS"), ("{}", "COMPLETE")]) {
+            val stream = cohereStream(); cohereBegin(stream)
+            cohereToolStart(stream, 0L, cohereCall("a", arguments))
+            stream.accept("", cohereEvent("tool-call-end", Some(0L))); cohereEnd(stream, reason)
+            val call = when (stream.response().candidates[0L].items[0L]) { case ClientToolCall(value) -> value; else -> fail() }
+            assertEquals(0L, stream.response().clientToolCalls.size)
+            when (call.input) {
+                case Invalid(text, _) -> { assertEquals("TOOL_CALL", reason); assertEquals(arguments, text) }
+                case Incomplete(text) -> { assertTrue(reason != "TOOL_CALL"); assertEquals(arguments, text) }
+                else -> fail()
+            }
+        }
+        for (raw in [cohereCall("a", "{}", "unbound"), Json.parse("{\"id\":\"a\",\"type\":\"future\",\"function\":7}"),
+            Json.parse("{\"id\":\"a\",\"type\":\"function\",\"function\":{\"name\":\"lookup\"}}")]) {
+            val stream = cohereStream(); cohereBegin(stream); cohereToolStart(stream, 0L, raw)
+            stream.accept("", cohereEvent("tool-call-end", Some(0L))); cohereEnd(stream, "TOOL_CALL")
+            assertEquals(0L, stream.response().clientToolCalls.size)
+            when (stream.response().candidates[0L].items[0L]) { case Native(_, value) -> assertEquals(Json.stringify(raw), Json.stringify(value)); else -> fail() }
+        }
+    }
+
+    @Test
+    fun `Cohere SSE uninterpreted tool changes prevent execution and replay while preserving fragments`() {
+        val stream = cohereStream(); cohereBegin(stream); cohereToolStart(stream, 0L, cohereCall("a", ""))
+        val update = stream.accept("", cohereEvent("tool-call-delta", Some(0L), Some("tool_calls"), Some(Json.parse("{\"function\":{\"arguments\":\"{}\",\"name\":\"changed\"}}"))))
+        when (update.events[0L]) { case ToolInputDelta(delta) -> assertEquals("{}", delta.text); else -> fail() }
+        stream.accept("", cohereEvent("tool-call-end", Some(0L))); cohereEnd(stream, "TOOL_CALL")
+        assertEquals(0L, stream.response().clientToolCalls.size)
+        assertEquals(LlmOutputFailure.HistoryUnavailable, assertFailsWith<LlmOutputException> { stream.response().toInput(); Unit }.reason)
+        assertTrue(stream.response().nativeEvents.size != 0L)
+    }
+
+    @Test
+    fun `Cohere SSE preserves arguments arriving after an absent function without inventing a tool binding`() {
+        val stream = cohereStream(); cohereBegin(stream)
+        cohereToolStart(stream, 0L, Json.parse("{\"id\":\"a\",\"type\":\"function\"}"))
+        cohereToolDelta(stream, 0L, "{}")
+        stream.accept("", cohereEvent("tool-call-end", Some(0L))); cohereEnd(stream, "TOOL_CALL")
+        assertEquals(0L, stream.response().clientToolCalls.size)
+        assertEquals("{}", cohereHistory(stream.response())["tool_calls"]!![0L]["function"]!!["arguments"]!!.asString())
+    }
+}

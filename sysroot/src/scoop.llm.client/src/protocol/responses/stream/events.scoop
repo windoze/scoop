@@ -1,0 +1,69 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun dispatchResponsesStream(state: ResponsesStreamDecoder, type: String, raw: JsonValue,
+    batch: LlmStreamBatch): Array<String> {
+    if (type == "error") throw DecodingException("/message", "server reported a stream error")
+    if (type == "response.created" || type == "response.queued" || type == "response.in_progress" ||
+        type == "response.completed" || type == "response.incomplete" || type == "response.failed") {
+        acceptResponsesLifecycle(state, type, responsesStreamField(raw, "response"), batch)
+        return ["type", "sequence_number", "response"]
+    }
+    if (type == "response.output_item.added" || type == "response.output_item.done") {
+        val index = responsesStreamIndex(raw, "output_index")
+        val value = responsesStreamField(raw, "item")
+        if (type == "response.output_item.added") {
+            if (index != state.items.size) throw DecodingException("/output_index", "output indices must start at zero and increase by one")
+            addResponsesStreamItem(state, value, batch)
+        } else {
+            if (!state.started || index >= state.items.size) throw DecodingException("/output_index", "output item has not started")
+            val item = state.items[index]
+            if (item.done) throw DecodingException("/output_index", "output item already ended")
+            item.snapshot(value, batch, true)
+        }
+        return ["type", "sequence_number", "output_index", "item"]
+    }
+    if (type == "response.content_part.added" || type == "response.content_part.done" ||
+        type == "response.reasoning_summary_part.added" || type == "response.reasoning_summary_part.done") {
+        acceptResponsesPart(state.item(raw), type, raw, batch)
+        return ["type", "sequence_number", "output_index", "item_id", "content_index", "summary_index", "part", "status"]
+    }
+    if (type == "response.output_text.delta" || type == "response.output_text.done" ||
+        type == "response.refusal.delta" || type == "response.refusal.done" ||
+        type == "response.reasoning_summary_text.delta" || type == "response.reasoning_summary_text.done" ||
+        type == "response.reasoning_text.delta" || type == "response.reasoning_text.done") {
+        acceptResponsesText(state.item(raw), type, raw, batch)
+        return ["type", "sequence_number", "output_index", "item_id", "content_index", "summary_index", "delta", "text", "refusal"]
+    }
+    if (type == "response.function_call_arguments.delta" || type == "response.function_call_arguments.done" ||
+        type == "response.custom_tool_call_input.delta" || type == "response.custom_tool_call_input.done") {
+        acceptResponsesTool(state.item(raw), type, raw, batch)
+        return ["type", "sequence_number", "output_index", "item_id", "delta", "arguments", "input"]
+    }
+    if (type == "response.output_text.annotation.added") {
+        val item = state.item(raw)
+        if (item.kind != "message") throw DecodingException("/type", "text annotation requires a message")
+        val part = item.part("content", responsesStreamIndex(raw, "content_index"), "output_text", false)
+        if (part.done) throw DecodingException("/content_index", "content part already ended")
+        val annotation = responsesStreamField(raw, "annotation")
+        if (annotation.kind == JsonValueKind.Null) {
+            batch.native(type, raw, Some(item.location))
+            return raw.keys()
+        }
+        if (responsesStreamIndex(raw, "annotation_index") != part.annotations)
+            throw DecodingException("/annotation_index", "annotation indices must increase by one")
+        part.citation(item, annotation, batch)
+        return ["type", "sequence_number", "output_index", "item_id", "content_index", "annotation_index", "annotation"]
+    }
+    if (acceptResponsesServerProgress(state, type, raw, batch))
+        return ["type", "sequence_number", "output_index", "item_id"]
+    // Unknown events remain readable; final output snapshots preserve their history.
+    if (raw.containsKey("output_index") && raw.containsKey("item_id")) {
+        val item = state.item(raw, false)
+        batch.native(type, raw, Some(item.location))
+        batch.hasOutput = true
+        return raw.keys()
+    }
+    return []
+}

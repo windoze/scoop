@@ -1,0 +1,25 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeMessagesWebSearch(options: WebSearchOptions, extensions: Array<DialectExtension>, dialect: DialectId, path: String): JsonValue {
+    val optionsPath = path + "/tool/options"
+    if (llmPresent(options.allowedDomains) && llmPresent(options.excludedDomains))
+        throw LlmRequestException(optionsPath + "/excludedDomains", "Messages search accepts allowed or blocked domains, not both")
+    if (options.includeSources == Some(false)) throw LlmRequestException(optionsPath + "/includeSources", "basic Messages search always returns sources")
+    val body = llmTypedObject("web_search_20250305").add("name", JsonValue.fromString("web_search"))
+    if (llmPresent(options.allowedDomains)) body.add("allowed_domains", Json.encodeToValue(options.allowedDomains!!))
+    if (llmPresent(options.excludedDomains)) body.add("blocked_domains", Json.encodeToValue(options.excludedDomains!!))
+    if (llmPresent(options.location)) {
+        val location = options.location!!
+        val value = llmTypedObject("approximate")
+        if (location.country != None) value.add("country", JsonValue.fromString(location.country!!))
+        if (location.region != None) value.add("region", JsonValue.fromString(location.region!!))
+        if (location.city != None) value.add("city", JsonValue.fromString(location.city!!))
+        if (location.timezone != None) value.add("timezone", JsonValue.fromString(location.timezone!!))
+        val encoded = value.build()
+        if (encoded.size == 1L) throw LlmRequestException(optionsPath + "/location", "Messages search location requires at least one hint")
+        body.add("user_location", encoded)
+    }
+    return mergeLlmExtensions(body.build(), extensions, dialect, ["type", "name", "allowed_domains", "blocked_domains", "user_location"], path)
+}

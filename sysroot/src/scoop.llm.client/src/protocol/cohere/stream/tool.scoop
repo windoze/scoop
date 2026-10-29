@@ -1,0 +1,91 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal class CohereStreamTool public constructor(public val call: CohereCall, public val location: LlmItemLocation,
+    private val dialect: DialectId, raw: JsonValue, private var function: JsonValue?, private val key: ToolKey?) {
+    public var wire: JsonValue = raw
+    public var stopped: Boolean = false
+    public var understood: Boolean = true
+    private var hasArguments: Boolean = false
+    private val arguments = StringBuilder()
+
+    public fun append(fragment: String, batch: LlmStreamBatch) {
+        hasArguments = true
+        if (!llmPresent(function)) function = Some(JsonObjectBuilder().build())
+        arguments.append(fragment)
+        val reference = when (key) {
+            case Some(value) -> Some(ClientToolCallReference(dialect, value, Some(call.id), Some(wire)))
+            case None -> None
+        }
+        batch.events.add(LlmEvent.ToolInputDelta(LlmToolInputDelta(location, fragment, reference)))
+        batch.observe(fragment)
+    }
+
+    public fun finish(complete: Boolean, batch: LlmStreamBatch): LlmOutputItem {
+        val text = arguments.toString()
+        if (hasArguments && llmPresent(function)) wire = replaceCohereField(wire, "function",
+            replaceCohereField(function!!, "arguments", JsonValue.fromString(text)))
+        val item = if (understood && hasArguments && key != None)
+            cohereFunctionItem(dialect, key!!, call.id, wire, text, complete)
+            else LlmOutputItem.Native(dialect, wire)
+        when (item) {
+            case ClientToolCall(value) -> batch.events.add(LlmEvent.ClientToolCall(location, value))
+            case Native(_, value) -> batch.native("cohere.tool.finished", value, Some(location), false)
+            else -> throw IllegalStateException(Some("unexpected Cohere tool result"))
+        }
+        arguments.clear()
+        return item
+    }
+}
+
+internal fun startCohereStreamTool(state: CohereStreamDecoder, raw: JsonValue, batch: LlmStreamBatch) {
+    val index = cohereStreamIndex(raw)
+    if (index != state.calls.size) throw DecodingException("/index", "tool indices must start at zero and increase by one")
+    val (value, understood) = cohereStreamMember(state, raw, "tool_calls", batch)
+    val path = "/delta/message/tool_calls"
+    val call = decodeCohereValue<CohereCall>(value, path)
+    cohereNonempty(call.id, path + "/id")
+    cohereNonempty(call.type, path + "/type")
+    for (previous in state.calls) if (previous.call.id == call.id) throw DecodingException(path + "/id", "duplicate tool call ID")
+    var key: ToolKey? = None
+    var arguments: String? = None
+    if (call.type == "function" && llmPresent(call.function)) {
+        val function = decodeCohereValue<CohereFunction>(call.function!!, path + "/function")
+        if (function.name != None) { cohereNonempty(function.name!!, path + "/function/name"); key = resolveCohereFunction(state.request.tools, function.name!!) }
+        arguments = function.arguments
+    }
+    val tool = CohereStreamTool(call, LlmItemLocation(0L, state.slots.size), state.dialect.id, value, call.function, key)
+    tool.understood = understood
+    state.calls.add(tool)
+    state.slots.add(CohereStreamSlot.Tool(tool))
+    batch.hasOutput = true
+    when (arguments) { case Some(text) -> tool.append(text, batch); case None -> {} }
+}
+
+internal fun cohereStreamTool(state: CohereStreamDecoder, raw: JsonValue): CohereStreamTool {
+    val index = cohereStreamIndex(raw)
+    if (index >= state.calls.size) throw DecodingException("/index", "tool has not started")
+    val tool = state.calls[index]
+    if (tool.stopped) throw DecodingException("/index", "tool already stopped")
+    return tool
+}
+
+internal fun updateCohereStreamTool(state: CohereStreamDecoder, raw: JsonValue, batch: LlmStreamBatch) {
+    val tool = cohereStreamTool(state, raw)
+    val (value, understood) = cohereStreamMember(state, raw, "tool_calls", batch)
+    val path = "/delta/message/tool_calls"
+    cohereStreamObject(value, path)
+    if (!understood) tool.understood = false
+    if (tool.call.type != "function") {
+        tool.understood = false; state.historyAvailable = false
+        batch.native("cohere.tool.delta", value, Some(tool.location))
+        return
+    }
+    if (cohereStreamExtra(state, batch, value, ["function"], "cohere.tool.delta.fields")) tool.understood = false
+    val function = value["function"] ?: return
+    if (function.kind == JsonValueKind.Null) return
+    cohereStreamObject(function, path + "/function")
+    when (cohereStreamString(function, "arguments", path + "/function")) { case Some(text) -> tool.append(text, batch); case None -> {} }
+    if (cohereStreamExtra(state, batch, function, ["arguments"], "cohere.function.delta.fields")) tool.understood = false
+}

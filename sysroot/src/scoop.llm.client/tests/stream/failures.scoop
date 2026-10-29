@@ -1,0 +1,60 @@
+package scoop.llm.client.tests.stream
+
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ChatStreamFailureTest {
+    @Test
+    fun `EOF missing finish reasons and server errors cannot become successful results`() {
+        for (terminal in ["eof", "done", "error", "json-error"]) {
+            val decoder = ChatProtocol(OpenAiChatDialect()).createStreamDecoder(streamRequest(), StreamRetention.Result)
+            decoder.accept("message", streamChunk("{\"content\":\"partial\"}"))
+            when (terminal) {
+                case "eof" -> assertFailsWith<LlmStreamProtocolException> { decoder.endInput(); Unit }
+                case "done" -> assertFailsWith<LlmStreamProtocolException> { decoder.accept("message", "[DONE]"); Unit }
+                case "error" -> assertFailsWith<LlmStreamProtocolException> { decoder.accept("error", "failed"); Unit }
+                else -> assertFailsWith<LlmProtocolException> { decoder.accept("message", "{\"error\":{\"message\":\"failed\"}}"); Unit }
+            }
+            assertFalse(decoder.isFinished)
+            assertEquals(LlmOutputFailure.Incomplete, assertFailsWith<LlmOutputException> { decoder.response(); Unit }.reason)
+            assertFailsWith<LlmStreamProtocolException> { decoder.accept("message", streamChunk("{}", Some("stop"))); Unit }
+        }
+        val empty = ChatProtocol(OpenAiChatDialect()).createStreamDecoder(streamRequest())
+        assertFailsWith<LlmStreamProtocolException> { empty.accept("message", "[DONE]"); Unit }
+    }
+
+    @Test
+    fun `terminal data is immutable but an empty repeated finish may carry usage`() {
+        val decoder = ChatProtocol(OpenAiChatDialect()).createStreamDecoder(streamRequest(), StreamRetention.Result)
+        decoder.accept("message", streamChunk("{\"content\":\"ok\"}", Some("stop")))
+        decoder.accept("message", streamChunk("{}", Some("stop"), usage = Some("{\"total_tokens\":7}")))
+        decoder.accept("message", "[DONE]")
+        assertEquals(Some(7L), decoder.response().usage.tokens.totalTokens)
+        assertFailsWith<LlmStreamProtocolException> { decoder.accept("message", "[DONE]"); Unit }
+        assertEquals(LlmOutputFailure.Incomplete, assertFailsWith<LlmOutputException> { decoder.response(); Unit }.reason)
+        for ((delta, reason) in [("{\"content\":\"extra\"}", "stop"), ("{}", "length")]) {
+            val changed = ChatProtocol(OpenAiChatDialect()).createStreamDecoder(streamRequest())
+            changed.accept("message", streamChunk("{}", Some("stop")))
+            assertFailsWith<LlmProtocolException> { changed.accept("message", streamChunk(delta, Some(reason))); Unit }
+        }
+    }
+
+    @Test
+    fun `candidate identity and field shapes are validated in both retention modes`() {
+        val initial = "{\"id\":\"id\",\"model\":\"model\",\"created\":1,\"choices\":[{\"index\":0,\"delta\":{}}]}"
+        for (retention in [StreamRetention.EventsOnly, StreamRetention.Result]) {
+            for (body in ["{\"choices\":[],\"id\":\"changed\"}", "{\"choices\":[],\"model\":\"changed\"}",
+                "{\"choices\":[],\"created\":2}", "{\"choices\":[{\"index\":0,\"delta\":{}},{\"index\":0,\"delta\":{}}]}",
+                streamChunk("{}", index = -1L), streamChunk("{\"role\":\"user\"}"), streamChunk("{\"content\":42}"),
+                streamChunk("[]"), "{\"choices\":[],\"usage\":{\"total_tokens\":-1}}"]) {
+                val decoder = ChatProtocol(OpenAiChatDialect()).createStreamDecoder(streamRequest(), retention)
+                decoder.accept("message", initial)
+                assertFailsWith<LlmProtocolException> { decoder.accept("message", body); Unit }
+                assertFalse(decoder.isFinished)
+            }
+            val malformed = ChatProtocol(OpenAiChatDialect()).createStreamDecoder(streamRequest(), retention)
+            assertFailsWith<LlmStreamProtocolException> { malformed.accept("message", "{not JSON"); Unit }
+        }
+    }
+}

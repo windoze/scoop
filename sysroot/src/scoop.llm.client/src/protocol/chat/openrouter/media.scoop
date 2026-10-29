@@ -1,0 +1,45 @@
+package scoop.llm.client
+
+import scoop.http.HttpMediaType
+import scoop.io.encoding.Base64
+import scoop.json.*
+
+internal fun openRouterMediaUrl(source: MediaSource, path: String): String {
+    val mime = openRouterMediaType(source, path)
+    return when (source) {
+        case Bytes(bytes, _) -> "data:" + mime + ";base64," + Base64.Default.encode(bytes)
+        case Url(url, _) -> {
+            if (url.scheme != Some("http") && url.scheme != Some("https"))
+                throw LlmRequestException(path + "/url", "media URL must use http or https")
+            url.toString()
+        }
+        case FileReference(_, _) -> throw LlmRequestException(path, "OpenRouter Chat media needs bytes or a URL; native references require their explicit wire form")
+    }
+}
+
+internal fun encodeOpenRouterAudio(source: MediaSource, path: String): JsonValue {
+    val format = when (openRouterMediaType(source, path)) {
+        case "audio/wav" -> "wav"
+        case "audio/x-wav" -> "wav"
+        case "audio/mpeg" -> "mp3"
+        case "audio/aiff" -> "aiff"
+        case "audio/x-aiff" -> "aiff"
+        case "audio/aac" -> "aac"
+        case "audio/ogg" -> "ogg"
+        case "audio/flac" -> "flac"
+        case "audio/x-flac" -> "flac"
+        case "audio/mp4" -> "m4a"
+        case "audio/x-m4a" -> "m4a"
+        else -> throw LlmRequestException(path + "/mimeType", "audio MIME has no unambiguous OpenRouter format mapping")
+    }
+    val bytes = when (source) { case Bytes(value, _) -> value; else -> throw LlmRequestException(path, "OpenRouter input_audio requires bytes") }
+    return llmTypedObject("input_audio").add("input_audio", JsonObjectBuilder().add("format", JsonValue.fromString(format))
+        .add("data", JsonValue.fromString(Base64.Default.encode(bytes))).build()).build()
+}
+
+private fun openRouterMediaType(source: MediaSource, path: String): String {
+    val mime = when (source) { case Bytes(_, value) -> value; case Url(_, value) -> value; case FileReference(_, value) -> value }
+    val parsed = HttpMediaType.parseOrNone(mime) ?: throw LlmRequestException(path + "/mimeType", "invalid media type")
+    if (parsed.parameters.size != 0L) throw LlmRequestException(path + "/mimeType", "this media mapping cannot express MIME parameters")
+    return parsed.type + "/" + parsed.subtype
+}

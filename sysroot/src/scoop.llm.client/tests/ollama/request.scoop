@@ -1,0 +1,78 @@
+package scoop.llm.client.tests.ollama
+
+import scoop.llm.client.tests.generationProtocol
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class OllamaRequestTest {
+    @Test
+    fun `Ollama generation defaults select native chat and explicitly disable the server default stream`() {
+        val provider = Providers.ollamaChat()
+        assertEquals(ollamaDialect, provider.protocol.dialectId)
+        assertEquals("http://localhost:11434/api", provider.defaultBaseUrl!!.toString())
+        assertEquals("http://localhost:11434/api/chat", generationProtocol(provider).generationUrl(provider.defaultBaseUrl!!, "local:model").toString())
+        assertEquals("https://example.com/deploy/chat?route=x", generationProtocol(provider).generationUrl(Url.parse("https://example.com/deploy?route=x"), "unknown").toString())
+        val model = LlmEndpoint(provider, LlmAuth.none()).model("local:model")
+        val body = ollamaEncode(ollamaInput(), model.id)
+        assertEquals(3L, body.size)
+        assertEquals("local:model", body["model"]!!.asString())
+        assertEquals("hello", body["messages"]!![0L]["content"]!!.asString())
+        assertFalse(body["stream"]!!.asBoolean())
+        assertTrue(generationProtocol(provider).encodeRequest(model.id, ollamaInput(), true)["stream"]!!.asBoolean())
+        assertEquals(0L, ollamaEncode(LlmRequest([]))["messages"]!!.size)
+        assertEquals("/modelId", assertFailsWith<LlmRequestException> { ollamaEncode(ollamaInput(), ""); Unit }.path)
+    }
+
+    @Test
+    fun `Ollama messages replay saved thinking calls and unknown fields between system and user content`() {
+        val raw = ollamaBody("answer", messageExtra = ",\"thinking\":\"reason\",\"tool_calls\":[],\"future\":1e400")
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(ollamaDecode(raw)))
+        val request = LlmRequest([Message([Text("question")]), response.toInput()[0L],
+            Message([Native(ollamaDialect, JsonValue.fromString("explicit"))], Assistant, ollamaExtension("{\"thinking\":\"saved\"}")),
+            Message([Text("later")], System)], system = [Text("first"), Text(" instruction")])
+        val messages = ollamaEncode(Json.decodeFromString<LlmRequest>(Json.encodeToString(request)))["messages"]!!
+        assertEquals(5L, messages.size)
+        assertEquals("system", messages[0L]["role"]!!.asString())
+        assertEquals("first instruction", messages[0L]["content"]!!.asString())
+        assertEquals(Json.stringify(raw["message"]!!), Json.stringify(messages[2L]))
+        assertEquals("saved", messages[3L]["thinking"]!!.asString())
+        assertEquals("explicit", messages[3L]["content"]!!.asString())
+        assertEquals("system", messages[4L]["role"]!!.asString())
+    }
+
+    @Test
+    fun `Ollama role history and native content failures identify the request location`() {
+        assertOllamaRequestFailure(LlmRequest([Message([], Developer)]), "/input/0/role")
+        assertOllamaRequestFailure(LlmRequest([History(LlmHistory(OpenAiChatDialect().id, []))]), "/input/0/history/dialect")
+        assertOllamaRequestFailure(LlmRequest([History(LlmHistory(ollamaDialect, [], Some(Json.parse("{}"))))]), "/input/0/history/context")
+        for (raw in ["{}", "{\"role\":null}", "{\"role\":\"user\"}"])
+            assertOllamaRequestFailure(LlmRequest([History(LlmHistory(ollamaDialect, [Json.parse(raw)]))]), "/input/0/history/items/0/role")
+        assertOllamaRequestFailure(LlmRequest([History(LlmHistory(ollamaDialect, [Json.parse("[]")]))]), "/input/0/history/items/0")
+        assertOllamaRequestFailure(LlmRequest([Message([Native(ollamaDialect, Json.parse("{}"))])]), "/input/0/content/0/value")
+        assertOllamaRequestFailure(LlmRequest([Message([Native(OpenAiChatDialect().id, JsonValue.fromString("x"))])]), "/input/0/content/0/dialect")
+    }
+
+    @Test
+    fun `Ollama native options merge alongside sampling and cannot replace managed fields even when absent`() {
+        val request = LlmRequest(ollamaInput().input, options = LlmGenerationOptions(temperature = Some(0.2)),
+            extensions = ollamaExtension("{\"options\":{\"seed\":9007199254740993,\"num_ctx\":4096},\"keep_alive\":0,\"truncate\":false}"))
+        val body = ollamaEncode(request)
+        assertEquals(0.2, body["options"]!!["temperature"]!!.asDouble())
+        assertEquals(9007199254740993L, body["options"]!!["seed"]!!.asLong())
+        assertEquals(4096L, body["options"]!!["num_ctx"]!!.asLong())
+        assertEquals(0L, body["keep_alive"]!!.asLong())
+        assertFalse(body["truncate"]!!.asBoolean())
+        for (name in ["model", "messages", "stream", "tools", "think", "format"])
+            assertOllamaRequestFailure(LlmRequest([], extensions = ollamaExtension("{\"" + name + "\":null}")), "/extensions/0/value/" + name)
+        for (name in ["temperature", "top_p", "top_k", "num_predict", "stop"])
+            assertOllamaRequestFailure(LlmRequest([], extensions = ollamaExtension("{\"options\":{\"" + name + "\":null}}")), "/extensions/0/value/options/" + name)
+        assertOllamaRequestFailure(LlmRequest([], extensions = ollamaExtension("{\"options\":null}")), "/extensions/0/value/options")
+        assertOllamaRequestFailure(LlmRequest([], extensions = [DialectExtension(OpenAiChatDialect().id, Json.parse("{}"))]), "/extensions/0/dialect")
+        for (name in ["role", "content", "images", "tool_calls", "tool_name", "tool_call_id"])
+            assertOllamaRequestFailure(LlmRequest([Message([], extensions = ollamaExtension("{\"" + name + "\":null}"))]), "/input/0/extensions/0/value/" + name)
+    }
+}

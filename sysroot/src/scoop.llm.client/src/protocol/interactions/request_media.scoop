@@ -1,0 +1,46 @@
+package scoop.llm.client
+
+import scoop.http.HttpFieldParseException
+import scoop.io.encoding.Base64
+import scoop.json.*
+
+internal fun encodeInteractionsMedia(dialect: DialectId, source: MediaSource, type: String, path: String): JsonValue {
+    val mime = when (source) { case Bytes(_, value) -> value; case Url(_, value) -> value; case FileReference(_, value) -> value }
+    val format = interactionsMediaFormat(mime, path + "/mimeType")
+    if (type != "document" && format.parsed.type != type)
+        throw LlmRequestException(path + "/mimeType", "media type does not match content kind")
+    val value = llmTypedObject(type).add("mime_type", JsonValue.fromString(mime))
+    return when (source) {
+        case Bytes(bytes, _) -> value.add("data", JsonValue.fromString(Base64.Default.encode(bytes))).build()
+        case Url(url, _) -> {
+            if (url.toString().length == 0L) throw LlmRequestException(path + "/url", "media URI must not be empty")
+            value.add("uri", JsonValue.fromString(url.toString())).build()
+        }
+        case FileReference(reference, _) -> {
+            requireLlmOwner(reference.dialect, dialect, path + "/reference/dialect")
+            val raw = reference.value
+            val fieldPath = path + "/reference/value"
+            if (raw.kind != JsonValueKind.Object) throw LlmRequestException(fieldPath, "file reference requires an object")
+            if (raw.containsKey("type") && requireInteractionsNativeType(raw, fieldPath) != type)
+                throw LlmRequestException(fieldPath + "/type", "file content kind differs from the requested kind")
+            val uri = raw["uri"] ?: throw LlmRequestException(fieldPath + "/uri", "file reference requires a URI")
+            if (uri.kind != JsonValueKind.String || uri.asString().length == 0L) throw LlmRequestException(fieldPath + "/uri", "file URI must not be empty")
+            if (raw.containsKey("data")) throw LlmRequestException(fieldPath + "/data", "file reference cannot also contain inline data")
+            val original = raw["mime_type"]
+            val hasMime = raw.containsKey("mime_type")
+            if (hasMime && (original!!.kind != JsonValueKind.String || !format.matches(interactionsMediaFormat(original!!.asString(), fieldPath + "/mime_type"))))
+                throw LlmRequestException(fieldPath + "/mime_type", "file reference MIME type differs from its media source")
+            val merged = JsonObjectBuilder()
+            for ((name, item) in raw.members()) merged.add(name, item)
+            if (!raw.containsKey("type")) merged.add("type", JsonValue.fromString(type))
+            if (!hasMime) merged.add("mime_type", JsonValue.fromString(mime))
+            merged.build()
+        }
+    }
+}
+
+private fun interactionsMediaFormat(mime: String, path: String): MediaFormat {
+    try { return MediaFormat(mime, MediaForm.FileReference) }
+    catch (_: HttpFieldParseException) { throw LlmRequestException(path, "invalid media type") }
+    catch (_: IllegalArgumentException) { throw LlmRequestException(path, "invalid or non-concrete media type") }
+}

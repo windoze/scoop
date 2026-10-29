@@ -1,0 +1,29 @@
+package scoop.llm.client
+
+import scoop.http.HttpMediaType
+import scoop.io.encoding.Base64
+import scoop.json.*
+
+internal fun readInteractionsMedia(dialect: DialectId, raw: JsonValue, type: String, path: String): OutputPart {
+    val fields = decodeInteractionsValue<InteractionsMediaFields>(raw, path)
+    val bytes: Array<Byte>? = when (fields.data) {
+        case Some(data) -> Some(Base64.Default.withPadding(Base64.PaddingOption.Optional).decodeOrNone(data)
+            ?: Base64.UrlSafe.withPadding(Base64.PaddingOption.Optional).decodeOrNone(data)
+            ?: throw DecodingException(path + "/data", "invalid Base64 media"))
+        case None -> None
+    }
+    if (fields.uri == Some("")) throw DecodingException(path + "/uri", "media URI must not be empty")
+    val mime = fields.mimeType ?: return OutputPart.Native(dialect, raw)
+    val parsed = HttpMediaType.parseOrNone(mime) ?: throw DecodingException(path + "/mime_type", "invalid media type")
+    if (parsed.type == "*" || parsed.subtype == "*" || (type != "document" && parsed.type != type))
+        throw DecodingException(path + "/mime_type", "media type does not match content kind")
+    val kind: OutputMediaKind = when (type) { case "image" -> Image; case "audio" -> Audio; case "video" -> Video; else -> Document }
+    if (llmPresent(bytes) && fields.uri == None) return OutputPart.Media(kind, MediaSource.Bytes(bytes!!, mime))
+    if (!llmPresent(bytes) && fields.uri != None) return OutputPart.Media(kind, MediaSource.FileReference(LlmFileReference(dialect, raw), mime))
+    return OutputPart.Native(dialect, raw)
+}
+
+private class InteractionsMediaFields public constructor(public val data: String? = None, public val uri: String? = None,
+    @Serialize(rename = "mime_type") public val mimeType: String? = None) {
+    public companion object : ValueDecoder<InteractionsMediaFields>
+}

@@ -1,0 +1,76 @@
+package scoop.llm.client.tests.cohere
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+internal fun cohereCited(content: String, citations: String, extra: String = ""): LlmResponse =
+    cohereDecode(cohereBody(content, extra = ",\"citations\":" + citations + extra))
+
+@Test
+private class CohereCitationsTest {
+    @Test
+    fun `Cohere citations target original text thinking and plan blocks without implying server execution`() {
+        val response = cohereCited("[{\"type\":\"thinking\",\"thinking\":\"reason\"},{\"type\":\"text\",\"text\":\"one\"},{\"type\":\"text\",\"text\":\"two\"}]",
+            "[{\"type\":\"THINKING_CONTENT\",\"content_index\":0,\"sources\":[{\"type\":\"document\",\"id\":\"d\",\"document\":{\"title\":\"Paper\",\"url\":\"arbitrary metadata\"}}]}," +
+            "{\"type\":\"TEXT_CONTENT\",\"content_index\":2,\"start\":0,\"end\":3,\"sources\":[{\"type\":\"tool\",\"id\":\"lookup-a:0\",\"tool_output\":{\"exact\":1e400}}]}," +
+            "{\"type\":\"PLAN\",\"sources\":[{\"type\":\"future\",\"extra\":42}]}]", ",\"tool_plan\":\"plan\"")
+        val items = response.candidates[0L].items
+        when (items[0L]) { case Reasoning(parts, _) -> when (parts[0L]) {
+            case Text(_, citations) -> { assertEquals("d", citations[0L].source.id); assertEquals(Some("Paper"), citations[0L].source.title)
+                when (citations[0L].source.location) { case Native(_, raw) -> assertEquals("arbitrary metadata", raw["document"]!!["url"]!!.asString()); else -> fail() } }
+            else -> fail()
+        }; else -> fail() }
+        when (items[1L]) { case Message(parts, _) -> {
+            when (parts[0L]) { case Text(_, citations) -> assertEquals(0L, citations.size); else -> fail() }
+            when (parts[1L]) { case Text(_, citations) -> { assertEquals("lookup-a:0", citations[0L].source.id)
+                assertTrue(when (citations[0L].range) { case None -> true; else -> false }) }; else -> fail() }
+        }; else -> fail() }
+        when (items[2L]) { case Reasoning(parts, _) -> when (parts[0L]) {
+            case Text(_, citations) -> assertEquals("/message/citations/2/sources/0", citations[0L].source.id)
+            else -> fail()
+        }; else -> fail() }
+        when (items[3L]) { case Native(_, raw) -> assertEquals(3L, raw["citations"]!!.size); else -> fail() }
+        assertEquals(0L, response.serverToolActivities.size)
+        assertEquals(0L, response.clientToolCalls.size)
+    }
+
+    @Test
+    fun `Cohere ambiguous unknown and mismatched citations stay native instead of guessing a block`() {
+        val source = "\"sources\":[{\"type\":\"document\",\"id\":\"d\"}]"
+        val single = cohereCited("[{\"type\":\"text\",\"text\":\"one\"}]", "[{" + source + "}]")
+        when (single.candidates[0L].items[0L]) { case Message(parts, _) -> when (parts[0L]) { case Text(_, citations) -> assertEquals(1L, citations.size); else -> fail() }; else -> fail() }
+        for (citation in ["{" + source + "}", "{\"type\":\"future\",\"content_index\":0," + source + "}",
+            "{\"type\":\"THINKING_CONTENT\",\"content_index\":0," + source + "}"]) {
+            val response = cohereCited("[{\"type\":\"text\",\"text\":\"one\"},{\"type\":\"text\",\"text\":\"two\"}]", "[" + citation + "]")
+            when (response.candidates[0L].items[0L]) { case Message(parts, _) -> for (part in parts) when (part) {
+                case Text(_, citations) -> assertEquals(0L, citations.size)
+                else -> fail()
+            }; else -> fail() }
+            when (response.candidates[0L].items[1L]) { case Native(_, raw) -> assertEquals(citation, Json.stringify(raw["citations"]!![0L])); else -> fail() }
+        }
+    }
+
+    @Test
+    fun `Cohere citation ranges preserve raw Unicode positions and optional endpoints without inventing a unit`() {
+        for (range in ["\"start\":1,\"end\":3,", "\"start\":1,", "\"end\":3,", ""]) {
+            val citations = "[{" + range + "\"text\":\"🙂\",\"sources\":[{\"type\":\"document\"}]}]"
+            val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(cohereCited("[{\"type\":\"text\",\"text\":\"你🙂\"}]", citations)))
+            when (response.candidates[0L].items[0L]) { case Message(parts, _) -> when (parts[0L]) {
+                case Text(_, values) -> assertTrue(when (values[0L].range) { case None -> true; else -> false })
+                else -> fail()
+            }; else -> fail() }
+            assertEquals(citations, Json.stringify(cohereHistory(response)["citations"]!!))
+        }
+    }
+
+    @Test
+    fun `Cohere invalid citation bounds and source shapes identify the failing member`() {
+        for ((citation, field) in [("{\"start\":-1}", "start"), ("{\"end\":-1}", "end"), ("{\"start\":2,\"end\":1}", "end"),
+            ("{\"content_index\":-1}", "content_index"), ("{\"content_index\":1}", "content_index"),
+            ("{\"sources\":{}}", "sources"), ("{\"sources\":[{\"type\":\"document\",\"id\":1}]}", "sources/0/id"),
+            ("{\"sources\":[{\"type\":\"document\",\"document\":[]}]}", "sources/0/document"),
+            ("{\"sources\":[{\"type\":\"tool\",\"tool_output\":1}]}", "sources/0/tool_output")])
+            assertCohereFailure(cohereBody("[{\"type\":\"text\",\"text\":\"a\"}]", extra = ",\"citations\":[" + citation + "]"), "/message/citations/0/" + field)
+    }
+}

@@ -1,0 +1,62 @@
+package scoop.llm.client
+
+import scoop.http.HttpMediaType
+import scoop.io.encoding.Base64
+import scoop.json.*
+
+internal fun encodeResponsesImage(source: MediaSource, dialect: DialectId, type: String, path: String): JsonValue {
+    val mime = responsesMediaType(source, path)
+    if (mime != "image/jpeg" && mime != "image/png" && mime != "image/gif" && mime != "image/webp")
+        throw LlmRequestException(path + "/mimeType", "Responses images require JPEG, PNG, GIF or WebP")
+    val result = llmTypedObject(type)
+    when (source) {
+        case Bytes(bytes, _) -> result.add("image_url", JsonValue.fromString(responsesDataUrl(mime, bytes)))
+        case Url(url, _) -> {
+            requireResponsesMediaUrl(url, path + "/url")
+            result.add("image_url", JsonValue.fromString(url.toString()))
+        }
+        case FileReference(reference, _) -> result.add("file_id", responsesFileId(reference, dialect, path + "/reference"))
+    }
+    return result.build()
+}
+
+internal fun encodeResponsesDocument(source: MediaSource, filename: String?, dialect: DialectId, path: String): JsonValue {
+    val mime = responsesMediaType(source, path + "/source")
+    val result = llmTypedObject("input_file")
+    when (source) {
+        case Bytes(bytes, _) -> {
+            result.add("file_data", JsonValue.fromString(responsesDataUrl(mime, bytes)))
+            if (filename != None) result.add("filename", JsonValue.fromString(filename!!))
+        }
+        case Url(url, _) -> {
+            if (filename != None) throw LlmRequestException(path + "/filename", "Responses filename is only valid for inline files")
+            requireResponsesMediaUrl(url, path + "/source/url")
+            result.add("file_url", JsonValue.fromString(url.toString()))
+        }
+        case FileReference(reference, _) -> {
+            if (filename != None) throw LlmRequestException(path + "/filename", "Responses filename is only valid for inline files")
+            result.add("file_id", responsesFileId(reference, dialect, path + "/source/reference"))
+        }
+    }
+    return result.build()
+}
+
+private fun responsesMediaType(source: MediaSource, path: String): String {
+    val raw = when (source) { case Bytes(_, mime) -> mime; case Url(_, mime) -> mime; case FileReference(_, mime) -> mime }
+    val mime = HttpMediaType.parseOrNone(raw) ?: throw LlmRequestException(path + "/mimeType", "invalid media type")
+    if (mime.parameters.size != 0L) throw LlmRequestException(path + "/mimeType", "Responses media mapping cannot express MIME parameters")
+    return mime.type + "/" + mime.subtype
+}
+
+private fun requireResponsesMediaUrl(url: scoop.url.Url, path: String) {
+    if (url.scheme != Some("http") && url.scheme != Some("https")) throw LlmRequestException(path, "Responses media URL must use http or https")
+}
+
+private fun responsesFileId(reference: LlmFileReference, dialect: DialectId, path: String): JsonValue {
+    requireLlmOwner(reference.dialect, dialect, path + "/dialect")
+    if (reference.value.kind != JsonValueKind.String || reference.value.asString().length == 0L)
+        throw LlmRequestException(path + "/value", "Responses file reference must be a nonempty string ID")
+    return reference.value
+}
+
+private fun responsesDataUrl(mime: String, bytes: Array<Byte>): String = "data:" + mime + ";base64," + Base64.Default.encode(bytes)

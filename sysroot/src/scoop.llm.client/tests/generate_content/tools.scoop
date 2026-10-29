@@ -1,0 +1,71 @@
+package scoop.llm.client.tests.generatecontent
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class GenerateContentToolsTest {
+    @Test
+    fun `generateContent function calls preserve absent IDs signatures and zero argument calls`() {
+        val body = generateContentBody("[{\"functionCall\":{\"name\":\"lookup\",\"args\":{\"count\":9007199254740993}},\"thoughtSignature\":\"opaque\"}," +
+            "{\"functionCall\":{\"name\":\"lookup\",\"id\":\"\"}},{\"functionCall\":{\"name\":\"lookup\",\"id\":\"call\",\"args\":null}}]")
+        val result = generateContentDecode(body)
+        assertEquals(3L, result.clientToolCalls.size)
+        assertEquals(LlmFinishReason.ToolCalls, result.candidate(0L).finishReason)
+        assertEquals(None, result.clientToolCalls[0].reference.id)
+        assertEquals(None, result.clientToolCalls[1].reference.id)
+        assertEquals(Some("call"), result.clientToolCalls[2].reference.id)
+        assertEquals(9007199254740993L, result.clientToolCalls[0].decodeArguments<GenerateContentCount>().count)
+        assertEquals("opaque", result.clientToolCalls[0].reference.context!!["thoughtSignature"]!!.asString())
+        when (result.clientToolCalls[1].input) { case JsonArguments(value) -> assertEquals(0L, value.value.size); else -> fail() }
+        val saved = Json.decodeFromString<LlmResponse>(Json.encodeToString(result))
+        assertEquals(3L, saved.clientToolCalls.size)
+        assertEquals(None, saved.clientToolCalls[0].reference.id)
+        assertEquals(Json.stringify(body["candidates"]!![0]["content"]!!), Json.stringify(generateContentHistory(saved)))
+    }
+
+    @Test
+    fun `generateContent invalid arguments remain observable without executing undeclared ambiguous or thought calls`() {
+        for (arguments in ["[]", "\"program\"", "1"]) {
+            val response = generateContentDecode(generateContentBody("[{\"functionCall\":{\"name\":\"lookup\",\"args\":" + arguments + "}}]"))
+            assertEquals(0L, response.clientToolCalls.size)
+            when (response.candidate(0L).items[0]) {
+                case ClientToolCall(call) -> when (call.input) { case Invalid(raw, _) -> assertEquals(arguments, raw); else -> fail() }
+                else -> fail()
+            }
+        }
+        val parts = "[{\"functionCall\":{\"name\":\"lookup\",\"args\":{}}},{\"functionCall\":{\"name\":\"unknown\"}}," +
+            "{\"functionCall\":{\"name\":\"lookup\"},\"thought\":true},{\"functionResponse\":{\"name\":\"lookup\",\"response\":{}}}]"
+        val ambiguous = LlmRequest([], tools = [ClientFunction(ToolKey("a"), "lookup", Json.parse("{}")), ClientFunction(ToolKey("b"), "lookup", Json.parse("{}"))])
+        val response = generateContentDecode(generateContentBody(parts), ambiguous)
+        assertEquals(0L, response.clientToolCalls.size)
+        assertEquals(4L, response.candidate(0L).items.size)
+        when (response.candidate(0L).items[2]) { case Reasoning(_, _) -> assertTrue(true); else -> fail() }
+    }
+
+    @Test
+    fun `generateContent server code and tool parts retain execution ownership and reported status`() {
+        val dialect = GeminiGenerateContentDialect().id
+        val tools: Array<ToolDefinition> = [Server(ToolKey("code"), Native(NativeToolDefinition(dialect, "codeExecution"))),
+            Server(ToolKey("search"), WebSearch()), ClientFunction(ToolKey("local"), "googleSearch", Json.parse("{}"))]
+        val parts = "[{\"executableCode\":{\"language\":\"PYTHON\",\"code\":\"print(1)\"}}," +
+            "{\"codeExecutionResult\":{\"outcome\":\"OUTCOME_FAILED\",\"output\":\"error\"}}," +
+            "{\"toolCall\":{\"toolType\":\"GOOGLE_SEARCH_WEB\",\"id\":\"s\",\"args\":{\"query\":\"question\"}}}," +
+            "{\"toolResponse\":{\"toolType\":\"GOOGLE_SEARCH_WEB\",\"id\":\"s\",\"response\":{\"results\":[]}}}," +
+            "{\"toolResponse\":{\"toolType\":\"NEW_SERVICE\",\"response\":{}}}]"
+        val result = generateContentDecode(generateContentBody(parts), LlmRequest([], tools = tools))
+        assertEquals(0L, result.clientToolCalls.size)
+        val activity = result.serverToolActivities
+        assertEquals(5L, activity.size)
+        assertEquals(ServerToolKind.CodeExecution, activity[0].kind)
+        assertEquals(Some(ToolKey("code")), activity[0].toolKey)
+        assertEquals(None, activity[0].id)
+        assertEquals(ServerToolStatus.Failed, activity[1].status)
+        assertEquals(Some(ToolKey("search")), activity[2].toolKey)
+        assertEquals(Some("s"), activity[3].id)
+        assertEquals(ServerToolStatus.Unknown, activity[3].status)
+        assertEquals(ServerToolKind.Native, activity[4].kind)
+        assertEquals(None, activity[4].toolKey)
+    }
+}

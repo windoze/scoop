@@ -1,0 +1,113 @@
+package scoop.llm.client
+
+import scoop.json.Json
+import scoop.json.JsonValue
+import scoop.json.JsonValueKind
+import scoop.time.Instant
+
+internal class ChatStreamDecoder public constructor(
+    private val dialect: ChatDialect, private val request: LlmRequest, private val retention: StreamRetention
+) : LlmSseDecoder {
+    private val candidates: ArrayList<ChatStreamCandidate> = ArrayList<ChatStreamCandidate>()
+    private val nativeEvents: ArrayList<LlmNativeEvent> = ArrayList<LlmNativeEvent>()
+    private var id: String? = None
+    private var model: String? = None
+    private var created: Long? = None
+    private var currentUsage: LlmUsage = LlmUsage()
+    private var finished: Boolean = false
+    private var failed: Boolean = false
+
+    public override val isFinished: Boolean get() = finished && !failed
+    public override val responseId: String? get() = id
+    public override val usage: LlmUsage get() = currentUsage
+
+    public override fun accept(event: String, data: String): LlmStreamUpdate {
+        try {
+            if (failed || finished) throw LlmStreamProtocolException(dialect.id, "stream is no longer accepting events", Some(data))
+            if (event == "error") throw LlmStreamProtocolException(dialect.id, "server reported a stream error", Some(data))
+            val update = LlmStreamBatch(dialect.id, retention, nativeEvents)
+            if (event != "message" && event != "") {
+                val value = try { Json.parse(data) } catch (error: DecodingException) { JsonValue.fromString(data) }
+                update.native(event, value)
+            } else if (data == "[DONE]") {
+                if (!allCandidatesFinished()) throw LlmStreamProtocolException(dialect.id, "stream ended before all candidates finished", Some(data))
+                finished = true
+                currentUsage = LlmUsage(currentUsage.tokens, Final, currentUsage.native)
+                update.events.add(LlmEvent.Usage(currentUsage))
+            } else {
+                val value = try { Json.parse(data) }
+                    catch (error: DecodingException) { throw LlmStreamProtocolException(dialect.id, "invalid stream JSON", Some(data)) }
+                try { readChunk(value, update) }
+                catch (error: DecodingException) { throw LlmProtocolException(dialect.id, error.path, error.message ?: "invalid Chat stream", value) }
+            }
+            return update.build()
+        } catch (error: Throwable) { failed = true; throw error }
+    }
+
+    private fun readChunk(value: JsonValue, update: LlmStreamBatch) {
+        if (value.kind == JsonValueKind.Object) {
+            val error = when (value["error"]) { case Some(field) -> field.kind != JsonValueKind.Null; case None -> false }
+            if (error) throw DecodingException("/error", "server reported a stream error")
+        }
+        val chunk = decodeChatValue<ChatStreamChunk>(value, "")
+        val hasUsage = when (chunk.usage) { case Some(_) -> true; case None -> false }
+        if (chunk.choices.size == 0L && chunk.id == Some("") && chunk.model == Some("") && chunk.created == Some(0L) && !hasUsage) {
+            update.native("chat.annotation", value)
+            return
+        }
+        id = llmStreamIdentity(id, chunk.id, "/id")
+        model = llmStreamIdentity(model, chunk.model, "/model")
+        if (created != None && chunk.created != None && created != chunk.created)
+            throw DecodingException("/created", "stream creation time changed")
+        if (chunk.created != None) created = chunk.created
+        val indices = ArrayList<Long>()
+        var ordinal = 0L
+        for (choice in chunk.choices) {
+            val path = "/choices/" + ordinal.toString()
+            if (choice.index < 0L) throw DecodingException(path + "/index", "negative candidate index")
+            for (index in indices) { if (index == choice.index) throw DecodingException(path + "/index", "duplicate candidate index") }
+            indices.add(choice.index)
+            candidate(choice.index).accept(choice, value["choices"]!![ordinal], update, path)
+            ordinal += 1L
+        }
+        val extra = llmStreamUnknown(value, ["choices", "id", "model", "created", "usage", "object"])
+        if (extra.size != 0L) update.native("chat.chunk", extra)
+        val reported = chunk.usage ?: return
+        val merged = when (currentUsage.native) {
+            case Some(previous) -> mergeLlmStreamUsage(previous, reported)
+            case None -> reported
+        }
+        currentUsage = LlmUsage(dialect.readUsage(merged), Partial, Some(merged))
+        update.events.add(LlmEvent.Usage(currentUsage))
+    }
+
+    private fun candidate(index: Long): ChatStreamCandidate {
+        for (value in candidates) { if (value.index == index) return value }
+        val value = ChatStreamCandidate(dialect, request, retention, index)
+        candidates.add(value)
+        return value
+    }
+
+    private fun allCandidatesFinished(): Boolean {
+        if (candidates.size == 0L) return false
+        for (value in candidates) { if (value.finishReason == None) return false }
+        return true
+    }
+
+    public override fun endInput(): LlmStreamUpdate {
+        if (!isFinished) {
+            failed = true
+            throw LlmStreamProtocolException(dialect.id, "Chat stream ended without a complete terminal event")
+        }
+        return LlmStreamUpdate([])
+    }
+
+    public override fun response(): LlmResponse {
+        if (!isFinished) throw LlmOutputException(Incomplete, "stream has not finished successfully")
+        if (retention != StreamRetention.Result) throw LlmOutputException(ResultNotRetained, "stream result was not retained")
+        val values = ArrayList<LlmCandidate>()
+        for (candidate in candidates) values.add(candidate.result!!)
+        val time = when (created) { case Some(seconds) -> Some(Instant.fromEpochSeconds(seconds)); case None -> None }
+        return LlmResponse(dialect.id, values.toArray(), id, model, time, currentUsage, nativeEvents = nativeEvents.toArray())
+    }
+}

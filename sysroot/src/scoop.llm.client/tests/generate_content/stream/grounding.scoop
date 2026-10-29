@@ -1,0 +1,86 @@
+package scoop.llm.client.tests.generatecontent
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class GenerateContentStreamGroundingTest {
+    @Test
+    fun `Gemini SSE grounding uses cumulative sources and UTF8 ranges after all text arrives`() {
+        for (retention in [StreamRetention.EventsOnly, StreamRetention.Result]) {
+            val request = LlmRequest(generateContentRequest().input, tools = [Server(ToolKey("search"), WebSearch())])
+            val stream = geminiStream(retention, request)
+            geminiAccept(stream, "[{\"text\":\"你\"}]", extra = ",\"groundingMetadata\":{\"groundingChunks\":[{\"web\":{\"uri\":\"https://one.test\"}}],\"groundingSupports\":[{\"segment\":{\"endIndex\":6},\"groundingChunkIndices\":[0,1]}]}")
+            val update = geminiAccept(stream, "[{\"text\":\"好\"}]", finish = Some("STOP"),
+                extra = ",\"groundingMetadata\":{\"groundingChunks\":[{\"web\":{\"uri\":\"https://two.test\"}}],\"webSearchQueries\":[\"query\"]}")
+            when (update.events[1L]) { case ServerToolActivity(_, activity) -> {
+                assertEquals(Some(ToolKey("search")), activity.toolKey)
+                assertEquals(1L, activity.sources.size)
+                assertEquals("/candidates/0/groundingMetadata/groundingChunks/1", activity.sources[0L].id)
+            }; else -> fail() }
+            val final = stream.endInput()
+            assertEquals(3L, final.events.size)
+            for (index in [0L, 1L]) {
+                when (final.events[index]) { case Citation(location, part, citation) -> {
+                    assertEquals(0L, location.itemIndex)
+                    assertEquals(0L, part)
+                    assertEquals(6L, citation.range!!.end)
+                    assertEquals(TextRangeUnit.Utf8Bytes, citation.range!!.unit)
+                    assertEquals("/candidates/0/groundingMetadata/groundingChunks/" + index.toString(), citation.source.id)
+                }; else -> fail() }
+            }
+            if (retention == StreamRetention.Result) {
+                assertEquals("你好", stream.response().text)
+                when (stream.response().candidates[0L].items[0L]) {
+                    case Message(parts, _) -> when (parts[0L]) { case Text(_, citations) -> assertEquals(2L, citations.size); else -> fail() }
+                    else -> fail()
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `Gemini SSE citation metadata resolves only unambiguous text and preserves unknown metadata`() {
+        val stream = geminiStream()
+        geminiAccept(stream, "[{\"text\":\"a\"}]")
+        geminiAccept(stream, "[{\"text\":\"b\"}]", finish = Some("STOP"),
+            extra = ",\"citationMetadata\":{\"citationSources\":[{\"uri\":\"https://source.test\",\"endIndex\":2}]},\"newMetric\":42")
+        val final = stream.endInput()
+        assertEquals(2L, final.events.size)
+        when (final.events[0L]) { case Citation(_, _, citation) -> assertEquals(2L, citation.range!!.end); else -> fail() }
+        assertEquals(42L, stream.response().nativeEvents[0L].value["metadata"]!!["newMetric"]!!.asLong())
+        val ambiguous = geminiStream()
+        geminiAccept(ambiguous, "[{\"text\":\"a\",\"thought\":true},{\"text\":\"b\"}]", finish = Some("STOP"),
+            extra = ",\"citationMetadata\":{\"citationSources\":[{\"endIndex\":1}]}")
+        val completed = ambiguous.endInput()
+        when (completed.events[0L]) { case Native(_) -> assertTrue(true); else -> fail() }
+        assertEquals(3L, ambiguous.response().candidates[0L].items.size)
+    }
+
+    @Test
+    fun `Gemini SSE keeps distinct parts within one content chunk addressable by citations`() {
+        val stream = geminiStream()
+        geminiAccept(stream, "[{\"text\":\"one\"},{\"text\":\"two\"}]", finish = Some("STOP"),
+            extra = ",\"groundingMetadata\":{\"groundingChunks\":[{\"web\":{\"uri\":\"https://source.test\"}}],\"groundingSupports\":[{\"segment\":{\"partIndex\":1,\"endIndex\":3},\"groundingChunkIndices\":[0]}]}")
+        val final = stream.endInput()
+        when (final.events[0L]) { case Citation(location, part, _) -> { assertEquals(0L, location.itemIndex); assertEquals(1L, part) }; else -> fail() }
+        assertEquals("onetwo", stream.response().text)
+        assertEquals(2L, stream.response().candidates[0L].items.size)
+    }
+
+    @Test
+    fun `Gemini SSE unresolved citations fail at EOF in both retention modes`() {
+        for (retention in [StreamRetention.EventsOnly, StreamRetention.Result]) {
+            for (support in ["{\"groundingChunkIndices\":[1]}", "{\"segment\":{\"partIndex\":9}}", "{\"segment\":{\"endIndex\":8}}"]) {
+                val stream = geminiStream(retention)
+                geminiAccept(stream, "[{\"text\":\"hi\"}]", finish = Some("STOP"),
+                    extra = ",\"groundingMetadata\":{\"groundingSupports\":[" + support + "]}")
+                assertFailsWith<LlmProtocolException> { stream.endInput(); Unit }
+                assertFalse(stream.isFinished)
+                assertEquals(UsageCompleteness.Partial, stream.usage.completeness)
+                assertFailsWith<LlmOutputException> { stream.response(); Unit }
+            }
+        }
+    }
+}

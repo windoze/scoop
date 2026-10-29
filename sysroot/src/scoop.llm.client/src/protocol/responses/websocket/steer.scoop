@@ -1,0 +1,46 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeResponsesWebSocketSteer(dialect: ResponsesDialect, previous: String, input: Array<LlmInputItem>): JsonValue {
+    requireResponsesWebSocket(dialect)
+    if (previous.length == 0L) throw LlmRequestException("/previous_response_id", "steering requires a response ID")
+    if (input.size == 0L) throw LlmRequestException("/input", "steering input must not be empty")
+    val request = LlmRequest(input)
+    var index = 0L
+    for (item in input) {
+        val path = "/input/" + index.toString()
+        when (item) {
+            case Message(_, role, _) -> {
+                if (role != LlmRole.User) throw LlmRequestException(path + "/role", "steering accepts only user messages")
+            }
+            else -> throw LlmRequestException(path, "steering accepts only user messages")
+        }
+        index += 1L
+    }
+    val encoded = encodeResponsesInput(dialect, request.input)
+    index = 0L
+    for (message in encoded.elements()) {
+        val path = "/input/" + index.toString()
+        for ((name, _) in message.members()) {
+            if (name != "type" && name != "role" && name != "content")
+                throw LlmRequestException(path + "/" + name, "steering message field is not supported")
+        }
+        checkResponsesSteeringContent(message["content"]!!, path + "/content")
+        index += 1L
+    }
+    return llmTypedObject("response.steer").add("previous_response_id", JsonValue.fromString(previous)).add("input", encoded).build()
+}
+
+private fun checkResponsesSteeringContent(content: JsonValue, path: String) {
+    if (content.kind == JsonValueKind.String) return
+    if (content.kind != JsonValueKind.Array) throw LlmRequestException(path, "steering content requires text or content parts")
+    var index = 0L
+    for (part in content.elements()) {
+        val raw = if (part.kind == JsonValueKind.Object) part["type"] else None
+        val kind = when (raw) { case Some(value) -> if (value.kind == JsonValueKind.String) value.asString() else ""; case None -> "" }
+        if (kind != "input_text" && kind != "input_image" && kind != "input_file")
+            throw LlmRequestException(path + "/" + index.toString() + "/type", "steering supports only text, image and file input")
+        index += 1L
+    }
+}

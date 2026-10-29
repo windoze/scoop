@@ -1,0 +1,45 @@
+package scoop.llm.client
+
+import scoop.asyncio.*
+
+internal suspend fun <T> consumeLlmStream(state: LlmStreamState, decoder: LlmStreamDecoder,
+    dialect: DialectId, attempt: LlmAttemptState, timer: Job?, read: suspend () -> T?, decode: (T) -> LlmStreamUpdate) {
+    ensureActive()
+    state.opening.publish(LlmStream(state))
+    var batch: Array<LlmEvent> = []
+    var offset = 0L
+    while (state.awaitDemand()) {
+        if (offset < batch.size) {
+            val event = batch[offset]
+            offset += 1L
+            if (offset == batch.size) { batch = []; offset = 0L }
+            state.deliver(Some(event))
+            continue
+        }
+        if (decoder.isFinished) { state.deliver(None); continue }
+        val event = read()
+        val point = state.call.point()
+        val update = when (event) {
+            case Some(value) -> decode(value)
+            case None -> {
+                val terminal = decoder.endInput()
+                if (!decoder.isFinished) throw LlmStreamProtocolException(dialect,
+                    "decoder did not finish at end of input")
+                terminal
+            }
+        }
+        if (llmPresent(event) && !update.isKeepAlive) attempt.event(point)
+        val retained = if (decoder.isFinished && state.retention == StreamRetention.Result) Some(decoder.response()) else None
+        state.lock.withLock {
+            attempt.update(point, update, decoder)
+            if (decoder.isFinished) {
+                state.protocolFinished = true
+                state.retained = retained
+            }
+            Unit
+        }
+        if (decoder.isFinished) timer?.cancel()
+        batch = update.events
+        offset = 0L
+    }
+}

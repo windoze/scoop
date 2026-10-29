@@ -1,0 +1,42 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+private class ResponsesUsageFields public constructor(
+    @Serialize(rename = "input_tokens") public val input: Long? = None,
+    @Serialize(rename = "output_tokens") public val output: Long? = None,
+    @Serialize(rename = "total_tokens") public val total: Long? = None,
+    @Serialize(rename = "input_tokens_details") public val inputDetails: ResponsesInputTokens? = None,
+    @Serialize(rename = "output_tokens_details") public val outputDetails: ResponsesOutputTokens? = None
+) {
+    public companion object : ValueDecoder<ResponsesUsageFields>
+}
+
+private class ResponsesInputTokens public constructor(
+    @Serialize(rename = "cached_tokens") public val read: Long? = None,
+    @Serialize(rename = "cache_write_tokens") public val write: Long? = None
+) {
+    public companion object : ValueDecoder<ResponsesInputTokens>
+}
+
+private class ResponsesOutputTokens public constructor(@Serialize(rename = "reasoning_tokens") public val reasoning: Long? = None) {
+    public companion object : ValueDecoder<ResponsesOutputTokens>
+}
+
+internal fun readResponsesUsage(value: JsonValue): TokenUsage {
+    val fields = decodeResponsesValue<ResponsesUsageFields>(value, "/usage")
+    val input = checkedResponsesCount(fields.input, "input_tokens")
+    val output = checkedResponsesCount(fields.output, "output_tokens")
+    val total = checkedResponsesCount(fields.total, "total_tokens")
+    val read = when (fields.inputDetails) { case Some(details) -> details.read; case None -> None }
+    val write = when (fields.inputDetails) { case Some(details) -> details.write; case None -> None }
+    val reasoning = when (fields.outputDetails) { case Some(details) -> details.reasoning; case None -> None }
+    val ordinary = openAiOrdinaryInputTokens(input, read, write, "/usage/input_tokens_details")
+    return TokenUsage(input, ordinary, output, total, read, write,
+        checkedResponsesCount(reasoning, "output_tokens_details/reasoning_tokens"))
+}
+
+private fun checkedResponsesCount(value: Long?, path: String): Long? {
+    if (value != None && value!! < 0L) throw DecodingException("/usage/" + path, "token count must not be negative")
+    return value
+}

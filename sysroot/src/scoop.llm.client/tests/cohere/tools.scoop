@@ -1,0 +1,82 @@
+package scoop.llm.client.tests.cohere
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class CohereToolsTest {
+    @Test
+    fun `Cohere parallel functions preserve IDs exact arguments and serialized history`() {
+        val first = cohereCall("a", "{ \"count\" : 9007199254740993 }")
+        val second = cohereCall("b", "{\"wide\":1e400}")
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(cohereCalls([first, second])))
+        assertEquals(2L, response.clientToolCalls.size)
+        val call = response.clientToolCalls[0L]
+        assertEquals(Some("a"), call.reference.id)
+        assertEquals(ToolKey("local"), call.toolKey)
+        assertEquals(9007199254740993L, call.decodeArguments<CohereAnswer>().count)
+        assertEquals(Json.stringify(first), Json.stringify(call.reference.context!!))
+        when (call.input) { case JsonArguments(arguments) -> assertEquals("{ \"count\" : 9007199254740993 }", arguments.rawText); else -> fail() }
+        assertEquals(Some("b"), response.clientToolCalls[1L].reference.id)
+        assertEquals("{\"wide\":1e400}", cohereHistory(response)["tool_calls"]!![1L]["function"]!!["arguments"]!!.asString())
+        assertEquals(0L, response.serverToolActivities.size)
+    }
+
+    @Test
+    fun `Cohere invalid function JSON and nonobject arguments cannot execute`() {
+        for (arguments in ["{", "[1]", "null", ""]) {
+            val response = cohereCalls([cohereCall("a", arguments)])
+            assertEquals(0L, response.clientToolCalls.size)
+            when (response.candidates[0L].items[0L]) {
+                case ClientToolCall(call) -> when (call.input) { case Invalid(text, _) -> assertEquals(arguments, text); else -> fail() }
+                else -> fail()
+            }
+            assertEquals(arguments, cohereHistory(response)["tool_calls"]!![0L]["function"]!!["arguments"]!!.asString())
+        }
+    }
+
+    @Test
+    fun `Cohere only TOOL_CALL makes complete function inputs executable`() {
+        for (reason in ["COMPLETE", "STOP_SEQUENCE", "MAX_TOKENS", "ERROR", "TIMEOUT", "future"]) {
+            val response = cohereCalls([cohereCall("a")], reason)
+            assertEquals(0L, response.clientToolCalls.size)
+            when (response.candidates[0L].items[0L]) {
+                case ClientToolCall(call) -> when (call.input) { case Incomplete(text) -> assertEquals("{}", text); else -> fail() }
+                else -> fail()
+            }
+        }
+    }
+
+    @Test
+    fun `Cohere unbound ambiguous custom server and incomplete declarations remain native`() {
+        val ambiguous = LlmRequest([], tools = [ClientFunction(ToolKey("a"), "lookup", Json.parse("{}")),
+            ClientFunction(ToolKey("b"), "lookup", Json.parse("{}"))])
+        val other = LlmRequest([], tools = [ClientCustom(ToolKey("custom"), "lookup"), Server(ToolKey("search"), WebSearch())])
+        for (request in [LlmRequest([]), ambiguous, other]) {
+            val response = cohereCalls([cohereCall("a")], request = request)
+            assertEquals(0L, response.clientToolCalls.size)
+            when (response.candidates[0L].items[0L]) {
+                case Native(dialect, raw) -> { assertEquals(cohereDialect, dialect); assertEquals("a", raw["id"]!!.asString()) }
+                else -> fail()
+            }
+        }
+        for (call in ["{\"id\":\"a\",\"type\":\"function\"}", "{\"id\":\"a\",\"type\":\"function\",\"function\":null}",
+            "{\"id\":\"a\",\"type\":\"function\",\"function\":{\"name\":\"lookup\"}}",
+            "{\"id\":\"a\",\"type\":\"function\",\"function\":{\"arguments\":\"{}\"}}",
+            "{\"id\":\"a\",\"type\":\"future\",\"function\":[1]}"]) {
+            val response = cohereCalls([Json.parse(call)])
+            assertEquals(0L, response.clientToolCalls.size)
+            when (response.candidates[0L].items[0L]) { case Native(_, raw) -> assertEquals(call, Json.stringify(raw)); else -> fail() }
+        }
+    }
+
+    @Test
+    fun `Cohere malformed function identities and duplicate unknown calls are protocol errors`() {
+        for ((calls, path) in [("[{\"id\":\"\",\"type\":\"future\"}]", "/message/tool_calls/0/id"),
+            ("[{\"id\":\"a\",\"type\":\"future\"},{\"id\":\"a\",\"type\":\"future\"}]", "/message/tool_calls/1/id"),
+            ("[{\"id\":\"a\",\"type\":\"function\",\"function\":{\"name\":\"\",\"arguments\":\"{}\"}}]", "/message/tool_calls/0/function/name"),
+            ("[{\"id\":\"a\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":{}}}]", "/message/tool_calls/0/function/arguments")])
+            assertCohereFailure(cohereBody(reason = "TOOL_CALL", extra = ",\"tool_calls\":" + calls), path)
+    }
+}

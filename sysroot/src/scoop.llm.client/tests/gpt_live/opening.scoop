@@ -1,0 +1,95 @@
+package scoop.llm.client.tests.gpt_live
+
+import scoop.asyncio.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+import scoop.time.Duration
+import scoop.url.Url
+
+@Test
+private class GptLiveOpeningTest {
+    @Test
+    fun knownUnsupportedInputsFailBeforeAuthentication() {
+        LibuvEventLoop().run suspend { _ ->
+            withLlmClient suspend { client ->
+                for ((provider, capabilities, path) in [
+                    (Providers.openAiRealtime(), ModelCapabilities(), "/provider"),
+                    (Providers.openAiGptLive(), ModelCapabilities(realtime = Unsupported("disabled")), "/realtime"),
+                    (Providers.openAiGptLive(), ModelCapabilities(input = InputCapabilities(text = Unsupported("disabled"))), "/setup/instructions")]) {
+                    val auth = RecordingAuth()
+                    val model = LlmEndpoint(provider, auth, Some(Url.parse("http://127.0.0.1:1"))).model("m", Some(capabilities))
+                    val failure = expectLlmFailure<LlmRequestException> suspend {
+                        client.openGptLiveSession(model, GptLiveSetup(instructions = Some(""))); Unit
+                    }
+                    assertEquals(path, failure.path)
+                    assertEquals(0L, auth.requests.size)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun rejectedOrMalformedStartupCleansTheSocketAndPreservesTheServerError() {
+        for (mode in ["error", "json", "type", "binary", "eof"]) {
+            val released = LlmGate()
+            withGptLivePeer(suspend { socket ->
+                assertEquals("session.start", gptCommand(socket)["type"]!!.asString())
+                if (mode == "error") socket.sendText("{\"type\":\"error\",\"error\":{\"message\":\"startup rejected\"}}")
+                else if (mode == "json") socket.sendText("{")
+                else if (mode == "type") socket.sendText("{\"type\":\"session.updated\",\"session\":{}}")
+                else if (mode == "binary") socket.sendBinary("{}".toByteArray())
+                else socket.shutdownGracefully()
+                socket.awaitClosed(); released.signal()
+            }, suspend { _, _, endpoint ->
+                withLlmClient suspend { client ->
+                    val finished = FinishedCalls()
+                    val error = gptPrimaryFailure(expectLlmFailure<Throwable> suspend {
+                        client.openGptLiveSession(endpoint.model("m"), openingOptions = LlmCallOptions(
+                            onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                    })
+                    released.await()
+                    if (mode == "error") {
+                        if (error is GptLiveSessionRejectedException) {
+                            assertEquals("startup rejected", error.received.message.native["error"]!!["message"]!!.asString())
+                            assertTrue(error.received.received.elapsed >= Duration.ZERO)
+                        } else fail()
+                    }
+                    else if (mode == "type") { assertTrue(error is LlmProtocolException) }
+                    else { assertTrue(error is LlmStreamProtocolException) }
+                    assertEquals(1L, finished.values.size)
+                    assertEquals(Some(101U), finished.values[0].attempts[0].status)
+                    assertEquals(LlmCallOutcome.Failed, finished.values[0].outcome)
+                    assertFalse(client.isClosed)
+                }
+            })
+        }
+    }
+
+    @Test
+    fun initializationDeadlineAndCancellationIncludeTheStartAcknowledgment() {
+        for (timeout in [false, true]) {
+            val entered = LlmGate()
+            val released = LlmGate()
+            withGptLivePeer(suspend { socket ->
+                gptCommand(socket); entered.signal()
+                socket.awaitClosed(); released.signal()
+            }, suspend { _, scope, endpoint ->
+                withLlmClient suspend { client ->
+                    val opening = scope.launch suspend {
+                        val error = gptPrimaryFailure(expectLlmFailure<Throwable> suspend {
+                            client.openGptLiveSession(endpoint.model("m"), openingOptions = LlmCallOptions(
+                                timeouts = LlmTimeouts(total = if (timeout) Some(Duration.milliseconds(200L)) else None))); Unit
+                        })
+                        if (timeout) { assertTrue(error is LlmTimeoutException) } else { assertTrue(error is CancellationException) }
+                        Unit
+                    }
+                    entered.await()
+                    if (!timeout) opening.cancel()
+                    opening.join(); released.await()
+                    assertFalse(client.isClosed)
+                }
+            })
+        }
+    }
+}

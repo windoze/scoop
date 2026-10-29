@@ -1,0 +1,50 @@
+package scoop.llm.client.tests.generatecontent
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class GenerateContentErrorsTest {
+    @Test
+    fun `generateContent rejects invalid candidate identities and known part shapes`() {
+        assertGenerateContentFailure(Json.parse("{\"candidates\":[{\"index\":-1}]}"), "/candidates/0/index")
+        assertGenerateContentFailure(Json.parse("{\"candidates\":[{},{}]}"), "/candidates/1/index")
+        assertGenerateContentFailure(Json.parse("{\"candidates\":[{\"content\":{\"role\":\"user\"}}]}"), "/candidates/0/content/role")
+        assertGenerateContentFailure(Json.parse("{\"error\":{\"status\":\"INVALID_ARGUMENT\"}}"), "/error")
+        for ((parts, field) in [("[{\"text\":false}]", "text"), ("[{\"thought\":\"true\"}]", "thought"),
+            ("[{\"thoughtSignature\":4}]", "thoughtSignature"), ("[{\"text\":\"x\",\"functionCall\":{}}]", "functionCall"),
+            ("[{\"inlineData\":{\"mimeType\":\"audio/pcm\",\"data\":\"!\"}}]", "inlineData/data"),
+            ("[{\"inlineData\":{\"mimeType\":\"bad\",\"data\":\"\"}}]", "inlineData/mimeType"),
+            ("[{\"fileData\":{\"fileUri\":\"\"}}]", "fileData/fileUri"),
+            ("[{\"functionCall\":{\"name\":\"\"}}]", "functionCall/name"),
+            ("[{\"toolCall\":{\"toolType\":\"FILE_SEARCH\",\"args\":[]}}]", "toolCall/args")]) {
+            assertGenerateContentFailure(generateContentBody(parts), "/candidates/0/content/parts/0/" + field)
+        }
+    }
+
+    @Test
+    fun `generateContent duplicate present call IDs fail while separate candidates retain independent IDs`() {
+        val part = "{\"functionCall\":{\"name\":\"lookup\",\"id\":\"same\",\"args\":{}}}"
+        assertGenerateContentFailure(generateContentBody("[" + part + "," + part + "]"), "/candidates/0/content/parts/1/functionCall/id")
+        val body = Json.parse("{\"candidates\":[{\"index\":0,\"content\":{\"parts\":[" + part + "]},\"finishReason\":\"STOP\"}," +
+            "{\"index\":1,\"content\":{\"parts\":[" + part + "]},\"finishReason\":\"STOP\"}]}")
+        val result = generateContentDecode(body)
+        assertEquals(1L, result.candidate(0L).clientToolCalls.size)
+        assertEquals(1L, result.candidate(1L).clientToolCalls.size)
+    }
+
+    @Test
+    fun `generateContent grounding references validate actual source part and UTF8 bounds`() {
+        val prefix = ",\"groundingMetadata\":{\"groundingChunks\":[{\"web\":{\"uri\":\"https://example.test\"}}],\"groundingSupports\":["
+        for ((support, field) in [("{\"groundingChunkIndices\":[1],\"segment\":{}}", "groundingChunkIndices"),
+            ("{\"groundingChunkIndices\":[0],\"segment\":{\"partIndex\":1}}", "segment/partIndex"),
+            ("{\"groundingChunkIndices\":[0],\"segment\":{\"startIndex\":-1}}", "segment/startIndex"),
+            ("{\"groundingChunkIndices\":[0],\"segment\":{\"endIndex\":5}}", "segment/endIndex")]) {
+            assertGenerateContentFailure(generateContentBody("[{\"text\":\"😀\"}]", extra = prefix + "{}," + support + "]}"),
+                "/candidates/0/groundingMetadata/groundingSupports/1/" + field)
+        }
+        assertGenerateContentFailure(generateContentBody("[]", extra = ",\"groundingMetadata\":{\"groundingChunks\":[{\"web\":{},\"maps\":{}}]}"),
+            "/candidates/0/groundingMetadata/groundingChunks/0/maps")
+    }
+}

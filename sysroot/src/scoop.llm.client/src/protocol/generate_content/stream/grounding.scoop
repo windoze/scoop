@@ -1,0 +1,94 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.url.Url
+
+internal class GenerateContentStreamGrounding {
+    private val sources = ArrayList<LlmSource>()
+    private val supports = ArrayList<JsonValue>()
+    public val citationMetadata: ArrayList<JsonValue> = ArrayList<JsonValue>()
+    public var failureNative: JsonValue = JsonObjectBuilder().build()
+
+    public fun accept(state: GenerateContentStreamCandidate, raw: JsonValue, path: String, batch: LlmStreamBatch) {
+        val fields = decodeGenerateContentValue<GenerateContentGroundingFields>(raw, path + "/groundingMetadata")
+        val web = ArrayList<LlmSource>()
+        for (chunk in fields.groundingChunks ?: []) {
+            val sourcePath = "/candidates/" + state.index.toString() + "/groundingMetadata/groundingChunks/" + sources.size.toString()
+            val (source, isWeb) = readGenerateContentSource(state.dialect, chunk, sourcePath)
+            sources.add(source)
+            if (isWeb) web.add(source)
+        }
+        for (support in fields.groundingSupports ?: []) supports.add(support)
+        val item = state.addItem(breakContent = false)
+        if (web.size != 0L || (fields.webSearchQueries ?: []).size != 0L || llmPresent(fields.searchEntryPoint)) {
+            val activity = ServerToolActivity(WebSearch, toolKey = resolveGenerateContentServer(state.tools, state.dialect, "googleSearch"),
+                action = raw["webSearchQueries"], sources = web.toArray(), native = Some(raw))
+            batch.events.add(LlmEvent.ServerToolActivity(item.location, activity))
+            batch.hasOutput = true
+            if (state.retain) item.output = Some(LlmOutputItem.ServerToolActivity(activity))
+        } else {
+            val value = JsonObjectBuilder().add("groundingMetadata", raw).build()
+            batch.native("generate-content.grounding", value, Some(item.location), false)
+            if (state.retain) item.output = Some(LlmOutputItem.Native(state.dialect, value))
+        }
+    }
+
+    public fun finish(state: GenerateContentStreamCandidate, batch: LlmStreamBatch) {
+        var index = 0L
+        for (raw in supports) {
+            failureNative = raw
+            val path = "/candidates/" + state.index.toString() + "/groundingMetadata/groundingSupports/" + index.toString()
+            val fields = decodeGenerateContentValue<GenerateContentSupport>(raw, path)
+            val indices = fields.groundingChunkIndices ?: []
+            for (source in indices) if (source < 0L || source >= sources.size)
+                throw DecodingException(path + "/groundingChunkIndices", "source index is out of bounds")
+            if (llmPresent(fields.segment)) {
+                val segment = fields.segment!!
+                val part = segment.partIndex ?: 0L
+                if (part < 0L || part >= state.parts.size) throw DecodingException(path + "/segment/partIndex", "part index is out of bounds")
+                val target = state.parts[part]
+                if (target.isText) {
+                    val range = generateContentCitationRangeBytes(segment.startIndex, segment.endIndex, target.byteLength, path + "/segment")
+                    for (source in indices) recordCitation(target, Citation(sources[source], range), batch)
+                }
+            }
+            index += 1L
+        }
+        finishCitationMetadata(state, batch)
+        sources.clear(); supports.clear(); citationMetadata.clear()
+        failureNative = JsonObjectBuilder().build()
+    }
+
+    private fun finishCitationMetadata(state: GenerateContentStreamCandidate, batch: LlmStreamBatch) {
+        var offset = 0L
+        for (raw in citationMetadata) {
+            failureNative = raw
+            val path = "/candidates/" + state.index.toString() + "/citationMetadata"
+            val fields = decodeGenerateContentValue<GenerateContentCitationMetadata>(raw, path)
+            if (state.parts.size != 1L || !state.parts[0L].isText) {
+                val item = state.addItem()
+                val value = JsonObjectBuilder().add("citationMetadata", raw).build()
+                batch.native("generate-content.citations", value, Some(item.location), false)
+                if (state.retain) item.output = Some(LlmOutputItem.Native(state.dialect, value))
+                continue
+            }
+            val target = state.parts[0L]
+            for (entry in fields.citationSources ?: []) {
+                val entryPath = path + "/citationSources/" + offset.toString()
+                val source = decodeGenerateContentValue<GenerateContentCitationSource>(entry, entryPath)
+                val location = when (source.uri) {
+                    case Some(uri) -> LlmSourceLocation.Url(Url.parseOrNone(uri) ?: throw DecodingException(entryPath + "/uri", "invalid citation URI"))
+                    case None -> LlmSourceLocation.Native(state.dialect, entry)
+                }
+                recordCitation(target, Citation(LlmSource(entryPath, location, native = Some(entry)),
+                    generateContentCitationRangeBytes(source.startIndex, source.endIndex, target.byteLength, entryPath)), batch)
+                offset += 1L
+            }
+        }
+    }
+}
+
+private fun recordCitation(item: GenerateContentStreamItem, citation: Citation, batch: LlmStreamBatch) {
+    if (item.retain) item.citations.add(citation)
+    batch.events.add(LlmEvent.Citation(item.location, item.partIndex, citation))
+}

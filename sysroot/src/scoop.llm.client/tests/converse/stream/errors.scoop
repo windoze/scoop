@@ -1,0 +1,105 @@
+package scoop.llm.client.tests.converse
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ConverseStreamErrorTest {
+    @Test
+    fun `Converse EventStream validates control headers payload encoding and server exception envelopes`() {
+        for (fields in [Array<(String, String)>(0L) { _ -> ("", "") }, [ (":message-type", "future") ],
+            [ (":message-type", "event") ], [ (":message-type", "event"), (":event-type", "") ],
+            [ (":message-type", "event"), (":event-type", "messageStart"), (":content-type", "text/plain") ],
+            [ (":message-type", "exception"), (":exception-type", "throttlingException") ],
+            [ (":message-type", "error"), (":error-code", "bad"), (":error-message", "detail") ]]) {
+            val decoder = converseStream()
+            val bytes = converseFrameBytes(converseHeaderBytes(fields), "{\"role\":\"assistant\"}".toByteArray())
+            assertFailsWith<LlmStreamProtocolException> { converseAcceptBytes(decoder, bytes); Unit }
+            assertFalse(decoder.isFinished)
+            assertFailsWith<LlmStreamProtocolException> { decoder.endInput(); Unit }
+        }
+        val headers = converseHeaderBytes([ (":message-type", "event"), (":event-type", "messageStart") ])
+        for (bytes in [ [255.toByte()], "{".toByteArray() ])
+            assertFailsWith<LlmStreamProtocolException> { converseAcceptBytes(converseStream(), converseFrameBytes(headers, bytes)); Unit }
+        assertFailsWith<LlmProtocolException> { converseEvent(converseStream(), "messageStart", "[]"); Unit }
+        val invalid = ByteArrayBuilder().append(13.toByte()).append(":message-type".toByteArray()).append(0.toByte()).toByteArray()
+        assertFailsWith<LlmStreamProtocolException> { converseAcceptBytes(converseStream(), converseFrameBytes(invalid, "{}".toByteArray())); Unit }
+        val error = assertFailsWith<LlmStreamProtocolException> {
+            converseAcceptBytes(converseStream(), converseFrameBytes(converseHeaderBytes([
+                (":message-type", "error"), (":error-code", "bad"), (":error-message", "") ]), "details".toByteArray())); Unit
+        }
+        assertEquals(Some("server stream error: bad"), error.message)
+        assertEquals(Some("details"), error.data)
+    }
+
+    @Test
+    fun `Converse EventStream rejects missing starts duplicate stops changed kinds and invalid indices`() {
+        assertFailsWith<LlmProtocolException> { converseEvent(converseStream(), "messageStart", "{\"role\":\"user\"}"); Unit }
+        assertFailsWith<LlmProtocolException> { converseDelta(converseStream(), 0L, "{\"text\":\"x\"}"); Unit }
+        for (operation in ["duplicate", "gap", "negative", "stop", "empty", "tool", "kind", "unfinished", "after"]) {
+            val decoder = converseStream()
+            converseBegin(decoder)
+            assertFailsWith<LlmProtocolException> {
+                when (operation) {
+                    case "duplicate" -> converseBegin(decoder)
+                    case "gap" -> converseDelta(decoder, 1L, "{\"text\":\"x\"}")
+                    case "negative" -> converseDelta(decoder, -1L, "{\"text\":\"x\"}")
+                    case "stop" -> converseStop(decoder, 0L)
+                    case "empty" -> converseStart(decoder, 0L, "{}")
+                    case "tool" -> converseInput(decoder, 0L, "{}")
+                    case "kind" -> { converseDelta(decoder, 0L, "{\"text\":\"x\"}"); converseDelta(decoder, 0L, "{\"reasoningContent\":{\"text\":\"y\"}}") }
+                    case "unfinished" -> { converseDelta(decoder, 0L, "{\"text\":\"x\"}"); converseEnd(decoder) }
+                    case "after" -> { converseEnd(decoder); converseDelta(decoder, 0L, "{\"text\":\"x\"}") }
+                    else -> fail()
+                }
+                Unit
+            }
+            assertFailsWith<LlmOutputException> { decoder.response(); Unit }
+        }
+        val decoder = converseStream(); converseBegin(decoder)
+        converseDelta(decoder, 0L, "{\"text\":\"x\"}"); converseStop(decoder, 0L)
+        assertFailsWith<LlmProtocolException> { converseStop(decoder, 0L); Unit }
+    }
+
+    @Test
+    fun `Converse EventStream EOF and errors after messageStop do not fabricate a successful result`() {
+        for (started in [false, true]) {
+            val decoder = converseStream()
+            if (started) converseBegin(decoder)
+            assertFailsWith<LlmStreamProtocolException> { decoder.endInput(); Unit }
+            assertFalse(decoder.isFinished)
+        }
+        val decoder = converseStream(); converseBegin(decoder); converseEnd(decoder)
+        converseEvent(decoder, "metadata", "{\"usage\":{\"outputTokens\":3}}")
+        val error = assertFailsWith<LlmStreamProtocolException> {
+            converseAcceptBytes(decoder, converseFrameBytes(converseHeaderBytes([
+                (":message-type", "exception"), (":exception-type", "modelStreamErrorException") ]), "{\"message\":\"lost\"}".toByteArray())); Unit
+        }
+        assertEquals(Some("{\"message\":\"lost\"}"), error.data)
+        assertEquals(Some(3L), decoder.usage.tokens.outputTokens)
+        assertEquals(UsageCompleteness.Partial, decoder.usage.completeness)
+        assertFailsWith<LlmOutputException> { decoder.response(); Unit }
+        val complete = converseStream(); converseBegin(complete); converseEnd(complete); complete.endInput()
+        assertFailsWith<LlmStreamProtocolException> { converseBegin(complete); Unit }
+        assertFalse(complete.isFinished)
+    }
+
+    @Test
+    fun `Converse EventStream enforces union identity binary validation and server execution ownership`() {
+        for (value in ["{\"text\":\"x\",\"future\":true}", "{\"reasoningContent\":{\"redactedContent\":\"!\"}}"] ) {
+            val decoder = converseStream(); converseBegin(decoder)
+            assertFailsWith<LlmProtocolException> { converseDelta(decoder, 0L, value); Unit }
+        }
+        val mixed = converseStream(); converseBegin(mixed)
+        converseDelta(mixed, 0L, "{\"reasoningContent\":{\"text\":\"x\"}}")
+        assertFailsWith<LlmProtocolException> { converseDelta(mixed, 0L, "{\"reasoningContent\":{\"redactedContent\":\"QQ==\"}}"); Unit }
+        val call = "{\"toolUse\":{\"toolUseId\":\"a\",\"name\":\"lookup\"}}"
+        val duplicate = converseStream(); converseBegin(duplicate); converseStart(duplicate, 0L, call)
+        assertFailsWith<LlmProtocolException> { converseStart(duplicate, 1L, call); Unit }
+        val wrong = converseStream(); converseBegin(wrong); converseStart(wrong, 0L, call)
+        converseInput(wrong, 0L, "{}"); converseStop(wrong, 0L)
+        converseStart(wrong, 1L, "{\"toolResult\":{\"toolUseId\":\"a\",\"type\":\"nova_code_interpreter_result\"}}")
+        assertFailsWith<LlmProtocolException> { converseStop(wrong, 1L); Unit }
+    }
+}

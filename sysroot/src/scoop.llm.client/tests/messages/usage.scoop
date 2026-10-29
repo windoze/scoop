@@ -1,0 +1,52 @@
+package scoop.llm.client.tests.messages
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class MessagesUsageTest {
+    @Test
+    fun `Messages token totals add distinct cache portions without charging search counts as tokens`() {
+        val raw = "{\"input_tokens\":9007199254740993,\"output_tokens\":7,\"cache_read_input_tokens\":20,\"cache_creation_input_tokens\":10," +
+            "\"cache_creation\":{\"ephemeral_5m_input_tokens\":4,\"ephemeral_1h_input_tokens\":6}," +
+            "\"output_tokens_details\":{\"thinking_tokens\":3},\"server_tool_use\":{\"web_search_requests\":2}}"
+        val response = MessagesProtocol(AnthropicMessagesDialect()).decodeResponse(messagesBody("[]", usage = Some(raw)), messagesRequest())
+        val tokens = response.usage.tokens
+        assertEquals(Some(9007199254741023L), tokens.inputTokens)
+        assertEquals(Some(9007199254740993L), tokens.nonCachedInputTokens)
+        assertEquals(Some(9007199254741030L), tokens.totalTokens)
+        assertEquals(Some(7L), tokens.outputTokens)
+        assertEquals(Some(20L), tokens.cacheReadTokens)
+        assertEquals(Some(10L), tokens.cacheWriteTokens)
+        assertEquals(Some(3L), tokens.reasoningTokens)
+        assertEquals(0L, tokens.modality.size)
+        assertEquals(Json.stringify(Json.parse(raw)), Json.stringify(response.usage.native!!))
+    }
+
+    @Test
+    fun `Messages missing counts remain unknown and known zero survives normalization`() {
+        val dialect = AnthropicMessagesDialect()
+        val missing = dialect.readUsage(Json.parse("{\"input_tokens\":5,\"output_tokens\":0,\"cache_read_input_tokens\":0}"))
+        assertEquals(None, missing.inputTokens)
+        assertEquals(None, missing.totalTokens)
+        assertEquals(None, missing.cacheWriteTokens)
+        assertEquals(Some(5L), missing.nonCachedInputTokens)
+        assertEquals(Some(0L), missing.outputTokens)
+        val zero = dialect.readUsage(Json.parse("{\"input_tokens\":0,\"output_tokens\":0,\"cache_read_input_tokens\":0,\"cache_creation_input_tokens\":0}"))
+        assertEquals(Some(0L), zero.inputTokens)
+        assertEquals(Some(0L), zero.totalTokens)
+        assertEquals(None, dialect.readUsage(Json.parse("{}")).outputTokens)
+    }
+
+    @Test
+    fun `Messages token normalization rejects negative fractions and overflow with paths`() {
+        for ((usage, path) in [
+            ("{\"input_tokens\":-1}", "/usage/input_tokens"),
+            ("{\"cache_creation_input_tokens\":0.5}", "/usage/cache_creation_input_tokens"),
+            ("{\"output_tokens_details\":{\"thinking_tokens\":-1}}", "/usage/output_tokens_details/thinking_tokens"),
+            ("{\"input_tokens\":9223372036854775807,\"cache_read_input_tokens\":1,\"cache_creation_input_tokens\":0}", "/usage"),
+            ("{\"input_tokens\":9223372036854775807,\"cache_read_input_tokens\":0,\"cache_creation_input_tokens\":0,\"output_tokens\":1}", "/usage")
+        ]) assertMessagesFailure(messagesBody("[]", usage = Some(usage)), path)
+    }
+}

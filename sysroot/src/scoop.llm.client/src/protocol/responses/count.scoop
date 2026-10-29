@@ -1,0 +1,48 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.text.replace
+import scoop.url.Url
+
+internal class ResponsesTokenCounter(val dialect: OpenAiResponsesDialect) : LlmTokenCounter {
+    public override fun countUrl(baseUrl: Url, modelId: String): Url =
+        baseUrl.toBuilder().appendPathSegment("responses").appendPathSegment("input_tokens").build()
+
+    public override fun encodeRequest(modelId: String, request: LlmRequest): JsonValue {
+        val generated = encodeResponsesRequest(dialect, modelId, request, false)
+        val counted = JsonObjectBuilder()
+        for ((name, value) in generated.members()) if (responsesCountInputField(name)) counted.add(name, value)
+        return counted.build()
+    }
+
+    public override fun decodeResponse(modelId: String, value: JsonValue): TokenCount {
+        try {
+            val fields = decodeResponsesValue<ResponsesCountFields>(value, "")
+            if (fields.objectType != "response.input_tokens")
+                throw DecodingException("/object", "expected a Responses input token count")
+            val error = value["error"]
+            if (llmPresent(error) && error!!.kind != JsonValueKind.Null)
+                throw DecodingException("/error", "input_tokens returned an error response")
+            if (fields.inputTokens != None && fields.inputTokens!! < 0L)
+                throw DecodingException("/input_tokens", "token count must not be negative")
+            return TokenCount(dialect.id, modelId, fields.inputTokens, precision = Exact, native = Some(value))
+        } catch (error: DecodingException) {
+            throw LlmProtocolException(dialect.id, error.path, error.message ?: "invalid Responses input token count", value)
+        }
+    }
+}
+
+/** Project only root controls; nested schemas, tool input and history remain unchanged. */
+private fun responsesCountInputField(name: String): Boolean {
+    for (field in ["model", "input", "instructions", "tools", "tool_choice", "parallel_tool_calls", "reasoning", "text",
+        "conversation", "previous_response_id", "personality", "truncation"]) if (name == field) return true
+    for (field in ["temperature", "top_p", "max_output_tokens", "include", "background", "store", "metadata", "service_tier",
+        "user", "safety_identifier", "prompt_cache_key", "prompt_cache_retention", "stream_options", "top_logprobs", "max_tool_calls"])
+        if (name == field) return false
+    throw LlmRequestException("/" + name.replace("~", "~0").replace("/", "~1"), "Responses token count does not support this request field")
+}
+
+private class ResponsesCountFields public constructor(@Serialize(rename = "object") public val objectType: String,
+    @Serialize(rename = "input_tokens") public val inputTokens: Long? = None) {
+    public companion object : ValueDecoder<ResponsesCountFields>
+}

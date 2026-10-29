@@ -1,0 +1,80 @@
+package scoop.llm.client.tests.interactions
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class InteractionsStreamFailuresTest {
+    @Test
+    fun `Interactions SSE rejects invalid step order types identity and unclosed output`() {
+        for ((event, fields, path) in [
+            ("step.start", "{\"index\":2,\"step\":{\"type\":\"thought\"}}", "/index"),
+            ("step.delta", "{\"index\":0,\"delta\":{\"type\":\"text\",\"text\":\"x\"}}", "/index"),
+            ("step.stop", "{\"index\":-1}", "/index"),
+            ("interaction.status_update", "{\"interaction_id\":\"other\",\"status\":\"in_progress\"}", "/interaction_id"),
+            ("interaction.created", "{\"interaction\":{\"id\":\"stream\",\"status\":\"in_progress\"}}", "/event_type"),
+            ("interaction.completed", "{\"interaction\":{\"id\":\"stream\",\"status\":\"in_progress\"}}", "/interaction/status")]) {
+            val decoder = interactionsStream()
+            interactionsBegin(decoder)
+            assertEquals(path, assertFailsWith<LlmProtocolException> { interactionsEvent(decoder, event, fields); Unit }.path)
+            assertFalse(decoder.isFinished)
+            assertFailsWith<LlmStreamProtocolException> { decoder.endInput(); Unit }
+        }
+        val wrong = interactionsStream()
+        interactionsBegin(wrong)
+        interactionsStart(wrong, 0L, "{\"type\":\"thought\"}")
+        assertEquals("/delta/type", assertFailsWith<LlmProtocolException> { interactionsDelta(wrong, 0L, "{\"type\":\"text\",\"text\":\"x\"}"); Unit }.path)
+        val open = interactionsStream()
+        interactionsBegin(open)
+        interactionsStart(open, 0L, "{\"type\":\"model_output\"}")
+        assertEquals("/steps/0", assertFailsWith<LlmProtocolException> { interactionsEnd(open); Unit }.path)
+    }
+
+    @Test
+    fun `Interactions SSE requires completed resource before DONE or EOF and poisons failed decoders`() {
+        for (mode in ["done", "eof", "error", "invalid", "mismatch", "before"]) {
+            val decoder = interactionsStream()
+            if (mode != "before") interactionsBegin(decoder)
+            if (mode == "done") assertFailsWith<LlmStreamProtocolException> { decoder.accept("done", "[DONE]"); Unit }
+            else if (mode == "eof") assertFailsWith<LlmStreamProtocolException> { decoder.endInput(); Unit }
+            else if (mode == "invalid") assertFailsWith<LlmStreamProtocolException> { decoder.accept("", "{"); Unit }
+            else if (mode == "error") assertFailsWith<LlmProtocolException> { interactionsEvent(decoder, "error", "{\"error\":{\"code\":\"unavailable\"}}"); Unit }
+            else if (mode == "mismatch") assertFailsWith<LlmProtocolException> { decoder.accept("step.stop", "{\"event_type\":\"step.start\"}"); Unit }
+            else assertFailsWith<LlmProtocolException> { interactionsStart(decoder, 0L, "{\"type\":\"thought\"}"); Unit }
+            assertFalse(decoder.isFinished)
+            assertEquals(LlmOutputFailure.Incomplete, assertFailsWith<LlmOutputException> { decoder.response(); Unit }.reason)
+            assertFailsWith<LlmStreamProtocolException> { interactionsEnd(decoder); Unit }
+        }
+    }
+
+    @Test
+    fun `Interactions SSE unknown deltas retain native events and need a complete snapshot for history`() {
+        for (snapshot in [false, true]) {
+            val decoder = interactionsStream()
+            interactionsBegin(decoder)
+            interactionsEvent(decoder, "future.event", "{\"event_id\":\"z\",\"value\":1e400}")
+            interactionsStart(decoder, 0L, "{\"type\":\"model_output\"}")
+            interactionsEvent(decoder, "step.delta", "{\"index\":0,\"event_id\":\"a\",\"delta\":{\"type\":\"future_delta\",\"bytes\":7}}")
+            interactionsStop(decoder, 0L)
+            val extra = if (snapshot) "{\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"final\"}]}]}" else "{}"
+            interactionsEnd(decoder, extra = extra)
+            assertTrue(decoder.response().nativeEvents.size >= 3L)
+            if (snapshot) assertEquals("final", decoder.response().text)
+            else assertEquals(LlmOutputFailure.HistoryUnavailable, assertFailsWith<LlmOutputException> { decoder.response().toInput(); Unit }.reason)
+        }
+    }
+
+    @Test
+    fun `Interactions SSE final snapshots cannot lose steps alter text or change service identity`() {
+        for ((extra, path) in [("{\"steps\":[]}", "/interaction/steps"),
+            ("{\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"no\"}]}]}", "/steps/0/content/0/text"),
+            ("{\"created\":\"2026-10-26T00:00:00Z\"}", "/interaction/created")]) {
+            val decoder = interactionsStream()
+            interactionsEvent(decoder, "interaction.created", "{\"interaction\":{\"id\":\"stream\",\"status\":\"in_progress\",\"created\":\"2026-10-25T00:00:00Z\"}}")
+            interactionsStart(decoder, 0L, "{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"yes\"}]}")
+            interactionsStop(decoder, 0L)
+            assertEquals(path, assertFailsWith<LlmProtocolException> { interactionsEnd(decoder, extra = extra); Unit }.path)
+        }
+    }
+}

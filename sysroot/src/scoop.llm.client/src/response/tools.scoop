@@ -1,0 +1,70 @@
+package scoop.llm.client
+
+import scoop.json.Json
+import scoop.json.JsonValue
+import scoop.json.JsonValueKind
+
+/** Parsed exactly once per construction; only the original argument text is serialized. */
+public class JsonToolArguments public constructor(public val rawText: String) {
+    @Serialize(ignore = true) public val value: JsonValue = parseToolArguments(rawText)
+    public companion object : ValueEncoder<JsonToolArguments>, ValueDecoder<JsonToolArguments>
+}
+
+private fun parseToolArguments(text: String): JsonValue {
+    val value = Json.parse(text)
+    if (value.kind != JsonValueKind.Object) throw DecodingException("", "tool arguments must be a JSON object")
+    return value
+}
+
+public enum ClientToolInput {
+    JsonArguments(val arguments: JsonToolArguments),
+    Text(val text: String),
+    Native(val value: JsonValue),
+    Incomplete(val rawText: String),
+    Invalid(val rawText: String, val reason: String)
+
+    public companion object : ValueEncoder<ClientToolInput>, ValueDecoder<ClientToolInput>
+}
+
+/** Complete protocol input may still fail application-specific DTO or business validation. */
+public class ClientToolCall public constructor(public val reference: ClientToolCallReference, public val input: ClientToolInput) {
+    public val toolKey: ToolKey get() = reference.toolKey
+    public val isExecutable: Boolean get() = when (input) {
+        case Incomplete(_) -> false
+        case Invalid(_, _) -> false
+        else -> true
+    }
+
+    public fun <T> decodeArguments(codec: ValueDecoder<T>): T = when (input) {
+        case JsonArguments(arguments) -> Json.decodeFromValue(arguments.value, codec)
+        else -> throw LlmOutputException(WrongToolInput, "tool call does not contain complete JSON arguments")
+    }
+
+    public fun <T> decodeArguments(): T where T.Companion : ValueDecoder<T> = decodeArguments(T.Companion)
+
+    public companion object : ValueEncoder<ClientToolCall>, ValueDecoder<ClientToolCall>
+}
+
+public enum ServerToolKind {
+    WebSearch, WebFetch, FileSearch, CodeExecution, ImageGeneration, Native
+    public companion object : ValueEncoder<ServerToolKind>, ValueDecoder<ServerToolKind>
+}
+
+public enum ServerToolStatus {
+    Unknown, InProgress, Completed, Failed
+    public companion object : ValueEncoder<ServerToolStatus>, ValueDecoder<ServerToolStatus>
+}
+
+/** Missing IDs and actions remain absent; an internal source ID is never invented as a call ID. */
+public class ServerToolActivity public constructor(
+    public val kind: ServerToolKind,
+    public val status: ServerToolStatus = Unknown,
+    public val toolKey: ToolKey? = None,
+    public val id: String? = None,
+    public val action: JsonValue? = None,
+    public val result: Array<OutputPart> = [],
+    public val sources: Array<LlmSource> = [],
+    public val native: JsonValue? = None
+) {
+    public companion object : ValueEncoder<ServerToolActivity>, ValueDecoder<ServerToolActivity>
+}

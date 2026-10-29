@@ -1,0 +1,81 @@
+package scoop.llm.client.tests.request
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class RequestDefaultsTest {
+    @Test
+    fun `minimal text input restores defaults through the same request model`() {
+        val request = Json.decodeFromString<LlmRequest>(
+            "{\"input\":[{\"Message\":{\"content\":[{\"Text\":{\"text\":\"hello\"}}]}}]}"
+        )
+        assertEquals(0L, request.system.size)
+        assertEquals(0L, request.tools.size)
+        assertEquals(0L, request.extensions.size)
+        assertEquals(None, request.options.maxOutputTokens)
+        assertEquals(None, request.options.temperature)
+        assertEquals(ToolChoice.Auto, request.options.toolChoice)
+        assertTrue(when (request.options.output) { case Text -> true; else -> false })
+        when (request.input[0]) {
+            case Message(content, role, extensions) -> {
+                assertEquals(LlmRole.User, role)
+                assertEquals(0L, extensions.size)
+                when (content[0]) {
+                    case Text(text, values) -> { assertEquals("hello", text); assertEquals(0L, values.size) }
+                    else -> fail(Some("expected text"))
+                }
+            }
+            else -> fail(Some("expected a message"))
+        }
+        val explicit = LlmRequest([Message([Text("hello")])])
+        assertEquals(Json.encodeToString(explicit), Json.encodeToString(request))
+    }
+
+    @Test
+    fun `omitted settings stay distinct from zero false and an empty collection`() {
+        val options = Json.decodeFromString<LlmGenerationOptions>(
+            "{\"temperature\":0,\"maxOutputTokens\":0,\"parallelToolCalls\":false,\"stop\":[],\"reasoning\":{\"enabled\":false,\"budgetTokens\":0}}"
+        )
+        assertEquals(Some(0.0), options.temperature)
+        assertEquals(Some(0UL), options.maxOutputTokens)
+        assertEquals(Some(false), options.parallelToolCalls)
+        assertEquals(0L, options.stop!!.size)
+        assertEquals(Some(false), options.reasoning!!.enabled)
+        assertEquals(Some(0UL), options.reasoning!!.budgetTokens)
+        assertEquals(None, options.reasoning!!.effort)
+        val saved = Json.encodeToValue(options)
+        assertFalse(saved.containsKey("topP"))
+        assertFalse(saved.containsKey("candidates"))
+        assertEquals(0L, saved["stop"]!!.size)
+    }
+
+    @Test
+    fun `structured output constraints retain schema tokens and explicit strictness`() {
+        val schema = Json.parse("{\"type\":\"object\",\"x-limit\":9007199254740993,\"x-scale\":1e+400}")
+        val original = LlmRequest([Message([Text("extract")])],
+            options = LlmGenerationOptions(output = JsonSchema(schema, strict = Some(false))))
+        val request = Json.decodeFromString<LlmRequest>(Json.encodeToString(original))
+        when (request.options.output) {
+            case JsonSchema(value, name, description, strict) -> {
+                assertEquals(Json.stringify(schema), Json.stringify(value))
+                assertEquals("response", name)
+                assertEquals(None, description)
+                assertEquals(Some(false), strict)
+            }
+            else -> fail(Some("expected schema output"))
+        }
+    }
+
+    @Test
+    fun `settings reject invalid numbers without inventing per-model sampling ranges`() {
+        assertFailsWith<IllegalArgumentException> { val value = LlmGenerationOptions(temperature = Some(Double.POSITIVE_INFINITY)); Unit }
+        assertFailsWith<IllegalArgumentException> { val value = LlmGenerationOptions(topP = Some(Double.NaN)); Unit }
+        assertFailsWith<IllegalArgumentException> { val value = LlmGenerationOptions(candidates = Some(0UL)); Unit }
+        assertFailsWith<IllegalArgumentException> { val value = LlmGenerationOptions(output = JsonSchema(Json.parse("[]"))); Unit }
+        val explicit = LlmGenerationOptions(temperature = Some(-2.0), topP = Some(3.0), candidates = Some(1UL))
+        assertEquals(Some(-2.0), explicit.temperature)
+        assertEquals(Some(3.0), explicit.topP)
+    }
+}

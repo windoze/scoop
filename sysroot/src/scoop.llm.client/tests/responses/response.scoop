@@ -1,0 +1,70 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.Instant
+
+@Test
+private class ResponsesResponseTest {
+    @Test
+    fun `Responses retains ordered items phases encrypted reasoning and precise structured text`() {
+        val raw = "{\"object\":\"response\",\"id\":\"r1\",\"model\":\"deployment\",\"created_at\":0,\"status\":\"completed\",\"future\":1e400,\"output\":[" +
+            "{\"type\":\"reasoning\",\"id\":\"reason\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"summary\"}],\"encrypted_content\":\"opaque\"}," +
+            "{\"type\":\"message\",\"id\":\"answer\",\"role\":\"assistant\",\"status\":\"completed\",\"phase\":\"final_answer\",\"content\":[{\"type\":\"output_text\",\"text\":\"{\\\"count\\\":9007199254740993}\",\"annotations\":[]}]}," +
+            "{\"type\":\"future_item\",\"id\":\"future\",\"payload\":1e400}]}"
+        val body = Json.parse(raw)
+        val result = ResponsesProtocol(OpenAiResponsesDialect()).decodeResponse(body, responsesRequest())
+        assertEquals(Some("r1"), result.id)
+        assertEquals(Some("deployment"), result.model)
+        assertEquals(Some(Instant.fromEpochSeconds(0L)), result.createdAt)
+        assertEquals(9007199254740993L, result.decodeOutput<ResponsesCount>().count)
+        assertEquals(3L, result.candidate(0L).items.size)
+        when (result.candidate(0L).items[0]) {
+            case Reasoning(content, id) -> {
+                assertEquals(Some("reason"), id)
+                when (content[0]) { case Text(text, _) -> assertEquals("summary", text); else -> fail() }
+            }
+            else -> fail()
+        }
+        val restored = Json.decodeFromString<LlmResponse>(Json.encodeToString(result))
+        val history = responsesHistory(restored)
+        assertEquals("opaque", history[0]["encrypted_content"]!!.asString())
+        assertEquals("final_answer", history[1]["phase"]!!.asString())
+        assertEquals("1e400", history[2]["payload"]!!.asNumberToken())
+        var index = 0L
+        for (item in body["output"]!!.elements()) { assertEquals(Json.stringify(item), Json.stringify(history[index])); index += 1L }
+        assertEquals(Json.stringify(body), Json.stringify(restored.native!!))
+        assertEquals(UsageCompleteness.Final, restored.usage.completeness)
+        assertEquals(0L, restored.nativeEvents.size)
+    }
+
+    @Test
+    fun `Responses empty reasoning and multiple text messages preserve distinct output locations`() {
+        val output = "[{\"type\":\"reasoning\",\"id\":\"r\",\"summary\":[],\"encrypted_content\":\"opaque\"}," +
+            "{\"type\":\"message\",\"id\":\"a\",\"role\":\"assistant\",\"phase\":\"commentary\",\"content\":[{\"type\":\"output_text\",\"text\":\"one\"}]}," +
+            "{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"think\"},{\"type\":\"future_reasoning\",\"data\":true}]}," +
+            "{\"type\":\"message\",\"id\":\"b\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"two\"},{\"type\":\"future_content\",\"value\":1e400}]}]"
+        val result = ResponsesProtocol(OpenAiResponsesDialect()).decodeResponse(responsesBody(output), responsesRequest())
+        assertEquals("onetwo", result.text)
+        assertEquals(4L, result.candidate(0L).items.size)
+        assertFailsWith<LlmOutputException> { result.decodeOutput<ResponsesCount>(); Unit }
+        when (result.candidate(0L).items[0]) { case Reasoning(content, _) -> assertEquals(0L, content.size); else -> fail() }
+        when (result.candidate(0L).items[2]) { case Reasoning(content, _) -> assertEquals(2L, content.size); else -> fail() }
+        assertEquals("commentary", responsesHistory(result)[1]["phase"]!!.asString())
+        assertEquals(None, result.id)
+        assertEquals(None, result.createdAt)
+    }
+
+    @Test
+    fun `Responses envelope and known content failures carry their precise paths`() {
+        assertResponsesFailure(Json.parse("{\"object\":\"other\",\"output\":[]}"), "/object")
+        assertResponsesFailure(Json.parse("{\"object\":\"response\",\"output\":{}}"), "/output")
+        assertResponsesFailure(responsesBody("[{}]"), "/output/0/type")
+        assertResponsesFailure(responsesBody("[{\"type\":\"message\",\"role\":\"user\",\"content\":[]}]"), "/output/0/role")
+        assertResponsesFailure(responsesBody("[{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":1}]}]"), "/output/0/content/0/text")
+        assertResponsesFailure(responsesBody("[{\"type\":\"reasoning\"}]"), "/output/0/summary")
+        assertResponsesFailure(responsesBody("[{\"type\":\"future\",\"id\":\"same\"},{\"type\":\"message\",\"id\":\"same\",\"role\":\"assistant\",\"content\":[]}]"), "/output/1/id")
+        assertResponsesFailure(responsesBody("[{\"type\":\"future\",\"id\":\"\"}]"), "/output/0/id")
+    }
+}

@@ -1,0 +1,44 @@
+package scoop.llm.client
+
+import scoop.asyncio.AsyncCloseable
+import scoop.time.Instant
+import scoop.url.Url
+
+/** One endpoint connection with explicit duplex message operations and no implicit model loop. */
+public class ResponsesSession internal constructor(private val connection: LlmWebSocketConnection, public val protocol: ResponsesProtocol,
+    public val handshake: LlmCallMetadata) : AsyncCloseable {
+    public val endpoint: LlmEndpoint get() = connection.endpoint
+    public val id: String get() = connection.id
+    public val startedAt: Instant get() = connection.startedAt
+    public val url: Url get() = connection.url
+    public val isClosed: Boolean get() = connection.isClosed
+    public val failure: Throwable? get() = connection.failure
+
+    public suspend fun create(model: LlmModel, request: LlmRequest,
+        options: ResponsesWebSocketCreateOptions = ResponsesWebSocketCreateOptions()): ResponsesWebSocketSent {
+        checkResponsesSessionModel(connection, model)
+        checkModelRequest(model.capabilities, request, protocol.defaultMaxOutputTokens())
+        requireModelCapability(model.capabilities.streaming, "/stream")
+        val command = protocol.encodeWebSocketCreate(model.id, request, options)
+        return ResponsesWebSocketSent(id, command, connection.send(command))
+    }
+
+    public suspend fun steer(model: LlmModel, previousResponseId: String, input: Array<LlmInputItem>): ResponsesWebSocketSent {
+        checkResponsesSessionModel(connection, model)
+        checkModelRequest(model.capabilities, LlmRequest(input))
+        requireModelCapability(model.capabilities.realtime, "/realtime")
+        val command = protocol.encodeWebSocketSteer(previousResponseId, input)
+        return ResponsesWebSocketSent(id, command, connection.send(command))
+    }
+
+    public suspend fun receive(): ResponsesWebSocketReceived? {
+        val (event, received) = connection.receive<ResponsesWebSocketEvent> { data -> protocol.decodeWebSocketEvent(data) } ?: return None
+        return Some(ResponsesWebSocketReceived(id, event, received))
+    }
+    public override suspend fun close() { connection.close() }
+}
+
+private fun checkResponsesSessionModel(connection: LlmWebSocketConnection, model: LlmModel) {
+    connection.checkLoop()
+    if (model.endpoint !== connection.endpoint) throw LlmRequestException("/model", "model belongs to another endpoint")
+}

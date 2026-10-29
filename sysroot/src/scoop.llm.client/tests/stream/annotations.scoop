@@ -1,0 +1,51 @@
+package scoop.llm.client.tests.stream
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.Instant
+
+private val promptAnnotation = "{\"choices\":[],\"created\":0,\"id\":\"\",\"model\":\"\",\"object\":\"\",\"usage\":null,\"prompt_filter_results\":[{\"prompt_index\":0,\"content_filter_results\":{\"hate\":{\"filtered\":false}}}]}"
+
+@Test
+private class ChatStreamAnnotationTest {
+    @Test
+    fun `annotation envelopes preserve native data without claiming response identity or output`() {
+        val decoder = ChatProtocol(OpenAiChatDialect()).createStreamDecoder(streamRequest(), StreamRetention.Result)
+        val update = decoder.accept("message", promptAnnotation)
+        assertFalse(update.hasOutput)
+        assertFalse(update.hasText)
+        assertEquals(None, decoder.responseId)
+        assertFalse(decoder.isFinished)
+        val annotation = when (update.events[0L]) { case Native(value) -> value; else -> fail() }
+        assertEquals("chat.annotation", annotation.event)
+        assertEquals(Json.stringify(Json.parse(promptAnnotation)), Json.stringify(annotation.value))
+        decoder.accept("message", "{\"id\":\"real\",\"model\":\"m\",\"created\":0,\"choices\":[{\"index\":0,\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}")
+        decoder.accept("message", "[DONE]")
+        val response = decoder.response()
+        assertEquals(Some("real"), response.id)
+        assertEquals(Some(Instant.fromEpochSeconds(0L)), response.createdAt)
+        assertEquals("ok", response.text)
+        assertEquals(1L, response.nativeEvents.size)
+        assertEquals("ok", streamHistory(response)["content"]!!.asString())
+    }
+
+    @Test
+    fun `annotations neither hide real identity changes nor finish a response by themselves`() {
+        val decoder = ChatProtocol(OpenAiChatDialect()).createStreamDecoder(streamRequest())
+        decoder.accept("message", "{\"id\":\"first\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"ok\"}}]}")
+        decoder.accept("message", promptAnnotation)
+        assertEquals(Some("first"), decoder.responseId)
+        assertEquals("/id", assertFailsWith<LlmProtocolException> {
+            decoder.accept("message", "{\"id\":\"second\",\"choices\":[]}"); Unit
+        }.path)
+        val empty = ChatProtocol(OpenAiChatDialect()).createStreamDecoder(streamRequest())
+        empty.accept("message", promptAnnotation)
+        assertFailsWith<LlmStreamProtocolException> { empty.accept("message", "[DONE]"); Unit }
+        val mixed = ChatProtocol(OpenAiChatDialect()).createStreamDecoder(streamRequest())
+        mixed.accept("message", "{\"id\":\"\",\"model\":\"m\",\"created\":0,\"choices\":[]}")
+        assertEquals("/id", assertFailsWith<LlmProtocolException> {
+            mixed.accept("message", "{\"id\":\"real\",\"choices\":[]}"); Unit
+        }.path)
+    }
+}

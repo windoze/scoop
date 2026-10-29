@@ -1,0 +1,55 @@
+package scoop.llm.client.tests.converse
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ConverseToolDefinitionsTest {
+    @Test
+    fun `Converse functions and system tools preserve schema strictness and execution ownership`() {
+        val tools: Array<ToolDefinition> = [ClientFunction(ToolKey("local"), "lookup", Json.parse("{\"type\":\"object\",\"future\":1e400}"),
+                strict = Some(false), extensions = converseExtension("{\"extra\":true}")), Server(ToolKey("search"), WebSearch()),
+            Server(ToolKey("code"), Native(NativeToolDefinition(converseDialect, "systemTool", Json.parse("{\"name\":\"nova_code_interpreter\"}"))))]
+        val value = converseEncode(LlmRequest([], tools = tools, extensions = converseExtension("{\"toolConfig\":{\"future\":true}}")))["toolConfig"]!!
+        assertFalse(value.containsKey("toolChoice"))
+        assertTrue(value["future"]!!.asBoolean())
+        val encoded = value["tools"]!!
+        val specification = encoded[0L]["toolSpec"]!!
+        assertFalse(specification.containsKey("description"))
+        assertFalse(specification["strict"]!!.asBoolean())
+        assertTrue(specification["extra"]!!.asBoolean())
+        assertEquals("1e400", specification["inputSchema"]!!["json"]!!["future"]!!.asNumberToken())
+        assertEquals("nova_grounding", encoded[1L]["systemTool"]!!["name"]!!.asString())
+        assertEquals("nova_code_interpreter", encoded[2L]["systemTool"]!!["name"]!!.asString())
+        assertEquals(1L, encoded[0L].size)
+    }
+
+    @Test
+    fun `Converse tool choices use request keys only for explicitly declared client functions`() {
+        val tools = converseRequest().tools
+        val specific = converseEncode(LlmRequest([], tools = tools, options = LlmGenerationOptions(toolChoice = Specific(ToolKey("local")))))
+        assertEquals("lookup", specific["toolConfig"]!!["toolChoice"]!!["tool"]!!["name"]!!.asString())
+        val required = converseEncode(LlmRequest([], tools = tools, options = LlmGenerationOptions(toolChoice = Required)))
+        assertEquals(0L, required["toolConfig"]!!["toolChoice"]!!["any"]!!.size)
+        assertFalse(converseEncode(LlmRequest([], options = LlmGenerationOptions(toolChoice = ToolChoice.None))).containsKey("toolConfig"))
+        assertConverseRequestFailure(LlmRequest([], tools = tools, options = LlmGenerationOptions(toolChoice = ToolChoice.None)), "/options/toolChoice")
+        assertConverseRequestFailure(LlmRequest([], options = LlmGenerationOptions(toolChoice = Required)), "/options/toolChoice")
+        assertConverseRequestFailure(LlmRequest([], tools = [tools[0L], Server(ToolKey("search"), WebSearch())],
+            options = LlmGenerationOptions(toolChoice = Specific(ToolKey("local")))), "/options/toolChoice")
+    }
+
+    @Test
+    fun `Converse rejects unknown client mappings duplicate names and unsupported explicit search restrictions`() {
+        for ((options, path) in [(WebSearchOptions(allowedDomains = Some([])), "allowedDomains"),
+            (WebSearchOptions(excludedDomains = Some(["example.com"])), "excludedDomains"),
+            (WebSearchOptions(location = Some(SearchLocation())), "location"), (WebSearchOptions(includeSources = Some(false)), "includeSources")])
+            assertConverseRequestFailure(LlmRequest([], tools = [Server(ToolKey("search"), WebSearch(options))]), "/tools/0/tool/options/" + path)
+        assertConverseRequestFailure(LlmRequest([], tools = [ClientCustom(ToolKey("x"), "shell")]), "/tools/0")
+        assertConverseRequestFailure(LlmRequest([], tools = [ClientNative(ToolKey("x"), NativeToolDefinition(converseDialect, "custom"))]), "/tools/0")
+        assertConverseRequestFailure(LlmRequest([], tools = [ClientFunction(ToolKey("a"), "nova_grounding", Json.parse("{}")), Server(ToolKey("b"), WebSearch())]), "/tools/1")
+        assertConverseRequestFailure(LlmRequest([], tools = [ClientFunction(ToolKey("a"), "bad.name", Json.parse("{}"))]), "/tools/0/name")
+        assertConverseRequestFailure(LlmRequest([], tools = [Server(ToolKey("s"), Native(NativeToolDefinition(converseDialect, "systemTool", Json.parse("{\"name\":\"future\"}"), Some("v1"))))]), "/tools/0/tool/version")
+        assertConverseRequestFailure(LlmRequest([], tools = [Server(ToolKey("s"), WebSearch(), converseExtension("{\"name\":\"other\"}"))]), "/tools/0/extensions/0/value/name")
+    }
+}

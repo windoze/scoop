@@ -1,0 +1,45 @@
+package scoop.llm.client
+
+import scoop.json.JsonValueKind
+
+internal fun checkRequestTools(tools: Array<ToolDefinition>, choice: ToolChoice) {
+    var index = 0L
+    for (tool in tools) {
+        val path = "/tools/" + index.toString()
+        if (tool.key.value.length == 0L) throw LlmRequestException(path + "/key", "tool key must not be empty")
+        var previous = 0L
+        while (previous < index) {
+            if (tools[previous].key == tool.key) throw LlmRequestException(path + "/key", "duplicate tool key")
+            previous += 1L
+        }
+        val extensions: Array<DialectExtension> = when (tool) {
+            case ClientFunction(_, name, parameters, _, _, values) -> {
+                checkToolName(name, path)
+                if (parameters.kind != JsonValueKind.Object)
+                    throw LlmRequestException(path + "/parameters", "function parameters must be a JSON Schema object")
+                values
+            }
+            case ClientCustom(_, name, _, _, values) -> {
+                checkToolName(name, path)
+                values
+            }
+            case ClientNative(_, _, values) -> values
+            case Server(_, _, values) -> values
+        }
+        checkDialectExtensions(extensions, path + "/extensions")
+        index += 1L
+    }
+    return when (choice) {
+        case Specific(key) -> {
+            var found = false
+            for (tool in tools) { if (tool.key == key) found = true }
+            if (!found) throw LlmRequestException("/options/toolChoice", "specific tool key is absent from this request")
+            Unit
+        }
+        else -> Unit
+    }
+}
+
+private fun checkToolName(name: String, path: String) {
+    if (name.length == 0L) throw LlmRequestException(path + "/name", "client tool name must not be empty")
+}

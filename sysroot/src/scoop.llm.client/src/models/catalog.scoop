@@ -1,0 +1,46 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+import scoop.url.Url
+import scoop.url.UrlQuery
+
+/** Explicit model discovery; it is never a prerequisite for generation. */
+public interface LlmModelCatalog {
+    public fun listUrl(baseUrl: Url, query: UrlQuery = UrlQuery()): Url
+    public fun decodeList(value: JsonValue): LlmModelPage
+}
+
+/** Only catalogs with a documented single-model operation implement this contract. */
+public interface LlmModelLookup : LlmModelCatalog {
+    public fun retrieveUrl(baseUrl: Url, modelId: String): Url
+    public fun retrieveRequest(baseUrl: Url, modelId: String, extensions: Array<DialectExtension> = []): LlmModelLookupRequest {
+        if (extensions.size != 0L) throw LlmRequestException("/extensions", "model lookup has no request extension mapping")
+        return LlmModelLookupRequest.Get(retrieveUrl(baseUrl, modelId))
+    }
+    public fun decodeModel(value: JsonValue): LlmModelInfo
+}
+
+public enum LlmModelLookupRequest {
+    Get(val url: Url)
+    Post(val url: Url, val body: JsonValue)
+}
+
+public class LlmModelInfo public constructor(public val dialect: DialectId, public val id: String?, public val native: JsonValue) {
+    public companion object : ValueEncoder<LlmModelInfo>, ValueDecoder<LlmModelInfo>
+}
+
+public class LlmModelPage public constructor(
+    public val dialect: DialectId, public val models: Array<LlmModelInfo>, public val native: JsonValue
+) {
+    public companion object : ValueEncoder<LlmModelPage>, ValueDecoder<LlmModelPage>
+}
+
+public class LlmModelListResult public constructor(public val page: LlmModelPage, public val metadata: LlmCallMetadata) {
+    public companion object : ValueEncoder<LlmModelListResult>, ValueDecoder<LlmModelListResult>
+}
+
+public class LlmModelResult public constructor(
+    public val model: LlmModelInfo, public val metadata: LlmCallMetadata, public val requestedId: String
+) {
+    public companion object : ValueEncoder<LlmModelResult>, ValueDecoder<LlmModelResult>
+}

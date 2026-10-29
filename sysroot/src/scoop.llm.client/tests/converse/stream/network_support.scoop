@@ -1,0 +1,57 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.llm.client.*
+import scoop.llm.client.tests.converse.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal val converseStreamFields = [HttpField("Content-Type".toByteArray(), "application/vnd.amazon.eventstream".toByteArray())]
+
+internal fun converseStreamBody(): Array<Byte> {
+    val bytes = ByteArrayBuilder()
+    for ((event, body) in [
+        ("messageStart", "{\"role\":\"assistant\"}"),
+        ("contentBlockDelta", "{\"contentBlockIndex\":0,\"delta\":{\"reasoningContent\":{\"text\":\"thought\"}}}"),
+        ("contentBlockDelta", "{\"contentBlockIndex\":0,\"delta\":{\"reasoningContent\":{\"signature\":\"signed\"}}}"),
+        ("contentBlockStop", "{\"contentBlockIndex\":0}"),
+        ("contentBlockDelta", "{\"contentBlockIndex\":1,\"delta\":{\"text\":\"hello\"}}"),
+        ("contentBlockDelta", "{\"contentBlockIndex\":1,\"delta\":{\"text\":\" 世界\"}}"),
+        ("contentBlockStop", "{\"contentBlockIndex\":1}"),
+        ("messageStop", "{\"stopReason\":\"end_turn\"}"),
+        ("metadata", "{\"usage\":{\"inputTokens\":5,\"cacheReadInputTokens\":3,\"cacheWriteInputTokens\":2,\"outputTokens\":2,\"totalTokens\":12},\"metrics\":{\"latencyMs\":3}}")
+    ]) bytes.append(converseFrame(event, body))
+    return bytes.toByteArray()
+}
+
+internal suspend fun sendConverseStreamBytes(connection: AsyncHttp1Connection, bytes: Array<Byte>, fields: Array<HttpField> = converseStreamFields) {
+    connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U, Some("OK".toByteArray()), fields),
+        Http1BodyFraming.Length(bytes.size)).useAsync suspend { output ->
+        NativeByteBuffer.allocate(17L).use suspend { buffer ->
+            var offset = 0L
+            while (offset < bytes.size) {
+                val count = if (bytes.size - offset < 17L) bytes.size - offset else 17L
+                buffer.clear(); buffer.writeBytes(bytes, offset, count); output.writeFully(buffer)
+                offset += count
+            }
+        }
+        output.finish()
+    }
+}
+
+internal fun withConverseStreamReply(bytes: Array<Byte>, fields: Array<HttpField> = converseStreamFields,
+    block: suspend (LlmClient, LlmModel) -> Unit) {
+    withLlmServer suspend { _, scope, listener, original ->
+        val endpoint = LlmEndpoint(Providers.bedrockConverse(), LlmAuth.none(), Some(original.baseUrl))
+        val serving = scope.launch suspend {
+            AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                connection.receiveRequest()!!.body.readAllBytes(4096L)
+                sendConverseStreamBytes(connection, bytes, fields)
+            }
+        }
+        withLlmClient suspend { client -> block(client, endpoint.model("m")) }
+        serving.join()
+    }
+}

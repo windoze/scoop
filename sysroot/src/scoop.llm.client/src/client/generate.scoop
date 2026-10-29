@@ -1,0 +1,19 @@
+package scoop.llm.client
+
+import scoop.json.Json
+
+internal suspend fun generateLlm(client: LlmClientState, model: LlmModel, request: LlmRequest, options: LlmCallOptions): LlmResult {
+    val (response, metadata) = executeLlmCall<LlmResponse>(client, options) suspend { call ->
+        val protocol = model.endpoint.provider.protocol
+        if (!(protocol is LlmGenerationProtocol)) throw LlmRequestException("/provider", "protocol does not support ordinary generation")
+        checkModelRequest(model.capabilities, request, protocol.defaultMaxOutputTokens())
+        val url = protocol.generationUrl(model.endpoint.baseUrl, model.id)
+        val bytes = Json.stringify(protocol.encodeRequest(model.id, request)).toByteArray()
+        performLlmJsonRequest<LlmResponse>(call, model.endpoint, url, bytes, options) { parsed, attempt ->
+            val decoded = protocol.decodeResponse(parsed, request)
+            attempt.complete(decoded)
+            decoded
+        }
+    }
+    return LlmResult(response, metadata)
+}

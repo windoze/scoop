@@ -1,0 +1,46 @@
+package scoop.llm.client
+
+import scoop.time.Duration
+
+/** Generation waits are independent of the HTTP client's network and pool defaults. */
+public class LlmTimeouts public constructor(
+    public val total: Duration? = None,
+    public val responseHeaders: Duration? = Some(Duration.seconds(300L)),
+    public val readIdle: Duration? = Some(Duration.seconds(300L)),
+    public val writeIdle: Duration? = Some(Duration.seconds(60L))
+) {
+    init {
+        for (value in [total, responseHeaders, readIdle, writeIdle])
+            if (value != None && value!! < Duration.ZERO) throw IllegalArgumentException(Some("negative LLM timeout"))
+    }
+}
+
+/** Only explicit dialect rejections qualify for retry; ambiguous network failures do not. */
+public class LlmRetryOptions public constructor(
+    public val maxRetries: Long = 2L,
+    public val initialDelay: Duration = Duration.milliseconds(100L),
+    public val maxDelay: Duration = Duration.seconds(30L)
+) {
+    init {
+        if (maxRetries < 0L || maxRetries == Long.MAX_VALUE || initialDelay < Duration.ZERO || maxDelay < initialDelay)
+            throw IllegalArgumentException(Some("invalid LLM retry settings"))
+    }
+}
+
+public class LlmCallOptions public constructor(
+    public val timeouts: LlmTimeouts = LlmTimeouts(),
+    public val retries: LlmRetryOptions = LlmRetryOptions(),
+    public val maxResponseBytes: Long = 67108864L,
+    public val maxErrorBytes: Long = 65536L,
+    public val onFinished: (suspend (LlmCallMetadata) -> Unit)? = None
+) {
+    init {
+        if (maxResponseBytes < 0L || maxErrorBytes < 0L)
+            throw IllegalArgumentException(Some("negative LLM response size limit"))
+    }
+}
+
+public class LlmClientClosedException public constructor() : Exception(Some("LLM client is closed"))
+
+public class LlmTimeoutException internal constructor(public val limit: Duration, public val elapsed: Duration)
+    : Exception(Some("LLM total timeout"))

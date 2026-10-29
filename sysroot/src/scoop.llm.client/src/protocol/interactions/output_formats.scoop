@@ -1,0 +1,28 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+/** Native media formats share the request with the public text output constraint. */
+internal fun mergeInteractionsFormats(text: JsonValue?, extension: JsonValue, path: String): JsonValue {
+    if (llmPresent(text) && requireInteractionsNativeType(text!!, path) != "text")
+        throw LlmRequestException(path, "native response format conflicts with the dialect output format")
+    val array = extension.kind == JsonValueKind.Array
+    val formats = if (array) extension.elements() else [extension]
+    val result = ArrayList<JsonValue>()
+    var hasText = false
+    var index = 0L
+    for (format in formats) {
+        val fieldPath = if (array) path + "/" + index.toString() else path
+        val type = requireInteractionsNativeType(format, fieldPath)
+        if (type == "text") {
+            if (hasText) throw LlmRequestException(fieldPath + "/type", "duplicate text output format")
+            hasText = true
+            val extra = JsonObjectBuilder()
+            for ((name, value) in format.members()) if (name != "type") extra.add(name, value)
+            result.add(mergeInteractionsFields(text ?: llmTypedObject("text").build(), extra.build(), ["mime_type", "schema"], fieldPath))
+        } else result.add(format)
+        index += 1L
+    }
+    if (!hasText && llmPresent(text)) result.add(text!!)
+    return if (!array && result.size == 1L) result[0L] else JsonValue.fromArray(result)
+}

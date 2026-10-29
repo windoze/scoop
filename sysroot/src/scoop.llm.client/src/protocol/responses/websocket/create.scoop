@@ -1,0 +1,51 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.url.Url
+
+/** Omitted values use the server's default lane and normal generation. */
+public class ResponsesWebSocketCreateOptions public constructor(
+    public val streamId: String? = None, public val generate: Boolean? = None
+) {
+    init { when (streamId) { case Some(value) -> requireResponsesStreamId(value); case None -> {} } }
+    public companion object : ValueEncoder<ResponsesWebSocketCreateOptions>, ValueDecoder<ResponsesWebSocketCreateOptions>
+}
+
+private fun requireResponsesStreamId(value: String) {
+    if (value.length < 1L || value.length > 256L)
+        throw IllegalArgumentException(Some("Responses stream ID must contain 1..256 ASCII characters"))
+    for (character in value) {
+        if ((character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z') ||
+            (character >= '0' && character <= '9') || character == '_' || character == '-' || character == '.') continue
+        throw IllegalArgumentException(Some("invalid Responses stream ID character"))
+    }
+}
+
+internal fun responsesWebSocketUrl(base: Url): Url {
+    val scheme = when (base.scheme) {
+        case Some("http") -> "ws"
+        case Some("https") -> "wss"
+        case Some("ws") -> "ws"
+        case Some("wss") -> "wss"
+        else -> throw IllegalArgumentException(Some("Responses WebSocket requires an HTTP or WebSocket base URL"))
+    }
+    if (base.encodedFragment != None) throw IllegalArgumentException(Some("Responses WebSocket URL must not contain a fragment"))
+    base.toBuilder().setScheme(Some(if (scheme == "ws") "http" else "https")).build().httpOrigin()
+    return base.toBuilder().setScheme(Some(scheme)).appendPathSegment("responses").build()
+}
+
+internal fun encodeResponsesWebSocketCreate(dialect: ResponsesDialect, model: String, request: LlmRequest,
+    options: ResponsesWebSocketCreateOptions): JsonValue {
+    requireResponsesWebSocket(dialect)
+    val body = encodeResponsesRequest(dialect, model, request, false)
+    if (body.containsKey("background")) throw LlmRequestException("/background", "Responses WebSocket does not accept background")
+    val result = llmTypedObject("response.create")
+    for ((name, value) in body.members()) result.add(name, value)
+    when (options.streamId) { case Some(value) -> result.add("stream_id", JsonValue.fromString(value)); case None -> {} }
+    when (options.generate) { case Some(value) -> result.add("generate", JsonValue.fromBoolean(value)); case None -> {} }
+    return result.build()
+}
+
+internal fun requireResponsesWebSocket(dialect: ResponsesDialect) {
+    if (!dialect.supportsWebSocket) throw LlmRequestException("/provider", "this Responses dialect does not implement WebSocket operations")
+}

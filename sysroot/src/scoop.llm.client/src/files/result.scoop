@@ -1,0 +1,23 @@
+package scoop.llm.client
+
+public class LlmFileResult public constructor(public val file: LlmFileInfo, public val metadata: LlmCallMetadata) {
+    public companion object : ValueEncoder<LlmFileResult>, ValueDecoder<LlmFileResult>
+}
+
+public class LlmFileListResult public constructor(public val page: LlmFilePage, public val metadata: LlmCallMetadata) {
+    public companion object : ValueEncoder<LlmFileListResult>, ValueDecoder<LlmFileListResult>
+}
+
+/** Download content is binary, including when the file happens to contain JSON. */
+public class LlmFileContentResult public constructor(
+    public val dialect: DialectId, public val requestedId: String, public val bytes: Array<Byte>, public val metadata: LlmCallMetadata
+) {
+    public companion object : ValueEncoder<LlmFileContentResult>, ValueDecoder<LlmFileContentResult>
+}
+
+/** Successful deletion retains the original body, including an empty response. */
+public class LlmFileDeletionResult public constructor(
+    public val dialect: DialectId, public val requestedId: String, public val native: Array<Byte>, public val metadata: LlmCallMetadata
+) {
+    public companion object : ValueEncoder<LlmFileDeletionResult>, ValueDecoder<LlmFileDeletionResult>
+}

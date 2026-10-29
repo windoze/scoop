@@ -1,0 +1,57 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.text.endsWith
+import scoop.time.Instant
+
+internal class InteractionsStreamHeader public constructor(@Serialize(rename = "event_type") public val type: String) {
+    public companion object : ValueDecoder<InteractionsStreamHeader>
+}
+
+internal class InteractionsStreamResource public constructor(public val id: String, public val status: String,
+    public val model: String? = None, public val created: Instant? = None, public val updated: Instant? = None,
+    @Serialize(rename = "object") public val objectType: String? = None,
+    public val steps: Array<JsonValue>? = None, public val usage: JsonValue? = None) {
+    public companion object : ValueDecoder<InteractionsStreamResource>
+}
+
+internal fun interactionsStreamField(raw: JsonValue, name: String, path: String = ""): JsonValue =
+    raw[name] ?: throw DecodingException(path + "/" + name, "missing Interactions stream field")
+
+internal fun interactionsStreamString(raw: JsonValue, name: String, path: String = ""): String =
+    decodeInteractionsValue<String>(interactionsStreamField(raw, name, path), path + "/" + name)
+
+internal fun interactionsStreamIndex(raw: JsonValue): Long {
+    val index = decodeInteractionsValue<Long>(interactionsStreamField(raw, "index"), "/index")
+    if (index < 0L) throw DecodingException("/index", "negative step index")
+    return index
+}
+
+internal fun replaceInteractionsField(raw: JsonValue, name: String, value: JsonValue): JsonValue {
+    val result = JsonObjectBuilder()
+    for ((key, field) in raw.members()) if (key != name) result.add(key, field)
+    return result.add(name, value).build()
+}
+
+/** Present snapshot fields replace their predecessors; omitted fields stay unchanged. */
+internal fun mergeInteractionsSnapshot(previous: JsonValue, incoming: JsonValue): JsonValue {
+    val result = JsonObjectBuilder()
+    for ((key, value) in previous.members()) if (!incoming.containsKey(key)) result.add(key, value)
+    for ((key, value) in incoming.members()) result.add(key, value)
+    return result.build()
+}
+
+/** Only a snapshot containing the affected data can replace an uninterpreted delta. */
+internal fun completeInteractionsSnapshot(type: String, raw: JsonValue): Boolean {
+    if (type == "model_output") return llmPresent(raw["content"]) && raw["content"]!!.kind == JsonValueKind.Array
+    if (type == "thought") return raw.containsKey("signature")
+    if (type == "function_call") return raw.containsKey("arguments")
+    val server = interactionsServerType(type)
+    if (server == None && type != "function_result") return true
+    val call = type.endsWith("_call")
+    if (!raw.containsKey(if (call) "id" else "call_id")) return false
+    if (server == Some("file_search") || server == Some("processing")) return true
+    val value = raw[if (call) "arguments" else "result"]
+    if (!llmPresent(value) || value!!.kind == JsonValueKind.Null) return false
+    return !call || value!!.kind == JsonValueKind.Object
+}

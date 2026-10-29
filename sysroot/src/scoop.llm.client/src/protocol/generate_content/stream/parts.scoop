@@ -1,0 +1,66 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun acceptGenerateContentStreamPart(state: GenerateContentStreamCandidate, part: GenerateContentPart,
+    batch: LlmStreamBatch, firstInChunk: Boolean) {
+    val raw = part.raw
+    if (part.kind == Some("functionCall") && generateContentPartialCall(raw)) state.historyAvailable = false
+    if (part.kind == Some("text")) {
+        val plain = generateContentPlainText(raw)
+        val last = if (state.parts.size != 0L) Some(state.parts[state.parts.size - 1L]) else None
+        val joining = firstInChunk && llmPresent(last) && last!!.isText && last!!.joinText && plain && last!!.thought == part.thought
+        val item = if (joining) last!! else state.addContentItem(part.thought, true, plain)
+        if (!joining) state.parts.add(item)
+        val text = part.text!!
+        item.append(text)
+        if (text.length != 0L) {
+            val delta = LlmTextDelta(item.location, text, item.partIndex)
+            batch.events.add(if (part.thought) LlmEvent.ReasoningDelta(delta) else LlmEvent.TextDelta(delta))
+            batch.observe(text, !part.thought)
+        }
+        val extra = llmStreamUnknown(raw, ["text", "thought"])
+        if (extra.size != 0L) batch.native("generate-content.part", item.nativePart(extra), Some(item.location), false)
+        return
+    }
+    val mediaPart = part.kind == Some("inlineData") || part.kind == Some("fileData")
+    val item = if (part.thought || mediaPart) state.addContentItem(part.thought) else state.addItem()
+    state.parts.add(item)
+    if (mediaPart) {
+        val media = readGenerateContentMedia(state.dialect, raw, part.kind!!, part.path)
+        if (state.retain) item.output = Some(if (part.thought) LlmOutputItem.Reasoning([media]) else LlmOutputItem.Message([media]))
+        batch.native("generate-content.part", item.nativePart(raw), Some(item.location), false)
+        batch.hasOutput = true
+        return
+    }
+    if (!part.thought && part.kind == Some("functionCall")) {
+        val output = readGenerateContentCall(state.dialect, raw, state.tools, false, state.ids, part.path)
+        when (output) {
+            case ClientToolCall(call) -> {
+                item.pendingCall = Some(call)
+                val arguments = raw["functionCall"]!!["args"]
+                item.objectArguments = !llmPresent(arguments) || arguments!!.kind == JsonValueKind.Null || arguments!!.kind == JsonValueKind.Object
+                val text = when (call.input) { case Incomplete(value) -> value; else -> throw IllegalStateException(Some("expected pending function input")) }
+                batch.events.add(LlmEvent.ToolInputDelta(LlmToolInputDelta(item.location, text, Some(call.reference))))
+            }
+            else -> {
+                if (state.retain) item.output = Some(output)
+                batch.native("generate-content.part", item.nativePart(raw), Some(item.location), false)
+            }
+        }
+        batch.hasOutput = true
+        return
+    }
+    if (!part.thought && (part.kind == Some("executableCode") || part.kind == Some("codeExecutionResult") ||
+        part.kind == Some("toolCall") || part.kind == Some("toolResponse"))) {
+        val output = readGenerateContentServerPart(state.dialect, raw, part.kind!!, state.tools, part.path)
+        if (state.retain) item.output = Some(output)
+        when (output) { case ServerToolActivity(activity) -> batch.events.add(LlmEvent.ServerToolActivity(item.location, activity)); else -> throw IllegalStateException() }
+        batch.hasOutput = true
+        return
+    }
+    if (state.retain) item.output = Some(if (part.thought) LlmOutputItem.Reasoning([OutputPart.Native(state.dialect, raw)])
+        else LlmOutputItem.Native(state.dialect, raw))
+    batch.native("generate-content.part", item.nativePart(raw), Some(item.location), false)
+    if (llmStreamUnknown(raw, ["thought", "thoughtSignature"]).size != 0L) batch.hasOutput = true
+}

@@ -1,0 +1,57 @@
+package scoop.llm.client
+
+import scoop.io.encoding.Base64
+import scoop.json.*
+
+internal fun readGptLiveMessage(dialect: DialectId, value: JsonValue): GptLiveMessage {
+    val type = gptLiveField<String>(value, "type")
+    if (type.length == 0L) throw DecodingException("/type", "GPT-Live event type must not be empty")
+    val event: GptLiveEvent = when (type) {
+        case "session.started" -> SessionStarted(gptLiveObject(value, "session"))
+        case "session.updated" -> SessionUpdated(gptLiveObject(value, "session"))
+        case "session.closed" -> SessionClosed(gptLiveField<String>(value, "reason"), gptLiveObject(value, "session"))
+        case "session.output_audio.delta" -> {
+            val bytes = Base64.Default.withPadding(Base64.PaddingOption.Optional).decodeOrNone(gptLiveField<String>(value, "delta"))
+                ?: throw DecodingException("/delta", "invalid Base64 audio")
+            AudioDelta(bytes, gptLiveOptional<Double>(value, "start_ms"), gptLiveOptional<Double>(value, "end_ms"))
+        }
+        case "session.input_transcript.delta" -> InputTranscript(gptLiveField<String>(value, "delta"),
+            gptLiveField<Double>(value, "start_ms"), gptLiveField<Double>(value, "end_ms"))
+        case "session.output_transcript.delta" -> OutputTranscript(gptLiveField<String>(value, "delta"),
+            gptLiveField<Double>(value, "start_ms"), gptLiveField<Double>(value, "end_ms"))
+        case "session.instructions.appended" -> gptLiveContextAppended(value)
+        case "session.thinking.appended" -> gptLiveContextAppended(value)
+        case "session.commentary.appended" -> gptLiveContextAppended(value)
+        case "session.delegation.created" -> DelegationCreated(gptLiveObject(value, "delegation"), gptLiveField<Double>(value, "offset_ms"))
+        case "response.event" -> ResponseEvent(gptLiveOptional<String>(value, "delegation_id"), gptLiveObject(value, "event"))
+        case "error" -> Error(gptLiveObject(value, "error"))
+        else -> Native(value)
+    }
+    return GptLiveMessage(dialect, type, gptLiveOptional<String>(value, "event_id"), gptLiveOptional<String>(value, "client_event_id"), event, value)
+}
+
+private fun gptLiveContextAppended(value: JsonValue): GptLiveEvent =
+    GptLiveEvent.ContextAppended(gptLiveField<Double>(value, "start_ms"), gptLiveField<Double>(value, "end_ms"))
+
+private fun gptLiveObject(value: JsonValue, name: String): JsonValue {
+    val field = gptLiveRawField(value, name)
+    if (field.kind != JsonValueKind.Object) throw DecodingException("/" + name, "expected a GPT-Live object")
+    return field
+}
+
+private fun gptLiveRawField(value: JsonValue, name: String): JsonValue {
+    if (value.kind != JsonValueKind.Object) throw DecodingException("", "expected a GPT-Live object")
+    return value[name] ?: throw DecodingException("/" + name, "missing GPT-Live field")
+}
+
+private fun <T> gptLiveField(value: JsonValue, name: String): T where T.Companion : ValueDecoder<T> {
+    val raw = gptLiveRawField(value, name)
+    try { return Json.decodeFromValue<T>(raw) }
+    catch (error: DecodingException) { throw DecodingException("/" + name + error.path, error.message ?: "invalid GPT-Live field") }
+}
+
+private fun <T> gptLiveOptional(value: JsonValue, name: String): T? where T.Companion : ValueDecoder<T> {
+    val raw = value[name] ?: return None
+    try { return Json.decodeFromValue<T?>(raw) }
+    catch (error: DecodingException) { throw DecodingException("/" + name + error.path, error.message ?: "invalid GPT-Live field") }
+}

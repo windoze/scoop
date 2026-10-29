@@ -1,0 +1,75 @@
+package scoop.llm.client.tests.converse
+
+import scoop.bytes.*
+import scoop.http.*
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+internal fun converseStream(retention: StreamRetention = Result, request: LlmRequest = converseRequest()): LlmEventStreamDecoder =
+    ConverseProtocol(BedrockConverseDialect()).createEventStreamDecoder(request, retention)
+
+/** Test-only frame producer. HTTP's decoder is independently checked against official fixed vectors. */
+internal fun converseFrameBytes(headers: Array<Byte>, payload: Array<Byte>): Array<Byte> {
+    val bytes = ByteArrayBuilder()
+    bytes.writeUInt32((headers.size + payload.size + 16L).toUInt(), ByteOrder.BigEndian)
+    bytes.writeUInt32(headers.size.toUInt(), ByteOrder.BigEndian)
+    bytes.writeUInt32(converseTestCrc(bytes.toByteArray()), ByteOrder.BigEndian)
+    bytes.append(headers); bytes.append(payload)
+    bytes.writeUInt32(converseTestCrc(bytes.toByteArray()), ByteOrder.BigEndian)
+    return bytes.toByteArray()
+}
+
+private fun converseTestCrc(bytes: Array<Byte>): UInt {
+    var crc = 4294967295L
+    for (byte in bytes) {
+        crc = crc xor byte.toUByte().toLong()
+        for (_ in 0L..<8L) crc = if ((crc and 1L) != 0L) (crc shr 1L) xor 3988292384L else crc shr 1L
+    }
+    return (crc xor 4294967295L).toUInt()
+}
+
+internal fun converseHeaderBytes(fields: Array<(String, String)>): Array<Byte> {
+    val bytes = ByteArrayBuilder()
+    for ((name, value) in fields) {
+        val key = name.toByteArray(); val text = value.toByteArray()
+        bytes.append(key.size.toByte()); bytes.append(key); bytes.append(7.toByte())
+        bytes.writeUInt16(text.size.toUShort(), ByteOrder.BigEndian); bytes.append(text)
+    }
+    return bytes.toByteArray()
+}
+
+internal fun converseFrame(event: String, body: String): Array<Byte> = converseFrameBytes(
+    converseHeaderBytes([ (":message-type", "event"), (":event-type", event), (":content-type", "application/json") ]), body.toByteArray())
+
+internal fun converseAcceptBytes(decoder: LlmEventStreamDecoder, bytes: Array<Byte>): LlmStreamUpdate =
+    AwsEventStreamDecoder().use { framing -> NativeByteBuffer.allocate(bytes.size).use { buffer ->
+        buffer.writeBytes(bytes)
+        assertEquals(bytes.size, framing.receive(buffer))
+        val message = framing.nextMessage()!!
+        framing.endInput()
+        decoder.accept(message)
+    } }
+
+internal fun converseEvent(decoder: LlmEventStreamDecoder, event: String, body: String): LlmStreamUpdate =
+    converseAcceptBytes(decoder, converseFrame(event, body))
+
+internal fun converseBegin(decoder: LlmEventStreamDecoder): LlmStreamUpdate = converseEvent(decoder, "messageStart", "{\"role\":\"assistant\"}")
+internal fun converseStart(decoder: LlmEventStreamDecoder, index: Long, value: String): LlmStreamUpdate =
+    converseEvent(decoder, "contentBlockStart", "{\"contentBlockIndex\":" + index.toString() + ",\"start\":" + value + "}")
+internal fun converseDelta(decoder: LlmEventStreamDecoder, index: Long, value: String): LlmStreamUpdate =
+    converseEvent(decoder, "contentBlockDelta", "{\"contentBlockIndex\":" + index.toString() + ",\"delta\":" + value + "}")
+internal fun converseStop(decoder: LlmEventStreamDecoder, index: Long): LlmStreamUpdate =
+    converseEvent(decoder, "contentBlockStop", "{\"contentBlockIndex\":" + index.toString() + "}")
+internal fun converseEnd(decoder: LlmEventStreamDecoder, reason: String = "end_turn"): LlmStreamUpdate =
+    converseEvent(decoder, "messageStop", "{\"stopReason\":\"" + reason + "\"}")
+internal fun converseInput(decoder: LlmEventStreamDecoder, index: Long, input: String): LlmStreamUpdate =
+    converseDelta(decoder, index, Json.stringify(JsonObjectBuilder().add("toolUse",
+        JsonObjectBuilder().add("input", JsonValue.fromString(input)).build()).build()))
+
+internal fun converseTextEvents(update: LlmStreamUpdate): Array<LlmTextDelta> {
+    val values = ArrayList<LlmTextDelta>()
+    for (event in update.events) when (event) { case TextDelta(delta) -> values.add(delta); else -> continue }
+    return values.toArray()
+}

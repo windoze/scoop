@@ -1,0 +1,28 @@
+package scoop.llm.client.tests.client
+
+import scoop.crypto.*
+import scoop.text.*
+
+// A wire-side oracle with a fixed canonical shape, independent of the production canonicalizers.
+internal fun expectedAwsWireAuth(host: String, timestamp: String, attempt: Long, streaming: Boolean, body: Array<Byte>): String {
+    val number = attempt.toString()
+    val token = "session-" + number
+    val names = "content-type;host;x-amz-date;x-amz-extra;x-amz-security-token"
+    val path = "/v1/proxy/model/unlisted%252Fmodel%253Aversion/" + (if (streaming) "converse-stream" else "converse")
+    val canonical = "POST\n" + path + "\na=first&a=last&z=%2B\ncontent-type:application/json\nhost:" + host +
+        "\nx-amz-date:" + timestamp + "\nx-amz-extra:one two\nx-amz-security-token:" + token + "\n\n" + names +
+        "\n" + digest(DigestAlgorithm.Sha256, body).toHexString()
+    val date = timestamp.slice(0L, 8L)
+    val scope = date + "/us-west-2/bedrock/aws4_request"
+    val message = "AWS4-HMAC-SHA256\n" + timestamp + "\n" + scope + "\n" +
+        digest(DigestAlgorithm.Sha256, canonical.toByteArray()).toHexString()
+    val dateKey = testAwsHmac(("AWS4mock-secret-" + number).toByteArray(), date)
+    val regionKey = testAwsHmac(dateKey, "us-west-2")
+    val serviceKey = testAwsHmac(regionKey, "bedrock")
+    val signingKey = testAwsHmac(serviceKey, "aws4_request")
+    return "AWS4-HMAC-SHA256 Credential=mock-access-" + number + "/" + scope + ", SignedHeaders=" + names +
+        ", Signature=" + testAwsHmac(signingKey, message).toHexString()
+}
+
+private fun testAwsHmac(key: Array<Byte>, value: String): Array<Byte> =
+    SecretKey.fromBytes(key).use { owned -> hmac(DigestAlgorithm.Sha256, owned, value.toByteArray()) }

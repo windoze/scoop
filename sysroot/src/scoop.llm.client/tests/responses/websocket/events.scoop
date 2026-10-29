@@ -1,0 +1,42 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ResponsesWebSocketEnvelopeTest {
+    @Test
+    fun `Responses WebSocket envelopes preserve control errors and opaque extra values`() {
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        for ((type, kind) in [("response.created", ResponsesWebSocketEventKind.Response),
+            ("response.steer.accepted", ResponsesWebSocketEventKind.Steering),
+            ("response.steer.pending", ResponsesWebSocketEventKind.Steering),
+            ("response.steer.failed", ResponsesWebSocketEventKind.Steering),
+            ("error", ResponsesWebSocketEventKind.Error), ("future.notice", ResponsesWebSocketEventKind.Native)]) {
+            for (extra in ["", ",\"service_extra\":null", ",\"service_extra\":[9007199254740993,{\"changed\":true}]"]) {
+                val text = "{\"type\":\"" + type + "\",\"stream_id\":\"lane\"" + extra + "}"
+                val event = protocol.decodeWebSocketEvent(text)
+                assertEquals(kind, event.kind)
+                assertEquals(Some("lane"), event.streamId)
+                val saved = Json.decodeFromString<ResponsesWebSocketEvent>(Json.encodeToString(event))
+                assertEquals(kind, saved.kind)
+                assertEquals(Json.stringify(Json.parse(text)), Json.stringify(saved.native))
+            }
+        }
+        assertEquals(None, protocol.decodeWebSocketEvent("{\"type\":\"error\"}").streamId)
+        assertEquals(None, protocol.decodeWebSocketEvent("{\"type\":\"error\",\"stream_id\":null}").streamId)
+    }
+
+    @Test
+    fun `Responses WebSocket malformed routing reports the original text or JSON`() {
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        assertEquals(Some("{"), assertFailsWith<LlmStreamProtocolException> { protocol.decodeWebSocketEvent("{"); Unit }.data)
+        for ((text, path) in [("{}", "/type"), ("{\"type\":\"\"}", "/type"),
+            ("{\"type\":false}", "/type"), ("{\"type\":\"response.created\",\"stream_id\":7}", "/stream_id")]) {
+            val error = assertFailsWith<LlmProtocolException> { protocol.decodeWebSocketEvent(text); Unit }
+            assertEquals(path, error.path)
+            assertEquals(Json.stringify(Json.parse(text)), Json.stringify(error.native))
+        }
+    }
+}

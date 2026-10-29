@@ -1,0 +1,55 @@
+package scoop.llm.client.tests.converse
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ConverseCitationsTest {
+    @Test
+    fun `Converse document citation positions stay source metadata instead of generated text ranges`() {
+        val response = converseDecode(converseBody("[{\"citationsContent\":{\"content\":[{\"text\":\"中😀\"},{\"text\":\"end\"}],\"citations\":[" +
+            "{\"title\":\"Web\",\"location\":{\"web\":{\"url\":\"https://example.test/evidence\"}},\"sourceContent\":[{\"text\":\"source\"}]}," +
+            "{\"title\":\"Paper\",\"location\":{\"documentChar\":{\"documentIndex\":2,\"start\":100,\"end\":200}}}," +
+            "{\"title\":\"Domain\",\"location\":{\"web\":{\"domain\":\"example.test\"}}}," +
+            "{\"location\":{\"future\":{\"offset\":1e400}}}]}}]"))
+        assertEquals("中😀end", response.text)
+        when (response.candidate(0L).items[0L]) {
+            case Message(parts, _) -> {
+                assertEquals(2L, parts.size)
+                for (part in parts) when (part) {
+                    case Text(_, citations) -> {
+                        assertEquals(4L, citations.size)
+                        for (citation in citations) assertFalse(converseRangePresent(citation))
+                        when (citations[0L].source.location) { case Url(url) -> assertEquals("https://example.test/evidence", url.toString()); else -> fail() }
+                        assertEquals(Some("Paper"), citations[1L].source.title)
+                        assertEquals(100L, citations[1L].source.native!!["location"]!!["documentChar"]!!["start"]!!.asLong())
+                        assertEquals(Some("Domain"), citations[2L].source.title)
+                        assertEquals("/output/message/content/0/citationsContent/citations/3", citations[3L].source.id)
+                    }
+                    else -> fail()
+                }
+            }
+            else -> fail()
+        }
+    }
+
+    @Test
+    fun `Converse standalone citations attach only to adjacent text and malformed sources expose paths`() {
+        val citation = "{\"citationsContent\":{\"citations\":[{\"location\":{\"web\":{\"url\":\"https://example.test\"}}}]}}"
+        val response = converseDecode(converseBody("[" + citation + ",{\"text\":\"answer\"}," + citation + "," + citation + "]"))
+        assertEquals("answer", response.text)
+        assertEquals(4L, response.candidate(0L).items.size)
+        when (response.candidate(0L).items[0L]) { case Native(_, _) -> assertTrue(true); else -> fail() }
+        when (response.candidate(0L).items[1L]) { case Message(parts, _) -> when (parts[0L]) {
+            case Text(_, citations) -> assertEquals(2L, citations.size); else -> fail()
+        }; else -> fail() }
+        assertEquals(4L, converseHistory(response)["content"]!!.size)
+        assertEquals(0L, response.serverToolActivities.size)
+        assertConverseFailure(converseBody("[{\"citationsContent\":{\"citations\":[{\"location\":{\"web\":{\"url\":\"\"}}}]}}]"), "/output/message/content/0/citationsContent/citations/0/location/web/url")
+        assertConverseFailure(converseBody("[{\"citationsContent\":{\"content\":[{\"text\":3}]}}]"), "/output/message/content/0/citationsContent/content/0/text")
+        assertConverseFailure(converseBody("[{\"citationsContent\":{\"citations\":[{\"location\":{\"web\":{},\"documentPage\":{}}}]}}]"), "/output/message/content/0/citationsContent/citations/0/location")
+    }
+}
+
+internal fun converseRangePresent(citation: Citation): Boolean = when (citation.range) { case Some(_) -> true; case None -> false }

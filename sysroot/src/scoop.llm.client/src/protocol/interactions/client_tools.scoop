@@ -1,0 +1,35 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun readInteractionsClientCall(dialect: DialectId, entry: InteractionsStep, tools: Array<ToolDefinition>,
+    status: String, answered: Boolean): LlmOutputItem {
+    val fields = entry.call!!
+    val name = interactionsNonempty(fields.name, entry.path + "/name")
+    val arguments = entry.raw["arguments"] ?: throw DecodingException(entry.path + "/arguments", "missing function arguments")
+    val key = resolveInteractionsFunction(tools, name)
+    if (answered || status == "completed" || key == None) return LlmOutputItem.Native(dialect, entry.raw)
+    val text = Json.stringify(arguments)
+    val input = if (status != "requires_action") ClientToolInput.Incomplete(text)
+        else if (arguments.kind != JsonValueKind.Object) ClientToolInput.Invalid(text, "function arguments must be an object")
+        else ClientToolInput.JsonArguments(JsonToolArguments(text))
+    return LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, key!!, Some(fields.id), Some(entry.raw)), input))
+}
+
+internal fun resolveInteractionsFunction(tools: Array<ToolDefinition>, name: String): ToolKey? {
+    var found: ToolKey? = None
+    for (tool in tools) {
+        val matches = when (tool) { case ClientFunction(_, wireName, _, _, _, _) -> wireName == name; else -> false }
+        if (matches) {
+            if (found != None) return None
+            found = Some(tool.key)
+        }
+    }
+    return found
+}
+
+internal fun readInteractionsFunctionResult(entry: InteractionsStep) {
+    val result = entry.result!!.result ?: throw DecodingException(entry.path + "/result", "missing function result")
+    if (result.kind != JsonValueKind.Object && result.kind != JsonValueKind.String && result.kind != JsonValueKind.Array)
+        throw DecodingException(entry.path + "/result", "expected function result text, content or object")
+}

@@ -1,0 +1,50 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeOllamaOptions(dialect: DialectId, request: LlmRequest): JsonValue {
+    val options = request.options
+    val sampling = JsonObjectBuilder()
+    if (options.temperature != None) {
+        if (options.temperature!! < 0.0) throw LlmRequestException("/options/temperature", "Ollama temperature must be nonnegative")
+        sampling.add("temperature", JsonValue.fromDouble(options.temperature!!))
+    }
+    if (options.topP != None) {
+        if (options.topP!! < 0.0 || options.topP!! > 1.0) throw LlmRequestException("/options/topP", "Ollama top_p must be between zero and one")
+        sampling.add("top_p", JsonValue.fromDouble(options.topP!!))
+    }
+    if (options.topK != None) sampling.add("top_k", JsonValue.fromULong(options.topK!!))
+    if (options.maxOutputTokens != None) sampling.add("num_predict", JsonValue.fromULong(options.maxOutputTokens!!))
+    if (llmPresent(options.stop)) sampling.add("stop", Json.encodeToValue(options.stop!!))
+    if (options.candidates != None && options.candidates != Some(1UL)) throw LlmRequestException("/options/candidates", "Ollama returns one candidate")
+    if (options.parallelToolCalls != None) throw LlmRequestException("/options/parallelToolCalls", "Ollama has no parallel tool call switch")
+    val result = JsonObjectBuilder()
+    val nativeOptions = sampling.build()
+    if (nativeOptions.size != 0L) result.add("options", nativeOptions)
+    encodeOllamaReasoning(result, options.reasoning)
+    encodeOllamaOutput(result, options.output)
+    encodeOllamaTools(result, dialect, request)
+    return result.build()
+}
+
+private fun encodeOllamaReasoning(result: JsonObjectBuilder, reasoning: ReasoningOptions?) {
+    val options = reasoning ?: return
+    if (options.budgetTokens != None) throw LlmRequestException("/options/reasoning/budgetTokens", "Ollama has no thinking token budget field")
+    if (options.effort != None) {
+        if (options.effort!! == "" || options.enabled == Some(false))
+            throw LlmRequestException("/options/reasoning/effort", "a thinking level must be nonempty and cannot disable thinking")
+        result.add("think", JsonValue.fromString(options.effort!!))
+    } else if (options.enabled != None) result.add("think", JsonValue.fromBoolean(options.enabled!!))
+}
+
+private fun encodeOllamaOutput(result: JsonObjectBuilder, format: OutputFormat): Unit = when (format) {
+    case Text -> Unit
+    case JsonObject -> { result.add("format", JsonValue.fromString("json")); Unit }
+    case JsonSchema(schema, name, description, strict) -> {
+        if (name != "response") throw LlmRequestException("/options/output/name", "Ollama has no output format name field")
+        if (description != None) throw LlmRequestException("/options/output/description", "Ollama has no output format description field")
+        if (strict == Some(false)) throw LlmRequestException("/options/output/strict", "Ollama JSON Schema output is constrained")
+        result.add("format", schema)
+        Unit
+    }
+}

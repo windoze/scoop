@@ -1,0 +1,82 @@
+package scoop.llm.client
+
+import scoop.json.Json
+import scoop.test.*
+
+@Test
+private class CapabilityStateTest {
+    @Test
+    fun `three states and their details survive ordinary enum serialization`() {
+        val values: Array<Capability<Long>> = [Unknown, Unsupported("deployment disabled"), Supported(9007199254740993L)]
+        val restored = Json.decodeFromString<Array<Capability<Long>>>(Json.encodeToString(values))
+        assertTrue(isUnknownCapability(restored[0L]))
+        assertEquals("deployment disabled", unsupportedReason(restored[1L]))
+        assertEquals(9007199254740993L, supportedDetails(restored[2L]))
+        val enabled: Capability<Unit> = Supported(Unit)
+        val unit = Json.decodeFromString<Capability<Unit>>(Json.encodeToString(enabled))
+        assertEquals(Unit, supportedDetails(unit))
+    }
+
+    @Test
+    fun `empty model description restores unknown defaults`() {
+        val model = Json.decodeFromString<ModelCapabilities>("{}")
+        assertTrue(isUnknownCapability(model.input.text))
+        assertTrue(isUnknownCapability(model.output.text))
+        assertTrue(isUnknownCapability(model.streaming))
+        assertTrue(isUnknownCapability(model.realtime))
+        assertTrue(isUnknownCapability(model.functionTools))
+        assertTrue(isUnknownCapability(model.customTools))
+        assertTrue(isUnknownCapability(model.parallelToolCalls))
+        assertTrue(isUnknownCapability(model.multipleCandidates))
+        assertTrue(isUnknownCapability(model.continuation))
+        assertTrue(isUnknownCapability(model.background))
+        assertEquals(None, model.limits.contextWindowTokens)
+        assertEquals(None, model.limits.maxOutputTokens)
+    }
+
+    @Test
+    fun `request controls remain independent through nested model codecs`() {
+        val model = ModelCapabilities(
+            streaming = Supported(Unit),
+            realtime = Unsupported("use a different protocol"),
+            functionTools = Supported(Unit),
+            toolChoice = ToolChoiceCapabilities(auto = Supported(Unit), specific = Unsupported("unsupported selection")),
+            sampling = SamplingCapabilities(temperature = Unsupported("reasoning mode"), topP = Supported(Unit)),
+            structuredOutput = StructuredOutputCapabilities(jsonSchema = Supported(JsonSchemaCapabilities(
+                dialect = Some("https://json-schema.org/draft/2020-12/schema"),
+                supportedKeywords = Some(["type", "properties", "required"])
+            ))),
+            reasoning = ReasoningCapabilities(effort = Supported(Unit)),
+            limits = ModelLimits(maxInputTokens = Some(32768UL), maxCandidates = Some(1UL))
+        )
+        val restored = Json.decodeFromString<ModelCapabilities>(Json.encodeToString(model))
+        assertEquals(Unit, supportedDetails(restored.streaming))
+        assertEquals("use a different protocol", unsupportedReason(restored.realtime))
+        assertTrue(isUnknownCapability(restored.customTools))
+        assertTrue(isUnknownCapability(restored.parallelToolCalls))
+        assertTrue(isUnknownCapability(restored.toolChoice.required))
+        assertEquals("unsupported selection", unsupportedReason(restored.toolChoice.specific))
+        assertEquals("reasoning mode", unsupportedReason(restored.sampling.temperature))
+        assertTrue(isUnknownCapability(restored.sampling.topK))
+        assertTrue(isUnknownCapability(restored.structuredOutput.jsonObject))
+        assertTrue(isUnknownCapability(restored.structuredOutput.strictJsonSchema))
+        val schema = supportedDetails(restored.structuredOutput.jsonSchema)
+        assertEquals(Some("https://json-schema.org/draft/2020-12/schema"), schema.dialect)
+        val keywords = schema.supportedKeywords ?: fail()
+        assertEquals(3L, keywords.size)
+        assertEquals("properties", keywords[1L])
+        assertTrue(isUnknownCapability(restored.reasoning.enable))
+        assertTrue(isUnknownCapability(restored.reasoning.budgetTokens))
+        assertEquals(Some(32768UL), restored.limits.maxInputTokens)
+        assertEquals(Some(1UL), restored.limits.maxCandidates)
+        assertEquals(None, restored.limits.contextWindowTokens)
+    }
+
+    @Test
+    fun `unknown schema vocabulary differs from a known empty one`() {
+        val unknown = Json.decodeFromString<JsonSchemaCapabilities>("{}")
+        assertTrue(when (unknown.supportedKeywords) { case None -> true; else -> false })
+        val empty = Json.decodeFromString<JsonSchemaCapabilities>("{\"supportedKeywords\":[]}")
+        assertEquals(0L, (empty.supportedKeywords ?: fail()).size)
+    }
+}

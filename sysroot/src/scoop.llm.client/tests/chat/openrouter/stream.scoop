@@ -1,0 +1,90 @@
+package scoop.llm.client.tests.chat.openrouter
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.stream.*
+import scoop.test.*
+
+@Test
+private class OpenRouterStreamTest {
+    @Test
+    fun `OpenRouter Chat reasoning blocks preserve late signatures identities and candidate positions`() {
+        val decoder = router.createStreamDecoder(routerRequest(), StreamRetention.Result)
+        assertFalse(decoder.accept("message", streamChunk("{\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"\"}]}")).hasOutput)
+        val first = decoder.accept("message", streamChunk("{\"reasoning\":\"think\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"thi\",\"id\":\"r\",\"index\":0}]}"))
+        var count = 0L
+        for (event in first.events) when (event) {
+            case ReasoningDelta(delta) -> { assertEquals("thi", delta.text); assertEquals(0L, delta.partIndex); count += 1L }
+            else -> continue
+        }
+        assertEquals(1L, count)
+        assertTrue(first.hasOutput); assertFalse(first.hasText)
+        decoder.accept("message", streamChunk("{\"content\":\"answer\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"nk\",\"index\":0}]}"))
+        decoder.accept("message", streamChunk("{\"content\":\"other\",\"reasoning_details\":[{\"type\":\"reasoning.summary\",\"summary\":\"other thought\"}]}", Some("stop"), 2L))
+        decoder.accept("message", streamChunk("{\"reasoning_details\":[{\"type\":\"reasoning.text\",\"signature\":\"sig\",\"index\":0}]}"))
+        decoder.accept("message", streamChunk("{\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"B\",\"id\":\"r\",\"index\":0},{\"type\":\"reasoning.text\",\"text\":\"C\",\"id\":\"other\",\"index\":0},{\"type\":\"reasoning.encrypted\",\"data\":\"opaque\",\"index\":0},{\"type\":\"reasoning.summary\",\"summary\":\"S\",\"index\":0},{\"type\":\"future\",\"payload\":[1]},{\"type\":\"reasoning.summary\",\"summary\":\"T\",\"index\":0}]}"))
+        finishStream(decoder)
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(decoder.response()))
+        assertEquals("answer", response.text)
+        assertEquals("other", response.candidate(2L).text)
+        assertEquals("other thought", routerPartText(routerReasoning(response, 2L)[0L]))
+        val parts = routerReasoning(response)
+        assertEquals(7L, parts.size)
+        assertEquals("think", routerPartText(parts[0L]))
+        assertEquals("B", routerPartText(parts[1L])); assertEquals("C", routerPartText(parts[2L]))
+        val details = streamHistory(response)["reasoning_details"]!!
+        assertEquals(7L, details.size)
+        assertEquals("sig", details[0L]["signature"]!!.asString())
+        assertEquals("r", details[0L]["id"]!!.asString())
+        assertEquals("opaque", details[3L]["data"]!!.asString())
+        assertEquals("future", details[5L]["type"]!!.asString())
+    }
+
+    @Test
+    fun `OpenRouter Chat scalar aliases and explicit empty details preserve reported history fields`() {
+        val decoder = router.createStreamDecoder(routerRequest(), StreamRetention.Result)
+        decoder.accept("message", streamChunk("{\"reasoning\":\"first\",\"reasoning_details\":[]}"))
+        decoder.accept("message", streamChunk("{\"reasoning\":\"same\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"detail\"}]}"))
+        decoder.accept("message", streamChunk("{\"reasoning_content\":\" tail\",\"reasoning_details\":null}"))
+        decoder.accept("message", streamChunk("{\"content\":\"answer\"}", Some("stop")))
+        decoder.accept("message", "{\"choices\":[],\"usage\":" + routerUsage + "}")
+        decoder.accept("message", "[DONE]")
+        val response = decoder.response(); val parts = routerReasoning(response)
+        assertEquals(2L, parts.size)
+        assertEquals("first tail", routerPartText(parts[0L]))
+        assertEquals("detail", routerPartText(parts[1L]))
+        val history = streamHistory(response)
+        assertEquals("firstsame", history["reasoning"]!!.asString())
+        assertEquals(" tail", history["reasoning_content"]!!.asString())
+        assertEquals(1L, history["reasoning_details"]!!.size)
+        assertEquals(Some(17L), response.usage.tokens.totalTokens)
+        assertEquals(UsageCompleteness.Final, response.usage.completeness)
+        for (field in ["\"reasoning\":\"plain\"", "\"reasoning_details\":[]", "\"reasoning_details\":null"]) {
+            val single = router.createStreamDecoder(routerRequest(), StreamRetention.Result)
+            single.accept("message", streamChunk("{" + field + "}")); finishStream(single)
+            val restored = streamHistory(single.response())
+            if (field == "\"reasoning\":\"plain\"") assertFalse(restored.containsKey("reasoning_details"))
+            else if (field == "\"reasoning_details\":[]") assertEquals(0L, restored["reasoning_details"]!!.size)
+            else assertEquals(JsonValueKind.Null, restored["reasoning_details"]!!.kind)
+        }
+    }
+
+    @Test
+    fun `OpenRouter Chat event-only reasoning delivers deltas without making retained results available`() {
+        val decoder = router.createStreamDecoder(routerRequest())
+        val update = decoder.accept("message", streamChunk("{\"reasoning_details\":[{\"type\":\"reasoning.summary\",\"summary\":\"thinking\"},{\"type\":\"reasoning.encrypted\",\"data\":\"opaque\"}]}"))
+        assertTrue(update.hasOutput)
+        val restored = Json.decodeFromString<LlmStreamUpdate>(Json.encodeToString(update))
+        var found = false
+        for (event in restored.events) when (event) {
+            case ReasoningDelta(delta) -> { assertEquals("thinking", delta.text); found = true }
+            else -> continue
+        }
+        assertTrue(found)
+        finishStream(decoder)
+        assertEquals(LlmOutputFailure.ResultNotRetained, assertFailsWith<LlmOutputException> { decoder.response(); Unit }.reason)
+        val incomplete = router.createStreamDecoder(routerRequest())
+        incomplete.accept("message", streamChunk("{\"reasoning_details\":[]}"))
+        assertFailsWith<LlmStreamProtocolException> { incomplete.endInput(); Unit }
+    }
+}

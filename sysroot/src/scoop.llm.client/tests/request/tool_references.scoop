@@ -1,0 +1,52 @@
+package scoop.llm.client.tests.request
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ToolReferenceRequestTest {
+    @Test
+    fun `tool references preserve absent IDs opaque context and legacy string IDs`() {
+        val dialect = DialectId(ApiProtocolId("generate-content"), "google")
+        val context = Json.parse("{\"functionCall\":{\"name\":\"lookup\",\"args\":{}},\"thoughtSignature\":\"opaque\"}")
+        val reference = ClientToolCallReference(dialect, ToolKey("lookup"), context = Some(context))
+        val saved = Json.encodeToValue(reference)
+        assertFalse(saved.containsKey("id"))
+        val restored = Json.decodeFromValue<ClientToolCallReference>(saved)
+        assertEquals(None, restored.id)
+        assertEquals(Json.stringify(context), Json.stringify(restored.context!!))
+        for (id in [JsonValue.nullValue(), JsonValue.fromString("old-call")]) {
+            val fields = JsonObjectBuilder()
+            for ((name, value) in saved.members()) fields.add(name, value)
+            fields.add("id", id)
+            val value = Json.decodeFromValue<ClientToolCallReference>(fields.build())
+            val expected = if (id.kind == JsonValueKind.Null) None else Some("old-call")
+            assertEquals(expected, value.id)
+            assertEquals(ToolKey("lookup"), value.toolKey)
+            assertEquals(Json.stringify(context), Json.stringify(value.context!!))
+        }
+        val call = ClientToolCall(restored, JsonArguments(JsonToolArguments("{}")))
+        assertTrue(call.isExecutable)
+        val response = LlmResponse(dialect, [LlmCandidate(0L, [ClientToolCall(call)], Complete, ToolCalls)])
+        val decoded = Json.decodeFromString<LlmResponse>(Json.encodeToString(response))
+        assertEquals(1L, decoded.clientToolCalls.size)
+        assertEquals(None, decoded.clientToolCalls[0].reference.id)
+        assertEquals(Json.stringify(context), Json.stringify(decoded.clientToolCalls[0].reference.context!!))
+    }
+
+    @Test
+    fun `Chat Messages and Responses require nonempty IDs when encoding tool results`() {
+        val protocols: Array<LlmGenerationProtocol> = [ChatProtocol(OpenAiChatDialect()),
+            MessagesProtocol(AnthropicMessagesDialect()), ResponsesProtocol(OpenAiResponsesDialect())]
+        val ids: Array<String?> = [None, Some("")]
+        for (protocol in protocols) {
+            for (id in ids) {
+                val call = ClientToolCallReference(protocol.dialectId, ToolKey("old"), id)
+                val request = LlmRequest([ToolResult(call, [Text("result")])])
+                val error = assertFailsWith<LlmRequestException> { protocol.encodeRequest("model", request); Unit }
+                assertEquals("/input/0/call/id", error.path)
+            }
+        }
+    }
+}

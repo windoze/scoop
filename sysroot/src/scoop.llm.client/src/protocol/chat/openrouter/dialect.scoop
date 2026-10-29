@@ -1,0 +1,39 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+public class OpenRouterChatDialect public constructor() : ChatDialect {
+    public override fun modelCatalog(): LlmModelCatalog? = Some(OpenRouterModelCatalog(id))
+    public override val id: DialectId = DialectId(ApiProtocolId("chat-completions"), "openrouter-chat")
+    public override val streamedReasoningField: String? = None
+    public override fun encodeOptions(request: LlmRequest): JsonValue = encodeOpenRouterOptions(id, request)
+    public override fun encodeContent(content: Array<ContentPart>, role: String, path: String): JsonValue =
+        encodeOpenRouterContent(id, content, role, path)
+    public override fun readReasoning(message: JsonValue, path: String): Array<OutputPart> = readOpenRouterReasoning(id, message, path)
+    public override fun readUsage(usage: JsonValue): TokenUsage = readChatUsage(usage, false)
+    public override fun historyMessage(message: JsonValue, path: String): JsonValue = projectChatMessage(message, path, true)
+    public override fun canReplayMessage(message: JsonValue): Boolean {
+        val audio = message["audio"] ?: return true
+        if (audio.kind == JsonValueKind.Null) return true
+        if (audio.kind != JsonValueKind.Object) return false
+        val id = audio["id"] ?: return false
+        return id.kind == JsonValueKind.String && id.asString().length != 0L
+    }
+    public override fun readNativeItems(message: JsonValue, path: String): Array<LlmOutputItem> = chatNativeItems(id, message, true)
+    public override fun createStreamField(field: String, location: LlmItemLocation, retention: StreamRetention): ChatStreamFieldDecoder? = when (field) {
+        case "reasoning" -> Some(OpenRouterReasoningStream(id, location, retention))
+        case "reasoning_content" -> Some(OpenRouterReasoningStream(id, location, retention))
+        case "reasoning_details" -> Some(OpenRouterReasoningStream(id, location, retention))
+        case "annotations" -> Some(OpenRouterArrayStream(id, field, location, retention))
+        case "images" -> Some(OpenRouterArrayStream(id, field, location, retention))
+        case "audio" -> Some(OpenRouterAudioStream(id, location, retention))
+        else -> None
+    }
+
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException {
+        val value = parseLlmServiceError(body, truncated)
+        val error = when (value) { case Some(root) -> if (root.kind == JsonValueKind.Object) root["error"] else None; case None -> None }
+        return LlmServiceException(id, status, body, truncated, llmServiceErrorString(error, "code"), value,
+            status == 429U || status == 503U, llmServiceErrorString(error, "message") ?: "OpenRouter rejected the request")
+    }
+}

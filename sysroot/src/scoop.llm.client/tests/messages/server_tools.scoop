@@ -1,0 +1,93 @@
+package scoop.llm.client.tests.messages
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class MessagesServerToolTest {
+    @Test
+    fun `Messages search results citations and client calls coexist without moving blocks`() {
+        val content = "[{\"type\":\"server_tool_use\",\"id\":\"search1\",\"name\":\"web_search\",\"input\":{\"query\":\"q\"}}," +
+            "{\"type\":\"tool_use\",\"id\":\"client1\",\"name\":\"lookup\",\"input\":{}}," +
+            "{\"type\":\"text\",\"text\":\"searching \"}," +
+            "{\"type\":\"web_search_tool_result\",\"tool_use_id\":\"search1\",\"content\":[{\"type\":\"web_search_result\",\"url\":\"https://example.com/page\",\"title\":\"Page\",\"encrypted_content\":\"opaque\"}]}," +
+            "{\"type\":\"text\",\"text\":\"answer\",\"citations\":[{\"type\":\"web_search_result_location\",\"url\":\"https://example.com/page\",\"title\":\"Page\",\"encrypted_index\":\"index\",\"cited_text\":\"source\"}]}]"
+        val tools: Array<ToolDefinition> = [ClientFunction(ToolKey("local"), "lookup", Json.parse("{}")), Server(ToolKey("search"), WebSearch())]
+        val response = MessagesProtocol(AnthropicMessagesDialect()).decodeResponse(messagesBody(content, "tool_use"), messagesRequest(tools))
+        assertEquals(5L, response.candidate(0L).items.size)
+        assertEquals("searching answer", response.text)
+        assertEquals(1L, response.clientToolCalls.size)
+        assertEquals(ToolKey("local"), response.clientToolCalls[0].toolKey)
+        val activity = response.serverToolActivities
+        assertEquals(2L, activity.size)
+        assertEquals(ServerToolStatus.InProgress, activity[0].status)
+        assertEquals("q", activity[0].action!!["query"]!!.asString())
+        assertEquals(ServerToolStatus.Completed, activity[1].status)
+        assertEquals(Some("search1"), activity[1].id)
+        assertEquals(Some(ToolKey("search")), activity[1].toolKey)
+        assertEquals("/content/3/content/0", activity[1].sources[0].id)
+        assertEquals("opaque", activity[1].sources[0].native!!["encrypted_content"]!!.asString())
+        when (response.candidate(0L).items[4]) {
+            case Message(parts, _) -> when (parts[0]) {
+                case Text(_, citations) -> {
+                    assertEquals(1L, citations.size)
+                    assertFalse(when (citations[0].range) { case Some(_) -> true; case None -> false })
+                    assertEquals("index", citations[0].source.native!!["encrypted_index"]!!.asString())
+                    when (citations[0].source.location) { case Url(url) -> assertEquals("https://example.com/page", url.toString()); else -> fail() }
+                }
+                else -> fail()
+            }
+            else -> fail()
+        }
+        val restored = Json.decodeFromString<LlmResponse>(Json.encodeToString(response))
+        assertEquals(Json.stringify(Json.parse(content)), Json.stringify(messagesHistory(restored)["content"]!!))
+        assertEquals(2L, restored.serverToolActivities.size)
+    }
+
+    @Test
+    fun `Messages pause and mixed tool turns leave pending server work with the application`() {
+        val content = "[{\"type\":\"server_tool_use\",\"id\":\"pending\",\"name\":\"web_search\",\"input\":{}}]"
+        val tools: Array<ToolDefinition> = [Server(ToolKey("search"), WebSearch())]
+        val protocol = MessagesProtocol(AnthropicMessagesDialect())
+        for (reason in ["pause_turn", "tool_use"]) {
+            val response = protocol.decodeResponse(messagesBody(content, reason), messagesRequest(tools))
+            assertEquals(ServerToolStatus.InProgress, response.serverToolActivities[0].status)
+            assertEquals(0L, response.clientToolCalls.size)
+            assertEquals(Json.stringify(Json.parse(content)), Json.stringify(messagesHistory(response)["content"]!!))
+        }
+        val following = protocol.decodeResponse(messagesBody("[{\"type\":\"web_search_tool_result\",\"tool_use_id\":\"pending\",\"content\":[]}]"), messagesRequest(tools))
+        assertEquals(ServerToolStatus.Completed, following.serverToolActivities[0].status)
+        assertEquals(Some("pending"), following.serverToolActivities[0].id)
+        assertEquals(None, following.serverToolActivities[0].toolKey)
+    }
+
+    @Test
+    fun `Messages search errors and unknown results remain separate from response completion`() {
+        val protocol = MessagesProtocol(AnthropicMessagesDialect())
+        for ((content, expected) in [
+            ("[]", ServerToolStatus.Completed),
+            ("{\"type\":\"web_search_tool_result_error\",\"error_code\":\"max_uses_exceeded\"}", ServerToolStatus.Failed),
+            ("{\"type\":\"future_result\",\"opaque\":false}", ServerToolStatus.Unknown)
+        ]) {
+            val response = protocol.decodeResponse(messagesBody("[{\"type\":\"web_search_tool_result\",\"tool_use_id\":\"search\",\"content\":" + content + "}]"), messagesRequest())
+            assertEquals(LlmCompletion.Complete, response.candidate(0L).completion)
+            assertEquals(expected, response.serverToolActivities[0].status)
+            assertEquals(0L, response.clientToolCalls.size)
+        }
+        val future = protocol.decodeResponse(messagesBody("[{\"type\":\"server_tool_use\",\"id\":\"id\",\"name\":\"future_tool\",\"input\":{}}," +
+            "{\"type\":\"future_tool_result\",\"tool_use_id\":\"id\",\"content\":true}]"), messagesRequest())
+        assertEquals(ServerToolKind.Native, future.serverToolActivities[0].kind)
+        when (future.candidate(0L).items[1]) { case Native(_, value) -> assertTrue(value["content"]!!.asBoolean()); else -> fail() }
+    }
+
+    @Test
+    fun `Messages malformed search data and mismatched result IDs keep diagnostic paths`() {
+        assertMessagesFailure(messagesBody("[{\"type\":\"server_tool_use\",\"id\":\"id\",\"name\":\"web_search\",\"input\":[]}]"), "/content/0/input")
+        assertMessagesFailure(messagesBody("[{\"type\":\"web_search_tool_result\",\"tool_use_id\":\"id\",\"content\":false}]"), "/content/0/content")
+        assertMessagesFailure(messagesBody("[{\"type\":\"web_search_tool_result\",\"tool_use_id\":\"id\",\"content\":{\"type\":\"web_search_tool_result_error\"}}]"), "/content/0/content/error_code")
+        assertMessagesFailure(messagesBody("[{\"type\":\"tool_use\",\"id\":\"id\",\"name\":\"local\",\"input\":{}}," +
+            "{\"type\":\"web_search_tool_result\",\"tool_use_id\":\"id\",\"content\":[]}]"), "/content/1/tool_use_id")
+        assertMessagesFailure(messagesBody("[{\"type\":\"web_search_tool_result\",\"tool_use_id\":\"id\",\"content\":[{\"type\":\"web_search_result\",\"url\":\"https://%\"}]}]"), "/content/0/content/0/url")
+    }
+}

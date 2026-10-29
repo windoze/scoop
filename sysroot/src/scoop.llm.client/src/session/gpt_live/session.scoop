@@ -1,0 +1,54 @@
+package scoop.llm.client
+
+import scoop.asyncio.AsyncCloseable
+import scoop.json.JsonValue
+import scoop.time.Instant
+import scoop.url.Url
+
+public class GptLiveSession internal constructor(private val connection: LlmWebSocketConnection,
+    public val model: LlmModel, public val setup: GptLiveSetup, public val protocol: GptLiveProtocol,
+    public val opening: LlmCallMetadata, public val startSent: GptLiveSent, public val sessionStarted: GptLiveReceived) : AsyncCloseable {
+    public val id: String get() = connection.id
+    public val startedAt: Instant get() = connection.startedAt
+    public val url: Url get() = connection.url
+    public val isClosed: Boolean get() = connection.isClosed
+    public val failure: Throwable? get() = connection.failure
+
+    public suspend fun sendSessionUpdate(extensions: Array<DialectExtension> = [], eventId: String? = None): GptLiveSent =
+        send(protocol.encodeSessionUpdate(extensions, eventId))
+    public suspend fun sendAudioAppend(bytes: Array<Byte>, mimeType: String, eventId: String? = None): GptLiveSent {
+        connection.checkLoop()
+        checkGptLiveAudio(bytes, mimeType)
+        checkSingleModelMedia(model.capabilities.input, InputMediaKind.Audio, MediaSource.Bytes(bytes, mimeType), "/audio")
+        return send(protocol.encodeAudioAppend(bytes, eventId))
+    }
+    public suspend fun sendAudioMute(eventId: String? = None): GptLiveSent = send(protocol.encodeAudioMute(eventId))
+    public suspend fun sendAudioUnmute(eventId: String? = None): GptLiveSent = send(protocol.encodeAudioUnmute(eventId))
+    public suspend fun sendInstructionsAppend(content: String, delegationId: String? = None, eventId: String? = None): GptLiveSent {
+        connection.checkLoop()
+        requireModelCapability(model.capabilities.input.text, "/content")
+        return send(protocol.encodeInstructionsAppend(content, delegationId, eventId))
+    }
+    public suspend fun sendThinkingAppend(content: String, delegationId: String? = None, eventId: String? = None): GptLiveSent {
+        connection.checkLoop()
+        requireModelCapability(model.capabilities.input.text, "/content")
+        return send(protocol.encodeThinkingAppend(content, delegationId, eventId))
+    }
+    public suspend fun sendCommentaryAppend(content: String, delegationId: String? = None, eventId: String? = None): GptLiveSent {
+        connection.checkLoop()
+        requireModelCapability(model.capabilities.input.text, "/content")
+        return send(protocol.encodeCommentaryAppend(content, delegationId, eventId))
+    }
+    public suspend fun sendResponseItemCreate(item: LlmInputItem, eventId: String? = None): GptLiveSent =
+        send(protocol.encodeResponseItemCreate(item, eventId))
+    public suspend fun sendResponseCreate(eventId: String? = None): GptLiveSent = send(protocol.encodeResponseCreate(eventId))
+    public suspend fun sendSessionClose(eventId: String? = None): GptLiveSent = send(protocol.encodeSessionClose(eventId))
+    public suspend fun sendNativeCommand(command: GptLiveNativeCommand): GptLiveSent = send(protocol.encodeNativeCommand(command))
+
+    public suspend fun receive(): GptLiveReceived? {
+        val (message, received) = connection.receive<GptLiveMessage> { data -> decodeGptLiveSessionMessage(protocol, data) } ?: return None
+        return Some(GptLiveReceived(id, message, received))
+    }
+    public override suspend fun close() { connection.close() }
+    private suspend fun send(command: JsonValue): GptLiveSent = GptLiveSent(id, command, connection.send(command))
+}

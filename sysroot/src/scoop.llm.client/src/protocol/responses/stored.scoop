@@ -1,0 +1,34 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.url.Url
+
+internal fun responsesStoredUrl(dialect: ResponsesDialect, baseUrl: Url, responseId: String): Url {
+    if (!dialect.supportsStoredResponses) throw LlmRequestException("/provider", "selected dialect has no stored Responses operations")
+    if (responseId.length == 0L) throw LlmRequestException("/responseId", "response ID must not be empty")
+    return baseUrl.toBuilder().appendPathSegment("responses").appendPathSegment(responseId).build()
+}
+
+internal fun responsesRetrieveUrl(dialect: ResponsesDialect, baseUrl: Url, responseId: String, include: Array<String>): Url {
+    val url = responsesStoredUrl(dialect, baseUrl, responseId)
+    if (include.size == 0L) return url
+    var query = url.queryParameters().remove("include").remove("include[]")
+    for (field in include) query = query.add("include[]", Some(field))
+    return url.toBuilder().setQueryParameters(query).build()
+}
+
+internal fun readResponsesDeletion(dialect: ResponsesDialect, value: JsonValue): ResponsesDeletion {
+    try {
+        val body = decodeResponsesValue<ResponsesDeletionBody>(value, "")
+        if (body.objectType != "response.deleted") throw DecodingException("/object", "expected a Responses deletion confirmation")
+        if (body.id.length == 0L) throw DecodingException("/id", "response ID must not be empty")
+        return ResponsesDeletion(dialect.id, body.id, body.deleted, value)
+    } catch (error: DecodingException) {
+        throw LlmProtocolException(dialect.id, error.path, error.message ?: "invalid Responses deletion confirmation", value)
+    }
+}
+
+private class ResponsesDeletionBody public constructor(@Serialize(rename = "object") public val objectType: String,
+    public val id: String, public val deleted: Boolean) {
+    public companion object : ValueDecoder<ResponsesDeletionBody>
+}

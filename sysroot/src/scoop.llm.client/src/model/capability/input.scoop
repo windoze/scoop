@@ -1,0 +1,39 @@
+package scoop.llm.client
+
+/** Model input kinds; frame sequences and native video are deliberately independent. */
+public enum InputMediaKind {
+    Image,
+    Pdf,
+    Audio,
+    Video,
+    VideoFrames,
+    Document
+
+    public companion object : ValueEncoder<InputMediaKind>, ValueDecoder<InputMediaKind>
+}
+
+/** Input support at one model binding. Missing information never inherits from another kind. */
+public class InputCapabilities public constructor(
+    public val text: Capability<Unit> = Unknown,
+    public val image: Capability<MediaCapabilities> = Unknown,
+    public val pdf: Capability<MediaCapabilities> = Unknown,
+    public val audio: Capability<MediaCapabilities> = Unknown,
+    public val video: Capability<MediaCapabilities> = Unknown,
+    public val videoFrames: Capability<MediaCapabilities> = Unknown,
+    public val document: Capability<MediaCapabilities> = Unknown
+) {
+    /** Queries one exact format within the explicitly selected input kind. */
+    public fun forMedia(kind: InputMediaKind, format: MediaFormat): Capability<MediaLimits> {
+        val capability = when (kind) {
+            case Image -> image
+            case Pdf -> pdf
+            case Audio -> audio
+            case Video -> video
+            case VideoFrames -> videoFrames
+            case Document -> document
+        }
+        return mediaFormatCapability(capability, format)
+    }
+
+    public companion object : ValueEncoder<InputCapabilities>, ValueDecoder<InputCapabilities>
+}

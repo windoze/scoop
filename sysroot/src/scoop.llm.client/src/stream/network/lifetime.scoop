@@ -1,0 +1,63 @@
+package scoop.llm.client
+
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+
+internal suspend fun runLlmStream(state: LlmStreamState, caller: Job?, options: LlmCallOptions,
+    operation: suspend (LlmStreamState, Job?) -> Unit) {
+    val call = state.call
+    var failure: Throwable? = None
+    state.opening.listener = caller?.invokeOnCancellation { error -> call.stop(error) }
+    try {
+        registerLlmCall(call.client, state)
+        coroutineScope suspend { scope ->
+            call.bind(scope.job)
+            ensureActive()
+            val timer = when (options.timeouts.total) {
+                case Some(limit) -> Some(scope.launch suspend {
+                    val remaining = limit - (MonotonicTimeSource.markNow() - call.started)
+                    if (remaining > Duration.ZERO) call.client.loop.sleep(remaining)
+                    call.timeout(limit)
+                })
+                case None -> None
+            }
+            try { operation(state, timer) }
+            finally {
+                timer?.cancel()
+                nonCancellableScope suspend { _ -> timer?.join(); Unit }
+            }
+        }
+    } catch (error: Throwable) { failure = Some(error) }
+    finally { state.opening.listener?.dispose() }
+    finishLlmStream(state, options, call.finish(failure))
+}
+
+private suspend fun finishLlmStream(state: LlmStreamState, options: LlmCallOptions, selected: Throwable?) {
+    val outcome = when (selected) {
+        case None -> LlmCallOutcome.Completed
+        case Some(error) -> if (error is CancellationException) LlmCallOutcome.Cancelled else LlmCallOutcome.Failed
+    }
+    val call = state.call
+    val metadata = LlmCallMetadata(call.id, call.startedAt, call.attempts.toArray(), Some(call.point()), outcome)
+    state.lock.withLock { state.finalMetadata = Some(metadata) }
+    var failure = selected
+    try { options.onFinished?.invoke(metadata) }
+    catch (callback: Throwable) {
+        failure = Some(when (selected) { case Some(error) -> ResourceUseException(error, callback); case None -> callback })
+    }
+    val finalFailure = failure
+    val (pending, waiting) = state.lock.withLock {
+        state.failure = finalFailure; state.closed = true
+        val pending = state.pending
+        state.pending = None; state.wake = None
+        if (llmPresent(pending) && llmPresent(finalFailure)) state.errorDelivered = true
+        val waiting = state.closeWaiters.toArray()
+        state.closeWaiters.clear();
+        (pending, waiting)
+    }
+    when (failure) {
+        case Some(error) -> { state.opening.fail(error); pending?.resumeWithException(error) }
+        case None -> pending?.resume(None)
+    }
+    for (continuation in waiting) continuation.resume(Unit)
+}

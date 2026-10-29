@@ -1,0 +1,37 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeCohereContent(dialect: DialectId, parts: Array<ContentPart>, role: String, path: String): JsonValue {
+    val values = ArrayList<JsonValue>()
+    var index = 0L
+    for (part in parts) {
+        values.add(encodeCoherePart(dialect, part, role, path + "/" + index.toString()))
+        index += 1L
+    }
+    return JsonValue.fromArray(values)
+}
+
+private fun encodeCoherePart(dialect: DialectId, part: ContentPart, role: String, path: String): JsonValue = when (part) {
+    case Text(text, extensions) -> mergeLlmExtensions(llmTypedObject("text").add("text", JsonValue.fromString(text)).build(),
+        extensions, dialect, ["type", "text"], path)
+    case Image(source, extensions) -> {
+        if (role != "user") throw LlmRequestException(path, "Cohere images require a user message")
+        llmTypedObject("image_url").add("image_url", encodeCohereImage(dialect, source, extensions, path)).build()
+    }
+    case Document(_, _, _) -> throw LlmRequestException(path, "Cohere documents require explicit RAG context or a native tool result")
+    case Audio(_, _) -> throw LlmRequestException(path, "Cohere Chat v2 has no audio content mapping")
+    case Video(_, _) -> throw LlmRequestException(path, "Cohere Chat v2 has no video content mapping")
+    case VideoFrames(_, _) -> throw LlmRequestException(path, "Cohere Chat v2 has no timestamped frame mapping")
+    case Native(owner, value) -> {
+        requireLlmOwner(owner, dialect, path + "/dialect")
+        if (value.kind != JsonValueKind.Object) throw LlmRequestException(path + "/value", "native Cohere content must be an object")
+        val type = value["type"] ?: throw LlmRequestException(path + "/value/type", "missing native content type")
+        if (type.kind != JsonValueKind.String || type.asString().length == 0L)
+            throw LlmRequestException(path + "/value/type", "native content type must be a nonempty string")
+        val kind = type.asString()
+        if ((kind == "image_url" && role != "user") || (kind == "thinking" && role != "assistant") || (kind == "document" && role != "tool"))
+            throw LlmRequestException(path + "/value/type", "native Cohere content is not allowed in this role")
+        value
+    }
+}

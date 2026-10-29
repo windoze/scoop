@@ -1,0 +1,51 @@
+package scoop.llm.client.tests.ollama
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.Instant
+
+@Test
+private class OllamaCompositionTest {
+    @Test
+    fun `Ollama dialect receives original root accounting fields and rejects a foreign protocol`() {
+        assertFailsWith<IllegalArgumentException> { val protocol = OllamaChatProtocol(OllamaTestDialect(ApiProtocolId("chat-completions"))); Unit }
+        val protocol = OllamaChatProtocol(OllamaTestDialect(ApiProtocolId("ollama-chat")))
+        val response = protocol.decodeResponse(ollamaBody(extra = ",\"custom_input\":31"), ollamaRequest())
+        assertEquals(Some(31L), response.usage.tokens.inputTokens)
+        assertEquals(31L, response.native!!["custom_input"]!!.asLong())
+        assertFalse(llmPresent(response.usage.native))
+    }
+
+    @Test
+    fun `Ollama thinking parallel calls exact cache usage service time and serialized continuation compose`() {
+        val calls = [ollamaCall("{\"count\":9007199254740993}"), ollamaCall("{\"count\":2}", id = Some("actual"), index = Some(1L))]
+        val raw = ollamaBody("answer", messageExtra = ",\"thinking\":\"reason\",\"tool_calls\":" + Json.stringify(JsonValue.fromArray(calls)),
+            extra = ",\"created_at\":\"2026-10-25T00:01:02Z\",\"prompt_eval_count\":20,\"prompt_eval_cached_count\":12,\"eval_count\":3,\"total_duration\":1000")
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(ollamaDecode(raw)))
+        assertEquals("answer", response.text)
+        assertEquals(2L, response.clientToolCalls.size)
+        assertEquals(9007199254740993L, response.clientToolCalls[0L].decodeArguments<OllamaCount>().count)
+        assertEquals(None, response.clientToolCalls[0L].reference.id)
+        assertEquals(Some("actual"), response.clientToolCalls[1L].reference.id)
+        assertEquals(Some(8L), response.usage.tokens.nonCachedInputTokens)
+        assertEquals(Some(23L), response.usage.tokens.totalTokens)
+        assertEquals(Some(Instant.parse("2026-10-25T00:01:02Z")), response.createdAt)
+        assertEquals(0L, response.serverToolActivities.size)
+        val input = ArrayList<LlmInputItem>()
+        for (item in response.toInput()) input.add(item)
+        for (call in response.clientToolCalls) input.add(ToolResult(call.reference, [Text("done")]))
+        val saved = Json.decodeFromString<LlmRequest>(Json.encodeToString(LlmRequest(input.toArray())))
+        assertEquals(3L, saved.input.size)
+        when (saved.input[0L]) { case History(history) -> assertEquals(Json.stringify(raw["message"]!!), Json.stringify(history.items[0L])); else -> fail() }
+        when (saved.input[1L]) { case ToolResult(call, _, _, _) -> assertEquals(None, call.id); else -> fail() }
+    }
+}
+
+private class OllamaTestDialect public constructor(protocol: ApiProtocolId) : OllamaDialect {
+    public override val id: DialectId = DialectId(protocol, "custom")
+    public override fun encodeOptions(request: LlmRequest): JsonValue = OllamaChatDialect().encodeOptions(request)
+    public override fun readUsage(response: JsonValue): TokenUsage = TokenUsage(inputTokens = Some(response["custom_input"]!!.asLong()))
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        OllamaChatDialect().decodeError(status, body, truncated)
+}

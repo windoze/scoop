@@ -1,0 +1,34 @@
+package scoop.llm.client.tests.geminilive
+
+import scoop.asyncio.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+
+@Test
+private class GeminiLiveClientTest {
+    @Test
+    fun `Gemini Live provider rejects ordinary generation before authentication and finishes exactly once`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            withLlmClient suspend { client ->
+                val auth = RecordingAuth()
+                val model = LlmEndpoint(Providers.geminiLive(), auth).model("arbitrary")
+                for (stream in [false, true]) {
+                    val finished = FinishedCalls()
+                    val options = LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))
+                    val error = expectLlmFailure<LlmRequestException> suspend {
+                        if (stream) client.withStream(model, sampleRequest, options) suspend { _ -> fail() }
+                        else { client.generate(model, sampleRequest, options) }
+                        Unit
+                    }
+                    assertEquals(if (stream) "/stream" else "/provider", error.path)
+                    assertEquals(0L, auth.requests.size)
+                    assertEquals(1L, finished.values.size)
+                    assertEquals(LlmCallOutcome.Failed, finished.values[0].outcome)
+                    assertEquals(0L, finished.values[0].attempts.size)
+                }
+            }
+        }
+    }
+}

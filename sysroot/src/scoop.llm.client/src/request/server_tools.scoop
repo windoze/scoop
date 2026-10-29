@@ -1,0 +1,29 @@
+package scoop.llm.client
+
+/** Optional location hints retain the values supplied by the application. */
+public class SearchLocation public constructor(
+    public val country: String? = None,
+    public val region: String? = None,
+    public val city: String? = None,
+    public val timezone: String? = None
+) {
+    public companion object : ValueEncoder<SearchLocation>, ValueDecoder<SearchLocation>
+}
+
+/** Unsupported explicit restrictions must be rejected by the adapter, never silently removed. */
+public class WebSearchOptions public constructor(
+    public val allowedDomains: Array<String>? = None,
+    public val excludedDomains: Array<String>? = None,
+    public val location: SearchLocation? = None,
+    public val includeSources: Boolean? = None
+) {
+    public companion object : ValueEncoder<WebSearchOptions>, ValueDecoder<WebSearchOptions>
+}
+
+/** Tools executed by the service, independently of client-side tool execution. */
+public enum ServerTool {
+    WebSearch(val options: WebSearchOptions = WebSearchOptions()),
+    Native(val tool: NativeToolDefinition)
+
+    public companion object : ValueEncoder<ServerTool>, ValueDecoder<ServerTool>
+}

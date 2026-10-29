@@ -1,0 +1,51 @@
+package scoop.llm.client.tests.chat.openrouter
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.chat.*
+import scoop.test.*
+
+@Test
+private class OpenRouterResponseTest {
+    @Test
+    fun `OpenRouter Chat detailed reasoning tools and file annotations survive saved history`() {
+        val request = routerRequest(routerTools())
+        val response = router.decodeResponse(chatBody(routerMessage, "tool_calls", Some(routerUsage)), request)
+        assertEquals("answer", response.text)
+        assertEquals(1L, response.clientToolCalls.size)
+        assertEquals(0L, response.serverToolActivities.size)
+        assertEquals("consider", routerPartText(routerReasoning(response)[0L]))
+        when (routerReasoning(response)[1L]) { case Native(_, raw) -> assertEquals("opaque", raw["data"]!!.asString()); else -> fail() }
+        val saved = Json.decodeFromString<LlmResponse>(Json.encodeToString(response))
+        val body = router.encodeRequest("org/model", routerContinuation(request, saved))
+        val history = body["messages"]!![1L]
+        assertEquals(routerDetails, Json.stringify(history["reasoning_details"]!!))
+        assertEquals(routerAnnotations, Json.stringify(history["annotations"]!!))
+        assertEquals("consider", history["reasoning"]!!.asString())
+        assertEquals("call-1", body["messages"]!![2L]["tool_call_id"]!!.asString())
+        assertEquals(Some(12L), saved.usage.tokens.inputTokens)
+        assertEquals(Some(4L), saved.usage.tokens.cacheReadTokens)
+        assertEquals(Some(3L), saved.usage.tokens.reasoningTokens)
+        assertEquals(UsageCompleteness.Final, saved.usage.completeness)
+    }
+
+    @Test
+    fun `OpenRouter Chat fallback reasoning and native extras do not require provider metadata shapes`() {
+        for (protocol in [router, ChatProtocol(OpenAiChatDialect()), ChatProtocol(DeepSeekChatDialect())]) {
+            val empty = protocol.decodeResponse(chatBody("{\"role\":\"assistant\",\"content\":null,\"audio\":null,\"annotations\":null}"), routerRequest())
+            assertEquals(0L, empty.candidate(0L).items.size)
+        }
+        for (extra in ["", ",\"annotations\":null", ",\"annotations\":{\"new\":[1,\"changed\"]},\"service_extra\":false"]) {
+            val response = router.decodeResponse(chatBody("{\"role\":\"assistant\",\"content\":\"answer\",\"reasoning_content\":\"think\"" + extra + "}"), routerRequest())
+            assertEquals("answer", response.text)
+            assertEquals("think", routerPartText(routerReasoning(response)[0L]))
+            assertFalse(chatHistory(response).containsKey("reasoning_details"))
+        }
+        val audio = router.decodeResponse(chatBody("{\"role\":\"assistant\",\"content\":\"answer\",\"audio\":{\"data\":\"AQ==\"}}"), routerRequest())
+        assertEquals("answer", audio.text)
+        assertEquals(LlmOutputFailure.HistoryUnavailable, assertFailsWith<LlmOutputException> { audio.toInput(); Unit }.reason)
+        val invalid = "{\"role\":\"assistant\",\"content\":\"answer\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":3}]}"
+        assertEquals("/choices/0/message/reasoning_details/0/text",
+            assertFailsWith<LlmProtocolException> { router.decodeResponse(chatBody(invalid), routerRequest()); Unit }.path)
+    }
+}

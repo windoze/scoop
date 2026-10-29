@@ -1,0 +1,39 @@
+package scoop.llm.client.tests.interactions
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class InteractionsStreamServerTest {
+    @Test
+    fun `Interactions SSE sparse search and MCP steps retain server ownership and signed results`() {
+        val tools: Array<ToolDefinition> = [Server(ToolKey("search"), WebSearch(WebSearchOptions())),
+            Server(ToolKey("mcp"), Native(NativeToolDefinition(interactionsDialect, "mcp_server", Json.parse("{\"name\":\"catalog\"}"))))]
+        val decoder = interactionsStream(request = LlmRequest([], tools = tools))
+        interactionsBegin(decoder)
+        val start = interactionsStart(decoder, 0L, "{\"type\":\"google_search_call\",\"id\":\"s\",\"signature\":\"\"}")
+        when (start.events[0L]) { case ServerToolActivity(_, activity) -> { assertEquals(ServerToolStatus.InProgress, activity.status); assertEquals(Some(ToolKey("search")), activity.toolKey) }; else -> fail() }
+        interactionsDelta(decoder, 0L, "{\"type\":\"google_search_call\",\"arguments\":{\"queries\":[\"question\"]},\"signature\":\"call-signature\"}")
+        interactionsStop(decoder, 0L)
+        interactionsStart(decoder, 1L, "{\"type\":\"google_search_result\",\"call_id\":\"s\",\"signature\":\"\"}")
+        interactionsDelta(decoder, 1L, "{\"type\":\"google_search_result\",\"is_error\":false,\"signature\":\"result-signature\"}")
+        interactionsStop(decoder, 1L)
+        interactionsStart(decoder, 2L, "{\"type\":\"mcp_server_tool_call\",\"id\":\"m\"}")
+        interactionsDelta(decoder, 2L, "{\"type\":\"mcp_server_tool_call\",\"name\":\"lookup\",\"server_name\":\"catalog\",\"arguments\":{}}")
+        interactionsStop(decoder, 2L)
+        interactionsStart(decoder, 3L, "{\"type\":\"mcp_server_tool_result\",\"call_id\":\"m\"}")
+        interactionsDelta(decoder, 3L, "{\"type\":\"mcp_server_tool_result\",\"result\":\"hello\"}")
+        interactionsDelta(decoder, 3L, "{\"type\":\"mcp_server_tool_result\",\"result\":\" world\"}")
+        interactionsStop(decoder, 3L)
+        interactionsEnd(decoder)
+        val result = decoder.response()
+        assertEquals(0L, result.clientToolCalls.size)
+        when (result.candidate(0L).items[1L]) { case ServerToolActivity(activity) -> { assertEquals(ServerToolStatus.Completed, activity.status); assertEquals(0L, activity.result.size) }; else -> fail() }
+        when (result.candidate(0L).items[3L]) { case ServerToolActivity(activity) -> {
+            assertEquals(Some(ToolKey("mcp")), activity.toolKey)
+            when (activity.result[0L]) { case Text(value, _) -> assertEquals("hello world", value); else -> fail() }
+        }; else -> fail() }
+        assertEquals("result-signature", interactionsHistory(result)[1L]["signature"]!!.asString())
+    }
+}

@@ -1,0 +1,100 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal class MessagesStreamDecoder public constructor(
+    public val dialect: MessagesDialect, public val request: LlmRequest, public val retention: StreamRetention
+) : LlmSseDecoder {
+    public val blocks: ArrayList<MessagesStreamBlock> = ArrayList<MessagesStreamBlock>()
+    public val calls: ArrayList<MessagesCallIdentity> = ArrayList<MessagesCallIdentity>()
+    public val nativeEvents: ArrayList<LlmNativeEvent> = ArrayList<LlmNativeEvent>()
+    public var started: Boolean = false
+    public var id: String? = None
+    public var model: String? = None
+    public var reason: String? = None
+    public var currentUsage: LlmUsage = LlmUsage()
+    public var candidate: LlmCandidate? = None
+    private var finished: Boolean = false
+    private var failed: Boolean = false
+
+    public override val isFinished: Boolean get() = finished && !failed
+    public override val responseId: String? get() = id
+    public override val usage: LlmUsage get() = currentUsage
+
+    public override fun accept(event: String, data: String): LlmStreamUpdate {
+        try {
+            if (finished || failed) throw LlmStreamProtocolException(dialect.id, "stream is no longer accepting events", Some(data))
+            val raw = try { Json.parse(data) }
+                catch (error: DecodingException) { throw LlmStreamProtocolException(dialect.id, "invalid stream JSON", Some(data)) }
+            val batch = LlmStreamBatch(dialect.id, retention, nativeEvents)
+            try {
+                val type = decodeMessagesValue<MessagesBlockType>(raw, "").type
+                if (event != "" && event != "message" && event != type)
+                    throw DecodingException("/type", "SSE event name disagrees with Messages event type")
+                val known = dispatch(type, raw, batch)
+                val extra = llmStreamUnknown(raw, known)
+                if (extra.size != 0L) batch.native(type, extra)
+            } catch (error: DecodingException) {
+                throw LlmProtocolException(dialect.id, error.path, error.message ?: "invalid Messages stream", raw)
+            }
+            return batch.build()
+        } catch (error: Throwable) { failed = true; throw error }
+    }
+
+    private fun dispatch(type: String, raw: JsonValue, batch: LlmStreamBatch): Array<String> = when (type) {
+        case "error" -> throw DecodingException("/error", "server reported a stream error")
+        case "ping" -> { batch.isKeepAlive = true; ["type"] }
+        case "message_start" -> { startMessagesStream(this, messagesStreamField(raw, "message", ""), batch); ["type", "message"] }
+        case "content_block_start" -> {
+            requireContentPhase()
+            val index = decodeMessagesValue<Long>(messagesStreamField(raw, "index", ""), "/index")
+            if (index != blocks.size) throw DecodingException("/index", "content block indices must start at zero and increase by one")
+            val block = MessagesStreamBlock(index, dialect, retention == StreamRetention.Result, request.tools)
+            block.begin(messagesStreamField(raw, "content_block", ""), calls, batch)
+            blocks.add(block)
+            ["type", "index", "content_block"]
+        }
+        case "content_block_delta" -> {
+            requireContentPhase()
+            acceptMessagesBlockDelta(block(raw), messagesStreamField(raw, "delta", ""), batch)
+            ["type", "index", "delta"]
+        }
+        case "content_block_stop" -> { requireContentPhase(); block(raw).stop(batch); ["type", "index"] }
+        case "message_delta" -> {
+            updateMessagesStream(this, messagesStreamField(raw, "delta", ""), raw["usage"], batch)
+            ["type", "delta", "usage"]
+        }
+        case "message_stop" -> {
+            if (!started || reason == None) throw DecodingException("", "message stopped without a final stop reason")
+            finished = true
+            currentUsage = LlmUsage(currentUsage.tokens, Final, currentUsage.native)
+            batch.events.add(LlmEvent.Usage(currentUsage))
+            ["type"]
+        }
+        else -> []
+    }
+
+    private fun requireContentPhase() {
+        if (!started || reason != None) throw DecodingException("/type", "content event outside the active message")
+    }
+
+    private fun block(raw: JsonValue): MessagesStreamBlock {
+        val index = decodeMessagesValue<Long>(messagesStreamField(raw, "index", ""), "/index")
+        if (index < 0L || index >= blocks.size) throw DecodingException("/index", "content block has not started")
+        return blocks[index]
+    }
+
+    public override fun endInput(): LlmStreamUpdate {
+        if (!isFinished) {
+            failed = true
+            throw LlmStreamProtocolException(dialect.id, "Messages stream ended without message_stop")
+        }
+        return LlmStreamUpdate([])
+    }
+
+    public override fun response(): LlmResponse {
+        if (!isFinished) throw LlmOutputException(Incomplete, "stream has not finished successfully")
+        if (retention != StreamRetention.Result) throw LlmOutputException(ResultNotRetained, "stream result was not retained")
+        return LlmResponse(dialect.id, [candidate!!], id, model, usage = currentUsage, nativeEvents = nativeEvents.toArray())
+    }
+}

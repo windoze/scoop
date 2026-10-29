@@ -1,0 +1,65 @@
+package scoop.llm.client.tests.count
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class GenerateContentCountTest {
+    @Test
+    fun `token count Gemini submits the complete generation input and preserves deployment routing`() {
+        val dialect = GeminiGenerateContentDialect()
+        val protocol = GenerateContentProtocol(dialect)
+        val counter = protocol.tokenCounter()!!
+        val history = Json.parse("{\"role\":\"model\",\"parts\":[{\"text\":\"previous\",\"thoughtSignature\":\"signed\"}]}")
+        val request = LlmRequest([History(LlmHistory(dialect.id, [history])), Message([Text("question"),
+            Image(MediaSource.Bytes([1.toByte()], "image/png"))])], system = [Text("system")],
+            tools = [ClientFunction(ToolKey("f"), "lookup", Json.parse("{\"type\":\"object\"}"))],
+            options = LlmGenerationOptions(maxOutputTokens = Some(32UL), output = JsonObject),
+            extensions = [DialectExtension(dialect.id, Json.parse("{\"cachedContent\":\"cachedContents/saved\",\"generationConfig\":{\"seed\":0}}"))])
+        val counted = counter.encodeRequest("models/example", request)
+        assertEquals(1L, counted.size)
+        val full = counted["generateContentRequest"]!!
+        val generated = protocol.encodeRequest("models/example", request)
+        assertEquals(generated.size + 1L, full.size)
+        for ((key, value) in generated.members()) assertEquals(Json.stringify(value), Json.stringify(full[key]!!))
+        assertEquals("models/example", full["model"]!!.asString())
+        assertEquals("models/example", counter.encodeRequest("example", request)["generateContentRequest"]!!["model"]!!.asString())
+        val base = Url.parse("https://example.test/prefix/v1beta?deployment=chosen")
+        assertEquals("https://example.test/prefix/v1beta/models/example:countTokens?deployment=chosen", counter.countUrl(base, "example").toString())
+        assertEquals("https://example.test/prefix/v1beta/tunedModels/a%3Ab:countTokens?deployment=chosen", counter.countUrl(base, "tunedModels/a:b").toString())
+    }
+
+    @Test
+    fun `token count Gemini keeps cached input and modality subsets separate from generation usage`() {
+        val counter = Providers.geminiGenerateContent().protocol.tokenCounter()!!
+        val raw = Json.parse("{\"totalTokens\":9007199254740993,\"cachedContentTokenCount\":4,\"promptTokensDetails\":[{\"modality\":\"IMAGE\",\"tokenCount\":5},{\"modality\":\"FUTURE\",\"tokenCount\":0}],\"cacheTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":4}],\"future\":true}")
+        val counted = Json.decodeFromString<TokenCount>(Json.encodeToString(counter.decodeResponse("m", raw)))
+        assertEquals(Some(9007199254740993L), counted.inputTokens)
+        assertEquals(Some(4L), counted.cachedInputTokens)
+        assertEquals(2L, counted.modality.size)
+        assertEquals(TokenDirection.Input, counted.modality[0L].direction)
+        assertEquals(TokenModality.Image, counted.modality[0L].modality)
+        assertEquals(TokenModality.Other("FUTURE"), counted.modality[1L].modality)
+        assertEquals(0L, counted.modality[1L].tokens)
+        assertEquals(Json.stringify(raw), Json.stringify(counted.native!!))
+        assertEquals(None, counted.modelVersion)
+        assertEquals(TokenCountPrecision.Estimated, counted.precision)
+    }
+
+    @Test
+    fun `token count Gemini rejects malformed counts without fabricating missing totals`() {
+        val counter = Providers.geminiGenerateContent().protocol.tokenCounter()!!
+        assertEquals(None, counter.decodeResponse("m", Json.parse("{\"cachedContentTokenCount\":0}")).inputTokens)
+        assertEquals(Some(0L), counter.decodeResponse("m", Json.parse("{\"totalTokens\":0}")).inputTokens)
+        for ((raw, path) in [("{\"totalTokens\":-1}", "/totalTokens"), ("{\"totalTokens\":1.5}", "/totalTokens"),
+            ("{\"totalTokens\":9223372036854775808}", "/totalTokens"),
+            ("{\"totalTokens\":1,\"cachedContentTokenCount\":2}", "/cachedContentTokenCount"),
+            ("{\"cacheTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":-1}]}", "/cacheTokensDetails/0/tokenCount"),
+            ("{\"error\":{}}", "/error")]) {
+            val failure = assertFailsWith<LlmProtocolException> { counter.decodeResponse("m", Json.parse(raw)); Unit }
+            assertEquals(path, failure.path)
+        }
+    }
+}

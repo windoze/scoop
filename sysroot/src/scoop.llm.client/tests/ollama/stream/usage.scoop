@@ -1,0 +1,59 @@
+package scoop.llm.client.tests.ollama.stream
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.ollama.*
+import scoop.test.*
+
+@Test
+private class OllamaStreamUsageTest {
+    @Test
+    fun `Ollama NDJSON cumulative exact usage replaces fields without adding snapshots or retaining messages`() {
+        val stream = ollamaStream()
+        stream.accept(ollamaFrame(extra = ",\"prompt_eval_count\":9007199254740993,\"prompt_eval_cached_count\":8,\"eval_count\":1"))
+        assertEquals(Some(9007199254740994L), stream.usage.tokens.totalTokens)
+        stream.accept(ollamaFrame("text", extra = ",\"prompt_eval_count\":null,\"prompt_eval_cached_count\":0,\"eval_count\":2"))
+        assertEquals(Some(9007199254740993L), stream.usage.tokens.nonCachedInputTokens)
+        assertEquals(Some(0L), stream.usage.tokens.cacheReadTokens)
+        assertEquals(UsageCompleteness.Partial, stream.usage.completeness)
+        ollamaEnd(stream, extra = ",\"eval_count\":3,\"total_duration\":1000")
+        assertEquals(Some(9007199254740996L), stream.usage.tokens.totalTokens)
+        assertEquals(UsageCompleteness.Final, stream.usage.completeness)
+        assertEquals(1000L, stream.usage.native!!["total_duration"]!!.asLong())
+        assertFalse(stream.usage.native!!.containsKey("message"))
+        assertFalse(stream.usage.native!!.containsKey("model"))
+        assertEquals(None, stream.response().createdAt)
+    }
+
+    @Test
+    fun `Ollama NDJSON unknown terminal reasons keep usage partial and malformed counts fail`() {
+        val unknown = ollamaStream()
+        ollamaEnd(unknown, Some("future"), ",\"eval_count\":0")
+        assertEquals(Some(0L), unknown.usage.tokens.outputTokens)
+        assertEquals(None, unknown.usage.tokens.inputTokens)
+        assertEquals(UsageCompleteness.Partial, unknown.usage.completeness)
+        for ((extra, path) in [("\"eval_count\":1.5", "/eval_count"), ("\"prompt_eval_count\":-1", "/prompt_eval_count"),
+            ("\"prompt_eval_count\":2,\"prompt_eval_cached_count\":3", "/prompt_eval_cached_count")])
+            assertOllamaStreamFailure(ollamaStream(), ollamaFrame(extra = "," + extra), path)
+    }
+
+    @Test
+    fun `Ollama NDJSON custom dialect accounting receives current native root fields`() {
+        val stream = OllamaChatProtocol(OllamaStreamAccounting()).createNdjsonDecoder(ollamaRequest(), StreamRetention.Result)
+        stream.accept(ollamaFrame("text"))
+        ollamaEnd(stream, extra = ",\"custom_count\":42")
+        assertEquals(Some(42L), stream.usage.tokens.inputTokens)
+        assertFalse(llmPresent(stream.usage.native))
+        assertEquals(42L, stream.response().nativeEvents[0L].value["custom_count"]!!.asLong())
+    }
+}
+
+private class OllamaStreamAccounting : OllamaDialect {
+    public override val id: DialectId = ollamaDialect
+    public override fun encodeOptions(request: LlmRequest): JsonValue = OllamaChatDialect().encodeOptions(request)
+    public override fun readUsage(response: JsonValue): TokenUsage = TokenUsage(inputTokens = when (response["custom_count"]) {
+        case Some(value) -> Some(value.asLong()); case None -> None
+    })
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        OllamaChatDialect().decodeError(status, body, truncated)
+}

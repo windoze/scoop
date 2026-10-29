@@ -1,0 +1,15 @@
+package scoop.llm.client.tests.interactions
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+internal fun interactionsEncode(request: LlmRequest, model: String = "unlisted/model:version"): JsonValue =
+    InteractionsProtocol(GeminiInteractionsDialect()).encodeRequest(model, request)
+
+internal fun interactionsExtension(value: String): Array<DialectExtension> = [DialectExtension(interactionsDialect, Json.parse(value))]
+
+internal fun assertInteractionsRequestFailure(request: LlmRequest, path: String) {
+    val error = assertFailsWith<LlmRequestException> { interactionsEncode(request); Unit }
+    assertEquals(path, error.path)
+}

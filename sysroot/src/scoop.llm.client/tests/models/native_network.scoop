@@ -1,0 +1,60 @@
+package scoop.llm.client.tests.models
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+import scoop.url.*
+
+@Test
+private class NativeModelNetworkTest {
+    @Test
+    fun `native catalog list and lookup use documented routes actual authentication bytes and optional server IDs`() {
+        for ((provider, listPath, lookupPath, listBody, lookupBody, expectedId, post) in [
+            (Providers.openRouterChat(), "models", "model/author/model%3Atag", "{\"data\":[{\"id\":\"author/model:tag\"}]}",
+                "{\"data\":{\"id\":\"author/canonical\"},\"extra\":true}", Some("author/canonical"), false),
+            (Providers.cohereChat(), "v1/models", "v1/models/author%2Fmodel%3Atag", "{\"models\":[{\"name\":\"author/model:tag\"}],\"next_page_token\":\"cursor\"}",
+                "{\"name\":null}", None, false),
+            (Providers.ollamaChat(), "tags", "show", "{\"models\":[{\"model\":\"author/model:tag\"}]}", "{\"details\":{}}", None, true),
+            (Providers.bedrockConverse(), "foundation-models", "foundation-models/author%2Fmodel%3Atag", "{\"modelSummaries\":[{\"modelId\":\"author/model:tag\"}]}",
+                "{\"modelDetails\":{\"modelId\":\"canonical.model\"}}", Some("canonical.model"), false)]) {
+            withLlmServer suspend { _, scope, listener, original ->
+                val auth = RecordingAuth()
+                val endpoint = LlmEndpoint(provider, auth, Some(Url.parse(original.baseUrl.toString() + "/prefix?tenant=x")))
+                val serving = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        for (index in [0L, 1L]) {
+                            val request = connection.receiveRequest()!!
+                            val target = when (request.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                            assertEquals("/v1/prefix/" + (if (index == 0L) listPath else lookupPath) + "?tenant=x", target)
+                            assertEquals(if (post && index == 1L) "POST" else "GET", String.fromUtf8(request.head.method))
+                            val body = String.fromUtf8(request.body.readAllBytes(4096L))
+                            assertEquals(if (post && index == 1L) "{\"model\":\"author/model:tag\",\"verbose\":false}" else "", body)
+                            assertEquals(body, String.fromUtf8(auth.requests[index].body))
+                            assertEquals(target, auth.requests[index].url.httpRequestTarget())
+                            assertEquals(String.fromUtf8(request.head.method), auth.requests[index].method)
+                            assertEquals("Bearer attempt-" + (index + 1L).toString(), String.fromUtf8(request.head.fields.findAll("Authorization".toByteArray())[0].value))
+                            assertEquals(if (post && index == 1L) 1L else 0L, request.head.fields.findAll("Content-Type".toByteArray()).size)
+                            sendLlmReply(connection, 200U, if (index == 0L) listBody else lookupBody)
+                        }
+                    }
+                }
+                withLlmClient suspend { client ->
+                    val listed = client.listModels(endpoint)
+                    val extensions: Array<DialectExtension> = if (post) [ollamaModelOptions(Some(false))] else []
+                    val fetched = Json.decodeFromString<LlmModelResult>(Json.encodeToString(
+                        client.retrieveModel(endpoint, listed.page.models[0].id!!, extensions = extensions)))
+                    assertEquals(expectedId, fetched.model.id)
+                    assertEquals("author/model:tag", fetched.requestedId)
+                    assertEquals(lookupBody, Json.stringify(fetched.model.native))
+                    assertModelQueryTiming(listed.metadata)
+                    assertModelQueryTiming(fetched.metadata)
+                }
+                serving.join()
+            }
+        }
+    }
+}

@@ -1,0 +1,94 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal class GenerateContentStreamCandidate public constructor(public val index: Long, public val dialect: DialectId,
+    public val tools: Array<ToolDefinition>, public val retain: Boolean) {
+    public val items: ArrayList<GenerateContentStreamItem> = ArrayList<GenerateContentStreamItem>()
+    public val parts: ArrayList<GenerateContentStreamItem> = ArrayList<GenerateContentStreamItem>()
+    public val ids: ArrayList<String> = ArrayList<String>()
+    public val history: ArrayList<JsonValue> = ArrayList<JsonValue>()
+    public val grounding: GenerateContentStreamGrounding = GenerateContentStreamGrounding()
+    public var historyAvailable: Boolean = true
+    public var reason: String? = None
+    private var completion: LlmCompletion = Incomplete
+    private var finishReason: LlmFinishReason = Unknown
+    private var contentGroup: GenerateContentStreamItem? = None
+
+    public fun accept(raw: JsonValue, fields: GenerateContentCandidateBody, path: String, batch: LlmStreamBatch) {
+        if (llmPresent(fields.content)) {
+            val contentRaw = fields.content!!
+            val content = decodeGenerateContentValue<GenerateContentContent>(contentRaw, path + "/content")
+            if (content.role != None && content.role != Some("") && content.role != Some("model"))
+                throw DecodingException(path + "/content/role", "expected model content")
+            var position = 0L
+            for (value in content.parts ?: []) {
+                val part = GenerateContentPart(value, path + "/content/parts/" + position.toString())
+                if (reason != None) throw DecodingException(part.path, "content received after candidate finished")
+                acceptGenerateContentStreamPart(this, part, batch, position == 0L)
+                position += 1L
+            }
+            if (retain && (content.parts ?: []).size != 0L) history.add(contentRaw)
+            val extra = llmStreamUnknown(contentRaw, ["parts", "role"])
+            if (extra.size != 0L) batch.native("generate-content.content", candidateNative(extra))
+        }
+        if (llmPresent(fields.groundingMetadata)) grounding.accept(this, fields.groundingMetadata!!, path, batch)
+        if (llmPresent(fields.citationMetadata)) grounding.citationMetadata.add(fields.citationMetadata!!)
+        val extra = llmStreamUnknown(raw, ["index", "content", "finishReason", "groundingMetadata", "citationMetadata"])
+        if (extra.size != 0L) batch.native("generate-content.candidate", candidateNative(extra))
+        val next = fields.finishReason
+        if (next != None && next != Some("") && next != Some("FINISH_REASON_UNSPECIFIED")) {
+            if (reason != None && reason != next) throw DecodingException(path + "/finishReason", "candidate finish reason changed")
+            if (reason == None) finish(next!!, batch)
+        }
+    }
+
+    private fun finish(value: String, batch: LlmStreamBatch) {
+        reason = Some(value)
+        val (status, stopped) = generateContentCompletion(reason)
+        completion = status
+        var calls = false
+        for (item in items) if (item.finishCall(completion == LlmCompletion.Complete, batch)) calls = true
+        finishReason = if (stopped == LlmFinishReason.Stop && calls) LlmFinishReason.ToolCalls else stopped
+        if (value == "CONTINUATION") historyAvailable = false
+        ids.clear()
+        batch.events.add(LlmEvent.CandidateFinished(index, completion, finishReason))
+    }
+
+    public fun addItem(thought: Boolean = false, text: Boolean = false, join: Boolean = false,
+        breakContent: Boolean = true): GenerateContentStreamItem {
+        if (breakContent) contentGroup = None
+        val item = GenerateContentStreamItem(LlmItemLocation(index, items.size), retain, thought, text, join)
+        items.add(item)
+        return item
+    }
+
+    public fun addContentItem(thought: Boolean, text: Boolean = false, join: Boolean = false): GenerateContentStreamItem {
+        if (llmPresent(contentGroup) && contentGroup!!.thought == thought) {
+            val group = contentGroup!!
+            val part = GenerateContentStreamItem(group.location, retain, thought, text, join, group.followingParts.size + 1L)
+            group.followingParts.add(part)
+            return part
+        }
+        val item = addItem(thought, text, join)
+        contentGroup = Some(item)
+        return item
+    }
+
+    public fun candidateNative(value: JsonValue): JsonValue = JsonObjectBuilder().add("index", JsonValue.fromLong(index))
+        .add("metadata", value).build()
+
+    public fun endInput(batch: LlmStreamBatch) {
+        try { grounding.finish(this, batch) }
+        catch (error: DecodingException) {
+            throw LlmProtocolException(dialect, error.path, error.message ?: "invalid stream citation", grounding.failureNative)
+        }
+    }
+
+    public fun result(): LlmCandidate {
+        val output = ArrayList<LlmOutputItem>()
+        for (item in items) output.add(item.result())
+        val replay = if (historyAvailable && history.size != 0L) Some(LlmHistory(dialect, history.toArray())) else None
+        return LlmCandidate(index, output.toArray(), completion, finishReason, replay)
+    }
+}

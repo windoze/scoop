@@ -1,0 +1,17 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+public class GeminiLiveSent public constructor(
+    public val sessionId: String, public val command: JsonValue, public val timing: LlmRequestTiming
+) {
+    public companion object : ValueEncoder<GeminiLiveSent>, ValueDecoder<GeminiLiveSent>
+}
+
+public class GeminiLiveReceived public constructor(
+    public val sessionId: String, public val message: GeminiLiveMessage, public val received: LlmTimePoint
+) {
+    public companion object : ValueEncoder<GeminiLiveReceived>, ValueDecoder<GeminiLiveReceived>
+}
+
+public class GeminiLiveSessionClosedException public constructor() : Exception(Some("Gemini Live session is closed"))

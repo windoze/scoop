@@ -1,0 +1,90 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.text.startsWith
+
+/** Text retention is optional; byte counts still validate late citations. */
+internal class InteractionsStreamPart public constructor(public val type: String, public val index: Long, public val retain: Boolean) {
+    public var metadata: JsonValue = llmTypedObject(type).build()
+    public var length: Long = 0L
+    public var bytes: Long = 0L
+    private var text = StringBuilder()
+    private val annotations = ArrayList<JsonValue>()
+    private var annotationsPresent = false
+    private var emitted = 0L
+    private var citations: Array<Citation> = []
+    private var media: OutputPart? = None
+
+    public fun accept(step: InteractionsStreamStep, raw: JsonValue, batch: LlmStreamBatch, snapshot: Boolean) {
+        if (type == "text") {
+            val value = interactionsStreamString(raw, "text", step.contentPath(index))
+            if (snapshot) {
+                if (value.length < length || (retain && !value.startsWith(text.toString())))
+                    throw DecodingException(step.contentPath(index) + "/text", "snapshot changed delivered text")
+                emit(step, value.slice(length, value.length), batch)
+            } else emit(step, value, batch)
+            val annotationValues = raw["annotations"]
+            if (llmPresent(annotationValues) && annotationValues!!.kind != JsonValueKind.Null)
+                addAnnotations(annotationValues!!, step.contentPath(index), snapshot)
+            if (retain) metadata = mergeInteractionsSnapshot(metadata, llmStreamUnknown(raw, ["text", "annotations"]))
+            val extra = llmStreamUnknown(raw, ["type", "text", "annotations"])
+            if (extra.size != 0L) batch.native("step.content", extra, Some(step.location), false)
+        } else {
+            if (type == "image" || type == "audio" || type == "video" || type == "document") {
+                val decoded = readInteractionsMedia(step.dialect, raw, type, step.contentPath(index))
+                if (retain) media = Some(decoded)
+            }
+            if (!snapshot || length == 0L) {
+                batch.native("step.content", raw, Some(step.location), false)
+                batch.hasOutput = true
+            }
+            length = 1L
+            if (retain) metadata = raw
+        }
+    }
+
+    private fun emit(step: InteractionsStreamStep, value: String, batch: LlmStreamBatch) {
+        if (value.length != 0L) {
+            val delta = LlmTextDelta(step.location, value, index)
+            batch.events.add(if (step.type == "thought") LlmEvent.ReasoningDelta(delta) else LlmEvent.TextDelta(delta))
+            batch.observe(value, step.type == "model_output")
+        }
+        length += value.length
+        bytes += value.toByteArray().size
+        if (retain) text.append(value)
+    }
+
+    public fun addAnnotations(raw: JsonValue, path: String, snapshot: Boolean = false) {
+        val values = decodeInteractionsValue<Array<JsonValue>>(raw, path + "/annotations")
+        if (snapshot) {
+            if (values.size < annotations.size) throw DecodingException(path + "/annotations", "snapshot lost an observed annotation")
+            var index = 0L
+            for (previous in annotations) {
+                if (Json.stringify(previous) != Json.stringify(values[index]))
+                    throw DecodingException(path + "/annotations/" + index.toString(), "snapshot changed an observed annotation")
+                index += 1L
+            }
+            while (index < values.size) { annotations.add(values[index]); index += 1L }
+        } else for (value in values) annotations.add(value)
+        annotationsPresent = true
+    }
+
+    public fun finish(step: InteractionsStreamStep, batch: LlmStreamBatch) {
+        if (annotations.size == emitted) return
+        citations = readInteractionsCitationsBytes(step.dialect, annotations.toArray(), bytes, step.contentPath(index) + "/annotations")
+        while (emitted < citations.size) {
+            batch.events.add(LlmEvent.Citation(step.location, index, citations[emitted]))
+            emitted += 1L
+        }
+    }
+
+    public fun output(step: InteractionsStreamStep): OutputPart = if (type == "text") OutputPart.Text(text.toString(), citations)
+        else media ?: OutputPart.Native(step.dialect, metadata)
+
+    public fun wire(): JsonValue {
+        if (type != "text") return metadata
+        var result = replaceInteractionsField(metadata, "text", JsonValue.fromString(text.toString()))
+        if (annotationsPresent) result = replaceInteractionsField(result, "annotations", JsonValue.fromArray(annotations))
+        return result
+    }
+}

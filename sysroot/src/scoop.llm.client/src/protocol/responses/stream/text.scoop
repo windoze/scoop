@@ -1,0 +1,52 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.text.endsWith
+import scoop.text.startsWith
+
+internal fun acceptResponsesPart(item: ResponsesStreamItem, type: String, raw: JsonValue, batch: LlmStreamBatch) {
+    val summary = type.startsWith("response.reasoning_summary_part.")
+    if ((summary && item.kind != "reasoning") || (!summary && item.kind != "reasoning" && item.kind != "message"))
+        throw DecodingException("/type", "content part belongs to another output kind")
+    val channel = if (summary) "summary" else "content"
+    val index = responsesStreamIndex(raw, if (summary) "summary_index" else "content_index")
+    val value = responsesStreamField(raw, "part")
+    val kind = responsesStreamString(value, "type")
+    val added = type.endsWith(".added")
+    if (added) for (previous in item.parts) if (previous.channel == channel && previous.index == index)
+        throw DecodingException("/part", "content part already started")
+    val part = item.part(channel, index, kind, added)
+    if (part.done) throw DecodingException("/part", "content part already ended")
+    part.snapshot(item, value, batch)
+    if (!added) { part.done = true; part.textDone = true }
+}
+
+internal fun acceptResponsesText(item: ResponsesStreamItem, type: String, raw: JsonValue, batch: LlmStreamBatch) {
+    val summary = type.startsWith("response.reasoning_summary_text.")
+    val reasoning = summary || type.startsWith("response.reasoning_text.")
+    if ((reasoning && item.kind != "reasoning") || (!reasoning && item.kind != "message"))
+        throw DecodingException("/type", "text event belongs to another output kind")
+    val refusal = type.startsWith("response.refusal.")
+    val kind = if (summary) "summary_text" else if (reasoning) "reasoning_text" else if (refusal) "refusal" else "output_text"
+    val part = item.part(if (summary) "summary" else "content",
+        responsesStreamIndex(raw, if (summary) "summary_index" else "content_index"), kind, reasoning && !summary)
+    if (part.done || part.textDone) throw DecodingException("/type", "text already ended")
+    if (type.endsWith(".delta")) part.emit(item, responsesStreamString(raw, "delta"), batch)
+    else {
+        part.snapshot(item, raw, batch)
+        part.textDone = true
+    }
+}
+
+internal fun orderResponsesReasoning(item: ResponsesStreamItem, output: LlmOutputItem, raw: JsonValue): LlmOutputItem {
+    if (item.kind != "reasoning") return output
+    val content = when (output) { case Reasoning(parts, _) -> parts; else -> return output }
+    val summary = decodeResponsesValue<ResponsesReasoning>(raw, item.path).summary?.size ?: 0L
+    val result = ArrayList<OutputPart>()
+    for (part in item.parts) {
+        val index = if (part.channel == "summary") part.index else summary + part.index
+        if (index >= content.size) throw DecodingException(item.path, "final reasoning lost an observed part")
+        result.add(content[index])
+    }
+    return LlmOutputItem.Reasoning(result.toArray(), Some(item.id))
+}

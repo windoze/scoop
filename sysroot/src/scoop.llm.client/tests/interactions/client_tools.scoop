@@ -1,0 +1,82 @@
+package scoop.llm.client.tests.interactions
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class InteractionsClientToolsTest {
+    @Test
+    fun `Interactions pending functions retain actual IDs complete JSON and the original call context`() {
+        val raw = interactionsBody("[{\"type\":\"function_call\",\"id\":\"c1\",\"name\":\"lookup\",\"arguments\":{\"count\":9007199254740993},\"extra\":true}," +
+            "{\"type\":\"function_call\",\"id\":\"c2\",\"name\":\"lookup\",\"arguments\":{\"count\":2}}]", "requires_action")
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(interactionsDecode(raw)))
+        assertEquals(LlmCompletion.Complete, response.candidate(0L).completion)
+        assertEquals(LlmFinishReason.ToolCalls, response.candidate(0L).finishReason)
+        assertEquals(2L, response.clientToolCalls.size)
+        val first = response.clientToolCalls[0L]
+        assertEquals(ToolKey("local"), first.toolKey)
+        assertEquals(Some("c1"), first.reference.id)
+        assertEquals(9007199254740993L, first.decodeArguments<InteractionsCount>().count)
+        assertEquals(Json.stringify(raw["steps"]!![0L]), Json.stringify(first.reference.context!!))
+        assertEquals(Some("c2"), response.clientToolCalls[1L].reference.id)
+        assertEquals(UsageCompleteness.Final, response.usage.completeness)
+    }
+
+    @Test
+    fun `Interactions invalid unfinished completed and already answered calls cannot execute`() {
+        for (arguments in ["[]", "null", "\"{unfinished\"", "1"]) {
+            val raw = interactionsBody("[{\"type\":\"function_call\",\"id\":\"c\",\"name\":\"lookup\",\"arguments\":" + arguments + "}]", "requires_action")
+            val response = interactionsDecode(raw)
+            assertEquals(0L, response.clientToolCalls.size)
+            when (response.candidate(0L).items[0L]) { case ClientToolCall(call) -> when (call.input) {
+                case Invalid(text, _) -> assertEquals(arguments, text); else -> fail()
+            }; else -> fail() }
+        }
+        val call = "{\"type\":\"function_call\",\"id\":\"c\",\"name\":\"lookup\",\"arguments\":{}}"
+        for (status in ["in_progress", "failed", "incomplete", "cancelled", "future"]) {
+            val response = interactionsDecode(interactionsBody("[" + call + "]", status))
+            assertEquals(0L, response.clientToolCalls.size)
+            when (response.candidate(0L).items[0L]) { case ClientToolCall(value) -> when (value.input) {
+                case Incomplete(text) -> assertEquals("{}", text); else -> fail()
+            }; else -> fail() }
+        }
+        for (status in ["requires_action", "completed"]) {
+            val response = interactionsDecode(interactionsBody("[" + call + ",{\"type\":\"function_result\",\"call_id\":\"c\",\"result\":\"done\"}]", status))
+            assertEquals(0L, response.clientToolCalls.size)
+            when (response.candidate(0L).items[0L]) { case Native(_, _) -> assertEquals(2L, interactionsHistory(response).size); else -> fail() }
+        }
+        assertEquals(0L, interactionsDecode(interactionsBody("[" + call + "]")).clientToolCalls.size)
+    }
+
+    @Test
+    fun `Interactions functions require a unique client declaration and never use a server tool with the same name`() {
+        val raw = interactionsBody("[{\"type\":\"function_call\",\"id\":\"c\",\"name\":\"lookup\",\"arguments\":{}}]", "requires_action")
+        val function = interactionsRequest().tools[0L]
+        val native = NativeToolDefinition(interactionsDialect, "mcp_server", Json.parse("{\"name\":\"lookup\"}"))
+        val combinations: Array<Array<ToolDefinition>> = [[], [Server(ToolKey("server"), Native(native))],
+            [function, ClientFunction(ToolKey("second"), "lookup", Json.parse("{}"))]]
+        for (tools in combinations) {
+            val response = interactionsDecode(raw, LlmRequest([], tools = tools))
+            assertEquals(0L, response.clientToolCalls.size)
+            when (response.candidate(0L).items[0L]) { case Native(_, value) -> assertEquals("c", value["id"]!!.asString()); else -> fail() }
+        }
+        val result = interactionsDecode(raw, LlmRequest([], tools = [function, Server(ToolKey("server"), Native(native))]))
+        assertEquals(1L, result.clientToolCalls.size)
+    }
+
+    @Test
+    fun `Interactions call identity shape and execution ownership errors retain exact paths`() {
+        for ((call, field) in [("{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":{}}", "id"),
+            ("{\"type\":\"function_call\",\"id\":\"\",\"name\":\"lookup\",\"arguments\":{}}", "id"),
+            ("{\"type\":\"function_call\",\"id\":\"c\",\"name\":\"\",\"arguments\":{}}", "name"),
+            ("{\"type\":\"function_call\",\"id\":\"c\",\"name\":\"lookup\"}", "arguments"),
+            ("{\"type\":\"function_result\",\"call_id\":\"\",\"result\":\"ok\"}", "call_id"),
+            ("{\"type\":\"function_result\",\"call_id\":\"c\",\"result\":false}", "result")])
+            assertInteractionsFailure(interactionsBody("[" + call + "]", "requires_action"), "/steps/0/" + field)
+        assertInteractionsFailure(interactionsBody("[{\"type\":\"function_call\",\"id\":\"same\",\"name\":\"lookup\",\"arguments\":{}}," +
+            "{\"type\":\"code_execution_call\",\"id\":\"same\",\"arguments\":{}}]", "requires_action"), "/steps/1/id")
+        assertInteractionsFailure(interactionsBody("[{\"type\":\"code_execution_call\",\"id\":\"server\",\"arguments\":{}}," +
+            "{\"type\":\"function_result\",\"call_id\":\"server\",\"result\":\"ok\"}]"), "/steps/1/call_id")
+    }
+}

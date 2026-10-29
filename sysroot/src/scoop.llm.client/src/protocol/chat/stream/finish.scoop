@@ -1,0 +1,84 @@
+package scoop.llm.client
+
+import scoop.json.JsonArrayBuilder
+import scoop.json.JsonObjectBuilder
+import scoop.json.JsonValue
+
+internal fun finishChatStreamCandidate(state: ChatStreamCandidate, reason: String, batch: LlmStreamBatch, path: String) {
+    val finish = chatFinishReason(reason)
+    val completion = if (state.refused) LlmCompletion.Refused else when (finish) {
+        case Stop -> LlmCompletion.Complete
+        case ToolCalls -> LlmCompletion.Complete
+        else -> LlmCompletion.Incomplete
+    }
+    val wireTools = ArrayList<JsonValue>()
+    for (part in state.parts) {
+        when (part) {
+            case Tool(tool) -> wireTools.add(tool.wire(path + "/delta/tool_calls/" + tool.index.toString()))
+            else -> continue
+        }
+    }
+    val calls = ArrayList<LlmOutputItem>()
+    appendChatToolCalls(calls, state.dialect.id, Some(wireTools.toArray()), state.request.tools,
+        completion == LlmCompletion.Complete, path + "/delta/tool_calls")
+    val message = JsonObjectBuilder().add("role", JsonValue.fromString("assistant"))
+    val output = ArrayList<LlmOutputItem>()
+    var toolIndex = 0L
+    for (part in state.parts) {
+        when (part) {
+            case Text(value) -> {
+                if (state.retention == StreamRetention.Result) {
+                    output.add(value.item())
+                    message.add(value.field, JsonValue.fromString(value.text()))
+                }
+                value.release()
+            }
+            case Tool(value) -> {
+                val item = calls[toolIndex]
+                toolIndex += 1L
+                when (item) {
+                    case ClientToolCall(call) -> batch.events.add(LlmEvent.ClientToolCall(value.location, call))
+                    case Native(_, raw) -> batch.native("chat.tool.finished", raw, Some(value.location), false)
+                    else -> throw IllegalStateException(Some("unexpected Chat tool result"))
+                }
+                if (state.retention == StreamRetention.Result) output.add(item)
+                if (!value.historyAvailable) state.historyAvailable = false
+                value.release()
+            }
+            case Audio(value) -> {
+                val raw = value.wire(path + "/delta/audio")
+                if (state.retention == StreamRetention.Result) {
+                    output.add(LlmOutputItem.Native(state.dialect.id, JsonObjectBuilder().add("audio", raw).build()))
+                    message.add("audio", raw)
+                }
+                if (!value.historyAvailable) state.historyAvailable = false
+                value.release()
+            }
+            case Function(value) -> {
+                val raw = value.wire(path + "/delta/function_call")
+                if (state.retention == StreamRetention.Result) {
+                    output.add(LlmOutputItem.Native(state.dialect.id, JsonObjectBuilder().add("function_call", raw).build()))
+                    message.add("function_call", raw)
+                }
+                if (!value.historyAvailable) state.historyAvailable = false
+                value.release()
+            }
+            case Dialect(value) -> finishChatField(value, state, message, output)
+            case Native(value) -> output.add(LlmOutputItem.Native(state.dialect.id, value))
+        }
+    }
+    if (state.retention == StreamRetention.Result) {
+        if (wireTools.size != 0L) {
+            val tools = JsonArrayBuilder()
+            for (value in wireTools) tools.add(value)
+            message.add("tool_calls", tools.build())
+        }
+        val wireMessage = message.build()
+        val history = if (state.historyAvailable && state.dialect.canReplayMessage(wireMessage))
+            Some(LlmHistory(state.dialect.id, [state.dialect.historyMessage(wireMessage, path + "/delta")])) else None
+        state.result = Some(LlmCandidate(state.index, output.toArray(), completion, finish, history))
+    }
+    state.parts.clear()
+    state.finishReason = Some(reason)
+    batch.events.add(LlmEvent.CandidateFinished(state.index, completion, finish))
+}

@@ -1,0 +1,48 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun finishInteractionsStream(state: InteractionsStreamDecoder, status: String, batch: LlmStreamBatch) {
+    val values = ArrayList<JsonValue>()
+    var safe = interactionsTerminal(status)
+    for (step in state.steps) {
+        if (!step.done) throw DecodingException(step.path, "interaction completed before step.stop or a final step snapshot")
+        if (!step.historySafe) safe = false
+        values.add(step.wire())
+    }
+    val entries = readInteractionsSteps(values.toArray())
+    val items = ArrayList<LlmOutputItem>()
+    var pending = false
+    for (step in state.steps) {
+        val entry = entries[step.index]
+        if (step.type == "function_call") {
+            val answered = interactionsHasResult(entries, entry.call!!.id)
+            if (!answered) pending = true
+            val output = interactionsStreamClientCall(step, status, answered)
+            val call = when (output) { case ClientToolCall(value) -> Some(value); else -> None }
+            if (llmPresent(call)) batch.events.add(LlmEvent.ClientToolCall(step.location, call!!))
+            if (state.retention == StreamRetention.Result) items.add(output)
+        } else if (interactionsServerType(step.type) != None) {
+            if (!step.serverEmitted) emitInteractionsServer(state, step, batch)
+            if (state.retention == StreamRetention.Result)
+                items.add(readInteractionsServerStep(step.dialect, entry, entries, step.tools, true))
+        } else if (state.retention == StreamRetention.Result) {
+            if (step.type == "function_result") {
+                if (llmPresent(entry.result!!.result)) readInteractionsFunctionResult(entry)
+                items.add(LlmOutputItem.Native(step.dialect, entry.raw))
+            } else if (step.type == "model_output" || step.type == "thought") items.add(step.output())
+            else items.add(readInteractionsStep(step.dialect, entry, entries, step.tools, status))
+        }
+    }
+    val (completion, reason) = interactionsCompletion(status, pending)
+    state.currentUsage = LlmUsage(state.currentUsage.tokens, if (interactionsTerminal(status)) Final else Partial, state.currentUsage.native)
+    if (state.retention == StreamRetention.Result) {
+        val history = if (safe) Some(LlmHistory(state.dialect.id, values.toArray())) else None
+        state.result = Some(LlmResponse(state.dialect.id, [LlmCandidate(0L, items.toArray(), completion, reason, history)],
+            state.id, state.model, state.created, state.currentUsage))
+    }
+    batch.events.add(LlmEvent.CandidateFinished(0L, completion, reason))
+    batch.events.add(LlmEvent.Usage(state.currentUsage))
+    state.steps.clear()
+    state.finished = true
+}

@@ -1,0 +1,56 @@
+package scoop.llm.client.tests.cohere.stream
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.cohere.*
+import scoop.test.*
+
+internal fun cohereStream(retention: StreamRetention = StreamRetention.Result): LlmSseDecoder =
+    CohereChatProtocol(CohereChatDialect()).createStreamDecoder(cohereRequest(), retention)
+
+internal fun cohereEvent(type: String, index: Long? = None, member: String? = None, value: JsonValue? = None): String {
+    val event = JsonObjectBuilder().add("type", JsonValue.fromString(type))
+    if (index != None) event.add("index", JsonValue.fromLong(index!!))
+    when (member) { case Some(name) -> event.add("delta", JsonObjectBuilder().add("message",
+        JsonObjectBuilder().add(name, value!!).build()).build()); case None -> {} }
+    return Json.stringify(event.build())
+}
+
+internal fun cohereBegin(stream: LlmSseDecoder, message: String = "{\"role\":\"assistant\"}") {
+    stream.accept("", "{\"type\":\"message-start\",\"delta\":{\"message\":" + message + "}}")
+}
+
+internal fun cohereEnd(stream: LlmSseDecoder, reason: String = "COMPLETE", extra: String = ""): LlmStreamUpdate =
+    stream.accept("message-end", "{\"type\":\"message-end\",\"delta\":{\"finish_reason\":\"" + reason + "\"" + extra + "}}")
+
+internal fun cohereContent(stream: LlmSseDecoder, index: Long, text: String, kind: String = "text"): LlmStreamUpdate {
+    val result = stream.accept("message", cohereEvent("content-start", Some(index), Some("content"),
+        Some(JsonObjectBuilder().add("type", JsonValue.fromString(kind)).add(kind, JsonValue.fromString(text)).build())))
+    stream.accept("", cohereEvent("content-end", Some(index)))
+    return result
+}
+
+internal fun cohereToolStart(stream: LlmSseDecoder, index: Long, raw: JsonValue): LlmStreamUpdate =
+    stream.accept("", cohereEvent("tool-call-start", Some(index), Some("tool_calls"), Some(raw)))
+
+internal fun cohereToolDelta(stream: LlmSseDecoder, index: Long, text: String): LlmStreamUpdate =
+    stream.accept("", cohereEvent("tool-call-delta", Some(index), Some("tool_calls"),
+        Some(JsonObjectBuilder().add("function", JsonObjectBuilder().add("arguments", JsonValue.fromString(text)).build()).build())))
+
+internal fun cohereCite(stream: LlmSseDecoder, index: Long, raw: String): LlmStreamUpdate {
+    stream.accept("", cohereEvent("citation-start", Some(index), Some("citations"), Some(Json.parse(raw))))
+    return stream.accept("", cohereEvent("citation-end", Some(index)))
+}
+
+internal fun cohereCitationCount(update: LlmStreamUpdate): Long {
+    var count = 0L
+    for (event in update.events) when (event) { case Citation(_, _, _) -> count += 1L; else -> {} }
+    return count
+}
+
+internal fun assertCohereStreamFailure(stream: LlmSseDecoder, raw: String, path: String) {
+    val error = assertFailsWith<LlmProtocolException> { stream.accept("", raw); Unit }
+    assertEquals(path, error.path)
+    assertFalse(stream.isFinished)
+    assertFailsWith<LlmOutputException> { stream.response(); Unit }
+}

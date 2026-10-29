@@ -1,0 +1,39 @@
+package scoop.llm.client.tests.converse
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ConverseCompositionTest {
+    @Test
+    fun `Converse server search code citations and client calls keep separate ownership after serialization`() {
+        val request = LlmRequest([], tools = [ClientFunction(ToolKey("local"), "lookup", Json.parse("{}")), Server(ToolKey("search"), WebSearch()),
+            Server(ToolKey("code"), Native(NativeToolDefinition(converseDialect, "systemTool", Json.parse("{\"name\":\"nova_code_interpreter\"}"))))])
+        val body = converseBody("[{\"toolUse\":{\"toolUseId\":\"code-1\",\"name\":\"nova_code_interpreter\",\"type\":\"server_tool_use\",\"input\":{\"code\":\"1+1\"}}}," +
+            "{\"toolResult\":{\"toolUseId\":\"code-1\",\"type\":\"nova_code_interpreter_result\",\"status\":\"success\",\"content\":[{\"text\":\"2\"}]}}," +
+            "{\"toolUse\":{\"toolUseId\":\"search-1\",\"name\":\"nova_grounding\",\"type\":\"server_tool_use\",\"input\":{\"query\":\"example\"}}}," +
+            "{\"toolResult\":{\"toolUseId\":\"search-1\",\"status\":\"success\",\"content\":[{\"searchResult\":{\"source\":\"https://example.test/source\",\"title\":\"Source\",\"content\":[{\"text\":\"evidence\"}]}}]}}," +
+            "{\"citationsContent\":{\"content\":[{\"text\":\"Answer\"}],\"citations\":[{\"title\":\"Source\",\"location\":{\"web\":{\"url\":\"https://example.test/source\"}}}]}}," +
+            "{\"toolUse\":{\"toolUseId\":\"local-1\",\"name\":\"lookup\",\"input\":{\"count\":2}}}]", "tool_use",
+            Some("{\"inputTokens\":3,\"cacheReadInputTokens\":7,\"cacheWriteInputTokens\":0,\"outputTokens\":5,\"totalTokens\":15}"))
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(converseDecode(body, request)))
+        assertEquals("Answer", response.text)
+        assertEquals(1L, response.clientToolCalls.size)
+        assertEquals(ToolKey("local"), response.clientToolCalls[0L].toolKey)
+        assertEquals(4L, response.serverToolActivities.size)
+        assertEquals(ServerToolKind.CodeExecution, response.serverToolActivities[0L].kind)
+        assertEquals(ServerToolStatus.InProgress, response.serverToolActivities[0L].status)
+        assertEquals(ServerToolStatus.Completed, response.serverToolActivities[1L].status)
+        assertEquals(Some(ToolKey("search")), response.serverToolActivities[2L].toolKey)
+        assertEquals(1L, response.serverToolActivities[3L].sources.size)
+        assertEquals(ServerToolKind.WebSearch, response.serverToolActivities[3L].kind)
+        when (response.candidate(0L).items[4L]) {
+            case Message(parts, _) -> when (parts[0L]) { case Text(_, citations) -> { assertEquals(1L, citations.size); assertFalse(converseRangePresent(citations[0L])) }; else -> fail() }
+            else -> fail()
+        }
+        assertEquals(Some(10L), response.usage.tokens.inputTokens)
+        assertEquals(None, response.createdAt)
+        assertEquals(Json.stringify(body["output"]!!["message"]!!), Json.stringify(converseHistory(response)))
+    }
+}

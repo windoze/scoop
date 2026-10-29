@@ -1,0 +1,149 @@
+package scoop.llm.client
+
+import scoop.asyncio.*
+import scoop.http.client.HttpClient
+import scoop.http.client.HttpWebSocketOptions
+import scoop.url.UrlQuery
+
+/** A reusable generation client with explicit ownership of calls and optional HTTP transport. */
+public class LlmClient private constructor(internal val state: LlmClientState) : AsyncCloseable {
+    public companion object {
+        public suspend fun open(scope: CoroutineScope, httpClient: HttpClient? = None): LlmClient {
+            scope.job.ensureActive()
+            ensureActive()
+            val http = httpClient ?: HttpClient.open(scope)
+            val owned = when (httpClient) { case None -> true; case Some(_) -> false }
+            val state = LlmClientState(currentEventLoop(), http, owned)
+            try {
+                startLlmOwner(state, scope)
+                scope.job.ensureActive()
+                ensureActive()
+                if (!state.lock.withLock { state.adopted }) throw LlmClientClosedException()
+                return LlmClient(state)
+            } catch (error: Throwable) {
+                try {
+                    if (state.lock.withLock { state.adopted }) closeLlmClient(state)
+                    else if (owned) http.close()
+                } catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+                throw error
+            }
+        }
+    }
+
+    public val isClosed: Boolean get() = state.lock.withLock { state.closed }
+
+    public suspend fun generate(model: LlmModel, request: LlmRequest, options: LlmCallOptions = LlmCallOptions()): LlmResult =
+        generateLlm(state, model, request, options)
+
+    public suspend fun countTokens(model: LlmModel, request: LlmRequest, options: LlmCallOptions = LlmCallOptions()): LlmTokenCountResult =
+        countLlmTokens(state, model, request, options)
+
+    public suspend fun listModels(endpoint: LlmEndpoint, query: UrlQuery = UrlQuery(),
+        options: LlmCallOptions = LlmCallOptions()): LlmModelListResult = listLlmModels(state, endpoint, query, options)
+
+    public suspend fun retrieveModel(endpoint: LlmEndpoint, modelId: String,
+        options: LlmCallOptions = LlmCallOptions(), extensions: Array<DialectExtension> = []): LlmModelResult =
+        retrieveLlmModel(state, endpoint, modelId, options, extensions)
+
+    public suspend fun uploadFile(endpoint: LlmEndpoint, upload: LlmFileUpload,
+        options: LlmCallOptions = LlmCallOptions()): LlmFileResult = uploadLlmFile(state, endpoint, upload, options)
+
+    public suspend fun listFiles(endpoint: LlmEndpoint, query: UrlQuery = UrlQuery(),
+        options: LlmCallOptions = LlmCallOptions()): LlmFileListResult = listLlmFiles(state, endpoint, query, options)
+
+    public suspend fun registerFiles(endpoint: LlmEndpoint, uris: Array<String>,
+        options: LlmCallOptions = LlmCallOptions()): LlmFileListResult = registerLlmFiles(state, endpoint, uris, options)
+
+    public suspend fun retrieveFile(endpoint: LlmEndpoint, fileId: String,
+        options: LlmCallOptions = LlmCallOptions()): LlmFileResult = retrieveLlmFile(state, endpoint, fileId, options)
+
+    public suspend fun downloadFile(endpoint: LlmEndpoint, fileId: String, options: LlmCallOptions = LlmCallOptions()): LlmFileContentResult {
+        val (bytes, metadata) = readLlmFileBytes(state, endpoint, fileId, options, false)
+        return LlmFileContentResult(endpoint.provider.protocol.dialectId, fileId, bytes, metadata)
+    }
+
+    public suspend fun deleteFile(endpoint: LlmEndpoint, fileId: String, options: LlmCallOptions = LlmCallOptions()): LlmFileDeletionResult {
+        val (native, metadata) = readLlmFileBytes(state, endpoint, fileId, options, true)
+        return LlmFileDeletionResult(endpoint.provider.protocol.dialectId, fileId, native, metadata)
+    }
+
+    public suspend fun compactResponse(model: LlmModel, request: LlmRequest,
+        options: LlmCallOptions = LlmCallOptions()): ResponsesCompactionResult = compactLlmResponse(state, model, request, options)
+
+    public suspend fun retrieveResponse(endpoint: LlmEndpoint, responseId: String, tools: Array<ToolDefinition> = [],
+        include: Array<String> = [], options: LlmCallOptions = LlmCallOptions()): LlmResult =
+        readStoredLlmResponse(state, endpoint, responseId, tools, include, options, false)
+
+    public suspend fun cancelResponse(endpoint: LlmEndpoint, responseId: String, tools: Array<ToolDefinition> = [],
+        options: LlmCallOptions = LlmCallOptions()): LlmResult =
+        readStoredLlmResponse(state, endpoint, responseId, tools, [], options, true)
+
+    public suspend fun deleteResponse(endpoint: LlmEndpoint, responseId: String,
+        options: LlmCallOptions = LlmCallOptions()): ResponsesDeletionResult =
+        deleteStoredLlmResponse(state, endpoint, responseId, options)
+
+    public suspend fun retrieveInteraction(endpoint: LlmEndpoint, interactionId: String, tools: Array<ToolDefinition> = [],
+        options: LlmCallOptions = LlmCallOptions()): LlmResult =
+        readStoredLlmInteraction(state, endpoint, interactionId, tools, options, false)
+
+    public suspend fun cancelInteraction(endpoint: LlmEndpoint, interactionId: String, tools: Array<ToolDefinition> = [],
+        options: LlmCallOptions = LlmCallOptions()): LlmResult =
+        readStoredLlmInteraction(state, endpoint, interactionId, tools, options, true)
+
+    public suspend fun deleteInteraction(endpoint: LlmEndpoint, interactionId: String,
+        options: LlmCallOptions = LlmCallOptions()): InteractionsDeletionResult =
+        deleteStoredLlmInteraction(state, endpoint, interactionId, options)
+
+    public suspend fun openInteractionEvents(endpoint: LlmEndpoint, interactionId: String, lastEventId: String? = None,
+        options: LlmCallOptions = LlmCallOptions()): InteractionsEventStream =
+        openLlmInteractionEvents(state, endpoint, interactionId, lastEventId, options)
+
+    public suspend fun <T> withInteractionEvents(endpoint: LlmEndpoint, interactionId: String, lastEventId: String? = None,
+        options: LlmCallOptions = LlmCallOptions(), block: suspend (InteractionsEventStream) -> T): T =
+        openInteractionEvents(endpoint, interactionId, lastEventId, options).useAsync(block)
+
+    public suspend fun openStream(model: LlmModel, request: LlmRequest, options: LlmCallOptions = LlmCallOptions(),
+        retention: StreamRetention = EventsOnly): LlmStream = openLlmStream(state, model, request, options, retention)
+
+    public suspend fun <T> withStream(model: LlmModel, request: LlmRequest, options: LlmCallOptions = LlmCallOptions(),
+        retention: StreamRetention = EventsOnly, block: suspend (LlmStream) -> T): T =
+        openStream(model, request, options, retention).useAsync(block)
+
+    public suspend fun openResponsesSession(endpoint: LlmEndpoint, handshakeOptions: LlmCallOptions = LlmCallOptions(),
+        webSocketOptions: HttpWebSocketOptions = HttpWebSocketOptions()): ResponsesSession =
+        openResponsesSessionState(state, endpoint, handshakeOptions, webSocketOptions)
+
+    public suspend fun <T> withResponsesSession(endpoint: LlmEndpoint, handshakeOptions: LlmCallOptions = LlmCallOptions(),
+        webSocketOptions: HttpWebSocketOptions = HttpWebSocketOptions(), block: suspend (ResponsesSession) -> T): T =
+        openResponsesSession(endpoint, handshakeOptions, webSocketOptions).useAsync(block)
+
+    public suspend fun openGeminiLiveSession(model: LlmModel, setup: GeminiLiveSetup = GeminiLiveSetup(),
+        openingOptions: LlmCallOptions = LlmCallOptions(), webSocketOptions: HttpWebSocketOptions = HttpWebSocketOptions()): GeminiLiveSession =
+        openGeminiLiveSessionState(state, model, setup, openingOptions, webSocketOptions)
+
+    public suspend fun <T> withGeminiLiveSession(model: LlmModel, setup: GeminiLiveSetup = GeminiLiveSetup(),
+        openingOptions: LlmCallOptions = LlmCallOptions(), webSocketOptions: HttpWebSocketOptions = HttpWebSocketOptions(),
+        block: suspend (GeminiLiveSession) -> T): T = openGeminiLiveSession(model, setup, openingOptions, webSocketOptions).useAsync(block)
+
+    public suspend fun openRealtimeSession(model: LlmModel, configuration: RealtimeConfiguration = RealtimeConfiguration(),
+        openingOptions: LlmCallOptions = LlmCallOptions(), webSocketOptions: HttpWebSocketOptions = HttpWebSocketOptions()): RealtimeSession =
+        openRealtimeSessionState(state, model, configuration, openingOptions, webSocketOptions)
+
+    public suspend fun <T> withRealtimeSession(model: LlmModel, configuration: RealtimeConfiguration = RealtimeConfiguration(),
+        openingOptions: LlmCallOptions = LlmCallOptions(), webSocketOptions: HttpWebSocketOptions = HttpWebSocketOptions(),
+        block: suspend (RealtimeSession) -> T): T = openRealtimeSession(model, configuration, openingOptions, webSocketOptions).useAsync(block)
+
+    public suspend fun openGptLiveSession(model: LlmModel, setup: GptLiveSetup = GptLiveSetup(),
+        openingOptions: LlmCallOptions = LlmCallOptions(), webSocketOptions: HttpWebSocketOptions = HttpWebSocketOptions()): GptLiveSession =
+        openGptLiveSessionState(state, model, setup, openingOptions, webSocketOptions)
+
+    public suspend fun <T> withGptLiveSession(model: LlmModel, setup: GptLiveSetup = GptLiveSetup(),
+        openingOptions: LlmCallOptions = LlmCallOptions(), webSocketOptions: HttpWebSocketOptions = HttpWebSocketOptions(),
+        block: suspend (GptLiveSession) -> T): T = openGptLiveSession(model, setup, openingOptions, webSocketOptions).useAsync(block)
+
+    public override suspend fun close() { closeLlmClient(state) }
+}
+
+/** The same client and request API with scoped opening and cleanup. */
+public suspend fun <T> withLlmClient(httpClient: HttpClient? = None, block: suspend (LlmClient) -> T): T =
+    coroutineScope suspend { scope -> LlmClient.open(scope, httpClient).useAsync(block) }

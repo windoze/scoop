@@ -1,0 +1,67 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.Json
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ResponsesCountFailuresTest {
+    @Test
+    fun `Responses token count rejects unsupported model dialect and input before authentication`() {
+        withLlmServer suspend { _, _, _, original ->
+            val auth = RecordingAuth()
+            val endpoint = LlmEndpoint(Providers.openAiResponses(), auth, Some(original.baseUrl))
+            val deepSeek = LlmEndpoint(Providers.deepSeekResponses(), auth, Some(original.baseUrl))
+            val unsupported = endpoint.model("model", Some(ModelCapabilities(serverTokenCount = Unsupported("not available"))))
+            val prompt = LlmRequest([], extensions = [DialectExtension(OpenAiResponsesDialect().id, Json.parse("{\"prompt\":{\"id\":\"saved\"}}"))])
+            withLlmClient suspend { client ->
+                for ((model, request, path) in [(unsupported, sampleRequest, "/capabilities/serverTokenCount"),
+                    (deepSeek.model("model"), sampleRequest, "/provider"), (endpoint.model("model"), prompt, "/prompt")]) {
+                    val finished = FinishedCalls()
+                    val failure = expectLlmFailure<LlmRequestException> suspend {
+                        client.countTokens(model, request, LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                    }
+                    assertEquals(path, failure.path)
+                    assertEquals(1L, finished.values.size)
+                    assertEquals(0L, finished.values[0].attempts.size)
+                    assertEquals(LlmCallOutcome.Failed, finished.values[0].outcome)
+                }
+            }
+            assertEquals(0L, auth.requests.size)
+        }
+    }
+
+    @Test
+    fun `Responses token count malformed response fails once and retains actual HTTP observation`() {
+        withLlmServer suspend { _, scope, listener, original ->
+            val auth = RecordingAuth()
+            val body = "{\"object\":\"response.input_tokens\",\"input_tokens\":-1}"
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    connection.receiveRequest()!!.body.readAllBytes(4096L)
+                    sendLlmReply(connection, 200U, body)
+                }
+            }
+            val finished = FinishedCalls()
+            withLlmClient suspend { client ->
+                val failure = expectLlmFailure<LlmProtocolException> suspend {
+                    client.countTokens(LlmEndpoint(Providers.openAiResponses(), auth, Some(original.baseUrl)).model("model"), sampleRequest,
+                        LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                }
+                assertEquals("/input_tokens", failure.path)
+                assertEquals(body, Json.stringify(failure.native))
+            }
+            assertEquals(1L, auth.requests.size)
+            assertEquals(1L, finished.values.size)
+            assertEquals(LlmCallOutcome.Failed, finished.values[0].outcome)
+            val attempt = finished.values[0].attempts[0]
+            assertEquals(Some(200U), attempt.status)
+            assertTrue(attempt.request.sentAt != None)
+            assertTrue(attempt.response.receivedAt != None)
+            assertEquals(None, attempt.response.completedAt)
+            serving.join()
+        }
+    }
+}

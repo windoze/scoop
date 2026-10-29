@@ -1,0 +1,103 @@
+package scoop.llm.client
+
+import scoop.asyncio.*
+import scoop.http.client.HttpClient
+import scoop.platform.concurrent.Mutex
+
+internal class LlmClientState(val loop: EventLoop, val http: HttpClient, val ownsHttp: Boolean) {
+    val lock = Mutex()
+    var adopted = false
+    var closing = false
+    var closed = false
+    var ownerHold: Continuation<Unit>? = None
+    var wake: Continuation<Unit>? = None
+    val calls = ArrayList<LlmOwnedCall>()
+    val closeWaiters = ArrayList<Continuation<Unit>>()
+}
+
+internal fun startLlmOwner(state: LlmClientState, parent: CoroutineScope) {
+    parent.launch suspend {
+        suspendCoroutine<Unit> { hold ->
+            state.lock.withLock { state.ownerHold = Some(hold); state.adopted = true }
+            startCoroutine<Unit>(suspend { runLlmOwner(state) }, LlmOwnerCompletion(state))
+        }
+    }
+}
+
+private suspend fun runLlmOwner(state: LlmClientState) {
+    val owner = currentJobOrNone() ?: throw IllegalStateException(Some("LLM owner requires a job"))
+    val listener = owner.invokeOnCancellation { _ -> stopLlmClient(state) }
+    try {
+        nonCancellableScope suspend { _ ->
+            suspendCoroutine<Unit> { continuation ->
+                val ready = state.lock.withLock {
+                    if (state.closing) true else { state.wake = Some(continuation); false }
+                }
+                if (ready) continuation.resume(Unit)
+            }
+            val calls = state.lock.withLock { state.calls.toArray() }
+            for (call in calls) call.lifetime.join()
+            if (state.ownsHttp) state.http.close()
+            Unit
+        }
+    } finally { listener.dispose() }
+}
+
+private class LlmOwnerCompletion(val state: LlmClientState) : Continuation<Unit> {
+    public override fun resume(value: Unit) { finish(None) }
+    public override fun resumeWithException(exception: Throwable) { finish(Some(exception)) }
+    private fun finish(error: Throwable?) {
+        val (hold, waiting) = state.lock.withLock {
+            state.closing = true; state.closed = true
+            val hold = state.ownerHold
+            val waiting = state.closeWaiters.toArray()
+            state.ownerHold = None; state.wake = None; state.closeWaiters.clear()
+            (hold, waiting)
+        }
+        hold?.resume(Unit)
+        for (waiter in waiting) {
+            when (error) { case Some(reason) -> waiter.resumeWithException(reason); case None -> waiter.resume(Unit) }
+        }
+    }
+}
+
+internal fun stopLlmClient(state: LlmClientState) {
+    val (wake, calls) = state.lock.withLock {
+        state.closing = true
+        val wake = state.wake
+        state.wake = None;
+        (wake, state.calls.toArray())
+    }
+    for (call in calls) call.stop(LlmClientClosedException())
+    wake?.resume(Unit)
+}
+
+internal suspend fun closeLlmClient(state: LlmClientState) {
+    if (state.lock.withLock { state.closed }) return
+    checkLlmCloseContext(state)
+    if (currentEventLoop() !== state.loop) throw IllegalStateException(Some("LLM client belongs to another event loop"))
+    suspendCoroutine<Unit> { continuation ->
+        val closed = state.lock.withLock {
+            if (state.closed) true else { state.closeWaiters.add(continuation); false }
+        }
+        if (closed) continuation.resume(Unit) else stopLlmClient(state)
+    }
+}
+
+internal fun registerLlmCall(state: LlmClientState, call: LlmOwnedCall) {
+    if (currentEventLoop() !== state.loop) throw IllegalStateException(Some("LLM client belongs to another event loop"))
+    state.lock.withLock {
+        if (state.closing) throw LlmClientClosedException()
+        state.calls.add(call)
+    }
+}
+
+internal fun removeLlmCall(state: LlmClientState, call: LlmOwnedCall) {
+    state.lock.withLock {
+        var index = 0L
+        while (index < state.calls.size) {
+            if (state.calls[index] === call) { state.calls.removeAt(index); return@withLock }
+            index += 1L
+        }
+    }
+}

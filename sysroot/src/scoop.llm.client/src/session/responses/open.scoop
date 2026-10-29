@@ -1,0 +1,17 @@
+package scoop.llm.client
+
+import scoop.http.client.HttpWebSocketOptions
+
+internal suspend fun openResponsesSessionState(client: LlmClientState, endpoint: LlmEndpoint,
+    options: LlmCallOptions, webSocketOptions: HttpWebSocketOptions): ResponsesSession {
+    val prepared = ResponsesSessionProtocol()
+    val opened = openLlmWebSocket(client, endpoint, options, webSocketOptions, ResponsesSessionClosedException(), {
+        val protocol = endpoint.provider.protocol
+        if (!(protocol is ResponsesProtocol)) throw LlmRequestException("/provider", "endpoint does not use the Responses protocol")
+        prepared.value = Some(protocol)
+        protocol.webSocketUrl(endpoint.baseUrl)
+    }, suspend { _, _ -> Unit })
+    return ResponsesSession(opened.connection, prepared.value!!, opened.metadata)
+}
+
+private class ResponsesSessionProtocol { var value: ResponsesProtocol? = None }

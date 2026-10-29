@@ -1,0 +1,64 @@
+package scoop.llm.client.tests.models
+
+import scoop.llm.client.tests.generationProtocol
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.*
+
+@Test
+private class NativeModelRequestTest {
+    @Test
+    fun `native model paths preserve explicit addresses and query filters while applying each API version`() {
+        val base = Url.parse("https://example.test/prefix?tenant=one&page_size=old")
+        val cohere = modelLookup(Providers.cohereChat())
+        assertEquals("https://api.cohere.com/v1/models", cohere.listUrl(Providers.cohereChat().defaultBaseUrl!!).toString())
+        assertEquals("https://api.cohere.com/v2/chat", generationProtocol(Providers.cohereChat()).generationUrl(Providers.cohereChat().defaultBaseUrl!!, "m").toString())
+        val query = cohereModelsQuery(Some(18446744073709551615UL), Some("token /?#"), Some("chat"), Some(false))
+        assertEquals("https://example.test/prefix/v1/models?tenant=one&page_size=18446744073709551615&page_token=token%20%2F%3F%23&endpoint=chat&default_only=false",
+            cohere.listUrl(base, query).toString())
+        assertEquals("", cohereModelsQuery().toString())
+        assertEquals("page_size=0&page_token=&default_only=true", cohereModelsQuery(Some(0UL), Some(""), defaultOnly = Some(true)).toString())
+        assertEquals("https://example.test/prefix/v1/models/model%20%2F%3F%23?tenant=one&page_size=old", cohere.retrieveUrl(base, "model /?#").toString())
+        val router = modelLookup(Providers.openRouterChat())
+        assertEquals("https://example.test/prefix/model/author/model%3Afree%20%3F%23?tenant=one&page_size=old", router.retrieveUrl(base, "author/model:free ?#").toString())
+        for (id in ["", "only", "/model", "author/", "author/model/extra"])
+            assertEquals("/modelId", assertFailsWith<LlmRequestException> { router.retrieveUrl(base, id); Unit }.path)
+        val bedrock = modelLookup(Providers.bedrockConverse())
+        assertEquals("https://example.test/prefix/foundation-models?tenant=one&page_size=old&byProvider=A%20B",
+            bedrock.listUrl(base, UrlQuery().add("byProvider", Some("A B"))).toString())
+        assertEquals("https://example.test/prefix/foundation-models/arn%3Aaws%3Abedrock%3Ar%3A%3Afoundation-model%2Fvendor.model%3Av1?tenant=one&page_size=old",
+            bedrock.retrieveUrl(base, "arn:aws:bedrock:r::foundation-model/vendor.model:v1").toString())
+        assertEquals("http://localhost:11434/api/tags", modelCatalog(Providers.ollamaChat()).listUrl(Providers.ollamaChat().defaultBaseUrl!!).toString())
+    }
+
+    @Test
+    fun `Ollama show uses JSON POST options and protects the explicit model while GET lookup has no body extensions`() {
+        val catalog = modelLookup(Providers.ollamaChat())
+        val base = Url.parse("http://localhost:11434/api?tenant=x")
+        for ((extensions, expected) in [(ArrayList<DialectExtension>().toArray(), "{\"model\":\"org/model:tag\"}"),
+            ([ollamaModelOptions()], "{\"model\":\"org/model:tag\"}"),
+            ([ollamaModelOptions(Some(false))], "{\"model\":\"org/model:tag\",\"verbose\":false}"),
+            ([ollamaModelOptions(Some(true))], "{\"model\":\"org/model:tag\",\"verbose\":true}")]) {
+            when (catalog.retrieveRequest(base, "org/model:tag", extensions)) {
+                case Post(url, body) -> {
+                    assertEquals("http://localhost:11434/api/show?tenant=x", url.toString())
+                    assertEquals(expected, Json.stringify(body))
+                }
+                else -> fail()
+            }
+        }
+        for ((extensions, path) in [([DialectExtension(OllamaChatDialect().id, Json.parse("{\"model\":\"other\"}"))], "/extensions/0/value/model"),
+            ([DialectExtension(OpenAiChatDialect().id, Json.parse("{}"))], "/extensions/0/dialect"),
+            ([ollamaModelOptions(), ollamaModelOptions()], "/extensions/1")]) {
+            assertEquals(path, assertFailsWith<LlmRequestException> { catalog.retrieveRequest(base, "m", extensions); Unit }.path)
+        }
+        for (provider in [Providers.openAiChat(), Providers.cohereChat(), Providers.bedrockConverse(), Providers.openRouterChat()]) {
+            val lookup = modelLookup(provider)
+            val prepared = lookup.retrieveRequest(base, "author/model")
+            assertEquals(lookup.retrieveUrl(base, "author/model").toString(), when (prepared) { case Get(url) -> url.toString(); else -> fail() })
+            assertEquals("/extensions", assertFailsWith<LlmRequestException> { lookup.retrieveRequest(base, "m", [ollamaModelOptions()]); Unit }.path)
+        }
+    }
+}

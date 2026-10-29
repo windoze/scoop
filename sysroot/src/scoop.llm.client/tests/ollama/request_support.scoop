@@ -1,0 +1,20 @@
+package scoop.llm.client.tests.ollama
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+internal fun ollamaEncode(request: LlmRequest, model: String = "application-model"): JsonValue =
+    OllamaChatProtocol(OllamaChatDialect()).encodeRequest(model, request)
+
+internal fun ollamaInput(options: LlmGenerationOptions = LlmGenerationOptions()): LlmRequest =
+    LlmRequest([Message([Text("hello")])], options = options)
+
+internal fun ollamaExtension(value: String): Array<DialectExtension> = [DialectExtension(ollamaDialect, Json.parse(value))]
+
+internal fun assertOllamaRequestFailure(request: LlmRequest, path: String) {
+    assertEquals(path, assertFailsWith<LlmRequestException> { ollamaEncode(request); Unit }.path)
+}
+
+internal fun ollamaFunction(key: String = "local", name: String = "lookup", strict: Boolean? = None): ToolDefinition =
+    ClientFunction(ToolKey(key), name, Json.parse("{\"type\":\"object\",\"properties\":{\"count\":{\"type\":\"integer\"}}}"), "Find a value", strict)

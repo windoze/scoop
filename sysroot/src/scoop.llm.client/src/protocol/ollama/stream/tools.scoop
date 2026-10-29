@@ -1,0 +1,46 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal class OllamaStreamTool(val wire: JsonValue, var item: LlmOutputItem, val location: LlmItemLocation) {
+    fun finish(complete: Boolean, batch: LlmStreamBatch) {
+        when (item) {
+            case ClientToolCall(call) -> {
+                val result = if (complete) call else ClientToolCall(call.reference, ClientToolInput.Incomplete(ollamaStreamArguments(call.input)))
+                item = LlmOutputItem.ClientToolCall(result)
+                batch.events.add(LlmEvent.ClientToolCall(location, result))
+            }
+            else -> return
+        }
+    }
+}
+
+internal fun appendOllamaStreamTools(state: OllamaStreamDecoder, calls: Array<JsonValue>, batch: LlmStreamBatch) {
+    val items = ArrayList<LlmOutputItem>()
+    appendOllamaCalls(items, state.dialect.id, calls, state.request.tools, true, state.callIds)
+    var index = 0L
+    for (item in items) {
+        val location = state.location()
+        val tool = OllamaStreamTool(calls[index], item, location)
+        var pending = false
+        when (item) {
+            case ClientToolCall(call) -> {
+                batch.events.add(LlmEvent.ToolInputDelta(LlmToolInputDelta(location, ollamaStreamArguments(call.input), Some(call.reference))))
+                pending = true
+            }
+            case Native(_, value) -> batch.native("ollama.tool", value, Some(location), false)
+            else -> throw IllegalStateException(Some("unexpected Ollama tool item"))
+        }
+        if (pending || state.retain) state.tools.add(tool)
+        if (state.retain) state.slots.add(OllamaStreamSlot.Tool(tool))
+        state.callCount += 1L
+        batch.hasOutput = true
+        index += 1L
+    }
+}
+
+private fun ollamaStreamArguments(input: ClientToolInput): String = when (input) {
+    case JsonArguments(arguments) -> arguments.rawText
+    case Invalid(text, _) -> text
+    else -> throw IllegalStateException(Some("unexpected pending Ollama function input"))
+}

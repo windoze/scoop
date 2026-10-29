@@ -1,0 +1,87 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ResponsesServerToolTest {
+    @Test
+    fun `Responses search sources citations and client calls coexist in output order`() {
+        val output = "[{\"type\":\"web_search_call\",\"id\":\"search\",\"status\":\"completed\",\"action\":{\"type\":\"search\",\"queries\":[\"q\"],\"sources\":[{\"type\":\"url\",\"url\":\"https://example.com/page\"}]}}," +
+            responsesCall("{\"count\":1}") + "," +
+            "{\"type\":\"message\",\"id\":\"answer\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"结果😀\",\"annotations\":[{\"type\":\"url_citation\",\"url\":\"https://example.com/page\",\"title\":\"Page\",\"start_index\":0,\"end_index\":3}]}]}]"
+        val tools: Array<ToolDefinition> = [Server(ToolKey("web"), WebSearch()), ClientFunction(ToolKey("local"), "count", Json.parse("{}"))]
+        val result = ResponsesProtocol(OpenAiResponsesDialect()).decodeResponse(responsesBody(output), responsesRequest(tools))
+        assertEquals(3L, result.candidate(0L).items.size)
+        assertEquals("结果😀", result.text)
+        assertEquals(1L, result.clientToolCalls.size)
+        assertEquals(ToolKey("local"), result.clientToolCalls[0].toolKey)
+        val activity = result.serverToolActivities[0]
+        assertEquals(ServerToolKind.WebSearch, activity.kind)
+        assertEquals(ServerToolStatus.Completed, activity.status)
+        assertEquals(Some(ToolKey("web")), activity.toolKey)
+        assertEquals(Some("search"), activity.id)
+        assertEquals("q", activity.action!!["queries"]!![0].asString())
+        assertEquals("/output/0/action/sources/0", activity.sources[0].id)
+        when (activity.sources[0].location) { case Url(url) -> assertEquals("https://example.com/page", url.toString()); else -> fail() }
+        when (result.candidate(0L).items[2]) {
+            case Message(parts, _) -> when (parts[0]) {
+                case Text(_, citations) -> {
+                    assertEquals(1L, citations.size)
+                    assertTrue(when (citations[0].range) { case None -> true; case Some(_) -> false })
+                    assertEquals("3", citations[0].source.native!!["end_index"]!!.asNumberToken())
+                    assertEquals(Some("Page"), citations[0].source.title)
+                }
+                else -> fail()
+            }
+            else -> fail()
+        }
+        val restored = Json.decodeFromString<LlmResponse>(Json.encodeToString(result))
+        assertEquals("search", responsesHistory(restored)[0]["id"]!!.asString())
+        assertEquals(1L, restored.serverToolActivities.size)
+    }
+
+    @Test
+    fun `Responses server failures unknown status and ambiguous declarations do not become client work`() {
+        val dialect = OpenAiResponsesDialect()
+        val protocol = ResponsesProtocol(dialect)
+        val tools: Array<ToolDefinition> = [Server(ToolKey("first"), WebSearch()),
+            Server(ToolKey("second"), Native(NativeToolDefinition(dialect.id, "web_search_preview", version = Some("2025_03_11")))),
+            ClientFunction(ToolKey("client"), "web_search", Json.parse("{}"))]
+        for ((status, expected) in [("failed", ServerToolStatus.Failed), ("searching", ServerToolStatus.InProgress),
+            ("incomplete", ServerToolStatus.Unknown), ("future", ServerToolStatus.Unknown)]) {
+            val output = "[{\"type\":\"web_search_call\",\"status\":\"" + status + "\",\"action\":{\"type\":\"open_page\",\"url\":null}}]"
+            val result = protocol.decodeResponse(responsesBody(output), responsesRequest(tools))
+            assertEquals(LlmCompletion.Complete, result.candidate(0L).completion)
+            assertEquals(expected, result.serverToolActivities[0].status)
+            assertEquals(None, result.serverToolActivities[0].toolKey)
+            assertEquals(None, result.serverToolActivities[0].id)
+            assertEquals(0L, result.clientToolCalls.size)
+            assertEquals("open_page", result.serverToolActivities[0].action!!["type"]!!.asString())
+        }
+        val single: Array<ToolDefinition> = [tools[1]]
+        val native = protocol.decodeResponse(responsesBody("[{\"type\":\"web_search_call\",\"status\":\"completed\"}]"), responsesRequest(single))
+        assertEquals(Some(ToolKey("second")), native.serverToolActivities[0].toolKey)
+    }
+
+    @Test
+    fun `Responses other server tools retain native results without fabricating plain text`() {
+        val dialect = OpenAiResponsesDialect()
+        val output = "[{\"type\":\"file_search_call\",\"id\":\"file\",\"status\":\"failed\",\"results\":[{\"file_id\":\"f\",\"text\":\"source\"}]}," +
+            "{\"type\":\"code_interpreter_call\",\"id\":\"code\",\"status\":\"completed\",\"outputs\":[{\"type\":\"logs\",\"logs\":\"done\"}]}," +
+            "{\"type\":\"image_generation_call\",\"id\":\"image\",\"status\":\"completed\",\"result\":\"opaque bytes\"}]"
+        val tools: Array<ToolDefinition> = [Server(ToolKey("files"), Native(NativeToolDefinition(dialect.id, "file_search")))]
+        val result = ResponsesProtocol(dialect).decodeResponse(responsesBody(output), responsesRequest(tools))
+        assertEquals(LlmCompletion.Complete, result.candidate(0L).completion)
+        assertEquals("", result.text)
+        assertEquals(3L, result.serverToolActivities.size)
+        assertEquals(Some(ToolKey("files")), result.serverToolActivities[0].toolKey)
+        assertEquals(ServerToolStatus.Failed, result.serverToolActivities[0].status)
+        assertEquals(ServerToolKind.FileSearch, result.serverToolActivities[0].kind)
+        assertEquals(ServerToolKind.CodeExecution, result.serverToolActivities[1].kind)
+        assertEquals(ServerToolKind.ImageGeneration, result.serverToolActivities[2].kind)
+        when (result.serverToolActivities[1].result[0]) { case Native(_, value) -> assertEquals("done", value[0]["logs"]!!.asString()); else -> fail() }
+        assertResponsesFailure(responsesBody("[{\"type\":\"web_search_call\",\"action\":{\"type\":\"search\",\"sources\":[{\"type\":\"url\",\"url\":\"https://%\"}]}}]"), "/output/0/action/sources/0/url")
+    }
+}

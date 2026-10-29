@@ -1,0 +1,80 @@
+package scoop.llm.client.tests.generatecontent
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class GenerateContentStreamTextTest {
+    @Test
+    fun `Gemini SSE routing changes only the operation and alt query`() {
+        val protocol = GenerateContentProtocol(GeminiGenerateContentDialect())
+        val base = Url.parse("https://example.test/proxy/v1beta?deployment=a&alt=json&alt=other")
+        assertEquals("https://example.test/proxy/v1beta/models/m:streamGenerateContent?deployment=a&alt=sse", protocol.streamUrl(base, "m").toString())
+        assertEquals("https://example.test/proxy/v1beta/models/m:generateContent?deployment=a&alt=json&alt=other", protocol.generationUrl(base, "m").toString())
+        val request = generateContentRequest()
+        assertEquals(Json.stringify(protocol.encodeRequest("m", request)), Json.stringify(protocol.encodeRequest("m", request, true)))
+    }
+
+    @Test
+    fun `Gemini SSE keeps candidates separate waits for EOF and preserves original signed history`() {
+        val stream = geminiStream()
+        val first = geminiAccept(stream, "[{\"text\":\"你\"}]", 4L)
+        when (first.events[0L]) { case TextDelta(delta) -> { assertEquals(4L, delta.location.candidateIndex); assertEquals(0L, delta.location.itemIndex) }; else -> fail() }
+        geminiAccept(stream, "[{\"text\":\"other\"}]", 2L, Some("MAX_TOKENS"))
+        geminiAccept(stream, "[{\"text\":\"好\"}]", 4L)
+        val signature = geminiAccept(stream, "[{\"text\":\"\",\"thoughtSignature\":\"opaque\"}]", 4L, Some("STOP"))
+        assertFalse(signature.hasOutput || signature.hasText)
+        assertFalse(stream.isFinished)
+        stream.accept("message", "{\"usageMetadata\":{\"totalTokenCount\":12}}")
+        assertEquals(UsageCompleteness.Partial, stream.usage.completeness)
+        val final = stream.endInput()
+        assertTrue(stream.isFinished)
+        assertEquals(1L, final.events.size)
+        assertEquals(UsageCompleteness.Final, stream.usage.completeness)
+        assertEquals(0L, stream.endInput().events.size)
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(stream.response()))
+        assertEquals("你好", response.candidate(4L).text)
+        assertEquals("other", response.candidate(2L).text)
+        assertEquals(LlmCompletion.Incomplete, response.candidate(2L).completion)
+        val history = geminiHistoryItems(response, Some(4L))
+        assertEquals(3L, history.size)
+        assertEquals("你", history[0L]["parts"]!![0L]["text"]!!.asString())
+        assertEquals("opaque", history[2L]["parts"]!![0L]["thoughtSignature"]!!.asString())
+        assertFailsWith<LlmOutputException> { response.toInput(); Unit }
+    }
+
+    @Test
+    fun `Gemini SSE preserves reasoning media and text order with stable event locations`() {
+        for (retention in [StreamRetention.EventsOnly, StreamRetention.Result]) {
+            val stream = geminiStream(retention)
+            val first = geminiAccept(stream, "[{\"text\":\"think \",\"thought\":true}]")
+            assertTrue(first.hasOutput && !first.hasText)
+            geminiAccept(stream, "[{\"text\":\"more\",\"thought\":true},{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"AQI=\"}},{\"text\":\"answer\"}]", finish = Some("STOP"))
+            stream.endInput()
+            if (retention == StreamRetention.EventsOnly) assertFailsWith<LlmOutputException> { stream.response(); Unit }
+            else {
+                val result = stream.response().candidates[0L]
+                assertEquals(2L, result.items.size)
+                when (result.items[0L]) { case Reasoning(parts, _) -> when (parts[0L]) { case Text(text, _) -> assertEquals("think more", text); else -> fail() }; else -> fail() }
+                assertEquals("answer", result.text)
+                assertEquals(2L, geminiHistoryItems(stream.response()).size)
+            }
+        }
+    }
+
+    @Test
+    fun `Gemini SSE signed text parts keep the default structured output entry usable`() {
+        val stream = geminiStream()
+        geminiAccept(stream, "[{\"text\":\"{\\\"count\\\":\"}]")
+        val delta = geminiAccept(stream, "[{\"text\":\"7}\",\"thoughtSignature\":\"signed\"},{\"text\":\"\",\"thoughtSignature\":\"tail\"}]", finish = Some("STOP"))
+        when (delta.events[0L]) { case TextDelta(value) -> { assertEquals(0L, value.location.itemIndex); assertEquals(1L, value.partIndex) }; else -> fail() }
+        stream.endInput()
+        assertEquals(1L, stream.response().candidates[0L].items.size)
+        assertEquals(7L, stream.response().decodeOutput<GenerateContentCount>().count)
+        val history = geminiHistoryItems(stream.response())
+        assertEquals("signed", history[1L]["parts"]!![0L]["thoughtSignature"]!!.asString())
+        assertEquals("tail", history[1L]["parts"]!![1L]["thoughtSignature"]!!.asString())
+    }
+}

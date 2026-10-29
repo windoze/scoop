@@ -1,0 +1,49 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class ResponsesCompactionRequestTest {
+    @Test
+    fun `Responses compaction keeps deployment input history and native request fields`() {
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        assertTrue(protocol.dialect.supportsCompaction)
+        assertFalse(DeepSeekResponsesDialect().supportsCompaction)
+        assertEquals("https://example.test/proxy/v1/responses/compact?api-version=v2",
+            protocol.compactUrl(Url.parse("https://example.test/proxy/v1?api-version=v2")).toString())
+        val minimal = protocol.encodeCompactionRequest("literal/model:v1", LlmRequest([]))
+        assertEquals(2L, minimal.size)
+        assertEquals("literal/model:v1", minimal["model"]!!.asString())
+        assertEquals(0L, minimal["input"]!!.size)
+        val request = compactionRequest()
+        val body = protocol.encodeCompactionRequest("literal/model:v1", request)
+        val ordinaryInput = protocol.encodeRequest("model", LlmRequest(request.input))["input"]!!
+        assertEquals(Json.stringify(ordinaryInput), Json.stringify(body["input"]!!))
+        assertEquals("system", body["instructions"]!!.asString())
+        assertEquals(8L, body.size)
+        for ((key, value) in request.extensions[0].value.members())
+            assertEquals(Json.stringify(value), Json.stringify(body[key]!!))
+        for (name in ["tools", "tool_choice", "temperature", "max_output_tokens", "reasoning", "stream"])
+            assertFalse(body.containsKey(name))
+    }
+
+    @Test
+    fun `Responses compaction rejects unavailable dialects misplaced roots and foreign histories`() {
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        val other = ResponsesProtocol(DeepSeekResponsesDialect())
+        assertEquals("/provider", assertFailsWith<LlmRequestException> { other.encodeCompactionRequest("model", LlmRequest([])); Unit }.path)
+        assertEquals("/modelId", assertFailsWith<LlmRequestException> { protocol.encodeCompactionRequest("", LlmRequest([])); Unit }.path)
+        for ((source, path) in [("{\"conversation\":\"saved\"}", "/conversation"), ("{\"tools\":[]}", "/tools"),
+            ("{\"model\":\"override\"}", "/extensions/0/value/model"), ("{\"future/path~\":true}", "/future~1path~0")]) {
+            val request = LlmRequest([], extensions = [DialectExtension(protocol.dialectId, Json.parse(source))])
+            assertEquals(path, assertFailsWith<LlmRequestException> { protocol.encodeCompactionRequest("model", request); Unit }.path)
+        }
+        val foreign = LlmRequest([], extensions = [DialectExtension(other.dialectId, Json.parse("{\"service_tier\":\"default\"}"))])
+        assertEquals("/extensions/0/dialect", assertFailsWith<LlmRequestException> { protocol.encodeCompactionRequest("model", foreign); Unit }.path)
+        val history = LlmRequest([History(LlmHistory(other.dialectId, []))])
+        assertEquals("/input/0/history/dialect", assertFailsWith<LlmRequestException> { protocol.encodeCompactionRequest("model", history); Unit }.path)
+    }
+}

@@ -1,0 +1,103 @@
+package scoop.llm.client.tests.realtime
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class RealtimeCommandTest {
+    @Test
+    fun `Realtime defaults omit response configuration and keep audio commit separate from inference`() {
+        val session = rtProtocol.encodeSessionUpdate()
+        assertEquals("session.update", session["type"]!!.asString())
+        assertEquals(1L, session["session"]!!.size)
+        assertEquals("realtime", session["session"]!!["type"]!!.asString())
+        val response = rtProtocol.encodeResponseCreate()
+        assertEquals(1L, response.size)
+        assertEquals("response.create", response["type"]!!.asString())
+        for ((command, type) in [(rtProtocol.encodeAudioCommit(), "input_audio_buffer.commit"),
+            (rtProtocol.encodeAudioClear(), "input_audio_buffer.clear"), (rtProtocol.encodeResponseCancel(), "response.cancel")]) {
+            assertEquals(1L, command.size)
+            assertEquals(type, command["type"]!!.asString())
+        }
+        val append = rtProtocol.encodeAudioAppend([0.toByte(), (-1).toByte()], Some("audio-1"))
+        assertEquals("AP8=", append["audio"]!!.asString())
+        assertEquals("audio-1", append["event_id"]!!.asString())
+        assertEquals("", rtProtocol.encodeAudioAppend([])["audio"]!!.asString())
+    }
+
+    @Test
+    fun `Realtime configuration distinguishes omitted fields explicit clearing and raw audio settings`() {
+        val configuration = RealtimeConfiguration(instructions = Some(""), tools = Some([]), toolChoice = Some(ToolChoice.None),
+            outputModality = Some(RealtimeOutputModality.Audio), maxOutputTokens = Some(RealtimeTokenLimit.Unlimited),
+            parallelToolCalls = Some(false), reasoningEffort = Some("low"), extensions = [DialectExtension(rtDialect,
+                Json.parse("{\"audio\":{\"input\":{\"turn_detection\":null,\"noise_reduction\":null},\"output\":{\"voice\":\"alloy\"}},\"truncation\":\"disabled\"}"))])
+        val restored = Json.decodeFromString<RealtimeConfiguration>(Json.encodeToString(configuration))
+        val session = rtProtocol.encodeSessionUpdate(restored)["session"]!!
+        assertEquals("", session["instructions"]!!.asString())
+        assertEquals(0L, session["tools"]!!.size)
+        assertEquals("none", session["tool_choice"]!!.asString())
+        assertEquals("audio", session["output_modalities"]!![0].asString())
+        assertEquals("inf", session["max_output_tokens"]!!.asString())
+        assertFalse(session["parallel_tool_calls"]!!.asBoolean())
+        assertEquals("low", session["reasoning"]!!["effort"]!!.asString())
+        assertEquals(JsonValueKind.Null, session["audio"]!!["input"]!!["turn_detection"]!!.kind)
+        val response = rtResponse(RealtimeResponseRequest(restored))
+        assertFalse(response.containsKey("type"))
+        assertEquals(Json.stringify(session["audio"]!!), Json.stringify(response["audio"]!!))
+    }
+
+    @Test
+    fun `Realtime response input distinguishes conversation context from an explicit empty input`() {
+        val empty = RealtimeResponseRequest(input = Some([]), conversation = Some("none"))
+        val restored = Json.decodeFromString<RealtimeResponseRequest>(Json.encodeToString(empty))
+        assertEquals(0L, rtResponse(restored)["input"]!!.size)
+        assertEquals("none", rtResponse(restored)["conversation"]!!.asString())
+        val limit = RealtimeConfiguration(maxOutputTokens = Some(Limited(18446744073709551615UL)), outputModality = Some(RealtimeOutputModality.Text))
+        val body = rtResponse(RealtimeResponseRequest(limit))
+        assertEquals("18446744073709551615", Json.stringify(body["max_output_tokens"]!!))
+        assertEquals("text", body["output_modalities"]!![0].asString())
+        assertFalse(body.containsKey("input"))
+    }
+
+    @Test
+    fun `Realtime URL binds the explicit model and preserves endpoint prefixes and unrelated query`() {
+        val endpoint = LlmEndpoint(Providers.openAiRealtime(), LlmAuth.none())
+        assertEquals("openai-realtime", endpoint.provider.name)
+        assertEquals("wss://api.openai.com/v1/realtime?model=team%2Fmodel%3Arevision", rtProtocol.webSocketUrl(endpoint.baseUrl, "team/model:revision").toString())
+        val url = rtProtocol.webSocketUrl(Url.parse("http://example.test/gateway/v1?route=one&model=old&model=other"), "custom model")
+        assertEquals("ws://example.test/gateway/v1/realtime?route=one&model=custom%20model", url.toString())
+        rtFailure("/modelId") { rtProtocol.webSocketUrl(endpoint.baseUrl, ""); Unit }
+        rtFailure("/endpoint/baseUrl") { rtProtocol.webSocketUrl(Url.parse("wss://example.test"), "m"); Unit }
+    }
+
+    @Test
+    fun `Realtime item control commands preserve actual IDs and exact unsigned offsets`() {
+        assertEquals("item-1", rtProtocol.encodeItemRetrieve("item-1")["item_id"]!!.asString())
+        assertEquals("conversation.item.delete", rtProtocol.encodeItemDelete("item-1")["type"]!!.asString())
+        val truncate = rtProtocol.encodeItemTruncate("item-1", 18446744073709551615UL, eventId = Some(""))
+        assertEquals("18446744073709551615", Json.stringify(truncate["audio_end_ms"]!!))
+        assertEquals("0", Json.stringify(truncate["content_index"]!!))
+        assertEquals("", truncate["event_id"]!!.asString())
+        assertEquals("response-1", rtProtocol.encodeResponseCancel(Some("response-1"))["response_id"]!!.asString())
+        val created = rtProtocol.encodeItemCreate(Message([Text("hello")]), Some("root"), Some("new-item"))
+        assertEquals("root", created["previous_item_id"]!!.asString())
+        assertEquals("new-item", created["event_id"]!!.asString())
+        rtFailure("/itemId") { rtProtocol.encodeItemRetrieve(""); Unit }
+        rtFailure("/responseId") { rtProtocol.encodeResponseCancel(Some("")); Unit }
+    }
+
+    @Test
+    fun `Realtime complete native commands remain separate from mapped field extensions`() {
+        val raw = Json.parse("{\"type\":\"response.create\",\"response\":{\"tool_choice\":{\"type\":\"mcp\",\"server_label\":\"docs\",\"name\":\"search\"}}}")
+        val command = Json.decodeFromString<RealtimeNativeCommand>(Json.encodeToString(RealtimeNativeCommand(rtDialect, raw)))
+        assertEquals(Json.stringify(raw), Json.stringify(rtProtocol.encodeNativeCommand(command)))
+        rtFailure("/dialect") { rtProtocol.encodeNativeCommand(RealtimeNativeCommand(OpenAiResponsesDialect().id, raw)); Unit }
+        rtFailure("/value/type") { rtProtocol.encodeNativeCommand(RealtimeNativeCommand(rtDialect, Json.parse("{\"type\":7}"))); Unit }
+        for (field in ["type", "model", "instructions", "tools", "tool_choice", "max_output_tokens", "reasoning", "input", "conversation"]) {
+            val config = RealtimeConfiguration(extensions = [DialectExtension(rtDialect, JsonObjectBuilder().add(field, Json.parse("null")).build())])
+            rtFailure("/extensions/0/value/" + field) { rtProtocol.encodeSessionUpdate(config); Unit }
+        }
+    }
+}

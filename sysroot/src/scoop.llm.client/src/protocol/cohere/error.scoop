@@ -1,0 +1,8 @@
+package scoop.llm.client
+
+internal fun decodeCohereError(dialect: DialectId, status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException {
+    val value = parseLlmServiceError(body, truncated)
+    val message = llmServiceErrorString(value, "message")
+    return LlmServiceException(dialect, status, body, truncated, native = value, retryable = status == 429U && message != None,
+        message = message ?: "Cohere service rejected the request")
+}

@@ -1,0 +1,54 @@
+package scoop.llm.client
+
+internal suspend fun awaitLlmWebSocketClosed(state: LlmWebSocketState) {
+    suspendCoroutine<Unit> { continuation ->
+        val closed = state.lock.withLock {
+            if (state.closed) true else { state.closeWaiters.add(continuation); false }
+        }
+        if (closed) continuation.resume(Unit)
+    }
+}
+
+internal suspend fun closeLlmWebSocket(state: LlmWebSocketState) {
+    checkLlmWebSocketLoop(state)
+    if (!state.lock.withLock { state.closed }) {
+        var contextCall = currentLlmCall()
+        while (llmPresent(contextCall)) {
+            val active = contextCall!!
+            if (active === state.call && active.contextActive)
+                throw IllegalStateException(Some("cannot await LLM WebSocket session.close from its own opening context"))
+            contextCall = active.parentContext
+        }
+        state.stop(state.earlyClose)
+        awaitLlmWebSocketClosed(state)
+    }
+    val failure = state.lock.withLock {
+        if (state.errorDelivered) None else { state.errorDelivered = true; state.failure }
+    }
+    when (failure) { case Some(error) -> throw error; case None -> {} }
+}
+
+internal suspend fun failLlmWebSocketOperation(state: LlmWebSocketState, error: Throwable): Nothing {
+    state.stop(error)
+    awaitLlmWebSocketClosed(state)
+    val selected = state.lock.withLock { state.errorDelivered = true; state.failure ?: error }
+    throw selected
+}
+
+internal fun beginLlmWebSocketOperation(state: LlmWebSocketState, reading: Boolean): Boolean {
+    checkLlmWebSocketLoop(state)
+    ensureActive()
+    return state.lock.withLock {
+        if (if (reading) state.reading else state.writing)
+            throw IllegalStateException(Some("concurrent LLM WebSocket session operation in the same direction"))
+        if (state.closed) {
+            when (state.failure) {
+                case Some(error) -> { state.errorDelivered = true; throw error }
+                case None -> if (reading) return@withLock false
+            }
+        }
+        if (state.closing) throw state.closedError
+        if (reading) state.reading = true else state.writing = true
+        true
+    }
+}

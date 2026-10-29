@@ -1,0 +1,49 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class LlmStreamTimeoutTest {
+    @Test
+    fun `total deadline cancels an idle stream and close reports the unobserved timeout`() {
+        withWaitingStream suspend { _, client, model, _ ->
+            val finished = LlmGate()
+            val stream = client.openStream(model, sampleRequest,
+                LlmCallOptions(timeouts = LlmTimeouts(total = Some(Duration.milliseconds(100L))),
+                    onFinished = Some(suspend { _ -> finished.signal() })))
+            finished.await()
+            expectLlmFailure<LlmTimeoutException> suspend { stream.close() }
+            assertEquals(LlmCallOutcome.Failed, stream.metadata.outcome)
+            assertEquals(None, stream.metadata.attempts[0L].response.firstEventAt)
+            stream.close()
+        }
+    }
+
+    @Test
+    fun `protocol completion stops the total deadline before explicit cleanup`() {
+        withStreamReply(streamReply) suspend { client, model ->
+            val stream = client.openStream(model, sampleRequest,
+                LlmCallOptions(timeouts = LlmTimeouts(total = Some(Duration.seconds(1L)))), StreamRetention.Result)
+            stream.useAsync suspend { opened ->
+                drainStream(opened)
+                currentEventLoop().sleep(Duration.milliseconds(1100L))
+                assertFalse(opened.isClosed)
+                assertEquals(LlmCallOutcome.Active, opened.metadata.outcome)
+            }
+            assertEquals("hello world", stream.result().text)
+            assertEquals(LlmCallOutcome.Completed, stream.metadata.outcome)
+        }
+    }
+
+    @Test
+    fun `the returned stream outlives the short scope which opened it`() {
+        withStreamReply(streamReply) suspend { client, model ->
+            val stream = coroutineScope suspend { _ -> client.openStream(model, sampleRequest, retention = StreamRetention.Result) }
+            stream.useAsync suspend { opened -> drainStream(opened) }
+            assertEquals("hello world", stream.result().text)
+        }
+    }
+}

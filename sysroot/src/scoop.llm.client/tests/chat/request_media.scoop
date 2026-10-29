@@ -1,0 +1,87 @@
+package scoop.llm.client.tests.chat
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+private fun encodeChatParts(parts: Array<ContentPart>, dialect: ChatDialect = OpenAiChatDialect(), role: LlmRole = User): JsonValue =
+    ChatProtocol(dialect).encodeRequest("model", LlmRequest([Message(parts, role)]))["messages"]!![0L]["content"]!!
+
+@Test
+private class ChatRequestMediaTest {
+    @Test
+    fun `OpenAI media uses the exact inline URL audio and PDF wire shapes`() {
+        val content = encodeChatParts([
+            Text("compare"), Image(MediaSource.Bytes([1, 2], "IMAGE/PNG")),
+            Image(MediaSource.Url(Url.parse("https://example.test/image.jpg?x=1"), "image/jpeg")),
+            Audio(MediaSource.Bytes([1, 2], "audio/wav")),
+            Document(MediaSource.Bytes([1, 2], "application/pdf"), Some("report.pdf"))
+        ])
+        assertEquals(5L, content.size)
+        assertEquals("data:image/png;base64,AQI=", content[1L]["image_url"]!!["url"]!!.asString())
+        assertEquals("https://example.test/image.jpg?x=1", content[2L]["image_url"]!!["url"]!!.asString())
+        assertEquals("input_audio", content[3L]["type"]!!.asString())
+        assertEquals("wav", content[3L]["input_audio"]!!["format"]!!.asString())
+        assertEquals("AQI=", content[3L]["input_audio"]!!["data"]!!.asString())
+        assertEquals("data:application/pdf;base64,AQI=", content[4L]["file"]!!["file_data"]!!.asString())
+        assertEquals("report.pdf", content[4L]["file"]!!["filename"]!!.asString())
+    }
+
+    @Test
+    fun `file reference forms and tool-result images belong to the selected dialect`() {
+        val openAi = OpenAiChatDialect()
+        val file = LlmFileReference(openAi.id, JsonValue.fromString("file-pdf"))
+        val document = encodeChatParts([Document(MediaSource.FileReference(file, "application/pdf"))], openAi)
+        assertEquals("file-pdf", document[0L]["file"]!!["file_id"]!!.asString())
+        val deepSeek = DeepSeekChatDialect()
+        val image = LlmFileReference(deepSeek.id, JsonValue.fromString("file-api-image"))
+        val call = ClientToolCallReference(deepSeek.id, ToolKey("old"), Some("call-old"))
+        val body = ChatProtocol(deepSeek).encodeRequest("model", LlmRequest([
+            ToolResult(call, [Image(MediaSource.FileReference(image, "image/png"))])
+        ]))
+        val part = body["messages"]!![0L]["content"]!![0L]
+        assertEquals("file", part["type"]!!.asString())
+        assertEquals("file-api-image", part["file_id"]!!.asString())
+        assertFalse(part.containsKey("file"))
+        assertEquals("/input/0/content/0/source/reference/dialect", assertFailsWith<LlmRequestException> {
+            encodeChatParts([Document(MediaSource.FileReference(image, "application/pdf"))], openAi); Unit
+        }.path)
+    }
+
+    @Test
+    fun `media is not silently downloaded converted or stripped of parameters`() {
+        assertEquals("/input/0/content/0/source/mimeType", assertFailsWith<LlmRequestException> {
+            encodeChatParts([Audio(MediaSource.Bytes([], "audio/wav;rate=24000"))]); Unit
+        }.path)
+        assertEquals("/input/0/content/0/source", assertFailsWith<LlmRequestException> {
+            encodeChatParts([Document(MediaSource.Url(Url.parse("https://example.test/a.pdf"), "application/pdf"))]); Unit
+        }.path)
+        assertEquals("/input/0/content/0/source/url", assertFailsWith<LlmRequestException> {
+            encodeChatParts([Image(MediaSource.Url(Url.parse("file:///photo.png"), "image/png"))]); Unit
+        }.path)
+        assertEquals("/input/0/content/0", assertFailsWith<LlmRequestException> {
+            encodeChatParts([VideoFrames([])]); Unit
+        }.path)
+        assertEquals("/input/0/content/0", assertFailsWith<LlmRequestException> {
+            encodeChatParts([Document(MediaSource.Bytes([], "application/pdf"))], DeepSeekChatDialect()); Unit
+        }.path)
+    }
+
+    @Test
+    fun `role restrictions and native content ownership remain explicit`() {
+        assertEquals("/input/0/content/0", assertFailsWith<LlmRequestException> {
+            encodeChatParts([Image(MediaSource.Bytes([], "image/png"))], role = Assistant); Unit
+        }.path)
+        assertEquals("/input/0/content", assertFailsWith<LlmRequestException> {
+            encodeChatParts([Text("rules")], DeepSeekChatDialect(), Developer); Unit
+        }.path)
+        assertEquals("onetwo", encodeChatParts([Text("one"), Text("two")], DeepSeekChatDialect(), System).asString())
+        val dialect = OpenAiChatDialect()
+        val raw = Json.parse("{\"type\":\"future\",\"opaque\":1e400}")
+        assertEquals(Json.stringify(raw), Json.stringify(encodeChatParts([Native(dialect.id, raw)], dialect)[0L]))
+        assertEquals("/input/0/content/0/dialect", assertFailsWith<LlmRequestException> {
+            encodeChatParts([Native(dialect.id, raw)], DeepSeekChatDialect()); Unit
+        }.path)
+    }
+}

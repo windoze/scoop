@@ -1,0 +1,28 @@
+package scoop.llm.client.tests.converse
+
+import scoop.json.JsonValue
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ConverseDialectTest {
+    @Test
+    fun `Converse service interpretation stays bound to its protocol and explicit system tool names`() {
+        val dialect = BedrockConverseDialect()
+        assertEquals(ApiProtocolId("converse"), dialect.id.protocol)
+        assertEquals(ServerToolKind.WebSearch, dialect.serverToolKind("nova_grounding"))
+        assertEquals(ServerToolKind.CodeExecution, dialect.serverToolKind("nova_code_interpreter"))
+        assertEquals(ServerToolKind.Native, dialect.serverToolKind("future_tool"))
+        assertEquals(Some("nova_code_interpreter"), dialect.serverResultName("nova_code_interpreter_result"))
+        assertEquals(None, dialect.serverResultName("unknown_result"))
+        assertFailsWith<IllegalArgumentException> { val protocol = ConverseProtocol(ForeignConverseDialect()); Unit }
+    }
+}
+
+private class ForeignConverseDialect : ConverseDialect {
+    public override val id: DialectId = GeminiInteractionsDialect().id
+    public override fun encodeOptions(request: LlmRequest): JsonValue = BedrockConverseDialect().encodeOptions(request)
+    public override fun readUsage(value: JsonValue): TokenUsage = TokenUsage()
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        BedrockConverseDialect().decodeError(status, body, truncated)
+}

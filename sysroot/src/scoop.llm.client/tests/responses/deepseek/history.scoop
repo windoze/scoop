@@ -1,0 +1,60 @@
+package scoop.llm.client.tests.responses.deepseek
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.responses.*
+import scoop.test.*
+
+@Test
+private class DeepSeekResponsesHistoryTest {
+    @Test
+    fun `DeepSeek Responses reasoning search and both client calls survive stateless replay`() {
+        val patch = "{\"type\":\"custom_tool_call\",\"id\":\"patch\",\"call_id\":\"patch-call\",\"name\":\"apply_patch\",\"input\":\"*** Begin Patch\\n*** End Patch\"}"
+        val output = "[" + dsReasoning + "," + dsSearch + "," + responsesCall("{\"count\":2}") + "," + patch + "]"
+        val request = dsRequest([responsesStreamFunction(), ClientCustom(ToolKey("patch"), "apply_patch"), Server(ToolKey("search"), WebSearch())])
+        val original = dsResponses.decodeResponse(dsBody(output), request)
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(original))
+        assertEquals(2L, response.clientToolCalls.size)
+        assertEquals(Some(17L), response.usage.tokens.totalTokens)
+        assertEquals(Some(4L), response.usage.tokens.cacheReadTokens)
+        assertEquals(Some(3L), response.usage.tokens.reasoningTokens)
+        assertEquals("", response.text)
+        when (response.candidate(0L).items[0L]) {
+            case Reasoning(parts, _) -> when (parts[0L]) { case Text(text, _) -> assertEquals("consider", text); else -> fail() }
+            else -> fail()
+        }
+        when (response.candidate(0L).items[1L]) {
+            case ServerToolActivity(activity) -> assertEquals(Some(ToolKey("search")), activity.toolKey)
+            else -> fail()
+        }
+        val next = Json.decodeFromString<LlmRequest>(Json.encodeToString(dsContinuation(request, response)))
+        val body = dsResponses.encodeRequest("m", next)
+        assertFalse(body.containsKey("previous_response_id"))
+        val input = body["input"]!!
+        var index = 1L
+        for (item in Json.parse(output).elements()) { assertEquals(Json.stringify(item), Json.stringify(input[index])); index += 1L }
+        assertEquals("function_call_output", input[5L]["type"]!!.asString())
+        assertEquals("custom_tool_call_output", input[6L]["type"]!!.asString())
+        val nullSummary = dsResponses.decodeResponse(dsBody("[{\"type\":\"reasoning\",\"summary\":null,\"content\":[]}]"), dsRequest())
+        assertEquals(1L, nullSummary.candidate(0L).items.size)
+    }
+
+    @Test
+    fun `DeepSeek Responses requires actual paired call history without synthesizing results`() {
+        val request = dsRequest([responsesStreamFunction()])
+        val response = dsResponses.decodeResponse(dsBody("[" + responsesCall("{}") + "]"), request)
+        val history = response.toInput()[0L]
+        val output = LlmInputItem.ToolResult(response.clientToolCalls[0L].reference, [Text("2")])
+        assertDsRequestFailure(LlmRequest([history]), "/input/0/history/items/0/call_id")
+        assertDsRequestFailure(LlmRequest([output]), "/input/0/call/id")
+        assertDsRequestFailure(LlmRequest([history, history, output]), "/input/1/history/items/0/call_id")
+        assertDsRequestFailure(LlmRequest([history, output, output]), "/input/2/call/id")
+        val wrong = LlmHistory(dsResponses.dialectId, [Json.parse(responsesCall("{}")),
+            Json.parse("{\"type\":\"custom_tool_call_output\",\"call_id\":\"call\",\"output\":\"2\"}")])
+        assertDsRequestFailure(LlmRequest([History(wrong)]), "/input/0/history/items/1/call_id")
+        assertDsRequestFailure(LlmRequest([History(LlmHistory(dsResponses.dialectId,
+            [Json.parse("{\"type\":\"item_reference\",\"id\":\"old-item\"}")]))]), "/input/0/history/items/0/type")
+        val images = LlmRequest([history, ToolResult(response.clientToolCalls[0L].reference, [Image(Bytes([1.toByte()], "image/png"))])])
+        assertEquals("input_image", dsResponses.encodeRequest("m", images)["input"]!![1L]["output"]!![0L]["type"]!!.asString())
+    }
+}

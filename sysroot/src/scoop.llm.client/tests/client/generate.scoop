@@ -1,0 +1,172 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.*
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.Duration
+import scoop.url.Url
+
+@Test
+private class LlmGenerateTest {
+    @Test
+    fun `text timing observes all candidates while the display view selects the first`() {
+        withLlmServer suspend { _, scope, listener, endpoint ->
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    connection.receiveRequest()!!.body.readAllBytes(4096L)
+                    sendLlmReply(connection, 200U, "{\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"\"},\"finish_reason\":\"stop\"},{\"index\":1,\"message\":{\"role\":\"assistant\",\"content\":\"second\"},\"finish_reason\":\"stop\"}]}")
+                }
+            }
+            withLlmClient suspend { client ->
+                val result = client.generate(endpoint.model("m"), sampleRequest)
+                assertEquals("", result.text)
+                assertEquals(2L, result.response.candidates.size)
+                assertTrue(result.metadata.attempts[0L].response.firstTextAt != None)
+            }
+            serving.join()
+        }
+    }
+
+    @Test
+    fun `the default scoped call returns text usage and replayable history`() {
+        withLlmServer suspend { _, scope, listener, endpoint ->
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val request = connection.receiveRequest()!!
+                    val body = Json.parse(String.fromUtf8(request.body.readAllBytes(4096L)))
+                    assertEquals("team/model:revision", body["model"]!!.asString())
+                    assertEquals(2L, body.size)
+                    assertEquals("hello 世界", body["messages"]!![0L]["content"]!!.asString())
+                    sendLlmReply(connection, 200U, sampleReply)
+                }
+            }
+            withLlmClient suspend { client ->
+                val result = client.generate(endpoint.model("team/model:revision"), sampleRequest)
+                assertEquals("hello", result.text)
+                assertEquals(Some(11L), result.response.usage.tokens.totalTokens)
+                assertEquals(1L, result.toInput().size)
+                assertEquals(LlmCallOutcome.Completed, result.metadata.outcome)
+                assertTrue(result.metadata.totalDuration!! >= Duration.ZERO)
+                val restored = Json.decodeFromString<LlmResult>(Json.encodeToString(result))
+                assertEquals("hello", restored.text)
+                assertEquals(result.metadata.callId, restored.metadata.callId)
+            }
+            serving.join()
+        }
+    }
+
+    @Test
+    fun `borrowed HTTP settings observers and actual timestamps survive generation`() {
+        withLlmServer suspend { _, scope, listener, endpoint ->
+            val events = ArrayList<HttpAttemptMetrics>()
+            val config = HttpClientConfig(timeouts = HttpTimeoutOptions(responseHeaders = Some(Duration.ZERO)),
+                observer = Some(HttpObserver(suspend { event -> events.add(event.metrics) })))
+            HttpClient.open(scope, config).useAsync suspend { http ->
+                val auth = RecordingAuth()
+                val model = LlmEndpoint(Providers.openAiChat(), auth,
+                    Some(Url.parse(endpoint.baseUrl.toString() + "/prefix?deployment=yes"))).model("model")
+                val received = ArrayList<Array<Byte>>()
+                val serving = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        val request = connection.receiveRequest()!!
+                        val target = when (request.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                        assertEquals("/v1/prefix/chat/completions?deployment=yes", target)
+                        assertEquals("Bearer attempt-1", String.fromUtf8(request.head.fields.findAll("Authorization".toByteArray())[0L].value))
+                        received.add(request.body.readAllBytes(4096L))
+                        sendLlmReply(connection, 200U, sampleReply, [HttpField("x-request-id".toByteArray(), "request-1".toByteArray())])
+                    }
+                }
+                val finished = FinishedCalls()
+                val client = LlmClient.open(scope, Some(http))
+                val result = try { client.generate(model, sampleRequest,
+                    LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))) }
+                    finally { client.close() }
+                assertTrue(client.isClosed)
+                assertFalse(http.isClosed)
+                assertEquals(Some(Duration.ZERO), http.defaultTimeouts.responseHeaders)
+                assertEquals(1L, auth.requests.size)
+                assertLlmBytes(received[0L], auth.requests[0L].body)
+                assertEquals(1L, finished.values.size)
+                assertSame(result.metadata, finished.values[0L])
+                val attempt = result.metadata.attempts[0L]
+                val actual = events[events.size - 1L]
+                assertEquals(actual.requestHeadersAtUtc, attempt.request.sentAt)
+                assertEquals(actual.finalResponseHeadersAtUtc, attempt.response.receivedAt)
+                assertEquals(Some("request-1"), attempt.requestId)
+                assertEquals(Some("answer-1"), attempt.responseId)
+                assertEquals(attempt.response.completedAt, attempt.response.firstTextAt)
+                assertEquals(None, attempt.response.firstEventAt)
+                assertEquals(None, attempt.response.firstResponseByteAt)
+                assertEquals(None, attempt.request.bodyCompletedAt)
+                assertTrue(attempt.timeToHeaders!! >= Duration.ZERO)
+                serving.join()
+            }
+        }
+    }
+
+    @Test
+    fun `explicit rate rejection retries with fresh authentication and independent attempts`() {
+        withLlmServer suspend { _, scope, listener, endpoint ->
+            val auth = RecordingAuth()
+            val model = LlmEndpoint(endpoint.provider, auth, Some(endpoint.baseUrl)).model("m")
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    connection.receiveRequest()!!.body.readAllBytes(4096L)
+                    sendLlmReply(connection, 429U, "{\"error\":{\"code\":\"rate_limit_exceeded\",\"message\":\"later\"}}")
+                    connection.receiveRequest()!!.body.readAllBytes(4096L)
+                    sendLlmReply(connection, 200U, sampleReply)
+                }
+            }
+            withLlmClient suspend { client ->
+                val result = client.generate(model, sampleRequest,
+                    LlmCallOptions(retries = LlmRetryOptions(initialDelay = Duration.ZERO)))
+                assertEquals(2L, auth.requests.size)
+                assertLlmBytes(auth.requests[0L].body, auth.requests[1L].body)
+                assertEquals(2L, result.metadata.attempts.size)
+                val first = result.metadata.attempts[0L]
+                val second = result.metadata.attempts[1L]
+                assertEquals(Some(429U), first.status)
+                assertEquals(None, first.usage.tokens.totalTokens)
+                assertEquals(None, first.response.completedAt)
+                assertEquals(Some(11L), second.usage.tokens.totalTokens)
+                assertTrue(first.response.received!!.elapsed <= second.request.sent!!.elapsed)
+            }
+            serving.join()
+        }
+    }
+
+    @Test
+    fun `bounded non JSON rejections and quota errors are not retried`() {
+        for ((status, body, limit, truncated) in [(503U, "a long invalid body", 3L, true),
+            (429U, "{\"error\":{\"code\":\"insufficient_quota\"}}", 1024L, false)]) {
+            withLlmServer suspend { _, scope, listener, endpoint ->
+                val serving = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        connection.receiveRequest()!!.body.readAllBytes(4096L)
+                        sendLlmReply(connection, status, body)
+                    }
+                }
+                val auth = RecordingAuth()
+                val finished = FinishedCalls()
+                withLlmClient suspend { client ->
+                    val error = expectLlmFailure<LlmServiceException> suspend {
+                        client.generate(LlmEndpoint(endpoint.provider, auth, Some(endpoint.baseUrl)).model("m"), sampleRequest,
+                            LlmCallOptions(maxErrorBytes = limit, onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                    }
+                    assertEquals(status, error.status)
+                    assertEquals(truncated, error.truncated)
+                    assertTrue(error.body.size <= limit)
+                    assertFalse(error.retryable)
+                }
+                assertEquals(1L, auth.requests.size)
+                assertEquals(1L, finished.values.size)
+                assertEquals(LlmCallOutcome.Failed, finished.values[0L].outcome)
+                serving.join()
+            }
+        }
+    }
+}

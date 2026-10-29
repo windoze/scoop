@@ -1,0 +1,89 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.*
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.count.responsesCountRequest
+import scoop.test.*
+import scoop.time.Duration
+import scoop.url.Url
+
+@Test
+private class ResponsesCountNetworkTest {
+    @Test
+    fun `Responses token count mock retains input retries auth and records timing without generation usage`() {
+        withLlmServer suspend { _, scope, listener, original ->
+            val auth = RecordingAuth()
+            val endpoint = LlmEndpoint(Providers.openAiResponses(), auth,
+                Some(Url.parse(original.baseUrl.toString() + "/deployment?api-version=v2")))
+            val sent = ArrayList<Array<Byte>>()
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    for (number in [1L, 2L]) {
+                        val request = connection.receiveRequest()!!
+                        val target = when (request.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                        assertEquals("/v1/deployment/responses/input_tokens?api-version=v2", target)
+                        assertEquals("POST", String.fromUtf8(request.head.method))
+                        assertEquals("Bearer attempt-" + number.toString(),
+                            String.fromUtf8(request.head.fields.findAll("Authorization".toByteArray())[0].value))
+                        val bytes = request.body.readAllBytes(8192L)
+                        sent.add(bytes)
+                        val body = Json.parse(String.fromUtf8(bytes))
+                        assertEquals("literal/model:v1", body["model"]!!.asString())
+                        assertEquals("previous", body["previous_response_id"]!!.asString())
+                        assertEquals("opaque", body["input"]!![1]["encrypted_content"]!!.asString())
+                        assertEquals("function_call_output", body["input"]!![3]["type"]!!.asString())
+                        assertFalse(body.containsKey("max_output_tokens"))
+                        assertFalse(body.containsKey("background"))
+                        if (number == 1L) sendLlmReply(connection, 429U, "{\"error\":{\"code\":\"rate_limit_exceeded\"}}")
+                        else sendLlmReply(connection, 200U, "{\"object\":\"response.input_tokens\",\"input_tokens\":9007199254740993}",
+                            [HttpField("x-request-id".toByteArray(), "count-operation".toByteArray())])
+                    }
+                }
+            }
+            val observed = ArrayList<HttpAttemptMetrics>()
+            HttpClient.open(scope, HttpClientConfig(observer = Some(HttpObserver(suspend { event ->
+                if (event.kind == HttpCallEventKind.Completed) observed.add(event.metrics)
+            })))).useAsync suspend { http ->
+                val finished = FinishedCalls()
+                withLlmClient(Some(http)) suspend { client ->
+                    val counted = client.countTokens(endpoint.model("literal/model:v1"), responsesCountRequest(),
+                        LlmCallOptions(retries = LlmRetryOptions(initialDelay = Duration.ZERO),
+                            onFinished = Some(suspend { value -> finished.record(value) })))
+                    val restored = Json.decodeFromString<LlmTokenCountResult>(Json.encodeToString(counted))
+                    assertEquals(Some(9007199254740993L), restored.count.inputTokens)
+                    assertEquals(TokenCountPrecision.Exact, restored.count.precision)
+                    assertEquals(1L, finished.values.size)
+                    assertSame(counted.metadata, finished.values[0])
+                    assertEquals(2L, restored.metadata.attempts.size)
+                    assertEquals(2L, auth.requests.size)
+                    for (index in [0L, 1L]) {
+                        assertLlmBytes(sent[index], auth.requests[index].body)
+                        assertEquals("POST", auth.requests[index].method)
+                        val attempt = restored.metadata.attempts[index]
+                        assertEquals(observed[index].requestHeadersAtUtc, attempt.request.sentAt)
+                        assertEquals(observed[index].finalResponseHeadersAtUtc, attempt.response.receivedAt)
+                        assertEquals(None, attempt.response.firstEventAt)
+                        assertEquals(None, attempt.response.firstOutputAt)
+                        assertEquals(None, attempt.response.firstTextAt)
+                        assertEquals(None, attempt.responseId)
+                        assertEquals(None, attempt.usage.tokens.inputTokens)
+                        assertEquals(None, attempt.outputTokensPerSecond)
+                    }
+                    val last = restored.metadata.attempts[1]
+                    assertEquals(Some("count-operation"), last.requestId)
+                    assertTrue(last.request.sentAt != None)
+                    assertTrue(last.response.receivedAt != None)
+                    assertTrue(last.response.completedAt != None)
+                    assertEquals(None, restored.metadata.attempts[0].response.completedAt)
+                    assertEquals(LlmCallOutcome.Completed, restored.metadata.outcome)
+                }
+                assertFalse(http.isClosed)
+            }
+            serving.join()
+        }
+    }
+}

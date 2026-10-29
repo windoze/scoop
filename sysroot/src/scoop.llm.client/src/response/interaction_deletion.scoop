@@ -1,0 +1,10 @@
+package scoop.llm.client
+
+/** Successful resource deletion with its actual response bytes and HTTP timing. */
+public class InteractionsDeletionResult public constructor(public val native: Array<Byte>, public val metadata: LlmCallMetadata) {
+    init {
+        if (metadata.outcome != LlmCallOutcome.Completed)
+            throw IllegalArgumentException(Some("deletion result requires a completed call"))
+    }
+    public companion object : ValueEncoder<InteractionsDeletionResult>, ValueDecoder<InteractionsDeletionResult>
+}

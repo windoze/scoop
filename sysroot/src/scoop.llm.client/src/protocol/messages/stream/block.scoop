@@ -1,0 +1,128 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal class MessagesStreamBlock public constructor(
+    public val index: Long, public val dialect: MessagesDialect, public val retain: Boolean,
+    private val tools: Array<ToolDefinition>
+) {
+    public val location: LlmItemLocation = LlmItemLocation(0L, index)
+    public val path: String get() = "/content/" + index.toString()
+    public var kind: String = ""
+    public var stopped: Boolean = false
+    public var historyAvailable: Boolean = true
+    public var wire: JsonValue? = None
+    public var item: LlmOutputItem? = None
+    public var tool: MessagesStreamTool? = None
+    public val text: StringBuilder = StringBuilder()
+    public val signature: StringBuilder = StringBuilder()
+    public val citations: ArrayList<Citation> = ArrayList<Citation>()
+    public val rawCitations: ArrayList<JsonValue> = ArrayList<JsonValue>()
+    public var citationCount: Long = 0L
+
+    public fun begin(raw: JsonValue, calls: ArrayList<MessagesCallIdentity>, batch: LlmStreamBatch) {
+        kind = decodeMessagesValue<MessagesBlockType>(raw, "/content_block").type
+        if (retain) wire = Some(raw)
+        when (kind) {
+            case "text" -> {
+                val value = decodeMessagesValue<MessagesTextBlock>(raw, "/content_block")
+                appendText(value.text, true, batch)
+                if (llmPresent(value.citations)) for (entry in value.citations!!) appendCitation(entry, batch)
+            }
+            case "thinking" -> {
+                dialect.readReasoning(raw, "/content_block")
+                appendText(raw["thinking"]!!.asString(), false, batch)
+                val value = raw["signature"]!!.asString()
+                if (retain) signature.append(value)
+                if (value.length != 0L) batch.native("messages.signature", raw["signature"]!!, Some(location), false)
+            }
+            case "tool_use" -> beginTool(raw, false, calls, batch)
+            case "server_tool_use" -> beginTool(raw, true, calls, batch)
+            else -> {
+                val value = when (kind) {
+                    case "redacted_thinking" -> LlmOutputItem.Reasoning(dialect.readReasoning(raw, "/content_block"))
+                    case "web_search_tool_result" -> LlmOutputItem.ServerToolActivity(
+                        readMessagesSearchResult(dialect.id, raw, tools, calls, path))
+                    else -> LlmOutputItem.Native(dialect.id, raw)
+                }
+                if (retain) item = Some(value)
+                when (value) {
+                    case ServerToolActivity(activity) -> batch.events.add(LlmEvent.ServerToolActivity(location, activity))
+                    else -> batch.native("messages.content_block", raw, Some(location), false)
+                }
+                batch.hasOutput = true
+            }
+        }
+        val known: Array<String> = when (kind) {
+            case "text" -> ["type", "text", "citations"]
+            case "thinking" -> ["type", "thinking", "signature"]
+            case "tool_use" -> ["type", "id", "name", "input", "toolset_name"]
+            case "server_tool_use" -> ["type", "id", "name", "input", "toolset_name"]
+            else -> return
+        }
+        val extra = llmStreamUnknown(raw, known)
+        if (extra.size != 0L) batch.native("messages.content_block_fields", extra, Some(location), false)
+    }
+
+    private fun beginTool(raw: JsonValue, server: Boolean, calls: ArrayList<MessagesCallIdentity>, batch: LlmStreamBatch) {
+        val call = readMessagesCall(raw, "/content_block", server, calls)
+        tool = Some(MessagesStreamTool(call, raw, server, dialect.id, tools, location))
+        batch.hasOutput = true
+    }
+
+    public fun appendText(value: String, plain: Boolean, batch: LlmStreamBatch) {
+        if (retain) text.append(value)
+        val delta = LlmTextDelta(location, value)
+        batch.events.add(if (plain) LlmEvent.TextDelta(delta) else LlmEvent.ReasoningDelta(delta))
+        batch.observe(value, plain)
+    }
+
+    public fun appendCitation(raw: JsonValue, batch: LlmStreamBatch) {
+        val value = readMessagesCitation(dialect.id, raw, path + "/citations/" + citationCount.toString())
+        citationCount += 1L
+        if (retain) { citations.add(value); rawCitations.add(raw) }
+        batch.events.add(LlmEvent.Citation(location, 0L, value))
+        batch.hasOutput = true
+    }
+
+    public fun stop(batch: LlmStreamBatch) {
+        if (stopped) throw DecodingException("/index", "content block already stopped")
+        stopped = true
+        if (llmPresent(tool)) {
+            val state = tool!!
+            state.stop(batch, path)
+            if (state.invalid) historyAvailable = false
+            if (retain) wire = Some(state.wire)
+            if (state.server) {
+                val call = MessagesToolUse(state.call.id, state.call.name, state.wire["input"]!!, state.call.toolsetName)
+                val activity = readMessagesServerCall(dialect.id, call, state.wire, tools, path)
+                batch.events.add(LlmEvent.ServerToolActivity(location, activity))
+                if (retain) item = Some(LlmOutputItem.ServerToolActivity(activity))
+                state.release()
+                tool = None
+            }
+        } else if (retain && kind == "text") {
+            item = Some(LlmOutputItem.Message([OutputPart.Text(text.toString(), citations.toArray())]))
+            wire = Some(replaceMessagesField(wire!!, "text", JsonValue.fromString(text.toString())))
+            if (citationCount != 0L) wire = Some(replaceMessagesField(wire!!, "citations", JsonValue.fromArray(rawCitations)))
+        } else if (retain && kind == "thinking") {
+            item = Some(LlmOutputItem.Reasoning([OutputPart.Text(text.toString())]))
+            wire = Some(replaceMessagesField(replaceMessagesField(wire!!, "thinking", JsonValue.fromString(text.toString())),
+                "signature", JsonValue.fromString(signature.toString())))
+        }
+        text.clear(); signature.clear(); citations.clear(); rawCitations.clear()
+    }
+
+    public fun finishClient(complete: Boolean, batch: LlmStreamBatch) {
+        val state = tool ?: return
+        val value = state.clientItem(complete)
+        if (retain) item = Some(value)
+        when (value) {
+            case ClientToolCall(call) -> batch.events.add(LlmEvent.ClientToolCall(location, call))
+            case Native(_, raw) -> batch.native("messages.tool.finished", raw, Some(location), false)
+            else -> throw IllegalStateException(Some("unexpected Messages client tool result"))
+        }
+        state.release()
+        tool = None
+    }
+}

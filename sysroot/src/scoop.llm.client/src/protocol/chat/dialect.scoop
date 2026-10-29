@@ -1,0 +1,59 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+/** Protocol-specific response interpretation; state belongs to each call, not the dialect. */
+public interface ChatDialect {
+    public fun fileApi(): LlmFileApi? = None
+    public fun modelCatalog(): LlmModelCatalog? = None
+    public val id: DialectId
+    public val streamedReasoningField: String?
+    public fun encodeOptions(request: LlmRequest): JsonValue
+    public fun encodeContent(content: Array<ContentPart>, role: String, path: String): JsonValue
+    public fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException
+    public fun readReasoning(message: JsonValue, path: String): Array<OutputPart>
+    public fun readUsage(usage: JsonValue): TokenUsage
+    public fun historyMessage(message: JsonValue, path: String): JsonValue
+    public fun canReplayMessage(message: JsonValue): Boolean = true
+    public fun readNativeItems(message: JsonValue, path: String): Array<LlmOutputItem> = chatNativeItems(id, message)
+    public fun createStreamField(field: String, location: LlmItemLocation, retention: StreamRetention): ChatStreamFieldDecoder? = None
+}
+
+public class OpenAiChatDialect public constructor() : ChatDialect {
+    public override fun fileApi(): LlmFileApi? = Some(MultipartFileApi(id, true))
+    public override fun modelCatalog(): LlmModelCatalog? = Some(JsonModelLookup(id))
+    public override val id: DialectId = DialectId(ApiProtocolId("chat-completions"), "openai-chat")
+    public override val streamedReasoningField: String? = None
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        decodeChatError(id, status, body, truncated, false)
+    public override fun encodeOptions(request: LlmRequest): JsonValue = encodeChatOptions(id, request, false)
+    public override fun encodeContent(content: Array<ContentPart>, role: String, path: String): JsonValue =
+        encodeChatContent(id, content, role, false, path)
+    public override fun readReasoning(message: JsonValue, path: String): Array<OutputPart> = []
+    public override fun readUsage(usage: JsonValue): TokenUsage = readChatUsage(usage, false)
+    public override fun historyMessage(message: JsonValue, path: String): JsonValue = projectChatMessage(message, path)
+}
+
+/** The configured model's effective top-p mode, never inferred from its identifier. */
+public enum DeepSeekTopPMode { Unknown, Thinking, NonThinking }
+
+public class DeepSeekChatDialect public constructor(public val topPMode: DeepSeekTopPMode = Unknown) : ChatDialect {
+    public override fun modelCatalog(): LlmModelCatalog? = Some(JsonModelCatalog(id))
+    public override val id: DialectId = DialectId(ApiProtocolId("chat-completions"), "deepseek-chat")
+    public override val streamedReasoningField: String? = Some("reasoning_content")
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        decodeChatError(id, status, body, truncated, true)
+    public override fun encodeOptions(request: LlmRequest): JsonValue = encodeChatOptions(id, request, true, topPMode)
+    public override fun encodeContent(content: Array<ContentPart>, role: String, path: String): JsonValue =
+        encodeChatContent(id, content, role, true, path)
+    public override fun readReasoning(message: JsonValue, path: String): Array<OutputPart> {
+        val fields = decodeChatValue<ChatReasoningField>(message, path)
+        return when (fields.reasoningContent) { case Some(text) -> [OutputPart.Text(text)]; case None -> [] }
+    }
+    public override fun readUsage(usage: JsonValue): TokenUsage = readChatUsage(usage, true)
+    public override fun historyMessage(message: JsonValue, path: String): JsonValue = projectChatMessage(message, path)
+}
+
+private class ChatReasoningField public constructor(@Serialize(rename = "reasoning_content") public val reasoningContent: String? = None) {
+    public companion object : ValueDecoder<ChatReasoningField>
+}

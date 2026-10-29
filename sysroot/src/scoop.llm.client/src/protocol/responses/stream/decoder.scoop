@@ -1,0 +1,108 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.time.Instant
+
+/** One response's reducer, shared by SSE and explicitly routed WebSocket events. */
+public class ResponsesStreamDecoder public constructor(
+    public val protocol: ResponsesProtocol, public val request: LlmRequest, public val retention: StreamRetention = EventsOnly
+) : LlmSseDecoder {
+    internal val dialect: ResponsesDialect get() = protocol.dialect
+    internal val items: ArrayList<ResponsesStreamItem> = ArrayList<ResponsesStreamItem>()
+    internal val nativeEvents: ArrayList<LlmNativeEvent> = ArrayList<LlmNativeEvent>()
+    internal var started: Boolean = false
+    internal var id: String? = None
+    internal var model: String? = None
+    internal var created: Instant? = None
+    internal var currentUsage: LlmUsage = LlmUsage()
+    internal var result: LlmResponse? = None
+    internal var finished: Boolean = false
+    private var failed: Boolean = false
+    private var sequence: Long? = None
+    private var socketBound = false
+    private var socketStreamId: String? = None
+
+    public override val isFinished: Boolean get() = finished && !failed
+    public override val responseId: String? get() = id
+    public override val usage: LlmUsage get() = currentUsage
+
+    public override fun accept(event: String, data: String): LlmStreamUpdate {
+        val raw = try { Json.parse(data) }
+            catch (_: DecodingException) {
+                failed = true
+                throw LlmStreamProtocolException(dialect.id, "invalid stream JSON", Some(data))
+            }
+        return acceptValue(event, raw, Some(data))
+    }
+
+    public fun accept(event: ResponsesWebSocketEvent): LlmStreamUpdate {
+        requireLlmOwner(event.dialect, dialect.id, "/dialect")
+        if (event.kind != ResponsesWebSocketEventKind.Response)
+            throw IllegalArgumentException(Some("WebSocket control events require session-level handling"))
+        if (socketBound && event.streamId != socketStreamId)
+            throw IllegalArgumentException(Some("WebSocket response event belongs to another stream"))
+        socketBound = true; socketStreamId = event.streamId
+        return acceptValue("", llmStreamUnknown(event.native, ["stream_id"]), None)
+    }
+
+    private fun acceptValue(event: String, raw: JsonValue, data: String?): LlmStreamUpdate {
+        try {
+            if (finished || failed) throw LlmStreamProtocolException(dialect.id, "stream is no longer accepting events", data)
+            val batch = LlmStreamBatch(dialect.id, retention, nativeEvents)
+            try {
+                val header = decodeResponsesValue<ResponsesStreamHeader>(raw, "")
+                if (event != "" && event != "message" && event != header.type)
+                    throw DecodingException("/type", "SSE event name disagrees with Responses event type")
+                if (header.sequence != None) {
+                    val next = header.sequence!!
+                    if (next < 0L || (sequence != None && next <= sequence!!))
+                        throw DecodingException("/sequence_number", "stream sequence must increase")
+                    sequence = Some(next)
+                }
+                val known = dispatchResponsesStream(this, header.type, raw, batch)
+                val extra = llmStreamUnknown(raw, known)
+                if (extra.size != 0L) {
+                    if (known.size != 0L && raw.containsKey("output_index")) {
+                        val details = JsonObjectBuilder()
+                        for ((name, value) in extra.members()) details.add(name, value)
+                        for (name in ["content_index", "summary_index"]) {
+                            if (extra.containsKey(name)) continue
+                            when (raw[name]) { case Some(value) -> details.add(name, value); case None -> continue }
+                        }
+                        batch.native(header.type, details.build(), Some(LlmItemLocation(0L, responsesStreamIndex(raw, "output_index"))))
+                    } else batch.native(header.type, extra)
+                }
+            } catch (error: DecodingException) {
+                throw LlmProtocolException(dialect.id, error.path, error.message ?: "invalid Responses stream", raw)
+            }
+            return batch.build()
+        } catch (error: Throwable) { failed = true; throw error }
+    }
+
+    internal fun item(raw: JsonValue, requireActive: Boolean = true): ResponsesStreamItem {
+        if (!started) throw DecodingException("/type", "output event before response.created")
+        val index = responsesStreamIndex(raw, "output_index")
+        if (index >= items.size) throw DecodingException("/output_index", "output item has not started")
+        val item = items[index]
+        if (responsesStreamString(raw, "item_id") != item.id)
+            throw DecodingException("/item_id", "stream item identity changed")
+        if (requireActive && item.done) throw DecodingException("/output_index", "output item already ended")
+        return item
+    }
+
+    public override fun endInput(): LlmStreamUpdate {
+        if (!isFinished) {
+            failed = true
+            throw LlmStreamProtocolException(dialect.id, "Responses stream ended without a terminal response")
+        }
+        return LlmStreamUpdate([])
+    }
+
+    public override fun response(): LlmResponse {
+        if (!isFinished) throw LlmOutputException(Incomplete, "stream has not finished successfully")
+        if (retention != StreamRetention.Result) throw LlmOutputException(ResultNotRetained, "stream result was not retained")
+        val value = result!!
+        return LlmResponse(value.dialect, value.candidates, value.id, value.model, value.createdAt, value.usage,
+            nativeEvents = nativeEvents.toArray())
+    }
+}

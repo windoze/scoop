@@ -1,0 +1,89 @@
+package scoop.llm.client.tests.realtime.session
+
+import scoop.asyncio.*
+import scoop.http.client.HttpClient
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class RealtimeSessionLifetimeTest {
+    @Test
+    fun clientCloseCancelsReceiveAndPreservesBorrowedHttp() {
+        withRealtimePeer(suspend { _ -> Unit }, suspend { _, scope, endpoint ->
+            HttpClient.open(scope).useAsync suspend { http ->
+                val client = LlmClient.open(scope, Some(http))
+                val session = client.openRealtimeSession(endpoint.model("m"))
+                val entered = LlmGate()
+                val reading = scope.launch suspend {
+                    entered.signal()
+                    expectLlmFailure<LlmClientClosedException> suspend { session.receive(); Unit }
+                    Unit
+                }
+                entered.await(); currentEventLoop().sleep(Duration.milliseconds(1L))
+                client.close(); reading.join()
+                assertTrue(client.isClosed && session.isClosed)
+                assertFalse(http.isClosed)
+                session.close()
+            }
+        })
+    }
+
+    @Test
+    fun secondReaderFailsWhileWriterContinuesAndExplicitCloseIsIdempotent() {
+        withRealtimePeer(suspend { socket ->
+            assertEquals("input_audio_buffer.clear", readRealtimeCommand(socket)["type"]!!.asString())
+            socket.sendText("{\"type\":\"input_audio_buffer.cleared\",\"event_id\":\"e\"}")
+        }, suspend { _, scope, endpoint ->
+            withLlmClient suspend { client ->
+                val session = client.openRealtimeSession(endpoint.model("m"))
+                val entered = LlmGate()
+                val reading = scope.launch suspend {
+                    entered.signal()
+                    assertEquals("input_audio_buffer.cleared", session.receive()!!.message.type)
+                }
+                entered.await(); currentEventLoop().sleep(Duration.milliseconds(1L))
+                expectLlmFailure<IllegalStateException> suspend { session.receive(); Unit }
+                assertFalse(session.isClosed)
+                session.sendAudioClear(); reading.join()
+                session.close(); session.close()
+                assertTrue(session.isClosed)
+                assertTrue(when (session.receive()) { case None -> true; else -> false })
+                expectLlmFailure<RealtimeSessionClosedException> suspend { session.sendResponseCreate(); Unit }
+            }
+        })
+    }
+
+    @Test
+    fun receiveCancellationAndMalformedMessagesWaitForCleanup() {
+        for (mode in ["cancel", "json", "binary", "field"]) {
+            val released = LlmGate()
+            withRealtimePeer(suspend { socket ->
+                if (mode == "json") socket.sendText("{")
+                else if (mode == "binary") socket.sendBinary("{}".toByteArray())
+                else if (mode == "field") socket.sendText("{\"type\":\"response.output_text.delta\",\"response_id\":false}")
+                socket.awaitClosed(); released.signal()
+            }, suspend { _, scope, endpoint ->
+                withLlmClient suspend { client ->
+                    val session = client.openRealtimeSession(endpoint.model("m"))
+                    val entered = LlmGate()
+                    val reading = scope.launch suspend {
+                        entered.signal()
+                        val error = realtimePrimaryFailure(expectLlmFailure<Throwable> suspend { session.receive(); Unit })
+                        if (mode == "cancel") { assertTrue(error is CancellationException) }
+                        else if (mode == "field") { assertTrue(error is LlmProtocolException) }
+                        else { assertTrue(error is LlmStreamProtocolException) }
+                        Unit
+                    }
+                    entered.await(); currentEventLoop().sleep(Duration.milliseconds(1L))
+                    if (mode == "cancel") reading.cancel()
+                    reading.join(); released.await()
+                    assertTrue(session.isClosed)
+                    session.close()
+                    assertFalse(client.isClosed)
+                }
+            })
+        }
+    }
+}

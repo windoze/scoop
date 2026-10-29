@@ -1,0 +1,25 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.count.responsesCountRequest
+
+internal val compactedWindow = "[{\"type\":\"message\",\"role\":\"user\",\"content\":[" +
+    "{\"type\":\"input_text\",\"text\":\"retained question\"},{\"type\":\"input_image\",\"image_url\":\"https://example.test/image.png\"}," +
+    "{\"type\":\"input_file\",\"file_id\":\"uploaded-pdf\"}]}," +
+    "{\"type\":\"compaction\",\"id\":\"cmp-item\",\"encrypted_content\":\"opaque-state\"}]"
+
+internal fun compactionBody(output: String = compactedWindow): JsonValue = Json.parse(
+    "{\"object\":\"response.compaction\",\"id\":\"compact-operation\",\"created_at\":0,\"output\":" + output +
+    ",\"usage\":{\"input_tokens\":100,\"input_tokens_details\":{\"cached_tokens\":20,\"cache_write_tokens\":10}," +
+    "\"output_tokens\":5,\"output_tokens_details\":{\"reasoning_tokens\":2},\"total_tokens\":105}}")
+
+internal fun compactionRequest(): LlmRequest {
+    val original = responsesCountRequest()
+    return LlmRequest(original.input, system = original.system, tools = original.tools,
+        options = LlmGenerationOptions(temperature = Some(0.4), topK = Some(1UL), candidates = Some(2UL),
+            maxOutputTokens = Some(64UL), reasoning = Some(ReasoningOptions(budgetTokens = Some(16UL)))),
+        extensions = [DialectExtension(OpenAiResponsesDialect().id, Json.parse(
+            "{\"previous_response_id\":\"previous\",\"prompt_cache_key\":\"context\",\"prompt_cache_options\":{\"mode\":\"explicit\"}," +
+            "\"prompt_cache_retention\":\"in_memory\",\"service_tier\":\"default\"}"))])
+}

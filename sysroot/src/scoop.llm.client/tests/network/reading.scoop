@@ -1,0 +1,88 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.json.Json
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class LlmStreamNetworkTest {
+    @Test
+    fun `reads on demand and publishes the retained result only after cleanup`() {
+        withStreamReply(streamReply) suspend { client, model ->
+            val finished = FinishedCalls()
+            val stream = client.openStream(model, sampleRequest,
+                LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) })), StreamRetention.Result)
+            val initial = stream.metadata
+            assertEquals(None, initial.attempts[0L].response.firstEventAt)
+            assertTrue(initial.attempts[0L].request.sentAt != None)
+            assertTrue(initial.attempts[0L].response.receivedAt != None)
+            stream.useAsync suspend { opened ->
+                val delta = when (opened.next()!!) { case TextDelta(value) -> value; else -> fail() }
+                assertEquals("hello", delta.text)
+                assertEquals(2L, delta.location.candidateIndex)
+                drainStream(opened)
+                assertEquals(0L, finished.values.size)
+                assertEquals(LlmCallOutcome.Active, opened.metadata.outcome)
+                assertTrue(opened.metadata.attempts[0L].response.completedAt != None)
+                expectLlmFailure<LlmOutputException> suspend { opened.result(); Unit }
+            }
+            val result = stream.result()
+            assertTrue(stream.isClosed)
+            assertEquals("hello world", result.text)
+            assertEquals(Some(11L), result.response.usage.tokens.totalTokens)
+            assertEquals(UsageCompleteness.Final, result.response.usage.completeness)
+            assertEquals(1L, result.toInput().size)
+            assertEquals(1L, finished.values.size)
+            assertSame(finished.values[0L], result.metadata)
+            assertEquals(LlmCallOutcome.Completed, result.metadata.outcome)
+            assertEquals(LlmCallOutcome.Active, initial.outcome)
+            assertEquals(None, initial.attempts[0L].response.firstEventAt)
+            assertEquals("hello world", Json.decodeFromString<LlmResult>(Json.encodeToString(result)).text)
+        }
+    }
+
+    @Test
+    fun `default text projection consumes usage tails and withStream returns its block value`() {
+        withStreamReply(streamReply) suspend { client, model ->
+            val finished = FinishedCalls()
+            val answer = client.withStream(model, sampleRequest,
+                LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))) suspend { stream ->
+                val text = stream.textDeltas()
+                var result = ""
+                while (true) {
+                    val delta = text.next() ?: break
+                    assertEquals(2L, delta.location.candidateIndex)
+                    result += delta.text
+                }
+                result
+            }
+            assertEquals("hello world", answer)
+            assertEquals(Some(11L), finished.values[0L].attempts[0L].usage.tokens.totalTokens)
+            assertEquals(LlmCallOutcome.Completed, finished.values[0L].outcome)
+        }
+    }
+
+    @Test
+    fun `reader selection is exclusive and EventsOnly never fabricates a result`() {
+        for (textFirst in [true, false]) {
+            withStreamReply(streamReply) suspend { client, model ->
+                val stream = client.openStream(model, sampleRequest)
+                stream.useAsync suspend { opened ->
+                    if (textFirst) {
+                        val text = opened.textDeltas()
+                        expectLlmFailure<IllegalStateException> suspend { opened.textDeltas(); Unit }
+                        expectLlmFailure<IllegalStateException> suspend { opened.next(); Unit }
+                        while (true) { when (text.next()) { case Some(_) -> continue; case None -> break } }
+                    } else {
+                        opened.next()
+                        expectLlmFailure<IllegalStateException> suspend { opened.textDeltas(); Unit }
+                        drainStream(opened)
+                    }
+                }
+                val error = expectLlmFailure<LlmOutputException> suspend { stream.result(); Unit }
+                assertEquals(LlmOutputFailure.ResultNotRetained, error.reason)
+            }
+        }
+    }
+}

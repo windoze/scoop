@@ -1,0 +1,93 @@
+package scoop.llm.client
+
+import scoop.http.HttpFieldParseException
+import scoop.json.Json
+import scoop.test.*
+
+@Test
+private class MediaCapabilityTest {
+    @Test
+    fun `format support never creates a MIME and representation cross product`() {
+        val formats = MediaCapabilities([
+            MediaFormatCapability(MediaFormat("image/png", Bytes), Supported(MediaLimits(maxBytesPerItem = Some(1024UL)))),
+            MediaFormatCapability(MediaFormat("image/jpeg", Url), Supported(MediaLimits())),
+            MediaFormatCapability(MediaFormat("image/png", FileReference), Unsupported("file IDs unavailable"))
+        ])
+        val input = InputCapabilities(image = Supported(formats), pdf = Unsupported("PDF input disabled"))
+        assertEquals(Some(1024UL), supportedDetails(input.forMedia(Image, MediaFormat("IMAGE/PNG", Bytes))).maxBytesPerItem)
+        assertEquals(None, supportedDetails(input.forMedia(Image, MediaFormat("image/jpeg", Url))).maxBytesPerItem)
+        assertTrue(isUnknownCapability(input.forMedia(Image, MediaFormat("image/png", Url))))
+        assertTrue(isUnknownCapability(input.forMedia(Image, MediaFormat("image/jpeg", Bytes))))
+        assertEquals("file IDs unavailable", unsupportedReason(input.forMedia(Image, MediaFormat("image/png", FileReference))))
+        assertEquals("PDF input disabled", unsupportedReason(input.forMedia(Pdf, MediaFormat("application/pdf", Bytes))))
+    }
+
+    @Test
+    fun `MIME matching retains exact parameter values and ignores only syntax equivalences`() {
+        val format = MediaFormat("Audio/L16; RATE=24000; channels=1", Bytes)
+        assertTrue(format.matches(MediaFormat("audio/l16; channels=\"1\"; rate=\"24000\"", Bytes)))
+        assertFalse(format.matches(MediaFormat("audio/l16; rate=16000; channels=1", Bytes)))
+        assertFalse(format.matches(MediaFormat("audio/l16; rate=24000", Bytes)))
+        assertFalse(format.matches(MediaFormat("audio/l16", Bytes)))
+        assertFalse(format.matches(MediaFormat("audio/l16; rate=24000; channels=1", Url)))
+        assertFalse(MediaFormat("video/mp4; codecs=avc1", Bytes).matches(MediaFormat("video/mp4; codecs=AVC1", Bytes)))
+        val saved = Json.encodeToValue(format)
+        assertEquals(2L, saved.size)
+        val restored = Json.decodeFromValue<MediaFormat>(saved)
+        assertEquals(format.mimeType, restored.mimeType)
+        assertTrue(format.matches(restored))
+    }
+
+    @Test
+    fun `overlapping facts are rejected including after decoding`() {
+        assertFailsWith<IllegalArgumentException> {
+            val invalid = MediaCapabilities([
+                MediaFormatCapability(MediaFormat("audio/L16; rate=24000", Bytes), Unknown),
+                MediaFormatCapability(MediaFormat("AUDIO/l16; RATE=\"24000\"", Bytes), Unsupported("disabled"))
+            ])
+            Unit
+        }
+        val fact = Json.stringify(Json.encodeToValue(MediaFormatCapability(MediaFormat("image/png", Bytes), Unknown)))
+        assertFailsWith<IllegalArgumentException> {
+            val invalid = Json.decodeFromString<MediaCapabilities>("{\"formats\":[" + fact + "," + fact + "]}")
+            Unit
+        }
+    }
+
+    @Test
+    fun `formats require a concrete valid MIME type`() {
+        assertFailsWith<HttpFieldParseException> { val invalid = MediaFormat("image", Bytes); Unit }
+        assertFailsWith<IllegalArgumentException> { val invalid = MediaFormat("image/*", Bytes); Unit }
+        assertFailsWith<IllegalArgumentException> { val invalid = MediaFormat("*/*", Bytes); Unit }
+    }
+
+    @Test
+    fun `media kinds and directions stay independent after model serialization`() {
+        val image = MediaCapabilities([MediaFormatCapability(MediaFormat("image/png", Bytes), Supported(MediaLimits()))])
+        val document = MediaCapabilities([MediaFormatCapability(MediaFormat("application/pdf", FileReference), Supported(MediaLimits(maxPagesPerItem = Some(100UL))))])
+        val original = ModelCapabilities(
+            input = InputCapabilities(image = Supported(image), videoFrames = Supported(image)),
+            output = OutputCapabilities(document = Supported(document), audio = Unsupported("text output only"))
+        )
+        val model = Json.decodeFromString<ModelCapabilities>(Json.encodeToString(original))
+        val png = MediaFormat("image/png", Bytes)
+        assertEquals(None, supportedDetails(model.input.forMedia(VideoFrames, png)).maxWidthPixels)
+        assertTrue(isUnknownCapability(model.input.forMedia(Video, MediaFormat("video/mp4", Bytes))))
+        assertTrue(isUnknownCapability(model.output.forMedia(Image, png)))
+        assertEquals("text output only", unsupportedReason(model.output.forMedia(Audio, MediaFormat("audio/wav", Url))))
+        val pdf = MediaFormat("application/pdf", FileReference)
+        assertEquals(Some(100UL), supportedDetails(model.output.forMedia(Document, pdf)).maxPagesPerItem)
+        assertTrue(isUnknownCapability(model.input.forMedia(Pdf, pdf)))
+        assertTrue(isUnknownCapability(model.input.forMedia(Document, pdf)))
+        assertTrue(isUnknownCapability(model.input.forMedia(Audio, MediaFormat("audio/wav", Bytes))))
+        assertTrue(isUnknownCapability(model.output.forMedia(Video, MediaFormat("video/mp4", Url))))
+    }
+
+    @Test
+    fun `known modality with unknown formats does not grant an arbitrary format`() {
+        val input = InputCapabilities(image = Supported(MediaCapabilities()))
+        assertTrue(isUnknownCapability(input.forMedia(Image, MediaFormat("image/png", Bytes))))
+        val empty = Json.decodeFromString<MediaCapabilities>("{}")
+        assertEquals(0L, empty.formats.size)
+    }
+}

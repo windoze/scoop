@@ -1,0 +1,77 @@
+package scoop.llm.client.tests.cohere.stream
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.cohere.*
+import scoop.test.*
+
+@Test
+private class CohereStreamFailuresTest {
+    @Test
+    fun `Cohere SSE requires one message start matching event types and stable actual identity`() {
+        assertCohereStreamFailure(cohereStream(), cohereEvent("content-end", Some(0L)), "/type")
+        val duplicate = cohereStream(); cohereBegin(duplicate)
+        assertCohereStreamFailure(duplicate, "{\"type\":\"message-start\"}", "/type")
+        val changed = cohereStream()
+        changed.accept("", "{\"type\":\"message-start\",\"id\":\"a\"}")
+        assertCohereStreamFailure(changed, "{\"type\":\"message-end\",\"id\":\"b\",\"delta\":{\"finish_reason\":\"COMPLETE\"}}", "/id")
+        assertFailsWith<LlmProtocolException> { cohereStream().accept("content-start", "{\"type\":\"message-start\"}"); Unit }
+        for ((message, path) in [("{\"role\":\"user\"}", "role"), ("{\"content\":[{}]}", "content"),
+            ("{\"tool_calls\":[{}]}", "tool_calls"), ("{\"citations\":{}}", "citations")])
+            assertCohereStreamFailure(cohereStream(), "{\"type\":\"message-start\",\"delta\":{\"message\":" + message + "}}", "/delta/message/" + path)
+    }
+
+    @Test
+    fun `Cohere SSE checks independent indices block closure and content delta kinds`() {
+        for (type in ["content-end", "tool-call-end", "citation-end"]) {
+            val stream = cohereStream(); cohereBegin(stream)
+            assertCohereStreamFailure(stream, cohereEvent(type, Some(0L)), "/index")
+        }
+        for (index in [-1L, 1L]) {
+            val stream = cohereStream(); cohereBegin(stream)
+            assertCohereStreamFailure(stream, cohereEvent("content-start", Some(index), Some("content"), Some(Json.parse("{\"type\":\"text\"}"))), "/index")
+        }
+        val closed = cohereStream(); cohereBegin(closed); cohereContent(closed, 0L, "a")
+        assertCohereStreamFailure(closed, cohereEvent("content-delta", Some(0L), Some("content"), Some(Json.parse("{\"text\":\"b\"}"))), "/index")
+        val mismatch = cohereStream(); cohereBegin(mismatch)
+        mismatch.accept("", cohereEvent("content-start", Some(0L), Some("content"), Some(Json.parse("{\"type\":\"thinking\"}"))))
+        assertCohereStreamFailure(mismatch, cohereEvent("content-delta", Some(0L), Some("content"), Some(Json.parse("{\"text\":\"b\"}"))), "/delta/message/content/text")
+        for ((type, member, raw) in [("content-start", "content", "{\"type\":\"text\"}"),
+            ("tool-call-start", "tool_calls", Json.stringify(cohereCall("a"))), ("citation-start", "citations", "{}")]) {
+            val open = cohereStream(); cohereBegin(open)
+            open.accept("", cohereEvent(type, Some(0L), Some(member), Some(Json.parse(raw))))
+            assertCohereStreamFailure(open, "{\"type\":\"message-end\",\"delta\":{\"finish_reason\":\"COMPLETE\"}}", "/delta/finish_reason")
+        }
+    }
+
+    @Test
+    fun `Cohere SSE validates actual tool IDs and citation source boundaries`() {
+        val duplicate = cohereStream(); cohereBegin(duplicate); cohereToolStart(duplicate, 0L, cohereCall("a"))
+        assertCohereStreamFailure(duplicate, cohereEvent("tool-call-start", Some(1L), Some("tool_calls"), Some(cohereCall("a"))), "/delta/message/tool_calls/id")
+        val empty = cohereStream(); cohereBegin(empty)
+        assertCohereStreamFailure(empty, cohereEvent("tool-call-start", Some(0L), Some("tool_calls"), Some(cohereCall(""))), "/delta/message/tool_calls/id")
+        for ((value, path) in [("{\"start\":2,\"end\":1}", "end"), ("{\"content_index\":-1}", "content_index"),
+            ("{\"sources\":[{\"type\":\"document\",\"document\":0}]}", "sources/0/document")]) {
+            val stream = cohereStream(); cohereBegin(stream)
+            assertCohereStreamFailure(stream, cohereEvent("citation-start", Some(0L), Some("citations"), Some(Json.parse(value))), "/message/citations/0/" + path)
+        }
+        val future = cohereStream(); cohereBegin(future); cohereCite(future, 0L, "{\"content_index\":1}")
+        assertCohereStreamFailure(future, "{\"type\":\"message-end\",\"delta\":{\"finish_reason\":\"COMPLETE\"}}", "/message/citations/0/content_index")
+    }
+
+    @Test
+    fun `Cohere SSE requires message end and rejects contradictory terminal errors`() {
+        for (done in [false, true]) {
+            val stream = cohereStream(); cohereBegin(stream); cohereContent(stream, 0L, "partial")
+            if (done) assertFailsWith<LlmStreamProtocolException> { stream.accept("", "[DONE]"); Unit }
+            else assertFailsWith<LlmStreamProtocolException> { stream.endInput(); Unit }
+            assertFailsWith<LlmOutputException> { stream.response(); Unit }
+        }
+        val stream = cohereStream(); cohereBegin(stream)
+        assertCohereStreamFailure(stream, "{\"type\":\"message-end\",\"delta\":{\"finish_reason\":\"COMPLETE\",\"error\":\"failed\"}}", "/delta/error")
+        assertCohereStreamFailure(cohereStream(), "{\"type\":\"error\",\"message\":\"failed\"}", "/type")
+        val finished = cohereStream(); cohereBegin(finished); cohereEnd(finished)
+        assertFailsWith<LlmStreamProtocolException> { finished.accept("", "{\"type\":\"debug\"}"); Unit }
+        assertFalse(finished.isFinished)
+    }
+}

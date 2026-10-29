@@ -1,0 +1,30 @@
+package scoop.llm.client.tests.responses.session
+
+import scoop.http.asyncio.AsyncWebSocketSession
+import scoop.llm.client.*
+import scoop.llm.client.tests.responses.*
+import scoop.test.*
+
+internal suspend fun runResponsesConversationPeer(socket: AsyncWebSocketSession) {
+    val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+    val a = wsCommand(socket); val b = wsCommand(socket)
+    assertEquals("model-a", a["model"]!!.asString())
+    assertEquals("model-b", b["model"]!!.asString())
+    assertEquals("a", a["stream_id"]!!.asString())
+    assertFalse(b.containsKey("stream_id"))
+    wsEmit(socket, responsesWsStart(protocol, Some("a"), "response-a"))
+    val steer = wsCommand(socket)
+    assertEquals("response.steer", steer["type"]!!.asString())
+    assertEquals("response-a", steer["previous_response_id"]!!.asString())
+    wsEmit(socket, responsesWsEvent(protocol, "response.steer.accepted", Some("a"),
+        "\"steer\":{\"id\":\"s\",\"previous_response_id\":\"response-a\"},\"service_extra\":[1,\"changed\"]"))
+    wsEmit(socket, responsesWsStart(protocol, None, "response-b"))
+    wsEmit(socket, responsesWsEnd(protocol, None, "[" + responsesCall("{\"count\":2}", status = Some("completed")) + "]"))
+    wsEmit(socket, responsesWsEnd(protocol, Some("a"), "[]", "incomplete", Some("steered")))
+    wsEmit(socket, responsesWsStart(protocol, Some("a"), "successor"))
+    wsEmit(socket, responsesWsEnd(protocol, Some("a"), "[" + responsesMessage("updated") + "]"))
+    val next = wsCommand(socket)
+    assertEquals("call", next["input"]!![1L]["call_id"]!!.asString())
+    wsEmit(socket, responsesWsStart(protocol, None, "response-next"))
+    wsEmit(socket, responsesWsEnd(protocol, None, "[" + responsesMessage("done") + "]"))
+}

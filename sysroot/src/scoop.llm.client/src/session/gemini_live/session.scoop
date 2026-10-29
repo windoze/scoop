@@ -1,0 +1,59 @@
+package scoop.llm.client
+
+import scoop.asyncio.AsyncCloseable
+import scoop.json.JsonValue
+import scoop.time.Instant
+import scoop.url.Url
+
+/** One configured Live connection, with explicit sends and one pull-based receive loop. */
+public class GeminiLiveSession internal constructor(private val connection: LlmWebSocketConnection,
+    public val model: LlmModel, public val setup: GeminiLiveSetup, public val protocol: BidiGenerateContentProtocol,
+    public val opening: LlmCallMetadata, public val setupSent: GeminiLiveSent, public val setupComplete: GeminiLiveReceived) : AsyncCloseable {
+    public val id: String get() = connection.id
+    public val startedAt: Instant get() = connection.startedAt
+    public val url: Url get() = connection.url
+    public val isClosed: Boolean get() = connection.isClosed
+    public val failure: Throwable? get() = connection.failure
+
+    public suspend fun sendClientContent(input: Array<LlmInputItem>, turnComplete: Boolean = true): GeminiLiveSent {
+        connection.checkLoop()
+        checkModelInput(model.capabilities.input, LlmRequest(input))
+        return send(protocol.encodeClientContent(input, turnComplete))
+    }
+
+    public suspend fun sendRealtimeInput(input: GeminiLiveInput): GeminiLiveSent {
+        connection.checkLoop()
+        when (input.text) { case Some(_) -> requireModelCapability(model.capabilities.input.text, "/text"); case None -> {} }
+        when (input.audio) {
+            case Some(blob) -> checkSingleModelMedia(model.capabilities.input, InputMediaKind.Audio,
+                MediaSource.Bytes(blob.bytes, blob.mimeType), "/audio")
+            case None -> {}
+        }
+        when (input.video) {
+            case Some(blob) -> checkSingleModelMedia(model.capabilities.input, InputMediaKind.VideoFrames,
+                MediaSource.Bytes(blob.bytes, blob.mimeType), "/video")
+            case None -> {}
+        }
+        return send(protocol.encodeRealtimeInput(input))
+    }
+
+    public suspend fun sendToolResponse(results: Array<GeminiLiveToolResult>): GeminiLiveSent {
+        connection.checkLoop()
+        val content = ArrayList<(Array<ContentPart>, String)>()
+        var index = 0L
+        for (result in results) { content.add((result.parts, "/results/" + index.toString() + "/parts")); index += 1L }
+        checkModelContentInputs(model.capabilities.input, content.toArray())
+        return send(protocol.encodeToolResponse(results, setup.tools))
+    }
+
+    public suspend fun receive(): GeminiLiveReceived? {
+        val (message, received) = connection.receive<GeminiLiveMessage>(true) { data ->
+            decodeGeminiLiveSessionMessage(protocol, data, setup.tools)
+        } ?: return None
+        return Some(GeminiLiveReceived(id, message, received))
+    }
+
+    public override suspend fun close() { connection.close() }
+
+    private suspend fun send(command: JsonValue): GeminiLiveSent = GeminiLiveSent(id, command, connection.send(command))
+}

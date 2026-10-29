@@ -1,0 +1,45 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.text.replace
+
+internal fun mergeInteractionsExtensions(base: JsonValue, extensions: Array<DialectExtension>, dialect: DialectId): JsonValue {
+    var result = base
+    var index = 0L
+    for (extension in extensions) {
+        val path = "/extensions/" + index.toString()
+        requireLlmOwner(extension.dialect, dialect, path + "/dialect")
+        val output = JsonObjectBuilder()
+        for ((name, value) in result.members()) if (!extension.value.containsKey(name)) output.add(name, value)
+        for ((name, value) in extension.value.members()) {
+            val fieldPath = path + "/value/" + name.replace("~", "~0").replace("/", "~1")
+            if (name == "model" || name == "agent" || name == "input" || name == "system_instruction" || name == "tools" || name == "stream")
+                throw LlmRequestException(fieldPath, "extension cannot override a managed protocol field")
+            if (name == "generation_config") {
+                val managed = ["max_output_tokens", "stop_sequences", "tool_choice", "thinking_level", "thinking_budget",
+                    "temperature", "top_p", "top_k", "candidate_count", "parallel_tool_calls"]
+                output.add(name, mergeInteractionsFields(result[name] ?: JsonObjectBuilder().build(), value, managed, fieldPath))
+            } else if (name == "response_format") output.add(name, mergeInteractionsFormats(result[name], value, fieldPath))
+            else {
+                if (result.containsKey(name)) throw LlmRequestException(fieldPath, "extension conflicts with a dialect field")
+                output.add(name, value)
+            }
+        }
+        result = output.build()
+        index += 1L
+    }
+    return result
+}
+
+internal fun mergeInteractionsFields(base: JsonValue, extra: JsonValue, managed: Array<String>, path: String): JsonValue {
+    if (extra.kind != JsonValueKind.Object) throw LlmRequestException(path, "configuration requires an object")
+    val result = JsonObjectBuilder()
+    for ((name, value) in base.members()) result.add(name, value)
+    for ((name, value) in extra.members()) {
+        val fieldPath = path + "/" + name.replace("~", "~0").replace("/", "~1")
+        for (reserved in managed) if (reserved == name) throw LlmRequestException(fieldPath, "extension cannot override a managed protocol field")
+        if (base.containsKey(name)) throw LlmRequestException(fieldPath, "extension conflicts with a dialect field")
+        result.add(name, value)
+    }
+    return result.build()
+}

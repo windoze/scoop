@@ -1,0 +1,56 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+private class OllamaCall public constructor(public val function: JsonValue, public val id: String? = None) {
+    public companion object : ValueDecoder<OllamaCall>
+}
+
+private class OllamaFunction public constructor(public val name: String? = None, public val index: Long? = None) {
+    public companion object : ValueDecoder<OllamaFunction>
+}
+
+internal fun appendOllamaCalls(items: ArrayList<LlmOutputItem>, dialect: DialectId, calls: Array<JsonValue>,
+    tools: Array<ToolDefinition>, complete: Boolean, ids: ArrayList<String>) {
+    var index = 0L
+    for (raw in calls) {
+        val path = "/message/tool_calls/" + index.toString()
+        val call = decodeOllamaValue<OllamaCall>(raw, path)
+        when (call.id) {
+            case Some(id) -> {
+                ollamaNonempty(id, path + "/id")
+                for (previous in ids) if (previous == id) throw DecodingException(path + "/id", "duplicate tool call ID")
+                ids.add(id)
+            }
+            case None -> {}
+        }
+        val function = decodeOllamaValue<OllamaFunction>(call.function, path + "/function")
+        if (function.index != None && function.index!! < 0L) throw DecodingException(path + "/function/index", "negative function index")
+        when (function.name) { case Some(name) -> ollamaNonempty(name, path + "/function/name"); case None -> {} }
+        items.add(readOllamaCall(dialect, raw, call, function, tools, complete))
+        index += 1L
+    }
+}
+
+private fun readOllamaCall(dialect: DialectId, raw: JsonValue, call: OllamaCall, function: OllamaFunction,
+    tools: Array<ToolDefinition>, complete: Boolean): LlmOutputItem {
+    val name = function.name ?: return LlmOutputItem.Native(dialect, raw)
+    val arguments = call.function["arguments"] ?: return LlmOutputItem.Native(dialect, raw)
+    val key = resolveOllamaFunction(tools, name) ?: return LlmOutputItem.Native(dialect, raw)
+    val text = Json.stringify(arguments)
+    val input = if (!complete) ClientToolInput.Incomplete(text)
+        else try { ClientToolInput.JsonArguments(JsonToolArguments(text)) }
+        catch (error: DecodingException) { ClientToolInput.Invalid(text, error.message ?: "invalid function arguments") }
+    return LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, key, call.id, Some(raw)), input))
+}
+
+private fun resolveOllamaFunction(tools: Array<ToolDefinition>, name: String): ToolKey? {
+    var found: ToolKey? = None
+    for (tool in tools) {
+        val matches = when (tool) { case ClientFunction(_, wireName, _, _, _, _) -> wireName == name; else -> false }
+        if (!matches) continue
+        if (found != None) return None
+        found = Some(tool.key)
+    }
+    return found
+}

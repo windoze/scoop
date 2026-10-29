@@ -1,0 +1,24 @@
+package scoop.llm.client
+
+import scoop.http.client.HttpAttemptMetrics
+import scoop.http.client.HttpPhaseTiming
+import scoop.time.TimeMark
+
+internal fun readLlmHttpTiming(metrics: HttpAttemptMetrics?, origin: TimeMark): LlmHttpTiming {
+    val actual = metrics ?: return LlmHttpTiming()
+    return LlmHttpTiming(
+        queue = readLlmHttpPhase(actual.queue, origin),
+        resolve = readLlmHttpPhase(actual.resolve, origin),
+        connect = readLlmHttpPhase(actual.connect, origin),
+        proxyTls = readLlmHttpPhase(actual.proxyTls, origin),
+        proxyHandshake = readLlmHttpPhase(actual.proxyHandshake, origin),
+        originTls = readLlmHttpPhase(actual.originTls, origin))
+}
+
+private fun readLlmHttpPhase(phase: HttpPhaseTiming?, origin: TimeMark): LlmPhaseTiming? {
+    val actual = phase ?: return None
+    return Some(LlmPhaseTiming(actual.startedAt - origin, when (actual.finishedAt) {
+        case Some(end) -> Some(end - origin)
+        case None -> None
+    }))
+}

@@ -1,0 +1,74 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.time.Instant
+
+internal fun acceptResponsesLifecycle(state: ResponsesStreamDecoder, type: String, raw: JsonValue, batch: LlmStreamBatch) {
+    val body = decodeResponsesValue<ResponsesBody>(raw, "/response")
+    if (body.objectType != "response") throw DecodingException("/response/object", "expected a Responses response")
+    if (type == "response.created") {
+        if (state.started) throw DecodingException("/type", "response already started")
+        if (body.output.size != 0L) throw DecodingException("/response/output", "response.created starts without output items")
+        state.started = true
+    } else if (!state.started) throw DecodingException("/type", "lifecycle event before response.created")
+    state.id = llmStreamIdentity(state.id, body.id, "/response/id")
+    state.model = llmStreamIdentity(state.model, body.model, "/response/model")
+    if (body.createdAt != None) {
+        val time = Instant.fromEpochSeconds(body.createdAt!!)
+        if (state.created != None && state.created != Some(time)) throw DecodingException("/response/created_at", "response creation time changed")
+        state.created = Some(time)
+    }
+    val terminal = type == "response.completed" || type == "response.incomplete" || type == "response.failed"
+    if (terminal && body.status != Some(type.slice("response.".length, type.length)))
+        throw DecodingException("/response/status", "terminal event disagrees with response status")
+    if (!terminal && responsesTerminal(body.status)) throw DecodingException("/response/status", "nonterminal event contains a terminal response")
+    updateResponsesStreamUsage(state, body.usage, terminal, batch)
+    val extra = llmStreamUnknown(raw, ["object", "id", "model", "created_at", "status", "output", "usage", "incomplete_details"])
+    if (extra.size != 0L) batch.native(type + ".response", extra)
+    if (terminal) finishResponsesStream(state, raw, body.output, batch)
+}
+
+private fun updateResponsesStreamUsage(state: ResponsesStreamDecoder, raw: JsonValue?, terminal: Boolean, batch: LlmStreamBatch) {
+    if (llmPresent(raw) && raw!!.kind != JsonValueKind.Null) {
+        val merged = when (state.currentUsage.native) {
+            case Some(previous) -> mergeLlmStreamUsage(previous, raw!!)
+            case None -> raw!!
+        }
+        state.currentUsage = LlmUsage(state.dialect.readUsage(merged), Partial, Some(merged))
+    }
+    if (terminal) state.currentUsage = LlmUsage(state.currentUsage.tokens, Final, state.currentUsage.native)
+    if (terminal || llmPresent(raw)) batch.events.add(LlmEvent.Usage(state.currentUsage))
+}
+
+private fun finishResponsesStream(state: ResponsesStreamDecoder, raw: JsonValue, output: Array<JsonValue>, batch: LlmStreamBatch) {
+    if (output.size < state.items.size) throw DecodingException("/response/output", "terminal response lost an observed item")
+    val selected = ArrayList<JsonValue>()
+    var index = 0L
+    for (incoming in output) {
+        val item = if (index == state.items.size) addResponsesStreamItem(state, incoming, batch) else state.items[index]
+        item.checkIdentity(incoming)
+        val value = item.wire ?: incoming
+        if (!item.done) item.snapshot(value, batch, true)
+        selected.add(value)
+        index += 1L
+    }
+    val decoded = state.protocol.decodeResponse(replaceResponsesField(raw, "output", JsonValue.fromArray(selected)), state.request)
+    val candidate = decoded.candidate(0L)
+    val items = ArrayList<LlmOutputItem>()
+    index = 0L
+    for (outputItem in candidate.items) {
+        val item = state.items[index]
+        val call = when (outputItem) { case ClientToolCall(value) -> Some(value); else -> None }
+        if (llmPresent(call)) batch.events.add(LlmEvent.ClientToolCall(item.location, call!!))
+        if (state.retention == StreamRetention.Result) items.add(orderResponsesReasoning(item, outputItem, selected[index]))
+        index += 1L
+    }
+    if (state.retention == StreamRetention.Result) {
+        state.result = Some(LlmResponse(state.dialect.id,
+            [LlmCandidate(0L, items.toArray(), candidate.completion, candidate.finishReason, candidate.history)],
+            state.id, state.model, state.created, state.currentUsage))
+    }
+    batch.events.add(LlmEvent.CandidateFinished(0L, candidate.completion, candidate.finishReason))
+    state.items.clear()
+    state.finished = true
+}

@@ -1,0 +1,54 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+internal class ResponsesOutputEntry public constructor(val raw: JsonValue, val kind: String, val id: String?,
+    val callId: String?, val client: Boolean, val status: String?)
+
+internal fun responsesOutputEntries(output: Array<JsonValue>): Array<ResponsesOutputEntry> {
+    val result = ArrayList<ResponsesOutputEntry>()
+    val itemIds = ArrayList<String>()
+    val callIds = ArrayList<String>()
+    var index = 0L
+    for (raw in output) {
+        val path = "/output/" + index.toString()
+        val fields = decodeResponsesValue<ResponsesItemFields>(raw, path)
+        responsesUniqueId(itemIds, fields.id, path + "/id")
+        if (fields.type == "local_shell_call" && fields.id == None)
+            throw DecodingException(path + "/id", "local shell result requires the original item ID")
+        val client = responsesIsClientItem(fields.type, raw, path)
+        val callId = if (client || fields.type == "shell_call")
+            Some(decodeResponsesValue<ResponsesCallId>(raw, path).callId) else None
+        responsesUniqueId(callIds, callId, path + "/call_id")
+        val status = if (client || fields.type == "message" || fields.type == "reasoning")
+            decodeResponsesValue<ResponsesItemStatus>(raw, path).status else None
+        result.add(ResponsesOutputEntry(raw, fields.type, fields.id, callId, client, status))
+        index += 1L
+    }
+    return result.toArray()
+}
+
+private fun responsesUniqueId(ids: ArrayList<String>, incoming: String?, path: String) {
+    val id = incoming ?: return
+    if (id.length == 0L) throw DecodingException(path, "empty Responses identity")
+    for (previous in ids) { if (previous == id) throw DecodingException(path, "duplicate Responses identity") }
+    ids.add(id)
+}
+
+internal fun readResponsesOutput(dialect: ResponsesDialect, entries: Array<ResponsesOutputEntry>, tools: Array<ToolDefinition>,
+    complete: Boolean): Array<LlmOutputItem> {
+    val result = ArrayList<LlmOutputItem>()
+    var index = 0L
+    for (entry in entries) {
+        val path = "/output/" + index.toString()
+        val item = when (entry.kind) {
+            case "message" -> readResponsesMessage(dialect.id, entry.raw, entry.id, path)
+            case "reasoning" -> LlmOutputItem.Reasoning(dialect.readReasoning(entry.raw, path), entry.id)
+            else -> if (entry.client) readResponsesClientCall(dialect.id, entry, tools, complete, path)
+                else readResponsesServerItem(dialect.id, entry, tools, path)
+        }
+        result.add(item)
+        index += 1L
+    }
+    return result.toArray()
+}

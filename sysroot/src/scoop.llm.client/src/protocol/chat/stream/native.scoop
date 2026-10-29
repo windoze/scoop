@@ -1,0 +1,80 @@
+package scoop.llm.client
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.io.encoding.Base64
+import scoop.json.JsonObjectBuilder
+import scoop.json.JsonValue
+
+/** Known native fields have explicit merge rules; unknown fields remain event fragments. */
+internal class ChatStreamAudio public constructor(public val location: LlmItemLocation, private val retention: StreamRetention,
+    private val requireId: Boolean = true) {
+    private var id: String? = None
+    private var expires: JsonValue? = None
+    private val data: ByteArrayBuilder = ByteArrayBuilder()
+    private val transcript: StringBuilder = StringBuilder()
+    private var hasData: Boolean = false
+    private var hasTranscript: Boolean = false
+    public var historyAvailable: Boolean = true
+
+    public fun accept(raw: JsonValue, batch: LlmStreamBatch, path: String) {
+        val fields = decodeChatValue<ChatStreamAudioFields>(raw, path)
+        id = llmStreamIdentity(id, fields.id, path + "/id")
+        when (fields.expiresAt) { case Some(value) -> expires = Some(value); case None -> {} }
+        if (fields.data != None) {
+            hasData = true
+            val bytes = Base64.Default.withPadding(Base64.PaddingOption.Optional).decodeOrNone(fields.data!!) ?:
+                throw DecodingException(path + "/data", "invalid Base64 audio chunk")
+            if (retention == StreamRetention.Result) data.append(bytes)
+            batch.observe(fields.data!!)
+        }
+        if (fields.transcript != None) {
+            hasTranscript = true
+            if (retention == StreamRetention.Result) transcript.append(fields.transcript!!)
+            batch.observe(fields.transcript!!)
+        }
+        batch.native("chat.audio.delta", raw, Some(location), false)
+        val extra = llmStreamUnknown(raw, ["id", "data", "transcript", "expires_at"])
+        if (extra.size != 0L) {
+            historyAvailable = false
+            batch.native("chat.audio.unknown", extra, Some(location))
+        }
+    }
+
+    public fun wire(path: String): JsonValue {
+        if (requireId && id == None) throw DecodingException(path + "/id", "audio ended without an ID")
+        val result = JsonObjectBuilder()
+        if (id != None) result.add("id", JsonValue.fromString(id!!))
+        if (hasData) result.add("data", JsonValue.fromString(Base64.Default.encode(data.toByteArray())))
+        if (hasTranscript) result.add("transcript", JsonValue.fromString(transcript.toString()))
+        when (expires) { case Some(value) -> result.add("expires_at", value); case None -> {} }
+        return result.build()
+    }
+    public fun release() { data.clear(); transcript.clear() }
+}
+
+internal class ChatStreamLegacyFunction public constructor(public val location: LlmItemLocation, private val retention: StreamRetention) {
+    private var name: String? = None
+    private val arguments: StringBuilder = StringBuilder()
+    public var historyAvailable: Boolean = true
+
+    public fun accept(raw: JsonValue, batch: LlmStreamBatch, path: String) {
+        val fields = decodeChatValue<ChatStreamFunctionFields>(raw, path)
+        name = llmStreamIdentity(name, fields.name, path + "/name")
+        if (fields.arguments != None) {
+            if (retention == StreamRetention.Result) arguments.append(fields.arguments!!)
+            batch.observe(fields.arguments!!)
+        }
+        batch.native("chat.function_call.delta", raw, Some(location), false)
+        val extra = llmStreamUnknown(raw, ["name", "arguments"])
+        if (extra.size != 0L) {
+            historyAvailable = false
+            batch.native("chat.function_call.unknown", extra, Some(location))
+        }
+    }
+    public fun wire(path: String): JsonValue {
+        val functionName = name ?: throw DecodingException(path + "/name", "function call ended without a name")
+        return JsonObjectBuilder().add("name", JsonValue.fromString(functionName))
+            .add("arguments", JsonValue.fromString(arguments.toString())).build()
+    }
+    public fun release() { arguments.clear() }
+}

@@ -1,0 +1,48 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.text.replace
+
+internal fun checkMessagesCountInput(body: JsonValue) {
+    val accepted = ["model", "messages", "system", "tools", "tool_choice", "thinking", "output_config", "cache_control", "speed"]
+    for ((name, _) in body.members()) {
+        var known = false
+        for (field in accepted) if (name == field) known = true
+        if (!known) throw LlmRequestException("/" + name.replace("~", "~0").replace("/", "~1"),
+            "Messages token count does not support this request field")
+    }
+    when (body["system"]) { case Some(content) -> checkMessagesCountContent(content, "/system"); case None -> {} }
+    var index = 0L
+    for (message in body["messages"]!!.elements()) {
+        checkMessagesCountContent(message["content"]!!, "/messages/" + index.toString() + "/content")
+        index += 1L
+    }
+}
+
+/** Inspect protocol content containers only; tool input JSON is application data. */
+private fun checkMessagesCountContent(content: JsonValue, path: String) {
+    if (content.kind != JsonValueKind.Array) return
+    var index = 0L
+    for (block in content.elements()) {
+        val itemPath = path + "/" + index.toString()
+        index += 1L
+        if (block.kind != JsonValueKind.Object) continue
+        val kind = block["type"] ?: continue
+        if (kind.kind != JsonValueKind.String) continue
+        if (kind.asString() == "image" || kind.asString() == "document") {
+            val source = block["source"] ?: continue
+            if (source.kind != JsonValueKind.Object) continue
+            val type = source["type"] ?: continue
+            if (type.kind != JsonValueKind.String) continue
+            if (type.asString() == "url" || type.asString() == "file")
+                throw LlmRequestException(itemPath + "/source/type", "Messages token count requires inline image or document content")
+            if (type.asString() == "content") {
+                val nested = source["content"] ?: continue
+                checkMessagesCountContent(nested, itemPath + "/source/content")
+            }
+        } else if (kind.asString() == "tool_result" || kind.asString() == "search_result") {
+            val nested = block["content"] ?: continue
+            checkMessagesCountContent(nested, itemPath + "/content")
+        }
+    }
+}

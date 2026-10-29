@@ -1,0 +1,36 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+public interface RealtimeDialect {
+    public val id: DialectId
+    public fun encodeSession(configuration: RealtimeConfiguration, tools: Array<ToolDefinition>): JsonValue
+    public fun encodeResponse(request: RealtimeResponseRequest, tools: Array<ToolDefinition>): JsonValue
+    public fun encodeInput(input: Array<LlmInputItem>): Array<JsonValue>
+    public fun readUsage(value: JsonValue): TokenUsage
+    public fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException
+}
+
+public class OpenAiRealtimeDialect public constructor() : RealtimeDialect {
+    public override val id: DialectId = DialectId(ApiProtocolId("realtime"), "openai-realtime")
+    public override fun encodeSession(configuration: RealtimeConfiguration, tools: Array<ToolDefinition>): JsonValue =
+        encodeRealtimeConfiguration(id, configuration, tools, llmTypedObject("realtime"))
+    public override fun encodeResponse(request: RealtimeResponseRequest, tools: Array<ToolDefinition>): JsonValue {
+        val body = JsonObjectBuilder()
+        when (request.input) { case Some(input) -> body.add("input", JsonValue.fromArray(encodeInput(input))); case None -> {} }
+        when (request.conversation) {
+            case Some(value) -> body.add("conversation", JsonValue.fromString(requireRealtimeId(value, "/conversation")))
+            case None -> {}
+        }
+        return encodeRealtimeConfiguration(id, request.configuration, tools, body)
+    }
+    public override fun encodeInput(input: Array<LlmInputItem>): Array<JsonValue> = encodeRealtimeInput(id, input)
+    public override fun readUsage(value: JsonValue): TokenUsage = readRealtimeUsage(value)
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException {
+        val value = parseLlmServiceError(body, truncated)
+        val error = when (value) { case Some(root) -> if (root.kind == JsonValueKind.Object) root["error"] else None; case None -> None }
+        val code = llmServiceErrorString(error, "code")
+        return LlmServiceException(id, status, body, truncated, code, value, status == 429U && code == Some("rate_limit_exceeded"),
+            llmServiceErrorString(error, "message") ?: "Realtime service rejected the request")
+    }
+}

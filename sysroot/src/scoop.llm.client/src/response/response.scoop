@@ -1,0 +1,60 @@
+package scoop.llm.client
+
+import scoop.json.Json
+import scoop.json.JsonValue
+import scoop.time.Instant
+
+/** A model response independent of local transport timing and resource ownership. */
+public class LlmResponse public constructor(
+    public val dialect: DialectId,
+    public val candidates: Array<LlmCandidate>,
+    public val id: String? = None,
+    public val model: String? = None,
+    public val createdAt: Instant? = None,
+    public val usage: LlmUsage = LlmUsage(),
+    public val native: JsonValue? = None,
+    public val nativeEvents: Array<LlmNativeEvent> = []
+) {
+    init {
+        var index = 0L
+        while (index < candidates.size) {
+            var previous = 0L
+            while (previous < index) {
+                if (candidates[previous].index == candidates[index].index)
+                    throw IllegalArgumentException(Some("duplicate response candidate index"))
+                previous += 1L
+            }
+            index += 1L
+        }
+    }
+
+    public val text: String get() = if (candidates.size == 0L) "" else candidates[0].text
+    public val clientToolCalls: Array<ClientToolCall> get() = if (candidates.size == 0L) [] else candidates[0].clientToolCalls
+    public val serverToolActivities: Array<ServerToolActivity> get() = if (candidates.size == 0L) [] else candidates[0].serverToolActivities
+
+    public fun candidate(index: Long): LlmCandidate {
+        for (value in candidates) { if (value.index == index) return value }
+        throw LlmOutputException(MissingCandidate, "response has no candidate with index " + index.toString())
+    }
+
+    public fun toInput(candidateIndex: Long? = None): Array<LlmInputItem> {
+        val history = selectCandidate(this, candidateIndex).history ?:
+            throw LlmOutputException(HistoryUnavailable, "candidate has no replay history")
+        return [LlmInputItem.History(history)]
+    }
+
+    public fun <T> decodeOutput(codec: ValueDecoder<T>, candidateIndex: Long? = None, itemIndex: Long? = None): T =
+        Json.decodeFromString(structuredOutputText(selectCandidate(this, candidateIndex), itemIndex), codec)
+
+    public fun <T> decodeOutput(candidateIndex: Long? = None, itemIndex: Long? = None): T
+        where T.Companion : ValueDecoder<T> = decodeOutput(T.Companion, candidateIndex, itemIndex)
+
+    public companion object : ValueEncoder<LlmResponse>, ValueDecoder<LlmResponse>
+}
+
+internal fun selectCandidate(response: LlmResponse, index: Long?): LlmCandidate {
+    if (index != None) return response.candidate(index!!)
+    if (response.candidates.size == 0L) throw LlmOutputException(MissingCandidate, "response has no candidates")
+    if (response.candidates.size != 1L) throw LlmOutputException(AmbiguousCandidate, "select one response candidate explicitly")
+    return response.candidates[0]
+}

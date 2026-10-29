@@ -1,0 +1,64 @@
+package scoop.llm.client
+
+import scoop.io.encoding.Base64
+import scoop.json.*
+
+internal fun appendConverseStreamText(block: ConverseStreamBlock, raw: JsonValue, batch: LlmStreamBatch, plain: Boolean) {
+    val text = decodeConverseValue<String>(raw, if (plain) "/delta/text" else "/delta/reasoningContent/text")
+    if (block.retain) block.text.append(text)
+    val delta = LlmTextDelta(block.location, text, block.partIndex)
+    batch.events.add(if (plain) LlmEvent.TextDelta(delta) else LlmEvent.ReasoningDelta(delta))
+    batch.observe(text, plain)
+}
+
+internal fun appendConverseStreamReasoning(block: ConverseStreamBlock, raw: JsonValue, batch: LlmStreamBatch) {
+    val (kind, value) = converseUnion(raw, "/delta/reasoningContent")
+    if (kind == "text" || kind == "signature" || kind == "redactedContent") {
+        val mode = if (kind == "redactedContent") kind else "text"
+        if (block.reasoningKind != "" && block.reasoningKind != mode)
+            throw DecodingException("/delta/reasoningContent", "reasoning representation changed")
+        block.reasoningKind = mode
+    }
+    when (kind) {
+        case "text" -> appendConverseStreamText(block, value, batch, false)
+        case "signature" -> {
+            val text = decodeConverseValue<String>(value, "/delta/reasoningContent/signature")
+            block.signatureSeen = true
+            if (block.retain) block.signature.append(text)
+            batch.native("converse.reasoning.signature", raw, Some(block.location), false)
+        }
+        case "redactedContent" -> {
+            val bytes = decodeConverseStreamBytes(value, "/delta/reasoningContent/redactedContent")
+            if (block.retain) block.bytes.append(bytes)
+            if (bytes.size != 0L) batch.hasOutput = true
+            batch.native("converse.reasoning.redacted", raw, Some(block.location), false)
+        }
+        else -> {
+            block.historyAvailable = false
+            if (block.retain && !llmPresent(block.wire)) block.wire = Some(converseStreamUnion("reasoningContent", raw))
+            batch.native("converse.reasoning.delta", raw, Some(block.location))
+        }
+    }
+}
+
+internal fun decodeConverseStreamBytes(value: JsonValue, path: String): Array<Byte> {
+    val encoded = decodeConverseValue<String>(value, path)
+    return Base64.Default.withPadding(Base64.PaddingOption.Optional).decodeOrNone(encoded)
+        ?: throw DecodingException(path, "invalid Base64 stream fragment")
+}
+
+internal fun appendConverseStreamCitation(block: ConverseStreamBlock, state: ConverseStreamDecoder, value: JsonValue,
+    batch: LlmStreamBatch) {
+    val citation = readConverseCitation(state.dialect.id, value, block.path + "/citations/" + block.citationCount.toString())
+    block.citationCount += 1L
+    if (block.retain) block.rawCitations.add(value)
+    val target = if (block.kind == "text") Some(block) else block.citationTarget
+    when (target) {
+        case Some(text) -> {
+            if (block.retain) text.citations.add(citation)
+            batch.events.add(LlmEvent.Citation(text.location, text.partIndex, citation))
+            batch.hasOutput = true
+        }
+        case None -> batch.native("converse.citation", value, Some(block.location), false)
+    }
+}

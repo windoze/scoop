@@ -1,0 +1,136 @@
+package scoop.llm.client.tests.geminilive.session
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class GeminiLiveSessionOpeningTest {
+    @Test
+    fun `Gemini Live session retries only explicit HTTP rejection before sending setup`() {
+        withLlmServer suspend { _, scope, listener, base ->
+            val done = LlmGate()
+            val serving = scope.launch suspend {
+                for (attempt in [1L, 2L]) {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        val request = connection.receiveRequest()!!
+                        assertEquals(0L, request.body.readAllBytes(0L).size)
+                        assertEquals("Bearer attempt-" + attempt.toString(), String.fromUtf8(request.head.fields.findAll("Authorization".toByteArray())[0].value))
+                        if (attempt == 1L) sendLlmReply(connection, 503U, "{\"error\":{\"status\":\"UNAVAILABLE\",\"message\":\"busy\"}}",
+                            [HttpField("Connection".toByteArray(), "close".toByteArray())])
+                        else {
+                            connection.sendResponse(WebSocketHandshake.parse(request.head).response()).useAsync suspend { writer -> writer.finish() }
+                            AsyncWebSocketSession.takeOwnership(connection.takeTransport(), scope, HttpRole.Server).useAsync suspend { socket ->
+                                assertEquals("models/model", readLiveCommand(socket)["setup"]!!["model"]!!.asString())
+                                socket.sendText("{\"setupComplete\":{}}")
+                                done.await()
+                            }
+                        }
+                    }
+                }
+            }
+            val auth = RecordingAuth()
+            val finished = FinishedCalls()
+            val endpoint = LlmEndpoint(Providers.geminiLive(), auth, Some(base.baseUrl))
+            try {
+                withLlmClient suspend { client ->
+                    client.withGeminiLiveSession(endpoint.model("model"), openingOptions = LlmCallOptions(
+                        retries = LlmRetryOptions(1L, Duration.ZERO, Duration.ZERO), onFinished = Some(suspend { value -> finished.record(value) }))) suspend { session ->
+                        assertEquals(2L, auth.requests.size)
+                        for (request in auth.requests) { assertEquals("GET", request.method); assertEquals(0L, request.body.size); assertEquals(endpoint.baseUrl, request.url) }
+                        assertEquals(1L, finished.values.size)
+                        assertEquals(Some(503U), session.opening.attempts[0].status)
+                        assertEquals(Some(101U), session.opening.attempts[1].status)
+                        assertTrue(session.opening.attempts[1].request.sentAt != None && session.opening.attempts[1].response.receivedAt != None)
+                    }
+                }
+            } finally { done.signal() }
+            serving.join()
+        }
+    }
+
+    @Test
+    fun `Gemini Live setup failures clean up once without replaying the accepted setup`() {
+        for (mode in ["json", "type", "binary", "eof"]) {
+            val released = LlmGate()
+            withLivePeer(suspend { socket, _ ->
+                if (mode == "json") socket.sendText("{")
+                else if (mode == "type") socket.sendText("{\"serverContent\":{\"turnComplete\":true}}")
+                else if (mode == "binary") socket.sendBinary([1.toByte()])
+                else { socket.shutdownGracefully() }
+                socket.awaitClosed(); released.signal()
+            }, suspend { _, _, endpoint ->
+                withLlmClient suspend { client ->
+                    val finished = FinishedCalls()
+                    val error = expectLlmFailure<Throwable> suspend {
+                        client.openGeminiLiveSession(endpoint.model("m"), openingOptions = LlmCallOptions(
+                            onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                    }
+                    released.await()
+                    val primary = livePrimaryFailure(error)
+                    if (mode == "type") { assertTrue(primary is LlmProtocolException) }
+                    else { assertTrue(primary is LlmStreamProtocolException) }
+                    assertEquals(1L, finished.values.size)
+                    assertEquals(LlmCallOutcome.Failed, finished.values[0].outcome)
+                    assertEquals(1L, finished.values[0].attempts.size)
+                    assertEquals(Some(101U), finished.values[0].attempts[0].status)
+                    assertFalse(client.isClosed)
+                }
+            }, confirm = false)
+        }
+    }
+
+    @Test
+    fun `Gemini Live opening deadline includes setup confirmation and caller cancellation releases it`() {
+        for (timeout in [true, false]) {
+            val entered = LlmGate()
+            val released = LlmGate()
+            withLivePeer(suspend { socket, _ -> entered.signal(); socket.awaitClosed(); released.signal() }, suspend { _, scope, endpoint ->
+                withLlmClient suspend { client ->
+                    val finished = FinishedCalls()
+                    val opening = scope.launch suspend {
+                        val error = expectLlmFailure<Throwable> suspend {
+                            client.openGeminiLiveSession(endpoint.model("m"), openingOptions = LlmCallOptions(
+                                timeouts = LlmTimeouts(total = if (timeout) Some(Duration.milliseconds(200L)) else None),
+                                onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                        }
+                        val primary = livePrimaryFailure(error)
+                        if (timeout) { assertTrue(primary is LlmTimeoutException) } else { assertTrue(primary is CancellationException) }
+                        Unit
+                    }
+                    entered.await()
+                    if (!timeout) opening.cancel()
+                    opening.join(); released.await()
+                    assertEquals(1L, finished.values.size)
+                    assertEquals(Some(101U), finished.values[0].attempts[0].status)
+                    assertFalse(client.isClosed)
+                }
+            }, confirm = false)
+        }
+    }
+
+    @Test
+    fun `Gemini Live opening callback failure releases the configured socket`() {
+        val released = LlmGate()
+        withLivePeer(suspend { socket, _ -> socket.awaitClosed(); released.signal() }, suspend { _, _, endpoint ->
+            withLlmClient suspend { client ->
+                val failure = LiveOpeningCallbackFailure()
+                val error = expectLlmFailure<LiveOpeningCallbackFailure> suspend {
+                    client.openGeminiLiveSession(endpoint.model("m"), openingOptions = LlmCallOptions(onFinished = Some(suspend { metadata ->
+                        assertEquals(LlmCallOutcome.Completed, metadata.outcome)
+                        throw failure
+                    }))); Unit
+                }
+                assertSame(failure, error)
+                released.await()
+                assertFalse(client.isClosed)
+            }
+        })
+    }
+}
+
+private class LiveOpeningCallbackFailure : Exception(Some("test callback failure"))

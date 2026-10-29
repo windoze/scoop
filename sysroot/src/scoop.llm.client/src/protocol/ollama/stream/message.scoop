@@ -1,0 +1,39 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal enum OllamaStreamSlot { Text(LlmStreamText), Tool(OllamaStreamTool), Native(JsonValue) }
+
+internal fun appendOllamaStreamMessage(state: OllamaStreamDecoder, raw: JsonValue, batch: LlmStreamBatch) {
+    val message = decodeOllamaValue<OllamaMessage>(raw, "/message")
+    if (message.role != "assistant") throw DecodingException("/message/role", "expected an assistant message")
+    when (message.thinking) {
+        case Some(value) -> ollamaStreamText(state, "thinking").append(value, batch)
+        case None -> {}
+    }
+    if (message.content.length != 0L) ollamaStreamText(state, "content").append(message.content, batch)
+    when (message.toolCalls) {
+        case Some(calls) -> {
+            state.callsPresent = true
+            appendOllamaStreamTools(state, calls, batch)
+        }
+        case None -> {}
+    }
+    val extra = llmStreamUnknown(raw, ["role", "content", "thinking", "tool_calls"])
+    if (extra.size != 0L) {
+        state.historyAvailable = false
+        val location = state.location()
+        batch.native("ollama.message", extra, Some(location), false)
+        batch.hasOutput = true
+        if (state.retain) state.slots.add(OllamaStreamSlot.Native(extra))
+    }
+}
+
+internal fun ollamaStreamText(state: OllamaStreamDecoder, field: String): LlmStreamText {
+    val previous = if (field == "content") state.text else state.thinking
+    if (llmPresent(previous)) return previous!!
+    val value = LlmStreamText(field, state.location(), state.retention)
+    if (field == "content") state.text = Some(value) else state.thinking = Some(value)
+    if (state.retain) state.slots.add(OllamaStreamSlot.Text(value))
+    return value
+}

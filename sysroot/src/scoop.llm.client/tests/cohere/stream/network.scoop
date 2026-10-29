@@ -1,0 +1,59 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.cohere.*
+import scoop.llm.client.tests.cohere.stream.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class CohereStreamNetworkTest {
+    @Test
+    fun `Cohere SSE network mock verifies route auth request usage history and actual timestamps`() {
+        val events = ["{\"type\":\"message-start\",\"id\":\"stream\",\"delta\":{\"message\":{\"role\":\"assistant\",\"content\":[],\"tool_plan\":\"\",\"tool_calls\":[],\"citations\":[]}}}",
+            cohereEvent("content-start", Some(0L), Some("content"), Some(Json.parse("{\"type\":\"text\",\"text\":\"hello\"}"))),
+            cohereEvent("content-delta", Some(0L), Some("content"), Some(Json.parse("{\"text\":\" 世界\"}"))), cohereEvent("content-end", Some(0L)),
+            "{\"type\":\"message-end\",\"delta\":{\"finish_reason\":\"COMPLETE\",\"usage\":{\"tokens\":{\"input_tokens\":12.0,\"output_tokens\":2e0},\"cached_tokens\":8}}}"]
+        val body = StringBuilder()
+        for (event in events) body.append("event: " + Json.parse(event)["type"]!!.asString() + "\ndata: " + event + "\n\n")
+        withLlmServer suspend { _, scope, listener, original ->
+            val endpoint = LlmEndpoint(Providers.cohereChat(), LlmAuth.bearer("mock-only"), Some(Url.parse(original.baseUrl.toString() + "/cohere?deployment=test")))
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val request = connection.receiveRequest()!!
+                    val target = when (request.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                    assertEquals("/v1/cohere/v2/chat?deployment=test", target)
+                    assertEquals("Bearer mock-only", String.fromUtf8(request.head.fields.findAll("Authorization".toByteArray())[0L].value))
+                    val sent = Json.parse(String.fromUtf8(request.body.readAllBytes(8192L)))
+                    assertEquals(3L, sent.size); assertTrue(sent["stream"]!!.asBoolean())
+                    assertEquals("unlisted:model", sent["model"]!!.asString())
+                    sendLlmReply(connection, 200U, body.toString(), streamFields)
+                }
+            }
+            withLlmClient suspend { client ->
+                val stream = client.openStream(endpoint.model("unlisted:model"), sampleRequest, retention = StreamRetention.Result)
+                val text = StringBuilder()
+                stream.useAsync suspend { opened ->
+                    val deltas = opened.textDeltas()
+                    while (true) { val delta = deltas.next() ?: break; text.append(delta.text) }
+                }
+                assertEquals("hello 世界", text.toString())
+                val result = Json.decodeFromString<LlmResult>(Json.encodeToString(stream.result()))
+                assertEquals("hello 世界", result.text)
+                assertEquals(LlmCallOutcome.Completed, result.metadata.outcome)
+                val attempt = result.metadata.attempts[0L]
+                assertEquals(Some("stream"), attempt.responseId)
+                assertEquals(Some(14L), attempt.usage.tokens.totalTokens)
+                assertEquals(UsageCompleteness.Final, attempt.usage.completeness)
+                assertTrue(attempt.request.sentAt != None && attempt.response.receivedAt != None)
+                assertTrue(attempt.response.firstTextAt != None && attempt.response.completedAt != None)
+                assertEquals("assistant", cohereEncode(LlmRequest(result.toInput()))["messages"]!![0L]["role"]!!.asString())
+            }
+            serving.join()
+        }
+    }
+}

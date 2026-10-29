@@ -1,0 +1,50 @@
+package scoop.llm.client
+
+import scoop.asyncio.currentEventLoop
+import scoop.platform.concurrent.Mutex
+
+internal class LlmWebSocketState(val call: LlmCallState, val endpoint: LlmEndpoint,
+    val opening: LlmWebSocketOpening, val closedError: Throwable) : LlmOwnedCall {
+    public override val lifetime: Job get() = call.lifetime
+    val lock = Mutex()
+    val earlyClose = CancellationException()
+    var closing = false
+    var closed = false
+    var reading = false
+    var writing = false
+    var errorDelivered = false
+    var failure: Throwable? = None
+    var socketEnded = false
+    var socketFailure: Throwable? = None
+    var wake: CancellableContinuation<Unit>? = None
+    val closeWaiters = ArrayList<Continuation<Unit>>()
+
+    public override fun stop(error: Throwable) {
+        lock.withLock { closing = true }
+        call.stop(error)
+    }
+
+    fun socketEnd(error: Throwable?) {
+        val waiting = lock.withLock {
+            socketEnded = true; socketFailure = error
+            val waiting = wake; wake = None
+            waiting
+        }
+        waiting?.tryResume(Unit)
+    }
+
+    suspend fun awaitSocketEnd() {
+        suspendCancellableCoroutine<Unit> { continuation ->
+            val ready = lock.withLock {
+                if (socketEnded) true else { wake = Some(continuation); false }
+            }
+            if (ready) continuation.tryResume(Unit)
+        }
+        ensureActive()
+        when (lock.withLock { socketFailure }) { case Some(reason) -> throw reason; case None -> {} }
+    }
+}
+
+internal fun checkLlmWebSocketLoop(state: LlmWebSocketState) {
+    if (currentEventLoop() !== state.call.client.loop) throw IllegalStateException(Some("LLM WebSocket session belongs to another event loop"))
+}

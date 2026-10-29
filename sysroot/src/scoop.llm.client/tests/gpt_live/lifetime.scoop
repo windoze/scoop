@@ -1,0 +1,86 @@
+package scoop.llm.client.tests.gpt_live
+
+import scoop.asyncio.*
+import scoop.http.client.HttpClient
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class GptLiveLifetimeTest {
+    @Test
+    fun clientCloseCancelsReceiveAndPreservesBorrowedHttp() {
+        withGptLivePeer(suspend { socket -> gptStart(socket); Unit }, suspend { _, scope, endpoint ->
+            HttpClient.open(scope).useAsync suspend { http ->
+                val client = LlmClient.open(scope, Some(http))
+                val session = client.openGptLiveSession(endpoint.model("m"))
+                val entered = LlmGate()
+                val reading = scope.launch suspend {
+                    entered.signal()
+                    expectLlmFailure<LlmClientClosedException> suspend { session.receive(); Unit }; Unit
+                }
+                entered.await(); currentEventLoop().sleep(Duration.milliseconds(1L))
+                client.close(); reading.join()
+                assertTrue(session.isClosed)
+                assertFalse(http.isClosed)
+                session.close()
+            }
+        })
+    }
+
+    @Test
+    fun invalidAudioRequestsLeaveTheConnectionUsable() {
+        withGptLivePeer(suspend { socket ->
+            gptStart(socket)
+            assertEquals("session.input_audio.mute", gptCommand(socket)["type"]!!.asString())
+        }, suspend { _, _, endpoint ->
+            withLlmClient suspend { client ->
+                client.withGptLiveSession(endpoint.model("m")) suspend { session ->
+                    for (mime in ["audio/wav", "audio/pcm;rate=8000", "audio/pcmu;rate=24000", "audio/pcm;channels=2"])
+                        expectLlmFailure<LlmRequestException> suspend { session.sendAudioAppend([], mime); Unit }
+                    val incomplete = expectLlmFailure<LlmRequestException> suspend {
+                        session.sendAudioAppend([0.toByte()], "audio/pcm;rate=16000"); Unit
+                    }
+                    assertEquals("/audio", incomplete.path)
+                    assertFalse(session.isClosed)
+                    session.sendAudioMute()
+                }
+            }
+        })
+    }
+
+    @Test
+    fun cancelledAndMalformedReceivesWaitForCleanup() {
+        for (mode in ["cancel", "json", "field", "binary"]) {
+            val released = LlmGate()
+            withGptLivePeer(suspend { socket ->
+                gptStart(socket)
+                if (mode == "json") socket.sendText("{")
+                else if (mode == "field") socket.sendText("{\"type\":\"session.output_audio.delta\",\"delta\":false}")
+                else if (mode == "binary") socket.sendBinary("{}".toByteArray())
+                socket.awaitClosed(); released.signal()
+            }, suspend { _, scope, endpoint ->
+                withLlmClient suspend { client ->
+                    val session = client.openGptLiveSession(endpoint.model("m"))
+                    val entered = LlmGate()
+                    val reading = scope.launch suspend {
+                        entered.signal()
+                        val error = gptPrimaryFailure(expectLlmFailure<Throwable> suspend { session.receive(); Unit })
+                        if (mode == "cancel") { assertTrue(error is CancellationException) }
+                        else if (mode == "field") { assertTrue(error is LlmProtocolException) }
+                        else { assertTrue(error is LlmStreamProtocolException) }
+                        Unit
+                    }
+                    entered.await(); currentEventLoop().sleep(Duration.milliseconds(1L))
+                    if (mode == "cancel") reading.cancel()
+                    reading.join(); released.await()
+                    assertTrue(session.isClosed)
+                    session.close(); session.close()
+                    val repeated = gptPrimaryFailure(expectLlmFailure<Throwable> suspend { session.sendResponseCreate(); Unit })
+                    assertSame(session.failure!!, repeated)
+                }
+            })
+        }
+    }
+}

@@ -1,0 +1,23 @@
+package scoop.llm.client
+
+import scoop.http.HttpMediaType
+import scoop.io.encoding.Base64
+import scoop.json.*
+
+internal fun encodeCohereImage(dialect: DialectId, source: MediaSource, extensions: Array<DialectExtension>, path: String): JsonValue {
+    val rawMime = when (source) { case Bytes(_, mime) -> mime; case Url(_, mime) -> mime; case FileReference(_, mime) -> mime }
+    val mime = HttpMediaType.parseOrNone(rawMime) ?: throw LlmRequestException(path + "/source/mimeType", "invalid image media type")
+    val name = mime.type + "/" + mime.subtype
+    if (mime.parameters.size != 0L || (name != "image/jpeg" && name != "image/png" && name != "image/gif" && name != "image/webp"))
+        throw LlmRequestException(path + "/source/mimeType", "Cohere images require JPEG, PNG, GIF or WebP without MIME parameters")
+    val address = when (source) {
+        case Bytes(bytes, _) -> "data:" + name + ";base64," + Base64.Default.encode(bytes)
+        case Url(url, _) -> {
+            if (url.scheme != Some("http") && url.scheme != Some("https"))
+                throw LlmRequestException(path + "/source/url", "Cohere image URLs require http or https")
+            url.toString()
+        }
+        case FileReference(_, _) -> throw LlmRequestException(path + "/source", "Cohere image_url has no file reference form")
+    }
+    return mergeLlmExtensions(JsonObjectBuilder().add("url", JsonValue.fromString(address)).build(), extensions, dialect, ["url"], path)
+}

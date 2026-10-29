@@ -1,0 +1,18 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+
+internal fun responsesWsEvent(protocol: ResponsesProtocol, type: String, streamId: String?, fields: String): ResponsesWebSocketEvent =
+    protocol.decodeWebSocketEvent("{\"type\":\"" + type + "\"" +
+        (if (streamId == None) "" else ",\"stream_id\":" + Json.stringify(JsonValue.fromString(streamId!!))) +
+        (if (fields.length == 0L) "" else "," + fields) + "}")
+
+internal fun responsesWsStart(protocol: ResponsesProtocol, streamId: String?, id: String): ResponsesWebSocketEvent =
+    responsesWsEvent(protocol, "response.created", streamId, "\"sequence_number\":0,\"response\":{\"object\":\"response\",\"id\":\"" +
+        id + "\",\"model\":\"model\",\"status\":\"in_progress\",\"output\":[]}")
+
+internal fun responsesWsEnd(protocol: ResponsesProtocol, streamId: String?, output: String, status: String = "completed",
+    reason: String? = None): ResponsesWebSocketEvent = responsesWsEvent(protocol, "response." + status, streamId,
+        "\"sequence_number\":10,\"response\":" + Json.stringify(responsesBody(output, Some(status),
+            Some("{\"input_tokens\":4,\"output_tokens\":3,\"total_tokens\":7}"), reason)))

@@ -1,0 +1,32 @@
+package scoop.llm.client.tests.cohere
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class CohereRequestMediaTest {
+    @Test
+    fun `Cohere image bytes and URLs preserve position and per-image detail without downloading`() {
+        val request = LlmRequest([Message([Text("look"), Image(Bytes([0, 1, 2], "image/png"), cohereExtension("{\"detail\":\"low\"}")),
+            Image(MediaSource.Url(Url.parse("https://example.com/image.webp?token=public"), "image/webp"))])])
+        val content = cohereEncode(request)["messages"]!![0L]["content"]!!
+        assertEquals(3L, content.size)
+        assertEquals("data:image/png;base64,AAEC", content[1L]["image_url"]!!["url"]!!.asString())
+        assertEquals("low", content[1L]["image_url"]!!["detail"]!!.asString())
+        assertEquals("https://example.com/image.webp?token=public", content[2L]["image_url"]!!["url"]!!.asString())
+        assertFalse(content[2L]["image_url"]!!.containsKey("detail"))
+    }
+
+    @Test
+    fun `Cohere media rejects unsupported roles formats references and accidental global documents`() {
+        for (role in [LlmRole.Assistant, LlmRole.System]) assertCohereRequestFailure(LlmRequest([Message([Image(Bytes([], "image/png"))], role)]), "/input/0/content/0")
+        for (mime in ["application/pdf", "image/png;profile=x"]) assertCohereRequestFailure(LlmRequest([Message([Image(Bytes([], mime))])]), "/input/0/content/0/source/mimeType")
+        assertCohereRequestFailure(LlmRequest([Message([Image(MediaSource.Url(Url.parse("file:///image.png"), "image/png"))])]), "/input/0/content/0/source/url")
+        assertCohereRequestFailure(LlmRequest([Message([Image(FileReference(LlmFileReference(cohereDialect, Json.parse("\"file\"")), "image/png"))])]), "/input/0/content/0/source")
+        assertCohereRequestFailure(LlmRequest([Message([Image(Bytes([], "image/png"), cohereExtension("{\"url\":\"replacement\"}"))])]), "/input/0/content/0/extensions/0/value/url")
+        val unsupported: Array<ContentPart> = [Document(Bytes("doc".toByteArray(), "text/plain")), Audio(Bytes([], "audio/wav")), Video(Bytes([], "video/mp4")), VideoFrames([])]
+        for (part in unsupported) assertCohereRequestFailure(LlmRequest([Message([part])]), "/input/0/content/0")
+    }
+}

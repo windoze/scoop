@@ -1,0 +1,43 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+private class MessagesUsageFields public constructor(
+    @Serialize(rename = "input_tokens") public val input: Long? = None,
+    @Serialize(rename = "output_tokens") public val output: Long? = None,
+    @Serialize(rename = "cache_read_input_tokens") public val cacheRead: Long? = None,
+    @Serialize(rename = "cache_creation_input_tokens") public val cacheWrite: Long? = None,
+    @Serialize(rename = "output_tokens_details") public val outputDetails: MessagesOutputTokenDetails? = None
+) {
+    public companion object : ValueDecoder<MessagesUsageFields>
+}
+
+private class MessagesOutputTokenDetails public constructor(@Serialize(rename = "thinking_tokens") public val thinking: Long? = None) {
+    public companion object : ValueDecoder<MessagesOutputTokenDetails>
+}
+
+internal fun readMessagesUsage(value: JsonValue): TokenUsage {
+    val fields = decodeMessagesValue<MessagesUsageFields>(value, "/usage")
+    val nonCached = checkedMessagesCount(fields.input, "input_tokens")
+    val output = checkedMessagesCount(fields.output, "output_tokens")
+    val read = checkedMessagesCount(fields.cacheRead, "cache_read_input_tokens")
+    val write = checkedMessagesCount(fields.cacheWrite, "cache_creation_input_tokens")
+    val thinking = when (fields.outputDetails) {
+        case Some(details) -> checkedMessagesCount(details.thinking, "output_tokens_details/thinking_tokens")
+        case None -> None
+    }
+    val input = if (nonCached != None && read != None && write != None)
+        Some(sumMessagesCounts(sumMessagesCounts(nonCached!!, read!!), write!!)) else None
+    val total = if (input != None && output != None) Some(sumMessagesCounts(input!!, output!!)) else None
+    return TokenUsage(input, nonCached, output, total, read, write, thinking)
+}
+
+private fun checkedMessagesCount(value: Long?, path: String): Long? {
+    if (value != None && value!! < 0L) throw DecodingException("/usage/" + path, "token count must not be negative")
+    return value
+}
+
+private fun sumMessagesCounts(first: Long, second: Long): Long {
+    if (first > Long.MAX_VALUE - second) throw DecodingException("/usage", "normalized token count exceeds Long range")
+    return first + second
+}

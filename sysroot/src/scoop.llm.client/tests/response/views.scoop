@@ -1,0 +1,88 @@
+package scoop.llm.client.tests.response
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class ResponseViewsTest {
+    @Test
+    fun `text and executable tool views retain order without leaking other output kinds`() {
+        val valid = ClientToolCall(toolReference("call-1"), jsonArguments("{ \"count\":9007199254740993 }"))
+        val invalid = ClientToolCall(toolReference("call-2"), Invalid("{", "truncated JSON"))
+        val partial = ClientToolCall(toolReference("call-3"), Incomplete("{\"count\":"))
+        val activity = ServerToolActivity(WebSearch, status = Completed)
+        val response = LlmResponse(responseDialect(), [LlmCandidate(4L, [
+            Reasoning([Text("hidden")]), Message([Text("one"), Text("two")]),
+            ClientToolCall(valid), ServerToolActivity(activity), ClientToolCall(invalid), ClientToolCall(partial),
+            Native(responseDialect(), Json.parse("{\"new\":true}")), Message([Text("three"), Refusal("not ordinary text")])
+        ], Complete, Stop)])
+        assertEquals("onetwothree", response.text)
+        assertEquals(1L, response.clientToolCalls.size)
+        assertEquals(Some("call-1"), response.clientToolCalls[0].reference.id)
+        assertEquals(9007199254740993L, valid.decodeArguments<CountOutput>().count)
+        assertEquals(1L, response.serverToolActivities.size)
+        assertEquals(ServerToolKind.WebSearch, response.serverToolActivities[0].kind)
+        val restored = Json.decodeFromString<LlmResponse>(Json.encodeToString(response))
+        assertEquals(response.text, restored.text)
+        assertEquals(8L, restored.candidate(4L).items.size)
+        assertEquals(1L, restored.clientToolCalls.size)
+        assertEquals(9007199254740993L, restored.clientToolCalls[0].decodeArguments<CountOutput>().count)
+    }
+
+    @Test
+    fun `argument serialization retains one source of truth and decoder errors remain visible`() {
+        val text = "{ \"count\" : 9007199254740993 }"
+        val arguments = JsonToolArguments(text)
+        val stored = Json.encodeToValue(arguments)
+        assertEquals(1L, stored.size)
+        assertEquals(text, stored["rawText"]!!.asString())
+        val restored = Json.decodeFromValue<JsonToolArguments>(stored)
+        assertEquals(9007199254740993L, restored.value["count"]!!.asLong())
+        assertFailsWith<DecodingException> { val invalid = JsonToolArguments("[]"); Unit }
+        assertFailsWith<DecodingException> { val invalid = JsonToolArguments("{"); Unit }
+        val wrongShape = ClientToolCall(toolReference("bad"), jsonArguments("{\"count\":\"wrong\"}"))
+        assertEquals("/count", assertFailsWith<DecodingException> { wrongShape.decodeArguments<CountOutput>(); Unit }.path)
+        val custom = ClientToolCall(toolReference("custom"), Text("raw program"))
+        assertTrue(custom.isExecutable)
+        assertEquals(LlmOutputFailure.WrongToolInput,
+            assertFailsWith<LlmOutputException> { custom.decodeArguments<CountOutput>(); Unit }.reason)
+    }
+
+    @Test
+    fun `citations preserve their source and explicit text indexing unit`() {
+        val source = LlmSource("source-1", LlmSourceLocation.Url(Url.parse("https://example.test/a?q=1&q=2")), Some("标题"))
+        val citation = Citation(source, Some(TextRange(1L, 3L, Utf16CodeUnits)))
+        val response = LlmResponse(responseDialect(), [LlmCandidate(0L, [Message([Text("A😀B", [citation])])], Complete, Stop)])
+        val restored = Json.decodeFromString<LlmResponse>(Json.encodeToString(response))
+        when (restored.candidate(0L).items[0]) {
+            case Message(content, _) -> when (content[0]) {
+                case Text(text, citations) -> {
+                    assertEquals("A😀B", text)
+                    assertEquals(1L, citations[0].range!!.start)
+                    assertEquals(3L, citations[0].range!!.end)
+                    assertEquals(TextRangeUnit.Utf16CodeUnits, citations[0].range!!.unit)
+                    assertEquals("source-1", citations[0].source.id)
+                    assertEquals(Some("标题"), citations[0].source.title)
+                }
+                else -> fail(Some("expected text"))
+            }
+            else -> fail(Some("expected message"))
+        }
+        assertFailsWith<IllegalArgumentException> { val invalid = TextRange(-1L, 0L, Utf8Bytes); Unit }
+        assertFailsWith<IllegalArgumentException> { val invalid = TextRange(3L, 2L, UnicodeScalars); Unit }
+    }
+
+    @Test
+    fun `empty responses have empty display views and no invented candidate`() {
+        val response = LlmResponse(responseDialect(), [])
+        assertEquals("", response.text)
+        assertEquals(0L, response.clientToolCalls.size)
+        assertEquals(0L, response.serverToolActivities.size)
+        assertEquals(LlmOutputFailure.MissingCandidate, assertFailsWith<LlmOutputException> { response.candidate(0L); Unit }.reason)
+        assertFailsWith<IllegalArgumentException> {
+            val invalid = LlmResponse(responseDialect(), [textCandidate(2L, "a"), textCandidate(2L, "b")]); Unit
+        }
+    }
+}

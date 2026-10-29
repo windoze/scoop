@@ -1,0 +1,35 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeConverseToolResult(dialect: DialectId, call: ClientToolCallReference, content: Array<ContentPart>,
+    isError: Boolean, extensions: Array<DialectExtension>, path: String): JsonValue {
+    requireLlmOwner(call.dialect, dialect, path + "/call/dialect")
+    if (call.id == None || call.id == Some("")) throw LlmRequestException(path + "/call/id", "Converse tool result requires the actual call ID")
+    if (llmPresent(call.context)) {
+        val (kind, context) = converseInputUnion(call.context!!, path + "/call/context")
+        if (kind != "toolUse" || context.kind != JsonValueKind.Object)
+            throw LlmRequestException(path + "/call/context", "tool result context must be a client toolUse block")
+        val type = context["type"]
+        if (llmPresent(type) && type!!.kind != JsonValueKind.Null)
+            throw LlmRequestException(path + "/call/context", "tool result context must be a client toolUse block")
+        val id = context["toolUseId"] ?: throw LlmRequestException(path + "/call/context/toolUse/toolUseId", "missing original call ID")
+        if (id.kind != JsonValueKind.String || Some(id.asString()) != call.id)
+            throw LlmRequestException(path + "/call/id", "call ID differs from original toolUse")
+    }
+    val values = ArrayList<JsonValue>()
+    var index = 0L
+    for (part in content) {
+        val partPath = path + "/content/" + index.toString()
+        when (part) {
+            case Audio(_, _) -> throw LlmRequestException(partPath, "Converse tool results have no audio field")
+            case VideoFrames(_, _) -> throw LlmRequestException(partPath, "Converse tool results have no video frames field")
+            else -> values.add(encodeConversePart(dialect, part, partPath))
+        }
+        index += 1L
+    }
+    val result = JsonObjectBuilder().add("toolUseId", JsonValue.fromString(call.id!!)).add("content", JsonValue.fromArray(values))
+        .add("status", JsonValue.fromString(if (isError) "error" else "success")).build()
+    return JsonObjectBuilder().add("toolResult", mergeLlmExtensions(result, extensions, dialect,
+        ["toolUseId", "content", "status", "type"], path)).build()
+}

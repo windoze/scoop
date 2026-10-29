@@ -1,0 +1,46 @@
+package scoop.llm.client
+
+import scoop.http.HttpMediaType
+import scoop.io.encoding.Base64
+import scoop.json.*
+
+private class GenerateContentBlob public constructor(public val mimeType: String, public val data: String) {
+    public companion object : ValueDecoder<GenerateContentBlob>
+}
+
+private class GenerateContentFile public constructor(public val fileUri: String, public val mimeType: String? = None) {
+    public companion object : ValueDecoder<GenerateContentFile>
+}
+
+internal fun readGenerateContentMedia(dialect: DialectId, raw: JsonValue, field: String, path: String): OutputPart {
+    val value = raw[field]!!
+    val fieldPath = path + "/" + field
+    if (field == "inlineData") {
+        val blob = decodeGenerateContentValue<GenerateContentBlob>(value, fieldPath)
+        val kind = generateContentMediaKind(blob.mimeType, fieldPath + "/mimeType")
+        val bytes = Base64.Default.withPadding(Base64.PaddingOption.Optional).decodeOrNone(blob.data)
+            ?: Base64.UrlSafe.withPadding(Base64.PaddingOption.Optional).decodeOrNone(blob.data)
+            ?: throw DecodingException(fieldPath + "/data", "invalid Base64 media")
+        return when (kind) {
+            case Some(media) -> OutputPart.Media(media, MediaSource.Bytes(bytes, blob.mimeType))
+            case None -> OutputPart.Native(dialect, raw)
+        }
+    }
+    val file = decodeGenerateContentValue<GenerateContentFile>(value, fieldPath)
+    if (file.fileUri.length == 0L) throw DecodingException(fieldPath + "/fileUri", "file URI must not be empty")
+    val mime = file.mimeType ?: return OutputPart.Native(dialect, raw)
+    val kind = generateContentMediaKind(mime, fieldPath + "/mimeType") ?: return OutputPart.Native(dialect, raw)
+    return OutputPart.Media(kind, MediaSource.FileReference(LlmFileReference(dialect, value), mime))
+}
+
+private fun generateContentMediaKind(value: String, path: String): OutputMediaKind? {
+    val mime = HttpMediaType.parseOrNone(value) ?: throw DecodingException(path, "invalid media type")
+    if (mime.type == "*" || mime.subtype == "*") throw DecodingException(path, "media type must be concrete")
+    return when (mime.type) {
+        case "image" -> Some(OutputMediaKind.Image)
+        case "audio" -> Some(OutputMediaKind.Audio)
+        case "video" -> Some(OutputMediaKind.Video)
+        case "text" -> Some(OutputMediaKind.Document)
+        else -> if (mime.type == "application" && mime.subtype == "pdf") Some(OutputMediaKind.Document) else None
+    }
+}

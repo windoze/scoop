@@ -1,0 +1,72 @@
+package scoop.llm.client.tests.live
+
+import scoop.asyncio.*
+import scoop.http.client.*
+import scoop.json.Json
+import scoop.llm.client.*
+import scoop.platform.env.environmentVariable
+import scoop.test.*
+import scoop.text.trim
+import scoop.time.Duration
+
+@Test
+private class LiveGoogleSessionTest {
+    @Test
+    @Ignore("Requires GOOGLE_AI_API_KEY, GOOGLE_AI_LIVE_MODEL and explicit selection; sends one short text prompt")
+    fun `Google Live setup and one audio response carry actual message timestamps`() {
+        val key = liveSetting("GOOGLE_AI_API_KEY")
+        val modelId = liveSetting("GOOGLE_AI_LIVE_MODEL")
+        val endpoint = LlmEndpoint(Providers.geminiLive(), LlmAuth.header("x-goog-api-key", key))
+        val setup = GeminiLiveSetup(extensions = [DialectExtension(GeminiLiveDialect().id,
+            Json.parse("{\"generationConfig\":{\"responseModalities\":[\"AUDIO\"]}}"))])
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val deadline = scope.launch suspend {
+                loop.sleep(Duration.seconds(60L))
+                throw IllegalStateException(Some("Live test did not finish within 60 seconds"))
+            }
+            try {
+                HttpClient.open(scope, HttpClientConfig(proxy = HttpProxySelector.fromEnvironment())).useAsync suspend { http ->
+                    withLlmClient(Some(http)) suspend { client ->
+                        client.withGeminiLiveSession(endpoint.model(modelId), setup, LlmCallOptions(
+                            timeouts = LlmTimeouts(total = Some(Duration.seconds(30L))), retries = LlmRetryOptions(maxRetries = 0L))) suspend { session ->
+                            assertEquals(LlmCallOutcome.Completed, session.opening.outcome)
+                            assertEquals(Some(101U), session.opening.attempts[0].status)
+                            assertTrue(session.setupSent.timing.sentAt != None)
+                            val sent = session.sendClientContent([Message([Text("Say only hello.")])])
+                            receiveLiveAudioTurn(session, sent)
+                        }
+                    }
+                }
+            } finally { deadline.cancel(); deadline.join() }
+        }
+    }
+}
+
+private fun liveSetting(name: String): String {
+    val value = environmentVariable(name)?.decodeUtf8()?.trim()
+        ?: throw IllegalStateException(Some("Missing live test setting: " + name))
+    if (value.length == 0L) throw IllegalStateException(Some("Empty live test setting: " + name))
+    return value
+}
+
+private suspend fun receiveLiveAudioTurn(session: GeminiLiveSession, sent: GeminiLiveSent) {
+    var audio = false
+    while (true) {
+        val received = session.receive() ?: fail(Some("Live connection ended before a response"))
+        assertTrue(received.received.elapsed >= sent.timing.sent!!.elapsed)
+        when (received.message.event) {
+            case ServerContent(content) -> {
+                for (item in content.items) when (item) {
+                    case Message(parts, _) -> for (part in parts) when (part) {
+                        case Media(OutputMediaKind.Audio, MediaSource.Bytes(bytes, _)) -> { if (bytes.size > 0L) audio = true }
+                        else -> {}
+                    }
+                    else -> {}
+                }
+                if (content.turnComplete == Some(true)) { assertTrue(audio); return }
+            }
+            else -> {}
+        }
+    }
+}

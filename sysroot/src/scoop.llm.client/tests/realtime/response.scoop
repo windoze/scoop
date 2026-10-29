@@ -1,0 +1,82 @@
+package scoop.llm.client.tests.realtime
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+private val rtCall = "{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":\"{\\\"x\\\":1}\",\"call_id\":\"c\",\"status\":\"completed\"}"
+
+@Test
+private class RealtimeResponseTest {
+    @Test
+    fun `Realtime response preserves ordered text function and MCP output with actual tool IDs`() {
+        val output = "[{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"m\",\"content\":[{\"type\":\"output_text\",\"text\":\"answer\"}]}," + rtCall +
+            ",{\"type\":\"mcp_call\",\"id\":\"mc\",\"name\":\"search\",\"server_label\":\"docs\",\"arguments\":\"{}\",\"output\":\"found\"}," +
+            "{\"type\":\"mcp_approval_request\",\"id\":\"a\",\"arguments\":\"{}\",\"name\":\"write\",\"server_label\":\"docs\"},{\"type\":\"future\",\"payload\":false}]"
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(rtDone(output)))
+        assertEquals("answer", response.text)
+        assertEquals(5L, response.candidates[0].items.size)
+        assertEquals(LlmCompletion.Complete, response.candidates[0].completion)
+        assertEquals(LlmFinishReason.ToolCalls, response.candidates[0].finishReason)
+        assertEquals(1L, response.clientToolCalls.size)
+        val call = response.clientToolCalls[0]
+        assertEquals(Some("c"), call.reference.id)
+        assertEquals(ToolKey("local"), call.toolKey)
+        assertEquals(1L, call.decodeArguments<JsonValue>()["x"]!!.asLong())
+        val result = rtItem(ToolResult(call.reference, [Text("result")]))
+        assertEquals("c", result["call_id"]!!.asString())
+        assertEquals(1L, response.serverToolActivities.size)
+        val activity = response.serverToolActivities[0]
+        assertEquals(Some(ToolKey("remote")), activity.toolKey)
+        assertEquals(Some("mc"), activity.id)
+        assertEquals(ServerToolStatus.Completed, activity.status)
+        assertEquals(Json.stringify(Json.parse(output)), Json.stringify(rtResponse(RealtimeResponseRequest(input = Some(response.toInput())))["input"]!!))
+    }
+
+    @Test
+    fun `Realtime cancelled failed incomplete and unconfirmed calls cannot become executable`() {
+        for ((status, completion) in [("cancelled", LlmCompletion.Incomplete), ("failed", LlmCompletion.Failed),
+            ("incomplete", LlmCompletion.Incomplete), ("in_progress", LlmCompletion.Incomplete), ("future", LlmCompletion.Incomplete)]) {
+            val response = rtDone("[" + rtCall + "]", status)
+            assertEquals(0L, response.clientToolCalls.size)
+            assertEquals(completion, response.candidates[0].completion)
+            assertEquals(UsageCompleteness.Final, response.usage.completeness)
+            when (response.candidates[0].items[0]) { case ClientToolCall(call) -> when (call.input) { case Incomplete(_) -> {}; else -> fail() }; else -> fail() }
+        }
+        val created = rtDecode("{\"type\":\"response.created\",\"response\":{\"status\":\"completed\",\"output\":[" + rtCall + "]}}")
+        when (created.event) { case ResponseCreated(response) -> { assertEquals(0L, response.clientToolCalls.size); assertEquals(UsageCompleteness.Partial, response.usage.completeness) }; else -> fail() }
+        val incomplete = rtDone("[{\"type\":\"function_call\",\"name\":\"lookup\",\"call_id\":\"c\",\"arguments\":\"{}\",\"status\":\"incomplete\"}]")
+        assertEquals(0L, incomplete.clientToolCalls.size)
+        assertEquals(LlmFinishReason.Length, rtDone(status = "incomplete", extra = ",\"status_details\":{\"reason\":\"max_output_tokens\"}").candidates[0].finishReason)
+        assertEquals(LlmFinishReason.ContentFilter, rtDone(status = "incomplete", extra = ",\"status_details\":{\"reason\":\"content_filter\"}").candidates[0].finishReason)
+        assertEquals(LlmFinishReason.Other("turn_detected"), rtDone(status = "cancelled", extra = ",\"status_details\":{\"reason\":\"turn_detected\"}").candidates[0].finishReason)
+    }
+
+    @Test
+    fun `Realtime missing tool association or call ID remains native and invalid arguments remain inspectable`() {
+        for (call in ["{\"type\":\"function_call\",\"name\":\"unknown\",\"arguments\":\"{}\",\"call_id\":\"c\"}",
+            "{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":\"{}\"}"]) {
+            val response = rtDone("[" + call + "]")
+            assertEquals(0L, response.clientToolCalls.size)
+            when (response.candidates[0].items[0]) { case Native(_, _) -> {}; else -> fail() }
+        }
+        for (arguments in ["{", "[]", "null"]) {
+            val response = rtDone("[{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":" + Json.stringify(JsonValue.fromString(arguments)) + ",\"call_id\":\"c\"}]")
+            assertEquals(0L, response.clientToolCalls.size)
+            when (response.candidates[0].items[0]) { case ClientToolCall(call) -> when (call.input) { case Invalid(raw, _) -> assertEquals(arguments, raw); else -> fail() }; else -> fail() }
+        }
+        rtDecodeFailure("{\"type\":\"response.done\",\"response\":{\"output\":[" + rtCall + "," + rtCall + "]}}", "/response/output/1/call_id")
+    }
+
+    @Test
+    fun `Realtime audio summaries preserve transcripts without fabricating text audio bytes or replay history`() {
+        val response = rtDone("[{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_audio\",\"transcript\":\"spoken\"}]}]")
+        assertEquals("", response.text)
+        when (response.candidates[0].history) { case None -> {}; else -> fail() }
+        assertFailsWith<LlmOutputException> { response.toInput(); Unit }
+        when (response.candidates[0].items[0]) { case Message(parts, _) -> when (parts[0]) { case Native(_, raw) -> assertEquals("spoken", raw["transcript"]!!.asString()); else -> fail() }; else -> fail() }
+        val failed = rtDone("[{\"type\":\"mcp_call\",\"id\":\"mc\",\"server_label\":\"docs\",\"error\":{\"type\":\"tool_execution_error\",\"message\":\"failed\"}}]")
+        assertEquals(ServerToolStatus.Failed, failed.serverToolActivities[0].status)
+        assertEquals(0L, failed.clientToolCalls.size)
+    }
+}

@@ -1,0 +1,55 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.text.startsWith
+import scoop.url.Url
+
+internal fun readConverseServerResult(dialect: ConverseDialect, entry: ConverseEntry, entries: Array<ConverseEntry>,
+    tools: Array<ToolDefinition>): LlmOutputItem {
+    val result = entry.result!!
+    var name = when (result.type) { case Some(type) -> dialect.serverResultName(type); case None -> None }
+    for (candidate in entries) {
+        val call = candidate.call ?: continue
+        if (call.toolUseId != result.toolUseId) continue
+        if (name != None && (call.type != Some("server_tool_use") || name != Some(call.name)))
+            throw DecodingException(entry.path + "/toolResult/toolUseId", "server result refers to another kind of call")
+        if (call.type == Some("server_tool_use")) name = Some(call.name)
+    }
+    val toolName = name ?: return LlmOutputItem.Native(dialect.id, entry.raw)
+    val parts = ArrayList<OutputPart>()
+    val sources = ArrayList<LlmSource>()
+    var index = 0L
+    for (raw in result.content) {
+        val path = entry.path + "/toolResult/content/" + index.toString()
+        val (kind, content) = converseUnion(raw, path)
+        when (kind) {
+            case "text" -> parts.add(OutputPart.Text(decodeConverseValue<String>(content, path + "/text")))
+            case "image" -> parts.add(readConverseMedia(dialect.id, raw, kind, path + "/image"))
+            case "video" -> parts.add(readConverseMedia(dialect.id, raw, kind, path + "/video"))
+            case "document" -> parts.add(readConverseMedia(dialect.id, raw, kind, path + "/document"))
+            case "searchResult" -> {
+                sources.add(readConverseSearchSource(dialect.id, content, path + "/searchResult"))
+                parts.add(OutputPart.Native(dialect.id, raw))
+            }
+            else -> parts.add(OutputPart.Native(dialect.id, raw))
+        }
+        index += 1L
+    }
+    val status: ServerToolStatus = when (result.status) { case Some("success") -> Completed; case Some("error") -> Failed; else -> Unknown }
+    return LlmOutputItem.ServerToolActivity(ServerToolActivity(dialect.serverToolKind(toolName), status,
+        resolveConverseTool(tools, dialect, toolName, true), Some(result.toolUseId), result = parts.toArray(),
+        sources = sources.toArray(), native = Some(entry.raw)))
+}
+
+private class ConverseSearchSource public constructor(public val source: String, public val title: String) {
+    public companion object : ValueDecoder<ConverseSearchSource>
+}
+
+private fun readConverseSearchSource(dialect: DialectId, value: JsonValue, path: String): LlmSource {
+    val fields = decodeConverseValue<ConverseSearchSource>(value, path)
+    val location = if (fields.source.startsWith("https://") || fields.source.startsWith("http://")) {
+        val url = Url.parseOrNone(fields.source) ?: throw DecodingException(path + "/source", "invalid search source URL")
+        LlmSourceLocation.Url(url)
+    } else LlmSourceLocation.Native(dialect, value)
+    return LlmSource(path, location, Some(fields.title), Some(value))
+}

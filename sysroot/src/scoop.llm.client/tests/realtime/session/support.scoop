@@ -1,0 +1,49 @@
+package scoop.llm.client.tests.realtime.session
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.platform.net.*
+import scoop.test.*
+import scoop.url.Url
+
+internal fun withRealtimePeer(peer: suspend (AsyncWebSocketSession) -> Unit,
+    block: suspend (EventLoop, CoroutineScope, LlmEndpoint) -> Unit, created: Boolean = true) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+            val done = LlmGate()
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val request = connection.receiveRequest()!!
+                    assertEquals(0L, request.body.readAllBytes(0L).size)
+                    val target = when (request.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                    assertEquals("/prefix/realtime?route=one&model=m", target)
+                    connection.sendResponse(WebSocketHandshake.parse(request.head).response()).useAsync suspend { writer -> writer.finish() }
+                    AsyncWebSocketSession.takeOwnership(connection.takeTransport(), scope, HttpRole.Server).useAsync suspend { socket ->
+                        if (created) socket.sendText("{\"type\":\"session.created\",\"session\":{\"id\":\"server\",\"future\":[false,null]}}")
+                        peer(socket)
+                        done.await()
+                    }
+                }
+            }
+            val endpoint = LlmEndpoint(Providers.openAiRealtime(), LlmAuth.none(),
+                Some(Url.parse("http://127.0.0.1:" + listener.localAddress.port.toString() + "/prefix?route=one")))
+            try { block(loop, scope, endpoint) }
+            finally { done.signal() }
+            serving.join()
+        }
+    }
+}
+
+internal suspend fun readRealtimeCommand(socket: AsyncWebSocketSession): JsonValue =
+    socket.receive()!!.useAsync suspend { message -> Json.parse(message.readText()) }
+
+internal fun realtimePrimaryFailure(error: Throwable): Throwable =
+    if (error is ResourceUseException) realtimePrimaryFailure(error.primaryFailure) else error
+
+internal val realtimeCallReply = "{\"type\":\"response.done\",\"response\":{\"id\":\"r\",\"status\":\"completed\",\"output\":[" +
+    "{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":\"{}\",\"call_id\":\"call\",\"status\":\"completed\"}],\"usage\":{\"total_tokens\":9}}}"

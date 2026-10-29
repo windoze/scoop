@@ -1,0 +1,72 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeRealtimeTools(body: JsonObjectBuilder, dialect: DialectId, configuration: RealtimeConfiguration,
+    contextTools: Array<ToolDefinition>) {
+    val tools = configuration.tools ?: contextTools
+    checkRequestTools(tools, ToolChoice.Auto)
+    val wire = ArrayList<JsonValue>()
+    when (configuration.tools) {
+        case Some(values) -> {
+            val names = ArrayList<String>()
+            var index = 0L
+            for (tool in values) {
+                val path = "/tools/" + index.toString()
+                val encoded = encodeRealtimeTool(dialect, tool, path)
+                if (encoded["type"]!!.asString() == "function") {
+                    val name = encoded["name"]!!.asString()
+                    for (previous in names) if (previous == name) throw LlmRequestException(path + "/name", "duplicate Realtime function name")
+                    names.add(name)
+                }
+                wire.add(encoded); index += 1L
+            }
+            body.add("tools", JsonValue.fromArray(wire))
+        }
+        case None -> {}
+    }
+    when (configuration.toolChoice) {
+        case None -> {}
+        case Some(choice) -> body.add("tool_choice", when (choice) {
+            case Auto -> JsonValue.fromString("auto")
+            case None -> JsonValue.fromString("none")
+            case Required -> JsonValue.fromString("required")
+            case Specific(key) -> {
+                var selected: JsonValue? = None
+                var index = 0L
+                for (tool in tools) {
+                    if (tool.key == key) selected = Some(if (wire.size != 0L) wire[index] else encodeRealtimeTool(dialect, tool, "/tools/" + index.toString()))
+                    index += 1L
+                }
+                val tool = selected ?: throw LlmRequestException("/toolChoice", "selected Realtime tool is missing")
+                val type = tool["type"]!!.asString()
+                val field = if (type == "function") "name" else "server_label"
+                llmTypedObject(type).add(field, tool[field]!!).build()
+            }
+        })
+    }
+}
+
+private fun encodeRealtimeTool(dialect: DialectId, tool: ToolDefinition, path: String): JsonValue = when (tool) {
+    case ClientFunction(_, name, parameters, description, strict, extensions) -> {
+        if (strict != None) throw LlmRequestException(path + "/strict", "Realtime function tools have no strict setting")
+        val body = llmTypedObject("function").add("name", JsonValue.fromString(name)).add("parameters", parameters)
+        if (description.length != 0L) body.add("description", JsonValue.fromString(description))
+        mergeLlmExtensions(body.build(), extensions, dialect, ["type", "name", "parameters", "description", "strict"], path)
+    }
+    case Server(_, definition, extensions) -> when (definition) {
+        case Native(native) -> {
+            requireLlmOwner(native.dialect, dialect, path + "/tool/dialect")
+            if (native.kind != "mcp" || native.version != None) throw LlmRequestException(path + "/tool", "Realtime server tools require an unversioned MCP definition")
+            realtimeRequestString(native.configuration, "server_label", path + "/tool/configuration")
+            val body = llmTypedObject("mcp")
+            for ((name, value) in native.configuration.members()) {
+                if (name == "type") throw LlmRequestException(path + "/tool/configuration/type", "MCP configuration cannot override type")
+                body.add(name, value)
+            }
+            mergeLlmExtensions(body.build(), extensions, dialect, ["type", "server_label"], path)
+        }
+        case WebSearch(_) -> throw LlmRequestException(path + "/tool", "Realtime has no generic web search declaration")
+    }
+    else -> throw LlmRequestException(path, "Realtime client tools require function definitions")
+}

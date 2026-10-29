@@ -1,0 +1,67 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeChatContent(dialect: DialectId, content: Array<ContentPart>, role: String,
+    deepSeek: Boolean, path: String): JsonValue {
+    if (deepSeek && role == "developer") throw LlmRequestException(path, "DeepSeek Chat has no developer role")
+    if (deepSeek && (role == "system" || role == "assistant")) return encodeChatTextOnly(content, path)
+    if (content.size == 1L) {
+        val plain = when (content[0]) { case Text(text, extensions) -> if (extensions.size == 0L) Some(text) else None; else -> None }
+        if (plain != None) return JsonValue.fromString(plain!!)
+    }
+    val parts = ArrayList<JsonValue>()
+    var index = 0L
+    for (part in content) {
+        val partPath = path + "/" + index.toString()
+        parts.add(encodeChatPart(dialect, part, role, deepSeek, partPath))
+        index += 1L
+    }
+    return JsonValue.fromArray(parts)
+}
+
+private fun encodeChatTextOnly(content: Array<ContentPart>, path: String): JsonValue {
+    val text = StringBuilder()
+    var index = 0L
+    for (part in content) {
+        val partPath = path + "/" + index.toString()
+        when (part) {
+            case Text(value, extensions) -> {
+                if (extensions.size != 0L) throw LlmRequestException(partPath + "/extensions", "this Chat role has no content-part option position")
+                text.append(value)
+            }
+            else -> throw LlmRequestException(partPath, "this Chat role requires plain text")
+        }
+        index += 1L
+    }
+    return JsonValue.fromString(text.toString())
+}
+
+internal fun encodeChatPart(dialect: DialectId, part: ContentPart, role: String, deepSeek: Boolean, path: String): JsonValue {
+    return when (part) {
+        case Text(text, extensions) -> extendChatPart(llmTypedObject("text").add("text", JsonValue.fromString(text)).build(), extensions, dialect, path)
+        case Image(source, extensions) -> {
+            if (role != "user" && !(deepSeek && role == "tool")) throw LlmRequestException(path, "this Chat role does not accept images")
+            extendChatPart(encodeChatImage(source, dialect, deepSeek, path + "/source"), extensions, dialect, path)
+        }
+        case Document(source, filename, extensions) -> {
+            if (deepSeek || role != "user") throw LlmRequestException(path, "this Chat dialect or role has no document input")
+            extendChatPart(encodeChatDocument(source, filename, dialect, path), extensions, dialect, path)
+        }
+        case Audio(source, extensions) -> {
+            if (deepSeek || role != "user") throw LlmRequestException(path, "this Chat dialect or role has no audio input")
+            extendChatPart(encodeChatAudio(source, path + "/source"), extensions, dialect, path)
+        }
+        case Video(_, _) -> throw LlmRequestException(path, "Chat has no video content mapping")
+        case VideoFrames(_, _) -> throw LlmRequestException(path, "Chat has no timestamped video-frame mapping")
+        case Native(owner, value) -> {
+            requireLlmOwner(owner, dialect, path + "/dialect")
+            if (value.kind != JsonValueKind.Object) throw LlmRequestException(path + "/value", "native Chat content must be an object")
+            value
+        }
+    }
+}
+
+private fun extendChatPart(value: JsonValue, extensions: Array<DialectExtension>, dialect: DialectId, path: String): JsonValue =
+    mergeLlmExtensions(value, extensions, dialect,
+        ["type", "text", "image_url", "file", "file_id", "file_data", "filename", "input_audio"], path)

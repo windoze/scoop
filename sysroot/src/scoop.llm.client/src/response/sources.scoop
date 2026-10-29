@@ -1,0 +1,36 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+import scoop.url.Url as ResourceUrl
+
+public enum TextRangeUnit {
+    Utf8Bytes, Utf16CodeUnits, UnicodeScalars
+    public companion object : ValueEncoder<TextRangeUnit>, ValueDecoder<TextRangeUnit>
+}
+
+/** A half-open range in an explicit unit; no implicit indexing conversion is performed. */
+public class TextRange public constructor(public val start: Long, public val end: Long, public val unit: TextRangeUnit) {
+    init {
+        if (start < 0L || end < start) throw IllegalArgumentException(Some("invalid text range"))
+    }
+    public companion object : ValueEncoder<TextRange>, ValueDecoder<TextRange>
+}
+
+public enum LlmSourceLocation {
+    Url(ResourceUrl), File(LlmFileReference), Native(val dialect: DialectId, val value: JsonValue)
+    public companion object : ValueEncoder<LlmSourceLocation>, ValueDecoder<LlmSourceLocation>
+}
+
+/** A source identity belongs to the source table, independently of any tool call identity. */
+public class LlmSource public constructor(
+    public val id: String,
+    public val location: LlmSourceLocation,
+    public val title: String? = None,
+    public val native: JsonValue? = None
+) {
+    public companion object : ValueEncoder<LlmSource>, ValueDecoder<LlmSource>
+}
+
+public class Citation public constructor(public val source: LlmSource, public val range: TextRange? = None) {
+    public companion object : ValueEncoder<Citation>, ValueDecoder<Citation>
+}

@@ -1,0 +1,42 @@
+package scoop.llm.client
+
+import scoop.url.Url
+
+/** A named, fixed protocol/dialect combination; credentials belong to the endpoint. */
+public class LlmProvider public constructor(
+    public val name: String,
+    public val protocol: LlmApiProtocol,
+    public val defaultBaseUrl: Url? = None
+)
+
+/** Common combinations and API addresses, without a model-name router. */
+public object Providers {
+    public fun openAiGptLive(): LlmProvider = LlmProvider("openai-gpt-live", GptLiveProtocol(OpenAiGptLiveDialect()),
+        Some(Url.parse("https://api.openai.com/v1")))
+    public fun openAiRealtime(): LlmProvider = LlmProvider("openai-realtime", RealtimeProtocol(OpenAiRealtimeDialect()),
+        Some(Url.parse("https://api.openai.com/v1")))
+    public fun geminiLive(): LlmProvider = LlmProvider("gemini-live", BidiGenerateContentProtocol(GeminiLiveDialect()),
+        Some(Url.parse("https://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent")))
+    public fun openRouterChat(): LlmProvider = LlmProvider("openrouter-chat", ChatProtocol(OpenRouterChatDialect()),
+        Some(Url.parse("https://openrouter.ai/api/v1")))
+    public fun ollamaChat(): LlmProvider = LlmProvider("ollama-chat", OllamaChatProtocol(OllamaChatDialect()),
+        Some(Url.parse("http://localhost:11434/api")))
+    public fun cohereChat(): LlmProvider = LlmProvider("cohere-chat-v2", CohereChatProtocol(CohereChatDialect()),
+        Some(Url.parse("https://api.cohere.com")))
+    public fun bedrockConverse(): LlmProvider = LlmProvider("bedrock-converse", ConverseProtocol(BedrockConverseDialect()))
+    public fun geminiInteractions(): LlmProvider = LlmProvider("gemini-interactions",
+        InteractionsProtocol(GeminiInteractionsDialect()), Some(Url.parse("https://generativelanguage.googleapis.com/v1")))
+    public fun geminiGenerateContent(): LlmProvider = LlmProvider("gemini-generate-content",
+        GenerateContentProtocol(GeminiGenerateContentDialect()), Some(Url.parse("https://generativelanguage.googleapis.com/v1beta")))
+    public fun openAiResponses(): LlmProvider = LlmProvider("openai-responses", ResponsesProtocol(OpenAiResponsesDialect()),
+        Some(Url.parse("https://api.openai.com/v1")))
+    public fun openAiChat(): LlmProvider = LlmProvider("openai-chat", ChatProtocol(OpenAiChatDialect()),
+        Some(Url.parse("https://api.openai.com/v1")))
+    public fun deepSeekChat(topPMode: DeepSeekTopPMode = Unknown): LlmProvider = LlmProvider("deepseek-chat", ChatProtocol(DeepSeekChatDialect(topPMode)),
+        Some(Url.parse("https://api.deepseek.com")))
+    public fun deepSeekResponses(topPMode: DeepSeekTopPMode = Unknown): LlmProvider = LlmProvider("deepseek-responses",
+        ResponsesProtocol(DeepSeekResponsesDialect(topPMode)), Some(Url.parse("https://api.deepseek.com")))
+    public fun anthropicMessages(version: AnthropicMessagesVersion = V20261021, defaultMaxOutputTokens: ULong = 4096UL): LlmProvider =
+        LlmProvider("anthropic-messages", MessagesProtocol(AnthropicMessagesDialect(version, defaultMaxOutputTokens)),
+            Some(Url.parse("https://api.anthropic.com/v1")))
+}

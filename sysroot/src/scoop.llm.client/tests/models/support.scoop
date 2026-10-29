@@ -1,0 +1,36 @@
+package scoop.llm.client.tests.models
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+internal class CataloglessProtocol : LlmGenerationProtocol {
+    val delegate: LlmGenerationProtocol = ChatProtocol(OpenAiChatDialect())
+    public override val dialectId: DialectId get() = delegate.dialectId
+    public override fun generationUrl(baseUrl: Url, modelId: String): Url = delegate.generationUrl(baseUrl, modelId)
+    public override fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean): JsonValue = delegate.encodeRequest(modelId, request, stream)
+    public override fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse = delegate.decodeResponse(value, request)
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException = delegate.decodeError(status, body, truncated)
+}
+
+internal fun modelCatalog(provider: LlmProvider): LlmModelCatalog = provider.protocol.modelCatalog() ?: fail()
+
+internal fun modelLookup(provider: LlmProvider): LlmModelLookup {
+    val catalog = modelCatalog(provider)
+    if (catalog is LlmModelLookup) return catalog
+    fail()
+}
+
+internal fun assertModelQueryTiming(metadata: LlmCallMetadata) {
+    assertEquals(LlmCallOutcome.Completed, metadata.outcome)
+    val attempt = metadata.attempts[metadata.attempts.size - 1L]
+    assertTrue(attempt.request.sentAt != None && attempt.response.receivedAt != None)
+    assertTrue(attempt.response.completedAt != None)
+    assertEquals(None, attempt.responseId)
+    assertEquals(None, attempt.response.firstEventAt)
+    assertEquals(None, attempt.response.firstOutputAt)
+    assertEquals(None, attempt.response.firstTextAt)
+    assertEquals(None, attempt.usage.tokens.totalTokens)
+    assertEquals(None, attempt.outputTokensPerSecond)
+}

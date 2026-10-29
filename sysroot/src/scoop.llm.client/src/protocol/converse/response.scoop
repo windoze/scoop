@@ -1,0 +1,74 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.url.Url
+
+/** Converse requests, responses and EventStream generation, bound to an explicit service dialect. */
+public class ConverseProtocol public constructor(public val dialect: ConverseDialect) : LlmEventStreamProtocol {
+    public override fun modelCatalog(): LlmModelCatalog? = dialect.modelCatalog()
+    public override val dialectId: DialectId get() = dialect.id
+    public override fun generationUrl(baseUrl: Url, modelId: String): Url {
+        if (modelId.length == 0L) throw LlmRequestException("/modelId", "model ID must not be empty")
+        return baseUrl.toBuilder().appendPathSegment("model").appendPathSegment(modelId).appendPathSegment("converse").build()
+    }
+    public override fun streamUrl(baseUrl: Url, modelId: String): Url {
+        if (modelId.length == 0L) throw LlmRequestException("/modelId", "model ID must not be empty")
+        return baseUrl.toBuilder().appendPathSegment("model").appendPathSegment(modelId).appendPathSegment("converse-stream").build()
+    }
+    public override fun createEventStreamDecoder(request: LlmRequest, retention: StreamRetention): LlmEventStreamDecoder =
+        ConverseStreamDecoder(dialect, request, retention)
+    public override fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean): JsonValue {
+        if (modelId.length == 0L) throw LlmRequestException("/modelId", "model ID must not be empty")
+        return encodeConverseRequest(dialect, request)
+    }
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        dialect.decodeError(status, body, truncated)
+    init {
+        if (dialect.id.protocol != ApiProtocolId("converse"))
+            throw IllegalArgumentException(Some("Converse dialect belongs to another API protocol"))
+    }
+
+    public override fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse {
+        try {
+            val body = decodeConverseValue<ConverseBody>(value, "")
+            converseNonempty(body.stopReason, "/stopReason")
+            val (kind, output) = converseUnion(body.output, "/output")
+            val (completion, reason) = converseCompletion(body.stopReason)
+            val terminal = converseTerminal(body.stopReason)
+            var history: LlmHistory? = None
+            val items = if (kind == "message") {
+                val message = decodeConverseValue<ConverseMessage>(output, "/output/message")
+                if (message.role != "assistant") throw DecodingException("/output/message/role", "expected an assistant message")
+                val entries = readConverseEntries(message.content)
+                val result = readConverseBlocks(dialect, entries, request.tools, body.stopReason)
+                if (terminal) history = Some(LlmHistory(dialect.id, [output]))
+                result
+            } else [LlmOutputItem.Native(dialect.id, body.output)]
+            val state: UsageCompleteness = if (terminal) Final else Partial
+            val usage = when (body.usage) {
+                case Some(raw) -> LlmUsage(dialect.readUsage(raw), state, Some(raw))
+                case None -> LlmUsage(completeness = state)
+            }
+            return LlmResponse(dialect.id, [LlmCandidate(0L, items, completion, reason, history)], usage = usage, native = Some(value))
+        } catch (error: DecodingException) {
+            throw LlmProtocolException(dialect.id, error.path, error.message ?: "invalid Converse response", value)
+        }
+    }
+}
+
+internal fun converseTerminal(reason: String): Boolean = reason == "end_turn" || reason == "stop_sequence" ||
+    reason == "tool_use" || reason == "max_tokens" || reason == "model_context_window_exceeded" ||
+    reason == "guardrail_intervened" || reason == "content_filtered" || reason == "malformed_model_output" || reason == "malformed_tool_use"
+
+internal fun converseCompletion(reason: String): (LlmCompletion, LlmFinishReason) = when (reason) {
+    case "end_turn" -> (LlmCompletion.Complete, LlmFinishReason.Stop)
+    case "stop_sequence" -> (LlmCompletion.Complete, LlmFinishReason.Stop)
+    case "tool_use" -> (LlmCompletion.Complete, LlmFinishReason.ToolCalls)
+    case "max_tokens" -> (LlmCompletion.Incomplete, LlmFinishReason.Length)
+    case "model_context_window_exceeded" -> (LlmCompletion.Incomplete, LlmFinishReason.Length)
+    case "guardrail_intervened" -> (LlmCompletion.Refused, LlmFinishReason.ContentFilter)
+    case "content_filtered" -> (LlmCompletion.Refused, LlmFinishReason.ContentFilter)
+    case "malformed_model_output" -> (LlmCompletion.Failed, LlmFinishReason.Other(reason))
+    case "malformed_tool_use" -> (LlmCompletion.Failed, LlmFinishReason.Other(reason))
+    else -> (LlmCompletion.Incomplete, LlmFinishReason.Other(reason))
+}

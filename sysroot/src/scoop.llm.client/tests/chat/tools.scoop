@@ -1,0 +1,71 @@
+package scoop.llm.client.tests.chat
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ChatToolsTest {
+    @Test
+    fun `function and custom tool calls retain distinct inputs and stable references`() {
+        val message = "{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"f1\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{ \\\"count\\\":7 }\"}},{\"id\":\"c1\",\"type\":\"custom\",\"custom\":{\"name\":\"program\",\"input\":\"print(1)\"}}]}"
+        val result = ChatProtocol(OpenAiChatDialect()).decodeResponse(chatBody(message, "tool_calls"), chatRequest())
+        assertEquals(2L, result.clientToolCalls.size)
+        assertEquals(ToolKey("lookup"), result.clientToolCalls[0].toolKey)
+        assertEquals(Some("f1"), result.clientToolCalls[0].reference.id)
+        assertEquals(7L, result.clientToolCalls[0].decodeArguments<ChatCount>().count)
+        assertEquals(ToolKey("program"), result.clientToolCalls[1].toolKey)
+        when (result.clientToolCalls[1].input) {
+            case Text(text) -> assertEquals("print(1)", text)
+            else -> fail(Some("expected unparsed custom input"))
+        }
+        assertEquals(Json.stringify(Json.parse(message)), Json.stringify(chatHistory(result)))
+    }
+
+    @Test
+    fun `invalid JSON arguments and interrupted valid arguments never enter the executable view`() {
+        val protocol = ChatProtocol(OpenAiChatDialect())
+        for (arguments in ["{", "[]", "{\"x\":1,\"x\":2}"]) {
+            val function = JsonObjectBuilder().add("name", JsonValue.fromString("lookup"))
+                .add("arguments", JsonValue.fromString(arguments)).build()
+            val call = JsonObjectBuilder().add("id", JsonValue.fromString("bad"))
+                .add("type", JsonValue.fromString("function")).add("function", function).build()
+            val message = JsonObjectBuilder().add("role", JsonValue.fromString("assistant"))
+                .add("tool_calls", JsonValue.fromArray([call])).build()
+            val result = protocol.decodeResponse(chatBody(Json.stringify(message), "tool_calls"), chatRequest())
+            assertEquals(0L, result.clientToolCalls.size)
+            when (result.candidate(0L).items[0]) {
+                case ClientToolCall(call) -> when (call.input) {
+                    case Invalid(raw, _) -> assertEquals(arguments, raw)
+                    else -> fail(Some("expected invalid argument preservation"))
+                }
+                else -> fail(Some("expected tool item"))
+            }
+        }
+        val partial = protocol.decodeResponse(chatBody("{\"role\":\"assistant\",\"tool_calls\":[{\"id\":\"cut\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]}", "length"), chatRequest())
+        assertEquals(0L, partial.clientToolCalls.size)
+        when (partial.candidate(0L).items[0]) {
+            case ClientToolCall(call) -> when (call.input) {
+                case Incomplete(raw) -> assertEquals("{}", raw)
+                else -> fail(Some("expected interrupted input"))
+            }
+            else -> fail(Some("expected tool item"))
+        }
+    }
+
+    @Test
+    fun `unknown undeclared ambiguous and legacy tools stay native`() {
+        val message = "{\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"future\",\"opaque\":1e400},{\"id\":\"u1\",\"type\":\"function\",\"function\":{\"name\":\"unknown\",\"arguments\":\"{}\"}},{\"id\":\"a1\",\"type\":\"function\",\"function\":{\"name\":\"same\",\"arguments\":\"{}\"}}],\"function_call\":{\"name\":\"legacy\",\"arguments\":\"{}\"}}"
+        val request = LlmRequest([], tools = [
+            ClientFunction(ToolKey("a"), "same", Json.parse("{}")),
+            ClientFunction(ToolKey("b"), "same", Json.parse("{}"))
+        ])
+        val result = ChatProtocol(OpenAiChatDialect()).decodeResponse(chatBody(message, "function_call"), request)
+        assertEquals(0L, result.clientToolCalls.size)
+        assertEquals(4L, result.candidate(0L).items.size)
+        for (item in result.candidate(0L).items) {
+            when (item) { case Native(_, _) -> assertTrue(true); else -> fail(Some("expected native tool")) }
+        }
+        assertEquals(Json.stringify(Json.parse(message)), Json.stringify(chatHistory(result)))
+    }
+}

@@ -1,0 +1,83 @@
+package scoop.llm.client.tests.responses
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ResponsesHistoryTest {
+    @Test
+    fun `Responses saved history and function custom results preserve phase call context and order`() {
+        val protocol = ResponsesProtocol(OpenAiResponsesDialect())
+        val tools: Array<ToolDefinition> = [ClientFunction(ToolKey("f"), "count", Json.parse("{}")), ClientCustom(ToolKey("c"), "code")]
+        val output = "[{\"type\":\"reasoning\",\"id\":\"r\",\"summary\":[],\"encrypted_content\":\"opaque\"}," +
+            "{\"type\":\"function_call\",\"id\":\"f-item\",\"call_id\":\"f-call\",\"name\":\"count\",\"arguments\":\"{}\",\"caller\":{\"type\":\"direct\"}}," +
+            "{\"type\":\"custom_tool_call\",\"id\":\"c-item\",\"call_id\":\"c-call\",\"name\":\"code\",\"input\":\"print(1)\"}," +
+            "{\"type\":\"message\",\"id\":\"m\",\"role\":\"assistant\",\"phase\":\"commentary\",\"content\":[{\"type\":\"output_text\",\"text\":\"checking\"}]}]"
+        val original = responsesRequest(tools)
+        val response = protocol.decodeResponse(responsesBody(output), original)
+        val saved = Json.decodeFromString<LlmResponse>(Json.encodeToString(response))
+        val input = ArrayList<LlmInputItem>()
+        for (item in original.input) input.add(item)
+        for (item in saved.toInput()) input.add(item)
+        for (call in saved.clientToolCalls) input.add(LlmInputItem.ToolResult(call.reference, [Text("done")]))
+        val request = Json.decodeFromString<LlmRequest>(Json.encodeToString(LlmRequest(input.toArray())))
+        val body = protocol.encodeRequest("m", request)
+        val wire = body["input"]!!
+        assertEquals(7L, wire.size)
+        assertEquals("question", wire[0]["content"]!!.asString())
+        assertEquals("opaque", wire[1]["encrypted_content"]!!.asString())
+        assertEquals("commentary", wire[4]["phase"]!!.asString())
+        assertEquals("function_call_output", wire[5]["type"]!!.asString())
+        assertEquals("f-call", wire[5]["call_id"]!!.asString())
+        assertEquals("direct", wire[5]["caller"]!!["type"]!!.asString())
+        assertEquals("count", wire[5]["name"]!!.asString())
+        assertEquals("done", wire[5]["output"]!!.asString())
+        assertFalse(wire[5].containsKey("id"))
+        assertEquals("custom_tool_call_output", wire[6]["type"]!!.asString())
+        assertEquals("c-call", wire[6]["call_id"]!!.asString())
+        var index = 1L
+        for (item in Json.parse(output).elements()) { assertEquals(Json.stringify(item), Json.stringify(wire[index])); index += 1L }
+    }
+
+    @Test
+    fun `Responses native results use original local shell item IDs and explicit screenshot acknowledgements`() {
+        val dialect = OpenAiResponsesDialect().id
+        val computer = resultReference(dialect, "computer_call", "computer-item", "computer-call")
+        val local = resultReference(dialect, "local_shell_call", "local-item", "local-call")
+        val shell = resultReference(dialect, "shell_call", "shell-item", "shell-call", ",\"environment\":{\"type\":\"local\"}")
+        val patch = resultReference(dialect, "apply_patch_call", "patch-item", "patch-call")
+        val ack = DialectExtension(dialect, Json.parse("{\"acknowledged_safety_checks\":[{\"id\":\"application-confirmed\"}]}"))
+        val request = LlmRequest([ToolResult(computer, [Image(Bytes([1.toByte()], "image/png"))], extensions = [ack]),
+            ToolResult(local, [Text("{\"stdout\":\"done\"}")]), ToolResult(shell, [Native(dialect, Json.parse("[{\"stdout\":\"done\",\"stderr\":\"\",\"outcome\":{\"type\":\"exit\",\"exit_code\":0}}]"))]),
+            ToolResult(patch, [Text("conflict")], isError = true)])
+        val wire = ResponsesProtocol(OpenAiResponsesDialect()).encodeRequest("m", request)["input"]!!
+        assertEquals("computer_screenshot", wire[0]["output"]!!["type"]!!.asString())
+        assertEquals("data:image/png;base64,AQ==", wire[0]["output"]!!["image_url"]!!.asString())
+        assertEquals("application-confirmed", wire[0]["acknowledged_safety_checks"]!![0]["id"]!!.asString())
+        assertEquals("local-item", wire[1]["id"]!!.asString())
+        assertFalse(wire[1].containsKey("call_id"))
+        assertEquals("shell-call", wire[2]["call_id"]!!.asString())
+        assertEquals("done", wire[2]["output"]!![0]["stdout"]!!.asString())
+        assertEquals("failed", wire[3]["status"]!!.asString())
+        assertEquals("patch-call", wire[3]["call_id"]!!.asString())
+        val noAck = ResponsesProtocol(OpenAiResponsesDialect()).encodeRequest("m", LlmRequest([ToolResult(computer, [Image(Bytes([], "image/png"))])]))
+        assertFalse(noAck["input"]!![0].containsKey("acknowledged_safety_checks"))
+    }
+
+    @Test
+    fun `Responses result encoding rejects missing mismatched or foreign call context`() {
+        val dialect = OpenAiResponsesDialect().id
+        val call = resultReference(dialect, "function_call", "i", "c")
+        assertResponsesRequestFailure(LlmRequest([ToolResult(ClientToolCallReference(dialect, ToolKey("t"), Some("c")), [Text("ok")])]), "/input/0/call/context")
+        assertResponsesRequestFailure(LlmRequest([ToolResult(ClientToolCallReference(dialect, call.toolKey, Some("other"), call.context), [Text("ok")])]), "/input/0/call/context/call_id")
+        assertResponsesRequestFailure(LlmRequest([ToolResult(resultReference(OpenAiChatDialect().id, "function_call", "i", "c"), [Text("ok")])]), "/input/0/call/dialect")
+        assertResponsesRequestFailure(LlmRequest([ToolResult(call, [Text("error")], isError = true)]), "/input/0/isError")
+        assertResponsesRequestFailure(LlmRequest([ToolResult(resultReference(dialect, "computer_call", "i", "c"), [Text("ok")])]), "/input/0/content/0")
+        val remote = resultReference(dialect, "shell_call", "i", "c", ",\"environment\":{\"type\":\"container_reference\"}")
+        assertResponsesRequestFailure(LlmRequest([ToolResult(remote, [Native(dialect, Json.parse("[]"))])]), "/input/0/call/context/environment")
+    }
+}
+
+private fun resultReference(dialect: DialectId, type: String, item: String, call: String, extra: String = ""): ClientToolCallReference =
+    ClientToolCallReference(dialect, ToolKey("tool"), Some(call), Some(Json.parse("{\"type\":\"" + type + "\",\"id\":\"" + item + "\",\"call_id\":\"" + call + "\"" + extra + "}")))

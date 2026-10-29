@@ -1,0 +1,43 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeCohereTools(result: JsonObjectBuilder, dialect: DialectId, request: LlmRequest) {
+    val values = ArrayList<JsonValue>()
+    val names = ArrayList<String>()
+    var strictMode: Boolean? = None
+    var index = 0L
+    for (tool in request.tools) {
+        val path = "/tools/" + index.toString()
+        when (tool) {
+            case ClientFunction(_, name, parameters, description, strict, extensions) -> {
+                for (previous in names) if (previous == name) throw LlmRequestException(path + "/name", "duplicate Cohere function name")
+                names.add(name)
+                if (strict != None) {
+                    if (strictMode != None && strictMode != strict) throw LlmRequestException(path + "/strict", "Cohere strict_tools applies to all functions")
+                    strictMode = strict
+                }
+                val function = JsonObjectBuilder().add("name", JsonValue.fromString(name)).add("parameters", parameters)
+                if (description.length != 0L) function.add("description", JsonValue.fromString(description))
+                values.add(llmTypedObject("function").add("function", mergeLlmExtensions(function.build(), extensions, dialect,
+                    ["name", "parameters", "description", "strict"], path)).build())
+            }
+            else -> throw LlmRequestException(path, "Cohere Chat v2 requires client functions")
+        }
+        index += 1L
+    }
+    if (values.size != 0L) result.add("tools", JsonValue.fromArray(values))
+    if (strictMode != None) result.add("strict_tools", JsonValue.fromBoolean(strictMode!!))
+    when (request.options.toolChoice) {
+        case Auto -> return
+        case None -> result.add("tool_choice", JsonValue.fromString("NONE"))
+        case Required -> {
+            if (values.size == 0L) throw LlmRequestException("/options/toolChoice", "required tool choice needs functions")
+            result.add("tool_choice", JsonValue.fromString("REQUIRED"))
+        }
+        case Specific(_) -> {
+            if (values.size != 1L) throw LlmRequestException("/options/toolChoice", "Cohere specific choice requires a single declared function")
+            result.add("tool_choice", JsonValue.fromString("REQUIRED"))
+        }
+    }
+}

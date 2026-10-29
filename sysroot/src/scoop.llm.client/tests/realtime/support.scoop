@@ -1,0 +1,34 @@
+package scoop.llm.client.tests.realtime
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+internal val rtProtocol = RealtimeProtocol(OpenAiRealtimeDialect())
+internal val rtDialect = OpenAiRealtimeDialect().id
+internal val rtFunction: ToolDefinition = ClientFunction(ToolKey("local"), "lookup", Json.parse("{\"type\":\"object\"}"))
+internal val rtMcp: ToolDefinition = Server(ToolKey("remote"), Native(NativeToolDefinition(rtDialect, "mcp",
+    Json.parse("{\"server_label\":\"docs\",\"server_url\":\"https://example.test/mcp\",\"require_approval\":\"always\"}"))))
+
+internal fun rtFailure(path: String, block: () -> Unit) {
+    val error = assertFailsWith<LlmRequestException>(block = block)
+    assertEquals(path, error.path)
+}
+
+internal fun rtItem(item: LlmInputItem): JsonValue = rtProtocol.encodeItemCreate(item)["item"]!!
+
+internal fun rtResponse(request: RealtimeResponseRequest): JsonValue = rtProtocol.encodeResponseCreate(request)["response"]!!
+
+internal fun rtDecode(raw: String): RealtimeMessage = rtProtocol.decodeMessage(Json.parse(raw), [rtFunction, rtMcp])
+
+internal fun rtDecodeFailure(raw: String, path: String) {
+    val error = assertFailsWith<LlmProtocolException> { rtDecode(raw); Unit }
+    assertEquals(path, error.path)
+    assertEquals(Json.stringify(Json.parse(raw)), Json.stringify(error.native))
+}
+
+internal fun rtDone(output: String = "[]", status: String = "completed", extra: String = ""): LlmResponse =
+    when (rtDecode("{\"type\":\"response.done\",\"response\":{\"id\":\"r\",\"status\":\"" + status + "\",\"output\":" + output + extra + "}}").event) {
+        case ResponseDone(value) -> value
+        else -> fail()
+    }

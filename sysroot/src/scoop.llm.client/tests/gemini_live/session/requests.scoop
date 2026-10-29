@@ -1,0 +1,60 @@
+package scoop.llm.client.tests.geminilive.session
+
+import scoop.asyncio.*
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+
+@Test
+private class GeminiLiveSessionRequestTest {
+    @Test
+    fun `Gemini Live session preflight failures finish before authentication`() {
+        LibuvEventLoop().run suspend { _ ->
+            withLlmClient suspend { client ->
+                for ((provider, capabilities, setup, path) in [
+                    (Providers.openAiChat(), ModelCapabilities(), GeminiLiveSetup(), "/provider"),
+                    (Providers.geminiLive(), ModelCapabilities(realtime = Unsupported("disabled")), GeminiLiveSetup(), "/realtime"),
+                    (Providers.geminiLive(), ModelCapabilities(input = InputCapabilities(text = Unsupported("disabled"))), GeminiLiveSetup(system = [Text("system")]), "/system/0"),
+                    (Providers.geminiLive(), ModelCapabilities(), GeminiLiveSetup(options = LlmGenerationOptions(stop = Some([]))), "/options/stop")]) {
+                    val auth = RecordingAuth()
+                    val finished = FinishedCalls()
+                    val model = LlmEndpoint(provider, auth).model("m", Some(capabilities))
+                    val error = expectLlmFailure<LlmRequestException> suspend {
+                        client.openGeminiLiveSession(model, setup, LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))); Unit
+                    }
+                    assertEquals(path, error.path)
+                    assertEquals(0L, auth.requests.size)
+                    assertEquals(1L, finished.values.size)
+                    assertEquals(0L, finished.values[0].attempts.size)
+                    assertEquals(LlmCallOutcome.Failed, finished.values[0].outcome)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `Gemini Live session input checks preserve the connection and distinguish video frames`() {
+        withLivePeer(suspend { socket, setup ->
+            assertEquals(1L, setup["setup"]!!.size)
+            assertEquals("valid", readLiveCommand(socket)["clientContent"]!!["turns"]!![0]["parts"]!![0]["text"]!!.asString())
+        }, suspend { _, _, endpoint ->
+            val capabilities = ModelCapabilities(input = InputCapabilities(audio = Unsupported("no audio"), videoFrames = Unsupported("no frames"),
+                image = Supported(MediaCapabilities([MediaFormatCapability(MediaFormat("image/png", MediaForm.Bytes),
+                    Supported(MediaLimits(maxBytesPerItem = Some(1UL))))]))))
+            withLlmClient suspend { client ->
+                client.withGeminiLiveSession(endpoint.model("m", Some(capabilities))) suspend { session ->
+                    for ((input, path) in [(GeminiLiveInput(audio = Some(GeminiLiveBlob([], "audio/pcm"))), "/audio"),
+                        (GeminiLiveInput(video = Some(GeminiLiveBlob([], "image/jpeg"))), "/video")]) {
+                        assertEquals(path, expectLlmFailure<LlmRequestException> suspend { session.sendRealtimeInput(input); Unit }.path)
+                    }
+                    val call = ClientToolCallReference(GeminiLiveDialect().id, ToolKey("local"), Some("call"))
+                    val result = GeminiLiveToolResult(call, Json.parse("{}"), [Image(Bytes([1.toByte(), 2.toByte()], "image/png"))])
+                    assertEquals("/results/0/parts/0/source", expectLlmFailure<LlmRequestException> suspend { session.sendToolResponse([result]); Unit }.path)
+                    assertFalse(session.isClosed)
+                    session.sendClientContent([Message([Text("valid")])])
+                }
+            }
+        })
+    }
+}

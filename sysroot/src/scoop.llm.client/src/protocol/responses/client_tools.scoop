@@ -1,0 +1,58 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun readResponsesClientCall(dialect: DialectId, entry: ResponsesOutputEntry, tools: Array<ToolDefinition>,
+    complete: Boolean, path: String): LlmOutputItem {
+    if (entry.kind != "function_call" && entry.kind != "custom_tool_call")
+        return readResponsesNativeClientCall(dialect, entry, tools, complete, path)
+    val custom = entry.kind == "custom_tool_call"
+    val (name, arguments, namespace) = if (custom) {
+        val call = decodeResponsesValue<ResponsesCustomCall>(entry.raw, path)
+        (call.name, call.input, call.namespace)
+    } else {
+        val call = decodeResponsesValue<ResponsesFunctionCall>(entry.raw, path)
+        (call.name, call.arguments, call.namespace)
+    }
+    val key = resolveResponsesNamedTool(tools, name, custom, namespace) ?: return LlmOutputItem.Native(dialect, entry.raw)
+    val input = if (!complete) ClientToolInput.Incomplete(arguments)
+        else if (custom) ClientToolInput.Text(arguments)
+        else try { ClientToolInput.JsonArguments(JsonToolArguments(arguments)) }
+        catch (error: DecodingException) { ClientToolInput.Invalid(arguments, error.message ?: "invalid JSON arguments") }
+    return LlmOutputItem.ClientToolCall(ClientToolCall(ClientToolCallReference(dialect, key, entry.callId, Some(entry.raw)), input))
+}
+
+private fun resolveResponsesNamedTool(tools: Array<ToolDefinition>, name: String, custom: Boolean, namespace: String?): ToolKey? {
+    if (namespace != None) return None
+    var found: ToolKey? = None
+    for (tool in tools) {
+        val matches = when (tool) {
+            case ClientFunction(_, wireName, _, _, _, _) -> !custom && name == wireName
+            case ClientCustom(_, wireName, _, _, _) -> custom && name == wireName
+            else -> false
+        }
+        if (!matches) continue
+        if (found != None) return None
+        found = Some(tool.key)
+    }
+    return found
+}
+
+internal fun responsesDisableCalls(items: Array<LlmOutputItem>): Array<LlmOutputItem> {
+    val result = ArrayList<LlmOutputItem>()
+    for (item in items) {
+        when (item) {
+            case ClientToolCall(call) -> {
+                val input = when (call.input) {
+                    case JsonArguments(arguments) -> ClientToolInput.Incomplete(arguments.rawText)
+                    case Text(text) -> ClientToolInput.Incomplete(text)
+                    case Native(value) -> ClientToolInput.Incomplete(Json.stringify(value))
+                    else -> call.input
+                }
+                result.add(LlmOutputItem.ClientToolCall(ClientToolCall(call.reference, input)))
+            }
+            else -> result.add(item)
+        }
+    }
+    return result.toArray()
+}

@@ -1,0 +1,90 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+import scoop.time.Instant
+import scoop.url.Url
+
+/** Chat Completions wire structure combined with one explicitly selected dialect. */
+public class ChatProtocol public constructor(public val dialect: ChatDialect) : LlmSseProtocol {
+    public override fun fileApi(): LlmFileApi? = dialect.fileApi()
+    public override fun modelCatalog(): LlmModelCatalog? = dialect.modelCatalog()
+    public override val dialectId: DialectId get() = dialect.id
+    public override fun generationUrl(baseUrl: Url, modelId: String): Url =
+        baseUrl.toBuilder().appendPathSegment("chat").appendPathSegment("completions").build()
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        dialect.decodeError(status, body, truncated)
+    init {
+        if (dialect.id.protocol != ApiProtocolId("chat-completions"))
+            throw IllegalArgumentException(Some("Chat dialect belongs to another API protocol"))
+    }
+
+    public override fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean): JsonValue =
+        encodeChatRequest(dialect, modelId, request, stream)
+
+    public override fun createStreamDecoder(request: LlmRequest, retention: StreamRetention): LlmSseDecoder =
+        ChatStreamDecoder(dialect, request, retention)
+
+    public override fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse {
+        try {
+            val body = decodeChatValue<ChatResponseBody>(value, "")
+            val candidates = ArrayList<LlmCandidate>()
+            var index = 0L
+            for (choice in body.choices) {
+                candidates.add(readChatCandidate(dialect, choice, request, "/choices/" + index.toString()))
+                index += 1L
+            }
+            val usage = when (body.usage) {
+                case Some(raw) -> LlmUsage(dialect.readUsage(raw), Final, Some(raw))
+                case None -> LlmUsage(completeness = Final)
+            }
+            val created = when (body.created) { case Some(seconds) -> Some(Instant.fromEpochSeconds(seconds)); case None -> None }
+            try {
+                return LlmResponse(dialect.id, candidates.toArray(), body.id, body.model, created, usage, Some(value))
+            } catch (error: IllegalArgumentException) {
+                throw DecodingException("/choices", error.message ?: "invalid response candidates")
+            }
+        } catch (error: DecodingException) {
+            throw LlmProtocolException(dialect.id, error.path, error.message ?: "invalid Chat response", value)
+        }
+    }
+}
+
+private fun readChatCandidate(dialect: ChatDialect, choice: ChatChoiceBody, request: LlmRequest, path: String): LlmCandidate {
+    val messagePath = path + "/message"
+    val message = decodeChatValue<ChatMessageBody>(choice.message, messagePath)
+    if (message.role != "assistant") throw DecodingException(messagePath + "/role", "expected an assistant message")
+    val items = ArrayList<LlmOutputItem>()
+    val reasoning = dialect.readReasoning(choice.message, messagePath)
+    if (reasoning.size != 0L) items.add(LlmOutputItem.Reasoning(reasoning))
+    val content = ArrayList<OutputPart>()
+    if (message.content != None) content.add(OutputPart.Text(message.content!!))
+    if (message.refusal != None) content.add(OutputPart.Refusal(message.refusal!!))
+    if (content.size != 0L) items.add(LlmOutputItem.Message(content.toArray()))
+    val complete = message.refusal == None && (choice.finishReason == "stop" || choice.finishReason == "tool_calls" || choice.finishReason == "function_call")
+    appendChatToolCalls(items, dialect.id, message.toolCalls, request.tools, complete, messagePath + "/tool_calls")
+    return finishChatCandidate(dialect, choice, message, items, path)
+}
+
+private fun finishChatCandidate(dialect: ChatDialect, choice: ChatChoiceBody, message: ChatMessageBody,
+    items: ArrayList<LlmOutputItem>, path: String): LlmCandidate {
+    for (item in dialect.readNativeItems(choice.message, path + "/message")) items.add(item)
+    val reason = chatFinishReason(choice.finishReason)
+    val completion = if (message.refusal != None) LlmCompletion.Refused else when (reason) {
+        case Stop -> LlmCompletion.Complete
+        case ToolCalls -> LlmCompletion.Complete
+        else -> LlmCompletion.Incomplete
+    }
+    val history = if (dialect.canReplayMessage(choice.message))
+        Some(LlmHistory(dialect.id, [dialect.historyMessage(choice.message, path + "/message")])) else None
+    try { return LlmCandidate(choice.index, items.toArray(), completion, reason, history) }
+    catch (error: IllegalArgumentException) { throw DecodingException(path + "/index", error.message ?: "invalid candidate index") }
+}
+
+internal fun chatFinishReason(value: String): LlmFinishReason = when (value) {
+    case "stop" -> Stop
+    case "length" -> Length
+    case "tool_calls" -> ToolCalls
+    case "function_call" -> ToolCalls
+    case "content_filter" -> ContentFilter
+    else -> Other(value)
+}

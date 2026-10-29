@@ -1,0 +1,26 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+import scoop.time.Instant
+
+/** A complete replacement input window returned by the Responses compact operation. */
+public class ResponsesCompaction public constructor(public val dialect: DialectId, public val id: String,
+    public val output: Array<JsonValue>, public val createdAt: Instant? = None,
+    public val usage: LlmUsage = LlmUsage(), public val native: JsonValue? = None) {
+    public fun toInput(): Array<LlmInputItem> = [LlmInputItem.History(LlmHistory(dialect, output))]
+
+    public companion object : ValueEncoder<ResponsesCompaction>, ValueDecoder<ResponsesCompaction>
+}
+
+/** A compacted input window and the completed operation's actual timing and usage. */
+public class ResponsesCompactionResult public constructor(public val compaction: ResponsesCompaction,
+    public val metadata: LlmCallMetadata) {
+    init {
+        if (metadata.outcome != LlmCallOutcome.Completed)
+            throw IllegalArgumentException(Some("compaction result requires a completed call"))
+    }
+
+    public fun toInput(): Array<LlmInputItem> = compaction.toInput()
+
+    public companion object : ValueEncoder<ResponsesCompactionResult>, ValueDecoder<ResponsesCompactionResult>
+}

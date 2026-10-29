@@ -1,0 +1,87 @@
+package scoop.llm.client.tests.response
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ResponseSelectionTest {
+    @Test
+    fun `structured output joins parts within one message and decodes using the companion`() {
+        val response = LlmResponse(responseDialect(), [LlmCandidate(9L,
+            [Reasoning([Text("reasoning")]), Message([Text("{\"count\":"), Text("17}")])], Complete, Stop)])
+        assertEquals(17L, response.decodeOutput<CountOutput>().count)
+        assertEquals(17L, response.decodeOutput(CountOutput.Companion, candidateIndex = Some(9L), itemIndex = Some(1L)).count)
+    }
+
+    @Test
+    fun `media-only messages do not hide the sole structured text message`() {
+        val response = LlmResponse(responseDialect(), [LlmCandidate(0L, [
+            Message([Media(Image, MediaSource.Bytes([0], "image/png"))]), Message([Text("{\"count\":6}")])
+        ], Complete, Stop)])
+        assertEquals(6L, response.decodeOutput<CountOutput>().count)
+        assertEquals(LlmOutputFailure.MissingOutput,
+            assertFailsWith<LlmOutputException> { response.decodeOutput<CountOutput>(itemIndex = Some(0L)); Unit }.reason)
+    }
+
+    @Test
+    fun `multiple candidates and output messages require explicit selection`() {
+        val response = LlmResponse(responseDialect(), [textCandidate(7L, "{\"count\":7}"), textCandidate(3L, "{\"count\":3}")])
+        assertEquals("{\"count\":7}", response.text)
+        assertEquals(LlmOutputFailure.AmbiguousCandidate,
+            assertFailsWith<LlmOutputException> { response.decodeOutput<CountOutput>(); Unit }.reason)
+        assertEquals(3L, response.decodeOutput<CountOutput>(candidateIndex = Some(3L)).count)
+        assertEquals(LlmOutputFailure.MissingCandidate,
+            assertFailsWith<LlmOutputException> { response.decodeOutput<CountOutput>(candidateIndex = Some(0L)); Unit }.reason)
+        val messages = LlmResponse(responseDialect(), [LlmCandidate(0L,
+            [Message([Text("{\"count\":1}")]), Message([Text("{\"count\":2}")])], Complete, Stop)])
+        assertEquals(LlmOutputFailure.AmbiguousOutput,
+            assertFailsWith<LlmOutputException> { messages.decodeOutput<CountOutput>(); Unit }.reason)
+        assertEquals(2L, messages.decodeOutput<CountOutput>(itemIndex = Some(1L)).count)
+    }
+
+    @Test
+    fun `refused incomplete missing and invalid JSON remain distinct outcomes`() {
+        val incomplete = LlmResponse(responseDialect(), [textCandidate(0L, "{\"count\":2}", Incomplete)])
+        assertEquals(LlmOutputFailure.Incomplete,
+            assertFailsWith<LlmOutputException> { incomplete.decodeOutput<CountOutput>(); Unit }.reason)
+        val refused = LlmResponse(responseDialect(), [LlmCandidate(0L,
+            [Message([Text("{\"count\":2}"), Refusal("denied")])], Complete, Stop)])
+        assertEquals(LlmOutputFailure.Refused,
+            assertFailsWith<LlmOutputException> { refused.decodeOutput<CountOutput>(); Unit }.reason)
+        val noText = LlmResponse(responseDialect(), [LlmCandidate(0L, [Reasoning([Text("reasoning")])], Complete, Stop)])
+        assertEquals(LlmOutputFailure.MissingOutput,
+            assertFailsWith<LlmOutputException> { noText.decodeOutput<CountOutput>(); Unit }.reason)
+        assertEquals(LlmOutputFailure.InvalidSelection,
+            assertFailsWith<LlmOutputException> { noText.decodeOutput<CountOutput>(itemIndex = Some(0L)); Unit }.reason)
+        for (text in ["{", "```json\n{\"count\":2}\n```", "{\"count\":\"wrong\"}"]) {
+            val response = LlmResponse(responseDialect(), [textCandidate(0L, text)])
+            assertFailsWith<DecodingException> { response.decodeOutput<CountOutput>(); Unit }
+            assertEquals(text, response.text)
+        }
+    }
+
+    @Test
+    fun `toInput uses selected native history and preserves reasoning and unknown fields`() {
+        val raw = Json.parse("{\"role\":\"assistant\",\"content\":\"answer\",\"reasoning_content\":\"required\",\"future\":1e+400}")
+        val history = LlmHistory(responseDialect(), [raw], Some(Json.parse("{\"response_id\":\"r1\"}")))
+        val response = LlmResponse(responseDialect(), [
+            LlmCandidate(5L, [Message([Text("display view")])], Complete, Other("provider-stop"), Some(history)),
+            textCandidate(8L, "alternative")
+        ], usage = LlmUsage(TokenUsage(inputTokens = Some(8L)), Final))
+        val restored = Json.decodeFromString<LlmResponse>(Json.encodeToString(response))
+        assertEquals(LlmOutputFailure.AmbiguousCandidate,
+            assertFailsWith<LlmOutputException> { restored.toInput(); Unit }.reason)
+        when (restored.toInput(Some(5L))[0]) {
+            case History(value) -> {
+                assertEquals(responseDialect(), value.dialect)
+                assertEquals(Json.stringify(raw), Json.stringify(value.items[0]))
+                assertEquals("r1", value.context!!["response_id"]!!.asString())
+                assertFalse(value.items[0].containsKey("usage"))
+            }
+            else -> fail(Some("expected native history"))
+        }
+        assertEquals(LlmOutputFailure.HistoryUnavailable,
+            assertFailsWith<LlmOutputException> { restored.toInput(Some(8L)); Unit }.reason)
+    }
+}

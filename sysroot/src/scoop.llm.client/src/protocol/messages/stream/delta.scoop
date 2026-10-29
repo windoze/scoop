@@ -1,0 +1,50 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun acceptMessagesBlockDelta(block: MessagesStreamBlock, value: JsonValue, batch: LlmStreamBatch) {
+    if (block.stopped) throw DecodingException("/index", "content block already stopped")
+    val kind = decodeMessagesValue<MessagesBlockType>(value, "/delta").type
+    val fields: Array<String> = when (kind) {
+        case "text_delta" -> {
+            requireMessagesBlockKind(block, "text")
+            block.appendText(messagesStreamString(value, "text", "/delta"), true, batch)
+            ["type", "text"]
+        }
+        case "thinking_delta" -> {
+            requireMessagesBlockKind(block, "thinking")
+            block.appendText(messagesStreamString(value, "thinking", "/delta"), false, batch)
+            ["type", "thinking"]
+        }
+        case "signature_delta" -> {
+            requireMessagesBlockKind(block, "thinking")
+            val signature = messagesStreamString(value, "signature", "/delta")
+            if (block.retain) block.signature.append(signature)
+            batch.native("messages.signature", value, Some(block.location), false)
+            batch.observe(signature)
+            ["type", "signature"]
+        }
+        case "citations_delta" -> {
+            requireMessagesBlockKind(block, "text")
+            block.appendCitation(messagesStreamField(value, "citation", "/delta"), batch)
+            ["type", "citation"]
+        }
+        case "input_json_delta" -> {
+            val tool = block.tool ?: throw DecodingException("/delta/type", "input delta requires a tool block")
+            tool.append(value, batch, "/delta")
+            ["type", "partial_json"]
+        }
+        else -> []
+    }
+    val extra = llmStreamUnknown(value, fields)
+    if (extra.size != 0L) {
+        if (block.historyAvailable && llmPresent(block.wire))
+            batch.native("messages.content_block", block.wire!!, Some(block.location))
+        block.historyAvailable = false
+        batch.native("messages.content_block_delta", extra, Some(block.location))
+    }
+}
+
+private fun requireMessagesBlockKind(block: MessagesStreamBlock, kind: String) {
+    if (block.kind != kind) throw DecodingException("/delta/type", "delta type disagrees with content block")
+}

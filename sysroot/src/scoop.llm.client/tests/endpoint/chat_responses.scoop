@@ -1,0 +1,67 @@
+package scoop.llm.client.tests.endpoint
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+import scoop.time.Duration
+import scoop.url.Url
+
+@Test
+private class ExplicitEndpointNetworkTest {
+    @Test
+    fun `explicit API endpoint keeps Chat Responses and retry authentication on the configured URL`() {
+        withLlmServer suspend { _, scope, listener, original ->
+            val base = Some(Url.parse(original.baseUrl.toString() + "/openai/v1?route=team"))
+            val tokens = EndpointTestTokens()
+            val auth = EndpointRecordingAuth(LlmAuth.bearer(suspend { tokens.next("token-") }))
+            val preview = [HttpField("x-feature-preview".toByteArray(), "enabled".toByteArray())]
+            val chat = LlmEndpoint(Providers.openAiChat(), LlmAuth.header("api-key", "mock-only"), base, preview)
+            val responses = LlmEndpoint(Providers.openAiResponses(), auth, base, preview)
+            val bodies = ArrayList<Array<Byte>>()
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    for (number in [0L, 1L, 2L]) {
+                        val incoming = connection.receiveRequest()!!
+                        val target = when (incoming.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                        assertEquals("/v1/openai/v1/" + (if (number == 0L) "chat/completions" else "responses") + "?route=team", target)
+                        assertEquals("enabled", String.fromUtf8(incoming.head.fields.findAll("x-feature-preview".toByteArray())[0].value))
+                        val bytes = incoming.body.readAllBytes(8192L)
+                        val body = Json.parse(String.fromUtf8(bytes))
+                        assertEquals("literal/deployment:v1", body["model"]!!.asString())
+                        if (number == 0L) {
+                            assertEquals("mock-only", String.fromUtf8(incoming.head.fields.findAll("api-key".toByteArray())[0].value))
+                            assertEquals(0L, incoming.head.fields.findAll("Authorization".toByteArray()).size)
+                            sendLlmReply(connection, 200U, sampleReply)
+                        } else {
+                            bodies.add(bytes)
+                            assertEquals("Bearer token-" + number.toString(), String.fromUtf8(incoming.head.fields.findAll("Authorization".toByteArray())[0].value))
+                            if (number == 1L) sendLlmReply(connection, 429U, "{\"error\":{\"code\":\"rate_limit_exceeded\"}}")
+                            else sendLlmReply(connection, 200U,
+                                "{\"id\":\"azure-result\",\"object\":\"response\",\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"response answer\"}]}],\"prompt_filter_results\":\"changed\"}")
+                        }
+                    }
+                }
+            }
+            withLlmClient suspend { client ->
+                assertEquals("hello", client.generate(chat.model("literal/deployment:v1"), sampleRequest).text)
+                val result = client.generate(responses.model("literal/deployment:v1"), sampleRequest,
+                    LlmCallOptions(retries = LlmRetryOptions(1L, Duration.ZERO, Duration.ZERO)))
+                assertEquals("response answer", result.text)
+                assertEquals(2L, tokens.count)
+                assertEquals(2L, result.metadata.attempts.size)
+                for (index in [0L, 1L]) {
+                    assertEquals("/v1/openai/v1/responses?route=team", auth.requests[index].url.httpRequestTarget())
+                    assertLlmBytes(bodies[index], auth.requests[index].body)
+                    assertTrue(result.metadata.attempts[index].request.sentAt != None)
+                    assertTrue(result.metadata.attempts[index].response.receivedAt != None)
+                }
+                assertLlmBytes(bodies[0], bodies[1])
+            }
+            serving.join()
+        }
+    }
+}

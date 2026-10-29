@@ -1,0 +1,14 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+import scoop.text.startsWith
+import scoop.url.Url
+import scoop.url.UrlQuery
+
+internal class GeminiModelCatalog(val dialect: DialectId) : LlmModelLookup {
+    public override fun listUrl(baseUrl: Url, query: UrlQuery): Url = llmModelsUrl(baseUrl, query)
+    public override fun retrieveUrl(baseUrl: Url, modelId: String): Url =
+        llmModelUrl(baseUrl, if (modelId.startsWith("models/")) modelId.slice(7L, modelId.length) else modelId)
+    public override fun decodeList(value: JsonValue): LlmModelPage = decodeLlmModelPage(dialect, value, true)
+    public override fun decodeModel(value: JsonValue): LlmModelInfo = decodeLlmModelInfo(dialect, value, "", true)
+}

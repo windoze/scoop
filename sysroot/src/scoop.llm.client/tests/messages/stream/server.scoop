@@ -1,0 +1,64 @@
+package scoop.llm.client.tests.messages
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class MessagesStreamServerTest {
+    @Test
+    fun `Messages stream server search results citations and client calls share ordered output`() {
+        for (retention in [StreamRetention.Result, StreamRetention.EventsOnly]) {
+            val decoder = messagesStream(retention, [Server(ToolKey("web"), WebSearch()), messagesStreamFunction()])
+            messagesStartBlock(decoder, 0L, "{\"type\":\"server_tool_use\",\"id\":\"search\",\"name\":\"web_search\",\"input\":{}}")
+            val input = messagesInputDelta(decoder, 0L, "{\"query\":\"question\"}")
+            assertTrue(when (input.events[0L]) { case Native(_) -> true; else -> false })
+            val start = messagesStopBlock(decoder, 0L)
+            when (start.events[0L]) {
+                case ServerToolActivity(location, value) -> {
+                    assertEquals(0L, location.itemIndex)
+                    assertEquals(ServerToolStatus.InProgress, value.status)
+                    assertEquals(Some("search"), value.id)
+                }
+                else -> fail()
+            }
+            val result = messagesStartBlock(decoder, 1L, "{\"type\":\"web_search_tool_result\",\"tool_use_id\":\"search\",\"content\":[{\"type\":\"web_search_result\",\"url\":\"https://example.com\",\"title\":\"source\",\"encrypted_content\":\"opaque\"}]}")
+            when (result.events[0L]) {
+                case ServerToolActivity(location, value) -> {
+                    assertEquals(1L, location.itemIndex)
+                    assertEquals(ServerToolStatus.Completed, value.status)
+                    assertEquals(Some(ToolKey("web")), value.toolKey)
+                    assertEquals(1L, value.sources.size)
+                }
+                else -> fail()
+            }
+            Json.decodeFromString<LlmStreamUpdate>(Json.encodeToString(result))
+            messagesStopBlock(decoder, 1L)
+            messagesStartBlock(decoder, 2L, "{\"type\":\"text\",\"text\":\"answer\",\"citations\":[{\"type\":\"char_location\",\"document_index\":0,\"start_char_index\":3,\"end_char_index\":5}]}")
+            messagesStopBlock(decoder, 2L)
+            messagesStartBlock(decoder, 3L, "{\"type\":\"tool_use\",\"id\":\"local\",\"name\":\"lookup\",\"input\":{\"count\":1}}")
+            messagesStopBlock(decoder, 3L)
+            messagesFinish(decoder, "tool_use")
+            if (retention == StreamRetention.Result) {
+                val response = decoder.response()
+                assertEquals(2L, response.serverToolActivities.size)
+                assertEquals(1L, response.clientToolCalls.size)
+                assertEquals("answer", response.text)
+                assertEquals("opaque", messagesHistory(response)["content"]!![1L]["content"]!![0L]["encrypted_content"]!!.asString())
+            }
+        }
+    }
+
+    @Test
+    fun `Messages stream preserves server tool errors without failing the generated response`() {
+        val decoder = messagesStream()
+        val update = messagesStartBlock(decoder, 0L, "{\"type\":\"web_search_tool_result\",\"tool_use_id\":\"previous\",\"content\":{\"type\":\"web_search_tool_result_error\",\"error_code\":\"unavailable\"}}")
+        when (update.events[0L]) {
+            case ServerToolActivity(_, activity) -> { assertEquals(ServerToolStatus.Failed, activity.status); assertTrue(activity.toolKey == None) }
+            else -> fail()
+        }
+        messagesStopBlock(decoder, 0L)
+        messagesFinish(decoder)
+        assertEquals(LlmCompletion.Complete, decoder.response().candidate(0L).completion)
+    }
+}

@@ -1,0 +1,45 @@
+package scoop.llm.client
+
+import scoop.json.JsonValue
+
+/** A complete native command, kept separate from mapped request configuration. */
+public class RealtimeNativeCommand public constructor(public val dialect: DialectId, public val value: JsonValue) {
+    public companion object : ValueEncoder<RealtimeNativeCommand>, ValueDecoder<RealtimeNativeCommand>
+}
+
+public enum RealtimeOutputModality {
+    Text, Audio
+    public companion object : ValueEncoder<RealtimeOutputModality>, ValueDecoder<RealtimeOutputModality>
+}
+
+public enum RealtimeTokenLimit {
+    Limited(val tokens: ULong), Unlimited
+    public companion object : ValueEncoder<RealtimeTokenLimit>, ValueDecoder<RealtimeTokenLimit>
+}
+
+/** Omitted fields leave server configuration unchanged; explicit empty values clear it. */
+public class RealtimeConfiguration public constructor(
+    public val instructions: String? = None,
+    public val tools: Array<ToolDefinition>? = None,
+    public val toolChoice: ToolChoice? = None,
+    public val outputModality: RealtimeOutputModality? = None,
+    public val maxOutputTokens: RealtimeTokenLimit? = None,
+    public val parallelToolCalls: Boolean? = None,
+    public val reasoningEffort: String? = None,
+    public val extensions: Array<DialectExtension> = []
+) {
+    init {
+        checkDialectExtensions(extensions, "/extensions")
+        when (tools) { case Some(values) -> checkRequestTools(values, ToolChoice.Auto); case None -> {} }
+    }
+    public companion object : ValueEncoder<RealtimeConfiguration>, ValueDecoder<RealtimeConfiguration>
+}
+
+/** None input uses the conversation; an explicit empty array supplies no input items. */
+public class RealtimeResponseRequest public constructor(
+    public val configuration: RealtimeConfiguration = RealtimeConfiguration(),
+    public val input: Array<LlmInputItem>? = None,
+    public val conversation: String? = None
+) {
+    public companion object : ValueEncoder<RealtimeResponseRequest>, ValueDecoder<RealtimeResponseRequest>
+}

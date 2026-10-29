@@ -1,0 +1,65 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeDeepSeekResponsesTools(result: JsonObjectBuilder, dialect: DialectId, request: LlmRequest) {
+    val tools = ArrayList<JsonValue>()
+    val names = ArrayList<String>()
+    val selectedKey = when (request.options.toolChoice) { case Specific(key) -> Some(key); else -> None }
+    var selected: JsonValue? = None
+    var index = 0L
+    for (tool in request.tools) {
+        val path = "/tools/" + index.toString()
+        val wire = encodeDeepSeekResponsesTool(dialect, tool, path)
+        val name = when (tool) {
+            case ClientFunction(_, value, _, _, _, _) -> Some(value)
+            case ClientCustom(_, value, _, _, _) -> Some(value)
+            else -> None
+        }
+        when (name) {
+            case Some(value) -> {
+                for (previous in names) if (previous == value) throw LlmRequestException(path + "/name", "duplicate DeepSeek tool name")
+                names.add(value)
+            }
+            case None -> {}
+        }
+        if (selectedKey == Some(tool.key)) selected = Some(wire)
+        tools.add(wire)
+        index += 1L
+    }
+    if (tools.size != 0L) result.add("tools", JsonValue.fromArray(tools))
+    when (request.options.toolChoice) {
+        case Auto -> return
+        case None -> result.add("tool_choice", JsonValue.fromString("none"))
+        case Required -> {
+            if (tools.size == 0L) throw LlmRequestException("/options/toolChoice", "required tool choice needs tools")
+            result.add("tool_choice", JsonValue.fromString("required"))
+        }
+        case Specific(_) -> {
+            val tool = selected ?: throw LlmRequestException("/options/toolChoice", "selected DeepSeek tool is missing")
+            if (tool["type"]!!.asString() == "function")
+                result.add("tool_choice", llmTypedObject("function").add("name", tool["name"]!!).build())
+            else if (tools.size == 1L) result.add("tool_choice", JsonValue.fromString("required"))
+            else throw LlmRequestException("/options/toolChoice", "DeepSeek cannot select this tool from a mixed set")
+        }
+    }
+}
+
+private fun encodeDeepSeekResponsesTool(dialect: DialectId, tool: ToolDefinition, path: String): JsonValue = when (tool) {
+    case ClientFunction(_, name, parameters, description, strict, extensions) -> {
+        requireLlmToolName(name, 128L, path + "/name")
+        if (strict != None) throw LlmRequestException(path + "/strict", "DeepSeek Responses has no documented function strict control")
+        val value = llmTypedObject("function").add("name", JsonValue.fromString(name)).add("parameters", parameters)
+        if (description.length != 0L) value.add("description", JsonValue.fromString(description))
+        mergeLlmExtensions(value.build(), extensions, dialect, ["type", "name", "parameters", "description", "strict"], path)
+    }
+    case ClientCustom(_, name, format, description, extensions) -> {
+        if (name != "apply_patch") throw LlmRequestException(path + "/name", "DeepSeek custom tools require apply_patch")
+        when (format) { case Text -> {}; else -> throw LlmRequestException(path + "/format", "DeepSeek apply_patch accepts plain text") }
+        val value = llmTypedObject("custom").add("name", JsonValue.fromString(name))
+        if (description.length != 0L) value.add("description", JsonValue.fromString(description))
+        mergeLlmExtensions(value.build(), extensions, dialect, ["type", "name", "format", "description"], path)
+    }
+    case Server(_, definition, extensions) -> encodeDeepSeekResponsesSearch(dialect, definition, extensions, path)
+    case ClientNative(_, _, _) -> throw LlmRequestException(path, "DeepSeek Responses has no corresponding client-native tool")
+}

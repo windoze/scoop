@@ -1,0 +1,44 @@
+package scoop.llm.client.tests.models
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class NativeModelRetryTest {
+    @Test
+    fun `Ollama show retries a rejected POST with unchanged options and fresh authentication`() {
+        withLlmServer suspend { _, scope, listener, original ->
+            val auth = RecordingAuth()
+            val finished = FinishedCalls()
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    for (index in [0L, 1L]) {
+                        val request = connection.receiveRequest() ?: fail(Some("expected another model query after rate limiting"))
+                        assertEquals("POST", String.fromUtf8(request.head.method))
+                        assertEquals("{\"model\":\"org/model:tag\",\"verbose\":true}", String.fromUtf8(request.body.readAllBytes(4096L)))
+                        assertEquals("Bearer attempt-" + (index + 1L).toString(), String.fromUtf8(request.head.fields.findAll("Authorization".toByteArray())[0].value))
+                        sendLlmReply(connection, if (index == 0L) 429U else 200U, if (index == 0L) "{\"error\":\"rate limited\"}" else "{}")
+                    }
+                }
+            }
+            withLlmClient suspend { client ->
+                val endpoint = LlmEndpoint(Providers.ollamaChat(), auth, Some(original.baseUrl))
+                val result = client.retrieveModel(endpoint, "org/model:tag",
+                    LlmCallOptions(retries = LlmRetryOptions(maxRetries = 1L, initialDelay = Duration.ZERO),
+                        onFinished = Some(suspend { value -> finished.record(value) })), [ollamaModelOptions(Some(true))])
+                assertEquals(None, result.model.id)
+                assertEquals("org/model:tag", result.requestedId)
+                assertEquals(2L, auth.requests.size)
+                assertEquals(1L, finished.values.size)
+                assertEquals(Some(429U), result.metadata.attempts[0].status)
+                assertModelQueryTiming(result.metadata)
+            }
+            serving.join()
+        }
+    }
+}

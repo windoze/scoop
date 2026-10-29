@@ -1,0 +1,37 @@
+package scoop.llm.client.tests.messages
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class MessagesCitationTest {
+    @Test
+    fun `document citation positions never become generated text ranges`() {
+        val body = messagesBody("[{\"type\":\"text\",\"text\":\"cited\",\"citations\":[" +
+            "{\"type\":\"char_location\",\"document_index\":0,\"start_char_index\":12,\"end_char_index\":20}," +
+            "{\"type\":\"page_location\",\"document_index\":1,\"start_page_number\":2,\"end_page_number\":4}," +
+            "{\"type\":\"future_location\",\"extra\":1e400}]}]")
+        val response = MessagesProtocol(AnthropicMessagesDialect()).decodeResponse(body, messagesRequest())
+        when (response.candidate(0L).items[0]) {
+            case Message(parts, _) -> when (parts[0]) {
+                case Text(_, citations) -> {
+                    assertEquals(3L, citations.size)
+                    for (citation in citations) {
+                        assertFalse(when (citation.range) { case Some(_) -> true; case None -> false })
+                        when (citation.source.location) {
+                            case Native(owner, value) -> {
+                                assertEquals(AnthropicMessagesDialect().id, owner)
+                                assertEquals(Json.stringify(citation.source.native!!), Json.stringify(value))
+                            }
+                            else -> fail()
+                        }
+                    }
+                }
+                else -> fail()
+            }
+            else -> fail()
+        }
+        assertMessagesFailure(messagesBody("[{\"type\":\"text\",\"text\":\"x\",\"citations\":[{\"type\":\"web_search_result_location\",\"url\":3}]}]"), "/content/0/citations/0/url")
+    }
+}

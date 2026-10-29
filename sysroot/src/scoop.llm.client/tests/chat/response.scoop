@@ -1,0 +1,93 @@
+package scoop.llm.client.tests.chat
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.time.Instant
+
+@Test
+private class ChatResponseTest {
+    @Test
+    fun `complete Chat output supports structured decoding and retains native metadata`() {
+        val body = Json.parse("{\"id\":\"r1\",\"model\":\"deployment-model\",\"created\":100,\"future\":1e400,\"choices\":[{\"index\":4,\"finish_reason\":\"stop\",\"message\":{\"role\":\"assistant\",\"content\":\"{\\\"count\\\":9007199254740993}\"}}]}")
+        val result = ChatProtocol(OpenAiChatDialect()).decodeResponse(body, chatRequest())
+        assertEquals(Some("r1"), result.id)
+        assertEquals(Some("deployment-model"), result.model)
+        assertEquals(Some(Instant.fromEpochSeconds(100L)), result.createdAt)
+        assertEquals(9007199254740993L, result.decodeOutput<ChatCount>().count)
+        assertEquals(LlmCompletion.Complete, result.candidate(4L).completion)
+        assertEquals(Json.stringify(body), Json.stringify(result.native!!))
+        assertEquals(UsageCompleteness.Final, result.usage.completeness)
+        assertEquals(None, result.usage.tokens.totalTokens)
+        assertFalse(chatHistory(result).containsKey("created"))
+        val restored = Json.decodeFromString<LlmResponse>(Json.encodeToString(result))
+        assertEquals(9007199254740993L, restored.decodeOutput<ChatCount>().count)
+        assertEquals(Json.stringify(chatHistory(result)), Json.stringify(chatHistory(restored)))
+    }
+
+    @Test
+    fun `DeepSeek reasoning survives history even without a tool call`() {
+        val message = "{\"role\":\"assistant\",\"reasoning_content\":\"required reasoning\",\"content\":\"answer\",\"future\":1e400}"
+        val body = chatBody(message)
+        val result = ChatProtocol(DeepSeekChatDialect()).decodeResponse(body, chatRequest())
+        assertEquals("answer", result.text)
+        assertEquals(2L, result.candidate(0L).items.size)
+        when (result.candidate(0L).items[0]) {
+            case Reasoning(content, _) -> when (content[0]) {
+                case Text(text, _) -> assertEquals("required reasoning", text)
+                else -> fail(Some("expected reasoning text"))
+            }
+            else -> fail(Some("expected reasoning item"))
+        }
+        val restored = Json.decodeFromString<LlmResponse>(Json.encodeToString(result))
+        assertEquals(Json.stringify(Json.parse(message)), Json.stringify(chatHistory(restored)))
+        val openAi = ChatProtocol(OpenAiChatDialect()).decodeResponse(body, chatRequest())
+        assertEquals(1L, openAi.candidate(0L).items.size)
+        assertEquals("required reasoning", chatHistory(openAi)["reasoning_content"]!!.asString())
+    }
+
+    @Test
+    fun `audio history retains only its ID while output-only data stays available`() {
+        val body = chatBody("{\"role\":\"assistant\",\"content\":null,\"audio\":{\"id\":\"audio-1\",\"data\":\"AQI=\",\"expires_at\":200,\"transcript\":\"hello\"},\"annotations\":[{\"future\":true}],\"provider_context\":{\"id\":7}}")
+        val result = ChatProtocol(OpenAiChatDialect()).decodeResponse(body, chatRequest())
+        assertEquals("", result.text)
+        assertEquals(2L, result.candidate(0L).items.size)
+        val history = chatHistory(result)
+        assertEquals("audio-1", history["audio"]!!["id"]!!.asString())
+        assertEquals(1L, history["audio"]!!.size)
+        assertFalse(history.containsKey("annotations"))
+        assertEquals(7L, history["provider_context"]!!["id"]!!.asLong())
+        assertEquals(Json.stringify(body), Json.stringify(result.native!!))
+    }
+
+    @Test
+    fun `refusal truncation and unknown stop reasons cannot decode as successful JSON`() {
+        val protocol = ChatProtocol(OpenAiChatDialect())
+        val message = "{\"role\":\"assistant\",\"content\":\"{\\\"count\\\":1}\"}"
+        val truncated = protocol.decodeResponse(chatBody(message, "length"), chatRequest())
+        assertEquals(LlmFinishReason.Length, truncated.candidate(0L).finishReason)
+        assertEquals(LlmOutputFailure.Incomplete,
+            assertFailsWith<LlmOutputException> { truncated.decodeOutput<ChatCount>(); Unit }.reason)
+        val unknown = protocol.decodeResponse(chatBody(message, "future-stop"), chatRequest())
+        assertEquals(LlmFinishReason.Other("future-stop"), unknown.candidate(0L).finishReason)
+        assertEquals(LlmCompletion.Incomplete, unknown.candidate(0L).completion)
+        val refused = protocol.decodeResponse(chatBody("{\"role\":\"assistant\",\"content\":null,\"refusal\":\"denied\"}"), chatRequest())
+        assertEquals(LlmCompletion.Refused, refused.candidate(0L).completion)
+        assertEquals("", refused.text)
+        assertEquals(LlmOutputFailure.Refused,
+            assertFailsWith<LlmOutputException> { refused.decodeOutput<ChatCount>(); Unit }.reason)
+    }
+
+    @Test
+    fun `multiple Chat candidates retain their wire indexes and independent history`() {
+        val body = Json.parse("{\"choices\":[{\"index\":7,\"finish_reason\":\"stop\",\"message\":{\"role\":\"assistant\",\"content\":\"first\"}},{\"index\":3,\"finish_reason\":\"stop\",\"message\":{\"role\":\"assistant\",\"content\":\"second\"}}]}")
+        val result = ChatProtocol(OpenAiChatDialect()).decodeResponse(body, chatRequest())
+        assertEquals("first", result.text)
+        assertEquals("second", result.candidate(3L).text)
+        assertFailsWith<LlmOutputException> { result.toInput(); Unit }
+        when (result.toInput(Some(3L))[0]) {
+            case History(history) -> assertEquals("second", history.items[0]["content"]!!.asString())
+            else -> fail(Some("expected selected history"))
+        }
+    }
+}

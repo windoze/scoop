@@ -1,0 +1,64 @@
+package scoop.llm.client
+
+import scoop.json.Json
+import scoop.json.JsonValue
+
+internal class ResponsesBody public constructor(
+    @Serialize(rename = "object") public val objectType: String,
+    public val output: Array<JsonValue>,
+    public val status: String? = None,
+    public val id: String? = None,
+    public val model: String? = None,
+    @Serialize(rename = "created_at") public val createdAt: Long? = None,
+    @Serialize(rename = "incomplete_details") public val incompleteDetails: ResponsesIncompleteDetails? = None,
+    public val usage: JsonValue? = None
+) {
+    public companion object : ValueDecoder<ResponsesBody>
+}
+
+internal class ResponsesIncompleteDetails public constructor(public val reason: String? = None) {
+    public companion object : ValueDecoder<ResponsesIncompleteDetails>
+}
+
+internal class ResponsesItemFields public constructor(public val type: String, public val id: String? = None) {
+    public companion object : ValueDecoder<ResponsesItemFields>
+}
+
+internal class ResponsesItemStatus public constructor(public val status: String? = None) {
+    public companion object : ValueDecoder<ResponsesItemStatus>
+}
+
+internal class ResponsesMessage public constructor(public val role: String, public val content: Array<JsonValue>) {
+    public companion object : ValueDecoder<ResponsesMessage>
+}
+
+internal class ResponsesText public constructor(public val text: String, public val annotations: Array<JsonValue>? = None) {
+    public companion object : ValueDecoder<ResponsesText>
+}
+
+internal class ResponsesRefusal public constructor(public val refusal: String) {
+    public companion object : ValueDecoder<ResponsesRefusal>
+}
+
+internal class ResponsesReasoning public constructor(public val summary: Array<JsonValue>? = None, public val content: Array<JsonValue>? = None) {
+    public companion object : ValueDecoder<ResponsesReasoning>
+}
+
+internal class ResponsesCallId public constructor(@Serialize(rename = "call_id") public val callId: String) {
+    public companion object : ValueDecoder<ResponsesCallId>
+}
+
+internal class ResponsesFunctionCall public constructor(public val name: String, public val arguments: String,
+    public val namespace: String? = None) {
+    public companion object : ValueDecoder<ResponsesFunctionCall>
+}
+
+internal class ResponsesCustomCall public constructor(public val name: String, public val input: String,
+    public val namespace: String? = None) {
+    public companion object : ValueDecoder<ResponsesCustomCall>
+}
+
+internal fun <T> decodeResponsesValue(value: JsonValue, path: String): T where T.Companion : ValueDecoder<T> {
+    try { return Json.decodeFromValue<T>(value) }
+    catch (error: DecodingException) { throw DecodingException(path + error.path, error.message ?: "invalid Responses field") }
+}

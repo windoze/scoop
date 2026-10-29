@@ -1,0 +1,102 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class StoredResponsesFailuresTest {
+    @Test
+    fun `stored Responses reject unsupported protocols dialects and empty IDs before authentication`() {
+        withLlmServer suspend { _, _, _, original ->
+            val auth = RecordingAuth()
+            withLlmClient suspend { client ->
+                for ((provider, id, path) in [(Providers.openAiChat(), "resp", "/provider"),
+                    (Providers.deepSeekResponses(), "resp", "/provider"), (Providers.openAiResponses(), "", "/responseId")]) {
+                    val endpoint = LlmEndpoint(provider, auth, Some(original.baseUrl))
+                    for (operation in ["retrieve", "cancel", "delete"]) {
+                        val finished = FinishedCalls()
+                        val options = LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))
+                        val error = expectLlmFailure<LlmRequestException> suspend {
+                            if (operation == "retrieve") client.retrieveResponse(endpoint, id, options = options)
+                            else if (operation == "cancel") client.cancelResponse(endpoint, id, options = options)
+                            else client.deleteResponse(endpoint, id, options)
+                            Unit
+                        }
+                        assertEquals(path, error.path)
+                        assertEquals(1L, finished.values.size)
+                        assertEquals(0L, finished.values[0].attempts.size)
+                        assertEquals(LlmCallOutcome.Failed, finished.values[0].outcome)
+                    }
+                }
+            }
+            assertEquals(0L, auth.requests.size)
+        }
+    }
+
+    @Test
+    fun `stored Responses retrieval never registers server returned tool declarations`() {
+        withLlmServer suspend { _, scope, listener, original ->
+            val body = Json.parse(storedResponseBody("completed", storedResponseOutput))
+            val extended = JsonObjectBuilder()
+            for ((key, value) in body.members()) extended.add(key, value)
+            extended.add("tools", Json.parse("[{\"type\":\"function\",\"name\":\"count\",\"parameters\":{}}]"))
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    connection.receiveRequest()!!.body.readAllBytes(4096L)
+                    sendLlmReply(connection, 200U, Json.stringify(extended.build()))
+                }
+            }
+            withLlmClient suspend { client ->
+                val result = client.retrieveResponse(LlmEndpoint(Providers.openAiResponses(), LlmAuth.none(), Some(original.baseUrl)), "resp_actual")
+                assertEquals(0L, result.clientToolCalls.size)
+                when (result.response.candidate(0L).items[3]) {
+                    case Native(_, value) -> assertEquals("count", value["name"]!!.asString())
+                    else -> fail()
+                }
+                assertEquals(1L, result.toInput().size)
+                assertStoredOperationTiming(result.metadata)
+            }
+            serving.join()
+        }
+    }
+
+    @Test
+    fun `stored Responses deletion preserves service errors and does not retry malformed confirmation`() {
+        for ((status, body) in [(404U, "{\"error\":{\"code\":\"not_found\",\"message\":\"missing response\"}}"),
+            (200U, "{\"object\":\"response.deleted\",\"id\":\"resp_actual\",\"deleted\":null}")]) {
+            withLlmServer suspend { _, scope, listener, original ->
+                val auth = RecordingAuth()
+                val serving = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        connection.receiveRequest()!!.body.readAllBytes(4096L)
+                        sendLlmReply(connection, status, body)
+                    }
+                }
+                val finished = FinishedCalls()
+                withLlmClient suspend { client ->
+                    val endpoint = LlmEndpoint(Providers.openAiResponses(), auth, Some(original.baseUrl))
+                    val options = LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) }))
+                    if (status == 404U) {
+                        val error = expectLlmFailure<LlmServiceException> suspend { client.deleteResponse(endpoint, "resp_actual", options); Unit }
+                        assertEquals(404U, error.status)
+                        assertEquals(Some("not_found"), error.code)
+                    } else {
+                        val error = expectLlmFailure<LlmProtocolException> suspend { client.deleteResponse(endpoint, "resp_actual", options); Unit }
+                        assertEquals("/deleted", error.path)
+                        assertEquals(Json.stringify(Json.parse(body)), Json.stringify(error.native))
+                    }
+                }
+                assertEquals(1L, auth.requests.size)
+                assertEquals(1L, finished.values.size)
+                assertEquals(LlmCallOutcome.Failed, finished.values[0].outcome)
+                assertEquals(1L, finished.values[0].attempts.size)
+                assertEquals(Some(status), finished.values[0].attempts[0].status)
+                assertEquals(None, finished.values[0].attempts[0].response.completedAt)
+                serving.join()
+            }
+        }
+    }
+}

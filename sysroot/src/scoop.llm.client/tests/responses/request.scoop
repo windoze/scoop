@@ -1,0 +1,65 @@
+package scoop.llm.client.tests.responses
+
+import scoop.llm.client.tests.generationProtocol
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class ResponsesRequestTest {
+    @Test
+    fun `Responses minimum provider request preserves deployment model identity and omitted defaults`() {
+        val endpoint = LlmEndpoint(Providers.openAiResponses(), LlmAuth.none())
+        assertEquals("openai-responses", endpoint.provider.name)
+        assertEquals("https://api.openai.com/v1", endpoint.baseUrl.toString())
+        val protocol = generationProtocol(endpoint.provider)
+        assertEquals(OpenAiResponsesDialect().id, protocol.dialectId)
+        assertEquals(None, protocol.defaultMaxOutputTokens())
+        assertEquals("https://proxy.test/prefix/responses?deployment=x", protocol.generationUrl(Url.parse("https://proxy.test/prefix?deployment=x"), "team/model:v").toString())
+        val body = protocol.encodeRequest("team/model:v", responsesRequest())
+        assertEquals(2L, body.size)
+        assertEquals("team/model:v", body["model"]!!.asString())
+        assertEquals("user", body["input"]!![0]["role"]!!.asString())
+        assertEquals("question", body["input"]!![0]["content"]!!.asString())
+        val streamed = protocol.encodeRequest("m", responsesRequest(), true)
+        assertTrue(streamed["stream"]!!.asBoolean())
+        assertFalse(streamed.containsKey("stream_options"))
+        assertEquals(0L, protocol.encodeRequest("m", LlmRequest([]))["input"]!!.size)
+    }
+
+    @Test
+    fun `Responses roles instructions and part options keep their actual protocol positions`() {
+        val dialect = OpenAiResponsesDialect().id
+        val breakpoint = DialectExtension(dialect, Json.parse("{\"prompt_cache_breakpoint\":{\"mode\":\"explicit\"}}"))
+        val request = LlmRequest([Message([Text("first", [breakpoint])], System), Message([Text("dev")], Developer),
+            Message([Text("answer")], Assistant, [DialectExtension(dialect, Json.parse("{\"phase\":\"commentary\"}"))])],
+            system = [Text("a"), Text("b")], extensions = [DialectExtension(dialect, Json.parse("{\"store\":false,\"metadata\":{\"session\":\"x\"}}"))])
+        val body = ResponsesProtocol(OpenAiResponsesDialect()).encodeRequest("m", request)
+        assertEquals("ab", body["instructions"]!!.asString())
+        assertEquals("system", body["input"]!![0]["role"]!!.asString())
+        assertEquals("input_text", body["input"]!![0]["content"]!![0]["type"]!!.asString())
+        assertEquals("explicit", body["input"]!![0]["content"]!![0]["prompt_cache_breakpoint"]!!["mode"]!!.asString())
+        assertEquals("developer", body["input"]!![1]["role"]!!.asString())
+        assertEquals("commentary", body["input"]!![2]["phase"]!!.asString())
+        assertFalse(body["store"]!!.asBoolean())
+        assertFalse(body.containsKey("prompt_cache_breakpoint"))
+        val restored = Json.decodeFromString<LlmRequest>(Json.encodeToString(request))
+        assertEquals(Json.stringify(body), Json.stringify(ResponsesProtocol(OpenAiResponsesDialect()).encodeRequest("m", restored)))
+    }
+
+    @Test
+    fun `Responses managed fields and history ownership cannot be bypassed through extensions`() {
+        val dialect = OpenAiResponsesDialect().id
+        assertResponsesRequestFailure(LlmRequest([], extensions = [DialectExtension(dialect, Json.parse("{\"reasoning\":{}}"))]), "/extensions/0/value/reasoning")
+        assertResponsesRequestFailure(LlmRequest([Message([Text("x")], extensions = [DialectExtension(dialect, Json.parse("{\"content\":null}"))])]), "/input/0/extensions/0/value/content")
+        assertResponsesRequestFailure(LlmRequest([Message([Text("x", [DialectExtension(dialect, Json.parse("{\"file_id\":null}"))])])]), "/input/0/content/0/extensions/0/value/file_id")
+        assertResponsesRequestFailure(LlmRequest([], system = [Text("x", [DialectExtension(dialect, Json.parse("{}"))])]), "/system/0/extensions")
+        assertResponsesRequestFailure(LlmRequest([History(LlmHistory(OpenAiChatDialect().id, []))]), "/input/0/history/dialect")
+        val contextual = LlmHistory(dialect, [], Some(Json.parse("{}")))
+        assertResponsesRequestFailure(LlmRequest([History(contextual)]), "/input/0/history/context")
+        assertResponsesRequestFailure(LlmRequest([History(LlmHistory(dialect, [Json.parse("{}")]))]), "/input/0/history/items/0/type")
+        assertResponsesRequestFailure(LlmRequest([], extensions = [DialectExtension(OpenAiChatDialect().id, Json.parse("{}"))]), "/extensions/0/dialect")
+    }
+}

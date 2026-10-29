@@ -1,0 +1,78 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun acceptInteractionsDelta(state: InteractionsStreamDecoder, step: InteractionsStreamStep, raw: JsonValue, batch: LlmStreamBatch) {
+    val type = interactionsStreamString(raw, "type", "/delta")
+    if (type == "text" || type == "image" || type == "audio" || type == "video" || type == "document") {
+        requireInteractionsStepType(step, "model_output")
+        step.content(raw, batch, true)
+    } else if (type == "thought_summary") {
+        requireInteractionsStepType(step, "thought")
+        val value = raw["content"]
+        if (llmPresent(value)) step.content(value!!, batch)
+        preserveInteractionsDeltaExtra(step, type, raw, ["type", "content"], batch)
+    } else if (type == "thought_signature") {
+        requireInteractionsStepType(step, "thought")
+        val value = raw["signature"]
+        if (llmPresent(value)) {
+            decodeInteractionsValue<String>(value!!, "/delta/signature")
+            step.metadata = replaceInteractionsField(step.metadata, "signature", value!!)
+        }
+        batch.native("step.delta", raw, Some(step.location), false)
+        preserveInteractionsDeltaExtra(step, type, raw, ["type", "signature"], batch)
+    } else if (type == "arguments_delta") {
+        requireInteractionsStepType(step, "function_call")
+        acceptInteractionsArguments(step, raw, batch)
+        preserveInteractionsDeltaExtra(step, type, raw, ["type", "arguments"], batch)
+    } else if (type == "text_annotation_delta") {
+        if (step.parts.size == 0L || step.parts[step.parts.size - 1L].type != "text")
+            throw DecodingException("/delta/annotations", "annotation has no current text part")
+        val annotations = raw["annotations"]
+        if (llmPresent(annotations)) step.parts[step.parts.size - 1L].addAnnotations(annotations!!, "/delta")
+        preserveInteractionsDeltaExtra(step, type, raw, ["type", "annotations"], batch)
+    } else if (type == step.type && (interactionsServerType(type) != None || type == "function_result")) {
+        step.checkIdentity(raw)
+        val signature = raw["signature"]
+        if (llmPresent(signature)) decodeInteractionsValue<String>(signature!!, "/delta/signature")
+        step.metadata = mergeInteractionsToolDelta(step.metadata, raw)
+        emitInteractionsServer(state, step, batch)
+        batch.native("step.delta", raw, Some(step.location), false)
+    } else {
+        step.historySafe = false
+        if (step.type == "function_call") step.inputUnknown = true
+        batch.native("step.delta", raw, Some(step.location))
+    }
+}
+
+private fun requireInteractionsStepType(step: InteractionsStreamStep, expected: String) {
+    if (step.type != expected) throw DecodingException("/delta/type", "delta belongs to another step kind")
+}
+
+private fun preserveInteractionsDeltaExtra(step: InteractionsStreamStep, type: String, raw: JsonValue, known: Array<String>, batch: LlmStreamBatch) {
+    val extra = llmStreamUnknown(raw, known)
+    if (extra.size == 0L) return
+    batch.native(type, extra, Some(step.location))
+    step.historySafe = false
+}
+
+/** Structured arguments update fields; result strings and arrays carry successive pieces. */
+private fun mergeInteractionsToolDelta(previous: JsonValue, incoming: JsonValue): JsonValue {
+    var next = incoming
+    for (name in ["arguments", "result"]) {
+        val before = previous[name]
+        val after = incoming[name]
+        if (!llmPresent(before) || !llmPresent(after)) continue
+        if (before!!.kind == JsonValueKind.Object && after!!.kind == JsonValueKind.Object)
+            next = replaceInteractionsField(next, name, mergeInteractionsSnapshot(before!!, after!!))
+        else if (name == "result" && before!!.kind == JsonValueKind.String && after!!.kind == JsonValueKind.String)
+            next = replaceInteractionsField(next, name, JsonValue.fromString(before!!.asString() + after!!.asString()))
+        else if (name == "result" && before!!.kind == JsonValueKind.Array && after!!.kind == JsonValueKind.Array) {
+            val values = ArrayList<JsonValue>()
+            for (value in before!!.elements()) values.add(value)
+            for (value in after!!.elements()) values.add(value)
+            next = replaceInteractionsField(next, name, JsonValue.fromArray(values))
+        }
+    }
+    return mergeInteractionsSnapshot(previous, next)
+}

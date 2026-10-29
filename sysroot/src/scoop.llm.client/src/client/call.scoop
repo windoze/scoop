@@ -1,0 +1,70 @@
+package scoop.llm.client
+
+import scoop.platform.concurrent.Mutex
+import scoop.platform.random.SystemRandom
+import scoop.platform.time.MonotonicTimeSource
+import scoop.platform.time.SystemClock
+import scoop.time.Duration
+import scoop.uuid.Uuid
+
+internal interface LlmOwnedCall {
+    val lifetime: Job
+    fun stop(error: Throwable)
+}
+
+internal class LlmCallState(val client: LlmClientState, public override val lifetime: Job) : LlmOwnedCall {
+    private val lock = Mutex()
+    private var work: Job? = None
+    private var stopReason: Throwable? = None
+    private var settled = false
+    var contextActive = true
+    val parentContext: LlmCallState? = currentLlmCall()
+    val started = MonotonicTimeSource.markNow()
+    val startedAt = SystemClock.now()
+    val id = Uuid.random(SystemRandom).toString()
+    val attempts = ArrayList<LlmAttemptMetadata>()
+
+    fun point(): LlmTimePoint = LlmTimePoint(SystemClock.now(), MonotonicTimeSource.markNow() - started)
+
+    fun bind(job: Job) {
+        val cancel = lock.withLock { work = Some(job); when (stopReason) { case Some(_) -> true; case None -> false } }
+        if (cancel) job.cancel()
+    }
+
+    public override fun stop(error: Throwable) {
+        val job: Job? = lock.withLock {
+            if (settled) return@withLock None
+            if (when (stopReason) { case None -> true; case Some(_) -> false }) stopReason = Some(error)
+            work
+        }
+        job?.cancel()
+    }
+
+    fun timeout(limit: Duration) { stop(LlmTimeoutException(limit, MonotonicTimeSource.markNow() - started)) }
+
+    fun finish(error: Throwable?): Throwable? = lock.withLock {
+        settled = true; work = None
+        when (error) {
+            case Some(reason) -> if (reason is CancellationException) {
+                when (stopReason) { case Some(stopped) -> Some(stopped); case None -> error }
+            } else error
+            case None -> stopReason
+        }
+    }
+}
+
+context(call: LlmCallState)
+private fun boundLlmCall(): LlmCallState = call
+
+internal fun currentLlmCall(): LlmCallState? =
+    try { Some(boundLlmCall()) } catch (_: MissingContextException) { None }
+
+internal fun checkLlmCloseContext(client: LlmClientState) {
+    var call = currentLlmCall()
+    while (when (call) { case Some(_) -> true; case None -> false }) {
+        val active = call!!
+        if (active.contextActive && active.client === client)
+            throw IllegalStateException(Some("cannot await LLM client.close from its active generation or callback"))
+        call = active.parentContext
+    }
+}

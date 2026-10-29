@@ -1,0 +1,45 @@
+package scoop.llm.client.tests.interactions
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class InteractionsStreamSnapshotsTest {
+    @Test
+    fun `Interactions SSE lifecycle snapshots deliver completed server results and final native media`() {
+        val steps = "[{\"type\":\"google_search_call\",\"id\":\"search\",\"arguments\":{\"queries\":[\"topic\"]}}," +
+            "{\"type\":\"google_search_result\",\"call_id\":\"search\",\"result\":[{\"search_suggestions\":\"html\"}]}," +
+            "{\"type\":\"model_output\",\"content\":[{\"type\":\"image\",\"mime_type\":\"image/png\",\"uri\":\"https://example.test/image\"}]}]"
+        for (initial in [false, true]) {
+            val decoder = interactionsStream()
+            if (!initial) interactionsBegin(decoder)
+            val update = if (initial) interactionsEvent(decoder, "interaction.created",
+                "{\"interaction\":{\"id\":\"stream\",\"status\":\"in_progress\",\"steps\":" + steps + "}}")
+                else interactionsEnd(decoder, extra = "{\"steps\":" + steps + "}")
+            var completed = 0L
+            var snapshots = 0L
+            for (event in update.events) when (event) {
+                case ServerToolActivity(location, activity) -> { if (activity.status == ServerToolStatus.Completed) {
+                    assertEquals(1L, location.itemIndex)
+                    assertEquals(Some("search"), activity.id)
+                    completed += 1L
+                } }
+                case Native(value) -> { if (value.event == "interaction.created.steps" || value.event == "interaction.completed.steps") {
+                    assertEquals(3L, value.value.size)
+                    assertEquals("https://example.test/image", value.value[2L]["content"]!![0L]["uri"]!!.asString())
+                    snapshots += 1L
+                } }
+                else -> continue
+            }
+            assertEquals(1L, completed)
+            assertEquals(1L, snapshots)
+            if (initial) interactionsEnd(decoder)
+            assertEquals(3L, interactionsHistory(decoder.response()).size)
+            when (decoder.response().candidate(0L).items[2L]) { case Message(parts, _) -> when (parts[0L]) {
+                case Media(OutputMediaKind.Image, _) -> assertEquals(1L, parts.size)
+                else -> fail()
+            }; else -> fail() }
+        }
+    }
+}

@@ -1,0 +1,54 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.text.contains
+import scoop.url.Url
+
+internal class GenerateContentTokenCounter(val dialect: GeminiGenerateContentDialect) : LlmTokenCounter {
+    public override fun countUrl(baseUrl: Url, modelId: String): Url = generateContentMethodUrl(baseUrl, modelId, "countTokens")
+
+    public override fun encodeRequest(modelId: String, request: LlmRequest): JsonValue {
+        val body = encodeGenerateContentRequest(dialect, modelId, request)
+        val full = JsonObjectBuilder().add("model", JsonValue.fromString(if (modelId.contains('/')) modelId else "models/" + modelId))
+        for ((name, value) in body.members()) full.add(name, value)
+        return JsonObjectBuilder().add("generateContentRequest", full.build()).build()
+    }
+
+    public override fun decodeResponse(modelId: String, value: JsonValue): TokenCount {
+        try {
+            val fields = decodeGenerateContentValue<GenerateContentCountFields>(value, "")
+            val error = value["error"]
+            if (llmPresent(error) && error!!.kind != JsonValueKind.Null)
+                throw DecodingException("/error", "countTokens returned an error response")
+            val total = checkedGenerateContentCount(fields.totalTokens, "/totalTokens")
+            val cached = checkedGenerateContentCount(fields.cachedContentTokenCount, "/cachedContentTokenCount")
+            if (total != None && cached != None && cached!! > total!!)
+                throw DecodingException("/cachedContentTokenCount", "cached input exceeds total input")
+            val modality = readGenerateContentCountDetails(fields.promptTokensDetails, "/promptTokensDetails")
+            readGenerateContentCountDetails(fields.cacheTokensDetails, "/cacheTokensDetails")
+            return TokenCount(dialect.id, modelId, total, cachedInputTokens = cached, modality = modality, native = Some(value))
+        } catch (error: DecodingException) {
+            throw LlmProtocolException(dialect.id, error.path, error.message ?: "invalid countTokens response", value)
+        }
+    }
+}
+
+private class GenerateContentCountFields public constructor(
+    public val totalTokens: Long? = None,
+    public val cachedContentTokenCount: Long? = None,
+    public val promptTokensDetails: Array<GenerateContentTokenDetail>? = None,
+    public val cacheTokensDetails: Array<GenerateContentTokenDetail>? = None
+) {
+    public companion object : ValueDecoder<GenerateContentCountFields>
+}
+
+private fun readGenerateContentCountDetails(details: Array<GenerateContentTokenDetail>?, path: String): Array<ModalityTokenUsage> {
+    val result = ArrayList<ModalityTokenUsage>()
+    var index = 0L
+    for (detail in details ?: []) {
+        checkedGenerateContentCount(Some(detail.tokenCount), path + "/" + index.toString() + "/tokenCount")
+        result.add(ModalityTokenUsage(Input, generateContentModality(detail.modality), detail.tokenCount))
+        index += 1L
+    }
+    return result.toArray()
+}

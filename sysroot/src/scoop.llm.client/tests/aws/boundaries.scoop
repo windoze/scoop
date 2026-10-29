@@ -1,0 +1,53 @@
+package scoop.llm.client
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.collections.emptyList
+import scoop.crypto.*
+import scoop.http.*
+import scoop.test.*
+import scoop.text.*
+import scoop.url.Url
+
+@Test
+private class AwsSigV4BoundaryTest {
+    @Test
+    fun `AWS SigV4 canonicalizes encoded paths and query pairs without changing the request`() {
+        assertEquals("/model/arn%253Aaws%253Abedrock%252Fid/converse", awsCanonicalPath("/model/arn%3Aaws%3Abedrock%2Fid/converse"))
+        assertEquals("/b/", awsCanonicalPath("//a/../b//"))
+        assertEquals("/", awsCanonicalPath("/a/.."))
+        assertEquals("%E4%B8%AD=%2B&a=&a=first&a=last&a-=x&empty=&literal=+",
+            awsCanonicalQuery(Some("a=last&empty&a-=x&a=first&a=&%E4%B8%AD=%2B&literal=+")))
+        for (url in ["https://EXAMPLE.com:443", "http://[::1]:80", "http://localhost:8123"]) {
+            val request = LlmAuthRequest("POST", Url.parse(url), [awsTestField("My-Header", " \t a  b\t c \t"),
+                awsTestField("mY-hEaDeR", " d "), awsTestField("User-Agent", "mutable"), awsTestField("Content-Length", "0001")], [])
+            val (headers, names) = awsCanonicalHeaders(request, emptyList<HttpField>())
+            assertEquals("host;my-header", names)
+            assertEquals("host:" + request.url.httpOrigin().authority(true) + "\nmy-header:a b c,d\n", String.fromUtf8(headers))
+            assertEquals(" \t a  b\t c \t", String.fromUtf8(request.fields[0L].value))
+        }
+    }
+
+    @Test
+    fun `AWS SigV4 preserves opaque signed header bytes and detects auth or payload conflicts`() {
+        val value = [32.toByte(), 255.toByte(), 9.toByte(), 9.toByte(), 128.toByte(), 32.toByte()]
+        val url = Url.parse("https://example.amazonaws.com")
+        val request = LlmAuthRequest("POST", url, [HttpField("x-amz-extra".toByteArray(), value)], [])
+        val (headers, names) = awsCanonicalHeaders(request, emptyList<HttpField>())
+        assertEquals("host;x-amz-extra", names)
+        val expected = ByteArrayBuilder().append("host:example.amazonaws.com\nx-amz-extra:".toByteArray())
+            .append(255.toByte()).append(32.toByte()).append(128.toByte()).append(10.toByte()).toByteArray()
+        assertEquals(expected.toHexString(), headers.toHexString())
+        for (name in ["Authorization", "X-Amz-Date", "X-Amz-Security-Token", "X-Amz-Content-Sha256"]) {
+            assertFailsWith<IllegalArgumentException> {
+                signAwsLlmRequest(LlmAuthRequest("POST", url, [awsTestField(name, "conflict")], []),
+                    awsExampleCredentials, "us-east-1", "bedrock", awsExampleTime); Unit
+            }
+        }
+        val hash = digest(DigestAlgorithm.Sha256, "body".toByteArray()).toHexString()
+        val fields = signAwsLlmRequest(LlmAuthRequest("POST", url, [awsTestField("X-Amz-Content-Sha256", hash)], "body".toByteArray()),
+            AwsSigV4Credentials("AKIDEXAMPLE", "example", Some("temporary-token")), "us-east-1", "bedrock", awsExampleTime)
+        assertEquals("temporary-token", awsTestHeader(fields, "X-Amz-Security-Token"))
+        assertTrue(fields.findAll("Authorization".toByteArray())[0L].neverIndex)
+        assertTrue(fields.findAll("X-Amz-Security-Token".toByteArray())[0L].neverIndex)
+    }
+}

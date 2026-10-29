@@ -1,0 +1,79 @@
+package scoop.llm.client.tests.interactions.events
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class InteractionsEventsNetworkTest {
+    @Test
+    fun `Interactions GET resumes after a delivered cursor and retains complete caller owned history`() {
+        withLlmServer suspend { _, scope, listener, original ->
+            val auth = RecordingAuth()
+            val endpoint = LlmEndpoint(Providers.geminiInteractions(), auth,
+                Some(Url.parse(original.baseUrl.toString() + "/proxy?tenant=a&stream=false&alt=json&last_event_id=old")))
+            val prefix = interactionWire("interaction.created", "{\"event_id\":\"created\",\"interaction\":{\"id\":\"reported\",\"status\":\"in_progress\"}}") +
+                interactionWire("step.start", "{\"index\":0,\"step\":{\"type\":\"model_output\"}}") +
+                interactionWire("step.delta", "{\"event_id\":\"cursor /?#\",\"index\":0,\"delta\":{\"type\":\"text\",\"text\":\"hello\"}}")
+            val suffix = interactionWire("step.delta", "{\"event_id\":\"tail\",\"index\":0,\"delta\":{\"type\":\"text\",\"text\":\" world\"}}") +
+                interactionWire("step.stop", "{\"index\":0}") + interactionWire("interaction.completed",
+                    "{\"event_id\":\"end\",\"interaction\":{\"id\":\"reported\",\"status\":\"completed\",\"usage\":{\"total_tokens\":11}}}")
+            val serving = scope.launch suspend {
+                for ((body, query) in [(prefix, ""), (suffix, "&last_event_id=cursor%20%2F%3F%23")]) {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        val request = connection.receiveRequest()!!
+                        assertEquals("GET", String.fromUtf8(request.head.method))
+                        assertEquals("/v1/proxy/interactions/requested%2Fid?tenant=a&stream=true&alt=sse" + query,
+                            when (request.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() })
+                        assertEquals(0L, request.body.readAllBytes(4096L).size)
+                        assertEquals(0L, request.head.fields.findAll("content-type".toByteArray()).size)
+                        assertEquals(0L, request.head.fields.findAll("last-event-id".toByteArray()).size)
+                        sendLlmReply(connection, 200U, body, [interactionEventFields[0],
+                            HttpField("Connection".toByteArray(), "close".toByteArray())])
+                    }
+                }
+            }
+            withLlmClient suspend { client ->
+                val saved = ArrayList<String>()
+                val first = client.openInteractionEvents(endpoint, "requested/id")
+                assertEquals(None, first.lastEventId)
+                first.useAsync suspend { stream ->
+                    expectLlmFailure<LlmStreamProtocolException> suspend {
+                        while (true) { val event = stream.next() ?: break; saved.add(Json.encodeToString(event)) }
+                    }
+                }
+                assertEquals(Some("cursor /?#"), first.lastEventId)
+                assertEquals(LlmCallOutcome.Failed, first.metadata.outcome)
+                assertInteractionEventTiming(first.metadata)
+                assertEquals(None, first.metadata.attempts[0].response.completedAt)
+                val second = client.openInteractionEvents(endpoint, "requested/id", first.lastEventId)
+                second.useAsync suspend { stream ->
+                    while (true) { val event = stream.next() ?: break; saved.add(Json.encodeToString(event)) }
+                }
+                assertEquals(Some("end"), second.lastEventId)
+                assertEquals(LlmCallOutcome.Completed, second.metadata.outcome)
+                assertTrue(first.metadata.callId != second.metadata.callId)
+                assertInteractionEventTiming(second.metadata)
+                assertTrue(second.metadata.attempts[0].response.completedAt != None)
+                assertEquals(Some("reported"), second.metadata.attempts[0].responseId)
+                val aggregate = InteractionsProtocol(GeminiInteractionsDialect()).createStreamDecoder(sampleRequest, StreamRetention.Result)
+                for (record in saved) {
+                    val event = Json.decodeFromString<LlmNativeEvent>(record)
+                    aggregate.accept(event.event, Json.stringify(event.value))
+                }
+                aggregate.endInput()
+                assertEquals("hello world", aggregate.response().text)
+                assertEquals(Some(11L), aggregate.response().usage.tokens.totalTokens)
+                assertEquals(1L, aggregate.response().toInput().size)
+            }
+            assertEquals(2L, auth.requests.size)
+            for (request in auth.requests) { assertEquals("GET", request.method); assertEquals(0L, request.body.size) }
+            serving.join()
+        }
+    }
+}

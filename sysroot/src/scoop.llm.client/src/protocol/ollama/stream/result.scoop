@@ -1,0 +1,34 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun finishOllamaStream(state: OllamaStreamDecoder, reason: String?, batch: LlmStreamBatch) {
+    if (!llmPresent(state.text)) ollamaStreamText(state, "content")
+    for (tool in state.tools) tool.finish(reason == Some("stop"), batch)
+    val (completion, finishReason) = ollamaCompletion(true, reason, state.callCount != 0L)
+    if (state.retain) {
+        val items = ArrayList<LlmOutputItem>()
+        for (slot in state.slots) when (slot) {
+            case Text(value) -> items.add(value.item())
+            case Tool(tool) -> items.add(tool.item)
+            case Native(value) -> items.add(LlmOutputItem.Native(state.dialect.id, value))
+        }
+        val history = if (state.historyAvailable && (reason == Some("stop") || reason == Some("length")))
+            Some(ollamaStreamHistory(state)) else None
+        state.candidate = Some(LlmCandidate(0L, items.toArray(), completion, finishReason, history))
+    }
+    batch.events.add(LlmEvent.CandidateFinished(0L, completion, finishReason))
+    state.release()
+}
+
+private fun ollamaStreamHistory(state: OllamaStreamDecoder): LlmHistory {
+    val message = JsonObjectBuilder().add("role", JsonValue.fromString("assistant"))
+        .add("content", JsonValue.fromString(state.text!!.text()))
+    when (state.thinking) { case Some(value) -> message.add("thinking", JsonValue.fromString(value.text())); case None -> {} }
+    if (state.callsPresent) {
+        val calls = JsonArrayBuilder()
+        for (slot in state.slots) when (slot) { case Tool(tool) -> calls.add(tool.wire); else -> continue }
+        message.add("tool_calls", calls.build())
+    }
+    return LlmHistory(state.dialect.id, [message.build()])
+}

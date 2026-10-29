@@ -1,0 +1,67 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeMessagesOptions(dialect: AnthropicMessagesDialect, request: LlmRequest): JsonValue {
+    val options = request.options
+    val maximum = options.maxOutputTokens ?: dialect.defaultMaxOutputTokens
+    val result = JsonObjectBuilder().add("max_tokens", JsonValue.fromULong(maximum))
+    if (options.candidates != None && options.candidates != Some(1UL))
+        throw LlmRequestException("/options/candidates", "Messages returns one candidate")
+    if (dialect.version == V20261021) {
+        if (options.temperature != None) throw LlmRequestException("/options/temperature", "API version 2026-10-21 removed temperature")
+        if (options.topP != None) throw LlmRequestException("/options/topP", "API version 2026-10-21 removed top_p")
+        if (options.topK != None) throw LlmRequestException("/options/topK", "API version 2026-10-21 removed top_k")
+    } else {
+        addMessagesSampling(result, "temperature", options.temperature, "/options/temperature")
+        addMessagesSampling(result, "top_p", options.topP, "/options/topP")
+        if (options.topK != None) result.add("top_k", JsonValue.fromULong(options.topK!!))
+    }
+    if (llmPresent(options.stop)) result.add("stop_sequences", Json.encodeToValue(options.stop!!))
+    appendMessagesInputOptions(result, dialect, request, Some(maximum))
+    return result.build()
+}
+
+internal fun appendMessagesInputOptions(result: JsonObjectBuilder, dialect: AnthropicMessagesDialect, request: LlmRequest,
+    maximum: ULong?) {
+    val options = request.options
+    val output = JsonObjectBuilder()
+    val manualThinking = encodeMessagesReasoning(result, output, options.reasoning, maximum)
+    encodeMessagesOutputFormat(output, options.output)
+    val outputValue = output.build()
+    if (outputValue.size != 0L) result.add("output_config", outputValue)
+    encodeMessagesTools(result, dialect.id, request, manualThinking)
+}
+
+private fun addMessagesSampling(result: JsonObjectBuilder, name: String, value: Double?, path: String) {
+    val setting = value ?: return
+    if (setting < 0.0 || setting > 1.0) throw LlmRequestException(path, "Messages sampling value must be between 0 and 1")
+    result.add(name, JsonValue.fromDouble(setting))
+}
+
+private fun encodeMessagesReasoning(result: JsonObjectBuilder, output: JsonObjectBuilder, reasoning: ReasoningOptions?, maximum: ULong?): Boolean {
+    val options = reasoning ?: return false
+    if (options.effort != None) output.add("effort", JsonValue.fromString(options.effort!!))
+    if (options.budgetTokens != None) {
+        if (options.enabled == Some(false)) throw LlmRequestException("/options/reasoning/budgetTokens", "a thinking budget conflicts with disabled thinking")
+        val budget = options.budgetTokens!!
+        if (budget < 1024UL || (maximum != None && budget >= maximum!!))
+            throw LlmRequestException("/options/reasoning/budgetTokens", "manual thinking budget must be at least 1024 and below max_tokens")
+        result.add("thinking", llmTypedObject("enabled").add("budget_tokens", JsonValue.fromULong(budget)).build())
+        return true
+    }
+    if (options.enabled != None) result.add("thinking", llmTypedObject(if (options.enabled!!) "adaptive" else "disabled").build())
+    return false
+}
+
+private fun encodeMessagesOutputFormat(output: JsonObjectBuilder, format: OutputFormat): Unit = when (format) {
+    case Text -> Unit
+    case JsonObject -> throw LlmRequestException("/options/output", "Messages JSON output requires a schema")
+    case JsonSchema(schema, name, description, strict) -> {
+        if (name != "response") throw LlmRequestException("/options/output/name", "Messages has no output format name field")
+        if (description != None) throw LlmRequestException("/options/output/description", "Messages has no output format description field")
+        if (strict == Some(false)) throw LlmRequestException("/options/output/strict", "Messages schema output is always strict")
+        output.add("format", llmTypedObject("json_schema").add("schema", schema).build())
+        Unit
+    }
+}

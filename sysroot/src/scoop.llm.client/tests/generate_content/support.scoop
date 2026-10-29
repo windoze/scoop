@@ -1,0 +1,31 @@
+package scoop.llm.client.tests.generatecontent
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+internal fun generateContentRequest(): LlmRequest = LlmRequest([Message([Text("question")])],
+    tools = [ClientFunction(ToolKey("local"), "lookup", Json.parse("{}"))])
+
+internal fun generateContentBody(parts: String, finish: String = "STOP", extra: String = "", usage: String? = None): JsonValue =
+    Json.parse("{\"responseId\":\"r\",\"modelVersion\":\"model\",\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":" + parts +
+        "},\"finishReason\":\"" + finish + "\"" + extra + "}]" + (if (usage == None) "" else ",\"usageMetadata\":" + usage!!) + "}")
+
+internal fun generateContentDecode(value: JsonValue, request: LlmRequest = generateContentRequest()): LlmResponse =
+    GenerateContentProtocol(GeminiGenerateContentDialect()).decodeResponse(value, request)
+
+internal fun assertGenerateContentFailure(value: JsonValue, path: String) {
+    val error = assertFailsWith<LlmProtocolException> { generateContentDecode(value); Unit }
+    assertEquals(path, error.path)
+    assertEquals(GeminiGenerateContentDialect().id, error.dialect)
+    assertEquals(Json.stringify(value), Json.stringify(error.native))
+}
+
+internal fun generateContentHistory(response: LlmResponse): JsonValue = when (response.toInput()[0]) {
+    case History(value) -> value.items[0]
+    else -> fail(Some("expected generateContent history"))
+}
+
+internal class GenerateContentCount public constructor(public val count: Long) {
+    public companion object : ValueDecoder<GenerateContentCount>
+}

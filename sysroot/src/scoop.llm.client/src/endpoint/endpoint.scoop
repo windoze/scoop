@@ -1,0 +1,45 @@
+package scoop.llm.client
+
+import scoop.http.HttpField
+import scoop.http.hasName
+import scoop.url.Url
+
+/** An existing API address and authentication choice, reusable across model bindings. */
+public class LlmEndpoint public constructor(
+    public val provider: LlmProvider,
+    public val authentication: LlmAuth,
+    baseUrl: Url? = None,
+    fields: Array<HttpField> = []
+) {
+    public val fields: Array<HttpField> = bindLlmFields(provider.protocol.requestFields(), fields)
+    public val baseUrl: Url = baseUrl ?: (provider.defaultBaseUrl ?: throw IllegalArgumentException(Some("provider has no default base URL")))
+    init {
+        if (this.baseUrl.scheme != Some("http") && this.baseUrl.scheme != Some("https"))
+            throw IllegalArgumentException(Some("LLM endpoint requires an absolute http or https URL"))
+        this.baseUrl.httpOrigin()
+        if (this.baseUrl.encodedFragment != None) throw IllegalArgumentException(Some("LLM endpoint URL must not contain a fragment"))
+    }
+    public fun model(id: String, capabilities: ModelCapabilities? = None): LlmModel =
+        LlmModel(this, id, capabilities ?: ModelCapabilities())
+}
+
+private fun bindLlmFields(protocol: Array<HttpField>, configured: Array<HttpField>): Array<HttpField> {
+    val fields = ArrayList<HttpField>()
+    for (field in protocol) fields.add(field)
+    for (field in configured) {
+        for (fixed in protocol) {
+            if (fixed.hasName(field.name)) throw IllegalArgumentException(Some("endpoint field duplicates a protocol field"))
+        }
+        fields.add(field)
+    }
+    return fields.toArray()
+}
+
+/** Model identity and capability facts at one endpoint, without credentials in serializable data. */
+public class LlmModel internal constructor(
+    public val endpoint: LlmEndpoint,
+    public val id: String,
+    public val capabilities: ModelCapabilities
+) {
+    init { if (id.length == 0L) throw IllegalArgumentException(Some("model ID must not be empty")) }
+}

@@ -1,0 +1,77 @@
+package scoop.llm.client.tests.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class GenerateContentNetworkTest {
+    @Test
+    fun `generateContent ordinary mock uses header auth native history usage and actual timestamps`() {
+        withLlmServer suspend { _, scope, listener, original ->
+            val endpoint = LlmEndpoint(Providers.geminiGenerateContent(), LlmAuth.header("x-goog-api-key", "mock-only"),
+                Some(Url.parse(original.baseUrl.toString() + "/proxy?deployment=sample")))
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val request = connection.receiveRequest()!!
+                    val target = when (request.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> fail() }
+                    assertEquals("/v1/proxy/models/mock-model:generateContent?deployment=sample", target)
+                    assertEquals("mock-only", String.fromUtf8(request.head.fields.findAll("x-goog-api-key".toByteArray())[0L].value))
+                    val body = Json.parse(String.fromUtf8(request.body.readAllBytes(4096L)))
+                    assertEquals(1L, body.size)
+                    assertEquals("hello 世界", body["contents"]!![0L]["parts"]!![0L]["text"]!!.asString())
+                    sendLlmReply(connection, 200U, "{\"responseId\":\"gemini-mock\",\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"hello\",\"thoughtSignature\":\"sig\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":8,\"toolUsePromptTokenCount\":0,\"candidatesTokenCount\":3,\"thoughtsTokenCount\":1,\"totalTokenCount\":12}}")
+                }
+            }
+            withLlmClient suspend { client ->
+                val result = client.generate(endpoint.model("mock-model"), sampleRequest)
+                assertEquals("hello", result.text)
+                assertEquals(Some(8L), result.response.usage.tokens.inputTokens)
+                assertEquals(Some(4L), result.response.usage.tokens.outputTokens)
+                assertEquals(Some(12L), result.response.usage.tokens.totalTokens)
+                val attempt = result.metadata.attempts[0L]
+                assertEquals(Some("gemini-mock"), attempt.responseId)
+                assertTrue(attempt.request.sentAt != None && attempt.response.receivedAt != None && attempt.response.completedAt != None)
+                assertEquals(LlmCallOutcome.Completed, result.metadata.outcome)
+                val restored = Json.decodeFromString<LlmResult>(Json.encodeToString(result))
+                when (restored.toInput()[0L]) { case History(value) -> assertEquals("sig", value.items[0L]["parts"]!![0L]["thoughtSignature"]!!.asString()); else -> fail() }
+            }
+            serving.join()
+        }
+    }
+
+    @Test
+    fun `generateContent rejected capabilities fail before auth in ordinary and streaming calls`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            withLlmClient suspend { client ->
+                val auth = RecordingAuth()
+                val endpoint = LlmEndpoint(Providers.geminiGenerateContent(), auth)
+                val model = endpoint.model("m", Some(ModelCapabilities(sampling = SamplingCapabilities(temperature = Unsupported("removed")),
+                    streaming = Unsupported("disabled"))))
+                val error = expectLlmFailure<LlmRequestException> suspend {
+                    client.generate(model, LlmRequest(sampleRequest.input, options = LlmGenerationOptions(temperature = Some(0.5)))); Unit
+                }
+                assertEquals("/options/temperature", error.path)
+                assertEquals("/stream", expectLlmFailure<LlmRequestException> suspend { client.openStream(model, sampleRequest); Unit }.path)
+                assertEquals(0L, auth.requests.size)
+            }
+        }
+        assertFailsWith<IllegalArgumentException> { LlmAuth.header("x-goog-api-key", ""); Unit }
+    }
+
+    @Test
+    fun `Gemini errors preserve native status and only retry explicit unavailable responses`() {
+        val protocol = GenerateContentProtocol(GeminiGenerateContentDialect())
+        val unavailable = protocol.decodeError(503U, "{\"error\":{\"status\":\"UNAVAILABLE\",\"message\":\"busy\"}}".toByteArray(), false)
+        assertTrue(unavailable.retryable)
+        assertEquals(Some("UNAVAILABLE"), unavailable.code)
+        assertEquals(Some("busy"), unavailable.message)
+        assertFalse(protocol.decodeError(429U, "{\"error\":{\"status\":\"RESOURCE_EXHAUSTED\"}}".toByteArray(), false).retryable)
+        assertFalse(protocol.decodeError(503U, "{\"error\":".toByteArray(), true).retryable)
+    }
+}

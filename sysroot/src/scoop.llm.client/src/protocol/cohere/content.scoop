@@ -1,0 +1,61 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal class CohereBlock(val kind: String, val raw: JsonValue, val text: String? = None) {
+    val citations = ArrayList<Citation>()
+}
+
+private class CohereText public constructor(public val text: String) {
+    public companion object : ValueDecoder<CohereText>
+}
+
+private class CohereThinking public constructor(public val thinking: String) {
+    public companion object : ValueDecoder<CohereThinking>
+}
+
+internal fun readCohereContent(dialect: DialectId, message: CohereMessage): ArrayList<LlmOutputItem> {
+    val blocks = ArrayList<CohereBlock>()
+    var index = 0L
+    for (raw in message.content ?: []) {
+        val path = "/message/content/" + index.toString()
+        val kind = decodeCohereValue<CohereKind>(raw, path).type
+        cohereNonempty(kind, path + "/type")
+        val text = when (kind) {
+            case "text" -> Some(decodeCohereValue<CohereText>(raw, path).text)
+            case "thinking" -> Some(decodeCohereValue<CohereThinking>(raw, path).thinking)
+            else -> None
+        }
+        blocks.add(CohereBlock(if (kind == "text" || kind == "thinking") kind else "", raw, text))
+        index += 1L
+    }
+    val contentSize = blocks.size
+    when (message.toolPlan) {
+        case Some(plan) -> blocks.add(CohereBlock("plan", JsonValue.fromString(plan), Some(plan)))
+        case None -> {}
+    }
+    val citations = message.citations ?: []
+    attachCohereCitations(dialect, citations, blocks, contentSize)
+    val items = ArrayList<LlmOutputItem>()
+    val text = ArrayList<OutputPart>()
+    for (block in blocks) {
+        if (block.kind == "text") {
+            text.add(OutputPart.Text(block.text!!, block.citations.toArray()))
+            continue
+        }
+        flushCohereText(items, text)
+        if (block.kind == "thinking" || block.kind == "plan")
+            items.add(LlmOutputItem.Reasoning([OutputPart.Text(block.text!!, block.citations.toArray())]))
+        else items.add(LlmOutputItem.Native(dialect, block.raw))
+    }
+    flushCohereText(items, text)
+    if (citations.size != 0L)
+        items.add(LlmOutputItem.Native(dialect, JsonObjectBuilder().add("citations", JsonValue.fromArray(citations)).build()))
+    return items
+}
+
+private fun flushCohereText(items: ArrayList<LlmOutputItem>, text: ArrayList<OutputPart>) {
+    if (text.size == 0L) return
+    items.add(LlmOutputItem.Message(text.toArray()))
+    text.clear()
+}

@@ -1,0 +1,29 @@
+package scoop.llm.client
+
+import scoop.json.JsonValueKind
+
+internal fun resolveInteractionsServer(tools: Array<ToolDefinition>, dialect: DialectId, type: String,
+    serverName: String?, kind: ServerToolKind): ToolKey? {
+    var found: ToolKey? = None
+    for (tool in tools) {
+        val matches = when (tool) {
+            case Server(_, definition, _) -> when (definition) {
+                case WebSearch(_) -> type == "google_search" && kind == ServerToolKind.WebSearch
+                case Native(native) -> interactionsServerMatches(native, dialect, type, serverName)
+            }
+            else -> false
+        }
+        if (matches) {
+            if (found != None) return None
+            found = Some(tool.key)
+        }
+    }
+    return found
+}
+
+private fun interactionsServerMatches(native: NativeToolDefinition, dialect: DialectId, type: String, serverName: String?): Boolean {
+    if (native.dialect != dialect || native.kind != type) return false
+    if (type != "mcp_server") return true
+    val name = native.configuration["name"] ?: return false
+    return name.kind == JsonValueKind.String && serverName == Some(name.asString())
+}

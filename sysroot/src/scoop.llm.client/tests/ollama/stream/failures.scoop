@@ -1,0 +1,38 @@
+package scoop.llm.client.tests.ollama.stream
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.llm.client.tests.ollama.*
+import scoop.test.*
+
+@Test
+private class OllamaStreamFailureTest {
+    @Test
+    fun `Ollama NDJSON EOF and error records cannot finish or execute observed calls`() {
+        val stream = ollamaStream()
+        stream.accept(ollamaFrame("partial", calls = Some([ollamaCall()])))
+        assertFailsWith<LlmStreamProtocolException> { stream.endInput(); Unit }
+        assertFalse(stream.isFinished)
+        assertFailsWith<LlmOutputException> { stream.response(); Unit }
+        for (raw in ["{\"error\":\"failed\"}", "{\"error\":{\"message\":\"failed\"}}"])
+            assertOllamaStreamFailure(ollamaStream(), raw, "/error")
+        for (raw in ["", "[DONE]", "{"]) {
+            val error = assertFailsWith<LlmStreamProtocolException> { ollamaStream().accept(raw); Unit }
+            assertEquals(Some(raw), error.data)
+        }
+    }
+
+    @Test
+    fun `Ollama NDJSON records validate fixed model identity and actual message shapes`() {
+        val changed = ollamaStream()
+        changed.accept(ollamaFrame("one"))
+        assertOllamaStreamFailure(changed, Json.stringify(ollamaReplace(ollamaBody("two"), "model", Some(JsonValue.fromString("different")))), "/model")
+        for ((name, value, path) in [("model", JsonValue.fromString(""), "/model"), ("done", JsonValue.fromString("true"), "/done"),
+            ("message", Json.parse("{\"role\":\"user\",\"content\":\"x\"}"), "/message/role"),
+            ("message", Json.parse("{\"role\":\"assistant\",\"content\":null}"), "/message/content")])
+            assertOllamaStreamFailure(ollamaStream(), Json.stringify(ollamaReplace(ollamaBody(), name, Some(value))), path)
+        val finished = ollamaStream(); ollamaEnd(finished)
+        assertFailsWith<LlmStreamProtocolException> { finished.accept(ollamaFrame()); Unit }
+        assertFailsWith<LlmOutputException> { finished.response(); Unit }
+    }
+}

@@ -1,0 +1,50 @@
+package scoop.llm.client.tests.converse
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class ConverseUsageTest {
+    @Test
+    fun `Converse normalizes cache portions once and preserves exact reported totals and TTL details`() {
+        val raw = converseBody("[]", usage = Some("{\"inputTokens\":9007199254740993,\"outputTokens\":7,\"cacheReadInputTokens\":10," +
+            "\"cacheWriteInputTokens\":20,\"totalTokens\":9007199254741030,\"cacheDetails\":[{\"ttl\":\"1h\",\"inputTokens\":15},{\"ttl\":\"5m\",\"inputTokens\":5}]}"))
+        val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(converseDecode(raw)))
+        val tokens = response.usage.tokens
+        assertEquals(Some(9007199254741023L), tokens.inputTokens)
+        assertEquals(Some(9007199254740993L), tokens.nonCachedInputTokens)
+        assertEquals(Some(9007199254741030L), tokens.totalTokens)
+        assertEquals(Some(7L), tokens.outputTokens)
+        assertEquals(Some(10L), tokens.cacheReadTokens)
+        assertEquals(Some(20L), tokens.cacheWriteTokens)
+        assertEquals(None, tokens.reasoningTokens)
+        assertEquals("1h", response.usage.native!!["cacheDetails"]!![0L]["ttl"]!!.asString())
+    }
+
+    @Test
+    fun `Converse missing cache fields stay unknown and supplied totals do not fill absent details`() {
+        val response = converseDecode(converseBody("[]", usage = Some("{\"inputTokens\":5,\"outputTokens\":2,\"totalTokens\":7}")))
+        assertEquals(None, response.usage.tokens.inputTokens)
+        assertEquals(Some(5L), response.usage.tokens.nonCachedInputTokens)
+        assertEquals(None, response.usage.tokens.cacheReadTokens)
+        assertEquals(None, response.usage.tokens.cacheWriteTokens)
+        val empty = converseDecode(converseBody("[]", "future", Some("{}")))
+        assertEquals(UsageCompleteness.Partial, empty.usage.completeness)
+        assertEquals(None, empty.usage.tokens.totalTokens)
+        val zero = converseDecode(converseBody("[]", usage = Some("{\"inputTokens\":0,\"cacheReadInputTokens\":0,\"cacheWriteInputTokens\":0}")))
+        assertEquals(Some(0L), zero.usage.tokens.inputTokens)
+        assertEquals(None, zero.usage.tokens.totalTokens)
+    }
+
+    @Test
+    fun `Converse accounting rejects negative fractional and overflowing known counts`() {
+        for (field in ["inputTokens", "outputTokens", "totalTokens", "cacheReadInputTokens", "cacheWriteInputTokens"]) {
+            assertConverseFailure(converseBody("[]", usage = Some("{\"" + field + "\":-1}")), "/usage/" + field)
+            assertConverseFailure(converseBody("[]", usage = Some("{\"" + field + "\":1.5}")), "/usage/" + field)
+        }
+        assertConverseFailure(converseBody("[]", usage = Some("{\"inputTokens\":9223372036854775807,\"cacheReadInputTokens\":1,\"cacheWriteInputTokens\":0}")), "/usage/cacheReadInputTokens")
+        assertConverseFailure(converseBody("[]", usage = Some("{\"inputTokens\":9223372036854775807,\"cacheReadInputTokens\":0,\"cacheWriteInputTokens\":1}")), "/usage/cacheWriteInputTokens")
+        assertConverseFailure(converseBody("[]", usage = Some("{\"cacheDetails\":[{\"ttl\":\"future\",\"inputTokens\":-1}]}")), "/usage/cacheDetails/0/inputTokens")
+    }
+}

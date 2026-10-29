@@ -1,0 +1,78 @@
+package scoop.llm.client.tests.messages
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class MessagesStreamToolTest {
+    @Test
+    fun `Messages completed client input waits for candidate completion in both retention modes`() {
+        for (retention in [StreamRetention.Result, StreamRetention.EventsOnly]) {
+            val decoder = messagesStream(retention, [messagesStreamFunction()])
+            messagesStartBlock(decoder, 0L, "{\"type\":\"tool_use\",\"id\":\"c1\",\"name\":\"lookup\",\"input\":{},\"caller\":{\"type\":\"direct\"}}")
+            val fragment = messagesInputDelta(decoder, 0L, "{\"count\":")
+            when (fragment.events[0L]) { case ToolInputDelta(value) -> assertEquals(Some("c1"), value.reference!!.id); else -> fail() }
+            messagesInputDelta(decoder, 0L, "2}")
+            assertEquals(0L, messagesStopBlock(decoder, 0L).events.size)
+            val final = messagesFinish(decoder, "tool_use")
+            when (final.events[0L]) {
+                case ClientToolCall(location, call) -> {
+                    assertEquals(0L, location.itemIndex); assertTrue(call.isExecutable)
+                    assertEquals(2L, call.decodeArguments<MessagesCount>().count)
+                    assertEquals("direct", call.reference.context!!["caller"]!!["type"]!!.asString())
+                }
+                else -> fail()
+            }
+            if (retention == StreamRetention.Result) {
+                val response = Json.decodeFromString<LlmResponse>(Json.encodeToString(decoder.response()))
+                assertEquals(2L, messagesHistory(response)["content"]!![0L]["input"]!!["count"]!!.asLong())
+                val next = LlmRequest(response.toInput())
+                assertEquals(1L, MessagesProtocol(AnthropicMessagesDialect()).encodeRequest("m", next)["messages"]!!.size)
+            }
+        }
+    }
+
+    @Test
+    fun `Messages malformed and truncated streaming arguments are visible but never executable`() {
+        for ((input, reason) in [("{\"count\":", "tool_use"), ("{\"count\":", "max_tokens"), ("[]", "tool_use"), ("{\"count\":1}", "pause_turn")]) {
+            val decoder = messagesStream(tools = [messagesStreamFunction()])
+            messagesStartBlock(decoder, 0L, "{\"type\":\"tool_use\",\"id\":\"bad\",\"name\":\"lookup\",\"input\":{}}")
+            messagesInputDelta(decoder, 0L, input)
+            messagesStopBlock(decoder, 0L)
+            val update = messagesFinish(decoder, reason)
+            when (update.events[0L]) {
+                case ClientToolCall(_, call) -> {
+                    assertFalse(call.isExecutable)
+                    when (call.input) {
+                        case Invalid(raw, _) -> { assertEquals("tool_use", reason); assertEquals(input, raw) }
+                        case Incomplete(raw) -> { assertTrue(reason != "tool_use"); assertEquals(input, raw) }
+                        else -> fail()
+                    }
+                }
+                else -> fail()
+            }
+            assertEquals(0L, decoder.response().clientToolCalls.size)
+            if (input == "{\"count\":") {
+                assertEquals(1L, decoder.response().nativeEvents.size)
+                assertEquals(LlmOutputFailure.HistoryUnavailable, assertFailsWith<LlmOutputException> { decoder.response().toInput(); Unit }.reason)
+            }
+        }
+    }
+
+    @Test
+    fun `Messages native toolsets associate members while undeclared calls remain native`() {
+        val native: ToolDefinition = ClientNative(ToolKey("screen"), NativeToolDefinition(AnthropicMessagesDialect().id, "computer", Json.parse("{}")))
+        val decoder = messagesStream(tools = [native])
+        messagesStartBlock(decoder, 0L, "{\"type\":\"tool_use\",\"id\":\"native\",\"toolset_name\":\"computer\",\"name\":\"click\",\"input\":{\"x\":1}}")
+        messagesStopBlock(decoder, 0L)
+        messagesStartBlock(decoder, 1L, "{\"type\":\"tool_use\",\"id\":\"other\",\"name\":\"undeclared\",\"input\":{}}")
+        messagesStopBlock(decoder, 1L)
+        messagesFinish(decoder, "tool_use")
+        val response = decoder.response()
+        assertEquals(1L, response.clientToolCalls.size)
+        assertEquals(ToolKey("screen"), response.clientToolCalls[0L].reference.toolKey)
+        when (response.clientToolCalls[0L].input) { case Native(value) -> assertEquals(1L, value["x"]!!.asLong()); else -> fail() }
+        when (response.candidate(0L).items[1L]) { case Native(_, value) -> assertEquals("other", value["id"]!!.asString()); else -> fail() }
+    }
+}

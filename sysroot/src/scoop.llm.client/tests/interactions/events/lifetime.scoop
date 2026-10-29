@@ -1,0 +1,96 @@
+package scoop.llm.client.tests.interactions.events
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.HttpClient
+import scoop.llm.client.*
+import scoop.llm.client.tests.client.*
+import scoop.test.*
+
+@Test
+private class InteractionsEventsLifetimeTest {
+    @Test
+    fun `Interactions cursor tracks delivered string IDs without consuming unread events`() {
+        withLlmServer suspend { _, scope, listener, original ->
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    connection.receiveRequest()!!.body.readAllBytes(4096L)
+                    val body = interactionWire("future.event", "{}") + interactionWire("future.event", "{\"event_id\":null}") +
+                        interactionWire("future.event", "{\"event_id\":42}") + interactionWire("future.event", "{\"event_id\":\"delivered\"}") +
+                        interactionWire("interaction.completed", "{\"event_id\":\"unread\",\"interaction\":{\"id\":\"id\",\"status\":\"completed\"}}")
+                    sendLlmReply(connection, 200U, body, interactionEventFields)
+                }
+            }
+            withLlmClient suspend { client ->
+                val endpoint = LlmEndpoint(Providers.geminiInteractions(), LlmAuth.none(), Some(original.baseUrl))
+                val finished = FinishedCalls()
+                val stream = client.openInteractionEvents(endpoint, "id", Some("seed"),
+                    LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) })))
+                assertEquals(Some("seed"), stream.lastEventId)
+                assertEquals(None, stream.metadata.attempts[0].response.firstEventAt)
+                stream.useAsync suspend { opened ->
+                    for (_ in [0L, 1L, 2L]) {
+                        assertEquals("future.event", opened.next()!!.event)
+                        assertEquals(Some("seed"), opened.lastEventId)
+                    }
+                    opened.next()
+                    assertEquals(Some("delivered"), opened.lastEventId)
+                }
+                stream.close()
+                assertTrue(stream.isClosed)
+                assertEquals(Some("delivered"), stream.lastEventId)
+                assertEquals(LlmCallOutcome.Cancelled, stream.metadata.outcome)
+                assertEquals(None, stream.metadata.attempts[0].response.completedAt)
+                assertEquals(1L, finished.values.size)
+            }
+            serving.join()
+        }
+    }
+
+    @Test
+    fun `Interactions event reader cancellation and client close clean up once and preserve borrowed HTTP`() {
+        for (cancelReader in [false, true]) {
+            withLlmServer suspend { _, scope, listener, original ->
+                val release = LlmGate()
+                val serving = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        connection.receiveRequest()!!.body.readAllBytes(4096L)
+                        connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U, fields = interactionEventFields),
+                            Http1BodyFraming.Chunked).useAsync suspend { output -> output.flush(); release.await() }
+                    }
+                }
+                try {
+                    HttpClient.open(scope).useAsync suspend { http ->
+                        val client = LlmClient.open(scope, Some(http))
+                        val finished = FinishedCalls()
+                        val stream = client.openInteractionEvents(LlmEndpoint(Providers.geminiInteractions(), LlmAuth.none(),
+                            Some(original.baseUrl)), "id", Some("seed"),
+                            LlmCallOptions(onFinished = Some(suspend { value -> finished.record(value) })))
+                        if (cancelReader) {
+                            val reading = scope.launch suspend {
+                                expectLlmFailure<CancellationException> suspend { stream.useAsync suspend { opened -> opened.next(); Unit } }
+                                Unit
+                            }
+                            reading.cancel()
+                            reading.join()
+                            assertEquals(LlmCallOutcome.Cancelled, stream.metadata.outcome)
+                            client.close()
+                        } else {
+                            client.close()
+                            expectLlmFailure<LlmClientClosedException> suspend { stream.close() }
+                            assertEquals(LlmCallOutcome.Failed, stream.metadata.outcome)
+                        }
+                        assertTrue(stream.isClosed)
+                        assertFalse(http.isClosed)
+                        assertEquals(Some("seed"), stream.lastEventId)
+                        assertEquals(1L, finished.values.size)
+                        assertEquals(None, stream.metadata.attempts[0].response.firstEventAt)
+                        assertEquals(None, stream.metadata.attempts[0].response.completedAt)
+                    }
+                } finally { release.signal() }
+                serving.join()
+            }
+        }
+    }
+}

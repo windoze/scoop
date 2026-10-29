@@ -1,0 +1,84 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.url.Url
+
+/** generateContent requests, complete responses and SSE, bound to one explicit dialect. */
+public class GenerateContentProtocol public constructor(public val dialect: GenerateContentDialect) : LlmSseProtocol {
+    public override fun modelCatalog(): LlmModelCatalog? = dialect.modelCatalog()
+    public override fun fileApi(): LlmFileApi? = dialect.fileApi()
+    public override fun tokenCounter(): LlmTokenCounter? = dialect.tokenCounter()
+    public override val dialectId: DialectId get() = dialect.id
+    public override fun generationUrl(baseUrl: Url, modelId: String): Url = generateContentUrl(baseUrl, modelId)
+    public override fun streamUrl(baseUrl: Url, modelId: String): Url = generateContentUrl(baseUrl, modelId, true)
+    public override fun createStreamDecoder(request: LlmRequest, retention: StreamRetention): LlmSseDecoder =
+        GenerateContentStreamDecoder(dialect, request, retention)
+    public override fun encodeRequest(modelId: String, request: LlmRequest, stream: Boolean): JsonValue =
+        encodeGenerateContentRequest(dialect, modelId, request)
+    public override fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException =
+        dialect.decodeError(status, body, truncated)
+    init {
+        if (dialect.id.protocol != ApiProtocolId("generate-content"))
+            throw IllegalArgumentException(Some("generateContent dialect belongs to another API protocol"))
+    }
+
+    public override fun decodeResponse(value: JsonValue, request: LlmRequest): LlmResponse {
+        try {
+            val body = decodeGenerateContentValue<GenerateContentResponseBody>(value, "")
+            val error = value["error"]
+            if (llmPresent(error) && error!!.kind != JsonValueKind.Null) throw DecodingException("/error", "generateContent returned an error response")
+            val candidates = ArrayList<LlmCandidate>()
+            var position = 0L
+            for (raw in body.candidates ?: []) {
+                val path = "/candidates/" + position.toString()
+                val fields = decodeGenerateContentValue<GenerateContentCandidateBody>(raw, path)
+                val index = fields.index ?: 0L
+                if (index < 0L) throw DecodingException(path + "/index", "candidate index must not be negative")
+                for (previous in candidates) {
+                    if (previous.index == index) throw DecodingException(path + "/index", "duplicate candidate index")
+                }
+                candidates.add(readGenerateContentCandidate(dialect.id, fields, request.tools, path))
+                position += 1L
+            }
+            val usage = when (body.usageMetadata) {
+                case Some(raw) -> LlmUsage(dialect.readUsage(raw), Final, Some(raw))
+                case None -> LlmUsage(completeness = Final)
+            }
+            return LlmResponse(dialect.id, candidates.toArray(), body.responseId, body.modelVersion, usage = usage, native = Some(value))
+        } catch (error: DecodingException) {
+            throw LlmProtocolException(dialect.id, error.path, error.message ?: "invalid generateContent response", value)
+        }
+    }
+}
+
+private fun readGenerateContentCandidate(dialect: DialectId, fields: GenerateContentCandidateBody,
+    tools: Array<ToolDefinition>, path: String): LlmCandidate {
+    val content = when (fields.content) {
+        case Some(raw) -> decodeGenerateContentValue<GenerateContentContent>(raw, path + "/content")
+        case None -> GenerateContentContent()
+    }
+    if (content.role != None && content.role != Some("") && content.role != Some("model"))
+        throw DecodingException(path + "/content/role", "expected model content")
+    val (completion, reason) = generateContentCompletion(fields.finishReason)
+    val parsed = ArrayList<GenerateContentPart>()
+    var partIndex = 0L
+    for (part in content.parts ?: []) {
+        parsed.add(GenerateContentPart(part, path + "/content/parts/" + partIndex.toString()))
+        partIndex += 1L
+    }
+    val parts = parsed.toArray()
+    val grounding = readGenerateContentGrounding(dialect, fields.groundingMetadata, parts, path)
+    val items = readGenerateContentParts(dialect, parts, tools, completion == LlmCompletion.Complete, grounding,
+        fields.citationMetadata, path)
+    appendGenerateContentGrounding(items, dialect, grounding, tools)
+    var hasCalls = false
+    for (item in items) { when (item) { case ClientToolCall(_) -> hasCalls = true; else -> continue } }
+    var historyAvailable = fields.finishReason != Some("CONTINUATION")
+    for (part in parts) if (part.kind == Some("functionCall") && generateContentPartialCall(part.raw)) historyAvailable = false
+    val history = if (!historyAvailable) None else when (fields.content) {
+        case Some(raw) -> Some(LlmHistory(dialect, [raw]))
+        case None -> None
+    }
+    return LlmCandidate(fields.index ?: 0L, items.toArray(), completion,
+        if (reason == LlmFinishReason.Stop && hasCalls) LlmFinishReason.ToolCalls else reason, history)
+}

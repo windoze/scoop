@@ -1,0 +1,60 @@
+package scoop.llm.client.tests.messages
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class MessagesToolRequestTest {
+    @Test
+    fun `Messages client functions and server search share tools and exact choice controls`() {
+        val tools: Array<ToolDefinition> = [ClientFunction(ToolKey("function"), "lookup", Json.parse("{}"), strict = Some(false)),
+            Server(ToolKey("web"), WebSearch(WebSearchOptions(allowedDomains = Some([]),
+                location = Some(SearchLocation(city = Some("Beijing"))), includeSources = Some(true))))]
+        val body = MessagesProtocol(AnthropicMessagesDialect()).encodeRequest("model", LlmRequest(messagesRequest().input, tools = tools,
+            options = LlmGenerationOptions(toolChoice = Specific(ToolKey("web")), parallelToolCalls = Some(false))))
+        assertEquals(2L, body["tools"]!!.size)
+        assertTrue(body["tools"]!![0L].containsKey("input_schema"))
+        assertFalse(body["tools"]!![0L]["strict"]!!.asBoolean())
+        val search = body["tools"]!![1L]
+        assertEquals("web_search_20250305", search["type"]!!.asString())
+        assertEquals(0L, search["allowed_domains"]!!.size)
+        assertEquals("approximate", search["user_location"]!!["type"]!!.asString())
+        assertEquals("Beijing", search["user_location"]!!["city"]!!.asString())
+        assertEquals("web_search", body["tool_choice"]!!["name"]!!.asString())
+        assertTrue(body["tool_choice"]!!["disable_parallel_tool_use"]!!.asBoolean())
+    }
+
+    @Test
+    fun `Messages native versions and unnamed toolsets retain execution ownership and member identity`() {
+        val dialect = AnthropicMessagesDialect()
+        val tools: Array<ToolDefinition> = [ClientNative(ToolKey("shell"), NativeToolDefinition(dialect.id, "bash", Json.parse("{\"name\":\"bash\"}"), Some("20250124"))),
+            ClientNative(ToolKey("screen"), NativeToolDefinition(dialect.id, "computer", Json.parse("{\"display_width_px\":1024}"), Some("test-revision"))),
+            ClientFunction(ToolKey("function"), "click", Json.parse("{}"))]
+        val request = messagesRequest(tools)
+        val body = MessagesProtocol(dialect).encodeRequest("model", request)
+        assertEquals("bash_20250124", body["tools"]!![0L]["type"]!!.asString())
+        assertFalse(body["tools"]!![1L].containsKey("name"))
+        assertEquals(1024L, body["tools"]!![1L]["display_width_px"]!!.asLong())
+        val response = MessagesProtocol(dialect).decodeResponse(messagesBody("[{\"type\":\"tool_use\",\"id\":\"member1\",\"name\":\"click\",\"toolset_name\":\"computer\",\"input\":{\"x\":1}}]", "tool_use"), request)
+        assertEquals(ToolKey("screen"), response.clientToolCalls[0].toolKey)
+        assertEquals("click", response.clientToolCalls[0].reference.context!!["name"]!!.asString())
+        assertMessagesRequestFailure(LlmRequest(request.input, tools = tools, options = LlmGenerationOptions(toolChoice = Specific(ToolKey("screen")))), "/options/toolChoice")
+    }
+
+    @Test
+    fun `Messages tool constraints reject conflicting search restrictions and forced manual thinking`() {
+        val dialect = AnthropicMessagesDialect().id
+        val tools: Array<ToolDefinition> = [ClientFunction(ToolKey("tool"), "tool", Json.parse("{}"))]
+        assertMessagesRequestFailure(LlmRequest(messagesRequest().input, tools = tools, options = LlmGenerationOptions(toolChoice = Required,
+            reasoning = Some(ReasoningOptions(budgetTokens = Some(1024UL))))), "/options/toolChoice")
+        assertMessagesRequestFailure(LlmRequest(messagesRequest().input, tools = tools, options = LlmGenerationOptions(toolChoice = None,
+            parallelToolCalls = Some(true))), "/options/parallelToolCalls")
+        assertMessagesRequestFailure(messagesRequest([Server(ToolKey("web"), WebSearch(WebSearchOptions(allowedDomains = Some([]), excludedDomains = Some([]))))]), "/tools/0/tool/options/excludedDomains")
+        assertMessagesRequestFailure(messagesRequest([Server(ToolKey("web"), WebSearch(WebSearchOptions(includeSources = Some(false))))]), "/tools/0/tool/options/includeSources")
+        assertMessagesRequestFailure(messagesRequest([Server(ToolKey("web"), WebSearch(WebSearchOptions(location = Some(SearchLocation()))))]), "/tools/0/tool/options/location")
+        assertMessagesRequestFailure(messagesRequest([ClientNative(ToolKey("web"), NativeToolDefinition(dialect, "web_search", Json.parse("{\"name\":\"web_search\"}"), Some("20250305")))]), "/tools/0/tool/kind")
+        assertMessagesRequestFailure(messagesRequest([Server(ToolKey("shell"), Native(NativeToolDefinition(dialect, "bash", Json.parse("{\"name\":\"bash\"}"), Some("20250124"))))]), "/tools/0/tool/kind")
+        assertMessagesRequestFailure(messagesRequest([tools[0], ClientFunction(ToolKey("other"), "tool", Json.parse("{}"))]), "/tools/1/name")
+    }
+}

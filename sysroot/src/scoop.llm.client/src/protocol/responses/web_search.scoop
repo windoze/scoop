@@ -1,0 +1,20 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeResponsesWebSearch(options: WebSearchOptions, extensions: Array<DialectExtension>, dialect: DialectId, path: String): JsonValue {
+    if (llmPresent(options.excludedDomains)) throw LlmRequestException(path + "/tool/options/excludedDomains", "Responses search has no excluded-domain filter")
+    val result = llmTypedObject("web_search")
+    if (llmPresent(options.allowedDomains))
+        result.add("filters", JsonObjectBuilder().add("allowed_domains", Json.encodeToValue(options.allowedDomains!!)).build())
+    if (llmPresent(options.location)) {
+        val location = options.location!!
+        val value = llmTypedObject("approximate")
+        if (location.country != None) value.add("country", JsonValue.fromString(location.country!!))
+        if (location.region != None) value.add("region", JsonValue.fromString(location.region!!))
+        if (location.city != None) value.add("city", JsonValue.fromString(location.city!!))
+        if (location.timezone != None) value.add("timezone", JsonValue.fromString(location.timezone!!))
+        result.add("user_location", value.build())
+    }
+    return mergeLlmExtensions(result.build(), extensions, dialect, ["type", "filters", "user_location"], path)
+}

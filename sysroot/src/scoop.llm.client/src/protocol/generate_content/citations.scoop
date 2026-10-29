@@ -1,0 +1,34 @@
+package scoop.llm.client
+
+import scoop.json.*
+import scoop.url.Url
+
+internal class GenerateContentCitationMetadata public constructor(public val citationSources: Array<JsonValue>? = None) {
+    public companion object : ValueDecoder<GenerateContentCitationMetadata>
+}
+
+internal class GenerateContentCitationSource public constructor(public val uri: String? = None, public val startIndex: Long? = None,
+    public val endIndex: Long? = None) {
+    public companion object : ValueDecoder<GenerateContentCitationSource>
+}
+
+internal fun readGenerateContentCitationMetadata(dialect: DialectId, value: JsonValue?, parts: Array<GenerateContentPart>,
+    path: String): Array<Citation> {
+    val raw = value ?: return []
+    val fields = decodeGenerateContentValue<GenerateContentCitationMetadata>(raw, path)
+    if (parts.size != 1L || parts[0].text == None) return []
+    val result = ArrayList<Citation>()
+    var index = 0L
+    for (entry in fields.citationSources ?: []) {
+        val entryPath = path + "/citationSources/" + index.toString()
+        val source = decodeGenerateContentValue<GenerateContentCitationSource>(entry, entryPath)
+        val location = when (source.uri) {
+            case Some(uri) -> LlmSourceLocation.Url(Url.parseOrNone(uri) ?: throw DecodingException(entryPath + "/uri", "invalid citation URI"))
+            case None -> LlmSourceLocation.Native(dialect, entry)
+        }
+        result.add(Citation(LlmSource(entryPath, location, native = Some(entry)),
+            generateContentCitationRange(source.startIndex, source.endIndex, parts[0].text!!, entryPath)))
+        index += 1L
+    }
+    return result.toArray()
+}

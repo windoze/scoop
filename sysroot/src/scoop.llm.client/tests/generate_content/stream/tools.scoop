@@ -1,0 +1,68 @@
+package scoop.llm.client.tests.generatecontent
+
+import scoop.json.*
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class GenerateContentStreamToolsTest {
+    @Test
+    fun `Gemini SSE function calls wait for completion preserve missing IDs and release inputs`() {
+        for (retention in [StreamRetention.EventsOnly, StreamRetention.Result]) {
+            val stream = geminiStream(retention)
+            val update = geminiAccept(stream, "[{\"functionCall\":{\"name\":\"lookup\",\"args\":{\"q\":1}},\"thoughtSignature\":\"sig\"},{\"functionCall\":{\"name\":\"lookup\"}}]")
+            assertEquals(0L, geminiCallCount(update.events))
+            when (update.events[0L]) { case ToolInputDelta(delta) -> { assertEquals("{\"q\":1}", delta.text); assertEquals(None, delta.reference!!.id) }; else -> fail() }
+            val stopped = geminiAccept(stream, "[]", finish = Some("STOP"))
+            assertEquals(2L, geminiCallCount(stopped.events))
+            when (stopped.events[0L]) { case ClientToolCall(location, call) -> {
+                assertEquals(0L, location.itemIndex)
+                assertEquals("sig", call.reference.context!!["thoughtSignature"]!!.asString())
+                assertTrue(call.isExecutable)
+            }; else -> fail() }
+            assertEquals(0L, geminiCallCount(geminiAccept(stream, "[]", finish = Some("STOP")).events))
+            stream.endInput()
+            if (retention == StreamRetention.Result) {
+                assertEquals(2L, stream.response().clientToolCalls.size)
+                assertEquals(LlmFinishReason.ToolCalls, stream.response().candidates[0L].finishReason)
+                assertEquals(1L, geminiHistoryItems(stream.response()).size)
+            }
+        }
+    }
+
+    @Test
+    fun `Gemini SSE invalid truncated and Vertex partial arguments never become executable`() {
+        for (finish in ["STOP", "MAX_TOKENS", "SAFETY"]) {
+            val stream = geminiStream()
+            geminiAccept(stream, "[{\"functionCall\":{\"name\":\"lookup\",\"args\":[]}}]", finish = Some(finish))
+            stream.endInput()
+            assertEquals(0L, stream.response().clientToolCalls.size)
+        }
+        val partial = "[{\"functionCall\":{\"name\":\"lookup\",\"partialArgs\":[{\"jsonPath\":\"$.q\",\"stringValue\":\"x\"}],\"willContinue\":true}}]"
+        val stream = geminiStream()
+        assertEquals(0L, geminiCallCount(geminiAccept(stream, partial, finish = Some("STOP")).events))
+        stream.endInput()
+        assertEquals(0L, stream.response().clientToolCalls.size)
+        assertFailsWith<LlmOutputException> { stream.response().toInput(); Unit }
+        val ordinary = generateContentDecode(generateContentBody(partial))
+        assertEquals(0L, ordinary.clientToolCalls.size)
+        assertFailsWith<LlmOutputException> { ordinary.toInput(); Unit }
+    }
+
+    @Test
+    fun `Gemini SSE server execution stays separate from client calls and continuation keeps its token`() {
+        val dialect = GeminiGenerateContentDialect().id
+        val request = LlmRequest(generateContentRequest().input, tools = [Server(ToolKey("code"), Native(NativeToolDefinition(dialect, "codeExecution")))])
+        val stream = geminiStream(request = request)
+        val events = geminiAccept(stream, "[{\"executableCode\":{\"language\":\"PYTHON\",\"code\":\"print(1)\"}},{\"codeExecutionResult\":{\"outcome\":\"OUTCOME_OK\",\"output\":\"1\"}}]",
+            finish = Some("CONTINUATION"), extra = ",\"continuationToken\":\"resume\"")
+        assertEquals(0L, geminiCallCount(events.events))
+        when (events.events[0L]) { case ServerToolActivity(_, value) -> { assertEquals(Some(ToolKey("code")), value.toolKey); assertEquals(None, value.id) }; else -> fail() }
+        stream.endInput()
+        val response = stream.response()
+        assertEquals(2L, response.serverToolActivities.size)
+        assertEquals(LlmFinishReason.Pause, response.candidates[0L].finishReason)
+        assertEquals("resume", response.nativeEvents[0L].value["metadata"]!!["continuationToken"]!!.asString())
+        assertFailsWith<LlmOutputException> { response.toInput(); Unit }
+    }
+}

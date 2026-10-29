@@ -1,0 +1,13 @@
+package scoop.llm.client
+
+import scoop.http.HttpField
+
+/** Shared endpoint identity and HTTP handshake behavior; generation is a separate contract. */
+public interface LlmApiProtocol {
+    public val dialectId: DialectId
+    public fun requestFields(): Array<HttpField> = []
+    public fun fileApi(): LlmFileApi? = None
+    public fun modelCatalog(): LlmModelCatalog? = None
+    public fun tokenCounter(): LlmTokenCounter? = None
+    public fun decodeError(status: UInt, body: Array<Byte>, truncated: Boolean): LlmServiceException
+}

@@ -1,0 +1,25 @@
+package scoop.llm.client
+
+import scoop.json.*
+
+internal fun encodeRealtimeConfiguration(dialect: DialectId, configuration: RealtimeConfiguration,
+    tools: Array<ToolDefinition>, body: JsonObjectBuilder): JsonValue {
+    when (configuration.instructions) { case Some(value) -> body.add("instructions", JsonValue.fromString(value)); case None -> {} }
+    when (configuration.outputModality) {
+        case Some(value) -> body.add("output_modalities", Json.encodeToValue([when (value) { case Text -> "text"; case Audio -> "audio" }]))
+        case None -> {}
+    }
+    when (configuration.maxOutputTokens) {
+        case Some(limit) -> body.add("max_output_tokens", when (limit) { case Limited(value) -> Json.encodeToValue(value); case Unlimited -> JsonValue.fromString("inf") })
+        case None -> {}
+    }
+    if (configuration.parallelToolCalls != None) body.add("parallel_tool_calls", JsonValue.fromBoolean(configuration.parallelToolCalls!!))
+    when (configuration.reasoningEffort) {
+        case Some(effort) -> body.add("reasoning", JsonObjectBuilder().add("effort", JsonValue.fromString(effort)).build())
+        case None -> {}
+    }
+    encodeRealtimeTools(body, dialect, configuration, tools)
+    return mergeLlmExtensions(body.build(), configuration.extensions, dialect,
+        ["type", "model", "input", "conversation", "instructions", "tools", "tool_choice", "output_modalities",
+         "max_output_tokens", "parallel_tool_calls", "reasoning"], "")
+}

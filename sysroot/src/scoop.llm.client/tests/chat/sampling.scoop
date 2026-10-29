@@ -1,0 +1,36 @@
+package scoop.llm.client.tests.chat
+
+import scoop.llm.client.tests.generationProtocol
+
+import scoop.llm.client.*
+import scoop.test.*
+
+@Test
+private class DeepSeekSamplingTest {
+    @Test
+    fun `omitted top-p needs no model-specific assumption but explicit top-p does`() {
+        val protocol = generationProtocol(Providers.deepSeekChat())
+        val empty = LlmRequest([Message([Text("hello")])])
+        assertFalse(protocol.encodeRequest("any-model", empty).containsKey("top_p"))
+        val explicit = LlmRequest(empty.input, options = LlmGenerationOptions(topP = Some(0.95)))
+        for (id in ["deepseek-flash", "deepseek-v4-pro", "local/model:version"]) {
+            assertEquals("/options/topP", assertFailsWith<LlmRequestException> {
+                protocol.encodeRequest(id, explicit); Unit
+            }.path)
+        }
+    }
+
+    @Test
+    fun `non-thinking top-p follows the explicit dialect profile without model-name routing`() {
+        val protocol = generationProtocol(Providers.deepSeekChat(DeepSeekTopPMode.NonThinking))
+        val input: Array<LlmInputItem> = [Message([Text("hello")])]
+        val disabled = Some(ReasoningOptions(enabled = Some(false)))
+        val accepted = LlmRequest(input, options = LlmGenerationOptions(topP = Some(0.5), reasoning = disabled))
+        assertEquals(0.5, protocol.encodeRequest("any-name", accepted)["top_p"]!!.asDouble())
+        for (options in [LlmGenerationOptions(topP = Some(0.95)), LlmGenerationOptions(topP = Some(0.0), reasoning = disabled)]) {
+            assertEquals("/options/topP", assertFailsWith<LlmRequestException> {
+                protocol.encodeRequest("any-name", LlmRequest(input, options = options)); Unit
+            }.path)
+        }
+    }
+}
