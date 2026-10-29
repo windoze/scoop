@@ -1,0 +1,257 @@
+package scoop.window
+
+// Physical positions follow Apple's HIToolbox Events.h virtual key codes.
+// The public physical/logical distinction follows the winit 0.30.13 model.
+internal fun darwinPhysicalKey(code: Long): PhysicalKey =
+    when (code) {
+        0L -> PhysicalKey.Code(KeyCode.KeyA)
+        1L -> PhysicalKey.Code(KeyCode.KeyS)
+        2L -> PhysicalKey.Code(KeyCode.KeyD)
+        3L -> PhysicalKey.Code(KeyCode.KeyF)
+        4L -> PhysicalKey.Code(KeyCode.KeyH)
+        5L -> PhysicalKey.Code(KeyCode.KeyG)
+        6L -> PhysicalKey.Code(KeyCode.KeyZ)
+        7L -> PhysicalKey.Code(KeyCode.KeyX)
+        8L -> PhysicalKey.Code(KeyCode.KeyC)
+        9L -> PhysicalKey.Code(KeyCode.KeyV)
+        10L -> PhysicalKey.Code(KeyCode.IntlBackslash)
+        11L -> PhysicalKey.Code(KeyCode.KeyB)
+        12L -> PhysicalKey.Code(KeyCode.KeyQ)
+        13L -> PhysicalKey.Code(KeyCode.KeyW)
+        14L -> PhysicalKey.Code(KeyCode.KeyE)
+        15L -> PhysicalKey.Code(KeyCode.KeyR)
+        16L -> PhysicalKey.Code(KeyCode.KeyY)
+        17L -> PhysicalKey.Code(KeyCode.KeyT)
+        18L -> PhysicalKey.Code(KeyCode.Digit1)
+        19L -> PhysicalKey.Code(KeyCode.Digit2)
+        20L -> PhysicalKey.Code(KeyCode.Digit3)
+        21L -> PhysicalKey.Code(KeyCode.Digit4)
+        22L -> PhysicalKey.Code(KeyCode.Digit6)
+        23L -> PhysicalKey.Code(KeyCode.Digit5)
+        24L -> PhysicalKey.Code(KeyCode.Equal)
+        25L -> PhysicalKey.Code(KeyCode.Digit9)
+        26L -> PhysicalKey.Code(KeyCode.Digit7)
+        27L -> PhysicalKey.Code(KeyCode.Minus)
+        28L -> PhysicalKey.Code(KeyCode.Digit8)
+        29L -> PhysicalKey.Code(KeyCode.Digit0)
+        30L -> PhysicalKey.Code(KeyCode.BracketRight)
+        31L -> PhysicalKey.Code(KeyCode.KeyO)
+        32L -> PhysicalKey.Code(KeyCode.KeyU)
+        33L -> PhysicalKey.Code(KeyCode.BracketLeft)
+        34L -> PhysicalKey.Code(KeyCode.KeyI)
+        35L -> PhysicalKey.Code(KeyCode.KeyP)
+        36L -> PhysicalKey.Code(KeyCode.Enter)
+        37L -> PhysicalKey.Code(KeyCode.KeyL)
+        38L -> PhysicalKey.Code(KeyCode.KeyJ)
+        39L -> PhysicalKey.Code(KeyCode.Quote)
+        40L -> PhysicalKey.Code(KeyCode.KeyK)
+        41L -> PhysicalKey.Code(KeyCode.Semicolon)
+        42L -> PhysicalKey.Code(KeyCode.Backslash)
+        43L -> PhysicalKey.Code(KeyCode.Comma)
+        44L -> PhysicalKey.Code(KeyCode.Slash)
+        45L -> PhysicalKey.Code(KeyCode.KeyN)
+        46L -> PhysicalKey.Code(KeyCode.KeyM)
+        47L -> PhysicalKey.Code(KeyCode.Period)
+        48L -> PhysicalKey.Code(KeyCode.Tab)
+        49L -> PhysicalKey.Code(KeyCode.Space)
+        50L -> PhysicalKey.Code(KeyCode.Backquote)
+        51L -> PhysicalKey.Code(KeyCode.Backspace)
+        53L -> PhysicalKey.Code(KeyCode.Escape)
+        54L -> PhysicalKey.Code(KeyCode.SuperRight)
+        55L -> PhysicalKey.Code(KeyCode.SuperLeft)
+        56L -> PhysicalKey.Code(KeyCode.ShiftLeft)
+        57L -> PhysicalKey.Code(KeyCode.CapsLock)
+        58L -> PhysicalKey.Code(KeyCode.AltLeft)
+        59L -> PhysicalKey.Code(KeyCode.ControlLeft)
+        60L -> PhysicalKey.Code(KeyCode.ShiftRight)
+        61L -> PhysicalKey.Code(KeyCode.AltRight)
+        62L -> PhysicalKey.Code(KeyCode.ControlRight)
+        63L -> PhysicalKey.Code(KeyCode.Fn)
+        64L -> PhysicalKey.Code(KeyCode.F17)
+        65L -> PhysicalKey.Code(KeyCode.NumpadDecimal)
+        67L -> PhysicalKey.Code(KeyCode.NumpadMultiply)
+        69L -> PhysicalKey.Code(KeyCode.NumpadAdd)
+        71L -> PhysicalKey.Code(KeyCode.NumpadClear)
+        72L -> PhysicalKey.Code(KeyCode.AudioVolumeUp)
+        73L -> PhysicalKey.Code(KeyCode.AudioVolumeDown)
+        74L -> PhysicalKey.Code(KeyCode.AudioVolumeMute)
+        75L -> PhysicalKey.Code(KeyCode.NumpadDivide)
+        76L -> PhysicalKey.Code(KeyCode.NumpadEnter)
+        78L -> PhysicalKey.Code(KeyCode.NumpadSubtract)
+        79L -> PhysicalKey.Code(KeyCode.F18)
+        80L -> PhysicalKey.Code(KeyCode.F19)
+        81L -> PhysicalKey.Code(KeyCode.NumpadEqual)
+        82L -> PhysicalKey.Code(KeyCode.Numpad0)
+        83L -> PhysicalKey.Code(KeyCode.Numpad1)
+        84L -> PhysicalKey.Code(KeyCode.Numpad2)
+        85L -> PhysicalKey.Code(KeyCode.Numpad3)
+        86L -> PhysicalKey.Code(KeyCode.Numpad4)
+        87L -> PhysicalKey.Code(KeyCode.Numpad5)
+        88L -> PhysicalKey.Code(KeyCode.Numpad6)
+        89L -> PhysicalKey.Code(KeyCode.Numpad7)
+        90L -> PhysicalKey.Code(KeyCode.F20)
+        91L -> PhysicalKey.Code(KeyCode.Numpad8)
+        92L -> PhysicalKey.Code(KeyCode.Numpad9)
+        93L -> PhysicalKey.Code(KeyCode.IntlYen)
+        94L -> PhysicalKey.Code(KeyCode.IntlRo)
+        95L -> PhysicalKey.Code(KeyCode.NumpadComma)
+        96L -> PhysicalKey.Code(KeyCode.F5)
+        97L -> PhysicalKey.Code(KeyCode.F6)
+        98L -> PhysicalKey.Code(KeyCode.F7)
+        99L -> PhysicalKey.Code(KeyCode.F3)
+        100L -> PhysicalKey.Code(KeyCode.F8)
+        101L -> PhysicalKey.Code(KeyCode.F9)
+        102L -> PhysicalKey.Code(KeyCode.Lang2)
+        103L -> PhysicalKey.Code(KeyCode.F11)
+        104L -> PhysicalKey.Code(KeyCode.Lang1)
+        105L -> PhysicalKey.Code(KeyCode.F13)
+        106L -> PhysicalKey.Code(KeyCode.F16)
+        107L -> PhysicalKey.Code(KeyCode.F14)
+        109L -> PhysicalKey.Code(KeyCode.F10)
+        110L -> PhysicalKey.Code(KeyCode.ContextMenu)
+        111L -> PhysicalKey.Code(KeyCode.F12)
+        113L -> PhysicalKey.Code(KeyCode.F15)
+        114L -> PhysicalKey.Code(KeyCode.Help)
+        115L -> PhysicalKey.Code(KeyCode.Home)
+        116L -> PhysicalKey.Code(KeyCode.PageUp)
+        117L -> PhysicalKey.Code(KeyCode.Delete)
+        118L -> PhysicalKey.Code(KeyCode.F4)
+        119L -> PhysicalKey.Code(KeyCode.End)
+        120L -> PhysicalKey.Code(KeyCode.F2)
+        121L -> PhysicalKey.Code(KeyCode.PageDown)
+        122L -> PhysicalKey.Code(KeyCode.F1)
+        123L -> PhysicalKey.Code(KeyCode.ArrowLeft)
+        124L -> PhysicalKey.Code(KeyCode.ArrowRight)
+        125L -> PhysicalKey.Code(KeyCode.ArrowDown)
+        126L -> PhysicalKey.Code(KeyCode.ArrowUp)
+        else -> PhysicalKey.Unidentified(NativeKeyCode.Darwin(code.toUInt()))
+    }
+
+internal fun darwinNamedKey(code: Long): NamedKey? =
+    when (code) {
+        36L -> Some(NamedKey.Enter)
+        48L -> Some(NamedKey.Tab)
+        49L -> Some(NamedKey.Space)
+        51L -> Some(NamedKey.Backspace)
+        53L -> Some(NamedKey.Escape)
+        54L -> Some(NamedKey.Super)
+        55L -> Some(NamedKey.Super)
+        56L -> Some(NamedKey.Shift)
+        57L -> Some(NamedKey.CapsLock)
+        58L -> Some(NamedKey.Alt)
+        59L -> Some(NamedKey.Control)
+        60L -> Some(NamedKey.Shift)
+        61L -> Some(NamedKey.Alt)
+        62L -> Some(NamedKey.Control)
+        63L -> Some(NamedKey.Fn)
+        64L -> Some(NamedKey.F17)
+        71L -> Some(NamedKey.Clear)
+        72L -> Some(NamedKey.AudioVolumeUp)
+        73L -> Some(NamedKey.AudioVolumeDown)
+        74L -> Some(NamedKey.AudioVolumeMute)
+        76L -> Some(NamedKey.Enter)
+        79L -> Some(NamedKey.F18)
+        80L -> Some(NamedKey.F19)
+        90L -> Some(NamedKey.F20)
+        96L -> Some(NamedKey.F5)
+        97L -> Some(NamedKey.F6)
+        98L -> Some(NamedKey.F7)
+        99L -> Some(NamedKey.F3)
+        100L -> Some(NamedKey.F8)
+        101L -> Some(NamedKey.F9)
+        102L -> Some(NamedKey.Eisu)
+        103L -> Some(NamedKey.F11)
+        104L -> Some(NamedKey.Kana)
+        105L -> Some(NamedKey.F13)
+        106L -> Some(NamedKey.F16)
+        107L -> Some(NamedKey.F14)
+        109L -> Some(NamedKey.F10)
+        110L -> Some(NamedKey.ContextMenu)
+        111L -> Some(NamedKey.F12)
+        113L -> Some(NamedKey.F15)
+        114L -> Some(NamedKey.Help)
+        115L -> Some(NamedKey.Home)
+        116L -> Some(NamedKey.PageUp)
+        117L -> Some(NamedKey.Delete)
+        118L -> Some(NamedKey.F4)
+        119L -> Some(NamedKey.End)
+        120L -> Some(NamedKey.F2)
+        121L -> Some(NamedKey.PageDown)
+        122L -> Some(NamedKey.F1)
+        123L -> Some(NamedKey.ArrowLeft)
+        124L -> Some(NamedKey.ArrowRight)
+        125L -> Some(NamedKey.ArrowDown)
+        126L -> Some(NamedKey.ArrowUp)
+        else -> None
+    }
+
+internal fun darwinKeyLocation(code: Long): KeyLocation {
+    if (code == 54L || code == 60L || code == 61L || code == 62L)
+        return KeyLocation.Right
+    if (code == 55L || code == 56L || code == 58L || code == 59L)
+        return KeyLocation.Left
+    if (
+        code ==
+            65L ||
+            code ==
+            67L ||
+            code ==
+            69L ||
+            code ==
+            71L ||
+            code ==
+            75L ||
+            code ==
+            76L ||
+            code ==
+            78L ||
+            code ==
+            81L ||
+            code ==
+            82L ||
+            code ==
+            83L ||
+            code ==
+            84L ||
+            code ==
+            85L ||
+            code ==
+            86L ||
+            code ==
+            87L ||
+            code ==
+            88L ||
+            code ==
+            89L ||
+            code ==
+            91L ||
+            code ==
+            92L ||
+            code ==
+            95L
+    )
+        return KeyLocation.Numpad
+    return KeyLocation.Standard
+}
+
+internal fun darwinModifiers(flags: Long): Modifiers =
+    Modifiers(
+        flags.and(131072L) != 0L,
+        flags.and(262144L) != 0L,
+        flags.and(524288L) != 0L,
+        flags.and(1048576L) != 0L,
+        flags.and(65536L) != 0L,
+        flags.and(8388608L) != 0L,
+        modifierSides(flags, 131072L, 2L, 4L),
+        modifierSides(flags, 262144L, 1L, 8192L),
+        modifierSides(flags, 524288L, 32L, 64L),
+        modifierSides(flags, 1048576L, 8L, 16L)
+    )
+
+private fun modifierSides(flags: Long, aggregate: Long, left: Long, right: Long): ModifierSides {
+    if (flags.and(aggregate) == 0L)
+        return ModifierSides(Some(false), Some(false))
+    if (flags.and(left.or(right)) == 0L)
+        return ModifierSides(None, None)
+    return ModifierSides(Some(flags.and(left) != 0L), Some(flags.and(right) != 0L))
+}

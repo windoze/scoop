@@ -70,6 +70,7 @@ private class LifecycleHandler(val proxy: ApplicationProxy): ApplicationHandler 
     var destroyed = 0
     var exiting = 0
     var depth = 0
+    val input = InputProbe()
 
     public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
         assertEquals(ownerThread, currentThreadId())
@@ -79,7 +80,14 @@ private class LifecycleHandler(val proxy: ApplicationProxy): ApplicationHandler 
         try {
             when (event) {
                 case Resumed -> start(application)
-                case NewEvents(StartCause.Deadline) -> fail(Some("native redraw deadline expired"))
+                case NewEvents(StartCause.Deadline) -> fail(
+                    Some(
+                        "native redraw deadline expired: redraws=" +
+                            redraws.toString() +
+                            ", occluded=" +
+                            window!!.isOccluded.toString()
+                    )
+                )
                 case Window(identity, WindowEvent.GeometryChanged(value)) -> {
                     if (identity == window!!.id) {
                         assertTrue(value.logicalSize.width > 0.0 && value.logicalSize.height > 0.0)
@@ -96,12 +104,20 @@ private class LifecycleHandler(val proxy: ApplicationProxy): ApplicationHandler 
                     assertTrue(window!!.metrics!!.physicalSize.isDrawable)
                     window!!.prePresentNotify()
                     if (redraws == 1) {
+                        input.start(window!!, lease!!)
                         window!!.requestRedraw();
                         window!!.requestRedraw()
                     }
-                    else
+                    else {
+                        input.verify()
                         window!!.requestDestroy()
+                    }
                 }
+                case Window(_, WindowEvent.Keyboard(value)) -> input.key(value)
+                case Window(_, WindowEvent.Pointer(value)) -> input.pointer(value)
+                case Window(_, WindowEvent.TextInput(TextInputEvent.Edit(batch))) -> input.edit(
+                    batch
+                )
                 case Window(identity, WindowEvent.Closing) -> {
                     closing += 1
                     if (identity == window!!.id) {
@@ -220,6 +236,7 @@ private class LifecycleHandler(val proxy: ApplicationProxy): ApplicationHandler 
                                 assertEquals(42, deliveryValue())
                                 order.add(3)
                                 first.setVisible(true)
+                                first.setWindowLevel(WindowLevel.AlwaysOnTop)
                                 first.requestFocus()
                                 first.requestRedraw()
                                 gcCollect()

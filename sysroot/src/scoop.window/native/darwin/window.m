@@ -95,9 +95,16 @@ SWEvent *sw_event(SWWindow *window, int32_t kind) {
   [self emit:3];
 }
 - (void)windowDidBecomeKey:(NSNotification *)notification {
+  NSPoint point =
+      [self.view convertPoint:self.window.mouseLocationOutsideOfEventStream
+                     fromView:nil];
+  self.view.pointerInside =
+      NSMouseInRect(point, self.view.bounds, self.view.flipped);
+  [self.view updateCursor];
   [self emit:4];
 }
 - (void)windowDidResignKey:(NSNotification *)notification {
+  [self.view resetInput];
   [self emit:4];
 }
 - (void)windowDidChangeOcclusionState:(NSNotification *)notification {
@@ -135,6 +142,10 @@ void *scoop_window_create(void *application, int64_t identity,
       return NULL;
     owner.view = [[SWView alloc] initWithFrame:NSMakeRect(0, 0, width, height)];
     owner.view.owner = owner;
+    owner.view.pressedKeys = [NSMutableDictionary new];
+    owner.view.cursor = NSCursor.arrowCursor;
+    owner.view.cursorVisible = YES;
+    owner.window.acceptsMouseMovedEvents = YES;
     owner.view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
     NSView *content = [[NSView alloc] initWithFrame:owner.view.frame];
     [content addSubview:owner.view];
@@ -169,6 +180,7 @@ SWSnapshot scoop_window_snapshot(void *pointer) {
 
 void scoop_window_destroy(void *pointer) {
   SWWindow *owner = (__bridge SWWindow *)pointer;
+  [owner.view resetInput];
   if (owner.attentionRequest)
     [NSApp cancelUserAttentionRequest:owner.attentionRequest];
   owner.window.delegate = nil;

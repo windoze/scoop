@@ -21,6 +21,7 @@ when = { os = "darwin" }
 
 [test-dependencies]
 "scoop:scoop.test" = "0.1.0"
+"scoop.tests:window-native" = { version = "0.1.0", path = "test-native" }
 
 [native]
 objc_flags = ["-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter"]
@@ -43,6 +44,14 @@ when = { os = "darwin" }
 
 [[native.sources]]
 path = "native/darwin/monitors.m"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "native/darwin/keyboard.m"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "native/darwin/pointer.m"
 when = { os = "darwin" }
 
 [[native.libraries]]

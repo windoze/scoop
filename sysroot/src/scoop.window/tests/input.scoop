@@ -1,0 +1,164 @@
+package scoop.window
+
+import scoop.test.*
+import scoop.window.native.*
+import scoop.tests.window.exerciseNativeInput
+
+@Test
+private class InputValueTest {
+    @Test
+    fun `physical locations keep layout and unknown native codes separate`() {
+        assertEquals(PhysicalKey.Code(KeyCode.KeyA), darwinPhysicalKey(0L))
+        assertEquals(PhysicalKey.Code(KeyCode.Lang1), darwinPhysicalKey(104L))
+        assertEquals(
+            PhysicalKey.Unidentified(NativeKeyCode.Darwin(65535u)),
+            darwinPhysicalKey(65535L)
+        )
+        assertEquals(KeyLocation.Numpad, darwinKeyLocation(76L))
+        assertEquals(KeyLocation.Right, darwinKeyLocation(60L))
+    }
+    @Test
+    fun `modifier sides and unknown lock states retain native information`() {
+        val unknown = darwinModifiers(131072L)
+        assertTrue(unknown.shift)
+        assertEquals(ModifierSides(None, None), unknown.shiftSides)
+        val right = darwinModifiers(131076L)
+        assertEquals(ModifierSides(Some(false), Some(true)), right.shiftSides)
+        assertEquals(None, right.numLock)
+        assertEquals(ModifierSides(Some(false), Some(false)), darwinModifiers(0L).shiftSides)
+    }
+}
+
+internal class InputProbe {
+    val keys = ArrayList<KeyEvent>()
+    var text = ""
+    var started = false
+    var moved = false
+    var buttons = 0
+    var lineWheel = false
+    var pixelWheel = false
+    var momentum = false
+
+    fun start(window: Window, lease: NativeWindowLease) {
+        window.setCursorIcon(CursorIcon.Text)
+        window.setCursorVisible(false)
+        started = true
+        @Unsafe
+        {
+            when (lease.handle) {
+                case AppKit(_, view) -> assertEquals(0, exerciseNativeInput(view))
+            }
+        }
+        window.setCursorVisible(true)
+        window.setCursorIcon(CursorIcon.Default)
+        gcCollect()
+    }
+    fun key(value: KeyEvent) {
+        if (started)
+            keys.add(value)
+    }
+    fun edit(batch: TextInputBatch) {
+        if (!started)
+            return
+        assertEquals(None, batch.baseRevision)
+        for (operation in batch.operations)
+            when (operation) {
+                case Commit(value, TextReplacement.CurrentSelection) -> text += value
+                else -> fail(Some("unexpected plain-key edit"))
+            }
+    }
+    fun pointer(event: PointerEvent) {
+        if (!started)
+            return
+        when (event) {
+            case Moved(state) -> {
+                if (state.logicalPosition == LogicalPosition(20.0, 30.0)) {
+                    moved = true
+                    assertEquals(
+                        PhysicalPosition(20.0 * state.scaleFactor, 30.0 * state.scaleFactor),
+                        state.physicalPosition
+                    )
+                    assertEquals(None, state.deviceId)
+                }
+            }
+            case Button(state, MouseButton.Left, _, count) -> {
+                if (count == 2) {
+                    buttons += 1;
+                    assertEquals(LogicalPosition(20.0, 30.0), state.logicalPosition)
+                }
+            }
+            case Wheel(_, ScrollDelta.LineDelta(x, y), ScrollPhase.None, ScrollPhase.None) -> {
+                assertEquals(3.0, x);
+                assertEquals(5.0, y);
+                lineWheel = true
+            }
+            case Wheel(
+                state,
+                ScrollDelta.PixelDelta(x, y),
+                ScrollPhase.Began,
+                ScrollPhase.None
+            ) -> {
+                assertEquals(3.0 * state.scaleFactor, x);
+                assertEquals(5.0 * state.scaleFactor, y);
+                pixelWheel = true
+            }
+            case Wheel(
+                _,
+                ScrollDelta.PixelDelta(_, _),
+                ScrollPhase.None,
+                ScrollPhase.Began
+            ) -> momentum = true
+            else -> {}
+        }
+    }
+    fun verify() {
+        assertEquals("aaλb", text)
+        var downs = 0
+        var repeats = 0
+        var ups = 0
+        var synthetic = false
+        var shiftLeftReleasedWithRightHeld = false
+        var unknown = false
+        for (event in keys) {
+            assertEquals(None, event.deviceId)
+            if (event.physicalKey == PhysicalKey.Code(KeyCode.KeyA)) {
+                assertEquals(LogicalKey.Character("a"), event.logicalKey)
+                if (event.state == ElementState.Pressed)
+                    downs += 1
+                else
+                    ups += 1
+                if (event.isRepeat)
+                    repeats += 1
+            }
+            if (
+                event.physicalKey ==
+                    PhysicalKey.Code(KeyCode.KeyB) &&
+                    event.state ==
+                    ElementState.Released
+            ) {
+                assertTrue(event.modifiers.capsLock)
+                synthetic = event.synthetic
+            }
+            if (
+                event.physicalKey ==
+                    PhysicalKey.Code(KeyCode.ShiftLeft) &&
+                    event.state ==
+                    ElementState.Released
+            ) {
+                assertEquals(KeyLocation.Left, event.location)
+                assertEquals(ModifierSides(Some(false), Some(true)), event.modifiers.shiftSides)
+                shiftLeftReleasedWithRightHeld = true
+            }
+            if (event.physicalKey == PhysicalKey.Unidentified(NativeKeyCode.Darwin(65535u))) {
+                assertEquals(LogicalKey.Character("λ"), event.logicalKey)
+                unknown = true
+            }
+        }
+        assertEquals(2, downs);
+        assertEquals(1, repeats);
+        assertEquals(1, ups)
+        assertTrue(synthetic && shiftLeftReleasedWithRightHeld && unknown)
+        assertTrue(moved && lineWheel && pixelWheel && momentum)
+        assertEquals(2, buttons)
+    }
+}

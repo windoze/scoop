@@ -13,10 +13,18 @@ objc_flags = ["-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter"]
 path = "native/modes.m"
 when = { os = "darwin" }
 
+[[native.sources]]
+path = "native/input.m"
+when = { os = "darwin" }
+
 [[native.libraries]]
 name = "AppKit"
 kind = "framework"
 
 [[native.libraries]]
 name = "CoreFoundation"
+kind = "framework"
+
+[[native.libraries]]
+name = "CoreGraphics"
 kind = "framework"

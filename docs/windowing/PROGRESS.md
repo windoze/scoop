@@ -78,3 +78,11 @@
 新增 monitors／primaryMonitor／currentMonitor。AppKit 枚举复制名称、桌面矩形、backing 像素尺寸与比例；刷新率仅使用 CoreGraphics 实际给出的正值。Scoop 分配 MonitorId，屏幕变化时退休已离开的身份，不暴露原生指针或编号，也不提供未实施的视频模式控制。
 
 验证：格式化／check 与 native 警告检查通过，window 的 10 项 release 测试通过。真实显示器枚举覆盖重复查询身份稳定、主显示器／窗口显示器一致、尺寸与缩放，以及 native 快照释放和 GC 后在工作线程读取自有值；工作线程调用原生枚举明确失败。热插拔和混合 DPI 跨屏拖动仍是硬件交互验收项。
+
+### 9. 基础键盘、指针与滚轮
+
+新增物理／逻辑键、位置、repeat／synthetic、未知 native 键码、左右修饰键及可选锁定状态。AppKit 失焦补发已按下键的释放并保留 Caps Lock；Command／Control 快捷键不生成普通字符提交。指针提供同次窗口坐标与 scale、按钮／点击次数、行／像素滚轮和独立 momentum phase；系统基础 cursor 及区域可见性使用平衡的 NSCursor hide／unhide。
+
+原生事件在离开队列前转换为自有 Scoop 事件，UTF-8 文本复制后才释放 native owner。移除没有实现入口的 WindowFeature、触摸身份及激活结果预留。记录 winit 平台参考与许可证，硬件键码另按 Apple SDK 核对。
+
+验证：格式化／check 与 native 警告检查通过，4 个容器的 12 项 release 测试全部通过。真实 NSEvent 调用实际视图，覆盖按键重复、未知键码、左右 Shift、synthetic release、普通文本唯一通道、GC 后载荷、指针位置、滚轮单位／相位及光标隐藏恢复；发现并修正 backing 点原点与公开左上内容坐标的混用。AppKit 自动化窗口置顶以排除桌面遮挡；协议调用不视为真实键盘布局或输入法交互验收。

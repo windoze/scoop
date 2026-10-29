@@ -18,12 +18,6 @@ public struct DeviceId(val value: Long): Equals<DeviceId>, Hash {
     public override fun hash(): Long = value.hash()
 }
 
-/** A contact identity whose lifetime is independent of native object addresses. */
-public struct TouchId(val value: Long): Equals<TouchId>, Hash {
-    public override operator fun equals(other: TouchId): Boolean = value == other.value
-    public override fun hash(): Long = value.hash()
-}
-
 /** The implemented window-system backend. */
 public enum WindowBackend {
     AppKit
@@ -67,11 +61,6 @@ public enum Theme {
     Light, Dark
 }
 
-/** Keyboard focus activation outcome reported by the platform. */
-public enum ActivationResult {
-    Activated, Denied
-}
-
 /** Why the system is asking the application to exit. */
 public enum ExitReason {
     User, System
@@ -88,10 +77,3 @@ public struct WindowButtons(
     val minimize: Boolean = true,
     val maximize: Boolean = true
 )
-
-/** Capabilities are hints; operations still validate actual state and native results. */
-public enum WindowFeature {
-    Position, Minimize, Maximize, ExclusiveFullscreen, CursorLock, CursorConfine, CursorPosition,
-    Decorations, Buttons, Theme, Blur, ContentProtection, RawDeviceEvents, FileDrop, Ime,
-    WindowIcon, BeginMove, BeginResize, WindowMenu, CursorHitTest, Transparency
-}

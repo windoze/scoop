@@ -10,7 +10,7 @@ typedef struct {
   int64_t window;
   int32_t kind, flags;
   int64_t a, b, c, d;
-  double x, y, z, w, scale;
+  double x, y, z, w, scale, dx, dy;
   const uint8_t *text;
   int64_t text_length;
 } SWEventData;
@@ -42,7 +42,24 @@ typedef struct {
 
 @interface SWView : NSView
 @property(nonatomic, weak) SWWindow *owner;
+@property(nonatomic, strong)
+    NSMutableDictionary<NSNumber *, SWEvent *> *pressedKeys;
+@property(nonatomic) NSEventModifierFlags modifiers;
+@property(nonatomic, strong) NSTrackingArea *tracking;
+@property(nonatomic, strong) NSCursor *cursor;
+@property(nonatomic) BOOL pointerInside, cursorVisible, cursorHidden;
 @end
+
+@interface SWView (Input)
+- (void)resetInput;
+@end
+@interface SWView (Pointer)
+- (void)updateCursor;
+@end
+
+enum { SWKeyboard = 10, SWModifiers = 11, SWPointer = 12, SWTextCommit = 13 };
+void sw_commit(SWView *view, NSString *text);
+void sw_modifiers(SWView *view, NSEventModifierFlags flags);
 
 @interface SWWindow : NSObject <NSWindowDelegate>
 @property(nonatomic, weak) SWApplication *application;

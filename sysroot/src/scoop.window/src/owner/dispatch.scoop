@@ -15,14 +15,14 @@ internal fun ApplicationOwner.pump(stage: Int) {
                 beginExit()
             }
         }
-        val events = ArrayList<NativeEvent>()
+        val events = ArrayList<ApplicationEvent>()
         @Unsafe
         {
             var count = 0
             while (count < 64) {
                 val pointer = nativeNextEvent(native!!) ?: break
                 try {
-                    events.add(nativeEventData(pointer))
+                    events.add(copyNativeEvent(pointer))
                 } finally {
                     nativeEventRelease(pointer)
                 }
@@ -158,46 +158,16 @@ internal fun ApplicationOwner.deliverWindow(window: WindowOwner, event: WindowEv
     }
 }
 
-internal fun ApplicationOwner.dispatchNative(event: NativeEvent) {
-    if (event.window == 0L) {
-        if (event.kind == 100) {
-            refreshMonitors()
-            deliver(ApplicationEvent.MonitorsChanged)
+internal fun ApplicationOwner.dispatchNative(event: ApplicationEvent) {
+    when (event) {
+        case Window(identity, notification) -> {
+            val window = findWindow(identity.value) ?: return
+            deliverWindow(window, notification)
         }
-        else
-            if (event.kind == 101)
-                deliver(ApplicationEvent.ExitRequested(ExitReason.System))
-        return
-    }
-    val window = findWindow(event.window) ?: return
-    if (window.phase != WindowState.Open)
-        return
-    when (event.kind) {
-        1 -> deliverWindow(window, WindowEvent.CloseRequested)
-        2 -> deliverWindow(
-            window,
-            WindowEvent.GeometryChanged(
-                WindowMetrics(
-                    LogicalSize(event.x, event.y),
-                    PhysicalSize(event.z.toInt(), event.w.toInt()),
-                    event.scale
-                )
-            )
-        )
-        3 -> deliverWindow(window, WindowEvent.Moved(DesktopPosition(event.x, event.y)))
-        4 -> deliverWindow(window, WindowEvent.Focused(event.flags != 0))
-        5 -> deliverWindow(window, WindowEvent.Occluded(event.flags != 0))
-        6 -> deliverWindow(
-            window,
-            WindowEvent.ThemeChanged(
-                Some(
-                    if (event.flags != 0)
-                        Theme.Dark
-                    else
-                        Theme.Light
-                )
-            )
-        )
-        else -> throw WindowException("unknown native window event", WindowErrorKind.NativeFailure)
+        case MonitorsChanged -> {
+            refreshMonitors();
+            deliver(event)
+        }
+        else -> deliver(event)
     }
 }

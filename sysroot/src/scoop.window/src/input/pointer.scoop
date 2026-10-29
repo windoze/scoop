@@ -1,0 +1,73 @@
+package scoop.window
+
+/** Position and modifiers captured from one native pointer event. */
+public struct PointerState(
+    val logicalPosition: LogicalPosition,
+    val physicalPosition: PhysicalPosition,
+    val scaleFactor: Double,
+    val modifiers: Modifiers,
+    val deviceId: DeviceId? = None
+)
+
+/** Native button numbering is retained for additional mouse buttons. */
+public enum MouseButton {
+    Left, Right, Middle, Other(UInt)
+}
+
+/** Line deltas are never converted with an invented line height. */
+public enum ScrollDelta {
+    LineDelta(Double, Double), PixelDelta(Double, Double)
+}
+
+/** A native phase; None is normal for traditional wheel events. */
+public enum ScrollPhase {
+    None, MayBegin, Began, Stationary, Changed, Ended, Cancelled
+}
+
+/** Window-relative pointer events, with independent wheel and momentum phases. */
+public enum PointerEvent {
+    Entered(PointerState), Left(PointerState), Moved(PointerState),
+    Button(PointerState, MouseButton, ElementState, Int),
+    Wheel(PointerState, ScrollDelta, ScrollPhase, ScrollPhase)
+}
+
+/** System cursors available without owning a custom image or capture session. */
+public enum CursorIcon {
+    Default, Text, Crosshair, Pointer, Grab, Grabbing, NotAllowed, ResizeHorizontal, ResizeVertical
+}
+
+/** Selects the native cursor for this window's content area. */
+public fun Window.setCursorIcon(icon: CursorIcon) {
+    owner.requireOpen()
+    val value =
+        when (icon) {
+            case Default -> 0;
+            case Text -> 1;
+            case Crosshair -> 2;
+            case Pointer -> 3;
+            case Grab -> 4;
+            case Grabbing -> 5;
+            case NotAllowed -> 6;
+            case ResizeHorizontal -> 7;
+            case ResizeVertical -> 8
+        }
+    @Unsafe
+    {
+        nativeCursorIcon(owner.pointer!!, value)
+    }
+}
+
+/** Hides only while the pointer belongs to this window; leaving restores it. */
+public fun Window.setCursorVisible(visible: Boolean) {
+    owner.requireOpen()
+    @Unsafe
+    {
+        nativeCursorVisible(owner.pointer!!, flag(visible))
+    }
+}
+
+@Extern(name = "scoop_window_cursor_icon")
+internal fun nativeCursorIcon(window: Ptr<Unit>, icon: Int)
+
+@Extern(name = "scoop_window_cursor_visible")
+internal fun nativeCursorVisible(window: Ptr<Unit>, visible: Int)

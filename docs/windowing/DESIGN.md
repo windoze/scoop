@@ -81,7 +81,6 @@ public class Window internal constructor(owner: WindowOwner) {
     public fun requestDestroy()
     public fun requestSize(size: LogicalSize): RequestStatus
     public fun setTitle(title: String)
-    public fun supports(feature: WindowFeature): Boolean
 }
 ```
 
@@ -143,7 +142,7 @@ WindowAttributes 使用普通属性／值类型，包含标题、内容尺寸约
 
 `RequestStatus` 为 Applied／Requested／Unsupported。Applied 只用于可立即确认的设置；Requested 由后续事件／快照确认；Unsupported 不产生副作用。非法参数用通常参数异常；平台失败用 WindowException，保留 operation、错误类别、backend 和可选原生 code。supports 是当前能力提示，不代替实际调用的错误处理；运行环境失联、权限或 compositor 状态仍可能变化。
 
-公共类型表达实际后端的共同语义与必要差异。窗口级别用 Normal／AlwaysOnTop／AlwaysOnBottom；全屏用 Windowed／Borderless(monitor?)／Exclusive(videoMode)。WindowFeature 包含定位、最小化、最大化、独占全屏、光标锁定／限制／移动、装饰、按钮、主题、blur、content protection、原始设备事件、拖放与 IME 等实际功能。Windows 接入时复用语义相同的类型；发现当前表示不合适时直接修订 API 与调用方，不为保持旧事件匹配增加平行模型。
+公共类型表达实际后端的共同语义与必要差异。窗口级别用 Normal／AlwaysOnTop／AlwaysOnBottom；后续全屏采用 Windowed／Borderless(monitor?)／Exclusive(videoMode)。本阶段直接提供已实施的方法，不预留一组没有对应方法的 WindowFeature 枚举或空平台分支。Windows 接入时复用语义相同的类型；发现当前表示不合适时直接修订 API 与调用方，不为保持旧事件匹配增加平行模型。
 
 窗口内部坐标以左上为原点，x 向右、y 向下。LogicalPosition／LogicalSize／LogicalRect 使用有限 Double；PhysicalSize 使用非负 Int，表示 drawable 像素尺寸；PhysicalPosition 保留小数，适合物理像素中的指针位置。尺寸非负、scaleFactor 为有限正值；render target 遇到零尺寸暂停取得／提交帧。
 

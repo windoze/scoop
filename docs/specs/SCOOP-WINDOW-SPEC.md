@@ -6,7 +6,7 @@
 
 window 依赖 core／std／platform；window.asyncio 另依赖 asyncio。本阶段实施基础架构与 Darwin ARM64／AppKit。Linux Wayland／X11、Windows 及其他后端留待后续；不添加没有后端的 native handle 变体或假窗口实现。两个库及其原生薄层、测试、示例均以普通 Cone 组织，窗口逻辑不进入编译器或 runtime。
 
-本轮范围按 winit 定位为 GUI 骨架：应用／窗口与基础属性、基础输入／IME、DPI／显示器快照、渲染句柄和 I/O 集成。下文的完整窗口层模型同时保留后续扩展方向；独占全屏／视频模式切换、全局 raw device、触摸／高级手势、光标捕获及复杂平台窗口交互不作为当前骨架验收项。未实施接口随实际需求再增加，不为占据 API 名称加入空实现。
+本轮范围按 winit 定位为 GUI 骨架：应用／窗口与基础属性、基础输入／IME、DPI／显示器快照、渲染句柄和 I/O 集成。下文的完整窗口层模型同时保留后续扩展方向；全屏控制／视频模式切换、全局 raw device、触摸／高级手势、光标捕获、文件拖放及复杂平台窗口交互不作为当前骨架验收项。未实施接口随实际需求再增加，不为占据 API 名称加入空实现。
 
 公共应用对象不暴露 fd、HWND、XID、dispatch queue 或 ring。现有 Job／CoroutineScope、Context、ForeignCallback、时间、路径与异常规则继续适用；窗口库不承担布局、排版、绘制设备、I/O 调度或另一套任务树。
 
@@ -22,9 +22,9 @@ run Context 在业务回调中恢复，外线程 post 不替换该 Context。用
 
 ## 3. 事件模型
 
-ApplicationEvent 的完整首期类别为：NewEvents(StartCause)、Resumed、Suspended、MemoryWarning、Window(WindowId, WindowEvent)、Device(DeviceId?, DeviceEvent)、MonitorsChanged、AboutToWait、ExitRequested(ExitReason)、Exiting。启动在创建业务窗口之前发送一次 Resumed；失焦不等于 Suspended。proxy 使用类型化闭包，不另设无类型 user-event payload。
+ApplicationEvent 类别为：NewEvents(StartCause)、Resumed、Suspended、MemoryWarning、Window(WindowId, WindowEvent)、MonitorsChanged、AboutToWait、ExitRequested(ExitReason)、Exiting。启动在创建业务窗口之前发送一次 Resumed；失焦不等于 Suspended，AppKit 不捏造没有收到的 suspended／memory warning。proxy 使用类型化闭包，不另设无类型 user-event payload。全局 Device 事件属于后续设备输入扩展。
 
-WindowEvent 类别为：CloseRequested、Closing、Destroyed、GeometryChanged(WindowMetrics)、Moved(DesktopPosition)、Focused(Boolean)、Occluded(Boolean)、ThemeChanged(Theme?)、Keyboard(KeyEvent)、ModifiersChanged(Modifiers)、Pointer(PointerEvent)、Touch(TouchEvent)、Gesture(NativeGestureEvent)、TextInput(TextInputEvent)、FileDrop(FileDropEvent)、ActivationChanged(ActivationResult)。RedrawRequested 为独立窗口事件。payload 为自有值，不携带 OS 回调栈的借出指针。
+WindowEvent 类别为：CloseRequested、Closing、Destroyed、GeometryChanged(WindowMetrics)、Moved(DesktopPosition)、Focused(Boolean)、Occluded(Boolean)、ThemeChanged(Theme?)、Keyboard(KeyEvent)、ModifiersChanged(Modifiers)、Pointer(PointerEvent)、TextInput(TextInputEvent)。RedrawRequested 为独立窗口事件。payload 为自有值，不携带 OS 回调栈的借出指针。触摸、手势、文件拖放和平台专有激活结果随对应能力后续增加。
 
 NewEvents 原因区分 Init、Poll、Wake 与 Deadline；平台没有信息时不伪造输入硬件时间。允许合并 redraw、连续 geometry 和 pointer move，但不得跨过按键／按钮、IME 编辑、焦点、close 等顺序边界；Commit、drop、button、touch 的开始／结束及 lifecycle 不得丢弃。
 
@@ -49,6 +49,8 @@ AppKit 使用原生内容尺寸／桌面坐标、titlebar 按钮、window level�
 ## 5. 输入与文本
 
 KeyEvent 分离 PhysicalKey、LogicalKey、KeyLocation、state、repeat、modifiers 和 synthetic；LogicalKey 支持 Named／Character(String)／Dead／Unidentified，未知 native 键码保留实际编码来源，本阶段为 Darwin。修饰键含 Shift、Control、Alt、Super、锁定状态和可取得的左右侧信息。
+
+AppKit 使用实际 NSEvent keyCode 和当前布局产生的字符；Command／Control 快捷键不产生普通文本提交。已交付的按下状态在失焦时补发 synthetic release，清空按住的修饰键并保留已知锁定状态；没有硬件来源的设备 id 为 None。CapsLock 通知表达锁定状态，不伪造物理按键释放。指针同时携带同次 native 事件的逻辑／物理位置与 scale，两种位置均以内容区左上为原点，物理位置由该次窗口 backing scale 换算；不能直接混入 backing surface 的底部原点。精确滚轮的 AppKit points 转换为物理 PixelDelta，普通滚轮保持 LineDelta，普通 phase 和 momentumPhase 分别保留。光标基础图标使用 NSCursor，可见性只在本窗口内容区域生效，退出该区域、失焦或销毁时平衡系统 hide／unhide。
 
 文字统一由 `TextInputEvent.Edit(TextInputBatch)` 中的 Commit 操作交付；普通键、compose、IME 不得重复插入。TextInputEvent 只有 Enabled／Disabled／Edit。一次 AppKit 输入解释形成一个编辑批次，以一个事件调用 handler。范围为 UTF-8 字节区间且位于字符边界，平台 UTF-16 索引在 native 边界转换；非法 native 范围触发状态重同步，不越界访问。
 
