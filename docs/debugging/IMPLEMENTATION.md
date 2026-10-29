@@ -2,6 +2,8 @@
 
 分支：`codex/native-debugging`。日期：2026-10-29。
 
+Windows／PDB 的后续整合位于 `codex/windows-targets`，补充验收记录见下文与 [Windows 实施记录](../windows-targets/PROGRESS.md)。
+
 本轮基础源码调试、Throwable 历史栈与 trap 栈打印、调试器打包和 VS Code 集成已完成。编译器与工具的具体能力、实际验收和平台限制如下；完整 Scoop 表达式求值及协程逻辑栈继续作为独立工作。
 
 ## 编译接口与产物
@@ -12,6 +14,7 @@
 | --- | --- |
 | Darwin/AArch64 | DWARF 5、相邻 dSYM；dsymutil 完成后 strip，再按最终字节签名 |
 | Linux/amd64 GNU、musl | DWARF 5、相邻 `.debug`、`.gnu_debuglink`；动态及静态程序均保留 SHA-1 build-id |
+| Windows/x86_64 MSVC、LLVM-MinGW | CodeView、相邻 `.pdb`；PE 中保存 PDB basename，GC／SEH 数据独立保留 |
 
 伴随文件参与正常结果存在判断和发布，最终 basename 进入调试结果更新键。同 basename 换目录可复用，换 basename 重新生成最终调试文件；命中不启动调试工具、不重读产物内容。旧 `--emit-symbol-map`、map 字段和性能 map parser 已移除。性能工具使用 LLVM JSON、标准调试文件与精确 linkage identity，支持 inline 链、Darwin slide 和 Linux load bias。
 
@@ -66,8 +69,10 @@ VS Code 扩展 0.3.0 注册 Scoop debug type 和源码断点。构建／launch �
 
 本机 macOS 的进程 launch 仍受环境限制：系统及上游 LLDB 对普通 C 对照程序也会卡住。本机验收覆盖真实 Scoop 运行、对象／dSYM 校验、调试器加载和离线观察，进程内 DAP 结论来自 Linux。未运行 VS Code extension host 的图形调试会话；扩展通过构建／单元测试和实际 adapter 协议验证。发行验证针对调试器及其依赖，没有重跑全部 25 库的完整工具链发行构建。
 
+Windows 补充验收：真实 Python-enabled LLDB 包迁移到中文及空格路径、使用受限 PATH 后，MSVC/PDB 的 launch、源码映射、断点／单步、栈、参数、全局／TLS、String／数组／enum／对象、闭包和 moving GC 引用检查通过；离线源码名／原生符号名断点、ZST／匿名 union／空 interface 与数组布局通过。TLS 使用当前线程的 TEB 与 PE TLS index，测试先修改初始值，避免把模板误当成变量。CodeView 中部分纯计算值和聚合分片可显示 unavailable，断点顺序也可随真实指令布局变化；没有为调试增加目标存储、读取或保活。
+
 ## 后续范围
 
 协程已有 owner、state、completion 和 saved value identity，但缺少可消费的状态到挂起行映射、当前 frame 参数和 adapter／终端 continuation 识别。完整逻辑栈还需验证线程迁移、合成帧选择及 saved locals，不能只靠重命名物理 helper 或打印任务树完成。本轮保留物理栈，后续按[主设计 10.4](DESIGN.md#104-异常协程和数据断点) 独立实施。
 
-完整 Scoop 求值／条件表达式、managed 写入、Scoop 异常筛选、GC 感知数据断点及 Windows/PDB 均不属于本轮交付。复杂 `.slib` 优化保留在体积调查中。
+完整 Scoop 求值／条件表达式、managed 写入、Scoop 异常筛选及 GC 感知数据断点均不属于本轮交付。复杂 `.slib` 优化保留在体积调查中。

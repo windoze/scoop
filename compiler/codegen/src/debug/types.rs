@@ -50,7 +50,7 @@ impl<'ctx> DebugContext<'_, 'ctx> {
                         ((if bits == 32 { "float" } else { "double" }).into(), 0x04)
                     }
                     DebugEncoding::Unicode => ("char32_t".into(), 0x10),
-                    DebugEncoding::Address => ("uintptr_t".into(), 0x01),
+                    DebugEncoding::Address => ("uintptr_t".into(), 0x07),
                 };
                 let value = self
                     .builder

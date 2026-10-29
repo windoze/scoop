@@ -184,3 +184,206 @@
      return callback(die);
 
    // If looking for ObjC selectors, we need to also check if the name is a
+--- a/lldb/source/Plugins/SymbolFile/NativePDB/SymbolFileNativePDB.cpp
++++ b/lldb/source/Plugins/SymbolFile/NativePDB/SymbolFileNativePDB.cpp
+@@ -573,6 +573,10 @@
+   std::optional<llvm::StringRef> mangled_opt = FindMangledSymbol(
+       SegmentOffset(proc.Segment, proc.CodeOffset), proc.FunctionType);
+   Mangled mangled(mangled_opt.value_or(proc.Name));
++  if (mangled_opt && mangled_opt->starts_with("scoop$1$")) {
++    mangled.SetMangledName(ConstString(*mangled_opt));
++    mangled.SetDemangledName(ConstString(proc.Name));
++  }
+ 
+   FunctionSP func_sp = std::make_shared<Function>(
+       &comp_unit, toOpaqueUid(func_id), toOpaqueUid(sig_id), mangled,
+@@ -1027,7 +1031,9 @@
+ 
+   ModuleSP module_sp = GetObjectFile()->GetModule();
+   DWARFExpressionList location(
+-      module_sp, MakeGlobalLocationExpression(section, offset, module_sp),
++      module_sp, MakeGlobalLocationExpression(
++                     section, offset, module_sp,
++                     scope == eValueTypeVariableThreadLocal),
+       nullptr);
+ 
+   std::string global_name("::");
+@@ -1943,7 +1949,7 @@
+         llvm::cantFail(SymbolDeserializer::deserializeAs<PublicSym32>(sym));
+     // We only care about mangled names - if the name isn't mangled, it's
+     // already in the full name map.
+-    if (!Mangled::IsMangledName(pub.Name))
++    if (!Mangled::IsMangledName(pub.Name) && !pub.Name.starts_with("scoop$1$"))
+       continue;
+ 
+     // Check if this symbol is for one of our functions.
+--- a/lldb/source/Plugins/SymbolFile/NativePDB/UdtRecordCompleter.cpp
++++ b/lldb/source/Plugins/SymbolFile/NativePDB/UdtRecordCompleter.cpp
+@@ -284,8 +284,8 @@
+   lldb::AccessType access = TranslateMemberAccess(data_member.getAccess());
+   size_t field_size =
+       bitfield_width ? bitfield_width : GetSizeOfType(ti, m_index.tpi()) * 8;
+-  if (field_size == 0)
+-    return Error::success();
++  // Valid zero-sized records and trailing arrays still describe fields.
++  // Preserve their type and offset without adding storage to the record.
+   m_record.CollectMember(data_member.Name, offset, field_size, member_qt, access,
+                 bitfield_width);
+   return Error::success();
+--- a/lldb/source/Plugins/SymbolFile/NativePDB/DWARFLocationExpression.h
++++ b/lldb/source/Plugins/SymbolFile/NativePDB/DWARFLocationExpression.h
+@@ -43,7 +43,8 @@
+                                                 int32_t offset,
+                                                 lldb::ModuleSP module);
+ DWARFExpression MakeGlobalLocationExpression(uint16_t section, uint32_t offset,
+-                                             lldb::ModuleSP module);
++                                             lldb::ModuleSP module,
++                                             bool is_tls = false);
+ DWARFExpression MakeConstantLocationExpression(
+     llvm::codeview::TypeIndex underlying_ti, llvm::pdb::TpiStream &tpi,
+     const llvm::APSInt &constant, lldb::ModuleSP module);
+--- a/lldb/source/Plugins/SymbolFile/NativePDB/DWARFLocationExpression.cpp
++++ b/lldb/source/Plugins/SymbolFile/NativePDB/DWARFLocationExpression.cpp
+@@ -202,13 +202,16 @@
+ }
+ 
+ DWARFExpression lldb_private::npdb::MakeGlobalLocationExpression(
+-    uint16_t section, uint32_t offset, ModuleSP module) {
++    uint16_t section, uint32_t offset, ModuleSP module, bool is_tls) {
+   assert(section > 0);
+   assert(module);
+ 
+   return MakeLocationExpressionInternal(
+       module, [&](Stream &stream, RegisterKind &register_kind) -> bool {
+-        stream.PutHex8(llvm::dwarf::DW_OP_addr);
++        stream.PutHex8(is_tls ? (stream.GetAddressByteSize() == 8
++                                    ? llvm::dwarf::DW_OP_const8u
++                                    : llvm::dwarf::DW_OP_const4u)
++                             : llvm::dwarf::DW_OP_addr);
+ 
+         SectionList *section_list = module->GetSectionList();
+         assert(section_list);
+@@ -219,6 +222,8 @@
+ 
+         stream.PutMaxHex64(section_ptr->GetFileAddress() + offset,
+                            stream.GetAddressByteSize(), stream.GetByteOrder());
++        if (is_tls)
++          stream.PutHex8(llvm::dwarf::DW_OP_form_tls_address);
+ 
+         return true;
+       });
+--- a/lldb/source/Plugins/Process/Windows/Common/NtStructures.h
++++ b/lldb/source/Plugins/Process/Windows/Common/NtStructures.h
+@@ -15,7 +15,8 @@
+ // process.  It's adapted from the 32-bit TEB in winternl.h.  Currently, we care
+ // only about the position of the TlsSlots.
+ struct TEB64 {
+-  ULONG64 Reserved1[12];
++  ULONG64 Reserved1[11];
++  ULONG64 ThreadLocalStoragePointer;
+   ULONG64 ProcessEnvironmentBlock;
+   ULONG64 Reserved2[399];
+   BYTE Reserved3[1952];
+--- a/lldb/source/Plugins/Process/Windows/Common/TargetThreadWindows.h
++++ b/lldb/source/Plugins/Process/Windows/Common/TargetThreadWindows.h
+@@ -35,6 +35,8 @@
+   CreateRegisterContextForFrame(StackFrame *frame) override;
+   bool CalculateStopInfo() override;
+   const char *GetName() override;
++  lldb::addr_t GetThreadLocalData(const lldb::ModuleSP module,
++                                lldb::addr_t tls_file_addr) override;
+ 
+   Status DoResume();
+ 
+--- a/lldb/source/Plugins/Process/Windows/Common/TargetThreadWindows.cpp
++++ b/lldb/source/Plugins/Process/Windows/Common/TargetThreadWindows.cpp
+@@ -6,15 +6,19 @@
+ //
+ //===----------------------------------------------------------------------===//
+ 
++#include "lldb/Core/Module.h"
+ #include "lldb/Host/HostInfo.h"
++#include "lldb/Symbol/ObjectFile.h"
+ #include "lldb/Target/Unwind.h"
+ #include "lldb/Utility/LLDBLog.h"
+ #include "lldb/Utility/Log.h"
+ 
++#include "NtStructures.h"
+ #include "ProcessWindows.h"
+ #include "TargetThreadWindows.h"
+ #include "lldb/Host/windows/HostThreadWindows.h"
+ #include <llvm/Support/ConvertUTF.h>
++#include <winternl.h>
+ 
+ #if defined(__x86_64__) || defined(_M_AMD64)
+ #include "x64/RegisterContextWindows_x64.h"
+@@ -202,3 +206,69 @@
+ 
+   return m_name.c_str();
+ }
++
++
++addr_t TargetThreadWindows::GetThreadLocalData(const ModuleSP module,
++                                               addr_t tls_file_addr) {
++  auto process = GetProcess();
++  if (!module || module->GetArchitecture().GetMachine() != llvm::Triple::x86_64)
++    return LLDB_INVALID_ADDRESS;
++  ObjectFile *object = module->GetObjectFile();
++  if (!object)
++    return LLDB_INVALID_ADDRESS;
++  Address base = object->GetBaseAddress();
++  addr_t image = base.GetLoadAddress(&process->GetTarget());
++  if (image == LLDB_INVALID_ADDRESS)
++    return LLDB_INVALID_ADDRESS;
++
++  Status error;
++  auto read = [&](addr_t address, auto &value) {
++    return process->ReadMemory(address, &value, sizeof(value), error) ==
++           sizeof(value);
++  };
++  IMAGE_DOS_HEADER dos;
++  IMAGE_NT_HEADERS64 nt;
++  if (!read(image, dos) || dos.e_magic != IMAGE_DOS_SIGNATURE ||
++      dos.e_lfanew < 0 || !read(image + dos.e_lfanew, nt) ||
++      nt.Signature != IMAGE_NT_SIGNATURE ||
++      nt.OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR64_MAGIC ||
++      nt.OptionalHeader.NumberOfRvaAndSizes <= IMAGE_DIRECTORY_ENTRY_TLS)
++    return LLDB_INVALID_ADDRESS;
++  auto directory = nt.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS];
++  IMAGE_TLS_DIRECTORY64 tls;
++  if (!directory.VirtualAddress || directory.Size < sizeof(tls) ||
++      !read(image + directory.VirtualAddress, tls))
++    return LLDB_INVALID_ADDRESS;
++
++  using QueryThread = decltype(&::NtQueryInformationThread);
++  static auto query_thread = reinterpret_cast<QueryThread>(::GetProcAddress(
++      ::GetModuleHandleW(L"ntdll.dll"), "NtQueryInformationThread"));
++  if (!query_thread)
++    return LLDB_INVALID_ADDRESS;
++  struct ThreadBasicInfo {
++    NTSTATUS exit_status;
++    PVOID teb;
++    CLIENT_ID client_id;
++    ULONG_PTR affinity;
++    LONG priority;
++    LONG base_priority;
++  } info = {};
++  if (query_thread(m_host_thread.GetNativeThread().GetSystemHandle(),
++                   ThreadBasicInformation, &info, sizeof(info), nullptr) < 0)
++    return LLDB_INVALID_ADDRESS;
++
++  DWORD index;
++  uint64_t vector, storage;
++  addr_t teb = reinterpret_cast<uintptr_t>(info.teb);
++  if (!read(tls.AddressOfIndex, index) ||
++      !read(teb + offsetof(TEB64, ThreadLocalStoragePointer), vector) ||
++      !vector || !read(vector + uint64_t(index) * sizeof(uint64_t), storage) ||
++      !storage)
++    return LLDB_INVALID_ADDRESS;
++  // PDB expressions carry file addresses; the loaded TLS directory is
++  // relocated.
++  addr_t start = base.GetFileAddress() + (tls.StartAddressOfRawData - image);
++  if (tls_file_addr < start)
++    return LLDB_INVALID_ADDRESS;
++  return storage + (tls_file_addr - start);
++}

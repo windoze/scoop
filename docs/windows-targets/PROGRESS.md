@@ -78,7 +78,7 @@ PCRE2 10.49、OpenSSL 3.5.9、uriparser 1.0.2、Rust 文本后端、Zstandard、
 
 所有宿主公开 `bin` 中的 LLVM／LLDB 命令统一带 `scoop-` 前缀；编译器相邻调试工具查找、VS Code 默认 adapter、性能分析脚本与文档已同步。Windows 主驱动仍为 `sco.exe`，其他宿主仍为 `scoop`。Windows launcher 的 Unicode／空格路径迁移、参数、环境、退出码及公开文件名集合通过真实子进程验证；POSIX launcher 用例按宿主跳过。VS Code 16 项测试、相关源码 lint／类型检查、workspace Clippy、7 项性能分析规则和 4 项 DLL 打包测试通过，VSIX 已重新生成；整个 tooling 的 Markdown 格式检查仍有既有差异。
 
-真实调试器包迁移到中文与空格目录、仅保留发行 bin 和 Windows 系统 PATH 后，6 个 LLVM 命令、LLDB 的私有 Python／原生模块／formatter 与 DAP initialize 均通过。完整源码调试会话已能启动程序并命中断点，但 Windows PDB 的函数名和部分断点行为尚未通过跨平台 DAP 断言，仍需闭合。
+真实调试器包迁移到中文与空格目录、仅保留发行 bin 和 Windows 系统 PATH 后，6 个 LLVM 命令、LLDB 的私有 Python／原生模块／formatter 与 DAP initialize 均通过。MSVC/PDB 完整 launch 会话的源码映射、函数名、断点／单步、参数、全局／修改后的 TLS、String／数组／enum／对象、闭包及 moving GC 引用检查通过；离线原生符号名／源码名断点与真实类型布局检查通过。修复 CodeView 的 uintptr 编码、PDB reader 的零大小字段丢失和 TLS 模板误读；CodeView 无法描述的部分计算值／聚合分片仍显示 unavailable，不加入调试专用存储或保活。4 项后端调试测试与 workspace Clippy 通过。
 
 首个归档已解压到中文及空格路径。在仅含安装 bin 和 Windows 系统目录的 PATH 下，三个目标的默认 SDK／工具发现、new/run/test、C++、console／GUI 和 RC 均通过；检查实际 PE imports 确认所选 CRT。随后修复了 canonical native sysroot 路径，并用更新的程序完成实际安装目录回归。该原型归档不是最终发行物。
 

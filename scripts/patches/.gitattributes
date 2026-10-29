@@ -1,1 +1,2 @@
-*.patch text eol=lf
+# Unified diff context represents blank source lines with a single space.
+*.patch text eol=lf -whitespace
