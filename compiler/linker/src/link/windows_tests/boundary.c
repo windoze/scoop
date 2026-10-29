@@ -1,5 +1,6 @@
 #include "platform/platform.h"
 #include "scoop_rt.h"
+#include "stack_trace.h"
 #include "startup.h"
 #include "thread.h"
 #include <assert.h>
@@ -67,7 +68,7 @@ static void check_arguments_at_exit(void) {
 
 int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *images, uint64_t count,
                          const ScoopRootEntryDescriptorV1 *entry, int32_t argc,
-                         const char *const *argv) {
+                         const char *const *argv, uint32_t enable_stack_trace) {
     const uint16_t valid[] = {'t', 0};
     const uint16_t raw_high[] = {0xd800, 0};
     const uint16_t raw_low[] = {0xdc00, 0};
@@ -77,9 +78,12 @@ int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *images, uint64_t c
     ++calls;
     if (calls > 1) {
         assert(calls <= 4 && argc == 2 && argv[2] == NULL && strcmp(argv[0], "t") == 0);
+        assert(enable_stack_trace == (uint32_t)(calls == 3));
         saved_raw_arguments[calls - 2] = argv[1];
         return 73;
     }
+    assert(enable_stack_trace == 1);
+    scoop_stack_trace_enabled = true;
     if (setvbuf(stdout, NULL, _IOFBF, 4096) != 0 || setvbuf(stderr, NULL, _IOFBF, 4096) != 0)
         return 99;
     check_loaded_image();
@@ -94,13 +98,13 @@ int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *images, uint64_t c
         return 94;
     if (imported_data != 17 || imported_function(25) != 42 || static_function(39) != 42)
         return 95;
-    if (scoop_rt_run_program_utf16(images, count, entry, 2, raw) != 73)
+    if (scoop_rt_run_program_utf16(images, count, entry, 2, raw, 0) != 73)
         return 96;
     raw[1] = raw_low;
-    if (scoop_rt_run_program_utf16(images, count, entry, 2, raw) != 73)
+    if (scoop_rt_run_program_utf16(images, count, entry, 2, raw, 1) != 73)
         return 97;
     raw[1] = raw_mixed;
-    if (scoop_rt_run_program_utf16(images, count, entry, 2, raw) != 73 || calls != 4)
+    if (scoop_rt_run_program_utf16(images, count, entry, 2, raw, 0) != 73 || calls != 4)
         return 90;
     saved_arguments = argv;
     if (atexit(check_arguments_at_exit) != 0)

@@ -314,6 +314,7 @@ pub enum ForeignCallbackOperation {
         family: ForeignCallbackFamilyId,
         out: TempId,
         callback: Value,
+        invalid_message: GlobalId,
     },
     Failure {
         family: ForeignCallbackFamilyId,

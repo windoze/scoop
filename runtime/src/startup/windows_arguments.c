@@ -54,7 +54,7 @@ static char *copy_argument(HANDLE heap, const uint16_t *text) {
 
 int scoop_rt_run_program_utf16(const ScoopImageDescriptorV1 *const *images, uint64_t image_count,
                                const ScoopRootEntryDescriptorV1 *root_entry, int32_t argc,
-                               const uint16_t *const *argv) {
+                               const uint16_t *const *argv, uint32_t enable_stack_trace) {
     HANDLE heap = GetProcessHeap();
     char **converted = NULL;
     int32_t index = 0;
@@ -83,9 +83,10 @@ int scoop_rt_run_program_utf16(const ScoopImageDescriptorV1 *const *images, uint
             goto failed;
         }
     }
-    /* The coordinator and native shutdown code retain argv for process lifetime. */
+    /* The coordinator and native shutdown code retain argv for process lifetime.
+     */
     return scoop_rt_run_program(images, image_count, root_entry, argc,
-                                (const char *const *)converted);
+                                (const char *const *)converted, enable_stack_trace);
 
 failed:
     for (int32_t item = 0; item <= index; ++item) {

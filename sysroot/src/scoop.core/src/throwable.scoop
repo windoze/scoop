@@ -7,7 +7,11 @@
  */
 @Intrinsic("core_throwable")
 public open class Throwable public constructor() {
-    /** Prints the first throw's physical stack, or reports that no stack was captured. */
+    /**
+     * Prints the first throw's physical stack, or reports that no stack was captured.
+     * With enable-stack-trace disabled, reports that stack traces are unavailable.
+     * Source debug builds enable stack traces by default; release builds disable them.
+     */
     public final fun printStackTrace(): Unit {
         __scoopPrintThrowableStackTrace(this)
     }

@@ -7,6 +7,7 @@
 #include "eh_internal.h"
 #include "gc.h"
 #include "gc_binding/internal.h"
+#include "stack_trace.h"
 #include "startup/internal.h"
 #include "thread.h"
 
@@ -110,12 +111,13 @@ static const ScoopPlatformBundle *require_platform(void) {
 
 int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *images, uint64_t image_count,
                          const ScoopRootEntryDescriptorV1 *root_entry, int32_t argc,
-                         const char *const *argv) {
+                         const char *const *argv, uint32_t enable_stack_trace) {
     if (atomic_flag_test_and_set_explicit(&program_started, memory_order_relaxed)) {
         scoop_startup_fatal("program runtime may only be started once");
     }
     program_argc = argc;
     program_argv = argv;
+    scoop_stack_trace_enabled = enable_stack_trace != 0;
     STARTUP_BEGIN();
     const ScoopPlatformBundle *platform = require_platform();
     ScoopPlatformMetadataImages loaded = {0};

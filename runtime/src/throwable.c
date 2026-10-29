@@ -9,13 +9,11 @@
 #include "thread.h"
 #include "value_shape.h"
 
-void *scoop_rt_prepare_throwable_impl(void *object, const ScoopTypeDescriptor *trace_bytes_td,
-                                      uintptr_t return_pc, uintptr_t stack_pointer,
-                                      uintptr_t frame_pointer) {
-    ScoopThrowable *exception = object;
-    if (__atomic_load_n(&exception->snapshot, __ATOMIC_ACQUIRE) != NULL) {
-        return exception;
-    }
+/* Keep the capture buffer and its stack probe off the disabled/rethrow path. */
+__attribute__((noinline)) static void *prepare_trace(ScoopThrowable *exception,
+                                                     const ScoopTypeDescriptor *trace_bytes_td,
+                                                     uintptr_t return_pc, uintptr_t stack_pointer,
+                                                     uintptr_t frame_pointer) {
     void **slots[] = {(void **)&exception};
     ScoopNativeRootFrame roots;
     scoop_rt_push_native_roots(&roots, slots, 1);
@@ -50,6 +48,17 @@ void *scoop_rt_prepare_throwable_impl(void *object, const ScoopTypeDescriptor *t
     free(trace.bytes);
     scoop_rt_pop_native_roots(&roots);
     return exception;
+}
+
+void *scoop_rt_prepare_throwable_impl(void *object, const ScoopTypeDescriptor *trace_bytes_td,
+                                      uintptr_t return_pc, uintptr_t stack_pointer,
+                                      uintptr_t frame_pointer) {
+    ScoopThrowable *exception = object;
+    if (!scoop_stack_trace_enabled ||
+        __atomic_load_n(&exception->snapshot, __ATOMIC_ACQUIRE) != NULL) {
+        return exception;
+    }
+    return prepare_trace(exception, trace_bytes_td, return_pc, stack_pointer, frame_pointer);
 }
 
 void scoop_rt_throwable_print_stack_trace_impl(void *object, uintptr_t return_pc,

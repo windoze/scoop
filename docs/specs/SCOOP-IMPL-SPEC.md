@@ -518,7 +518,7 @@ TLAB bump 由 codegen GC 层消费同一布局常量与运行时规范 3.1 的�
 
 nursery 容量、full 压力、可选 survivor 与 minor／full 分片标记归 runtime 私有实现（运行时规范 3.1、3.9），不作为 LIR 常量、构建 profile 或 `.slib` 字段导出；现有生成代码继续只消费稳定的 allocation context 与分配慢入口。调整这些策略不重编依赖或改变精确 roots；generated card store 在 mutator 阶段仍只写 1，collector 私有的保留卡状态不进入生成代码。分片之间不移动对象、不并发扫描普通字段，复用已有引用写入屏障记录已发布 owner 的改写；minor 清除扫描卡前保留最终 remembered 回写所需位图，年轻初始化屏障省略的既有证明仍成立。各片继续通过原 safepoint 与根计划停稳／恢复，普通 ABI 消费者无需感知某次暂停是否完成整个周期。
 
-该共享快路径沿用 runtime ABI contract 17 引入的卡组登记，当前统一 contract 为 29，metadata ABI 9 和 `.slib` 容器格式保持。旧 ABI 产物必须按现有 runtime contract 兼容性边界重建；不添加混合布局或运行时全堆扫描的兼容模式。region prefix 和卡组布局由 codegen GC 模块与 runtime 共同实现，LIR 仍只承载完整托管写入及实际 runtime 符号合同。
+该共享快路径沿用 runtime ABI contract 17 引入的卡组登记，当前统一 contract 为 30，metadata ABI 9 和 `.slib` 容器格式保持。旧 ABI 产物必须按现有 runtime contract 兼容性边界重建；不添加混合布局或运行时全堆扫描的兼容模式。region prefix 和卡组布局由 codegen GC 模块与 runtime 共同实现，LIR 仍只承载完整托管写入及实际 runtime 符号合同。
 
 ARM64 默认对 ArraySet 的单引用槽屏障使用已有数组对象基址查询 mapping；按运行时规范 3.1 的 mapping 合同读取 GC 字大小位，选择 small 的 16 MiB 对齐地址或 large 的首行前缀地址，再读取 owner region。只选择地址而不预读两条路径，共用原 region prefix 与登记；实际 card 地址仍取被写入的元素引用槽；一个对象的全部存储属于同一 mapping。多引用值继续使用原范围屏障，不按元素大小推定相邻槽属于同一卡。release 可以按 2.19 提升有界内层中的不变查询；其他 profile 与未命中路径保持原位置的完整操作。x86_64 的直接查询在大数组随机写入中回退，默认保留已有页表生成路径；没有按函数名称选择优化或新增策略开关。
 
@@ -560,6 +560,8 @@ LLVM 在机器发射中由 switch 生成的引用查找表和跳转表同样属�
 ELF 的非合并 `.rodata`（ODR body 为 `.rodata.<primary symbol>`）可以与已有 atom 共享。后端表位于该段前缀，范围止于首个已有 atom 的起点（没有已有 atom 时止于段尾）；后续已有定义保持各自范围，空前缀不产生后端 atom。该前缀沿用 BackendReadOnlyData 子键，与 Singleton 引用表可以同时存在；`.rodata.cst4/8/16` 的数值 literal pool 保持原路径。
 
 已有 CallableCStringIdentity 的 C 字符串直接发射到所选目标的 C 字符串段（Mach-O 的 __TEXT,__cstring 或 ELF 的 .rodata.str1.1），沿用自身的 callable 归属与起止边界，不重复计入后端 .rodata 贡献。该规则同时适用于普通 callable 和 ODR callable；不把任意 byte array 当作 C 字符串。
+
+编译器生成的失败消息（包括 foreign callback 状态解码失败）由 LIR lowering 建立 callable 所属的 CString global，相关指令显式引用它；codegen 沿用该 global 发射调用，不另建缺少 atom 归属的匿名字符串。
 
 Mach-O 的数值跳转表及查找表可以与已有边界的字符串等常量共享 __TEXT,__const，位置可在段首、已有 atom 之间或之后。按代码实际引用的局部符号确定每张无归属表的起点，范围止于下一个被引用的局部表、已有 atom 起点或段尾；已有 atom 内的符号仍按该 atom 处理。表内不含 relocation，其实际 bytes 参与 callable 内容指纹，不把同段的字符串、相邻表或其 relocation 一并归入当前表。局部符号名与物理位置不获得新的语义身份，也不因表不在段首而拒绝正常 LLVM 输出。
 
@@ -706,7 +708,7 @@ Export HIR 的当前目标测试目录按语言规范 16.4 保留 typed class／
 
 测试用途产物在可选 manifest section `org.scoop-lang.manifest/test-directory/1` 中保存该目录的展示投影：容器限定名、用例方法名与完整显示名、各自的 Cone-relative 源码路径及一基行列、忽略原因。目录按前端顺序嵌套保存容器与用例，不通过解析显示名恢复关系；可执行调用仍使用 HIR 中的 typed 引用。该 section 不参与 Compile／Link 的语义要求，受普通 ArtifactFingerprint 覆盖；生产产物不写入，测试产物即使无容器也写入空目录。manifest summary 在读取边界解码并复用该投影，缓存命中不重新发现测试或加载完整 HIR。
 
-入口的四种 ABI 形态、完整签名、root gateway 的实际 C ABI 与定义指纹随各层 typed entry 保留，并进入对应语义／ABI fingerprints 和承载它们的 section profile。Link 投影保留精确 entry、gateway 与 failure-root 引用，使 artifact-only 链接无需源码或名称推断。当前 runtime ABI contract 29、metadata ABI 9 同时进入兼容检查、runtime 与启动对象的构建输入；旧 ABI 的薄接口、物理签名、poll／card／初始化发布／Context 槽合同及产物必须重建或拒绝，不能用缺省字段或 bitcast 混用。contract 20 同时退役无生产消费者的标量格式化、hash、equals 及专用打印 C 入口；沿用现有 runtime 输入更新与 ABI 重建边界，不增加兼容分支。新 ABI 的 debug／release 仍互通；各批次的实际实现与 section 版本见 [M34 记录](../milestone34/PROGRESS.md)。
+入口的四种 ABI 形态、完整签名、root gateway 的实际 C ABI 与定义指纹随各层 typed entry 保留，并进入对应语义／ABI fingerprints 和承载它们的 section profile。Link 投影保留精确 entry、gateway 与 failure-root 引用，使 artifact-only 链接无需源码或名称推断。当前 runtime ABI contract 30、metadata ABI 9 同时进入兼容检查、runtime 与启动对象的构建输入；旧 ABI 的薄接口、物理签名、poll／card／初始化发布／Context 槽合同及产物必须重建或拒绝，不能用缺省字段或 bitcast 混用。contract 20 同时退役无生产消费者的标量格式化、hash、equals 及专用打印 C 入口；沿用现有 runtime 输入更新与 ABI 重建边界，不增加兼容分支。新 ABI 的 debug／release 仍互通；各批次的实际实现与 section 版本见 [M34 记录](../milestone34/PROGRESS.md)。
 
 operator equals 的成员签名、operator 标记、已绑定调用及必要的派生正文使用既有 callable、模板与 exact-type metadata。`Equals<T>.equals` 的显式 conformance、接口 slot、实现和分派适配使用普通 interface metadata；该 slot 使用源码显式声明的 operator 实现，不按结构比较补齐接口，也不保存 Equals 专用的 core protocol 或条件接口规则。
 
@@ -1134,9 +1136,9 @@ Linux gnu 默认 dynamic PIE，musl 默认 static ET_EXEC；musl 可显式 dynam
 
 DSO 依赖查找使用显式 roots、provider 目录、实际 RPATH/RUNPATH 与所选系统目录。真实 SONAME、DT_NEEDED、加载顺序和 RUNPATH 进入 link plan，临时快照路径不写入 executable 的依赖名；同名导出使实际 ELF 顺序无法满足显式库绑定时报告冲突。
 
-链接生成 `int main(int argc, char **argv)`、最终 image descriptors、六张 producer pointer tables、image pointer array 与唯一 root entry 引用。C main 按运行时规范 2.8 调用 `scoop_rt_run_program(images, image_count, root_entry, (int32_t)argc, (const char *const *)argv)`，原样返回其 C int 结果，不丢弃 argv[0] 或主动截断退出码。这些生成物只引用所选记录，不复制 TD、storage、cell 或 gateway body，也不在 C main 中构造 managed Array/String。`scoop_td_String` 是实际 String TD 的同地址 alias。
+链接生成 `int main(int argc, char **argv)`、最终 image descriptors、六张 producer pointer tables、image pointer array 与唯一 root entry 引用。C main 按运行时规范 2.8 调用 `scoop_rt_run_program(images, image_count, root_entry, (int32_t)argc, (const char *const *)argv, enable_stack_trace)`，末尾常量由 2.21 的链接选项确定。main 原样返回其 C int 结果，不丢弃 argv[0] 或主动截断退出码。这些生成物只引用所选记录，不复制 TD、storage、cell 或 gateway body，也不在 C main 中构造 managed Array/String。`scoop_td_String` 是实际 String TD 的同地址 alias。
 
-ResolvedLinkPlan 使用 `scoop-resolved-link-plan-v4`，覆盖 root/依赖、Code 与对象内容、runtime/native/startup 输入、ODR 选择、最终 image 内容、系统 providers、库绑定、archive members、加载路径、工具配置和有序操作。物化与输出 locator 不进入内容身份，实际 install name/runpath 与普通符号保留策略必须进入。
+ResolvedLinkPlan 使用 `scoop-resolved-link-plan-v5`，覆盖 root/依赖、Code 与对象内容、runtime/native/startup 输入、ODR 选择、最终 image 内容、系统 providers、库绑定、archive members、加载路径、工具配置和有序操作。物化与输出 locator 不进入内容身份，实际 install name/runpath 与普通符号保留策略必须进入。
 
 本次链接按实际 target、symbol、Strong/ODR 选择、startup/image 与 GC/EH 要求生成程序，native linker 不能改选另一份 ODR 实现。工具成功后普通 rename 发布并保存链接结果，不重新读取刚生成的 executable 完整复核生产过程。目标装载格式与执行位属于输出工作；后端、链接与 GC 合同由针对性程序／结构测试验证，不成为每次发布和命中的重放阶段。失败不发布部分文件。
 
@@ -1203,7 +1205,7 @@ codegen 在现有 typed call 合同检查后展开普通 byte-length／byte-at�
 
 LIR 的非零 boxed descriptor 同时保留选定 shape 的 payload offset，供 codegen 消费既有布局结果；不重新推导目标布局，也不增加持久 wire 字段。typed UnboxValue 生成 TD 相等的快速路径与原 leaf 慢路径：快速路径从 AS1 对象地址向已有 typed local 复制完整 payload 字节（包含 padding），ZST 不产生虚假存储。非 exact 的 enum 父整数解箱继续由慢路径处理。普通优化、最终根计划和 RS4GC 顺序保持；不把含引用的 payload 指针转成 raw pointer 后跨 GC 使用。
 
-boxed descriptor 同时保存已选 shape 的实例 size／alignment，供所有 profile 的实际装箱复用普通 managed allocation 生成路径；不从名称或表示相似性识别 native 调用，不在 codegen 重建 shape。去掉专用 box C 后备及其 128 B 选择条件，实际 TLAB 完成条件仍由已有分配策略决定。当前实例不超过 128 B 时采用 LLVM memcpy，较大实例使用共享 NoGC memcpy 控制复制代码体积；两者都从已更新的源 place 复制完整 payload。含引用源 place 由 BoxValue 的既有 safepoint root plan 管理，复制前从搬迁后的规范存储重读，复制后按实际年轻分配事实及完整扫描布局执行必要写屏障。全 profile 使用相同物理 box 布局与 ABI；无消费者的 runtime call identity、专属递归根计划投影和 Array clone／Context fork 调用目录项退役，旧 wire tag 不复用。native RecursiveRegion API 保留自己的真实 native 消费者。普通 extern、局部非逃逸 box 消除、真实分配及动态拆箱慢路径保持，详见运行时规范 2.3。该次入口退役由 runtime ABI contract 21 引入，当前统一 contract 28；已有产物与缓存沿当前版本机制重建，无兼容分支。 Context 的 current／enter／leave 降低为两种 typed LIR 指令 TaskContextLoad／TaskContextStore，直接访问既有线程根槽，不再以不存在的 C 函数表示生成操作。snapshot 复用该 load 与既有堆字段读取，restore 复用实际 TaskContext 字段布局和普通 HeapStore／写屏障；不增加 safepoint、对象字段或新的运行配置。
+boxed descriptor 同时保存已选 shape 的实例 size／alignment，供所有 profile 的实际装箱复用普通 managed allocation 生成路径；不从名称或表示相似性识别 native 调用，不在 codegen 重建 shape。去掉专用 box C 后备及其 128 B 选择条件，实际 TLAB 完成条件仍由已有分配策略决定。当前实例不超过 128 B 时采用 LLVM memcpy，较大实例使用共享 NoGC memcpy 控制复制代码体积；两者都从已更新的源 place 复制完整 payload。含引用源 place 由 BoxValue 的既有 safepoint root plan 管理，复制前从搬迁后的规范存储重读，复制后按实际年轻分配事实及完整扫描布局执行必要写屏障。全 profile 使用相同物理 box 布局与 ABI；无消费者的 runtime call identity、专属递归根计划投影和 Array clone／Context fork 调用目录项退役，旧 wire tag 不复用。native RecursiveRegion API 保留自己的真实 native 消费者。普通 extern、局部非逃逸 box 消除、真实分配及动态拆箱慢路径保持，详见运行时规范 2.3。该次入口退役由 runtime ABI contract 21 引入，当前统一 contract 30；已有产物与缓存沿当前版本机制重建，无兼容分支。 Context 的 current／enter／leave 降低为两种 typed LIR 指令 TaskContextLoad／TaskContextStore，直接访问既有线程根槽，不再以不存在的 C 函数表示生成操作。snapshot 复用该 load 与既有堆字段读取，restore 复用实际 TaskContext 字段布局和普通 HeapStore／写屏障；不增加 safepoint、对象字段或新的运行配置。
 
 typed ArrayClone 复用 LIR 已有的源 live root 与完整数组布局。源／目标 element exact type 和 layout 一致时，codegen 从有效源对象读取 count，使用同一 sizing 计算及普通分配路径；唯一原 site 附着于实际分配慢调用，分配后重新加载源根，按 AS1 完整复制元素字节，再执行必要的范围屏障。目标对象使用目标 nominal TD，Array／MutableArray 互转不复用源身份；ZST 不访问 payload。该展开在最终 roots／RS4GC 之前完成，不删除入口／源码循环 poll，不新增 ABI 或跨过程分析。
 
@@ -1407,7 +1409,7 @@ OdrMemberKey 为 `{1=group, 2=role, 3=typed discriminator}`，`OdrMemberId = H("
 
 ### 2.14 Runtime image 与初始化
 
-runtime metadata ABI 9、runtime ABI contract 28 的字段与启动协议由运行时规范 2.7、2.8、9.2 定义。RootEntry 的物理大小为 128 bytes，旧版 ABI 不可混用。每个 `.slib` 的机器对象保存完整候选 registration，metadata 保存链接所需的 identity 与物理归属；最终 image 表只包含选中的 producer records。
+runtime metadata ABI 9、runtime ABI contract 30 的字段与启动协议由运行时规范 2.7、2.8、9.2 定义。RootEntry 的物理大小为 128 bytes，旧版 ABI 不可混用。每个 `.slib` 的机器对象保存完整候选 registration，metadata 保存链接所需的 identity 与物理归属；最终 image 表只包含选中的 producer records。
 
 image、root entry、main body、root gateway、initializer、ensure、startup gateway 和 release hook 使用各自身份。根、cell、storage 和失败状态完整关联，不以可空函数指针或命名约定推断 unit kind。
 
@@ -1988,6 +1990,12 @@ VS Code 扩展通过标准 LSP 客户端启动 `scoop-lsp --stdio`，管理初�
 进程内分析复用和 2.7、2.8 的构建缓存分别按各自实际输入更新，不增加缓存内容复核、源码镜像、来源认证或通用资源计费。语言服务只读取所需的依赖语义 metadata，不为查询进入 MIR／LIR、机器具体化、LLVM 或 native 链接准备。
 
 ### 2.21 异常与 trap 的原生栈诊断
+
+`scoop build/run/test` 接受 `--enable-stack-trace[=true|false]`：无值时为 true，debug 默认 true、release 默认 false，显式值覆盖默认值。它与 `--debug-info`、符号保留及 GC stress 独立；`--debug-info full` 不隐式打开 release 的栈快照。仅消费机器产物的 `scoop link`／`scoop-link` 接受同一显式开关，默认关闭；这些入口没有源码构建 profile，不额外读取 Compile 数据或扩充 `.slib` 来猜测默认值。仅生成 `.slib` 时不固化此选项。
+
+开关属于最终链接输入：有效布尔值进入 executable 更新键及生成的 startup 调用，startup 源码已进入 ResolvedLinkPlan 指纹。切换选项仅重新链接，源码编译和预编译库沿原输入更新规则复用；不向 HIR／MIR／LIR 复制配置，不增加协议／`.slib` 编码或 runtime 构建变体。启动入口新增 `uint32_t enable_stack_trace` 参数，runtime ABI contract 从 29 升至 30，metadata ABI 仍为 9，首次更新按正常 ABI 边界配套重建。
+
+所有已编译的 throw 仍保留 typed 准备调用及其保守 GC 效果，运行时按进程级开关决定是否执行下述采集；关闭时直接返回原对象。`printStackTrace()`、未捕获异常、语言 trap 及 compiler fatal 按运行时规范 5.6 输出不可用提示，传播和终止行为保持原合同。
 
 语言规范 11.7 的 Throwable 使用实际 core intrinsic class 声明，仍可作为普通 class 的基类。HIR 确定它的 nominal identity、继承关系、构造与 printStackTrace 操作；MIR 保留封闭的表示／操作类别，LIR 给出运行时规范 5.6 的 24-byte 基类前缀、完整派生布局和 GC scan。不能只把 Exception 特化而遗漏直接继承 Throwable 的 class，也不能按类型显示名或机器符号重新识别该根类型。
 

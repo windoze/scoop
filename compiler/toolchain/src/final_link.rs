@@ -34,9 +34,16 @@ pub struct FinalLinkOptions {
     pub keep_symbols: bool,
     /// Extract existing object debug information into a platform debug file.
     pub emit_debug_file: bool,
+    /// Capture program exception/trap stacks; source builds default by profile.
+    pub enable_stack_trace: Option<bool>,
 }
 
 impl FinalLinkOptions {
+    pub fn stack_trace_enabled(&self, optimization: scoop_lir::OptimizationMode) -> bool {
+        self.enable_stack_trace
+            .unwrap_or(optimization == scoop_lir::OptimizationMode::Debug)
+    }
+
     fn native_roots(&self, target: LirTargetProfile) -> Result<Vec<PathBuf>, ToolchainError> {
         let sysroot = crate::configured_sysroot_root(self.sysroot.clone())?;
         let root =
@@ -225,4 +232,22 @@ impl WireEncode for ValidatedFinalLinkProfile {
 
 fn error(value: impl std::fmt::Display) -> ToolchainError {
     ToolchainError(format!("final-link toolchain: {value}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scoop_lir::OptimizationMode::{Debug, Release};
+
+    #[test]
+    fn stack_trace_defaults_follow_profile_and_allow_explicit_overrides() {
+        let mut options = FinalLinkOptions::default();
+        assert!(options.stack_trace_enabled(Debug));
+        assert!(!options.stack_trace_enabled(Release));
+        for enabled in [false, true] {
+            options.enable_stack_trace = Some(enabled);
+            assert_eq!(options.stack_trace_enabled(Debug), enabled);
+            assert_eq!(options.stack_trace_enabled(Release), enabled);
+        }
+    }
 }

@@ -1,6 +1,7 @@
 #ifndef SCOOP_STACK_TRACE_H
 #define SCOOP_STACK_TRACE_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -9,6 +10,10 @@
 #define SCOOP_TRACE_MAX_FRAMES 128
 #define SCOOP_TRACE_MAX_ID 64
 #define SCOOP_TRACE_NO_MODULE UINT32_MAX
+#define SCOOP_TRACE_DISABLED_MESSAGE "  <stack trace unavailable: disabled>\n"
+
+/* Set once by program startup, before managed code or worker threads run. */
+extern bool scoop_stack_trace_enabled;
 
 enum {
     SCOOP_TRACE_TRUNCATED = 1,

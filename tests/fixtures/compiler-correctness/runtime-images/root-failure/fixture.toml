@@ -52,5 +52,5 @@ checks = [{"actual" = "${program.result.dependencies.length}", "equals" = 2}]
 name = "run"
 argv = ["${program.result.output}"]
 stdout = ""
-stderr = {regex = "scoop:\\ uncaught\\ exception:\\ n\\(c=scoop%3Ascoop\\.core%3A0\\.1\\.0;p=;o=\\-;k=C;x=IllegalStateException\\)\\\n(?:  at [^\\n]+\\n)+(?:  <[^\\n]+>\\n)*"}
+stderr = {regex = "scoop:\\ uncaught\\ exception:\\ n\\(c=scoop%3Ascoop\\.core%3A0\\.1\\.0;p=;o=\\-;k=C;x=IllegalStateException\\)\\\n  <stack trace unavailable: disabled>\\n"}
 exit = 1

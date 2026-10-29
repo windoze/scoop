@@ -21,4 +21,4 @@ name = "run"
 argv = ["${build.result.output}"]
 exit = 1
 stdout = ""
-stderr = {regex = "scoop:\\ uncaught\\ exception:\\ n\\(c=scoop%3Ascoop\\.core%3A0\\.1\\.0;p=;o=\\-;k=C;x=IllegalStateException\\)\\ during\\ initialization\\ of\\ top\\-level:failed\\\n(?:  at [^\\n]+\\n)+(?:  <[^\\n]+>\\n)*"}
+stderr = {regex = "scoop:\\ uncaught\\ exception:\\ n\\(c=scoop%3Ascoop\\.core%3A0\\.1\\.0;p=;o=\\-;k=C;x=IllegalStateException\\)\\ during\\ initialization\\ of\\ top\\-level:failed\\\n  <stack trace unavailable: disabled>\\n"}

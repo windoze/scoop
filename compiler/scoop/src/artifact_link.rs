@@ -97,6 +97,7 @@ pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
         scoop_linker::ProgramLinkOptions {
             keep_symbols: request.final_link.keep_symbols,
             emit_debug_file: request.final_link.emit_debug_file,
+            enable_stack_trace: request.final_link.enable_stack_trace.unwrap_or(false),
         },
         &request.library_paths,
         &directory.path().join(

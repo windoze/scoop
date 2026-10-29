@@ -101,5 +101,10 @@ LLDB 自动导入只读 Scoop formatter，提供 String、数组和当前 enum �
 `scoop.debug.adapterPath` 和 `scoop.debug.compilerPath`。源码映射使用
 `sourceMap: [["/original/root", "/local/root"]]`。完整 Scoop 表达式求值和协程逻辑栈不在本版范围。
 
-Throwable 首次 throw 会保存历史物理栈，重抛保留原快照；`printStackTrace()`、未捕获异常和 trap
-打印带模块身份的栈。有调试文件时显示源码函数与行号，否则保留地址。该记录不保存局部值或堆快照。
+`scoop build/run/test --enable-stack-trace[=true|false]` 控制异常与 trap 的栈诊断，debug 默认开启、
+release 默认关闭；仅消费产物的 `scoop link`／`scoop-link` 默认关闭，可显式开启。这个链接开关
+与 `--debug-info` 独立：发布程序可用 `--release --enable-stack-trace --debug-info=line-tables`
+同时保留优化与源码栈。开启时 Throwable 首次 throw 保存历史物理栈，重抛保留原快照；
+`printStackTrace()`、未捕获异常和 trap 打印带模块身份的栈。有调试文件时显示源码函数与行号，
+否则保留地址；关闭时不捕获快照，打印 `  <stack trace unavailable: disabled>`。
+切换开关只需重新链接，预编译库也遵循程序的设置。该记录不保存局部值或堆快照。

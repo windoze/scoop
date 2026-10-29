@@ -61,6 +61,7 @@ elif mode == "typed":
                 f"invalid UTF-8 in argv[{index}]\n"
                 "scoop: uncaught exception: n(c=scoop%3Ascoop.core%3A0.1.0;"
                 "p=;o=-;k=C;x=CharacterCodingException)\n"
+                "  <stack trace unavailable: disabled>\n"
             ).encode("ascii")
             assert result.stderr == expected, result.stderr
 elif mode == "cli":

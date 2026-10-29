@@ -8,6 +8,8 @@
 
 由程序自身的 runtime 采集和打印栈，运行时不依赖 LLDB、lldb-dap 或外部符号化进程。
 
+`scoop build/run/test --enable-stack-trace[=true|false]` 控制整个程序：debug 默认打开，release 默认关闭，与 `--debug-info` 正交。仅消费机器产物的 `scoop link`／`scoop-link` 默认关闭，可显式打开。配置由最终链接生成的 startup 参数传入，所有预编译库遵循同一值；切换只重新链接，不增加 `.slib` 字段或 runtime 构建变体。下图及采集流程描述开启时的行为；关闭时 Throwable 准备直接返回原对象，打印类型／trap 原因后输出 `  <stack trace unavailable: disabled>`。
+
 - Throwable 成为可继承的 intrinsic class，持有一份私有 managed 栈快照，并提供 `public final fun printStackTrace(): Unit`。
 - Exception 保持普通 open 子类，现有 `message: String?` 和构造接口不变；直接继承 Throwable 的自定义异常同样获得能力。
 - 首次 throw 前保存物理地址快照，后续重抛、catch 保存、callback、初始化失败及协程传播保留它；打印时才读取符号／调试文件。

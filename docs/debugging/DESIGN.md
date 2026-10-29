@@ -20,7 +20,7 @@
 
 2026-10-29 本轮实施范围为第 12 节 A～C、Throwable 历史栈快照和 trap 栈打印，并完成发行包中的 LLDB / lldb-dap 及运行依赖、Python formatter 和 VS Code 集成。协程逻辑栈在基础链路完成后评估实际映射与工具复杂度；完整求值、managed 赋值和 GC 感知数据断点留待后续阶段。本地全部功能完成后，再在独立 Linux checkout 验证 GNU／musl，使用定向编译器与工具协议用例，不反复执行无关的完整测试套件。
 
-程序自身的异常／trap stack trace 是相关的独立能力：Throwable 在首次抛出时保存快照，printStackTrace 和未捕获报告读取原栈，trap 即时采集并打印。采集不依赖 LLDB 或 DWARF；源码符号化复用本设计的调试文件。其布局、GC、符号器与实施顺序见 [栈诊断设计](STACK_TRACES.md)。
+程序自身的异常／trap stack trace 是相关的独立能力，由 `--enable-stack-trace[=true|false]` 控制，源码构建 debug 默认开启、release 默认关闭。开启时 Throwable 在首次抛出时保存快照，printStackTrace 和未捕获报告读取原栈，trap 即时采集并打印；关闭时不采集，打印不可用提示。采集不依赖 LLDB 或 DWARF；源码符号化复用本设计的调试文件。其布局、GC、符号器与实施顺序见 [栈诊断设计](STACK_TRACES.md)。
 
 Windows target、COFF、调用 ABI、runtime、GC / EH 与链接支持由 [Windows 移植](../windows-targets/DESIGN.md)实现；调试信息复用本设计的共享源码记录，选择 CodeView／PDB 后端。实际 Windows 验收范围和剩余工作见[实施进度](../windows-targets/PROGRESS.md)。
 

@@ -115,6 +115,12 @@ impl GlobalReferences {
             | Instruction::GlobalAddress { global, .. } => {
                 self.globals.insert(*global);
             }
+            Instruction::ForeignCallbackOperation(scoop_lir::ForeignCallbackOperation::State {
+                invalid_message,
+                ..
+            }) => {
+                self.globals.insert(*invalid_message);
+            }
             Instruction::StringConcat {
                 descriptor,
                 overflow_message,

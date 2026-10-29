@@ -72,7 +72,7 @@ fn source<'a>(
 
 #[test]
 fn metadata_uses_unsaved_workspace_and_path_manifests_without_persisting_them() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
     let root = directory.path();
     core(root);
     let workspace = root.join("Cone.toml");
@@ -147,7 +147,7 @@ fn metadata_uses_unsaved_workspace_and_path_manifests_without_persisting_them() 
 
 #[test]
 fn members_discover_unsaved_manifests_and_report_buffer_locations_without_a_lock() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
     let root = directory.path();
     let workspace = root.join("Cone.toml");
     let original = "schema=1\n[workspace]\nmembers=[]\n";

@@ -221,7 +221,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             .expect("failure query returns a nullable managed reference");
                         self.temps.insert(out, value);
                     }
-                    scoop_lir::ForeignCallbackOperation::State { out, .. } => {
+                    scoop_lir::ForeignCallbackOperation::State {
+                        out,
+                        invalid_message,
+                        ..
+                    } => {
                         let state = self.gc_leaf_fn(
                             scoop_lir::RuntimeAbiSymbolV1::CallbackState.logical_symbol(),
                             context.i32_type().fn_type(&[ptr_ty(context).into()], false),
@@ -266,19 +270,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 .void_type()
                                 .fn_type(&[ptr_ty(context).into()], false),
                         );
-                        let reason = builder
-                            .build_global_string_ptr(
-                                "invalid callback state",
-                                "callback_state_reason",
-                            )
-                            .map_err(|error| {
-                                CodegenError(format!("callback state reason: {error}"))
-                            })?;
-                        let call = builder
-                            .build_call(trap, &[reason.as_pointer_value().into()], "")
-                            .map_err(|error| {
-                                CodegenError(format!("trap invalid callback state: {error}"))
-                            })?;
+                        let reason = self.value(Value::Global(invalid_message))?;
+                        let call =
+                            builder
+                                .build_call(trap, &[reason.into()], "")
+                                .map_err(|error| {
+                                    CodegenError(format!("trap invalid callback state: {error}"))
+                                })?;
                         self.mark_stack_trace_site(call);
                         builder.build_unreachable().map_err(|error| {
                             CodegenError(format!("trap invalid callback state: {error}"))

@@ -18,6 +18,7 @@ impl StartupObject {
     pub fn build(
         inputs: &ProgramInputs<'_>,
         profile: &ValidatedFinalLinkProfile,
+        enable_stack_trace: bool,
         directory: &Path,
     ) -> Result<Self, LinkError> {
         let mut source = String::from("#include <stddef.h>\n#include <stdint.h>\n");
@@ -46,10 +47,12 @@ impl StartupObject {
                 })
                 .collect(),
             profile,
+            enable_stack_trace,
             directory,
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn build_source(
         mut source: String,
         image_count: usize,
@@ -57,6 +60,7 @@ impl StartupObject {
         mut references: BTreeSet<String>,
         definitions: BTreeSet<String>,
         profile: &ValidatedFinalLinkProfile,
+        enable_stack_trace: bool,
         directory: &Path,
     ) -> Result<Self, LinkError> {
         source.push_str(&format!(
@@ -74,11 +78,11 @@ impl StartupObject {
         } else {
             ("main", "scoop_rt_run_program", "char")
         };
-        source.push_str(&format!("extern int {runtime}(const ScoopImageDescriptorV1 *const *, uint64_t, const ScoopRootEntryDescriptorV1 *, int32_t, const {argument_type} *const *);\n\n__attribute__((used, section(\"{section}\")))\nstatic const ScoopImageDescriptorV1 *const scoop_program_images[] = {{\n"));
+        source.push_str(&format!("extern int {runtime}(const ScoopImageDescriptorV1 *const *, uint64_t, const ScoopRootEntryDescriptorV1 *, int32_t, const {argument_type} *const *, uint32_t);\n\n__attribute__((used, section(\"{section}\")))\nstatic const ScoopImageDescriptorV1 *const scoop_program_images[] = {{\n"));
         for index in 0..image_count {
             source.push_str(&format!("    &image_{index},\n"));
         }
-        source.push_str(&format!("}};\n\nint {entry}(int argc, {argument_type} **argv) {{\n    return {runtime}(scoop_program_images, sizeof(scoop_program_images) / sizeof(scoop_program_images[0]), &root_entry, argc, (const {argument_type} *const *)argv);\n}}\n"));
+        source.push_str(&format!("}};\n\nint {entry}(int argc, {argument_type} **argv) {{\n    return {runtime}(scoop_program_images, sizeof(scoop_program_images) / sizeof(scoop_program_images[0]), &root_entry, argc, (const {argument_type} *const *)argv, {});\n}}\n", u32::from(enable_stack_trace)));
         let source_path = directory.join("startup.c");
         let object = directory.join("startup-compiled.o");
         std::fs::write(&source_path, &source).map_err(error)?;

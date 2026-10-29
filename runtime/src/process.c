@@ -42,14 +42,22 @@ _Noreturn void *scoop_rt_exit(int32_t code) {
 
 /* Keep the large capture buffer out of the entry that reads its caller PC.
  * Darwin's AArch64 stack probe may clobber LR before a return-address builtin. */
-__attribute__((noinline)) static _Noreturn void report_failure(
-    const char *message, uintptr_t caller_pc, int fatal) {
-    ScoopTraceFrames frames;
-    scoop_trace_capture_frames(&frames, caller_pc);
-    scoop_process_prepare_termination();
-    ScoopTraceBuffer trace = scoop_trace_complete(&frames);
+__attribute__((noinline)) static _Noreturn void report_failure(const char *message,
+                                                               uintptr_t caller_pc, int fatal) {
+    ScoopTraceBuffer trace = {0};
+    if (scoop_stack_trace_enabled) {
+        ScoopTraceFrames frames;
+        scoop_trace_capture_frames(&frames, caller_pc);
+        scoop_process_prepare_termination();
+        trace = scoop_trace_complete(&frames);
+    } else {
+        scoop_process_prepare_termination();
+    }
     fprintf(stderr, "scoop: %s: %s\n", fatal ? "fatal" : "trap", message);
-    scoop_trace_render(trace.bytes, stderr);
+    if (scoop_stack_trace_enabled)
+        scoop_trace_render(trace.bytes, stderr);
+    else
+        fputs(SCOOP_TRACE_DISABLED_MESSAGE, stderr);
     free(trace.bytes);
     if (fatal)
         abort();

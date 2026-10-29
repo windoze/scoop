@@ -249,6 +249,9 @@ pub(super) struct NativeOptions {
     /// Produce a .dSYM bundle or .debug file from existing object debug information.
     #[arg(long)]
     pub emit_debug_file: bool,
+    /// Capture exception/trap stacks; debug defaults to true, release and link to false.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true", require_equals = true)]
+    pub enable_stack_trace: Option<bool>,
 }
 
 #[derive(Clone, Copy, ValueEnum)]

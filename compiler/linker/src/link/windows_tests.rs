@@ -313,7 +313,7 @@ fn validate_pe(profile: &ValidatedFinalLinkProfile, scratch: &Path) {
         native,
         windows_subsystem: scoop_identity::WindowsSubsystem::Console,
     };
-    let startup = StartupObject::build(&inputs, profile, scratch).unwrap_or_else(|error| {
+    let startup = StartupObject::build(&inputs, profile, true, scratch).unwrap_or_else(|error| {
         let info = NativeObjectInfo::read_with_toolchain(
             &std::fs::read(scratch.join("startup-compiled.o")).unwrap(),
             profile.startup_toolchain().profile(),
