@@ -1,6 +1,8 @@
 # 安装包布局与编辑器扩展
 
-Windows 工具包的主驱动安装为 `sco.exe`，例如 `sco build`、`sco run`、`sco pm` 和 `sco example`，避免与 Windows Scoop 包管理器重名。其他可执行程序保留原名，外部命令仍为 `scoop-<command>.exe`。macOS／Linux 的主驱动继续使用 `scoop`，交叉编译目标不影响宿主命令名称。
+Windows 工具包的主驱动安装为 `sco.exe`，例如 `sco build`、`sco run`、`sco pm` 和 `sco example`，避免与 Windows Scoop 包管理器重名。其他 Scoop 可执行程序保留原名，外部命令仍为 `scoop-<command>.exe`。macOS／Linux 的主驱动继续使用 `scoop`，交叉编译目标不影响宿主命令名称。
+
+Windows 包包含 Microsoft UCRT、LLVM-MinGW MSVCRT 和 LLVM-MinGW UCRT 三套独立目标资源。`Cone.toml` 的 `[windows]` 支持 `subsystem = "console" | "gui"`（默认 console）和可选的 `rc` 资源脚本。Windows 调试使用相邻 PDB；随包 LLDB 在 PE 同时包含 CRT DWARF 时优先使用匹配 PDB。当前 runtime ABI 为 30，编译器、runtime 与预编译系统库须配套更新。数学库保留所选系统库的行为，平台差异见库文档。
 
 完整构建入口为 `scripts/package_toolchain.py`。工具包现以安装根内容为归档顶层，可直接解压到 `~/.scoop`，不再包含额外版本目录。安装根新增 `VERSION`，记录发行版本、源码 revision 与宿主平台；`tooling/` 包含同次构建的 VS Code 扩展 VSIX。Darwin 包交付 Darwin/AArch64 资源，Linux 包交付 GNU／musl 两套资源；系统库默认从 `lib/<target-triple>/*.slib` 读取，空缓存及 debug 应用不会触发系统库重编。
 

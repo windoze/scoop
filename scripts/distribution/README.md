@@ -14,11 +14,21 @@ scoop --version
 
 归档内没有额外的版本目录、`.scoop` 或 `sysroot` 层，无需 `--strip-components`。五个命令通过实际执行文件定位相邻资源，也支持正常软链接启动。也可解压到其他安装根；移动整个目录后可以直接继续使用。
 
-安装根的 `VERSION` 第一行为发行版本，随后记录源码 revision 与宿主平台。`scoop --version`、`scoopc --version`、`scoop-link --version`、`scoop-lsp --version`、`scoop-pm --version` 显示同一份发行版本和源码 revision。此目录中的 `toolchain.toml` 列出宿主、目标、内置 Cone、native 版本、VSIX 和编程 skill 路径；它只说明包内容，不是命令启动时的验证清单。
+安装根的 `VERSION` 第一行为发行版本，随后记录源码 revision 与宿主平台。`scoop --version`、`scoopc --version`、`scoop-link --version`、`scoop-lsp --version`、`scoop-pm --version` 显示同一份发行版本和源码 revision。`share/scoop/toolchain.toml` 列出宿主、目标、内置 Cone、native 版本、VSIX 和编程 skill 路径；它只说明包内容，不是命令启动时的验证清单。
 
 Darwin/AArch64 包要求声明版本的 macOS、Xcode 或 Command Line Tools、Apple Clang、macOS SDK 和系统 linker。Linux/GNU amd64 包要求声明版本的 glibc、GCC、GNU ld 和开发文件；生成 musl 程序还需要 musl-gcc 与匹配的 musl 开发文件。GNU 宿主工具不承诺在纯 musl 系统运行。native C++ 另需配套 clang++／g++ 与标准库；musl C++ 不在当前范围。
 
 Windows x64 包的最低版本以 `toolchain.toml` 为准，包含宿主 Clang／LLD／RC 工具、三个 Windows target 的系统库与 runtime，以及两个 LLVM-MinGW CRT 的 x86-64 开发资源。默认 MSVC UCRT 目标需要本机 C++ Build Tools 和 Windows SDK，或显式 `--native-sysroot` 所指的 `msvc.toml`；不要求完整 Visual Studio IDE。两个 MinGW 目标可直接使用随包资源，例如 `sco run --target x86_64-w64-windows-llvm-mingw-ucrt main.scoop`。应用开发不需要维护构建使用的 Rust、CMake、Perl 或 MSYS。native MSVC C++ 应用按实际依赖部署 VCRuntime／MSVC STL DLL。
+
+Windows 应用可在 `Cone.toml` 中选择 GUI 子系统并嵌入资源：
+
+```toml
+[windows]
+subsystem = "gui"
+rc = "app.rc"
+```
+
+`subsystem` 可为 `console` 或 `gui`，缺省为 `console`；`rc` 是可选的、相对 Cone 根目录的资源脚本路径。构建使用所选 Windows toolchain 的资源编译器，随包工具可直接使用，也可采用外部工具链提供的编译器。
 
 内置库以 release 预编译，debug 和 release 应用都直接使用 `~/.scoop/lib/<target-triple>/*.slib`；当前应用需要的泛型实例仍正常生成。空缓存也不触发系统库重编。普通 build、run、test 和 link 不重新编译内置 Cone 或 runtime。应用构建缓存和输出写到各自正常位置，安装目录无需可写。显式 `--sysroot` 或环境变量 `SCOOP_SYSROOT` 会覆盖默认安装根；使用安装包时不需要设置这两项。
 
@@ -82,7 +92,7 @@ scoop build my-cone --target x86_64-unknown-linux-musl
 
 `scoop.idna`、`scoop.url`、`scoop.charset` 和 `scoop.compression` 也可分别作为普通依赖使用。IDNA 和 NFC 使用 Rust ICU4X，不要求 ICU4C 或 C++；URL、文本和压缩所需的 native 静态库、头文件、源码与许可已经随工具包提供。压缩的同步与异步流共用一个 Cone。
 
-`scoop.regex` 提供 PCRE2 原生模式语法，使用独立的 PCRE2-8 C 静态库。其三个目标的 archive、头文件与许可已随包提供，应用无需另行安装 PCRE2 或 Rust。查询、替换、分割、Unicode 标量索引和 close/use 的说明见 `src/scoop.regex/README.md`。
+`scoop.regex` 提供 PCRE2 原生模式语法，使用独立的 PCRE2-8 C 静态库。各发行目标的 archive、头文件与许可已随包提供，应用无需另行安装 PCRE2 或 Rust。查询、替换、分割、Unicode 标量索引和 close/use 的说明见 `src/scoop.regex/README.md`。
 
 Darwin 默认最低版本由发行配置确定；`MACOSX_DEPLOYMENT_TARGET` 可显式选择兼容的部署版本。默认 runtime 的最低要求不能高于所选版本。较老系统的支持必须另经实际验证，不能通过降低此变量得到保证。
 
