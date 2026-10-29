@@ -1,0 +1,101 @@
+package scoop.window
+
+/** An owned display snapshot; desktop coordinates do not use a window's DPI. */
+public struct Monitor(
+    val id: MonitorId,
+    val name: String?,
+    val desktopBounds: DesktopRect?,
+    val physicalSize: PhysicalSize,
+    val scaleFactor: Double,
+    val refreshRateMilliHertz: Long?
+)
+
+/** Enumerates the displays currently reported by the native window system. */
+public fun ActiveApplication.monitors(): Array<Monitor> = owner.refreshMonitors()
+
+/** Returns the display owning the desktop origin, when one is available. */
+public fun ActiveApplication.primaryMonitor(): Monitor? {
+    owner.refreshMonitors()
+    for (record in owner.monitorRecords)
+        if (record.primary)
+            return Some(record.monitor)
+    return None
+}
+
+/** Returns the display currently associated with this native window. */
+public fun Window.currentMonitor(): Monitor? {
+    owner.requireOpen()
+    owner.application.refreshMonitors()
+    @Unsafe
+    {
+        val key = nativeCurrentMonitor(owner.pointer!!)
+        for (record in owner.application.monitorRecords)
+            if (record.key == key)
+                return Some(record.monitor)
+    }
+    return None
+}
+
+internal class MonitorRecord(val key: Long, val monitor: Monitor, val primary: Boolean)
+
+internal fun ApplicationOwner.refreshMonitors(): Array<Monitor> {
+    checkThread()
+    if (native == None)
+        throw WindowException("enumerate monitors", WindowErrorKind.InvalidState)
+    val records = ArrayList<MonitorRecord>()
+    val result = ArrayList<Monitor>()
+    @Unsafe
+    {
+        val pointer =
+            nativeMonitors() ?:
+                throw WindowException("enumerate monitors", WindowErrorKind.NativeFailure)
+        try {
+            val count = nativeMonitorsCount(pointer)
+            var index = 0L
+            while (index < count) {
+                val value = nativeMonitorData(pointer, index)
+                val name =
+                    when (value.name) {
+                        case Some(bytes) -> Some(String.fromUtf8(bytes, value.nameLength))
+                        case None -> None
+                    }
+                val monitor =
+                    Monitor(
+                        monitorIdentity(value.key),
+                        name,
+                        Some(
+                            DesktopRect(
+                                DesktopPosition(value.x, value.y),
+                                value.width,
+                                value.height
+                            )
+                        ),
+                        PhysicalSize(value.pixelWidth.toInt(), value.pixelHeight.toInt()),
+                        value.scale,
+                        if (value.refreshMilliHertz > 0L)
+                            Some(value.refreshMilliHertz)
+                        else
+                            None
+                    )
+                records.add(MonitorRecord(value.key, monitor, value.primary != 0L))
+                result.add(monitor)
+                index += 1L
+            }
+        } finally {
+            nativeMonitorsRelease(pointer)
+        }
+    }
+    monitorRecords = records
+    return result.toArray()
+}
+
+private fun ApplicationOwner.monitorIdentity(key: Long): MonitorId {
+    for (record in monitorRecords)
+        if (record.key == key)
+            return record.monitor.id
+    if (nextMonitor == 9223372036854775807L)
+        throw WindowException("monitor identity", WindowErrorKind.NativeFailure)
+    val identity = MonitorId(nextMonitor)
+    nextMonitor += 1L
+    return identity
+}

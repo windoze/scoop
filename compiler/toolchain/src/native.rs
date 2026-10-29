@@ -69,6 +69,7 @@ pub struct PreparedNativeInputs {
     observed_paths: BTreeSet<PathBuf>,
     flags: Vec<String>,
     cxx_flags: Vec<String>,
+    objc_flags: Vec<String>,
     cxx: Option<Digest256>,
     libraries: Vec<scoop_lir::CanonicalNativeLibraryRequirementV1>,
 }
@@ -81,7 +82,7 @@ impl PreparedNativeInputs {
 
 impl WireEncode for PreparedNativeInputs {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.array(5)?;
+        encoder.array(6)?;
         encoder.array(self.units.len() as u64)?;
         for unit in &self.units {
             encoder.array(2)?;
@@ -103,6 +104,10 @@ impl WireEncode for PreparedNativeInputs {
         encoder.array(u64::from(self.cxx.is_some()))?;
         if let Some(fingerprint) = self.cxx {
             fingerprint.encode(encoder)?;
+        }
+        encoder.array(self.objc_flags.len() as u64)?;
+        for flag in &self.objc_flags {
+            encoder.text(flag)?;
         }
         Ok(())
     }

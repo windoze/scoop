@@ -1,0 +1,43 @@
+package scoop.window
+
+import scoop.test.*
+import scoop.platform.concurrent.Thread
+
+internal fun checkMonitorSnapshots(application: ActiveApplication, window: Window) {
+    val first = application.monitors()
+    assertTrue(first.size > 0L)
+    val primary = application.primaryMonitor()!!
+    val current = window.currentMonitor()!!
+    var foundPrimary = false
+    var foundCurrent = false
+    val again = application.monitors()
+    assertEquals(first.size, again.size)
+    var index = 0L
+    for (monitor in first) {
+        assertEquals(monitor.id, again[index].id)
+        assertEquals(monitor.name, again[index].name)
+        assertTrue(monitor.physicalSize.isDrawable)
+        assertTrue(monitor.scaleFactor > 0.0)
+        val bounds = monitor.desktopBounds!!
+        assertTrue(bounds.width > 0.0 && bounds.height > 0.0)
+        when (monitor.refreshRateMilliHertz) {
+            case Some(rate) -> assertTrue(rate > 0L)
+            case None -> {}
+        }
+        if (monitor.id == primary.id)
+            foundPrimary = true
+        if (monitor.id == current.id)
+            foundCurrent = true
+        index += 1L
+    }
+    assertTrue(foundPrimary && foundCurrent)
+    assertEquals(current.scaleFactor, window.metrics!!.scaleFactor)
+    gcCollect()
+    val worker =
+        Thread.start {
+            assertEquals(first[0L].name, again[0L].name)
+            assertEquals(first[0L].physicalSize, again[0L].physicalSize)
+            assertFailsWith<IllegalStateException> { application.monitors() }
+        }
+    worker.join()
+}

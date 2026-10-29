@@ -1,0 +1,115 @@
+package scoop.window
+
+import scoop.test.*
+import scoop.window.native.*
+import scoop.tests.window.exerciseNativeText
+
+internal class ImeProbe {
+    var started = false
+    var enabled = 0
+    var disabled = 0
+    val batches = ArrayList<TextInputBatch>()
+    val keys = ArrayList<KeyEvent>()
+    var text = TextInputState("[]", Utf8Selection(1L, 1L))
+
+    fun start(window: Window, lease: NativeWindowLease) {
+        window.setDecorations(false)
+        window.requestFocus()
+        assertFailsWith<IllegalArgumentException> {
+            window.setImeCursorArea(LogicalRect(LogicalPosition(0.0, 0.0), LogicalSize(-1.0, 2.0)))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            window.setImeCursorArea(
+                LogicalRect(LogicalPosition(1e308, 0.0), LogicalSize(1e308, 2.0))
+            )
+        }
+        window.setImeCursorArea(LogicalRect(LogicalPosition(12.0, 34.0), LogicalSize(2.0, 18.0)))
+        started = true
+        assertEquals(RequestStatus.Applied, window.setImeAllowed(true))
+        window.setImeAllowed(true)
+        @Unsafe
+        {
+            when (lease.handle) {
+                case AppKit(_, view) -> assertEquals(0, exerciseNativeText(view))
+            }
+        }
+        window.setImeAllowed(false)
+        window.setImeAllowed(false)
+        window.setDecorations(true)
+        gcCollect()
+    }
+
+    fun key(value: KeyEvent) {
+        keys.add(value)
+    }
+
+    fun event(value: TextInputEvent) {
+        when (value) {
+            case Enabled -> {
+                assertEquals(0L, batches.size)
+                enabled += 1
+            }
+            case Disabled -> {
+                assertEquals(11L, batches.size)
+                disabled += 1
+            }
+            case Edit(batch) -> {
+                assertEquals(None, batch.baseRevision)
+                batches.add(batch)
+                text = text.apply(batch)
+            }
+        }
+    }
+
+    fun verify() {
+        assertEquals(4L, keys.size)
+        assertEquals(PhysicalKey.Code(KeyCode.ArrowLeft), keys[0L].physicalKey)
+        assertEquals(LogicalKey.Named(NamedKey.ArrowLeft), keys[0L].logicalKey)
+        assertEquals(ElementState.Pressed, keys[0L].state)
+        assertEquals(ElementState.Released, keys[1L].state)
+        assertEquals(PhysicalKey.Code(KeyCode.KeyC), keys[2L].physicalKey)
+        assertTrue(keys[2L].modifiers.superKey)
+        assertEquals(ElementState.Pressed, keys[2L].state)
+        assertEquals(ElementState.Released, keys[3L].state)
+        assertEquals(1, enabled)
+        assertEquals(1, disabled)
+        assertEquals(11L, batches.size)
+        assertEquals("[字aQd]", text.surroundingText)
+        assertEquals(None, text.markedRange)
+        assertEquals(Utf8Selection(7L, 7L), text.selection)
+        assertEquals(11L, text.revision)
+
+        val first = batches[0L].operations
+        assertEquals(4L, first.size)
+        preedit(first[0L], "中😀", Some(Utf8Selection(3L, 7L)))
+        preedit(first[1L], "中文", Some(Utf8Selection(3L, 6L)))
+        commit(first[2L], "字")
+        preedit(first[3L], "글", Some(Utf8Selection(3L, 3L)))
+        preedit(batches[1L].operations[0L], "é😀", Some(Utf8Selection(2L, 6L)))
+        preedit(batches[2L].operations[0L], "", None)
+        preedit(batches[3L].operations[0L], "old", Some(Utf8Selection(3L, 3L)))
+        preedit(batches[4L].operations[0L], "", None)
+        commit(batches[6L].operations[0L], "aQd")
+        preedit(batches[8L].operations[0L], "", None)
+        preedit(batches[10L].operations[0L], "", None)
+        for (index in 1L ..< batches.size)
+            assertEquals(1L, batches[index].operations.size)
+    }
+}
+
+private fun preedit(operation: TextInputOperation, text: String, selection: Utf8Selection?) {
+    when (operation) {
+        case Preedit(actual, selected, TextReplacement.CurrentSelection) -> {
+            assertEquals(text, actual)
+            assertEquals(selection, selected)
+        }
+        else -> fail(Some("expected a native preedit"))
+    }
+}
+
+private fun commit(operation: TextInputOperation, text: String) {
+    when (operation) {
+        case Commit(actual, TextReplacement.CurrentSelection) -> assertEquals(text, actual)
+        else -> fail(Some("expected a native commit"))
+    }
+}

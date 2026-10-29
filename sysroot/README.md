@@ -48,6 +48,8 @@ scoop run --release typed.scoop
 | [scoop.log](src/scoop.log/examples/README.md) | 自定义 provider、写出失败与 best-effort fallback | 独立运行，可关闭子进程 stderr |
 | [scoop.log.console](src/scoop.log.console/examples/README.md) | 入门、级别与惰性求值、格式与位置、异常、配置替换 | stdout／stderr 输出 |
 | [scoop.asyncio](src/scoop.asyncio/examples/README.md) | 并发任务、取消、本机 TCP echo | 使用系统分配的回环端口 |
+| [scoop.window](src/scoop.window/examples/metal/README.md) | AppKit 窗口、输入法、独立 Metal renderer 与显式 native lease | macOS 图形桌面及 Metal 设备 |
+| [scoop.window.asyncio](src/scoop.window.asyncio/examples/README.md) | 窗口标题定时更新、应用任务与 I/O 一同退出 | macOS 图形桌面 |
 | [scoop.charset](src/scoop.charset/examples/README.md) | 严格/有损转码、NFC、字素簇 | 独立运行 |
 | [scoop.idna](src/scoop.idna/examples/README.md) | 国际化域名、原始 Punycode | 独立运行 |
 | [scoop.url](src/scoop.url/examples/README.md) | 相对解析、组件构建、query 与表单 | 独立运行 |

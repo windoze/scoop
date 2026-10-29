@@ -21,6 +21,7 @@ pub struct NativeConfig {
     include: Vec<include::ConditionalInclude>,
     c_flags: Vec<NativeCompileFlag>,
     cxx_flags: Vec<NativeCompileFlag>,
+    objc_flags: Vec<NativeCompileFlag>,
     cxx: bool,
     libraries: Vec<NativeLibrary>,
 }
@@ -43,6 +44,10 @@ impl NativeConfig {
 
     pub fn cxx_flags(&self) -> &[NativeCompileFlag] {
         &self.cxx_flags
+    }
+
+    pub fn objc_flags(&self) -> &[NativeCompileFlag] {
+        &self.objc_flags
     }
 
     pub fn cxx(&self) -> bool {

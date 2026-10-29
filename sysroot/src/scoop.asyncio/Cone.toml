@@ -10,12 +10,12 @@ kind = "library"
 path = "src"
 
 [[sources]]
-path = "platform/darwin"
-when = { os = "darwin" }
-
-[[sources]]
 path = "platform/unix"
 when = { os = ["darwin", "linux"] }
+
+[[sources]]
+path = "platform/darwin"
+when = { os = "darwin" }
 
 [[sources]]
 path = "platform/windows"

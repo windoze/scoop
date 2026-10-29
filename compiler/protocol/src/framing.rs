@@ -409,7 +409,13 @@ mod tests {
             .windows(8)
             .position(|window| window == b"SCOOPREQ")
             .unwrap();
-        version_frame[magic + 9] = 1;
+        let version_start = magic + 9;
+        let mut version_decoder = Decoder::new(&version_frame[version_start..]).unwrap();
+        assert_eq!(version_decoder.u32().unwrap(), crate::PROTOCOL_VERSION);
+        let version_length = usize::try_from(version_decoder.position()).unwrap();
+        version_frame.splice(version_start..version_start + version_length, [1]);
+        let payload_length = u64::try_from(version_frame.len() - FRAME_LENGTH_BYTES).unwrap();
+        version_frame[..FRAME_LENGTH_BYTES].copy_from_slice(&payload_length.to_le_bytes());
         assert!(matches!(
             decode_request_frame(&version_frame),
             Err(ProtocolReadError::Validation(

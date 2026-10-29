@@ -1,0 +1,72 @@
+package scoop.window.asyncio
+
+import scoop.asyncio.*
+import scoop.window.*
+import scoop.window.native.*
+
+/** Runs window business callbacks in the attached asyncio root scope until both owners close. */
+public fun Application.runWithAsyncio(handler: ApplicationHandler) {
+    @Unsafe
+    {
+        runAttached(handler) {
+            host ->
+            val attachment = WindowAttachment(host)
+            attachment.install()
+            attachment
+        }
+    }
+}
+
+/** Returns the active business scope; cleanup notifications have no application scope. */
+public fun currentApplicationScope(): CoroutineScope = applicationScope()
+
+private class ScopeBinding(val scope: CoroutineScope)
+
+context(binding: ScopeBinding)
+private fun applicationScope(): CoroutineScope = binding.scope
+
+private class WindowAttachment(private val host: ApplicationHost): ApplicationAttachment {
+    private var session: EventLoopSession? = None
+    private var cancellation: Disposable? = None
+
+    fun install() {
+        val value = PlatformEventLoop().attach(WindowLoopHost(host)) { error -> closed(error) }
+        session = Some(value)
+        value.post {
+            scope -> cancellation =
+                Some(scope.job.invokeOnCancellation { host.postControl { host.requestExit() } })
+        }
+    }
+
+    public override fun post(block: () -> Unit): Boolean =
+        session!!.post {
+            scope -> context(ScopeBinding(scope)) {
+                block()
+            }
+        }
+
+    public override fun requestClose() {
+        session!!.requestClose()
+    }
+
+    private fun closed(error: Throwable?) {
+        var result = error
+        try {
+            when (cancellation) {
+                case Some(value) -> value.dispose();
+                case None -> {}
+            }
+        } catch (cleanup: Throwable) {
+            result =
+                Some(
+                    when (error) {
+                        case Some(primary) -> ResourceUseException(primary, cleanup);
+                        case None -> cleanup
+                    }
+                )
+        } finally {
+            cancellation = None
+        }
+        host.complete(result)
+    }
+}

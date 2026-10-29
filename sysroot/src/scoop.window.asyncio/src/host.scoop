@@ -1,0 +1,30 @@
+package scoop.window.asyncio
+
+import scoop.asyncio.host.*
+import scoop.window.native.*
+
+/** Adapts the application's actual native host to the asyncio notification contract. */
+public class WindowLoopHost public constructor(private val host: ApplicationHost): EventLoopHost {
+    public override fun isCurrentThread(): Boolean = host.isCurrentThread()
+    /** Installs a borrowed platform notification without an inline ready callback. */
+    @Unsafe
+    public override fun watch(
+        notification: EventLoopNotification,
+        ready: () -> Unit
+    ): EventLoopWatch {
+        return when (notification) {
+            case ReadableDescriptor(descriptor) -> WindowLoopWatch(
+                host.watchReadable(descriptor, ready)
+            )
+            case WindowsEvent(_) -> throw IllegalArgumentException(
+                Some("AppKit requires a readable descriptor")
+            )
+        }
+    }
+}
+
+private class WindowLoopWatch(private val watch: ApplicationWatch): EventLoopWatch {
+    public override fun remove(onRemoved: () -> Unit) {
+        watch.remove(onRemoved)
+    }
+}

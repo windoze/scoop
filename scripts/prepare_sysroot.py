@@ -20,6 +20,22 @@ TARGETS = (
     "x86_64-w64-windows-llvm-mingw-msvcrt",
     "x86_64-w64-windows-llvm-mingw-ucrt",
 )
+TARGET_FACTS = {
+    "aarch64-apple-darwin": {"os": "darwin", "arch": "aarch64", "env": "none"},
+    "x86_64-unknown-linux-gnu": {"os": "linux", "arch": "x86_64", "env": "gnu"},
+    "x86_64-unknown-linux-musl": {"os": "linux", "arch": "x86_64", "env": "musl"},
+    "x86_64-pc-windows-msvc-ucrt": {"os": "windows", "arch": "x86_64", "env": "msvc-ucrt"},
+    "x86_64-w64-windows-llvm-mingw-msvcrt": {
+        "os": "windows",
+        "arch": "x86_64",
+        "env": "llvm-mingw-msvcrt",
+    },
+    "x86_64-w64-windows-llvm-mingw-ucrt": {
+        "os": "windows",
+        "arch": "x86_64",
+        "env": "llvm-mingw-ucrt",
+    },
+}
 
 
 def host_path(carrier):
@@ -42,20 +58,45 @@ def save_record(path, value):
     staged.replace(path)
 
 
-def cone_order(sysroot, work):
+def has_target_sources(manifest, target):
+    sources = manifest.get("sources")
+    if not sources:
+        return True
+    facts = TARGET_FACTS[target]
+    for source in sources:
+        matches = True
+        for key, values in source.get("when", {}).items():
+            if key not in facts:
+                raise ValueError(f"unknown target predicate {key}")
+            if isinstance(values, str):
+                values = [values]
+            if not isinstance(values, list) or any(not isinstance(v, str) for v in values):
+                raise ValueError(f"target predicate {key} requires strings")
+            known = {entry[key] for entry in TARGET_FACTS.values()}
+            if any(value not in known for value in values):
+                raise ValueError(f"unknown target predicate {key} value in {values}")
+            matches = matches and facts[key] in values
+        if matches:
+            return True
+    return False
+
+
+def cone_order(sysroot, work, target):
     manifests = sorted((sysroot / "src").glob("*/Cone.toml"))
     inputs = [metadata(path) for path in manifests]
     inputs.append(metadata(Path(__file__).resolve()))
     record = work / "cones.json"
     if record.exists():
         saved = json.loads(record.read_text())
-        if saved["inputs"] == inputs:
+        if saved.get("target") == target and saved["inputs"] == inputs:
             return saved["order"]
 
     cones, dependencies = {}, {}
     for path in manifests:
         with path.open("rb") as source:
             manifest = tomllib.load(source)
+        if not has_target_sources(manifest, target):
+            continue
         cone = manifest["cone"]
         name = f"{cone['group']}:{cone['name']}"
         if name in cones:
@@ -72,7 +113,7 @@ def cone_order(sysroot, work):
         if name not in cones:
             raise ValueError(f"sysroot dependency {name} has no source Cone")
         order.append(cones[name])
-    save_record(record, {"inputs": inputs, "order": order})
+    save_record(record, {"target": target, "inputs": inputs, "order": order})
     return order
 
 
@@ -191,7 +232,7 @@ def main():
         if value is not None:
             native.extend([flag, str(value)])
 
-    order = cone_order(args.sysroot, work)
+    order = cone_order(args.sysroot, work, args.target)
     publish_files(
         args.runtime_root / "include",
         args.sysroot / "include",

@@ -311,7 +311,7 @@ session 暴露 `loop: EventLoop`、`isClosed: Boolean`、`post(block: (Coroutine
 
 ### 11.3 宿主接入合同
 
-`scoop.asyncio.host.EventLoopHost` 提供 `isCurrentThread()` 与 `@Unsafe watch(notification, ready): EventLoopWatch`。`EventLoopNotification` 是带值枚举：`ReadableDescriptor(Int)` 用于 POSIX，`WindowsEvent(Ptr<Unit>)` 用于 Windows 的 manual-reset event。host 只借用并监听，不读写、重置或关闭通知资源；Windows HANDLE 不缩窄成 Int，也不是 CRT fd。ready 在 owner 线程串行执行，注册时不得内联执行。安装失败不得留下活动监听或回调。
+`scoop.asyncio.host.EventLoopHost` 提供 `isCurrentThread()` 与 `@Unsafe watch(notification, ready): EventLoopWatch`。`EventLoopNotification` 是带值枚举：`ReadableDescriptor(Int)` 用于 POSIX，`WindowsEvent(Ptr<Unit>)` 用于 Windows 的 manual-reset event。host 只借用并监听，不读写、重置或关闭通知资源；Windows HANDLE 不缩窄成 Int，也不是 CRT fd。ready 在 owner 线程串行执行，注册时不得内联执行。安装失败不得留下活动监听或回调。 不支持的通知种类在安装前明确拒绝；旧 watchReadable 接口不保留转发方法。
 
 `EventLoopWatch.remove(onRemoved)` 在 owner 上异步注销，按宿主协议不得抛错；必须等待当前 ready 退出并退休排队通知，再通知移除完成，此后不得再进入 ready。loop 在移除完成前保留通知资源和 callback 上下文。
 

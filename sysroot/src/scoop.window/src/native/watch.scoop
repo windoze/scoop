@@ -1,0 +1,92 @@
+package scoop.window.native
+
+import scoop.window.*
+
+/** A borrowed native notification, retired asynchronously on the owner thread. */
+public class ApplicationWatch internal constructor(
+    private val owner: ApplicationOwner,
+    internal val identity: Long,
+    private val pointer: Ptr<Unit>,
+    private val ready: () -> Unit
+) {
+    internal var removing: Boolean = false
+    private var onRemoved: (() -> Unit)? = None
+    /** Cancels once; completion follows every queued or active ready callback. */
+    public fun remove(onRemoved: () -> Unit) {
+        owner.checkThread()
+        if (removing)
+            return
+        removing = true
+        this.onRemoved = Some(onRemoved)
+        @Unsafe
+        {
+            nativeWatchRemove(pointer)
+        }
+    }
+    internal fun notifyReady() {
+        if (!removing)
+            ready()
+    }
+    internal fun notifyRemoved() {
+        onRemoved!!();
+        onRemoved = None
+    }
+}
+
+@Unsafe
+internal fun ApplicationOwner.installWatch(descriptor: Int, ready: () -> Unit): ApplicationWatch {
+    checkThread()
+    if (exiting || native == None)
+        throw WindowException("install notification", WindowErrorKind.InvalidState)
+    if (nextWatch == 9223372036854775807L)
+        throw WindowException("notification identity", WindowErrorKind.NativeFailure)
+    val identity = nextWatch
+    nextWatch += 1L
+    val(pointer, error) = nativeWatchCreate(native!!, identity, descriptor)
+    val watch =
+        ApplicationWatch(
+            this,
+            identity,
+            pointer ?:
+                throw WindowException(
+                    "install notification",
+                    WindowErrorKind.NativeFailure,
+                    nativeCode = Some(error.toLong())
+                ),
+            ready
+        )
+    watches.add(watch)
+    return watch
+}
+
+internal fun ApplicationOwner.dispatchWatch(identity: Long, stage: Int) {
+    var index = 0L
+    while (index < watches.size) {
+        val watch = watches[index]
+        if (watch.identity == identity) {
+            if (stage == 2)
+                watch.notifyReady()
+            else
+                if (stage == 3) {
+                    watches.removeAt(index)
+                    watch.notifyRemoved()
+                    mailbox.wake()
+                } else
+                    throw WindowException(
+                        "unknown notification stage",
+                        WindowErrorKind.NativeFailure
+                    )
+            return
+        }
+        index += 1L
+    }
+}
+
+@Extern(name = "scoop_window_watch_create", captureErrno = true)
+private fun nativeWatchCreate(application: Ptr<Unit>, identity: Long, descriptor: Int): (
+    Ptr<Unit>?,
+    Int
+)
+
+@Extern(name = "scoop_window_watch_remove")
+private fun nativeWatchRemove(watch: Ptr<Unit>)

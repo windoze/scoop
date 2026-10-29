@@ -1,0 +1,105 @@
+package scoop.window
+
+internal fun applyTextBatch(original: TextInputState, batch: TextInputBatch): TextInputState {
+    original.validate()
+    when (batch.baseRevision) {
+        case Some(value) -> if (value != original.revision)
+            throw IllegalStateException(Some("stale text input revision"))
+        case None -> {}
+    }
+    if (batch.operations.size == 0L)
+        return original
+    requireWindow(original.revision < 9223372036854775807L, "text revision overflow")
+    var state = original
+    for (operation in batch.operations) {
+        state =
+            when (operation) {
+                case ClearPreedit -> TextInputState(
+                    state.surroundingText,
+                    state.selection,
+                    None,
+                    state.caretRect,
+                    state.revision
+                )
+                case Commit(text, replacement) -> replaceText(state, text, replacement, None, false)
+                case Preedit(text, selection, replacement) -> replaceText(
+                    state,
+                    text,
+                    replacement,
+                    selection,
+                    true
+                )
+                case DeleteSurrounding(before, after) -> deleteSurrounding(state, before, after)
+            }
+    }
+    return TextInputState(
+        state.surroundingText,
+        state.selection,
+        state.markedRange,
+        state.caretRect,
+        original.revision + 1L
+    )
+}
+
+private fun replaceText(
+    state: TextInputState,
+    text: String,
+    replacement: TextReplacement,
+    selection: Utf8Selection?,
+    preedit: Boolean
+): TextInputState {
+    val range =
+        when (replacement) {
+            case CurrentSelection -> state.markedRange ?: state.selection.range
+            case Range(value) -> value
+        }
+    checkTextRange(state.surroundingText.toByteArray(), range)
+    val relative = selection ?: Utf8Selection(text.byteLength, text.byteLength)
+    checkTextRange(text.toByteArray(), relative.range)
+    val nextText =
+        textSlice(state.surroundingText, Utf8Range(0L, range.start)) +
+            text +
+            textSlice(state.surroundingText, Utf8Range(range.end, state.surroundingText.byteLength))
+    val end = range.start + text.byteLength
+    val nextSelection =
+        if (preedit)
+            Utf8Selection(range.start + relative.anchor, range.start + relative.cursor)
+        else
+            Utf8Selection(end, end)
+    val marked =
+        if (preedit && text.byteLength > 0L)
+            Some(Utf8Range(range.start, end))
+        else
+            None
+    return TextInputState(nextText, nextSelection, marked, state.caretRect, state.revision)
+}
+
+private fun deleteSurrounding(state: TextInputState, before: Long, after: Long): TextInputState {
+    val range = state.selection.range
+    requireWindow(
+        before >=
+            0L &&
+            after >=
+            0L &&
+            before <=
+            range.start &&
+            after <=
+            state.surroundingText.byteLength -
+            range.end,
+        "invalid surrounding deletion"
+    )
+    val bytes = state.surroundingText.toByteArray()
+    checkTextRange(bytes, Utf8Range(range.start - before, range.start))
+    checkTextRange(bytes, Utf8Range(range.end, range.end + after))
+    val text =
+        textSlice(state.surroundingText, Utf8Range(0L, range.start - before)) +
+            textSlice(state.surroundingText, range) +
+            textSlice(state.surroundingText, Utf8Range(range.end + after, bytes.size))
+    return TextInputState(
+        text,
+        Utf8Selection(state.selection.anchor - before, state.selection.cursor - before),
+        None,
+        state.caretRect,
+        state.revision
+    )
+}

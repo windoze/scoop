@@ -1,0 +1,98 @@
+package scoop.window
+
+/** A position in a window's logical, top-left coordinate system. */
+public struct LogicalPosition(val x: Double, val y: Double)
+
+/** A nonnegative logical content size, validated when used by a window operation. */
+public struct LogicalSize(val width: Double, val height: Double) {
+    /** Computes allocation pixels by rounding each dimension upward. */
+    public fun toPhysical(scaleFactor: Double): PhysicalSize {
+        checkSize(this)
+        checkScale(scaleFactor)
+        return PhysicalSize(pixelExtent(width, scaleFactor), pixelExtent(height, scaleFactor))
+    }
+}
+
+/** A logical rectangle in content coordinates. */
+public struct LogicalRect(val origin: LogicalPosition, val size: LogicalSize)
+
+/** A physical pixel position; subpixel coordinates are preserved. */
+public struct PhysicalPosition(val x: Double, val y: Double)
+
+/** A drawable allocation size in pixels. */
+public struct PhysicalSize(val width: Int, val height: Int) {
+    /** Whether both dimensions allow a render target. */
+    public val isDrawable: Boolean get() = width > 0 && height > 0
+    /** Converts pixels using the scale belonging to the same window snapshot. */
+    public fun toLogical(scaleFactor: Double): LogicalSize {
+        requireWindow(width >= 0 && height >= 0, "negative physical size")
+        checkScale(scaleFactor)
+        return LogicalSize(width.toDouble() / scaleFactor, height.toDouble() / scaleFactor)
+    }
+}
+
+/** A position in the display system's desktop coordinates, independent of window DPI. */
+public struct DesktopPosition(val x: Double, val y: Double)
+
+/** Desktop bounds in the display system's coordinate units. */
+public struct DesktopRect(val origin: DesktopPosition, val width: Double, val height: Double)
+
+/** One complete observed content geometry and backing-scale snapshot. */
+public struct WindowMetrics(
+    val logicalSize: LogicalSize,
+    val physicalSize: PhysicalSize,
+    val scaleFactor: Double
+) {
+    /** Converts a point within this window using this snapshot's scale. */
+    public fun toPhysical(position: LogicalPosition): PhysicalPosition {
+        checkPosition(position)
+        checkScale(scaleFactor)
+        val result = PhysicalPosition(position.x * scaleFactor, position.y * scaleFactor)
+        requireWindow(result.x.isFinite() && result.y.isFinite(), "physical position overflow")
+        return result
+    }
+    /** Converts a pixel point within this window back to logical coordinates. */
+    public fun toLogical(position: PhysicalPosition): LogicalPosition {
+        requireWindow(
+            position.x.isFinite() && position.y.isFinite(),
+            "non-finite physical position"
+        )
+        checkScale(scaleFactor)
+        return LogicalPosition(position.x / scaleFactor, position.y / scaleFactor)
+    }
+}
+
+internal fun requireWindow(condition: Boolean, message: String) {
+    if (!condition)
+        throw IllegalArgumentException(Some(message))
+}
+
+internal fun checkScale(scale: Double) {
+    requireWindow(scale.isFinite() && scale > 0.0, "invalid scale factor")
+}
+
+internal fun checkSize(size: LogicalSize) {
+    requireWindow(
+        size.width.isFinite() && size.height.isFinite() && size.width >= 0.0 && size.height >= 0.0,
+        "invalid logical size"
+    )
+}
+
+internal fun checkPosition(position: LogicalPosition) {
+    requireWindow(position.x.isFinite() && position.y.isFinite(), "non-finite logical position")
+}
+
+internal fun checkRect(rect: LogicalRect) {
+    checkPosition(rect.origin);
+    checkSize(rect.size)
+}
+
+private fun pixelExtent(value: Double, scale: Double): Int {
+    val pixels = value * scale
+    requireWindow(pixels.isFinite() && pixels <= 2147483647.0, "physical size overflow")
+    val floor = pixels.toInt()
+    return if (floor.toDouble() < pixels)
+        floor + 1
+    else
+        floor
+}

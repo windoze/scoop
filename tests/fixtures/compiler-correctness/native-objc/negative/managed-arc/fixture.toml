@@ -1,0 +1,19 @@
+schema = 1
+name = "native-objc-reject-managed-arc"
+inputs = ["cone"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin"]
+tags = ["native", "objc", "negative", "compiler-correctness"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}]
+
+[[steps]]
+name = "reject"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", "--release", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "diagnostics.json"}

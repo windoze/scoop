@@ -20,8 +20,11 @@ impl DynamicInputs {
             self.roots.iter().copied().collect()
         };
         let mut result = Vec::new();
+        let mut definitions = BTreeSet::new();
         for root in roots {
-            if let Some(binding) = self.find(root, symbol, &mut BTreeSet::new())? {
+            if let Some(binding) = self.find(root, symbol, &mut BTreeSet::new())?
+                && definitions.insert((binding.source, binding.source_symbol.clone()))
+            {
                 result.push(binding);
             }
         }

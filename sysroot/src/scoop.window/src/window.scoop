@@ -1,0 +1,149 @@
+package scoop.window
+
+/** Mutable creation attributes, copied before creating the native object. */
+public class WindowAttributes public constructor(
+    public var title: String = "Scoop",
+    public var size: LogicalSize = LogicalSize(800.0, 600.0),
+    public var visible: Boolean = true,
+    public var decorations: Boolean = true,
+    public var resizable: Boolean = true,
+    public var transparent: Boolean = false,
+    public var requestActivation: Boolean = true,
+    public var constraints: WindowSizeConstraints = WindowSizeConstraints(),
+    public var position: DesktopPosition? = None,
+    public var resizeIncrements: LogicalSize? = None,
+    public var buttons: WindowButtons = WindowButtons(),
+    public var level: WindowLevel = WindowLevel.Normal,
+    public var theme: Theme? = None,
+    public var blur: Boolean = false,
+    public var contentProtected: Boolean = false
+) {
+    internal var titlebarFlags: Int = 0
+}
+
+/** An explicitly destroyed native window owned by its application's thread. */
+public class Window internal constructor(internal val owner: WindowOwner) {
+    public val id: WindowId get() = owner.id
+    public val state: WindowState get() {
+        owner.application.checkThread();
+        return owner.phase
+    }
+    public val metrics: WindowMetrics? get() {
+        owner.application.checkThread();
+        return owner.metrics
+    }
+    /** Coalesces a redraw until this window can draw; never calls a handler recursively. */
+    public fun requestRedraw() {
+        owner.requireOpen();
+        owner.dirty = true;
+        owner.application.mailbox.wake()
+    }
+    /** Starts Closing; existing leases delay the eventual Destroyed event. */
+    public fun requestDestroy() {
+        owner.application.checkThread();
+        owner.close()
+    }
+    /** Requests a content size; native geometry notifications report the observed result. */
+    public fun requestSize(size: LogicalSize): RequestStatus {
+        owner.requireOpen();
+        checkSize(size);
+        owner.constraints.check(size)
+        size.toPhysical(1.0)
+        @Unsafe
+        {
+            nativeWindowSize(owner.pointer!!, size.width, size.height)
+        }
+        return RequestStatus.Requested
+    }
+    public fun setTitle(title: String) {
+        owner.requireOpen()
+        @Unsafe
+        {
+            title.withUtf8Bytes {
+                pointer,
+                count -> @Unsafe
+                {
+                    nativeWindowTitle(owner.pointer!!, pointer, count)
+                }
+            }
+        }
+    }
+    public fun setVisible(visible: Boolean): RequestStatus {
+        owner.requireOpen()
+        @Unsafe
+        {
+            nativeWindowVisible(
+                owner.pointer!!,
+                if (visible)
+                    1
+                else
+                    0
+            )
+        }
+        owner.application.mailbox.wake()
+        return RequestStatus.Applied
+    }
+    /** Asks AppKit to activate this window, with focus confirmed by native events. */
+    public fun requestFocus(): RequestStatus {
+        owner.requireOpen()
+        @Unsafe
+        {
+            nativeWindowFocus(owner.pointer!!)
+        }
+        return RequestStatus.Requested
+    }
+    public val isVisible: Boolean get() = owner.snapshot().visible != 0
+    public val isFocused: Boolean get() = owner.snapshot().focused != 0
+    public val isOccluded: Boolean get() = owner.snapshot().occluded != 0
+    public val observedTheme: Theme? get() =
+        Some(
+            if (owner.snapshot().dark != 0)
+                Theme.Dark
+            else
+                Theme.Light
+        )
+    public val desktopPosition: DesktopPosition? get() {
+        val value = owner.snapshot();
+        return Some(DesktopPosition(value.x, value.y))
+    }
+    public val outerBounds: DesktopRect? get() {
+        val value = owner.snapshot();
+        return Some(
+            DesktopRect(DesktopPosition(value.x, value.y), value.outerWidth, value.outerHeight)
+        )
+    }
+    /** AppKit needs no frame callback; actual presentation belongs to the renderer. */
+    public fun prePresentNotify() {
+        owner.requireOpen()
+    }
+}
+
+internal class WindowOwner(val application: ApplicationOwner, val id: WindowId, native: Ptr<Unit>) {
+    var constraints: WindowSizeConstraints = WindowSizeConstraints()
+    var buttons: WindowButtons = WindowButtons()
+    var pointer: Ptr<Unit>? = Some(native)
+    var phase: WindowState = WindowState.Open
+    var metrics: WindowMetrics? = None
+    var dirty: Boolean = false
+    var closingDelivered: Boolean = false
+    var leases: Long = 0L
+    fun requireOpen() {
+        application.checkThread()
+        if (phase != WindowState.Open && phase != WindowState.PendingConfigure)
+            throw WindowException("window operation", WindowErrorKind.InvalidState)
+    }
+    fun snapshot(): NativeSnapshot {
+        requireOpen();
+        @Unsafe
+        {
+            return nativeWindowSnapshot(pointer!!)
+        }
+    }
+    fun close() {
+        if (phase == WindowState.Closing || phase == WindowState.Destroyed)
+            return
+        phase = WindowState.Closing
+        dirty = false
+        application.mailbox.wake()
+    }
+}

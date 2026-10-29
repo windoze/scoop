@@ -1,0 +1,15 @@
+package scoop.tests.window
+
+/** Schedules a real AppKit modal window or menu after the current managed callback returns. */
+@Extern(name = "scoop_window_test_schedule_mode")
+public fun scheduleNativeMode(window: Ptr<Unit>, mode: Int, seconds: Double)
+
+/** Observes the currently executing native mode without entering an AppKit call. */
+@GCLeaf
+@Extern(name = "scoop_window_test_active_mode")
+public fun activeNativeMode(): Int
+
+/** Counts completed native modal interactions. */
+@GCLeaf
+@Extern(name = "scoop_window_test_completed_modes")
+public fun completedNativeModes(): Int

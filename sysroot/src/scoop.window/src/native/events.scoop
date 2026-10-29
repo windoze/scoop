@@ -1,0 +1,156 @@
+package scoop.window
+
+/** Copies every borrowed native payload before the queue releases its owner. */
+internal fun copyNativeEvent(pointer: Ptr<Unit>): ApplicationEvent {
+    @Unsafe
+    {
+        val event = nativeEventData(pointer)
+        if (event.window == 0L)
+            return when (event.kind) {
+                100 -> ApplicationEvent.MonitorsChanged
+                101 -> ApplicationEvent.ExitRequested(ExitReason.System)
+                else -> throw WindowException(
+                    "unknown native application event",
+                    WindowErrorKind.NativeFailure
+                )
+            }
+        val value =
+            when (event.kind) {
+                1 -> WindowEvent.CloseRequested
+                2 -> WindowEvent.GeometryChanged(
+                    WindowMetrics(
+                        LogicalSize(event.x, event.y),
+                        PhysicalSize(event.z.toInt(), event.w.toInt()),
+                        event.scale
+                    )
+                )
+                3 -> WindowEvent.Moved(DesktopPosition(event.x, event.y))
+                4 -> WindowEvent.Focused(event.flags != 0)
+                5 -> WindowEvent.Occluded(event.flags != 0)
+                6 -> WindowEvent.ThemeChanged(
+                    Some(
+                        if (event.flags != 0)
+                            Theme.Dark
+                        else
+                            Theme.Light
+                    )
+                )
+                10 -> WindowEvent.Keyboard(copyKeyEvent(event))
+                11 -> WindowEvent.ModifiersChanged(darwinModifiers(event.a))
+                12 -> WindowEvent.Pointer(copyPointerEvent(event))
+                13 -> WindowEvent.TextInput(TextInputEvent.Edit(copyNativeTextBatch(pointer)))
+                14 -> WindowEvent.TextInput(
+                    if (event.flags != 0)
+                        TextInputEvent.Enabled
+                    else
+                        TextInputEvent.Disabled
+                )
+                else -> throw WindowException(
+                    "unknown native window event",
+                    WindowErrorKind.NativeFailure
+                )
+            }
+        return ApplicationEvent.Window(WindowId(event.window), value)
+    }
+}
+
+private fun copyNativeText(event: NativeEvent): String {
+    @Unsafe
+    {
+        return when (event.text) {
+            case Some(bytes) -> String.fromUtf8(bytes, event.textLength)
+            case None -> ""
+        }
+    }
+}
+
+private fun copyKeyEvent(event: NativeEvent): KeyEvent {
+    val text = copyNativeText(event)
+    val logical =
+        when (darwinNamedKey(event.a)) {
+            case Some(value) -> LogicalKey.Named(value)
+            case None -> if (event.flags.and(8) != 0)
+                LogicalKey.Dead(
+                    if (text.byteLength > 0L)
+                        Some(text)
+                    else
+                        None
+                )
+            else
+                if (text.byteLength > 0L)
+                    LogicalKey.Character(text)
+                else
+                    LogicalKey.Unidentified(NativeKeyCode.Darwin(event.a.toUInt()))
+        }
+    return KeyEvent(
+        darwinPhysicalKey(event.a),
+        logical,
+        darwinKeyLocation(event.a),
+        if (event.flags.and(1) != 0)
+            ElementState.Pressed
+        else
+            ElementState.Released,
+        event.flags.and(2) != 0,
+        darwinModifiers(event.b),
+        event.flags.and(4) != 0
+    )
+}
+
+private fun copyPointerEvent(event: NativeEvent): PointerEvent {
+    val state =
+        PointerState(
+            LogicalPosition(event.x, event.y),
+            PhysicalPosition(event.z, event.w),
+            event.scale,
+            darwinModifiers(event.b)
+        )
+    return when (event.flags) {
+        0 -> PointerEvent.Entered(state)
+        1 -> PointerEvent.Left(state)
+        2 -> PointerEvent.Moved(state)
+        3 -> PointerEvent.Button(state, mouseButton(event.a), ElementState.Pressed, event.c.toInt())
+        4 -> PointerEvent.Button(
+            state,
+            mouseButton(event.a),
+            ElementState.Released,
+            event.c.toInt()
+        )
+        5 -> PointerEvent.Wheel(
+            state,
+            ScrollDelta.LineDelta(event.dx, event.dy),
+            scrollPhase(event.a),
+            scrollPhase(event.c)
+        )
+        6 -> PointerEvent.Wheel(
+            state,
+            ScrollDelta.PixelDelta(event.dx, event.dy),
+            scrollPhase(event.a),
+            scrollPhase(event.c)
+        )
+        else -> throw WindowException("unknown native pointer event", WindowErrorKind.NativeFailure)
+    }
+}
+
+private fun mouseButton(code: Long): MouseButton =
+    when (code) {
+        0L -> MouseButton.Left;
+        1L -> MouseButton.Right;
+        2L -> MouseButton.Middle
+        else -> MouseButton.Other(code.toUInt())
+    }
+
+private fun scrollPhase(value: Long): ScrollPhase {
+    if (value.and(16L) != 0L)
+        return ScrollPhase.Cancelled
+    if (value.and(8L) != 0L)
+        return ScrollPhase.Ended
+    if (value.and(1L) != 0L)
+        return ScrollPhase.Began
+    if (value.and(32L) != 0L)
+        return ScrollPhase.MayBegin
+    if (value.and(4L) != 0L)
+        return ScrollPhase.Changed
+    if (value.and(2L) != 0L)
+        return ScrollPhase.Stationary
+    return ScrollPhase.None
+}

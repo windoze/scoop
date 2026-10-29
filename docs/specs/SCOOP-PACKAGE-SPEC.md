@@ -269,7 +269,7 @@ source是带kind的封闭记录，各分支必需字段如下，不接收其他�
 
 driver 消费的是 lock 的精确图和本次已准备好的本地输入。portable source 不能直接当作本机文件路径，因此 PM 将 lock 投影为 `PreparedWorkspace` 返回；这份投影不是第二份 lock，不接受独立编辑，不记录另一套版本选择，也不是构建结果收据。
 
-`scoop-pm prepare --request <file> --response <file>` 是唯一自动构建接口。请求/响应采用版本为 2 的 UTF-8 JSON，一次进程处理本次选中的全部根；响应成功后原子写文件，失败不提供部分成功响应。失败诊断写 stderr 的单个 JSON 记录，字段为 `version` 和 `diagnostic`，后者复用 `StructuredDiagnosticV1` 的 canonical CBOR 字节表示；清单主位置及相关声明保留为 host path/span，driver 直接交给现有诊断展示。其他面向人的 PM 命令仍输出文本诊断。未知协议版本明确失败，不在 driver 中降级成旧解析器。文件中的 host path 沿用既有可表示本机路径的数据载体，不能通过有损 UTF-8 转换改变路径。源码节点除解析后的实际 Cone 根外保留输入定位目录 `input_root`，供编译期 include 的路径范围判断；这一定位不改变 Cone 身份。
+`scoop-pm prepare --request <file> --response <file>` 是唯一自动构建接口。请求/响应采用版本为 3 的 UTF-8 JSON，展开 native 配置包含独立的 `objc_flags`；一次进程处理本次选中的全部根；响应成功后原子写文件，失败不提供部分成功响应。失败诊断写 stderr 的单个 JSON 记录，字段为 `version` 和 `diagnostic`，后者复用 `StructuredDiagnosticV1` 的 canonical CBOR 字节表示；清单主位置及相关声明保留为 host path/span，driver 直接交给现有诊断展示。其他面向人的 PM 命令仍输出文本诊断。未知协议版本明确失败，不在 driver 中降级成旧解析器。文件中的 host path 沿用既有可表示本机路径的数据载体，不能通过有损 UTF-8 转换改变路径。源码节点除解析后的实际 Cone 根外保留输入定位目录 `input_root`，供编译期 include 的路径范围判断；这一定位不改变 Cone 身份。
 
 请求的必需信息是：协议版本、cwd/显式 root、成员选择、purpose、canonical target、sysroot、artifact search roots、PM cache 位置和 locked/offline 策略；可选指定 lock 路径。profile、编译参数、native 工具位置和输出调度不参与求解。响应的必需信息是：协议版本、workspace/lock 位置、所选解析单位，以及每个单位的完整精确节点和边。节点用 `SourceCone` 或 `PrebuiltCone` 闭合表示：
 

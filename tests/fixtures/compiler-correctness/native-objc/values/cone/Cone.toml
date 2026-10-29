@@ -1,0 +1,26 @@
+schema = 1
+
+[cone]
+group = "dev.objc"
+name = "values"
+version = "0.1.0"
+kind = "executable"
+
+[native]
+c_flags = ["-DC_ONLY=1", "-Wall", "-Wextra", "-Werror"]
+objc_flags = ["-DOBJC_ONLY=1", "-DOBJC_VALUE=36", "-Wall", "-Wextra", "-Werror"]
+
+[[native.sources]]
+path = "native/value.c"
+
+[[native.sources]]
+path = "native/value.m"
+when = { os = "darwin" }
+
+[[native.libraries]]
+name = "AppKit"
+kind = "framework"
+
+[[native.libraries]]
+name = "Foundation"
+kind = "framework"

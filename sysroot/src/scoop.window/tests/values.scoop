@@ -1,0 +1,29 @@
+package scoop.window
+
+import scoop.test.*
+
+@Test
+private class WindowValueTest {
+    @Test
+    fun `fractional scale rounds drawable allocations upward`() {
+        assertEquals(PhysicalSize(127, 64), LogicalSize(101.1, 50.5).toPhysical(1.25))
+        assertEquals(PhysicalSize(0, 0), LogicalSize(0.0, 0.0).toPhysical(2.0))
+        val metrics = WindowMetrics(LogicalSize(320.0, 240.0), PhysicalSize(640, 480), 2.0)
+        assertEquals(PhysicalPosition(25.5, 8.0), metrics.toPhysical(LogicalPosition(12.75, 4.0)))
+        assertEquals(LogicalPosition(12.75, 4.0), metrics.toLogical(PhysicalPosition(25.5, 8.0)))
+        assertFalse(PhysicalSize(0, 10).isDrawable)
+    }
+    @Test
+    fun `invalid dimensions and overflow fail at the operation boundary`() {
+        assertFailsWith<IllegalArgumentException> { LogicalSize(-1.0, 5.0).toPhysical(1.0) }
+        assertFailsWith<IllegalArgumentException> { LogicalSize(1.0, 5.0).toPhysical(0.0) }
+        assertFailsWith<IllegalArgumentException> { LogicalSize(2147483647.0, 5.0).toPhysical(2.0) }
+        assertFailsWith<IllegalArgumentException> { PhysicalSize(-1, 5).toLogical(1.0) }
+    }
+    @Test
+    fun `window identities use value equality and hashing`() {
+        assertEquals(WindowId(12L), WindowId(12L))
+        assertNotEquals(WindowId(12L), WindowId(13L))
+        assertEquals(WindowId(12L).hash(), WindowId(12L).hash())
+    }
+}

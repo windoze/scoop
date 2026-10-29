@@ -1,0 +1,5 @@
+package scoop.tests.window
+
+/** Sends owned NSEvents through the real view's input methods, without global input injection. */
+@Extern(name = "scoop_window_test_input")
+public fun exerciseNativeInput(view: Ptr<Unit>): Int

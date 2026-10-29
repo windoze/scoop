@@ -1,0 +1,95 @@
+package scoop.examples.window.renderer
+
+import scoop.window.*
+import scoop.window.native.*
+import scoop.platform.concurrent.ThreadId
+import scoop.platform.concurrent.currentThreadId
+
+/** A small renderer-owned Metal surface demonstrating the native window lease contract. */
+public class MetalSurface private constructor(
+    private val window: Window,
+    private val lease: NativeWindowLease,
+    pointer: Ptr<Unit>,
+    private val thread: ThreadId
+): Closeable {
+    private var pointer: Ptr<Unit>? = Some(pointer)
+    /** Clears and presents one real drawable, waiting for its GPU work before returning. */
+    public fun present(): Boolean {
+        checkThread()
+        if (pointer == None)
+            throw IllegalStateException(Some("Metal surface is closed"))
+        if (window.state != WindowState.Open || !window.isVisible || window.isOccluded)
+            return false
+        val metrics = window.metrics ?: return false
+        if (!metrics.physicalSize.isDrawable)
+            return false
+        window.prePresentNotify()
+        @Unsafe
+        {
+            val result =
+                nativePresent(
+                    pointer!!,
+                    metrics.physicalSize.width,
+                    metrics.physicalSize.height,
+                    metrics.scaleFactor
+                )
+            if (result < 0)
+                throw WindowException("Metal frame", WindowErrorKind.NativeFailure)
+            return result == 1
+        }
+    }
+    /** Restores the view's previous layer, then retires the window lease on its owner. */
+    public override fun close() {
+        checkThread()
+        when (pointer) {
+            case Some(value) -> {
+                pointer = None
+                try {
+                    @Unsafe
+                    {
+                        nativeDestroy(value)
+                    }
+                } finally {
+                    lease.close()
+                }
+            }
+            case None -> {}
+        }
+    }
+    private fun checkThread() {
+        if (currentThreadId() != thread)
+            throw IllegalStateException(Some("Metal view operations require the owner thread"))
+    }
+    public companion object {
+        /** Acquires the lease before installing a CAMetalLayer, rolling back on failure. */
+        public fun create(window: Window): MetalSurface {
+            @Unsafe
+            {
+                val lease = window.acquireNativeWindow()
+                try {
+                    val pointer =
+                        when (lease.handle) {
+                            case AppKit(_, view) -> nativeCreate(view)
+                        } ?:
+                            throw WindowException(
+                                "create Metal surface",
+                                WindowErrorKind.NativeFailure
+                            )
+                    return MetalSurface(window, lease, pointer, currentThreadId())
+                } catch (error: Throwable) {
+                    lease.close();
+                    throw error
+                }
+            }
+        }
+    }
+}
+
+@Extern(name = "scoop_example_metal_create")
+private fun nativeCreate(view: Ptr<Unit>): Ptr<Unit>?
+
+@Extern(name = "scoop_example_metal_present")
+private fun nativePresent(surface: Ptr<Unit>, width: Int, height: Int, scale: Double): Int
+
+@Extern(name = "scoop_example_metal_destroy")
+private fun nativeDestroy(surface: Ptr<Unit>)

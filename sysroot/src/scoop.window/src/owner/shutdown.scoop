@@ -1,0 +1,78 @@
+package scoop.window
+
+internal fun ApplicationOwner.cleanupEvent(event: ApplicationEvent) {
+    dispatchDepth += 1
+    try {
+        handler!!.onEvent(active, event)
+    }
+    catch (error: Throwable) {
+        recordFailure(error)
+        beginExit()
+    }
+    finally {
+        dispatchDepth -= 1
+    }
+}
+
+internal fun ApplicationOwner.drainShutdown() {
+    if (dispatchDepth != 0)
+        return
+    if (exiting && !attached) {
+        for (watch in watches)
+            if (!watch.removing)
+                watch.remove {}
+    }
+    if (exiting && !exitingDelivered) {
+        exitingDelivered = true
+        cleanupEvent(ApplicationEvent.Exiting)
+    }
+    for (window in windows.toArray()) {
+        if (window.phase == WindowState.Closing && !window.closingDelivered) {
+            window.closingDelivered = true
+            cleanupEvent(ApplicationEvent.Window(window.id, WindowEvent.Closing))
+        }
+    }
+    if (exiting && !attachmentCloseRequested) {
+        attachmentCloseRequested = true
+        when (attachment) {
+            case Some(value) -> try {
+                value.requestClose()
+            } catch (error: Throwable) {
+                recordFailure(error)
+            }
+            case None -> {}
+        }
+    }
+    var index = 0L
+    while (index < windows.size) {
+        val window = windows[index]
+        if (window.phase == WindowState.Closing && window.closingDelivered && window.leases == 0L) {
+            @Unsafe
+            {
+                nativeWindowDestroy(window.pointer!!)
+            }
+            window.pointer = None
+            window.phase = WindowState.Destroyed
+            windows.removeAt(index)
+            cleanupEvent(ApplicationEvent.Window(window.id, WindowEvent.Destroyed))
+            didDestroyWindow()
+        } else
+            index += 1L
+    }
+    if (
+        exiting &&
+            exitingDelivered &&
+            windows.size ==
+            0L &&
+            watches.size ==
+            0L &&
+            (!attached || attachmentComplete) &&
+            mailbox.sealControlsIfEmpty()
+    ) {
+        stopped = true
+        @Unsafe
+        {
+            nativeApplicationStop(native!!)
+        }
+    }
+}

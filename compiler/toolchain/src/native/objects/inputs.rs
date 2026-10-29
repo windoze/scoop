@@ -9,13 +9,14 @@ pub(super) fn configuration(
     public: &Path,
 ) -> Result<Digest256, ToolchainError> {
     let config = manifest.parsed().semantic().native();
+    let target_facts = crate::manifest::source_target(target.id())?;
     let mut sources: Vec<_> = config
         .sources()
         .iter()
         .filter(|s| s.predicate().matches(target.id()))
         .map(|s| {
             config
-                .source_language(s.path())
+                .source_language(s.path(), target_facts)
                 .map(|language| (s.path().as_str(), language.input_name()))
                 .map_err(error)
         })
@@ -46,6 +47,7 @@ pub(super) fn configuration(
             flags(NativeSourceLanguage::C)
                 .iter()
                 .chain(flags(NativeSourceLanguage::Cxx))
+                .chain(flags(NativeSourceLanguage::ObjectiveC))
                 .filter_map(|flag| match flag {
                     NativeCompileFlag::Include { kind, path }
                         if !matches!(
@@ -68,6 +70,7 @@ pub(super) fn configuration(
         include,
         flags(NativeSourceLanguage::C),
         flags(NativeSourceLanguage::Cxx),
+        flags(NativeSourceLanguage::ObjectiveC),
         compiler.cxx_fingerprint().map(|fp| *fp.as_array()),
         compiler.c_fingerprint().map(|fp| *fp.as_array()),
         libraries,

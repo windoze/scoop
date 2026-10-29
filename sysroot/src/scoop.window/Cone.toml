@@ -1,0 +1,75 @@
+schema = 1
+
+[cone]
+group = "scoop"
+name = "scoop.window"
+version = "0.1.0"
+kind = "library"
+
+[[sources]]
+path = "src"
+when = { os = "darwin" }
+
+[[test.sources]]
+path = "tests"
+when = { os = "darwin" }
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+"scoop:scoop.platform" = "0.1.0"
+
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"
+"scoop.tests:window-native" = { version = "0.1.0", path = "test-native" }
+
+[native]
+objc_flags = ["-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter"]
+
+[[native.sources]]
+path = "native/darwin/application.m"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "native/darwin/window.m"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "native/darwin/watch.m"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "native/darwin/properties.m"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "native/darwin/monitors.m"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "native/darwin/keyboard.m"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "native/darwin/pointer.m"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "native/darwin/text.m"
+when = { os = "darwin" }
+
+[[native.libraries]]
+name = "AppKit"
+kind = "framework"
+
+[[native.libraries]]
+name = "Foundation"
+kind = "framework"
+
+[[native.libraries]]
+name = "CoreFoundation"
+kind = "framework"
+
+[[native.libraries]]
+name = "CoreGraphics"
+kind = "framework"

@@ -1,0 +1,5 @@
+package scoop.tests.window
+
+/** Exercises the actual AppKit text input client without global keyboard injection. */
+@Extern(name = "scoop_window_test_text")
+public fun exerciseNativeText(view: Ptr<Unit>): Int

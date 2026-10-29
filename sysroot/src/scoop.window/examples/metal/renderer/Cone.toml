@@ -1,0 +1,28 @@
+schema = 1
+
+[cone]
+group = "scoop.examples.window"
+name = "metal-renderer"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"scoop:scoop.window" = "0.1.0"
+"scoop:scoop.platform" = "0.1.0"
+
+[native]
+objc_flags = ["-Wall", "-Wextra", "-Werror"]
+
+[[native.sources]]
+path = "native/metal.m"
+when = { os = "darwin" }
+
+[[native.libraries]]
+name = "AppKit"
+kind = "framework"
+[[native.libraries]]
+name = "Metal"
+kind = "framework"
+[[native.libraries]]
+name = "QuartzCore"
+kind = "framework"

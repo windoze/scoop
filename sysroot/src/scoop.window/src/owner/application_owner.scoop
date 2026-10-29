@@ -1,0 +1,294 @@
+package scoop.window
+
+import scoop.platform.concurrent.ThreadId
+import scoop.platform.concurrent.currentThreadId
+import scoop.platform.time.MonotonicTimeSource
+import scoop.window.native.ApplicationAttachment
+import scoop.window.native.ApplicationHost
+import scoop.window.native.ApplicationWatch
+import scoop.window.native.dispatchWatch
+
+internal class ApplicationOwner(
+    val lastWindowPolicy: LastWindowPolicy,
+    private val activationPolicy: Int
+) {
+    val mailbox: ApplicationMailbox = ApplicationMailbox()
+    val windows: ArrayList<WindowOwner> = ArrayList<WindowOwner>()
+    var monitorRecords: ArrayList<MonitorRecord> = ArrayList<MonitorRecord>()
+    var nextMonitor: Long = 1L
+    val watches: ArrayList<ApplicationWatch> = ArrayList<ApplicationWatch>()
+    var nextWatch: Long = 1L
+    val active: ActiveApplication get() = ActiveApplication(this)
+    var native: Ptr<Unit>? = None
+    var handler: ApplicationHandler? = None
+    var attachment: ApplicationAttachment? = None
+    var attached: Boolean = false
+    var attachmentComplete: Boolean = false
+    var attachmentCloseRequested: Boolean = false
+    var exiting: Boolean = false
+    var exitingDelivered: Boolean = false
+    var stopped: Boolean = false
+    var initialized: Boolean = false
+    var dispatchDepth: Int = 0
+    var pumping: Boolean = false
+    var flow: ControlFlow = ControlFlow.Wait
+    var failure: Throwable? = None
+    private var thread: ThreadId? = None
+    private var started: Boolean = false
+    private var nextWindow: Long = 1L
+    private var createdWindow: Boolean = false
+
+    fun isCurrentThread(): Boolean = thread == Some(currentThreadId())
+    fun checkThread() {
+        if (!isCurrentThread())
+            throw IllegalStateException(
+                Some("window operation requires the application owner thread")
+            )
+    }
+
+    fun run(handler: ApplicationHandler, attach: ((ApplicationHost) -> ApplicationAttachment)?) {
+        @Unsafe
+        {
+            if (nativeIsMainThread() == 0)
+                throw IllegalStateException(
+                    Some("Application.run requires the process main thread")
+                )
+        }
+        when (currentJobOrNone()) {
+            case Some(_) -> throw IllegalStateException(
+                Some("Application.run requires a caller outside a Job")
+            )
+            case None -> {}
+        }
+        if (started)
+            throw IllegalStateException(Some("Application.run is single-use"))
+        started = true
+        thread = Some(currentThreadId())
+        this.handler = Some(handler)
+        @Unsafe
+        {
+            val callback =
+                foreignCallback<(Ptr<Unit>, Long, Int) -> Int>(
+                    {
+                        identity: Long, stage: Int ->
+                        nativeCallback(identity, stage);
+                        0
+                    },
+                    0,
+                    ForeignCallbackMode.Reusable
+                )
+            try {
+                val pointer =
+                    nativeApplicationCreate(
+                        callback.function,
+                        callback.context,
+                        activationPolicy
+                    ) ?:
+                        throw WindowException("create application", WindowErrorKind.NativeFailure)
+                native = Some(pointer)
+                mailbox.bind(pointer)
+                try {
+                    when (attach) {
+                        case Some(install) -> {
+                            attached = true;
+                            attachment = Some(install(ApplicationHost(this)))
+                        }
+                        case None -> {}
+                    }
+                } catch (error: Throwable) {
+                    attached = false
+                    recordFailure(error)
+                    beginExit()
+                }
+                mailbox.wake()
+                while (!stopped) {
+                    val status = nativeApplicationRun(pointer)
+                    if (!stopped) {
+                        recordFailure(
+                            WindowException(
+                                "native application loop",
+                                WindowErrorKind.NativeFailure,
+                                nativeCode = Some(status.toLong())
+                            )
+                        )
+                        beginExit()
+                        pump(0)
+                    }
+                }
+            } finally {
+                mailbox.unbind()
+                when (native) {
+                    case Some(pointer) -> {
+                        nativeApplicationDestroy(pointer);
+                        native = None
+                    };
+                    case None -> {}
+                }
+                releaseForeignCallback(callback)
+            }
+        }
+        when (failure) {
+            case Some(error) -> throw error;
+            case None -> {}
+        }
+    }
+
+    fun nativeCallback(identity: Long, stage: Int) {
+        try {
+            if (identity == 0L)
+                pump(stage)
+            else
+                dispatchWatch(identity, stage)
+        }
+        catch (error: Throwable) {
+            recordFailure(error);
+            beginExit();
+            drainShutdown()
+        }
+    }
+
+    fun createWindow(attributes: WindowAttributes): Window {
+        checkThread()
+        if (exiting || native == None)
+            throw WindowException("create window", WindowErrorKind.InvalidState)
+        validateAttributes(attributes)
+        attributes.size.toPhysical(1.0)
+        if (nextWindow == 9223372036854775807L)
+            throw WindowException("window identity", WindowErrorKind.NativeFailure)
+        val identity = WindowId(nextWindow)
+        nextWindow += 1L
+        val flags =
+            flag(attributes.decorations) +
+                flag(attributes.resizable) *
+                2 +
+                flag(attributes.transparent) *
+                4
+        val size = attributes.size
+        @Unsafe
+        {
+            val pointer =
+                attributes.title.withUtf8Bytes(
+                    fun(title: Ptr<UInt8>, count: Long): Ptr<Unit>? {
+                        @Unsafe
+                        {
+                            return nativeWindowCreate(
+                                native!!,
+                                identity.value,
+                                title,
+                                count,
+                                size.width,
+                                size.height,
+                                flags
+                            )
+                        }
+                    }
+                ) ?:
+                    throw WindowException("create window", WindowErrorKind.NativeFailure)
+            val owner = WindowOwner(this, identity, pointer)
+            try {
+                applyCreationProperties(owner, attributes)
+                owner.metrics = Some(nativeWindowSnapshot(pointer).metrics())
+            } catch (error: Throwable) {
+                nativeWindowDestroy(pointer)
+                throw error
+            }
+            windows.add(owner)
+            createdWindow = true
+            if (attributes.visible) {
+                nativeWindowVisible(pointer, 1)
+                if (attributes.requestActivation)
+                    nativeWindowFocus(pointer)
+            }
+            return Window(owner)
+        }
+    }
+
+    fun findWindow(identity: Long): WindowOwner? {
+        for (window in windows)
+            if (window.id.value == identity)
+                return Some(window)
+        return None
+    }
+
+    fun setControlFlow(flow: ControlFlow) {
+        checkThread()
+        if (exiting)
+            throw WindowException("set control flow", WindowErrorKind.InvalidState)
+        val seconds =
+            when (flow) {
+                case Wait -> -1.0
+                case Poll -> 0.0
+                case WaitUntil(mark) -> {
+                    requireWindow(
+                        mark.source === MonotonicTimeSource,
+                        "window deadline requires MonotonicTimeSource"
+                    )
+                    val remaining = mark - MonotonicTimeSource.markNow()
+                    if (remaining.floorSeconds < 0L)
+                        0.0
+                    else
+                        remaining.floorSeconds.toDouble() +
+                            remaining.nanosecondsOfSecond.toDouble() /
+                            1000000000.0
+                }
+            }
+        this.flow = flow
+        @Unsafe
+        {
+            nativeApplicationDeadline(
+                native!!,
+                if (flow == ControlFlow.Poll)
+                    -1.0
+                else
+                    seconds
+            )
+        }
+        if (flow == ControlFlow.Poll)
+            mailbox.wake()
+    }
+
+    fun beginExit() {
+        if (exiting)
+            return
+        exiting = true
+        mailbox.closeBusiness()
+        for (window in windows)
+            window.close()
+        mailbox.wake()
+    }
+
+    fun complete(error: Throwable?) {
+        checkThread()
+        if (!attached || attachmentComplete)
+            throw IllegalStateException(Some("unexpected application attachment completion"))
+        attachmentComplete = true
+        when (error) {
+            case Some(value) -> recordFailure(value);
+            case None -> {}
+        }
+        beginExit()
+        mailbox.wake()
+    }
+
+    fun recordFailure(error: Throwable) {
+        failure =
+            Some(
+                when (failure) {
+                    case Some(previous) -> ResourceUseException(previous, error);
+                    case None -> error
+                }
+            )
+    }
+
+    fun didDestroyWindow() {
+        if (
+            !exiting &&
+                createdWindow &&
+                windows.size ==
+                0L &&
+                lastWindowPolicy ==
+                LastWindowPolicy.Exit
+        )
+            beginExit()
+    }
+}

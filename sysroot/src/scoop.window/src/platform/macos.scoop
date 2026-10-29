@@ -1,0 +1,62 @@
+package scoop.window.platform.macos
+
+import scoop.window.*
+
+/** Native application activation policy, selected before Application construction. */
+public enum ActivationPolicy {
+    Regular, Accessory, Prohibited
+}
+
+/** Native titlebar options; they do not add an application menu or widget hierarchy. */
+public struct TitlebarOptions(
+    val transparent: Boolean = false,
+    val titleHidden: Boolean = false,
+    val fullSizeContent: Boolean = false
+)
+
+/** Copies the desired AppKit activation policy into construction options. */
+public fun ApplicationOptions.setMacOSActivationPolicy(policy: ActivationPolicy) {
+    activationPolicy =
+        when (policy) {
+            case Regular -> 0;
+            case Accessory -> 1;
+            case Prohibited -> 2
+        }
+}
+
+/** Copies AppKit titlebar settings before window creation. */
+public fun WindowAttributes.setMacOSTitlebar(options: TitlebarOptions) {
+    titlebarFlags = titlebarBits(options)
+}
+
+/** Updates AppKit titlebar behavior on the owner thread. */
+public fun Window.setMacOSTitlebar(options: TitlebarOptions): RequestStatus {
+    owner.requireOpen()
+    @Unsafe
+    {
+        nativeWindowTitlebar(owner.pointer!!, titlebarBits(options))
+    }
+    return RequestStatus.Applied
+}
+
+/** Returns the actual main-bundle identifier, or None for an unbundled executable. */
+public fun ActiveApplication.macOSApplicationIdentifier(): String? {
+    owner.checkThread()
+    @Unsafe
+    {
+        val text = nativeBundleIdentifier()
+        return when (text.data) {
+            case Some(pointer) -> Some(String.fromUtf8(pointer, text.length));
+            case None -> None
+        }
+    }
+}
+
+private fun titlebarBits(options: TitlebarOptions): Int =
+    flag(options.transparent) + flag(options.titleHidden) * 2 + flag(options.fullSizeContent) * 4
+
+@CLayout
+private struct NativeBundleIdentifier(val data: Ptr<UInt8>?, val length: Long)
+
+@Extern(name = "scoop_window_bundle_identifier")
+private fun nativeBundleIdentifier(): NativeBundleIdentifier

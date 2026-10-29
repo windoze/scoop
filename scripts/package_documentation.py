@@ -4,13 +4,17 @@ import html
 import shutil
 import subprocess
 
+from prepare_sysroot import cone_order
+
 
 def generate(sysroot, targets, binaries, work_dir, environment, *, native_sysroots=None):
-    roots = sorted((sysroot / "src").glob("*/Cone.toml"))
-    if not roots:
-        raise RuntimeError(f"no built-in Cone manifests found in {sysroot / 'src'}")
     sites = {}
     for target in targets:
+        selection = work_dir / "doc-cones" / target
+        selection.mkdir(parents=True, exist_ok=True)
+        roots = [
+            sysroot / "src" / name / "Cone.toml" for name in cone_order(sysroot, selection, target)
+        ]
         site = work_dir / "documentation" / target
         native = (native_sysroots or {}).get(target)
         subprocess.run(

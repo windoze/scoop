@@ -17,6 +17,8 @@ pub(crate) struct RawNativeConfig {
     #[serde(default)]
     cxx_flags: Vec<Spanned<String>>,
     #[serde(default)]
+    objc_flags: Vec<Spanned<String>>,
+    #[serde(default)]
     cxx: bool,
     #[serde(default)]
     libraries: Vec<super::libraries::RawNativeLibrary>,
@@ -40,6 +42,7 @@ impl RawNativeConfig {
                 .collect::<Result<_, _>>()?,
             c_flags: parse_flags(self.c_flags)?,
             cxx_flags: parse_flags(self.cxx_flags)?,
+            objc_flags: parse_flags(self.objc_flags)?,
             cxx: self.cxx,
             libraries: self
                 .libraries

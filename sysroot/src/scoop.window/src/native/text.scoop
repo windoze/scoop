@@ -1,0 +1,98 @@
+package scoop.window
+
+/** Enables AppKit composition for this window; ordinary text uses the same edit channel. */
+public fun Window.setImeAllowed(allowed: Boolean): RequestStatus {
+    owner.requireOpen()
+    @Unsafe
+    {
+        if (
+            nativeImeAllowed(
+                owner.pointer!!,
+                if (allowed)
+                    1
+                else
+                    0
+            ) !=
+                0
+        )
+            throw WindowException("native text input", WindowErrorKind.Unavailable)
+    }
+    return RequestStatus.Applied
+}
+
+/** Publishes a candidate-window rectangle in logical content coordinates. */
+public fun Window.setImeCursorArea(area: LogicalRect) {
+    owner.requireOpen()
+    checkRect(area)
+    requireWindow(
+        (area.origin.x + area.size.width).isFinite() &&
+            (area.origin.y + area.size.height).isFinite(),
+        "IME cursor rectangle overflow"
+    )
+    @Unsafe
+    {
+        nativeImeCaret(
+            owner.pointer!!,
+            area.origin.x,
+            area.origin.y,
+            area.size.width,
+            area.size.height
+        )
+    }
+}
+
+@CLayout
+internal struct NativeTextEdit(
+    val kind: Int,
+    val anchor: Long,
+    val cursor: Long,
+    val text: Ptr<UInt8>?,
+    val textLength: Long
+)
+
+@Extern(name = "scoop_window_ime_allowed")
+internal fun nativeImeAllowed(window: Ptr<Unit>, allowed: Int): Int
+
+@Extern(name = "scoop_window_ime_caret")
+internal fun nativeImeCaret(window: Ptr<Unit>, x: Double, y: Double, width: Double, height: Double)
+
+@Extern(name = "scoop_window_text_count")
+internal fun nativeTextCount(event: Ptr<Unit>): Long
+
+@Extern(name = "scoop_window_text_edit")
+internal fun nativeTextEdit(event: Ptr<Unit>, index: Long): NativeTextEdit
+
+/** Copies native-owned strings before releasing the enclosing event. */
+internal fun copyNativeTextBatch(pointer: Ptr<Unit>): TextInputBatch {
+    @Unsafe
+    {
+        val count = nativeTextCount(pointer)
+        val operations = ArrayList<TextInputOperation>()
+        for (index in 0L ..< count) {
+            val edit = nativeTextEdit(pointer, index)
+            val text =
+                when (edit.text) {
+                    case Some(bytes) -> String.fromUtf8(bytes, edit.textLength)
+                    case None -> ""
+                }
+            operations.add(
+                when (edit.kind) {
+                    0 -> TextInputOperation.Preedit(
+                        text,
+                        if (edit.anchor < 0L)
+                            None
+                        else
+                            Some(Utf8Selection(edit.anchor, edit.cursor)),
+                        TextReplacement.CurrentSelection
+                    )
+                    1 -> TextInputOperation.Commit(text, TextReplacement.CurrentSelection)
+                    else -> throw WindowException(
+                        "unknown native text operation",
+                        WindowErrorKind.NativeFailure
+                    )
+                }
+            )
+        }
+        return TextInputBatch(None, operations)
+    }
+}

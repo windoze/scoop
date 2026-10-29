@@ -1,0 +1,71 @@
+package scoop.window.native
+
+import scoop.window.*
+
+/** Borrowed AppKit objects; native GUI operations still require the owner thread. */
+public enum NativeWindowHandle {
+    AppKit(val nsWindow: Ptr<Unit>, val nsView: Ptr<Unit>)
+}
+
+/** An explicit native borrow that prevents active destruction until owner-side retirement. */
+public class NativeWindowLease internal constructor(private val owner: WindowOwner): Closeable {
+    private val closed: AtomicBoolean = AtomicBoolean(false)
+    /** Queries the typed native handles on the owner thread while this lease is active. */
+    public val handle: NativeWindowHandle@Unsafe get() {
+        owner.application.checkThread()
+        if (closed.load())
+            throw IllegalStateException(Some("native window lease is closed"))
+        return NativeWindowHandle.AppKit(
+            nativeNSWindow(owner.pointer!!),
+            nativeNSView(owner.pointer!!)
+        )
+    }
+    /** Ends the borrow once, from any thread; actual release remains on the owner. */
+    public override fun close() {
+        if (closed.exchange(true))
+            return
+        owner.application.mailbox.postControl { owner.leases -= 1L }
+    }
+}
+
+/** Acquires an owner-thread lease before creating a renderer surface. */
+@Unsafe
+public fun Window.acquireNativeWindow(): NativeWindowLease {
+    owner.requireOpen()
+    owner.leases += 1L
+    return NativeWindowLease(owner)
+}
+
+/** Business delivery owned by the existing asyncio session. */
+public interface ApplicationAttachment {
+    public fun post(block: () -> Unit): Boolean
+    public fun requestClose()
+}
+
+/** Native application operations used by the separate asyncio integration Cone. */
+public class ApplicationHost internal constructor(internal val owner: ApplicationOwner) {
+    public fun isCurrentThread(): Boolean = owner.isCurrentThread()
+    /** Borrows a readable descriptor without consuming, resetting, or closing it. */
+    @Unsafe
+    public fun watchReadable(descriptor: Int, ready: () -> Unit): ApplicationWatch =
+        owner.installWatch(descriptor, ready)
+    public fun postControl(block: () -> Unit): Boolean = owner.mailbox.postControl(block)
+    /** Reports session completion exactly once; its watches must already be retired. */
+    public fun complete(failure: Throwable?) {
+        owner.complete(failure)
+    }
+    /** Starts shutdown from an owner control callback, including root cancellation. */
+    public fun requestExit() {
+        owner.checkThread();
+        owner.beginExit()
+    }
+}
+
+/** Runs with an attachment installed before the first business event can be served. */
+@Unsafe
+public fun Application.runAttached(
+    handler: ApplicationHandler,
+    attach: (ApplicationHost) -> ApplicationAttachment
+) {
+    owner.run(handler, Some(attach))
+}

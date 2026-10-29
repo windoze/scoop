@@ -146,6 +146,7 @@ impl NativeToolchain {
 
     pub(super) fn kind(&self, language: NativeSourceLanguage) -> NativeDriverKind {
         match language {
+            NativeSourceLanguage::ObjectiveC => NativeDriverKind::Gnu,
             NativeSourceLanguage::C => self
                 .windows_c
                 .as_ref()
@@ -165,12 +166,17 @@ impl NativeToolchain {
             return Ok(false);
         }
         let config = manifest.parsed().semantic().native();
+        let target_facts = crate::manifest::source_target(c.target().id())?;
         for source in config
             .sources()
             .iter()
             .filter(|s| s.predicate().matches(c.target().id()))
         {
-            if config.source_language(source.path()).map_err(error)? == NativeSourceLanguage::C {
+            if config
+                .source_language(source.path(), target_facts)
+                .map_err(error)?
+                == NativeSourceLanguage::C
+            {
                 return Ok(true);
             }
         }
@@ -190,6 +196,7 @@ impl NativeToolchain {
                 || self.c.driver_command(),
                 |driver| driver.command(&self.c, language),
             )),
+            NativeSourceLanguage::ObjectiveC => Ok(self.c.driver_command()),
             NativeSourceLanguage::Cxx => self
                 .cxx
                 .as_ref()

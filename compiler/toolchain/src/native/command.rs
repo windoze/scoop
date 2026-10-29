@@ -29,6 +29,9 @@ pub(super) fn base(
         command.arg(match language {
             NativeSourceLanguage::C => "/std:c11",
             NativeSourceLanguage::Cxx => "/std:c++20",
+            NativeSourceLanguage::ObjectiveC => {
+                return Err(error("Objective-C sources require a Darwin target"));
+            }
         });
         command.arg(match optimization {
             OptimizationMode::Debug => "/Od",
@@ -41,7 +44,7 @@ pub(super) fn base(
     }
     command.env("SOURCE_DATE_EPOCH", "0").args([
         match language {
-            NativeSourceLanguage::C => "-std=c11",
+            NativeSourceLanguage::C | NativeSourceLanguage::ObjectiveC => "-std=c11",
             NativeSourceLanguage::Cxx => "-std=c++20",
         },
         match optimization {
@@ -49,6 +52,9 @@ pub(super) fn base(
             OptimizationMode::Release => "-O2",
         },
     ]);
+    if language == NativeSourceLanguage::ObjectiveC {
+        command.arg("-fobjc-arc");
+    }
     if crate::windows_native::is_windows(compiler.c()) {
         if optimization == OptimizationMode::Debug {
             command.arg("-gcodeview");
@@ -198,6 +204,7 @@ pub(super) fn compile(
     let source = directory_path.join(match language {
         NativeSourceLanguage::C => "unit.i",
         NativeSourceLanguage::Cxx => "unit.ii",
+        NativeSourceLanguage::ObjectiveC => "unit.mi",
     });
     std::fs::write(&source, input.preprocessed()).map_err(error)?;
     let mut command = base(compiler, language, optimization, true)?;
@@ -219,6 +226,9 @@ pub(super) fn compile(
             command.arg(match language {
                 NativeSourceLanguage::C => "/TC",
                 NativeSourceLanguage::Cxx => "/TP",
+                NativeSourceLanguage::ObjectiveC => {
+                    return Err(error("Objective-C sources require a Darwin target"));
+                }
             });
         }
         // clang-cl recognizes .i/.ii as preprocessed input. /clang:-x would

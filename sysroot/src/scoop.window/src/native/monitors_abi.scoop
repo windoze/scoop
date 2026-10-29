@@ -1,0 +1,32 @@
+package scoop.window
+
+@CLayout
+internal struct NativeMonitor(
+    val key: Long,
+    val primary: Long,
+    val refreshMilliHertz: Long,
+    val x: Double,
+    val y: Double,
+    val width: Double,
+    val height: Double,
+    val pixelWidth: Double,
+    val pixelHeight: Double,
+    val scale: Double,
+    val name: Ptr<UInt8>?,
+    val nameLength: Long
+)
+
+@Extern(name = "scoop_window_monitors")
+internal fun nativeMonitors(): Ptr<Unit>?
+
+@Extern(name = "scoop_window_monitors_count")
+internal fun nativeMonitorsCount(snapshot: Ptr<Unit>): Long
+
+@Extern(name = "scoop_window_monitor_data")
+internal fun nativeMonitorData(snapshot: Ptr<Unit>, index: Long): NativeMonitor
+
+@Extern(name = "scoop_window_monitors_release")
+internal fun nativeMonitorsRelease(snapshot: Ptr<Unit>)
+
+@Extern(name = "scoop_window_current_monitor")
+internal fun nativeCurrentMonitor(window: Ptr<Unit>): Long

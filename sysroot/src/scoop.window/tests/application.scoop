@@ -1,0 +1,271 @@
+package scoop.window
+
+import scoop.test.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.concurrent.currentThreadId
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+import scoop.window.native.*
+import scoop.window.platform.macos.*
+
+private class DeliveryContext(val value: Int)
+
+context(value: DeliveryContext)
+private fun deliveryValue(): Int = value.value
+
+@Test
+private class AppKitApplicationTest {
+    @Test
+    fun `real AppKit delivers serial callbacks and drains cross-thread native leases`() {
+        val application = Application(ApplicationOptions(LastWindowPolicy.Exit))
+        val handler = LifecycleHandler(application.proxy())
+        val proxy = application.proxy()
+        assertTrue(
+            proxy.post {
+                _ ->
+                handler.order.add(1);
+                assertEquals(42, deliveryValue())
+            }
+        )
+        assertTrue(
+            proxy.post {
+                _ ->
+                handler.order.add(2);
+                assertEquals(42, deliveryValue())
+            }
+        )
+        context(DeliveryContext(42)) {
+            application.run(handler)
+        }
+        handler.worker!!.join()
+        handler.releaseWorker!!.join()
+        assertEquals(3, handler.redraws)
+        assertEquals(2, handler.closing)
+        assertEquals(2, handler.destroyed)
+        assertEquals(1, handler.exiting)
+        assertTrue(handler.ownerViolation.load())
+        assertEquals(3L, handler.order.size)
+        assertEquals(1, handler.order[0L])
+        assertEquals(2, handler.order[1L])
+        assertEquals(3, handler.order[2L])
+        assertFalse(proxy.post { _ -> fail(Some("post after shutdown")) })
+        assertFalse(proxy.requestExit())
+        assertEquals(WindowState.Destroyed, handler.window!!.state)
+        assertFailsWith<WindowException> { handler.window!!.setTitle("late") }
+        assertFailsWith<WindowException> { handler.window!!.setImeAllowed(true) }
+        assertFailsWith<IllegalStateException> { application.run(handler) }
+        assertFailsWith<IllegalStateException> { Application() }
+    }
+}
+
+private class LifecycleHandler(val proxy: ApplicationProxy): ApplicationHandler {
+    val ownerThread = currentThreadId()
+    val order = ArrayList<Int>()
+    val ownerViolation = AtomicBoolean(false)
+    var window: Window? = None
+    var lease: NativeWindowLease? = None
+    var worker: Thread? = None
+    var releaseWorker: Thread? = None
+    var redraws = 0
+    var closing = 0
+    var destroyed = 0
+    var exiting = 0
+    var depth = 0
+    val input = InputProbe()
+    val ime = ImeProbe()
+
+    public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
+        assertEquals(ownerThread, currentThreadId())
+        assertEquals(42, deliveryValue())
+        assertEquals(0, depth)
+        depth += 1
+        try {
+            when (event) {
+                case Resumed -> start(application)
+                case NewEvents(StartCause.Deadline) -> fail(
+                    Some(
+                        "native redraw deadline expired: redraws=" +
+                            redraws.toString() +
+                            ", occluded=" +
+                            window!!.isOccluded.toString()
+                    )
+                )
+                case Window(identity, WindowEvent.GeometryChanged(value)) -> {
+                    if (identity == window!!.id) {
+                        assertTrue(value.logicalSize.width > 0.0 && value.logicalSize.height > 0.0)
+                        assertTrue(value.physicalSize.isDrawable)
+                        assertEquals(
+                            value.logicalSize.toPhysical(value.scaleFactor),
+                            value.physicalSize
+                        )
+                        assertEquals(value, window!!.metrics!!)
+                    }
+                }
+                case Window(_, WindowEvent.RedrawRequested) -> {
+                    redraws += 1
+                    assertTrue(window!!.metrics!!.physicalSize.isDrawable)
+                    window!!.prePresentNotify()
+                    if (redraws == 1) {
+                        input.start(window!!, lease!!)
+                        window!!.requestRedraw();
+                        window!!.requestRedraw()
+                    }
+                    else
+                        if (redraws == 2) {
+                            input.verify()
+                            ime.start(window!!, lease!!)
+                            window!!.requestRedraw()
+                        }
+                        else {
+                            ime.verify()
+                            window!!.requestDestroy()
+                        }
+                }
+                case Window(_, WindowEvent.Keyboard(value)) -> {
+                    if (ime.started)
+                        ime.key(value)
+                    else
+                        input.key(value)
+                }
+                case Window(_, WindowEvent.Pointer(value)) -> input.pointer(value)
+                case Window(_, WindowEvent.TextInput(value)) -> {
+                    if (ime.started)
+                        ime.event(value)
+                    else
+                        when (value) {
+                            case Edit(batch) -> input.edit(batch)
+                            else -> {}
+                        }
+                }
+                case Window(identity, WindowEvent.Closing) -> {
+                    closing += 1
+                    if (identity == window!!.id) {
+                        assertFailsWith<WindowException> {
+                            @Unsafe
+                            {
+                                window!!.acquireNativeWindow()
+                            }
+                        }
+                        val held = lease!!
+                        releaseWorker =
+                            Some(
+                                Thread.start {
+                                    held.close();
+                                    held.close()
+                                }
+                            )
+                    }
+                }
+                case Window(_, WindowEvent.Destroyed) -> destroyed += 1
+                case Exiting -> {
+                    exiting += 1;
+                    assertFalse(proxy.post { _ -> fail() })
+                }
+                else -> {}
+            }
+        } finally {
+            depth -= 1
+        }
+    }
+
+    private fun start(application: ActiveApplication) {
+        val attributes =
+            WindowAttributes(
+                "Scoop AppKit lifecycle test",
+                LogicalSize(320.0, 180.0),
+                visible = false
+            )
+        val first = application.createWindow(attributes)
+        window = Some(first)
+        checkMonitorSnapshots(application, first)
+        attributes.size = LogicalSize(10.0, 10.0)
+        assertEquals(LogicalSize(320.0, 180.0), first.metrics!!.logicalSize)
+        assertFalse(first.isVisible)
+        assertEquals(
+            RequestStatus.Requested,
+            first.setSizeConstraints(
+                WindowSizeConstraints(
+                    Some(LogicalSize(100.0, 80.0)),
+                    Some(LogicalSize(640.0, 480.0))
+                )
+            )
+        )
+        assertFailsWith<IllegalArgumentException> { first.requestSize(LogicalSize(700.0, 480.0)) }
+        assertFailsWith<IllegalArgumentException> {
+            first.setSizeConstraints(
+                WindowSizeConstraints(
+                    Some(LogicalSize(500.0, 400.0)),
+                    Some(LogicalSize(200.0, 100.0))
+                )
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            first.setResizeIncrements(Some(LogicalSize(0.0, 1.0)))
+        }
+        first.setResizeIncrements(Some(LogicalSize(2.0, 2.0)))
+        first.setResizable(false)
+        first.setResizable(true)
+        first.setEnabledButtons(WindowButtons(close = false, minimize = true, maximize = false))
+        first.setDecorations(false)
+        first.setDecorations(true)
+        first.setWindowLevel(WindowLevel.AlwaysOnTop)
+        first.setWindowLevel(WindowLevel.Normal)
+        first.setTransparent(true)
+        first.setBlur(true)
+        first.setBlur(false)
+        first.setTransparent(false)
+        first.requestTheme(Some(Theme.Dark))
+        assertEquals(Some(Theme.Dark), first.observedTheme)
+        first.setMacOSTitlebar(TitlebarOptions(transparent = true, titleHidden = true))
+        first.requestPosition(first.desktopPosition!!)
+        assertEquals(Some(false), first.isMinimized)
+        first.requestAttention(AttentionKind.Cancel)
+        assertFailsWith<IllegalArgumentException> {
+            application.createWindow(
+                WindowAttributes(
+                    constraints = WindowSizeConstraints(max = Some(LogicalSize(1.0, 1.0)))
+                )
+            )
+        }
+        first.requestRedraw()
+        val second = application.createWindow(WindowAttributes(visible = false))
+        assertNotEquals(first.id, second.id)
+        second.requestDestroy()
+        second.requestDestroy()
+        @Unsafe
+        {
+            val held = first.acquireNativeWindow()
+            when (held.handle) {
+                case AppKit(window, view) -> {
+                    assertTrue(window.toULong() != 0uL);
+                    assertTrue(view.toULong() != 0uL)
+                }
+            }
+            lease = Some(held)
+        }
+        worker =
+            Some(
+                Thread.start {
+                    assertFailsWith<IllegalStateException> { first.setTitle("wrong thread") }
+                    ownerViolation.store(true)
+                    context(DeliveryContext(99)) {
+                        assertTrue(
+                            proxy.post {
+                                _ ->
+                                assertEquals(42, deliveryValue())
+                                order.add(3)
+                                first.setVisible(true)
+                                first.setWindowLevel(WindowLevel.AlwaysOnTop)
+                                first.requestFocus()
+                                first.requestRedraw()
+                                gcCollect()
+                            }
+                        )
+                    }
+                }
+            )
+        application.setControlFlow(
+            ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(5L))
+        )
+    }
+}

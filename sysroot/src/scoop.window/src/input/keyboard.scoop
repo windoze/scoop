@@ -1,0 +1,82 @@
+package scoop.window
+
+/** State shared by physical keys and pointer buttons. */
+public enum ElementState {
+    Pressed, Released
+}
+
+/** A key's physical region, independent of the active text layout. */
+public enum KeyLocation {
+    Standard, Left, Right, Numpad
+}
+
+/** An unrecognized key retains its platform encoding. */
+public enum NativeKeyCode {
+    Darwin(UInt)
+}
+
+/** Layout-independent keyboard positions supported by the current backend. */
+public enum KeyCode {
+    KeyA, KeyB, KeyC, KeyD, KeyE, KeyF, KeyG, KeyH, KeyI, KeyJ, KeyK, KeyL, KeyM,
+    KeyN, KeyO, KeyP, KeyQ, KeyR, KeyS, KeyT, KeyU, KeyV, KeyW, KeyX, KeyY, KeyZ,
+    Digit0, Digit1, Digit2, Digit3, Digit4, Digit5, Digit6, Digit7, Digit8, Digit9,
+    Backquote, Backslash, BracketLeft, BracketRight, Comma, Equal, Minus, Period, Quote,
+    Semicolon, Slash, IntlBackslash, IntlYen, IntlRo, Lang1, Lang2,
+    Enter, Tab, Space, Backspace, Escape, CapsLock, Fn,
+    SuperLeft, SuperRight, ShiftLeft, ShiftRight, ControlLeft, ControlRight, AltLeft, AltRight,
+    ArrowLeft, ArrowRight, ArrowUp, ArrowDown, Delete, Home, End, PageUp, PageDown, Help, ContextMenu,
+    F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20,
+    AudioVolumeUp, AudioVolumeDown, AudioVolumeMute,
+    Numpad0, Numpad1, Numpad2, Numpad3, Numpad4, Numpad5, Numpad6, Numpad7, Numpad8, Numpad9,
+    NumpadAdd, NumpadSubtract, NumpadMultiply, NumpadDivide, NumpadDecimal, NumpadEqual,
+    NumpadEnter, NumpadClear, NumpadComma
+}
+
+/** Known physical keys and explicit native fallbacks. */
+public enum PhysicalKey {
+    Code(KeyCode), Unidentified(NativeKeyCode)
+}
+
+/** Non-text logical keys, including layout-independent editing commands. */
+public enum NamedKey {
+    Enter, Tab, Space, Backspace, Escape, Shift, Control, Alt, Super, CapsLock, Fn,
+    ArrowLeft, ArrowRight, ArrowUp, ArrowDown, Delete, Home, End, PageUp, PageDown, Help, ContextMenu,
+    F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20,
+    Clear, AudioVolumeUp, AudioVolumeDown, AudioVolumeMute, Eisu, Kana
+}
+
+/** Logical keys describe shortcuts; text insertion uses TextInputEvent exclusively. */
+public enum LogicalKey {
+    Named(NamedKey), Character(String), Dead(String?), Unidentified(NativeKeyCode)
+}
+
+/** None means that the native event did not identify the modifier's side. */
+public struct ModifierSides(val left: Boolean?, val right: Boolean?)
+
+/** Modifier state at the same native event; unsupported lock states remain unknown. */
+public struct Modifiers(
+    val shift: Boolean,
+    val control: Boolean,
+    val alt: Boolean,
+    val superKey: Boolean,
+    val capsLock: Boolean,
+    val function: Boolean,
+    val shiftSides: ModifierSides,
+    val controlSides: ModifierSides,
+    val altSides: ModifierSides,
+    val superSides: ModifierSides,
+    val numLock: Boolean? = None,
+    val scrollLock: Boolean? = None
+)
+
+/** An owned key notification; synthetic releases have no invented hardware time. */
+public struct KeyEvent(
+    val physicalKey: PhysicalKey,
+    val logicalKey: LogicalKey,
+    val location: KeyLocation,
+    val state: ElementState,
+    val isRepeat: Boolean,
+    val modifiers: Modifiers,
+    val synthetic: Boolean,
+    val deviceId: DeviceId? = None
+)

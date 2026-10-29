@@ -14,7 +14,7 @@ import package_native
 class WindowsDependenciesTests(unittest.TestCase):
     def test_recursive_dlls_are_beside_tools_external_commands_and_clang(self):
         with tempfile.TemporaryDirectory() as temporary:
-            work = Path(temporary)
+            work = Path(temporary).resolve()
             root, llvm, build = (work / name for name in ("installation", "llvm", "build"))
             for directory in (
                 root / "bin",

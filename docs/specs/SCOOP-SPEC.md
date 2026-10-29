@@ -23,7 +23,7 @@ Scoop 的泛型采用**单态化（monomorphization）**，不进行类型擦除
 - Scoop 的核心语法；
 - 支撑核心语法所需的**最小核心库**（见第 11 章）。
 
-除 11.10 为字符串构建及公共容器访问提供的最小集合协议和 11.14 的原子类型外，标准库的其他部分不在本文件展开。M42 的平台无关标准基础库见 [标准基础库规范](SCOOP-STDLIB-SPEC.md)；它是显式依赖的普通 Scoop Cone，不扩展语言语法、编译器角色或 runtime ABI。同步 IO、系统取时及系统熵见[平台库规范](SCOOP-PLATFORM-SPEC.md)，事件循环与异步 IO 见[异步 I/O 库规范](SCOOP-ASYNCIO-SPEC.md)；结构化任务树见 11.9.1～11.9.2。HTTP 协议与普通异步流适配见 [HTTP 库规范](SCOOP-HTTP-SPEC.md)。
+除 11.10 为字符串构建及公共容器访问提供的最小集合协议和 11.14 的原子类型外，标准库的其他部分不在本文件展开。M42 的平台无关标准基础库见 [标准基础库规范](SCOOP-STDLIB-SPEC.md)；它是显式依赖的普通 Scoop Cone，不扩展语言语法、编译器角色或 runtime ABI。同步 IO、系统取时及系统熵见[平台库规范](SCOOP-PLATFORM-SPEC.md)，事件循环与异步 IO 见[异步 I/O 库规范](SCOOP-ASYNCIO-SPEC.md)；结构化任务树见 11.9.1～11.9.2。HTTP 协议与普通异步流适配见 [HTTP 库规范](SCOOP-HTTP-SPEC.md)。桌面窗口、输入与窗口宿主接入见[窗口库规范](SCOOP-WINDOW-SPEC.md)，本阶段为普通 Cone 的 macOS GUI 骨架。
 
 交互行编辑由普通库提供，见 [Readline 库规范](SCOOP-READLINE-SPEC.md)。
 
@@ -2912,9 +2912,9 @@ executable Cone 可使用 `[windows]` 节：`subsystem = "console" | "gui"`（�
 
 `windows.rc` 选择单个资源脚本，路径沿用 native source 的相对路径规则，允许引用 Cone 根外的共用文件，不递归发现资源。脚本以 UTF-8 输入，使用所选 Windows target 的 Clang 预处理器、headers 和目标宏；包含路径还包括当前 Cone 的 `native.include`，C/C++ 编译 flags 不自动应用到 RC。头文件和图标等资源由普通 RC 语法引用；实际输入缺失或编译失败按构建错误报告。测试 executable 不继承生产程序的 RC，非 Windows target 和未声明 RC 的构建不读取资源或探测资源工具。
 
-#### 12.2.1 Native C/C++ 源码
+#### 12.2.1 Native C/C++／Objective-C 源码
 
-manifest Cone 可在 `[native]` 中配置 `include`、`c_flags`、`cxx_flags` 与 `cxx`，并以 `[[native.sources]]` 的 `path` 和可选 `when` 列出源码。`native.sources` 只选择单个 regular file；`.c` 按 C 编译，`.cc`、`.cpp`、`.cxx` 和 `.C` 按 C++ 编译，不递归发现其他 native 源码。省略的数组为空；`include` 是头文件搜索目录，允许普通相对路径（含 `..`）或绝对路径；相对路径以 Cone 根为基准，保留路径分量供实际文件系统解析。native.sources 使用 Cone 相对路径，沿用 12.2.2 的分隔符、空路径、绝对路径、盘符、NUL 与 glob 限制，词法折叠重复分隔符、`.` 及可以消去的 `..`，但允许保留越出 Cone 根的前置 `..`，以引用共用的 vendor 源码；Scoop 源码的逻辑路径规则不变。条件筛选先于选中文件的存在性、后缀与语言开关检查。native 源码以声明的归一化路径区分 translation unit，不比较 inode 或将指向同一物理文件的不同路径合并。
+manifest Cone 可在 `[native]` 中配置 `include`、`c_flags`、`cxx_flags`、`objc_flags` 与 `cxx`，并以 `[[native.sources]]` 的 `path` 和可选 `when` 列出源码。`native.sources` 只选择单个 regular file；`.c` 按 C 编译，`.cc`、`.cpp`、`.cxx` 和 `.C` 按 C++ 编译，Darwin 的 `.m` 按 Objective-C 编译，不递归发现其他 native 源码。省略的数组为空；`include` 是头文件搜索目录，允许普通相对路径（含 `..`）或绝对路径；相对路径以 Cone 根为基准，保留路径分量供实际文件系统解析。native.sources 使用 Cone 相对路径，沿用 12.2.2 的分隔符、空路径、绝对路径、盘符、NUL 与 glob 限制，词法折叠重复分隔符、`.` 及可以消去的 `..`，但允许保留越出 Cone 根的前置 `..`，以引用共用的 vendor 源码；Scoop 源码的逻辑路径规则不变。条件筛选先于选中文件的存在性、后缀与语言开关检查。native 源码以声明的归一化路径区分 translation unit，不比较 inode 或将指向同一物理文件的不同路径合并。
 
 native 预处理除编译器的目标宏外，还定义当前 target 对应的 `SCOOP_TARGET_OS_DARWIN`／`SCOOP_TARGET_OS_LINUX`／`SCOOP_TARGET_OS_WINDOWS`、`SCOOP_TARGET_ARCH_AARCH64`／`SCOOP_TARGET_ARCH_X86_64` 及 `SCOOP_TARGET_ENV_NONE`／`SCOOP_TARGET_ENV_GNU`／`SCOOP_TARGET_ENV_MUSL`／`SCOOP_TARGET_ENV_MSVC_UCRT`／`SCOOP_TARGET_ENV_LLVM_MINGW_MSVCRT`／`SCOOP_TARGET_ENV_LLVM_MINGW_UCRT`；每组只定义匹配项，值为 `1`。
 
@@ -2941,6 +2941,8 @@ cxx_flags = ["-std=c++20"]
 - **当前不支持 C++ 与 musl target 的组合**，包括 musl 的静态和动态链接模式。当前 Scoop musl 工具链没有配套的 C++ 标准库与 C++ ABI 运行库；musl 提供 libc 本身，不包含这些库。这是当前工具链集成范围的限制，不是 musl 原理上不能支持 C++。musl 下当前 Cone 开启 `cxx`，或依赖闭包要求 C++，都必须给出明确的不支持诊断。
 - C++ 环境包括 Darwin/AArch64、Linux/amd64 GNU，以及 Windows 三个完整 target 对应的 MSVC STL 或 LLVM-MinGW libc++；Windows 实施状态见实现规范。Scoop 与 C++ 之间通过现有 C ABI 和 `extern "C"` 包装函数互操作；C++ 异常必须在 native 一侧处理，不能穿越 Scoop 的 FFI 边界。工具链、产物与链接细则见实现规范 2.7～2.8，异常边界见运行时规范 5.5。
 - single-file 模式不读取 `[native]`，不启用该配置。
+
+Darwin 选中的 `.m` 使用同一目标的 Apple Clang，以 Objective-C、C11 和 ARC 编译；`objc_flags` 只作用于这些 translation unit，可覆盖 C 标准而不能覆盖输入语言、ARC 或 Objective-C runtime ABI。无需开启 `cxx`，也不隐式引入 C++ 运行库。`.c`、generated-C bridge 和 runtime 仍按 C 编译；C／C++ flags 不传给 Objective-C。非 Darwin 选中 `.m` 明确诊断，条件未选中的 `.m` 不检查存在性或启动 Objective-C 工具；`.mm` 不在支持范围。AppKit、Foundation 等 framework 通过 12.2.3 的普通 native libraries 声明，native 层使用 C ABI 包装并在返回 Scoop 前处理 Objective-C 异常。此能力不增加 Scoop 的 Objective-C 语法或 runtime 调度 ABI。
 
 #### 12.2.2 Scoop 源码选择与平台条件
 
