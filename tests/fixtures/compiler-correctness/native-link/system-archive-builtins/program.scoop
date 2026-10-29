@@ -1,0 +1,9 @@
+@Extern(lib = "scoop_test_builtins", name = "scoop_test_native_popcount")
+fun countBits(value: ULong): Int
+
+fun main() {
+    @Unsafe {
+        if (countBits(0xffffUL) != 16) throw IllegalStateException()
+    }
+    println("native archive builtins coexist with the system runtime")
+}

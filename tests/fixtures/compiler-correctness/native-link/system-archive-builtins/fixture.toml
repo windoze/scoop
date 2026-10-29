@@ -1,0 +1,43 @@
+schema = 1
+name = "native-link-system-archive-builtins"
+inputs = ["program.scoop", "provider.c", "builtins.c"]
+tools = ["scoop", "cc"]
+targets = ["x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["native-link", "compiler-correctness"]
+
+[[steps]]
+name = "provider"
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-c", "${fixture}/provider.c", "-o", "${work}/provider.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "builtins"
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-c", "${fixture}/builtins.c", "-o", "${work}/builtins.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive"
+argv = ["/usr/bin/ar", "rcs", "${work}/libscoop_test_builtins.a", "${work}/provider.o", "${work}/builtins.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${fixture}/program.scoop", "--release", {each = "${link_args}"}, "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "native archive builtins coexist with the system runtime\n"
+stderr = ""
