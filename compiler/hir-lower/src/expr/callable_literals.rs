@@ -108,7 +108,7 @@ impl Lowerer {
                     if state.types_equal(return_ty, state.unit) {
                         if !matches!(value.kind, ExprKind::UnitLiteral) {
                             prefix.push(hir::Statement {
-                                span: value.span,
+                                span: value.origin.concrete().evaluation.span,
                                 kind: hir::StatementKind::Expr(value),
                             });
                         }
@@ -121,7 +121,7 @@ impl Lowerer {
                     } else {
                         let value = state.adapt_to(value, return_ty);
                         prefix.push(hir::Statement {
-                            span: value.span,
+                            span: value.origin.concrete().evaluation.span,
                             kind: hir::StatementKind::Return { value },
                         });
                     }

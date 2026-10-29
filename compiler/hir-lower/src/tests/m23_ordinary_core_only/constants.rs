@@ -1,4 +1,6 @@
+use super::support::{TrustedCoreFixture, trusted_core_from_source};
 use super::*;
+use crate::tests::complete_core_file;
 use scoop_ast as ast;
 use scoop_hir as hir;
 
@@ -10,7 +12,14 @@ const SOURCE: &str = include_str!(concat!(
 ));
 
 pub(super) fn with_input<R>(source: &str, run: impl FnOnce(&CurrentConeSources<'_, '_>) -> R) -> R {
-    let core = trusted_core();
+    with_core_input(source, trusted_core(), run)
+}
+
+fn with_core_input<R>(
+    source: &str,
+    core: TrustedCoreFixture,
+    run: impl FnOnce(&CurrentConeSources<'_, '_>) -> R,
+) -> R {
     let identity = crate::tests::test_source_identity("src/main.scoop");
     let sources = ast::CurrentConeParsedSources::try_new(
         ast::AllParsedSources::try_new(ast::NonEmptyVec::new(
@@ -35,6 +44,53 @@ pub(super) fn with_input<R>(source: &str, run: impl FnOnce(&CurrentConeSources<'
     let world = core.world(sources.cone());
     let input = CurrentConeSources::try_new(&sources, protocols, &world).unwrap();
     run(&input)
+}
+
+#[test]
+fn lambda_tail_statements_use_imported_constants_evaluation_spans() {
+    let constant = "public const val LAMBDA_CONSTANT: Int = 42\n";
+    let mut core = complete_core_file();
+    core.declarations
+        .extend(scoop_parser::parse(constant).unwrap().declarations);
+    let core = trusted_core_from_source(core, constant);
+    let source = "fun returnsConstant(): () -> Int = { LAMBDA_CONSTANT }\n\
+                  fun discardsConstant(): () -> Unit = { LAMBDA_CONSTANT }\n";
+    with_core_input(source, core, |input| {
+        let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, input).unwrap();
+        let export = output.output().export.module();
+        assert_eq!(export.lambdas.len(), 2);
+        let mut returned = 0;
+        let mut discarded = 0;
+        for (_, lambda) in export.lambdas.iter() {
+            let function = &export.functions[lambda.definition.source_function()];
+            let hir::FunctionKind::User(body) = &function.kind else {
+                panic!("lambda body");
+            };
+            for statement in &body.statements {
+                let value = match &statement.kind {
+                    hir::StatementKind::Return { value }
+                        if !matches!(value.kind, hir::ExprKind::UnitLiteral) =>
+                    {
+                        returned += 1;
+                        value
+                    }
+                    hir::StatementKind::Expr(value) => {
+                        discarded += 1;
+                        value
+                    }
+                    _ => continue,
+                };
+                let origin = value.origin.concrete();
+                assert_ne!(origin.definition.provider, origin.evaluation.provider);
+                assert_eq!(statement.span, origin.evaluation.span);
+                assert_eq!(
+                    &source[statement.span.start as usize..statement.span.end as usize],
+                    "LAMBDA_CONSTANT"
+                );
+            }
+        }
+        assert_eq!((returned, discarded), (1, 1));
+    });
 }
 
 #[test]
