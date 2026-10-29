@@ -83,8 +83,8 @@ def main():
         parser.error("Python development files, SWIG 4 and Ninja are required")
     server = "debugserver" if host.endswith("darwin") else "lldb-server"
     outputs = [prefix / "bin" / name for name in ("lldb", "lldb-dap", "lldb-argdumper", server)]
-    outputs += list((prefix / "lib").glob("python*/site-packages/lldb/__init__.py"))
-    outputs += list((prefix / "lib").glob("python*/dist-packages/lldb/__init__.py"))
+    # Debian's Python install scheme uses local/lib inside an explicit prefix.
+    outputs += list(prefix.glob("**/lldb/__init__.py"))
     inputs = {
         "source": source_metadata(source, SOURCE_PARTS),
         "tools": [

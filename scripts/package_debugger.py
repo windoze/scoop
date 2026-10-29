@@ -105,8 +105,7 @@ def stage(root, llvm, debugger, python, host, license_file=None):
             native[source.resolve()] = copied
     binary(Path(paths["executable"]), python_root / "bin" / ("python" + version))
     (python_root / "bin/python3").symlink_to("python" + version)
-    packages = list((debugger / "lib").glob("python*/site-packages/lldb"))
-    packages += list((debugger / "lib").glob("python*/dist-packages/lldb"))
+    packages = [entry.parent for entry in debugger.glob("**/lldb/__init__.py")]
     if len(packages) != 1:
         raise ValueError(f"Expected one Python-enabled LLDB package in {debugger}")
     package = packages[0]
