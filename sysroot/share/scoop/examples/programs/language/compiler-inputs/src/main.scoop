@@ -1,0 +1,25 @@
+package examples.embedded
+
+import scoop.compiler.env
+import scoop.compiler.includeStr
+import scoop.compiler.includeBytes
+import scoop.compiler.includeDir
+
+fun main() {
+    val configuredVersion: Option<String> = env("SCOOP_EXAMPLE_VERSION")
+    val version = configuredVersion ?: "dev"
+    println(f"version=${version}")
+
+    print(includeStr("../assets/banner.txt"))
+    val bytes = includeBytes("../assets/banner.txt")
+    println(f"bytes=${bytes.size}, first=${bytes[0L]}")
+
+    val bundled = includeDir("../assets", include = ["**/*.txt"], exclude = ["private/**"])
+    for (file in bundled.files) {
+        println(f"file=${file.path}")
+    }
+    val helpSize = bundled["docs/help.txt"]?.size ?: 0L
+    val privateSize = bundled["private/notes.txt"]?.size ?: 0L
+    println(f"help bytes=${helpSize}")
+    println(f"private bytes=${privateSize}")
+}

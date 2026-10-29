@@ -1,6 +1,6 @@
 # `scoop example` 外部子命令与示例内容设计
 
-状态：首批已实现。日期：2026-10-27。命令、24 个主题、安装与独立验证均已落地；验证结果见 [VALIDATION.md](VALIDATION.md)。
+状态：已实现。日期：2026-10-29。命令、首批 24 个主题、安装与独立验证均已落地，后续增加编译期输入与 import 两个主题；验证结果见 [VALIDATION.md](VALIDATION.md)。
 
 用户决定：通过附加子命令提供能力，不修改编译器。公开入口为 `scoop example`，实际程序为 `<SYSROOT>/commands/scoop-example`，沿用已有的外部命令分发。
 
@@ -222,8 +222,8 @@ scoop --sysroot /path/to/scoop example json/typed
 
 1. 索引测试检查唯一 ID/别名、有效分类与 related、存在的正文及文件、唯一显示路径。验证记录仍放仓库外。
 2. 所有发布示例使用显示给用户的文件布局，经正常 CLI 编译；涉及项目依赖、生成器或 native 的例子提供实际所需材料。
-3. 本次按用户指定范围仅执行外部工具的独立测试与发布示例验收，不运行编译器测试套件，也不做 Linux 验证。已有库行为测试不重复搬入本工具。
-4. 独立脚本从真实命令的 JSON 输出还原显示文件，使用已准备的本机工具链验证全部 24 个示例，包括 CLI 输出、跨 Cone 调用、测试 Cone 和 HTTP 两进程。只复制所需文件，保留原源码、工具与产物。
+3. 首批按当时用户指定范围执行外部工具的独立测试与发布示例本机验收；后续内容按改动范围定向验证，平台和结果记入 VALIDATION.md。已有库行为测试不重复搬入本工具，不因内容更新运行编译器完整测试套件。
+4. 独立脚本从真实命令的 JSON 输出还原显示文件，使用已准备的本机工具链验证已发布示例，包括 CLI 输出、跨 Cone 调用、测试 Cone 和 HTTP 两进程。只复制所需文件，保留原源码、工具与产物。
 5. 网络例子使用本机回环服务，交互例子使用现有终端测试能力；验证不足的内容不标记为可运行交付。普通例子使用 release 和共享预编译 sysroot，不增加 GC stress 或全量 profile 组合。
 6. 人工审阅“程序是否推荐这样写”：依赖/import 完整，正文没有不存在的方法，作用域和清理正确，输出符合所述行为，相关链接确实能帮助下一步修改。
 
@@ -243,6 +243,6 @@ scoop --sysroot /path/to/scoop example json/typed
 ## 10. 实现位置
 
 - [独立阅读器及维护说明](../../tooling/scoop-example/README.md)：参数、索引、搜索和渲染。
-- [发布索引](../../sysroot/share/scoop/examples/catalog.toml)：首批 24 个主题、文件引用与导航。
+- [发布索引](../../sysroot/share/scoop/examples/catalog.toml)：当前 26 个主题、文件引用与导航。
 - [维护安装脚本](../../scripts/build_scoop_example.py)：仅构建此命令；完整打包入口自动调用。
 - [示例验收脚本](../../tooling/scoop-example/tests/run_examples.py)：从公开输出还原文件并实际运行。

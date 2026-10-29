@@ -49,11 +49,23 @@ fun greeting(name: String?): String =
 
 ## 可见性与泛型
 
+文件级 import 位于 package 之后、顶层声明之前。现有语句块也允许 exact、alias 和 star import：从声明之后生效，嵌套块继承，离块恢复；块内不能 public import。导入解析当前 Cone 和直接依赖提供的可见名称，不自动增加 Cone 依赖。不能把 package 本身作为 exact import 的终点，也不支持用 `a.b.f(...)` 或 `::a.b.f` 代替顶层函数的 import；先导入，再使用短名或 alias。完整项目见 `language/imports`。
+
 声明默认 `internal`，边界是 Cone。公开类型、构造器、成员及 companion 按各自规则显式公开；`public class` 不会自动公开其构造器，`public interface` 也不会自动公开全部成员。接口实现显式声明 conformance，并按合同写 `public override`；同名方法不等于实现接口。
 
 名义泛型不变，`Box<Child>` 不自动成为 `Box<Parent>`；不使用 Kotlin 的 `in`／`out` 投影或 `*`。类型位置写完整类型参数，调用点可按规则推断。interface 方法本身不能带方法级类型参数。需要复杂泛型约束或条件实现时查当前声明、规范和诊断，不凭 Kotlin 经验构造签名。
 
 跨 Cone 示例见 `language/visibility`；泛型和 companion 见 `language/generics`、`language/companion`。公开 codec 的示例见 `json/typed`。
+
+## 编译期文件与环境
+
+先查 `language/compiler-inputs`，按显示路径保存项目及资源。core 的 `scoop.compiler` 不进入默认 prelude，需显式导入 includeStr、includeBytes、includeDir 或 env。
+
+- includeStr 返回严格 UTF-8 的 String；includeBytes 返回不可变 `Array<Byte>`；includeDir 返回 EmbeddedDir，files 中每项含 path 和 bytes，按相对路径排序，下标查询返回 `Array<Byte>?`。
+- 路径相对调用所在源码目录，目标和全部 symlink 解析后的目标都须留在定义 Cone 内。includeDir 对每一项执行检查，include／exclude 不绕过边界检查；glob 使用 `/` 和区分大小写的完整相对路径，`**/*.txt` 包括根目录文件。
+- env 返回 `Option<String>`，仅接受以区分大小写的 `SCOOP_` 开头的名称。缺失为 None、空值为 `Some("")`；读取定义 Cone 编译时的宿主环境，运行期改变环境不改变嵌入值。
+- 输入必须编译期可确定；普通局部 val、函数形参或运行期数组不合法。include／exclude 使用常量 String 数组字面量。`val version = env("SCOOP_VERSION") ?: "dev"` 合法；不把尚未实现的常量 Elvis／when 当作路径计算或 const 初始化能力。
+- 这些 intrinsic 没有运行期 callable 入口，不能取函数引用，alias 亦然；getCurrentSourceLocation 也不能取引用。相同常量对象是否共享 identity 不作保证。
 
 ## 错误与确定性释放
 
