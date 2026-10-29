@@ -7,6 +7,11 @@ import scoop.time.Duration
 
 private class AttachMarker(val value: Int)
 
+private class PendingHostCleanup {
+    var continuation: Continuation<Unit>? = None
+    var started = false
+}
+
 context(marker: AttachMarker)
 private fun attachMarker(): Int = marker.value
 
@@ -36,6 +41,54 @@ private class EventLoopSessionTest {
         assertEquals(1, result.closed)
         assertFailsWith<IllegalStateException> { loop.run suspend { _ -> } }
         assertFailsWith<IllegalStateException> { loop.attach(host) { _ -> } }
+    }
+
+    @Test
+    fun `explicit close during cancelled root cleanup still records normal shutdown`() {
+        val host = PollHost()
+        val result = HostResult()
+        val cleanup = PendingHostCleanup()
+        val session =
+            PlatformEventLoop().attach(host) {
+                error ->
+                assertNoHostFailure(error)
+                result.closed += 1
+            }
+        session.post {
+            scope ->
+            result.job = Some(scope.job)
+            scope.launch suspend {
+                try {
+                    result.seen += 1
+                    currentEventLoop().sleep(Duration.seconds(100L))
+                } finally {
+                    nonCancellableScope<Unit> suspend {
+                        _ ->
+                        suspendCoroutine<Unit> {
+                            continuation ->
+                            cleanup.continuation = Some(continuation)
+                            cleanup.started = true
+                        }
+                        result.cleaned = true
+                    }
+                }
+            }
+        }
+        while (result.seen == 0)
+            host.step()
+        result.job!!.cancel()
+        while (!cleanup.started)
+            host.step()
+        while (session.post { _ -> })
+            host.step()
+        assertFalse(session.isClosed)
+        assertFalse(result.cleaned)
+        session.requestClose()
+        session.requestClose()
+        cleanup.continuation!!.resume(Unit)
+        host.drain(session)
+        assertTrue(result.cleaned)
+        assertEquals(1, result.closed)
     }
 
     @Test

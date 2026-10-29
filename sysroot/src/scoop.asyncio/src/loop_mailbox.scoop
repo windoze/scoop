@@ -29,7 +29,7 @@ internal class LoopMailbox(private val owner: LoopOwner) {
     fun requestClose() {
         val first =
             lock.withLock {
-                if (!accepting)
+                if (closeRequested || closed)
                     false
                 else {
                     accepting = false

@@ -305,7 +305,7 @@ async raw 作用域使用这两个入口和 useAsync，GC 不承担恢复。
 
 session 暴露 `loop: EventLoop`、`isClosed: Boolean`、`post(block: (CoroutineScope) -> Unit): Boolean` 与 `requestClose()`。后三项可跨线程；post 异步排队，关闭后拒绝且不保留闭包。接受的投递在关闭／失败时可以丢弃，内部取消、完成和清理命令不能丢弃。post 执行在仍活动的结构化根作用域中，子任务沿现有 launch／async 合同；根在没有消息时挂起，持续到请求关闭或失败。
 
-内部根在 attach 栈内捕获完整 Context 并挂起，用户投递从后续宿主通知开始；mailbox 通过根 continuation 恢复，不继承外线程 post 时的动态 Context。普通投递抛错作为根失败处理。requestClose 幂等、不阻塞，停止应用投递并把根取消交给 owner；mailbox 的取消恢复也排入 owner。主动关闭的取消不作为最终失败，其他失败沿现有组合规则保留。
+内部根在 attach 栈内捕获完整 Context 并挂起，用户投递从后续宿主通知开始；mailbox 通过根 continuation 恢复，不继承外线程 post 时的动态 Context。普通投递抛错作为根失败处理。requestClose 幂等、不阻塞，停止应用投递并把根取消交给 owner；mailbox 的取消恢复也排入 owner。主动关闭的取消不作为最终失败，其他失败沿现有组合规则保留。根因外部取消已停止接收投递、但仍在等待后代收尾时，requestClose 仍须记录主动关闭；不能用“已经停止投递”代替“已经请求关闭”。根最终结果确定后不追溯改变已记录的失败。
 
 两种模式共用非阻塞处理流程；run 在空闲时 NativeSafe 等待，attach 只在宿主通知时处理一轮。通知可合并，真实队列承担完整性。嵌套宿主循环不能递归进入处理流程；处理期间产生的新工作留待后续通知。库不抢占用户回调。
 
