@@ -229,6 +229,7 @@ fn select_manifest_input(
         test_config,
         native,
         manifest_locator: manifest.manifest_path().to_path_buf(),
+        input_root: manifest.input_root().to_path_buf(),
         sources: discovered,
     })
 }

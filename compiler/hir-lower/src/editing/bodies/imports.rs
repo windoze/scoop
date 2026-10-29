@@ -71,7 +71,12 @@ impl Lowerer {
         name: &ast::Ident,
         layer: ImportLookupLayer,
     ) -> Vec<hir::EditingImportSource> {
-        let file = &self.imports.files[&self.current_file];
+        let file = match layer {
+            ImportLookupLayer::BlockExact(depth) | ImportLookupLayer::BlockStar(depth) => {
+                &*self.scopes.imports()[depth]
+            }
+            _ => &self.imports.files[&self.current_file],
+        };
         let declaration = |origin: &crate::imports::ImportSyntaxOrigin| {
             hir::EditingImportSource::Declaration(hir::SemanticSourceLocation {
                 source: origin.source.clone(),
@@ -79,13 +84,13 @@ impl Lowerer {
             })
         };
         match layer {
-            ImportLookupLayer::Exact => file
+            ImportLookupLayer::Exact | ImportLookupLayer::BlockExact(_) => file
                 .exact
                 .iter()
                 .filter(|import| import.local_name == name.text)
                 .map(|import| declaration(&import.origin))
                 .collect(),
-            ImportLookupLayer::Star => file
+            ImportLookupLayer::Star | ImportLookupLayer::BlockStar(_) => file
                 .stars
                 .iter()
                 .flat_map(|import| {

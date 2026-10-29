@@ -76,6 +76,7 @@ fn input(source_modified: u64, compiler_input: &str) -> ConeCompileCacheInputV1 
         )
         .unwrap(),
         CurrentConeSemanticProjectionV1::Manifest {
+            input_root: PathBuf::from("/source").into_boxed_path(),
             coordinate: ConeCoordinate::reserved_core(),
             requested_kind: RequestedConeKind::Library,
             dependencies: Vec::new(),
@@ -178,6 +179,7 @@ fn rich_input() -> ConeCompileCacheInputV1 {
         )
         .unwrap(),
         CurrentConeSemanticProjectionV1::Manifest {
+            input_root: PathBuf::from("/source").into_boxed_path(),
             coordinate: current_coordinate,
             requested_kind: RequestedConeKind::Library,
             dependencies: vec![dependency.cone().coordinate().clone()],
@@ -229,12 +231,12 @@ fn assert_mutation_misses(
 fn compile_cache_key_has_a_fixed_canonical_vector() {
     let input = input(1, "paired-scoopc-v1");
 
-    // The vector includes the current runtime ABI and machine protocol.
+    // The vector includes the directory-input cache domain, runtime ABI and machine protocol.
     assert_eq!(
         input.key().unwrap().to_string(),
-        "1562b58a1f9c3bfc3f441b81e14e3ef1ef63a459f396659bdd77709ff05ff01f"
+        "102603f100f7584ea8a933a1e4cb2cdb9640ab7c3f3c738d8bc4d834195897fb"
     );
-    assert_eq!(encode(&input).unwrap().first(), Some(&0xaf));
+    assert_eq!(encode(&input).unwrap().first(), Some(&0xb0));
 }
 
 #[test]
@@ -263,6 +265,14 @@ fn absent_optional_core_code_has_the_frozen_wire_shape() {
 fn every_currently_variable_cache_key_dimension_misses_independently() {
     let baseline = rich_input();
     let (_, alternate_dependency) = dependency_summaries();
+    assert_mutation_misses(&baseline, |input| {
+        let CurrentConeSemanticProjectionV1::Manifest { input_root, .. } =
+            &mut input.current_semantic
+        else {
+            unreachable!()
+        };
+        *input_root = PathBuf::from("/other-alias").into_boxed_path();
+    });
 
     assert_mutation_misses(&baseline, |input| {
         input.cone = ConeRecord::new(

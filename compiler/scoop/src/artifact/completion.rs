@@ -29,6 +29,7 @@ pub struct CompletedNode {
     artifact_locator: PathBuf,
     warnings: Vec<StructuredDiagnosticV1>,
     used_generators: Vec<scoop_protocol::GeneratorToolInputV1>,
+    compiler_inputs: Vec<scoop_protocol::CompilerInputV1>,
 }
 
 impl CompletedNode {
@@ -38,6 +39,18 @@ impl CompletedNode {
     ) -> Self {
         self.used_generators = inputs;
         self
+    }
+
+    pub(crate) fn with_compiler_inputs(
+        mut self,
+        inputs: Vec<scoop_protocol::CompilerInputV1>,
+    ) -> Self {
+        self.compiler_inputs = inputs;
+        self
+    }
+
+    pub(crate) fn compiler_inputs(&self) -> &[scoop_protocol::CompilerInputV1] {
+        &self.compiler_inputs
     }
 
     pub(crate) fn used_generators(&self) -> &[scoop_protocol::GeneratorToolInputV1] {
@@ -88,6 +101,7 @@ impl CompletedNode {
             artifact_locator,
             warnings,
             used_generators: Vec::new(),
+            compiler_inputs: Vec::new(),
         }
     }
 }
@@ -254,5 +268,6 @@ pub(crate) fn complete_prebuilt_candidates(
         artifact_locator: selected.source_locator,
         warnings: Vec::new(),
         used_generators: Vec::new(),
+        compiler_inputs: Vec::new(),
     })
 }

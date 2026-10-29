@@ -1,0 +1,184 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "include path must be nonempty and must not contain NUL",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 456,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 454
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "include path must be nonempty and must not contain NUL",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 94,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 92
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "include path must be nonempty and must not contain NUL",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 125,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 116
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`includeStr` requires a compile-time constant String path",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 155,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 151
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "compiler intrinsic `includeStr` does not support callable references\nnote: this intrinsic is evaluated at compile time and has no runtime callable entry\nhelp: import and call it directly with a constant path",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 184,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 177
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "includeStr input `invalid.bin` must be valid UTF-8 (invalid sequence at byte offset 2)",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 219,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 206
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "include path `${work}/cone/.` must name a regular file",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 250,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 247
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "include path `${work}/cone/../outside.txt` is outside the defining Cone directory `${work}/cone`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 292,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 276
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "include symlink target `${work}/outside.txt` is outside the defining Cone directory `${work}/cone`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 330,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 318
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cannot read include input `${work}/cone/missing.txt`: No such file or directory (os error 2)",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 369,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 356
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "include path must be nonempty and must not contain NUL",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 416,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 414
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`includeBytes` requires a compile-time constant String path",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 583,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 579
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "compiler intrinsic `includeBytes` does not support callable references\nnote: this intrinsic is evaluated at compile time and has no runtime callable entry\nhelp: import and call it directly with a constant path",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 619,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 605
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "include symlink target `${work}/outside.txt` is outside the defining Cone directory `${work}/cone`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 663,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 651
+    },
+    "severity": "error"
+  }
+]

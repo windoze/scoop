@@ -107,6 +107,7 @@ enum DecodedResponseV1 {
         warnings: Vec<DecodedStructuredDiagnosticV1>,
         dumps: Vec<DecodedDumpDescriptorV1>,
         used_generators: Vec<crate::GeneratorToolInputV1>,
+        compiler_inputs: Vec<crate::CompilerInputV1>,
     },
     Failure {
         request_id: Vec<u8>,
@@ -140,6 +141,7 @@ impl DecodedResponseV1 {
                 warnings,
                 dumps,
                 used_generators,
+                compiler_inputs,
             } => {
                 let warnings = warnings
                     .into_iter()
@@ -150,7 +152,8 @@ impl DecodedResponseV1 {
                     .map(DecodedDumpDescriptorV1::validate)
                     .collect::<Result<Vec<_>, _>>()?;
                 let result = ScoopcSuccessV1::new(product.validate()?, warnings, dumps)?
-                    .with_used_generators(used_generators);
+                    .with_used_generators(used_generators)
+                    .with_compiler_inputs(compiler_inputs);
                 Ok(ScoopcResponseEnvelopeV1::success(
                     RequestCorrelationId::from_vec(request_id)?,
                     result,
@@ -201,8 +204,9 @@ impl WireEncode for DecodedResponseV1 {
                 warnings,
                 dumps,
                 used_generators,
+                compiler_inputs,
             } => {
-                encoder.map(6)?;
+                encoder.map(7)?;
                 encoder.field(0)?;
                 encoder.unsigned(1)?;
                 encoder.field(1)?;
@@ -219,6 +223,11 @@ impl WireEncode for DecodedResponseV1 {
                 encoder.field(5)?;
                 encoder.array(used_generators.len() as u64)?;
                 for input in used_generators {
+                    input.encode(encoder)?;
+                }
+                encoder.field(6)?;
+                encoder.array(compiler_inputs.len() as u64)?;
+                for input in compiler_inputs {
                     input.encode(encoder)?;
                 }
                 Ok(())
@@ -255,7 +264,7 @@ impl WireDecode for DecodedResponseV1 {
                 })
             }
             1 => {
-                crate::framing::expect_sum_length(decoder, fields, 6)?;
+                crate::framing::expect_sum_length(decoder, fields, 7)?;
                 let request_id = decoder.field(1, Decoder::owned_bytes)?;
                 let product = decoder.field(2, DecodedProduct::decode)?;
                 let warnings = decoder.field(3, decode_decoded_diagnostics)?;
@@ -269,6 +278,9 @@ impl WireDecode for DecodedResponseV1 {
                     dumps,
                     used_generators: decoder.field(5, |d| {
                         d.decode_array(|d, _| crate::GeneratorToolInputV1::decode(d))
+                    })?,
+                    compiler_inputs: decoder.field(6, |d| {
+                        d.decode_array(|d, _| crate::CompilerInputV1::decode(d))
                     })?,
                 })
             }

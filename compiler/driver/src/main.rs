@@ -27,7 +27,11 @@ enum Command {
     MachineCapability,
     /// Compile exactly one request from the versioned machine transport.
     #[command(name = "__child-protocol", hide = true)]
-    ChildProtocol { version: u32 },
+    ChildProtocol {
+        version: u32,
+        #[arg(long)]
+        object_cache_dir: Option<PathBuf>,
+    },
 }
 
 #[derive(clap::Args)]
@@ -145,7 +149,10 @@ fn main() -> ExitCode {
         }
         Command::Check(args) => check::run(args),
         Command::MachineCapability => write_machine_capability(),
-        Command::ChildProtocol { version } => child_protocol::run(version),
+        Command::ChildProtocol {
+            version,
+            object_cache_dir,
+        } => child_protocol::run(version, object_cache_dir),
     };
     scoop_process::finish_interruption();
     result
@@ -327,7 +334,13 @@ mod tests {
     #[test]
     fn child_protocol_is_a_unique_versioned_hidden_command() {
         let cli = Cli::try_parse_from(["scoopc", "__child-protocol", "1"]).unwrap();
-        assert!(matches!(cli.command, Command::ChildProtocol { version: 1 }));
+        assert!(matches!(
+            cli.command,
+            Command::ChildProtocol {
+                version: 1,
+                object_cache_dir: None
+            }
+        ));
         assert!(Cli::try_parse_from(["scoopc", "__child-protocol"]).is_err());
         assert!(Cli::try_parse_from(["scoopc", "__child-protocol", "1", "extra"]).is_err());
     }

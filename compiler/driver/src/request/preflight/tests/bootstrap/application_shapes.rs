@@ -68,7 +68,7 @@ pub(super) fn check(
     // layout, specialization group and linkage are checked above.
     for expected in [
         "Array<String>",
-        "ArrayList<String>",
+        "MutableArray<UInt8>",
         "Option<String>",
         "ValueEncoder<Int>",
         "ValueDecoder<Int>",

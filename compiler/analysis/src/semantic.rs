@@ -55,6 +55,19 @@ pub struct SemanticSession {
 }
 
 impl SemanticSession {
+    /// Current input hosts remain shared as additional bodies are queried on demand.
+    pub fn compiler_inputs(
+        &self,
+        snapshot: &AnalysisSnapshot,
+    ) -> Vec<std::sync::Arc<scoop_toolchain::CompileTimeInputs>> {
+        self.projects
+            .iter()
+            .filter(|cached| snapshot.workspace.projects.contains(&cached.input))
+            .flat_map(project::ProjectSemantics::compiler_inputs)
+            .cloned()
+            .collect()
+    }
+
     pub fn declarations(
         &mut self,
         snapshot: &AnalysisSnapshot,

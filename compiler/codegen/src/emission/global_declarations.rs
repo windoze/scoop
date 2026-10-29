@@ -15,9 +15,7 @@ pub(super) fn emit<'ctx>(
     descriptors: TypeDescriptorGlobals<'_, 'ctx>,
 ) -> Result<BTreeMap<scoop_lir::GlobalId, GlobalValue<'ctx>>, CodegenError> {
     let managed_address_space = profile.managed_address_space_contract();
-    let ptr_ty = context.ptr_type(AddressSpace::default());
     let i8_ty = context.i8_type();
-    let i64_ty = context.i64_type();
     // Ordinary globals are disjoint from descriptor identities.
     let mut globals = BTreeMap::new();
     for &id in &references.globals {
@@ -67,43 +65,20 @@ pub(super) fn emit<'ctx>(
                 llvm_global.set_alignment(logical_alignment);
                 globals.insert(id, llvm_global);
             }
-            GlobalInit::StringConst { identity, value } => {
-                // { ptr td, i64 gc_word, i64 len, [N x i8] data }
-                // (runtime spec 2.4; the 16-byte header is M9).
-                let bytes = value.as_bytes();
-                let ty = context.struct_type(
-                    &[
-                        ptr_ty.into(),
-                        i64_ty.into(),
-                        i64_ty.into(),
-                        i8_ty.array_type(bytes.len() as u32).into(),
-                    ],
-                    false,
-                );
-                let llvm_global =
-                    llvm.add_global(ty, Some(managed_address_space.inkwell()), global.symbol());
-                llvm_global.set_constant(true);
-                if selection.defines_non_callable() {
-                    let string_td = type_descriptor_global(
-                        module.meta.well_known_type_descriptors.string,
-                        descriptors,
-                    )?;
-                    llvm_global.set_initializer(&context.const_struct(
-                        &[
-                            string_td.as_pointer_value().into(),
-                            i64_ty.const_zero().into(),
-                            i64_ty.const_int(bytes.len() as u64, false).into(),
-                            context.const_string(bytes, false).into(),
-                        ],
-                        false,
-                    ));
-                }
-                apply_persistent_linkage(
-                    &llvm_global,
-                    identity.symbol_request(),
-                    selection.defines_non_callable(),
-                )?;
-                globals.insert(id, llvm_global);
+            GlobalInit::StringConst { .. }
+            | GlobalInit::ByteArrayConst { .. }
+            | GlobalInit::EmbeddedFileArrayConst { .. } => {
+                let emitter = immortals::ImmortalEmitter {
+                    context,
+                    llvm,
+                    module,
+                    target_data,
+                    descriptors,
+                    managed_address_space,
+                    globals: &globals,
+                    define: selection.defines_non_callable(),
+                };
+                globals.insert(id, emitter.emit(global)?);
             }
             GlobalInit::CString { identity, value } => {
                 // [N+1 x i8] c"...\00" (e.g. trap messages), emitted as a

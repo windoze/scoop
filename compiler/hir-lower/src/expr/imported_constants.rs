@@ -8,6 +8,8 @@ use scoop_hir as hir;
 use super::imported_origins::{ImportedDefinitionOriginError, ImportedDefinitionOriginError::*};
 use crate::Lowerer;
 
+mod values;
+
 pub(crate) struct ImportedDependencyConstantValue {
     pub(crate) value: hir::ConstPropertyValue,
     pub(crate) ty: hir::TypeId,
@@ -27,19 +29,12 @@ impl Lowerer {
         let expression = self
             .lower_imported_qualified_field(owner, access, expected)
             .ok_or(())?;
-        let value = match expression.kind {
-            hir::ExprKind::IntegerLiteral(value) => hir::ConstPropertyValue::Integer(value),
-            hir::ExprKind::FloatLiteral(value) => hir::ConstPropertyValue::Float(value),
-            hir::ExprKind::CharLiteral(value) => hir::ConstPropertyValue::Char(value),
-            hir::ExprKind::BoolLiteral(value) => hir::ConstPropertyValue::Boolean(value),
-            hir::ExprKind::StringLiteral { value, .. } => hir::ConstPropertyValue::String(value),
-            _ => {
-                self.error(
-                    access.span,
-                    "const initializer may only reference const properties".into(),
-                );
-                return Err(());
-            }
+        let Some(value) = self.expression_constant(&expression) else {
+            self.error(
+                access.span,
+                "const initializer may only reference constant values".into(),
+            );
+            return Err(());
         };
         Ok(Some((value, expression.ty)))
     }
@@ -64,13 +59,6 @@ impl Lowerer {
                 return None;
             }
         };
-        if candidate.exact_type().is_none() {
-            self.error(
-                usage_span,
-                "dependency constant is outside the M23-5 core-closed exact subset".to_string(),
-            );
-            return None;
-        }
         let ty = match self.imported_signature_type(candidate.record().value_type()) {
             Ok(ty) => ty,
             Err(error) => {
@@ -81,7 +69,14 @@ impl Lowerer {
                 return None;
             }
         };
-        let value = hir::ConstPropertyValue::from(candidate.record().value().clone());
+        let Some(value) = self.imported_constant_image(candidate.record().value().clone(), ty)
+        else {
+            self.error(
+                usage_span,
+                "dependency constant payload does not match its declared type".into(),
+            );
+            return None;
+        };
         let source = candidate.record().definition_origin().clone();
         let imported = match candidate.definition_source(&source) {
             Some(imported) => imported,
@@ -140,22 +135,13 @@ impl Lowerer {
         usage_span: Span,
     ) -> Option<hir::Expr> {
         let constant = self.select_imported_dependency_constant(binding, usage_span)?;
-        let kind = match constant.value {
-            hir::ConstPropertyValue::Integer(value) => hir::ExprKind::IntegerLiteral(value),
-            hir::ConstPropertyValue::Float(value) => hir::ExprKind::FloatLiteral(value),
-            hir::ConstPropertyValue::Char(value) => hir::ExprKind::CharLiteral(value),
-            hir::ConstPropertyValue::Boolean(value) => hir::ExprKind::BoolLiteral(value),
-            hir::ConstPropertyValue::String(value) => hir::ExprKind::StringLiteral {
-                value,
-                owner: hir::StringConstantOwner::CurrentDefinition,
-            },
-        };
-        Some(hir::Expr {
-            kind,
-            ty: constant.ty,
-            span: constant.span,
-            origin: constant.origin,
-        })
+        Some(self.constant_expression(
+            constant.value,
+            constant.ty,
+            hir::StringConstantOwner::CurrentDefinition,
+            constant.span,
+            constant.origin,
+        ))
     }
 
     fn report_imported_constant_origin_error(

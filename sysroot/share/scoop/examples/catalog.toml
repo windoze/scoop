@@ -259,6 +259,40 @@ files = [
 ]
 
 [[topics]]
+id = "language/compiler-inputs"
+title = "嵌入编译期资源与环境变量"
+summary = "把文本、字节和筛选后的目录嵌入产物，读取编译期版本号。"
+aliases = ["compiler-inputs", "scoop.compiler", "编译期输入"]
+keywords = ["intrinsic", "includeStr", "includeBytes", "includeDir", "env", "SCOOP_", "glob", "资源", "环境变量", "常量", "symlink"]
+document = "topics/language/compiler-inputs.md"
+requirements = ["使用配套工具链及其预编译 core；保存全部资源文件，以下构建使用 release。"]
+related = ["language/imports", "language/option", "io/files"]
+files = [
+  { path = "Cone.toml", source = "share/scoop/examples/programs/language/compiler-inputs/Cone.toml", language = "toml" },
+  { path = "src/main.scoop", source = "share/scoop/examples/programs/language/compiler-inputs/src/main.scoop", language = "scoop" },
+  { path = "assets/banner.txt", source = "share/scoop/examples/programs/language/compiler-inputs/assets/banner.txt", language = "text" },
+  { path = "assets/docs/help.txt", source = "share/scoop/examples/programs/language/compiler-inputs/assets/docs/help.txt", language = "text" },
+  { path = "assets/private/notes.txt", source = "share/scoop/examples/programs/language/compiler-inputs/assets/private/notes.txt", language = "text" },
+  { path = "assets/settings.json", source = "share/scoop/examples/programs/language/compiler-inputs/assets/settings.json", language = "json" },
+]
+
+[[topics]]
+id = "language/imports"
+title = "在文件和局部块中导入名称"
+summary = "用 exact、alias 和 star import 控制同名函数在嵌套块中的解析。"
+aliases = ["imports", "局部导入"]
+keywords = ["import", "as", "package", "块级", "作用域", "别名", "star", "函数引用"]
+document = "topics/language/imports.md"
+requirements = ["使用配套工具链及其预编译 core；按目录保存全部源码，以下运行使用 release。"]
+related = ["start/cone", "language/visibility", "language/compiler-inputs"]
+files = [
+  { path = "Cone.toml", source = "share/scoop/examples/programs/language/imports/Cone.toml", language = "toml" },
+  { path = "src/main.scoop", source = "share/scoop/examples/programs/language/imports/src/main.scoop", language = "scoop" },
+  { path = "src/friendly.scoop", source = "share/scoop/examples/programs/language/imports/src/friendly.scoop", language = "scoop" },
+  { path = "src/formal.scoop", source = "share/scoop/examples/programs/language/imports/src/formal.scoop", language = "scoop" },
+]
+
+[[topics]]
 id = "text/strings"
 title = "插值和遍历 Unicode 文本"
 summary = "比较标量数与字节数，用 StringBuilder 累积字符。"

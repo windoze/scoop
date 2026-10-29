@@ -16,6 +16,10 @@ impl WireEncode for IntrinsicFunctionKind {
             Self::CoroutineStart => encode_empty_sum(encoder, 7),
             Self::CoroutineSuspend => encode_empty_sum(encoder, 8),
             Self::CurrentSourceLocation => encode_empty_sum(encoder, 9),
+            Self::CompileEnv => encode_empty_sum(encoder, 34),
+            Self::IncludeStr => encode_empty_sum(encoder, 31),
+            Self::IncludeBytes => encode_empty_sum(encoder, 32),
+            Self::IncludeDir => encode_empty_sum(encoder, 33),
             Self::TypeReference => encode_empty_sum(encoder, 26),
             Self::TypeDescription => encode_empty_sum(encoder, 27),
             Self::AnnotationKey => encode_empty_sum(encoder, 28),
@@ -57,6 +61,10 @@ impl WireDecode for IntrinsicFunctionKind {
         }
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
+            34 => decode_empty_intrinsic(decoder, fields, Self::CompileEnv),
+            31 => decode_empty_intrinsic(decoder, fields, Self::IncludeStr),
+            32 => decode_empty_intrinsic(decoder, fields, Self::IncludeBytes),
+            33 => decode_empty_intrinsic(decoder, fields, Self::IncludeDir),
             29 => decode_unsigned_intrinsic(decoder, fields, |decoder, tag| {
                 StringIntrinsic::ALL
                     .into_iter()

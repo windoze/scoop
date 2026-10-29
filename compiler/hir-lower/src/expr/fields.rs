@@ -384,7 +384,7 @@ impl Lowerer {
     /// included; the index is the absolute layout index — base fields
     /// prefix, own fields consecutive), or a tuple element by (1-based)
     /// index.
-    pub(super) fn resolve_field(
+    pub(crate) fn resolve_field(
         &mut self,
         receiver_ty: TypeId,
         selector: &ast::FieldSelector,

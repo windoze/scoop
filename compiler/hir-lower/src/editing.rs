@@ -80,6 +80,18 @@ pub fn analyze_declarations(
     test_dependencies: &[ConeIdentity],
     is_cancelled: impl Fn() -> bool,
 ) -> Result<DeclarationAnalysis, EditingAnalysisError> {
+    analyze_declarations_with_inputs(sources, core, world, test_dependencies, None, is_cancelled)
+}
+
+/// Uses the same compiler input host as ordinary source compilation.
+pub fn analyze_declarations_with_inputs(
+    sources: &[ast::DeclarationSource<'_, '_>],
+    core: &CoreProtocolInput,
+    world: &hir::ImportedSemanticWorld<'_>,
+    test_dependencies: &[ConeIdentity],
+    inputs: Option<std::sync::Arc<dyn hir::CompileTimeInputHost>>,
+    is_cancelled: impl Fn() -> bool,
+) -> Result<DeclarationAnalysis, EditingAnalysisError> {
     let check = || {
         if is_cancelled() {
             Err(EditingCancelled)
@@ -123,6 +135,7 @@ pub fn analyze_declarations(
         })
         .collect();
     let mut lowerer = crate::current_lowering::prepare_current_lowerer(providers, world)?;
+    lowerer.compile_time_inputs = inputs;
     if sources.iter().any(|source| source.documentation.is_some()) {
         lowerer.documentation = Some(
             crate::documentation::DocumentationContext::new(sources.iter().enumerate().filter_map(

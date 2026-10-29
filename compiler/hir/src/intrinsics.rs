@@ -31,6 +31,10 @@ pub enum IntrinsicFunctionKind {
     CoroutineStart,
     CoroutineSuspend,
     CurrentSourceLocation,
+    CompileEnv,
+    IncludeStr,
+    IncludeBytes,
+    IncludeDir,
     TypeReference,
     TypeDescription,
     AnnotationKey,
@@ -54,6 +58,13 @@ pub enum IntrinsicFunctionKind {
 }
 
 impl IntrinsicFunctionKind {
+    pub const fn is_compile_time_input(self) -> bool {
+        matches!(
+            self,
+            Self::CompileEnv | Self::IncludeStr | Self::IncludeBytes | Self::IncludeDir
+        )
+    }
+
     pub const fn is_type_info(self) -> bool {
         matches!(self, Self::TypeReference | Self::TypeDescription)
     }
@@ -93,6 +104,10 @@ impl IntrinsicFunctionKind {
             Self::CoroutineStart => "coroutine_start".to_string(),
             Self::CoroutineSuspend => "coroutine_suspend".to_string(),
             Self::CurrentSourceLocation => "current_source_location".to_string(),
+            Self::CompileEnv => "compile_env".to_string(),
+            Self::IncludeStr => "include_str".to_string(),
+            Self::IncludeBytes => "include_bytes".to_string(),
+            Self::IncludeDir => "include_dir".to_string(),
             Self::TypeReference => "type_reference".to_string(),
             Self::TypeDescription => "type_description".to_string(),
             Self::AnnotationKey => "annotation_key".to_string(),

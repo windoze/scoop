@@ -30,7 +30,13 @@ impl Lowerer {
             .source_namespace(self.current_file)
         {
             let imports = &self.imports.files[&self.current_file];
-            let origins = [
+            let mut origins = self
+                .imports
+                .block_layers(self, None)
+                .into_iter()
+                .map(|layer| (layer.kind, layer.bindings))
+                .collect::<Vec<_>>();
+            origins.extend([
                 (
                     ImportLookupLayer::Exact,
                     imports
@@ -71,7 +77,7 @@ impl Lowerer {
                         }))
                         .collect(),
                 ),
-            ];
+            ]);
             for (kind, origins) in origins {
                 let unavailable = self
                     .unavailable_bindings_matching(&origins, |kind| {
@@ -168,7 +174,13 @@ impl Lowerer {
             return layers;
         };
         let imports = &self.imports.files[&self.current_file];
-        let dependency_origins = [
+        let mut dependency_origins = self
+            .imports
+            .block_layers(self, None)
+            .into_iter()
+            .map(|layer| (layer.kind, layer.dependency_bindings))
+            .collect::<Vec<_>>();
+        dependency_origins.extend([
             (
                 ImportLookupLayer::Exact,
                 imports
@@ -199,7 +211,7 @@ impl Lowerer {
                     .cloned()
                     .collect(),
             ),
-        ];
+        ]);
         for (kind, bindings) in dependency_origins {
             let layer = layers
                 .iter_mut()

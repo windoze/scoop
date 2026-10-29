@@ -370,7 +370,7 @@ impl Lowerer {
             closure_classes: self.closure_classes,
             closure_invoke_functions: self.closure_invokes,
             top_level: self.top_level,
-            strings: self.strings.finish(),
+            immortals: self.immortals.finish(),
             structs: self.structs.defs,
             enums: self.enums.defs,
             classes: self.classes,

@@ -58,6 +58,12 @@ impl BodyProjection<'_, '_> {
                     self.generic_delegate_reference(reference)?,
                 )
             }
+            ExprKind::ByteArrayLiteral(value) => {
+                DefaultExpressionKindV1::ByteArrayLiteral(value.clone())
+            }
+            ExprKind::EmbeddedFileArrayLiteral(value) => {
+                DefaultExpressionKindV1::EmbeddedFileArrayLiteral(value.clone())
+            }
             ExprKind::StringLiteral { value, owner } => DefaultExpressionKindV1::StringLiteral {
                 value: value.clone(),
                 owner: match owner {
@@ -66,6 +72,12 @@ impl BodyProjection<'_, '_> {
                     }
                     StringConstantOwner::Property(property) => {
                         DefaultStringOwnerV1::Property(self.entities.property_id(*property)?)
+                    }
+                    StringConstantOwner::PropertyElement { property, ordinal } => {
+                        DefaultStringOwnerV1::PropertyElement {
+                            property: self.entities.property_id(*property)?,
+                            ordinal: *ordinal,
+                        }
                     }
                 },
             },

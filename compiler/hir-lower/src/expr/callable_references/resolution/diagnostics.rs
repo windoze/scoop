@@ -39,6 +39,11 @@ impl Lowerer {
         context: ReferenceResolutionContext<'_>,
         failures: &[ReferenceFailure],
     ) {
+        if let [failure] = failures
+            && self.report_intrinsic_reference_failure(context.span, &failure.reason)
+        {
+            return;
+        }
         if failures.is_empty() {
             self.error(
                 context.span,

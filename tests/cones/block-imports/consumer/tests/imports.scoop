@@ -1,0 +1,81 @@
+package scoped.consumer.tests
+
+import scoop.test.Test
+import scoped.first.choose
+
+@Test
+private class BlockImports {
+    @Test
+    fun `block aliases restore outer imports`() {
+        import scoop.test.*
+        assertEquals(1, choose());
+        {
+            import scoped.second.choose as selected
+            assertEquals(2, selected())
+            val closure: () -> Int = ::selected
+            fun nested(): Int = selected()
+            assertEquals(2, closure())
+            assertEquals(2, nested())
+        }
+        assertEquals(1, choose())
+    }
+
+    @Test
+    fun `inner stars precede outer exact imports`() {
+        import scoop.test.*
+        import scoped.first.choose
+        assertEquals(1, choose());
+        {
+            import scoped.second.*
+            assertEquals(2, choose())
+        }
+        assertEquals(1, choose())
+    }
+
+    @Test
+    fun `overloads fall through layers and local types retain imports`() {
+        import scoop.test.*
+        import scoped.first.choose as selected
+        import scoped.first.choose as selected
+        assertEquals(1, selected())
+        assertEquals(5, selected(4));
+        {
+            import scoped.second.choose as selected
+            class Local {
+                fun answer(): Int = selected()
+            }
+            assertEquals(2, Local().answer())
+            assertEquals(5, selected(4));
+            {
+                fun selected(): Int = 9
+                import scoped.first.choose as selected
+                assertEquals(9, selected())
+            }
+        }
+    }
+
+    @Test
+    fun `types variants properties extensions and invoke share local scope`() {
+        import scoop.test.*
+        import scoped.first.*
+        import scoped.first.Choice.*
+        val runner = Runner(number)
+        assertEquals(10, runner(3))
+        assertEquals(107, number.mark())
+        val ready: Choice = Ready
+        val payload: Choice = Value(9)
+        assertEquals(0, when (ready) { case Value(value) -> value; case Ready -> 0 })
+        assertEquals(9, when (payload) { case Value(value) -> value; case Ready -> 0 })
+    }
+
+    @Test
+    fun `generic and default bodies retain provider imports`() {
+        import scoop.test.*
+        import scoped.shared.*
+        import scoped.second.adjust
+        assertEquals(5, importedEcho(5))
+        assertEquals("text", importedEcho("text"))
+        assertEquals(13, defaultCallback()(3))
+        assertEquals(23, adjust(3))
+    }
+}

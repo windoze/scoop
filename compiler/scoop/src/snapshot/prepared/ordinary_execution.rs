@@ -175,6 +175,7 @@ impl PreparedBuildGraph {
                                 summary: summary.clone(),
                                 warnings: success.warnings().to_vec(),
                                 used_generators: success.used_generators().to_vec(),
+                                compiler_inputs: success.compiler_inputs().to_vec(),
                             },
                         )
                         .map_err(Error::CacheStore)?;
@@ -245,6 +246,11 @@ impl PreparedBuildGraph {
             .lookup(lock)
             .map_err(OrdinarySourceExecutionError::CacheStore)?;
         if let CompileCacheLookupV1::Hit(entry) = &cached
+            && !scoop_toolchain::compiler_inputs_current(&entry.record.compiler_inputs)
+        {
+            return Ok(CompileCacheLookupV1::Miss);
+        }
+        if let CompileCacheLookupV1::Hit(entry) = &cached
             && !self
                 .context
                 .generators
@@ -281,7 +287,8 @@ impl PreparedBuildGraph {
             entry.artifact,
             entry.record.warnings,
         )
-        .with_used_generators(entry.record.used_generators))
+        .with_used_generators(entry.record.used_generators)
+        .with_compiler_inputs(entry.record.compiler_inputs))
     }
 }
 

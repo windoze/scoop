@@ -4,7 +4,7 @@ use crate::properties::ExtensionPropertyCandidateOutcome;
 
 pub(super) struct RankedValue {
     pub(super) view: SuccessfulExprLayer,
-    pub(super) rank: usize,
+    pub(super) rank: crate::imports::lookup::calls::ImportLookupRank,
 }
 
 impl Lowerer {
@@ -21,7 +21,7 @@ impl Lowerer {
         &self,
         name: &ast::Ident,
         receiver: &hir::Expr,
-        rank: usize,
+        rank: crate::imports::lookup::calls::ImportLookupRank,
     ) -> Result<Option<RankedValue>, U> {
         let mut layers = self.named_extension_property_layers(&name.text);
         Self::retain_highest_rank_origins(&mut layers);

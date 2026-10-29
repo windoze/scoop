@@ -177,7 +177,7 @@ pub use current_lowering::{
 };
 pub use editing::{
     DeclarationAnalysis, EditingAnalysisError, EditingCancelled, EditingSignature,
-    analyze_declarations,
+    analyze_declarations, analyze_declarations_with_inputs,
 };
 pub use output_kind::select_cone_output_kind;
 pub use source_dependencies::{SourceDependencyProjectionError, project_source_dependency};
@@ -959,6 +959,8 @@ pub(crate) struct Lowerer {
     intrinsic_sources: Shared<Vec<SourceProvider>>,
     test_dependencies: std::collections::BTreeSet<scoop_identity::ConeIdentity>,
     source_names: std::collections::BTreeMap<scoop_identity::ConeIdentity, String>,
+    compile_time_inputs: Option<std::sync::Arc<dyn hir::CompileTimeInputHost>>,
+    constant_call_context: Option<expr::ConstantCallContext>,
     /// Dependency sources referenced by instantiated defaults and bodies.
     /// They are appended only after a winning candidate is committed and are
     /// never traversed as parser inputs.

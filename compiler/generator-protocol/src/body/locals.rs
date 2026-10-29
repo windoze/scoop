@@ -54,6 +54,7 @@ impl Serialize for QueryJson<'_, identity::StructuralDefinitionSiteRole> {
             SynthesizedBridge => "synthesizedBridge",
             SyntheticValue => "syntheticValue",
             StringConstant => "stringConstant",
+            ArrayConstant => "arrayConstant",
         })
     }
 }

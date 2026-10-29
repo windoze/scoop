@@ -891,7 +891,7 @@ lambda 参与重载决议时，每个候选先提供自己的期望函数类型�
 
 - 期望类型是普通/挂起函数类型时，表达式创建本节定义的 managed 函数值；
 - 没有期望类型时，只尝试推导 managed 函数类型，绝不自动推导为 `FunPtr`；
-- 期望类型是 `FunPtr<F>` 时，只有语法形态为无 receiver 的 `::name` 才进入 8.1.5、13.10 的 native-address contextual resolution；该路径不先创建 managed 函数值。
+- 期望类型是 `FunPtr<F>` 时，只有无 receiver 的声明引用才进入 8.1.5、13.10 的 native-address contextual resolution；形式为 `::name`；跨包声明先 import，必要时使用 alias。该路径不先创建 managed 函数值。
 
 在 managed 函数类型上下文或无期望类型的推导上下文中，支持以下形式：
 
@@ -899,6 +899,10 @@ lambda 参与重载决议时，每个候选先提供自己的期望函数类型�
 - `Type::member`：创建未绑定成员引用，receiver 成为函数类型的第一个普通参数；type qualifier 与值 receiver 使用普通名称解析和类型语法区分，不依赖首字母大小写；
 - `receiver::member`：创建绑定接收者的成员函数引用，`receiver` 在创建时求值且只求值一次；限定名解析到 object/companion 时使用其 singleton value，完整泛型宿主 application、透明 alias 或限定路径都不把它变成未绑定引用；
 - `::extension`：创建未绑定扩展函数引用，其函数类型把扩展接收者作为第一个普通参数；`receiver::extension` 则创建绑定形式。
+
+跨包函数、构造器和扩展函数先 import 后使用 `::name`，不增加 `::a.b.f`。普通成员引用保留既有的类型／值 receiver 解析；package 本身不成为 receiver，见 12.4.5。
+
+13.1 规定的不可引用 intrinsic 使用合法的声明引用语法，但在 HIR 语义检查中拒绝；诊断必须指出已解析的 intrinsic 名称及禁止引用的具体原因。位置 intrinsic 的诊断已实现，11.19 新入口随后接入；该合同适用于 managed 函数值、无期望类型和 FunPtr 上下文，不以语法错误或未找到函数代替。
 
 若目标是 virtual / interface 成员，绑定引用在每次调用时按已保存接收者、未绑定引用按本次传入接收者做动态分派。managed 分支中的重载目标由期望函数类型与普通重载规则共同确定；没有期望类型时，只有唯一且能独立确定完整签名的候选才能自行确定函数类型。泛型宿主和泛型 final 方法的全部实参须在创建点确定，不产生多态函数值；目标仍有歧义时报告编译错误。
 
@@ -912,7 +916,7 @@ abstract class、interface、object、annotation class 及其他没有普通构�
 
 managed 函数类型与 `FunPtr<F>`（13.10）是不同类别的值：前者是可捕获、可经 GC 移动的引用对象，后者是 GC-free 的原生代码指针值。二者没有一般性的子类型关系、转换或相同调用 ABI。
 
-唯一共享的是 8.1.4 的 `::name` **源码语法**。在上下文期望类型明确为 `FunPtr<F>` 时，满足约束的顶层命名函数引用直接解析为原生 callback 地址；这是对函数声明引用表达式的 native-address contextual resolution，不是从 managed 函数值到 `FunPtr` 的值转换。该路径不创建 managed closure，也不允许把 lambda、匿名函数、局部函数、绑定引用或已存在的函数值转换为 `FunPtr`。
+唯一共享的是 8.1.4 的无 receiver 函数声明引用**源码语法**：`::name`。在上下文期望类型明确为 `FunPtr<F>` 时，满足约束的顶层命名函数引用直接解析为原生 callback 地址；这是对函数声明引用表达式的 native-address contextual resolution，不是从 managed 函数值到 `FunPtr` 的值转换。该路径不创建 managed closure，也不允许把 lambda、匿名函数、局部函数、绑定引用或已存在的函数值转换为 `FunPtr`。
 
 需要让 native代码在稍后或 foreign thread中调用 managed closure时，必须使用 14.3 的 callback registration协议。该协议导出的是“静态 C trampoline + GC-free opaque context/token”的组合，closure本身仍是 managed函数值并由 runtime保活；它不是到 `FunPtr` 的隐式或显式值转换，也不放宽本节规则。
 
@@ -1091,7 +1095,7 @@ context list 不参与 overload applicability、MSC、泛型推断、普通或 s
 
 因此所有显式实参都先于任何缺省表达式求值；多个实际使用的缺省表达式按参数声明顺序求值。命名实参只改变“值属于哪个参数”，不改变其源码求值顺序。例如`f(y = n(), x = m())`先执行`n()`再执行`m()`，随后以`x = m()`的结果、`y = n()`的结果调用`f`；若只写`f(y = n())`且`x`有默认值，则先执行`n()`，再执行`x`的缺省表达式。
 
-- 调用目标与完整type arguments确定后，缺省表达式在每个发生缺省的调用处以已经绑定的typed template进行hygienic展开并求值，不是在声明时计算或缓存；调用方显式提供参数时，对应缺省表达式完全不展开。调用方不会对template中的名称、extension或overload重新做决议，因而调用方import、同名局部声明或后来新增的overload不能改变其含义。
+- 调用目标与完整type arguments确定后，缺省表达式在每个发生缺省的调用处以已经绑定的typed template进行hygienic展开并求值，不是在声明时执行或缓存运行期计算；调用方显式提供参数时，对应缺省表达式完全不展开。调用方不会对template中的名称、extension或overload重新做决议，因而调用方import、同名局部声明或后来新增的overload不能改变其含义。11.19 的编译期输入 intrinsic 在定义 Cone 语义检查时已成为常量引用；模板实例化只消费该常量，不再次读取定义方或调用方的文件、环境。
 - 这与单态化一致：缺省表达式可能依赖类型参数（如`fun <T> f(x: T, y: Array<T> = [])`），只有在调用目标与全部类型实参确定后才能生成具体代码。缺省表达式自身不能作为“猜出”尚未确定类型实参的来源；若显式实参、receiver、允许的期望类型及声明约束仍不能唯一确定实参，调用不成立。
 - 缺省表达式可以引用此前参数，因为完整参数值按声明顺序物化；此前参数无论来自显式实参、vararg构造还是另一个缺省表达式都已经可用。
 - 导出callable的default template只引用已经导出或re-export的typed实体，不携带private/internal hidden dependency closure。修改参数名、default body、绑定目标或vararg形态会改变其`.slib`接口metadata并使下游重新编译；被引用实体的可见域收窄到不再覆盖callable调用域时，声明方必须重新编译并报错。
@@ -1236,10 +1240,16 @@ base class的全部constructor body与初始化项先于derived自有字段。�
 
 #### 9.1.2 `const val`
 
-- `const val`只允许声明在top level、`object`或`companion object`中；必须有显式type和initializer，不能是extension/local、`var`、delegate或带accessor。其type必须是`Boolean`、基本数值类型、`Char`或`String`。
-- initializer 必须是编译期常量表达式：字面量、对其他 `const val` 的引用、由它们组成且可在编译期确定结果的内建一元/二元运算，以及通过 typed numeric intrinsic registry 精确解析到整数或浮点表示运算、显式数值转换的封闭 call。后一类包括两类数值的 `compareTo`、 `inc`/`dec`、`equals`、`div`/`rem`、`toX`，以及浮点的分类方法；只有 exact typed registry identity 才使 call 成为常量表达式，用户声明或仅同名的 callable 不获得该能力。所有实参都必须是常量表达式；整数常量 `div`/`rem` 的除数为零是 const 定义错误，浮点常量除零按 11.2.2 产生 Infinity 或 NaN。const 依赖图存在循环是编译错误。
-- 除上述封闭数值表示 intrinsic 外，函数/方法调用（包括 `toString`）、构造、普通属性读取、数组或其他对象分配、`throw` 及挂起调用都不是常量表达式。`const val` 不生成需要在程序启动或单例首次访问时执行的 runtime initializer；位于 `object` / `companion object` 中的 `const val` 引用本身不触发单例初始化。
+已有标量／String、已实现的聚合值与 env 常量通路保持。按本轮范围调整，常量与常量表达式的进一步扩展另行实施；下述 Option Elvis／when 常量求值及更完整的静态对象常量组合属于后续设计，不作为 11.19 输入 intrinsic 的本轮交付要求。
+
+- `const val`只允许声明在top level、`object`或`companion object`中；必须有显式type和initializer，不能是extension/local、`var`、delegate或带accessor。常量资格按完整类型及实际值的组成判断，不以 enum／struct／tuple 分类限制：`Boolean`、基本数值类型、`Char`、`String`、`Unit`，以及字段／元素递归为常量的 struct、tuple 和 enum 值均可表示为常量。聚合值保留实际 exact application；泛型实参通过实例化后的实际存储字段检查，不因没有参与存储的 phantom 参数而拒绝常量。方法、computed property、interface conformance 与 companion 不属于实例 payload，不影响类型表示常量的能力。
+- enum 只检查当前 variant 实际携带的 payload；其他 variant 不参与该值的递归检查。例如 `None: Option<SomeClass>` 不包含对象引用，可成为常量。普通 struct／tuple 的全部字段／元素均须具有完整合法的常量值；Unit 和没有字段的普通 struct 自然满足此条件。内联布局循环仍按 3.1 拒绝，不新增另一套常量类型循环规则。
+- 常量中的引用必须指向编译器能够静态发射、保持合法对象表示与身份的不可变对象。String 和 11.19 已产生的不可变数组／目录对象图满足这一条件，可直接用于 `const val` 或聚合常量字段；普通运行期对象、可变存储、运行期地址或捕获状态不能因包装进值类型而变成常量。`Ptr`、`FunPtr`、`MaybeUninit` 等 intrinsic representation 必须按自身表示和操作合同处理，不能把它们的空源码字段列表当作空 struct。未确定的完整类型或未知运行期 payload 不是完整常量。
+- initializer 必须是编译期常量表达式：字面量、对其他 `const val` 的引用、由它们组成且可在编译期确定结果的内建一元/二元运算，以及通过 typed numeric intrinsic registry 精确解析到整数或浮点表示运算、显式数值转换的封闭 call。后一类包括两类数值的 `compareTo`、 `inc`/`dec`、`equals`、`div`/`rem`、`toX`，以及浮点的分类方法；只有 exact typed registry identity 才使 call 成为常量表达式，用户声明或仅同名的 callable 不获得该能力。11.19 的 `includeStr`、`env` 产生相应 String／Option 常量，也可参与此求值。所有实际求值的实参都必须是常量表达式；整数常量 `div`/`rem` 的除数为零是 const 定义错误，浮点常量除零按 11.2.2 产生 Infinity 或 NaN。const 依赖图存在循环是编译错误。
+- tuple／Unit 字面量、无 payload 的 enum variant 值、已有常量引用及 11.19 intrinsic 的结果可形成聚合常量。对常量 struct 的真实字段和 tuple 位置元素读取也是常量表达式，不执行 computed getter。Option 的 `?:` 和 `when` 模式解包可继续求值：复用第 5、7 章的类型、匹配与穷尽性规则，pattern binding 是对应常量，guard 与分支结果必须属于本节表达式集合。分支体不增加普通语句、循环或函数解释执行。各分支照常检查合法性，常量运算只求值选中分支；其中的编译期输入 intrinsic 仍按 11.19 在定义处展开。
+- 类型能够表示常量，不代表任意产生该类型的表达式都能编译期求值。本版不求值普通构造调用，包括 struct 主／次构造和带 payload 的 enum variant 构造；不展开其默认实参，即使全部实参恰好为常量也不例外。`env` 直接产生 Some／None 常量，include 系列直接产生相应静态数据，不通过源码构造器执行得到结果；这不使源码 `Some(...)` 或 `S(...)` 成为常量表达式。本版也不执行任意用户函数。除上述封闭操作外，函数/方法调用（包括 `toString`）、computed getter、普通 class／数组对象分配、`throw` 及挂起调用都不是常量表达式。不能跳过构造器的副作用、校验或异常，仅按字段拼出结果。`const val` 不生成需要在程序启动或单例首次访问时执行的 runtime initializer；位于 `object` / `companion object` 中的 `const val` 引用本身不触发单例初始化。这是当前求值表达式集合的边界，不是对 struct、tuple 或其他结果类型施加永久禁令。本次不新增 struct／enum 字面量语法；现有构造语法见 4.1.1、4.2。
 - 导出的 `const val` 的类型和值属于 `.slib` 接口，下游 Cone 在编译期直接使用；值变化使依赖该值的编译缓存失效。const 没有 getter 或可寻址 storage，`addressOf(const)` 非法；可见性按声明检查，不因常量求值而绕过。
+- 值相同的 const object，其运行期 identity 不保证一定相同，也不保证一定不同。不同泛型特化及泛型类 companion 中的常量实体仍各自独立；编译器可以在不改变类型、值及其他规定行为的前提下共享底层存储，是否合并只是内部优化策略，不影响程序是否合法。
 
 #### 9.1.3 `object`、companion、nested declaration与全局初始化
 
@@ -1646,7 +1656,7 @@ public struct Account(@Description("Stable identifier") val id: Long)
 
 数组参数按 alias 展开后的实际 core Array 身份与完整元素 application 判断，不按短名判断；不接受 MutableArray、多维数组、Array<Any>、Option、代数 enum、普通用户对象、spread、工厂调用或运行期表达式。数组默认值在声明处绑定，元素错误定位到实际元素。内建 annotation 的既有参数形状保持。
 
-注解数组是编译期静态数据，不调用 Array 构造器，不分配 managed 数组，也没有可观察的 identity。普通 const val 仍限标量，不因注解值域扩大而改变。静态描述、默认值及跨 Cone 再次发布保存完整数组类型、有序元素及每个元素的定义文件和位置；嵌套应用按参数声明序补全默认值，不要求消费者重新求值。
+注解数组是编译期静态数据，不调用 Array 构造器，不分配 managed 数组，也没有可观察的 identity。普通 const val 的类型与求值范围由 9.1.2 规定，不因注解数组值域扩大而允许普通数组 const；该节规划的 enum 常量也不自动成为注解参数类型。静态描述、默认值及跨 Cone 再次发布保存完整数组类型、有序元素及每个元素的定义文件和位置；嵌套应用按参数声明序补全默认值，不要求消费者重新求值。
 
 显式 use-site 写作 `@target:Name(...)`。`property` 指向 logical property；`field` 指向已有 backing storage 或值类型字段；`get`/`set` 指向已有 getter/setter；`param` 指向完整普通/构造参数；`setparam` 指向 setter 的值参数；`receiver` 指向声明中的实际 receiver；`delegate` 指向已有 delegate storage。主构造字段/property 可以用 `param` 选择构造参数部分。不同 use-site 分别检查重复，直接标在 accessor 上的注解与对应 `get`/`set` 选择同一目标。声明不存在相应实体时在 use-site 处报错，不能合成存储、setter 或 receiver；默认目标也不按注解内容重新猜测。第 13 章核心注解仍受各自目标和参数契约约束。
 
@@ -2427,6 +2437,7 @@ fun currentSourceLocation(): SourceLocation
 ```
 
 - `currentSourceLocation()` 返回所在表达式的标准**求值来源**所指示的源码位置（文件、行、列）与所处函数、类型的名称。该信息在编译期已知，不依赖调试信息；本intrinsic不建立独立的调用处传播机制。
+- **引用限制**：本 intrinsic 只允许直接调用，`::currentSourceLocation` 以及指向同一声明的 alias／re-export 引用均为语义错误，不能创建 managed 函数值或 FunPtr。间接调用不携带调用处的源码求值来源；编译器不能以创建引用的位置、生成 adapter 的位置或调试信息替代。诊断遵守 13.1，明确说明其依赖直接调用表达式的源码位置，并建议在需要位置的地方直接调用或显式传递 SourceLocation。显式 lambda／普通函数正文中的直接调用仍合法，观察该表达式按原规则取得的求值来源，不自动获得间接调用者的位置；本条不改变缺省参数和内联语义。
 - `file`保存可重现的canonical semantic source path，而不是host绝对路径或CLI operand spelling。manifest Cone中其形式为`group:name:version/<normalized Cone-relative source path>`；默认目录中的文件仍为`group:name:version/src/...`，12.2.2 的显式源码目录不截去其目录前缀。12.2的single-file Cone的原始入口文件为`scoop:single-file:0.0.0/main.scoop`；生成方法体使用同一 Cone 下按目标方法身份派生的逻辑来源，规则见实现规范2.20。编译诊断可另行显示当次调用路径，但该display locator不改变`SourceLocation`的值。
 - 可与 8.5 的缺省参数规则组合，取得调用者的源码位置：
 
@@ -2788,6 +2799,67 @@ use 以 receiver 调用 block 恰好一次，正文正常返回或抛出后调�
 
 这些声明经普通 core public prelude 和 `.slib` 泛型模板提供，不新增语法、compiler-known 角色、MIR cleanup 节点或 runtime 释放机制。拥有 native 资源的平台库按[平台库规范](SCOOP-PLATFORM-SPEC.md)实现具体所有权合同。
 
+### 11.19 编译期输入 intrinsic
+
+本节与[编译期 intrinsic 设计](../compile-time-intrinsics/DESIGN.md)规定首批文件／环境输入能力及必要的静态表示。env／includeStr／includeBytes／includeDir 及编辑器资源通知链已实现；本轮不追加 9.1.2 中尚未实现的常量控制表达式。声明位于 reserved core Cone `scoop:scoop.core:0.1.0` 的普通 package `scoop.compiler`；该 package 的声明不进入默认 prelude，也不在根 package 转导出。使用方可显式 `import scoop.compiler.includeStr`、`import scoop.compiler.env as compileEnv` 或 `import scoop.compiler.*`，导入后调用短名或 alias，不增加无 import 的包限定调用。各导入形式使用同一 typed intrinsic 语义；package 本身仍不是 exact import 的合法终点。后续编译期 intrinsic 同样在此 package 组织；package 本身不赋予编译器能力，识别仍遵守 13.1 的 typed registry。
+
+```scoop
+package scoop.compiler
+
+import Array
+import Byte
+import Option
+import Option.*
+import String
+
+@Intrinsic("include_str")
+public fun includeStr(path: String): String
+
+@Intrinsic("include_bytes")
+public fun includeBytes(path: String): Array<Byte>
+
+@Intrinsic("include_dir")
+public fun includeDir(
+    path: String,
+    include: Array<String> = ["**"],
+    exclude: Array<String> = []
+): EmbeddedDir
+
+@Intrinsic("compile_env")
+public fun env(name: String): Option<String>
+
+public struct EmbeddedFile(val path: String, val bytes: Array<Byte>)
+
+public struct EmbeddedDir(val files: Array<EmbeddedFile>) {
+    public operator fun get(path: String): Array<Byte>? {
+        for (file in files) {
+            if (file.path == path) return Some(file.bytes)
+        }
+        return None
+    }
+}
+```
+
+四个函数都是非泛型、非 suspend、无 receiver 的编译期操作，无运行期 callable 入口。实参须在定义 Cone 的 HIR 检查中确定：String 实参沿 9.1.2 的常量表达式规则，include／exclude 接受元素均为常量 String 的数组字面量；它们在编译期读取，不构造运行期筛选数组。普通函数形参、局部 val、运行期数组及依赖类型参数的计算不能充当这些输入；内联、优化或调用处传入字面量不改变此规则。对这些 intrinsic 取函数引用／FunPtr 是 13.1 的语义错误，诊断须说明实际 intrinsic 不支持函数引用，因为它在编译期求值且没有运行期 callable 入口。短名、import alias 和 re-export 使用同一规则，不能报告成引用语法错误。普通同名声明沿既有解析规则处理。
+
+本轮 String 输入只使用已实现的常量表达式集合，不为输入参数另行开放常量 Elvis／when；例如 `includeStr(env("SCOOP_FILE") ?: "default.txt")` 留到常量表达式专项。普通 `val version = env("SCOOP_VERSION") ?: "dev"` 仍合法：env 已展开为静态 Option，Elvis 沿普通运行期语义处理。intrinsic 结果的静态嵌入与源码 const 表达式集合是不同要求。
+
+调用在所属源码被选中且完成相应 HIR 语义检查时展开，包括泛型、默认参数、闭包和运行期不可达分支。其路径采用原表达式的定义来源，环境采用本次定义 Cone 编译时的宿主环境；不观察默认参数的 evaluation origin。已导出模板只保存已完成的常量值／引用，下游实例化与内联不重复外部输入操作。11.12 的位置 intrinsic 保持原语义。
+
+`includeStr`／`includeBytes`／`includeDir` 的相对路径均相对定义源码的实际所在目录，不相对进程 cwd；绝对路径和含 `..` 的路径也必须满足下述 Cone 目录范围，不执行 shell、`~` 或环境变量文本展开。manifest Cone 的范围根是该定义 Cone 的根目录，不是 workspace 根、源码子目录或消费方 Cone；single-file 使用解析入口文件 symlink 后的实际文件所在目录作为范围根，不发现相邻 manifest。生成正文沿被生成声明的原文件及其 Cone 取得基准；无法关联实际定义来源或 Cone 根时诊断，不回退 cwd。
+
+三种 include 操作都必须检查目标位置位于定义 Cone 目录内：定位后的标准化绝对路径须在 Cone 根路径内，解析全部 symlink 后的实际目标也须在实际 Cone 根目录内。Cone 根的输入路径和解析后的实际路径视为同一根的两种定位形式，绝对路径可以使用其中任一种；其他外部 symlink 即使指回 Cone 内，也不能绕过第一项位置检查。后一检查覆盖目标自身、父目录中的 symlink 及链式链接，不能只检查最终路径分量是否为链接；Cone 根本身经 symlink 访问时，以其实际目录作为解析后边界。包含关系按宿主路径语义和目录分量判断，不用字符串前缀。路径检查保留原路径的文件系统解析语义，不能先消去 symlink 之后的 `..` 再打开另一个文件。越界是编译错误，读取内容或递归进入目标目录前报告原实参、越界条目／解析后目标及所属 Cone 根。实际 I/O、类型不符、断链和遍历循环仍正常报错；本规则只约束本组 include 输入。
+
+`includeStr` 要求 regular file 和严格合法 UTF-8，保留 BOM、换行、U+0000 和全部原内容；`includeBytes` 原样返回不可变 `Array<Byte>`，各字节保留原始位型。空文件分别得到空 String 或空数组。缺失文件、非法路径参数或读取错误定位到调用处；String 解码失败附文件内字节偏移。
+
+`includeDir` 要求实际目录，根和递归遍历到的每一项都执行上述范围检查，包括子目录、文件及其 symlink；glob 未选中或 exclude 排除的条目也检查，不能靠筛选跳过越界项。目录 symlink 在递归进入前检查，合法链接可以指向 Cone 内、本次 includeDir 根之外的位置，输出仍沿原逻辑相对路径。全部条目通过范围检查后，仅选择 regular files 的内容。include 多项取并集，exclude 再排除；同一逻辑相对路径只出现一次。glob 匹配完整的根内相对 `/` 路径，大小写敏感，不做 Unicode 归一化。`*` 匹配一个分量内零个或多个字符，`?` 匹配一个 Unicode 标量，`[...]`／`[!...]` 为字符组／反向字符组，字符范围按 Unicode 标量顺序；完整分量 `**` 匹配零个或多个目录层级，单独 `**` 匹配全部文件，`**/*.png` 包括根目录 PNG。元字符可用 `[*]`、`[?]` 等字符组形式匹配；不提供 shell brace 展开或反斜线转义。空 pattern、绝对 pattern、反斜线／NUL、空分量、`.`／`..` 分量及不合法的字符组／`**` 用法是编译错误。
+
+筛选无隐式 `.gitignore`、隐藏文件或平台排除规则；`include = []` 或无匹配结果产生空目录值，根目录仍须存在，逐项范围检查及遍历错误检查仍执行。目录内仅选中的文件读取内容；实际遍历错误及匹配到的非法文件类型正常诊断。输出不包含空目录、mtime、权限或宿主绝对路径，路径须可表示为 UTF-8 String，按完整相对路径的 UTF-8 byte order 排序。路径和文件内容形成不可变文件表；两个不同逻辑路径即使指向同一文件仍保留两条路径记录。EmbeddedDir／EmbeddedFile 为普通 struct，构造与副本更新保持普通语义，`get` 按数组顺序精确匹配并返回第一项，无匹配为 None，不执行文件系统定位或 glob。
+
+`env` 首版只接受以 ASCII `SCOOP_` 精确开头的常量名称，前缀检查区分大小写，不做改写；名字仍不得为空或含 `=`／NUL。先检查名称，再查询本次编译的宿主进程环境，交叉编译也不读取目标机器环境。`env("HOME")`、`env("scoop_TAG")` 等在查询环境前报编译错误，明确指出只允许 `SCOOP_` 前缀，不能返回 None 或默认值来掩盖非法名称。合法名称查找沿宿主环境规则：变量不存在为 `None`，存在且为空为 `Some("")`，存在非空值为 `Some(value)`；非法 Unicode 值是编译错误，不当作缺失。`String?` 与 `Option<String>` 相同，不另设 envOrNull 或缺失即失败的重载。`const val TAG: Option<String> = env("SCOOP_TAG")` 可由现有 9.1.2 求值；包含常量 Elvis 的 `const val VERSION: String = env("SCOOP_VERSION") ?: "dev"` 留到常量表达式专项；首版不提供额外前缀、任意环境变量或放宽此限制的选项。
+
+这些结果是类型完整的静态值；Option／struct 保持普通值语义，String／不可变数组使用静态对象引用。常量对象的 identity 遵守 9.1.2，不额外保证不同调用、泛型特化、默认参数展开、内联或消费 Cone 中的结果共享或独占某一对象。编译器可以合并满足条件的常量存储，原文件／环境输入依赖和目录中各自路径仍须保留。普通运行期构造、clone／数组转换的对象身份保持。具体 pipeline、产物和更新合同见实现规范 2.10.1，对象表示见运行时规范 2.4～2.5。
+
 ## 12. Cone模块、package与库
 
 ### 12.1 基本概念
@@ -2959,10 +3031,10 @@ importHeader   = public? import ImportSelector (as Identifier)?
 ImportSelector = QualifiedName | QualifiedName . *
 ```
 
-- `package`至多一次且必须先于所有import/declaration；import只允许出现在文件头。exact import可写`as`，alias只改变当前文件中的短binding名；star import不能写alias；
-- 普通import只影响当前source file。`public import`同时建立当前文件的普通exact/star import，并在**当前文件package**下为当前Cone建立re-export binding；其destination name是`as` alias或target短名；
+- `package`至多一次且必须先于所有import/declaration；文件级import位于文件头，局部块另按12.4.6允许import。exact import可写`as`，alias只改变所在导入作用域的短binding名；star import不能写alias；
+- 文件级普通import只影响当前source file。`public import`同时建立当前文件的普通exact/star import，并在**当前文件package**下为当前Cone建立re-export binding；其destination name是`as` alias或target短名；
 - `public`在这里是上下文关键字，只修饰import；不存在`internal import`或`private import`；
-- import selector与qualified type path都先解析最长的可见package binding前缀，再沿static nested nominal、object或companion的typed owner edge查找；最长package前缀一旦选定便不回退到较短前缀重猜。exact import的终点必须是importable binding，star import的终点必须是importable namespace；不能把点连接的字符串直接当作FQN扫描全部artifact。top-level value/function表达式仍通过import后的短名或普通receiver语法访问，不新增dependency-coordinate-qualified源码名称。
+- import selector与qualified type path都先解析最长的可见package binding前缀，再沿static nested nominal、object或companion的typed owner edge查找；最长package前缀一旦选定便不回退到较短前缀重猜。exact import的终点必须是importable binding，star import的终点必须是importable namespace；不能把点连接的字符串直接当作FQN扫描全部artifact。top-level value/function表达式通过import后的短名或普通receiver语法访问；包名与表达式的边界见12.4.5。不新增dependency-coordinate-qualified源码名称。
 - 限定类型路径的 package 前缀同时考虑当前 Cone 与 direct dependency 的公开包（含 re-export）。同一最长包中的当前与外来类型在同层合并，按 typed origin 去重并诊断不同实体的同名冲突；仅含 value binding 的公开包仍是可见包，不能因其中缺少目标类型而回退。仅供模板、布局或链接使用的 support dependency 不增加可见包。路径末端的普通类型、泛型 application 和 typealias 使用与短名查找相同的类型实参、可见性及展开规则。
 
 #### 12.4.2 import可到达性与re-export
@@ -2992,13 +3064,14 @@ import 指向原声明；经不同依赖路径或 re-export 到达同一声明�
 
 1. 词法binding与local function；
 2. 隐含`this`的真实member；
-3. 当前文件的exact import，包括alias与`public import`；
-4. 当前package中可访问的本地声明与re-export binding；
-5. 当前文件的全部star import；
-6. core `.slib`提供的typed prelude；
-7. 4.2/8.6由唯一expected exact enum application产生的contextual variant fallback。
+3. 已生效的块级 import，按从内到外的块顺序；同一块先 exact／alias，再 star（12.4.6）；
+4. 当前文件的exact import，包括alias与`public import`；
+5. 当前package中可访问的本地声明与re-export binding；
+6. 当前文件的全部star import；
+7. core `.slib`提供的typed prelude；
+8. 4.2/8.6由唯一expected exact enum application产生的contextual variant fallback。
 
-显式receiver先查真实member；extension scope再按exact import → current package → star import → core prelude分层。property-like `invoke`在每层内继续使用9.3.4的c-level分区，property读写继续使用9.1.1的typed accessor/place规则，constructor、variant、operator、callable reference与typealias qualifier继续进入各自既有typed入口。
+显式receiver先查真实member；extension scope先按内到外的块级exact／star import分层，再按文件级exact import → current package → star import → core prelude分层。property-like `invoke`在每层内继续使用9.3.4的c-level分区，property读写继续使用9.1.1的typed accessor/place规则，constructor、variant、operator、callable reference与typealias qualifier继续进入各自既有typed入口。
 
 对callable层，每层独立执行8.6的shape filter、candidate-local applicability与MSC，只选择第一个至少含一个适用候选的层；某个高层只有不适用同名callable时继续到下一层。callable-value hard shadow等既有词法规则不变。type、object、property name等非overloadable lookup在同层出现多个不同origin时直接歧义。visibility 在 applicability 前按 9.1.5 检查，不产生额外访问凭证；声明顺序、dependency枚举、re-export链长与artifact加载顺序都不能作为tie-break。
 
@@ -3031,6 +3104,33 @@ import 指向原声明；经不同依赖路径或 re-export 到达同一声明�
 
 `main` 返回时仍有已 attach 的非主线程、活动 callback 或未释放的 callback token ownership，属于 shutdown 失败：报告剩余计数，刷新输出后以 `1` 退出，覆盖本次 main 的返回码，不等待线程自动结束。程序应在 main 返回前完成 join 和 token 释放；M33 不提供 daemon 线程。需要带着后台线程结束整个进程时可显式调用 core 的 `exit(code: Int): Nothing`，它先刷新输出再终止进程，不做上述 shutdown 检查、不等待 join，也不执行 finally 或 release hook；刷新允许等待，见运行时规范第 7 章。
 
+#### 12.4.5 表达式中的包名与 import
+
+跨 package 的顶层函数和值通过 exact／star import 或 import alias 引入，再按普通短名规则使用。不增加 `scoop.compiler.env(...)` 这样的包限定函数调用、值或 place 表达式；11.19 的入口使用 `import scoop.compiler.env` 后调用 `env("SCOOP_BUILD_TAG")`。package 本身不是运行期值，也不是 exact import 的合法终点。
+
+前置 `::` 后仍只读取一个声明名称，不将 `::a.b.f` 解释为包限定声明引用。跨包函数、构造器、扩展函数和 native callback 先 import 后写 `::name` 或 alias。后置 `receiver::member` 保持原语法及类型／值 receiver 规则；不增加包作为 receiver 的形式。
+
+既有限定类型、注解和模式路径继续按原规则解析，不扩展普通表达式的名称查找。导入后的 `::env`、`::includeStr` 等引用沿 13.1 报告实际 intrinsic 的明确语义原因；这一诊断不依赖包限定表达式。
+
+#### 12.4.6 块级 import
+
+局部语句块允许 `import path`、`import path as alias` 和 `import namespace.*`，复用文件级 selector、可见性、重载、去重和歧义规则。import 可位于块内任意语句位置；其作用从该语句之后到当前块结束，嵌套块可继承，离开块后恢复外层作用域，不提升到块首或文件头。函数／lambda／局部函数、控制流块、初始化块、accessor 与 safe／unsafe 等语句块一致适用；表达式形式的函数正文不新增声明位置。
+
+块级 import 只改变编译期名称查找，无运行期求值、初始化或捕获。局部函数、lambda 与局部类型的正文按定义位置保存有效的导入作用域，后续同名 import 不改变已解析引用；泛型、默认参数和跨 Cone 正文只携带选中的 typed 身份。import 的目标是既有 package／静态 namespace 可到达声明，不能导入局部变量或把 package 变成值。
+
+查找顺序见 12.4.3。词法 binding、局部类型／typealias 和 local function 保持原优先级；块级 import 不覆盖这些绑定。内层块的 import 层先于外层块；同一块的 exact／alias 层先于其 star 层。同层多个同名函数形成原重载候选集，其他不同声明按原歧义规则诊断；多个路径到同一实际声明按 typed 身份去重。高层 callable 没有适用候选时仍沿原规则查下一层；非 callable lookup 不以期望类型消除歧义。
+
+`public import` 在局部块中是编译错误：re-export 只在文件头建立。块级 import 不建立新的导出 binding，不改变 private／internal／protected 或生产／测试来源限制。非法 selector、star alias、不可访问目标及无法解析的 import 继续有明确诊断；编辑器应保留其位置，不能在失败后静默选中外层同名声明。
+
+```scoop
+fun buildTag(): Option<String> {
+    import scoop.compiler.env
+    return env("SCOOP_BUILD_TAG")
+}
+```
+
+实现与验证记录见[块级 import 设计](../block-imports/DESIGN.md)；编译期入口自身的状态仍见11.19。
+
 ### 12.5 编译产物 `.slib`
 
 每个 Cone 产生 target-specific、版本化、确定性的 `.slib`，包含独立编译、下游类型检查、泛型实例化及链接所需的信息。library 的构建结果为 `.slib`；executable 也先产生完整 `.slib`，再与依赖闭包链接为程序。容器、metadata、版本、ABI、指纹与链接合同见编译器与产物规范 2.6～2.8。
@@ -3045,7 +3145,7 @@ import 指向原声明；经不同依赖路径或 re-export 到达同一声明�
 
 ### 12.6 核心库
 
-第11章的核心库是reserved library Cone **`scoop:scoop.core:0.1.0`**，以独立`.slib`提供，sysroot只提供默认查找位置。`scoop.core` 是 Cone `name`，不是自动生成的源码 package；当前 core 源码声明位于默认根 package，显式导入采用 `import List` 等形式。Cone identity 与源码 package 没有推导关系。
+第11章的核心库是reserved library Cone **`scoop:scoop.core:0.1.0`**，以独立`.slib`提供，sysroot只提供默认查找位置。`scoop.core` 是 Cone `name`，不是自动生成的源码 package；基础 core 声明位于默认根 package，显式导入采用 `import List` 等形式。11.19 的编译期 API 位于同一 Cone 的 `scoop.compiler` package，使用普通显式导入，不加入默认 prelude 或根 package 转导出。Cone identity 与源码 package 没有推导关系。
 
 core 是可修改、扩展和重建的普通 library Cone。intrinsic 与脱糖所需的声明按第 13 章解析；其余类型、可见性、ABI、产物与链接规则和普通库相同。sysroot 只提供默认 locator，不构成来源授权。
 
@@ -3121,6 +3221,10 @@ public struct Int : Equals<Int>, ToString, Hash {
 - intrinsic type的implements列表、普通成员body、override/operator规则与普通类型一致；11.1 的两个无成员根类型遵守该节的封闭声明形状。单个成员也可像上例一样另用function intrinsic提供实现。intrinsic type覆盖八种canonical integer representation、Boolean、Char、Float/Double、String、`Any`/`Nothing`、`Array<T>`/`MutableArray<T>`以及13.10的`Ptr<T>`/`FunPtr<F>` family；integer登记项必须封闭地给出signedness与8/16/32/64位width，alias本身不能再次登记为intrinsic type。`core_int`/`int_*`表示32位canonical `Int`，64位signed表示使用独立的`core_long`/`long_*`；unsigned同理区分`UInt`与`ULong`。登记表可按同一契约增加其他compiler-represented value/reference type；
 - intrinsic type 可以是 generic，但登记项必须完整规定 declaration kind、类型参数数量、bound 及表示；所有参数按 3.2 固定为 invariant。`Array<T>` 与 `MutableArray<T>` 各要求一个无 bound 参数，每个完整 application 是具有唯一类型身份的普通 generic class application，其元素表示遵守第 10 章；
 - intrinsic 声明的 name、target、shape、signature 及唯一性必须满足登记项。
+
+- 11.19 的四个编译期输入 intrinsic 只允许定义处可常量求值的直接使用，在 Export HIR 完成前展开；没有动态分派、函数引用或运行期后备入口。其源码位置、外部输入及结果值语义由该节规定，不因同属 intrinsic 就继承位置 intrinsic 的调用处观察语义。参数／结果仍按真实 core 类型与普通 import 解析，不按 `scoop.compiler` 的名称赋予用户声明特殊能力。
+
+- **不可引用 intrinsic 与诊断**：11.19 的四个编译期输入操作及 11.12 的 `currentSourceLocation` 不支持 callable reference。完成普通名称与可见性解析后，以实际声明的 typed intrinsic kind 判断，短名、import alias、re-export 及跨 Cone 使用一致；同名普通函数不受此限制，其他 intrinsic 保留各自原有的引用合同。诊断定位引用表达式，给出实际声明名称、禁止函数引用的事实及具体原因：前四者在编译期求值且无运行期入口；位置 intrinsic 依赖直接调用处的源码来源，普通间接调用不提供该信息。managed／无期望类型／FunPtr 三种上下文均保留这一原因，不能把它静默过滤后只报告 unknown name、syntax error 或 no applicable candidate；涉及多候选时保留该候选的具体失败原因，其他候选仍按原重载规则处理。可提示合法的直接调用或显式传值，不自动合成 lambda／adapter 来规避限制。位置 intrinsic 与 11.19 输入入口的短名／alias／依赖引用诊断已实现。
 
 - 11.15 的 `core_maybe_uninit` 登记为单参数 intrinsic struct；`maybe_uninit_zero`、`maybe_uninit_initialized` 是相应 companion 的静态操作，`maybe_uninit_assume_init` 是 wrapper 实例操作，后者必须带 `@Unsafe`。它们保留 wrapper 与 payload 的完整类型，不凭相同布局抹除初始化契约；不允许其他 annotation 组合绕过既有 NoGC／unsafe 检查。
 
@@ -3430,6 +3534,7 @@ public struct FunPtr<F>
 - `F` 的每个参数与返回类型必须满足 C-FFI-safe 约束；`Unit` 只允许作为返回类型。`FunPtr` 描述的是 C ABI callback 地址，不是 Scoop ABI managed callable；函数类型 `F` 在这里仅描述 native signature，本身不会作为 managed 引用穿越边界。
 - 可空函数指针用 `Option<FunPtr<F>>` 表示（niche 优化见 7.4）。
 - native-address resolution 的目标必须是带 `@NoGC` 的普通顶层命名函数，且**不能是 generic、挂起、extern、成员或扩展函数**。lambda、匿名函数、局部函数、任何绑定引用以及已存在的 managed 函数值都不能作为非 null `FunPtr` 的来源。违反这些约束是编译错误：FFI 回调不得与 GC 交互，generic 函数没有单一具体符号，挂起函数只有编译器内部的 hidden continuation ABI，而 closure 还需要原生 ABI 中不存在的 managed 环境参数。编译器不自动生成 closure 或挂起 callback wrapper。
+- 跨包 native callback 先 import 后使用无 receiver 的 `::name` 或 alias，沿同一 native-address resolution；本次不扩展前置声明引用语法。
 - `FunPtr` 不提供 Scoop 侧 `invoke`；它只用于传递/存储 native callback 地址。由`::name`得到的静态callback仅允许原生方在发起extern调用的同一已注册线程上同步调用；保存后异步、跨线程或在Scoop程序退出后调用不隐式获得安全性。只有14.3 registration返回的`ForeignCallback.function + context`配对具备对应token/attach协议，单独保存或调用其中的function而不携带仍存活的配对context同样非法。
 
 ```

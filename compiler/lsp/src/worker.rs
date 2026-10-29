@@ -55,6 +55,7 @@ pub(crate) enum Completed {
 
 pub(crate) struct Completion {
     pub revision: Revision,
+    pub inputs: Vec<std::sync::Arc<scoop_toolchain::CompileTimeInputs>>,
     pub value: Completed,
 }
 
@@ -65,11 +66,12 @@ pub(crate) fn start(events: Sender<Event>) -> std::io::Result<Sender<Work>> {
         .spawn(move || {
             let mut semantics = SemanticSession::default();
             while let Ok(work) = receive.recv() {
-                let revision = work.snapshot.revision;
+                let snapshot = work.snapshot.clone();
                 let completed = run(work, &mut semantics);
                 if events
                     .send(Event::Completed(Completion {
-                        revision,
+                        revision: snapshot.revision,
+                        inputs: semantics.compiler_inputs(&snapshot),
                         value: completed,
                     }))
                     .is_err()

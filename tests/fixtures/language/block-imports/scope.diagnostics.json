@@ -1,0 +1,112 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown function `selected`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "d8c93b6aa24442657262de95519311c5994bdd9a13c30501b14fa359e490acff",
+      "end": 57,
+      "kind": "source",
+      "path": "src/consumer.scoop",
+      "start": 49
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown function `selected`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "d8c93b6aa24442657262de95519311c5994bdd9a13c30501b14fa359e490acff",
+      "end": 243,
+      "kind": "source",
+      "path": "src/consumer.scoop",
+      "start": 235
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "import target is not accessible from this source location",
+    "notes": [
+      {
+        "message": "declaration is outside this file's permitted access domain",
+        "origin": {
+          "cone": "d8c93b6aa24442657262de95519311c5994bdd9a13c30501b14fa359e490acff",
+          "end": 67,
+          "kind": "source",
+          "path": "src/api.scoop",
+          "start": 61
+        }
+      }
+    ],
+    "origin": {
+      "cone": "d8c93b6aa24442657262de95519311c5994bdd9a13c30501b14fa359e490acff",
+      "end": 303,
+      "kind": "source",
+      "path": "src/consumer.scoop",
+      "start": 297
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "import target is not available in the current compilation unit",
+    "notes": [],
+    "origin": {
+      "cone": "d8c93b6aa24442657262de95519311c5994bdd9a13c30501b14fa359e490acff",
+      "end": 372,
+      "kind": "source",
+      "path": "src/consumer.scoop",
+      "start": 352
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "value `value` is ambiguous in the block exact import layer",
+    "notes": [
+      {
+        "message": "candidate declared here",
+        "origin": {
+          "cone": "d8c93b6aa24442657262de95519311c5994bdd9a13c30501b14fa359e490acff",
+          "end": 101,
+          "kind": "source",
+          "path": "src/api.scoop",
+          "start": 96
+        }
+      },
+      {
+        "message": "candidate declared here",
+        "origin": {
+          "cone": "d8c93b6aa24442657262de95519311c5994bdd9a13c30501b14fa359e490acff",
+          "end": 134,
+          "kind": "source",
+          "path": "src/api.scoop",
+          "start": 128
+        }
+      }
+    ],
+    "origin": {
+      "cone": "d8c93b6aa24442657262de95519311c5994bdd9a13c30501b14fa359e490acff",
+      "end": 503,
+      "kind": "source",
+      "path": "src/consumer.scoop",
+      "start": 498
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "import target is ambiguous in the current compilation unit",
+    "notes": [],
+    "origin": {
+      "cone": "d8c93b6aa24442657262de95519311c5994bdd9a13c30501b14fa359e490acff",
+      "end": 580,
+      "kind": "source",
+      "path": "src/consumer.scoop",
+      "start": 574
+    },
+    "severity": "error"
+  }
+]

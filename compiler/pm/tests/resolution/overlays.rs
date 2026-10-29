@@ -17,7 +17,7 @@ use super::{prepare, prepare_cache, support::*};
 
 fn input(manifests: &[(&Path, &str)]) -> ManifestOverlaysV1 {
     ManifestOverlaysV1 {
-        version: 1,
+        version: scoop_protocol::package::PACKAGE_PROTOCOL_VERSION,
         manifests: manifests
             .iter()
             .map(|(path, text)| ManifestOverlayV1 {

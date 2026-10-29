@@ -2,12 +2,14 @@
 
 每个正式库 Cone 的 `examples/` 都包含可运行示例和中文说明。示例使用公开 API；单文件头部的 `//! dep:` 声明额外依赖，core 和 std 由单文件入口默认提供。父库默认只编译 `src/`，这些示例不会进入库的生产源码。
 
-按问题阅读首批 24 个主题，可直接使用已安装的外部命令：
+按问题阅读已发布的 26 个主题，可直接使用已安装的外部命令：
 
 ```sh
 scoop example
 scoop example --search "JSON 序列化"
 scoop example language/option
+scoop example language/compiler-inputs
+scoop example language/imports
 scoop example http/get
 ```
 
@@ -37,7 +39,7 @@ scoop run --release typed.scoop
 
 | Cone | 示例主题 | 运行条件 |
 | --- | --- | --- |
-| [scoop.core](src/scoop.core/examples/README.md) | 值类型、模式匹配、Option、数组与字符串 | 独立运行 |
+| [scoop.core](src/scoop.core/examples/README.md) | 值类型、模式匹配、Option、数组、字符串、编译期资源与块级 import | 按主题保存文件后运行 |
 | [scoop.std](src/scoop.std/examples/README.md) | 集合、文本与字节、日期与时长 | 独立运行 |
 | [scoop.math](src/scoop.math/examples/README.md) | 标量算术、大整数、十进制舍入、显式随机源素数 API | 独立运行 |
 | [scoop.cli](src/scoop.cli/examples/README.md) | 位置参数、选项、帮助、枚举和重复选项 | 按说明传参 |

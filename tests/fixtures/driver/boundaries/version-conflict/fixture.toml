@@ -6,8 +6,17 @@ targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-l
 tags = ["test-boundaries", "negative", "driver"]
 
 [[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${fixture}/helper", to = "${work}/helper"}},
+  {copy = {from = "${fixture}/one", to = "${work}/one"}},
+  {copy = {from = "${fixture}/program", to = "${work}/program"}},
+  {copy = {from = "${fixture}/two", to = "${work}/two"}},
+]
+
+[[steps]]
 name = "reject"
-argv = ["${scoop}", "test", "--release", {"each" = "${link_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--no-run", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+argv = ["${scoop}", "test", "--release", {"each" = "${link_args}"}, "${work}/program", "--lockfile", "${work}/program/Cone.lock", "--no-run", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
 exit = 1
 stdout = ""
 stderr = ""

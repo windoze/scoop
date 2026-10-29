@@ -27,6 +27,18 @@ impl Serialize for BodyJson<'_, hir::DefaultExpressionKindV1> {
             } => {
                 object!(serializer, {"kind": "releaseFieldLoad", "ownerType": self.child(owner_type), "declaration": Reference::from(*declaration)})
             }
+            EmbeddedFileArrayLiteral(files) => {
+                let files = files
+                    .iter()
+                    .map(
+                        |file| serde_json::json!({"path": file.path, "bytes": file.bytes.as_ref()}),
+                    )
+                    .collect::<Vec<_>>();
+                object!(serializer, {"kind": "embeddedFileArrayLiteral", "files": files})
+            }
+            ByteArrayLiteral(bytes) => {
+                object!(serializer, {"kind": "byteArrayLiteral", "bytes": bytes})
+            }
             StringLiteral { value, owner } => {
                 object!(serializer, {"kind": "stringLiteral", "value": value, "owner": QueryJson(owner)})
             }
@@ -347,6 +359,9 @@ impl Serialize for QueryJson<'_, hir::DefaultStringOwnerV1> {
             }
             hir::DefaultStringOwnerV1::Property(property) => {
                 object!(serializer, {"kind": "property", "property": Reference::from(*property)})
+            }
+            hir::DefaultStringOwnerV1::PropertyElement { property, ordinal } => {
+                object!(serializer, {"kind": "propertyElement", "property": Reference::from(*property), "ordinal": ordinal})
             }
         }
     }

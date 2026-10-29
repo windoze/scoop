@@ -107,7 +107,11 @@ pub(super) fn graph(
                     .iter()
                     .flat_map(|input| input.warnings().iter().cloned())
                     .collect::<Vec<_>>();
-                entry.save(&result, &warnings)?;
+                let compiler_inputs = inputs
+                    .iter()
+                    .flat_map(|input| input.compiler_inputs().iter().cloned())
+                    .collect::<Vec<_>>();
+                entry.save(&result, &warnings, &compiler_inputs)?;
             }
             if invoked {
                 compiled.push(identity);

@@ -56,6 +56,7 @@ mod c_layout;
 mod closures;
 mod debug;
 mod dependency_external;
+mod embedded_bytes;
 mod enums;
 mod errno;
 mod exceptions;

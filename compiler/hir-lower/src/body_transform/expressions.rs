@@ -189,6 +189,8 @@ pub(crate) fn walk(
         }
         hir::ExprKind::ContextLookup(_)
         | hir::ExprKind::StringLiteral { .. }
+        | hir::ExprKind::ByteArrayLiteral(_)
+        | hir::ExprKind::EmbeddedFileArrayLiteral(_)
         | hir::ExprKind::IntegerLiteral(_)
         | hir::ExprKind::CharLiteral(_)
         | hir::ExprKind::FloatLiteral(_)

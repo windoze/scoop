@@ -69,6 +69,7 @@ impl Server {
                 }
                 self.refresh_workspace(output)
             }
+            Ok(Change::Resources) => self.schedule_open_diagnostics(),
             Ok(Change::None) => Ok(()),
             Err(error) => Self::log(error.message, output),
         }
@@ -109,15 +110,27 @@ impl Server {
             }
             "workspace/didChangeWatchedFiles" => {
                 let params: DidChangeWatchedFilesParams = queries::params(notification.params)?;
+                let resources_changed = self.resource_watches.changed(&params.changes);
+                if resources_changed {
+                    self.documents.host.invalidate_compiler_inputs();
+                }
+                let mut workspace = false;
                 let mut errors = Vec::new();
                 for change in params.changes {
+                    workspace |= super::inputs::is_project_input(&change.uri);
                     if self.documents.get(&change.uri).is_some()
                         && let Err(error) = self.documents.reload(&change.uri)
                     {
                         errors.push(error.message);
                     }
                 }
-                Ok(Change::Workspace(errors))
+                Ok(if workspace || !errors.is_empty() {
+                    Change::Workspace(errors)
+                } else if resources_changed {
+                    Change::Resources
+                } else {
+                    Change::None
+                })
             }
             "workspace/didChangeConfiguration" => {
                 let params: DidChangeConfigurationParams = queries::params(notification.params)?;
@@ -156,5 +169,6 @@ enum Change {
     Updated(Uri, bool),
     Closed(Uri, Option<String>),
     Workspace(Vec<String>),
+    Resources,
     None,
 }

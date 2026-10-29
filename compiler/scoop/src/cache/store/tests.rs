@@ -39,6 +39,7 @@ fn fixture_named(name: &str) -> (Vec<u8>, CompileBuildRecordV1) {
             summary,
             warnings: Vec::new(),
             used_generators: Vec::new(),
+            compiler_inputs: Vec::new(),
         },
     )
 }

@@ -824,7 +824,9 @@ impl CallableCStringIdentity {
 impl Global {
     pub fn symbol(&self) -> &str {
         match &self.init {
-            GlobalInit::StringConst { identity, .. } => identity.symbol(),
+            GlobalInit::StringConst { identity, .. }
+            | GlobalInit::ByteArrayConst { identity, .. }
+            | GlobalInit::EmbeddedFileArrayConst { identity, .. } => identity.symbol(),
             GlobalInit::CString { identity, .. } => identity.symbol(),
             GlobalInit::Storage { identity, .. } | GlobalInit::RawStorage { identity, .. } => {
                 identity.symbol()
@@ -838,7 +840,11 @@ impl Global {
         &self,
     ) -> Option<scoop_identity::PersistentSymbolRequest> {
         match &self.init {
-            GlobalInit::StringConst { identity, .. } => Some(identity.symbol_request()),
+            GlobalInit::StringConst { identity, .. }
+            | GlobalInit::ByteArrayConst { identity, .. }
+            | GlobalInit::EmbeddedFileArrayConst { identity, .. } => {
+                Some(identity.symbol_request())
+            }
             GlobalInit::Storage { identity, .. } | GlobalInit::RawStorage { identity, .. } => {
                 Some(identity.symbol_request())
             }
@@ -1202,6 +1208,16 @@ pub enum GlobalInit {
     },
     /// A `ScoopString` constant whose header points at the typed String
     /// descriptor selected by `WellKnownTypeDescriptors`.
+    ByteArrayConst {
+        identity: ImmortalObjectIdentity,
+        array_type: ArrayTypeId,
+        bytes: Vec<u8>,
+    },
+    EmbeddedFileArrayConst {
+        identity: ImmortalObjectIdentity,
+        array_type: ArrayTypeId,
+        files: Vec<EmbeddedFileConst>,
+    },
     StringConst {
         identity: ImmortalObjectIdentity,
         value: String,
@@ -1462,6 +1478,8 @@ pub enum LirStaticInitialState {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LirConstantImage {
+    /// Tuple elements, or an empty aggregate for Unit.
+    Aggregate(Vec<LirConstantImage>),
     Integer(LirIntegerConstant),
     Float(LirFloatConstant),
     Bool(bool),
@@ -1470,11 +1488,19 @@ pub enum LirConstantImage {
         global: GlobalId,
         kind: PointerKind,
     },
-    EnumUnit {
+    Enum {
         variant: LirVariantRef,
+        fields: Vec<LirConstantImage>,
     },
     Struct {
         struct_id: StructDefId,
         fields: Vec<LirConstantImage>,
     },
+}
+
+/// The two ordinary managed-reference fields of one embedded file element.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EmbeddedFileConst {
+    pub path: GlobalId,
+    pub bytes: GlobalId,
 }

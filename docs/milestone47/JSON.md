@@ -99,3 +99,5 @@ effects 保留 execution、safety、gc、callingConvention、operator、property
 正文的完整节点、局部绑定及默认值应用规则见[逻辑正文 JSON](BODY-JSON.md)。
 
 完整类型、字段、logical property、构造器、方法及访问域的字段见[类型与成员 JSON](MEMBERS-JSON.md)。
+
+编译期 includeBytes 的已求值正文使用 `byteArrayLiteral` 分支，`bytes` 为按原序保存的 0～255 整数数组，`resultType` 保留完整的 Array<Byte>。结构位置角色对应 `arrayConstant`；String 的既有分支不变。

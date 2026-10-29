@@ -1,0 +1,5 @@
+import scoop.compiler.includeStr
+fun main() {
+    println(includeStr("payload.txt"))
+    println(includeStr("empty.txt") == "")
+}

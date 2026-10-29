@@ -4,6 +4,8 @@
 
 发行配置集中在 `release.toml`。当前 Darwin 基线为 macOS 27.0.1／SDK 27.0，Linux 构建环境为 Ubuntu 26.04.1、glibc 2.43／musl 1.2.5；只在相应环境完成验证后声明支持，不推定更老系统可用。LLVM 固定 22.1.8，CPU 使用 AArch64 generic／x86-64。工具构建时写入默认 Darwin 最低版本，普通命令的 `MACOSX_DEPLOYMENT_TARGET` 覆盖贯通 Scoop 对象、C bridge、native、runtime 与最终链接；预编译 runtime 的最低版本仍必须兼容。OpenSSL 准备使用同一设置。
 
+宿主 Rust 命令保留 rustc 对应目标的默认 CPU 基线，Darwin/AArch64 使用 Apple Silicon 平台特性，Linux/amd64 使用 x86-64；Scoop backend 的 generic CPU 设置不传给宿主 Cargo 构建，以免移除 Apple 平台依赖所需的 AES／SHA2 等特性。
+
 五个命令（`scoop`、`scoopc`、`scoop-link`、`scoop-lsp`、`scoop-pm`）的 `--version` 显示相同发行版本与源码 revision。开发构建读取默认版本和当前 Git revision；发行构建显式设置 `SCOOP_RELEASE_VERSION` 与 `SCOOP_SOURCE_REVISION`，不在运行时读取 Git 或发行清单。
 
 Windows 安装包将主驱动命名为 `sco.exe`，其版本信息使用 `sco`；其他可执行程序保持原名，macOS／Linux 仍用 `scoop`。Cargo package 和内部输出名继续为 `scoop`／`scoop.exe`，`package_toolchain.py` 组装时只重命名 Windows 主驱动。维护脚本的 `--scoop` 接受实际路径：开发构建可传 `.../release/scoop.exe`，安装包验证传 `.../bin/sco.exe`；外部命令仍以 `scoop-` 开头。
@@ -83,6 +85,8 @@ Windows 在 x64 MSVC／Windows SDK 开发环境中运行，提供 `--mingw-msvcr
 构建机需要 Python 3.12+、Git、Rust/Cargo、C/C++ 开发工具链、CMake、Make、Perl、Node.js 22.18+ 和 npm。npm 依赖、首次缺失的 LLVM 归档以及 Tree-sitter WASM 工具链需要联网取得；其余 native 上游输入已在 vendor 中。已有 WASI SDK／Binaryen 可按 [tooling 说明](../tooling/README.md) 选择。
 
 构建机需要 Python 3.12+ 及其开发文件、SWIG 4、Ninja、Rust/Cargo、C/C++ 开发工具链、CMake、Make、Perl、Node.js 22.18+ 和 npm。npm 依赖、首次缺失的 LLVM 归档以及 Tree-sitter WASM 工具链需要联网取得；其余 native 上游输入已在 vendor 中。已有 WASI SDK／Binaryen 可按 [tooling 说明](../tooling/README.md) 选择。
+
+`--vscode-extension /path/to/scoop-language-support-<version>.vsix` 可复用已经构建的当前扩展，跳过 npm 安装和扩展构建；未指定时仍自动构建。这样重试工具链打包时无需重新下载 Tree-sitter CLI。
 
 ```sh
 python3 scripts/package_toolchain.py --jobs 6

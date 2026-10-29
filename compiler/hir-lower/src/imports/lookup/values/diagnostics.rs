@@ -113,13 +113,7 @@ impl Lowerer {
                 None => return Ok(Some(origin)),
             },
             LookupResult::Ambiguous { layer, candidates } => {
-                let layer = match layer {
-                    ImportLookupLayer::Exact => "exact import",
-                    ImportLookupLayer::CurrentPackage(_) => "current package",
-                    ImportLookupLayer::QualifiedPackage => "qualified package",
-                    ImportLookupLayer::Star => "star import",
-                    ImportLookupLayer::CorePrelude => "core prelude",
-                };
+                let layer = layer.call_name();
                 let message = if candidates.iter().all(|origin| {
                     matches!(
                         Self::non_value_origin(origin),
@@ -181,13 +175,7 @@ impl Lowerer {
                 name.text, name.text
             )
         } else {
-            let layer = match layer {
-                ImportLookupLayer::Exact => "exact import",
-                ImportLookupLayer::CurrentPackage(_) => "current package",
-                ImportLookupLayer::QualifiedPackage => "qualified package",
-                ImportLookupLayer::Star => "star import",
-                ImportLookupLayer::CorePrelude => "core prelude",
-            };
+            let layer = layer.call_name();
             format!("value `{}` is ambiguous in the {layer} layer", name.text)
         };
         self.push_value_origin_diagnostic(name, message, candidates);

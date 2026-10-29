@@ -17,6 +17,7 @@ pub struct Client {
     messages: Receiver<Message>,
     responses: HashMap<RequestId, Response>,
     pub notifications: Vec<Notification>,
+    pub registrations: HashMap<String, Value>,
     next_id: i32,
 }
 
@@ -46,6 +47,7 @@ impl Client {
             messages,
             responses: HashMap::new(),
             notifications: Vec::new(),
+            registrations: HashMap::new(),
             next_id: 1,
         }
     }
@@ -97,7 +99,28 @@ impl Client {
                 self.responses.insert(response.id.clone(), response);
             }
             Message::Notification(notification) => self.notifications.push(notification),
-            Message::Request(request) => panic!("unexpected server request: {request:?}"),
+            Message::Request(request) => {
+                match request.method.as_str() {
+                    "client/registerCapability" => {
+                        for registration in request.params["registrations"].as_array().unwrap() {
+                            self.registrations.insert(
+                                registration["id"].as_str().unwrap().to_owned(),
+                                registration.clone(),
+                            );
+                        }
+                    }
+                    "client/unregisterCapability" => {
+                        for registration in request.params["unregisterations"].as_array().unwrap() {
+                            self.registrations
+                                .remove(registration["id"].as_str().unwrap());
+                        }
+                    }
+                    _ => panic!("unexpected server request: {request:?}"),
+                }
+                Message::Response(Response::new_ok(request.id, Value::Null))
+                    .write(&mut self.input)
+                    .unwrap();
+            }
         }
     }
 

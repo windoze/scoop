@@ -1,5 +1,5 @@
 use super::super::*;
-use super::{string_ref, type_name};
+use super::{array_ref, string_ref, type_name};
 
 pub(super) fn dump_expr(
     module: &Module,
@@ -69,6 +69,9 @@ pub(super) fn dump_expr(
             "{pad}ReleaseFieldLoad {}.field{index}\n",
             module.classes[*class].name,
         )),
+        ExprKind::ArrayConst(id) => {
+            out.push_str(&format!("{pad}ArrayConst {}\n", array_ref(*id)));
+        }
         ExprKind::StringConst(id) => {
             out.push_str(&format!("{pad}StringConst {}\n", string_ref(*id)));
         }

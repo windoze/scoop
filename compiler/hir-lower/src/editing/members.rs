@@ -122,6 +122,15 @@ impl Lowerer {
             crate::namespace::TopLevelLookupLayer::CorePrelude => None,
         };
         names.extend(self.imports.lookup_names(self.current_file, package));
+        for scope in self.scopes.imports() {
+            names.extend(scope.exact.iter().map(|import| import.local_name.clone()));
+            names.extend(
+                scope
+                    .stars
+                    .iter()
+                    .flat_map(|import| import.snapshot.keys().cloned()),
+            );
+        }
         names
     }
 }

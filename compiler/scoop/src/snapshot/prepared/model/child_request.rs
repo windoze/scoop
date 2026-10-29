@@ -189,10 +189,7 @@ impl PreparedBuildGraph {
             }
             _ => Vec::new(),
         };
-        let mut io = ChildIoPlan::new(
-            self.context.sysroot.as_path().to_path_buf(),
-            self.context.cache_root.as_path().to_path_buf(),
-        );
+        let mut io = ChildIoPlan::new(self.context.cache_root.as_path().to_path_buf());
         if let Some(target) = production {
             io = io.with_toolchain(target.c_bridge_toolchain());
         }

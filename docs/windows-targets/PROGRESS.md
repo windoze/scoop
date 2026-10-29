@@ -1,6 +1,6 @@
 # Windows targets 实施进度
 
-分支：`codex/windows-targets`。更新于 2026-10-29；已整合主线 `0bded827b` 的原生调试与 Throwable 栈快照。
+分支：`codex/windows-targets`。更新于 2026-10-29；已整合主线 `b0f72fea0`，包含原生调试、Throwable 栈快照与编译期输入 intrinsic。
 本文只记录当前实现、验证结果和未完成项；设计合同见 [DESIGN.md](DESIGN.md)。
 
 | 阶段 | 当前状态 | 剩余验收 |
@@ -18,7 +18,7 @@
 - Windows x64 `10.0.26300`；MSVC toolset `14.44.35207`，SDK `10.0.26100.0`。
 - LLVM `22.1.8`；LLVM-MinGW `20260616`，分别提供 MSVCRT 与 UCRT prefix。
 - Rust `1.99.1`；Windows 宿主使用 `x86_64-pc-windows-gnullvm`。
-- 合并后的 runtime ABI 为 29，子进程协议为 21。原先 ABI 28 的通过记录保留为历史验证；当前配套编译器、runtime 和系统库需要一起重建。上述版本是实际构建／验收环境，不是未经验证的最低支持环境承诺。
+- 合并后的 runtime ABI 为 29，子进程协议为 23。原先 ABI 28 的通过记录保留为历史验证；当前配套编译器、runtime 和系统库需要一起重建。上述版本是实际构建／验收环境，不是未经验证的最低支持环境承诺。
 
 正式 target 为 `x86_64-pc-windows-msvc-ucrt`、`x86_64-w64-windows-llvm-mingw-msvcrt` 和 `x86_64-w64-windows-llvm-mingw-ucrt`。两种 UCRT target 的 native ABI 和资源保持独立。W0 复现入口见 [experiments](../../spikes/windows-targets/README.md)。
 
@@ -37,6 +37,8 @@ Windows 主驱动的安装名为 **`sco.exe`**，帮助和版本信息使用 `sc
 主线调试整合复用共享 DebugOrigin／变量记录，并将 Windows PDB 接入统一伴随文件发布。原生栈诊断使用所选 LLVM unwinder 与串行 DbgHelp 查询；三个 Windows target 的 O0／O2、中文源码／安装路径、实际 PDB 行号、无 PDB 地址输出、并发查询和模块卸载后的历史地址测试已通过。首次抛出／重抛及 GC 的语言级组合仍需在 ABI 29 系统库重建后验证。
 
 合并后的 12 项 Windows toolchain 测试、8 项 Windows codegen 测试和 4 项通用调试元数据测试通过。C 桥额外覆盖三个 target 的 debug／release 展开 atom 与真实执行；PE 链接覆盖 LLD／LINK、Unicode 参数、相邻 PDB、CRT 和新的 trap 栈输出。导入 callable／constructor 的声明位置进入共享调试记录，当前／导入来源经 HIR→MIR、Unicode／CRLF 坐标及泛型 constructor 回归通过。fixture runner 当前 70 项规则测试完成，其中 3 项按宿主跳过。
+
+编译期输入主线整合后，47 项协议、11 项产物固定向量、7 项缓存键及 8 项 Windows codegen 测试通过。Windows 环境输入覆盖缺失、空值、Unicode 和无效 UTF-16；child 复用原有 Windows 工具环境，并保留调用者的 `SCOOP_*` 值。macOS 打包采用主线修正后的 Rust 默认 CPU baseline，Windows 宿主命名和 target 选择保持独立。
 
 文件 fixture 的 Windows 扩展仍在验收。公共 runner 的格式化／Ruff 通过，68 项规则测试完成（其中 3 项按宿主跳过）。33 个继承规则用例复用固定的共享 core 后全部通过；6 个 primitive inherited-method 用例也已通过，其中五个共享固定输入，combined 保留修改前后的真实 core 构建。6 个根类型错误用例精确断言被测规则诊断，去除对其他 core 源码连带错误的完整快照依赖，均已通过。较大的完整 core 构建步骤采用 900 秒测试时限；普通运行断言不变。Windows 本地化错误、LF 字节位置、COFF archive 成员、当前 runtime 字段以及泛型初始化登记的断言按实际合同调整，不通过隐藏输入或工具验收复用。
 

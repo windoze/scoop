@@ -30,7 +30,7 @@ pub(super) struct NativeReferenceDeclaration {
 pub(super) struct NativeReferenceFailure {
     pub(super) display: String,
     pub(super) layer: &'static str,
-    pub(super) reason: String,
+    pub(super) reason: ReferenceFailureReason,
 }
 
 impl NativeReferenceDeclaration {
@@ -61,6 +61,13 @@ impl NativeReferenceDeclaration {
                 );
                 let display = callable_source_signature(state, name, &view);
                 let layer = callable_layer_name(state, std::slice::from_ref(&view));
+                if let Some(reason) = state.local_intrinsic_reference_failure(*function) {
+                    return Err(NativeReferenceFailure {
+                        display,
+                        layer,
+                        reason,
+                    });
+                }
                 let reason = eligibility(
                     state.functions[*function].method.is_some(),
                     extension,
@@ -72,7 +79,7 @@ impl NativeReferenceDeclaration {
                     return Err(NativeReferenceFailure {
                         display,
                         layer,
-                        reason: reason.to_owned(),
+                        reason: reason.to_owned().into(),
                     });
                 }
                 let before = state.diagnostics.len();
@@ -85,7 +92,8 @@ impl NativeReferenceDeclaration {
                                 .iter()
                                 .map(|diagnostic| diagnostic.message.as_str())
                                 .collect::<Vec<_>>()
-                                .join(", "),
+                                .join(", ")
+                                .into(),
                         }
                     })?;
                 Ok(Self {
@@ -107,7 +115,7 @@ impl NativeReferenceDeclaration {
                 let fail = |reason: String| NativeReferenceFailure {
                     display: format!("dependency function `{name}`"),
                     layer,
-                    reason,
+                    reason: reason.into(),
                 };
                 let candidate = state
                     .dependencies
@@ -116,6 +124,13 @@ impl NativeReferenceDeclaration {
                     .callable_candidate(binding)
                     .map_err(|error| fail(error.to_string()))?;
                 let interface = candidate.interface();
+                if let Some(reason) = state.imported_intrinsic_reference_failure(&candidate) {
+                    return Err(NativeReferenceFailure {
+                        display: format!("dependency function `{name}`"),
+                        layer,
+                        reason,
+                    });
+                }
                 let effects = CallableEffects {
                     is_suspend: interface.effects().execution() == scoop_identity::Effect::Suspend,
                     attributes: interface.effects().function_attributes(),
@@ -184,7 +199,7 @@ impl NativeReferenceDeclaration {
         NativeReferenceFailure {
             display: self.display.clone(),
             layer: self.layer,
-            reason,
+            reason: reason.into(),
         }
     }
 

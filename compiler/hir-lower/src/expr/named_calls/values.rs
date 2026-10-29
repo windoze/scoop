@@ -30,7 +30,7 @@ impl Lowerer {
         properties: &[NamedValueLayer],
         call: CallSite<'_>,
         expected: Option<TypeId>,
-        rank: usize,
+        rank: crate::imports::lookup::calls::ImportLookupRank,
         real_member: bool,
         layer_name: &str,
     ) -> PropertyExtensionInvokeOutcome {

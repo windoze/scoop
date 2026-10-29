@@ -50,15 +50,40 @@ impl CurrentUnitImports {
         source: &ast::SourceHeaderRef<'_>,
         world: Option<&hir::ImportedSemanticWorld<'_>>,
     ) -> FrozenFileImports {
+        let mut imports = self.resolve_imports(lowerer, source.imports, &[], world);
+        imports.current_package_dependencies =
+            Self::current_package_dependency_snapshot(lowerer, world);
+        imports
+    }
+
+    pub(super) fn resolve_imports(
+        &mut self,
+        lowerer: &mut Lowerer,
+        declarations: &[ast::ImportSyntax],
+        previous_exact: &[ResolvedExactImport],
+        world: Option<&hir::ImportedSemanticWorld<'_>>,
+    ) -> FrozenFileImports {
         let diagnostics_before = lowerer.diagnostics.len();
-        let mut frozen = FrozenFileImports {
-            current_package_dependencies: Self::current_package_dependency_snapshot(lowerer, world),
-            ..FrozenFileImports::default()
-        };
-        let mut exact_dependency_slots = BTreeMap::new();
+        let mut frozen = FrozenFileImports::default();
+        let mut exact_dependency_slots = BTreeMap::<_, Vec<_>>::new();
+        for import in previous_exact {
+            for target in import
+                .targets
+                .iter()
+                .filter_map(ImportedTargetBinding::direct_binding)
+            {
+                exact_dependency_slots
+                    .entry((
+                        import.local_name.clone(),
+                        target.binding_target().namespace(),
+                    ))
+                    .or_default()
+                    .push((target.binding_target(), target.conflict_key().clone()));
+            }
+        }
         debug_assert!(lowerer.source_is_current_cone(lowerer.current_file));
         let source_identity = lowerer.visibility_file(lowerer.current_file);
-        for import in source.imports {
+        for import in declarations {
             let errors_before_item = lowerer.diagnostics.len();
             'item: {
                 match import {
@@ -208,13 +233,18 @@ impl CurrentUnitImports {
                     }
                 }
             }
-            if lowerer.diagnostics.len() != errors_before_item && lowerer.editing_types.is_some() {
+            if lowerer.diagnostics.len() != errors_before_item
+                && (lowerer.editing_types.is_some() || lowerer.editing_body.is_some())
+            {
                 frozen
                     .unavailable
                     .push(self.unavailable_import(lowerer, import));
             }
         }
-        if lowerer.diagnostics.len() == diagnostics_before || lowerer.editing_types.is_some() {
+        if lowerer.diagnostics.len() == diagnostics_before
+            || lowerer.editing_types.is_some()
+            || lowerer.editing_body.is_some()
+        {
             frozen
         } else {
             FrozenFileImports {

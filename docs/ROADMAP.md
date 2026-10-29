@@ -786,6 +786,15 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 各里程碑"涵盖但只实现了部分"的事项，按来源里程碑整理。标注→的为目标里程碑（已知时）；未标注的待排期。
 
+### 编译期文件／环境 intrinsic（已实现）
+
+- [设计](compile-time-intrinsics/DESIGN.md)与语言规范 11.19 将 `includeStr`、`includeBytes`、`includeDir`、`env` 放入 core Cone 的 `scoop.compiler` package，使用显式导入，不加入默认 prelude。
+- 文件与环境在定义 Cone 的 HIR 阶段求值；`env` 返回完整 `Option<String>`，include 系列直接产生静态 String／字节数组／目录表。目录使用 include／exclude glob 选择，返回稳定有序的不可变文件表。已提交的聚合值通路保留；按用户范围调整，常量 Elvis／when、普通构造调用及其他常量表达式扩展留到后续专项。
+- include 目标路径及解析全部 symlink 后的实际目标必须位于定义 Cone 内，includeDir 对每项检查，包括 glob 排除项；越界明确诊断。env 首版仅接受精确 `SCOOP_` 前缀，非法名称在查询环境前报错。
+- 泛型、inline 和默认模板保留定义处已展开的值；静态对象沿既有布局与 immortal 登记发射。对象是否共享存储属于内部优化，identity 不保证相同或不同；本轮不新增通用常量池或强制跨特化合并。
+- 构建／check／doc／分析缓存跟踪实际文件、目录匹配集合、路径／链接目标和已查询环境变量；命中只判断输入更新，新增匹配文件须重编，链接改指或排除项越界不能复用旧值。LSP 注册实际使用资源的 Cone，支持工作区外依赖与资源变化后的主动诊断更新。四个入口及 currentSourceLocation 的不可引用诊断、静态表示与跨 Cone 传递已完成，验证结果与限制见[实施记录](compile-time-intrinsics/PROGRESS.md)。块级 import 已实现；普通包限定表达式与 `::a.b.f` 已取消，使用 import／alias。
+
+
 ### EventLoop 平台后端与 GUI 主循环（已实现）
 
 - [设计](asyncio-backends/DESIGN.md)与[异步 I/O 规范第 11 节](specs/SCOOP-ASYNCIO-SPEC.md#11-平台后端与宿主主循环迁移合同)规定 `PlatformEventLoop`：Darwin 使用 libdispatch，Linux 使用 io_uring／liburing；调用方与发行资源已迁移，libuv 已移除。

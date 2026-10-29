@@ -1,0 +1,106 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "compile-time environment names must start with `SCOOP_`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 401,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 395
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "compile-time environment names must start with `SCOOP_`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 102,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 96
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "compile-time environment names must start with `SCOOP_`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 144,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 131
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "compile-time environment names must not contain `=` or NUL",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 185,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 174
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "compile-time environment names must not contain `=` or NUL",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 226,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 212
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`env` requires a compile-time constant String name",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 261,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 257
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "compiler intrinsic `env` does not support callable references\nnote: this intrinsic is evaluated at compile time and has no runtime callable entry\nhelp: import and call it directly with a constant name",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 295,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 283
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "compile-time environment names must start with `SCOOP_`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 351,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 345
+    },
+    "severity": "error"
+  }
+]

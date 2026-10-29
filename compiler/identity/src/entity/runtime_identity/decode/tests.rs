@@ -203,7 +203,7 @@ fn runtime_identity_roles_reject_unknown_tags() {
     assert_unknown::<RepresentationRole>(b"\x05", 5);
     assert_unknown::<ScanRole>(b"\x04", 4);
     assert_unknown::<StorageRole>(b"\x07", 7);
-    assert_unknown::<crate::ImmortalObjectRole>(b"\x02", 2);
+    assert_unknown::<crate::ImmortalObjectRole>(b"\x03", 3);
 }
 
 fn assert_unknown<T: scoop_wire::WireDecode + std::fmt::Debug>(bytes: &[u8], tag: u64) {

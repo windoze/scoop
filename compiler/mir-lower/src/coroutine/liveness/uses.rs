@@ -294,6 +294,7 @@ pub(super) fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         }
         mir::ExprKind::ClassAlloc { .. }
         | mir::ExprKind::StringConst(_)
+        | mir::ExprKind::ArrayConst(_)
         | mir::ExprKind::IntegerLiteral(_)
         | mir::ExprKind::MachineScalarLiteral(_)
         | mir::ExprKind::CharLiteral(_)

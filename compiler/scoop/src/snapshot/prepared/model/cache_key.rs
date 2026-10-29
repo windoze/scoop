@@ -226,6 +226,7 @@ fn manifest_cache_inputs(
     Ok((
         cone,
         CurrentConeSemanticProjectionV1::Manifest {
+            input_root: snapshot.input_root.clone().into_boxed_path(),
             coordinate: snapshot.coordinate.clone(),
             requested_kind: snapshot.manifest_semantic.requested_kind(),
             tests: snapshot

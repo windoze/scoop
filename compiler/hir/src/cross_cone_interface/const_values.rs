@@ -4,20 +4,20 @@ use crate::{ConstPropertyValue, HirIntegerConstant, IntegerKind};
 
 mod character;
 pub use character::CanonicalCharV1;
+mod aggregate;
+pub use aggregate::{CanonicalValueConstantV1, DecodedValueConstantV1};
 mod property_closure;
 mod record;
 mod table;
 
 pub use property_closure::ExportConstValueClosureValidationError;
 pub use record::{
-    ConstPropertyDeclarationSourceV1, DecodedExportConstValueV1, ExportConstValueResolutionError,
-    ExportConstValueResolver, ExportConstValueSemanticAuthority,
-    ExportConstValueSemanticValidationError, ExportConstValueV1,
+    DecodedExportConstValueV1, ExportConstValueResolutionError, ExportConstValueResolver,
+    ExportConstValueV1,
 };
 pub use table::{
     CanonicalExportConstValuesV1, DecodedCanonicalExportConstValuesV1,
-    ExportConstValueSetBuildError, ExportConstValueSetSemanticValidationError,
-    ExportConstValueSetValidationError,
+    ExportConstValueSetBuildError, ExportConstValueSetValidationError,
 };
 
 /// A width-exact integer constant in the cross-Cone interface.
@@ -177,7 +177,7 @@ impl From<CanonicalBooleanV1> for bool {
     }
 }
 
-/// A compile-time value that may cross a Cone boundary in schema version 1.
+/// A scalar constant, also used by the annotation value grammar.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum CanonicalConstValueV1 {
     Integer(CanonicalIntegerConstantV1),
@@ -235,6 +235,12 @@ impl WireDecode for CanonicalConstValueV1 {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         expect_sum_length(decoder, fields, 2)?;
+        Self::decode_payload(tag, decoder)
+    }
+}
+
+impl CanonicalConstValueV1 {
+    fn decode_payload(tag: u64, decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match tag {
             1 => decoder
                 .field(1, CanonicalIntegerConstantV1::decode)
@@ -252,15 +258,18 @@ impl WireDecode for CanonicalConstValueV1 {
     }
 }
 
-impl From<ConstPropertyValue> for CanonicalConstValueV1 {
-    fn from(value: ConstPropertyValue) -> Self {
-        match value {
+impl TryFrom<ConstPropertyValue> for CanonicalConstValueV1 {
+    type Error = ConstPropertyValue;
+
+    fn try_from(value: ConstPropertyValue) -> Result<Self, Self::Error> {
+        Ok(match value {
             ConstPropertyValue::Integer(value) => Self::Integer(value.into()),
             ConstPropertyValue::Boolean(value) => Self::Boolean(value.into()),
             ConstPropertyValue::Char(value) => Self::Char(value.into()),
             ConstPropertyValue::Float(value) => Self::Float(value),
             ConstPropertyValue::String(value) => Self::String(value),
-        }
+            aggregate => return Err(aggregate),
+        })
     }
 }
 

@@ -70,6 +70,7 @@ impl<'ctx> StorageEmitter<'_, 'ctx> {
                     &self.module.enums,
                     self.globals,
                     self.managed_address_space,
+                    self.target_data,
                     ty,
                     payload,
                 )?,

@@ -14,19 +14,6 @@
   },
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "const property `unsupported` has unsupported type Unit",
-    "notes": [],
-    "origin": {
-      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 54,
-      "kind": "source",
-      "path": "main.scoop",
-      "start": 50
-    },
-    "severity": "error"
-  },
-  {
-    "code": "SCOOPC_HIR_ERROR",
     "message": "const dependency cycle: first -> second -> first",
     "notes": [],
     "origin": {
@@ -53,7 +40,7 @@
   },
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "const initializer must contain only literals, const references, built-in primitive operators, and exact core numeric intrinsic calls",
+    "message": "const initializer calls must select a compiler input intrinsic; ordinary functions and constructors are not constant expressions",
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
@@ -79,7 +66,7 @@
   },
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "const initializer must contain only literals, const references, built-in primitive operators, and exact core numeric intrinsic calls",
+    "message": "const initializer calls must select a compiler input intrinsic; ordinary functions and constructors are not constant expressions",
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",

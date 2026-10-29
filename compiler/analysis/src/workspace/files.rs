@@ -101,7 +101,13 @@ impl FileInputs {
                 config.manifest.clone(),
                 config.metadata.clone(),
             )
-            .map_err(|error| LoadError::new(&path, error))?,
+            .map_err(|error| LoadError::new(&path, error))?
+            .with_input_root(
+                config
+                    .input_root
+                    .to_path_buf()
+                    .map_err(|error| LoadError::new(&path, error))?,
+            ),
         );
         self.manifests.insert(
             key,

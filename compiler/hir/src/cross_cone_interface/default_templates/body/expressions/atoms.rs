@@ -7,6 +7,10 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 pub enum DefaultStringOwnerV1 {
     CurrentInstantiation,
     Property(PersistentPropertyId),
+    PropertyElement {
+        property: PersistentPropertyId,
+        ordinal: u32,
+    },
 }
 
 impl WireEncode for DefaultStringOwnerV1 {
@@ -14,6 +18,9 @@ impl WireEncode for DefaultStringOwnerV1 {
         match self {
             Self::CurrentInstantiation => encode_empty_sum(encoder, 1),
             Self::Property(property) => encode_single_payload(encoder, 2, property),
+            Self::PropertyElement { property, ordinal } => {
+                encode_property_element(encoder, property, *ordinal)
+            }
         }
     }
 }
@@ -22,6 +29,10 @@ impl WireEncode for DefaultStringOwnerV1 {
 pub enum DecodedDefaultStringOwnerV1 {
     CurrentInstantiation,
     Property(DecodedPersistentId<PersistentPropertyId>),
+    PropertyElement {
+        property: DecodedPersistentId<PersistentPropertyId>,
+        ordinal: u32,
+    },
 }
 
 impl DecodedDefaultStringOwnerV1 {
@@ -38,6 +49,10 @@ impl DecodedDefaultStringOwnerV1 {
                 .resolve(property)
                 .map(DefaultStringOwnerV1::Property)
                 .map_err(DefaultStringOwnerResolutionError::Property),
+            Self::PropertyElement { property, ordinal } => resolver
+                .resolve(property)
+                .map(|property| DefaultStringOwnerV1::PropertyElement { property, ordinal })
+                .map_err(DefaultStringOwnerResolutionError::Property),
         }
     }
 }
@@ -47,6 +62,9 @@ impl WireEncode for DecodedDefaultStringOwnerV1 {
         match self {
             Self::CurrentInstantiation => encode_empty_sum(encoder, 1),
             Self::Property(property) => encode_single_payload(encoder, 2, property),
+            Self::PropertyElement { property, ordinal } => {
+                encode_property_element(encoder, property, *ordinal)
+            }
         }
     }
 }
@@ -65,6 +83,16 @@ impl WireDecode for DecodedDefaultStringOwnerV1 {
                 decoder
                     .field(1, DecodedPersistentId::decode)
                     .map(Self::Property)
+            }
+            3 => {
+                expect_sum_length(decoder, fields, 3)?;
+                Ok(Self::PropertyElement {
+                    property: decoder.field(1, DecodedPersistentId::decode)?,
+                    ordinal: decoder.field(2, |decoder| {
+                        u32::try_from(decoder.unsigned()?)
+                            .map_err(|_| wire_error(decoder, WireErrorKind::IntegerOutOfRange))
+                    })?,
+                })
             }
             tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
         }
@@ -85,6 +113,19 @@ impl<E: fmt::Display> fmt::Display for DefaultStringOwnerResolutionError<E> {
 }
 
 impl<E: std::error::Error + 'static> std::error::Error for DefaultStringOwnerResolutionError<E> {}
+
+fn encode_property_element(
+    encoder: &mut Encoder,
+    property: &impl WireEncode,
+    ordinal: u32,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.map(3)?;
+    encode_tag(encoder, 3)?;
+    encoder.field(1)?;
+    property.encode(encoder)?;
+    encoder.field(2)?;
+    encoder.unsigned(u64::from(ordinal))
+}
 
 fn encode_single_payload(
     encoder: &mut Encoder,

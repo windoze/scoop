@@ -53,6 +53,7 @@ impl CfgLowerer<'_> {
         let stable = match &value.kind {
             ExprKind::Local(local) => !self.locals[*local].mutable,
             ExprKind::StringConst(_)
+            | ExprKind::ArrayConst(_)
             | ExprKind::IntegerLiteral(_)
             | ExprKind::MachineScalarLiteral(_)
             | ExprKind::FloatLiteral(_)
@@ -179,6 +180,7 @@ fn emits_cfg(expr: &smir::Expr) -> bool {
             ..
         } => emits_cfg(pointer) || offset.as_deref().is_some_and(emits_cfg) || emits_cfg(value),
         ExprKind::StringConst(_)
+        | ExprKind::ArrayConst(_)
         | ExprKind::IntegerLiteral(_)
         | ExprKind::MachineScalarLiteral(_)
         | ExprKind::CharLiteral(_)

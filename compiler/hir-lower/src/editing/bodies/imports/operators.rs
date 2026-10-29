@@ -8,9 +8,14 @@ impl Lowerer {
         layer: ImportLookupLayer,
     ) -> Vec<hir::EditingImportSource> {
         let matches = |binding: &ImportedTargetBinding| matches!(self.editing_import_member(binding), Some(hir::EditingMemberTarget::Callable(target)) if target == callable);
-        let file = &self.imports.files[&self.current_file];
+        let file = match layer {
+            ImportLookupLayer::BlockExact(depth) | ImportLookupLayer::BlockStar(depth) => {
+                &*self.scopes.imports()[depth]
+            }
+            _ => &self.imports.files[&self.current_file],
+        };
         match layer {
-            ImportLookupLayer::Exact => file
+            ImportLookupLayer::Exact | ImportLookupLayer::BlockExact(_) => file
                 .exact
                 .iter()
                 .filter(|import| import.targets.iter().any(matches))
@@ -21,7 +26,7 @@ impl Lowerer {
                     })
                 })
                 .collect(),
-            ImportLookupLayer::Star => file
+            ImportLookupLayer::Star | ImportLookupLayer::BlockStar(_) => file
                 .stars
                 .iter()
                 .flat_map(|import| {

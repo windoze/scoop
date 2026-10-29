@@ -52,6 +52,9 @@ pub struct Output {
 mod documentation;
 pub use documentation::*;
 
+mod compiler_inputs;
+pub use compiler_inputs::*;
+
 mod output;
 pub use output::*;
 

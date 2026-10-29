@@ -53,6 +53,10 @@ impl Lowerer {
                     hir::IntrinsicFunctionKind::CoroutineStart
                         | hir::IntrinsicFunctionKind::CoroutineSuspend
                         | hir::IntrinsicFunctionKind::CurrentSourceLocation
+                        | hir::IntrinsicFunctionKind::CompileEnv
+                        | hir::IntrinsicFunctionKind::IncludeStr
+                        | hir::IntrinsicFunctionKind::IncludeBytes
+                        | hir::IntrinsicFunctionKind::IncludeDir
                         | hir::IntrinsicFunctionKind::TypeReference
                         | hir::IntrinsicFunctionKind::TypeDescription
                 )

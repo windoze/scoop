@@ -1,0 +1,198 @@
+schema = 1
+name = "include-dir-input-updates"
+inputs = ["cone"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["compiler-intrinsics", "compiler-correctness", "cache"]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}, {symlink = {from = "${work}/cone/extra/one.txt", to = "${work}/cone/assets/link.txt"}}]
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "build", "${work}/cone", "--release", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${cold.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "run_cold"
+argv = ["${cold.result.output}"]
+exit = 0
+stdout = "a.txt:3\nlink.txt:3\n"
+stderr = ""
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "${work}/cone", "--release", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "edit_excluded"
+files = [{write = {path = "${work}/cone/assets/excluded.bin", data = "different excluded contents"}}]
+
+[[steps]]
+name = "excluded"
+argv = ["${scoop}", "build", "${work}/cone", "--release", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${excluded.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "add_nested"
+files = [{mkdir = {path = "${work}/cone/assets/nested/deep"}}, {write = {path = "${work}/cone/assets/nested/deep/new.txt", data = "four"}}]
+
+[[steps]]
+name = "added"
+argv = ["${scoop}", "build", "${work}/cone", "--release", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${added.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "run_added"
+argv = ["${added.result.output}"]
+exit = 0
+stdout = "a.txt:3\nlink.txt:3\nnested/deep/new.txt:4\n"
+stderr = ""
+
+[[steps]]
+name = "remove_selected"
+files = [{remove = {path = "${work}/cone/assets/nested/deep/new.txt"}}]
+
+[[steps]]
+name = "removed"
+argv = ["${scoop}", "build", "${work}/cone", "--release", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${removed.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "run_removed"
+argv = ["${removed.result.output}"]
+exit = 0
+stdout = "a.txt:3\nlink.txt:3\n"
+stderr = ""
+
+[[steps]]
+name = "retarget_link"
+files = [{remove = {path = "${work}/cone/assets/link.txt"}}, {symlink = {from = "${work}/cone/extra/two.txt", to = "${work}/cone/assets/link.txt"}}]
+
+[[steps]]
+name = "retargeted"
+argv = ["${scoop}", "build", "${work}/cone", "--release", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${retargeted.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "run_retargeted"
+argv = ["${retargeted.result.output}"]
+exit = 0
+stdout = "a.txt:3\nlink.txt:5\n"
+stderr = ""
+
+[[steps]]
+name = "check_cold"
+argv = ["${scoop}", "check", "${work}/cone", "--release", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${check_cold.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "check_warm"
+argv = ["${scoop}", "check", "${work}/cone", "--release", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${check_warm.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "add_outside_link"
+files = [{mkdir = {path = "${work}/outside"}}, {symlink = {from = "${work}/outside", to = "${work}/cone/assets/excluded-directory"}}]
+
+[[steps]]
+name = "check_escape"
+argv = ["${scoop}", "check", "${work}/cone", "--release", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "escape.diagnostics.json"}
+
+[[steps]]
+name = "restore_boundary"
+files = [{remove = {path = "${work}/cone/assets/excluded-directory"}}]
+
+[[steps]]
+name = "check_recovered"
+argv = ["${scoop}", "check", "${work}/cone", "--release", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${check_recovered.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "doc_cold"
+argv = ["${scoop}", "doc", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}, "--no-deps", "--output-dir", "${work}/site"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${doc_cold.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "doc_warm"
+argv = ["${scoop}", "doc", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}, "--no-deps", "--output-dir", "${work}/site"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${doc_warm.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "change_doc_input"
+files = [{write = {path = "${work}/cone/assets/a.txt", data = "changed selected contents"}}]
+
+[[steps]]
+name = "doc_changed"
+argv = ["${scoop}", "doc", "${work}/cone", {each = "${compile_args}"}, {each = "${options}"}, "--no-deps", "--output-dir", "${work}/site"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${doc_changed.result.observations.child_invocations.length}", equals = 1}]

@@ -1,0 +1,16 @@
+schema = 1
+name = "compiler-env-invalid-unicode"
+root = "invalid-unicode.scoop"
+inputs = ["invalid-unicode.scoop", "invalid_unicode.py"]
+tools = ["scoop", "scoopc", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["compiler-intrinsics", "negative", "language"]
+
+[[steps]]
+name = "check"
+argv = ["${python}", "${fixture}/invalid_unicode.py", "${scoop}", "check", "${root}", "--release", {each = "${compile_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "invalid-unicode.diagnostics.json"}

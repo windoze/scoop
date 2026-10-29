@@ -5,7 +5,7 @@ pub(super) fn lower_managed_static_state(
     ty: &mir::Type,
     structs: &Arena<mir::StructDef>,
     enums: &EnumRegistry,
-    strings: &mut StringRegistry,
+    immortals: &mut ImmortalRegistry,
     owner: mir::PropertyOwner,
 ) -> mir::MirStaticInitialState {
     match state {
@@ -13,7 +13,7 @@ pub(super) fn lower_managed_static_state(
             mir::MirStaticInitialState::ZeroedForRuntimeUnit
         }
         hir::HirStaticInitialState::EncodedStaticValue { payload } => {
-            lower_encoded_static_state(payload, ty, structs, enums, strings, owner)
+            lower_encoded_static_state(payload, ty, structs, enums, immortals, owner)
         }
     }
 }
@@ -23,19 +23,19 @@ pub(super) fn lower_encoded_static_state(
     ty: &mir::Type,
     structs: &Arena<mir::StructDef>,
     enums: &EnumRegistry,
-    strings: &mut StringRegistry,
+    immortals: &mut ImmortalRegistry,
     owner: mir::PropertyOwner,
 ) -> mir::MirStaticInitialState {
-    let mut next_string_ordinal = 0;
+    let mut next_immortal_ordinal = 0;
     mir::MirStaticInitialState::EncodedStaticValue {
         payload: lower_global_constant(
             payload,
             ty,
             structs,
             enums,
-            strings,
+            immortals,
             owner,
-            &mut next_string_ordinal,
+            &mut next_immortal_ordinal,
         ),
     }
 }
@@ -45,11 +45,36 @@ pub(super) fn lower_global_constant(
     ty: &mir::Type,
     structs: &Arena<mir::StructDef>,
     enums: &EnumRegistry,
-    strings: &mut StringRegistry,
+    immortals: &mut ImmortalRegistry,
     owner: mir::PropertyOwner,
-    next_string_ordinal: &mut u32,
+    next_immortal_ordinal: &mut u32,
 ) -> mir::MirConstantImage {
     match (value, ty) {
+        (hir::HirConstantImage::Unit, mir::Type::Unit) => mir::MirConstantImage::Unit,
+        (hir::HirConstantImage::Tuple(elements), mir::Type::Tuple(types)) => {
+            assert_eq!(
+                elements.len(),
+                types.len(),
+                "typed tuple constants preserve element arity"
+            );
+            mir::MirConstantImage::Tuple(
+                elements
+                    .iter()
+                    .zip(types)
+                    .map(|(element, ty)| {
+                        lower_global_constant(
+                            element,
+                            ty,
+                            structs,
+                            enums,
+                            immortals,
+                            owner,
+                            next_immortal_ordinal,
+                        )
+                    })
+                    .collect(),
+            )
+        }
         (hir::HirConstantImage::Integer(value), mir::Type::Integer(kind)) => {
             let value = lower_integer_constant(*value);
             assert_eq!(
@@ -69,11 +94,11 @@ pub(super) fn lower_global_constant(
             mir::MirConstantImage::Boolean(*value)
         }
         (hir::HirConstantImage::String(value), mir::Type::String) => {
-            let ordinal = *next_string_ordinal;
-            *next_string_ordinal = next_string_ordinal
+            let ordinal = *next_immortal_ordinal;
+            *next_immortal_ordinal = next_immortal_ordinal
                 .checked_add(1)
                 .expect("one property has at most u32::MAX string constants");
-            let id = strings.intern(
+            let id = immortals.intern(
                 mir::ImmortalObjectOwner::Property(owner),
                 ordinal,
                 value.clone(),
@@ -87,10 +112,29 @@ pub(super) fn lower_global_constant(
             hir::HirConstantImage::NullPointer(hir::HirPointerNullKind::Code),
             mir::Type::FunPtr(_),
         ) => mir::MirConstantImage::PointerNull(mir::MirPointerNull::Code),
-        (hir::HirConstantImage::EnumUnit { variant }, mir::Type::Enum(enum_id, _)) => {
+        (hir::HirConstantImage::Enum { variant, fields }, mir::Type::Enum(enum_id, _)) => {
             let variant = enums.lower_variant_ref(*variant);
             assert_eq!(variant.enum_id(), *enum_id);
-            mir::MirConstantImage::EnumUnit { variant }
+            let definition = &enums.defs[*enum_id].variants[variant.variant_index() as usize];
+            assert_eq!(fields.len(), definition.fields.len());
+            mir::MirConstantImage::Enum {
+                variant,
+                fields: fields
+                    .iter()
+                    .zip(&definition.fields)
+                    .map(|(field, definition)| {
+                        lower_global_constant(
+                            field,
+                            &definition.ty,
+                            structs,
+                            enums,
+                            immortals,
+                            owner,
+                            next_immortal_ordinal,
+                        )
+                    })
+                    .collect(),
+            }
         }
         (hir::HirConstantImage::Struct { fields, .. }, mir::Type::Struct(struct_id)) => {
             let mir::StructRepresentation::Declared(declared) = &structs[*struct_id].representation
@@ -114,9 +158,9 @@ pub(super) fn lower_global_constant(
                             &definition.ty,
                             structs,
                             enums,
-                            strings,
+                            immortals,
                             owner,
-                            next_string_ordinal,
+                            next_immortal_ordinal,
                         )
                     })
                     .collect(),
@@ -163,7 +207,7 @@ mod tests {
             hir::HirIntegerConstant::Unsigned64(u64::MAX),
         ];
         let structs = Arena::new();
-        let mut strings = StringRegistry::default();
+        let mut immortals = ImmortalRegistry::default();
         let owner = property_owner();
         for value in values {
             let kind = lower_integer_kind(value.kind());
@@ -172,7 +216,7 @@ mod tests {
                 &mir::Type::Integer(kind),
                 &structs,
                 &EnumRegistry::default(),
-                &mut strings,
+                &mut immortals,
                 owner,
             );
             let mir::MirStaticInitialState::EncodedStaticValue {
@@ -195,7 +239,7 @@ mod tests {
             &mir::Type::Unit,
             &Arena::new(),
             &EnumRegistry::default(),
-            &mut StringRegistry::default(),
+            &mut ImmortalRegistry::default(),
             property_owner(),
         );
         assert_eq!(state, mir::MirStaticInitialState::ZeroedForRuntimeUnit);
@@ -204,13 +248,13 @@ mod tests {
     #[test]
     fn encoded_string_storage_uses_its_property_identity() {
         let owner = property_owner();
-        let mut strings = StringRegistry::default();
+        let mut immortals = ImmortalRegistry::default();
         let state = lower_encoded_static_state(
             &hir::HirConstantImage::String("stored".to_string()),
             &mir::Type::String,
             &Arena::new(),
             &EnumRegistry::default(),
-            &mut strings,
+            &mut immortals,
             owner,
         );
         let mir::MirStaticInitialState::EncodedStaticValue {
@@ -219,7 +263,7 @@ mod tests {
         else {
             panic!("a static string remains an encoded string image")
         };
-        let strings = strings.finish();
+        let immortals = immortals.finish();
         let expected = mir::ImmortalObjectKey::string_constant(
             mir::ImmortalObjectOwner::Property(owner),
             mir::StructuralDefinitionPath::from_first(
@@ -230,7 +274,10 @@ mod tests {
                 [],
             ),
         );
-        assert_eq!(strings[string].identity, expected);
-        assert_eq!(strings[string].value, "stored");
+        assert_eq!(immortals[string].identity, expected);
+        assert_eq!(
+            immortals[string].value,
+            mir::ImmortalConstValue::String("stored".into())
+        );
     }
 }

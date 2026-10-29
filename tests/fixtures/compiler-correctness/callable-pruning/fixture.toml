@@ -15,7 +15,7 @@ files = [
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--emit", "symbols", "--dump-dir", "${work}/dump", "--message-format", "json"]
+argv = ["${scoop}", "build", "--keep-symbols", {each = "${link_args}"}, "${work}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--emit", "symbols", "--dump-dir", "${work}/dump", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -24,7 +24,7 @@ diagnostics = []
 
 [[steps]]
 name = "relink"
-argv = ["${scoop}", "link", "--enable-startup-stats", "--enable-gc-stress", {each = "${link_args}"}, "--root-slib", "${build.result.root.path}", {each = "${build.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "-o", "${work}/instrumented", "--message-format", "json"]
+argv = ["${scoop}", "link", "--keep-symbols", "--enable-startup-stats", "--enable-gc-stress", {each = "${link_args}"}, "--root-slib", "${build.result.root.path}", {each = "${build.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "-o", "${work}/instrumented", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

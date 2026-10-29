@@ -18,6 +18,7 @@
 | 需求 | Cone 与材料 |
 | --- | --- |
 | Option、值类型、基本容器、StringBuilder、资源协议 | `scoop.core`；`language/*`、`text/strings`、`collections/list` |
+| 编译期嵌入文件／目录、读取构建环境 | `scoop.core` 的 `scoop.compiler` package；`language/compiler-inputs` |
 | 集合算法、字典、字节／文本、日期与 Duration | `scoop.std`；`collections/map` 和库 `examples/` |
 | 文件、目录、系统资源、线程 | `scoop.platform`；`io/files`、`io/resources` |
 | 事件循环、任务、异步 I/O | `scoop.asyncio`；`async/tasks` |

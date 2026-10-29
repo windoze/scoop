@@ -1,0 +1,7 @@
+package scoop.tests
+import scoop.tests.compilerinput.*
+fun main() {
+    println(embedded)
+    println(generic(1))
+    println(defaulted())
+}

@@ -124,7 +124,7 @@ impl Lowerer {
             hir::ConstPropertyValue::Float(value) => self.core_float_type(value.kind()).ok()?,
             hir::ConstPropertyValue::Integer(value) => self.integer_type(value.kind()),
             hir::ConstPropertyValue::Boolean(_) => self.boolean,
-            hir::ConstPropertyValue::String(_) | hir::ConstPropertyValue::Char(_) => {
+            _ => {
                 unreachable!("floating operations have numeric or Boolean results")
             }
         })

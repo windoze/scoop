@@ -1,0 +1,16 @@
+package scoop.compiler
+
+import Option
+import String
+
+/**
+ * Reads a SCOOP_-prefixed environment variable while compiling this Cone.
+ * Missing values return None; an empty value returns Some("").
+ * The name must be a constant String with the case-sensitive SCOOP_ prefix,
+ * without '=' or NUL. Invalid names and non-Unicode values are compile errors.
+ * Reads the compiler host environment, including when cross-compiling.
+ * The result is embedded in the artifact; runtime environment changes do not
+ * affect it. This intrinsic cannot be used as a function reference.
+ */
+@Intrinsic("compile_env")
+public fun env(name: String): Option<String>

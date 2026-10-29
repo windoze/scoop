@@ -25,7 +25,8 @@ pub(super) fn expected_operation_signature(
         | IntrinsicFunctionKind::MaybeUninit(_)
         | IntrinsicFunctionKind::TypeReference
         | IntrinsicFunctionKind::TypeDescription
-        | IntrinsicFunctionKind::AnnotationKey => {
+        | IntrinsicFunctionKind::AnnotationKey
+        | IntrinsicFunctionKind::IncludeDir => {
             unreachable!("these signatures come from their ordinary nominal declaration")
         }
         IntrinsicFunctionKind::Float(kind) => {
@@ -206,6 +207,20 @@ pub(super) fn expected_operation_signature(
             Effect::Ordinary,
             Vec::new(),
             SignatureTypeKey::Nominal(surface.source_location_protocol.location),
+        ),
+        IntrinsicFunctionKind::CompileEnv => (
+            Effect::Ordinary,
+            vec![string.clone()],
+            signature_application(surface.option_protocol.option, string),
+        ),
+        IntrinsicFunctionKind::IncludeStr => (Effect::Ordinary, vec![string.clone()], string),
+        IntrinsicFunctionKind::IncludeBytes => (
+            Effect::Ordinary,
+            vec![string],
+            signature_application(
+                fundamental.array,
+                SignatureTypeKey::Nominal(fundamental.int8),
+            ),
         ),
         IntrinsicFunctionKind::ForeignCallbackRegister => {
             let callback = &surface.foreign_callback_protocol;
@@ -418,6 +433,10 @@ pub(super) fn operation_own_type_parameter_count(kind: IntrinsicFunctionKind) ->
         | IntrinsicFunctionKind::GcStats
         | IntrinsicFunctionKind::ThrowablePrintStackTrace
         | IntrinsicFunctionKind::CurrentSourceLocation
+        | IntrinsicFunctionKind::CompileEnv
+        | IntrinsicFunctionKind::IncludeStr
+        | IntrinsicFunctionKind::IncludeBytes
+        | IntrinsicFunctionKind::IncludeDir
         | IntrinsicFunctionKind::Integer(_)
         | IntrinsicFunctionKind::Float(_)
         | IntrinsicFunctionKind::Char(_)

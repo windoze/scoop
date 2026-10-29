@@ -521,6 +521,17 @@ fn imported_definition_sources(
 }
 
 impl ImportedDependencySelectionPlan {
+    /// The already loaded static namespace, shared by body-local imports.
+    pub fn static_namespace(
+        &self,
+        owner: crate::SourceNominalId,
+    ) -> Option<&[crate::DirectNamedPublicBindingGroup]> {
+        self.catalog
+            .static_namespaces
+            .get(&owner)
+            .map(Vec::as_slice)
+    }
+
     /// Resolves a name within the actual declaration's static namespace.
     pub fn static_bindings(
         &self,

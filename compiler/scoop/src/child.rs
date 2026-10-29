@@ -20,15 +20,13 @@ pub(crate) struct ProductionSingleConeCompilerRunner;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ChildIoPlan {
-    trusted_sysroot: PathBuf,
     temporary_root: PathBuf,
     compiler_environment: Vec<(&'static str, std::ffi::OsString)>,
 }
 
 impl ChildIoPlan {
-    pub(crate) fn new(trusted_sysroot: PathBuf, temporary_root: PathBuf) -> Self {
+    pub(crate) fn new(temporary_root: PathBuf) -> Self {
         Self {
-            trusted_sysroot,
             temporary_root,
             compiler_environment: Vec::new(),
         }
@@ -43,10 +41,6 @@ impl ChildIoPlan {
             .map(|(name, value)| (name, value.to_owned()))
             .collect();
         self
-    }
-
-    pub(crate) fn trusted_sysroot(&self) -> &std::path::Path {
-        &self.trusted_sysroot
     }
 }
 
@@ -84,8 +78,12 @@ impl SingleConeCompilerRunner for ProductionSingleConeCompilerRunner {
         let mut child = command
             .arg("__child-protocol")
             .arg(tool.protocol().protocol_version().to_string())
-            .env("SCOOP_SYSROOT", io.trusted_sysroot())
-            .env("SCOOP_CACHE_DIR", &io.temporary_root)
+            .arg("--object-cache-dir")
+            .arg(&io.temporary_root)
+            .envs(
+                std::env::vars_os()
+                    .filter(|(name, _)| name.as_encoded_bytes().starts_with(b"SCOOP_")),
+            )
             .env("TMPDIR", temporary.path())
             .envs(
                 io.compiler_environment

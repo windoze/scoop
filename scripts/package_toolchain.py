@@ -334,6 +334,9 @@ def main():
     parser.add_argument("--work-dir", type=Path)
     parser.add_argument("--output-dir", type=Path, default=ROOT / "tmp/dist")
     parser.add_argument(
+        "--vscode-extension", type=Path, help="Reuse an already built matching VS Code extension"
+    )
+    parser.add_argument(
         "--llvm-source",
         type=Path,
         help="Use an existing LLVM source directory instead of extracting the fixed archive",
@@ -413,7 +416,7 @@ def main():
     args.llvm_source, args.llvm_archive = package_llvm.prepare(
         args.work_dir, args.llvm_source, args.llvm_archive
     )
-    extension = package_tooling.build(args.work_dir, environment)
+    extension = args.vscode_extension or package_tooling.build(args.work_dir, environment)
     if args.llvm_prefix is None:
         args.llvm_prefix = args.work_dir / "llvm/installed"
         run_script(
@@ -483,10 +486,14 @@ def main():
         )
     args.debugger_prefix = args.debugger_prefix.resolve()
     environment["LLVM_SYS_221_PREFIX"] = str(args.llvm_prefix)
-    host_target = "x86_64-w64-windows-llvm-mingw-ucrt" if windows else args.host
-    flags = ["-C", "target-cpu=" + release["targets"][host_target]["cpu"]]
-    if not windows:
-        flags += ["-C", f"link-arg=-Wl,-rpath,{args.llvm_prefix / 'lib'}"]
+    flags = []
+    if windows:
+        flags = [
+            "-C",
+            "target-cpu=" + release["targets"]["x86_64-w64-windows-llvm-mingw-ucrt"]["cpu"],
+        ]
+    else:
+        flags = ["-C", f"link-arg=-Wl,-rpath,{args.llvm_prefix / 'lib'}"]
     environment["CARGO_ENCODED_RUSTFLAGS"] = "\x1f".join(flags)
     subprocess.run(
         [
