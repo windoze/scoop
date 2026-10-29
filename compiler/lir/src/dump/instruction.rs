@@ -512,12 +512,14 @@ pub(super) fn dump_instruction(
                 family,
                 out,
                 callback,
+                invalid_message,
             } => buf.push_str(&format!(
-                "    t{} = foreign_callback_{} family{} {} : {}\n",
+                "    t{} = foreign_callback_{} family{} {} invalid-message=global{} : {}\n",
                 out.into_raw(),
                 "State",
                 family.into_raw(),
                 value_name(callback),
+                invalid_message.into_raw(),
                 function.temps[out].ty.dump()
             )),
             ForeignCallbackOperation::Failure {
