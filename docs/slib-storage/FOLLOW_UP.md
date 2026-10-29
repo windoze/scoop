@@ -30,11 +30,11 @@
 
 现有成员离线合计减少 106.82 MiB，约占整个样本的 12.6%；这不是重新构建完整归档后的实测大小，更新后的 manifest 长度可能略有变化。一次性压缩成本增加约 1.2 秒，现有热缓存路径不执行压缩。
 
-`cargo fmt --all` 与 `cargo clippy --workspace --all-targets` 已通过。现有 `archive::tests::reader_validates_manifest_directory_and_member_ranges` 和 `artifact_file::tests::complete_file_reads_only_requested_members_and_reuses_their_buffers` 均通过，覆盖实际 writer／reader、目录定位和成员缓冲复用。未新增压缩率断言或运行完整测试矩阵；Linux 按本轮约定在全部本地功能完成后验证。原始逐项测量和日志留在仓库外。
+`cargo fmt --all` 与 `cargo clippy --workspace --all-targets` 已通过。现有 `archive::tests::reader_validates_manifest_directory_and_member_ranges` 和 `artifact_file::tests::complete_file_reads_only_requested_members_and_reuses_their_buffers` 均通过，覆盖实际 writer／reader、目录定位和成员缓冲复用。后续 Darwin、GNU、musl 的定向编译／运行继续通过新 writer 生产并消费产物，未新增压缩率断言或运行无关完整测试矩阵。体积测量仍限于上述 Darwin 现有成员的离线重编码；原始逐项测量和日志留在仓库外。
 
 ## 来源共享的可行性
 
-文件身份、位置、源码作用域与变量声明可以集中保存，各阶段保留局部引用和实际变换映射；基础调试的新数据按此方向组织。定义来源与求值来源继续保留各自语义，引用的记录相同时可共享。源码文件身份已有 HIR `SourceRecord`，不需要把其完整内容再编码进 MIR 和 LIR。
+文件身份、位置、源码作用域与变量声明可以集中保存，各阶段保留局部引用和实际变换映射；基础调试的新数据已通过公共 `scoop-source` 的共享记录落地。定义来源与求值来源继续保留各自语义，引用的记录相同时共享。源码文件身份已有 HIR `SourceRecord`，不把其完整内容再编码进 MIR 和 LIR。跨 Cone 必需的局部名称进入原 HIR 模板表，MIR／LIR 没有新增持久调试快照。
 
 旧 HIR 模板有实际重复：`cross-cone-interface` 的 `definition_sources` 已保存来源集合，表达式等节点仍直接编码来源。其中 core 的 7,423 个来源出现 28,877 次。将集合外的相同来源离线替换为表索引、仍保留集合后：
 

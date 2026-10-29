@@ -1865,7 +1865,7 @@ Throwable 准备在 MIR 的具体正文与协程转换、内联完成后展开�
 
 文件身份、位置、源码作用域与变量声明集中在公共源码／调试记录中，IR 节点使用有类型的共享引用，不在每层复制完整记录。记录经 IR crate 传递，复用已有声明和变量身份；优化、内联、单态化、closure capture 与协程 saved slot 只新增实际变化的关联。持久化只保留跨 Cone 模板下游真正需要的来源和声明，沿用 HIR 已有来源表；MIR／LIR 的会话调试旁表不作为完整快照重复写入 `.slib`。定义来源与求值来源的用途保持独立，即使它们引用同一位置记录。
 
-跨 Cone 模板的现有局部表增加必填 field 5，保存声明时的局部名称；selector、类型、可变性与定义来源仍占原 field 1–4。`cross-cone-interface` 升至 82，旧模板产物沿版本机制重建；MIR／LIR 不新增调试 wire 快照。模板实例化、默认表达式及构造片段直接保留该名称，生成项仍由原定义分支区分。源码局部声明复用 PersistentLocalValueId，名称与声明记录共享；内联副本保留原声明，只更新声明所在位置的内联链。词法父子关系从 HIR 已绑定的结构化正文与声明投影，MIR CFG 化前建立公共作用域记录；不为同一正文另存一份作用域树快照。源码参数序号和具体类型沿实际参数／局部关系传给 LIR，不从机器参数名反推。调试类型显示名复用具体化 MIR 的可读类型名称和实参，类型引用及 DWARF 唯一标识仍由 exact type id 确定。全局与 TLS 的调试绑定沿原 property／singleton 定义来源关联到实际静态存储，只在定义该存储的对象中发射；托管全局观察 GC 原本更新的静态根，TLS 使用目标原生定位。生成的失败根和 delegate 协议存储显式无源码变量，不执行 getter 或初始化函数来提供变量值。
+跨 Cone 模板的现有局部表增加必填 field 5，保存声明时的局部名称；selector、类型、可变性与定义来源仍占原 field 1–4。该字段在 `cross-cone-interface/82` 引入；包含 2.21 栈诊断 intrinsic 的当前完整编码为 2.6 列出的 `/84`，旧模板产物沿版本机制重建。MIR／LIR 不新增调试 wire 快照。模板实例化、默认表达式及构造片段直接保留该名称，生成项仍由原定义分支区分。源码局部声明复用 PersistentLocalValueId，名称与声明记录共享；内联副本保留原声明，只更新声明所在位置的内联链。词法父子关系从 HIR 已绑定的结构化正文与声明投影，MIR CFG 化前建立公共作用域记录；不为同一正文另存一份作用域树快照。源码参数序号和具体类型沿实际参数／局部关系传给 LIR，不从机器参数名反推。调试类型显示名复用具体化 MIR 的可读类型名称和实参，类型引用及 DWARF 唯一标识仍由 exact type id 确定。全局与 TLS 的调试绑定沿原 property／singleton 定义来源关联到实际静态存储，只在定义该存储的对象中发射；托管全局观察 GC 原本更新的静态根，TLS 使用目标原生定位。生成的失败根和 delegate 协议存储显式无源码变量，不执行 getter 或初始化函数来提供变量值。
 
 非引用局部使用真实存储的 declare 记录，SSA 参数及分片使用 value／fragment 记录，并在实际读取时更新其位置。含 managed 引用的变量只观察程序已实际产生的值，不为调试新增读取、栈槽或 root；safepoint 后使未确认的位置 unavailable，已按该边 live set 回写的 canonical root storage 可立即提供新位置，其余变量等后续真实读取／赋值再更新。normal／unwind 边分别使用该边实际恢复的根，调用结果在旧观察失效之后建立位置。被复制、拆分或消除的聚合不能继续显示旧叶子地址。
 
@@ -1880,6 +1880,8 @@ Throwable 准备在 MIR 的具体正文与协程转换、内联完成后展开�
 2.6 的对象内容及 Code 更新关系包含实际调试信息；影响持久模板数据时才递增对应 meta 编码，不能只为 native DWARF 无条件改 ABI。2.7 的正常更新键包含生产级别及实际路径配置。没有源码行信息的对象不能由 linker 补齐；`scoop link` 和 `scoop-link` 只接受 `--emit-debug-file` 生成已有内容的外置文件，`--keep-symbols` 仍独立控制 executable 普通符号表。
 
 Darwin 输出 `<output>.dSYM/Contents/Resources/DWARF/<basename>`：保留 Mach-O debug map 完成链接，在输入对象仍可用时执行所选 dsymutil，再按符号策略 strip，最后签名。Linux GNU／musl 链接使用标准 SHA-1 build-id，为动态及静态程序的栈快照保留模块匹配标识；该标识不承担授权或防伪用途。输出 `<output>.debug` 时，完整链接后用 llvm-objcopy `--only-keep-debug`，按符号策略裁剪 executable，再写入 `.gnu_debuglink`。所有模式保留展开表、必要 EH、GC stackmap 与运行登记数据；generated-C 桥保留物理回溯需要的 unwind 数据。目标工具、输入及失败按普通 toolchain／linker 合同处理，不增加输出内容审计。
+
+generated-C 桥没有用户源码映射，继续使用 `-g0`，通过实际符号和展开表参与物理回溯；不为人工桥生成伪造的 Scoop 源码行。用户 native 源码沿其原有编译配置提供调试信息。
 
 最终结果缓存同时记录程序及请求的调试结果。请求外置文件时，最终 executable basename 进入结果键并用于内部生成文件名，保证换输出目录可复用、换 basename 时重新生成匹配的 debuglink／dSYM；上游 Cone 不因此重编译。命中只检查输入更新与所需结果存在，不读取／哈希调试文件内容，不启动调试工具或重新准备链接输入。dSYM 目录按普通暂存、复制及 rename 发布；工具失败不发布部分新结果。UUID／debuglink 仅承担平台文件关联。
 

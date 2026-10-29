@@ -1,6 +1,6 @@
 # Scoop 实现路线图
 
-原生基础调试及程序栈诊断实施中（2026-10-29，见 [设计](debugging/DESIGN.md) 与 [实施记录](debugging/IMPLEMENTATION.md)）：按实现规范 2.22 贯通源码位置与静态变量，生成 dSYM／ELF 分离调试文件，迁移 map 消费者，并集成 LLDB、lldb-dap、VS Code 与发行打包。本轮同时按 2.21 实现 Throwable 历史栈快照及 trap 栈打印；完整 Scoop 求值另行实施。未经真实 debugger 与目标测试验证的能力不标记完成。
+原生基础调试及程序栈诊断已实现（2026-10-29，见 [设计](debugging/DESIGN.md) 与 [实施记录](debugging/IMPLEMENTATION.md)）：按实现规范 2.22 贯通共享源码记录、静态变量和 moving GC 后的位置，生成 dSYM／ELF 分离调试文件，迁移 map 消费者，并集成 LLDB、lldb-dap、VS Code 与发行打包。2.21 的 Throwable 首次抛出栈、重抛保留、printStackTrace 及 trap 栈打印已完成三目标定向验收。GNU／musl 实际 DAP 会话通过；macOS 本机 launch 的环境限制及其他验证边界记在实施记录中。完整 Scoop 求值与协程逻辑栈留待后续，较大 `.slib` 优化见[体积调查](slib-storage/FOLLOW_UP.md)。
 
 旧 identity-only 产物 profile、平行来源 reader 和发布/Link 凭证策略退役；三个完整生产 profile 升为 `/3`，descriptor 只保留实际必需 section 清单，旧产物与缓存重建。此调整不改变 runtime C ABI、String 表示、初始化或 GC 语义；类型、对象范围和实际引用检查仍在对应消费边界完成。具体格式见实现规范 2.6 与 M23-2 设计 8.3。
 

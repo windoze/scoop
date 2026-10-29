@@ -127,4 +127,4 @@ Darwin 对最终文件重新签名，保留 debugserver 的 entitlements。
 本地调试器专项验证使用启用 Python 的真实 LLDB 构建：将打包目录移动到含空格的路径，
 以仅保留系统 PATH 的环境启动 LLDB，验证 formatter、Python 标准模块和动态库加载。
 未移走或隐藏原工具；通过 dyld 加载记录确认没有引用原 Homebrew／构建目录的私有动态库。
-Linux 的同类检查与进程内 DAP 验证在最终 Linux 阶段完成。
+Linux 的同类检查还包括 ELF loader 记录、GNU／musl 实际 DAP 会话及静态 TLS；可重复入口见[调试器验收说明](../tooling/vscode-scoop/test/debugger/README.md)，本轮结果见[实施记录](../docs/debugging/IMPLEMENTATION.md)。

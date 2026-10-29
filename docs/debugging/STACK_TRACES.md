@@ -2,7 +2,7 @@
 
 日期：2026-10-29。
 
-状态：实施中。Throwable 存储、首次抛出准备、地址栈输出及 DWARF 符号化已落地；Linux 验证和发行集成继续实施，实际验收范围见 [实施记录](IMPLEMENTATION.md)。原设计决策：用户已选择“首次抛出时采集，重抛保留原栈”，并允许在必要时使用 intrinsic class。本文将所需合同同步到语言规范 11.7、运行时规范 5.6／第 7 章、实现规范 2.10／2.21；不是当前编译器能力的声明。独立调试文件及 debugger 支持沿用 [主设计](DESIGN.md)。
+状态：本轮实现及 Darwin、Linux GNU／musl 定向验收已完成，实际验证范围见 [实施记录](IMPLEMENTATION.md)。用户选择的行为是“首次抛出时采集，重抛保留原栈”，并允许在必要时使用 intrinsic class。所需合同已同步到语言规范 11.7、运行时规范 5.6／第 7 章、实现规范 2.10／2.21。独立调试文件及 debugger 支持沿用 [主设计](DESIGN.md)。
 
 ## 1. 方案
 
@@ -30,7 +30,9 @@ flowchart TD
 
 该能力和 debugger 的协程逻辑栈共享来源映射、调试产物及符号化基础，但第一版异常快照只承诺物理栈及可用的 inline 位置，不等待完整 Scoop 表达式求值或协程逻辑栈实现。
 
-## 2. 现状与直接缺口
+## 2. 实施前的基线与改动依据
+
+下表保留设计开始时的代码事实，不作为当前缺口清单；实际实现及验收见实施记录。
 
 | 位置 | 现有事实 | 所需调整 |
 | --- | --- | --- |
@@ -148,7 +150,7 @@ unwind 信息与 DWARF 分工不同：前者找下一帧，后者解释帧。`--
 
 首轮不默认链接整套 LLVM C++ symbolizer 库，也不在每次 throw／打印时启动 llvm-symbolizer。LLVM 工具继续承担开发、离线归因和交叉验收；运行时库只在真正打印时查符号。外置文件不可用则使用 native 符号／模块地址降级。
 
-本机在仓库外编译了该提交的静态 C 库，使用独立 C probe，未调用 Scoop 编译器，也没有模拟 Scoop GC：
+设计阶段在仓库外编译了该提交的静态 C 库，使用独立 C probe，未调用 Scoop 编译器，也没有模拟 Scoop GC：
 
 - 使用 `_Unwind_Backtrace`／`_Unwind_GetIPInfo` 保存调用链，原采集函数返回后再打印。
 - 同一存储第二次请求采集时保留第一次；输出包含原 `origin_site`，不包含稍后的 `later_site`。这只证明采集和保存机制，不证明 Scoop 重抛已经实现。
@@ -157,9 +159,9 @@ unwind 信息与 DWARF 分工不同：前者找下一帧，后者解释帧。`--
 
 主设计采用 DWARF 5；初始 DIFile 使用文件名与目录分离的规范输入。遇到依赖库缺陷时保留明确的小补丁及上游版本依据，或调整经过验证的标准发射方式，不增加用户级多版本开关。
 
-源码名还有一项已经确认的接入工作：该版本 dwarf.c 优先采用 `DW_AT_linkage_name`，而 Scoop 的 [persistent mangling](../../compiler/identity/src/mangling.rs) 用于精确身份，不能普遍反解源码 FQN。选择在固定 vendor 版本上增加小补丁，让符号查询同时保留源码显示名与 linkage name，Scoop 渲染优先使用 `DISubprogram.name` 所提供的可读名称；实际 API 变更随补丁记录，不扩大成新的符号格式。compiler 继续发射两种名称，不能删除 linkageName 绕过库的偏好，也不能把 opaque 标识当作已恢复的函数名。普通 native 名称保持原有回退。此补丁尚未实施，前述 C probe 不覆盖该项。
+该版本 dwarf.c 原先优先采用 `DW_AT_linkage_name`，而 Scoop 的 [persistent mangling](../../compiler/identity/src/mangling.rs) 用于精确身份，不能普遍反解源码 FQN。固定 vendor 版本已加入源码名与 DWARF 5 完整路径修补，使 Scoop 渲染使用 `DISubprogram.name` 提供的可读名称。compiler 继续发射两种名称，精确 linkage identity 供原生链接和离线归因使用；不能删除 linkageName 绕过符号器偏好，也不能把 opaque 标识当作已恢复的函数名。普通 native 名称保持原有回退。该接入已由真实 Scoop 栈诊断用例验证。
 
-Linux GNU／musl 上的实际运行、跨 DSO／FFI、真实 Scoop 函数名和全部生成 helper、移动 GC、终止时并发输出尚未完成此次实验。它们是实施验收项，不由本机 C probe 的成功替代。
+上述独立 C probe 不覆盖 Linux GNU／musl、真实 Scoop 函数、GC 或全部 FFI 组合；后续运行时专测与真实 Scoop 用例的验证范围见实施记录，不由最小工具实验替代。
 
 ## 8. 打印与 NativeSafe
 

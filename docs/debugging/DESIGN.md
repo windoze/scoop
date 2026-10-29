@@ -2,7 +2,7 @@
 
 日期：2026-10-29。
 
-状态：基础调试与程序栈诊断实施中。本文给出源码调试信息、现有 linker map 功能的替换方案，以及 LLDB / lldb-dap 的分阶段支持范围。基础调试合同见实现规范 2.22，实际进度与验证范围见 [实施记录](IMPLEMENTATION.md)。新增的 [异常与 trap 栈诊断设计](STACK_TRACES.md) 已按用户确认同步修改对应语言、运行时及编译职责 spec，并纳入本轮实施；文档中的接口不表示当前编译器已经实现。
+状态：本轮基础调试、程序栈诊断、LLDB／lldb-dap 打包和 VS Code 集成已完成，实际验证及平台限制见 [实施记录](IMPLEMENTATION.md)。基础调试合同见实现规范 2.22；用户确认的 Throwable 历史栈快照与 trap 栈打印见 [栈诊断设计](STACK_TRACES.md) 和实现规范 2.21。本文保留初始调研依据及后续语言专用调试设计；完整求值、managed 写入和协程逻辑栈不属于已交付能力。
 
 ## 1. 结论与范围
 
@@ -16,7 +16,7 @@
 
 现有文本 `.map` 只记录链接地址、范围和符号，不能恢复已经丢失的源码行、词法作用域或变量类型。改造可以复用输出管理，但调试内容必须在对象生成前建立。Darwin 的 Mach-O **debug map** 是 dsymutil 使用的对象定位信息，与当前 `-map` 生成的文本文件是两个不同概念。[R1][R2]
 
-首轮交付覆盖当前三个目标的源码断点、单步、物理调用栈、静态类型与可用局部值，以及 lldb-dap 的直接接入。String、数组、enum 等值的友好展示随后补齐。完整 Scoop 表达式求值、Scoop 专用异常过滤和协程逻辑调用栈单独分阶段实施。
+首轮交付覆盖当前三个目标的源码断点、单步、物理调用栈、静态类型与可用局部值，以及 lldb-dap 的直接接入。String、数组、enum 等值的友好展示已纳入本轮。完整 Scoop 表达式求值、Scoop 专用异常过滤和协程逻辑调用栈单独分阶段实施。
 
 2026-10-29 本轮实施范围为第 12 节 A～C、Throwable 历史栈快照和 trap 栈打印，并完成发行包中的 LLDB / lldb-dap 及运行依赖、Python formatter 和 VS Code 集成。协程逻辑栈在基础链路完成后评估实际映射与工具复杂度；完整求值、managed 赋值和 GC 感知数据断点留待后续阶段。本地全部功能完成后，再在独立 Linux checkout 验证 GNU／musl，使用定向编译器与工具协议用例，不反复执行无关的完整测试套件。
 
@@ -24,9 +24,9 @@
 
 Windows 本轮只说明职责与产物方向。其 target、COFF、调用 ABI、runtime、GC / EH 和链接支持须由 Windows 移植完成；当前实现不增加没有消费者的 PDB 分支。
 
-## 2. 仓库现状
+## 2. 实施前的仓库基线
 
-以下结论基于本次工作区代码；现有工作区中的其他修改不属于本设计。
+以下记录设计开始时的代码状态，用于解释实施动机，不是当前缺口清单。最终实现与验证见实施记录。
 
 | 部位 | 当前能力与缺口 | 主要代码 |
 | --- | --- | --- |
@@ -40,15 +40,15 @@ Windows 本轮只说明职责与产物方向。其 target、COFF、调用 ABI、
 | map 与 strip | debug 默认保留符号并生成 map；Darwin release 使用 -x -S，ELF 使用 --strip-all | [executable.rs](../../compiler/scoop/src/build/executable.rs)、[darwin.rs](../../compiler/linker/src/link/darwin.rs)、[elf.rs](../../compiler/linker/src/link/elf.rs) |
 | 结果管理 | map 已有缓存键、结果路径与发布通路，但 OutputLocation.publish 通过文件复制发布，不能直接发布 dSYM 目录包 | [key.rs](../../compiler/scoop/src/build/executable/key.rs)、[record.rs](../../compiler/scoop/src/build/executable/record.rs)、[materialize.rs](../../compiler/scoop/src/materialize.rs) |
 | 编辑器 | VS Code 扩展已有 LSP、语法和格式化贡献，没有 breakpoints / debuggers 贡献或调试启动配置 | [package.json](../../tooling/vscode-scoop/package.json) |
-| 性能消费方 | 原 map 用途已迁移到 executable、独立 DWARF 与精确 linkage name | [symbolize.py](../../tests/benchmarks/symbolize.py)、[dwarf_symbols.py](../../tests/benchmarks/dwarf_symbols.py)、[PROFILING.md](../../tests/benchmarks/PROFILING.md) |
+| 性能消费方 | 原先依赖 map 地址映射；本轮已迁移到 executable、独立 DWARF 与精确 linkage name | [symbolize.py](../../tests/benchmarks/symbolize.py)、[dwarf_symbols.py](../../tests/benchmarks/dwarf_symbols.py)、[PROFILING.md](../../tests/benchmarks/PROFILING.md) |
 
-[实现规范 2.8](../specs/SCOOP-IMPL-SPEC.md) 目前明确规定 map 不生成 DWARF，且 Darwin 在 linker 内 strip、签名后不再改程序。增加 dSYM 及 Linux 分离调试信息需要先修订这些条款。
+实施前的[实现规范 2.8](../specs/SCOOP-IMPL-SPEC.md) 规定 map 不生成 DWARF，且 Darwin 在 linker 内 strip、签名后不再改程序。本轮已先行修订对应合同，独立调试文件的现行规则见 2.22。
 
 ## 3. 工具调研与最小实验
 
 LLVM 22.1 的标准调试元数据和 debug records 足以承担底层表示；inkwell 0.10 已提供编译单元、文件、函数、词法块、基础／聚合类型和变量记录接口。复杂类型所需的具体绑定以实际实现为准，优先使用已有 inkwell / llvm-sys，不新建调试格式 writer。[R1]
 
-本次在 macOS/AArch64 做了独立工具实验：
+设计阶段在 macOS/AArch64 做了以下独立工具实验；其结果不能替代后续真实 Scoop 验收：
 
 - LLVM、llc、dsymutil、llvm-dwarfdump：22.1.8。
 - LLDB：Apple lldb-2103.0.34.103；本机 lldb-dap 报告 LLVM 21.0.0。
@@ -67,13 +67,13 @@ LLVM 22.1 的标准调试元数据和 debug records 足以承担底层表示；i
 | DAP 初始化的异常过滤列表 | C++、Objective-C、Swift 的 catch / throw；没有 Scoop | Scoop 异常过滤需要额外支持 |
 | llvm-symbolizer 使用 executable、dSYM 和 linkage / JSON 输出 | 返回 main、probe.scoop 第 3 行第 5 列及函数起始地址 | 可用标准工具接替 map 的地址归因基础 |
 
-Linux 分离后的实际程序调试、Windows PDB、复合类型、优化后的变量位置和 moving GC 尚未做本次运行验证，属于后续验收项。编译器后端与 debugger 的 LLVM 主版本不必相同，兼容性应通过目标格式和实际调试行为确认。
+上述最小实验未覆盖 Linux 分离后的实际程序调试、复合类型、优化后的变量位置和 moving GC；后续 Scoop 验收的实际范围见实施记录。Windows PDB 留待移植阶段。编译器后端与 debugger 的 LLVM 主版本不必相同，兼容性应通过目标格式和实际调试行为确认。
 
 ## 4. 用户接口与默认行为
 
 ### 4.1 源码构建
 
-建议在 `scoop build/run/test` 和 `scoopc` 增加明确的生产选项：
+`scoop build/run/test` 和 `scoopc` 提供明确的生产选项：
 
 ```text
 --debug-info=none|line-tables|full
@@ -85,9 +85,9 @@ Linux 分离后的实际程序调试、Windows PDB、复合类型、优化后的
 | line-tables | 文件、行列、函数位置及必要的内联位置关系 | 生成目标平台的独立调试文件 |
 | full | line-tables，加静态类型、作用域、参数、局部值和全局量描述 | 生成目标平台的独立调试文件 |
 
-最终默认值：debug 为 full，release 为 none。显式选择覆盖默认值，因此 release + full 是正式支持的组合；调试级别不改变 O0 / O2 的选择或程序 ABI。线级交付阶段只公开实际完成的级别，不能把 line-tables 标作 full。
+默认值：debug 为 full，release 为 none。显式选择覆盖默认值，因此 release + full 是正式支持的组合；调试级别不改变 O0 / O2 的选择或程序 ABI。
 
-示例均为拟议接口：
+源码构建示例：
 
 ```sh
 scoop build app
@@ -100,7 +100,7 @@ library 的调试信息保存在其 .slib 内对象中。选定级别沿本次�
 
 ### 4.2 仅消费产物的链接
 
-`scoop link` 和独立 `scoop-link`（package 为 scoop-linker）建议使用 `--emit-debug-file`，只请求从已有对象生成独立调试产物，不接受暗示能补齐变量信息的 full 生产选项。
+`scoop link` 和独立 `scoop-link`（package 为 scoop-linker）使用 `--emit-debug-file`，只请求从已有对象生成独立调试产物，不接受暗示能补齐变量信息的 full 生产选项。
 
 已有输入可以混合不同调试级别；输出只包含实际选中对象能够提供的信息。链接不能为没有调试信息的预编译库补造源码位置，也不自动重编译它。没有源码调试内容的输入不因此获得源码级调试能力；工具无法生成请求的文件时正常报告错误，不为这项请求增加全闭包 DWARF 验证或逐次缓存审计。
 
@@ -218,7 +218,7 @@ Code 指纹已纳入 LinkObject member 指纹，实际对象中的调试字节�
 
 初期允许没有调试信息的依赖，入口程序和其他有信息的帧仍然可调试。对 core / runtime 的源码单步，需要维护脚本显式准备带调试信息的预编译 sysroot；普通应用继续复用它，不逐 consumer 重建。O2 与调试信息可以共存，runtime 不必因此改成 O0。
 
-generated-C 的 -g0 应由调试生产选项替换；还需实际验证其 frame pointer / unwind 设置能否支撑 FFI 两侧回溯。编译器生成桥标记为人工帧，用户 native 源码按其正常编译配置提供信息。调试桥接不改变原来的调用、异常与 GC 边界。
+generated-C 桥没有用户源码映射，保留 -g0，并通过真实符号和 frame pointer／unwind 数据参与物理回溯，不为人工桥生成伪造的 Scoop 源码行。用户 native 源码按其正常编译配置提供信息。调试桥接不改变原来的调用、异常与 GC 边界。
 
 ## 8. 平台调试文件生成
 
@@ -254,7 +254,7 @@ llvm-objcopy --strip-debug --add-gnu-debuglink=app.debug app.unstripped app
 
 当前 linker 的 `--strip-all` 在此路径必须延后。若链接时已经删除调试 section，后续 objcopy 无法恢复。[R3]
 
-最终程序带 .gnu_debuglink，记录匹配调试文件的文件名和标准 CRC；存在 build-id 时保留其正常匹配用途。本轮采用邻接 debug 文件及 debuglink，不增加符号服务器或强制的 build-id 目录布局。
+最终程序带 .gnu_debuglink，记录匹配调试文件的文件名和标准 CRC；GNU／musl 最终链接生成 SHA-1 build-id，供动态及静态程序的模块匹配使用。本轮采用邻接 debug 文件及 debuglink，不增加符号服务器或强制的 build-id 目录布局。
 
 .debug 仍是标准 ELF 调试文件，不能只将若干 section dump 成自定义字节包。runtime 展开信息继续留在 executable 中；外置源码调试信息不替代 EH / 栈展开。
 
@@ -288,23 +288,24 @@ PE 与 PDB 的路径／GUID／age 匹配按平台规则处理。PDB 通常由最
 
 debug adapter 处理协议、启动／附加、断点和 UI 请求；它消费 LLDB 的能力。基础调试链路不需要实现 Scoop DAP server，也不需要把 DAP 放进 scoop-lsp。[R4][R5]
 
-VS Code 扩展要补充：
+VS Code 扩展实现以下接入：
 
 1. 为 scoop 语言注册 breakpoints 贡献。
-2. 提供调用官方 LLDB DAP 扩展的配置片段／启动配置生成，定位匹配平台的 lldb-dap。
+2. 注册 Scoop debug type，提供配置片段／启动配置生成，直接启动匹配平台的官方 lldb-dap。
 3. 将构建任务与调试启动串联，取得实际 executable、参数、cwd、环境及对应调试文件；调试目标是编译出的程序。
 4. 为逻辑来源／预编译库配置 sourceMap，按需通过 initCommands 导入 formatter。
 5. 验证启动、attach、程序退出、stdin / TTY 和测试入口。交互终端使用所选 adapter 版本实际支持的配置。
 
-官方扩展与 lldb-dap 二进制分开分发，不能只安装编辑器扩展就假定有 adapter。[R4]
+Scoop 扩展需要可定位的 lldb-dap 可执行文件，由 Scoop 发行包提供或通过扩展设置指定；其协议能力来自官方 adapter。[R4]
 
-基础 launch 配置示意：
+调试已有程序的基础 launch 配置：
 
 ```json
 {
-  "type": "lldb-dap",
+  "type": "scoop",
   "request": "launch",
   "name": "Scoop",
+  "build": false,
   "program": "/absolute/path/to/program",
   "cwd": "/absolute/path/to/project",
   "args": [],
@@ -410,7 +411,7 @@ llvm-symbolizer 是显式性能分析工具的依赖，不成为普通程序运�
 | SCOOP-IMPL-SPEC 2.19 | O0 / O2 与调试级别正交；变换必须维护位置；优化后变量的可用性 |
 | SCOOP-SPEC 11.12 | 核对 currentSourceLocation 的既有独立语义；初期无需改变语言行为 |
 | SCOOP-RUNTIME-SPEC 2、3、5、8 | debugger 的基础静态观察复用现有合同；程序栈诊断另按 5.6 修改 Throwable 前缀、Managed 准备与输出 |
-| SCOOP-SPEC 11.7、SCOOP-RUNTIME-SPEC 5.6／7、SCOOP-IMPL-SPEC 2.10／2.21 | 已在本次设计中修订首次抛出栈、printStackTrace、intrinsic Throwable、trap 与编译职责；实现及版本迁移尚未完成 |
+| SCOOP-SPEC 11.7、SCOOP-RUNTIME-SPEC 5.6／7、SCOOP-IMPL-SPEC 2.10／2.21 | 首次抛出栈、printStackTrace、intrinsic Throwable、trap 与编译职责；规范、实现及实际 ABI／模板版本已配套更新 |
 | ROADMAP 与性能分析文档 | 登记实际实施阶段，迁移 map 消费说明，不提前标记功能完成 |
 
 ### 12.3 主要实现落点
