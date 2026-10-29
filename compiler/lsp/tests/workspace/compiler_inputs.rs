@@ -7,6 +7,9 @@ fn real_core(root: &Path) {
 
 fn start(root: &Path, relative: bool) -> Client {
     let mut client = Client::start();
+    // These integration tests analyze the full source core with an unoptimized
+    // server, which can exceed the small-fixture timeout during parallel builds.
+    client.set_response_timeout(std::time::Duration::from_secs(120));
     client.request("initialize", json!({
         "processId": null,
         "capabilities": {"workspace": {"didChangeWatchedFiles": {"dynamicRegistration": true, "relativePatternSupport": relative}}},

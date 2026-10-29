@@ -19,6 +19,7 @@ pub struct Client {
     pub notifications: Vec<Notification>,
     pub registrations: HashMap<String, Value>,
     next_id: i32,
+    response_timeout: Duration,
 }
 
 impl Client {
@@ -49,7 +50,12 @@ impl Client {
             notifications: Vec::new(),
             registrations: HashMap::new(),
             next_id: 1,
+            response_timeout: Duration::from_secs(20),
         }
+    }
+
+    pub fn set_response_timeout(&mut self, timeout: Duration) {
+        self.response_timeout = timeout;
     }
 
     pub fn initialize(&mut self, encoding: &str, hierarchical: bool) -> Value {
@@ -92,7 +98,7 @@ impl Client {
     fn receive(&mut self) {
         match self
             .messages
-            .recv_timeout(Duration::from_secs(20))
+            .recv_timeout(self.response_timeout)
             .expect("LSP response timed out")
         {
             Message::Response(response) => {
