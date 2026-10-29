@@ -9,7 +9,7 @@ impl BodyLowerer<'_> {
         let ty = self.lower_type(expr.ty);
         let kind = match &expr.kind {
             hir::ExprKind::ArrayGenerate { count, initializer } => {
-                return self.lower_array_generate(expr.ty, count, initializer, expr.span);
+                return self.lower_array_generate(expr, count, initializer);
             }
             hir::ExprKind::ArrayLiteral(elements) => {
                 let mir::Type::Class(array_type) = self.lower_type(expr.ty) else {
@@ -148,13 +148,13 @@ impl BodyLowerer<'_> {
 
     pub(super) fn lower_array_generate(
         &mut self,
-        result_type: hir::TypeId,
+        source: &hir::Expr,
         count: &hir::Expr,
         initializer: &hir::Expr,
-        span: Span,
     ) -> smir::Expr {
+        let span = source.span;
         let zero_initializer = self.is_zero_array_initializer(initializer);
-        let array_ty = self.lower_type(result_type);
+        let array_ty = self.lower_type(source.ty);
         let mir::Type::Class(array_type) = array_ty else {
             unreachable!("ArrayGenerate has a concrete intrinsic array application")
         };
@@ -208,15 +208,21 @@ impl BodyLowerer<'_> {
             then_body: vec![failure],
             else_body: None,
         });
+        let mut allocation = smir::Expr::new(
+            array_ty.clone(),
+            smir::ExprKind::ArrayAllocate {
+                array_type,
+                count: Box::new(smir::Expr::local(size, long_ty.clone())),
+            },
+        );
+        let origin = self
+            .module
+            .debug_sources
+            .expression(source.origin.definition, self.debug_records);
+        allocation.debug_origin = self.debug_records.scoped(&origin, self.debug_scope.clone());
         self.prelude.push(smir::StatementKind::ValDecl {
             local: array,
-            init: smir::Expr::new(
-                array_ty.clone(),
-                smir::ExprKind::ArrayAllocate {
-                    array_type,
-                    count: Box::new(smir::Expr::local(size, long_ty.clone())),
-                },
-            ),
+            init: allocation,
         });
         if zero_initializer {
             return smir::Expr::local(array, array_ty);

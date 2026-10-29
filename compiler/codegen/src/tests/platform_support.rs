@@ -31,3 +31,25 @@ pub(crate) fn native_trace_module_source() -> &'static str {
         host => panic!("no stack-trace module source for {host}"),
     }
 }
+
+/// Link the actual symbolizer into focused native runtime tests.
+pub(crate) fn native_trace_symbols(
+    command: &mut std::process::Command,
+    workspace: &std::path::Path,
+) {
+    let target = match std::env::consts::OS {
+        "linux" => scoop_target_data::LINUX_X86_64_GNU,
+        "macos" => scoop_target_data::DARWIN_AARCH64,
+        host => panic!("no trace symbolizer for {host}"),
+    };
+    let profile = scoop_toolchain::ValidatedRuntimeBuildProfile::for_target(target).unwrap();
+    command
+        .arg("-I")
+        .arg(workspace.join("sysroot/vendor/libbacktrace"));
+    command.arg(workspace.join("runtime/src/stack_trace/symbolize.c"));
+    for source in profile.runtime_sources() {
+        if source.starts_with("vendor/libbacktrace/") {
+            command.arg(workspace.join("sysroot").join(source));
+        }
+    }
+}

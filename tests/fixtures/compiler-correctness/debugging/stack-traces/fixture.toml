@@ -39,7 +39,7 @@ diagnostics = []
 
 [[steps]]
 name = "observe"
-argv = ["${python}", "${fixture}/verify.py", "${history.result.output}", "${uncaught.result.output}", "${trap.result.output}"]
+argv = ["${python}", "${fixture}/verify.py", "${history.result.output}", "${uncaught.result.output}", "${trap.result.output}", "${level}", "${fixture}"]
 exit = 0
 stdout = ""
 stderr = ""

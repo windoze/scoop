@@ -3,6 +3,7 @@
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 
 def run(path, expected):
@@ -36,3 +37,18 @@ for trace in [reports[1], uncaught, trap]:
     assert re.search(r"\b(?:uuid|build-id)=[0-9a-f]+, link=0x[0-9a-f]+", trace), trace
     pc, query = re.search(r"\(pc=0x([0-9a-f]+), query=0x([0-9a-f]+)\)", trace).groups()
     assert int(pc, 16) - int(query, 16) == 1, trace
+
+for trace in (reports[1], uncaught, trap):
+    assert "caller boundary unavailable" not in trace, trace
+    assert "unwind stopped" not in trace, trace
+    assert "loaded modules changed" not in trace, trace
+
+if sys.argv[4] != "none":
+    source = Path(sys.argv[5])
+    for trace, function, file, line in (
+        (reports[1], "firstThrow", "history.scoop", 5),
+        (uncaught, "originalThrow", "uncaught.scoop", 2),
+        (trap, "overflowingArray", "trap.scoop", 2),
+    ):
+        first = next(line for line in trace.splitlines() if line.startswith("  at "))
+        assert first.startswith(f"  at {function} ({source / file}:{line}) "), trace

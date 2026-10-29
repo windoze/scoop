@@ -39,11 +39,13 @@ typedef struct ModuleQuery {
     ScoopTraceFrames *frames;
     ScoopTraceLoadedModule *modules;
     uint32_t count;
+    uint64_t generation;
 } ModuleQuery;
 
 static int visit_image(struct dl_phdr_info *image, size_t size, void *data) {
     (void)size;
     ModuleQuery *query = data;
+    query->generation = image->dlpi_adds + image->dlpi_subs;
     uint32_t module = SCOOP_TRACE_NO_MODULE;
     for (ElfW(Half) segment_index = 0; segment_index < image->dlpi_phnum; segment_index++) {
         const ElfW(Phdr) *segment = &image->dlpi_phdr[segment_index];
@@ -81,9 +83,23 @@ static int visit_image(struct dl_phdr_info *image, size_t size, void *data) {
     return 0;
 }
 
-uint32_t scoop_trace_modules(ScoopTraceFrames *frames, ScoopTraceLoadedModule *modules) {
+static int visit_generation(struct dl_phdr_info *image, size_t size, void *data) {
+    (void)size;
+    *(uint64_t *)data = image->dlpi_adds + image->dlpi_subs;
+    return 1;
+}
+
+uint64_t scoop_trace_generation(void) {
+    uint64_t generation = 0;
+    dl_iterate_phdr(visit_generation, &generation);
+    return generation;
+}
+
+uint32_t scoop_trace_modules(ScoopTraceFrames *frames, ScoopTraceLoadedModule *modules,
+                            uint64_t *generation) {
     ModuleQuery query = {.frames = frames, .modules = modules};
     /* The platform loader keeps its image names and notes valid in callbacks. */
     dl_iterate_phdr(visit_image, &query);
+    *generation = query.generation;
     return query.count;
 }

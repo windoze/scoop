@@ -5,6 +5,13 @@ pub(super) const COMMON: &[&str] = &[
     "runtime/src/floating_parse.c",
     "vendor/ryu/ryu/f2s.c",
     "vendor/ryu/ryu/d2s.c",
+    "vendor/libbacktrace/dwarf.c",
+    "vendor/libbacktrace/fileline.c",
+    "vendor/libbacktrace/posix.c",
+    "vendor/libbacktrace/sort.c",
+    "vendor/libbacktrace/state.c",
+    "vendor/libbacktrace/mmapio.c",
+    "vendor/libbacktrace/mmap.c",
     "runtime/src/strings.c",
     "runtime/src/startup.c",
     "runtime/src/startup/failure.c",
@@ -16,6 +23,7 @@ pub(super) const COMMON: &[&str] = &[
     "runtime/src/throwable.c",
     "runtime/src/stack_trace/capture.c",
     "runtime/src/stack_trace/render.c",
+    "runtime/src/stack_trace/symbolize.c",
     "runtime/src/stack_trace/throwable_report.c",
     "runtime/src/eh_personality.c",
     "runtime/src/eh/lsda.c",
@@ -89,10 +97,12 @@ pub(super) const LINUX_OS: &[&str] = &["runtime/src/platform/os/linux.c"];
 pub(super) const MACHO_IMAGE: &[&str] = &[
     "runtime/src/platform/image/macho.c",
     "runtime/src/stack_trace/macho.c",
+    "vendor/libbacktrace/macho.c",
 ];
 pub(super) const ELF_IMAGE: &[&str] = &[
     "runtime/src/platform/image/elf.c",
     "runtime/src/stack_trace/elf.c",
+    "vendor/libbacktrace/elf.c",
 ];
 pub(super) const AARCH64: &[&str] = &[
     "runtime/src/platform/arch/aarch64.c",

@@ -46,6 +46,7 @@ impl Inputs {
             .map(|p| root.join(p))
             .collect();
         includes.push(vendor.join("ryu"));
+        includes.push(vendor.join("libbacktrace"));
         if let Some(include) = scoop_toolchain::runtime_unwind_include(
             request.target.lir_target(),
             request.unwind_prefix,

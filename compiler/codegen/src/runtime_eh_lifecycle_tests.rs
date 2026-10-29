@@ -25,7 +25,9 @@ fn scoop_exception_record_lifecycle_uses_only_the_level_one_unwinder_abi() {
     let workspace = workspace_root();
     let binary =
         std::env::temp_dir().join(format!("scoop_eh_lifecycle_test_{}", std::process::id()));
-    let compile = Command::new("cc")
+    let mut command = Command::new("cc");
+    crate::tests::platform_support::native_trace_symbols(&mut command, &workspace);
+    let compile = command
         .args(COMPILE_AND_LINK_ARGUMENTS)
         .arg("-I")
         .arg(workspace.join("runtime/include"))

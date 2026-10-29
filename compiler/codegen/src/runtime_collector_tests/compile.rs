@@ -53,6 +53,7 @@ pub(super) fn compile_and_run_configuration(
     if verify_heap {
         compile.arg("-DSCOOP_GC_VERIFY_HEAP=1");
     }
+    crate::tests::platform_support::native_trace_symbols(&mut compile, workspace);
     compile
         .args(flags)
         .args([

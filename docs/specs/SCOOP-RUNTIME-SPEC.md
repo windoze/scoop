@@ -877,7 +877,7 @@ native exception record 不能跨线程共享或跨挂起保存；可以保存�
 
 `printStackTrace()` 及未捕获异常报告消费已有快照；语言 trap 则在进入终止路径之前采集当前栈，不分配 Throwable、不建立 exception record。文件查询、符号化与 stdio 等可能阻塞的工作在 NativeSafe 执行；此前对所需快照 bytes 使用现有 pin／借用协议，或复制为 native 数据。进入 NativeSafe 后不能继续跟随未经固定的 managed 引用，不能持有 GC／线程 registry 锁进行符号解析或 I/O。已经在 NativeSafe 的 startup failure 路径，经现有协调读取 rooted failure 并取得稳定输出数据，不回调 managed 打印方法。
 
-符号化延迟到打印，复用同一版本 executable、dSYM 或 ELF 分离调试文件。调试文件不可用时输出模块、可用 UUID／build-id、链接地址和原始地址；不能只输出无法事后定位的 `<unknown>`。这项读取属于诊断，不加入构建缓存命中校验。普通符号／文件／输出错误不替换原异常；栈或堆已损坏、内存耗尽等 fatal 情况不承诺完整诊断，仍遵守原终止合同。本节不安装信号处理器，不把外部 SIGSEGV／SIGILL 等转换成 Scoop 异常。
+符号化延迟到打印，复用同一版本 executable、dSYM 或 ELF 分离调试文件。当前实现复用一个进程生命周期的线程安全 libbacktrace state。快照同时保存 native loader 的变更序号；只有采集、state 初始化和查询前后的模块集合一致时使用该 state 的符号结果。模块加载／卸载后保守保留地址与已复制的模块事实，并明确提示符号缓存不可用，避免将旧地址归给复用地址的新模块。这项序号只服务诊断缓存，不改变 native loader 或 Scoop image 语义。调试文件不可用时输出模块、可用 UUID／build-id、链接地址和原始地址；不能只输出无法事后定位的 `<unknown>`。这项读取属于诊断，不加入构建缓存命中校验。普通符号／文件／输出错误不替换原异常；栈或堆已损坏、内存耗尽等 fatal 情况不承诺完整诊断，仍遵守原终止合同。本节不安装信号处理器，不把外部 SIGSEGV／SIGILL 等转换成 Scoop 异常。
 
 ## 6. 核心类型的运行时后备
 

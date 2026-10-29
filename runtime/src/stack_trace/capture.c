@@ -65,7 +65,8 @@ void scoop_trace_capture_frames(ScoopTraceFrames *frames, uintptr_t caller_pc) {
 
 ScoopTraceBuffer scoop_trace_complete(ScoopTraceFrames *frames) {
     ScoopTraceLoadedModule modules[SCOOP_TRACE_MAX_FRAMES] = {0};
-    uint32_t count = scoop_trace_modules(frames, modules);
+    uint64_t generation;
+    uint32_t count = scoop_trace_modules(frames, modules, &generation);
     size_t length = sizeof(ScoopTraceHeader) + frames->count * sizeof(ScoopTraceFrame) +
                     count * sizeof(ScoopTraceModule);
     for (uint32_t index = 0; index < count; index++) {
@@ -80,7 +81,8 @@ ScoopTraceBuffer scoop_trace_complete(ScoopTraceFrames *frames) {
     }
     char *bytes = scoop_trace_allocate(length);
     ScoopTraceHeader header = {
-        .frame_count = frames->count, .module_count = count, .flags = frames->flags};
+        .frame_count = frames->count, .module_count = count, .flags = frames->flags,
+        .generation = generation};
     memcpy(bytes, &header, sizeof header);
     memcpy(bytes + sizeof header, frames->frames, frames->count * sizeof(ScoopTraceFrame));
     char *module_bytes = bytes + sizeof header + frames->count * sizeof(ScoopTraceFrame);

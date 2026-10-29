@@ -2,6 +2,7 @@
 #define SCOOP_STACK_TRACE_INTERNAL_H
 
 #include "../stack_trace.h"
+#include <stdbool.h>
 
 /* This is private immutable runtime data, never a language or slib format. */
 typedef struct ScoopTraceHeader {
@@ -9,6 +10,7 @@ typedef struct ScoopTraceHeader {
     uint32_t module_count;
     uint32_t flags;
     uint32_t reserved;
+    uint64_t generation;
 } ScoopTraceHeader;
 
 typedef struct ScoopTraceModule {
@@ -27,7 +29,26 @@ typedef struct ScoopTraceLoadedModule {
 } ScoopTraceLoadedModule;
 
 /* Called in NativeSafe; copies loader-owned names/identities before returning. */
-uint32_t scoop_trace_modules(ScoopTraceFrames *frames, ScoopTraceLoadedModule *modules);
+uint32_t scoop_trace_modules(ScoopTraceFrames *frames, ScoopTraceLoadedModule *modules,
+                             uint64_t *generation);
+uint64_t scoop_trace_generation(void);
+
+typedef struct ScoopTraceSymbol {
+    char *function;
+    char *filename;
+    int line;
+    struct ScoopTraceSymbol *next;
+} ScoopTraceSymbol;
+
+typedef struct ScoopTraceSymbols {
+    ScoopTraceSymbol *first;
+    ScoopTraceSymbol *last;
+    bool changed;
+    bool unavailable;
+} ScoopTraceSymbols;
+
+void scoop_trace_symbolize(uint64_t generation, uintptr_t pc, ScoopTraceSymbols *symbols);
+void scoop_trace_symbols_free(ScoopTraceSymbols *symbols);
 char *scoop_trace_copy_path(const char *path);
 
 #endif

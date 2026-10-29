@@ -59,3 +59,9 @@ Throwable 首次抛出准备已进入最终 MIR，返回经过潜在 GC 搬迁�
 真实 Scoop 首次抛出、finally 重抛、派生字段、快照保活和未抛出状态已在 full／line-tables／none 三种配置验收，包含移动及 minor GC；未捕获退出码 1、trap 退出码 1 与原始／查询 PC 关系通过。MIR 返回引用、runtime ABI 固定向量、生成 C flags、异常 record 生命周期和 startup failure roots 定向测试通过。跨库 ODR 组合还修复了 Mach-O 非零偏移 interface-view alias 的弱链接标志；全部对象／注册／共享内容检查通过。生成 C 桥开启展开信息后，unwind section 作为主定义的关联 atom 参与边界与 relocation，Darwin C 桥的 EH frame／compact unwind 实际对象边界与 relocation 检查通过；两个线程竞争同一异常对象的首次抛出、移动与 minor GC、重抛后快照不变的真实程序验收通过。MIR 优化专测在最终采集准备前运行，保持与产品流水线相同的顺序。
 
 本批收尾回归：MIR 单元测试 202 项通过，代表快照仅增加 prepare 调用／更新内部函数编号；旧未捕获异常、trap 重链接和 runtime image 初始化失败三项 CLI 用例通过。初始化失败专测显式使用 release，使构建与重链接保持同一调试产物策略。全 workspace clippy、C 严格编译检查与 fixture runner 61 项规则测试通过；未运行无关完整测试套件。
+
+程序栈符号化已接入固定 libbacktrace 提交，复用一个线程安全进程 state；DIE 中的 Scoop 源码名、DWARF 5 绝对路径和 inline 记录通过标准回调读取。回调字符串在返回前复制；loader 变更前后的序号不一致时丢弃符号结果，保留快照中的模块标识和链接地址。原生 C 专测覆盖真实调试文件、源码名／完整路径和 dlopen／dlclose 后降级。
+
+真实 Scoop 的 full／line-tables／none 三配置再次通过，包含移动／minor GC、重抛、uncaught 和 trap；有调试信息时精确断言 firstThrow 第 5 行、originalThrow 第 2 行和 overflowingArray 第 2 行，且首帧不包含采集 helper。该验收同时修复 Darwin 大栈帧探测影响 LR 读取的问题，并补齐数组分配展开操作的实际来源。C 记录生命周期、startup failure roots、MIR 数组三项及格式／lint 均通过。
+
+带符号化 runtime 的同对象并发首次抛出、移动与 minor GC、重抛组合再次通过；fixture runner 61 项规则测试通过。Linux GNU／musl 仍按约定留到本地功能完成后验证。

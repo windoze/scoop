@@ -2,7 +2,7 @@
 
 日期：2026-10-29。
 
-状态：实施中。Throwable 存储、首次抛出准备和地址栈输出已落地；DWARF 符号化与剩余集成继续实施，实际验收范围见 [实施记录](IMPLEMENTATION.md)。原设计决策：用户已选择“首次抛出时采集，重抛保留原栈”，并允许在必要时使用 intrinsic class。本文将所需合同同步到语言规范 11.7、运行时规范 5.6／第 7 章、实现规范 2.10／2.21；不是当前编译器能力的声明。独立调试文件及 debugger 支持沿用 [主设计](DESIGN.md)。
+状态：实施中。Throwable 存储、首次抛出准备、地址栈输出及 DWARF 符号化已落地；Linux 验证和发行集成继续实施，实际验收范围见 [实施记录](IMPLEMENTATION.md)。原设计决策：用户已选择“首次抛出时采集，重抛保留原栈”，并允许在必要时使用 intrinsic class。本文将所需合同同步到语言规范 11.7、运行时规范 5.6／第 7 章、实现规范 2.10／2.21；不是当前编译器能力的声明。独立调试文件及 debugger 支持沿用 [主设计](DESIGN.md)。
 
 ## 1. 方案
 
@@ -131,6 +131,8 @@ unwind 信息与 DWARF 分工不同：前者找下一帧，后者解释帧。`--
 第一版不安装通用 signal handler，也不接管 SIGSEGV、外部 SIGILL、kill 或所有 libc abort。采集部分诊断不能被表述为从已损坏的任意 native 栈中恢复完整 trace。
 
 ## 7. 符号器选择与工具实验
+
+本轮固定使用一个进程生命周期的 libbacktrace state。第一版不重建卸载模块的离线解析器：loader 集合变化时，对不再匹配的快照／缓存明确降级为已复制的模块标识和地址；查询前后再次比较变更序号，丢弃竞争期间的符号结果。回调字符串在返回前复制，不能保留借用。
 
 优先选择 [libbacktrace](https://github.com/ianlancetaylor/libbacktrace)，使用 C 接口 `backtrace_pcinfo` 解释保存的 PC；不要使用在打印位置重新采集栈的 `backtrace_print` 代替它。[S1][S2]
 

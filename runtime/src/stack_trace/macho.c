@@ -21,6 +21,7 @@ typedef struct Image {
 static pthread_once_t images_once = PTHREAD_ONCE_INIT;
 static pthread_mutex_t images_lock = PTHREAD_MUTEX_INITIALIZER;
 static Image *images;
+static uint64_t images_generation;
 
 static void add_image(const struct mach_header *raw, intptr_t slide) {
     if (raw->magic != MH_MAGIC_64) {
@@ -57,6 +58,7 @@ static void add_image(const struct mach_header *raw, intptr_t slide) {
     pthread_mutex_lock(&images_lock);
     image->next = images;
     images = image;
+    images_generation++;
     pthread_mutex_unlock(&images_lock);
 }
 
@@ -69,6 +71,7 @@ static void remove_image(const struct mach_header *header, intptr_t slide) {
             *cursor = image->next;
             free(image->module.path);
             free(image);
+            images_generation++;
             break;
         }
     }
@@ -80,7 +83,16 @@ static void initialize_images(void) {
     _dyld_register_func_for_add_image(add_image);
 }
 
-uint32_t scoop_trace_modules(ScoopTraceFrames *frames, ScoopTraceLoadedModule *modules) {
+uint64_t scoop_trace_generation(void) {
+    pthread_once(&images_once, initialize_images);
+    pthread_mutex_lock(&images_lock);
+    uint64_t generation = images_generation;
+    pthread_mutex_unlock(&images_lock);
+    return generation;
+}
+
+uint32_t scoop_trace_modules(ScoopTraceFrames *frames, ScoopTraceLoadedModule *modules,
+                            uint64_t *generation) {
     pthread_once(&images_once, initialize_images);
     uint32_t count = 0;
     pthread_mutex_lock(&images_lock);
@@ -101,6 +113,7 @@ uint32_t scoop_trace_modules(ScoopTraceFrames *frames, ScoopTraceLoadedModule *m
             frame->link_pc = frame->query_pc - image->module.identity.load_bias;
         }
     }
+    *generation = images_generation;
     pthread_mutex_unlock(&images_lock);
     return count;
 }
