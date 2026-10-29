@@ -6,9 +6,9 @@
 | 阶段 | 当前状态 | 剩余验收 |
 | --- | --- | --- |
 | W0 工具链与 ABI | 三种 native 环境的关键路线均已通过，正式准备脚本已接入 | 无独立 W0 阻塞 |
-| W1 编译／链接 | 三目标 ABI、COFF、C/C++、PE、PDB、subsystem 与 RC 已实现并通过定向验证 | ABI 30 配套资源与栈诊断开关整合验收 |
-| W2 core runtime | Win32 primitives、SEH、精确 roots、GC、线程与初始化已实现并通过定向验证 | 配合 W1 完成剩余语言／产物组合用例 |
-| W3 系统库 | Windows 实现及所需 native 后端已完成，下表各组通过 | 高层异步 HTTP／client／server 验收待恢复 |
+| W1 编译／链接 | 三目标 ABI、COFF、C/C++、PE、PDB、subsystem 与 RC 已实现；ABI 30 定向组合通过 | 无独立 W1 阻塞 |
+| W2 core runtime | Win32 primitives、SEH、精确 roots、GC、线程与初始化已实现；ABI 30 栈诊断开关组合通过 | 无独立 W2 阻塞 |
+| W3 系统库 | Windows 实现及所需 native 后端已完成，下表各组通过 | ABI 30 资源重建与高层 HTTP client／server 验收进行中 |
 | W4 宿主与发行 | Windows 宿主、命令发现、私有 LLVM、SDK 选择和发行入口已实现；首个实际安装包通过三目标使用验收 | 使用最新 core／库重新生成最终归档并复测；随后进行跨宿主回归 |
 
 本地实现和完整验收完成后，才在 Linux `nuc12w.0d0a.com` 与 macOS `mm.0d0a.com` 的 `~/repos` 下新建测试目录。目前尚未开始远端测试。原始日志、报告、归档和构建副本保存在仓库外。
@@ -36,11 +36,11 @@ SEH personality 与 LSDA decoder、真实 statepoint invoke、多层／大栈帧
 
 Windows 主驱动的安装名为 **`sco.exe`**，帮助和版本信息使用 `sco`。Cargo 内部 binary 名、其他可执行程序、外部命令 `scoop-` 前缀和 `SCOOP_*` 环境变量不变；macOS／Linux 继续使用 `scoop`。归档布局测试覆盖三个宿主，实际 Windows `sco new/run/test`、`sco pm`、`sco example` 均通过。
 
-主线调试整合复用共享 DebugOrigin／变量记录，并将 Windows PDB 接入统一伴随文件发布。原生栈诊断使用所选 LLVM unwinder 与串行 DbgHelp 查询；三个 Windows target 的 O0／O2、中文源码／安装路径、实际 PDB 行号、无 PDB 地址输出、并发查询和模块卸载后的历史地址测试已通过。ABI 29 下默认 MSVC 目标的 Throwable 历史、并发首次抛出与 GC 组合已通过；其他目标及 ABI 30 开关组合继续定向验收。
+主线调试整合复用共享 DebugOrigin／变量记录，并将 Windows PDB 接入统一伴随文件发布。原生栈诊断使用所选 LLVM unwinder 与串行 DbgHelp 查询；三个 Windows target 的 O0／O2、中文源码／安装路径、实际 PDB 行号、无 PDB 地址输出、并发查询和模块卸载后的历史地址测试已通过。Throwable 历史、并发首次抛出与 GC 组合已在 ABI 30 的三个目标定向验收中通过。
 
 ABI 30 的程序级栈诊断开关通过 Windows UTF-16 入口原样传递，release 默认关闭、debug 默认开启，显式设置覆盖默认值。四种原生链接组合验证开／关参数、Unicode、PE／PDB 与 trap；6 项 runtime ABI、3 项开关默认值／CLI 测试、workspace Clippy 和 70 项 fixture runner 规则测试（3 项宿主跳过）通过。完整资源重建前保留此前测试产物，新资源位于独立外部目录，复用未变化的 native 后端。
 
-ABI 30 的默认 MSVC 目标已通过 13 项定向 fixture，覆盖开关与重链接、Throwable 历史／并发／GC、三种调试级别、Unicode 启动参数、PDB、RC、subsystem、native DLL 数据、终端及四种编译期输入。两个缺少配套库的用例在准备 platform／terminal 后定向复测通过。两个 MinGW target 各 11 项公共组合也已通过，终端／并发组合继续验收。
+ABI 30 的三个目标各通过 13 项定向 fixture，覆盖开关与重链接、Throwable 历史／并发／GC、三种调试级别、Unicode 启动参数、PDB、RC、subsystem、native DLL 数据、终端及四种编译期输入。MSVC 首轮两个缺少配套库的用例在准备 platform／terminal 后定向复测通过；两个 MinGW 分别完成 11 项公共组合和 2 项终端／并发组合。
 
 合并后的 12 项 Windows toolchain 测试、8 项 Windows codegen 测试和 4 项通用调试元数据测试通过。C 桥额外覆盖三个 target 的 debug／release 展开 atom 与真实执行；PE 链接覆盖 LLD／LINK、Unicode 参数、相邻 PDB、CRT 和新的 trap 栈输出。导入 callable／constructor 的声明位置进入共享调试记录，当前／导入来源经 HIR→MIR、Unicode／CRLF 坐标及泛型 constructor 回归通过。fixture runner 当前 70 项规则测试完成，其中 3 项按宿主跳过。
 
@@ -90,4 +90,4 @@ ABI 30 的三个 target 均通过上述真实 DAP launch 与离线 formatter 检
 
 首个归档已解压到中文及空格路径。在仅含安装 bin 和 Windows 系统目录的 PATH 下，三个目标的默认 SDK／工具发现、new/run/test、C++、console／GUI 和 RC 均通过；检查实际 PE imports 确认所选 CRT。随后修复了 canonical native sysroot 路径，并用更新的程序完成实际安装目录回归。该原型归档不是最终发行物。
 
-剩余工作为：以 ABI 30 重建三个目标的预编译资源，完成开关与剩余库测试；重新生成并验证最终 release 归档；提交、推送并合并主线；最后执行设计约定的 Linux／macOS 回归。完成这些步骤前不声明全部 Windows 验收完成。
+剩余工作为：完成 ABI 30 三目标预编译资源重建与剩余高层库测试；重新生成并验证最终 release 归档；提交、推送并合并主线；最后执行设计约定的 Linux／macOS 回归。完成这些步骤前不声明全部 Windows 验收完成。
