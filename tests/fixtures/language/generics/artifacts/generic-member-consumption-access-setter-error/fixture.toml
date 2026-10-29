@@ -2,7 +2,7 @@ schema = 1
 name = "generic-member-consumption-access-setter-error"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../generic-member-consumption/provider.scoop", "access-setter-error", "../../../generic-member-consumption/access-setter-error.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "protected_generic_members_republish_and_execute_from_artifacts", "negative", "hir-generic-members", "language"]
 
 [[steps]]

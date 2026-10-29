@@ -1,0 +1,68 @@
+#ifndef SCOOP_GDTOA_CONFIG_H
+#define SCOOP_GDTOA_CONFIG_H
+
+/* Private decimal parser, fixed C syntax and runtime synchronization. */
+#define MULTIPLE_THREADS 1
+#define ACQUIRE_DTOA_LOCK scoop_gdtoa_lock
+#define FREE_DTOA_LOCK scoop_gdtoa_unlock
+#define __Balloc_D2A scoop_gdtoa_Balloc_D2A
+#define __Bfree_D2A scoop_gdtoa_Bfree_D2A
+#define __Bigint scoop_gdtoa_Bigint
+#define __InfName_D2A scoop_gdtoa_InfName_D2A
+#define __NanName_D2A scoop_gdtoa_NanName_D2A
+#define __ULtoQ_D2A scoop_gdtoa_ULtoQ_D2A
+#define __ULtod_D2A scoop_gdtoa_ULtod_D2A
+#define __ULtodd_D2A scoop_gdtoa_ULtodd_D2A
+#define __ULtof_D2A scoop_gdtoa_ULtof_D2A
+#define __ULtoxL_D2A scoop_gdtoa_ULtoxL_D2A
+#define __ULtox_D2A scoop_gdtoa_ULtox_D2A
+#define __add_nanbits_D2A scoop_gdtoa_add_nanbits_D2A
+#define __any_on_D2A scoop_gdtoa_any_on_D2A
+#define __b2d_D2A scoop_gdtoa_b2d_D2A
+#define __bigtens_D2A scoop_gdtoa_bigtens_D2A
+#define __cmp_D2A scoop_gdtoa_cmp_D2A
+#define __copybits_D2A scoop_gdtoa_copybits_D2A
+#define __d2b_D2A scoop_gdtoa_d2b_D2A
+#define __decrement_D2A scoop_gdtoa_decrement_D2A
+#define __diff_D2A scoop_gdtoa_diff_D2A
+#define __dtoa scoop_gdtoa_dtoa
+#define __dtoa_result_D2A scoop_gdtoa_dtoa_result_D2A
+#define __freedtoa scoop_gdtoa_freedtoa
+#define __g__fmt scoop_gdtoa_g__fmt
+#define __g_dfmt scoop_gdtoa_g_dfmt
+#define __g_ffmt scoop_gdtoa_g_ffmt
+#define __g_xfmt scoop_gdtoa_g_xfmt
+#define __gdtoa scoop_gdtoa_gdtoa
+#define __gethex_D2A scoop_gdtoa_gethex_D2A
+#define __hexdig_D2A scoop_gdtoa_hexdig_D2A
+#define __hexnan_D2A scoop_gdtoa_hexnan_D2A
+#define __hi0bits_D2A scoop_gdtoa_hi0bits_D2A
+#define __i2b_D2A scoop_gdtoa_i2b_D2A
+#define __increment_D2A scoop_gdtoa_increment_D2A
+#define __lo0bits_D2A scoop_gdtoa_lo0bits_D2A
+#define __lshift_D2A scoop_gdtoa_lshift_D2A
+#define __match_D2A scoop_gdtoa_match_D2A
+#define __mingw_hexdig_init_D2A scoop_gdtoa_mingw_hexdig_init_D2A
+#define __mult_D2A scoop_gdtoa_mult_D2A
+#define __multadd_D2A scoop_gdtoa_multadd_D2A
+#define __nrv_alloc_D2A scoop_gdtoa_nrv_alloc_D2A
+#define __pow5mult_D2A scoop_gdtoa_pow5mult_D2A
+#define __quorem_D2A scoop_gdtoa_quorem_D2A
+#define __ratio_D2A scoop_gdtoa_ratio_D2A
+#define __rshift_D2A scoop_gdtoa_rshift_D2A
+#define __rv_alloc_D2A scoop_gdtoa_rv_alloc_D2A
+#define __s2b_D2A scoop_gdtoa_s2b_D2A
+#define __set_ones_D2A scoop_gdtoa_set_ones_D2A
+#define __strcp_D2A scoop_gdtoa_strcp_D2A
+#define __strtoIg_D2A scoop_gdtoa_strtoIg_D2A
+#define __strtod scoop_gdtoa_strtod
+#define __strtodg scoop_gdtoa_strtodg
+#define __strtof scoop_gdtoa_strtof
+#define __strtold scoop_gdtoa_strtold
+#define __sum_D2A scoop_gdtoa_sum_D2A
+#define __tens_D2A scoop_gdtoa_tens_D2A
+#define __tinytens_D2A scoop_gdtoa_tinytens_D2A
+#define __trailz_D2A scoop_gdtoa_trailz_D2A
+#define __ulp_D2A scoop_gdtoa_ulp_D2A
+
+#endif

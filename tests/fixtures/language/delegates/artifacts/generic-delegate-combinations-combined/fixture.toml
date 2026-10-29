@@ -2,7 +2,7 @@ schema = 1
 name = "generic-delegate-combinations-combined"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "delegate-combinations-provider", "../../../generic-delegate-combinations/provider.scoop", "delegate-combined", "../../../generic-delegate-combinations/combined.scoop", "delegate-downstream-combined", "../../../generic-delegate-combinations/downstream.scoop", "runtime-fixture", "../../../imported-classes/support/gc.c", "../support/metadata.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "generic_delegate_values_and_order_republish_and_execute", "language"]
 
 [[steps]]

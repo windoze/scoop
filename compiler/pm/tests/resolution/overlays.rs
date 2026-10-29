@@ -169,7 +169,7 @@ fn members_discover_unsaved_manifests_and_report_buffer_locations_without_a_lock
         scoop_pm::ManifestOverlays::new(overlays).unwrap(),
     )
     .unwrap();
-    assert_eq!(discovered.root, root);
+    assert_eq!(discovered.root, fs::canonicalize(root).unwrap());
     assert_eq!(discovered.members.len(), 1);
     let invalid = "# 未保存\nschema = broken\n";
     let error = prepare::failure(
@@ -183,7 +183,12 @@ fn members_discover_unsaved_manifests_and_report_buffer_locations_without_a_lock
     let scoop_protocol::DiagnosticOriginV1::HostPathSpan { path, span } = error.origin() else {
         panic!()
     };
-    assert_eq!(path.to_path_buf().unwrap(), member);
+    assert_eq!(
+        path.to_path_buf().unwrap(),
+        fs::canonicalize(member.parent().unwrap())
+            .unwrap()
+            .join(member.file_name().unwrap())
+    );
     assert!(!invalid[span.start() as usize..span.end() as usize].is_empty());
     prepare::failure(
         inspect(

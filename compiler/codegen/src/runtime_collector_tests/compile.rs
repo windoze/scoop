@@ -122,6 +122,7 @@ pub(super) fn compile_and_run_configuration(
         "runtime/src/gc_binding/stackmap/records.c",
         "runtime/src/gc_binding/stack_roots.c",
         "runtime/src/thread.c",
+        "runtime/src/platform/primitives/posix.c",
         native_float_environment_source(),
         "runtime/src/thread/collection.c",
         "runtime/src/thread/debug.c",

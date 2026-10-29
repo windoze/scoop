@@ -63,6 +63,11 @@ impl PreparedBuildGraph {
             self.context.optimization,
             &self.context.sysroot.as_path().join("include"),
             self.context.cache_root.as_path(),
+            if node.snapshot.test_config.is_some() {
+                scoop_protocol::CompilationPurpose::Test
+            } else {
+                scoop_protocol::CompilationPurpose::Production
+            },
         )
         .map_err(PrepareBuildGraphError::Native)?;
         node.snapshot.native = SourceNativeInput::Artifact(native);
@@ -211,6 +216,7 @@ fn select_manifest_input(
                 context.optimization,
                 &context.sysroot.as_path().join("include"),
                 context.cache_root.as_path(),
+                purpose,
             )
             .map_err(PrepareBuildGraphError::Native)?,
         )

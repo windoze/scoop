@@ -7,6 +7,10 @@ impl Form {
         matches!(
             self,
             Self::Unsigned64
+                | Self::CoffAmd64 {
+                    kind: object::pe::IMAGE_REL_AMD64_ADDR64,
+                    width: 8
+                }
                 | Self::ElfX86_64Rela {
                     kind: object::elf::R_X86_64_64,
                     width: 8,
@@ -15,10 +19,14 @@ impl Form {
         )
     }
 
-    /// Mach-O stores the addend in-place; ELF RELA stores it in the relocation.
+    /// COFF and Mach-O store the addend in-place; ELF RELA stores it separately.
     pub fn absolute64_addend(self, encoded_field: u64) -> Option<i128> {
         match self {
             Self::Unsigned64 => Some(i128::from(encoded_field)),
+            Self::CoffAmd64 {
+                kind: object::pe::IMAGE_REL_AMD64_ADDR64,
+                width: 8,
+            } => Some(i128::from(encoded_field as i64)),
             Self::ElfX86_64Rela {
                 kind: object::elf::R_X86_64_64,
                 width: 8,
@@ -60,6 +68,11 @@ impl Shape {
     pub fn absolute64_target(&self) -> Option<&super::VerifiedRelocationTargetV1> {
         match self {
             Self::Unsigned64 { target }
+            | Self::CoffAmd64 {
+                kind: object::pe::IMAGE_REL_AMD64_ADDR64,
+                width: 8,
+                target,
+            }
             | Self::ElfX86_64Rela {
                 kind: object::elf::R_X86_64_64,
                 width: 8,
@@ -74,6 +87,25 @@ impl Shape {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn coff_absolute_pointers_use_signed_in_place_addends() {
+        let absolute = Form::CoffAmd64 {
+            kind: object::pe::IMAGE_REL_AMD64_ADDR64,
+            width: 8,
+        };
+        assert!(absolute.is_absolute64());
+        assert_eq!(absolute.absolute64_address(17, 24), Some(41));
+        assert_eq!(absolute.absolute64_address(-17i64 as u64, 24), Some(7));
+        assert_eq!(absolute.absolute64_address(-17i64 as u64, 0), None);
+        assert!(
+            !Form::CoffAmd64 {
+                kind: object::pe::IMAGE_REL_AMD64_ADDR32NB,
+                width: 4
+            }
+            .is_absolute64()
+        );
+    }
 
     #[test]
     fn rela_signed_addends_are_separate_from_the_relocation_field() {

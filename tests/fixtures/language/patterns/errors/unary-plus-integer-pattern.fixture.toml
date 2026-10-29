@@ -3,7 +3,7 @@ name = "patterns-errors-unary-plus-integer-pattern"
 root = "unary-plus-integer-pattern.scoop"
 inputs = ["unary-plus-integer-pattern.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["single-file", "negative", "language"]
 
 [[steps]]

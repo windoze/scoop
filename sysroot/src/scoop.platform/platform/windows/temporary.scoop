@@ -1,0 +1,47 @@
+package scoop.platform.fs
+
+import scoop.platform.native.requireTemporaryPrefix
+import scoop.platform.random.SystemRandom
+import scoop.platform.system.*
+
+internal fun createPlatformTemporaryPath(base: Path, prefix: String, directory: Boolean): Path {
+    requireTemporaryPrefix(prefix)
+    val parent = base.canonicalize()
+    while (true) {
+        val path =
+            parent.resolve(Path.fromString(prefix + SystemRandom.nextLong().toULong().toString()))
+        if (directory) {
+            try {
+                path.createDirectory();
+                return path
+            }
+            catch (error: PlatformException) {
+                if (error.kind != PlatformErrorKind.AlreadyExists)
+                    throw error
+            }
+        } else {
+            val file =
+                try {
+                    File.open(path, OpenOptions(write = true, createNew = true))
+                }
+                catch (error: PlatformException) {
+                    if (error.kind != PlatformErrorKind.AlreadyExists)
+                        throw error
+                    continue
+                }
+            try {
+                file.close()
+            }
+            catch (error: Throwable) {
+                try {
+                    path.delete()
+                }
+                catch (cleanup: Throwable) {
+                    throw ResourceUseException(error, cleanup)
+                }
+                throw error
+            }
+            return path
+        }
+    }
+}

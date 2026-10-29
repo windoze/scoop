@@ -1,7 +1,7 @@
 #ifndef SCOOP_RT_THREAD_H
 #define SCOOP_RT_THREAD_H
 
-#include <pthread.h>
+#include "platform/primitives.h"
 #include <stdatomic.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -49,7 +49,6 @@ struct ScoopGcMutator;
  * insertion until detach. STW and roots belong to this entity; allocation
  * belongs to its GC-owned mutator, using the same lifecycle on every thread. */
 typedef struct ScoopThreadState {
-    pthread_t os_thread;
     const char *stack_low;
     const char *stack_high;
     ScoopPollState poll;

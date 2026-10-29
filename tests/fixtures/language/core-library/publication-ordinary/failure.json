@@ -14,7 +14,7 @@
   },
   {
     "code": "SCOOP_OUTPUT_WRITE",
-    "message": "Is a directory (os error 21)",
+    "message": "${directory_write_error}",
     "phase": "Publication",
     "notes": [],
     "origin": {

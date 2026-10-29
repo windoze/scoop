@@ -62,9 +62,12 @@ pub(super) fn finalize_production<'a, D, C, I>(
         }
         if !plan.has_unwind {
             roles.push(DefinitionAtomRole::Lsda);
-            roles.push(match format {
-                scoop_lir::NativeObjectFormat::MachO64 => DefinitionAtomRole::EhFrame,
-                scoop_lir::NativeObjectFormat::Elf64 => DefinitionAtomRole::AddressTakenConstant,
+            roles.extend(match format {
+                scoop_lir::NativeObjectFormat::MachO64 => Some(DefinitionAtomRole::EhFrame),
+                scoop_lir::NativeObjectFormat::Elf64 => {
+                    Some(DefinitionAtomRole::AddressTakenConstant)
+                }
+                scoop_lir::NativeObjectFormat::Coff64 => None,
             });
         }
         for role in roles {

@@ -8,15 +8,32 @@ import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.system.*
 import scoop.platform.time.SystemClock
 
-internal suspend fun executeFileResponse(ctx: HttpContext, result: HttpResult, description: HttpFileBody, minimal: Boolean) {
-    val (path, opened) = responseFileInput<(Path, AsyncFile)> suspend { openResponseFile(description) }
-    opened.useAsync suspend { source ->
+internal suspend fun executeFileResponse(
+    ctx: HttpContext,
+    result: HttpResult,
+    description: HttpFileBody,
+    minimal: Boolean
+) {
+    val(path, opened) =
+        responseFileInput<(Path, AsyncFile)> suspend { openResponseFile(description) }
+    opened.useAsync suspend {
+        source ->
         val metadata = responseFileInput<FileMetadata> suspend { source.metadata() }
-        if (metadata.kind != FileKind.Regular) reject(404U, "file not found")
+        if (metadata.kind != FileKind.Regular)
+            reject(404U, "file not found")
         val now = SystemClock.now()
         val initial = fileResponseFields(result, path, description.options, metadata, now)
         val draft = ctx.response.prepare(initial, minimal)
-        val plan = prepareFileResponse(ctx, source, description.options, metadata.size, now, draft, minimal)
+        val plan =
+            prepareFileResponse(
+                ctx,
+                source,
+                description.options,
+                metadata.size,
+                now,
+                draft,
+                minimal
+            )
         executeResponse(ctx, plan)
     }
 }
@@ -24,45 +41,104 @@ internal suspend fun executeFileResponse(ctx: HttpContext, result: HttpResult, d
 private suspend fun openResponseFile(description: HttpFileBody): (Path, AsyncFile) {
     try {
         val path = selectedResponseFile(description)
-        return (path, currentEventLoop().openFile(path))
+        return (path, openResponseFilePath(path))
     } catch (error: PlatformException) {
-        if (!present(description.fallbackFile) ||
-            (error.kind != PlatformErrorKind.NotFound && error.kind != PlatformErrorKind.NotDirectory)) throw error
+        if (
+            !present(description.fallbackFile) ||
+                (
+                    error.kind !=
+                        PlatformErrorKind.NotFound &&
+                        error.kind !=
+                        PlatformErrorKind.NotDirectory
+                )
+        )
+            throw error
     }
     val fallback = description.fallbackFile!!
-    return (fallback, currentEventLoop().openFile(fallback))
+    return (fallback, openResponseFilePath(fallback))
+}
+
+private suspend fun openResponseFilePath(path: Path): AsyncFile {
+    try {
+        return currentEventLoop().openFile(path)
+    }
+    catch (error: PlatformException) {
+        if (error.kind == PlatformErrorKind.PermissionDenied) {
+            val metadata =
+                try {
+                    Some(currentEventLoop().metadata(path))
+                }
+                catch (_: PlatformException) {
+                    None
+                }
+            if (present(metadata) && metadata!!.kind == FileKind.Directory)
+                reject(404U, "file not found")
+        }
+        throw error
+    }
 }
 
 private suspend fun selectedResponseFile(description: HttpFileBody): Path {
-    if (!present(description.indexDocument) && !description.directoryRequired) return description.path
+    if (!present(description.indexDocument) && !description.directoryRequired)
+        return description.path
     val metadata = currentEventLoop().metadata(description.path)
-    if (description.directoryRequired && metadata.kind != FileKind.Directory) reject(404U, "directory not found")
-    if (metadata.kind != FileKind.Directory) return description.path
+    if (description.directoryRequired && metadata.kind != FileKind.Directory)
+        reject(404U, "directory not found")
+    if (metadata.kind != FileKind.Directory)
+        return description.path
     val index = description.indexDocument ?: reject(404U, "directory index is disabled")
     return description.path.resolve(Path.fromString(index))
 }
 
 private suspend fun <T> responseFileInput(block: suspend () -> T): T {
-    try { return block() }
+    try {
+        return block()
+    }
     catch (error: PlatformException) {
-        val status = when (error.kind) {
-            case PlatformErrorKind.NotFound -> 404U
-            case PlatformErrorKind.NotDirectory -> 404U
-            case PlatformErrorKind.PermissionDenied -> 403U
-            else -> throw error
-        }
-        throw HttpRejection(text(if (status == 404U) "file not found" else "file access denied", status), Some<Throwable>(error))
+        val status =
+            when (error.kind) {
+                case PlatformErrorKind.NotFound -> 404U
+                case PlatformErrorKind.NotDirectory -> 404U
+                case PlatformErrorKind.PermissionDenied -> 403U
+                else -> throw error
+            }
+        throw HttpRejection(
+            text(
+                if (status == 404U)
+                    "file not found"
+                else
+                    "file access denied",
+                status
+            ),
+            Some<Throwable>(error)
+        )
     }
 }
 
-internal suspend fun copyResponseFile(source: AsyncFile, offset: Long, length: Long, bufferSize: Long, writer: HttpBodyWriter) {
-    if (offset != 0L) source.seek(offset)
-    NativeByteBuffer.allocate(bufferSize).use suspend { buffer ->
+internal suspend fun copyResponseFile(
+    source: AsyncFile,
+    offset: Long,
+    length: Long,
+    bufferSize: Long,
+    writer: HttpBodyWriter
+) {
+    if (offset != 0L)
+        source.seek(offset)
+    NativeByteBuffer.allocate(bufferSize).use suspend {
+        buffer ->
         var remaining = length
         while (remaining > 0L) {
             buffer.clear()
-            val count = source.readInto(buffer, if (remaining < bufferSize) remaining else bufferSize)
-            if (count == 0L) throw UnexpectedEofException()
+            val count =
+                source.readInto(
+                    buffer,
+                    if (remaining < bufferSize)
+                        remaining
+                    else
+                        bufferSize
+                )
+            if (count == 0L)
+                throw UnexpectedEofException()
             writer.writeFully(buffer, count)
             remaining -= count
         }

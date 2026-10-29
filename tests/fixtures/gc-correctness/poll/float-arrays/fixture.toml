@@ -1,6 +1,6 @@
 schema = 1
 name = "strict-floating-array-roots"
-inputs = ["Cone.toml", "main.scoop", "../../../language/callback/native.c", "../../../../benchmarks/arrays/floating/src/kernels.scoop", "../../../compiler-correctness/optimization/lowering/float-arrays/inspect.py"]
+inputs = ["Cone.toml", "main.scoop", "../../../language/callback/native.c", "../../../language/callback/threading.h", "../../../../benchmarks/arrays/floating/src/kernels.scoop", "../../../compiler-correctness/optimization/lowering/float-arrays/inspect.py"]
 tools = ["scoop", "cc", "ar", "python"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["poll", "array", "floating", "roots", "gc-correctness"]

@@ -53,8 +53,13 @@ private fun publish(parent: Path) {
                 catch (error: PlatformException) {
                     check(error.kind == PlatformErrorKind.AlreadyExists)
                 }
+                if (operatingSystem == OperatingSystem.Windows) {
+                    check(previous.size() == 3L)
+                    previous.close()
+                }
                 loop.moveFile(staging, output, replaceExisting = true)
-                check(previous.size() == 3L)
+                if (operatingSystem != OperatingSystem.Windows)
+                    check(previous.size() == 3L)
                 check(loop.metadata(output).size == 11L)
             }
             val content = loop.openFile(output).useAsync suspend { file -> file.readAllBytes() }

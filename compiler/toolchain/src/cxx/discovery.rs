@@ -66,7 +66,7 @@ pub(super) fn inputs(
             .arg("-print-prog-name=cc1plus"),
     )?;
     crate::native_record::program_candidates(std::ffi::OsStr::new(&frontend), search, inputs);
-    let frontend = crate::linux_c::find_program(std::ffi::OsStr::new(&frontend), search)?;
+    let frontend = crate::paths::find_program(std::ffi::OsStr::new(&frontend), search)?;
     let library = PathBuf::from(text(
         c.driver_command_with(driver)
             .arg("-print-file-name=libstdc++.so"),

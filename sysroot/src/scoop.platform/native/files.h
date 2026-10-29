@@ -18,6 +18,8 @@ int scoop_platform_file_open(const char *path, int flags, int mode);
 int scoop_platform_file_sync(int fd, bool data_only);
 int64_t scoop_platform_file_seek(int fd, int64_t offset, bool current);
 int scoop_platform_file_truncate(int fd, int64_t size);
+int scoop_platform_file_same(int first, int second);
+int scoop_platform_file_lock(int fd, int operation);
 ScoopPlatformFileMetadata scoop_platform_file_metadata(int fd, const char *path, bool follow);
 
 #endif

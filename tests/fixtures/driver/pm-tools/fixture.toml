@@ -4,6 +4,9 @@ inputs = ["workspace"]
 tools = ["scoop", "scoop-pm"]
 tags = ["driver", "pm", "workspace", "format", "clean"]
 
+[vars]
+workspace_target = "${work}/project/target"
+
 [[steps]]
 name = "prepare"
 files = [
@@ -81,7 +84,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {actual = "${clean.result.target_dir}", equals = "${work}/project/target"},
+  {actual = "${clean.result.target_dir}", equals = "${workspace_target.canonical}"},
   {actual = "${clean.result.removed}", equals = true},
   {file = "${work}/project/target", exists = false},
   {file = "${work}/project/one/target/keep", equals = "member-local directory"},

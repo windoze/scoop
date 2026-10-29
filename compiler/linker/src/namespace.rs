@@ -9,6 +9,7 @@ use crate::dynamic::{DynamicBinding, DynamicInputs, ExportStorage};
 use crate::native_input::{NativeInputId, NativeInputs};
 use crate::{LinkError, NativeSymbolDefinition, NativeSymbolKind, error};
 
+pub(crate) mod coff;
 pub(crate) mod elf;
 pub(crate) use elf::ElfNamespace;
 
@@ -20,11 +21,13 @@ pub(crate) struct DarwinNamespace {
 pub(crate) enum NativeNamespace {
     Darwin(DarwinNamespace),
     Elf(ElfNamespace),
+    Coff(coff::CoffNamespace),
 }
 
 pub(crate) enum NativeBinding {
     Darwin(DynamicBinding),
     Elf(elf::ElfBinding),
+    Coff(coff::CoffBinding),
 }
 
 impl NativeBinding {
@@ -32,6 +35,11 @@ impl NativeBinding {
         match self {
             Self::Darwin(binding) => crate::NativeSymbolBinding::from_weak(binding.interface.weak),
             Self::Elf(binding) => binding.definition().binding,
+            Self::Coff(
+                coff::CoffBinding::Import { definition, .. }
+                | coff::CoffBinding::LongImport { definition, .. },
+            ) => definition.binding,
+            Self::Coff(coff::CoffBinding::Linker) => crate::NativeSymbolBinding::Weak,
         }
     }
 
@@ -42,13 +50,23 @@ impl NativeBinding {
                 ExportStorage::InterfaceOnly => None,
             },
             Self::Elf(binding) => Some(binding.definition()),
+            Self::Coff(
+                coff::CoffBinding::Import { definition, .. }
+                | coff::CoffBinding::LongImport { definition, .. },
+            ) => Some(*definition),
+            Self::Coff(coff::CoffBinding::Linker) => None,
         }
     }
 
-    pub fn is_tls(&self) -> bool {
+    pub fn is_tls(&self) -> Option<bool> {
         match self {
-            Self::Darwin(binding) => binding.interface.kind == SystemExportKind::ThreadLocal,
-            Self::Elf(binding) => binding.definition().kind == NativeSymbolKind::ThreadLocal,
+            Self::Darwin(binding) => Some(binding.interface.kind == SystemExportKind::ThreadLocal),
+            Self::Elf(binding) => Some(binding.definition().kind == NativeSymbolKind::ThreadLocal),
+            Self::Coff(
+                coff::CoffBinding::Import { definition, .. }
+                | coff::CoffBinding::LongImport { definition, .. },
+            ) => Some(definition.kind == NativeSymbolKind::ThreadLocal),
+            Self::Coff(coff::CoffBinding::Linker) => None,
         }
     }
 }
@@ -67,13 +85,16 @@ impl NativeNamespace {
             ValidatedFinalLinkProfile::Linux(_) => {
                 ElfNamespace::read(native, roots, profile).map(Self::Elf)
             }
+            ValidatedFinalLinkProfile::Windows(_) => Ok(Self::Coff(coff::CoffNamespace::default())),
         }
     }
 
     pub fn darwin(&self) -> Result<&DarwinNamespace, LinkError> {
         match self {
             Self::Darwin(namespace) => Ok(namespace),
-            Self::Elf(_) => Err(error("Mach-O operation requires a Darwin namespace")),
+            Self::Elf(_) | Self::Coff(_) => {
+                Err(error("Mach-O operation requires a Darwin namespace"))
+            }
         }
     }
 
@@ -90,6 +111,7 @@ impl NativeNamespace {
                 .candidates(native, symbol, explicit)
                 .map(|values| values.into_iter().map(NativeBinding::Darwin).collect()),
             Self::Elf(namespace) => Ok(namespace.candidates(symbol, explicit, system_alias)),
+            Self::Coff(namespace) => Ok(namespace.candidates(native, symbol, explicit)),
         }
     }
 
@@ -107,6 +129,9 @@ impl NativeNamespace {
                 requirements = namespace.import_requirements(&binding);
                 namespace.bindings.insert(symbol, binding);
             }
+            (Self::Coff(namespace), NativeBinding::Coff(binding)) => {
+                namespace.bindings.insert(symbol, binding);
+            }
             _ => {
                 return Err(error(
                     "native binding and namespace use different object formats",
@@ -120,6 +145,7 @@ impl NativeNamespace {
         match self {
             Self::Darwin(namespace) => namespace.bindings.keys().collect(),
             Self::Elf(namespace) => namespace.bindings.keys().collect(),
+            Self::Coff(namespace) => namespace.bindings.keys().collect(),
         }
     }
 
@@ -129,6 +155,9 @@ impl NativeNamespace {
                 namespace.bindings.remove(symbol);
             }
             Self::Elf(namespace) => {
+                namespace.bindings.remove(symbol);
+            }
+            Self::Coff(namespace) => {
                 namespace.bindings.remove(symbol);
             }
         }
@@ -147,6 +176,7 @@ impl NativeNamespace {
                     .project(&namespace.bindings, roots, profile)
             }
             Self::Elf(namespace) => namespace.project(definitions),
+            Self::Coff(_) => Ok(()),
         }
     }
 
@@ -159,6 +189,7 @@ impl NativeNamespace {
                 .map(|p| p.locator.clone())
                 .collect(),
             Self::Elf(namespace) => namespace.paths.clone(),
+            Self::Coff(_) => Vec::new(),
         }
     }
 
@@ -166,6 +197,7 @@ impl NativeNamespace {
         match self {
             Self::Darwin(namespace) => namespace.providers.encode(&namespace.bindings, e),
             Self::Elf(namespace) => namespace.encode(e),
+            Self::Coff(namespace) => namespace.encode(e),
         }
     }
 
@@ -173,6 +205,7 @@ impl NativeNamespace {
         match self {
             Self::Darwin(namespace) => namespace.providers.dump(&namespace.bindings),
             Self::Elf(namespace) => namespace.dump(),
+            Self::Coff(namespace) => namespace.dump(),
         }
     }
 }

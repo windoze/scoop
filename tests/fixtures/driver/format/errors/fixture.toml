@@ -4,6 +4,10 @@ inputs = ["bad.scoop", "good.scoop"]
 tools = ["scoop"]
 tags = ["driver", "format", "negative"]
 
+[vars]
+bad_source = "${work}/bad.scoop"
+invalid_utf8 = "${work}/bad-utf8.scoop"
+
 [[steps]]
 name = "prepare"
 files = [{copy = {from = "${fixture}/bad.scoop", to = "${work}/bad.scoop"}}, {copy = {from = "${fixture}/good.scoop", to = "${work}/good.scoop"}}, {write = {path = "${work}/bad-utf8.scoop", data = {hex = "ff"}}}]

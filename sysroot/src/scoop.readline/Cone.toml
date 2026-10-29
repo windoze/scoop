@@ -6,6 +6,17 @@ name = "scoop.readline"
 version = "0.1.0"
 kind = "library"
 
+[[test.sources]]
+path = "tests"
+
+[[test.sources]]
+path = "test-platform/unix"
+when = { os = ["darwin", "linux"] }
+
+[[test.sources]]
+path = "test-platform/windows"
+when = { os = "windows" }
+
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
 "scoop:scoop.std" = "0.1.0"

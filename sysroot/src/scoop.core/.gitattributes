@@ -1,0 +1,2 @@
+# Fixtures make byte-exact edits to core declarations on every host.
+*.scoop text eol=lf

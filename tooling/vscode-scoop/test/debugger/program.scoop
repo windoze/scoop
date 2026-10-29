@@ -17,7 +17,7 @@ fun inspectValues(number: Long, text: String, values: MutableArray<Long>, box: B
     val before = text.charLength + values[1L] + box.value
     val discarded = Box(99L)
     if (discarded.value != 99L) return 0L // BREAK: discarded
-    gcCollect()
+    gcCollect() // BREAK: before-gc
     val after = text.charLength + values[0L] + box.value // BREAK: after-gc
     val payload = when (tagged) {
         case Number(n) -> n
@@ -41,6 +41,7 @@ fun makeCallback(offset: Long): (Long) -> Long = { value ->
 }
 fun main(): Int {
     if (counter + threadCounter != 42L) return 2
+    threadCounter += 10L
     val text = makeText("llo")
     val values = MutableArray<Long>(3L) { index -> index + 10L }
     val box = Box(20L)

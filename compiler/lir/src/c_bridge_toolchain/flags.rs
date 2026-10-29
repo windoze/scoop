@@ -8,6 +8,7 @@ use super::{C_BRIDGE_CANONICAL_FLAGS_DOMAIN, write_hex};
 pub enum CanonicalCBridgeFlagContractV1 {
     DarwinAppleClang,
     LinuxGcc,
+    WindowsClang,
 }
 
 impl CanonicalCBridgeFlagContractV1 {
@@ -18,6 +19,7 @@ impl CanonicalCBridgeFlagContractV1 {
         match self {
             Self::DarwinAppleClang => &CanonicalCBridgeFlagV1::ALL,
             Self::LinuxGcc => &CanonicalCBridgeFlagV1::LINUX_GCC,
+            Self::WindowsClang => &CanonicalCBridgeFlagV1::WINDOWS_CLANG,
         }
     }
 
@@ -55,9 +57,33 @@ pub enum CanonicalCBridgeFlagV1 {
     NoBuiltinSubstitution,
     PositionIndependent,
     X86_64Baseline,
+    WindowsSeh,
+    WindowsCrt,
+    Windows10Baseline,
+    ReproducibleCoff,
 }
 
 impl CanonicalCBridgeFlagV1 {
+    pub const WINDOWS_CLANG: [Self; 18] = [
+        Self::ExplicitCanonicalTarget,
+        Self::ExplicitResolvedSdkRoot,
+        Self::X86_64Baseline,
+        Self::C11,
+        Self::RelocatableObject,
+        Self::SelectedOptimization,
+        Self::NoDebugInformation,
+        Self::NoCommonSymbols,
+        Self::OmitCompilerIdentification,
+        Self::NoStackProtector,
+        Self::NoBuiltinSubstitution,
+        Self::WindowsSeh,
+        Self::PreserveAllFramePointers,
+        Self::UnwindTables,
+        Self::AsynchronousUnwindTables,
+        Self::WindowsCrt,
+        Self::Windows10Baseline,
+        Self::ReproducibleCoff,
+    ];
     pub const LINUX_GCC: [Self; 12] = [
         Self::X86_64Baseline,
         Self::C11,
@@ -107,6 +133,10 @@ impl CanonicalCBridgeFlagV1 {
             Self::NoBuiltinSubstitution => 13,
             Self::PositionIndependent => 14,
             Self::X86_64Baseline => 16,
+            Self::WindowsSeh => 20,
+            Self::WindowsCrt => 21,
+            Self::Windows10Baseline => 22,
+            Self::ReproducibleCoff => 23,
         }
     }
 }

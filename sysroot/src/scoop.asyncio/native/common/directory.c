@@ -5,19 +5,17 @@
 typedef struct {
     ScoopIoWork work;
     ScoopIoDirectory *directory;
-    char *path;
+    ScoopIoChar *path;
 } DirectoryOpen;
 
 static void execute_open(ScoopIoWork *native) {
     DirectoryOpen *request = (void *)native;
-    void *handle = scoop_platform_directory_open(request->path);
-    int saved_errno = errno;
-    request->directory->handle = handle;
+    ScoopPlatformDirectoryOpened opened = scoop_platform_directory_owner_open(request->path);
+    request->directory->handle = opened.owner;
     ScoopIoEvent *event = &request->work.completion.event;
-    if (!handle) {
-        event->kind = SCOOP_IO_POSIX_ERROR;
-        event->code = saved_errno;
-    } else {
+    if (opened.error)
+        scoop_io_platform_error(event, opened.error);
+    else {
         event->kind = SCOOP_IO_RESOURCE;
         event->resource = request->directory;
     }
@@ -31,12 +29,12 @@ static void finish_open(ScoopIoWork *native, int status) {
     scoop_io_work_finished(&request->work, status);
 }
 
-int scoop_io_directory_open(ScoopIoLoop *loop, int64_t id, const char *path) {
+int scoop_io_directory_open(ScoopIoLoop *loop, int64_t id, const ScoopIoChar *path) {
     DirectoryOpen *request = calloc(1, sizeof(*request));
     if (!request)
         return -ENOMEM;
     request->directory = calloc(1, sizeof(*request->directory));
-    request->path = strdup(path);
+    request->path = scoop_io_string_copy(path);
     if (!request->directory || !request->path) {
         free(request->directory);
         free(request->path);
@@ -55,13 +53,9 @@ int scoop_io_directory_open(ScoopIoLoop *loop, int64_t id, const char *path) {
 
 static void execute_close(ScoopIoWork *native) {
     ScoopIoDirectory *directory = (void *)native;
-    int result = scoop_platform_directory_close(directory->handle);
-    int saved_errno = errno;
+    ScoopPlatformFileResult result = scoop_platform_directory_owner_close(directory->handle);
     directory->handle = NULL;
-    if (result < 0) {
-        directory->closing.completion.event.kind = SCOOP_IO_POSIX_ERROR;
-        directory->closing.completion.event.code = saved_errno;
-    }
+    scoop_io_platform_error(&directory->closing.completion.event, result.error);
 }
 
 static void finish_close(ScoopIoWork *native, int status) {

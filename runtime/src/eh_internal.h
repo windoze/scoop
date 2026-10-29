@@ -49,6 +49,13 @@ enum {
     SCOOP_EH_DW_PE_ULEB128 = 0x01,
     SCOOP_EH_DW_PE_PCREL_SDATA4_INDIRECT = 0x9b,
     SCOOP_EH_DW_PE_OMIT = 0xff,
+#if defined(_WIN32)
+    SCOOP_EH_TTYPE_ENCODING = 0x00,
+    SCOOP_EH_TYPE_ENTRY_SIZE = 8,
+#else
+    SCOOP_EH_TTYPE_ENCODING = SCOOP_EH_DW_PE_PCREL_SDATA4_INDIRECT,
+    SCOOP_EH_TYPE_ENTRY_SIZE = 4,
+#endif
 };
 
 typedef struct ScoopEhByteRange {
@@ -95,9 +102,9 @@ typedef struct ScoopEhDecodeResult {
 } ScoopEhDecodeResult;
 
 /* Decode one LSDA inside an explicitly bounded byte range. The decoder is
- * pure: it neither consults nor mutates an unwind context. `instruction_pointer`
- * is the value reported by `_Unwind_GetIP`; ordinary frames are selected with
- * IP - 1 as required by the Itanium ABI. */
+ * pure: it neither consults nor mutates an unwind context.
+ * `instruction_pointer` is the value reported by `_Unwind_GetIP`; ordinary
+ * frames are selected with IP - 1 as required by the Itanium ABI. */
 ScoopEhDecodeResult scoop_eh_decode_lsda(ScoopEhByteRange lsda, uintptr_t region_start,
                                          uintptr_t instruction_pointer);
 

@@ -19,7 +19,7 @@ static void query_length_boundaries(void) {
     ScoopTypeDescriptor interfaces[18] = {0};
     ScoopItableEntryV1 tables[17];
     for (size_t i = 0; i < 17; i++) {
-        tables[i].interface = &interfaces[i];
+        tables[i].interface_type = &interfaces[i];
         tables[i].slots = i % 3 == 0 ? NULL : slots;
     }
     for (size_t count = 0; count <= 17; count++) {
@@ -48,8 +48,8 @@ int main(void) {
     assert(scoop_rt_itable_find(&implemented, &generic_string) == NULL);
     assert(scoop_rt_itable_find(&absent, &parent) == NULL);
     for (size_t i = 0; i < sizeof entries / sizeof entries[0]; i++) {
-        assert(scoop_rt_is_instance(&object, entries[i].interface));
-        assert(scoop_rt_itable_lookup(&implemented, entries[i].interface) == entries[i].slots);
+        assert(scoop_rt_is_instance(&object, entries[i].interface_type));
+        assert(scoop_rt_itable_lookup(&implemented, entries[i].interface_type) == entries[i].slots);
     }
     assert(!scoop_rt_is_instance(&object, &generic_string));
     query_length_boundaries();

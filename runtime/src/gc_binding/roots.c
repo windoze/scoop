@@ -1,4 +1,4 @@
-#include <pthread.h>
+#include "../platform/primitives.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -9,7 +9,7 @@
 #include "internal.h"
 #include "scoop_rt.h"
 
-static pthread_mutex_t roots_lock = PTHREAD_MUTEX_INITIALIZER;
+static ScoopPlatformMutex roots_lock = SCOOP_PLATFORM_MUTEX_INIT;
 static void ***roots;
 static size_t roots_len;
 static size_t roots_cap;
@@ -20,13 +20,13 @@ _Noreturn void scoop_gc_roots_fatal(const char *message) {
 }
 
 void scoop_gc_roots_lock(void) {
-    if (pthread_mutex_lock(&roots_lock) != 0) {
+    if (scoop_runtime_platform_mutex_lock(&roots_lock) != 0) {
         scoop_gc_roots_fatal("failed to lock the root registry");
     }
 }
 
 void scoop_gc_roots_unlock(void) {
-    if (pthread_mutex_unlock(&roots_lock) != 0) {
+    if (scoop_runtime_platform_mutex_unlock(&roots_lock) != 0) {
         scoop_gc_roots_fatal("failed to unlock the root registry");
     }
 }

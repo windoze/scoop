@@ -1,6 +1,6 @@
 schema = 1
 name = "counted-array-bounds-roots"
-inputs = ["program.scoop", "../../../language/callback/native.c", "../../../compiler-correctness/optimization/lowering/array-bounds/inspect.py"]
+inputs = ["program.scoop", "../../../language/callback/native.c", "../../../language/callback/threading.h", "../../../compiler-correctness/optimization/lowering/array-bounds/inspect.py"]
 tools = ["scoop", "cc", "ar", "python"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["poll", "array", "roots", "gc-correctness"]

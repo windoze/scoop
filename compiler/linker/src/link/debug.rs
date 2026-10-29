@@ -2,7 +2,7 @@ use super::*;
 use scoop_toolchain::{DebugFileKind, NativeDebugTools};
 use std::process::Command;
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests;
 
 #[derive(Clone, Debug)]
@@ -19,6 +19,10 @@ pub(super) fn generate(
     let kind = tools.kind();
     let path = kind.output_path(executable);
     match tools {
+        NativeDebugTools::Windows => {
+            // The PE linker produces the PDB in the same action as the executable.
+            return Ok(DebugFile { kind, path });
+        }
         NativeDebugTools::Darwin {
             dsymutil,
             strip,

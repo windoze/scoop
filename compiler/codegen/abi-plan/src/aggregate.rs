@@ -27,6 +27,7 @@ impl Aggregate<'_> {
         match abi {
             ProcedureAbi::DarwinAarch64 => self.aarch64(position),
             ProcedureAbi::SysvAmd64 => self.sysv(),
+            ProcedureAbi::Win64 => self.win64(),
         }
     }
 
@@ -61,6 +62,12 @@ impl Aggregate<'_> {
             })
         };
         Some(AbiCoercion::One(self.part(carrier, 0, self.size)))
+    }
+
+    fn win64(&self) -> Option<AbiCoercion> {
+        matches!(self.size, 1 | 2 | 4 | 8).then(|| {
+            AbiCoercion::One(self.part(AbiCarrier::Integer((self.size * 8) as u8), 0, self.size))
+        })
     }
 
     fn hfa(&self) -> Option<AbiCarrier> {

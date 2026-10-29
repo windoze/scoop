@@ -1,0 +1,73 @@
+package scoop.platform.fs
+
+import scoop.collections.HashSet
+import scoop.platform.env.temporaryDirectory
+import scoop.platform.native.temporaryPathPattern
+import scoop.platform.system.*
+import scoop.test.*
+import scoop.text.startsWith
+
+@Test
+private class WindowsTemporaryTest {
+    @Test
+    fun `temporary paths use exclusive creation and keep complete prefixes`() {
+        val directory = createTempDirectory(prefix = "scoop-temp-测试😀-")
+        try {
+            assertTrue(directory.fileName!!.decodeUtf8().startsWith("scoop-temp-测试😀-"))
+            assertEquals(temporaryDirectory().canonicalize(), directory.parent!!)
+            val paths = HashSet<Path>()
+            for (_ in 0 ..< 16) {
+                val path = createTempFile(Some(directory), "complete-prefix-名字😀-")
+                assertTrue(path.fileName!!.decodeUtf8().startsWith("complete-prefix-名字😀-"))
+                assertTrue(path.metadata().kind == FileKind.Regular)
+                assertEquals(0L, path.metadata().size)
+                assertFalse(paths.contains(path))
+                paths.add(path)
+            }
+            val reserved = createTempFile(Some(directory), "CON.")
+            assertTrue(reserved.metadata().kind == FileKind.Regular)
+            reserved.writeText("ordinary file")
+            assertEquals("ordinary file", reserved.readText())
+            val name = Path.fromOsString(OsString.fromUtf16([0xd800.toUShort()]))
+            val parent = directory.resolve(name)
+            parent.createDirectory()
+            val file = createTempFile(Some(parent), "raw-")
+            assertEquals(parent, file.parent!!)
+            val child = createTempDirectory(Some(parent), "")
+            assertTrue(child.metadata().kind == FileKind.Directory)
+            gcCollect()
+            assertTrue(file.exists())
+            assertTrue(child.exists())
+        }
+        finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `invalid temporary prefixes and absent parents fail without creating a path`() {
+        val directory = createTempDirectory(prefix = "scoop-temp-errors-")
+        try {
+            for (prefix in ["bad/name", "bad\\name", "C:stream", "nul\u0000"]) {
+                assertFailsWith<IllegalArgumentException> {
+                    createTempFile(Some(directory), prefix)
+                }
+                assertFailsWith<IllegalArgumentException> {
+                    createTempDirectory(Some(directory), prefix)
+                }
+                assertFailsWith<IllegalArgumentException> {
+                    temporaryPathPattern(directory, prefix)
+                }
+            }
+            directory.entries().use { assertTrue(it.next() == None) }
+            val missing = directory.resolve(Path.fromString("missing"))
+            val error = assertFailsWith<PlatformException> { createTempFile(Some(missing)) }
+            assertTrue(error.nativeError!!.domain == NativeErrorDomain.Win32)
+            assertTrue(error.kind == PlatformErrorKind.NotFound)
+            assertEquals(missing.toOsString(), error.context!!)
+        }
+        finally {
+            directory.deleteRecursively()
+        }
+    }
+}

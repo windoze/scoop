@@ -71,8 +71,10 @@ pub(super) fn check_compiler_contract(
         .or_else(|| {
             scoop_lir::TargetEhSupportV1::ALL
                 .into_iter()
-                .find(|entry| normalize(entry.logical_symbol()) == symbol)
-                .map(|entry| entry.machine_contract())
+                .find(|entry| {
+                    normalize(entry.logical_symbol_for_target(profile.target())) == symbol
+                })
+                .map(|entry| entry.machine_contract_for_target(profile.target()))
         });
     let Some(known) = known else {
         return Ok(());

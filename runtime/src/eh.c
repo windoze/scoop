@@ -1,6 +1,6 @@
 #include "eh_internal.h"
 #include "throwable.h"
-#include "process.h"
+#include "process_termination.h"
 
 #include <stdint.h>
 #include <stdio.h>

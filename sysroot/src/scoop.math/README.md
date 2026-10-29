@@ -20,6 +20,10 @@ BigDecimal 的 `==`、排序和 hash 按**数值**，忽略 scale；`sameReprese
 
 普通三角、指数和对数函数采用目标系统 libm 的精度保证，不承诺所有平台最后一位相同或 Java Math 的统一 ULP 界。Float 入口按 binary32 运算，BigDecimal 到 Float 的转换也直接按目标精度舍入。
 
+系统数学入口保留 libm／CRT 的结果，不增加特殊值或舍入修正。系统 `pow(1, NaN)` 和 `pow(±1, ±Infinity)` 返回 1，与 Java Math 的 NaN 结果不同。`min`、`max`、`round` 等 Scoop 自身实现的 API 仍遵守其明确合同。
+
+Windows 使用所选 CRT 的数学实现。LLVM-MinGW 20260616 的 MSVCRT `fma`／`fmaf` 不保证单次舍入：`fma(MAX_VALUE, 2, -MAX_VALUE)` 在 Float 与 Double 上返回正无穷，UCRT 返回 `MAX_VALUE`。依赖融合舍入时请考虑该目标差异。Microsoft 的 `hypotf` 仅通过 C header 适配其 `_hypotf` 导出名，不改变运算。
+
 随机源继续由 `scoop.random.Random` 提供，素数 API 显式接收它。math 没有自带 RNG；大数算法不承诺常数时间执行。
 
 ## 构建与测试

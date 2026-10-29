@@ -4,7 +4,7 @@ import re
 import sys
 from pathlib import Path
 
-text = Path(sys.argv[1]).read_text()
+text = Path(sys.argv[1]).read_text(encoding="utf-8")
 names = {
     identity: name for name, identity in re.findall(r"^  fun (\S+) (@fn\d+)\(", text, re.MULTILINE)
 }
@@ -29,4 +29,4 @@ for name in selected:
         ):
             line = re.sub(r"@fn\d+", lambda match: "@" + names[match[0]], line)
             output.append(line[4:])
-Path(sys.argv[2]).write_text("\n".join(output) + "\n")
+Path(sys.argv[2]).write_text("\n".join(output) + "\n", encoding="utf-8", newline="\n")

@@ -41,7 +41,7 @@ rust-version = "1.85"
 [workspace.dependencies]
 rustc_apfloat = "=0.2.3"
 # External LLVM 22.1; independent of the Rust toolchain LLVM version.
-inkwell = { version = "0.10", features = ["llvm22-1-prefer-dynamic"] }
+inkwell = { version = "0.10", default-features = false, features = ["llvm22-1-prefer-dynamic", "target-aarch64", "target-x86"] }
 llvm-sys = "221"
 clap = { version = "4", features = ["derive"] }
 insta = { version = "1" }
@@ -50,6 +50,8 @@ imbl = "7.0.2"
 rustc-hash = "2.1.3"
 object = { version = "0.37", default-features = false, features = ["read"] }
 cc = { version = "1" }
+find-msvc-tools = "0.1.11"
+dunce = "1.0.5"
 toml = { version = "0.8" }
 toml_edit = { version = "0.22" }
 minicbor = { version = "2.3", features = ["std"] }

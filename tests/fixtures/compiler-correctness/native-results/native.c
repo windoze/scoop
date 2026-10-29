@@ -70,6 +70,22 @@ __asm__(".text\n"
         "m36_result_boxed:\n"
         "jmp m36_result_boxed_storage\n"
         ".size m36_result_boxed,.-m36_result_boxed\n");
+#elif defined(_WIN32) && defined(__x86_64__)
+__asm__(".text\n"
+        ".globl m36_result_wide\n"
+        ".def m36_result_wide; .scl 2; .type 32; .endef\n"
+        ".seh_proc m36_result_wide\n"
+        "m36_result_wide:\n"
+        ".seh_endprologue\n"
+        "jmp m36_result_wide_storage\n"
+        ".seh_endproc\n"
+        ".globl m36_result_boxed\n"
+        ".def m36_result_boxed; .scl 2; .type 32; .endef\n"
+        ".seh_proc m36_result_boxed\n"
+        "m36_result_boxed:\n"
+        ".seh_endprologue\n"
+        "jmp m36_result_boxed_storage\n"
+        ".seh_endproc\n");
 #else
 #error "Scoop ABI fixture requires a supported target"
 #endif

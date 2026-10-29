@@ -4,11 +4,10 @@
 #include "thread/internal.h"
 #include <errno.h>
 #include <string.h>
-#include <time.h>
 
-pthread_mutex_t scoop_thread_world_lock = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t scoop_thread_world_changed = PTHREAD_COND_INITIALIZER;
-static pthread_cond_t quiescence_changed = PTHREAD_COND_INITIALIZER;
+ScoopPlatformMutex scoop_thread_world_lock = SCOOP_PLATFORM_MUTEX_INIT;
+ScoopPlatformCondition scoop_thread_world_changed = SCOOP_PLATFORM_CONDITION_INIT;
+static ScoopPlatformCondition quiescence_changed = SCOOP_PLATFORM_CONDITION_INIT;
 ScoopThreadState *scoop_thread_registry;
 uint64_t scoop_thread_registry_count;
 ScoopRuntimeLifecycle scoop_thread_runtime_lifecycle = SCOOP_RUNTIME_UNINITIALIZED;
@@ -24,19 +23,20 @@ _Noreturn void scoop_thread_fatal(const char *message) {
     abort();
 }
 void scoop_thread_registry_lock(void) {
-    if (pthread_mutex_lock(&scoop_thread_world_lock) != 0) {
+    if (scoop_runtime_platform_mutex_lock(&scoop_thread_world_lock) != 0) {
         scoop_thread_fatal("failed to lock the world");
     }
 }
 void scoop_thread_registry_unlock(void) {
-    if (pthread_mutex_unlock(&scoop_thread_world_lock) != 0) {
+    if (scoop_runtime_platform_mutex_unlock(&scoop_thread_world_lock) != 0) {
         scoop_thread_fatal("failed to unlock the world");
     }
 }
 
 void scoop_thread_world_wait(void) {
     SCOOP_THREAD_TEST_POINT(SCOOP_TEST_WORLD_WAITING);
-    if (pthread_cond_wait(&scoop_thread_world_changed, &scoop_thread_world_lock) != 0) {
+    if (scoop_runtime_platform_condition_wait(&scoop_thread_world_changed,
+                                              &scoop_thread_world_lock) != 0) {
         scoop_thread_fatal("failed to wait for a world-state change");
     }
     SCOOP_THREAD_TEST_POINT(SCOOP_TEST_WORLD_WOKEN);
@@ -45,29 +45,21 @@ void scoop_thread_world_wait(void) {
 void scoop_thread_world_wait_for_quiescence(void) {
     /* NativeSafe publication deliberately sends no notification. A bounded
      * condition wait releases the world lock so other targets can park. */
-    struct timespec deadline;
-    if (timespec_get(&deadline, TIME_UTC) != TIME_UTC) {
-        scoop_thread_fatal("failed to read the world-wait clock");
-    }
-    deadline.tv_nsec += 50000;
-    if (deadline.tv_nsec >= 1000000000) {
-        deadline.tv_sec++;
-        deadline.tv_nsec -= 1000000000;
-    }
-    int result = pthread_cond_timedwait(&quiescence_changed, &scoop_thread_world_lock, &deadline);
+    int result = scoop_runtime_platform_condition_wait_for(&quiescence_changed,
+                                                           &scoop_thread_world_lock, 50);
     if (result != 0 && result != ETIMEDOUT) {
         scoop_thread_fatal("failed to wait for quiescent threads");
     }
 }
 
 void scoop_thread_notify_quiescence(void) {
-    if (pthread_cond_signal(&quiescence_changed) != 0) {
+    if (scoop_runtime_platform_condition_signal(&quiescence_changed) != 0) {
         scoop_thread_fatal("failed to notify the collector of quiescence");
     }
 }
 
 void scoop_thread_world_broadcast(void) {
-    if (pthread_cond_broadcast(&scoop_thread_world_changed) != 0) {
+    if (scoop_runtime_platform_condition_broadcast(&scoop_thread_world_changed) != 0) {
         scoop_thread_fatal("failed to broadcast a world-state change");
     }
 }
@@ -101,13 +93,13 @@ static ScoopThreadState *new_thread_state(ScoopThreadAttachmentKind kind, ScoopT
     if (!scoop_float_init_environment()) {
         scoop_thread_fatal("failed to initialize the floating-point environment");
     }
-    void *storage = NULL;
-    if (posix_memalign(&storage, _Alignof(ScoopThreadState), sizeof(ScoopThreadState)) != 0) {
+    void *storage = scoop_runtime_platform_aligned_allocate(_Alignof(ScoopThreadState),
+                                                            sizeof(ScoopThreadState));
+    if (storage == NULL) {
         scoop_thread_fatal("out of memory attaching a thread");
     }
     ScoopThreadState *state = storage;
     memset(state, 0, sizeof *state);
-    state->os_thread = pthread_self();
     ScoopPlatformStackBounds bounds = scoop_platform_stack_bounds();
     state->stack_low = bounds.low;
     state->stack_high = bounds.high;
@@ -190,7 +182,7 @@ static void detach_current(ScoopThreadAttachmentKind expected_kind) {
     scoop_thread_registry_unlock();
     free(state->initialization_stack);
     free(state->initialization_cycle_path);
-    free(state);
+    scoop_runtime_platform_aligned_free(state);
 }
 
 void scoop_thread_runtime_init(void) {
@@ -219,7 +211,7 @@ void scoop_thread_attach_main(void) {
     if (scoop_thread_runtime_lifecycle != SCOOP_RUNTIME_RUNNING ||
         scoop_thread_registry_count != 0) {
         scoop_thread_registry_unlock();
-        free(state);
+        scoop_runtime_platform_aligned_free(state);
         scoop_thread_fatal("main thread must be the first runtime attachment");
     }
     registry_insert(state);
@@ -240,7 +232,7 @@ bool scoop_rt_attach_foreign_thread(void) {
     scoop_thread_wait_for_running_world();
     if (scoop_thread_runtime_lifecycle != SCOOP_RUNTIME_RUNNING) {
         scoop_thread_registry_unlock();
-        free(state);
+        scoop_runtime_platform_aligned_free(state);
         scoop_thread_fatal("foreign thread attach after runtime shutdown began");
     }
     registry_insert(state);

@@ -37,6 +37,7 @@ mod runtime_eh_tests;
 #[path = "runtime_eh_lifecycle_tests.rs"]
 mod runtime_eh_lifecycle_tests;
 #[path = "runtime_stack_trace_tests.rs"]
+#[cfg(unix)]
 mod runtime_stack_trace_tests;
 
 #[path = "runtime_eh_personality_tests.rs"]
@@ -80,6 +81,7 @@ mod string_copy;
 mod string_leaves;
 mod strong_shapes;
 mod task_context;
+mod windows_codegen;
 mod zst_places;
 
 use enums::enum_module;

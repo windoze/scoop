@@ -347,7 +347,8 @@ fn collect_relocation_bindings(
     bindings: &mut Vec<StrongRelocationBindingV1>,
 ) -> Result<(), StrongRelocationClosureValidationError> {
     match relocation.shape() {
-        VerifiedObjectRelocationShapeV1::ElfX86_64Rela { target, .. }
+        VerifiedObjectRelocationShapeV1::CoffAmd64 { target, .. }
+        | VerifiedObjectRelocationShapeV1::ElfX86_64Rela { target, .. }
         | VerifiedObjectRelocationShapeV1::Unsigned64 { target }
         | VerifiedObjectRelocationShapeV1::Branch26 { target }
         | VerifiedObjectRelocationShapeV1::Page21 { target, .. }

@@ -2,7 +2,7 @@ schema = 1
 name = "shared-ranges-combined"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../shared-ranges/provider.scoop", "generic-member-combined", "../../../shared-ranges/combined.scoop", "generic-member-downstream-combined", "../../../shared-ranges/downstream.scoop", "runtime-fixture", "../../../imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "integer_ranges_preserve_iteration_through_artifact_republication", "language"]
 
 [[steps]]

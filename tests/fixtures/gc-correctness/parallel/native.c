@@ -9,9 +9,11 @@ bool m34_parallel_check(void) {
     scoop_rt_gc_debug_metrics(&after);
     const char *setting = getenv("SCOOP_GC_WORKERS");
     unsigned long workers = setting == NULL ? 1 : strtoul(setting, NULL, 10);
+    /* CPU time can remain unchanged at OS clock granularity. Task and object
+     * counters verify the actual marking work. */
     if (workers < 1 || workers > SCOOP_GC_MAX_WORKERS || after.last_mark_workers != workers ||
         after.array_tasks <= before_mark.array_tasks || after.mark_ns <= before_mark.mark_ns ||
-        after.worker_cpu_ns[workers - 1] <= before_mark.worker_cpu_ns[workers - 1]) {
+        after.worker_cpu_ns[workers - 1] < before_mark.worker_cpu_ns[workers - 1]) {
         return false;
     }
     uint64_t marked = 0;

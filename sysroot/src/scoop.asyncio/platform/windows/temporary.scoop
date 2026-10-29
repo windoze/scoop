@@ -1,0 +1,21 @@
+package scoop.asyncio
+
+import scoop.platform.fs.Path
+
+@Unsafe
+internal fun startTemporaryFile(loop: Ptr<Unit>, id: Long, base: Path, pattern: Path): Int {
+    return base.withIoPath {
+        parent -> @Unsafe
+        {
+            return@withIoPath pattern.fileName!!.withIoString {
+                name -> @Unsafe
+                {
+                    return@withIoString nativeTemporaryFile(loop, id, parent, name)
+                }
+            }
+        }
+    }
+}
+
+@Extern(name = "scoop_io_file_temporary")
+private fun nativeTemporaryFile(loop: Ptr<Unit>, id: Long, parent: Ptr<Byte>, name: Ptr<Byte>): Int

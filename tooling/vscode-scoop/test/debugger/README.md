@@ -9,13 +9,13 @@ scoop build tooling/vscode-scoop/test/debugger/program.scoop --debug-info full \
 scoop build tooling/vscode-scoop/test/debugger/console.scoop --debug-info full \
   -o /tmp/scoop-debug-console
 
-python3 tooling/vscode-scoop/test/debugger/dap.py --adapter /path/to/bin/lldb-dap \
+python3 tooling/vscode-scoop/test/debugger/dap.py --adapter /path/to/bin/scoop-lldb-dap \
   --program /tmp/scoop-debug-program --source tooling/vscode-scoop/test/debugger/program.scoop \
   --mode launch --source-map --log /tmp/scoop-debug-launch.jsonl
-python3 tooling/vscode-scoop/test/debugger/dap.py --adapter /path/to/bin/lldb-dap \
+python3 tooling/vscode-scoop/test/debugger/dap.py --adapter /path/to/bin/scoop-lldb-dap \
   --program /tmp/scoop-debug-console --source tooling/vscode-scoop/test/debugger/console.scoop \
   --mode terminal --log /tmp/scoop-debug-terminal.jsonl
-python3 tooling/vscode-scoop/test/debugger/dap.py --adapter /path/to/bin/lldb-dap \
+python3 tooling/vscode-scoop/test/debugger/dap.py --adapter /path/to/bin/scoop-lldb-dap \
   --program /tmp/scoop-debug-console --source tooling/vscode-scoop/test/debugger/console.scoop \
   --mode attach --log /tmp/scoop-debug-attach.jsonl
 ```
@@ -29,11 +29,13 @@ PR_SET_PTRACER 只允许该次适配器访问该次目标，不改系统 ptrace 
 成功标记为 `SCOOP_DAP_OK`；超时会关闭本次适配器与目标。
 
 `--mode initialize` 只检查打包后的 DAP 握手，不代表进程内调试验收。
-`offline.py` 在 LLDB 中检查源码名与精确 linkage 名命中相同断点，并对真实 program DWARF
+Windows 使用 `sco`、`.exe` 输出和 `scoop-lldb-dap.exe`，`--mode launch` 验证实际 PDB 会话；terminal／attach 的上述测试流程目前使用 POSIX PTY／Linux ptrace。CodeView 可把纯计算的行位置关联到后续机器使用处，因此 Windows 会话在 GC 调用前后设置断点，验证参数、全局／已修改的 TLS、String／数组／enum／对象、移动后的引用与闭包读取。CodeView 无法表达的部分计算值或聚合分片显示 unavailable，不要求它们具有与 DWARF 完全相同的位置区间。
+
+`offline.py` 在 LLDB 中检查源码名与原生符号名命中相同断点，并对真实 program DWARF／PDB
 的 SBValue 检查 enum、空引用和数组布局：
 
 ```sh
-lldb -b /tmp/scoop-debug-program \
+scoop-lldb -b /tmp/scoop-debug-program \
   -o 'command script import tooling/vscode-scoop/debugger/scoop_lldb.py' \
   -o 'command script import tooling/vscode-scoop/test/debugger/offline.py' -o quit
 ```
@@ -46,7 +48,7 @@ Linux 静态 TLS 的原生定向用例覆盖 `.tdata`、`.tbss`、64-byte 对齐
 ```sh
 musl-gcc -std=c11 -g -O0 -static -pthread tooling/vscode-scoop/test/debugger/tls.c \
   -o /tmp/scoop-debug-tls
-lldb -b /tmp/scoop-debug-tls \
+scoop-lldb -b /tmp/scoop-debug-tls \
   -o 'command script import tooling/vscode-scoop/test/debugger/tls.py' -o quit
 ```
 

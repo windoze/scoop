@@ -452,6 +452,7 @@ fn materialize_defined_test_sources(
             role: scoop_identity::SourceRole::Production,
             identity: source.identity.clone(),
             name: source.name.to_string(),
+
             source: source.source_text.to_string(),
         });
     }
@@ -468,6 +469,7 @@ fn materialize_defined_test_sources(
             role: source.role(),
             identity: source.identity().clone(),
             name: details.display_locator.to_string(),
+
             source: details.source_text.to_string(),
         });
     }
@@ -491,6 +493,7 @@ fn materialize_current_sources(
             role: source.source().role(),
             identity: source.source().identity().clone(),
             name: source.diagnostic().display_locator().display().to_string(),
+
             source: source.text().text().to_owned(),
         });
     }
@@ -510,6 +513,7 @@ struct SourceProvider {
     role: scoop_identity::SourceRole,
     identity: scoop_identity::SourceIdentity,
     name: String,
+
     source: String,
 }
 

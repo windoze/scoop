@@ -12,6 +12,29 @@ use scoop_wire::encode_runtime;
 use super::*;
 
 #[test]
+fn coff_relocation_kind_and_in_place_addend_remain_fingerprint_inputs() {
+    let encode = |kind, addend| {
+        let mut relocation = CanonicalObjectRelocationV1::unsigned64(
+            0,
+            FinalUndefinedSymbolRequirementV1::Native {
+                symbol: b"external".to_vec(),
+            },
+        );
+        relocation.form = VerifiedObjectRelocationFormV1::CoffAmd64 { kind, width: 4 };
+        relocation.canonical_value = addend;
+        encode_runtime(&ObjectDefinitionFingerprintInputV1 {
+            bytes: &[0; 8],
+            relocations: &[relocation],
+            direct_inputs: &[],
+        })
+        .unwrap()
+    };
+    let ordinary = encode(object::pe::IMAGE_REL_AMD64_REL32, 0);
+    assert_ne!(ordinary, encode(object::pe::IMAGE_REL_AMD64_REL32_1, 0));
+    assert_ne!(ordinary, encode(object::pe::IMAGE_REL_AMD64_REL32, 17));
+}
+
+#[test]
 fn native_symbol_names_and_relocations_are_distinct_fingerprint_inputs() {
     let encode = |symbol: &[u8], addend| {
         let mut relocation = CanonicalObjectRelocationV1::unsigned64(

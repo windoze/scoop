@@ -27,6 +27,15 @@ enum PlatformRecord {
         version: String,
         configuration: [u8; 32],
     },
+    Windows {
+        native_sysroot: Option<HostPathCarrier>,
+        includes: Vec<HostPathCarrier>,
+        libraries: Vec<HostPathCarrier>,
+        search_path: HostPathCarrier,
+        system_root: Option<HostPathCarrier>,
+        version: [u32; 3],
+        configuration: [u8; 32],
+    },
 }
 
 impl InvocationRecord {
@@ -34,6 +43,34 @@ impl InvocationRecord {
         c: &ValidatedCBridgeToolchainInvocation,
     ) -> Result<Self, ToolchainError> {
         let platform = match c.profile().contract().platform() {
+            CBridgePlatformContractV1::Windows { compiler } => {
+                let environment = c.windows_environment().map_err(error)?;
+                PlatformRecord::Windows {
+                    native_sysroot: environment
+                        .native_sysroot
+                        .as_deref()
+                        .map(path)
+                        .transpose()?,
+                    includes: environment
+                        .includes
+                        .iter()
+                        .map(|p| path(p))
+                        .collect::<Result<_, _>>()?,
+                    libraries: environment
+                        .libraries
+                        .iter()
+                        .map(|p| path(p))
+                        .collect::<Result<_, _>>()?,
+                    search_path: path(Path::new(&environment.search_path))?,
+                    system_root: environment
+                        .system_root
+                        .as_ref()
+                        .map(|p| path(Path::new(p)))
+                        .transpose()?,
+                    version: compiler.version(),
+                    configuration: *compiler.inputs().as_array(),
+                }
+            }
             CBridgePlatformContractV1::Darwin {
                 deployment,
                 compiler,
@@ -85,6 +122,43 @@ impl InvocationRecord {
     ) -> Result<ValidatedCBridgeToolchainInvocation, ToolchainError> {
         let driver = self.driver.to_path_buf().map_err(error)?;
         match self.platform {
+            PlatformRecord::Windows {
+                native_sysroot,
+                includes,
+                libraries,
+                search_path,
+                system_root,
+                version,
+                configuration,
+            } => {
+                let decode = |path: HostPathCarrier| path.to_path_buf().map_err(error);
+                let environment = crate::windows_c::WindowsCEnvironment {
+                    native_sysroot: native_sysroot.map(decode).transpose()?,
+                    includes: includes.into_iter().map(decode).collect::<Result<_, _>>()?,
+                    libraries: libraries
+                        .into_iter()
+                        .map(decode)
+                        .collect::<Result<_, _>>()?,
+                    search_path: decode(search_path)?.into_os_string(),
+                    system_root: system_root
+                        .map(decode)
+                        .transpose()?
+                        .map(PathBuf::into_os_string),
+                };
+                let compiler = scoop_lir::WindowsClangCompilerIdentityV1::new(
+                    version,
+                    Digest256::from_array(configuration),
+                );
+                let profile =
+                    scoop_target_data::windows_c_bridge_profile(target, compiler).map_err(error)?;
+                ValidatedCBridgeToolchainInvocation::new_windows(
+                    target,
+                    profile,
+                    driver,
+                    environment,
+                )
+                .map_err(error)
+            }
             PlatformRecord::Darwin {
                 sdk_root,
                 minimum_os,

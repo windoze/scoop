@@ -1,6 +1,4 @@
 use super::super::args::{Cli, Command};
-use super::super::{args::MessageFormat, presentation::Reporter};
-use super::{FileStatus, expand, format_file};
 use clap::Parser;
 
 #[test]
@@ -41,6 +39,8 @@ fn fmt_is_builtin_and_accepts_multiple_inputs_without_build_options() {
 #[cfg(unix)]
 #[test]
 fn write_preserves_permissions_links_and_unchanged_mtime() {
+    use super::super::{args::MessageFormat, presentation::Reporter};
+    use super::{FileStatus, expand, format_file};
     use std::os::unix::fs::PermissionsExt;
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("source.scoop");
@@ -87,6 +87,8 @@ fn write_preserves_permissions_links_and_unchanged_mtime() {
 #[cfg(target_os = "linux")]
 #[test]
 fn explicit_non_utf8_path_is_preserved_through_writeback() {
+    use super::super::{args::MessageFormat, presentation::Reporter};
+    use super::{FileStatus, expand, format_file};
     use std::os::unix::ffi::OsStringExt;
     let directory = tempfile::tempdir().unwrap();
     let path = directory

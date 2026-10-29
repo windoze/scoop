@@ -2,7 +2,7 @@ schema = 1
 name = "shared-closure-bodies-standalone"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../shared-closure-bodies/provider.scoop", "generic-member-standalone", "../../../shared-closure-bodies/standalone.scoop", "generic-member-downstream-standalone", "../../../shared-closure-bodies/downstream.scoop", "runtime-fixture", "../../../imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "closures_share_bodies_arguments_and_captures_through_artifacts", "language"]
 
 [[steps]]

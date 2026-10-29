@@ -16,6 +16,7 @@ pub use c::{c_indirect_passing, c_integer_extension};
 pub enum ProcedureAbi {
     DarwinAarch64,
     SysvAmd64,
+    Win64,
 }
 
 impl ProcedureAbi {
@@ -25,6 +26,9 @@ impl ProcedureAbi {
             scoop_target_data::LINUX_X86_64_GNU_ID | scoop_target_data::LINUX_X86_64_MUSL_ID => {
                 Ok(Self::SysvAmd64)
             }
+            scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID
+            | scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID
+            | scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_ID => Ok(Self::Win64),
             id => Err(AbiPlanError::UnsupportedTarget(id)),
         }
     }

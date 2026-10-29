@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use scoop_identity::{ConeIdentity, NormalizedNativeSourcePath};
-use scoop_toolchain::{NativeToolchain, ToolchainError};
+use scoop_toolchain::ToolchainError;
 
 use super::{ValidatedCurrentConeInput, ValidatedSingleConeBuildRequest};
 use crate::request::NativeInputOrigin;
@@ -21,70 +21,56 @@ pub(super) fn compile(
         }
         return Ok(Vec::new());
     };
-    let config = manifest.parsed().semantic().native();
     let target = request.target();
-    let mut selected: Vec<_> = config
-        .sources()
-        .iter()
-        .filter(|s| s.predicate().matches(target.id()))
-        .collect();
-    selected.sort_by_key(|s| s.path());
-    let sysroot = match &request.request.native_inputs {
-        NativeInputOrigin::Source { sysroot } => sysroot.clone(),
-        NativeInputOrigin::Objects(objects) => {
-            if selected.len() != objects.len() {
-                return Err(error(format!(
-                    "native object count {} does not match {} selected sources",
-                    objects.len(),
-                    selected.len()
-                )));
-            }
-            return selected
-                .iter()
-                .zip(objects)
-                .map(|(source, object)| {
-                    let source =
-                        NormalizedNativeSourcePath::new(source.path().as_str()).map_err(error)?;
-                    scoop_slib::native_link_object_member(
-                        cone,
-                        target.lir_target(),
-                        &source,
-                        std::fs::read(object).map_err(error)?,
-                    )
-                    .map_err(error)
-                })
-                .collect();
-        }
-    };
-    let public_include = scoop_toolchain::configured_sysroot_root(sysroot)?.join("include");
-    let compiler = NativeToolchain::resolve(target.c_bridge_toolchain(), manifest)?;
-    let prepared = compiler.prepare(manifest, request.optimization(), &public_include)?;
-    let units = prepared.units();
-    if units.is_empty() {
+    let selected =
+        scoop_toolchain::selected_native_object_sources(manifest, target, request.purpose());
+    if selected.is_empty()
+        && matches!(
+            &request.request.native_inputs,
+            NativeInputOrigin::Source { .. }
+        )
+    {
         return Ok(Vec::new());
     }
-    let directory = tempfile::Builder::new()
-        .prefix("native-")
-        .tempdir_in(temporary_parent)
-        .map_err(error)?;
-    units
-        .iter()
-        .enumerate()
-        .map(|(index, unit)| {
-            let output = directory.path().join(format!("{index:08}.o"));
-            scoop_toolchain::compile_native_source(
-                unit,
-                config,
-                &compiler,
+    let directory;
+    let prepared;
+    let objects = match &request.request.native_inputs {
+        NativeInputOrigin::Objects(objects) => objects.as_slice(),
+        NativeInputOrigin::Source { sysroot } => {
+            let public_include =
+                scoop_toolchain::configured_sysroot_root(sysroot.clone())?.join("include");
+            directory = tempfile::Builder::new()
+                .prefix("native-")
+                .tempdir_in(temporary_parent)
+                .map_err(error)?;
+            prepared = scoop_toolchain::prepare_native_objects(
+                manifest,
+                target,
                 request.optimization(),
-                &output,
+                &public_include,
+                directory.path(),
+                request.purpose(),
             )?;
-            let source = NormalizedNativeSourcePath::new(unit.path().as_str()).map_err(error)?;
+            prepared.objects()
+        }
+    };
+    if selected.len() != objects.len() {
+        return Err(error(format!(
+            "native object count {} does not match {} selected sources",
+            objects.len(),
+            selected.len()
+        )));
+    }
+    selected
+        .iter()
+        .zip(objects)
+        .map(|(source, object)| {
+            let source = NormalizedNativeSourcePath::new(source.as_str()).map_err(error)?;
             scoop_slib::native_link_object_member(
                 cone,
                 target.lir_target(),
                 &source,
-                std::fs::read(output).map_err(error)?,
+                std::fs::read(object).map_err(error)?,
             )
             .map_err(error)
         })

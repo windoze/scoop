@@ -1,12 +1,15 @@
 use super::*;
 
+#[cfg(windows)]
+mod windows;
+
 #[test]
 fn actual_host_discovery_is_reused_and_transported_to_the_child() {
     let cache = tempfile::tempdir().unwrap();
     let triple = crate::host_target_triple().unwrap();
     let request = TargetSelectionRequestV1::new(triple.to_owned()).unwrap();
     let cold = ResolvedTargetProfile::resolve_request_cached(&request, cache.path()).unwrap();
-    let records: Vec<_> = std::fs::read_dir(cache.path().join("native-tools-v1"))
+    let records: Vec<_> = std::fs::read_dir(cache.path().join(CACHE_VERSION))
         .unwrap()
         .map(|p| p.unwrap().path())
         .filter(|p| p.extension().is_some_and(|e| e == "json"))

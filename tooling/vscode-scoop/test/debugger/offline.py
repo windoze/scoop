@@ -1,16 +1,26 @@
-"""Run inside LLDB against program.scoop's real DWARF, without launching it."""
+"""Run inside LLDB against program.scoop's native debug info, without launching it."""
 
 import lldb
+import scoop_lldb
 
 
 def __lldb_init_module(debugger, _internal_dict):
     target = debugger.GetSelectedTarget()
     functions = target.FindFunctions("inspectValues", lldb.eFunctionNameTypeFull)
-    assert functions.GetSize() == 1
+    assert functions.GetSize() >= 1
+    assert (
+        len(
+            {
+                functions.GetContextAtIndex(i).GetFunction().GetStartAddress().GetFileAddress()
+                for i in range(functions.GetSize())
+            }
+        )
+        == 1
+    )
     function = functions.GetContextAtIndex(0).GetFunction()
     assert function.GetName() == "inspectValues"
     exact = function.GetMangledName()
-    assert exact.startswith("scoop$1$cb$")
+    assert exact.startswith(("scoop$1$cb$", "scoop$1$bs$"))
     source_breakpoint = target.BreakpointCreateByName("inspectValues")
     exact_breakpoint = target.BreakpointCreateByName(exact)
     assert source_breakpoint.GetNumLocations() == exact_breakpoint.GetNumLocations() == 1
@@ -23,7 +33,11 @@ def __lldb_init_module(debugger, _internal_dict):
 
     def value(name, words):
         data = lldb.SBData.CreateDataFromUInt64Array(target.GetByteOrder(), 8, words)
-        return target.CreateValueFromData("test", data, target.FindFirstType(name))
+        type_ = target.FindFirstType(name)
+        # CodeView exposes the record directly instead of its pointer typedef.
+        if name == "String" and not type_.GetCanonicalType().IsPointerType():
+            type_ = type_.GetPointerType()
+        return target.CreateValueFromData("test", data, type_)
 
     tagged = value("Choice", [0, 7, 0])
     assert tagged.GetSummary() == "Choice.Number", str(tagged)
@@ -46,7 +60,9 @@ def __lldb_init_module(debugger, _internal_dict):
     null_string = value("String", [0])
     assert null_string.GetSummary() == "<null>", str(null_string)
     assert null_string.GetNumChildren() == 0
-    array = target.FindFirstType("MutableArray<Long>").GetCanonicalType().GetPointeeType()
+    null_interface = value("Value", [0, 0])
+    assert null_interface.GetSummary() == "null", str(null_interface)
+    array = scoop_lldb.record_type(target.FindFirstType("MutableArray<Long>"))
     data = next(field for field in array.fields if field.GetName() == "data")
     assert data.GetOffsetInBytes() == 24
     assert data.GetType().GetArrayElementType().GetByteSize() == 8

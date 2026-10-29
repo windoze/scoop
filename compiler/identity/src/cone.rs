@@ -18,6 +18,23 @@ pub enum RequestedConeKind {
     Executable,
 }
 
+/// The Windows executable subsystem, independent of the program's Scoop ABI.
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum WindowsSubsystem {
+    #[default]
+    Console,
+    Gui,
+}
+
+impl WireEncode for WindowsSubsystem {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.unsigned(match self {
+            Self::Console => 1,
+            Self::Gui => 2,
+        })
+    }
+}
+
 impl ConeIdentity {
     pub const CORE: Self = Self::from_protocol_bytes([
         0x5e, 0xa5, 0xf5, 0xe8, 0xff, 0x24, 0x81, 0x82, 0xc8, 0xf8, 0xc7, 0xe1, 0x04, 0x3c, 0xaa,

@@ -131,7 +131,22 @@ fn verify_source_external_requirements_from_candidates_v1(
                 },
             );
         }
-        if let Some(requirement) = requirements.get(binding.symbol()) {
+        let requirement = requirements.get(binding.symbol()).or_else(|| {
+            if native_requirements.target().native_object_format()
+                != scoop_lir::NativeObjectFormat::Coff64
+            {
+                return None;
+            }
+            let symbol = binding.symbol().strip_prefix(b"__imp_")?;
+            requirements.get(symbol).filter(|requirement| {
+                matches!(
+                    requirement.contract(),
+                    scoop_identity::NativeExternalContract::ReadOnlyData { .. }
+                        | scoop_identity::NativeExternalContract::MutableData { .. }
+                )
+            })
+        });
+        if let Some(requirement) = requirement {
             if binding
                 .relocation_form()
                 .is_tls_reference(native_requirements.target())

@@ -53,7 +53,7 @@ pub(super) fn outbound_bridge_with_signature(
     outbound_bridge_for_contract(&contract)
 }
 
-fn outbound_bridge_for_contract(
+pub(super) fn outbound_bridge_for_contract(
     contract: &scoop_identity::NativeExternalContractRecord,
 ) -> scoop_lir::GeneratedBridgeEntryIdentity {
     scoop_lir::GeneratedBridgeEntryIdentity::new(
@@ -151,9 +151,17 @@ fn native_function_contract_with_signature(
     seed: u8,
     signature: scoop_identity::CanonicalCAbiFunctionSignature,
 ) -> scoop_identity::NativeExternalContractRecord {
+    native_function_contract_for_target(seed, signature, scoop_target_data::DARWIN_AARCH64)
+}
+
+pub(super) fn native_function_contract_for_target(
+    seed: u8,
+    signature: scoop_identity::CanonicalCAbiFunctionSignature,
+    target: scoop_lir::LirTargetProfile,
+) -> scoop_identity::NativeExternalContractRecord {
     let symbol = scoop_identity::NativeExternalSymbolKey::for_target(
-        scoop_identity::TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
-        scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
+        scoop_identity::TargetProfileWireId::new(target.id()),
+        target.contract().native_symbol_normalization(),
         &scoop_identity::SourceNativeSymbol::new(&format!("test_bridge_{seed}")).unwrap(),
     )
     .unwrap();
@@ -234,7 +242,7 @@ pub(super) fn install_test_native_global_contract(module: &mut Module, seed: u8)
     install_test_native_contract(module, native_global_contract(seed));
 }
 
-fn install_test_native_contract(
+pub(super) fn install_test_native_contract(
     module: &mut Module,
     record: scoop_identity::NativeExternalContractRecord,
 ) {
@@ -273,7 +281,7 @@ pub(super) fn install_test_c_signature_record(
     .unwrap();
 }
 
-fn c_signature(seed: u8) -> scoop_identity::CanonicalCAbiSignatureFingerprintRecord {
+pub(super) fn c_signature(seed: u8) -> scoop_identity::CanonicalCAbiSignatureFingerprintRecord {
     let exact_type = test_exact_type(&format!("bridgeSignature{seed}"));
     let storage = scoop_identity::CanonicalCStorageType::Integer {
         exact_type,

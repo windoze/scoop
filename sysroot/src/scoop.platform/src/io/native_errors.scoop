@@ -1,0 +1,29 @@
+package scoop.platform.io
+
+import scoop.platform.system.*
+
+internal fun failNative(operation: String, code: Int, context: OsString? = None): Nothing {
+    val error = NativeError(NativeErrorDomain.PosixErrno, code)
+    throw PlatformException(operation, error.kind, Some(error), context)
+}
+
+internal fun checkNative(
+    value: Long,
+    code: Int,
+    operation: String,
+    context: OsString? = None
+): Long {
+    if (value < 0L)
+        failNative(operation, code, context)
+    return value
+}
+
+internal fun checkNativeStatus(
+    value: Int,
+    code: Int,
+    operation: String,
+    context: OsString? = None
+) {
+    if (value < 0)
+        failNative(operation, code, context)
+}

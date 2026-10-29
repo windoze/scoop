@@ -54,6 +54,7 @@ pub(crate) struct ProgramInputs<'a> {
     pub root: String,
     pub string_target: String,
     pub native: NativeInputs,
+    pub windows_subsystem: scoop_identity::WindowsSubsystem,
 }
 
 impl<'a> ProgramInputs<'a> {
@@ -94,6 +95,7 @@ impl<'a> ProgramInputs<'a> {
         let mut requirement_origins: BTreeMap<String, Vec<String>> = BTreeMap::new();
         let mut images = Vec::new();
         let mut root = None;
+        let mut windows_subsystem = scoop_identity::WindowsSubsystem::Console;
         let mut string_target = None;
         for (artifact, symbols) in closure.artifacts() {
             let cone = artifact.identity();
@@ -115,6 +117,11 @@ impl<'a> ProgramInputs<'a> {
                     return Err(error(format!("multiple executable entries at Cone {cone}")));
                 }
                 root = Some(object_symbol(entry, profile));
+                windows_subsystem = artifact
+                    .manifest()
+                    .cone()
+                    .windows_subsystem()
+                    .unwrap_or_default();
             }
             for object in symbols.members() {
                 let member = object.member();
@@ -180,13 +187,20 @@ impl<'a> ProgramInputs<'a> {
         }
         for object in runtime.objects() {
             for symbol in object.info().definitions.keys() {
-                if let Some(previous) =
-                    definitions.insert(symbol.clone(), DefinitionOwner::Runtime(object.id()))
-                {
-                    return Err(error(format!(
-                        "runtime object {} conflicts with {previous:?} at {symbol}",
-                        object.id()
-                    )));
+                match definitions.entry(symbol.clone()) {
+                    std::collections::btree_map::Entry::Vacant(entry) => {
+                        entry.insert(DefinitionOwner::Runtime(object.id()));
+                    }
+                    std::collections::btree_map::Entry::Occupied(entry) => {
+                        // RuntimeObjectSet already resolved coalescible definitions.
+                        if !matches!(entry.get(), DefinitionOwner::Runtime(_)) {
+                            return Err(error(format!(
+                                "runtime object {} conflicts with {:?} at {symbol}",
+                                object.id(),
+                                entry.get()
+                            )));
+                        }
+                    }
                 }
             }
             requirements.extend(object.info().requirements.iter().cloned());
@@ -213,7 +227,15 @@ impl<'a> ProgramInputs<'a> {
                 .target()
                 .contract()
                 .native_symbol_normalization()
-                .compiler_generated_object_symbol("scoop_rt_run_program"),
+                .compiler_generated_object_symbol(
+                    if profile.target().native_object_format()
+                        == scoop_lir::NativeObjectFormat::Coff64
+                    {
+                        "scoop_rt_run_program_utf16"
+                    } else {
+                        "scoop_rt_run_program"
+                    },
+                ),
         ]);
         requirements.extend(
             profile
@@ -234,6 +256,7 @@ impl<'a> ProgramInputs<'a> {
             root,
             string_target,
             native,
+            windows_subsystem,
         };
         native::resolve(
             closure,
@@ -255,6 +278,8 @@ impl<'a> ProgramInputs<'a> {
 
     pub fn compiler_owned(&self, symbol: &str) -> bool {
         symbol == self.symbol("main")
+            || (self.target.native_object_format() == scoop_lir::NativeObjectFormat::Coff64
+                && symbol == "wmain")
             || symbol == self.symbol("scoop_td_String")
             || symbol.starts_with(&self.symbol("scoop$"))
     }

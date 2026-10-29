@@ -2,7 +2,7 @@ schema = 1
 name = "generic-bounds-value"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../generic-bounds/provider.scoop", "generic-member-value", "../../../generic-bounds/value.scoop", "generic-member-downstream-value", "../../../generic-bounds/downstream-value.scoop", "runtime-fixture", "../../../imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "generic_bound_values_merge_with_downstream_box_dispatch", "language"]
 
 [[steps]]

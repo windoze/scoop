@@ -223,7 +223,7 @@ unit 由 `PersistentInitializationUnitId` 标识；diagnostic path 只用于显�
 
 ### 2.8 多 image 登记与启动 ABI
 
-runtime ABI contract 为 **30**，metadata ABI 为 **9**。contract 30 在 2.8 的程序启动入口增加 `enable_stack_trace` 参数，按 5.6 控制整个进程的栈诊断；对象和 metadata 布局不变。contract 29 增加 5.6 的 Managed 首次抛出准备与打印入口；准备返回经过可能搬迁后的原对象引用。contract 28 加入 5.6 的 intrinsic Throwable 固定前缀，派生类的实例布局与 GC 扫描一起变化，compiler、runtime、core 及派生异常所在库必须配套重建。contract 27 退役无消费者的 String join C 入口，详见第 6 节。contract 26 删除分配视图中的计数器指针，统一使用四指针前缀；生成代码直接从同一稳定线程状态的 offset 128 取得既有计数器。计数、原子发布和线程生命周期保持，所有编译器、runtime 与系统库机器正文须配套重建。contract 25 将分配计数改为 nursery 与直接旧代分配两个互斥域，生成代码每次只更新 nursery 的对象数和字节数；总量在读取时相加，所有机器正文与 runtime 配套重建。contract 24 删除生成分配视图的 occupied-line 指针，统一使用五指针布局；分配只发布精确大小和 starts，collector 独立形成存活 line。编译器、runtime 与所有系统库机器正文须配套重建。contract 23 允许生成代码依赖 3.1 的 mapping owner；支持 GC stress 的 runtime 保留 region 首 block，编译器、runtime 与系统库须配套重建。contract 22 将小对象精确大小放入现有 GC 字、移动 pin 索引字段并将 TLAB 视图减为六指针；生成分配、runtime 和全部机器产物须一起重建。contract 20／21 退役无生产消费者的标量、打印、专用装箱、Array clone 与 Context 生成操作 C 入口；所有 profile 复用相同 typed 布局与根计划。contract 19 增加 9.2 的线程 Context 根槽地址视图；contract 18 的初始化状态原子访问及 release／acquire 发布保持，不能把生成的快速读取与旧 runtime 的普通写入混用。contract 17 的脏卡组登记与 region prefix、contract 15 的接口查询入口保持；contract 16 的七指针 TLAB 视图由本版替换。对象、接口值、TD、初始化 cell、注册记录和扫描布局不变。metadata 9 删除 runtime 不消费的 body、descriptor、layout、scan、stackmap、gateway、source signature 与 image 内容指纹字段；实体 identity、实际地址、类型布局、扫描与 stackmap 合同保持。producer、公共头、runtime 和启动代码一起更新，旧产物与开发 sysroot 必须重建。带 prefix 的 descriptor 以 `{ u64 magic; u32 abi_version; u32 struct_size; }` 开头，`abi_version == 9`，size 与本节布局精确一致，reserved fields 为 0。公共 C 声明见 [scoop_runtime_metadata_v1.h](../../runtime/include/scoop_runtime_metadata_v1.h)。不保留空的兼容槽或以 bitcast 混用旧布局。
+runtime ABI contract 为 **30**，metadata ABI 为 **9**。contract 30 在 2.8 的程序启动入口增加 `enable_stack_trace` 参数，按 5.6 控制整个进程的栈诊断；对象和 metadata 布局不变。Windows UTF-16 启动入口同步传递该参数；compiler、runtime 与三个 Windows target 的系统库须一起重建。contract 29 增加 5.6 的 Managed 首次抛出准备与打印入口；准备返回经过可能搬迁后的原对象引用。contract 28 加入 5.6 的 intrinsic Throwable 固定前缀，派生类的实例布局与 GC 扫描一起变化，compiler、runtime、core 及派生异常所在库必须配套重建。contract 27 退役无消费者的 String join C 入口，详见第 6 节。contract 26 删除分配视图中的计数器指针，统一使用四指针前缀；生成代码直接从同一稳定线程状态的 offset 128 取得既有计数器。计数、原子发布和线程生命周期保持，所有编译器、runtime 与系统库机器正文须配套重建。contract 25 将分配计数改为 nursery 与直接旧代分配两个互斥域，生成代码每次只更新 nursery 的对象数和字节数；总量在读取时相加，所有机器正文与 runtime 配套重建。contract 24 删除生成分配视图的 occupied-line 指针，统一使用五指针布局；分配只发布精确大小和 starts，collector 独立形成存活 line。编译器、runtime 与所有系统库机器正文须配套重建。contract 23 允许生成代码依赖 3.1 的 mapping owner；支持 GC stress 的 runtime 保留 region 首 block，编译器、runtime 与系统库须配套重建。contract 22 将小对象精确大小放入现有 GC 字、移动 pin 索引字段并将 TLAB 视图减为六指针；生成分配、runtime 和全部机器产物须一起重建。contract 20／21 退役无生产消费者的标量、打印、专用装箱、Array clone 与 Context 生成操作 C 入口；所有 profile 复用相同 typed 布局与根计划。contract 19 增加 9.2 的线程 Context 根槽地址视图；contract 18 的初始化状态原子访问及 release／acquire 发布保持，不能把生成的快速读取与旧 runtime 的普通写入混用。contract 17 的脏卡组登记与 region prefix、contract 15 的接口查询入口保持；contract 16 的七指针 TLAB 视图由本版替换。对象、接口值、TD、初始化 cell、注册记录和扫描布局不变。metadata 9 删除 runtime 不消费的 body、descriptor、layout、scan、stackmap、gateway、source signature 与 image 内容指纹字段；实体 identity、实际地址、类型布局、扫描与 stackmap 合同保持。producer、公共头、runtime 和启动代码一起更新，旧产物与开发 sysroot 必须重建。带 prefix 的 descriptor 以 `{ u64 magic; u32 abi_version; u32 struct_size; }` 开头，`abi_version == 9`，size 与本节布局精确一致，reserved fields 为 0。公共 C 声明见 [scoop_runtime_metadata_v1.h](../../runtime/include/scoop_runtime_metadata_v1.h)。不保留空的兼容槽或以 bitcast 混用旧布局。
 
 | descriptor | magic | size（bytes） |
 | --- | --- | --- |
@@ -277,6 +277,8 @@ const char *scoop_rt_program_argv(int32_t index);
 
 `scoop_rt_run_program` 每进程只调用一次。images 非空且恰为 root 的完整依赖闭包；输入顺序不承担初始化语义。调用方传入原生 argc/argv，`argc >= 1`，argv 含至少 `argc + 1` 项且 `argv[argc] == NULL`；前 `argc` 项各指向 NUL 结尾的非 null 字节串。runtime 在 eager 初始化前保存该 pointer/count，不复制或修改原始字节；调用方保证其到进程结束均有效，其他代码也不得修改已交给 runtime 的参数。`argv[0]` 保留启动者给出的可执行程序启动路径，不要求绝对路径或 canonical path。
 
+Windows 的生成入口为 CRT `wmain`，通过 `scoop_rt_run_program_utf16` 将 UTF-16 参数无损编码为 canonical WTF-8，并将 `enable_stack_trace` 原样传入同一 coordinator：成对 surrogate 编为对应 scalar 的四字节 UTF-8，非配对 surrogate 保留为三字节序列，不替换或拒绝原始 OS 参数。转换后的非 managed 字节缓冲由进程拥有，直到进程结束保持有效；不使用当前代码页，argv[0] 同样保留原始 code units。无参数 main 不解码这些字节，平台 OsString 可通过既有 argc/argv 入口取得原始参数；带 Array<String> 参数的 main 仍由 core 的严格 UTF-8 解码拒绝非配对 surrogate，包括 argv[0]，沿现有参数下标诊断和 root gateway 失败路径。无效的 native argc／argv 结构、实际分配或长度溢出失败在进入 managed 初始化前报告并返回退出码 1，失败时释放尚未发布的转换缓冲。
+
 原始 argv 访问器从启动输入保存后可用，均为只读 NoGC 操作；argc 包括第 `0` 项，合法 index 返回相应原始字节串，负数或不小于 argc 的 index 返回 null。这些指针不是 managed ref，不因 GC 移动。访问器不解码或跳过 `argv[0]`，无参数 main 也可通过平台库使用它们。
 
 root gateway 的返回值只表示调用状态：`0` 为成功，`1` 为失败，其他状态非法。runtime 提供独占、非 null、4-byte 对齐的 `int32_t` 输出槽，调用前初始化为 `0`，有效期覆盖整个 gateway 调用。成功时 gateway 必须写入 `out_exit_code`：Unit 写 `0`，Int 写完整的有符号 32-bit 返回值，然后返回状态 `0`。因此 main 正常返回 `1`、负数或边界值都仍是 gateway 成功。失败时 runtime 忽略输出槽，只消费已发布的 failure root。
@@ -291,7 +293,7 @@ root gateway 的返回值只表示调用状态：`0` 为成功，`1` 为失败�
 
 callable 正文、EH、stackmap、callable/safepoint registration 与其 Context cells 必须来自同一被选实现。独立 helper 可来自不同 provider；所有共享 TD、storage、cell 和初始化状态仍唯一。没有 safepoint 的 Scoop body 也登记 callable；普通 native extern 和 runtime C body 按各自 ABI 消费。
 
-非空 pointer/count span 的范围、乘加和对齐必须有效。既有 image/registration 空 span 使用类型正确的 addressable sentinel；`context_key_count == 0` 时 context_keys 为 null。descriptor、字符串、scan、template 与 relocation metadata 按不可变数据使用；callable entry 与 storage 分别按代码与可写存储发射。runtime 从平台装载段取得地址范围，不另查 VM region、`/proc/self/maps` 或审计读写／执行权限。
+非空 pointer/count span 的范围、乘加和对齐必须有效。既有 image/registration 空 span 使用类型正确的 addressable sentinel；`context_key_count == 0` 时 context_keys 为 null。descriptor、字符串、scan、template 与 relocation metadata 按不可变数据使用；callable entry 与 storage 分别按代码与可写存储发射。runtime 从平台装载段取得地址范围，不另查 VM region、`/proc/self/maps` 或审计读写／执行权限。Windows 从承载 runtime 的已加载 PE header 取得非 discardable section 的 RVA 与 VirtualSize，形成实际 metadata 地址范围；`.text` 提供托管代码区间，链接器合并后的 `.smap` 提供 stackmap 字节。stackmap 长度不包含文件对齐 padding，不重新打开 exe；没有 `.smap` 时返回空 stackmap image 集合，保留其余登记地址范围。
 
 storage 的 `allocation_extent == max(byte_size, 1)`。ZST storage 使用独立的 1-byte writable token、None scan 与 canonical 空 scan。不同 storage 的 allocation range 不重叠，只有同一 ODR member 的重复引用可指向同一存储。
 
@@ -416,6 +418,8 @@ nursery 容量和 collection threshold 是收集触发条件，不是堆空间�
 
 平台实现按实际职责分开：managed frame、caller anchor、返回值 shim 与浮点环境控制属于 arch，线程栈／VM 属于 OS，加载映射与 metadata 属于 image。构建只组合已实现的组件，架构专用 flags 只由对应架构选择；此职责划分不改变 GC、异常、对象布局或公共 runtime ABI。
 
+ThreadVmOps 的读写映射按请求大小和对齐返回完整可用区间，调用者只整体释放该映射；大小为 page 的倍数，对齐为不小于 page 的二次幂。普通 region 保持 16 MiB 对齐，大对象保持 64 KiB 对齐。Darwin／Linux 可过量映射后裁掉两端；Windows 以 VirtualAlloc 保留足够的地址范围，只 commit 对齐后的可用区间，释放时由 AllocationBase 整体 MEM_RELEASE，不模拟部分释放，也不将对齐 padding 计入 managed committed bytes。Windows 栈范围使用系统当前线程 stack limits；保护页、空闲整页归还和 RSS 分别使用 VirtualProtect、DiscardVirtualMemory 与进程 working-set 统计。
+
 GC 私有 helper 的目标相关内联选择由平台层提供，通用 GC 不直接使用架构宏选择调用方式。各目标共用同一算法与必要检查；内联选择不改变对象表示、函数 ABI、forwarding 规则或公开配置项，其性能依据按目标分别验证。
 
 managed 函数入口（下述有界叶函数除外）和循环回边，包括 continue 回边，提供 safepoint。编译器可将继续迭代区域内无调用、分配或异常的简单计数循环分块：正文包含局部整数／Boolean／严格浮点计算，或索引合法性已在 MIR 保证的固定表示数组值读写、普通字段读取、身份比较和长度读取（实现规范 2.19）。这些值包括单字引用、interface、相应 MaybeUninit 和单引用 payload 的可选值；写入保留 3.6 的完整屏障，初始化保留 2.4 的部分初始化扫描规则。正文可以含条件分支，但去除唯一回边后必须无环，所有继续迭代的路径到达同一 latch，不能绕过归纳变量与内层倒计数的更新。提前退出沿原 return、break 或检查失败出口执行；只在退出路径上的调用、分配、异常与清理保留原 safepoint／roots，不进入复制区域。原循环 header 保留 poll，生成的内层由实际 CFG 中的常数上限倒计数约束，最多执行 64 次后返回外层 poll。数组的 managed 基址在外层 poll 后取得，内层不新增握手或跨 safepoint 的裸地址；已有引用写屏障在原写入处完成，不能因为分块或“刚分配”而省略。该选择不承诺墙钟暂停上界，不改变任意其他循环或 continue 的 poll 责任。managed references 在 LLVM ABI 中使用 address space 1；跨 safepoint 存活的引用必须由 stackmap 或显式 compiler root frame 描述。
@@ -445,6 +449,8 @@ native 实际调用不得 unwind 穿越边界。静态 FunPtr 的同步 NoGC 调
 core 的 Long／ULong hash、Boolean hash／equals 使用普通标量正文，执行固定次数的计算，无分配、阻塞或回调。当前 word hash 在 ULong 上依次 xor 右移 30 位、乘 `0xbf58476d1ce4e5b9`、xor 右移 27 位、乘 `0x94d049bb133111eb`、xor 右移 31 位，按原 64 位结果转换为 Long；Boolean hash 为 false→0、true→1，equals 保持逻辑相等。Boolean.toString 选择 provider 的 immortal 字符串，不新增托管 root 或对象。已有 C 后备符号及调用合同保留供实际外部引用使用，新 core 不再为这些操作声明 native wrapper；不将任意同名 extern 特化，也不改变公开方法签名。String hash／equals／字符计数会随输入增长，继续遵守各自 managed／native 边界，不能沿用这项有界标量选择。
 
 Darwin/AArch64 的 SP/FP DWARF register 分别为 31/29，stack size 为 16 的倍数。Linux/amd64 分别为 7/6；若 stackmap stack size 为 N，要求 `N % 16 == 8`。amd64 的入口 return PC 在 `[RSP]`，call-site SP 为 `RSP + 8`，FP 为 RBP；N 不包含 return address，`FP = SP + N - 8`，`[FP]` 保存前一 FP、`[FP+8]` 保存 return PC、前一 SP 为 `FP+16`。root slot 位于 `[SP, FP)`。这些目标保留 frame pointer，不使用 red zone 或破坏栈遍历的 tail call。
+
+Windows/amd64 同样保留 RBP frame pointer、禁用 red zone 与破坏遍历的 tail call，但不使用上述 SysV frame 几何。anchor 在自身 prologue 前取得 managed caller 的 return PC、call-site RSP 与 RBP；Win64 shim 提供 shadow space、栈参数和 `.seh_*` 描述后调用私有 C 实现。当前 profile 的 unwind frame register 只使用 RBP，stackmap 根只允许 DWARF 7／6 的 8-byte indirect location，base 与 derived 为同一槽位；因此扫描上下文只需这三个值。reader 使用实际 RSP／RBP 加 signed displacement 取得根槽，检查其位于该 frame 的 stackmap 分配区间；向外遍历使用 `RtlLookupFunctionEntry`／`RtlVirtualUnwind` 恢复 caller 的这三个值，在已发布 native boundary 停止。其他非易失寄存器不作为根或 frame base，不为扫描另存完整 CPU context；该限制随目标机器 frame 合同维护。
 
 ### 3.3 精确根集合
 
@@ -614,7 +620,7 @@ small block 的普通 sweep 与压缩目标准备按 `starts & ~marks` 枚举实
 
 无存活对象覆盖的完整 OS page 可 discard，保留 side metadata；普通 region 的首个 OS page 含 3.1 的不可变 owner 指针，映射存活期间不得 discard，即使首 block 或保留 region 已空。完全空闲 region 从分配结构及地址索引撤销后 unmap。撤销仅在 STW、所有 GC worker 结束且 TLAB／缓存失效后进行，不把 free-list 回收计作 OS 归还。discard 后复用必须重新清零；跨页活对象覆盖的页不可 discard。普通策略保留一个空 region，其他 full 后释放。每 region 最多额外保留一个物理页，按实际 RSS 计入空间成本。记录 discard 成功量、unmapped bytes 和当前／峰值 RSS，不能把建议性 discard 等同于立即 RSS 下降。
 
-普通 full 结束时合并已使用 block 中不覆盖任何存活 line 的整页，通过 ThreadVmOps 调用平台归还建议。Linux 使用 `madvise(MADV_FREE)`，允许 OS 延迟回收，以减少 STW 内立即撤销物理页及后续重新分配的缺页成本；Darwin 保持 `MADV_DONTNEED`。成功后原字节可以暂时保留，也可以被 OS 丢弃；分配器必须先按 3.1 清零或完整复制后再发布，不能依赖建议后立即为零，也不能读取死亡 payload。空 region 的释放规则保持。失败保留映射并在后续 full 重试，不影响可达图。block 激活、空洞再次分配或对象退休时才重新请求 discard，不在普通对象分配热路径增加共享计数。统计分别给出成功／失败调用数、成功建议的累计字节和解除映射的累计字节，重复建议不代表新增物理内存归还。RSS 可能延迟下降，是诊断时采样的进程当前／历史峰值，采样不可用时对应字段为零；既不作为收集正确性条件，也不与 managed mapping 字节等同。各 profile 使用同一发布和保活合同，不改变对象、精确根或产物 ABI。
+普通 full 结束时合并已使用 block 中不覆盖任何存活 line 的整页，通过 ThreadVmOps 调用平台归还建议。Linux 使用 `madvise(MADV_FREE)`，允许 OS 延迟回收，以减少 STW 内立即撤销物理页及后续重新分配的缺页成本；Darwin 保持 `MADV_DONTNEED`，Windows 保持 `DiscardVirtualMemory`。成功后原字节可以暂时保留，也可以被 OS 丢弃；分配器必须先按 3.1 清零或完整复制后再发布，不能依赖建议后立即为零，也不能读取死亡 payload。空 region 的释放规则保持。失败保留映射并在后续 full 重试，不影响可达图。block 激活、空洞再次分配或对象退休时才重新请求 discard，不在普通对象分配热路径增加共享计数。统计分别给出成功／失败调用数、成功建议的累计字节和解除映射的累计字节，重复建议不代表新增物理内存归还。RSS 可能延迟下降，是诊断时采样的进程当前／历史峰值，采样不可用时对应字段为零；既不作为收集正确性条件，也不与 managed mapping 字节等同。各 profile 使用同一发布和保活合同，不改变对象、精确根或产物 ABI。
 
 旧代精确大小槽的批量清扫适用于 3.7 的 `slot_size != 0` 块、且当前未执行 moving stress。该分配类别只接受已通过 nursery 资格判断的晋升对象，release-hook 对象预晋升到普通旧代块，不会混入此类槽；无需按死亡对象再次读取大小、TD 或查询 release。完成 mark／copy／引用更新后，coordinator 按 bitmap word 将 starts 与 marks 相交，并清除死亡起点的 pin 位；只要发生退休仍设置原 discard 状态。保留活对象的 pin、对象头及槽内字节；full 保留该轮精确 line 供 VM 归还，minor 的 line 有效期按 3.9，不为槽分配额外生成 line。后续重新占用由原完整复制／发布初始化。登记清扫后可用槽时，复用清除 block 统计前的本轮精确存活字节数与既有槽大小，计算完整槽容量减去存活槽数；此时全部 marked 对象均保留，大小与槽网格在本轮不变，不再遍历清扫后的 starts 重新计数。该事实只保存在收尾调用的局部值，不跨收集轮次有效。预留失败回滚没有完整存活统计，仍从未改变的 starts 恢复可用量。普通可变大小块、large 与 moving stress 继续逐对象 release／poison；不得按 payload 大小自行把普通旧代块当作槽块。该复用不增加 metadata、线程状态或 ABI，随既有旧代槽策略启用，没有独立开关；默认等级 2 启用，设置 0 关闭。
 
@@ -672,11 +678,15 @@ minor 和 full 共享线程、root、pin、handle、Context、callback、冻结�
 
 分配压力可触发 minor 或 full；晋升空间不足时必须从完整对象图进入 full 或明确的分配失败出口。分代策略和容量不改变语言合法性、对象 ABI 或 FFI 保活义务。
 
-STW 后 coordinator 可使用内部常驻 pthread worker 并行 mark，worker 不登记为 mutator，也不执行用户代码。小 minor 可只使用 coordinator；单 worker 与多 worker 共用同一参数化 collector。对象／大对象 mark 使用原子首次置位，只有首次成功者登记存活对象和扫描任务。full 由各 worker 在既有 block 统计中保存私有存活 line 位图，普通 OR 不写共享 block；标记完成、全部 worker 停止后，coordinator 随存活字节统计一起合并到 block 的 `line_live`，再规划、复制和清扫。标记和片间分配不消费未完成的 line 位图；未完成分片保留 worker 统计，新增 block 只清零新增统计，取消周期后完整重置。复制阶段仍由目标 block 的唯一写入者登记目标 line，不能与标记归并并发。私有 line 统计仍为每个 worker／参与 block 的 32 bytes，不改变对象、持久 block metadata、分配发布或 ABI；任务完成前不得提前开始 line 的消费。
+STW 后 coordinator 可使用内部常驻 OS worker 并行 mark，worker 不登记为 mutator，也不执行用户代码。小 minor 可只使用 coordinator；单 worker 与多 worker 共用同一参数化 collector。对象／大对象 mark 使用原子首次置位，只有首次成功者登记存活对象和扫描任务。full 由各 worker 在既有 block 统计中保存私有存活 line 位图，普通 OR 不写共享 block；标记完成、全部 worker 停止后，coordinator 随存活字节统计一起合并到 block 的 `line_live`，再规划、复制和清扫。标记和片间分配不消费未完成的 line 位图；未完成分片保留 worker 统计，新增 block 只清零新增统计，取消周期后完整重置。复制阶段仍由目标 block 的唯一写入者登记目标 line，不能与标记归并并发。私有 line 统计仍为每个 worker／参与 block 的 32 bytes，不改变对象、持久 block metadata、分配发布或 ABI；任务完成前不得提前开始 line 的消费。
 
 minor 首次标记保留精确 marks、存活字节及当前策略需要的槽布局等统计，不生成存活 line。minor 规划只消费存活字节、布局和 pin 等已有事实，不要求源块的 line。完成复制及引用更新后，全死块和完整搬迁的源块直接退休；保留的 survivor 和等大小旧槽块不构建 free-run，也不生成没有实际消费者的 line。只有原地保留并晋升到旧代、且没有精确槽布局的小块，需要在清扫前枚举已标记起点，以未搬迁对象的当前精确大小调用共有的字节范围登记；复制目标沿用唯一写入者已经登记的 line。该登记必须覆盖完整对象范围及跨字边界，不能只记录起点所在行，且在清除 marks、构建 free-run 和 mutator 恢复之前完成。不能读取已 forwarding 的源对象。minor 后不能将 survivor 或旧槽块的 line 当作当前存活事实；VM 归还只在完整 full 的新一轮标记、复制及引用更新完成后使用该轮 line。保留原 pin、survivor、失败回滚和精确对象标记；预留失败但尚未复制时恢复的保留块遵守同一收尾规则，退回 full 时重新建立完整标记事实。本项不新增逐对象记录、分片、worker、长期有效标记或配置，各旧槽等级和所有 profile 的可见语义一致。
 
 worker pool 的每次 phase 发布在原锁内固定该阶段的参与数量，worker 的参与判断和 coordinator 的完成等待使用同一份已发布数量。下一轮 collection 准备可调整活动数量，但不得改变旧 phase 的参与者；旧阶段未参与且延迟醒来的 worker 只能跳过该阶段，不能追加入完成计数。单 worker phase、连续多阶段及下轮恢复多 worker 遵守同一规则，不增加 mutator 通知、队列或 runtime ABI。
+
+runtime 使用 platform 层提供当前实际需要的 mutex、condition、once、worker create/join、对齐分配和计时操作。Darwin／Linux 使用 pthread 与 POSIX；Windows 使用 SRW exclusive lock、condition variable、InitOnce、所选 CRT 的 `_beginthreadex` 和系统 thread handle，不要求额外 pthread DLL。condition wait 原子释放并重新取得锁，调用者继续循环检查条件；停稳轮询的有限等待按 OS 定时粒度向上取整，不通过修改全局计时器分辨率维持 Unix 的微秒数值。内部对齐分配必须由同一平台配对释放；单调时间和线程 CPU 时间分别测量，不将 wall time 当作 CPU time。上述操作不改变现有 GC 协调、TLS attachment 或 runtime ABI。
+
+这些内部 primitives 的 C 函数使用 `scoop_runtime_platform_` 前缀，与普通 `scoop.platform` 库的 `scoop_platform_` native 接口区分。二者可同处一个 executable，不共享私有同步对象布局或调用签名；内部名称不属于公开 runtime ABI。
 
 工作通知区分新任务与本阶段终止。worker 在原通知锁内先登记等待者，再重查全部队列与未完成计数；只有仍无可用任务且尚未终止时才等待，离开该区域前撤销登记。任务发布仍由各队列锁同步；发布后没有等待者时跳过通知锁，有等待者时在通知锁内唤醒一个 worker。先登记后重查与队列锁共同保证：等待者要么看到已发布任务，要么被其后的发布者看到，不能丢失工作通知。分片额度耗尽的发布者退出前也按新任务规则交接剩余工作。最后一项完成时必须取得通知锁并唤醒全部等待者，不能仅按无锁读取的等待计数跳过终止通知。该协调状态不进入 mutator、对象或 runtime ABI，所有 profile 共用；phase 开始与完成的原通知和参与者合同保持。
 
@@ -820,7 +830,7 @@ Cycle 的 path 在复制为 managed String 之前保持稳定，随后调用已�
 
 ### 5.1 Exception record 与抛出
 
-异常 ABI 使用 Itanium Level I `_Unwind_*` 接口。每条私有 exception record 含恰好一个满足目标对齐的 `_Unwind_Exception`，并保存被抛出的原 managed Throwable 的可回写引用槽；record 内部布局不属于 generated-code ABI，只能经 runtime 入口转换。
+异常 ABI 使用 Itanium Level I `_Unwind_*` 接口。每条私有 exception record 含恰好一个满足目标对齐的 `_Unwind_Exception`，并保存被抛出的原 managed Throwable 的可回写引用槽；record 内部布局不属于 generated-code ABI，只能经 runtime 入口转换。Windows 使用 LLVM libunwind 的 SEH 实现及其配套 `unwind.h`（`__SEH__` 配置），私有字段数量与 Unix 不同；不得复制 Unix 的 record 定义或混用头文件和库。
 
 `exception_class = 0x53434f4f50000000`。`scoop_rt_throw(object)` 接收 typed 调用已保证有效、已发布的非 null FixedObject 引用，检查实际实例形状，不再获取 heap／roots 锁重复查询对象归属。在可能展开或 GC 前，将新 record 加入所属线程的活跃记录链，再调用 `_Unwind_RaiseException`。异常对象遵守普通引用语义，不复制、不 pin，也不能直接作为 unwind record。
 
@@ -832,7 +842,9 @@ Cycle 的 path 在复制为 managed String 之前保持稳定，随后调用已�
 
 `scoop_eh_personality` 消费 LLVM 22.1 Itanium LSDA，只接受 Scoop catch-all 与 cleanup；源码 catch 类型在 landing pad 后按普通类型关系匹配，不使用 C++ RTTI。
 
-LPStart 为 `DW_EH_PE_omit (0xff)`，call-site 编码为 ULEB128。有 catch-all 时 TType 为 `0x9b` 且只有一个 null type entry；TType 为 `0xff` 时无 type-table offset，所有 call-site action 为零，有效表在 call-site 表结束。
+LPStart 为 `DW_EH_PE_omit (0xff)`，call-site 编码为 ULEB128。有 catch-all 时，Darwin／Linux 的 TType 为 `0x9b`（4-byte entry），Windows x64 为 `DW_EH_PE_absptr (0x00)`（8-byte entry）；两者都只接受一个 null type entry。TType 为 `0xff` 时无 type-table offset，所有 call-site action 为零，有效表在 call-site 表结束。
+
+Windows 的机器入口 `scoop_eh_personality_seh` 使用系统 SEH 的四参数签名，通过 `_GCC_specific_handler` 调用同一个 Level-I `scoop_eh_personality` 与 LSDA decoder。LLVM `invoke`／`landingpad` 保留该入口，`.pdata`／`.xdata` 提供系统 frame 信息。exception／selector 的机器寄存器来自该目标的 `__builtin_eh_return_data_regno`，不复用 SysV 的寄存器假设。W0 的独立实验先验证实际发射与运行，再开放正式 target，见实现规范 1。
 
 search phase 只由 Scoop exception 的 catch-all 选定 handler；cleanup-only 不终止搜索。cleanup phase 按目标 ABI 设置 exception/selector 寄存器与 landing-pad IP。`resume` 使用 `_Unwind_Resume`，不能代替源码 rethrow。
 
@@ -862,7 +874,7 @@ native exception record 不能跨线程共享或跨挂起保存；可以保存�
 
 生产异常 ABI 只依赖 Itanium Level I，不依赖 C++ EH、RTTI 或 terminate。target profile 明确选择兼容 unwind provider；Linux CRT 的普通退出清理符号不视为 C++ EH。
 
-启用 native C++ 的程序可以在 C++ 一侧使用配套的 C++ EH／RTTI／ABI 运行库，不改变 Scoop 异常对象和 personality 的合同。最终链接须协调两者使用同一兼容 unwind provider；GNU C++ 配置使用配套 libgcc_s 提供 Level I，Darwin 使用所选系统 provider，具体选择见实现规范 2.8。C++ 异常必须在 native 一侧捕获处理后再返回 Scoop；Scoop 不接管 C++ 对象的异常或析构语义。
+启用 native C++ 的程序可以在 C++ 一侧使用配套的 C++ EH／RTTI／ABI 运行库，不改变 Scoop 异常对象和 personality 的合同。最终链接须协调 Level-I unwind provider：Linux GNU C++ 配置使用配套 libgcc_s，Darwin 使用所选系统 provider；Windows Scoop 的 `_Unwind_*` 仅由相应环境的 LLVM libunwind 提供。MSVC C++ EH 仍由 VCRuntime 提供，两种语言 handler 共用系统 SEH，不删除 native C++ 的运行库，也不再引入第二套 `_Unwind_*`。具体链接选择见实现规范 2.8。C++ 异常必须在 native 一侧捕获处理后再返回 Scoop；Scoop 不接管 C++ 对象的异常或析构语义。
 
 除零、强制类型转换、Option unwrap、数组越界等语言异常，由 managed 代码构造实际 core 异常并抛出。native helper 不得把源码异常藏在穿越 FFI frame 的 unwind 中。
 
@@ -886,13 +898,15 @@ native exception record 不能跨线程共享或跨挂起保存；可以保存�
 
 `printStackTrace()` 及未捕获异常报告消费已有快照；语言 trap 则在进入终止路径之前采集当前栈，不分配 Throwable、不建立 exception record。文件查询、符号化与 stdio 等可能阻塞的工作在 NativeSafe 执行；此前对所需快照 bytes 使用现有 pin／借用协议，或复制为 native 数据。进入 NativeSafe 后不能继续跟随未经固定的 managed 引用，不能持有 GC／线程 registry 锁进行符号解析或 I/O。已经在 NativeSafe 的 startup failure 路径，经现有协调读取 rooted failure 并取得稳定输出数据，不回调 managed 打印方法。
 
-符号化延迟到打印，复用同一版本 executable、dSYM 或 ELF 分离调试文件。当前实现复用一个进程生命周期的线程安全 libbacktrace state。快照同时保存 native loader 的变更序号；只有采集、state 初始化和查询前后的模块集合一致时使用该 state 的符号结果。模块加载／卸载后保守保留地址与已复制的模块事实，并明确提示符号缓存不可用，避免将旧地址归给复用地址的新模块。这项序号只服务诊断缓存，不改变 native loader 或 Scoop image 语义。调试文件不可用时输出模块、可用 UUID／build-id、链接地址和原始地址；不能只输出无法事后定位的 `<unknown>`。这项读取属于诊断，不加入构建缓存命中校验。普通符号／文件／输出错误不替换原异常；栈或堆已损坏、内存耗尽等 fatal 情况不承诺完整诊断，仍遵守原终止合同。本节不安装信号处理器，不把外部 SIGSEGV／SIGILL 等转换成 Scoop 异常。
+符号化延迟到打印，复用同一版本 executable、dSYM、ELF 分离调试文件或 Windows PDB。Unix 复用一个进程生命周期的线程安全 libbacktrace state；Windows 复用 DbgHelp session，串行执行全部 DbgHelp 调用，并立即复制返回的符号和行号数据。Windows 模块快照复制 UTF-16 路径、PE preferred image base 和可用 CodeView GUID／age，输出路径使用 UTF-8；模块查询期间持有 loader 模块引用。快照同时保存 native loader 的变更序号；Unix 只有采集、state 初始化和查询前后的模块集合一致时使用该 state 的符号结果。Windows 通过 loader notification 记录卸载序号，回调只递增原子计数；纯新增模块不改变已有模块的地址归属，符号查询遇到尚未登记的模块时刷新 DbgHelp 的模块索引，DbgHelp 自身初始化加载 DLL 也遵守此规则。无法取得变更通知时保留地址诊断。Unix 的模块集合变化或 Windows 的模块卸载之后，保守保留地址与已复制的模块事实，并明确提示符号缓存不可用，避免将旧地址归给复用地址的新模块。这项序号只服务诊断缓存，不改变 native loader 或 Scoop image 语义。调试文件不可用时输出模块、可用 UUID／build-id／CodeView ID、链接地址和原始地址；不能只输出无法事后定位的 `<unknown>`。这项读取属于诊断，不加入构建缓存命中校验。普通符号／文件／输出错误不替换原异常；栈或堆已损坏、内存耗尽等 fatal 情况不承诺完整诊断，仍遵守原终止合同。本节不安装信号处理器，不把外部 SIGSEGV／SIGILL 等转换成 Scoop 异常。
 
 ## 6. 核心类型的运行时后备
 
 后备遵守语言规范的普通 core 声明与实际 exact type，涉及分配时登记 native roots，GC 后重新取得地址。
 
 标准输出后备为普通 C ABI `scoop_rt_stdout_write(const uint8_t *bytes, int64_t length)`、`scoop_rt_stderr_write(const uint8_t *bytes, int64_t length)` 和 `scoop_rt_flush_stdout(void)`，均返回 void。调用方提供非负长度和本次调用期间有效、稳定的字节区间；core 的 String 包装使用作用域借用。实际操作使用 stdout/stderr 的 stdio 缓冲；caller 按普通 C FFI 进入 NativeSafe，后备不访问可移动的 managed 引用，也不回调 Scoop。语言接口及缓冲、并发和错误结果规则见语言规范 14.4。
+
+Windows startup 在进入 coordinator 之前将有效的 stdout／stderr CRT descriptor 设为 binary mode，保留 LF、CR、NUL 等原始字节，不做 text mode 的换行转换。GUI 进程没有标准流 descriptor 时跳过该流，不要求分配 console；有效 descriptor 的模式设置失败报告启动错误并返回 1。该初始化不改变 console code page，也不改变标准流的缓冲与错误返回合同。
 
 String 的公开行为、hash、UTF-8 扫描和编码由普通 core helper 实现；已知表示的读取、分配及复制沿 2.4 的 typed 操作生成。C 仅保留实际消费者需要的共享比较、拼接与有界读取 leaf。普通字符定位 helper 返回 Option<Char> 或 Option<(Long, Long)>，core 对 None 抛出 IndexOutOfBoundsException；内容与已验证边界未变化时直接复用，不调用另一套 C 校验。旧字符定位、解码及复制入口和专用聚合 ABI shim 退役。
 
@@ -908,7 +922,7 @@ Option<Char> 的 storage 为 16 bytes、alignment 8，tag offset 0、Char offset
 
 数组后备使用显式目标 TD 分配和浅复制，保持新对象头、logical size 和 canonical padding。ZST 不复制 payload；不能从来源名称或布局猜测目标 exact type。源码 bounds check 与异常构造由 managed 代码承担，受检 helper 收到越界 index 属于内部 invariant error。
 
-StringBuilder 的数组前缀到 String 复制由 typed StringCopy 生成：普通 core 建立有效范围与 UTF-8 前置条件，分配后从更新的根重新取得源数组。String／数组／稳定原生缓冲到已分配字节数组的复制不包含 safepoint，直接使用本次操作取得的 payload 地址；不保存内部指针、不借用 pin frame，也不重复扫描合法 UTF-8。原生缓冲在外围分配期间必须稳定。目标字节写入为真实副作用，无引用 payload 不需要屏障；替换 builder 的 backing 字段仍使用普通引用屏障。无生产消费者的 `scoop_rt_string_join_parts` 与专用声明退役，runtime ABI contract 更新为 27。
+StringBuilder 的数组前缀到 String 复制由 typed StringCopy 生成：普通 core 建立有效范围与 UTF-8 前置条件，分配后从更新的根重新取得源数组。String／数组／稳定原生缓冲到已分配字节数组的复制不包含 safepoint，直接使用本次操作取得的 payload 地址；不保存内部指针、不借用 pin frame，也不重复扫描合法 UTF-8。原生缓冲在外围分配期间必须稳定。目标字节写入为真实副作用，无引用 payload 不需要屏障；替换 builder 的 backing 字段仍使用普通引用屏障。无生产消费者的 `scoop_rt_string_join_parts` 与专用声明退役，runtime ABI contract 更新为 28；保留 contract 27 的 Windows Unicode 启动与分配视图，不复用原版本兼容指纹。
 
 `scoop_rt_allocation_overflow()` 为无参数、NoGC 后备，在 Long 容量运算溢出时进入 fatal allocation failure，不分配、不回调、不引入新的源码异常。
 
@@ -932,7 +946,7 @@ C FFI 使用目标真实 float/double ABI。数值操作遵守语言规范 11.2.
 
 Float／Double 的最短数字继续由 vendored Ryu 的 `f2s_buffered_n`／`d2s_buffered_n` 产生。普通 core 通过明确的 C ABI GCLeaf 声明调用，只传入 GC-free 标量与足够的栈缓冲；这些同步有界入口不分配、不握手、不回调、不保留指针。core 的普通有界格式 helper 处理小数／科学计数法阈值、至少一位小数、指数符号与零、NaN／Infinity 和负零，再用 typed StringCopy 一次分配并复制实际长度。String 不要求 NUL；旧 `scoop_rt_float_to_string`／`scoop_rt_double_to_string`、C 文本适配和分配包装退役。
 
-JSON／CLI 的现有解析适配继续复用所选 libc 的 `strtof_l`／`strtod_l` 与固定 C numeric locale，按目标精度完整消费输入并检查有限值。长度不足 256 B 时在固定栈缓冲中复制并补 NUL；更长输入使用原有动态缓冲慢路径，两者使用同一解析与错误规则。该阈值只选择存储，不限制可接受输入，不改变舍入、subnormal、signed zero 或下溢语义；动态分配失败仍沿原 fatal 路径。caller 保持原 NativeBorrowed 保活协议，不把整个动态扫描标为 GCLeaf，不改变 locale 的一次性协调规则。
+JSON／CLI 的现有解析适配通过 platform 数值入口复用精确解析器，按目标精度完整消费输入并检查有限值。Darwin／Linux 使用 `strtof_l`／`strtod_l` 与独立 C numeric locale；Windows 使用配套 gdtoa C parser 的 binary32／binary64 入口，固定小数点并直接最近偶数舍入，既不依赖 MSVCRT 的 Double 中转，也不读取或修改 native 调用者的 locale。gdtoa 的共享私有分配缓存经平台 mutex 协调，不改变 GC 协议。长度不足 256 B 时在固定栈缓冲中复制并补 NUL；更长输入使用原有动态缓冲慢路径，两者使用同一解析与错误规则。该阈值只选择存储，不限制可接受输入，不改变舍入、subnormal、signed zero 或下溢语义；动态分配失败仍沿原 fatal 路径。caller 保持原 NativeBorrowed 保活协议，不把整个动态扫描标为 GCLeaf。
 
 ## 7. 程序启动与退出
 

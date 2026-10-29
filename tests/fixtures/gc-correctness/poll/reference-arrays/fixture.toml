@@ -1,6 +1,6 @@
 schema = 1
 name = "reference-array-roots"
-inputs = ["Cone.toml", "main.scoop", "barriers.scoop", "wide.scoop", "snapshots.scoop", "../../../language/callback/native.c", "../../gc-writes/native.c", "../../../../benchmarks/arrays/references/src/kernels.scoop", "../../../compiler-correctness/optimization/lowering/reference-arrays/inspect.py"]
+inputs = ["Cone.toml", "main.scoop", "barriers.scoop", "wide.scoop", "snapshots.scoop", "../../../language/callback/native.c", "../../../language/callback/threading.h", "../../gc-writes/native.c", "../../../../benchmarks/arrays/references/src/kernels.scoop", "../../../compiler-correctness/optimization/lowering/reference-arrays/inspect.py"]
 tools = ["scoop", "cc", "ar", "python"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["poll", "array", "reference", "roots", "barriers", "gc-correctness"]

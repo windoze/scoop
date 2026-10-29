@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include "internal.h"
+#include "stream.h"
 
 #include <inttypes.h>
 
@@ -18,7 +19,7 @@ static void render_frame(const void *bytes, const ScoopTraceFrame *frame,
         const char *path = (const char *)bytes + module->path_offset;
         fprintf(stream, "%s [", path);
         if (module->id_kind != 0) {
-            fputs(module->id_kind == 1 ? "uuid=" : "build-id=", stream);
+            fputs(module->id_kind == 1 ? "uuid=" : module->id_kind == 3 ? "codeview=" : "build-id=", stream);
             for (uint32_t byte = 0; byte < module->id_length; byte++) {
                 fprintf(stream, "%02x", module->id[byte]);
             }
@@ -38,7 +39,7 @@ void scoop_trace_render(const void *bytes, FILE *stream) {
     const ScoopTraceFrame *frames = (const void *)(header + 1);
     const ScoopTraceModule *modules = (const void *)(frames + header->frame_count);
     bool changed = false, unavailable = false;
-    flockfile(stream);
+    scoop_trace_lock_stream(stream);
     for (uint32_t index = 0; index < header->frame_count; index++) {
         const ScoopTraceFrame *frame = &frames[index];
         ScoopTraceSymbols symbols = {0};
@@ -49,7 +50,7 @@ void scoop_trace_render(const void *bytes, FILE *stream) {
         if (symbols.first == NULL) {
             render_frame(bytes, frame, modules, NULL, stream);
         } else {
-            /* libbacktrace supplies inner-to-outer inline records for one PC. */
+            /* A symbolizer may supply several inline records for one PC. */
             for (ScoopTraceSymbol *symbol = symbols.first; symbol != NULL; symbol = symbol->next)
                 render_frame(bytes, frame, modules, symbol, stream);
         }
@@ -72,5 +73,5 @@ void scoop_trace_render(const void *bytes, FILE *stream) {
     } else if (unavailable) {
         fputs("  <symbols unavailable for some frames; preserved module addresses>\n", stream);
     }
-    funlockfile(stream);
+    scoop_trace_unlock_stream(stream);
 }

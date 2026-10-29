@@ -1,0 +1,54 @@
+package scoop.platform.fs
+
+import scoop.platform.system.*
+import scoop.platform.native.NativeFileMetadata
+
+@CLayout
+internal struct NativeFileHandle(val value: ULong)
+
+@CLayout
+internal struct NativeFileOpened(val handle: NativeFileHandle, val error: Int) {
+    fun checked(operation: String, context: OsString? = None): NativeFileHandle {
+        if (error != 0)
+            failOperatingSystem(operation, error, context)
+        return handle
+    }
+}
+
+@CLayout
+internal struct NativeFileResult(val value: Long, val error: Int) {
+    fun checked(operation: String, context: OsString? = None): Long {
+        if (error != 0)
+            failOperatingSystem(operation, error, context)
+        return value
+    }
+}
+
+@CLayout
+internal struct NativeFileMetadataResult(val data: NativeFileMetadata, val error: Int)
+
+@Extern(name = "scoop_platform_handle_read")
+internal fun nativeFileRead(
+    handle: NativeFileHandle,
+    data: Ptr<Byte>,
+    count: Long
+): NativeFileResult
+
+@Extern(name = "scoop_platform_handle_write")
+internal fun nativeFileWrite(
+    handle: NativeFileHandle,
+    data: Ptr<Byte>,
+    count: Long
+): NativeFileResult
+
+@Extern(name = "scoop_platform_handle_close")
+internal fun nativeFileClose(handle: NativeFileHandle): NativeFileResult
+
+@Extern(name = "scoop_platform_handle_duplicate")
+internal fun nativeFileDuplicate(handle: NativeFileHandle): NativeFileOpened
+
+@Extern(name = "scoop_platform_handle_standard")
+internal fun nativeFileStandard(stream: Int): NativeFileOpened
+
+@Extern(name = "scoop_platform_handle_metadata")
+internal fun nativeFileMetadata(handle: NativeFileHandle): NativeFileMetadataResult

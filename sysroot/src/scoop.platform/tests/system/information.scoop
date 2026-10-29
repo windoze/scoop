@@ -6,7 +6,14 @@ import scoop.test.*
 private class SystemInformationTest {
     @Test
     fun `system information reports the target and actual OS values`() {
-        assertTrue(operatingSystem == OperatingSystem.Darwin || operatingSystem == OperatingSystem.Linux)
+        assertTrue(
+            operatingSystem ==
+                OperatingSystem.Darwin ||
+                operatingSystem ==
+                OperatingSystem.Linux ||
+                operatingSystem ==
+                OperatingSystem.Windows
+        )
         assertTrue(architecture == Architecture.Aarch64 || architecture == Architecture.X86_64)
         assertTrue(systemVersion().charLength > 0L)
         assertTrue(logicalProcessorCount > 0L)

@@ -28,7 +28,7 @@ def aliases(output, names):
 
 
 def load(names, binary, tools=None):
-    nm = str(tools / "llvm-nm") if tools else "llvm-nm"
+    nm = str(tools / "llvm-nm") if tools else "scoop-llvm-nm"
     result = subprocess.run(
         [nm, "--defined-only", "--format=posix", str(binary)],
         capture_output=True,

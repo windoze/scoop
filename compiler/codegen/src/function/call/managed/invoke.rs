@@ -63,7 +63,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     abi_signature: apply_scoop_abi_attributes.then_some(signature),
                     structs: self.structs,
                     enums: self.enums,
-                    managed_address_space: self.managed_address_space,
+                    profile: self.profile,
                 },
             )?,
             CallProtocol::NoGc => {
@@ -101,7 +101,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         self.context,
                         self.structs,
                         self.enums,
-                        self.managed_address_space,
+                        self.profile,
                         call,
                         signature,
                     )?;

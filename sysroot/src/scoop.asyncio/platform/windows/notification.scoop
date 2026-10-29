@@ -1,0 +1,10 @@
+package scoop.asyncio
+
+import scoop.asyncio.host.EventLoopNotification
+
+@Unsafe
+internal fun loopNotification(loop: Ptr<Unit>): EventLoopNotification =
+    EventLoopNotification.WindowsEvent(nativeLoopEvent(loop))
+
+@Extern(name = "scoop_io_loop_event")
+private fun nativeLoopEvent(loop: Ptr<Unit>): Ptr<Unit>

@@ -1,0 +1,54 @@
+package scoop.platform.system
+
+/** The operating-system family selected by the compilation target. */
+public enum OperatingSystem {
+    /** The Darwin operating-system family. */
+    Darwin,
+    /** The Linux operating-system family. */
+    Linux,
+    /** The Windows operating-system family. */
+    Windows
+}
+
+/** The processor architecture selected by the compilation target. */
+public enum Architecture {
+    /** The 64-bit Arm architecture. */
+    Aarch64,
+    /** The 64-bit x86 architecture. */
+    X86_64
+}
+
+/** The operating-system family of the compiled target. */
+public val operatingSystem: OperatingSystem = currentOperatingSystem()
+
+/** The architecture of the compiled target. */
+public val architecture: Architecture = currentArchitecture()
+
+private fun currentOperatingSystem(): OperatingSystem {
+    @Unsafe
+    {
+        return when (nativeOperatingSystem()) {
+            case 0 -> OperatingSystem.Darwin
+            case 1 -> OperatingSystem.Linux
+            else -> OperatingSystem.Windows
+        }
+    }
+}
+
+private fun currentArchitecture(): Architecture {
+    @Unsafe
+    {
+        return if (nativeArchitecture() == 0)
+            Architecture.Aarch64
+        else
+            Architecture.X86_64
+    }
+}
+
+@GCLeaf
+@Extern(name = "scoop_platform_operating_system")
+private fun nativeOperatingSystem(): Int
+
+@GCLeaf
+@Extern(name = "scoop_platform_architecture")
+private fun nativeArchitecture(): Int

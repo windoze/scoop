@@ -1,6 +1,6 @@
 package scoop.platform.process
 
-import scoop.platform.fs.File
+import scoop.platform.fs.*
 import scoop.platform.io.*
 import scoop.platform.system.*
 
@@ -15,26 +15,48 @@ public enum ExitStatus {
     /**
      * The process terminated because of this native signal.
      */
-    Signaled(val signal: Int) }
+    Signaled(val signal: Int)
+}
+
 /**
  * Collected stdout, stderr, and final status from process communication.
  */
-public struct ProcessOutput(val stdout: Array<Byte>, val stderr: Array<Byte>, val status: ExitStatus)
+public struct ProcessOutput(
+    val stdout: Array<Byte>,
+    val stderr: Array<Byte>,
+    val status: ExitStatus
+)
 
 /**
  * An owned child process and any untaken pipe endpoints. Close closes retained pipes and waits for
  * termination; it does not automatically kill a running process.
  */
-public class ChildProcess internal constructor(inputPipe: Boolean, outputPipe: Boolean, errorPipe: Boolean) : Closeable {
-    private var process: Int = -1
+public class ChildProcess internal constructor(
+    inputPipe: Boolean,
+    outputPipe: Boolean,
+    errorPipe: Boolean
+): Closeable {
+    private var process: NativeProcessHandle = NativeProcessHandle(ULong.MAX_VALUE)
     private var result: ExitStatus? = None
     private var waitFailure: Throwable? = None
     private var closed: Boolean = false
     private val active: AtomicLong = AtomicLong(0L)
     private val configured: Array<Boolean> = [inputPipe, outputPipe, errorPipe]
-    private var input: PipeSink? = if (inputPipe) Some(PipeSink(File.newOwner())) else None
-    private var output: PipeSource? = if (outputPipe) Some(PipeSource(File.newOwner())) else None
-    private var error: PipeSource? = if (errorPipe) Some(PipeSource(File.newOwner())) else None
+    private var input: PipeSink? =
+        if (inputPipe)
+            Some(PipeSink(File.newOwner()))
+        else
+            None
+    private var output: PipeSource? =
+        if (outputPipe)
+            Some(PipeSource(File.newOwner()))
+        else
+            None
+    private var error: PipeSource? =
+        if (errorPipe)
+            Some(PipeSource(File.newOwner()))
+        else
+            None
     /**
      * A borrowed view of the child's input pipe, or None when it is not available.
      */
@@ -52,28 +74,40 @@ public class ChildProcess internal constructor(inputPipe: Boolean, outputPipe: B
      */
     public val isClosed: Boolean get() = closed
 
-    internal fun adopt(descriptors: MutableArray<Int>) {
-        process = descriptors[0L]
-        input?.file?.adoptDescriptor(descriptors[1L])
-        output?.file?.adoptDescriptor(descriptors[2L])
-        error?.file?.adoptDescriptor(descriptors[3L])
+    internal fun adopt(pid: NativeProcessHandle, handles: MutableArray<NativeFileHandle>) {
+        process = pid
+        input?.file?.adoptHandle(handles[0L])
+        output?.file?.adoptHandle(handles[1L])
+        error?.file?.adoptHandle(handles[2L])
     }
 
     /**
      * Transfers ownership of the child's input pipe to the caller and removes it from automatic
      * child cleanup.
      */
-    public fun takeStdin(): PipeSink? { val taken = input; input = None; return taken }
+    public fun takeStdin(): PipeSink? {
+        val taken = input;
+        input = None;
+        return taken
+    }
     /**
      * Transfers ownership of the child's output pipe to the caller and removes it from automatic
      * child cleanup.
      */
-    public fun takeStdout(): PipeSource? { val taken = output; output = None; return taken }
+    public fun takeStdout(): PipeSource? {
+        val taken = output;
+        output = None;
+        return taken
+    }
     /**
      * Transfers ownership of the child's error pipe to the caller and removes it from automatic
      * child cleanup.
      */
-    public fun takeStderr(): PipeSource? { val taken = error; error = None; return taken }
+    public fun takeStderr(): PipeSource? {
+        val taken = error;
+        error = None;
+        return taken
+    }
 
     /**
      * Waits for termination and returns the final status.
@@ -84,48 +118,90 @@ public class ChildProcess internal constructor(inputPipe: Boolean, outputPipe: B
      */
     public fun tryWait(): ExitStatus? = observe(true)
 
-    private fun <R> withProcess(block: (Int) -> R): R {
+    private fun <R> withProcess(block: (NativeProcessHandle) -> R): R {
         active.fetchAdd(1L, MemoryOrder.Relaxed)
-        try { return block(process) }
-        finally { active.fetchSub(1L, MemoryOrder.Relaxed) }
+        try {
+            return block(process)
+        }
+        finally {
+            active.fetchSub(1L, MemoryOrder.Relaxed)
+        }
     }
 
     private fun observe(noHang: Boolean): ExitStatus? {
-        when (waitFailure) { case Some(failure) -> throw failure; case None -> {} }
-        when (result) { case Some(_) -> return result; case None -> {} }
-        @Unsafe {
-            val (status, code) = withProcess { pid ->
-                @Unsafe { return@withProcess nativeWait(pid, noHang) }
-            }
-            if (status == -2L) return None
+        when (waitFailure) {
+            case Some(failure) -> throw failure;
+            case None -> {}
+        }
+        when (result) {
+            case Some(_) -> return result;
+            case None -> {}
+        }
+        @Unsafe
+        {
+            val observed =
+                withProcess {
+                    pid -> @Unsafe
+                    {
+                        return@withProcess nativeWait(pid, noHang)
+                    }
+                }
+            val status = observed.status
+            if (status == -2L)
+                return None
             if (status < 0L) {
-                val error = NativeError(NativeErrorDomain.PosixErrno, code)
+                val error = processError(observed.error)
                 val failure = PlatformException("wait", error.kind, Some(error))
-                if (status == -3L) { process = -1; waitFailure = Some(failure) }
+                if (status == -3L) {
+                    process = NativeProcessHandle(ULong.MAX_VALUE);
+                    waitFailure = Some(failure)
+                }
                 throw failure
             }
-            process = -1
-            result = Some(if (status < 256L) ExitStatus.Exited(status.toInt())
-                          else ExitStatus.Signaled((status - 256L).toInt()))
+            process = NativeProcessHandle(ULong.MAX_VALUE)
+            result =
+                Some(
+                    if (operatingSystem == OperatingSystem.Windows || status < 256L)
+                        ExitStatus.Exited(status.toInt())
+                    else
+                        ExitStatus.Signaled((status - 256L).toInt())
+                )
         }
         return result
     }
 
     /**
-     * Requests ordinary process termination.
+     * Requests SIGTERM on POSIX or TerminateProcess with exit code 1 on Windows.
      */
-    public fun terminate() { signal(false) }
+    public fun terminate() {
+        signal(false)
+    }
     /**
      * Requests forced process termination.
      */
-    public fun kill() { signal(true) }
+    public fun kill() {
+        signal(true)
+    }
     private fun signal(force: Boolean) {
-        if (process < 0) return
-        @Unsafe {
-            val (status, code) = withProcess { pid ->
-                @Unsafe { return@withProcess nativeSignal(pid, force) }
-            }
-            checkNativeStatus(status, code, if (force) "kill" else "terminate")
+        if (process.value == ULong.MAX_VALUE)
+            return
+        @Unsafe
+        {
+            val code =
+                withProcess {
+                    pid -> @Unsafe
+                    {
+                        return@withProcess nativeSignal(pid, force)
+                    }
+                }
+            if (code != 0)
+                failOperatingSystem(
+                    if (force)
+                        "kill"
+                    else
+                        "terminate",
+                    code
+                )
         }
     }
 
@@ -134,32 +210,42 @@ public class ChildProcess internal constructor(inputPipe: Boolean, outputPipe: B
      * collected bytes and status.
      */
     public fun communicate(input: List<Byte>? = None): ProcessOutput {
-        if (closed) throw IllegalStateException(Some("process is closed"))
+        if (closed)
+            throw IllegalStateException(Some("process is closed"))
         when (input) {
-            case Some(_) -> if (!configured[0L]) throw IllegalArgumentException(Some("input requires stdin pipe"))
+            case Some(_) -> if (!configured[0L])
+                throw IllegalArgumentException(Some("input requires stdin pipe"))
             case None -> {}
         }
-        if ((configured[0L] && (this.input?.isClosed ?: true)) ||
-            (configured[1L] && (output?.isClosed ?: true)) ||
-            (configured[2L] && (error?.isClosed ?: true))) {
+        if (
+            (configured[0L] && (this.input?.isClosed ?: true)) ||
+                (configured[1L] && (output?.isClosed ?: true)) ||
+                (configured[2L] && (error?.isClosed ?: true))
+        ) {
             throw IllegalStateException(Some("process pipe was already taken or closed"))
         }
-        val snapshot: Array<Byte>? = when (input) {
-            case Some(bytes) -> Some(bytes.toArray())
-            case None -> None
-        }
-        val pipes = ProcessPipes(takeStdin(), takeStdout(), takeStderr())
-        try {
-            val (stdout, stderr) = pipes.transfer(snapshot)
-            val status = wait()
-            return ProcessOutput(stdout, stderr, status)
-        } catch (failure: Throwable) {
-            var reported = failure
-            try { pipes.close() } catch (cleanup: Throwable) { reported = ResourceUseException(reported, cleanup) }
-            try { kill() } catch (cleanup: Throwable) { reported = ResourceUseException(reported, cleanup) }
-            try { wait() } catch (cleanup: Throwable) { reported = ResourceUseException(reported, cleanup) }
-            throw reported
-        }
+        val snapshot: Array<Byte>? =
+            when (input) {
+                case Some(bytes) -> Some(bytes.toArray())
+                case None -> None
+            }
+        val sink = takeStdin()
+        val source = takeStdout()
+        val errors = takeStderr()
+        val transferred =
+            try {
+                transferPipes(sink, source, errors, snapshot)
+            } catch (failure: Throwable) {
+                var reported = failure
+                try {
+                    wait()
+                } catch (cleanup: Throwable) {
+                    reported = ResourceUseException(reported, cleanup)
+                }
+                throw reported
+            }
+        val(stdout, stderr) = transferred
+        return ProcessOutput(stdout, stderr, wait())
     }
 
     /**
@@ -167,30 +253,54 @@ public class ChildProcess internal constructor(inputPipe: Boolean, outputPipe: B
      * endpoints remain the caller's responsibility.
      */
     public override fun close() {
-        if (closed) return
-        if (active.load(MemoryOrder.Relaxed) != 0L) throw IllegalStateException(Some("process operation is active"))
+        if (closed)
+            return
+        if (active.load(MemoryOrder.Relaxed) != 0L)
+            throw IllegalStateException(Some("process operation is active"))
         var failure: Throwable? = None
         val endpoints: Array<File?> = [takeStdin()?.file, takeStdout()?.file, takeStderr()?.file]
         for (endpoint in endpoints) {
-            try { endpoint?.close() }
-            catch (error: Throwable) { failure = Some(combineProcessFailure(failure, error)) }
+            try {
+                endpoint?.close()
+            }
+            catch (error: Throwable) {
+                failure = Some(combineProcessFailure(failure, error))
+            }
         }
-        try { wait(); closed = true }
-        catch (error: Throwable) { failure = Some(combineProcessFailure(failure, error)) }
-        when (failure) { case Some(error) -> throw error; case None -> {} }
+        try {
+            wait();
+            closed = true
+        }
+        catch (error: Throwable) {
+            failure = Some(combineProcessFailure(failure, error))
+        }
+        when (failure) {
+            case Some(error) -> throw error;
+            case None -> {}
+        }
     }
 
-    release { if (process >= 0) { @Unsafe { nativeAbandon(process) } } }
+    release {
+        if (process.value != ULong.MAX_VALUE) {
+            @Unsafe
+            {
+                nativeAbandon(process)
+            }
+        }
+    }
 }
 
-internal fun combineProcessFailure(previous: Throwable?, next: Throwable): Throwable = when (previous) {
-    case Some(error) -> ResourceUseException(error, next)
-    case None -> next
-}
+internal fun combineProcessFailure(previous: Throwable?, next: Throwable): Throwable =
+    when (previous) {
+        case Some(error) -> ResourceUseException(error, next)
+        case None -> next
+    }
 
-@Extern(name = "scoop_platform_process_wait", captureErrno = true)
-private fun nativeWait(process: Int, noHang: Boolean): (Long, Int)
-@Extern(name = "scoop_platform_process_signal", captureErrno = true)
-private fun nativeSignal(process: Int, force: Boolean): (Int, Int)
+@Extern(name = "scoop_platform_process_wait")
+private fun nativeWait(process: NativeProcessHandle, noHang: Boolean): NativeProcessWait
+
+@Extern(name = "scoop_platform_process_signal")
+private fun nativeSignal(process: NativeProcessHandle, force: Boolean): Int
+
 @Extern(name = "scoop_platform_process_abandon")
-private fun nativeAbandon(process: Int)
+private fun nativeAbandon(process: NativeProcessHandle)

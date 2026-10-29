@@ -9,7 +9,10 @@ pub(super) fn find(
     let name = key.library().as_str();
     let linux = matches!(profile, ValidatedFinalLinkProfile::Linux(_));
     let dynamic = matches!(profile, ValidatedFinalLinkProfile::Linux(p) if p.mode() == scoop_toolchain::LinkMode::Dynamic);
-    let suffixes = if linux {
+    let windows = matches!(profile, ValidatedFinalLinkProfile::Windows(_));
+    let suffixes = if windows {
+        windows::suffixes(key)?
+    } else if linux {
         match key.kind() {
             NativeLibraryKind::TargetDefault => {
                 let mut files = vec![
@@ -86,6 +89,9 @@ pub(super) fn find(
         }
         let file = read(&path, kind, profile, false)
             .map_err(|err| error(format!("native candidate {}: {err}", path.display())))?;
+        if windows && !windows::matches_kind(&file, key.kind()) {
+            continue;
+        }
         locators.push(path);
         if candidates
             .get(&file.id)

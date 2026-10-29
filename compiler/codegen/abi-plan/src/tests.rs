@@ -130,3 +130,66 @@ fn canonical_unknown_target_cannot_fall_back_to_a_procedure_abi() {
         matches!(plan(&input(target)), Err(AbiPlanError::UnsupportedTarget(id)) if id == UNKNOWN)
     );
 }
+
+#[test]
+fn win64_interface_result_is_scanned_sret_and_arguments_remain_two_pointers() {
+    let mut input = input(scoop_target_data::DARWIN_AARCH64);
+    let value = AbiValue::new(
+        LirType::Interface,
+        AbiNonZeroLayout::new(16, 8).unwrap(),
+        RefScan::References(vec![0]),
+    )
+    .unwrap();
+    let interface = input
+        .values
+        .alloc(AbiPlanningValue::Interface(value.clone()));
+    let signature = scoop::classify(
+        &input,
+        &ScoopAbiRequest {
+            arguments: vec![interface; 3],
+            result: LogicalAbiResult::Value(interface),
+        },
+        ProcedureAbi::Win64,
+    )
+    .unwrap();
+    assert_eq!(signature.result(), &AbiReturn::Indirect(value));
+    assert_eq!(
+        signature.result().scan(),
+        Some(&RefScan::References(vec![0]))
+    );
+    assert_eq!(signature.physical_parameter_count(), 7);
+    for argument in signature.arguments() {
+        let AbiArgument::Direct(AbiDirectValue::DirectParts(parts)) = argument else {
+            panic!("interface arguments keep their explicit pointer carriers");
+        };
+        assert_eq!(parts.coercion(), AbiCoercion::interface());
+    }
+    assert_eq!(
+        signature.argument_location(2),
+        Some(AbiArgumentLocation::Parts { first: 5, count: 2 })
+    );
+}
+
+#[test]
+fn win64_c_scalars_and_indirect_values_use_the_native_convention() {
+    for kind in [
+        IntegerKind::SIGNED_8,
+        IntegerKind::UNSIGNED_8,
+        IntegerKind::SIGNED_16,
+        IntegerKind::UNSIGNED_16,
+    ] {
+        assert_eq!(
+            c_integer_extension(ProcedureAbi::Win64, &CType::Integer(kind)),
+            CIntegerExtension::None
+        );
+    }
+    assert_eq!(
+        c_integer_extension(ProcedureAbi::Win64, &CType::Boolean),
+        CIntegerExtension::Zero
+    );
+    let large = storage(LirType::Aggregate(vec![LirType::I64; 3]), 24);
+    assert_eq!(
+        c_indirect_passing(ProcedureAbi::Win64, &large),
+        CIndirectPassing::CallerCopy
+    );
+}

@@ -6,7 +6,7 @@
 
 `scoop:scoop.terminal:0.1.0` 是普通 library Cone，显式依赖 core、std、platform，测试依赖 scoop.test，不默认导入。Scoop 实现命令、数据模型和协议，C11 shim 仅承担实际 OS／ABI 操作。生产代码不依赖 Rust crossterm，不新增编译器角色或 runtime ABI。
 
-本期支持 `aarch64-apple-darwin`、`x86_64-unknown-linux-gnu`、`x86_64-unknown-linux-musl`。公共 API 不暴露 fd、termios 或 OS bitmask；平台实现按普通源码选择分开。Windows 留待工具链与 platform 实际支持后加入，本期没有 Windows 占位分支。
+支持 `aarch64-apple-darwin`、`x86_64-unknown-linux-gnu`、`x86_64-unknown-linux-musl`，并按 [Windows targets 设计](../windows-targets/DESIGN.md)接入三个 Windows x64 环境。公共 API 不暴露 fd、termios、HANDLE 或 OS bitmask；平台实现按普通源码选择分开。Windows 的实际验收范围见对应实施记录。
 
 接口遵循[库 API 风格](SCOOP-API-STYLE.md)。兼容基线为 [crossterm 0.29.0](https://docs.rs/crossterm/0.29.0/crossterm/)，采用其终端序列和事件概念，按 Scoop 类型与资源规则表达。上游许可证随库保留。
 
@@ -224,6 +224,23 @@ close 在恢复失败后仍尝试关闭其他自有资源；消费句柄后会�
 显式 close／use 是终端恢复和资源释放的必要入口；本会话不注册 GC／atexit
 恢复钩子，不让 GC 线程执行 tcsetattr 或阻塞等待。
 
+Windows 的 isTerminal 对调用时的 GetStdHandle 使用 GetConsoleMode，不把普通
+文件／管道或缺失标准句柄视为 console。会话独立打开不可继承的 CONIN$／CONOUT$，
+即使标准流已重定向也使用当前 console；没有 console 时报告实际 Win32 错误，
+不调用 AllocConsole／AttachConsole。每进程独占与操作串行规则保持，重复打开
+报告 ERROR_BUSY。尺寸使用当前可见 viewport 的行列，像素字段为 0。
+
+打开时保存实际输入／输出模式和输出 code page，启用 VT input、窗口尺寸通知、
+processed／VT output，并将输出 code page 设为 UTF-8；输入使用宽字符记录，
+不改变 input code page。首次 enableRawMode 另保存调用时实际输入模式，关闭
+line／echo／processed input 与 quick edit，重复启用不覆盖快照；disableRawMode
+恢复该快照。close 继续尝试恢复打开时的模式和输出 code page、关闭两个 HANDLE，
+保留首个原生错误；打开中途失败也撤销已成功的修改。这些 OS 设置由同一个 console
+的进程共享，应用不得在会话存续期间让另一个读取者或程序竞争修改。
+
+会话的字节输出直接使用 UTF-8 code page 下的 WriteFile，允许序列跨写入分片；
+普通标准流仍遵守 platform 的原始字节合同，不为 isTerminal 隐式切换编码或模式。
+
 ### 7.1 同步输入与 resize
 
 TerminalSession 的 `read(): Event` 等待下一项完整用户事件；
@@ -235,6 +252,21 @@ poll 为 true 时保留该事件，随后同一串行读取者的 read 直接消
 read／poll 不隐式启用 raw；立即逐键输入需要调用方使用 raw 作用域。传给 parser
 的 raw 标志跟随会话的 raw 所有权。所有输入、解析状态及用户事件归同一会话，
 并发 read／poll／close 触发第 7 节的操作冲突错误。
+
+Windows 使用 ReadConsoleInputW 接收 console 已生成的 VT 字符及 resize 记录；
+该记录 API 不执行 ReadConsole 的行编辑／echo，因此非 raw 会话也可逐键读取，
+但 Ctrl+C 等 processed-input 行为仍由当前 OS 模式决定。raw 的作用包含关闭这些
+系统处理；不在库内另建 Windows 行编辑器。UTF-16 字符按完整 surrogate pair 转成
+UTF-8，保留跨记录的高 surrogate 与重复次数，未配对单元交给既有严格解析规则报告。
+普通按键释放和非字符记录不制造空输入／EOF；VK_MENU 释放记录携带的 Unicode
+字符仍作为文本接收，这包括 Alt 数字输入和 ConPTY 交付的补充平面字符。
+等待使用 console HANDLE 与实际剩余时长，
+零等待只消费当前一批记录，不建立轮询线程。WINDOW_BUFFER_SIZE_EVENT 触发重新
+查询当前 viewport，沿已有行列去重规则交付 Resize；此通知可合并。
+
+Windows 依据：[console modes](https://learn.microsoft.com/en-us/windows/console/setconsolemode)、
+[ReadConsoleInput](https://learn.microsoft.com/en-us/windows/console/readconsoleinput)与
+[console VT 输入转换](https://github.com/microsoft/terminal/blob/main/src/host/inputBuffer.cpp)。
 
 等待使用单调时钟的总截止时间，并取剩余总时间与 Escape 剩余时间的较小值。
 非阻塞读取和 signal 中断不会重新开始计时。零等待可以处理当前可读数据，但

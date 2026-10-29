@@ -19,7 +19,7 @@ struct IndexObject {
     id: RuntimeObjectId,
     digest: Digest256,
     info: NativeObjectInfo,
-    locator: scoop_protocol::DecodedHostPathCarrier,
+    locator: String,
 }
 
 impl RuntimeObjectSet {
@@ -38,7 +38,7 @@ impl RuntimeObjectSet {
             ))
         })?;
         let index: Index = decode_canonical(&bytes).map_err(error)?;
-        if index.schema != 6
+        if index.schema != 7
             || index.target != encode(&target.wire_id()).map_err(error)?
             || index.abi.as_array() != RuntimeAbiContract.fingerprint().map_err(error)?.as_array()
             || toolchain.contract().target() != &target.wire_id()
@@ -55,17 +55,7 @@ impl RuntimeObjectSet {
             .objects
             .into_iter()
             .map(|record| {
-                let relative = record
-                    .locator
-                    .validate()
-                    .map_err(error)?
-                    .to_path_buf()
-                    .map_err(error)?;
-                if relative.is_absolute() {
-                    return Err(error(
-                        "runtime index object path must be relative to the index",
-                    ));
-                }
+                let relative = object_path(&record.locator)?;
                 Ok(RuntimeObject {
                     id: record.id,
                     digest: record.digest,
@@ -101,18 +91,25 @@ impl RuntimeObjectSet {
                     pathdiff::diff_paths(path, &absolute_directory).ok_or_else(|| {
                         error("runtime object and index must use the same filesystem root")
                     })?;
-                let locator =
-                    scoop_protocol::HostPathCarrier::from_path(&relative).map_err(error)?;
+                let locator = relative
+                    .to_str()
+                    .ok_or_else(|| error("runtime index object path must be UTF-8"))?;
+                let locator = if cfg!(windows) {
+                    locator.replace('\\', "/")
+                } else {
+                    locator.to_owned()
+                };
+                object_path(&locator)?;
                 Ok(IndexObject {
                     id: object.id,
                     digest: object.digest,
                     info: object.info.clone(),
-                    locator: locator.into(),
+                    locator,
                 })
             })
             .collect::<Result<_, LinkError>>()?;
         let index = Index {
-            schema: 6,
+            schema: 7,
             target: encode(&self.target.wire_id()).map_err(error)?,
             toolchain: self.toolchain.clone(),
             configuration: self.configuration.clone(),
@@ -128,6 +125,15 @@ impl RuntimeObjectSet {
         std::fs::write(&path, encode(&index).map_err(error)?).map_err(error)?;
         Ok(path)
     }
+}
+
+fn object_path(locator: &str) -> Result<&Path, LinkError> {
+    if locator.is_empty() || locator.starts_with('/') || locator.contains(['\\', ':', '\0']) {
+        return Err(error(
+            "runtime index object path must be a relative UTF-8 path with / separators",
+        ));
+    }
+    Ok(Path::new(locator))
 }
 
 impl WireEncode for Index {
@@ -182,7 +188,7 @@ impl WireEncode for IndexObject {
         self.digest.encode(e)?;
         self.info.encode_fields(e, 3)?;
         e.field(2)?;
-        self.locator.encode(e)
+        e.text(&self.locator)
     }
 }
 impl WireDecode for IndexObject {
@@ -196,12 +202,51 @@ impl WireDecode for IndexObject {
                 NativeObjectInfo::decode_fields(d, 3)?,
             ))
         })?;
-        let locator = d.field(2, scoop_protocol::DecodedHostPathCarrier::decode)?;
+        let locator = d.field(2, |d| Ok(d.text()?.to_owned()))?;
         Ok(Self {
             id,
             digest,
             info,
             locator,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn object_locator_wire_format_is_host_independent_utf8() {
+        let record = IndexObject {
+            id: RuntimeObjectId(Digest256::from_array([0; 32])),
+            digest: Digest256::from_array([1; 32]),
+            info: NativeObjectInfo {
+                definitions: BTreeMap::new(),
+                requirements: BTreeSet::new(),
+            },
+            locator: "../objects/根 file.o".into(),
+        };
+        let bytes = encode(&record).unwrap();
+        // Field 2 is a 21-byte CBOR text string, with no host encoding tag.
+        assert!(bytes.ends_with(b"\x02\x75../objects/\xe6\xa0\xb9 file.o"));
+        let decoded: IndexObject = decode_canonical(&bytes).unwrap();
+        assert_eq!(
+            object_path(&decoded.locator).unwrap(),
+            Path::new("..").join("objects").join("根 file.o")
+        );
+    }
+
+    #[test]
+    fn object_locators_reject_host_specific_or_absolute_spellings() {
+        for locator in [
+            "",
+            "/objects/a.o",
+            "C:/a.o",
+            "objects\\a.o",
+            "objects/a\0.o",
+        ] {
+            assert!(object_path(locator).is_err(), "{locator:?}");
+        }
     }
 }

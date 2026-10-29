@@ -56,6 +56,7 @@ impl ParsedConeManifest {
                 .collect(),
             sources: document.sources.clone(),
             native: document.native.clone(),
+            windows: document.windows.clone(),
         };
         let locators = DependencyLocatorTable(
             declared

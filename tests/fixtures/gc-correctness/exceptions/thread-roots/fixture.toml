@@ -2,12 +2,12 @@ schema = 1
 name = "exception-thread-roots"
 inputs = ["program"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["exceptions", "threads", "gc-correctness", "moving-gc"]
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "--enable-gc-stress", "build", {each = "${link_args}"}, "${fixture}/program", "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+argv = ["${scoop}", "--enable-gc-stress", "build", {each = "${link_args}"}, "${fixture}/program", "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--lockfile", "${work}/Cone.lock", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

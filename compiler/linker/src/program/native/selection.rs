@@ -1,7 +1,7 @@
 use super::*;
 use crate::NativeSymbolBinding;
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests;
 
 mod candidates;
@@ -9,6 +9,7 @@ pub(super) use candidates::{Candidate, candidate};
 
 pub(super) fn include(
     inputs: &mut ProgramInputs<'_>,
+    runtime: &RuntimeObjectSet,
     id: NativeObjectId,
     reason: &str,
 ) -> Result<(), LinkError> {
@@ -23,6 +24,15 @@ pub(super) fn include(
             )));
         }
         if let Some(previous) = inputs.definitions.get(symbol) {
+            if matches!(previous, DefinitionOwner::Runtime(_))
+                && inputs.target.native_object_format() == scoop_lir::NativeObjectFormat::Coff64
+            {
+                let old = runtime.symbols().definitions[symbol];
+                let new = index.definitions[symbol];
+                if old.binding == NativeSymbolBinding::Weak && old == new {
+                    continue;
+                }
+            }
             if let DefinitionOwner::Native(previous) = previous {
                 let (previous_index, _) = inputs.native.object(*previous)?;
                 let old = previous_index.definitions[symbol];
@@ -71,14 +81,30 @@ pub(super) fn include(
 pub(super) fn resolve(
     inputs: &mut ProgramInputs<'_>,
     declarations: &BTreeMap<String, Declarations<'_>>,
+    runtime: &RuntimeObjectSet,
 ) -> Result<(), LinkError> {
     let mut pending = inputs.requirements.clone();
     while let Some(symbol) = pending.pop_first() {
         if inputs.linker_defined(&symbol) {
             continue;
         }
+        let source_symbol = if inputs.target.native_object_format()
+            == scoop_lir::NativeObjectFormat::Coff64
+            && !declarations.contains_key(&symbol)
+            && let Some(native) = symbol.strip_prefix("__imp_")
+            && declarations.get(native).is_some_and(|declaration| {
+                matches!(
+                    declaration.contract,
+                    NativeExternalContract::ReadOnlyData { .. }
+                        | NativeExternalContract::MutableData { .. }
+                )
+            }) {
+            native
+        } else {
+            symbol.as_str()
+        };
         let binding = declarations
-            .get(&symbol)
+            .get(source_symbol)
             .map_or(NativeLibraryBinding::DefaultNativeNamespace, |decl| {
                 decl.contract.library()
             });
@@ -87,19 +113,19 @@ pub(super) fn resolve(
             .get(&symbol)
             .map(|origins| origins.join(", "))
             .unwrap_or_else(|| "program startup/linker support".into());
-        let candidate = candidate(&symbol, binding, inputs)
+        let candidate = candidate(source_symbol, binding, inputs)
             .map_err(|err| error(format!("{err}; reference chain: {symbol} <- {origin}")))?;
         match candidate {
             Candidate::Object(id) => {
                 if !inputs.native.selected.contains_key(&id) {
-                    include(inputs, id, &format!("{symbol} <- {origin}"))?;
+                    include(inputs, runtime, id, &format!("{symbol} <- {origin}"))?;
                     let (index, _) = inputs.native.object(id)?;
                     pending.extend(index.requirements.iter().cloned());
                 }
             }
             Candidate::Definition => continue,
             Candidate::Dynamic(binding) => {
-                for requirement in inputs.namespace.bind(symbol.clone(), binding)? {
+                for requirement in inputs.namespace.bind(source_symbol.to_owned(), binding)? {
                     inputs.requirements.insert(requirement.clone());
                     inputs
                         .requirement_origins

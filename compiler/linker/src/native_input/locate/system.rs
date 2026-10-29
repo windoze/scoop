@@ -11,6 +11,9 @@ pub(super) fn find(
     match profile {
         ValidatedFinalLinkProfile::Darwin(_) => darwin(key, profile, observed),
         ValidatedFinalLinkProfile::Linux(linux) => linux_library(key, profile, linux.mode()),
+        ValidatedFinalLinkProfile::Windows(windows) => {
+            super::windows::system(key, profile, windows, observed)
+        }
     }
 }
 

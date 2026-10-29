@@ -51,6 +51,9 @@ impl WireDecode for ArtifactManifestSummaryV1 {
                 scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
                 scoop_target_data::LINUX_X86_64_GNU_LLVM_22_1,
                 scoop_target_data::LINUX_X86_64_MUSL_LLVM_22_1,
+                scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_LLVM_22_1,
+                scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_LLVM_22_1,
+                scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_LLVM_22_1,
             ]
             .into_iter()
             .find(|target| target.target().id().canonical_name() == name)

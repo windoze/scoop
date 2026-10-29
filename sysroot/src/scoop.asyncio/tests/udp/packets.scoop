@@ -94,7 +94,7 @@ private class AsyncUdpPacketTest {
                     fail(Some("oversized packet accepted"))
                 }
                 catch (error: PlatformException) {
-                    assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+                    assertTrue(error.nativeError!!.domain == testSocketErrorDomain())
                     assertTrue(error.nativeError!!.code > 0)
                 }
                 assertEquals(0L, bytes.readPosition)

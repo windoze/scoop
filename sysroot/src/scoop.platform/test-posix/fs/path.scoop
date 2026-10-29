@@ -1,0 +1,84 @@
+package scoop.platform.fs
+
+import scoop.platform.system.OsString
+import scoop.test.*
+
+@Test
+private class PosixPathTest {
+    @Test
+    fun `path names and parents preserve lexical bytes`() {
+        val path = Path.fromString("/alpha//beta/")
+        assertTrue(path.isAbsolute)
+        assertEquals("beta", path.fileName!!.decodeUtf8())
+        assertEquals("/alpha", path.parent!!.decodeUtf8())
+        assertEquals("", Path.fromString("alpha").parent!!.decodeUtf8())
+        assertEquals("/", Path.fromString("///alpha").parent!!.decodeUtf8())
+        assertTrue(Path.fromString("/").parent == None)
+        assertTrue(Path.fromString("").parent == None)
+        assertTrue(Path.fromString("alpha/..").fileName == None)
+        assertTrue(Path.fromString(".").fileName == None)
+    }
+
+    @Test
+    fun `components omit separators and keep dot components`() {
+        val parts = Path.fromString("//alpha/./../beta//").components()
+        assertEquals(4L, parts.size)
+        assertEquals("alpha", parts[0L].decodeUtf8())
+        assertEquals(".", parts[1L].decodeUtf8())
+        assertEquals("..", parts[2L].decodeUtf8())
+        assertEquals("beta", parts[3L].decodeUtf8())
+        assertEquals(0L, Path.fromString("///").components().size)
+    }
+
+    @Test
+    fun `resolution only replaces the base for an absolute child`() {
+        val base = Path.fromString("alpha")
+        assertEquals("alpha/beta", base.resolve(Path.fromString("beta")).decodeUtf8())
+        assertEquals("/beta", base.resolve(Path.fromString("/beta")).decodeUtf8())
+        assertSame(base, base.resolve(Path.fromString("")))
+        assertEquals("beta", Path.fromString("").resolve(Path.fromString("beta")).decodeUtf8())
+        assertEquals(
+            "alpha/beta",
+            Path.fromString("alpha/").resolve(Path.fromString("beta")).decodeUtf8()
+        )
+    }
+
+    @Test
+    fun `normalization preserves unresolved relative parents`() {
+        assertEquals(
+            "../beta",
+            Path.fromString("alpha/../../beta/.").normalizeLexically().decodeUtf8()
+        )
+        assertEquals(
+            "/beta",
+            Path.fromString("/alpha/../../beta//").normalizeLexically().decodeUtf8()
+        )
+        assertEquals(
+            "../../alpha",
+            Path.fromString("../../alpha").normalizeLexically().decodeUtf8()
+        )
+        assertEquals(".", Path.fromString("alpha/..").normalizeLexically().decodeUtf8())
+        assertEquals(".", Path.fromString("").normalizeLexically().decodeUtf8())
+        assertEquals("/", Path.fromString("///").normalizeLexically().decodeUtf8())
+        assertFalse(Path.fromString("a/b") == Path.fromString("a//b"))
+    }
+
+    @Test
+    fun `non Unicode components round trip without filesystem access`() {
+        val raw: Array<Byte> = [97, -1, 47, 98]
+        val path = Path.fromOsString(OsString.fromByteArray(raw))
+        assertEquals(-1.toByte(), path.toOsString().toByteArray()[1L])
+        assertEquals("b", path.fileName!!.decodeUtf8())
+        assertEquals(2L, path.parent!!.toOsString().toByteArray().size)
+        assertFailsWith<CharacterCodingException> { path.decodeUtf8() }
+        assertEquals("a�/b", path.display())
+        assertEquals(path, Path.fromOsString(path.toOsString()))
+        assertEquals(path.hash(), Path.fromOsString(path.toOsString()).hash())
+    }
+
+    @Test
+    fun `NUL is rejected before a path can reach native code`() {
+        val raw: Array<Byte> = [97, 0, 98]
+        assertFailsWith<IllegalArgumentException> { Path.fromOsString(OsString.fromByteArray(raw)) }
+    }
+}

@@ -3,6 +3,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::ManifestRootLocator;
 
+#[cfg(unix)]
 use super::walk::validated_entry_name;
 use super::*;
 

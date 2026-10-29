@@ -1,7 +1,6 @@
 package scoop.platform.fs
 
-import scoop.platform.io.checkNativeStatus
-import scoop.platform.io.failNative
+import scoop.platform.system.failOperatingSystem
 import scoop.platform.system.OsString
 
 /**
@@ -14,7 +13,7 @@ public struct DirectoryEntry(val name: OsString, val path: Path)
  * finished or when abandoning enumeration.
  */
 public class DirectoryEntries private constructor(private val path: Path)
-    : Iterable<DirectoryEntry>, Iterator<DirectoryEntry>, Closeable {
+: Iterable<DirectoryEntry>, Iterator<DirectoryEntry>, Closeable {
     private var directory: Ptr<Unit>? = None
     private var finished: Boolean = false
     private var active: Boolean = false
@@ -29,12 +28,18 @@ public class DirectoryEntries private constructor(private val path: Path)
     public companion object {
         internal fun open(path: Path): DirectoryEntries {
             val result = DirectoryEntries(path)
-            @Unsafe {
-                val (pointer, error) = path.withNativePath { name ->
-                    @Unsafe { return@withNativePath nativeDirectoryOpen(name) }
-                }
-                if (pointer == None) failNative("open directory", error, Some(path.toOsString()))
-                result.directory = pointer
+            @Unsafe
+            {
+                val opened =
+                    path.withPlatformPath {
+                        name -> @Unsafe
+                        {
+                            return@withPlatformPath nativeDirectoryOpen(name)
+                        }
+                    }
+                if (opened.error != 0)
+                    failOperatingSystem("open directory", opened.error, Some(path.toOsString()))
+                result.directory = opened.owner
             }
             return result
         }
@@ -49,32 +54,39 @@ public class DirectoryEntries private constructor(private val path: Path)
      * Returns the next entry, or None when enumeration is exhausted.
      */
     public override fun next(): DirectoryEntry? {
-        if (finished) return None
-        if (directory == None) throw IllegalStateException(Some("directory is closed"))
-        if (active) throw IllegalStateException(Some("directory operation is active"))
+        if (finished)
+            return None
+        if (directory == None)
+            throw IllegalStateException(Some("directory is closed"))
+        if (active)
+            throw IllegalStateException(Some("directory operation is active"))
         active = true
         try {
-            @Unsafe {
-                val (pointer, error) = nativeDirectoryNext(directory!!)
-                if (pointer == None) {
-                    if (error != 0) failNative("read directory", error, Some(path.toOsString()))
+            @Unsafe
+            {
+                val entry = nativeDirectoryNext(directory!!)
+                if (entry.error != 0)
+                    failOperatingSystem("read directory", entry.error, Some(path.toOsString()))
+                if (entry.name == None) {
                     finished = true
                     closeNative()
                     return None
                 }
-                val name = copyNativeString(pointer!!)
+                val name = copyPlatformString(entry.name!!, entry.length)
                 return Some(DirectoryEntry(name, path.resolve(Path.fromOsString(name))))
             }
-        } finally { active = false }
+        } finally {
+            active = false
+        }
     }
 
     private fun closeNative() {
         val owned = directory
         directory = None
         when (owned) {
-            case Some(pointer) -> @Unsafe {
-                val (status, error) = nativeDirectoryClose(pointer)
-                checkNativeStatus(status, error, "close directory", Some(path.toOsString()))
+            case Some(pointer) -> @Unsafe
+            {
+                nativeDirectoryClose(pointer).checked("close directory", Some(path.toOsString()))
             }
             case None -> {}
         }
@@ -84,23 +96,35 @@ public class DirectoryEntries private constructor(private val path: Path)
      * Closes the directory enumeration handle.
      */
     public override fun close() {
-        if (directory == None) return
-        if (active) throw IllegalStateException(Some("directory operation is active"))
+        if (directory == None)
+            return
+        if (active)
+            throw IllegalStateException(Some("directory operation is active"))
         closeNative()
     }
 
-
     release {
         when (directory) {
-            case Some(pointer) -> @Unsafe { nativeDirectoryClose(pointer) }
+            case Some(pointer) -> @Unsafe
+            {
+                nativeDirectoryClose(pointer)
+            }
             case None -> {}
         }
     }
 }
 
-@Extern(name = "scoop_platform_directory_open", captureErrno = true)
-private fun nativeDirectoryOpen(path: Ptr<Byte>): (Ptr<Unit>?, Int)
-@Extern(name = "scoop_platform_directory_next", captureErrno = true)
-private fun nativeDirectoryNext(directory: Ptr<Unit>): (Ptr<Byte>?, Int)
-@Extern(name = "scoop_platform_directory_close", captureErrno = true)
-private fun nativeDirectoryClose(directory: Ptr<Unit>): (Int, Int)
+@CLayout
+private struct NativeDirectoryOpened(val owner: Ptr<Unit>?, val error: Int)
+
+@CLayout
+private struct NativeDirectoryEntry(val name: Ptr<Byte>?, val length: Long, val error: Int)
+
+@Extern(name = "scoop_platform_directory_owner_open")
+private fun nativeDirectoryOpen(path: Ptr<Byte>): NativeDirectoryOpened
+
+@Extern(name = "scoop_platform_directory_owner_next")
+private fun nativeDirectoryNext(directory: Ptr<Unit>): NativeDirectoryEntry
+
+@Extern(name = "scoop_platform_directory_owner_close")
+private fun nativeDirectoryClose(directory: Ptr<Unit>): NativeFileResult

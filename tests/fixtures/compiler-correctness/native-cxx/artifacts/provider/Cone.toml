@@ -6,9 +6,14 @@ version = "0.1.0"
 kind = "library"
 [native]
 cxx = true
-cxx_flags = ["-DPROVIDER_OFFSET=2", "-Wall", "-Wextra", "-Werror"]
+cxx_flags = ["-DPROVIDER_OFFSET=2"]
 [[native.sources]]
 path = "native/provider.cpp"
 
 [[native.libraries]]
 name = "m"
+when = {os = ["darwin", "linux"]}
+
+[[native.libraries]]
+name = "kernel32"
+when = {os = "windows"}

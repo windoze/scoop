@@ -1,0 +1,86 @@
+package scoop.platform.process
+
+import scoop.platform.concurrent.Thread
+import scoop.platform.io.*
+import scoop.platform.system.*
+import scoop.test.*
+
+@Test
+private class WindowsProcessCommunicationTest {
+    @Test
+    fun bothOutputsDrainWhileInputExceedsPipeCapacity() {
+        val script =
+            "$out=[Console]::OpenStandardOutput(); $err=[Console]::OpenStandardError(); " +
+                "$zero=New-Object byte[] 131072; $out.Write($zero,0,$zero.Length); " +
+                "$err.Write($zero,0,$zero.Length); [Console]::OpenStandardInput().CopyTo($out)"
+        val input = Array<Byte>(131072L) { (it % 251L).toByte() }
+        windowsCommand(script, Stdio.Pipe).spawn().use {
+            child ->
+            val result = child.communicate(Some(input))
+            windowsExited(result.status)
+            assertEquals(262144L, result.stdout.size)
+            assertEquals(131072L, result.stderr.size)
+            for (index in 0L ..< 131072L) {
+                assertEquals(0.toByte(), result.stdout[index])
+                assertEquals(0.toByte(), result.stderr[index])
+                assertEquals(input[index], result.stdout[index + 131072L])
+            }
+            windowsExited(child.wait())
+        }
+    }
+
+    @Test
+    fun manualPipesComposeWithThreadsAndGc() {
+        windowsCommand(
+            "[Console]::OpenStandardInput().CopyTo([Console]::OpenStandardOutput())",
+            Stdio.Pipe
+        )
+        .spawn().use {
+            child ->
+            val sink = child.takeStdin()!!
+            val source = child.takeStdout()!!
+            Thread.start {
+                sink.use {
+                    it.writeText("pipe 中\n");
+                    gcCollect()
+                }
+            }.use { source.use { assertEquals("pipe 中\n", it.readText()) } }
+            windowsExited(child.wait())
+        }
+    }
+
+    @Test
+    fun writingFailureStopsTheChildAndJoinsReaders() {
+        val script =
+            "Add-Type 'using System; using System.Runtime.InteropServices; public static class PipeInput { " +
+                "[DllImport(\"kernel32.dll\")] public static extern IntPtr GetStdHandle(int value); " +
+                "[DllImport(\"kernel32.dll\")] public static extern bool CloseHandle(IntPtr value); }'; " +
+                "[PipeInput]::CloseHandle([PipeInput]::GetStdHandle(-10)) | Out-Null; [Console]::WriteLine('ready'); " +
+                "[Threading.Thread]::Sleep(60000)"
+        windowsCommand(script, Stdio.Pipe).spawn().use {
+            child ->
+            assertEquals("ready", child.stdout!!.readLine()!!)
+            val failure =
+                assertFailsWith<Throwable> {
+                    child.communicate(Some(Array<Byte>(131072L) { 1.toByte() }))
+                }
+            assertTrue(failure is PlatformException, Some(processFailureDetails(failure)))
+            val native = failure as PlatformException
+            assertTrue(native.kind == PlatformErrorKind.BrokenPipe)
+            assertTrue(native.nativeError!!.domain == NativeErrorDomain.Win32)
+            windowsExited(child.wait(), 1)
+        }
+    }
+}
+
+private fun processFailureDetails(error: Throwable): String {
+    if (error is ResourceUseException)
+        return processFailureDetails(error.primaryFailure) +
+            "; cleanup: " +
+            processFailureDetails(error.cleanupFailure)
+    if (error is PlatformException)
+        return error.operation + ": " + (error.nativeError?.code ?: 0).toString()
+    if (error is Exception)
+        return error.message ?: "exception without message"
+    return "Throwable"
+}

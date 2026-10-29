@@ -1,0 +1,109 @@
+package scoop.platform.system
+
+import scoop.test.*
+
+private fun assertUnits(expected: List<UShort>, actual: List<UShort>) {
+    assertEquals(expected.size, actual.size)
+    var index = 0L
+    while (index < expected.size) {
+        assertEquals(expected[index], actual[index])
+        index += 1L
+    }
+}
+
+private fun units(values: List<Int>): Array<UShort> =
+    Array<UShort>(values.size) { index -> values[index].toUShort() }
+
+@Test
+private class OsStringUtf16Test {
+    @Test
+    fun `Unicode boundaries retain the normal UTF8 representation`() {
+        val input =
+            units(
+                [
+                    0,
+                    0x7f,
+                    0x80,
+                    0x7ff,
+                    0x800,
+                    0xd7ff,
+                    0xe000,
+                    0xffff,
+                    0xd800,
+                    0xdc00,
+                    0xdbff,
+                    0xdfff,
+                    0xd83d,
+                    0xde00
+                ]
+            )
+        val value = OsString.fromUtf16(input)
+        assertUnits(input, value.toUtf16())
+        assertEquals(value, OsString.fromString(value.decodeUtf8()))
+        assertEquals(value.hash(), OsString.fromString(value.decodeUtf8()).hash())
+        val empty = Array<UShort>(0L) { _ -> 0.toUShort() }
+        assertEquals(0L, OsString.fromUtf16(empty).toUtf16().size)
+    }
+
+    @Test
+    fun `unpaired surrogates survive beside paired and repeated surrogates`() {
+        val input = units([0xdc00, 0x61, 0xd800, 0xd800, 0xdc00, 0xdfff, 0, 0xdbff])
+        val value = OsString.fromUtf16(input)
+        assertUnits(input, value.toUtf16())
+        assertEquals(value, OsString.fromByteArray(value.toByteArray()))
+        val error = assertFailsWith<CharacterCodingException> { value.decodeUtf8() }
+        assertEquals(0L, error.byteOffset)
+        assertTrue(value.display().byteLength > 0L)
+    }
+
+    @Test
+    fun `every UTF16 code unit round trips without replacement`() {
+        val input = Array<UShort>(65536L) { index -> index.toUShort() }
+        assertUnits(input, OsString.fromUtf16(input).toUtf16())
+    }
+
+    @Test
+    fun `UTF16 input and results are independent snapshots`() {
+        val input = MutableArray<UShort>(1L) { _ -> 0xd800.toUShort() }
+        val value = OsString.fromUtf16(input)
+        input[0L] = 0x61.toUShort()
+        val first = value.toUtf16()
+        val second = value.toUtf16()
+        assertNotSame(first, second)
+        assertEquals(0xd800.toUShort(), first[0L])
+        assertEquals(0xd800.toUShort(), second[0L])
+    }
+
+    @Test
+    fun `invalid byte sequences report their starting byte`() {
+        val invalid: Array<Array<Int>> =
+            [
+                [0x80],
+                [0xc0, 0x80],
+                [0xc1, 0xbf],
+                [0xc2],
+                [0xc2, 0x41],
+                [0xe0, 0x9f, 0xbf],
+                [0xe1, 0x80],
+                [0xf0, 0x8f, 0xbf, 0xbf],
+                [0xf4, 0x90, 0x80, 0x80],
+                [0xf5, 0x80, 0x80, 0x80],
+                [0xff],
+                [0xed, 0xa0, 0x80, 0xed, 0xb0, 0x80]
+            ]
+        for (bytes in invalid) {
+            val input =
+                Array<Byte>(bytes.size + 1L) {
+                    index -> if (index == 0L)
+                        0x61.toByte()
+                    else
+                        bytes[index - 1L].toByte()
+                }
+            val error =
+                assertFailsWith<CharacterCodingException> {
+                    OsString.fromByteArray(input).toUtf16()
+                }
+            assertEquals(1L, error.byteOffset)
+        }
+    }
+}

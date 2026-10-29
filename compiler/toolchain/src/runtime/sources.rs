@@ -5,13 +5,6 @@ pub(super) const COMMON: &[&str] = &[
     "runtime/src/floating_parse.c",
     "vendor/ryu/ryu/f2s.c",
     "vendor/ryu/ryu/d2s.c",
-    "vendor/libbacktrace/dwarf.c",
-    "vendor/libbacktrace/fileline.c",
-    "vendor/libbacktrace/posix.c",
-    "vendor/libbacktrace/sort.c",
-    "vendor/libbacktrace/state.c",
-    "vendor/libbacktrace/mmapio.c",
-    "vendor/libbacktrace/mmap.c",
     "runtime/src/strings.c",
     "runtime/src/startup.c",
     "runtime/src/startup/failure.c",
@@ -23,7 +16,6 @@ pub(super) const COMMON: &[&str] = &[
     "runtime/src/throwable.c",
     "runtime/src/stack_trace/capture.c",
     "runtime/src/stack_trace/render.c",
-    "runtime/src/stack_trace/symbolize.c",
     "runtime/src/stack_trace/throwable_report.c",
     "runtime/src/eh_personality.c",
     "runtime/src/eh/lsda.c",
@@ -92,8 +84,31 @@ pub(super) const COMMON: &[&str] = &[
     "runtime/src/platform/common.c",
 ];
 
-pub(super) const DARWIN_OS: &[&str] = &["runtime/src/platform/os/darwin.c"];
-pub(super) const LINUX_OS: &[&str] = &["runtime/src/platform/os/linux.c"];
+pub(super) const UNIX_TRACE: &[&str] = &[
+    "runtime/src/stack_trace/symbolize.c",
+    "vendor/libbacktrace/dwarf.c",
+    "vendor/libbacktrace/fileline.c",
+    "vendor/libbacktrace/posix.c",
+    "vendor/libbacktrace/sort.c",
+    "vendor/libbacktrace/state.c",
+    "vendor/libbacktrace/mmapio.c",
+    "vendor/libbacktrace/mmap.c",
+];
+pub(super) const WINDOWS_TRACE: &[&str] = &[
+    "runtime/src/stack_trace/windows.c",
+    "runtime/src/stack_trace/windows_symbols.c",
+];
+
+pub(super) const DARWIN_OS: &[&str] = &[
+    "runtime/src/platform/os/darwin.c",
+    "runtime/src/platform/primitives/posix.c",
+    "runtime/src/platform/numeric/posix.c",
+];
+pub(super) const LINUX_OS: &[&str] = &[
+    "runtime/src/platform/os/linux.c",
+    "runtime/src/platform/primitives/posix.c",
+    "runtime/src/platform/numeric/posix.c",
+];
 pub(super) const MACHO_IMAGE: &[&str] = &[
     "runtime/src/platform/image/macho.c",
     "runtime/src/stack_trace/macho.c",
@@ -104,6 +119,25 @@ pub(super) const ELF_IMAGE: &[&str] = &[
     "runtime/src/stack_trace/elf.c",
     "vendor/libbacktrace/elf.c",
 ];
+pub(super) const PE_IMAGE: &[&str] = &["runtime/src/platform/image/pe.c"];
+pub(super) const WINDOWS_OS: &[&str] = &[
+    "runtime/src/platform/os/windows.c",
+    "runtime/src/platform/primitives/windows.c",
+    "runtime/src/platform/numeric/windows.c",
+    "runtime/src/startup/windows_arguments.c",
+    "vendor/gdtoa/strtodg.c",
+    "vendor/gdtoa/strtof.c",
+    "vendor/gdtoa/strtodnrp.c",
+    "vendor/gdtoa/misc.c",
+    "vendor/gdtoa/dmisc.c",
+    "vendor/gdtoa/smisc.c",
+    "vendor/gdtoa/gmisc.c",
+    "vendor/gdtoa/sum.c",
+    "vendor/gdtoa/ulp.c",
+    "vendor/gdtoa/gethex.c",
+    "vendor/gdtoa/hexnan.c",
+    "vendor/gdtoa/hd_init.c",
+];
 pub(super) const AARCH64: &[&str] = &[
     "runtime/src/platform/arch/aarch64.c",
     "runtime/src/platform/arch/aarch64_anchor.S",
@@ -113,6 +147,12 @@ pub(super) const AARCH64: &[&str] = &[
 pub(super) const X86_64: &[&str] = &[
     "runtime/src/platform/arch/x86_64.c",
     "runtime/src/platform/arch/x86_64_anchor.S",
+    "runtime/src/platform/arch/x86_64_floating.c",
+    "runtime/src/platform/arch/x86_64_float_environment.c",
+];
+pub(super) const WINDOWS_X86_64: &[&str] = &[
+    "runtime/src/platform/arch/windows_x86_64.c",
+    "runtime/src/platform/arch/windows_x86_64_anchor.S",
     "runtime/src/platform/arch/x86_64_floating.c",
     "runtime/src/platform/arch/x86_64_float_environment.c",
 ];

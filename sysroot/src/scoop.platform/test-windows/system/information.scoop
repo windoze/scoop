@@ -1,0 +1,24 @@
+package scoop.platform.system
+
+import scoop.test.*
+import scoop.text.*
+
+@Test
+private class WindowsSystemInformationTest {
+    @Test
+    fun versionContainsThreeDecimalComponents() {
+        val version = systemVersion()
+        val parts = version.split(".")
+        assertEquals(3L, parts.size, Some(version))
+        for (part in parts) {
+            assertTrue(part.charLength > 0L)
+            for (character in part)
+                assertTrue(character >= '0' && character <= '9')
+        }
+        assertTrue(parts[0].toLong() >= 10L)
+        assertTrue(parts[2].toLong() > 0L)
+        gcCollect()
+        assertEquals(version, systemVersion())
+        assertTrue(logicalProcessorCount > 0L)
+    }
+}

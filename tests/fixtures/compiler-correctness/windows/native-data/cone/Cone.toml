@@ -1,0 +1,16 @@
+schema = 1
+
+[cone]
+group = "dev.windows"
+name = "native-data"
+version = "0.1.0"
+kind = "executable"
+
+[native]
+c_flags = ["-Wextra", "-Werror"]
+
+[[native.sources]]
+path = "local.c"
+
+[[native.libraries]]
+name = "scoop_data"

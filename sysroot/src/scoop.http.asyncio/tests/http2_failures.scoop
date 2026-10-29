@@ -50,6 +50,8 @@ private class AsyncHttp2FailureTests {
                     assertEquals(-905, error.code);
                     assertTrue(error.scope == HttpFailureScope.Connection)
                 }
+                assertTrue(client.isClosing)
+                client.close()
                 assertTrue(client.isClosed)
                 assertEquals(200U, first.receiveResponse().status)
                 assertEquals(0L, receiveBytes(first).size)

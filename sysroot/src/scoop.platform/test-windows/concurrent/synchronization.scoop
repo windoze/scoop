@@ -1,0 +1,81 @@
+package scoop.platform.concurrent
+
+import scoop.platform.system.NativeErrorDomain
+import scoop.platform.system.PlatformException
+import scoop.test.*
+import scoop.time.Duration
+
+private class WindowsWakeState {
+    var ready: Boolean = false
+}
+
+private fun assertWin32(error: PlatformException, code: Int) {
+    assertTrue(error.nativeError!!.domain == NativeErrorDomain.Win32)
+    assertEquals(code, error.nativeError!!.code)
+    assertTrue(error.nativeError!!.systemCode == None)
+}
+
+@Test
+private class WindowsSynchronizationTest {
+    @Test
+    fun mutexFailuresKeepTheWin32ErrorAndRetainOwnership() {
+        Mutex().use {
+            mutex ->
+            mutex.lock()
+            assertWin32(assertFailsWith<PlatformException> { mutex.lock() }, 1131)
+            assertWin32(assertFailsWith<PlatformException> { mutex.dispose() }, 170)
+            assertFalse(mutex.isDisposed)
+            mutex.unlock()
+            assertWin32(assertFailsWith<PlatformException> { mutex.unlock() }, 288)
+            assertTrue(mutex.tryLock())
+            mutex.unlock()
+        }
+    }
+
+    @Test
+    fun conditionErrorsPreserveTheLockAndFullErrorCode() {
+        Mutex().use {
+            mutex -> ConditionVariable(mutex).use {
+                condition ->
+                assertWin32(assertFailsWith<PlatformException> { condition.await() }, 288)
+                mutex.withLock {
+                    assertWin32(
+                        assertFailsWith<PlatformException> {
+                            condition.await(Duration.seconds(Long.MAX_VALUE))
+                        },
+                        534
+                    )
+                    assertFalse(mutex.tryLock())
+                    assertFalse(condition.await(Duration.ZERO))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun largeFiniteWaitsRemainInterruptibleByNotification() {
+        Mutex().use {
+            mutex -> ConditionVariable(mutex).use {
+                condition ->
+                val state = WindowsWakeState()
+                val worker =
+                    mutex.withLock {
+                        val thread =
+                            Thread.start {
+                                mutex.withLock {
+                                    state.ready = true
+                                    condition.signal()
+                                    gcCollect()
+                                }
+                            }
+                        while (!state.ready) {
+                            assertTrue(condition.await(Duration.seconds(4294967296L)))
+                        }
+                        thread
+                    }
+                worker.join()
+                assertTrue(worker.isFinished)
+            }
+        }
+    }
+}

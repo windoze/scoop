@@ -1,11 +1,12 @@
-#include "../../../scoop.platform/native/socket_native.h"
+#include "socket.h"
+#include "platform.h"
 #include "work.h"
 #include <errno.h>
 #include <string.h>
 
 typedef struct {
     ScoopIoWork work;
-    char *host;
+    ScoopIoChar *host;
     int port, family;
     struct ScoopResolution result;
 } ScoopIoResolve;
@@ -30,11 +31,11 @@ static void resolve_finished(ScoopIoWork *native, int status) {
     scoop_io_work_finished(&request->work, status);
 }
 
-int scoop_io_resolve(ScoopIoLoop *loop, int64_t id, const char *host, int port, int family) {
+int scoop_io_resolve(ScoopIoLoop *loop, int64_t id, const ScoopIoChar *host, int port, int family) {
     ScoopIoResolve *request = calloc(1, sizeof(*request));
     if (!request)
         return -ENOMEM;
-    request->host = strdup(host);
+    request->host = scoop_io_string_copy(host);
     if (!request->host) {
         free(request);
         return -ENOMEM;
@@ -47,4 +48,16 @@ int scoop_io_resolve(ScoopIoLoop *loop, int64_t id, const char *host, int port, 
         free(request);
     }
     return status;
+}
+
+ScoopIoSocketName scoop_io_resolve_address(ScoopAddressInfo *entry) {
+    ScoopIoSocketName result = {.address = scoop_platform_resolve_address(entry)};
+    if (!result.address.family) {
+#ifdef _WIN32
+        result.status = (ScoopIoStatus){SCOOP_IO_WINSOCK_ERROR, WSAGetLastError()};
+#else
+        result.status = scoop_io_errno(-errno);
+#endif
+    }
+    return result;
 }

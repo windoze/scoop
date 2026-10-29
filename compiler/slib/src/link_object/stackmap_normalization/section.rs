@@ -116,6 +116,11 @@ pub fn read_object_stackmap_section_v3(
             ObjectStackmapSectionError::MissingFunctionAddressRelocation { index, offset },
         )?;
         let target_symbol_table_index = match relocation.shape() {
+            ObjectRelocationShapeV1::CoffAmd64 {
+                kind: object::pe::IMAGE_REL_AMD64_ADDR64,
+                target_symbol,
+                width: 8,
+            } => target_symbol,
             ObjectRelocationShapeV1::DarwinArm64(DarwinArm64RelocationShapeV1::Unsigned64 {
                 target: DarwinArm64RelocationTargetV1::SymbolTableIndex(target),
             }) => target,

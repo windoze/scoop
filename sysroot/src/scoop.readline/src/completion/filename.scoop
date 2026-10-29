@@ -6,36 +6,67 @@ import scoop.platform.system.*
 import scoop.collections.sortedBy
 import scoop.text.*
 
-/** Completes Unix paths, honoring shell-style quotes, backslash escapes and ~/ prefixes. */
-public class FilenameCompleter public constructor() : Completer {
+/** Completes native paths, preserving platform separators, quoting and ~/ prefixes. */
+public class FilenameCompleter public constructor(): Completer {
     public override fun complete(line: String, cursor: Long, context: Context): Completions =
         completePath(line, cursor)
 
     /** Completes only the token ending at cursor; filesystem errors other than absence propagate. */
     public fun completePath(line: String, cursor: Long): Completions {
-        if (cursor < 0L || cursor > line.charLength) throw IndexOutOfBoundsException()
+        if (cursor < 0L || cursor > line.charLength)
+            throw IndexOutOfBoundsException()
         val token = filenameToken(line, cursor)
-        val slash = token.text.lastIndexOf('/')
-        val prefix = if (slash < 0L) "" else token.text.slice(0L, slash + 1L)
+        var slash = token.text.lastIndexOf('/')
+        if (operatingSystem == OperatingSystem.Windows) {
+            val backslash = token.text.lastIndexOf('\\')
+            if (backslash > slash)
+                slash = backslash
+        }
+        val prefix =
+            if (slash < 0L)
+                ""
+            else
+                token.text.slice(0L, slash + 1L)
         val partial = token.text.slice(slash + 1L, token.text.charLength)
-        var directory = if (prefix.byteLength == 0L) Path.fromString(".") else Path.fromString(prefix)
+        var directory =
+            if (prefix.byteLength == 0L)
+                Path.fromString(".")
+            else
+                Path.fromString(prefix)
         if (prefix.startsWith("~/")) {
             val home = homeDirectory()
-            if (home != None) directory = home!!.resolve(Path.fromString(prefix.slice(2L, prefix.charLength)))
+            if (home != None)
+                directory = home!!.resolve(Path.fromString(prefix.slice(2L, prefix.charLength)))
         }
         val candidates = ArrayList<Candidate>()
         try {
-            directory.entries().use { entries ->
-                for (entry in entries) {
+            directory.entries().use {
+                entries -> for (entry in entries) {
                     val name = entry.path.fileName!!.decodeUtf8()
-                    if (!name.startsWith(partial)) continue
-                    val suffix = if (entry.path.metadata().kind == FileKind.Directory) "/" else ""
+                    if (!name.startsWith(partial))
+                        continue
+                    val separator =
+                        if (operatingSystem == OperatingSystem.Windows)
+                            "\\"
+                        else
+                            "/"
+                    val suffix =
+                        if (entry.path.metadata().kind == FileKind.Directory)
+                            separator
+                        else
+                            ""
                     val replacement = escapeFilename(prefix + name + suffix, token.quote)
                     candidates.add(Candidate(name + suffix, replacement))
                 }
             }
         } catch (error: PlatformException) {
-            if (error.kind != PlatformErrorKind.NotFound && error.kind != PlatformErrorKind.NotDirectory) throw error
+            if (
+                error.kind !=
+                    PlatformErrorKind.NotFound &&
+                    error.kind !=
+                    PlatformErrorKind.NotDirectory
+            )
+                throw error
         }
         return Completions(token.start, candidates.sortedBy { it.display }.toArray())
     }
@@ -44,6 +75,7 @@ public class FilenameCompleter public constructor() : Completer {
 private struct FilenameToken(val start: Long, val text: String, val quote: Char?)
 
 private fun filenameToken(line: String, cursor: Long): FilenameToken {
+    val windows = operatingSystem == OperatingSystem.Windows
     var start = 0L
     var quote: Char? = None
     var escape = false
@@ -51,33 +83,82 @@ private fun filenameToken(line: String, cursor: Long): FilenameToken {
     val result = StringBuilder()
     while (index < cursor) {
         val character = line.getCharAt(index)
-        if (escape) { result.append(character); escape = false }
-        else if (character == '\\' && quote != Some('\'')) escape = true
-        else if (quote != None) {
-            if (character == quote!!) { quote = None } else result.append(character)
-        } else if (character == '\'' || character == '"') {
-            quote = Some(character)
-            start = index + 1L
-            result.clear()
-        } else if (character.toString().isBlank() || ";|&()<>=\u0060".contains(character)) {
-            start = index + 1L
-            result.clear()
-        } else result.append(character)
+        if (escape) {
+            result.append(character);
+            escape = false
+        }
+        else
+            if (!windows && character == '\\' && quote != Some('\''))
+                escape = true
+            else
+                if (quote != None) {
+                    if (character == quote!!) {
+                        if (
+                            windows &&
+                                index +
+                                1L <
+                                cursor &&
+                                line.getCharAt(index + 1L) ==
+                                character
+                        ) {
+                            result.append(character)
+                            index += 1L
+                        } else
+                            quote = None
+                    } else
+                        result.append(character)
+                } else
+                    if (character == '\'' || character == '"') {
+                        quote = Some(character)
+                        start = index + 1L
+                        result.clear()
+                    } else
+                        if (
+                            character.toString().isBlank() || ";|&()<>=\u0060".contains(character)
+                        ) {
+                            start = index + 1L
+                            result.clear()
+                        } else
+                            result.append(character)
         index += 1L
     }
-    if (escape) result.append('\\')
+    if (escape)
+        result.append('\\')
     return FilenameToken(start, result.toString(), quote)
 }
 
 private fun escapeFilename(text: String, quote: Char?): String {
+    if (operatingSystem == OperatingSystem.Windows) {
+        when (quote) {
+            case Some(character) -> {
+                val mark = character.toString()
+                return text.replace(mark, mark + mark)
+            }
+            case None -> {
+                for (character in text) {
+                    if (character.toString().isBlank() || "\"';|&()<>=\u0060".contains(character)) {
+                        return "\"" + text + "\""
+                    }
+                }
+                return text
+            }
+        }
+    }
     val result = StringBuilder()
     for (character in text) {
         if (quote == Some('\'')) {
-            if (character == '\'') result.append("'\\''") else result.append(character)
+            if (character == '\'')
+                result.append("'\\''")
+            else
+                result.append(character)
         } else {
-            val escape = if (quote == Some('"')) "\\\"$\u0060".contains(character)
-                else character.toString().isBlank() || "\\\"';|&()<>=\u0060".contains(character)
-            if (escape) result.append('\\')
+            val escape =
+                if (quote == Some('"'))
+                    "\\\"$\u0060".contains(character)
+                else
+                    character.toString().isBlank() || "\\\"';|&()<>=\u0060".contains(character)
+            if (escape)
+                result.append('\\')
             result.append(character)
         }
     }

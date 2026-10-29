@@ -7,55 +7,103 @@ import scoop.math.max as numericMax
 public fun abs(x: Float): Float = Float.fromBits(x.toBits() and Int.MAX_VALUE)
 
 /** Copies only the sign bit from sign into magnitude. */
-public fun copySign(magnitude: Float, sign: Float): Float = Float.fromBits((magnitude.toBits() and Int.MAX_VALUE) or (sign.toBits() and Int.MIN_VALUE))
+public fun copySign(magnitude: Float, sign: Float): Float =
+    Float.fromBits((magnitude.toBits() and Int.MAX_VALUE) or (sign.toBits() and Int.MIN_VALUE))
 
 /** Returns signed one, preserving signed zero and propagating NaN. */
-public fun signum(x: Float): Float = if (x.isNaN() || x == 0f) x else copySign(1f, x)
+public fun signum(x: Float): Float =
+    if (x.isNaN() || x == 0f)
+        x
+    else
+        copySign(1f, x)
 
 /** Returns the smaller value, propagating NaN and ordering negative zero first. */
 public fun min(a: Float, b: Float): Float {
-    if (a.isNaN()) return a
-    if (b.isNaN()) return b
-    if (a == 0f && b == 0f) return Float.fromBits(a.toBits() or b.toBits())
-    return if (a <= b) a else b
+    if (a.isNaN())
+        return a
+    if (b.isNaN())
+        return b
+    if (a == 0f && b == 0f)
+        return Float.fromBits(a.toBits() or b.toBits())
+    return if (a <= b)
+        a
+    else
+        b
 }
 
 /** Returns the larger value, propagating NaN and ordering negative zero first. */
 public fun max(a: Float, b: Float): Float {
-    if (a.isNaN()) return a
-    if (b.isNaN()) return b
-    if (a == 0f && b == 0f) return Float.fromBits(a.toBits() and b.toBits())
-    return if (a >= b) a else b
+    if (a.isNaN())
+        return a
+    if (b.isNaN())
+        return b
+    if (a == 0f && b == 0f)
+        return Float.fromBits(a.toBits() and b.toBits())
+    return if (a >= b)
+        a
+    else
+        b
 }
 
 /** Clamps to inclusive numeric bounds; NaN or reversed bounds throw. */
 public fun clamp(value: Float, min: Float, max: Float): Float {
-    if (min.isNaN() || max.isNaN() || min > max ||
-        (min == 0f && max == 0f && min.toBits() == 0 && max.toBits() < 0))
+    if (
+        min.isNaN() ||
+            max.isNaN() ||
+            min >
+            max ||
+            (min == 0f && max == 0f && min.toBits() == 0 && max.toBits() < 0)
+    )
         throw IllegalArgumentException(Some("invalid floating bounds"))
     return numericMin(numericMax(value, min), max)
 }
 
 /** Returns the adjacent representable value toward positive infinity. */
 public fun nextUp(x: Float): Float {
-    if (x.isNaN() || x == Float.POSITIVE_INFINITY) return x
-    if (x == 0f) return Float.MIN_VALUE
-    return Float.fromBits(x.toBits() + (if (x < 0f) -1 else 1))
+    if (x.isNaN() || x == Float.POSITIVE_INFINITY)
+        return x
+    if (x == 0f)
+        return Float.MIN_VALUE
+    return Float.fromBits(
+        x.toBits() +
+            (
+                if (x < 0f)
+                    -1
+                else
+                    1
+            )
+    )
 }
 
 /** Returns the adjacent representable value toward negative infinity. */
 public fun nextDown(x: Float): Float {
-    if (x.isNaN() || x == Float.NEGATIVE_INFINITY) return x
-    if (x == 0f) return -Float.MIN_VALUE
-    return Float.fromBits(x.toBits() + (if (x < 0f) 1 else -1))
+    if (x.isNaN() || x == Float.NEGATIVE_INFINITY)
+        return x
+    if (x == 0f)
+        return -Float.MIN_VALUE
+    return Float.fromBits(
+        x.toBits() +
+            (
+                if (x < 0f)
+                    1
+                else
+                    -1
+            )
+    )
 }
 
 /** Returns the neighbor toward direction; equal inputs return direction including its zero sign. */
 public fun nextAfter(x: Float, direction: Float): Float {
-    if (x.isNaN()) return x
-    if (direction.isNaN()) return direction
-    if (x == direction) return direction
-    return if (x < direction) nextUp(x) else nextDown(x)
+    if (x.isNaN())
+        return x
+    if (direction.isNaN())
+        return direction
+    if (x == direction)
+        return direction
+    return if (x < direction)
+        nextUp(x)
+    else
+        nextDown(x)
 }
 
 /** Returns the unbiased exponent; zero/subnormal and nonfinite values use boundary sentinels. */
@@ -63,153 +111,237 @@ public fun getExponent(x: Float): Int = ((x.toBits() ushr 23L) and 0xff).toInt()
 
 /** Returns the spacing at the magnitude of x, with IEEE zero and nonfinite handling. */
 public fun ulp(x: Float): Float {
-    if (x.isNaN() || x.isInfinite()) return abs(x)
+    if (x.isNaN() || x.isInfinite())
+        return abs(x)
     val exponent = getExponent(x)
-    if (exponent < -126) return Float.MIN_VALUE
+    if (exponent < -126)
+        return Float.MIN_VALUE
     val power = exponent - 23
-    return if (power >= -126) Float.fromBits((power + 127).toInt() shl 23L)
-        else Float.fromBits(1 shl (power - (-149)).toLong())
+    return if (power >= -126)
+        Float.fromBits((power + 127).toInt() shl 23L)
+    else
+        Float.fromBits(1 shl (power - (-149)).toLong())
 }
 
 /** Rounds to the nearest integer with ties toward positive infinity; overflow saturates and NaN becomes zero. */
 public fun round(x: Float): Int {
-    if (!x.isFinite()) return x.toInt()
+    if (!x.isFinite())
+        return x.toInt()
     val lower = floor(x)
-    return (if (x - lower >= 0.5f) lower + 1f else lower).toInt()
+    return (
+        if (x - lower >= 0.5f)
+            lower + 1f
+        else
+            lower
+    ).toInt()
 }
 
 /** Converts angle units using a coefficient rounded directly to the operand precision. */
-public fun toRadians(x: Float): Float = x * 0.017453292519943295769236907684886127134428718885417254560971914401710091146034494f
+public fun toRadians(x: Float): Float =
+    x * 0.017453292519943295769236907684886127134428718885417254560971914401710091146034494f
 
 /** Converts angle units using a coefficient rounded directly to the operand precision. */
-public fun toDegrees(x: Float): Float = x * 57.295779513082320876798154814105170332405472466564321549160243861202847148321553f
+public fun toDegrees(x: Float): Float =
+    x * 57.295779513082320876798154814105170332405472466564321549160243861202847148321553f
 
 /** Evaluates sin at the operand precision using the target math library. */
 public fun sin(x: Float): Float {
-    @Unsafe { return nativeSin(x) }
+    @Unsafe
+    {
+        return nativeSin(x)
+    }
 }
 
 /** Evaluates cos at the operand precision using the target math library. */
 public fun cos(x: Float): Float {
-    @Unsafe { return nativeCos(x) }
+    @Unsafe
+    {
+        return nativeCos(x)
+    }
 }
 
 /** Evaluates tan at the operand precision using the target math library. */
 public fun tan(x: Float): Float {
-    @Unsafe { return nativeTan(x) }
+    @Unsafe
+    {
+        return nativeTan(x)
+    }
 }
 
 /** Evaluates asin at the operand precision using the target math library. */
 public fun asin(x: Float): Float {
-    @Unsafe { return nativeAsin(x) }
+    @Unsafe
+    {
+        return nativeAsin(x)
+    }
 }
 
 /** Evaluates acos at the operand precision using the target math library. */
 public fun acos(x: Float): Float {
-    @Unsafe { return nativeAcos(x) }
+    @Unsafe
+    {
+        return nativeAcos(x)
+    }
 }
 
 /** Evaluates atan at the operand precision using the target math library. */
 public fun atan(x: Float): Float {
-    @Unsafe { return nativeAtan(x) }
+    @Unsafe
+    {
+        return nativeAtan(x)
+    }
 }
 
 /** Evaluates sinh at the operand precision using the target math library. */
 public fun sinh(x: Float): Float {
-    @Unsafe { return nativeSinh(x) }
+    @Unsafe
+    {
+        return nativeSinh(x)
+    }
 }
 
 /** Evaluates cosh at the operand precision using the target math library. */
 public fun cosh(x: Float): Float {
-    @Unsafe { return nativeCosh(x) }
+    @Unsafe
+    {
+        return nativeCosh(x)
+    }
 }
 
 /** Evaluates tanh at the operand precision using the target math library. */
 public fun tanh(x: Float): Float {
-    @Unsafe { return nativeTanh(x) }
+    @Unsafe
+    {
+        return nativeTanh(x)
+    }
 }
 
 /** Evaluates exp at the operand precision using the target math library. */
 public fun exp(x: Float): Float {
-    @Unsafe { return nativeExp(x) }
+    @Unsafe
+    {
+        return nativeExp(x)
+    }
 }
 
 /** Evaluates expm1 at the operand precision using the target math library. */
 public fun expm1(x: Float): Float {
-    @Unsafe { return nativeExpm1(x) }
+    @Unsafe
+    {
+        return nativeExpm1(x)
+    }
 }
 
 /** Evaluates log at the operand precision using the target math library. */
 public fun log(x: Float): Float {
-    @Unsafe { return nativeLog(x) }
+    @Unsafe
+    {
+        return nativeLog(x)
+    }
 }
 
 /** Evaluates log10 at the operand precision using the target math library. */
 public fun log10(x: Float): Float {
-    @Unsafe { return nativeLog10(x) }
+    @Unsafe
+    {
+        return nativeLog10(x)
+    }
 }
 
 /** Evaluates log1p at the operand precision using the target math library. */
 public fun log1p(x: Float): Float {
-    @Unsafe { return nativeLog1p(x) }
+    @Unsafe
+    {
+        return nativeLog1p(x)
+    }
 }
 
 /** Returns the correctly rounded square root, preserving negative zero. */
 public fun sqrt(x: Float): Float {
-    @Unsafe { return nativeSqrt(x) }
+    @Unsafe
+    {
+        return nativeSqrt(x)
+    }
 }
 
 /** Evaluates cbrt at the operand precision using the target math library. */
 public fun cbrt(x: Float): Float {
-    @Unsafe { return nativeCbrt(x) }
+    @Unsafe
+    {
+        return nativeCbrt(x)
+    }
 }
 
 /** Evaluates floor at the operand precision using the target math library. */
 public fun floor(x: Float): Float {
-    @Unsafe { return nativeFloor(x) }
+    @Unsafe
+    {
+        return nativeFloor(x)
+    }
 }
 
 /** Evaluates ceil at the operand precision using the target math library. */
 public fun ceil(x: Float): Float {
-    @Unsafe { return nativeCeil(x) }
+    @Unsafe
+    {
+        return nativeCeil(x)
+    }
 }
 
 /** Rounds to an integral floating value with ties to even. */
 public fun rint(x: Float): Float {
-    @Unsafe { return nativeRint(x) }
+    @Unsafe
+    {
+        return nativeRint(x)
+    }
 }
 
 /** Evaluates atan2 at the operand precision using the target math library. */
 public fun atan2(y: Float, x: Float): Float {
-    @Unsafe { return nativeAtan2(y, x) }
+    @Unsafe
+    {
+        return nativeAtan2(y, x)
+    }
 }
 
 /** Evaluates hypot at the operand precision using the target math library. */
 public fun hypot(x: Float, y: Float): Float {
-    if (x.isInfinite() || y.isInfinite()) return Float.POSITIVE_INFINITY
-    @Unsafe { return nativeHypot(x, y) }
+    @Unsafe
+    {
+        return nativeHypot(x, y)
+    }
 }
 
-/** Computes a*b+c with one final rounding. */
+/** Calls the system fmaf, retaining its rounding behavior. */
 public fun fma(a: Float, b: Float, c: Float): Float {
-    @Unsafe { return nativeFma(a, b, c) }
+    @Unsafe
+    {
+        return nativeFma(a, b, c)
+    }
 }
 
 /** Returns the IEEE remainder with a nearest-even integer quotient. */
 public fun ieeeRemainder(x: Float, y: Float): Float {
-    @Unsafe { return nativeIeeeRemainder(x, y) }
+    @Unsafe
+    {
+        return nativeIeeeRemainder(x, y)
+    }
 }
 
 /** Scales by an exact power of two with one final rounding. */
 public fun scalb(x: Float, scaleFactor: Int): Float {
-    @Unsafe { return nativeScalb(x, scaleFactor) }
+    @Unsafe
+    {
+        return nativeScalb(x, scaleFactor)
+    }
 }
 
-/** Raises x to y using Java-compatible exceptional-value rules. */
+/** Raises x to y using the target math library's special-value rules. */
 public fun pow(x: Float, y: Float): Float {
-    if (y == 0f) return 1f
-    if (x.isNaN() || y.isNaN() || (abs(x) == 1f && y.isInfinite())) return Float.NaN
-    @Unsafe { return nativePow(x, y) }
+    @Unsafe
+    {
+        return nativePow(x, y)
+    }
 }
 
 @GCLeaf
@@ -293,7 +425,7 @@ private fun nativeRint(x: Float): Float
 private fun nativeAtan2(y: Float, x: Float): Float
 
 @GCLeaf
-@Extern(name = "hypotf")
+@Extern(name = "scoop_math_hypot_float")
 private fun nativeHypot(x: Float, y: Float): Float
 
 @GCLeaf

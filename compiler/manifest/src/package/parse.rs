@@ -51,9 +51,14 @@ pub fn parse_package_manifest(
         }
     }
     let native = raw.native.parse(catalog)?;
+    let cone = raw.cone.map(cone).transpose()?;
+    let windows = crate::windows::parse(
+        raw.windows,
+        cone.as_ref()
+            .map_or(RequestedConeKind::Library, |cone| cone.kind),
+    )?;
     let publish = publish(raw.publish)?;
-    if raw.cone.is_none()
-        && (native != NativeConfig::default() || publish != PublishConfig::default())
+    if cone.is_none() && (native != NativeConfig::default() || publish != PublishConfig::default())
     {
         return Err(invalid(
             "a virtual workspace cannot declare native or publish inputs",
@@ -62,7 +67,7 @@ pub fn parse_package_manifest(
     }
     Ok(PackageDocument {
         schema_span: raw.schema.span(),
-        cone: raw.cone.map(cone).transpose()?,
+        cone,
         workspace: raw.workspace.map(workspace).transpose()?,
         registry: raw
             .registry
@@ -80,6 +85,7 @@ pub fn parse_package_manifest(
         sources: crate::selection::parse_sources(raw.sources, catalog)?,
         test_sources: crate::selection::parse_sources(raw.test.sources, catalog)?,
         native,
+        windows,
         publish,
     })
 }

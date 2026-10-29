@@ -1,33 +1,12 @@
-#if defined(__linux__)
-#define _GNU_SOURCE
-#endif
-
-#include <locale.h>
+#include "platform/numeric.h"
 #include <math.h>
-#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
-#if defined(__APPLE__)
-#include <xlocale.h>
-#endif
 
 #include "floating_abi.h"
 #include "value_shape.h"
 
-static pthread_once_t locale_once = PTHREAD_ONCE_INIT;
-static locale_t number_locale;
-
-static void initialize_number_locale(void) {
-    number_locale = newlocale(LC_NUMERIC_MASK, "C", (locale_t)0);
-    if (number_locale == (locale_t)0) {
-        scoop_shape_fatal("cannot create the C numeric locale");
-    }
-}
-
 static char *terminated_number(const ScoopString *text, char *scratch, size_t capacity) {
-    if (pthread_once(&locale_once, initialize_number_locale) != 0) {
-        scoop_shape_fatal("cannot initialize the C numeric locale");
-    }
     if (text->len >= SIZE_MAX) {
         scoop_shape_fatal("numeric text allocation size overflow");
     }
@@ -45,7 +24,7 @@ void scoop_rt_json_parse_float_storage(ScoopFloatResult *result,
     char scratch[256];
     char *buffer = terminated_number(text, scratch, sizeof scratch);
     char *end;
-    float value = strtof_l(buffer, &end, number_locale);
+    float value = scoop_platform_parse_float(buffer, &end);
     *result = (ScoopFloatResult){.tag = 1};
     /* ERANGE also reports valid subnormal and signed-zero underflow. */
     if (end != buffer && end == buffer + text->len && isfinite(value)) {
@@ -62,7 +41,7 @@ void scoop_rt_json_parse_double_storage(ScoopDoubleResult *result,
     char scratch[256];
     char *buffer = terminated_number(text, scratch, sizeof scratch);
     char *end;
-    double value = strtod_l(buffer, &end, number_locale);
+    double value = scoop_platform_parse_double(buffer, &end);
     *result = (ScoopDoubleResult){.tag = 1};
     if (end != buffer && end == buffer + text->len && isfinite(value)) {
         result->tag = 0;

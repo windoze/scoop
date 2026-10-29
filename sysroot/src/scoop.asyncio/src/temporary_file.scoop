@@ -3,6 +3,7 @@ package scoop.asyncio
 import scoop.platform.env.temporaryDirectory
 import scoop.platform.fs.*
 import scoop.platform.native.temporaryPathPattern
+import scoop.platform.system.PlatformException
 
 /**
  * A newly created temporary path paired with its open asynchronous file. Closing the handle does
@@ -14,24 +15,6 @@ public struct TemporaryFile(val path: Path, val file: AsyncFile): AsyncCloseable
      */
     public override suspend fun close() {
         file.close()
-    }
-}
-
-@CLayout
-private struct NativeTemporaryFile(val file: Ptr<Unit>, val path: Ptr<Byte>)
-
-internal struct CreatedTemporaryFile(val file: Ptr<Unit>, val path: Path)
-
-internal fun takeTemporaryFile(pointer: Ptr<Unit>): CreatedTemporaryFile {
-    @Unsafe
-    {
-        val value = nativeTakeTemporary(pointer)
-        try {
-            return CreatedTemporaryFile(value.file, Path.fromOsString(copyNativeString(value.path)))
-        }
-        finally {
-            nativeFreeTemporaryPath(value.path)
-        }
     }
 }
 
@@ -53,15 +36,10 @@ internal suspend fun createTemporaryFileOnLoop(
                     native,
                     id -> @Unsafe
                     {
-                        return@LoopOperation pattern.withNativePath {
-                            name -> @Unsafe
-                            {
-                                return@withNativePath nativeStatus(
-                                    id,
-                                    nativeTemporaryFile(native, id, name)
-                                )
-                            }
-                        }
+                        return@LoopOperation nativeStatus(
+                            id,
+                            startTemporaryFile(native, id, base, pattern)
+                        )
                     }
                 },
                 {
@@ -77,7 +55,24 @@ internal suspend fun createTemporaryFileOnLoop(
                         case Temporary(value) -> {
                             val owner = OwnedFile(loop, value.file, value.path.toOsString())
                             loop.retain(owner)
-                            when (selected) {
+                            val failure: Throwable? =
+                                when (selected) {
+                                    case Some(error) -> Some(error)
+                                    case None -> if (value.status.code == 0)
+                                        None
+                                    else {
+                                        val error = nativeStatusError(value.status)
+                                        Some(
+                                            PlatformException(
+                                                "create temporary file",
+                                                error.kind,
+                                                Some(error),
+                                                Some(base.toOsString())
+                                            )
+                                        )
+                                    }
+                                }
+                            when (failure) {
                                 case None -> continuation.resume(
                                     TemporaryFile(value.path, WorkerFile(owner))
                                 )
@@ -134,12 +129,3 @@ private fun discardTemporaryFile(
         }
     }
 }
-
-@Extern(name = "scoop_io_file_temporary")
-private fun nativeTemporaryFile(loop: Ptr<Unit>, id: Long, pattern: Ptr<Byte>): Int
-
-@Extern(name = "scoop_io_temporary_take")
-private fun nativeTakeTemporary(pointer: Ptr<Unit>): NativeTemporaryFile
-
-@Extern(name = "scoop_io_temporary_path_free")
-private fun nativeFreeTemporaryPath(path: Ptr<Byte>)

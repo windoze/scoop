@@ -1,0 +1,23 @@
+package scoop.asyncio
+
+import scoop.asyncio.host.EventLoopNotification
+
+@Unsafe
+internal fun testNotificationPoll(notification: EventLoopNotification, timeout: Int): Int =
+    when (notification) {
+        case ReadableDescriptor(value) -> nativeTestHostPoll(value, timeout)
+        case WindowsEvent(_) -> throw IllegalArgumentException(Some("expected POSIX descriptor"))
+    }
+
+@Unsafe
+internal fun testNotificationOpen(notification: EventLoopNotification): Boolean =
+    when (notification) {
+        case ReadableDescriptor(value) -> nativeTestDescriptorOpen(value)
+        case WindowsEvent(_) -> throw IllegalArgumentException(Some("expected POSIX descriptor"))
+    }
+
+@Extern(name = "scoop_test_host_poll")
+private fun nativeTestHostPoll(descriptor: Int, timeout: Int): Int
+
+@Extern(name = "scoop_test_descriptor_open")
+private fun nativeTestDescriptorOpen(descriptor: Int): Boolean

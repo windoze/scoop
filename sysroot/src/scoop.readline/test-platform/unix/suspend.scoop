@@ -1,0 +1,40 @@
+package scoop.readline
+
+import scoop.test.*
+import scoop.tests.readline.*
+import scoop.platform.env.arguments
+import scoop.platform.io.*
+
+@Test
+private class PtySuspendTest {
+    @Test
+    fun suspendRestoresModesAndResumeKeepsInput() {
+        Pty.open(arguments()[0L], "PtySuspendChildTest::suspendAndResume").use {
+            pty ->
+            pty.expect("edit>")
+            pty.writeText("\u001a")
+            pty.waitForStop()
+            assertTrue(pty.isRestored())
+            pty.discardOutput()
+            pty.resume()
+            pty.expect("edit>")
+            pty.writeText(" resumed\r")
+            pty.expect("restored")
+            assertTrue(pty.isRestored())
+            pty.writeText("\r")
+            assertEquals(0, pty.waitForExit())
+        }
+    }
+}
+
+@Test
+private class PtySuspendChildTest {
+    @Test
+    @Ignore("Launched inside a PTY by PtyIntegrationTest")
+    fun suspendAndResume() {
+        enableSuspendProbe()
+        assertEquals("saved resumed", Editor().readLine("edit> ", initial = "saved"))
+        println("restored")
+        standardInput.readLine()
+    }
+}

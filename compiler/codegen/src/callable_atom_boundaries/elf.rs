@@ -77,7 +77,9 @@ pub(super) fn materialize(path: &Path, plan: &DefinitionSymbolPlanV1) -> Result<
                     }
                     Some((section.index(), 0, section.size()))
                 }
-                DefinitionAtomRole::CompactUnwind => {
+                DefinitionAtomRole::CompactUnwind
+                | DefinitionAtomRole::WindowsUnwindTable
+                | DefinitionAtomRole::WindowsUnwindInfo => {
                     return Err(CodegenError(
                         "ELF callable plan contains a Mach-O compact-unwind atom".into(),
                     ));

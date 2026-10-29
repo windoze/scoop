@@ -105,7 +105,11 @@ impl ScoopAbiReturn {
     }
 
     pub fn indirect(storage: CanonicalScoopStorage) -> Result<Self, ScoopAbiError> {
-        require_nonzero_shape(storage, ScoopAbiValueShape::Aggregate)?;
+        if storage.shape() == ScoopAbiValueShape::Interface {
+            require_direct_parts(storage, AbiCoercion::interface())?;
+        } else {
+            require_nonzero_shape(storage, ScoopAbiValueShape::Aggregate)?;
+        }
         Ok(Self::Indirect(storage))
     }
 

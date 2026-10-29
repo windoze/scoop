@@ -85,6 +85,10 @@ pub(super) fn get(request: Request<'_>) -> BuildResult<Executable> {
                 .output
                 .file_name()
                 .ok_or_else(|| failure("executable has no basename"))?
+        } else if request.target.lir_target().native_object_format()
+            == scoop_lir::NativeObjectFormat::Coff64
+        {
+            std::ffi::OsStr::new("program.exe")
         } else {
             std::ffi::OsStr::new("program")
         }),

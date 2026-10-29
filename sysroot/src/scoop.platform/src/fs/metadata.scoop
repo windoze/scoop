@@ -1,6 +1,5 @@
 package scoop.platform.fs
 
-import scoop.platform.native.NativeFileMetadata
 import scoop.time.Instant
 
 /**
@@ -38,16 +37,22 @@ public enum FileKind {
     /**
      * A filesystem kind outside the listed categories.
      */
-    Other }
+    Other
+}
 
 /**
  * A metadata snapshot containing kind, byte size, permission bits, access/modification/change
  * times, and optional creation time.
  */
 public struct FileMetadata(
-    val kind: FileKind, val size: Long, val permissions: Int,
-    val accessedAt: Instant, val modifiedAt: Instant, val changedAt: Instant, val createdAt: Instant?
+    val kind: FileKind,
+    val size: Long,
+    val permissions: Int,
+    val accessedAt: Instant,
+    val modifiedAt: Instant,
+    val changedAt: Instant,
+    val createdAt: Instant?
 )
 
-@Extern(name = "scoop_platform_file_metadata", captureErrno = true)
-internal fun nativeMetadata(fd: Int, path: Ptr<Byte>?, follow: Boolean): (NativeFileMetadata, Int)
+@Extern(name = "scoop_platform_path_metadata_result")
+internal fun nativePathMetadata(path: Ptr<Byte>, follow: Boolean): NativeFileMetadataResult

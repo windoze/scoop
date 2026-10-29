@@ -9,6 +9,7 @@ use crate::{FinalLinkOptions, ToolchainError, ValidatedFinalLinkProfile};
 #[derive(Clone, Debug, Default)]
 pub struct CToolchainOptions {
     pub compiler: Option<PathBuf>,
+    pub cxx_compiler: Option<PathBuf>,
     pub native_sysroot: Option<PathBuf>,
 }
 
@@ -20,6 +21,8 @@ pub struct ResolvedTargetProfile {
     c_bridge_toolchain: ValidatedCBridgeToolchainInvocation,
     runtime_build: ValidatedRuntimeBuildProfile,
     native_tool_inputs: scoop_wire::Digest256,
+    native_c: Option<PathBuf>,
+    native_cxx: Option<PathBuf>,
 }
 
 impl ResolvedTargetProfile {
@@ -43,7 +46,22 @@ impl ResolvedTargetProfile {
             c_bridge_toolchain,
             runtime_build: ValidatedRuntimeBuildProfile::for_target(lir_target.target())?,
             native_tool_inputs,
+            native_c: None,
+            native_cxx: None,
         })
+    }
+
+    pub(crate) fn with_native_drivers(mut self, c: Option<PathBuf>, cxx: Option<PathBuf>) -> Self {
+        self.native_c = c;
+        self.native_cxx = cxx;
+        self
+    }
+
+    pub(crate) fn native_c_driver(&self) -> Option<&std::path::Path> {
+        self.native_c.as_deref()
+    }
+    pub(crate) fn native_cxx_driver(&self) -> Option<&std::path::Path> {
+        self.native_cxx.as_deref()
     }
 
     pub const fn native_tool_inputs(&self) -> scoop_wire::Digest256 {
@@ -109,7 +127,15 @@ impl ResolvedTargetProfile {
         options: &FinalLinkOptions,
         cxx: bool,
     ) -> Result<ValidatedFinalLinkProfile, ToolchainError> {
-        ValidatedFinalLinkProfile::from_startup(self.c_bridge_toolchain.clone(), options, cxx)
+        let cxx = cxx
+            .then(|| {
+                crate::ValidatedCxxToolchain::resolve_with(
+                    &self.c_bridge_toolchain,
+                    self.native_cxx_driver(),
+                )
+            })
+            .transpose()?;
+        ValidatedFinalLinkProfile::from_tools(self.c_bridge_toolchain.clone(), options, cxx)
     }
 }
 
@@ -118,8 +144,9 @@ pub fn host_target_triple() -> Result<&'static str, ToolchainError> {
         ("aarch64", "macos") => Ok("aarch64-apple-darwin"),
         ("x86_64", "linux") if cfg!(target_env = "musl") => Ok("x86_64-unknown-linux-musl"),
         ("x86_64", "linux") => Ok("x86_64-unknown-linux-gnu"),
+        ("x86_64", "windows") => Ok("x86_64-pc-windows-msvc-ucrt"),
         (arch, os) => Err(ToolchainError(format!(
-            "unsupported host {arch}-{os}; M28 supports macOS/AArch64 and Linux/amd64"
+            "unsupported host {arch}-{os}; supported hosts are macOS/AArch64, Linux/amd64 and Windows/amd64"
         ))),
     }
 }
@@ -131,6 +158,15 @@ pub fn select_target(triple: &str) -> Result<ValidatedLirTargetSelection, Toolch
         }
         "x86_64-unknown-linux-musl" | "x86_64-linux-musl" => {
             return Ok(scoop_target_data::LINUX_X86_64_MUSL_LLVM_22_1);
+        }
+        "x86_64-pc-windows-msvc-ucrt" => {
+            return Ok(scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_LLVM_22_1);
+        }
+        "x86_64-w64-windows-llvm-mingw-msvcrt" => {
+            return Ok(scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_LLVM_22_1);
+        }
+        "x86_64-w64-windows-llvm-mingw-ucrt" => {
+            return Ok(scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_LLVM_22_1);
         }
         _ => {}
     }
@@ -148,7 +184,7 @@ pub fn select_target(triple: &str) -> Result<ValidatedLirTargetSelection, Toolch
         Ok(scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
     } else {
         Err(ToolchainError(format!(
-            "unsupported target {triple:?}; M28 supports macOS/AArch64, Linux glibc/amd64 and Linux musl/amd64"
+            "unsupported target {triple:?}; use a registered macOS/AArch64, Linux/amd64 or complete Windows/amd64 target"
         )))
     }
 }
@@ -234,9 +270,42 @@ mod tests {
             "x86_64-apple-darwin",
             "aarch64-unknown-linux-gnu",
             "aarch64-apple-ios",
+            "x86_64-pc-windows-msvc",
+            "x86_64-w64-windows-gnu",
+            "windows-ucrt",
+            "windows-msvcrt",
         ] {
             let error = ResolvedTargetProfile::resolve(triple).unwrap_err();
             assert!(error.0.contains("unsupported target"));
+        }
+    }
+
+    #[test]
+    fn windows_cli_names_preserve_each_native_environment() {
+        for (triple, selection) in [
+            (
+                "x86_64-pc-windows-msvc-ucrt",
+                scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_LLVM_22_1,
+            ),
+            (
+                "x86_64-w64-windows-llvm-mingw-msvcrt",
+                scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_LLVM_22_1,
+            ),
+            (
+                "x86_64-w64-windows-llvm-mingw-ucrt",
+                scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_LLVM_22_1,
+            ),
+        ] {
+            assert_eq!(select_target(triple).unwrap(), selection);
+            assert_eq!(
+                crate::manifest::source_target(selection.target().id())
+                    .unwrap()
+                    .triple,
+                triple
+            );
+        }
+        if cfg!(all(windows, target_arch = "x86_64")) {
+            assert_eq!(host_target_triple().unwrap(), "x86_64-pc-windows-msvc-ucrt");
         }
     }
 }

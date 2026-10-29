@@ -1,14 +1,13 @@
 package scoop.platform.time
 
-import scoop.platform.io.checkNativeStatus
-import scoop.platform.io.failNative
+import scoop.platform.system.failOperatingSystem
 import scoop.time.*
 
 /**
  * The operating-system wall clock used for civil timestamps; it can change when system time is
  * adjusted.
  */
-public object SystemClock : Clock {
+public object SystemClock: Clock {
     /**
      * Reads the current wall-clock instant.
      */
@@ -21,7 +20,7 @@ public object SystemClock : Clock {
 /**
  * A monotonic source for elapsed-time measurement, independent of wall-clock adjustments.
  */
-public object MonotonicTimeSource : TimeSource {
+public object MonotonicTimeSource: TimeSource {
     /**
      * Captures a monotonic time mark.
      */
@@ -35,11 +34,15 @@ public object MonotonicTimeSource : TimeSource {
  * Blocks the current native thread for a nonnegative duration.
  */
 public fun sleep(duration: Duration) {
-    if (duration.floorSeconds < 0L) throw IllegalArgumentException(Some("negative sleep duration"))
-    if (duration == Duration.ZERO) return
-    @Unsafe {
-        val (status, error) = nativeSleep(duration.floorSeconds, duration.nanosecondsOfSecond)
-        checkNativeStatus(status, error, "sleep")
+    if (duration.floorSeconds < 0L)
+        throw IllegalArgumentException(Some("negative sleep duration"))
+    if (duration == Duration.ZERO)
+        return
+    @Unsafe
+    {
+        val error = nativeSleep(duration.floorSeconds, duration.nanosecondsOfSecond)
+        if (error != 0)
+            failOperatingSystem("sleep", error)
     }
 }
 
@@ -47,6 +50,7 @@ public fun sleep(duration: Duration) {
  * Measures elapsed monotonic time since this mark.
  */
 public fun TimeMark.elapsedNow(): Duration = source.markNow() - this
+
 /**
  * A returned value paired with the duration measured while producing it.
  */
@@ -64,24 +68,30 @@ public fun measureTime(source: TimeSource = MonotonicTimeSource, block: () -> Un
 /**
  * Runs the block and returns both its result and measured elapsed duration.
  */
-public fun <T> measureTimedValue(source: TimeSource = MonotonicTimeSource, block: () -> T): TimedValue<T> {
+public fun <T> measureTimedValue(
+    source: TimeSource = MonotonicTimeSource,
+    block: () -> T
+): TimedValue<T> {
     val start = source.markNow()
     val value = block()
     return TimedValue(value, source.markNow() - start)
 }
 
 @CLayout
-private struct NativeTime(val seconds: Long, val nanoseconds: Long)
+private struct NativeTime(val seconds: Long, val nanoseconds: Long, val error: Int)
 
 private fun readClock(monotonic: Boolean): NativeTime {
-    @Unsafe {
-        val (value, error) = nativeClock(monotonic)
-        if (value.nanoseconds < 0L) failNative("clock read", error)
+    @Unsafe
+    {
+        val value = nativeClock(monotonic)
+        if (value.error != 0)
+            failOperatingSystem("clock read", value.error)
         return value
     }
 }
 
-@Extern(name = "scoop_platform_clock", captureErrno = true)
-private fun nativeClock(monotonic: Boolean): (NativeTime, Int)
-@Extern(name = "scoop_platform_sleep", captureErrno = true)
-private fun nativeSleep(seconds: Long, nanoseconds: Int): (Int, Int)
+@Extern(name = "scoop_platform_clock")
+private fun nativeClock(monotonic: Boolean): NativeTime
+
+@Extern(name = "scoop_platform_sleep")
+private fun nativeSleep(seconds: Long, nanoseconds: Int): Int

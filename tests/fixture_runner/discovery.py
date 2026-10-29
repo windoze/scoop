@@ -53,7 +53,7 @@ def expectation_files(value, base, update):
 def discover(suite: Path, update=False, target=None):
     sources = set(suite.rglob("*.scoop"))
     carriers = sorted(set(suite.rglob("*.fixture.toml")) | set(suite.rglob("fixture.toml")))
-    raw = [(carrier, tomllib.loads(carrier.read_text())) for carrier in carriers]
+    raw = [(carrier, tomllib.loads(carrier.read_text(encoding="utf-8"))) for carrier in carriers]
     for source in sorted(sources):
         data = inline(source)
         if data is not None:

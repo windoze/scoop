@@ -7,7 +7,7 @@ use scoop_lir::{
     AbiPhysicalParameterOrigin, AbiReturn, AbiValue, EnumDefs, ScoopAbiSignature, StructDefs,
 };
 
-use crate::{CodegenError, ManagedAddressSpace, basic_ty, ptr_ty};
+use crate::{CodegenError, ManagedAddressSpace, ValidatedBackendProfile, basic_ty, ptr_ty};
 
 pub(crate) fn carrier_type<'ctx>(
     context: &'ctx Context,
@@ -125,7 +125,7 @@ fn apply_parameter_attributes(
     context: &Context,
     structs: &StructDefs,
     enums: &EnumDefs,
-    managed_address_space: ManagedAddressSpace,
+    profile: ValidatedBackendProfile,
     signature: &ScoopAbiSignature,
     parameter_offset: u32,
     mut add: impl FnMut(AttributeLoc, Attribute),
@@ -138,8 +138,10 @@ fn apply_parameter_attributes(
                 CodegenError("Scoop ABI parameter index exceeds u32::MAX".to_string())
             })?;
         let attribute_name = match parameter.origin() {
-            AbiPhysicalParameterOrigin::IndirectReturn => "sret",
-            AbiPhysicalParameterOrigin::IndirectArgument { .. } => "byval",
+            AbiPhysicalParameterOrigin::IndirectReturn => Some("sret"),
+            AbiPhysicalParameterOrigin::IndirectArgument { .. } => {
+                profile.indirect_arguments_use_byval().then_some("byval")
+            }
             AbiPhysicalParameterOrigin::DirectArgument { .. }
                 if parameter.value().storage_type() == &scoop_lir::LirType::I1 =>
             {
@@ -149,20 +151,22 @@ fn apply_parameter_attributes(
             AbiPhysicalParameterOrigin::DirectArgument { .. }
             | AbiPhysicalParameterOrigin::DirectArgumentPart { .. } => continue,
         };
-        let ty = value_type(
-            context,
-            structs,
-            enums,
-            managed_address_space,
-            parameter.value(),
-        )?;
-        add(
-            AttributeLoc::Param(index),
-            context.create_type_attribute(
-                Attribute::get_named_enum_kind_id(attribute_name),
-                ty.as_any_type_enum(),
-            ),
-        );
+        if let Some(attribute_name) = attribute_name {
+            let ty = value_type(
+                context,
+                structs,
+                enums,
+                profile.managed_address_space_contract(),
+                parameter.value(),
+            )?;
+            add(
+                AttributeLoc::Param(index),
+                context.create_type_attribute(
+                    Attribute::get_named_enum_kind_id(attribute_name),
+                    ty.as_any_type_enum(),
+                ),
+            );
+        }
         add(
             AttributeLoc::Param(index),
             context.create_enum_attribute(
@@ -196,7 +200,7 @@ pub(crate) fn apply_function_attributes(
     context: &Context,
     structs: &StructDefs,
     enums: &EnumDefs,
-    managed_address_space: ManagedAddressSpace,
+    profile: ValidatedBackendProfile,
     function: FunctionValue<'_>,
     signature: &ScoopAbiSignature,
 ) -> Result<(), CodegenError> {
@@ -207,7 +211,7 @@ pub(crate) fn apply_function_attributes(
         context,
         structs,
         enums,
-        managed_address_space,
+        profile,
         signature,
         0,
         |location, attribute| function.add_attribute(location, attribute),
@@ -218,7 +222,7 @@ pub(crate) fn apply_call_attributes(
     context: &Context,
     structs: &StructDefs,
     enums: &EnumDefs,
-    managed_address_space: ManagedAddressSpace,
+    profile: ValidatedBackendProfile,
     call: CallSiteValue<'_>,
     signature: &ScoopAbiSignature,
 ) -> Result<(), CodegenError> {
@@ -229,7 +233,7 @@ pub(crate) fn apply_call_attributes(
         context,
         structs,
         enums,
-        managed_address_space,
+        profile,
         signature,
         0,
         |location, attribute| call.add_attribute(location, attribute),
@@ -242,7 +246,7 @@ pub(crate) fn apply_statepoint_attributes(
     context: &Context,
     structs: &StructDefs,
     enums: &EnumDefs,
-    managed_address_space: ManagedAddressSpace,
+    profile: ValidatedBackendProfile,
     statepoint: CallSiteValue<'_>,
     signature: &ScoopAbiSignature,
 ) -> Result<(), CodegenError> {
@@ -250,7 +254,7 @@ pub(crate) fn apply_statepoint_attributes(
         context,
         structs,
         enums,
-        managed_address_space,
+        profile,
         signature,
         5,
         |location, attribute| statepoint.add_attribute(location, attribute),
@@ -262,11 +266,17 @@ pub(crate) fn declare_or_get<'ctx>(
     llvm: &LlvmModule<'ctx>,
     structs: &StructDefs,
     enums: &EnumDefs,
-    managed_address_space: ManagedAddressSpace,
+    profile: ValidatedBackendProfile,
     symbol: &str,
     signature: &ScoopAbiSignature,
 ) -> Result<FunctionValue<'ctx>, CodegenError> {
-    let expected = function_type(context, structs, enums, managed_address_space, signature)?;
+    let expected = function_type(
+        context,
+        structs,
+        enums,
+        profile.managed_address_space_contract(),
+        signature,
+    )?;
     let function = match llvm.get_function(symbol) {
         Some(function) if function.get_type() == expected => function,
         Some(_) => {
@@ -276,13 +286,6 @@ pub(crate) fn declare_or_get<'ctx>(
         }
         None => llvm.add_function(symbol, expected, None),
     };
-    apply_function_attributes(
-        context,
-        structs,
-        enums,
-        managed_address_space,
-        function,
-        signature,
-    )?;
+    apply_function_attributes(context, structs, enums, profile, function, signature)?;
     Ok(function)
 }

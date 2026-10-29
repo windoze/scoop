@@ -14,3 +14,19 @@ kind = "library"
 [[native.libraries]]
 name = "scoop_text_backend"
 kind = "static"
+
+[[native.libraries]]
+name = "ntdll"
+when = {os = "windows"}
+
+[[native.libraries]]
+name = "userenv"
+when = {os = "windows"}
+
+[[native.libraries]]
+name = "ws2_32"
+when = {os = "windows"}
+
+[[native.libraries]]
+name = "dbghelp"
+when = {os = "windows"}

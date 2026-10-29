@@ -36,6 +36,42 @@ pub fn prepare_native_objects(
     optimization: OptimizationMode,
     public_include: &Path,
     cache: &Path,
+    purpose: scoop_protocol::CompilationPurpose,
+) -> Result<PreparedNativeObjects, ToolchainError> {
+    let mut prepared = prepare_c_objects(manifest, target, optimization, public_include, cache)?;
+    if let Some(resource) = crate::windows_resource::prepare(manifest, target, purpose, cache)? {
+        prepared.key = fingerprint(&(prepared.key.as_array(), resource.key.as_array()))?;
+        prepared.objects.push(resource.object);
+        prepared.inputs.extend(resource.inputs);
+    }
+    Ok(prepared)
+}
+
+pub fn selected_native_object_sources(
+    manifest: &LoadedConeManifest,
+    target: &crate::ResolvedTargetProfile,
+    purpose: scoop_protocol::CompilationPurpose,
+) -> Vec<ConeRelativePath> {
+    let mut sources: Vec<_> = manifest
+        .parsed()
+        .semantic()
+        .native()
+        .sources()
+        .iter()
+        .filter(|source| source.predicate().matches(target.id()))
+        .map(|source| source.path().clone())
+        .collect();
+    sources.sort();
+    sources.extend(crate::windows_resource::source(manifest, target, purpose).cloned());
+    sources
+}
+
+fn prepare_c_objects(
+    manifest: &LoadedConeManifest,
+    target: &crate::ResolvedTargetProfile,
+    optimization: OptimizationMode,
+    public_include: &Path,
+    cache: &Path,
 ) -> Result<PreparedNativeObjects, ToolchainError> {
     let compiler = NativeToolchain::resolve_cached(target, manifest, cache)?;
     let key = inputs::configuration(manifest, target, &compiler, optimization, public_include)?;

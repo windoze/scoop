@@ -16,7 +16,19 @@ TARGETS = (
     "aarch64-apple-darwin",
     "x86_64-unknown-linux-gnu",
     "x86_64-unknown-linux-musl",
+    "x86_64-pc-windows-msvc-ucrt",
+    "x86_64-w64-windows-llvm-mingw-msvcrt",
+    "x86_64-w64-windows-llvm-mingw-ucrt",
 )
+
+
+def host_path(carrier):
+    data = bytes(carrier["bytes"])
+    if carrier["encoding"] == "UnixBytes":
+        return Path(os.fsdecode(data))
+    if carrier["encoding"] == "WindowsWtf16Le":
+        return Path(data.decode("utf-16-le", errors="surrogatepass"))
+    raise ValueError(f"unknown runtime builder path encoding: {carrier['encoding']}")
 
 
 def metadata(path):
@@ -125,8 +137,8 @@ def runtime(args, work, environment, native, enable_gc_stress=False, enable_star
         command.append("--enable-startup-stats")
     result = subprocess.run(command, env=environment, check=True, stdout=subprocess.PIPE)
     output = json.loads(result.stdout)
-    source = Path(os.fsdecode(bytes(output["root"])))
-    files = [Path(os.fsdecode(bytes(path))) for path in output["files"]]
+    source = host_path(output["root"])
+    files = [host_path(path) for path in output["files"]]
     variant = "runtime"
     if enable_gc_stress:
         variant += "-stress"
@@ -152,7 +164,10 @@ def main():
     parser.add_argument("--cc", type=Path)
     parser.add_argument("--native-sysroot", type=Path)
     parser.add_argument("--unwind-prefix", type=Path)
+    parser.add_argument("--jobs", type=int, default=min(os.cpu_count() or 1, 6))
     args = parser.parse_args()
+    if args.jobs < 1:
+        parser.error("--jobs must be positive")
     args.sysroot = args.sysroot.resolve()
     args.runtime_root = args.runtime_root.resolve()
     work = (args.work_dir or ROOT / "tmp/sysroot" / args.target).resolve()
@@ -160,10 +175,12 @@ def main():
     args.cache_dir = (args.cache_dir or work / "cache").resolve()
     scratch = work / "scratch"
     scratch.mkdir(exist_ok=True)
-    environment = dict(os.environ, TMPDIR=str(scratch))
+    environment = dict(os.environ, TMPDIR=str(scratch), TMP=str(scratch), TEMP=str(scratch))
     scoop = args.scoop.resolve()
-    scoopc = (args.scoopc or scoop.with_name("scoopc")).resolve()
-    if args.unwind_prefix is None and "linux" in args.target:
+    scoopc = (
+        args.scoopc or scoop.with_name("scoopc.exe" if os.name == "nt" else "scoopc")
+    ).resolve()
+    if args.unwind_prefix is None and args.target != "aarch64-apple-darwin":
         args.unwind_prefix = args.sysroot / "lib" / args.target / "unwind"
     native = []
     for flag, value in (
@@ -189,6 +206,8 @@ def main():
                 "build",
                 args.sysroot / "src" / name,
                 "--release",
+                "--jobs",
+                str(args.jobs),
                 "--target",
                 args.target,
                 "--sysroot",

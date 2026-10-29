@@ -65,10 +65,14 @@ impl<'a, 'ctx> DebugContext<'a, 'ctx> {
             "",
             "",
         );
+        let (format, version) = match profile.lir_target_profile().native_object_format() {
+            scoop_lir::NativeObjectFormat::Coff64 => ("CodeView", 1),
+            _ => ("Dwarf Version", 5),
+        };
         module.add_basic_value_flag(
-            "Dwarf Version",
+            format,
             FlagBehavior::Warning,
-            context.i32_type().const_int(5, false),
+            context.i32_type().const_int(version, false),
         );
         module.add_basic_value_flag(
             "Debug Info Version",
@@ -316,7 +320,7 @@ pub(crate) fn source_file(function: &scoop_lir::Function) -> Option<&Arc<DebugFi
 }
 
 fn path_parts(source: &DebugFile) -> (&str, &str) {
-    let path = Path::new(source.path.as_ref());
+    let path = dunce::simplified(Path::new(source.path.as_ref()));
     (
         path.file_name()
             .and_then(|name| name.to_str())

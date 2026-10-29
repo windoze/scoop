@@ -1,5 +1,7 @@
 version = "0.0.0-dev"
 llvm = "22.1.8"
+rust_windows = "1.99.1"
+llvm_mingw = "20260616"
 openssl = "3.5.9"
 llhttp = "9.4.3"
 nghttp2 = "1.70.0"
@@ -30,3 +32,21 @@ build_system = "Ubuntu 26.04.1"
 cpu = "x86-64"
 minimum_libc = "1.2.5"
 build_system = "Ubuntu 26.04.1"
+
+# Windows resource baselines. CLI targets are enabled only after W1/W2 validation.
+[targets.x86_64-pc-windows-msvc-ucrt]
+cpu = "x86-64"
+minimum_os = "10.0.26300"
+sdk = "10.0.26100.0"
+msvc_toolset = "14.44.35207"
+build_system = "Windows x64 10.0.26300"
+
+[targets.x86_64-w64-windows-llvm-mingw-ucrt]
+cpu = "x86-64"
+minimum_os = "10.0.26300"
+build_system = "Windows x64 10.0.26300"
+
+[targets.x86_64-w64-windows-llvm-mingw-msvcrt]
+cpu = "x86-64"
+minimum_os = "10.0.26300"
+build_system = "Windows x64 10.0.26300"

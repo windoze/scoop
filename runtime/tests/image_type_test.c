@@ -212,7 +212,7 @@ static const char *corrupt(Fixture *fixture, unsigned test) {
         data->sites[0].site_role = 0;
         return "site ID, role";
     case 11:
-        data->itable.interface = guard;
+        data->itable.interface_type = guard;
         return "unregistered TypeDescriptor";
     case 12:
         data->itable.slots = guard;

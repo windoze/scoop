@@ -1,7 +1,7 @@
 #ifndef SCOOP_GC_HEAP_INTERNAL_H
 #define SCOOP_GC_HEAP_INTERNAL_H
 
-#include <pthread.h>
+#include "../platform/primitives.h"
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -197,7 +197,7 @@ typedef struct ScoopGcFreeRun {
 } ScoopGcFreeRun;
 
 typedef struct ScoopGcHeapState {
-    pthread_mutex_t lock;
+    ScoopPlatformMutex lock;
     ScoopGcRegion *regions;
     ScoopGcRegion *available_regions;
     ScoopGcBlockMeta *free_blocks;

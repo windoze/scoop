@@ -1,0 +1,23 @@
+package scoop.asyncio
+
+import scoop.asyncio.host.EventLoopNotification
+
+@Unsafe
+internal fun testNotificationPoll(notification: EventLoopNotification, timeout: Int): Int =
+    when (notification) {
+        case WindowsEvent(value) -> nativeTestHostWait(value, timeout)
+        case ReadableDescriptor(_) -> throw IllegalArgumentException(Some("expected Windows event"))
+    }
+
+@Unsafe
+internal fun testNotificationOpen(notification: EventLoopNotification): Boolean =
+    when (notification) {
+        case WindowsEvent(value) -> nativeTestEventOpen(value)
+        case ReadableDescriptor(_) -> throw IllegalArgumentException(Some("expected Windows event"))
+    }
+
+@Extern(name = "scoop_test_host_wait")
+private fun nativeTestHostWait(event: Ptr<Unit>, timeout: Int): Int
+
+@Extern(name = "scoop_test_event_open")
+private fun nativeTestEventOpen(event: Ptr<Unit>): Boolean

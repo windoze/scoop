@@ -135,13 +135,24 @@ fn probe_capability(
     Ok((capability, output.stdout))
 }
 
+pub(crate) fn compiler_command(executable: &Path) -> Command {
+    let mut command = Command::new(executable);
+    command.env_clear();
+    #[cfg(windows)]
+    command.envs(
+        ["PATH", "SystemRoot"]
+            .into_iter()
+            .filter_map(|name| std::env::var_os(name).map(|value| (name, value))),
+    );
+    command
+}
+
 fn invoke_capability(executable: &Path) -> Result<Output, PairedCompilerError> {
     let working_directory = executable
         .parent()
         .ok_or_else(|| PairedCompilerError::MissingExecutableParent(executable.to_path_buf()))?;
-    Command::new(executable)
+    compiler_command(executable)
         .arg("__machine-capability")
-        .env_clear()
         .current_dir(working_directory)
         .scoop_output()
         .map_err(|source| PairedCompilerError::Spawn {

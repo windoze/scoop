@@ -59,9 +59,11 @@ struct BuildArgs {
     /// Core sysroot; defaults to SCOOP_SYSROOT and the development layout.
     #[arg(long)]
     sysroot: Option<PathBuf>,
-    /// Linux C compiler driver used for generated native bridges.
+    /// Native C compiler driver for the selected target.
     #[arg(long)]
     cc: Option<PathBuf>,
+    #[arg(long)]
+    cxx: Option<PathBuf>,
     /// Target C development sysroot, separate from the Scoop sysroot.
     #[arg(long)]
     native_sysroot: Option<PathBuf>,
@@ -116,6 +118,7 @@ fn main() -> ExitCode {
                 target,
                 sysroot,
                 cc,
+                cxx,
                 native_sysroot,
                 generators,
                 profile,
@@ -138,6 +141,7 @@ fn main() -> ExitCode {
                     generators,
                     c_toolchain: scoop_toolchain::CToolchainOptions {
                         compiler: cc,
+                        cxx_compiler: cxx,
                         native_sysroot,
                     },
                 },

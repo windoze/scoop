@@ -1,5 +1,7 @@
 # Scoop 工具包
 
+Windows 的主驱动名为 `sco.exe`，在 PowerShell 中使用 `sco --version`、`sco run main.scoop`、`sco pm` 和 `sco example`。macOS／Linux 仍使用 `scoop`；下文示例中的 `scoop` 在 Windows 上替换为 `sco`。其余程序名不变：`scoopc.exe`、`scoop-link.exe`、`scoop-lsp.exe`、`scoop-pm.exe` 以及 `commands/scoop-example.exe`。Windows 工具包不提供 `scoop.exe` 别名，避免与同名包管理器冲突。
+
 工具包直接包含安装根内容，默认解压到 `~/.scoop`，然后把 `~/.scoop/bin` 加入 PATH。将下面的归档文件名替换为实际下载的版本与宿主平台：
 
 ```sh
@@ -12,9 +14,21 @@ scoop --version
 
 归档内没有额外的版本目录、`.scoop` 或 `sysroot` 层，无需 `--strip-components`。五个命令通过实际执行文件定位相邻资源，也支持正常软链接启动。也可解压到其他安装根；移动整个目录后可以直接继续使用。
 
-安装根的 `VERSION` 第一行为发行版本，随后记录源码 revision 与宿主平台。`scoop --version`、`scoopc --version`、`scoop-link --version`、`scoop-lsp --version`、`scoop-pm --version` 显示同一份发行版本和源码 revision。此目录中的 `toolchain.toml` 列出宿主、目标、内置 Cone、native 版本、VSIX 和编程 skill 路径；它只说明包内容，不是命令启动时的验证清单。
+安装根的 `VERSION` 第一行为发行版本，随后记录源码 revision 与宿主平台。`scoop --version`、`scoopc --version`、`scoop-link --version`、`scoop-lsp --version`、`scoop-pm --version` 显示同一份发行版本和源码 revision。`share/scoop/toolchain.toml` 列出宿主、目标、内置 Cone、native 版本、VSIX 和编程 skill 路径；它只说明包内容，不是命令启动时的验证清单。
 
 Darwin/AArch64 包要求声明版本的 macOS、Xcode 或 Command Line Tools、Apple Clang、macOS SDK 和系统 linker。Linux/GNU amd64 包要求声明版本的 glibc、GCC、GNU ld 和开发文件；生成 musl 程序还需要 musl-gcc 与匹配的 musl 开发文件。GNU 宿主工具不承诺在纯 musl 系统运行。native C++ 另需配套 clang++／g++ 与标准库；musl C++ 不在当前范围。
+
+Windows x64 包的最低版本以 `toolchain.toml` 为准，包含宿主 Clang／LLD／RC 工具、三个 Windows target 的系统库与 runtime，以及两个 LLVM-MinGW CRT 的 x86-64 开发资源。默认 MSVC UCRT 目标需要本机 C++ Build Tools 和 Windows SDK，或显式 `--native-sysroot` 所指的 `msvc.toml`；不要求完整 Visual Studio IDE。两个 MinGW 目标可直接使用随包资源，例如 `sco run --target x86_64-w64-windows-llvm-mingw-ucrt main.scoop`。应用开发不需要维护构建使用的 Rust、CMake、Perl 或 MSYS。native MSVC C++ 应用按实际依赖部署 VCRuntime／MSVC STL DLL。
+
+Windows 应用可在 `Cone.toml` 中选择 GUI 子系统并嵌入资源：
+
+```toml
+[windows]
+subsystem = "gui"
+rc = "app.rc"
+```
+
+`subsystem` 可为 `console` 或 `gui`，缺省为 `console`；`rc` 是可选的、相对 Cone 根目录的资源脚本路径。构建使用所选 Windows toolchain 的资源编译器，随包工具可直接使用，也可采用外部工具链提供的编译器。
 
 内置库以 release 预编译，debug 和 release 应用都直接使用 `~/.scoop/lib/<target-triple>/*.slib`；当前应用需要的泛型实例仍正常生成。空缓存也不触发系统库重编。普通 build、run、test 和 link 不重新编译内置 Cone 或 runtime。应用构建缓存和输出写到各自正常位置，安装目录无需可写。显式 `--sysroot` 或环境变量 `SCOOP_SYSROOT` 会覆盖默认安装根；使用安装包时不需要设置这两项。
 
@@ -63,7 +77,7 @@ scoop build my-cone --target x86_64-unknown-linux-musl
 
 `scoop check` 默认检查当前 Cone 的生产源码，也接受一个 Cone 或 single-file 输入。检查完成完整前端语义及必要的 generator，不生成根 Cone 的机器产物或执行程序；源码依赖需要更新时仍正常构建。`--tests` 选择测试用途，包含生产与测试源码，但不验证生产 main；CI 可分别运行默认检查与 `--tests`。两命令均支持 `--message-format json`，完整选项可用各自的 `--help` 查看。
 
-用浏览器打开安装根的 `docs/index.html`，选择应用所用目标，即可浏览所有内置库的 API、说明和源码。页面之间使用相对链接，搜索及资源随包提供，无需联网或启动服务器。Darwin 包提供 Darwin 文档，Linux 包分别提供 GNU 与 musl 文档；源码直接嵌入 HTML，移动完整安装目录后仍可阅读。
+用浏览器打开安装根的 `docs/index.html`，选择应用所用目标，即可浏览所有内置库的 API、说明和源码。页面之间使用相对链接，搜索及资源随包提供，无需联网或启动服务器。Darwin 包提供 Darwin 文档，Linux 包分别提供 GNU 与 musl 文档，Windows 包提供 Microsoft UCRT 及两个 LLVM-MinGW CRT 目标的文档；源码直接嵌入 HTML，移动完整安装目录后仍可阅读。
 
 自己的 Cone 可用 `scoop doc my-cone` 生成离线文档；多个 Cone 可同时作为参数传入。`--no-deps` 只展示显式选择的根，`--deny-doc-warnings` 将文档 warning 作为生成失败处理。只有预编译产物的依赖仍可参与类型检查；没有可用源码文本时不生成源码展示部分，`.slib` 不包含完整源码。
 
@@ -78,16 +92,17 @@ scoop build my-cone --target x86_64-unknown-linux-musl
 
 `scoop.idna`、`scoop.url`、`scoop.charset` 和 `scoop.compression` 也可分别作为普通依赖使用。IDNA 和 NFC 使用 Rust ICU4X，不要求 ICU4C 或 C++；URL、文本和压缩所需的 native 静态库、头文件、源码与许可已经随工具包提供。压缩的同步与异步流共用一个 Cone。
 
-`scoop.regex` 提供 PCRE2 原生模式语法，使用独立的 PCRE2-8 C 静态库。其三个目标的 archive、头文件与许可已随包提供，应用无需另行安装 PCRE2 或 Rust。查询、替换、分割、Unicode 标量索引和 close/use 的说明见 `src/scoop.regex/README.md`。
+`scoop.regex` 提供 PCRE2 原生模式语法，使用独立的 PCRE2-8 C 静态库。各发行目标的 archive、头文件与许可已随包提供，应用无需另行安装 PCRE2 或 Rust。查询、替换、分割、Unicode 标量索引和 close/use 的说明见 `src/scoop.regex/README.md`。
 
 Darwin 默认最低版本由发行配置确定；`MACOSX_DEPLOYMENT_TARGET` 可显式选择兼容的部署版本。默认 runtime 的最低要求不能高于所选版本。较老系统的支持必须另经实际验证，不能通过降低此变量得到保证。
 
 升级时可将旧 `~/.scoop` 移到备份位置，再创建新的 `~/.scoop` 并解压完整包，避免旧版本文件残留；也可安装到另一目录并调整 PATH 或软链接。无需删除整个用户缓存。第三方许可见 `../licenses/README.md`；Scoop 自身的许可状态也列在该文件中，应以维护者确定的项目许可为准。
 
 
-工具包包含 Python-enabled LLVM 22 的 `lldb` 和 `lldb-dap`，以及 Python 和平台 helper。
-使用 `scoop build --debug-info full` 后可运行 `lldb <program>`；调试文件跟随 executable 发布，
-Darwin 使用 `.dSYM`，Linux 使用 `.debug`。debug 默认 full，release 默认 none；release 也可显式 full。
+工具包包含 Python-enabled LLVM 22 的 `scoop-lldb` 和 `scoop-lldb-dap`，以及 Python 和平台 helper。
+公开 `bin` 中的 LLVM 工具均加 `scoop-` 前缀：`scoop-dsymutil`、`scoop-llvm-objcopy`、`scoop-llvm-strip`、`scoop-llvm-symbolizer`、`scoop-llvm-nm` 和 `scoop-llvm-readobj`；Windows 附加 `.exe`。该目录不提供无前缀别名，可与其他 LLVM 安装共存于 PATH。
+使用 `scoop build --debug-info full`（Windows 为 `sco build`）后可运行 `scoop-lldb <program>`；调试文件跟随 executable 发布，
+Darwin 使用 `.dSYM`，Linux 使用 `.debug`，Windows 使用 `.pdb`。debug 默认 full，release 默认 none；release 也可显式 full。
 LLDB 自动导入只读 Scoop formatter，提供 String、数组和当前 enum 变体的展示。
 
 在 VS Code 中按 F5 选择 Scoop，或执行 `Scoop: Debug Current File`，扩展可自动构建并启动调试。

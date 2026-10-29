@@ -1,8 +1,8 @@
 #ifndef SCOOP_RT_THREAD_INTERNAL_H
 #define SCOOP_RT_THREAD_INTERNAL_H
 
+#include "../platform/primitives.h"
 #include <inttypes.h>
-#include <pthread.h>
 #include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,8 +26,8 @@ typedef enum ScoopWorldPhase {
 
 _Static_assert(SCOOP_WORLD_RUNNING == 0, "generated poll running phase drifted");
 
-extern pthread_mutex_t scoop_thread_world_lock;
-extern pthread_cond_t scoop_thread_world_changed;
+extern ScoopPlatformMutex scoop_thread_world_lock;
+extern ScoopPlatformCondition scoop_thread_world_changed;
 extern ScoopThreadState *scoop_thread_registry;
 extern uint64_t scoop_thread_registry_count;
 extern ScoopRuntimeLifecycle scoop_thread_runtime_lifecycle;

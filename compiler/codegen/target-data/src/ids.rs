@@ -10,3 +10,6 @@ const fn id(name: &str) -> TargetProfileId {
 pub const DARWIN_AARCH64_ID: TargetProfileId = id("darwin-aarch64");
 pub const LINUX_X86_64_GNU_ID: TargetProfileId = id("linux-x86-64-gnu");
 pub const LINUX_X86_64_MUSL_ID: TargetProfileId = id("linux-x86-64-musl");
+pub const WINDOWS_X86_64_MSVC_UCRT_ID: TargetProfileId = id("windows-x86-64-msvc-ucrt");
+pub const WINDOWS_X86_64_MINGW_MSVCRT_ID: TargetProfileId = id("windows-x86-64-llvm-mingw-msvcrt");
+pub const WINDOWS_X86_64_MINGW_UCRT_ID: TargetProfileId = id("windows-x86-64-llvm-mingw-ucrt");

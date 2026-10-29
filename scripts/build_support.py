@@ -1,12 +1,42 @@
 """Input metadata and output reuse shared by native maintenance builds."""
 
+import errno
 import json
 import os
 import re
+import subprocess
+from contextlib import contextmanager
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 RELEASE_CONFIG = ROOT / "scripts/release.toml"
+
+
+@contextmanager
+def build_lock(path):
+    with path.open("a+b") as lock:
+        if os.name == "nt":
+            import msvcrt
+
+            lock.seek(0)
+            while True:
+                try:
+                    msvcrt.locking(lock.fileno(), msvcrt.LK_LOCK, 1)
+                    break
+                except OSError as error:
+                    # LK_LOCK retries for ten seconds; a real build can take longer.
+                    if error.errno not in (errno.EACCES, errno.EDEADLK):
+                        raise
+            try:
+                yield
+            finally:
+                lock.seek(0)
+                msvcrt.locking(lock.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            yield
 
 
 def metadata(path):
@@ -32,7 +62,7 @@ def reusable(record, inputs, outputs):
         return False
     saved = json.loads(record.read_text())
     return (
-        saved["inputs"] == inputs
+        saved.get("inputs") == inputs
         and all(path.exists() for path in outputs)
         and all(metadata(Path(value[0])) == value for value in saved["dependencies"])
     )
@@ -40,17 +70,57 @@ def reusable(record, inputs, outputs):
 
 def save_record(path, inputs, objects, tools=()):
     dependencies = {Path(tool) for tool in tools}
-    for depfile in objects.rglob("*.o.d"):
-        text = depfile.read_text().replace("\\\n", " ")
-        _, separator, prerequisites = text.partition(": ")
-        if not separator:
-            raise ValueError(f"invalid compiler depfile: {depfile}")
-        for token in re.findall(r"(?:\\.|[^\s])+", prerequisites):
-            value = Path(re.sub(r"\\(.)", r"\1", token).replace("$$", "$"))
-            value = (value if value.is_absolute() else objects / value).resolve()
-            if not value.is_relative_to(objects.parent.resolve()):
-                dependencies.add(value)
+    for name in dependency_paths(objects):
+        value = Path(name)
+        value = (value if value.is_absolute() else objects / value).resolve()
+        if not value.is_relative_to(objects.parent.resolve()):
+            dependencies.add(value)
     state = {"inputs": inputs, "dependencies": [metadata(path) for path in sorted(dependencies)]}
     temporary = path.with_suffix(".new")
     temporary.write_text(json.dumps(state, separators=(",", ":")) + "\n")
     temporary.replace(path)
+
+
+def dependency_paths(objects):
+    names = set()
+    if (objects / "build.ninja").is_file():
+        # Ninja consumes compiler depfiles into its dependency log. Read the
+        # actual header inputs only after a build, never during a reuse check.
+        command = ["ninja", "-C", str(objects), "-t", "deps"]
+        with subprocess.Popen(
+            command, stdout=subprocess.PIPE, text=True, encoding="utf-8"
+        ) as process:
+            for line in process.stdout:
+                if line.startswith("    "):
+                    names.add(line[4:].rstrip("\r\n"))
+            if process.wait():
+                raise subprocess.CalledProcessError(process.returncode, command)
+    else:
+        for depfile in objects.rglob("*.d"):
+            content = depfile.read_text(encoding="utf-8").replace("\\\n", " ")
+            # OpenSSL's Microsoft build writes /showIncludes output to .d files.
+            if "Note: including file:" in content:
+                names.update(
+                    line.removeprefix("Note: including file:").strip()
+                    for line in content.splitlines()
+                    if line.startswith("Note: including file:")
+                )
+                continue
+            if not content.strip():
+                continue
+            # CMake runs each Makefile link command from the target's directory.
+            base = (
+                depfile.parents[2]
+                if depfile.name == "link.d" and depfile.parent.parent.name == "CMakeFiles"
+                else objects
+            ).resolve()
+            for rule in content.splitlines():
+                if not rule.strip() or rule.rstrip().endswith(":"):
+                    continue
+                _, separator, prerequisites = rule.partition(": ")
+                if not separator:
+                    raise ValueError(f"invalid compiler depfile: {depfile}")
+                for token in re.findall(r"(?:\\.|[^\s])+", prerequisites):
+                    name = Path(re.sub(r"\\(.)", r"\1", token).replace("$$", "$"))
+                    names.add(str(name if name.is_absolute() else base / name))
+    return names

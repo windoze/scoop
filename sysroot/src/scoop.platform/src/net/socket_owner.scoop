@@ -1,0 +1,82 @@
+package scoop.platform.net
+
+import scoop.platform.system.*
+
+@CLayout
+internal struct NativeSocketHandle(val value: ULong)
+
+@CLayout
+internal struct NativeSocketOpened(val handle: NativeSocketHandle, val error: Int)
+
+@CLayout
+internal struct NativeSocketResult(val value: Long, val error: Int) {
+    fun checked(operation: String): Long {
+        checkSocketError(operation, error)
+        return value
+    }
+}
+
+internal fun checkSocketError(operation: String, code: Int) {
+    if (code != 0) {
+        val domain =
+            if (operatingSystem == OperatingSystem.Windows)
+                NativeErrorDomain.Winsock
+            else
+                NativeErrorDomain.PosixErrno
+        val error = NativeError(domain, code)
+        throw PlatformException(operation, error.kind, Some(error))
+    }
+}
+
+// Socket lifetime is independent of file handles and CRT descriptors.
+internal class SocketOwner {
+    private var handle: NativeSocketHandle = NativeSocketHandle(ULong.MAX_VALUE)
+    private val active: AtomicLong = AtomicLong(0L)
+    val isClosed: Boolean get() = handle.value == ULong.MAX_VALUE
+
+    fun adopt(result: NativeSocketOpened, operation: String) {
+        checkSocketError(operation, result.error)
+        handle = result.handle
+    }
+
+    fun requireOpen() {
+        if (isClosed)
+            throw IllegalStateException(Some("socket is closed"))
+    }
+
+    fun <R> withHandle(block: (NativeSocketHandle) -> R): R {
+        requireOpen()
+        active.fetchAdd(1L, MemoryOrder.Relaxed)
+        try {
+            return block(handle)
+        }
+        finally {
+            active.fetchSub(1L, MemoryOrder.Relaxed)
+        }
+    }
+
+    fun close() {
+        if (isClosed)
+            return
+        if (active.load(MemoryOrder.Relaxed) != 0L)
+            throw IllegalStateException(Some("socket operation is active"))
+        val owned = handle
+        handle = NativeSocketHandle(ULong.MAX_VALUE)
+        @Unsafe
+        {
+            nativeSocketClose(owned).checked("close socket")
+        }
+    }
+
+    release {
+        if (handle.value != ULong.MAX_VALUE) {
+            @Unsafe
+            {
+                nativeSocketClose(handle)
+            }
+        }
+    }
+}
+
+@Extern(name = "scoop_platform_socket_close")
+private fun nativeSocketClose(handle: NativeSocketHandle): NativeSocketResult

@@ -11,6 +11,7 @@ use scoop_wire::{Digest256, Encoder, WireEncode, domain_separated_cbor_hash, sha
 use crate::{LinkError, error, native_object::NativeObjectInfo};
 
 mod archive;
+pub(crate) mod coff_import;
 pub(crate) mod elf_dynamic;
 mod embedded;
 mod objects;

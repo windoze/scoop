@@ -13,6 +13,14 @@ path = "src"
 path = "platform/darwin"
 when = { os = "darwin" }
 
+[[sources]]
+path = "platform/unix"
+when = { os = ["darwin", "linux"] }
+
+[[sources]]
+path = "platform/windows"
+when = { os = "windows" }
+
 [[test.sources]]
 path = "tests"
 
@@ -23,6 +31,14 @@ when = { os = "darwin" }
 [[test.sources]]
 path = "test-platform/linux"
 when = { os = "linux" }
+
+[[test.sources]]
+path = "test-platform/unix"
+when = { os = ["darwin", "linux"] }
+
+[[test.sources]]
+path = "test-platform/windows"
+when = { os = "windows" }
 
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
@@ -44,6 +60,7 @@ c_flags = ["-std=c11", "-Wall", "-Wextra", "-Wno-unused-parameter", "-fno-strict
 
 [[native.sources]]
 path = "native/common/deadline.c"
+when = { os = ["darwin", "linux"] }
 
 [[native.sources]]
 path = "native/common/directory.c"
@@ -56,7 +73,7 @@ path = "native/common/file_control.c"
 
 [[native.sources]]
 path = "native/common/file_io.c"
-when = { os = "darwin" }
+when = { os = ["darwin", "windows"] }
 
 [[native.sources]]
 path = "native/common/file_metadata.c"
@@ -66,15 +83,66 @@ path = "native/common/file_open.c"
 
 [[native.sources]]
 path = "native/common/file_temporary.c"
+when = { os = ["darwin", "linux"] }
 
 [[native.sources]]
 path = "native/common/native_work.c"
+
+[[native.sources]]
+path = "native/windows/loop.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/completion.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/timer.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/work.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/socket.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/socket_create.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/socket_io.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/file_io.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/file_temporary.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/tty.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/tty_io.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/common/temporary.c"
 
 [[native.sources]]
 path = "native/common/paths.c"
 
 [[native.sources]]
 path = "native/common/resolve.c"
+
+[[native.sources]]
+path = "native/common/strings.c"
 
 [[native.sources]]
 path = "native/darwin/endpoint.c"

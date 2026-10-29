@@ -2,7 +2,7 @@ schema = 1
 name = "shared-interface-members-bad-overload"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../shared-interface-members/provider.scoop", "bad-overload", "../../../shared-interface-members/bad-overload.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "selected_interface_members_preserve_overloads_and_defaults", "negative", "language"]
 
 [[steps]]

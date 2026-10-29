@@ -1,0 +1,16 @@
+package scoop.asyncio
+
+@Extern(name = "scoop_io_resolve")
+internal fun nativeResolve(loop: Ptr<Unit>, id: Long, host: Ptr<Byte>, port: Int, family: Int): Int
+
+@Extern(name = "scoop_io_work_cancel")
+internal fun nativeWorkCancel(loop: Ptr<Unit>, id: Long)
+
+@Extern(name = "scoop_platform_resolve_next")
+internal fun nativeResolveNext(entry: Ptr<Unit>): Ptr<Unit>?
+
+@Extern(name = "scoop_io_resolve_address")
+internal fun nativeResolveAddress(entry: Ptr<Unit>): NativeSocketName
+
+@Extern(name = "scoop_platform_resolve_free")
+internal fun nativeResolveFree(head: Ptr<Unit>)

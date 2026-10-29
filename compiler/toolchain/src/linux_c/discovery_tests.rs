@@ -4,12 +4,14 @@ use super::*;
 fn real_gcc_override_belongs_only_to_musl_wrappers() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().as_os_str();
-    let gcc = directory.path().join("gcc");
-    let selected = directory.path().join("selected-gcc");
+    let gcc = directory.path().join(crate::host_executable_name("gcc"));
+    let selected = directory
+        .path()
+        .join(crate::host_executable_name("selected-gcc"));
     for file in [&gcc, &selected] {
         std::fs::write(file, "compiler locator").unwrap();
     }
-    let selected = std::fs::canonicalize(selected).unwrap();
+    let selected = std::path::absolute(selected).unwrap();
     let missing = OsStr::new("missing-gcc");
     assert_eq!(
         underlying_compiler(LinuxLibc::Gnu, path, Some(missing)).unwrap(),
@@ -17,7 +19,7 @@ fn real_gcc_override_belongs_only_to_musl_wrappers() {
     );
     assert_eq!(
         underlying_compiler(LinuxLibc::Musl, path, None).unwrap(),
-        Some(std::fs::canonicalize(gcc).unwrap()),
+        Some(std::path::absolute(gcc).unwrap()),
     );
     assert_eq!(
         underlying_compiler(LinuxLibc::Musl, path, Some(selected.as_os_str())).unwrap(),
@@ -33,11 +35,11 @@ fn probe_and_invocation_use_the_same_libc_specific_environment() {
         (scoop_target_data::LINUX_X86_64_GNU, None),
         (
             scoop_target_data::LINUX_X86_64_MUSL,
-            Some(PathBuf::from("/tools/gcc")),
+            Some(std::path::absolute("/tools/gcc").unwrap()),
         ),
     ] {
         let paths = CompilerPaths {
-            driver: PathBuf::from("/tools/selected-cc"),
+            driver: std::path::absolute("/tools/selected-cc").unwrap(),
             real_gcc: real_gcc.clone(),
             search_path: OsString::from("/tools"),
             sysroot: None,

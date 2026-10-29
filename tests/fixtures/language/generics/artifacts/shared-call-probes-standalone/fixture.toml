@@ -2,7 +2,7 @@ schema = 1
 name = "shared-call-probes-standalone"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../shared-call-probes/provider.scoop", "generic-member-standalone", "../../../shared-call-probes/standalone.scoop", "generic-member-downstream-standalone", "../../../shared-call-probes/downstream.scoop", "runtime-fixture", "../../../imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "call_candidates_share_constraints_and_failed_transactions", "language"]
 
 [[steps]]

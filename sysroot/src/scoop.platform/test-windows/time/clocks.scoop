@@ -1,0 +1,21 @@
+package scoop.platform.time
+
+import scoop.platform.system.NativeErrorDomain
+import scoop.platform.system.PlatformException
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class WindowsClocksTest {
+    @Test
+    fun overflowingDeadlinesReportTheNativeErrorWithoutWaiting() {
+        val error = assertFailsWith<PlatformException> { sleep(Duration.seconds(Long.MAX_VALUE)) }
+        assertEquals("sleep", error.operation)
+        assertTrue(error.nativeError!!.domain == NativeErrorDomain.Win32)
+        assertEquals(534, error.nativeError!!.code)
+        assertTrue(error.nativeError!!.systemCode == None)
+        val before = MonotonicTimeSource.markNow()
+        sleep(Duration.nanoseconds(1L))
+        assertTrue(before.elapsedNow() >= Duration.nanoseconds(1L))
+    }
+}

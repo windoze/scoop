@@ -45,7 +45,7 @@ impl Installation {
         }
         copy(
             Path::new(env!("CARGO_BIN_EXE_scoop-example")),
-            &install.root().join("commands/scoop-example"),
+            &install.executable(),
         );
         install
     }
@@ -54,8 +54,14 @@ impl Installation {
         self.0.path()
     }
 
+    fn executable(&self) -> PathBuf {
+        self.root()
+            .join("commands")
+            .join(format!("scoop-example{}", std::env::consts::EXE_SUFFIX))
+    }
+
     fn run(&self, args: &[&str]) -> Output {
-        Command::new(self.root().join("commands/scoop-example"))
+        Command::new(self.executable())
             .args(args)
             .current_dir(repository())
             .env("SCOOP_SYSROOT", repository().join("sysroot"))
@@ -203,7 +209,12 @@ fn single_file_source_is_raw_and_multi_file_source_requires_selection() {
     assert!(output.status.success());
     assert_eq!(
         output.stdout,
-        b"fun main() {\n    println(\"Hello, Scoop!\")\n}\n"
+        fs::read(
+            install
+                .root()
+                .join("share/scoop/examples/programs/start/hello/main.scoop")
+        )
+        .unwrap()
     );
     let output = install.run(&["http/get", "--format", "source"]);
     assert_eq!(output.status.code(), Some(2));
@@ -284,9 +295,9 @@ fn help_works_before_installation() {
         .unwrap();
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
-    assert!(
-        String::from_utf8(output.stdout)
-            .unwrap()
-            .contains("scoop --sysroot")
-    );
+    let help = String::from_utf8(output.stdout).unwrap();
+    let driver = if cfg!(windows) { "sco" } else { "scoop" };
+    assert!(help.contains("Usage: scoop-example"));
+    assert!(help.contains(&format!("{driver} --sysroot")));
+    assert!(help.contains(&format!("{driver} example language/option")));
 }

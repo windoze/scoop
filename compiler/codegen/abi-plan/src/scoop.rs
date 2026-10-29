@@ -10,6 +10,14 @@ fn value(
     Ok(match &input.values[id] {
         V::ZeroSized(value) => A::ElidedZst(value.clone()),
         V::Scalar { value, .. } => A::Direct(value.clone().into()),
+        V::Interface(value)
+            if matches!(
+                (abi, position),
+                (ProcedureAbi::Win64, lir::AbiValuePosition::Result)
+            ) =>
+        {
+            A::Indirect(value.clone())
+        }
         V::Interface(value) => A::Direct(AbiDirectValue::DirectParts(AbiDirectParts::interface(
             value.clone(),
         )?)),

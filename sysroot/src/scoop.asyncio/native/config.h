@@ -6,7 +6,7 @@
 #if defined(__APPLE__)
 #define _DARWIN_UNLIMITED_SELECT 1
 #define _DARWIN_USE_64_BIT_INODE 1
-#else
+#elif !defined(_WIN32)
 #define _GNU_SOURCE 1
 #define _POSIX_C_SOURCE 200112L
 #include "config-host.h"

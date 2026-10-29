@@ -1,6 +1,6 @@
 """Read-only Scoop formatters for the bundled LLVM 22 LLDB.
 
-Use emitted DWARF members for layouts. Never evaluate inferior expressions,
+Use emitted native debug members for layouts. Never evaluate inferior expressions,
 retain managed addresses across stops, or add runtime calls to display a value.
 """
 
@@ -27,7 +27,15 @@ def record_type(type_):
 
 def fields(type_):
     type_ = record_type(type_)
-    return [type_.GetFieldAtIndex(i) for i in range(type_.GetNumberOfFields())]
+    result = []
+    for index in range(type_.GetNumberOfFields()):
+        field = type_.GetFieldAtIndex(index)
+        if field.GetName():
+            result.append(field)
+        else:
+            # The PDB reader infers anonymous unions for overlapping enum views.
+            result.extend(fields(field.GetType()))
+    return result
 
 
 def kind(type_):

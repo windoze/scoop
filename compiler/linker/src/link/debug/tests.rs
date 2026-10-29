@@ -51,6 +51,7 @@ fn native_debug_file_retains_lines_after_strip_and_uses_output_basename() {
                 assert!(object.section_by_name(".eh_frame").is_some());
                 debug_file.path.clone()
             }
+            DebugFileKind::Pdb => panic!("Unix debug files must use DWARF"),
         };
         let bytes = std::fs::read(&object).unwrap();
         let object = object::File::parse(bytes.as_slice()).unwrap();

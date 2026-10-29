@@ -69,7 +69,10 @@ pub(in crate::program::native) fn candidate(
         // definitions, including arithmetic builtins bundled by Rust staticlibs.
         candidates.retain(|(candidate, _)| !system_candidate(candidate));
     }
-    choose(symbol, candidates, inputs.target.native_object_format())?.ok_or_else(|| error(match explicit {
+    choose(symbol, candidates, inputs.target.native_object_format())?.or_else(|| {
+        (explicit.is_none() && matches!(inputs.namespace, crate::namespace::NativeNamespace::Coff(_)))
+            .then_some(Candidate::Dynamic(crate::namespace::NativeBinding::Coff(crate::namespace::coff::CoffBinding::Linker)))
+    }).ok_or_else(|| error(match explicit {
         Some(ids) => format!("native library {} does not provide {symbol}", ids.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ")),
         None => format!("unresolved native symbol {symbol} in default namespace (unresolved symbol {symbol})"),
     }))

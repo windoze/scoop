@@ -6,7 +6,7 @@ import scoop.platform.io.failNative
 /**
  * A native thread identity suitable for equality and hashing within this process.
  */
-public struct ThreadId(val value: ULong) : Equals<ThreadId>, Hash {
+public struct ThreadId(val value: ULong): Equals<ThreadId>, Hash {
     /**
      * Compares native thread identity values.
      */
@@ -21,15 +21,19 @@ public struct ThreadId(val value: ULong) : Equals<ThreadId>, Hash {
  * Returns the identity of the calling native thread.
  */
 public fun currentThreadId(): ThreadId {
-    @Unsafe { return ThreadId(nativeCurrentThreadId()) }
+    @Unsafe
+    {
+        return ThreadId(nativeCurrentThreadId())
+    }
 }
 
 /**
  * Offers the current thread's execution opportunity to the operating-system scheduler.
  */
 public fun yield() {
-    @Unsafe {
-        val (status, error) = nativeYield()
+    @Unsafe
+    {
+        val(status, error) = nativeYield()
         checkNativeStatus(status, error, "thread yield")
     }
 }
@@ -38,9 +42,15 @@ private class ThreadCompletion {
     val finished: AtomicBoolean = AtomicBoolean(false)
     var failure: Throwable? = None
     fun run(block: () -> Unit): Int {
-        try { block() }
-        catch (error: Throwable) { failure = Some(error) }
-        finally { finished.store(true, MemoryOrder.Release) }
+        try {
+            block()
+        }
+        catch (error: Throwable) {
+            failure = Some(error)
+        }
+        finally {
+            finished.store(true, MemoryOrder.Release)
+        }
         return 0
     }
 }
@@ -49,7 +59,7 @@ private class ThreadCompletion {
  * An owned native thread running a managed non-suspending function. Join or dispose to observe
  * completion and any captured exception.
  */
-public class Thread private constructor(private val completion: ThreadCompletion) : Disposable {
+public class Thread private constructor(private val completion: ThreadCompletion): Disposable {
     private var native: Ptr<Unit>? = None
     /**
      * Whether the function has completed, including exceptional completion.
@@ -66,11 +76,15 @@ public class Thread private constructor(private val completion: ThreadCompletion
         public fun start(block: () -> Unit): Thread {
             val completion = ThreadCompletion()
             val thread = Thread(completion)
-            @Unsafe {
-                val callback = foreignCallback<(Ptr<Unit>) -> Int>(
-                    { completion.run(block) }, 0, ForeignCallbackMode.OneShot
-                )
-                val (pointer, error) = nativeThreadStart(callback.function, callback.context)
+            @Unsafe
+            {
+                val callback =
+                    foreignCallback<(Ptr<Unit>) -> Int>(
+                        { completion.run(block) },
+                        0,
+                        ForeignCallbackMode.OneShot
+                    )
+                val(pointer, error) = nativeThreadStart(callback.function, callback.context)
                 if (pointer == None) {
                     releaseForeignCallback(callback)
                     failNative("thread start", error)
@@ -87,9 +101,9 @@ public class Thread private constructor(private val completion: ThreadCompletion
      */
     public fun join() {
         when (native) {
-            case Some(pointer) -> @Unsafe {
-                val (status, error) = nativeThreadJoin(pointer)
-                checkNativeStatus(status, error, "thread join")
+            case Some(pointer) -> @Unsafe
+            {
+                nativeThreadJoin(pointer).check("thread join")
                 native = None
             }
             case None -> {}
@@ -103,23 +117,37 @@ public class Thread private constructor(private val completion: ThreadCompletion
     /**
      * Joins an outstanding thread and releases its native join handle.
      */
-    public override fun dispose() { if (native != None) join() }
+    public override fun dispose() {
+        if (native != None)
+            join()
+    }
 
     release {
         when (native) {
-            case Some(pointer) -> @Unsafe { nativeThreadAbandon(pointer) }
+            case Some(pointer) -> @Unsafe
+            {
+                nativeThreadAbandon(pointer)
+            }
             case None -> {}
         }
     }
 }
 
 @Extern(name = "scoop_platform_thread_start", captureErrno = true)
-private fun nativeThreadStart(function: FunPtr<(Ptr<Unit>) -> Int>, context: Ptr<Unit>): (Ptr<Unit>?, Int)
-@Extern(name = "scoop_platform_thread_join", captureErrno = true)
-private fun nativeThreadJoin(thread: Ptr<Unit>): (Int, Int)
+private fun nativeThreadStart(function: FunPtr<(Ptr<Unit>) -> Int>, context: Ptr<Unit>): (
+    Ptr<Unit>?,
+    Int
+)
+
+@Extern(name = "scoop_platform_thread_join")
+private fun nativeThreadJoin(thread: Ptr<Unit>): NativeSyncResult
+
 @Extern(name = "scoop_platform_thread_abandon")
 private fun nativeThreadAbandon(thread: Ptr<Unit>)
-@GCLeaf @Extern(name = "scoop_platform_current_thread_id")
+
+@GCLeaf
+@Extern(name = "scoop_platform_current_thread_id")
 private fun nativeCurrentThreadId(): ULong
+
 @Extern(name = "scoop_platform_thread_yield", captureErrno = true)
 private fun nativeYield(): (Int, Int)

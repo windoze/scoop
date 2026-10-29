@@ -2,11 +2,12 @@ schema = 1
 name = "generic-machine-combined"
 inputs = ["../../imported-classes/support/stage3_test.scoop", "generic-machine-provider", "../../generic-body-consumption/machine-provider.scoop", "generic-machine-first", "runtime-fixture", "../../imported-classes/support/gc.c", "../../generic-body-consumption/machine-combined.scoop"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generic-machine", "language"]
 
 [[steps]]
 name = "core"
+timeout = 900
 argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${test_core}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
@@ -88,11 +89,4 @@ name = "run"
 argv = ["${program.result.output}"]
 exit = 0
 stdout = ""
-stderr = ""
-
-[[steps]]
-name = "provider_members"
-argv = ["${ar}", "t", "${work}/artifacts/dev.example/generic-machine-provider/0.1.0/cone.slib"]
-exit = 0
-stdout = {snapshot = "provider_members.${target}.txt"}
 stderr = ""

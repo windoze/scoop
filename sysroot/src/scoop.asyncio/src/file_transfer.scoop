@@ -99,12 +99,3 @@ private fun borrowFile(buffer: NativeByteBuffer, count: Long, writing: Boolean):
             buffer.borrowWritable(count)
     }
 }
-
-@Extern(name = "scoop_io_file_transfer")
-private fun nativeFileTransfer(
-    file: Ptr<Unit>,
-    id: Long,
-    bytes: Ptr<Byte>?,
-    count: Long,
-    writing: Boolean
-): Int

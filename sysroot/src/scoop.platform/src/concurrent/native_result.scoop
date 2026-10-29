@@ -1,0 +1,12 @@
+package scoop.platform.concurrent
+
+import scoop.platform.system.*
+
+@CLayout
+internal struct NativeSyncResult(val status: Int, val code: Int) {
+    fun check(operation: String): Int {
+        if (status < 0)
+            failOperatingSystem(operation, code)
+        return status
+    }
+}

@@ -64,6 +64,14 @@ pub(super) fn normalize_line_markers(
     observed: &mut BTreeSet<PathBuf>,
 ) -> Result<Vec<u8>, ToolchainError> {
     super::includes::transform(bytes, &roots.cone, search, observed, |path| {
-        paths.get(path).cloned().or_else(|| roots.remap(path))
+        paths
+            .get(path)
+            .cloned()
+            .or_else(|| roots.remap(path))
+            .or_else(|| {
+                path.canonicalize()
+                    .ok()
+                    .and_then(|path| paths.get(&path).cloned().or_else(|| roots.remap(&path)))
+            })
     })
 }

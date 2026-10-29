@@ -121,7 +121,7 @@ fn absent_dangling_and_wrong_type_candidates_are_distinct() {
             &ArtifactCacheRoot::new(temp.path().join("cache")).unwrap()
         ),
         Err(DependencyLocatorError::Io {
-            operation: LocatorIoOperation::Read,
+            operation: LocatorIoOperation::Open | LocatorIoOperation::Read,
             ..
         })
     ));

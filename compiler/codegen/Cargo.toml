@@ -4,6 +4,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+dunce.workspace = true
 scoop-target-data.workspace = true
 scoop-abi-plan.workspace = true
 scoop-process.workspace = true

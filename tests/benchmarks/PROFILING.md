@@ -90,7 +90,7 @@ python3 tests/benchmarks/symbolize.py \
   --binary tmp/profile/program --llvm-tools "$LLVM_SYS_221_PREFIX/bin"
 ```
 
-省略 `--llvm-tools` 时从 PATH 使用 llvm-nm、llvm-readobj 和 llvm-symbolizer。对 sample
+省略 `--llvm-tools` 时从 PATH 使用发行包的 `scoop-llvm-nm`、`scoop-llvm-readobj` 和 `scoop-llvm-symbolizer`。`--llvm-tools` 显式选择外部 LLVM 的 bin 目录，使用其无前缀上游命令名。对 sample
 原始报告，工具自动用主镜像的实际加载范围筛选 PC，以 __TEXT 地址计算 ASLR slide，
 再调用 llvm-symbolizer 读取相邻调试文件（没有时读取 executable）。
 这也避免 LLVM 22 用裁剪后残留的 C 入口符号覆盖 DWARF 函数名。每行仅附加明确列出的地址所对应的

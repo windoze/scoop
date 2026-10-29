@@ -10,6 +10,8 @@ pub(super) fn ranges(definition: &ObjectDefinitionV1) -> Vec<DefinitionAtomRange
         .iter()
         .filter(|atom| match atom.atom_role() {
             DefinitionAtomRole::Lsda
+            | DefinitionAtomRole::WindowsUnwindTable
+            | DefinitionAtomRole::WindowsUnwindInfo
             | DefinitionAtomRole::EhFrame
             | DefinitionAtomRole::CompactUnwind
             | DefinitionAtomRole::Stackmap

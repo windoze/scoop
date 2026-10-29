@@ -4,6 +4,10 @@ inputs = ["cone"]
 tools = ["scoop"]
 tags = ["driver", "format", "negative"]
 
+[vars]
+missing_source = "${work}/cone/missing"
+independent_source = "${work}/独立.scoop"
+
 [[steps]]
 name = "prepare"
 files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}, {write = {path = "${work}/独立.scoop", data = "fun independent()=2\n"}}]
@@ -16,4 +20,4 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {file = "diagnostics.json"}
-checks = [{actual = "${write.result.success}", equals = false}, {actual = "${write.result.files.length}", equals = 1}, {actual = "${write.result.files.0.path}", equals = "${work}/独立.scoop"}, {actual = "${write.result.counts.formatted}", equals = 1}, {file = "${work}/独立.scoop", equals = "fun independent() = 2\n"}, {file = "${work}/cone/src/source.scoop", same_as = "${fixture}/cone/src/source.scoop"}]
+checks = [{actual = "${write.result.success}", equals = false}, {actual = "${write.result.files.length}", equals = 1}, {actual = "${write.result.files.0.path}", equals = "${independent_source.canonical}"}, {actual = "${write.result.counts.formatted}", equals = 1}, {file = "${work}/独立.scoop", equals = "fun independent() = 2\n"}, {file = "${work}/cone/src/source.scoop", same_as = "${fixture}/cone/src/source.scoop"}]

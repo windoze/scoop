@@ -7,26 +7,32 @@ import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.system.OsString
 
 /**
- * Explicit file access and creation flags. Creation permissions are subject to the process umask;
+ * Explicit file access and creation flags. POSIX permissions are subject to umask; Windows uses the default ACL;
  * incompatible options are rejected.
  */
 public struct OpenOptions(
-    val read: Boolean = true, val write: Boolean = false, val append: Boolean = false,
-    val create: Boolean = false, val createNew: Boolean = false, val truncate: Boolean = false,
+    val read: Boolean = true,
+    val write: Boolean = false,
+    val append: Boolean = false,
+    val create: Boolean = false,
+    val createNew: Boolean = false,
+    val truncate: Boolean = false,
     val mode: Int = 0x1b6
 )
 
 /**
- * An owned native file descriptor with byte I/O, positioning, metadata, and explicit durability
+ * An owned native file handle with byte I/O, positioning, metadata, and explicit durability
  * operations. Close it after use.
  */
-public class File private constructor(private val context: OsString?) : ByteSource, ByteSink, Closeable {
-    private var descriptor: Int = -1
+public class File private constructor(
+    private val context: OsString?
+): ByteSource, ByteSink, Closeable {
+    private var handle: NativeFileHandle = NativeFileHandle(ULong.MAX_VALUE)
     private val active: AtomicLong = AtomicLong(0L)
     /**
      * Whether this owned resource has been closed.
      */
-    public val isClosed: Boolean get() = descriptor < 0
+    public val isClosed: Boolean get() = handle.value == ULong.MAX_VALUE
     /**
      * Queries the current file offset in bytes.
      */
@@ -36,28 +42,44 @@ public class File private constructor(private val context: OsString?) : ByteSour
      */
     public fun size(): Long = metadata().size
 
-    /** Acquires an advisory whole-file lock, waiting for conflicting owners. */
-    public fun lock(shared: Boolean = false) { lockNative(if (shared) 1 else 2) }
-
-    /** Attempts an advisory lock; only contention returns false. */
-    public fun tryLock(shared: Boolean = false): Boolean = lockNative(if (shared) 5 else 6) == 0
-
-    /** Releases this open file description's advisory lock. */
-    public fun unlock() { lockNative(0) }
-
-    private fun lockNative(operation: Int): Int = withDescriptor { fd ->
-        @Unsafe {
-            val (status, error) = nativeFileLock(fd, operation)
-            checkNativeStatus(status, error, "file lock", context)
-            return@withDescriptor status
-        }
+    /** Acquires a whole-file lock, waiting for conflicting owners. */
+    public fun lock(shared: Boolean = false) {
+        lockNative(
+            if (shared)
+                1
+            else
+                2
+        )
     }
 
+    /** Attempts a file lock; only contention returns false. */
+    public fun tryLock(shared: Boolean = false): Boolean =
+        lockNative(
+            if (shared)
+                5
+            else
+                6
+        ) ==
+            0L
+
+    /** Releases this owner's file lock. */
+    public fun unlock() {
+        lockNative(0)
+    }
+
+    private fun lockNative(operation: Int): Long =
+        withHandle {
+            fd -> @Unsafe
+            {
+                return@withHandle nativeFileLock(fd, operation).checked("file lock", context)
+            }
+        }
+
     /**
-     * Opens owned file descriptors with explicit access and creation policy.
+     * Opens owned file handles with explicit access and creation policy.
      */
     public companion object {
-        // Pipe/spawn callers allocate all managed owners before acquiring native descriptors.
+        // Pipe/spawn callers allocate all managed owners before acquiring native handles.
         internal fun newOwner(): File = File(None)
 
         /**
@@ -67,73 +89,94 @@ public class File private constructor(private val context: OsString?) : ByteSour
         public fun open(path: Path, options: OpenOptions = OpenOptions()): File {
             val flags = fileOpenFlags(options)
             val file = File(Some(path.toOsString()))
-            @Unsafe {
-                val (fd, error) = path.withNativePath { pointer ->
-                    @Unsafe { return@withNativePath nativeFileOpen(pointer, flags, options.mode) }
-                }
-                checkNativeStatus(fd, error, "open", file.context)
-                file.descriptor = fd
+            @Unsafe
+            {
+                val opened =
+                    path.withPlatformPath {
+                        pointer -> @Unsafe
+                        {
+                            return@withPlatformPath nativeFileOpen(pointer, flags, options.mode)
+                        }
+                    }
+                file.handle = opened.checked("open", file.context)
             }
             return file
         }
 
-        internal fun duplicateDescriptor(fd: Int, context: OsString? = None): File {
+        internal fun duplicateHandle(fd: NativeFileHandle, context: OsString? = None): File {
             val file = File(context)
-            @Unsafe {
-                val (copy, error) = nativeDuplicate(fd)
-                checkNativeStatus(copy, error, "duplicate", context)
-                file.descriptor = copy
+            @Unsafe
+            {
+                file.handle = nativeFileDuplicate(fd).checked("duplicate", context)
             }
             return file
         }
     }
 
-    internal fun adoptDescriptor(owned: Int) { descriptor = owned }
+    internal fun adoptHandle(owned: NativeFileHandle) {
+        handle = owned
+    }
 
-    internal fun <R> withDescriptor(block: (Int) -> R): R {
+    internal fun <R> withHandle(block: (NativeFileHandle) -> R): R {
         requireOpen()
         active.fetchAdd(1L, MemoryOrder.Relaxed)
-        try { return block(descriptor) }
-        finally { active.fetchSub(1L, MemoryOrder.Relaxed) }
+        try {
+            return block(handle)
+        }
+        finally {
+            active.fetchSub(1L, MemoryOrder.Relaxed)
+        }
     }
 
     private fun requireOpen() {
-        if (descriptor < 0) throw IllegalStateException(Some("file is closed"))
+        if (handle.value == ULong.MAX_VALUE)
+            throw IllegalStateException(Some("file is closed"))
     }
 
     /**
      * Duplicates the native descriptor into a separately owned File. Descriptor duplication shares
      * the underlying open-file offset.
      */
-    public fun duplicate(): File = withDescriptor { fd -> File.duplicateDescriptor(fd, context) }
+    public fun duplicate(): File = withHandle { fd -> File.duplicateHandle(fd, context) }
 
     /**
      * Reads into the selected writable region, returning actual bytes and permitting short reads.
      * Zero for a positive request denotes EOF.
      */
     public override fun readInto(buffer: NativeByteBuffer, count: Long): Long =
-        withDescriptor { fd -> readDescriptor(fd, buffer, count, context) }
+        withHandle { fd -> readFileHandle(fd, buffer, count, context) }
 
     /**
      * Consumes the selected readable region, returning the actual accepted byte count and
      * permitting short writes.
      */
     public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long =
-        withDescriptor { fd -> writeDescriptor(fd, buffer, count, context) }
+        withHandle { fd -> writeFileHandle(fd, buffer, count, context) }
 
     /**
      * Reads into the selected writable region, returning actual bytes and permitting short reads.
      * Zero for a positive request denotes EOF.
      */
-    public fun readInto(array: MutableArray<Byte>, offset: Long = 0L, count: Long = array.size - offset): Long {
-        return withDescriptor { fd ->
+    public fun readInto(
+        array: MutableArray<Byte>,
+        offset: Long = 0L,
+        count: Long = array.size - offset
+    ): Long {
+        return withHandle {
+            fd ->
             requireArrayTransfer(array.size, offset, count)
-            if (count == 0L) return@withDescriptor 0L
-            @Unsafe {
-                return@withDescriptor array.withDataPointer { pointer, _ ->
-                    @Unsafe {
-                        val (read, error) = nativeRead(fd, pointer + offset, count)
-                        return@withDataPointer checkNative(read, error, "read", context)
+            if (count == 0L)
+                return@withHandle 0L
+            @Unsafe
+            {
+                return@withHandle array.withDataPointer {
+                    pointer,
+                    _ -> @Unsafe
+                    {
+                        return@withDataPointer nativeFileRead(fd, pointer + offset, count).checked(
+                            "read",
+                            context
+                        )
                     }
                 }
             }
@@ -144,24 +187,35 @@ public class File private constructor(private val context: OsString?) : ByteSour
      * Consumes the selected readable region, returning the actual accepted byte count and
      * permitting short writes.
      */
-    public fun writeFrom(array: List<Byte>, offset: Long = 0L, count: Long = array.size - offset): Long {
-        return withDescriptor { fd ->
+    public fun writeFrom(
+        array: List<Byte>,
+        offset: Long = 0L,
+        count: Long = array.size - offset
+    ): Long {
+        return withHandle {
+            fd ->
             requireArrayTransfer(array.size, offset, count)
-            if (count == 0L) return@withDescriptor 0L
+            if (count == 0L)
+                return@withHandle 0L
             val snapshot = Array<Byte>(count) { index -> array[offset + index] }
-            @Unsafe {
-                return@withDescriptor snapshot.withDataPointer { pointer, _ ->
-                    @Unsafe { return@withDataPointer writeArray(fd, pointer, count) }
+            @Unsafe
+            {
+                return@withHandle snapshot.withDataPointer {
+                    pointer,
+                    _ -> @Unsafe
+                    {
+                        return@withDataPointer writeArray(fd, pointer, count)
+                    }
                 }
             }
         }
     }
 
     @Unsafe
-    private fun writeArray(fd: Int, pointer: Ptr<Byte>, count: Long): Long {
-        val (written, error) = nativeWrite(fd, pointer, count)
-        checkNative(written, error, "write", context)
-        if (written == 0L) throw WriteZeroException()
+    private fun writeArray(fd: NativeFileHandle, pointer: Ptr<Byte>, count: Long): Long {
+        val written = nativeFileWrite(fd, pointer, count).checked("write", context)
+        if (written == 0L)
+            throw WriteZeroException()
         return written
     }
 
@@ -170,26 +224,30 @@ public class File private constructor(private val context: OsString?) : ByteSour
      */
     public fun seek(position: Long) {
         requireOpen()
-        if (position < 0L) throw IllegalArgumentException(Some("negative file position"))
+        if (position < 0L)
+            throw IllegalArgumentException(Some("negative file position"))
         seekNative(position, false)
     }
 
-    private fun seekNative(offset: Long, current: Boolean): Long = withDescriptor { fd ->
-        @Unsafe {
-            val (position, error) = nativeFileSeek(fd, offset, current)
-            return@withDescriptor checkNative(position, error, "seek", context)
+    private fun seekNative(offset: Long, current: Boolean): Long =
+        withHandle {
+            fd -> @Unsafe
+            {
+                return@withHandle nativeFileSeek(fd, offset, current).checked("seek", context)
+            }
         }
-    }
 
     /**
      * Changes file length using a nonnegative byte size; requires suitable write access.
      */
     public fun truncate(size: Long) {
-        withDescriptor { fd ->
-            if (size < 0L) throw IllegalArgumentException(Some("negative file size"))
-            @Unsafe {
-                val (status, error) = nativeFileTruncate(fd, size)
-                checkNativeStatus(status, error, "truncate", context)
+        withHandle {
+            fd ->
+            if (size < 0L)
+                throw IllegalArgumentException(Some("negative file size"))
+            @Unsafe
+            {
+                nativeFileTruncate(fd, size).checked("truncate", context)
             }
         }
     }
@@ -197,16 +255,20 @@ public class File private constructor(private val context: OsString?) : ByteSour
     /**
      * Requests persistence of data and metadata required to retrieve the data.
      */
-    public fun syncData() { sync(true) }
+    public fun syncData() {
+        sync(true)
+    }
     /**
      * Requests persistence of data and full file metadata.
      */
-    public fun syncAll() { sync(false) }
+    public fun syncAll() {
+        sync(false)
+    }
     private fun sync(dataOnly: Boolean) {
-        withDescriptor { fd ->
-            @Unsafe {
-                val (status, error) = nativeFileSync(fd, dataOnly)
-                checkNativeStatus(status, error, "sync", context)
+        withHandle {
+            fd -> @Unsafe
+            {
+                nativeFileSync(fd, dataOnly).checked("sync", context)
             }
         }
     }
@@ -214,46 +276,67 @@ public class File private constructor(private val context: OsString?) : ByteSour
     /**
      * Returns metadata for this open descriptor.
      */
-    public fun metadata(): FileMetadata = withDescriptor { fd ->
-        @Unsafe {
-            val (data, error) = nativeMetadata(fd, None, true)
-            return@withDescriptor decodeFileMetadata(data, error, context)
+    public fun metadata(): FileMetadata =
+        withHandle {
+            fd -> @Unsafe
+            {
+                val result = nativeFileMetadata(fd)
+                return@withHandle decodeFileMetadata(result.data, result.error, context)
+            }
         }
-    }
 
     /**
      * Checks that the descriptor is open. File writes are unbuffered here; use syncData or syncAll
      * for durability.
      */
-    public override fun flush() { requireOpen() }
+    public override fun flush() {
+        requireOpen()
+    }
 
     /**
-     * Closes the owned native descriptor; subsequent I/O through this owner is invalid.
+     * Closes the owned native handle; subsequent I/O through this owner is invalid.
      */
     public override fun close() {
-        if (descriptor < 0) return
-        if (active.load(MemoryOrder.Relaxed) != 0L) throw IllegalStateException(Some("file operation is active"))
-        val owned = descriptor
-        descriptor = -1
-        @Unsafe {
-            val (status, error) = nativeClose(owned)
-            checkNativeStatus(status, error, "close", context)
+        if (handle.value == ULong.MAX_VALUE)
+            return
+        if (active.load(MemoryOrder.Relaxed) != 0L)
+            throw IllegalStateException(Some("file operation is active"))
+        val owned = handle
+        handle = NativeFileHandle(ULong.MAX_VALUE)
+        @Unsafe
+        {
+            nativeFileClose(owned).checked("close", context)
         }
     }
 
-
-    release { if (descriptor >= 0) { @Unsafe { nativeClose(descriptor) } } }
+    release {
+        if (handle.value != ULong.MAX_VALUE) {
+            @Unsafe
+            {
+                nativeFileClose(handle)
+            }
+        }
+    }
 }
 
-@Extern(name = "scoop_platform_file_open", captureErrno = true)
-private fun nativeFileOpen(path: Ptr<Byte>, flags: Int, mode: Int): (Int, Int)
-@Extern(name = "scoop_platform_file_lock", captureErrno = true)
-private fun nativeFileLock(fd: Int, operation: Int): (Int, Int)
-@Extern(name = "scoop_platform_file_seek", captureErrno = true)
-private fun nativeFileSeek(fd: Int, offset: Long, current: Boolean): (Long, Int)
-@Extern(name = "scoop_platform_file_truncate", captureErrno = true)
-private fun nativeFileTruncate(fd: Int, size: Long): (Int, Int)
-@Extern(name = "scoop_platform_file_sync", captureErrno = true)
-private fun nativeFileSync(fd: Int, dataOnly: Boolean): (Int, Int)
-@Extern(name = "scoop_platform_file_same", captureErrno = true)
-internal fun nativeSameFile(first: Int, second: Int): (Int, Int)
+@Extern(name = "scoop_platform_handle_open")
+private fun nativeFileOpen(path: Ptr<Byte>, flags: Int, mode: Int): NativeFileOpened
+
+@Extern(name = "scoop_platform_handle_lock")
+private fun nativeFileLock(handle: NativeFileHandle, operation: Int): NativeFileResult
+
+@Extern(name = "scoop_platform_handle_seek")
+private fun nativeFileSeek(
+    handle: NativeFileHandle,
+    offset: Long,
+    current: Boolean
+): NativeFileResult
+
+@Extern(name = "scoop_platform_handle_truncate")
+private fun nativeFileTruncate(handle: NativeFileHandle, size: Long): NativeFileResult
+
+@Extern(name = "scoop_platform_handle_sync")
+private fun nativeFileSync(handle: NativeFileHandle, dataOnly: Boolean): NativeFileResult
+
+@Extern(name = "scoop_platform_handle_same")
+internal fun nativeSameFile(first: NativeFileHandle, second: NativeFileHandle): NativeFileResult

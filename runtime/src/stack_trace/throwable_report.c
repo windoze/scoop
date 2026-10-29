@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
-#include "../stack_trace.h"
+#include "internal.h"
+#include "stream.h"
 #include "../throwable.h"
 #include "../value_shape.h"
 #include <stdlib.h>
@@ -39,11 +40,11 @@ void scoop_throwable_report_reserve(ScoopThrowableReport *report, size_t require
 }
 
 void scoop_throwable_report_render(const ScoopThrowableReport *report, FILE *stream) {
-    flockfile(stream);
+    scoop_trace_lock_stream(stream);
     fwrite(report->bytes, 1, report->name_length, stream);
     fputc('\n', stream);
     scoop_throwable_report_render_frames(report, stream);
-    funlockfile(stream);
+    scoop_trace_unlock_stream(stream);
 }
 
 void scoop_throwable_report_render_frames(const ScoopThrowableReport *report, FILE *stream) {

@@ -1,0 +1,182 @@
+package scoop.asyncio
+
+import scoop.platform.fs.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.native.*
+import scoop.platform.system.*
+import scoop.test.*
+
+@Test
+private class WindowsFileCompletionTest {
+    @Test
+    fun `overlapped files retain positions EOF metadata and access errors`() {
+        withFilePath {
+            path -> @Unsafe
+            {
+                path.withIoPath {
+                    name -> @Unsafe
+                    {
+                        assertEquals(0, testFileControls(name))
+                    }
+                }
+            }
+        }
+    }
+    @Test
+    fun `append files preserve each OS position and cancel queued writes`() {
+        withFilePath {
+            path -> @Unsafe
+            {
+                path.withIoPath {
+                    name -> @Unsafe
+                    {
+                        assertEquals(0, testFileAppend(name))
+                    }
+                }
+            }
+        }
+    }
+    @Test
+    fun `file requests wait for cancelled and late successful completions`() {
+        @Unsafe
+        {
+            assertEquals(0, testFileCancel())
+        }
+    }
+    @Test
+    fun `queued open cancels and late successful open keeps its handle`() {
+        withFilePath {
+            path -> @Unsafe
+            {
+                path.withIoPath {
+                    name -> @Unsafe
+                    {
+                        assertEquals(0, testFileQueued(name))
+                    }
+                }
+            }
+        }
+    }
+    @Test
+    fun `file metadata and buffers cross native completion boundaries through GC`() {
+        withFilePath { path -> checkFileBoundary(path) }
+    }
+}
+
+private fun withFilePath(block: (Path) -> Unit) {
+    val root = createTempDirectory(prefix = "scoop-iocp-file-")
+    try {
+        val name =
+            OsString.fromUtf16(
+                [0x4e2d.toUShort(), 0xd800.toUShort(), 0xd83d.toUShort(), 0xde00.toUShort()]
+            )
+        block(root.resolve(Path.fromOsString(name)))
+    } finally {
+        root.deleteRecursively()
+    }
+}
+
+private fun checkFileBoundary(path: Path) {
+    @Unsafe
+    {
+        val created = nativeLoopCreate()
+        assertEquals(0, created.status.code)
+        val loop = created.pointer!!
+        path.withIoPath {
+            name -> @Unsafe
+            {
+                assertEquals(
+                    0,
+                    nativeFileOpen(
+                        loop,
+                        1L,
+                        name,
+                        fileOpenFlags(OpenOptions(write = true, createNew = true)),
+                        0x180
+                    )
+                )
+            }
+        }
+        val opened = nextFileResult(loop)
+        assertEquals(3, opened.kind)
+        val file = opened.resource!!
+        val output = NativeByteBuffer.allocate(4L)
+        output.writeBytes([0.toByte(), 255.toByte(), 10.toByte(), 26.toByte()])
+        val write = output.borrowReadable(4L)
+        assertEquals(0, nativeFileTransfer(file, 2L, write.pointer(), write.length, true))
+        gcCollect()
+        val written = nextFileResult(loop)
+        assertEquals(1, written.kind)
+        assertEquals(4L, written.count)
+        write.complete(written.count)
+        assertEquals(0, nativeFileSeek(file, 3L, 0L, false))
+        val position = nextFileResult(loop)
+        assertEquals(0x101, position.kind)
+        assertEquals(0L, position.count)
+        val input = NativeByteBuffer.allocate(8L)
+        val read = input.borrowWritable(8L)
+        assertEquals(0, nativeFileTransfer(file, 4L, read.pointer(), read.length, false))
+        gcCollect()
+        val received = nextFileResult(loop)
+        assertEquals(1, received.kind)
+        assertEquals(4L, received.count)
+        read.complete(received.count)
+        assertEquals(0.toByte(), input.readByte())
+        assertEquals(255.toByte(), input.readByte())
+        assertEquals(10.toByte(), input.readByte())
+        assertEquals(26.toByte(), input.readByte())
+        assertEquals(0, nativeFileMetadata(file, 5L))
+        val metadata = nextFileResult(loop)
+        assertEquals(0x100, metadata.kind)
+        val snapshot = decodeFileMetadata(nativeTakeMetadata(metadata.resource!!), 0, None)
+        assertEquals(FileKind.Regular, snapshot.kind)
+        assertEquals(4L, snapshot.size)
+        assertEquals(0, nativeFileClose(file, 6L))
+        assertEquals(0, nextFileResult(loop).kind)
+        path.withIoPath {
+            name -> @Unsafe
+            {
+                assertEquals(0, nativePathMetadata(loop, 7L, name, true))
+            }
+        }
+        val queried = nextFileResult(loop)
+        assertEquals(0x100, queried.kind)
+        assertEquals(4L, nativeTakeMetadata(queried.resource!!).size)
+        path.delete()
+        path.withIoPath {
+            name -> @Unsafe
+            {
+                assertEquals(0, nativeFileOpen(loop, 8L, name, 1, 0x180))
+            }
+        }
+        val failure = nextFileResult(loop)
+        val error = nativeStatusError(NativeIoStatus(failure.kind, failure.code))
+        assertEquals(NativeErrorDomain.Win32, error.domain)
+        assertEquals(PlatformErrorKind.NotFound, error.kind)
+        input.close()
+        output.close()
+        assertEquals(0, testFileDrain(loop))
+    }
+}
+
+@Unsafe
+private fun nextFileResult(loop: Ptr<Unit>): NativeRecord {
+    while (nativeLoopBatchSize(loop) == 0L)
+        assertEquals(0, nativeLoopPoll(loop, true).code)
+    return nativeLoopNext(loop)
+}
+
+@Extern(name = "scoop_test_iocp_file_controls")
+private fun testFileControls(path: Ptr<Byte>): Int
+
+@Extern(name = "scoop_test_iocp_file_append")
+private fun testFileAppend(path: Ptr<Byte>): Int
+
+@Extern(name = "scoop_test_iocp_file_cancel")
+private fun testFileCancel(): Int
+
+@Extern(name = "scoop_test_iocp_file_queued")
+private fun testFileQueued(path: Ptr<Byte>): Int
+
+@Extern(name = "scoop_test_iocp_drain")
+private fun testFileDrain(loop: Ptr<Unit>): Int

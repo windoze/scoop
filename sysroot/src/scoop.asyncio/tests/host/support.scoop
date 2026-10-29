@@ -8,16 +8,19 @@ internal class PollHost: EventLoopHost, EventLoopWatch {
     private val thread: ThreadId = currentThreadId()
     private var ready: (() -> Unit)? = None
     private var removed: (() -> Unit)? = None
-    var descriptor: Int = -1
+    var notification: EventLoopNotification? = None
     var callbacks: Long = 0L
     var removals: Long = 0L
     var inside: Boolean = false
 
     public override fun isCurrentThread(): Boolean = currentThreadId() == thread
     @Unsafe
-    public override fun watchReadable(descriptor: Int, ready: () -> Unit): EventLoopWatch {
+    public override fun watch(
+        notification: EventLoopNotification,
+        ready: () -> Unit
+    ): EventLoopWatch {
         assertTrue(isCurrentThread())
-        this.descriptor = descriptor
+        this.notification = Some(notification)
         this.ready = Some(ready)
         return this
     }
@@ -31,7 +34,7 @@ internal class PollHost: EventLoopHost, EventLoopWatch {
                 assertFalse(inside)
                 @Unsafe
                 {
-                    assertTrue(nativeTestDescriptorOpen(descriptor))
+                    assertTrue(testNotificationOpen(notification!!))
                 }
                 ready = None
                 removed = None
@@ -39,7 +42,7 @@ internal class PollHost: EventLoopHost, EventLoopWatch {
                 callback()
                 @Unsafe
                 {
-                    assertFalse(nativeTestDescriptorOpen(descriptor))
+                    assertFalse(testNotificationOpen(notification!!))
                 }
                 return
             }
@@ -47,7 +50,7 @@ internal class PollHost: EventLoopHost, EventLoopWatch {
         }
         @Unsafe
         {
-            val result = nativeTestHostPoll(descriptor, timeout)
+            val result = testNotificationPoll(notification!!, timeout)
             assertTrue(result >= 0)
             if (result == 0) {
                 if (timeout > 0)
@@ -70,12 +73,6 @@ internal class PollHost: EventLoopHost, EventLoopWatch {
         assertEquals(1L, removals)
     }
 }
-
-@Extern(name = "scoop_test_host_poll")
-internal fun nativeTestHostPoll(descriptor: Int, timeout: Int): Int
-
-@Extern(name = "scoop_test_descriptor_open")
-internal fun nativeTestDescriptorOpen(descriptor: Int): Boolean
 
 internal class HostResult {
     var closed: Int = 0

@@ -8,6 +8,7 @@
 #include <unistd.h>
 
 #include "../platform.h"
+#include "posix_mapping.h"
 
 #if !defined(__linux__)
 #error "the Linux OS component requires Linux"
@@ -48,19 +49,9 @@ static size_t linux_processor_count(void) {
     return count > 0 ? (size_t)count : 1;
 }
 
-static bool linux_reserve_read_write(uintptr_t preferred_address, size_t size, void **mapping,
+static bool linux_reserve_read_write(size_t size, size_t alignment, void **mapping,
                                      ScoopPlatformError *error) {
-    if (size == 0 || mapping == NULL || error == NULL) {
-        return false;
-    }
-    void *reserved = mmap((void *)preferred_address, size, PROT_READ | PROT_WRITE,
-                          MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (reserved == MAP_FAILED) {
-        error->code = SCOOP_PLATFORM_VM_OPERATION_FAILED;
-        return false;
-    }
-    *mapping = reserved;
-    return true;
+    return scoop_posix_reserve_read_write(size, alignment, linux_page_size(), mapping, error);
 }
 
 static bool linux_protect_none(void *base, size_t size, ScoopPlatformError *error) {

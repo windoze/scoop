@@ -1,0 +1,33 @@
+package scoop.asyncio
+
+import scoop.platform.fs.*
+import scoop.platform.system.*
+import scoop.test.*
+
+@Test
+private class AsyncPipeControlTest {
+    @Test
+    fun `non seekable files retain native errors and remain usable`() {
+        IoTestDirectory().use {
+            tree ->
+            val fifo = tree.child("fifo")
+            makeFifo(fifo)
+            val loop: EventLoop = PlatformEventLoop()
+            loop.run suspend {
+                _ -> loop.openFile(fifo, OpenOptions(write = true)).useAsync suspend {
+                    file ->
+                    assertTrue(file.metadata().kind == FileKind.Fifo)
+                    try {
+                        file.position();
+                        fail(Some("FIFO reported a position"))
+                    }
+                    catch (error: PlatformException) {
+                        assertTrue(error.nativeError!!.domain == testFileErrorDomain())
+                        assertEquals(fifo.toOsString(), error.context!!)
+                    }
+                    assertTrue(file.metadata().kind == FileKind.Fifo)
+                }
+            }
+        }
+    }
+}

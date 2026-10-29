@@ -75,7 +75,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 self.llvm,
                 self.structs,
                 self.enums,
-                self.managed_address_space,
+                self.profile,
                 symbol,
                 signature,
             )

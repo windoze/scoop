@@ -23,18 +23,18 @@ static int notification_pipe(int descriptors[2]) {
 ScoopIoCreated scoop_io_loop_create(void) {
     ScoopIoLoop *loop = calloc(1, sizeof(*loop));
     if (!loop)
-        return (ScoopIoCreated){NULL, -ENOMEM};
+        return (ScoopIoCreated){NULL, scoop_io_errno(-ENOMEM)};
     int status = pthread_mutex_init(&loop->mutex, NULL);
     if (status) {
         free(loop);
-        return (ScoopIoCreated){NULL, -status};
+        return (ScoopIoCreated){NULL, scoop_io_errno(-status)};
     }
     int descriptors[2];
     status = notification_pipe(descriptors);
     if (status < 0) {
         pthread_mutex_destroy(&loop->mutex);
         free(loop);
-        return (ScoopIoCreated){NULL, status};
+        return (ScoopIoCreated){NULL, scoop_io_errno(status)};
     }
     loop->wake_read = descriptors[0];
     loop->wake_write = descriptors[1];
@@ -44,9 +44,9 @@ ScoopIoCreated scoop_io_loop_create(void) {
         close(loop->wake_write);
         pthread_mutex_destroy(&loop->mutex);
         free(loop);
-        return (ScoopIoCreated){NULL, -ENOMEM};
+        return (ScoopIoCreated){NULL, scoop_io_errno(-ENOMEM)};
     }
-    return (ScoopIoCreated){loop, 0};
+    return (ScoopIoCreated){loop, scoop_io_errno(0)};
 }
 
 void scoop_io_notify_locked(ScoopIoLoop *loop) {
@@ -67,7 +67,7 @@ void scoop_io_loop_wake(ScoopIoLoop *loop) {
 
 int scoop_io_loop_descriptor(ScoopIoLoop *loop) { return loop->wake_read; }
 
-int scoop_io_loop_poll(ScoopIoLoop *loop, bool wait) {
+ScoopIoStatus scoop_io_loop_poll(ScoopIoLoop *loop, bool wait) {
     if (wait) {
         pthread_mutex_lock(&loop->mutex);
         bool pending = loop->head || loop->finished_head || loop->failure;
@@ -79,14 +79,14 @@ int scoop_io_loop_poll(ScoopIoLoop *loop, bool wait) {
                 status = poll(&descriptor, 1, -1);
             } while (status < 0 && errno == EINTR);
             if (status < 0)
-                return -errno;
+                return scoop_io_errno(-errno);
             if (descriptor.revents & (POLLERR | POLLHUP | POLLNVAL))
-                return -EIO;
+                return scoop_io_errno(-EIO);
         }
     }
     int available = 0;
     if (ioctl(loop->wake_read, FIONREAD, &available) < 0)
-        return -errno;
+        return scoop_io_errno(-errno);
     char hints[256];
     while (available > 0) {
         size_t wanted = (size_t)available < sizeof(hints) ? (size_t)available : sizeof(hints);
@@ -99,13 +99,13 @@ int scoop_io_loop_poll(ScoopIoLoop *loop, bool wait) {
             continue;
         if (count < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
             break;
-        return count < 0 ? -errno : -EIO;
+        return scoop_io_errno(count < 0 ? -errno : -EIO);
     }
     scoop_io_work_poll(loop);
     pthread_mutex_lock(&loop->mutex);
     int status = -loop->failure;
     pthread_mutex_unlock(&loop->mutex);
-    return status;
+    return scoop_io_errno(status);
 }
 
 void scoop_io_complete(ScoopIoLoop *loop, ScoopIoCompletion *completion, int status) {
@@ -156,14 +156,14 @@ bool scoop_io_loop_idle(ScoopIoLoop *loop) {
     return idle;
 }
 
-int scoop_io_loop_destroy(ScoopIoLoop *loop) {
+ScoopIoStatus scoop_io_loop_destroy(ScoopIoLoop *loop) {
     if (!scoop_io_loop_idle(loop))
-        return -EBUSY;
+        return scoop_io_errno(-EBUSY);
     dispatch_release(loop->queue);
     int error = close(loop->wake_read) < 0 ? errno : 0;
     if (close(loop->wake_write) < 0 && !error)
         error = errno;
     pthread_mutex_destroy(&loop->mutex);
     free(loop);
-    return -error;
+    return scoop_io_errno(-error);
 }

@@ -21,30 +21,15 @@ size_t scoop_heap_large_mapping_size(size_t exact_size) {
 static void *map_aligned(size_t size, size_t alignment) {
     const ScoopThreadVmOps *vm = scoop_platform_bundle()->thread_vm;
     size_t page_size = vm->page_size();
-    if (page_size == 0 || alignment % page_size != 0 || size > SIZE_MAX - alignment) {
+    if (page_size == 0 || alignment % page_size != 0 || size % page_size != 0) {
         heap_fatal("heap mapping cannot satisfy platform alignment");
     }
-    size_t reserved_size = size + alignment;
     void *mapping = NULL;
     ScoopPlatformError error = {0};
-    if (!vm->reserve_read_write(0, reserved_size, &mapping, &error)) {
+    if (!vm->reserve_read_write(size, alignment, &mapping, &error)) {
         return NULL;
     }
-    uintptr_t raw = (uintptr_t)mapping;
-    if (raw > UINTPTR_MAX - reserved_size) {
-        release_mapping(mapping, reserved_size);
-        return NULL;
-    }
-    uintptr_t aligned = (raw + alignment - 1) & ~(uintptr_t)(alignment - 1);
-    size_t prefix = aligned - raw;
-    size_t suffix = reserved_size - prefix - size;
-    if (prefix != 0) {
-        release_mapping(mapping, prefix);
-    }
-    if (suffix != 0) {
-        release_mapping((void *)(aligned + size), suffix);
-    }
-    return (void *)aligned;
+    return mapping;
 }
 
 ScoopGcRegion *scoop_heap_region_create(size_t size, bool large) {

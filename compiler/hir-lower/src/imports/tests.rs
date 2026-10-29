@@ -122,6 +122,7 @@ fn lowerer() -> (Lowerer, PackageId, PackageId) {
             role: scoop_identity::SourceRole::Production,
             identity: test_source_identity(path),
             name: "same.scoop".to_string(),
+
             source: String::new(),
         })
         .collect(),

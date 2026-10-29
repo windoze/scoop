@@ -1,0 +1,125 @@
+package scoop.platform.fs
+
+import scoop.platform.system.OperatingSystem
+import scoop.platform.system.operatingSystem
+
+internal struct PathSyntax(
+    val prefixLength: Long,
+    val rootEnd: Long,
+    val hasRoot: Boolean,
+    val isAbsolute: Boolean,
+    val windows: Boolean,
+    val verbatim: Boolean
+) {
+    fun isSeparator(value: Byte): Boolean = (windows && value == 92) || (!verbatim && value == 47)
+
+    val separator: Byte get() =
+        if (windows)
+            92
+        else
+            47
+}
+
+internal fun pathSyntax(bytes: Array<Byte>): PathSyntax {
+    val windows = operatingSystem == OperatingSystem.Windows
+    val verbatim =
+        windows &&
+            bytes.size >=
+            4L &&
+            bytes[0L] ==
+            92 &&
+            bytes[1L] ==
+            92 &&
+            (bytes[2L] == 63 || bytes[2L] == 46) &&
+            bytes[3L] ==
+            92
+    var prefix = 0L
+    var implicitRoot = false
+    if (verbatim) {
+        if (
+            bytes.size >=
+                8L &&
+                (bytes[4L] == 85 || bytes[4L] == 117) &&
+                (bytes[5L] == 78 || bytes[5L] == 110) &&
+                (bytes[6L] == 67 || bytes[6L] == 99) &&
+                bytes[7L] ==
+                92
+        ) {
+            prefix = uncPrefixEnd(bytes, 8L, true)
+            implicitRoot = prefix != 0L
+        }
+        if (prefix == 0L) {
+            prefix =
+                if (hasDrivePrefix(bytes, 4L))
+                    6L
+                else
+                    windowsComponentEnd(bytes, 4L, true)
+            implicitRoot = !hasDrivePrefix(bytes, 4L)
+        }
+    } else
+        if (windows) {
+            if (hasDrivePrefix(bytes, 0L)) {
+                prefix = 2L
+            } else
+                if (
+                    bytes.size >=
+                        2L &&
+                        windowsSeparator(bytes[0L], false) &&
+                        windowsSeparator(bytes[1L], false)
+                ) {
+                    prefix = uncPrefixEnd(bytes, 2L, false)
+                    implicitRoot = prefix != 0L
+                }
+        }
+    var start = prefix
+    while (
+        start <
+            bytes.size &&
+            (
+                if (windows)
+                    windowsSeparator(bytes[start], verbatim)
+                else
+                    bytes[start] == 47
+            )
+    ) {
+        start += 1L
+    }
+    val rooted = implicitRoot || start > prefix
+    return PathSyntax(
+        prefix,
+        start,
+        rooted,
+        rooted && (!windows || prefix != 0L),
+        windows,
+        verbatim
+    )
+}
+
+private fun windowsSeparator(value: Byte, verbatim: Boolean): Boolean =
+    value == 92 || (!verbatim && value == 47)
+
+private fun hasDrivePrefix(bytes: Array<Byte>, start: Long): Boolean {
+    if (bytes.size - start < 2L || bytes[start + 1L] != 58)
+        return false
+    val letter = bytes[start]
+    return (letter >= 65 && letter <= 90) || (letter >= 97 && letter <= 122)
+}
+
+private fun windowsComponentEnd(bytes: Array<Byte>, start: Long, verbatim: Boolean): Long {
+    var end = start
+    while (end < bytes.size && !windowsSeparator(bytes[end], verbatim))
+        end += 1L
+    return end
+}
+
+private fun uncPrefixEnd(bytes: Array<Byte>, start: Long, verbatim: Boolean): Long {
+    val serverEnd = windowsComponentEnd(bytes, start, verbatim)
+    if (serverEnd == start || serverEnd == bytes.size)
+        return 0L
+    val shareStart = serverEnd + 1L
+    val shareEnd = windowsComponentEnd(bytes, shareStart, verbatim)
+    return if (shareEnd == shareStart)
+        0L
+    else
+        shareEnd
+}

@@ -1,0 +1,153 @@
+schema = 1
+name = "windows-executable-subsystem"
+root = "cone/Cone.toml"
+inputs = ["cone", "inspect.py"]
+tools = ["scoop", "scoopc", "python"]
+targets = ["x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
+tags = ["windows", "link", "cli", "compiler-correctness"]
+
+[vars]
+build_args = ["${work}/cone", "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}]
+
+[[steps]]
+name = "default"
+argv = ["${scoop}", "build", {each = "${link_args}"}, {each = "${build_args}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "default_pe"
+argv = ["${python}", "${fixture}/inspect.py", "${default.result.output}", "console"]
+exit = 0
+stdout = "console\n"
+stderr = ""
+
+[[steps]]
+name = "default_run"
+argv = ["${default.result.output}", "值😀"]
+exit = 73
+stdout = "2\n值😀\n"
+stderr = ""
+
+[[steps]]
+name = "select_gui"
+files = [{replace = {path = "${work}/cone/Cone.toml", old = 'kind = "executable"', new = '''kind = "executable"
+
+[windows]
+subsystem = "gui"'''}}]
+
+[[steps]]
+name = "gui"
+argv = ["${scoop}", "build", {each = "${link_args}"}, {each = "${build_args}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${gui.result.root.artifact_fingerprint}", not_equals = "${default.result.root.artifact_fingerprint}"}]
+
+[[steps]]
+name = "gui_pe"
+argv = ["${python}", "${fixture}/inspect.py", "${gui.result.output}", "gui"]
+exit = 0
+stdout = "gui\n"
+stderr = ""
+
+[[steps]]
+name = "gui_run"
+argv = ["${gui.result.output}", "值😀"]
+exit = 73
+stdout = "2\n值😀\n"
+stderr = ""
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", {each = "${link_args}"}, {each = "${build_args}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+    {actual = "${warm.result.observations.child_invocations}", equals = []},
+    {actual = "${warm.result.root.artifact_fingerprint}", equals = "${gui.result.root.artifact_fingerprint}"},
+    {actual = "${warm.result.link_plan_fingerprint}", equals = "${gui.result.link_plan_fingerprint}"},
+]
+
+[[steps]]
+name = "relink"
+argv = ["${scoop}", "link", {each = "${link_args}"}, "--root-slib", "${gui.result.root.path}", {each = "${gui.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "-o", "${work}/gui-relinked.exe", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "relinked_pe"
+argv = ["${python}", "${fixture}/inspect.py", "${relink.result.output}", "gui"]
+exit = 0
+stdout = "gui\n"
+stderr = ""
+
+[[steps]]
+name = "relinked_run"
+argv = ["${relink.result.output}", "值😀"]
+exit = 73
+stdout = "2\n值😀\n"
+stderr = ""
+
+[[steps]]
+name = "gui_tests"
+argv = ["${scoop}", "test", {each = "${link_args}"}, {each = "${build_args}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+checks = [
+    {actual = "${gui_tests.test_result.status}", equals = "passed"},
+    {actual = "${gui_tests.test_result.counts.passed}", equals = 1},
+]
+
+[[steps]]
+name = "test_pe"
+argv = ["${python}", "${fixture}/inspect.py", "${gui_tests.result.output}", "console"]
+exit = 0
+stdout = "console\n"
+stderr = ""
+
+[[steps]]
+name = "select_console"
+files = [{replace = {path = "${work}/cone/Cone.toml", old = 'subsystem = "gui"', new = 'subsystem = "console"'}}]
+
+[[steps]]
+name = "console"
+argv = ["${scoop}", "build", {each = "${link_args}"}, {each = "${build_args}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${console.result.root.artifact_fingerprint}", not_equals = "${gui.result.root.artifact_fingerprint}"}]
+
+[[steps]]
+name = "console_pe"
+argv = ["${python}", "${fixture}/inspect.py", "${console.result.output}", "console"]
+exit = 0
+stdout = "console\n"
+stderr = ""
+
+[[steps]]
+name = "console_run"
+argv = ["${console.result.output}", "值😀"]
+exit = 73
+stdout = "2\n值😀\n"
+stderr = ""

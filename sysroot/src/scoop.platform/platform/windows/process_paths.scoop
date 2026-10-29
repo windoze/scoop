@@ -1,0 +1,68 @@
+package scoop.platform.process
+
+import scoop.collections.Map
+import scoop.platform.fs.Path
+import scoop.platform.system.OsString
+
+internal fun searchCandidates(executable: Path, environment: Map<OsString, OsString>): Array<Path> {
+    val name = executable.toOsString().toByteArray()
+    var extension = false
+    for (byte in name) {
+        if (byte == 47 || byte == 92 || byte == 58)
+            return [executable]
+        if (byte == 46)
+            extension = true
+    }
+    var path = Array<Byte>(0L) { 0.toByte() }
+    for ((key, value) in environment) {
+        val bytes = key.toByteArray()
+        if (
+            bytes.size ==
+                4L &&
+                (bytes[0L] == 80 || bytes[0L] == 112) &&
+                (bytes[1L] == 65 || bytes[1L] == 97) &&
+                (bytes[2L] == 84 || bytes[2L] == 116) &&
+                (bytes[3L] == 72 || bytes[3L] == 104)
+        ) {
+            path = value.toByteArray()
+            break
+        }
+    }
+    val suffix: Array<Byte> = [46.toByte(), 101.toByte(), 120.toByte(), 101.toByte()]
+    val withExtension =
+        Path.fromOsString(
+            OsString.fromByteArray(
+                Array<Byte>(name.size + 4L) {
+                    if (it < name.size)
+                        name[it]
+                    else
+                        suffix[it - name.size]
+                }
+            )
+        )
+    val result = ArrayList<Path>()
+    val searchPath = path
+    var start = 0L
+    var index = 0L
+    while (index <= path.size) {
+        if (index == path.size || path[index] == 59) {
+            var from = start
+            var length = index - start
+            if (length >= 2L && path[from] == 34 && path[index - 1L] == 34) {
+                from += 1L
+                length -= 2L
+            }
+            val begin = from
+            val directory =
+                Path.fromOsString(
+                    OsString.fromByteArray(Array<Byte>(length) { searchPath[begin + it] })
+                )
+            result.add(directory.resolve(executable))
+            if (!extension)
+                result.add(directory.resolve(withExtension))
+            start = index + 1L
+        }
+        index += 1L
+    }
+    return Array<Path>(result.size) { result[it] }
+}

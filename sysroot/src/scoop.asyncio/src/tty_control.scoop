@@ -61,17 +61,18 @@ internal suspend fun controlTty(owner: OwnedEndpoint, control: TtyControl): IoRe
     }
 }
 
-private fun posixFailure(code: Int): IoResult =
-    IoResult.Failed(NativeError(NativeErrorDomain.PosixErrno, code), 0L)
+private fun ttyControlFailure(status: NativeIoStatus): IoResult =
+    IoResult.Failed(nativeStatusError(status), 0L)
 
 private fun applyControl(pointer: Ptr<Unit>, control: TtyControl, change: TtyModeChange): IoResult {
     @Unsafe
     {
         when (control) {
             case Size -> {
-                val(size, error) = nativeTtySize(pointer)
-                return if (size.columns < 0L)
-                    posixFailure(error)
+                val result = nativeTtySize(pointer)
+                val size = result.size
+                return if (result.status.code != 0)
+                    ttyControlFailure(result.status)
                 else
                     IoResult.TtySizeValue(
                         TtySize(size.columns, size.rows, size.widthPixels, size.heightPixels)
@@ -88,10 +89,10 @@ private fun changeMode(pointer: Ptr<Unit>, enabled: Boolean, change: TtyModeChan
     @Unsafe
     {
         val previous = nativeTtyIsRaw(pointer)
-        val(status, error) = nativeTtyRaw(pointer, enabled)
+        val status = nativeTtyRaw(pointer, enabled)
         change.restoreOnFailure = !previous && nativeTtyIsRaw(pointer)
-        return if (status < 0)
-            posixFailure(error)
+        return if (status.code != 0)
+            ttyControlFailure(status)
         else
             IoResult.Done
     }
@@ -100,9 +101,9 @@ private fun changeMode(pointer: Ptr<Unit>, enabled: Boolean, change: TtyModeChan
 private fun restoreFailedMode(pointer: Ptr<Unit>, primary: Throwable): Throwable {
     @Unsafe
     {
-        val(status, error) = nativeTtyRaw(pointer, false)
-        if (status < 0) {
-            val native = NativeError(NativeErrorDomain.PosixErrno, error)
+        val status = nativeTtyRaw(pointer, false)
+        if (status.code != 0) {
+            val native = nativeStatusError(status)
             return ResourceUseException(
                 primary,
                 PlatformException("restore TTY mode", native.kind, Some(native))

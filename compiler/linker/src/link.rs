@@ -12,10 +12,13 @@ mod darwin;
 mod debug;
 pub use debug::{DebugFile, replace_debug_bundle};
 mod elf;
+mod pe;
 mod response;
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests;
+#[cfg(all(test, windows, target_arch = "x86_64"))]
+mod windows_tests;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ResolvedLinkPlanFingerprint(Digest256);
@@ -102,6 +105,10 @@ fn link_inputs(
         .emit_debug_file
         .then(|| scoop_toolchain::NativeDebugTools::resolve(profile.target()).map_err(error))
         .transpose()?;
+    let candidate_pdb = (options.emit_debug_file
+        && matches!(profile, ValidatedFinalLinkProfile::Windows(_)))
+    .then(|| scoop_toolchain::DebugFileKind::Pdb.output_path(&candidate));
+    let mut link_input_paths = Vec::new();
     match profile {
         ValidatedFinalLinkProfile::Darwin(_) => darwin::link(
             profile,
@@ -119,6 +126,17 @@ fn link_inputs(
             &candidate,
             options.keep_symbols || options.emit_debug_file,
         )?,
+        ValidatedFinalLinkProfile::Windows(windows) => {
+            link_input_paths = pe::link(
+                windows,
+                inputs,
+                directory.path(),
+                &paths,
+                &candidate,
+                candidate_pdb.as_deref(),
+                options.keep_symbols,
+            )?;
+        }
     }
     let debug_file = debug_tools
         .as_ref()
@@ -127,7 +145,7 @@ fn link_inputs(
     let profile_fingerprint = profile.fingerprint().map_err(error)?;
     let fingerprint = ResolvedLinkPlanFingerprint(
         domain_separated_cbor_hash(
-            "scoop-resolved-link-plan-v5",
+            "scoop-resolved-link-plan-v7",
             &Plan {
                 closure,
                 runtime,
@@ -146,7 +164,9 @@ fn link_inputs(
             let path = file.kind.output_path(&output);
             match file.kind {
                 scoop_toolchain::DebugFileKind::Dsym => replace_debug_bundle(&file.path, &path),
-                scoop_toolchain::DebugFileKind::Elf => std::fs::rename(&file.path, &path),
+                scoop_toolchain::DebugFileKind::Elf | scoop_toolchain::DebugFileKind::Pdb => {
+                    std::fs::rename(&file.path, &path)
+                }
             }
             .map_err(error)?;
             Ok::<_, LinkError>(DebugFile {
@@ -171,6 +191,7 @@ fn link_inputs(
             .input_paths()
             .into_iter()
             .chain(inputs.namespace.input_paths())
+            .chain(link_input_paths)
             .chain(
                 debug_tools
                     .iter()
@@ -200,7 +221,7 @@ struct Plan<'a> {
 }
 impl WireEncode for Plan<'_> {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        e.map(11)?;
+        e.map(12)?;
         e.field(1)?;
         self.closure.root().encode(e)?;
         e.field(2)?;
@@ -240,6 +261,8 @@ impl WireEncode for Plan<'_> {
         if let Some(name) = self.debug_basename {
             e.bytes(name.as_encoded_bytes())?;
         }
+        e.field(12)?;
+        self.inputs.windows_subsystem.encode(e)?;
         Ok(())
     }
 }
@@ -280,6 +303,7 @@ fn dump(
     text.push_str(match &inputs.namespace {
         crate::namespace::NativeNamespace::Darwin(_) => "link inputs: startup, cone/member order, runtime/object order, libSystem\n",
         crate::namespace::NativeNamespace::Elf(_) => "link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind\n",
+        crate::namespace::NativeNamespace::Coff(_) => "link inputs: Unicode startup, cone/member order, runtime/object order, COFF/import libraries, selected Windows CRT/LLVM unwind\n",
     });
     text.push_str(&inputs.native.dump());
     text.push_str(&inputs.namespace.dump());

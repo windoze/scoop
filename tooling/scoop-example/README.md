@@ -1,6 +1,8 @@
 # Scoop 示例阅读器
 
-`scoop example` 是安装在 `<SYSROOT>/commands/scoop-example` 的独立 Rust 程序。它通过已有外部命令入口运行，不依赖编译器 crate、LLVM 或系统库产物；查询时只读取配套的索引、说明和源码。
+`scoop example` 是安装在 `<SYSROOT>/commands/scoop-example` 的独立 Rust 程序，Windows 文件名为 `scoop-example.exe`。它通过已有外部命令入口运行，不依赖编译器 crate、LLVM 或系统库产物；查询时只读取配套的索引、说明和源码。
+
+Windows 主驱动名为 `sco.exe`，通过 `sco example` 调用该阅读器；帮助、目录提示与错误消息使用宿主的实际命令名。以下示例中的 `scoop` 在 Windows 上替换为 `sco`。macOS／Linux 继续使用 `scoop example`。
 
 ## 使用
 
@@ -35,6 +37,8 @@ SCOOP_SYSROOT="$PWD/sysroot" scoop example --list
 ```
 
 构建缓存默认放在仓库旁的 `scoop-work/scoop-example/cargo`。`--target-dir` 可指定其他目录；`--sysroot` 可将命令和材料装入另一份已有的配套工具链。复用示例的源文件仍由该工具链的 `src/` 提供。完整发行脚本 `scripts/package_toolchain.py` 自动构建并安装本命令、打包内容。
+
+脚本遵循 `CARGO_BUILD_TARGET` 选择的 Rust 宿主产物目录，并保留 `.exe` 后缀。完整 Windows 发行按实际 PE imports 将本命令所需的非系统 DLL 一并放在 `commands/`；独立开发安装使用对应 Rust 目标的正常运行库环境。
 
 ## 内容维护
 

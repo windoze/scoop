@@ -92,6 +92,8 @@ Linux 的 System 装载目标运行环境的系统 CA 配置，保留加载失�
 
 系统信任集成和平台 native 链验证属于 scoop.tls。Darwin 通过目标条件链接 Security／CoreFoundation；Linux 继续使用目标 OpenSSL 和实际 CA 数据。普通 platform 只提供所需文件／OS 原语，不依赖 crypto，crypto 保持内存库。系统策略失败统一保存 TlsFailureKind.Verification 与实际平台原因，不能自动改用另一套更宽松验证。
 
+Windows 的 System 使用 Crypt32 的当前用户证书链引擎和 SSL 服务端策略，消费 Windows 的用户／机器信任配置；不把根证书导出到 OpenSSL 后另行验证。叶证书与对端提供的中间证书仅作为待验证输入，不能因此成为信任锚。通过 `CertGetCertificateChain` 指定 serverAuth 用途，再以 `CertVerifyCertificateChainPolicy(CERT_CHAIN_POLICY_SSL)` 检查平台链策略及名称；验证当前时间，保留实际 Windows 错误码与 UTF-8 描述。构建链时禁止 AIA、根证书自动更新和其他 URL 网络获取，维持离线验证合同；不忽略未知 CA、过期、用途或名称错误。对应 API 及离线 flags 见 [Microsoft 链构建说明](https://learn.microsoft.com/en-us/windows/win32/api/wincrypt/nf-wincrypt-certgetcertificatechain)和 [SSL 策略说明](https://learn.microsoft.com/en-us/windows/win32/api/wincrypt/nf-wincrypt-certverifycertificatechainpolicy)。
+
 System 的配置装载提供同步与 suspend 工厂；`scoop.tls.asyncio.openTlsClientContext(trust, options, identity)` 通过 asyncio 的 native work 等待可能阻塞的系统操作。所有输入先保留 native 副本／引用，worker 不访问 managed 对象；取消后关闭未交付上下文，不能在 web client 的 EventLoop 线程直接读取系统 keychain 或同步 CA 文件。
 
 同步入口为 `TlsClientContext(trust: TlsTrustSource = TlsTrustSource.System, options = TlsOptions(), identity = None)`；原 TrustStore 构造重载保留。异步工厂的 trust 默认同样为 System，Store 路径只做内存配置。两条 System 路径先建立未发布的上下文并保留身份，再执行相同的原生装载工作，成功才交付；装载错误为 Configuration，保留原生原因及系统错误码。

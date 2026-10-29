@@ -4,6 +4,7 @@ use super::*;
 /// signatures small.
 pub(crate) struct ModuleCtx<'a, 'ctx> {
     pub(crate) debug: Option<&'a crate::debug::DebugContext<'a, 'ctx>>,
+    pub(crate) profile: ValidatedBackendProfile,
     pub(crate) reuse_interface_values: bool,
     pub(crate) optimize_allocations: bool,
     pub(crate) optimize_reference_writes: bool,

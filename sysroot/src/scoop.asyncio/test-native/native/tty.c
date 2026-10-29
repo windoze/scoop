@@ -20,7 +20,7 @@ typedef struct {
 ScoopIoCreated scoop_test_tty_create(void) {
     TestTerminal *terminal = calloc(1, sizeof(*terminal));
     if (!terminal)
-        return (ScoopIoCreated){NULL, -ENOMEM};
+        return (ScoopIoCreated){NULL, scoop_io_errno(-ENOMEM)};
     int master = -1, slave = -1, saved = -1;
     if (openpty(&master, &slave, NULL, NULL, NULL) < 0)
         goto failed;
@@ -33,7 +33,7 @@ ScoopIoCreated scoop_test_tty_create(void) {
     terminal->master = master;
     terminal->slave = slave;
     terminal->saved_input = saved;
-    return (ScoopIoCreated){terminal, 0};
+    return (ScoopIoCreated){terminal, scoop_io_errno(0)};
 failed: {
     int error = errno;
     if (master >= 0)
@@ -43,7 +43,7 @@ failed: {
     if (saved >= 0)
         close(saved);
     free(terminal);
-    return (ScoopIoCreated){NULL, -error};
+    return (ScoopIoCreated){NULL, scoop_io_errno(-error)};
 }
 }
 

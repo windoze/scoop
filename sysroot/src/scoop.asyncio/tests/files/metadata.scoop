@@ -40,7 +40,7 @@ private class AsyncFileMetadataTest {
                 }
                 catch (error: PlatformException) {
                     assertTrue(error.kind == PlatformErrorKind.NotFound)
-                    assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+                    assertTrue(error.nativeError!!.domain == testFileErrorDomain())
                     assertEquals(link.toOsString(), error.context!!)
                 }
                 try {

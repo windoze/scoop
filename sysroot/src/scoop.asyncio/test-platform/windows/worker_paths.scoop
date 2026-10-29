@@ -1,0 +1,167 @@
+package scoop.asyncio
+
+import scoop.platform.fs.*
+import scoop.platform.net.*
+import scoop.platform.system.OsString
+import scoop.test.*
+
+@Test
+private class WindowsWorkerPathsTest {
+    @Test
+    fun `path workers keep wide names and original Windows errors`() {
+        withWorkerDirectory {
+            path -> @Unsafe
+            {
+                assertEquals(0, testPaths(path))
+            }
+        }
+    }
+    @Test
+    fun `directory workers return names independent of their native owner`() {
+        withWorkerDirectory {
+            path -> @Unsafe
+            {
+                assertEquals(0, testDirectory(path))
+            }
+        }
+    }
+    @Test
+    fun `queued filesystem and DNS work cancels and owns its input copies`() {
+        withWorkerDirectory {
+            path -> @Unsafe
+            {
+                assertEquals(0, testQueuedPaths(path))
+            }
+        }
+    }
+    @Test
+    fun `DNS workers resolve numeric IPv4 and IPv6 with native result records`() {
+        checkResolution("127.0.0.1", 4, IpAddress.IPV4_LOOPBACK)
+        checkResolution("::1", 6, IpAddress.IPV6_LOOPBACK)
+    }
+    @Test
+    fun `DNS family mismatch keeps the address resolution error`() {
+        @Unsafe
+        {
+            val created = nativeLoopCreate()
+            assertEquals(0, created.status.code)
+            val loop = created.pointer!!
+            try {
+                OsString.fromString("::1").withIoString {
+                    host -> @Unsafe
+                    {
+                        assertEquals(0, nativeResolve(loop, 1L, host, 42, 4))
+                    }
+                }
+                val event = nextWorkerResult(loop)
+                assertEquals(1L, event.id)
+                assertEquals(7, event.kind)
+                assertTrue(event.code != 0)
+                assertEquals(-1L, event.count)
+            } finally {
+                assertEquals(0, testWorkerDrain(loop))
+            }
+        }
+    }
+    @Test
+    fun `wide native strings round trip surrogate code units through GC`() {
+        val original =
+            OsString.fromUtf16(
+                [0xd800.toUShort(), 0xd83d.toUShort(), 0xde00.toUShort(), 0xdc00.toUShort()]
+            )
+        @Unsafe
+        {
+            original.withIoString {
+                text -> @Unsafe
+                {
+                    gcCollect()
+                    assertEquals(original, copyIoString(text))
+                }
+            }
+        }
+    }
+    @Test
+    fun `wide native strings reject embedded NUL before submission`() {
+        val text = OsString.fromUtf16([65.toUShort(), 0.toUShort(), 66.toUShort()])
+        assertFailsWith<IllegalArgumentException> {
+            @Unsafe
+            {
+                text.withIoString { _ -> fail(Some("NUL string reached native callback")) }
+            }
+        }
+    }
+}
+
+private fun withWorkerDirectory(block: (Ptr<Byte>) -> Unit) {
+    val root = createTempDirectory(prefix = "scoop-iocp-")
+    try {
+        val name =
+            OsString.fromUtf16(
+                [0x4e2d.toUShort(), 0xd800.toUShort(), 0xd83d.toUShort(), 0xde00.toUShort()]
+            )
+        val path = root.resolve(Path.fromOsString(name))
+        path.createDirectory()
+        @Unsafe
+        {
+            path.withIoPath(block)
+        }
+    } finally {
+        root.deleteRecursively()
+    }
+}
+
+private fun checkResolution(host: String, family: Int, expected: IpAddress) {
+    @Unsafe
+    {
+        val created = nativeLoopCreate()
+        assertEquals(0, created.status.code)
+        val loop = created.pointer!!
+        try {
+            OsString.fromString(host).withIoString {
+                name -> @Unsafe
+                {
+                    assertEquals(0, nativeResolve(loop, 1L, name, 4242, family))
+                }
+            }
+            gcCollect()
+            val event = nextWorkerResult(loop)
+            assertEquals(1L, event.id)
+            assertEquals(6, event.kind)
+            val head = event.resource!!
+            try {
+                var current: Ptr<Unit>? = Some(head)
+                while (current != None) {
+                    val result = nativeResolveAddress(current!!)
+                    assertEquals(0, result.status.code)
+                    val address = ioSocketAddress(result.address)
+                    assertEquals(expected, address.address)
+                    assertEquals(4242, address.port)
+                    current = nativeResolveNext(current!!)
+                }
+            } finally {
+                nativeResolveFree(head)
+            }
+        } finally {
+            assertEquals(0, testWorkerDrain(loop))
+        }
+    }
+}
+
+@Unsafe
+private fun nextWorkerResult(loop: Ptr<Unit>): NativeRecord {
+    while (nativeLoopBatchSize(loop) == 0L)
+        assertEquals(0, nativeLoopPoll(loop, true).code)
+    return nativeLoopNext(loop)
+}
+
+@Extern(name = "scoop_test_iocp_paths")
+private fun testPaths(base: Ptr<Byte>): Int
+
+@Extern(name = "scoop_test_iocp_directory")
+private fun testDirectory(base: Ptr<Byte>): Int
+
+@Extern(name = "scoop_test_iocp_queued_paths")
+private fun testQueuedPaths(base: Ptr<Byte>): Int
+
+@Extern(name = "scoop_test_iocp_drain")
+private fun testWorkerDrain(loop: Ptr<Unit>): Int

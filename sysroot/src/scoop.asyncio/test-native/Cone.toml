@@ -28,9 +28,47 @@ path = "native/socket.c"
 
 [[native.sources]]
 path = "native/tty.c"
+when = { os = ["darwin", "linux"] }
+
+[[native.sources]]
+path = "native/windows/tty.c"
+when = { os = "windows" }
 
 [[native.sources]]
 path = "native/host.c"
+when = { os = ["darwin", "linux"] }
+
+[[native.sources]]
+path = "native/host_windows.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/loop.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/requests.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/work.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/tcp.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/udp.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/paths.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/files.c"
+when = { os = "windows" }
 
 [[native.sources]]
 path = "native/host_darwin.c"
@@ -51,6 +89,7 @@ when = { os = "linux" }
 
 [[native.sources]]
 path = "native/tty_owner.c"
+when = { os = ["darwin", "linux"] }
 
 [[native.sources]]
 path = "native/tty_completion.c"

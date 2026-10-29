@@ -126,6 +126,19 @@ impl RuntimeAbiSymbolV1 {
 }
 
 impl TargetEhSupportV1 {
+    pub const fn machine_contract_for_target(
+        self,
+        target: crate::LirTargetProfile,
+    ) -> CompilerNativeContractV1 {
+        use CompilerNativeValueV1::{Integer as I, Pointer as P};
+        match (self, target.native_object_format()) {
+            (Self::ScoopPersonality, crate::NativeObjectFormat::Coff64) => {
+                leaf(&[P, P, P, P], I(32))
+            }
+            _ => self.machine_contract(),
+        }
+    }
+
     pub const fn machine_contract(self) -> CompilerNativeContractV1 {
         use CompilerNativeValueV1::{Integer as I, Pointer as P, Void as V};
         match self {

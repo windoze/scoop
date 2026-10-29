@@ -15,6 +15,9 @@ mod selection;
 mod semantic;
 mod serde_record;
 mod single_file;
+mod windows;
+
+pub use windows::WindowsConfig;
 
 pub use discovery::{
     DiscoveredManifestSources, DiscoveredSource, DiscoveryIoOperation, SelectedManifestSources,

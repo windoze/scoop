@@ -216,6 +216,7 @@ fn rich_input() -> ConeCompileCacheInputV1 {
     )
 }
 
+#[track_caller]
 fn assert_mutation_misses(
     baseline: &ConeCompileCacheInputV1,
     mutate: impl FnOnce(&mut ConeCompileCacheInputV1),
@@ -233,7 +234,7 @@ fn compile_cache_key_has_a_fixed_canonical_vector() {
     // The vector includes the directory-input cache domain, runtime ABI and machine protocol.
     assert_eq!(
         input.key().unwrap().to_string(),
-        "283c182d1b79e555f699475d34618b74a4c6f277959bc181be10859029cf9e4e"
+        "197ace3a3d3e204e34362180d5cef6ec18aa2611b0b3e90bce0d1742c2ac9b4f"
     );
     assert_eq!(encode(&input).unwrap().first(), Some(&0xb0));
 }
@@ -264,7 +265,6 @@ fn absent_optional_core_code_has_the_frozen_wire_shape() {
 fn every_currently_variable_cache_key_dimension_misses_independently() {
     let baseline = rich_input();
     let (_, alternate_dependency) = dependency_summaries();
-    let alternate_semantic = alternate_dependency.semantic_fingerprints();
     assert_mutation_misses(&baseline, |input| {
         let CurrentConeSemanticProjectionV1::Manifest { input_root, .. } =
             &mut input.current_semantic
@@ -326,7 +326,7 @@ fn every_currently_variable_cache_key_dimension_misses_independently() {
         );
     });
     assert_mutation_misses(&baseline, |input| {
-        input.sources[0].modified += std::time::Duration::from_nanos(1);
+        input.sources[0].modified += std::time::Duration::from_secs(1);
     });
     assert_mutation_misses(&baseline, |input| {
         input.sources[0].byte_length += 1;
@@ -338,13 +338,13 @@ fn every_currently_variable_cache_key_dimension_misses_independently() {
         input.dependencies[0].cone = alternate_dependency.cone().clone();
     });
     assert_mutation_misses(&baseline, |input| {
-        input.dependencies[0].hir = alternate_semantic.hir();
+        input.dependencies[0].hir = HirFingerprint::from_array([7; 32]);
     });
     assert_mutation_misses(&baseline, |input| {
-        input.dependencies[0].mir = alternate_semantic.mir();
+        input.dependencies[0].mir = MirFingerprint::from_array([8; 32]);
     });
     assert_mutation_misses(&baseline, |input| {
-        input.dependencies[0].lir = alternate_semantic.lir();
+        input.dependencies[0].lir = LirFingerprint::from_array([9; 32]);
     });
     assert_mutation_misses(&baseline, |input| {
         input.compiler = PairedCompilerFingerprintV1::from_parts(

@@ -77,9 +77,15 @@ pub struct ConeManifestSemantic {
     dependencies: BTreeMap<DependencyCoordinateKey, ConeCoordinate>,
     sources: SourceSelection,
     native: crate::NativeConfig,
+    #[serde(default)]
+    windows: crate::WindowsConfig,
 }
 
 impl ConeManifestSemantic {
+    pub fn windows(&self) -> &crate::WindowsConfig {
+        &self.windows
+    }
+
     pub fn native(&self) -> &crate::NativeConfig {
         &self.native
     }
@@ -342,6 +348,7 @@ pub enum ManifestParseErrorKind {
     DuplicateTestDependency(String),
     InvalidSelection(String),
     InvalidNative(String),
+    InvalidWindows(String),
 }
 
 impl fmt::Display for ManifestParseErrorKind {
@@ -349,6 +356,7 @@ impl fmt::Display for ManifestParseErrorKind {
         match self {
             Self::InvalidSelection(message)
             | Self::InvalidNative(message)
+            | Self::InvalidWindows(message)
             | Self::InvalidPackage(message) => formatter.write_str(message),
             Self::InvalidToml(message) => write!(formatter, "invalid Cone.toml: {message}"),
             Self::UnsupportedSchema(schema) => {

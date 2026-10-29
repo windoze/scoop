@@ -1,0 +1,2 @@
+@Extern(name = "SwitchToThread")
+internal fun atomicYield(): Int

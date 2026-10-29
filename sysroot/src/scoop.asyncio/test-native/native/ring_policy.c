@@ -39,7 +39,7 @@ int scoop_test_ring_denied(void) {
         if (deny_syscall(__NR_io_uring_setup))
             _exit(2);
         ScoopIoCreated created = scoop_io_loop_create();
-        _exit(created.status == -EPERM && !created.pointer ? 0 : 3);
+        _exit(created.status.code == EPERM && !created.pointer ? 0 : 3);
     }
     return wait_child(child);
 }
@@ -47,17 +47,17 @@ int scoop_test_ring_submit_denied(void) {
     pid_t child = fork();
     if (!child) {
         ScoopIoCreated created = scoop_io_loop_create();
-        if (created.status)
+        if (created.status.code)
             _exit(2);
         ScoopIoLoop *loop = created.pointer;
-        if (scoop_io_timer_start(loop, 1, 1000, 0) || deny_syscall(__NR_io_uring_enter))
+        if (scoop_io_timer_start(loop, 1, 1000, 0).code || deny_syscall(__NR_io_uring_enter))
             _exit(3);
-        if (scoop_io_loop_poll(loop, false) != -EPERM)
+        if (scoop_io_loop_poll(loop, false).code != EPERM)
             _exit(4);
         if (!loop->requests || loop->requests->entries[0].state != RING_PUBLISHED ||
             scoop_io_loop_idle(loop) || scoop_io_loop_batch_size(loop))
             _exit(5);
-        if (scoop_io_loop_poll(loop, false))
+        if (scoop_io_loop_poll(loop, false).code)
             _exit(6);
         struct pollfd notification = {.fd = loop->notification, .events = POLLIN};
         if (poll(&notification, 1, 0))
@@ -82,7 +82,7 @@ int scoop_test_workers_denied(void) {
     pid_t child = fork();
     if (!child) {
         ScoopIoCreated created = scoop_io_loop_create();
-        if (created.status)
+        if (created.status.code)
             _exit(2);
         ScoopIoLoop *loop = created.pointer;
         if (deny_syscall(__NR_clone) || deny_syscall(__NR_clone3))
@@ -93,13 +93,13 @@ int scoop_test_workers_denied(void) {
                 loop->workers || loop->workers_started || loop->work)
                 _exit(4);
         }
-        if (scoop_io_timer_start(loop, 2, 0, 1))
+        if (scoop_io_timer_start(loop, 2, 0, 1).code)
             _exit(5);
         while (!scoop_io_loop_batch_size(loop)) {
-            if (scoop_io_loop_poll(loop, true))
+            if (scoop_io_loop_poll(loop, true).code)
                 _exit(8);
         }
-        if (scoop_io_loop_next(loop).id != 2 || scoop_io_loop_destroy(loop))
+        if (scoop_io_loop_next(loop).id != 2 || scoop_io_loop_destroy(loop).code)
             _exit(9);
         _exit(0);
     }

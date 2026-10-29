@@ -40,6 +40,8 @@ impl WireDecode for DefinitionAtomRole {
             7 => Ok(Self::AddressTakenConstant),
             8 => Ok(Self::ContextKeyCell),
             9 => Ok(Self::ContextKeyTable),
+            10 => Ok(Self::WindowsUnwindTable),
+            11 => Ok(Self::WindowsUnwindInfo),
             tag => Err(unknown_tag(decoder, tag)),
         }
     }

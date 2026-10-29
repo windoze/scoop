@@ -15,33 +15,98 @@ private class AwsEventStreamHeaderTests {
             assertEquals(10L, message.headers.size)
             assertEquals("{'foo':'bar'}", String.fromUtf8(message.payload))
             assertEquals("event-type", message.headers[0L].name)
-            when (message.header("event-type")!!) { case Int32(value) -> assertEquals(40972, value); else -> fail() }
-            when (message.header("content-type")!!) { case Text(value) -> assertEquals("application/json", value); else -> fail() }
-            when (message.header("bool false")!!) { case Bool(value) -> assertFalse(value); else -> fail() }
-            when (message.header("bool true")!!) { case Bool(value) -> assertTrue(value); else -> fail() }
-            when (message.header("byte")!!) { case Int8(value) -> assertEquals((-49).toByte(), value); else -> fail() }
-            when (message.header("byte buf")!!) { case Bytes(value) -> assertEquals("I'm a little teapot!", String.fromUtf8(value)); else -> fail() }
-            when (message.header("timestamp")!!) { case Timestamp(value) -> assertEquals(Instant.fromEpochMilliseconds(8675309L), value); else -> fail() }
-            when (message.header("int16")!!) { case Int16(value) -> assertEquals(42.toShort(), value); else -> fail() }
-            when (message.header("int64")!!) { case Int64(value) -> assertEquals(42424242L, value); else -> fail() }
-            when (message.header("uuid")!!) { case Uuid(value) -> assertEquals("01020304-0506-0708-090a-0b0c0d0e0f10", value.toString()); else -> fail() }
-            assertTrue(when (message.header("Content-Type")) { case None -> true; else -> false })
+            when (message.header("event-type")!!) {
+                case Int32(value) -> assertEquals(40972, value);
+                else -> fail()
+            }
+            when (message.header("content-type")!!) {
+                case Text(value) -> assertEquals("application/json", value);
+                else -> fail()
+            }
+            when (message.header("bool false")!!) {
+                case Bool(value) -> assertFalse(value);
+                else -> fail()
+            }
+            when (message.header("bool true")!!) {
+                case Bool(value) -> assertTrue(value);
+                else -> fail()
+            }
+            when (message.header("byte")!!) {
+                case Int8(value) -> assertEquals((-49).toByte(), value);
+                else -> fail()
+            }
+            when (message.header("byte buf")!!) {
+                case Bytes(value) -> assertEquals("I'm a little teapot!", String.fromUtf8(value));
+                else -> fail()
+            }
+            when (message.header("timestamp")!!) {
+                case Timestamp(value) -> assertEquals(
+                    Instant.fromEpochMilliseconds(8675309L),
+                    value
+                );
+                else -> fail()
+            }
+            when (message.header("int16")!!) {
+                case Int16(value) -> assertEquals(42.toShort(), value);
+                else -> fail()
+            }
+            when (message.header("int64")!!) {
+                case Int64(value) -> assertEquals(42424242L, value);
+                else -> fail()
+            }
+            when (message.header("uuid")!!) {
+                case Uuid(value) -> assertEquals(
+                    "01020304-0506-0708-090a-0b0c0d0e0f10",
+                    value.toString()
+                );
+                else -> fail()
+            }
+            assertTrue(
+                when (message.header("Content-Type")) {
+                    case None -> true;
+                    else -> false
+                }
+            )
         }
     }
 
     @Test
     fun `AWS EventStream headers retain signed extrema negative milliseconds empty values and case sensitive names`() {
         val message = readAwsTestMessage(awsBoundaryHeaders, 3L)
-        when (message.header("i8")!!) { case Int8(value) -> assertEquals(Byte.MIN_VALUE, value); else -> fail() }
-        when (message.header("i16")!!) { case Int16(value) -> assertEquals(Short.MIN_VALUE, value); else -> fail() }
-        when (message.header("i32")!!) { case Int32(value) -> assertEquals(Int.MIN_VALUE, value); else -> fail() }
-        when (message.header("i64")!!) { case Int64(value) -> assertEquals(Long.MIN_VALUE, value); else -> fail() }
-        when (message.header("time")!!) { case Timestamp(value) -> assertEquals(Instant.fromEpochMilliseconds(-1L), value); else -> fail() }
-        when (message.header("A")!!) { case Text(value) -> assertEquals("", value); else -> fail() }
-        when (message.header("a")!!) { case Bytes(value) -> assertEquals(0L, value.size); else -> fail() }
+        when (message.header("i8")!!) {
+            case Int8(value) -> assertEquals(Byte.MIN_VALUE, value);
+            else -> fail()
+        }
+        when (message.header("i16")!!) {
+            case Int16(value) -> assertEquals(Short.MIN_VALUE, value);
+            else -> fail()
+        }
+        when (message.header("i32")!!) {
+            case Int32(value) -> assertEquals(Int.MIN_VALUE, value);
+            else -> fail()
+        }
+        when (message.header("i64")!!) {
+            case Int64(value) -> assertEquals(Long.MIN_VALUE, value);
+            else -> fail()
+        }
+        when (message.header("time")!!) {
+            case Timestamp(value) -> assertEquals(Instant.fromEpochMilliseconds(-1L), value);
+            else -> fail()
+        }
+        when (message.header("A")!!) {
+            case Text(value) -> assertEquals("", value);
+            else -> fail()
+        }
+        when (message.header("a")!!) {
+            case Bytes(value) -> assertEquals(0L, value.size);
+            else -> fail()
+        }
         assertEquals("00ff", message.payload.toHexString())
         val unicode = readAwsTestMessage(awsUnicodeHeaders)
-        when (unicode.header("雪")!!) { case Text(value) -> assertEquals("😀雪", value); else -> fail() }
+        when (unicode.header("雪")!!) {
+            case Text(value) -> assertEquals("😀雪", value);
+            else -> fail()
+        }
     }
 
     @Test
@@ -57,16 +122,33 @@ private class AwsEventStreamHeaderTests {
         val message = readAwsTestMessage(wire.toByteArray(), 8191L)
         assertEquals(3L, message.headers.size)
         for (header in message.headers) {
-            when (header.value) { case Text(value) -> assertEquals(65535L, value.byteLength); else -> fail() }
+            when (header.value) {
+                case Text(value) -> assertEquals(65535L, value.byteLength);
+                else -> fail()
+            }
         }
     }
 
     @Test
     fun `AWS EventStream header validation rejects duplicates invalid UTF8 unknown types and truncated values`() {
-        for ((bytes, offset) in [(awsDuplicateName, 16L), (awsEmptyName, 12L), (awsBadNameUtf8, 13L), (awsBadValueUtf8, 17L),
-            (awsUnknownType, 14L), (awsTruncatedName, 13L), (awsTruncatedLong, 15L), (awsTruncatedStringLength, 15L)]) {
-            AwsEventStreamDecoder().use { decoder ->
-                val error = assertFailsWith<AwsEventStreamException> { feedAwsEventStream(decoder, bytes, 4L) }
+        for (
+            (bytes, offset) in [
+                (awsDuplicateName, 16L),
+                (awsEmptyName, 12L),
+                (awsBadNameUtf8, 13L),
+                (awsBadValueUtf8, 17L),
+                (awsUnknownType, 14L),
+                (awsTruncatedName, 13L),
+                (awsTruncatedLong, 15L),
+                (awsTruncatedStringLength, 15L)
+            ]
+        ) {
+            AwsEventStreamDecoder().use {
+                decoder ->
+                val error =
+                    assertFailsWith<AwsEventStreamException> {
+                        feedAwsEventStream(decoder, bytes, 4L)
+                    }
                 assertEquals(AwsEventStreamErrorKind.Header, error.kind)
                 assertEquals(offset, error.offset)
                 assertTrue(decoder.failure!! === error)

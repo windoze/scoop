@@ -2,8 +2,8 @@
 
 `scoop.readline` 是显式依赖的普通 Scoop Cone，以 rustyline 19.0.0 为移植基线。
 编辑、历史、补全与布局使用 Scoop，复用 terminal 会话、charset Unicode 分段和
-platform 文件 API。目标为 Darwin 和 Linux；不包含 Windows、SQLite backend
-或 Rust derive 宏。不新增 intrinsic、runtime ABI 或编译器特殊处理。
+platform 文件 API。目标为 Darwin、Linux 和三个 Windows 环境；不包含 SQLite
+backend 或 Rust derive 宏。不新增 intrinsic、runtime ABI 或编译器特殊处理。
 
 ## 1. 编辑与扩展
 
@@ -20,6 +20,10 @@ display/replacement 候选，提供文件名补全。Hinter 返回显示与接�
 提示。Highlighter 分别处理输入、提示与候选，提供配对括号高亮。Validator 返回
 Valid/Invalid/Incomplete；Incomplete 插入换行，Invalid 保留缓冲区和错误信息。
 提供配对括号验证。EditingSession 是生产事件处理核心，测试直接驱动同一入口。
+文件名补全使用目标平台的路径语法。Unix 保留 shell 风格反斜线转义；Windows
+接受 `/` 和 `\` 分隔符，保留盘符、UNC 及 extended 路径中的反斜线，有空白等
+分隔字符的未加引号候选使用双引号包围。已打开的引号保持，Windows 引号内以
+连续两个相同引号表示一个字面引号，不把路径分隔符当作转义前缀。
 Vi 的一次修改及其后连续 insert/replace 输入组成一个撤销单位，`.` 重放整个修改。
 `.` 的显式计数覆盖上次修改的重复计数；连续插入文本作为整体重复。
 Vi 的 j/k 在多行间移动，到达边界后继续导航历史；缩进操作消费对应 motion。
@@ -33,6 +37,9 @@ Fuzzy 模式以 Unicode case folding 后的子序列筛选候选，优先连续�
 paste，所有正常/异常出口恢复模式。粘贴是一次可撤销编辑，控制字符可见绘制，
 resize 重新布局。按字素簇宽度、制表位、列数计算折行，高亮序列不占显示宽度；
 超过屏幕高度时显示包含光标的窗口。终端的实际字体可能改变 emoji 的视觉宽度。
+Windows 复用 platform 的 console 会话，恢复实际输入／输出模式与代码页；真实
+ConPTY 子进程覆盖交互、粘贴、resize、异常和外部输出。Unix job-control 暂停只在
+Unix 提供；Windows 的 Suspend 命令在恢复会话后报告 PlatformErrorKind.Unsupported。
 当单个字素宽于整个视口时，仅显示占一列的替代字符，编辑文本保持原值。
 
 Editor.createExternalPrinter() 返回可跨线程共享的 ExternalPrinter。输入活动期间，

@@ -1,6 +1,6 @@
 # EventLoop 平台后端与 GUI 主循环接入
 
-状态：已实现。日期：2026-10-27。Darwin、Linux GNU／musl 后端、宿主接入和消费者迁移均已交付；验证范围见[实施记录](PROGRESS.md)，性能与回退见[性能记录](PERFORMANCE.md)。
+状态：Darwin、Linux GNU／musl 后端、宿主接入和消费者迁移已交付；Windows 扩展实施中。日期：2026-10-28。原有验证范围见[实施记录](PROGRESS.md)，性能与回退见[性能记录](PERFORMANCE.md)；Windows 的分批验收见[Windows 进度](../windows-targets/PROGRESS.md)。
 
 本设计对应[异步 I/O 库规范第 11 节](../specs/SCOOP-ASYNCIO-SPEC.md#11-平台后端与宿主主循环迁移合同)。沿用[语言规范](../specs/SCOOP-SPEC.md) 11.9～11.9.2 的协程与任务树、[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)第 4 章的 native／callback 边界，以及[平台库规范](../specs/SCOOP-PLATFORM-SPEC.md)的错误、buffer 与 TTY 所有权。编译器、runtime ABI 和 `.slib` 格式不变。
 
@@ -55,9 +55,12 @@ public class EventLoopSession internal constructor(owner: LoopOwner) {
     public fun requestClose()
 }
 
+public enum EventLoopNotification {
+    ReadableDescriptor(Int), WindowsEvent(Ptr<Unit>)
+}
 public interface EventLoopHost {
     public fun isCurrentThread(): Boolean
-    @Unsafe public fun watchReadable(descriptor: Int,
+    @Unsafe public fun watch(notification: EventLoopNotification,
         ready: () -> Unit): EventLoopWatch
 }
 
@@ -92,11 +95,11 @@ mailbox 的执行通过根协程自己的 continuation 恢复完整 Context；�
 
 ### 3.3 监听的具体合同
 
-`watchReadable` 只借用描述符，不读、写、关闭或更改其模式；loop 自己消费通知。`ready` 必须在 owner 上串行执行，可有合并或多余通知；不得在注册栈内同步执行。安装失败抛出后，host 不得再持有回调或活动监听。
+`watch` 只借用 `EventLoopNotification` 的资源：POSIX 可读 fd 或 Windows manual-reset event；不读、写、重置、关闭或更改其模式，loop 自己消费通知。HANDLE 保留指针宽度，不映射为 fd。`ready` 必须在 owner 上串行执行，可有合并或多余通知；不得在注册栈内同步执行。安装失败抛出后，host 不得再持有回调或活动监听。
 
 `remove` 在 owner 调用，按宿主协议不得抛错，异步注销监听；`onRemoved` 恰好一次，并且此后不会再进入 `ready`。如果在 `ready` 内开始注销，必须先退出当前 `ready`，再通知移除完成。注销负责退休已经排队的通知，不能只从 poll 集合删掉 fd 就允许旧闭包继续运行。loop 在 `onRemoved` 前保留 fd 和相关上下文。
 
-该协议只要求宿主提供可读 fd 监听和注销完成，不要求 timer、worker pool 或通用 `dispatch` 接口。两种后端都用自己的统一通知 fd 把命令、完成和计时到期接入这个入口。
+该协议只要求宿主提供对应原生通知资源的监听和注销完成，不要求 timer、worker pool 或通用 `dispatch` 接口。后端用自己的统一通知资源把命令、完成和计时到期接入这个入口。
 
 Darwin 的内置 `MainDispatchHost` 用主 dispatch queue 上的 READ source 观察通知 pipe，沿已有 FFI callback 桥进入共享处理；cancel handler 负责移除完成。它适用于正常服务主 dispatch queue 的 AppKit／CFRunLoop 宿主，不调用永不返回的 `dispatch_main()`。自定义 run-loop mode、模态和嵌套循环的服务时机由宿主决定；需要其他 mode 行为的 GUI 层实现同一 host 协议，不能宣称任意 mode 都自动获得主队列服务。Apple 对主队列与主循环的关系见 [queue.h](https://github.com/apple-oss-distributions/libdispatch/blob/main/dispatch/queue.h)。
 
@@ -254,3 +257,29 @@ Linux 在 6.1 基线与当前发行内核各验证 GNU／musl 所需行为；未
 性能记录只用于判断后端是否适合 GUI：空闲 CPU／唤醒次数、post 到执行延迟、timer 偏差、连续 I/O 时宿主事件延迟、吞吐与关闭延迟，并与迁移前 libuv 对照。不预设新后端必然更快，也不为这些测量增加公共资源预算或程序合法性规则。
 
 实现按第 11 节分批提交；各批的验证范围、失败闭合与设计限制见实施记录。
+
+## 13. Windows：IOCP 后端
+
+每个 loop 拥有一个 IOCP、一个不可继承的 manual-reset event 和一个原生收集线程。收集线程使用 GetQueuedCompletionStatus 等待，直接把请求内预留的完成节点入队，随后 SetEvent；无 I/O 或 timer 时没有周期轮询。owner 的提交、取消、解码和 continuation 恢复继续使用共享驱动。IOCP 句柄不直接交给 GUI；GUI 监听 event，按既有 remove 完成合同退出监听。
+
+OVERLAPPED 在请求内稳定存放，owner 在提交前登记请求。收集线程只写完成 code／count 和原生队列，owner 取出后才执行具体操作的收尾。同步成功不启用 skip-completion 模式，仍等 packet；同步失败仅在 API 明确不会投递 packet 时本地收尾。`CancelIoEx(handle, &overlapped)` 只请求取消，不关闭健康资源，也不退休借用；ERROR_NOT_FOUND 是与真实完成的正常竞争。依据 [IOCP](https://learn.microsoft.com/en-us/windows/win32/fileio/i-o-completion-ports)、[完成获取](https://learn.microsoft.com/en-us/windows/win32/api/ioapiset/nf-ioapiset-getqueuedcompletionstatus)和[取消](https://learn.microsoft.com/en-us/windows/win32/api/ioapiset/nf-ioapiset-cancelioex)合同实现，不用取消成功冒充数据完成。
+
+原生队列发布、SetEvent、ResetEvent 与队列取快照在同一 SRW lock 下完成，外线程命令唤醒也经过该边界；owner 清除旧通知后产生的新通知不会丢失。取走的一批有限工作处理完后返回宿主，期间产生的工作保留下一轮通知。借出的 event 由 loop 独占重置和关闭，host 不消费其状态；不能使用会被 host 等待自动消费的 auto-reset event。
+
+timer 使用 QPC 截止时间，由收集线程的有界毫秒等待推进；插入更早 deadline 时通过 PostQueuedCompletionStatus 唤醒收集线程。超时后重新核对 QPC，不提前完成；超长等待按 DWORD 可表示的有限片段推进。timer 移除与到期入队受同一锁保护，取消没有额外 callback 或悬空 context。收集线程只做内存／队列工作，不能在其上执行阻塞文件、DNS、用户 NativeWork 或 managed continuation。
+
+不可 overlapped 的操作使用与 Linux 相同宽度的按需 native worker 集合，队列取消跳过尚未执行的工作；运行中的工作真实返回后发布结果。worker 启动失败回滚已启动的空闲线程，通过通知异步退休，不在 owner 上 join。IOCP 请求、timer、work 与完成全部排空后再请求收集线程／空闲 worker 退出；它们最后一次访问 loop 的发布边界结束后才允许销毁。宿主注销、event 关闭和 onClosed 保持共享顺序。
+
+直接创建／poll／销毁错误使用普通 C-layout 的 domain／code 结果；异步完成用已有完成记录的错误 kind 和 code。Win32 DWORD 原位保存，Winsock 提交错误保留 Winsock，CRT errno 保留 PosixErrno；不把 HRESULT／NTSTATUS 猜测成 errno。平台错误记录与事件分支的扩展不改变 runtime ABI。
+
+Windows 普通测试复用同一 Cone，原生定向测试覆盖真实 overlapped 完成、取消与迟到成功、借用退休、timer、空闲不唤醒和 worker 屏障。宿主测试使用真实 Windows event 等待验证安装不内联、重入、跨线程 post、注销前保留 HANDLE 与注销后无回调。端口收集、文件／socket／TTY 和完整消费按 Windows 进度分批记录，不能由底层组件通过推断整个库已可用。
+
+网络端点保留完整 SOCKET 与各一个输入／输出请求。bind／listen 复用 platform 的 owned socket helper，connect 自建同族 socket 并先 bind；所有 socket 都以 overlapped、不可继承方式创建。ConnectEx 与 AcceptEx 使用实际 provider 的扩展入口，accept 的 receive length 为零，接收地址缓冲留在稳定请求内；在 SO_UPDATE_CONNECT_CONTEXT／SO_UPDATE_ACCEPT_CONTEXT 成功后才交付 stream。数据完成在 owner 用 WSAGetOverlappedResult(FALSE) 取得 Winsock code／flags，失败时保留 IOCP 已给出的进度；UDP 截断按 WSARecvFrom 的完整缓冲前缀规则处理。参见 [ConnectEx](https://learn.microsoft.com/en-us/windows/win32/api/mswsock/nc-mswsock-lpfn_connectex)、[AcceptEx](https://learn.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-acceptex)、[WSARecvFrom](https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-wsarecvfrom) 与 [WSAGetOverlappedResult](https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-wsagetoverlappedresult)。
+
+DNS、路径修改和目录枚举继续使用共享 worker 生命周期。平台条件的字符串入口在 Windows 借用 UTF-16，在 POSIX 借用原始字节；请求在提交内复制，完成后释放。原生目录复用 platform owner，next 按实际长度复制独立、终止的名称，允许 managed 在原目录关闭后消费；错误同次取回，Windows 为 Win32。DNS 复用 platform resolver，结果地址的 C-layout 同次带回 Winsock／PosixErrno，取消后的地址链仍经正常消费释放。
+
+文件 owner 保存独立 HANDLE，普通文件的串行位置显式写入 OVERLAPPED，按完成长度推进；同步成功仍等 packet，EOF 不变成失败。append 使用同步句柄与现有 worker，从而由 OS 同时维护追加位置，避免在异步追加后查询 EOF 误认其他写入的位置。其余 metadata／truncate／sync／close 通过 platform 的结果 helper 执行。参见 [ReadFile](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-readfile)、[WriteFile](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-writefile) 和 [同步／异步文件位置](https://learn.microsoft.com/en-us/windows/win32/fileio/synchronous-and-asynchronous-i-o)。
+
+Windows 临时创建在 worker 内取得规范父目录，拼接完整前缀与随机后缀，再以 CREATE_NEW 创建 overlapped 文件；创建后复用同一 HANDLE，不重新打开路径。内部临时结果包含 owner、UTF-16 路径及关联状态，创建已成功但 IOCP 关联失败时交由原有 close／delete 清理流程报告错误；成功交付的 close 仍不删除路径。熵源沿 platform 的 BCrypt helper，完成记录增加 NtStatus 分支，保持原码。
+
+TTY 复用 platform 的独占 console owner；输入 worker 用 WaitForMultipleObjects 同时等待 console input 与单次取消 event，再用非等待输入转换取得字节、resize 或 EOF。截止时间与 timer 共用 QPC 算法，在提交时计算，超时唤醒后重新核对。输出复用已有 worker 的同步 WriteFile，取消排队工作可跳过写入，已运行工作实际返回后才释放借用。close 取消输入等待和排队输出，等待两个方向完成后恢复模式并关闭句柄；worker 不调用 managed 代码。控制操作直接返回 Win32／PosixErrno 记录，不用 captureErrno 捕获 Win32 错误。参见 [console 输入等待](https://learn.microsoft.com/en-us/windows/console/low-level-console-input-functions)与 [console handles](https://learn.microsoft.com/en-us/windows/console/console-handles)。

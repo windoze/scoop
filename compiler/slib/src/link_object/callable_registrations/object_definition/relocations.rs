@@ -60,10 +60,11 @@ pub(in crate::link_object) fn canonicalize_relocations_with_associated_atoms(
                 } if matches!(
                     relocation.shape().form(),
                     VerifiedObjectRelocationFormV1::ElfX86_64Rela { .. }
+                        | VerifiedObjectRelocationFormV1::CoffAmd64 { .. }
                 ) =>
                 {
                     // Preserve S + A: the atom at the section base supplies S,
-                    // and RELA keeps A, including instruction-relative biases.
+                    // and the relocation form/field keeps A and any PC bias.
                     let range = associated_atoms
                         .iter()
                         .find(|range| {
@@ -137,7 +138,8 @@ pub(in crate::link_object) fn canonicalize_relocations_with_associated_atoms(
         let start = usize::try_from(relocation.offset_within_atom)
             .map_err(|_| ObjectDefinitionRelocationFailureV1::Range)?;
         let width = match relocation.form {
-            VerifiedObjectRelocationFormV1::ElfX86_64Rela { width, .. } => usize::from(width),
+            VerifiedObjectRelocationFormV1::ElfX86_64Rela { width, .. }
+            | VerifiedObjectRelocationFormV1::CoffAmd64 { width, .. } => usize::from(width),
             VerifiedObjectRelocationFormV1::Unsigned64
             | VerifiedObjectRelocationFormV1::Subtractor64 => 8,
             _ => 4,
@@ -153,7 +155,8 @@ fn relocation_targets(
     shape: &VerifiedObjectRelocationShapeV1,
 ) -> Vec<(RelocationTargetSlotV1, &VerifiedRelocationTargetV1)> {
     match shape {
-        VerifiedObjectRelocationShapeV1::ElfX86_64Rela { target, .. }
+        VerifiedObjectRelocationShapeV1::CoffAmd64 { target, .. }
+        | VerifiedObjectRelocationShapeV1::ElfX86_64Rela { target, .. }
         | VerifiedObjectRelocationShapeV1::Unsigned64 { target }
         | VerifiedObjectRelocationShapeV1::Branch26 { target }
         | VerifiedObjectRelocationShapeV1::Page21 { target, .. }

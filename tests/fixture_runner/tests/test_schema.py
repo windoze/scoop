@@ -64,6 +64,15 @@ class CriteriaTests(unittest.TestCase):
                 operation["parts"] = parts
                 validate(self.data)
 
+    def test_structured_stderr_requires_explicit_diagnostic_coverage(self):
+        step = self.data["steps"][0]
+        step["json"] = "stderr"
+        step["checks"] = [{"actual": "${build.diagnostics.0.message}", "equals": "error"}]
+        validate(self.data)
+        step["checks"] = [{"actual": "${build.result.target}", "equals": "target"}]
+        with self.assertRaisesRegex(ConfigurationError, "diagnostic"):
+            validate(self.data)
+
     def test_references_and_background_must_be_resolved(self):
         self.data["steps"][0]["argv"] = ["${future.result.output}"]
         with self.assertRaisesRegex(ConfigurationError, "forward reference"):

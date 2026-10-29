@@ -1,0 +1,246 @@
+package scoop.platform.process
+
+import scoop.collections.*
+import scoop.platform.env.*
+import scoop.platform.fs.*
+import scoop.platform.io.*
+import scoop.platform.system.*
+import scoop.test.*
+
+internal fun processOs(value: String): OsString = OsString.fromString(value)
+
+internal fun powerShellPath(): Path =
+    Path.fromOsString(environmentVariable("SystemRoot")!!)
+    .resolve(Path.fromString("System32/WindowsPowerShell/v1.0/powershell.exe"))
+
+internal fun windowsCommand(script: String, input: Stdio = Stdio.Null): Command =
+    Command(
+        powerShellPath(),
+        [
+            processOs("-NoLogo"),
+            processOs("-NoProfile"),
+            processOs("-NonInteractive"),
+            processOs("-Command"),
+            processOs(script)
+        ],
+        stdin = input,
+        stdout = Stdio.Pipe,
+        stderr = Stdio.Pipe
+    )
+
+internal fun windowsExited(status: ExitStatus, expected: Int = 0) {
+    when (status) {
+        case ExitStatus.Exited(code) -> assertEquals(expected, code)
+        case ExitStatus.Signaled(_) -> fail(Some("Windows exit was decoded as a POSIX signal"))
+    }
+}
+
+@Test
+private class WindowsCommandsTest {
+    @Test
+    fun fullExitCodesAreCachedIncludingStillActiveAndHighBit() {
+        for (code in [0, 7, 259, -1]) {
+            windowsCommand("exit " + code.toString()).spawn().use {
+                child ->
+                windowsExited(child.wait(), code)
+                windowsExited(child.wait(), code)
+                windowsExited(child.tryWait()!!, code)
+                child.terminate()
+                child.kill()
+            }
+        }
+    }
+
+    @Test
+    fun explicitTerminationTargetsTheOwnedLiveProcess() {
+        for (force in [false, true]) {
+            windowsCommand(
+                "[Console]::WriteLine('ready'); [Console]::ReadLine() | Out-Null",
+                Stdio.Pipe
+            )
+            .spawn().use {
+                child ->
+                assertEquals("ready", child.stdout!!.readLine()!!)
+                assertTrue(child.tryWait() == None)
+                gcCollect()
+                if (force)
+                    child.kill()
+                else
+                    child.terminate()
+                windowsExited(child.wait(), 1)
+            }
+        }
+    }
+
+    @Test
+    fun pathSearchUsesTheChildEnvironmentAndWorkingDirectory() {
+        val root = environmentVariable("SystemRoot")!!
+        val directory = powerShellPath().parent!!
+        val environment =
+            linkedMapOf(
+                (processOs("SystemRoot"), root),
+                (processOs("pAtH"), directory.toOsString())
+            )
+        val command =
+            Command(
+                Path.fromString("powershell"),
+                [
+                    processOs("-NoProfile"),
+                    processOs("-NonInteractive"),
+                    processOs("-Command"),
+                    processOs("exit 9")
+                ],
+                environment = environment,
+                stdin = Stdio.Null,
+                stdout = Stdio.Null,
+                stderr = Stdio.Null
+            )
+        environment[processOs("pAtH")] = processOs("missing")
+        assertFailsWith<PlatformException> { command.spawn() }
+        command.spawn(searchPath = true).use { windowsExited(it.wait(), 9) }
+        Command(
+            Path.fromString("powershell"),
+            command.arguments,
+            environment = mapOf((processOs("SystemRoot"), root)),
+            workingDirectory = directory,
+            stdin = Stdio.Null,
+            stdout = Stdio.Null,
+            stderr = Stdio.Null
+        )
+        .spawn(searchPath = true).use { windowsExited(it.wait(), 9) }
+    }
+
+    @Test
+    fun argumentsEnvironmentAndCwdReachTheChildWithoutAnsiConversion() {
+        TestDirectory().use {
+            tree ->
+            // The trailing comment keeps appended argv values out of PowerShell's script grammar.
+            val script =
+                "$values=[Environment]::GetCommandLineArgs(); " +
+                    "for($i=$values.Length-3;$i -lt $values.Length;$i++) { " +
+                    "[Console]::WriteLine([string]::Join(',', [int[]]$values[$i].ToCharArray())) }; " +
+                    "[Console]::WriteLine([string]::Join(',', [int[]][Environment]::GetEnvironmentVariable('SCOOP_PROCESS_VALUE').ToCharArray())); " +
+                    "[Console]::WriteLine([Environment]::CurrentDirectory); #"
+            val raw = OsString.fromUtf16([0xd800.toUShort(), 0x4e2d.toUShort()])
+            val values =
+                linkedMapOf(
+                    (processOs("SystemRoot"), environmentVariable("SystemRoot")!!),
+                    (processOs("SCOOP_PROCESS_VALUE"), raw)
+                )
+            val command =
+                Command(
+                    powerShellPath(),
+                    [
+                        processOs("-NoLogo"),
+                        processOs("-NoProfile"),
+                        processOs("-NonInteractive"),
+                        processOs("-Command"),
+                        processOs(script),
+                        processOs(""),
+                        processOs("a \"b\"\\"),
+                        raw
+                    ],
+                    environment = values,
+                    workingDirectory = tree.path,
+                    stdin = Stdio.Null,
+                    stdout = Stdio.Pipe,
+                    stderr = Stdio.Pipe
+                )
+            values[processOs("SCOOP_PROCESS_VALUE")] = processOs("changed")
+            command.spawn().use {
+                child ->
+                assertEquals("", child.stdout!!.readLine()!!)
+                assertEquals("97,32,34,98,34,92", child.stdout!!.readLine()!!)
+                assertEquals("55296,20013", child.stdout!!.readLine()!!)
+                assertEquals("55296,20013", child.stdout!!.readLine()!!)
+                assertEquals(
+                    tree.path.canonicalize(),
+                    Path.fromString(child.stdout!!.readLine()!!).canonicalize()
+                )
+                windowsExited(child.wait())
+            }
+        }
+    }
+
+    @Test
+    fun pipeOwnershipAndFileRedirectionRemainIndependent() {
+        val child = windowsCommand("[Console]::Write('owned')").spawn()
+        assertFalse(child.stdout!! is Disposable)
+        val output = child.takeStdout()!!
+        assertTrue(
+            when (child.takeStdout()) {
+                case None -> true;
+                case Some(_) -> false
+            }
+        )
+        assertFailsWith<IllegalStateException> { child.communicate() }
+        windowsExited(child.wait())
+        child.close()
+        child.close()
+        assertTrue(child.isClosed)
+        output.use { assertEquals("owned", it.readText()) }
+        TestDirectory().use {
+            tree -> File.open(
+                tree.child("output"),
+                OpenOptions(write = true, createNew = true)
+            ).use {
+                file ->
+                val command =
+                    windowsCommand("[Console]::Out.Write('out'); [Console]::Error.Write('err')")
+                Command(
+                    command.executable,
+                    command.arguments,
+                    stdin = Stdio.Null,
+                    stdout = Stdio.Redirect(file),
+                    mergeError = true
+                ).spawn().use {
+                    process ->
+                    val result = process.communicate()
+                    windowsExited(result.status)
+                    assertEquals(0L, result.stdout.size)
+                    assertEquals(0L, result.stderr.size)
+                }
+                assertFalse(file.isClosed)
+                file.seek(0L)
+                assertEquals("outerr", file.readText())
+            }
+        }
+    }
+
+    @Test
+    fun invalidInputsAndMissingExecutablesPreserveTheWindowsErrorDomain() {
+        val invalid =
+            assertFailsWith<PlatformException> {
+                Command(
+                    powerShellPath(),
+                    environment =
+                        mapOf(
+                            (processOs("PATH"), processOs("one")),
+                            (processOs("Path"), processOs("two"))
+                        )
+                ).spawn()
+            }
+        assertTrue(invalid.nativeError!!.domain == NativeErrorDomain.Win32)
+        assertEquals(87, invalid.nativeError!!.code)
+        val missing =
+            assertFailsWith<PlatformException> {
+                Command(
+                    Path.fromString("scoop-missing-process-test.exe"),
+                    stdin = Stdio.Pipe,
+                    stdout = Stdio.Pipe,
+                    stderr = Stdio.Pipe
+                ).spawn()
+            }
+        assertTrue(missing.kind == PlatformErrorKind.NotFound)
+        assertTrue(missing.nativeError!!.domain == NativeErrorDomain.Win32)
+        assertFailsWith<IllegalArgumentException> {
+            Command(powerShellPath(), [OsString.fromByteArray([0.toByte()])]).spawn()
+        }
+        assertFailsWith<IllegalArgumentException> {
+            Command(powerShellPath(), stderr = Stdio.Pipe, mergeError = true)
+        }
+        val unsupported = assertFailsWith<PlatformException> { suspendCurrentProcess() }
+        assertTrue(unsupported.kind == PlatformErrorKind.Unsupported)
+        assertTrue(unsupported.nativeError == None)
+    }
+}

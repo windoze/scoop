@@ -1,5 +1,6 @@
 """Copy the host tools' actual shared dependencies and use relative loader paths."""
 
+import filecmp
 import os
 import re
 import shutil
@@ -141,4 +142,87 @@ def linux(root, binaries, llvm_lib, additional=None):
         edits.append((destination, arguments))
     for destination, arguments in edits:
         subprocess.run(["patchelf", *arguments, str(destination)], check=True)
+    return list(libraries.values())
+
+
+def windows_system(name):
+    name = name.lower()
+    return name.startswith(("api-ms-win-", "ext-ms-win-")) or name in {
+        "advapi32.dll",
+        "bcrypt.dll",
+        "bcryptprimitives.dll",
+        "crypt32.dll",
+        "cryptbase.dll",
+        "dbghelp.dll",
+        "gdi32.dll",
+        "iphlpapi.dll",
+        "kernel32.dll",
+        "msvcrt.dll",
+        "ntdll.dll",
+        "ole32.dll",
+        "oleaut32.dll",
+        "psapi.dll",
+        "propsys.dll",
+        "rpcrt4.dll",
+        "secur32.dll",
+        "shell32.dll",
+        "shlwapi.dll",
+        "ucrtbase.dll",
+        "user32.dll",
+        "userenv.dll",
+        "version.dll",
+        "winhttp.dll",
+        "winmm.dll",
+        "ws2_32.dll",
+    }
+
+
+def windows(root, binaries, llvm_bin, additional=None):
+    """Put each executable's non-system PE dependencies beside that executable."""
+    readobj = llvm_bin / "llvm-readobj.exe"
+    queue = [(path.resolve(), root / "bin") for path in binaries]
+    queue += [(source, destination.parent) for source, destination in (additional or {}).items()]
+    for directory in (root / "commands", root / "libexec/llvm/bin"):
+        queue += [(path, path.parent) for path in directory.rglob("*.exe")]
+    search = [Path(path) for path in os.get_exec_path() if path]
+    search = list(dict.fromkeys([source.parent for source in (additional or {})] + search))
+    libraries, copied, visited = {}, set(), set()
+    while queue:
+        source, directory = queue.pop(0)
+        if (source, directory) in visited:
+            continue
+        visited.add((source, directory))
+        imports = re.findall(
+            r"^  Name: (.+)$", output(str(readobj), "--coff-imports", str(source)), re.M
+        )
+        for name in imports:
+            if windows_system(name):
+                continue
+            dependency = next(
+                (
+                    path.resolve()
+                    for parent in [llvm_bin, source.parent, *search]
+                    if (path := parent / name).is_file()
+                ),
+                None,
+            )
+            if dependency is None:
+                raise ValueError(f"cannot locate dependency {name} of {source}")
+            key = name.lower()
+            previous = libraries.get(key)
+            if (
+                previous is not None
+                and previous != dependency
+                and not filecmp.cmp(previous, dependency, shallow=False)
+            ):
+                raise ValueError(
+                    f"different host libraries have the same name: {previous}, {dependency}"
+                )
+            libraries[key] = dependency
+            destination = directory / dependency.name
+            if (directory, key) not in copied:
+                if dependency != destination.resolve():
+                    shutil.copy2(dependency, destination)
+                copied.add((directory, key))
+                queue.append((dependency, directory))
     return list(libraries.values())

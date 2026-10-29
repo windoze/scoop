@@ -68,7 +68,7 @@ private class AsyncTcpTransferTest {
             }
             catch (error: PlatformException) {
                 assertTrue(error.kind == PlatformErrorKind.AddressInUse)
-                assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+                assertTrue(error.nativeError!!.domain == testSocketErrorDomain())
             }
             listener.close()
         }

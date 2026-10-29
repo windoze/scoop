@@ -34,16 +34,16 @@ static void result(ScoopIoRequest *native, unsigned index, int status) {
 static void finish(ScoopIoRequest *native) {
     scoop_io_complete(native->loop, &native->completion, 0);
 }
-int scoop_io_timer_start(ScoopIoLoop *loop, int64_t id, int64_t seconds, int nanos) {
+ScoopIoStatus scoop_io_timer_start(ScoopIoLoop *loop, int64_t id, int64_t seconds, int nanos) {
     Timer *timer = calloc(1, sizeof(*timer));
     if (!timer)
-        return -ENOMEM;
+        return scoop_io_errno(-ENOMEM);
     timer->deadline = scoop_io_deadline(seconds, nanos);
     timer->request.prepare = prepare;
     timer->request.result = result;
     timer->request.finish = finish;
     scoop_io_request_init(&timer->request, loop, id);
     scoop_io_request_queue(&timer->request, 0);
-    return 0;
+    return scoop_io_errno(0);
 }
 void scoop_io_timer_cancel(ScoopIoLoop *loop, int64_t id) { scoop_io_request_cancel(loop, id); }

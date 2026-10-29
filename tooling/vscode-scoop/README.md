@@ -95,10 +95,11 @@ VSIX 包含语言客户端和运行依赖及许可，无需用户安装 npm 依�
 
 ## 原生调试
 
-安装本发行包的 `lldb-dap`（LLVM 22，启用 Python），按 F5 选择 Scoop，或运行
+安装本发行包的 `scoop-lldb-dap`（LLVM 22，启用 Python），按 F5 选择 Scoop，或运行
 `Scoop: Debug Current File`。默认发现 `~/.scoop/bin/scoop` 和
-`~/.scoop/bin/lldb-dap`，随后查询 PATH；可通过 `scoop.debug.compilerPath` 和
+`~/.scoop/bin/scoop-lldb-dap`，随后查询 PATH；可通过 `scoop.debug.compilerPath` 和
 `scoop.debug.adapterPath` 指定路径。调试器在 workspace host 上运行，支持 Remote SSH。
+Windows 默认发现 `~/.scoop/bin/sco.exe` 与 `~/.scoop/bin/scoop-lldb-dap.exe`；其他平台的主驱动名仍为 `scoop`。所有平台的发行 LLVM 命令均带 `scoop-` 前缀，显式配置的命令路径按原值使用。
 
 Cone 的最小 `.vscode/launch.json` 配置：
 

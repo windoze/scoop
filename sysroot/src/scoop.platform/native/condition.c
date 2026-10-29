@@ -1,13 +1,18 @@
+#ifndef _WIN32
 #define _GNU_SOURCE 1
+#endif
 #include "synchronization.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <time.h>
 
-pthread_cond_t *scoop_platform_condition_create(void) {
-    pthread_cond_t *condition = malloc(sizeof(*condition));
+ScoopPlatformCondition *scoop_platform_condition_create(void) {
+    ScoopPlatformCondition *condition = malloc(sizeof(*condition));
     if (condition == NULL)
         return NULL;
+#ifdef _WIN32
+    InitializeConditionVariable(condition);
+#else
     pthread_condattr_t attributes;
     int error = pthread_condattr_init(&attributes);
     if (error == 0) {
@@ -23,12 +28,47 @@ pthread_cond_t *scoop_platform_condition_create(void) {
         errno = error;
         return NULL;
     }
+#endif
     return condition;
 }
 
-int scoop_platform_condition_wait(pthread_cond_t *condition, struct ScoopPlatformMutex *mutex,
-                                  bool timed, int64_t seconds, int32_t nanoseconds) {
+#ifdef _WIN32
+static struct ScoopPlatformSyncResult windows_wait(ScoopPlatformCondition *condition,
+                                                   struct ScoopPlatformMutex *mutex, bool timed,
+                                                   int64_t seconds, int32_t nanoseconds) {
+    uint64_t duration = 0;
+    DWORD milliseconds = INFINITE;
+    if (timed) {
+        if (seconds < 0 || nanoseconds < 0 || nanoseconds >= 1000000000)
+            return sync_status(ERROR_INVALID_PARAMETER);
+        uint64_t fraction = ((uint64_t)nanoseconds + 999999) / 1000000;
+        if ((uint64_t)seconds > (UINT64_MAX - fraction) / 1000)
+            return sync_status(ERROR_ARITHMETIC_OVERFLOW);
+        duration = (uint64_t)seconds * 1000 + fraction;
+        milliseconds = duration >= INFINITE ? INFINITE - 1 : (DWORD)duration;
+    }
+    uint64_t started = timed ? GetTickCount64() : 0;
+    atomic_store_explicit(&mutex->owner, 0, memory_order_relaxed);
+    BOOL success = SleepConditionVariableSRW(condition, &mutex->mutex, milliseconds, 0);
+    DWORD error = success ? 0 : GetLastError();
+    atomic_store_explicit(&mutex->owner, current_owner(), memory_order_relaxed);
+    if (timed && error == ERROR_TIMEOUT) {
+        /* Recheck the caller's predicate after a partial wait, avoiding a lost signal. */
+        return (struct ScoopPlatformSyncResult){GetTickCount64() - started >= duration ? 1 : 0, 0};
+    }
+    return sync_status((int32_t)error);
+}
+#endif
+
+struct ScoopPlatformSyncResult scoop_platform_condition_wait(ScoopPlatformCondition *condition,
+                                                             struct ScoopPlatformMutex *mutex,
+                                                             bool timed, int64_t seconds,
+                                                             int32_t nanoseconds) {
     if (atomic_load_explicit(&mutex->owner, memory_order_relaxed) != current_owner())
+#ifdef _WIN32
+        return sync_status(ERROR_NOT_OWNER);
+    return windows_wait(condition, mutex, timed, seconds, nanoseconds);
+#else
         return sync_status(EPERM);
     struct timespec timeout = {0, 0};
     if (timed) {
@@ -39,7 +79,7 @@ int scoop_platform_condition_wait(pthread_cond_t *condition, struct ScoopPlatfor
 #ifndef __APPLE__
         struct timespec now;
         if (clock_gettime(CLOCK_MONOTONIC, &now) < 0)
-            return -1;
+            return sync_status(errno);
         int64_t nanos = now.tv_nsec + (int64_t)nanoseconds;
         int64_t carry = nanos / 1000000000;
         if (seconds > INT64_MAX - now.tv_sec - carry)
@@ -60,16 +100,31 @@ int scoop_platform_condition_wait(pthread_cond_t *condition, struct ScoopPlatfor
 #endif
     }
     atomic_store_explicit(&mutex->owner, current_owner(), memory_order_relaxed);
-    return error == ETIMEDOUT ? 1 : sync_status(error);
+    return error == ETIMEDOUT ? (struct ScoopPlatformSyncResult){1, 0} : sync_status(error);
+#endif
 }
 
-int scoop_platform_condition_signal(pthread_cond_t *condition, bool all) {
+struct ScoopPlatformSyncResult scoop_platform_condition_signal(ScoopPlatformCondition *condition,
+                                                               bool all) {
+#ifdef _WIN32
+    if (all)
+        WakeAllConditionVariable(condition);
+    else
+        WakeConditionVariable(condition);
+    return sync_status(0);
+#else
     return sync_status(all ? pthread_cond_broadcast(condition) : pthread_cond_signal(condition));
+#endif
 }
 
-int scoop_platform_condition_destroy(pthread_cond_t *condition) {
+struct ScoopPlatformSyncResult scoop_platform_condition_destroy(ScoopPlatformCondition *condition) {
+#ifdef _WIN32
+    free(condition);
+    return sync_status(0);
+#else
     int error = pthread_cond_destroy(condition);
     if (error == 0)
         free(condition);
     return sync_status(error);
+#endif
 }

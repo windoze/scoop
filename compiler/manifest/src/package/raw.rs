@@ -24,6 +24,7 @@ pub(super) struct RawPackage {
     pub test: RawTest,
     #[serde(default)]
     pub native: crate::native::RawNativeConfig,
+    pub windows: Option<Spanned<crate::windows::RawWindowsConfig>>,
     #[serde(default)]
     pub publish: RawPublish,
 }

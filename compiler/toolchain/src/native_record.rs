@@ -17,10 +17,17 @@ use inputs::Input;
 pub(crate) use inputs::{header_candidates, program_candidates};
 use invocation::InvocationRecord;
 
+// Changes to discovery semantics must also invalidate callers' build keys.
+const CACHE_VERSION: &str = "native-tools-v2";
+
 #[derive(Serialize, Deserialize)]
 pub(crate) struct ResolvedRecord {
     invocation: InvocationRecord,
     input_fingerprint: [u8; 32],
+    #[serde(default)]
+    native_c: Option<HostPathCarrier>,
+    #[serde(default)]
+    native_cxx: Option<HostPathCarrier>,
 }
 
 impl ResolvedRecord {
@@ -28,16 +35,26 @@ impl ResolvedRecord {
         Ok(Self {
             invocation: InvocationRecord::from_invocation(target.c_bridge_toolchain())?,
             input_fingerprint: *target.native_tool_inputs().as_array(),
+            native_c: target.native_c_driver().map(path).transpose()?,
+            native_cxx: target.native_cxx_driver().map(path).transpose()?,
         })
     }
 
     pub(crate) fn into_target(self, triple: &str) -> Result<ResolvedTargetProfile, ToolchainError> {
         let target = crate::registry::select_target(triple)?;
-        ResolvedTargetProfile::from_c_toolchain(
+        Ok(ResolvedTargetProfile::from_c_toolchain(
             target,
             self.invocation.into_invocation(target.target())?,
             Digest256::from_array(self.input_fingerprint),
-        )
+        )?
+        .with_native_drivers(
+            self.native_c
+                .map(|p| p.to_path_buf().map_err(error))
+                .transpose()?,
+            self.native_cxx
+                .map(|p| p.to_path_buf().map_err(error))
+                .transpose()?,
+        ))
     }
 }
 
@@ -63,6 +80,11 @@ fn probe_record(triple: &str, options: &CToolchainOptions) -> Result<Record, Too
             }
             crate::c_bridge::probe_system_c_bridge_toolchain()?
         }
+        scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID
+        | scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID
+        | scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_ID => {
+            crate::windows_c::probe_default(target, options.native_sysroot.as_deref())?
+        }
         _ => crate::linux_c::probe_linux_c_toolchain(
             target,
             options.compiler.as_deref(),
@@ -74,11 +96,29 @@ fn probe_record(triple: &str, options: &CToolchainOptions) -> Result<Record, Too
         .map(|path| Input::read(path))
         .collect::<Result<Vec<_>, _>>()?;
     let input_fingerprint = *sha256(&serde_json::to_vec(&inputs).map_err(error)?).as_array();
+    let cxx = options.cxx_compiler.clone().or_else(|| {
+        crate::windows_native::is_windows(&invocation)
+            .then(|| {
+                options.compiler.as_deref().map(|driver| {
+                    crate::windows_native::paired_driver(
+                        &invocation,
+                        scoop_manifest::NativeSourceLanguage::Cxx,
+                        Some(driver),
+                    )
+                })
+            })
+            .flatten()
+    });
     Ok(Record {
         inputs,
         result: ResolvedRecord {
             invocation: InvocationRecord::from_invocation(&invocation)?,
             input_fingerprint,
+            native_c: (target.native_object_format() == scoop_lir::NativeObjectFormat::Coff64)
+                .then(|| options.compiler.as_deref().map(path).transpose())
+                .transpose()?
+                .flatten(),
+            native_cxx: cxx.as_deref().map(path).transpose()?,
         },
     })
 }
@@ -91,7 +131,7 @@ pub(crate) fn resolve_cached(
     crate::registry::select_target(triple)?;
     let options = CToolchainOptions::from_request(request)?;
     let key = native_tool_configuration(request)?;
-    let directory = cache.join("native-tools-v1");
+    let directory = cache.join(CACHE_VERSION);
     let record_path = directory.join(format!("{key}.json"));
     if let Some(result) = lookup(&record_path)? {
         return result.into_target(triple);
@@ -128,6 +168,22 @@ pub fn native_tool_configuration(
                 .then(|| std::env::var_os("REALGCC"))
                 .flatten(),
         ]
+    } else if triple.contains("windows") {
+        [
+            "PATH",
+            "SystemRoot",
+            "VSINSTALLDIR",
+            "VCINSTALLDIR",
+            "VCToolsInstallDir",
+            "WindowsSdkDir",
+            "WindowsSDKVersion",
+            "INCLUDE",
+            "LIB",
+            "SCOOP_SYSROOT",
+        ]
+        .into_iter()
+        .map(std::env::var_os)
+        .collect()
     } else {
         vec![Some(crate::c_bridge::deployment_version()?.into())]
     };
@@ -136,8 +192,12 @@ pub fn native_tool_configuration(
         .map(|v| v.as_ref().map(|v| v.as_encoded_bytes()))
         .collect();
     Ok(sha256(
-        &serde_json::to_vec(&(scoop_wire::encode(request).map_err(error)?, environment))
-            .map_err(error)?,
+        &serde_json::to_vec(&(
+            CACHE_VERSION,
+            scoop_wire::encode(request).map_err(error)?,
+            environment,
+        ))
+        .map_err(error)?,
     ))
 }
 
@@ -147,8 +207,7 @@ pub fn cached_native_tool_inputs(
     cache: &Path,
 ) -> Result<Vec<Input>, ToolchainError> {
     let key = native_tool_configuration(request)?;
-    let file =
-        File::open(cache.join("native-tools-v1").join(format!("{key}.json"))).map_err(error)?;
+    let file = File::open(cache.join(CACHE_VERSION).join(format!("{key}.json"))).map_err(error)?;
     let record: Record = serde_json::from_reader(BufReader::new(file)).map_err(error)?;
     Ok(record.inputs)
 }

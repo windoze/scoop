@@ -1,0 +1,9 @@
+package scoop.platform.process
+
+import scoop.platform.system.PlatformException
+import scoop.platform.system.PlatformErrorKind
+
+/** Windows has no Unix job-control suspension; this operation reports Unsupported. */
+public fun suspendCurrentProcess() {
+    throw PlatformException("suspend process", PlatformErrorKind.Unsupported)
+}

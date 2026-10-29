@@ -2,7 +2,7 @@ schema = 1
 name = "shared-constructor-bodies-standalone"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../shared-constructor-bodies/provider.scoop", "generic-member-standalone", "../../../shared-constructor-bodies/standalone.scoop", "generic-member-downstream-standalone", "../../../shared-constructor-bodies/downstream.scoop", "runtime-fixture", "../../../imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "constructor_bodies_preserve_initialization_order_and_captures_through_artifacts", "language"]
 
 [[steps]]

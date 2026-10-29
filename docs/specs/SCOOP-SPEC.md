@@ -2699,7 +2699,7 @@ Relaxed 只保证该原子位置的原子性与修改顺序。release 写与读�
 
 四个原子类还提供 `getAndUpdate(update: (V) -> V): V` 与 `updateAndGet(update: (V) -> V): V`，分别返回成功更新前后的值。它们是同一类中的普通 Scoop CAS 循环，读取与 CAS 使用 SeqCst；更新函数可分配、抛出异常并因竞争重试。异常发生前未成功的 CAS 不写入；更新函数自己的副作用不回滚，不增加 intrinsic。
 
-core 的普通 final class `Atomic<T : value>` 由 AtomicBoolean 锁和 T 字段组成，公开 `Atomic(initial: T)`、`load(): T`、`store(value: T): Unit` 与 `exchange(value: T): T`。全部读写在同一锁内复制完整值，exchange 返回原值；不要求 T 实现 Equals。锁采用 Acquire/Relaxed CAS 与 Release 解锁，提供互斥及相应的 happens-before，不接受 MemoryOrder 参数，也不承诺跨不同 Atomic 对象的 SeqCst 全序。成功加锁后只进行值复制、必要的引用屏障与解锁，没有用户回调或 safepoint；失败自旋保留普通循环 safepoint，并周期性调用 sched_yield。
+core 的普通 final class `Atomic<T : value>` 由 AtomicBoolean 锁和 T 字段组成，公开 `Atomic(initial: T)`、`load(): T`、`store(value: T): Unit` 与 `exchange(value: T): T`。全部读写在同一锁内复制完整值，exchange 返回原值；不要求 T 实现 Equals。锁采用 Acquire/Relaxed CAS 与 Release 解锁，提供互斥及相应的 happens-before，不接受 MemoryOrder 参数，也不承诺跨不同 Atomic 对象的 SeqCst 全序。成功加锁后只进行值复制、必要的引用屏障与解锁，没有用户回调或 safepoint；失败自旋保留普通循环 safepoint，并周期性让出当前线程的执行机会：Darwin／Linux 调用 sched_yield，Windows 调用 SwitchToThread。让出操作不影响锁和内存序语义。
 
 无符号宽度包装也可由普通库组合既有原子类型实现；上述组合不赋予普通字段、数组元素或 aggregate copy 原子语义。首版不提供 `Ptr<T>` 所指 native 内存上的原子操作，后续按平台库的实际需求增加。
 
@@ -2908,17 +2908,23 @@ kind = "library" # 或 "executable"
 - 单文件依赖头部仅到首个语言 token（包括被忽略的 package）之前；允许首行 shebang、空白和普通注释穿插。只有真实行注释 `//! dep: group:name:version` 指定精确坐标；不读取块注释、文档正文或字符串中的相似文本。dep 缺少冒号/坐标、非法 coordinate/SemVer、重复显式坐标均定位到原始注释行报错；其他 `//!` 与 token 后的所有注释按普通注释处理。默认依赖始终为 `scoop:scoop.core:0.1.0` 和 `scoop:scoop.std:0.1.0`，显式相同坐标只合并边，重复源码声明仍报错；不同版本沿现有版本冲突规则处理。普通 manifest build/test/doc 不解释这些注释。依赖不隐式导入名称，core prelude 保持；
 - manifest Cone的source identity是`(ConeIdentity, normalized Cone-relative source path)`，保留从Cone根开始的完整路径，不以显式源码根为基准截短；single-file 的原始输入使用相同pair形态，第一项固定为由reserved `scoop:single-file:0.0.0`计算的`ConeIdentity`，第二项固定为`main.scoop`。生成方法体在同一 Cone 下保留自己的逻辑来源，不成为额外的输入文件或顶层声明。host绝对路径、CLI relative/absolute/symlink spelling、inode、mtime、目录枚举顺序与临时输出路径不进入语义identity；只有语言允许跨文件同名的file-private/hidden实体才把该source identity加入其declaration key。single-file构建记录另外区分实际source及其修改时间／大小、实际依赖结果、compiler/schema/target/toolchain；需要编译时源码内容参与正常语义计算，不因共用reserved identity而冒用另一输入的缓存；
 
+executable Cone 可使用 `[windows]` 节：`subsystem = "console" | "gui"`（缺省 `"console"`）选择 Windows PE 的 console／GUI subsystem；可选 `rc = "resources/app.rc"` 指定相对于 Cone 根的 RC 文件。两项属于同一节，未知字段、非法取值及 library Cone 使用该节均为 manifest 错误。配置只作用于 Windows target；其他 target 不读取 RC 文件。两种 subsystem 保留相同的 Scoop `main`、Unicode argv、CRT 初始化／终止及退出码规则，不隐式启动窗口库或消息循环。测试 executable 始终使用 console，不继承生产 executable 的 GUI 配置。资源编译与 artifact-only 链接合同见实现规范及 [Windows 设计 3.4](../windows-targets/DESIGN.md#34-windows-executable-配置与资源)。
+
+`windows.rc` 选择单个资源脚本，路径沿用 native source 的相对路径规则，允许引用 Cone 根外的共用文件，不递归发现资源。脚本以 UTF-8 输入，使用所选 Windows target 的 Clang 预处理器、headers 和目标宏；包含路径还包括当前 Cone 的 `native.include`，C/C++ 编译 flags 不自动应用到 RC。头文件和图标等资源由普通 RC 语法引用；实际输入缺失或编译失败按构建错误报告。测试 executable 不继承生产程序的 RC，非 Windows target 和未声明 RC 的构建不读取资源或探测资源工具。
+
 #### 12.2.1 Native C/C++ 源码
 
 manifest Cone 可在 `[native]` 中配置 `include`、`c_flags`、`cxx_flags` 与 `cxx`，并以 `[[native.sources]]` 的 `path` 和可选 `when` 列出源码。`native.sources` 只选择单个 regular file；`.c` 按 C 编译，`.cc`、`.cpp`、`.cxx` 和 `.C` 按 C++ 编译，不递归发现其他 native 源码。省略的数组为空；`include` 是头文件搜索目录，允许普通相对路径（含 `..`）或绝对路径；相对路径以 Cone 根为基准，保留路径分量供实际文件系统解析。native.sources 使用 Cone 相对路径，沿用 12.2.2 的分隔符、空路径、绝对路径、盘符、NUL 与 glob 限制，词法折叠重复分隔符、`.` 及可以消去的 `..`，但允许保留越出 Cone 根的前置 `..`，以引用共用的 vendor 源码；Scoop 源码的逻辑路径规则不变。条件筛选先于选中文件的存在性、后缀与语言开关检查。native 源码以声明的归一化路径区分 translation unit，不比较 inode 或将指向同一物理文件的不同路径合并。
 
-native 预处理除编译器的目标宏外，还定义当前 target 对应的 `SCOOP_TARGET_OS_DARWIN`／`SCOOP_TARGET_OS_LINUX`、`SCOOP_TARGET_ARCH_AARCH64`／`SCOOP_TARGET_ARCH_X86_64` 及 `SCOOP_TARGET_ENV_NONE`／`SCOOP_TARGET_ENV_GNU`／`SCOOP_TARGET_ENV_MUSL`；每组只定义匹配项，值为 `1`。
+native 预处理除编译器的目标宏外，还定义当前 target 对应的 `SCOOP_TARGET_OS_DARWIN`／`SCOOP_TARGET_OS_LINUX`／`SCOOP_TARGET_OS_WINDOWS`、`SCOOP_TARGET_ARCH_AARCH64`／`SCOOP_TARGET_ARCH_X86_64` 及 `SCOOP_TARGET_ENV_NONE`／`SCOOP_TARGET_ENV_GNU`／`SCOOP_TARGET_ENV_MUSL`／`SCOOP_TARGET_ENV_MSVC_UCRT`／`SCOOP_TARGET_ENV_LLVM_MINGW_MSVCRT`／`SCOOP_TARGET_ENV_LLVM_MINGW_UCRT`；每组只定义匹配项，值为 `1`。
 
 `native.include` 的每个元素可为路径字符串，或 `{ path = "...", when = { ... } }` 表；表中的 `path` 必需，`when` 使用 12.2.2 的现有目标条件，省略时无条件。全部条目先检查字段、路径和条件，选中条目按声明顺序交给所选 C/C++ 编译器。字符串等价于只有 `path` 的表；路径仍按普通文件系统规则解析，不作变量展开。这样多个目标可分别使用匹配的生成配置头文件。
 
 include 搜索目录允许不存在，直接交给所选 C/C++ 编译器按搜索顺序处理；这不影响实际源码、被引用头文件及显式 forced include 缺失时的正常诊断。未选中的 include 不参与当前目标的搜索和 native 对象更新判断。
 
 编译选项按 argv 元素传递，不作 shell 展开。`-I`、`-iquote`、`-isystem`、`-idirafter`、`-include` 和 `-imacros` 中的路径采用同一普通文件系统路径规则，在实际 native 编译时解析；空路径与 NUL 非法，不按路径是否越出 Cone 根拒绝头文件输入。响应文件、额外 compiler plugin/specs、编译器搜索前缀以及 linker 参数不由 `c_flags`／`cxx_flags` 接收；target、sysroot、输入语言、编译阶段、依赖输出和产物路径由 driver 管理。头文件按实际 include 搜索规则读取，不限制物理归属或审计符号链接来源；runtime 内部头文件不属于公开支持的 API。driver 自动提供公开 FFI 头 `scoop_rt.h` 及其公开依赖，输入与缓存契约见实现规范 2.7。
+
+Windows Microsoft driver 的 `/I`、`/FI` 路径及 `/D`、`/U` 宏参数使用相同规则，其余 `/` 编译选项按原 argv 传递。目标、CRT linkage、输入语言、编译阶段、依赖输出、产物位置和 LTCG 仍由 driver 管理；不能用 native flags 改换这些配置。GNU 风格的 include 选项只在所选 driver 能保持相应语义时使用，否则给出正常的选项不支持诊断。
 
 manifest Cone 通过 `[native]` 中的 Boolean 字段 `cxx` 显式启用 C++，省略时为 `false`。例如：
 
@@ -2933,7 +2939,7 @@ cxx_flags = ["-std=c++20"]
 - C++ 编译使用所选 target 的配套 C++ driver，例如 GNU 工具链的 `g++` 或 Darwin Apple Clang 的 `clang++`。缺少可用的 C++ 编译器或运行库时报错，不能使用其他 target 或宿主机的工具链代替。不要求 C/C++ driver 的完整版本号或目标名称字符串相等；兼容性由实际目标输入、编译和链接操作确定。
 - C++ 链接需求写入 `.slib`，并沿最终程序的完整依赖闭包传递。即使 root Cone 自己没有 C++ 源码或未开启 `cxx`，只要闭包需要 C++，最终链接就必须使用配套的 C++ driver 与 C++ 运行库配置；`cxx = false` 不能取消依赖的要求。
 - **当前不支持 C++ 与 musl target 的组合**，包括 musl 的静态和动态链接模式。当前 Scoop musl 工具链没有配套的 C++ 标准库与 C++ ABI 运行库；musl 提供 libc 本身，不包含这些库。这是当前工具链集成范围的限制，不是 musl 原理上不能支持 C++。musl 下当前 Cone 开启 `cxx`，或依赖闭包要求 C++，都必须给出明确的不支持诊断。
-- C++ 支持目前覆盖 Darwin/AArch64 与 Linux/amd64 GNU。Scoop 与 C++ 之间通过现有 C ABI 和 `extern "C"` 包装函数互操作；C++ 异常必须在 native 一侧处理，不能穿越 Scoop 的 FFI 边界。工具链、产物与链接细则见实现规范 2.7～2.8，异常边界见运行时规范 5.5。
+- C++ 环境包括 Darwin/AArch64、Linux/amd64 GNU，以及 Windows 三个完整 target 对应的 MSVC STL 或 LLVM-MinGW libc++；Windows 实施状态见实现规范。Scoop 与 C++ 之间通过现有 C ABI 和 `extern "C"` 包装函数互操作；C++ 异常必须在 native 一侧处理，不能穿越 Scoop 的 FFI 边界。工具链、产物与链接细则见实现规范 2.7～2.8，异常边界见运行时规范 5.5。
 - single-file 模式不读取 `[native]`，不启用该配置。
 
 #### 12.2.2 Scoop 源码选择与平台条件
@@ -2958,7 +2964,7 @@ when = { os = "darwin" }
 - **默认模式**：未出现顶层 `sources` 字段时，递归收集 `src/` 下扩展名精确为 `.scoop` 的 regular files。`native.sources` 不改变这一默认规则。
 - **显式模式**：出现 `sources` 字段后，它就是完整的 Scoop 源码选择清单，公共目录或公共文件也必须列出；不再隐式扫描或追加 `src/`。显式空数组、所有条件都不匹配或选中目录没有源码时，不回退到默认模式；最终源码集合为空是构建错误。
 - **路径**：`path` 是 Cone 相对的目录或单个 `.scoop` regular file，不限于 `src/`。使用 `/` 分隔，折叠重复分隔符和 `.`，并按词法消去不越出 Cone 根的 `..`；`.` 可选择 Cone 根。空路径、绝对路径、盘符前缀、反斜线、NUL 和 glob 元字符 `*?[]` 不合法，归一化结果也必须满足这些约束。目录递归收集 `.scoop` 文件。非 UTF-8、选中路径不存在或类型不符、实际 I/O 或目录遍历循环错误在 parse 前报告。symlink 按普通文件定位规则使用，不以目标是否位于 Cone 根下决定允许读取，也不审计 owner、权限或 inode。
-- **条件**：省略 `when` 表示无条件；`os ∈ {darwin, linux}`、`arch ∈ {aarch64, x86_64}`、`env ∈ {gnu, musl, none}`，均按构建 target 求值。多个键取“与”，同一键的字符串数组取“或”；未知字段、键、值或错误的数据类型是 manifest 错误。该谓词也用于 `native.sources` 和 `native.libraries`，不为 Cone dependency 增加平台条件。
+- **条件**：省略 `when` 表示无条件；`os ∈ {darwin, linux, windows}`、`arch ∈ {aarch64, x86_64}`、`env ∈ {gnu, musl, none, msvc-ucrt, llvm-mingw-msvcrt, llvm-mingw-ucrt}`，均按构建 target 求值。多个键取“与”，同一键的字符串数组取“或”；未知字段、键、值或错误的数据类型是 manifest 错误。该谓词也用于 `native.sources` 和 `native.libraries`，不为 Cone dependency 增加平台条件。
 - **选择顺序**：先校验全部条目的字段、路径形式和 `when`，再按 target 筛选；只对选中的路径检查文件系统存在性、枚举源码并进行解析和语义检查。没有被任何匹配条目选中的文件不参与编译，不能由默认扫描补入。
 - **重叠与重复**：同一 target 下选中的目录不能相同或互相包含，选中的单文件不能同时被选中目录覆盖。重复的规范化路径、或经 symlink 解析到同一源文件的重复选择，均报构建错误并指出相关条目；不静默去重，不定义先后覆盖。互斥条件在不同 target 选中同一路径不构成重复。
 - **确定性**：最终文件按完整的 normalized Cone-relative `/` path 的 UTF-8 byte order 排序。相同文件的 source identity 不因显式/默认选择、清单顺序或源码根分组改变。源码选择与缓存规则见实现规范 2.1、2.7。
@@ -3809,7 +3815,7 @@ public fun completeTestRun(): Unit
 
 TestFailure 保留捕获后的 managed Throwable，遵守 16.2 与运行时规范 5.3～5.4 的异常引用规则。cause 为 AssertionFailure 时 location 使用断言自己的位置，否则使用当前动作的位置；原始异常数据不渲染、不丢弃。finally、Context 与 GC 沿普通调用和异常规则执行。panic、abort、native crash 和进程退出不在此捕获范围内，进程结果由测试命令另行报告。
 
-合成入口通过 runReportedTestCase 包围上述执行：先记录开始，再调用 runTestCase，在完整生命周期结束后记录单调耗时、结果及首次／清理失败；全部选中用例结束后调用 completeTestRun。没有父命令设置的结果通道时，这两个适配不捕获输出或渲染结果，直接运行仍保持普通 stdout/stderr。事件 I/O、计时和串行 stdio 重定向由 scoop.test 自身的普通 native 源码提供，不增加公共 runtime ABI。诊断保留断言 kind/message、expected/actual 的可用／渲染失败状态和 cause；普通 Exception 使用 message，其他 Throwable 可通过 ToString 提供说明，说明转换抛出时保留固定的渲染失败说明，不覆盖原测试失败。
+合成入口通过 runReportedTestCase 包围上述执行：先记录开始，再调用 runTestCase，在完整生命周期结束后记录单调耗时、结果及首次／清理失败；全部选中用例结束后调用 completeTestRun。没有父命令设置的结果通道时，这两个适配不捕获输出或渲染结果，直接运行仍保持普通 stdout/stderr。事件 I/O、计时和串行 stdio 重定向由 scoop.test 自身的普通 native 源码提供，不增加公共 runtime ABI。Windows 使用所选 CRT 的 descriptor 复制／恢复、宽字符结果目录和二进制输出文件，并以 QueryPerformanceCounter 计时；Unicode 结果路径和标准流字节遵守相同测试报告合同。诊断保留断言 kind/message、expected/actual 的可用／渲染失败状态和 cause；普通 Exception 使用 message，其他 Throwable 可通过 ToString 提供说明，说明转换抛出时保留固定的渲染失败说明，不覆盖原测试失败。
 
 测试入口接受普通 `Array<String>` 参数并返回 Int，数组按 12.4.4 包含 `argv[0]` 的启动路径。`scoop` 按已编译目录的顺序选择用例，以 `--scoop-test-cases` 后跟扁平目录下零基序号的十进制字符串传给入口；该序号仅在当前测试程序内定位目录项，不代替 callable 的实体身份。`isTestSelected` 在没有用户参数时选择未忽略用例，在上述显式清单中跳过启动路径与标记，再按 caseIndex 是否出现选择；只有选中后才进入完整生命周期。过滤与忽略选择由 `scoop` 使用目录中的完整显示名及 Ignore 信息完成，列表复用同一选择结果。
 

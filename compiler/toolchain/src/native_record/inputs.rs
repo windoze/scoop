@@ -70,13 +70,13 @@ pub(crate) fn program_candidates(
     search_path: &std::ffi::OsStr,
     inputs: &mut BTreeSet<PathBuf>,
 ) {
-    let program = Path::new(program);
+    let program = crate::paths::executable_path(program);
     if program.components().count() > 1 {
         inputs.insert(program.to_path_buf());
         return;
     }
     for directory in std::env::split_paths(search_path) {
-        let candidate = directory.join(program);
+        let candidate = directory.join(&program);
         let selected = candidate.is_file();
         inputs.insert(candidate);
         if selected {

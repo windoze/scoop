@@ -36,10 +36,10 @@ static void drain(ScoopIoLoop *loop) {
 
 int scoop_test_ring_cancel_order(bool control_first) {
     ScoopIoCreated created = scoop_io_loop_create();
-    if (created.status < 0)
-        return created.status;
+    if (created.status.code != 0)
+        return -created.status.code;
     ScoopIoLoop *loop = created.pointer;
-    int status = scoop_io_timer_start(loop, 42, 1000, 0);
+    int status = -scoop_io_timer_start(loop, 42, 1000, 0).code;
     if (status < 0) {
         drain(loop);
         return status;
@@ -72,13 +72,13 @@ int scoop_test_ring_cancel_order(bool control_first) {
 
 int scoop_test_ring_pressure(void) {
     ScoopIoCreated created = scoop_io_loop_create();
-    if (created.status < 0)
-        return created.status;
+    if (created.status.code != 0)
+        return -created.status.code;
     ScoopIoLoop *loop = created.pointer;
     unsigned capacity = loop->ring.sq.ring_entries;
     int status = 0;
     for (unsigned i = 0; i < capacity * 3; i++) {
-        status = scoop_io_timer_start(loop, i + 1, 1000, 0);
+        status = -scoop_io_timer_start(loop, i + 1, 1000, 0).code;
         if (status < 0) {
             drain(loop);
             return status;
@@ -117,8 +117,8 @@ int scoop_test_ring_data_ready(ScoopIoLoop *loop) {
 
 int scoop_test_ring_capabilities(void) {
     ScoopIoCreated created = scoop_io_loop_create();
-    if (created.status)
-        return created.status;
+    if (created.status.code)
+        return -created.status.code;
     ScoopIoLoop *loop = created.pointer;
     struct io_uring_probe *probe = io_uring_get_probe_ring(&loop->ring);
     int status = probe ? 0 : -ENOMEM;

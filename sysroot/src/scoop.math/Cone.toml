@@ -6,6 +6,17 @@ name = "scoop.math"
 version = "0.1.0"
 kind = "library"
 
+[[test.sources]]
+path = "tests"
+
+[[test.sources]]
+path = "test-platform/fused"
+when = {env = ["none", "gnu", "musl", "msvc-ucrt", "llvm-mingw-ucrt"]}
+
+[[test.sources]]
+path = "test-platform/msvcrt"
+when = {env = "llvm-mingw-msvcrt"}
+
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
 "scoop:scoop.std" = "0.1.0"
@@ -13,5 +24,12 @@ kind = "library"
 [test-dependencies]
 "scoop:scoop.test" = "0.1.0"
 
+[native]
+c_flags = ["-Wextra", "-Werror"]
+
+[[native.sources]]
+path = "native/hypot.c"
+
 [[native.libraries]]
 name = "m"
+when = {os = ["darwin", "linux"]}

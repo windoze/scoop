@@ -1,6 +1,6 @@
 schema = 1
 name = "poll-codegen-roots"
-inputs = ["program.scoop", "../../../../language/callback/native.c"]
+inputs = ["program.scoop", "../../../../language/callback/native.c", "../../../../language/callback/threading.h"]
 tools = ["scoop", "cc", "ar"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["poll", "threads", "gc", "gc-correctness"]

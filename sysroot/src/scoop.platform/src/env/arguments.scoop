@@ -1,0 +1,28 @@
+package scoop.platform.env
+
+import scoop.platform.fs.copyNativeString
+import scoop.platform.system.OsString
+
+/**
+ * Returns a snapshot of process arguments as operating-system byte strings, including the program
+ * argument.
+ */
+public fun arguments(): Array<OsString> {
+    @Unsafe
+    {
+        return Array<OsString>(nativeArgumentCount().toLong()) {
+            index -> @Unsafe
+            {
+                return@Array copyNativeString(nativeArgument(index.toInt())!!)
+            }
+        }
+    }
+}
+
+@GCLeaf
+@Extern(name = "scoop_rt_program_argc")
+private fun nativeArgumentCount(): Int
+
+@GCLeaf
+@Extern(name = "scoop_rt_program_argv")
+private fun nativeArgument(index: Int): Ptr<Byte>?

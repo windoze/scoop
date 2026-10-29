@@ -46,7 +46,7 @@ def variables(client, frame, globals_=False):
             for variable in client.request(
                 "variables", {"variablesReference": scope["variablesReference"]}
             )["variables"]:
-                result[variable["name"]] = variable
+                result[variable["name"].removeprefix("::")] = variable
     return result
 
 
@@ -81,6 +81,8 @@ def configure(client, sequence, source, break_lines):
 
 
 def launch(client, configuration, source):
+    if os.name == "nt":
+        return launch_windows(client, configuration, source)
     markers = lines(source)
     sequence = client.request("launch", configuration, wait=False)
     configure(
@@ -98,7 +100,7 @@ def launch(client, configuration, source):
     integer(values["number"], 41)
     globals_ = variables(client, frames[0], globals_=True)
     integer(globals_["counter"], 40)
-    integer(globals_["threadCounter"], 2)
+    integer(globals_["threadCounter"], 12)
     string(values["text"], "hé\u0000llo")
     assert "size=3" in values["values"]["value"], values["values"]
     middle = children(client, values["values"], start=1, count=1)
@@ -138,6 +140,67 @@ def launch(client, configuration, source):
     fields = {item["name"]: item for item in children(client, after["box"])}
     integer(fields["value"], 20)
     assert "Box" in after["view"]["value"], after["view"]
+    assert after["discarded"]["value"].startswith("<error:"), after["discarded"]
+    caller_text = variables(client, frames[1])["text"]
+    assert (
+        caller_text["value"].startswith("<error:") or caller_text["value"] == after["text"]["value"]
+    ), caller_text
+    client.request("continue", {"threadId": thread})
+    thread, frames = stopped(client)
+    assert frames[0]["line"] == markers["capture"] + 1, frames
+    integer(variables(client, frames[0])["adjusted"], 41)
+    client.request("continue", {"threadId": thread})
+    assert client.event("exited")["exitCode"] == 0
+    client.event("terminated")
+    assert "debugging-ok" in client.output, client.output
+
+
+def launch_windows(client, configuration, source):
+    # CodeView may associate a pure expression with its later machine use.
+    # Stop at the actual GC call, then at the following source operation.
+    markers = lines(source)
+    sequence = client.request("launch", configuration, wait=False)
+    configure(
+        client,
+        sequence,
+        source,
+        [markers["before-gc"], markers["after-gc"], markers["capture"] + 1],
+    )
+    thread, frames = stopped(client)
+    assert frames[0]["name"] == "inspectValues", frames
+    assert frames[0]["line"] == markers["before-gc"], frames
+    assert Path(frames[0]["source"]["path"]).resolve() == source.resolve(), frames
+    assert any(frame["name"] == "main" for frame in frames[1:]), frames
+    values = variables(client, frames[0])
+    integer(values["number"], 41)
+    globals_ = variables(client, frames[0], globals_=True)
+    integer(globals_["counter"], 40)
+    integer(globals_["threadCounter"], 12)
+    string(values["text"], "hé\u0000llo")
+    assert "size=3" in values["values"]["value"], values["values"]
+    middle = children(client, values["values"], start=1, count=1)
+    assert len(middle) == 1 and middle[0]["name"] == "[1]", middle
+    integer(middle[0], 11)
+    box = {item["name"]: item for item in children(client, values["box"])}
+    integer(box["value"], 20)
+    assert "Choice.Number" in values["tagged"]["value"], values["tagged"]
+    integer(children(client, children(client, values["tagged"])[0])[0], 7)
+    assert ".Some" in values["optional"]["value"], values["optional"]
+    assert ".None" in values["absent"]["value"], values["absent"]
+    client.request("next", {"threadId": thread})
+    thread, frames = stopped(client)
+    assert frames[0]["line"] == markers["after-gc"], frames
+    after = variables(client, frames[0])
+    string(after["text"], "hé\u0000llo")
+    for name in ("text", "values", "box"):
+        assert after[name]["value"].split()[0] != values[name]["value"].split()[0], (
+            name,
+            values[name],
+            after[name],
+        )
+    integer(children(client, after["values"], start=1, count=1)[0], 11)
+    box = {item["name"]: item for item in children(client, after["box"])}
+    integer(box["value"], 20)
     assert after["discarded"]["value"].startswith("<error:"), after["discarded"]
     caller_text = variables(client, frames[1])["text"]
     assert (

@@ -1,0 +1,70 @@
+package scoop.asyncio
+
+import scoop.platform.system.*
+
+@CLayout
+internal struct NativeIoStatus(val domain: Int, val code: Int)
+
+@CLayout
+internal struct NativeCreated(val pointer: Ptr<Unit>?, val status: NativeIoStatus)
+
+@CLayout
+internal struct NativeRecord(
+    val id: Long,
+    val kind: Int,
+    val code: Int,
+    val count: Long,
+    val resource: Ptr<Unit>?
+)
+
+internal fun backendFailure(operation: String, status: Int): PlatformException {
+    val error = nativeStatusError(status)
+    return PlatformException(operation, error.kind, Some(error))
+}
+
+internal fun nativeStatusError(status: Int): NativeError =
+    NativeError(NativeErrorDomain.PosixErrno, -status)
+
+internal fun nativeStatusError(status: NativeIoStatus): NativeError =
+    NativeError(
+        when (status.domain) {
+            case 5 -> NativeErrorDomain.PosixErrno
+            case 9 -> NativeErrorDomain.Win32
+            case 10 -> NativeErrorDomain.Winsock
+            case 11 -> NativeErrorDomain.NtStatus
+            else -> throw IllegalStateException(Some("invalid native I/O error domain"))
+        },
+        status.code
+    )
+
+internal fun backendFailure(operation: String, status: NativeIoStatus): PlatformException {
+    val error = nativeStatusError(status)
+    return PlatformException(operation, error.kind, Some(error))
+}
+
+@Extern(name = "scoop_io_loop_idle")
+internal fun nativeLoopIdle(loop: Ptr<Unit>): Boolean
+
+@Extern(name = "scoop_io_loop_create")
+internal fun nativeLoopCreate(): NativeCreated
+
+@Extern(name = "scoop_io_loop_wake")
+internal fun nativeLoopWake(loop: Ptr<Unit>)
+
+@Extern(name = "scoop_io_loop_poll")
+internal fun nativeLoopPoll(loop: Ptr<Unit>, wait: Boolean): NativeIoStatus
+
+@Extern(name = "scoop_io_loop_batch_size")
+internal fun nativeLoopBatchSize(loop: Ptr<Unit>): Long
+
+@Extern(name = "scoop_io_loop_next")
+internal fun nativeLoopNext(loop: Ptr<Unit>): NativeRecord
+
+@Extern(name = "scoop_io_loop_destroy")
+internal fun nativeLoopDestroy(loop: Ptr<Unit>): NativeIoStatus
+
+@Extern(name = "scoop_io_timer_start")
+internal fun nativeTimerStart(loop: Ptr<Unit>, id: Long, seconds: Long, nanos: Int): NativeIoStatus
+
+@Extern(name = "scoop_io_timer_cancel")
+internal fun nativeTimerCancel(loop: Ptr<Unit>, id: Long)

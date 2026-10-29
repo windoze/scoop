@@ -4,6 +4,9 @@ inputs = ["Cone.toml"]
 tools = ["scoop"]
 tags = ["driver", "format", "negative"]
 
+[vars]
+source_directory = "${work}/cone/src"
+
 [[steps]]
 name = "prepare"
 files = [{copy = {from = "${fixture}/Cone.toml", to = "${work}/cone/Cone.toml"}}, {write = {path = "${work}/cone/src/source.scoop", data = "fun f()=1\n"}}, {symlink = {from = "${work}/cone/src", to = "${work}/cone/src/loop"}}]

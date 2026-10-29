@@ -1,0 +1,26 @@
+package scoop.platform.system
+
+import scoop.platform.fs.copyNativeString
+import scoop.platform.io.failNative
+import scoop.platform.memory.nativeMemoryFree
+
+/**
+ * Returns the operating system's release string from uname.
+ */
+public fun systemVersion(): String {
+    @Unsafe
+    {
+        val(pointer, error) = nativeSystemVersion()
+        if (pointer == None)
+            failNative("system version", error)
+        try {
+            return copyNativeString(pointer!!).decodeUtf8()
+        }
+        finally {
+            nativeMemoryFree(pointer!!)
+        }
+    }
+}
+
+@Extern(name = "scoop_platform_system_version", captureErrno = true)
+private fun nativeSystemVersion(): (Ptr<Byte>?, Int)

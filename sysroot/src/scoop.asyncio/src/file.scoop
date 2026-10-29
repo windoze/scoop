@@ -83,10 +83,10 @@ internal suspend fun openFileOnLoop(loop: LoopOwner, path: Path, options: OpenOp
                     native,
                     id -> @Unsafe
                     {
-                        return@LoopOperation path.withNativePath {
+                        return@LoopOperation path.withIoPath {
                             pointer -> @Unsafe
                             {
-                                return@withNativePath nativeStatus(
+                                return@withIoPath nativeStatus(
                                     id,
                                     nativeFileOpen(native, id, pointer, flags, options.mode)
                                 )
@@ -130,6 +130,3 @@ internal suspend fun openFileOnLoop(loop: LoopOwner, path: Path, options: OpenOp
         loop.submit(operation)
     }
 }
-
-@Extern(name = "scoop_io_file_open")
-private fun nativeFileOpen(loop: Ptr<Unit>, id: Long, path: Ptr<Byte>, flags: Int, mode: Int): Int

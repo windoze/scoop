@@ -39,7 +39,7 @@ pub(super) fn emit_object_set_with_production<
             ))
         })?;
     let mut callables = BTreeMap::new();
-    let elf_symbols = crate::elf_llvm::SymbolPlanIndex::new(production.canonical_definitions());
+    let symbol_plans = crate::symbol_plan::SymbolPlanIndex::new(production.canonical_definitions());
     let callable_definitions = production
         .canonical_definitions()
         .plans()
@@ -63,7 +63,7 @@ pub(super) fn emit_object_set_with_production<
             &context,
             module,
             &production,
-            &elf_symbols,
+            &symbol_plans,
             &machine,
             profile,
             &selected_safepoints,
@@ -72,6 +72,11 @@ pub(super) fn emit_object_set_with_production<
         )?;
         let path = backing.path().join(format!("{body}.o"));
         write_object(&machine, &prepared.llvm, &path)?;
+        if profile.lir_target_profile().native_object_format()
+            == scoop_lir::NativeObjectFormat::Coff64
+        {
+            crate::coff_object::merge_callable_constants(&path)?;
+        }
         let backend_constants = crate::callable_constants::present(
             &path,
             profile.lir_target_profile(),

@@ -221,6 +221,7 @@ capability_refinement!(
     "org.scoop-lang.object-format",
     macho_relocatable => "mach-o-relocatable",
     elf_relocatable => "elf-relocatable",
+    coff_relocatable => "coff-relocatable",
 );
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ArtifactCapabilityProfileId(CapabilityId);

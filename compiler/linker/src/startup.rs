@@ -26,6 +26,7 @@ impl StartupObject {
         let section = match profile {
             ValidatedFinalLinkProfile::Darwin(_) => "__DATA_CONST,__const",
             ValidatedFinalLinkProfile::Linux(_) => ".data.rel.ro.scoop.startup",
+            ValidatedFinalLinkProfile::Windows(_) => ".rdata$scoop_startup",
         };
         images::emit(&mut source, &inputs.final_images, section);
         Self::build_source(
@@ -63,18 +64,25 @@ impl StartupObject {
         directory: &Path,
     ) -> Result<Self, LinkError> {
         source.push_str(&format!(
-            "extern const ScoopRootEntryDescriptorV1 root_entry __asm__(\"{}\");\n",
+            "extern const ScoopRootEntryDescriptorV1 root_entry __asm__(\"{}\") __attribute__((visibility(\"hidden\")));\n",
             root
         ));
         let section = match profile {
             ValidatedFinalLinkProfile::Darwin(_) => "__DATA_CONST,__const",
             ValidatedFinalLinkProfile::Linux(_) => ".data.rel.ro.scoop.startup",
+            ValidatedFinalLinkProfile::Windows(_) => ".rdata$scoop_startup",
         };
-        source.push_str(&format!("extern int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *, uint64_t, const ScoopRootEntryDescriptorV1 *, int32_t, const char *const *, uint32_t);\n\n__attribute__((used, section(\"{section}\")))\nstatic const ScoopImageDescriptorV1 *const scoop_program_images[] = {{\n"));
+        let windows = matches!(profile, ValidatedFinalLinkProfile::Windows(_));
+        let (entry, runtime, argument_type) = if windows {
+            ("wmain", "scoop_rt_run_program_utf16", "uint16_t")
+        } else {
+            ("main", "scoop_rt_run_program", "char")
+        };
+        source.push_str(&format!("extern int {runtime}(const ScoopImageDescriptorV1 *const *, uint64_t, const ScoopRootEntryDescriptorV1 *, int32_t, const {argument_type} *const *, uint32_t);\n\n__attribute__((used, section(\"{section}\")))\nstatic const ScoopImageDescriptorV1 *const scoop_program_images[] = {{\n"));
         for index in 0..image_count {
             source.push_str(&format!("    &image_{index},\n"));
         }
-        source.push_str(&format!("}};\n\nint main(int argc, char **argv) {{\n    return scoop_rt_run_program(scoop_program_images, sizeof(scoop_program_images) / sizeof(scoop_program_images[0]), &root_entry, argc, (const char *const *)argv, {});\n}}\n", u32::from(enable_stack_trace)));
+        source.push_str(&format!("}};\n\nint {entry}(int argc, {argument_type} **argv) {{\n    return {runtime}(scoop_program_images, sizeof(scoop_program_images) / sizeof(scoop_program_images[0]), &root_entry, argc, (const {argument_type} *const *)argv, {});\n}}\n", u32::from(enable_stack_trace)));
         let source_path = directory.join("startup.c");
         let object = directory.join("startup-compiled.o");
         std::fs::write(&source_path, &source).map_err(error)?;
@@ -97,10 +105,10 @@ impl StartupObject {
             info.requirements.remove("_GLOBAL_OFFSET_TABLE_");
         }
         let normalization = profile.target().contract().native_symbol_normalization();
-        let main = normalization.compiler_generated_object_symbol("main");
+        let main = normalization.compiler_generated_object_symbol(entry);
         references.extend([
             root.to_owned(),
-            normalization.compiler_generated_object_symbol("scoop_rt_run_program"),
+            normalization.compiler_generated_object_symbol(runtime),
         ]);
         if info.requirements != references
             || info.definitions.len() != 1 + definitions.len()

@@ -4,7 +4,7 @@
 
 ## 1. 后端与范围
 
-内部共享 Rust 静态库 `scoop_text_backend` 使用 encoding_rs 0.8.42 负责遗留编码和 UTF-8／16 解码，Rust 标准库的 Unicode 标量与端序转换负责 UTF 编码、UTF-32、真正的 ASCII／Latin-1。三个目标使用同一固定实现与 43 个 canonical name，实际全集及别名、65 个退役名称和映射差异见 [ENCODINGS.md](../../sysroot/src/scoop.charset/ENCODINGS.md)。没有系统 iconv、进程 locale、CJK／ISO-2022 自实现或 GNU fallback。
+内部共享 Rust 静态库 `scoop_text_backend` 使用 encoding_rs 0.8.42 负责遗留编码和 UTF-8／16 解码，Rust 标准库的 Unicode 标量与端序转换负责 UTF 编码、UTF-32、真正的 ASCII／Latin-1。Darwin、Linux GNU／musl 和三个 Windows 目标使用同一固定实现与 43 个 canonical name；Windows 的 Rust target、静态归档和原生系统依赖遵守 [IDNA 规范 §5](SCOOP-IDNA-SPEC.md#5-构建与验收)。实际全集及别名、65 个退役名称和映射差异见 [ENCODINGS.md](../../sysroot/src/scoop.charset/ENCODINGS.md)。没有系统 iconv、进程 locale、CJK／ISO-2022 自实现或 GNU fallback。
 
 支持 UTF-8、US-ASCII、ISO-8859-1、Windows-1252、UTF-16LE／BE、UTF-32LE／BE、GB18030、GBK、Big5、Shift_JIS、EUC-JP 和 ISO-2022-JP。遗留编码采用 encoding_rs 的 WHATWG 映射；GB18030 为带网页兼容差异的 2022 变体，不保留 2005／2022 年份别名。GBK 解码兼容四字节 GB18030，但编码限 GBK；Big5 可解码为多个标量；Shift_JIS、EUC-KR 包含厂商扩展；Windows 未定义字节、EUC-JP 反向集合与 CP1258 组合行为均以映射文档为准。严格转换拒绝当前映射中的非法输入／不可表示字符，不额外承诺一一映射或旧 GNU 行为。
 
@@ -63,6 +63,6 @@ Content-Type 参数解析属于 HTTP；HTTP client 根据显式 charset、调用
 
 Basic／Digest 在选择 UTF-8 凭据时按 RFC 7617／7616 调用 normalizeNfc，再编码和计算凭据；字段语法、凭据选择和摘要分别保留在 HTTP、client 和 crypto。
 
-测试围绕 Scoop 自有的名称与选项适配、BOM 与字节序、增量状态、输入消费量、输出背压、错误偏移和资源释放。Unicode 入口验证 C ABI 与字节／标量索引转换，readline 验证实际编辑行为；不新增 Rust 库 Unicode 兼容性或完备性的正例、负例，不维护官方一致性测试数据。三个目标执行相关 Scoop 消费与链接验证；已有直接消费者结果按变更范围复用，不扩展 HTTP client 组合测试。
+测试围绕 Scoop 自有的名称与选项适配、BOM 与字节序、增量状态、输入消费量、输出背压、错误偏移和资源释放。Unicode 入口验证 C ABI 与字节／标量索引转换，readline 验证实际编辑行为；不新增 Rust 库 Unicode 兼容性或完备性的正例、负例，不维护官方一致性测试数据。各目标执行相关 Scoop 消费与链接验证；已有直接消费者结果按变更范围复用，不扩展 HTTP client 组合测试。
 
 依据：[encoding_rs](https://docs.rs/encoding_rs/0.8.42/encoding_rs/)、[WHATWG Encoding](https://encoding.spec.whatwg.org/)、[UAX #15](https://www.unicode.org/reports/tr15/)、[RFC 8187](https://www.rfc-editor.org/rfc/rfc8187.html)、[RFC 7616](https://www.rfc-editor.org/rfc/rfc7616.html)、[RFC 7617](https://www.rfc-editor.org/rfc/rfc7617.html)。

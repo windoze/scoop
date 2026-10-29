@@ -58,6 +58,11 @@ fn compile_env_host_values_and_cache_updates() {
         use std::os::unix::ffi::OsStringExt;
         cases.push(("invalid", Some(OsString::from_vec(vec![0xff]))));
     }
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStringExt;
+        cases.push(("invalid", Some(OsString::from_wide(&[0xd800]))));
+    }
     for (case, value) in cases {
         let mut command = Command::new(std::env::current_exe().unwrap());
         command

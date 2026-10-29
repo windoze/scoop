@@ -69,6 +69,8 @@ BUILTINS = {
     "sysroot",
     "test_core",
     "class_core",
+    "inheritance_core",
+    "member_defaults_core",
     "cache",
     "scoop",
     "scoopc",
@@ -92,6 +94,8 @@ BUILTINS = {
     "target_profile",
     "symbol_prefix",
     "errno_eloop",
+    "file_not_found_error",
+    "directory_write_error",
     "python",
 }
 
@@ -254,9 +258,14 @@ def validate_step(step):
         if (
             step.get("json") in {"stderr", "test-stderr", "batch-stderr"}
             and "diagnostics" not in step
+            and not any(
+                ref == f"{step['name']}.diagnostics"
+                or ref.startswith(f"{step['name']}.diagnostics.")
+                for ref in references(step.get("checks", []))
+            )
         ):
             raise ConfigurationError(
-                "structured stderr requires the complete diagnostics expectation"
+                "structured stderr requires a diagnostics expectation or explicit diagnostic checks"
             )
         if "diagnostics" in step and step.get("json") not in {
             "stderr",

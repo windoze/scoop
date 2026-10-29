@@ -5,16 +5,20 @@
 
 extern const ScoopImageDescriptorV1 left_image __asm__("LEFT_IMAGE");
 extern const ScoopImageDescriptorV1 right_image __asm__("RIGHT_IMAGE");
+extern const ScoopImageDescriptorV1 consumer_image __asm__("CONSUMER_IMAGE");
 
 int32_t m23_delegate_siblings(void) {
-    if (left_image.initialization_unit_count != 1 || right_image.initialization_unit_count != 1) {
+    const ScoopImageDescriptorV1 *images[] = {&left_image, &right_image, &consumer_image};
+    if (left_image.initialization_unit_count + right_image.initialization_unit_count +
+            consumer_image.initialization_unit_count !=
+        5) {
         return 0;
     }
-    const ScoopInitializationUnitDescriptorV1 *selected[2];
+    const ScoopInitializationUnitDescriptorV1 *selected[5];
     uint64_t count = 0;
-    /* Final images register each selected unit once. The consumer checks shared access. */
-    for (uint64_t image_index = 0; image_index < 2; image_index++) {
-        const ScoopImageDescriptorV1 *image = image_index == 0 ? &left_image : &right_image;
+    /* ODR selection may retain a unit in any consumer of the generic declaration. */
+    for (uint64_t image_index = 0; image_index < 3; image_index++) {
+        const ScoopImageDescriptorV1 *image = images[image_index];
         for (uint64_t index = 0; index < image->initialization_unit_count; index++) {
             const ScoopInitializationUnitDescriptorV1 *unit = image->initialization_units[index];
             if (unit->registration.linkage_kind != SCOOP_REGISTRATION_LINKAGE_ODR_V1) {

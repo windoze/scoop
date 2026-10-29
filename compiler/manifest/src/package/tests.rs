@@ -10,6 +10,7 @@ const CONE: &str = "schema = 1\n[cone]\ngroup = 'dev.example'\nname = 'app'\nver
 fn virtual_workspaces_do_not_silently_accept_build_inputs() {
     for fields in [
         "[native]\ncxx = true",
+        "[windows]\nsubsystem = 'gui'",
         "[publish]\ninclude = ['src']",
         "[dependencies]\n'org.example:a' = '1.0.0'",
     ] {
@@ -20,6 +21,31 @@ fn virtual_workspaces_do_not_silently_accept_build_inputs() {
             .is_err()
         );
     }
+}
+
+#[test]
+fn windows_configuration_survives_package_binding_and_json_handoff() {
+    let document = parse(&format!(
+        "{CONE}\n[windows]\nsubsystem = 'gui'\nrc = '../resources/app.rc'\n"
+    ))
+    .unwrap();
+    let manifest = crate::ParsedConeManifest::bind_package(
+        &document,
+        scoop_identity::ConeCoordinate::new("dev.example", "app", "0.1.0").unwrap(),
+        &BTreeMap::new(),
+        false,
+    )
+    .unwrap();
+    let decoded: crate::ParsedConeManifest =
+        serde_json::from_slice(&serde_json::to_vec(&manifest).unwrap()).unwrap();
+    assert_eq!(
+        decoded.semantic().windows().subsystem(),
+        scoop_identity::WindowsSubsystem::Gui
+    );
+    assert_eq!(
+        decoded.semantic().windows().rc().unwrap().as_str(),
+        "../resources/app.rc"
+    );
 }
 
 #[test]

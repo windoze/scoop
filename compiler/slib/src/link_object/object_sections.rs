@@ -1,4 +1,4 @@
-//! Section roles and inventory shared by both builtin object formats.
+//! Section roles and inventory shared by builtin object formats.
 
 use super::ValidatedObjectEnvelopeV1;
 
@@ -17,6 +17,8 @@ pub enum BuiltinObjectSectionRoleV1 {
     ThreadLocalData,
     ThreadLocalZeroFill,
     ThreadLocalVariables,
+    WindowsUnwindTable,
+    WindowsUnwindInfo,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

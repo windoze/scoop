@@ -1,9 +1,9 @@
 schema = 1
 name = "callback-foreign-continuation-failure"
 root = "foreign-continuation-failure.scoop"
-inputs = ["foreign-continuation-failure.scoop", "native.c"]
+inputs = ["foreign-continuation-failure.scoop", "native.c", "threading.h"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["single-file", "run", "native", "language"]
 
 [[steps]]

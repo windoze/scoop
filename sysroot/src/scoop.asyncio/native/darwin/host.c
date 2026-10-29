@@ -33,12 +33,12 @@ ScoopIoCreated scoop_io_main_watch(int descriptor, Notify ready, void *ready_con
                                    Observe observe, void *observer_context) {
     MainWatch *watch = calloc(1, sizeof(*watch));
     if (!watch)
-        return (ScoopIoCreated){NULL, -ENOMEM};
+        return (ScoopIoCreated){NULL, scoop_io_errno(-ENOMEM)};
     watch->source = dispatch_source_create(DISPATCH_SOURCE_TYPE_READ, (uintptr_t)descriptor, 0,
                                            dispatch_get_main_queue());
     if (!watch->source) {
         free(watch);
-        return (ScoopIoCreated){NULL, -ENOMEM};
+        return (ScoopIoCreated){NULL, scoop_io_errno(-ENOMEM)};
     }
     watch->ready = ready;
     watch->ready_context = ready_context;
@@ -48,7 +48,7 @@ ScoopIoCreated scoop_io_main_watch(int descriptor, Notify ready, void *ready_con
     dispatch_source_set_event_handler_f(watch->source, watch_ready);
     dispatch_source_set_cancel_handler_f(watch->source, watch_removed);
     dispatch_activate(watch->source);
-    return (ScoopIoCreated){watch, 0};
+    return (ScoopIoCreated){watch, scoop_io_errno(0)};
 }
 
 void scoop_io_main_remove(MainWatch *watch, Notify removed, void *context) {

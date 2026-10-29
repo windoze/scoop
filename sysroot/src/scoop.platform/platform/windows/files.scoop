@@ -1,0 +1,43 @@
+package scoop.platform.fs
+
+import scoop.platform.system.OsString
+
+@Unsafe
+internal fun <R> Path.withPlatformPath(block: (Ptr<Byte>) -> R): R {
+    return toOsString().withPlatformString(block)
+}
+
+// Internal callers have already checked that the native string contains no NUL.
+@Unsafe
+internal fun <R> OsString.withPlatformString(block: (Ptr<Byte>) -> R): R {
+    val units = toUtf16()
+    if (units.size == Long.MAX_VALUE)
+        throw ArithmeticException()
+    val terminated =
+        Array<UShort>(units.size + 1L) {
+            index -> if (index == units.size)
+                0.toUShort()
+            else
+                units[index]
+        }
+    return terminated.withDataPointer {
+        pointer,
+        _ -> @Unsafe
+        {
+            return@withDataPointer block(pointer.cast<Byte>())
+        }
+    }
+}
+
+@Unsafe
+internal fun copyPlatformString(pointer: Ptr<Byte>, length: Long): OsString {
+    val units = pointer.cast<UShort>()
+    return OsString.fromUtf16(
+        Array<UShort>(length) {
+            index -> @Unsafe
+            {
+                return@Array units.load(index)
+            }
+        }
+    )
+}

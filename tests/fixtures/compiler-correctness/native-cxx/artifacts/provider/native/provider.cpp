@@ -4,8 +4,24 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+struct Base {
+  virtual ~Base() = default;
+};
+struct Derived : Base {};
 static const std::string prefix = "native";
 extern "C" int32_t m33_provider_sum(int32_t value) {
+#ifdef _WIN32
+  if (GetCurrentProcessId() == 0)
+    return -2;
+#endif
+  Derived instance;
+  Base *base = &instance;
+  if (dynamic_cast<Derived *>(base) == nullptr)
+    return -3;
   int32_t result;
   try {
     throw std::runtime_error(prefix);
