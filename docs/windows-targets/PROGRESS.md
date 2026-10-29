@@ -8,7 +8,7 @@
 | W0 工具链与 ABI | 三种 native 环境的关键路线均已通过，正式准备脚本已接入 | 无独立 W0 阻塞 |
 | W1 编译／链接 | 三目标 ABI、COFF、C/C++、PE、PDB、subsystem 与 RC 已实现；ABI 30 定向组合通过 | 无独立 W1 阻塞 |
 | W2 core runtime | Win32 primitives、SEH、精确 roots、GC、线程与初始化已实现；ABI 30 栈诊断开关组合通过 | 无独立 W2 阻塞 |
-| W3 系统库 | Windows 实现及所需 native 后端已完成；ABI 30 三目标各 25 个 Cone 与四种 runtime 已准备完成 | 高层 HTTP client／server 验收进行中 |
+| W3 系统库 | Windows 实现及所需 native 后端已完成；ABI 30 三目标各 25 个 Cone 与四种 runtime 已准备完成 | 当前源码的完整 SSE consumer 复测及 server 资源更新进行中 |
 | W4 宿主与发行 | ABI 30 候选归档通过三目标实际安装使用与调试器验收 | 纳入示例命令帮助修正；随后进行跨宿主回归 |
 
 本地实现和完整验收完成后，才在 Linux `nuc12w.0d0a.com` 与 macOS `mm.0d0a.com` 的 `~/repos` 下新建测试目录。目前尚未开始远端测试。原始日志、报告、归档和构建副本保存在仓库外。
@@ -78,9 +78,9 @@ PCRE2 10.49、OpenSSL 3.5.9、uriparser 1.0.2、Rust 文本后端、Zstandard、
 
 终端异步、log、console log 和 CLI 的 MSVC／MinGW UCRT 测试已通过。JSON 完整 API 在默认 MSVC 目标上 71 个容器／101 项全部通过。HTTP asyncio 在 ABI 29 的默认 MSVC 目标运行 55 个容器／145 项，144 项通过；唯一失败是收到连接错误便假定异步关闭已完成的测试时序。按既有 isClosing／isClosed 合同显式等待 close 后，原测试源码与必要 helper 的小型 Cone 定向验证 2 项全部通过，失败闭合；库行为未改。此前并行大型编译触及内存上限，已降低并发；没有修改编译器语义或增加资源预算机制。
 
-HTTP client 的 ABI 29 完整测试程序在默认 MSVC 目标运行 193 项，首轮 191 项通过。SSE duplex 用例在客户端关闭前显式等待测试服务端完成发送，消除最后一帧与关闭的竞争；修改后的原函数及 helper 通过独立 consumer Cone 的 5 次定向执行，不改变库行为。剩余失败已按名称定位为连接拒绝后的重试用例（case 150），不是共享等待 helper 所在的 backoff 取消用例（case 148）；原完整程序的后者单独运行通过，去掉诊断打印的原函数与 SSE consumer 定向 Cone 共 2 项也通过。连接拒绝、server 及 consumer 验收继续进行；不将这组结果记为全部通过。
+HTTP client 的 ABI 29 完整测试程序在默认 MSVC 目标运行 193 项，首轮 191 项通过。SSE duplex 用例在客户端关闭前显式等待测试服务端完成发送，消除最后一帧与关闭的竞争；修改后的原函数及 helper 通过独立 consumer Cone 的 5 次定向执行，不改变库行为。另一失败已按名称定位为连接拒绝后的重试用例（case 150），不是共享等待 helper 所在的 backoff 取消用例（case 148）。本机 Windows 原生关闭端口连接连续三次约需 2.05 秒才返回 WSAECONNREFUSED，超过测试原有 2 秒等待；仅该用例改用 5 秒等待，保留重试次数与请求体尚未消费等断言，HTTP client 库行为未改。修改后的连接拒绝与原 backoff 用例单独执行均通过。临时组合测试混入修正前的 SSE helper 副本，不作为当前源码通过证据；当前仓库完整 SSE consumer 正在 ABI 30 上独立复测。
 
-HTTP server 的 ABI 29 完整测试程序在默认 MSVC 目标运行 51 个容器／147 项，首轮 143 项通过。三个目录响应错误已按既有 404 合同修正：只在打开失败为 PermissionDenied 时查询目录类型，无法确认则保留原访问拒绝，不增加正常文件响应的路径查询。原生文件名测试在 Windows 使用可表示未配对 UTF-16 surrogate 的 WTF-8 名称，Unix 保留原字节名。覆盖四个失败用例及相关行为的 3 个容器／5 项定向测试全部通过；普通 consumer 验收和三个目标预编译 server 资源更新仍在进行。
+HTTP server 的 ABI 29 完整测试程序在默认 MSVC 目标运行 51 个容器／147 项，首轮 143 项通过。三个目录响应错误已按既有 404 合同修正：只在打开失败为 PermissionDenied 时查询目录类型，无法确认则保留原访问拒绝，不增加正常文件响应的路径查询。原生文件名测试在 Windows 使用可表示未配对 UTF-16 surrogate 的 WTF-8 名称，Unix 保留原字节名。覆盖四个失败用例及相关行为的 3 个容器／5 项定向测试全部通过，另有 5 个容器／5 项普通 consumer 测试全部通过。三个目标的预编译 server 资源更新仍在进行，未变化的其他资源复用。
 
 ## 发行与剩余工作
 
