@@ -1,0 +1,110 @@
+package scoop.window
+
+internal class WindowLock {
+    private val held: AtomicBoolean = AtomicBoolean(false)
+    fun <T> withLock(block: () -> T): T {
+        while (!held.compareAndSet(false, true, MemoryOrder.Acquire, MemoryOrder.Relaxed)) {}
+        try {
+            return block()
+        } finally {
+            held.store(false, MemoryOrder.Release)
+        }
+    }
+}
+
+internal class ApplicationMailbox {
+    private val lock: WindowLock = WindowLock()
+    private var accepting: Boolean = true
+    private var controlsOpen: Boolean = true
+    private var native: Ptr<Unit>? = None
+    private var business: ArrayList<() -> Unit> = ArrayList<() -> Unit>()
+    private var controls: ArrayList<() -> Unit> = ArrayList<() -> Unit>()
+
+    fun bind(pointer: Ptr<Unit>) {
+        lock.withLock {
+            native = Some(pointer);
+            wakeLocked()
+        }
+    }
+    fun unbind() {
+        lock.withLock {
+            native = None;
+            controlsOpen = false;
+            accepting = false;
+            business.clear();
+            controls.clear()
+        }
+    }
+    fun post(block: () -> Unit): Boolean =
+        lock.withLock {
+            if (!accepting)
+                false
+            else {
+                business.add(block);
+                wakeLocked();
+                true
+            }
+        }
+    fun postControl(block: () -> Unit): Boolean =
+        lock.withLock {
+            if (!controlsOpen)
+                false
+            else {
+                controls.add(block);
+                wakeLocked();
+                true
+            }
+        }
+    fun postExit(block: () -> Unit): Boolean =
+        lock.withLock {
+            if (!accepting)
+                false
+            else {
+                accepting = false;
+                business.clear();
+                controls.add(block);
+                wakeLocked();
+                true
+            }
+        }
+    fun closeBusiness() {
+        lock.withLock {
+            accepting = false;
+            business.clear()
+        }
+    }
+    fun takeBusiness(): ArrayList<() -> Unit> =
+        lock.withLock {
+            val result = business;
+            business = ArrayList<() -> Unit>();
+            result
+        }
+    fun takeControls(): ArrayList<() -> Unit> =
+        lock.withLock {
+            val result = controls;
+            controls = ArrayList<() -> Unit>();
+            result
+        }
+    fun sealControlsIfEmpty(): Boolean =
+        lock.withLock {
+            if (controls.size > 0L)
+                false
+            else {
+                controlsOpen = false;
+                native = None;
+                true
+            }
+        }
+    fun wake() {
+        lock.withLock { wakeLocked() }
+    }
+    private fun wakeLocked() {
+        when (native) {
+            case Some(pointer) -> @Unsafe
+            {
+                nativeApplicationWake(pointer)
+            };
+            case None -> {}
+        }
+    }
+}

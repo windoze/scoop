@@ -21,3 +21,30 @@ when = { os = "darwin" }
 
 [test-dependencies]
 "scoop:scoop.test" = "0.1.0"
+
+[native]
+objc_flags = ["-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter"]
+
+[[native.sources]]
+path = "native/darwin/application.m"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "native/darwin/window.m"
+when = { os = "darwin" }
+
+[[native.libraries]]
+name = "AppKit"
+kind = "framework"
+
+[[native.libraries]]
+name = "Foundation"
+kind = "framework"
+
+[[native.libraries]]
+name = "CoreFoundation"
+kind = "framework"
+
+[[native.libraries]]
+name = "CoreGraphics"
+kind = "framework"

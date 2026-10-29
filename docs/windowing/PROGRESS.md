@@ -37,3 +37,12 @@
 迁入 `EventLoopNotification`／`EventLoopHost.watch`，同步 Unix descriptor 提供方、Darwin MainDispatchHost 与实际测试宿主，删除旧 asyncio watchReadable 接口；未迁入 Windows I/O 实现。Darwin 在借用资源或派发前明确拒绝 Windows event 类型。
 
 验证：Scoop 格式化／check 通过；asyncio 完整 release Cone 测试 62 个容器、152 项全部通过，包含现有网络、文件、TTY、取消及宿主注销组合。
+
+### 4. 真实 AppKit 主循环与显式窗口寿命
+
+- 普通 Cone 的 `.m` 薄层拥有 NSApplication／NSWindow／NSView，使用可返回的 run／stop 与 CFRunLoop 唤醒；原生通知交给 Scoop 串行派发。
+- Application 单进程／单次／主线程入口、run Context、跨线程 FIFO proxy、Wait／Poll／单调 deadline、完整窗口 metrics、可见性／激活及重绘合并已接通。
+- Closing／Destroyed 与 native lease 采用显式寿命；跨线程 close 原子结束借用，由控制队列在 owner 销毁原生窗口。退出原子关闭控制入口，已接受清理不能落在停止循环之后。
+- 加入供集成 Cone 使用的 runAttached／post／complete 接入面；通知 watch 和实际 asyncio 适配仍在下一批。
+
+验证：Scoop 格式化／check、native clang-format／Wall／Wextra／Werror 通过；真实 AppKit 与值测试共 10 项 release 测试通过。真实窗口覆盖隐藏后显示、两轮非递归重绘、跨线程错误／投递、run Context 保留、双窗口显式关闭及跨线程 lease 退休，并在过程中执行 GC。尚不把此测试视为 IME、真实拖动或完整平台能力验收。

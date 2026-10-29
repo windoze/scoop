@@ -1,0 +1,175 @@
+package scoop.window
+
+import scoop.test.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.concurrent.currentThreadId
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+import scoop.window.native.*
+
+private class DeliveryContext(val value: Int)
+
+context(value: DeliveryContext)
+private fun deliveryValue(): Int = value.value
+
+@Test
+private class AppKitApplicationTest {
+    @Test
+    fun `real AppKit delivers serial callbacks and drains cross-thread native leases`() {
+        val application = Application()
+        val handler = LifecycleHandler(application.proxy())
+        val proxy = application.proxy()
+        assertTrue(
+            proxy.post {
+                _ ->
+                handler.order.add(1);
+                assertEquals(42, deliveryValue())
+            }
+        )
+        assertTrue(
+            proxy.post {
+                _ ->
+                handler.order.add(2);
+                assertEquals(42, deliveryValue())
+            }
+        )
+        context(DeliveryContext(42)) {
+            application.run(handler)
+        }
+        handler.worker!!.join()
+        handler.releaseWorker!!.join()
+        assertEquals(2, handler.redraws)
+        assertEquals(2, handler.closing)
+        assertEquals(2, handler.destroyed)
+        assertEquals(1, handler.exiting)
+        assertTrue(handler.ownerViolation.load())
+        assertEquals(3L, handler.order.size)
+        assertEquals(1, handler.order[0L])
+        assertEquals(2, handler.order[1L])
+        assertEquals(3, handler.order[2L])
+        assertFalse(proxy.post { _ -> fail(Some("post after shutdown")) })
+        assertFalse(proxy.requestExit())
+        assertEquals(WindowState.Destroyed, handler.window!!.state)
+        assertFailsWith<WindowException> { handler.window!!.setTitle("late") }
+        assertFailsWith<IllegalStateException> { application.run(handler) }
+        assertFailsWith<IllegalStateException> { Application() }
+    }
+}
+
+private class LifecycleHandler(val proxy: ApplicationProxy): ApplicationHandler {
+    val ownerThread = currentThreadId()
+    val order = ArrayList<Int>()
+    val ownerViolation = AtomicBoolean(false)
+    var window: Window? = None
+    var lease: NativeWindowLease? = None
+    var worker: Thread? = None
+    var releaseWorker: Thread? = None
+    var redraws = 0
+    var closing = 0
+    var destroyed = 0
+    var exiting = 0
+    var depth = 0
+
+    public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
+        assertEquals(ownerThread, currentThreadId())
+        assertEquals(42, deliveryValue())
+        assertEquals(0, depth)
+        depth += 1
+        try {
+            when (event) {
+                case Resumed -> start(application)
+                case NewEvents(StartCause.Deadline) -> fail(Some("native redraw deadline expired"))
+                case Window(_, WindowEvent.RedrawRequested) -> {
+                    redraws += 1
+                    window!!.prePresentNotify()
+                    if (redraws == 1) {
+                        window!!.requestRedraw();
+                        window!!.requestRedraw()
+                    }
+                    else
+                        application.requestExit()
+                }
+                case Window(identity, WindowEvent.Closing) -> {
+                    closing += 1
+                    if (identity == window!!.id) {
+                        assertFailsWith<WindowException> {
+                            @Unsafe
+                            {
+                                window!!.acquireNativeWindow()
+                            }
+                        }
+                        val held = lease!!
+                        releaseWorker =
+                            Some(
+                                Thread.start {
+                                    held.close();
+                                    held.close()
+                                }
+                            )
+                    }
+                }
+                case Window(_, WindowEvent.Destroyed) -> destroyed += 1
+                case Exiting -> {
+                    exiting += 1;
+                    assertFalse(proxy.post { _ -> fail() })
+                }
+                else -> {}
+            }
+        } finally {
+            depth -= 1
+        }
+    }
+
+    private fun start(application: ActiveApplication) {
+        val attributes =
+            WindowAttributes(
+                "Scoop AppKit lifecycle test",
+                LogicalSize(320.0, 180.0),
+                visible = false
+            )
+        val first = application.createWindow(attributes)
+        window = Some(first)
+        attributes.size = LogicalSize(10.0, 10.0)
+        assertEquals(LogicalSize(320.0, 180.0), first.metrics!!.logicalSize)
+        assertFalse(first.isVisible)
+        first.requestRedraw()
+        val second = application.createWindow(WindowAttributes(visible = false))
+        assertNotEquals(first.id, second.id)
+        second.requestDestroy()
+        second.requestDestroy()
+        @Unsafe
+        {
+            val held = first.acquireNativeWindow()
+            when (held.handle) {
+                case AppKit(window, view) -> {
+                    assertTrue(window.toULong() != 0uL);
+                    assertTrue(view.toULong() != 0uL)
+                }
+            }
+            lease = Some(held)
+        }
+        worker =
+            Some(
+                Thread.start {
+                    assertFailsWith<IllegalStateException> { first.setTitle("wrong thread") }
+                    ownerViolation.store(true)
+                    context(DeliveryContext(99)) {
+                        assertTrue(
+                            proxy.post {
+                                _ ->
+                                assertEquals(42, deliveryValue())
+                                order.add(3)
+                                first.setVisible(true)
+                                first.requestFocus()
+                                first.requestRedraw()
+                                gcCollect()
+                            }
+                        )
+                    }
+                }
+            )
+        application.setControlFlow(
+            ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(5L))
+        )
+    }
+}

@@ -1,0 +1,201 @@
+package scoop.window
+
+internal fun ApplicationOwner.pump(stage: Int) {
+    if (pumping) {
+        mailbox.wake();
+        return
+    }
+    pumping = true
+    try {
+        for (control in mailbox.takeControls()) {
+            try {
+                control()
+            } catch (error: Throwable) {
+                recordFailure(error);
+                beginExit()
+            }
+        }
+        val events = ArrayList<NativeEvent>()
+        @Unsafe
+        {
+            var count = 0
+            while (count < 64) {
+                val pointer = nativeNextEvent(native!!) ?: break
+                try {
+                    events.add(nativeEventData(pointer))
+                } finally {
+                    nativeEventRelease(pointer)
+                }
+                count += 1
+            }
+            if (count == 64)
+                mailbox.wake()
+        }
+        val business = mailbox.takeBusiness()
+        val redraw = ArrayList<WindowOwner>()
+        for (window in windows) {
+            if (window.phase == WindowState.Open && window.dirty) {
+                val value = window.snapshot()
+                if (
+                    value.visible !=
+                        0 &&
+                        value.occluded ==
+                        0 &&
+                        value.pixelWidth >
+                        0.0 &&
+                        value.pixelHeight >
+                        0.0
+                ) {
+                    window.dirty = false
+                    redraw.add(window)
+                }
+            }
+        }
+        val initial = !initialized
+        initialized = true
+        val hasBatch =
+            initial ||
+                stage ==
+                1 ||
+                events.size >
+                0L ||
+                business.size >
+                0L ||
+                redraw.size >
+                0L ||
+                flow ==
+                ControlFlow.Poll
+        if (!exiting && hasBatch) {
+            val cause =
+                if (initial)
+                    StartCause.Init
+                else
+                    if (stage == 1)
+                        StartCause.Deadline
+                    else
+                        if (flow == ControlFlow.Poll)
+                            StartCause.Poll
+                        else
+                            StartCause.Wake
+            if (stage == 1)
+                flow = ControlFlow.Wait
+            deliver(ApplicationEvent.NewEvents(cause))
+            if (initial)
+                deliver(ApplicationEvent.Resumed)
+            for (event in events)
+                dispatchNative(event)
+            for (block in business)
+                deliverBusiness(block)
+            for (window in redraw)
+                deliverWindow(window, WindowEvent.RedrawRequested)
+            deliver(ApplicationEvent.AboutToWait)
+        }
+        drainShutdown()
+        if (!exiting && flow == ControlFlow.Poll)
+            mailbox.wake()
+    } finally {
+        pumping = false
+    }
+}
+
+internal fun ApplicationOwner.deliverBusiness(block: () -> Unit) {
+    if (exiting)
+        return
+    val invocation: () -> Unit =
+        {
+            if (!exiting) {
+                dispatchDepth += 1
+                try {
+                    block()
+                }
+                catch (error: Throwable) {
+                    recordFailure(error);
+                    beginExit()
+                }
+                finally {
+                    dispatchDepth -= 1;
+                    if (exiting)
+                        mailbox.wake()
+                }
+            }
+        }
+    when (attachment) {
+        case Some(value) -> if (!value.post(invocation))
+            beginExit()
+        case None -> invocation()
+    }
+}
+
+internal fun ApplicationOwner.deliver(event: ApplicationEvent) {
+    deliverBusiness { handler!!.onEvent(active, event) }
+}
+
+internal fun ApplicationOwner.deliverWindow(window: WindowOwner, event: WindowEvent) {
+    deliverBusiness {
+        if (window.phase == WindowState.Open) {
+            var ready = true
+            when (event) {
+                case GeometryChanged(value) -> window.metrics = Some(value);
+                case RedrawRequested -> {
+                    val value = window.snapshot()
+                    ready =
+                        value.visible !=
+                            0 &&
+                            value.occluded ==
+                            0 &&
+                            value.pixelWidth >
+                            0.0 &&
+                            value.pixelHeight >
+                            0.0
+                    if (!ready)
+                        window.dirty = true
+                }
+                else -> {}
+            }
+            if (ready)
+                handler!!.onEvent(active, ApplicationEvent.Window(window.id, event))
+        }
+    }
+}
+
+internal fun ApplicationOwner.dispatchNative(event: NativeEvent) {
+    if (event.window == 0L) {
+        if (event.kind == 100)
+            deliver(ApplicationEvent.MonitorsChanged)
+        else
+            if (event.kind == 101)
+                deliver(ApplicationEvent.ExitRequested(ExitReason.System))
+        return
+    }
+    val window = findWindow(event.window) ?: return
+    if (window.phase != WindowState.Open)
+        return
+    when (event.kind) {
+        1 -> deliverWindow(window, WindowEvent.CloseRequested)
+        2 -> deliverWindow(
+            window,
+            WindowEvent.GeometryChanged(
+                WindowMetrics(
+                    LogicalSize(event.x, event.y),
+                    PhysicalSize(event.z.toInt(), event.w.toInt()),
+                    event.scale
+                )
+            )
+        )
+        3 -> deliverWindow(window, WindowEvent.Moved(DesktopPosition(event.x, event.y)))
+        4 -> deliverWindow(window, WindowEvent.Focused(event.flags != 0))
+        5 -> deliverWindow(window, WindowEvent.Occluded(event.flags != 0))
+        6 -> deliverWindow(
+            window,
+            WindowEvent.ThemeChanged(
+                Some(
+                    if (event.flags != 0)
+                        Theme.Dark
+                    else
+                        Theme.Light
+                )
+            )
+        )
+        else -> throw WindowException("unknown native window event", WindowErrorKind.NativeFailure)
+    }
+}

@@ -1,0 +1,90 @@
+package scoop.window
+
+import scoop.time.TimeMark
+import scoop.window.native.ApplicationAttachment
+import scoop.window.native.ApplicationHost
+
+/** Explicit waiting policy; a deadline must belong to MonotonicTimeSource. */
+public enum ControlFlow {
+    Wait, Poll, WaitUntil(TimeMark)
+}
+
+/** Why a new external event batch started. */
+public enum StartCause {
+    Init, Poll, Wake, Deadline
+}
+
+/** Application lifecycle and window notifications have owned payloads. */
+public enum ApplicationEvent {
+    NewEvents(StartCause), Resumed, Suspended, MemoryWarning,
+    Window(WindowId, WindowEvent), MonitorsChanged, AboutToWait, ExitRequested(ExitReason), Exiting
+}
+
+/** Events whose final notification is Destroyed. */
+public enum WindowEvent {
+    CloseRequested, Closing, Destroyed, RedrawRequested,
+    GeometryChanged(WindowMetrics), Moved(DesktopPosition), Focused(Boolean), Occluded(
+        Boolean
+    ), ThemeChanged(Theme?),
+    ActivationChanged(ActivationResult), TextInput(TextInputEvent)
+}
+
+/** Receives serial application events on the native owner thread. */
+public interface ApplicationHandler {
+    public fun onEvent(application: ActiveApplication, event: ApplicationEvent)
+}
+
+/** Mutable construction options; Application copies their values. */
+public class ApplicationOptions public constructor(
+    public var lastWindowPolicy: LastWindowPolicy = LastWindowPolicy.KeepRunning
+) {
+    internal var activationPolicy: Int = 0
+}
+
+/** The one application and one native main-loop run owned by this process. */
+public class Application public constructor(options: ApplicationOptions = ApplicationOptions()) {
+    internal val owner: ApplicationOwner = createApplicationOwner(options)
+    /** Runs the AppKit loop until explicit, fully drained shutdown. */
+    public fun run(handler: ApplicationHandler) {
+        owner.run(handler, None)
+    }
+    /** Returns the thread-safe business mailbox, available before run begins. */
+    public fun proxy(): ApplicationProxy = ApplicationProxy(owner)
+}
+
+/** Owner-thread operations available while the native application is active. */
+public class ActiveApplication internal constructor(internal val owner: ApplicationOwner) {
+    /** Creates an independent native window from a snapshot of these attributes. */
+    public fun createWindow(attributes: WindowAttributes = WindowAttributes()): Window =
+        owner.createWindow(attributes)
+    /** Selects native waiting behavior without introducing a periodic tick. */
+    public fun setControlFlow(flow: ControlFlow) {
+        owner.setControlFlow(flow)
+    }
+    /** Starts ordered window and attached-I/O shutdown. */
+    public fun requestExit() {
+        owner.checkThread();
+        owner.beginExit()
+    }
+    /** Returns a mailbox usable by workers and foreign callbacks. */
+    public fun proxy(): ApplicationProxy = ApplicationProxy(owner)
+}
+
+/** Cross-thread FIFO business delivery, separate from shutdown control work. */
+public class ApplicationProxy internal constructor(private val owner: ApplicationOwner) {
+    /** Accepts asynchronous work; shutdown may discard work that has not run. */
+    public fun post(block: (ActiveApplication) -> Unit): Boolean =
+        owner.mailbox.post { block(owner.active) }
+    /** Requests shutdown without calling GUI operations on this thread. */
+    public fun requestExit(): Boolean = owner.mailbox.postExit { owner.beginExit() }
+}
+
+private object ApplicationSlot {
+    val claimed: AtomicBoolean = AtomicBoolean(false)
+}
+
+private fun createApplicationOwner(options: ApplicationOptions): ApplicationOwner {
+    if (!ApplicationSlot.claimed.compareAndSet(false, true))
+        throw IllegalStateException(Some("one Application per process"))
+    return ApplicationOwner(options.lastWindowPolicy, options.activationPolicy)
+}

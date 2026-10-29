@@ -1,0 +1,114 @@
+package scoop.window
+
+@CLayout
+internal struct NativeEvent(
+    val window: Long,
+    val kind: Int,
+    val flags: Int,
+    val a: Long,
+    val b: Long,
+    val c: Long,
+    val d: Long,
+    val x: Double,
+    val y: Double,
+    val z: Double,
+    val w: Double,
+    val scale: Double,
+    val text: Ptr<UInt8>?,
+    val textLength: Long
+)
+
+@CLayout
+internal struct NativeSnapshot(
+    val width: Double,
+    val height: Double,
+    val pixelWidth: Double,
+    val pixelHeight: Double,
+    val scale: Double,
+    val x: Double,
+    val y: Double,
+    val outerWidth: Double,
+    val outerHeight: Double,
+    val visible: Int,
+    val occluded: Int,
+    val focused: Int,
+    val minimized: Int,
+    val maximized: Int,
+    val dark: Int
+) {
+    fun metrics(): WindowMetrics =
+        WindowMetrics(
+            LogicalSize(width, height),
+            PhysicalSize(pixelWidth.toInt(), pixelHeight.toInt()),
+            scale
+        )
+}
+
+@Extern(name = "scoop_window_is_main_thread")
+internal fun nativeIsMainThread(): Int
+
+@Extern(name = "scoop_window_application_create")
+internal fun nativeApplicationCreate(
+    callback: FunPtr<(Ptr<Unit>, Long, Int) -> Int>,
+    context: Ptr<Unit>,
+    policy: Int
+): Ptr<Unit>?
+
+@Extern(name = "scoop_window_application_run")
+internal fun nativeApplicationRun(application: Ptr<Unit>): Int
+
+@Extern(name = "scoop_window_application_wake")
+internal fun nativeApplicationWake(application: Ptr<Unit>)
+
+@Extern(name = "scoop_window_application_deadline")
+internal fun nativeApplicationDeadline(application: Ptr<Unit>, seconds: Double)
+
+@Extern(name = "scoop_window_application_stop")
+internal fun nativeApplicationStop(application: Ptr<Unit>)
+
+@Extern(name = "scoop_window_application_destroy")
+internal fun nativeApplicationDestroy(application: Ptr<Unit>)
+
+@Extern(name = "scoop_window_next_event")
+internal fun nativeNextEvent(application: Ptr<Unit>): Ptr<Unit>?
+
+@Extern(name = "scoop_window_event_data")
+internal fun nativeEventData(event: Ptr<Unit>): NativeEvent
+
+@Extern(name = "scoop_window_event_release")
+internal fun nativeEventRelease(event: Ptr<Unit>)
+
+@Extern(name = "scoop_window_create")
+internal fun nativeWindowCreate(
+    application: Ptr<Unit>,
+    identity: Long,
+    title: Ptr<UInt8>,
+    length: Long,
+    width: Double,
+    height: Double,
+    flags: Int
+): Ptr<Unit>?
+
+@Extern(name = "scoop_window_snapshot")
+internal fun nativeWindowSnapshot(window: Ptr<Unit>): NativeSnapshot
+
+@Extern(name = "scoop_window_destroy")
+internal fun nativeWindowDestroy(window: Ptr<Unit>)
+
+@Extern(name = "scoop_window_ns_window")
+internal fun nativeNSWindow(window: Ptr<Unit>): Ptr<Unit>
+
+@Extern(name = "scoop_window_ns_view")
+internal fun nativeNSView(window: Ptr<Unit>): Ptr<Unit>
+
+@Extern(name = "scoop_window_title")
+internal fun nativeWindowTitle(window: Ptr<Unit>, text: Ptr<UInt8>, length: Long)
+
+@Extern(name = "scoop_window_size")
+internal fun nativeWindowSize(window: Ptr<Unit>, width: Double, height: Double)
+
+@Extern(name = "scoop_window_visible")
+internal fun nativeWindowVisible(window: Ptr<Unit>, visible: Int)
+
+@Extern(name = "scoop_window_focus")
+internal fun nativeWindowFocus(window: Ptr<Unit>)
