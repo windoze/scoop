@@ -1,0 +1,133 @@
+package scoop.examples.window.demo
+
+import scoop.window.*
+import scoop.examples.window.renderer.DxgiSurface
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+
+fun main() {
+    runDxgiWindow(false)
+}
+
+internal struct DxgiResult(
+    val frames: Int,
+    val hiddenSkipped: Boolean,
+    val resized: Boolean,
+    val closed: Boolean,
+    val destroyed: Boolean,
+    val surface: DxgiSurface
+)
+
+internal fun runDxgiWindow(automatic: Boolean): DxgiResult {
+    val handler = DxgiHandler(automatic)
+    Application().run(handler)
+    return DxgiResult(
+        handler.frames,
+        handler.hiddenSkipped,
+        handler.resized,
+        handler.closed,
+        handler.destroyed,
+        handler.surface!!
+    )
+}
+
+private class DxgiHandler(val automatic: Boolean): ApplicationHandler {
+    var window: Window? = None
+    var surface: DxgiSurface? = None
+    var frames = 0
+    var hiddenSkipped = false
+    var resized = false
+    var closed = false
+    var destroyed = false
+    var text = TextInputState("", Utf8Selection(0L, 0L))
+
+    public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
+        when (event) {
+            case Resumed -> {
+                val value =
+                    application.createWindow(
+                        WindowAttributes(
+                            "Scoop · DXGI",
+                            LogicalSize(480.0, 300.0),
+                            visible = false,
+                            level =
+                                if (automatic)
+                                    WindowLevel.AlwaysOnTop
+                                else
+                                    WindowLevel.Normal
+                        )
+                    )
+                window = Some(value)
+                val renderer = DxgiSurface.create(value)
+                surface = Some(renderer)
+                hiddenSkipped = !renderer.present()
+                value.setVisible(true)
+                value.requestFocus()
+                value.setImeAllowed(true)
+                value.setImeCursorArea(
+                    LogicalRect(LogicalPosition(12.0, 34.0), LogicalSize(2.0, 18.0))
+                )
+                value.requestRedraw()
+                if (automatic)
+                    application.setControlFlow(
+                        ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(10L))
+                    )
+            }
+            case NewEvents(StartCause.Deadline) -> throw IllegalStateException(
+                Some("DXGI frame deadline expired")
+            )
+            case Window(_, WindowEvent.GeometryChanged(metrics)) -> {
+                if (frames > 0 && metrics.logicalSize == LogicalSize(640.0, 360.0))
+                    resized = true
+                window!!.requestRedraw()
+            }
+            case Window(_, WindowEvent.RedrawRequested) -> {
+                if (surface!!.present()) {
+                    frames += 1
+                    if (automatic) {
+                        if (frames == 1) {
+                            window!!.setVisible(false)
+                            hiddenSkipped = hiddenSkipped && !surface!!.present()
+                            window!!.requestSize(LogicalSize(640.0, 360.0))
+                            window!!.setVisible(true)
+                            window!!.requestRedraw()
+                        } else
+                            if (resized) {
+                                application.requestExit()
+                            }
+                    }
+                }
+            }
+            case Window(_, WindowEvent.TextInput(TextInputEvent.Edit(batch))) -> {
+                text = text.apply(batch)
+                window!!.setTitle("Scoop · DXGI · " + text.surroundingText)
+            }
+            case Window(_, WindowEvent.Keyboard(value)) -> {
+                if (
+                    value.logicalKey ==
+                        LogicalKey.Named(NamedKey.Escape) &&
+                        value.state ==
+                        ElementState.Pressed
+                )
+                    application.requestExit()
+            }
+            case Window(_, WindowEvent.CloseRequested) -> application.requestExit()
+            case Window(_, WindowEvent.Closing) -> {
+                when (surface) {
+                    case Some(value) -> {
+                        value.close()
+                        value.close()
+                    }
+                    case None -> {}
+                }
+                closed = true
+            }
+            case Window(_, WindowEvent.Destroyed) -> {
+                destroyed = true
+                application.requestExit()
+            }
+            case ExitRequested(_) -> application.requestExit()
+            else -> {}
+        }
+    }
+}

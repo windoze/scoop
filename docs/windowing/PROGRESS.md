@@ -34,7 +34,13 @@
 
 验证：Scoop fmt／check、native 警告检查通过；三个 Windows target 各通过 window 的 12 项 release 测试、窗口 asyncio 的 1 项测试、独立 DPI 失败 Cone 的 1 项测试，共 42 项。测试覆盖双窗口、Unicode 标题和输入、Context、跨线程投递／lease、重绘合并、非法状态和不兼容 DPI 模式。预编译依赖来自配套 Windows sysroot，窗口生产库以普通 release build 显式更新。Mac 的共享 native 状态返回 ABI 已同步，本 Windows 宿主未执行 AppKit 回归。
 
-DXGI renderer、扩展输入／收尾组合和最终交付审查仍在本阶段后续批次；下文为已完成的 macOS 历史记录，不能将其人工验收限制视为 Windows 验收结果。
+扩展输入／收尾组合和最终交付审查仍在本阶段后续批次；下文为已完成的 macOS 历史记录，不能将其人工验收限制视为 Windows 验收结果。
+
+### 3. DXGI renderer
+
+新增 `examples/dxgi/renderer` 与 `app` 两个普通 Cone。renderer 持有 Win32 lease，自行管理 D3D11 device、flip-discard swapchain、back buffer 和 event query；隐藏、零 drawable 与 Closing 不提交。尺寸更新先释放旧 buffer 引用，GPU 工作完成及 swapchain 释放后才结束 HWND lease。示例支持实际硬件设备和系统 WARP 后备。
+
+验证：Scoop／native 格式与警告检查通过；三个 Windows target 的 release Cone 测试均实际完成首帧、隐藏／重显、ResizeBuffers 后第二帧及关闭，并检查关闭后的调用与 owner 线程约束。没有把 D3D 资源或帧调度加入窗口库。
 
 ## 已完成
 

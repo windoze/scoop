@@ -15,7 +15,7 @@
 
 默认关闭最后一个窗口后继续运行；使用 `ApplicationOptions(LastWindowPolicy.Exit)` 可在最后窗口实际销毁后退出，也可以主动调用 `ActiveApplication.requestExit()`。运行结束会返回调用方。
 
-[Metal 示例](examples/metal/README.md)给出了完整可运行入口和独立 renderer Cone。准备好[开发 sysroot](../../../scripts/README.md)后，在仓库根运行：
+[Metal 示例](examples/metal/README.md)和 Windows [DXGI 示例](examples/dxgi/README.md)给出了完整可运行入口和独立 renderer Cone。准备好[开发 sysroot](../../../scripts/README.md)后，在仓库根运行：
 
 ```sh
 export SCOOP_SYSROOT="$PWD/sysroot"
@@ -90,6 +90,7 @@ Win32 桌面坐标采用物理虚拟桌面单位；内容区按窗口 DPI 转换
 scoop test sysroot/src/scoop.window --release --target x86_64-pc-windows-msvc-ucrt
 scoop test sysroot/src/scoop.window.asyncio --release --target x86_64-pc-windows-msvc-ucrt
 scoop test sysroot/src/scoop.window/tests-cones/dpi --release --target x86_64-pc-windows-msvc-ucrt
+scoop test sysroot/src/scoop.window/examples/dxgi/app --release --target x86_64-pc-windows-msvc-ucrt
 ```
 
 DPI 失败用例单独成 Cone，因为 Application 与进程 DPI 模式均不可在同一测试进程中重启。测试不会重置库的单次入口约束。

@@ -1,0 +1,29 @@
+schema = 1
+
+[cone]
+group = "scoop.examples.window"
+name = "dxgi-renderer"
+version = "0.1.0"
+kind = "library"
+
+[[sources]]
+path = "src"
+when = { os = "windows" }
+
+[dependencies]
+"scoop:scoop.window" = "0.1.0"
+"scoop:scoop.platform" = "0.1.0"
+
+[native]
+c_flags = ["-Wmost", "-Wextra", "-Werror", "-Wno-nonportable-system-include-path"]
+
+[[native.sources]]
+path = "native/dxgi.c"
+when = { os = "windows" }
+
+[[native.libraries]]
+name = "d3d11"
+[[native.libraries]]
+name = "dxgi"
+[[native.libraries]]
+name = "dxguid"
