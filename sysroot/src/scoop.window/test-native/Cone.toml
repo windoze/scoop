@@ -6,6 +6,14 @@ name = "window-native"
 version = "0.1.0"
 kind = "library"
 
+[[sources]]
+path = "src"
+when = { os = "darwin" }
+
+[[sources]]
+path = "windows"
+when = { os = "windows" }
+
 [native]
 objc_flags = ["-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter"]
 
@@ -24,11 +32,26 @@ when = { os = "darwin" }
 [[native.libraries]]
 name = "AppKit"
 kind = "framework"
+when = { os = "darwin" }
 
 [[native.libraries]]
 name = "CoreFoundation"
 kind = "framework"
+when = { os = "darwin" }
 
 [[native.libraries]]
 name = "CoreGraphics"
 kind = "framework"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "windows/modes.c"
+when = { os = "windows" }
+
+[[native.libraries]]
+name = "user32"
+when = { os = "windows" }
+
+[[native.libraries]]
+name = "comctl32"
+when = { os = "windows" }

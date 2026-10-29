@@ -79,12 +79,7 @@ internal class ApplicationOwner(
                 )
             try {
                 val pointer =
-                    nativeApplicationCreate(
-                        callback.function,
-                        callback.context,
-                        activationPolicy
-                    ) ?:
-                        throw WindowException("create application", WindowErrorKind.NativeFailure)
+                    nativeApplicationCreate(callback.function, callback.context, activationPolicy)
                 native = Some(pointer)
                 mailbox.bind(pointer)
                 try {
@@ -168,7 +163,7 @@ internal class ApplicationOwner(
         {
             val pointer =
                 attributes.title.withUtf8Bytes(
-                    fun(title: Ptr<UInt8>, count: Long): Ptr<Unit>? {
+                    fun(title: Ptr<UInt8>, count: Long): Ptr<Unit> {
                         @Unsafe
                         {
                             return nativeWindowCreate(
@@ -182,8 +177,7 @@ internal class ApplicationOwner(
                             )
                         }
                     }
-                ) ?:
-                    throw WindowException("create window", WindowErrorKind.NativeFailure)
+                )
             val owner = WindowOwner(this, identity, pointer)
             try {
                 applyCreationProperties(owner, attributes)
@@ -195,9 +189,9 @@ internal class ApplicationOwner(
             windows.add(owner)
             createdWindow = true
             if (attributes.visible) {
-                nativeWindowVisible(pointer, 1)
+                checkNativeStatus(nativeWindowVisible(pointer, 1), "visible")
                 if (attributes.requestActivation)
-                    nativeWindowFocus(pointer)
+                    checkNativeStatus(nativeWindowFocus(pointer), "focus")
             }
             return Window(owner)
         }

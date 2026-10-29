@@ -51,7 +51,7 @@ public class Window internal constructor(internal val owner: WindowOwner) {
         size.toPhysical(1.0)
         @Unsafe
         {
-            nativeWindowSize(owner.pointer!!, size.width, size.height)
+            checkNativeStatus(nativeWindowSize(owner.pointer!!, size.width, size.height), "size")
         }
         return RequestStatus.Requested
     }
@@ -63,7 +63,7 @@ public class Window internal constructor(internal val owner: WindowOwner) {
                 pointer,
                 count -> @Unsafe
                 {
-                    nativeWindowTitle(owner.pointer!!, pointer, count)
+                    checkNativeStatus(nativeWindowTitle(owner.pointer!!, pointer, count), "title")
                 }
             }
         }
@@ -72,12 +72,15 @@ public class Window internal constructor(internal val owner: WindowOwner) {
         owner.requireOpen()
         @Unsafe
         {
-            nativeWindowVisible(
-                owner.pointer!!,
-                if (visible)
-                    1
-                else
-                    0
+            checkNativeStatus(
+                nativeWindowVisible(
+                    owner.pointer!!,
+                    if (visible)
+                        1
+                    else
+                        0
+                ),
+                "visible"
             )
         }
         owner.application.mailbox.wake()
@@ -88,7 +91,7 @@ public class Window internal constructor(internal val owner: WindowOwner) {
         owner.requireOpen()
         @Unsafe
         {
-            nativeWindowFocus(owner.pointer!!)
+            checkNativeStatus(nativeWindowFocus(owner.pointer!!), "focus")
         }
         return RequestStatus.Requested
     }

@@ -1,0 +1,17 @@
+package scoop.window.asyncio
+
+import scoop.asyncio.host.*
+import scoop.window.native.*
+
+@Unsafe
+internal fun platformWatch(
+    host: ApplicationHost,
+    notification: EventLoopNotification,
+    ready: () -> Unit
+): ApplicationWatch =
+    when (notification) {
+        case WindowsEvent(event) -> host.watchWindowsEvent(event, ready)
+        case ReadableDescriptor(_) -> throw IllegalArgumentException(
+            Some("Win32 requires a Windows event HANDLE")
+        )
+    }

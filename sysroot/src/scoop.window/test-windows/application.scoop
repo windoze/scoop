@@ -1,0 +1,235 @@
+package scoop.window
+
+import scoop.test.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.concurrent.currentThreadId
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+import scoop.window.native.*
+import scoop.tests.window.*
+
+private class WindowContext(val value: Int)
+
+context(value: WindowContext)
+private fun contextValue(): Int = value.value
+
+@Test
+private class Win32ApplicationTest {
+    @Test
+    fun `real Win32 windows preserve context input and explicit native lifetime`() {
+        val app = Application()
+        val handler = WindowsHandler()
+        val proxy = app.proxy()
+        assertTrue(
+            proxy.post {
+                _ ->
+                assertEquals(42, contextValue());
+                handler.posts += 1
+            }
+        )
+        val wrongThread =
+            Thread.start { assertFailsWith<IllegalStateException> { app.run(handler) } }
+        wrongThread.join()
+        context(WindowContext(42)) {
+            app.run(handler)
+        }
+        handler.worker!!.join()
+        handler.releaser!!.join()
+        assertTrue(handler.redraws >= 2)
+        assertEquals(2, handler.posts)
+        assertEquals(2, handler.closing)
+        assertEquals(2, handler.destroyed)
+        assertEquals(1, handler.exiting)
+        assertEquals(1, handler.closeRequests)
+        assertEquals(1, handler.keyDown)
+        assertEquals(1, handler.keyUp)
+        assertEquals("A😀", handler.text)
+        assertEquals(WindowState.Destroyed, handler.window!!.state)
+        assertFalse(proxy.post { _ -> fail() })
+        assertFalse(proxy.requestExit())
+        assertFailsWith<WindowException> { handler.window!!.setTitle("late") }
+        assertFailsWith<IllegalStateException> { app.run(handler) }
+        assertFailsWith<IllegalStateException> { Application() }
+    }
+}
+
+private class WindowsHandler: ApplicationHandler {
+    val thread = currentThreadId()
+    var window: Window? = None
+    var lease: NativeWindowLease? = None
+    var worker: Thread? = None
+    var releaser: Thread? = None
+    var hwnd: Ptr<Unit>? = None
+    var depth = 0
+    var posts = 0
+    var redraws = 0
+    var closing = 0
+    var destroyed = 0
+    var exiting = 0
+    var closeRequests = 0
+    var keyDown = 0
+    var keyUp = 0
+    var text = ""
+    var requestedClose = false
+
+    public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
+        assertEquals(thread, currentThreadId())
+        assertEquals(42, contextValue())
+        assertEquals(0, depth)
+        depth += 1
+        try {
+            when (event) {
+                case Resumed -> start(application)
+                case NewEvents(StartCause.Deadline) -> fail(Some("Win32 lifecycle timed out"))
+                case Window(identity, WindowEvent.RedrawRequested) -> {
+                    if (identity == window!!.id) {
+                        assertTrue(window!!.isVisible)
+                        redraws += 1
+                        if (redraws == 1) {
+                            window!!.requestRedraw();
+                            window!!.requestRedraw()
+                        }
+                    }
+                }
+                case Window(_, WindowEvent.Keyboard(key)) -> {
+                    assertEquals(PhysicalKey.Code(KeyCode.KeyA), key.physicalKey)
+                    if (key.state == ElementState.Pressed)
+                        keyDown += 1
+                    else
+                        keyUp += 1
+                }
+                case Window(_, WindowEvent.TextInput(TextInputEvent.Edit(batch))) -> {
+                    gcCollect()
+                    for (operation in batch.operations)
+                        when (operation) {
+                            case Commit(value, _) -> text += value
+                            else -> fail(Some("ordinary input produced a preedit"))
+                        }
+                }
+                case Window(_, WindowEvent.CloseRequested) -> {
+                    closeRequests += 1
+                    assertEquals(WindowState.Open, window!!.state)
+                    application.proxy().post { active -> active.requestExit() }
+                }
+                case Window(identity, WindowEvent.Closing) -> {
+                    closing += 1
+                    if (identity == window!!.id) {
+                        assertFailsWith<WindowException> {
+                            @Unsafe
+                            {
+                                window!!.acquireNativeWindow()
+                            }
+                        }
+                        val held = lease!!
+                        releaser =
+                            Some(
+                                Thread.start {
+                                    held.close();
+                                    held.close()
+                                }
+                            )
+                    }
+                }
+                case Window(_, WindowEvent.Destroyed) -> destroyed += 1
+                case Exiting -> exiting += 1
+                case AboutToWait -> {
+                    if (
+                        !requestedClose && text == "A😀" && redraws >= 2 && posts == 2 && keyUp == 1
+                    ) {
+                        requestedClose = true
+                        @Unsafe
+                        {
+                            assertTrue(postMessage(hwnd!!, 16u, 0uL, 0L) != 0)
+                        }
+                    }
+                }
+                else -> {}
+            }
+        } finally {
+            depth -= 1
+        }
+    }
+
+    private fun start(application: ActiveApplication) {
+        val attributes =
+            WindowAttributes("Scoop Win32 lifecycle", LogicalSize(320.0, 180.0), visible = false)
+        val first = application.createWindow(attributes)
+        window = Some(first)
+        attributes.title = "changed after creation"
+        assertFalse(first.isVisible)
+        assertEquals(LogicalSize(320.0, 180.0), first.metrics!!.logicalSize)
+        checkMonitorSnapshots(application, first)
+        assertEquals(RequestStatus.Unsupported, first.setBlur(true))
+        assertFailsWith<WindowException> {
+            application.createWindow(WindowAttributes(visible = false, blur = true))
+        }
+        first.setSizeConstraints(
+            WindowSizeConstraints(Some(LogicalSize(100.0, 80.0)), Some(LogicalSize(640.0, 480.0)))
+        )
+        assertFailsWith<IllegalArgumentException> { first.requestSize(LogicalSize(700.0, 500.0)) }
+        first.setResizeIncrements(Some(LogicalSize(2.0, 2.0)))
+        first.setResizable(false);
+        first.setResizable(true)
+        first.setDecorations(false);
+        first.setDecorations(true)
+        first.setEnabledButtons(WindowButtons())
+        first.setWindowLevel(WindowLevel.AlwaysOnTop)
+        first.setTransparent(true);
+        first.setTransparent(false)
+        first.setContentProtected(true);
+        first.setContentProtected(false)
+        first.requestTheme(Some(Theme.Dark))
+        first.setCursorIcon(CursorIcon.Text)
+        first.setCursorVisible(false);
+        first.setCursorVisible(true)
+        first.setTitle("窗口 😀")
+        first.setImeAllowed(true);
+        first.setImeAllowed(false)
+        first.setImeCursorArea(LogicalRect(LogicalPosition(20.0, 10.0), LogicalSize(4.0, 18.0)))
+        first.requestRedraw()
+        val second = application.createWindow(WindowAttributes(visible = false))
+        assertNotEquals(first.id, second.id)
+        second.requestDestroy();
+        second.requestDestroy()
+        @Unsafe
+        {
+            val held = first.acquireNativeWindow()
+            lease = Some(held)
+            when (held.handle) {
+                case Win32(handle, instance) -> {
+                    hwnd = Some(handle);
+                    assertTrue(instance.toULong() != 0uL)
+                }
+            }
+        }
+        val proxy = application.proxy()
+        worker =
+            Some(
+                Thread.start {
+                    assertFailsWith<IllegalStateException> { first.setTitle("wrong thread") }
+                    context(WindowContext(99)) {
+                        assertTrue(
+                            proxy.post {
+                                _ ->
+                                assertEquals(42, contextValue());
+                                posts += 1
+                                first.setVisible(true);
+                                first.requestRedraw()
+                                @Unsafe
+                                {
+                                    sendMessage(hwnd!!, 256u, 65uL, 1966081L)
+                                    sendMessage(hwnd!!, 257u, 65uL, 3223191553L)
+                                    assertTrue(postMessage(hwnd!!, 258u, 65uL, 0L) != 0)
+                                    assertTrue(postMessage(hwnd!!, 258u, 55357uL, 0L) != 0)
+                                    assertTrue(postMessage(hwnd!!, 258u, 56832uL, 0L) != 0)
+                                }
+                            }
+                        )
+                    }
+                }
+            )
+        application.setControlFlow(
+            ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(10L))
+        )
+    }
+}

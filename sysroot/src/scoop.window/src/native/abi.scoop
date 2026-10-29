@@ -50,11 +50,11 @@ internal struct NativeSnapshot(
 internal fun nativeIsMainThread(): Int
 
 @Extern(name = "scoop_window_application_create")
-internal fun nativeApplicationCreate(
+internal fun nativeApplicationCreateResult(
     callback: FunPtr<(Ptr<Unit>, Long, Int) -> Int>,
     context: Ptr<Unit>,
     policy: Int
-): Ptr<Unit>?
+): NativeCreateResult
 
 @Extern(name = "scoop_window_application_run")
 internal fun nativeApplicationRun(application: Ptr<Unit>): Int
@@ -81,7 +81,7 @@ internal fun nativeEventData(event: Ptr<Unit>): NativeEvent
 internal fun nativeEventRelease(event: Ptr<Unit>)
 
 @Extern(name = "scoop_window_create")
-internal fun nativeWindowCreate(
+internal fun nativeWindowCreateResult(
     application: Ptr<Unit>,
     identity: Long,
     title: Ptr<UInt8>,
@@ -89,7 +89,7 @@ internal fun nativeWindowCreate(
     width: Double,
     height: Double,
     flags: Int
-): Ptr<Unit>?
+): NativeCreateResult
 
 @Extern(name = "scoop_window_snapshot")
 internal fun nativeWindowSnapshot(window: Ptr<Unit>): NativeSnapshot
@@ -97,20 +97,14 @@ internal fun nativeWindowSnapshot(window: Ptr<Unit>): NativeSnapshot
 @Extern(name = "scoop_window_destroy")
 internal fun nativeWindowDestroy(window: Ptr<Unit>)
 
-@Extern(name = "scoop_window_ns_window")
-internal fun nativeNSWindow(window: Ptr<Unit>): Ptr<Unit>
-
-@Extern(name = "scoop_window_ns_view")
-internal fun nativeNSView(window: Ptr<Unit>): Ptr<Unit>
-
 @Extern(name = "scoop_window_title")
-internal fun nativeWindowTitle(window: Ptr<Unit>, text: Ptr<UInt8>, length: Long)
+internal fun nativeWindowTitle(window: Ptr<Unit>, text: Ptr<UInt8>, length: Long): Long
 
 @Extern(name = "scoop_window_size")
-internal fun nativeWindowSize(window: Ptr<Unit>, width: Double, height: Double)
+internal fun nativeWindowSize(window: Ptr<Unit>, width: Double, height: Double): Long
 
 @Extern(name = "scoop_window_visible")
-internal fun nativeWindowVisible(window: Ptr<Unit>, visible: Int)
+internal fun nativeWindowVisible(window: Ptr<Unit>, visible: Int): Long
 
 @Extern(name = "scoop_window_focus")
-internal fun nativeWindowFocus(window: Ptr<Unit>)
+internal fun nativeWindowFocus(window: Ptr<Unit>): Long

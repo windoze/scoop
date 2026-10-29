@@ -4,7 +4,7 @@
 
 ## 1. 分层与目标
 
-window 依赖 core／std／platform；window.asyncio 另依赖 asyncio。本阶段实施基础架构与 Darwin ARM64／AppKit。Linux Wayland／X11、Windows 及其他后端留待后续；不添加没有后端的 native handle 变体或假窗口实现。两个库及其原生薄层、测试、示例均以普通 Cone 组织，窗口逻辑不进入编译器或 runtime。
+window 依赖 core／std／platform；window.asyncio 另依赖 asyncio。Darwin ARM64／AppKit 已实现，本阶段增加三个 Windows x86_64 target 的 Win32 后端，窗口 API 要求 Windows 10 1703 起的 Per-Monitor V2。Linux Wayland／X11 及其他后端留待后续；不添加没有后端的 native handle 变体或假窗口实现。两个库及其原生薄层、测试、示例均以普通 Cone 组织，窗口逻辑不进入编译器或 runtime。
 
 本轮范围按 winit 定位为 GUI 骨架：应用／窗口与基础属性、基础输入／IME、DPI／显示器快照、渲染句柄和 I/O 集成。下文的完整窗口层模型同时保留后续扩展方向；全屏控制／视频模式切换、全局 raw device、触摸／高级手势、光标捕获、文件拖放及复杂平台窗口交互不作为当前骨架验收项。未实施接口随实际需求再增加，不为占据 API 名称加入空实现。
 
@@ -32,7 +32,7 @@ NewEvents 原因区分 Init、Poll、Wake 与 Deadline；平台没有信息时�
 
 WindowAttributes、Window 的能力与方法分组见映射表，当前阶段只提供其中标为本期的已实施接口。请求返回 Applied／Requested／Unsupported；Requested 不保证系统采纳，实际状态由通知／快照决定。查询无法知道时返回 None；不把 desired state 写成 observed state。创建所需属性不支持时明确失败，不悄悄改变含义。
 
-WindowException 保留 WindowErrorKind、operation、backend 和可选 native code；类别包含 Unsupported、Unavailable、PermissionDenied、InvalidState、ResourceBusy、Disconnected、NativeFailure。参数错误使用现有参数异常；backend 随实际后端提供，本阶段为 AppKit，不假定原生 code 都是 errno。能力提示不替代实际操作错误。
+WindowException 保留 WindowErrorKind、operation、backend 和可选 native code；类别包含 Unsupported、Unavailable、PermissionDenied、InvalidState、ResourceBusy、Disconnected、NativeFailure。参数错误使用现有参数异常；backend 随实际后端提供，按目标为 AppKit／Win32，不假定原生 code 都是 errno；Win32 保留 DWORD／HRESULT 的 32-bit 数值。能力提示不替代实际操作错误。
 
 WindowId、DeviceId、MonitorId 为不同值类型，只在一次 Application 生命周期内比较，不暴露原生身份，不复用活过的编号。本阶段 Monitor 为不可变快照，保存 id、可选 name／desktopBounds／refreshRateMilliHertz、physicalSize 与 scaleFactor；不持有原生指针。ActiveApplication.monitors／primaryMonitor 与 Window.currentMonitor 在 owner 上获取快照，后者及 primaryMonitor 可为 None。AppKit 用 NSScreen 的桌面矩形和 backing 转换，CoreGraphics 未给出正刷新率时返回 None，不把最大可用刷新率当作实际刷新率。显示器变更通知刷新当前身份集合，已观察到离开的身份退休；再次出现分配新编号。后续加入视频模式及控制请求时再定义对应活动句柄的失效行为。
 
@@ -48,7 +48,7 @@ AppKit 使用原生内容尺寸／桌面坐标、titlebar 按钮、window level�
 
 ## 5. 输入与文本
 
-KeyEvent 分离 PhysicalKey、LogicalKey、KeyLocation、state、repeat、modifiers 和 synthetic；LogicalKey 支持 Named／Character(String)／Dead／Unidentified，未知 native 键码保留实际编码来源，本阶段为 Darwin。修饰键含 Shift、Control、Alt、Super、锁定状态和可取得的左右侧信息。
+KeyEvent 分离 PhysicalKey、LogicalKey、KeyLocation、state、repeat、modifiers 和 synthetic；LogicalKey 支持 Named／Character(String)／Dead／Unidentified，未知 native 键码保留实际编码来源，Darwin keyCode、Windows 扩展 scan code 或 Windows virtual key。修饰键含 Shift、Control、Alt、Super、锁定状态和可取得的左右侧信息。
 
 AppKit 使用实际 NSEvent keyCode 和当前布局产生的字符；Command／Control 快捷键不产生普通文本提交。无装饰窗口仍可成为 key／main window，接收键盘不依赖原生标题栏。已交付的按下状态在失焦时补发 synthetic release，清空按住的修饰键并保留已知锁定状态；没有硬件来源的设备 id 为 None。CapsLock 通知表达锁定状态，不伪造物理按键释放。指针同时携带同次 native 事件的逻辑／物理位置与 scale，两种位置均以内容区左上为原点，物理位置由该次窗口 backing scale 换算；不能直接混入 backing surface 的底部原点。精确滚轮的 AppKit points 转换为物理 PixelDelta，普通滚轮保持 LineDelta，普通 phase 和 momentumPhase 分别保留。光标基础图标使用 NSCursor，可见性只在本窗口内容区域生效，退出该区域、失焦或销毁时平衡系统 hide／unhide。
 
@@ -85,7 +85,7 @@ Pointer 区分位置、按钮、进入／离开、滚轮；滚轮区分行／像
 
 requestRedraw 合并 dirty，RedrawRequested 不递归触发；隐藏、遮挡或零尺寸时保留 pending redraw，恢复后再处理。prePresentNotify 是提交前通知，不能等价为 present、vsync 或 GPU 完成。图形设备与渲染管线由上层 renderer 管理。
 
-native 子包提供 Unsafe 的 acquireNativeWindow，返回 NativeWindowLease；本阶段 handle 为 `NativeWindowHandle.AppKit(nsWindow: Ptr<Unit>, nsView: Ptr<Unit>)`。其他变体随实际后端增加。取得 lease 和查询 handle 只在 owner 上进行，lease 保活窗口和 display connection；窗口 Closing 后不能取得新 lease。
+native 子包提供 Unsafe 的 acquireNativeWindow，返回 NativeWindowLease；handle 按目标声明为 `NativeWindowHandle.AppKit(nsWindow: Ptr<Unit>, nsView: Ptr<Unit>)` 或 `NativeWindowHandle.Win32(hwnd: Ptr<Unit>, hinstance: Ptr<Unit>)`。当前目标不声明其他后端的句柄变体。取得 lease 和查询 handle 只在 owner 上进行，lease 保活窗口和 display connection；窗口 Closing 后不能取得新 lease。
 
 lease.close 可跨线程且幂等，原子结束借用并把实际释放排入 owner 内部收尾队列，不直接在调用线程操作 GUI，不依赖已经停止接受业务的 ApplicationProxy。调用后不能再使用 handle；队列实际消费前继续保活原生对象。GC release 不得代替这个显式操作。
 
@@ -109,7 +109,7 @@ Application.runWithAsyncio(handler) 是独立 Cone 的扩展，复用 PlatformEv
 
 - `@Unsafe Application.runAttached(handler, attach: (ApplicationHost) -> ApplicationAttachment)` 与 run 共用单次入口；原生宿主可服务后、首个业务事件前调用 attach。安装失败回滚所有原生资源。
 - ApplicationAttachment 是普通接口，`post(block: () -> Unit): Boolean` 投递业务闭包，`requestClose()` 请求现有 session 收尾；基础库不依赖 CoroutineScope／EventLoop 类型。
-- ApplicationHost 提供 `isCurrentThread()`、Darwin 的 `@Unsafe watchReadable(descriptor: Int, ready: () -> Unit): ApplicationWatch`；监听不读取或关闭借入 fd、不内联 ready。ApplicationWatch.remove 在 owner 上注销，当前 ready 退出、排队通知退休后回调一次。
+- ApplicationHost 提供 `isCurrentThread()`、`@Unsafe watchReadable(descriptor: Int, ready: () -> Unit): ApplicationWatch` 和 `@Unsafe watchWindowsEvent(event: Ptr<Unit>, ready: () -> Unit): ApplicationWatch`；选择与实际后端不匹配的通知在借用前报参数异常。监听不读取、复位或关闭借入 fd／HANDLE，不内联 ready。ApplicationWatch.remove 在 owner 上注销，当前 ready 退出、排队通知退休后回调一次。
 - `postControl(block: () -> Unit): Boolean` 在关闭业务队列后继续接受收尾工作；控制闭包用 `requestExit()` 在 owner 开始关闭。`complete(failure: Throwable?)` 由 session.onClosed 在 owner 调用一次。无窗口时仍等待附着完成、watch 注销和已接受控制工作执行完。
 
 WindowLoopHost 将这些实际操作适配为[asyncio 规范 11.3](SCOOP-ASYNCIO-SPEC.md#113-宿主接入合同)的 EventLoopNotification／watch。根取消订阅只排入控制队列，不跨线程直接操作窗口；集成 scope 仅在业务回调期间绑定。通知派发与纯 I/O／watch 维护唤醒不自行产生新一轮 NewEvents／AboutToWait，避免空闲自唤醒。
@@ -119,3 +119,13 @@ WindowLoopHost 将这些实际操作适配为[asyncio 规范 11.3](SCOOP-ASYNCIO
 Darwin 使用语言规范 12.2.1、实现规范 2.7 的普通 native Objective-C `.m`／ARC 与 framework 声明。AppKit backend 由 NSApplication 正常循环驱动，以 stop 和唤醒返回；不调用 terminate。通知监听以 dispatch READ source 观察 fd，通过 common／tracking／modal modes 的 CFRunLoopSource 在 owner 派发；等待消费时暂停重复通知，注销先平衡暂停并等待 cancel handler，再退休 owner source。渲染层自行管理实际 layer／surface。
 
 本阶段以所属 Cone 的 scoop.test 验证值、输入归一、API、真实 AppKit、native callback 与 asyncio 收尾；`.m` 编译／链接／诊断使用必要的 compiler fixture。真实 surface 示例用单独 renderer Cone 消费 native lease。显示器热插拔、混合 DPI、输入法候选交互与真实用户拖动等依赖实际硬件／桌面输入的验收单独记录，不能用合成事件冒充。Linux／其他平台验收留待后续。
+
+## 10. Win32 后端
+
+Windows 窗口使用 Unicode HWND，创建前确认 Per-Monitor V2；已声明其他 DPI 模式时明确失败，不改变现有 UI 的坐标合同。每次 WM_DPICHANGED 使用建议窗口矩形并重新读取内容像素尺寸，原子发布完整 metrics。内容逻辑坐标以窗口 DPI 换算；DesktopPosition／DesktopRect 使用物理虚拟桌面坐标。最小化提供零 drawable，隐藏／最小化期间保留 dirty；Windows 不提供普通顶层窗口完整遮挡查询，isOccluded 只报告系统可确认的最小化或 DWM cloaked 状态。
+
+窗口属性通过正常 Win32／DWM API 实施，原生返回值在边界保留并转换为 WindowException。native 薄层的创建结果同时返回资源和状态码；setter 以状态码报告失败，不使用另一个错误缓存。Windows 8 起 DwmEnableBlurBehindWindow 不产生模糊效果，setBlur(true) 返回 Unsupported 且无副作用；要求 blur 的创建失败。主题建议使用 DWM 支持的暗色标题栏属性；缺少该属性时返回 Unsupported。透明背景供实际 renderer 使用，不承诺所有渲染设备都有 alpha 支持。内容保护为 WDA_MONITOR 系统提示，仍返回 Requested。
+
+键盘的物理位置来自扩展 scan code，逻辑文字查询当前布局且不改变系统 dead-key 状态。普通文字仅由 WM_CHAR／WM_UNICHAR 交付；IMM32 result 和 preedit 以一次 WM_IME_COMPOSITION 为批次，UTF-16 选区转换为 UTF-8 字节位置。确认结果不再通过 WM_IME_CHAR 重复提交；失焦／禁用取消组合并补发已交付按下键的 synthetic release。候选窗使用内容像素坐标，native 同步查询不进入用户 handler。surrounding 文档与 TSF 文档存储不属于当前基础 IME。
+
+宿主使用 MsgWaitForMultipleObjectsEx 与 owner HWND。线程池 wait 一次只投递一个 HWND 就绪消息，owner 回调退出后重新监听；remove 停止 native wait 并等候 worker 退出，在 owner 排队消息和活动 ready 退休后报告完成，HANDLE 始终由 asyncio loop 持有。截止时间只安装所需原生 timer，Wait 不做周期轮询。真实系统 dialog、menu、move／size 循环继续派发 HWND 消息，因此能推进 asyncio；会进入模态的操作排在当前业务回调和 session pump 返回后。

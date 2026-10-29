@@ -46,7 +46,7 @@ public class ApplicationOptions public constructor(
 /** The one application and one native main-loop run owned by this process. */
 public class Application public constructor(options: ApplicationOptions = ApplicationOptions()) {
     internal val owner: ApplicationOwner = createApplicationOwner(options)
-    /** Runs the AppKit loop until explicit, fully drained shutdown. */
+    /** Runs the native loop until explicit, fully drained shutdown. */
     public fun run(handler: ApplicationHandler) {
         owner.run(handler, None)
     }

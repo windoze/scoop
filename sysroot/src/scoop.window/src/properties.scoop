@@ -43,7 +43,7 @@ public fun Window.requestPosition(position: DesktopPosition): RequestStatus {
     requireWindow(position.x.isFinite() && position.y.isFinite(), "non-finite desktop position")
     @Unsafe
     {
-        nativeWindowPosition(owner.pointer!!, position.x, position.y)
+        checkNativeStatus(nativeWindowPosition(owner.pointer!!, position.x, position.y), "position")
     }
     return RequestStatus.Requested
 }
@@ -56,12 +56,15 @@ public fun Window.setSizeConstraints(constraints: WindowSizeConstraints): Reques
     val maximum = constraints.max ?: LogicalSize(-1.0, -1.0)
     @Unsafe
     {
-        nativeWindowConstraints(
-            owner.pointer!!,
-            minimum.width,
-            minimum.height,
-            maximum.width,
-            maximum.height
+        checkNativeStatus(
+            nativeWindowConstraints(
+                owner.pointer!!,
+                minimum.width,
+                minimum.height,
+                maximum.width,
+                maximum.height
+            ),
+            "constraints"
         )
     }
     owner.constraints = constraints
@@ -75,7 +78,10 @@ public fun Window.setResizeIncrements(increments: LogicalSize?): RequestStatus {
     checkIncrements(value)
     @Unsafe
     {
-        nativeWindowResizeIncrements(owner.pointer!!, value.width, value.height)
+        checkNativeStatus(
+            nativeWindowResizeIncrements(owner.pointer!!, value.width, value.height),
+            "resize_increments"
+        )
     }
     return RequestStatus.Applied
 }
@@ -85,7 +91,7 @@ public fun Window.setResizable(value: Boolean): RequestStatus {
     owner.requireOpen()
     @Unsafe
     {
-        nativeWindowResizable(owner.pointer!!, flag(value))
+        checkNativeStatus(nativeWindowResizable(owner.pointer!!, flag(value)), "resizable")
     }
     return RequestStatus.Applied
 }
@@ -95,7 +101,7 @@ public fun Window.setDecorations(value: Boolean): RequestStatus {
     owner.requireOpen()
     @Unsafe
     {
-        nativeWindowDecorations(owner.pointer!!, flag(value))
+        checkNativeStatus(nativeWindowDecorations(owner.pointer!!, flag(value)), "decorations")
     }
     setEnabledButtons(owner.buttons)
     return RequestStatus.Applied
@@ -106,11 +112,14 @@ public fun Window.setEnabledButtons(buttons: WindowButtons): RequestStatus {
     owner.requireOpen()
     @Unsafe
     {
-        nativeWindowButtons(
-            owner.pointer!!,
-            flag(buttons.close),
-            flag(buttons.minimize),
-            flag(buttons.maximize)
+        checkNativeStatus(
+            nativeWindowButtons(
+                owner.pointer!!,
+                flag(buttons.close),
+                flag(buttons.minimize),
+                flag(buttons.maximize)
+            ),
+            "buttons"
         )
     }
     owner.buttons = buttons
@@ -128,7 +137,7 @@ public fun Window.setWindowLevel(level: WindowLevel): RequestStatus {
         }
     @Unsafe
     {
-        nativeWindowLevel(owner.pointer!!, value)
+        checkNativeStatus(nativeWindowLevel(owner.pointer!!, value), "level")
     }
     return RequestStatus.Applied
 }
@@ -138,7 +147,7 @@ public fun Window.requestMinimized(value: Boolean): RequestStatus {
     owner.requireOpen()
     @Unsafe
     {
-        nativeWindowMinimized(owner.pointer!!, flag(value))
+        checkNativeStatus(nativeWindowMinimized(owner.pointer!!, flag(value)), "minimized")
     }
     return RequestStatus.Requested
 }
@@ -148,7 +157,7 @@ public fun Window.requestMaximized(value: Boolean): RequestStatus {
     owner.requireOpen()
     @Unsafe
     {
-        nativeWindowMaximized(owner.pointer!!, flag(value))
+        checkNativeStatus(nativeWindowMaximized(owner.pointer!!, flag(value)), "maximized")
     }
     return RequestStatus.Requested
 }
@@ -170,9 +179,12 @@ public fun Window.requestTheme(theme: Theme?): RequestStatus {
         }
     @Unsafe
     {
-        nativeWindowTheme(owner.pointer!!, value)
+        return nativeRequestStatus(
+            nativeWindowTheme(owner.pointer!!, value),
+            "theme",
+            RequestStatus.Requested
+        )
     }
-    return RequestStatus.Requested
 }
 
 /** Controls the window background opacity independently of a blur request. */
@@ -180,7 +192,7 @@ public fun Window.setTransparent(value: Boolean): RequestStatus {
     owner.requireOpen()
     @Unsafe
     {
-        nativeWindowTransparent(owner.pointer!!, flag(value))
+        checkNativeStatus(nativeWindowTransparent(owner.pointer!!, flag(value)), "transparent")
     }
     return RequestStatus.Applied
 }
@@ -190,9 +202,8 @@ public fun Window.setBlur(value: Boolean): RequestStatus {
     owner.requireOpen()
     @Unsafe
     {
-        nativeWindowBlur(owner.pointer!!, flag(value))
+        return nativeRequestStatus(nativeWindowBlur(owner.pointer!!, flag(value)), "blur")
     }
-    return RequestStatus.Applied
 }
 
 /** Requests the system's content-sharing hint, without promising capture prevention. */
@@ -200,7 +211,10 @@ public fun Window.setContentProtected(value: Boolean): RequestStatus {
     owner.requireOpen()
     @Unsafe
     {
-        nativeWindowContentProtection(owner.pointer!!, flag(value))
+        checkNativeStatus(
+            nativeWindowContentProtection(owner.pointer!!, flag(value)),
+            "content_protection"
+        )
     }
     return RequestStatus.Requested
 }
@@ -216,7 +230,7 @@ public fun Window.requestAttention(kind: AttentionKind): RequestStatus {
         }
     @Unsafe
     {
-        nativeWindowAttention(owner.pointer!!, value)
+        checkNativeStatus(nativeWindowAttention(owner.pointer!!, value), "attention")
     }
     return RequestStatus.Requested
 }
@@ -253,14 +267,14 @@ internal fun applyCreationProperties(owner: WindowOwner, attributes: WindowAttri
     val window = Window(owner)
     @Unsafe
     {
-        nativeWindowTitlebar(owner.pointer!!, attributes.titlebarFlags)
+        platformCreationProperties(owner.pointer!!, attributes.titlebarFlags)
     }
     window.setSizeConstraints(attributes.constraints)
     window.setResizeIncrements(attributes.resizeIncrements)
     window.setEnabledButtons(attributes.buttons)
     window.setWindowLevel(attributes.level)
     window.requestTheme(attributes.theme)
-    window.setBlur(attributes.blur)
+    requireCreationStatus(window.setBlur(attributes.blur), "blur")
     window.setContentProtected(attributes.contentProtected)
     when (attributes.position) {
         case Some(value) -> window.requestPosition(value);

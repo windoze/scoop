@@ -26,6 +26,11 @@ typedef struct {
   int32_t visible, occluded, focused, minimized, maximized, dark;
 } SWSnapshot;
 
+typedef struct {
+  void *pointer;
+  int64_t error;
+} SWResult;
+
 @class SWApplication, SWWindow;
 
 @interface SWTextEdit : NSObject

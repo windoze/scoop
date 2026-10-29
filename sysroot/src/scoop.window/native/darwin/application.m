@@ -54,8 +54,8 @@ int32_t scoop_window_is_main_thread(void) {
   return [NSThread isMainThread] ? 1 : 0;
 }
 
-void *scoop_window_application_create(SWCallback callback, void *context,
-                                      int32_t policy) {
+SWResult scoop_window_application_create(SWCallback callback, void *context,
+                                         int32_t policy) {
   @autoreleasepool {
     NSApplication *app = [NSApplication sharedApplication];
     SWApplication *owner = [SWApplication new];
@@ -69,7 +69,7 @@ void *scoop_window_application_create(SWCallback callback, void *context,
     source.perform = perform;
     owner.source = CFRunLoopSourceCreate(NULL, 0, &source);
     if (!owner.source)
-      return NULL;
+      return (SWResult){NULL, 0};
     CFRunLoopAddCommonMode(CFRunLoopGetMain(),
                            (__bridge CFStringRef)NSEventTrackingRunLoopMode);
     CFRunLoopAddCommonMode(CFRunLoopGetMain(),
@@ -78,7 +78,7 @@ void *scoop_window_application_create(SWCallback callback, void *context,
     app.delegate = owner;
     [app setActivationPolicy:(NSApplicationActivationPolicy)policy];
     [app finishLaunching];
-    return (__bridge_retained void *)owner;
+    return (SWResult){(__bridge_retained void *)owner, 0};
   }
 }
 

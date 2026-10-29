@@ -135,9 +135,9 @@ SWEvent *sw_event(SWWindow *window, int32_t kind) {
 }
 @end
 
-void *scoop_window_create(void *application, int64_t identity,
-                          const uint8_t *title, int64_t length, double width,
-                          double height, int32_t flags) {
+SWResult scoop_window_create(void *application, int64_t identity,
+                             const uint8_t *title, int64_t length, double width,
+                             double height, int32_t flags) {
   @autoreleasepool {
     SWApplication *app = (__bridge SWApplication *)application;
     SWWindow *owner = [SWWindow new];
@@ -155,7 +155,7 @@ void *scoop_window_create(void *application, int64_t identity,
                     backing:NSBackingStoreBuffered
                       defer:NO];
     if (!owner.window)
-      return NULL;
+      return (SWResult){NULL, 0};
     owner.view = [[SWView alloc] initWithFrame:NSMakeRect(0, 0, width, height)];
     owner.view.owner = owner;
     owner.view.pressedKeys = [NSMutableDictionary new];
@@ -186,7 +186,7 @@ void *scoop_window_create(void *application, int64_t identity,
         [owner.window orderFront:nil];
     }
     [owner emit:2];
-    return (__bridge void *)owner;
+    return (SWResult){(__bridge void *)owner, 0};
   }
 }
 
@@ -213,28 +213,32 @@ void *scoop_window_ns_view(void *pointer) {
   return (__bridge void *)((__bridge SWWindow *)pointer).view;
 }
 
-void scoop_window_title(void *pointer, const uint8_t *text, int64_t length) {
+int64_t scoop_window_title(void *pointer, const uint8_t *text, int64_t length) {
   ((__bridge SWWindow *)pointer).window.title =
       [[NSString alloc] initWithBytes:text
                                length:(NSUInteger)length
                              encoding:NSUTF8StringEncoding];
+  return 0;
 }
-void scoop_window_size(void *pointer, double width, double height) {
+int64_t scoop_window_size(void *pointer, double width, double height) {
   SWWindow *owner = (__bridge SWWindow *)pointer;
   [owner.window setContentSize:NSMakeSize(width, height)];
   [owner emit:2];
+  return 0;
 }
-void scoop_window_visible(void *pointer, int32_t value) {
+int64_t scoop_window_visible(void *pointer, int32_t value) {
   SWWindow *owner = (__bridge SWWindow *)pointer;
   if (value)
     [owner.window orderFront:nil];
   else
     [owner.window orderOut:nil];
   [owner emit:5];
+  return 0;
 }
 
-void scoop_window_focus(void *pointer) {
+int64_t scoop_window_focus(void *pointer) {
   SWWindow *owner = (__bridge SWWindow *)pointer;
   [NSApp activate];
   [owner.window makeKeyAndOrderFront:nil];
+  return 0;
 }

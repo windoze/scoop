@@ -1,0 +1,29 @@
+package scoop.window
+
+import scoop.test.*
+
+@Test
+private class WindowsKeysTest {
+    @Test
+    fun `scan codes distinguish extended keys and retain unknown native identities`() {
+        assertEquals(PhysicalKey.Code(KeyCode.KeyA), platformPhysicalKey(30L))
+        assertEquals(PhysicalKey.Code(KeyCode.ControlRight), platformPhysicalKey(285L))
+        assertEquals(PhysicalKey.Code(KeyCode.NumpadEnter), platformPhysicalKey(284L))
+        assertEquals(KeyLocation.Numpad, platformKeyLocation(284L))
+        assertEquals(KeyLocation.Right, platformKeyLocation(285L))
+        assertEquals(
+            PhysicalKey.Unidentified(NativeKeyCode.WindowsScanCode(511u)),
+            platformPhysicalKey(511L)
+        )
+        assertEquals(Some(NamedKey.Enter), platformNamedKey(284L, 13L))
+        assertEquals(NativeKeyCode.WindowsVirtualKey(255u), platformUnknownLogicalKey(511L, 255L))
+    }
+    @Test
+    fun `modifiers preserve side and known lock state`() {
+        val value = platformModifiers(548L)
+        assertTrue(value.alt)
+        assertEquals(ModifierSides(Some(false), Some(true)), value.shiftSides)
+        assertEquals(Some(true), value.numLock)
+        assertEquals(Some(false), value.scrollLock)
+    }
+}

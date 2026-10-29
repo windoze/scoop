@@ -53,7 +53,7 @@ public fun Window.setCursorIcon(icon: CursorIcon) {
         }
     @Unsafe
     {
-        nativeCursorIcon(owner.pointer!!, value)
+        checkNativeStatus(nativeCursorIcon(owner.pointer!!, value), "cursor_icon")
     }
 }
 
@@ -62,12 +62,12 @@ public fun Window.setCursorVisible(visible: Boolean) {
     owner.requireOpen()
     @Unsafe
     {
-        nativeCursorVisible(owner.pointer!!, flag(visible))
+        checkNativeStatus(nativeCursorVisible(owner.pointer!!, flag(visible)), "cursor_visible")
     }
 }
 
 @Extern(name = "scoop_window_cursor_icon")
-internal fun nativeCursorIcon(window: Ptr<Unit>, icon: Int)
+internal fun nativeCursorIcon(window: Ptr<Unit>, icon: Int): Long
 
 @Extern(name = "scoop_window_cursor_visible")
-internal fun nativeCursorVisible(window: Ptr<Unit>, visible: Int)
+internal fun nativeCursorVisible(window: Ptr<Unit>, visible: Int): Long

@@ -1,0 +1,27 @@
+package scoop.tests.window
+
+/** Posts a real Win32 message to the application's HWND for protocol tests. */
+@Unsafe
+@Extern(name = "PostMessageW", lib = "user32")
+public fun postMessage(window: Ptr<Unit>, message: UInt, wparam: ULong, lparam: Long): Int
+
+/** Delivers one protocol message synchronously, without TranslateMessage synthesizing text. */
+@Unsafe
+@Extern(name = "SendMessageW", lib = "user32")
+public fun sendMessage(window: Ptr<Unit>, message: UInt, wparam: ULong, lparam: Long): Long
+
+@Unsafe
+@Extern(name = "scoop_window_test_schedule_mode")
+public fun scheduleNativeMode(window: Ptr<Unit>, mode: Int, milliseconds: Int): Int
+
+@Unsafe
+@Extern(name = "scoop_window_test_active_mode")
+public fun activeNativeMode(): Int
+
+@Unsafe
+@Extern(name = "scoop_window_test_completed_modes")
+public fun completedNativeModes(): Int
+
+@Unsafe
+@Extern(name = "scoop_window_test_system_dpi")
+public fun setSystemDpiMode(): Int

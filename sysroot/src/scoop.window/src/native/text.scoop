@@ -31,12 +31,15 @@ public fun Window.setImeCursorArea(area: LogicalRect) {
     )
     @Unsafe
     {
-        nativeImeCaret(
-            owner.pointer!!,
-            area.origin.x,
-            area.origin.y,
-            area.size.width,
-            area.size.height
+        checkNativeStatus(
+            nativeImeCaret(
+                owner.pointer!!,
+                area.origin.x,
+                area.origin.y,
+                area.size.width,
+                area.size.height
+            ),
+            "ime_caret"
         )
     }
 }
@@ -54,7 +57,13 @@ internal struct NativeTextEdit(
 internal fun nativeImeAllowed(window: Ptr<Unit>, allowed: Int): Int
 
 @Extern(name = "scoop_window_ime_caret")
-internal fun nativeImeCaret(window: Ptr<Unit>, x: Double, y: Double, width: Double, height: Double)
+internal fun nativeImeCaret(
+    window: Ptr<Unit>,
+    x: Double,
+    y: Double,
+    width: Double,
+    height: Double
+): Long
 
 @Extern(name = "scoop_window_text_count")
 internal fun nativeTextCount(event: Ptr<Unit>): Long

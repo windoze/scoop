@@ -36,9 +36,10 @@ internal fun copyNativeEvent(pointer: Ptr<Unit>): ApplicationEvent {
                     )
                 )
                 10 -> WindowEvent.Keyboard(copyKeyEvent(event))
-                11 -> WindowEvent.ModifiersChanged(darwinModifiers(event.a))
+                11 -> WindowEvent.ModifiersChanged(platformModifiers(event.a))
                 12 -> WindowEvent.Pointer(copyPointerEvent(event))
                 13 -> WindowEvent.TextInput(TextInputEvent.Edit(copyNativeTextBatch(pointer)))
+                15 -> WindowEvent.RedrawRequested
                 14 -> WindowEvent.TextInput(
                     if (event.flags != 0)
                         TextInputEvent.Enabled
@@ -67,7 +68,7 @@ private fun copyNativeText(event: NativeEvent): String {
 private fun copyKeyEvent(event: NativeEvent): KeyEvent {
     val text = copyNativeText(event)
     val logical =
-        when (darwinNamedKey(event.a)) {
+        when (platformNamedKey(event.a, event.c)) {
             case Some(value) -> LogicalKey.Named(value)
             case None -> if (event.flags.and(8) != 0)
                 LogicalKey.Dead(
@@ -80,18 +81,18 @@ private fun copyKeyEvent(event: NativeEvent): KeyEvent {
                 if (text.byteLength > 0L)
                     LogicalKey.Character(text)
                 else
-                    LogicalKey.Unidentified(NativeKeyCode.Darwin(event.a.toUInt()))
+                    LogicalKey.Unidentified(platformUnknownLogicalKey(event.a, event.c))
         }
     return KeyEvent(
-        darwinPhysicalKey(event.a),
+        platformPhysicalKey(event.a),
         logical,
-        darwinKeyLocation(event.a),
+        platformKeyLocation(event.a),
         if (event.flags.and(1) != 0)
             ElementState.Pressed
         else
             ElementState.Released,
         event.flags.and(2) != 0,
-        darwinModifiers(event.b),
+        platformModifiers(event.b),
         event.flags.and(4) != 0
     )
 }
@@ -102,7 +103,7 @@ private fun copyPointerEvent(event: NativeEvent): PointerEvent {
             LogicalPosition(event.x, event.y),
             PhysicalPosition(event.z, event.w),
             event.scale,
-            darwinModifiers(event.b)
+            platformModifiers(event.b)
         )
     return when (event.flags) {
         0 -> PointerEvent.Entered(state)

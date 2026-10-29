@@ -34,7 +34,10 @@ public class ApplicationWatch internal constructor(
 }
 
 @Unsafe
-internal fun ApplicationOwner.installWatch(descriptor: Int, ready: () -> Unit): ApplicationWatch {
+internal fun ApplicationOwner.registerWatch(
+    create: (Long) -> NativeWatchResult,
+    ready: () -> Unit
+): ApplicationWatch {
     checkThread()
     if (exiting || native == None)
         throw WindowException("install notification", WindowErrorKind.InvalidState)
@@ -42,7 +45,9 @@ internal fun ApplicationOwner.installWatch(descriptor: Int, ready: () -> Unit): 
         throw WindowException("notification identity", WindowErrorKind.NativeFailure)
     val identity = nextWatch
     nextWatch += 1L
-    val(pointer, error) = nativeWatchCreate(native!!, identity, descriptor)
+    val result = create(identity)
+    val pointer = result.pointer
+    val error = result.error
     val watch =
         ApplicationWatch(
             this,
@@ -51,7 +56,7 @@ internal fun ApplicationOwner.installWatch(descriptor: Int, ready: () -> Unit): 
                 throw WindowException(
                     "install notification",
                     WindowErrorKind.NativeFailure,
-                    nativeCode = Some(error.toLong())
+                    nativeCode = Some(error)
                 ),
             ready
         )
@@ -82,11 +87,8 @@ internal fun ApplicationOwner.dispatchWatch(identity: Long, stage: Int) {
     }
 }
 
-@Extern(name = "scoop_window_watch_create", captureErrno = true)
-private fun nativeWatchCreate(application: Ptr<Unit>, identity: Long, descriptor: Int): (
-    Ptr<Unit>?,
-    Int
-)
+@CLayout
+internal struct NativeWatchResult(val pointer: Ptr<Unit>?, val error: Long)
 
 @Extern(name = "scoop_window_watch_remove")
 private fun nativeWatchRemove(watch: Ptr<Unit>)

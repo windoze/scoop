@@ -1,6 +1,6 @@
 # 桌面窗口与事件库设计
 
-状态：基础架构与 macOS GUI 骨架已实现。更新：2026-10-30。Linux Wayland／X11、Windows 及其他窗口后端留到后续阶段。下文 Linux／Windows 章节保留设计方向，不是本阶段验收项。实现、验收边界与硬件交互限制见 [PROGRESS.md](PROGRESS.md)，使用方式见[窗口库 README](../../sysroot/src/scoop.window/README.md)。
+状态：基础架构与 macOS GUI 骨架已实现，正在实施 Windows GUI 骨架。更新：2026-10-30。Windows 阶段复用两个普通 Cone，交付与 macOS 同级的窗口、属性、基础输入／IME、显示器、native lease、renderer 和 asyncio；Linux Wayland／X11 及其他后端仍留待后续。实现、验收边界与硬件交互限制见 [PROGRESS.md](PROGRESS.md)，使用方式见[窗口库 README](../../sysroot/src/scoop.window/README.md)。
 
 本轮按 winit 的职责搭建可供 GUI 使用的骨架：真实窗口／主循环、显式生命周期与 proxy、基础窗口属性、DPI／显示器快照、键盘／指针／滚轮／文本输入、native lease、renderer 和 asyncio 接入。winit 的完整能力地图用于确定边界和后续扩展方向，不要求本轮复制它的全部平台扩展。全屏控制／显示模式切换、全局原始设备监听、触摸／高级手势、光标捕获、文件拖放及平台专有的复杂窗口交互分批补充；未实施项不以 Unsupported 伪装成平台不支持。控件、布局、菜单体系和应用编辑器仍由上层 GUI 实现。
 
@@ -32,7 +32,7 @@ Scoop 尚未发布任何版本。语言、库 API、runtime ABI、native 产物�
 - `scoop.window`：依赖 core／std／platform，提供应用主循环、窗口、事件、显示器、输入和受控 native 句柄借用；不依赖 asyncio、Skia 或 HarfBuzz。
 - `scoop.window.asyncio`：依赖 window／asyncio，把已有 PlatformEventLoop 附着到窗口宿主，协调应用退出与 I/O 收尾。没有第二套 Job、cancel、join 或 native I/O 实现。
 
-选择“移植能力与平台语义”，不把 Rust ABI 或 winit 类型放进 Scoop API。原生层分别使用 AppKit、libwayland-client／wayland-protocols／libxkbcommon／libdecor、Xlib／XInput2／XRandR／Xcursor／XKB／XIM。引用或改写 winit 的键映射、算法和平台规则时保留相应许可证与来源。窗口协议、键盘映射、输入法与装饰优先复用这些成熟库，不自行实现 wire protocol 或完整输入法。
+选择“移植能力与平台语义”，不把 Rust ABI 或 winit 类型放进 Scoop API。原生层分别使用 AppKit、Win32／IMM32、libwayland-client／wayland-protocols／libxkbcommon／libdecor、Xlib／XInput2／XRandR／Xcursor／XKB／XIM。引用或改写 winit 的键映射、算法和平台规则时保留相应许可证与来源。窗口协议、键盘映射、输入法与装饰优先复用这些成熟库，不自行实现 wire protocol 或完整输入法。
 
 本期采用上述原生后端，不新增独立的 winit Rust staticlib。现有 [text backend](../../sysroot/native/text_backend/Cargo.toml) 已包含 Rust 标准库及静态依赖；第二个独立 staticlib 会重复打包这些部分，并可能产生符号和运行库链接冲突。最终程序的按需抽取／裁剪不能作为解决多 staticlib 组合的合同。[Rust 链接规范](https://doc.rust-lang.org/reference/linkage.html#mixed-rust-and-foreign-codebases)给出的组合方式是先将 Rust 库汇总到一个 staticlib，再交给外部链接器。
 
@@ -40,9 +40,9 @@ Scoop 尚未发布任何版本。语言、库 API、runtime ABI、native 产物�
 
 项目未发布，允许以后调整这些边界；当前窗口任务不承担这项跨流水线改造，也不增加项目级 Cargo 合成阶段。原生路线直接满足宿主监听注销、文本快照／编辑批次和退出顺序的控制需求，同时复用成熟系统／协议库。winit 继续作为能力和平台规则的参考，不维护第二套并行窗口实现。
 
-共享 `ApplicationOwner`／`WindowOwner` 持有事件与业务投递队列、typed id、窗口 phase、最后已公布的 metrics、dirty 状态和 native lease 数；native 后端持有真正的 NSWindow／wl_surface／X Window、协议配置与稳定事件存储。内部 C ABI 提供 create application、run／stop／wake、drain events、window control／snapshot、通知监听注册／注销、native handle acquire／release 与 teardown 等实际入口。跨 Cone 的窗口／asyncio 连接通过第 4 节列出的公开 native 包接口完成，不访问另一 Cone 的 internal owner。原生主循环由各平台驱动，共享层不能假定每个平台都有可反复调用的 poll；平台状态不再复制一份 Job 或 managed 资源表。
+共享 `ApplicationOwner`／`WindowOwner` 持有事件与业务投递队列、typed id、窗口 phase、最后已公布的 metrics、dirty 状态和 native lease 数；native 后端持有真正的 NSWindow／HWND／wl_surface／X Window、协议配置与稳定事件存储。内部 C ABI 提供 create application、run／stop／wake、drain events、window control／snapshot、通知监听注册／注销、native handle acquire／release 与 teardown 等实际入口。跨 Cone 的窗口／asyncio 连接通过第 4 节列出的公开 native 包接口完成，不访问另一 Cone 的 internal owner。原生主循环由各平台驱动，共享层不能假定每个平台都有可反复调用的 poll；平台状态不再复制一份 Job 或 managed 资源表。
 
-Widgets、布局、状态重组、字体排版、剪贴板、菜单模型、文件对话框、无障碍树、绘制 API 和通用手势识别属于后续 GUI／平台库。窗口系统原生提供的触摸和触控板手势属于本库；应用自行识别的拖拽／长按等不在本库。Windows、移动端、Web、向已有外部窗口嵌入和任意宿主轮询入口不在首期实施范围。
+Widgets、布局、状态重组、字体排版、剪贴板、菜单模型、文件对话框、无障碍树、绘制 API 和通用手势识别属于后续 GUI／平台库。窗口系统原生提供的触摸和触控板手势属于本库；应用自行识别的拖拽／长按等不在本库。移动端、Web、向已有外部窗口嵌入和任意宿主轮询入口不在首期实施范围。
 
 ## 3. 公共对象与运行入口
 
@@ -178,7 +178,7 @@ requestRedraw 只置 dirty 并唤醒，重复请求可合并。RedrawRequested �
 
 `prePresentNotify()` 告诉窗口后端即将提交帧，用于 Wayland frame callback 等节流；它不是实际 present，也不表示 GPU 完成。渲染层拥有 Metal／Vulkan／OpenGL 的 device、swapchain、surface、提交和 vsync。窗口层不把 io_uring timer 当显示时钟，不内置 Skia surface 或强制渲染线程。[winit 绘制边界](https://docs.rs/winit/0.30.13/winit/)。
 
-`scoop.window.native` 提供 `@Unsafe Window.acquireNativeWindow(): NativeWindowLease`。lease 保活 Window 和 display connection；`handle` 为带类型的 NativeWindowHandle，首期随实际后端声明 AppKit(nsWindow, nsView)、Wayland(display, surface)、Xlib(display, windowId, visualId, screen)。Windows 后端实施时增加 Win32(hwnd, hinstance)。XID 使用整数，指针／HANDLE 使用 Ptr<Unit>；不以一个 Long 统一所有句柄，也不为未来 enum 匹配预留没有实现的分支。
+`scoop.window.native` 提供 `@Unsafe Window.acquireNativeWindow(): NativeWindowLease`。lease 保活 Window 和 display connection；`handle` 为带类型的 NativeWindowHandle，首期随实际后端声明 AppKit(nsWindow, nsView)、Wayland(display, surface)、Xlib(display, windowId, visualId, screen)。Windows 目标声明 Win32(hwnd, hinstance)；当前目标只声明实际后端的 handle 变体。XID 使用整数，指针／HANDLE 使用 Ptr<Unit>；不以一个 Long 统一所有句柄，也不为未来 enum 匹配预留没有实现的分支。
 
 lease 的 handle 查询在 owner 上执行；显式 close 可跨线程，原子封闭该借用后把实际释放投递到 owner 的内部收尾队列，不在调用线程执行 GUI API。该队列在停止业务 proxy 投递后仍然可用，避免后台 GPU 完成回调无法释放窗口；重复 close 为空操作，调用后不得继续使用 handle。不能从 GC release 启动这条异步路径。Skia／GPU 包装持有 lease，销毁依赖原生窗口的 surface 并结束有关 GPU／native 借用后再释放。窗口进入 Closing 后不能取得新 lease，已有 lease 阻止库主动销毁原生窗口；lease 不保证外部显示服务器永不失联，也不授权跨线程操作原生对象。渲染层需要后台线程时遵守对应图形 API 的线程规则。
 
@@ -246,7 +246,17 @@ Linux 首期按真实桌面依赖动态链接，GNU／musl 各自使用兼容 he
 
 生成的 Wayland 协议 C 源码在维护／发行准备阶段用固定 scanner 版本生成并作为普通输入携带；消费预编译 Cone 不临时联网、不自动运行依赖安装器。缺失库和 display 按普通构建／运行错误报告。是否允许无显示器环境启动由明确的测试宿主决定，不用一个假窗口后端冒充桌面实现。
 
-## 11. Windows 基础与后续窗口后端
+## 11. Windows 后端
+
+本阶段以 Windows 10 1703 起的 Per-Monitor V2 为窗口 API 基线，消费现有三个 Windows x86_64 target。消息窗口和业务 HWND 均由主线程拥有，原生 C 薄层通过已有 ForeignCallback 回到 Scoop。共享生命周期、业务／收尾队列和测试辅助不复制为第二套实现。平台文件由普通 Cone source 条件选择；native handle 增加 Win32(hwnd, hinstance)，未知键码分别保留 Windows scan code 和 virtual key 来源。
+
+普通窗口使用 Unicode Win32 API。物理键来自扩展 scan code，逻辑键来自当前键盘布局；WM_CHAR 与 IMM32 的 result／composition 统一为自有 UTF-8 编辑批次。IMM32 只发布 marked text 和候选窗矩形，不发布应用文档，取消组合交付空 Preedit。TSF 文档存储、raw device、触摸、全屏和捕获仍属原设计的后续扩展，不增加空实现。
+
+所有 HWND 创建前确认 owner 的 DPI awareness。WM_DPICHANGED 应用系统建议 rect 后发布实际 client pixel size 与 DPI 的完整快照。桌面位置采用物理虚拟桌面坐标；内容逻辑坐标按本窗口 DPI 转换，不用单个 scale 换算整个桌面。显示器枚举使用 EnumDisplayMonitors／GetMonitorInfo／当前显示设置，离线身份由共享层退休。
+
+通知使用一次性 native threadpool wait；worker 只向 owner HWND 投递就绪消息，owner 消费后才重新 arm。remove 停止 wait、等待 native 回调退出，排队消息以 identity 查找仍存活的登记，完成通知只在活动 ready 返回后交付。借入的 manual-reset event 不由 host reset 或 close。真实系统 move／size、菜单和模态循环的 HWND 消息仍能驱动这条路径；会进入模态的测试命令必须在当前 Scoop handler 和 session pump 返回后执行。
+
+renderer 示例使用独立普通 Cone 的 Win32／DXGI surface，持有窗口 lease，实际提交后先释放 GPU／swapchain 再结束 lease。普通行为使用 scoop.test，三个 Windows target 共用源码；桌面交互、混合 DPI 和输入法验证分别记录实际证据与环境限制。
 
 Windows 平台移植的参考状态见[分支进度](https://github.com/windoze/scoop/blob/0fa053fd11c11e641e2f17212ce4948d5d52447a/docs/windows-targets/PROGRESS.md)：目标、runtime、platform、IOCP 及 executable subsystem／RC 已有实现，整体移植仍在推进。窗口任务消费这些平台能力，补 Win32 消息、窗口、输入和显示系统后端；不重复开发另一套 target 或 I/O backend。
 
@@ -270,12 +280,12 @@ Windows 后端要求创建窗口的 owner 使用 Per-Monitor V2。应用优先�
 2. 用真实 window／window.asyncio 两个 Cone 完成公开宿主接入、窗口创建、输入、提交一帧及退出。持有 renderer lease 和活动 I/O 时请求退出，确认窗口、session、watch 与 lease 能依次或交错收尾；没有窗口时也能等待 session 完成。渲染使用小型实际 surface 适配，不建设完整 GUI 或通用渲染框架。
 3. 后续 Linux 阶段完成 Wayland 的首次配置、零尺寸提示、隐藏／重显、DPI、IME 批次、装饰、frame、拖放及协议能力差异，并实现 X11 对应行为。GNU／musl 共用 Scoop 层，不复制测试实现。
 4. 在已有基础光标、monitor、主题和窗口属性之上，按映射表分批补充 touch／gesture／raw device、全屏控制及高级可选属性；每项“平台不支持”均有真实 capability 依据和明确结果。
-5. 每个阶段以配套示例、真实目标测试和明确限制独立交付。当前基础架构／macOS 骨架阶段与完整能力地图分别记录；Linux、Windows 窗口及平台专测另行安排，平台基础分支通过不等于窗口可用。
+5. 每个阶段以配套示例、真实目标测试和明确限制独立交付。当前基础架构／macOS 骨架阶段与完整能力地图分别记录；Linux 窗口及平台专测另行安排，平台基础分支通过不等于窗口可用。
 
-纯值／归一规则、状态、错误与普通 API 行为用所属 Cone 的 scoop.test；真实窗口与 callback 测试使用主线程测试程序，必要的 OS 进程控制／ABI／native 编译能力才用少量 fixture。当前目标为真实 macOS；后续 Linux 验收覆盖 Wayland compositor、X11 WM 及 GNU／musl 库。Xvfb 或 headless compositor 可覆盖自动化行为，但不能替代实体显示器、输入法候选交互与真实用户拖动的手工验证。
+纯值／归一规则、状态、错误与普通 API 行为用所属 Cone 的 scoop.test；真实窗口与 callback 测试使用主线程测试程序，必要的 OS 进程控制／ABI／native 编译能力才用少量 fixture。当前目标为真实 macOS 与 Windows 桌面；后续 Linux 验收覆盖 Wayland compositor、X11 WM 及 GNU／musl 库。Xvfb 或 headless compositor 可覆盖自动化行为，但不能替代实体显示器、输入法候选交互与真实用户拖动的手工验证。
 
 重点组合：多个窗口与任务并存；关闭／外线程投递竞争；移动 GC 下事件文本和 ForeignCallback；关闭中 surface lease 未释放；用户 handler／清理抛错；菜单、拖动、模态期间 timer／网络／取消推进；混合 DPI 跨屏与热插拔；零 drawable 与 Wayland 零尺寸提示的区别；隐藏／重显后真实 buffer 提交；中文／日文组合、emoji／UTF-16 range、dead keys、重复输入与失焦；同批 delete／commit／preedit、选择方向、协议 serial 与文本 revision 的区别；Wayland flush EAGAIN／prepared-read 取消；X11 WM 忽略请求；display 断开；退出时 I/O、window、watch 各自先完成及没有窗口的顺序。
 
-Windows 的首期工作是审查公共语义与已实现平台基础的接缝：普通窗口参数不携带 fd／HWND，错误和 native 句柄保留实际来源与宽度；通知复用 EventLoopNotification，后续实施满足模态循环和 DPI 初始化合同。无需预留所有未来 enum 分支，也不把静态表示审查或空 stub 当成 Windows 窗口验收。
+Windows 的首期工作是审查公共语义与已实现平台基础的接缝：普通窗口参数不携带 fd／HWND，错误和 native 句柄保留实际来源与宽度；通知复用 EventLoopNotification，Windows 实施满足模态循环和 DPI 初始化合同。无需预留所有未来 enum 分支，也不把静态表示审查或空 stub 当成 Windows 窗口验收。
 
 性能只记录空闲 CPU／唤醒、输入到 handler、redraw 合并、I/O 与 UI 同时繁忙时的延迟及关闭耗时；主循环不引入通用预算或计费。渲染性能与完整 GUI 基准留到实际 renderer 接入。当前代码与验收结果见实施记录。

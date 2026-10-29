@@ -1,0 +1,35 @@
+package scoop.window.native
+
+import scoop.window.*
+
+@Unsafe
+internal fun installReadableWatch(
+    owner: ApplicationOwner,
+    descriptor: Int,
+    ready: () -> Unit
+): ApplicationWatch =
+    owner.registerWatch(
+        fun(identity: Long): NativeWatchResult {
+            @Unsafe
+            {
+                val(pointer, error) = nativeWatchCreate(owner.native!!, identity, descriptor)
+                return NativeWatchResult(pointer, error.toLong())
+            }
+        },
+        ready
+    )
+
+@Unsafe
+internal fun installWindowsWatch(
+    owner: ApplicationOwner,
+    event: Ptr<Unit>,
+    ready: () -> Unit
+): ApplicationWatch {
+    throw IllegalArgumentException(Some("AppKit requires a readable descriptor"))
+}
+
+@Extern(name = "scoop_window_watch_create", captureErrno = true)
+private fun nativeWatchCreate(application: Ptr<Unit>, identity: Long, descriptor: Int): (
+    Ptr<Unit>?,
+    Int
+)
