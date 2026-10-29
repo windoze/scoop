@@ -1,0 +1,14 @@
+package scoop.examples.window.demo
+
+import scoop.test.*
+
+@Test
+private class MetalWindowTest {
+    @Test
+    fun `real Metal drawable completes before the native window lease is released`() {
+        val result = runMetalWindow(true)
+        assertTrue(result.frames > 0)
+        assertTrue(result.closed)
+        assertTrue(result.destroyed)
+    }
+}

@@ -1,0 +1,70 @@
+package scoop.examples.window.demo
+
+import scoop.window.*
+import scoop.examples.window.renderer.MetalSurface
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+
+fun main() {
+    runMetalWindow(false)
+}
+
+internal struct MetalResult(val frames: Int, val closed: Boolean, val destroyed: Boolean)
+
+internal fun runMetalWindow(closeAfterFrame: Boolean): MetalResult {
+    val handler = MetalWindowHandler(closeAfterFrame)
+    Application().run(handler)
+    return MetalResult(handler.frames, handler.closed, handler.destroyed)
+}
+
+private class MetalWindowHandler(val closeAfterFrame: Boolean): ApplicationHandler {
+    var window: Window? = None
+    var surface: MetalSurface? = None
+    var frames = 0
+    var closed = false
+    var destroyed = false
+
+    public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
+        when (event) {
+            case Resumed -> {
+                val value =
+                    application.createWindow(
+                        WindowAttributes("Scoop · Metal", LogicalSize(480.0, 300.0))
+                    )
+                window = Some(value)
+                surface = Some(MetalSurface.create(value))
+                value.requestFocus()
+                value.requestRedraw()
+                if (closeAfterFrame)
+                    application.setControlFlow(
+                        ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(5L))
+                    )
+            }
+            case NewEvents(StartCause.Deadline) -> throw IllegalStateException(
+                Some("Metal frame deadline expired")
+            )
+            case Window(_, WindowEvent.GeometryChanged(_)) -> window!!.requestRedraw()
+            case Window(_, WindowEvent.RedrawRequested) -> {
+                if (surface!!.present()) {
+                    frames += 1
+                    if (closeAfterFrame)
+                        application.requestExit()
+                }
+            }
+            case Window(_, WindowEvent.CloseRequested) -> application.requestExit()
+            case Window(_, WindowEvent.Closing) -> {
+                when (surface) {
+                    case Some(value) -> value.close();
+                    case None -> {}
+                }
+                closed = true
+            }
+            case Window(_, WindowEvent.Destroyed) -> {
+                destroyed = true;
+                application.requestExit()
+            }
+            case ExitRequested(_) -> application.requestExit()
+            else -> {}
+        }
+    }
+}

@@ -1,19 +1,9 @@
 package scoop.window
 
-internal class WindowLock {
-    private val held: AtomicBoolean = AtomicBoolean(false)
-    fun <T> withLock(block: () -> T): T {
-        while (!held.compareAndSet(false, true, MemoryOrder.Acquire, MemoryOrder.Relaxed)) {}
-        try {
-            return block()
-        } finally {
-            held.store(false, MemoryOrder.Release)
-        }
-    }
-}
+import scoop.platform.concurrent.Mutex
 
 internal class ApplicationMailbox {
-    private val lock: WindowLock = WindowLock()
+    private val lock: Mutex = Mutex()
     private var accepting: Boolean = true
     private var controlsOpen: Boolean = true
     private var native: Ptr<Unit>? = None

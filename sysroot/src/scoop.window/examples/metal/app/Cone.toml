@@ -1,0 +1,16 @@
+schema = 1
+
+[cone]
+group = "scoop.examples.window"
+name = "metal"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"scoop:scoop.window" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+"scoop:scoop.platform" = "0.1.0"
+"scoop.examples.window:metal-renderer" = { version = "0.1.0", path = "../renderer" }
+
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"

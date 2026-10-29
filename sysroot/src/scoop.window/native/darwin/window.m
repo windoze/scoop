@@ -75,6 +75,7 @@ SWEvent *sw_event(SWWindow *window, int32_t kind) {
     data.flags = value.occluded;
   if (kind == 6)
     data.flags = value.dark;
+  event.data = data;
   [self.application enqueue:event];
 }
 - (BOOL)windowShouldClose:(NSWindow *)sender {

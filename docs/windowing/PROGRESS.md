@@ -54,3 +54,11 @@
 - 循环同时等待窗口、lease、watch、session 与已接受控制工作退休。补齐最后窗口策略触发退出时也必须先交付 Exiting 的边界。
 
 验证：两库 Scoop 格式化／check 与 native 警告检查通过；window 的 10 项 release 回归通过。集成 Cone 的真实 AppKit 测试通过，确认 NSApplication 模态窗口、NSMenu 跟踪期间 asyncio timer 均推进，并覆盖根取消 → Closing → 子任务异步 finally → lease 释放 → Destroyed／退出。测试没有用自制 poll 循环替代 AppKit；真实鼠标拖动仍待单独验收。
+
+### 6. 真实 Metal surface 闭环
+
+新增两个普通示例 Cone：renderer 通过 native lease 安装 CAMetalLayer、自行创建 Metal queue／drawable，应用在 RedrawRequested 提交一帧，Closing 时先恢复 layer 再释放 lease。没有把图形设备或帧调度放进窗口库。
+
+首帧验收暴露并修复 AppKit 通知遗漏保存计算后载荷的问题：GeometryChanged 现在交付完整实际尺寸／scale，焦点与遮挡通知也保存实际状态；增加事件与已公布 metrics 一致的断言。mailbox 直接复用现有 platform Mutex。
+
+验证：格式化／check 与 native 警告检查通过；Metal 的 release Cone 测试实际提交并等待 GPU 完成后关闭，window 的 10 项回归与 asyncio 的模态／取消组合复核通过。示例仍是单帧 renderer，不承担多帧 GPU 调度。

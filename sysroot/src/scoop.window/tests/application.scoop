@@ -79,8 +79,20 @@ private class LifecycleHandler(val proxy: ApplicationProxy): ApplicationHandler 
             when (event) {
                 case Resumed -> start(application)
                 case NewEvents(StartCause.Deadline) -> fail(Some("native redraw deadline expired"))
+                case Window(identity, WindowEvent.GeometryChanged(value)) -> {
+                    if (identity == window!!.id) {
+                        assertEquals(LogicalSize(320.0, 180.0), value.logicalSize)
+                        assertTrue(value.physicalSize.isDrawable)
+                        assertEquals(
+                            value.logicalSize.toPhysical(value.scaleFactor),
+                            value.physicalSize
+                        )
+                        assertEquals(value, window!!.metrics!!)
+                    }
+                }
                 case Window(_, WindowEvent.RedrawRequested) -> {
                     redraws += 1
+                    assertTrue(window!!.metrics!!.physicalSize.isDrawable)
                     window!!.prePresentNotify()
                     if (redraws == 1) {
                         window!!.requestRedraw();
