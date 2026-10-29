@@ -46,3 +46,11 @@
 - 加入供集成 Cone 使用的 runAttached／post／complete 接入面；通知 watch 和实际 asyncio 适配仍在下一批。
 
 验证：Scoop 格式化／check、native clang-format／Wall／Wextra／Werror 通过；真实 AppKit 与值测试共 10 项 release 测试通过。真实窗口覆盖隐藏后显示、两轮非递归重绘、跨线程错误／投递、run Context 保留、双窗口显式关闭及跨线程 lease 退休，并在过程中执行 GC。尚不把此测试视为 IME、真实拖动或完整平台能力验收。
+
+### 5. 窗口宿主与 asyncio 收尾
+
+- 每个借入 descriptor 由独立 dispatch READ source／CFRunLoopSource 驱动；待 owner 消费期间暂停重复通知。remove 平衡暂停、等待 cancel handler、注销 owner source，再报告完成；不读取或关闭借入 fd。
+- 新增普通 `scoop.window.asyncio` Cone，复用 PlatformEventLoop.attach、根 Context 与 Job；业务绑定 currentApplicationScope，根取消经控制队列开始窗口关闭，最终通知不提供活动 scope。
+- 循环同时等待窗口、lease、watch、session 与已接受控制工作退休。补齐最后窗口策略触发退出时也必须先交付 Exiting 的边界。
+
+验证：两库 Scoop 格式化／check 与 native 警告检查通过；window 的 10 项 release 回归通过。集成 Cone 的真实 AppKit 测试通过，确认 NSApplication 模态窗口、NSMenu 跟踪期间 asyncio timer 均推进，并覆盖根取消 → Closing → 子任务异步 finally → lease 释放 → Destroyed／退出。测试没有用自制 poll 循环替代 AppKit；真实鼠标拖动仍待单独验收。

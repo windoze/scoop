@@ -63,6 +63,7 @@ void *scoop_window_application_create(SWCallback callback, void *context,
     owner.context = context;
     owner.events = [NSMutableArray new];
     owner.windows = [NSMutableDictionary new];
+    owner.watches = [NSMutableDictionary new];
     CFRunLoopSourceContext source = {0};
     source.info = (__bridge void *)owner;
     source.perform = perform;

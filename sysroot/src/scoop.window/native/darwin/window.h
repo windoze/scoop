@@ -36,6 +36,7 @@ typedef struct {
 @property(nonatomic, strong) NSMutableArray<SWEvent *> *events;
 @property(nonatomic, strong)
     NSMutableDictionary<NSNumber *, SWWindow *> *windows;
+@property(nonatomic, strong) NSMutableDictionary<NSNumber *, id> *watches;
 - (void)enqueue:(SWEvent *)event;
 @end
 

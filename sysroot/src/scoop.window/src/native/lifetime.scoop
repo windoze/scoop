@@ -45,6 +45,10 @@ public interface ApplicationAttachment {
 /** Native application operations used by the separate asyncio integration Cone. */
 public class ApplicationHost internal constructor(internal val owner: ApplicationOwner) {
     public fun isCurrentThread(): Boolean = owner.isCurrentThread()
+    /** Borrows a readable descriptor without consuming, resetting, or closing it. */
+    @Unsafe
+    public fun watchReadable(descriptor: Int, ready: () -> Unit): ApplicationWatch =
+        owner.installWatch(descriptor, ready)
     public fun postControl(block: () -> Unit): Boolean = owner.mailbox.postControl(block)
     /** Reports session completion exactly once; its watches must already be retired. */
     public fun complete(failure: Throwable?) {

@@ -5,6 +5,8 @@ import scoop.platform.concurrent.currentThreadId
 import scoop.platform.time.MonotonicTimeSource
 import scoop.window.native.ApplicationAttachment
 import scoop.window.native.ApplicationHost
+import scoop.window.native.ApplicationWatch
+import scoop.window.native.dispatchWatch
 
 internal class ApplicationOwner(
     val lastWindowPolicy: LastWindowPolicy,
@@ -12,6 +14,8 @@ internal class ApplicationOwner(
 ) {
     val mailbox: ApplicationMailbox = ApplicationMailbox()
     val windows: ArrayList<WindowOwner> = ArrayList<WindowOwner>()
+    val watches: ArrayList<ApplicationWatch> = ArrayList<ApplicationWatch>()
+    var nextWatch: Long = 1L
     val active: ActiveApplication get() = ActiveApplication(this)
     var native: Ptr<Unit>? = None
     var handler: ApplicationHandler? = None
@@ -129,7 +133,10 @@ internal class ApplicationOwner(
 
     fun nativeCallback(identity: Long, stage: Int) {
         try {
-            pump(stage)
+            if (identity == 0L)
+                pump(stage)
+            else
+                dispatchWatch(identity, stage)
         }
         catch (error: Throwable) {
             recordFailure(error);

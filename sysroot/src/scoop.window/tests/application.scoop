@@ -16,7 +16,7 @@ private fun deliveryValue(): Int = value.value
 private class AppKitApplicationTest {
     @Test
     fun `real AppKit delivers serial callbacks and drains cross-thread native leases`() {
-        val application = Application()
+        val application = Application(ApplicationOptions(LastWindowPolicy.Exit))
         val handler = LifecycleHandler(application.proxy())
         val proxy = application.proxy()
         assertTrue(
@@ -87,7 +87,7 @@ private class LifecycleHandler(val proxy: ApplicationProxy): ApplicationHandler 
                         window!!.requestRedraw()
                     }
                     else
-                        application.requestExit()
+                        window!!.requestDestroy()
                 }
                 case Window(identity, WindowEvent.Closing) -> {
                     closing += 1

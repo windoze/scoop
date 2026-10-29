@@ -1,0 +1,22 @@
+schema = 1
+
+[cone]
+group = "scoop.tests"
+name = "window-native"
+version = "0.1.0"
+kind = "library"
+
+[native]
+objc_flags = ["-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter"]
+
+[[native.sources]]
+path = "native/modes.m"
+when = { os = "darwin" }
+
+[[native.libraries]]
+name = "AppKit"
+kind = "framework"
+
+[[native.libraries]]
+name = "CoreFoundation"
+kind = "framework"

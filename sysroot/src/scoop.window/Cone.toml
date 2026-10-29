@@ -33,6 +33,10 @@ when = { os = "darwin" }
 path = "native/darwin/window.m"
 when = { os = "darwin" }
 
+[[native.sources]]
+path = "native/darwin/watch.m"
+when = { os = "darwin" }
+
 [[native.libraries]]
 name = "AppKit"
 kind = "framework"

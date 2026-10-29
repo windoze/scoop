@@ -94,7 +94,7 @@ Application.runWithAsyncio(handler) 是独立 Cone 的扩展，复用 PlatformEv
 - `@Unsafe Application.runAttached(handler, attach: (ApplicationHost) -> ApplicationAttachment)` 与 run 共用单次入口；原生宿主可服务后、首个业务事件前调用 attach。安装失败回滚所有原生资源。
 - ApplicationAttachment 是普通接口，`post(block: () -> Unit): Boolean` 投递业务闭包，`requestClose()` 请求现有 session 收尾；基础库不依赖 CoroutineScope／EventLoop 类型。
 - ApplicationHost 提供 `isCurrentThread()`、Darwin 的 `@Unsafe watchReadable(descriptor: Int, ready: () -> Unit): ApplicationWatch`；监听不读取或关闭借入 fd、不内联 ready。ApplicationWatch.remove 在 owner 上注销，当前 ready 退出、排队通知退休后回调一次。
-- `postControl(block: () -> Unit): Boolean` 在关闭业务队列后继续接受收尾工作；`complete(failure: Throwable?)` 由 session.onClosed 在 owner 调用一次。无窗口时仍等待附着完成、watch 注销和已接受控制工作执行完。
+- `postControl(block: () -> Unit): Boolean` 在关闭业务队列后继续接受收尾工作；控制闭包用 `requestExit()` 在 owner 开始关闭。`complete(failure: Throwable?)` 由 session.onClosed 在 owner 调用一次。无窗口时仍等待附着完成、watch 注销和已接受控制工作执行完。
 
 WindowLoopHost 将这些实际操作适配为[asyncio 规范 11.3](SCOOP-ASYNCIO-SPEC.md#113-宿主接入合同)的 EventLoopNotification／watch。根取消订阅只排入控制队列，不跨线程直接操作窗口；集成 scope 仅在业务回调期间绑定。通知派发与纯 I/O／watch 维护唤醒不自行产生新一轮 NewEvents／AboutToWait，避免空闲自唤醒。
 

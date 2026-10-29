@@ -17,6 +17,11 @@ internal fun ApplicationOwner.cleanupEvent(event: ApplicationEvent) {
 internal fun ApplicationOwner.drainShutdown() {
     if (dispatchDepth != 0)
         return
+    if (exiting && !attached) {
+        for (watch in watches)
+            if (!watch.removing)
+                watch.remove {}
+    }
     if (exiting && !exitingDelivered) {
         exitingDelivered = true
         cleanupEvent(ApplicationEvent.Exiting)
@@ -56,7 +61,10 @@ internal fun ApplicationOwner.drainShutdown() {
     }
     if (
         exiting &&
+            exitingDelivered &&
             windows.size ==
+            0L &&
+            watches.size ==
             0L &&
             (!attached || attachmentComplete) &&
             mailbox.sealControlsIfEmpty()
