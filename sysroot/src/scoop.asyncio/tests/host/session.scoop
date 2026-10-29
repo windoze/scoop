@@ -149,8 +149,17 @@ private class FailingHost(private val problem: Throwable): EventLoopHost {
     var descriptor: Int = -1
     public override fun isCurrentThread(): Boolean = true
     @Unsafe
-    public override fun watchReadable(descriptor: Int, ready: () -> Unit): EventLoopWatch {
-        this.descriptor = descriptor
+    public override fun watch(
+        notification: EventLoopNotification,
+        ready: () -> Unit
+    ): EventLoopWatch {
+        this.descriptor =
+            when (notification) {
+                case ReadableDescriptor(value) -> value
+                case WindowsEvent(_) -> throw IllegalArgumentException(
+                    Some("test host requires a descriptor")
+                )
+            }
         throw problem
     }
 }

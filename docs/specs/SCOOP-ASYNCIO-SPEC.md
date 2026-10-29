@@ -297,7 +297,7 @@ session 暴露 `loop: EventLoop`、`isClosed: Boolean`、`post(block: (Coroutine
 
 ### 11.3 宿主接入合同
 
-`scoop.asyncio.host.EventLoopHost` 提供 `isCurrentThread()` 与 `@Unsafe watchReadable(descriptor, ready): EventLoopWatch`。host 只监听、不读写或关闭 loop 借出的通知 fd；ready 在 owner 线程串行执行，注册时不得内联执行。安装失败不得留下活动监听或回调。
+`scoop.asyncio.host.EventLoopHost` 提供 `isCurrentThread()` 与 `@Unsafe watch(notification: EventLoopNotification, ready: () -> Unit): EventLoopWatch`。通知为 `ReadableDescriptor(Int)` 或 `WindowsEvent(Ptr<Unit>)`；后者沿 Windows 平台分支已有 manual-reset event 合同，当前 Darwin／Linux loop 提供描述符。host 只监听，不读取、复位、关闭或更改 loop 借出的资源；不支持的通知种类在安装前明确拒绝。ready 在 owner 线程串行执行，注册时不得内联执行。安装失败不得留下活动监听或回调。旧 watchReadable 接口直接退役，不保留转发方法。
 
 `EventLoopWatch.remove(onRemoved)` 在 owner 上异步注销，按宿主协议不得抛错；必须等待当前 ready 退出并退休排队通知，再通知移除完成，此后不得再进入 ready。loop 在移除完成前保留 fd 和 callback 上下文。
 

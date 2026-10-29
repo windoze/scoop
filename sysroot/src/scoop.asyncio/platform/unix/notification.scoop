@@ -1,0 +1,10 @@
+package scoop.asyncio
+
+import scoop.asyncio.host.EventLoopNotification
+
+@Unsafe
+internal fun loopNotification(loop: Ptr<Unit>): EventLoopNotification =
+    EventLoopNotification.ReadableDescriptor(nativeLoopDescriptor(loop))
+
+@Extern(name = "scoop_io_loop_descriptor")
+private fun nativeLoopDescriptor(loop: Ptr<Unit>): Int

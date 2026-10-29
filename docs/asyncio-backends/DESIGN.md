@@ -55,9 +55,13 @@ public class EventLoopSession internal constructor(owner: LoopOwner) {
     public fun requestClose()
 }
 
+public enum EventLoopNotification {
+    ReadableDescriptor(Int), WindowsEvent(Ptr<Unit>)
+}
+
 public interface EventLoopHost {
     public fun isCurrentThread(): Boolean
-    @Unsafe public fun watchReadable(descriptor: Int,
+    @Unsafe public fun watch(notification: EventLoopNotification,
         ready: () -> Unit): EventLoopWatch
 }
 
@@ -92,7 +96,7 @@ mailbox 的执行通过根协程自己的 continuation 恢复完整 Context；�
 
 ### 3.3 监听的具体合同
 
-`watchReadable` 只借用描述符，不读、写、关闭或更改其模式；loop 自己消费通知。`ready` 必须在 owner 上串行执行，可有合并或多余通知；不得在注册栈内同步执行。安装失败抛出后，host 不得再持有回调或活动监听。
+`watch` 只借用对应平台通知，不读、写、复位、关闭或更改其状态；loop 自己消费通知。Darwin／Linux 使用 ReadableDescriptor，Windows 平台分支使用 WindowsEvent；不支持的种类在安装前拒绝。`ready` 必须在 owner 上串行执行，可有合并或多余通知；不得在注册栈内同步执行。安装失败抛出后，host 不得再持有回调或活动监听。
 
 `remove` 在 owner 调用，按宿主协议不得抛错，异步注销监听；`onRemoved` 恰好一次，并且此后不会再进入 `ready`。如果在 `ready` 内开始注销，必须先退出当前 `ready`，再通知移除完成。注销负责退休已经排队的通知，不能只从 poll 集合删掉 fd 就允许旧闭包继续运行。loop 在 `onRemoved` 前保留 fd 和相关上下文。
 

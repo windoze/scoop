@@ -15,9 +15,18 @@ internal class PollHost: EventLoopHost, EventLoopWatch {
 
     public override fun isCurrentThread(): Boolean = currentThreadId() == thread
     @Unsafe
-    public override fun watchReadable(descriptor: Int, ready: () -> Unit): EventLoopWatch {
+    public override fun watch(
+        notification: EventLoopNotification,
+        ready: () -> Unit
+    ): EventLoopWatch {
         assertTrue(isCurrentThread())
-        this.descriptor = descriptor
+        this.descriptor =
+            when (notification) {
+                case ReadableDescriptor(value) -> value
+                case WindowsEvent(_) -> throw IllegalArgumentException(
+                    Some("poll host requires a descriptor")
+                )
+            }
         this.ready = Some(ready)
         return this
     }

@@ -1,14 +1,19 @@
 package scoop.asyncio.host
 
-/** Owner-thread, serial readable-descriptor notifications from an external main loop. */
+/** A borrowed platform notification. The event loop owns its state and lifetime. */
+public enum EventLoopNotification {
+    ReadableDescriptor(Int), WindowsEvent(Ptr<Unit>)
+}
+
+/** Owner-thread, serial notifications from an external main loop. */
 public interface EventLoopHost {
     /** Whether this caller is the host thread that will deliver notifications. */
     public fun isCurrentThread(): Boolean
-    /** Borrows the descriptor. Must not call ready inline or retain it after installation fails. */
-    @Unsafe public fun watchReadable(descriptor: Int, ready: () -> Unit): EventLoopWatch
+    /** Borrows without consuming or resetting. Never calls ready inline or retains a failed watch. */
+    @Unsafe public fun watch(notification: EventLoopNotification, ready: () -> Unit): EventLoopWatch
 }
 
-/** An installed watch. It never owns or consumes the watched descriptor. */
+/** An installed watch. It never owns or consumes the watched resource. */
 public interface EventLoopWatch {
     /** Does not throw. Calls onRemoved once, after all ready invocations have returned. */
     public fun remove(onRemoved: () -> Unit)

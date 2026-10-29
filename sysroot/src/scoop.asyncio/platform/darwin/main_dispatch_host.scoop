@@ -15,9 +15,19 @@ public class MainDispatchHost public constructor(): EventLoopHost {
     }
 
     @Unsafe
-    public override fun watchReadable(descriptor: Int, ready: () -> Unit): EventLoopWatch {
+    public override fun watch(
+        notification: EventLoopNotification,
+        ready: () -> Unit
+    ): EventLoopWatch {
         if (!isCurrentThread())
             throw IllegalStateException(Some("main dispatch watch requires the main thread"))
+        val descriptor =
+            when (notification) {
+                case ReadableDescriptor(value) -> value
+                case WindowsEvent(_) -> throw IllegalArgumentException(
+                    Some("main dispatch requires a descriptor")
+                )
+            }
         val watch = MainDispatchWatch(ready)
         watch.install(descriptor)
         return watch

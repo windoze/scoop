@@ -31,3 +31,9 @@
 - sysroot 维护构建与文档共用目标源码清单；Darwin 专用 Cone 不进入 Linux 清单，依赖不可用仍正常报错，不增加编译器配置或平台空实现。
 
 验证：Scoop 格式化／check 通过，所属 Cone 的 9 个 release 测试通过；Ruff 0.16.10 格式化／lint 通过，脚本的 12 个测试通过。AppKit 后端与应用对象尚在下一批实施。
+
+### 3. asyncio 统一通知接口
+
+迁入 `EventLoopNotification`／`EventLoopHost.watch`，同步 Unix descriptor 提供方、Darwin MainDispatchHost 与实际测试宿主，删除旧 asyncio watchReadable 接口；未迁入 Windows I/O 实现。Darwin 在借用资源或派发前明确拒绝 Windows event 类型。
+
+验证：Scoop 格式化／check 通过；asyncio 完整 release Cone 测试 62 个容器、152 项全部通过，包含现有网络、文件、TTY、取消及宿主注销组合。

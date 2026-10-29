@@ -16,7 +16,7 @@ Scoop 尚未发布任何版本。语言、库 API、runtime ABI、native 产物�
 | [LoopDriver](../../sysroot/src/scoop.asyncio/src/loop_drive.scoop) | 有限批次、非阻塞 pump、阻止递归进入 | 宿主保留原生输入和重绘的执行机会 |
 | [LoopMailbox](../../sysroot/src/scoop.asyncio/src/loop_mailbox.scoop) | post 经根 continuation 执行；取消交给 owner | 直接复用任务、Context 和取消规则，不另建 GUI Job |
 | [EventLoopSession](../../sysroot/src/scoop.asyncio/src/event_loop_session.scoop) | I/O 排空后注销 watch，再销毁并通知 onClosed | 在 onClosed 之前维持原生主循环 |
-| [EventLoopHost 主线实现](../../sysroot/src/scoop.asyncio/src/host/host.scoop)与 [Windows 分支实现](https://github.com/windoze/scoop/blob/0fa053fd11c11e641e2f17212ce4948d5d52447a/sysroot/src/scoop.asyncio/src/host/host.scoop) | 主线仍用 watchReadable；分支已改为 EventLoopNotification 与 watch；remove 等 ready 退出 | 采用分支的统一通知接口，提供真实窗口宿主适配 |
+| [EventLoopHost](../../sysroot/src/scoop.asyncio/src/host/host.scoop) | 已迁入 Windows 分支的 EventLoopNotification 与 watch；remove 等 ready 退出 | 提供真实窗口宿主适配 |
 | [MainDispatchHost](../../sysroot/src/scoop.asyncio/platform/darwin/main_dispatch_host.scoop) | 主队列通知及 ForeignCallback 保活／异常观察 | 继续验证菜单跟踪、拖动和模态，不把 CFRunLoop 测试当成完整 AppKit 验收 |
 
 [实施记录](../asyncio-backends/PROGRESS.md)已报告 Darwin／GNU／musl、Linux 6.1、取消竞争和定向 moving GC 验收；本次没有重跑这些测试。[性能记录](../asyncio-backends/PERFORMANCE.md)也明确窗口系统尚未验证，Darwin 部分指标低于原 libuv 基线，因此本设计不预设新窗口层具有性能优势。

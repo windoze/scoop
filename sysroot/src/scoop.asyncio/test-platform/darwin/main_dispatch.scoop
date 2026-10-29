@@ -1,12 +1,32 @@
 package scoop.asyncio
 
 import scoop.asyncio.host.MainDispatchHost
+import scoop.asyncio.host.EventLoopNotification
 import scoop.platform.concurrent.currentThreadId
 import scoop.test.*
 import scoop.time.Duration
 
 @Test
 private class MainDispatchHostTest {
+    @Test
+    fun `foreign notification kinds fail before borrowing or dispatching`() {
+        val host = MainDispatchHost()
+        val result = HostResult()
+        val storage = 0L
+        @Unsafe
+        {
+            val notification = EventLoopNotification.WindowsEvent(addressOf(storage).cast<Unit>())
+            assertFailsWith<IllegalArgumentException> {
+                @Unsafe
+                {
+                    host.watch(notification) { result.completed = true }
+                }
+            }
+            nativeTestMainTurn()
+        }
+        assertFalse(result.completed)
+    }
+
     @Test
     fun `CFRunLoop delivers managed callbacks on main and observes asynchronous removal`() {
         val result = HostResult()
