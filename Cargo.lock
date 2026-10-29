@@ -1023,6 +1023,7 @@ dependencies = [
 name = "scoop-codegen"
 version = "0.0.0"
 dependencies = [
+ "cc",
  "inkwell",
  "la-arena",
  "llvm-sys",

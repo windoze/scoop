@@ -21,7 +21,8 @@ python3 tooling/vscode-scoop/test/debugger/dap.py --adapter /path/to/bin/lldb-da
 ```
 
 launch 覆盖源码断点、物理栈、单步、参数／局部／全局／TLS、UTF-8 和内嵌 NUL String、
-数组分页、tagged／niche enum、对象／interface、GC 后的普通局部及闭包实际读取。
+数组分页、tagged／niche enum、对象／interface、构造后局部及闭包实际读取。
+强制 moving GC 后检查存活引用的新地址与字段、失效变量不可用，以及调用者帧不显示旧引用。
 `--source-map` 将源码复制到含空格的临时目录，并以实际 DAP sourceMap 查找断点和栈位置。
 terminal 使用适配器的 runInTerminal 请求与真实控制 PTY；attach 在 Linux 通过
 PR_SET_PTRACER 只允许该次适配器访问该次目标，不改系统 ptrace 配置。日志保留原始协议，

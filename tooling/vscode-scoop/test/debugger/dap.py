@@ -60,6 +60,12 @@ def integer(variable, expected):
     assert variable["value"] == str(expected), variable
 
 
+def string(variable, expected):
+    # DAP prepends the native pointer to a pointer type's summary.
+    text = variable["value"]
+    assert '"' in text and json.loads(text[text.index('"') :]) == expected, variable
+
+
 def configure(client, sequence, source, break_lines):
     client.event("initialized")
     result = client.request(
@@ -78,7 +84,10 @@ def launch(client, configuration, source):
     markers = lines(source)
     sequence = client.request("launch", configuration, wait=False)
     configure(
-        client, sequence, source, [markers["values"], markers["after-gc"], markers["capture"] + 1]
+        client,
+        sequence,
+        source,
+        [markers["values"], markers["discarded"], markers["after-gc"], markers["capture"] + 1],
     )
     thread, frames = stopped(client)
     assert frames[0]["name"] == "inspectValues", frames
@@ -89,9 +98,7 @@ def launch(client, configuration, source):
     globals_ = variables(client, frames[0], globals_=True)
     integer(globals_["counter"], 40)
     integer(globals_["threadCounter"], 2)
-    # DAP prepends the native pointer to a pointer type's summary.
-    text = values["text"]["value"]
-    assert '"' in text and json.loads(text[text.index('"') :]) == "hé\u0000llo", values["text"]
+    string(values["text"], "hé\u0000llo")
     assert "size=3" in values["values"]["value"], values["values"]
     middle = children(client, values["values"], start=1, count=1)
     assert len(middle) == 1 and middle[0]["name"] == "[1]", middle
@@ -110,11 +117,31 @@ def launch(client, configuration, source):
     integer(variables(client, frames[0])["local"], 42)
     client.request("continue", {"threadId": thread})
     thread, frames = stopped(client)
+    assert frames[0]["line"] == markers["discarded"], frames
+    discarded = variables(client, frames[0])["discarded"]
+    fields = {item["name"]: item for item in children(client, discarded)}
+    integer(fields["value"], 99)
+    client.request("continue", {"threadId": thread})
+    thread, frames = stopped(client)
     assert frames[0]["line"] == markers["after-gc"], frames
-    # The existing compiler check proves that managed observations end at
-    # safepoints. Do not turn an unavailable location into a cached old address.
     after = variables(client, frames[0])
     integer(after["local"], 42)
+    string(after["text"], "hé\u0000llo")
+    for name in ("text", "values", "box"):
+        assert after[name]["value"].split()[0] != values[name]["value"].split()[0], (
+            name,
+            values[name],
+            after[name],
+        )
+    integer(children(client, after["values"], start=1, count=1)[0], 11)
+    fields = {item["name"]: item for item in children(client, after["box"])}
+    integer(fields["value"], 20)
+    assert "Box" in after["view"]["value"], after["view"]
+    assert after["discarded"]["value"].startswith("<error:"), after["discarded"]
+    caller_text = variables(client, frames[1])["text"]
+    assert (
+        caller_text["value"].startswith("<error:") or caller_text["value"] == after["text"]["value"]
+    ), caller_text
     client.request("continue", {"threadId": thread})
     thread, frames = stopped(client)
     assert frames[0]["line"] == markers["capture"] + 1, frames

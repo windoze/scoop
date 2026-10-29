@@ -18,6 +18,8 @@ use scoop_source::{DebugFile, DebugInlineSite, DebugLocation, DebugOrigin, Debug
 use crate::ValidatedBackendProfile;
 
 mod globals;
+mod records;
+pub(crate) use records::finalize_values;
 mod types;
 mod variables;
 

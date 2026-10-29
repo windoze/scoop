@@ -1867,7 +1867,9 @@ Throwable 准备在 MIR 的具体正文与协程转换、内联完成后展开�
 
 跨 Cone 模板的现有局部表增加必填 field 5，保存声明时的局部名称；selector、类型、可变性与定义来源仍占原 field 1–4。`cross-cone-interface` 升至 82，旧模板产物沿版本机制重建；MIR／LIR 不新增调试 wire 快照。模板实例化、默认表达式及构造片段直接保留该名称，生成项仍由原定义分支区分。源码局部声明复用 PersistentLocalValueId，名称与声明记录共享；内联副本保留原声明，只更新声明所在位置的内联链。词法父子关系从 HIR 已绑定的结构化正文与声明投影，MIR CFG 化前建立公共作用域记录；不为同一正文另存一份作用域树快照。源码参数序号和具体类型沿实际参数／局部关系传给 LIR，不从机器参数名反推。调试类型显示名复用具体化 MIR 的可读类型名称和实参，类型引用及 DWARF 唯一标识仍由 exact type id 确定。全局与 TLS 的调试绑定沿原 property／singleton 定义来源关联到实际静态存储，只在定义该存储的对象中发射；托管全局观察 GC 原本更新的静态根，TLS 使用目标原生定位。生成的失败根和 delegate 协议存储显式无源码变量，不执行 getter 或初始化函数来提供变量值。
 
-非引用局部使用真实存储的 declare 记录，SSA 参数及分片使用 value／fragment 记录。含 managed 引用的变量只观察程序已实际产生的值，不为调试新增读取、栈槽或 root；safepoint 后使未确认的位置 unavailable，后续真实读取／赋值再更新位置。被复制、拆分或消除的聚合不能继续显示旧叶子地址。
+非引用局部使用真实存储的 declare 记录，SSA 参数及分片使用 value／fragment 记录，并在实际读取时更新其位置。含 managed 引用的变量只观察程序已实际产生的值，不为调试新增读取、栈槽或 root；safepoint 后使未确认的位置 unavailable，已按该边 live set 回写的 canonical root storage 可立即提供新位置，其余变量等后续真实读取／赋值再更新。normal／unwind 边分别使用该边实际恢复的根，调用结果在旧观察失效之后建立位置。被复制、拆分或消除的聚合不能继续显示旧叶子地址。
+
+已有 canonical root storage 先使用 declare，使 SROA 能按真实布局转移存储分片；GC lowering 后统一转换成带解引用及原 fragment 的 value 记录，避免机器发射将静态 declare 和失效位置混用。参数声明及其观察位置属于实际函数作用域，内联参数属于对应内联函数，不能使用没有正文的独立文件词法块。RS4GC 更新机器 SSA 后，调试观察同步使用支配观察点的最新真实 relocation；无法确定的合流位置保持 unavailable，不为调试建立额外 phi、读取或 root。转换只修改 LLVM 调试记录，不加入读取、栈槽或保活用途的指令。LLVM C API 未提供的记录替换、表达式拼接及支配查询通过小型 C++ 绑定调用对应 LLVM 22.1 API。聚合拆分删除的旧 SSA 节点不得用零值替代其调试观察；未能迁移的观察保持 unavailable。
 
 2.5 使用 LLVM 22.1 的标准调试元数据和 debug records，在优化之前 finalize。当前目标采用 DWARF 5、`DW_LANG_C` 静态类型视图，producer 标明 scoopc；Scoop 基础类型通过 typedef 保留名称。每个实际发射对象保存自身需要的编译单元、文件、函数和类型；函数同时保存源码名称与既有精确 linkageName，包括 line-tables 的最终 DWARF；LLVM 的发射模式不得省略该精确身份。line-tables 只创建函数／位置记录，不创建变量和类型定义。所有字段偏移、大小、对齐与参数分片来自已有目标布局／ABI。引用按真实原生地址描述，不将 LLVM GC address space 当作硬件地址空间。ZST 不因调试增加 payload 存储。
 

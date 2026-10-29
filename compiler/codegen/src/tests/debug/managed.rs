@@ -27,9 +27,11 @@ fn managed_observations_end_at_safepoints_without_adding_roots() {
     function.temps = Arena::default();
     function.call_targets = CallTargets::default();
     let dead = function.locals.alloc(test_local("dead", MANAGED_PTR));
+    let fresh = function.locals.alloc(test_local("fresh", MANAGED_PTR));
     let captured = function.temps.alloc(Temp { ty: MANAGED_PTR });
     bind(function, "live", exact, DebugStorage::Parameter(0), Some(1));
     bind(function, "dead", exact, DebugStorage::Local(dead), None);
+    bind(function, "fresh", exact, DebugStorage::Local(fresh), None);
     bind(
         function,
         "captured",
@@ -87,10 +89,14 @@ fn managed_observations_end_at_safepoints_without_adding_roots() {
                     live,
                 }),
             },
+            Instruction::Store {
+                local: fresh,
+                value: Value::Param(0),
+            },
         ]
         .into(),
         terminator: Terminator::Return {
-            value: Some(Value::Param(0)),
+            value: Some(Value::Local(fresh)),
         },
         terminator_origin: origin(8),
     });
@@ -107,11 +113,14 @@ fn managed_observations_end_at_safepoints_without_adding_roots() {
         llvm.verify().unwrap();
         let before = llvm.print_to_string().to_string();
         if level == scoop_lir::DebugInfoLevel::Full {
-            assert!(
-                !before.contains("#dbg_declare"),
-                "managed locations must be invalidatable: {before}"
-            );
             let dead_id = variable_id(&before, "dead");
+            assert!(
+                !before
+                    .lines()
+                    .any(|line| line.contains("#dbg_declare")
+                        && line.contains(&format!(", {dead_id},"))),
+                "an unrooted dead local must not acquire stable storage: {before}"
+            );
             let dead_records = observations(&before, dead_id);
             assert!(dead_records.len() >= 2, "{before}");
             assert!(
@@ -132,8 +141,11 @@ fn managed_observations_end_at_safepoints_without_adding_roots() {
             let live_id = variable_id(&before, "live");
             let live_records = observations(&before, live_id);
             assert!(
-                live_records.iter().any(|line| line.contains("i8 undef")),
-                "{before}"
+                before
+                    .lines()
+                    .any(|line| line.contains("#dbg_declare")
+                        && line.contains(&format!(", {live_id},"))),
+                "restored storage must retain its real location: {before}"
             );
             assert!(
                 !live_records.last().unwrap().contains("undef"),
@@ -144,6 +156,10 @@ fn managed_observations_end_at_safepoints_without_adding_roots() {
         statepoint::rewrite(&llvm, &machine, &expected, profile).unwrap();
         llvm.verify().unwrap();
         let after = llvm.print_to_string().to_string();
+        assert!(
+            !after.contains("#dbg_declare"),
+            "final debug locations must use value records: {after}"
+        );
         let counts = [
             " alloca ",
             "call token (i64",
@@ -165,6 +181,24 @@ fn managed_observations_end_at_safepoints_without_adding_roots() {
             assert!(
                 captured_records.last().unwrap().contains("undef"),
                 "a stale capture survived: {after}"
+            );
+            let fresh_records = observations(&after, variable_id(&after, "fresh"));
+            let relocated = after
+                .lines()
+                .find(|line| {
+                    line.contains(" = call") && line.contains("@llvm.experimental.gc.relocate")
+                })
+                .unwrap()
+                .trim()
+                .split_once(" = ")
+                .unwrap()
+                .0;
+            assert!(
+                fresh_records
+                    .last()
+                    .unwrap()
+                    .contains(&format!("{relocated},")),
+                "a post-GC read must observe its actual relocated SSA value: {after}"
             );
         } else {
             plain_counts = Some(counts);

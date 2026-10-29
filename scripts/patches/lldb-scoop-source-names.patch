@@ -51,7 +51,7 @@
    }
 --- a/lldb/source/Symbol/Variable.cpp
 +++ b/lldb/source/Symbol/Variable.cpp
-@@ -49,4 +49,9 @@
+@@ -49,6 +49,11 @@
        m_owner_scope(context), m_scope_range(scope_range),
        m_declaration(decl_ptr), m_location_list(location_list), m_external(external),
        m_artificial(artificial), m_loc_is_const_data(location_is_constant_data),
@@ -62,3 +62,5 @@
 +    m_mangled.SetDemangledName(m_name);
 +  }
 +}
+
+ Variable::~Variable() = default;

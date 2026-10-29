@@ -19,3 +19,6 @@ tempfile.workspace = true
 scoop-identity.workspace = true
 scoop-toolchain.workspace = true
 scoop-slib.workspace = true
+
+[build-dependencies]
+cc.workspace = true

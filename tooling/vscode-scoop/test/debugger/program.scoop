@@ -15,6 +15,8 @@ fun inspectValues(number: Long, text: String, values: MutableArray<Long>, box: B
                   tagged: Choice, optional: Option<String>, absent: Option<String>, view: Value): Long {
     val local = number + 1L // BREAK: values
     val before = text.charLength + values[1L] + box.value
+    val discarded = Box(99L)
+    if (discarded.value != 99L) return 0L // BREAK: discarded
     gcCollect()
     val after = text.charLength + values[0L] + box.value // BREAK: after-gc
     val payload = when (tagged) {
@@ -43,6 +45,7 @@ fun main(): Int {
     val values = MutableArray<Long>(3L) { index -> index + 10L }
     val box = Box(20L)
     val result = inspectValues(41L, text, values, box, Choice.Number(7L), Some(text), None, box)
+    if (text.charLength != 6L) return 3
     val callback = makeCallback(40L)
     if (callback(1L) != 42L || result != 148L) return 1
     println("debugging-ok")

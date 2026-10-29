@@ -1,6 +1,8 @@
 use super::*;
 use scoop_lir::{AbiArgument, AbiArgumentLocation, AbiDirectValue, DebugStorage};
 
+mod safepoints;
+
 impl<'ctx> FnEmitter<'_, 'ctx> {
     pub(super) fn initialize_debug_variables(&self) -> Result<(), CodegenError> {
         let Some(debug) = &self.debug else {
@@ -29,6 +31,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     }
                 }
                 DebugStorage::Parameter(index) => {
+                    if managed
+                        && let Some(storage) = self
+                            .root_storage
+                            .get(&scoop_lir::CallerRootSource::Param(index))
+                    {
+                        debug.declare(binding.storage, storage.pointer, block);
+                        continue;
+                    }
                     let argument = &self.function.signature.arguments()[index as usize];
                     let location = self
                         .function

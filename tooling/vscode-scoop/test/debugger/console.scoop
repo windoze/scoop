@@ -6,6 +6,7 @@ fun isTerminal(descriptor: Int): Int
 @Unsafe
 fun main(): Int {
     println("debugger-input")
+    flushOutput()
     val input = readCharacter()
     val answer = input + 1 // BREAK: console
     if (answer != 66) return 1

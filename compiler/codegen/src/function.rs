@@ -407,31 +407,23 @@ pub(super) fn emit_function<'ctx>(
                 )));
             }
             emitter.instruction(instruction)?;
-            if !is_invoke {
-                for temp in instruction_temp_defs(instruction).into_iter().flatten() {
+            emitter.finish_debug_safepoint(instruction)?;
+            for temp in instruction_temp_defs(instruction).into_iter().flatten() {
+                if !is_invoke {
                     emitter.sync_root_temp(temp)?;
-                    if let Some(debug) = &emitter.debug
-                        && let Some(value) = emitter.temps.get(&temp)
-                    {
-                        debug.borrow().value(
-                            scoop_lir::DebugStorage::Temporary(temp),
-                            *value,
-                            None,
-                            builder
-                                .get_insert_block()
-                                .expect("an emitted value has a block"),
-                        );
-                    }
                 }
-            }
-            if instruction.safepoint().is_some()
-                && let Some(debug) = &emitter.debug
-            {
-                debug.borrow().invalidate_managed(
-                    builder
-                        .get_insert_block()
-                        .expect("an emitted instruction has a block"),
-                );
+                if let Some(debug) = &emitter.debug
+                    && let Some(value) = emitter.temps.get(&temp)
+                {
+                    debug.borrow().value(
+                        scoop_lir::DebugStorage::Temporary(temp),
+                        *value,
+                        None,
+                        builder
+                            .get_insert_block()
+                            .expect("an emitted value has a block"),
+                    );
+                }
             }
             invoke_terminated = is_invoke;
         }

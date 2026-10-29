@@ -16,9 +16,7 @@ impl<'ctx> FunctionDebug<'_, 'ctx> {
     }
 
     pub(crate) fn observes(&self, storage: DebugStorage) -> bool {
-        self.variables
-            .get(&storage)
-            .is_some_and(|variables| variables.iter().any(|variable| variable.managed))
+        self.variables.contains_key(&storage)
     }
 
     pub(crate) fn register(&mut self, binding: &DebugBinding, managed: bool) {
@@ -30,6 +28,24 @@ impl<'ctx> FunctionDebug<'_, 'ctx> {
             }
         } else {
             location.get_scope()
+        };
+        let location = if binding.parameter.is_some() {
+            let inlined_at = binding
+                .location
+                .inlined_at
+                .as_ref()
+                .map(|site| self.location(&site.call_site));
+            // Parameters span their function. A separate file-only lexical
+            // block has no body and makes LLVM drop or truncate their ranges.
+            self.context.builder.create_debug_location(
+                self.context.context,
+                binding.location.line,
+                binding.location.column,
+                scope,
+                inlined_at,
+            )
+        } else {
+            location
         };
         let file = self.context.file(&binding.location.file);
         let ty = self.context.source_type(binding.ty);
@@ -119,13 +135,22 @@ impl<'ctx> FunctionDebug<'_, 'ctx> {
     }
 
     pub(crate) fn invalidate_managed(&self, block: BasicBlock<'ctx>) {
+        self.invalidate_managed_except(block, &[]);
+    }
+
+    pub(crate) fn invalidate_managed_except(&self, block: BasicBlock<'ctx>, kept: &[DebugStorage]) {
+        let kept = kept
+            .iter()
+            .filter_map(|storage| self.variables.get(storage))
+            .flatten()
+            .map(|variable| variable.variable.as_mut_ptr())
+            .collect::<std::collections::HashSet<_>>();
         let unavailable = self.context.context.i8_type().get_undef().into();
         let expression = self.context.builder.create_expression(Vec::new());
-        for variable in self
-            .variables
-            .values()
-            .flatten()
-            .filter(|variable| variable.managed)
+        for variable in
+            self.variables.values().flatten().filter(|variable| {
+                variable.managed && !kept.contains(&variable.variable.as_mut_ptr())
+            })
         {
             self.value_record(variable, unavailable, expression, block);
         }
