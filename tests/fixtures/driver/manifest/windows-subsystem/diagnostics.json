@@ -1,7 +1,7 @@
 [
   {
-    "code": "SCOOP_BUILD_FAILED",
-    "message": "invalid build root: invalid Cone manifest root ${manifest.canonical}: windows.subsystem must be \"console\" or \"gui\"",
+    "code": "SCOOP_PACKAGE_PREPARE",
+    "message": "${manifest.canonical}: windows.subsystem must be \"console\" or \"gui\"",
     "notes": [],
     "origin": {
       "end": 130,
@@ -9,7 +9,6 @@
       "path": "${manifest.canonical}",
       "start": 125
     },
-    "phase": "Root",
     "severity": "error"
   }
 ]

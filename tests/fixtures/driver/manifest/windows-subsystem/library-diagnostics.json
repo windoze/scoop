@@ -1,7 +1,7 @@
 [
   {
-    "code": "SCOOP_BUILD_FAILED",
-    "message": "invalid build root: invalid Cone manifest root ${library_manifest.canonical}: [windows] executable configuration requires kind = \"executable\"",
+    "code": "SCOOP_PACKAGE_PREPARE",
+    "message": "${library_manifest.canonical}: [windows] executable configuration requires kind = \"executable\"",
     "notes": [],
     "origin": {
       "end": 125,
@@ -9,7 +9,6 @@
       "path": "${library_manifest.canonical}",
       "start": 98
     },
-    "phase": "Root",
     "severity": "error"
   }
 ]

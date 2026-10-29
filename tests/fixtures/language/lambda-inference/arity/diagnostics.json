@@ -11,5 +11,18 @@
       "start": 334
     },
     "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `scope` in extension candidate layer:\n  - suspend fun T.scope<T : Carrier, R>(block: suspend (T) -> R): R — argument for `block`: ordinary and suspend function types are incompatible",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 356,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 334
+    },
+    "severity": "error"
   }
 ]
