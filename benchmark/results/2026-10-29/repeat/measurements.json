@@ -1,0 +1,1796 @@
+{
+  "started": "2026-10-29T21:14:18.997942+08:00",
+  "host": {
+    "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+    "machine": "arm64",
+    "cpu": "Apple M4 Pro",
+    "memory_bytes": 68719476736,
+    "logical_cpus": 14,
+    "scoop": "scoop 0.0.0-dev (ae13036d9ce6740517df96152707a30934ed4c3e)",
+    "go": "go version go1.27.3 darwin/arm64",
+    "java": "java version \"21.0.12\" 2026-07-21 LTS\nJava(TM) SE Runtime Environment Oracle GraalVM 21.0.12+7.1 (build 21.0.12+7-LTS-jvmci-23.1-b96)\nJava HotSpot(TM) 64-Bit Server VM Oracle GraalVM 21.0.12+7.1 (build 21.0.12+7-LTS-jvmci-23.1-b96, mixed mode, sharing)",
+    "java_flags": "[Global flags]\n      int ActiveProcessorCount                     = -1                                        {product} {default}\n    uintx AdaptiveSizeDecrementScaleFactor         = 4                                         {product} {default}\n    uintx AdaptiveSizeMajorGCDecayTimeScale        = 10                                        {product} {default}\n    uintx AdaptiveSizePolicyCollectionCostMargin   = 50                                        {product} {default}\n    uintx AdaptiveSizePolicyInitializingSteps      = 20                                        {product} {default}\n    uintx AdaptiveSizePolicyOutputInterval         = 0                                         {product} {default}\n    uintx AdaptiveSizePolicyWeight                 = 10                                        {product} {default}\n    uintx AdaptiveSizeThroughPutPolicy             = 0                                         {product} {default}\n    uintx AdaptiveTimeWeight                       = 25                                        {product} {default}\n     bool AggressiveHeap                           = false                                     {product} {default}\n     bool AlignVector                              = false                                  {C2 product} {default}\n    ccstr AllocateHeapAt                           =                                           {product} {default}\n     intx AllocateInstancePrefetchLines            = 1                                         {product} {default}\n     intx AllocatePrefetchDistance                 = 384                                       {product} {default}\n     intx AllocatePrefetchInstr                    = 0                                         {product} {default}\n     intx AllocatePrefetchLines                    = 3                                         {product} {default}\n     intx AllocatePrefetchStepSize                 = 128                                       {product} {default}\n     intx AllocatePrefetchStyle                    = 1                                         {product} {default}\n     bool AllowParallelDefineClass                 = false                                     {product} {default}\n     bool AllowRedefinitionToAddDeleteMethods      = false                                     {product} {default}\n     bool AllowUserSignalHandlers                  = false                                     {product} {default}\n     bool AllowVectorizeOnDemand                   = true                                   {C2 product} {default}\n     bool AlwaysActAsServerClassMachine            = false                                     {product} {default}\n     bool AlwaysCompileLoopMethods                 = false                                     {product} {default}\n     bool AlwaysPreTouch                           = false                                     {product} {default}\n     bool AlwaysRestoreFPU                         = false                                     {product} {default}\n     bool AlwaysTenure                             = false                                     {product} {default}\n    ccstr ArchiveClassesAtExit                     =                                     {JVMCI product} {default}\n     intx ArrayCopyLoadStoreMaxElem                = 8                                         {product} {default}\n   size_t AsyncLogBufferSize                       = 2097152                                   {product} {default}\n     intx AutoBoxCacheMax                          = 128                                    {C2 product} {default}\n     bool AutoCreateSharedArchive                  = false                               {JVMCI product} {default}\n     bool AvoidUnalignedAccesses                   = false                                {ARCH product} {default}\n     intx BCEATraceLevel                           = 0                                         {product} {default}\n     bool BackgroundCompilation                    = true                                   {pd product} {default}\n   size_t BaseFootPrintEstimate                    = 268435456                                 {product} {default}\n     bool BlockLayoutByFrequency                   = true                                   {C2 product} {default}\n     intx BlockLayoutMinDiamondPercentage          = 20                                     {C2 product} {default}\n     bool BlockLayoutRotateLoops                   = true                                   {C2 product} {default}\n     intx BlockZeroingLowLimit                     = 256                                  {ARCH product} {default}\n     intx C1InlineStackLimit                       = 5                                      {C1 product} {default}\n     intx C1MaxInlineLevel                         = 9                                      {C1 product} {default}\n     intx C1MaxInlineSize                          = 35                                     {C1 product} {default}\n     intx C1MaxRecursiveInlineLevel                = 1                                      {C1 product} {default}\n     intx C1MaxTrivialSize                         = 6                                      {C1 product} {default}\n     bool C1OptimizeVirtualCallProfiling           = true                                   {C2 product} {default}\n     bool C1ProfileBranches                        = true                                   {C2 product} {default}\n     bool C1ProfileCalls                           = true                                   {C2 product} {default}\n     bool C1ProfileCheckcasts                      = true                                   {C2 product} {default}\n     bool C1ProfileInlinedCalls                    = true                                   {C2 product} {default}\n     bool C1ProfileVirtualCalls                    = true                                   {C2 product} {default}\n     bool C1UpdateMethodData                       = true                                   {C2 product} {default}\n     intx CICompilerCount                          = 4                                         {product} {ergonomic}\n     bool CICompilerCountPerCPU                    = true                                      {product} {default}\n     bool CITime                                   = false                                     {product} {default}\n     bool CheckJNICalls                            = false                                     {product} {default}\n     bool ClassUnloading                           = true                                      {product} {default}\n     bool ClassUnloadingWithConcurrentMark         = true                                      {product} {default}\n     bool ClipInlining                             = true                                      {product} {default}\n    uintx CodeCacheExpansionSize                   = 65536                                  {pd product} {default}\n     bool CompactStrings                           = true                                   {pd product} {default}\n    ccstr CompilationMode                          = default                                   {product} {default}\nccstrlist CompileCommand                           =                                           {product} {default}\n    ccstr CompileCommandFile                       =                                           {product} {default}\nccstrlist CompileOnly                              =                                           {product} {default}\n     intx CompileThreshold                         = 10000                                  {pd product} {default}\n   double CompileThresholdScaling                  = 1.000000                                  {product} {default}\n      int CompilerThreadPriority                   = -1                                        {product} {default}\n     intx CompilerThreadStackSize                  = 4096                                   {pd product} {default}\n   size_t CompressedClassSpaceSize                 = 1073741824                                {product} {default}\n     uint ConcGCThreads                            = 3                                         {product} {ergonomic}\n     intx ConditionalMoveLimit                     = 3                                   {C2 pd product} {default}\n     intx ContendedPaddingWidth                    = 128                                       {product} {default}\n     bool CrashOnOutOfMemoryError                  = false                                     {product} {default}\n     bool CreateCoredumpOnCrash                    = true                                      {product} {default}\n     bool DTraceAllocProbes                        = false                                     {product} {default}\n     bool DTraceMethodProbes                       = false                                     {product} {default}\n     bool DTraceMonitorProbes                      = false                                     {product} {default}\n     bool DisableAttachMechanism                   = false                                     {product} {default}\n     bool DisableExplicitGC                        = false                                     {product} {default}\n     bool DisplayVMOutputToStderr                  = false                                     {product} {default}\n     bool DisplayVMOutputToStdout                  = false                                     {product} {default}\n     bool DoEscapeAnalysis                         = true                                   {C2 product} {default}\n     bool DoReserveCopyInSuperWord                 = true                                   {C2 product} {default}\n     bool DontCompileHugeMethods                   = true                                      {product} {default}\n     bool DontYieldALot                            = false                                  {pd product} {default}\n    ccstr DumpLoadedClassList                      =                                     {JVMCI product} {default}\n     bool DumpReplayDataOnError                    = true                                      {product} {default}\n     bool EagerJVMCI                               = false                                  {C1 product} {default}\n     bool EagerXrunInit                            = false                                     {product} {default}\n     intx EliminateAllocationArraySizeLimit        = 64                                     {C2 product} {default}\n     bool EliminateAllocations                     = true                                   {C2 product} {default}\n     bool EliminateAutoBox                         = true                                   {C2 product} {default}\n     bool EliminateLocks                           = true                                   {C2 product} {default}\n     bool EliminateNestedLocks                     = true                                   {C2 product} {default}\n     bool EnableContended                          = true                                      {product} {default}\n     bool EnableDynamicAgentLoading                = true                                      {product} {default}\n     bool EnableJVMCI                              = true                                {JVMCI product} {default}\n     bool EnableJVMCIProduct                       = true                                {JVMCI product} {jimage}\n   size_t ErgoHeapSizeLimit                        = 0                                         {product} {default}\n    ccstr ErrorFile                                =                                           {product} {default}\n     bool ErrorFileToStderr                        = false                                     {product} {default}\n     bool ErrorFileToStdout                        = false                                     {product} {default}\n uint64_t ErrorLogTimeout                          = 120                                       {product} {default}\n   double EscapeAnalysisTimeout                    = 20.000000                              {C2 product} {default}\n     bool EstimateArgEscape                        = true                                      {product} {default}\n     bool ExecutingUnitTests                       = false                                     {product} {default}\n     bool ExitOnOutOfMemoryError                   = false                                     {product} {default}\n     bool ExplicitGCInvokesConcurrent              = false                                     {product} {default}\n     bool ExtensiveErrorReports                    = false                                     {product} {default}\n    ccstr ExtraSharedClassListFile                 =                                     {JVMCI product} {default}\n     bool FlightRecorder                           = false                                     {product} {default}\n    ccstr FlightRecorderOptions                    =                                           {product} {default}\n     bool ForceTimeHighResolution                  = false                                     {product} {default}\n     intx FreqInlineSize                           = 325                                 {C2 pd product} {default}\n   double G1ConcMarkStepDurationMillis             = 10.000000                                 {product} {default}\n     uint G1ConcRefinementThreads                  = 11                                        {product} {ergonomic}\n    uintx G1ConfidencePercent                      = 50                                        {product} {default}\n   size_t G1HeapRegionSize                         = 8388608                                   {product} {ergonomic}\n    uintx G1HeapWastePercent                       = 5                                         {product} {default}\n    uintx G1MixedGCCountTarget                     = 8                                         {product} {default}\n    uintx G1PeriodicGCInterval                     = 0                                      {manageable} {default}\n     bool G1PeriodicGCInvokesConcurrent            = true                                      {product} {default}\n   double G1PeriodicGCSystemLoadThreshold          = 0.000000                               {manageable} {default}\n     intx G1RSetUpdatingPauseTimePercent           = 10                                        {product} {default}\n     uint G1RefProcDrainInterval                   = 1000                                      {product} {default}\n    uintx G1ReservePercent                         = 10                                        {product} {default}\n    uintx G1SATBBufferEnqueueingThresholdPercent   = 60                                        {product} {default}\n   size_t G1SATBBufferSize                         = 1024                                      {product} {default}\n   size_t G1UpdateBufferSize                       = 256                                       {product} {default}\n     bool G1UseAdaptiveIHOP                        = true                                      {product} {default}\n     uint GCCardSizeInBytes                        = 512                                       {product} {default}\n    uintx GCDrainStackTargetSize                   = 64                                        {product} {ergonomic}\n    uintx GCHeapFreeLimit                          = 2                                         {product} {default}\n    uintx GCLockerEdenExpansionPercent             = 5                                         {product} {default}\n    uintx GCPauseIntervalMillis                    = 201                                       {product} {default}\n    uintx GCTimeLimit                              = 98                                        {product} {default}\n    uintx GCTimeRatio                              = 12                                        {product} {default}\n   size_t HeapBaseMinAddress                       = 2147483648                             {pd product} {default}\n     bool HeapDumpAfterFullGC                      = false                                  {manageable} {default}\n     bool HeapDumpBeforeFullGC                     = false                                  {manageable} {default}\n     intx HeapDumpGzipLevel                        = 0                                      {manageable} {default}\n     bool HeapDumpOnOutOfMemoryError               = false                                  {manageable} {default}\n    ccstr HeapDumpPath                             =                                        {manageable} {default}\n    uintx HeapFirstMaximumCompactionCount          = 3                                         {product} {default}\n    uintx HeapMaximumCompactionInterval            = 20                                        {product} {default}\n    uintx HeapSearchSteps                          = 3                                         {product} {default}\n   size_t HeapSizePerGCThread                      = 43620760                                  {product} {default}\n     bool IgnoreEmptyClassPaths                    = false                                     {product} {default}\n     bool IgnoreUnrecognizedVMOptions              = false                                     {product} {default}\n    uintx IncreaseFirstTierCompileThresholdAt      = 50                                        {product} {default}\n     bool IncrementalInline                        = true                                   {C2 product} {default}\n    uintx InitialCodeCacheSize                     = 2555904                                {pd product} {default}\n   size_t InitialHeapSize                          = 1073741824                                {product} {ergonomic}\n    uintx InitialRAMFraction                       = 64                                        {product} {default}\n   double InitialRAMPercentage                     = 1.562500                                  {product} {default}\n    uintx InitialSurvivorRatio                     = 8                                         {product} {default}\n    uintx InitialTenuringThreshold                 = 7                                         {product} {default}\n    uintx InitiatingHeapOccupancyPercent           = 45                                        {product} {default}\n     bool Inline                                   = true                                      {product} {default}\n    ccstr InlineDataFile                           =                                           {product} {default}\n     intx InlineSmallCode                          = 1000                                {C2 pd product} {default}\n     bool InlineSynchronizedMethods                = true                                   {C1 product} {default}\n     intx InteriorEntryAlignment                   = 16                                  {C2 pd product} {default}\n     intx InterpreterProfilePercentage             = 33                                        {product} {default}\n     uint JVMCICompilerIdleDelay                   = 1000                                {JVMCI product} {default}\n     intx JVMCICounterSize                         = 0                                      {C1 product} {default}\n     bool JVMCICountersExcludeCompiler             = true                                   {C1 product} {default}\n     intx JVMCIEventLogLevel                       = 1                                      {C1 product} {default}\n    ccstr JVMCILibDumpJNIConfig                    =                                        {C1 product} {default}\n    ccstr JVMCILibPath                             =                                        {C1 product} {default}\n     intx JVMCINMethodSizeLimit                    = 655360                                 {C1 product} {default}\n    ccstr JVMCINativeLibraryErrorFile              =                                        {C1 product} {default}\n   double JVMCINativeLibraryThreadFraction         = 0.330000                               {C1 product} {default}\n     bool JVMCIPrintProperties                     = false                               {JVMCI product} {default}\n     intx JVMCIThreads                             = 1                                      {C1 product} {default}\n     uint JVMCIThreadsPerNativeLibraryRuntime      = 1                                   {JVMCI product} {default}\n     intx JVMCITraceLevel                          = 0                                      {C1 product} {default}\n     bool JavaMonitorsInStackTrace                 = true                                      {product} {default}\n      int JavaPriority10_To_OSPriority             = -1                                        {product} {default}\n      int JavaPriority1_To_OSPriority              = -1                                        {product} {default}\n      int JavaPriority2_To_OSPriority              = -1                                        {product} {default}\n      int JavaPriority3_To_OSPriority              = -1                                        {product} {default}\n      int JavaPriority4_To_OSPriority              = -1                                        {product} {default}\n      int JavaPriority5_To_OSPriority              = -1                                        {product} {default}\n      int JavaPriority6_To_OSPriority              = -1                                        {product} {default}\n      int JavaPriority7_To_OSPriority              = -1                                        {product} {default}\n      int JavaPriority8_To_OSPriority              = -1                                        {product} {default}\n      int JavaPriority9_To_OSPriority              = -1                                        {product} {default}\n   size_t LargePageHeapSizeThreshold               = 134217728                                 {product} {default}\n   size_t LargePageSizeInBytes                     = 0                                         {product} {default}\n     intx LiveNodeCountInliningCutoff              = 40000                                  {C2 product} {default}\n     intx LoopMaxUnroll                            = 16                                     {C2 product} {default}\n     intx LoopOptsCount                            = 43                                     {C2 product} {default}\n     intx LoopPercentProfileLimit                  = 10                                  {C2 pd product} {default}\n    uintx LoopStripMiningIter                      = 1000                                      {product} {default}\n    uintx LoopStripMiningIterShortLoop             = 100                                       {product} {default}\n     intx LoopUnrollLimit                          = 60                                  {C2 pd product} {default}\n     intx LoopUnrollMin                            = 4                                      {C2 product} {default}\n     bool LoopUnswitching                          = true                                   {C2 product} {default}\n     bool ManagementServer                         = false                                     {product} {default}\n   size_t MarkStackSize                            = 4194304                                   {product} {ergonomic}\n   size_t MarkStackSizeMax                         = 536870912                                 {product} {default}\n     uint MarkSweepAlwaysCompactCount              = 4                                         {product} {default}\n    uintx MarkSweepDeadRatio                       = 5                                         {product} {default}\n     intx MaxBCEAEstimateLevel                     = 5                                         {product} {default}\n     intx MaxBCEAEstimateSize                      = 150                                       {product} {default}\n uint64_t MaxDirectMemorySize                      = 0                                         {product} {default}\n     bool MaxFDLimit                               = true                                      {product} {default}\n    uintx MaxGCMinorPauseMillis                    = 18446744073709551615                      {product} {default}\n    uintx MaxGCPauseMillis                         = 200                                       {product} {default}\n    uintx MaxHeapFreeRatio                         = 70                                     {manageable} {default}\n   size_t MaxHeapSize                              = 17179869184                               {product} {ergonomic}\n     intx MaxInlineLevel                           = 15                                     {C2 product} {default}\n     intx MaxInlineSize                            = 35                                     {C2 product} {default}\n     intx MaxJNILocalCapacity                      = 65536                                     {product} {default}\n     intx MaxJavaStackTraceDepth                   = 1024                                      {product} {default}\n     intx MaxJumpTableSize                         = 65000                                  {C2 product} {default}\n     intx MaxJumpTableSparseness                   = 5                                      {C2 product} {default}\n     intx MaxLabelRootDepth                        = 1100                                   {C2 product} {default}\n     intx MaxLoopPad                               = 15                                     {C2 product} {default}\n   size_t MaxMetaspaceExpansion                    = 5439488                                   {product} {default}\n    uintx MaxMetaspaceFreeRatio                    = 70                                        {product} {default}\n   size_t MaxMetaspaceSize                         = 18446744073709551615                      {product} {default}\n   size_t MaxNewSize                               = 10301210624                               {product} {ergonomic}\n     intx MaxNodeLimit                             = 80000                                  {C2 product} {default}\n uint64_t MaxRAM                                   = 137438953472                           {pd product} {default}\n    uintx MaxRAMFraction                           = 4                                         {product} {default}\n   double MaxRAMPercentage                         = 25.000000                                 {product} {default}\n     intx MaxRecursiveInlineLevel                  = 1                                      {C2 product} {default}\n    uintx MaxTenuringThreshold                     = 15                                        {product} {default}\n     intx MaxTrivialSize                           = 6                                      {C2 product} {default}\n     intx MaxVectorSize                            = 16                                     {C2 product} {default}\n   size_t MetaspaceSize                            = 22020096                                  {product} {default}\n     bool MethodFlushing                           = true                                      {product} {default}\n   size_t MinHeapDeltaBytes                        = 8388608                                   {product} {ergonomic}\n    uintx MinHeapFreeRatio                         = 40                                     {manageable} {default}\n   size_t MinHeapSize                              = 8388608                                   {product} {ergonomic}\n     intx MinJumpTableSize                         = 10                                  {C2 pd product} {default}\n   size_t MinMetaspaceExpansion                    = 327680                                    {product} {default}\n    uintx MinMetaspaceFreeRatio                    = 40                                        {product} {default}\n    uintx MinRAMFraction                           = 2                                         {product} {default}\n   double MinRAMPercentage                         = 50.000000                                 {product} {default}\n    uintx MinSurvivorRatio                         = 3                                         {product} {default}\n   size_t MinTLABSize                              = 2048                                      {product} {default}\n     intx MultiArrayExpandLimit                    = 6                                      {C2 product} {default}\n    uintx NUMAChunkResizeWeight                    = 20                                        {product} {default}\n   size_t NUMAInterleaveGranularity                = 2097152                                   {product} {default}\n    uintx NUMAPageScanRate                         = 256                                       {product} {default}\n   size_t NUMASpaceResizeRate                      = 1073741824                                {product} {default}\n     bool NUMAStats                                = false                                     {product} {default}\n    ccstr NativeMemoryTracking                     = off                                       {product} {default}\n     bool NearCpool                                = true                                 {ARCH product} {default}\n     bool NeverActAsServerClassMachine             = false                                  {pd product} {default}\n     bool NeverTenure                              = false                                     {product} {default}\n    uintx NewRatio                                 = 2                                         {product} {default}\n   size_t NewSize                                  = 1363144                                   {product} {default}\n   size_t NewSizeThreadIncrease                    = 5320                                   {pd product} {default}\n     intx NmethodSweepActivity                     = 4                                         {product} {default}\n     intx NodeLimitFudgeFactor                     = 2000                                   {C2 product} {default}\n    uintx NonNMethodCodeHeapSize                   = 6979684                                {pd product} {ergonomic}\n    uintx NonProfiledCodeHeapSize                  = 122339278                              {pd product} {ergonomic}\n     intx NumberOfLoopInstrToAlign                 = 4                                      {C2 product} {default}\n      int ObjectAlignmentInBytes                   = 8                              {product lp64_product} {default}\n   size_t OldPLABSize                              = 1024                                      {product} {default}\n   size_t OldSize                                  = 5452592                                   {product} {default}\n     bool OmitStackTraceInFastThrow                = true                                      {product} {default}\nccstrlist OnError                                  =                                           {product} {default}\nccstrlist OnOutOfMemoryError                       =                                           {product} {default}\n     intx OnStackReplacePercentage                 = 140                                    {pd product} {default}\n     bool OptimizeFill                             = true                                   {C2 product} {default}\n     bool OptimizePtrCompare                       = true                                   {C2 product} {default}\n     bool OptimizeStringConcat                     = true                                   {C2 product} {default}\n     bool OptoBundling                             = false                               {C2 pd product} {default}\n     intx OptoLoopAlignment                        = 16                                     {pd product} {default}\n     bool OptoRegScheduling                        = false                               {C2 pd product} {default}\n     bool OptoScheduling                           = true                                {C2 pd product} {default}\n    uintx PLABWeight                               = 75                                        {product} {default}\n     bool PSChunkLargeArrays                       = true                                      {product} {default}\n      int ParGCArrayScanChunk                      = 50                                        {product} {default}\n    uintx ParallelGCBufferWastePct                 = 10                                        {product} {default}\n     uint ParallelGCThreads                        = 11                                        {product} {default}\n   size_t ParallelOldDeadWoodLimiterMean           = 50                                        {product} {default}\n   size_t ParallelOldDeadWoodLimiterStdDev         = 80                                        {product} {default}\n     bool ParallelRefProcBalancingEnabled          = true                                      {product} {default}\n     bool ParallelRefProcEnabled                   = true                                      {product} {default}\n     bool PartialPeelAtUnsignedTests               = true                                   {C2 product} {default}\n     bool PartialPeelLoop                          = true                                   {C2 product} {default}\n     intx PartialPeelNewPhiDelta                   = 0                                      {C2 product} {default}\n    uintx PausePadding                             = 1                                         {product} {default}\n     intx PerBytecodeRecompilationCutoff           = 200                                       {product} {default}\n     intx PerBytecodeTrapLimit                     = 4                                         {product} {default}\n     intx PerMethodRecompilationCutoff             = 400                                       {product} {default}\n     intx PerMethodTrapLimit                       = 100                                       {product} {default}\n     bool PerfAllowAtExitRegistration              = false                                     {product} {default}\n     bool PerfBypassFileSystemCheck                = false                                     {product} {default}\n      int PerfDataMemorySize                       = 32768                                     {product} {default}\n     intx PerfDataSamplingInterval                 = 50                                        {product} {default}\n    ccstr PerfDataSaveFile                         =                                           {product} {default}\n     bool PerfDataSaveToFile                       = false                                     {product} {default}\n     bool PerfDisableSharedMem                     = false                                     {product} {default}\n      int PerfMaxStringConstLength                 = 1024                                      {product} {default}\n   size_t PreTouchParallelChunkSize                = 1073741824                             {pd product} {default}\n     bool PreferInterpreterNativeStubs             = false                                  {pd product} {default}\n     intx PrefetchCopyIntervalInBytes              = 384                                       {product} {default}\n     intx PrefetchScanIntervalInBytes              = 384                                       {product} {default}\n     bool PreserveAllAnnotations                   = false                                     {product} {default}\n     bool PreserveFramePointer                     = false                                  {pd product} {default}\n   size_t PretenureSizeThreshold                   = 0                                         {product} {default}\n     bool PrintClassHistogram                      = false                                  {manageable} {default}\n     bool PrintCodeCache                           = false                                     {product} {default}\n     bool PrintCodeCacheOnCompilation              = false                                     {product} {default}\n     bool PrintCommandLineFlags                    = false                                     {product} {default}\n     bool PrintCompilation                         = false                                     {product} {default}\n     bool PrintConcurrentLocks                     = false                                  {manageable} {default}\n     bool PrintExtendedThreadInfo                  = false                                     {product} {default}\n     bool PrintFlagsFinal                          = true                                      {product} {command line}\n     bool PrintFlagsInitial                        = false                                     {product} {default}\n     bool PrintFlagsRanges                         = false                                     {product} {default}\n     bool PrintGC                                  = false                                     {product} {default}\n     bool PrintGCDetails                           = false                                     {product} {default}\n     bool PrintHeapAtSIGBREAK                      = true                                      {product} {default}\n     bool PrintSharedArchiveAndExit                = false                               {JVMCI product} {default}\n     bool PrintStringTableStatistics               = false                                     {product} {default}\n     bool PrintTieredEvents                        = false                                     {product} {default}\n     bool PrintVMOptions                           = false                                     {product} {default}\n     bool PrintWarnings                            = true                                      {product} {default}\n    uintx ProcessDistributionStride                = 4                                         {product} {default}\n     bool ProfileInterpreter                       = true                                   {pd product} {default}\n     intx ProfileMaturityPercentage                = 20                                        {product} {default}\n    uintx ProfiledCodeHeapSize                     = 122339278                              {pd product} {ergonomic}\n    uintx PromotedPadding                          = 3                                         {product} {default}\n    uintx QueuedAllocationWarningCount             = 0                                         {product} {default}\n     bool RangeCheckElimination                    = true                                      {product} {default}\n     bool ReassociateInvariants                    = true                                   {C2 product} {default}\n     bool RecordDynamicDumpInfo                    = false                               {JVMCI product} {default}\n     bool ReduceBulkZeroing                        = true                                   {C2 product} {default}\n     bool ReduceFieldZeroing                       = true                                   {C2 product} {default}\n     bool ReduceInitialCardMarks                   = true                                   {C2 product} {default}\n     bool ReduceSignalUsage                        = false                                     {product} {default}\n     bool RegisterFinalizersAtInit                 = true                                      {product} {default}\n     bool RelaxAccessControlCheck                  = false                                     {product} {default}\n    ccstr ReplayDataFile                           =                                           {product} {default}\n    uintx ReservedCodeCacheSize                    = 251658240                              {pd product} {ergonomic}\n     bool ResizePLAB                               = true                                      {product} {default}\n     bool ResizeTLAB                               = true                                      {product} {default}\n     bool RestoreMXCSROnJNICalls                   = false                                     {product} {default}\n     bool RestrictContended                        = true                                      {product} {default}\n     bool RestrictReservedStack                    = true                                      {product} {default}\n     bool RewriteBytecodes                         = true                                   {pd product} {default}\n     bool RewriteFrequentPairs                     = true                                   {pd product} {default}\n     bool SafepointTimeout                         = false                                     {product} {default}\n     intx SafepointTimeoutDelay                    = 10000                                     {product} {default}\n     bool ScavengeBeforeFullGC                     = false                                     {product} {default}\n     bool SegmentedCodeCache                       = true                                      {product} {ergonomic}\n   double SelfDestructTimer                        = 0.000000                                  {product} {default}\n    ccstr SharedArchiveConfigFile                  =                                     {JVMCI product} {default}\n    ccstr SharedArchiveFile                        =                                     {JVMCI product} {default}\n   size_t SharedBaseAddress                        = 515396075520                        {JVMCI product} {default}\n    ccstr SharedClassListFile                      =                                     {JVMCI product} {default}\n     uint SharedSymbolTableBucketSize              = 4                                   {JVMCI product} {default}\n     bool ShowCodeDetailsInExceptionMessages       = true                                   {manageable} {default}\n     bool ShowMessageBoxOnError                    = false                                     {product} {default}\n     bool ShrinkHeapInSteps                        = true                                      {product} {default}\n   size_t SoftMaxHeapSize                          = 17179869184                            {manageable} {ergonomic}\n     intx SoftRefLRUPolicyMSPerMB                  = 1000                                      {product} {default}\n      int SoftwarePrefetchHintDistance             = 384                                  {ARCH product} {default}\n     bool SplitIfBlocks                            = true                                   {C2 product} {default}\n     intx StackRedPages                            = 1                                      {pd product} {default}\n     intx StackReservedPages                       = 1                                      {pd product} {default}\n     intx StackShadowPages                         = 20                                     {pd product} {default}\n     bool StackTraceInThrowable                    = true                                      {product} {default}\n     intx StackYellowPages                         = 2                                      {pd product} {default}\n    uintx StartAggressiveSweepingAt                = 10                                        {product} {default}\n     bool StartAttachListener                      = false                                     {product} {default}\n    ccstr StartFlightRecording                     =                                           {product} {default}\n     uint StringDeduplicationAgeThreshold          = 3                                         {product} {default}\n    uintx StringTableSize                          = 65536                                     {product} {default}\n     bool SuperWordLoopUnrollAnalysis              = true                                {C2 pd product} {default}\n     bool SuperWordReductions                      = true                                   {C2 product} {default}\n     bool SuppressFatalErrorMessage                = false                                     {product} {default}\n    uintx SurvivorPadding                          = 3                                         {product} {default}\n    uintx SurvivorRatio                            = 8                                         {product} {default}\n   double SweeperThreshold                         = 15.000000                                 {product} {default}\n    uintx TLABAllocationWeight                     = 35                                        {product} {default}\n    uintx TLABRefillWasteFraction                  = 64                                        {product} {default}\n   size_t TLABSize                                 = 0                                         {product} {default}\n     bool TLABStats                                = true                                      {product} {default}\n    uintx TLABWasteIncrement                       = 4                                         {product} {default}\n    uintx TLABWasteTargetPercent                   = 1                                         {product} {default}\n    uintx TargetPLABWastePct                       = 10                                        {product} {default}\n    uintx TargetSurvivorRatio                      = 50                                        {product} {default}\n    uintx TenuredGenerationSizeIncrement           = 20                                        {product} {default}\n    uintx TenuredGenerationSizeSupplement          = 80                                        {product} {default}\n    uintx TenuredGenerationSizeSupplementDecay     = 2                                         {product} {default}\n      int ThreadPriorityPolicy                     = 1                                         {product} {jimage}\n     bool ThreadPriorityVerbose                    = false                                     {product} {default}\n     intx ThreadStackSize                          = 2048                                   {pd product} {default}\n    uintx ThresholdTolerance                       = 10                                        {product} {default}\n     intx Tier0BackedgeNotifyFreqLog               = 10                                        {product} {default}\n     intx Tier0InvokeNotifyFreqLog                 = 7                                         {product} {default}\n     intx Tier0ProfilingStartPercentage            = 200                                       {product} {default}\n     intx Tier23InlineeNotifyFreqLog               = 20                                        {product} {default}\n     intx Tier2BackEdgeThreshold                   = 0                                         {product} {default}\n     intx Tier2BackedgeNotifyFreqLog               = 14                                        {product} {default}\n     intx Tier2CompileThreshold                    = 0                                         {product} {default}\n     intx Tier2InvokeNotifyFreqLog                 = 11                                        {product} {default}\n     intx Tier3BackEdgeThreshold                   = 60000                                     {product} {default}\n     intx Tier3BackedgeNotifyFreqLog               = 13                                        {product} {default}\n     intx Tier3CompileThreshold                    = 2000                                      {product} {default}\n     intx Tier3DelayOff                            = 2                                         {product} {default}\n     intx Tier3DelayOn                             = 5                                         {product} {default}\n     intx Tier3InvocationThreshold                 = 200                                       {product} {default}\n     intx Tier3InvokeNotifyFreqLog                 = 10                                        {product} {default}\n     intx Tier3LoadFeedback                        = 5                                         {product} {default}\n     intx Tier3MinInvocationThreshold              = 100                                       {product} {default}\n     intx Tier4BackEdgeThreshold                   = 40000                                     {product} {default}\n     intx Tier4CompileThreshold                    = 15000                                     {product} {default}\n     intx Tier4InvocationThreshold                 = 5000                                      {product} {default}\n     intx Tier4LoadFeedback                        = 3                                         {product} {default}\n     intx Tier4MinInvocationThreshold              = 600                                       {product} {default}\n     bool TieredCompilation                        = true                                   {pd product} {default}\n     intx TieredCompileTaskTimeout                 = 50                                        {product} {default}\n     intx TieredRateUpdateMaxTime                  = 25                                        {product} {default}\n     intx TieredRateUpdateMinTime                  = 1                                         {product} {default}\n     intx TieredStopAtLevel                        = 4                                         {product} {default}\n     bool TimeLinearScan                           = false                                  {C1 product} {default}\n    ccstr TraceJVMTI                               =                                           {product} {default}\n     bool TraceTraps                               = false                                {ARCH product} {default}\n     intx TrackedInitializationLimit               = 50                                     {C2 product} {default}\n     bool TrapBasedNullChecks                      = false                                  {pd product} {default}\n     bool TrapBasedRangeChecks                     = false                                  {pd product} {default}\n     intx TypeProfileArgsLimit                     = 2                                         {product} {default}\n     uint TypeProfileLevel                         = 0                                      {pd product} {default}\n     intx TypeProfileMajorReceiverPercent          = 90                                     {C2 product} {default}\n     intx TypeProfileParmsLimit                    = 2                                         {product} {default}\n     intx TypeProfileWidth                         = 8                                         {product} {default}\n      int UnguardOnExecutionViolation              = 0                                         {product} {default}\n     bool UseAES                                   = true                                      {product} {default}\n     bool UseAdaptiveGenerationSizePolicyAtMajorCollection  = true                             {product} {default}\n     bool UseAdaptiveGenerationSizePolicyAtMinorCollection  = true                             {product} {default}\n     bool UseAdaptiveNUMAChunkSizing               = true                                      {product} {default}\n     bool UseAdaptiveSizeDecayMajorGCCost          = true                                      {product} {default}\n     bool UseAdaptiveSizePolicy                    = true                                      {product} {default}\n     bool UseAdaptiveSizePolicyFootprintGoal       = true                                      {product} {default}\n     bool UseAdaptiveSizePolicyWithSystemGC        = false                                     {product} {default}\n     bool UseBASE64Intrinsics                      = true                                      {product} {default}\n     bool UseBimorphicInlining                     = true                                   {C2 product} {default}\n     bool UseBlockZeroing                          = true                                 {ARCH product} {default}\n    ccstr UseBranchProtection                      = none                                 {ARCH product} {default}\n     bool UseCMoveUnconditionally                  = false                                  {C2 product} {default}\n     bool UseCRC32                                 = true                                 {ARCH product} {default}\n     bool UseCodeCacheFlushing                     = true                                      {product} {default}\n     bool UseCompiler                              = true                                      {product} {default}\n     bool UseCompressedClassPointers               = true                           {product lp64_product} {default}\n     bool UseCompressedOops                        = true                           {product lp64_product} {ergonomic}\n     bool UseCondCardMark                          = false                                     {product} {default}\n     bool UseCountedLoopSafepoints                 = true                                   {C2 product} {default}\n     bool UseCounterDecay                          = true                                      {product} {default}\n     bool UseCryptoPmullForCRC32                   = false                                {ARCH product} {default}\n     bool UseDivMod                                = true                                   {C2 product} {default}\n     bool UseDynamicNumberOfCompilerThreads        = true                                      {product} {default}\n     bool UseDynamicNumberOfGCThreads              = true                                      {product} {default}\n     bool UseEmptySlotsInSupers                    = true                                      {product} {default}\n     bool UseFMA                                   = true                                      {product} {default}\n     bool UseFPUForSpilling                        = false                                  {C2 product} {default}\n     bool UseFastJNIAccessors                      = true                                      {product} {default}\n     bool UseG1GC                                  = true                                      {product} {ergonomic}\n     bool UseGCOverheadLimit                       = true                                      {product} {default}\n     bool UseInlineCaches                          = true                                      {product} {default}\n     bool UseInterpreter                           = true                                      {product} {default}\n     bool UseJVMCICompiler                         = true                                {JVMCI product} {default}\n     bool UseJVMCINativeLibrary                    = true                                   {C1 product} {default}\n     bool UseJumpTables                            = true                                   {C2 product} {default}\n     bool UseLSE                                   = true                                 {ARCH product} {default}\n     bool UseLargePages                            = false                                  {pd product} {default}\n     bool UseLargePagesIndividualAllocation        = false                                  {pd product} {default}\n     bool UseLoopCounter                           = true                                      {product} {default}\n     bool UseLoopInvariantCodeMotion               = true                                   {C1 product} {default}\n     bool UseLoopPredicate                         = true                                   {C2 product} {default}\n     bool UseMaximumCompactionOnSystemGC           = true                                      {product} {default}\n     bool UseNUMA                                  = false                                     {product} {ergonomic}\n     bool UseNUMAInterleaving                      = false                                     {product} {ergonomic}\n     bool UseNeon                                  = false                                {ARCH product} {default}\n     bool UseNotificationThread                    = true                                      {product} {default}\n     bool UseOnStackReplacement                    = true                                   {pd product} {default}\n     bool UseOnlyInlinedBimorphic                  = true                                   {C2 product} {default}\n     bool UsePSAdaptiveSurvivorSizePolicy          = true                                      {product} {default}\n     bool UseParallelGC                            = false                                     {product} {default}\n     bool UsePerfData                              = true                                      {product} {default}\n     bool UsePopCountInstruction                   = true                                      {product} {default}\n     bool UseProfiledLoopPredicate                 = true                                      {product} {default}\n     bool UseSHA                                   = true                                      {product} {default}\n     bool UseSIMDForArrayEquals                    = true                                 {ARCH product} {default}\n     bool UseSIMDForBigIntegerShiftIntrinsics      = true                                 {ARCH product} {default}\n     bool UseSIMDForMemoryOps                      = false                                {ARCH product} {default}\n     uint UseSVE                                   = 0                                    {ARCH product} {default}\n     bool UseSerialGC                              = false                                     {product} {default}\n     bool UseShenandoahGC                          = false                                     {product} {default}\n     bool UseSignalChaining                        = true                                      {product} {default}\n     bool UseSimpleArrayEquals                     = false                                {ARCH product} {default}\n     bool UseStringDeduplication                   = false                                     {product} {default}\n     bool UseSubwordForMaxVector                   = true                                   {C2 product} {default}\n     bool UseSuperWord                             = true                                   {C2 product} {default}\n     bool UseSystemMemoryBarrier                   = false                                     {product} {default}\n     bool UseTLAB                                  = true                                      {product} {default}\n     bool UseThreadPriorities                      = true                                   {pd product} {default}\n     bool UseTypeProfile                           = true                                      {product} {default}\n     bool UseTypeSpeculation                       = true                                      {product} {default}\n     bool UseVectorCmov                            = false                                  {C2 product} {default}\n     bool UseXMMForArrayCopy                       = false                                     {product} {default}\n     bool UseZGC                                   = false                                     {product} {default}\n      int VMThreadPriority                         = -1                                        {product} {default}\n     intx VMThreadStackSize                        = 2048                                   {pd product} {default}\n     intx ValueMapInitialSize                      = 11                                     {C1 product} {default}\n     intx ValueMapMaxLoopSize                      = 8                                      {C1 product} {default}\n     intx ValueSearchLimit                         = 1000                                   {C2 product} {default}\n     bool VerifySharedSpaces                       = false                               {JVMCI product} {default}\n    uintx YoungGenerationSizeIncrement             = 20                                        {product} {default}\n    uintx YoungGenerationSizeSupplement            = 80                                        {product} {default}\n    uintx YoungGenerationSizeSupplementDecay       = 8                                         {product} {default}\n   size_t YoungPLABSize                            = 4096                                      {product} {default}\n   double ZAllocationSpikeTolerance                = 2.000000                                  {product} {default}\n   double ZCollectionInterval                      = 0.000000                                  {product} {default}\n   double ZCollectionIntervalMajor                 = -1.000000                                 {product} {default}\n   double ZCollectionIntervalMinor                 = -1.000000                                 {product} {default}\n     bool ZCollectionIntervalOnly                  = false                                     {product} {default}\n   double ZFragmentationLimit                      = 0.000000                                  {product} {default}\n     bool ZGenerational                            = false                                     {product} {default}\n   size_t ZMarkStackSpaceLimit                     = 8589934592                                {product} {default}\n     bool ZProactive                               = true                                      {product} {default}\n     bool ZUncommit                                = true                                      {product} {default}\n    uintx ZUncommitDelay                           = 300                                       {product} {default}\n   double ZYoungCompactionLimit                    = 25.000000                                 {product} {default}\n     bool ZeroTLAB                                 = false                                     {product} {default}\njava version \"21.0.12\" 2026-07-21 LTS\nJava(TM) SE Runtime Environment Oracle GraalVM 21.0.12+7.1 (build 21.0.12+7-LTS-jvmci-23.1-b96)\nJava HotSpot(TM) 64-Bit Server VM Oracle GraalVM 21.0.12+7.1 (build 21.0.12+7-LTS-jvmci-23.1-b96, mixed mode, sharing)",
+    "power": "AC Power:\n Sleep On Power Button 1\n autorestartatconnect 0\n powermode            0\n standby              0\n ttyskeepawake        1\n powernap             1\n displaysleep         10\n womp                 0\n networkoversleep     0\n sleep                0\n tcpkeepalive         1\n autorestart          1\n disksleep            10"
+  },
+  "method": {
+    "forks": 3,
+    "samples_per_fork": 7,
+    "sample_ms": 300,
+    "jit_warmup_ms": 5000,
+    "aot_warmup_ms": 500,
+    "gc": "defaults, Java JIT and Native Image -Xms64m -Xmx1g",
+    "statistic": "median of independent process medians",
+    "order_seed": 20261029
+  },
+  "source_sha256": {
+    "build.py": "488ac48c27e128a004606639596135aad9fe6166f2100097aa2882a4437de9da",
+    "build_cost.py": "62ba7536026b62c64ecd685e053b816f9a1d4f93955cfaf1ae64b3c9d0d2f797",
+    "cases.py": "42999a81198f69d7ee8c203dafb1011b1bb9c3617e6dca6a3d293cfea367e0d7",
+    "common.py": "a0a50e70f9e7b0b9d716646816b26b8858835f036eddbe61a5e27dbc24700c48",
+    "diagnose.py": "9485badfd8c84b0b864ac247aa7a800480304610c222d3a6007f7048a4455f78",
+    "go/libraries.go": "404fc5380d2e3af3f9bc6725655ef8c18ca3c5fe343396a625fb7b4437eb813b",
+    "go/main.go": "7e665e45185f41a0c621f5ec83f9b115dd4d94e04539402c38a0aaafc9715b85",
+    "go/numeric.go": "e0957a487b6a630252a21558eb41460f45eb68100e89c3c48de9f16f2be991c5",
+    "go/objects.go": "4a1dd8d8888f112c4e5992356c6d4bf1281311234fe930e4aa1511068892f6b8",
+    "harness.c": "482c5d864ae807a2521d17cd677cb8f59588d9dcf99dd8f1a02aae424e5e5490",
+    "java/Bench.java": "6ead67d26c1749a73e96bde3d9a8d8669ab0ab2ac0951b70563e8ac14e78fbf0",
+    "java/Libraries.java": "08b4f94d6a359b74d3a510d9a36166c757474c6da53dc665f8628a15ecfdf7e9",
+    "java/Numeric.java": "aca9536da83791da98c15c575dae0c68d37e3b3b69d400b6bbf91445314aad9c",
+    "java/Objects.java": "1c20272fd6874cc4757f1cf77bdf0e820d87d2391b95ed242651cfe57009184b",
+    "profile.py": "11597c88cd683626c0e73af26748c06d9729b61971152139a73ba0d5c2b4896b",
+    "run.py": "c839fdf94e0fa63596619f585c9a06b655ccd8336b73b325fb6d3a10381027c4",
+    "scoop/Cone.toml": "7dc185072bfa3ab1df18861da79ae898249770839a333a7d9f9b5e6a8494d4ae",
+    "scoop/src/libraries.scoop": "6044509b9f54a55fd0b772302c9b01ce714b711b95672f95386d1c67858d8898",
+    "scoop/src/main.scoop": "5604eb7f966c57941186809dac708579afbb856992da9941f788d645c5befac6",
+    "scoop/src/numeric.scoop": "3ba132eda3e5b3eb277fc0b135f53d41f4fc3f1f0a7834c951951a582ed74d71",
+    "scoop/src/objects.scoop": "59521f9d0dd4a0a31eec3782809abf7ab581710ddc3eebae95c5b023320353c8",
+    "summarize.py": "4a604694a4c68b1a8b2a461597535733940ad2aa00416690e67062e685259ab0"
+  },
+  "runs": [
+    {
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 2.646657542,
+      "user_cpu_seconds": 4.4693439999999995,
+      "system_cpu_seconds": 1.117632,
+      "cpu_seconds": 5.586976,
+      "peak_rss_bytes": 74285056,
+      "stdout": "{\"type\":\"check\",\"seed\":42,\"value\":94506909696}\n{\"type\":\"check\",\"seed\":43,\"value\":94507302912}\n{\"type\":\"check\",\"seed\":44,\"value\":94507696128}\n{\"type\":\"check\",\"seed\":45,\"value\":94508089344}\n{\"type\":\"check\",\"seed\":46,\"value\":94508482560}\n{\"type\":\"check\",\"seed\":47,\"value\":94508875776}\n{\"type\":\"check\",\"seed\":48,\"value\":94509268992}\n{\"type\":\"check\",\"seed\":49,\"value\":94509662208}\n{\"type\":\"sample\",\"index\":-1,\"elapsed_ns\":500213000,\"calls\":229,\"checksum\":94510055424}\n{\"type\":\"sample\",\"index\":0,\"elapsed_ns\":302753000,\"calls\":130,\"checksum\":1966080}\n{\"type\":\"sample\",\"index\":1,\"elapsed_ns\":301451000,\"calls\":124,\"checksum\":524288}\n{\"type\":\"sample\",\"index\":2,\"elapsed_ns\":301441000,\"calls\":128,\"checksum\":0}\n{\"type\":\"sample\",\"index\":3,\"elapsed_ns\":301277000,\"calls\":128,\"checksum\":0}\n{\"type\":\"sample\",\"index\":4,\"elapsed_ns\":303031000,\"calls\":111,\"checksum\":94509662208}\n{\"type\":\"sample\",\"index\":5,\"elapsed_ns\":300651000,\"calls\":126,\"checksum\":393216}\n{\"type\":\"sample\",\"index\":6,\"elapsed_ns\":300595000,\"calls\":125,\"checksum\":94509006848}\n",
+      "stderr": "",
+      "configuration": {
+        "BENCH_CASE": "7",
+        "BENCH_N": "131072",
+        "BENCH_SEED": "42",
+        "BENCH_WARMUP_MS": "500",
+        "BENCH_SAMPLE_MS": "300",
+        "BENCH_SAMPLES": "7"
+      },
+      "case": "reference-records",
+      "language": "scoop",
+      "fork": 0,
+      "n": 131072,
+      "checks": [
+        94506909696,
+        94507302912,
+        94507696128,
+        94508089344,
+        94508482560,
+        94508875776,
+        94509268992,
+        94509662208
+      ],
+      "samples": [
+        {
+          "type": "sample",
+          "index": -1,
+          "elapsed_ns": 500213000,
+          "calls": 229,
+          "checksum": 94510055424
+        },
+        {
+          "type": "sample",
+          "index": 0,
+          "elapsed_ns": 302753000,
+          "calls": 130,
+          "checksum": 1966080
+        },
+        {
+          "type": "sample",
+          "index": 1,
+          "elapsed_ns": 301451000,
+          "calls": 124,
+          "checksum": 524288
+        },
+        {
+          "type": "sample",
+          "index": 2,
+          "elapsed_ns": 301441000,
+          "calls": 128,
+          "checksum": 0
+        },
+        {
+          "type": "sample",
+          "index": 3,
+          "elapsed_ns": 301277000,
+          "calls": 128,
+          "checksum": 0
+        },
+        {
+          "type": "sample",
+          "index": 4,
+          "elapsed_ns": 303031000,
+          "calls": 111,
+          "checksum": 94509662208
+        },
+        {
+          "type": "sample",
+          "index": 5,
+          "elapsed_ns": 300651000,
+          "calls": 126,
+          "checksum": 393216
+        },
+        {
+          "type": "sample",
+          "index": 6,
+          "elapsed_ns": 300595000,
+          "calls": 125,
+          "checksum": 94509006848
+        }
+      ],
+      "median_ns": 2386119.0476190476
+    },
+    {
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 2.637142375,
+      "user_cpu_seconds": 4.206578,
+      "system_cpu_seconds": 0.227846,
+      "cpu_seconds": 4.434424,
+      "peak_rss_bytes": 29065216,
+      "stdout": "{\"type\":\"check\",\"seed\":42,\"value\":94506909696}\n{\"type\":\"check\",\"seed\":43,\"value\":94507302912}\n{\"type\":\"check\",\"seed\":44,\"value\":94507696128}\n{\"type\":\"check\",\"seed\":45,\"value\":94508089344}\n{\"type\":\"check\",\"seed\":46,\"value\":94508482560}\n{\"type\":\"check\",\"seed\":47,\"value\":94508875776}\n{\"type\":\"check\",\"seed\":48,\"value\":94509268992}\n{\"type\":\"check\",\"seed\":49,\"value\":94509662208}\n{\"type\":\"sample\",\"index\":-1,\"elapsed_ns\":501866916,\"calls\":246,\"checksum\":1441792}\n{\"type\":\"sample\",\"index\":0,\"elapsed_ns\":301446208,\"calls\":151,\"checksum\":94508613632}\n{\"type\":\"sample\",\"index\":1,\"elapsed_ns\":300441208,\"calls\":149,\"checksum\":94510055424}\n{\"type\":\"sample\",\"index\":2,\"elapsed_ns\":301176125,\"calls\":152,\"checksum\":1048576}\n{\"type\":\"sample\",\"index\":3,\"elapsed_ns\":300489375,\"calls\":154,\"checksum\":917504}\n{\"type\":\"sample\",\"index\":4,\"elapsed_ns\":300455292,\"calls\":151,\"checksum\":94508613632}\n{\"type\":\"sample\",\"index\":5,\"elapsed_ns\":301601666,\"calls\":149,\"checksum\":94510055424}\n{\"type\":\"sample\",\"index\":6,\"elapsed_ns\":300322667,\"calls\":144,\"checksum\":0}\n",
+      "stderr": "",
+      "configuration": {
+        "BENCH_CASE": "7",
+        "BENCH_N": "131072",
+        "BENCH_SEED": "42",
+        "BENCH_WARMUP_MS": "500",
+        "BENCH_SAMPLE_MS": "300",
+        "BENCH_SAMPLES": "7"
+      },
+      "case": "reference-records",
+      "language": "go",
+      "fork": 0,
+      "n": 131072,
+      "checks": [
+        94506909696,
+        94507302912,
+        94507696128,
+        94508089344,
+        94508482560,
+        94508875776,
+        94509268992,
+        94509662208
+      ],
+      "samples": [
+        {
+          "type": "sample",
+          "index": -1,
+          "elapsed_ns": 501866916,
+          "calls": 246,
+          "checksum": 1441792
+        },
+        {
+          "type": "sample",
+          "index": 0,
+          "elapsed_ns": 301446208,
+          "calls": 151,
+          "checksum": 94508613632
+        },
+        {
+          "type": "sample",
+          "index": 1,
+          "elapsed_ns": 300441208,
+          "calls": 149,
+          "checksum": 94510055424
+        },
+        {
+          "type": "sample",
+          "index": 2,
+          "elapsed_ns": 301176125,
+          "calls": 152,
+          "checksum": 1048576
+        },
+        {
+          "type": "sample",
+          "index": 3,
+          "elapsed_ns": 300489375,
+          "calls": 154,
+          "checksum": 917504
+        },
+        {
+          "type": "sample",
+          "index": 4,
+          "elapsed_ns": 300455292,
+          "calls": 151,
+          "checksum": 94508613632
+        },
+        {
+          "type": "sample",
+          "index": 5,
+          "elapsed_ns": 301601666,
+          "calls": 149,
+          "checksum": 94510055424
+        },
+        {
+          "type": "sample",
+          "index": 6,
+          "elapsed_ns": 300322667,
+          "calls": 144,
+          "checksum": 0
+        }
+      ],
+      "median_ns": 1996332.5033112583
+    },
+    {
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 2.671873708,
+      "user_cpu_seconds": 2.310443,
+      "system_cpu_seconds": 0.313172,
+      "cpu_seconds": 2.623615,
+      "peak_rss_bytes": 385269760,
+      "stdout": "{\"type\":\"check\",\"seed\":42,\"value\":94506909696}\n{\"type\":\"check\",\"seed\":43,\"value\":94507302912}\n{\"type\":\"check\",\"seed\":44,\"value\":94507696128}\n{\"type\":\"check\",\"seed\":45,\"value\":94508089344}\n{\"type\":\"check\",\"seed\":46,\"value\":94508482560}\n{\"type\":\"check\",\"seed\":47,\"value\":94508875776}\n{\"type\":\"check\",\"seed\":48,\"value\":94509268992}\n{\"type\":\"check\",\"seed\":49,\"value\":94509662208}\n{\"type\":\"sample\",\"index\":-1,\"elapsed_ns\":504204833,\"calls\":431,\"checksum\":94509662208}\n{\"type\":\"sample\",\"index\":0,\"elapsed_ns\":300090958,\"calls\":266,\"checksum\":917504}\n{\"type\":\"sample\",\"index\":1,\"elapsed_ns\":300132416,\"calls\":285,\"checksum\":94509006848}\n{\"type\":\"sample\",\"index\":2,\"elapsed_ns\":300468041,\"calls\":274,\"checksum\":1966080}\n{\"type\":\"sample\",\"index\":3,\"elapsed_ns\":304287625,\"calls\":299,\"checksum\":94507565056}\n{\"type\":\"sample\",\"index\":4,\"elapsed_ns\":302016083,\"calls\":283,\"checksum\":94507565056}\n{\"type\":\"sample\",\"index\":5,\"elapsed_ns\":301680458,\"calls\":310,\"checksum\":1441792}\n{\"type\":\"sample\",\"index\":6,\"elapsed_ns\":300228125,\"calls\":344,\"checksum\":1048576}\n",
+      "stderr": "",
+      "configuration": {
+        "BENCH_CASE": "7",
+        "BENCH_N": "131072",
+        "BENCH_SEED": "42",
+        "BENCH_WARMUP_MS": "500",
+        "BENCH_SAMPLE_MS": "300",
+        "BENCH_SAMPLES": "7"
+      },
+      "case": "reference-records",
+      "language": "java-native",
+      "fork": 0,
+      "n": 131072,
+      "checks": [
+        94506909696,
+        94507302912,
+        94507696128,
+        94508089344,
+        94508482560,
+        94508875776,
+        94509268992,
+        94509662208
+      ],
+      "samples": [
+        {
+          "type": "sample",
+          "index": -1,
+          "elapsed_ns": 504204833,
+          "calls": 431,
+          "checksum": 94509662208
+        },
+        {
+          "type": "sample",
+          "index": 0,
+          "elapsed_ns": 300090958,
+          "calls": 266,
+          "checksum": 917504
+        },
+        {
+          "type": "sample",
+          "index": 1,
+          "elapsed_ns": 300132416,
+          "calls": 285,
+          "checksum": 94509006848
+        },
+        {
+          "type": "sample",
+          "index": 2,
+          "elapsed_ns": 300468041,
+          "calls": 274,
+          "checksum": 1966080
+        },
+        {
+          "type": "sample",
+          "index": 3,
+          "elapsed_ns": 304287625,
+          "calls": 299,
+          "checksum": 94507565056
+        },
+        {
+          "type": "sample",
+          "index": 4,
+          "elapsed_ns": 302016083,
+          "calls": 283,
+          "checksum": 94507565056
+        },
+        {
+          "type": "sample",
+          "index": 5,
+          "elapsed_ns": 301680458,
+          "calls": 310,
+          "checksum": 1441792
+        },
+        {
+          "type": "sample",
+          "index": 6,
+          "elapsed_ns": 300228125,
+          "calls": 344,
+          "checksum": 1048576
+        }
+      ],
+      "median_ns": 1053096.1964912282
+    },
+    {
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 2.636880125,
+      "user_cpu_seconds": 2.409133,
+      "system_cpu_seconds": 0.209901,
+      "cpu_seconds": 2.619034,
+      "peak_rss_bytes": 378388480,
+      "stdout": "{\"type\":\"check\",\"seed\":42,\"value\":94506909696}\n{\"type\":\"check\",\"seed\":43,\"value\":94507302912}\n{\"type\":\"check\",\"seed\":44,\"value\":94507696128}\n{\"type\":\"check\",\"seed\":45,\"value\":94508089344}\n{\"type\":\"check\",\"seed\":46,\"value\":94508482560}\n{\"type\":\"check\",\"seed\":47,\"value\":94508875776}\n{\"type\":\"check\",\"seed\":48,\"value\":94509268992}\n{\"type\":\"check\",\"seed\":49,\"value\":94509662208}\n{\"type\":\"sample\",\"index\":-1,\"elapsed_ns\":500358375,\"calls\":493,\"checksum\":94509006848}\n{\"type\":\"sample\",\"index\":0,\"elapsed_ns\":303444583,\"calls\":362,\"checksum\":917504}\n{\"type\":\"sample\",\"index\":1,\"elapsed_ns\":300184542,\"calls\":412,\"checksum\":524288}\n{\"type\":\"sample\",\"index\":2,\"elapsed_ns\":300212167,\"calls\":412,\"checksum\":524288}\n{\"type\":\"sample\",\"index\":3,\"elapsed_ns\":300615500,\"calls\":415,\"checksum\":94509662208}\n{\"type\":\"sample\",\"index\":4,\"elapsed_ns\":300475375,\"calls\":403,\"checksum\":94506516480}\n{\"type\":\"sample\",\"index\":5,\"elapsed_ns\":300382041,\"calls\":420,\"checksum\":1572864}\n{\"type\":\"sample\",\"index\":6,\"elapsed_ns\":300394708,\"calls\":418,\"checksum\":1966080}\n",
+      "stderr": "",
+      "configuration": {
+        "BENCH_CASE": "7",
+        "BENCH_N": "131072",
+        "BENCH_SEED": "42",
+        "BENCH_WARMUP_MS": "500",
+        "BENCH_SAMPLE_MS": "300",
+        "BENCH_SAMPLES": "7"
+      },
+      "case": "reference-records",
+      "language": "java-native",
+      "fork": 1,
+      "n": 131072,
+      "checks": [
+        94506909696,
+        94507302912,
+        94507696128,
+        94508089344,
+        94508482560,
+        94508875776,
+        94509268992,
+        94509662208
+      ],
+      "samples": [
+        {
+          "type": "sample",
+          "index": -1,
+          "elapsed_ns": 500358375,
+          "calls": 493,
+          "checksum": 94509006848
+        },
+        {
+          "type": "sample",
+          "index": 0,
+          "elapsed_ns": 303444583,
+          "calls": 362,
+          "checksum": 917504
+        },
+        {
+          "type": "sample",
+          "index": 1,
+          "elapsed_ns": 300184542,
+          "calls": 412,
+          "checksum": 524288
+        },
+        {
+          "type": "sample",
+          "index": 2,
+          "elapsed_ns": 300212167,
+          "calls": 412,
+          "checksum": 524288
+        },
+        {
+          "type": "sample",
+          "index": 3,
+          "elapsed_ns": 300615500,
+          "calls": 415,
+          "checksum": 94509662208
+        },
+        {
+          "type": "sample",
+          "index": 4,
+          "elapsed_ns": 300475375,
+          "calls": 403,
+          "checksum": 94506516480
+        },
+        {
+          "type": "sample",
+          "index": 5,
+          "elapsed_ns": 300382041,
+          "calls": 420,
+          "checksum": 1572864
+        },
+        {
+          "type": "sample",
+          "index": 6,
+          "elapsed_ns": 300394708,
+          "calls": 418,
+          "checksum": 1966080
+        }
+      ],
+      "median_ns": 728603.2572815533
+    },
+    {
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 2.630294416,
+      "user_cpu_seconds": 4.167969,
+      "system_cpu_seconds": 0.24695099999999998,
+      "cpu_seconds": 4.41492,
+      "peak_rss_bytes": 28213248,
+      "stdout": "{\"type\":\"check\",\"seed\":42,\"value\":94506909696}\n{\"type\":\"check\",\"seed\":43,\"value\":94507302912}\n{\"type\":\"check\",\"seed\":44,\"value\":94507696128}\n{\"type\":\"check\",\"seed\":45,\"value\":94508089344}\n{\"type\":\"check\",\"seed\":46,\"value\":94508482560}\n{\"type\":\"check\",\"seed\":47,\"value\":94508875776}\n{\"type\":\"check\",\"seed\":48,\"value\":94509268992}\n{\"type\":\"check\",\"seed\":49,\"value\":94509662208}\n{\"type\":\"sample\",\"index\":-1,\"elapsed_ns\":501017375,\"calls\":264,\"checksum\":1048576}\n{\"type\":\"sample\",\"index\":0,\"elapsed_ns\":301692000,\"calls\":157,\"checksum\":94509006848}\n{\"type\":\"sample\",\"index\":1,\"elapsed_ns\":301302500,\"calls\":154,\"checksum\":917504}\n{\"type\":\"sample\",\"index\":2,\"elapsed_ns\":301426416,\"calls\":152,\"checksum\":1048576}\n{\"type\":\"sample\",\"index\":3,\"elapsed_ns\":301009125,\"calls\":158,\"checksum\":393216}\n{\"type\":\"sample\",\"index\":4,\"elapsed_ns\":301459250,\"calls\":160,\"checksum\":0}\n{\"type\":\"sample\",\"index\":5,\"elapsed_ns\":300080750,\"calls\":153,\"checksum\":94507958272}\n{\"type\":\"sample\",\"index\":6,\"elapsed_ns\":300335000,\"calls\":158,\"checksum\":393216}\n",
+      "stderr": "",
+      "configuration": {
+        "BENCH_CASE": "7",
+        "BENCH_N": "131072",
+        "BENCH_SEED": "42",
+        "BENCH_WARMUP_MS": "500",
+        "BENCH_SAMPLE_MS": "300",
+        "BENCH_SAMPLES": "7"
+      },
+      "case": "reference-records",
+      "language": "go",
+      "fork": 1,
+      "n": 131072,
+      "checks": [
+        94506909696,
+        94507302912,
+        94507696128,
+        94508089344,
+        94508482560,
+        94508875776,
+        94509268992,
+        94509662208
+      ],
+      "samples": [
+        {
+          "type": "sample",
+          "index": -1,
+          "elapsed_ns": 501017375,
+          "calls": 264,
+          "checksum": 1048576
+        },
+        {
+          "type": "sample",
+          "index": 0,
+          "elapsed_ns": 301692000,
+          "calls": 157,
+          "checksum": 94509006848
+        },
+        {
+          "type": "sample",
+          "index": 1,
+          "elapsed_ns": 301302500,
+          "calls": 154,
+          "checksum": 917504
+        },
+        {
+          "type": "sample",
+          "index": 2,
+          "elapsed_ns": 301426416,
+          "calls": 152,
+          "checksum": 1048576
+        },
+        {
+          "type": "sample",
+          "index": 3,
+          "elapsed_ns": 301009125,
+          "calls": 158,
+          "checksum": 393216
+        },
+        {
+          "type": "sample",
+          "index": 4,
+          "elapsed_ns": 301459250,
+          "calls": 160,
+          "checksum": 0
+        },
+        {
+          "type": "sample",
+          "index": 5,
+          "elapsed_ns": 300080750,
+          "calls": 153,
+          "checksum": 94507958272
+        },
+        {
+          "type": "sample",
+          "index": 6,
+          "elapsed_ns": 300335000,
+          "calls": 158,
+          "checksum": 393216
+        }
+      ],
+      "median_ns": 1921605.0955414013
+    },
+    {
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 2.649061875,
+      "user_cpu_seconds": 4.178356,
+      "system_cpu_seconds": 1.078182,
+      "cpu_seconds": 5.256538,
+      "peak_rss_bytes": 73711616,
+      "stdout": "{\"type\":\"check\",\"seed\":42,\"value\":94506909696}\n{\"type\":\"check\",\"seed\":43,\"value\":94507302912}\n{\"type\":\"check\",\"seed\":44,\"value\":94507696128}\n{\"type\":\"check\",\"seed\":45,\"value\":94508089344}\n{\"type\":\"check\",\"seed\":46,\"value\":94508482560}\n{\"type\":\"check\",\"seed\":47,\"value\":94508875776}\n{\"type\":\"check\",\"seed\":48,\"value\":94509268992}\n{\"type\":\"check\",\"seed\":49,\"value\":94509662208}\n{\"type\":\"sample\",\"index\":-1,\"elapsed_ns\":501774000,\"calls\":212,\"checksum\":1572864}\n{\"type\":\"sample\",\"index\":0,\"elapsed_ns\":301686000,\"calls\":121,\"checksum\":94507958272}\n{\"type\":\"sample\",\"index\":1,\"elapsed_ns\":301742000,\"calls\":123,\"checksum\":94507565056}\n{\"type\":\"sample\",\"index\":2,\"elapsed_ns\":301207000,\"calls\":119,\"checksum\":94508613632}\n{\"type\":\"sample\",\"index\":3,\"elapsed_ns\":302105000,\"calls\":100,\"checksum\":1572864}\n{\"type\":\"sample\",\"index\":4,\"elapsed_ns\":302547000,\"calls\":99,\"checksum\":94506516480}\n{\"type\":\"sample\",\"index\":5,\"elapsed_ns\":302550000,\"calls\":101,\"checksum\":94510055424}\n{\"type\":\"sample\",\"index\":6,\"elapsed_ns\":302838000,\"calls\":91,\"checksum\":94507565056}\n",
+      "stderr": "",
+      "configuration": {
+        "BENCH_CASE": "7",
+        "BENCH_N": "131072",
+        "BENCH_SEED": "42",
+        "BENCH_WARMUP_MS": "500",
+        "BENCH_SAMPLE_MS": "300",
+        "BENCH_SAMPLES": "7"
+      },
+      "case": "reference-records",
+      "language": "scoop",
+      "fork": 1,
+      "n": 131072,
+      "checks": [
+        94506909696,
+        94507302912,
+        94507696128,
+        94508089344,
+        94508482560,
+        94508875776,
+        94509268992,
+        94509662208
+      ],
+      "samples": [
+        {
+          "type": "sample",
+          "index": -1,
+          "elapsed_ns": 501774000,
+          "calls": 212,
+          "checksum": 1572864
+        },
+        {
+          "type": "sample",
+          "index": 0,
+          "elapsed_ns": 301686000,
+          "calls": 121,
+          "checksum": 94507958272
+        },
+        {
+          "type": "sample",
+          "index": 1,
+          "elapsed_ns": 301742000,
+          "calls": 123,
+          "checksum": 94507565056
+        },
+        {
+          "type": "sample",
+          "index": 2,
+          "elapsed_ns": 301207000,
+          "calls": 119,
+          "checksum": 94508613632
+        },
+        {
+          "type": "sample",
+          "index": 3,
+          "elapsed_ns": 302105000,
+          "calls": 100,
+          "checksum": 1572864
+        },
+        {
+          "type": "sample",
+          "index": 4,
+          "elapsed_ns": 302547000,
+          "calls": 99,
+          "checksum": 94506516480
+        },
+        {
+          "type": "sample",
+          "index": 5,
+          "elapsed_ns": 302550000,
+          "calls": 101,
+          "checksum": 94510055424
+        },
+        {
+          "type": "sample",
+          "index": 6,
+          "elapsed_ns": 302838000,
+          "calls": 91,
+          "checksum": 94507565056
+        }
+      ],
+      "median_ns": 2995544.5544554456
+    },
+    {
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 2.639307,
+      "user_cpu_seconds": 3.915892,
+      "system_cpu_seconds": 1.421599,
+      "cpu_seconds": 5.337491,
+      "peak_rss_bytes": 74137600,
+      "stdout": "{\"type\":\"check\",\"seed\":42,\"value\":94506909696}\n{\"type\":\"check\",\"seed\":43,\"value\":94507302912}\n{\"type\":\"check\",\"seed\":44,\"value\":94507696128}\n{\"type\":\"check\",\"seed\":45,\"value\":94508089344}\n{\"type\":\"check\",\"seed\":46,\"value\":94508482560}\n{\"type\":\"check\",\"seed\":47,\"value\":94508875776}\n{\"type\":\"check\",\"seed\":48,\"value\":94509268992}\n{\"type\":\"check\",\"seed\":49,\"value\":94509662208}\n{\"type\":\"sample\",\"index\":-1,\"elapsed_ns\":501469000,\"calls\":200,\"checksum\":1048576}\n{\"type\":\"sample\",\"index\":0,\"elapsed_ns\":302514000,\"calls\":117,\"checksum\":94510055424}\n{\"type\":\"sample\",\"index\":1,\"elapsed_ns\":300687000,\"calls\":118,\"checksum\":1441792}\n{\"type\":\"sample\",\"index\":2,\"elapsed_ns\":303149000,\"calls\":118,\"checksum\":1441792}\n{\"type\":\"sample\",\"index\":3,\"elapsed_ns\":301910000,\"calls\":118,\"checksum\":1441792}\n{\"type\":\"sample\",\"index\":4,\"elapsed_ns\":301634000,\"calls\":119,\"checksum\":94508613632}\n{\"type\":\"sample\",\"index\":5,\"elapsed_ns\":300002000,\"calls\":115,\"checksum\":94506516480}\n{\"type\":\"sample\",\"index\":6,\"elapsed_ns\":302231000,\"calls\":117,\"checksum\":94510055424}\n",
+      "stderr": "",
+      "configuration": {
+        "BENCH_CASE": "7",
+        "BENCH_N": "131072",
+        "BENCH_SEED": "42",
+        "BENCH_WARMUP_MS": "500",
+        "BENCH_SAMPLE_MS": "300",
+        "BENCH_SAMPLES": "7"
+      },
+      "case": "reference-records",
+      "language": "scoop",
+      "fork": 2,
+      "n": 131072,
+      "checks": [
+        94506909696,
+        94507302912,
+        94507696128,
+        94508089344,
+        94508482560,
+        94508875776,
+        94509268992,
+        94509662208
+      ],
+      "samples": [
+        {
+          "type": "sample",
+          "index": -1,
+          "elapsed_ns": 501469000,
+          "calls": 200,
+          "checksum": 1048576
+        },
+        {
+          "type": "sample",
+          "index": 0,
+          "elapsed_ns": 302514000,
+          "calls": 117,
+          "checksum": 94510055424
+        },
+        {
+          "type": "sample",
+          "index": 1,
+          "elapsed_ns": 300687000,
+          "calls": 118,
+          "checksum": 1441792
+        },
+        {
+          "type": "sample",
+          "index": 2,
+          "elapsed_ns": 303149000,
+          "calls": 118,
+          "checksum": 1441792
+        },
+        {
+          "type": "sample",
+          "index": 3,
+          "elapsed_ns": 301910000,
+          "calls": 118,
+          "checksum": 1441792
+        },
+        {
+          "type": "sample",
+          "index": 4,
+          "elapsed_ns": 301634000,
+          "calls": 119,
+          "checksum": 94508613632
+        },
+        {
+          "type": "sample",
+          "index": 5,
+          "elapsed_ns": 300002000,
+          "calls": 115,
+          "checksum": 94506516480
+        },
+        {
+          "type": "sample",
+          "index": 6,
+          "elapsed_ns": 302231000,
+          "calls": 117,
+          "checksum": 94510055424
+        }
+      ],
+      "median_ns": 2569059.3220338984
+    },
+    {
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 2.637865042,
+      "user_cpu_seconds": 2.2952529999999998,
+      "system_cpu_seconds": 0.304973,
+      "cpu_seconds": 2.6002259999999997,
+      "peak_rss_bytes": 387465216,
+      "stdout": "{\"type\":\"check\",\"seed\":42,\"value\":94506909696}\n{\"type\":\"check\",\"seed\":43,\"value\":94507302912}\n{\"type\":\"check\",\"seed\":44,\"value\":94507696128}\n{\"type\":\"check\",\"seed\":45,\"value\":94508089344}\n{\"type\":\"check\",\"seed\":46,\"value\":94508482560}\n{\"type\":\"check\",\"seed\":47,\"value\":94508875776}\n{\"type\":\"check\",\"seed\":48,\"value\":94509268992}\n{\"type\":\"check\",\"seed\":49,\"value\":94509662208}\n{\"type\":\"sample\",\"index\":-1,\"elapsed_ns\":500165291,\"calls\":437,\"checksum\":94510055424}\n{\"type\":\"sample\",\"index\":0,\"elapsed_ns\":301479750,\"calls\":312,\"checksum\":1048576}\n{\"type\":\"sample\",\"index\":1,\"elapsed_ns\":300111375,\"calls\":297,\"checksum\":94507958272}\n{\"type\":\"sample\",\"index\":2,\"elapsed_ns\":300258417,\"calls\":303,\"checksum\":94509662208}\n{\"type\":\"sample\",\"index\":3,\"elapsed_ns\":300016542,\"calls\":302,\"checksum\":393216}\n{\"type\":\"sample\",\"index\":4,\"elapsed_ns\":300188375,\"calls\":355,\"checksum\":94506516480}\n{\"type\":\"sample\",\"index\":5,\"elapsed_ns\":300237292,\"calls\":365,\"checksum\":94509006848}\n{\"type\":\"sample\",\"index\":6,\"elapsed_ns\":300131958,\"calls\":371,\"checksum\":94506516480}\n",
+      "stderr": "",
+      "configuration": {
+        "BENCH_CASE": "7",
+        "BENCH_N": "131072",
+        "BENCH_SEED": "42",
+        "BENCH_WARMUP_MS": "500",
+        "BENCH_SAMPLE_MS": "300",
+        "BENCH_SAMPLES": "7"
+      },
+      "case": "reference-records",
+      "language": "java-native",
+      "fork": 2,
+      "n": 131072,
+      "checks": [
+        94506909696,
+        94507302912,
+        94507696128,
+        94508089344,
+        94508482560,
+        94508875776,
+        94509268992,
+        94509662208
+      ],
+      "samples": [
+        {
+          "type": "sample",
+          "index": -1,
+          "elapsed_ns": 500165291,
+          "calls": 437,
+          "checksum": 94510055424
+        },
+        {
+          "type": "sample",
+          "index": 0,
+          "elapsed_ns": 301479750,
+          "calls": 312,
+          "checksum": 1048576
+        },
+        {
+          "type": "sample",
+          "index": 1,
+          "elapsed_ns": 300111375,
+          "calls": 297,
+          "checksum": 94507958272
+        },
+        {
+          "type": "sample",
+          "index": 2,
+          "elapsed_ns": 300258417,
+          "calls": 303,
+          "checksum": 94509662208
+        },
+        {
+          "type": "sample",
+          "index": 3,
+          "elapsed_ns": 300016542,
+          "calls": 302,
+          "checksum": 393216
+        },
+        {
+          "type": "sample",
+          "index": 4,
+          "elapsed_ns": 300188375,
+          "calls": 355,
+          "checksum": 94506516480
+        },
+        {
+          "type": "sample",
+          "index": 5,
+          "elapsed_ns": 300237292,
+          "calls": 365,
+          "checksum": 94509006848
+        },
+        {
+          "type": "sample",
+          "index": 6,
+          "elapsed_ns": 300131958,
+          "calls": 371,
+          "checksum": 94506516480
+        }
+      ],
+      "median_ns": 966281.25
+    },
+    {
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 2.630548875,
+      "user_cpu_seconds": 4.154505,
+      "system_cpu_seconds": 0.269742,
+      "cpu_seconds": 4.424247,
+      "peak_rss_bytes": 28786688,
+      "stdout": "{\"type\":\"check\",\"seed\":42,\"value\":94506909696}\n{\"type\":\"check\",\"seed\":43,\"value\":94507302912}\n{\"type\":\"check\",\"seed\":44,\"value\":94507696128}\n{\"type\":\"check\",\"seed\":45,\"value\":94508089344}\n{\"type\":\"check\",\"seed\":46,\"value\":94508482560}\n{\"type\":\"check\",\"seed\":47,\"value\":94508875776}\n{\"type\":\"check\",\"seed\":48,\"value\":94509268992}\n{\"type\":\"check\",\"seed\":49,\"value\":94509662208}\n{\"type\":\"sample\",\"index\":-1,\"elapsed_ns\":501594625,\"calls\":255,\"checksum\":94509662208}\n{\"type\":\"sample\",\"index\":0,\"elapsed_ns\":300533750,\"calls\":156,\"checksum\":524288}\n{\"type\":\"sample\",\"index\":1,\"elapsed_ns\":301301583,\"calls\":155,\"checksum\":94507565056}\n{\"type\":\"sample\",\"index\":2,\"elapsed_ns\":301815708,\"calls\":155,\"checksum\":94507565056}\n{\"type\":\"sample\",\"index\":3,\"elapsed_ns\":300205625,\"calls\":148,\"checksum\":1572864}\n{\"type\":\"sample\",\"index\":4,\"elapsed_ns\":301259042,\"calls\":152,\"checksum\":1048576}\n{\"type\":\"sample\",\"index\":5,\"elapsed_ns\":301437959,\"calls\":152,\"checksum\":1048576}\n{\"type\":\"sample\",\"index\":6,\"elapsed_ns\":300442708,\"calls\":150,\"checksum\":1441792}\n",
+      "stderr": "",
+      "configuration": {
+        "BENCH_CASE": "7",
+        "BENCH_N": "131072",
+        "BENCH_SEED": "42",
+        "BENCH_WARMUP_MS": "500",
+        "BENCH_SAMPLE_MS": "300",
+        "BENCH_SAMPLES": "7"
+      },
+      "case": "reference-records",
+      "language": "go",
+      "fork": 2,
+      "n": 131072,
+      "checks": [
+        94506909696,
+        94507302912,
+        94507696128,
+        94508089344,
+        94508482560,
+        94508875776,
+        94509268992,
+        94509662208
+      ],
+      "samples": [
+        {
+          "type": "sample",
+          "index": -1,
+          "elapsed_ns": 501594625,
+          "calls": 255,
+          "checksum": 94509662208
+        },
+        {
+          "type": "sample",
+          "index": 0,
+          "elapsed_ns": 300533750,
+          "calls": 156,
+          "checksum": 524288
+        },
+        {
+          "type": "sample",
+          "index": 1,
+          "elapsed_ns": 301301583,
+          "calls": 155,
+          "checksum": 94507565056
+        },
+        {
+          "type": "sample",
+          "index": 2,
+          "elapsed_ns": 301815708,
+          "calls": 155,
+          "checksum": 94507565056
+        },
+        {
+          "type": "sample",
+          "index": 3,
+          "elapsed_ns": 300205625,
+          "calls": 148,
+          "checksum": 1572864
+        },
+        {
+          "type": "sample",
+          "index": 4,
+          "elapsed_ns": 301259042,
+          "calls": 152,
+          "checksum": 1048576
+        },
+        {
+          "type": "sample",
+          "index": 5,
+          "elapsed_ns": 301437959,
+          "calls": 152,
+          "checksum": 1048576
+        },
+        {
+          "type": "sample",
+          "index": 6,
+          "elapsed_ns": 300442708,
+          "calls": 150,
+          "checksum": 1441792
+        }
+      ],
+      "median_ns": 1981967.3815789474
+    },
+    {
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 2.618635708,
+      "user_cpu_seconds": 2.135363,
+      "system_cpu_seconds": 0.46474699999999997,
+      "cpu_seconds": 2.60011,
+      "peak_rss_bytes": 369131520,
+      "stdout": "{\"type\":\"check\",\"seed\":42,\"value\":5004150000}\n{\"type\":\"check\",\"seed\":43,\"value\":5004250000}\n{\"type\":\"check\",\"seed\":44,\"value\":5004350000}\n{\"type\":\"check\",\"seed\":45,\"value\":5004450000}\n{\"type\":\"check\",\"seed\":46,\"value\":5004550000}\n{\"type\":\"check\",\"seed\":47,\"value\":5004650000}\n{\"type\":\"check\",\"seed\":48,\"value\":5004750000}\n{\"type\":\"check\",\"seed\":49,\"value\":5004850000}\n{\"type\":\"sample\",\"index\":-1,\"elapsed_ns\":500286000,\"calls\":1051,\"checksum\":5004852816}\n{\"type\":\"sample\",\"index\":0,\"elapsed_ns\":300339250,\"calls\":735,\"checksum\":5004850000}\n{\"type\":\"sample\",\"index\":1,\"elapsed_ns\":300210250,\"calls\":746,\"checksum\":502880}\n{\"type\":\"sample\",\"index\":2,\"elapsed_ns\":300328916,\"calls\":746,\"checksum\":502880}\n{\"type\":\"sample\",\"index\":3,\"elapsed_ns\":300349542,\"calls\":743,\"checksum\":5004578896}\n{\"type\":\"sample\",\"index\":4,\"elapsed_ns\":300150958,\"calls\":765,\"checksum\":5004687856}\n{\"type\":\"sample\",\"index\":5,\"elapsed_ns\":300153834,\"calls\":741,\"checksum\":5004417776}\n{\"type\":\"sample\",\"index\":6,\"elapsed_ns\":300317416,\"calls\":762,\"checksum\":502880}\n",
+      "stderr": "",
+      "configuration": {
+        "BENCH_CASE": "11",
+        "BENCH_N": "100000",
+        "BENCH_SEED": "42",
+        "BENCH_WARMUP_MS": "500",
+        "BENCH_SAMPLE_MS": "300",
+        "BENCH_SAMPLES": "7"
+      },
+      "case": "list-grow",
+      "language": "java-native",
+      "fork": 0,
+      "n": 100000,
+      "checks": [
+        5004150000,
+        5004250000,
+        5004350000,
+        5004450000,
+        5004550000,
+        5004650000,
+        5004750000,
+        5004850000
+      ],
+      "samples": [
+        {
+          "type": "sample",
+          "index": -1,
+          "elapsed_ns": 500286000,
+          "calls": 1051,
+          "checksum": 5004852816
+        },
+        {
+          "type": "sample",
+          "index": 0,
+          "elapsed_ns": 300339250,
+          "calls": 735,
+          "checksum": 5004850000
+        },
+        {
+          "type": "sample",
+          "index": 1,
+          "elapsed_ns": 300210250,
+          "calls": 746,
+          "checksum": 502880
+        },
+        {
+          "type": "sample",
+          "index": 2,
+          "elapsed_ns": 300328916,
+          "calls": 746,
+          "checksum": 502880
+        },
+        {
+          "type": "sample",
+          "index": 3,
+          "elapsed_ns": 300349542,
+          "calls": 743,
+          "checksum": 5004578896
+        },
+        {
+          "type": "sample",
+          "index": 4,
+          "elapsed_ns": 300150958,
+          "calls": 765,
+          "checksum": 5004687856
+        },
+        {
+          "type": "sample",
+          "index": 5,
+          "elapsed_ns": 300153834,
+          "calls": 741,
+          "checksum": 5004417776
+        },
+        {
+          "type": "sample",
+          "index": 6,
+          "elapsed_ns": 300317416,
+          "calls": 762,
+          "checksum": 502880
+        }
+      ],
+      "median_ns": 402585.67828418233
+    },
+    {
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 2.608002625,
+      "user_cpu_seconds": 3.246879,
+      "system_cpu_seconds": 1.523342,
+      "cpu_seconds": 4.770220999999999,
+      "peak_rss_bytes": 22331392,
+      "stdout": "{\"type\":\"check\",\"seed\":42,\"value\":5004150000}\n{\"type\":\"check\",\"seed\":43,\"value\":5004250000}\n{\"type\":\"check\",\"seed\":44,\"value\":5004350000}\n{\"type\":\"check\",\"seed\":45,\"value\":5004450000}\n{\"type\":\"check\",\"seed\":46,\"value\":5004550000}\n{\"type\":\"check\",\"seed\":47,\"value\":5004650000}\n{\"type\":\"check\",\"seed\":48,\"value\":5004750000}\n{\"type\":\"check\",\"seed\":49,\"value\":5004850000}\n{\"type\":\"sample\",\"index\":-1,\"elapsed_ns\":500091875,\"calls\":1780,\"checksum\":132480}\n{\"type\":\"sample\",\"index\":0,\"elapsed_ns\":300197833,\"calls\":1082,\"checksum\":502880}\n{\"type\":\"sample\",\"index\":1,\"elapsed_ns\":300258417,\"calls\":1062,\"checksum\":376032}\n{\"type\":\"sample\",\"index\":2,\"elapsed_ns\":300141167,\"calls\":1066,\"checksum\":502880}\n{\"type\":\"sample\",\"index\":3,\"elapsed_ns\":300031958,\"calls\":1060,\"checksum\":132480}\n{\"type\":\"sample\",\"index\":4,\"elapsed_ns\":300013875,\"calls\":1038,\"checksum\":106464}\n{\"type\":\"sample\",\"index\":5,\"elapsed_ns\":300079958,\"calls\":1060,\"checksum\":132480}\n{\"type\":\"sample\",\"index\":6,\"elapsed_ns\":300098166,\"calls\":953,\"checksum\":5003896816}\n",
+      "stderr": "",
+      "configuration": {
+        "BENCH_CASE": "11",
+        "BENCH_N": "100000",
+        "BENCH_SEED": "42",
+        "BENCH_WARMUP_MS": "500",
+        "BENCH_SAMPLE_MS": "300",
+        "BENCH_SAMPLES": "7"
+      },
+      "case": "list-grow",
+      "language": "go",
+      "fork": 0,
+      "n": 100000,
+      "checks": [
+        5004150000,
+        5004250000,
+        5004350000,
+        5004450000,
+        5004550000,
+        5004650000,
+        5004750000,
+        5004850000
+      ],
+      "samples": [
+        {
+          "type": "sample",
+          "index": -1,
+          "elapsed_ns": 500091875,
+          "calls": 1780,
+          "checksum": 132480
+        },
+        {
+          "type": "sample",
+          "index": 0,
+          "elapsed_ns": 300197833,
+          "calls": 1082,
+          "checksum": 502880
+        },
+        {
+          "type": "sample",
+          "index": 1,
+          "elapsed_ns": 300258417,
+          "calls": 1062,
+          "checksum": 376032
+        },
+        {
+          "type": "sample",
+          "index": 2,
+          "elapsed_ns": 300141167,
+          "calls": 1066,
+          "checksum": 502880
+        },
+        {
+          "type": "sample",
+          "index": 3,
+          "elapsed_ns": 300031958,
+          "calls": 1060,
+          "checksum": 132480
+        },
+        {
+          "type": "sample",
+          "index": 4,
+          "elapsed_ns": 300013875,
+          "calls": 1038,
+          "checksum": 106464
+        },
+        {
+          "type": "sample",
+          "index": 5,
+          "elapsed_ns": 300079958,
+          "calls": 1060,
+          "checksum": 132480
+        },
+        {
+          "type": "sample",
+          "index": 6,
+          "elapsed_ns": 300098166,
+          "calls": 953,
+          "checksum": 5003896816
+        }
+      ],
+      "median_ns": 283049.0169811321
+    },
+    {
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 2.614738958,
+      "user_cpu_seconds": 1.8962109999999999,
+      "system_cpu_seconds": 0.693703,
+      "cpu_seconds": 2.589914,
+      "peak_rss_bytes": 24150016,
+      "stdout": "{\"type\":\"check\",\"seed\":42,\"value\":5004150000}\n{\"type\":\"check\",\"seed\":43,\"value\":5004250000}\n{\"type\":\"check\",\"seed\":44,\"value\":5004350000}\n{\"type\":\"check\",\"seed\":45,\"value\":5004450000}\n{\"type\":\"check\",\"seed\":46,\"value\":5004550000}\n{\"type\":\"check\",\"seed\":47,\"value\":5004650000}\n{\"type\":\"check\",\"seed\":48,\"value\":5004750000}\n{\"type\":\"check\",\"seed\":49,\"value\":5004850000}\n{\"type\":\"sample\",\"index\":-1,\"elapsed_ns\":500642000,\"calls\":981,\"checksum\":5004417776}\n{\"type\":\"sample\",\"index\":0,\"elapsed_ns\":300222000,\"calls\":665,\"checksum\":5003896816}\n{\"type\":\"sample\",\"index\":1,\"elapsed_ns\":300013000,\"calls\":606,\"checksum\":106464}\n{\"type\":\"sample\",\"index\":2,\"elapsed_ns\":300024000,\"calls\":579,\"checksum\":5004582224}\n{\"type\":\"sample\",\"index\":3,\"elapsed_ns\":300249000,\"calls\":575,\"checksum\":5004850000}\n{\"type\":\"sample\",\"index\":4,\"elapsed_ns\":300014000,\"calls\":608,\"checksum\":0}\n{\"type\":\"sample\",\"index\":5,\"elapsed_ns\":300264000,\"calls\":494,\"checksum\":106464}\n{\"type\":\"sample\",\"index\":6,\"elapsed_ns\":300315000,\"calls\":527,\"checksum\":5004850000}\n",
+      "stderr": "",
+      "configuration": {
+        "BENCH_CASE": "11",
+        "BENCH_N": "100000",
+        "BENCH_SEED": "42",
+        "BENCH_WARMUP_MS": "500",
+        "BENCH_SAMPLE_MS": "300",
+        "BENCH_SAMPLES": "7"
+      },
+      "case": "list-grow",
+      "language": "scoop",
+      "fork": 0,
+      "n": 100000,
+      "checks": [
+        5004150000,
+        5004250000,
+        5004350000,
+        5004450000,
+        5004550000,
+        5004650000,
+        5004750000,
+        5004850000
+      ],
+      "samples": [
+        {
+          "type": "sample",
+          "index": -1,
+          "elapsed_ns": 500642000,
+          "calls": 981,
+          "checksum": 5004417776
+        },
+        {
+          "type": "sample",
+          "index": 0,
+          "elapsed_ns": 300222000,
+          "calls": 665,
+          "checksum": 5003896816
+        },
+        {
+          "type": "sample",
+          "index": 1,
+          "elapsed_ns": 300013000,
+          "calls": 606,
+          "checksum": 106464
+        },
+        {
+          "type": "sample",
+          "index": 2,
+          "elapsed_ns": 300024000,
+          "calls": 579,
+          "checksum": 5004582224
+        },
+        {
+          "type": "sample",
+          "index": 3,
+          "elapsed_ns": 300249000,
+          "calls": 575,
+          "checksum": 5004850000
+        },
+        {
+          "type": "sample",
+          "index": 4,
+          "elapsed_ns": 300014000,
+          "calls": 608,
+          "checksum": 0
+        },
+        {
+          "type": "sample",
+          "index": 5,
+          "elapsed_ns": 300264000,
+          "calls": 494,
+          "checksum": 106464
+        },
+        {
+          "type": "sample",
+          "index": 6,
+          "elapsed_ns": 300315000,
+          "calls": 527,
+          "checksum": 5004850000
+        }
+      ],
+      "median_ns": 518176.16580310883
+    },
+    {
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 2.612614375,
+      "user_cpu_seconds": 2.100608,
+      "system_cpu_seconds": 0.5528339999999999,
+      "cpu_seconds": 2.6534419999999996,
+      "peak_rss_bytes": 24166400,
+      "stdout": "{\"type\":\"check\",\"seed\":42,\"value\":5004150000}\n{\"type\":\"check\",\"seed\":43,\"value\":5004250000}\n{\"type\":\"check\",\"seed\":44,\"value\":5004350000}\n{\"type\":\"check\",\"seed\":45,\"value\":5004450000}\n{\"type\":\"check\",\"seed\":46,\"value\":5004550000}\n{\"type\":\"check\",\"seed\":47,\"value\":5004650000}\n{\"type\":\"check\",\"seed\":48,\"value\":5004750000}\n{\"type\":\"check\",\"seed\":49,\"value\":5004850000}\n{\"type\":\"sample\",\"index\":-1,\"elapsed_ns\":500175000,\"calls\":760,\"checksum\":271104}\n{\"type\":\"sample\",\"index\":0,\"elapsed_ns\":300041000,\"calls\":472,\"checksum\":271104}\n{\"type\":\"sample\",\"index\":1,\"elapsed_ns\":300144000,\"calls\":497,\"checksum\":5004150000}\n{\"type\":\"sample\",\"index\":2,\"elapsed_ns\":300461000,\"calls\":481,\"checksum\":5004150000}\n{\"type\":\"sample\",\"index\":3,\"elapsed_ns\":300506000,\"calls\":469,\"checksum\":5004417776}\n{\"type\":\"sample\",\"index\":4,\"elapsed_ns\":300074000,\"calls\":475,\"checksum\":5004852816}\n{\"type\":\"sample\",\"index\":5,\"elapsed_ns\":300031000,\"calls\":457,\"checksum\":5003896816}\n{\"type\":\"sample\",\"index\":6,\"elapsed_ns\":300257000,\"calls\":464,\"checksum\":0}\n",
+      "stderr": "",
+      "configuration": {
+        "BENCH_CASE": "11",
+        "BENCH_N": "100000",
+        "BENCH_SEED": "42",
+        "BENCH_WARMUP_MS": "500",
+        "BENCH_SAMPLE_MS": "300",
+        "BENCH_SAMPLES": "7"
+      },
+      "case": "list-grow",
+      "language": "scoop",
+      "fork": 1,
+      "n": 100000,
+      "checks": [
+        5004150000,
+        5004250000,
+        5004350000,
+        5004450000,
+        5004550000,
+        5004650000,
+        5004750000,
+        5004850000
+      ],
+      "samples": [
+        {
+          "type": "sample",
+          "index": -1,
+          "elapsed_ns": 500175000,
+          "calls": 760,
+          "checksum": 271104
+        },
+        {
+          "type": "sample",
+          "index": 0,
+          "elapsed_ns": 300041000,
+          "calls": 472,
+          "checksum": 271104
+        },
+        {
+          "type": "sample",
+          "index": 1,
+          "elapsed_ns": 300144000,
+          "calls": 497,
+          "checksum": 5004150000
+        },
+        {
+          "type": "sample",
+          "index": 2,
+          "elapsed_ns": 300461000,
+          "calls": 481,
+          "checksum": 5004150000
+        },
+        {
+          "type": "sample",
+          "index": 3,
+          "elapsed_ns": 300506000,
+          "calls": 469,
+          "checksum": 5004417776
+        },
+        {
+          "type": "sample",
+          "index": 4,
+          "elapsed_ns": 300074000,
+          "calls": 475,
+          "checksum": 5004852816
+        },
+        {
+          "type": "sample",
+          "index": 5,
+          "elapsed_ns": 300031000,
+          "calls": 457,
+          "checksum": 5003896816
+        },
+        {
+          "type": "sample",
+          "index": 6,
+          "elapsed_ns": 300257000,
+          "calls": 464,
+          "checksum": 0
+        }
+      ],
+      "median_ns": 635680.0847457628
+    },
+    {
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 2.609053542,
+      "user_cpu_seconds": 3.264041,
+      "system_cpu_seconds": 1.511023,
+      "cpu_seconds": 4.775064,
+      "peak_rss_bytes": 25608192,
+      "stdout": "{\"type\":\"check\",\"seed\":42,\"value\":5004150000}\n{\"type\":\"check\",\"seed\":43,\"value\":5004250000}\n{\"type\":\"check\",\"seed\":44,\"value\":5004350000}\n{\"type\":\"check\",\"seed\":45,\"value\":5004450000}\n{\"type\":\"check\",\"seed\":46,\"value\":5004550000}\n{\"type\":\"check\",\"seed\":47,\"value\":5004650000}\n{\"type\":\"check\",\"seed\":48,\"value\":5004750000}\n{\"type\":\"check\",\"seed\":49,\"value\":5004850000}\n{\"type\":\"sample\",\"index\":-1,\"elapsed_ns\":500016875,\"calls\":1777,\"checksum\":5004150000}\n{\"type\":\"sample\",\"index\":0,\"elapsed_ns\":300089041,\"calls\":1092,\"checksum\":132480}\n{\"type\":\"sample\",\"index\":1,\"elapsed_ns\":300266084,\"calls\":969,\"checksum\":5003896816}\n{\"type\":\"sample\",\"index\":2,\"elapsed_ns\":300007583,\"calls\":1050,\"checksum\":502880}\n{\"type\":\"sample\",\"index\":3,\"elapsed_ns\":300175542,\"calls\":1071,\"checksum\":5004850000}\n{\"type\":\"sample\",\"index\":4,\"elapsed_ns\":300285750,\"calls\":1086,\"checksum\":106464}\n{\"type\":\"sample\",\"index\":5,\"elapsed_ns\":300170791,\"calls\":1068,\"checksum\":403072}\n{\"type\":\"sample\",\"index\":6,\"elapsed_ns\":300190166,\"calls\":1072,\"checksum\":0}\n",
+      "stderr": "",
+      "configuration": {
+        "BENCH_CASE": "11",
+        "BENCH_N": "100000",
+        "BENCH_SEED": "42",
+        "BENCH_WARMUP_MS": "500",
+        "BENCH_SAMPLE_MS": "300",
+        "BENCH_SAMPLES": "7"
+      },
+      "case": "list-grow",
+      "language": "go",
+      "fork": 1,
+      "n": 100000,
+      "checks": [
+        5004150000,
+        5004250000,
+        5004350000,
+        5004450000,
+        5004550000,
+        5004650000,
+        5004750000,
+        5004850000
+      ],
+      "samples": [
+        {
+          "type": "sample",
+          "index": -1,
+          "elapsed_ns": 500016875,
+          "calls": 1777,
+          "checksum": 5004150000
+        },
+        {
+          "type": "sample",
+          "index": 0,
+          "elapsed_ns": 300089041,
+          "calls": 1092,
+          "checksum": 132480
+        },
+        {
+          "type": "sample",
+          "index": 1,
+          "elapsed_ns": 300266084,
+          "calls": 969,
+          "checksum": 5003896816
+        },
+        {
+          "type": "sample",
+          "index": 2,
+          "elapsed_ns": 300007583,
+          "calls": 1050,
+          "checksum": 502880
+        },
+        {
+          "type": "sample",
+          "index": 3,
+          "elapsed_ns": 300175542,
+          "calls": 1071,
+          "checksum": 5004850000
+        },
+        {
+          "type": "sample",
+          "index": 4,
+          "elapsed_ns": 300285750,
+          "calls": 1086,
+          "checksum": 106464
+        },
+        {
+          "type": "sample",
+          "index": 5,
+          "elapsed_ns": 300170791,
+          "calls": 1068,
+          "checksum": 403072
+        },
+        {
+          "type": "sample",
+          "index": 6,
+          "elapsed_ns": 300190166,
+          "calls": 1072,
+          "checksum": 0
+        }
+      ],
+      "median_ns": 280275.9495798319
+    },
+    {
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 2.63551575,
+      "user_cpu_seconds": 2.16631,
+      "system_cpu_seconds": 0.438282,
+      "cpu_seconds": 2.6045920000000002,
+      "peak_rss_bytes": 370311168,
+      "stdout": "{\"type\":\"check\",\"seed\":42,\"value\":5004150000}\n{\"type\":\"check\",\"seed\":43,\"value\":5004250000}\n{\"type\":\"check\",\"seed\":44,\"value\":5004350000}\n{\"type\":\"check\",\"seed\":45,\"value\":5004450000}\n{\"type\":\"check\",\"seed\":46,\"value\":5004550000}\n{\"type\":\"check\",\"seed\":47,\"value\":5004650000}\n{\"type\":\"check\",\"seed\":48,\"value\":5004750000}\n{\"type\":\"check\",\"seed\":49,\"value\":5004850000}\n{\"type\":\"sample\",\"index\":-1,\"elapsed_ns\":500267042,\"calls\":1148,\"checksum\":403072}\n{\"type\":\"sample\",\"index\":0,\"elapsed_ns\":300267416,\"calls\":757,\"checksum\":5004417776}\n{\"type\":\"sample\",\"index\":1,\"elapsed_ns\":300280958,\"calls\":781,\"checksum\":5004687856}\n{\"type\":\"sample\",\"index\":2,\"elapsed_ns\":300039333,\"calls\":773,\"checksum\":5004417776}\n{\"type\":\"sample\",\"index\":3,\"elapsed_ns\":300070292,\"calls\":716,\"checksum\":403072}\n{\"type\":\"sample\",\"index\":4,\"elapsed_ns\":300245666,\"calls\":748,\"checksum\":403072}\n{\"type\":\"sample\",\"index\":5,\"elapsed_ns\":300200750,\"calls\":774,\"checksum\":376032}\n{\"type\":\"sample\",\"index\":6,\"elapsed_ns\":300287458,\"calls\":733,\"checksum\":5004687856}\n",
+      "stderr": "",
+      "configuration": {
+        "BENCH_CASE": "11",
+        "BENCH_N": "100000",
+        "BENCH_SEED": "42",
+        "BENCH_WARMUP_MS": "500",
+        "BENCH_SAMPLE_MS": "300",
+        "BENCH_SAMPLES": "7"
+      },
+      "case": "list-grow",
+      "language": "java-native",
+      "fork": 1,
+      "n": 100000,
+      "checks": [
+        5004150000,
+        5004250000,
+        5004350000,
+        5004450000,
+        5004550000,
+        5004650000,
+        5004750000,
+        5004850000
+      ],
+      "samples": [
+        {
+          "type": "sample",
+          "index": -1,
+          "elapsed_ns": 500267042,
+          "calls": 1148,
+          "checksum": 403072
+        },
+        {
+          "type": "sample",
+          "index": 0,
+          "elapsed_ns": 300267416,
+          "calls": 757,
+          "checksum": 5004417776
+        },
+        {
+          "type": "sample",
+          "index": 1,
+          "elapsed_ns": 300280958,
+          "calls": 781,
+          "checksum": 5004687856
+        },
+        {
+          "type": "sample",
+          "index": 2,
+          "elapsed_ns": 300039333,
+          "calls": 773,
+          "checksum": 5004417776
+        },
+        {
+          "type": "sample",
+          "index": 3,
+          "elapsed_ns": 300070292,
+          "calls": 716,
+          "checksum": 403072
+        },
+        {
+          "type": "sample",
+          "index": 4,
+          "elapsed_ns": 300245666,
+          "calls": 748,
+          "checksum": 403072
+        },
+        {
+          "type": "sample",
+          "index": 5,
+          "elapsed_ns": 300200750,
+          "calls": 774,
+          "checksum": 376032
+        },
+        {
+          "type": "sample",
+          "index": 6,
+          "elapsed_ns": 300287458,
+          "calls": 733,
+          "checksum": 5004687856
+        }
+      ],
+      "median_ns": 396654.4464993395
+    },
+    {
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/java-native",
+        "-Xms64m",
+        "-Xmx1g"
+      ],
+      "wall_seconds": 2.617645292,
+      "user_cpu_seconds": 2.110407,
+      "system_cpu_seconds": 0.42832299999999995,
+      "cpu_seconds": 2.5387299999999997,
+      "peak_rss_bytes": 372768768,
+      "stdout": "{\"type\":\"check\",\"seed\":42,\"value\":5004150000}\n{\"type\":\"check\",\"seed\":43,\"value\":5004250000}\n{\"type\":\"check\",\"seed\":44,\"value\":5004350000}\n{\"type\":\"check\",\"seed\":45,\"value\":5004450000}\n{\"type\":\"check\",\"seed\":46,\"value\":5004550000}\n{\"type\":\"check\",\"seed\":47,\"value\":5004650000}\n{\"type\":\"check\",\"seed\":48,\"value\":5004750000}\n{\"type\":\"check\",\"seed\":49,\"value\":5004850000}\n{\"type\":\"sample\",\"index\":-1,\"elapsed_ns\":500238500,\"calls\":1147,\"checksum\":5004852816}\n{\"type\":\"sample\",\"index\":0,\"elapsed_ns\":300075125,\"calls\":579,\"checksum\":5004582224}\n{\"type\":\"sample\",\"index\":1,\"elapsed_ns\":300241875,\"calls\":709,\"checksum\":5004417776}\n{\"type\":\"sample\",\"index\":2,\"elapsed_ns\":300002708,\"calls\":753,\"checksum\":5004150000}\n{\"type\":\"sample\",\"index\":3,\"elapsed_ns\":300265458,\"calls\":777,\"checksum\":5003896816}\n{\"type\":\"sample\",\"index\":4,\"elapsed_ns\":300128125,\"calls\":759,\"checksum\":5004578896}\n{\"type\":\"sample\",\"index\":5,\"elapsed_ns\":300131334,\"calls\":707,\"checksum\":5004582224}\n{\"type\":\"sample\",\"index\":6,\"elapsed_ns\":300096167,\"calls\":748,\"checksum\":403072}\n",
+      "stderr": "",
+      "configuration": {
+        "BENCH_CASE": "11",
+        "BENCH_N": "100000",
+        "BENCH_SEED": "42",
+        "BENCH_WARMUP_MS": "500",
+        "BENCH_SAMPLE_MS": "300",
+        "BENCH_SAMPLES": "7"
+      },
+      "case": "list-grow",
+      "language": "java-native",
+      "fork": 2,
+      "n": 100000,
+      "checks": [
+        5004150000,
+        5004250000,
+        5004350000,
+        5004450000,
+        5004550000,
+        5004650000,
+        5004750000,
+        5004850000
+      ],
+      "samples": [
+        {
+          "type": "sample",
+          "index": -1,
+          "elapsed_ns": 500238500,
+          "calls": 1147,
+          "checksum": 5004852816
+        },
+        {
+          "type": "sample",
+          "index": 0,
+          "elapsed_ns": 300075125,
+          "calls": 579,
+          "checksum": 5004582224
+        },
+        {
+          "type": "sample",
+          "index": 1,
+          "elapsed_ns": 300241875,
+          "calls": 709,
+          "checksum": 5004417776
+        },
+        {
+          "type": "sample",
+          "index": 2,
+          "elapsed_ns": 300002708,
+          "calls": 753,
+          "checksum": 5004150000
+        },
+        {
+          "type": "sample",
+          "index": 3,
+          "elapsed_ns": 300265458,
+          "calls": 777,
+          "checksum": 5003896816
+        },
+        {
+          "type": "sample",
+          "index": 4,
+          "elapsed_ns": 300128125,
+          "calls": 759,
+          "checksum": 5004578896
+        },
+        {
+          "type": "sample",
+          "index": 5,
+          "elapsed_ns": 300131334,
+          "calls": 707,
+          "checksum": 5004582224
+        },
+        {
+          "type": "sample",
+          "index": 6,
+          "elapsed_ns": 300096167,
+          "calls": 748,
+          "checksum": 403072
+        }
+      ],
+      "median_ns": 401198.08422459895
+    },
+    {
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/go-bench"
+      ],
+      "wall_seconds": 2.608464667,
+      "user_cpu_seconds": 3.296348,
+      "system_cpu_seconds": 1.515881,
+      "cpu_seconds": 4.812229,
+      "peak_rss_bytes": 23920640,
+      "stdout": "{\"type\":\"check\",\"seed\":42,\"value\":5004150000}\n{\"type\":\"check\",\"seed\":43,\"value\":5004250000}\n{\"type\":\"check\",\"seed\":44,\"value\":5004350000}\n{\"type\":\"check\",\"seed\":45,\"value\":5004450000}\n{\"type\":\"check\",\"seed\":46,\"value\":5004550000}\n{\"type\":\"check\",\"seed\":47,\"value\":5004650000}\n{\"type\":\"check\",\"seed\":48,\"value\":5004750000}\n{\"type\":\"check\",\"seed\":49,\"value\":5004850000}\n{\"type\":\"sample\",\"index\":-1,\"elapsed_ns\":500036417,\"calls\":1820,\"checksum\":403072}\n{\"type\":\"sample\",\"index\":0,\"elapsed_ns\":300047167,\"calls\":1066,\"checksum\":502880}\n{\"type\":\"sample\",\"index\":1,\"elapsed_ns\":300057791,\"calls\":1077,\"checksum\":5004417776}\n{\"type\":\"sample\",\"index\":2,\"elapsed_ns\":300024667,\"calls\":1091,\"checksum\":5004582224}\n{\"type\":\"sample\",\"index\":3,\"elapsed_ns\":300218625,\"calls\":1072,\"checksum\":0}\n{\"type\":\"sample\",\"index\":4,\"elapsed_ns\":300091458,\"calls\":1081,\"checksum\":5003896816}\n{\"type\":\"sample\",\"index\":5,\"elapsed_ns\":300012542,\"calls\":1078,\"checksum\":376032}\n{\"type\":\"sample\",\"index\":6,\"elapsed_ns\":300057416,\"calls\":1056,\"checksum\":0}\n",
+      "stderr": "",
+      "configuration": {
+        "BENCH_CASE": "11",
+        "BENCH_N": "100000",
+        "BENCH_SEED": "42",
+        "BENCH_WARMUP_MS": "500",
+        "BENCH_SAMPLE_MS": "300",
+        "BENCH_SAMPLES": "7"
+      },
+      "case": "list-grow",
+      "language": "go",
+      "fork": 2,
+      "n": 100000,
+      "checks": [
+        5004150000,
+        5004250000,
+        5004350000,
+        5004450000,
+        5004550000,
+        5004650000,
+        5004750000,
+        5004850000
+      ],
+      "samples": [
+        {
+          "type": "sample",
+          "index": -1,
+          "elapsed_ns": 500036417,
+          "calls": 1820,
+          "checksum": 403072
+        },
+        {
+          "type": "sample",
+          "index": 0,
+          "elapsed_ns": 300047167,
+          "calls": 1066,
+          "checksum": 502880
+        },
+        {
+          "type": "sample",
+          "index": 1,
+          "elapsed_ns": 300057791,
+          "calls": 1077,
+          "checksum": 5004417776
+        },
+        {
+          "type": "sample",
+          "index": 2,
+          "elapsed_ns": 300024667,
+          "calls": 1091,
+          "checksum": 5004582224
+        },
+        {
+          "type": "sample",
+          "index": 3,
+          "elapsed_ns": 300218625,
+          "calls": 1072,
+          "checksum": 0
+        },
+        {
+          "type": "sample",
+          "index": 4,
+          "elapsed_ns": 300091458,
+          "calls": 1081,
+          "checksum": 5003896816
+        },
+        {
+          "type": "sample",
+          "index": 5,
+          "elapsed_ns": 300012542,
+          "calls": 1078,
+          "checksum": 376032
+        },
+        {
+          "type": "sample",
+          "index": 6,
+          "elapsed_ns": 300057416,
+          "calls": 1056,
+          "checksum": 0
+        }
+      ],
+      "median_ns": 278605.191272052
+    },
+    {
+      "command": [
+        "/Users/chenxu/repos/scoop/benchmark/build/scoop-bench"
+      ],
+      "wall_seconds": 2.611558875,
+      "user_cpu_seconds": 1.974467,
+      "system_cpu_seconds": 0.669731,
+      "cpu_seconds": 2.644198,
+      "peak_rss_bytes": 24215552,
+      "stdout": "{\"type\":\"check\",\"seed\":42,\"value\":5004150000}\n{\"type\":\"check\",\"seed\":43,\"value\":5004250000}\n{\"type\":\"check\",\"seed\":44,\"value\":5004350000}\n{\"type\":\"check\",\"seed\":45,\"value\":5004450000}\n{\"type\":\"check\",\"seed\":46,\"value\":5004550000}\n{\"type\":\"check\",\"seed\":47,\"value\":5004650000}\n{\"type\":\"check\",\"seed\":48,\"value\":5004750000}\n{\"type\":\"check\",\"seed\":49,\"value\":5004850000}\n{\"type\":\"sample\",\"index\":-1,\"elapsed_ns\":500213000,\"calls\":1019,\"checksum\":5004852816}\n{\"type\":\"sample\",\"index\":0,\"elapsed_ns\":300517000,\"calls\":611,\"checksum\":5004582224}\n{\"type\":\"sample\",\"index\":1,\"elapsed_ns\":300193000,\"calls\":560,\"checksum\":0}\n{\"type\":\"sample\",\"index\":2,\"elapsed_ns\":300383000,\"calls\":544,\"checksum\":0}\n{\"type\":\"sample\",\"index\":3,\"elapsed_ns\":300077000,\"calls\":551,\"checksum\":5004578896}\n{\"type\":\"sample\",\"index\":4,\"elapsed_ns\":300081000,\"calls\":548,\"checksum\":132480}\n{\"type\":\"sample\",\"index\":5,\"elapsed_ns\":300053000,\"calls\":540,\"checksum\":403072}\n{\"type\":\"sample\",\"index\":6,\"elapsed_ns\":300289000,\"calls\":565,\"checksum\":5004417776}\n",
+      "stderr": "",
+      "configuration": {
+        "BENCH_CASE": "11",
+        "BENCH_N": "100000",
+        "BENCH_SEED": "42",
+        "BENCH_WARMUP_MS": "500",
+        "BENCH_SAMPLE_MS": "300",
+        "BENCH_SAMPLES": "7"
+      },
+      "case": "list-grow",
+      "language": "scoop",
+      "fork": 2,
+      "n": 100000,
+      "checks": [
+        5004150000,
+        5004250000,
+        5004350000,
+        5004450000,
+        5004550000,
+        5004650000,
+        5004750000,
+        5004850000
+      ],
+      "samples": [
+        {
+          "type": "sample",
+          "index": -1,
+          "elapsed_ns": 500213000,
+          "calls": 1019,
+          "checksum": 5004852816
+        },
+        {
+          "type": "sample",
+          "index": 0,
+          "elapsed_ns": 300517000,
+          "calls": 611,
+          "checksum": 5004582224
+        },
+        {
+          "type": "sample",
+          "index": 1,
+          "elapsed_ns": 300193000,
+          "calls": 560,
+          "checksum": 0
+        },
+        {
+          "type": "sample",
+          "index": 2,
+          "elapsed_ns": 300383000,
+          "calls": 544,
+          "checksum": 0
+        },
+        {
+          "type": "sample",
+          "index": 3,
+          "elapsed_ns": 300077000,
+          "calls": 551,
+          "checksum": 5004578896
+        },
+        {
+          "type": "sample",
+          "index": 4,
+          "elapsed_ns": 300081000,
+          "calls": 548,
+          "checksum": 132480
+        },
+        {
+          "type": "sample",
+          "index": 5,
+          "elapsed_ns": 300053000,
+          "calls": 540,
+          "checksum": 403072
+        },
+        {
+          "type": "sample",
+          "index": 6,
+          "elapsed_ns": 300289000,
+          "calls": 565,
+          "checksum": 5004417776
+        }
+      ],
+      "median_ns": 544604.3557168784
+    }
+  ],
+  "summary": [
+    {
+      "case": "reference-records",
+      "description": "引用对象数组",
+      "n": 131072,
+      "languages": {
+        "scoop": {
+          "median_ms": 2.5690593220338984,
+          "min_fork_ms": 2.3861190476190477,
+          "max_fork_ms": 2.9955445544554458,
+          "peak_rss_mib": 70.703125,
+          "cpu_seconds": 5.337491
+        },
+        "go": {
+          "median_ms": 1.9819673815789474,
+          "min_fork_ms": 1.9216050955414012,
+          "max_fork_ms": 1.9963325033112582,
+          "peak_rss_mib": 27.453125,
+          "cpu_seconds": 4.424247
+        },
+        "java-native": {
+          "median_ms": 0.96628125,
+          "min_fork_ms": 0.7286032572815534,
+          "max_fork_ms": 1.0530961964912282,
+          "peak_rss_mib": 367.421875,
+          "cpu_seconds": 2.619034
+        }
+      }
+    },
+    {
+      "case": "list-grow",
+      "description": "动态容器增长 / Java Long 装箱",
+      "n": 100000,
+      "languages": {
+        "scoop": {
+          "median_ms": 0.5446043557168785,
+          "min_fork_ms": 0.5181761658031089,
+          "max_fork_ms": 0.6356800847457628,
+          "peak_rss_mib": 23.046875,
+          "cpu_seconds": 2.644198
+        },
+        "go": {
+          "median_ms": 0.28027594957983193,
+          "min_fork_ms": 0.278605191272052,
+          "max_fork_ms": 0.2830490169811321,
+          "peak_rss_mib": 22.8125,
+          "cpu_seconds": 4.775064
+        },
+        "java-native": {
+          "median_ms": 0.40119808422459896,
+          "min_fork_ms": 0.39665444649933945,
+          "max_fork_ms": 0.40258567828418235,
+          "peak_rss_mib": 353.15625,
+          "cpu_seconds": 2.60011
+        }
+      }
+    }
+  ],
+  "finished": "2026-10-29T21:15:10.366314+08:00"
+}

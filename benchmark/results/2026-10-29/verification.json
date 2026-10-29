@@ -1,0 +1,2482 @@
+[
+  {
+    "case": "integer-mix",
+    "language": "scoop",
+    "n": 4096,
+    "checks": [
+      1707954804,
+      4175946110,
+      2197525483,
+      533799137,
+      1550221188,
+      3243035790,
+      2805398424,
+      974932114
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 0,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1008000,
+        "calls": 89,
+        "checksum": 1707954804
+      }
+    ]
+  },
+  {
+    "case": "integer-mix",
+    "language": "go",
+    "n": 4096,
+    "checks": [
+      1707954804,
+      4175946110,
+      2197525483,
+      533799137,
+      1550221188,
+      3243035790,
+      2805398424,
+      974932114
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 25666,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1001208,
+        "calls": 53,
+        "checksum": 1550221188
+      }
+    ]
+  },
+  {
+    "case": "integer-mix",
+    "language": "java-jit",
+    "n": 4096,
+    "checks": [
+      1707954804,
+      4175946110,
+      2197525483,
+      533799137,
+      1550221188,
+      3243035790,
+      2805398424,
+      974932114
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 167,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1001750,
+        "calls": 98,
+        "checksum": 2636821258
+      }
+    ]
+  },
+  {
+    "case": "integer-mix",
+    "language": "java-native",
+    "n": 4096,
+    "checks": [
+      1707954804,
+      4175946110,
+      2197525483,
+      533799137,
+      1550221188,
+      3243035790,
+      2805398424,
+      974932114
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 84,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1000750,
+        "calls": 149,
+        "checksum": 1550221188
+      }
+    ]
+  },
+  {
+    "case": "mandelbrot",
+    "language": "scoop",
+    "n": 24,
+    "checks": [
+      12379,
+      12377,
+      12377,
+      12375,
+      12375,
+      12373,
+      12373,
+      12373
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 0,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1013000,
+        "calls": 49,
+        "checksum": 12379
+      }
+    ]
+  },
+  {
+    "case": "mandelbrot",
+    "language": "go",
+    "n": 24,
+    "checks": [
+      12379,
+      12377,
+      12377,
+      12375,
+      12375,
+      12373,
+      12373,
+      12373
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 1875,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1012084,
+        "calls": 50,
+        "checksum": 2
+      }
+    ]
+  },
+  {
+    "case": "mandelbrot",
+    "language": "java-jit",
+    "n": 24,
+    "checks": [
+      12379,
+      12377,
+      12377,
+      12375,
+      12375,
+      12373,
+      12373,
+      12373
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 125,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1017459,
+        "calls": 32,
+        "checksum": 0
+      }
+    ]
+  },
+  {
+    "case": "mandelbrot",
+    "language": "java-native",
+    "n": 24,
+    "checks": [
+      12379,
+      12377,
+      12377,
+      12375,
+      12375,
+      12373,
+      12373,
+      12373
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 0,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1010167,
+        "calls": 53,
+        "checksum": 12379
+      }
+    ]
+  },
+  {
+    "case": "array-transform",
+    "language": "scoop",
+    "n": 1024,
+    "checks": [
+      3878400,
+      3883520,
+      3888640,
+      3893760,
+      3898880,
+      3904000,
+      3909120,
+      3914240
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 0,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1000000,
+        "calls": 449,
+        "checksum": 3878400
+      }
+    ]
+  },
+  {
+    "case": "array-transform",
+    "language": "go",
+    "n": 1024,
+    "checks": [
+      3878400,
+      3883520,
+      3888640,
+      3893760,
+      3898880,
+      3904000,
+      3909120,
+      3914240
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 1334,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1001041,
+        "calls": 217,
+        "checksum": 3902976
+      }
+    ]
+  },
+  {
+    "case": "array-transform",
+    "language": "java-jit",
+    "n": 1024,
+    "checks": [
+      3878400,
+      3883520,
+      3888640,
+      3893760,
+      3898880,
+      3904000,
+      3909120,
+      3914240
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 167,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1002209,
+        "calls": 69,
+        "checksum": 3878400
+      }
+    ]
+  },
+  {
+    "case": "array-transform",
+    "language": "java-native",
+    "n": 1024,
+    "checks": [
+      3878400,
+      3883520,
+      3888640,
+      3893760,
+      3898880,
+      3904000,
+      3909120,
+      3914240
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 42,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1002250,
+        "calls": 274,
+        "checksum": 27648
+      }
+    ]
+  },
+  {
+    "case": "branch-scan",
+    "language": "scoop",
+    "n": 1024,
+    "checks": [
+      -17044,
+      1164,
+      -11684,
+      6388,
+      7956,
+      -13992,
+      -14840,
+      -23920
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 0,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1000000,
+        "calls": 413,
+        "checksum": -21056
+      }
+    ]
+  },
+  {
+    "case": "branch-scan",
+    "language": "go",
+    "n": 1024,
+    "checks": [
+      -17044,
+      1164,
+      -11684,
+      6388,
+      7956,
+      -13992,
+      -14840,
+      -23920
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 1333,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1001083,
+        "calls": 315,
+        "checksum": -21984
+      }
+    ]
+  },
+  {
+    "case": "branch-scan",
+    "language": "java-jit",
+    "n": 1024,
+    "checks": [
+      -17044,
+      1164,
+      -11684,
+      6388,
+      7956,
+      -13992,
+      -14840,
+      -23920
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 125,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1005084,
+        "calls": 73,
+        "checksum": 31984
+      }
+    ]
+  },
+  {
+    "case": "branch-scan",
+    "language": "java-native",
+    "n": 1024,
+    "checks": [
+      -17044,
+      1164,
+      -11684,
+      6388,
+      7956,
+      -13992,
+      -14840,
+      -23920
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 167,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1001291,
+        "calls": 329,
+        "checksum": 31984
+      }
+    ]
+  },
+  {
+    "case": "pointer-chase",
+    "language": "scoop",
+    "n": 1024,
+    "checks": [
+      4190208,
+      4190208,
+      4190208,
+      4190208,
+      4190208,
+      4190208,
+      4190208,
+      4190208
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 0,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1002000,
+        "calls": 64,
+        "checksum": 0
+      }
+    ]
+  },
+  {
+    "case": "pointer-chase",
+    "language": "go",
+    "n": 1024,
+    "checks": [
+      4190208,
+      4190208,
+      4190208,
+      4190208,
+      4190208,
+      4190208,
+      4190208,
+      4190208
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 1208,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1007541,
+        "calls": 73,
+        "checksum": 4190208
+      }
+    ]
+  },
+  {
+    "case": "pointer-chase",
+    "language": "java-jit",
+    "n": 1024,
+    "checks": [
+      4190208,
+      4190208,
+      4190208,
+      4190208,
+      4190208,
+      4190208,
+      4190208,
+      4190208
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 125,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1009875,
+        "calls": 16,
+        "checksum": 0
+      }
+    ]
+  },
+  {
+    "case": "pointer-chase",
+    "language": "java-native",
+    "n": 1024,
+    "checks": [
+      4190208,
+      4190208,
+      4190208,
+      4190208,
+      4190208,
+      4190208,
+      4190208,
+      4190208
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 83,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1006375,
+        "calls": 70,
+        "checksum": 0
+      }
+    ]
+  },
+  {
+    "case": "quicksort",
+    "language": "scoop",
+    "n": 1024,
+    "checks": [
+      150751912028855,
+      153456271646515,
+      152820681439269,
+      151119942861224,
+      150287773538266,
+      151828958292121,
+      154639655073430,
+      151910205159071
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 0,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1013000,
+        "calls": 38,
+        "checksum": 4118910546762
+      }
+    ]
+  },
+  {
+    "case": "quicksort",
+    "language": "go",
+    "n": 1024,
+    "checks": [
+      150751912028855,
+      153456271646515,
+      152820681439269,
+      151119942861224,
+      150287773538266,
+      151828958292121,
+      154639655073430,
+      151910205159071
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 1625,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1011167,
+        "calls": 48,
+        "checksum": 0
+      }
+    ]
+  },
+  {
+    "case": "quicksort",
+    "language": "java-jit",
+    "n": 1024,
+    "checks": [
+      150751912028855,
+      153456271646515,
+      152820681439269,
+      151119942861224,
+      150287773538266,
+      151828958292121,
+      154639655073430,
+      151910205159071
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 125,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1018250,
+        "calls": 15,
+        "checksum": 151910205159071
+      }
+    ]
+  },
+  {
+    "case": "quicksort",
+    "language": "java-native",
+    "n": 1024,
+    "checks": [
+      150751912028855,
+      153456271646515,
+      152820681439269,
+      151119942861224,
+      150287773538266,
+      151828958292121,
+      154639655073430,
+      151910205159071
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 125,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1027000,
+        "calls": 33,
+        "checksum": 150751912028855
+      }
+    ]
+  },
+  {
+    "case": "value-records",
+    "language": "scoop",
+    "n": 1024,
+    "checks": [
+      5904896,
+      5907968,
+      5911040,
+      5914112,
+      5917184,
+      5920256,
+      5923328,
+      5926400
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 0,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1000000,
+        "calls": 443,
+        "checksum": 5910016
+      }
+    ]
+  },
+  {
+    "case": "value-records",
+    "language": "go",
+    "n": 1024,
+    "checks": [
+      5904896,
+      5907968,
+      5911040,
+      5914112,
+      5917184,
+      5920256,
+      5923328,
+      5926400
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 1416,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1000625,
+        "calls": 264,
+        "checksum": 8192
+      }
+    ]
+  },
+  {
+    "case": "value-records",
+    "language": "java-jit",
+    "n": 1024,
+    "checks": [
+      5904896,
+      5907968,
+      5911040,
+      5914112,
+      5917184,
+      5920256,
+      5923328,
+      5926400
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 84,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1040500,
+        "calls": 16,
+        "checksum": 0
+      }
+    ]
+  },
+  {
+    "case": "value-records",
+    "language": "java-native",
+    "n": 1024,
+    "checks": [
+      5904896,
+      5907968,
+      5911040,
+      5914112,
+      5917184,
+      5920256,
+      5923328,
+      5926400
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 83,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1001209,
+        "calls": 99,
+        "checksum": 5901824
+      }
+    ]
+  },
+  {
+    "case": "reference-records",
+    "language": "scoop",
+    "n": 1024,
+    "checks": [
+      5904896,
+      5907968,
+      5911040,
+      5914112,
+      5917184,
+      5920256,
+      5923328,
+      5926400
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 0,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1009000,
+        "calls": 106,
+        "checksum": 7168
+      }
+    ]
+  },
+  {
+    "case": "reference-records",
+    "language": "go",
+    "n": 1024,
+    "checks": [
+      5904896,
+      5907968,
+      5911040,
+      5914112,
+      5917184,
+      5920256,
+      5923328,
+      5926400
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 1417,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1017791,
+        "calls": 54,
+        "checksum": 11264
+      }
+    ]
+  },
+  {
+    "case": "reference-records",
+    "language": "java-jit",
+    "n": 1024,
+    "checks": [
+      5904896,
+      5907968,
+      5911040,
+      5914112,
+      5917184,
+      5920256,
+      5923328,
+      5926400
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 42,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1028375,
+        "calls": 16,
+        "checksum": 0
+      }
+    ]
+  },
+  {
+    "case": "reference-records",
+    "language": "java-native",
+    "n": 1024,
+    "checks": [
+      5904896,
+      5907968,
+      5911040,
+      5914112,
+      5917184,
+      5920256,
+      5923328,
+      5926400
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 42,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1013292,
+        "calls": 103,
+        "checksum": 5918208
+      }
+    ]
+  },
+  {
+    "case": "allocation-ring",
+    "language": "scoop",
+    "n": 4096,
+    "checks": [
+      864297,
+      881706,
+      892971,
+      910380,
+      921645,
+      932910,
+      938031,
+      961584
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 0,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1008000,
+        "calls": 75,
+        "checksum": 865328
+      }
+    ]
+  },
+  {
+    "case": "allocation-ring",
+    "language": "go",
+    "n": 4096,
+    "checks": [
+      864297,
+      881706,
+      892971,
+      910380,
+      921645,
+      932910,
+      938031,
+      961584
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 1500,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1013708,
+        "calls": 36,
+        "checksum": 4
+      }
+    ]
+  },
+  {
+    "case": "allocation-ring",
+    "language": "java-jit",
+    "n": 4096,
+    "checks": [
+      864297,
+      881706,
+      892971,
+      910380,
+      921645,
+      932910,
+      938031,
+      961584
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 84,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1067791,
+        "calls": 9,
+        "checksum": 909361
+      }
+    ]
+  },
+  {
+    "case": "allocation-ring",
+    "language": "java-native",
+    "n": 4096,
+    "checks": [
+      864297,
+      881706,
+      892971,
+      910380,
+      921645,
+      932910,
+      938031,
+      961584
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 42,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1004834,
+        "calls": 57,
+        "checksum": 909361
+      }
+    ]
+  },
+  {
+    "case": "binary-trees",
+    "language": "scoop",
+    "n": 1,
+    "checks": [
+      245760,
+      249856,
+      253952,
+      258048,
+      262144,
+      266240,
+      270336,
+      274432
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 1000,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1407000,
+        "calls": 20,
+        "checksum": 0
+      }
+    ]
+  },
+  {
+    "case": "binary-trees",
+    "language": "go",
+    "n": 1,
+    "checks": [
+      245760,
+      249856,
+      253952,
+      258048,
+      262144,
+      266240,
+      270336,
+      274432
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 1334,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1054250,
+        "calls": 11,
+        "checksum": 258048
+      }
+    ]
+  },
+  {
+    "case": "binary-trees",
+    "language": "java-jit",
+    "n": 1,
+    "checks": [
+      245760,
+      249856,
+      253952,
+      258048,
+      262144,
+      266240,
+      270336,
+      274432
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 125,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1002375,
+        "calls": 15,
+        "checksum": 274432
+      }
+    ]
+  },
+  {
+    "case": "binary-trees",
+    "language": "java-native",
+    "n": 1,
+    "checks": [
+      245760,
+      249856,
+      253952,
+      258048,
+      262144,
+      266240,
+      270336,
+      274432
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 41,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1040584,
+        "calls": 28,
+        "checksum": 0
+      }
+    ]
+  },
+  {
+    "case": "interface-dispatch",
+    "language": "scoop",
+    "n": 4096,
+    "checks": [
+      484237401,
+      787350446,
+      263178284,
+      364871247,
+      379020253,
+      223712241,
+      283328560,
+      149667444
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 0,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1000000,
+        "calls": 79,
+        "checksum": 149667444
+      }
+    ]
+  },
+  {
+    "case": "interface-dispatch",
+    "language": "go",
+    "n": 4096,
+    "checks": [
+      484237401,
+      787350446,
+      263178284,
+      364871247,
+      379020253,
+      223712241,
+      283328560,
+      149667444
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 1416,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1001666,
+        "calls": 282,
+        "checksum": 433764363
+      }
+    ]
+  },
+  {
+    "case": "interface-dispatch",
+    "language": "java-jit",
+    "n": 4096,
+    "checks": [
+      484237401,
+      787350446,
+      263178284,
+      364871247,
+      379020253,
+      223712241,
+      283328560,
+      149667444
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 167,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1002292,
+        "calls": 23,
+        "checksum": 587457928
+      }
+    ]
+  },
+  {
+    "case": "interface-dispatch",
+    "language": "java-native",
+    "n": 4096,
+    "checks": [
+      484237401,
+      787350446,
+      263178284,
+      364871247,
+      379020253,
+      223712241,
+      283328560,
+      149667444
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 84,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1004417,
+        "calls": 177,
+        "checksum": 484237401
+      }
+    ]
+  },
+  {
+    "case": "list-grow",
+    "language": "scoop",
+    "n": 1024,
+    "checks": [
+      566784,
+      567808,
+      568832,
+      569856,
+      570880,
+      571904,
+      572928,
+      573952
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 0,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1002000,
+        "calls": 304,
+        "checksum": 0
+      }
+    ]
+  },
+  {
+    "case": "list-grow",
+    "language": "go",
+    "n": 1024,
+    "checks": [
+      566784,
+      567808,
+      568832,
+      569856,
+      570880,
+      571904,
+      572928,
+      573952
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 1291,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1000708,
+        "calls": 347,
+        "checksum": 573952
+      }
+    ]
+  },
+  {
+    "case": "list-grow",
+    "language": "java-jit",
+    "n": 1024,
+    "checks": [
+      566784,
+      567808,
+      568832,
+      569856,
+      570880,
+      571904,
+      572928,
+      573952
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 83,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1043333,
+        "calls": 18,
+        "checksum": 3072
+      }
+    ]
+  },
+  {
+    "case": "list-grow",
+    "language": "java-native",
+    "n": 1024,
+    "checks": [
+      566784,
+      567808,
+      568832,
+      569856,
+      570880,
+      571904,
+      572928,
+      573952
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 42,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1002500,
+        "calls": 170,
+        "checksum": 27648
+      }
+    ]
+  },
+  {
+    "case": "hash-map",
+    "language": "scoop",
+    "n": 4096,
+    "checks": [
+      4096,
+      4096,
+      4096,
+      4096,
+      4096,
+      4096,
+      4096,
+      4096
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 0,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1205000,
+        "calls": 5,
+        "checksum": 4096
+      }
+    ]
+  },
+  {
+    "case": "hash-map",
+    "language": "go",
+    "n": 4096,
+    "checks": [
+      4096,
+      4096,
+      4096,
+      4096,
+      4096,
+      4096,
+      4096,
+      4096
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 1417,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1132541,
+        "calls": 5,
+        "checksum": 4096
+      }
+    ]
+  },
+  {
+    "case": "hash-map",
+    "language": "java-jit",
+    "n": 4096,
+    "checks": [
+      4096,
+      4096,
+      4096,
+      4096,
+      4096,
+      4096,
+      4096,
+      4096
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 84,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1314584,
+        "calls": 2,
+        "checksum": 0
+      }
+    ]
+  },
+  {
+    "case": "hash-map",
+    "language": "java-native",
+    "n": 4096,
+    "checks": [
+      4096,
+      4096,
+      4096,
+      4096,
+      4096,
+      4096,
+      4096,
+      4096
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 84,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1056250,
+        "calls": 11,
+        "checksum": 4096
+      }
+    ]
+  },
+  {
+    "case": "decimal-format",
+    "language": "scoop",
+    "n": 1024,
+    "checks": [
+      10061,
+      10025,
+      10048,
+      10031,
+      10062,
+      10011,
+      10023,
+      10048
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 0,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1002000,
+        "calls": 79,
+        "checksum": 10048
+      }
+    ]
+  },
+  {
+    "case": "decimal-format",
+    "language": "go",
+    "n": 1024,
+    "checks": [
+      10061,
+      10025,
+      10048,
+      10031,
+      10062,
+      10011,
+      10023,
+      10048
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 1375,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1001292,
+        "calls": 61,
+        "checksum": 10108
+      }
+    ]
+  },
+  {
+    "case": "decimal-format",
+    "language": "java-jit",
+    "n": 1024,
+    "checks": [
+      10061,
+      10025,
+      10048,
+      10031,
+      10062,
+      10011,
+      10023,
+      10048
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 84,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1000959,
+        "calls": 14,
+        "checksum": 103
+      }
+    ]
+  },
+  {
+    "case": "decimal-format",
+    "language": "java-native",
+    "n": 1024,
+    "checks": [
+      10061,
+      10025,
+      10048,
+      10031,
+      10062,
+      10011,
+      10023,
+      10048
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 41,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1010000,
+        "calls": 60,
+        "checksum": 50
+      }
+    ]
+  },
+  {
+    "case": "string-build",
+    "language": "scoop",
+    "n": 1024,
+    "checks": [
+      4062,
+      4062,
+      4062,
+      4062,
+      4062,
+      4062,
+      4062,
+      4062
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 0,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1008000,
+        "calls": 69,
+        "checksum": 4062
+      }
+    ]
+  },
+  {
+    "case": "string-build",
+    "language": "go",
+    "n": 1024,
+    "checks": [
+      4062,
+      4062,
+      4062,
+      4062,
+      4062,
+      4062,
+      4062,
+      4062
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 1292,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1009542,
+        "calls": 77,
+        "checksum": 4062
+      }
+    ]
+  },
+  {
+    "case": "string-build",
+    "language": "java-jit",
+    "n": 1024,
+    "checks": [
+      4062,
+      4062,
+      4062,
+      4062,
+      4062,
+      4062,
+      4062,
+      4062
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 125,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1016750,
+        "calls": 13,
+        "checksum": 4062
+      }
+    ]
+  },
+  {
+    "case": "string-build",
+    "language": "java-native",
+    "n": 1024,
+    "checks": [
+      4062,
+      4062,
+      4062,
+      4062,
+      4062,
+      4062,
+      4062,
+      4062
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 41,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1005625,
+        "calls": 46,
+        "checksum": 0
+      }
+    ]
+  },
+  {
+    "case": "unicode-scan",
+    "language": "scoop",
+    "n": 2,
+    "checks": [
+      171788492,
+      171788494,
+      171788496,
+      171788498,
+      171788500,
+      171788502,
+      171788504,
+      171788506
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 0,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1021000,
+        "calls": 36,
+        "checksum": 0
+      }
+    ]
+  },
+  {
+    "case": "unicode-scan",
+    "language": "go",
+    "n": 2,
+    "checks": [
+      171788492,
+      171788494,
+      171788496,
+      171788498,
+      171788500,
+      171788502,
+      171788504,
+      171788506
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 1500,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1001542,
+        "calls": 98,
+        "checksum": 2
+      }
+    ]
+  },
+  {
+    "case": "unicode-scan",
+    "language": "java-jit",
+    "n": 2,
+    "checks": [
+      171788492,
+      171788494,
+      171788496,
+      171788498,
+      171788500,
+      171788502,
+      171788504,
+      171788506
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 84,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1009333,
+        "calls": 8,
+        "checksum": 0
+      }
+    ]
+  },
+  {
+    "case": "unicode-scan",
+    "language": "java-native",
+    "n": 2,
+    "checks": [
+      171788492,
+      171788494,
+      171788496,
+      171788498,
+      171788500,
+      171788502,
+      171788504,
+      171788506
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 42,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1029334,
+        "calls": 30,
+        "checksum": 2
+      }
+    ]
+  },
+  {
+    "case": "integer-parse",
+    "language": "scoop",
+    "n": 1024,
+    "checks": [
+      161185110528,
+      161185111552,
+      161185112576,
+      161185113600,
+      161185114624,
+      161185115648,
+      161185116672,
+      161185117696
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 0,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1027000,
+        "calls": 23,
+        "checksum": 161185117696
+      }
+    ]
+  },
+  {
+    "case": "integer-parse",
+    "language": "go",
+    "n": 1024,
+    "checks": [
+      161185110528,
+      161185111552,
+      161185112576,
+      161185113600,
+      161185114624,
+      161185115648,
+      161185116672,
+      161185117696
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 1167,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1006917,
+        "calls": 60,
+        "checksum": 0
+      }
+    ]
+  },
+  {
+    "case": "integer-parse",
+    "language": "java-jit",
+    "n": 1024,
+    "checks": [
+      161185110528,
+      161185111552,
+      161185112576,
+      161185113600,
+      161185114624,
+      161185115648,
+      161185116672,
+      161185117696
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 125,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1114500,
+        "calls": 4,
+        "checksum": 0
+      }
+    ]
+  },
+  {
+    "case": "integer-parse",
+    "language": "java-native",
+    "n": 1024,
+    "checks": [
+      161185110528,
+      161185111552,
+      161185112576,
+      161185113600,
+      161185114624,
+      161185115648,
+      161185116672,
+      161185117696
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 42,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1003125,
+        "calls": 32,
+        "checksum": 0
+      }
+    ]
+  },
+  {
+    "case": "parallel-1",
+    "language": "scoop",
+    "n": 8192,
+    "checks": [
+      16102201250,
+      15768915345,
+      17146576764,
+      18440353195,
+      18224506838,
+      18453258719,
+      17171734508,
+      18151173802
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 0,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1008000,
+        "calls": 30,
+        "checksum": 33393422662
+      }
+    ]
+  },
+  {
+    "case": "parallel-1",
+    "language": "go",
+    "n": 8192,
+    "checks": [
+      16102201250,
+      15768915345,
+      17146576764,
+      18440353195,
+      18224506838,
+      18453258719,
+      17171734508,
+      18151173802
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 1541,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1002250,
+        "calls": 63,
+        "checksum": 18151173802
+      }
+    ]
+  },
+  {
+    "case": "parallel-1",
+    "language": "java-jit",
+    "n": 8192,
+    "checks": [
+      16102201250,
+      15768915345,
+      17146576764,
+      18440353195,
+      18224506838,
+      18453258719,
+      17171734508,
+      18151173802
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 125,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1031834,
+        "calls": 17,
+        "checksum": 16102201250
+      }
+    ]
+  },
+  {
+    "case": "parallel-1",
+    "language": "java-native",
+    "n": 8192,
+    "checks": [
+      16102201250,
+      15768915345,
+      17146576764,
+      18440353195,
+      18224506838,
+      18453258719,
+      17171734508,
+      18151173802
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 83,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1027917,
+        "calls": 36,
+        "checksum": 32765907172
+      }
+    ]
+  },
+  {
+    "case": "parallel-4",
+    "language": "scoop",
+    "n": 8192,
+    "checks": [
+      16102201250,
+      15768915345,
+      17146576764,
+      18440353195,
+      18224506838,
+      18453258719,
+      17171734508,
+      18151173802
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 0,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1031000,
+        "calls": 26,
+        "checksum": 115359128
+      }
+    ]
+  },
+  {
+    "case": "parallel-4",
+    "language": "go",
+    "n": 8192,
+    "checks": [
+      16102201250,
+      15768915345,
+      17146576764,
+      18440353195,
+      18224506838,
+      18453258719,
+      17171734508,
+      18151173802
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 2000,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1002250,
+        "calls": 92,
+        "checksum": 33080653647
+      }
+    ]
+  },
+  {
+    "case": "parallel-4",
+    "language": "java-jit",
+    "n": 8192,
+    "checks": [
+      16102201250,
+      15768915345,
+      17146576764,
+      18440353195,
+      18224506838,
+      18453258719,
+      17171734508,
+      18151173802
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 167,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1059333,
+        "calls": 8,
+        "checksum": 314746795
+      }
+    ]
+  },
+  {
+    "case": "parallel-4",
+    "language": "java-native",
+    "n": 8192,
+    "checks": [
+      16102201250,
+      15768915345,
+      17146576764,
+      18440353195,
+      18224506838,
+      18453258719,
+      17171734508,
+      18151173802
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 125,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1266541,
+        "calls": 16,
+        "checksum": 0
+      }
+    ]
+  },
+  {
+    "case": "parallel-8",
+    "language": "scoop",
+    "n": 8192,
+    "checks": [
+      16102201250,
+      15768915345,
+      17146576764,
+      18440353195,
+      18224506838,
+      18453258719,
+      17171734508,
+      18151173802
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 0,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1079000,
+        "calls": 12,
+        "checksum": 33080653647
+      }
+    ]
+  },
+  {
+    "case": "parallel-8",
+    "language": "go",
+    "n": 8192,
+    "checks": [
+      16102201250,
+      15768915345,
+      17146576764,
+      18440353195,
+      18224506838,
+      18453258719,
+      17171734508,
+      18151173802
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 1875,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1002292,
+        "calls": 91,
+        "checksum": 17060578020
+      }
+    ]
+  },
+  {
+    "case": "parallel-8",
+    "language": "java-jit",
+    "n": 8192,
+    "checks": [
+      16102201250,
+      15768915345,
+      17146576764,
+      18440353195,
+      18224506838,
+      18453258719,
+      17171734508,
+      18151173802
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 125,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1062583,
+        "calls": 4,
+        "checksum": 32765907172
+      }
+    ]
+  },
+  {
+    "case": "parallel-8",
+    "language": "java-native",
+    "n": 8192,
+    "checks": [
+      16102201250,
+      15768915345,
+      17146576764,
+      18440353195,
+      18224506838,
+      18453258719,
+      17171734508,
+      18151173802
+    ],
+    "samples": [
+      {
+        "type": "sample",
+        "index": -1,
+        "elapsed_ns": 208,
+        "calls": 0,
+        "checksum": 0
+      },
+      {
+        "type": "sample",
+        "index": 0,
+        "elapsed_ns": 1066000,
+        "calls": 13,
+        "checksum": 15258964121
+      }
+    ]
+  }
+]

@@ -1,0 +1,77 @@
+package dev.benchmark
+
+@GCLeaf
+@Extern(name = "bench_now")
+fun now(): Long
+
+@GCLeaf
+@Extern(name = "bench_config")
+fun config(key: Int): Long
+
+@Extern(name = "bench_check")
+fun reportCheck(seed: Long, value: Long)
+
+@Extern(name = "bench_sample")
+fun reportSample(index: Long, elapsed: Long, calls: Long, checksum: Long)
+
+fun kernel(kind: Int, n: Long, seed: Long): Long =
+    when (kind) {
+        case 0 -> mix(n, seed)
+        case 1 -> mandelbrot(n, seed)
+        case 2 -> arrayTransform(n, seed)
+        case 3 -> branchScan(n, seed)
+        case 4 -> pointerChase(n, seed)
+        case 5 -> sortValues(n, seed)
+        case 6 -> valueRecords(n, seed)
+        case 7 -> referenceRecords(n, seed)
+        case 8 -> allocationRing(n, seed)
+        case 9 -> trees(n, seed)
+        case 10 -> dispatch(n, seed)
+        case 11 -> growList(n, seed)
+        case 12 -> hashMap(n, seed)
+        case 13 -> decimal(n, seed)
+        case 14 -> buildString(n, seed)
+        case 15 -> unicode(n, seed)
+        case 16 -> parseIntegers(n, seed)
+        case 17 -> parallel(n, seed, 1L)
+        case 18 -> parallel(n, seed, 4L)
+        case 19 -> parallel(n, seed, 8L)
+        else -> throw IllegalArgumentException()
+    }
+
+@Unsafe
+fun main() {
+    val kind = config(0).toInt()
+    if (kind < 0) {
+        println("ready");
+        return
+    }
+    val n = config(1)
+    val seed = config(2)
+    var i = 0L
+    while (i < 8L) {
+        reportCheck(seed + i, kernel(kind, n, seed + i));
+        i += 1L
+    }
+    var sample = -1L
+    while (sample < config(5)) {
+        val duration =
+            (
+                if (sample < 0L)
+                    config(3)
+                else
+                    config(4)
+            ) *
+                1000000L
+        val start = now()
+        var calls = 0L
+        var checksum = 0L
+        while (now() - start < duration) {
+            checksum = checksum.xor(kernel(kind, n, seed + calls.and(7L)))
+            calls += 1L
+        }
+        val elapsed = now() - start
+        reportSample(sample, elapsed, calls, checksum)
+        sample += 1L
+    }
+}
