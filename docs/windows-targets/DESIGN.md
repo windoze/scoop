@@ -90,6 +90,8 @@ windows_sdk = 'C:/Program Files (x86)/Windows Kits/10'
 sdk_version = '10.0.26100.0'
 ```
 
+大小写敏感的交叉宿主还需准备与实际 include 拼写、库名匹配的 SDK 路径。例如 SDK 文件可能名为 `Windows.h`，源码使用 `windows.h`；SDK 内部也有 `DriverSpecs.h` 与实际小写文件名的差异。维护准备可保留原文件并补齐相应符号链接，普通编译消费已经准备好的开发资源。
+
 先选完整 target，再解析对应工具。沿用 C compiler／native-sysroot 显式覆盖入口，补充实际 C++ compiler 和 final linker 的选择；覆盖只能提供该 target 相容的实现，不能把 MSVC target 的编译器换成 MinGW 后保持原 target 标记。generated-C bridge 默认使用随包 Clang 的相应模式，不能因用户 C++ compiler 是 `cl.exe` 就把其中 Clang builtin 原样交给 cl 编译。全部调用使用参数数组，并正确处理 MSVC 风格参数、依赖输出和路径。
 
 MinGW 环境使用 GNU triple、compiler-rt、LLVM libunwind 和 `-stdlib=libc++`；Unicode startup 使用 `-municode`。Microsoft 环境使用 MSVC triple、MSVC headers／libraries，native C++ 默认 `/EHsc`、`/MD`，正常对象用 `lld-link` 或 `link.exe`；Unicode `wmain` 经对应 CRT startup 进入 runtime。不能把 MinGW driver 参数或启动库顺序移植到 MSVC 命令。Scoop 自身的 SEH 辅助库按对应环境构建，其选择不覆盖 native C++ EH runtime。

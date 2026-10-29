@@ -9,9 +9,9 @@
 | W1 编译／链接 | 三目标 ABI、COFF、C/C++、PE、PDB、subsystem 与 RC 已实现；ABI 30 定向组合通过 | 无独立 W1 阻塞 |
 | W2 core runtime | Win32 primitives、SEH、精确 roots、GC、线程与初始化已实现；ABI 30 栈诊断开关组合通过 | 无独立 W2 阻塞 |
 | W3 系统库 | Windows 实现及所需 native 后端已完成；ABI 30 三目标各 25 个 Cone 与四种 runtime 已准备完成；高层 HTTP 失败用例已闭合 | 无独立 W3 阻塞 |
-| W4 宿主与发行 | ABI 30 新版候选归档通过三目标实际安装使用、调试器与更新后的 server consumer 验收 | 跨宿主原生回归与 Windows 交叉编译 |
+| W4 宿主与发行 | ABI 30 候选归档、本机回归与两个远端的三目标交叉编译／Windows 执行通过 | 更新包含 runtime schema 7 的候选归档并验证安装 |
 
-Windows 本地实现与验收已完成。随后在 Linux `nuc12w.0d0a.com` 与 macOS `mm.0d0a.com` 的 `~/repos/scoop-windows-20261030` 下分别新建 checkout，远端回归已开始。原始日志、报告、归档和构建副本保存在仓库外。
+Windows 本地实现与验收完成后，在 Linux `nuc12w.0d0a.com` 与 macOS `mm.0d0a.com` 的 `~/repos/scoop-windows-20261030` 下分别新建 checkout。跨宿主回归现已完成，正在更新包含其修复的候选归档。原始日志、报告、归档和构建副本保存在仓库外。
 
 ## 环境与三个目标
 
@@ -46,7 +46,7 @@ ABI 30 的三个目标各通过 13 项定向 fixture，覆盖开关与重链接�
 
 编译期输入主线整合后，47 项协议、11 项产物固定向量、7 项缓存键及 8 项 Windows codegen 测试通过。Windows 环境输入覆盖缺失、空值、Unicode 和无效 UTF-16；child 复用原有 Windows 工具环境，并保留调用者的 `SCOOP_*` 值。macOS 打包采用主线修正后的 Rust 默认 CPU baseline，Windows 宿主命名和 target 选择保持独立。
 
-文件 fixture 的 Windows 扩展仍在验收。ABI 29／协议 23 下新增验收的 107 个诊断 fixture 全部通过，覆盖 smart cast、类型别名、尾随 lambda、可见性、源码头、UTF-8 与 when 规则；共享预编译 core，共 107 次 CLI 调用。公共 runner 的格式化／Ruff 通过，68 项规则测试完成（其中 3 项按宿主跳过）。33 个继承规则用例复用固定的共享 core 后全部通过；6 个 primitive inherited-method 用例也已通过，其中五个共享固定输入，combined 保留修改前后的真实 core 构建。6 个根类型错误用例精确断言被测规则诊断，去除对其他 core 源码连带错误的完整快照依赖，均已通过。较大的完整 core 构建步骤采用 900 秒测试时限；普通运行断言不变。Windows 本地化错误、LF 字节位置、COFF archive 成员、当前 runtime 字段以及泛型初始化登记的断言按实际合同调整，不通过隐藏输入或工具验收复用。
+文件 fixture 的 Windows 扩展在 ABI 29／协议 23 下新增验收的 107 个诊断 fixture 全部通过，覆盖 smart cast、类型别名、尾随 lambda、可见性、源码头、UTF-8 与 when 规则；共享预编译 core，共 107 次 CLI 调用。公共 runner 的格式化／Ruff 通过，68 项规则测试完成（其中 3 项按宿主跳过）。33 个继承规则用例复用固定的共享 core 后全部通过；6 个 primitive inherited-method 用例也已通过，其中五个共享固定输入，combined 保留修改前后的真实 core 构建。6 个根类型错误用例精确断言被测规则诊断，去除对其他 core 源码连带错误的完整快照依赖，均已通过。较大的完整 core 构建步骤采用 900 秒测试时限；普通运行断言不变。Windows 本地化错误、LF 字节位置、COFF archive 成员、当前 runtime 字段以及泛型初始化登记的断言按实际合同调整，不通过隐藏输入或工具验收复用。
 
 `ae13036d9` 合并后，Rust fmt／workspace Clippy、60 项 statepoint、8 项 Windows codegen、7 项缓存键、runtime 输入更新、Windows PE／完整 runtime ABI，以及 70 项 fixture runner 规则测试通过（3 项按宿主跳过）。LLVM IR 测试输入固定 LF，Unix 链接测试显式限定其宿主；Windows 使用独立的真实 PE 测试。7 项实际 CLI fixture 覆盖合并冲突处的异常返回、接口／C++ 产物、TLS callback、泛型组合／siblings 与 PDB。检查脚本固定 UTF-8／LF，重链接比较使用一致的 executable basename；泛型行为用例移除无关的完整 archive 成员编号快照，保留编译、产物消费和运行断言。11 项语法 corpus、27 项语法规则与 16 项 VS Code 测试通过，VSIX 已重新生成。
 
@@ -104,8 +104,10 @@ ABI 30 的 `0fa053fd1` 新版候选归档及 LLVM 源码归档已经生成，纳
 
 Linux 的 CMake Makefile linker depfile 以目标目录为相对路径基准，且包含空依赖规则；准备脚本已按此解析。真实外部静态库的链接／执行、未变化复用和库变化后更新测试通过；Windows 原有 Ninja／Microsoft 依赖与并发协调测试通过。修复后复用已完成的 LLVM 构建并成功发布更新记录，没有重新进行完整编译。
 
-macOS 原生 CLI 的 6 项 fixture／9 个变体通过，覆盖 native C++、scalar／aggregate 结果、并发 Throwable 历史、interface SSA 移动 GC，以及跨 Cone TLS／线程 callback。交叉编译发现 clang-cl 将 `/Users/...` 文件路径识别为 `/U` 选项，已通过 Clang 文件参数通道修正；Windows 的四种 native C/C++ 编译组合和五种实际 PE／PDB 链接组合通过。交叉编译随后暴露预编译 runtime index 使用生产宿主路径编码的问题，正在修正其跨宿主相对路径表示。
+macOS 与 Linux glibc 原生 CLI 各通过 6 项 fixture／9 个变体，Linux musl 通过 5 项／7 个变体，按既有适用范围跳过 C++。覆盖 native C++、scalar／aggregate 结果、并发 Throwable 历史、interface SSA 移动 GC，以及跨 Cone TLS／线程 callback；均消费 schema 7 runtime。交叉编译发现 clang-cl 将 `/Users/...` 文件路径识别为 `/U` 选项，已通过 Clang 文件参数通道修正；Windows 的四种 native C/C++ 编译组合和五种实际 PE／PDB 链接组合通过。
 
-runtime index 已改为 schema 7：对象 locator 保存 UTF-8 相对路径和 `/` 分隔符，开发 runtime 缓存同步改为 `runtime-v8`，runtime ABI 与 `.slib` 不变。三个宿主的格式／路径错误测试、Rust fmt／Clippy 通过；Windows 实际 runtime 的读写、中文／空格目录迁移、相容工具链消费与输入未变化复用通过。配套四种 runtime 资源正在更新；旧索引需重新准备，不增加兼容读取分支。
+runtime index 已改为 schema 7：对象 locator 保存 UTF-8 相对路径和 `/` 分隔符，开发 runtime 缓存同步改为 `runtime-v8`，runtime ABI 与 `.slib` 不变。三个宿主的格式／路径错误测试、Rust fmt／Clippy 通过；Windows 实际 runtime 的读写、中文／空格目录迁移、相容工具链消费与输入未变化复用通过。三个 Windows target 与三个既有 target 的四种 runtime 配置均已更新，未变化的 Windows 系统库与 LLVM 复用；旧索引需重新准备，不增加兼容读取分支。
 
-剩余工作为：完成 Linux／macOS 原生 CLI 回归与三个 Windows target 的交叉编译，并在 Windows 运行交叉产物；继续按变更提交、推送并合并主线。完成这些步骤前不声明全部 Windows 验收完成。
+Linux 与 macOS 各交叉生成 18 个 Windows 程序：每个目标覆盖 C++ debug／release、interface SSA debug／release 移动 GC、并发 Throwable 历史与 GUI／RC。36 个程序及相邻 PDB 传回真实 Windows 后全部通过执行、CRT imports、移动／minor GC、异常快照和 PE subsystem／资源内容检查。两端直接消费同一份 Windows 准备的目标 `.slib`／runtime／unwind；Linux SDK 副本按所需文件名大小写补齐符号链接，保留原文件与上游 include 内容。
+
+剩余工作为：更新包含跨宿主路径修复和 schema 7 runtime 的候选归档，完成实际安装验证，并提交、推送、合并主线。完成这些步骤前不声明全部 Windows 验收完成。
