@@ -2131,7 +2131,9 @@ public open class Throwable public constructor() {
 
 `core_throwable` 是 intrinsic class 构造规则的一个明确例外：声明为 public、open、无类型参数，显式保留 public 零参数 primary constructor；不允许源码存储字段、init block、secondary constructor 或 class 基类。该构造沿普通构造身份和调用链生成空 initializer，快照槽由对象分配的零初始化提供。普通派生类继续使用完整的基类前缀，其构造规则不变。
 
-栈快照采用以下语义：
+栈快照由程序级 `--enable-stack-trace[=true|false]` 链接开关控制：debug 默认开启，release 默认关闭，显式值覆盖默认值；它独立于调试信息级别。关闭时所有库及当前程序的异常均不捕获或分配快照，`printStackTrace()` 在异常类型之后输出一行 `  <stack trace unavailable: disabled>`；异常传播、catch、重抛及对象布局不变。链接选项与仅消费产物的入口默认值见实现规范 2.21。
+
+开启时，栈快照采用以下语义：
 
 1. `throw e` 完成实参求值后，在该对象首次抛出的调用栈尚未展开时采集。只构造对象不采集；`printStackTrace()` 不用打印位置的当前栈代替异常栈。
 2. 后续 `throw e`、同一异常的同步 rethrow、跨 catch／线程／协程保存和再次传播均保留原快照。创建新异常对象后再抛出，采集新对象自己的栈。对同一对象并发首次抛出，以原子发布成功的一份快照为准，其后不覆盖；不承诺并发事件的墙钟先后次序。

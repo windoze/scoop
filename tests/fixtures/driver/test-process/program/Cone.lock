@@ -1,0 +1,37 @@
+format = 1
+
+[[resolutions]]
+root = "."
+purpose = "test"
+target = "aarch64-apple-darwin"
+root-coordinate = "dev.m43:process-tests:0.1.0"
+
+[[resolutions.nodes]]
+coordinate = "dev.m43:process-tests:0.1.0"
+kind = "library"
+dependencies = ["scoop:scoop.core:0.1.0"]
+test-dependencies = ["scoop:scoop.test:0.1.0"]
+
+[resolutions.nodes.source]
+kind = "path"
+path = "."
+
+[[resolutions.nodes]]
+coordinate = "scoop:scoop.core:0.1.0"
+kind = "library"
+dependencies = []
+test-dependencies = []
+
+[resolutions.nodes.source]
+kind = "sysroot"
+name = "scoop.core"
+
+[[resolutions.nodes]]
+coordinate = "scoop:scoop.test:0.1.0"
+kind = "library"
+dependencies = ["scoop:scoop.core:0.1.0"]
+test-dependencies = []
+
+[resolutions.nodes.source]
+kind = "sysroot"
+name = "scoop.test"

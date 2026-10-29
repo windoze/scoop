@@ -1,0 +1,54 @@
+@Extern(lib = "trace_probe", name = "trace_has_snapshot", abi = "scoop")
+fun hasSnapshot(value: Throwable): Int
+
+class Failure(val number: Int): Throwable()
+
+fun throwAndCatch(error: Failure): Failure {
+    try {
+        throw error
+    } catch (caught: Failure) {
+        return caught
+    }
+}
+
+fun coreFailure(): Throwable {
+    try {
+        "short".getCharAt(99L)
+    } catch (caught: IndexOutOfBoundsException) {
+        return caught
+    }
+    throw IllegalStateException()
+}
+
+@Unsafe
+fun main(args: Array<String>): Int {
+    val expected =
+        if (args[1] == "enabled")
+            1
+        else
+            0
+    val error = Failure(42)
+    if (hasSnapshot(error) != 0) {
+        return 2
+    }
+    error.printStackTrace()
+    val caught = throwAndCatch(error)
+    gcCollect()
+    if (caught.number != 42 || hasSnapshot(caught) != expected) {
+        return 3
+    }
+    caught.printStackTrace()
+    val again = throwAndCatch(caught)
+    gcCollect()
+    if (again.number != 42 || hasSnapshot(again) != expected) {
+        return 4
+    }
+    again.printStackTrace()
+    val libraryError = coreFailure()
+    gcCollect()
+    if (hasSnapshot(libraryError) != expected) {
+        return 5
+    }
+    libraryError.printStackTrace()
+    return 0
+}

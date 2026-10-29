@@ -1039,9 +1039,9 @@ Linux gnu 默认 dynamic PIE，musl 默认 static ET_EXEC；musl 可显式 dynam
 
 DSO 依赖查找使用显式 roots、provider 目录、实际 RPATH/RUNPATH 与所选系统目录。真实 SONAME、DT_NEEDED、加载顺序和 RUNPATH 进入 link plan，临时快照路径不写入 executable 的依赖名；同名导出使实际 ELF 顺序无法满足显式库绑定时报告冲突。
 
-链接生成 `int main(int argc, char **argv)`、最终 image descriptors、六张 producer pointer tables、image pointer array 与唯一 root entry 引用。C main 按运行时规范 2.8 调用 `scoop_rt_run_program(images, image_count, root_entry, (int32_t)argc, (const char *const *)argv)`，原样返回其 C int 结果，不丢弃 argv[0] 或主动截断退出码。这些生成物只引用所选记录，不复制 TD、storage、cell 或 gateway body，也不在 C main 中构造 managed Array/String。`scoop_td_String` 是实际 String TD 的同地址 alias。
+链接生成 `int main(int argc, char **argv)`、最终 image descriptors、六张 producer pointer tables、image pointer array 与唯一 root entry 引用。C main 按运行时规范 2.8 调用 `scoop_rt_run_program(images, image_count, root_entry, (int32_t)argc, (const char *const *)argv, enable_stack_trace)`，末尾常量由 2.21 的链接选项确定。main 原样返回其 C int 结果，不丢弃 argv[0] 或主动截断退出码。这些生成物只引用所选记录，不复制 TD、storage、cell 或 gateway body，也不在 C main 中构造 managed Array/String。`scoop_td_String` 是实际 String TD 的同地址 alias。
 
-ResolvedLinkPlan 使用 `scoop-resolved-link-plan-v4`，覆盖 root/依赖、Code 与对象内容、runtime/native/startup 输入、ODR 选择、最终 image 内容、系统 providers、库绑定、archive members、加载路径、工具配置和有序操作。物化与输出 locator 不进入内容身份，实际 install name/runpath 与普通符号保留策略必须进入。
+ResolvedLinkPlan 使用 `scoop-resolved-link-plan-v5`，覆盖 root/依赖、Code 与对象内容、runtime/native/startup 输入、ODR 选择、最终 image 内容、系统 providers、库绑定、archive members、加载路径、工具配置和有序操作。物化与输出 locator 不进入内容身份，实际 install name/runpath 与普通符号保留策略必须进入。
 
 本次链接按实际 target、symbol、Strong/ODR 选择、startup/image 与 GC/EH 要求生成程序，native linker 不能改选另一份 ODR 实现。工具成功后普通 rename 发布并保存链接结果，不重新读取刚生成的 executable 完整复核生产过程。目标装载格式与执行位属于输出工作；后端、链接与 GC 合同由针对性程序／结构测试验证，不成为每次发布和命中的重放阶段。失败不发布部分文件。
 
@@ -1259,7 +1259,7 @@ OdrMemberKey 为 `{1=group, 2=role, 3=typed discriminator}`，`OdrMemberId = H("
 
 ### 2.14 Runtime image 与初始化
 
-runtime metadata ABI 9、runtime ABI contract 28 的字段与启动协议由运行时规范 2.7、2.8、9.2 定义。RootEntry 的物理大小为 128 bytes，旧版 ABI 不可混用。每个 `.slib` 的机器对象保存完整候选 registration，metadata 保存链接所需的 identity 与物理归属；最终 image 表只包含选中的 producer records。
+runtime metadata ABI 9、runtime ABI contract 30 的字段与启动协议由运行时规范 2.7、2.8、9.2 定义。RootEntry 的物理大小为 128 bytes，旧版 ABI 不可混用。每个 `.slib` 的机器对象保存完整候选 registration，metadata 保存链接所需的 identity 与物理归属；最终 image 表只包含选中的 producer records。
 
 image、root entry、main body、root gateway、initializer、ensure、startup gateway 和 release hook 使用各自身份。根、cell、storage 和失败状态完整关联，不以可空函数指针或命名约定推断 unit kind。
 
@@ -1836,6 +1836,12 @@ VS Code 扩展通过标准 LSP 客户端启动 `scoop-lsp --stdio`，管理初�
 进程内分析复用和 2.7、2.8 的构建缓存分别按各自实际输入更新，不增加缓存内容复核、源码镜像、来源认证或通用资源计费。语言服务只读取所需的依赖语义 metadata，不为查询进入 MIR／LIR、机器具体化、LLVM 或 native 链接准备。
 
 ### 2.21 异常与 trap 的原生栈诊断
+
+`scoop build/run/test` 接受 `--enable-stack-trace[=true|false]`：无值时为 true，debug 默认 true、release 默认 false，显式值覆盖默认值。它与 `--debug-info`、符号保留及 GC stress 独立；`--debug-info full` 不隐式打开 release 的栈快照。仅消费机器产物的 `scoop link`／`scoop-link` 接受同一显式开关，默认关闭；这些入口没有源码构建 profile，不额外读取 Compile 数据或扩充 `.slib` 来猜测默认值。仅生成 `.slib` 时不固化此选项。
+
+开关属于最终链接输入：有效布尔值进入 executable 更新键及生成的 startup 调用，startup 源码已进入 ResolvedLinkPlan 指纹。切换选项仅重新链接，源码编译和预编译库沿原输入更新规则复用；不向 HIR／MIR／LIR 复制配置，不增加协议／`.slib` 编码或 runtime 构建变体。启动入口新增 `uint32_t enable_stack_trace` 参数，runtime ABI contract 从 29 升至 30，metadata ABI 仍为 9，首次更新按正常 ABI 边界配套重建。
+
+所有已编译的 throw 仍保留 typed 准备调用及其保守 GC 效果，运行时按进程级开关决定是否执行下述采集；关闭时直接返回原对象。`printStackTrace()`、未捕获异常、语言 trap 及 compiler fatal 按运行时规范 5.6 输出不可用提示，传播和终止行为保持原合同。
 
 语言规范 11.7 的 Throwable 使用实际 core intrinsic class 声明，仍可作为普通 class 的基类。HIR 确定它的 nominal identity、继承关系、构造与 printStackTrace 操作；MIR 保留封闭的表示／操作类别，LIR 给出运行时规范 5.6 的 24-byte 基类前缀、完整派生布局和 GC scan。不能只把 Exception 特化而遗漏直接继承 Throwable 的 class，也不能按类型显示名或机器符号重新识别该根类型。
 

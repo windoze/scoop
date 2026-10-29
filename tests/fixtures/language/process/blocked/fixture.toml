@@ -55,4 +55,4 @@ argv = ["${work}/relinked"]
 env = {M33_PANIC = "1"}
 exit = 1
 stdout = "gc-before-exit\n"
-stderr = {regex = "scoop:\\ trap:\\ array\\ size\\ overflow\\\n(?:  at [^\\n]+\\n)+(?:  <[^\\n]+>\\n)*"}
+stderr = {regex = "scoop:\\ trap:\\ array\\ size\\ overflow\\\n  <stack trace unavailable: disabled>\\n"}

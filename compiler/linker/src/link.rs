@@ -37,6 +37,7 @@ impl std::fmt::Display for ResolvedLinkPlanFingerprint {
 pub struct ProgramLinkOptions {
     pub keep_symbols: bool,
     pub emit_debug_file: bool,
+    pub enable_stack_trace: bool,
 }
 
 #[derive(Debug)]
@@ -80,7 +81,12 @@ fn link_inputs(
         .prefix(".scoop-link-")
         .tempdir_in(parent)
         .map_err(error)?;
-    let startup = StartupObject::build(inputs, profile, directory.path())?;
+    let startup = StartupObject::build(
+        inputs,
+        profile,
+        options.enable_stack_trace,
+        directory.path(),
+    )?;
     let mut paths = Vec::new();
     let first = directory.path().join("startup.o");
     write_new(&first, &startup.bytes)?;

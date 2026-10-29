@@ -28,6 +28,11 @@ impl Request<'_> {
     fn emit_debug_file(&self) -> bool {
         self.options.emit_debug_file
     }
+
+    fn enable_stack_trace(&self) -> bool {
+        self.options
+            .stack_trace_enabled(self.profile.optimization())
+    }
 }
 
 pub(super) struct Executable {
@@ -72,6 +77,7 @@ pub(super) fn get(request: Request<'_>) -> BuildResult<Executable> {
         scoop_linker::ProgramLinkOptions {
             keep_symbols: request.keep_symbols(),
             emit_debug_file: request.emit_debug_file(),
+            enable_stack_trace: request.enable_stack_trace(),
         },
         request.libraries,
         &directory.path().join(if request.emit_debug_file() {

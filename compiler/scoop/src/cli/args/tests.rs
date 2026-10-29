@@ -1,6 +1,24 @@
 use super::*;
 
 #[test]
+fn stack_trace_is_an_optional_boolean_final_link_setting() {
+    for command in ["build", "run", "test", "link"] {
+        for option in [
+            "--enable-stack-trace",
+            "--enable-stack-trace=true",
+            "--enable-stack-trace=false",
+        ] {
+            let mut arguments = vec!["scoop", command, option];
+            if command == "link" {
+                arguments.extend(["--root-slib", "root.slib", "-o", "program"]);
+            }
+            assert!(Cli::try_parse_from(arguments).is_ok());
+        }
+    }
+    assert!(Cli::try_parse_from(["scoop", "build", "--enable-stack-trace=invalid"]).is_err());
+}
+
+#[test]
 fn slib_output_and_test_artifacts_are_explicit_build_choices() {
     let cli = Cli::try_parse_from(["scoop", "build", "--emit-slib", "--tests"]).unwrap();
     let Command::Build(args) = cli.command else {

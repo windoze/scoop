@@ -105,6 +105,7 @@ fn build_fixture(root_fixture: &str, native: bool) -> Fixture {
         crate::ProgramLinkOptions {
             keep_symbols: true,
             emit_debug_file: false,
+            enable_stack_trace: false,
         },
         &library_paths,
         &path.join("program"),

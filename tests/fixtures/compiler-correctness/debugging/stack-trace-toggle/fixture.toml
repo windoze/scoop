@@ -1,0 +1,27 @@
+schema = 1
+name = "stack-trace-link-toggle"
+inputs = ["program.scoop", "probe.c", "verify.py"]
+tools = ["scoop", "scoopc", "scoop-link", "python", "cc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["debugging", "exceptions", "cache", "compiler-correctness"]
+
+[[steps]]
+name = "probe"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-I${runtime}/include", "-I${runtime}/src", "-c", "${fixture}/probe.c", "-o", "${work}/probe.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive"
+argv = ["${ar}", "rcs", "${work}/libtrace_probe.a", "${work}/probe.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "verify"
+argv = ["${python}", "${fixture}/verify.py", "${scoop}", "${scoopc}", "${scoop-link}", "${sysroot}", "${fixture}", "${work}", "${cache}", {each = "${link_args}"}]
+exit = 0
+stdout = ""
+stderr = ""

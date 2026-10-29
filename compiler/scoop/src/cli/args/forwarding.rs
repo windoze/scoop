@@ -54,7 +54,13 @@ fn option_width(command: &Command, argument: &OsStr) -> Option<usize> {
         let option = command
             .get_arguments()
             .find(|option| option.get_long() == Some(name))?;
-        return Some(1 + usize::from(option.get_action().takes_values() && separator.is_none()));
+        return Some(
+            1 + usize::from(
+                option.get_action().takes_values()
+                    && !option.is_require_equals_set()
+                    && separator.is_none(),
+            ),
+        );
     }
     let short = bytes.strip_prefix(b"-")?;
     for (index, byte) in short.iter().enumerate() {

@@ -114,5 +114,5 @@ checks = [
 name = "run"
 argv = ["${work}/program"]
 stdout = "1\n"
-stderr = {regex = "scoop:\\ uncaught\\ exception:\\ n\\(c=scoop%3Ascoop\\.core%3A0\\.1\\.0;p=;o=\\-;k=C;x=IllegalStateException\\)\\ during\\ initialization\\ of\\ top\\-level:bad\\\n(?:  at [^\\n]+\\n)+(?:  <[^\\n]+>\\n)*"}
+stderr = {regex = "scoop:\\ uncaught\\ exception:\\ n\\(c=scoop%3Ascoop\\.core%3A0\\.1\\.0;p=;o=\\-;k=C;x=IllegalStateException\\)\\ during\\ initialization\\ of\\ top\\-level:bad\\\n  <stack trace unavailable: disabled>\\n"}
 exit = 1

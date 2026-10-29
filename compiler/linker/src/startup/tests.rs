@@ -33,6 +33,7 @@ fn elf_startup_passes_the_exact_image_order_and_root_to_the_runtime_entry() {
             BTreeSet::from(["scoop$test$image$a".into(), "scoop$test$image$b".into()]),
             BTreeSet::new(),
             &profile,
+            true,
             path,
         )
         .unwrap();
@@ -86,7 +87,8 @@ const SOURCE: &str = r#"
 const uint64_t image_a __asm__("scoop$test$image$a") = 11;
 const uint64_t image_b __asm__("scoop$test$image$b") = 22;
 const uint64_t root_entry __asm__("scoop$test$root") = 33;
-int scoop_rt_run_program(const void *const *images, uint64_t count, const void *root, int32_t argc, const char *const *argv) {
+int scoop_rt_run_program(const void *const *images, uint64_t count, const void *root, int32_t argc, const char *const *argv, uint32_t enable_stack_trace) {
+    if (enable_stack_trace != 1) return 91;
     if (argc < 1 || argv[0] == NULL || argv[argc] != NULL) return 90;
     return count != 2 || images[0] != &image_a || images[1] != &image_b || root != &root_entry;
 }
