@@ -1,6 +1,6 @@
 package scoop.window
 
-/** Enables AppKit composition for this window; ordinary text uses the same edit channel. */
+/** Enables platform composition for this window; ordinary text uses the same edit channel. */
 public fun Window.setImeAllowed(allowed: Boolean): RequestStatus {
     owner.requireOpen()
     @Unsafe

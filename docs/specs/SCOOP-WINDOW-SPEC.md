@@ -118,7 +118,7 @@ WindowLoopHost 将这些实际操作适配为[asyncio 规范 11.3](SCOOP-ASYNCIO
 
 Darwin 使用语言规范 12.2.1、实现规范 2.7 的普通 native Objective-C `.m`／ARC 与 framework 声明。AppKit backend 由 NSApplication 正常循环驱动，以 stop 和唤醒返回；不调用 terminate。通知监听以 dispatch READ source 观察 fd，通过 common／tracking／modal modes 的 CFRunLoopSource 在 owner 派发；等待消费时暂停重复通知，注销先平衡暂停并等待 cancel handler，再退休 owner source。渲染层自行管理实际 layer／surface。
 
-本阶段以所属 Cone 的 scoop.test 验证值、输入归一、API、真实 AppKit、native callback 与 asyncio 收尾；`.m` 编译／链接／诊断使用必要的 compiler fixture。真实 surface 示例用单独 renderer Cone 消费 native lease。显示器热插拔、混合 DPI、输入法候选交互与真实用户拖动等依赖实际硬件／桌面输入的验收单独记录，不能用合成事件冒充。Linux／其他平台验收留待后续。
+本阶段以所属 Cone 的 scoop.test 验证值、输入归一、API、真实 AppKit／Win32、native callback 与 asyncio 收尾；native 编译／链接／诊断使用必要的 compiler fixture。真实 surface 示例用单独 renderer Cone 消费 native lease。显示器热插拔、混合 DPI、输入法候选交互与真实用户拖动等依赖实际硬件／桌面输入的验收单独记录，不能用合成事件冒充。Linux／其他平台验收留待后续。
 
 ## 10. Win32 后端
 
@@ -126,6 +126,6 @@ Windows 窗口使用 Unicode HWND，创建前确认 Per-Monitor V2；已声明�
 
 窗口属性通过正常 Win32／DWM API 实施，原生返回值在边界保留并转换为 WindowException。native 薄层的创建结果同时返回资源和状态码；setter 以状态码报告失败，不使用另一个错误缓存。Windows 8 起 DwmEnableBlurBehindWindow 不产生模糊效果，setBlur(true) 返回 Unsupported 且无副作用；要求 blur 的创建失败。主题建议使用 DWM 支持的暗色标题栏属性；缺少该属性时返回 Unsupported。透明背景供实际 renderer 使用，不承诺所有渲染设备都有 alpha 支持。内容保护为 WDA_MONITOR 系统提示，仍返回 Requested。
 
-键盘的物理位置来自扩展 scan code，逻辑文字查询当前布局且不改变系统 dead-key 状态。普通文字仅由 WM_CHAR／WM_UNICHAR 交付；IMM32 result 和 preedit 以一次 WM_IME_COMPOSITION 为批次，UTF-16 选区转换为 UTF-8 字节位置。确认结果不再通过 WM_IME_CHAR 重复提交；失焦／禁用取消组合并补发已交付按下键的 synthetic release。候选窗使用内容像素坐标，native 同步查询不进入用户 handler。surrounding 文档与 TSF 文档存储不属于当前基础 IME。
+键盘的物理位置来自扩展 scan code，NumLock 与 Pause 按 Win32 的扩展位区分；Lang1／Lang2 不混同 Kana／转换键，当前键集合没有对应项时保留 WindowsScanCode。同值的 VK_KANA／VK_HANGUL 只在 scan code 明确识别 Kana 时命名，否则保留 WindowsVirtualKey。逻辑文字查询当前布局且不改变系统 dead-key 状态。普通文字仅由 WM_CHAR／WM_UNICHAR 交付；IMM32 result 和 preedit 以一次 WM_IME_COMPOSITION 为批次，UTF-16 选区转换为 UTF-8 字节位置。CS_INSERTCHAR 作为临时 preedit，最终 result 才提交；只有 GCS_CURSORPOS 变化时仍交付当前 preedit 与新选区；没有 GCS 状态的组合消息撤销先前已发布的 preedit。同批结果与组合必须整体有效，非法 UTF-16 或 surrogate 中间的 cursor 拒绝整批并撤销旧组合。确认结果不再通过 WM_IME_CHAR 重复提交；失焦／禁用取消组合并补发已交付按下键的 synthetic release。候选窗使用内容像素坐标，native 同步查询不进入用户 handler。surrounding 文档与 TSF 文档存储不属于当前基础 IME。
 
 宿主使用 MsgWaitForMultipleObjectsEx 与 owner HWND。线程池 wait 一次只投递一个 HWND 就绪消息，owner 回调退出后重新监听；remove 停止 native wait 并等候 worker 退出，在 owner 排队消息和活动 ready 退休后报告完成，HANDLE 始终由 asyncio loop 持有。截止时间只安装所需原生 timer，Wait 不做周期轮询。真实系统 dialog、menu、move／size 循环继续派发 HWND 消息，因此能推进 asyncio；会进入模态的操作排在当前业务回调和 session pump 返回后。

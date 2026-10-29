@@ -1,12 +1,12 @@
 # 桌面窗口实施记录
 
-状态：基础架构／macOS 已完成；Windows 骨架实施中（2026-10-30）。使用方式见[窗口库 README](../../sysroot/src/scoop.window/README.md)。实际硬件／输入法交互的验证边界在各批次与文末记录。
+状态：基础架构、macOS 与 Windows 骨架已完成（2026-10-30）。使用方式见[窗口库 README](../../sysroot/src/scoop.window/README.md)。实际硬件／输入法交互的验证边界按平台分别记录。
 
-基础阶段交付 `scoop.window`、`scoop.window.asyncio` 与真实 AppKit 后端；当前 Windows 阶段复用共享架构接入 Win32。Linux／其他后端后续实施，不添加空实现。窗口逻辑、平台适配与测试均归属普通 Cone；编译器只补齐实际需要的 `.m` native 能力及实施中暴露的底层缺口。
+基础阶段交付 `scoop.window`、`scoop.window.asyncio` 与真实 AppKit 后端；Windows 阶段复用共享架构接入 Win32。Linux／其他后端后续实施，不添加空实现。窗口逻辑、平台适配与测试均归属普通 Cone；编译器只补齐实际需要的 `.m` native 能力及实施中暴露的底层缺口。
 
 当前交付按用户进一步明确的 winit 定位收敛为 GUI 骨架，先完成窗口、基础属性／输入／IME、DPI／显示器、renderer 与 asyncio。完整能力地图中的高级平台扩展分批补充，不把完整 AppKit GUI 或全部 winit 扩展变成当前验收门槛。
 
-实施顺序：
+基础架构／macOS 阶段的实施顺序：
 
 1. Darwin `.m`／ARC／独立 `objc_flags`，验证正常 framework 与 Objective-C 链接。
 2. 同步窗口规范，迁入统一的 asyncio notification／watch 接口。
@@ -34,7 +34,7 @@
 
 验证：Scoop fmt／check、native 警告检查通过；三个 Windows target 各通过 window 的 12 项 release 测试、窗口 asyncio 的 1 项测试、独立 DPI 失败 Cone 的 1 项测试，共 42 项。测试覆盖双窗口、Unicode 标题和输入、Context、跨线程投递／lease、重绘合并、非法状态和不兼容 DPI 模式。预编译依赖来自配套 Windows sysroot，窗口生产库以普通 release build 显式更新。Mac 的共享 native 状态返回 ABI 已同步，本 Windows 宿主未执行 AppKit 回归。
 
-扩展输入／收尾组合和最终交付审查仍在本阶段后续批次；下文为已完成的 macOS 历史记录，不能将其人工验收限制视为 Windows 验收结果。
+扩展输入／收尾组合和最终验收见本节第 4、5 批；后续 macOS 历史记录不计入 Windows 验收。
 
 ### 3. DXGI renderer
 
@@ -42,7 +42,37 @@
 
 验证：Scoop／native 格式与警告检查通过；三个 Windows target 的 release Cone 测试均实际完成首帧、隐藏／重显、ResizeBuffers 后第二帧及关闭，并检查关闭后的调用与 owner 线程约束。没有把 D3D 资源或帧调度加入窗口库。
 
-## 已完成
+### 4. 输入归一与收尾组合
+
+- IMM32 的 UTF-16 result／preedit 先整体归一再入队，处理 cursor-only 更新、CS_INSERTCHAR 临时组合和无 GCS 标志的撤销。无效 surrogate／cursor 拒绝同批全部编辑，撤销先前已发布组合，不能交付部分 commit。
+- 修正 NumLock／Pause 与 Lang1／Lang2 的扫描码；当前集合未命名的 Kana／转换键保留原始 WindowsScanCode，不强行映射为其他物理键。VK_KANA／VK_HANGUL 同值时只命名可确定的 Kana。
+- 增加独立普通测试 Cone，覆盖真实 HWND 键盘／指针消息、11 个文本批次与 GC 后拥有载荷、候选窗矩形、业务与 Closing 双重异常、跨线程 lease、WaitUntil、ready 内 watch remove、重复 remove 与借入 HANDLE 保活。
+- 无窗口应用测试使用真实 IOCP UDP 接收，验证退出取消、buffer 借用释放和可挂起的 nonCancellable finally；现有窗口测试补充最小化／最大化恢复、位置、注意力和关闭按钮策略。
+
+这些进程各自只创建一次 Application；独立 Cone 用于隔离真实单次入口，不给生产库增加 reset 或测试专用状态机。native 输入辅助调用实际窗口与生产归一路径，不实现另一套文本转换。
+
+### 5. Windows 最终验收与边界
+
+Microsoft UCRT、LLVM-MinGW UCRT、LLVM-MinGW MSVCRT 的 release 验收共 57 项，全部通过：
+
+| 普通测试 Cone | 每个目标的测试数 | 主要覆盖 |
+| --- | ---: | --- |
+| scoop.window | 12 | 值、文本、显示器、窗口生命周期／属性、键位、proxy／lease |
+| window/tests-cones/dpi | 1 | 不兼容进程 DPI 模式在 HWND 创建前失败 |
+| window/tests-cones/input | 1 | Win32 输入、UTF-16 原子批次、IME 候选窗坐标 |
+| window/tests-cones/errors | 1 | 业务／Closing 错误聚合及全部窗口收尾 |
+| window/tests-cones/watch | 1 | 空闲等待、manual-reset event、回调内与重复 remove |
+| scoop.window.asyncio | 1 | 真实 MessageBox／菜单／系统尺寸调整循环中的 timer 与取消 |
+| window.asyncio/tests-cones/no-window | 1 | 没有业务窗口时排空 IOCP 与异步 finally |
+| window/examples/dxgi/app | 1 | 实际 D3D11 提交、隐藏／重显、ResizeBuffers、lease 关闭 |
+
+Scoop fmt／check、native clang-format 与警告检查通过；Rust fmt／workspace clippy、linker 的 4 项测试、两种链接 fixture 在三个目标上的 6 次运行（33 次真实进程调用）通过。fixture runner 公共规则测试运行 70 项，其中 3 项平台跳过，其余通过。DXGI 应用和 asyncio 定时标题单文件 Cone 在三个目标均构建成功。键位最后修正后又检查并复核三个目标的 window／input 测试；不重复计入 57 项。
+
+GUI 测试串行执行。曾并行运行三个目标的桌面测试，MinGW UCRT 的系统 resize timer 断言失败；共享前台桌面的竞争会让系统尺寸调整提前返回，改为串行后整组通过。使用规则已记录在 README，没有改变生产焦点策略来迁就测试。
+
+本机实际环境为单块 3840×2160、200% 缩放显示器。已验证该实际 scale 下的窗口、输入与 renderer；混合 DPI 跨屏移动、热插拔、不同实体键盘布局、中／日输入法的候选选择和真实用户鼠标拖动未做人工验收。协议样本覆盖中文／日文／emoji 及无效 UTF-16，但不等同于系统输入法交互。本阶段未运行完整仓库 fixture／cargo test 全量套件，也未在此 Windows 宿主执行 AppKit 回归；共享 native 状态 ABI 的 Darwin 实现已同步。原始日志和构建产物保存在仓库外。
+
+## 基础架构／macOS 历史记录
 
 ### 1. Darwin Objective-C native 管线
 

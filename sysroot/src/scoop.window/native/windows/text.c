@@ -101,23 +101,50 @@ int64_t scoop_window_ime_caret(SWWindow *window, double x, double y,
   return 0;
 }
 
-static bool composition_edit(SWWindow *window, SWEvent *event, DWORD part,
-                             int kind) {
+typedef struct {
+  WCHAR *text;
+  int count, cursor;
+} CompositionPart;
+
+static bool read_composition(SWWindow *window, DWORD part,
+                             CompositionPart *value) {
   LONG bytes = ImmGetCompositionStringW(window->ime, part, NULL, 0);
   if (bytes < 0 || bytes % 2 != 0)
     return false;
-  WCHAR *text = calloc((size_t)bytes / 2 + 1, sizeof(WCHAR));
-  if (!text) {
+  value->text = calloc((size_t)bytes / 2 + 1, sizeof(WCHAR));
+  if (!value->text) {
     sw_fail(window->application, ERROR_NOT_ENOUGH_MEMORY);
     return false;
   }
-  LONG read = ImmGetCompositionStringW(window->ime, part, text, (DWORD)bytes);
-  LONG cursor =
-      kind == 0 ? ImmGetCompositionStringW(window->ime, GCS_CURSORPOS, NULL, 0)
-                : -1;
-  bool ok = read == bytes && append(event, kind, text, bytes / 2, cursor);
-  free(text);
-  return ok;
+  value->count = bytes / 2;
+  value->cursor =
+      part == GCS_COMPSTR
+          ? ImmGetCompositionStringW(window->ime, GCS_CURSORPOS, NULL, 0)
+          : -1;
+  return ImmGetCompositionStringW(window->ime, part, value->text,
+                                  (DWORD)bytes) == bytes;
+}
+
+// Normalize one native UTF-16 batch before publishing any of its edits.
+void sw_composition(SWWindow *window, const WCHAR *commit, int commit_count,
+                    const WCHAR *preedit, int preedit_count, int cursor) {
+  SWEvent *event = sw_event(window, 13);
+  if (!event)
+    return;
+  if ((commit && !append(event, 1, commit, commit_count, -1)) ||
+      (preedit && !append(event, 0, preedit, preedit_count, cursor))) {
+    sw_free_event(event);
+    sw_cancel_composition(window);
+    return;
+  }
+  if (commit)
+    window->marked = false;
+  if (preedit)
+    window->marked = preedit_count > 0;
+  if (event->edit_count)
+    sw_enqueue(window->application, event);
+  else
+    sw_free_event(event);
 }
 
 static void commit_character(SWWindow *window, WCHAR character) {
@@ -168,27 +195,34 @@ bool sw_text(SWWindow *window, UINT msg, WPARAM wp, LPARAM lp,
   case WM_IME_COMPOSITION: {
     if (!window->ime_allowed)
       return true;
-    SWEvent *event = sw_event(window, 13);
-    if (!event)
-      return true;
-    bool valid = true;
-    if (lp & GCS_RESULTSTR)
-      valid = composition_edit(window, event, GCS_RESULTSTR, 1);
-    if (valid && (lp & (GCS_COMPSTR | GCS_CURSORPOS)))
-      valid = composition_edit(window, event, GCS_COMPSTR, 0);
-    if (!valid) {
-      sw_free_event(event);
-      sw_cancel_composition(window);
+    // CS_INSERTCHAR is an interim composition, never a second commit channel.
+    if (lp & CS_INSERTCHAR) {
+      WCHAR character = (WCHAR)wp;
+      sw_composition(window, NULL, 0, &character, 1,
+                     lp & CS_NOMOVECARET ? 0 : 1);
       return true;
     }
-    if (lp & GCS_RESULTSTR)
-      window->marked = false;
-    if (lp & (GCS_COMPSTR | GCS_CURSORPOS))
-      window->marked = event->edits[event->edit_count - 1].text_length > 0;
-    if (event->edit_count)
-      sw_enqueue(window->application, event);
+    const LPARAM changes = GCS_COMPREADSTR | GCS_COMPREADATTR |
+                           GCS_COMPREADCLAUSE | GCS_COMPSTR | GCS_COMPATTR |
+                           GCS_COMPCLAUSE | GCS_CURSORPOS | GCS_DELTASTART |
+                           GCS_RESULTREADSTR | GCS_RESULTREADCLAUSE |
+                           GCS_RESULTSTR | GCS_RESULTCLAUSE;
+    if (!(lp & changes)) {
+      clear_preedit(window);
+      return true;
+    }
+    CompositionPart commit = {0}, preedit = {0};
+    bool valid = !(lp & GCS_RESULTSTR) ||
+                 read_composition(window, GCS_RESULTSTR, &commit);
+    if (valid && (lp & (GCS_COMPSTR | GCS_CURSORPOS)))
+      valid = read_composition(window, GCS_COMPSTR, &preedit);
+    if (valid)
+      sw_composition(window, commit.text, commit.count, preedit.text,
+                     preedit.count, preedit.cursor);
     else
-      sw_free_event(event);
+      sw_cancel_composition(window);
+    free(commit.text);
+    free(preedit.text);
     return true;
   }
   case WM_IME_CHAR:

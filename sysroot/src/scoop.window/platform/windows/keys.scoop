@@ -71,7 +71,7 @@ internal fun platformPhysicalKey(code: Long): PhysicalKey =
         66L -> PhysicalKey.Code(KeyCode.F8)
         67L -> PhysicalKey.Code(KeyCode.F9)
         68L -> PhysicalKey.Code(KeyCode.F10)
-        69L -> PhysicalKey.Code(KeyCode.NumLock)
+        69L -> PhysicalKey.Code(KeyCode.Pause)
         70L -> PhysicalKey.Code(KeyCode.ScrollLock)
         71L -> PhysicalKey.Code(KeyCode.Numpad7)
         72L -> PhysicalKey.Code(KeyCode.Numpad8)
@@ -97,9 +97,9 @@ internal fun platformPhysicalKey(code: Long): PhysicalKey =
         105L -> PhysicalKey.Code(KeyCode.F18)
         106L -> PhysicalKey.Code(KeyCode.F19)
         107L -> PhysicalKey.Code(KeyCode.F20)
-        112L -> PhysicalKey.Code(KeyCode.Lang1)
+        113L -> PhysicalKey.Code(KeyCode.Lang2)
+        114L -> PhysicalKey.Code(KeyCode.Lang1)
         115L -> PhysicalKey.Code(KeyCode.IntlRo)
-        121L -> PhysicalKey.Code(KeyCode.Lang2)
         125L -> PhysicalKey.Code(KeyCode.IntlYen)
         284L -> PhysicalKey.Code(KeyCode.NumpadEnter)
         285L -> PhysicalKey.Code(KeyCode.ControlRight)
@@ -109,7 +109,8 @@ internal fun platformPhysicalKey(code: Long): PhysicalKey =
         309L -> PhysicalKey.Code(KeyCode.NumpadDivide)
         311L -> PhysicalKey.Code(KeyCode.PrintScreen)
         312L -> PhysicalKey.Code(KeyCode.AltRight)
-        325L -> PhysicalKey.Code(KeyCode.Pause)
+        325L -> PhysicalKey.Code(KeyCode.NumLock)
+        326L -> PhysicalKey.Code(KeyCode.Pause)
         327L -> PhysicalKey.Code(KeyCode.Home)
         328L -> PhysicalKey.Code(KeyCode.ArrowUp)
         329L -> PhysicalKey.Code(KeyCode.PageUp)
@@ -123,6 +124,8 @@ internal fun platformPhysicalKey(code: Long): PhysicalKey =
         347L -> PhysicalKey.Code(KeyCode.SuperLeft)
         348L -> PhysicalKey.Code(KeyCode.SuperRight)
         349L -> PhysicalKey.Code(KeyCode.ContextMenu)
+        497L -> PhysicalKey.Code(KeyCode.Lang2)
+        498L -> PhysicalKey.Code(KeyCode.Lang1)
         else -> PhysicalKey.Unidentified(NativeKeyCode.WindowsScanCode(code.toUInt()))
     }
 
@@ -137,7 +140,10 @@ internal fun platformNamedKey(scan: Long, virtual: Long): NamedKey? =
         18L -> Some(NamedKey.Alt)
         19L -> Some(NamedKey.Pause)
         20L -> Some(NamedKey.CapsLock)
-        21L -> Some(NamedKey.Kana)
+        21L -> if (scan == 112L)
+            Some(NamedKey.Kana)
+        else
+            None
         27L -> Some(NamedKey.Escape)
         32L -> Some(NamedKey.Space)
         33L -> Some(NamedKey.PageUp)
@@ -196,7 +202,7 @@ internal fun platformKeyLocation(code: Long): KeyLocation =
     when (code) {
         42L, 29L, 56L, 347L -> KeyLocation.Left
         54L, 285L, 312L, 348L -> KeyLocation.Right
-        55L, 69L, 71L, 72L, 73L, 74L, 75L, 76L, 77L, 78L, 79L, 80L, 81L, 82L, 83L, 284L, 309L -> KeyLocation.Numpad
+        55L, 325L, 71L, 72L, 73L, 74L, 75L, 76L, 77L, 78L, 79L, 80L, 81L, 82L, 83L, 284L, 309L -> KeyLocation.Numpad
         else -> KeyLocation.Standard
     }
 

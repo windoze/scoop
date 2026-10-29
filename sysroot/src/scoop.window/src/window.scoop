@@ -86,7 +86,7 @@ public class Window internal constructor(internal val owner: WindowOwner) {
         owner.application.mailbox.wake()
         return RequestStatus.Applied
     }
-    /** Asks AppKit to activate this window, with focus confirmed by native events. */
+    /** Asks the window system to activate this window; native events confirm focus. */
     public fun requestFocus(): RequestStatus {
         owner.requireOpen()
         @Unsafe
@@ -115,7 +115,7 @@ public class Window internal constructor(internal val owner: WindowOwner) {
             DesktopRect(DesktopPosition(value.x, value.y), value.outerWidth, value.outerHeight)
         )
     }
-    /** AppKit needs no frame callback; actual presentation belongs to the renderer. */
+    /** AppKit and Win32 need no frame callback; presentation belongs to the renderer. */
     public fun prePresentNotify() {
         owner.requireOpen()
     }

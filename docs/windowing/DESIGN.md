@@ -1,6 +1,6 @@
 # 桌面窗口与事件库设计
 
-状态：基础架构与 macOS GUI 骨架已实现，正在实施 Windows GUI 骨架。更新：2026-10-30。Windows 阶段复用两个普通 Cone，交付与 macOS 同级的窗口、属性、基础输入／IME、显示器、native lease、renderer 和 asyncio；Linux Wayland／X11 及其他后端仍留待后续。实现、验收边界与硬件交互限制见 [PROGRESS.md](PROGRESS.md)，使用方式见[窗口库 README](../../sysroot/src/scoop.window/README.md)。
+状态：基础架构、macOS 与 Windows GUI 骨架已实现。更新：2026-10-30。Windows 阶段复用两个普通 Cone，交付窗口、属性、基础输入／IME、显示器、native lease、DXGI renderer 和 asyncio；Linux Wayland／X11 及其他后端仍留待后续。实现、验收边界与硬件交互限制见 [PROGRESS.md](PROGRESS.md)，使用方式见[窗口库 README](../../sysroot/src/scoop.window/README.md)。
 
 本轮按 winit 的职责搭建可供 GUI 使用的骨架：真实窗口／主循环、显式生命周期与 proxy、基础窗口属性、DPI／显示器快照、键盘／指针／滚轮／文本输入、native lease、renderer 和 asyncio 接入。winit 的完整能力地图用于确定边界和后续扩展方向，不要求本轮复制它的全部平台扩展。全屏控制／显示模式切换、全局原始设备监听、触摸／高级手势、光标捕获、文件拖放及平台专有的复杂窗口交互分批补充；未实施项不以 Unsupported 伪装成平台不支持。控件、布局、菜单体系和应用编辑器仍由上层 GUI 实现。
 
@@ -178,7 +178,7 @@ requestRedraw 只置 dirty 并唤醒，重复请求可合并。RedrawRequested �
 
 `prePresentNotify()` 告诉窗口后端即将提交帧，用于 Wayland frame callback 等节流；它不是实际 present，也不表示 GPU 完成。渲染层拥有 Metal／Vulkan／OpenGL 的 device、swapchain、surface、提交和 vsync。窗口层不把 io_uring timer 当显示时钟，不内置 Skia surface 或强制渲染线程。[winit 绘制边界](https://docs.rs/winit/0.30.13/winit/)。
 
-`scoop.window.native` 提供 `@Unsafe Window.acquireNativeWindow(): NativeWindowLease`。lease 保活 Window 和 display connection；`handle` 为带类型的 NativeWindowHandle，首期随实际后端声明 AppKit(nsWindow, nsView)、Wayland(display, surface)、Xlib(display, windowId, visualId, screen)。Windows 目标声明 Win32(hwnd, hinstance)；当前目标只声明实际后端的 handle 变体。XID 使用整数，指针／HANDLE 使用 Ptr<Unit>；不以一个 Long 统一所有句柄，也不为未来 enum 匹配预留没有实现的分支。
+`scoop.window.native` 提供 `@Unsafe Window.acquireNativeWindow(): NativeWindowLease`。lease 保活 Window 和 display connection；`handle` 为带类型的 NativeWindowHandle，当前随目标声明 AppKit(nsWindow, nsView) 或 Win32(hwnd, hinstance)。后续 Linux 实施时再加入 Wayland(display, surface) 与 Xlib(display, windowId, visualId, screen)；当前目标只声明实际后端的 handle 变体。XID 使用整数，指针／HANDLE 使用 Ptr<Unit>；不以一个 Long 统一所有句柄，也不为未来 enum 匹配预留没有实现的分支。
 
 lease 的 handle 查询在 owner 上执行；显式 close 可跨线程，原子封闭该借用后把实际释放投递到 owner 的内部收尾队列，不在调用线程执行 GUI API。该队列在停止业务 proxy 投递后仍然可用，避免后台 GPU 完成回调无法释放窗口；重复 close 为空操作，调用后不得继续使用 handle。不能从 GC release 启动这条异步路径。Skia／GPU 包装持有 lease，销毁依赖原生窗口的 surface 并结束有关 GPU／native 借用后再释放。窗口进入 Closing 后不能取得新 lease，已有 lease 阻止库主动销毁原生窗口；lease 不保证外部显示服务器永不失联，也不授权跨线程操作原生对象。渲染层需要后台线程时遵守对应图形 API 的线程规则。
 
@@ -210,9 +210,9 @@ ApplicationHost 的 Darwin 监听使用 libdispatch READ source 观察 pipe，�
 
 窗口位置／内容尺寸、backing scale、屏幕切换、全屏转换、occlusion、主题由原生通知生成。NSView 只提供可供 renderer 使用的宿主，不由窗口库拥有 Metal device 或 Skia；是否配置 CAMetalLayer 由渲染适配管理，并在窗口关闭前恢复／释放其持有状态。
 
-需要正式支持 Darwin native `.m`：当前[语言规范 12.2.1](../specs/SCOOP-SPEC.md)只接受 C／C++ 后缀，不能用 c_flags 绕过输入语言检查。实施时先修订该节与[实现规范 2.7](../specs/SCOOP-IMPL-SPEC.md)，再让显式选择的 `.m` 交给所选 Apple Clang，以 ARC 编译，提供独立 objc_flags；`.c`、generated-C 和 runtime 保持原语言。条件筛选先行，非 Darwin 选中 `.m` 明确诊断；本期不扩展 `.mm` 或 Scoop 的 Objective-C 语法。
+Darwin native `.m` 已按[语言规范 12.2.1](../specs/SCOOP-SPEC.md)与[实现规范 2.7](../specs/SCOOP-IMPL-SPEC.md)正式接入：显式选择的 `.m` 交给所选 Apple Clang，以 ARC 编译，使用独立 objc_flags；`.c`、generated-C 和 runtime 保持原语言。条件筛选先行，非 Darwin 选中 `.m` 明确诊断；本期不扩展 `.mm` 或 Scoop 的 Objective-C 语法。
 
-framework 链接已有合同可复用；仍需实际验证本仓库 Mach-O linker 对 Objective-C 元数据、类／selector 引用、ARC 外部符号和 AppKit framework 的正常链接，不能只增加后缀就宣称可用。使用 Objective-C 薄层比大量手工 objc_msgSend cast／动态注册类更适合维护；不增加 runtime 调度 ABI。
+framework 链接复用已有合同；macOS 阶段已实际验证本仓库 Mach-O linker 对 Objective-C 元数据、类／selector 引用、ARC 外部符号和 AppKit framework 的正常链接，记录见 PROGRESS.md。Objective-C 薄层使用系统对象和消息机制，不增加 runtime 调度 ABI。
 
 ## 10. Linux 后端
 

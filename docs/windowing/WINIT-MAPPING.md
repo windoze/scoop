@@ -1,6 +1,6 @@
 # winit 能力映射与分阶段范围
 
-状态：macOS 骨架已实现，Windows 骨架实施中，Linux 后续实施；更新于 2026-10-30。与 [DESIGN.md](DESIGN.md) 和[规范](../specs/SCOOP-WINDOW-SPEC.md)一起阅读。基线为 winit 0.30.13 的桌面能力；下表是完整能力地图，实际交付与验收边界以 [PROGRESS.md](PROGRESS.md) 为准。
+状态：macOS 与 Windows 骨架已实现，Linux 后续实施；更新于 2026-10-30。与 [DESIGN.md](DESIGN.md) 和[规范](../specs/SCOOP-WINDOW-SPEC.md)一起阅读。基线为 winit 0.30.13 的桌面能力；下表是完整能力地图，实际交付与验收边界以 [PROGRESS.md](PROGRESS.md) 为准。
 
 当前阶段交付 macOS／Windows GUI 骨架：应用／窗口、proxy／关闭／lease、基础属性、显示器与 DPI、键盘／鼠标／滚轮／IME、renderer 与 asyncio 接入。全屏控制／显示模式切换、全局 raw device、触摸／高级手势、光标捕获、文件拖放和复杂平台窗口交互后续补充。下表的“本期”均指当前骨架阶段，不要求实现完整 AppKit GUI。
 

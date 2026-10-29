@@ -174,6 +174,20 @@ private class WindowsHandler: ApplicationHandler {
         first.setDecorations(true)
         first.setEnabledButtons(WindowButtons())
         first.setWindowLevel(WindowLevel.AlwaysOnTop)
+        first.requestMinimized(true)
+        assertEquals(Some(true), first.isMinimized)
+        assertTrue(first.isOccluded)
+        first.requestMinimized(false)
+        assertEquals(Some(false), first.isMinimized)
+        first.requestMaximized(true)
+        assertEquals(Some(true), first.isMaximized)
+        first.requestMaximized(false)
+        assertEquals(Some(false), first.isMaximized)
+        first.requestPosition(DesktopPosition(120.0, 120.0))
+        assertEquals(Some(DesktopPosition(120.0, 120.0)), first.desktopPosition)
+        first.requestAttention(AttentionKind.Informational)
+        first.requestAttention(AttentionKind.Cancel)
+        first.setVisible(false)
         first.setTransparent(true);
         first.setTransparent(false)
         first.setContentProtected(true);
@@ -199,6 +213,9 @@ private class WindowsHandler: ApplicationHandler {
                 case Win32(handle, instance) -> {
                     hwnd = Some(handle);
                     assertTrue(instance.toULong() != 0uL)
+                    first.setEnabledButtons(WindowButtons(close = false))
+                    sendMessage(handle, 16u, 0uL, 0L)
+                    first.setEnabledButtons(WindowButtons())
                 }
             }
         }

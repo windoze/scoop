@@ -15,6 +15,7 @@ path = "windows"
 when = { os = "windows" }
 
 [native]
+c_flags = ["-Wmost", "-Wextra", "-Werror", "-Wno-unused-parameter", "-Wno-nonportable-system-include-path"]
 objc_flags = ["-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter"]
 
 [[native.sources]]
@@ -46,6 +47,14 @@ when = { os = "darwin" }
 
 [[native.sources]]
 path = "windows/modes.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "windows/input.c"
+when = { os = "windows" }
+
+[[native.libraries]]
+name = "imm32"
 when = { os = "windows" }
 
 [[native.libraries]]

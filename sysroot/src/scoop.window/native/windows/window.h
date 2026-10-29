@@ -100,6 +100,8 @@ bool sw_text(SWWindow *window, UINT message, WPARAM wparam, LPARAM lparam,
              LRESULT *result);
 void sw_reset_input(SWWindow *window);
 void sw_cancel_composition(SWWindow *window);
+void sw_composition(SWWindow *window, const WCHAR *commit, int commit_count,
+                    const WCHAR *preedit, int preedit_count, int cursor);
 uint64_t sw_modifiers(void);
 WCHAR *sw_wide(const uint8_t *text, int64_t length);
 uint8_t *sw_utf8(const WCHAR *text, int length, int64_t *bytes);

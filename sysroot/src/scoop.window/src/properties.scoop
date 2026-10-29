@@ -71,7 +71,7 @@ public fun Window.setSizeConstraints(constraints: WindowSizeConstraints): Reques
     return RequestStatus.Requested
 }
 
-/** Sets positive interactive resize steps, or restores AppKit's default. */
+/** Sets positive interactive resize steps, or restores the native default. */
 public fun Window.setResizeIncrements(increments: LogicalSize?): RequestStatus {
     owner.requireOpen()
     val value = increments ?: LogicalSize(1.0, 1.0)
@@ -152,7 +152,7 @@ public fun Window.requestMinimized(value: Boolean): RequestStatus {
     return RequestStatus.Requested
 }
 
-/** Requests native zoom or restoration; AppKit determines the actual zoom frame. */
+/** Requests native maximization or restoration; the OS determines the actual frame. */
 public fun Window.requestMaximized(value: Boolean): RequestStatus {
     owner.requireOpen()
     @Unsafe

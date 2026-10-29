@@ -25,3 +25,15 @@ public fun completedNativeModes(): Int
 @Unsafe
 @Extern(name = "scoop_window_test_system_dpi")
 public fun setSystemDpiMode(): Int
+
+@Unsafe
+@Extern(name = "scoop_window_test_text_batch")
+public fun nativeTextBatch(window: Ptr<Unit>, sample: Int)
+
+@Unsafe
+@Extern(name = "scoop_window_test_caret")
+public fun nativeCaretMatches(window: Ptr<Unit>): Int
+
+@Unsafe
+@Extern(name = "scoop_window_test_input")
+public fun nativeInputSequence(window: Ptr<Unit>)

@@ -48,7 +48,7 @@ target/debug/scoop run sysroot/src/scoop.window/examples/metal/app --release
 
 `TextInputState.apply(batch)` 是可选的纯值编辑辅助：按次序应用整批操作，全部合法后才发布一次新 revision。范围使用 UTF-8 字节边界；AppKit／IMM32 的 UTF-16 范围在 native 边界转换。取消组合的空 Preedit 会删除当前显示的组合文本；ClearPreedit 只清标记，不能代替取消。
 
-本阶段的 AppKit 桥只保存当前 native marked text 和候选窗矩形，不保存应用文档。它产生 `baseRevision=None`、`CurrentSelection` 的 Preedit／Commit；已知 marked segment 内的原生替换先归一为整段替换。无效范围拒绝整批，只在应用已收到旧 preedit 时发一次撤销。文档 surrounding、重转换、purpose 和编辑器布局后续按实际需要扩展。
+本阶段的 AppKit／IMM32 桥只保存当前 native marked text 和候选窗矩形，不保存应用文档。它产生 `baseRevision=None`、`CurrentSelection` 的 Preedit／Commit；AppKit 已知 marked segment 内的原生替换先归一为整段替换。无效范围拒绝整批，只在应用已收到旧 preedit 时发一次撤销。文档 surrounding、重转换、purpose 和编辑器布局后续按实际需要扩展。
 
 ## renderer 与关闭顺序
 
@@ -84,13 +84,17 @@ target/debug/scoop test sysroot/src/scoop.window/examples/metal/app --release
 
 Win32 桌面坐标采用物理虚拟桌面单位；内容区按窗口 DPI 转换。遮挡快照报告最小化／DWM cloaked，不判断其他窗口的完全覆盖。主题与激活遵守系统限制；Windows 8+ 的 DwmEnableBlurBehindWindow 已无 blur 效果，因此 `setBlur(true)` 返回 Unsupported，创建时要求 blur 则失败。内容保护只是系统显示提示。
 
-在已登录的 Windows 桌面运行以下普通 Cone 测试；两个 MinGW target 另指定对应的 `--native-sysroot`：
+在已登录的 Windows 桌面串行运行以下普通 Cone 测试；真实模态／菜单／尺寸调整会使用前台窗口，不并行运行这些 GUI 测试。两个 MinGW target 另指定对应的 `--native-sysroot`：
 
 ```powershell
 scoop test sysroot/src/scoop.window --release --target x86_64-pc-windows-msvc-ucrt
-scoop test sysroot/src/scoop.window.asyncio --release --target x86_64-pc-windows-msvc-ucrt
 scoop test sysroot/src/scoop.window/tests-cones/dpi --release --target x86_64-pc-windows-msvc-ucrt
+scoop test sysroot/src/scoop.window/tests-cones/input --release --target x86_64-pc-windows-msvc-ucrt
+scoop test sysroot/src/scoop.window/tests-cones/errors --release --target x86_64-pc-windows-msvc-ucrt
+scoop test sysroot/src/scoop.window/tests-cones/watch --release --target x86_64-pc-windows-msvc-ucrt
+scoop test sysroot/src/scoop.window.asyncio --release --target x86_64-pc-windows-msvc-ucrt
+scoop test sysroot/src/scoop.window.asyncio/tests-cones/no-window --release --target x86_64-pc-windows-msvc-ucrt
 scoop test sysroot/src/scoop.window/examples/dxgi/app --release --target x86_64-pc-windows-msvc-ucrt
 ```
 
-DPI 失败用例单独成 Cone，因为 Application 与进程 DPI 模式均不可在同一测试进程中重启。测试不会重置库的单次入口约束。
+DPI、输入、错误收尾、watch 和无窗口退出用例各自成 Cone，因为 Application 与进程 DPI 模式不可在同一测试进程中重启。测试不会重置库的单次入口约束。输入测试通过真实 HWND 消息及与 IMM32 共用的 native UTF-16 归一路径验证批次、候选窗矩形和载荷所有权；不冒充已安装中／日输入法的候选交互。watch 测试验证 WaitUntil、借入 manual-reset HANDLE、ready 内 remove 和重复 remove；无窗口退出测试验证实际 IOCP 接收取消与异步 finally。实际显示器／输入法覆盖边界见 [PROGRESS.md](../../../docs/windowing/PROGRESS.md)。

@@ -9,6 +9,22 @@ private class WindowsKeysTest {
         assertEquals(PhysicalKey.Code(KeyCode.KeyA), platformPhysicalKey(30L))
         assertEquals(PhysicalKey.Code(KeyCode.ControlRight), platformPhysicalKey(285L))
         assertEquals(PhysicalKey.Code(KeyCode.NumpadEnter), platformPhysicalKey(284L))
+        assertEquals(PhysicalKey.Code(KeyCode.Pause), platformPhysicalKey(69L))
+        assertEquals(PhysicalKey.Code(KeyCode.NumLock), platformPhysicalKey(325L))
+        assertEquals(PhysicalKey.Code(KeyCode.Pause), platformPhysicalKey(326L))
+        assertEquals(PhysicalKey.Code(KeyCode.Lang1), platformPhysicalKey(114L))
+        assertEquals(PhysicalKey.Code(KeyCode.Lang1), platformPhysicalKey(498L))
+        assertEquals(PhysicalKey.Code(KeyCode.Lang2), platformPhysicalKey(113L))
+        assertEquals(PhysicalKey.Code(KeyCode.Lang2), platformPhysicalKey(497L))
+        assertEquals(
+            PhysicalKey.Unidentified(NativeKeyCode.WindowsScanCode(112u)),
+            platformPhysicalKey(112L)
+        )
+        assertEquals(
+            PhysicalKey.Unidentified(NativeKeyCode.WindowsScanCode(121u)),
+            platformPhysicalKey(121L)
+        )
+        assertEquals(KeyLocation.Numpad, platformKeyLocation(325L))
         assertEquals(KeyLocation.Numpad, platformKeyLocation(284L))
         assertEquals(KeyLocation.Right, platformKeyLocation(285L))
         assertEquals(
@@ -16,6 +32,8 @@ private class WindowsKeysTest {
             platformPhysicalKey(511L)
         )
         assertEquals(Some(NamedKey.Enter), platformNamedKey(284L, 13L))
+        assertEquals(Some(NamedKey.Kana), platformNamedKey(112L, 21L))
+        assertEquals(None, platformNamedKey(498L, 21L))
         assertEquals(NativeKeyCode.WindowsVirtualKey(255u), platformUnknownLogicalKey(511L, 255L))
     }
     @Test
