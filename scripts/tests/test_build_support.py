@@ -61,6 +61,62 @@ class NinjaDependencyTests(unittest.TestCase):
             self.assertTrue(header.is_file())
 
 
+@unittest.skipUnless(sys.platform == "linux", "GNU linker dependency files")
+class MakeDependencyTests(unittest.TestCase):
+    def test_cmake_link_depfiles_resolve_relative_libraries_and_empty_rules(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            external = root / "external"
+            external.mkdir()
+            library_source = external / "answer.c"
+            library_object = external / "answer.o"
+            library = external / "libanswer.a"
+            source = root / "main.c"
+            source.write_text("int answer(void); int main(void) { return answer() != 42; }\n")
+            objects = root / "build/objects"
+            target = objects / "tools/nested"
+            (target / "CMakeFiles/program.dir").mkdir(parents=True)
+            program_object = target / "CMakeFiles/program.dir/main.o"
+            output = target / "program"
+            compiler = os.environ.get("SCOOP_TEST_CLANG", "cc")
+
+            def build_library(value):
+                library_source.write_text(f"int answer(void) {{ return {value}; }}\n")
+                subprocess.run([compiler, "-c", library_source, "-o", library_object], check=True)
+                subprocess.run(["ar", "rcs", library, library_object], check=True)
+
+            def link():
+                subprocess.run(
+                    [
+                        compiler,
+                        program_object,
+                        "../../../../external/libanswer.a",
+                        "-Wl,--dependency-file=CMakeFiles/program.dir/link.d",
+                        "-o",
+                        output,
+                    ],
+                    cwd=target,
+                    check=True,
+                )
+
+            subprocess.run([compiler, "-c", source, "-o", program_object], check=True)
+            build_library(42)
+            link()
+            subprocess.run([output], check=True)
+            record = root / "build/inputs.json"
+            inputs = {"source": metadata(source)}
+            save_record(record, inputs, Path(os.path.relpath(objects)))
+            self.assertTrue(reusable(record, inputs, [output]))
+            build_library(43)
+            self.assertFalse(reusable(record, inputs, [output]))
+            link()
+            self.assertEqual(subprocess.run([output]).returncode, 1)
+            save_record(record, inputs, objects)
+            self.assertTrue(reusable(record, inputs, [output]))
+            self.assertTrue(library_source.is_file())
+            self.assertTrue(source.is_file())
+
+
 @unittest.skipUnless(os.name == "nt", "Microsoft compiler dependency format")
 class MicrosoftDependencyTests(unittest.TestCase):
     def test_openssl_depfiles_track_external_header_updates(self):

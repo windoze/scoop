@@ -108,11 +108,19 @@ def dependency_paths(objects):
                 continue
             if not content.strip():
                 continue
-            _, separator, prerequisites = content.partition(": ")
-            if not separator:
-                raise ValueError(f"invalid compiler depfile: {depfile}")
-            names.update(
-                re.sub(r"\\(.)", r"\1", token).replace("$$", "$")
-                for token in re.findall(r"(?:\\.|[^\s])+", prerequisites)
-            )
+            # CMake runs each Makefile link command from the target's directory.
+            base = (
+                depfile.parents[2]
+                if depfile.name == "link.d" and depfile.parent.parent.name == "CMakeFiles"
+                else objects
+            ).resolve()
+            for rule in content.splitlines():
+                if not rule.strip() or rule.rstrip().endswith(":"):
+                    continue
+                _, separator, prerequisites = rule.partition(": ")
+                if not separator:
+                    raise ValueError(f"invalid compiler depfile: {depfile}")
+                for token in re.findall(r"(?:\\.|[^\s])+", prerequisites):
+                    name = Path(re.sub(r"\\(.)", r"\1", token).replace("$$", "$"))
+                    names.add(str(name if name.is_absolute() else base / name))
     return names

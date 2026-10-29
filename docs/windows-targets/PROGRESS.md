@@ -1,6 +1,6 @@
 # Windows targets 实施进度
 
-分支：`codex/windows-targets`。更新于 2026-10-29；已整合主线 `7aff531f0`，包含原生调试、Throwable 栈快照开关、编译期输入 intrinsic、debug aggregate 优化修正和独立 benchmark 资料。最后一项合并未改动编译器或库代码。
+分支：`codex/windows-targets`。更新于 2026-10-30；已整合主线 `5109e363b`，包含原生调试、Throwable 栈快照开关、编译期输入 intrinsic、debug aggregate 优化修正及后续 windowing／target 重构设计。最后一项合并只更新文档，后续设计不纳入本次 Windows 实现范围。
 本文只记录当前实现、验证结果和未完成项；设计合同见 [DESIGN.md](DESIGN.md)。
 
 | 阶段 | 当前状态 | 剩余验收 |
@@ -100,6 +100,8 @@ ABI 30 的 `0fa053fd1` 新版候选归档及 LLVM 源码归档已经生成，纳
 
 此前安装验收发现示例阅读器的帮助仍写旧 Windows 驱动名；帮助、目录提示和错误文本已按宿主选择 `sco example` 或 `scoop example`，其文件名保持不变。Rust fmt／Clippy 与 9 项 CLI 测试通过；原样源码输出测试使用实际文件字节，保留 Windows checkout 的 CRLF。新版候选包的实际帮助输出也已通过检查。
 
-两个远端宿主的 Rust fmt／workspace Clippy、POSIX debugger launcher、4 项归档布局／发布测试、70 项 fixture runner 规则（3 项宿主跳过）与 83 项 manifest 测试通过。Linux 专属 metadata fixture 中合并后重复初始化的四个 debug 字段已去重；15 项 ELF codegen 测试通过，覆盖 GNU／musl 的 metadata、stackmap、EH、generated-C、TLS 与 callback。macOS 配套 LLVM 22.1.8 已在新目录构建完成，Linux 构建仍在进行。
+两个远端宿主的 Rust fmt／workspace Clippy、POSIX debugger launcher、4 项归档布局／发布测试、70 项 fixture runner 规则（3 项宿主跳过）与 83 项 manifest 测试通过。Linux 专属 metadata fixture 中合并后重复初始化的四个 debug 字段已去重；15 项 ELF codegen 测试通过，覆盖 GNU／musl 的 metadata、stackmap、EH、generated-C、TLS 与 callback。两个宿主的配套 LLVM 22.1.8 已在新目录构建完成。
+
+Linux 的 CMake Makefile linker depfile 以目标目录为相对路径基准，且包含空依赖规则；准备脚本已按此解析。真实外部静态库的链接／执行、未变化复用和库变化后更新测试通过；Windows 原有 Ninja／Microsoft 依赖与并发协调测试通过。修复后复用已完成的 LLVM 构建并成功发布更新记录，没有重新进行完整编译。
 
 剩余工作为：完成 Linux／macOS 原生 CLI 回归与三个 Windows target 的交叉编译，并在 Windows 运行交叉产物；继续按变更提交、推送并合并主线。完成这些步骤前不声明全部 Windows 验收完成。
