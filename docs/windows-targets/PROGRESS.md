@@ -106,4 +106,6 @@ Linux 的 CMake Makefile linker depfile 以目标目录为相对路径基准，�
 
 macOS 原生 CLI 的 6 项 fixture／9 个变体通过，覆盖 native C++、scalar／aggregate 结果、并发 Throwable 历史、interface SSA 移动 GC，以及跨 Cone TLS／线程 callback。交叉编译发现 clang-cl 将 `/Users/...` 文件路径识别为 `/U` 选项，已通过 Clang 文件参数通道修正；Windows 的四种 native C/C++ 编译组合和五种实际 PE／PDB 链接组合通过。交叉编译随后暴露预编译 runtime index 使用生产宿主路径编码的问题，正在修正其跨宿主相对路径表示。
 
+runtime index 已改为 schema 7：对象 locator 保存 UTF-8 相对路径和 `/` 分隔符，开发 runtime 缓存同步改为 `runtime-v8`，runtime ABI 与 `.slib` 不变。三个宿主的格式／路径错误测试、Rust fmt／Clippy 通过；Windows 实际 runtime 的读写、中文／空格目录迁移、相容工具链消费与输入未变化复用通过。配套四种 runtime 资源正在更新；旧索引需重新准备，不增加兼容读取分支。
+
 剩余工作为：完成 Linux／macOS 原生 CLI 回归与三个 Windows target 的交叉编译，并在 Windows 运行交叉产物；继续按变更提交、推送并合并主线。完成这些步骤前不声明全部 Windows 验收完成。

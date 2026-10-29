@@ -9,7 +9,7 @@ pub(super) fn check_relocation_and_compatible_toolchains(
     target: &ResolvedTargetProfile,
 ) {
     let relocated = tempfile::tempdir().unwrap();
-    let directory = relocated.path().join("installed runtime with spaces");
+    let directory = relocated.path().join("installed runtime 空格");
     copy_tree(build.index().parent().unwrap(), &directory);
     let index = directory.join("index.cbor");
     let consumer = compatible_consumer(target);
