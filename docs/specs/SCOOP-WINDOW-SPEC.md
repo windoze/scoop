@@ -34,7 +34,7 @@ WindowAttributes、Window 的目标能力与方法分组以映射表为完整首
 
 WindowException 保留 WindowErrorKind、operation、backend 和可选 native code；类别包含 Unsupported、Unavailable、PermissionDenied、InvalidState、ResourceBusy、Disconnected、NativeFailure。参数错误使用现有参数异常；backend 随实际后端提供，本阶段为 AppKit，不假定原生 code 都是 errno。能力提示不替代实际操作错误。
 
-WindowId、DeviceId、MonitorId、TouchId 为不同值类型，只在一次 Application 生命周期内比较，不暴露原生身份，不复用活过的编号。Monitor 保存可选 name、desktopBounds、refreshRateMilliHertz 与视频模式；失效后的控制请求报告 unavailable。primaryMonitor 可为 None。
+WindowId、DeviceId、MonitorId、TouchId 为不同值类型，只在一次 Application 生命周期内比较，不暴露原生身份，不复用活过的编号。本阶段 Monitor 为不可变快照，保存 id、可选 name／desktopBounds／refreshRateMilliHertz、physicalSize 与 scaleFactor；不持有原生指针。ActiveApplication.monitors／primaryMonitor 与 Window.currentMonitor 在 owner 上获取快照，后者及 primaryMonitor 可为 None。AppKit 用 NSScreen 的桌面矩形和 backing 转换，CoreGraphics 未给出正刷新率时返回 None，不把最大可用刷新率当作实际刷新率。显示器变更通知刷新当前身份集合，已观察到离开的身份退休；再次出现分配新编号。后续加入视频模式及控制请求时再定义对应活动句柄的失效行为。
 
 LogicalPosition／LogicalSize／LogicalRect 采用有限 Double，内容坐标左上原点、向右／向下递增。PhysicalSize 为非负 Int 像素尺寸；PhysicalPosition 允许小数。DesktopPosition／DesktopRect 仅用于同一显示系统的全局桌面坐标，不允许通过单个窗口 DPI 在混合 DPI 桌面上换算。
 

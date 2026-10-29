@@ -142,6 +142,7 @@ private class LifecycleHandler(val proxy: ApplicationProxy): ApplicationHandler 
             )
         val first = application.createWindow(attributes)
         window = Some(first)
+        checkMonitorSnapshots(application, first)
         attributes.size = LogicalSize(10.0, 10.0)
         assertEquals(LogicalSize(320.0, 180.0), first.metrics!!.logicalSize)
         assertFalse(first.isVisible)

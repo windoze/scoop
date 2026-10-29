@@ -14,6 +14,8 @@ internal class ApplicationOwner(
 ) {
     val mailbox: ApplicationMailbox = ApplicationMailbox()
     val windows: ArrayList<WindowOwner> = ArrayList<WindowOwner>()
+    var monitorRecords: ArrayList<MonitorRecord> = ArrayList<MonitorRecord>()
+    var nextMonitor: Long = 1L
     val watches: ArrayList<ApplicationWatch> = ArrayList<ApplicationWatch>()
     var nextWatch: Long = 1L
     val active: ActiveApplication get() = ActiveApplication(this)

@@ -72,3 +72,9 @@
 按用户明确的 winit 定位收敛当前范围，并核对 winit 0.30.13 的 AppKit IME 边界：本轮只接入 marked／commit 和候选窗位置，不引入完整编辑器文档镜像。TextInputState 保留为应用纯值辅助。
 
 验证：Scoop 格式化／check、native 格式与警告检查通过；window 的 10 项 release 测试、Metal 的实际 GPU 首帧及 asyncio 模态／取消测试通过。Metal 复核曾因桌面遮挡而停在等待；自动关闭的 GPU 测试显式使用置顶窗口，正常示例保持普通层级，并保留超时状态诊断。
+
+### 8. 显示器与 DPI 快照
+
+新增 monitors／primaryMonitor／currentMonitor。AppKit 枚举复制名称、桌面矩形、backing 像素尺寸与比例；刷新率仅使用 CoreGraphics 实际给出的正值。Scoop 分配 MonitorId，屏幕变化时退休已离开的身份，不暴露原生指针或编号，也不提供未实施的视频模式控制。
+
+验证：格式化／check 与 native 警告检查通过，window 的 10 项 release 测试通过。真实显示器枚举覆盖重复查询身份稳定、主显示器／窗口显示器一致、尺寸与缩放，以及 native 快照释放和 GC 后在工作线程读取自有值；工作线程调用原生枚举明确失败。热插拔和混合 DPI 跨屏拖动仍是硬件交互验收项。

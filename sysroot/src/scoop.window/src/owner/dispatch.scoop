@@ -160,8 +160,10 @@ internal fun ApplicationOwner.deliverWindow(window: WindowOwner, event: WindowEv
 
 internal fun ApplicationOwner.dispatchNative(event: NativeEvent) {
     if (event.window == 0L) {
-        if (event.kind == 100)
+        if (event.kind == 100) {
+            refreshMonitors()
             deliver(ApplicationEvent.MonitorsChanged)
+        }
         else
             if (event.kind == 101)
                 deliver(ApplicationEvent.ExitRequested(ExitReason.System))
