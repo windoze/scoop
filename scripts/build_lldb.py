@@ -14,14 +14,37 @@ from build_llvm import HOSTS, VERSION
 from build_support import RELEASE_CONFIG, ROOT, metadata, reusable, save_record, source_metadata
 
 PATCH = ROOT / "scripts/patches/lldb-scoop-source-names.patch"
-SOURCE_PARTS = ("lldb", "cmake", "llvm/cmake", "llvm/utils", "third-party")
+SOURCE_PARTS = (
+    "lldb/bindings",
+    "lldb/cmake",
+    "lldb/docs",
+    "lldb/examples",
+    "lldb/include",
+    "lldb/resources",
+    "lldb/scripts",
+    "lldb/source",
+    "lldb/tools",
+    "lldb/utils/TableGen",
+    "cmake",
+    "llvm/cmake",
+    "llvm/utils",
+    "third-party",
+)
+SOURCE_FILES = ("lldb/CMakeLists.txt",)
+
+
+def source_inputs(source):
+    # LLDB_INCLUDE_TESTS is disabled. Its test-only symlinks are not build inputs.
+    return source_metadata(source, SOURCE_PARTS) + [
+        metadata(source / component) for component in SOURCE_FILES
+    ]
 
 
 def copy_sources(source, copied):
     previous = (
         {
             Path(path).relative_to(copied): (mtime, size)
-            for path, mtime, size in source_metadata(copied, SOURCE_PARTS)
+            for path, mtime, size in source_metadata(copied, (".",))
         }
         if copied.exists()
         else {}
@@ -44,6 +67,8 @@ def copy_sources(source, copied):
         shutil.rmtree(copied)
     for component in SOURCE_PARTS:
         shutil.copytree(source / component, copied / component, copy_function=copy_updated)
+    for component in SOURCE_FILES:
+        copy_updated(source / component, copied / component)
 
 
 def configure(source, build, prefix, llvm, python, host, release, cc, cxx):
@@ -51,18 +76,18 @@ def configure(source, build, prefix, llvm, python, host, release, cc, cxx):
     target = release["targets"]["x86_64-w64-windows-llvm-mingw-ucrt" if windows else host]
     options = {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_INSTALL_PREFIX": str(prefix),
-        "CMAKE_C_COMPILER": cc,
-        "CMAKE_CXX_COMPILER": cxx,
-        "LLVM_DIR": str(llvm / "lib/cmake/llvm"),
-        "Clang_DIR": str(llvm / "lib/cmake/clang"),
+        "CMAKE_INSTALL_PREFIX": prefix.as_posix(),
+        "CMAKE_C_COMPILER": Path(cc).as_posix(),
+        "CMAKE_CXX_COMPILER": Path(cxx).as_posix(),
+        "LLVM_DIR": (llvm / "lib/cmake/llvm").as_posix(),
+        "Clang_DIR": (llvm / "lib/cmake/clang").as_posix(),
         "LLVM_LINK_LLVM_DYLIB": "ON",
         "CLANG_LINK_CLANG_DYLIB": "ON",
         "LLVM_APPEND_VC_REV": "OFF",
         "LLDB_INCLUDE_TESTS": "OFF",
         "LLDB_ENABLE_PYTHON": "ON",
         "LLDB_EMBED_PYTHON_HOME": "OFF",
-        "Python3_EXECUTABLE": python,
+        "Python3_EXECUTABLE": Path(python).as_posix(),
         "LLDB_ENABLE_LUA": "OFF",
         "LLDB_ENABLE_LIBEDIT": "OFF",
         "LLDB_ENABLE_LIBXML2": "OFF",
@@ -78,10 +103,11 @@ def configure(source, build, prefix, llvm, python, host, release, cc, cxx):
             {
                 "CMAKE_C_COMPILER_TARGET": "x86_64-w64-windows-gnu",
                 "CMAKE_CXX_COMPILER_TARGET": "x86_64-w64-windows-gnu",
-                "CMAKE_AR": str(Path(cc).parent / "llvm-ar.exe"),
-                "CMAKE_RANLIB": str(Path(cc).parent / "llvm-ranlib.exe"),
+                "CMAKE_AR": (Path(cc).parent / "llvm-ar.exe").as_posix(),
+                "CMAKE_RANLIB": (Path(cc).parent / "llvm-ranlib.exe").as_posix(),
                 "LLVM_USE_LINKER": "lld",
                 "LLDB_ENABLE_PYTHON_LIMITED_API": "ON",
+                "LLDB_PYTHON_EXT_SUFFIX": ".pyd",
             }
         )
     else:
@@ -135,9 +161,11 @@ def main():
         prefix / "bin" / (name + suffix) for name in ("lldb", "lldb-dap", "lldb-argdumper", server)
     ]
     # Debian's Python install scheme uses local/lib inside an explicit prefix.
-    outputs += list(prefix.glob("**/lldb/__init__.py"))
+    python_packages = list(prefix.glob("**/lldb/__init__.py"))
+    python_modules = list(prefix.glob("**/lldb/native/_lldb*" + (".pyd" if suffix else ".so")))
+    outputs += python_packages + python_modules
     inputs = {
-        "source": source_metadata(source, SOURCE_PARTS),
+        "source": source_inputs(source),
         "tools": [
             metadata(path)
             for path in (
@@ -158,7 +186,7 @@ def main():
         "prefix": str(prefix),
     }
     record = build / "inputs.json"
-    if len(outputs) > 4 and reusable(record, inputs, outputs):
+    if python_packages and python_modules and reusable(record, inputs, outputs):
         print(f"Reusing LLDB {VERSION}: {prefix}")
         return
     actual = subprocess.check_output([str(llvm_config), "--version"], text=True).strip()
@@ -173,7 +201,7 @@ def main():
     subprocess.run(["git", "apply", "--no-index", str(PATCH)], cwd=copied, check=True)
     release = tomllib.loads(RELEASE_CONFIG.read_text())
     configuration = configure(copied, build, prefix, llvm, python, host, release, cc, cxx)
-    configuration.append(f"-DCMAKE_MAKE_PROGRAM={ninja}")
+    configuration.append(f"-DCMAKE_MAKE_PROGRAM={Path(ninja).as_posix()}")
     subprocess.run(configuration, check=True)
     subprocess.run(
         [

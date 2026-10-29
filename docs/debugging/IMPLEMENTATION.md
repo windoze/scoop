@@ -47,6 +47,8 @@ VS Code 扩展 0.3.0 注册 Scoop debug type 和源码断点。构建／launch �
 
 完整打包入口调用 LLVM／Clang SDK 与 LLDB 构建，并收集 lldb、lldb-dap、LLDB library、argdumper、debugserver／lldb-server、匹配 Python、标准库／原生模块、Clang resources、formatter 和实际非系统动态依赖。依赖改为安装根内相对加载；Darwin 最后签名并保留 debugserver entitlements。源码兼容修补随 llvm-sources 分发。维护与复用方法见[脚本说明](../../scripts/README.md#调试器发行资源)。
 
+发行包公开 `bin` 中的 LLVM／LLDB 命令统一带 `scoop-` 前缀，例如 `scoop-lldb`、`scoop-lldb-dap` 和 `scoop-llvm-symbolizer`，Windows 附加 `.exe`。编译器相邻工具查找、VS Code 默认 adapter 与性能分析脚本同步使用发行名称；私有 helper 和显式外部 LLVM 保留上游命名。
+
 ## 验证范围与结果
 
 先完成本地功能和定向验证，再使用 nuc12 的 `~/repos/scoop-native-debugging-20261029` 独立目录验证 Linux。未运行无关完整测试套件，原始日志、逐轮报告和临时程序存放仓库外。

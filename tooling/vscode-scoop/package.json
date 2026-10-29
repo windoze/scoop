@@ -299,7 +299,7 @@
           "type": "string",
           "default": "",
           "scope": "machine-overridable",
-          "markdownDescription": "Path to the Python-enabled Scoop `lldb-dap`. Empty tries `~/.scoop/bin/lldb-dap`, then PATH (Windows uses `lldb-dap.exe`). Runs on the workspace host."
+          "markdownDescription": "Path to the Python-enabled Scoop `scoop-lldb-dap`. Empty tries `~/.scoop/bin/scoop-lldb-dap`, then PATH (Windows uses `scoop-lldb-dap.exe`). Runs on the workspace host."
         },
         "scoop.debug.compilerPath": {
           "type": "string",

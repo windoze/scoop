@@ -64,13 +64,20 @@ class DebuggerPackageTests(unittest.TestCase):
                 )
                 moved = work / "moved directory ' with spaces"
                 root.rename(moved)
+                self.assertEqual(
+                    {entry.name for entry in (moved / "bin").iterdir()},
+                    {
+                        "scoop-" + name
+                        for name in (*package_debugger.LLVM_TOOLS, "lldb", "lldb-dap")
+                    },
+                )
                 installed = moved / "libexec/lldb/python/lib/python3.14/site-packages/lldb"
                 self.assertEqual((installed / "native/_lldb.abi3.so").read_text(), "native library")
                 self.assertTrue((installed / "lldb-argdumper").is_file())
                 self.assertFalse((installed.parent / "unrelated.py").exists())
                 self.assertFalse((installed.parent.parent / "test").exists())
                 result = subprocess.check_output(
-                    [moved / "bin/lldb-dap", "--argument", "a $value with spaces"],
+                    [moved / "bin/scoop-lldb-dap", "--argument", "a $value with spaces"],
                     text=True,
                     env={"PATH": os.defpath},
                 )
@@ -153,6 +160,13 @@ int wmain(int argc, wchar_t **argv) {
             self.assertIn((package / "native/_lldb.pyd").resolve(), native)
             moved = work / "moved 中文 directory"
             root.rename(moved)
+            self.assertEqual(
+                {entry.name for entry in (moved / "bin").iterdir()},
+                {
+                    "scoop-" + name + ".exe"
+                    for name in (*package_debugger.LLVM_TOOLS, "lldb", "lldb-dap")
+                },
+            )
             self.assertFalse(
                 (moved / "libexec/lldb/python/Lib/site-packages/unrelated.py").exists()
             )
@@ -162,7 +176,7 @@ int wmain(int argc, wchar_t **argv) {
             arguments = ["--argument", "a $value with spaces", 'quote"trail\\', "", "中文"]
             for name in ("lldb", "lldb-dap"):
                 result = subprocess.run(
-                    [moved / "bin" / (name + ".exe"), *arguments],
+                    [moved / "bin" / ("scoop-" + name + ".exe"), *arguments],
                     text=True,
                     encoding="utf-8",
                     capture_output=True,

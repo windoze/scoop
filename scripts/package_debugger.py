@@ -83,7 +83,7 @@ def stage(root, llvm, debugger, python, host, license_file=None, *, windows_comp
             native[source] = destination
 
     for name in LLVM_TOOLS:
-        binary(llvm / "bin" / name, root / "bin" / name)
+        binary(llvm / "bin" / name, root / "bin" / ("scoop-" + name))
     server = "debugserver" if host.endswith("darwin") else "lldb-server"
     for name in ("lldb", "lldb-dap", "lldb-argdumper", server):
         binary(debugger / "bin" / name, root / "libexec/lldb/bin" / name)
@@ -149,7 +149,7 @@ def stage(root, llvm, debugger, python, host, license_file=None, *, windows_comp
         ignore=shutil.ignore_patterns("__pycache__"),
     )
     for name in ("lldb", "lldb-dap"):
-        output = root / "bin" / name
+        output = root / "bin" / ("scoop-" + name)
         output.write_text(launcher(name, version, server))
         output.chmod(0o755)
     return native, version, license_file

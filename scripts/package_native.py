@@ -1,5 +1,6 @@
 """Copy the host tools' actual shared dependencies and use relative loader paths."""
 
+import filecmp
 import os
 import re
 import shutil
@@ -209,7 +210,11 @@ def windows(root, binaries, llvm_bin, additional=None):
                 raise ValueError(f"cannot locate dependency {name} of {source}")
             key = name.lower()
             previous = libraries.get(key)
-            if previous is not None and previous != dependency:
+            if (
+                previous is not None
+                and previous != dependency
+                and not filecmp.cmp(previous, dependency, shallow=False)
+            ):
                 raise ValueError(
                     f"different host libraries have the same name: {previous}, {dependency}"
                 )

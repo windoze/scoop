@@ -17,7 +17,7 @@ def stage(root, llvm, debugger, paths, compiler, llvm_tools):
         native[source] = destination
 
     for name in llvm_tools:
-        binary(llvm / "bin" / (name + ".exe"), root / "bin" / (name + ".exe"))
+        binary(llvm / "bin" / (name + ".exe"), root / "bin" / ("scoop-" + name + ".exe"))
     private = root / "libexec/lldb"
     for name in ("lldb", "lldb-dap", "lldb-argdumper", "lldb-server"):
         binary(debugger / "bin" / (name + ".exe"), private / "bin" / (name + ".exe"))
@@ -76,7 +76,7 @@ def stage(root, llvm, debugger, paths, compiler, llvm_tools):
     )
     # LLDB finds its expression-parser headers relative to its own DLL.
     shutil.copytree(llvm / "lib/clang", private / "lib/clang")
-    launcher = root / "bin/lldb.exe"
+    launcher = root / "bin/scoop-lldb.exe"
     subprocess.run(
         [
             str(compiler),
@@ -93,7 +93,7 @@ def stage(root, llvm, debugger, paths, compiler, llvm_tools):
         ],
         check=True,
     )
-    shutil.copy2(launcher, root / "bin/lldb-dap.exe")
-    for name in ("lldb.exe", "lldb-dap.exe"):
+    shutil.copy2(launcher, root / "bin/scoop-lldb-dap.exe")
+    for name in ("scoop-lldb.exe", "scoop-lldb-dap.exe"):
         native[(root / "bin" / name).resolve()] = root / "bin" / name
     return native

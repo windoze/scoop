@@ -90,7 +90,7 @@ fn llvm_tool(name: &str, inputs: &mut Vec<PathBuf>) -> Result<PathBuf, Toolchain
     if let Some(prefix) = std::env::var_os("LLVM_SYS_221_PREFIX") {
         candidates.push(PathBuf::from(prefix).join("bin").join(name));
     }
-    candidates.push(crate::installed_executable()?.with_file_name(name));
+    candidates.push(crate::installed_executable()?.with_file_name(format!("scoop-{name}")));
     if let Some(path) = std::env::var_os("PATH") {
         candidates.extend(std::env::split_paths(&path).map(|root| root.join(name)));
     }

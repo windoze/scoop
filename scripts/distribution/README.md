@@ -89,9 +89,10 @@ Darwin 默认最低版本由发行配置确定；`MACOSX_DEPLOYMENT_TARGET` 可�
 升级时可将旧 `~/.scoop` 移到备份位置，再创建新的 `~/.scoop` 并解压完整包，避免旧版本文件残留；也可安装到另一目录并调整 PATH 或软链接。无需删除整个用户缓存。第三方许可见 `../licenses/README.md`；Scoop 自身的许可状态也列在该文件中，应以维护者确定的项目许可为准。
 
 
-工具包包含 Python-enabled LLVM 22 的 `lldb` 和 `lldb-dap`，以及 Python 和平台 helper。
-使用 `scoop build --debug-info full` 后可运行 `lldb <program>`；调试文件跟随 executable 发布，
-Darwin 使用 `.dSYM`，Linux 使用 `.debug`。debug 默认 full，release 默认 none；release 也可显式 full。
+工具包包含 Python-enabled LLVM 22 的 `scoop-lldb` 和 `scoop-lldb-dap`，以及 Python 和平台 helper。
+公开 `bin` 中的 LLVM 工具均加 `scoop-` 前缀：`scoop-dsymutil`、`scoop-llvm-objcopy`、`scoop-llvm-strip`、`scoop-llvm-symbolizer`、`scoop-llvm-nm` 和 `scoop-llvm-readobj`；Windows 附加 `.exe`。该目录不提供无前缀别名，可与其他 LLVM 安装共存于 PATH。
+使用 `scoop build --debug-info full`（Windows 为 `sco build`）后可运行 `scoop-lldb <program>`；调试文件跟随 executable 发布，
+Darwin 使用 `.dSYM`，Linux 使用 `.debug`，Windows 使用 `.pdb`。debug 默认 full，release 默认 none；release 也可显式 full。
 LLDB 自动导入只读 Scoop formatter，提供 String、数组和当前 enum 变体的展示。
 
 在 VS Code 中按 F5 选择 Scoop，或执行 `Scoop: Debug Current File`，扩展可自动构建并启动调试。

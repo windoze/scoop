@@ -79,6 +79,36 @@ class WindowsDependenciesTests(unittest.TestCase):
         self.assertFalse(package_native.windows_system("msvcp140.dll"))
         self.assertFalse(package_native.windows_system("libLLVM-22.dll"))
 
+    def test_matching_runtime_copies_in_python_directories_can_be_packaged(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            work = Path(temporary)
+            root = work / "installation"
+            native = {}
+            for name in ("python", "extensions"):
+                source, destination = work / name, root / name
+                source.mkdir()
+                destination.mkdir(parents=True)
+                module = source / "module.pyd"
+                module.touch()
+                (source / "vcruntime140.dll").write_bytes(b"same runtime")
+                native[module.resolve()] = destination / module.name
+
+            def imports(tool, flag, path):
+                return "  Name: vcruntime140.dll" if Path(path).suffix == ".pyd" else ""
+
+            with (
+                patch.object(package_native, "output", side_effect=imports),
+                patch.object(package_native.os, "get_exec_path", return_value=[]),
+            ):
+                package_native.windows(root, [], work / "llvm", native)
+                for name in ("python", "extensions"):
+                    self.assertEqual(
+                        (root / name / "vcruntime140.dll").read_bytes(), b"same runtime"
+                    )
+                (work / "extensions/vcruntime140.dll").write_bytes(b"different runtime")
+                with self.assertRaisesRegex(ValueError, "different host libraries"):
+                    package_native.windows(root, [], work / "llvm", native)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -148,14 +148,15 @@ Windows 的宿主 DLL 分别放在实际使用它们的 `bin`、外部命令目�
 启用 Python，构建 lldb、lldb-dap、lldb-argdumper 和 debugserver／lldb-server。
 源码兼容修补保留 Scoop 的 DW_AT_name 与精确 linkage identity，将同源文件的独立编译单元全局量放回当前栈帧，并补齐 Linux/amd64 静态程序的原生 TLS 定位；修补文件也进入 llvm-sources 包。
 可用 `--debugger-prefix` 复用匹配的已构建调试器，`--debugger-python` 指定构建时所用 Python；
-只有 LLVM SDK 时仍正常构建 LLDB，要求 SDK 包含 Clang headers／CMake targets／clang-cpp。
+只有 LLVM SDK 时仍正常构建 LLDB，要求 SDK 包含 Clang headers／CMake targets／clang-cpp、构建用 `llvm-tblgen` 以及 TableGen／Support／Demangle／Debuginfod 静态库；`build_llvm.py` 会安装这些资源。
 
 `package_debugger.py` 收集匹配的 Python 标准库、原生模块和解释器，排除用户 site-packages、
 测试、Tk／IDLE 与 pip；包中不依赖用户 Python。Python 许可证随包保留，安装中缺失时可用
 `--python-license` 明确提供。所有实际非系统动态依赖统一收集并改为相对加载路径；
 Darwin 对最终文件重新签名，保留 debugserver 的 entitlements。
-`bin/lldb` 和 `bin/lldb-dap` 通过相对安装根设置 Python 与 helper 路径，lldb 自动加载 formatter。
-Windows 对应的入口是 `bin/lldb.exe` 和 `bin/lldb-dap.exe`，由原生启动程序设置随包 Python 路径，保留 Unicode 参数、标准流与子进程退出码；无需 POSIX shell。Windows LLDB 与宿主 LLVM 使用同一个 LLVM-MinGW UCRT C/C++ 工具链，独立运行 `build_lldb.py` 时以 `--cc`／`--cxx` 指定它。维护构建需 SWIG 4、Python 开发文件和 Ninja；应用使用发行包无需这些构建工具。
+发行包公开 `bin` 中的 LLVM／LLDB 命令统一带 `scoop-` 前缀，不保留无前缀别名；例如 `scoop-lldb`、`scoop-lldb-dap`、`scoop-dsymutil` 与 `scoop-llvm-symbolizer`。构建 SDK 和安装根内私有 `libexec` 目录保留上游命名。
+`bin/scoop-lldb` 和 `bin/scoop-lldb-dap` 通过相对安装根设置 Python 与 helper 路径，`scoop-lldb` 自动加载 formatter。
+Windows 对应的入口是 `bin/scoop-lldb.exe` 和 `bin/scoop-lldb-dap.exe`，由原生启动程序设置随包 Python 路径，保留 Unicode 参数、标准流与子进程退出码；无需 POSIX shell。Windows LLDB 与宿主 LLVM 使用同一个 LLVM-MinGW UCRT C/C++ 工具链，独立运行 `build_lldb.py` 时以 `--cc`／`--cxx` 指定它。维护构建需 SWIG 4、Python 开发文件和 Ninja；应用使用发行包无需这些构建工具。
 
 本地调试器专项验证使用启用 Python 的真实 LLDB 构建：将打包目录移动到含空格的路径，
 以仅保留系统 PATH 的环境启动 LLDB，验证 formatter、Python 标准模块和动态库加载。

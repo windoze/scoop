@@ -17,12 +17,16 @@ test("debug tool discovery uses the host's installed command names", async () =>
     process.platform === "win32" ? "sco.exe" : "scoop",
   );
   assert.equal(
-    path.basename(await toolCommand("lldb-dap", "")),
-    process.platform === "win32" ? "lldb-dap.exe" : "lldb-dap",
+    path.basename(await toolCommand("scoop-lldb-dap", "")),
+    process.platform === "win32" ? "scoop-lldb-dap.exe" : "scoop-lldb-dap",
   );
   assert.equal(
     await toolCommand("scoop", "custom/compiler"),
     "custom/compiler",
+  );
+  assert.equal(
+    await toolCommand("scoop-lldb-dap", "custom/lldb-dap"),
+    "custom/lldb-dap",
   );
 });
 

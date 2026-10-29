@@ -9,13 +9,13 @@ scoop build tooling/vscode-scoop/test/debugger/program.scoop --debug-info full \
 scoop build tooling/vscode-scoop/test/debugger/console.scoop --debug-info full \
   -o /tmp/scoop-debug-console
 
-python3 tooling/vscode-scoop/test/debugger/dap.py --adapter /path/to/bin/lldb-dap \
+python3 tooling/vscode-scoop/test/debugger/dap.py --adapter /path/to/bin/scoop-lldb-dap \
   --program /tmp/scoop-debug-program --source tooling/vscode-scoop/test/debugger/program.scoop \
   --mode launch --source-map --log /tmp/scoop-debug-launch.jsonl
-python3 tooling/vscode-scoop/test/debugger/dap.py --adapter /path/to/bin/lldb-dap \
+python3 tooling/vscode-scoop/test/debugger/dap.py --adapter /path/to/bin/scoop-lldb-dap \
   --program /tmp/scoop-debug-console --source tooling/vscode-scoop/test/debugger/console.scoop \
   --mode terminal --log /tmp/scoop-debug-terminal.jsonl
-python3 tooling/vscode-scoop/test/debugger/dap.py --adapter /path/to/bin/lldb-dap \
+python3 tooling/vscode-scoop/test/debugger/dap.py --adapter /path/to/bin/scoop-lldb-dap \
   --program /tmp/scoop-debug-console --source tooling/vscode-scoop/test/debugger/console.scoop \
   --mode attach --log /tmp/scoop-debug-attach.jsonl
 ```
@@ -33,7 +33,7 @@ PR_SET_PTRACER 只允许该次适配器访问该次目标，不改系统 ptrace 
 的 SBValue 检查 enum、空引用和数组布局：
 
 ```sh
-lldb -b /tmp/scoop-debug-program \
+scoop-lldb -b /tmp/scoop-debug-program \
   -o 'command script import tooling/vscode-scoop/debugger/scoop_lldb.py' \
   -o 'command script import tooling/vscode-scoop/test/debugger/offline.py' -o quit
 ```
@@ -46,7 +46,7 @@ Linux 静态 TLS 的原生定向用例覆盖 `.tdata`、`.tbss`、64-byte 对齐
 ```sh
 musl-gcc -std=c11 -g -O0 -static -pthread tooling/vscode-scoop/test/debugger/tls.c \
   -o /tmp/scoop-debug-tls
-lldb -b /tmp/scoop-debug-tls \
+scoop-lldb -b /tmp/scoop-debug-tls \
   -o 'command script import tooling/vscode-scoop/test/debugger/tls.py' -o quit
 ```
 

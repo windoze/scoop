@@ -296,7 +296,7 @@ VS Code 扩展实现以下接入：
 4. 为逻辑来源／预编译库配置 sourceMap，按需通过 initCommands 导入 formatter。
 5. 验证启动、attach、程序退出、stdin / TTY 和测试入口。交互终端使用所选 adapter 版本实际支持的配置。
 
-Scoop 扩展需要可定位的 lldb-dap 可执行文件，由 Scoop 发行包提供或通过扩展设置指定；其协议能力来自官方 adapter。[R4]
+Scoop 扩展需要可定位的 lldb-dap 可执行文件，由 Scoop 发行包以 `scoop-lldb-dap` 提供或通过扩展设置指定；其协议能力来自官方 adapter。[R4]
 
 调试已有程序的基础 launch 配置：
 

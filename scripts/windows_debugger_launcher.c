@@ -77,7 +77,7 @@ int wmain(int argc, wchar_t **argv) {
     wchar_t *name = wcsrchr(root, L'\\');
     if (name == NULL)
         return 1;
-    int dap = _wcsicmp(name + 1, L"lldb-dap.exe") == 0;
+    int dap = _wcsicmp(name + 1, L"scoop-lldb-dap.exe") == 0;
     *name = 0;
     wchar_t *bin = wcsrchr(root, L'\\');
     if (bin == NULL)

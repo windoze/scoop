@@ -74,7 +74,11 @@ PCRE2 10.49、OpenSSL 3.5.9、uriparser 1.0.2、Rust 文本后端、Zstandard、
 
 打包入口组装五个宿主命令、递归解析的宿主 DLL、私有 LLVM、两个 MinGW CRT prefix、三个目标的 slib／runtime／unwind、实际许可证、三个 API 文档站点、VSIX、示例和编程 skill。源码副本排除生成的 target 和 Cone.lock。10 项打包测试、Python Ruff 和 workspace/all-targets Clippy 已通过。
 
-新增 LLDB 整合后，打包测试 12 项完成，其中 1 项 POSIX launcher 测试按宿主跳过；Windows 原生 launcher 的 Unicode／空格路径迁移、参数、环境和退出码通过真实子进程验证。VS Code 的 16 项测试及 lint 通过，Windows 调试构建默认使用 `sco.exe`，其他宿主仍用 `scoop`。完整 LLVM／Clang SDK 正在重建，启用 Python 的 Windows LLDB 构建与实际 DAP 会话尚待完成。
+完整 LLVM／Clang SDK 与启用 Python 的 Windows LLDB 已构建完成。SDK 包含 LLDB 构建所需的 llvm-tblgen、TableGen／Support／Demangle／Debuginfod 静态库；Windows Python binding 使用 `.pyd`。打包允许 Python 安装中内容相同的 VC runtime DLL 副本，同时保留真实同名冲突诊断。
+
+所有宿主公开 `bin` 中的 LLVM／LLDB 命令统一带 `scoop-` 前缀；编译器相邻调试工具查找、VS Code 默认 adapter、性能分析脚本与文档已同步。Windows 主驱动仍为 `sco.exe`，其他宿主仍为 `scoop`。Windows launcher 的 Unicode／空格路径迁移、参数、环境、退出码及公开文件名集合通过真实子进程验证；POSIX launcher 用例按宿主跳过。VS Code 16 项测试、相关源码 lint／类型检查、workspace Clippy、7 项性能分析规则和 4 项 DLL 打包测试通过，VSIX 已重新生成；整个 tooling 的 Markdown 格式检查仍有既有差异。
+
+真实调试器包迁移到中文与空格目录、仅保留发行 bin 和 Windows 系统 PATH 后，6 个 LLVM 命令、LLDB 的私有 Python／原生模块／formatter 与 DAP initialize 均通过。完整源码调试会话已能启动程序并命中断点，但 Windows PDB 的函数名和部分断点行为尚未通过跨平台 DAP 断言，仍需闭合。
 
 首个归档已解压到中文及空格路径。在仅含安装 bin 和 Windows 系统目录的 PATH 下，三个目标的默认 SDK／工具发现、new/run/test、C++、console／GUI 和 RC 均通过；检查实际 PE imports 确认所选 CRT。随后修复了 canonical native sysroot 路径，并用更新的程序完成实际安装目录回归。该原型归档不是最终发行物。
 

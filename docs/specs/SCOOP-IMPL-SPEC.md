@@ -2043,7 +2043,9 @@ generated-C 桥没有用户源码映射，继续使用 `-g0`，通过实际符�
 
 编辑器复用官方 lldb-dap，scoop-lsp 保持语言服务职责。VS Code 提供源码 breakpoints、构建到 executable 的启动配置、attach、参数／cwd／环境／终端及 sourceMap，按需导入只读 Python formatter。发行包包含匹配平台的 lldb、lldb-dap、LLDB library、Python 支持及实际所需附加文件。不得把 C 兼容 evaluator、通用异常筛选或硬件 watchpoint 宣称为完整 Scoop 求值、Scoop 异常过滤或 GC 感知数据断点。
 
-Windows 的 `bin/lldb.exe` 与 `bin/lldb-dap.exe` 使用原生 launcher，定位安装根下的私有 LLDB、Python 和 formatter，并保留用户参数、工作目录、标准流及子进程退出码。LLDB 的 Clang resource headers 与其 DLL 按相对安装布局一同发布，使迁移安装目录后的表达式解析仍可使用配套头文件。
+所有宿主的发行包在公开 `bin` 目录中为 LLVM／LLDB 命令统一增加 `scoop-` 前缀：`scoop-lldb`、`scoop-lldb-dap`、`scoop-dsymutil`、`scoop-llvm-objcopy`、`scoop-llvm-strip`、`scoop-llvm-symbolizer`、`scoop-llvm-nm` 与 `scoop-llvm-readobj`；Windows 附加 `.exe`。不在该目录保留无前缀别名，避免加入 PATH 后与其他 LLVM 安装冲突。编译器查找同目录的调试工具、编辑器的默认 adapter 与性能分析命令使用发行名称；显式选择外部 LLVM 时仍使用其上游名称。私有 `libexec` 布局保留上游工具名。
+
+Windows 的 `bin/scoop-lldb.exe` 与 `bin/scoop-lldb-dap.exe` 使用原生 launcher，定位安装根下的私有 LLDB、Python 和 formatter，并保留用户参数、工作目录、标准流及子进程退出码。LLDB 的 Clang resource headers 与其 DLL 按相对安装布局一同发布，使迁移安装目录后的表达式解析仍可使用配套头文件。
 
 Linux/amd64 静态程序的 TLS 调试定位遵循目标的 variant II TLS 布局：使用当前线程的 thread pointer 与主 executable 的 PT_TLS 大小、对齐和起始偏移，不依赖不存在的动态 linker link map，也不读取其他线程的 TLS。该兼容处理位于 LLDB 的目标地址解析中；编译器继续发射标准 DW_OP_form_tls_address，不增加 runtime 调试入口或执行目标函数。动态加载模块仍使用原动态 loader 定位。
 

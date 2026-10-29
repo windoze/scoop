@@ -50,6 +50,7 @@ HTTP/3、HTTP/2 WebSocket，以及跨 origin H2 合并、证书固定／对端�
 
 
 原生调试：提供源码 DWARF、断点、静态变量和物理调用栈；debug 默认 full，release 默认 none，
-优化与调试级别可以独立选择。发行包新增 Python-enabled LLDB／lldb-dap、所需依赖及 formatter，
+优化与调试级别可以独立选择。发行包新增 Python-enabled `scoop-lldb`／`scoop-lldb-dap`、所需依赖及 formatter，
 VS Code 扩展提供构建、启动、附加与测试调试入口。Throwable 历史栈、重抛保留及 trap 栈输出已接入。
 调试来源使用会话内共享记录，MIR／LIR 不增加持久化调试快照；slib 默认改用 Zstd level 3。
+所有宿主的公开 LLVM 命令统一使用 `scoop-` 前缀，避免安装 `bin` 加入 PATH 后与其他 LLVM 工具冲突。VS Code 默认查找 `scoop-lldb-dap`，显式配置的 adapter 路径保持有效。

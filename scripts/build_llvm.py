@@ -42,6 +42,7 @@ TOOLS = (
     "llvm-symbolizer",
 )
 WINDOWS_RUNTIME_DLLS = ("libc++.dll", "libunwind.dll")
+SDK_LIBRARIES = ("LLVMDemangle", "LLVMSupport", "LLVMTableGen", "LLVMDebuginfod")
 
 
 def patch_windows_statepoint(source):
@@ -81,12 +82,14 @@ def configure(source, build, prefix, cc, cxx, host, release):
         "LLVM_DISTRIBUTION_COMPONENTS": ";".join(
             (
                 "LLVM",
+                *SDK_LIBRARIES,
                 "clang-cpp",
                 "clang-headers",
                 "clang-cmake-exports",
                 "llvm-headers",
                 "cmake-exports",
                 "clang-resource-headers",
+                "llvm-tblgen",
                 *(
                     tool
                     for tool in TOOLS
@@ -186,6 +189,8 @@ def main():
         "prefix": str(prefix),
     }
     outputs = [prefix / "bin" / (name + suffix) for name in TOOLS]
+    outputs.append(prefix / "bin" / ("llvm-tblgen" + suffix))
+    outputs.extend(prefix / "lib" / f"lib{name}.a" for name in SDK_LIBRARIES)
     outputs += [prefix / "include/llvm-c/Core.h", prefix / "lib/cmake/clang/ClangConfig.cmake"]
     outputs += [prefix / "lib/clang/22/include/stddef.h"]
     outputs += [prefix / "bin" / path.name for path in companions]
@@ -246,7 +251,9 @@ def main():
         env=environment,
     )
     for path in companions:
-        shutil.copy2(path, prefix / "bin" / path.name)
+        destination = prefix / "bin" / path.name
+        if not destination.is_file() or metadata(path)[1:] != metadata(destination)[1:]:
+            shutil.copy2(path, destination)
     actual = subprocess.check_output(
         [str(prefix / "bin" / ("llvm-config" + suffix)), "--version"], text=True
     ).strip()
