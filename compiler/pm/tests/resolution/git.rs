@@ -52,6 +52,11 @@ fn selected(directory: &Path, name: &str) -> (String, String, Vec<String>) {
 fn git_workspaces_same_repo_paths_selectors_updates_and_submodules_use_exact_commits() {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path();
+    #[cfg(unix)]
+    {
+        fs::create_dir(root.join("package-cache")).unwrap();
+        std::os::unix::fs::symlink("package-cache", root.join("cache")).unwrap();
+    }
     core(root);
     let assets = root.join("assets");
     init(&assets);
