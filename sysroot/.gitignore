@@ -1,2 +1,5 @@
 docs/**
 /src/**/target/
+/src/**/Cone.lock
+/share/scoop/examples/**/target/
+/share/scoop/examples/**/Cone.lock

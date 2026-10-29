@@ -142,6 +142,8 @@ MIR 已经执行的源码内联必须显式保留 callee 定义与调用点链�
 
 泛型函数各实例保留实际 linkage name 和 concrete 类型实参，同时关联同一源码定义。闭包及其他生成 helper 标记为 artificial，默认单步不反复落到无用户意义的位置。
 
+debug profile 的 GC 读取规范化不能移动用户的普通计算：仍产生机器操作的语句应按原求值顺序命中断点，不能因 InstCombine 的下沉或跨语句重组而直到函数末尾才停下。具体步骤遵循实现规范 2.4 的根规划合同；调试信息开关不改变该优化策略。
+
 ### 5.3 源码路径
 
 调试路径与语言的 canonical semantic source path 分开：

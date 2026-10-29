@@ -272,6 +272,14 @@ fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
             ["mov\tx2, x30", "mov\tx3, sp", "mov\tx4, x29"],
         ),
         (
+            "_scoop_rt_prepare_throwable:",
+            ["mov\tx2, x30", "mov\tx3, sp", "mov\tx4, x29"],
+        ),
+        (
+            "_scoop_rt_throwable_print_stack_trace:",
+            ["mov\tx1, x30", "mov\tx2, sp", "mov\tx3, x29"],
+        ),
+        (
             "_scoop_rt_context_ensure_root:",
             ["mov\tx1, x30", "mov\tx2, sp", "mov\tx3, x29"],
         ),
@@ -339,6 +347,8 @@ fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
         "_scoop_runtime_alloc_slow_impl",
         "_scoop_rt_gc_collect_impl",
         "_scoop_rt_string_concat_impl",
+        "_scoop_rt_prepare_throwable_impl",
+        "_scoop_rt_throwable_print_stack_trace_impl",
         "_scoop_rt_init_enter_impl",
         "_scoop_rt_init_succeed_impl",
         "_scoop_rt_init_fail_impl",

@@ -18,7 +18,7 @@ struct DependencyPropertyFixture {
     core: TrustedCoreFixture,
     coordinate: ConeCoordinate,
     foundation: scoop_hir::ImportedHirFoundation,
-    source_foundation: scoop_hir::OdrFreeHirFoundation,
+    source_foundation: scoop_hir::CanonicalHirFoundation,
     interface: scoop_hir::CrossConeHirInterfaceSectionV1,
     aliases: scoop_hir::CanonicalTypeAliasExpansionsV1,
 }
@@ -40,8 +40,7 @@ impl DependencyPropertyFixture {
         };
         let (foundation, interface) =
             project_dependency_without_default_roles(&core, &coordinate, provider, core_types);
-        let source_foundation =
-            scoop_hir::OdrFreeHirFoundation::try_new(foundation.clone()).unwrap();
+        let source_foundation = foundation.clone();
         let foundation = core.import_dependency_foundation(&coordinate, &foundation, 57);
         Self {
             core,

@@ -69,6 +69,20 @@ pub(super) fn check(
         expected.insert(format!("{capability}<Int, IntRange>"));
     }
     expected.insert("Option<String>".to_owned());
+    // Throwable stores its snapshot in an Array<UInt8>; its concrete methods
+    // retain the array, iteration and index/range protocol closure.
+    for element in ["Long", "UInt", "UInt8"] {
+        for capability in ["Iterable", "Iterator", "Option"] {
+            expected.insert(format!("{capability}<{element}>"));
+        }
+    }
+    for element in ["Long", "UInt"] {
+        expected.insert(format!("Contains<{element}>"));
+    }
+    for capability in ["Array", "Collection", "List", "ListIterator"] {
+        expected.insert(format!("{capability}<UInt8>"));
+    }
+    expected.insert("IndexGet<Long, UInt8>".to_owned());
     assert_eq!(applications, expected);
     let exact = plan
         .source_nominal_shapes()

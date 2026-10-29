@@ -1,15 +1,11 @@
 [
   {
-    "code": "SCOOP_BUILD_FAILED",
-    "message": "invalid build root: invalid Cone manifest root ${work}/input.scoop/Cone.toml: cannot inspect: No such file or directory (os error 2)",
+    "code": "SCOOP_PACKAGE_PREPARE",
+    "message": "${work}/input.scoop/Cone.toml: No such file or directory (os error 2)",
     "notes": [],
     "origin": {
-      "end": null,
-      "kind": "host",
-      "path": "${work}/input.scoop/Cone.toml",
-      "start": null
+      "kind": "none"
     },
-    "phase": "Root",
     "severity": "error"
   }
 ]

@@ -4,10 +4,7 @@ inputs = ["template", "left", "right", "root"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["odr", "context", "compiler-correctness"]
-variants = [
-  {name = "debug", vars = {profile = "debug", other_profile = "release"}},
-  {name = "release", vars = {profile = "release", other_profile = "debug"}},
-]
+variants = [{"name" = "debug", "vars" = {"profile" = "debug", "other_profile" = "release", "symbol_args" = ["--keep-symbols", "--emit-debug-file"], "stack_trace" = "true"}}, {"name" = "release", "vars" = {"profile" = "release", "other_profile" = "debug", "symbol_args" = [], "stack_trace" = "false"}}]
 
 [[steps]]
 name = "runtime_vendor"
@@ -24,7 +21,7 @@ files = [
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/source/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${profile}", "--message-format", "json"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/source/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${profile}", "--message-format", "json", "-o", "${work}/programs/build/program"]
 timeout = 300
 exit = 0
 stdout = ""
@@ -50,15 +47,15 @@ files = [
   {"copy" = {"from" = "${build.result.dependencies.1.path}", "to" = "${work}/artifacts/${build.result.dependencies.1.coordinate.group}/${build.result.dependencies.1.coordinate.name}/${build.result.dependencies.1.coordinate.version}/cone.slib"}},
   {"copy" = {"from" = "${build.result.dependencies.2.path}", "to" = "${work}/artifacts/${build.result.dependencies.2.coordinate.group}/${build.result.dependencies.2.coordinate.name}/${build.result.dependencies.2.coordinate.version}/cone.slib"}},
   {"copy" = {"from" = "${build.result.dependencies.3.path}", "to" = "${work}/artifacts/${build.result.dependencies.3.coordinate.group}/${build.result.dependencies.3.coordinate.name}/${build.result.dependencies.3.coordinate.version}/cone.slib"}},
-  {"replace" = {"path" = "${work}/source/root/Cone.toml", "old" = ", path = \"../template\"", "new" = ""}},
-  {"replace" = {"path" = "${work}/source/root/Cone.toml", "old" = ", path = \"../left\"", "new" = ""}},
-  {"replace" = {"path" = "${work}/source/root/Cone.toml", "old" = ", path = \"../right\"", "new" = ""}},
-  {"replace" = {"path" = "${work}/source/right/Cone.toml", "old" = ", path = \"../template\"", "new" = ""}},
+  {"replace" = {"path" = "${work}/source/root/Cone.toml", "old" = "version = \"0.1.0\", path = \"../template\"", "new" = "version = \"=0.1.0\", artifact = \"../../artifacts/dev.m31.odr/z-template/0.1.0/cone.slib\""}},
+  {"replace" = {"path" = "${work}/source/root/Cone.toml", "old" = "version = \"0.1.0\", path = \"../left\"", "new" = "version = \"=0.1.0\", artifact = \"../../artifacts/dev.m31.odr/a-left/0.1.0/cone.slib\""}},
+  {"replace" = {"path" = "${work}/source/root/Cone.toml", "old" = "version = \"0.1.0\", path = \"../right\"", "new" = "version = \"=0.1.0\", artifact = \"../../artifacts/dev.m31.odr/b-right/0.1.0/cone.slib\""}},
+  {"replace" = {"path" = "${work}/source/right/Cone.toml", "old" = "version = \"0.1.0\", path = \"../template\"", "new" = "version = \"=0.1.0\", artifact = \"../../artifacts/dev.m31.odr/z-template/0.1.0/cone.slib\""}},
 ]
 
 [[steps]]
 name = "change_profile"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/source/right", "--sysroot", "${work}/prebuilt-sysroot", "--cone-path", "${work}/artifacts", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${other_profile}", "--message-format", "json", "-o", "${work}/artifacts/dev.m31.odr/b-right/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/source/right", "--sysroot", "${work}/prebuilt-sysroot", "--cone-path", "${work}/artifacts", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${other_profile}", "--message-format", "json", "-o", "${work}/artifacts/dev.m31.odr/b-right/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -72,7 +69,7 @@ checks = [
 
 [[steps]]
 name = "mixed"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/source/root", "--sysroot", "${work}/prebuilt-sysroot", "--cone-path", "${work}/artifacts", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${profile}", "--message-format", "json"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/source/root", "--sysroot", "${work}/prebuilt-sysroot", "--cone-path", "${work}/artifacts", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${profile}", "--message-format", "json", "-o", "${work}/programs/mixed/program"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -87,7 +84,7 @@ checks = [
 
 [[steps]]
 name = "warm"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/source/root", "--sysroot", "${work}/prebuilt-sysroot", "--cone-path", "${work}/artifacts", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${profile}", "--message-format", "json"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/source/root", "--sysroot", "${work}/prebuilt-sysroot", "--cone-path", "${work}/artifacts", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${profile}", "--message-format", "json", "-o", "${work}/programs/warm/program"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -100,7 +97,7 @@ checks = [
 
 [[steps]]
 name = "link"
-argv = ["${scoop}", "link", {"each" = "${link_args}"}, "--root-slib", "${mixed.result.root.path}", "--dependency-slib", "${mixed.result.dependencies.3.path}", "--dependency-slib", "${mixed.result.dependencies.2.path}", "--dependency-slib", "${mixed.result.dependencies.1.path}", "--dependency-slib", "${mixed.result.dependencies.0.path}", "--runtime-objects", "${mixed.result.runtime_index}", "--sysroot", "${sysroot}", "-o", "${work}/relinked", "--message-format", "json", "--cache-dir", "${cache}"]
+argv = ["${scoop}", "link", {"each" = "${link_args}"}, "--root-slib", "${mixed.result.root.path}", "--dependency-slib", "${mixed.result.dependencies.3.path}", "--dependency-slib", "${mixed.result.dependencies.2.path}", "--dependency-slib", "${mixed.result.dependencies.1.path}", "--dependency-slib", "${mixed.result.dependencies.0.path}", "--runtime-objects", "${mixed.result.runtime_index}", "--sysroot", "${sysroot}", "-o", "${work}/programs/link/program", "--message-format", "json", "--cache-dir", "${cache}", {"each" = "${symbol_args}"}, "--enable-stack-trace=${stack_trace}"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -124,7 +121,7 @@ files = [
 
 [[steps]]
 name = "changed_template"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/changed-template", "--sysroot", "${work}/prebuilt-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${profile}", "--message-format", "json", "-o", "${work}/artifacts/dev.m31.odr/z-template/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/changed-template", "--sysroot", "${work}/prebuilt-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${profile}", "--message-format", "json", "-o", "${work}/artifacts/dev.m31.odr/z-template/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""

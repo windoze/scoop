@@ -1,7 +1,7 @@
 [
   {
-    "code": "SCOOP_BUILD_FAILED",
-    "message": "invalid build root: invalid Cone manifest root ${work}/cone/Cone.toml: invalid native option \"-fpreprocessed\": option is managed by the native driver",
+    "code": "SCOOP_PACKAGE_PREPARE",
+    "message": "${work}/cone/Cone.toml: invalid native option \"-fpreprocessed\": option is managed by the native driver",
     "notes": [],
     "origin": {
       "end": 135,
@@ -9,7 +9,6 @@
       "path": "${work}/cone/Cone.toml",
       "start": 119
     },
-    "phase": "Root",
     "severity": "error"
   }
 ]

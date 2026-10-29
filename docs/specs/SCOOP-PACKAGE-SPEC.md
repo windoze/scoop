@@ -8,6 +8,8 @@ Scoop 尚未发布。本次直接重定义 `Cone.toml` 的初始 schema，与仓
 
 本轮交付 workspace、path/Git/sysroot/artifact 依赖、版本与 lock、本地清单编辑、构建与 LSP 接入、配套工具发行，以及第 8 节静态 registry 的索引读取和归档下载消费。第 9 节源码打包/发布工具留至下一阶段；本轮以预先生成的静态文件验收消费闭环。
 
+当前可用的手工打包、静态目录组织和部署方法见[如何组织和发布 registry](https://scoop-lang.org/guides/registry.html)。
+
 ## 1. 职责与交付边界
 
 | 组件 | 负责的输入与输出 |

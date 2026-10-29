@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn include_file_changes_refresh_root_and_source_dependency_without_source_edits() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
     let root = directory.path();
     let configuration = setup(root);
     let core_sources =

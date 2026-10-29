@@ -121,7 +121,10 @@ private class AsyncTemporaryFileTest {
                         temporaryDirectory().canonicalize()
                     else
                         temporaryDirectory()
-                assertEquals(expectedParent, defaultPath.parent!!)
+                assertEquals(
+                    expectedParent.normalizeLexically(),
+                    defaultPath.parent!!.normalizeLexically()
+                )
                 loop.deleteFile(defaultPath)
             }
         }

@@ -43,7 +43,7 @@ name = "human"
 argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/input.scoop", "-o", "${work}/previous.slib", {"each" = "${human_options}"}]
 exit = 1
 stdout = ""
-stderr = "${work}/input.scoop/Cone.toml: error[SCOOP_BUILD_FAILED]: invalid build root: invalid Cone manifest root ${work}/input.scoop/Cone.toml: cannot inspect: No such file or directory (os error 2)\n"
+stderr = "error[SCOOP_PACKAGE_PREPARE]: ${work}/input.scoop/Cone.toml: No such file or directory (os error 2)\n"
 checks = [
   {"file" = "${work}/previous.slib", "equals" = "previous output\n"},
 ]

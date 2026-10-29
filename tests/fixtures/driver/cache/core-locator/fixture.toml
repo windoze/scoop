@@ -169,7 +169,7 @@ stderr = ""
 name = "publish_core"
 files = [
   {"copy" = {"from" = "${changed.result.dependencies.0.path}", "to" = "${work}/core.slib"}},
-  {"replace" = {"path" = "${work}/sources/root/Cone.toml", "old" = "path = \"../core\"", "new" = "artifact = \"../../core.slib\""}},
+  {"replace" = {"path" = "${work}/sources/root/Cone.toml", "old" = "version = \"0.1.0\", path = \"../core\"", "new" = "version = \"=0.1.0\", artifact = \"../../core.slib\""}},
 ]
 
 [[steps]]

@@ -181,6 +181,10 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
     copy_tree(&vendor_root().join("ryu"), &vendor.join("ryu"));
     #[cfg(windows)]
     copy_tree(&vendor_root().join("gdtoa"), &vendor.join("gdtoa"));
+    copy_tree(
+        &vendor_root().join("libbacktrace"),
+        &vendor.join("libbacktrace"),
+    );
     std::fs::write(
         source.join("include/m48_candidate.h"),
         "#define M48_VALUE 1\n",

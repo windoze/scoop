@@ -12,7 +12,7 @@
 #include "../src/gc/heap_internal.h"
 #undef stress_move
 #include "../src/managed_entries.h"
-#include "../src/thread.h"
+#include "../src/thread/internal.h"
 #include "platform/image_fixture.h"
 
 typedef struct TestLeaf {
@@ -116,6 +116,14 @@ static void wait_for_collection_start(const ThreadProbe *probe) {
     } while (epoch == UINT64_MAX);
     while (scoop_rt_thread_debug_gc_epoch() == epoch) {
         sched_yield();
+    }
+    /* The epoch increments before STOPPING is published. A borrowed entry
+     * may return immediately while the world is still RUNNING. */
+    if (probe->kind == PROBE_NATIVE_BORROWED) {
+        while (atomic_load_explicit(&scoop_thread_world_phase, memory_order_acquire) ==
+               SCOOP_WORLD_RUNNING) {
+            sched_yield();
+        }
     }
 }
 

@@ -16,7 +16,11 @@ fn c_handle_source_fixtures_preserve_native_hir_and_mir_projections() {
         ("handle-c-combined.scoop", &["GcHandle", "PinnedPtr"][..]),
     ] {
         let text = fixture(name);
-        let output = lower(&[complete_core_file(), scoop_parser::parse(&text).unwrap()]).unwrap();
+        let output = lower_with_source(
+            &[complete_core_file(), scoop_parser::parse(&text).unwrap()],
+            &text,
+        )
+        .unwrap();
         let mir = scoop_mir_lower::lower(&output.local).unwrap();
         for name in handles {
             let (id, _) = output

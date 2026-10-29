@@ -29,7 +29,6 @@ names = (
     "clearWrapped",
     "fillNodes",
     "fillInterfaces",
-    "emptyStorage",
 )
 for name in names:
     function, lir = body(name)
@@ -44,6 +43,11 @@ for name in names:
         ):
             assert not re.search(r"^      (call|throw) ", block[1], re.M), name
             assert "ClassAlloc" not in block[1] and "Box {" not in block[1], name
+
+# A MaybeUninit initializer needs no element loop in either profile.
+empty, _ = body("emptyStorage")
+assert "ArrayAllocate MutableArray<MaybeUninit<Node>>" in empty
+assert "<loop-header-poll>" not in empty and "poll.full." not in empty
 
 # The GC carrier shares the kernels but supplies different callers.
 if len(sys.argv) == 3:

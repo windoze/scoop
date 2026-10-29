@@ -93,6 +93,7 @@ def launch(client, configuration, source):
     )
     thread, frames = stopped(client)
     assert frames[0]["name"] == "inspectValues", frames
+    assert frames[0]["line"] == markers["values"], frames
     assert Path(frames[0]["source"]["path"]).resolve() == source.resolve(), frames
     assert any(frame["name"] == "main" for frame in frames[1:]), frames
     values = variables(client, frames[0])

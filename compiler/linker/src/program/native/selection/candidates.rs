@@ -54,6 +54,21 @@ pub(in crate::program::native) fn candidate(
             candidates.push((Candidate::Object(id), index.definitions[symbol].binding));
         }
     }
+    if explicit.is_none()
+        && let crate::namespace::NativeNamespace::Elf(namespace) = &inputs.namespace
+        && namespace.system.contains_key(symbol)
+        && !namespace
+            .system_interfaces
+            .values()
+            .any(|interface| interface.find(symbol, None).is_some())
+        && candidates.iter().any(|(candidate, binding)| {
+            *binding == NativeSymbolBinding::Strong && !system_candidate(candidate)
+        })
+    {
+        // Toolchain archives follow explicit inputs and only supply missing
+        // definitions, including arithmetic builtins bundled by Rust staticlibs.
+        candidates.retain(|(candidate, _)| !system_candidate(candidate));
+    }
     choose(symbol, candidates, inputs.target.native_object_format())?.or_else(|| {
         (explicit.is_none() && matches!(inputs.namespace, crate::namespace::NativeNamespace::Coff(_)))
             .then_some(Candidate::Dynamic(crate::namespace::NativeBinding::Coff(crate::namespace::coff::CoffBinding::Linker)))
@@ -61,6 +76,15 @@ pub(in crate::program::native) fn candidate(
         Some(ids) => format!("native library {} does not provide {symbol}", ids.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ")),
         None => format!("unresolved native symbol {symbol} in default namespace (unresolved symbol {symbol})"),
     }))
+}
+
+fn system_candidate(candidate: &Candidate) -> bool {
+    matches!(
+        candidate,
+        Candidate::Dynamic(crate::namespace::NativeBinding::Elf(
+            crate::namespace::elf::ElfBinding::System(_)
+        ))
+    )
 }
 
 fn choose(

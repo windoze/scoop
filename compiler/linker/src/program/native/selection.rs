@@ -1,7 +1,7 @@
 use super::*;
 use crate::NativeSymbolBinding;
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests;
 
 mod candidates;

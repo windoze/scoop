@@ -25,15 +25,16 @@ pub(super) fn check_machine_input(request: SingleConeBuildRequest, selected_coun
     let projected = closure
         .project_dependency_callables_to_mir(&hir.hir)
         .unwrap();
-    let initialization_count = usize::from(
-        !hir.hir
-            .output()
-            .local
-            .module()
-            .initialization_units
-            .is_empty(),
+    // Core helpers also support materialized generic bodies such as the
+    // Throwable snapshot array. Count calls to the fixture providers here.
+    assert_eq!(
+        projected
+            .callables()
+            .iter()
+            .filter(|callable| callable.provider() != ConeIdentity::CORE)
+            .count(),
+        selected_count
     );
-    assert_eq!(projected.len(), selected_count + initialization_count);
     scoop_mir_lower::lower_current_cone(&hir.hir, projected, Default::default(), None).unwrap();
     if selected_count != 0 {
         let consumer = hir.hir.output().local.module().cone;

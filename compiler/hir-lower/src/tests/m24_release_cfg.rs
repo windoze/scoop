@@ -1,10 +1,13 @@
 use scoop_mir as mir;
 
 fn lower(source: &str) -> mir::Module {
-    let output = super::lower(&[
-        super::complete_core_file(),
-        scoop_parser::parse(source).unwrap(),
-    ])
+    let output = super::lower_with_source(
+        &[
+            super::complete_core_file(),
+            scoop_parser::parse(source).unwrap(),
+        ],
+        source,
+    )
     .unwrap();
     scoop_mir_lower::lower(&output.local).unwrap()
 }

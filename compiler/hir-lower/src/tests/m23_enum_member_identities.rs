@@ -16,7 +16,11 @@ struct ProjectedVariant {
 }
 
 fn project(source: &str) -> Vec<ProjectedEnum> {
-    let output = lower(&[complete_core_file(), scoop_parser::parse(source).unwrap()]).unwrap();
+    let output = lower_with_source(
+        &[complete_core_file(), scoop_parser::parse(source).unwrap()],
+        source,
+    )
+    .unwrap();
     let mir = scoop_mir_lower::lower(&output.local).unwrap();
     let export = output.export.module();
     let concrete = output.local.module();

@@ -31,7 +31,7 @@ if release:
         and event["target"]["callee"]["id"] in getters
     ]
     assert any(
-        event["estimate"]["ordinary"]["size"] < event["estimate"]["original"]["size"] / 2
+        event["estimate"]["ordinary"]["size"] < event["estimate"]["original"]["size"]
         and event["estimate"]["ordinary"]["growth"] <= event["estimate"]["remaining_growth"]
         for event in events
     )

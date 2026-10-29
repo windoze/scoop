@@ -60,7 +60,6 @@ fun greeting(name: String?): String =
 ## 编译期文件与环境
 
 先查 `language/compiler-inputs`，按显示路径保存项目及资源。core 的 `scoop.compiler` 不进入默认 prelude，需显式导入 includeStr、includeBytes、includeDir 或 env。
-
 - includeStr 返回严格 UTF-8 的 String；includeBytes 返回不可变 `Array<Byte>`；includeDir 返回 EmbeddedDir，files 中每项含 path 和 bytes，按相对路径排序，下标查询返回 `Array<Byte>?`。
 - 路径相对调用所在源码目录，目标和全部 symlink 解析后的目标都须留在定义 Cone 内。includeDir 对每一项执行检查，include／exclude 不绕过边界检查；glob 使用 `/` 和区分大小写的完整相对路径，`**/*.txt` 包括根目录文件。
 - env 返回 `Option<String>`，仅接受以区分大小写的 `SCOOP_` 开头的名称。缺失为 None、空值为 `Some("")`；读取定义 Cone 编译时的宿主环境，运行期改变环境不改变嵌入值。

@@ -117,6 +117,19 @@ fn published_type_occurrences_retain_imported_evaluation_and_definition_sites() 
                     }
                     roles.insert(expression.role());
                 } else {
+                    if core_declaration(
+                        site,
+                        production.layout().hir_foundation(),
+                        closure
+                            .semantic()
+                            .direct_provider(ConeIdentity::CORE)
+                            .unwrap()
+                            .production()
+                            .layout()
+                            .hir_foundation(),
+                    ) {
+                        continue;
+                    }
                     let index = match site {
                         Site::CallableSignature { .. } => 0,
                         Site::LocalValue { .. } => 1,
@@ -147,8 +160,7 @@ fn published_type_occurrences_retain_imported_evaluation_and_definition_sites() 
             assert!(declarations[0] > 2 && declarations[1] > 1 && declarations[2] > 0);
             assert!(declarations[3] > 0);
         } else if name == "storage-standalone" {
-            // Finite coroutine support retains one core Option storage field.
-            assert_eq!(declarations[4..], [0, 1, 1, 0]);
+            assert_eq!(declarations[4..], [0, 0, 1, 0]);
         } else if name == "storage-combined" {
             assert!(declarations[4..].iter().all(|count| *count > 0));
         } else if name == "standalone" {
@@ -166,4 +178,47 @@ fn published_type_occurrences_retain_imported_evaluation_and_definition_sites() 
             );
         }
     }
+}
+
+fn core_declaration(
+    site: &scoop_hir::HirDependencyTypeSiteV1,
+    current: &scoop_hir::CanonicalHirFoundation,
+    core: &scoop_hir::CanonicalHirFoundation,
+) -> bool {
+    use scoop_hir::HirDependencyTypeSiteV1 as Site;
+    use scoop_identity::{
+        CallableTemplateOwner as Owner, DefinitionOriginSubject as Subject, PropertyOwner,
+    };
+    let callable = |root: scoop_identity::CallableMaterialization| match root.template() {
+        Owner::Function(id) => Some(Subject::Function(id)),
+        Owner::GenericFunction(id) => Some(Subject::GenericFunction(id)),
+        Owner::Constructor(id) => Some(Subject::Constructor(id)),
+        Owner::Accessor(id) => Some(Subject::PropertyAccessor(id)),
+        Owner::Generated(id) => Some(Subject::GeneratedCallable(id)),
+        Owner::VariantConstructor(id) => Some(Subject::EnumVariant(id)),
+        Owner::ReleaseHook(_) => None,
+    };
+    let subject = match site {
+        Site::CallableSignature { root, .. } => callable(*root),
+        Site::ConstructorInitializerResult { constructor, .. } => callable(*constructor),
+        Site::LocalValue { local, .. } => Some(Subject::LocalValue(*local)),
+        Site::BackingStorage { property, .. } | Site::DelegateStorage { property, .. } => {
+            Some(match property {
+                PropertyOwner::Property(id) => Subject::Property(*id),
+                PropertyOwner::ExtensionProperty(id) => Subject::ExtensionProperty(*id),
+            })
+        }
+        Site::FieldStorage { field, .. } => Some(Subject::Field(*field)),
+        Site::EnumVariantFieldStorage { field, .. } => Some(Subject::EnumVariantField(*field)),
+        Site::InitializationCycleMessage { unit, .. }
+        | Site::GenericDelegateStorage { unit, .. } => Some(Subject::InitializationUnit(*unit)),
+        Site::Expression(_) => None,
+    };
+    subject
+        .and_then(|subject| {
+            current
+                .definition_origin(subject)
+                .or_else(|| core.definition_origin(subject))
+        })
+        .is_some_and(|origin| origin.origin().source().cone() == ConeIdentity::CORE)
 }

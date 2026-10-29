@@ -9,7 +9,7 @@ pub(super) fn single_file_root(cwd: &Path, input: PathBuf) -> BuildResult<BuildR
     let input = absolute(cwd, input)?;
     SingleFileLocator::from_path(input)
         .map(BuildRootInput::single_file)
-        .map_err(config)
+        .map_err(|error| config(&error).at_host(error.path()))
 }
 
 pub(super) fn build_cache(

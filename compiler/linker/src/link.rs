@@ -15,7 +15,7 @@ mod elf;
 mod pe;
 mod response;
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests;
 #[cfg(all(test, windows, target_arch = "x86_64"))]
 mod windows_tests;

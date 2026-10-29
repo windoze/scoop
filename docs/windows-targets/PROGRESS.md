@@ -1,6 +1,6 @@
 # Windows targets 实施进度
 
-分支：`codex/windows-targets`。更新于 2026-10-29；已整合主线 `34c78ad3c`，包含原生调试、Throwable 栈快照开关与编译期输入 intrinsic。
+分支：`codex/windows-targets`。更新于 2026-10-29；已整合主线 `ae13036d9`，包含原生调试、Throwable 栈快照开关、编译期输入 intrinsic 与 debug aggregate 优化修正。
 本文只记录当前实现、验证结果和未完成项；设计合同见 [DESIGN.md](DESIGN.md)。
 
 | 阶段 | 当前状态 | 剩余验收 |
@@ -48,6 +48,8 @@ ABI 30 的三个目标各通过 13 项定向 fixture，覆盖开关与重链接�
 
 文件 fixture 的 Windows 扩展仍在验收。ABI 29／协议 23 下新增验收的 107 个诊断 fixture 全部通过，覆盖 smart cast、类型别名、尾随 lambda、可见性、源码头、UTF-8 与 when 规则；共享预编译 core，共 107 次 CLI 调用。公共 runner 的格式化／Ruff 通过，68 项规则测试完成（其中 3 项按宿主跳过）。33 个继承规则用例复用固定的共享 core 后全部通过；6 个 primitive inherited-method 用例也已通过，其中五个共享固定输入，combined 保留修改前后的真实 core 构建。6 个根类型错误用例精确断言被测规则诊断，去除对其他 core 源码连带错误的完整快照依赖，均已通过。较大的完整 core 构建步骤采用 900 秒测试时限；普通运行断言不变。Windows 本地化错误、LF 字节位置、COFF archive 成员、当前 runtime 字段以及泛型初始化登记的断言按实际合同调整，不通过隐藏输入或工具验收复用。
 
+`ae13036d9` 合并后，Rust fmt／workspace Clippy、60 项 statepoint、8 项 Windows codegen、7 项缓存键、runtime 输入更新、Windows PE／完整 runtime ABI，以及 70 项 fixture runner 规则测试通过（3 项按宿主跳过）。LLVM IR 测试输入固定 LF，Unix 链接测试显式限定其宿主；Windows 使用独立的真实 PE 测试。7 项实际 CLI fixture 覆盖合并冲突处的异常返回、接口／C++ 产物、TLS callback、泛型组合／siblings 与 PDB。检查脚本固定 UTF-8／LF，重链接比较使用一致的 executable basename；泛型行为用例移除无关的完整 archive 成员编号快照，保留编译、产物消费和运行断言。11 项语法 corpus、27 项语法规则与 16 项 VS Code 测试通过，VSIX 已重新生成。
+
 上述 Windows 扩展在 ABI 29／协议 23 下完成默认 MSVC 目标的 403 项实际验收：107 个诊断用例、292 个语言／跨产物用例和 4 个编译期输入用例全部通过。结构装箱用例的编译、产物消费和运行通过后，移除与该行为无关的完整归档成员数量快照，定向复测通过；归档格式继续由专门产物测试覆盖。没有将该结果扩大为 ABI 30 或其他目标的完整重复验收。
 
 ## 系统库与 native 后端
@@ -76,7 +78,7 @@ PCRE2 10.49、OpenSSL 3.5.9、uriparser 1.0.2、Rust 文本后端、Zstandard、
 
 终端异步、log、console log 和 CLI 的 MSVC／MinGW UCRT 测试已通过。JSON 完整 API 在默认 MSVC 目标上 71 个容器／101 项全部通过。HTTP asyncio 在 ABI 29 的默认 MSVC 目标运行 55 个容器／145 项，144 项通过；唯一失败是收到连接错误便假定异步关闭已完成的测试时序。按既有 isClosing／isClosed 合同显式等待 close 后，原测试源码与必要 helper 的小型 Cone 定向验证 2 项全部通过，失败闭合；库行为未改。此前并行大型编译触及内存上限，已降低并发；没有修改编译器语义或增加资源预算机制。
 
-HTTP client 的 ABI 29 完整测试程序在默认 MSVC 目标运行 193 项，首轮 191 项通过。SSE duplex 用例在客户端关闭前显式等待测试服务端完成发送，消除最后一帧与关闭的竞争；修改后的原函数及 helper 通过独立 consumer Cone 的 5 次定向执行，不改变库行为。另一项重试等待失败仍在定位，server 及 consumer 验收继续进行；不将这组结果记为全部通过。
+HTTP client 的 ABI 29 完整测试程序在默认 MSVC 目标运行 193 项，首轮 191 项通过。SSE duplex 用例在客户端关闭前显式等待测试服务端完成发送，消除最后一帧与关闭的竞争；修改后的原函数及 helper 通过独立 consumer Cone 的 5 次定向执行，不改变库行为。剩余失败已按名称定位为连接拒绝后的重试用例（case 150），不是共享等待 helper 所在的 backoff 取消用例（case 148）；原完整程序的后者单独运行通过，去掉诊断打印的原函数与 SSE consumer 定向 Cone 共 2 项也通过。连接拒绝、server 及 consumer 验收继续进行；不将这组结果记为全部通过。
 
 ## 发行与剩余工作
 

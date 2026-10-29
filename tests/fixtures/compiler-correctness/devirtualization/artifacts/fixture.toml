@@ -4,10 +4,7 @@ inputs = ["provider", "consumer"]
 tools = ["scoop", "scoopc", "scoop-link"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["stage-golden", "devirtualization", "generics", "compiler-correctness"]
-variants = [
-  {name = "debug", vars = {profile = "debug", provider_profile = "release"}},
-  {name = "release", vars = {profile = "release", provider_profile = "debug"}},
-]
+variants = [{"name" = "debug", "vars" = {"profile" = "debug", "provider_profile" = "release", "symbol_args" = ["--keep-symbols", "--emit-debug-file"], "stack_trace" = "true"}}, {"name" = "release", "vars" = {"profile" = "release", "provider_profile" = "debug", "symbol_args" = [], "stack_trace" = "false"}}]
 
 [[steps]]
 name = "prepare"
@@ -31,7 +28,7 @@ checks = [
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/consumer", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "--emit", "mir", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/consumer", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "--emit", "mir", "--dump-dir", "${work}/dump", "-o", "${work}/programs/consumer/program"]
 timeout = 300
 exit = 0
 stdout = ""
@@ -44,14 +41,14 @@ checks = [
 
 [[steps]]
 name = "link"
-argv = ["${scoop-link}", {"each" = "${link_args}"}, "--root-slib", "${consumer.result.root.path}", {"each" = "${consumer.result.dependencies}", "field" = "path", "prefix" = "--dep-slib"}, "--runtime-objects", "${consumer.result.runtime_index}", "-o", "${work}/relinked", "--cache-dir", "${cache}", "--sysroot", "${sysroot}"]
+argv = ["${scoop-link}", {"each" = "${link_args}"}, "--root-slib", "${consumer.result.root.path}", {"each" = "${consumer.result.dependencies}", "field" = "path", "prefix" = "--dep-slib"}, "--runtime-objects", "${consumer.result.runtime_index}", "-o", "${work}/programs/link/program", "--cache-dir", "${cache}", "--sysroot", "${sysroot}", {"each" = "${symbol_args}"}, "--enable-stack-trace=${stack_trace}"]
 exit = 0
 stdout = "link-plan ${consumer.result.link_plan_fingerprint}\n"
 stderr = ""
 
 [[steps]]
 name = "run"
-argv = ["${work}/relinked"]
+argv = ["${work}/programs/link/program"]
 exit = 0
 stdout = "devirtualized artifacts\n"
 stderr = ""

@@ -32,6 +32,7 @@
 (navigation_expression member: (identifier) @variable.member)
 (property_declaration "val" name: (identifier) @variable.readonly)
 (call_expression function: (identifier) @function.call)
+(call_expression function: (user_type (type_identifier) @function.call (type_arguments)? .))
 (call_expression function: (navigation_expression member: (identifier) @function.method.call))
 (callable_reference name: (identifier) @function)
 (infix_expression operator: (identifier) @function.call)

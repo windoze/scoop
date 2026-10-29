@@ -7,6 +7,9 @@ fn real_core(root: &Path) {
 
 fn start(root: &Path, relative: bool) -> Client {
     let mut client = Client::start();
+    // These integration tests analyze the full source core with an unoptimized
+    // server, which can exceed the small-fixture timeout during parallel builds.
+    client.set_response_timeout(std::time::Duration::from_secs(120));
     client.request("initialize", json!({
         "processId": null,
         "capabilities": {"workspace": {"didChangeWatchedFiles": {"dynamicRegistration": true, "relativePatternSupport": relative}}},
@@ -76,7 +79,7 @@ fn error(client: &mut Client, source: &str, text: &str) {
 fn file_resources_refresh_diagnostics_and_retire_unused_watches_without_source_edits() {
     let directory = tempfile::Builder::new()
         .prefix("scoop inputs ")
-        .tempdir()
+        .tempdir_in(std::env::temp_dir().canonicalize().unwrap())
         .unwrap();
     let root = directory.path();
     setup(root);
@@ -126,7 +129,7 @@ fn file_resources_refresh_diagnostics_and_retire_unused_watches_without_source_e
 
 #[test]
 fn directory_resources_in_source_dependencies_watch_nested_entries_and_link_targets() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
     let root = directory.path();
     let manifest = setup(root);
     real_core(root);

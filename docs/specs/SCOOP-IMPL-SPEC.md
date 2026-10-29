@@ -242,7 +242,7 @@ core 的 Add 等普通运算符接口不进入编译器内建 protocol 表。HIR
 
 构造器的公共初始化片段采用当前终结构造器的求值上下文；在片段具体化期间请求的独立派生比较正文不继承该上下文覆盖。派生正文使用自身已经绑定的完整来源，返回后继续按原构造器上下文处理初始化片段，不能把另一个文件的比较来源与当前构造器的上下文拼接。
 
-控制表达式的分支结果物化为临时赋值或丢弃结果语句时，语句 span 使用该表达式在当前正文的 evaluation span。导入常量的字面量继续保留 provider definition origin，不能把 provider 的字节偏移与 consumer 的文件或正文上下文拼接；普通正文、缺省值和导出内联模板遵守同一规则。
+控制表达式的分支结果物化为临时赋值或丢弃结果语句时，语句 span 使用该表达式在当前正文的 evaluation span。lambda 尾表达式生成的隐式返回或丢弃结果语句也使用 evaluation span。导入常量的字面量继续保留 provider definition origin，不能把 provider 的字节偏移与 consumer 的文件或正文上下文拼接；普通正文、缺省值和导出内联模板遵守同一规则。
 
 依赖携带的 source record 与 source context 用于诊断及实际语义引用。读取其格式、范围和引用即可使用，不再遍历 provider 的副本逐字段比较来证明来源；源码显示内容不构成产物认证信息。
 
@@ -374,7 +374,9 @@ ARM64 release 的 TLAB context 地址在每次函数调用内按首次使用取�
 
 `ManagedPoll` 表示运行时规范 3.2 的条件 poll，携带唯一慢路径 site 与完整 live set。codegen 发射 acquire 检查和快／慢分支，只在慢分支物化该站点的 managed leaves、调用协调入口并回写 relocation；后续使用通过普通 canonical storage／SSA 合流取得快路径原值或慢路径新值。Full 模式用于已激活的普通 managed 执行，只读取 world phase；Gateway 模式保留入口 pending 的 mode／epoch 检查，不能仅按 world phase 删除首次激活。TLS 与全局数据引用使用闭合 runtime ABI 目录中的普通数据合同。
 
-普通 Managed call 的 LIR 根计划分别记录调用期间所需的来源与返回后是否需要恢复。直接 ABI 的 managed pointer／接口 object 实参由 LLVM 的实际 AS1 call operand 保持为调用期间的 root；返回后已死的来源不生成恢复 `llvm.fake.use` 或 leaf 写回。正常后继仍活跃的来源保留恢复；Indirect／byval 实参的内部 leaves 沿显式 leaf 暴露与恢复路径保留，不能把 AS0 storage 地址当作 managed root。codegen 展开分配、装箱、数组与 String 复制时，分配后仍使用的输入同样必须恢复，即使源码层操作之后不再读取它们。poll 的活跃值全部需要恢复。invoke 按已有 normal／unwind 两份使用条件恢复显式 compiler roots；native transition 保持原发布、borrow 与返回握手协议。最终逻辑根身份只要求实际恢复的 leaves，物理 root 数继续消费 RS4GC 的实际结果，包含只有调用期间用途的 direct AS1 实参。此内部 LIR 信息不改变 `.slib`、调用 ABI 或 runtime stackmap 格式，全部 profile 遵守相同规则。debug 在既有 SROA／mem2reg／SCCP 后同样执行普通 InstCombine 与 EarlyCSE：将聚合字段读取规范化为标量读取，再合并无中间写入的重复读取，避免调用实参与后继根的等值读取直到机器下降才合并。两种模式都在晚期聚合分解和 RS4GC 前完成此规范化；release 复用原有步骤，不增加独立根等价分析。
+普通 Managed call 的 LIR 根计划分别记录调用期间所需的来源与返回后是否需要恢复。直接 ABI 的 managed pointer／接口 object 实参由 LLVM 的实际 AS1 call operand 保持为调用期间的 root；返回后已死的来源不生成恢复 `llvm.fake.use` 或 leaf 写回。正常后继仍活跃的来源保留恢复；Indirect／byval 实参的内部 leaves 沿显式 leaf 暴露与恢复路径保留，不能把 AS0 storage 地址当作 managed root。codegen 展开分配、装箱、数组与 String 复制时，分配后仍使用的输入同样必须恢复，即使源码层操作之后不再读取它们。poll 的活跃值全部需要恢复。invoke 按已有 normal／unwind 两份使用条件恢复显式 compiler roots；native transition 保持原发布、borrow 与返回握手协议。最终逻辑根身份只要求实际恢复的 leaves，物理 root 数继续消费 RS4GC 的实际结果，包含只有调用期间用途的 direct AS1 实参。此内部 LIR 信息不改变 `.slib`、调用 ABI 或 runtime stackmap 格式，全部 profile 遵守相同规则。
+
+debug 在原读取位置将含 managed 引用的普通聚合 load 分解为实际字段读取，保留目标布局、对齐与源码位置；volatile 读取保持原有访问。随后执行 SROA／mem2reg／SCCP／EarlyCSE／InstSimplify，合并无中间写入的重复读取，避免调用实参与后继根的等值读取直到机器下降才合并。debug 不运行会移动或重组用户计算的 InstCombine，保证仍有实际计算的语句能在原求值顺序中设置断点。两种模式都在晚期聚合分解和 RS4GC 前完成读取规范化；release 复用原有 InstCombine 等优化步骤，不增加独立根等价分析。该 profile 规则与调试信息级别正交，不为调试新增读取或保活。
 
 LIR lowering 在最终 CFG 上按运行时规范 3.2 省去有界普通叶函数的入口 poll，普通入口与循环选 Full。root／initialization startup gateway 由已有的完整 callable body key 区分，入口始终选 Gateway；callback adapter 沿 runtime 已激活协议选择普通模式。叶函数资格由明确的操作集合、无环直线路径和小值复制决定，不依赖源函数名称或调用方推测；codegen 消费已选模式，不再重做资格分析。所有 profile 一致，缺少 poll 的合法 body 仍有 callable registration；既有 `.slib` 与 ABI 相容，不新增跨 Cone 效果承诺。
 
@@ -858,7 +860,7 @@ scoop build [root-input] --emit-slib [--tests] [-o output.slib]
 单Cone编译输入为两种封闭形式；workspace在PM层展开成多个已绑定Cone，不成为第三种语言编译单元：
 
 - ExpandedCone：PM已从Cone.toml展开workspace与依赖，scoop传入单Cone身份、kind、生产/测试源码及native配置、精确依赖和诊断来源。scoopc不定位或解析Cone.toml。未配置`sources`时递归扫描`src/`；显式配置按语言规范12.2.2选择当前target的源码，不追加默认目录。目录只收集扩展名精确为`.scoop`的regular files，也可显式选择单个`.scoop`文件；最终按标准化Cone-relative UTF-8路径排序。
-- SingleFile：operand 扩展名精确为 `.scoop`，解析 symlink 后为存在的 regular file。只编译该文件，logical path 固定 main.scoop；不读取相邻 manifest、Scoop/C/C++ source 或 blob。
+- SingleFile：operand 扩展名精确为 `.scoop`，解析 symlink 后为存在的 regular file。目录输入始终按 manifest／workspace 定位，即使目录名以 `.scoop` 结尾。只编译该文件，logical path 固定 main.scoop；不读取相邻 manifest、Scoop/C/C++ source 或 blob。
 `scoop build --emit-slib`保留完整PM/lock准备、依赖编译、native对象生产及根`.slib`发布，跳过runtime和最终链接，用于分离产物编译与程序链接。`--tests`仅与此选项共用，编译Test用途的根产物；默认Production。输出规则见包管理规范7.2，输出意图不改变编译键；后续普通build复用相同产物再链接，不把executable Cone伪装为library。
 
 
@@ -1111,6 +1113,8 @@ Windows 同样接受普通 COFF archive。short import member 单独保存其 DL
 Windows 显式 library roots 的 TargetDefault 候选为 `L.obj`、`L.o`、`L.lib`、`libL.a`、`libL.dll.a`；StaticArchive 取普通 archive，包括含普通定义成员并附带 imports 的混合 archive（例如 Rust staticlib），不把静态库自身的 DLL 依赖误当成整份库是 import library。纯 import library 不匹配 StaticArchive；Dynamic 取实际包含 imports 的 archive，不凭 `.lib` 扩展名区分。短格式 import 与 GNU `.idata$*` 长格式 import 都将原 archive 交给 PE linker，保留原成员的导入表分组；长格式 import 不作为独立普通对象抽取。长格式 code section 中未标 function type 的 thunk 仍是函数，只有 `__imp_` 定义的数据 import 仍可匹配源级数据名称；IAT 本身的只读属性不代表 DLL 数据只读。roots、目标 sysroot、已选 SDK／MinGW provider 的顺序不变，framework 在 Windows 不适用。显式库仍检查符号归属和已知种类；未被显式库约束的普通 native 引用允许由真实 PE linker 按对象 directives／CRT defaults 完成，不另建立封闭的 Windows API 符号名单。实际 linker trace 的外部输入进入 executable 更新记录。
 
 尚未满足的 native 引用在候选选择时保留 Strong／Common／Weak 绑定，按下述目标优先级排除较弱候选；不能将一个强定义与 archive 中的弱后备实现误报为多 provider 歧义。最高优先级有多个 Strong 时仍报歧义；仅有同级 Weak／Common 时，优先复用 namespace provider，否则按既有 native 输入顺序选择。已经引入的对象定义继续按平台规则满足引用，不为查找另一个后备实现额外抽取 archive member；显式 library 的归属检查不变。
+
+Linux 默认 namespace 中，工具链系统 archive 按普通链接顺序提供后备实现：显式 native 输入已有同名 Strong 候选时，不再把系统 archive 的同名成员计为第二个 Strong 候选。这包括 Rust staticlib 携带的算术 builtins 与配套 `libgcc.a` 的组合。系统动态库的 exports、多个显式 native Strong 候选的歧义以及显式 library 归属检查保持原规则。
 
 ELF native 对象中的未定义 STB_WEAK 引用不加入必须解析的 requirements，也不单独拉取 archive member。对象保留原有弱引用标志，最终地址由目标 linker／loader 按平台规则处理；缺少可选定义可以得到空地址，已经引入的定义仍可满足引用。普通未定义强引用及 Scoop 的 extern 合同仍必须闭合，不能因另一对象对同名符号使用弱引用而放宽。
 

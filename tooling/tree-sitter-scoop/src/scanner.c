@@ -218,8 +218,7 @@ static bool continues_expression(TSLexer *lexer, bool arm) {
   return strcmp(word, "is") == 0 || strcmp(word, "in") == 0 ||
          strcmp(word, "as") == 0 || strcmp(word, "else") == 0 ||
          strcmp(word, "catch") == 0 || strcmp(word, "finally") == 0 ||
-         strcmp(word, "where") == 0 || strcmp(word, "by") == 0 ||
-         strcmp(word, "get") == 0 || strcmp(word, "set") == 0;
+         strcmp(word, "where") == 0 || strcmp(word, "by") == 0;
 }
 
 bool tree_sitter_scoop_external_scanner_scan(void *payload, TSLexer *lexer,

@@ -116,3 +116,48 @@ pub(super) fn check_mir(
         section,
     );
 }
+
+fn assert_exports(
+    actual: &lir::LayoutAbiExportConstituentsV1,
+    expected: &lir::LayoutAbiExportConstituentsV1,
+) {
+    // ODR definitions are rebound to the reading artifact's foundation. Their
+    // provider handles are session-local; compare every persisted export table.
+    for (name, actual, expected) in [
+        (
+            "layouts",
+            encode(actual.layouts()),
+            encode(expected.layouts()),
+        ),
+        (
+            "descriptors",
+            encode(actual.descriptors()),
+            encode(expected.descriptors()),
+        ),
+        (
+            "dispatch",
+            encode(actual.dispatch()),
+            encode(expected.dispatch()),
+        ),
+        (
+            "callables",
+            encode(actual.callables()),
+            encode(expected.callables()),
+        ),
+        (
+            "shape support",
+            encode(actual.shape_support()),
+            encode(expected.shape_support()),
+        ),
+        (
+            "direct callables",
+            encode(actual.direct_callables()),
+            encode(expected.direct_callables()),
+        ),
+    ] {
+        assert!(
+            actual.unwrap() == expected.unwrap(),
+            "{name} exports changed after reading"
+        );
+    }
+}
