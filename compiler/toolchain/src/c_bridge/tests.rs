@@ -1,4 +1,5 @@
 use super::*;
+use std::path::absolute;
 
 #[cfg(target_os = "macos")]
 #[test]
@@ -29,11 +30,11 @@ fn fake_host_facts_resolve_without_host_paths_entering_the_contract() {
     let resolved = resolve_c_bridge_toolchain(facts()).unwrap();
     assert_eq!(
         resolved.compiler_driver(),
-        Path::new("/toolchain/bin/clang")
+        absolute("/toolchain/bin/clang").unwrap()
     );
     assert_eq!(
         resolved.sdk_root().expect("Darwin test toolchain"),
-        Path::new("/toolchain/SDKs/MacOSX.sdk")
+        absolute("/toolchain/SDKs/MacOSX.sdk").unwrap()
     );
     let contract = resolved.profile().contract();
     assert_eq!(contract.canonical_triple(), "aarch64-apple-darwin");
@@ -76,18 +77,22 @@ fn fake_host_facts_resolve_without_host_paths_entering_the_contract() {
 #[test]
 fn validated_profile_builds_only_the_canonical_object_command() {
     let resolved = resolve_c_bridge_toolchain(facts()).unwrap();
+    let sdk = absolute("/toolchain/SDKs/MacOSX.sdk").unwrap();
     let command = resolved.object_compilation_command(
         Path::new("/temporary/input.c"),
         Path::new("/temporary/output.o"),
     );
-    assert_eq!(command.get_program(), "/toolchain/bin/clang");
+    assert_eq!(
+        command.get_program(),
+        absolute("/toolchain/bin/clang").unwrap()
+    );
     assert_eq!(
         command.get_args().collect::<Vec<_>>(),
         [
             "-target",
             "aarch64-apple-darwin",
             "-isysroot",
-            "/toolchain/SDKs/MacOSX.sdk",
+            sdk.to_str().unwrap(),
             "-mmacosx-version-min=15.6.2",
             "-std=c11",
             "-c",
@@ -164,8 +169,8 @@ fn version_parser_rejects_open_or_out_of_range_shapes() {
 fn facts() -> CBridgeToolchainFacts {
     CBridgeToolchainFacts {
         target: scoop_target_data::DARWIN_AARCH64,
-        compiler_driver: PathBuf::from("/toolchain/bin/clang"),
-        sdk_root: PathBuf::from("/toolchain/SDKs/MacOSX.sdk"),
+        compiler_driver: absolute("/toolchain/bin/clang").unwrap(),
+        sdk_root: absolute("/toolchain/SDKs/MacOSX.sdk").unwrap(),
         sdk_version: "26.5".to_owned(),
         deployment_version: "15.6.2".to_owned(),
         compiler_version:

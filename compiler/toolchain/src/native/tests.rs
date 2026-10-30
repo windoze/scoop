@@ -112,8 +112,14 @@ fn nested_headers_and_flags_track_real_input_changes() {
 }
 
 #[test]
-fn relocation_preserves_preprocessed_bytes_and_object_content() {
+fn relocation_preserves_preprocessed_bytes_and_native_behavior() {
     let directory = tempfile::tempdir().unwrap();
+    let main = directory.path().join("main.c");
+    std::fs::write(
+        &main,
+        "#include <stdio.h>\nconst char *source(void); int answer(void);\nint main(void) { puts(source()); return answer() != 42; }\n",
+    )
+    .unwrap();
     let mut results = Vec::new();
     for name in ["left", "right"] {
         let manifest = manifest(
@@ -121,19 +127,44 @@ fn relocation_preserves_preprocessed_bytes_and_object_content() {
             "#include <stdint.h>\nconst char *source(void) { return __FILE__; }\nint32_t answer(void) { return 42; }\n",
         );
         let prepared = prepare(&manifest);
+        let compiler = NativeToolchain::resolve(target().c_bridge_toolchain(), &manifest).unwrap();
         let object = directory.path().join(format!("{name}.o"));
         compile_native_source(
             &prepared.units()[0],
             manifest.parsed().semantic().native(),
-            &NativeToolchain::resolve(target().c_bridge_toolchain(), &manifest).unwrap(),
+            &compiler,
             OptimizationMode::Debug,
             &object,
         )
         .unwrap();
-        results.push((prepared.units().to_vec(), std::fs::read(object).unwrap()));
+        let binary = directory.path().join(format!("check-{name}"));
+        let output = compiler
+            .command(NativeSourceLanguage::C)
+            .unwrap()
+            .arg(&main)
+            .arg(&object)
+            .arg("-o")
+            .arg(&binary)
+            .scoop_output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let output = std::process::Command::new(binary).scoop_output().unwrap();
+        assert!(output.status.success());
+        assert_eq!(
+            String::from_utf8_lossy(&output.stdout)
+                .trim()
+                .replace('\\', "/"),
+            "/scoop-native/cone/answer.c"
+        );
+        results.push((prepared.units().to_vec(), output.stdout));
     }
     assert_eq!(results[0].0, results[1].0, "preprocessed inputs differ");
-    assert_eq!(results[0].1, results[1].1, "native objects differ");
+    assert_eq!(results[0].1, results[1].1, "native results differ");
 }
 
 #[test]

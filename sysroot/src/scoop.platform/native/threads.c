@@ -80,7 +80,7 @@ struct ScoopPlatformSyncResult scoop_platform_thread_join(struct ScoopPlatformTh
     if (!CloseHandle(thread->thread))
         return sync_status((int32_t)GetLastError());
 #else
-    if (pthread_equal(thread->thread, pthread_self())) {
+    if (pthread_equal(thread->thread, pthread_self()) != 0) {
         return sync_status(EDEADLK);
     }
     int error = pthread_join(thread->thread, NULL);

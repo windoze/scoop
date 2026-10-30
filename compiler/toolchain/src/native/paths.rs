@@ -50,7 +50,7 @@ impl InputRoots {
 
     fn remap(&self, path: &Path) -> Option<String> {
         for (root, prefix) in self.mappings() {
-            if let Ok(relative) = path.strip_prefix(root) {
+            if let Ok(relative) = dunce::simplified(path).strip_prefix(dunce::simplified(root)) {
                 return Some(format!("{prefix}/{}", relative.to_str()?));
             }
         }

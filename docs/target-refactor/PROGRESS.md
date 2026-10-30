@@ -114,3 +114,11 @@ Linux GNU／musl 的真实 C ABI 双向调用、GCC／Clang PIC 与 TLS、独立
 远端的 Windows statepoint 专测发现 LLVM 源码补丁未生效：归档源码位于另一个 Git checkout 的子目录时，`git apply` 会按外层仓库前缀跳过补丁路径，并成功返回。LLVM、LLDB 和 Windows unwind 准备现在将 Git 的仓库发现限制到实际源码根，不改变既有的更新判断和命中路径。新增嵌套 checkout 回归在修复前稳定失败，修复后验证实际文件修改及重复调用复用。
 
 Ruff 0.16.10 与 23 项维护脚本测试通过；macOS 跳过 3 项宿主不适用测试，Linux 跳过 2 项。本机及两个远端的 LLVM 已按实际补丁增量重建；本机和 Linux 的 LLDB 同步重建。本机 AArch64 的完整 DAP launch、sourceMap、离线 formatter 与终端调试再次通过。远端完整编译器与运行回归继续执行，不把原先缺补丁的 LLVM 测试算作通过。
+
+### R7 native 路径与测试适配
+
+Windows 的普通路径与系统返回的扩展路径在映射到 target sysroot 前使用相同的路径形式，修复预处理行标记残留物理 sysroot 路径的问题。模拟 Darwin 工具的单测使用宿主真正的绝对路径；混合 C／C++ 单测按实际 driver 方言传递标准版本和警告参数。搬迁验证保持相同的预处理内容，并真实链接运行、检查 `__FILE__` 与返回值；不再比较包含物理输出路径的整个 CodeView 对象。
+
+musl 通过显式 Clang／SDK 构建系统库；该机 SDK 补齐已有 musl 头库与 Linux UAPI 搜索目录。`pthread_equal` 的结果显式与零比较，避免其宏展开在预处理单元中触发 Clang 的多余括号警告，线程 join 语义保持。Rust 格式化、workspace Clippy、本机 toolchain 54 项测试与 C 语法检查通过；Windows toolchain 55 项已逐项复验闭合，Linux GNU／musl 均完成过 25 个系统 Cone 和四种 runtime 准备，最终配套 LLVM 下继续刷新。
+
+终端调试用例直接在读取字符的条件判断处观察该字符，去除会使不同机器上某一个中间变量提前结束存活区间的加法。本机 AArch64 已用最终 LLVM／LLDB 重新构建程序，完整 launch、sourceMap、formatter 与终端调试全部通过；没有放宽断点、输入值或实际终端行为断言。
