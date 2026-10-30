@@ -68,9 +68,16 @@ fn runtime_stackmap_v3_parser_rejects_incomplete_metadata() {
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
-    assert_eq!(output.stdout, b"stackmap parser tests passed\n");
+    assert_eq!(
+        String::from_utf8(output.stdout)
+            .unwrap()
+            .replace("\r\n", "\n"),
+        "stackmap parser tests passed\n"
+    );
 }
 
+// The synthetic frame fixture uses pthreads and the host's POSIX VM component.
+#[cfg(unix)]
 #[test]
 fn runtime_walks_and_rewrites_only_exact_stackmap_slots() {
     let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -367,4 +374,77 @@ fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
         );
     }
     assert_eq!(relocations.matches("BR26").count(), entries.len());
+}
+
+#[test]
+fn generic_runtime_has_no_target_specific_vm_dependency() {
+    let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .expect("codegen crate is nested below the workspace root");
+    let generic_sources = [
+        "runtime/src/gc/allocation.c",
+        "runtime/src/gc/mutator.c",
+        "runtime/src/gc_binding/threads.c",
+        "runtime/src/gc_binding/values.c",
+        "runtime/src/gc/collector.c",
+        "runtime/src/gc_binding/entries.c",
+        "runtime/src/gc_binding/pressure.c",
+        "runtime/src/gc/pressure.c",
+        "runtime/src/gc/mark.c",
+        "runtime/src/gc/mark_objects.c",
+        "runtime/src/gc/mark_queue.c",
+        "runtime/src/gc/mark_pool.c",
+        "runtime/src/gc/update.c",
+        "runtime/src/gc/time.c",
+        "runtime/src/gc_binding/collector_roots.c",
+        "runtime/src/gc_binding/scan.c",
+        "runtime/src/gc/remembered.c",
+        "runtime/src/gc/evacuation_plan.c",
+        "runtime/src/gc/old_slots.c",
+        "runtime/src/gc/evacuation_sources.c",
+        "runtime/src/gc/statistics.c",
+        "runtime/src/gc/evacuation.c",
+        "runtime/src/gc/reclamation.c",
+        "runtime/src/gc/block_release.c",
+        "runtime/src/gc/block_sweep.c",
+        "runtime/src/gc/memory_return.c",
+        "runtime/src/gc/heap.c",
+        "runtime/src/gc/regions.c",
+        "runtime/src/gc/page_map.c",
+        "runtime/src/gc/cards.c",
+        "runtime/src/gc/heap_objects.c",
+        "runtime/src/gc/handles.c",
+        "runtime/src/gc_binding/root_frames.c",
+        "runtime/src/gc_binding/roots.c",
+        "runtime/src/gc_binding/stackmap.c",
+        "runtime/src/gc_binding/stackmap/parser.c",
+        "runtime/src/gc_binding/stackmap/records.c",
+        "runtime/src/gc_binding/stack_roots.c",
+        "runtime/src/thread.c",
+        "runtime/src/thread/collection.c",
+        "runtime/src/thread/debug.c",
+        "runtime/src/thread/roots.c",
+        "runtime/src/thread/transitions.c",
+    ];
+    let forbidden = [
+        "<mach-o/",
+        "<sys/mman.h>",
+        "__APPLE__",
+        "__aarch64__",
+        "__x86_64__",
+        "<xmmintrin.h>",
+        "mmap(",
+        "mprotect(",
+    ];
+    for source in generic_sources {
+        let contents = std::fs::read_to_string(workspace.join(source))
+            .unwrap_or_else(|error| panic!("read {source}: {error}"));
+        for token in forbidden {
+            assert!(
+                !contents.contains(token),
+                "generic runtime source {source} imports target VM detail {token:?}"
+            );
+        }
+    }
 }

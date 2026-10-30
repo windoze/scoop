@@ -102,8 +102,10 @@ fn native_c_pointer_representations_are_qualified() {
         String::from_utf8_lossy(&output.stderr),
     );
     assert_eq!(
-        output.stdout,
-        b"target pointer qualification tests passed\n"
+        String::from_utf8(output.stdout)
+            .unwrap()
+            .replace("\r\n", "\n"),
+        "target pointer qualification tests passed\n"
     );
 }
 
