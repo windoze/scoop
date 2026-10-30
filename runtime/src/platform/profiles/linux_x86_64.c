@@ -21,12 +21,12 @@ _Static_assert(_Alignof(ScoopTargetFunctionPointer) == 8,
 
 extern const ScoopMetadataImageOps scoop_elf_metadata_image_ops;
 extern const ScoopThreadVmOps scoop_linux_thread_vm_ops;
-extern const ScoopManagedFrameOps scoop_amd64_managed_frame_ops;
+extern const ScoopManagedFrameOps scoop_sysv_amd64_managed_frame_ops;
 
 static const ScoopPlatformBundle linux_amd64_bundle = {
     .metadata_images = &scoop_elf_metadata_image_ops,
     .thread_vm = &scoop_linux_thread_vm_ops,
-    .managed_frames = &scoop_amd64_managed_frame_ops,
+    .managed_frames = &scoop_sysv_amd64_managed_frame_ops,
 };
 
 const ScoopPlatformBundle *scoop_platform_bundle(void) {

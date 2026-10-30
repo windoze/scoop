@@ -30,6 +30,7 @@ struct Target {
     scoop_abi: String,
     exception_handling: String,
     tuning: String,
+    runtime: String,
     native_environment: String,
     c_bridge_profile: String,
     native_rust_target: String,
@@ -83,6 +84,7 @@ fn main() {
             &target.scoop_abi,
             &target.exception_handling,
             &target.tuning,
+            &target.runtime,
         ] {
             identifier(name);
         }
@@ -136,9 +138,10 @@ fn main() {
             c_bridge_profile,
             native_rust_target,
             tuning,
+            runtime,
             ..
         } = target;
-        writeln!(output, "TargetDefinition {{ selection: {symbol}_LLVM_22_1, aliases: &{aliases:?}, versioned_aliases: &{versioned_aliases:?}, os: {os:?}, arch: {arch:?}, env: {env:?}, llvm_triple: {llvm_triple:?}, native_environment: NativeEnvironment::{native_environment}, c_bridge_profile: {c_bridge_profile:?}, native_rust_target: {native_rust_target:?}, tuning: CodegenTuning::{tuning} }},").unwrap();
+        writeln!(output, "TargetDefinition {{ selection: {symbol}_LLVM_22_1, aliases: &{aliases:?}, versioned_aliases: &{versioned_aliases:?}, os: {os:?}, arch: {arch:?}, env: {env:?}, llvm_triple: {llvm_triple:?}, native_environment: NativeEnvironment::{native_environment}, c_bridge_profile: {c_bridge_profile:?}, native_rust_target: {native_rust_target:?}, tuning: CodegenTuning::{tuning}, runtime: RuntimeProfile::{runtime} }},").unwrap();
     }
     output.push_str("];\npub const fn definition(id: TargetProfileId) -> Option<TargetDefinition> { match id {\n");
     for (index, target) in catalog.targets.iter().enumerate() {

@@ -82,8 +82,8 @@ fn windows_seh_frames_relocate_real_roots_through_entry_anchors() {
         &[],
         &[
             "src/platform/profiles/windows_x86_64.c",
-            "src/platform/arch/windows_x86_64.c",
-            "src/platform/arch/windows_x86_64_anchor.S",
+            "src/platform/frame/windows_seh.c",
+            "src/platform/frame/windows_seh_coff.S",
             "src/platform/primitives/windows.c",
             "src/platform/os/windows.c",
             "src/platform/image/pe.c",

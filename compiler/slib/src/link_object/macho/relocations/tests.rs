@@ -14,8 +14,8 @@ fn normalizes_direct_arm64_relocation_shapes() {
     assert_eq!(branch[0].encoded_value(), 0x4433_2211);
     assert_eq!(
         branch[0].shape(),
-        DarwinArm64RelocationShapeV1::Branch26 {
-            target: DarwinArm64RelocationTargetV1::SymbolTableIndex(0),
+        MachORelocationShapeV1::Branch26 {
+            target: ObjectRelocationTargetV1::SymbolTableIndex(0),
         }
     );
 
@@ -27,8 +27,8 @@ fn normalizes_direct_arm64_relocation_shapes() {
     .unwrap();
     assert_eq!(
         unsigned[0].shape(),
-        DarwinArm64RelocationShapeV1::Unsigned64 {
-            target: DarwinArm64RelocationTargetV1::SectionOrdinal(NonZeroU32::new(1).unwrap()),
+        MachORelocationShapeV1::Unsigned64 {
+            target: ObjectRelocationTargetV1::SectionOrdinal(NonZeroU32::new(1).unwrap()),
         }
     );
 
@@ -43,14 +43,14 @@ fn normalizes_direct_arm64_relocation_shapes() {
     .unwrap();
     assert_eq!(
         tlvp[0].shape(),
-        DarwinArm64RelocationShapeV1::TlvpLoadPage21 {
-            target: DarwinArm64RelocationTargetV1::SymbolTableIndex(0),
+        MachORelocationShapeV1::TlvpLoadPage21 {
+            target: ObjectRelocationTargetV1::SymbolTableIndex(0),
         }
     );
     assert_eq!(
         tlvp[1].shape(),
-        DarwinArm64RelocationShapeV1::TlvpLoadPageOffset12 {
-            target: DarwinArm64RelocationTargetV1::SymbolTableIndex(0),
+        MachORelocationShapeV1::TlvpLoadPageOffset12 {
+            target: ObjectRelocationTargetV1::SymbolTableIndex(0),
         }
     );
 }
@@ -69,9 +69,9 @@ fn collapses_subtractor_and_explicit_addend_pairs() {
     assert_eq!(subtractor.len(), 1);
     assert_eq!(
         subtractor[0].shape(),
-        DarwinArm64RelocationShapeV1::Subtractor64 {
-            minuend: DarwinArm64RelocationTargetV1::SymbolTableIndex(1),
-            subtrahend: DarwinArm64RelocationTargetV1::SymbolTableIndex(0),
+        MachORelocationShapeV1::Subtractor64 {
+            minuend: ObjectRelocationTargetV1::SymbolTableIndex(1),
+            subtrahend: ObjectRelocationTargetV1::SymbolTableIndex(0),
         }
     );
 
@@ -87,8 +87,8 @@ fn collapses_subtractor_and_explicit_addend_pairs() {
     assert_eq!(addend.len(), 1);
     assert_eq!(
         addend[0].shape(),
-        DarwinArm64RelocationShapeV1::Page21 {
-            target: DarwinArm64RelocationTargetV1::SymbolTableIndex(0),
+        MachORelocationShapeV1::Page21 {
+            target: ObjectRelocationTargetV1::SymbolTableIndex(0),
             explicit_addend: Some(-4),
         }
     );
@@ -100,7 +100,7 @@ fn rejects_scattered_unknown_and_wrong_field_combinations() {
     scattered[..4].copy_from_slice(&macho::R_SCATTERED.to_le_bytes());
     assert_eq!(
         inventory(&[0; 4], vec![scattered], 1),
-        Err(DarwinArm64RelocationInventoryValidationError::ScatteredRelocation)
+        Err(MachORelocationInventoryValidationError::ScatteredRelocation)
     );
 
     assert!(matches!(
@@ -117,7 +117,7 @@ fn rejects_scattered_unknown_and_wrong_field_combinations() {
             1,
         ),
         Err(
-            DarwinArm64RelocationInventoryValidationError::InvalidRelocationFields {
+            MachORelocationInventoryValidationError::InvalidRelocationFields {
                 kind: macho::ARM64_RELOC_TLVP_LOAD_PAGE21,
                 ..
             }
@@ -131,7 +131,7 @@ fn rejects_scattered_unknown_and_wrong_field_combinations() {
             1,
         ),
         Err(
-            DarwinArm64RelocationInventoryValidationError::InvalidRelocationFields {
+            MachORelocationInventoryValidationError::InvalidRelocationFields {
                 kind: macho::ARM64_RELOC_BRANCH26,
                 ..
             }
@@ -147,7 +147,7 @@ fn rejects_broken_pairs_targets_sites_and_duplicates() {
             vec![raw(0, 1, true, 2, true, macho::ARM64_RELOC_BRANCH26,)],
             1,
         ),
-        Err(DarwinArm64RelocationInventoryValidationError::SymbolTargetOutOfBounds { index: 1 })
+        Err(MachORelocationInventoryValidationError::SymbolTargetOutOfBounds { index: 1 })
     );
     assert_eq!(
         inventory(
@@ -155,7 +155,7 @@ fn rejects_broken_pairs_targets_sites_and_duplicates() {
             vec![raw(1, 0, true, 2, true, macho::ARM64_RELOC_BRANCH26)],
             1,
         ),
-        Err(DarwinArm64RelocationInventoryValidationError::RelocationSiteOutOfBounds)
+        Err(MachORelocationInventoryValidationError::RelocationSiteOutOfBounds)
     );
     assert_eq!(
         inventory(
@@ -164,7 +164,7 @@ fn rejects_broken_pairs_targets_sites_and_duplicates() {
             1,
         ),
         Err(
-            DarwinArm64RelocationInventoryValidationError::MissingRelocationPair {
+            MachORelocationInventoryValidationError::MissingRelocationPair {
                 first: macho::ARM64_RELOC_SUBTRACTOR,
             }
         )
@@ -178,7 +178,7 @@ fn rejects_broken_pairs_targets_sites_and_duplicates() {
             ],
             1,
         ),
-        Err(DarwinArm64RelocationInventoryValidationError::DuplicateRelocationOffset)
+        Err(MachORelocationInventoryValidationError::DuplicateRelocationOffset)
     );
 }
 
@@ -186,7 +186,7 @@ fn inventory(
     section_bytes: &[u8],
     raw_relocations: Vec<[u8; 8]>,
     symbol_count: u32,
-) -> Result<Vec<ObservedMachORelocationV1>, DarwinArm64RelocationInventoryValidationError> {
+) -> Result<Vec<ObservedMachORelocationV1>, MachORelocationInventoryValidationError> {
     let mut bytes = section_bytes.to_vec();
     let relocation_file_offset = bytes.len() as u64;
     for relocation in &raw_relocations {
@@ -203,7 +203,12 @@ fn inventory(
         alignment_power: 0,
         relocation_count: raw_relocations.len() as u32,
     };
-    validate_darwin_arm64_relocation_inventory_v1(&bytes, &[section], symbol_count)
+    validate_macho_relocation_inventory_v1(
+        crate::MachOArchitecture::Aarch64,
+        &bytes,
+        &[section],
+        symbol_count,
+    )
 }
 
 fn raw(offset: u32, target: u32, pcrel: bool, length: u8, external: bool, kind: u8) -> [u8; 8] {

@@ -12,38 +12,39 @@ pub struct TextStubInterface {
 }
 
 pub fn read_text_stubs(
+    machine: scoop_slib::MachOArchitecture,
     bytes: &[u8],
     deployment: DarwinPackedVersionV1,
     system: bool,
 ) -> Result<Vec<TextStubInterface>, ToolchainError> {
-    let records: Vec<_> = parse(bytes)?
-        .into_iter()
-        .map(|record| {
-            if record
-                .flags
-                .iter()
-                .any(|flag| flag != "not_app_extension_safe" && flag != "not_for_dyld_shared_cache")
-            {
-                return Err(ToolchainError(format!(
-                    "text stub {} has unsupported load flags {:?}",
-                    record.install_name, record.flags
-                )));
-            }
-            let mut exports = BTreeMap::new();
-            let mut reexports = Vec::new();
-            let directives = record.collect(deployment, system, &mut exports, &mut reexports)?;
-            Ok(TextStubInterface {
-                install_name: directives.install_name.unwrap_or(record.install_name),
-                current_version: record.current_version,
-                compatibility_version: directives
-                    .compatibility_version
-                    .unwrap_or(record.compatibility_version),
-                exports,
-                reexports,
-                previous_exports: directives.previous,
+    let records: Vec<_> =
+        parse(bytes)?
+            .into_iter()
+            .map(|record| {
+                if record.flags.iter().any(|flag| {
+                    flag != "not_app_extension_safe" && flag != "not_for_dyld_shared_cache"
+                }) {
+                    return Err(ToolchainError(format!(
+                        "text stub {} has unsupported load flags {:?}",
+                        record.install_name, record.flags
+                    )));
+                }
+                let mut exports = BTreeMap::new();
+                let mut reexports = Vec::new();
+                let directives =
+                    record.collect(machine, deployment, system, &mut exports, &mut reexports)?;
+                Ok(TextStubInterface {
+                    install_name: directives.install_name.unwrap_or(record.install_name),
+                    current_version: record.current_version,
+                    compatibility_version: directives
+                        .compatibility_version
+                        .unwrap_or(record.compatibility_version),
+                    exports,
+                    reexports,
+                    previous_exports: directives.previous,
+                })
             })
-        })
-        .collect::<Result<_, _>>()?;
+            .collect::<Result<_, _>>()?;
     let mut unique = Vec::new();
     let mut names = BTreeMap::new();
     for record in records {
@@ -63,6 +64,7 @@ pub fn read_text_stubs(
 }
 
 pub fn write_link_stub(
+    machine: scoop_slib::MachOArchitecture,
     install_name: &str,
     current_version: u32,
     compatibility_version: u32,
@@ -85,12 +87,12 @@ pub fn write_link_stub(
     }
     let value = Stub {
         tbd_version: 4,
-        targets: ["arm64-macos"],
+        targets: [machine.text_stub_target()],
         install_name,
         current_version: version_text(current_version),
         compatibility_version: version_text(compatibility_version),
         exports: [ExportList {
-            targets: ["arm64-macos"],
+            targets: [machine.text_stub_target()],
             symbols,
             weak_symbols,
             thread_local_symbols,

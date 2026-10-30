@@ -211,7 +211,7 @@ M39 只整理当前真实的平台职责：机器帧、anchor、返回值 shim �
 
 后续移植需要另外完成以下工作，本次不宣称已经具备：
 
-- Linux ARM64 的 ELF 汇编符号、CFI 和函数边界；现有 [aarch64_anchor.S](../../runtime/src/platform/arch/aarch64_anchor.S) 使用 Darwin 前导下划线及 `.subsections_via_symbols`，不能直接复用为 ELF。
+- Linux ARM64 的 ELF 汇编符号、CFI 和函数边界；现有 [aarch64_anchor.S](../../runtime/src/platform/frame/darwin_aarch64_macho.S) 使用 Darwin 前导下划线及 `.subsections_via_symbols`，不能直接复用为 ELF。
 - 每个新架构的 managed caller anchor、可写精确 root 定位、逐帧遍历和 unwind 配合。
 - String/UTF-8/浮点 Option 等后备的 Scoop ABI 返回适配及浮点环境。
 - 对应 libc 的 LLVM libunwind 构建和实际异常运行验证。

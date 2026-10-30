@@ -178,7 +178,7 @@ static bool amd64_next_frame(const ScoopManagedFrame *frame, uintptr_t boundary,
     return true;
 }
 
-const ScoopManagedFrameOps scoop_amd64_managed_frame_ops = {
+const ScoopManagedFrameOps scoop_sysv_amd64_managed_frame_ops = {
     .validate_record = amd64_validate_record,
     .frame_from_anchor = amd64_frame_from_anchor,
     .resolve_root = amd64_resolve_root,

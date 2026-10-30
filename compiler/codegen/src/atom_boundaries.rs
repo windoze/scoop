@@ -165,7 +165,7 @@ pub(crate) fn materialize_global_linkages_v1(
     }
     let mut bytes = std::fs::read(path)
         .map_err(|error| CodegenError(format!("cannot read atom boundaries: {error}")))?;
-    let layout = crate::callable_atom_boundaries::MachOLayout::parse(&bytes)?;
+    let layout = crate::callable_atom_boundaries::MachOLayout::parse(&bytes, target)?;
     for name in names {
         layout.materialize_odr_definition(&mut bytes, &name)?;
     }

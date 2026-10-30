@@ -5,7 +5,7 @@ fn rejects_wrong_header_contracts() {
     let mut wrong_file_type = object_bytes();
     write_u32(&mut wrong_file_type, 12, macho::MH_EXECUTE);
     assert_eq!(
-        validate_darwin_arm64_object_envelope_v1(&wrong_file_type),
+        validate_macho_object_envelope_v1(scoop_target_data::DARWIN_AARCH64_ID, &wrong_file_type),
         Err(ObjectEnvelopeValidationError::WrongFileType(
             macho::MH_EXECUTE
         ))
@@ -20,9 +20,9 @@ fn rejects_out_of_bounds_tables() {
     write_u32(&mut bytes, symtab_offset + 12, 1);
 
     assert_eq!(
-        validate_darwin_arm64_object_envelope_v1(&bytes),
+        validate_macho_object_envelope_v1(scoop_target_data::DARWIN_AARCH64_ID, &bytes),
         Err(ObjectEnvelopeValidationError::SymbolInventory(
-            DarwinArm64SymbolInventoryValidationError::MalformedSymbolTable
+            MachOSymbolInventoryValidationError::MalformedSymbolTable
         ))
     );
 }
@@ -31,7 +31,8 @@ fn rejects_out_of_bounds_tables() {
 fn validates_section_relocation_and_symbol_ranges_as_one_layout() {
     let bytes = object_with_text_section();
 
-    let envelope = validate_darwin_arm64_object_envelope_v1(&bytes).unwrap();
+    let envelope =
+        validate_macho_object_envelope_v1(scoop_target_data::DARWIN_AARCH64_ID, &bytes).unwrap();
 
     assert_eq!(envelope.section_count(), 1);
     assert_eq!(envelope.symbol_count(), 1);
@@ -41,7 +42,7 @@ fn validates_section_relocation_and_symbol_ranges_as_one_layout() {
     assert_eq!(envelope.symbols()[0].name(), b"_f");
     assert_eq!(
         envelope.symbols()[0].kind(),
-        DarwinArm64SymbolKindV1::ExternalStrongDefinition
+        MachOSymbolKindV1::ExternalStrongDefinition
     );
 }
 

@@ -18,6 +18,13 @@ pub enum CodegenTuning {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RuntimeProfile {
+    DarwinAarch64,
+    LinuxX86_64,
+    WindowsX86_64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TargetDefinition {
     pub selection: ValidatedLirTargetSelection,
     pub aliases: &'static [&'static str],
@@ -30,6 +37,7 @@ pub struct TargetDefinition {
     pub c_bridge_profile: &'static str,
     pub native_rust_target: &'static str,
     pub tuning: CodegenTuning,
+    pub runtime: RuntimeProfile,
 }
 
 impl TargetDefinition {

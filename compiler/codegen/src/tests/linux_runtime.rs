@@ -123,8 +123,8 @@ fn linux_amd64_anchors_relocate_real_llvm_roots_and_preserve_sret() {
                 .arg(&object);
             for source in [
                 "runtime/tests/linux_frames_test.c",
-                "runtime/src/platform/arch/x86_64.c",
-                "runtime/src/platform/arch/x86_64_anchor.S",
+                "runtime/src/platform/frame/sysv_amd64.c",
+                "runtime/src/platform/frame/sysv_amd64_elf.S",
                 "runtime/src/platform/os/linux.c",
                 "runtime/src/gc_binding/stackmap.c",
                 "runtime/src/gc_binding/stackmap/parser.c",
@@ -216,7 +216,7 @@ fn shared_stackmap_decoder_keeps_darwin_frame_alignment_in_its_adapter() {
         .args(["-std=c11", "-Wall", "-Wextra", "-Werror"]);
     for source in [
         "runtime/tests/stackmap_test.c",
-        "runtime/src/platform/arch/aarch64.c",
+        "runtime/src/platform/frame/darwin_aarch64.c",
         "runtime/src/gc_binding/stackmap.c",
         "runtime/src/gc_binding/stackmap/parser.c",
         "runtime/src/gc_binding/stackmap/records.c",

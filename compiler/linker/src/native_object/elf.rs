@@ -2,14 +2,18 @@ use super::*;
 use object::elf;
 use object::read::elf::{ElfFile64, SectionHeader};
 
-pub(super) fn read(bytes: &[u8]) -> Result<NativeObjectInfo, LinkError> {
+pub(super) fn read(
+    bytes: &[u8],
+    target: scoop_lir::TargetProfileId,
+) -> Result<NativeObjectInfo, LinkError> {
+    let machine = scoop_slib::ElfArchitecture::for_target(target).map_err(error)?;
     let file: ElfFile64<'_> = ElfFile64::parse(bytes).map_err(error)?;
-    if file.architecture() != Architecture::X86_64
+    if file.architecture() != machine.object_architecture()
         || !file.is_little_endian()
         || file.kind() != ObjectKind::Relocatable
     {
         return Err(error(
-            "native input must be a little-endian ELF64 amd64 object",
+            "native input must be a little-endian ELF64 object for the selected target",
         ));
     }
     let mut definitions = BTreeMap::new();

@@ -29,7 +29,7 @@ pub(crate) fn materialize_v1(
             path.display()
         ))
     })?;
-    let layout = MachOLayout::parse(&bytes)?;
+    let layout = MachOLayout::parse(&bytes, target)?;
     let normalization = target.contract().native_symbol_normalization();
     let primary_name = normalization
         .compiler_generated_object_symbol(plan.primary_symbol().symbol().as_str())

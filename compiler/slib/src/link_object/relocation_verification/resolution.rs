@@ -8,14 +8,14 @@ pub(super) fn resolve_shape(
     local_symbol_owners: &BTreeMap<u32, ObjectDefinitionAtomId>,
 ) -> Result<VerifiedObjectRelocationShapeV1, ObjectRelocationValidationError> {
     let shape = match shape {
-        crate::link_object::ObjectRelocationShapeV1::DarwinArm64(shape) => shape,
+        crate::link_object::ObjectRelocationShapeV1::MachO(shape) => shape,
         crate::link_object::ObjectRelocationShapeV1::CoffAmd64 {
             kind,
             target_symbol,
             width,
         } => {
             let target = resolve_target(
-                DarwinArm64RelocationTargetV1::SymbolTableIndex(target_symbol),
+                ObjectRelocationTargetV1::SymbolTableIndex(target_symbol),
                 definitions,
                 local_symbol_owners,
             )?;
@@ -32,7 +32,7 @@ pub(super) fn resolve_shape(
             width,
         } => {
             let target = resolve_target(
-                DarwinArm64RelocationTargetV1::SymbolTableIndex(target_symbol),
+                ObjectRelocationTargetV1::SymbolTableIndex(target_symbol),
                 definitions,
                 local_symbol_owners,
             )?;
@@ -45,58 +45,56 @@ pub(super) fn resolve_shape(
         }
     };
     Ok(match shape {
-        DarwinArm64RelocationShapeV1::Unsigned64 { target } => {
+        MachORelocationShapeV1::Unsigned64 { target } => {
             VerifiedObjectRelocationShapeV1::Unsigned64 {
                 target: resolve_target(target, definitions, local_symbol_owners)?,
             }
         }
-        DarwinArm64RelocationShapeV1::Subtractor64 {
+        MachORelocationShapeV1::Subtractor64 {
             minuend,
             subtrahend,
         } => VerifiedObjectRelocationShapeV1::Subtractor64 {
             minuend: resolve_target(minuend, definitions, local_symbol_owners)?,
             subtrahend: resolve_target(subtrahend, definitions, local_symbol_owners)?,
         },
-        DarwinArm64RelocationShapeV1::Branch26 { target } => {
-            VerifiedObjectRelocationShapeV1::Branch26 {
-                target: resolve_target(target, definitions, local_symbol_owners)?,
-            }
-        }
-        DarwinArm64RelocationShapeV1::Page21 {
+        MachORelocationShapeV1::Branch26 { target } => VerifiedObjectRelocationShapeV1::Branch26 {
+            target: resolve_target(target, definitions, local_symbol_owners)?,
+        },
+        MachORelocationShapeV1::Page21 {
             target,
             explicit_addend,
         } => VerifiedObjectRelocationShapeV1::Page21 {
             target: resolve_target(target, definitions, local_symbol_owners)?,
             explicit_addend,
         },
-        DarwinArm64RelocationShapeV1::PageOffset12 {
+        MachORelocationShapeV1::PageOffset12 {
             target,
             explicit_addend,
         } => VerifiedObjectRelocationShapeV1::PageOffset12 {
             target: resolve_target(target, definitions, local_symbol_owners)?,
             explicit_addend,
         },
-        DarwinArm64RelocationShapeV1::GotLoadPage21 { target } => {
+        MachORelocationShapeV1::GotLoadPage21 { target } => {
             VerifiedObjectRelocationShapeV1::GotLoadPage21 {
                 target: resolve_target(target, definitions, local_symbol_owners)?,
             }
         }
-        DarwinArm64RelocationShapeV1::GotLoadPageOffset12 { target } => {
+        MachORelocationShapeV1::GotLoadPageOffset12 { target } => {
             VerifiedObjectRelocationShapeV1::GotLoadPageOffset12 {
                 target: resolve_target(target, definitions, local_symbol_owners)?,
             }
         }
-        DarwinArm64RelocationShapeV1::PointerToGot32 { target } => {
+        MachORelocationShapeV1::PointerToGot32 { target } => {
             VerifiedObjectRelocationShapeV1::PointerToGot32 {
                 target: resolve_target(target, definitions, local_symbol_owners)?,
             }
         }
-        DarwinArm64RelocationShapeV1::TlvpLoadPage21 { target } => {
+        MachORelocationShapeV1::TlvpLoadPage21 { target } => {
             VerifiedObjectRelocationShapeV1::TlvpLoadPage21 {
                 target: resolve_target(target, definitions, local_symbol_owners)?,
             }
         }
-        DarwinArm64RelocationShapeV1::TlvpLoadPageOffset12 { target } => {
+        MachORelocationShapeV1::TlvpLoadPageOffset12 { target } => {
             VerifiedObjectRelocationShapeV1::TlvpLoadPageOffset12 {
                 target: resolve_target(target, definitions, local_symbol_owners)?,
             }
@@ -105,12 +103,12 @@ pub(super) fn resolve_shape(
 }
 
 fn resolve_target(
-    target: DarwinArm64RelocationTargetV1,
+    target: ObjectRelocationTargetV1,
     definitions: &MemberObjectDefinitionIndexV1,
     local_symbol_owners: &BTreeMap<u32, ObjectDefinitionAtomId>,
 ) -> Result<VerifiedRelocationTargetV1, ObjectRelocationValidationError> {
     match target {
-        DarwinArm64RelocationTargetV1::SectionOrdinal(section_ordinal) => {
+        ObjectRelocationTargetV1::SectionOrdinal(section_ordinal) => {
             let index = usize::try_from(section_ordinal.get() - 1).map_err(|_| {
                 ObjectRelocationValidationError::InvalidSectionTarget {
                     section: section_ordinal,
@@ -126,7 +124,7 @@ fn resolve_target(
                 section_role,
             })
         }
-        DarwinArm64RelocationTargetV1::SymbolTableIndex(table_index) => {
+        ObjectRelocationTargetV1::SymbolTableIndex(table_index) => {
             if let Some(strong) = definitions.strong_symbol_by_table_index(table_index) {
                 return match strong.role() {
                     PlannedStrongObjectSymbolRoleV1::PrimaryDefinition { definition, .. } => {

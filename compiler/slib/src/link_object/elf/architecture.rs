@@ -12,8 +12,10 @@ pub enum ElfArchitecture {
 
 impl ElfArchitecture {
     pub fn for_target(target: TargetProfileId) -> Result<Self, ElfObjectError> {
-        match target {
-            scoop_target_data::LINUX_X86_64_GNU_ID | scoop_target_data::LINUX_X86_64_MUSL_ID => {
+        let profile =
+            scoop_target_data::layout(target).ok_or_else(|| error("unsupported ELF target"))?;
+        match (profile.native_object_format(), profile.architecture()) {
+            (scoop_lir::NativeObjectFormat::Elf64, scoop_lir::TargetArchitecture::X86_64) => {
                 Ok(Self::X86_64)
             }
             _ => Err(error("selected target does not support ELF")),

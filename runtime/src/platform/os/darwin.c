@@ -12,8 +12,8 @@
 #include "../platform.h"
 #include "posix_mapping.h"
 
-#if !defined(__APPLE__) || !defined(__aarch64__)
-#error "the Darwin OS component requires macOS on AArch64"
+#if !defined(__APPLE__)
+#error "the Darwin OS component requires macOS"
 #endif
 
 static bool darwin_stack_bounds(ScoopPlatformStackBounds *bounds, ScoopPlatformError *error) {

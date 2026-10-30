@@ -195,7 +195,7 @@ fn initialization_coordinator_is_exactly_once_and_gc_cooperative() {
         .arg(workspace.join(native_float_environment_source()))
         .arg(workspace.join("runtime/src/thread/collection.c"))
         .arg(workspace.join("runtime/src/thread/transitions.c"))
-        .arg(workspace.join("runtime/src/platform/arch/aarch64.c"))
+        .arg(workspace.join("runtime/src/platform/frame/darwin_aarch64.c"))
         .arg(workspace.join(native_os_source()))
         .arg(workspace.join("runtime/tests/platform/fake.c"))
         .arg(workspace.join("runtime/tests/initialization_coordinator_test.c"))

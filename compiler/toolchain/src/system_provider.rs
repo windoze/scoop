@@ -62,7 +62,11 @@ pub struct SystemProvider {
 }
 
 impl SystemProvider {
-    pub fn read(sdk: &Path, deployment: DarwinPackedVersionV1) -> Result<Self, ToolchainError> {
+    pub fn read(
+        machine: scoop_slib::MachOArchitecture,
+        sdk: &Path,
+        deployment: DarwinPackedVersionV1,
+    ) -> Result<Self, ToolchainError> {
         let mut records = BTreeMap::new();
         let mut files = BTreeMap::new();
         read_file(sdk, Path::new(LIBSYSTEM_STUB), &mut files, &mut records)?;
@@ -96,7 +100,8 @@ impl SystemProvider {
                 ToolchainError(format!("SDK stub does not define re-export {name}"))
             })?;
             let mut local = BTreeMap::new();
-            let mut directives = record.collect(deployment, true, &mut local, &mut pending)?;
+            let mut directives =
+                record.collect(machine, deployment, true, &mut local, &mut pending)?;
             if let Some(install_name) = &directives.install_name {
                 for (symbol, interface) in &local {
                     directives

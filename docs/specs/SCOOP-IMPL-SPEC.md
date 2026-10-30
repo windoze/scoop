@@ -73,6 +73,10 @@ Linux GNU 直接执行所选 GCC driver，不注入 musl wrapper 专用的 `REAL
 
 Native C++ 支持由语言规范 12.2.1 的 `native.cxx` 显式选择，目标环境包括 Darwin/AArch64、Linux/amd64 GNU，以及 Windows 设计规定的三个环境。当前 musl 工具链未配套 C++ 标准库和 ABI 运行库，C++ 与 musl 的静态／动态链接组合均不支持；源码构建和 artifact-only 消费都必须诊断该组合。Windows 正式 CLI 开放仍以完整 runtime 和链接闭环为前提。
 
+runtime 源码组合由目录中的 bundle 选择及明确的 OS、对象格式、架构、frame 合同组成。`platform/arch` 保存 ISA 浮点环境；`platform/frame` 保存实际过程 ABI 的 frame 恢复和对应对象格式的 anchor 汇编；`platform/os` 不以架构限制共享系统实现。源码路径、编译参数的更新沿既有 runtime 构建记录处理，不添加动态插件或重复平台探测。
+
+Mach-O／ELF／COFF 的容器事实与其 machine 规则分别表达。共享对象 envelope 保存已选目标；Mach-O 符号、section、fat slice 和动态输入通过所选 machine 处理，不从 Mach-O 格式隐含 Darwin AArch64 身份。各架构 relocation 解码保留在对象所属模块，新增架构不得复用另一架构的 relocation 编码。
+
 ## 2. 编译阶段与产物契约
 
 M51 的普通 native include 支持语言规范 12.2.1 的路径字符串或条件路径表。预处理搜索目录、选项投影与 native 对象更新判断只使用当前目标选中的路径，并保持声明顺序；复用现有目标谓词，不引入依赖准备回调或目标变量插值。M63 后原始 manifest 的本机解析记录由 PM 按实际输入更新复用，driver 不再保存原始清单解析缓存；PM 的解析记录还包含配套静态目录的 source-condition 投影，新增目标或修改谓词事实后重新解析，不复用旧的展开目标集合。系统库选库记录同样跟踪公共目录的目标事实，未变化时仍在 manifest 正文读取之前复用；语言实体、`.slib` 与 runtime ABI 不变。

@@ -1,8 +1,8 @@
 use std::{collections::BTreeSet, num::NonZeroU32, ops::Range};
 
 use crate::link_object::{
-    BuiltinObjectSectionRoleV1, DarwinArm64RelocationShapeV1, DarwinArm64RelocationTargetV1,
-    ObjectRelocationShapeV1, ObjectSymbolKindV1, ValidatedBuiltinObjectSectionInventoryV1,
+    BuiltinObjectSectionRoleV1, MachORelocationShapeV1, ObjectRelocationShapeV1,
+    ObjectRelocationTargetV1, ObjectSymbolKindV1, ValidatedBuiltinObjectSectionInventoryV1,
 };
 
 pub(super) fn ranges(
@@ -28,13 +28,13 @@ pub(super) fn ranges(
                 return None;
             }
             match relocation.shape() {
-                ObjectRelocationShapeV1::DarwinArm64(
-                    DarwinArm64RelocationShapeV1::Page21 {
-                        target: DarwinArm64RelocationTargetV1::SymbolTableIndex(index),
+                ObjectRelocationShapeV1::MachO(
+                    MachORelocationShapeV1::Page21 {
+                        target: ObjectRelocationTargetV1::SymbolTableIndex(index),
                         ..
                     }
-                    | DarwinArm64RelocationShapeV1::PageOffset12 {
-                        target: DarwinArm64RelocationTargetV1::SymbolTableIndex(index),
+                    | MachORelocationShapeV1::PageOffset12 {
+                        target: ObjectRelocationTargetV1::SymbolTableIndex(index),
                         ..
                     },
                 ) => Some(index),

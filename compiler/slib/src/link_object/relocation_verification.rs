@@ -10,8 +10,8 @@ use scoop_identity::{
 };
 
 use super::{
-    BuiltinObjectSectionRoleV1, DarwinArm64RelocationShapeV1, DarwinArm64RelocationTargetV1,
-    MemberObjectDefinitionIndexV1, ObjectSymbolKindV1, PlannedStrongObjectSymbolRoleV1,
+    BuiltinObjectSectionRoleV1, MachORelocationShapeV1, MemberObjectDefinitionIndexV1,
+    ObjectRelocationTargetV1, ObjectSymbolKindV1, PlannedStrongObjectSymbolRoleV1,
 };
 use crate::SlibMemberId;
 

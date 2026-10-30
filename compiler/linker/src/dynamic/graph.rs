@@ -174,6 +174,7 @@ impl DynamicInputs {
         for (id, symbols) in imports {
             let provider = &self.providers[&id];
             let stub = scoop_toolchain::write_link_stub(
+                scoop_slib::MachOArchitecture::for_target(profile.target().id()).map_err(error)?,
                 &provider.install_name,
                 provider.current_version,
                 provider.compatibility_version,

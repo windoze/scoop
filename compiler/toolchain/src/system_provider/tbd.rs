@@ -94,25 +94,29 @@ pub(super) fn parse(bytes: &[u8]) -> Result<Vec<Record>, ToolchainError> {
 impl Record {
     pub(super) fn collect(
         &self,
+        machine: scoop_slib::MachOArchitecture,
         deployment: DarwinPackedVersionV1,
-        allow_arm64e: bool,
+        system: bool,
         exports: &mut BTreeMap<String, NativeExport>,
         pending: &mut Vec<String>,
     ) -> Result<StubDirectives, ToolchainError> {
-        let target = ["arm64-macos", "arm64e-macos"]
-            .into_iter()
-            .find(|target| {
-                (*target != "arm64e-macos" || allow_arm64e)
-                    && self.targets.iter().any(|value| value == target)
-            })
+        let ordinary = machine.text_stub_target();
+        let candidates = if system {
+            machine.system_text_stub_targets()
+        } else {
+            std::slice::from_ref(&ordinary)
+        };
+        let target = candidates
+            .iter()
+            .find(|target| self.targets.iter().any(|value| value == *target))
             .ok_or_else(|| {
                 ToolchainError(format!(
-                    "SDK {} has no compatible macOS/arm64 target",
+                    "SDK {} has no compatible {ordinary} target",
                     self.install_name
                 ))
             })?;
         for library in &self.reexported_libraries {
-            if library.targets.iter().any(|value| value == target) {
+            if library.targets.iter().any(|value| value == *target) {
                 pending.extend(library.libraries.iter().cloned());
             }
         }
@@ -121,7 +125,7 @@ impl Record {
             .exports
             .iter()
             .chain(&self.reexports)
-            .filter(|section| section.targets.iter().any(|value| value == target))
+            .filter(|section| section.targets.iter().any(|value| value == *target))
         {
             for (symbols, weak) in [(&section.symbols, false), (&section.weak_symbols, true)] {
                 for symbol in symbols {

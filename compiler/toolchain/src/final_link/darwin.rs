@@ -88,6 +88,8 @@ impl DarwinFinalLinkProfile {
                 .map_or(startup.compiler_driver(), |cxx| cxx.driver()),
         )?)?;
         let system = SystemProvider::read(
+            scoop_slib::MachOArchitecture::for_target(startup.profile().contract().target().id())
+                .map_err(error)?,
             startup.sdk_root().map_err(error)?,
             startup
                 .profile()

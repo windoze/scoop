@@ -133,13 +133,26 @@ pub(crate) struct MachOLayout {
 }
 
 impl MachOLayout {
-    pub(crate) fn parse(bytes: &[u8]) -> Result<Self, CodegenError> {
+    pub(crate) fn parse(
+        bytes: &[u8],
+        target: scoop_lir::LirTargetProfile,
+    ) -> Result<Self, CodegenError> {
+        let (cpu, subtype) = match target.architecture() {
+            scoop_lir::TargetArchitecture::Aarch64 => {
+                (macho::CPU_TYPE_ARM64, macho::CPU_SUBTYPE_ARM64_ALL)
+            }
+            scoop_lir::TargetArchitecture::X86_64 => {
+                (macho::CPU_TYPE_X86_64, macho::CPU_SUBTYPE_X86_64_ALL)
+            }
+        };
         if read_u32(bytes, 0)? != macho::MH_MAGIC_64
-            || read_u32(bytes, 4)? != macho::CPU_TYPE_ARM64
+            || read_u32(bytes, 4)? != cpu
+            || read_u32(bytes, 8)? != subtype
             || read_u32(bytes, 12)? != macho::MH_OBJECT
         {
             return Err(CodegenError(
-                "callable atom boundaries require Mach-O64/AArch64 MH_OBJECT bytes".to_string(),
+                "callable atom boundaries require Mach-O64 MH_OBJECT bytes for the selected target"
+                    .to_string(),
             ));
         }
         let command_count = read_u32(bytes, 16)?;
