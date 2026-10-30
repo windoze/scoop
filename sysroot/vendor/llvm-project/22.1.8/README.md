@@ -21,6 +21,11 @@ address direct when lowering `dbg.value`. Its DWARF expression already accounts
 for dereferencing that address. This prevents AArch64 aggregate parameters from
 using their first field as an extra pointer; generated program code is unchanged.
 
+`patches/llvm-landingpad-debug-values.patch` places SelectionDAG's leading debug
+values after machine block labels. PHI elimination can then put its destination
+copies before those debug values while keeping them after the landing-pad label.
+Otherwise exception dispatch skips the copies and reads stale stack values.
+
 `scripts/build_windows_unwind.py` builds each Windows target's static libunwind from this source. For the Microsoft target, `patches/llvm-libunwind-msvc-seh.patch` adds an explicit clang-cl x64 static Level-I SEH build option. It preserves exception metadata on the C unwinding functions and disables C++ exceptions and RTTI within libunwind. It does not provide an Itanium C++ ABI on MSVC targets or replace VCRuntime's C++ exception handler. The patch is applied only to the preparation work directory; Microsoft objects use `/MD`, and MinGW objects use the selected CRT prefix.
 
 The host SDK also includes Clang headers, clang-cpp, resource headers and debug-file

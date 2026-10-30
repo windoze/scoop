@@ -80,3 +80,9 @@ Ruff 0.16.10 通过；76 项 fixture 规则与 22 项维护脚本测试各跳过
 LLVM recipe 在更新判断之后应用实际补丁，安装配套工具与 SDK；实际构建及随后复用通过。LLDB 的 Darwin 安装在 CMake 修改加载路径后重新签名 debugserver，保留调试 entitlements。调试验收使用真实控制 PTY 并在进程存活时读取输出；断点允许先 pending，但必须在目标中验证成功。终端断点放在实际执行的条件判断上。
 
 Ruff 0.16.10、Rust 格式化与 workspace／all-targets Clippy 通过。配套 LLVM 下 codegen 的 386 项测试通过，22 项维护脚本测试中 3 项宿主不适用、其余通过。AArch64 的完整 DAP launch、sourceMap、局部／全局／TLS、tagged／niche enum、单步、移动 GC 与离线 formatter、终端输入输出通过；x86_64 的完整普通 launch 与离线 formatter 通过。Rosetta 下 `runInTerminal` 的进程正常退出但未命中源码断点，按用户确认记为跨架构终端调试限制，未计入通过，不继续追查。macOS attach 不是该专项的验收入口；现有 attach 测试在 R7 Linux 执行。
+
+### R6 异常入口
+
+AArch64 全量回归暴露 LLVM SelectionDAG 的另一个问题：入口的 PHI 调试记录被放在 landing-pad 标签之前，PHI 消除随后把必要复制也放在标签前，异常跳转会跳过复制。配套补丁只把前置调试记录移到标签之后，保留“标签、PHI 复制、调试观察”的顺序。独立 LLVM／C++ 程序修复前读取旧栈值，修复后正确返回 7／19；AArch64、x86_64 的机器 PHI 检查及原有普通 PHI 调试顺序测试通过。现有 Scoop 异常 fixture 同时增加固定结果断言，避免两条路径同错仍通过比较。
+
+更新 LLVM SDK 与 CLI 后，Rust 格式化、workspace／all-targets Clippy、codegen 386 项测试通过；两种 Darwin 目标的异常、SSA 移动根、statepoint 与跨 Cone TLS／callback 定向复验通过。完整 workspace 共 6,298 项测试通过，测试线程使用 16 MiB 栈以容纳已有格式化 corpus。发行准备补充批次推送后获取远端 main，无新增提交。
