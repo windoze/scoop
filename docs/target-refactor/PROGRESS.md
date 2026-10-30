@@ -96,3 +96,9 @@ Ruff 0.16.10、Rust 格式化与 workspace／all-targets Clippy 通过。配套 
 AArch64 全量回归暴露 LLVM SelectionDAG 的另一个问题：入口的 PHI 调试记录被放在 landing-pad 标签之前，PHI 消除随后把必要复制也放在标签前，异常跳转会跳过复制。配套补丁只把前置调试记录移到标签之后，保留“标签、PHI 复制、调试观察”的顺序。独立 LLVM／C++ 程序修复前读取旧栈值，修复后正确返回 7／19；AArch64、x86_64 的机器 PHI 检查及原有普通 PHI 调试顺序测试通过。现有 Scoop 异常 fixture 同时增加固定结果断言，避免两条路径同错仍通过比较。
 
 更新 LLVM SDK 与 CLI 后，Rust 格式化、workspace／all-targets Clippy、codegen 386 项测试通过；两种 Darwin 目标的异常、SSA 移动根、statepoint 与跨 Cone TLS／callback 定向复验通过。完整 workspace 共 6,298 项测试通过，测试线程使用 16 MiB 栈以容纳已有格式化 corpus。发行准备补充批次推送后获取远端 main，无新增提交。
+
+### R6 系统 Cone 与 TLS 关闭
+
+两种 Darwin 目标各完成 33 个普通／consumer Cone 与 3 个 GUI Cone 的运行验证。AArch64 首轮唯一未完成项是 TLS 关闭测试：OpenSSL 的首次 `SSL_shutdown` 返回零后，wrapper 直接请求网络输入，忽略已进入 BIO 的应用密文，使两端相互等待。现在继续推进接收半程，再按实际 WANT_READ／WANT_WRITE 请求传输；未消费应用数据仍报告原有错误并关闭。
+
+新增 TLS 1.2／1.3 的纯内存引擎测试在修复前稳定失败，修复后通过；两种架构各 29 项同步 TLS 测试、22 项异步 TLS 测试及两组预编译 consumer 全部通过，原先阻塞的 TCP 关闭用例也已完成。C 变更通过 clang-format 检查。更新后的 LLVM SDK 下，两种架构的完整 DAP launch、sourceMap 和离线 formatter 再次通过，AArch64 的终端调试再次通过；Rosetta 终端调试仍保留上述限制。

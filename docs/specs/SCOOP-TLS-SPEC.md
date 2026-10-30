@@ -60,7 +60,7 @@ close 只保证本地释放，不隐含 flush 或对端关闭握手。拒绝新�
 
 异步 close 可在已取消 Job 的 finally 中执行，收尾不可被提前取消；并发 close 等待同一次收尾，之后幂等。EventLoop 对原始 socket 的收尾不能代替 TLS wrapper 的 close；正常用法以 use／useAsync／try-finally 显式关闭。GC release hook 不驱动、不等待、不取消，也不调用 OpenSSL 析构链。
 
-shutdownGracefully 独占读写方向，排出已接受输出，发出并等待对端 close_notify，成功后执行本地关闭。SSL_shutdown 返回零表示仍未双向完成；未消费应用数据不能静默丢弃，应报告错误并关闭。取消或失败同样本地收尾，等待上限由应用使用现有 Job／定时器控制。
+shutdownGracefully 独占读写方向，排出已接受输出，发出并等待对端 close_notify，成功后执行本地关闭。SSL_shutdown 返回零表示仍未双向完成；引擎继续推进接收半程，再依据实际 WANT_READ／WANT_WRITE 请求传输，不能仅由返回零推定还需输入而忽略 BIO 中已有的密文。未消费应用数据不能静默丢弃，应报告错误并关闭。取消或失败同样本地收尾，等待上限由应用使用现有 Job／定时器控制。
 
 ## 7. 验证
 
