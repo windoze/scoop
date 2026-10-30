@@ -361,6 +361,8 @@ include = [
 
 新增同 ABI 的架构／OS 组合时，只在确实使用新参数的 recipe 中登记映射。C++ 标准库、MSVC flags、LLVM-MinGW 两个 prefix 继续明确；不为每个库再复制一套 host／target 解析。
 
+fixture 的适用条件也按实际依赖表达：普通语言／CLI 用例省略目标限制；Unix 或 Darwin 系统调用用例用 `when = { os = ... }`，需要特定架构或 native 环境时再加 `arch`／`env`。这些条件读取同一目录，字段间取交集、同字段候选取并集。只有确有完整目标差异的 ABI／产物期望才保留 `targets` 明确列表；声明两者时取交集。现有数千个重复六目标或 Unix 目标名单按此迁移，新注册目标无需逐个修改普通用例。
+
 `scripts/release.toml` 继续维护发行版本、最低系统／SDK 版本和实际发行组合；目标名称等静态事实引用公共目录。host 工具构建和随包携带哪些 target 资源分别配置，不再由 `host == Darwin` 等判断推导整个包内容。
 
 LLVM／LLDB 补丁作为实际构建输入保留，尤其是 Windows statepoint return-PC、MSVC SEH libunwind 和 PE/PDB 调试修正。新增 Linux ARM64 host 与新增 Linux ARM64 target 是两项工作，脚本不能将支持生成 ARM64 等同于编译器已能在 ARM64 上安装使用。
@@ -428,7 +430,7 @@ fixture runner 分开“可编译”和“可在本机执行”：交叉编译�
 
 runner 的 `requires_target_execution` 默认开启；纯宿主工具用例显式关闭。`--compile-only` 跳过需要目标执行的完整用例并单列结果，不删除其中运行步骤。宿主默认 target、发行组合和当前进程可执行的 OS／架构分别判断；native companion 的 machine、SDK 与 Darwin deployment 同样来自所选目标。
 
-交叉编译回归沿用已完成的 macOS／Linux → 三个 Windows target，并在 Windows 运行产物，覆盖 C++、接口移动 GC、Throwable 与 GUI／RC。保留复用同一份 Windows 准备的目标库／runtime／unwind、Unix 绝对路径和中文／空格路径的实际调用。其余既有目标在对应系统完成源码编译、预编译库消费和运行；本阶段 Darwin x86_64 使用本机 Rosetta 执行并验证调试产物，后续 ARM64／OpenHarmony 分别追加对应环境的运行和调试验证。
+交叉编译回归沿用已完成的 macOS／Linux → 三个 Windows target，并在 Windows 运行产物，覆盖 C++、接口移动 GC、Throwable 与 GUI／RC。保留复用同一份 Windows 准备的目标库／runtime／unwind、Unix 绝对路径和中文／空格路径的实际调用。其余既有目标在对应系统完成源码编译、预编译库消费和运行；本阶段 Darwin x86_64 使用本机 Rosetta 执行并验证调试产物。按用户确认，Rosetta 调试遇到系统／跨架构启动障碍时记录具体限制，不阻塞本阶段；AArch64 原生调试必须通过。后续 ARM64／OpenHarmony 分别追加对应环境的运行和调试验证。
 
 GUI 回归按现有窗口库记录，在各自原生桌面串行执行，避免多个目标争用同一前台窗口。选择实际受本批变更影响的窗口／asyncio／renderer 测试，不把混合 DPI、所有实体键盘或输入法人工验收加入 target 重构的完成门槛，也不把 Windows 上的通过视作 AppKit 已复测。
 

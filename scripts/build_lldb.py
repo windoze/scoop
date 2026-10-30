@@ -230,6 +230,19 @@ def main():
         ],
         check=True,
     )
+    if host.endswith("darwin"):
+        # CMake adjusts the installed rpath after signing the build-tree helper.
+        subprocess.run(
+            [
+                "codesign",
+                "--force",
+                "--sign",
+                "-",
+                "--preserve-metadata=entitlements",
+                str(prefix / "bin/debugserver"),
+            ],
+            check=True,
+        )
     save_record(record, inputs, build / "objects")
     print(f"Installed LLDB {VERSION}: {prefix}")
 

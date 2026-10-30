@@ -26,6 +26,8 @@ class Client:
         self.output = ""
         self.terminal = None
         self.master = None
+        self.terminal_output = bytearray()
+        self.terminal_reader = None
         threading.Thread(target=self.read, daemon=True).start()
 
     def read(self):
@@ -120,6 +122,8 @@ class Client:
             )
         finally:
             os.close(slave)
+        self.terminal_reader = threading.Thread(target=self.read_terminal, daemon=True)
+        self.terminal_reader.start()
         self.send(
             {
                 "type": "response",
@@ -129,6 +133,13 @@ class Client:
                 "body": {"processId": self.terminal.pid},
             }
         )
+
+    def read_terminal(self):
+        # Drain while the process is alive; Darwin can discard unread PTY
+        # output when the last slave closes.
+        with contextlib.suppress(OSError):
+            while chunk := os.read(self.master, 4096):
+                self.terminal_output.extend(chunk)
 
     def close(self):
         if self.process.poll() is None:
@@ -144,5 +155,7 @@ class Client:
                     process.wait()
         if self.master is not None:
             os.close(self.master)
+        if self.terminal_reader is not None:
+            self.terminal_reader.join(timeout=5)
         self.process.stdin.close()
         self.process.stdout.close()

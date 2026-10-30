@@ -8,8 +8,8 @@ fun main(): Int {
     println("debugger-input")
     flushOutput()
     val input = readCharacter()
-    val answer = input + 1 // BREAK: console
-    if (answer != 66) return 1
+    val answer = input + 1
+    if (answer != 66) return 1 // BREAK: console
     if (isTerminal(0) == 1) println("debugger-tty")
     else println("debugger-pipe")
     println("debugger-io-ok")

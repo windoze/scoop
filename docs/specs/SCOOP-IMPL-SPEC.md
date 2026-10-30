@@ -2064,7 +2064,7 @@ Throwable 准备在 MIR 的具体正文与协程转换、内联完成后展开�
 
 非引用局部使用真实存储的 declare 记录，SSA 参数及分片使用 value／fragment 记录，并在实际读取时更新其位置。含 managed 引用的变量只观察程序已实际产生的值，不为调试新增读取、栈槽或 root；safepoint 后使未确认的位置 unavailable，已按该边 live set 回写的 canonical root storage 可立即提供新位置，其余变量等后续真实读取／赋值再更新。normal／unwind 边分别使用该边实际恢复的根，调用结果在旧观察失效之后建立位置。被复制、拆分或消除的聚合不能继续显示旧叶子地址。
 
-已有 canonical root storage 先使用 declare，使 SROA 能按真实布局转移存储分片；GC lowering 后统一转换成带解引用及原 fragment 的 value 记录，避免机器发射将静态 declare 和失效位置混用。参数声明及其观察位置属于实际函数作用域，内联参数属于对应内联函数，不能使用没有正文的独立文件词法块。RS4GC 更新机器 SSA 后，调试观察同步使用支配观察点的最新真实 relocation；无法确定的合流位置保持 unavailable，不为调试建立额外 phi、读取或 root。转换只修改 LLVM 调试记录，不加入读取、栈槽或保活用途的指令。LLVM C API 未提供的记录替换、表达式拼接及支配查询通过小型 C++ 绑定调用对应 LLVM 22.1 API。聚合拆分删除的旧 SSA 节点不得用零值替代其调试观察；未能迁移的观察保持 unavailable。
+已有 canonical root storage 先使用 declare，使 SROA 能按真实布局转移存储分片；GC lowering 后统一转换成带解引用及原 fragment 的 value 记录，避免机器发射将静态 declare 和失效位置混用。byval 参数的 LLVM pointer 表示调用者副本的地址；该地址落在固定栈位置时，机器调试记录不得额外解引用一次而把聚合首字段误作地址。参数声明及其观察位置属于实际函数作用域，内联参数属于对应内联函数，不能使用没有正文的独立文件词法块。RS4GC 更新机器 SSA 后，调试观察同步使用支配观察点的最新真实 relocation；无法确定的合流位置保持 unavailable，不为调试建立额外 phi、读取或 root。转换只修改 LLVM 调试记录，不加入读取、栈槽或保活用途的指令。LLVM C API 未提供的记录替换、表达式拼接及支配查询通过小型 C++ 绑定调用对应 LLVM 22.1 API。聚合拆分删除的旧 SSA 节点不得用零值替代其调试观察；未能迁移的观察保持 unavailable。
 
 2.5 使用 LLVM 22.1 的标准调试元数据和 debug records，在优化之前 finalize。当前目标采用 DWARF 5、`DW_LANG_C` 静态类型视图，producer 标明 scoopc；Scoop 基础类型通过 typedef 保留名称。每个实际发射对象保存自身需要的编译单元、文件、函数和类型；函数同时保存源码名称与既有精确 linkageName，包括 line-tables 的最终 DWARF；LLVM 的发射模式不得省略该精确身份。line-tables 只创建函数／位置记录，不创建变量和类型定义。所有字段偏移、大小、对齐与参数分片来自已有目标布局／ABI。引用按真实原生地址描述，不将 LLVM GC address space 当作硬件地址空间。ZST 不因调试增加 payload 存储。
 
@@ -2074,13 +2074,13 @@ Throwable 准备在 MIR 的具体正文与协程转换、内联完成后展开�
 
 2.6 的对象内容及 Code 更新关系包含实际调试信息；影响持久模板数据时才递增对应 meta 编码，不能只为 native DWARF 无条件改 ABI。2.7 的正常更新键包含生产级别及实际路径配置。没有源码行信息的对象不能由 linker 补齐；`scoop link` 和 `scoop-link` 只接受 `--emit-debug-file` 生成已有内容的外置文件，`--keep-symbols` 仍独立控制 executable 普通符号表。
 
-Darwin 输出 `<output>.dSYM/Contents/Resources/DWARF/<basename>`：保留 Mach-O debug map 完成链接，在输入对象仍可用时执行所选 dsymutil，再按符号策略 strip，最后签名。Linux GNU／musl 链接使用标准 SHA-1 build-id，为动态及静态程序的栈快照保留模块匹配标识；该标识不承担授权或防伪用途。输出 `<output>.debug` 时，完整链接后用 llvm-objcopy `--only-keep-debug`，按符号策略裁剪 executable，再写入 `.gnu_debuglink`。所有模式保留展开表、必要 EH、GC stackmap 与运行登记数据；generated-C 桥保留物理回溯需要的 unwind 数据。目标工具、输入及失败按普通 toolchain／linker 合同处理，不增加输出内容审计。
+Darwin 输出 `<output>.dSYM/Contents/Resources/DWARF/<basename>`：保留 Mach-O debug map 完成链接，在输入对象仍可用时执行所选 dsymutil，再按符号策略 strip，最后签名。Mach-O 的局部调试重定位同时使用目标 section 和对象地址定位 debug map 项；相邻 section 的结束／开始符号即使具有相同对象地址，也不能互相替代。配套 dsymutil 保留这一差异，确保 x86_64 的 TLS 定位仍指向实际描述符。Linux GNU／musl 链接使用标准 SHA-1 build-id，为动态及静态程序的栈快照保留模块匹配标识；该标识不承担授权或防伪用途。输出 `<output>.debug` 时，完整链接后用 llvm-objcopy `--only-keep-debug`，按符号策略裁剪 executable，再写入 `.gnu_debuglink`。所有模式保留展开表、必要 EH、GC stackmap 与运行登记数据；generated-C 桥保留物理回溯需要的 unwind 数据。目标工具、输入及失败按普通 toolchain／linker 合同处理，不增加输出内容审计。
 
 generated-C 桥没有用户源码映射，继续使用 `-g0`，通过实际符号和展开表参与物理回溯；不为人工桥生成伪造的 Scoop 源码行。用户 native 源码沿其原有编译配置提供调试信息。
 
 最终结果缓存同时记录程序及请求的调试结果。请求外置文件时，最终 executable basename 进入结果键并用于内部生成文件名，保证换输出目录可复用、换 basename 时重新生成匹配的 debuglink／dSYM；上游 Cone 不因此重编译。命中只检查输入更新与所需结果存在，不读取／哈希调试文件内容，不启动调试工具或重新准备链接输入。dSYM 目录按普通暂存、复制及 rename 发布；工具失败不发布部分新结果。UUID／debuglink 仅承担平台文件关联。
 
-编辑器复用官方 lldb-dap，scoop-lsp 保持语言服务职责。VS Code 提供源码 breakpoints、构建到 executable 的启动配置、attach、参数／cwd／环境／终端及 sourceMap，按需导入只读 Python formatter。发行包包含匹配平台的 lldb、lldb-dap、LLDB library、Python 支持及实际所需附加文件。不得把 C 兼容 evaluator、通用异常筛选或硬件 watchpoint 宣称为完整 Scoop 求值、Scoop 异常过滤或 GC 感知数据断点。
+编辑器复用官方 lldb-dap，scoop-lsp 保持语言服务职责。VS Code 提供源码 breakpoints、构建到 executable 的启动配置、attach、参数／cwd／环境／终端及 sourceMap，按需导入只读 Python formatter。发行包包含匹配平台的 lldb、lldb-dap、LLDB library、Python 支持及实际所需附加文件。Darwin 的开发安装与发行加工完成后重新签名 debugserver，保留其原生调试 entitlements，避免安装时调整加载路径使签名失效。不得把 C 兼容 evaluator、通用异常筛选或硬件 watchpoint 宣称为完整 Scoop 求值、Scoop 异常过滤或 GC 感知数据断点。
 
 所有宿主的发行包在公开 `bin` 目录中为 LLVM／LLDB 命令统一增加 `scoop-` 前缀：`scoop-lldb`、`scoop-lldb-dap`、`scoop-dsymutil`、`scoop-llvm-objcopy`、`scoop-llvm-strip`、`scoop-llvm-symbolizer`、`scoop-llvm-nm` 与 `scoop-llvm-readobj`；Windows 附加 `.exe`。不在该目录保留无前缀别名，避免加入 PATH 后与其他 LLVM 安装冲突。编译器查找同目录的调试工具、编辑器的默认 adapter 与性能分析命令使用发行名称；显式选择外部 LLVM 时仍使用其上游名称。私有 `libexec` 布局保留上游工具名。
 

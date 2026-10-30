@@ -104,7 +104,7 @@ musl 的 C 开发环境也需要 Linux UAPI 头。Debian／Ubuntu 的 `musl-gcc`
 
 LLVM 源码与归档优先复用 vendor 的固定版本位置；缺失时在工作目录的 `inputs` 下下载官方固定版本归档并解包。也可传入已有的 `--llvm-source` 和 `--llvm-archive`，显式路径不存在时直接报错。已经准备的匹配版本宿主 LLVM 可通过 `--llvm-prefix` 复用；省略时脚本在自己的工作目录构建。`--version` 和 `--revision` 可显式设置发行标识，默认采用配置版本与当前 Git revision，存在未提交修改时标注 `+modified`。这些参数也写入安装根的 `VERSION`。
 
-工具包 `scoop-<version>-<host>.tar.xz` 内直接是安装根内容，可直接解压到 `~/.scoop`，不需要 `--strip-components`。Darwin 包包含 Darwin/AArch64 目标，Linux/GNU amd64 包同时包含 GNU／musl 两套目标；每套均包含全部生产 Cone 的 release `.slib`、native 静态库／头文件和两种 runtime。LLVM 源码包单独保留有版本名称的顶层目录。
+工具包 `scoop-<version>-<host>.tar.xz` 内直接是安装根内容，可直接解压到 `~/.scoop`，不需要 `--strip-components`。Darwin/AArch64 宿主包包含 AArch64／x86_64 两个 Darwin 目标，Darwin/x86_64 宿主包包含 x86_64 目标，Linux/GNU amd64 包同时包含 GNU／musl 两套目标；每套均包含全部生产 Cone 的 release `.slib`、native 静态库／头文件和四种 runtime 配置。LLVM 源码包单独保留有版本名称的顶层目录。
 
 ```text
 ~/.scoop/
@@ -154,6 +154,7 @@ Windows 的宿主 DLL 分别放在实际使用它们的 `bin`、外部命令目�
 
 `package_toolchain.py` 在 LLVM／Clang SDK 后调用 `build_lldb.py`，固定 LLVM 22.1.8，
 启用 Python，构建 lldb、lldb-dap、lldb-argdumper 和 debugserver／lldb-server。
+Darwin 开发安装在 CMake 调整加载路径后重新签名 debugserver，并保留调试 entitlements。
 源码兼容修补保留 Scoop 的 DW_AT_name 与精确 linkage identity，将同源文件的独立编译单元全局量放回当前栈帧，并补齐 Linux/amd64 静态程序的原生 TLS 定位；修补文件也进入 llvm-sources 包。
 可用 `--debugger-prefix` 复用匹配的已构建调试器，`--debugger-python` 指定构建时所用 Python；
 只有 LLVM SDK 时仍正常构建 LLDB，要求 SDK 包含 Clang headers／CMake targets／clang-cpp、构建用 `llvm-tblgen` 以及 TableGen／Support／Demangle／Debuginfod 静态库；`build_llvm.py` 会安装这些资源。
