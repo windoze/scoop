@@ -20,9 +20,23 @@ public class GuiWindow internal constructor(
     private var configured: WindowMetrics? = None
     private val scheduler = FrameScheduler()
     public val animations: AnimationTimeline = windowAnimations(nativeWindow)
+    private val input = windowInputs(nativeWindow)
+    public val focusedArea: InputArea? get() {
+        host.checkThread();
+        return input.logicalFocus
+    }
     public val state: GuiWindowState get() {
         host.checkThread();
         return phase
+    }
+
+    public fun createArea(
+        focusable: Boolean = false,
+        textInput: Boolean = false,
+        handler: (InputArea, AreaEvent) -> InputResult
+    ): InputArea = input.createArea(focusable, textInput, handler)
+    public fun clearFocus() {
+        input.clearFocus()
     }
 
     public fun requestFrame() {
@@ -46,7 +60,10 @@ public class GuiWindow internal constructor(
                     renderer.configure(metrics)
                     configured = Some(metrics)
                     scheduler.request()
+                    input.geometryChanged()
                 }
+                if (phase != GuiWindowState.Open)
+                    return
                 renderer.setFrameDemand(
                     (scheduler.dirty || animations.hasWork) &&
                         metrics.physicalSize.isDrawable &&
@@ -75,7 +92,7 @@ public class GuiWindow internal constructor(
                     refresh()
                 }
                 case ThemeChanged(_) -> requestFrame()
-                else -> {}
+                else -> input.event(event)
             }
         }
     }
@@ -94,39 +111,46 @@ public class GuiWindow internal constructor(
             case Ready(frame) -> {
                 val accepted =
                     frame.use {
-                        current ->
-                        scheduler.begin()
-                        val time = MonotonicTimeSource.markNow()
-                        animations.withFrame<Unit>(time) {
-                            if (phase == GuiWindowState.Open) {
-                                current.draw {
-                                    canvas -> painter(
-                                        FrameContext(
-                                            this,
-                                            canvas,
-                                            Size(
-                                                metrics.logicalSize.width,
-                                                metrics.logicalSize.height
-                                            ),
-                                            time
+                        current -> input.beginFrame().use {
+                            placements ->
+                            scheduler.begin()
+                            val time = MonotonicTimeSource.markNow()
+                            animations.withFrame<Unit>(time) {
+                                if (phase == GuiWindowState.Open) {
+                                    current.draw {
+                                        canvas -> painter(
+                                            FrameContext(
+                                                this,
+                                                canvas,
+                                                Size(
+                                                    metrics.logicalSize.width,
+                                                    metrics.logicalSize.height
+                                                ),
+                                                time,
+                                                placements
+                                            )
                                         )
-                                    )
+                                    }
                                 }
                             }
+                            // A painter can resize or close its native window synchronously.
+                            refresh()
+                            val accepted =
+                                if (
+                                    phase !=
+                                        GuiWindowState.Open ||
+                                        nativeWindow.state !=
+                                        WindowState.Open ||
+                                        !nativeWindow.isVisible ||
+                                        nativeWindow.isOccluded
+                                )
+                                    false
+                                else
+                                    current.submit()
+                            if (accepted)
+                                input.publish(placements)
+                            accepted
                         }
-                        // A painter can resize or close its native window synchronously.
-                        refresh()
-                        if (
-                            phase !=
-                                GuiWindowState.Open ||
-                                nativeWindow.state !=
-                                WindowState.Open ||
-                                !nativeWindow.isVisible ||
-                                nativeWindow.isOccluded
-                        )
-                            false
-                        else
-                            current.submit()
                     }
                 if (!accepted)
                     scheduler.request()
@@ -157,6 +181,7 @@ public class GuiWindow internal constructor(
             return
         phase = GuiWindowState.Closing
         var failure = cleanupFailure(None) { renderer.setFrameDemand(false) }
+        failure = cleanupFailure(failure) { input.close() }
         failure = cleanupFailure(failure) { animations.close() }
         if (depth == 0)
             throwFailure(cleanupFailure(failure) { retire() })
@@ -177,3 +202,26 @@ private fun windowAnimations(window: Window): AnimationTimeline =
         if (window.state == WindowState.Open)
             window.requestRedraw()
     }
+
+private fun windowInputs(window: Window): InputRouter =
+    InputRouter(
+        window.isFocused,
+        {
+            if (window.state == WindowState.Open)
+                window.requestRedraw()
+        },
+        {
+            allowed -> if (window.state == WindowState.Open) {
+                window.setImeAllowed(allowed)
+            }
+        },
+        {
+            rect -> if (window.state == WindowState.Open)
+                window.setImeCursorArea(
+                    LogicalRect(
+                        LogicalPosition(rect.x, rect.y),
+                        LogicalSize(rect.width, rect.height)
+                    )
+                )
+        }
+    )

@@ -21,6 +21,30 @@ public class ViewProbe public constructor(view: Ptr<Unit>): Closeable {
             return isRestored(native!!)
         }
     }
+    public fun button(x: Double, y: Double, pressed: Boolean): Boolean {
+        @Unsafe
+        {
+            return sendButton(native!!, x, y, pressed)
+        }
+    }
+    public fun preedit(): Boolean {
+        @Unsafe
+        {
+            return sendText(native!!, false)
+        }
+    }
+    public fun commitText(): Boolean {
+        @Unsafe
+        {
+            return sendText(native!!, true)
+        }
+    }
+    public fun caretMatches(x: Double, y: Double, width: Double, height: Double): Boolean {
+        @Unsafe
+        {
+            return checkCaret(native!!, x, y, width, height)
+        }
+    }
     public override fun close() {
         when (native) {
             case Some(value) -> {
@@ -46,3 +70,18 @@ private fun isRestored(probe: Ptr<Unit>): Boolean
 
 @Extern(name = "scoop_gui_test_view_drop")
 private fun drop(probe: Ptr<Unit>)
+
+@Extern(name = "scoop_gui_test_view_button")
+private fun sendButton(probe: Ptr<Unit>, x: Double, y: Double, pressed: Boolean): Boolean
+
+@Extern(name = "scoop_gui_test_view_text")
+private fun sendText(probe: Ptr<Unit>, commit: Boolean): Boolean
+
+@Extern(name = "scoop_gui_test_view_caret")
+private fun checkCaret(
+    probe: Ptr<Unit>,
+    x: Double,
+    y: Double,
+    width: Double,
+    height: Double
+): Boolean

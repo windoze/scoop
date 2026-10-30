@@ -1,0 +1,122 @@
+package scoop.gui
+
+import scoop.graphics.Rect
+
+/** Stable input identity; geometry is supplied by each successfully submitted frame. */
+public class InputArea internal constructor(
+    internal val owner: InputRouter,
+    public val focusable: Boolean,
+    public val textInput: Boolean,
+    handler: (InputArea, AreaEvent) -> InputResult
+): Closeable {
+    internal var closed = false
+    internal var caret = Rect(0.0, 0.0, 0.0, 0.0)
+    private var receive = handler
+    private var accepts = true
+    private var ignored = false
+    public val isClosed: Boolean get() {
+        owner.checkThread();
+        return closed
+    }
+    public val hasFocus: Boolean get() {
+        owner.checkThread();
+        return sameArea(owner.logicalFocus, Some(this))
+    }
+    public val isFocusActive: Boolean get() {
+        owner.checkThread();
+        return sameArea(owner.activeFocus, Some(this))
+    }
+    public var enabled: Boolean
+    get() {
+        owner.checkThread();
+        return accepts
+    }
+    set(value) {
+        checkOpen();
+        if (accepts != value) {
+            accepts = value;
+            owner.changed()
+        }
+    }
+    public var ignoreSelf: Boolean
+    get() {
+        owner.checkThread();
+        return ignored
+    }
+    set(value) {
+        checkOpen();
+        if (ignored != value) {
+            ignored = value;
+            owner.changed()
+        }
+    }
+    public var handler: (InputArea, AreaEvent) -> InputResult
+    get() {
+        owner.checkThread();
+        return receive
+    }
+    set(value) {
+        checkOpen();
+        receive = value
+    }
+    /** Returns false when this area has no active placement or does not accept focus. */
+    public fun requestFocus(): Boolean {
+        checkOpen();
+        return owner.focus(this)
+    }
+    public fun clearFocus() {
+        checkOpen()
+        if (hasFocus)
+            owner.clearFocus()
+    }
+    /** Takes a value snapshot, normally obtained from TextLayout.caret. */
+    public fun setCaret(rect: Rect) {
+        checkOpen()
+        requireInput(
+            rect.x.isFinite() &&
+                rect.y.isFinite() &&
+                rect.width.isFinite() &&
+                rect.height.isFinite() &&
+                rect.width >=
+                0.0 &&
+                rect.height >=
+                0.0 &&
+                (rect.x + rect.width).isFinite() &&
+                (rect.y + rect.height).isFinite(),
+            "invalid area caret rectangle"
+        )
+        if (caret != rect) {
+            caret = rect
+            owner.changed()
+        }
+    }
+    internal fun checkOpen() {
+        owner.checkOpen()
+        if (closed)
+            throw IllegalStateException(Some("input area is closed"))
+    }
+    public override fun close() {
+        owner.checkThread()
+        if (closed)
+            return
+        closed = true
+        owner.detached(this)
+    }
+}
+
+internal fun sameArea(left: InputArea?, right: InputArea?): Boolean =
+    when (left) {
+        case Some(a) -> when (right) {
+            case Some(b) -> a === b;
+            case None -> false
+        }
+        case None -> when (right) {
+            case Some(_) -> false;
+            case None -> true
+        }
+    }
+
+internal fun requireInput(condition: Boolean, message: String) {
+    if (!condition)
+        throw IllegalArgumentException(Some(message))
+}

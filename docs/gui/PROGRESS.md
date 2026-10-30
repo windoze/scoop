@@ -11,7 +11,7 @@
 | GUI 宿主、共享帧调度、macOS Metal 呈现 | 已接入；桌面呈现测试待解锁会话后完成 |
 | 字体、段落布局及索引／几何查询 | 已实现；Darwin 两目标离屏验证通过 |
 | 动画与窗口帧时钟 | 已实现；Darwin 两目标确定性测试通过 |
-| 输入区域、焦点和 IME 路由 | 待完成 |
+| 输入区域、焦点和 IME 路由 | 已实现；Darwin 两目标离屏测试通过，原生会话待桌面验收 |
 | 组合示例、两目标集成验收 | 待完成 |
 
 ## window 前置能力
@@ -21,6 +21,8 @@
 `PointerEvent.Cancelled` 结束窗口聚合的按下按钮集合，携带 FocusLost 或 CaptureLost 及独立时间，不伪造位置和正常 Up。AppKit 覆盖窗口／应用失焦及菜单跟踪，重复取消和取消后的迟到 Up 不重复交付；Left 继续正常拖动。为保持现有后端与共享 ABI 一致，Win32 同步字段、WM_CAPTURECHANGED／WM_CANCELMODE 和正常 ReleaseCapture 顺序；本轮没有执行 Windows 验证。
 
 Darwin ARM64 和 Rosetta x86_64 的 `scoop.window` 各 4 容器、12 测试通过，包括真实 AppKit 输入方法、通知、IME、跨线程 lease 与关闭。`scoop.window.asyncio` 各 1 容器、1 测试覆盖原生 modal／menu 循环内的 I/O、根取消与 lease 收尾。x86_64 初次执行在 modal 观察断言失败、空闲复跑通过；测试辅助程序随后将短观察期的起点移至真正进入对应原生循环，避免 AppKit 冷启动消耗观察期。
+
+更新配套工具后的 x86_64 复验有 11 项通过，AppKitApplicationTest 因 `redraws=0, occluded=true` 达到原生重绘期限。此时桌面锁定，不能把早前的通过结果当成本轮显示链路复验通过；这项及 GUI 的真实呈现一并待解锁后继续。
 
 Scoop 格式化、Cone check 及变更的 Objective-C 严格编译检查通过。验证全部使用 `scoop.test` 和普通测试 Cone，没有新增或执行 fixture；原始日志保存在仓库外。
 
@@ -44,7 +46,7 @@ Scoop fmt／check、C++ 与 Objective-C 严格检查，以及 5 项既有发行�
 
 macOS 安装 CAMetalLayer 到既有输入 view，保存并在卸载时恢复原 layer；同 host 的窗口共用 device／queue／Ganesh context。CAMetalDisplayLink 在 common modes 提供 drawable，经 ApplicationProxy 请求共享层绘制；普通帧只提交有序 GPU 工作，关闭时排空后退休回调和 lease。全部窗口卸载后释放 context，host 可再附着窗口。
 
-已添加宿主、asyncio 和异常收尾三个普通 scoop.test Cone，Scoop 语义检查及 Darwin 两目标的 Objective-C 严格检查通过，两目标生产 `.slib` 构建成功。首次真实窗口测试停在首帧等待：系统显示休眠，唤醒后桌面工具仍明确报告 Mac 锁定，AppKit 将窗口报告为遮挡。此结果不计为呈现测试通过；待解锁后继续实际帧、空闲、多窗口、modal／menu 及异常验证。没有为测试绕过遮挡判断或启用定时器后备。
+已添加宿主、asyncio 和异常收尾三个普通 scoop.test Cone；区域批次另加入原生输入会话 Cone。Scoop 语义检查及 Darwin 两目标的 Objective-C 严格检查通过，两目标生产 `.slib` 构建成功。首次真实窗口测试停在首帧等待：系统显示休眠，唤醒后桌面工具仍明确报告 Mac 锁定，AppKit 将窗口报告为遮挡。此结果不计为呈现测试通过；待解锁后继续实际帧、空闲、多窗口、modal／menu 及异常验证。没有为测试绕过遮挡判断或启用定时器后备。
 
 ## 文本布局
 
@@ -70,7 +72,7 @@ Scoop fmt／check 通过；ARM64 与 Rosetta x86_64 的 AnimationTest 各 7 项�
 
 算法现先检查全部行共享 wildcard 列之后的尾部矩阵，保留每一行的关联；仅在尾部确有缺失时，按原顺序补一个合法头部 witness。没有增加预算、跳过诊断或修改 GUI 的匹配写法。
 
-完整工作区 Clippy 和 2,097 项 HIR 测试通过，新增测试覆盖 32 个独立 Boolean、尾部关联、缺失示例顺序和空类型 product。普通 `tests/cones/pattern-columns` 的 Scoop 源码已在 ARM64 编译、链接和运行通过；x86_64 随配套 sysroot 更新后继续验证。没有使用 fixture。
+完整工作区 Clippy 和 2,097 项 HIR 测试通过，新增测试覆盖 32 个独立 Boolean、尾部关联、缺失示例顺序和空类型 product。普通 `tests/cones/pattern-columns` 的 Scoop 源码已在 ARM64 和 Rosetta x86_64 编译、链接和运行通过。没有使用 fixture。
 
 ## 双目标原生构建前置修复
 
@@ -78,4 +80,16 @@ Scoop fmt／check 通过；ARM64 与 Rosetta x86_64 的 AnimationTest 各 7 项�
 
 所有使用这份记录的 native 对象、C/C++ 工具发现、资源及最终链接配置现在把 canonical triple 一起纳入缓存键。沿用普通输入更新和对象消费检查，不增加产物验证层或 GUI 特殊处理。既有目标 include 重定位测试还暴露了 macOS 目录别名与物理路径不一致的问题；预处理现在用解析后的已存在目标根做逻辑位置映射，仍允许未使用的目标资源目录不存在。
 
-完整工作区 Clippy 和工具链全部 56 项单测通过。新增回归在同一缓存依次构建 ARM64／x86_64 的真实 C 对象，核对架构并验证各自复用；C++ 缓存发现与对应目标的实际发现结果一致。两目标的系统 Cone 与 GUI 消费者随配套工具重建后继续执行。
+完整工作区 Clippy 和工具链全部 56 项单测通过。新增回归在同一缓存依次构建 ARM64／x86_64 的真实 C 对象，核对架构并验证各自复用；C++ 缓存发现与对应目标的实际发现结果一致。重新准备 x86_64 系统库后，Scoop 回归程序链接和运行通过；同一共享缓存下两目标的 graphics 各 19 项、区域输入各 13 项再次通过。ARM64 的既有产物格式与 ABI 未变，GUI 本体及受影响的消费者按实际输入更新。
+
+## 输入区域与焦点
+
+InputArea 提供窗口持有的稳定身份；FrameContext.place 从真实 Canvas 捕获 Rect／Path、变换、clip 和父关系，成功提交后整体替换命中场景。逆放置顺序选择唯一目标，普通事件沿固定路径冒泡；变换不可逆、区域注销或必要祖先禁用会退出交互。已捕获的 Path 几何不依赖调用方包装继续存活。
+
+首次按钮按下固定整次多按钮序列，包括未命中的空路径；区域变化取消后，剩余按钮不会改投新目标。拖动使用最新几何转换，离开内容区只改变 hover。发布新几何会更新静止鼠标的 hover。终结通知在派发安全边界交付，处理器内关闭或抛错仍释放所有场景和原生快照。
+
+逻辑焦点在 OS 失焦时保留，活动焦点暂停；键盘与文字保持独立通道。IME 切换以旧 Disabled 为边界，排队 Edit 保留旧归属。caret 只保存局部矩形值，随新 placement 转换为系统候选窗坐标；相同 caret 或重复请求当前焦点不持续触发重绘。
+
+Scoop fmt／check 与 Objective-C 两目标严格检查通过。ARM64、Rosetta x86_64 的 InputAreaTest／InputFocusTest 各 13 项通过，覆盖真实 Skia 路径孔洞、变换／clip、父关系、冒泡、提交／中止、拖动、静止 hover、滚轮单位、焦点／IME 切换、caret、线程和异常关闭。测试调用生产路由与实际 RasterSurface，没有替代 renderer。
+
+独立 `tests-cones/input` 使用真实输入 view 的 AppKit 鼠标与 NSTextInputClient 协议，组合两帧动画、区域焦点、preedit／commit 排队、候选窗位置及回调内关闭；两目标均通过 `scoop test --no-run` 完成构建和链接。它不注入全局输入，也不替代实际用户操作；真实执行与宿主／asyncio／异常测试一同等待已解锁桌面。

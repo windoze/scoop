@@ -1,0 +1,202 @@
+package scoop.tests.gui.input
+
+import scoop.graphics.*
+import scoop.gui.*
+import scoop.platform.time.MonotonicTimeSource
+import scoop.test.*
+import scoop.tests.gui.ViewProbe
+import scoop.time.Duration
+import scoop.window.*
+import scoop.window.native.*
+
+@Test
+private class NativeInputTest {
+    @Test
+    fun `native input retains its view while regions switch composition and close`() {
+        val probe = InputSession()
+        val application = Application(ApplicationOptions(LastWindowPolicy.Exit))
+        GuiHost { host, active, event -> probe.event(host, active, event) }.use {
+            host -> try {
+                application.run(host)
+                assertTrue(probe.finished)
+                assertEquals("A", probe.firstText.surroundingText)
+                assertEquals("A", probe.secondText.surroundingText)
+                assertEquals(2, probe.downs)
+                assertEquals(2, probe.ups)
+                assertTrue(probe.oldDisabled)
+                assertTrue(probe.frames >= 2)
+                assertEquals(AnimationState.Closed, probe.motion!!.state)
+                assertFalse(probe.animationFinished)
+                assertTrue(probe.view!!.restored())
+                assertTrue(host.isClosed)
+            } finally {
+                probe.close()
+            }
+        }
+    }
+}
+
+private enum InputPhase {
+    Frames, FirstEnabled, Preedit, Switching, SecondEdit, Done
+}
+
+private class InputSession: Closeable {
+    var phase = InputPhase.Frames
+    var window: Window? = None
+    var gui: GuiWindow? = None
+    var view: ViewProbe? = None
+    var first: InputArea? = None
+    var second: InputArea? = None
+    var motion: Animatable<Double>? = None
+    var firstText = TextInputState("", Utf8Selection(0L, 0L))
+    var secondText = TextInputState("", Utf8Selection(0L, 0L))
+    var frames = 0
+    var downs = 0
+    var ups = 0
+    var oldDisabled = false
+    var finished = false
+    var animationFinished = false
+
+    fun event(host: GuiHost, application: ActiveApplication, event: ApplicationEvent) {
+        when (event) {
+            case Resumed -> {
+                val native =
+                    application.createWindow(
+                        WindowAttributes("Scoop region input", LogicalSize(320.0, 220.0))
+                    )
+                window = Some(native)
+                native.setWindowLevel(WindowLevel.AlwaysOnTop)
+                native.requestFocus()
+                view = Some(observeInput(native))
+                val attached = host.attach(native) { frame -> paint(frame) }
+                gui = Some(attached)
+                first =
+                    Some(
+                        attached.createArea(textInput = true) {
+                            area,
+                            input -> receive(area, input, true)
+                        }
+                    )
+                second =
+                    Some(
+                        attached.createArea(textInput = true) {
+                            area,
+                            input -> receive(area, input, false)
+                        }
+                    )
+                first!!.setCaret(Rect(12.0, 34.0, 2.0, 18.0))
+                second!!.setCaret(Rect(12.0, 34.0, 2.0, 18.0))
+                val value = attached.animations.value(0.0)
+                motion = Some(value)
+                value.animateTo(
+                    100.0,
+                    AnimationSpec.Tween(Duration.seconds(30L)),
+                    onFinished = Some { _ -> animationFinished = true }
+                )
+                application.setControlFlow(
+                    ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(5L))
+                )
+            }
+            case AboutToWait -> {
+                if (phase == InputPhase.Frames && frames >= 2 && window!!.isFocused) {
+                    assertTrue(motion!!.value > 0.0)
+                    phase = InputPhase.FirstEnabled
+                    assertTrue(first!!.requestFocus())
+                    assertTrue(view!!.button(10.0, 10.0, true))
+                    assertTrue(view!!.button(10.0, 10.0, false))
+                }
+            }
+            case NewEvents(StartCause.Deadline) -> fail(Some("native GUI input deadline expired"))
+            case Exiting -> finished = phase == InputPhase.Done
+            else -> {}
+        }
+    }
+
+    private fun paint(frame: FrameContext) {
+        frames += 1
+        frame.canvas.clear(Color.White)
+        frame.canvas.drawRect(Rect(0.0, 0.0, 200.0, 80.0), Paint(Color(0.8, 0.9, 1.0)))
+        frame.place(first!!, Rect(0.0, 0.0, 200.0, 80.0))
+        frame.canvas.translate(0.0, 100.0)
+        frame.canvas.drawRect(Rect(0.0, 0.0, 200.0, 80.0), Paint(Color(0.9, 0.8, 1.0)))
+        frame.place(second!!, Rect(0.0, 0.0, 200.0, 80.0))
+    }
+
+    private fun receive(area: InputArea, event: AreaEvent, isFirst: Boolean): InputResult {
+        when (event) {
+            case Pointer(AreaPointerEvent.Button(pointer, _, ElementState.Pressed, _)) -> {
+                downs += 1
+                assertEquals(Point(10.0, 10.0), pointer.localPosition)
+                assertTrue(area.requestFocus())
+            }
+            case Pointer(AreaPointerEvent.Button(_, _, ElementState.Released, _)) -> ups += 1
+            case TextInput(TextInputEvent.Enabled) -> {
+                if (isFirst) {
+                    assertEquals(InputPhase.FirstEnabled, phase)
+                    assertTrue(view!!.caretMatches(12.0, 34.0, 2.0, 18.0))
+                    phase = InputPhase.Preedit
+                    assertTrue(view!!.preedit())
+                } else {
+                    assertTrue(oldDisabled)
+                    assertEquals("A", firstText.surroundingText)
+                    assertTrue(view!!.caretMatches(12.0, 134.0, 2.0, 18.0))
+                    phase = InputPhase.SecondEdit
+                    assertTrue(view!!.button(10.0, 110.0, true))
+                    assertTrue(view!!.button(10.0, 110.0, false))
+                    assertTrue(view!!.commitText())
+                }
+            }
+            case TextInput(TextInputEvent.Disabled) -> {
+                if (isFirst)
+                    oldDisabled = true
+            }
+            case TextInput(TextInputEvent.Edit(batch)) -> {
+                if (isFirst) {
+                    firstText = firstText.apply(batch)
+                    if (phase == InputPhase.Preedit) {
+                        assertEquals("中😀", firstText.surroundingText)
+                        phase = InputPhase.Switching
+                        // The commit is queued before changing the logical focus.
+                        assertTrue(view!!.commitText())
+                        assertTrue(second!!.requestFocus())
+                    }
+                } else {
+                    assertEquals(InputPhase.SecondEdit, phase)
+                    secondText = secondText.apply(batch)
+                    phase = InputPhase.Done
+                    gui!!.close()
+                    assertEquals(GuiWindowState.Closing, gui!!.state)
+                    assertTrue(first!!.isClosed && second!!.isClosed)
+                    window!!.requestDestroy()
+                }
+            }
+            else -> {}
+        }
+        return InputResult.Ignored
+    }
+
+    public override fun close() {
+        when (gui) {
+            case Some(value) -> value.close();
+            case None -> {}
+        }
+        when (view) {
+            case Some(value) -> value.close();
+            case None -> {}
+        }
+    }
+}
+
+private fun observeInput(window: Window): ViewProbe {
+    @Unsafe
+    {
+        return window.acquireNativeWindow().use {
+            lease -> @Unsafe
+            {
+                return@use when (lease.handle) {
+                    case AppKit(_, view) -> ViewProbe(view)
+                }
+            }
+        }
+    }
+}

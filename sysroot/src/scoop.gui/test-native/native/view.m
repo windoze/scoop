@@ -39,3 +39,74 @@ void scoop_gui_test_view_drop(void *pointer) {
   SGUTestView *probe = (__bridge_transfer SGUTestView *)pointer;
   (void)probe;
 }
+
+bool scoop_gui_test_view_button(void *pointer, double x, double y,
+                                bool pressed) {
+  @autoreleasepool {
+    @try {
+      NSView *view = ((__bridge SGUTestView *)pointer).view;
+      NSEvent *event = [NSEvent
+          mouseEventWithType:pressed ? NSEventTypeLeftMouseDown
+                                     : NSEventTypeLeftMouseUp
+                    location:[view convertPoint:NSMakePoint(x, y) toView:nil]
+               modifierFlags:0
+                   timestamp:NSProcessInfo.processInfo.systemUptime
+                windowNumber:view.window.windowNumber
+                     context:nil
+                 eventNumber:1
+                  clickCount:1
+                    pressure:pressed ? 1.0 : 0.0];
+      if (pressed)
+        [view mouseDown:event];
+      else
+        [view mouseUp:event];
+      return true;
+    } @catch (NSException *exception) {
+      (void)exception;
+      return false;
+    }
+  }
+}
+
+bool scoop_gui_test_view_text(void *pointer, bool commit) {
+  @autoreleasepool {
+    @try {
+      id<NSTextInputClient> client =
+          (id<NSTextInputClient>)((__bridge SGUTestView *)pointer).view;
+      NSRange absent = NSMakeRange(NSNotFound, 0);
+      if (commit)
+        [client insertText:@"A" replacementRange:absent];
+      else
+        [client setMarkedText:@"中😀"
+                selectedRange:NSMakeRange(1, 2)
+             replacementRange:absent];
+      return true;
+    } @catch (NSException *exception) {
+      (void)exception;
+      return false;
+    }
+  }
+}
+
+bool scoop_gui_test_view_caret(void *pointer, double x, double y, double width,
+                               double height) {
+  @autoreleasepool {
+    @try {
+      NSView *view = ((__bridge SGUTestView *)pointer).view;
+      if (!view.window.keyWindow || view.window.firstResponder != view)
+        return false;
+      id<NSTextInputClient> client = (id<NSTextInputClient>)view;
+      NSRange actual = NSMakeRange(0, 0);
+      NSRect result =
+          [client firstRectForCharacterRange:NSMakeRange(NSNotFound, 0)
+                                 actualRange:&actual];
+      NSRect expected = [view.window
+          convertRectToScreen:[view convertRect:NSMakeRect(x, y, width, height)
+                                         toView:nil]];
+      return NSEqualRects(result, expected) && actual.location == NSNotFound;
+    } @catch (NSException *exception) {
+      (void)exception;
+      return false;
+    }
+  }
+}

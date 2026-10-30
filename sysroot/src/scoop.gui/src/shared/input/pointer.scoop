@@ -1,0 +1,216 @@
+package scoop.gui
+
+import scoop.graphics.Point
+import scoop.window.*
+
+private struct PointerDelivery(val area: InputArea, val pointer: AreaPointer)
+
+internal fun InputRouter.pointerEvent(event: PointerEvent) {
+    when (event) {
+        case Cancelled(reason, time) -> {
+            cancelPress(AreaCancelReason.Window(reason), time, true);
+            return
+        }
+        else -> {}
+    }
+    val state = eventState(event)
+    pointer = Some(state)
+    inside = true
+    val point = Point(state.logicalPosition.x, state.logicalPosition.y)
+    val hit = scene.hit(point)
+    val route =
+        when (event) {
+            case Button(_, button, ElementState.Pressed, _) -> {
+                if (buttons.size == 0L)
+                    pressed = Some(hit)
+                if (!hasButton(buttons, button))
+                    buttons.add(button)
+                pressed ?: []
+            }
+            case Button(_, button, ElementState.Released, _) -> {
+                val path: Array<InputArea> =
+                    if (hasButton(buttons, button))
+                        pressed ?: []
+                    else
+                        []
+                removeButton(buttons, button)
+                if (buttons.size == 0L)
+                    pressed = None
+                path
+            }
+            case Left(_) -> {
+                inside = false;
+                []
+            }
+            else -> pressed ?: hit
+        }
+    // Construct the whole delivery before hover handlers can change the scene.
+    val deliveries = pointerDeliveries(route, state)
+    refreshHover(state.time)
+    when (event) {
+        case Moved(_) -> sendPointer(deliveries) { value -> AreaPointerEvent.Moved(value) }
+        case Button(_, button, state, clicks) -> sendPointer(deliveries) {
+            value -> AreaPointerEvent.Button(value, button, state, clicks)
+        }
+        case Wheel(_, delta, phase, momentum) -> {
+            val logical =
+                when (delta) {
+                    case LineDelta(x, y) -> AreaScrollDelta.Lines(x, y)
+                    case PixelDelta(x, y) -> {
+                        requireInput(
+                            state.scaleFactor.isFinite() && state.scaleFactor > 0.0,
+                            "invalid scroll scale"
+                        )
+                        AreaScrollDelta.Pixels(x / state.scaleFactor, y / state.scaleFactor)
+                    }
+                }
+            sendPointer(deliveries) {
+                value -> AreaPointerEvent.Wheel(value, logical, phase, momentum)
+            }
+        }
+        else -> {}
+    }
+}
+
+private fun InputRouter.pointerDeliveries(path: Array<InputArea>, state: PointerState): Array<
+    PointerDelivery
+> {
+    val result = ArrayList<PointerDelivery>()
+    if (path.size == 0L)
+        return []
+    val target = path[0L]
+    val point = Point(state.logicalPosition.x, state.logicalPosition.y)
+    for (area in path) {
+        val placement = scene.find(area) ?: return []
+        val local = placement.geometry.toLocal(point)
+        when (local) {
+            case Some(position) -> result.add(
+                PointerDelivery(area, AreaPointer(target, state, position, state.time))
+            )
+            case None -> {
+                pending = true;
+                return []
+            }
+        }
+    }
+    return result.toArray()
+}
+
+private fun InputRouter.sendPointer(
+    deliveries: Array<PointerDelivery>,
+    event: (AreaPointer) -> AreaPointerEvent
+) {
+    for (delivery in deliveries) {
+        if (
+            deliver(delivery.area, AreaEvent.Pointer(event(delivery.pointer))) ==
+                InputResult.Handled
+        )
+            break
+    }
+}
+
+internal fun InputRouter.reconcilePress() {
+    when (pressed) {
+        case Some(path) -> {
+            if (path.size > 0L && !samePath(path, scene.path(path[0L])))
+                cancelPress(AreaCancelReason.AreaChanged, inputObservation(), false)
+        }
+        case None -> {}
+    }
+}
+
+internal fun InputRouter.cancelPress(reason: AreaCancelReason, time: InputTime, reset: Boolean) {
+    val old = pressed ?: []
+    pressed =
+        if (reset)
+            None
+        else
+            Some([])
+    if (reset)
+        buttons.clear()
+    var failure: Throwable? = None
+    for (area in old)
+        failure =
+            cleanupFailure(failure) {
+                deliver(area, AreaEvent.Pointer(AreaPointerEvent.Cancelled(reason, time)), true)
+            }
+    throwFailure(failure)
+}
+
+internal fun InputRouter.refreshHover(time: InputTime) {
+    val next: Array<InputArea> =
+        when (pointer) {
+            case Some(state) -> if (inside && !closed)
+                scene.hit(Point(state.logicalPosition.x, state.logicalPosition.y))
+            else
+                []
+            case None -> []
+        }
+    replaceHover(next, time)
+}
+
+internal fun InputRouter.replaceHover(next: Array<InputArea>, time: InputTime) {
+    val old = hover
+    hover = next
+    val state = pointer
+    val entries: Array<PointerDelivery> =
+        when (state) {
+            case Some(value) -> pointerDeliveries(next, value)
+            case None -> []
+        }
+    var failure: Throwable? = None
+    for (area in old) {
+        if (!containsArea(next, area))
+            failure =
+                cleanupFailure(failure) {
+                    deliver(area, AreaEvent.Pointer(AreaPointerEvent.Left(time)), true)
+                }
+    }
+    var index = entries.size
+    while (index > 0L) {
+        index -= 1L
+        val entry = entries[index]
+        if (!containsArea(old, entry.area)) {
+            val value =
+                AreaPointer(
+                    entry.pointer.target,
+                    entry.pointer.state,
+                    entry.pointer.localPosition,
+                    time
+                )
+            failure =
+                cleanupFailure(failure) {
+                    deliver(entry.area, AreaEvent.Pointer(AreaPointerEvent.Entered(value)))
+                }
+        }
+    }
+    throwFailure(failure)
+}
+
+private fun eventState(event: PointerEvent): PointerState =
+    when (event) {
+        case Entered(state) -> state;
+        case Left(state) -> state;
+        case Moved(state) -> state
+        case Button(state, _, _, _) -> state;
+        case Wheel(state, _, _, _) -> state
+        case Cancelled(_, _) -> throw IllegalStateException(Some("cancel has no pointer position"))
+    }
+
+private fun hasButton(buttons: ArrayList<MouseButton>, button: MouseButton): Boolean {
+    for (value in buttons)
+        if (value == button)
+            return true
+    return false
+}
+
+private fun removeButton(buttons: ArrayList<MouseButton>, button: MouseButton) {
+    var index = 0L
+    while (index < buttons.size) {
+        if (buttons[index] == button) {
+            buttons.removeAt(index);
+            return
+        }
+        index += 1L
+    }
+}

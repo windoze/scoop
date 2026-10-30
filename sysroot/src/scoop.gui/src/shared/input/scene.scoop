@@ -1,0 +1,145 @@
+package scoop.gui
+
+import scoop.graphics.*
+import scoop.graphics.native.*
+
+internal class AreaPlacement(
+    val area: InputArea,
+    val geometry: CanvasGeometry,
+    val parent: InputArea?
+)
+
+/** Owns one published set of independent native geometry snapshots. */
+internal class AreaScene(val placements: Array<AreaPlacement>): Closeable {
+    fun find(area: InputArea): AreaPlacement? {
+        for (placement in placements)
+            if (placement.area === area)
+                return Some(placement)
+        return None
+    }
+    fun path(area: InputArea): Array<InputArea> {
+        val result = ArrayList<InputArea>()
+        var next: InputArea? = Some(area)
+        while (true) {
+            val current = next ?: return result.toArray()
+            if (current.closed || !current.enabled)
+                return []
+            val placement = find(current) ?: return []
+            if (placement.geometry.toLocal(Point(0.0, 0.0)) == None)
+                return []
+            result.add(current)
+            next = placement.parent
+        }
+    }
+    fun hit(point: Point): Array<InputArea> {
+        var index = placements.size
+        while (index > 0L) {
+            index -= 1L
+            val placement = placements[index]
+            if (
+                !placement.area.closed &&
+                    !placement.area.ignoreSelf &&
+                    placement.geometry.hitTest(point)
+            ) {
+                val result = path(placement.area)
+                if (result.size > 0L)
+                    return result
+            }
+        }
+        return []
+    }
+    public override fun close() {
+        var failure: Throwable? = None
+        for (placement in placements)
+            failure = cleanupFailure(failure) { placement.geometry.close() }
+        throwFailure(failure)
+    }
+}
+
+/** A frame transaction owns snapshots until they are transferred at successful submission. */
+internal class InputFrame(val owner: InputRouter): Closeable {
+    private val placements = ArrayList<AreaPlacement>()
+    private var ended = false
+    fun place(canvas: Canvas, area: InputArea, shape: Rect, parent: InputArea?) {
+        check(area, parent)
+        @Unsafe
+        {
+            append(area, captureGeometry(canvas, shape), parent)
+        }
+    }
+    fun place(canvas: Canvas, area: InputArea, shape: Path, parent: InputArea?) {
+        check(area, parent)
+        @Unsafe
+        {
+            append(area, captureGeometry(canvas, shape), parent)
+        }
+    }
+    private fun check(area: InputArea, parent: InputArea?) {
+        owner.checkOpen()
+        if (ended)
+            throw IllegalStateException(Some("input frame has ended"))
+        requireInput(area.owner === owner, "input area belongs to another window")
+        area.checkOpen()
+        var foundParent = false
+        for (placement in placements) {
+            requireInput(placement.area !== area, "area placed twice in one frame")
+            if (sameArea(Some(placement.area), parent))
+                foundParent = true
+        }
+        when (parent) {
+            case Some(value) -> {
+                value.checkOpen();
+                requireInput(
+                    value.owner === owner && foundParent,
+                    "parent must be placed first in the same window"
+                )
+            }
+            case None -> {}
+        }
+    }
+    private fun append(area: InputArea, geometry: CanvasGeometry, parent: InputArea?) {
+        try {
+            placements.add(AreaPlacement(area, geometry, parent))
+        }
+        catch (error: Throwable) {
+            throwFailure(cleanupFailure(Some(error)) { geometry.close() });
+            throw error
+        }
+    }
+    fun take(): AreaScene {
+        owner.checkOpen()
+        if (ended)
+            throw IllegalStateException(Some("input frame has ended"))
+        val result = AreaScene(placements.toArray())
+        ended = true
+        placements.clear()
+        return result
+    }
+    public override fun close() {
+        owner.checkThread()
+        if (ended)
+            return
+        ended = true
+        var failure: Throwable? = None
+        for (placement in placements)
+            failure = cleanupFailure(failure) { placement.geometry.close() }
+        placements.clear()
+        throwFailure(failure)
+    }
+}
+
+internal fun containsArea(path: Array<InputArea>, area: InputArea): Boolean {
+    for (candidate in path)
+        if (candidate === area)
+            return true
+    return false
+}
+
+internal fun samePath(left: Array<InputArea>, right: Array<InputArea>): Boolean {
+    if (left.size != right.size)
+        return false
+    for (index in 0L ..< left.size)
+        if (left[index] !== right[index])
+            return false
+    return true
+}
