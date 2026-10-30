@@ -1,6 +1,6 @@
 # Target 边界重构设计
 
-状态：实施中。Windows 完成后的设计复审已完成；本阶段在 `codex/target-refactor-macos-x86-64` 分支完成目标边界重构并加入 macOS x86_64。实施与验证进度见[实施记录](PROGRESS.md)。
+状态：完成。Windows 完成后的设计复审、目标边界重构和 macOS x86_64 已在 `codex/target-refactor-macos-x86-64` 分支完成；七个目标的受影响范围已验证，Rosetta 调试限制单列。实际范围与结果见[实施记录](PROGRESS.md)。
 
 初稿：2026-10-29。复审：2026-10-30。
 
@@ -387,7 +387,7 @@ Darwin x86_64 使用本机 SDK 和 Rosetta 执行环境进行本阶段验证，�
 
 ## 11. 实施顺序与规范同步
 
-Windows 完成并合入后，本轮从上述主线基线按以下批次实施。R0～R6 的规范、代码与本机验证已完成；R7 负责远端与跨宿主验收，实际结果见[实施记录](PROGRESS.md)。下表保留各批职责及验收出口，后续新增目标沿用这些边界。
+Windows 完成并合入后，本轮从上述主线基线按以下批次实施。R0～R7 的规范、代码、本机、远端与跨宿主验收均已完成，实际范围与限制见[实施记录](PROGRESS.md)。下表保留各批职责及验收出口，后续新增目标沿用这些边界。
 
 | 批次 | 改动与交付 | 验收出口 |
 | --- | --- | --- |
@@ -418,7 +418,7 @@ R3／R4 在 R1／R2 的公共数据稳定后可分别实施；R5 的 manifest �
 
 | 层次 | 必要验证 |
 | --- | --- |
-| 目录和 stage 边界 | 六目标、当前支持的输入拼写／非法组合、manifest 及内置库的目标选择、目录变化后的派生记录更新；正常依赖图中 IR 不依赖 target 实现、artifact-only linker 不依赖 LLVM |
+| 目录和 stage 边界 | 七目标、当前支持的输入拼写／非法组合、manifest 及内置库的目标选择、目录变化后的派生记录更新；正常依赖图中 IR 不依赖 target 实现、artifact-only linker 不依赖 LLVM |
 | ABI／C bridge | 标量扩展、HFA、小／大 aggregate、寄存器耗尽、sret／caller-copy、接口参数／结果；真实 C↔Scoop、callback、跨 Cone 组合 |
 | 对象／链接 | ELF／Mach-O／COFF 的 machine 与 relocation、TLS、archive／COMDAT／import library、native C++、Objective-C／framework；COFF 导入顺序、Darwin re-export 与 selector stub；完整 `.slib` 生产、消费与 CLI 重链接 |
 | frame／GC／EH | statepoint call／invoke、多层／大栈帧、scanned return、移动根更新、callback／线程切换、throw／catch／finally；GC stress 仅用于这些正确性测试 |
@@ -433,6 +433,8 @@ runner 的 `requires_target_execution` 默认开启；纯宿主工具用例显�
 交叉编译回归沿用已完成的 macOS／Linux → 三个 Windows target，并在 Windows 运行产物，覆盖 C++、接口移动 GC、Throwable 与 GUI／RC。保留复用同一份 Windows 准备的目标库／runtime／unwind、Unix 绝对路径和中文／空格路径的实际调用。其余既有目标在对应系统完成源码编译、预编译库消费和运行；本阶段 Darwin x86_64 使用本机 Rosetta 执行并验证调试产物。按用户确认，Rosetta 调试遇到系统／跨架构启动障碍时记录具体限制，不阻塞本阶段；AArch64 原生调试必须通过。后续 ARM64／OpenHarmony 分别追加对应环境的运行和调试验证。
 
 GUI 回归按现有窗口库记录，在各自原生桌面串行执行，避免多个目标争用同一前台窗口。选择实际受本批变更影响的窗口／asyncio／renderer 测试，不把混合 DPI、所有实体键盘或输入法人工验收加入 target 重构的完成门槛，也不把 Windows 上的通过视作 AppKit 已复测。
+
+Windows TTY 测试按 [asyncio 原生测试辅助库](../../sysroot/src/scoop.asyncio/test-native/README.md)的要求，在每组独立的隐藏控制台中运行；调试验收使用配套发行启动入口，加载该包自己的 Python 和进程调试依赖。这些执行环境由验收脚本配置，不进入通用编译流程或目标机器合同。
 
 每批 Rust 代码变更先 `cargo fmt --all`、`cargo clippy --workspace --all-targets`，再运行受影响的 ABI／对象／工具链／runtime 测试。Python 按仓库指定 Ruff 版本先格式化和检查。最终执行配套 sysroot 下的 workspace 测试、fixture runner 规则测试、正式 CLI fixture 与相关 Cone tests；文档记录范围、结果和未闭合项。按用户要求，原始日志及临时资源保留在 Git 忽略的 `tmp/target-refactor/`，不提交到验收文档目录。
 

@@ -1,6 +1,6 @@
 # Target 重构与 macOS x86_64 实施记录
 
-状态：实施中。范围与边界见[设计](DESIGN.md)。
+状态：完成。目标边界重构、macOS x86_64 和七目标受影响范围的验证已闭合；Rosetta 终端调试保留已知限制。范围与边界见[设计](DESIGN.md)。
 
 - 分支：`codex/target-refactor-macos-x86-64`。
 - 起点：`09be3315a85cfa9e50f79e49785bd23e0880f1f0`，包含 Windows targets 与 AppKit／Win32 窗口库合入。
@@ -20,10 +20,10 @@
 | R1 | 完成 | 独立 target-data 与 Rust／Python 共用目录；PM／选库更新输入；585 项 Rust 测试通过，22 项脚本测试与 70 项 fixture 规则各跳过 3 项宿主不适用测试，其余通过 |
 | R2 | 完成 | 显式 ABI／backend／EH／frame 与 codegen 调优数据；1033 项测试通过，配套 LLVM 构建后的 Windows 返回 PC 测试也已通过 |
 | R3 | 完成 | 对象 machine／格式与 runtime frame 边界；713 项 Rust 测试通过，配套 core／runtime 的真实链接回归通过 |
-| R4 | 本地完成 | Darwin 配置与 Linux GCC／Clang producer、C++ family 已拆开；本机 489 项测试通过，远端验收在 R7 闭合 |
-| R5 | 本地完成 | target sysroot include、架构参数与交叉编译 fixture 流程已验证；RC-only 实机检查在 R7 闭合 |
+| R4 | 完成 | Darwin 配置与 Linux GCC／Clang producer、C++ family 已拆开；本机 489 项测试通过，Linux 真实工具组合与 Windows native 回归已闭合 |
+| R5 | 完成 | target sysroot include、架构参数与交叉编译 fixture 流程已验证；RC-only、跨宿主资源消费和安装验证已闭合 |
 | R6 | 完成 | 两种 macOS 目标各 4,301 项正式 fixture、33 个普通／consumer Cone 与 3 个 GUI Cone 通过；调试与配套资源验证完成，Rosetta 终端调试保留已知限制 |
-| R7 | 进行中 | Linux／Windows 及跨宿主的受影响范围回归与完成记录 |
+| R7 | 完成 | Linux／Windows 及跨宿主的受影响范围回归、发行安装与完成记录已闭合 |
 
 ### R1 验证范围
 
@@ -160,3 +160,17 @@ driver 的共享 ODR 对象测试改用现有对象 reader 归一化后的定义
 格式化与 Clippy 通过，上述 ODR、签名和五项 package 规则测试在本机、Linux、Windows 全部通过。Windows driver 的 91 项测试使用 release 构建的 Rust 测试程序完成执行，首轮 88 项通过、三项旧平台断言失败，修正后逐项复验闭合；Scoop 用例自身要求的编译模式保持不变。
 
 native 文本测试 Cone 删除重复的 C 方言参数，并声明 Windows 上 Rust 静态库实际需要的系统库。两种 Darwin、Linux GNU／musl 和三种 Windows target 的三项真实 C 调用测试全部通过。
+
+### R7 Windows 调试
+
+三种 Windows target 的真实调试程序均使用当前编译器、完整调试信息和 GC stress 构建，完整 DAP launch、sourceMap 和离线 formatter 全部通过。验收使用配套发行包的 `scoop-lldb-dap.exe`／`scoop-lldb.exe` 启动入口；直接调用私有二进制会缺少该包的 Python 环境，该启动脚本问题已闭合。AArch64 原生调试和 Rosetta 限制仍按 R6 单列，不以 Windows 结果替代。
+
+### R7 Windows 运行环境
+
+三种 Windows target 各 19 项受影响的正式 fixture 全部通过。TLS 对端测试改用该机实际可执行的 Python 与 OpenSSL 路径，三组各 29 项全部通过；两个 TLS consumer Cone 在首轮已通过。工具选择只影响验收进程，未修改用户的全局环境。
+
+Windows workspace 的适用 Rust／文档测试、fixture 规则与维护脚本测试已逐项闭合；三种 target 各 14 个普通／consumer／native 文本 Cone 已闭合。asyncio 的控制台复验使用本轮正式 CLI 已生成的测试程序，在每组独立隐藏控制台中执行全部 179 项；MSVC UCRT 和 MinGW MSVCRT 全部通过，MinGW UCRT 的 178 项通过，剩余一项路径取消时序在下述修正后闭合。共享 SSH 控制台造成的 TTY 挂起不计作通过，原始记录保留。
+
+路径取消测试原先在删除尚未完成时反复查询元数据，Windows 的 delete-pending 状态可能返回拒绝访问。测试现复用已有 `WorkFence`，在原生工作完成、结果交付协程前取消，再断言真实文件系统效果；生产 I/O 行为不变。使用原库生产源码、这两项测试和必要辅助文件定向重编译，格式、静态检查及两项运行测试在七个 target 全部通过；MinGW UCRT 的迟到取消用例随后通过 10 次正式 CLI 重复执行。
+
+本阶段完成目标目录、ABI／backend／frame、对象格式与机器、工具／SDK、runtime 和系统库资源的职责拆分，并以 Darwin x86_64 验证组合复用。Linux ARM64 GNU／musl、OpenHarmony AMD64／ARM64 仍为后续移植，不在支持目录提前登记。macOS x86_64 的执行证据来自本机 Rosetta，不代表真实 Intel 硬件或旧 macOS 版本已经验收；AArch64 原生调试已通过。

@@ -1,9 +1,6 @@
 package scoop.asyncio
 
-import scoop.platform.concurrent.yield
 import scoop.platform.fs.*
-import scoop.platform.time.*
-import scoop.time.Duration
 import scoop.test.*
 
 @Test
@@ -61,38 +58,27 @@ private class AsyncPathCancellationTest {
             loop.run suspend {
                 scope ->
                 val moving = scope.launch suspend { loop.moveFile(source, destination) }
-                backend.state.post {
-                    awaitPathModification { destination.exists() }
-                    moving.cancel()
-                }
-                moving.join()
-                assertTrue(moving.isCancelled)
+                cancelAfterPathCompletion(backend, moving)
                 assertFalse(source.exists())
                 assertEquals("source", destination.readText())
                 val deleting = scope.launch suspend { loop.deleteFile(destination) }
-                backend.state.post {
-                    awaitPathModification { !destination.exists() }
-                    deleting.cancel()
-                }
-                deleting.join()
-                assertTrue(deleting.isCancelled)
+                cancelAfterPathCompletion(backend, deleting)
+                assertFalse(destination.exists())
                 val creating = scope.launch suspend { loop.createDirectories(directory) }
-                backend.state.post {
-                    awaitPathModification { directory.exists() }
-                    creating.cancel()
-                }
-                creating.join()
-                assertTrue(creating.isCancelled)
+                cancelAfterPathCompletion(backend, creating)
                 assertTrue(loop.metadata(directory).kind == FileKind.Directory)
             }
         }
     }
 }
 
-private fun awaitPathModification(complete: () -> Boolean) {
-    val start = MonotonicTimeSource.markNow()
-    while (!complete()) {
-        assertTrue(start.elapsedNow() < Duration.seconds(10L), Some("path syscall did not execute"))
-        yield()
+private suspend fun cancelAfterPathCompletion(loop: PlatformEventLoop, job: Job) {
+    val fence = WorkFence(loop)
+    fence.start(cancelAfterPriorWork = Some(job))
+    try {
+        job.join()
+        assertTrue(job.isCancelled)
+    } finally {
+        fence.close()
     }
 }
