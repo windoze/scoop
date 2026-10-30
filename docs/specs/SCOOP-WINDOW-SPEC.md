@@ -130,9 +130,9 @@ Windows 窗口使用 Unicode HWND，创建前确认 Per-Monitor V2；已声明�
 
 宿主使用 MsgWaitForMultipleObjectsEx 与 owner HWND。线程池 wait 一次只投递一个 HWND 就绪消息，owner 回调退出后重新监听；remove 停止 native wait 并等候 worker 退出，在 owner 排队消息和活动 ready 退休后报告完成，HANDLE 始终由 asyncio loop 持有。截止时间只安装所需原生 timer，Wait 不做周期轮询。真实系统 dialog、menu、move／size 循环继续派发 HWND 消息，因此能推进 asyncio；会进入模态的操作排在当前业务回调和 session pump 返回后。
 
-## 11. GUI 基础层所需输入扩展（设计目标）
+## 11. GUI 基础层所需输入扩展
 
-本节是 [GUI 基础架构](../gui/DESIGN.md)所需的拟议合同，当前 PointerEvent、PointerState 与 KeyEvent 尚未提供以下接口。实施时同步共享表示、已有平台后端和所属 Cone 测试，不把下述设计当作已发布行为。绘图、段落布局、动画、区域命中和帧源仍属于 graphics／gui，边界见 [GUI 规范](SCOOP-GUI-SPEC.md)。
+本节是 [GUI 基础架构](../gui/DESIGN.md)所需的输入合同。共享表示、AppKit 后端及 Cone 测试已实现；已有 Win32 后端同步 ABI 和事件映射，验证范围见 [实施记录](../gui/PROGRESS.md)。绘图、段落布局、动画、区域命中和帧源仍属于 graphics／gui，边界见 [GUI 规范](SCOOP-GUI-SPEC.md)。
 
 ### 11.1 鼠标序列取消
 

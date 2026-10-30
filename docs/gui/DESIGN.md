@@ -1,6 +1,6 @@
 # GUI 基础架构与 macOS 设计
 
-日期：2026-10-31。状态：设计阶段，未实施。本轮只增加设计和规范，不修改实现代码。公共合同见 [GUI 基础库规范](../specs/SCOOP-GUI-SPEC.md)；window 的现有合同及拟补输入能力见 [窗口库规范](../specs/SCOOP-WINDOW-SPEC.md)。下文的类型、接口和目录均为拟议设计。
+日期：2026-10-31。状态：实施中。公共合同见 [GUI 基础库规范](../specs/SCOOP-GUI-SPEC.md)；window 的输入与生命周期合同见 [窗口库规范](../specs/SCOOP-WINDOW-SPEC.md)。实际交付和验证范围见 [实施记录](PROGRESS.md)，下文同时包含尚待交付的目标接口。
 
 ## 1. 本期决定
 
@@ -40,15 +40,15 @@ HarfBuzz 是 shaping 引擎：把已确定字体、方向等信息的文字 run 
 | Surface 所需原生入口 | NativeWindowLease 提供 AppKit 的 NSWindow／NSView，并保证关闭前借用有效 | renderer 持有 lease，自己建立 Metal／Skia 资源 |
 | 尺寸与 DPI | WindowMetrics 原子提供逻辑尺寸、物理尺寸和 scale | 转换一次；零尺寸不申请 drawable |
 | 重绘 | requestRedraw 合并请求；prePresentNotify 不是帧时钟 | 平台 renderer 增加原生帧通知，复用 RedrawRequested 入口 |
-| 鼠标、键盘与 IME | 有位置／按钮／滚轮／键盘、TextInputBatch、IME caret 矩形 | shared router 可直接消费；增加鼠标取消与输入时间 |
+| 鼠标、键盘与 IME | 有位置／按钮／滚轮／键盘、TextInputBatch、IME caret 矩形，已补鼠标取消与输入时间 | shared router 直接消费窗口归一后的输入 |
 | 异步 I/O 接入 | runWithAsyncio 已复用窗口宿主与 EventLoopSession | GuiHost 使用同一 ApplicationHandler，不创建第二个 attachment |
 
-必须补充的 window 合同只有以下两项，详见[规范第 11 节](../specs/SCOOP-WINDOW-SPEC.md#11-gui-基础层所需输入扩展设计目标)：
+GUI 所需的两项 window 前置能力已先行补齐，详见[规范第 11 节](../specs/SCOOP-WINDOW-SPEC.md#11-gui-基础层所需输入扩展)：
 
-1. `PointerEvent.Cancelled`。当前 Entered／Left／Moved／Button／Wheel 没有取消鼠标按下序列的表示；滚轮 ScrollPhase.Cancelled 不能替代它。失焦或 OS 捕获丢失后，上层需要结束 drag／pressed 状态，而不是等待永远不来的 Up。
+1. `PointerEvent.Cancelled`。失焦或原生跟踪中断后结束已按下的鼠标序列；滚轮 ScrollPhase.Cancelled 不能替代它。上层可以结束 drag／pressed 状态，无需等待永远不来的 Up。
 2. 输入时间。PointerState 和 KeyEvent 增加同源单调时间及来源区别，供拖动速度、延迟判断和后续手势使用。原生事件时间能够可靠映射时用 Event；否则使用原生接收时的 Observed，不把业务 handler 的处理时刻冒充原始事件时间。
 
-鼠标正常离开内容区不取消按下序列；“拖动期间继续接收本窗口的鼠标事件”也不同于 Confined／Locked cursor。AppKit 已交付 mouseDragged；Win32 已使用 SetCapture／ReleaseCapture，但还没有把 WM_CAPTURECHANGED／WM_CANCELMODE 转为取消。补充 Win32 输入时须区分正常 ReleaseCapture 与异常丢失，不能在最后一个 Up 之前误发 Cancel。
+鼠标正常离开内容区不取消按下序列；“拖动期间继续接收本窗口的鼠标事件”也不同于 Confined／Locked cursor。AppKit 继续交付 mouseDragged，将窗口／应用失焦和菜单跟踪分别归一为取消。已有 Win32 后端同步共享 ABI，将 WM_CAPTURECHANGED／WM_CANCELMODE 转为取消，并区分正常 ReleaseCapture；本轮未在 Windows 执行验证。
 
 native frame source、Skia context、dirty 管理、Area 命中、逻辑 focus、文本测量均属于 GUI／graphics，不应塞进 window。ApplicationHost 的 watch 接口目前服务 asyncio；macOS 的帧通知可以用现有主循环和 proxy 接通，不先增加通用外部调度器或多 attachment 框架。以后某个平台确实需要新的宿主等待能力时，再按真实句柄语义补窄接口。
 
@@ -103,7 +103,7 @@ gui 不能访问 graphics 的 internal Canvas 构造器。graphics 因此提供�
 
 macOS 下，gui 的 Objective-C 薄层提供 device／queue／drawable texture 的不透明引用；graphics 的目标专用 native 接口把它们交给 Ganesh 并返回自有的 context／target 包装。Skia C++ 对象及 ABI 全部留在 graphics 的 C++ 薄层，不在两个 Cone 间传递 C++ class 或各自复制一份 Skia context 实现。
 
-建议按以下职责组织源码；这是实施位置，不是本轮创建的代码骨架：
+源码按以下职责组织；实际存在的模块以实施记录为准：
 
 ```text
 sysroot/src/scoop.graphics/
@@ -320,7 +320,7 @@ native 只保存复制的数据、原生引用或已有 ForeignCallback 的有�
 
 这些是建议的交付批次，不是假定已存在的里程碑状态。可以让不同平台后端在共享合同稳定后分别推进，但不把其他平台 GPU 实现混入本轮 macOS 验收。
 
-验证分三类：graphics／gui 的纯值和路由行为归所属 Cone 的 scoop.test；窗口与 GPU 行为使用真实 AppKit／Metal 的 Cone 测试及示例；必须由外部进程控制的启动／退出、编译链接与 ABI 才用 fixture。共享动画求值直接传入采样时间测试，不因测试需求增加假的平台 renderer 或生产用时钟工厂。
+graphics／gui 的纯值和路由行为归所属 Cone 的 scoop.test；窗口与 GPU 行为使用真实 AppKit／Metal 的 Cone 测试及示例；需要独立进程的启动／退出和链接验证使用独立测试 Cone。本次实施不使用 fixture。共享动画求值直接传入采样时间测试，不因测试需求增加假的平台 renderer 或生产用时钟工厂。
 
 实际桌面验收包括跨屏混合 DPI、实时 resize／系统模态循环、外部窗口抢焦点、拖到内容区外释放、候选窗位置、多窗口关闭与 GPU 使用结束。自动合成事件不能冒充这些结果。两种 Darwin 目标分别编译／运行，x86_64 使用 Rosetta 时明确记录限制。
 

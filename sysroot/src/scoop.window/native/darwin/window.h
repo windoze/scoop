@@ -13,6 +13,7 @@ typedef struct {
   double x, y, z, w, scale, dx, dy;
   const uint8_t *text;
   int64_t text_length;
+  int64_t time_seconds, time_nanoseconds;
 } SWEventData;
 typedef struct {
   int32_t kind;
@@ -61,6 +62,7 @@ typedef struct {
 @property(nonatomic, weak) SWWindow *owner;
 @property(nonatomic, strong)
     NSMutableDictionary<NSNumber *, SWEvent *> *pressedKeys;
+@property(nonatomic, strong) NSMutableSet<NSNumber *> *pressedButtons;
 @property(nonatomic) NSEventModifierFlags modifiers;
 @property(nonatomic, strong) NSTrackingArea *tracking;
 @property(nonatomic, strong) NSCursor *cursor;
@@ -80,6 +82,7 @@ typedef struct {
 @end
 @interface SWView (Pointer)
 - (void)updateCursor;
+- (void)cancelPointer:(int32_t)reason;
 @end
 @interface SWView (Text) <NSTextInputClient>
 - (void)beginTextBatch;
@@ -110,6 +113,7 @@ void sw_modifiers(SWView *view, NSEventModifierFlags flags);
 
 void sw_wake(SWApplication *application);
 SWEvent *sw_event(SWWindow *window, int32_t kind);
+void sw_stamp_input(SWEventData *data);
 SWSnapshot sw_snapshot(SWWindow *window);
 double sw_desktop_top(void);
 

@@ -93,17 +93,32 @@ private fun copyKeyEvent(event: NativeEvent): KeyEvent {
             ElementState.Released,
         event.flags.and(2) != 0,
         platformModifiers(event.b),
-        event.flags.and(4) != 0
+        event.flags.and(4) != 0,
+        copyInputTime(event)
     )
 }
 
 private fun copyPointerEvent(event: NativeEvent): PointerEvent {
+    val time = copyInputTime(event)
+    if (event.flags == 7)
+        return PointerEvent.Cancelled(
+            when (event.a) {
+                0L -> PointerCancelReason.FocusLost
+                1L -> PointerCancelReason.CaptureLost
+                else -> throw WindowException(
+                    "unknown pointer cancellation",
+                    WindowErrorKind.NativeFailure
+                )
+            },
+            time
+        )
     val state =
         PointerState(
             LogicalPosition(event.x, event.y),
             PhysicalPosition(event.z, event.w),
             event.scale,
-            platformModifiers(event.b)
+            platformModifiers(event.b),
+            time
         )
     return when (event.flags) {
         0 -> PointerEvent.Entered(state)

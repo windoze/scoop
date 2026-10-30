@@ -78,5 +78,6 @@ public struct KeyEvent(
     val isRepeat: Boolean,
     val modifiers: Modifiers,
     val synthetic: Boolean,
+    val time: InputTime,
     val deviceId: DeviceId? = None
 )

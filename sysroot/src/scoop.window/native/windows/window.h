@@ -22,6 +22,7 @@ typedef struct {
   double x, y, z, w, scale, dx, dy;
   const uint8_t *text;
   int64_t text_length;
+  int64_t time_seconds, time_nanoseconds;
 } SWEventData;
 typedef struct {
   int32_t kind;
@@ -74,6 +75,7 @@ typedef struct SWWindow {
   uint64_t modifiers;
   SWEventData pressed[512];
   bool key_down[512];
+  uint32_t pressed_buttons;
 } SWWindow;
 
 enum { SW_WAKE = WM_APP + 1, SW_READY };
@@ -82,6 +84,7 @@ void sw_wake(SWApplication *application);
 void sw_fail(SWApplication *application, DWORD error);
 void sw_enqueue(SWApplication *application, SWEvent *event);
 SWEvent *sw_event(SWWindow *window, int32_t kind);
+void sw_stamp_input(SWEventData *data);
 void sw_emit(SWWindow *window, int32_t kind);
 void sw_free_event(SWEvent *event);
 void sw_watch_message(SWApplication *application, int64_t identity);
