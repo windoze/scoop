@@ -63,6 +63,8 @@ compiler／package protocol 更新至 26／4，manifest 与 native 对象／资�
 
 Ruff 0.16.10 通过；76 项 fixture 规则与 22 项维护脚本测试各跳过 3 项宿主不适用测试，其余通过。本机显式选择 Linux GNU 的 3 项 manifest 诊断 fixture 通过，需要执行的 native fixture 明确记录为 `execution-skipped`；这不是 Linux 运行验收。配套 release CLI 完成 AArch64 的 27 个内置 Cone 与四种 runtime 配置准备。include 批次推送后已获取远端 main，无新增提交。
 
+本地收尾检查补齐发行准备入口：target 的 OS／libc 选择使用共享目录字段，压缩、文本与 Linux unwind recipe 同步移除名称后缀判断。系统库打包复用准备阶段的 `sources.when` 判断，Linux 不再要求不存在的窗口库资源；无需为每个目标维护库名单。Ruff 0.16.10 及 22 项维护脚本测试通过（3 项宿主不适用）。
+
 ### R6 macOS x86_64 基础
 
 目录新增 `x86_64-apple-darwin`，组合 Darwin native 环境、SysV AMD64 ABI／固定帧、Mach-O x86_64 对象和独立 LLVM backend 合同。实际 LLVM 22.1.8 数据布局、LSDA 与机器配置探测已确认；Darwin 工具链选择 x86_64 SDK slice，generated-C／native／runtime 使用 x86-64 CPU 基线。新增 Mach-O anchor 汇编，复用 Darwin OS、image 与 SysV frame 实现；支持 x86-64 PC-relative、GOT、TLV 及 32／64-bit 差值 pair。真实 core 构建发现产物摘要 reader 的旧六目标名单，已改为统一目录并扩展全部注册目标的读写测试。

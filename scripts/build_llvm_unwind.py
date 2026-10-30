@@ -70,7 +70,7 @@ def main():
     cc, cxx = shutil.which(args.cc), shutil.which(args.cxx)
     if not cc or not cxx:
         parser.error("--cc and --cxx must name installed Clang compilers")
-    musl = args.target.endswith("-musl")
+    musl = CATALOG[args.target]["env"] == "musl"
     if musl and (args.musl_include is None or not (args.musl_include / "features.h").is_file()):
         parser.error("musl requires --musl-include pointing to its installed C headers")
     if not musl and args.musl_include is not None:

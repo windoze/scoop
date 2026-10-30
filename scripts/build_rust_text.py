@@ -110,7 +110,7 @@ def prepare_locked(args, source, archive, build):
         TMP=str(scratch),
         CARGO_TARGET_DIR=str(build / "target"),
     )
-    if args.target.endswith("darwin"):
+    if TARGETS[args.target]["os"] == "darwin":
         environment["MACOSX_DEPLOYMENT_TARGET"] = (
             inputs["environment"]["MACOSX_DEPLOYMENT_TARGET"] or release["minimum_os"]
         )

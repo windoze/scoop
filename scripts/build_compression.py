@@ -113,7 +113,7 @@ def prepare(package, args):
         directory.mkdir()
     scratch.mkdir(exist_ok=True)
     release = tomllib.loads(RELEASE_CONFIG.read_text())["targets"][args.target]
-    darwin = args.target.endswith("darwin")
+    darwin = native_configuration(args.target)["os"] == "darwin"
     options = dict(
         package["options"],
         CMAKE_C_COMPILER=cc,

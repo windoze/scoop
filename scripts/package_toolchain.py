@@ -27,7 +27,8 @@ from build_rust_text import HEADER as RUST_TEXT_HEADER
 from build_rust_text import LIBRARY as RUST_TEXT_LIBRARY
 from build_support import RELEASE_CONFIG, ROOT
 from compression_backends import PACKAGES as COMPRESSION_PACKAGES
-from target_catalog import current_host, host_definition
+from prepare_sysroot import has_target_sources
+from target_catalog import TARGETS, current_host, host_definition
 
 TOOLS = ("scoop", "scoopc", "scoop-link", "scoop-lsp", "scoop-pm")
 
@@ -43,6 +44,7 @@ def run_script(name, arguments, environment):
 def prepare_targets(args, targets, binaries, environment):
     sysroot = ROOT / "sysroot"
     for target in targets:
+        facts = TARGETS[target]
         native = []
         openssl = [
             "--target",
@@ -52,11 +54,11 @@ def prepare_targets(args, targets, binaries, environment):
             "--jobs",
             args.jobs,
         ]
-        if "linux" in target:
-            cc = args.musl_cc if target.endswith("musl") else args.gnu_cc
+        if facts["os"] == "linux":
+            cc = args.musl_cc if facts["env"] == "musl" else args.gnu_cc
             native = ["--cc", cc]
             openssl += native
-        elif "windows" in target:
+        elif facts["os"] == "windows":
             native = ["--cc", package_windows.compiler(args, target)]
             openssl += [*native, *package_windows.openssl_arguments(args, target)]
         run_script("build_openssl.py", openssl, environment)
@@ -80,7 +82,7 @@ def prepare_targets(args, targets, binaries, environment):
                 ],
                 environment,
             )
-        if "linux" in target:
+        if facts["os"] == "linux":
             unwind = [
                 "--target",
                 target,
@@ -95,11 +97,11 @@ def prepare_targets(args, targets, binaries, environment):
                 "--jobs",
                 args.jobs,
             ]
-            if target.endswith("musl"):
+            if facts["env"] == "musl":
                 unwind += ["--musl-include", args.musl_include]
             run_script("build_llvm_unwind.py", unwind, environment)
             native += ["--unwind-prefix", sysroot / "lib" / target / "unwind"]
-        elif "windows" in target:
+        elif facts["os"] == "windows":
             run_script(
                 "build_windows_unwind.py",
                 [
@@ -177,15 +179,16 @@ def assemble(root, targets, binaries, args, release, extension):
         else:
             shutil.copytree(vendor, destination)
     cones = [
-        tomllib.loads(path.read_text(encoding="utf-8"))["cone"]
+        tomllib.loads(path.read_text(encoding="utf-8"))
         for path in sorted((sysroot / "src").glob("*/Cone.toml"))
     ]
     for target in targets:
         source = sysroot / "lib" / target
         destination = root / "lib" / target
         destination.mkdir(parents=True)
-        for cone in cones:
-            shutil.copy2(source / f"{cone['name']}.slib", destination)
+        for manifest in cones:
+            if has_target_sources(manifest, target):
+                shutil.copy2(source / f"{manifest['cone']['name']}.slib", destination)
         (destination / "include").mkdir()
         for header in (
             RUST_TEXT_HEADER,
@@ -223,7 +226,7 @@ def assemble(root, targets, binaries, args, release, extension):
             ("nghttp2", ("libnghttp2.a",)),
             ("unwind", ("libunwind.a",)),
         ):
-            if component == "unwind" and target.endswith("darwin"):
+            if component == "unwind" and TARGETS[target]["os"] == "darwin":
                 continue
             shutil.copytree(source / component / "include", destination / component / "include")
             (destination / component / "lib").mkdir()
