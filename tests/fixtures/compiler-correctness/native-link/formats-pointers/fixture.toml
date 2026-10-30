@@ -51,7 +51,7 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"actual" = "${unoptimized.result.link_plan}", "snapshot" = "unoptimized.${target}.plan", "normalize" = ["paths", "native-digests", "native-link-plan"]}]
+checks = [{"actual" = "${unoptimized.result.link_plan}", "snapshot" = "${cc_family}/unoptimized.${target}.plan", "normalize" = ["paths", "native-digests", "native-link-plan"]}]
 
 [[steps]]
 name = "run_unoptimized"

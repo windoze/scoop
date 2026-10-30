@@ -15,7 +15,7 @@ files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}, {mkdir = {pat
 
 [[steps]]
 name = "inspector"
-argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "${fixture}/inspect.c", "-ldbghelp", "-lshell32", "-o", "${work}/inspect.exe"]
+argv = ["${cc}", {each = "${cc_args}"}, {each = "${cc_link_args}"}, "-Wall", "-Wextra", "-Werror", "${fixture}/inspect.c", "-ldbghelp", "-lshell32", "-o", "${work}/inspect.exe"]
 exit = 0
 stdout = ""
 stderr = ""

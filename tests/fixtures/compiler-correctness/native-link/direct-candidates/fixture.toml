@@ -56,7 +56,7 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"actual" = "${link.result.link_plan}", "snapshot" = "link.${target}.plan", "normalize" = ["paths", "native-digests", "native-link-plan"]}]
+checks = [{"actual" = "${link.result.link_plan}", "snapshot" = "${cc_family}/link.${target}.plan", "normalize" = ["paths", "native-digests", "native-link-plan"]}]
 
 [[steps]]
 name = "run_linked"
@@ -73,7 +73,7 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"actual" = "${duplicate.result.link_plan}", "equals" = "${link.result.link_plan}"}, {"actual" = "${duplicate.result.link_plan_fingerprint}", "equals" = "${link.result.link_plan_fingerprint}"}, {"actual" = "${duplicate.result.link_plan}", "snapshot" = "duplicate.${target}.plan", "normalize" = ["paths", "native-digests", "native-link-plan"]}]
+checks = [{"actual" = "${duplicate.result.link_plan}", "equals" = "${link.result.link_plan}"}, {"actual" = "${duplicate.result.link_plan_fingerprint}", "equals" = "${link.result.link_plan_fingerprint}"}, {"actual" = "${duplicate.result.link_plan}", "snapshot" = "${cc_family}/duplicate.${target}.plan", "normalize" = ["paths", "native-digests", "native-link-plan"]}]
 
 [[steps]]
 name = "prepare_different"

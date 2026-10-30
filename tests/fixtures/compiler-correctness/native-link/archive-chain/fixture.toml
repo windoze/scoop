@@ -95,7 +95,7 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"actual" = "${link.result.link_plan}", "snapshot" = "link.${target}.plan", "normalize" = ["paths", "native-digests", "native-link-plan"]}]
+checks = [{"actual" = "${link.result.link_plan}", "snapshot" = "${cc_family}/link.${target}.plan", "normalize" = ["paths", "native-digests", "native-link-plan"]}]
 
 [[steps]]
 name = "run_linked"

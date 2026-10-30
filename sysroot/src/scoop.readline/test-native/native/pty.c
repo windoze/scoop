@@ -22,7 +22,8 @@ static struct termios child_modes;
 int scoop_readline_test_capture_modes(void) { return tcgetattr(STDIN_FILENO, &child_modes); }
 
 bool scoop_readline_test_current_modes_restored(void) {
-    struct termios actual;
+    // musl may leave slots outside the kernel's control-character array untouched.
+    struct termios actual = {0};
     return tcgetattr(STDIN_FILENO, &actual) == 0 && actual.c_iflag == child_modes.c_iflag &&
            actual.c_oflag == child_modes.c_oflag && actual.c_cflag == child_modes.c_cflag &&
            (actual.c_lflag & ~PENDIN) == (child_modes.c_lflag & ~PENDIN) &&

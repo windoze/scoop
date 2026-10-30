@@ -94,7 +94,7 @@ exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "reject_missing.${target}.json"}
+diagnostics = {"file" = "${cc_family}/reject_missing.${target}.json"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
 
 [[steps]]
@@ -145,7 +145,7 @@ exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "reject_strong.${target}.json"}
+diagnostics = {"file" = "${cc_family}/reject_strong.${target}.json"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
 
 [[steps]]

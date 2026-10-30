@@ -6,7 +6,7 @@ when = { os = ["darwin", "linux"] }
 tags = ["runtime", "language"]
 [[steps]]
 name = "build"
-argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-Wall", "-Wextra", "-Werror", "-pthread", "-I", "${runtime}/include", "${fixture}/probe.c", "${runtime}/src/gc/pressure.c", "${runtime}/src/gc_binding/pressure.c", "-o", "${work}/probe"]
+argv = ["${cc}", {each = "${cc_args}"}, {each = "${cc_link_args}"}, "-std=c11", "-Wall", "-Wextra", "-Werror", "-pthread", "-I", "${runtime}/include", "${fixture}/probe.c", "${runtime}/src/gc/pressure.c", "${runtime}/src/gc_binding/pressure.c", "-o", "${work}/probe"]
 exit = 0
 stdout = ""
 stderr = ""

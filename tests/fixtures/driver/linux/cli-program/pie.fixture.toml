@@ -8,7 +8,7 @@ tags = ["cli", "eh", "artifact-link", "driver"]
 variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${root}", "--target", "${target}", "--cc", "${cc}", "--link-mode", "dynamic", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--unwind-prefix", "${repo}/sysroot/lib/${target}/unwind", "-o", "${work}/program", "--message-format", "json"]
+argv = ["${scoop}", "build", "${root}", {each = "${link_args}"}, "--link-mode", "dynamic", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "-o", "${work}/program", "--message-format", "json"]
 timeout = 300
 exit = 0
 stdout = ""
@@ -26,7 +26,7 @@ stderr = ""
 
 [[steps]]
 name = "link"
-argv = ["${scoop-link}", "--cache-dir", "${cache}", "--sysroot", "${sysroot}", "--root-slib", "${build.result.root.path}", { each = "${build.result.dependencies}", field = "path", prefix = "--dep-slib" }, "--runtime-objects", "${build.result.runtime_index}", "--target", "${target}", "--cc", "${cc}", "--link-mode", "dynamic", "--unwind-prefix", "${repo}/sysroot/lib/${target}/unwind", "-o", "${work}/relinked"]
+argv = ["${scoop-link}", "--cache-dir", "${cache}", "--sysroot", "${sysroot}", "--root-slib", "${build.result.root.path}", { each = "${build.result.dependencies}", field = "path", prefix = "--dep-slib" }, "--runtime-objects", "${build.result.runtime_index}", {each = "${link_args}"}, "--link-mode", "dynamic", "-o", "${work}/relinked"]
 timeout = 300
 exit = 0
 stdout = "link-plan ${build.result.link_plan_fingerprint}\n"

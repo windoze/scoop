@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "native object $NATIVE_INPUT_0-member-1-1252 selected by helper <- native object $NATIVE_INPUT_0-member-0-8 selected by m23_add <- Cone dev.programlink:archive:0.1.0 member fcd25be30d0c02858ef98cc4a26b220910130ecdfd3a5cdfd66282f8ea972614 (${work}/native/libm23_math.a) conflicts with ${work}/native/libm23_math.a at m23_add",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

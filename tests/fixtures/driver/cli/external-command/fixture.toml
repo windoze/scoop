@@ -23,7 +23,7 @@ files = [
 
 [[steps]]
 name = "compile"
-argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "${root}", "-o", "${work}/selected root/commands/scoop-probe"]
+argv = ["${cc}", {each = "${cc_args}"}, {each = "${cc_link_args}"}, "-Wall", "-Wextra", "-Werror", "${root}", "-o", "${work}/selected root/commands/scoop-probe"]
 exit = 0
 stdout = ""
 stderr = ""

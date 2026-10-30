@@ -20,7 +20,7 @@ files = [
 
 [[steps]]
 name = "helper"
-argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-Wall", "-Wextra", "-Werror", "${fixture}/child.c", "-o", "${work}/child"]
+argv = ["${cc}", {each = "${cc_args}"}, {each = "${cc_link_args}"}, "-std=c11", "-Wall", "-Wextra", "-Werror", "${fixture}/child.c", "-o", "${work}/child"]
 exit = 0
 stdout = ""
 stderr = ""

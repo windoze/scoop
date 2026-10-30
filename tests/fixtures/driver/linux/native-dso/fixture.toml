@@ -12,21 +12,21 @@ files = [{ mkdir = { path = "${work}/libs/deps" } }]
 
 [[steps]]
 name = "leaf"
-argv = ["${cc}", "-fPIC", "-shared", "${fixture}/leaf.c", "-Wl,-soname,libm28_leaf.so.1", "-Wl,--version-script=${fixture}/leaf.map", "-o", "${work}/libs/deps/libm28_leaf.so.1"]
+argv = ["${cc}", {each = "${cc_args}"}, "-shared", "-static-libgcc", "${fixture}/leaf.c", "-Wl,-soname,libm28_leaf.so.1", "-Wl,--version-script=${fixture}/leaf.map", "-o", "${work}/libs/deps/libm28_leaf.so.1"]
 exit = 0
 stdout = ""
 stderr = ""
 
 [[steps]]
 name = "versions"
-argv = ["${cc}", "-fPIC", "-shared", "${fixture}/versions.c", "-L${work}/libs/deps", "-l:libm28_leaf.so.1", "-Wl,-rpath,$$ORIGIN/deps", "-Wl,-soname,libm28_versions.so.2", "-Wl,--version-script=${fixture}/versions.map", "-o", "${work}/libs/libm28_versions.so.2"]
+argv = ["${cc}", {each = "${cc_args}"}, "-shared", "-static-libgcc", "${fixture}/versions.c", "-L${work}/libs/deps", "-l:libm28_leaf.so.1", "-Wl,-rpath,$$ORIGIN/deps", "-Wl,-soname,libm28_versions.so.2", "-Wl,--version-script=${fixture}/versions.map", "-o", "${work}/libs/libm28_versions.so.2"]
 exit = 0
 stdout = ""
 stderr = ""
 
 [[steps]]
 name = "plain"
-argv = ["${cc}", "-fPIC", "-shared", "${fixture}/plain.c", "-o", "${work}/libs/libm28_plain.so"]
+argv = ["${cc}", {each = "${cc_args}"}, "-shared", "-static-libgcc", "${fixture}/plain.c", "-o", "${work}/libs/libm28_plain.so"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -37,14 +37,14 @@ files = [{ symlink = { from = "${work}/libs/libm28_versions.so.2", to = "${work}
 
 [[steps]]
 name = "host"
-argv = ["${cc}", "-fPIC", "-c", "${fixture}/host.c", "-o", "${work}/host.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-c", "${fixture}/host.c", "-o", "${work}/host.o"]
 exit = 0
 stdout = ""
 stderr = ""
 
 [[steps]]
 name = "marker"
-argv = ["${cc}", "-fPIC", "-c", "${fixture}/marker.c", "-o", "${work}/marker.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-c", "${fixture}/marker.c", "-o", "${work}/marker.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -58,7 +58,7 @@ stderr = ""
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "--release", "${root}", "--target", "${target}", "--cc", "${cc}", "--link-mode", "dynamic", "--library-path", "${work}/libs", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--unwind-prefix", "${repo}/sysroot/lib/${target}/unwind", "-o", "${work}/program", "--message-format", "json"]
+argv = ["${scoop}", "build", "--release", "${root}", {each = "${link_args}"}, "--link-mode", "dynamic", "--library-path", "${work}/libs", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "-o", "${work}/program", "--message-format", "json"]
 timeout = 300
 exit = 0
 stdout = ""
@@ -75,7 +75,7 @@ stderr = ""
 
 [[steps]]
 name = "link"
-argv = ["${scoop-link}", "--root-slib", "${build.result.root.path}", { each = "${build.result.dependencies}", field = "path", prefix = "--dep-slib" }, "--runtime-objects", "${build.result.runtime_index}", "--target", "${target}", "--cc", "${cc}", "--link-mode", "dynamic", "--library-path", "${work}/libs", "--unwind-prefix", "${repo}/sysroot/lib/${target}/unwind", "-o", "${work}/relinked"]
+argv = ["${scoop-link}", "--sysroot", "${sysroot}", "--root-slib", "${build.result.root.path}", { each = "${build.result.dependencies}", field = "path", prefix = "--dep-slib" }, "--runtime-objects", "${build.result.runtime_index}", {each = "${link_args}"}, "--link-mode", "dynamic", "--library-path", "${work}/libs", "-o", "${work}/relinked"]
 timeout = 300
 exit = 0
 stdout = "link-plan ${build.result.link_plan_fingerprint}\n"
@@ -97,14 +97,14 @@ files = [
 
 [[steps]]
 name = "replace-version"
-argv = ["${cc}", "-fPIC", "-shared", "${fixture}/leaf.c", "-Wl,-soname,libm28_leaf.so.1", "-Wl,--version-script=${work}/wrong-version.map", "-o", "${work}/libs/deps/libm28_leaf.so.1"]
+argv = ["${cc}", {each = "${cc_args}"}, "-shared", "-static-libgcc", "${fixture}/leaf.c", "-Wl,-soname,libm28_leaf.so.1", "-Wl,--version-script=${work}/wrong-version.map", "-o", "${work}/libs/deps/libm28_leaf.so.1"]
 exit = 0
 stdout = ""
 stderr = ""
 
 [[steps]]
 name = "reject-version"
-argv = ["${scoop-link}", "--root-slib", "${build.result.root.path}", { each = "${build.result.dependencies}", field = "path", prefix = "--dep-slib" }, "--runtime-objects", "${build.result.runtime_index}", "--target", "${target}", "--cc", "${cc}", "--link-mode", "dynamic", "--library-path", "${work}/libs", "--unwind-prefix", "${repo}/sysroot/lib/${target}/unwind", "-o", "${work}/relinked"]
+argv = ["${scoop-link}", "--sysroot", "${sysroot}", "--root-slib", "${build.result.root.path}", { each = "${build.result.dependencies}", field = "path", prefix = "--dep-slib" }, "--runtime-objects", "${build.result.runtime_index}", {each = "${link_args}"}, "--link-mode", "dynamic", "--library-path", "${work}/libs", "-o", "${work}/relinked"]
 timeout = 300
 exit = 1
 stdout = ""
