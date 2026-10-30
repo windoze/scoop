@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Scoop">
+  <defs>
+    <linearGradient id="scoop-g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff9a62"/>
+      <stop offset="1" stop-color="#ff5d73"/>
+    </linearGradient>
+  </defs>
+  <path d="M14 30a18 18 0 0 1 36 0z" fill="url(#scoop-g)"/>
+  <path d="M12 30h40c0 3-2.5 5-5.5 5-2 0-3.2-1.2-4.5-1.2s-2.6 2.2-5.5 2.2-4.1-2.2-5.5-2.2-2.5 1.2-4.5 1.2-3.3-1-4.5-1-2.5 1-4.5 1C14.5 35 12 33 12 30z" fill="#ff5d73"/>
+  <path d="M22 37h20L33.6 58.4a1.7 1.7 0 0 1-3.2 0z" fill="#6c5ce7"/>
+  <path d="M26 41h12M27.5 46h9M29 51h6" stroke="#a29bfe" stroke-width="1.6" stroke-linecap="round"/>
+  <circle cx="25" cy="22" r="3" fill="#fff" opacity=".55"/>
+</svg>

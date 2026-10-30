@@ -214,6 +214,10 @@ impl SiteRenderer<'_, '_> {
                 contents: include_bytes!("assets/style.css").to_vec(),
             },
             RenderedFile {
+                path: "assets/logo.svg".into(),
+                contents: include_bytes!("assets/logo.svg").to_vec(),
+            },
+            RenderedFile {
                 path: "assets/search.js".into(),
                 contents: include_bytes!("assets/search.js").to_vec(),
             },

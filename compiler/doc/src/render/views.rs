@@ -81,6 +81,7 @@ impl SiteRenderer<'_, '_> {
                 home => routes::relative(page, "index.html"),
                 search => routes::relative(page, "search.html"),
                 style => routes::relative(page, "assets/style.css"),
+                logo => routes::relative(page, "assets/logo.svg"),
                 cones => minijinja::value::Serde(cones),
                 packages => minijinja::value::Serde(packages),
                 current => cone.map(|c| c.name.as_str()),

@@ -4,33 +4,41 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Scoop API</title>
+  <link rel="icon" href="{{ logo }}" type="image/svg+xml">
   <link rel="stylesheet" href="{{ style }}">
 </head>
 <body>
   <a class="skip" href="#content">Skip to content</a>
   <header class="topbar">
-    <a class="brand" href="{{ home }}">Scoop <span>API</span></a>
-    {% if root %}<a href="{{ roots }}">All roots</a><span>{{ root }}</span>{% endif %}
-    <form action="{{ search }}" method="get" role="search">
-      <label for="search-input">Search API</label>
-      <input id="search-input" type="search" name="q" placeholder="Name, alias, or description">
-      <button type="submit">Search</button>
-    </form>
+    <div class="topbar-inner">
+      <a class="brand" href="{{ home }}"><img src="{{ logo }}" alt="" width="32" height="32">Scoop <span>API</span></a>
+      {% if root %}<div class="root-context"><a href="{{ roots }}">All roots</a><span title="{{ root }}">{{ root }}</span></div>{% endif %}
+      <form action="{{ search }}" method="get" role="search">
+        <label for="search-input">Search API</label>
+        <input id="search-input" type="search" name="q" placeholder="Name, alias, or description">
+        <button type="submit">Search</button>
+      </form>
+    </div>
   </header>
   <div class="layout">
     <nav class="sidebar" aria-label="Documentation">
-      <h2>Cones</h2>
-      <ul>{% for link in cones %}<li><a href="{{ link.href }}"{% if current == link.text %} aria-current="true"{% endif %}>{{ link.text }}</a></li>{% endfor %}</ul>
-      {% if packages %}<h2>Packages</h2>
-      <ul>{% for link in packages %}<li><a href="{{ link.href }}">{{ link.text }}</a></li>{% endfor %}</ul>{% endif %}
-      <p class="offline">Generated locally.<br>Available offline.</p>
+      <section class="nav-section">
+        <h2>Cones</h2>
+        <ul>{% for link in cones %}<li><a href="{{ link.href }}"{% if current == link.text %} aria-current="true"{% endif %}>{{ link.text }}</a></li>{% endfor %}</ul>
+      </section>
+      {% if packages %}<section class="nav-section">
+        <h2>Packages</h2>
+        <ul>{% for link in packages %}<li><a href="{{ link.href }}">{{ link.text }}</a></li>{% endfor %}</ul>
+      </section>{% endif %}
     </nav>
     <main id="content">
-      {% if current %}<p class="eyebrow">{{ current }}</p>{% endif %}
-      <h1>{{ title }}</h1>
+      <div class="page-heading">
+        <p class="eyebrow">{% if current %}{{ current }}{% else %}API reference{% endif %}</p>
+        <h1>{{ title }}</h1>
+      </div>
       {{ content | safe }}
     </main>
   </div>
-  <footer>Scoop API documentation</footer>
+  <footer><div class="footer-inner"><span>Scoop API documentation</span><span>Generated locally · Available offline</span></div></footer>
 </body>
 </html>
