@@ -1,7 +1,7 @@
 schema = 1
 name = "platform-system"
-inputs = ["consumer", "probe.c", "launcher.c"]
-tools = ["scoop", "scoopc", "cc"]
+inputs = ["consumer", "probe.c", "launcher.py"]
+tools = ["scoop", "scoopc"]
 when = { os = ["darwin", "linux"] }
 tags = ["platform", "environment", "random", "time", "language"]
 variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
@@ -19,13 +19,6 @@ files = [
 ]
 
 [[steps]]
-name = "launcher"
-argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-Wall", "-Wextra", "-Werror", "${fixture}/launcher.c", "-o", "${work}/launcher"]
-exit = 0
-stdout = ""
-stderr = ""
-
-[[steps]]
 name = "build"
 argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${profile}", "--message-format", "json"]
 exit = 0
@@ -36,7 +29,7 @@ diagnostics = []
 
 [[steps]]
 name = "run"
-argv = ["${work}/launcher", "${build.result.output}", "${work}/tmp"]
+argv = ["${python}", "${fixture}/launcher.py", "${build.result.output}", "${work}/tmp"]
 exit = 0
 stdout = "raw environment, partial entropy and sleep GC passed\n"
 stderr = ""

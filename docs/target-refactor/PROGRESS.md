@@ -122,3 +122,9 @@ Windows 的普通路径与系统返回的扩展路径在映射到 target sysroot
 musl 通过显式 Clang／SDK 构建系统库；该机 SDK 补齐已有 musl 头库与 Linux UAPI 搜索目录。`pthread_equal` 的结果显式与零比较，避免其宏展开在预处理单元中触发 Clang 的多余括号警告，线程 join 语义保持。Rust 格式化、workspace Clippy、本机 toolchain 54 项测试与 C 语法检查通过；Windows toolchain 55 项已逐项复验闭合，Linux GNU／musl 均完成过 25 个系统 Cone 和四种 runtime 准备，最终配套 LLVM 下继续刷新。
 
 终端调试用例直接在读取字符的条件判断处观察该字符，去除会使不同机器上某一个中间变量提前结束存活区间的加法。本机 AArch64 已用最终 LLVM／LLDB 重新构建程序，完整 launch、sourceMap、formatter 与终端调试全部通过；没有放宽断点、输入值或实际终端行为断言。
+
+### R7 Linux 运行回归
+
+配套 LLVM／LLDB 下，Linux workspace 的 6,331 项 Rust／文档测试全部闭合。LLVM 补丁问题修复后，剩余失败来自 linker 单测仍断言旧 ELF 诊断文案；已改为实际目标相关文案，并完成本机格式化、workspace Clippy 和 linker 测试后在 Linux 复验。GNU 的 32 项、musl 的 28 项受影响正式 fixture 全部通过，两者各 14 个普通／consumer／native 文本 Cone 通过。GNU 的完整 DAP launch、sourceMap、离线 formatter、终端与 attach，以及 musl 的 launch、sourceMap、formatter 和静态 TLS 检查通过。两个目标均已用最终配套工具准备 25 个系统 Cone 和四种 runtime 配置。
+
+musl 首轮的三项 fixture 失败属于 companion 适配：两项 callback 用例把 GCC 生成的对象字节数固定在整份链接计划快照中；进程环境用例的 C 启动器默认尝试动态链接。callback 用例保留依赖关系、直接构建与 artifact-only 重链接的计划指纹一致性，以及两种产物的真实运行断言，删除重复对象大小快照。环境启动器改用 Python `execve`，继续传递原始 POSIX 参数和环境字节。Ruff 0.16.10 与 79 项 fixture 规则测试通过（本机 3 项宿主不适用）；三个用例在本机两种 Darwin 架构与 Linux GNU／musl 全部通过。
