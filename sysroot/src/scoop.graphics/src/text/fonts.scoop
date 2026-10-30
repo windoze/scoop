@@ -1,0 +1,58 @@
+package scoop.graphics
+
+/** Owns explicit font data and optional system fallback. Existing paragraphs retain a snapshot. */
+public class FontCollection public constructor(systemFallback: Boolean = true): Closeable {
+    internal val resource = makeFonts(systemFallback)
+    public val isClosed: Boolean get() = resource.isClosed
+
+    /** Copies one face from a font file or collection under a family alias. */
+    public fun register(data: Array<Byte>, family: String, collectionIndex: Int = 0) {
+        requireGraphics(
+            data.size > 0L && family.byteLength > 0L && collectionIndex >= 0,
+            "invalid font data, family or collection index"
+        )
+        val pointer = resource.get()
+        @Unsafe
+        {
+            data.withDataPointer {
+                bytes,
+                length -> @Unsafe
+                {
+                    family.withUtf8Bytes {
+                        alias,
+                        count -> @Unsafe
+                        {
+                            graphicsResult(
+                                fontsAdd(pointer, bytes, length, alias, count, collectionIndex),
+                                "register font data"
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+    public override fun close() {
+        resource.close()
+    }
+}
+
+private fun makeFonts(fallback: Boolean): GraphicsResource {
+    @Unsafe
+    {
+        return ownedGraphics(fontsCreate(fallback), "create font collection")
+    }
+}
+
+@Extern(name = "scoop_graphics_fonts_create")
+private fun fontsCreate(fallback: Boolean): Ptr<Unit>?
+
+@Extern(name = "scoop_graphics_fonts_add")
+private fun fontsAdd(
+    fonts: Ptr<Unit>,
+    bytes: Ptr<Byte>,
+    length: Long,
+    alias: Ptr<UInt8>,
+    aliasLength: Long,
+    index: Int
+): Int

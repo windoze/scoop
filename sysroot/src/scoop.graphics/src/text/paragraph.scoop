@@ -1,0 +1,156 @@
+package scoop.graphics
+
+/** Owns UTF-8 text, run settings and font sources. Each layout is an independent result. */
+public class Paragraph public constructor(
+    fonts: FontCollection,
+    runs: Array<TextRun>,
+    settings: ParagraphStyle = ParagraphStyle()
+): Closeable {
+    public val text: String = joinRuns(runs)
+    private val resource = makeParagraph(fonts, runs, settings)
+    public val isClosed: Boolean get() = resource.isClosed
+
+    public constructor(
+        fonts: FontCollection,
+        text: String,
+        style: TextStyle = TextStyle(),
+        settings: ParagraphStyle = ParagraphStyle()
+    )
+    : this(fonts, [TextRun(text, style)], settings) {}
+
+    /** Lays out in finite logical width, preserving prior results. */
+    public fun layout(width: Double): TextLayout {
+        checkScalar(width)
+        requireGraphics(width >= 0.0, "negative paragraph width")
+        return createLayout(width, true)
+    }
+    /** Uses natural width; explicit line breaks are preserved. */
+    public fun layoutUnwrapped(): TextLayout = createLayout(0.0, false)
+    private fun createLayout(width: Double, wrap: Boolean): TextLayout {
+        @Unsafe
+        {
+            val native = ownedGraphics(textLayout(resource.get(), width, wrap), "layout paragraph")
+            try {
+                return TextLayout(native, text)
+            }
+            catch (error: Throwable) {
+                native.close();
+                throw error
+            }
+        }
+    }
+    public override fun close() {
+        resource.close()
+    }
+}
+
+private fun joinRuns(runs: Array<TextRun>): String {
+    val result = StringBuilder()
+    var length = 0L
+    for (run in runs) {
+        requireGraphics(
+            run.text.byteLength <= 2147483647L - length,
+            "paragraph exceeds native text index range"
+        )
+        length += run.text.byteLength
+        result.append(run.text)
+    }
+    return result.toString()
+}
+
+private fun makeParagraph(
+    fonts: FontCollection,
+    runs: Array<TextRun>,
+    settings: ParagraphStyle
+): GraphicsResource {
+    val maxLines = settings.maxLines ?: -1L
+    when (settings.maxLines) {
+        case Some(value) -> requireGraphics(
+            value > 0L && value <= 2147483647L,
+            "invalid maximum line count"
+        )
+        case None -> {}
+    }
+    val alignment =
+        when (settings.alignment) {
+            case Left -> 0;
+            case Right -> 1;
+            case Center -> 2;
+            case Justify -> 3;
+            case Start -> 4;
+            case End -> 5
+        }
+    val direction =
+        if (settings.direction == TextDirection.Ltr)
+            1
+        else
+            0
+    val source = fonts.resource.get()
+    val builder = beginParagraph(source, alignment, direction, maxLines, settings.ellipsis)
+    return builder.use {
+        current ->
+        val pointer = current.get()
+        for (run in runs) {
+            run.style.withNative {
+                style -> @Unsafe
+                {
+                    run.text.withUtf8Bytes {
+                        bytes,
+                        count -> @Unsafe
+                        {
+                            graphicsResult(
+                                paragraphRun(pointer, style, bytes, count),
+                                "append paragraph run"
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        @Unsafe
+        {
+            return@use ownedGraphics(paragraphFinish(pointer), "build paragraph")
+        }
+    }
+}
+
+private fun beginParagraph(
+    fonts: Ptr<Unit>,
+    alignment: Int,
+    direction: Int,
+    maxLines: Long,
+    ellipsis: String
+): GraphicsResource {
+    @Unsafe
+    {
+        return ellipsis.withUtf8Bytes {
+            bytes,
+            count -> @Unsafe
+            {
+                return@withUtf8Bytes ownedGraphics(
+                    paragraphBegin(fonts, alignment, direction, maxLines, bytes, count),
+                    "create paragraph builder"
+                )
+            }
+        }
+    }
+}
+
+@Extern(name = "scoop_graphics_paragraph_begin")
+private fun paragraphBegin(
+    fonts: Ptr<Unit>,
+    alignment: Int,
+    direction: Int,
+    maxLines: Long,
+    ellipsis: Ptr<UInt8>,
+    length: Long
+): Ptr<Unit>?
+
+@Extern(name = "scoop_graphics_paragraph_run")
+private fun paragraphRun(builder: Ptr<Unit>, style: Ptr<Unit>, text: Ptr<UInt8>, length: Long): Int
+
+@Extern(name = "scoop_graphics_paragraph_finish")
+private fun paragraphFinish(builder: Ptr<Unit>): Ptr<Unit>?
+
+@Extern(name = "scoop_graphics_text_layout")
+private fun textLayout(paragraph: Ptr<Unit>, width: Double, wrap: Boolean): Ptr<Unit>?

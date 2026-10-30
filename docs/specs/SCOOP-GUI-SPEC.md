@@ -34,6 +34,10 @@ TextLayout 保存所属文字及布局所需资源，包含尺寸、基线、行
 
 UTF-8／UTF-16 索引映射随文字构建并复用。标量、grapheme、shaping cluster 与 glyph 不得视为同一概念；用户 caret 不落在 grapheme 内部，利用 cluster／glyph 关系与 affinity 确定视觉位置，不能用 glyph 边界代替文本位置。shaping 与绘制使用同一字体、fallback 结果及 variation 设置。
 
+FontCollection 可登记自有字体数据和 family 别名；Paragraph 在构造时保存字体集合与各样式 run 的快照，之后登记字体或关闭来源不改变已有段落和布局。TextStyle 包括 family 顺序、字号、颜色、weight／width／slant、locale、字距、词距、行高和 OpenType feature／variation。系统 fallback 可关闭，以便应用使用完全指定的字体来源。
+
+TextLayout 提供 grapheme 边界、各行的字节范围和可见范围、基线与矩形，以及 unresolved glyph 数量。hitTest 返回可见文字的 grapheme 边界；显式 caret 查询要求偏移位于 grapheme 边界，返回一条逻辑坐标竖线的矩形，被截断的位置返回 None。selection 接受标量边界范围并返回方向明确的矩形序列。Upstream／Downstream 分别选择边界前／后的视觉 run，软换行处可以对应不同行。空文字仍有字体决定的行高与起始 caret；无换行请求保留显式换行，按自然宽度布局。文字长度超过实际 ICU／SkParagraph 索引表示范围时在接入处报告参数错误。
+
 第一期包括基本富文本 run、CJK／RTL／emoji、换行、对齐、行高、maxLines、ellipsis、测量与位置查询。HarfBuzz 负责 shaping；双向分析、分段、断行及段落组合由 SkUnicode／SkParagraph 处理。仅变换或整体透明度变化复用 TextLayout；文字、字体、字号或布局约束变化重新布局。
 
 文本编辑状态与文本布局分离。GUI 可将窗口 TextInputBatch 路由给当前文本接收区域，并换算候选窗矩形；本期不增加完整 surrounding 文档桥接、撤销历史、剪贴板协议或 TextField。

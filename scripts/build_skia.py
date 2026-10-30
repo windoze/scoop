@@ -50,6 +50,7 @@ GN_TARGETS = ("skia", "skparagraph", "skshaper", "skunicode_core", "skunicode_ic
 ARCHIVES = (*GN_TARGETS, "harfbuzz", "icu", "png", "jpeg", "jpeg12", "jpeg16", "skcms")
 HEADERS = (
     "include",
+    "src/core/SkUTF.h",
     "modules/skcms/skcms.h",
     "modules/skcms/src/skcms_public.h",
     *(f"modules/{name}/include" for name in ("skparagraph", "skshaper", "skunicode")),

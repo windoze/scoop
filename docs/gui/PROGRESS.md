@@ -9,7 +9,7 @@
 | window 鼠标序列取消、单调输入时间 | 已实现并验证 Darwin 两目标 |
 | 固定 Skia／HarfBuzz／ICU 依赖与绘图 Cone | 已实现；CPU 与 Metal texture 验证通过 |
 | GUI 宿主、共享帧调度、macOS Metal 呈现 | 已接入；桌面呈现测试待解锁会话后完成 |
-| 字体、段落布局及索引／几何查询 | 待完成 |
+| 字体、段落布局及索引／几何查询 | 已实现；Darwin 两目标离屏验证通过 |
 | 动画、输入区域、焦点和 IME 路由 | 待完成 |
 | 组合示例、两目标集成验收 | 待完成 |
 
@@ -44,3 +44,13 @@ Scoop fmt／check、C++ 与 Objective-C 严格检查，以及 5 项既有发行�
 macOS 安装 CAMetalLayer 到既有输入 view，保存并在卸载时恢复原 layer；同 host 的窗口共用 device／queue／Ganesh context。CAMetalDisplayLink 在 common modes 提供 drawable，经 ApplicationProxy 请求共享层绘制；普通帧只提交有序 GPU 工作，关闭时排空后退休回调和 lease。全部窗口卸载后释放 context，host 可再附着窗口。
 
 已添加宿主、asyncio 和异常收尾三个普通 scoop.test Cone，Scoop 语义检查及 Darwin 两目标的 Objective-C 严格检查通过，两目标生产 `.slib` 构建成功。首次真实窗口测试停在首帧等待：系统显示休眠，唤醒后桌面工具仍明确报告 Mac 锁定，AppKit 将窗口报告为遮挡。此结果不计为呈现测试通过；待解锁后继续实际帧、空闲、多窗口、modal／menu 及异常验证。没有为测试绕过遮挡判断或启用定时器后备。
+
+## 文本布局
+
+graphics 已接入 FontCollection、TextStyle、Paragraph 与 TextLayout。共享 C++ 使用 SkParagraph／HarfBuzz／ICU；Darwin 文件只创建 CoreText font manager。显式字体数据、family 别名、fallback 开关、富文本 run、字距／词距、行高、方向／对齐、maxLines／ellipsis 及 OpenType feature／variation 均通过同一段落实现。Paragraph 保存字体集合快照，独立 layout 保留其完整来源，来源关闭不使结果失效。
+
+文本快照构建 UTF-8／UTF-16 映射与 ICU grapheme 边界。行指标的 UTF-16 和 SkParagraph 可见范围的 UTF-8 在桥接处分别转换，对外统一为 Long 字节偏移。hitTest、caret、selection 和 Canvas.drawText 使用同一 native layout；软换行 affinity、bidi 多矩形及截断位置有明确结果。
+
+Darwin ARM64 与 Rosetta x86_64 的 graphics Cone 各 4 容器、19 测试全部通过，其中 9 项文本测试覆盖固定字体测量、登记快照、独立重排、CJK／variable font、组合字符／emoji／CRLF、系统 fallback／混合 bidi、affinity、ellipsis、富文本像素、空文字／零宽及生命周期。测试字体从固定 Skia 资源提取，并保留相应 Apache／OFL 许可。
+
+Scoop fmt／check、C++ 严格检查与 5 项发行维护脚本测试通过。依赖发布补齐了 SkUnicode 公共头实际引用的 `src/core/SkUTF.h`，两目标均由维护脚本重新准备。上述离屏与 Metal texture 验证不依赖桌面解锁，也不替代待完成的窗口呈现验收。

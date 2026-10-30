@@ -32,6 +32,15 @@ path = "native/shared/drawing.cpp"
 [[native.sources]]
 path = "native/shared/geometry.cpp"
 [[native.sources]]
+path = "native/shared/text.cpp"
+[[native.sources]]
+path = "native/shared/text_layout.cpp"
+[[native.sources]]
+path = "native/shared/text_queries.cpp"
+[[native.sources]]
+path = "native/darwin/fonts.cpp"
+when = { os = "darwin" }
+[[native.sources]]
 path = "native/darwin/metal.cpp"
 when = { os = "darwin" }
 

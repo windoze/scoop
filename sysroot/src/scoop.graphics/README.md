@@ -34,4 +34,25 @@ Path、PathBuilder、PathMeasure、Image、RasterSurface 与底层目标均显�
 
 GUI renderer 通过 `scoop.graphics.native` 的 RenderTarget 和 geometry 捕获接入；macOS 的 Unsafe `scoop.graphics.native.macos.MetalContext` 只接受所属 device／queue 和 BGRA8 texture。DPI 缩放由目标根部施加一次，geometry 快照仍使用逻辑坐标。普通 submit 不等待 GPU；显式读回和 drain 是同步点。
 
-准备 [native 资源](../../../scripts/README.md)后运行 `scoop test sysroot/src/scoop.graphics --release --sysroot sysroot`。测试通过真实 Skia 像素与几何查询验证行为，不使用 fixture。段落布局与 GUI 宿主的整体进展见 [GUI 实施记录](../../../docs/gui/PROGRESS.md)。
+文本使用 `FontCollection`、`TextStyle`、`Paragraph` 和 `TextLayout`。FontCollection 默认启用系统 fallback，也可以关闭后使用 `register(bytes, family)` 登记自有字体。Paragraph 在构造时保存文字、run 与字体来源快照，`layout(width)` 和 `layoutUnwrapped()` 每次返回独立结果；旧结果不受重新布局、字体登记或来源关闭影响。
+
+```scoop
+FontCollection().use { fonts ->
+    Paragraph(fonts, "Hello，是世界。مرحبا", TextStyle(fontSize = 20.0)).use { paragraph ->
+        paragraph.layout(280.0).use { layout ->
+            RasterSurface(320, 180).use { surface ->
+                surface.draw { canvas -> canvas.drawText(layout, Point(12.0, 12.0)) }
+                val position = layout.hitTest(Point(30.0, 10.0))
+                val caret = layout.caret(position)
+                val selection = layout.selection(TextRange(0L, paragraph.text.byteLength))
+            }
+        }
+    }
+}
+```
+
+TextRange 和 TextPosition 使用 **UTF-8 字节偏移**，与 String 的标量索引不同。selection 的端点须是标量边界；caret 的端点须是 `graphemeBoundaries` 中的位置。hitTest 返回 grapheme 边界，affinity 区分软换行和双向 run 的两侧；未显示的截断文字没有 caret。selection 可返回多个带方向的矩形，各行另有 range、contentRange、visibleRange、baseline 与尺寸。查询几何相对布局原点，调用方自行应用绘制位置和 Canvas 变换。
+
+TextStyle 支持基本富文本、family 顺序、字号／颜色、字体样式、locale、字距／词距、行高及 OpenType feature／variation；ParagraphStyle 提供方向、对齐、maxLines 和 ellipsis。HarfBuzz shaping、ICU 分段／bidi 与 SkParagraph 排行产生同一份绘制和查询结果。FontCollection、Paragraph 和 TextLayout 均遵守创建线程与显式 close／use 规则。
+
+准备 [native 资源](../../../scripts/README.md)后运行 `scoop test sysroot/src/scoop.graphics --release --sysroot sysroot`。测试通过真实 Skia 像素与几何查询验证行为，不使用 fixture；固定测试字体及许可见 `tests/data/FONTS.md`。整体进展见 [GUI 实施记录](../../../docs/gui/PROGRESS.md)。
