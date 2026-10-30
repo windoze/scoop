@@ -13,10 +13,10 @@ import tarfile
 import tempfile
 import tomllib
 from pathlib import Path
+from urllib.parse import quote
 
 import build_scoop_example
 import package_debugger
-import package_documentation
 import package_licenses
 import package_llvm
 import package_native
@@ -27,7 +27,7 @@ from build_rust_text import HEADER as RUST_TEXT_HEADER
 from build_rust_text import LIBRARY as RUST_TEXT_LIBRARY
 from build_support import RELEASE_CONFIG, ROOT
 from compression_backends import PACKAGES as COMPRESSION_PACKAGES
-from prepare_sysroot import has_target_sources
+from prepare_sysroot import cone_order
 from target_catalog import TARGETS, current_host, host_definition
 
 TOOLS = ("scoop", "scoopc", "scoop-link", "scoop-lsp", "scoop-pm")
@@ -41,7 +41,7 @@ def run_script(name, arguments, environment):
     )
 
 
-def prepare_targets(args, targets, binaries, environment):
+def prepare_targets(args, targets, environment):
     sysroot = ROOT / "sysroot"
     for target in targets:
         facts = TARGETS[target]
@@ -126,10 +126,7 @@ def prepare_targets(args, targets, binaries, environment):
             [
                 "--target",
                 target,
-                "--scoop",
-                binaries[0],
-                "--scoopc",
-                binaries[1],
+                "--runtime-only",
                 "--sysroot",
                 sysroot,
                 "--work-dir",
@@ -142,6 +139,23 @@ def prepare_targets(args, targets, binaries, environment):
             ],
             environment,
         )
+
+
+def relocate_markdown_links(root, revision):
+    """Keep repository documentation references usable outside the checkout."""
+    repository = (
+        "https://github.com/windoze/scoop/blob/"
+        + quote(revision.removesuffix("+modified"), safe="")
+        + "/"
+    )
+    for path in (root / "src").rglob("*.md"):
+        prefix = "../" * len(path.relative_to(root).parts)
+        text = path.read_text(encoding="utf-8")
+        updated = re.sub(
+            r"(?<=\]\()" + re.escape(prefix) + r"(?=(?:docs|scripts)/)", repository, text
+        )
+        if updated != text:
+            path.write_text(updated, encoding="utf-8")
 
 
 def assemble(root, targets, binaries, args, release, extension):
@@ -158,8 +172,11 @@ def assemble(root, targets, binaries, args, release, extension):
     shutil.copytree(ROOT / "tooling/scoop-programming", root / "tooling/scoop-programming")
     for name in ("src", "include"):
         shutil.copytree(
-            sysroot / name, root / name, ignore=shutil.ignore_patterns("target", "Cone.lock")
+            sysroot / name,
+            root / name,
+            ignore=shutil.ignore_patterns("target", "Cone.lock", "*.slib", "__pycache__"),
         )
+    relocate_markdown_links(root, args.revision)
     shutil.copytree(
         sysroot / "commands", root / "commands", ignore=shutil.ignore_patterns(".gitkeep")
     )
@@ -186,9 +203,6 @@ def assemble(root, targets, binaries, args, release, extension):
         source = sysroot / "lib" / target
         destination = root / "lib" / target
         destination.mkdir(parents=True)
-        for manifest in cone_manifests:
-            if has_target_sources(manifest, target):
-                shutil.copy2(source / f"{manifest['cone']['name']}.slib", destination)
         (destination / "include").mkdir()
         for header in (
             RUST_TEXT_HEADER,
@@ -265,11 +279,21 @@ def assemble(root, targets, binaries, args, release, extension):
     shutil.copytree(sysroot / "share/scoop/examples", share / "examples")
     for name in ("README.md", "RELEASE-NOTES.md"):
         shutil.copy2(ROOT / "scripts/distribution" / name, share / name)
+    installer = "post-install.ps1" if "windows" in args.host else "post-install.sh"
+    shutil.copy2(ROOT / "scripts/distribution" / installer, root / installer)
+    if installer.endswith(".sh"):
+        (root / installer).chmod(0o755)
+    plan = share / "install"
+    plan.mkdir()
+    default_target = host_definition(args.host)["default_target"]
+    ordered_targets = [default_target, *(target for target in targets if target != default_target)]
+    (plan / "targets.list").write_text("\n".join(ordered_targets) + "\n", encoding="utf-8")
     manifest = [
         "schema = 1",
         f"version = {json.dumps(args.version)}",
         f"source_revision = {json.dumps(args.revision)}",
         f"host = {json.dumps(args.host)}",
+        f"default_target = {json.dumps(default_target)}",
         f"vscode_extension = {json.dumps('tooling/' + extension.name)}",
         'programming_skill = "tooling/scoop-programming"',
         f"llvm = {json.dumps(release['llvm'])}",
@@ -312,6 +336,11 @@ def assemble(root, targets, binaries, args, release, extension):
         manifest += [
             f"{key} = {json.dumps(value)}" for key, value in release["targets"][target].items()
         ]
+        selection = args.work_dir / "cones" / target
+        selection.mkdir(parents=True, exist_ok=True)
+        order = cone_order(sysroot, selection, target)
+        manifest.append(f"cones = {json.dumps(order)}")
+        (plan / f"{target}.list").write_text("\n".join(order) + "\n", encoding="utf-8")
     for cone_manifest in cone_manifests:
         cone = cone_manifest["cone"]
         manifest += [
@@ -356,7 +385,7 @@ def main():
     parser.add_argument(
         "--prepared-sysroot",
         type=Path,
-        help="Use an explicitly prepared sysroot without rebuilding native backends, Cones, or runtime",
+        help="Use prepared native backends and runtime; system slibs are always built after installation",
     )
     parser.add_argument(
         "--debugger-prefix",
@@ -536,24 +565,11 @@ def main():
     build_scoop_example.install(example, sysroot)
     targets = list(host_definition(args.host)["distribution_targets"])
     if args.prepared_sysroot is None:
-        prepare_targets(args, targets, binaries, environment)
-    documentation = package_documentation.generate(
-        sysroot,
-        targets,
-        binaries,
-        args.work_dir,
-        environment,
-        native_sysroots={
-            target: package_windows.mingw_prefix(args, target)
-            for target in targets
-            if windows and package_windows.mingw_prefix(args, target) is not None
-        },
-    )
+        prepare_targets(args, targets, environment)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="assemble-", dir=args.work_dir) as temporary:
         root = Path(temporary) / f"scoop-{args.version}-{args.host}"
         assemble(root, targets, binaries, args, release, extension)
-        package_documentation.install(root / "docs", documentation)
         sources = Path(temporary) / f"scoop-{args.version}-llvm-sources"
         vendor = sources / "vendor/llvm-project" / VERSION
         shutil.copytree(

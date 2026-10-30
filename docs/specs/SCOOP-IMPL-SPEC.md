@@ -10,9 +10,9 @@ Windows 三环境扩展已按 [Windows targets 设计](../windows-targets/DESIGN
 
 宿主 LLVM 准备同时安装 LLVM／Clang 动态库、Rust 构建所需的 llvm-config／头文件、Clang／clang-cl／Clang++、LLD 及所需 LLVM 对象／归档／资源工具。LLVM 与 inkwell 均只启用实际使用的 AArch64／X86 backend，不引用未构建 target 的初始化入口。Windows x64 宿主采用 LLVM-MinGW UCRT 开发环境构建，Rust 宿主为 `x86_64-pc-windows-gnullvm`；宿主身份不覆盖应用选择的完整 Scoop target。Windows 使用原生 Ninja 和 `.exe`／DLL 布局，必需的宿主 LLVM／Clang、C++／unwind DLL 与实际引用它们的工具相邻安装；Darwin／Linux 保持各自的 rpath 与动态库规则。开发安装与运行期工具包的组装仍由维护脚本负责，普通编译不构建宿主 LLVM。
 
-Windows 发行准备使用同一 GNU-LLVM Rust 宿主构建主命令、示例命令和内部 runtime 准备程序，交付三个完整 Windows target 的库与 runtime。宿主 Clang／LLD／RC 工具及 Clang resource headers 安装在 `libexec/llvm`；两个 LLVM-MinGW 目标在各自 `lib/<target>/toolchain` 中保留所选 prefix 的 x86-64 开发资源、驱动与目录关系，Microsoft SDK／MSVC toolset 仍由构建机提供。目标 libunwind 随各自目录交付；宿主与目标 LLVM／MinGW、C++／unwind 的实际许可一并收集。发行前的 API 文档生成沿用相同 target 与 native sysroot 选择。
+Windows 发行准备使用同一 GNU-LLVM Rust 宿主构建主命令、示例命令和内部 runtime 准备程序，交付三个完整 Windows target 的 native 库与 runtime，系统 Cone 以源码交付并在安装后构建 `.slib`。宿主 Clang／LLD／RC 工具及 Clang resource headers 安装在 `libexec/llvm`；两个 LLVM-MinGW 目标在各自 `lib/<target>/toolchain` 中保留所选 prefix 的 x86-64 开发资源、驱动与目录关系，Microsoft SDK／MSVC toolset 由本机开发环境提供。目标 libunwind 随各自目录交付；宿主与目标 LLVM／MinGW、C++／unwind 的实际许可一并收集。安装后的 API 文档生成沿用相同 target 与 native sysroot 选择。
 
-发行脚本默认显式准备目标资源，也可通过 `--prepared-sysroot` 消费维护者已经准备的 sysroot，跳过 native 后端、系统 Cone 和 runtime 的重建；后续命令构建、示例与 API 文档、组装和归档流程相同。该入口是普通产物消费，不增加来源审核或生产过程复核；缺失资源按实际 I/O 报错，编译消费仍执行既有格式／ABI 检查。
+发行脚本默认显式准备目标 native 与 runtime 资源，也可通过 `--prepared-sysroot` 消费维护者已经准备的 sysroot，跳过这些资源的重建；两种入口均不构建或复制系统 `.slib`，后续命令构建、示例、组装和归档流程相同。该入口是普通产物消费，不增加来源审核或生产过程复核；缺失资源按实际 I/O 报错，编译消费仍执行既有格式／ABI 检查。
 
 一个 Cone 是一次独立编译的单位。library 和 executable Cone 都产生完整 `.slib`；executable 的最终程序由独立链接阶段从产物闭包生成。产物是编译结果，不承担独立分发认证或源码／工具移除后的可用性保证。缓存只判断正常输入是否变化，不检查输出是否遭到外部破坏。
 
@@ -831,11 +831,15 @@ MIR `identity-foundation/6` 与 LIR foundation 保存实际实现的实体目录
 
 开发 sysroot 准备、发行组装、安装及打包属于仓库维护脚本，不进入 `scoop` 命令或 driver。脚本调用普通 Cone 构建与已有 runtime 编译库；日常命令只消费选定的 sysroot 和显式指定的构建输入。
 
-`scripts/package_toolchain.py` 是完整安装包的单一构建入口，负责 LLVM 输入准备、宿主命令、该宿主支持的全部目标 native／`.slib`／runtime、内置库文档和 VS Code 扩展。Darwin/AArch64 包包含两个 Darwin 目标，Darwin/amd64 包包含 `x86_64-apple-darwin`，Linux/GNU amd64 包同时包含 `x86_64-unknown-linux-gnu` 与 `x86_64-unknown-linux-musl`。工具包归档直接以安装根内容为顶层，不包裹版本目录或额外的 `.scoop`／`sysroot` 目录，可用 `tar -xJf <archive> -C ~/.scoop` 安装。完整布局包含 `bin`、`commands`、`lib/<canonical-target-triple>`、`include`、`src`、`vendor`、`native`、`libexec`、`docs`、`share` 和 `tooling`；`commands` 即使为空也进入归档，存在内容时按原目录复制并保留可执行权限，仓库保留空目录的 `.gitkeep` 不进入发行包；扩展以可直接安装的 VSIX 放在 `tooling`，由同一入口按 npm lockfile 构建。安装根的纯文本 `VERSION` 记录发行版本、源码 revision 和宿主平台，与工具构建及发行清单共用本次参数，只用于查看安装版本。默认 LLVM 输入缺失时由维护脚本取得固定版本的上游归档并解包；显式输入路径失败照常报错。全部组件准备成功后才组装并发布归档。
+`scripts/package_toolchain.py` 是安装包的单一构建入口，负责 LLVM 输入准备、宿主命令、该宿主支持的全部目标 native／runtime 和 VS Code 扩展。系统 Cone 只交付源码及其 vendor 输入、预构建 native 库与头文件；打包不构建或复制 `.slib`，也不调用依赖 `.slib` 的 API 文档生成。Darwin/AArch64 包包含两个 Darwin 目标，Darwin/amd64 包包含 `x86_64-apple-darwin`，Linux/GNU amd64 包同时包含 `x86_64-unknown-linux-gnu` 与 `x86_64-unknown-linux-musl`。工具包归档直接以安装根内容为顶层，不包裹版本目录或额外的 `.scoop`／`sysroot` 目录，可用 `tar -xJf <archive> -C ~/.scoop` 解压。布局包含 `bin`、`commands`、`lib/<canonical-target-triple>`、`include`、`src`、`vendor`、`native`、`libexec`、`share` 和 `tooling`，以及安装后准备入口 `post-install.sh`／`post-install.ps1`；`docs` 在安装后生成。`commands` 即使为空也进入归档，存在内容时按原目录复制并保留可执行权限，仓库保留空目录的 `.gitkeep` 不进入发行包；扩展以可直接安装的 VSIX 放在 `tooling`，由同一入口按 npm lockfile 构建。安装根的纯文本 `VERSION` 记录发行版本、源码 revision 和宿主平台，与工具构建及发行清单共用本次参数，只用于查看安装版本。默认 LLVM 输入缺失时由维护脚本取得固定版本的上游归档并解包；显式输入路径失败照常报错。全部随包组件准备成功后才组装并发布归档。
+
+post-install 使用 POSIX shell／PowerShell 和配套 `scoop`／`scoopc`，按生产依赖顺序执行普通 release library 构建，将系统 `.slib` 写入 `lib/<canonical-target-triple>`，随后生成所选目标的离线 API 文档。发行清单保存默认目标及各目标的有序 Cone 目录清单，并在 `share/scoop/install` 以逐行文本提供相同选择供脚本读取；`targets.list` 首行为默认目标，其余为另外随包提供的目标，`<target>.list` 为该目标的 Cone 目录顺序。清单由既有生产 sources 条件与依赖选择得到，仅用于构建编排。默认准备宿主的默认目标；`--target` 可选择其他随包目标，`--all-targets` 显式准备全部目标，使用者需提供相应系统 SDK／C 工具链。安装后构建不执行 Cargo 或重建 vendor 库、LLVM、runtime，也不使用 Python；LLDB 继续携带与自身构建版本匹配的 Python。工作目录保存普通构建缓存、lock 和中间结果，重复运行复用未变化的输入与结果；失败报告实际错误，修正后可重试。日常命令继续只消费 `.slib`，不会隐式运行安装脚本。
+
+GitHub Release workflow 对版本 tag 构建 macOS AArch64、Windows x64 与 Linux GNU x64 宿主包，并发布相同命名的 `scoop-<version>-<host>.tar.xz` 与一份 LLVM 源码包。安装验收在另外解压的目录执行 post-install 和实际程序编译运行，不把验收生成的 `.slib` 放回归档。官网 shell 安装脚本选择宿主包、下载并解压到 `~/.scoop`、执行 post-install；成功后幂等地将 `~/.scoop/bin` 加入相应 shell rc。安装与发布不进入编译器或 PM 的命令实现。
 
 仓库的 `tooling/scoop-programming/` 保存面向 AI 的 Scoop 编程 skill，包含 `SKILL.md`、界面元数据与按需阅读的参考资料。完整打包入口将该目录原样复制到工具包的 `tooling/scoop-programming/`，在 `share/scoop/toolchain.toml` 的 `programming_skill` 字段记录安装根相对路径。skill 使用配套的 `scoop example`、CLI、离线 API 文档及库源码指导程序开发，不另行复制示例库或实现编译入口；打包及普通命令不自动安装、注册 skill，也不修改 AI 工具的用户配置。
 
-宿主包将 `scoop`、`scoopc`、`scoop-link` 和 `scoop-lsp` 放在 `bin`，四个命令共用发行版本与源码 revision；实际使用的 LLVM 动态库及非系统传递依赖放在 `libexec/llvm/lib`。Darwin 通过相对 rpath 和 dylib install name 加载；Linux 的每层私有依赖使用相对 `$ORIGIN` RUNPATH。组装脚本从实际动态依赖取得需要复制的库并修改加载路径，不在日常命令启动时重扫这些文件。版本、源码 revision、目标部署配置、Cone coordinate 和 native 版本写入 `share/scoop/toolchain.toml` 供说明；不把清单作为认证或逐文件验证输入。宿主和 LLVM 源码归档由手工脚本生成，不加入常规测试或 CI 的前置步骤。
+宿主包将 `scoop`、`scoopc`、`scoop-link` 和 `scoop-lsp` 放在 `bin`，四个命令共用发行版本与源码 revision；实际使用的 LLVM 动态库及非系统传递依赖放在 `libexec/llvm/lib`。Darwin 通过相对 rpath 和 dylib install name 加载；Linux 的每层私有依赖使用相对 `$ORIGIN` RUNPATH。组装脚本从实际动态依赖取得需要复制的库并修改加载路径，不在日常命令启动时重扫这些文件。版本、源码 revision、目标部署配置、Cone coordinate 和 native 版本写入 `share/scoop/toolchain.toml` 供说明；不把清单作为认证或逐文件验证输入。宿主和 LLVM 源码归档可由维护者或专门的 Release workflow 生成，不作为普通测试的前置步骤。
 
 M63 在同一 `bin` 布局中分发配套 `scoop-pm`，宿主构建与第三方许可证收集均包含该程序及其依赖，它本身不依赖 LLVM；独立`pm`转发优先于既有`commands/`外部子命令查找。源码包registry的package/静态索引维护由PM负责，不与此处工具链/sysroot发行组装混为一个发布入口。
 
@@ -1109,7 +1113,7 @@ sysroot 采用同一源码与产物布局：`src/<cone-name>` 保存普通 Cone�
 
 Rust 文本后端的维护源码位于 `native/text_backend`，独立 Cargo package 与 lock 不进入编译器 stage workspace；固定依赖源码及许可位于 vendor。维护脚本离线生成目标 `libscoop_text_backend.a` 与头文件，Rust LTO 在准备阶段完成；同时保留实际构建工具链的标准库版权通知和许可，发行时与该目标归档一并收集到 `share/licenses`。普通 Cone 通过既有 C ABI 和 native.libraries 消费普通机器对象；两个链接入口去重同一个目标归档，不执行 Cargo 或探测 Rust。更新命中先于解包、源码复制与工具探测；具体文本行为及故障边界见字符集与 IDNA 规范。
 
-发行打包在各目标的预编译资源准备完成后，使用本次配套工具为全部内置库源码生成文档。文档入口位于 SYSROOT 的 `docs/index.html`，按目标生成的共同站点位于 `docs/<canonical-target-triple>/`；页面、搜索、资源及内嵌源码一同进入归档，跨库导航遵守该目标的真实声明身份。文档警告或生成失败阻止本次归档发布，保留已有完整发行包。此步骤属于维护者打包编排，普通 `scoop doc` 不隐式准备 sysroot；`.slib` 不增加完整源码、注释正文或文档缓存。
+post-install 在所选目标的系统 `.slib` 准备完成后，使用配套工具为这些目标的全部内置库源码生成文档。文档入口位于 SYSROOT 的 `docs/index.html`，按目标生成的共同站点位于 `docs/<canonical-target-triple>/`；页面、搜索、资源及内嵌源码保存在安装根，跨库导航遵守该目标的真实声明身份。内置库 Markdown 中指向仓库 `docs/`、`scripts/` 的相对链接，在组装时改为本次源码 revision 的 GitHub 链接；这些设计及维护文档作为外部参考，库内资源仍使用相对链接并随离线站点提供。文档警告或生成失败使本次安装准备失败，可以修正后重试。此步骤属于显式安装编排，普通 `scoop doc` 不隐式准备 sysroot；`.slib` 不增加完整源码、注释正文或文档缓存。
 
 普通 build／run／test 的 executable 和两个 link 命令默认消费 `lib/<canonical-target-triple>/runtime/index.cbor`，不触发 runtime 源码构建。显式 `--runtime-objects` 选择另一份索引；build／run／test 的 `--runtime-root` 明确请求从源码构建，与对象选项互斥。缺失实际需要的索引时报告目标和所选路径，不补建或改选其他目标；library 构建不读取未使用的 runtime。
 

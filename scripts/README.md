@@ -54,6 +54,8 @@ python3 scripts/prepare_sysroot.py \
 
 脚本读取 `src/*/Cone.toml` 的生产依赖确定顺序，逐个执行普通 release library 构建；测试源码不进入发布库，各库的 lock 保存到工作目录的 `locks/`，不写入随包源码。`runtime_builder` 是独立于 Cargo 主 workspace 的脚本内部辅助程序，复用已有的 O2 runtime 编译与索引实现，不安装到发行包的 `bin`。准备过程不重新读取对象以核对摘要或复验产物；重复运行使用已有构建记录，输入发生变化时更新对应结果。runtime 与公开头文件先复制完整输出，再替换准备目录；复制失败保留原目录。
 
+`--runtime-only` 只准备公开头文件和四种 runtime 配置，不选择或构建系统 Cone，也不要求 `--scoop`。发行打包使用这个选项，将系统 `.slib` 的构建留给安装后的配套工具。
+
 `build_nghttp2.py` 从 vendor 的固定 1.70.0 tag 归档构建纯静态协议库，保留完整上游核心，不构建应用、工具、测试或文档。使用同一目标部署／CPU 配置；工作目录默认为 `tmp/nghttp2/<triple>`，支持 `--build-dir`、`--prefix`、`--cc`。更新判断先于解包和 CMake，命中不读取或复验 archive。llhttp 9.4.3 的发布 C 源码由普通 HTTP Cone 编译，不另加工具或命令。三个 Windows target 使用 Ninja；Microsoft 在 x64 SDK／MSVC 开发环境中使用 clang-cl／cl 和 `/MD`，两个 LLVM-MinGW target 通过 `--cc` 指定其 CRT prefix 的 Clang。可用 `--build-dir E:/scoop-work/nghttp2/<target>` 将构建文件放在另一磁盘。
 
 `build_openssl.py` 使用固定 OpenSSL 3.5.9 的上游构建。Windows 的 Microsoft target 在 x64 SDK／MSVC 开发环境中以 clang-cl／cl、原生 Windows Perl、NASM、NMake 构建 `VC-WIN64A`，使用动态 CRT `/MD`。两个 MinGW target 必须通过 `--cc` 选择各自 CRT prefix 的 Clang，并使用完整的 MSYS Perl、GNU Make 和 Unix shell 构建 `mingw64`；`--perl`、`--make`、`--shell` 可显式指定维护工具。`--jobs` 控制 GNU Make 并发，NMake 串行执行。构建目录可用 `--build-dir E:/scoop-work/openssl-msvc`；目标资源位于 `sysroot/lib/<triple>/openssl`，普通应用无需 Perl／Make／MSYS。输入未变化时在解包和工具调用之前复用；`--rebuild` 可显式重新准备。
@@ -80,17 +82,15 @@ PCRE2 的三个 Windows target 在 Windows 构建，使用原生 Ninja；Microso
 
 开发与发行 sysroot 均准备 `runtime`、`runtime-stress`、`runtime-startup-stats`、`runtime-stress-startup-stats` 四组目标 runtime，每组包含 `index.cbor`。默认构建使用 `runtime`，不编入 GC stress 或启动统计支持；`scoop --enable-gc-stress build/run/test/link` 选择 stress 配置，随后由 `SCOOP_GC_STRESS_MOVE` / `SCOOP_GC_STRESS_MINOR` 决定运行时是否开启。`--enable-startup-stats` 独立选择启动统计配置，编入后每次启动直接向 stderr 输出记录；未传时预处理完全排除计时和报告代码。两个开关可以组合，独立 `scoop-link` 同样支持。普通 fixtures 不传这些开关，相关专测显式选择。旧 schema 6 runtime 索引需要重新准备，`.slib` 和 runtime ABI 不变。
 
-`package_toolchain.py` 是完整安装包的唯一入口：取得固定 LLVM 输入、按 lockfile 构建 VS Code 扩展、构建 LLVM、五个 release 宿主命令与独立的 scoop-example、准备该宿主支持的全部 native／slib／runtime 资源、为全部内置库生成 API 文档，随包复制 Scoop 编程 skill，最后生成工具包与 LLVM 源码包。无需事先逐个执行其他准备或扩展打包脚本。默认工作位置为 `tmp/package/<host>`，归档位于 `tmp/dist`；用 `--work-dir`、`--output-dir` 可选择外置盘目录。脚本不自动运行测试。
+`package_toolchain.py` 是安装包的唯一入口：取得固定 LLVM 输入、按 lockfile 构建 VS Code 扩展、构建 LLVM、五个 release 宿主命令与独立的 scoop-example、准备该宿主支持的全部 native／runtime 资源，随包复制内置 Cone 源码、vendor、Scoop 编程 skill 和 post-install 脚本，最后生成工具包与 LLVM 源码包。打包不构建或复制 `.slib`，也不生成 API 文档；二者由安装后的配套工具现场生成。无需事先逐个执行其他准备或扩展打包脚本。默认工作位置为 `tmp/package/<host>`，归档位于 `tmp/dist`；用 `--work-dir`、`--output-dir` 可选择外置盘目录。脚本不自动运行测试。
 
-已显式准备并验证的系统资源可通过 `--prepared-sysroot <目录>` 直接组装，跳过 native 后端、系统 Cone 与 runtime 的重复构建；宿主命令、示例、文档与归档仍走同一流程。该目录应包含本宿主交付的各目标资源、源码、vendor 和头文件，缺失文件按普通 I/O 报错，不加入生产过程复核。
+已显式准备的系统资源可通过 `--prepared-sysroot <目录>` 直接组装，跳过 native 后端与 runtime 的重复构建；宿主命令、示例与归档仍走同一流程。该目录应包含本宿主交付的各目标 native／runtime 资源、源码、vendor 和头文件，不要求存在 `.slib`；已经存在的 `.slib` 也不复制到安装包。缺失文件按普通 I/O 报错，不加入生产过程复核。
 
 Windows 在 x64 MSVC／Windows SDK 开发环境中运行，提供 `--mingw-msvcrt <prefix>` 与 `--mingw-ucrt <prefix>`，二者使用 `release.toml` 固定的 LLVM-MinGW 版本。UCRT prefix 同时用于 GNU-LLVM Rust 宿主和可选的宿主 LLVM 构建；Scoop 应用默认目标仍为 MSVC UCRT。默认完整准备还需要 `--windows-perl` 选择原生 Windows Perl，`--msys-perl`、`--msys-make`、`--msys-shell` 选择 MinGW OpenSSL 的完整 MSYS Perl、GNU Make 和 shell，以及 PATH 上的 NASM、NMake、CMake、Ninja、Cargo 和 npm。使用 `--prepared-sysroot` 时不调用这些 native 构建工具。
 
 例如，已有 LLVM 与三目标 sysroot 时可运行 `python scripts/package_toolchain.py --llvm-prefix E:/scoop-work/llvm/installed --prepared-sysroot ./sysroot --mingw-msvcrt E:/llvm-mingw-msvcrt --mingw-ucrt E:/llvm-mingw-ucrt --work-dir E:/scoop-work/package --output-dir E:/scoop-work/dist --jobs 3`。Windows 工具包包含三个完整 target、每目标的 unwind、两个 MinGW x86-64 prefix，以及 `libexec/llvm/bin` 中的宿主 Clang／LLD／RC 工具和配套 resource headers。Microsoft SDK／MSVC toolset 从使用者的开发环境发现，不复制维护机的 SDK 路径配置。
 
-构建机需要 Python 3.12+、Git、Rust/Cargo、C/C++ 开发工具链、CMake、Make、Perl、Node.js 22.18+ 和 npm。npm 依赖、首次缺失的 LLVM 归档以及 Tree-sitter WASM 工具链需要联网取得；其余 native 上游输入已在 vendor 中。已有 WASI SDK／Binaryen 可按 [tooling 说明](../tooling/README.md) 选择。
-
-构建机需要 Python 3.12+ 及其开发文件、SWIG 4、Ninja、Rust/Cargo、C/C++ 开发工具链、CMake、Make、Perl、Node.js 22.18+ 和 npm。npm 依赖、首次缺失的 LLVM 归档以及 Tree-sitter WASM 工具链需要联网取得；其余 native 上游输入已在 vendor 中。已有 WASI SDK／Binaryen 可按 [tooling 说明](../tooling/README.md) 选择。
+构建机需要 Python 3.12+ 及其开发文件、Git、SWIG 4、Ninja、Rust/Cargo、C/C++ 开发工具链、CMake、Make、Perl、Node.js 22.18+ 和 npm。npm 依赖、首次缺失的 LLVM 归档以及 Tree-sitter WASM 工具链需要联网取得；其余 native 上游输入已在 vendor 中。已有 WASI SDK／Binaryen 可按 [tooling 说明](../tooling/README.md) 选择。
 
 `--vscode-extension /path/to/scoop-language-support-<version>.vsix` 可复用已经构建的当前扩展，跳过 npm 安装和扩展构建；未指定时仍自动构建。这样重试工具链打包时无需重新下载 Tree-sitter CLI。
 
@@ -104,14 +104,15 @@ musl 的 C 开发环境也需要 Linux UAPI 头。Debian／Ubuntu 的 `musl-gcc`
 
 LLVM 源码与归档优先复用 vendor 的固定版本位置；缺失时在工作目录的 `inputs` 下下载官方固定版本归档并解包。也可传入已有的 `--llvm-source` 和 `--llvm-archive`，显式路径不存在时直接报错。已经准备的匹配版本宿主 LLVM 可通过 `--llvm-prefix` 复用；省略时脚本在自己的工作目录构建。`--version` 和 `--revision` 可显式设置发行标识，默认采用配置版本与当前 Git revision，存在未提交修改时标注 `+modified`。这些参数也写入安装根的 `VERSION`。
 
-工具包 `scoop-<version>-<host>.tar.xz` 内直接是安装根内容，可直接解压到 `~/.scoop`，不需要 `--strip-components`。Darwin/AArch64 宿主包包含 AArch64／x86_64 两个 Darwin 目标，Darwin/x86_64 宿主包包含 x86_64 目标，Linux/GNU amd64 包同时包含 GNU／musl 两套目标；每套均包含全部生产 Cone 的 release `.slib`、native 静态库／头文件和四种 runtime 配置。LLVM 源码包单独保留有版本名称的顶层目录。
+工具包 `scoop-<version>-<host>.tar.xz` 内直接是安装根内容，可直接解压到 `~/.scoop`，不需要 `--strip-components`。Darwin/AArch64 宿主包包含 AArch64／x86_64 两个 Darwin 目标，Darwin/x86_64 宿主包包含 x86_64 目标，Linux/GNU amd64 包同时包含 GNU／musl 两套目标；每套均包含 native 静态库／头文件和四种 runtime 配置，系统 Cone 以源码提供。LLVM 源码包单独保留有版本名称的顶层目录。
 
 ```text
 ~/.scoop/
   VERSION
+  post-install.sh      Unix 安装后准备入口；Windows 为 post-install.ps1
   bin/                 scoop、scoopc、scoop-link、scoop-lsp、scoop-pm
   commands/            scoop-example 与其他外部子命令
-  lib/<target-triple>/  *.slib、native 库／头文件、四种 runtime 配置
+  lib/<target-triple>/  native 库／头文件、四种 runtime 配置；安装后生成 *.slib
   include/             公开 Scoop C 头文件
   src/                 全部内置 Cone 源码
   vendor/              native 上游输入和补丁
@@ -120,12 +121,16 @@ LLVM 源码与归档优先复用 vendor 的固定版本位置；缺失时在工�
   libexec/lldb/bin/     LLDB、DAP、argdumper 和平台进程调试 helper
   libexec/lldb/python/  匹配的 Python interpreter、标准库及 LLDB Python module
   share/scoop/debugger/ Scoop 只读变量 formatter
-  docs/                离线 API 文档
+  docs/                安装后生成的离线 API 文档
   share/               示例主题、发行说明、组件清单及许可证
   tooling/             scoop-language-support-<extension-version>.vsix、scoop-programming/
 ```
 
-`~/.scoop/bin/scoop` 默认使用相邻的 `~/.scoop/lib/<target-triple>/*.slib`，不因 debug profile 或空缓存重编系统库。显式 `--sysroot`／`SCOOP_SYSROOT` 和 source locator 仍按原有规则生效。安装及 VSIX 使用步骤见[随包说明](distribution/README.md)。
+解压后运行 `sh ~/.scoop/post-install.sh`，Windows 运行 `& "$HOME/.scoop/post-install.ps1"`。脚本使用 POSIX shell／PowerShell 直接调用随包编译器，不要求用户安装 Python、Rust、Cargo、CMake 或 vendor 构建工具；LLDB 所需的配套 Python 仍随包提供。默认按生产依赖顺序为本机默认目标构建全部内置库的 release `.slib`，然后生成离线 API 文档。Windows 默认 MSVC UCRT 需要本机 SDK／Build Tools；也可用 `--target x86_64-w64-windows-llvm-mingw-ucrt` 选择随包开发资源。
+
+`--target <triple>` 可重复选择其他随包目标，`--all-targets` 构建全部目标；必须提供所选目标的 C 工具链／SDK，例如 Linux musl 的开发文件。支持 `--jobs`、`--cc`、`--native-sysroot` 及 `--work-dir`；默认工作目录为安装根的 `build/post-install`，保留普通构建缓存和 lock，重复运行复用未变化的结果。构建或文档生成失败返回非零状态，修正实际错误后重试同一命令。
+
+完成 post-install 后，`~/.scoop/bin/scoop` 默认使用相邻的 `~/.scoop/lib/<target-triple>/*.slib`，不因 debug profile 或空缓存重编系统库。显式 `--sysroot`／`SCOOP_SYSROOT` 和 source locator 仍按原有规则生效。安装及 VSIX 使用步骤见[随包说明](distribution/README.md)。
 
 `sysroot/commands` 整目录进入安装包，保留程序的可执行权限；空目录也保留，`.gitkeep` 不打包。`scoop [--sysroot path] somecommand <args>` 直接执行所选安装根的 `commands/scoop-somecommand`，后续参数全部原样交给该程序。
 
@@ -135,15 +140,23 @@ LLVM 源码与归档优先复用 vendor 的固定版本位置；缺失时在工�
 
 Windows 的宿主 DLL 分别放在实际使用它们的 `bin`、外部命令目录及 `libexec/llvm/bin`；两个 MinGW prefix 保留自身的 DLL 和目录关系。LLVM、libc++／libc++abi、libunwind、compiler-rt、MinGW runtime 与 Rust 的许可随包收集，版本与目标信息进入组件清单。
 
-构建与文档共用 `sysroot/src/*/Cone.toml` 的目标生产清单：显式非空 `sources` 中至少一项满足该目标的条件才进入清单；缺省或显式空表仍由编译器处理。选中库依赖该目标未提供的内置库时报告错误。只有 Darwin 源码的窗口 Cone 因此不进入 Linux 发布资源，不需要空后端。
+打包从 `sysroot/src/*/Cone.toml` 生成目标生产清单：显式非空 `sources` 中至少一项满足该目标的条件才进入清单；缺省或显式空表仍由编译器处理。选中库依赖该目标未提供的内置库时报告错误。清单中的 Cone 目录按依赖顺序保存在 `share/scoop/toolchain.toml` 的各目标 `cones` 数组，`default_target` 记录宿主默认目标。同一选择写入 `share/scoop/install/targets.list`（默认目标在首行）及 `<target>.list`（逐行 Cone 目录），供 post-install 的库构建与文档生成直接读取。只有 Darwin 源码的窗口 Cone 因此不进入 Linux 目标清单，不需要空后端。
 
-文档使用本次配套 `scoop`／`scoopc`，显式选择上述目标清单，以 `--no-deps --deny-doc-warnings` 为每个发行目标生成共同站点。嵌套测试／辅助 Cone 不进入发行清单。工作目录下的 `documentation/<target>`、`doc-target` 和普通 `cache` 保留更新结果；重复打包复用未变化的文档，随后复制到组装目录。站点更新记录只保留在工作目录，不放入发行包。所有目标的文档成功后才开始归档，文档失败保留上一次完整归档。
+post-install 使用配套 `scoop`／`scoopc`，显式选择上述目标清单，以 `--no-deps --deny-doc-warnings` 为所选目标生成共同站点。嵌套测试／辅助 Cone 不进入发行清单。工作目录下的 `doc-target` 和普通 `cache` 保留中间结果；文档直接生成到安装根的 `docs/<target>`，保留普通文档更新记录，重复执行复用未变化的文档。文档失败使本次 post-install 返回非零状态，不将失败报告为安装成功。
 
-安装根的 `docs/index.html` 提供目标选择，具体站点位于 `docs/<canonical-target-triple>/`。Darwin 包包含 Darwin 站点；Linux 包包含 GNU／musl 两个站点；Windows 包包含 Microsoft UCRT 与 LLVM-MinGW MSVCRT／UCRT 三个站点。源码原文嵌入 HTML，搜索和资源均在本地；`.slib` 不保存完整源码。手工验收时检查解压后的目标及库清单、跨库链接、源码页、离线搜索与重复生成的复用情况；详细范围见 [M60 设计](../docs/milestone60/DESIGN.md)。
+安装根的 `docs/index.html` 列出已经准备的目标，具体站点位于 `docs/<canonical-target-triple>/`。追加准备其他目标时保留已经生成的站点。源码原文嵌入 HTML，搜索和库内资源均在本地；指向仓库 `docs/`、`scripts/` 的 Markdown 链接在组装时改为本次源码 revision 的 GitHub 链接，作为设计及维护文档的外部参考。`.slib` 不保存完整源码。手工验收时检查安装后的目标及库清单、跨库链接、源码页、离线搜索与重复生成的复用情况；文档能力的详细范围见 [M60 设计](../docs/milestone60/DESIGN.md)。
 
-手工验证发布包时，将归档解压到新的目录，可使用带空格路径；保留源码、原工具和原产物。运行五个命令的版本查询，检查实际加载的私有 LLVM，再用空缓存完成含 native／泛型／GC 的应用、crypto／TLS、普通库测试和两个 link 入口，重复构建检查复用。Linux 还应覆盖 GNU 与 musl 的既有链接模式。常规 fixture 使用已准备的开发 sysroot，不执行打包或解压步骤。具体结果记录在 [M52 实施记录](../docs/milestone52/PROGRESS.md)。
+手工验证发布包时，将归档解压到新的目录，可使用带空格路径；保留源码、原工具和原产物。先确认归档没有 `.slib` 或生成文档，再执行 post-install。运行五个命令的版本查询，检查实际加载的私有 LLVM，再用空缓存完成含 native／泛型／GC 的应用、crypto／TLS、普通库测试和两个 link 入口，重复构建检查复用。Linux 还应覆盖 GNU 与 musl 的既有链接模式。常规 fixture 使用已准备的开发 sysroot，不执行打包或解压步骤。
 
 打包脚本的归档布局与失败保留检查使用 `python3 -m unittest discover -s scripts/tests`；运行前对改动的 Python 脚本执行与 fixture runner 相同版本的 Ruff 格式化及 lint。完整包验收还应确认 `VERSION` 与命令版本一致、VSIX 内包含扩展代码及两个 WASM，并使用解压目录中的工具完成冷构建／运行及再次复用。
+
+## GitHub Release
+
+[Release workflow](../.github/workflows/release.yml) 在推送 `vMAJOR.MINOR.PATCH`（可带预发布和 build metadata）tag 时执行，也可通过 `workflow_dispatch` 指定已有 tag 重跑。三个构建任务使用 `xcode-27`（macOS 27.0.1 AArch64）、`windows-2025`（x64）和 `ubuntu-26.04`（x64），按 `release.toml` 的固定版本准备 LLVM、Windows Rust 与 LLVM-MinGW，并复用匹配的 LLVM／LLDB SDK 缓存。
+
+每个任务调用同一个 `package_toolchain.py`，随后在带空格的独立安装目录中解压、执行 post-install 并编译运行程序；这些验证产物不进入归档。三平台全部成功后才向对应 GitHub Release 上传三个宿主包及一份 LLVM 源码包，发布前使用 draft；带预发布标识的 tag 发布为 prerelease，普通版本更新 latest。重跑同一 tag 会更新同名附件。
+
+官网仓库 `scoop-lang.org` 的 `install.sh` 从 `windoze/scoop` 的 GitHub Releases 下载宿主包。默认选择 latest 稳定版，也支持 `--version vX.Y.Z`；`curl -fsSL https://scoop-lang.org/install.sh | sh` 在 `~/.scoop` 安装并执行 post-install，成功后更新 shell rc。额外准备参数放在 `--` 后，例如 `sh install.sh --version v0.1.0 -- --jobs 2`。Windows 从同一 Release 下载归档后运行随包 PowerShell 入口。
 
 ## 独立示例命令
 
