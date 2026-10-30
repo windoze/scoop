@@ -20,6 +20,7 @@ from build_support import (
     reusable,
     save_record,
     source_metadata,
+    source_patch_environment,
 )
 from target_catalog import current_host, host_definition
 
@@ -208,7 +209,12 @@ def main():
             "the build's copied source must remain inside --build-dir and separate from --source"
         )
     copy_sources(source, copied)
-    subprocess.run(["git", "apply", "--no-index", str(PATCH)], cwd=copied, check=True)
+    subprocess.run(
+        ["git", "apply", "--no-index", str(PATCH)],
+        cwd=copied,
+        env=source_patch_environment(copied),
+        check=True,
+    )
     release = tomllib.loads(RELEASE_CONFIG.read_text())
     configuration = configure(copied, build, prefix, llvm, python, host, release, cc, cxx)
     configuration.append(f"-DCMAKE_MAKE_PROGRAM={Path(ninja).as_posix()}")

@@ -15,6 +15,7 @@ from build_support import (
     reusable,
     save_record,
     source_metadata,
+    source_patch_environment,
 )
 from prepare_sysroot import publish_files
 from target_catalog import WINDOWS_TARGETS as TARGETS
@@ -94,7 +95,7 @@ def prepare(args, build, prefix):
             ["git", "apply", "--whitespace=nowarn", "-"],
             input=PATCH.read_text(encoding="utf-8").encode("utf-8"),
             cwd=overlay,
-            env=environment,
+            env=source_patch_environment(overlay, environment),
             check=True,
         )
 

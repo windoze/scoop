@@ -20,6 +20,15 @@ def apple_architecture(architecture):
     return {"aarch64": "arm64", "x86_64": "x86_64"}[architecture]
 
 
+def source_patch_environment(source, environment=None):
+    # Git otherwise treats archive sources as a subdirectory of an enclosing
+    # checkout and silently skips patch paths outside that repository prefix.
+    return dict(
+        os.environ if environment is None else environment,
+        GIT_CEILING_DIRECTORIES=str(Path(source).resolve().parent),
+    )
+
+
 @contextmanager
 def build_lock(path):
     with path.open("a+b") as lock:

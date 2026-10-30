@@ -108,3 +108,9 @@ AArch64 全量回归暴露 LLVM SelectionDAG 的另一个问题：入口的 PHI 
 ### R7 Linux 工具选择
 
 Linux GNU／musl 的真实 C ABI 双向调用、GCC／Clang PIC 与 TLS、独立 C／C++ producer 和 LLVM unwind 链接运行通过。早期遗留失败是 Linux 专属单测仍读取旧版 final-tools 缓存目录；该测试现与实现共用目录常量，更新判断和目录版本不变。本机格式化、workspace Clippy 与 toolchain 测试通过后，在 Linux 完成同批检查，toolchain 全部 61 项测试通过。
+
+### R7 工具源码补丁
+
+远端的 Windows statepoint 专测发现 LLVM 源码补丁未生效：归档源码位于另一个 Git checkout 的子目录时，`git apply` 会按外层仓库前缀跳过补丁路径，并成功返回。LLVM、LLDB 和 Windows unwind 准备现在将 Git 的仓库发现限制到实际源码根，不改变既有的更新判断和命中路径。新增嵌套 checkout 回归在修复前稳定失败，修复后验证实际文件修改及重复调用复用。
+
+Ruff 0.16.10 与 23 项维护脚本测试通过；macOS 跳过 3 项宿主不适用测试，Linux 跳过 2 项。本机及两个远端的 LLVM 已按实际补丁增量重建；本机和 Linux 的 LLDB 同步重建。本机 AArch64 的完整 DAP launch、sourceMap、离线 formatter 与终端调试再次通过。远端完整编译器与运行回归继续执行，不把原先缺补丁的 LLVM 测试算作通过。

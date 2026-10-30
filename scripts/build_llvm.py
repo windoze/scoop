@@ -18,6 +18,7 @@ from build_support import (
     reusable,
     save_record,
     source_metadata,
+    source_patch_environment,
 )
 from target_catalog import current_host, host_definition
 
@@ -64,17 +65,23 @@ SDK_LIBRARIES = ("LLVMDemangle", "LLVMSupport", "LLVMTableGen", "LLVMDebuginfod"
 
 def patch_sources(source):
     changed = False
+    environment = source_patch_environment(source)
     for patch in SOURCE_PATCHES:
         command = ["git", "-C", str(source), "apply", "--check", str(patch)]
         if (
-            subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
+            subprocess.run(
+                command, env=environment, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            ).returncode
             == 0
         ):
-            subprocess.run(["git", "-C", str(source), "apply", str(patch)], check=True)
+            subprocess.run(
+                ["git", "-C", str(source), "apply", str(patch)], env=environment, check=True
+            )
             changed = True
         else:
             subprocess.run(
                 ["git", "-C", str(source), "apply", "--reverse", "--check", str(patch)],
+                env=environment,
                 check=True,
             )
     return changed
