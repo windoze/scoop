@@ -8,7 +8,15 @@ kind = "library"
 
 [[sources]]
 path = "src"
+when = { os = ["darwin", "windows"] }
+
+[[sources]]
+path = "platform/darwin"
 when = { os = "darwin" }
+
+[[sources]]
+path = "platform/windows"
+when = { os = "windows" }
 
 [[test.sources]]
 path = "tests"
@@ -19,11 +27,28 @@ when = { os = "darwin" }
 "scoop:scoop.std" = "0.1.0"
 "scoop:scoop.platform" = "0.1.0"
 
+[[test.sources]]
+path = "tests/values.scoop"
+when = { os = "windows" }
+
+[[test.sources]]
+path = "tests/monitors.scoop"
+when = { os = "windows" }
+
+[[test.sources]]
+path = "tests/text.scoop"
+when = { os = "windows" }
+
+[[test.sources]]
+path = "test-windows"
+when = { os = "windows" }
+
 [test-dependencies]
 "scoop:scoop.test" = "0.1.0"
 "scoop.tests:window-native" = { version = "0.1.0", path = "test-native" }
 
 [native]
+c_flags = ["-Wmost", "-Wextra", "-Werror", "-Wno-unused-parameter", "-Wno-nonportable-system-include-path"]
 objc_flags = ["-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter"]
 
 [[native.sources]]
@@ -61,15 +86,75 @@ when = { os = "darwin" }
 [[native.libraries]]
 name = "AppKit"
 kind = "framework"
+when = { os = "darwin" }
 
 [[native.libraries]]
 name = "Foundation"
 kind = "framework"
+when = { os = "darwin" }
 
 [[native.libraries]]
 name = "CoreFoundation"
 kind = "framework"
+when = { os = "darwin" }
 
 [[native.libraries]]
 name = "CoreGraphics"
 kind = "framework"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "native/windows/application.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/window.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/properties.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/watch.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/monitors.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/input.c"
+when = { os = "windows" }
+
+[[native.sources]]
+path = "native/windows/text.c"
+when = { os = "windows" }
+
+[[native.libraries]]
+name = "user32"
+when = { os = "windows" }
+
+[[native.libraries]]
+name = "gdi32"
+when = { os = "windows" }
+
+[[native.libraries]]
+name = "kernel32"
+when = { os = "windows" }
+
+[[native.libraries]]
+name = "dwmapi"
+when = { os = "windows" }
+
+[[native.libraries]]
+name = "shcore"
+when = { os = "windows" }
+
+[[native.libraries]]
+name = "imm32"
+when = { os = "windows" }
+
+[[native.libraries]]
+name = "advapi32"
+when = { os = "windows" }

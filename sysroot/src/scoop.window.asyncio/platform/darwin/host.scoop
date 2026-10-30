@@ -1,0 +1,17 @@
+package scoop.window.asyncio
+
+import scoop.asyncio.host.*
+import scoop.window.native.*
+
+@Unsafe
+internal fun platformWatch(
+    host: ApplicationHost,
+    notification: EventLoopNotification,
+    ready: () -> Unit
+): ApplicationWatch =
+    when (notification) {
+        case ReadableDescriptor(descriptor) -> host.watchReadable(descriptor, ready)
+        case WindowsEvent(_) -> throw IllegalArgumentException(
+            Some("AppKit requires a readable descriptor")
+        )
+    }

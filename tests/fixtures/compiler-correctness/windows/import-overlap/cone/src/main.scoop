@@ -1,0 +1,11 @@
+package dev.windows
+
+@Extern(name = "scoop_fixture_imports")
+private fun importedFunctions(): Int
+
+fun main(): Int {
+    @Unsafe
+    {
+        return importedFunctions()
+    }
+}

@@ -110,7 +110,7 @@ static void pointer(SWView *view, NSEvent *native, int32_t kind) {
 }
 @end
 
-void scoop_window_cursor_icon(void *pointer, int32_t icon) {
+int64_t scoop_window_cursor_icon(void *pointer, int32_t icon) {
   SWView *view = ((__bridge SWWindow *)pointer).view;
   switch (icon) {
   case 1:
@@ -143,10 +143,12 @@ void scoop_window_cursor_icon(void *pointer, int32_t icon) {
   }
   [view.window invalidateCursorRectsForView:view];
   [view updateCursor];
+  return 0;
 }
 
-void scoop_window_cursor_visible(void *pointer, int32_t visible) {
+int64_t scoop_window_cursor_visible(void *pointer, int32_t visible) {
   SWView *view = ((__bridge SWWindow *)pointer).view;
   view.cursorVisible = visible != 0;
   [view updateCursor];
+  return 0;
 }

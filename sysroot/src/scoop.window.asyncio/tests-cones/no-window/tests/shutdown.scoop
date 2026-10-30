@@ -1,0 +1,77 @@
+package scoop.tests.window.noWindow
+
+import scoop.test.*
+import scoop.window.*
+import scoop.window.asyncio.*
+import scoop.asyncio.*
+import scoop.platform.concurrent.currentThreadId
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+
+@Test
+private class NoWindowShutdownTest {
+    @Test
+    fun `an application without windows drains an outstanding IOCP receive and async cleanup`() {
+        val app = Application()
+        val handler = NoWindowHandler()
+        app.runWithAsyncio(handler)
+        assertTrue(handler.receiving && handler.cleaned)
+        assertEquals(1, handler.exiting)
+        assertFalse(app.proxy().requestExit())
+        assertFailsWith<MissingContextException> { currentApplicationScope() }
+    }
+}
+
+private class NoWindowHandler: ApplicationHandler {
+    val thread = currentThreadId()
+    var receiving = false
+    var cleaned = false
+    var exiting = 0
+    public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
+        assertEquals(thread, currentThreadId())
+        when (event) {
+            case Resumed -> {
+                val scope = currentApplicationScope()
+                val loop = currentEventLoop()
+                application.setControlFlow(
+                    ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(10L))
+                )
+                scope.launch suspend {
+                    loop.bindUdp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend {
+                        socket -> NativeByteBuffer.allocate(16L).use suspend {
+                            bytes -> try {
+                                receiving = true
+                                socket.receiveFrom(bytes, 16L)
+                                fail(Some("empty UDP receive completed"))
+                            } finally {
+                                nonCancellableScope<Unit> suspend {
+                                    _ ->
+                                    loop.sleep(Duration.milliseconds(20L))
+                                    assertEquals(thread, currentThreadId())
+                                    assertEquals(1, exiting)
+                                    bytes.clear()
+                                    cleaned = true
+                                }
+                            }
+                        }
+                    }
+                }
+                scope.launch suspend {
+                    loop.sleep(Duration.milliseconds(40L))
+                    assertTrue(receiving)
+                    gcCollect()
+                    application.requestExit()
+                }
+            }
+            case NewEvents(StartCause.Deadline) -> fail(Some("no-window shutdown timed out"))
+            case Exiting -> {
+                exiting += 1
+                assertFailsWith<MissingContextException> { currentApplicationScope() }
+            }
+            case Window(_, _) -> fail(Some("unexpected window"))
+            else -> {}
+        }
+    }
+}

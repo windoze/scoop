@@ -1,0 +1,173 @@
+package scoop.tests.window.input
+
+import scoop.test.*
+import scoop.window.*
+import scoop.window.native.*
+import scoop.tests.window.*
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+
+@Test
+private class WindowsInputTest {
+    @Test
+    fun `native input preserves repeat focus releases wheel units and UTF16 batches`() {
+        val handler = InputHandler()
+        Application().run(handler)
+        val keys = handler.keys
+        assertEquals(11L, keys.size)
+        assertEquals(LogicalKey.Character("a"), keys[0L].logicalKey)
+        assertFalse(keys[0L].isRepeat)
+        assertTrue(keys[1L].isRepeat)
+        assertTrue(keys[2L].synthetic)
+        assertEquals(ElementState.Released, keys[2L].state)
+        assertEquals(PhysicalKey.Code(KeyCode.ShiftRight), keys[3L].physicalKey)
+        assertEquals(KeyLocation.Right, keys[3L].location)
+        assertEquals(ModifierSides(Some(false), Some(true)), keys[3L].modifiers.shiftSides)
+        assertEquals(PhysicalKey.Code(KeyCode.NumLock), keys[5L].physicalKey)
+        assertEquals(PhysicalKey.Code(KeyCode.Pause), keys[7L].physicalKey)
+        assertEquals(
+            PhysicalKey.Unidentified(NativeKeyCode.WindowsScanCode(511u)),
+            keys[9L].physicalKey
+        )
+        assertEquals(
+            LogicalKey.Unidentified(NativeKeyCode.WindowsVirtualKey(255u)),
+            keys[9L].logicalKey
+        )
+        assertEquals(2, handler.wheels)
+        assertEquals(2, handler.buttons)
+        assertTrue(handler.moved)
+        assertEquals(1, handler.enabled)
+        assertEquals(1, handler.disabled)
+        assertEquals(11, handler.batches)
+        assertEquals("中文中文😀", handler.text.surroundingText)
+        assertEquals(None, handler.text.markedRange)
+        assertEquals(11L, handler.text.revision)
+        assertTrue(handler.destroyed)
+    }
+}
+
+private class InputHandler: ApplicationHandler {
+    val keys = ArrayList<KeyEvent>()
+    var lease: NativeWindowLease? = None
+    var text = TextInputState("", Utf8Selection(0L, 0L))
+    var wheels = 0
+    var buttons = 0
+    var moved = false
+    var enabled = 0
+    var disabled = 0
+    var batches = 0
+    var destroyed = false
+    public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
+        when (event) {
+            case Resumed -> start(application)
+            case NewEvents(StartCause.Deadline) -> fail(Some("input protocol timed out"))
+            case Window(_, WindowEvent.Keyboard(key)) -> keys.add(key)
+            case Window(_, WindowEvent.Pointer(pointer)) -> checkPointer(pointer)
+            case Window(_, WindowEvent.TextInput(TextInputEvent.Enabled)) -> enabled += 1
+            case Window(_, WindowEvent.TextInput(TextInputEvent.Disabled)) -> disabled += 1
+            case Window(_, WindowEvent.TextInput(TextInputEvent.Edit(batch))) -> {
+                gcCollect()
+                batches += 1
+                text = text.apply(batch)
+                when (batches) {
+                    1 -> assertEquals(Utf8Selection(7L, 7L), text.selection)
+                    2 -> assertEquals(Utf8Selection(3L, 3L), text.selection)
+                    3 -> {
+                        assertEquals(2L, batch.operations.size)
+                        assertEquals("中文に😀", text.surroundingText)
+                    }
+                    4, 6, 8 -> assertEquals("中文", text.surroundingText)
+                    5 -> assertEquals("中文日本語", text.surroundingText)
+                    9 -> assertEquals(Utf8Selection(6L, 6L), text.selection)
+                    else -> {}
+                }
+            }
+            case AboutToWait -> {
+                if (keys.size >= 11L && batches >= 11 && wheels >= 2)
+                    application.requestExit()
+            }
+            case Window(_, WindowEvent.Closing) -> lease!!.close()
+            case Window(_, WindowEvent.Destroyed) -> destroyed = true
+            else -> {}
+        }
+    }
+
+    private fun checkPointer(event: PointerEvent) {
+        when (event) {
+            case Moved(state) -> {
+                assertEquals(PhysicalPosition(24.0, 36.0), state.physicalPosition)
+                assertEquals(24.0, state.logicalPosition.x * state.scaleFactor)
+                moved = true
+            }
+            case Button(state, button, phase, clicks) -> {
+                assertEquals(MouseButton.Left, button)
+                assertEquals(PhysicalPosition(24.0, 36.0), state.physicalPosition)
+                assertEquals(
+                    if (phase == ElementState.Pressed)
+                        2
+                    else
+                        1,
+                    clicks
+                )
+                buttons += 1
+            }
+            case Wheel(state, delta, phase, momentum) -> {
+                assertEquals(PhysicalPosition(24.0, 36.0), state.physicalPosition)
+                assertEquals(ScrollPhase.None, phase)
+                assertEquals(ScrollPhase.None, momentum)
+                assertEquals(
+                    if (wheels == 0)
+                        ScrollDelta.LineDelta(0.0, 0.5)
+                    else
+                        ScrollDelta.LineDelta(-1.0, 0.0),
+                    delta
+                )
+                wheels += 1
+            }
+            else -> {}
+        }
+    }
+
+    private fun start(application: ActiveApplication) {
+        val window = application.createWindow(WindowAttributes(visible = false))
+        @Unsafe
+        {
+            val held = window.acquireNativeWindow()
+            lease = Some(held)
+            val hwnd =
+                when (held.handle) {
+                    case Win32(value, _) -> value
+                }
+            nativeInputSequence(hwnd)
+            window.setImeAllowed(true)
+            window.setImeAllowed(true)
+            window.setImeCursorArea(
+                LogicalRect(LogicalPosition(12.0, 20.0), LogicalSize(2.0, 18.0))
+            )
+            assertTrue(nativeCaretMatches(hwnd) != 0)
+            sendMessage(hwnd, 269u, 0uL, 0L)
+            nativeTextBatch(hwnd, 0)
+            nativeTextBatch(hwnd, 1)
+            nativeTextBatch(hwnd, 2)
+            nativeTextBatch(hwnd, 3)
+            sendMessage(hwnd, 269u, 0uL, 0L)
+            nativeTextBatch(hwnd, 4)
+            nativeTextBatch(hwnd, 5)
+            sendMessage(hwnd, 269u, 0uL, 0L)
+            nativeTextBatch(hwnd, 6)
+            sendMessage(hwnd, 271u, 0uL, 0L)
+            sendMessage(hwnd, 271u, 20206uL, 24576L)
+            nativeTextBatch(hwnd, 7)
+            sendMessage(hwnd, 646u, 20013uL, 0L)
+            sendMessage(hwnd, 270u, 0uL, 0L)
+            window.setImeAllowed(false)
+            window.setImeAllowed(false)
+            sendMessage(hwnd, 258u, 55357uL, 0L)
+            sendMessage(hwnd, 258u, 56832uL, 0L)
+            sendMessage(hwnd, 262u, 122uL, 0L)
+        }
+        application.setControlFlow(
+            ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(10L))
+        )
+    }
+}

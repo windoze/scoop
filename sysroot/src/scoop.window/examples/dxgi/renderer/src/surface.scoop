@@ -1,0 +1,103 @@
+package scoop.examples.window.renderer
+
+import scoop.window.*
+import scoop.window.native.*
+import scoop.platform.concurrent.ThreadId
+import scoop.platform.concurrent.currentThreadId
+
+/** A renderer-owned D3D11 swapchain with an explicit native window lease. */
+public class DxgiSurface private constructor(
+    private val window: Window,
+    private val lease: NativeWindowLease,
+    pointer: Ptr<Unit>,
+    private val thread: ThreadId
+): Closeable {
+    private var pointer: Ptr<Unit>? = Some(pointer)
+
+    /** Clears and presents a frame, waiting for its GPU work before returning. */
+    public fun present(): Boolean {
+        checkThread()
+        val active = pointer ?: throw IllegalStateException(Some("DXGI surface is closed"))
+        if (window.state != WindowState.Open || !window.isVisible || window.isOccluded)
+            return false
+        val metrics = window.metrics ?: return false
+        if (!metrics.physicalSize.isDrawable)
+            return false
+        window.prePresentNotify()
+        @Unsafe
+        {
+            val status =
+                nativePresent(active, metrics.physicalSize.width, metrics.physicalSize.height)
+            checkStatus(status, "DXGI frame")
+            return status == 0L
+        }
+    }
+
+    /** Drains GPU work and releases the swapchain before retiring its HWND lease. */
+    public override fun close() {
+        checkThread()
+        when (pointer) {
+            case Some(value) -> {
+                pointer = None
+                try {
+                    @Unsafe
+                    {
+                        checkStatus(nativeDestroy(value), "close DXGI surface")
+                    }
+                } finally {
+                    lease.close()
+                }
+            }
+            case None -> {}
+        }
+    }
+
+    private fun checkThread() {
+        if (currentThreadId() != thread)
+            throw IllegalStateException(Some("DXGI surface operations require the owner thread"))
+    }
+
+    public companion object {
+        /** Acquires the HWND lease first and rolls it back if device creation fails. */
+        public fun create(window: Window): DxgiSurface {
+            @Unsafe
+            {
+                val lease = window.acquireNativeWindow()
+                try {
+                    val result =
+                        when (lease.handle) {
+                            case Win32(hwnd, _) -> nativeCreate(hwnd)
+                        }
+                    checkStatus(result.status, "create DXGI surface")
+                    val pointer =
+                        result.pointer ?:
+                            throw WindowException(
+                                "create DXGI surface",
+                                WindowErrorKind.NativeFailure
+                            )
+                    return DxgiSurface(window, lease, pointer, currentThreadId())
+                } catch (error: Throwable) {
+                    lease.close()
+                    throw error
+                }
+            }
+        }
+    }
+}
+
+private fun checkStatus(status: Long, operation: String) {
+    if (status < 0L)
+        throw WindowException(operation, WindowErrorKind.NativeFailure, nativeCode = Some(status))
+}
+
+@CLayout
+private struct NativeSurfaceResult(val pointer: Ptr<Unit>?, val status: Long)
+
+@Extern(name = "scoop_example_dxgi_create")
+private fun nativeCreate(hwnd: Ptr<Unit>): NativeSurfaceResult
+
+@Extern(name = "scoop_example_dxgi_present")
+private fun nativePresent(surface: Ptr<Unit>, width: Int, height: Int): Long
+
+@Extern(name = "scoop_example_dxgi_destroy")
+private fun nativeDestroy(surface: Ptr<Unit>): Long

@@ -66,6 +66,11 @@ impl CoffNamespace {
                     }
                 })
             })
+            // Imports are lazy archive choices, not extracted strong objects.
+            // Windows SDK libraries can expose the same name from different DLLs
+            // (e.g. kernel32 and ntdll). Keep the native linker's input order;
+            // an explicit source library still restricts the candidates above.
+            .take(if explicit.is_none() { 1 } else { usize::MAX })
             .collect()
     }
 

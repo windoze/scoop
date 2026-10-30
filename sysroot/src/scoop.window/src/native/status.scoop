@@ -1,0 +1,63 @@
+package scoop.window
+
+@CLayout
+internal struct NativeCreateResult(val pointer: Ptr<Unit>?, val error: Long)
+
+internal fun checkNativeStatus(code: Long, operation: String) {
+    if (code == -1L)
+        throw WindowException(operation, WindowErrorKind.Unsupported)
+    if (code != 0L)
+        throw WindowException(operation, WindowErrorKind.NativeFailure, nativeCode = Some(code))
+}
+
+internal fun nativeRequestStatus(
+    code: Long,
+    operation: String,
+    success: RequestStatus = RequestStatus.Applied
+): RequestStatus {
+    if (code == -1L)
+        return RequestStatus.Unsupported
+    checkNativeStatus(code, operation)
+    return success
+}
+
+internal fun requireCreationStatus(status: RequestStatus, operation: String) {
+    if (status == RequestStatus.Unsupported)
+        throw WindowException(operation, WindowErrorKind.Unsupported)
+}
+
+private fun created(result: NativeCreateResult, operation: String): Ptr<Unit> {
+    return result.pointer ?:
+        throw WindowException(
+            operation,
+            WindowErrorKind.NativeFailure,
+            nativeCode =
+                if (result.error == 0L)
+                    None
+                else
+                    Some(result.error)
+        )
+}
+
+@Unsafe
+internal fun nativeApplicationCreate(
+    callback: FunPtr<(Ptr<Unit>, Long, Int) -> Int>,
+    context: Ptr<Unit>,
+    policy: Int
+): Ptr<Unit> =
+    created(nativeApplicationCreateResult(callback, context, policy), "create application")
+
+@Unsafe
+internal fun nativeWindowCreate(
+    application: Ptr<Unit>,
+    identity: Long,
+    title: Ptr<UInt8>,
+    length: Long,
+    width: Double,
+    height: Double,
+    flags: Int
+): Ptr<Unit> =
+    created(
+        nativeWindowCreateResult(application, identity, title, length, width, height, flags),
+        "create window"
+    )

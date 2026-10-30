@@ -1,0 +1,20 @@
+package scoop.examples.window.demo
+
+import scoop.test.*
+import scoop.platform.concurrent.Thread
+
+@Test
+private class DxgiWindowTest {
+    @Test
+    fun `DXGI presents resized buffers and drains GPU work before HWND retirement`() {
+        val result = runDxgiWindow(true)
+        assertTrue(result.frames >= 2)
+        assertTrue(result.hiddenSkipped)
+        assertTrue(result.resized)
+        assertTrue(result.closed && result.destroyed)
+        assertFailsWith<IllegalStateException> { result.surface.present() }
+        val worker =
+            Thread.start { assertFailsWith<IllegalStateException> { result.surface.close() } }
+        worker.join()
+    }
+}

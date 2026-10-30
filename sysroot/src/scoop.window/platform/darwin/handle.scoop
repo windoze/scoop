@@ -1,0 +1,6 @@
+package scoop.window.native
+
+/** Borrowed platform handles; native GUI operations still require the owner thread. */
+public enum NativeWindowHandle {
+    AppKit(val nsWindow: Ptr<Unit>, val nsView: Ptr<Unit>)
+}

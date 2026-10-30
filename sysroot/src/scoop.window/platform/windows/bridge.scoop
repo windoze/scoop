@@ -1,0 +1,20 @@
+package scoop.window
+
+import scoop.window.native.NativeWindowHandle
+
+internal fun platformBackend(): WindowBackend = WindowBackend.Win32
+
+@Unsafe
+internal fun platformNativeHandle(pointer: Ptr<Unit>): NativeWindowHandle =
+    NativeWindowHandle.Win32(nativeHwnd(pointer), nativeHinstance(pointer))
+
+@Unsafe
+internal fun platformCreationProperties(pointer: Ptr<Unit>, flags: Int) {
+    requireWindow(flags == 0, "AppKit titlebar options cannot be used with Win32")
+}
+
+@Extern(name = "scoop_window_hwnd")
+private fun nativeHwnd(window: Ptr<Unit>): Ptr<Unit>
+
+@Extern(name = "scoop_window_hinstance")
+private fun nativeHinstance(window: Ptr<Unit>): Ptr<Unit>

@@ -1,8 +1,8 @@
 # winit 能力映射与分阶段范围
 
-状态：macOS 骨架阶段已实现，其余分阶段实施；更新于 2026-10-30。与 [DESIGN.md](DESIGN.md) 和[规范](../specs/SCOOP-WINDOW-SPEC.md)一起阅读。基线为 winit 0.30.13 的桌面能力；下表是完整能力地图，实际交付与验收边界以 [PROGRESS.md](PROGRESS.md) 为准。
+状态：macOS 与 Windows 骨架已实现，Linux 后续实施；更新于 2026-10-30。与 [DESIGN.md](DESIGN.md) 和[规范](../specs/SCOOP-WINDOW-SPEC.md)一起阅读。基线为 winit 0.30.13 的桌面能力；下表是完整能力地图，实际交付与验收边界以 [PROGRESS.md](PROGRESS.md) 为准。
 
-当前阶段交付 macOS GUI 骨架：应用／窗口、proxy／关闭／lease、基础属性、显示器与 DPI、键盘／鼠标／滚轮／IME、renderer 与 asyncio 接入。全屏控制／显示模式切换、全局 raw device、触摸／高级手势、光标捕获、文件拖放和复杂平台窗口交互后续补充。下表的“本期”均指当前骨架阶段，不要求实现完整 AppKit GUI。
+当前阶段交付 macOS／Windows GUI 骨架：应用／窗口、proxy／关闭／lease、基础属性、显示器与 DPI、键盘／鼠标／滚轮／IME、renderer 与 asyncio 接入。全屏控制／显示模式切换、全局 raw device、触摸／高级手势、光标捕获、文件拖放和复杂平台窗口交互后续补充。下表的“本期”均指当前骨架阶段，不要求实现完整 AppKit GUI。
 
 范围分为：本期通用、本期按平台能力、平台扩展、后续／范围外。不承诺逐字复制 Rust API、trait、Drop 或所有平台扩展。Scoop 尚未发布；本表随实际实现直接修订，不保留旧草案签名兼容层，也不为未来平台穷举无实现的变体。窗口后端使用原生系统／协议库；全项目 Rust 依赖汇总和统一 staticlib 构建属于独立流水线工作，不在本表范围内。
 
@@ -31,7 +31,7 @@
 | theme／preferred theme | observedTheme／requestTheme | 本期；未知与系统跟随分开 |
 | window icon | 后续 WindowIcon 与 setIcon | 后续；不把 macOS 应用图标冒充单窗口图标 |
 | close on Drop | requestDestroy／Closing／Destroyed | 本期改用显式寿命；GC 不调用 GUI |
-| raw-window-handle／raw-display-handle | NativeWindowLease 与类型化 native handle | 本期按实际后端提供载荷，Windows 实施时增加 Win32；lease 不授权待配置时提交帧 |
+| raw-window-handle／raw-display-handle | NativeWindowLease 与类型化 native handle | 本期按实际后端提供载荷，Windows 目标提供 Win32；lease 不授权待配置时提交帧 |
 
 ## 2. 事件、输入与绘制
 
@@ -68,7 +68,7 @@
 | --- | --- |
 | macOS activation policy、透明标题栏／content view、应用标识 | `scoop.window.platform.macos` 普通选项；不把 NSWindow style mask 放到公共属性 |
 | Linux backend／display name、Wayland app id、X11 class／instance、visual 选择 | `scoop.window.platform.linux` 与必要的 wayland／x11 子包；不向全平台代码提供 XID 操作 |
-| Windows owner HWND、taskbar／DWM、TSF／COM、Win32 样式扩展 | 后续 `platform.windows`；复用 Windows 分支平台基础，补窗口创建前的 Per-Monitor V2 与系统模态循环接入 |
+| Windows owner HWND、taskbar／DWM、TSF／COM、Win32 样式扩展 | 后续 `platform.windows`；Win32 骨架已接入 Per-Monitor V2／系统模态循环，专有扩展按实际需求补充 |
 | 任意 native parent／child window 嵌入、run-on-demand | 后续专项，不能用 WindowId 假装支持外部句柄所有权 |
 | Android／iOS／Web／orbital 的专用入口与扩展 | 范围外 |
 | clipboard、菜单模型、文件对话框、accessibility、IME 编辑器布局、Skia 图形设备 | 不属于 winit 对应基础层，后续库实现 |

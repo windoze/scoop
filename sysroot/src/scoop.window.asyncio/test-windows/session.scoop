@@ -1,0 +1,116 @@
+package scoop.window.asyncio
+
+import scoop.asyncio.*
+import scoop.window.*
+import scoop.window.native.*
+import scoop.tests.window.*
+import scoop.platform.concurrent.currentThreadId
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+import scoop.test.*
+
+@Test
+private class Win32AsyncioTest {
+    @Test
+    fun `native dialog menu and resize keep timers alive and cancellation drains leases`() {
+        val handler = WindowsSessionHandler()
+        Application().runWithAsyncio(handler)
+        assertTrue(handler.modalTicks > 0)
+        assertTrue(handler.menuTicks > 0)
+        assertTrue(handler.resizeTicks > 0)
+        assertTrue(handler.closing && handler.finished && handler.destroyed)
+    }
+}
+
+private class WindowsSessionHandler: ApplicationHandler {
+    val thread = currentThreadId()
+    var lease: NativeWindowLease? = None
+    var hwnd: Ptr<Unit>? = None
+    var modalTicks = 0
+    var menuTicks = 0
+    var resizeTicks = 0
+    var closing = false
+    var finished = false
+    var destroyed = false
+    public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
+        assertEquals(thread, currentThreadId())
+        when (event) {
+            case Resumed -> start(application)
+            case NewEvents(StartCause.Deadline) -> fail(Some("Win32 asyncio modal timeout"))
+            case Window(_, WindowEvent.Closing) -> {
+                closing = true
+                assertFailsWith<MissingContextException> { currentApplicationScope() }
+            }
+            case Window(_, WindowEvent.Destroyed) -> {
+                assertTrue(finished)
+                destroyed = true
+            }
+            else -> {}
+        }
+    }
+    private fun start(application: ActiveApplication) {
+        val window =
+            application.createWindow(
+                WindowAttributes("Scoop Win32 asyncio", LogicalSize(320.0, 180.0))
+            )
+        window.requestFocus()
+        @Unsafe
+        {
+            lease = Some(window.acquireNativeWindow())
+            when (lease!!.handle) {
+                case Win32(handle, _) -> hwnd = Some(handle)
+            }
+        }
+        application.setControlFlow(
+            ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(10L))
+        )
+        val scope = currentApplicationScope()
+        val loop = currentEventLoop()
+        scope.launch suspend {
+            try {
+                loop.sleep(Duration.seconds(30L))
+            }
+            finally {
+                nonCancellableScope<Unit> suspend {
+                    _ ->
+                    loop.sleep(Duration.milliseconds(20L))
+                    try {
+                        assertTrue(closing)
+                    }
+                    finally {
+                        finished = true;
+                        lease!!.close()
+                    }
+                }
+            }
+        }
+        scope.launch suspend {
+            @Unsafe
+            {
+                assertTrue(scheduleNativeMode(hwnd!!, 1, 250) != 0)
+            }
+            var scheduled = 1
+            while (true) {
+                loop.sleep(Duration.milliseconds(10L))
+                @Unsafe
+                {
+                    when (activeNativeMode()) {
+                        1 -> modalTicks += 1
+                        2 -> menuTicks += 1
+                        3 -> resizeTicks += 1
+                        else -> {}
+                    }
+                    val done = completedNativeModes()
+                    if (done == 3)
+                        break
+                    if (done == scheduled) {
+                        scheduled += 1
+                        assertTrue(scheduleNativeMode(hwnd!!, scheduled, 250) != 0)
+                    }
+                }
+            }
+            gcCollect()
+            scope.job.cancel()
+        }
+    }
+}

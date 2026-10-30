@@ -12,14 +12,7 @@ public class WindowLoopHost public constructor(private val host: ApplicationHost
         notification: EventLoopNotification,
         ready: () -> Unit
     ): EventLoopWatch {
-        return when (notification) {
-            case ReadableDescriptor(descriptor) -> WindowLoopWatch(
-                host.watchReadable(descriptor, ready)
-            )
-            case WindowsEvent(_) -> throw IllegalArgumentException(
-                Some("AppKit requires a readable descriptor")
-            )
-        }
+        return WindowLoopWatch(platformWatch(host, notification, ready))
     }
 }
 

@@ -8,11 +8,23 @@ kind = "library"
 
 [[sources]]
 path = "src"
+when = { os = ["darwin", "windows"] }
+
+[[sources]]
+path = "platform/darwin"
 when = { os = "darwin" }
+
+[[sources]]
+path = "platform/windows"
+when = { os = "windows" }
 
 [[test.sources]]
 path = "tests"
 when = { os = "darwin" }
+
+[[test.sources]]
+path = "test-windows"
+when = { os = "windows" }
 
 [dependencies]
 "scoop:scoop.core" = "0.1.0"

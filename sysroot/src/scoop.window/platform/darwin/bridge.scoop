@@ -1,0 +1,34 @@
+package scoop.window
+
+import scoop.window.native.NativeWindowHandle
+
+internal fun platformBackend(): WindowBackend = WindowBackend.AppKit
+
+internal fun platformPhysicalKey(code: Long): PhysicalKey = darwinPhysicalKey(code)
+
+internal fun platformNamedKey(scan: Long, virtual: Long): NamedKey? = darwinNamedKey(scan)
+
+internal fun platformKeyLocation(code: Long): KeyLocation = darwinKeyLocation(code)
+
+internal fun platformModifiers(flags: Long): Modifiers = darwinModifiers(flags)
+
+internal fun platformUnknownLogicalKey(scan: Long, virtual: Long): NativeKeyCode =
+    NativeKeyCode.Darwin(scan.toUInt())
+
+@Unsafe
+internal fun platformNativeHandle(pointer: Ptr<Unit>): NativeWindowHandle =
+    NativeWindowHandle.AppKit(nativeNSWindow(pointer), nativeNSView(pointer))
+
+@Unsafe
+internal fun platformCreationProperties(pointer: Ptr<Unit>, flags: Int) {
+    nativeWindowTitlebar(pointer, flags)
+}
+
+@Extern(name = "scoop_window_ns_window")
+private fun nativeNSWindow(window: Ptr<Unit>): Ptr<Unit>
+
+@Extern(name = "scoop_window_ns_view")
+private fun nativeNSView(window: Ptr<Unit>): Ptr<Unit>
+
+@Extern(name = "scoop_window_titlebar")
+internal fun nativeWindowTitlebar(window: Ptr<Unit>, flags: Int)

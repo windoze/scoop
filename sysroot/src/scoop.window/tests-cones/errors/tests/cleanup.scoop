@@ -1,0 +1,64 @@
+package scoop.tests.window.errors
+
+import scoop.test.*
+import scoop.window.*
+import scoop.window.native.*
+import scoop.platform.concurrent.Thread
+
+@Test
+private class WindowsCleanupTest {
+    @Test
+    fun `handler and Closing errors still destroy every window and retire foreign leases`() {
+        val app = Application()
+        val handler = ErrorHandler()
+        try {
+            app.run(handler)
+            fail(Some("handler failure was lost"))
+        } catch (error: ResourceUseException) {
+            assertTrue(error.primaryFailure is IllegalArgumentException)
+            assertTrue(error.cleanupFailure is IllegalStateException)
+        }
+        handler.worker!!.join()
+        assertEquals(2, handler.closing)
+        assertEquals(2, handler.destroyed)
+        assertEquals(1, handler.exiting)
+        assertFalse(app.proxy().post { _ -> fail() })
+    }
+}
+
+private class ErrorHandler: ApplicationHandler {
+    var lease: NativeWindowLease? = None
+    var first: Window? = None
+    var worker: Thread? = None
+    var closing = 0
+    var destroyed = 0
+    var exiting = 0
+    public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
+        when (event) {
+            case Resumed -> {
+                val window = application.createWindow(WindowAttributes(visible = false))
+                first = Some(window)
+                application.createWindow(WindowAttributes(visible = false))
+                @Unsafe
+                {
+                    lease = Some(window.acquireNativeWindow())
+                }
+                assertTrue(
+                    application.proxy().post { _ -> fail(Some("business post survived failure")) }
+                )
+                throw IllegalArgumentException(Some("body"))
+            }
+            case Exiting -> exiting += 1
+            case Window(identity, WindowEvent.Closing) -> {
+                closing += 1
+                if (identity == first!!.id) {
+                    val held = lease!!
+                    worker = Some(Thread.start { held.close() })
+                    throw IllegalStateException(Some("cleanup"))
+                }
+            }
+            case Window(_, WindowEvent.Destroyed) -> destroyed += 1
+            else -> {}
+        }
+    }
+}

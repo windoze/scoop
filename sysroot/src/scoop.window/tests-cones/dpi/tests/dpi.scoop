@@ -1,0 +1,34 @@
+package scoop.tests.window.dpi
+
+import scoop.test.*
+import scoop.window.*
+import scoop.tests.window.setSystemDpiMode
+
+@Test
+private class WindowsDpiFailureTest {
+    @Test
+    fun `an existing incompatible DPI mode fails before HWND creation`() {
+        @Unsafe
+        {
+            assertTrue(setSystemDpiMode() != 0)
+        }
+        val application = Application()
+        val proxy = application.proxy()
+        try {
+            application.run(NeverStarted())
+            fail(Some("incompatible DPI mode was accepted"))
+        } catch (error: WindowException) {
+            assertEquals(WindowBackend.Win32, error.backend)
+            assertEquals("create application", error.operation)
+            assertEquals(Some(5L), error.nativeCode)
+        }
+        assertFalse(proxy.post { _ -> fail() })
+        assertFailsWith<IllegalStateException> { application.run(NeverStarted()) }
+    }
+}
+
+private class NeverStarted: ApplicationHandler {
+    public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
+        fail(Some("DPI initialization failure entered the event loop"))
+    }
+}

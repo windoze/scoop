@@ -9,14 +9,15 @@ static void set_style(SWWindow *owner, NSWindowStyleMask style) {
   [owner.window makeFirstResponder:owner.view];
 }
 
-void scoop_window_position(void *pointer, double x, double y) {
+int64_t scoop_window_position(void *pointer, double x, double y) {
   SWWindow *owner = (__bridge SWWindow *)pointer;
   [owner.window setFrameTopLeftPoint:NSMakePoint(x, sw_desktop_top() - y)];
+  return 0;
 }
 
-void scoop_window_constraints(void *pointer, double min_width,
-                              double min_height, double max_width,
-                              double max_height) {
+int64_t scoop_window_constraints(void *pointer, double min_width,
+                                 double min_height, double max_width,
+                                 double max_height) {
   SWWindow *owner = (__bridge SWWindow *)pointer;
   NSWindow *window = owner.window;
   window.contentMinSize = NSMakeSize(min_width, min_height);
@@ -27,66 +28,75 @@ void scoop_window_constraints(void *pointer, double min_width,
   size.height = MAX(min_height, MIN(window.contentMaxSize.height, size.height));
   if (!NSEqualSizes(size, owner.view.bounds.size))
     [window setContentSize:size];
+  return 0;
 }
 
-void scoop_window_resize_increments(void *pointer, double width,
-                                    double height) {
+int64_t scoop_window_resize_increments(void *pointer, double width,
+                                       double height) {
   ((__bridge SWWindow *)pointer).window.contentResizeIncrements =
       NSMakeSize(width, height);
+  return 0;
 }
 
-void scoop_window_resizable(void *pointer, int32_t value) {
+int64_t scoop_window_resizable(void *pointer, int32_t value) {
   SWWindow *owner = (__bridge SWWindow *)pointer;
   NSWindowStyleMask style = owner.window.styleMask;
   set_style(owner, value ? style | NSWindowStyleMaskResizable
                          : style & ~NSWindowStyleMaskResizable);
+  return 0;
 }
 
-void scoop_window_decorations(void *pointer, int32_t value) {
+int64_t scoop_window_decorations(void *pointer, int32_t value) {
   SWWindow *owner = (__bridge SWWindow *)pointer;
   NSWindowStyleMask decorations = NSWindowStyleMaskTitled |
                                   NSWindowStyleMaskClosable |
                                   NSWindowStyleMaskMiniaturizable;
   NSWindowStyleMask style = owner.window.styleMask;
   set_style(owner, value ? style | decorations : style & ~decorations);
+  return 0;
 }
 
-void scoop_window_buttons(void *pointer, int32_t close, int32_t minimize,
-                          int32_t maximize) {
+int64_t scoop_window_buttons(void *pointer, int32_t close, int32_t minimize,
+                             int32_t maximize) {
   NSWindow *window = ((__bridge SWWindow *)pointer).window;
   [window standardWindowButton:NSWindowCloseButton].enabled = close != 0;
   [window standardWindowButton:NSWindowMiniaturizeButton].enabled =
       minimize != 0;
   [window standardWindowButton:NSWindowZoomButton].enabled = maximize != 0;
+  return 0;
 }
 
-void scoop_window_level(void *pointer, int32_t level) {
+int64_t scoop_window_level(void *pointer, int32_t level) {
   ((__bridge SWWindow *)pointer).window.level =
       level > 0   ? NSFloatingWindowLevel
       : level < 0 ? NSNormalWindowLevel - 1
                   : NSNormalWindowLevel;
+  return 0;
 }
 
-void scoop_window_minimized(void *pointer, int32_t value) {
+int64_t scoop_window_minimized(void *pointer, int32_t value) {
   NSWindow *window = ((__bridge SWWindow *)pointer).window;
   if (value && !window.miniaturized)
     [window miniaturize:nil];
   else if (!value && window.miniaturized)
     [window deminiaturize:nil];
+  return 0;
 }
 
-void scoop_window_maximized(void *pointer, int32_t value) {
+int64_t scoop_window_maximized(void *pointer, int32_t value) {
   NSWindow *window = ((__bridge SWWindow *)pointer).window;
   if ((window.zoomed != NO) != (value != 0))
     [window zoom:nil];
+  return 0;
 }
 
-void scoop_window_theme(void *pointer, int32_t value) {
+int64_t scoop_window_theme(void *pointer, int32_t value) {
   NSWindow *window = ((__bridge SWWindow *)pointer).window;
   window.appearance =
       value < 0 ? nil
                 : [NSAppearance appearanceNamed:value ? NSAppearanceNameDarkAqua
                                                       : NSAppearanceNameAqua];
+  return 0;
 }
 
 static void background(SWWindow *owner) {
@@ -95,13 +105,14 @@ static void background(SWWindow *owner) {
       owner.window.opaque ? NSColor.windowBackgroundColor : NSColor.clearColor;
 }
 
-void scoop_window_transparent(void *pointer, int32_t value) {
+int64_t scoop_window_transparent(void *pointer, int32_t value) {
   SWWindow *owner = (__bridge SWWindow *)pointer;
   owner.transparent = value != 0;
   background(owner);
+  return 0;
 }
 
-void scoop_window_blur(void *pointer, int32_t value) {
+int64_t scoop_window_blur(void *pointer, int32_t value) {
   SWWindow *owner = (__bridge SWWindow *)pointer;
   if (value && !owner.effect) {
     owner.effect = [[NSVisualEffectView alloc]
@@ -118,14 +129,16 @@ void scoop_window_blur(void *pointer, int32_t value) {
     owner.effect = nil;
   }
   background(owner);
+  return 0;
 }
 
-void scoop_window_content_protection(void *pointer, int32_t value) {
+int64_t scoop_window_content_protection(void *pointer, int32_t value) {
   ((__bridge SWWindow *)pointer).window.sharingType =
       value ? NSWindowSharingNone : NSWindowSharingReadOnly;
+  return 0;
 }
 
-void scoop_window_attention(void *pointer, int32_t kind) {
+int64_t scoop_window_attention(void *pointer, int32_t kind) {
   SWWindow *owner = (__bridge SWWindow *)pointer;
   if (owner.attentionRequest)
     [NSApp cancelUserAttentionRequest:owner.attentionRequest];
@@ -133,6 +146,7 @@ void scoop_window_attention(void *pointer, int32_t kind) {
       kind < 0 ? 0
                : [NSApp requestUserAttention:kind ? NSCriticalRequest
                                                   : NSInformationalRequest];
+  return 0;
 }
 
 void scoop_window_titlebar(void *pointer, int32_t flags) {

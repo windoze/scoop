@@ -1,0 +1,23 @@
+schema = 1
+name = "windows-overlapping-import-libraries"
+root = "cone/Cone.toml"
+inputs = ["cone"]
+tools = ["scoop", "scoopc"]
+targets = ["x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
+tags = ["windows", "native-link", "abi", "compiler-correctness"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${fixture}/cone", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 42
+stdout = ""
+stderr = ""

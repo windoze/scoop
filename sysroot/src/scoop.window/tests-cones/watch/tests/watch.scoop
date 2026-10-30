@@ -1,0 +1,146 @@
+package scoop.tests.window.watch
+
+import scoop.test.*
+import scoop.window.*
+import scoop.window.native.*
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+
+@Test
+private class WindowsWatchTest {
+    @Test
+    fun `wait stays idle and removal inside ready retires before completing borrowed event lifetime`() {
+        @Unsafe
+        {
+            val event = createEvent(None, 1, 0, None) ?: throw IllegalStateException()
+            try {
+                val handler = WatchHandler(event)
+                Application().runAttached(handler) {
+                    host ->
+                    assertFailsWith<IllegalArgumentException> {
+                        @Unsafe
+                        {
+                            host.watchReadable(-1) {}
+                        }
+                    }
+                    val attachment = WatchAttachment(host, event)
+                    handler.attachment = Some(attachment)
+                    attachment.install()
+                    attachment
+                }
+                val attachment = handler.attachment!!
+                assertEquals(2, attachment.ready)
+                assertEquals(1, attachment.removed)
+                assertEquals(1, attachment.closeRequests)
+                assertEquals(2, handler.batches)
+                assertEquals(0u, waitEvent(event, 0u))
+                assertTrue(resetEvent(event) != 0)
+                assertEquals(258u, waitEvent(event, 0u))
+            } finally {
+                assertTrue(closeHandle(event) != 0)
+            }
+        }
+    }
+}
+
+private class WatchAttachment(
+    val host: ApplicationHost,
+    val event: Ptr<Unit>
+): ApplicationAttachment {
+    var watch: ApplicationWatch? = None
+    var ready = 0
+    var removed = 0
+    var closeRequests = 0
+    var active = false
+    fun install() {
+        @Unsafe
+        {
+            watch = Some(host.watchWindowsEvent(event) { onReady() })
+        }
+        assertEquals(0, ready)
+    }
+    public override fun post(block: () -> Unit): Boolean = host.postControl(block)
+    public override fun requestClose() {
+        closeRequests += 1
+        watch!!.remove { retired() }
+    }
+    private fun retired() {
+        assertFalse(active)
+        removed += 1
+        host.complete(None)
+    }
+    private fun onReady() {
+        assertTrue(host.isCurrentThread())
+        assertFalse(active)
+        active = true
+        try {
+            ready += 1
+            @Unsafe
+            {
+                assertEquals(0u, waitEvent(event, 0u))
+                if (ready == 1) {
+                    assertTrue(resetEvent(event) != 0)
+                    assertTrue(
+                        host.postControl {
+                            @Unsafe
+                            {
+                                assertTrue(setEvent(event) != 0)
+                            }
+                        }
+                    )
+                } else {
+                    watch!!.remove { retired() }
+                    watch!!.remove { fail(Some("second completion")) }
+                    assertEquals(0, removed)
+                    assertTrue(setEvent(event) != 0)
+                    host.requestExit()
+                }
+            }
+        } finally {
+            active = false
+        }
+    }
+}
+
+private class WatchHandler(val event: Ptr<Unit>): ApplicationHandler {
+    var attachment: WatchAttachment? = None
+    var batches = 0
+    public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
+        when (event) {
+            case Resumed -> application.setControlFlow(
+                ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.milliseconds(30L))
+            )
+            case NewEvents(StartCause.Deadline) -> {
+                application.setControlFlow(ControlFlow.Wait)
+                @Unsafe
+                {
+                    assertTrue(setEvent(this.event) != 0)
+                }
+            }
+            case AboutToWait -> batches += 1
+            else -> {}
+        }
+    }
+}
+
+@Unsafe
+@Extern(name = "CreateEventW", lib = "kernel32")
+private fun createEvent(security: Ptr<Unit>?, manual: Int, initial: Int, name: Ptr<UInt16>?): Ptr<
+    Unit
+>?
+
+@Unsafe
+@Extern(name = "SetEvent", lib = "kernel32")
+private fun setEvent(event: Ptr<Unit>): Int
+
+@Unsafe
+@Extern(name = "ResetEvent", lib = "kernel32")
+private fun resetEvent(event: Ptr<Unit>): Int
+
+@Unsafe
+@Extern(name = "CloseHandle", lib = "kernel32")
+private fun closeHandle(event: Ptr<Unit>): Int
+
+@Unsafe
+@Extern(name = "WaitForSingleObject", lib = "kernel32")
+private fun waitEvent(event: Ptr<Unit>, milliseconds: UInt): UInt

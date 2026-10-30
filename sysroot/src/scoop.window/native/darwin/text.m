@@ -249,12 +249,13 @@ int32_t scoop_window_ime_allowed(void *pointer, int32_t allowed) {
   return 0;
 }
 
-void scoop_window_ime_caret(void *pointer, double x, double y, double width,
-                            double height) {
+int64_t scoop_window_ime_caret(void *pointer, double x, double y, double width,
+                               double height) {
   SWView *view = ((__bridge SWWindow *)pointer).view;
   view.imeCaret = NSMakeRect(x, y, width, height);
   if (view.imeAllowed)
     [view.inputContext invalidateCharacterCoordinates];
+  return 0;
 }
 
 int64_t scoop_window_text_count(void *pointer) {
