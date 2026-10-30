@@ -199,7 +199,8 @@ impl CompatibilitySchemaKind {
     const fn current_schema(self) -> u32 {
         match self {
             Self::Identity => crate::compatibility::IDENTITY_SCHEMA,
-            Self::Hir | Self::Mir | Self::Lir => crate::metadata::METADATA_SCHEMA,
+            Self::Hir | Self::Mir => crate::metadata::METADATA_SCHEMA,
+            Self::Lir => crate::metadata::LIR_METADATA_SCHEMA,
         }
     }
 }

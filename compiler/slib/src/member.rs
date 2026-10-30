@@ -186,6 +186,7 @@ impl SlibMemberRole {
             Self::HirMetadata
                 | Self::MirMetadata
                 | Self::LirMetadata
+                | Self::LinkObject { .. }
                 | Self::DiagnosticAttachment { .. }
         )
     }
@@ -259,6 +260,7 @@ pub struct SlibMemberRecord {
 pub struct SlibMember {
     record: SlibMemberRecord,
     payload: Vec<u8>,
+    object_payload: Option<Vec<u8>>,
 }
 
 impl SlibMember {
@@ -268,13 +270,20 @@ impl SlibMember {
         role: SlibMemberRole,
         payload: Vec<u8>,
     ) -> Result<Self, SlibMemberRecordError> {
-        let payload = if role.is_compressed() {
-            crate::compression::compress(&payload).map_err(SlibMemberRecordError::Compression)?
+        let (payload, object_payload) = if role.is_compressed() {
+            let compressed = crate::compression::compress(&payload)
+                .map_err(SlibMemberRecordError::Compression)?;
+            let object = matches!(role, SlibMemberRole::LinkObject { .. }).then_some(payload);
+            (compressed, object)
         } else {
-            payload
+            (payload, None)
         };
         let record = SlibMemberRecord::new(cone, stable_key, role, &payload)?;
-        Ok(Self { record, payload })
+        Ok(Self {
+            record,
+            payload,
+            object_payload,
+        })
     }
 
     pub const fn record(&self) -> &SlibMemberRecord {
@@ -283,6 +292,10 @@ impl SlibMember {
 
     pub fn payload(&self) -> &[u8] {
         &self.payload
+    }
+
+    pub(crate) fn into_object_payload(self) -> Option<Vec<u8>> {
+        self.object_payload
     }
 }
 

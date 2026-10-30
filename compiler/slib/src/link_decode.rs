@@ -109,15 +109,14 @@ fn required_manifest_section(
         })
 }
 
-fn required_metadata_section<'input>(
-    envelope: &DecodedMetadataEnvelope<'input>,
+fn required_metadata_section<'a, 'input>(
+    envelope: &'a DecodedMetadataEnvelope<'input>,
     capability: &CapabilityId,
-) -> Result<&'input [u8], SingleConeLinkSectionDecodeError> {
+) -> Result<&'a crate::DecodedMetadataSection<'input>, SingleConeLinkSectionDecodeError> {
     envelope
         .sections()
         .iter()
         .find(|section| section.capability() == capability)
-        .map(crate::DecodedMetadataSection::payload)
         .ok_or_else(|| SingleConeLinkSectionDecodeError::MissingSection {
             location: Some(envelope.location()),
             capability: capability.clone(),
@@ -127,13 +126,15 @@ fn required_metadata_section<'input>(
 fn decode_inner<T: WireDecode>(
     location: MetadataLocation,
     capability: CapabilityId,
-    payload: &[u8],
+    payload: &crate::DecodedMetadataSection<'_>,
 ) -> Result<T, SingleConeLinkSectionDecodeError> {
-    decode_canonical(payload).map_err(|source| SingleConeLinkSectionDecodeError::InnerSection {
-        location: Some(location),
-        capability,
-        source,
-    })
+    payload
+        .decode()
+        .map_err(|source| SingleConeLinkSectionDecodeError::InnerSection {
+            location: Some(location),
+            capability,
+            source,
+        })
 }
 
 #[derive(Debug)]

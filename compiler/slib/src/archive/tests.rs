@@ -21,10 +21,11 @@ fn open_archive(input: &[u8]) -> Result<ManifestArchive<'_>, ArchiveReadError> {
 }
 
 #[test]
-fn object_outputs_borrow_the_written_payloads_after_archive_padding() {
+fn object_storage_is_compressed_while_cache_outputs_and_readers_use_native_bytes() {
     let capability = CapabilityId::new("org.scoop-lang.test", "object", 1).unwrap();
     let mut members = vec![diagnostic_member(b"log", b"diagnostic").unwrap()];
     let mut expected = std::collections::BTreeMap::new();
+    let mut records = Vec::new();
     for bytes in [b"odd".as_slice(), b"even".as_slice()] {
         let member = SlibMember::new(
             ConeIdentity::CORE,
@@ -42,9 +43,22 @@ fn object_outputs_borrow_the_written_payloads_after_archive_padding() {
             bytes.to_vec(),
         )
         .unwrap();
+        assert_ne!(member.payload(), bytes);
+        assert_eq!(
+            member.record().sha256(),
+            scoop_wire::sha256(member.payload())
+        );
         expected.insert(member.record().sha256(), bytes);
+        records.push(member.record().clone());
         members.push(member);
     }
+    records.extend(
+        members
+            .iter()
+            .filter(|member| !matches!(member.record().role(), SlibMemberRole::LinkObject { .. }))
+            .map(|member| member.record().clone()),
+    );
+    records.sort_unstable_by_key(SlibMemberRecord::id);
     let archive = CanonicalSlibArchive::write(b"m", members).unwrap();
     assert_eq!(
         archive
@@ -52,6 +66,20 @@ fn object_outputs_borrow_the_written_payloads_after_archive_padding() {
             .collect::<std::collections::BTreeMap<_, _>>(),
         expected
     );
+    let decoded = open_archive(archive.as_bytes())
+        .unwrap()
+        .validate_directory(&records)
+        .unwrap();
+    for record in &records {
+        if let Some(expected) = expected.get(&record.sha256()) {
+            let bytes = decoded.member(record.id()).unwrap().unwrap();
+            assert_eq!(bytes, *expected);
+            assert!(std::ptr::eq(
+                bytes,
+                decoded.member(record.id()).unwrap().unwrap()
+            ));
+        }
+    }
 }
 
 fn validate_archive<'input>(

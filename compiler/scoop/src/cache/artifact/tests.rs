@@ -29,7 +29,7 @@ fn write_artifact(path: &Path, producer: &str, modified: std::time::SystemTime) 
 }
 
 fn records(cache: &ArtifactCacheRoot) -> Vec<(std::path::PathBuf, std::time::SystemTime)> {
-    let mut records = std::fs::read_dir(cache.as_path().join("artifact-summaries-v2"))
+    let mut records = std::fs::read_dir(cache.as_path().join("artifact-summaries-v3"))
         .unwrap()
         .map(|entry| entry.unwrap().path())
         .filter(|path| {

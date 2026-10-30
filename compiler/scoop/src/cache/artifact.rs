@@ -44,7 +44,7 @@ impl ArtifactCacheRoot {
         ))
         .map_err(|error| inspect(error.into()))?;
         let name = sha256(&input).to_string();
-        let directory = self.as_path().join("artifact-summaries-v2");
+        let directory = self.as_path().join("artifact-summaries-v3");
         let record = directory.join(format!("{name}.cbor"));
         if let Some(summary) = read_record(&record)? {
             return Ok(BuildArtifact::from_result(path.to_path_buf(), summary));

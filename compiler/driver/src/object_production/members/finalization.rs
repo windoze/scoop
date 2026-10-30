@@ -21,7 +21,8 @@ pub(in crate::object_production) fn final_members(
             producer,
             plan.stable_key().clone(),
             plan.role().clone(),
-            object.bytes().to_vec(),
+            scoop_slib::remove_production_end_symbols(object.bytes())
+                .map_err(BuiltinObjectProductionError::ProductionSymbols)?,
         )
         .map_err(BuiltinObjectProductionError::FinalMember)?;
         require_final_member_id(&member, object.member())?;
@@ -32,7 +33,8 @@ pub(in crate::object_production) fn final_members(
             producer,
             object.plan.stable_key().clone(),
             object.plan.role().clone(),
-            object.bytes.clone(),
+            scoop_slib::remove_production_end_symbols(&object.bytes)
+                .map_err(BuiltinObjectProductionError::ProductionSymbols)?,
         )
         .map_err(BuiltinObjectProductionError::FinalMember)?;
         require_final_member_id(&member, object.plan.member_id())?;

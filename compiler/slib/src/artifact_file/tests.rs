@@ -104,6 +104,12 @@ fn complete_file_reads_only_requested_members_and_reuses_their_buffers() {
             }
             SlibMemberRole::LinkObject { .. } => {
                 assert!(cached.get().is_none());
+                let payload = envelope.member(record.id()).unwrap().unwrap();
+                assert_eq!(payload, memory.member(record.id()).unwrap().unwrap());
+                assert!(std::ptr::eq(
+                    payload,
+                    envelope.member(record.id()).unwrap().unwrap()
+                ));
                 objects += 1;
             }
             _ => {}
@@ -117,7 +123,7 @@ fn complete_file_reads_only_requested_members_and_reuses_their_buffers() {
             .iter()
             .filter(|(_, _, cached)| cached.get().is_some())
             .count(),
-        3
+        metadata + objects
     );
 }
 

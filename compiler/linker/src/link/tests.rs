@@ -280,7 +280,7 @@ fn darwin_final_link_keeps_scoop_definitions_local() {
         .collect::<Vec<_>>();
     assert!(!definitions.is_empty());
     assert!(definitions.iter().all(|symbol| symbol.is_local()));
-    for kind in ["cb", "td", "bs", "be"] {
+    for kind in ["cb", "td", "bs"] {
         let prefix = format!("_scoop$1${kind}$");
         assert!(
             definitions
@@ -289,6 +289,11 @@ fn darwin_final_link_keeps_scoop_definitions_local() {
             "missing representative {kind} definition"
         );
     }
+    assert!(
+        definitions
+            .iter()
+            .all(|symbol| !symbol.name().unwrap().starts_with("_scoop$1$be$"))
+    );
     let exports = file.exports().unwrap();
     assert!(
         exports

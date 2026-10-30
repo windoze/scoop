@@ -4,6 +4,7 @@ use crate::{PathSegment, WireError, WireErrorKind, WirePath, WireType};
 pub struct Decoder<'input> {
     input: &'input [u8],
     inner: minicbor::Decoder<'input>,
+    byte32_table: Option<&'input [u8]>,
 
     path: WirePath,
 }
@@ -20,12 +21,20 @@ impl<'input> Decoder<'input> {
         Ok(Self {
             input,
             inner: minicbor::Decoder::new(input),
+            byte32_table: None,
             path: WirePath::root(),
         })
     }
 
     pub fn position(&self) -> u64 {
         self.inner.position() as u64
+    }
+
+    /// Decode storage references directly, without expanding a canonical copy.
+    pub fn with_byte32_table(input: &'input [u8], table: &'input [u8]) -> Result<Self, WireError> {
+        let mut decoder = Self::new(input)?;
+        decoder.byte32_table = Some(table);
+        Ok(decoder)
     }
 
     pub fn path(&self) -> &WirePath {
@@ -57,6 +66,28 @@ impl<'input> Decoder<'input> {
     }
 
     pub fn bytes(&mut self) -> Result<&'input [u8], WireError> {
+        if let Some(table) = self.byte32_table
+            && self
+                .input
+                .get(self.inner.position())
+                .is_some_and(|byte| byte >> 5 == 0)
+        {
+            let index = self.unsigned()?;
+            return usize::try_from(index)
+                .ok()
+                .and_then(|index| index.checked_mul(32))
+                .and_then(|offset| {
+                    offset
+                        .checked_add(32)
+                        .and_then(|end| table.get(offset..end))
+                })
+                .ok_or_else(|| {
+                    self.error(WireErrorKind::InvalidIndex {
+                        index,
+                        length: (table.len() / 32) as u64,
+                    })
+                });
+        }
         self.decode_bytes()
     }
 

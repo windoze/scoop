@@ -3,7 +3,7 @@
 use std::fmt;
 
 use scoop_identity::{ArtifactCapabilityProfileId, CapabilityId};
-use scoop_wire::{WireDecode, WireError, decode_canonical};
+use scoop_wire::{WireDecode, WireError};
 
 use crate::{
     ArtifactCapabilityProfile, ArtifactProfileInventoryError, DecodedMetadataEnvelope,
@@ -25,7 +25,7 @@ impl<'input> DecodedCompileMetadataEnvelopes<'input> {
         &self,
         location: MetadataLocation,
         capability: &CapabilityId,
-    ) -> Result<&'input [u8], CompileSectionDecodeError> {
+    ) -> Result<&DecodedMetadataSection<'input>, CompileSectionDecodeError> {
         let envelope = match location {
             MetadataLocation::Hir => &self.hir,
             MetadataLocation::Mir => &self.mir,
@@ -35,7 +35,6 @@ impl<'input> DecodedCompileMetadataEnvelopes<'input> {
             .sections()
             .iter()
             .find(|section| section.capability() == capability)
-            .map(DecodedMetadataSection::payload)
             .ok_or_else(|| CompileSectionDecodeError::MissingSection {
                 location,
                 capability: capability.clone(),
@@ -97,16 +96,17 @@ pub(crate) fn decode_stage_section<T: WireDecode>(
         .sections()
         .iter()
         .find(|section| section.capability() == &capability)
-        .map(DecodedMetadataSection::payload)
         .ok_or_else(|| CompileSectionDecodeError::MissingSection {
             location,
             capability: capability.clone(),
         })?;
-    decode_canonical(payload).map_err(|source| CompileSectionDecodeError::InnerSection {
-        location,
-        capability,
-        source,
-    })
+    payload
+        .decode()
+        .map_err(|source| CompileSectionDecodeError::InnerSection {
+            location,
+            capability,
+            source,
+        })
 }
 
 pub(crate) fn decode_compile_section<T: WireDecode>(
@@ -116,11 +116,13 @@ pub(crate) fn decode_compile_section<T: WireDecode>(
 ) -> Result<T, CompileSectionDecodeError> {
     let payload = metadata.required_section(location, &capability)?;
 
-    decode_canonical(payload).map_err(|source| CompileSectionDecodeError::InnerSection {
-        location,
-        capability,
-        source,
-    })
+    payload
+        .decode()
+        .map_err(|source| CompileSectionDecodeError::InnerSection {
+            location,
+            capability,
+            source,
+        })
 }
 
 fn decode_metadata_envelope<'input>(
