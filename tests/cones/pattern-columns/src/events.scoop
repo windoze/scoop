@@ -1,0 +1,43 @@
+package scoop.tests.patterncolumns
+
+/** A value payload with many independent flags, deliberately ignored by classifiers. */
+public struct Modifiers(
+    val a: Boolean,
+    val b: Boolean,
+    val c: Boolean,
+    val d: Boolean,
+    val e: Boolean,
+    val f: Boolean,
+    val g: Boolean,
+    val h: Boolean
+)
+
+public struct PointerState(
+    val current: Modifiers,
+    val left: Modifiers,
+    val right: Modifiers,
+    val locks: Modifiers
+)
+
+public enum ButtonState {
+    Up, Down
+}
+
+public enum Event {
+    Button(PointerState, ButtonState), Move(PointerState)
+}
+
+public fun classify(event: Event): Int =
+    when (event) {
+        case Button(_, ButtonState.Up) -> 1
+        case Button(_, ButtonState.Down) -> 2
+        case Move(_) -> 3
+    }
+
+public fun correlated(state: PointerState, a: Boolean, b: Boolean): Int =
+    when ((state, a, b)) {
+        case(_, false, false) -> 1
+        case(_, true, true) -> 2
+        case(_, false, true) -> 3
+        case(_, true, false) -> 4
+    }

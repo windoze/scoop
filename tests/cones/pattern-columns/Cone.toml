@@ -1,0 +1,17 @@
+schema = 1
+[cone]
+group = "scoop.tests"
+name = "pattern-columns"
+version = "0.1.0"
+kind = "library"
+
+[[sources]]
+path = "src"
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"
+
+[[test.sources]]
+path = "tests"

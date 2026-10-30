@@ -1,0 +1,19 @@
+package scoop.tests.patterncolumns
+
+import scoop.test.*
+
+@Test
+private class PatternColumnsTest {
+    @Test
+    fun `wildcard aggregate fields preserve enum decisions and tail correlations`() {
+        val flags = Modifiers(true, false, true, false, false, true, false, true)
+        val state = PointerState(flags, flags, flags, flags)
+        assertEquals(1, classify(Event.Button(state, ButtonState.Up)))
+        assertEquals(2, classify(Event.Button(state, ButtonState.Down)))
+        assertEquals(3, classify(Event.Move(state)))
+        assertEquals(1, correlated(state, false, false))
+        assertEquals(2, correlated(state, true, true))
+        assertEquals(3, correlated(state, false, true))
+        assertEquals(4, correlated(state, true, false))
+    }
+}

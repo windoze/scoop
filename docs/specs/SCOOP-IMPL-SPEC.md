@@ -285,6 +285,8 @@ C-FFI-safe、Scoop ABI、GC-free 与 release-safe 是不同合同。C 参数不�
 
 when 的前端决议遵守语言规范第 5 章：普通条件保存已解析 Boolean 求值及其局部 setup，case 保存 typed pattern；多条件组合为现有有序短路 Boolean 求值，其局部 setup 保留在同一条件内。无 subject 不伪造 Unit subject。subject 声明复用不可失败 binding planner，初始化、快照及解构各按规则执行一次，并继续匹配完整快照。fallback 明确区分源码 else、语句正常落空及已检查的不可达。路径类型事实在当前作用域合并，普通表达式不进入模式名字解析。
 
+模式矩阵的当前列若在全部剩余行中均为不可失败模式，先按原行关联检查剩余列，不枚举该列内部的字段组合。仅在确有未覆盖尾部时，按既有 constructor／值顺序求当前列的一个合法 witness；当前列无可构造值时整个 product 仍为空。这样鼠标状态等未参与匹配的聚合字段不会产生指数级组合，也不改变穷尽性结论、缺失示例顺序或运行期 first-match 语义。
+
 有 subject 与无 subject 的 when 使用不同的完整分支；只有前者携带 case 条件与依赖 subject 的覆盖信息，subject 及其实际类型不由独立可空字段拼接。 arm 的 guard、正文及位置可共享表示；纯条件分支的主条件只包含 Boolean 谓词或后备条件，其末端仅允许 else 或正常落空。覆盖结果记录实际选用的穷尽性类别，类型从当前 subject 取得，不再另存需要后续比对的 subject 类型或 enum 身份。导出模板的既有 wire 标签和可选 subject 编码保持不变；解码绑定在这一格式边界一次选定完整分支，后续具体化和 MIR 转换直接消费已选形态。语义 Return 必填结果表达式，正常 Unit 返回携带真实 Unit 值；源码 bare return 在 HIR 转换为这一完整形式。结果表达式的副作用先于清理执行，Nothing 路径没有正常返回值。
 
 已解析的导出正文／默认模板 Return 同样必含结果表达式。现有 wire 的可空返回字段仅用于编码兼容：旧的空字段在解码绑定时形成该语句定义位置的 Unit 常量，新产物写入完整表达式；不将这个 wire 选择传播回语义 IR，也不改变字段编号或 section 版本。
