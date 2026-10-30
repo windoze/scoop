@@ -1,5 +1,9 @@
 # 安装包布局与编辑器扩展
 
+安装包不再包含 `.slib` 和生成的 API 文档。内置库源码、vendor 输入、预构建 native 库／头文件、runtime、编译器及配套工具随包提供。解压后运行 `post-install.sh`（macOS／Linux）或 `post-install.ps1`（Windows），直接调用随包编译器为本机默认目标构建 release 系统库，再生成离线 API 文档。其他目标用 `--target` 或 `--all-targets` 显式准备；普通编译继续直接复用准备好的库。LLDB 及其匹配的 Python 继续随包提供。
+
+版本 tag 通过 GitHub Release workflow 构建 macOS AArch64、Windows x64、Linux GNU x64 宿主包。官网提供 `curl -fsSL https://scoop-lang.org/install.sh | sh`，完成下载、解压、post-install 和 shell PATH 配置。
+
 Windows 工具包的主驱动安装为 `sco.exe`，例如 `sco build`、`sco run`、`sco pm` 和 `sco example`，避免与 Windows Scoop 包管理器重名。其他 Scoop 可执行程序保留原名，外部命令仍为 `scoop-<command>.exe`。macOS／Linux 的主驱动继续使用 `scoop`，交叉编译目标不影响宿主命令名称。
 
 Windows 包包含 Microsoft UCRT、LLVM-MinGW MSVCRT 和 LLVM-MinGW UCRT 三套独立目标资源。`Cone.toml` 的 `[windows]` 支持 `subsystem = "console" | "gui"`（默认 console）和可选的 `rc` 资源脚本。Windows 调试使用相邻 PDB；随包 LLDB 在 PE 同时包含 CRT DWARF 时优先使用匹配 PDB。当前 runtime ABI 为 30，编译器、runtime 与预编译系统库须配套更新。数学库保留所选系统库的行为，平台差异见库文档。
@@ -20,13 +24,13 @@ VS Code 扩展接入 `scoop-lsp`，提供诊断、补全、签名、导航、符
 
 新增纯 Scoop 的 `scoop.http.server`，提供显式路由、请求 Context、middleware、结果执行及 H1／H2／TLS 接入。公开便利能力包括 SSE、multipart 上传、query DTO 与静态 extractor、协商响应压缩、有限请求解压、条件文件／单 Range 响应，以及 HTTP/1.1 WebSocket／WSS 和 permessage-deflate。请求与会话沿结构化任务完成取消、排空及资源清理；WebSocket 在 HTTP 管线清理后启动独立会话。服务端 mTLS／动态 SNI、HTTP/3 和 H2 WebSocket 不在本次范围。
 
-该 Cone 由现有准备、打包与文档流程自动发现，源码与目标 `.slib` 随正常系统库布局提供。入口和公开 API consumer 见 `src/scoop.http.server/README.md`；本次跨平台验证范围见仓库内的 `docs/http-server/PROGRESS.md`。
+该 Cone 由现有准备、打包与文档流程自动发现，源码随包提供，目标 `.slib` 在 post-install 中生成。入口和公开 API consumer 见 `src/scoop.http.server/README.md`；本次跨平台验证范围见仓库内的 `docs/http-server/PROGRESS.md`。
 
 ## M60 API 文档与内置库文档交付
 
 新增 `scoop doc`，支持多 Cone、完整类型检查、声明与类型链接、继承／扩展导航、静态搜索及按输入变化复用。源代码直接嵌入 HTML；`.slib` 不增加完整源码或注释正文。渲染输入缺少源码文本时省略对应的源码展示和链接。
 
-发行包的所有生产内置 Cone 统一提供声明说明，包含此前新增的 `scoop.terminal` 和 `scoop.terminal.asyncio`。打包流程用配套工具为各发行目标生成文档，并在全部生成成功后归档。安装根的 `docs/index.html` 可进入 Darwin 或 GNU／musl 的完整离线站点。
+发行包的所有生产内置 Cone 统一提供声明说明，包含此前新增的 `scoop.terminal` 和 `scoop.terminal.asyncio`。post-install 用配套工具为已选择的目标生成文档，安装根的 `docs/index.html` 可进入已经准备的完整离线站点。
 
 ## M54 统一 HTTP client 与配套基础库
 

@@ -1,0 +1,287 @@
+name: Release toolchain
+
+on:
+  push:
+    tags: ['v[0-9]*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to build and publish (for example v0.1.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-26.04
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+      revision: ${{ steps.version.outputs.revision }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+      rust-windows: ${{ steps.version.outputs.rust-windows }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ inputs.tag || github.ref_name }}
+          persist-credentials: false
+      - name: Read release version
+        id: version
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import os, re, subprocess, tomllib
+          from pathlib import Path
+          tag = os.environ['RELEASE_TAG']
+          if not re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?', tag):
+              raise SystemExit('Release tags must use vMAJOR.MINOR.PATCH[-PRERELEASE][+BUILD]')
+          release = tomllib.loads(Path('scripts/release.toml').read_text())
+          version = tag[1:]
+          values = {
+              'tag': tag,
+              'version': version,
+              'revision': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
+              'prerelease': str('-' in version.split('+')[0]).lower(),
+              'rust-windows': release['rust_windows'],
+          }
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              for name, value in values.items():
+                  print(f'{name}={value}', file=output)
+          PY
+
+  package:
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: xcode-27
+            host: aarch64-apple-darwin
+            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+          - runner: windows-2025
+            host: x86_64-pc-windows-gnullvm
+            rust-targets: x86_64-pc-windows-msvc,x86_64-pc-windows-gnu,x86_64-pc-windows-gnullvm
+          - runner: ubuntu-26.04
+            host: x86_64-unknown-linux-gnu
+            rust-targets: x86_64-unknown-linux-gnu,x86_64-unknown-linux-musl
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 360
+    env:
+      RELEASE_VERSION: ${{ needs.version.outputs.version }}
+      SOURCE_REVISION: ${{ needs.version.outputs.revision }}
+      PACKAGE_HOST: ${{ matrix.host }}
+      BUILD_JOBS: '3'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.version.outputs.revision }}
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        id: python
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: tooling/package-lock.json
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ runner.os == 'Windows' && needs.version.outputs.rust-windows || 'stable' }}
+          targets: ${{ matrix.rust-targets }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> tmp/package/${{ matrix.host }}/cargo
+      - name: Install macOS build dependencies
+        if: runner.os == 'macOS'
+        run: brew install cmake ninja swig pkg-config
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang cmake ninja-build swig pkg-config \
+            libedit-dev libffi-dev liblzma-dev libncurses-dev libxml2-dev libzstd-dev zlib1g-dev \
+            musl-tools linux-libc-dev patchelf perl xz-utils
+      - name: Select the Windows SDK and MSVC tools
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+      - name: Install Windows build dependencies
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install nasm swig strawberryperl --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "$env:ProgramFiles\NASM" >> $env:GITHUB_PATH
+      - name: Prepare MSYS Perl and Make for MinGW OpenSSL
+        if: runner.os == 'Windows'
+        id: msys2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MSYS
+          install: make perl
+      - name: Download the fixed LLVM-MinGW toolchains
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = python -c "import pathlib,tomllib; print(tomllib.loads(pathlib.Path('scripts/release.toml').read_text())['llvm_mingw'])"
+          New-Item -ItemType Directory -Force tmp/llvm-mingw | Out-Null
+          foreach ($crt in @('msvcrt', 'ucrt')) {
+            $name = "llvm-mingw-$version-$crt-x86_64"
+            Invoke-WebRequest "https://github.com/mstorsjo/llvm-mingw/releases/download/$version/$name.zip" -OutFile "tmp/llvm-mingw/$name.zip"
+            Expand-Archive "tmp/llvm-mingw/$name.zip" -DestinationPath tmp/llvm-mingw
+            Remove-Item "tmp/llvm-mingw/$name.zip"
+          }
+      - name: Reuse the matching LLVM and LLDB SDKs
+        uses: actions/cache@v6
+        with:
+          path: |
+            tmp/package/${{ matrix.host }}/llvm/installed
+            tmp/package/${{ matrix.host }}/lldb/installed
+          key: release-sdk-${{ matrix.runner }}-python-${{ steps.python.outputs.python-version }}-${{ hashFiles('scripts/release.toml', 'scripts/build_llvm.py', 'scripts/build_lldb.py', 'scripts/build_support.py', 'scripts/patches/**', 'compiler/target-data/targets.toml', 'sysroot/vendor/llvm-project/**') }}
+      - name: Check maintenance scripts
+        run: |
+          python -m pip install ruff==0.16.10
+          ruff format --check scripts
+          ruff check scripts
+          python -m unittest discover -s scripts/tests
+      - name: Package sources, native libraries and tools
+        env:
+          MSYS2_ROOT: ${{ steps.msys2.outputs.msys2-location }}
+        run: |
+          python - <<'PY'
+          import os, platform, shlex, subprocess, sys, tomllib, urllib.request
+          from pathlib import Path
+          host = os.environ['PACKAGE_HOST']
+          work = Path('tmp/package', host).resolve()
+          work.mkdir(parents=True, exist_ok=True)
+          release = tomllib.loads(Path('scripts/release.toml').read_text())
+          license_file = work / 'python-LICENSE.txt'
+          urllib.request.urlretrieve(
+              f'https://raw.githubusercontent.com/python/cpython/v{platform.python_version()}/LICENSE',
+              license_file,
+          )
+          arguments = [
+              sys.executable, 'scripts/package_toolchain.py',
+              '--version', os.environ['RELEASE_VERSION'],
+              '--revision', os.environ['SOURCE_REVISION'],
+              '--work-dir', str(work), '--output-dir', 'tmp/dist',
+              '--jobs', os.environ['BUILD_JOBS'], '--python-license', str(license_file),
+          ]
+          suffix = '.exe' if sys.platform == 'win32' else ''
+          for component, option, executable in (
+              ('llvm', '--llvm-prefix', 'llvm-config'),
+              ('lldb', '--debugger-prefix', 'lldb'),
+          ):
+              prefix = work / component / 'installed'
+              if (prefix / 'bin' / (executable + suffix)).is_file():
+                  arguments += [option, str(prefix)]
+          if sys.platform == 'linux':
+              headers = work / 'linux-uapi'
+              headers.mkdir(exist_ok=True)
+              for name, origin in (
+                  ('linux', '/usr/include/linux'), ('asm-generic', '/usr/include/asm-generic'),
+                  ('asm', '/usr/include/x86_64-linux-gnu/asm'),
+              ):
+                  (headers / name).symlink_to(origin, target_is_directory=True)
+              compiler = work / 'musl-gcc'
+              compiler.write_text('#!/bin/sh\nexec /usr/bin/musl-gcc -isystem ' + shlex.quote(str(headers)) + ' "$@"\n')
+              compiler.chmod(0o755)
+              arguments += ['--musl-cc', str(compiler), '--musl-include', '/usr/include/x86_64-linux-musl']
+          elif sys.platform == 'win32':
+              for crt in ('msvcrt', 'ucrt'):
+                  prefix = Path('tmp/llvm-mingw', f'llvm-mingw-{release["llvm_mingw"]}-{crt}-x86_64').resolve()
+                  arguments += ['--mingw-' + crt, str(prefix)]
+              msys = Path(os.environ['MSYS2_ROOT']) / 'usr/bin'
+              arguments += [
+                  '--windows-perl', 'C:/Strawberry/perl/bin/perl.exe',
+                  '--msys-perl', str(msys / 'perl.exe'), '--msys-make', str(msys / 'make.exe'),
+                  '--msys-shell', str(msys / 'sh.exe'),
+              ]
+          subprocess.run(arguments, check=True)
+          PY
+      - name: Install the archive and run a program
+        run: |
+          python - <<'PY'
+          import os, subprocess, tarfile
+          from pathlib import Path
+          archive = Path('tmp/dist', f'scoop-{os.environ["RELEASE_VERSION"]}-{os.environ["PACKAGE_HOST"]}.tar.xz')
+          installed = Path('tmp/release smoke/install root').resolve()
+          installed.mkdir(parents=True)
+          with tarfile.open(archive) as package:
+              if any(member.name.endswith('.slib') or member.name.startswith('./docs/') for member in package.getmembers()):
+                  raise SystemExit('Release archives must not contain slibs or generated API documentation')
+              package.extractall(installed, filter='data')
+          windows = os.name == 'nt'
+          post_install = (
+              ['pwsh', '-NoProfile', '-File', str(installed / 'post-install.ps1')]
+              if windows else ['sh', str(installed / 'post-install.sh')]
+          )
+          subprocess.run([*post_install, '--jobs', os.environ['BUILD_JOBS']], check=True)
+          program = installed.parent / 'hello.scoop'
+          program.write_text('fun main() { println("Scoop release smoke") }\n')
+          driver = installed / 'bin' / ('sco.exe' if windows else 'scoop')
+          result = subprocess.run(
+              [str(driver), 'run', str(program), '--release', '--sysroot', str(installed)],
+              cwd=installed.parent, text=True, stdout=subprocess.PIPE, check=True,
+          )
+          if result.stdout.strip() != 'Scoop release smoke':
+              raise SystemExit(f'Unexpected program output: {result.stdout!r}')
+          if not (installed / 'docs/index.html').is_file():
+              raise SystemExit('Post-install did not generate API documentation')
+          PY
+      - name: Upload the host package
+        uses: actions/upload-artifact@v7
+        with:
+          name: scoop-release-${{ matrix.host }}
+          path: tmp/dist/scoop-${{ needs.version.outputs.version }}-${{ matrix.host }}.tar.xz
+          compression-level: 0
+          if-no-files-found: error
+      - name: Upload the shared LLVM source package
+        if: matrix.host == 'aarch64-apple-darwin'
+        uses: actions/upload-artifact@v7
+        with:
+          name: scoop-release-llvm-sources
+          path: tmp/dist/scoop-${{ needs.version.outputs.version }}-llvm-sources.tar.xz
+          compression-level: 0
+          if-no-files-found: error
+
+  publish:
+    needs: [version, package]
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: scoop-release-*
+          path: packages
+          merge-multiple: true
+      - name: Publish all packages to GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.version.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.version.outputs.version }}
+          PRERELEASE: ${{ needs.version.outputs.prerelease }}
+        run: |
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --verify-tag --draft --generate-notes --title "Scoop $RELEASE_VERSION"
+          fi
+          gh release upload "$RELEASE_TAG" packages/*.tar.xz --clobber
+          if [ "$PRERELEASE" = true ]; then
+            gh release edit "$RELEASE_TAG" --draft=false --prerelease --latest=false
+          else
+            gh release edit "$RELEASE_TAG" --draft=false --prerelease=false --latest
+          fi

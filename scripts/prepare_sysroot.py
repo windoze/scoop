@@ -172,10 +172,42 @@ def runtime(args, work, environment, native, enable_gc_stress=False, enable_star
     )
 
 
+def build_cones(sysroot, target, names, binaries, work, cache, jobs, environment, *, native=()):
+    for name in names:
+        print(f"Building {name} for {target}", flush=True)
+        subprocess.run(
+            [
+                binaries[0],
+                "build",
+                sysroot / "src" / name,
+                "--release",
+                "--jobs",
+                str(jobs),
+                "--target",
+                target,
+                "--sysroot",
+                sysroot,
+                "--scoopc",
+                binaries[1],
+                "--cache-dir",
+                cache,
+                "--target-dir",
+                work / "target" / name,
+                "--lockfile",
+                work / "locks" / f"{name}.lock",
+                "-o",
+                sysroot / "lib" / target / f"{name}.slib",
+                *native,
+            ],
+            env=environment,
+            check=True,
+        )
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--target", required=True, choices=TARGETS)
-    parser.add_argument("--scoop", type=Path, required=True)
+    parser.add_argument("--scoop", type=Path)
     parser.add_argument("--scoopc", type=Path)
     parser.add_argument("--sysroot", type=Path, default=ROOT / "sysroot")
     parser.add_argument("--runtime-root", type=Path, default=ROOT / "runtime")
@@ -185,9 +217,16 @@ def main():
     parser.add_argument("--native-sysroot", type=Path)
     parser.add_argument("--unwind-prefix", type=Path)
     parser.add_argument("--jobs", type=int, default=min(os.cpu_count() or 1, 6))
+    parser.add_argument(
+        "--runtime-only",
+        action="store_true",
+        help="Prepare runtime and public headers without building Cones",
+    )
     args = parser.parse_args()
     if args.jobs < 1:
         parser.error("--jobs must be positive")
+    if not args.runtime_only and args.scoop is None:
+        parser.error("--scoop is required unless --runtime-only is used")
     args.sysroot = args.sysroot.resolve()
     args.runtime_root = args.runtime_root.resolve()
     work = (args.work_dir or ROOT / "tmp/sysroot" / args.target).resolve()
@@ -196,10 +235,6 @@ def main():
     scratch = work / "scratch"
     scratch.mkdir(exist_ok=True)
     environment = dict(os.environ, TMPDIR=str(scratch), TMP=str(scratch), TEMP=str(scratch))
-    scoop = args.scoop.resolve()
-    scoopc = (
-        args.scoopc or scoop.with_name("scoopc.exe" if os.name == "nt" else "scoopc")
-    ).resolve()
     if args.unwind_prefix is None and TARGETS[args.target]["os"] != "darwin":
         args.unwind_prefix = args.sysroot / "lib" / args.target / "unwind"
     native = []
@@ -211,46 +246,34 @@ def main():
         if value is not None:
             native.extend([flag, str(value)])
 
-    order = cone_order(args.sysroot, work, args.target)
     publish_files(
         args.runtime_root / "include",
         args.sysroot / "include",
         [Path("scoop_rt.h"), Path("scoop_runtime_metadata_v1.h")],
         work / "headers.json",
     )
-    for name in order:
-        print(f"Building {name} for {args.target}", flush=True)
-        subprocess.run(
-            [
-                scoop,
-                "build",
-                args.sysroot / "src" / name,
-                "--release",
-                "--jobs",
-                str(args.jobs),
-                "--target",
-                args.target,
-                "--sysroot",
-                args.sysroot,
-                "--scoopc",
-                scoopc,
-                "--cache-dir",
-                args.cache_dir,
-                "--target-dir",
-                work / "target" / name,
-                "--lockfile",
-                work / "locks" / f"{name}.lock",
-                "-o",
-                args.sysroot / "lib" / args.target / f"{name}.slib",
-                *native,
-            ],
-            env=environment,
-            check=True,
+    if not args.runtime_only:
+        scoop = args.scoop.resolve()
+        scoopc = (
+            args.scoopc or scoop.with_name("scoopc.exe" if os.name == "nt" else "scoopc")
+        ).resolve()
+        build_cones(
+            args.sysroot,
+            args.target,
+            cone_order(args.sysroot, work, args.target),
+            [scoop, scoopc],
+            work,
+            args.cache_dir,
+            args.jobs,
+            environment,
+            native=native,
         )
     for enable_gc_stress in (False, True):
         for enable_startup_stats in (False, True):
             runtime(args, work, environment, native, enable_gc_stress, enable_startup_stats)
-    print(f"Prepared {len(order)} Cones and runtime for {args.target}")
+    print(
+        f"Prepared {'runtime' if args.runtime_only else 'system libraries and runtime'} for {args.target}"
+    )
 
 
 if __name__ == "__main__":

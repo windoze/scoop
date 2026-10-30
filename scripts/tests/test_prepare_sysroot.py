@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import package_documentation
+import prepare_sysroot
 from prepare_sysroot import cone_order, has_target_sources
 from target_catalog import TARGET_FACTS
 
@@ -71,16 +71,35 @@ class SysrootSelectionTests(unittest.TestCase):
             with patch("prepare_sysroot.TARGET_FACTS", changed):
                 self.assertEqual(cone_order(root, root, DARWIN), ["scoop.core", "scoop.machine"])
 
-    def test_documentation_uses_the_same_target_graph(self):
+    def test_runtime_only_does_not_select_or_build_system_cones(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            self.write_cone(root, "scoop.core")
-            self.write_cone(
-                root, "scoop.window", '[[sources]]\npath = "src"\nwhen = {os = "darwin"}\n'
-            )
-            with patch("package_documentation.subprocess.run") as run:
-                package_documentation.generate(root, [DARWIN, LINUX], ["scoop", "scoopc"], root, {})
-            first, second = [call.args[0] for call in run.call_args_list]
-            window = str(root / "src/scoop.window/Cone.toml")
-            self.assertIn(window, first)
-            self.assertNotIn(window, second)
+            include = root / "runtime/include"
+            include.mkdir(parents=True)
+            for name in ("scoop_rt.h", "scoop_runtime_metadata_v1.h"):
+                (include / name).write_text("/* Runtime header. */\n")
+            arguments = [
+                "prepare_sysroot.py",
+                "--runtime-only",
+                "--target",
+                DARWIN,
+                "--sysroot",
+                str(root / "sysroot"),
+                "--runtime-root",
+                str(root / "runtime"),
+                "--work-dir",
+                str(root / "work"),
+            ]
+            with (
+                patch.object(sys, "argv", arguments),
+                patch.object(prepare_sysroot, "runtime") as runtime,
+                patch.object(
+                    prepare_sysroot, "cone_order", side_effect=AssertionError("selected Cones")
+                ),
+                patch.object(
+                    prepare_sysroot, "build_cones", side_effect=AssertionError("built Cones")
+                ),
+            ):
+                prepare_sysroot.main()
+            self.assertEqual(runtime.call_count, 4)
+            self.assertTrue((root / "sysroot/include/scoop_rt.h").is_file())
