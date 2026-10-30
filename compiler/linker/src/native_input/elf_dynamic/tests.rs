@@ -72,7 +72,7 @@ fn real_elf_dso_versions_tls_and_malformed_version_tables() {
             .err()
             .unwrap()
             .to_string()
-            .contains("ELF64 amd64")
+            .contains("ELF64 DSO for the selected target")
     );
 
     let file: ElfFile64<'_> = ElfFile64::parse(original.as_slice()).unwrap();
