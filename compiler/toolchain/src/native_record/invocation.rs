@@ -2,7 +2,7 @@ use super::*;
 use scoop_lir::{
     AppleClangCompilerIdentityV1, CBridgePlatformContractV1, DarwinBuildToolIdV1,
     DarwinBuildToolVersionContractV1, DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1,
-    GccCompilerIdentityV1,
+    GccCompilerIdentityV1, LinuxCCompilerIdentityV1,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -24,7 +24,7 @@ enum PlatformRecord {
         native_sysroot: Option<HostPathCarrier>,
         real_gcc: Option<HostPathCarrier>,
         search_path: Option<HostPathCarrier>,
-        version: String,
+        compiler: LinuxCompilerRecord,
         configuration: [u8; 32],
     },
     Windows {
@@ -36,6 +36,12 @@ enum PlatformRecord {
         version: [u32; 3],
         configuration: [u8; 32],
     },
+}
+
+#[derive(Serialize, Deserialize)]
+enum LinuxCompilerRecord {
+    Gcc(String),
+    Clang([u32; 3]),
 }
 
 impl InvocationRecord {
@@ -105,7 +111,14 @@ impl InvocationRecord {
                     native_sysroot: c.native_sysroot().map(path).transpose()?,
                     real_gcc: env_path("REALGCC")?,
                     search_path: env_path("PATH")?,
-                    version: compiler.version().to_owned(),
+                    compiler: match compiler {
+                        LinuxCCompilerIdentityV1::Gcc(compiler) => {
+                            LinuxCompilerRecord::Gcc(compiler.version().to_owned())
+                        }
+                        LinuxCCompilerIdentityV1::Clang(compiler) => {
+                            LinuxCompilerRecord::Clang(compiler.version())
+                        }
+                    },
                     configuration: *compiler.inputs().as_array(),
                 }
             }
@@ -145,7 +158,7 @@ impl InvocationRecord {
                         .transpose()?
                         .map(PathBuf::into_os_string),
                 };
-                let compiler = scoop_lir::WindowsClangCompilerIdentityV1::new(
+                let compiler = scoop_lir::ClangCompilerIdentityV1::new(
                     version,
                     Digest256::from_array(configuration),
                 );
@@ -189,8 +202,9 @@ impl InvocationRecord {
                 .map_err(error)?;
                 let compiler = AppleClangCompilerIdentityV1::new(major, minor, patch, &build)
                     .map_err(error)?;
-                let profile = scoop_target_data::darwin_c_bridge_profile(deployment, compiler)
-                    .map_err(error)?;
+                let profile =
+                    scoop_target_data::darwin_c_bridge_profile(target, deployment, compiler)
+                        .map_err(error)?;
                 ValidatedCBridgeToolchainInvocation::new(
                     target,
                     profile,
@@ -203,12 +217,18 @@ impl InvocationRecord {
                 native_sysroot,
                 real_gcc,
                 search_path,
-                version,
+                compiler,
                 configuration,
             } => {
-                let compiler =
-                    GccCompilerIdentityV1::new(&version, Digest256::from_array(configuration))
-                        .map_err(error)?;
+                let inputs = Digest256::from_array(configuration);
+                let compiler = match compiler {
+                    LinuxCompilerRecord::Gcc(version) => LinuxCCompilerIdentityV1::Gcc(
+                        GccCompilerIdentityV1::new(&version, inputs).map_err(error)?,
+                    ),
+                    LinuxCompilerRecord::Clang(version) => LinuxCCompilerIdentityV1::Clang(
+                        scoop_lir::ClangCompilerIdentityV1::new(version, inputs),
+                    ),
+                };
                 let profile =
                     scoop_target_data::linux_c_bridge_profile(target, compiler).map_err(error)?;
                 let decode = |value: HostPathCarrier| value.to_path_buf().map_err(error);

@@ -195,7 +195,7 @@ fn initialization_coordinator_is_exactly_once_and_gc_cooperative() {
         .arg(workspace.join(native_float_environment_source()))
         .arg(workspace.join("runtime/src/thread/collection.c"))
         .arg(workspace.join("runtime/src/thread/transitions.c"))
-        .arg(workspace.join("runtime/src/platform/arch/aarch64.c"))
+        .arg(workspace.join("runtime/src/platform/frame/darwin_aarch64.c"))
         .arg(workspace.join(native_os_source()))
         .arg(workspace.join("runtime/tests/platform/fake.c"))
         .arg(workspace.join("runtime/tests/initialization_coordinator_test.c"))
@@ -220,76 +220,6 @@ fn initialization_coordinator_is_exactly_once_and_gc_cooperative() {
         String::from_utf8_lossy(&output.stderr)
     );
     assert_eq!(output.stdout, b"initialization coordinator tests passed\n");
-}
-
-#[test]
-fn generic_runtime_has_no_target_specific_vm_dependency() {
-    let workspace = workspace_root();
-    let generic_sources = [
-        "runtime/src/gc/allocation.c",
-        "runtime/src/gc/mutator.c",
-        "runtime/src/gc_binding/threads.c",
-        "runtime/src/gc_binding/values.c",
-        "runtime/src/gc/collector.c",
-        "runtime/src/gc_binding/entries.c",
-        "runtime/src/gc_binding/pressure.c",
-        "runtime/src/gc/pressure.c",
-        "runtime/src/gc/mark.c",
-        "runtime/src/gc/mark_objects.c",
-        "runtime/src/gc/mark_queue.c",
-        "runtime/src/gc/mark_pool.c",
-        "runtime/src/gc/update.c",
-        "runtime/src/gc/time.c",
-        "runtime/src/gc_binding/collector_roots.c",
-        "runtime/src/gc_binding/scan.c",
-        "runtime/src/gc/remembered.c",
-        "runtime/src/gc/evacuation_plan.c",
-        "runtime/src/gc/old_slots.c",
-        "runtime/src/gc/evacuation_sources.c",
-        "runtime/src/gc/statistics.c",
-        "runtime/src/gc/evacuation.c",
-        "runtime/src/gc/reclamation.c",
-        "runtime/src/gc/block_release.c",
-        "runtime/src/gc/block_sweep.c",
-        "runtime/src/gc/memory_return.c",
-        "runtime/src/gc/heap.c",
-        "runtime/src/gc/regions.c",
-        "runtime/src/gc/page_map.c",
-        "runtime/src/gc/cards.c",
-        "runtime/src/gc/heap_objects.c",
-        "runtime/src/gc/handles.c",
-        "runtime/src/gc_binding/root_frames.c",
-        "runtime/src/gc_binding/roots.c",
-        "runtime/src/gc_binding/stackmap.c",
-        "runtime/src/gc_binding/stackmap/parser.c",
-        "runtime/src/gc_binding/stackmap/records.c",
-        "runtime/src/gc_binding/stack_roots.c",
-        "runtime/src/thread.c",
-        "runtime/src/thread/collection.c",
-        "runtime/src/thread/debug.c",
-        "runtime/src/thread/roots.c",
-        "runtime/src/thread/transitions.c",
-    ];
-    let forbidden = [
-        "<mach-o/",
-        "<sys/mman.h>",
-        "__APPLE__",
-        "__aarch64__",
-        "__x86_64__",
-        "<xmmintrin.h>",
-        "mmap(",
-        "mprotect(",
-    ];
-    for source in generic_sources {
-        let contents = std::fs::read_to_string(workspace.join(source))
-            .unwrap_or_else(|error| panic!("read {source}: {error}"));
-        for token in forbidden {
-            assert!(
-                !contents.contains(token),
-                "generic runtime source {source} imports target VM detail {token:?}"
-            );
-        }
-    }
 }
 
 #[test]

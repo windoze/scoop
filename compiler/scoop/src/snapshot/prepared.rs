@@ -61,7 +61,7 @@ impl PreparedBuildGraph {
             &node.manifest,
             &target,
             self.context.optimization,
-            &self.context.sysroot.as_path().join("include"),
+            self.context.sysroot.as_path(),
             self.context.cache_root.as_path(),
             if node.snapshot.test_config.is_some() {
                 scoop_protocol::CompilationPurpose::Test
@@ -214,7 +214,7 @@ fn select_manifest_input(
                 manifest,
                 &target,
                 context.optimization,
-                &context.sysroot.as_path().join("include"),
+                context.sysroot.as_path(),
                 context.cache_root.as_path(),
                 purpose,
             )

@@ -1,0 +1,4 @@
+link inputs: startup, cone/member order, runtime/object order, libSystem
+native library m23_math requirement=88b2c952230b0f1e7f322ba4939562503aae3a7812d0a52cbf8388d41fb7e26f input=$NATIVE_INPUT_0 origins=dev.programlink:toc:0.1.0
+native archive $NATIVE_INPUT_0 members=1
+  member 0 header=120 payload=216..848 name="a_long_native_member_name.o" digest=$NATIVE_MEMBER_0 selected=true

@@ -2,7 +2,6 @@ schema = 1
 name = "shared-nominal-conditions-standalone"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../shared-nominal-conditions/provider.scoop", "generic-member-standalone", "../../../shared-nominal-conditions/standalone.scoop", "generic-member-downstream-standalone", "../../../shared-nominal-conditions/downstream.scoop", "runtime-fixture", "../../../imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "nominal_conditions_survive_generic_bodies_and_republication", "language"]
 
 [[steps]]

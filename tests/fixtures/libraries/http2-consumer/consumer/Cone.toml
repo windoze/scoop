@@ -11,9 +11,7 @@ kind = "executable"
 
 [native]
 include = [
-    {path = "../../../../../sysroot/lib/aarch64-apple-darwin/nghttp2/include", when = {os = "darwin"}},
-    {path = "../../../../../sysroot/lib/x86_64-unknown-linux-gnu/nghttp2/include", when = {env = "gnu"}},
-    {path = "../../../../../sysroot/lib/x86_64-unknown-linux-musl/nghttp2/include", when = {env = "musl"}},
+    {sysroot = "nghttp2/include"},
 ]
 c_flags = ["-std=c11", "-Wall", "-Wextra", "-Werror", "-DNGHTTP2_STATICLIB"]
 [[native.sources]]

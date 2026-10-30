@@ -3,7 +3,7 @@ name = "client-bearer"
 inputs = ["consumer", "peer.py", "http1_peer.py"]
 support = ["../client-trailers/wire.py", "../../../../sysroot/src/scoop.crypto/test-certificates/src/root.scoop"]
 tools = ["scoop", "scoopc", "python"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["http", "client", "authentication", "asyncio", "prebuilt", "libraries"]
 variants = [{"name" = "release", "vars" = {"mode" = ["--release"]}}]
 [[steps]]

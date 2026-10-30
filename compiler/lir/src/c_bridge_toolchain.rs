@@ -28,13 +28,13 @@ pub use darwin::{
 pub use flags::{
     CanonicalCBridgeFlagContractV1, CanonicalCBridgeFlagFingerprint, CanonicalCBridgeFlagV1,
 };
-pub use linux::{GccCompilerIdentityError, GccCompilerIdentityV1};
-mod windows;
+pub use linux::{GccCompilerIdentityError, GccCompilerIdentityV1, LinuxCCompilerIdentityV1};
+mod clang;
+pub use clang::ClangCompilerIdentityV1;
 pub use source::{
     GeneratedCSourceTemplateComponentV1, GeneratedCSourceTemplateContractV1,
     GeneratedCSourceTemplateFingerprint,
 };
-pub use windows::WindowsClangCompilerIdentityV1;
 
 /// The generated-C compiler inherits no host environment variables.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -71,10 +71,10 @@ pub enum CBridgePlatformContractV1 {
         compiler: AppleClangCompilerIdentityV1,
     },
     Linux {
-        compiler: GccCompilerIdentityV1,
+        compiler: LinuxCCompilerIdentityV1,
     },
     Windows {
-        compiler: WindowsClangCompilerIdentityV1,
+        compiler: ClangCompilerIdentityV1,
     },
 }
 
@@ -89,7 +89,7 @@ impl fmt::Display for CBridgePlatformError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
             Self::ExpectedDarwin => "a Darwin C toolchain is required for Mach-O deployment",
-            Self::ExpectedLinux => "a Linux target is required for the GCC C toolchain",
+            Self::ExpectedLinux => "a Linux target is required for the Linux C toolchain",
             Self::ExpectedWindows => "a Windows target is required for the Windows C toolchain",
         })
     }
@@ -336,6 +336,3 @@ fn write_hex(formatter: &mut fmt::Formatter<'_>, bytes: &[u8; 32]) -> fmt::Resul
     }
     Ok(())
 }
-
-#[cfg(test)]
-mod tests;

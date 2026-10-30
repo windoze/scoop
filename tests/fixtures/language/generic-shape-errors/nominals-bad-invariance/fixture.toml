@@ -2,7 +2,6 @@ schema = 1
 name = "generic-shape-errors-nominals-bad-invariance"
 inputs = ["../../imported-classes/support/stage3_test.scoop", "generic-nominal-provider", "../../generic-nominal-consumption/provider.scoop", "generic-nominal-bad-invariance", "../../generic-nominal-consumption/bad-invariance.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generic-shape-errors", "nominals", "negative", "language"]
 
 [[steps]]

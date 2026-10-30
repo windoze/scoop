@@ -27,7 +27,9 @@ impl PackageCache {
             Some(path) => cwd.join(path),
             None => home()?.join(".scoop/packages"),
         };
-        Ok(Self { root })
+        Ok(Self {
+            root: dunce::simplified(&root).to_owned(),
+        })
     }
 
     pub fn root(&self) -> &Path {

@@ -59,7 +59,7 @@ impl Manifests {
         let record_path = self
             .cache
             .as_ref()
-            .map(|cache| cache.input_record("manifests-v2", &path, &stamp, &[]))
+            .map(|cache| cache.input_record("manifests-v3", &path, &stamp, &[]))
             .transpose()?;
         let record = record_path.as_ref().map(std::fs::read).transpose();
         let record = match record {

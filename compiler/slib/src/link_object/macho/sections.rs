@@ -1,11 +1,11 @@
 //! Classify sections needed by object consumers without producer allowlists.
 
-use super::ValidatedDarwinArm64ObjectEnvelopeV1;
+use super::ValidatedMachOObjectEnvelopeV1;
 use crate::link_object::object_sections::*;
 use object::macho;
 
 pub fn read_builtin_object_sections_v1(
-    envelope: ValidatedDarwinArm64ObjectEnvelopeV1,
+    envelope: ValidatedMachOObjectEnvelopeV1,
 ) -> ValidatedBuiltinObjectSectionInventoryV1 {
     let roles = envelope
         .sections()

@@ -2,29 +2,34 @@ use super::*;
 use scoop_lir::{
     AppleClangCompilerIdentityV1, DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1,
 };
+use std::path::absolute;
 
 #[test]
 fn invocation_builds_only_the_canonical_command() {
     let profile = profile();
+    let sdk = absolute("/toolchain/SDKs/MacOSX.sdk").unwrap();
     let invocation = ValidatedCBridgeToolchainInvocation::new(
         scoop_target_data::DARWIN_AARCH64,
         profile,
-        PathBuf::from("/toolchain/bin/clang"),
-        PathBuf::from("/toolchain/SDKs/MacOSX.sdk"),
+        absolute("/toolchain/bin/clang").unwrap(),
+        sdk.clone(),
     )
     .unwrap();
     let command = invocation.object_compilation_command(
         Path::new("/temporary/input.c"),
         Path::new("/temporary/output.o"),
     );
-    assert_eq!(command.get_program(), "/toolchain/bin/clang");
+    assert_eq!(
+        command.get_program(),
+        absolute("/toolchain/bin/clang").unwrap()
+    );
     assert_eq!(
         command.get_args().collect::<Vec<_>>(),
         [
             "-target",
             "aarch64-apple-darwin",
             "-isysroot",
-            "/toolchain/SDKs/MacOSX.sdk",
+            sdk.to_str().unwrap(),
             "-mmacosx-version-min=15.6.2",
             "-std=c11",
             "-c",
@@ -63,7 +68,7 @@ fn invocation_rejects_relative_host_locators() {
         scoop_target_data::DARWIN_AARCH64,
         profile(),
         PathBuf::from("clang"),
-        PathBuf::from("/toolchain/SDKs/MacOSX.sdk"),
+        absolute("/toolchain/SDKs/MacOSX.sdk").unwrap(),
     )
     .unwrap_err();
     assert!(matches!(
@@ -80,7 +85,12 @@ fn profile() -> CBridgeToolchainProfileV1 {
     )
     .unwrap();
     let compiler = AppleClangCompilerIdentityV1::new(21, 0, 0, "clang-2100.1.1.101").unwrap();
-    scoop_target_data::darwin_c_bridge_profile(deployment, compiler).unwrap()
+    scoop_target_data::darwin_c_bridge_profile(
+        scoop_target_data::DARWIN_AARCH64,
+        deployment,
+        compiler,
+    )
+    .unwrap()
 }
 
 #[test]
@@ -100,8 +110,8 @@ fn producer_selection_rejects_unknown_version_and_mismatched_profile() {
             ValidatedCBridgeToolchainInvocation::new(
                 scoop_target_data::DARWIN_AARCH64,
                 profile,
-                PathBuf::from("/toolchain/clang"),
-                PathBuf::from("/toolchain/sdk"),
+                absolute("/toolchain/clang").unwrap(),
+                absolute("/toolchain/sdk").unwrap(),
             ),
             Err(CBridgeToolchainInvocationError::UnsupportedProfile)
         ));
@@ -124,8 +134,8 @@ fn canonical_unknown_target_is_rejected_by_runtime_and_c_selection() {
         ValidatedCBridgeToolchainInvocation::new(
             target,
             profile(),
-            PathBuf::from("/toolchain/clang"),
-            PathBuf::from("/toolchain/sdk")
+            absolute("/toolchain/clang").unwrap(),
+            absolute("/toolchain/sdk").unwrap()
         )
         .is_err()
     );

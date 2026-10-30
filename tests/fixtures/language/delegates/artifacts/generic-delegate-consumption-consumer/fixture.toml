@@ -3,7 +3,7 @@ name = "generic-delegate-consumption-consumer"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-delegate-provider", "../../../generic-delegate-consumption/provider.scoop", "generic-delegate-consumer", "../../../generic-delegate-consumption/consumer.scoop", "generic-delegate-downstream", "../../../generic-delegate-consumption/downstream.scoop", "runtime-fixture", "../../../imported-classes/support/gc.c", "../support/metadata.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
 # Native metadata companions currently target Mach-O.
-targets = ["aarch64-apple-darwin", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "generic_delegated_properties_republish_and_execute_from_artifacts", "language"]
 
 [[steps]]

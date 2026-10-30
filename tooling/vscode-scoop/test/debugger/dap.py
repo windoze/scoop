@@ -75,9 +75,17 @@ def configure(client, sequence, source, break_lines):
             "breakpoints": [{"line": line} for line in break_lines],
         },
     )["breakpoints"]
-    assert len(result) == len(break_lines) and all(b["verified"] for b in result), result
+    assert len(result) == len(break_lines), result
+    pending = {b["id"] for b in result if not b["verified"]}
     client.request("configurationDone")
     client.response(sequence)
+    # A terminal launcher can still precede exec when breakpoints are installed.
+    # Require its pending breakpoints to resolve in the actual target process.
+    while pending:
+        event = client.event("breakpoint")
+        breakpoint = event["breakpoint"]
+        if breakpoint.get("verified"):
+            pending.discard(breakpoint["id"])
 
 
 def launch(client, configuration, source):
@@ -260,15 +268,9 @@ def console(client, configuration, source, attach):
             output = child.communicate(timeout=10)[0].decode()
             assert "debugger-pipe" in output and "debugger-io-ok" in output, output
         else:
-            output = b""
-            while select.select([client.master], [], [], 0.2)[0]:
-                try:
-                    chunk = os.read(client.master, 4096)
-                except OSError:
-                    break
-                if not chunk:
-                    break
-                output += chunk
+            client.terminal_reader.join(timeout=5)
+            assert not client.terminal_reader.is_alive(), "terminal did not close"
+            output = bytes(client.terminal_output)
             assert b"debugger-tty" in output and b"debugger-io-ok" in output, output
     finally:
         if child and child.poll() is None:

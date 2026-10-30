@@ -2,7 +2,6 @@ schema = 1
 name = "throwable-history-and-trap-stacks"
 inputs = ["history.scoop", "uncaught.scoop", "trap.scoop", "verify.py"]
 tools = ["scoop", "scoopc", "python"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["debugging", "exceptions", "gc", "compiler-correctness"]
 variants = [
   {name = "full", vars = {profile = "debug", level = "full", trace_args = [], trace = "enabled"}, env = {SCOOP_GC_STRESS_MOVE = "1"}},

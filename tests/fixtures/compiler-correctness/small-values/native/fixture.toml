@@ -1,8 +1,8 @@
 schema = 1
 name = "small-values-native"
-inputs = ["program.scoop", "native.c", "scoop.aarch64-apple-darwin.ll", "scoop.x86_64-unknown-linux-gnu.ll", "scoop.x86_64-unknown-linux-musl.ll"]
+inputs = ["program.scoop", "native.c", "scoop.aarch64-apple-darwin.ll", "scoop.x86_64-apple-darwin.ll", "scoop.x86_64-unknown-linux-gnu.ll", "scoop.x86_64-unknown-linux-musl.ll"]
 tools = ["scoop", "cc", "ar", "llc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["stage-golden", "abi", "native", "compiler-correctness"]
 variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
 

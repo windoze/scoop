@@ -2,7 +2,7 @@ schema = 1
 name = "program-link-lazy-cycle-root"
 inputs = ["lazy-cycle-provider", "../../../language/program-link/lazy-cycle-provider.scoop", "lazy-cycle-root", "../../../language/program-link/lazy-cycle-root.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["program-link", "multi-cone", "driver"]
 variants = [{"name" = "release"}]
 

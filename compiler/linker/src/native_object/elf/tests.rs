@@ -45,7 +45,7 @@ fn elf_native_objects_keep_tls_visibility_weakness_and_debug_relocations() {
         scoop_target_data::LINUX_X86_64_GNU_ID,
         scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
-        let info = read(&bytes).unwrap();
+        let info = read(&bytes, scoop_target_data::LINUX_X86_64_GNU_ID).unwrap();
         assert_eq!(
             info.definitions["local_tls"].kind,
             NativeSymbolKind::ThreadLocal
@@ -73,7 +73,7 @@ fn elf_native_inputs_index_common_and_cpp_requirements() {
         "c",
         &["-fcommon"],
     );
-    let info = read(&bytes).unwrap();
+    let info = read(&bytes, scoop_target_data::LINUX_X86_64_GNU_ID).unwrap();
     assert_eq!(
         info.definitions["tentative"].binding,
         NativeSymbolBinding::Common
@@ -85,7 +85,7 @@ fn elf_native_inputs_index_common_and_cpp_requirements() {
 fn elf_reader_rejects_a_different_machine() {
     let mut bytes = compile("int value;", "c", &[]);
     bytes[18..20].copy_from_slice(&elf::EM_AARCH64.to_le_bytes());
-    assert!(read(&bytes).is_err());
+    assert!(read(&bytes, scoop_target_data::LINUX_X86_64_GNU_ID).is_err());
 }
 
 #[test]
@@ -103,7 +103,7 @@ fn elf_native_inputs_index_libc_exit_cleanup() {
         scoop_target_data::LINUX_X86_64_GNU_ID,
         scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
-        let info = read(&bytes).unwrap();
+        let info = read(&bytes, scoop_target_data::LINUX_X86_64_GNU_ID).unwrap();
         assert!(info.requirements.contains("__cxa_atexit"));
         assert!(info.requirements.contains("__cxa_finalize"));
     }
@@ -120,7 +120,7 @@ fn elf_weak_imports_do_not_require_optional_hooks_or_data() {
         "c",
         &[],
     );
-    let info = read(&bytes).unwrap();
+    let info = read(&bytes, scoop_target_data::LINUX_X86_64_GNU_ID).unwrap();
     assert!(info.requirements.contains("required"));
     assert!(!info.requirements.contains("optional_hook"));
     assert!(!info.requirements.contains("optional_data"));

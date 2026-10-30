@@ -34,7 +34,7 @@ fn elf_images_use_loaded_segments_and_stackmap_bounds() {
             "runtime/src/platform/common.c",
             "runtime/src/platform/profiles/linux_x86_64.c",
             "runtime/src/platform/os/linux.c",
-            "runtime/src/platform/arch/x86_64.c",
+            "runtime/src/platform/frame/sysv_amd64.c",
             "runtime/src/image/ranges.c",
         ] {
             command.arg(workspace.join(source));

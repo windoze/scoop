@@ -40,6 +40,13 @@ ScoopTlsStep scoop_tls_step(uint64_t value, int operation, unsigned char *data,
     break;
   case 3:
     result = SSL_shutdown(ssl);
+    if (result == 0) {
+      // The send half completed. Process any buffered input before asking the
+      // transport for more bytes; the peer may be waiting for our close.
+      ERR_clear_error();
+      errno = 0;
+      result = SSL_shutdown(ssl);
+    }
     break;
   default:
     return failure(session, -1, 0, "invalid TLS operation");

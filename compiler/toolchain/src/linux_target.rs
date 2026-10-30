@@ -1,6 +1,7 @@
 //! The implemented Linux machine and libc facts, selected at the tool boundary.
 
-use scoop_lir::TargetProfileId;
+use scoop_lir::{TargetArchitecture, TargetProfileId};
+use scoop_target_data::NativeEnvironment;
 
 use crate::ToolchainError;
 
@@ -10,6 +11,11 @@ pub(crate) enum LinuxMachine {
 }
 
 impl LinuxMachine {
+    pub(crate) fn compiler_flags(self) -> &'static [&'static str] {
+        match self {
+            Self::X86_64 => &["-march=x86-64"],
+        }
+    }
     pub(crate) fn object_architecture(self) -> object::Architecture {
         match self {
             Self::X86_64 => object::Architecture::X86_64,
@@ -47,13 +53,23 @@ pub(crate) struct LinuxTarget {
 
 impl LinuxTarget {
     pub(crate) fn select(target: TargetProfileId) -> Result<Self, ToolchainError> {
-        let (machine, libc) = match target {
-            scoop_target_data::LINUX_X86_64_GNU_ID => (LinuxMachine::X86_64, LinuxLibc::Gnu),
-            scoop_target_data::LINUX_X86_64_MUSL_ID => (LinuxMachine::X86_64, LinuxLibc::Musl),
+        let definition = scoop_target_data::definition(target)
+            .ok_or_else(|| ToolchainError("unknown Linux target".into()))?;
+        let libc = match definition.native_environment {
+            NativeEnvironment::LinuxGnu => LinuxLibc::Gnu,
+            NativeEnvironment::LinuxMusl => LinuxLibc::Musl,
             _ => {
                 return Err(ToolchainError(
                     "Linux toolchain requires a Linux target".into(),
                 ));
+            }
+        };
+        let machine = match definition.selection.target().architecture() {
+            TargetArchitecture::X86_64 => LinuxMachine::X86_64,
+            architecture => {
+                return Err(ToolchainError(format!(
+                    "no Linux machine toolchain for {architecture:?}"
+                )));
             }
         };
         Ok(Self { machine, libc })

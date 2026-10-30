@@ -6,50 +6,28 @@ use scoop_manifest::{
     ParsedConeManifest, SourceTarget,
 };
 
-pub const SOURCE_TARGETS: &[SourceTarget<'static>] = &[
+pub use scoop_target_data::SOURCE_CATALOG_KEY;
+
+const fn source_projection(target: scoop_target_data::TargetDefinition) -> SourceTarget<'static> {
     SourceTarget {
-        id: scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID,
-        triple: "x86_64-pc-windows-msvc-ucrt",
-        os: "windows",
-        arch: "x86_64",
-        env: "msvc-ucrt",
-    },
-    SourceTarget {
-        id: scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID,
-        triple: "x86_64-w64-windows-llvm-mingw-msvcrt",
-        os: "windows",
-        arch: "x86_64",
-        env: "llvm-mingw-msvcrt",
-    },
-    SourceTarget {
-        id: scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_ID,
-        triple: "x86_64-w64-windows-llvm-mingw-ucrt",
-        os: "windows",
-        arch: "x86_64",
-        env: "llvm-mingw-ucrt",
-    },
-    SourceTarget {
-        id: scoop_target_data::DARWIN_AARCH64_ID,
-        triple: "aarch64-apple-darwin",
-        os: "darwin",
-        arch: "aarch64",
-        env: "none",
-    },
-    SourceTarget {
-        id: scoop_target_data::LINUX_X86_64_GNU_ID,
-        triple: "x86_64-unknown-linux-gnu",
-        os: "linux",
-        arch: "x86_64",
-        env: "gnu",
-    },
-    SourceTarget {
-        id: scoop_target_data::LINUX_X86_64_MUSL_ID,
-        triple: "x86_64-unknown-linux-musl",
-        os: "linux",
-        arch: "x86_64",
-        env: "musl",
-    },
-];
+        id: target.selection.target().id(),
+        triple: target.canonical(),
+        os: target.os,
+        arch: target.arch,
+        env: target.env,
+    }
+}
+
+pub const SOURCE_TARGETS: &[SourceTarget<'static>] = &{
+    let catalog = scoop_target_data::TARGETS;
+    let mut targets = [source_projection(catalog[0]); scoop_target_data::TARGETS.len()];
+    let mut index = 0;
+    while index < catalog.len() {
+        targets[index] = source_projection(catalog[index]);
+        index += 1;
+    }
+    targets
+};
 
 pub fn parse_cone_manifest(source: &str) -> Result<ParsedConeManifest, ManifestParseError> {
     scoop_manifest::parse_cone_manifest(source, SOURCE_TARGETS)

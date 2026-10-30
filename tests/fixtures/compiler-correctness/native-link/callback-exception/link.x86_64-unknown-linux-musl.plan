@@ -1,3 +1,0 @@
-link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
-native library m23_callbacks requirement=1a73cc48bc2c686254ed001f59cf5a933885496426cbf77c5540daf626ec8b9d input=$NATIVE_INPUT_0 origins=dev.programlink:callback-provider:0.1.0
-native object $NATIVE_INPUT_0 slice=0..1992

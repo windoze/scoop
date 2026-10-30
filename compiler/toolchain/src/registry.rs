@@ -140,63 +140,25 @@ impl ResolvedTargetProfile {
 }
 
 pub fn host_target_triple() -> Result<&'static str, ToolchainError> {
-    match (std::env::consts::ARCH, std::env::consts::OS) {
-        ("aarch64", "macos") => Ok("aarch64-apple-darwin"),
-        ("x86_64", "linux") if cfg!(target_env = "musl") => Ok("x86_64-unknown-linux-musl"),
-        ("x86_64", "linux") => Ok("x86_64-unknown-linux-gnu"),
-        ("x86_64", "windows") => Ok("x86_64-pc-windows-msvc-ucrt"),
-        (arch, os) => Err(ToolchainError(format!(
-            "unsupported host {arch}-{os}; supported hosts are macOS/AArch64, Linux/amd64 and Windows/amd64"
-        ))),
-    }
+    let os = std::env::consts::OS;
+    let arch = std::env::consts::ARCH;
+    let environment = if cfg!(target_env = "musl") {
+        "musl"
+    } else {
+        ""
+    };
+    scoop_target_data::host(os, arch, environment)
+        .map(|host| host.default_target)
+        .ok_or_else(|| ToolchainError(format!("unsupported host {arch}-{os}-{environment}")))
 }
 
 pub fn select_target(triple: &str) -> Result<ValidatedLirTargetSelection, ToolchainError> {
-    match triple {
-        "x86_64-unknown-linux-gnu" | "x86_64-linux-gnu" => {
-            return Ok(scoop_target_data::LINUX_X86_64_GNU_LLVM_22_1);
-        }
-        "x86_64-unknown-linux-musl" | "x86_64-linux-musl" => {
-            return Ok(scoop_target_data::LINUX_X86_64_MUSL_LLVM_22_1);
-        }
-        "x86_64-pc-windows-msvc-ucrt" => {
-            return Ok(scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_LLVM_22_1);
-        }
-        "x86_64-w64-windows-llvm-mingw-msvcrt" => {
-            return Ok(scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_LLVM_22_1);
-        }
-        "x86_64-w64-windows-llvm-mingw-ucrt" => {
-            return Ok(scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_LLVM_22_1);
-        }
-        _ => {}
-    }
-    let mut components = triple.split('-');
-    let arch = components.next().unwrap_or_default();
-    let vendor = components.next().unwrap_or_default();
-    let os = components.next().unwrap_or_default();
-    let has_extra_identity = components.any(|component| !component.is_empty());
-    let supported_os = versioned_component(os, "darwin") || versioned_component(os, "macosx");
-    if matches!(arch, "aarch64" | "arm64")
-        && vendor == "apple"
-        && supported_os
-        && !has_extra_identity
-    {
-        Ok(scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
-    } else {
-        Err(ToolchainError(format!(
-            "unsupported target {triple:?}; use a registered macOS/AArch64, Linux/amd64 or complete Windows/amd64 target"
-        )))
-    }
-}
-
-fn versioned_component(component: &str, prefix: &str) -> bool {
-    let Some(suffix) = component.strip_prefix(prefix) else {
-        return false;
-    };
-    suffix.is_empty()
-        || suffix.starts_with(|character: char| character.is_ascii_digit())
-        || suffix.strip_prefix('.').is_some_and(|version| {
-            version.starts_with(|character: char| character.is_ascii_digit())
+    scoop_target_data::named_target(triple)
+        .map(|target| target.selection)
+        .ok_or_else(|| {
+            ToolchainError(format!(
+                "unsupported target {triple:?}; use a registered complete target"
+            ))
         })
 }
 
@@ -267,7 +229,7 @@ mod tests {
     fn unsupported_targets_are_rejected() {
         for triple in [
             "arm64e-apple-darwin",
-            "x86_64-apple-darwin",
+            "x86_64h-apple-darwin",
             "aarch64-unknown-linux-gnu",
             "aarch64-apple-ios",
             "x86_64-pc-windows-msvc",

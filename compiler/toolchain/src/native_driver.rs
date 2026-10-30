@@ -3,8 +3,45 @@ use crate::{ToolchainError, ValidatedCBridgeToolchainInvocation};
 use scoop_protocol::HostPathCarrier;
 use std::path::{Path, PathBuf};
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub(crate) enum NativeCompilerFamily {
+    Gcc,
+    Clang,
+    Msvc,
+}
+
+impl NativeCompilerFamily {
+    pub(crate) fn from_gnu_macros(macros: &str) -> Result<Self, ToolchainError> {
+        if macros
+            .lines()
+            .any(|line| line.starts_with("#define __clang__ "))
+        {
+            Ok(Self::Clang)
+        } else if macros
+            .lines()
+            .any(|line| line.starts_with("#define __GNUC__ "))
+        {
+            Ok(Self::Gcc)
+        } else {
+            Err(ToolchainError(
+                "GNU-style native driver must be GCC or Clang".into(),
+            ))
+        }
+    }
+}
+
+pub(crate) fn macro_number(macros: &str, name: &str) -> Result<u32, ToolchainError> {
+    let prefix = format!("#define {name} ");
+    macros
+        .lines()
+        .find_map(|line| line.strip_prefix(&prefix))
+        .and_then(|value| value.parse().ok())
+        .ok_or_else(|| ToolchainError(format!("native compiler did not define numeric {name}")))
+}
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) enum NativeDriverKind {
+    /// GNU command-line syntax, used by both GCC and Clang.
     #[default]
     Gnu,
     ClangCl,
@@ -23,6 +60,7 @@ pub(crate) struct NativeDriverDiscovery {
     pub(crate) configuration: [u8; 32],
     #[serde(default)]
     pub(crate) kind: NativeDriverKind,
+    pub(crate) family: NativeCompilerFamily,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -33,6 +71,7 @@ pub(crate) struct NativeDriver {
     fingerprint: scoop_wire::Digest256,
     inputs: Vec<crate::NativeInputMetadata>,
     kind: NativeDriverKind,
+    family: NativeCompilerFamily,
 }
 
 impl NativeDriver {
@@ -48,6 +87,7 @@ impl NativeDriver {
             fingerprint: crate::build_record::fingerprint(&(&record.result, &record.inputs))?,
             inputs: record.inputs,
             kind: record.result.kind,
+            family: record.result.family,
         })
     }
     pub(crate) fn path(&self) -> &Path {
@@ -62,6 +102,9 @@ impl NativeDriver {
     pub(crate) fn kind(&self) -> NativeDriverKind {
         self.kind
     }
+    pub(crate) fn family(&self) -> NativeCompilerFamily {
+        self.family
+    }
     pub(crate) fn command(
         &self,
         c: &ValidatedCBridgeToolchainInvocation,
@@ -70,7 +113,7 @@ impl NativeDriver {
         if crate::windows_native::is_windows(c) {
             crate::windows_native::command(c, &self.path, self.kind, language, false)
         } else {
-            c.driver_command_with(&self.path)
+            c.driver_command_for(&self.path, self.family)
         }
     }
 }

@@ -2,7 +2,6 @@ schema = 1
 name = "generic-shapes-constructors-local-base"
 inputs = ["../../imported-classes/support/stage3_test.scoop", "generic-constructor-provider", "../../generic-constructor-consumption/provider.scoop", "generic-constructor-local-base", "../../generic-constructor-consumption/local-base.scoop", "generic-constructor-downstream-local-base", "../../generic-constructor-consumption/downstream.scoop", "runtime-fixture", "../../imported-classes/support/gc.c", "../../generic-constructor-consumption/provider-base.scoop"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generic-shapes", "constructors", "language"]
 
 [[steps]]

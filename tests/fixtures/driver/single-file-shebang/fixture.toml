@@ -3,7 +3,7 @@ name = "single-file-shebang"
 root = "script.scoop"
 inputs = ["script.scoop", "invalid.scoop", "cone/Cone.toml", "cone/src/main.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["driver", "single-file", "shebang"]
 
 [[steps]]

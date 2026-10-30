@@ -16,6 +16,8 @@ import tomllib
 from collections import Counter
 from pathlib import Path
 
+from scripts.target_catalog import TARGETS, WINDOWS_TARGETS, current_host
+
 from .cores import (
     prepare_class_core,
     prepare_inheritance_core,
@@ -25,20 +27,7 @@ from .cores import (
 from .discovery import discover
 from .model import ConfigurationError, EnvironmentError
 from .suite import run_suite
-
-WINDOWS_TARGETS = [
-    "x86_64-pc-windows-msvc-ucrt",
-    "x86_64-w64-windows-llvm-mingw-msvcrt",
-    "x86_64-w64-windows-llvm-mingw-ucrt",
-]
-TARGET_PROFILES = {
-    "aarch64-apple-darwin": "darwin-aarch64",
-    "x86_64-unknown-linux-gnu": "linux-x86-64-gnu",
-    "x86_64-unknown-linux-musl": "linux-x86-64-musl",
-    WINDOWS_TARGETS[0]: "windows-x86-64-msvc-ucrt",
-    WINDOWS_TARGETS[1]: "windows-x86-64-llvm-mingw-msvcrt",
-    WINDOWS_TARGETS[2]: "windows-x86-64-llvm-mingw-ucrt",
-}
+from .targets import applicable as target_applicable
 
 
 def arguments(argv):
@@ -47,6 +36,9 @@ def arguments(argv):
     parser.add_argument("--suite", type=Path, help="development discovery root")
     parser.add_argument("--filter", action="append", default=[], help="name/tag glob")
     parser.add_argument("--list", action="store_true")
+    parser.add_argument(
+        "--compile-only", action="store_true", help="skip fixtures requiring target execution"
+    )
     parser.add_argument("--update-snapshots", action="store_true")
     parser.add_argument("--work-dir", type=Path)
     parser.add_argument("--cache-dir", type=Path, help="shared Cone cache, independent of work-dir")
@@ -63,7 +55,7 @@ def arguments(argv):
     parser.add_argument("--terminal-host", type=Path, help="prebuilt native PTY test host")
     parser.add_argument(
         "--target",
-        choices=list(TARGET_PROFILES),
+        choices=list(TARGETS),
     )
     parser.add_argument("--cc", type=Path, help="native companion compiler for the selected target")
     parser.add_argument("--ar", type=Path, help="native companion archiver")
@@ -83,27 +75,63 @@ def arguments(argv):
     return args
 
 
-def tool_output(argv):
-    result = subprocess.run(argv, capture_output=True, check=False)
+def tool_output(argv, *, input=None):
+    result = subprocess.run(argv, input=input, capture_output=True, check=False)
     if result.returncode:
         raise EnvironmentError(f"tool discovery {argv!r} failed: {result.stderr!r}")
     return result.stdout.decode().strip()
 
 
-def host_targets():
-    return {
-        ("Darwin", "arm64"): ["aarch64-apple-darwin"],
-        ("Linux", "x86_64"): ["x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"],
-        ("Windows", "AMD64"): WINDOWS_TARGETS,
-        ("Windows", "x86_64"): WINDOWS_TARGETS,
-    }.get((platform.system(), platform.machine()), [])
+def selected_target(args):
+    if args.target:
+        return args.target
+    host = current_host(platform.system(), platform.machine())
+    if host:
+        return host["default_target"]
+    raise EnvironmentError("unknown fixture host; select the compilation target with --target")
+
+
+def can_execute(target):
+    host = current_host(platform.system(), platform.machine())
+    if host is None:
+        return False
+    default = TARGETS[host["default_target"]]
+    selected = TARGETS[target]
+    if all(selected[key] == default[key] for key in ("os", "arch")):
+        return True
+    if (default["os"], default["arch"], selected["os"], selected["arch"]) == (
+        "darwin",
+        "aarch64",
+        "darwin",
+        "x86_64",
+    ):
+        try:
+            return (
+                subprocess.run(
+                    ["/usr/bin/arch", "-x86_64", "/usr/bin/true"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    check=False,
+                ).returncode
+                == 0
+            )
+        except OSError:
+            return False
+    return False
 
 
 def environment(repo, work, fixtures, args):
-    host = (platform.system(), platform.machine())
-    supported = host_targets()
-    target = args.target or (supported[0] if supported else None)
-    if target not in supported:
+    target = selected_target(args)
+    applicable = [
+        fixture
+        for fixture in fixtures
+        if target_applicable(fixture.data, target)
+        and not (args.compile_only and fixture.data.get("requires_target_execution", True))
+    ]
+    if any(f.data.get("requires_target_execution", True) for f in applicable) and not can_execute(
+        target
+    ):
+        host = (platform.system(), platform.machine())
         raise EnvironmentError(f"target {target!r} cannot execute on fixture host {host}")
     if os.name == "nt":
         import ctypes
@@ -129,9 +157,10 @@ def environment(repo, work, fixtures, args):
         "inheritance_core": str(work / "inheritance-core"),
         "member_defaults_core": str(work / "member-defaults-core"),
         "target": target,
-        "llvm_target": target,
-        "target_profile": TARGET_PROFILES[target],
-        "symbol_prefix": "_" if target == "aarch64-apple-darwin" else "",
+        "target_facts": {key: TARGETS[target][key] for key in ("os", "arch", "env")},
+        "llvm_target": TARGETS[target]["llvm_triple"],
+        "target_profile": TARGETS[target]["profile"],
+        "symbol_prefix": "_" if TARGETS[target]["os"] == "darwin" else "",
         "errno_eloop": errno.ELOOP,
         "file_not_found_error": f"{missing_file} (os error 2)",
         "directory_write_error": f"{output_directory} (os error {directory_error})",
@@ -139,12 +168,12 @@ def environment(repo, work, fixtures, args):
         "compile_args": ["--target", target],
         "cc_args": [],
     }
-    if target != "aarch64-apple-darwin" and args.cc:
+    if args.cc:
         common["compile_args"] += ["--cc", str(args.cc.resolve())]
     if args.native_sysroot:
         common["compile_args"] += ["--native-sysroot", str(args.native_sysroot.resolve())]
     common["link_args"] = list(common["compile_args"])
-    if target != "aarch64-apple-darwin":
+    if TARGETS[target]["os"] != "darwin":
         unwind = (
             args.unwind_prefix.resolve()
             if args.unwind_prefix
@@ -153,15 +182,6 @@ def environment(repo, work, fixtures, args):
         common["link_args"] += ["--unwind-prefix", str(unwind)]
     if args.linker:
         common["link_args"] += ["--linker", str(args.linker.resolve())]
-    if target in WINDOWS_TARGETS:
-        common["llvm_target"] = (
-            "x86_64-pc-windows-msvc" if target == WINDOWS_TARGETS[0] else "x86_64-w64-windows-gnu"
-        )
-    applicable = [
-        fixture
-        for fixture in fixtures
-        if not fixture.data.get("targets") or target in fixture.data["targets"]
-    ]
     needed = set().union(*(set(fixture.data.get("tools", ["scoop"])) for fixture in applicable))
     for name in ("scoop", "scoopc", "scoop-link", "scoop-lsp", "scoop-pm", "terminal-host"):
         configured = getattr(args, name.replace("-", "_")) or os.environ.get(
@@ -205,7 +225,7 @@ def environment(repo, work, fixtures, args):
         if not re.search(r"\bversion 22\.1(?:\.|\b)", tool_output([located, "--version"])):
             raise EnvironmentError(f"IR companions require LLVM 22.1: {located}")
         common["llc"] = located
-    if needed & {"cc", "ar"} and target == "aarch64-apple-darwin":
+    if needed & {"cc", "ar"} and TARGETS[target]["os"] == "darwin":
         common.update(
             cc=str(args.cc.resolve())
             if args.cc
@@ -213,8 +233,10 @@ def environment(repo, work, fixtures, args):
             ar=str(args.ar.resolve())
             if args.ar
             else tool_output(["/usr/bin/xcrun", "--find", "ar"]),
-            sdk=tool_output(["/usr/bin/xcrun", "--sdk", "macosx", "--show-sdk-path"]),
-            deployment=darwin_deployment(repo),
+            sdk=str(args.native_sysroot.resolve())
+            if args.native_sysroot
+            else tool_output(["/usr/bin/xcrun", "--sdk", "macosx", "--show-sdk-path"]),
+            deployment=darwin_deployment(repo, target),
         )
         common["cc_args"] = [
             "-target",
@@ -238,10 +260,18 @@ def environment(repo, work, fixtures, args):
                 if located is None:
                     raise EnvironmentError(f"required {target} tool is missing: {program}")
                 common[name] = located
-    if "llc" in needed and target == "aarch64-apple-darwin":
+        if "cc" in needed:
+            macros = tool_output([common["cc"], "-dM", "-E", "-x", "c", "-"], input=b"")
+            if "#define __clang__ " in macros:
+                common["cc_args"].append("--target=" + TARGETS[target]["llvm_triple"])
+            if args.native_sysroot:
+                common["cc_args"].append("--sysroot=" + str(args.native_sysroot.resolve()))
+    if "llc" in needed and TARGETS[target]["os"] == "darwin":
         if "deployment" not in common:
-            common["deployment"] = darwin_deployment(repo)
-        common["llvm_target"] = "aarch64-apple-macosx" + common["deployment"]
+            common["deployment"] = darwin_deployment(repo, target)
+        common["llvm_target"] = (
+            TARGETS[target]["llvm_triple"].replace("-darwin", "-macosx") + common["deployment"]
+        )
     if any("${test_core}" in json.dumps(fixture.data) for fixture in applicable):
         prepare_test_core(repo, work, sysroot)
     if any("${class_core}" in json.dumps(fixture.data) for fixture in applicable):
@@ -254,12 +284,12 @@ def environment(repo, work, fixtures, args):
     return common
 
 
-def darwin_deployment(repo):
+def darwin_deployment(repo, target):
     configured = os.environ.get("MACOSX_DEPLOYMENT_TARGET")
     if configured is not None:
         return configured
     release = tomllib.loads((repo / "scripts/release.toml").read_text(encoding="utf-8"))
-    return release["targets"]["aarch64-apple-darwin"]["minimum_os"]
+    return release["targets"][target]["minimum_os"]
 
 
 def main(argv=None):
@@ -267,8 +297,7 @@ def main(argv=None):
     repo = Path(__file__).resolve().parents[2]
     suite = (args.suite or repo / "tests/fixtures").resolve()
     try:
-        supported = host_targets()
-        target = args.target or (supported[0] if supported else None)
+        target = selected_target(args)
         fixtures = discover(suite, args.update_snapshots, target)
         selected = [
             fixture
@@ -303,11 +332,14 @@ def main(argv=None):
         f"fixtures: {len(selected)} selected / {len(fixtures)} discovered; work: {work}",
         flush=True,
     )
-    results = run_suite(selected, common, work, args.update_snapshots, args.jobs)
+    results = run_suite(
+        selected, common, work, args.update_snapshots, args.jobs, compile_only=args.compile_only
+    )
     counts = Counter(result.status for result in results)
     report = {
         "schema": 1,
-        "complete": args.all,
+        "complete": args.all and not args.compile_only,
+        "compile_only": args.compile_only,
         "discovered": len(fixtures),
         "selected": len(selected),
         "unselected": len(fixtures) - len(selected),
@@ -323,7 +355,9 @@ def main(argv=None):
     print(
         f"{dict(counts)}; variants={report['variants']}, processes={report['processes']}, goldens={report['stage_and_plan_goldens']}"
     )
-    failed = any(result.status not in {"passed", "inapplicable"} for result in results)
+    failed = any(
+        result.status not in {"passed", "inapplicable", "execution-skipped"} for result in results
+    )
     if failed or args.keep or args.work_dir:
         print(f"report and work retained: {work}")
     else:

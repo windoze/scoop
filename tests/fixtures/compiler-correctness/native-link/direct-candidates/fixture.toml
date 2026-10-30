@@ -2,7 +2,7 @@ schema = 1
 name = "native-link-direct-candidates"
 inputs = ["cone", "../../../language/native-link/direct/root.scoop", "../../../language/native-link/direct/native.c", "native-sources/different.c"]
 tools = ["scoop", "scoopc", "cc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["native-link", "program-link", "compiler-correctness"]
 [[steps]]
 name = "prepare"

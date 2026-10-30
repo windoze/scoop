@@ -37,8 +37,7 @@ pub(super) fn compile(
     let objects = match &request.request.native_inputs {
         NativeInputOrigin::Objects(objects) => objects.as_slice(),
         NativeInputOrigin::Source { sysroot } => {
-            let public_include =
-                scoop_toolchain::configured_sysroot_root(sysroot.clone())?.join("include");
+            let sysroot = scoop_toolchain::configured_sysroot_root(sysroot.clone())?;
             directory = tempfile::Builder::new()
                 .prefix("native-")
                 .tempdir_in(temporary_parent)
@@ -47,7 +46,7 @@ pub(super) fn compile(
                 manifest,
                 target,
                 request.optimization(),
-                &public_include,
+                &sysroot,
                 directory.path(),
                 request.purpose(),
             )?;

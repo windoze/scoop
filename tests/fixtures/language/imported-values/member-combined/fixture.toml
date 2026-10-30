@@ -2,7 +2,7 @@ schema = 1
 name = "imported-member-combined"
 inputs = ["../../imported-classes/support/stage3_test.scoop", "../../imported-members/provider.scoop", "member-provider", "../../imported-members/combined.scoop", "members-combined", "../../imported-members/downstream.scoop", "downstream-combined", "../../imported-members/runtime.ll", "../support/member-main.scoop", "value-runtime-member-combined"]
 tools = ["scoop", "scoopc", "llc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["imported-values", "member", "language"]
 
 [vars]

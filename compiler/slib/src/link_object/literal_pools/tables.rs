@@ -1,8 +1,8 @@
 use std::{collections::BTreeSet, num::NonZeroU32, ops::Range};
 
 use crate::link_object::{
-    BuiltinObjectSectionRoleV1, DarwinArm64RelocationShapeV1, DarwinArm64RelocationTargetV1,
-    ObjectRelocationShapeV1, ObjectSymbolKindV1, ValidatedBuiltinObjectSectionInventoryV1,
+    BuiltinObjectSectionRoleV1, MachORelocationShapeV1, ObjectRelocationShapeV1,
+    ObjectRelocationTargetV1, ObjectSymbolKindV1, ValidatedBuiltinObjectSectionInventoryV1,
 };
 
 pub(super) fn ranges(
@@ -18,7 +18,7 @@ pub(super) fn ranges(
     let Some(section_end) = section.virtual_address().checked_add(section.byte_size()) else {
         return Vec::new();
     };
-    let referenced = envelope
+    let starts = envelope
         .relocations()
         .iter()
         .filter_map(|relocation| {
@@ -27,32 +27,48 @@ pub(super) fn ranges(
             {
                 return None;
             }
-            match relocation.shape() {
-                ObjectRelocationShapeV1::DarwinArm64(
-                    DarwinArm64RelocationShapeV1::Page21 {
-                        target: DarwinArm64RelocationTargetV1::SymbolTableIndex(index),
+            let (symbol_index, addend) = match relocation.shape() {
+                ObjectRelocationShapeV1::MachO(
+                    MachORelocationShapeV1::Page21 {
+                        target: ObjectRelocationTargetV1::SymbolTableIndex(index),
                         ..
                     }
-                    | DarwinArm64RelocationShapeV1::PageOffset12 {
-                        target: DarwinArm64RelocationTargetV1::SymbolTableIndex(index),
+                    | MachORelocationShapeV1::PageOffset12 {
+                        target: ObjectRelocationTargetV1::SymbolTableIndex(index),
                         ..
                     },
-                ) => Some(index),
-                _ => None,
-            }
+                ) => (index, 0),
+                ObjectRelocationShapeV1::MachO(MachORelocationShapeV1::X86_64PcRelative32 {
+                    kind,
+                    target,
+                }) => match target {
+                    ObjectRelocationTargetV1::SectionOrdinal(target) if target == ordinal => {
+                        let source = &envelope.sections()
+                            [relocation.containing_section_ordinal().get() as usize - 1];
+                        return kind.section_target_address(
+                            relocation.encoded_value(),
+                            source.virtual_address().checked_add(relocation.offset())?,
+                        );
+                    }
+                    ObjectRelocationTargetV1::SymbolTableIndex(index) => (
+                        index,
+                        i128::from(relocation.encoded_value() as i32)
+                            + i128::from(kind.trailing_bytes()),
+                    ),
+                    _ => return None,
+                },
+                _ => return None,
+            };
+            let symbol = envelope.symbols().get(symbol_index as usize)?;
+            (symbol.kind() == ObjectSymbolKindV1::LocalSectionDefinition
+                && symbol.section_ordinal() == Some(ordinal))
+            .then(|| u64::try_from(i128::from(symbol.value()) + addend).ok())
+            .flatten()
         })
-        .collect::<BTreeSet<_>>();
-    let starts = envelope
-        .symbols()
-        .iter()
-        .filter(|symbol| {
-            referenced.contains(&symbol.table_index())
-                && symbol.kind() == ObjectSymbolKindV1::LocalSectionDefinition
-                && symbol.section_ordinal() == Some(ordinal)
-                && (section.virtual_address()..section_end).contains(&symbol.value())
-                && !atoms.iter().any(|atom| atom.contains(&symbol.value()))
+        .filter(|address| {
+            (section.virtual_address()..section_end).contains(address)
+                && !atoms.iter().any(|atom| atom.contains(address))
         })
-        .map(|symbol| symbol.value())
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect::<Vec<_>>();

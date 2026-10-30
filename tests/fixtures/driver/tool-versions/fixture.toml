@@ -2,7 +2,6 @@ schema = 1
 name = "tool-versions"
 inputs = ["check.py"]
 tools = ["scoop", "scoopc", "scoop-link", "scoop-lsp", "scoop-pm", "python"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["cli", "version", "driver"]
 
 [[steps]]

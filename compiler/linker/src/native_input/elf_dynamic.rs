@@ -2,7 +2,7 @@
 use std::collections::BTreeMap;
 
 use object::read::elf::{Dyn, ElfFile64, ProgramHeader};
-use object::{Architecture, Object, ObjectKind, ObjectSection, ObjectSymbol, SectionFlags, elf};
+use object::{Object, ObjectKind, ObjectSection, ObjectSymbol, SectionFlags, elf};
 
 use crate::{LinkError, NativeSymbolDefinition, NativeSymbolKind, error};
 
@@ -52,19 +52,16 @@ pub(crate) struct ElfDynamic {
 impl ElfDynamic {
     pub fn read(bytes: &[u8], target: scoop_lir::TargetProfileId) -> Result<Self, LinkError> {
         let file: ElfFile64<'_> = ElfFile64::parse(bytes).map_err(error)?;
-        let architecture = match target {
-            scoop_target_data::LINUX_X86_64_GNU_ID | scoop_target_data::LINUX_X86_64_MUSL_ID => {
-                Architecture::X86_64
-            }
-            _ => {
-                return Err(error("ELF DSO requires an ELF target"));
-            }
-        };
+        let architecture = scoop_slib::ElfArchitecture::for_target(target)
+            .map_err(error)?
+            .object_architecture();
         if file.architecture() != architecture
             || !file.is_little_endian()
             || file.kind() != ObjectKind::Dynamic
         {
-            return Err(error("native shared library must be an ELF64 amd64 DSO"));
+            return Err(error(
+                "native shared library must be an ELF64 DSO for the selected target",
+            ));
         }
         let mut has_dynamic = false;
         for segment in file.elf_program_headers() {

@@ -2918,7 +2918,9 @@ manifest Cone 可在 `[native]` 中配置 `include`、`c_flags`、`cxx_flags`、
 
 native 预处理除编译器的目标宏外，还定义当前 target 对应的 `SCOOP_TARGET_OS_DARWIN`／`SCOOP_TARGET_OS_LINUX`／`SCOOP_TARGET_OS_WINDOWS`、`SCOOP_TARGET_ARCH_AARCH64`／`SCOOP_TARGET_ARCH_X86_64` 及 `SCOOP_TARGET_ENV_NONE`／`SCOOP_TARGET_ENV_GNU`／`SCOOP_TARGET_ENV_MUSL`／`SCOOP_TARGET_ENV_MSVC_UCRT`／`SCOOP_TARGET_ENV_LLVM_MINGW_MSVCRT`／`SCOOP_TARGET_ENV_LLVM_MINGW_UCRT`；每组只定义匹配项，值为 `1`。
 
-`native.include` 的每个元素可为路径字符串，或 `{ path = "...", when = { ... } }` 表；表中的 `path` 必需，`when` 使用 12.2.2 的现有目标条件，省略时无条件。全部条目先检查字段、路径和条件，选中条目按声明顺序交给所选 C/C++ 编译器。字符串等价于只有 `path` 的表；路径仍按普通文件系统规则解析，不作变量展开。这样多个目标可分别使用匹配的生成配置头文件。
+`native.include` 的每个元素可为路径字符串、`{ path = "...", when = { ... } }` 或 `{ sysroot = "...", when = { ... } }` 表。表必须且只能提供 `path`、`sysroot` 之一；字符串等价于只有 `path` 的表。`path` 支持普通绝对路径或相对 Cone 根的路径；`sysroot` 必须是非空相对路径，以本次所选 Scoop sysroot 的 `lib/<canonical-target>/` 为基准，例如 `{ sysroot = "openssl/include" }`。这里的 sysroot 不是 `--native-sysroot` 指定的操作系统 SDK。路径保留分量供实际文件系统解析，不作变量展开，不增加来源或符号链接审计。
+
+`when` 使用 12.2.2 的现有目标条件，省略时无条件。全部条目先检查字段、路径和条件，选中条目按声明顺序供 C／C++／Objective-C 预处理和 Windows RC 的预处理及资源搜索使用，显式目录先于隐式系统目录。只有 RC、没有 native 源码时同样适用。库只取得自己声明的 backend include，不自动注入其他目标资源目录；没有相关编译步骤时不探测这些目录。
 
 include 搜索目录允许不存在，直接交给所选 C/C++ 编译器按搜索顺序处理；这不影响实际源码、被引用头文件及显式 forced include 缺失时的正常诊断。未选中的 include 不参与当前目标的搜索和 native 对象更新判断。
 
@@ -2939,7 +2941,7 @@ cxx_flags = ["-std=c++20"]
 - C++ 编译使用所选 target 的配套 C++ driver，例如 GNU 工具链的 `g++` 或 Darwin Apple Clang 的 `clang++`。缺少可用的 C++ 编译器或运行库时报错，不能使用其他 target 或宿主机的工具链代替。不要求 C/C++ driver 的完整版本号或目标名称字符串相等；兼容性由实际目标输入、编译和链接操作确定。
 - C++ 链接需求写入 `.slib`，并沿最终程序的完整依赖闭包传递。即使 root Cone 自己没有 C++ 源码或未开启 `cxx`，只要闭包需要 C++，最终链接就必须使用配套的 C++ driver 与 C++ 运行库配置；`cxx = false` 不能取消依赖的要求。
 - **当前不支持 C++ 与 musl target 的组合**，包括 musl 的静态和动态链接模式。当前 Scoop musl 工具链没有配套的 C++ 标准库与 C++ ABI 运行库；musl 提供 libc 本身，不包含这些库。这是当前工具链集成范围的限制，不是 musl 原理上不能支持 C++。musl 下当前 Cone 开启 `cxx`，或依赖闭包要求 C++，都必须给出明确的不支持诊断。
-- C++ 环境包括 Darwin/AArch64、Linux/amd64 GNU，以及 Windows 三个完整 target 对应的 MSVC STL 或 LLVM-MinGW libc++；Windows 实施状态见实现规范。Scoop 与 C++ 之间通过现有 C ABI 和 `extern "C"` 包装函数互操作；C++ 异常必须在 native 一侧处理，不能穿越 Scoop 的 FFI 边界。工具链、产物与链接细则见实现规范 2.7～2.8，异常边界见运行时规范 5.5。
+- C++ 环境包括 Darwin/AArch64 与 amd64、Linux/amd64 GNU，以及 Windows 三个完整 target 对应的 MSVC STL 或 LLVM-MinGW libc++；Windows 实施状态见实现规范。Scoop 与 C++ 之间通过现有 C ABI 和 `extern "C"` 包装函数互操作；C++ 异常必须在 native 一侧处理，不能穿越 Scoop 的 FFI 边界。工具链、产物与链接细则见实现规范 2.7～2.8，异常边界见运行时规范 5.5。
 - single-file 模式不读取 `[native]`，不启用该配置。
 
 Darwin 选中的 `.m` 使用同一目标的 Apple Clang，以 Objective-C、C11 和 ARC 编译；`objc_flags` 只作用于这些 translation unit，可覆盖 C 标准而不能覆盖输入语言、ARC 或 Objective-C runtime ABI。无需开启 `cxx`，也不隐式引入 C++ 运行库。`.c`、generated-C bridge 和 runtime 仍按 C 编译；C／C++ flags 不传给 Objective-C。非 Darwin 选中 `.m` 明确诊断，条件未选中的 `.m` 不检查存在性或启动 Objective-C 工具；`.mm` 不在支持范围。AppKit、Foundation 等 framework 通过 12.2.3 的普通 native libraries 声明，native 层使用 C ABI 包装并在返回 Scoop 前处理 Objective-C 异常。此能力不增加 Scoop 的 Objective-C 语法或 runtime 调度 ABI。

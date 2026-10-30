@@ -2,7 +2,6 @@ schema = 1
 name = "iteration-binding-arity"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../iteration/provider.scoop", "binding-arity", "../../../iteration/binding-arity.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "imported_iteration_rejections_have_source_diagnostics", "negative", "language"]
 
 [[steps]]

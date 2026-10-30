@@ -2,7 +2,6 @@ schema = 1
 name = "executable-sites-callables-uninstantiated"
 inputs = ["../../imported-classes/support/stage3_test.scoop", "../../executable-dependency-callables/provider.scoop", "provider", "../../executable-dependency-callables/facade.scoop", "facade", "../../executable-dependency-callables/uninstantiated.scoop", "consumer", "program"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["executable-sites", "callables", "language"]
 [[steps]]
 name = "core"

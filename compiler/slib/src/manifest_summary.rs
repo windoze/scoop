@@ -183,15 +183,8 @@ mod tests {
         let mut summary =
             read_artifact_manifest_summary(&bytes, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
                 .unwrap();
-        for target in [
-            scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
-            scoop_target_data::LINUX_X86_64_GNU_LLVM_22_1,
-            scoop_target_data::LINUX_X86_64_MUSL_LLVM_22_1,
-            scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_LLVM_22_1,
-            scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_LLVM_22_1,
-            scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_LLVM_22_1,
-        ] {
-            summary.target_selection = target;
+        for target in scoop_target_data::TARGETS {
+            summary.target_selection = target.selection;
             let encoded = scoop_wire::encode(&summary).unwrap();
             let decoded: ArtifactManifestSummaryV1 =
                 scoop_wire::decode_canonical(&encoded).unwrap();

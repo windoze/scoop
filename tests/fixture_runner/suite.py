@@ -5,9 +5,10 @@ from threading import Event
 
 from .execute import execute
 from .model import Result
+from .targets import applicable
 
 
-def run_suite(fixtures, common, work, update, jobs):
+def run_suite(fixtures, common, work, update, jobs, *, compile_only=False):
     results = [None] * len(fixtures)
     interrupted = Event()
 
@@ -20,11 +21,19 @@ def run_suite(fixtures, common, work, update, jobs):
     with ThreadPoolExecutor(max_workers=jobs) as pool:
         pending = {}
         for index, fixture in enumerate(fixtures):
-            if fixture.data.get("targets") and common["target"] not in fixture.data["targets"]:
+            if not applicable(fixture.data, common.get("target")):
                 record(
                     index,
                     Result(
                         fixture.name, "inapplicable", 0, message="target is not declared applicable"
+                    ),
+                )
+                continue
+            if compile_only and fixture.data.get("requires_target_execution", True):
+                record(
+                    index,
+                    Result(
+                        fixture.name, "execution-skipped", 0, message="requires target execution"
                     ),
                 )
                 continue

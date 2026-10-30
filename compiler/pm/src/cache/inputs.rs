@@ -53,6 +53,7 @@ impl PackageCache {
             stamp,
             extra,
             scoop_toolchain::VERSION,
+            scoop_toolchain::SOURCE_CATALOG_KEY,
         ))
         .map_err(|error| PmError::new(error.to_string()))?;
         Ok(self

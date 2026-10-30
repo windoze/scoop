@@ -2,7 +2,6 @@ schema = 1
 name = "generic-member-consumption-ambiguous-overload"
 inputs = ["../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../generic-member-consumption/provider.scoop", "ambiguous-overload", "../../generic-member-consumption/ambiguous-overload.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "imported_generic_members_enforce_source_rules", "negative", "language"]
 
 [[steps]]

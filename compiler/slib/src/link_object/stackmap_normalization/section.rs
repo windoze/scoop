@@ -10,7 +10,7 @@ use super::{
     LlvmStackmapSectionParseError, ParsedLlvmStackmapFunctionV3, parse_llvm_stackmap_section_v3,
 };
 use crate::link_object::{
-    BuiltinObjectSectionRoleV1, DarwinArm64RelocationShapeV1, DarwinArm64RelocationTargetV1,
+    BuiltinObjectSectionRoleV1, MachORelocationShapeV1, ObjectRelocationTargetV1,
     ObjectSymbolKindV1, ValidatedBuiltinObjectSectionInventoryV1,
 };
 
@@ -121,8 +121,8 @@ pub fn read_object_stackmap_section_v3(
                 target_symbol,
                 width: 8,
             } => target_symbol,
-            ObjectRelocationShapeV1::DarwinArm64(DarwinArm64RelocationShapeV1::Unsigned64 {
-                target: DarwinArm64RelocationTargetV1::SymbolTableIndex(target),
+            ObjectRelocationShapeV1::MachO(MachORelocationShapeV1::Unsigned64 {
+                target: ObjectRelocationTargetV1::SymbolTableIndex(target),
             }) => target,
             ObjectRelocationShapeV1::ElfX86_64Rela {
                 kind: object::elf::R_X86_64_64,

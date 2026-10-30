@@ -56,6 +56,12 @@ pub(in super::super) fn change_associated_atom(
             let stack_size = u64::from_le_bytes(bytes[start + 24..start + 32].try_into().unwrap());
             bytes[start + 24..start + 32]
                 .copy_from_slice(&stack_size.checked_add(16).unwrap().to_le_bytes());
+        } else if role == DefinitionAtomRole::WindowsUnwindTable {
+            // COFF .pdata contains only relocated RVAs. Change the function-begin
+            // addend while preserving the relocation records.
+            let start = usize::try_from(file_start + range.start).unwrap();
+            let begin = u32::from_le_bytes(bytes[start..start + 4].try_into().unwrap());
+            bytes[start..start + 4].copy_from_slice(&begin.checked_add(1).unwrap().to_le_bytes());
         } else {
             let offset = range
                 .rev()

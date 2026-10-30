@@ -8,9 +8,14 @@ use scoop_process::CommandExt;
 use scoop_wire::{Digest256, sha256};
 
 use crate::ToolchainError;
-use crate::native_driver::{NativeDriver, NativeDriverDiscovery as Discovery, NativeDriverKind};
+use crate::native_driver::{
+    NativeCompilerFamily, NativeDriver, NativeDriverDiscovery as Discovery, NativeDriverKind,
+};
 
 mod discovery;
+
+#[cfg(all(test, target_os = "linux", target_arch = "x86_64"))]
+mod tests;
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ValidatedCxxToolchain {
@@ -37,7 +42,7 @@ impl ValidatedCxxToolchain {
             &crate::native_record::ResolvedRecord::from_target(target)?,
         )?;
         let record = crate::build_record::cached(
-            &cache.join("cxx-tools-v3"),
+            &cache.join("cxx-tools-v4"),
             key,
             |_| Ok(true),
             || Self::probe(target.c_bridge_toolchain(), target.native_cxx_driver()),
@@ -55,7 +60,7 @@ impl ValidatedCxxToolchain {
         c: &ValidatedCBridgeToolchainInvocation,
         selected: Option<&Path>,
     ) -> Result<crate::build_record::Record<Discovery>, ToolchainError> {
-        if c.profile().contract().target().id() == scoop_target_data::LINUX_X86_64_MUSL_ID {
+        if c.native_environment() == scoop_target_data::NativeEnvironment::LinuxMusl {
             return Err(error("native.cxx = true is not supported for Linux musl"));
         }
         if crate::windows_native::is_windows(c) {
@@ -85,9 +90,16 @@ impl ValidatedCxxToolchain {
                 &mut inputs,
             );
         }
-        discovery::inputs(c, &driver, &mut inputs)?;
+        let compiler_macros = run(c
+            .driver_command_for(&driver, NativeCompilerFamily::Gcc)
+            .args(["-dM", "-E", "-x", "c++", "-"])
+            .stdin(Stdio::null()))?;
+        let family = NativeCompilerFamily::from_gnu_macros(
+            std::str::from_utf8(&compiler_macros.stdout).map_err(error)?,
+        )?;
+        discovery::inputs(c, &driver, family, &mut inputs)?;
         let headers = run(c
-            .driver_command_with(&driver)
+            .driver_command_for(&driver, family)
             .args([
                 "-v",
                 "-M",
@@ -110,7 +122,7 @@ impl ValidatedCxxToolchain {
         inputs.extend(header_paths);
         inputs.insert(driver.clone());
         let macros = run(c
-            .driver_command_with(&driver)
+            .driver_command_for(&driver, family)
             .args(["-dM", "-E", "-x", "c++", "-include", "string", "-"])
             .stdin(Stdio::null()))?;
         Ok(crate::build_record::Record {
@@ -122,6 +134,7 @@ impl ValidatedCxxToolchain {
                 driver: scoop_protocol::HostPathCarrier::from_path(&driver).map_err(error)?,
                 configuration: *sha256(&macros.stdout).as_array(),
                 kind: NativeDriverKind::Gnu,
+                family,
             },
         })
     }
@@ -136,6 +149,10 @@ impl ValidatedCxxToolchain {
 
     pub(crate) fn input_metadata(&self) -> &[crate::NativeInputMetadata] {
         self.native.inputs()
+    }
+
+    pub(crate) fn family(&self) -> NativeCompilerFamily {
+        self.native.family()
     }
 
     pub fn driver(&self) -> &Path {

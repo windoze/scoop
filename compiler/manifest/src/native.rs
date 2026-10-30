@@ -2,7 +2,7 @@
 
 use crate::ConditionalSourcePath;
 use scoop_identity::TargetProfileId;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 mod flags;
 mod include;
@@ -11,6 +11,7 @@ mod libraries;
 mod parse;
 
 pub use flags::{NativeCompileFlag, NativeIncludeFlag};
+pub use include::NativeIncludePath;
 pub use language::NativeSourceLanguage;
 pub use libraries::NativeLibrary;
 pub(crate) use parse::RawNativeConfig;
@@ -31,11 +32,21 @@ impl NativeConfig {
         &self.sources
     }
 
-    pub fn include_paths(&self, target: TargetProfileId) -> impl Iterator<Item = &PathBuf> {
+    pub fn includes(&self, target: TargetProfileId) -> impl Iterator<Item = &NativeIncludePath> {
         self.include
             .iter()
             .filter(move |entry| entry.predicate.matches(target))
             .map(|entry| &entry.path)
+    }
+
+    pub fn include_paths<'a>(
+        &'a self,
+        target: TargetProfileId,
+        cone_root: &'a Path,
+        target_root: &'a Path,
+    ) -> impl Iterator<Item = PathBuf> + 'a {
+        self.includes(target)
+            .map(|entry| entry.resolve(cone_root, target_root))
     }
 
     pub fn c_flags(&self) -> &[NativeCompileFlag] {

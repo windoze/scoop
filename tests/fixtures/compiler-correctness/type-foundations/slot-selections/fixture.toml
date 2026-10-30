@@ -2,7 +2,7 @@ schema = 1
 name = "type-foundations-slot-selections"
 inputs = ["../../../language/imported-classes/support/stage3_test.scoop", "slot-selections", "../../../language/shared-type-foundations/slot-selections.scoop", "type-foundation-slot-selections-consumer"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["type-foundations", "slot-selections", "compiler-correctness"]
 [[steps]]
 name = "core"

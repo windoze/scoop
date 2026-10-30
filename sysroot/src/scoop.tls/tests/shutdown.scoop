@@ -5,9 +5,37 @@ import scoop.platform.io.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.net.*
 import scoop.test.*
+import scoop.tls.native.*
 
 @Test
 private class TlsShutdownTests {
+    @Test
+    fun `shutdown processes buffered ciphertext before requesting more input`() {
+        for (version in [TlsVersion.Tls12, TlsVersion.Tls13]) {
+            val options = TlsOptions(version, version)
+            clientContext(options).use { clientConfig -> serverContext(options).use { serverConfig ->
+                TlsEngine.client(clientConfig, TlsPeerName.Dns("localhost")).use { client ->
+                    TlsEngine.server(serverConfig).use { server ->
+                        handshake(client, server)
+                        NativeByteBuffer.allocate(64L).use { data ->
+                            data.writeBytes("unread".toByteArray())
+                            @Unsafe {
+                                val borrow = data.borrowReadable(6L)
+                                var consumed = 0L
+                                try { consumed = client.write(borrow).count }
+                                finally { borrow.complete(consumed) }
+                                assertEquals(6L, consumed)
+                            }
+                            while (client.pendingOutput > 0L) transfer(client, server, data)
+                        }
+                        val failure = assertFailsWith<TlsException> { server.shutdown() }
+                        assertTrue(failure.kind == TlsFailureKind.UnconsumedData)
+                    }
+                }
+            } }
+        }
+    }
+
     @Test
     fun `graceful shutdown rejects buffered and unread application data`() {
         rejectUnconsumed(true)

@@ -12,6 +12,7 @@ impl ValidatedCBridgeToolchainInvocation {
                 &self.compiler_driver,
                 sdk_root,
                 self.profile.contract().canonical_triple(),
+                scoop_target_data::darwin_c_bridge_flags(self.target),
                 minimum_os.to_string(),
                 self.environment(),
                 self.optimization,
@@ -77,6 +78,7 @@ fn canonical_object_compilation_command(
     compiler: &Path,
     sdk_root: &Path,
     canonical_triple: &str,
+    flags: CanonicalCBridgeFlagContractV1,
     minimum_os: String,
     environment: CBridgeEnvironmentProjectionV1,
     optimization: scoop_lir::OptimizationMode,
@@ -89,7 +91,7 @@ fn canonical_object_compilation_command(
         .env("LC_ALL", environment.locale())
         .env("LANG", environment.locale())
         .env("TZ", environment.timezone());
-    for flag in CanonicalCBridgeFlagContractV1::CURRENT.flags() {
+    for flag in flags.flags() {
         match flag {
             CanonicalCBridgeFlagV1::ExplicitCanonicalTarget => {
                 command.args(["-target", canonical_triple]);

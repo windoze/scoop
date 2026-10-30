@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_PACKAGE_PREPARE",
-    "message": "${work}/cone/Cone.toml: unknown target predicate \"os\" value \"windows\"",
+    "message": "${work}/cone/Cone.toml: unknown target predicate \"os\" value \"invalid\"",
     "notes": [],
     "origin": {
       "end": 62,

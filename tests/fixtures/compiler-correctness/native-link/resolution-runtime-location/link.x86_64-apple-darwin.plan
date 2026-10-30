@@ -1,0 +1,6 @@
+link inputs: startup, cone/member order, runtime/object order, libSystem
+native library m23_math requirement=88b2c952230b0f1e7f322ba4939562503aae3a7812d0a52cbf8388d41fb7e26f input=$NATIVE_INPUT_0 origins=dev.programlink:paths:0.1.0
+dynamic provider $NATIVE_PROVIDER_0 install="@rpath/libm23_math.dylib" imports=1
+  load "/usr/lib/libSystem.B.dylib" -> $NATIVE_PROVIDER_1
+dynamic binding _m23_add -> "@rpath/libm23_math.dylib" source="@rpath/libm23_math.dylib":_m23_add kind=Symbol weak=false
+rpath "$WORK/native"

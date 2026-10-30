@@ -197,8 +197,12 @@ fn only_unconditional_stable_queries_move_without_calls_or_synchronization() {
         let machine = ValidatedBackendProfile::darwin_aarch64_for_test()
             .create_target_machine()
             .unwrap();
-        crate::statepoint::bounded_loops::optimize(llvm.get_function("f").unwrap(), &machine)
-            .unwrap();
+        crate::statepoint::bounded_loops::optimize(
+            llvm.get_function("f").unwrap(),
+            &machine,
+            ValidatedBackendProfile::darwin_aarch64_for_test().tuning(),
+        )
+        .unwrap();
         llvm.verify().unwrap();
         assert_queries(llvm.get_function("f").unwrap(), outside);
     }
@@ -218,7 +222,7 @@ fn typed_array_queries_keep_the_existing_hoisting_boundaries() {
         let llvm = parse(&context, &source);
         let machine = ValidatedBackendProfile::darwin_aarch64_for_test().create_target_machine().unwrap();
         let function = llvm.get_function("f").unwrap();
-        crate::statepoint::bounded_loops::optimize(function, &machine).unwrap();
+        crate::statepoint::bounded_loops::optimize(function, &machine, ValidatedBackendProfile::darwin_aarch64_for_test().tuning()).unwrap();
         llvm.verify().unwrap();
         let queries = function.get_basic_blocks().into_iter()
             .flat_map(|block| block.get_instructions()).filter(|instruction| crate::gc_regions::is_array_query(*instruction))

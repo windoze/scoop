@@ -37,7 +37,8 @@ fn source(result: &PreparedWorkspaceV1, name: &str) -> std::path::PathBuf {
 
 #[test]
 fn metadata_requires_a_current_lock_and_reuses_the_prepared_model_without_writing_it() {
-    let directory = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
+    let directory =
+        tempfile::tempdir_in(dunce::canonicalize(std::env::temp_dir()).unwrap()).unwrap();
     let root = directory.path();
     core(root);
     app(
@@ -108,12 +109,7 @@ fn offline_metadata_does_not_checkout_available_git_objects() {
     fs::create_dir_all(db.parent().unwrap()).unwrap();
     git::git(
         root,
-        &[
-            "clone",
-            "--mirror",
-            repo.to_str().unwrap(),
-            db.to_str().unwrap(),
-        ],
+        &["clone", "--mirror", url.as_str(), db.to_str().unwrap()],
     );
     let checkout = db.parent().unwrap().join("checkouts").join(&commit);
     prepare::failure(
@@ -211,7 +207,8 @@ fn offline_metadata_does_not_extract_cached_registry_archives() {
     let online = success(pm(&empty, &app, &["metadata", "--json"]));
     let online: PreparedWorkspaceV1 = serde_json::from_str(&online).unwrap();
     online.validate().unwrap();
-    assert!(source(&online, "lib").starts_with(empty.join("cache")));
+    let cache = PackageCache::resolve(root, Some(&empty.join("cache"))).unwrap();
+    assert!(source(&online, "lib").starts_with(cache.root()));
     assert_eq!(server.count("/archives/lib-1.0.0.tar.zst"), 2);
     assert_eq!(fs::read(app.join("Cone.lock")).unwrap(), before);
 }

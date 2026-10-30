@@ -2,7 +2,7 @@ schema = 1
 name = "program-link-sdk-native"
 inputs = ["cone", "../../../language/program-link/native-root.scoop", "native-library", "../../../language/program-link/native-library.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["program-link", "native-link", "sdk", "multi-cone", "driver"]
 [[steps]]
 name = "prepare"

@@ -2,7 +2,7 @@ schema = 1
 name = "native-link-cabi-archive"
 inputs = ["cabi-provider", "../../../language/native-link/cabi/provider.scoop", "cabi-facade", "../../../language/native-link/cabi/facade.scoop", "cabi-root", "../../../language/native-link/cabi/root.scoop", "../../../language/native-link/cabi/native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["native-link", "program-link", "compiler-correctness"]
 variants = [{"name" = "normal"}]
 

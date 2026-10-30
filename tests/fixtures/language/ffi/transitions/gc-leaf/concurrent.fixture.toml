@@ -3,7 +3,7 @@ name = "gc-leaf-concurrent"
 root = "concurrent.scoop"
 inputs = ["concurrent.scoop", "native.c", "../../../callback/native.c", "../../../callback/threading.h"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["ffi", "gc-leaf", "language"]
 variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
 [[steps]]

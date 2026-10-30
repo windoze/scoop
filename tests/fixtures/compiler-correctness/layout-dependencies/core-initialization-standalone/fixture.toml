@@ -2,7 +2,7 @@ schema = 1
 name = "layout-dependencies-core-initialization-standalone"
 inputs = ["../../../language/imported-classes/support/stage3_test.scoop", "../../../language/core-layout-exports/property-initialization-provider.scoop", "../../../language/property-initialization/standalone.scoop", "consumer", "downstream"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["layout-dependencies", "core", "compiler-correctness"]
 [[steps]]
 name = "prepare_core"

@@ -10,8 +10,9 @@ import tomllib
 from pathlib import Path
 
 from build_support import RELEASE_CONFIG, ROOT, metadata, reusable, save_record, source_metadata
+from target_catalog import TARGETS as CATALOG
 
-TARGETS = ("x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl")
+TARGETS = tuple(name for name, target in CATALOG.items() if target["os"] == "linux")
 PATCH = ROOT / "sysroot/vendor/llvm-project/22.1.8/patches/llvm-libunwind-eh-index-miss.patch"
 
 
@@ -69,7 +70,7 @@ def main():
     cc, cxx = shutil.which(args.cc), shutil.which(args.cxx)
     if not cc or not cxx:
         parser.error("--cc and --cxx must name installed Clang compilers")
-    musl = args.target.endswith("-musl")
+    musl = CATALOG[args.target]["env"] == "musl"
     if musl and (args.musl_include is None or not (args.musl_include / "features.h").is_file()):
         parser.error("musl requires --musl-include pointing to its installed C headers")
     if not musl and args.musl_include is not None:

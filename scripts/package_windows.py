@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 
 from build_llvm import TOOLS
-from build_windows_unwind import TARGETS
+from target_catalog import native_configuration
 
 
 def arguments(parser):
@@ -24,9 +24,9 @@ def arguments(parser):
 
 
 def mingw_prefix(args, target):
-    if target == TARGETS[1]:
+    if native_configuration(target)["native_environment"] == "LlvmMingwMsvcrt":
         return args.mingw_msvcrt
-    if target == TARGETS[2]:
+    if native_configuration(target)["native_environment"] == "LlvmMingwUcrt":
         return args.mingw_ucrt
     return None
 

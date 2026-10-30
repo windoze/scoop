@@ -2,7 +2,7 @@ schema = 1
 name = "native-link-runtime-gc"
 inputs = ["gc", "../../../language/native-link/runtime/gc.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["native-link", "program-link", "moving-gc", "gc-correctness"]
 [[variants]]
 name = "normal"

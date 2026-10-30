@@ -2,7 +2,6 @@ schema = 1
 name = "source-callable-references-overloads"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../source-callable-references/provider.scoop", "generic-member-overloads", "../../../source-callable-references/overloads.scoop", "generic-member-downstream-overloads", "../../../source-callable-references/downstream.scoop", "runtime-fixture", "../../../imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "source_callable_references_republish_and_execute_from_artifacts", "language"]
 
 [[steps]]

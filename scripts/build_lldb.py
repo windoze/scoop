@@ -10,8 +10,19 @@ import sys
 import tomllib
 from pathlib import Path
 
-from build_llvm import HOSTS, VERSION
-from build_support import RELEASE_CONFIG, ROOT, metadata, reusable, save_record, source_metadata
+from build_llvm import VERSION
+from build_support import (
+    RELEASE_CONFIG,
+    ROOT,
+    apple_architecture,
+    cpu_flag,
+    metadata,
+    reusable,
+    save_record,
+    source_metadata,
+    source_patch_environment,
+)
+from target_catalog import current_host, host_definition
 
 PATCH = ROOT / "scripts/patches/lldb-scoop-source-names.patch"
 SOURCE_PARTS = (
@@ -93,10 +104,8 @@ def configure(source, build, prefix, llvm, python, host, release, cc, cxx):
         "LLDB_ENABLE_LIBXML2": "OFF",
         "LLDB_BUILD_FRAMEWORK": "OFF",
         "LLDB_SKIP_DSYM": "ON",
-        "CMAKE_C_FLAGS": "-mcpu=generic" if host.endswith("darwin") else "-march=" + target["cpu"],
-        "CMAKE_CXX_FLAGS": "-mcpu=generic"
-        if host.endswith("darwin")
-        else "-march=" + target["cpu"],
+        "CMAKE_C_FLAGS": cpu_flag(host_definition(host)["arch"], target["cpu"]),
+        "CMAKE_CXX_FLAGS": cpu_flag(host_definition(host)["arch"], target["cpu"]),
     }
     if windows:
         options.update(
@@ -118,7 +127,7 @@ def configure(source, build, prefix, llvm, python, host, release, cc, cxx):
         )
     if host.endswith("darwin"):
         options["CMAKE_OSX_DEPLOYMENT_TARGET"] = target["minimum_os"]
-        options["CMAKE_OSX_ARCHITECTURES"] = "arm64"
+        options["CMAKE_OSX_ARCHITECTURES"] = apple_architecture(host_definition(host)["arch"])
         options["LLDB_CODESIGN_IDENTITY"] = "-"
     return [
         "cmake",
@@ -143,7 +152,8 @@ def main():
     parser.add_argument("--cxx", default="c++")
     parser.add_argument("--jobs", type=int, default=min(os.cpu_count() or 1, 6))
     args = parser.parse_args()
-    host = HOSTS.get((platform.system(), platform.machine()))
+    host_config = current_host(platform.system(), platform.machine())
+    host = host_config["rust_target"] if host_config else None
     if host is None or args.jobs < 1:
         parser.error("a supported host and positive --jobs are required")
     source, llvm, build, prefix = (
@@ -183,6 +193,7 @@ def main():
         ],
         "sdk": source_metadata(llvm, ("include/llvm", "include/clang", "lib/cmake")),
         "host": host,
+        "host_architecture": host_definition(host)["arch"],
         "prefix": str(prefix),
     }
     record = build / "inputs.json"
@@ -198,7 +209,12 @@ def main():
             "the build's copied source must remain inside --build-dir and separate from --source"
         )
     copy_sources(source, copied)
-    subprocess.run(["git", "apply", "--no-index", str(PATCH)], cwd=copied, check=True)
+    subprocess.run(
+        ["git", "apply", "--no-index", str(PATCH)],
+        cwd=copied,
+        env=source_patch_environment(copied),
+        check=True,
+    )
     release = tomllib.loads(RELEASE_CONFIG.read_text())
     configuration = configure(copied, build, prefix, llvm, python, host, release, cc, cxx)
     configuration.append(f"-DCMAKE_MAKE_PROGRAM={Path(ninja).as_posix()}")
@@ -220,6 +236,19 @@ def main():
         ],
         check=True,
     )
+    if host.endswith("darwin"):
+        # CMake adjusts the installed rpath after signing the build-tree helper.
+        subprocess.run(
+            [
+                "codesign",
+                "--force",
+                "--sign",
+                "-",
+                "--preserve-metadata=entitlements",
+                str(prefix / "bin/debugserver"),
+            ],
+            check=True,
+        )
     save_record(record, inputs, build / "objects")
     print(f"Installed LLDB {VERSION}: {prefix}")
 

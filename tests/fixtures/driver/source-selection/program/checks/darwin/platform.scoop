@@ -1,2 +1,2 @@
 package dev.m43
-fun platform(): String = "aarch64-apple-darwin"
+fun platform(): String = "darwin-none"

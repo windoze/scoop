@@ -22,7 +22,7 @@ c_flags = ["-DM33_OFFSET=40", "-g", "-Wall", "-Wextra", "-Werror"]
 path = "native/common.c"
 [[native.sources]]
 path = "native/darwin.c"
-when = {os = "darwin", arch = "aarch64"}
+when = {os = "darwin"}
 [[native.sources]]
 path = "native/gnu.c"
 when = {env = "gnu"}

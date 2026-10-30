@@ -6,7 +6,7 @@ pub(super) fn materialize(
     target: LirTargetProfile,
     atoms: &[&DefinitionSymbolPlanV1],
 ) -> Result<Vec<u8>, CodegenError> {
-    let layout = MachOLayout::parse(&bytes)?;
+    let layout = MachOLayout::parse(&bytes, target)?;
     let normalization = target.contract().native_symbol_normalization();
     let mut additions = Vec::with_capacity(atoms.len() * 2);
     for definition in atoms {

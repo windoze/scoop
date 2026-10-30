@@ -68,8 +68,12 @@ fn an_inner_cycle_early_exit_or_conditional_root_write_cannot_bypass_the_bound()
         let llvm = parse(&context, &source);
         let profile = ValidatedBackendProfile::darwin_aarch64_for_test();
         let machine = profile.create_target_machine().unwrap();
-        crate::statepoint::bounded_loops::optimize(llvm.get_function("f").unwrap(), &machine)
-            .unwrap();
+        crate::statepoint::bounded_loops::optimize(
+            llvm.get_function("f").unwrap(),
+            &machine,
+            ValidatedBackendProfile::darwin_aarch64_for_test().tuning(),
+        )
+        .unwrap();
         llvm.verify().unwrap();
         assert!(
             !llvm

@@ -4,9 +4,15 @@ use super::*;
 fn mixed_c_and_cxx_keep_independent_flags_and_track_header_changes() {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path();
+    let (c_standard, cxx_standard, warnings) = if cfg!(windows) {
+        ("/std:c11", "/std:c++20", "/W4")
+    } else {
+        ("-std=c11", "-std=c++20", "-Wall")
+    };
     std::fs::write(
         root.join("Cone.toml"),
-        r#"schema = 1
+        format!(
+            r#"schema = 1
 [cone]
 group = "test"
 name = "native-cxx"
@@ -14,13 +20,14 @@ version = "1.0.0"
 kind = "library"
 [native]
 cxx = true
-c_flags = ["-DC_ONLY=1", "-std=c11"]
-cxx_flags = ["-DCXX_ONLY=1", "-std=c++20", "-Wall", "-Wextra", "-Werror"]
+c_flags = ["-DC_ONLY=1", "{c_standard}"]
+cxx_flags = ["-DCXX_ONLY=1", "{cxx_standard}", "{warnings}", "-Wextra", "-Werror"]
 [[native.sources]]
 path = "native.c"
 [[native.sources]]
 path = "native.cpp"
-"#,
+"#
+        ),
     )
     .unwrap();
     std::fs::write(
@@ -63,7 +70,7 @@ extern "C" int answer(void) {
         .prepare(
             &manifest,
             OptimizationMode::Debug,
-            &crate::development_runtime_root().join("include"),
+            &crate::development_runtime_root(),
         )
         .unwrap();
     assert_eq!(prepared.units().len(), 2);
@@ -124,11 +131,8 @@ extern "C" int answer(void) {
         .prepare(
             &manifest,
             OptimizationMode::Debug,
-            &crate::development_runtime_root().join("include"),
+            &crate::development_runtime_root(),
         )
         .unwrap();
-    assert_ne!(
-        scoop_wire::encode(&prepared).unwrap(),
-        scoop_wire::encode(&changed).unwrap()
-    );
+    assert_ne!(prepared.units().to_vec(), changed.units().to_vec());
 }

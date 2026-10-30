@@ -2,7 +2,7 @@ schema = 1
 name = "program-link-failed-dependency-order"
 inputs = ["a-bad", "../../../language/program-link/eager-bad-provider.scoop", "b-later", "../../../language/program-link/eager-later-provider.scoop", "root", "../../../language/program-link/eager-later-root.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["program-link", "multi-cone", "driver"]
 variants = [{"name" = "release"}]
 

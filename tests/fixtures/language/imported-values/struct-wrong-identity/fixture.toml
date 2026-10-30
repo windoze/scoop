@@ -2,7 +2,6 @@ schema = 1
 name = "imported-struct-wrong-identity"
 inputs = ["../../imported-classes/support/stage3_test.scoop", "../../imported-struct-values/provider.scoop", "struct-provider", "../../imported-struct-values/wrong-identity.scoop", "wrong-identity"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["imported-values", "struct", "negative", "language"]
 
 [[steps]]

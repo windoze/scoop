@@ -1,5 +1,7 @@
 # 开发 sysroot 与发行准备
 
+维护脚本与 fixture runner 共用 [`compiler/target-data/targets.toml`](../compiler/target-data/targets.toml) 的目标和宿主事实；目录读取不运行编译器。第三方配置名仍由各自 recipe 按机器／native 环境选择，实际使用的配置进入普通更新记录。
+
 这些脚本供维护仓库和制作发行包时手动运行，不属于 `scoop` 命令，也不由 driver、常规测试或 CI 自动调用。Python 脚本要求 Python 3.11 或更新版本；OpenSSL 解包使用 Python 3.12 或更新版本。
 
 发行配置集中在 `release.toml`。当前 Darwin 基线为 macOS 27.0.1／SDK 27.0，Linux 构建环境为 Ubuntu 26.04.1、glibc 2.43／musl 1.2.5；只在相应环境完成验证后声明支持，不推定更老系统可用。LLVM 固定 22.1.8，CPU 使用 AArch64 generic／x86-64。工具构建时写入默认 Darwin 最低版本，普通命令的 `MACOSX_DEPLOYMENT_TARGET` 覆盖贯通 Scoop 对象、C bridge、native、runtime 与最终链接；预编译 runtime 的最低版本仍必须兼容。OpenSSL 准备使用同一设置。
@@ -72,6 +74,8 @@ PCRE2 的三个 Windows target 在 Windows 构建，使用原生 Ninja；Microso
 
 开发 sysroot 准备完成后，设置 `SCOOP_SYSROOT="$PWD/sysroot"`，再运行相关的正式 CLI fixture 和库测试。Cargo 输出目录中的命令也遵守显式参数、环境变量、执行文件所属安装根的选择顺序，不再回退到编译时仓库。普通 build／run／test 和两个 link 命令默认使用目标 runtime 索引；`--runtime-root` 只用于明确需要源码构建的开发请求。准备 sysroot 不要求构建发行 LLVM、压缩归档或运行全套测试。
 
+维护脚本共用 `compiler/target-data/targets.toml` 的目标与宿主事实。CMake 的 Apple 架构名及 C/C++ CPU 参数从所选架构产生，Darwin 不隐含 arm64；OpenSSL Configure 和 Rust 标准库仍选择各自实际需要的 recipe／Rust target。宿主工具默认目标与发行包携带的目标资源分别配置，fixture 的执行能力也不从发行组合推导。
+
 ## 单一入口构建完整安装包
 
 开发与发行 sysroot 均准备 `runtime`、`runtime-stress`、`runtime-startup-stats`、`runtime-stress-startup-stats` 四组目标 runtime，每组包含 `index.cbor`。默认构建使用 `runtime`，不编入 GC stress 或启动统计支持；`scoop --enable-gc-stress build/run/test/link` 选择 stress 配置，随后由 `SCOOP_GC_STRESS_MOVE` / `SCOOP_GC_STRESS_MINOR` 决定运行时是否开启。`--enable-startup-stats` 独立选择启动统计配置，编入后每次启动直接向 stderr 输出记录；未传时预处理完全排除计时和报告代码。两个开关可以组合，独立 `scoop-link` 同样支持。普通 fixtures 不传这些开关，相关专测显式选择。旧 schema 6 runtime 索引需要重新准备，`.slib` 和 runtime ABI 不变。
@@ -100,7 +104,7 @@ musl 的 C 开发环境也需要 Linux UAPI 头。Debian／Ubuntu 的 `musl-gcc`
 
 LLVM 源码与归档优先复用 vendor 的固定版本位置；缺失时在工作目录的 `inputs` 下下载官方固定版本归档并解包。也可传入已有的 `--llvm-source` 和 `--llvm-archive`，显式路径不存在时直接报错。已经准备的匹配版本宿主 LLVM 可通过 `--llvm-prefix` 复用；省略时脚本在自己的工作目录构建。`--version` 和 `--revision` 可显式设置发行标识，默认采用配置版本与当前 Git revision，存在未提交修改时标注 `+modified`。这些参数也写入安装根的 `VERSION`。
 
-工具包 `scoop-<version>-<host>.tar.xz` 内直接是安装根内容，可直接解压到 `~/.scoop`，不需要 `--strip-components`。Darwin 包包含 Darwin/AArch64 目标，Linux/GNU amd64 包同时包含 GNU／musl 两套目标；每套均包含全部生产 Cone 的 release `.slib`、native 静态库／头文件和两种 runtime。LLVM 源码包单独保留有版本名称的顶层目录。
+工具包 `scoop-<version>-<host>.tar.xz` 内直接是安装根内容，可直接解压到 `~/.scoop`，不需要 `--strip-components`。Darwin/AArch64 宿主包包含 AArch64／x86_64 两个 Darwin 目标，Darwin/x86_64 宿主包包含 x86_64 目标，Linux/GNU amd64 包同时包含 GNU／musl 两套目标；每套均包含全部生产 Cone 的 release `.slib`、native 静态库／头文件和四种 runtime 配置。LLVM 源码包单独保留有版本名称的顶层目录。
 
 ```text
 ~/.scoop/
@@ -150,6 +154,7 @@ Windows 的宿主 DLL 分别放在实际使用它们的 `bin`、外部命令目�
 
 `package_toolchain.py` 在 LLVM／Clang SDK 后调用 `build_lldb.py`，固定 LLVM 22.1.8，
 启用 Python，构建 lldb、lldb-dap、lldb-argdumper 和 debugserver／lldb-server。
+Darwin 开发安装在 CMake 调整加载路径后重新签名 debugserver，并保留调试 entitlements。
 源码兼容修补保留 Scoop 的 DW_AT_name 与精确 linkage identity，将同源文件的独立编译单元全局量放回当前栈帧，并补齐 Linux/amd64 静态程序的原生 TLS 定位；修补文件也进入 llvm-sources 包。
 可用 `--debugger-prefix` 复用匹配的已构建调试器，`--debugger-python` 指定构建时所用 Python；
 只有 LLVM SDK 时仍正常构建 LLDB，要求 SDK 包含 Clang headers／CMake targets／clang-cpp、构建用 `llvm-tblgen` 以及 TableGen／Support／Demangle／Debuginfod 静态库；`build_llvm.py` 会安装这些资源。

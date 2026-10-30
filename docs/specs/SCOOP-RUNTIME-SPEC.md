@@ -416,7 +416,7 @@ nursery 容量和 collection threshold 是收集触发条件，不是堆空间�
 
 ### 3.2 Safepoint 与机器根
 
-平台实现按实际职责分开：managed frame、caller anchor、返回值 shim 与浮点环境控制属于 arch，线程栈／VM 属于 OS，加载映射与 metadata 属于 image。构建只组合已实现的组件，架构专用 flags 只由对应架构选择；此职责划分不改变 GC、异常、对象布局或公共 runtime ABI。
+平台实现按实际职责分开：managed frame 与 caller anchor 属于 frame，返回值 shim 与浮点环境控制属于 arch，线程栈／VM 属于 OS，加载映射与 metadata 属于 image。构建只组合已实现的组件，架构专用 flags 只由对应架构选择；此职责划分不改变 GC、异常、对象布局或公共 runtime ABI。
 
 ThreadVmOps 的读写映射按请求大小和对齐返回完整可用区间，调用者只整体释放该映射；大小为 page 的倍数，对齐为不小于 page 的二次幂。普通 region 保持 16 MiB 对齐，大对象保持 64 KiB 对齐。Darwin／Linux 可过量映射后裁掉两端；Windows 以 VirtualAlloc 保留足够的地址范围，只 commit 对齐后的可用区间，释放时由 AllocationBase 整体 MEM_RELEASE，不模拟部分释放，也不将对齐 padding 计入 managed committed bytes。Windows 栈范围使用系统当前线程 stack limits；保护页、空闲整页归还和 RSS 分别使用 VirtualProtect、DiscardVirtualMemory 与进程 working-set 统计。
 
@@ -448,7 +448,11 @@ native 实际调用不得 unwind 穿越边界。静态 FunPtr 的同步 NoGC 调
 
 core 的 Long／ULong hash、Boolean hash／equals 使用普通标量正文，执行固定次数的计算，无分配、阻塞或回调。当前 word hash 在 ULong 上依次 xor 右移 30 位、乘 `0xbf58476d1ce4e5b9`、xor 右移 27 位、乘 `0x94d049bb133111eb`、xor 右移 31 位，按原 64 位结果转换为 Long；Boolean hash 为 false→0、true→1，equals 保持逻辑相等。Boolean.toString 选择 provider 的 immortal 字符串，不新增托管 root 或对象。已有 C 后备符号及调用合同保留供实际外部引用使用，新 core 不再为这些操作声明 native wrapper；不将任意同名 extern 特化，也不改变公开方法签名。String hash／equals／字符计数会随输入增长，继续遵守各自 managed／native 边界，不能沿用这项有界标量选择。
 
-Darwin/AArch64 的 SP/FP DWARF register 分别为 31/29，stack size 为 16 的倍数。Linux/amd64 分别为 7/6；若 stackmap stack size 为 N，要求 `N % 16 == 8`。amd64 的入口 return PC 在 `[RSP]`，call-site SP 为 `RSP + 8`，FP 为 RBP；N 不包含 return address，`FP = SP + N - 8`，`[FP]` 保存前一 FP、`[FP+8]` 保存 return PC、前一 SP 为 `FP+16`。root slot 位于 `[SP, FP)`。这些目标保留 frame pointer，不使用 red zone 或破坏栈遍历的 tail call。
+机器 frame 恢复由 backend 明确选择 Darwin AArch64 固定帧、SysV AMD64 固定帧或 Windows SEH 实现；机器架构、对象格式和恢复方式是不同事实，不用其中一项猜测另一项。编译期 reader 使用选定 frame 合同验证 stackmap，运行时使用配套 anchor 与恢复实现；这项职责分离不改变现有机器帧、根槽或 runtime ABI。
+
+runtime 的 OS、loaded image、ISA 浮点环境和 frame／anchor 源码分别选择，继续由静态 `ScoopPlatformBundle` 连接现有接口。SysV AMD64 的固定帧恢复只依赖该 backend 的帧合同；anchor 汇编另外按 Mach-O／ELF 的符号与汇编指令选择。Windows SEH frame 恢复继续使用其独立实现。
+
+Darwin/AArch64 的 SP/FP DWARF register 分别为 31/29，stack size 为 16 的倍数。Darwin/amd64 与 Linux/amd64 分别为 7/6；若 stackmap stack size 为 N，要求 `N % 16 == 8`。amd64 的入口 return PC 在 `[RSP]`，call-site SP 为 `RSP + 8`，FP 为 RBP；N 不包含 return address，`FP = SP + N - 8`，`[FP]` 保存前一 FP、`[FP+8]` 保存 return PC、前一 SP 为 `FP+16`。root slot 位于 `[SP, FP)`。这些目标保留 frame pointer，不使用 red zone 或破坏栈遍历的 tail call。
 
 Windows/amd64 同样保留 RBP frame pointer、禁用 red zone 与破坏遍历的 tail call，但不使用上述 SysV frame 几何。anchor 在自身 prologue 前取得 managed caller 的 return PC、call-site RSP 与 RBP；Win64 shim 提供 shadow space、栈参数和 `.seh_*` 描述后调用私有 C 实现。当前 profile 的 unwind frame register 只使用 RBP，stackmap 根只允许 DWARF 7／6 的 8-byte indirect location，base 与 derived 为同一槽位；因此扫描上下文只需这三个值。reader 使用实际 RSP／RBP 加 signed displacement 取得根槽，检查其位于该 frame 的 stackmap 分配区间；向外遍历使用 `RtlLookupFunctionEntry`／`RtlVirtualUnwind` 恢复 caller 的这三个值，在已发布 native boundary 停止。其他非易失寄存器不作为根或 frame base，不为扫描另存完整 CPU context；该限制随目标机器 frame 合同维护。
 
@@ -918,7 +922,7 @@ JSON／CLI 浮点解析后备返回的 `Option<Float>`／`Option<Double>` 同样
 
 严格解码 helper 接受非零字节指针和非负 Long 长度，返回普通 `(String?, Long)`：成功为 `(Some(string), -1L)`，失败为 `(None, byteOffset)`。该 tuple 的 storage 为 16 bytes、alignment 8，Option<String> 使用 nullable managed pointer niche，字段 offsets 为 0/8；按完整 Scoop ABI 传递。core 的安全 Array 重载通过 3.4 的作用域借用调用同一 helper，pointer 重载在进入 helper 前检查负长度；不为这些函数增加编译器异常角色。lossy 复用有边界的单步校验器，先计算实际输出长度，再分配和转换，整个过程保持输入稳定。
 
-Option<Char> 的 storage 为 16 bytes、alignment 8，tag offset 0、Char offset 8；Option<(Long, Long)> 为 24 bytes、alignment 8，tag offset 0、Long offsets 8/16。实际 core 的 Some/None tag 为 0/1。前者按 GC-free 小值分类使用 DirectParts，后者仍间接返回：Darwin/AArch64 经 x8；Linux/amd64 经 RDI，并在 RAX 返回同一地址。这些 helper 使用普通 Scoop 调用发射，无专用 native shim。
+Option<Char> 的 storage 为 16 bytes、alignment 8，tag offset 0、Char offset 8；Option<(Long, Long)> 为 24 bytes、alignment 8，tag offset 0、Long offsets 8/16。实际 core 的 Some/None tag 为 0/1。前者按 GC-free 小值分类使用 DirectParts，后者仍间接返回：Darwin/AArch64 经 x8；Darwin/amd64 与 Linux/amd64 经 RDI，并在 RAX 返回同一地址。这些 helper 使用普通 Scoop 调用发射，无专用 native shim。
 
 数组后备使用显式目标 TD 分配和浅复制，保持新对象头、logical size 和 canonical padding。ZST 不复制 payload；不能从来源名称或布局猜测目标 exact type。源码 bounds check 与异常构造由 managed 代码承担，受检 helper 收到越界 index 属于内部 invariant error。
 

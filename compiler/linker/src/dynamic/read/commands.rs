@@ -1,4 +1,5 @@
 use super::*;
+use object::macho;
 
 pub(super) struct Commands<'a> {
     pub name: String,

@@ -2,7 +2,7 @@ schema = 1
 name = "program-link-rebuilt-core"
 inputs = ["cone", "../../../language/program-link/read-println.scoop", "string-prefix.scoop", "relocate.py", "../../../language/program-link/rebuilt-core-native.scoop", "ordinary-string", "../../../language/program-link/shadow-string-library.scoop", "root", "../../../language/program-link/rebuilt-core-root.scoop"]
 tools = ["scoop", "scoopc", "python"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["program-link", "core", "multi-cone", "driver"]
 [[steps]]
 name = "prepare"

@@ -3,7 +3,7 @@ name = "doc-cli-failure"
 root = "cone/Cone.toml"
 inputs = ["cone"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["documentation", "negative", "publication", "driver"]
 
 [[steps]]

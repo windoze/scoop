@@ -1,0 +1,62 @@
+--- a/llvm/lib/CodeGen/SelectionDAG/SelectionDAGBuilder.cpp
++++ b/llvm/lib/CodeGen/SelectionDAG/SelectionDAGBuilder.cpp
+@@ -6365,9 +6365,14 @@
+ 
+   if (Op->isReg())
+     NewMI = MakeVRegDbgValue(Op->getReg(), Expr, IsIndirect);
+-  else
+-    NewMI = BuildMI(MF, DL, TII->get(TargetOpcode::DBG_VALUE), true, *Op,
+-                    Variable, Expr);
++  else {
++    // A byval argument denotes the address of its stack copy. A dbg.value
++    // expression already accounts for any dereference of that address.
++    bool FrameIsIndirect =
++        Kind != FuncArgumentDbgValueKind::Value || !Arg->hasByValAttr();
++    NewMI = BuildMI(MF, DL, TII->get(TargetOpcode::DBG_VALUE), FrameIsIndirect,
++                    *Op, Variable, Expr);
++  }
+ 
+   // Otherwise, use ArgDbgValues.
+   FuncInfo.ArgDbgValues.push_back(NewMI);
+--- /dev/null
++++ b/llvm/test/DebugInfo/AArch64/byval-dbg-value-address.ll
+@@ -0,0 +1,39 @@
++; RUN: llc -mtriple=aarch64-apple-darwin -O0 -global-isel=false -fast-isel=false -filetype=obj %s -o %t
++; RUN: llvm-dwarfdump --name record %t | FileCheck %s
++;
++; A byval argument is the address of its stack copy, not a pointer stored in it.
++; CHECK: DW_TAG_formal_parameter
++; CHECK: DW_AT_location (DW_OP_fbreg +16)
++; CHECK: DW_AT_name ("record")
++
++%Record = type { i64, i64, i64 }
++
++declare void @use(ptr)
++
++define i64 @value(ptr byval(%Record) align 8 %record) #0 !dbg !5 {
++entry:
++  #dbg_value(ptr %record, !10, !DIExpression(DW_OP_deref), !11)
++  call void @use(ptr %record), !dbg !11
++  %field = getelementptr inbounds %Record, ptr %record, i64 0, i32 1, !dbg !11
++  %answer = load i64, ptr %field, align 8, !dbg !11
++  ret i64 %answer, !dbg !12
++}
++
++attributes #0 = { noinline nounwind optnone "frame-pointer"="all" }
++
++!llvm.dbg.cu = !{!0}
++!llvm.module.flags = !{!2, !3}
++!0 = distinct !DICompileUnit(language: DW_LANG_C, file: !1, producer: "test", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug)
++!1 = !DIFile(filename: "byval.c", directory: "/")
++!2 = !{i32 2, !"Dwarf Version", i32 4}
++!3 = !{i32 2, !"Debug Info Version", i32 3}
++!4 = !DISubroutineType(types: !6)
++!5 = distinct !DISubprogram(name: "value", scope: !1, file: !1, line: 1, type: !4, scopeLine: 1, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !9)
++!6 = !{!8, !7}
++!7 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "Record", file: !1, line: 1, size: 192, align: 64, elements: !13)
++!8 = !DIBasicType(name: "long", size: 64, encoding: DW_ATE_signed)
++!9 = !{!10}
++!10 = !DILocalVariable(name: "record", arg: 1, scope: !5, file: !1, line: 1, type: !7)
++!11 = !DILocation(line: 1, column: 3, scope: !5)
++!12 = !DILocation(line: 3, column: 3, scope: !5)
++!13 = !{}

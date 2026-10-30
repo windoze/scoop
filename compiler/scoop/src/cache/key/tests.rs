@@ -55,6 +55,7 @@ fn test_purpose_and_source_roles_are_independent_key_inputs() {
 fn input(source_modified: u64, compiler_input: &str) -> ConeCompileCacheInputV1 {
     let selection = scoop_target_data::DARWIN_AARCH64_LLVM_22_1;
     let c_bridge = scoop_target_data::darwin_c_bridge_profile(
+        scoop_target_data::DARWIN_AARCH64,
         DarwinCBridgeDeploymentContractV1::new(
             DarwinPackedVersionV1::new(0x000d_0100).unwrap(),
             DarwinPackedVersionV1::new(0x000e_0200).unwrap(),
@@ -109,6 +110,7 @@ fn input(source_modified: u64, compiler_input: &str) -> ConeCompileCacheInputV1 
 
 fn c_bridge_fingerprint(minimum: u32, sdk: u32, compiler: &str) -> CBridgeToolchainFingerprint {
     scoop_target_data::darwin_c_bridge_profile(
+        scoop_target_data::DARWIN_AARCH64,
         DarwinCBridgeDeploymentContractV1::new(
             DarwinPackedVersionV1::new(minimum).unwrap(),
             DarwinPackedVersionV1::new(sdk).unwrap(),
@@ -234,7 +236,7 @@ fn compile_cache_key_has_a_fixed_canonical_vector() {
     // The vector includes the directory-input cache domain, runtime ABI and machine protocol.
     assert_eq!(
         input.key().unwrap().to_string(),
-        "197ace3a3d3e204e34362180d5cef6ec18aa2611b0b3e90bce0d1742c2ac9b4f"
+        "55108d20e683c9d40393be5354a2cac59ada553e85ae8c4710aa8cfd9085e230"
     );
     assert_eq!(encode(&input).unwrap().first(), Some(&0xb0));
 }

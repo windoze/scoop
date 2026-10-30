@@ -138,21 +138,25 @@ pub(super) const WINDOWS_OS: &[&str] = &[
     "vendor/gdtoa/hexnan.c",
     "vendor/gdtoa/hd_init.c",
 ];
-pub(super) const AARCH64: &[&str] = &[
-    "runtime/src/platform/arch/aarch64.c",
-    "runtime/src/platform/arch/aarch64_anchor.S",
-    "runtime/src/platform/arch/aarch64_floating.S",
-    "runtime/src/platform/arch/aarch64_float_environment.c",
-];
+pub(super) const AARCH64: &[&str] = &["runtime/src/platform/arch/aarch64_float_environment.c"];
 pub(super) const X86_64: &[&str] = &[
-    "runtime/src/platform/arch/x86_64.c",
-    "runtime/src/platform/arch/x86_64_anchor.S",
     "runtime/src/platform/arch/x86_64_floating.c",
     "runtime/src/platform/arch/x86_64_float_environment.c",
 ];
-pub(super) const WINDOWS_X86_64: &[&str] = &[
-    "runtime/src/platform/arch/windows_x86_64.c",
-    "runtime/src/platform/arch/windows_x86_64_anchor.S",
-    "runtime/src/platform/arch/x86_64_floating.c",
-    "runtime/src/platform/arch/x86_64_float_environment.c",
+pub(super) const DARWIN_AARCH64_FRAME: &[&str] = &[
+    "runtime/src/platform/frame/darwin_aarch64.c",
+    "runtime/src/platform/frame/darwin_aarch64_macho.S",
+    "runtime/src/platform/arch/darwin_aarch64_floating.S",
+];
+pub(super) const SYSV_AMD64_ELF_FRAME: &[&str] = &[
+    "runtime/src/platform/frame/sysv_amd64.c",
+    "runtime/src/platform/frame/sysv_amd64_elf.S",
+];
+pub(super) const SYSV_AMD64_MACHO_FRAME: &[&str] = &[
+    "runtime/src/platform/frame/sysv_amd64.c",
+    "runtime/src/platform/frame/sysv_amd64_macho.S",
+];
+pub(super) const WINDOWS_SEH_FRAME: &[&str] = &[
+    "runtime/src/platform/frame/windows_seh.c",
+    "runtime/src/platform/frame/windows_seh_coff.S",
 ];

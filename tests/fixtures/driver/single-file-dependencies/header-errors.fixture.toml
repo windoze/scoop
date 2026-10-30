@@ -2,7 +2,7 @@ schema = 1
 name = "single-file-dependency-header-errors"
 inputs = []
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["driver", "single-file", "dependencies", "negative"]
 variants = [{"name" = "colon", "vars" = {"source" = "#!scoop run\n//! dep dev:lib:1.0.0\nfun main() {}\n", "message" = "single-file dep directive requires `dep: group:name:version`", "start" = 12, "end" = 33}}, {"name" = "empty", "vars" = {"source" = "#!scoop run\n//! dep:\nfun main() {}\n", "message" = "single-file dependency must be an exact `group:name:version` coordinate", "start" = 12, "end" = 20}}, {"name" = "parts", "vars" = {"source" = "#!scoop run\n//! dep: scoop:scoop.http:client:0.1.0\nfun main() {}\n", "message" = "single-file dependency must be an exact `group:name:version` coordinate", "start" = 12, "end" = 50}}, {"name" = "version", "vars" = {"source" = "#!scoop run\n//! dep: dev:lib:01.0.0\nfun main() {}\n", "message" = "invalid Cone coordinate semantic version", "start" = 12, "end" = 35}}, {"name" = "duplicate", "vars" = {"source" = "#!scoop run\n//! dep: scoop:scoop.std:0.1.0\n//! dep: scoop:scoop.std:0.1.0\nfun main() {}\n", "message" = "duplicate single-file dependency `scoop:scoop.std:0.1.0`", "start" = 43, "end" = 73}}]
 

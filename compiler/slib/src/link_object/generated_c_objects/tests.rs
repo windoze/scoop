@@ -178,6 +178,7 @@ pub(in crate::link_object) fn profile(
     sdk: u32,
 ) -> CBridgeToolchainProfileV1 {
     scoop_target_data::darwin_c_bridge_profile(
+        scoop_target_data::DARWIN_AARCH64,
         DarwinCBridgeDeploymentContractV1::new(
             DarwinPackedVersionV1::new(minimum_os).unwrap(),
             DarwinPackedVersionV1::new(sdk).unwrap(),

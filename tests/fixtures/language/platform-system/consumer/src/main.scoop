@@ -13,7 +13,12 @@ import scoop.time.Duration
 @Extern(name = "m45_home_mode") private fun homeMode(mode: Int)
 @Extern(name = "m45_clock_failure") private fun clockFailure()
 
-private fun check(value: Boolean) { if (!value) throw IllegalStateException(Some("platform system assertion failed")) }
+private fun check(value: Boolean, location: SourceLocation = currentSourceLocation()) {
+    if (!value) {
+        println("platform system assertion failed at line " + location.line.toString())
+        throw IllegalStateException(Some("platform system assertion failed"))
+    }
+}
 private fun expectNative(block: () -> Unit) {
     try { block() } catch (error: PlatformException) { check(error.nativeError!!.code != 0); return }
     throw IllegalStateException(Some("expected native failure"))
@@ -36,7 +41,7 @@ private fun rawEnvironment() {
     check(snapshot.size == (if (environmentVariable("SCOOP_GC_STRESS_MOVE") == None) 5L else 6L))
     val home = homeDirectory()!!.toOsString()
     check(home.toByteArray()[home.toByteArray().size - 1L] == -1.toByte())
-    check(temporaryDirectory().decodeUtf8() == "/tmp")
+    check(temporaryDirectory().toOsString() == environmentVariable("TMPDIR")!!)
     @Unsafe {
         homeMode(1)
         check(homeDirectory()!!.decodeUtf8() == "/test/fallback")

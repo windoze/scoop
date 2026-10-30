@@ -6,7 +6,7 @@
 
 #include "../src/platform/platform.h"
 
-extern const ScoopManagedFrameOps scoop_amd64_managed_frame_ops;
+extern const ScoopManagedFrameOps scoop_sysv_amd64_managed_frame_ops;
 extern const ScoopThreadVmOps scoop_linux_thread_vm_ops;
 extern const uint8_t test_stackmaps_start[], test_stackmaps_end[];
 extern char __executable_start[], etext[];
@@ -19,7 +19,7 @@ static int old_value, new_value;
 static unsigned expected_depth, visits;
 
 static void relocate(uintptr_t pc, uintptr_t sp, uintptr_t fp) {
-    const ScoopManagedFrameOps *ops = &scoop_amd64_managed_frame_ops;
+    const ScoopManagedFrameOps *ops = &scoop_sysv_amd64_managed_frame_ops;
     ScoopPlatformStackBounds bounds;
     ScoopPlatformError error = {0};
     assert(scoop_linux_thread_vm_ops.stack_bounds(&bounds, &error));
@@ -67,7 +67,7 @@ void scoop_rt_context_push_impl(uint64_t a, uint64_t b, uint64_t c, uintptr_t pc
 }
 
 static void reject_bad_roots(void) {
-    const ScoopManagedFrameOps *ops = &scoop_amd64_managed_frame_ops;
+    const ScoopManagedFrameOps *ops = &scoop_sysv_amd64_managed_frame_ops;
     ScoopStackMapLocation location = {SCOOP_STACKMAP_INDIRECT, 8, 7, 8, 0};
     ScoopStackMapRootPair pair = {location, location};
     ScoopStackMapRecord record = {
@@ -118,7 +118,7 @@ int main(void) {
     assert(stackmaps.record_count == 5);
     ScoopPlatformError error = {0};
     for (size_t i = 0; i < stackmaps.record_count; ++i) {
-        assert(scoop_amd64_managed_frame_ops.validate_record(
+        assert(scoop_sysv_amd64_managed_frame_ops.validate_record(
             &stackmaps.records[i], &error));
     }
     boundary = (uintptr_t)__builtin_frame_address(0);

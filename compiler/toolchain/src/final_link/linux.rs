@@ -84,7 +84,7 @@ impl LinuxFinalLinkProfile {
         }
         let runtime = RuntimeLibraries::resolve(startup.target(), options, cxx)?;
         let mut observed_paths = Vec::new();
-        let linker = probe::driver_program(&startup, "ld", &mut observed_paths)?;
+        let linker = probe::driver_program(runtime.command(&startup), "ld", &mut observed_paths)?;
         let version = probe::run(Command::new(&linker).arg("--version"))?;
         let linker_version = String::from_utf8(version.stdout).map_err(error)?;
         if !linker_version.starts_with("GNU ld ") {
@@ -107,7 +107,7 @@ impl LinuxFinalLinkProfile {
                 observed_paths: Vec::new(),
             },
         };
-        observed_paths.extend(probe::search_paths(&profile.startup, &profile.data.linker)?);
+        observed_paths.extend(probe::search_paths(&profile)?);
         profile.data.inputs = probe::check(&profile, &mut observed_paths)?;
         profile.data.observed_paths = observed_paths;
         Ok(profile)

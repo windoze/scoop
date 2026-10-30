@@ -57,7 +57,7 @@ fn read_bytes(
     {
         0..bytes.len()
     } else {
-        slice::select(&bytes)?
+        slice::select(&bytes, profile.target())?
     };
     let digest = sha256(&bytes);
     let id = NativeInputId::from_digest(digest, bytes.len() as u64, kind, profile)?;

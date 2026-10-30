@@ -2,7 +2,7 @@ schema = 1
 name = "native-cxx-dylib"
 inputs = ["cone", "native.cpp"]
 tools = ["scoop", "scoopc", "cc"]
-targets = ["aarch64-apple-darwin"]
+when = { os = "darwin" }
 tags = ["native", "native-link", "driver"]
 
 [[variants]]

@@ -2,7 +2,6 @@ schema = 1
 name = "shared-method-calls-bad-managed"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../shared-method-calls/provider.scoop", "bad-managed", "../../../shared-method-calls/bad-managed.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "method_calls_share_bound_targets_defaults_and_dispatch", "negative", "language"]
 
 [[steps]]

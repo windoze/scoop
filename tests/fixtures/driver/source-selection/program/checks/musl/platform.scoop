@@ -1,2 +1,2 @@
 package dev.m43
-fun platform(): String = "x86_64-unknown-linux-musl"
+fun platform(): String = "linux-musl"

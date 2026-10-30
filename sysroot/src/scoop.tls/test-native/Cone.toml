@@ -10,17 +10,11 @@ kind = "library"
 "scoop:scoop.core" = "0.1.0"
 "scoop:scoop.std" = "0.1.0"
 "scoop:scoop.crypto" = "0.1.0"
-"scoop:scoop.asyncio" = "0.1.0"
 "scoop.tests:crypto-certificates" = { version = "0.1.0", path = "../../scoop.crypto/test-certificates" }
 
 [native]
 include = [
-    {path = "../../../lib/aarch64-apple-darwin/openssl/include", when = {os = "darwin"}},
-    {path = "../../../lib/x86_64-unknown-linux-gnu/openssl/include", when = {env = "gnu"}},
-    {path = "../../../lib/x86_64-unknown-linux-musl/openssl/include", when = {env = "musl"}},
-    {path = "../../../lib/x86_64-pc-windows-msvc-ucrt/openssl/include", when = {env = "msvc-ucrt"}},
-    {path = "../../../lib/x86_64-w64-windows-llvm-mingw-msvcrt/openssl/include", when = {env = "llvm-mingw-msvcrt"}},
-    {path = "../../../lib/x86_64-w64-windows-llvm-mingw-ucrt/openssl/include", when = {env = "llvm-mingw-ucrt"}},
+    {sysroot = "openssl/include"},
 ]
 c_flags = ["-Wextra", "-Werror"]
 

@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from fixture_runner.cli import arguments, environment
+from fixture_runner.cli import arguments, can_execute, environment, selected_target
 from fixture_runner.cores import prepare_test_core
 from fixture_runner.model import EnvironmentError
 
@@ -119,6 +119,7 @@ class EnvironmentTests(unittest.TestCase):
         (repo / "scripts").mkdir()
         (repo / "scripts/release.toml").write_text(
             '[targets.aarch64-apple-darwin]\nminimum_os = "15.4"\n'
+            '[targets.x86_64-apple-darwin]\nminimum_os = "27.0.1"\n'
         )
         work.mkdir()
         return repo, work
@@ -136,13 +137,17 @@ class EnvironmentTests(unittest.TestCase):
             repo, work = self.prepare(directory)
             with (
                 patch("fixture_runner.cli.shutil.which", return_value="/opt/musl-gcc") as locate,
-                patch("fixture_runner.cli.tool_output") as discover,
+                patch(
+                    "fixture_runner.cli.tool_output", return_value="#define __GNUC__ 15\n"
+                ) as discover,
             ):
                 common = environment(
                     repo, work, fixtures, arguments(["--target", "x86_64-unknown-linux-musl"])
                 )
             locate.assert_called_once_with("musl-gcc")
-            discover.assert_not_called()
+            discover.assert_called_once_with(
+                ["/opt/musl-gcc", "-dM", "-E", "-x", "c", "-"], input=b""
+            )
             self.assertEqual(common["cc"], "/opt/musl-gcc")
             self.assertEqual(common["cc_args"], ["-fPIC", "-pthread"])
             self.assertEqual(common["compile_args"], ["--target", "x86_64-unknown-linux-musl"])
@@ -195,6 +200,91 @@ class EnvironmentTests(unittest.TestCase):
                 environment(repo, work, fixtures, arguments(["--cc", "missing-gcc"]))
             with self.assertRaisesRegex(EnvironmentError, "cannot execute"):
                 environment(repo, work, fixtures, arguments(["--target", "aarch64-apple-darwin"]))
+
+    @patch("fixture_runner.cli.platform.machine", return_value="arm64")
+    @patch("fixture_runner.cli.platform.system", return_value="Darwin")
+    def test_cross_compilation_does_not_discover_tools_for_skipped_execution(self, *_):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, work = self.prepare(directory)
+            fixtures = [
+                SimpleNamespace(data={"requires_target_execution": False, "tools": []}),
+                SimpleNamespace(data={"tools": ["cc", "ar", "scoop"]}),
+            ]
+            with patch("fixture_runner.cli.tool_output") as discover:
+                common = environment(
+                    repo,
+                    work,
+                    fixtures,
+                    arguments(["--target", "x86_64-unknown-linux-gnu", "--compile-only"]),
+                )
+                discover.assert_not_called()
+            self.assertEqual(common["target"], "x86_64-unknown-linux-gnu")
+            environment(repo, work, fixtures[:1], arguments(["--target", common["target"]]))
+
+    def test_default_target_is_independent_of_distribution_order(self):
+        with patch(
+            "fixture_runner.cli.current_host",
+            return_value={
+                "default_target": "x86_64-unknown-linux-gnu",
+                "distribution_targets": ["x86_64-unknown-linux-musl"],
+            },
+        ):
+            self.assertEqual(selected_target(arguments([])), "x86_64-unknown-linux-gnu")
+
+    @patch("fixture_runner.cli.platform.machine", return_value="arm64")
+    @patch("fixture_runner.cli.platform.system", return_value="Darwin")
+    def test_rosetta_execution_requires_a_successful_probe(self, *_):
+        with patch("fixture_runner.cli.subprocess.run") as run:
+            self.assertTrue(can_execute("aarch64-apple-darwin"))
+            self.assertFalse(can_execute("x86_64-unknown-linux-gnu"))
+            run.assert_not_called()
+            run.return_value = SimpleNamespace(returncode=0)
+            self.assertTrue(can_execute("x86_64-apple-darwin"))
+            self.assertEqual(run.call_args.args[0], ["/usr/bin/arch", "-x86_64", "/usr/bin/true"])
+            run.return_value = SimpleNamespace(returncode=1)
+            self.assertFalse(can_execute("x86_64-apple-darwin"))
+            run.side_effect = OSError("arch unavailable")
+            self.assertFalse(can_execute("x86_64-apple-darwin"))
+
+    @patch("fixture_runner.cli.platform.machine", return_value="arm64")
+    @patch("fixture_runner.cli.platform.system", return_value="Darwin")
+    def test_explicit_darwin_companion_uses_selected_sdk_and_compiler(self, *_):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, work = self.prepare(directory)
+            cc, sdk = repo / "clang", repo / "MacOSX.sdk"
+            with patch("fixture_runner.cli.tool_output") as discover:
+                common = environment(
+                    repo,
+                    work,
+                    [SimpleNamespace(data={"tools": ["cc"]})],
+                    arguments(
+                        ["--cc", str(cc), "--ar", str(repo / "ar"), "--native-sysroot", str(sdk)]
+                    ),
+                )
+                discover.assert_not_called()
+            self.assertEqual(common["cc"], str(cc))
+            self.assertEqual(common["sdk"], str(sdk))
+            self.assertIn(str(cc), common["compile_args"])
+            self.assertIn(str(sdk), common["cc_args"])
+
+    @patch("fixture_runner.cli.platform.machine", return_value="x86_64")
+    @patch("fixture_runner.cli.platform.system", return_value="Linux")
+    def test_linux_clang_companion_receives_machine_and_sysroot(self, *_):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, work = self.prepare(directory)
+            cc, sdk = repo / "clang", repo / "native-sysroot"
+            with (
+                patch("fixture_runner.cli.shutil.which", return_value=str(cc)),
+                patch("fixture_runner.cli.tool_output", return_value="#define __clang__ 1\n"),
+            ):
+                common = environment(
+                    repo,
+                    work,
+                    [SimpleNamespace(data={"tools": ["cc"]})],
+                    arguments(["--cc", str(cc), "--native-sysroot", str(sdk)]),
+                )
+            self.assertIn("--target=x86_64-unknown-linux-gnu", common["cc_args"])
+            self.assertIn("--sysroot=" + str(sdk), common["cc_args"])
 
     @patch("fixture_runner.cli.platform.machine", return_value="arm64")
     @patch("fixture_runner.cli.platform.system", return_value="Darwin")

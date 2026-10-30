@@ -2,8 +2,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use object::{
-    Architecture, Object, ObjectKind, ObjectSection, ObjectSymbol, SymbolKind, macho,
-    read::macho::MachOFile64,
+    Object, ObjectKind, ObjectSection, ObjectSymbol, SymbolKind, macho, read::macho::MachOFile64,
 };
 use scoop_lir::{CBridgeToolchainProfileV1, DarwinCBridgeDeploymentContractV1};
 
@@ -64,32 +63,34 @@ impl NativeObjectInfo {
         bytes: &[u8],
         toolchain: &CBridgeToolchainProfileV1,
     ) -> Result<Self, LinkError> {
-        match toolchain.contract().target().id() {
-            scoop_target_data::DARWIN_AARCH64_ID => {
-                Self::read(bytes, toolchain.contract().deployment().map_err(error)?)
-            }
-            scoop_target_data::LINUX_X86_64_GNU_ID | scoop_target_data::LINUX_X86_64_MUSL_ID => {
-                elf::read(bytes)
-            }
-            scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID
-            | scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID
-            | scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_ID => coff::read(bytes),
-            _ => Err(error("unsupported native object target")),
+        let target = toolchain.contract().target().id();
+        let profile = scoop_target_data::layout(target)
+            .ok_or_else(|| error("unsupported native object target"))?;
+        match profile.native_object_format() {
+            scoop_lir::NativeObjectFormat::MachO64 => Self::read(
+                bytes,
+                target,
+                toolchain.contract().deployment().map_err(error)?,
+            ),
+            scoop_lir::NativeObjectFormat::Elf64 => elf::read(bytes, target),
+            scoop_lir::NativeObjectFormat::Coff64 => coff::read(bytes),
         }
     }
 
     pub fn read(
         bytes: &[u8],
+        target: scoop_lir::TargetProfileId,
         deployment: &DarwinCBridgeDeploymentContractV1,
     ) -> Result<Self, LinkError> {
+        let machine = scoop_slib::MachOArchitecture::for_target(target).map_err(error)?;
         let file: MachOFile64<'_> = MachOFile64::parse(bytes).map_err(error)?;
-        if file.architecture() != Architecture::Aarch64
+        if file.architecture() != machine.object_architecture()
             || file.kind() != ObjectKind::Relocatable
             || !file.is_little_endian()
-            || file.macho_header().cpusubtype.get(file.endian()) != macho::CPU_SUBTYPE_ARM64_ALL
+            || file.macho_header().cpusubtype.get(file.endian()) != machine.cpu_subtype()
         {
             return Err(error(
-                "native input must be an ordinary little-endian arm64 Mach-O object",
+                "native input must be an ordinary little-endian Mach-O object for the selected target",
             ));
         }
         check_deployment(&file, deployment)?;

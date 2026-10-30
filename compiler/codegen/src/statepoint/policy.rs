@@ -92,7 +92,7 @@ pub(crate) fn optimize(
                 ))
             })?;
         if profile.optimization() == scoop_lir::OptimizationMode::Release && !no_gc {
-            bounded_loops::optimize(function, machine)?;
+            bounded_loops::optimize(function, machine, profile.tuning())?;
             // GVN/MemorySSA can make earlier dynamic bounds equal. Consume
             // those path constraints before finalizing roots and sites.
             finish_managed_optimization(function, machine)?;

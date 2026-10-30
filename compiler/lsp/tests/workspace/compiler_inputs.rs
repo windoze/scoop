@@ -1,8 +1,9 @@
 use super::*;
 
 fn real_core(root: &Path) {
-    let core = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../sysroot/src/scoop.core/src");
-    std::os::unix::fs::symlink(core, root.join("core/src/ordinary")).unwrap();
+    let core = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../sysroot/src/scoop.core");
+    std::os::unix::fs::symlink(core.join("src"), root.join("core/src/ordinary")).unwrap();
+    std::os::unix::fs::symlink(core.join("platform/unix"), root.join("core/src/platform")).unwrap();
 }
 
 fn start(root: &Path, relative: bool) -> Client {

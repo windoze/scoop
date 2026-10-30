@@ -14,7 +14,7 @@ mod sysroot;
 mod testing;
 
 pub(crate) use module::{complete_core_file, core_file, make_core_public};
-pub(super) use sysroot::{bootstrap_sysroot, lower_with_sysroot};
+pub(super) use sysroot::{bootstrap_sysroot, lower_with_sysroot, sysroot_sources};
 pub(crate) use testing::*;
 
 use capabilities::capability_interfaces;

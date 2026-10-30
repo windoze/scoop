@@ -164,7 +164,12 @@ fn constant_strides_finish_on_the_normal_exit_before_the_outer_poll() {
             .create_target_machine()
             .unwrap();
         let function = llvm.get_function("f").unwrap();
-        crate::statepoint::bounded_loops::optimize(function, &machine).unwrap();
+        crate::statepoint::bounded_loops::optimize(
+            function,
+            &machine,
+            ValidatedBackendProfile::darwin_aarch64_for_test().tuning(),
+        )
+        .unwrap();
         llvm.verify().unwrap();
         marks(function, count, true, false);
         let exit = function
@@ -227,7 +232,7 @@ fn uncertain_addresses_and_incomplete_or_synchronizing_loops_keep_each_mark() {
         let llvm = parse(&context, &source);
         let machine = ValidatedBackendProfile::darwin_aarch64_for_test().create_target_machine().unwrap();
         let function = llvm.get_function("f").unwrap();
-        crate::statepoint::bounded_loops::optimize(function, &machine).unwrap();
+        crate::statepoint::bounded_loops::optimize(function, &machine, ValidatedBackendProfile::darwin_aarch64_for_test().tuning()).unwrap();
         llvm.verify().unwrap();
         marks(function, 1, false, false);
     }

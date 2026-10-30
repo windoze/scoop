@@ -8,15 +8,7 @@ from pathlib import Path
 
 import build_rust_text
 from build_support import ROOT
-
-TARGETS = {
-    "aarch64-apple-darwin": ("Darwin", "clang"),
-    "x86_64-unknown-linux-gnu": ("Linux", "gcc"),
-    "x86_64-unknown-linux-musl": ("Linux", "musl-gcc"),
-    "x86_64-pc-windows-msvc-ucrt": ("Windows", "clang-cl"),
-    "x86_64-w64-windows-llvm-mingw-msvcrt": ("Windows", "clang"),
-    "x86_64-w64-windows-llvm-mingw-ucrt": ("Windows", "clang"),
-}
+from target_catalog import NATIVE_TARGETS as TARGETS
 
 
 def main():

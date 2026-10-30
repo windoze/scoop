@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "native library Some([NativeInputId(Digest256([$NATIVE_INPUT_0]))]) cannot bind _m23_a, already defined by Native(ArchiveMember(NativeArchiveMemberId { input: NativeInputId(Digest256([$NATIVE_INPUT_1])), ordinal: 0, header_offset: 8, payload_offset: 68, payload_length: 736 })); origins: dev.programlink:late:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([55, 195, 45, 93, 246, 199, 76, 104, 247, 61, 17, 43, 48, 85, 234, 68, 223, 45, 123, 6, 210, 187, 207, 234, 251, 77, 95, 149, 17, 101, 215, 126])])",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

@@ -2,7 +2,6 @@ schema = 1
 name = "qualified-types-split-package"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../qualified-types/provider.scoop", "generic-member-split-package", "../../../qualified-types/split-package.scoop", "generic-member-downstream-split-package", "../../../qualified-types/split-downstream.scoop", "runtime-fixture", "../../../imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "qualified_dependency_types_merge_current_package_contributions", "language"]
 
 [[steps]]

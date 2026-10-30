@@ -1,10 +1,10 @@
 # Scoop 桌面窗口库规范
 
-状态：基础架构与 macOS GUI 骨架已实现。日期：2026-10-30。本文件描述普通 Cone `scoop.window` 与 `scoop.window.asyncio` 的当前合同及后续平台设计方向；实际交付与验证范围见[实施记录](../windowing/PROGRESS.md)。依据 [设计](../windowing/DESIGN.md)与 [winit 能力映射](../windowing/WINIT-MAPPING.md)。
+状态：基础架构与 macOS／Windows GUI 骨架已实现。日期：2026-10-30。本文件描述普通 Cone `scoop.window` 与 `scoop.window.asyncio` 的当前合同及后续平台设计方向；实际交付与验证范围见[窗口库实施记录](../windowing/PROGRESS.md)与[目标扩展实施记录](../target-refactor/PROGRESS.md)。依据 [设计](../windowing/DESIGN.md)与 [winit 能力映射](../windowing/WINIT-MAPPING.md)。
 
 ## 1. 分层与目标
 
-window 依赖 core／std／platform；window.asyncio 另依赖 asyncio。Darwin ARM64／AppKit 已实现，本阶段增加三个 Windows x86_64 target 的 Win32 后端，窗口 API 要求 Windows 10 1703 起的 Per-Monitor V2。Linux Wayland／X11 及其他后端留待后续；不添加没有后端的 native handle 变体或假窗口实现。两个库及其原生薄层、测试、示例均以普通 Cone 组织，窗口逻辑不进入编译器或 runtime。
+window 依赖 core／std／platform；window.asyncio 另依赖 asyncio。Darwin AArch64／amd64 的 AppKit 后端和三个 Windows x86_64 target 的 Win32 后端已实现；Windows 窗口 API 要求 Windows 10 1703 起的 Per-Monitor V2。Linux Wayland／X11 及其他后端留待后续；不添加没有后端的 native handle 变体或假窗口实现。两个库及其原生薄层、测试、示例均以普通 Cone 组织，窗口逻辑不进入编译器或 runtime。
 
 本轮范围按 winit 定位为 GUI 骨架：应用／窗口与基础属性、基础输入／IME、DPI／显示器快照、渲染句柄和 I/O 集成。下文的完整窗口层模型同时保留后续扩展方向；全屏控制／视频模式切换、全局 raw device、触摸／高级手势、光标捕获、文件拖放及复杂平台窗口交互不作为当前骨架验收项。未实施接口随实际需求再增加，不为占据 API 名称加入空实现。
 

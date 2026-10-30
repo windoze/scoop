@@ -289,11 +289,11 @@ mod tests {
         assert_eq!(encoded[0], 0xae);
         assert_eq!(
             record.target_fingerprint().to_string(),
-            "cc523d2d7c0d71d946b5d5c37da4a00d5a47547475bbb8a327cc7612466fa021"
+            "7902159fd4c00dcb4c11524752a684b911a1657e42e56fd734f808613c615277"
         );
         assert_eq!(
             record.backend_fingerprint().to_string(),
-            "08e6c47f288f6522a8987a366d12b110d75ad0090c17b56b184ff70101e95ab8"
+            "897a958d3eeaa3ca6691d24e99c5b1a9f18d8c248ae62b588965c94467928023"
         );
         assert_eq!(
             record.artifact_profile_fingerprint(),

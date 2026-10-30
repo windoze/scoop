@@ -2,7 +2,7 @@ schema = 1
 name = "file-gc"
 inputs = ["consumer", "probe.c"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["platform", "gc", "release-blocks", "io", "gc-correctness"]
 variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
 
@@ -12,7 +12,7 @@ files = [
     {copy = {from = "${sysroot}/src/scoop.platform", to = "${work}/platform"}},
     {copy = {from = "${fixture}/probe.c", to = "${work}/platform/native/probe.c"}},
     {replace = {path = "${work}/platform/native/io.c", old = "#define _GNU_SOURCE 1", new = "#define _GNU_SOURCE 1\n#define read m45_file_read\n#define write m45_file_write\n#define close m45_file_close"}},
-    {replace = {path = "${work}/platform/native/directory.c", old = "#define _GNU_SOURCE 1", new = "#define _GNU_SOURCE 1\n#define readdir m45_directory_next\n#define closedir m45_directory_close"}},
+    {replace = {path = "${work}/platform/native/directory.c", old = "#include <string.h>", new = "#include <string.h>\nstruct dirent *m45_directory_next(DIR *directory);\nint m45_directory_close(DIR *directory);\n#define readdir m45_directory_next\n#define closedir m45_directory_close"}},
     {replace = {path = "${work}/platform/Cone.toml", old = "path = \"native/io.c\"", new = "path = \"native/io.c\"\n\n[[native.sources]]\npath = \"native/probe.c\""}},
     {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}},
 ]

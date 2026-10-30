@@ -34,12 +34,14 @@ pub fn prepare_native_objects(
     manifest: &LoadedConeManifest,
     target: &crate::ResolvedTargetProfile,
     optimization: OptimizationMode,
-    public_include: &Path,
+    sysroot: &Path,
     cache: &Path,
     purpose: scoop_protocol::CompilationPurpose,
 ) -> Result<PreparedNativeObjects, ToolchainError> {
-    let mut prepared = prepare_c_objects(manifest, target, optimization, public_include, cache)?;
-    if let Some(resource) = crate::windows_resource::prepare(manifest, target, purpose, cache)? {
+    let mut prepared = prepare_c_objects(manifest, target, optimization, sysroot, cache)?;
+    if let Some(resource) =
+        crate::windows_resource::prepare(manifest, target, purpose, sysroot, cache)?
+    {
         prepared.key = fingerprint(&(prepared.key.as_array(), resource.key.as_array()))?;
         prepared.objects.push(resource.object);
         prepared.inputs.extend(resource.inputs);
@@ -70,11 +72,11 @@ fn prepare_c_objects(
     manifest: &LoadedConeManifest,
     target: &crate::ResolvedTargetProfile,
     optimization: OptimizationMode,
-    public_include: &Path,
+    sysroot: &Path,
     cache: &Path,
 ) -> Result<PreparedNativeObjects, ToolchainError> {
     let compiler = NativeToolchain::resolve_cached(target, manifest, cache)?;
-    let key = inputs::configuration(manifest, target, &compiler, optimization, public_include)?;
+    let key = inputs::configuration(manifest, target, &compiler, optimization, sysroot)?;
     let mut inputs = compiler.input_metadata();
     if !manifest
         .parsed()
@@ -90,7 +92,7 @@ fn prepare_c_objects(
             inputs,
         });
     }
-    let directory = cache.join("native-objects-v1");
+    let directory = cache.join("native-objects-v2");
     let record = cached(
         &directory,
         key,
@@ -108,7 +110,7 @@ fn prepare_c_objects(
             Ok(true)
         },
         || {
-            let prepared = compiler.prepare(manifest, optimization, public_include)?;
+            let prepared = compiler.prepare(manifest, optimization, sysroot)?;
             let temporary = tempfile::Builder::new()
                 .prefix("objects-")
                 .tempdir_in(&directory)

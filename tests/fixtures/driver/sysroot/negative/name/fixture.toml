@@ -2,7 +2,7 @@ schema = 1
 name = "sysroot-reject-name"
 inputs = ["cone", "platform"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["sysroot", "negative", "driver"]
 
 [[steps]]

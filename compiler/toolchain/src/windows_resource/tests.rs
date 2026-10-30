@@ -42,10 +42,12 @@ fn windows_resources_compile_real_coff_and_follow_headers_and_assets() {
         let root = directory.path().join(format!("cone-{index}"));
         let cache = directory.path().join(format!("cache-{index}"));
         std::fs::create_dir_all(root.join("resources")).unwrap();
-        std::fs::create_dir_all(root.join("include")).unwrap();
-        std::fs::write(root.join("Cone.toml"), "schema = 1\n[cone]\ngroup = \"test\"\nname = \"resources\"\nversion = \"0.1.0\"\nkind = \"executable\"\n[windows]\nrc = \"resources/app.rc\"\n[native]\ninclude = [\"include\"]\n").unwrap();
+        let include =
+            crate::target_library_root(directory.path(), target.lir_target()).join("include");
+        std::fs::create_dir_all(&include).unwrap();
+        std::fs::write(root.join("Cone.toml"), "schema = 1\n[cone]\ngroup = \"test\"\nname = \"resources\"\nversion = \"0.1.0\"\nkind = \"executable\"\n[windows]\nrc = \"resources/app.rc\"\n[native]\ninclude = [{sysroot = \"include\"}]\n").unwrap();
         let script = root.join("resources/app.rc");
-        let header = root.join("include/values.h");
+        let header = include.join("values.h");
         let payload = root.join("resources/数据.bin");
         std::fs::write(
             &script,
@@ -58,9 +60,15 @@ fn windows_resources_compile_real_coff_and_follow_headers_and_assets() {
             crate::load_cone_manifest(&scoop_manifest::ManifestRootLocator::cone_directory(&root))
                 .unwrap();
         let build = || {
-            prepare(&manifest, &target, CompilationPurpose::Production, &cache)
-                .unwrap()
-                .unwrap()
+            prepare(
+                &manifest,
+                &target,
+                CompilationPurpose::Production,
+                directory.path(),
+                &cache,
+            )
+            .unwrap()
+            .unwrap()
         };
         let cold = build();
         assert_payload(&cold.object, b"first-payload");
@@ -92,12 +100,13 @@ fn windows_resources_compile_real_coff_and_follow_headers_and_assets() {
                 &manifest,
                 &target,
                 CompilationPurpose::Production,
+                directory.path(),
                 &failure_cache
             )
             .is_err()
         );
         assert!(
-            std::fs::read_dir(failure_cache.join("native-resources-v1"))
+            std::fs::read_dir(failure_cache.join("native-resources-v2"))
                 .unwrap()
                 .all(|entry| entry
                     .unwrap()
@@ -106,9 +115,15 @@ fn windows_resources_compile_real_coff_and_follow_headers_and_assets() {
                     .is_none_or(|extension| extension != "json"))
         );
         assert!(
-            prepare(&manifest, &target, CompilationPurpose::Test, &failure_cache)
-                .unwrap()
-                .is_none()
+            prepare(
+                &manifest,
+                &target,
+                CompilationPurpose::Test,
+                directory.path(),
+                &failure_cache
+            )
+            .unwrap()
+            .is_none()
         );
     }
 }

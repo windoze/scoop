@@ -7,7 +7,7 @@ use std::sync::Arc;
 use crate::ValidatedCBridgeToolchainInvocation;
 use scoop_lir::{OptimizationMode, TargetProfileId};
 use scoop_manifest::{ConeRelativePath, LoadedConeManifest, NativeConfig, NativeSourceLanguage};
-use scoop_wire::{Digest256, Encoder, WireEncode, sha256};
+use scoop_wire::{Digest256, sha256};
 
 use crate::ToolchainError;
 
@@ -67,11 +67,6 @@ impl NativeSourceInput {
 pub struct PreparedNativeInputs {
     units: Vec<NativeSourceInput>,
     observed_paths: BTreeSet<PathBuf>,
-    flags: Vec<String>,
-    cxx_flags: Vec<String>,
-    objc_flags: Vec<String>,
-    cxx: Option<Digest256>,
-    libraries: Vec<scoop_lir::CanonicalNativeLibraryRequirementV1>,
 }
 
 impl PreparedNativeInputs {
@@ -80,48 +75,15 @@ impl PreparedNativeInputs {
     }
 }
 
-impl WireEncode for PreparedNativeInputs {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.array(6)?;
-        encoder.array(self.units.len() as u64)?;
-        for unit in &self.units {
-            encoder.array(2)?;
-            encoder.text(unit.path.as_str())?;
-            unit.digest().encode(encoder)?;
-        }
-        encoder.array(self.flags.len() as u64)?;
-        for flag in &self.flags {
-            encoder.text(flag)?;
-        }
-        encoder.array(self.libraries.len() as u64)?;
-        for library in &self.libraries {
-            library.encode(encoder)?;
-        }
-        encoder.array(self.cxx_flags.len() as u64)?;
-        for flag in &self.cxx_flags {
-            encoder.text(flag)?;
-        }
-        encoder.array(u64::from(self.cxx.is_some()))?;
-        if let Some(fingerprint) = self.cxx {
-            fingerprint.encode(encoder)?;
-        }
-        encoder.array(self.objc_flags.len() as u64)?;
-        for flag in &self.objc_flags {
-            encoder.text(flag)?;
-        }
-        Ok(())
-    }
-}
-
 pub fn prepare_native_inputs(
     manifest: &LoadedConeManifest,
     target: TargetProfileId,
     compiler: &ValidatedCBridgeToolchainInvocation,
     optimization: OptimizationMode,
-    public_include: &Path,
+    sysroot: &Path,
 ) -> Result<PreparedNativeInputs, ToolchainError> {
     let compiler = NativeToolchain::resolve(compiler, manifest)?;
-    prepare::prepare(manifest, target, &compiler, optimization, public_include)
+    prepare::prepare(manifest, target, &compiler, optimization, sysroot)
 }
 
 pub fn compile_native_source(

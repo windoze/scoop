@@ -1,5 +1,5 @@
 use super::*;
-use crate::validate_darwin_arm64_object_envelope_v1;
+use crate::validate_macho_object_envelope_v1;
 
 #[test]
 fn classifies_sections_by_actual_attributes() {
@@ -45,7 +45,8 @@ fn classifies_sections_by_actual_attributes() {
     ] {
         let bytes = object_with_section(segment, name, flags);
         let inventory = read_builtin_object_sections_v1(
-            validate_darwin_arm64_object_envelope_v1(&bytes).unwrap(),
+            validate_macho_object_envelope_v1(scoop_target_data::DARWIN_AARCH64_ID, &bytes)
+                .unwrap(),
         );
         assert_eq!(inventory.roles(), &[expected]);
     }

@@ -42,6 +42,23 @@ fn selected_profile_creates_the_canonical_aarch64_machine() {
 }
 
 #[test]
+fn darwin_x86_64_machine_matches_the_registered_layout() {
+    let backend =
+        ValidatedBackendProfile::for_selection(scoop_target_data::DARWIN_X86_64_LLVM_22_1).unwrap();
+    let machine = backend.create_target_machine().unwrap();
+    assert_eq!(
+        machine
+            .get_target_data()
+            .get_data_layout()
+            .as_str()
+            .to_str()
+            .unwrap(),
+        "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
+    );
+    assert_eq!(machine.get_cpu().to_str().unwrap(), "x86-64");
+}
+
+#[test]
 fn native_c_pointer_representations_are_qualified() {
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -85,8 +102,10 @@ fn native_c_pointer_representations_are_qualified() {
         String::from_utf8_lossy(&output.stderr),
     );
     assert_eq!(
-        output.stdout,
-        b"target pointer qualification tests passed\n"
+        String::from_utf8(output.stdout)
+            .unwrap()
+            .replace("\r\n", "\n"),
+        "target pointer qualification tests passed\n"
     );
 }
 

@@ -3,7 +3,7 @@ name = "moving-references"
 root = "program.scoop"
 inputs = ["program.scoop", "native.c"]
 tools = ["scoop", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["gc", "moving", "pin", "gc-free", "gc-correctness"]
 variants = [
   {name = "debug", vars = {profile = "debug"}},

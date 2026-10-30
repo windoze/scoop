@@ -47,17 +47,11 @@ impl WireDecode for ArtifactManifestSummaryV1 {
         })?;
         let target_selection = d.field(3, |d| {
             let name = d.text()?;
-            [
-                scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
-                scoop_target_data::LINUX_X86_64_GNU_LLVM_22_1,
-                scoop_target_data::LINUX_X86_64_MUSL_LLVM_22_1,
-                scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_LLVM_22_1,
-                scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_LLVM_22_1,
-                scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_LLVM_22_1,
-            ]
-            .into_iter()
-            .find(|target| target.target().id().canonical_name() == name)
-            .ok_or_else(|| invalid(d))
+            scoop_target_data::TARGETS
+                .iter()
+                .map(|target| target.selection)
+                .find(|target| target.target().id().canonical_name() == name)
+                .ok_or_else(|| invalid(d))
         })?;
         let profile = d.field(4, |d| {
             let capability = DecodedCapabilityId::decode(d)?

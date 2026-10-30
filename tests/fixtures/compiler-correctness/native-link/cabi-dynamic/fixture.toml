@@ -2,7 +2,7 @@ schema = 1
 name = "native-link-cabi-dynamic"
 inputs = ["cabi-provider", "../../../language/native-link/cabi/provider.scoop", "cabi-facade", "../../../language/native-link/cabi/facade.scoop", "cabi-root", "../../../language/native-link/cabi/root.scoop", "../../../language/native-link/cabi/native.c"]
 tools = ["scoop", "scoopc", "cc"]
-targets = ["aarch64-apple-darwin"]
+when = { os = "darwin" }
 tags = ["native-link", "program-link", "compiler-correctness"]
 variants = [{"name" = "normal"}]
 
@@ -12,20 +12,20 @@ files = [{"copy" = {"from" = "${fixture}/cabi-provider", "to" = "${work}/sources
 
 [[steps]]
 name = "compile_0"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/cabi/native.c", "-o", "${work}/objects/payload.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/cabi/native.c", "-o", "${work}/objects/payload.o"]
 exit = 0
 stdout = ""
 stderr = ""
 [[steps]]
 name = "dylib_0"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-dynamiclib", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "${work}/objects/payload.o", "-install_name", "@rpath/libm23_cabi.dylib", "-current_version", "2.0", "-compatibility_version", "1.0", "-o", "${work}/native/libm23_cabi.dylib"]
+argv = ["${cc}", {each = "${cc_args}"}, "-dynamiclib", "${work}/objects/payload.o", "-install_name", "@rpath/libm23_cabi.dylib", "-current_version", "2.0", "-compatibility_version", "1.0", "-o", "${work}/native/libm23_cabi.dylib"]
 exit = 0
 stdout = ""
 stderr = ""
 [[steps]]
 name = "build"
 timeout = 300
-argv = ["${scoop}", "build", "${work}/sources/cabi-root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "-o", "${work}/programs/build/program"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/cabi-root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "-o", "${work}/programs/build/program"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -63,7 +63,7 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths", "native-digests", "native-link-plan"]}]
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.${target}.plan", "normalize" = ["paths", "native-digests", "native-link-plan"]}]
 
 [[steps]]
 name = "run_linked"

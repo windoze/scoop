@@ -2,7 +2,6 @@ schema = 1
 name = "qualified-types-bad-package"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../qualified-types/provider.scoop", "bad-package", "../../../qualified-types/bad-package.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "qualified_dependency_types_republish_and_execute_from_artifacts", "negative", "language"]
 
 [[steps]]

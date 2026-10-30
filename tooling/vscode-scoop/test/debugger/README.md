@@ -4,20 +4,22 @@
 这些脚本只消费现成产物，不隐式重建编译器或系统库。
 
 ```sh
+mkdir -p tmp
+export TMPDIR="$PWD/tmp"
 scoop build tooling/vscode-scoop/test/debugger/program.scoop --debug-info full \
-  --enable-gc-stress -o /tmp/scoop-debug-program
+  --enable-gc-stress -o tmp/scoop-debug-program
 scoop build tooling/vscode-scoop/test/debugger/console.scoop --debug-info full \
-  -o /tmp/scoop-debug-console
+  -o tmp/scoop-debug-console
 
 python3 tooling/vscode-scoop/test/debugger/dap.py --adapter /path/to/bin/scoop-lldb-dap \
-  --program /tmp/scoop-debug-program --source tooling/vscode-scoop/test/debugger/program.scoop \
-  --mode launch --source-map --log /tmp/scoop-debug-launch.jsonl
+  --program tmp/scoop-debug-program --source tooling/vscode-scoop/test/debugger/program.scoop \
+  --mode launch --source-map --log tmp/scoop-debug-launch.jsonl
 python3 tooling/vscode-scoop/test/debugger/dap.py --adapter /path/to/bin/scoop-lldb-dap \
-  --program /tmp/scoop-debug-console --source tooling/vscode-scoop/test/debugger/console.scoop \
-  --mode terminal --log /tmp/scoop-debug-terminal.jsonl
+  --program tmp/scoop-debug-console --source tooling/vscode-scoop/test/debugger/console.scoop \
+  --mode terminal --log tmp/scoop-debug-terminal.jsonl
 python3 tooling/vscode-scoop/test/debugger/dap.py --adapter /path/to/bin/scoop-lldb-dap \
-  --program /tmp/scoop-debug-console --source tooling/vscode-scoop/test/debugger/console.scoop \
-  --mode attach --log /tmp/scoop-debug-attach.jsonl
+  --program tmp/scoop-debug-console --source tooling/vscode-scoop/test/debugger/console.scoop \
+  --mode attach --log tmp/scoop-debug-attach.jsonl
 ```
 
 launch 覆盖源码断点、物理栈、单步、参数／局部／全局／TLS、UTF-8 和内嵌 NUL String、
@@ -35,7 +37,7 @@ Windows 使用 `sco`、`.exe` 输出和 `scoop-lldb-dap.exe`，`--mode launch` �
 的 SBValue 检查 enum、空引用和数组布局：
 
 ```sh
-scoop-lldb -b /tmp/scoop-debug-program \
+scoop-lldb -b tmp/scoop-debug-program \
   -o 'command script import tooling/vscode-scoop/debugger/scoop_lldb.py' \
   -o 'command script import tooling/vscode-scoop/test/debugger/offline.py' -o quit
 ```
@@ -47,8 +49,8 @@ Linux 静态 TLS 的原生定向用例覆盖 `.tdata`、`.tbss`、64-byte 对齐
 
 ```sh
 musl-gcc -std=c11 -g -O0 -static -pthread tooling/vscode-scoop/test/debugger/tls.c \
-  -o /tmp/scoop-debug-tls
-scoop-lldb -b /tmp/scoop-debug-tls \
+  -o tmp/scoop-debug-tls
+scoop-lldb -b tmp/scoop-debug-tls \
   -o 'command script import tooling/vscode-scoop/test/debugger/tls.py' -o quit
 ```
 

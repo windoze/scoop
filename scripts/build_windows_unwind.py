@@ -15,14 +15,12 @@ from build_support import (
     reusable,
     save_record,
     source_metadata,
+    source_patch_environment,
 )
 from prepare_sysroot import publish_files
+from target_catalog import WINDOWS_TARGETS as TARGETS
+from target_catalog import native_configuration
 
-TARGETS = (
-    "x86_64-pc-windows-msvc-ucrt",
-    "x86_64-w64-windows-llvm-mingw-msvcrt",
-    "x86_64-w64-windows-llvm-mingw-ucrt",
-)
 PATCH = ROOT / "sysroot/vendor/llvm-project/22.1.8/patches/llvm-libunwind-msvc-seh.patch"
 SOURCE_DIRECTORIES = (
     "libunwind",
@@ -35,7 +33,7 @@ SOURCE_DIRECTORIES = (
 
 
 def prepare(args, build, prefix):
-    microsoft = args.target == TARGETS[0]
+    microsoft = native_configuration(args.target)["native_environment"] == "MicrosoftUcrt"
     source = args.source.resolve()
     inputs = {
         "source": source_metadata(source, SOURCE_DIRECTORIES),
@@ -50,6 +48,7 @@ def prepare(args, build, prefix):
             )
         ],
         "target": args.target,
+        "target_configuration": native_configuration(args.target),
         "prefix": str(prefix),
         "cc": args.cc,
         "environment": {
@@ -96,13 +95,13 @@ def prepare(args, build, prefix):
             ["git", "apply", "--whitespace=nowarn", "-"],
             input=PATCH.read_text(encoding="utf-8").encode("utf-8"),
             cwd=overlay,
-            env=environment,
+            env=source_patch_environment(overlay, environment),
             check=True,
         )
 
     objects = build / "objects"
     stage = build / "stage"
-    triple = "x86_64-pc-windows-msvc" if microsoft else "x86_64-w64-windows-gnu"
+    triple = native_configuration(args.target)["llvm_triple"]
     configure = [
         str(tools[2]),
         "-G",

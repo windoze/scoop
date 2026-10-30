@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "native candidate ${work}/alternate/m23_math.o: Unknown file magic; requirement 88b2c952230b0f1e7f322ba4939562503aae3a7812d0a52cbf8388d41fb7e26f; origins: dev.programlink:direct:0.1.0",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

@@ -10,7 +10,7 @@ mod compiler_inputs;
 pub use compiler_inputs::{CompileTimeInputs, compiler_inputs_current};
 
 pub const VERSION: &str = env!("SCOOP_BUILD_VERSION");
-pub const DARWIN_DEPLOYMENT_BASELINE: &str = env!("SCOOP_MACOS_BASELINE");
+include!(concat!(env!("OUT_DIR"), "/deployment.rs"));
 
 mod c_bridge;
 mod c_bridge_invocation;
@@ -29,7 +29,7 @@ mod linux_target;
 mod windows_c;
 pub use windows_c::resolve_windows_c_toolchain;
 mod manifest;
-pub use manifest::{SOURCE_TARGETS, load_cone_manifest, parse_cone_manifest};
+pub use manifest::{SOURCE_CATALOG_KEY, SOURCE_TARGETS, load_cone_manifest, parse_cone_manifest};
 mod build_record;
 mod native;
 mod native_driver;

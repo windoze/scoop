@@ -1,26 +1,30 @@
 //! Architecture-specific relocation uses shared by bridge and runtime readers.
 
 use object::elf::*;
-use scoop_lir::LirTargetProfile;
+use scoop_lir::{LirTargetProfile, NativeObjectFormat, TargetArchitecture};
 
 use super::VerifiedObjectRelocationFormV1 as Form;
 
 impl Form {
     pub(in crate::link_object) fn is_tls_reference(self, target: LirTargetProfile) -> bool {
-        match target.id() {
-            scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID
-            | scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID
-            | scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_ID => matches!(
+        match (target.native_object_format(), target.architecture()) {
+            (NativeObjectFormat::Coff64, TargetArchitecture::X86_64) => matches!(
                 self,
                 Self::CoffAmd64 {
                     kind: object::pe::IMAGE_REL_AMD64_SECREL,
                     width: 4
                 }
             ),
-            scoop_target_data::DARWIN_AARCH64_ID => {
+            (NativeObjectFormat::MachO64, TargetArchitecture::Aarch64) => {
                 matches!(self, Self::TlvpLoadPage21 | Self::TlvpLoadPageOffset12)
             }
-            scoop_target_data::LINUX_X86_64_GNU_ID | scoop_target_data::LINUX_X86_64_MUSL_ID => {
+            (NativeObjectFormat::MachO64, TargetArchitecture::X86_64) => matches!(
+                self,
+                Self::X86_64PcRelative32 {
+                    kind: super::MachOX86_64PcRelativeKindV1::Tlv
+                }
+            ),
+            (NativeObjectFormat::Elf64, TargetArchitecture::X86_64) => {
                 matches!(
                     self,
                     Self::ElfX86_64Rela {

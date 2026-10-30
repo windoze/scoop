@@ -3,7 +3,6 @@ name = "constructor-safety-safety"
 root = "../../../constructor-safety/safety.scoop"
 inputs = ["../../../constructor-safety/safety.scoop", "provider", "consumer"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["constructors", "constructor-safety", "source-and-artifact", "language"]
 
 [[steps]]

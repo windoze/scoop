@@ -2,16 +2,30 @@ use super::*;
 
 #[test]
 fn linux_final_profiles_link_and_run_with_the_selected_libc_and_llvm_unwinder() {
-    for (triple, mode, expected_mode) in [
-        ("x86_64-unknown-linux-gnu", None, LinkMode::Dynamic),
-        ("x86_64-unknown-linux-musl", None, LinkMode::Static),
+    for (triple, compiler, mode, expected_mode) in [
+        ("x86_64-unknown-linux-gnu", None, None, LinkMode::Dynamic),
+        (
+            "x86_64-unknown-linux-gnu",
+            Some(PathBuf::from("clang")),
+            None,
+            LinkMode::Dynamic,
+        ),
+        ("x86_64-unknown-linux-musl", None, None, LinkMode::Static),
         (
             "x86_64-unknown-linux-musl",
+            None,
             Some(LinkMode::Dynamic),
             LinkMode::Dynamic,
         ),
     ] {
-        let target = ResolvedTargetProfile::resolve(triple).unwrap();
+        let target = ResolvedTargetProfile::resolve_with(
+            triple,
+            &CToolchainOptions {
+                compiler,
+                ..Default::default()
+            },
+        )
+        .unwrap();
         let profile = target
             .final_link_with(&FinalLinkOptions {
                 mode,

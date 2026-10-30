@@ -1,0 +1,3 @@
+link inputs: startup, cone/member order, runtime/object order, libSystem
+native library m23_cabi requirement=3f93c23a3ca5bb67d4b65a20afc74e01eef6da601d97d2546007826dc9b0a76e input=$NATIVE_INPUT_0 origins=dev.programlink:cabi-provider:0.1.0
+native object $NATIVE_INPUT_0 slice=0..2320

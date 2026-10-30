@@ -9,17 +9,35 @@ import subprocess
 import tomllib
 from pathlib import Path
 
-from build_support import RELEASE_CONFIG, ROOT, metadata, reusable, save_record, source_metadata
+from build_support import (
+    RELEASE_CONFIG,
+    ROOT,
+    apple_architecture,
+    cpu_flag,
+    metadata,
+    reusable,
+    save_record,
+    source_metadata,
+    source_patch_environment,
+)
+from target_catalog import current_host, host_definition
 
 VERSION = "22.1.8"
 STATEPOINT_PATCH = (
     ROOT / "sysroot/vendor/llvm-project/22.1.8/patches/llvm-windows-statepoint-return-pc.patch"
 )
-HOSTS = {
-    ("Darwin", "arm64"): "aarch64-apple-darwin",
-    ("Linux", "x86_64"): "x86_64-unknown-linux-gnu",
-    ("Windows", "AMD64"): "x86_64-pc-windows-gnullvm",
-}
+DSYMUTIL_PATCH = (
+    ROOT / "sysroot/vendor/llvm-project/22.1.8/patches/llvm-dsymutil-section-relocations.patch"
+)
+BYVAL_DEBUG_PATCH = (
+    ROOT / "sysroot/vendor/llvm-project/22.1.8/patches/llvm-byval-debug-values.patch"
+)
+LANDINGPAD_DEBUG_PATCH = (
+    ROOT / "sysroot/vendor/llvm-project/22.1.8/patches/llvm-landingpad-debug-values.patch"
+)
+SOURCE_PATCHES = (STATEPOINT_PATCH, DSYMUTIL_PATCH, BYVAL_DEBUG_PATCH, LANDINGPAD_DEBUG_PATCH)
+SOURCE_PARTS = ("llvm", "clang", "lld", "cmake", "third-party")
+
 
 TOOLS = (
     "dsymutil",
@@ -45,25 +63,34 @@ WINDOWS_RUNTIME_DLLS = ("libc++.dll", "libunwind.dll")
 SDK_LIBRARIES = ("LLVMDemangle", "LLVMSupport", "LLVMTableGen", "LLVMDebuginfod")
 
 
-def patch_windows_statepoint(source):
-    command = ["git", "-C", str(source), "apply", "--check", str(STATEPOINT_PATCH)]
-    if (
-        subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
-        == 0
-    ):
-        subprocess.run(["git", "-C", str(source), "apply", str(STATEPOINT_PATCH)], check=True)
-        return source / "llvm/lib/Target/X86/X86MCInstLower.cpp"
-    subprocess.run(
-        ["git", "-C", str(source), "apply", "--reverse", "--check", str(STATEPOINT_PATCH)],
-        check=True,
-    )
-    return None
+def patch_sources(source):
+    changed = False
+    environment = source_patch_environment(source)
+    for patch in SOURCE_PATCHES:
+        command = ["git", "-C", str(source), "apply", "--check", str(patch)]
+        if (
+            subprocess.run(
+                command, env=environment, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            ).returncode
+            == 0
+        ):
+            subprocess.run(
+                ["git", "-C", str(source), "apply", str(patch)], env=environment, check=True
+            )
+            changed = True
+        else:
+            subprocess.run(
+                ["git", "-C", str(source), "apply", "--reverse", "--check", str(patch)],
+                env=environment,
+                check=True,
+            )
+    return changed
 
 
 def configure(source, build, prefix, cc, cxx, host, release):
     windows = host.endswith("windows-gnullvm")
     target = release["targets"]["x86_64-w64-windows-llvm-mingw-ucrt" if windows else host]
-    cpu = "-mcpu=generic" if host.endswith("darwin") else "-march=" + target["cpu"]
+    cpu = cpu_flag(host_definition(host)["arch"], target["cpu"])
     options = {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_INSTALL_PREFIX": str(prefix),
@@ -127,7 +154,7 @@ def configure(source, build, prefix, cc, cxx, host, release):
         )
     if host.endswith("darwin"):
         options["CMAKE_OSX_DEPLOYMENT_TARGET"] = target["minimum_os"]
-        options["CMAKE_OSX_ARCHITECTURES"] = "arm64"
+        options["CMAKE_OSX_ARCHITECTURES"] = apple_architecture(host_definition(host)["arch"])
     return [
         "cmake",
         "-G",
@@ -153,7 +180,8 @@ def main():
     parser.add_argument("--cxx", default="c++")
     parser.add_argument("--jobs", type=int, default=min(os.cpu_count() or 1, 6))
     args = parser.parse_args()
-    host = HOSTS.get((platform.system(), platform.machine()))
+    host_config = current_host(platform.system(), platform.machine())
+    host = host_config["rust_target"] if host_config else None
     if host is None:
         parser.error("build host must be Darwin/AArch64, Linux/GNU amd64 or Windows/amd64")
     if args.jobs < 1:
@@ -171,7 +199,7 @@ def main():
         parser.error("Windows LLVM builds require Ninja in PATH")
     companions = [Path(cxx).parent / name for name in WINDOWS_RUNTIME_DLLS] if windows else []
     inputs = {
-        "source": source_metadata(source, ("llvm", "clang", "lld", "cmake", "third-party")),
+        "source": source_metadata(source, SOURCE_PARTS),
         "tools": [
             metadata(path)
             for path in (
@@ -180,12 +208,13 @@ def main():
                 __file__,
                 ROOT / "scripts/build_support.py",
                 RELEASE_CONFIG,
-                STATEPOINT_PATCH,
+                *SOURCE_PATCHES,
                 *companions,
                 *([ninja] if windows else []),
             )
         ],
         "host": host,
+        "host_configuration": host_definition(host),
         "prefix": str(prefix),
     }
     outputs = [prefix / "bin" / (name + suffix) for name in TOOLS]
@@ -219,12 +248,10 @@ def main():
     if llvm_libraries and clang_libraries and reusable(record, inputs, outputs):
         print(f"Reusing LLVM {VERSION}: {prefix}")
         return
-    patched = patch_windows_statepoint(source)
-    if patched is not None:
-        # Applying the source fix changed one input after the update decision.
-        inputs["source"] = [
-            metadata(patched) if row[0] == str(patched) else row for row in inputs["source"]
-        ]
+    patched = patch_sources(source)
+    if patched:
+        # Applying the source fixes changed these inputs after the update decision.
+        inputs["source"] = source_metadata(source, SOURCE_PARTS)
     release = tomllib.loads(RELEASE_CONFIG.read_text())
     if release["llvm"] != VERSION:
         parser.error(f"this recipe requires LLVM {VERSION}")

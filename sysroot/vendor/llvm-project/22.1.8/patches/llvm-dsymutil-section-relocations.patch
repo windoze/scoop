@@ -1,0 +1,175 @@
+--- a/llvm/tools/dsymutil/DwarfLinkerForBinary.h
++++ b/llvm/tools/dsymutil/DwarfLinkerForBinary.h
+@@ -14,6 +14,7 @@
+ #include "LinkUtils.h"
+ #include "MachOUtils.h"
+ #include "RelocationMap.h"
++#include "llvm/ADT/DenseMap.h"
+ #include "llvm/DebugInfo/DWARF/DWARFContext.h"
+ #include "llvm/Remarks/RemarkFormat.h"
+ #include "llvm/Remarks/RemarkLinker.h"
+@@ -111,6 +112,9 @@
+     /// {
+     std::vector<ValidReloc> ValidDebugInfoRelocs;
+     std::vector<ValidReloc> ValidDebugAddrRelocs;
++    DenseMap<std::pair<unsigned, uint64_t>,
++             const DebugMapObject::DebugMapEntry *>
++        SectionAddressToMapping;
+     /// }
+ 
+     StringRef SrcFileName;
+--- a/llvm/tools/dsymutil/DwarfLinkerForBinary.cpp
++++ b/llvm/tools/dsymutil/DwarfLinkerForBinary.cpp
+@@ -959,12 +959,21 @@
+       if (const auto *Mapping = DMO.lookupSymbol(*SymbolName))
+         ValidRelocs.emplace_back(Offset64, RelocSize, Addend, Mapping->getKey(),
+                                  Mapping->getValue());
+-    } else if (const auto *Mapping = DMO.lookupObjectAddress(SymAddress)) {
+-      // Do not store the addend. The addend was the address of the symbol in
+-      // the object file, the address in the binary that is stored in the debug
+-      // map doesn't need to be offset.
+-      ValidRelocs.emplace_back(Offset64, RelocSize, SymOffset,
+-                               Mapping->getKey(), Mapping->getValue());
++    } else {
++      const DebugMapObject::DebugMapEntry *Mapping = nullptr;
++      auto TargetSection = Obj.getRelocationSection(RelocDataRef);
++      if (!Obj.isRelocationScattered(MachOReloc) &&
++          TargetSection != Obj.section_end()) {
++        // Adjacent sections can share an object address at an end/start
++        // boundary while their symbols have different linked addresses.
++        Mapping = SectionAddressToMapping.lookup(
++            {Obj.getSectionID(*TargetSection), SymAddress});
++      } else {
++        Mapping = DMO.lookupObjectAddress(SymAddress);
++      }
++      if (Mapping)
++        ValidRelocs.emplace_back(Offset64, RelocSize, SymOffset,
++                                 Mapping->getKey(), Mapping->getValue());
+     }
+   }
+ }
+@@ -998,6 +1007,30 @@
+ /// \returns whether there are any valid relocations in the debug info.
+ bool DwarfLinkerForBinary::AddressManager::findValidRelocsInDebugSections(
+     const object::ObjectFile &Obj, const DebugMapObject &DMO) {
++  // Index the section as well as the address once for this object's local
++  // relocations. Symbol-based relocations continue to use the debug map name.
++  if (const auto *MachOObj = dyn_cast<object::MachOObjectFile>(&Obj)) {
++    for (const object::SymbolRef &Symbol : Obj.symbols()) {
++      auto SymbolSection = Symbol.getSection();
++      if (!SymbolSection) {
++        consumeError(SymbolSection.takeError());
++        continue;
++      }
++      if (*SymbolSection == Obj.section_end())
++        continue;
++      unsigned SectionID = MachOObj->getSectionID(**SymbolSection);
++      auto Name = Symbol.getName();
++      if (!Name) {
++        consumeError(Name.takeError());
++        continue;
++      }
++      const auto *Mapping = DMO.lookupSymbol(*Name);
++      if (Mapping && Mapping->getValue().ObjectAddress)
++        SectionAddressToMapping.try_emplace(
++            std::make_pair(SectionID, *Mapping->getValue().ObjectAddress),
++            Mapping);
++    }
++  }
+   // Find the debug_info section.
+   bool FoundValidRelocs = false;
+   for (const object::SectionRef &Section : Obj.sections()) {
+--- /dev/null
++++ b/llvm/test/tools/dsymutil/X86/section-relative-address.test
+@@ -0,0 +1,91 @@
++# RUN: rm -rf %t && split-file %s %t
++# RUN: llvm-mc -triple x86_64-apple-macosx -filetype=obj %t/input.s -o %t/input.o
++# RUN: dsymutil -y %t/map.yaml --oso-prepend-path %t -f -o %t/output
++# RUN: llvm-dwarfdump --debug-info %t/output | FileCheck %s
++
++# A section's end alias and the following TLS descriptor have the same object
++# address. The local relocation names the descriptor's section, not that alias.
++# Keep the first (zero-indexed) section's code mapping as well.
++# CHECK: DW_AT_low_pc (0x0000000100000100)
++# CHECK: DW_AT_name ("threadCounter")
++# CHECK: DW_AT_location (DW_OP_const8u 0x100002000, DW_OP_form_tls_address)
++
++#--- map.yaml
++---
++triple: x86_64-apple-darwin
++objects:
++  - filename: input.o
++    symbols:
++      - { sym: _function, objAddr: 0x0, binAddr: 0x100000100, size: 0x1 }
++      - { sym: _tls, objAddr: 0x9, binAddr: 0x100002000, size: 0x18 }
++      - { sym: _before_end, objAddr: 0x9, binAddr: 0x100003008, size: 0x0 }
++...
++
++#--- input.s
++.text
++.globl _function
++_function:
++  retq
++
++.section __DATA,__before
++  .quad 0
++.globl _before_end
++_before_end:
++
++.section __DATA,__thread_vars,thread_local_variables
++.globl _tls
++_tls:
++  .quad 0, 0, 0
++
++.section __DWARF,__debug_abbrev,regular,debug
++  .uleb128 1
++  .uleb128 0x11
++  .byte 1
++  .uleb128 3
++  .uleb128 8
++  .uleb128 0x11
++  .uleb128 1
++  .uleb128 0x12
++  .uleb128 6
++  .byte 0, 0
++  .uleb128 2
++  .uleb128 0x34
++  .byte 0
++  .uleb128 3
++  .uleb128 8
++  .uleb128 2
++  .uleb128 0x18
++  .byte 0, 0
++  .uleb128 3
++  .uleb128 0x2e
++  .byte 0
++  .uleb128 3
++  .uleb128 8
++  .uleb128 0x11
++  .uleb128 1
++  .uleb128 0x12
++  .uleb128 6
++  .byte 0, 0, 0
++
++.section __DWARF,__debug_info,regular,debug
++  .long Lend-Lbegin
++Lbegin:
++  .short 4
++  .long 0
++  .byte 8
++  .uleb128 1
++  .asciz "section.c"
++  .quad _function
++  .long 1
++  .uleb128 3
++  .asciz "function"
++  .quad _function
++  .long 1
++  .uleb128 2
++  .asciz "threadCounter"
++  .uleb128 10
++  .byte 0x0e
++  .quad _tls
++  .byte 0x9b
++  .byte 0
++Lend:

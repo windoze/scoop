@@ -1,0 +1,196 @@
+# Shared target facts. Implementation keys name code in their owning modules.
+[[targets]]
+symbol = "DARWIN_AARCH64"
+canonical = "aarch64-apple-darwin"
+profile = "darwin-aarch64"
+version = 1
+aliases = ["arm64-apple-darwin"]
+versioned_aliases = ["aarch64-apple-darwin", "arm64-apple-darwin", "aarch64-apple-macosx", "arm64-apple-macosx"]
+os = "darwin"
+arch = "aarch64"
+env = "none"
+llvm_triple = "aarch64-apple-darwin"
+layout = "DarwinAarch64"
+runtime = "DarwinAarch64"
+procedure_abi = "DarwinAarch64"
+scoop_abi = "ScalarInterfaceAndSmallValueParts"
+exception_handling = "Dwarf"
+tuning = "DarwinAarch64"
+backend = "LLVM_22_1"
+native_environment = "Darwin"
+c_bridge_profile = "darwin-aarch64-apple-clang"
+native_rust_target = "aarch64-apple-darwin"
+
+[[targets]]
+symbol = "DARWIN_X86_64"
+canonical = "x86_64-apple-darwin"
+profile = "darwin-x86-64"
+version = 1
+versioned_aliases = ["x86_64-apple-darwin", "x86_64-apple-macosx"]
+os = "darwin"
+arch = "x86_64"
+env = "none"
+llvm_triple = "x86_64-apple-darwin"
+layout = "DarwinX86_64"
+runtime = "DarwinX86_64"
+procedure_abi = "SysvAmd64"
+scoop_abi = "ScalarInterfaceAndSmallValueParts"
+exception_handling = "Dwarf"
+tuning = "X86_64"
+backend = "LLVM_22_1_DARWIN_X86_64"
+native_environment = "Darwin"
+c_bridge_profile = "darwin-x86-64-apple-clang"
+native_rust_target = "x86_64-apple-darwin"
+
+[[targets]]
+symbol = "LINUX_X86_64_GNU"
+canonical = "x86_64-unknown-linux-gnu"
+profile = "linux-x86-64-gnu"
+version = 1
+aliases = ["x86_64-linux-gnu"]
+os = "linux"
+arch = "x86_64"
+env = "gnu"
+llvm_triple = "x86_64-unknown-linux-gnu"
+layout = "LinuxX86_64"
+runtime = "LinuxX86_64"
+procedure_abi = "SysvAmd64"
+scoop_abi = "ScalarInterfaceAndSmallValueParts"
+exception_handling = "Dwarf"
+tuning = "X86_64"
+backend = "LLVM_22_1_LINUX_X86_64"
+native_environment = "LinuxGnu"
+c_bridge_profile = "linux-x86-64-gnu-c"
+native_rust_target = "x86_64-unknown-linux-gnu"
+
+[[targets]]
+symbol = "LINUX_X86_64_MUSL"
+canonical = "x86_64-unknown-linux-musl"
+profile = "linux-x86-64-musl"
+version = 1
+aliases = ["x86_64-linux-musl"]
+os = "linux"
+arch = "x86_64"
+env = "musl"
+llvm_triple = "x86_64-unknown-linux-musl"
+layout = "LinuxX86_64"
+runtime = "LinuxX86_64"
+procedure_abi = "SysvAmd64"
+scoop_abi = "ScalarInterfaceAndSmallValueParts"
+exception_handling = "Dwarf"
+tuning = "X86_64"
+backend = "LLVM_22_1_LINUX_X86_64"
+native_environment = "LinuxMusl"
+c_bridge_profile = "linux-x86-64-musl-c"
+native_rust_target = "x86_64-unknown-linux-musl"
+
+[[targets]]
+symbol = "WINDOWS_X86_64_MSVC_UCRT"
+canonical = "x86_64-pc-windows-msvc-ucrt"
+profile = "windows-x86-64-msvc-ucrt"
+version = 1
+os = "windows"
+arch = "x86_64"
+env = "msvc-ucrt"
+llvm_triple = "x86_64-pc-windows-msvc"
+layout = "WindowsX86_64"
+runtime = "WindowsX86_64"
+procedure_abi = "Win64"
+scoop_abi = "Win64CallerCopyAndIndirectInterfaceResult"
+exception_handling = "WindowsSeh"
+tuning = "X86_64"
+backend = "LLVM_22_1_WINDOWS_X86_64"
+native_environment = "MicrosoftUcrt"
+c_bridge_profile = "windows-x86-64-msvc-ucrt-clang"
+native_rust_target = "x86_64-pc-windows-msvc"
+
+[[targets]]
+symbol = "WINDOWS_X86_64_MINGW_MSVCRT"
+canonical = "x86_64-w64-windows-llvm-mingw-msvcrt"
+profile = "windows-x86-64-llvm-mingw-msvcrt"
+version = 1
+os = "windows"
+arch = "x86_64"
+env = "llvm-mingw-msvcrt"
+llvm_triple = "x86_64-w64-windows-gnu"
+layout = "WindowsX86_64"
+runtime = "WindowsX86_64"
+procedure_abi = "Win64"
+scoop_abi = "Win64CallerCopyAndIndirectInterfaceResult"
+exception_handling = "WindowsSeh"
+tuning = "X86_64"
+backend = "LLVM_22_1_WINDOWS_X86_64"
+native_environment = "LlvmMingwMsvcrt"
+c_bridge_profile = "windows-x86-64-llvm-mingw-msvcrt-clang"
+native_rust_target = "x86_64-pc-windows-gnu"
+
+[[targets]]
+symbol = "WINDOWS_X86_64_MINGW_UCRT"
+canonical = "x86_64-w64-windows-llvm-mingw-ucrt"
+profile = "windows-x86-64-llvm-mingw-ucrt"
+version = 1
+os = "windows"
+arch = "x86_64"
+env = "llvm-mingw-ucrt"
+llvm_triple = "x86_64-w64-windows-gnu"
+layout = "WindowsX86_64"
+runtime = "WindowsX86_64"
+procedure_abi = "Win64"
+scoop_abi = "Win64CallerCopyAndIndirectInterfaceResult"
+exception_handling = "WindowsSeh"
+tuning = "X86_64"
+backend = "LLVM_22_1_WINDOWS_X86_64"
+native_environment = "LlvmMingwUcrt"
+c_bridge_profile = "windows-x86-64-llvm-mingw-ucrt-clang"
+native_rust_target = "x86_64-pc-windows-gnullvm"
+
+# Hosts describe executable tools and defaults, independently of output targets.
+[[hosts]]
+os = "macos"
+arch = "aarch64"
+environment = ""
+system = "Darwin"
+machines = ["arm64", "aarch64"]
+rust_target = "aarch64-apple-darwin"
+default_target = "aarch64-apple-darwin"
+distribution_targets = ["aarch64-apple-darwin", "x86_64-apple-darwin"]
+
+[[hosts]]
+os = "macos"
+arch = "x86_64"
+environment = ""
+system = "Darwin"
+machines = ["x86_64", "amd64"]
+rust_target = "x86_64-apple-darwin"
+default_target = "x86_64-apple-darwin"
+distribution_targets = ["x86_64-apple-darwin"]
+
+[[hosts]]
+os = "linux"
+arch = "x86_64"
+environment = ""
+system = "Linux"
+machines = ["x86_64", "amd64"]
+rust_target = "x86_64-unknown-linux-gnu"
+default_target = "x86_64-unknown-linux-gnu"
+distribution_targets = ["x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+
+[[hosts]]
+os = "linux"
+arch = "x86_64"
+environment = "musl"
+system = "Linux"
+machines = ["x86_64", "amd64"]
+rust_target = "x86_64-unknown-linux-musl"
+default_target = "x86_64-unknown-linux-musl"
+distribution_targets = ["x86_64-unknown-linux-musl"]
+
+[[hosts]]
+os = "windows"
+arch = "x86_64"
+environment = ""
+system = "Windows"
+machines = ["amd64", "x86_64"]
+rust_target = "x86_64-pc-windows-gnullvm"
+default_target = "x86_64-pc-windows-msvc-ucrt"
+distribution_targets = ["x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]

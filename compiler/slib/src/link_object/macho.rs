@@ -7,6 +7,9 @@ use object::read::macho::{Section as _, Segment as _};
 use object::{Endianness, macho};
 use scoop_wire::{Digest256, sha256};
 
+mod architecture;
+pub use architecture::MachOArchitecture;
+
 mod sections;
 pub use sections::*;
 
@@ -17,7 +20,8 @@ mod relocations;
 pub use relocations::*;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ValidatedDarwinArm64ObjectEnvelopeV1 {
+pub struct ValidatedMachOObjectEnvelopeV1 {
+    target: scoop_identity::TargetProfileId,
     byte_length: u64,
     content_digest: Digest256,
     section_count: u32,
@@ -28,7 +32,11 @@ pub struct ValidatedDarwinArm64ObjectEnvelopeV1 {
     relocations: Vec<ObservedMachORelocationV1>,
 }
 
-impl ValidatedDarwinArm64ObjectEnvelopeV1 {
+impl ValidatedMachOObjectEnvelopeV1 {
+    pub const fn target(&self) -> scoop_identity::TargetProfileId {
+        self.target
+    }
+
     pub const fn byte_length(&self) -> u64 {
         self.byte_length
     }
@@ -120,9 +128,11 @@ fn trimmed_fixed_name(name: &[u8; 16]) -> &[u8] {
         .unwrap_or(name.len())]
 }
 
-pub fn validate_darwin_arm64_object_envelope_v1(
+pub fn validate_macho_object_envelope_v1(
+    target: scoop_identity::TargetProfileId,
     bytes: &[u8],
-) -> Result<ValidatedDarwinArm64ObjectEnvelopeV1, ObjectEnvelopeValidationError> {
+) -> Result<ValidatedMachOObjectEnvelopeV1, ObjectEnvelopeValidationError> {
+    let architecture = MachOArchitecture::for_target(target)?;
     let byte_length =
         u64::try_from(bytes.len()).map_err(|_| ObjectEnvelopeValidationError::FileRangeOverflow)?;
 
@@ -134,12 +144,12 @@ pub fn validate_darwin_arm64_object_envelope_v1(
     let endian = header
         .endian()
         .map_err(|_| ObjectEnvelopeValidationError::WrongEncoding)?;
-    if header.cputype(endian) != macho::CPU_TYPE_ARM64 {
+    if header.cputype(endian) != architecture.cpu_type() {
         return Err(ObjectEnvelopeValidationError::WrongCpuType(
             header.cputype(endian),
         ));
     }
-    if header.cpusubtype(endian) != macho::CPU_SUBTYPE_ARM64_ALL {
+    if header.cpusubtype(endian) != architecture.cpu_subtype() {
         return Err(ObjectEnvelopeValidationError::WrongCpuSubtype(
             header.cpusubtype(endian),
         ));
@@ -191,13 +201,17 @@ pub fn validate_darwin_arm64_object_envelope_v1(
     }
     let symtab = symtab.ok_or(ObjectEnvelopeValidationError::MissingSymbolTable)?;
     let symbol_count = symtab.nsyms.get(endian);
-    let symbols =
-        validate_darwin_arm64_symbol_inventory_v1(symtab, endian, bytes, &observed_sections)
-            .map_err(ObjectEnvelopeValidationError::SymbolInventory)?;
-    let relocations =
-        validate_darwin_arm64_relocation_inventory_v1(bytes, &observed_sections, symbol_count)
-            .map_err(ObjectEnvelopeValidationError::RelocationInventory)?;
-    Ok(ValidatedDarwinArm64ObjectEnvelopeV1 {
+    let symbols = validate_macho_symbol_inventory_v1(symtab, endian, bytes, &observed_sections)
+        .map_err(ObjectEnvelopeValidationError::SymbolInventory)?;
+    let relocations = validate_macho_relocation_inventory_v1(
+        architecture,
+        bytes,
+        &observed_sections,
+        symbol_count,
+    )
+    .map_err(ObjectEnvelopeValidationError::RelocationInventory)?;
+    Ok(ValidatedMachOObjectEnvelopeV1 {
+        target,
         byte_length,
         content_digest: sha256(bytes),
         section_count: observed_sections.len() as u32,
@@ -214,6 +228,7 @@ pub fn validate_darwin_arm64_object_envelope_v1(
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ObjectEnvelopeValidationError {
+    UnsupportedTarget,
     MalformedHeader,
     WrongEncoding,
     WrongCpuType(u32),
@@ -223,17 +238,14 @@ pub enum ObjectEnvelopeValidationError {
     MalformedSegment,
     MalformedSymbolTable,
     MissingSymbolTable,
-    SymbolInventory(DarwinArm64SymbolInventoryValidationError),
-    RelocationInventory(DarwinArm64RelocationInventoryValidationError),
+    SymbolInventory(MachOSymbolInventoryValidationError),
+    RelocationInventory(MachORelocationInventoryValidationError),
     FileRangeOverflow,
 }
 
 impl fmt::Display for ObjectEnvelopeValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "invalid Darwin/AArch64 link-object envelope: {self:?}"
-        )
+        write!(formatter, "invalid Mach-O link-object envelope: {self:?}")
     }
 }
 

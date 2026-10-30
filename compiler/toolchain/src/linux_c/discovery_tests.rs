@@ -14,18 +14,18 @@ fn real_gcc_override_belongs_only_to_musl_wrappers() {
     let selected = std::path::absolute(selected).unwrap();
     let missing = OsStr::new("missing-gcc");
     assert_eq!(
-        underlying_compiler(LinuxLibc::Gnu, path, Some(missing)).unwrap(),
+        underlying_compiler(false, path, Some(missing)).unwrap(),
         None,
     );
     assert_eq!(
-        underlying_compiler(LinuxLibc::Musl, path, None).unwrap(),
+        underlying_compiler(true, path, None).unwrap(),
         Some(std::path::absolute(gcc).unwrap()),
     );
     assert_eq!(
-        underlying_compiler(LinuxLibc::Musl, path, Some(selected.as_os_str())).unwrap(),
+        underlying_compiler(true, path, Some(selected.as_os_str())).unwrap(),
         Some(selected),
     );
-    assert!(underlying_compiler(LinuxLibc::Musl, path, Some(missing)).is_err());
+    assert!(underlying_compiler(true, path, Some(missing)).is_err());
 }
 
 #[test]
@@ -39,6 +39,8 @@ fn probe_and_invocation_use_the_same_libc_specific_environment() {
         ),
     ] {
         let paths = CompilerPaths {
+            target,
+            family: NativeCompilerFamily::Gcc,
             driver: std::path::absolute("/tools/selected-cc").unwrap(),
             real_gcc: real_gcc.clone(),
             search_path: OsString::from("/tools"),
@@ -46,7 +48,11 @@ fn probe_and_invocation_use_the_same_libc_specific_environment() {
             temporary: PathBuf::from("/work/temporary"),
         };
         let compiler = GccCompilerIdentityV1::new("15.2.0", sha256(b"test compiler")).unwrap();
-        let profile = scoop_target_data::linux_c_bridge_profile(target, compiler).unwrap();
+        let profile = scoop_target_data::linux_c_bridge_profile(
+            target,
+            LinuxCCompilerIdentityV1::Gcc(compiler),
+        )
+        .unwrap();
         let probe = paths.command();
         let invocation = ValidatedCBridgeToolchainInvocation::new_linux(
             target,

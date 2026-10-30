@@ -2,7 +2,7 @@ use super::*;
 
 impl WireEncode for BackendProfileContract {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(if self.machine_frame.is_some() { 28 } else { 26 })?;
+        encoder.map(28)?;
         encode_pair(
             encoder,
             1,
@@ -25,7 +25,14 @@ impl WireEncode for BackendProfileContract {
         for field in 12..=18 {
             encode_unsigned_field(encoder, field, 1)?;
         }
-        encode_unsigned_field(encoder, 19, u64::from(self.llvm_target_backend))?;
+        encode_unsigned_field(
+            encoder,
+            19,
+            match self.llvm_target_backend {
+                crate::TargetArchitecture::Aarch64 => 1,
+                crate::TargetArchitecture::X86_64 => 2,
+            },
+        )?;
         encode_unsigned_field(encoder, 20, 1)?;
         encode_unsigned_field(encoder, 21, 1)?;
         encode_unsigned_field(encoder, 22, 2)?;
@@ -51,41 +58,20 @@ impl WireEncode for BackendProfileContract {
                 crate::NativeObjectFormat::Coff64 => 3,
             },
         )?;
-        if let Some(frame) = self.machine_frame {
-            let (tag, sp, fp, slot, record) = match frame {
-                BackendMachineFrameV1::FixedFrame {
-                    stack_pointer_register,
-                    frame_pointer_register,
-                    root_slot_bytes,
-                    frame_record_bytes,
-                } => (
-                    1,
-                    stack_pointer_register,
-                    frame_pointer_register,
-                    root_slot_bytes,
-                    Some(frame_record_bytes),
-                ),
-                BackendMachineFrameV1::WindowsSeh {
-                    stack_pointer_register,
-                    frame_pointer_register,
-                    root_slot_bytes,
-                } => (
-                    2,
-                    stack_pointer_register,
-                    frame_pointer_register,
-                    root_slot_bytes,
-                    None,
-                ),
-            };
-            encode_unsigned_field(encoder, 26, tag)?;
-            encoder.field(27)?;
-            encoder.map(if record.is_some() { 4 } else { 3 })?;
-            for (field, value) in [(1, u64::from(sp)), (2, u64::from(fp)), (3, u64::from(slot))] {
-                encode_unsigned_field(encoder, field, value)?;
-            }
-            if let Some(bytes) = record {
-                encode_unsigned_field(encoder, 4, u64::from(bytes))?;
-            }
+        let (tag, record) = match self.machine_frame {
+            BackendMachineFrameV1::DarwinAarch64 => (3, Some(16)),
+            BackendMachineFrameV1::SysvAmd64 => (1, Some(16)),
+            BackendMachineFrameV1::WindowsSeh => (2, None),
+        };
+        let (sp, fp) = self.machine_frame.registers();
+        encode_unsigned_field(encoder, 26, tag)?;
+        encoder.field(27)?;
+        encoder.map(if record.is_some() { 4 } else { 3 })?;
+        for (field, value) in [(1, u64::from(sp)), (2, u64::from(fp)), (3, 8)] {
+            encode_unsigned_field(encoder, field, value)?;
+        }
+        if let Some(bytes) = record {
+            encode_unsigned_field(encoder, 4, bytes)?;
         }
         // Qualified ordinary passes and final physical GC/EH emission plans.
         encode_unsigned_field(encoder, 28, 1)?;

@@ -38,6 +38,9 @@ class ToolchainArchiveTests(unittest.TestCase):
                     "sysroot/vendor/liburing/2.15/liburing.spec": "Version: 2.15\n",
                     "sysroot/vendor/ryu/README.scoop.md": "固定 commit：`abc123`",
                     "sysroot/src/library/main.scoop": "fun main() {}",
+                    "sysroot/src/library/Cone.toml": (
+                        '[cone]\ngroup = "scoop"\nname = "library"\nversion = "0.1.0"\n'
+                    ),
                     "sysroot/src/library/Cone.lock": "generated dependency resolution",
                     "sysroot/src/library/target/output": "generated output",
                     "scripts/distribution/README.md": "installation",
@@ -131,6 +134,7 @@ class ToolchainArchiveTests(unittest.TestCase):
                 self.assertEqual(metadata["debugger_python"], "3.14")
                 self.assertEqual(metadata["lldb"], release["llvm"])
                 self.assertNotIn("libuv", metadata)
+                self.assertEqual(metadata["cones"], [{"coordinate": "scoop:library:0.1.0"}])
                 self.assertEqual(
                     (installed / "src/library/main.scoop").read_text(), "fun main() {}"
                 )

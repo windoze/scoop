@@ -2,7 +2,7 @@ schema = 1
 name = "cli-core-default-prebuilt-and-explicit-source"
 inputs = ["root", "../../../language/core-library/extension.scoop", "../../../language/core-library/library-consumer.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["cli", "core", "cache", "negative", "driver"]
 
 [vars]

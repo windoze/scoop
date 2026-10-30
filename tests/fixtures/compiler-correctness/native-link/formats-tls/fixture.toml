@@ -3,7 +3,7 @@ name = "native-link-formats-tls"
 inputs = ["cone", "../../../language/native-link/final/root.scoop", "native-sources/compile_m23_final.c"]
 tools = ["scoop", "scoopc", "cc"]
 # Exercise the target toolchain's normal TLV storage.
-targets = ["aarch64-apple-darwin"]
+when = { os = "darwin" }
 tags = ["native-link", "program-link", "compiler-correctness"]
 [[steps]]
 name = "prepare"

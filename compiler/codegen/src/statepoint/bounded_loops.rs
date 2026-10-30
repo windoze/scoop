@@ -14,6 +14,7 @@ mod remarks;
 pub(super) fn optimize(
     function: FunctionValue<'_>,
     machine: &TargetMachine,
+    tuning: crate::target::TargetTuning,
 ) -> Result<(), CodegenError> {
     let context = function.get_type().get_context();
     let mut vectorize = false;
@@ -22,7 +23,7 @@ pub(super) fn optimize(
         let Some(mut region) = region::analyze(latch) else {
             continue;
         };
-        card_regions::prepare(&mut region, machine)?;
+        card_regions::prepare(&mut region, machine, tuning)?;
         let scalar = operations::prepare(&region);
         if !scalar && !reference_reads::selected(&region) {
             continue;

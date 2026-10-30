@@ -3,7 +3,7 @@ name = "generator-process-query-and-source"
 root = "program.scoop"
 inputs = ["program.scoop", "../peer.py"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["driver", "generator", "protocol"]
 
 [[steps]]

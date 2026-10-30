@@ -5,15 +5,21 @@ use std::num::NonZeroU32;
 use scoop_identity::TargetProfileId;
 use scoop_wire::Digest256;
 
-use super::DarwinArm64RelocationShapeV1;
+use super::MachORelocationShapeV1;
 
 mod macho;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ObjectRelocationTargetV1 {
+    SymbolTableIndex(u32),
+    SectionOrdinal(NonZeroU32),
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ObjectEnvelopeFormatV1 {
-    DarwinArm64,
+    MachO64 { target: TargetProfileId },
     Elf64 { target: TargetProfileId },
-    CoffAmd64 { target: TargetProfileId },
+    Coff64 { target: TargetProfileId },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -38,9 +44,9 @@ impl ValidatedObjectEnvelopeV1 {
     }
     pub const fn target(&self) -> TargetProfileId {
         match self.format {
-            ObjectEnvelopeFormatV1::DarwinArm64 => scoop_target_data::DARWIN_AARCH64_ID,
-            ObjectEnvelopeFormatV1::Elf64 { target, .. }
-            | ObjectEnvelopeFormatV1::CoffAmd64 { target } => target,
+            ObjectEnvelopeFormatV1::MachO64 { target }
+            | ObjectEnvelopeFormatV1::Elf64 { target, .. }
+            | ObjectEnvelopeFormatV1::Coff64 { target } => target,
         }
     }
     pub fn sections(&self) -> &[ObservedObjectSectionV1] {
@@ -190,7 +196,7 @@ impl ObservedObjectSymbolV1 {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ObjectRelocationShapeV1 {
-    DarwinArm64(DarwinArm64RelocationShapeV1),
+    MachO(MachORelocationShapeV1),
     ElfX86_64Rela {
         kind: u32,
         target_symbol: u32,
@@ -207,7 +213,7 @@ pub enum ObjectRelocationShapeV1 {
 impl ObjectRelocationShapeV1 {
     pub const fn width_bytes(self) -> u8 {
         match self {
-            Self::DarwinArm64(shape) => shape.width_bytes(),
+            Self::MachO(shape) => shape.width_bytes(),
             Self::ElfX86_64Rela { width, .. } | Self::CoffAmd64 { width, .. } => width,
         }
     }

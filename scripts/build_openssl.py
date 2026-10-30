@@ -11,17 +11,34 @@ import tarfile
 import tomllib
 from pathlib import Path
 
-from build_support import RELEASE_CONFIG, ROOT, build_lock, metadata, reusable, save_record
+from build_support import (
+    RELEASE_CONFIG,
+    ROOT,
+    build_lock,
+    cpu_flag,
+    metadata,
+    reusable,
+    save_record,
+)
+from target_catalog import NATIVE_TARGETS, native_configuration
 
 VERSION = "3.5.9"
-TARGETS = {
-    "aarch64-apple-darwin": ("darwin64-arm64-cc", "clang", "Darwin"),
-    "x86_64-unknown-linux-gnu": ("linux-x86_64", "gcc", "Linux"),
-    "x86_64-unknown-linux-musl": ("linux-x86_64", "musl-gcc", "Linux"),
-    "x86_64-pc-windows-msvc-ucrt": ("VC-WIN64A", "clang-cl", "Windows"),
-    "x86_64-w64-windows-llvm-mingw-msvcrt": ("mingw64", "clang", "Windows"),
-    "x86_64-w64-windows-llvm-mingw-ucrt": ("mingw64", "clang", "Windows"),
+# Configure names are OpenSSL recipe choices, keyed by actual machine/environment.
+CONFIGURATIONS = {
+    ("Darwin", "aarch64"): "darwin64-arm64-cc",
+    ("Darwin", "x86_64"): "darwin64-x86_64-cc",
+    ("LinuxGnu", "x86_64"): "linux-x86_64",
+    ("LinuxMusl", "x86_64"): "linux-x86_64",
+    ("MicrosoftUcrt", "x86_64"): "VC-WIN64A",
+    ("LlvmMingwMsvcrt", "x86_64"): "mingw64",
+    ("LlvmMingwUcrt", "x86_64"): "mingw64",
 }
+TARGETS = {
+    name: (CONFIGURATIONS[(target["native_environment"], target["arch"])], cc, host)
+    for name, (host, cc) in NATIVE_TARGETS.items()
+    for target in [native_configuration(name)]
+}
+
 OPTIONS = [
     "no-shared",
     "no-module",
@@ -70,6 +87,7 @@ def prepare(args):
             metadata(path) for path in (__file__, RELEASE_CONFIG, ROOT / "scripts/build_support.py")
         ],
         "target": args.target,
+        "target_configuration": native_configuration(args.target),
         "config": config,
         "cc": args.cc or default_cc,
         "perl": args.perl,
@@ -117,6 +135,7 @@ def prepare(args):
     if host == "Darwin":
         baseline = release["minimum_os"]
         flags.append("-mmacosx-version-min=" + os.environ.get("MACOSX_DEPLOYMENT_TARGET", baseline))
+        flags.append(cpu_flag(native_configuration(args.target)["arch"], release["cpu"]))
     elif msvc:
         flags.extend(("/MD", "/D_WIN32_WINNT=0x0a00"))
     else:

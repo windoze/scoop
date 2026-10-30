@@ -2,7 +2,7 @@ schema = 1
 name = "test-purpose-generated"
 inputs = ["program", "bootstrap.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["test-purpose", "entry", "lifecycle", "driver"]
 variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
 [[steps]]

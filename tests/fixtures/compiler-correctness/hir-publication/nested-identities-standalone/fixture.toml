@@ -2,7 +2,7 @@ schema = 1
 name = "hir-nested-identities-standalone"
 inputs = ["../../../language/imported-classes/support/stage3_test.scoop", "../../../language/imported-classes/support/gc.c", "../support/main.scoop", "../../../language/default-nested-identities/standalone.scoop", "provider", "consumer.scoop", "consumer", "runtime-fixture"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["hir-publication", "nested-identities", "compiler-correctness"]
 [[steps]]
 name = "core"

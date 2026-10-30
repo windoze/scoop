@@ -121,11 +121,18 @@ __asm__(".text\n"
         "mov x1, sp\n"
         "mov x0, x8\n"
         "b _native_aggregate_round_trip_storage\n");
-#elif defined(__linux__) && defined(__x86_64__)
+#elif defined(__x86_64__) && (defined(__linux__) || defined(__APPLE__))
+#if defined(__APPLE__)
+#define SCOOP_TEST_ASM_SYMBOL(name) "_" name
+#define SCOOP_TEST_ASM_ELF(directive) ""
+#else
+#define SCOOP_TEST_ASM_SYMBOL(name) name
+#define SCOOP_TEST_ASM_ELF(directive) directive
+#endif
 __asm__(".text\n"
-        ".globl native_aggregate_round_trip\n"
-        ".type native_aggregate_round_trip,@function\n"
-        "native_aggregate_round_trip:\n"
+        ".globl " SCOOP_TEST_ASM_SYMBOL("native_aggregate_round_trip") "\n"
+        SCOOP_TEST_ASM_ELF(".type native_aggregate_round_trip,@function\n")
+        SCOOP_TEST_ASM_SYMBOL("native_aggregate_round_trip") ":\n"
         ".cfi_startproc\n"
         "push %rbp\n"
         ".cfi_def_cfa_offset 16\n"
@@ -135,13 +142,13 @@ __asm__(".text\n"
         "push %rdi\n"
         "sub $8,%rsp\n"
         "lea 16(%rbp),%rsi\n"
-        "call native_aggregate_round_trip_storage\n"
+        "call " SCOOP_TEST_ASM_SYMBOL("native_aggregate_round_trip_storage") "\n"
         "mov -8(%rbp),%rax\n"
         "leave\n"
         ".cfi_def_cfa %rsp,8\n"
         "ret\n"
         ".cfi_endproc\n"
-        ".size native_aggregate_round_trip,.-native_aggregate_round_trip\n");
+        SCOOP_TEST_ASM_ELF(".size native_aggregate_round_trip,.-native_aggregate_round_trip\n"));
 #else
 #error "Scoop ABI fixture requires a supported target"
 #endif

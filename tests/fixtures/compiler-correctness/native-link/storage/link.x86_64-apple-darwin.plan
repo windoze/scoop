@@ -1,0 +1,3 @@
+link inputs: startup, cone/member order, runtime/object order, libSystem
+native library m23_storage requirement=b775906fa7fe6bf1902f5dfbf136505973bbc7e11c97bc92dbdcfd2146668c92 input=$NATIVE_INPUT_0 origins=dev.programlink:storage:0.1.0
+native object $NATIVE_INPUT_0 slice=0..3424

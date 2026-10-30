@@ -2,7 +2,7 @@ schema = 1
 name = "imported-struct-standalone"
 inputs = ["../../imported-classes/support/stage3_test.scoop", "../../imported-struct-values/provider.scoop", "struct-provider", "../../imported-struct-values/standalone.scoop", "struct-standalone", "../../imported-struct-values/downstream.scoop", "downstream-standalone", "../../imported-struct-values/runtime.ll", "../support/struct-main.scoop", "value-runtime-struct-standalone"]
 tools = ["scoop", "scoopc", "llc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["imported-values", "struct", "language"]
 
 [vars]

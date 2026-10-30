@@ -2,7 +2,6 @@ schema = 1
 name = "argument-inference-shared-mapping"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../argument-inference/provider.scoop", "generic-member-shared-mapping", "../../../argument-inference/shared-mapping.scoop", "generic-member-downstream-shared-mapping", "../../../argument-inference/downstream.scoop", "runtime-fixture", "../../../imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "imported_contextual_arguments_republish_and_execute_from_artifacts", "language"]
 
 [[steps]]

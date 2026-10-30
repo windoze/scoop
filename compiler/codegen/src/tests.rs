@@ -28,18 +28,24 @@ mod support;
 pub(crate) use support::test_physical_exact;
 use support::*;
 
+// These C harnesses use POSIX threads, processes, mappings, and the Itanium unwinder.
+// Windows runtime execution is covered by toolchain tests and native CLI fixtures.
+#[cfg(unix)]
 #[path = "runtime_collector_tests.rs"]
 mod runtime_collector_tests;
 
+#[cfg(unix)]
 #[path = "runtime_eh_tests.rs"]
 mod runtime_eh_tests;
 
+#[cfg(unix)]
 #[path = "runtime_eh_lifecycle_tests.rs"]
 mod runtime_eh_lifecycle_tests;
 #[path = "runtime_stack_trace_tests.rs"]
 #[cfg(unix)]
 mod runtime_stack_trace_tests;
 
+#[cfg(unix)]
 #[path = "runtime_eh_personality_tests.rs"]
 mod runtime_eh_personality_tests;
 
@@ -54,6 +60,7 @@ mod boxing;
 mod c_bridge_objects;
 mod c_layout;
 mod closures;
+mod darwin_x86_64;
 mod debug;
 mod dependency_external;
 mod embedded_bytes;
@@ -62,6 +69,7 @@ mod errno;
 mod exceptions;
 mod external_type_descriptors;
 mod gc_leaf;
+#[cfg(unix)]
 mod image;
 mod initialization;
 mod linux_codegen;

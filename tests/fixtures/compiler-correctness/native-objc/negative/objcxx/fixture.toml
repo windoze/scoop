@@ -2,7 +2,7 @@ schema = 1
 name = "native-objc-reject-objcxx"
 inputs = ["cone"]
 tools = ["scoop"]
-targets = ["aarch64-apple-darwin"]
+when = { os = "darwin" }
 tags = ["native", "objc", "negative", "compiler-correctness"]
 
 [[steps]]

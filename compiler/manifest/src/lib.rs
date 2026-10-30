@@ -30,7 +30,9 @@ pub use input::{
     CurrentConeInput, CurrentConeOperandError, CurrentConeOperandErrorKind,
     classify_current_cone_operand,
 };
-pub use native::{NativeCompileFlag, NativeConfig, NativeIncludeFlag, NativeSourceLanguage};
+pub use native::{
+    NativeCompileFlag, NativeConfig, NativeIncludeFlag, NativeIncludePath, NativeSourceLanguage,
+};
 pub use requirement::VersionRequirement;
 pub use root::{
     LoadedConeManifest, LocatedConeManifest, ManifestRootError, ManifestRootErrorKind,

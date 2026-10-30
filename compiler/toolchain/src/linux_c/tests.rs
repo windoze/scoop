@@ -3,11 +3,15 @@ use object::ObjectSymbol;
 
 #[test]
 fn linux_c_drivers_compile_pic_and_tls_with_the_selected_libc() {
-    for target in [
-        scoop_target_data::LINUX_X86_64_GNU,
-        scoop_target_data::LINUX_X86_64_MUSL,
+    for (target, compiler) in [
+        (scoop_target_data::LINUX_X86_64_GNU, None),
+        (scoop_target_data::LINUX_X86_64_MUSL, None),
+        (
+            scoop_target_data::LINUX_X86_64_GNU,
+            Some(Path::new("clang")),
+        ),
     ] {
-        let invocation = resolve_linux_c_toolchain(target, None, None).unwrap();
+        let invocation = resolve_linux_c_toolchain(target, compiler, None).unwrap();
         assert_eq!(invocation.profile().contract().target(), &target.wire_id());
         assert!(invocation.profile().contract().deployment().is_err());
         let directory = tempfile::tempdir().unwrap();
@@ -29,6 +33,8 @@ fn linux_c_drivers_compile_pic_and_tls_with_the_selected_libc() {
         assert!(file.symbol_by_name("_address").is_none());
     }
 }
+
+mod abi;
 
 #[test]
 fn explicit_c_drivers_cannot_silently_select_the_other_libc() {

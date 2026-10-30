@@ -1,7 +1,7 @@
 use super::*;
 use crate::{NativeSymbolKind, macho_exports::ExportTarget};
 mod commands;
-use object::{Object, ObjectKind, ObjectSection, macho, read::macho::MachOFile64};
+use object::{Object, ObjectKind, ObjectSection, read::macho::MachOFile64};
 
 pub(crate) fn read(
     bytes: &[u8],
@@ -13,6 +13,7 @@ pub(crate) fn read(
 ) -> Result<Vec<Arc<DynamicProvider>>, LinkError> {
     if text {
         return scoop_toolchain::read_text_stubs(
+            scoop_slib::MachOArchitecture::for_target(profile.target().id()).map_err(error)?,
             bytes,
             profile
                 .startup_toolchain()
@@ -43,15 +44,17 @@ pub(crate) fn read(
         })
         .collect();
     }
+    let machine =
+        scoop_slib::MachOArchitecture::for_target(profile.target().id()).map_err(error)?;
     let file = MachOFile64::parse(bytes).map_err(error)?;
     let endian = file.endian();
     if file.kind() != ObjectKind::Dynamic
         || !file.is_little_endian()
-        || file.macho_header().cputype.get(endian) != macho::CPU_TYPE_ARM64
-        || file.macho_header().cpusubtype.get(endian) != macho::CPU_SUBTYPE_ARM64_ALL
+        || file.macho_header().cputype.get(endian) != machine.cpu_type()
+        || file.macho_header().cpusubtype.get(endian) != machine.cpu_subtype()
     {
         return Err(error(
-            "native dynamic input must be a little-endian arm64 MH_DYLIB",
+            "native dynamic input must be a little-endian MH_DYLIB for the selected target",
         ));
     }
     let commands = commands::read(&file, bytes, profile)?;

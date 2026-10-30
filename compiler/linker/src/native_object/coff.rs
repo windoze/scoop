@@ -1,4 +1,5 @@
 use super::*;
+use object::Architecture;
 use object::{ObjectComdat, SectionFlags, pe};
 
 pub(super) fn read(bytes: &[u8]) -> Result<NativeObjectInfo, LinkError> {

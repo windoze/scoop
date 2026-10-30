@@ -6,7 +6,7 @@ pub(super) fn configuration(
     target: &crate::ResolvedTargetProfile,
     compiler: &NativeToolchain,
     optimization: OptimizationMode,
-    public: &Path,
+    sysroot: &Path,
 ) -> Result<Digest256, ToolchainError> {
     let config = manifest.parsed().semantic().native();
     let target_facts = crate::manifest::source_target(target.id())?;
@@ -37,12 +37,13 @@ pub(super) fn configuration(
         .collect::<Result<Vec<_>, _>>()
         .map_err(error)?;
     let include: Vec<_> = config
-        .include_paths(target.id())
+        .includes(target.id())
         .filter(|_| !sources.is_empty())
         .collect();
+    let target_root = crate::target_library_root(sysroot, target.lir_target());
     let directories: Vec<_> = include
         .iter()
-        .copied()
+        .map(|entry| entry.resolve(manifest.real_root(), &target_root))
         .chain(
             flags(NativeSourceLanguage::C)
                 .iter()
@@ -56,12 +57,12 @@ pub(super) fn configuration(
                                 | scoop_manifest::NativeIncludeFlag::Macros
                         ) =>
                     {
-                        Some(path)
+                        Some(manifest.real_root().join(path))
                     }
                     _ => None,
                 }),
         )
-        .map(|p| manifest.real_root().join(p.as_path()).is_dir())
+        .map(|path| path.is_dir())
         .collect();
     fingerprint(&(
         HostPathCarrier::from_path(manifest.real_root()).map_err(error)?,
@@ -76,7 +77,7 @@ pub(super) fn configuration(
         libraries,
         scoop_wire::encode(&optimization).map_err(error)?,
         (!sources.is_empty())
-            .then(|| HostPathCarrier::from_path(public))
+            .then(|| HostPathCarrier::from_path(sysroot))
             .transpose()
             .map_err(error)?,
         crate::native_record::ResolvedRecord::from_target(target)?,

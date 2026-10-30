@@ -107,11 +107,11 @@ impl FileInputs {
             {
                 continue;
             }
-            let Some(logical) = path.strip_prefix(root).ok().and_then(|path| path.to_str()) else {
+            let Ok(logical) = path.strip_prefix(root) else {
                 continue;
             };
-            let logical =
-                NormalizedSourcePath::new(logical).map_err(|error| LoadError::new(path, error))?;
+            let logical = NormalizedSourcePath::from_relative_path(logical)
+                .map_err(|error| LoadError::new(path, error))?;
             let Some(role) = selected.role_for_path(&logical) else {
                 continue;
             };

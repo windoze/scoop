@@ -28,7 +28,7 @@ fn run_image_test(fixture: &str, expected: &str) {
         "runtime/src/gc_binding/stackmap/parser.c",
         "runtime/src/gc_binding/stackmap/records.c",
         "runtime/src/gc_binding/stackmap/payload.c",
-        "runtime/src/platform/arch/aarch64.c",
+        "runtime/src/platform/frame/darwin_aarch64.c",
         "runtime/src/value_shape.c",
     ] {
         command.arg(workspace.join(source));

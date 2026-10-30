@@ -2,7 +2,7 @@ schema = 1
 name = "fmt-write-failure-keeps-original-and-continues"
 inputs = []
 tools = ["scoop"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["driver", "format", "negative"]
 
 [[steps]]

@@ -5,6 +5,8 @@ use scoop_protocol::HostPathCarrier;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
+const CACHE_DIRECTORY: &str = "final-tools-v6";
+
 #[cfg(all(test, target_os = "linux", target_arch = "x86_64"))]
 mod tests;
 
@@ -24,21 +26,24 @@ pub(super) fn resolve(
     let path = |value: &Path| {
         HostPathCarrier::from_path(&std::path::absolute(value).map_err(error)?).map_err(error)
     };
-    let unwind = (target.id() != scoop_target_data::DARWIN_AARCH64_ID
+    let unwind = (target.c_bridge_toolchain().native_environment()
+        != scoop_target_data::NativeEnvironment::Darwin
         && (!cxx
-            || target.lir_target().native_object_format()
-                == scoop_lir::NativeObjectFormat::Coff64))
-        .then(|| {
-            crate::selected_unwind_prefix(
-                target.lir_target(),
-                options.sysroot.as_deref(),
-                options.unwind_prefix.as_deref(),
-            )
-        })
-        .transpose()?
-        .as_deref()
-        .map(path)
-        .transpose()?;
+            || target
+                .c_bridge_toolchain()
+                .native_environment()
+                .is_windows()))
+    .then(|| {
+        crate::selected_unwind_prefix(
+            target.lir_target(),
+            options.sysroot.as_deref(),
+            options.unwind_prefix.as_deref(),
+        )
+    })
+    .transpose()?
+    .as_deref()
+    .map(path)
+    .transpose()?;
     let key = build_record::fingerprint(&(
         crate::native_record::ResolvedRecord::from_target(target)?,
         options.mode,
@@ -50,7 +55,7 @@ pub(super) fn resolve(
         cxx,
     ))?;
     let record = build_record::cached(
-        &cache.join("final-tools-v4"),
+        &cache.join(CACHE_DIRECTORY),
         key,
         |_| Ok(true),
         || {

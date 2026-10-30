@@ -3,7 +3,7 @@ name = "generator-process-completeness"
 root = "program.scoop"
 inputs = ["program.scoop", "../peer.py"]
 tools = ["scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["driver", "generator", "protocol", "errors"]
 
 [[steps]]

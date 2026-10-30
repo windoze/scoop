@@ -104,7 +104,12 @@ fn selected_test_sources_follow_the_same_package_rule() {
     .unwrap_err() else {
         panic!("test sources must be checked")
     };
-    assert!(diagnostics.render_human().contains("tests/main.scoop:1:1"));
+    let test_path = Path::new("tests").join("main.scoop");
+    assert!(
+        diagnostics
+            .render_human()
+            .contains(&format!("{}:1:1", test_path.display()))
+    );
 }
 
 #[test]

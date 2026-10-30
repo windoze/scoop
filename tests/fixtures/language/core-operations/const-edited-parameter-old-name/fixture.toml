@@ -2,7 +2,6 @@ schema = 1
 name = "core-operations-const-edited-parameter-old-name"
 inputs = ["../../imported-core-const/edited-parameter-old-name.scoop", "consumer"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["core-intrinsics", "const", "negative", "language"]
 
 [[steps]]

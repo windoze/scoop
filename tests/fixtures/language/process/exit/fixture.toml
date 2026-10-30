@@ -3,7 +3,7 @@ name = "process-exit"
 root = "program.scoop"
 inputs = ["program.scoop", "native.c"]
 tools = ["scoop", "scoop-link", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["ffi", "process", "language"]
 variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
 [[steps]]

@@ -3,7 +3,6 @@ name = "companions-errors-not-instance-or-inherited"
 root = "../../errors/not-instance-or-inherited.scoop"
 inputs = ["../../errors/not-instance-or-inherited.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["single-file", "negative", "language"]
 
 [[steps]]

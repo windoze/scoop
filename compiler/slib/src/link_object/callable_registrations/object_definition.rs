@@ -194,7 +194,10 @@ impl CanonicalObjectRelocationV1 {
             | VerifiedObjectRelocationFormV1::TlvpLoadPageOffset12 => {
                 normalize_u32(bytes, start, 0xffc0_03ff)?;
             }
-            VerifiedObjectRelocationFormV1::PointerToGot32 => {
+            VerifiedObjectRelocationFormV1::Unsigned32
+            | VerifiedObjectRelocationFormV1::Subtractor32
+            | VerifiedObjectRelocationFormV1::X86_64PcRelative32 { .. }
+            | VerifiedObjectRelocationFormV1::PointerToGot32 => {
                 normalize_u32(bytes, start, 0)?;
             }
         }

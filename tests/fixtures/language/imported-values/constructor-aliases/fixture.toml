@@ -2,7 +2,7 @@ schema = 1
 name = "imported-constructor-aliases"
 inputs = ["../../imported-classes/support/stage3_test.scoop", "../../imported-constructors/provider.scoop", "constructor-provider", "../../imported-constructors/aliases.scoop", "constructors-aliases", "../../imported-constructors/downstream.scoop", "downstream-aliases", "../../imported-constructors/runtime.ll", "../support/constructor-main.scoop", "value-runtime-constructor-aliases"]
 tools = ["scoop", "scoopc", "llc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["imported-values", "constructor", "language"]
 
 [vars]

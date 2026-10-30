@@ -1,9 +1,9 @@
 schema = 1
 name = "native-link-direct-contracts"
-inputs = ["cone", "../../../language/native-link/direct/root.scoop", "../../../language/native-link/direct/native.c", "native-sources/input_data.c", "native-sources/input_missing.c", "native-sources/input_constructor.c", "native-sources/input_common.c", "native-sources/input_target.c"]
+inputs = ["cone", "../../../language/native-link/direct/root.scoop", "../../../language/native-link/direct/native.c", "native-sources/input_data.c", "native-sources/input_missing.c", "native-sources/input_constructor.c", "native-sources/input_common.c", "native-sources/input_target.c", "compile_other_arch.py"]
 tools = ["scoop", "scoopc", "cc"]
-# The wrong-architecture case compiles x86_64 Mach-O and checks Darwin object diagnostics.
-targets = ["aarch64-apple-darwin"]
+# The wrong-architecture case compiles the other Darwin machine.
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin"]
 tags = ["native-link", "program-link", "compiler-correctness"]
 [[steps]]
 name = "prepare"
@@ -17,7 +17,7 @@ checks = []
 
 [[steps]]
 name = "compile_m23_math"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/m23_math.c", "-o", "${work}/objects/m23_math.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/m23_math.c", "-o", "${work}/objects/m23_math.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -28,7 +28,7 @@ checks = []
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${work}/sources/direct", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/direct", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -51,7 +51,7 @@ checks = []
 
 [[steps]]
 name = "input_data"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/m23_math.c", "-o", "${work}/objects/m23_math.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/m23_math.c", "-o", "${work}/objects/m23_math.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -82,7 +82,7 @@ checks = []
 
 [[steps]]
 name = "input_missing"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/m23_math.c", "-o", "${work}/objects/m23_math.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/m23_math.c", "-o", "${work}/objects/m23_math.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -114,7 +114,7 @@ checks = []
 
 [[steps]]
 name = "input_constructor"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/m23_math.c", "-o", "${work}/objects/m23_math.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/m23_math.c", "-o", "${work}/objects/m23_math.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -152,7 +152,7 @@ checks = []
 
 [[steps]]
 name = "input_common"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "-fcommon", "${work}/sources/native/m23_math.c", "-o", "${work}/objects/m23_math.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "-fcommon", "${work}/sources/native/m23_math.c", "-o", "${work}/objects/m23_math.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -184,7 +184,7 @@ checks = []
 
 [[steps]]
 name = "input_target"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "-target", "x86_64-apple-macos", "${work}/sources/native/m23_math.c", "-o", "${work}/objects/m23_math.o"]
+argv = ["${python}", "${fixture}/compile_other_arch.py", "${target}", "${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/m23_math.c", "-o", "${work}/objects/m23_math.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -205,5 +205,5 @@ exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "reject_target.json"}
+diagnostics = {"file" = "reject_target.${target}.json"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]

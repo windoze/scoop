@@ -2,7 +2,7 @@ schema = 1
 name = "native-objc-values"
 inputs = ["cone"]
 tools = ["scoop"]
-targets = ["aarch64-apple-darwin"]
+when = { os = "darwin" }
 tags = ["native", "objc", "compiler-correctness"]
 variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
 

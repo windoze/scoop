@@ -280,18 +280,26 @@ fn actual_generic_library_emits_shared_odr_objects() {
             &core_bodies,
         );
         if case == "control-flow" {
-            for role in [
-                DefinitionAtomRole::Lsda,
-                DefinitionAtomRole::EhFrame,
-                DefinitionAtomRole::CompactUnwind,
-                DefinitionAtomRole::Stackmap,
-            ] {
-                if role == DefinitionAtomRole::CompactUnwind
-                    && target.lir_target().native_object_format()
-                        == scoop_lir::NativeObjectFormat::Elf64
-                {
-                    continue;
-                }
+            let roles: &[_] = match target.lir_target().native_object_format() {
+                scoop_lir::NativeObjectFormat::MachO64 => &[
+                    DefinitionAtomRole::Lsda,
+                    DefinitionAtomRole::EhFrame,
+                    DefinitionAtomRole::CompactUnwind,
+                    DefinitionAtomRole::Stackmap,
+                ],
+                scoop_lir::NativeObjectFormat::Elf64 => &[
+                    DefinitionAtomRole::Lsda,
+                    DefinitionAtomRole::EhFrame,
+                    DefinitionAtomRole::Stackmap,
+                ],
+                scoop_lir::NativeObjectFormat::Coff64 => &[
+                    DefinitionAtomRole::Lsda,
+                    DefinitionAtomRole::WindowsUnwindTable,
+                    DefinitionAtomRole::WindowsUnwindInfo,
+                    DefinitionAtomRole::Stackmap,
+                ],
+            };
+            for &role in roles {
                 let changed = scoop_codegen::emit_object_set_v2(
                     &lir,
                     production.clone(),

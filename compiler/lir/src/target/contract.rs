@@ -95,14 +95,7 @@ impl TargetProfileContract {
     }
 
     pub const fn scoop_abi_classifier(self) -> ScoopAbiClassifier {
-        match self.profile.native_object_format() {
-            super::NativeObjectFormat::Coff64 => {
-                ScoopAbiClassifier::Win64CallerCopyAndIndirectInterfaceResult
-            }
-            super::NativeObjectFormat::MachO64 | super::NativeObjectFormat::Elf64 => {
-                ScoopAbiClassifier::ScalarInterfaceAndSmallValueParts
-            }
-        }
+        self.profile.description().scoop_abi_classifier
     }
 
     pub const fn c_abi_lowering(self) -> CAbiLoweringProfile {
@@ -116,7 +109,7 @@ impl TargetProfileContract {
 
 impl WireEncode for TargetProfileContract {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(15)?;
+        encoder.map(18)?;
         encoder.field(1)?;
         encoder.text(self.canonical_triple())?;
         encoder.field(2)?;
@@ -149,7 +142,23 @@ impl WireEncode for TargetProfileContract {
         encoder.field(14)?;
         self.c_abi_lowering().encode(encoder)?;
         encoder.field(15)?;
-        self.native_symbol_normalization().encode(encoder)
+        self.native_symbol_normalization().encode(encoder)?;
+        encoder.field(16)?;
+        encoder.unsigned(match self.profile.architecture() {
+            super::TargetArchitecture::Aarch64 => 1,
+            super::TargetArchitecture::X86_64 => 2,
+        })?;
+        encoder.field(17)?;
+        encoder.unsigned(match self.profile.procedure_abi() {
+            super::ProcedureAbi::DarwinAarch64 => 1,
+            super::ProcedureAbi::SysvAmd64 => 2,
+            super::ProcedureAbi::Win64 => 3,
+        })?;
+        encoder.field(18)?;
+        encoder.unsigned(match self.profile.exception_handling() {
+            super::TargetExceptionHandling::Dwarf => 1,
+            super::TargetExceptionHandling::WindowsSeh => 2,
+        })
     }
 }
 

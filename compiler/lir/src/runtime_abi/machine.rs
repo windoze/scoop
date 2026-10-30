@@ -131,8 +131,8 @@ impl TargetEhSupportV1 {
         target: crate::LirTargetProfile,
     ) -> CompilerNativeContractV1 {
         use CompilerNativeValueV1::{Integer as I, Pointer as P};
-        match (self, target.native_object_format()) {
-            (Self::ScoopPersonality, crate::NativeObjectFormat::Coff64) => {
+        match (self, target.exception_handling()) {
+            (Self::ScoopPersonality, crate::TargetExceptionHandling::WindowsSeh) => {
                 leaf(&[P, P, P, P], I(32))
             }
             _ => self.machine_contract(),

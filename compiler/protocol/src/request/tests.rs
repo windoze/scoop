@@ -14,6 +14,10 @@ fn expanded_input_retains_configuration_and_rejects_invalid_diagnostic_spans() {
     else {
         panic!()
     };
+    config
+        .manifest_text
+        .push_str("[native]\ninclude = [{sysroot = 'backend/include'}, 'local/include']\n");
+    config.manifest = scoop_manifest::parse_cone_manifest(&config.manifest_text, &[]).unwrap();
     let encoded = serde_json::to_vec(&config).unwrap();
     let decoded: crate::package::ExpandedConeInputV1 = serde_json::from_slice(&encoded).unwrap();
     assert_eq!(decoded, *config);

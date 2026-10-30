@@ -128,7 +128,7 @@ pub(super) fn compile_and_run_configuration(
         "runtime/src/thread/debug.c",
         "runtime/src/thread/roots.c",
         "runtime/src/thread/transitions.c",
-        "runtime/src/platform/arch/aarch64.c",
+        "runtime/src/platform/frame/darwin_aarch64.c",
         native_os_source(),
         "runtime/tests/platform/fake.c",
         test_source,

@@ -3,7 +3,7 @@ name = "cli-run-process-contract"
 root = "process.scoop"
 inputs = ["process.scoop", "replacement.scoop", "native.c"]
 tools = ["scoop", "scoopc", "cc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["cli", "native", "signal", "concurrency", "driver"]
 
 [vars]
