@@ -152,3 +152,11 @@ Windows 三种目标环境各完成 `scoop.window`、`scoop.window.asyncio` 与 
 PM 在缓存路径入口使用普通 Windows 路径形式，避免系统 Git 无法消费扩展路径写法；源码输入定位目录仍保留原有职责。回归继续使用真实 Git 源、共享缓存、离线获取与子模块。metadata 测试统一进程工作目录的路径写法，直接 Git 调用使用已有 file URL，缓存位置断言取实际配置根；深层目录测试仅为测试子进程打开 Git 的长路径支持。
 
 本机与 Linux 的 PM 各 59 项测试、Windows 的 58 项测试全部通过，三端格式化与 workspace Clippy 通过。重构中的包协议为版本 4，规范中遗漏的两处旧版交叉引用已同步。路径与运行时测试边界批次已推送，获取远端 main 后无新增提交。
+
+### R7 跨平台测试断言
+
+driver 的共享 ODR 对象测试改用现有对象 reader 归一化后的定义种类检查链接属性，覆盖 COFF COMDAT；关联 atom 按实际对象格式选择，COFF `.pdata` 通过修改 RVA addend 验证指纹变化。16 字节聚合的签名测试分别断言 SysV／Darwin 的 direct parts 与 Win64 的间接传递、返回，诊断位置使用宿主路径写法。这些修改保留实体身份、布局、机器 ABI 和真实产物断言，未改变生产实现。
+
+格式化与 Clippy 通过，上述 ODR、签名和五项 package 规则测试在本机、Linux、Windows 全部通过。Windows driver 的 91 项测试使用 release 构建的 Rust 测试程序完成执行，首轮 88 项通过、三项旧平台断言失败，修正后逐项复验闭合；Scoop 用例自身要求的编译模式保持不变。
+
+native 文本测试 Cone 删除重复的 C 方言参数，并声明 Windows 上 Rust 静态库实际需要的系统库。两种 Darwin、Linux GNU／musl 和三种 Windows target 的三项真实 C 调用测试全部通过。

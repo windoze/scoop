@@ -1,5 +1,6 @@
 use super::*;
 use scoop_identity::{ScoopAbiArgument as Argument, ScoopAbiReturn as Return, ScoopAbiValueShape};
+use scoop_lir::ScoopAbiClassifier;
 
 #[test]
 fn formal_callable_exports_resolve_local_and_dependency_nominals_in_one_scope() {
@@ -108,24 +109,37 @@ fn formal_callable_exports_resolve_local_and_dependency_nominals_in_one_scope() 
                         );
                         kinds.insert(0);
                     }
-                    [
-                        Argument::DirectParts(payload, coercion),
-                        Argument::ElidedZst(marker),
-                    ] => {
-                        check_storage(*payload, 16, 8, ScoopAbiValueShape::Aggregate);
+                    [argument, Argument::ElidedZst(marker)] => {
+                        let payload = argument.storage();
+                        check_storage(payload, 16, 8, ScoopAbiValueShape::Aggregate);
                         check_storage(*marker, 0, 1, ScoopAbiValueShape::Aggregate);
                         assert_eq!(payload.exact_type(), parameters[0]);
                         assert_eq!(marker.exact_type(), parameters[1]);
-                        assert!(!coercion.has_managed_pointer());
-                        assert_eq!(
-                            coercion
-                                .parts()
-                                .iter()
-                                .map(|part| part.extent())
-                                .sum::<u64>(),
-                            16
-                        );
-                        assert_eq!(abi.result(), Return::DirectParts(*payload, *coercion));
+                        match (
+                            target.lir_target().contract().scoop_abi_classifier(),
+                            *argument,
+                        ) {
+                            (
+                                ScoopAbiClassifier::ScalarInterfaceAndSmallValueParts,
+                                Argument::DirectParts(_, coercion),
+                            ) => {
+                                assert!(!coercion.has_managed_pointer());
+                                assert_eq!(
+                                    coercion
+                                        .parts()
+                                        .iter()
+                                        .map(|part| part.extent())
+                                        .sum::<u64>(),
+                                    16
+                                );
+                                assert_eq!(abi.result(), Return::DirectParts(payload, coercion));
+                            }
+                            (
+                                ScoopAbiClassifier::Win64CallerCopyAndIndirectInterfaceResult,
+                                Argument::Indirect(_),
+                            ) => assert_eq!(abi.result(), Return::Indirect(payload)),
+                            other => panic!("unexpected aggregate ABI: {other:?}"),
+                        }
                         kinds.insert(1);
                     }
                     other => panic!("unexpected source signature: {other:?}"),

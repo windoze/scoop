@@ -169,6 +169,25 @@ pub(super) fn check(
     for member in emitted.members() {
         let bytes = std::fs::read(member.path()).unwrap();
         let object = object::File::parse(bytes.as_slice()).unwrap();
+        let envelope =
+            scoop_slib::validate_scoop_lir_llvm_22_1_object_envelope_v1(emitted.target(), &bytes)
+                .unwrap();
+        let check_linkage = |request: scoop_identity::PersistentSymbolRequest| {
+            let name = normalization.compiler_generated_object_symbol(request.symbol().as_str());
+            let symbol = envelope
+                .sections()
+                .envelope()
+                .symbols()
+                .iter()
+                .find(|symbol| symbol.name() == name.as_bytes())
+                .unwrap();
+            let expected = if request.linkage() == LinkageClass::OdrWeak {
+                scoop_slib::ObjectSymbolKindV1::ExternalWeakDefinition
+            } else {
+                scoop_slib::ObjectSymbolKindV1::ExternalStrongDefinition
+            };
+            assert_eq!(symbol.kind(), expected, "{name}");
+        };
         for definition in member.units().definition_plans() {
             let plan = production
                 .canonical_definitions()
@@ -182,20 +201,15 @@ pub(super) fn check(
                 .unwrap();
             let weak = plan.primary_symbol().linkage() == LinkageClass::OdrWeak;
             assert!(primary.is_definition());
-            assert_eq!(
-                primary.is_weak(),
-                weak,
-                "{}",
-                symbol_name(plan.primary_symbol())
-            );
+            check_linkage(plan.primary_symbol());
             for boundary in plan.atom_boundaries() {
                 let start = object
                     .symbol_by_name(&symbol_name(boundary.start()))
                     .unwrap();
                 let end = object.symbol_by_name(&symbol_name(boundary.end())).unwrap();
                 assert!(start.is_definition() && end.is_definition());
-                assert_eq!(start.is_weak(), weak, "{}", symbol_name(boundary.start()));
-                assert_eq!(end.is_weak(), weak, "{}", symbol_name(boundary.end()));
+                check_linkage(boundary.start());
+                check_linkage(boundary.end());
                 assert_eq!(start.section_index(), end.section_index());
                 assert!(start.address() < end.address());
                 if boundary.atom() == plan.primary_atom() {
