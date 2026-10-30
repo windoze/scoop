@@ -24,6 +24,22 @@ def fixture(base, name, steps):
 
 
 class SuiteTests(unittest.TestCase):
+    def test_compile_only_runs_complete_host_fixtures_and_records_skipped_programs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            step = {
+                "name": "write",
+                "files": [{"write": {"path": "${work}/marker", "data": "ran"}}],
+            }
+            host = fixture(base, "host", [step])
+            host.data["requires_target_execution"] = False
+            program = fixture(base, "program", [step])
+            with contextlib.redirect_stdout(io.StringIO()):
+                results = run_suite([host, program], {}, base, False, 2, compile_only=True)
+            self.assertEqual([result.status for result in results], ["passed", "execution-skipped"])
+            self.assertTrue((base / "cases/0/normal/marker").is_file())
+            self.assertFalse((base / "cases/1").exists())
+
     def test_fixtures_overlap_but_keep_private_work_and_report_order(self):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)

@@ -7,7 +7,7 @@ from .execute import execute
 from .model import Result
 
 
-def run_suite(fixtures, common, work, update, jobs):
+def run_suite(fixtures, common, work, update, jobs, *, compile_only=False):
     results = [None] * len(fixtures)
     interrupted = Event()
 
@@ -25,6 +25,14 @@ def run_suite(fixtures, common, work, update, jobs):
                     index,
                     Result(
                         fixture.name, "inapplicable", 0, message="target is not declared applicable"
+                    ),
+                )
+                continue
+            if compile_only and fixture.data.get("requires_target_execution", True):
+                record(
+                    index,
+                    Result(
+                        fixture.name, "execution-skipped", 0, message="requires target execution"
                     ),
                 )
                 continue

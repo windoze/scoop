@@ -11,7 +11,16 @@ import tarfile
 import tomllib
 from pathlib import Path
 
-from build_support import RELEASE_CONFIG, ROOT, build_lock, metadata, reusable, save_record
+from build_support import (
+    RELEASE_CONFIG,
+    ROOT,
+    apple_architecture,
+    build_lock,
+    cpu_flag,
+    metadata,
+    reusable,
+    save_record,
+)
 from compression_backends import PACKAGES
 from target_catalog import NATIVE_TARGETS as TARGETS
 from target_catalog import native_configuration
@@ -114,7 +123,7 @@ def prepare(package, args):
         CMAKE_POSITION_INDEPENDENT_CODE="ON",
         BUILD_SHARED_LIBS="OFF",
         BUILD_TESTING="OFF",
-        CMAKE_C_FLAGS="-mcpu=generic" if darwin else "-march=" + release["cpu"],
+        CMAKE_C_FLAGS=cpu_flag(native_configuration(args.target)["arch"], release["cpu"]),
     )
     msvc = native_configuration(args.target)["native_environment"] == "MicrosoftUcrt"
     if host == "Windows":
@@ -128,7 +137,7 @@ def prepare(package, args):
             options["CMAKE_POLICY_DEFAULT_CMP0091"] = "NEW"
             options["CMAKE_MSVC_RUNTIME_LIBRARY"] = "MultiThreadedDLL"
         else:
-            options["CMAKE_C_COMPILER_TARGET"] = "x86_64-w64-windows-gnu"
+            options["CMAKE_C_COMPILER_TARGET"] = native_configuration(args.target)["llvm_triple"]
         if name == "zstd":
             cxx = cc if msvc else str(Path(cc).with_name("clang++.exe"))
             options["CMAKE_CXX_COMPILER"] = cxx
@@ -139,7 +148,9 @@ def prepare(package, args):
                 options["ZSTD_USE_STATIC_RUNTIME"] = "OFF"
             tools.append(cxx)
     if darwin:
-        options["CMAKE_OSX_ARCHITECTURES"] = "arm64"
+        options["CMAKE_OSX_ARCHITECTURES"] = apple_architecture(
+            native_configuration(args.target)["arch"]
+        )
         options["CMAKE_OSX_DEPLOYMENT_TARGET"] = inputs["deployment"] or release["minimum_os"]
     environment = dict(os.environ, TMPDIR=str(scratch), TEMP=str(scratch), TMP=str(scratch))
     if host == "Windows":

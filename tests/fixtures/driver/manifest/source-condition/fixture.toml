@@ -1,5 +1,6 @@
 schema = 1
 name = "manifest-source-condition"
+requires_target_execution = false
 inputs = ["program"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]

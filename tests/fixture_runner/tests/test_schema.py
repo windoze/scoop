@@ -36,6 +36,14 @@ class CriteriaTests(unittest.TestCase):
         with self.assertRaises(ConfigurationError):
             validate(data)
 
+    def test_target_execution_requirement_is_boolean(self):
+        for value in (None, 0, "false"):
+            self.data["requires_target_execution"] = value
+            with self.assertRaisesRegex(ConfigurationError, "must be boolean"):
+                validate(self.data)
+        self.data["requires_target_execution"] = False
+        validate(self.data)
+
     def test_stream_regex_is_validated_and_cannot_supply_stdin(self):
         step = self.data["steps"][0]
         step["stderr"] = {"regex": r"trace 0x[0-9a-f]+\n"}

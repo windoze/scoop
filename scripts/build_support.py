@@ -12,6 +12,14 @@ ROOT = Path(__file__).resolve().parent.parent
 RELEASE_CONFIG = ROOT / "scripts/release.toml"
 
 
+def cpu_flag(architecture, cpu):
+    return {"aarch64": "-mcpu=", "x86_64": "-march="}[architecture] + cpu
+
+
+def apple_architecture(architecture):
+    return {"aarch64": "arm64", "x86_64": "x86_64"}[architecture]
+
+
 @contextmanager
 def build_lock(path):
     with path.open("a+b") as lock:

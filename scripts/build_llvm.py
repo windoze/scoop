@@ -9,7 +9,16 @@ import subprocess
 import tomllib
 from pathlib import Path
 
-from build_support import RELEASE_CONFIG, ROOT, metadata, reusable, save_record, source_metadata
+from build_support import (
+    RELEASE_CONFIG,
+    ROOT,
+    apple_architecture,
+    cpu_flag,
+    metadata,
+    reusable,
+    save_record,
+    source_metadata,
+)
 from target_catalog import current_host, host_definition
 
 VERSION = "22.1.8"
@@ -60,7 +69,7 @@ def patch_windows_statepoint(source):
 def configure(source, build, prefix, cc, cxx, host, release):
     windows = host.endswith("windows-gnullvm")
     target = release["targets"]["x86_64-w64-windows-llvm-mingw-ucrt" if windows else host]
-    cpu = "-mcpu=generic" if host.endswith("darwin") else "-march=" + target["cpu"]
+    cpu = cpu_flag(host_definition(host)["arch"], target["cpu"])
     options = {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_INSTALL_PREFIX": str(prefix),
@@ -124,7 +133,7 @@ def configure(source, build, prefix, cc, cxx, host, release):
         )
     if host.endswith("darwin"):
         options["CMAKE_OSX_DEPLOYMENT_TARGET"] = target["minimum_os"]
-        options["CMAKE_OSX_ARCHITECTURES"] = "arm64"
+        options["CMAKE_OSX_ARCHITECTURES"] = apple_architecture(host_definition(host)["arch"])
     return [
         "cmake",
         "-G",

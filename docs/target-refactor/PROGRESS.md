@@ -21,7 +21,7 @@
 | R2 | 完成 | 显式 ABI／backend／EH／frame 与 codegen 调优数据；1033 项测试通过，配套 LLVM 构建后的 Windows 返回 PC 测试也已通过 |
 | R3 | 完成 | 对象 machine／格式与 runtime frame 边界；713 项 Rust 测试通过，配套 core／runtime 的真实链接回归通过 |
 | R4 | 本地完成 | Darwin 配置与 Linux GCC／Clang producer、C++ family 已拆开；本机 489 项测试通过，远端验收在 R7 闭合 |
-| R5 | 实施中 | native／RC 的 target sysroot include 已完成本机验证；维护与 fixture 流程继续整理 |
+| R5 | 本地完成 | target sysroot include、架构参数与交叉编译 fixture 流程已验证；RC-only 实机检查在 R7 闭合 |
 | R6 | 待实施 | macOS x86_64 实现、资源与本机运行 |
 | R7 | 待实施 | 七目标回归与完成记录 |
 
@@ -56,3 +56,9 @@ Linux generated-C 接入 GCC／Clang，C++ 独立记录 compiler family，GNU �
 `native.include` 增加 `{ sysroot = "backend/include" }`，以选中 Scoop target 的资源目录为根。普通路径、目标条件与声明顺序保持，C／C++／Objective-C 和 RC-only 程序共用解析；实际头文件仍沿既有输入更新记录参与复用。内置 native 库移除重复目标路径表，OpenSSL wrapper 直接包含所选生成头，TLS fixture 同步删除旧头复制与不再使用的资源目录链接，并修正测试 Cone 已有的重复依赖声明。
 
 compiler／package protocol 更新至 26／4，manifest 与 native 对象／资源记录直接演进。移除无生产消费者的 `PreparedNativeInputs` Wire 编码及冗余配置副本。格式化与 workspace／all-targets Clippy 通过；manifest、protocol、PM、toolchain 的 245 项测试通过，包含真实 include 优先级、输入变化、复用和 sysroot 搬迁验证。配套 release CLI 的两个 native include fixture 与 TLS 系统验证 fixture 通过，RC-only 实机验证留待 R7 Windows。R4 推送后已获取远端 main，无新增提交。
+
+### R5 维护与 fixture 流程
+
+目标选择采用宿主的明确默认值，执行能力只在需要运行目标程序时判断；`--compile-only` 与 `requires_target_execution` 保留完整用例并单列未运行结果。Darwin companion 使用所选 compiler、SDK、machine 与部署版本，Linux Clang companion 接收实际 target／sysroot。CMake native 依赖及 LLVM／LLDB 的 CPU 参数与 Apple 架构名按目录中的架构选择，不再以 Darwin 推定 AArch64。
+
+Ruff 0.16.10 通过；76 项 fixture 规则与 22 项维护脚本测试各跳过 3 项宿主不适用测试，其余通过。本机显式选择 Linux GNU 的 3 项 manifest 诊断 fixture 通过，需要执行的 native fixture 明确记录为 `execution-skipped`；这不是 Linux 运行验收。配套 release CLI 完成 AArch64 的 27 个内置 Cone 与四种 runtime 配置准备。include 批次推送后已获取远端 main，无新增提交。

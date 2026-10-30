@@ -426,6 +426,8 @@ R3／R4 在 R1／R2 的公共数据稳定后可分别实施；R5 的 manifest �
 
 fixture runner 分开“可编译”和“可在本机执行”：交叉编译用例允许指定目标及 SDK，只执行宿主工具并检查真实目标产物；需要运行的用例在目标机器执行，或在尚无对应环境时明确记录未完成。禁止把未执行的运行断言算作通过，也不为本轮建立通用远程执行插件。
 
+runner 的 `requires_target_execution` 默认开启；纯宿主工具用例显式关闭。`--compile-only` 跳过需要目标执行的完整用例并单列结果，不删除其中运行步骤。宿主默认 target、发行组合和当前进程可执行的 OS／架构分别判断；native companion 的 machine、SDK 与 Darwin deployment 同样来自所选目标。
+
 交叉编译回归沿用已完成的 macOS／Linux → 三个 Windows target，并在 Windows 运行产物，覆盖 C++、接口移动 GC、Throwable 与 GUI／RC。保留复用同一份 Windows 准备的目标库／runtime／unwind、Unix 绝对路径和中文／空格路径的实际调用。其余既有目标在对应系统完成源码编译、预编译库消费和运行；本阶段 Darwin x86_64 使用本机 Rosetta 执行并验证调试产物，后续 ARM64／OpenHarmony 分别追加对应环境的运行和调试验证。
 
 GUI 回归按现有窗口库记录，在各自原生桌面串行执行，避免多个目标争用同一前台窗口。选择实际受本批变更影响的窗口／asyncio／renderer 测试，不把混合 DPI、所有实体键盘或输入法人工验收加入 target 重构的完成门槛，也不把 Windows 上的通过视作 AppKit 已复测。
