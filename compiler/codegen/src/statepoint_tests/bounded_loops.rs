@@ -220,7 +220,7 @@ fn variable_count_and_unsafe_memory_effects_do_not_enable_managed_vectorization(
         let llvm = parse(&context, &source);
         let profile = ValidatedBackendProfile::darwin_aarch64_for_test();
         let machine = profile.create_target_machine().unwrap();
-        crate::statepoint::bounded_loops::optimize(llvm.get_function("f").unwrap(), &machine)
+        crate::statepoint::bounded_loops::optimize(llvm.get_function("f").unwrap(), &machine, ValidatedBackendProfile::darwin_aarch64_for_test().tuning())
             .unwrap();
         llvm.verify().unwrap();
         assert!(
@@ -262,8 +262,12 @@ exit:
         let machine = ValidatedBackendProfile::darwin_aarch64_for_test()
             .create_target_machine()
             .unwrap();
-        crate::statepoint::bounded_loops::optimize(llvm.get_function("f").unwrap(), &machine)
-            .unwrap();
+        crate::statepoint::bounded_loops::optimize(
+            llvm.get_function("f").unwrap(),
+            &machine,
+            ValidatedBackendProfile::darwin_aarch64_for_test().tuning(),
+        )
+        .unwrap();
         assert_eq!(before, llvm.print_to_string().to_string());
     }
 }

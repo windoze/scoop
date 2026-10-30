@@ -16,6 +16,8 @@ use crate::CodegenError;
 mod deployment;
 mod machine;
 mod qualification;
+mod tuning;
+pub(crate) use tuning::TargetTuning;
 
 const REQUIRED_LLVM_MAJOR: u32 = 22;
 const REQUIRED_LLVM_MINOR: u32 = 1;
@@ -36,20 +38,7 @@ impl fmt::Display for LlvmVersion {
 
 use scoop_lir::NativeObjectFormat as ObjectFormat;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum CodeArchitecture {
-    Aarch64,
-    X86_64,
-}
-
-impl CodeArchitecture {
-    fn initialize(self) {
-        match self {
-            Self::Aarch64 => Target::initialize_aarch64(&Default::default()),
-            Self::X86_64 => Target::initialize_x86(&Default::default()),
-        }
-    }
-}
+use scoop_lir::TargetArchitecture as CodeArchitecture;
 
 /// Closed LLVM machine pipeline whose statepoint behavior was qualified for
 /// this compiler.  The ordinary inkwell `Target::create_target_machine` API
@@ -138,6 +127,8 @@ impl ManagedAddressSpace {
 pub struct ValidatedBackendProfile {
     lir_target_selection: ValidatedLirTargetSelection,
     canonical_triple: &'static str,
+    llvm_triple: &'static str,
+    tuning: TargetTuning,
     deployment: deployment::ObjectDeployment,
     cpu: &'static str,
     features: &'static str,
@@ -157,28 +148,45 @@ pub struct ValidatedBackendProfile {
 }
 
 impl ValidatedBackendProfile {
-    const DARWIN_AARCH64: Self = Self {
-        lir_target_selection: scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
-        canonical_triple: scoop_target_data::DARWIN_AARCH64
-            .contract()
-            .canonical_triple(),
-        deployment: deployment::ObjectDeployment::DARWIN_TEST,
-        cpu: scoop_target_data::LLVM_22_1.contract().cpu,
-        features: scoop_target_data::LLVM_22_1.contract().features,
-        optimization: scoop_lir::OptimizationMode::Debug,
-        debug_info: scoop_lir::DebugInfoLevel::None,
-        relocation: RelocMode::PIC,
-        code_model: CodeModel::Default,
-        object_format: ObjectFormat::MachO64,
-        writable_storage_section: "__DATA,__data",
-        zero_fill_storage_section: "__DATA,__bss",
-        c_string_section: "__TEXT,__cstring,cstring_literals",
-        llvm_target_backend: CodeArchitecture::Aarch64,
-        machine_pipeline: MachinePipeline::Llvm22SelectionDagStandard,
-        managed_address_space: ManagedAddressSpace::MOVING_GC,
-        frame_pointers: FramePointerPolicy::All,
-        tail_calls: TailCallPolicy::Disabled,
-    };
+    const fn from_definition(
+        definition: scoop_target_data::TargetDefinition,
+        deployment: deployment::ObjectDeployment,
+    ) -> Self {
+        let selection = definition.selection;
+        let object_format = selection.target().native_object_format();
+        let (writable_storage_section, zero_fill_storage_section, c_string_section) =
+            match object_format {
+                ObjectFormat::MachO64 => (
+                    "__DATA,__data",
+                    "__DATA,__bss",
+                    "__TEXT,__cstring,cstring_literals",
+                ),
+                ObjectFormat::Elf64 => (".data", ".bss", ".rodata.str1.1"),
+                ObjectFormat::Coff64 => (".data", ".bss", ".rdata$scoop.strings"),
+            };
+        Self {
+            lir_target_selection: selection,
+            canonical_triple: definition.canonical(),
+            llvm_triple: definition.llvm_triple,
+            tuning: TargetTuning::for_profile(definition.tuning),
+            deployment,
+            cpu: selection.backend().contract().cpu,
+            features: selection.backend().contract().features,
+            optimization: scoop_lir::OptimizationMode::Debug,
+            debug_info: scoop_lir::DebugInfoLevel::None,
+            relocation: RelocMode::PIC,
+            code_model: CodeModel::Default,
+            object_format,
+            writable_storage_section,
+            zero_fill_storage_section,
+            c_string_section,
+            llvm_target_backend: selection.backend().contract().llvm_target_backend,
+            machine_pipeline: MachinePipeline::Llvm22SelectionDagStandard,
+            managed_address_space: ManagedAddressSpace::MOVING_GC,
+            frame_pointers: FramePointerPolicy::All,
+            tail_calls: TailCallPolicy::Disabled,
+        }
+    }
 
     pub fn from_selection(
         selection: ValidatedLirTargetSelection,
@@ -204,56 +212,16 @@ impl ValidatedBackendProfile {
         selection: ValidatedLirTargetSelection,
         deployment: deployment::ObjectDeployment,
     ) -> Result<Self, CodegenError> {
-        if Some(selection) != scoop_target_data::selection(selection.target().id()) {
-            return Err(CodegenError(format!(
-                "unsupported target/backend contract for `{}`",
-                selection.target().contract().canonical_triple()
-            )));
-        }
+        let definition = scoop_target_data::definition(selection.target().id())
+            .filter(|definition| definition.selection == selection)
+            .ok_or_else(|| {
+                CodegenError(format!(
+                    "unsupported target/backend contract for `{}`",
+                    selection.target().contract().canonical_triple()
+                ))
+            })?;
         validate_linked_llvm()?;
-        Ok(match selection.target().id() {
-            scoop_target_data::DARWIN_AARCH64_ID => Self {
-                deployment,
-                ..Self::DARWIN_AARCH64
-            },
-            scoop_target_data::LINUX_X86_64_GNU_ID | scoop_target_data::LINUX_X86_64_MUSL_ID => {
-                Self {
-                    lir_target_selection: selection,
-                    deployment,
-                    canonical_triple: selection.target().contract().canonical_triple(),
-                    cpu: selection.backend().contract().cpu,
-                    features: selection.backend().contract().features,
-                    object_format: ObjectFormat::Elf64,
-                    writable_storage_section: ".data",
-                    zero_fill_storage_section: ".bss",
-                    c_string_section: ".rodata.str1.1",
-                    llvm_target_backend: CodeArchitecture::X86_64,
-                    ..Self::DARWIN_AARCH64
-                }
-            }
-            scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID
-            | scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID
-            | scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_ID => Self {
-                lir_target_selection: selection,
-                deployment,
-                canonical_triple: selection.target().contract().canonical_triple(),
-                cpu: selection.backend().contract().cpu,
-                features: selection.backend().contract().features,
-                object_format: ObjectFormat::Coff64,
-                writable_storage_section: ".data",
-                zero_fill_storage_section: ".bss",
-                c_string_section: ".rdata$scoop.strings",
-                llvm_target_backend: CodeArchitecture::X86_64,
-                ..Self::DARWIN_AARCH64
-            },
-            id => {
-                return Err(CodegenError(format!(
-                    "unsupported codegen target {}/{}",
-                    id.canonical_name(),
-                    id.major_version()
-                )));
-            }
-        })
+        Ok(Self::from_definition(definition, deployment))
     }
 
     pub fn with_optimization(mut self, mode: scoop_lir::OptimizationMode) -> Self {
@@ -300,16 +268,16 @@ impl ValidatedBackendProfile {
     }
 
     pub fn llvm_triple(self) -> &'static str {
-        match self.id() {
-            scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID => "x86_64-pc-windows-msvc",
-            scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID
-            | scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_ID => "x86_64-w64-windows-gnu",
-            _ => self.canonical_triple,
-        }
+        self.llvm_triple
+    }
+
+    pub(crate) const fn tuning(self) -> TargetTuning {
+        self.tuning
     }
 
     pub(crate) fn indirect_arguments_use_byval(self) -> bool {
-        self.object_format != ObjectFormat::Coff64
+        self.lir_target_profile().contract().scoop_abi_classifier()
+            == scoop_lir::ScoopAbiClassifier::ScalarInterfaceAndSmallValueParts
     }
 
     pub fn managed_address_space(self) -> u32 {
@@ -344,7 +312,11 @@ impl ValidatedBackendProfile {
     /// not require C-bridge, runtime-build, or final-link capabilities.
     #[cfg(test)]
     pub(crate) const fn darwin_aarch64_for_test() -> Self {
-        Self::DARWIN_AARCH64
+        Self::from_definition(
+            scoop_target_data::definition(scoop_target_data::DARWIN_AARCH64_ID)
+                .expect("registered test target"),
+            deployment::ObjectDeployment::DARWIN_TEST,
+        )
     }
 
     pub(crate) fn disable_red_zone(self) -> bool {
@@ -403,7 +375,10 @@ impl ValidatedBackendProfile {
         optimization: OptimizationLevel,
     ) -> Result<TargetMachine, CodegenError> {
         machine::initialize_options();
-        self.llvm_target_backend.initialize();
+        match self.llvm_target_backend {
+            CodeArchitecture::Aarch64 => Target::initialize_aarch64(&Default::default()),
+            CodeArchitecture::X86_64 => Target::initialize_x86(&Default::default()),
+        }
         let triple = TargetTriple::create(&self.deployment.triple(self.llvm_triple()));
         let target = Target::from_triple(&triple).map_err(|error| {
             CodegenError(format!("no target for {}: {error}", self.canonical_triple))

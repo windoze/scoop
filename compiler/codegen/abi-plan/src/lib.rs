@@ -12,30 +12,17 @@ mod scoop;
 
 pub use c::{c_indirect_passing, c_integer_extension};
 
-#[derive(Clone, Copy, Debug)]
-pub enum ProcedureAbi {
-    DarwinAarch64,
-    SysvAmd64,
-    Win64,
-}
+pub use lir::ProcedureAbi;
 
-impl ProcedureAbi {
-    pub fn for_target(target: lir::LirTargetProfile) -> Result<Self, AbiPlanError> {
-        match target.id() {
-            scoop_target_data::DARWIN_AARCH64_ID => Ok(Self::DarwinAarch64),
-            scoop_target_data::LINUX_X86_64_GNU_ID | scoop_target_data::LINUX_X86_64_MUSL_ID => {
-                Ok(Self::SysvAmd64)
-            }
-            scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID
-            | scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID
-            | scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_ID => Ok(Self::Win64),
-            id => Err(AbiPlanError::UnsupportedTarget(id)),
-        }
-    }
+fn procedure_abi(target: lir::LirTargetProfile) -> Result<ProcedureAbi, AbiPlanError> {
+    scoop_target_data::definition(target.id())
+        .filter(|definition| definition.selection.target() == target)
+        .map(|_| target.procedure_abi())
+        .ok_or(AbiPlanError::UnsupportedTarget(target.id()))
 }
 
 pub fn plan(input: &lir::AbiPlanningInput) -> Result<lir::AbiPlanSet, AbiPlanError> {
-    let abi = ProcedureAbi::for_target(input.target)?;
+    let abi = procedure_abi(input.target)?;
     Ok(lir::AbiPlanSet {
         scoop: input
             .scoop

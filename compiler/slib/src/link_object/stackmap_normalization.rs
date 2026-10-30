@@ -12,8 +12,8 @@ const LOCATION_DIRECT: u8 = 2;
 const LOCATION_INDIRECT: u8 = 3;
 const LOCATION_CONSTANT: u8 = 4;
 const LOCATION_CONSTANT_INDEX: u8 = 5;
-mod architecture;
-use architecture::StackmapArchitecture;
+mod frame;
+use scoop_lir::BackendMachineFrameV1 as StackmapFrame;
 
 mod record;
 pub use record::*;
@@ -34,9 +34,9 @@ pub fn normalize_stackmap_record_v1(
     provisional: ProvisionalLlvmStackmapRecordV3,
 ) -> Result<VerifiedNormalizedStackmapRecordV1, StackmapNormalizationError> {
     normalize_record(
-        StackmapArchitecture::for_target(target).ok_or(
-            StackmapNormalizationError::UnsupportedTarget(Box::new(target)),
-        )?,
+        frame::for_target(target).ok_or(StackmapNormalizationError::UnsupportedTarget(
+            Box::new(target),
+        ))?,
         ExpectedStackmapSemanticsV1 {
             site: plan.site(),
             safepoint_id: plan.safepoint().get(),
@@ -59,7 +59,7 @@ struct ExpectedStackmapSemanticsV1 {
 }
 
 fn normalize_record(
-    architecture: StackmapArchitecture,
+    architecture: StackmapFrame,
     expected: ExpectedStackmapSemanticsV1,
     constant_pool: &[u64],
     provisional: ProvisionalLlvmStackmapRecordV3,
@@ -81,7 +81,7 @@ fn normalize_record(
             provisional.header.flags,
         ));
     }
-    if !architecture.valid_stack_size(provisional.header.stack_size) {
+    if !frame::valid_stack_size(architecture, provisional.header.stack_size) {
         return Err(StackmapNormalizationError::InvalidStackSize(
             provisional.header.stack_size,
         ));
@@ -222,7 +222,7 @@ fn validate_header_locations(
 fn validate_root_pairs(
     locations: &[CanonicalStackmapLocationV1],
     stack_size: u64,
-    architecture: StackmapArchitecture,
+    architecture: StackmapFrame,
 ) -> Result<(), StackmapNormalizationError> {
     for (root_index, pair) in locations.chunks_exact(2).enumerate() {
         if pair[0] != pair[1] {
@@ -243,7 +243,7 @@ fn validate_root_pairs(
             return Err(StackmapNormalizationError::InvalidRootLocation(root_index));
         }
         let signed_offset = signed_offset_bits as i64;
-        if !architecture.valid_root(register, signed_offset, stack_size) {
+        if !frame::valid_root(architecture, register, signed_offset, stack_size) {
             return Err(StackmapNormalizationError::RootOutsideFrame {
                 index: root_index,
                 stack_size,

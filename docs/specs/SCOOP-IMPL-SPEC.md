@@ -33,6 +33,10 @@ Windows 发行准备使用同一 GNU-LLVM Rust 宿主构建主命令、示例命
 
 Windows x64 宿主默认选择 `x86_64-pc-windows-msvc-ucrt`，不根据构建 Scoop 自身的 Rust ABI 或 PATH 上的 compiler 改选应用 target。显式 Windows target 使用上表完整名称，不将 LLVM machine triple 或缺少 native 环境／CRT 的简称当作别名。Windows 系统库及配套工具包的支持范围按 [Windows 实施记录](../windows-targets/PROGRESS.md) 标明，不从 target 可解析推定全部库已通过验收。
 
+LIR 目标数据显式保存机器架构、过程 ABI、Scoop ABI classifier 与 EH 约定。过程 ABI 选择 Darwin AArch64、SysV AMD64 或 Win64 的完整签名分类器；Scoop classifier 不从 COFF 推导，SEH personality 的名称与签名不从对象格式推导。静态目录绑定这些已实现的规则，IR crate 只保存和编码数据，具体分类算法继续属于 codegen 的 ABI planner。
+
+backend 的 machine frame 是必需数据，明确选择 Darwin AArch64 固定帧、SysV AMD64 固定帧或 Windows SEH 恢复；不以空值代表 Darwin，也不从架构／容器推定。profile 编码包含实际选择，配套目标产物据此重建。LLVM 架构初始化、对象 section 名称、machine triple 和 CPU／features 分别消费其投影，不继承另一个平台的完整描述。接口复用、数组区域、TLAB 和 card-region 的既有调优由 codegen 内的数据选项提供，目录绑定已有调优组，通用发射与优化流程不比较 LLVM target 名称。此次重构保持当前参数／结果、根槽与运行时机器 ABI 行为。
+
 backend contract 使用 LLVM 22.1、LLVM stackmap v3 和本规范的 GC/EH 约束。Linux 两个 libc target 共用 `org.scoop-lang.backend-profile/llvm-22-1-linux-x86-64/1`，但 native、runtime 与最终链接输入不能混用 glibc/musl。target、对象格式、调用约定、pointer/storage ABI 及实际 producer 配置必须相容；不支持的组合在生成目标产物前诊断。
 
 Windows 后端数据使用三个完整 target profile，机器 triple 分别投影为 MSVC 的 `x86_64-pc-windows-msvc` 或两个 MinGW 环境的 `x86_64-w64-windows-gnu`。三者共享 `org.scoop-lang.backend-profile/llvm-22-1-windows-x86-64/1`、Win64 数据布局与 COFF 机器发射，完整 target identity 仍参与产物相容性和缓存。Scoop ABI classifier 新编码 5 表示 Win64 caller copy／interface 间接结果，native symbol normalization 新编码 3 保留 x64 COFF 原符号字节。backend 的 frame recovery 编码 2 表示通过 SEH 重建 RSP／RBP，寄存器仍为 LLVM 编号 7／6、root slot 8 bytes，不保存 SysV frame-record 几何；LSDA 为 LPStart `0xff`、type table `0x00`、call-site `0x01`，无 type table 时为 `0xff`。同次构建的生产者与消费者使用一致的数据编码；项目未发布，不为旧编码或 fingerprint 保留兼容路径。

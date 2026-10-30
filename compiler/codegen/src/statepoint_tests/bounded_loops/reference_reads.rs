@@ -133,8 +133,12 @@ fn reference_unrolling_rejects_writes_effects_and_nondivisible_counts() {
         let machine = ValidatedBackendProfile::darwin_aarch64_for_test()
             .create_target_machine()
             .unwrap();
-        crate::statepoint::bounded_loops::optimize(llvm.get_function("f").unwrap(), &machine)
-            .unwrap();
+        crate::statepoint::bounded_loops::optimize(
+            llvm.get_function("f").unwrap(),
+            &machine,
+            ValidatedBackendProfile::darwin_aarch64_for_test().tuning(),
+        )
+        .unwrap();
         assert_eq!(llvm.print_to_string().to_string(), before);
     }
 }

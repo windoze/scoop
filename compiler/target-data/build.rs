@@ -26,6 +26,10 @@ struct Target {
     llvm_triple: String,
     layout: String,
     backend: String,
+    procedure_abi: String,
+    scoop_abi: String,
+    exception_handling: String,
+    tuning: String,
     native_environment: String,
     c_bridge_profile: String,
     native_rust_target: String,
@@ -75,6 +79,10 @@ fn main() {
             &target.layout,
             &target.backend,
             &target.native_environment,
+            &target.procedure_abi,
+            &target.scoop_abi,
+            &target.exception_handling,
+            &target.tuning,
         ] {
             identifier(name);
         }
@@ -85,6 +93,9 @@ fn main() {
             version,
             layout,
             backend,
+            procedure_abi,
+            scoop_abi,
+            exception_handling,
             ..
         } = target;
         writeln!(
@@ -92,7 +103,7 @@ fn main() {
             "pub const {symbol}_ID: TargetProfileId = target_id({profile:?}, {version});"
         )
         .unwrap();
-        writeln!(output, "pub const {symbol}: LirTargetProfile = LirTargetProfile::new(&{symbol}_ID, &crate::layout::describe({canonical:?}, crate::layout::LayoutKind::{layout}));").unwrap();
+        writeln!(output, "pub const {symbol}: LirTargetProfile = LirTargetProfile::new(&{symbol}_ID, &crate::layout::describe({canonical:?}, crate::layout::LayoutKind::{layout}, scoop_lir::ProcedureAbi::{procedure_abi}, scoop_lir::ScoopAbiClassifier::{scoop_abi}, scoop_lir::TargetExceptionHandling::{exception_handling}));").unwrap();
         writeln!(output, "pub const {symbol}_LLVM_22_1: ValidatedLirTargetSelection = ValidatedLirTargetSelection::new({symbol}, crate::{backend});").unwrap();
         writeln!(
             source_key,
@@ -124,9 +135,10 @@ fn main() {
             native_environment,
             c_bridge_profile,
             native_rust_target,
+            tuning,
             ..
         } = target;
-        writeln!(output, "TargetDefinition {{ selection: {symbol}_LLVM_22_1, aliases: &{aliases:?}, versioned_aliases: &{versioned_aliases:?}, os: {os:?}, arch: {arch:?}, env: {env:?}, llvm_triple: {llvm_triple:?}, native_environment: NativeEnvironment::{native_environment}, c_bridge_profile: {c_bridge_profile:?}, native_rust_target: {native_rust_target:?} }},").unwrap();
+        writeln!(output, "TargetDefinition {{ selection: {symbol}_LLVM_22_1, aliases: &{aliases:?}, versioned_aliases: &{versioned_aliases:?}, os: {os:?}, arch: {arch:?}, env: {env:?}, llvm_triple: {llvm_triple:?}, native_environment: NativeEnvironment::{native_environment}, c_bridge_profile: {c_bridge_profile:?}, native_rust_target: {native_rust_target:?}, tuning: CodegenTuning::{tuning} }},").unwrap();
     }
     output.push_str("];\npub const fn definition(id: TargetProfileId) -> Option<TargetDefinition> { match id {\n");
     for (index, target) in catalog.targets.iter().enumerate() {

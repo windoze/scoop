@@ -90,7 +90,6 @@ static bool active_roots_contain(const void *object) {
 
 static void initialize_current_test_thread(void) {
     memset(&test_thread, 0, sizeof test_thread);
-    test_thread.os_thread = pthread_self();
     delete_count = 0;
     atomic_init(&test_thread.poll.mode, SCOOP_THREAD_MANAGED);
     test_thread.managed_depth = 1;

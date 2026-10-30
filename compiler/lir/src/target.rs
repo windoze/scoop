@@ -150,10 +150,33 @@ pub enum NativeObjectFormat {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum TargetArchitecture {
+    Aarch64,
+    X86_64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ProcedureAbi {
+    DarwinAarch64,
+    SysvAmd64,
+    Win64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum TargetExceptionHandling {
+    Dwarf,
+    WindowsSeh,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct TargetLayoutDescription {
     pub canonical_triple: &'static str,
     pub llvm_data_layout: &'static str,
     pub object_format: NativeObjectFormat,
+    pub architecture: TargetArchitecture,
+    pub procedure_abi: ProcedureAbi,
+    pub scoop_abi_classifier: ScoopAbiClassifier,
+    pub exception_handling: TargetExceptionHandling,
     pub native_symbol_normalization: NativeSymbolNormalization,
     pub byte_order: ByteOrder,
     pub scalar_layouts: [ScalarLayout; 7],
@@ -191,6 +214,15 @@ impl LirTargetProfile {
     }
     pub const fn native_object_format(self) -> NativeObjectFormat {
         self.description.object_format
+    }
+    pub const fn architecture(self) -> TargetArchitecture {
+        self.description.architecture
+    }
+    pub const fn procedure_abi(self) -> ProcedureAbi {
+        self.description.procedure_abi
+    }
+    pub const fn exception_handling(self) -> TargetExceptionHandling {
+        self.description.exception_handling
     }
     pub fn wire_id(self) -> scoop_identity::TargetProfileWireId {
         scoop_identity::TargetProfileWireId::new(*self.id)

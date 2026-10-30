@@ -16,10 +16,9 @@ mod stack_reads;
 pub(super) fn prepare(
     region: &mut Region<'_>,
     machine: &TargetMachine,
+    tuning: crate::target::TargetTuning,
 ) -> Result<(), CodegenError> {
-    // Only AArch64 showed a stable gain from moving queries past stack reloads.
-    // Ordinary reference loops keep the existing target-independent selection.
-    let retain_stack_reloads = machine.get_target().get_name() == c"aarch64";
+    let retain_stack_reloads = tuning.retain_card_stack_reloads;
     if !region
         .blocks
         .iter()

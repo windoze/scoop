@@ -38,11 +38,11 @@ pub struct BackendProfileContract {
     pub inkwell_binding: [u32; 3],
     pub cpu: &'static str,
     pub features: &'static str,
-    pub llvm_target_backend: u32,
+    pub llvm_target_backend: crate::TargetArchitecture,
     pub unwind_provider: u32,
     pub artifact_inspection: crate::NativeObjectFormat,
     pub lsda: BackendLsdaEncodingsV1,
-    pub machine_frame: Option<BackendMachineFrameV1>,
+    pub machine_frame: BackendMachineFrameV1,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -55,17 +55,18 @@ pub struct BackendLsdaEncodingsV1 {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum BackendMachineFrameV1 {
-    FixedFrame {
-        stack_pointer_register: u16,
-        frame_pointer_register: u16,
-        root_slot_bytes: u8,
-        frame_record_bytes: u8,
-    },
-    WindowsSeh {
-        stack_pointer_register: u16,
-        frame_pointer_register: u16,
-        root_slot_bytes: u8,
-    },
+    DarwinAarch64,
+    SysvAmd64,
+    WindowsSeh,
+}
+
+impl BackendMachineFrameV1 {
+    pub const fn registers(self) -> (u16, u16) {
+        match self {
+            Self::DarwinAarch64 => (31, 29),
+            Self::SysvAmd64 | Self::WindowsSeh => (7, 6),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -124,14 +125,14 @@ mod tests {
     fn backend_contract_and_fingerprint_match_the_fixed_vectors() {
         assert_eq!(
             hex(&encode(&crate::target_fixtures::LLVM_22_1.contract()).unwrap()),
-            "b81a01a20116020102a30100020a0301036767656e657269630460050106010701080109010a010b030c010d010e010f01100111011201130114011501160217a30118ff02189b0301181801181901181c01"
+            "b81c01a20116020102a30100020a0301036767656e657269630460050106010701080109010a010b030c010d010e010f01100111011201130114011501160217a30118ff02189b0301181801181901181a03181ba401181f02181d03080410181c01"
         );
         assert_eq!(
             crate::target_fixtures::LLVM_22_1
                 .fingerprint()
                 .unwrap()
                 .to_string(),
-            "08e6c47f288f6522a8987a366d12b110d75ad0090c17b56b184ff70101e95ab8"
+            "897a958d3eeaa3ca6691d24e99c5b1a9f18d8c248ae62b588965c94467928023"
         );
     }
 

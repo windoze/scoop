@@ -23,7 +23,13 @@ pub(crate) enum LayoutKind {
     WindowsX86_64,
 }
 
-pub(crate) const fn describe(triple: &'static str, kind: LayoutKind) -> TargetLayoutDescription {
+pub(crate) const fn describe(
+    triple: &'static str,
+    kind: LayoutKind,
+    procedure_abi: ProcedureAbi,
+    scoop_abi_classifier: ScoopAbiClassifier,
+    exception_handling: TargetExceptionHandling,
+) -> TargetLayoutDescription {
     let (llvm_data_layout, object_format, native_symbol_normalization) = match kind {
         LayoutKind::DarwinAarch64 => (
             "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32",
@@ -45,6 +51,13 @@ pub(crate) const fn describe(triple: &'static str, kind: LayoutKind) -> TargetLa
         canonical_triple: triple,
         llvm_data_layout,
         object_format,
+        architecture: match kind {
+            LayoutKind::DarwinAarch64 => TargetArchitecture::Aarch64,
+            LayoutKind::LinuxX86_64 | LayoutKind::WindowsX86_64 => TargetArchitecture::X86_64,
+        },
+        procedure_abi,
+        scoop_abi_classifier,
+        exception_handling,
         native_symbol_normalization,
         byte_order: ByteOrder::Little,
         scalar_layouts: SCALARS,

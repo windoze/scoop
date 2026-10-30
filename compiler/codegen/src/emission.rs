@@ -294,24 +294,15 @@ fn emit_llvm_module_with_surface<'ctx, R>(
     let module_ctx = ModuleCtx {
         debug: debug.as_ref(),
         profile,
-        // Snapshot forwarding regressed AArch64 reference-copy kernels.
         reuse_interface_values: profile.optimization() == scoop_lir::OptimizationMode::Release
-            && machine.get_target().get_name() == c"x86-64",
+            && profile.tuning().reuse_interface_values,
         optimize_allocations: profile.optimization() == scoop_lir::OptimizationMode::Release,
         optimize_reference_writes: profile.optimization() == scoop_lir::OptimizationMode::Release,
-        // Direct lookup regressed large random reference writes on x86.
-        direct_array_regions: machine.get_target().get_name() == c"aarch64",
-        // Larger x86 initialization regions had unstable register-allocation costs.
-        allocation_initialization_limit: if machine.get_target().get_name() == c"aarch64" {
-            128
-        } else {
-            64
-        },
-        // Both range simplification and alignment-only removal regressed x86 trees.
-        optimize_tlab_range: machine.get_target().get_name() == c"aarch64",
-        // The extra live register and cache check regressed x86 wide allocations.
+        direct_array_regions: profile.tuning().direct_array_regions,
+        allocation_initialization_limit: profile.tuning().allocation_initialization_limit,
+        optimize_tlab_range: profile.tuning().optimize_tlab_range,
         reuse_thread_addresses: profile.optimization() == scoop_lir::OptimizationMode::Release
-            && machine.get_target().get_name() == c"aarch64",
+            && profile.tuning().reuse_thread_addresses,
         managed_address_space,
         functions: &module.functions,
         structs: &module.structs,

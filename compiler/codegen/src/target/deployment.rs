@@ -9,6 +9,7 @@ pub(super) enum ObjectDeployment {
 }
 
 impl ObjectDeployment {
+    #[cfg(test)]
     pub(super) const DARWIN_TEST: Self = Self::Darwin(match DarwinPackedVersionV1::new(11 << 16) {
         Ok(value) => value,
         Err(_) => panic!("valid test deployment"),
@@ -34,7 +35,10 @@ impl ObjectDeployment {
 
     pub(super) fn triple(self, canonical: &str) -> String {
         match self {
-            Self::Darwin(version) => format!("aarch64-apple-macosx{version}"),
+            Self::Darwin(version) => {
+                let architecture = canonical.split('-').next().expect("registered LLVM triple");
+                format!("{architecture}-apple-macosx{version}")
+            }
             Self::Linux => canonical.into(),
             Self::Windows => canonical.into(),
         }

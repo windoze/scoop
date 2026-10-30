@@ -12,7 +12,7 @@ impl TestCoercion for AbiAggregateLayout {
         target: LirTargetProfile,
         position: AbiValuePosition,
     ) -> Option<AbiCoercion> {
-        coercion(self, ProcedureAbi::for_target(target).unwrap(), position)
+        coercion(self, crate::procedure_abi(target).unwrap(), position)
     }
 }
 

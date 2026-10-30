@@ -71,11 +71,7 @@ fn windows_environments_keep_distinct_identity_and_seh_frame_recovery() {
         );
         assert!(matches!(
             selection.backend().contract().machine_frame,
-            Some(scoop_lir::BackendMachineFrameV1::WindowsSeh {
-                stack_pointer_register: 7,
-                frame_pointer_register: 6,
-                root_slot_bytes: 8
-            })
+            scoop_lir::BackendMachineFrameV1::WindowsSeh
         ));
         assert_eq!(
             scoop_lir::TargetEhSupportV1::ScoopPersonality.logical_symbol_for_target(profile),

@@ -116,8 +116,12 @@ fn only_stack_reference_reads_allow_independent_mapping_queries_to_move() {
         let machine = ValidatedBackendProfile::darwin_aarch64_for_test()
             .create_target_machine()
             .unwrap();
-        crate::statepoint::bounded_loops::optimize(llvm.get_function("f").unwrap(), &machine)
-            .unwrap();
+        crate::statepoint::bounded_loops::optimize(
+            llvm.get_function("f").unwrap(),
+            &machine,
+            ValidatedBackendProfile::darwin_aarch64_for_test().tuning(),
+        )
+        .unwrap();
         llvm.verify().unwrap();
         assert_queries(llvm.get_function("f").unwrap(), outside);
         assert_retained(llvm.get_function("f").unwrap(), 2);

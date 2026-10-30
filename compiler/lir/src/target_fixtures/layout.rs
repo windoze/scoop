@@ -20,6 +20,10 @@ const DARWIN: TargetLayoutDescription = TargetLayoutDescription {
     canonical_triple: "aarch64-apple-darwin",
     llvm_data_layout: "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32",
     object_format: NativeObjectFormat::MachO64,
+    architecture: TargetArchitecture::Aarch64,
+    procedure_abi: ProcedureAbi::DarwinAarch64,
+    scoop_abi_classifier: ScoopAbiClassifier::ScalarInterfaceAndSmallValueParts,
+    exception_handling: TargetExceptionHandling::Dwarf,
     native_symbol_normalization: NativeSymbolNormalization::MachOExternalUnderscore,
     byte_order: ByteOrder::Little,
     scalar_layouts: SCALARS,
@@ -35,6 +39,8 @@ const LINUX: TargetLayoutDescription = TargetLayoutDescription {
     canonical_triple: "x86_64-unknown-linux-gnu",
     llvm_data_layout: "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
     object_format: NativeObjectFormat::Elf64,
+    architecture: TargetArchitecture::X86_64,
+    procedure_abi: ProcedureAbi::SysvAmd64,
     native_symbol_normalization: NativeSymbolNormalization::ElfIdentity,
     ..DARWIN
 };

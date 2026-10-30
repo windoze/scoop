@@ -448,6 +448,8 @@ native 实际调用不得 unwind 穿越边界。静态 FunPtr 的同步 NoGC 调
 
 core 的 Long／ULong hash、Boolean hash／equals 使用普通标量正文，执行固定次数的计算，无分配、阻塞或回调。当前 word hash 在 ULong 上依次 xor 右移 30 位、乘 `0xbf58476d1ce4e5b9`、xor 右移 27 位、乘 `0x94d049bb133111eb`、xor 右移 31 位，按原 64 位结果转换为 Long；Boolean hash 为 false→0、true→1，equals 保持逻辑相等。Boolean.toString 选择 provider 的 immortal 字符串，不新增托管 root 或对象。已有 C 后备符号及调用合同保留供实际外部引用使用，新 core 不再为这些操作声明 native wrapper；不将任意同名 extern 特化，也不改变公开方法签名。String hash／equals／字符计数会随输入增长，继续遵守各自 managed／native 边界，不能沿用这项有界标量选择。
 
+机器 frame 恢复由 backend 明确选择 Darwin AArch64 固定帧、SysV AMD64 固定帧或 Windows SEH 实现；机器架构、对象格式和恢复方式是不同事实，不用其中一项猜测另一项。编译期 reader 使用选定 frame 合同验证 stackmap，运行时使用配套 anchor 与恢复实现；这项职责分离不改变现有机器帧、根槽或 runtime ABI。
+
 Darwin/AArch64 的 SP/FP DWARF register 分别为 31/29，stack size 为 16 的倍数。Linux/amd64 分别为 7/6；若 stackmap stack size 为 N，要求 `N % 16 == 8`。amd64 的入口 return PC 在 `[RSP]`，call-site SP 为 `RSP + 8`，FP 为 RBP；N 不包含 return address，`FP = SP + N - 8`，`[FP]` 保存前一 FP、`[FP+8]` 保存 return PC、前一 SP 为 `FP+16`。root slot 位于 `[SP, FP)`。这些目标保留 frame pointer，不使用 red zone 或破坏栈遍历的 tail call。
 
 Windows/amd64 同样保留 RBP frame pointer、禁用 red zone 与破坏遍历的 tail call，但不使用上述 SysV frame 几何。anchor 在自身 prologue 前取得 managed caller 的 return PC、call-site RSP 与 RBP；Win64 shim 提供 shadow space、栈参数和 `.seh_*` 描述后调用私有 C 实现。当前 profile 的 unwind frame register 只使用 RBP，stackmap 根只允许 DWARF 7／6 的 8-byte indirect location，base 与 derived 为同一槽位；因此扫描上下文只需这三个值。reader 使用实际 RSP／RBP 加 signed displacement 取得根槽，检查其位于该 frame 的 stackmap 分配区间；向外遍历使用 `RtlLookupFunctionEntry`／`RtlVirtualUnwind` 恢复 caller 的这三个值，在已发布 native boundary 停止。其他非易失寄存器不作为根或 frame base，不为扫描另存完整 CPU context；该限制随目标机器 frame 合同维护。
