@@ -85,7 +85,7 @@ json = "stderr"
 diagnostics = []
 checks = [
   {actual = "${incremental.result.observations.child_invocations.length}", equals = 1},
-  {actual = "${incremental.result.observations.rendered_files.length}", equals = 10},
+  {actual = "${incremental.result.observations.rendered_files.length}", equals = 11},
   {file = "${work}/site/assets/index.js", contains = "revised explanation"},
 ]
 

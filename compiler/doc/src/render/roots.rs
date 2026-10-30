@@ -27,5 +27,9 @@ pub fn render_roots(roots: &[RootReference]) -> Result<Vec<RenderedFile>> {
             path: "assets/style.css".into(),
             contents: include_bytes!("assets/style.css").to_vec(),
         },
+        RenderedFile {
+            path: "assets/logo.svg".into(),
+            contents: include_bytes!("assets/logo.svg").to_vec(),
+        },
     ])
 }
