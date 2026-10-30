@@ -95,14 +95,12 @@ impl ValidatedFinalLinkProfile {
         options: &FinalLinkOptions,
         cxx: Option<crate::ValidatedCxxToolchain>,
     ) -> Result<Self, ToolchainError> {
-        if options.linker.is_some()
-            && startup.target().native_object_format() != scoop_lir::NativeObjectFormat::Coff64
-        {
+        if options.linker.is_some() && !startup.native_environment().is_windows() {
             return Err(error("--linker currently selects a Windows final linker"));
         }
         let native_roots = options.native_roots(startup.target())?;
-        match startup.profile().contract().target().id() {
-            scoop_target_data::DARWIN_AARCH64_ID => {
+        match startup.native_environment() {
+            scoop_target_data::NativeEnvironment::Darwin => {
                 if options.mode == Some(LinkMode::Static) || options.unwind_prefix.is_some() {
                     return Err(error(
                         "Darwin uses dynamic libSystem unwinding; static mode and an unwind prefix are not applicable",
@@ -110,15 +108,15 @@ impl ValidatedFinalLinkProfile {
                 }
                 DarwinFinalLinkProfile::from_startup(startup, cxx, native_roots).map(Self::Darwin)
             }
-            scoop_target_data::LINUX_X86_64_GNU_ID | scoop_target_data::LINUX_X86_64_MUSL_ID => {
+            scoop_target_data::NativeEnvironment::LinuxGnu
+            | scoop_target_data::NativeEnvironment::LinuxMusl => {
                 LinuxFinalLinkProfile::resolve(startup, options, cxx, native_roots).map(Self::Linux)
             }
-            scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID
-            | scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID
-            | scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_ID => {
+            scoop_target_data::NativeEnvironment::MicrosoftUcrt
+            | scoop_target_data::NativeEnvironment::LlvmMingwMsvcrt
+            | scoop_target_data::NativeEnvironment::LlvmMingwUcrt => {
                 WindowsFinalLinkProfile::resolve(startup, options, cxx).map(Self::Windows)
             }
-            _ => Err(error("unsupported target for final linking")),
         }
     }
 
@@ -174,11 +172,11 @@ impl ValidatedFinalLinkProfile {
         }
     }
 
-    pub fn linker_args(&self) -> &'static [&'static str] {
+    pub fn linker_args(&self) -> Vec<&'static str> {
         match self {
             Self::Darwin(profile) => profile.linker_args(),
-            Self::Linux(profile) => profile.linker_args(),
-            Self::Windows(profile) => profile.linker_args(),
+            Self::Linux(profile) => profile.linker_args().to_vec(),
+            Self::Windows(profile) => profile.linker_args().to_vec(),
         }
     }
 

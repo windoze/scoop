@@ -232,5 +232,10 @@ fn generated_c_profile() -> scoop_lir::CBridgeToolchainProfileV1 {
     )
     .unwrap();
     let compiler = scoop_lir::AppleClangCompilerIdentityV1::new(21, 0, 0, "test-clang").unwrap();
-    scoop_target_data::darwin_c_bridge_profile(deployment, compiler).unwrap()
+    scoop_target_data::darwin_c_bridge_profile(
+        scoop_target_data::DARWIN_AARCH64,
+        deployment,
+        compiler,
+    )
+    .unwrap()
 }

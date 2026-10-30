@@ -43,8 +43,12 @@ pub(super) fn check_relocation_and_compatible_toolchains(
         let older = DarwinPackedVersionV1::new(deployment.minimum_os().packed() - 1).unwrap();
         let deployment =
             DarwinCBridgeDeploymentContractV1::new(older, deployment.sdk(), Vec::new()).unwrap();
-        let older =
-            scoop_target_data::darwin_c_bridge_profile(deployment, compiler.clone()).unwrap();
+        let older = scoop_target_data::darwin_c_bridge_profile(
+            scoop_target_data::DARWIN_AARCH64,
+            deployment,
+            compiler.clone(),
+        )
+        .unwrap();
         let message = RuntimeObjectSet::read_index(&index, target.lir_target(), &older)
             .unwrap_err()
             .to_string();
@@ -81,7 +85,12 @@ fn compatible_consumer(target: &ResolvedTargetProfile) -> CBridgeToolchainProfil
                 "different-compatible-compiler",
             )
             .unwrap();
-            scoop_target_data::darwin_c_bridge_profile(deployment, compiler).unwrap()
+            scoop_target_data::darwin_c_bridge_profile(
+                scoop_target_data::DARWIN_AARCH64,
+                deployment,
+                compiler,
+            )
+            .unwrap()
         }
         CBridgePlatformContractV1::Linux { .. } => scoop_target_data::linux_c_bridge_profile(
             target.lir_target(),

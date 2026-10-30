@@ -10,7 +10,7 @@ mod compiler_inputs;
 pub use compiler_inputs::{CompileTimeInputs, compiler_inputs_current};
 
 pub const VERSION: &str = env!("SCOOP_BUILD_VERSION");
-pub const DARWIN_DEPLOYMENT_BASELINE: &str = env!("SCOOP_MACOS_BASELINE");
+include!(concat!(env!("OUT_DIR"), "/deployment.rs"));
 
 mod c_bridge;
 mod c_bridge_invocation;

@@ -59,7 +59,9 @@ Windows runtime 的普通 COFF 对象可包含 CRT headers 生成的重复可合
 
 MinGW 的 native sysroot 是对应 CRT 的完整 LLVM-MinGW prefix。Microsoft 环境可由已安装 Build Tools／SDK 发现，也可在显式 native sysroot 的 `msvc.toml` 中提供 `[msvc]` 表的 `vc_tools`、`windows_sdk`、`sdk_version`；前两项分别指向所选 `VC/Tools/MSVC/<version>` 与 Windows SDK 根，支持相对于该配置文件的路径。跨宿主使用同一显式布局。发现阶段以实际 headers 编译 AMD64 COFF probe，检查 Win64／LLP64、Microsoft 或 mingw-w64 环境及 `_UCRT` 对应关系；不执行目标程序，也不预先要求最终链接库齐全。配置、选中工具与实际头文件路径按既有输入更新规则记录和复用。
 
-仓库的 `scripts/release.toml` 记录发行所用 LLVM 精确版本、系统与 CPU 基线。构建宿主命令时将默认 Darwin 部署版本编入工具；普通命令不读取打包配置或发行清单。`MACOSX_DEPLOYMENT_TARGET` 可为一次编译／链接选择明确的 `major.minor[.patch]`，非法值必须诊断。未覆盖时使用编入的基线，不查询运行机器的系统版本。所选最低版本贯通 LLVM 对象、generated-C、用户 native、runtime 和最终链接，进入原有生产配置与更新键；SDK 版本继续只记录实际 SDK。Linux 使用既有 x86-64 CPU 基线和所选 libc 工具链，发行最低 libc 版本由对应构建／验证环境确定，不能仅靠一个版本参数降低实际动态依赖。
+仓库的 `scripts/release.toml` 记录发行所用 LLVM 精确版本、系统与 CPU 基线。构建宿主命令时将各已登记 Darwin target 的默认部署版本编入工具；普通命令不读取打包配置或发行清单。`MACOSX_DEPLOYMENT_TARGET` 可为一次编译／链接选择明确的 `major.minor[.patch]`，非法值必须诊断。未覆盖时使用所选 target 的编入基线，不查询运行机器的系统版本。所选最低版本贯通 LLVM 对象、generated-C、用户 native、runtime 和最终链接，进入原有生产配置与更新键；SDK 版本继续只记录实际 SDK。Linux 使用既有 x86-64 CPU 基线和所选 libc 工具链，发行最低 libc 版本由对应构建／验证环境确定，不能仅靠一个版本参数降低实际动态依赖。
+
+工具角色、命令行方言与目标 native 环境分别选择。Darwin 的 `--cc` 可选择 Apple Clang，`--native-sysroot` 可选择 macOS SDK；省略项由本机 Xcode 工具发现补足。SDK 版本从实际 SDK 设置读取，真实对象 probe 验证所选 machine 与部署信息。C、C++、startup 与 final-link 共用已选目标、SDK 和部署版本，Apple linker 的 `-arch` 从目标架构取得；不通过宿主架构或 Mach-O 格式隐含 arm64。普通工具发现记录保存路径和输入更新事实，目标产物中的 compiler contract 不包含宿主路径。
 
 宿主 Rust 命令使用 rustc 对应目标的默认 CPU 基线，不使用构建机器的 native CPU，也不以 Scoop backend 的 `generic` 配置覆盖平台必需特性；Darwin/AArch64 因而保留 Apple Silicon 的 AES／SHA2 等平台特性，Linux/amd64 仍使用 x86-64 基线。
 

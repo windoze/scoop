@@ -6,10 +6,10 @@ use crate::ValidatedCBridgeToolchainInvocation;
 use object::endian::Endian;
 use object::read::Object;
 use object::read::macho::MachOFile64;
-use object::{Architecture, ObjectKind, macho};
+use object::{ObjectKind, macho};
 use scoop_lir::{
     AppleClangCompilerIdentityV1, DarwinBuildToolIdV1, DarwinBuildToolVersionContractV1,
-    DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1,
+    DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1, LirTargetProfile,
 };
 
 use crate::ToolchainError;
@@ -17,10 +17,19 @@ use crate::ToolchainError;
 const XCRUN: &str = "/usr/bin/xcrun";
 const MACHO_TOOL_LLD: u32 = 4;
 
-pub(super) fn deployment_version() -> Result<String, ToolchainError> {
+pub(super) fn deployment_version(target: LirTargetProfile) -> Result<String, ToolchainError> {
     match std::env::var("MACOSX_DEPLOYMENT_TARGET") {
         Ok(value) => Ok(value),
-        Err(std::env::VarError::NotPresent) => Ok(crate::DARWIN_DEPLOYMENT_BASELINE.into()),
+        Err(std::env::VarError::NotPresent) => crate::DARWIN_DEPLOYMENT_BASELINES
+            .iter()
+            .find(|(canonical, _)| *canonical == target.contract().canonical_triple())
+            .map(|(_, version)| (*version).to_owned())
+            .ok_or_else(|| {
+                ToolchainError(format!(
+                    "no Darwin deployment baseline for {}",
+                    target.contract().canonical_triple()
+                ))
+            }),
         Err(std::env::VarError::NotUnicode(_)) => Err(ToolchainError(
             "MACOSX_DEPLOYMENT_TARGET must be UTF-8 major.minor[.patch]".into(),
         )),
@@ -30,39 +39,80 @@ pub(super) fn deployment_version() -> Result<String, ToolchainError> {
 #[cfg(all(test, target_os = "macos", target_arch = "aarch64"))]
 pub(super) fn resolve_system_c_bridge_toolchain()
 -> Result<ValidatedCBridgeToolchainInvocation, ToolchainError> {
-    probe_system_c_bridge_toolchain().map(|(invocation, _)| invocation)
+    probe_system_c_bridge_toolchain(scoop_target_data::DARWIN_AARCH64, None, None)
+        .map(|(invocation, _)| invocation)
 }
 
-pub(super) fn probe_system_c_bridge_toolchain()
--> Result<(ValidatedCBridgeToolchainInvocation, Vec<PathBuf>), ToolchainError> {
-    let deployment_version = deployment_version()?;
+pub(super) fn probe_system_c_bridge_toolchain(
+    target: LirTargetProfile,
+    compiler: Option<&Path>,
+    sdk: Option<&Path>,
+) -> Result<(ValidatedCBridgeToolchainInvocation, Vec<PathBuf>), ToolchainError> {
+    let deployment_version = deployment_version(target)?;
     let minimum_os = parse_darwin_version(&deployment_version, "MACOSX_DEPLOYMENT_TARGET")?;
-    let compiler_path = command_text(XCRUN, &["--find", "clang"])?;
-    let sdk_path = command_text(XCRUN, &["--sdk", "macosx", "--show-sdk-path"])?;
+    let compiler_path = match compiler {
+        Some(path) => crate::paths::find_program(
+            path.as_os_str(),
+            &std::env::var_os("PATH").unwrap_or_default(),
+        )?,
+        None => PathBuf::from(command_text(XCRUN, &["--find", "clang"])?),
+    };
+    let sdk_path = match sdk {
+        Some(path) => std::path::absolute(path)
+            .map_err(|error| ToolchainError(format!("macOS SDK path: {error}")))?,
+        None => PathBuf::from(command_text(
+            XCRUN,
+            &["--sdk", "macosx", "--show-sdk-path"],
+        )?),
+    };
     let compiler_driver = canonical_existing_path(&compiler_path, "Apple Clang compiler", true)?;
     let sdk_root = canonical_existing_path(&sdk_path, "macOS SDK root", false)?;
     let compiler_version = command_text_from_path(&compiler_driver, &["--version"])?;
-    let sdk_version = command_text(XCRUN, &["--sdk", "macosx", "--show-sdk-version"])?;
-    let sdk = parse_darwin_version(&sdk_version, "macOS SDK version")?;
+    let settings_path = sdk_root.join("SDKSettings.json");
+    let settings: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&settings_path).map_err(|error| {
+            ToolchainError(format!("cannot read {}: {error}", settings_path.display()))
+        })?)
+        .map_err(|error| ToolchainError(format!("invalid macOS SDK settings: {error}")))?;
+    let sdk_version = settings
+        .get("Version")
+        .and_then(|value| value.as_str())
+        .ok_or_else(|| ToolchainError("macOS SDK settings are missing Version".into()))?
+        .to_owned();
+    let sdk_version_value = parse_darwin_version(&sdk_version, "macOS SDK version")?;
     let tools = probe_build_tools(
+        target,
         &compiler_driver,
         &sdk_root,
         minimum_os,
-        sdk,
+        sdk_version_value,
         parse_apple_clang_identity(&compiler_version)?,
     )?;
-    let inputs = vec![
-        PathBuf::from(compiler_path),
-        PathBuf::from(sdk_path),
+    let mut inputs = vec![
+        compiler_path,
+        sdk_path,
         compiler_driver.clone(),
-        sdk_root.join("SDKSettings.json"),
-        sdk_root.join("SDKSettings.plist"),
-        PathBuf::from(XCRUN),
-        PathBuf::from("/var/db/xcode_select_link"),
-        PathBuf::from("/Applications/Xcode.app"),
-        PathBuf::from("/Library/Developer/CommandLineTools"),
+        settings_path,
     ];
+    if let Some(compiler) = compiler {
+        let mut candidates = std::collections::BTreeSet::new();
+        crate::native_record::program_candidates(
+            compiler.as_os_str(),
+            &std::env::var_os("PATH").unwrap_or_default(),
+            &mut candidates,
+        );
+        inputs.extend(candidates);
+    }
+    if compiler.is_none() || sdk.is_none() {
+        inputs.extend([
+            PathBuf::from(XCRUN),
+            PathBuf::from("/var/db/xcode_select_link"),
+            PathBuf::from("/Applications/Xcode.app"),
+            PathBuf::from("/Library/Developer/CommandLineTools"),
+        ]);
+    }
     let facts = CBridgeToolchainFacts {
+        target,
         compiler_driver,
         sdk_root,
         sdk_version,
@@ -74,6 +124,7 @@ pub(super) fn probe_system_c_bridge_toolchain()
 }
 
 struct CBridgeToolchainFacts {
+    target: LirTargetProfile,
     compiler_driver: PathBuf,
     sdk_root: PathBuf,
     sdk_version: String,
@@ -94,12 +145,12 @@ fn resolve_c_bridge_toolchain(
         DarwinCBridgeDeploymentContractV1::new(minimum_os, sdk, facts.tools).map_err(|error| {
             ToolchainError(format!("invalid generated-C deployment facts: {error}"))
         })?;
-    let profile =
-        scoop_target_data::darwin_c_bridge_profile(deployment, compiler).map_err(|error| {
+    let profile = scoop_target_data::darwin_c_bridge_profile(facts.target, deployment, compiler)
+        .map_err(|error| {
             ToolchainError(format!("cannot fingerprint C bridge toolchain: {error}"))
         })?;
     ValidatedCBridgeToolchainInvocation::new(
-        scoop_target_data::DARWIN_AARCH64,
+        facts.target,
         profile,
         facts.compiler_driver,
         facts.sdk_root,
@@ -108,6 +159,7 @@ fn resolve_c_bridge_toolchain(
 }
 
 fn probe_build_tools(
+    target: LirTargetProfile,
     compiler: &Path,
     sdk_root: &Path,
     minimum_os: DarwinPackedVersionV1,
@@ -126,10 +178,10 @@ fn probe_build_tools(
         .map_err(|error| ToolchainError(format!("cannot write C bridge probe source: {error}")))?;
     let deployment = DarwinCBridgeDeploymentContractV1::new(minimum_os, sdk, Vec::new())
         .map_err(|error| ToolchainError(format!("invalid C bridge probe deployment: {error}")))?;
-    let profile = scoop_target_data::darwin_c_bridge_profile(deployment, compiler_identity)
+    let profile = scoop_target_data::darwin_c_bridge_profile(target, deployment, compiler_identity)
         .map_err(|error| ToolchainError(format!("cannot fingerprint C bridge probe: {error}")))?;
     let invocation = ValidatedCBridgeToolchainInvocation::new(
-        scoop_target_data::DARWIN_AARCH64,
+        target,
         profile,
         compiler.to_path_buf(),
         sdk_root.to_path_buf(),
@@ -150,22 +202,26 @@ fn probe_build_tools(
     }
     let bytes = std::fs::read(&object)
         .map_err(|error| ToolchainError(format!("cannot read C bridge probe object: {error}")))?;
-    parse_probe_deployment(&bytes, minimum_os, sdk)
+    parse_probe_deployment(target, &bytes, minimum_os, sdk)
 }
 
 fn parse_probe_deployment(
+    target: LirTargetProfile,
     bytes: &[u8],
     expected_minimum_os: DarwinPackedVersionV1,
     expected_sdk: DarwinPackedVersionV1,
 ) -> Result<Vec<DarwinBuildToolVersionContractV1>, ToolchainError> {
     let file: MachOFile64<'_> = MachOFile64::parse(bytes)
         .map_err(|error| ToolchainError(format!("invalid C bridge probe Mach-O: {error}")))?;
-    if file.architecture() != Architecture::Aarch64
+    let machine = scoop_slib::MachOArchitecture::for_target(target.id())
+        .map_err(|error| ToolchainError(format!("invalid Darwin probe target: {error}")))?;
+    if file.architecture() != machine.object_architecture()
         || file.kind() != ObjectKind::Relocatable
         || !file.endian().is_little_endian()
     {
         return Err(ToolchainError(
-            "C bridge probe did not produce little-endian AArch64 MH_OBJECT".to_owned(),
+            "C bridge probe did not produce little-endian MH_OBJECT for the selected machine"
+                .to_owned(),
         ));
     }
     let endian = file.endian();
@@ -302,7 +358,7 @@ pub(crate) fn command_text_from_path(
 }
 
 fn canonical_existing_path(
-    queried: &str,
+    queried: &Path,
     role: &'static str,
     require_file: bool,
 ) -> Result<PathBuf, ToolchainError> {

@@ -55,6 +55,7 @@ fn test_purpose_and_source_roles_are_independent_key_inputs() {
 fn input(source_modified: u64, compiler_input: &str) -> ConeCompileCacheInputV1 {
     let selection = scoop_target_data::DARWIN_AARCH64_LLVM_22_1;
     let c_bridge = scoop_target_data::darwin_c_bridge_profile(
+        scoop_target_data::DARWIN_AARCH64,
         DarwinCBridgeDeploymentContractV1::new(
             DarwinPackedVersionV1::new(0x000d_0100).unwrap(),
             DarwinPackedVersionV1::new(0x000e_0200).unwrap(),
@@ -109,6 +110,7 @@ fn input(source_modified: u64, compiler_input: &str) -> ConeCompileCacheInputV1 
 
 fn c_bridge_fingerprint(minimum: u32, sdk: u32, compiler: &str) -> CBridgeToolchainFingerprint {
     scoop_target_data::darwin_c_bridge_profile(
+        scoop_target_data::DARWIN_AARCH64,
         DarwinCBridgeDeploymentContractV1::new(
             DarwinPackedVersionV1::new(minimum).unwrap(),
             DarwinPackedVersionV1::new(sdk).unwrap(),

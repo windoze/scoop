@@ -20,21 +20,16 @@ pub fn runtime_unwind_include(
     target: LirTargetProfile,
     prefix: Option<&Path>,
 ) -> Result<Option<PathBuf>, ToolchainError> {
-    if target.id() == scoop_target_data::DARWIN_AARCH64_ID {
+    let environment = scoop_target_data::definition(target.id())
+        .ok_or_else(|| ToolchainError("unknown runtime target".into()))?
+        .native_environment;
+    if environment == scoop_target_data::NativeEnvironment::Darwin {
         if prefix.is_some() {
             return Err(ToolchainError(
                 "Darwin runtime uses the SDK unwind headers".into(),
             ));
         }
         return Ok(None);
-    }
-    if !matches!(
-        target.id(),
-        scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID
-            | scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID
-            | scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_ID
-    ) {
-        crate::linux_target::LinuxTarget::select(target.id())?;
     }
     let prefix = selected_unwind_prefix(target, None, prefix)?;
     let include = prefix.join("include");

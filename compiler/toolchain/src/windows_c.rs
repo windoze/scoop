@@ -15,12 +15,10 @@ mod environment;
 pub(crate) use environment::WindowsCEnvironment;
 
 pub(crate) fn machine_triple(target: TargetProfileId) -> Result<&'static str, ToolchainError> {
-    match target {
-        scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID => Ok("x86_64-pc-windows-msvc"),
-        scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID
-        | scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_ID => Ok("x86_64-w64-windows-gnu"),
-        _ => Err(error("a registered Windows target is required")),
-    }
+    scoop_target_data::definition(target)
+        .filter(|definition| definition.native_environment.is_windows())
+        .map(|definition| definition.llvm_triple)
+        .ok_or_else(|| error("a registered Windows target is required"))
 }
 
 pub fn resolve_windows_c_toolchain(

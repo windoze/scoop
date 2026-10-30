@@ -139,6 +139,7 @@ impl Fixture {
 
 fn c_bridge_profile() -> CBridgeToolchainProfileV1 {
     scoop_target_data::darwin_c_bridge_profile(
+        scoop_target_data::DARWIN_AARCH64,
         DarwinCBridgeDeploymentContractV1::new(
             DarwinPackedVersionV1::new(0x000d_0100).unwrap(),
             DarwinPackedVersionV1::new(0x000e_0200).unwrap(),

@@ -4,21 +4,32 @@ use scoop_identity::CBridgeToolchainProfileId;
 use scoop_lir::*;
 
 pub fn darwin_c_bridge_profile(
+    target: LirTargetProfile,
     deployment: DarwinCBridgeDeploymentContractV1,
     compiler: AppleClangCompilerIdentityV1,
-) -> Result<CBridgeToolchainProfileV1, scoop_wire::HashError> {
+) -> Result<CBridgeToolchainProfileV1, CBridgeToolchainBuildError> {
+    if !matches!(
+        crate::definition(target.id()).map(|definition| definition.native_environment),
+        Some(crate::NativeEnvironment::Darwin)
+    ) {
+        return Err(CBridgeToolchainBuildError::Platform(
+            CBridgePlatformError::ExpectedDarwin,
+        ));
+    }
     let contract = CBridgeToolchainContractV1::new(
-        crate::DARWIN_AARCH64,
+        target,
         CBridgePlatformContractV1::Darwin {
             deployment,
             compiler,
         },
         CanonicalCBridgeFlagContractV1::CURRENT,
-    )?;
+    )
+    .map_err(CBridgeToolchainBuildError::Hash)?;
     CBridgeToolchainProfileV1::new(
-        c_bridge_toolchain_id(crate::DARWIN_AARCH64.id()).expect("registered Darwin C producer"),
+        c_bridge_toolchain_id(target.id()).expect("registered Darwin C producer"),
         contract,
     )
+    .map_err(CBridgeToolchainBuildError::Hash)
 }
 
 pub fn linux_c_bridge_profile(
@@ -26,8 +37,8 @@ pub fn linux_c_bridge_profile(
     compiler: GccCompilerIdentityV1,
 ) -> Result<CBridgeToolchainProfileV1, CBridgeToolchainBuildError> {
     if !matches!(
-        target.id(),
-        crate::LINUX_X86_64_GNU_ID | crate::LINUX_X86_64_MUSL_ID
+        crate::definition(target.id()).map(|definition| definition.native_environment),
+        Some(crate::NativeEnvironment::LinuxGnu | crate::NativeEnvironment::LinuxMusl)
     ) {
         return Err(CBridgeToolchainBuildError::Platform(
             CBridgePlatformError::ExpectedLinux,
@@ -54,10 +65,12 @@ pub fn windows_c_bridge_profile(
     compiler: WindowsClangCompilerIdentityV1,
 ) -> Result<CBridgeToolchainProfileV1, CBridgeToolchainBuildError> {
     if !matches!(
-        target.id(),
-        crate::WINDOWS_X86_64_MSVC_UCRT_ID
-            | crate::WINDOWS_X86_64_MINGW_MSVCRT_ID
-            | crate::WINDOWS_X86_64_MINGW_UCRT_ID
+        crate::definition(target.id()).map(|definition| definition.native_environment),
+        Some(
+            crate::NativeEnvironment::MicrosoftUcrt
+                | crate::NativeEnvironment::LlvmMingwMsvcrt
+                | crate::NativeEnvironment::LlvmMingwUcrt
+        )
     ) {
         return Err(CBridgeToolchainBuildError::Platform(
             CBridgePlatformError::ExpectedWindows,

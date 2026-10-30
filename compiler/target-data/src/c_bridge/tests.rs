@@ -198,7 +198,7 @@ fn fixture_profile_with(
     )
     .unwrap();
     let compiler = AppleClangCompilerIdentityV1::new(compiler_major, 0, 0, compiler_build).unwrap();
-    crate::darwin_c_bridge_profile(deployment, compiler).unwrap()
+    crate::darwin_c_bridge_profile(crate::DARWIN_AARCH64, deployment, compiler).unwrap()
 }
 
 fn hex(bytes: &[u8]) -> String {

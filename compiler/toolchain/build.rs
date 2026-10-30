@@ -18,10 +18,29 @@ fn main() {
         .expect("read release configuration")
         .parse()
         .expect("parse release configuration");
-    let minimum_os = config["targets"]["aarch64-apple-darwin"]["minimum_os"]
-        .as_str()
-        .expect("Darwin deployment baseline");
-    println!("cargo:rustc-env=SCOOP_MACOS_BASELINE={minimum_os}");
+    let catalog_path = Path::new("../target-data/targets.toml");
+    println!("cargo:rerun-if-changed={}", catalog_path.display());
+    let catalog: toml::Value = std::fs::read_to_string(catalog_path)
+        .expect("read target catalog")
+        .parse()
+        .expect("parse target catalog");
+    let mut baselines =
+        String::from("pub(crate) const DARWIN_DEPLOYMENT_BASELINES: &[(&str, &str)] = &[\n");
+    for target in catalog["targets"]
+        .as_array()
+        .expect("target catalog entries")
+    {
+        if target["native_environment"].as_str() == Some("Darwin") {
+            let canonical = target["canonical"].as_str().expect("canonical target");
+            let minimum_os = config["targets"][canonical]["minimum_os"]
+                .as_str()
+                .expect("Darwin deployment baseline");
+            baselines.push_str(&format!("({canonical:?}, {minimum_os:?}),\n"));
+        }
+    }
+    baselines.push_str("];\n");
+    let output = std::path::PathBuf::from(std::env::var_os("OUT_DIR").expect("build output"));
+    std::fs::write(output.join("deployment.rs"), baselines).expect("write deployment baselines");
     for name in ["SCOOP_RELEASE_VERSION", "SCOOP_SOURCE_REVISION"] {
         println!("cargo:rerun-if-env-changed={name}");
     }

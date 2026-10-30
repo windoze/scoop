@@ -10,6 +10,13 @@ fn system_resolver_qualifies_the_actual_probe_object() {
         resolved.profile().contract().canonical_triple(),
         "aarch64-apple-darwin"
     );
+    let (explicit, _) = probe_system_c_bridge_toolchain(
+        resolved.target(),
+        Some(resolved.compiler_driver()),
+        Some(resolved.sdk_root().unwrap()),
+    )
+    .unwrap();
+    assert_eq!(explicit.profile(), resolved.profile());
 }
 
 #[test]
@@ -151,6 +158,7 @@ fn version_parser_rejects_open_or_out_of_range_shapes() {
 
 fn facts() -> CBridgeToolchainFacts {
     CBridgeToolchainFacts {
+        target: scoop_target_data::DARWIN_AARCH64,
         compiler_driver: PathBuf::from("/toolchain/bin/clang"),
         sdk_root: PathBuf::from("/toolchain/SDKs/MacOSX.sdk"),
         sdk_version: "26.5".to_owned(),

@@ -189,8 +189,9 @@ impl InvocationRecord {
                 .map_err(error)?;
                 let compiler = AppleClangCompilerIdentityV1::new(major, minor, patch, &build)
                     .map_err(error)?;
-                let profile = scoop_target_data::darwin_c_bridge_profile(deployment, compiler)
-                    .map_err(error)?;
+                let profile =
+                    scoop_target_data::darwin_c_bridge_profile(target, deployment, compiler)
+                        .map_err(error)?;
                 ValidatedCBridgeToolchainInvocation::new(
                     target,
                     profile,

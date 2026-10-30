@@ -8,9 +8,9 @@ pub(super) fn paired_driver(
         .file_name()
         .and_then(|name| name.to_str())
         .unwrap_or_default();
-    let paired = match c.profile().contract().target().id() {
-        scoop_target_data::DARWIN_AARCH64_ID => "clang++".to_owned(),
-        scoop_target_data::LINUX_X86_64_GNU_ID => match name.rsplit_once("gcc") {
+    let paired = match c.native_environment() {
+        scoop_target_data::NativeEnvironment::Darwin => "clang++".to_owned(),
+        scoop_target_data::NativeEnvironment::LinuxGnu => match name.rsplit_once("gcc") {
             Some((prefix, version)) => format!("{prefix}g++{version}"),
             None if name == "cc" => "c++".to_owned(),
             None => {
@@ -20,7 +20,7 @@ pub(super) fn paired_driver(
                 )));
             }
         },
-        scoop_target_data::LINUX_X86_64_MUSL_ID => {
+        scoop_target_data::NativeEnvironment::LinuxMusl => {
             return Err(error("C++ is not supported for Linux musl"));
         }
         _ => return Err(error("unsupported target for C++ driver selection")),
@@ -41,7 +41,7 @@ pub(super) fn inputs(
     driver: &Path,
     inputs: &mut std::collections::BTreeSet<PathBuf>,
 ) -> Result<(), ToolchainError> {
-    if c.profile().contract().target().id() == scoop_target_data::DARWIN_AARCH64_ID {
+    if c.native_environment() == scoop_target_data::NativeEnvironment::Darwin {
         let sdk = c.sdk_root().map_err(error)?;
         inputs.extend([
             sdk.join("usr/lib/libc++.tbd"),

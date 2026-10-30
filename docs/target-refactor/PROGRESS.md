@@ -19,7 +19,7 @@
 | R1 | 完成 | 独立 target-data 与 Rust／Python 共用目录；PM／选库更新输入；585 项 Rust 测试通过，22 项脚本测试与 70 项 fixture 规则各跳过 3 项宿主不适用测试，其余通过 |
 | R2 | 完成 | 显式 ABI／backend／EH／frame 与 codegen 调优数据；1033 项测试通过，配套 LLVM 构建后的 Windows 返回 PC 测试也已通过 |
 | R3 | 完成 | 对象 machine／格式与 runtime frame 边界；713 项 Rust 测试通过，配套 core／runtime 的真实链接回归通过 |
-| R4 | 待实施 | 工具角色、架构参数、SDK 与 Linux Clang |
+| R4 | 实施中 | Darwin 工具发现、SDK、部署与链接已显式传入 target；Linux Clang 接入待完成 |
 | R5 | 待实施 | native／RC 的 target sysroot include 与维护流程 |
 | R6 | 待实施 | macOS x86_64 实现、资源与本机运行 |
 | R7 | 待实施 | 七目标回归与完成记录 |
@@ -41,3 +41,7 @@
 `cargo fmt --all` 与 workspace／all-targets Clippy 通过。使用配套 LLVM 22.1.8 的 codegen 384、slib 252、toolchain 53、target-data 10 项测试全部通过；重建配套 CLI、core 与 release runtime 后，linker 14 项测试通过，覆盖实际链接、符号裁剪、native 输入更新和 runtime index 搬迁。各测试保留真实源码与工具。
 
 Mach-O envelope 显式保存目标，容器／符号／section 命名去除 arm64 假设；AArch64 relocation 规则成为独立模块。ELF、COFF、fat slice、native 动态输入与 SDK 文本桩从已选目标取得 machine。runtime frame 与 anchor 从 arch 目录移出，源码组合分别选择 OS、image、ISA、frame 与静态 bundle，Darwin OS 实现去除架构限制。现有 SysV／SEH／Darwin 帧算法保持。R2 推送后已获取远端 main，无新增提交。
+
+### R4 工具选择与 Darwin 配置
+
+`cargo fmt --all` 与 workspace／all-targets Clippy 通过，toolchain、target-data、linker 的 77 项测试通过。Darwin 真实 probe 同时覆盖 Xcode 默认发现和显式 Apple Clang／SDK，所得 producer 合同相同。目录的 native 环境用于 C producer、C++、unwind 与最终链接选择；Darwin 的 target、SDK、部署版本和 linker 架构独立传递，各目标默认部署版本从发行配置编入。工具发现缓存键随配置语义更新，命中流程保持先判断更新。R3 推送后已获取远端 main，无新增提交。

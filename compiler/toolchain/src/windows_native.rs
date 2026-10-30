@@ -14,7 +14,7 @@ use crate::{ToolchainError, ValidatedCBridgeToolchainInvocation};
 mod probe;
 
 pub(crate) fn is_windows(c: &ValidatedCBridgeToolchainInvocation) -> bool {
-    c.target().native_object_format() == scoop_lir::NativeObjectFormat::Coff64
+    c.native_environment().is_windows()
 }
 
 pub(crate) fn paired_driver(

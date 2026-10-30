@@ -13,8 +13,6 @@ use crate::{SystemProvider, ToolchainError, c_bridge};
 mod probe;
 
 const OPTIONS: &[&str] = &[
-    "-arch",
-    "arm64",
     "-execute",
     "-pie",
     "-e",
@@ -117,19 +115,26 @@ impl DarwinFinalLinkProfile {
     }
 
     pub const fn id(&self) -> TargetProfileId {
-        scoop_target_data::DARWIN_AARCH64_ID
+        self.startup.target().id()
     }
     pub const fn target(&self) -> LirTargetProfile {
-        scoop_target_data::DARWIN_AARCH64
+        self.startup.target()
     }
     pub const fn canonical_triple(&self) -> &'static str {
-        "aarch64-apple-darwin"
+        self.startup.target().contract().canonical_triple()
     }
     pub fn linker_driver(&self) -> &Path {
         &self.data.linker
     }
-    pub fn linker_args(&self) -> &'static [&'static str] {
-        OPTIONS
+    pub fn linker_args(&self) -> Vec<&'static str> {
+        let architecture = match self.target().architecture() {
+            scoop_lir::TargetArchitecture::Aarch64 => "arm64",
+            scoop_lir::TargetArchitecture::X86_64 => "x86_64",
+        };
+        ["-arch", architecture]
+            .into_iter()
+            .chain(OPTIONS.iter().copied())
+            .collect()
     }
     pub fn startup_toolchain(&self) -> &ValidatedCBridgeToolchainInvocation {
         &self.startup
@@ -205,7 +210,7 @@ impl DarwinFinalLinkProfile {
                 command
             }
         };
-        for argument in OPTIONS {
+        for argument in self.linker_args() {
             self.linker_argument(&mut command, argument);
         }
         for argument in [
@@ -238,8 +243,9 @@ impl WireEncode for DarwinFinalLinkProfile {
         e.field(5)?;
         e.text(&self.data.linker_version)?;
         e.field(6)?;
-        e.array(OPTIONS.len() as u64)?;
-        for option in OPTIONS {
+        let arguments = self.linker_args();
+        e.array(arguments.len() as u64)?;
+        for option in arguments {
             e.text(option)?;
         }
         e.field(7)?;

@@ -43,7 +43,11 @@ impl ValidatedCBridgeToolchainInvocation {
         compiler_driver: PathBuf,
         sdk_root: PathBuf,
     ) -> Result<Self, CBridgeToolchainInvocationError> {
-        if target.id() != scoop_target_data::DARWIN_AARCH64_ID {
+        if !matches!(
+            scoop_target_data::definition(target.id())
+                .map(|definition| definition.native_environment),
+            Some(scoop_target_data::NativeEnvironment::Darwin)
+        ) {
             return Err(CBridgeToolchainInvocationError::Platform(
                 scoop_lir::CBridgePlatformError::ExpectedDarwin,
             ));
@@ -84,6 +88,12 @@ impl ValidatedCBridgeToolchainInvocation {
 
     pub const fn target(&self) -> LirTargetProfile {
         self.target
+    }
+
+    pub fn native_environment(&self) -> scoop_target_data::NativeEnvironment {
+        scoop_target_data::definition(self.target.id())
+            .expect("validated target")
+            .native_environment
     }
 
     pub const fn profile(&self) -> &CBridgeToolchainProfileV1 {
@@ -198,7 +208,7 @@ impl ValidatedCBridgeToolchainInvocation {
                 driver,
                 crate::windows_c::machine_triple(self.target.id())
                     .expect("validated Windows target"),
-                self.target.id() == scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID,
+                self.native_environment() == scoop_target_data::NativeEnvironment::MicrosoftUcrt,
             );
         }
         let mut command = Command::new(driver);

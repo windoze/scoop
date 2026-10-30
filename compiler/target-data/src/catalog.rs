@@ -11,6 +11,19 @@ pub enum NativeEnvironment {
     LlvmMingwUcrt,
 }
 
+impl NativeEnvironment {
+    pub const fn is_windows(self) -> bool {
+        matches!(
+            self,
+            Self::MicrosoftUcrt | Self::LlvmMingwMsvcrt | Self::LlvmMingwUcrt
+        )
+    }
+
+    pub const fn is_linux(self) -> bool {
+        matches!(self, Self::LinuxGnu | Self::LinuxMusl)
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CodegenTuning {
     DarwinAarch64,

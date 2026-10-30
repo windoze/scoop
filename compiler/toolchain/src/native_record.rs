@@ -18,7 +18,7 @@ pub(crate) use inputs::{header_candidates, program_candidates};
 use invocation::InvocationRecord;
 
 // Changes to discovery semantics must also invalidate callers' build keys.
-const CACHE_VERSION: &str = "native-tools-v2";
+const CACHE_VERSION: &str = "native-tools-v3";
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct ResolvedRecord {
@@ -73,23 +73,28 @@ pub(crate) fn probe(
 
 fn probe_record(triple: &str, options: &CToolchainOptions) -> Result<Record, ToolchainError> {
     let target = crate::registry::select_target(triple)?.target();
-    let (invocation, paths) = match target.id() {
-        scoop_target_data::DARWIN_AARCH64_ID => {
-            if options.compiler.is_some() || options.native_sysroot.is_some() {
-                return Err(ToolchainError("--cc and --native-sysroot apply to Linux targets; Darwin uses the selected Xcode toolchain".into()));
-            }
-            crate::c_bridge::probe_system_c_bridge_toolchain()?
-        }
-        scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID
-        | scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID
-        | scoop_target_data::WINDOWS_X86_64_MINGW_UCRT_ID => {
-            crate::windows_c::probe_default(target, options.native_sysroot.as_deref())?
-        }
-        _ => crate::linux_c::probe_linux_c_toolchain(
+    use scoop_target_data::NativeEnvironment;
+    let environment = scoop_target_data::definition(target.id())
+        .expect("selected target")
+        .native_environment;
+    let (invocation, paths) = match environment {
+        NativeEnvironment::Darwin => crate::c_bridge::probe_system_c_bridge_toolchain(
             target,
             options.compiler.as_deref(),
             options.native_sysroot.as_deref(),
         )?,
+        NativeEnvironment::MicrosoftUcrt
+        | NativeEnvironment::LlvmMingwMsvcrt
+        | NativeEnvironment::LlvmMingwUcrt => {
+            crate::windows_c::probe_default(target, options.native_sysroot.as_deref())?
+        }
+        NativeEnvironment::LinuxGnu | NativeEnvironment::LinuxMusl => {
+            crate::linux_c::probe_linux_c_toolchain(
+                target,
+                options.compiler.as_deref(),
+                options.native_sysroot.as_deref(),
+            )?
+        }
     };
     let inputs = paths
         .iter()
@@ -114,7 +119,8 @@ fn probe_record(triple: &str, options: &CToolchainOptions) -> Result<Record, Too
         result: ResolvedRecord {
             invocation: InvocationRecord::from_invocation(&invocation)?,
             input_fingerprint,
-            native_c: (target.native_object_format() == scoop_lir::NativeObjectFormat::Coff64)
+            native_c: environment
+                .is_windows()
                 .then(|| options.compiler.as_deref().map(path).transpose())
                 .transpose()?
                 .flatten(),
@@ -160,15 +166,18 @@ pub fn native_tool_configuration(
     request: &TargetSelectionRequestV1,
 ) -> Result<Digest256, ToolchainError> {
     let triple = request.canonical_triple();
-    let environment = if triple.contains("linux") {
+    let target = crate::registry::select_target(triple)?.target();
+    let native_environment = scoop_target_data::definition(target.id())
+        .expect("selected target")
+        .native_environment;
+    let environment = if native_environment.is_linux() {
         vec![
             std::env::var_os("PATH"),
-            triple
-                .ends_with("musl")
+            (native_environment == scoop_target_data::NativeEnvironment::LinuxMusl)
                 .then(|| std::env::var_os("REALGCC"))
                 .flatten(),
         ]
-    } else if triple.contains("windows") {
+    } else if native_environment.is_windows() {
         [
             "PATH",
             "SystemRoot",
@@ -185,7 +194,10 @@ pub fn native_tool_configuration(
         .map(std::env::var_os)
         .collect()
     } else {
-        vec![Some(crate::c_bridge::deployment_version()?.into())]
+        vec![
+            Some(crate::c_bridge::deployment_version(target)?.into()),
+            std::env::var_os("PATH"),
+        ]
     };
     let environment: Vec<_> = environment
         .iter()
