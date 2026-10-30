@@ -11,13 +11,22 @@ import tarfile
 import tomllib
 from pathlib import Path
 
-from build_support import RELEASE_CONFIG, ROOT, build_lock, metadata, reusable, save_record
+from build_support import (
+    RELEASE_CONFIG,
+    ROOT,
+    build_lock,
+    cpu_flag,
+    metadata,
+    reusable,
+    save_record,
+)
 from target_catalog import NATIVE_TARGETS, native_configuration
 
 VERSION = "3.5.9"
 # Configure names are OpenSSL recipe choices, keyed by actual machine/environment.
 CONFIGURATIONS = {
     ("Darwin", "aarch64"): "darwin64-arm64-cc",
+    ("Darwin", "x86_64"): "darwin64-x86_64-cc",
     ("LinuxGnu", "x86_64"): "linux-x86_64",
     ("LinuxMusl", "x86_64"): "linux-x86_64",
     ("MicrosoftUcrt", "x86_64"): "VC-WIN64A",
@@ -126,6 +135,7 @@ def prepare(args):
     if host == "Darwin":
         baseline = release["minimum_os"]
         flags.append("-mmacosx-version-min=" + os.environ.get("MACOSX_DEPLOYMENT_TARGET", baseline))
+        flags.append(cpu_flag(native_configuration(args.target)["arch"], release["cpu"]))
     elif msvc:
         flags.extend(("/MD", "/D_WIN32_WINNT=0x0a00"))
     else:

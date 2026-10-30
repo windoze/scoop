@@ -22,6 +22,27 @@ c_bridge_profile = "darwin-aarch64-apple-clang"
 native_rust_target = "aarch64-apple-darwin"
 
 [[targets]]
+symbol = "DARWIN_X86_64"
+canonical = "x86_64-apple-darwin"
+profile = "darwin-x86-64"
+version = 1
+versioned_aliases = ["x86_64-apple-darwin", "x86_64-apple-macosx"]
+os = "darwin"
+arch = "x86_64"
+env = "none"
+llvm_triple = "x86_64-apple-darwin"
+layout = "DarwinX86_64"
+runtime = "DarwinX86_64"
+procedure_abi = "SysvAmd64"
+scoop_abi = "ScalarInterfaceAndSmallValueParts"
+exception_handling = "Dwarf"
+tuning = "X86_64"
+backend = "LLVM_22_1_DARWIN_X86_64"
+native_environment = "Darwin"
+c_bridge_profile = "darwin-x86-64-apple-clang"
+native_rust_target = "x86_64-apple-darwin"
+
+[[targets]]
 symbol = "LINUX_X86_64_GNU"
 canonical = "x86_64-unknown-linux-gnu"
 profile = "linux-x86-64-gnu"
@@ -132,7 +153,17 @@ system = "Darwin"
 machines = ["arm64", "aarch64"]
 rust_target = "aarch64-apple-darwin"
 default_target = "aarch64-apple-darwin"
-distribution_targets = ["aarch64-apple-darwin"]
+distribution_targets = ["aarch64-apple-darwin", "x86_64-apple-darwin"]
+
+[[hosts]]
+os = "macos"
+arch = "x86_64"
+environment = ""
+system = "Darwin"
+machines = ["x86_64", "amd64"]
+rust_target = "x86_64-apple-darwin"
+default_target = "x86_64-apple-darwin"
+distribution_targets = ["x86_64-apple-darwin"]
 
 [[hosts]]
 os = "linux"

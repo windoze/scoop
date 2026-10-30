@@ -33,6 +33,7 @@ pub enum CodegenTuning {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RuntimeProfile {
     DarwinAarch64,
+    DarwinX86_64,
     LinuxX86_64,
     WindowsX86_64,
 }

@@ -247,6 +247,9 @@ impl ValidatedCBridgeToolchainInvocation {
                     .arg("-isysroot")
                     .arg(sdk_root)
                     .arg(format!("-mmacosx-version-min={minimum_os}"));
+                if self.target.architecture() == scoop_lir::TargetArchitecture::X86_64 {
+                    command.arg("-march=x86-64");
+                }
             }
             CBridgeCommandParameters::Linux { native_sysroot, .. } => {
                 if family == crate::native_driver::NativeCompilerFamily::Clang {

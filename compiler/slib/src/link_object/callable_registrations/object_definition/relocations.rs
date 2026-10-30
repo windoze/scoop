@@ -102,10 +102,46 @@ pub(in crate::link_object) fn canonicalize_relocations_with_associated_atoms(
                         offset_within_atom: address - range.start(),
                     }
                 }
-                VerifiedRelocationTargetV1::SectionBase { .. } => {
-                    return Err(
-                        ObjectDefinitionRelocationFailureV1::UnsupportedLocalOrSectionTarget,
-                    );
+                VerifiedRelocationTargetV1::SectionBase {
+                    section_ordinal, ..
+                } => {
+                    let invalid =
+                        || ObjectDefinitionRelocationFailureV1::UnsupportedLocalOrSectionTarget;
+                    let VerifiedObjectRelocationFormV1::X86_64PcRelative32 { kind } =
+                        relocation.shape().form()
+                    else {
+                        return Err(invalid());
+                    };
+                    let site = associated_atoms
+                        .iter()
+                        .find(|range| range.atom() == atom)
+                        .and_then(|range| {
+                            range.start().checked_add(relocation.offset_within_atom())
+                        })
+                        .ok_or_else(invalid)?;
+                    let address = kind
+                        .section_target_address(relocation.encoded_value(), site)
+                        .ok_or_else(invalid)?;
+                    canonical_value = 0;
+                    if let Some(literal) =
+                        member.definitions().literal_at(*section_ordinal, address)
+                    {
+                        CanonicalRelocationTargetKindV1::Literal(literal)
+                    } else {
+                        let range = associated_atoms
+                            .iter()
+                            .find(|range| {
+                                range.section_ordinal() == *section_ordinal
+                                    && range.start() <= address
+                                    && address < range.end()
+                            })
+                            .ok_or_else(invalid)?;
+                        CanonicalRelocationTargetKindV1::OwningAssociatedAtomOffset {
+                            atom: range.atom(),
+                            role: range.atom_role(),
+                            offset_within_atom: address - range.start(),
+                        }
+                    }
                 }
                 VerifiedRelocationTargetV1::StrongDefinition { .. }
                 | VerifiedRelocationTargetV1::ExternalUndefined { .. } => {
@@ -157,6 +193,8 @@ fn relocation_targets(
     match shape {
         VerifiedObjectRelocationShapeV1::CoffAmd64 { target, .. }
         | VerifiedObjectRelocationShapeV1::ElfX86_64Rela { target, .. }
+        | VerifiedObjectRelocationShapeV1::Unsigned32 { target }
+        | VerifiedObjectRelocationShapeV1::X86_64PcRelative32 { target, .. }
         | VerifiedObjectRelocationShapeV1::Unsigned64 { target }
         | VerifiedObjectRelocationShapeV1::Branch26 { target }
         | VerifiedObjectRelocationShapeV1::Page21 { target, .. }
@@ -168,7 +206,11 @@ fn relocation_targets(
         | VerifiedObjectRelocationShapeV1::TlvpLoadPageOffset12 { target } => {
             vec![(RelocationTargetSlotV1::Single, target)]
         }
-        VerifiedObjectRelocationShapeV1::Subtractor64 {
+        VerifiedObjectRelocationShapeV1::Subtractor32 {
+            minuend,
+            subtrahend,
+        }
+        | VerifiedObjectRelocationShapeV1::Subtractor64 {
             minuend,
             subtrahend,
         } => vec![

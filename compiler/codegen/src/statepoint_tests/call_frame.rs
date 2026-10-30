@@ -26,6 +26,7 @@ attributes #2 = { "statepoint-id"="8" }
 #[test]
 fn amd64_byval_calls_preserve_the_fixed_managed_frame() {
     for target in [
+        scoop_target_data::DARWIN_X86_64_ID,
         scoop_target_data::LINUX_X86_64_GNU_ID,
         scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
@@ -66,8 +67,19 @@ fn amd64_byval_calls_preserve_the_fixed_managed_frame() {
             .write_to_memory_buffer(&llvm, FileType::Assembly)
             .unwrap();
         let assembly = std::str::from_utf8(assembly.as_slice()).unwrap();
-        let start = assembly.find("callq\ttick").expect(assembly);
-        let end = assembly.find("callq\tcallee").expect(assembly);
+        let prefix = if profile.lir_target_profile().native_object_format()
+            == scoop_lir::NativeObjectFormat::MachO64
+        {
+            "_"
+        } else {
+            ""
+        };
+        let start = assembly
+            .find(&format!("callq\t{prefix}tick"))
+            .expect(assembly);
+        let end = assembly
+            .find(&format!("callq\t{prefix}callee"))
+            .expect(assembly);
         let calls = &assembly[start..end];
         assert!(
             !calls.lines().any(|line| {

@@ -416,7 +416,7 @@ nursery 容量和 collection threshold 是收集触发条件，不是堆空间�
 
 ### 3.2 Safepoint 与机器根
 
-平台实现按实际职责分开：managed frame、caller anchor、返回值 shim 与浮点环境控制属于 arch，线程栈／VM 属于 OS，加载映射与 metadata 属于 image。构建只组合已实现的组件，架构专用 flags 只由对应架构选择；此职责划分不改变 GC、异常、对象布局或公共 runtime ABI。
+平台实现按实际职责分开：managed frame 与 caller anchor 属于 frame，返回值 shim 与浮点环境控制属于 arch，线程栈／VM 属于 OS，加载映射与 metadata 属于 image。构建只组合已实现的组件，架构专用 flags 只由对应架构选择；此职责划分不改变 GC、异常、对象布局或公共 runtime ABI。
 
 ThreadVmOps 的读写映射按请求大小和对齐返回完整可用区间，调用者只整体释放该映射；大小为 page 的倍数，对齐为不小于 page 的二次幂。普通 region 保持 16 MiB 对齐，大对象保持 64 KiB 对齐。Darwin／Linux 可过量映射后裁掉两端；Windows 以 VirtualAlloc 保留足够的地址范围，只 commit 对齐后的可用区间，释放时由 AllocationBase 整体 MEM_RELEASE，不模拟部分释放，也不将对齐 padding 计入 managed committed bytes。Windows 栈范围使用系统当前线程 stack limits；保护页、空闲整页归还和 RSS 分别使用 VirtualProtect、DiscardVirtualMemory 与进程 working-set 统计。
 
@@ -452,7 +452,7 @@ core 的 Long／ULong hash、Boolean hash／equals 使用普通标量正文，�
 
 runtime 的 OS、loaded image、ISA 浮点环境和 frame／anchor 源码分别选择，继续由静态 `ScoopPlatformBundle` 连接现有接口。SysV AMD64 的固定帧恢复只依赖该 backend 的帧合同；anchor 汇编另外按 Mach-O／ELF 的符号与汇编指令选择。Windows SEH frame 恢复继续使用其独立实现。
 
-Darwin/AArch64 的 SP/FP DWARF register 分别为 31/29，stack size 为 16 的倍数。Linux/amd64 分别为 7/6；若 stackmap stack size 为 N，要求 `N % 16 == 8`。amd64 的入口 return PC 在 `[RSP]`，call-site SP 为 `RSP + 8`，FP 为 RBP；N 不包含 return address，`FP = SP + N - 8`，`[FP]` 保存前一 FP、`[FP+8]` 保存 return PC、前一 SP 为 `FP+16`。root slot 位于 `[SP, FP)`。这些目标保留 frame pointer，不使用 red zone 或破坏栈遍历的 tail call。
+Darwin/AArch64 的 SP/FP DWARF register 分别为 31/29，stack size 为 16 的倍数。Darwin/amd64 与 Linux/amd64 分别为 7/6；若 stackmap stack size 为 N，要求 `N % 16 == 8`。amd64 的入口 return PC 在 `[RSP]`，call-site SP 为 `RSP + 8`，FP 为 RBP；N 不包含 return address，`FP = SP + N - 8`，`[FP]` 保存前一 FP、`[FP+8]` 保存 return PC、前一 SP 为 `FP+16`。root slot 位于 `[SP, FP)`。这些目标保留 frame pointer，不使用 red zone 或破坏栈遍历的 tail call。
 
 Windows/amd64 同样保留 RBP frame pointer、禁用 red zone 与破坏遍历的 tail call，但不使用上述 SysV frame 几何。anchor 在自身 prologue 前取得 managed caller 的 return PC、call-site RSP 与 RBP；Win64 shim 提供 shadow space、栈参数和 `.seh_*` 描述后调用私有 C 实现。当前 profile 的 unwind frame register 只使用 RBP，stackmap 根只允许 DWARF 7／6 的 8-byte indirect location，base 与 derived 为同一槽位；因此扫描上下文只需这三个值。reader 使用实际 RSP／RBP 加 signed displacement 取得根槽，检查其位于该 frame 的 stackmap 分配区间；向外遍历使用 `RtlLookupFunctionEntry`／`RtlVirtualUnwind` 恢复 caller 的这三个值，在已发布 native boundary 停止。其他非易失寄存器不作为根或 frame base，不为扫描另存完整 CPU context；该限制随目标机器 frame 合同维护。
 

@@ -45,6 +45,24 @@ pub(super) fn resolve_shape(
         }
     };
     Ok(match shape {
+        MachORelocationShapeV1::Unsigned32 { target } => {
+            VerifiedObjectRelocationShapeV1::Unsigned32 {
+                target: resolve_target(target, definitions, local_symbol_owners)?,
+            }
+        }
+        MachORelocationShapeV1::Subtractor32 {
+            minuend,
+            subtrahend,
+        } => VerifiedObjectRelocationShapeV1::Subtractor32 {
+            minuend: resolve_target(minuend, definitions, local_symbol_owners)?,
+            subtrahend: resolve_target(subtrahend, definitions, local_symbol_owners)?,
+        },
+        MachORelocationShapeV1::X86_64PcRelative32 { kind, target } => {
+            VerifiedObjectRelocationShapeV1::X86_64PcRelative32 {
+                kind,
+                target: resolve_target(target, definitions, local_symbol_owners)?,
+            }
+        }
         MachORelocationShapeV1::Unsigned64 { target } => {
             VerifiedObjectRelocationShapeV1::Unsigned64 {
                 target: resolve_target(target, definitions, local_symbol_owners)?,

@@ -3,6 +3,13 @@
 use scoop_identity::CBridgeToolchainProfileId;
 use scoop_lir::*;
 
+pub const fn darwin_c_bridge_flags(target: LirTargetProfile) -> CanonicalCBridgeFlagContractV1 {
+    match target.architecture() {
+        TargetArchitecture::Aarch64 => CanonicalCBridgeFlagContractV1::DarwinAppleClang,
+        TargetArchitecture::X86_64 => CanonicalCBridgeFlagContractV1::DarwinAppleClangX86_64,
+    }
+}
+
 pub fn darwin_c_bridge_profile(
     target: LirTargetProfile,
     deployment: DarwinCBridgeDeploymentContractV1,
@@ -22,7 +29,7 @@ pub fn darwin_c_bridge_profile(
             deployment,
             compiler,
         },
-        CanonicalCBridgeFlagContractV1::CURRENT,
+        darwin_c_bridge_flags(target),
     )
     .map_err(CBridgeToolchainBuildError::Hash)?;
     CBridgeToolchainProfileV1::new(

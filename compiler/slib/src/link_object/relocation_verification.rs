@@ -10,8 +10,9 @@ use scoop_identity::{
 };
 
 use super::{
-    BuiltinObjectSectionRoleV1, MachORelocationShapeV1, MemberObjectDefinitionIndexV1,
-    ObjectRelocationTargetV1, ObjectSymbolKindV1, PlannedStrongObjectSymbolRoleV1,
+    BuiltinObjectSectionRoleV1, MachORelocationShapeV1, MachOX86_64PcRelativeKindV1,
+    MemberObjectDefinitionIndexV1, ObjectRelocationTargetV1, ObjectSymbolKindV1,
+    PlannedStrongObjectSymbolRoleV1,
 };
 use crate::SlibMemberId;
 
@@ -50,6 +51,17 @@ pub enum VerifiedRelocationTargetV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum VerifiedObjectRelocationShapeV1 {
+    Unsigned32 {
+        target: VerifiedRelocationTargetV1,
+    },
+    Subtractor32 {
+        minuend: VerifiedRelocationTargetV1,
+        subtrahend: VerifiedRelocationTargetV1,
+    },
+    X86_64PcRelative32 {
+        kind: MachOX86_64PcRelativeKindV1,
+        target: VerifiedRelocationTargetV1,
+    },
     CoffAmd64 {
         kind: u16,
         width: u8,
@@ -98,6 +110,9 @@ pub enum VerifiedObjectRelocationShapeV1 {
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum VerifiedObjectRelocationFormV1 {
+    Unsigned32,
+    Subtractor32,
+    X86_64PcRelative32 { kind: MachOX86_64PcRelativeKindV1 },
     CoffAmd64 { kind: u16, width: u8 },
     ElfX86_64Rela { kind: u32, addend: i64, width: u8 },
     Unsigned64,
@@ -115,6 +130,11 @@ pub enum VerifiedObjectRelocationFormV1 {
 impl VerifiedObjectRelocationShapeV1 {
     pub const fn form(&self) -> VerifiedObjectRelocationFormV1 {
         match self {
+            Self::Unsigned32 { .. } => VerifiedObjectRelocationFormV1::Unsigned32,
+            Self::Subtractor32 { .. } => VerifiedObjectRelocationFormV1::Subtractor32,
+            Self::X86_64PcRelative32 { kind, .. } => {
+                VerifiedObjectRelocationFormV1::X86_64PcRelative32 { kind: *kind }
+            }
             Self::CoffAmd64 { kind, width, .. } => VerifiedObjectRelocationFormV1::CoffAmd64 {
                 kind: *kind,
                 width: *width,

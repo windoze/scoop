@@ -1,5 +1,7 @@
 use super::*;
 
+mod x86_64;
+
 #[test]
 fn normalizes_direct_arm64_relocation_shapes() {
     let branch = inventory(

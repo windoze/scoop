@@ -287,7 +287,7 @@ impl<'a> ProgramInputs<'a> {
     pub fn linker_defined(&self, symbol: &str) -> bool {
         symbol == self.symbol("scoop_td_String")
             || symbol == self.symbol("__dso_handle")
-            || (self.target.id() != scoop_target_data::DARWIN_AARCH64_ID
+            || (self.target.native_object_format() == scoop_lir::NativeObjectFormat::Elf64
                 && matches!(
                     symbol,
                     "_GLOBAL_OFFSET_TABLE_" | "__scoop_stackmaps_start" | "__scoop_stackmaps_end"

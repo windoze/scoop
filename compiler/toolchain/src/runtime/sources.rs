@@ -152,6 +152,10 @@ pub(super) const SYSV_AMD64_ELF_FRAME: &[&str] = &[
     "runtime/src/platform/frame/sysv_amd64.c",
     "runtime/src/platform/frame/sysv_amd64_elf.S",
 ];
+pub(super) const SYSV_AMD64_MACHO_FRAME: &[&str] = &[
+    "runtime/src/platform/frame/sysv_amd64.c",
+    "runtime/src/platform/frame/sysv_amd64_macho.S",
+];
 pub(super) const WINDOWS_SEH_FRAME: &[&str] = &[
     "runtime/src/platform/frame/windows_seh.c",
     "runtime/src/platform/frame/windows_seh_coff.S",

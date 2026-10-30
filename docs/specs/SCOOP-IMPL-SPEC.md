@@ -23,6 +23,7 @@ Windows 发行准备使用同一 GNU-LLVM Rust 宿主构建主命令、示例命
 | canonical target triple | LIR target profile | 对象格式 | 平台契约 |
 | --- | --- | --- | --- |
 | `aarch64-apple-darwin` | `org.scoop-lang.target-profile/darwin-aarch64/1` | Mach-O relocatable | Darwin/AArch64 |
+| `x86_64-apple-darwin` | `org.scoop-lang.target-profile/darwin-x86-64/1` | Mach-O relocatable | Darwin/amd64、SysV AMD64 |
 | `x86_64-unknown-linux-gnu` | `org.scoop-lang.target-profile/linux-x86-64-gnu/1` | ELF64 relocatable | Linux/amd64、glibc |
 | `x86_64-unknown-linux-musl` | `org.scoop-lang.target-profile/linux-x86-64-musl/1` | ELF64 relocatable | Linux/amd64、musl |
 | `x86_64-pc-windows-msvc-ucrt` | `org.scoop-lang.target-profile/windows-x86-64-msvc-ucrt/1` | AMD64 COFF | Windows/amd64、Microsoft UCRT |
@@ -30,6 +31,10 @@ Windows 发行准备使用同一 GNU-LLVM Rust 宿主构建主命令、示例命
 | `x86_64-w64-windows-llvm-mingw-ucrt` | `org.scoop-lang.target-profile/windows-x86-64-llvm-mingw-ucrt/1` | AMD64 COFF | Windows/amd64、LLVM-MinGW UCRT |
 
 这些目标采用 little-endian、64-bit data/code pointer 与 16-byte 调用栈对齐。合法非 null pointer 可经内部 64-bit carrier 逐 bit 往返，null carrier 全零。data、code、managed 与 metadata pointer 的语义仍不同，不因此增加源码整数转换。
+
+Darwin/amd64 使用 `org.scoop-lang.backend-profile/llvm-22-1-darwin-x86-64/1`，CPU 基线为 x86-64，LLVM data layout 为 `e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128`。Scoop 小值／interface 分量规则复用现有实现；C 固定签名使用 SysV AMD64 分类，包含 narrow integer 扩展、整 aggregate 的寄存器耗尽回退、byval 与 sret。EH 使用 Darwin 系统 unwind 与 Dwarf personality，LSDA 为 LPStart `0xff`、type table `0x9b`、call-site `0x01`，无 type table 时允许 `0xff`。managed frame 明确选择 SysV AMD64 固定帧，配套 Mach-O anchor 使用 Apple 符号命名，保持 frame pointer、禁用 red zone 与尾调用。
+
+Darwin 两个架构分别使用自身 target sysroot。amd64 的 generated-C、native、runtime 和 startup 同样显式选择 x86-64 CPU、目标 SDK 与部署版本。当前发行部署基线为 macOS 27.0.1／SDK 27.0，本机 Apple Silicon 可通过 Rosetta 验证 amd64 程序；这不构成更旧 macOS 或真实 Intel 硬件的验证声明。AArch64 宿主包携带两个 Darwin 目标，amd64 宿主默认并携带 amd64 目标，发行组合与运行能力分别判断。
 
 Windows x64 宿主默认选择 `x86_64-pc-windows-msvc-ucrt`，不根据构建 Scoop 自身的 Rust ABI 或 PATH 上的 compiler 改选应用 target。显式 Windows target 使用上表完整名称，不将 LLVM machine triple 或缺少 native 环境／CRT 的简称当作别名。Windows 系统库及配套工具包的支持范围按 [Windows 实施记录](../windows-targets/PROGRESS.md) 标明，不从 target 可解析推定全部库已通过验收。
 
@@ -75,7 +80,7 @@ GNU 风格 C++ driver 独立探测 compiler family，Clang 的 target 参数不�
 
 两个 Linux 目标的默认 C／C++、runtime 与 startup 编译显式使用 `-march=x86-64`，与 LLVM backend 的 CPU 基线一致；该选项属于普通 C 生产配置。用户 manifest 仍可按既有 native 参数规则显式选择自己的附加编译选项。
 
-Native C++ 支持由语言规范 12.2.1 的 `native.cxx` 显式选择，目标环境包括 Darwin/AArch64、Linux/amd64 GNU，以及 Windows 设计规定的三个环境。当前 musl 工具链未配套 C++ 标准库和 ABI 运行库，C++ 与 musl 的静态／动态链接组合均不支持；源码构建和 artifact-only 消费都必须诊断该组合。Windows 正式 CLI 开放仍以完整 runtime 和链接闭环为前提。
+Native C++ 支持由语言规范 12.2.1 的 `native.cxx` 显式选择，目标环境包括 Darwin/AArch64 与 amd64、Linux/amd64 GNU，以及 Windows 设计规定的三个环境。当前 musl 工具链未配套 C++ 标准库和 ABI 运行库，C++ 与 musl 的静态／动态链接组合均不支持；源码构建和 artifact-only 消费都必须诊断该组合。Windows 正式 CLI 开放仍以完整 runtime 和链接闭环为前提。
 
 runtime 源码组合由目录中的 bundle 选择及明确的 OS、对象格式、架构、frame 合同组成。`platform/arch` 保存 ISA 浮点环境；`platform/frame` 保存实际过程 ABI 的 frame 恢复和对应对象格式的 anchor 汇编；`platform/os` 不以架构限制共享系统实现。源码路径、编译参数的更新沿既有 runtime 构建记录处理，不添加动态插件或重复平台探测。
 
@@ -464,9 +469,9 @@ C ABI storage 为封闭类型结构：integer、Boolean、Float/Double、带完�
 
 nullable data/code pointer 保留对应 exact enum 与 pointer 类型，不得把同一 enum 绑定到不同 pointee/signature。CLayout 的 aligned/packed 各为 Natural、A1、A2、A4、A8 或 A16。C ABI storage 与 Scoop 值表示分别准确保存；C ABI 分类不能用 Scoop aggregate ABI 代替。
 
-在当前 Darwin/AArch64、Linux/amd64 GNU 和 musl profile 上，固定参数的 cdecl C extern 未选择 `captureErrno = true` 时，合法 canonical C signature 必须使用 DirectC，包括 integer、Boolean、Float/Double、data/code pointer 和按值 C-layout struct。条件按已有 C-FFI-safe projection 判断，包括 Char、PinnedPtr／GcHandle 与合法 nullable pointer；不把普通 C-layout struct 凭大小或字段数当作标量。Unit 仅映射为 void 结果。errno 捕获继续使用 StorageBridge；本条不扩展 callback、FunPtr 或 native global/TLS 协议。
+在当前两个 Darwin、Linux/amd64 GNU 和 musl profile 上，固定参数的 cdecl C extern 未选择 `captureErrno = true` 时，合法 canonical C signature 必须使用 DirectC，包括 integer、Boolean、Float/Double、data/code pointer 和按值 C-layout struct。条件按已有 C-FFI-safe projection 判断，包括 Char、PinnedPtr／GcHandle 与合法 nullable pointer；不把普通 C-layout struct 凭大小或字段数当作标量。Unit 仅映射为 void 结果。errno 捕获继续使用 StorageBridge；本条不扩展 callback、FunPtr 或 native global/TLS 协议。
 
-GNU／musl 共享 SysV AMD64 eightbyte 分类，保留 INTEGER／SSE／MEMORY、整 aggregate 的寄存器耗尽回退、byval 和 sret。Darwin/AArch64 使用对应 AAPCS64／Darwin 分类，保留 HFA、普通 aggregate、栈参数和间接结果；四个 Double 的 HFA 不受 Scoop 16-byte 小值阈值限制。完整物理签名覆盖 nested layout、padding、alignment、扩展、coercion 与隐藏参数顺序。classifier 只消费已有 C projection 和完整签名，不建立运行期 libffi 或 FFI 插件；以所选目标 C compiler 产生的独立函数作互调验证。
+Darwin/amd64 与 Linux GNU／musl 共享 SysV AMD64 eightbyte 分类，保留 INTEGER／SSE／MEMORY、整 aggregate 的寄存器耗尽回退、byval 和 sret。Darwin/AArch64 使用对应 AAPCS64／Darwin 分类，保留 HFA、普通 aggregate、栈参数和间接结果；四个 Double 的 HFA 不受 Scoop 16-byte 小值阈值限制。完整物理签名覆盖 nested layout、padding、alignment、扩展、coercion 与隐藏参数顺序。classifier 只消费已有 C projection 和完整签名，不建立运行期 libffi 或 FFI 插件；以所选目标 C compiler 产生的独立函数作互调验证。
 
 DirectC 由 codegen 的 ABI 规划入口根据 LIR 准备提供的 canonical C signature 与目标 C ABI 确定完整的物理参数/结果、calling convention、小整数扩展和 Boolean 表示转换，codegen 按该计划发射 LLVM 类型与 ABI 属性，目标后端分配寄存器及栈位置。不构造 storage bridge 专用的参数局部变量、返回缓冲区或 memcpy 往返；目标 ABI 要求的栈传参、byval、sret 与表示转换保留。StorageBridge 保留完整 storage signature，由系统 C compiler 生成桥接；不能只设置 LLVM C calling convention 就把未经分类的 struct 直接传递。
 
@@ -546,6 +551,8 @@ ARM64 默认对 ArraySet 的单引用槽屏障使用已有数组对象基址查�
 
 对象格式与架构分别决定容器结构和机器规则：ELF 不隐含 x86-64，AArch64 不隐含 Mach-O。所选对象规则解释 machine、e_flags、relocation 写入范围／addend、stackmap/EH 指针及最终动态 relocation；仅开放当前已实现的完整 target，不增加空 handler。对象边界验证目标格式、section/symbol extent、alignment、权限、relocation 写入宽度/addend、定义与引用闭合。Mach-O 使用其真实 relocation 与 weak 属性；ELF 使用 ET_REL、实际 section/symbol/RELA/COMDAT 数据，TLS 必须保持 STT_TLS/SHF_TLS，不能伪装成普通 data。
 已验证的 relocation form 明确保留机器语义；现有 ELF form 的 tag 11 表示 x86-64 RELA（kind、width、signed addend），其编码不变，不把同一数字 relocation kind 自动解释为其他架构。ELF header flags 在所选机器的对象读取边界检查一次，后续 envelope 复用该结果。
+
+Mach-O amd64 使用 `CPU_TYPE_X86_64`／`CPU_SUBTYPE_X86_64_ALL`。UNSIGNED 与 SUBTRACTOR／UNSIGNED pair 保留 32／64-bit 宽度，pair 两端分别保留符号或 section ordinal 目标；SIGNED、BRANCH、GOT_LOAD、GOT、SIGNED_1／2／4 和 TLV 使用各自的 32-bit PC-relative 形式，保留隐式 addend 与指令尾部偏移，不将其解释为 ARM64 指令位域。新增 relocation form tag 13／14 分别为 Unsigned32／Subtractor32，tag 15 保存 x86-64 PC-relative kind；现有 64-bit 绝对指针和差值沿同一真实语义复用。SDK 文本桩、fat 对象与动态库选择 `x86_64-macos`／x86-64 slice，不能接受 arm64 或 x86_64h 专用 slice 代替基线。
 
 Windows 使用 AMD64 COFF relocatable（含 bigobj），对象格式 identity 为 `org.scoop-lang.object-format/coff-relocatable/1`。对象 reader 保存原 section／symbol 序号、长名称、section characteristics、aux symbol、COMDAT selection／关联 section、weak external fallback 与实际 relocation kind／写入宽度／隐式 addend；aux symbol 占用原符号表序号，但不能作为 relocation 的普通目标。COFF relocation form 使用新 tag 12（kind、width），隐式 addend 保留在原 field／canonical value，现有 Mach-O／ELF 编码不变。引用检查在读取边界完成，后续发射与链接复用结果。PE import-library 的短 import member 不伪装成 relocatable 对象；它由 native library 输入选择处理。三种 Windows 完整 target 独立保存身份，普通 COFF 本身没有可证明 CRT 的标签，reader 不从文件名或 object header 推测 CRT。
 
@@ -824,7 +831,7 @@ MIR `identity-foundation/6` 与 LIR foundation 保存实际实现的实体目录
 
 开发 sysroot 准备、发行组装、安装及打包属于仓库维护脚本，不进入 `scoop` 命令或 driver。脚本调用普通 Cone 构建与已有 runtime 编译库；日常命令只消费选定的 sysroot 和显式指定的构建输入。
 
-`scripts/package_toolchain.py` 是完整安装包的单一构建入口，负责 LLVM 输入准备、宿主命令、该宿主支持的全部目标 native／`.slib`／runtime、内置库文档和 VS Code 扩展。Darwin/AArch64 包包含 `aarch64-apple-darwin`，Linux/GNU amd64 包同时包含 `x86_64-unknown-linux-gnu` 与 `x86_64-unknown-linux-musl`。工具包归档直接以安装根内容为顶层，不包裹版本目录或额外的 `.scoop`／`sysroot` 目录，可用 `tar -xJf <archive> -C ~/.scoop` 安装。完整布局包含 `bin`、`commands`、`lib/<canonical-target-triple>`、`include`、`src`、`vendor`、`native`、`libexec`、`docs`、`share` 和 `tooling`；`commands` 即使为空也进入归档，存在内容时按原目录复制并保留可执行权限，仓库保留空目录的 `.gitkeep` 不进入发行包；扩展以可直接安装的 VSIX 放在 `tooling`，由同一入口按 npm lockfile 构建。安装根的纯文本 `VERSION` 记录发行版本、源码 revision 和宿主平台，与工具构建及发行清单共用本次参数，只用于查看安装版本。默认 LLVM 输入缺失时由维护脚本取得固定版本的上游归档并解包；显式输入路径失败照常报错。全部组件准备成功后才组装并发布归档。
+`scripts/package_toolchain.py` 是完整安装包的单一构建入口，负责 LLVM 输入准备、宿主命令、该宿主支持的全部目标 native／`.slib`／runtime、内置库文档和 VS Code 扩展。Darwin/AArch64 包包含两个 Darwin 目标，Darwin/amd64 包包含 `x86_64-apple-darwin`，Linux/GNU amd64 包同时包含 `x86_64-unknown-linux-gnu` 与 `x86_64-unknown-linux-musl`。工具包归档直接以安装根内容为顶层，不包裹版本目录或额外的 `.scoop`／`sysroot` 目录，可用 `tar -xJf <archive> -C ~/.scoop` 安装。完整布局包含 `bin`、`commands`、`lib/<canonical-target-triple>`、`include`、`src`、`vendor`、`native`、`libexec`、`docs`、`share` 和 `tooling`；`commands` 即使为空也进入归档，存在内容时按原目录复制并保留可执行权限，仓库保留空目录的 `.gitkeep` 不进入发行包；扩展以可直接安装的 VSIX 放在 `tooling`，由同一入口按 npm lockfile 构建。安装根的纯文本 `VERSION` 记录发行版本、源码 revision 和宿主平台，与工具构建及发行清单共用本次参数，只用于查看安装版本。默认 LLVM 输入缺失时由维护脚本取得固定版本的上游归档并解包；显式输入路径失败照常报错。全部组件准备成功后才组装并发布归档。
 
 仓库的 `tooling/scoop-programming/` 保存面向 AI 的 Scoop 编程 skill，包含 `SKILL.md`、界面元数据与按需阅读的参考资料。完整打包入口将该目录原样复制到工具包的 `tooling/scoop-programming/`，在 `share/scoop/toolchain.toml` 的 `programming_skill` 字段记录安装根相对路径。skill 使用配套的 `scoop example`、CLI、离线 API 文档及库源码指导程序开发，不另行复制示例库或实现编译入口；打包及普通命令不自动安装、注册 skill，也不修改 AI 工具的用户配置。
 
@@ -1596,7 +1603,7 @@ FloatBinaryOperator 的算术 wire tags 1～5 不变；旧 IEEE predicates 的 6
 
 debug 使用 Scoop machine O0 与 generated-C O0，release 使用 O2；两者均完成正确代码生成所需的 SSA/GC 转换。runtime build 配置独立，默认 O2。优化模式不改变源码语义、persistent entity identity、shared state 或对外 ABI，兼容的不同优化产物可以共同链接。
 
-Linux/amd64 的 managed 调用保留固定的 outgoing argument area，使运行时规范 3.2 的 `FP = SP + N - 8` 对每个 safepoint 都成立。LLVM 22.1 后端关闭 X86 call-frame size optimization，避免按值参数被改成调用点临时 push/pop；源码参数语义、calling convention 和其余 O2 优化保持。此设置在创建任何 target machine 前由 codegen 统一初始化。
+SysV AMD64 的 managed 调用保留固定的 outgoing argument area，使运行时规范 3.2 的 `FP = SP + N - 8` 对每个 safepoint 都成立。LLVM 22.1 后端关闭 X86 call-frame size optimization，避免按值参数被改成调用点临时 push/pop；源码参数语义、calling convention 和其余 O2 优化保持。此设置在创建任何 target machine 前由 codegen 统一初始化。
 
 LLVM 22.1 关闭寄存器分配后的独立 tail duplication pass 及机器基本块布局中的 tail duplication，避免在 roots 与 site identity 定稿后复制 STATEPOINT。只关闭布局阶段不够：独立 pass 也可能复制共同的终结调用或异常合流后的 Managed 调用。条件 poll 后接不返回的 Managed 调用也必须只保留一个实际调用点及一条对应 stackmap 记录；给 statepoint 添加 LLVM `noduplicate`／`convergent` 调用属性不能阻止该机器优化。此限制沿用统一的 target machine 初始化，保留其余 release O2 优化，不改变 SafepointId、返回地址或对象验证规则。
 

@@ -9,6 +9,7 @@ use super::ObjectEnvelopeValidationError;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MachOArchitecture {
     Aarch64,
+    X86_64,
 }
 
 impl MachOArchitecture {
@@ -17,6 +18,7 @@ impl MachOArchitecture {
             .ok_or(ObjectEnvelopeValidationError::UnsupportedTarget)?;
         match (profile.native_object_format(), profile.architecture()) {
             (NativeObjectFormat::MachO64, TargetArchitecture::Aarch64) => Ok(Self::Aarch64),
+            (NativeObjectFormat::MachO64, TargetArchitecture::X86_64) => Ok(Self::X86_64),
             _ => Err(ObjectEnvelopeValidationError::UnsupportedTarget),
         }
     }
@@ -24,30 +26,35 @@ impl MachOArchitecture {
     pub const fn cpu_type(self) -> u32 {
         match self {
             Self::Aarch64 => macho::CPU_TYPE_ARM64,
+            Self::X86_64 => macho::CPU_TYPE_X86_64,
         }
     }
 
     pub const fn cpu_subtype(self) -> u32 {
         match self {
             Self::Aarch64 => macho::CPU_SUBTYPE_ARM64_ALL,
+            Self::X86_64 => macho::CPU_SUBTYPE_X86_64_ALL,
         }
     }
 
     pub const fn object_architecture(self) -> Architecture {
         match self {
             Self::Aarch64 => Architecture::Aarch64,
+            Self::X86_64 => Architecture::X86_64,
         }
     }
 
     pub const fn text_stub_target(self) -> &'static str {
         match self {
             Self::Aarch64 => "arm64-macos",
+            Self::X86_64 => "x86_64-macos",
         }
     }
 
     pub const fn system_text_stub_targets(self) -> &'static [&'static str] {
         match self {
             Self::Aarch64 => &["arm64-macos", "arm64e-macos"],
+            Self::X86_64 => &["x86_64-macos"],
         }
     }
 }

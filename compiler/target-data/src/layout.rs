@@ -19,6 +19,7 @@ const SCALARS: [ScalarLayout; 7] = [
 #[derive(Clone, Copy)]
 pub(crate) enum LayoutKind {
     DarwinAarch64,
+    DarwinX86_64,
     LinuxX86_64,
     WindowsX86_64,
 }
@@ -41,6 +42,11 @@ pub(crate) const fn describe(
             NativeObjectFormat::Elf64,
             NativeSymbolNormalization::ElfIdentity,
         ),
+        LayoutKind::DarwinX86_64 => (
+            "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
+            NativeObjectFormat::MachO64,
+            NativeSymbolNormalization::MachOExternalUnderscore,
+        ),
         LayoutKind::WindowsX86_64 => (
             "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
             NativeObjectFormat::Coff64,
@@ -53,7 +59,9 @@ pub(crate) const fn describe(
         object_format,
         architecture: match kind {
             LayoutKind::DarwinAarch64 => TargetArchitecture::Aarch64,
-            LayoutKind::LinuxX86_64 | LayoutKind::WindowsX86_64 => TargetArchitecture::X86_64,
+            LayoutKind::DarwinX86_64 | LayoutKind::LinuxX86_64 | LayoutKind::WindowsX86_64 => {
+                TargetArchitecture::X86_64
+            }
         },
         procedure_abi,
         scoop_abi_classifier,

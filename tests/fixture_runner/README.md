@@ -50,7 +50,7 @@ ELF 的 `${llvm_target}` 与 `${target}` 相同；Darwin 包含当前 deployment
 否则查找 `llc-22` / `llc`；实际版本必须为 LLVM 22.1。
 只为适用 target 的用例发现工具，目标不适用项仍单列，不计为通过。
 
-编译目标可用 `--target` 显式选择，默认值来自宿主目录的 `default_target`，不从发行包包含的目标推导可执行范围。纯编译、诊断或产物检查用例可以声明顶层 `requires_target_execution = false`，表示全部步骤只运行宿主工具；默认值为 `true`。只有实际需要运行目标程序的用例才检查宿主的 OS／架构是否相容。`--compile-only` 只执行声明为 `false` 的完整用例，其余用例记录为 `execution-skipped`，不裁掉步骤或算作通过；报告保存该选项且不声称完成全量运行验收。交叉编译仍需显式提供所选目标的 SDK／资源。
+编译目标可用 `--target` 显式选择，默认值来自宿主目录的 `default_target`，不从发行包包含的目标推导可执行范围。纯编译、诊断或产物检查用例可以声明顶层 `requires_target_execution = false`，表示全部步骤只运行宿主工具；默认值为 `true`。只有实际需要运行目标程序的用例才检查宿主的 OS／架构是否相容。Darwin AArch64 宿主执行 x86_64 用例前实际运行 `/usr/bin/arch -x86_64 /usr/bin/true` 检查 Rosetta；成功后通过系统 loader 正常运行产物，不把 Rosetta 验证记作 Intel 硬件验证。`--compile-only` 只执行声明为 `false` 的完整用例，其余用例记录为 `execution-skipped`，不裁掉步骤或算作通过；报告保存该选项且不声称完成全量运行验收。交叉编译仍需显式提供所选目标的 SDK／资源。
 每个用例的步骤与变体保持有序；报告按发现顺序保存。中断时清理运行中的进程，
 未完成项标记 `interrupted`，退出码为 130。
 Windows 执行保留完整 32-bit exit code；`signal` 退出断言只用于 POSIX。

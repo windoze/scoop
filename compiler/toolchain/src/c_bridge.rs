@@ -36,13 +36,6 @@ pub(super) fn deployment_version(target: LirTargetProfile) -> Result<String, Too
     }
 }
 
-#[cfg(all(test, target_os = "macos", target_arch = "aarch64"))]
-pub(super) fn resolve_system_c_bridge_toolchain()
--> Result<ValidatedCBridgeToolchainInvocation, ToolchainError> {
-    probe_system_c_bridge_toolchain(scoop_target_data::DARWIN_AARCH64, None, None)
-        .map(|(invocation, _)| invocation)
-}
-
 pub(super) fn probe_system_c_bridge_toolchain(
     target: LirTargetProfile,
     compiler: Option<&Path>,

@@ -229,7 +229,7 @@ mod tests {
     fn unsupported_targets_are_rejected() {
         for triple in [
             "arm64e-apple-darwin",
-            "x86_64-apple-darwin",
+            "x86_64h-apple-darwin",
             "aarch64-unknown-linux-gnu",
             "aarch64-apple-ios",
             "x86_64-pc-windows-msvc",

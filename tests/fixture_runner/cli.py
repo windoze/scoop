@@ -95,7 +95,28 @@ def can_execute(target):
     if host is None:
         return False
     default = TARGETS[host["default_target"]]
-    return all(TARGETS[target][key] == default[key] for key in ("os", "arch"))
+    selected = TARGETS[target]
+    if all(selected[key] == default[key] for key in ("os", "arch")):
+        return True
+    if (default["os"], default["arch"], selected["os"], selected["arch"]) == (
+        "darwin",
+        "aarch64",
+        "darwin",
+        "x86_64",
+    ):
+        try:
+            return (
+                subprocess.run(
+                    ["/usr/bin/arch", "-x86_64", "/usr/bin/true"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    check=False,
+                ).returncode
+                == 0
+            )
+        except OSError:
+            return False
+    return False
 
 
 def environment(repo, work, fixtures, args):

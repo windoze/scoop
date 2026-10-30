@@ -3,6 +3,17 @@ use std::{fmt, num::NonZeroU32};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MachORelocationShapeV1 {
+    Unsigned32 {
+        target: ObjectRelocationTargetV1,
+    },
+    Subtractor32 {
+        minuend: ObjectRelocationTargetV1,
+        subtrahend: ObjectRelocationTargetV1,
+    },
+    X86_64PcRelative32 {
+        kind: MachOX86_64PcRelativeKindV1,
+        target: ObjectRelocationTargetV1,
+    },
     Unsigned64 {
         target: ObjectRelocationTargetV1,
     },
@@ -42,7 +53,10 @@ impl MachORelocationShapeV1 {
     pub const fn width_bytes(self) -> u8 {
         match self {
             Self::Unsigned64 { .. } | Self::Subtractor64 { .. } => 8,
-            Self::Branch26 { .. }
+            Self::Unsigned32 { .. }
+            | Self::Subtractor32 { .. }
+            | Self::X86_64PcRelative32 { .. }
+            | Self::Branch26 { .. }
             | Self::Page21 { .. }
             | Self::PageOffset12 { .. }
             | Self::GotLoadPage21 { .. }
@@ -51,6 +65,39 @@ impl MachORelocationShapeV1 {
             | Self::TlvpLoadPage21 { .. }
             | Self::TlvpLoadPageOffset12 { .. } => 4,
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[repr(u8)]
+pub enum MachOX86_64PcRelativeKindV1 {
+    Signed = object::macho::X86_64_RELOC_SIGNED,
+    Branch = object::macho::X86_64_RELOC_BRANCH,
+    GotLoad = object::macho::X86_64_RELOC_GOT_LOAD,
+    Got = object::macho::X86_64_RELOC_GOT,
+    Signed1 = object::macho::X86_64_RELOC_SIGNED_1,
+    Signed2 = object::macho::X86_64_RELOC_SIGNED_2,
+    Signed4 = object::macho::X86_64_RELOC_SIGNED_4,
+    Tlv = object::macho::X86_64_RELOC_TLV,
+}
+
+impl MachOX86_64PcRelativeKindV1 {
+    /// Bytes following the relocated displacement within the instruction.
+    pub const fn trailing_bytes(self) -> u8 {
+        match self {
+            Self::Signed1 => 1,
+            Self::Signed2 => 2,
+            Self::Signed4 => 4,
+            _ => 0,
+        }
+    }
+
+    /// A non-external Mach-O displacement already contains the target address.
+    pub(crate) fn section_target_address(self, field: u64, site: u64) -> Option<u64> {
+        u64::try_from(
+            i128::from(site) + 4 + i128::from(self.trailing_bytes()) + i128::from(field as i32),
+        )
+        .ok()
     }
 }
 

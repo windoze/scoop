@@ -7,6 +7,7 @@ use super::{C_BRIDGE_CANONICAL_FLAGS_DOMAIN, write_hex};
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum CanonicalCBridgeFlagContractV1 {
     DarwinAppleClang,
+    DarwinAppleClangX86_64,
     LinuxGcc,
     LinuxClang,
     WindowsClang,
@@ -19,6 +20,7 @@ impl CanonicalCBridgeFlagContractV1 {
     pub const fn flags(self) -> &'static [CanonicalCBridgeFlagV1] {
         match self {
             Self::DarwinAppleClang => &CanonicalCBridgeFlagV1::ALL,
+            Self::DarwinAppleClangX86_64 => &CanonicalCBridgeFlagV1::DARWIN_X86_64,
             Self::LinuxGcc => &CanonicalCBridgeFlagV1::LINUX_GCC,
             Self::LinuxClang => &CanonicalCBridgeFlagV1::LINUX_CLANG,
             Self::WindowsClang => &CanonicalCBridgeFlagV1::WINDOWS_CLANG,
@@ -66,6 +68,23 @@ pub enum CanonicalCBridgeFlagV1 {
 }
 
 impl CanonicalCBridgeFlagV1 {
+    pub const DARWIN_X86_64: [Self; 15] = [
+        Self::ExplicitCanonicalTarget,
+        Self::ExplicitResolvedSdkRoot,
+        Self::ExplicitMinimumDeployment,
+        Self::C11,
+        Self::RelocatableObject,
+        Self::SelectedOptimization,
+        Self::NoDebugInformation,
+        Self::NoCommonSymbols,
+        Self::OmitCompilerIdentification,
+        Self::NoStackProtector,
+        Self::PreserveAllFramePointers,
+        Self::UnwindTables,
+        Self::AsynchronousUnwindTables,
+        Self::NoBuiltinSubstitution,
+        Self::X86_64Baseline,
+    ];
     pub const WINDOWS_CLANG: [Self; 18] = [
         Self::ExplicitCanonicalTarget,
         Self::ExplicitResolvedSdkRoot,

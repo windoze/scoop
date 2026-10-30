@@ -9,6 +9,7 @@ use super::{MachOArchitecture, ObservedMachOSectionV1};
 
 mod aarch64;
 mod types;
+mod x86_64;
 pub use types::*;
 
 pub(super) fn validate_macho_relocation_inventory_v1(
@@ -85,6 +86,7 @@ pub fn decode_macho_section_relocations_v1(
             MachOArchitecture::Aarch64 => {
                 aarch64::decode(&raw, index, section_count, symbol_count)?
             }
+            MachOArchitecture::X86_64 => x86_64::decode(&raw, index, section_count, symbol_count)?,
         };
         let encoded_value = read_encoded_value(section_data, first.offset, width)?;
         inventory.push(ObservedMachORelocationV1 {

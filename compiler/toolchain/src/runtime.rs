@@ -67,6 +67,9 @@ impl ValidatedRuntimeBuildProfile {
             (BackendMachineFrameV1::SysvAmd64, NativeObjectFormat::Elf64) => {
                 sources::SYSV_AMD64_ELF_FRAME
             }
+            (BackendMachineFrameV1::SysvAmd64, NativeObjectFormat::MachO64) => {
+                sources::SYSV_AMD64_MACHO_FRAME
+            }
             (BackendMachineFrameV1::WindowsSeh, NativeObjectFormat::Coff64) => {
                 sources::WINDOWS_SEH_FRAME
             }
@@ -78,6 +81,7 @@ impl ValidatedRuntimeBuildProfile {
         };
         let profile = match definition.runtime {
             RuntimeProfile::DarwinAarch64 => "runtime/src/platform/profiles/darwin_aarch64.c",
+            RuntimeProfile::DarwinX86_64 => "runtime/src/platform/profiles/darwin_x86_64.c",
             RuntimeProfile::LinuxX86_64 => "runtime/src/platform/profiles/linux_x86_64.c",
             RuntimeProfile::WindowsX86_64 => "runtime/src/platform/profiles/windows_x86_64.c",
         };

@@ -22,7 +22,7 @@
 | R3 | 完成 | 对象 machine／格式与 runtime frame 边界；713 项 Rust 测试通过，配套 core／runtime 的真实链接回归通过 |
 | R4 | 本地完成 | Darwin 配置与 Linux GCC／Clang producer、C++ family 已拆开；本机 489 项测试通过，远端验收在 R7 闭合 |
 | R5 | 本地完成 | target sysroot include、架构参数与交叉编译 fixture 流程已验证；RC-only 实机检查在 R7 闭合 |
-| R6 | 待实施 | macOS x86_64 实现、资源与本机运行 |
+| R6 | 进行中 | macOS x86_64 基础实现与本机 Hello 运行通过；完整 fixture、Cone 与调试回归继续进行 |
 | R7 | 待实施 | 七目标回归与完成记录 |
 
 ### R1 验证范围
@@ -62,3 +62,11 @@ compiler／package protocol 更新至 26／4，manifest 与 native 对象／资�
 目标选择采用宿主的明确默认值，执行能力只在需要运行目标程序时判断；`--compile-only` 与 `requires_target_execution` 保留完整用例并单列未运行结果。Darwin companion 使用所选 compiler、SDK、machine 与部署版本，Linux Clang companion 接收实际 target／sysroot。CMake native 依赖及 LLVM／LLDB 的 CPU 参数与 Apple 架构名按目录中的架构选择，不再以 Darwin 推定 AArch64。
 
 Ruff 0.16.10 通过；76 项 fixture 规则与 22 项维护脚本测试各跳过 3 项宿主不适用测试，其余通过。本机显式选择 Linux GNU 的 3 项 manifest 诊断 fixture 通过，需要执行的 native fixture 明确记录为 `execution-skipped`；这不是 Linux 运行验收。配套 release CLI 完成 AArch64 的 27 个内置 Cone 与四种 runtime 配置准备。include 批次推送后已获取远端 main，无新增提交。
+
+### R6 macOS x86_64 基础
+
+目录新增 `x86_64-apple-darwin`，组合 Darwin native 环境、SysV AMD64 ABI／固定帧、Mach-O x86_64 对象和独立 LLVM backend 合同。实际 LLVM 22.1.8 数据布局、LSDA 与机器配置探测已确认；Darwin 工具链选择 x86_64 SDK slice，generated-C／native／runtime 使用 x86-64 CPU 基线。新增 Mach-O anchor 汇编，复用 Darwin OS、image 与 SysV frame 实现；支持 x86-64 PC-relative、GOT、TLV 及 32／64-bit 差值 pair。真实 core 构建发现产物摘要 reader 的旧六目标名单，已改为统一目录并扩展全部注册目标的读写测试。
+
+格式化、workspace／all-targets Clippy 和 Ruff 0.16.10 通过。codegen 386、slib 255、target-data 10、toolchain 54 项测试通过，含 Debug／Release 与 strong／ODR 对象的异常表、stackmap、TLS 和 atom 边界，以及 Darwin x86_64 byval 固定帧。最后的摘要 reader 修改通过 3 项针对性复验。77 项 fixture 规则与 22 项脚本测试各跳过 3 项宿主不适用测试，其余通过。
+
+本机 SDK 27.0／deployment 27.0.1 已构建四种 x86_64 runtime、core 和六类 native 后端（OpenSSL、PCRE2、压缩、nghttp2、uriparser、Rust 文本）。配套 release CLI 生成的 Hello 程序确认是 Mach-O x86_64，并在 Rosetta 下成功输出。fixture runner 只在实际需要执行 x86_64 程序时探测 Rosetta；完整系统 Cone、ABI／GC／EH／Objective-C／调试验收尚在继续。维护与 fixture 批次推送后已获取远端 main，无新增提交。

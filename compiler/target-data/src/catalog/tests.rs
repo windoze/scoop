@@ -37,6 +37,20 @@ fn spelling_and_host_selection_use_the_complete_catalog() {
         crate::LINUX_X86_64_MUSL.contract().canonical_triple()
     );
     assert!(crate::host("linux", "aarch64", "").is_none());
+    for alias in ["x86_64-apple-darwin27.0.1", "x86_64-apple-macosx27.0.1"] {
+        assert_eq!(
+            crate::named_target(alias).unwrap().selection,
+            crate::DARWIN_X86_64_LLVM_22_1
+        );
+    }
+    assert_eq!(
+        crate::host("macos", "x86_64", "").unwrap().default_target,
+        "x86_64-apple-darwin"
+    );
+    assert_eq!(
+        crate::host("macos", "aarch64", "").unwrap().default_target,
+        "aarch64-apple-darwin"
+    );
 }
 
 #[test]

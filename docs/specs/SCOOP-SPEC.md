@@ -2941,7 +2941,7 @@ cxx_flags = ["-std=c++20"]
 - C++ 编译使用所选 target 的配套 C++ driver，例如 GNU 工具链的 `g++` 或 Darwin Apple Clang 的 `clang++`。缺少可用的 C++ 编译器或运行库时报错，不能使用其他 target 或宿主机的工具链代替。不要求 C/C++ driver 的完整版本号或目标名称字符串相等；兼容性由实际目标输入、编译和链接操作确定。
 - C++ 链接需求写入 `.slib`，并沿最终程序的完整依赖闭包传递。即使 root Cone 自己没有 C++ 源码或未开启 `cxx`，只要闭包需要 C++，最终链接就必须使用配套的 C++ driver 与 C++ 运行库配置；`cxx = false` 不能取消依赖的要求。
 - **当前不支持 C++ 与 musl target 的组合**，包括 musl 的静态和动态链接模式。当前 Scoop musl 工具链没有配套的 C++ 标准库与 C++ ABI 运行库；musl 提供 libc 本身，不包含这些库。这是当前工具链集成范围的限制，不是 musl 原理上不能支持 C++。musl 下当前 Cone 开启 `cxx`，或依赖闭包要求 C++，都必须给出明确的不支持诊断。
-- C++ 环境包括 Darwin/AArch64、Linux/amd64 GNU，以及 Windows 三个完整 target 对应的 MSVC STL 或 LLVM-MinGW libc++；Windows 实施状态见实现规范。Scoop 与 C++ 之间通过现有 C ABI 和 `extern "C"` 包装函数互操作；C++ 异常必须在 native 一侧处理，不能穿越 Scoop 的 FFI 边界。工具链、产物与链接细则见实现规范 2.7～2.8，异常边界见运行时规范 5.5。
+- C++ 环境包括 Darwin/AArch64 与 amd64、Linux/amd64 GNU，以及 Windows 三个完整 target 对应的 MSVC STL 或 LLVM-MinGW libc++；Windows 实施状态见实现规范。Scoop 与 C++ 之间通过现有 C ABI 和 `extern "C"` 包装函数互操作；C++ 异常必须在 native 一侧处理，不能穿越 Scoop 的 FFI 边界。工具链、产物与链接细则见实现规范 2.7～2.8，异常边界见运行时规范 5.5。
 - single-file 模式不读取 `[native]`，不启用该配置。
 
 Darwin 选中的 `.m` 使用同一目标的 Apple Clang，以 Objective-C、C11 和 ARC 编译；`objc_flags` 只作用于这些 translation unit，可覆盖 C 标准而不能覆盖输入语言、ARC 或 Objective-C runtime ABI。无需开启 `cxx`，也不隐式引入 C++ 运行库。`.c`、generated-C bridge 和 runtime 仍按 C 编译；C／C++ flags 不传给 Objective-C。非 Darwin 选中 `.m` 明确诊断，条件未选中的 `.m` 不检查存在性或启动 Objective-C 工具；`.mm` 不在支持范围。AppKit、Foundation 等 framework 通过 12.2.3 的普通 native libraries 声明，native 层使用 C ABI 包装并在返回 Scoop 前处理 Objective-C 异常。此能力不增加 Scoop 的 Objective-C 语法或 runtime 调度 ABI。

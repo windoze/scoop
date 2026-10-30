@@ -23,6 +23,12 @@ minimum_os = "27.0.1"
 sdk = "27.0"
 build_system = "macOS 27.0.1"
 
+[targets.x86_64-apple-darwin]
+cpu = "x86-64"
+minimum_os = "27.0.1"
+sdk = "27.0"
+build_system = "macOS 27.0.1 (Rosetta on Apple Silicon)"
+
 [targets.x86_64-unknown-linux-gnu]
 cpu = "x86-64"
 minimum_libc = "2.43"

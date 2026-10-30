@@ -54,6 +54,7 @@ mod boxing;
 mod c_bridge_objects;
 mod c_layout;
 mod closures;
+mod darwin_x86_64;
 mod debug;
 mod dependency_external;
 mod embedded_bytes;

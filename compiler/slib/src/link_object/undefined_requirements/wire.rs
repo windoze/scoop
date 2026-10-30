@@ -138,6 +138,14 @@ fn encode_relocation_form(
             encoder.field(3)?;
             encoder.unsigned(addend as u64)
         }
+        VerifiedObjectRelocationFormV1::Unsigned32 => encode_empty_sum(encoder, 13),
+        VerifiedObjectRelocationFormV1::Subtractor32 => encode_empty_sum(encoder, 14),
+        VerifiedObjectRelocationFormV1::X86_64PcRelative32 { kind } => {
+            encoder.map(2)?;
+            encode_tag(encoder, 15)?;
+            encoder.field(1)?;
+            encoder.unsigned(u64::from(kind as u8))
+        }
         VerifiedObjectRelocationFormV1::Unsigned64 => encode_empty_sum(encoder, 1),
         VerifiedObjectRelocationFormV1::Subtractor64 => encode_empty_sum(encoder, 2),
         VerifiedObjectRelocationFormV1::Branch26 => encode_empty_sum(encoder, 3),

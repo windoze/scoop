@@ -1,22 +1,27 @@
 use super::*;
 
-#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+#[cfg(target_os = "macos")]
 #[test]
 fn system_resolver_qualifies_the_actual_probe_object() {
-    let resolved = resolve_system_c_bridge_toolchain().unwrap();
-    assert!(resolved.compiler_driver().is_file());
-    assert!(resolved.sdk_root().expect("Darwin test toolchain").is_dir());
-    assert_eq!(
-        resolved.profile().contract().canonical_triple(),
-        "aarch64-apple-darwin"
-    );
-    let (explicit, _) = probe_system_c_bridge_toolchain(
-        resolved.target(),
-        Some(resolved.compiler_driver()),
-        Some(resolved.sdk_root().unwrap()),
-    )
-    .unwrap();
-    assert_eq!(explicit.profile(), resolved.profile());
+    for target in [
+        scoop_target_data::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_X86_64,
+    ] {
+        let (resolved, _) = probe_system_c_bridge_toolchain(target, None, None).unwrap();
+        assert!(resolved.compiler_driver().is_file());
+        assert!(resolved.sdk_root().expect("Darwin test toolchain").is_dir());
+        assert_eq!(
+            resolved.profile().contract().canonical_triple(),
+            target.contract().canonical_triple()
+        );
+        let (explicit, _) = probe_system_c_bridge_toolchain(
+            target,
+            Some(resolved.compiler_driver()),
+            Some(resolved.sdk_root().unwrap()),
+        )
+        .unwrap();
+        assert_eq!(explicit.profile(), resolved.profile());
+    }
 }
 
 #[test]

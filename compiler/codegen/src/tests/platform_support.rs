@@ -12,6 +12,7 @@ pub(crate) fn native_profile_source() -> &'static str {
     match (std::env::consts::OS, std::env::consts::ARCH) {
         ("linux", "x86_64") => "runtime/src/platform/profiles/linux_x86_64.c",
         ("macos", "aarch64") => "runtime/src/platform/profiles/darwin_aarch64.c",
+        ("macos", "x86_64") => "runtime/src/platform/profiles/darwin_x86_64.c",
         host => panic!("no runtime test profile for {host:?}"),
     }
 }
@@ -37,11 +38,12 @@ pub(crate) fn native_trace_symbols(
     command: &mut std::process::Command,
     workspace: &std::path::Path,
 ) {
-    let target = match std::env::consts::OS {
-        "linux" => scoop_target_data::LINUX_X86_64_GNU,
-        "macos" => scoop_target_data::DARWIN_AARCH64,
-        host => panic!("no trace symbolizer for {host}"),
-    };
+    let host = scoop_target_data::host(std::env::consts::OS, std::env::consts::ARCH, "")
+        .expect("supported symbolizer test host");
+    let target = scoop_target_data::named_target(host.default_target)
+        .unwrap()
+        .selection
+        .target();
     let profile = scoop_toolchain::ValidatedRuntimeBuildProfile::for_target(target).unwrap();
     command
         .arg("-I")
