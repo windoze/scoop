@@ -336,6 +336,3 @@ fn write_hex(formatter: &mut fmt::Formatter<'_>, bytes: &[u8; 32]) -> fmt::Resul
     }
     Ok(())
 }
-
-#[cfg(test)]
-mod tests;

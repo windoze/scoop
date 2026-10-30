@@ -9,16 +9,12 @@ import tomllib
 from pathlib import Path
 
 from build_support import RELEASE_CONFIG, ROOT, build_lock, metadata, reusable, source_metadata
+from target_catalog import TARGETS, WINDOWS_TARGETS, native_configuration
 
 LIBRARY = "libscoop_text_backend.a"
 HEADER = "scoop_text_backend.h"
 NOTICE_FILES = ("COPYRIGHT-library.html", "licenses/Apache-2.0.txt", "licenses/MIT.txt")
 NOTICE_DIRECTORY = "rust-std"
-WINDOWS_TARGETS = {
-    "x86_64-pc-windows-msvc-ucrt": "x86_64-pc-windows-msvc",
-    "x86_64-w64-windows-llvm-mingw-msvcrt": "x86_64-pc-windows-gnu",
-    "x86_64-w64-windows-llvm-mingw-ucrt": "x86_64-pc-windows-gnullvm",
-}
 
 
 def prepare(args):
@@ -31,7 +27,7 @@ def prepare(args):
 
 
 def prepare_locked(args, source, archive, build):
-    rust_target = WINDOWS_TARGETS.get(args.target, args.target)
+    rust_target = TARGETS[args.target]["native_rust_target"]
     inputs = {
         "source": source_metadata(source, ("src", "include")),
         "files": [
@@ -46,6 +42,7 @@ def prepare_locked(args, source, archive, build):
             )
         ],
         "target": args.target,
+        "target_configuration": native_configuration(args.target),
         "rust_target": rust_target,
         "prefix": str(args.prefix),
         "cc": args.cc,

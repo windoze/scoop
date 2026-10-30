@@ -38,31 +38,6 @@ const LINUX: TargetLayoutDescription = TargetLayoutDescription {
     native_symbol_normalization: NativeSymbolNormalization::ElfIdentity,
     ..DARWIN
 };
-const WINDOWS: TargetLayoutDescription = TargetLayoutDescription {
-    canonical_triple: "x86_64-pc-windows-msvc-ucrt",
-    llvm_data_layout: "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
-    object_format: NativeObjectFormat::Coff64,
-    native_symbol_normalization: NativeSymbolNormalization::CoffIdentity,
-    ..DARWIN
-};
-
-pub const WINDOWS_X86_64_MSVC_UCRT: LirTargetProfile =
-    LirTargetProfile::new(&crate::WINDOWS_X86_64_MSVC_UCRT_ID, &WINDOWS);
-pub const WINDOWS_X86_64_MINGW_MSVCRT: LirTargetProfile = LirTargetProfile::new(
-    &crate::WINDOWS_X86_64_MINGW_MSVCRT_ID,
-    &TargetLayoutDescription {
-        canonical_triple: "x86_64-w64-windows-llvm-mingw-msvcrt",
-        ..WINDOWS
-    },
-);
-pub const WINDOWS_X86_64_MINGW_UCRT: LirTargetProfile = LirTargetProfile::new(
-    &crate::WINDOWS_X86_64_MINGW_UCRT_ID,
-    &TargetLayoutDescription {
-        canonical_triple: "x86_64-w64-windows-llvm-mingw-ucrt",
-        ..WINDOWS
-    },
-);
-
 pub const DARWIN_AARCH64: LirTargetProfile =
     LirTargetProfile::new(&crate::DARWIN_AARCH64_ID, &DARWIN);
 pub const LINUX_X86_64_GNU: LirTargetProfile =

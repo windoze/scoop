@@ -899,6 +899,8 @@ dependencies = [
  "scoop-identity",
  "scoop-lir",
  "scoop-wire",
+ "serde",
+ "toml",
 ]
 
 [[package]]

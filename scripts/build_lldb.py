@@ -10,8 +10,9 @@ import sys
 import tomllib
 from pathlib import Path
 
-from build_llvm import HOSTS, VERSION
+from build_llvm import VERSION
 from build_support import RELEASE_CONFIG, ROOT, metadata, reusable, save_record, source_metadata
+from target_catalog import current_host
 
 PATCH = ROOT / "scripts/patches/lldb-scoop-source-names.patch"
 SOURCE_PARTS = (
@@ -143,7 +144,8 @@ def main():
     parser.add_argument("--cxx", default="c++")
     parser.add_argument("--jobs", type=int, default=min(os.cpu_count() or 1, 6))
     args = parser.parse_args()
-    host = HOSTS.get((platform.system(), platform.machine()))
+    host_config = current_host(platform.system(), platform.machine())
+    host = host_config["rust_target"] if host_config else None
     if host is None or args.jobs < 1:
         parser.error("a supported host and positive --jobs are required")
     source, llvm, build, prefix = (

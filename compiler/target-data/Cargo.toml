@@ -8,3 +8,7 @@ scoop-lir.workspace = true
 scoop-identity.workspace = true
 
 scoop-wire.workspace = true
+
+[build-dependencies]
+serde.workspace = true
+toml.workspace = true

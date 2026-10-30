@@ -46,9 +46,9 @@ M39 已把具体 ABI 算法移到 `scoop-abi-plan`，并通过 driver 完成 `pr
 
 | 现有位置 | 当前耦合 | 本轮处理 |
 | --- | --- | --- |
-| [target-data](../../compiler/codegen/target-data/src/selection.rs)、[registry](../../compiler/toolchain/src/registry.rs)、[manifest catalog](../../compiler/toolchain/src/manifest.rs)、准备脚本和 fixture runner | 完整 target、alias、os／arch／env、host 默认值重复列举 | 一份静态目录提供事实，各消费者仅适配自身数据类型 |
+| [target-data](../../compiler/target-data/targets.toml)、[registry](../../compiler/toolchain/src/registry.rs)、[manifest catalog](../../compiler/toolchain/src/manifest.rs)、准备脚本和 fixture runner | 完整 target、alias、os／arch／env、host 默认值重复列举 | 一份静态目录提供事实，各消费者仅适配自身数据类型 |
 | [ABI 选择](../../compiler/codegen/abi-plan/src/lib.rs)、Windows 的 [LIR contract][windows-contract] 和 [EH 签名][windows-machine-abi] | 完整 ID 反复映射 ABI；COFF 被用于选择 Win64 classifier 和 SEH personality | 过程 ABI、Scoop ABI 规则和 EH 合同分别显式绑定 |
-| [目标布局](../../compiler/codegen/target-data/src/layout.rs)、[backend](../../compiler/codegen/target-data/src/backend.rs)、[LLVM target](../../compiler/codegen/src/target.rs) | Linux 从整个 Darwin 描述继承，Windows 又从 Linux backend 继承 | 只共享中性的标量／指针等常量，平台差异逐项明确 |
+| [目标布局](../../compiler/target-data/src/layout.rs)、[backend](../../compiler/target-data/src/backend.rs)、[LLVM target](../../compiler/codegen/src/target.rs) | Linux 从整个 Darwin 描述继承，Windows 又从 Linux backend 继承 | 只共享中性的标量／指针等常量，平台差异逐项明确 |
 | [stackmap architecture](../../compiler/slib/src/link_object/stackmap_normalization/architecture.rs)、[AArch64 frame](../../runtime/src/platform/arch/aarch64.c) | 架构名包含 Darwin 帧几何假设；Windows 新增第三种实际恢复方式 | 按 backend 的 frame recovery 合同分派，不从架构或格式猜测 |
 | [ELF architecture](../../compiler/slib/src/link_object/elf/architecture.rs)、[Mach-O reader](../../compiler/slib/src/link_object/macho.rs)、[native slice](../../compiler/linker/src/native_input/slice.rs) | ELF 默认 x86_64，Mach-O／fat slice 默认 arm64 | 容器解析与 machine／relocation／slice 选择分开 |
 | [Linux C probe](../../compiler/toolchain/src/linux_c.rs)、[Darwin link](../../compiler/toolchain/src/final_link/darwin.rs)、[deployment](../../compiler/codegen/src/target/deployment.rs) | Linux 绑定 GCC／x86-64；Darwin 绑定 arm64 和本机 SDK 发现 | native 环境、driver 方言、架构参数、SDK 发现分别负责 |

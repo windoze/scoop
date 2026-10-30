@@ -16,6 +16,8 @@ import tomllib
 from collections import Counter
 from pathlib import Path
 
+from scripts.target_catalog import TARGETS, WINDOWS_TARGETS, current_host
+
 from .cores import (
     prepare_class_core,
     prepare_inheritance_core,
@@ -25,20 +27,6 @@ from .cores import (
 from .discovery import discover
 from .model import ConfigurationError, EnvironmentError
 from .suite import run_suite
-
-WINDOWS_TARGETS = [
-    "x86_64-pc-windows-msvc-ucrt",
-    "x86_64-w64-windows-llvm-mingw-msvcrt",
-    "x86_64-w64-windows-llvm-mingw-ucrt",
-]
-TARGET_PROFILES = {
-    "aarch64-apple-darwin": "darwin-aarch64",
-    "x86_64-unknown-linux-gnu": "linux-x86-64-gnu",
-    "x86_64-unknown-linux-musl": "linux-x86-64-musl",
-    WINDOWS_TARGETS[0]: "windows-x86-64-msvc-ucrt",
-    WINDOWS_TARGETS[1]: "windows-x86-64-llvm-mingw-msvcrt",
-    WINDOWS_TARGETS[2]: "windows-x86-64-llvm-mingw-ucrt",
-}
 
 
 def arguments(argv):
@@ -63,7 +51,7 @@ def arguments(argv):
     parser.add_argument("--terminal-host", type=Path, help="prebuilt native PTY test host")
     parser.add_argument(
         "--target",
-        choices=list(TARGET_PROFILES),
+        choices=list(TARGETS),
     )
     parser.add_argument("--cc", type=Path, help="native companion compiler for the selected target")
     parser.add_argument("--ar", type=Path, help="native companion archiver")
@@ -91,12 +79,8 @@ def tool_output(argv):
 
 
 def host_targets():
-    return {
-        ("Darwin", "arm64"): ["aarch64-apple-darwin"],
-        ("Linux", "x86_64"): ["x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"],
-        ("Windows", "AMD64"): WINDOWS_TARGETS,
-        ("Windows", "x86_64"): WINDOWS_TARGETS,
-    }.get((platform.system(), platform.machine()), [])
+    host = current_host(platform.system(), platform.machine())
+    return list(host["distribution_targets"]) if host else []
 
 
 def environment(repo, work, fixtures, args):
@@ -129,9 +113,9 @@ def environment(repo, work, fixtures, args):
         "inheritance_core": str(work / "inheritance-core"),
         "member_defaults_core": str(work / "member-defaults-core"),
         "target": target,
-        "llvm_target": target,
-        "target_profile": TARGET_PROFILES[target],
-        "symbol_prefix": "_" if target == "aarch64-apple-darwin" else "",
+        "llvm_target": TARGETS[target]["llvm_triple"],
+        "target_profile": TARGETS[target]["profile"],
+        "symbol_prefix": "_" if TARGETS[target]["os"] == "darwin" else "",
         "errno_eloop": errno.ELOOP,
         "file_not_found_error": f"{missing_file} (os error 2)",
         "directory_write_error": f"{output_directory} (os error {directory_error})",
@@ -139,12 +123,12 @@ def environment(repo, work, fixtures, args):
         "compile_args": ["--target", target],
         "cc_args": [],
     }
-    if target != "aarch64-apple-darwin" and args.cc:
+    if TARGETS[target]["os"] != "darwin" and args.cc:
         common["compile_args"] += ["--cc", str(args.cc.resolve())]
     if args.native_sysroot:
         common["compile_args"] += ["--native-sysroot", str(args.native_sysroot.resolve())]
     common["link_args"] = list(common["compile_args"])
-    if target != "aarch64-apple-darwin":
+    if TARGETS[target]["os"] != "darwin":
         unwind = (
             args.unwind_prefix.resolve()
             if args.unwind_prefix
@@ -153,10 +137,6 @@ def environment(repo, work, fixtures, args):
         common["link_args"] += ["--unwind-prefix", str(unwind)]
     if args.linker:
         common["link_args"] += ["--linker", str(args.linker.resolve())]
-    if target in WINDOWS_TARGETS:
-        common["llvm_target"] = (
-            "x86_64-pc-windows-msvc" if target == WINDOWS_TARGETS[0] else "x86_64-w64-windows-gnu"
-        )
     applicable = [
         fixture
         for fixture in fixtures
@@ -205,7 +185,7 @@ def environment(repo, work, fixtures, args):
         if not re.search(r"\bversion 22\.1(?:\.|\b)", tool_output([located, "--version"])):
             raise EnvironmentError(f"IR companions require LLVM 22.1: {located}")
         common["llc"] = located
-    if needed & {"cc", "ar"} and target == "aarch64-apple-darwin":
+    if needed & {"cc", "ar"} and TARGETS[target]["os"] == "darwin":
         common.update(
             cc=str(args.cc.resolve())
             if args.cc
@@ -238,7 +218,7 @@ def environment(repo, work, fixtures, args):
                 if located is None:
                     raise EnvironmentError(f"required {target} tool is missing: {program}")
                 common[name] = located
-    if "llc" in needed and target == "aarch64-apple-darwin":
+    if "llc" in needed and TARGETS[target]["os"] == "darwin":
         if "deployment" not in common:
             common["deployment"] = darwin_deployment(repo)
         common["llvm_target"] = "aarch64-apple-macosx" + common["deployment"]

@@ -12,16 +12,11 @@ import tomllib
 from pathlib import Path
 
 from build_support import RELEASE_CONFIG, ROOT, build_lock, metadata, reusable, save_record
+from target_catalog import NATIVE_TARGETS as TARGETS
+from target_catalog import native_configuration
 
 VERSION = "1.70.0"
-TARGETS = {
-    "aarch64-apple-darwin": ("Darwin", "clang"),
-    "x86_64-unknown-linux-gnu": ("Linux", "gcc"),
-    "x86_64-unknown-linux-musl": ("Linux", "musl-gcc"),
-    "x86_64-pc-windows-msvc-ucrt": ("Windows", "clang-cl"),
-    "x86_64-w64-windows-llvm-mingw-msvcrt": ("Windows", "clang"),
-    "x86_64-w64-windows-llvm-mingw-ucrt": ("Windows", "clang"),
-}
+
 OPTIONS = {
     "CMAKE_BUILD_TYPE": "MinSizeRel",
     "CMAKE_INSTALL_LIBDIR": "lib",
@@ -50,6 +45,7 @@ def prepare(args):
         "scripts": [metadata(path) for path in (__file__, RELEASE_CONFIG)],
         "support": metadata(ROOT / "scripts/build_support.py"),
         "target": args.target,
+        "target_configuration": native_configuration(args.target),
         "prefix": str(prefix),
         "cc": args.cc or default_cc,
         "options": OPTIONS,
@@ -95,7 +91,7 @@ def prepare(args):
         CMAKE_INSTALL_PREFIX=str(stage),
         CMAKE_C_FLAGS="-mcpu=generic" if host == "Darwin" else "-march=" + release["cpu"],
     )
-    msvc = args.target == "x86_64-pc-windows-msvc-ucrt"
+    msvc = native_configuration(args.target)["native_environment"] == "MicrosoftUcrt"
     if host == "Windows":
         options["CMAKE_MAKE_PROGRAM"] = ninja
         options["CMAKE_SYSTEM_NAME"] = "Windows"
@@ -103,7 +99,7 @@ def prepare(args):
         options["CMAKE_C_FLAGS"] += " -D_WIN32_WINNT=0x0a00"
         if msvc:
             options["CMAKE_C_FLAGS"] = "/D_WIN32_WINNT=0x0a00"
-            options["CMAKE_C_COMPILER_TARGET"] = "x86_64-pc-windows-msvc"
+            options["CMAKE_C_COMPILER_TARGET"] = native_configuration(args.target)["llvm_triple"]
             options["CMAKE_POLICY_DEFAULT_CMP0091"] = "NEW"
             options["CMAKE_MSVC_RUNTIME_LIBRARY"] = "MultiThreadedDLL"
             options["ENABLE_STATIC_CRT"] = "OFF"

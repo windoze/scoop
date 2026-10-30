@@ -11,31 +11,9 @@ import tempfile
 import tomllib
 from pathlib import Path
 
+from target_catalog import TARGET_FACTS, TARGETS
+
 ROOT = Path(__file__).resolve().parent.parent
-TARGETS = (
-    "aarch64-apple-darwin",
-    "x86_64-unknown-linux-gnu",
-    "x86_64-unknown-linux-musl",
-    "x86_64-pc-windows-msvc-ucrt",
-    "x86_64-w64-windows-llvm-mingw-msvcrt",
-    "x86_64-w64-windows-llvm-mingw-ucrt",
-)
-TARGET_FACTS = {
-    "aarch64-apple-darwin": {"os": "darwin", "arch": "aarch64", "env": "none"},
-    "x86_64-unknown-linux-gnu": {"os": "linux", "arch": "x86_64", "env": "gnu"},
-    "x86_64-unknown-linux-musl": {"os": "linux", "arch": "x86_64", "env": "musl"},
-    "x86_64-pc-windows-msvc-ucrt": {"os": "windows", "arch": "x86_64", "env": "msvc-ucrt"},
-    "x86_64-w64-windows-llvm-mingw-msvcrt": {
-        "os": "windows",
-        "arch": "x86_64",
-        "env": "llvm-mingw-msvcrt",
-    },
-    "x86_64-w64-windows-llvm-mingw-ucrt": {
-        "os": "windows",
-        "arch": "x86_64",
-        "env": "llvm-mingw-ucrt",
-    },
-}
 
 
 def host_path(carrier):
@@ -85,6 +63,7 @@ def cone_order(sysroot, work, target):
     manifests = sorted((sysroot / "src").glob("*/Cone.toml"))
     inputs = [metadata(path) for path in manifests]
     inputs.append(metadata(Path(__file__).resolve()))
+    inputs.append({"target_facts": TARGET_FACTS})
     record = work / "cones.json"
     if record.exists():
         saved = json.loads(record.read_text())
@@ -221,7 +200,7 @@ def main():
     scoopc = (
         args.scoopc or scoop.with_name("scoopc.exe" if os.name == "nt" else "scoopc")
     ).resolve()
-    if args.unwind_prefix is None and args.target != "aarch64-apple-darwin":
+    if args.unwind_prefix is None and TARGETS[args.target]["os"] != "darwin":
         args.unwind_prefix = args.sysroot / "lib" / args.target / "unwind"
     native = []
     for flag, value in (

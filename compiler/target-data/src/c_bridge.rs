@@ -44,16 +44,9 @@ pub fn linux_c_bridge_profile(
 }
 
 pub fn c_bridge_toolchain_id(target: TargetProfileId) -> Option<CBridgeToolchainProfileId> {
-    let name = match target {
-        crate::DARWIN_AARCH64_ID => "darwin-aarch64-apple-clang",
-        crate::LINUX_X86_64_GNU_ID => "linux-x86-64-gnu-gcc",
-        crate::LINUX_X86_64_MUSL_ID => "linux-x86-64-musl-gcc",
-        crate::WINDOWS_X86_64_MSVC_UCRT_ID => "windows-x86-64-msvc-ucrt-clang",
-        crate::WINDOWS_X86_64_MINGW_MSVCRT_ID => "windows-x86-64-llvm-mingw-msvcrt-clang",
-        crate::WINDOWS_X86_64_MINGW_UCRT_ID => "windows-x86-64-llvm-mingw-ucrt-clang",
-        _ => return None,
-    };
-    Some(CBridgeToolchainProfileId::new(name, 1).expect("canonical toolchain identity"))
+    crate::definition(target).map(|target| {
+        CBridgeToolchainProfileId::new(target.c_bridge_profile, 1).expect("registered C producer")
+    })
 }
 
 pub fn windows_c_bridge_profile(
@@ -79,3 +72,6 @@ pub fn windows_c_bridge_profile(
     .map_err(CBridgeToolchainBuildError::Hash)?;
     CBridgeToolchainProfileV1::new(id, contract).map_err(CBridgeToolchainBuildError::Hash)
 }
+
+#[cfg(test)]
+mod tests;

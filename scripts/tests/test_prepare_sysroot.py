@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import package_documentation
 from prepare_sysroot import cone_order, has_target_sources
+from target_catalog import TARGET_FACTS
 
 DARWIN = "aarch64-apple-darwin"
 LINUX = "x86_64-unknown-linux-gnu"
@@ -57,6 +58,18 @@ class SysrootSelectionTests(unittest.TestCase):
         self.assertFalse(has_target_sources(windows, DARWIN))
         with self.assertRaisesRegex(ValueError, "unknown target predicate"):
             has_target_sources({"sources": [{"path": "src", "when": {"os": "dawr in"}}]}, DARWIN)
+
+    def test_catalog_update_recomputes_selected_cones(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.write_cone(root, "scoop.core")
+            self.write_cone(
+                root, "scoop.machine", '[[sources]]\npath = "src"\nwhen = {arch = "x86_64"}\n'
+            )
+            self.assertEqual(cone_order(root, root, DARWIN), ["scoop.core"])
+            changed = {**TARGET_FACTS, DARWIN: {**TARGET_FACTS[DARWIN], "arch": "x86_64"}}
+            with patch("prepare_sysroot.TARGET_FACTS", changed):
+                self.assertEqual(cone_order(root, root, DARWIN), ["scoop.core", "scoop.machine"])
 
     def test_documentation_uses_the_same_target_graph(self):
         with tempfile.TemporaryDirectory() as temporary:

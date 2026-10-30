@@ -10,16 +10,13 @@ import tomllib
 from pathlib import Path
 
 from build_support import RELEASE_CONFIG, ROOT, metadata, reusable, save_record, source_metadata
+from target_catalog import current_host, host_definition
 
 VERSION = "22.1.8"
 STATEPOINT_PATCH = (
     ROOT / "sysroot/vendor/llvm-project/22.1.8/patches/llvm-windows-statepoint-return-pc.patch"
 )
-HOSTS = {
-    ("Darwin", "arm64"): "aarch64-apple-darwin",
-    ("Linux", "x86_64"): "x86_64-unknown-linux-gnu",
-    ("Windows", "AMD64"): "x86_64-pc-windows-gnullvm",
-}
+
 
 TOOLS = (
     "dsymutil",
@@ -153,7 +150,8 @@ def main():
     parser.add_argument("--cxx", default="c++")
     parser.add_argument("--jobs", type=int, default=min(os.cpu_count() or 1, 6))
     args = parser.parse_args()
-    host = HOSTS.get((platform.system(), platform.machine()))
+    host_config = current_host(platform.system(), platform.machine())
+    host = host_config["rust_target"] if host_config else None
     if host is None:
         parser.error("build host must be Darwin/AArch64, Linux/GNU amd64 or Windows/amd64")
     if args.jobs < 1:
@@ -186,6 +184,7 @@ def main():
             )
         ],
         "host": host,
+        "host_configuration": host_definition(host),
         "prefix": str(prefix),
     }
     outputs = [prefix / "bin" / (name + suffix) for name in TOOLS]

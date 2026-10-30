@@ -22,11 +22,12 @@ import package_llvm
 import package_native
 import package_tooling
 import package_windows
-from build_llvm import HOSTS, VERSION
+from build_llvm import VERSION
 from build_rust_text import HEADER as RUST_TEXT_HEADER
 from build_rust_text import LIBRARY as RUST_TEXT_LIBRARY
 from build_support import RELEASE_CONFIG, ROOT
 from compression_backends import PACKAGES as COMPRESSION_PACKAGES
+from target_catalog import current_host, host_definition
 
 TOOLS = ("scoop", "scoopc", "scoop-link", "scoop-lsp", "scoop-pm")
 
@@ -374,7 +375,8 @@ def main():
     package_windows.arguments(parser)
     parser.add_argument("--jobs", type=int, default=min(os.cpu_count() or 1, 6))
     args = parser.parse_args()
-    args.host = HOSTS.get((platform.system(), platform.machine()))
+    host_config = current_host(platform.system(), platform.machine())
+    args.host = host_config["rust_target"] if host_config else None
     if args.host is None or args.jobs < 1:
         parser.error("a supported build host and positive --jobs are required")
     if "linux" in args.host and args.musl_include is None:
@@ -528,14 +530,7 @@ def main():
     example_environment.pop("CARGO_ENCODED_RUSTFLAGS", None)
     example = build_scoop_example.build(args.work_dir / "scoop-example", example_environment)
     build_scoop_example.install(example, sysroot)
-    if windows:
-        targets = list(package_windows.TARGETS)
-    else:
-        targets = (
-            [args.host]
-            if args.host.endswith("darwin")
-            else [args.host, "x86_64-unknown-linux-musl"]
-        )
+    targets = list(host_definition(args.host)["distribution_targets"])
     if args.prepared_sysroot is None:
         prepare_targets(args, targets, binaries, environment)
     documentation = package_documentation.generate(

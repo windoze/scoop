@@ -58,18 +58,14 @@ fn compiler_identity_rejects_ambiguous_build_spelling() {
 fn linux_c_profile_separates_libc_and_tracks_consumed_inputs() {
     let identity =
         |bytes: &[u8]| GccCompilerIdentityV1::new("15.2.0", scoop_wire::sha256(bytes)).unwrap();
-    let gnu = crate::target_fixtures::linux_c_bridge_profile(
-        crate::target_fixtures::LINUX_X86_64_GNU,
-        identity(b"compiler and headers"),
-    )
-    .unwrap();
-    let musl = crate::target_fixtures::linux_c_bridge_profile(
-        crate::target_fixtures::LINUX_X86_64_MUSL,
-        identity(b"compiler and headers"),
-    )
-    .unwrap();
-    let changed = crate::target_fixtures::linux_c_bridge_profile(
-        crate::target_fixtures::LINUX_X86_64_GNU,
+    let gnu =
+        crate::linux_c_bridge_profile(crate::LINUX_X86_64_GNU, identity(b"compiler and headers"))
+            .unwrap();
+    let musl =
+        crate::linux_c_bridge_profile(crate::LINUX_X86_64_MUSL, identity(b"compiler and headers"))
+            .unwrap();
+    let changed = crate::linux_c_bridge_profile(
+        crate::LINUX_X86_64_GNU,
         identity(b"changed specs or headers"),
     )
     .unwrap();
@@ -77,11 +73,8 @@ fn linux_c_profile_separates_libc_and_tracks_consumed_inputs() {
     assert_ne!(gnu.fingerprint(), changed.fingerprint());
     assert!(gnu.contract().deployment().is_err());
     assert!(
-        crate::target_fixtures::linux_c_bridge_profile(
-            crate::target_fixtures::DARWIN_AARCH64,
-            identity(b"compiler and headers"),
-        )
-        .is_err()
+        crate::linux_c_bridge_profile(crate::DARWIN_AARCH64, identity(b"compiler and headers"),)
+            .is_err()
     );
     for version in ["0", "+15", "15.", "15.x", "15.2.0.1"] {
         assert!(GccCompilerIdentityV1::new(version, scoop_wire::sha256(b"")).is_err());
@@ -120,13 +113,11 @@ fn windows_c_profiles_separate_environments_and_preserve_seh_flags() {
     let compiler =
         WindowsClangCompilerIdentityV1::new([22, 1, 8], scoop_wire::sha256(b"selected headers"));
     let profiles = [
-        crate::target_fixtures::WINDOWS_X86_64_MSVC_UCRT,
-        crate::target_fixtures::WINDOWS_X86_64_MINGW_MSVCRT,
-        crate::target_fixtures::WINDOWS_X86_64_MINGW_UCRT,
+        crate::WINDOWS_X86_64_MSVC_UCRT,
+        crate::WINDOWS_X86_64_MINGW_MSVCRT,
+        crate::WINDOWS_X86_64_MINGW_UCRT,
     ]
-    .map(|target| {
-        crate::target_fixtures::windows_c_bridge_profile(target, compiler.clone()).unwrap()
-    });
+    .map(|target| crate::windows_c_bridge_profile(target, compiler.clone()).unwrap());
     let fingerprints = profiles
         .iter()
         .map(|profile| profile.fingerprint().to_string())
@@ -135,13 +126,7 @@ fn windows_c_profiles_separate_environments_and_preserve_seh_flags() {
     for profile in profiles {
         assert!(profile.contract().deployment().is_err());
     }
-    assert!(
-        crate::target_fixtures::windows_c_bridge_profile(
-            crate::target_fixtures::LINUX_X86_64_GNU,
-            compiler
-        )
-        .is_err()
-    );
+    assert!(crate::windows_c_bridge_profile(crate::LINUX_X86_64_GNU, compiler).is_err());
     let flags = CanonicalCBridgeFlagContractV1::WindowsClang.flags();
     assert!(flags.contains(&CanonicalCBridgeFlagV1::WindowsSeh));
     assert!(flags.contains(&CanonicalCBridgeFlagV1::ReproducibleCoff));
@@ -213,7 +198,7 @@ fn fixture_profile_with(
     )
     .unwrap();
     let compiler = AppleClangCompilerIdentityV1::new(compiler_major, 0, 0, compiler_build).unwrap();
-    crate::target_fixtures::darwin_c_bridge_profile(deployment, compiler).unwrap()
+    crate::darwin_c_bridge_profile(deployment, compiler).unwrap()
 }
 
 fn hex(bytes: &[u8]) -> String {

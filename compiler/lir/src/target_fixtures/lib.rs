@@ -1,5 +1,5 @@
-//! Static target contracts shared by codegen and artifact consumers.
-//! This crate contains no LLVM initialization, ABI classifier, or tool execution.
+//! Representative values for LIR unit tests. Production targets live in
+//! scoop-target-data; target catalog tests run in that crate.
 
 mod backend;
 pub use backend::*;
