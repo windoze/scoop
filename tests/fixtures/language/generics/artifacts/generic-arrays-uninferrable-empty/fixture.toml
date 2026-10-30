@@ -2,7 +2,6 @@ schema = 1
 name = "generic-arrays-uninferrable-empty"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../generic-arrays/provider.scoop", "uninferrable-empty", "../../../generic-arrays/uninferrable-empty.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "imported_arrays_and_varargs_republish_and_execute_from_artifacts", "negative", "language"]
 
 [[steps]]

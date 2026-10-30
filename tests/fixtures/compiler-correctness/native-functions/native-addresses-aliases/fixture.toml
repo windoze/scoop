@@ -2,7 +2,7 @@ schema = 1
 name = "native-addresses-aliases"
 inputs = ["../../../language/imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../language/native-addresses/provider.scoop", "generic-member-aliases", "../../../language/native-addresses/aliases.scoop", "generic-member-downstream-aliases", "../../../language/native-addresses/downstream.scoop", "runtime-fixture", "../../../language/imported-classes/support/gc.c", "../../../language/native-addresses/native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["generics", "imported_native_addresses_use_definition_owned_storage_bridges", "compiler-correctness"]
 [[steps]]
 name = "core"

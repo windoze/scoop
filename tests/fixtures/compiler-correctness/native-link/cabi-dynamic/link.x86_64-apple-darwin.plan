@@ -1,0 +1,16 @@
+link inputs: startup, cone/member order, runtime/object order, libSystem
+native library m23_cabi requirement=3f93c23a3ca5bb67d4b65a20afc74e01eef6da601d97d2546007826dc9b0a76e input=$NATIVE_INPUT_0 origins=dev.programlink:cabi-provider:0.1.0
+dynamic provider $NATIVE_PROVIDER_0 install="@rpath/libm23_cabi.dylib" imports=11
+  load "/usr/lib/libSystem.B.dylib" -> $NATIVE_PROVIDER_1
+dynamic binding _m23_envelope -> "@rpath/libm23_cabi.dylib" source="@rpath/libm23_cabi.dylib":_m23_envelope kind=Symbol weak=false
+dynamic binding _m23_i16 -> "@rpath/libm23_cabi.dylib" source="@rpath/libm23_cabi.dylib":_m23_i16 kind=Symbol weak=false
+dynamic binding _m23_i32 -> "@rpath/libm23_cabi.dylib" source="@rpath/libm23_cabi.dylib":_m23_i32 kind=Symbol weak=false
+dynamic binding _m23_i64 -> "@rpath/libm23_cabi.dylib" source="@rpath/libm23_cabi.dylib":_m23_i64 kind=Symbol weak=false
+dynamic binding _m23_i8 -> "@rpath/libm23_cabi.dylib" source="@rpath/libm23_cabi.dylib":_m23_i8 kind=Symbol weak=false
+dynamic binding _m23_pointer -> "@rpath/libm23_cabi.dylib" source="@rpath/libm23_cabi.dylib":_m23_pointer kind=Symbol weak=false
+dynamic binding _m23_u16 -> "@rpath/libm23_cabi.dylib" source="@rpath/libm23_cabi.dylib":_m23_u16 kind=Symbol weak=false
+dynamic binding _m23_u32 -> "@rpath/libm23_cabi.dylib" source="@rpath/libm23_cabi.dylib":_m23_u32 kind=Symbol weak=false
+dynamic binding _m23_u64 -> "@rpath/libm23_cabi.dylib" source="@rpath/libm23_cabi.dylib":_m23_u64 kind=Symbol weak=false
+dynamic binding _m23_u8 -> "@rpath/libm23_cabi.dylib" source="@rpath/libm23_cabi.dylib":_m23_u8 kind=Symbol weak=false
+dynamic binding _m23_widths -> "@rpath/libm23_cabi.dylib" source="@rpath/libm23_cabi.dylib":_m23_widths kind=Symbol weak=false
+rpath "$WORK/native"

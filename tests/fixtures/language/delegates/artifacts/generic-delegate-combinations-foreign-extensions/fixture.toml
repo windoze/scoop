@@ -2,7 +2,6 @@ schema = 1
 name = "generic-delegate-combinations-foreign-extensions"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "delegate-combinations-provider", "../../../generic-delegate-combinations/provider.scoop", "delegate-foreign-extensions", "../../../generic-delegate-combinations/foreign-extensions.scoop", "delegate-downstream-foreign-extensions", "../../../generic-delegate-combinations/downstream.scoop", "runtime-fixture", "../../../imported-classes/support/gc.c", "../support/metadata.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "generic_delegate_mixed_roles_republish_and_execute", "language"]
 
 [[steps]]

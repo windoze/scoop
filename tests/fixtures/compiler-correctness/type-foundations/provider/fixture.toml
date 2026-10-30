@@ -2,7 +2,7 @@ schema = 1
 name = "type-foundations-provider"
 inputs = ["../../../language/imported-classes/support/stage3_test.scoop", "type-provider", "../../../language/shared-type-foundations/provider.scoop", "type-foundation-provider-consumer"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["type-foundations", "provider", "compiler-correctness"]
 [[steps]]
 name = "core"

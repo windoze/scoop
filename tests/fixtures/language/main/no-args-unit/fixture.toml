@@ -3,7 +3,7 @@ name = "main-no-args-unit"
 root = "program.scoop"
 inputs = ["launcher.c", "program.scoop"]
 tools = ["cc", "scoop", "scoop-link"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["ffi", "process", "language"]
 variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
 [[steps]]

@@ -3,7 +3,7 @@ name = "local-class-scalar-roots"
 root = "program.scoop"
 inputs = ["program.scoop", "inspect.py"]
 tools = ["scoop", "python"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["optimization", "class", "gc", "generic", "compiler-correctness"]
 
 [[steps]]

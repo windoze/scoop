@@ -2,7 +2,7 @@ schema = 1
 name = "native-libraries-sdk-previous"
 inputs = ["cone", "previous.c", "public.tbd"]
 tools = ["scoop", "cc"]
-targets = ["aarch64-apple-darwin"]
+when = { os = "darwin" }
 tags = ["native", "libraries", "compiler-correctness"]
 variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
 

@@ -2,7 +2,6 @@ schema = 1
 name = "imported-class-conformance-default"
 inputs = ["../support/stage3_test.scoop", "../core-provider.scoop", "../core-cast-direct.scoop", "../core-arithmetic-direct.scoop", "../provider.scoop", "../conformance-provider.scoop", "class-provider", "classes-conformance-default", "../conformance-default.scoop", "class-downstream-conformance-default", "../downstream.scoop", "../support/main.scoop", "../support/gc.c", "runtime-fixture"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["imported-classes", "core-rebuild", "language"]
 [[steps]]
 name = "rebuilt_core"

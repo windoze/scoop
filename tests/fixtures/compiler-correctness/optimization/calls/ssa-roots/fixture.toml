@@ -3,7 +3,7 @@ name = "ssa-roots"
 root = "program.scoop"
 inputs = ["program.scoop"]
 tools = ["scoop", "scoop-link"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["optimization", "exceptions", "closure", "context", "generic", "stage-golden", "compiler-correctness"]
 variants = [{"name" = "debug", "vars" = {"profile" = "debug", "symbol_args" = ["--keep-symbols", "--emit-debug-file"], "stack_trace" = "true"}}, {"name" = "release", "vars" = {"profile" = "release", "symbol_args" = [], "stack_trace" = "false"}}]
 
@@ -20,7 +20,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "program.${profile}.lir.txt"},
+  {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "program.${profile}.${target_facts.arch}.lir.txt"},
 ]
 
 [[steps]]

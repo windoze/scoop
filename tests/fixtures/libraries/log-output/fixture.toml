@@ -2,7 +2,7 @@ schema = 1
 name = "log-output"
 inputs = ["consumer", "check.py"]
 tools = ["scoop", "scoopc", "python"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["log", "output", "libraries"]
 
 [[steps]]

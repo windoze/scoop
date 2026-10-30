@@ -2,7 +2,7 @@ schema = 1
 name = "odr-selection"
 inputs = ["template", "left", "right", "root"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["odr", "context", "compiler-correctness"]
 variants = [{"name" = "debug", "vars" = {"profile" = "debug", "other_profile" = "release", "symbol_args" = ["--keep-symbols", "--emit-debug-file"], "stack_trace" = "true"}}, {"name" = "release", "vars" = {"profile" = "release", "other_profile" = "debug", "symbol_args" = [], "stack_trace" = "false"}}]
 

@@ -21,9 +21,11 @@ pub(super) fn core_sources() -> CurrentConeParsedSources {
 }
 
 pub(super) fn core_sources_with(additional: &[(&str, &str)]) -> CurrentConeParsedSources {
-    let root = crate::workspace_root().join("sysroot/src/scoop.core/src");
-    let mut sources = std::fs::read_dir(root)
-        .unwrap()
+    let root = crate::workspace_root().join("sysroot/src/scoop.core");
+    // Machine-input tests select the Unix core declarations before lowering.
+    let mut sources = ["src", "platform/unix"]
+        .into_iter()
+        .flat_map(|directory| std::fs::read_dir(root.join(directory)).unwrap())
         .map(|entry| entry.unwrap().path())
         .filter(|path| {
             path.extension()
@@ -31,7 +33,11 @@ pub(super) fn core_sources_with(additional: &[(&str, &str)]) -> CurrentConeParse
         })
         .map(|path| {
             (
-                format!("src/{}", path.file_name().unwrap().to_str().unwrap()),
+                path.strip_prefix(&root)
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .replace('\\', "/"),
                 std::fs::read_to_string(path).unwrap(),
             )
         })

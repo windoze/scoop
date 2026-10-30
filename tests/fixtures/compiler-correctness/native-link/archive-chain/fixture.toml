@@ -2,7 +2,7 @@ schema = 1
 name = "native-link-archive-chain"
 inputs = ["cone", "../../../language/native-link/archive/root.scoop", "../../../language/native-link/archive/entry.c", "../../../language/native-link/archive/end.c", "../../../language/native-link/archive/unused.c", "../../../language/native-link/archive/middle.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["native-link", "program-link", "compiler-correctness"]
 [[steps]]
 name = "prepare"

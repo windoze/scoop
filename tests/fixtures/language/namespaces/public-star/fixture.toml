@@ -2,7 +2,6 @@ schema = 1
 name = "namespace-public-star"
 inputs = ["../../imported-classes/support/stage3_test.scoop", "origin", "../../reexported-namespaces/provider.scoop", "first", "../../reexported-namespaces/facade.scoop", "second", "../../reexported-namespaces/facade.scoop", "consumer", "../../reexported-namespaces/public-star.scoop", "downstream", "../../reexported-namespaces/star-downstream.scoop", "runtime-fixture", "../../imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["namespaces", "language"]
 
 [[steps]]

@@ -2,10 +2,10 @@ schema = 1
 name = "deployment"
 inputs = ["cone", "check.py"]
 tools = ["scoop", "scoopc", "cc", "python"]
-targets = ["aarch64-apple-darwin"]
+when = { os = "darwin" }
 tags = ["deployment", "native", "cache", "driver"]
 [vars]
-options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+options = ["--target", "${target}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
 
 [[steps]]
 name = "default"

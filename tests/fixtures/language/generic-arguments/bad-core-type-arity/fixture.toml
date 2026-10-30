@@ -2,7 +2,6 @@ schema = 1
 name = "generic-arguments-bad-core-type-arity"
 inputs = ["../../imported-classes/support/stage3_test.scoop", "argument-consumer", "../../generic-body-consumption/bad-core-type-arity.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generic-arguments", "negative", "core", "language"]
 
 [[steps]]

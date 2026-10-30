@@ -3,7 +3,7 @@ name = "cli-library-defaults-and-publication"
 root = "cone/Cone.toml"
 inputs = ["cone"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["cli", "library", "publication", "compiler-correctness"]
 [vars]
 options = ["--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--runtime-root", "${runtime}", "--message-format", "json"]

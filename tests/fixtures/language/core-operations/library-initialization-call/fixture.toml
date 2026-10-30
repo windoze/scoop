@@ -2,7 +2,6 @@ schema = 1
 name = "core-operations-library-initialization-call"
 inputs = ["../../core-library/extension.scoop", "../../core-library/metadata.scoop", "../../core-library/abi.scoop", "../../core-library/type-aliases.scoop", "../../core-library/integer-defaults.scoop", "../../core-library/default-data-flow.scoop", "../../reference-source-fields/standalone.scoop", "../../reference-source-fields/combined.scoop", "../../core-library/initialization-call.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["core-library-stages", "single-file", "language"]
 [[steps]]
 name = "runtime_vendor"

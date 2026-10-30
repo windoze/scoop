@@ -2,7 +2,7 @@ schema = 1
 name = "native-link-mixed"
 inputs = ["mixed-provider", "../../../language/native-link/mixed/provider.scoop", "mixed-left", "../../../language/native-link/mixed/left.scoop", "mixed-right", "../../../language/native-link/mixed/right.scoop", "mixed-root", "../../../language/native-link/mixed/root.scoop", "../../../language/native-link/mixed/archive.c", "../../../language/native-link/mixed/helper.c", "../../../language/native-link/mixed/unused.c", "../../../language/native-link/mixed/dynamic.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin"]
+when = { os = "darwin" }
 tags = ["native-link", "program-link", "compiler-correctness"]
 variants = [{"name" = "normal"}]
 
@@ -12,31 +12,31 @@ files = [{"copy" = {"from" = "${fixture}/mixed-provider", "to" = "${work}/source
 
 [[steps]]
 name = "compile_0"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/mixed/archive.c", "-o", "${work}/objects/archive.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/mixed/archive.c", "-o", "${work}/objects/archive.o"]
 exit = 0
 stdout = ""
 stderr = ""
 [[steps]]
 name = "compile_1"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/mixed/helper.c", "-o", "${work}/objects/helper.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/mixed/helper.c", "-o", "${work}/objects/helper.o"]
 exit = 0
 stdout = ""
 stderr = ""
 [[steps]]
 name = "compile_2"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/mixed/unused.c", "-o", "${work}/objects/unused.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/mixed/unused.c", "-o", "${work}/objects/unused.o"]
 exit = 0
 stdout = ""
 stderr = ""
 [[steps]]
 name = "compile_3"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/mixed/dynamic.c", "-o", "${work}/objects/dynamic.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/mixed/dynamic.c", "-o", "${work}/objects/dynamic.o"]
 exit = 0
 stdout = ""
 stderr = ""
 [[steps]]
 name = "dylib_3"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-dynamiclib", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "${work}/objects/dynamic.o", "-install_name", "@rpath/libm23_mix_dynamic.dylib", "-current_version", "2.0", "-compatibility_version", "1.0", "-o", "${work}/native/libm23_mix_dynamic.dylib"]
+argv = ["${cc}", {each = "${cc_args}"}, "-dynamiclib", "${work}/objects/dynamic.o", "-install_name", "@rpath/libm23_mix_dynamic.dylib", "-current_version", "2.0", "-compatibility_version", "1.0", "-o", "${work}/native/libm23_mix_dynamic.dylib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -51,7 +51,7 @@ env = {"ZERO_AR_DATE" = "1"}
 [[steps]]
 name = "build"
 timeout = 300
-argv = ["${scoop}", "build", "${work}/sources/mixed-root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "-o", "${work}/programs/build/program"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/mixed-root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "-o", "${work}/programs/build/program"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -92,7 +92,7 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths", "native-digests", "native-link-plan"]}]
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.${target}.plan", "normalize" = ["paths", "native-digests", "native-link-plan"]}]
 
 [[steps]]
 name = "run_linked"

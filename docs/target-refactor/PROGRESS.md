@@ -73,6 +73,16 @@ Ruff 0.16.10 通过；76 项 fixture 规则与 22 项维护脚本测试各跳过
 
 本机 SDK 27.0／deployment 27.0.1 已构建四种 x86_64 runtime、core 和六类 native 后端（OpenSSL、PCRE2、压缩、nghttp2、uriparser、Rust 文本）。配套 release CLI 生成的 Hello 程序确认是 Mach-O x86_64，并在 Rosetta 下成功输出。fixture runner 只在实际需要执行 x86_64 程序时探测 Rosetta；完整系统 Cone、ABI／GC／EH／Objective-C／调试验收尚在继续。维护与 fixture 批次推送后已获取远端 main，无新增提交。
 
+### R6 正式 fixture
+
+通用用例省略完整 target 名单，OS／架构／环境专用用例使用 `when`，只有真实 ABI／产物差异保留独立 target 期望。共享目录同时提供 `${target_facts.os|arch|env}`，避免源码选择和架构期望重复维护完整名称。4,326 个用例的条件审计确认既有六个目标的适用范围不变；两种 Darwin 目标分别适用 4,301 项，另外 25 项单列不适用。
+
+两种 Darwin 目标的全部适用正式 fixture 已通过。x86_64 首轮 4,276 项通过、25 项失败；修正旧平台假设、companion 架构／SDK 参数、目标相关期望及测试输入后逐项复验闭合。AArch64 首轮 4,298 项通过、3 项失败；异常入口、遗漏的重链接期望拆分和平台测试 hook 已分别闭合。覆盖真实 C ABI 双向调用、聚合／callback、Mach-O relocation、GC／EH、TLS、Objective-C、`.slib` 消费与 artifact-only 重链接，完整原始日志保留在忽略目录。
+
+测试输入同步 core／platform 拆分，native source、动态库文本桩和 LLVM companion 使用实际所选目标。Darwin 链接计划按实际 requirement identity 拆分；SSA aggregate 期望只按真实 ABI 差异使用两份架构文件。平台测试使用工作目录内的临时路径，并把 getpwuid_r hook 放到拆分后的实际目录实现。终端信号测试保留 mask、信号和一次性 handler 的行为断言，等待实际异步送达；Rosetta 下不再以 sigaction 返回的旧 handler 指针代替一次性行为，修复后的冷／热两次执行通过。
+
+Rust 格式化、workspace／all-targets Clippy、6,298 项 workspace 测试、Ruff 0.16.10 与 79 项 fixture 规则测试通过（规则测试 3 项宿主不适用）。异常入口修复后另跑 codegen 386 项及两种 Darwin 的相关运行组合，全部通过。该批次未扩大为远端运行验收。
+
 ### R6 Darwin 调试工具
 
 真实调试发现两处 LLVM 22.1.8 问题，已加入配套源码补丁与各自的独立回归用例。dsymutil 的局部 Mach-O relocation 原先只按对象地址查找，可能把 TLS 描述符替换为相邻 section 的结束符号；现同时使用 section 与地址。SelectionDAG 将固定栈位置的 byval `dbg.value` 当作指针槽而多解引用一次，现保留该参数表示的副本地址。前后对照确认 TLS 地址修正、byval DWARF 去除多余解引用，后者的机器代码 section 不变。

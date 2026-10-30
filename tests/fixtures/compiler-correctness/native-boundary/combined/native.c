@@ -43,14 +43,21 @@ __asm__(
     "ldp x29, x30, [sp, #16]\n"
     "add sp, sp, #32\n"
     "ret\n");
-#elif defined(__linux__) && defined(__x86_64__)
+#elif defined(__x86_64__) && (defined(__linux__) || defined(__APPLE__))
+#if defined(__APPLE__)
+#define SCOOP_TEST_ASM_SYMBOL(name) "_" name
+#define SCOOP_TEST_ASM_ELF(directive) ""
+#else
+#define SCOOP_TEST_ASM_SYMBOL(name) name
+#define SCOOP_TEST_ASM_ELF(directive) directive
+#endif
 /* The first parameter is byval. Six scalars use registers, and the final
  * two scalars follow its 24-byte stack copy. */
 __asm__(
     ".text\n"
-    ".globl native_mixed\n"
-    ".type native_mixed,@function\n"
-    "native_mixed:\n"
+    ".globl " SCOOP_TEST_ASM_SYMBOL("native_mixed") "\n"
+    SCOOP_TEST_ASM_ELF(".type native_mixed,@function\n")
+    SCOOP_TEST_ASM_SYMBOL("native_mixed") ":\n"
     ".cfi_startproc\n"
     "push %rbp\n"
     ".cfi_def_cfa_offset 16\n"
@@ -64,12 +71,12 @@ __asm__(
     "mov %rax,8(%rsp)\n"
     "lea 16(%rbp),%rax\n"
     "mov %rax,16(%rsp)\n"
-    "call native_mixed_storage\n"
+    "call " SCOOP_TEST_ASM_SYMBOL("native_mixed_storage") "\n"
     "leave\n"
     ".cfi_def_cfa %rsp,8\n"
     "ret\n"
     ".cfi_endproc\n"
-    ".size native_mixed,.-native_mixed\n");
+    SCOOP_TEST_ASM_ELF(".size native_mixed,.-native_mixed\n"));
 #else
 #error "Scoop ABI fixture requires a supported target"
 #endif

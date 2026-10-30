@@ -2,7 +2,7 @@ schema = 1
 name = "native-parent-combined"
 inputs = ["project", "vendor"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu"]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu"]
 tags = ["native", "cxx", "generic", "driver"]
 variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
 [[steps]]

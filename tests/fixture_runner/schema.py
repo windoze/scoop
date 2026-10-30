@@ -4,6 +4,7 @@ import re
 
 from . import schema_values as values
 from .model import ConfigurationError
+from .targets import validate_when
 from .values import expand, json_value, references
 
 TOP = {
@@ -15,6 +16,7 @@ TOP = {
     "tags",
     "tools",
     "targets",
+    "when",
     "requires_target_execution",
     "vars",
     "variants",
@@ -91,6 +93,7 @@ BUILTINS = {
     "variant",
     "variants",
     "target",
+    "target_facts",
     "llvm_target",
     "target_profile",
     "symbol_prefix",
@@ -138,6 +141,7 @@ def validate(data, base=None, target=None):
             not isinstance(item, str) for item in data.get(key, [])
         ):
             raise ConfigurationError(f"{key}: expected an array of strings")
+    validate_when(data.get("when", {}))
     if not isinstance(data["steps"], list) or not data["steps"]:
         raise ConfigurationError("fixture steps must be nonempty")
     if "root" in data:

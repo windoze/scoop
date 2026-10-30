@@ -2,7 +2,6 @@ schema = 1
 name = "default-access-source-profiles-combined"
 inputs = ["runtime", "../../imported-classes/support/stage3_test.scoop", "provider", "../../default-source-profiles/combined.scoop", "factory"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["default-access", "source-profiles", "language"]
 [[steps]]
 name = "core"

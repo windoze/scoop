@@ -2,7 +2,7 @@ schema = 1
 name = "generic-reader-concrete-support"
 inputs = ["../../../language/imported-classes/support/stage3_test.scoop", "concrete-support", "../../../language/generic-body-production/concrete-support.scoop", "generic-reader-concrete-support-consumer", "runtime-fixture", "../../../language/imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["generic-reader", "bodies", "compiler-correctness"]
 [[steps]]
 name = "core"

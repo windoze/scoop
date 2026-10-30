@@ -3,7 +3,6 @@ name = "requirements-error-unbound-reference"
 root = "unbound-reference.scoop"
 inputs = ["unbound-reference.scoop"]
 tools = ["scoop"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["requirements", "negative", "language"]
 
 [[steps]]

@@ -2,7 +2,7 @@ schema = 1
 name = "native-link-reject-callbacks-bad-signature"
 inputs = ["source-error", "../../../language/native-link/callbacks/bad-signature.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["native-link", "negative", "canonical-diagnostics", "compiler-correctness"]
 [[steps]]
 name = "prepare"

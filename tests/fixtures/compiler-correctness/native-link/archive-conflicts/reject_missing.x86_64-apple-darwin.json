@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "unresolved native symbol _missing in default namespace (unresolved symbol _missing); reference chain: _missing <- native object $NATIVE_INPUT_0-member-1-756 selected by _helper <- native object $NATIVE_INPUT_0-member-0-8 selected by _m23_add <- Cone dev.programlink:archive:0.1.0 member fcd25be30d0c02858ef98cc4a26b220910130ecdfd3a5cdfd66282f8ea972614",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

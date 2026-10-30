@@ -44,6 +44,22 @@ class CriteriaTests(unittest.TestCase):
         self.data["requires_target_execution"] = False
         validate(self.data)
 
+    def test_target_conditions_reject_unknown_fields_and_values(self):
+        for condition in (
+            None,
+            [],
+            {"cpu": "x86_64"},
+            {"os": "unknown"},
+            {"arch": []},
+            {"os": ["darwin", 1]},
+            {"env": True},
+        ):
+            with self.subTest(condition=condition), self.assertRaises(ConfigurationError):
+                self.data["when"] = condition
+                validate(self.data)
+        self.data["when"] = {"os": ["darwin", "linux"], "arch": "x86_64"}
+        validate(self.data)
+
     def test_stream_regex_is_validated_and_cannot_supply_stdin(self):
         step = self.data["steps"][0]
         step["stderr"] = {"regex": r"trace 0x[0-9a-f]+\n"}

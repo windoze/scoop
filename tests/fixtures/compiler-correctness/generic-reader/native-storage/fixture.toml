@@ -2,7 +2,7 @@ schema = 1
 name = "generic-reader-native-storage"
 inputs = ["../../../language/imported-classes/support/stage3_test.scoop", "native-storage-provider", "../../../language/native-addresses/provider.scoop", "generic-reader-native-storage-consumer", "runtime-fixture", "../../../language/imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["generic-reader", "native-storage", "compiler-correctness"]
 [[steps]]
 name = "core"

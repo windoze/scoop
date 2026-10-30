@@ -1,4 +1,4 @@
 package dev.m60.example
 
-/// API selected for aarch64-apple-darwin.
+/// API selected for aarch64-apple-darwin and x86_64-apple-darwin.
 public fun selectedPlatform(): Int = 1

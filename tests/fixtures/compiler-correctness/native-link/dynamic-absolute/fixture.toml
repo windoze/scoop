@@ -3,7 +3,7 @@ name = "native-link-dynamic-absolute"
 inputs = ["cone", "../../../language/native-link/direct/root.scoop", "../../../language/native-link/direct/native.c"]
 tools = ["scoop", "scoopc", "cc"]
 # This fixture exercises Mach-O dylib, dyld namespace, or framework behavior.
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin"]
 tags = ["native-link", "program-link", "compiler-correctness"]
 [[steps]]
 name = "prepare"
@@ -17,19 +17,19 @@ checks = []
 
 [[steps]]
 name = "compile_m23_math"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/build-m23_math.c", "-o", "${work}/objects/build-m23_math.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/build-m23_math.c", "-o", "${work}/objects/build-m23_math.o"]
 exit = 0
 stdout = ""
 stderr = ""
 [[steps]]
 name = "dylib_m23_math"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-dynamiclib", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "${work}/objects/build-m23_math.o", "-install_name", "${work}/native/libm23_math.dylib", "-current_version", "2.0", "-compatibility_version", "1.0", "-o", "${work}/native/libm23_math.dylib"]
+argv = ["${cc}", {each = "${cc_args}"}, "-dynamiclib", "${work}/objects/build-m23_math.o", "-install_name", "${work}/native/libm23_math.dylib", "-current_version", "2.0", "-compatibility_version", "1.0", "-o", "${work}/native/libm23_math.dylib"]
 exit = 0
 stdout = ""
 stderr = ""
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${work}/sources/absolute", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "-o", "${work}/programs/build/program"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/absolute", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "-o", "${work}/programs/build/program"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -64,7 +64,7 @@ stderr = ""
 
 [[steps]]
 name = "prepare_stub"
-files = [{"write" = {"path" = "${work}/stubs/libm23_math.tbd", "data" = "--- !tapi-tbd\ntbd-version: 4\ntargets: [arm64-macos]\ninstall-name: \"${work}/native/libm23_math.dylib\"\ncurrent-version: 2.0.0\ncompatibility-version: 1.0.0\nexports:\n  - targets: [arm64-macos]\n    symbols: [_m23_add]\n    weak-symbols: []\n    thread-local-symbols: []\n...\n"}}]
+files = [{"write" = {"path" = "${work}/stubs/libm23_math.tbd", "data" = "--- !tapi-tbd\ntbd-version: 4\ntargets: [arm64-macos, x86_64-macos]\ninstall-name: \"${work}/native/libm23_math.dylib\"\ncurrent-version: 2.0.0\ncompatibility-version: 1.0.0\nexports:\n  - targets: [arm64-macos, x86_64-macos]\n    symbols: [_m23_add]\n    weak-symbols: []\n    thread-local-symbols: []\n...\n"}}]
 checks = []
 
 [[steps]]
@@ -96,5 +96,5 @@ exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "ambiguous.json"}
+diagnostics = {"file" = "ambiguous.${target}.json"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]

@@ -513,5 +513,7 @@ pub(super) fn copy_trusted_core_sources(sysroot: &Path) {
             }
         }
     }
-    copy_sources(&source.join("src"), &destination.join("src"));
+    for directory in ["src", "platform"] {
+        copy_sources(&source.join(directory), &destination.join(directory));
+    }
 }

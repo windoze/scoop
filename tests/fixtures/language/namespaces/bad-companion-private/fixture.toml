@@ -2,7 +2,6 @@ schema = 1
 name = "namespace-bad-companion-private"
 inputs = ["../../imported-classes/support/stage3_test.scoop", "origin", "../../reexported-namespaces/provider.scoop", "first", "../../reexported-namespaces/facade.scoop", "second", "../../reexported-namespaces/facade.scoop", "consumer", "../../reexported-namespaces/bad-companion-private.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["namespaces", "negative", "language"]
 
 [[steps]]

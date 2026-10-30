@@ -1,0 +1,9 @@
+link inputs: startup, cone/member order, runtime/object order, libSystem
+native library m23_scoopabi requirement=c131d7d6b3e4ce38498edae531edd96e41e8cd0541b845cda902b76101d6e580 input=$NATIVE_INPUT_0 origins=dev.programlink:scoopabi-provider:0.1.0
+native library m23_scoop_leaf requirement=d818bea82379b94fdde5bf3d2f9bbeac64bf61d92840b81b33bd6cb3904cc8a2 input=$NATIVE_INPUT_1 origins=dev.programlink:scoopabi-provider:0.1.0
+native archive $NATIVE_INPUT_0 members=1
+  member 0 header=8 payload=68..2708 name="managed.o" digest=$NATIVE_MEMBER_0 selected=true
+dynamic provider $NATIVE_PROVIDER_0 install="@rpath/libm23_scoop_leaf.dylib" imports=1
+  load "/usr/lib/libSystem.B.dylib" -> $NATIVE_PROVIDER_1
+dynamic binding _m23_leaf_echo -> "@rpath/libm23_scoop_leaf.dylib" source="@rpath/libm23_scoop_leaf.dylib":_m23_leaf_echo kind=Symbol weak=false
+rpath "$WORK/native"

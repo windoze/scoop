@@ -2,7 +2,6 @@ schema = 1
 name = "shared-argument-materialization-standalone"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../shared-argument-materialization/provider.scoop", "generic-member-standalone", "../../../shared-argument-materialization/standalone.scoop", "generic-member-downstream-standalone", "../../../shared-argument-materialization/downstream.scoop", "runtime-fixture", "../../../imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "arguments_materialize_once_in_source_order_through_artifacts", "language"]
 
 [[steps]]

@@ -2,7 +2,6 @@ schema = 1
 name = "generic-helpers-bad-private-generic"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-helper-provider", "../../../generic-helper-consumption/provider.scoop", "bad-private-generic", "../../../generic-helper-consumption/bad-private-generic.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "helpers", "negative", "language"]
 
 [[steps]]

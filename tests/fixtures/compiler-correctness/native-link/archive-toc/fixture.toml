@@ -3,7 +3,7 @@ name = "native-link-archive-toc"
 inputs = ["cone", "../../../language/native-link/direct/root.scoop", "../../../language/native-link/direct/native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
 # Exercise long BSD member names and the normal table of contents.
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin"]
 tags = ["native-link", "program-link", "compiler-correctness"]
 [[steps]]
 name = "prepare"

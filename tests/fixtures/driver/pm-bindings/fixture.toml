@@ -2,7 +2,7 @@ schema = 1
 name = "pm-workspace-bindings"
 inputs = ["workspace", "shared", "value1", "value2", "check_docs.py"]
 tools = ["scoop", "scoopc", "scoop-pm", "python"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["driver", "pm", "workspace", "cache", "test-command"]
 
 [vars]

@@ -2,7 +2,7 @@ schema = 1
 name = "program-link-union-adapters-combined"
 inputs = ["provider", "../../../language/program-link/union-provider.scoop", "left", "../../../language/program-link/union-adapters-combined-left.scoop", "right", "../../../language/program-link/union-adapters-combined-right.scoop", "root", "../../../language/program-link/union-adapters-combined-consumer.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["program-link", "multi-cone", "driver"]
 variants = [{"name" = "release"}]
 

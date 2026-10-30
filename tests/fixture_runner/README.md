@@ -38,6 +38,7 @@ native companion 用 `{each = "${cc_args}"}` 传平台编译参数：Darwin 为�
 SDK 和 deployment，Linux 为 PIC/pthread；源码自己的标准、优化和告警参数保留。
 Darwin deployment 采用 `MACOSX_DEPLOYMENT_TARGET` 或 `scripts/release.toml` 的明确基线，
 与开发工具保持一致，不读取宿主系统版本。
+`${target_facts.os}`、`${target_facts.arch}` 和 `${target_facts.env}` 来自共享目标目录，适合按 OS／架构／环境检查源码选择，不必在 fixture 中复制完整目标名单。
 `${target_profile}` 是内部 target profile 名称，core artifact 目录使用 canonical `${target}`；`${symbol_prefix}` 是 C/编译器逻辑名字
 在对象符号表中的平台前缀；`${errno_eloop}` 是宿主文件系统的符号链接循环错误码。
 结构／ABI／原生链接专测确有平台差异时，用 `${target}` 选择独立快照；
@@ -49,6 +50,12 @@ ELF 的 `${llvm_target}` 与 `${target}` 相同；Darwin 包含当前 deployment
 工具依次使用 `--llc`、`SCOOP_TEST_PAIRED_LLC`、`LLVM_SYS_221_PREFIX/bin/llc`，
 否则查找 `llc-22` / `llc`；实际版本必须为 LLVM 22.1。
 只为适用 target 的用例发现工具，目标不适用项仍单列，不计为通过。
+
+普通用例省略目标限制，自动适用于已注册目标。系统或机器专用用例声明
+`when = { os = ["darwin", "linux"], arch = "x86_64" }`，支持 `os`／`arch`／`env`，
+取值来自统一 target 目录；每项接受一个字符串或非空字符串数组，字段间取交集。
+只在完整目标确有差异时使用 `targets = ["x86_64-apple-darwin", ...]`，例如以 `${target}`
+选择 ABI 期望或编译器诊断文件。`when` 与 `targets` 同时存在时取交集。
 
 编译目标可用 `--target` 显式选择，默认值来自宿主目录的 `default_target`，不从发行包包含的目标推导可执行范围。纯编译、诊断或产物检查用例可以声明顶层 `requires_target_execution = false`，表示全部步骤只运行宿主工具；默认值为 `true`。只有实际需要运行目标程序的用例才检查宿主的 OS／架构是否相容。Darwin AArch64 宿主执行 x86_64 用例前实际运行 `/usr/bin/arch -x86_64 /usr/bin/true` 检查 Rosetta；成功后通过系统 loader 正常运行产物，不把 Rosetta 验证记作 Intel 硬件验证。`--compile-only` 只执行声明为 `false` 的完整用例，其余用例记录为 `execution-skipped`，不裁掉步骤或算作通过；报告保存该选项且不声称完成全量运行验收。交叉编译仍需显式提供所选目标的 SDK／资源。
 每个用例的步骤与变体保持有序；报告按发现顺序保存。中断时清理运行中的进程，
@@ -70,7 +77,6 @@ name = "example"
 root = "hello.scoop"
 inputs = ["hello.scoop"]
 tools = ["scoop"]
-targets = ["aarch64-apple-darwin"]
 tags = ["cli"]
 
 [[steps]]

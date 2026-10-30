@@ -1,9 +1,9 @@
 schema = 1
 name = "floating-ffi"
 root = "program.scoop"
-inputs = ["program.scoop", "native.c", "scoop.aarch64-apple-darwin.ll", "scoop.x86_64-unknown-linux-gnu.ll", "scoop.x86_64-unknown-linux-musl.ll"]
+inputs = ["program.scoop", "native.c", "scoop.aarch64-apple-darwin.ll", "scoop.x86_64-apple-darwin.ll", "scoop.x86_64-unknown-linux-gnu.ll", "scoop.x86_64-unknown-linux-musl.ll"]
 tools = ["scoop", "scoopc", "cc", "ar", "llc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["floating", "language"]
 variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
 [[steps]]

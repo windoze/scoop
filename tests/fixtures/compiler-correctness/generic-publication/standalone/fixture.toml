@@ -2,7 +2,7 @@ schema = 1
 name = "generic-publication-standalone"
 inputs = ["../../../language/imported-classes/support/stage3_test.scoop", "generic-machine-provider", "../../../language/generic-body-consumption/machine-provider.scoop", "generic-machine-standalone", "../../../language/generic-body-consumption/machine-standalone.scoop", "generic-downstream-standalone", "../../../language/generic-body-consumption/machine-downstream-standalone.scoop", "runtime-fixture", "../../../language/imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["generics", "generic-publication", "compiler-correctness"]
 [[steps]]
 name = "core"

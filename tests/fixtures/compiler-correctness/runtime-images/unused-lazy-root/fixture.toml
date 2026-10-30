@@ -2,7 +2,7 @@ schema = 1
 name = "runtime-images-unused-lazy-root"
 inputs = ["../../../language/imported-classes/support/stage3_test.scoop", "lazy-failure-provider", "../../../language/runtime-images/lazy-failure-provider.scoop", "../support/trace.c", "unused-lazy-root", "../../../language/runtime-images/unused-lazy-root.scoop"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["runtime-images", "lazy", "compiler-correctness"]
 [[steps]]
 name = "core"

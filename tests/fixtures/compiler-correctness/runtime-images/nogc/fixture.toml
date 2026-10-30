@@ -2,7 +2,7 @@ schema = 1
 name = "runtime-images-nogc"
 inputs = ["../../../language/imported-classes/support/stage3_test.scoop", "empty-provider", "../../../language/runtime-images/empty-provider.scoop", "nogc", "../../../language/runtime-images/nogc.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["runtime-images", "roots", "compiler-correctness"]
 [[steps]]
 name = "core"

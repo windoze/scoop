@@ -2,7 +2,7 @@ schema = 1
 name = "function-adapters-native-value"
 inputs = ["../../../language/imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../language/function-adapters/provider.scoop", "generic-member-native-value", "../../../language/function-adapters/native-value.scoop", "generic-member-downstream-native-value", "../../../language/function-adapters/downstream.scoop", "runtime-fixture", "../../../language/imported-classes/support/gc.c", "../../../language/function-adapters/native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["generics", "native_function_values_adapt_after_external_address_selection", "compiler-correctness"]
 [[steps]]
 name = "core"

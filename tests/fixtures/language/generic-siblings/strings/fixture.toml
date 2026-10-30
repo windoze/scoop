@@ -2,7 +2,6 @@ schema = 1
 name = "generic-siblings-strings"
 inputs = ["../../imported-classes/support/stage3_test.scoop", "generic-odr-provider", "../../generic-odr-siblings/provider.scoop", "generic-odr-strings-left", "../../generic-odr-siblings/strings-left.scoop", "generic-odr-strings-right", "../../generic-odr-siblings/strings-right.scoop", "generic-odr-strings-consumer", "../../generic-odr-siblings/strings-consumer.scoop", "runtime-fixture", "../../imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generic-siblings", "strings", "language"]
 
 [[steps]]

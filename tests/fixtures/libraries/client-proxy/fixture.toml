@@ -10,7 +10,7 @@ support = [
     "../client-network/peer.py",
 ]
 tools = ["scoop", "scoopc", "python"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["http", "client", "proxy", "tls", "asyncio", "prebuilt", "libraries"]
 variants = [{"name" = "release", "vars" = {"mode" = ["--release"]}}]
 [[steps]]

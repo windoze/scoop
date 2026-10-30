@@ -2,7 +2,7 @@ schema = 1
 name = "materialized-type-uses-type-operands"
 inputs = ["provider", "runtime", "../../../language/materialized-type-uses/type-operands.scoop", "factory"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["materialized-type-uses", "cross-cone", "compiler-correctness"]
 [[steps]]
 name = "core"

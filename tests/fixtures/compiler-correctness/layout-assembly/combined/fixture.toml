@@ -2,7 +2,7 @@ schema = 1
 name = "layout-assembly-combined"
 inputs = ["../../../language/imported-classes/support/stage3_test.scoop", "../../../language/lir-export-assembly/combined.scoop", "../../../language/lir-export-assembly/private-local.scoop", "../support/unrelated.scoop", "provider", "consumer"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["layout-assembly", "combined", "compiler-correctness"]
 [[steps]]
 name = "core"

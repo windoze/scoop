@@ -2,7 +2,7 @@ schema = 1
 name = "native-c-reject-syntax-error"
 inputs = ["cone"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["native", "negative", "compiler-correctness"]
 [[steps]]
 name = "prepare"

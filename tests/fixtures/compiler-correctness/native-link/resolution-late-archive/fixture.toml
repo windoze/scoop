@@ -3,7 +3,7 @@ name = "native-link-resolution-late-archive"
 inputs = ["cone", "../../../language/native-link/resolution/root.scoop", "../../../language/native-link/resolution/dynamic.c", "native-sources/compile_control.c", "../../../language/native-link/resolution/archive.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
 # This fixture exercises Mach-O dylib, dyld namespace, or framework behavior.
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin"]
 tags = ["native-link", "program-link", "compiler-correctness"]
 [[steps]]
 name = "prepare"
@@ -17,13 +17,13 @@ checks = []
 
 [[steps]]
 name = "compile_m23_late_dynamic"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/build-m23_late_dynamic.c", "-o", "${work}/objects/build-m23_late_dynamic.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/build-m23_late_dynamic.c", "-o", "${work}/objects/build-m23_late_dynamic.o"]
 exit = 0
 stdout = ""
 stderr = ""
 [[steps]]
 name = "dylib_m23_late_dynamic"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-dynamiclib", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "${work}/objects/build-m23_late_dynamic.o", "-install_name", "@rpath/libm23_late_dynamic.dylib", "-current_version", "2.0", "-compatibility_version", "1.0", "-o", "${work}/native/libm23_late_dynamic.dylib"]
+argv = ["${cc}", {each = "${cc_args}"}, "-dynamiclib", "${work}/objects/build-m23_late_dynamic.o", "-install_name", "@rpath/libm23_late_dynamic.dylib", "-current_version", "2.0", "-compatibility_version", "1.0", "-o", "${work}/native/libm23_late_dynamic.dylib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -34,7 +34,7 @@ checks = []
 
 [[steps]]
 name = "compile_control"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/control.c", "-o", "${work}/objects/control.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/control.c", "-o", "${work}/objects/control.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -48,7 +48,7 @@ env = {"ZERO_AR_DATE" = "1"}
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${work}/sources/late", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/late", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -78,7 +78,7 @@ checks = []
 
 [[steps]]
 name = "compile_archive"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/archive.c", "-o", "${work}/objects/archive.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/archive.c", "-o", "${work}/objects/archive.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -108,5 +108,5 @@ exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "reject_takeover.json"}
+diagnostics = {"file" = "reject_takeover.${target}.json"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]

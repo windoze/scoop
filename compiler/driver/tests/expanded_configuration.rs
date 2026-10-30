@@ -15,10 +15,11 @@ fn child_checks_workspace_configuration_without_reinterpreting_the_manifest() {
     let root = workspace.path().join("core");
     std::fs::create_dir(&root).unwrap();
     std::fs::write(workspace.path().join("Cone.toml"), "schema=1\n[workspace]\nmembers=['core']\n[workspace.cone]\ngroup='scoop'\nversion='0.1.0'\n").unwrap();
-    let text = "schema=1\n[cone]\ngroup={workspace=true}\nname='scoop.core'\nversion={workspace=true}\nkind='library'\n";
+    let text = "schema=1\n[[sources]]\npath='src'\n[[sources]]\npath='platform/unix'\n[cone]\ngroup={workspace=true}\nname='scoop.core'\nversion={workspace=true}\nkind='library'\n";
     std::fs::write(root.join("Cone.toml"), text).unwrap();
-    let sources = scoop_toolchain::development_workspace_root().join("sysroot/src/scoop.core/src");
-    std::os::unix::fs::symlink(&sources, root.join("src")).unwrap();
+    let sources = scoop_toolchain::development_workspace_root().join("sysroot/src/scoop.core");
+    std::os::unix::fs::symlink(sources.join("src"), root.join("src")).unwrap();
+    std::os::unix::fs::symlink(sources.join("platform"), root.join("platform")).unwrap();
     let document = parse_package_manifest(text, scoop_toolchain::SOURCE_TARGETS).unwrap();
     let manifest = ParsedConeManifest::bind_package(
         &document,

@@ -1,0 +1,4 @@
+link inputs: startup, cone/member order, runtime/object order, libSystem
+native library m23_storage requirement=b775906fa7fe6bf1902f5dfbf136505973bbc7e11c97bc92dbdcfd2146668c92 input=$NATIVE_INPUT_0 origins=dev.programlink:storage-provider:0.1.0, dev.programlink:storage-root:0.1.0
+native archive $NATIVE_INPUT_0 members=1
+  member 0 header=8 payload=88..3512 name="storage-payload.o" digest=$NATIVE_MEMBER_0 selected=true

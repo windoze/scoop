@@ -3,7 +3,7 @@ name = "compiler-performance-function-data"
 root = "function-data.scoop"
 inputs = ["function-data.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["compiler-performance", "codegen", "run", "compiler-correctness"]
 variants = [
   {name = "debug", vars = {profile = "debug"}},

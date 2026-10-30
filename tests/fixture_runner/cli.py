@@ -27,6 +27,7 @@ from .cores import (
 from .discovery import discover
 from .model import ConfigurationError, EnvironmentError
 from .suite import run_suite
+from .targets import applicable as target_applicable
 
 
 def arguments(argv):
@@ -124,7 +125,7 @@ def environment(repo, work, fixtures, args):
     applicable = [
         fixture
         for fixture in fixtures
-        if (not fixture.data.get("targets") or target in fixture.data["targets"])
+        if target_applicable(fixture.data, target)
         and not (args.compile_only and fixture.data.get("requires_target_execution", True))
     ]
     if any(f.data.get("requires_target_execution", True) for f in applicable) and not can_execute(
@@ -156,6 +157,7 @@ def environment(repo, work, fixtures, args):
         "inheritance_core": str(work / "inheritance-core"),
         "member_defaults_core": str(work / "member-defaults-core"),
         "target": target,
+        "target_facts": {key: TARGETS[target][key] for key in ("os", "arch", "env")},
         "llvm_target": TARGETS[target]["llvm_triple"],
         "target_profile": TARGETS[target]["profile"],
         "symbol_prefix": "_" if TARGETS[target]["os"] == "darwin" else "",

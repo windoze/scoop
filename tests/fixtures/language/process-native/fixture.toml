@@ -2,7 +2,7 @@ schema = 1
 name = "process-native"
 inputs = ["consumer", "probe.c", "child.c"]
 tools = ["scoop", "scoopc", "cc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["platform", "process", "language"]
 variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
 [[steps]]

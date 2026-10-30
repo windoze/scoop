@@ -2,7 +2,7 @@ schema = 1
 name = "sysroot-reject-ambiguous"
 inputs = ["cone", "platform", "helper"]
 tools = ["scoop", "scoopc", "scoop-link"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["sysroot", "resolver", "driver"]
 [vars]
 options = ["--sysroot", "${work}/sysroot", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]

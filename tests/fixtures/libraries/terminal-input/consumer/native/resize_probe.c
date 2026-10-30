@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <stddef.h>
+#include <time.h>
 
 static volatile sig_atomic_t calls, mask_ok, signal_ok;
 static int selected;
@@ -44,16 +45,22 @@ int m59_install_resize(int mode) {
 }
 
 int m59_verify_resize(void) {
+    /* Kqueue readiness can precede signal delivery to a process thread. */
+    const struct timespec pause = {0, 1000000};
+    for (int attempt = 0; selected <= 2 && calls == 0 && attempt < 1000; ++attempt)
+        nanosleep(&pause, NULL);
     struct sigaction action;
     if (sigaction(SIGWINCH, NULL, &action) < 0)
         return -1;
-    if (selected == 2 || selected == 4) {
+    /* Check SA_RESETHAND through the second delivery below. Rosetta can
+       report the original handler after the one-shot action has reset. */
+    if (selected == 4) {
         if (action.sa_handler != SIG_DFL)
             return -2;
     } else if (selected == 3) {
         if (action.sa_handler != SIG_IGN)
             return -3;
-    } else {
+    } else if (selected < 2) {
         if ((selected == 0 &&
              (!(action.sa_flags & SA_SIGINFO) || action.sa_sigaction != detailed)) ||
             (selected == 1 && action.sa_handler != observed))

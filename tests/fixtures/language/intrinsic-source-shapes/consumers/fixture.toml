@@ -2,7 +2,6 @@ schema = 1
 name = "intrinsic-source-shapes-consumers"
 inputs = ["program.scoop", "../declarations.scoop", "../consumers.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["intrinsic-source-shapes", "modified-core", "language"]
 [[steps]]
 name = "runtime_vendor"

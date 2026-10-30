@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "dynamic dependency @rpath/libm23_leaf.dylib from @rpath/libm23_facade.dylib has 0 candidates: []",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

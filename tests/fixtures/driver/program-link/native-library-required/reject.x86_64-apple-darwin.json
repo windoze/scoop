@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "missing native library \"additional\" for x86_64-apple-darwin; no candidate in explicit roots or the selected target's system libraries; requirement ba79cb2931a164c669e9b59b139437b6d1e6442bf29fb6a34983363c1c23ff30; origins: dev.programlink:native-library-required:0.1.0",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

@@ -189,7 +189,9 @@ fn runtime_input(
             Ok((objects, index.clone()))
         }
         RuntimeInput::SourceRoot(root) => {
-            let unwind = if target.id() == scoop_target_data::DARWIN_AARCH64_ID {
+            let unwind = if target.c_bridge_toolchain().native_environment()
+                == scoop_target_data::NativeEnvironment::Darwin
+            {
                 final_link.unwind_prefix.clone()
             } else {
                 Some(

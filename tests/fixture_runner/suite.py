@@ -5,6 +5,7 @@ from threading import Event
 
 from .execute import execute
 from .model import Result
+from .targets import applicable
 
 
 def run_suite(fixtures, common, work, update, jobs, *, compile_only=False):
@@ -20,7 +21,7 @@ def run_suite(fixtures, common, work, update, jobs, *, compile_only=False):
     with ThreadPoolExecutor(max_workers=jobs) as pool:
         pending = {}
         for index, fixture in enumerate(fixtures):
-            if fixture.data.get("targets") and common["target"] not in fixture.data["targets"]:
+            if not applicable(fixture.data, common.get("target")):
                 record(
                     index,
                     Result(

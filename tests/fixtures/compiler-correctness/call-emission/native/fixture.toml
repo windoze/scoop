@@ -3,7 +3,7 @@ name = "call-emission-native"
 root = "program.scoop"
 inputs = ["program.scoop", "native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["codegen", "native", "compiler-correctness"]
 [[steps]]
 name = "native"

@@ -2,7 +2,7 @@ schema = 1
 name = "direct-c-artifacts"
 inputs = ["provider", "consumer", "native.c", "../../../language/direct-c/native.h"]
 tools = ["scoop", "scoopc", "scoop-link", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["abi", "generics", "compiler-correctness"]
 variants = [
   {name = "debug", vars = {profile = "debug", stack_trace = "true", symbol_args = ["--keep-symbols", "--emit-debug-file"], provider_profile = "release"}},

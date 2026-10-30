@@ -2,7 +2,7 @@ schema = 1
 name = "native-link-storage-object"
 inputs = ["storage-provider", "../../../language/native-link/storage/provider.scoop", "storage-facade", "../../../language/native-link/storage/facade.scoop", "storage-root", "../../../language/native-link/storage/combined.scoop", "../../../language/native-link/storage/native.c"]
 tools = ["scoop", "scoopc", "cc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["native-link", "program-link", "compiler-correctness"]
 variants = [{"name" = "normal"}]
 

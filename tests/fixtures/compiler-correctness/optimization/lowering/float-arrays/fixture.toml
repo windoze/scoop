@@ -2,7 +2,7 @@ schema = 1
 name = "strict-floating-array-kernels"
 inputs = ["Cone.toml", "main.scoop", "edges.scoop", "inspect.py", "../../../../../benchmarks/arrays/floating/src/kernels.scoop"]
 tools = ["scoop", "python"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["optimization", "array", "floating", "compiler-correctness"]
 variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
 

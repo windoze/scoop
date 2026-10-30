@@ -2,7 +2,7 @@ schema = 1
 name = "native-cxx-dylib-cleanup"
 inputs = ["cone", "native.cpp", "cleanup.c"]
 tools = ["scoop", "scoopc", "cc"]
-targets = ["aarch64-apple-darwin"]
+when = { os = "darwin" }
 tags = ["native", "native-link", "driver"]
 variants = [{"name" = "release"}]
 

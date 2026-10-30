@@ -2,7 +2,7 @@ schema = 1
 name = "native-cxx-mode-cache"
 inputs = ["cone"]
 tools = ["scoop"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu"]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu"]
 tags = ["native", "cxx", "cache", "compiler-correctness"]
 [vars]
 options = ["--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]

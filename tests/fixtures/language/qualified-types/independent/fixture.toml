@@ -2,7 +2,6 @@ schema = 1
 name = "qualified-types-independent"
 inputs = ["../../imported-classes/support/stage3_test.scoop", "origin", "../provider.scoop", "first", "../reexport-provider.scoop", "second", "../reexport-provider.scoop", "consumer", "../independent.scoop", "runtime-fixture", "../../imported-classes/support/gc.c", "extra", "../value-package-provider.scoop"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["qualified-types", "language"]
 
 [[steps]]

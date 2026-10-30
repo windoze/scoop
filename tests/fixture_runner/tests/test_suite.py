@@ -24,6 +24,26 @@ def fixture(base, name, steps):
 
 
 class SuiteTests(unittest.TestCase):
+    def test_target_conditions_select_complete_fixtures(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            step = {
+                "name": "write",
+                "files": [{"write": {"path": "${work}/marker", "data": "ran"}}],
+            }
+            candidates = [fixture(base, name, [step]) for name in ("unix-x64", "darwin-arm", "gnu")]
+            candidates[0].data["when"] = {"os": ["darwin", "linux"], "arch": "x86_64"}
+            candidates[1].data["when"] = {"os": "darwin", "arch": "aarch64"}
+            candidates[2].data["when"] = {"env": "gnu"}
+            with contextlib.redirect_stdout(io.StringIO()):
+                results = run_suite(candidates, {"target": "x86_64-apple-darwin"}, base, False, 2)
+            self.assertEqual(
+                [r.status for r in results], ["passed", "inapplicable", "inapplicable"]
+            )
+            self.assertTrue((base / "cases/0/normal/marker").is_file())
+            self.assertFalse((base / "cases/1").exists())
+            self.assertFalse((base / "cases/2").exists())
+
     def test_compile_only_runs_complete_host_fixtures_and_records_skipped_programs(self):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)

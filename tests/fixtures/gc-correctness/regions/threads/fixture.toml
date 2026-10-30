@@ -3,7 +3,6 @@ name = "regions-threads"
 root = "program.scoop"
 inputs = ["program.scoop", "../native.c", "../../../language/callback/native.c", "../../../language/callback/threading.h"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["regions", "gc", "gc-correctness"]
 variants = [
   {name = "debug", vars = {profile = "debug"}},

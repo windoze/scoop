@@ -2,7 +2,7 @@ schema = 1
 name = "runtime-images-schedule-root"
 inputs = ["../../../language/imported-classes/support/stage3_test.scoop", "schedule-a-base", "../../../language/runtime-images/schedule-a-base.scoop", "schedule-b-next", "../../../language/runtime-images/schedule-b-next.scoop", "schedule-c-peer", "../../../language/runtime-images/schedule-c-peer.scoop", "schedule-d-join", "../../../language/runtime-images/schedule-d-join.scoop", "../support/trace.c", "schedule-root", "../../../language/runtime-images/schedule-root.scoop"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["runtime-images", "schedule", "compiler-correctness"]
 [[steps]]
 name = "core"

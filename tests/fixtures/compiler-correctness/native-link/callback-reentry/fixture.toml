@@ -2,7 +2,7 @@ schema = 1
 name = "native-link-callback-reentry"
 inputs = ["callback-root", "../../../language/native-link/callbacks/root.scoop", "../../../language/native-link/callbacks/native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["native-link", "program-link", "compiler-correctness"]
 variants = [{"name" = "normal"}]
 

@@ -232,6 +232,7 @@ pub(super) fn copy_trusted_core_sources(sysroot: &Path) {
         }
     }
     copy_sources(&source.join("src"), &destination.join("src"));
+    copy_sources(&source.join("platform"), &destination.join("platform"));
     std::fs::write(
         destination.join("src/stage3_test.scoop"),
         "public fun stage3CoreAnswer(): Long = 42\n\

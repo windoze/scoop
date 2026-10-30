@@ -2,7 +2,6 @@ schema = 1
 name = "core-layouts-shared-callables-standalone"
 inputs = ["../../imported-classes/support/stage3_test.scoop", "../../core-layout-exports/shared-callables-standalone.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["core-layouts", "shared_source_callable_inventory_replays_bodies_and_abstract_overrides", "language"]
 
 [[steps]]

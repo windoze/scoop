@@ -2,7 +2,6 @@ schema = 1
 name = "generic-siblings-adapters-combined"
 inputs = ["../../imported-classes/support/stage3_test.scoop", "generic-odr-provider", "../../odr-member-unions/provider.scoop", "generic-odr-adapters-combined-left", "../../odr-member-unions/adapters-combined-left.scoop", "generic-odr-adapters-combined-right", "../../odr-member-unions/adapters-combined-right.scoop", "generic-odr-adapters-combined-consumer", "../../odr-member-unions/adapters-combined-consumer.scoop", "../../odr-member-unions/addresses.c", "runtime-fixture", "../../imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generic-siblings", "adapters", "language"]
 
 [[steps]]

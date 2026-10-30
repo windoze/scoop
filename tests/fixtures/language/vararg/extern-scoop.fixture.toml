@@ -3,7 +3,7 @@ name = "vararg-extern-scoop"
 root = "extern-scoop.scoop"
 inputs = ["extern-scoop.scoop", "native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["single-file", "run", "native", "language"]
 
 [[steps]]

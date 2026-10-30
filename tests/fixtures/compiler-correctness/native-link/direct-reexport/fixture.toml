@@ -2,7 +2,7 @@ schema = 1
 name = "native-link-direct-reexport"
 inputs = ["native-provider", "../../../language/native-link/direct/provider.scoop", "native-facade", "../../../language/native-link/direct/facade.scoop", "native-root", "../../../language/native-link/direct/combined.scoop", "../../../language/native-link/direct/native.c"]
 tools = ["scoop", "scoopc", "cc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["native-link", "program-link", "compiler-correctness"]
 variants = [{"name" = "normal"}]
 

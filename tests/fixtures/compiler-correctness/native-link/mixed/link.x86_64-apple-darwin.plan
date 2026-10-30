@@ -1,0 +1,11 @@
+link inputs: startup, cone/member order, runtime/object order, libSystem
+native library m23_mix_archive requirement=b05e01432111692b50c4b596cd9b82d3accbd99353502baff677c5bae525da0b input=$NATIVE_INPUT_0 origins=dev.programlink:mixed-provider:0.1.0
+native library m23_mix_dynamic requirement=da49ef5391ee7e40a1d5c888c8904c198f5e5f94fdb7905af1f5807c3ba31a82 input=$NATIVE_INPUT_1 origins=dev.programlink:mixed-provider:0.1.0
+native archive $NATIVE_INPUT_0 members=3
+  member 0 header=8 payload=68..748 name="archive.o" digest=$NATIVE_MEMBER_0 selected=true
+  member 1 header=748 payload=808..1488 name="helper.o" digest=$NATIVE_MEMBER_1 selected=true
+  member 2 header=1488 payload=1548..2444 name="unused.o" digest=$NATIVE_MEMBER_2 selected=false
+dynamic provider $NATIVE_PROVIDER_0 install="@rpath/libm23_mix_dynamic.dylib" imports=1
+  load "/usr/lib/libSystem.B.dylib" -> $NATIVE_PROVIDER_1
+dynamic binding _m23_dynamic -> "@rpath/libm23_mix_dynamic.dylib" source="@rpath/libm23_mix_dynamic.dylib":_m23_dynamic kind=Symbol weak=false
+rpath "$WORK/native"

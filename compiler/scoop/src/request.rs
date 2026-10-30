@@ -382,6 +382,7 @@ mod tests {
         let canonical = scoop_toolchain::host_target_triple().unwrap();
         let alias = match crate::test_artifacts::host_target().target().id() {
             scoop_target_data::DARWIN_AARCH64_ID => "arm64-apple-macosx14.0",
+            scoop_target_data::DARWIN_X86_64_ID => "x86_64-apple-macosx27.0.1",
             scoop_target_data::LINUX_X86_64_GNU_ID => "x86_64-linux-gnu",
             scoop_target_data::LINUX_X86_64_MUSL_ID => "x86_64-linux-musl",
             scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID

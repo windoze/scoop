@@ -2,7 +2,7 @@ schema = 1
 name = "layout-dependencies-lir-standalone"
 inputs = ["../../../language/imported-classes/support/stage3_test.scoop", "../../../language/lir-dependency-graph/standalone.scoop", "consumer", "downstream", "../../../language/core-layout-exports/base.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["layout-dependencies", "plain", "compiler-correctness"]
 [[steps]]
 name = "prepare_core"

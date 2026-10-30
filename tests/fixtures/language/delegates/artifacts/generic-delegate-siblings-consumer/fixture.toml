@@ -2,7 +2,6 @@ schema = 1
 name = "generic-delegate-siblings-consumer"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "delegate-siblings-provider", "../../../generic-delegate-siblings/provider.scoop", "delegate-siblings-left", "../../../generic-delegate-siblings/left.scoop", "delegate-siblings-right", "../../../generic-delegate-siblings/right.scoop", "delegate-siblings-consumer", "../../../generic-delegate-siblings/consumer.scoop", "runtime-fixture", "../../../imported-classes/support/gc.c", "../support/siblings.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "generic_delegate_siblings_share_initialization_and_failure_with_moving_gc", "language"]
 
 [[steps]]

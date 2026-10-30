@@ -3,7 +3,7 @@ name = "source-package-rules"
 root = "cone/Cone.toml"
 inputs = ["cone", "escaped", "explicit.scoop", "default.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["driver", "package", "single-file", "testing", "documentation"]
 
 [[steps]]

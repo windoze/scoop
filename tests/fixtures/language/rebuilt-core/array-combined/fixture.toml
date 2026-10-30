@@ -2,7 +2,6 @@ schema = 1
 name = "rebuilt-core-array-combined"
 inputs = ["../../imported-classes/support/stage3_test.scoop", "rebuilt-core-array-combined", "../../rebuilt-core-generics/combined.scoop", "rebuilt-core-array-combined-downstream", "../../rebuilt-core-generics/downstream.scoop", "runtime-fixture", "../../imported-classes/support/gc.c", "../../rebuilt-core-generics/core-additions.scoop"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["rebuilt-core", "array", "language"]
 
 [[steps]]

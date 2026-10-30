@@ -2,7 +2,7 @@ schema = 1
 name = "platform-cone"
 inputs = ["provider", "consumer"]
 tools = ["scoop", "scoopc", "scoop-link"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["ffi", "native", "callback", "atomics", "language"]
 variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
 [[steps]]

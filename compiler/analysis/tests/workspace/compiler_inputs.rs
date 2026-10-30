@@ -6,8 +6,13 @@ fn include_file_changes_refresh_root_and_source_dependency_without_source_edits(
     let root = directory.path();
     let configuration = setup(root);
     let core_sources =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../sysroot/src/scoop.core/src");
-    std::os::unix::fs::symlink(core_sources, root.join("core/src/ordinary")).unwrap();
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../sysroot/src/scoop.core");
+    std::os::unix::fs::symlink(core_sources.join("src"), root.join("core/src/ordinary")).unwrap();
+    std::os::unix::fs::symlink(
+        core_sources.join("platform/unix"),
+        root.join("core/src/platform"),
+    )
+    .unwrap();
     let app = root.join("app/Cone.toml");
     let manifest = std::fs::read_to_string(&app).unwrap();
     std::fs::write(

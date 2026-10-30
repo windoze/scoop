@@ -2,7 +2,6 @@ schema = 1
 name = "core-layouts-shared-abi-standalone"
 inputs = ["../../imported-classes/support/stage3_test.scoop", "../../core-layout-exports/shared-abi-standalone.scoop", "consumer"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["core-layouts", "shared_lir_callable_abis_replay_zst_indirect_results_and_boxing_adjustments", "language"]
 
 [[steps]]

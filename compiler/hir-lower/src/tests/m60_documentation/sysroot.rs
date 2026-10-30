@@ -3,13 +3,8 @@ use super::*;
 #[test]
 fn m60_documentation_projects_real_core_sources_and_canonical_annotations() {
     let root =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../sysroot/src/scoop.core/src");
-    let mut paths = std::fs::read_dir(&root)
-        .unwrap()
-        .map(|entry| entry.unwrap().path())
-        .filter(|path| path.extension().is_some_and(|ext| ext == "scoop"))
-        .collect::<Vec<_>>();
-    paths.sort();
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../sysroot/src/scoop.core");
+    let paths = core::sysroot_sources();
     let mut parsed = Vec::new();
     let mut texts = Vec::new();
     let mut contexts = Vec::new();
@@ -21,10 +16,14 @@ fn m60_documentation_projects_real_core_sources_and_canonical_annotations() {
             text.push_str("public fun documentationInferredBoolean() = true\n");
             text.push_str("public fun documentationInferredString() = \"text\"\n");
         }
-        let identity = core_source_identity(&format!(
-            "src/{}",
-            path.file_name().unwrap().to_str().unwrap()
-        ));
+        let identity = core_source_identity(
+            &path
+                .strip_prefix(&root)
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .replace('\\', "/"),
+        );
         let syntax = scoop_parser::parse(&text).unwrap();
         documentation.push(ast::IdentifiedSourceDocumentation {
             source: identity.clone(),

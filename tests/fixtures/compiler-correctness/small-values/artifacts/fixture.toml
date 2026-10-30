@@ -2,7 +2,7 @@ schema = 1
 name = "small-values-artifacts"
 inputs = ["provider", "consumer"]
 tools = ["scoop", "scoopc", "scoop-link"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["stage-golden", "abi", "generics", "compiler-correctness"]
 variants = [{"name" = "debug", "vars" = {"profile" = "debug", "provider_profile" = "release", "symbol_args" = ["--keep-symbols", "--emit-debug-file"], "stack_trace" = "true"}}, {"name" = "release", "vars" = {"profile" = "release", "provider_profile" = "debug", "symbol_args" = [], "stack_trace" = "false"}}]
 

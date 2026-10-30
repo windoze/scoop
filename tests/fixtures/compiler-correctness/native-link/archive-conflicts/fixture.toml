@@ -2,7 +2,7 @@ schema = 1
 name = "native-link-archive-conflicts"
 inputs = ["cone", "../../../language/native-link/direct/root.scoop", "../../../language/native-link/direct/native.c", "native-sources/first_missing.c", "native-sources/second_missing.c", "native-sources/first_strong.c", "native-sources/second_strong.c", "native-sources/first_weak.c", "native-sources/second_weak.c", "native-sources/first_constructor.c", "native-sources/second_constructor.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["native-link", "program-link", "compiler-correctness"]
 [[steps]]
 name = "prepare"

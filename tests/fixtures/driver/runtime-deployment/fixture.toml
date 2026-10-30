@@ -2,12 +2,12 @@ schema = 1
 name = "runtime-deployment"
 inputs = ["../deployment/cone"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+when = { os = "darwin" }
 tags = ["deployment", "runtime", "negative", "driver"]
 
 [[steps]]
 name = "reject"
-argv = ["${scoop}", "build", "--release", "${fixture}/../deployment/cone", "--lockfile", "${work}/source-lock-0.lock", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--message-format", "json", "-o", "${work}/program"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "--release", "${fixture}/../deployment/cone", "--lockfile", "${work}/source-lock-0.lock", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--message-format", "json", "-o", "${work}/program"]
 env = {MACOSX_DEPLOYMENT_TARGET = "27.0"}
 exit = 1
 stdout = ""

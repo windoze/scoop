@@ -2,7 +2,6 @@ schema = 1
 name = "shared-singleton-reads-bad-default-type"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../shared-singleton-reads/provider.scoop", "bad-default-type", "../../../shared-singleton-reads/bad-default-type.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "singleton_reads_share_initialization_and_storage_through_artifacts", "negative", "language"]
 
 [[steps]]

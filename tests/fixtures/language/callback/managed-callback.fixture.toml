@@ -3,7 +3,6 @@ name = "callback-managed-callback"
 root = "managed-callback.scoop"
 inputs = ["managed-callback.scoop", "native.c", "threading.h"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["single-file", "run", "native", "language"]
 variants = [{"name" = "release"}]
 

@@ -2,7 +2,6 @@ schema = 1
 name = "shared-bound-properties-combined"
 inputs = ["../../../imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../../shared-bound-properties/provider.scoop", "generic-member-combined", "../../../shared-bound-properties/combined.scoop", "generic-member-downstream-combined", "../../../shared-bound-properties/downstream.scoop", "runtime-fixture", "../../../imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc-ucrt", "x86_64-w64-windows-llvm-mingw-msvcrt", "x86_64-w64-windows-llvm-mingw-ucrt"]
 tags = ["generics", "class_bound_properties_republish_with_original_storage_and_accessors", "language"]
 
 [[steps]]

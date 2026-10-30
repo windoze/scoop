@@ -3,7 +3,7 @@ name = "boxing-payload-roots"
 root = "program.scoop"
 inputs = ["program.scoop"]
 tools = ["scoop"]
-targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+when = { os = ["darwin", "linux"] }
 tags = ["optimization", "boxing", "escape", "generic", "compiler-correctness"]
 variants = [
   {name = "debug", vars = {profile = "debug"}, env = {SCOOP_GC_STRESS_MOVE = "1"}},
