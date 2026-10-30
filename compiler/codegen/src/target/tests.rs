@@ -2,6 +2,7 @@ use super::*;
 use std::path::Path;
 
 mod loop_alignment;
+mod producer_symbols;
 
 #[test]
 fn linked_backend_is_llvm_22_1() {

@@ -213,7 +213,9 @@ impl SlibDiagnostic for WireError {
             | WireErrorKind::UnexpectedField { .. } => SlibErrorCode::WireInvalidField,
             WireErrorKind::UnknownTag { .. } => SlibErrorCode::WireUnknownTag,
             WireErrorKind::InvalidLength { .. } => SlibErrorCode::WireInvalidLength,
-            WireErrorKind::IntegerOutOfRange => SlibErrorCode::WireIntegerOutOfRange,
+            WireErrorKind::IntegerOutOfRange | WireErrorKind::InvalidIndex { .. } => {
+                SlibErrorCode::WireIntegerOutOfRange
+            }
 
             WireErrorKind::Allocation => SlibErrorCode::Allocation,
         };
@@ -347,6 +349,10 @@ impl SlibDiagnostic for MetadataReadError {
     fn diagnostic(&self) -> SlibDiagnosticRecord {
         match self {
             Self::CanonicalWire(error) => error.diagnostic(),
+            Self::InvalidIdTable => SlibDiagnosticRecord::new(
+                SlibErrorCode::WireNonCanonical,
+                WirePath::root().field(4),
+            ),
             Self::BadMagic { expected } => SlibDiagnosticRecord::new(
                 SlibErrorCode::WireNonCanonical,
                 WirePath::root().field(1),

@@ -9,6 +9,8 @@ use scoop_wire::{
 use crate::{CapabilityContractRegistry, MemberPurposeSet, SectionLocation};
 
 pub(crate) const METADATA_SCHEMA: u32 = 3;
+pub(crate) const LIR_METADATA_SCHEMA: u32 = 4;
+mod storage;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum MetadataLocation {
@@ -18,6 +20,12 @@ pub enum MetadataLocation {
 }
 
 impl MetadataLocation {
+    pub(crate) const fn schema(self) -> u32 {
+        match self {
+            Self::Hir | Self::Mir => METADATA_SCHEMA,
+            Self::Lir => LIR_METADATA_SCHEMA,
+        }
+    }
     const fn magic(self) -> &'static [u8; 8] {
         match self {
             Self::Hir => b"SCOOPHIR",
@@ -133,17 +141,7 @@ impl MetadataEnvelope {
 
 impl WireEncode for MetadataEnvelope {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
-        encoder.field(1)?;
-        encoder.bytes(self.location.magic())?;
-        encoder.field(2)?;
-        encoder.unsigned(u64::from(METADATA_SCHEMA))?;
-        encoder.field(3)?;
-        encoder.array(self.sections.len() as u64)?;
-        for section in &self.sections {
-            section.encode(encoder)?;
-        }
-        Ok(())
+        storage::encode(self, encoder)
     }
 }
 
@@ -178,9 +176,19 @@ pub struct DecodedMetadataSection<'input> {
     capability: CapabilityId,
     required_for: MemberPurposeSet,
     payload: &'input [u8],
+    id_table: Option<&'input [u8]>,
 }
 
 impl<'input> DecodedMetadataSection<'input> {
+    pub fn decode<T: WireDecode>(&self) -> Result<T, WireError> {
+        let mut decoder = match self.id_table {
+            Some(table) => Decoder::with_byte32_table(self.payload, table)?,
+            None => Decoder::new(self.payload)?,
+        };
+        let value = T::decode(&mut decoder)?;
+        decoder.finish()?;
+        Ok(value)
+    }
     pub const fn location(&self) -> MetadataLocation {
         self.location
     }
@@ -202,6 +210,7 @@ struct UnvalidatedMetadataEnvelope<'input> {
     magic: &'input [u8],
     outer_schema: u32,
     sections: Vec<UnvalidatedMetadataSection<'input>>,
+    id_table: &'input [u8],
 }
 
 impl<'input> UnvalidatedMetadataEnvelope<'input> {
@@ -212,10 +221,21 @@ impl<'input> UnvalidatedMetadataEnvelope<'input> {
         if self.magic != location.magic() {
             return Err(MetadataReadError::BadMagic { expected: location });
         }
-        if self.outer_schema != METADATA_SCHEMA {
+        if self.outer_schema != location.schema() {
             return Err(MetadataReadError::UnsupportedSchema {
                 actual: self.outer_schema,
             });
+        }
+
+        let id_table = self.id_table;
+        let entries = id_table.chunks_exact(32);
+        if !entries.remainder().is_empty()
+            || entries
+                .clone()
+                .zip(entries.skip(1))
+                .any(|(left, right)| left >= right)
+        {
+            return Err(MetadataReadError::InvalidIdTable);
         }
 
         let mut sections = Vec::new();
@@ -225,7 +245,7 @@ impl<'input> UnvalidatedMetadataEnvelope<'input> {
         for (index, section) in self.sections.into_iter().enumerate() {
             sections.push(
                 section
-                    .validate(location)
+                    .validate(location, id_table)
                     .map_err(|error| MetadataReadError::Section { index, error })?,
             );
         }
@@ -245,13 +265,34 @@ impl<'input> UnvalidatedMetadataEnvelope<'input> {
 
 impl<'input> BorrowedWireDecode<'input> for UnvalidatedMetadataEnvelope<'input> {
     fn decode(decoder: &mut Decoder<'input>) -> Result<Self, WireError> {
-        decoder.expect_map(3)?;
+        let fields = decoder.map()?;
+        let magic = decoder.field(1, Decoder::bytes)?;
+        let lir = magic == MetadataLocation::Lir.magic();
+        let expected = if lir { 4 } else { 3 };
+        if fields != expected {
+            return Err(WireError::new(
+                scoop_wire::WireErrorKind::InvalidLength {
+                    expected,
+                    actual: fields,
+                },
+                decoder.path().clone(),
+                Some(decoder.position()),
+            ));
+        }
+        let outer_schema = decoder.field(2, Decoder::u32)?;
+        let sections = decoder.field(3, |decoder| {
+            decoder.decode_array(|decoder, _| UnvalidatedMetadataSection::decode(decoder, lir))
+        })?;
+        let id_table = if lir {
+            decoder.field(4, Decoder::bytes)?
+        } else {
+            &[]
+        };
         Ok(Self {
-            magic: decoder.field(1, Decoder::bytes)?,
-            outer_schema: decoder.field(2, Decoder::u32)?,
-            sections: decoder.field(3, |decoder| {
-                decoder.decode_array(|decoder, _| UnvalidatedMetadataSection::decode(decoder))
-            })?,
+            magic,
+            outer_schema,
+            sections,
+            id_table,
         })
     }
 }
@@ -260,21 +301,36 @@ struct UnvalidatedMetadataSection<'input> {
     capability: DecodedCapabilityId,
     required_for: u32,
     payload: &'input [u8],
+    indexed: bool,
 }
 
 impl<'input> UnvalidatedMetadataSection<'input> {
-    fn decode(decoder: &mut Decoder<'input>) -> Result<Self, WireError> {
-        decoder.expect_map(3)?;
+    fn decode(decoder: &mut Decoder<'input>, lir: bool) -> Result<Self, WireError> {
+        decoder.expect_map(if lir { 4 } else { 3 })?;
         Ok(Self {
             capability: decoder.field(1, DecodedCapabilityId::decode)?,
             required_for: decoder.field(2, Decoder::u32)?,
             payload: decoder.field(3, Decoder::bytes)?,
+            indexed: if lir {
+                decoder.field(4, |decoder| match decoder.unsigned()? {
+                    0 => Ok(false),
+                    1 => Ok(true),
+                    tag => Err(WireError::new(
+                        scoop_wire::WireErrorKind::UnknownTag { tag },
+                        decoder.path().clone(),
+                        Some(decoder.position()),
+                    )),
+                })?
+            } else {
+                false
+            },
         })
     }
 
     fn validate(
         self,
         location: MetadataLocation,
+        id_table: &'input [u8],
     ) -> Result<DecodedMetadataSection<'input>, MetadataSectionValidationError> {
         let capability = self
             .capability
@@ -288,6 +344,7 @@ impl<'input> UnvalidatedMetadataSection<'input> {
             capability,
             required_for,
             payload: self.payload,
+            id_table: self.indexed.then_some(id_table),
         })
     }
 }
@@ -403,6 +460,7 @@ impl std::error::Error for MetadataSectionValidationError {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MetadataReadError {
+    InvalidIdTable,
     CanonicalWire(WireError),
     BadMagic {
         expected: MetadataLocation,
@@ -424,6 +482,9 @@ pub enum MetadataReadError {
 impl fmt::Display for MetadataReadError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidIdTable => {
+                formatter.write_str("LIR ID table must contain strictly increasing 32-byte values")
+            }
             Self::CanonicalWire(error) => error.fmt(formatter),
             Self::BadMagic { expected } => {
                 write!(formatter, "metadata magic does not match {expected}")

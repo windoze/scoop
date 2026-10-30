@@ -260,6 +260,26 @@ impl CanonicalDefinedLinkSymbolOwnerSetV1 {
     pub fn owners(&self) -> &[DefinedLinkSymbolOwnerV1] {
         &self.owners
     }
+
+    pub(super) fn published(&self) -> Self {
+        Self {
+            producer: self.producer,
+            owners: self
+                .owners
+                .iter()
+                .filter(|entry| {
+                    !matches!(
+                        entry.owner,
+                        LinkDefinitionOwnerV1::VerifierBoundary {
+                            boundary: VerifiedBoundaryRoleV1::End,
+                            ..
+                        }
+                    )
+                })
+                .cloned()
+                .collect(),
+        }
+    }
 }
 
 impl WireEncode for CanonicalDefinedLinkSymbolOwnerSetV1 {

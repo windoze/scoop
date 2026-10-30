@@ -6,7 +6,7 @@ use super::*;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CanonicalSlibArchive {
     bytes: Vec<u8>,
-    objects: Vec<(scoop_wire::Digest256, Range<usize>)>,
+    objects: Vec<(scoop_wire::Digest256, Vec<u8>)>,
 }
 
 impl CanonicalSlibArchive {
@@ -54,16 +54,10 @@ impl CanonicalSlibArchive {
         let mut objects = Vec::new();
         for (ordinal, member) in members.into_iter().enumerate() {
             let name = member_name(ordinal).ok_or(ArchiveWriteError::HeaderFieldOverflow)?;
-            let start = output.len() + HEADER_LENGTH as usize;
             write_member(&mut output, &name, member.payload())?;
-            if matches!(
-                member.record().role(),
-                crate::SlibMemberRole::LinkObject { .. }
-            ) {
-                objects.push((
-                    member.record().sha256(),
-                    start..start + member.payload().len(),
-                ));
+            let digest = member.record().sha256();
+            if let Some(bytes) = member.into_object_payload() {
+                objects.push((digest, bytes));
             }
         }
         debug_assert_eq!(output.len(), capacity);
@@ -84,7 +78,7 @@ impl CanonicalSlibArchive {
     pub fn object_payloads(&self) -> impl Iterator<Item = (scoop_wire::Digest256, &[u8])> {
         self.objects
             .iter()
-            .map(|(digest, range)| (*digest, &self.bytes[range.clone()]))
+            .map(|(digest, bytes)| (*digest, bytes.as_slice()))
     }
 }
 

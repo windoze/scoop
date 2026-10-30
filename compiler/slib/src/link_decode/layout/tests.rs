@@ -67,7 +67,7 @@ fn layout_link_front_requires_link_support() {
 
 #[test]
 fn layout_link_front_rejects_malformed_link_support() {
-    let bytes = layout_artifact(None, vec![0xff], false);
+    let bytes = layout_artifact(None, vec![0], false);
 
     assert!(matches!(
         open_graph(&bytes).decode_cross_cone_layout_link_sections(),

@@ -38,6 +38,7 @@ pub enum BuiltinObjectProductionError {
     RuntimeImageFingerprint(RuntimeImageFingerprintError),
     MissingFinalMemberPlan(SlibMemberId),
     FinalMember(SlibMemberRecordError),
+    ProductionSymbols(scoop_slib::ProducerSymbolError),
     FinalMemberIdMismatch {
         expected: SlibMemberId,
         actual: SlibMemberId,
@@ -94,6 +95,7 @@ impl std::error::Error for BuiltinObjectProductionError {
             Self::Compatibility(source) => Some(source),
             Self::RuntimeImageFingerprint(source) => Some(source),
             Self::FinalMember(source) => Some(source),
+            Self::ProductionSymbols(source) => Some(source),
             Self::CodeLinkObjects(source) => Some(source),
             Self::ProductionCodeProjection(source) => Some(source),
             Self::Units { source, .. } => Some(source),

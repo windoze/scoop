@@ -10,7 +10,7 @@ use super::{
 use crate::{CompatibilityRecord, MemberPurposeSet, SlibMember, SlibMemberId, SlibMemberRecord};
 
 const MANIFEST_MAGIC: &[u8; 9] = b"SCOOPSLIB";
-const CURRENT_SCHEMA: u64 = 2;
+const CURRENT_SCHEMA: u64 = 3;
 const ARTIFACT_FINGERPRINT_DOMAIN: &[u8] = b"scoop-artifact-v1";
 const MAX_PRODUCER_BYTES: usize = 255;
 

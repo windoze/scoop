@@ -49,6 +49,16 @@ fn assigns_typed_primary_and_boundary_owners_to_the_actual_member() {
                 boundary: VerifiedBoundaryRoleV1::End,
             }
     }));
+    let published = owners.published();
+    assert_eq!(published.owners().len(), 2);
+    assert!(published.owners().iter().all(|entry| !matches!(
+        entry.owner(),
+        LinkDefinitionOwnerV1::VerifierBoundary {
+            boundary: VerifiedBoundaryRoleV1::End,
+            ..
+        }
+    )));
+    assert_eq!(owners.owners().len(), 3);
 }
 
 #[test]

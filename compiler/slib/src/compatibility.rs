@@ -118,9 +118,13 @@ impl WireEncode for IdentityAbiDescriptor {
         for field in 8..=10 {
             encode_initial_schema(encoder, field)?;
         }
-        for field in 11..=13 {
+        for (field, location) in (11..=13).zip([
+            crate::MetadataLocation::Hir,
+            crate::MetadataLocation::Mir,
+            crate::MetadataLocation::Lir,
+        ]) {
             encoder.field(field)?;
-            encoder.unsigned(u64::from(crate::metadata::METADATA_SCHEMA))?;
+            encoder.unsigned(u64::from(location.schema()))?;
         }
         Ok(())
     }
@@ -222,9 +226,13 @@ impl WireEncode for CompatibilityRecord {
         self.backend_profile.encode(encoder)?;
         encoder.field(8)?;
         self.backend_fingerprint.encode(encoder)?;
-        for field in 9..=11 {
+        for (field, location) in (9..=11).zip([
+            crate::MetadataLocation::Hir,
+            crate::MetadataLocation::Mir,
+            crate::MetadataLocation::Lir,
+        ]) {
             encoder.field(field)?;
-            encoder.unsigned(u64::from(crate::metadata::METADATA_SCHEMA))?;
+            encoder.unsigned(u64::from(location.schema()))?;
         }
         encoder.field(12)?;
         self.composite_identity_abi.encode(encoder)?;
@@ -269,11 +277,11 @@ mod tests {
         let descriptor = IdentityAbiDescriptor::current().unwrap();
         assert_eq!(
             hex(&encode(&descriptor).unwrap()),
-            "ad015820c946cc51f867b8d2fefcb1a1fb646164c5614dbf2c9281b97c6337ca642f3a1d025820e6c1d11d523b5c055f7ccc0b8101b292795be07da2c83263357e8f598a2f5f120302040105010602076d70657273697374656e742d7631080109010a010b030c030d03"
+            "ad015820c946cc51f867b8d2fefcb1a1fb646164c5614dbf2c9281b97c6337ca642f3a1d025820e6c1d11d523b5c055f7ccc0b8101b292795be07da2c83263357e8f598a2f5f120302040105010602076d70657273697374656e742d7631080109010a010b030c030d04"
         );
         assert_eq!(
             descriptor.fingerprint().unwrap().to_string(),
-            "412b186a12a3f4e3e621d1aa32ac0a59fe142c23736568b53264dc79a2e5868d"
+            "8925b70e7413ced0f9768b4ea45337e9ecc4b4a3925100e25f721d551f8966e2"
         );
     }
 

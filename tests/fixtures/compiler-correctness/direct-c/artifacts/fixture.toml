@@ -54,7 +54,8 @@ checks = []
 
 [[steps]]
 name = "link"
-argv = ["${scoop-link}", {"each" = "${link_args}"}, "--enable-stack-trace=${stack_trace}", {"each" = "${symbol_args}"}, "--root-slib", "${consumer.result.root.path}", {"each" = "${consumer.result.dependencies}", "field" = "path", "prefix" = "--dep-slib"}, "--runtime-objects", "${consumer.result.runtime_index}", "--library-path", "${work}", "-o", "${work}/programs/link/program", "--cache-dir", "${cache}", "--sysroot", "${sysroot}"]
+# A fresh object cache exercises extraction of compressed native members.
+argv = ["${scoop-link}", {"each" = "${link_args}"}, "--enable-stack-trace=${stack_trace}", {"each" = "${symbol_args}"}, "--root-slib", "${consumer.result.root.path}", {"each" = "${consumer.result.dependencies}", "field" = "path", "prefix" = "--dep-slib"}, "--runtime-objects", "${consumer.result.runtime_index}", "--library-path", "${work}", "-o", "${work}/programs/link/program", "--cache-dir", "${work}/link-cache", "--sysroot", "${sysroot}"]
 exit = 0
 stdout = "link-plan ${consumer.result.link_plan_fingerprint}\n"
 stderr = ""

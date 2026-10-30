@@ -634,7 +634,7 @@ Mach-O／ELF 对象按实际目标格式读取 section、符号及 relocation，
 
 ### 2.6 `.slib` 格式与指纹
 
-`.slib` 是 target-specific、bitwise reproducible 的 normal、self-contained ar archive。容器 schema 与 manifest schema 的格式版本为 2，mangling schema 为 1；persistent identity schema 为 2，HIR/MIR/LIR metadata outer schema 为 3。函数声明 key 增加规范化条件集合及 companion 存在条件，签名类型增加固定 companion 投影，binder 增加负向接口集合与独立 companion 条件；默认表达式保存依赖 companion 值访问。空集合在 wire 中省略对应字段，解码后仍是完整集合，无条件声明保持原身份。旧产物按格式版本拒绝，重建得到新产物。它不允许 thin archive、外部成员引用或相邻文件 payload。
+`.slib` 是 target-specific、bitwise reproducible 的 normal、self-contained ar archive。容器 schema 与 manifest schema 的格式版本为 3，mangling schema 为 1；persistent identity schema 为 2，HIR/MIR metadata outer schema 为 3，LIR metadata outer schema 为 4。函数声明 key 增加规范化条件集合及 companion 存在条件，签名类型增加固定 companion 投影，binder 增加负向接口集合与独立 companion 条件；默认表达式保存依赖 companion 值访问。空集合在 wire 中省略对应字段，解码后仍是完整集合，无条件声明保持原身份。旧产物按格式版本拒绝，重建得到新产物。它不允许 thin archive、外部成员引用或相邻文件 payload。
 
 归档 magic 为 `!<arch>\n`，首项固定为 `manifest.zst`，内容为 deterministic CBOR manifest 的单个 Zstandard frame。其余 payload 按 manifest 中的 SlibMemberId bytes 严格排序，物理短名为从 0 开始的 ordinal：`m` 加 8 位零填充十进制。header 使用 SysV/GNU short-name encoding：名称后为 `/` 与空格填充，mtime/uid/gid 为十进制 0，mode 为八进制 `100644`，size 为无多余前导零的十进制，trailer 为 `` `\n``，奇数 payload 后补 `0x0A`。
 
@@ -653,9 +653,15 @@ writer 按上述目录与 header 规则生成归档。普通 reader 根据目录
 
 三种 metadata 各恰有一个成员；完整生产产物具有非空 LinkObject 集合。role 与 stable-key tag 必须匹配，成员由目录身份识别，不由物理名、ordinal 或数量推断 producer。
 
-Manifest、三层 metadata 和 DiagnosticAttachment 各自使用单个、无字典且带原始长度的 Zstandard frame；writer 统一使用标准 compression level `3`，不设置压缩开关或按压缩率选择编码。LinkObject 和 ExtensionBlob 保存原始 bytes。成员 record 的 byte_length 与 sha256 描述实际存储 bytes，ar header 的 size 也使用存储长度；成员身份和三层语义指纹仍由既有逻辑内容确定。依赖发现只解压 manifest；成员首次实际使用时解压并缓存结果，后续请求复用该缓冲区。frame 解码只承担长度、截断和格式等局部正确性检查，不复核成员摘要或重放语义。此前 level `-3` 生成的 frame 仍是相同格式的合法输入；压缩参数调整不递增容器／metadata schema，不要求重建未变化的预编译库。
+Manifest、三层 metadata、LinkObject 和 DiagnosticAttachment 各自使用单个、无字典且带原始长度的 Zstandard frame；writer 统一使用标准 compression level `3`，不设置压缩开关或按压缩率选择编码。ExtensionBlob 保存原始 bytes。LinkObject 解压后仍是原生可重定位对象，编译依赖发现不读取对象，program-link 仅在实际提取所选对象时解压；对象缓存保存原生 bytes，并使用现有成员存储摘要定位。成员 record 的 byte_length 与 sha256 描述实际存储 bytes，ar header 的 size 也使用存储长度；成员身份和三层语义指纹仍由既有逻辑内容确定。依赖发现只解压 manifest；成员首次实际使用时解压并缓存结果，后续请求复用该缓冲区。frame 解码只承担长度、截断和格式等局部正确性检查，不复核成员摘要或重放语义。此前 level `-3` 生成的 frame 仍是相同格式的合法输入；压缩参数调整不递增容器／metadata schema，不要求重建未变化的预编译库。
 
-容器 1、manifest 1 和旧 profile 不提供兼容读取，必须重建。压缩库是编译器宿主依赖，与 sysroot 中面向目标平台的 Zstandard 库分开。方案、测量依据和最小验证范围见 [存储精简与压缩方案](../slib-storage/DESIGN.md)。
+容器／manifest 1、2 和旧 profile 不提供兼容读取，必须重建。压缩库是编译器宿主依赖，与 sysroot 中面向目标平台的 Zstandard 库分开。方案、测量依据和最小验证范围见 [存储精简与压缩方案](../slib-storage/DESIGN.md)。
+
+LIR outer schema 4 在原字段 `1=magic, 2=schema, 3=sections` 后增加 `4=id_table`：表是按原始 bytes 严格升序、无重复的 32-byte 值连续拼接成的 byte string。LIR section 使用四字段记录，原字段 1～3 保持 capability、purpose 和 payload，新增 `4=storage`；`0` 为原始 opaque payload，`1` 为使用该成员 ID 表的 Wire CBOR。writer 将已知 LIR section 中的 32-byte byte-string 字段统一替换为零起始 unsigned 表索引；其他整数、字符串、容器和嵌套 opaque bytes 保持原语义。未知扩展 section 使用 storage 0，不扫描其内容。HIR／MIR 仍使用原三字段 section。
+
+该表仅用于磁盘编码，不替换全局 typed ID，不进入 identity key、语义 fingerprint 的逻辑投影或 runtime 编码；格式版本仍按既有 compatibility 合同进入复合 ABI 指纹。reader 在实际读取相应 byte-string 字段时直接取得表内完整值，继续交给原类型化 reader；不展开第二份完整 CBOR，也不另外重放语言语义。表长度与顺序、索引范围及实际消费字段的格式错误在各自边界检查。
+
+对象生产完成范围定位、重定位与 GC／ABI 检查后，发布前删除仅供生产阶段定位结束位置的 `DefinitionBoundaryEnd`（`be`）原生符号，并同步省去 Link defined-owner 目录中的结束边界项。原生 section 内容、重定位目标、调试信息、展开信息和有实际引用的起始边界保持。清理重排的原生符号索引及字符串偏移必须同步更新；若结束边界仍被实际引用则报告对象错误。Code／Artifact 指纹按最终存储 bytes 生成，不对清理后的对象重放已完成的完整生产验证。
 
 所有 wire metadata 使用 RFC 8949 deterministic CBOR 的明确 schema：最短整数与长度编码、定长容器、严格有序且无重复的整数 field tags、声明的封闭 variant、完整 typed 引用。不能序列化 Rust discriminant、arena index 或 hash-map 遍历顺序。消费者按所需 schema 解码，传播解码库自然返回的错误，不增加 canonical 重编码比较、生产语义 replay 或损坏检测合同。
 
@@ -680,7 +686,7 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 
 未知 optional capability 按目录跳过，不读取或计算其内容 hash，不进入语义 view。ExtensionBlob.required_for 只允许 0 或 Link bit；未知 Link-required capability 或 LinkObject verifier 阻止 Link 消费。blob 不成为第二种对象入口，已知 Link contribution 只能表示规范化 native library requirements，不能注入 raw linker argv、脚本或未检查对象。
 
-完整生产 profile 为 `org.scoop-lang.slib-profile/cross-cone-generic/6`。descriptor 是五字段 map：`1=id, 2=required_manifest, 3=required_hir, 4=required_mir, 5=required_lir`；各列表按 capability 排序。其必需 section 为：
+完整生产 profile 为 `org.scoop-lang.slib-profile/cross-cone-generic/7`。descriptor 是五字段 map：`1=id, 2=required_manifest, 3=required_hir, 4=required_mir, 5=required_lir`；各列表按 capability 排序。其必需 section 为：
 
 早期 `single-cone-strong` 与 `cross-cone-semantics-strong` profile 不再是生产或消费入口，不随当前 section 版本维护正向 descriptor／fingerprint 矩阵。旧 profile 按不支持的产物 profile 报错，当前 profile 的 required inventory 和版本兼容检查保留。
 
@@ -1119,7 +1125,7 @@ post-install 在所选目标的系统 `.slib` 准备完成后，使用配套工�
 
 runtime 构建使用 `runtime-v8` 普通记录，按实际源码根、选中源码、include／unwind 配置、flags、C 工具输入和规则版本定位。命中前只查询上次实际源码、depfile 头文件及 include 候选的路径／mtime／大小；不读取源码、扫描并复制整棵头文件树或重读 compiler 内容。更新时直接从原始源码预处理并编译，观察实际 include 名称；全部成功后保存对象、index 与记录。每批对象位于 index 同级的 `objects` 子目录，使准备脚本可按同一相对布局复制本次已知输出，不改写索引或重新提取对象信息。对象采用稳定且不同批次不覆盖的位置；所需 index／对象缺失时补产，真实输入缺失照常报错，失败不发布新记录或替换已有结果。本机 metadata 不改变 runtime ABI。
 
-Darwin 最终 executable 将 Scoop 保留的持久符号命名空间（`_scoop$1$*`，包含 callable、类型／派发表、注册记录、bridge 和 body 起止别名）设为 private external，移出动态导出。跨 Cone 的 Strong／ODR 选择与全部引用在静态链接闭包中完成；选中的 weak 定义不再供 dyld 再绑定，直接调用可由 native linker 绑定到同一镜像中的实际入口。对象和 `.slib` 仍保留原定义与 ODR 合并规则，exact 类型／接口身份、别名地址及 GC／EH 元数据引用不变。源码 public 可见性不等于 native 动态导出；普通 native／runtime C 符号、系统库导入和通过地址传递的 callback 保持原合同。该配置对全部 profile 生效，进入既有 final-link 指纹；消费旧的相容预编译对象时同样适用，不按其他宽泛前缀隐藏 native 符号，也不增加产物格式或 runtime ABI 版本。
+Darwin 最终 executable 将 Scoop 保留的持久符号命名空间（`_scoop$1$*`，包含 callable、类型／派发表、注册记录、bridge 和发布后保留的 body 起始别名）设为 private external，移出动态导出。跨 Cone 的 Strong／ODR 选择与全部引用在静态链接闭包中完成；选中的 weak 定义不再供 dyld 再绑定，直接调用可由 native linker 绑定到同一镜像中的实际入口。对象和 `.slib` 仍保留原定义与 ODR 合并规则，exact 类型／接口身份、别名地址及 GC／EH 元数据引用不变。源码 public 可见性不等于 native 动态导出；普通 native／runtime C 符号、系统库导入和通过地址传递的 callback 保持原合同。该配置对全部 profile 生效，进入既有 final-link 指纹；消费旧的相容预编译对象时同样适用，不按其他宽泛前缀隐藏 native 符号，也不增加产物格式或 runtime ABI 版本。
 
 native linker 成功后直接发布其输出，不重新读取整份 Mach-O／ELF，重放输入对象、重定位、stackmap、EH、动态绑定或代码签名的正确性检查；不通过链接 map／trace 审计实际读取文件。必要的符号选择、对象格式、ABI／GC 数据及工具参数在产生输入与实际链接时完成，工具退出失败正常传播。生成程序的正常运行和专门 ABI／GC 回归承担输出行为验收，不保留修改刚生成的可执行文件后要求发布复核拒绝的测试。
 

@@ -98,7 +98,7 @@ impl LinkIdentityClosureSectionV1 {
         let builtins = objects.final_objects().entry().builtins();
         Self {
             materializations: materializations(builtins.member_plan()),
-            defined_symbols: defined_symbols.clone(),
+            defined_symbols: defined_symbols.published(),
             symbol_uses: symbol_uses(builtins.strong_relocations()),
         }
     }

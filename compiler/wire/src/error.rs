@@ -38,6 +38,7 @@ pub enum WireErrorKind {
     UnexpectedField { expected: u32, actual: u64 },
     UnknownTag { tag: u64 },
     InvalidLength { expected: u64, actual: u64 },
+    InvalidIndex { index: u64, length: u64 },
     IntegerOutOfRange,
     Allocation,
 }
@@ -96,6 +97,12 @@ impl fmt::Display for WireError {
             WireErrorKind::UnknownTag { tag } => write!(formatter, "unknown tag {tag}"),
             WireErrorKind::InvalidLength { expected, actual } => {
                 write!(formatter, "expected length {expected}, found {actual}")
+            }
+            WireErrorKind::InvalidIndex { index, length } => {
+                write!(
+                    formatter,
+                    "index {index} is outside table of length {length}"
+                )
             }
             WireErrorKind::IntegerOutOfRange => formatter.write_str("integer out of range"),
             WireErrorKind::Allocation => formatter.write_str("allocation failed"),
