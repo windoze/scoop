@@ -328,7 +328,7 @@ graphics／gui 的纯值和路由行为归所属 Cone 的 scoop.test；窗口与
 
 ## 12. 调研来源
 
-调研日期为 2026-10-31。Slint 使用 1.18.1 标签；Skia 源码检查基线为 `f326a1e25fc736704063922b9ce76b527b1c5efe`，这是准备实施的参考输入，尚未写入发行配置。实施固定依赖时需同步实际 revision 及配套构建选择。
+调研日期为 2026-10-31。Slint 使用 1.18.1 标签；Skia 基线 `f326a1e25fc736704063922b9ce76b527b1c5efe` 已写入发行配置，配套 DEPS、启用模块和部署补丁见 [vendor 说明](../../sysroot/vendor/skia/README.md)。
 
 - Flutter：[架构概览](https://docs.flutter.dev/resources/architectural-overview)、[TextPainter](https://api.flutter.dev/flutter/painting/TextPainter-class.html)、[Ticker](https://api.flutter.dev/flutter/scheduler/Ticker-class.html)、[输入与手势](https://docs.flutter.dev/ui/interactivity/gestures)。
 - Slint：[backend 与 renderer](https://github.com/slint-ui/slint/blob/v1.18.1/docs/astro/src/content/docs/guide/backends-and-renderers/backends_and_renderers.mdx)、[Skia renderer 的 Parley 文本调用](https://github.com/slint-ui/slint/blob/v1.18.1/internal/renderers/skia/itemrenderer.rs)。

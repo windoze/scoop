@@ -1,0 +1,45 @@
+--- a/gn/skia/BUILD.gn
++++ b/gn/skia/BUILD.gn
+@@ -19,6 +19,7 @@
+   malloc = ""
+   werror = false
+   xcode_sysroot = ""
++  mac_min_target = "11"
+ }
+ 
+ if (is_ios && xcode_sysroot == "") {
+@@ -278,28 +279,28 @@
+     if (current_cpu == "arm64") {
+       asmflags += [
+         "-target",
+-        "arm64-apple-macos11",
++        "arm64-apple-macos$mac_min_target",
+       ]
+       cflags += [
+         "-target",
+-        "arm64-apple-macos11",
++        "arm64-apple-macos$mac_min_target",
+       ]
+       ldflags += [
+         "-target",
+-        "arm64-apple-macos11",
++        "arm64-apple-macos$mac_min_target",
+       ]
+     } else {
+       asmflags += [
+         "-target",
+-        "x86_64-apple-macos11",
++        "x86_64-apple-macos$mac_min_target",
+       ]
+       cflags += [
+         "-target",
+-        "x86_64-apple-macos11",
++        "x86_64-apple-macos$mac_min_target",
+       ]
+       ldflags += [
+         "-target",
+-        "x86_64-apple-macos11",
++        "x86_64-apple-macos$mac_min_target",
+       ]
+     }
+   }

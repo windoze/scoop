@@ -1,0 +1,182 @@
+package scoop.graphics
+
+/** A canvas borrowed by a render callback. Every operation checks the active scope and owner. */
+public class Canvas internal constructor(internal val resource: GraphicsResource) {
+    public fun clear(color: Color) {
+        checkColor(color)
+        @Unsafe
+        {
+            graphicsResult(canvasClear(resource.get(), color), "clear canvas")
+        }
+    }
+    public fun save() {
+        @Unsafe
+        {
+            graphicsResult(canvasSave(resource.get(), 1.0, false), "save canvas")
+        }
+    }
+    /** Composites the entire group with this opacity when it is restored. */
+    public fun saveLayer(opacity: Double) {
+        checkOpacity(opacity)
+        @Unsafe
+        {
+            graphicsResult(canvasSave(resource.get(), opacity, true), "save layer")
+        }
+    }
+    public fun restore() {
+        @Unsafe
+        {
+            graphicsResult(canvasRestore(resource.get()), "restore without matching save")
+        }
+    }
+    public fun concat(transform: Transform) {
+        checkTransform(transform)
+        @Unsafe
+        {
+            graphicsResult(canvasConcat(resource.get(), transform), "canvas transform overflow")
+        }
+    }
+    public fun translate(x: Double, y: Double) {
+        concat(Transform.translation(x, y))
+    }
+    public fun scale(x: Double, y: Double) {
+        concat(Transform.scale(x, y))
+    }
+    public fun rotate(radians: Double) {
+        concat(Transform.rotation(radians))
+    }
+    public fun clipRect(rect: Rect) {
+        checkRect(rect)
+        @Unsafe
+        {
+            graphicsResult(canvasClipRect(resource.get(), rect), "clip rectangle")
+        }
+    }
+    public fun clipPath(path: Path) {
+        @Unsafe
+        {
+            graphicsResult(canvasClipPath(resource.get(), path.resource.get()), "clip path")
+        }
+    }
+    public fun drawRect(rect: Rect, paint: Paint = Paint()) {
+        shape(0, rect, 0.0, 0.0, paint)
+    }
+    public fun drawOval(rect: Rect, paint: Paint = Paint()) {
+        shape(1, rect, 0.0, 0.0, paint)
+    }
+    public fun drawRoundRect(rect: Rect, radiusX: Double, radiusY: Double, paint: Paint = Paint()) {
+        checkScalar(radiusX);
+        checkScalar(radiusY)
+        requireGraphics(radiusX >= 0.0 && radiusY >= 0.0, "negative corner radius")
+        shape(2, rect, radiusX, radiusY, paint)
+    }
+    public fun drawCircle(center: Point, radius: Double, paint: Paint = Paint()) {
+        checkPoint(center);
+        checkScalar(radius)
+        requireGraphics(radius >= 0.0, "negative circle radius")
+        drawOval(Rect(center.x - radius, center.y - radius, radius * 2.0, radius * 2.0), paint)
+    }
+    public fun drawLine(start: Point, end: Point, paint: Paint) {
+        checkPoint(start);
+        checkPoint(end)
+        val pointer = resource.get()
+        paint.withNative {
+            value -> @Unsafe
+            {
+                graphicsResult(canvasLine(pointer, start, end, value), "draw line")
+            }
+        }
+    }
+    public fun drawPath(path: Path, paint: Paint = Paint()) {
+        val pointer = resource.get()
+        val shape = path.resource.get()
+        paint.withNative {
+            value -> @Unsafe
+            {
+                graphicsResult(canvasPath(pointer, shape, value), "draw path")
+            }
+        }
+    }
+    public fun drawImage(
+        image: Image,
+        destination: Rect,
+        sampling: ImageSampling = ImageSampling.Linear,
+        opacity: Double = 1.0
+    ) {
+        checkRect(destination);
+        checkOpacity(opacity)
+        @Unsafe
+        {
+            graphicsResult(
+                canvasImage(
+                    resource.get(),
+                    image.resource.get(),
+                    destination,
+                    if (sampling == ImageSampling.Nearest)
+                        0
+                    else
+                        1,
+                    opacity
+                ),
+                "draw image"
+            )
+        }
+    }
+    private fun shape(kind: Int, rect: Rect, rx: Double, ry: Double, paint: Paint) {
+        checkRect(rect)
+        val pointer = resource.get()
+        paint.withNative {
+            value -> @Unsafe
+            {
+                graphicsResult(canvasShape(pointer, kind, rect, rx, ry, value), "draw shape")
+            }
+        }
+    }
+}
+
+internal fun checkOpacity(value: Double) {
+    requireGraphics(value.isFinite() && value >= 0.0 && value <= 1.0, "invalid opacity")
+}
+
+@Extern(name = "scoop_graphics_canvas_clear")
+private fun canvasClear(canvas: Ptr<Unit>, color: Color): Int
+
+@Extern(name = "scoop_graphics_canvas_save")
+private fun canvasSave(canvas: Ptr<Unit>, opacity: Double, layer: Boolean): Int
+
+@Extern(name = "scoop_graphics_canvas_restore")
+private fun canvasRestore(canvas: Ptr<Unit>): Int
+
+@Extern(name = "scoop_graphics_canvas_concat")
+private fun canvasConcat(canvas: Ptr<Unit>, transform: Transform): Int
+
+@Extern(name = "scoop_graphics_canvas_clip_rect")
+private fun canvasClipRect(canvas: Ptr<Unit>, rect: Rect): Int
+
+@Extern(name = "scoop_graphics_canvas_clip_path")
+private fun canvasClipPath(canvas: Ptr<Unit>, path: Ptr<Unit>): Int
+
+@Extern(name = "scoop_graphics_canvas_shape")
+private fun canvasShape(
+    canvas: Ptr<Unit>,
+    kind: Int,
+    rect: Rect,
+    rx: Double,
+    ry: Double,
+    paint: Ptr<Unit>
+): Int
+
+@Extern(name = "scoop_graphics_canvas_line")
+private fun canvasLine(canvas: Ptr<Unit>, start: Point, end: Point, paint: Ptr<Unit>): Int
+
+@Extern(name = "scoop_graphics_canvas_path")
+private fun canvasPath(canvas: Ptr<Unit>, path: Ptr<Unit>, paint: Ptr<Unit>): Int
+
+@Extern(name = "scoop_graphics_canvas_image")
+private fun canvasImage(
+    canvas: Ptr<Unit>,
+    image: Ptr<Unit>,
+    rect: Rect,
+    sampling: Int,
+    opacity: Double
+): Int

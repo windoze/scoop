@@ -1,0 +1,67 @@
+package scoop.graphics
+
+import scoop.graphics.native.*
+import scoop.graphics.native.macos.MetalContext
+import scoop.tests.graphics.TestMetalSurface
+import scoop.test.*
+
+@Test
+private class MetalGraphicsTest {
+    @Test
+    fun `Ganesh draws to a real Metal texture with one DPI root and retains context across targets`() {
+        val snapshots = ArrayList<Image>()
+        TestMetalSurface.create(32, 32).use {
+            objects -> @Unsafe
+            {
+                MetalContext.create(objects.device(), objects.queue()).use {
+                    context ->
+                    @Unsafe
+                    {
+                        context.target(objects.texture(), 32, 32, 2.0).use {
+                            target ->
+                            val geometry =
+                                target.draw {
+                                    canvas ->
+                                    canvas.clear(Color.Transparent)
+                                    canvas.translate(2.0, 3.0)
+                                    canvas.drawRect(
+                                        Rect(0.0, 0.0, 4.0, 4.0),
+                                        Paint(Color(1.0, 0.0, 0.0))
+                                    )
+                                    @Unsafe
+                                    {
+                                        return@draw captureGeometry(
+                                            canvas,
+                                            Rect(0.0, 0.0, 4.0, 4.0)
+                                        )
+                                    }
+                                }
+                            target.submit()
+                            val pixels = target.readPixels()
+                            assertEquals(255, channel(pixels, 32, 5, 7, 0))
+                            assertEquals(0, channel(pixels, 32, 2, 3, 3))
+                            assertTrue(geometry.hitTest(Point(3.0, 4.0)))
+                            assertEquals(Some(Point(1.0, 1.0)), geometry.toLocal(Point(3.0, 4.0)))
+                            geometry.close()
+                            snapshots.add(target.snapshot())
+                        }
+                        context.target(objects.texture(), 32, 32, 1.0).use {
+                            target ->
+                            target.draw { canvas -> canvas.clear(Color(0.0, 1.0, 0.0)) }
+                            target.submit()
+                            assertEquals(255, channel(target.readPixels(), 32, 2, 3, 1))
+                        }
+                    }
+                    context.drain()
+                }
+            }
+        }
+        snapshots[0L].use {
+            image -> RasterSurface(32, 32).use {
+                surface ->
+                surface.draw { canvas -> canvas.drawImage(image, Rect(0.0, 0.0, 32.0, 32.0)) }
+                assertEquals(255, channel(surface.readPixels(), 32, 5, 7, 0))
+            }
+        }
+    }
+}

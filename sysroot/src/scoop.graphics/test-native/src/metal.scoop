@@ -1,0 +1,43 @@
+package scoop.tests.graphics
+
+/** Real Metal objects for tests that exercise the public cross-Cone target bridge. */
+public class TestMetalSurface private constructor(private var handle: Ptr<Unit>?): Closeable {
+    @Unsafe
+    public fun device(): Ptr<Unit> = metalObject(handle!!, 0)
+    @Unsafe
+    public fun queue(): Ptr<Unit> = metalObject(handle!!, 1)
+    @Unsafe
+    public fun texture(): Ptr<Unit> = metalObject(handle!!, 2)
+    public override fun close() {
+        when (handle) {
+            case Some(value) -> {
+                handle = None;
+                @Unsafe
+                {
+                    metalDestroy(value)
+                }
+            }
+            case None -> {}
+        }
+    }
+    public companion object {
+        public fun create(width: Int, height: Int): TestMetalSurface {
+            @Unsafe
+            {
+                val pointer =
+                    metalCreate(width, height) ?:
+                        throw IllegalStateException(Some("Metal device or texture creation failed"))
+                return TestMetalSurface(Some(pointer))
+            }
+        }
+    }
+}
+
+@Extern(name = "scoop_graphics_test_metal_create")
+private fun metalCreate(width: Int, height: Int): Ptr<Unit>?
+
+@Extern(name = "scoop_graphics_test_metal_object")
+private fun metalObject(owner: Ptr<Unit>, kind: Int): Ptr<Unit>
+
+@Extern(name = "scoop_graphics_test_metal_destroy")
+private fun metalDestroy(owner: Ptr<Unit>)

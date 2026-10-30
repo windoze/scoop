@@ -1,0 +1,264 @@
+package scoop.graphics
+
+import scoop.graphics.native.*
+import scoop.math.abs
+import scoop.platform.concurrent.Thread
+import scoop.compiler.includeBytes
+import scoop.test.*
+
+internal fun channel(bytes: Array<Byte>, width: Int, x: Int, y: Int, channel: Int): Int =
+    bytes[(y.toLong() * width.toLong() + x.toLong()) * 4L + channel.toLong()].toUByte().toInt()
+
+@Test
+private class DrawingTest {
+    @Test
+    fun `group alpha composites once even where opaque shapes overlap`() {
+        RasterSurface(24, 16).use {
+            surface ->
+            surface.draw {
+                canvas ->
+                canvas.clear(Color.Transparent)
+                canvas.saveLayer(0.5)
+                canvas.drawRect(Rect(2.0, 2.0, 12.0, 12.0), Paint(Color(1.0, 0.0, 0.0)))
+                canvas.drawRect(Rect(8.0, 2.0, 12.0, 12.0), Paint(Color(1.0, 0.0, 0.0)))
+                canvas.restore()
+            }
+            val pixels = surface.readPixels()
+            assertEquals(128, channel(pixels, 24, 4, 6, 3))
+            assertEquals(128, channel(pixels, 24, 10, 6, 3))
+            assertEquals(255, channel(pixels, 24, 10, 6, 0))
+            assertEquals(0, channel(pixels, 24, 0, 0, 3))
+        }
+    }
+
+    @Test
+    fun `gradient descriptions retain copied stops and canvas state restores`() {
+        val stops = ArrayList<GradientStop>()
+        stops.add(GradientStop(0.0, Color(1.0, 0.0, 0.0)))
+        stops.add(GradientStop(1.0, Color(0.0, 0.0, 1.0)))
+        val paint =
+            Paint(gradient = Some(Gradient.linear(Point(0.0, 0.0), Point(16.0, 0.0), stops)))
+        stops.clear()
+        RasterSurface(20, 12).use {
+            surface ->
+            surface.draw {
+                canvas ->
+                canvas.clear(Color.Transparent)
+                canvas.save()
+                canvas.translate(2.0, 2.0)
+                canvas.clipRect(Rect(0.0, 0.0, 16.0, 6.0))
+                canvas.drawRect(Rect(0.0, 0.0, 18.0, 10.0), paint)
+                canvas.restore()
+                canvas.drawRect(Rect(0.0, 0.0, 1.0, 1.0), Paint(Color.White, antiAlias = false))
+            }
+            val pixels = surface.readPixels()
+            assertTrue(channel(pixels, 20, 3, 4, 0) > 220)
+            assertTrue(channel(pixels, 20, 16, 4, 2) > 220)
+            assertEquals(0, channel(pixels, 20, 19, 4, 3))
+            assertEquals(255, channel(pixels, 20, 0, 0, 3))
+        }
+    }
+
+    @Test
+    fun `round stroke caps and radial rounded rectangles produce expected coverage`() {
+        RasterSurface(48, 24).use {
+            surface ->
+            surface.draw {
+                canvas ->
+                canvas.clear(Color.Transparent)
+                canvas.drawLine(
+                    Point(5.0, 5.0),
+                    Point(15.0, 5.0),
+                    Paint(Color(1.0, 0.0, 0.0), PaintingStyle.Stroke, 4.0, StrokeCap.Round)
+                )
+                val gradient =
+                    Gradient.radial(
+                        Point(32.0, 12.0),
+                        8.0,
+                        [
+                            GradientStop(0.0, Color(1.0, 0.0, 0.0)),
+                            GradientStop(1.0, Color(0.0, 0.0, 1.0))
+                        ]
+                    )
+                canvas.drawRoundRect(
+                    Rect(24.0, 4.0, 16.0, 16.0),
+                    4.0,
+                    4.0,
+                    Paint(gradient = Some(gradient))
+                )
+            }
+            val pixels = surface.readPixels()
+            assertTrue(channel(pixels, 48, 4, 5, 3) > 200)
+            assertTrue(channel(pixels, 48, 32, 12, 0) > 220)
+            assertTrue(channel(pixels, 48, 39, 12, 2) > 220)
+            assertEquals(0, channel(pixels, 48, 24, 4, 3))
+        }
+    }
+
+    @Test
+    fun `geometry shares transformed clips and owns its path after scope exit`() {
+        val builder = PathBuilder(FillRule.EvenOdd)
+        builder.addRect(Rect(0.0, 0.0, 12.0, 12.0)).addRect(Rect(4.0, 4.0, 4.0, 4.0))
+        val path = builder.build()
+        val snapshot =
+            RasterSurface(40, 40).use {
+                surface ->
+                val geometry =
+                    surface.draw {
+                        canvas ->
+                        canvas.clear(Color.Transparent)
+                        canvas.translate(4.0, 6.0)
+                        canvas.scale(2.0, 2.0)
+                        canvas.clipRect(Rect(0.0, 0.0, 10.0, 10.0))
+                        canvas.drawPath(path, Paint(Color.White))
+                        @Unsafe
+                        {
+                            return@draw captureGeometry(canvas, path)
+                        }
+                    }
+                path.close();
+                builder.close()
+                val pixels = surface.readPixels()
+                assertTrue(geometry.hitTest(Point(8.0, 10.0)))
+                assertFalse(geometry.hitTest(Point(16.0, 18.0)))
+                assertFalse(geometry.hitTest(Point(26.0, 8.0)))
+                assertEquals(Some(Point(2.0, 2.0)), geometry.toLocal(Point(8.0, 10.0)))
+                assertEquals(Rect(6.0, 10.0, 6.0, 8.0), geometry.toWindow(Rect(1.0, 2.0, 3.0, 4.0)))
+                assertEquals(255, channel(pixels, 40, 8, 10, 3))
+                assertEquals(0, channel(pixels, 40, 16, 18, 3))
+                geometry
+            }
+        assertTrue(snapshot.hitTest(Point(8.0, 10.0)))
+        snapshot.close()
+    }
+
+    @Test
+    fun `singular geometry is not hittable and expired canvas rejects calls`() {
+        val surface = RasterSurface(8, 8)
+        val borrowed =
+            surface.draw {
+                canvas ->
+                assertFailsWith<IllegalStateException> { surface.close() }
+                assertFailsWith<IllegalArgumentException> { canvas.restore() }
+                canvas.scale(0.0, 1.0)
+                @Unsafe
+                {
+                    captureGeometry(canvas, Rect(0.0, 0.0, 8.0, 8.0)).use {
+                        geometry ->
+                        assertFalse(geometry.hitTest(Point(0.0, 1.0)))
+                        assertEquals(None, geometry.toLocal(Point(0.0, 1.0)))
+                    }
+                }
+                canvas
+            }
+        assertFailsWith<IllegalStateException> { borrowed.clear(Color.Black) }
+        Thread.start { assertFailsWith<IllegalStateException> { surface.readPixels() } }.use {
+            thread -> thread.join()
+        }
+        surface.close();
+        surface.close()
+        assertFailsWith<IllegalStateException> { surface.draw { _ -> } }
+    }
+
+    @Test
+    fun `exceptional drawing ends its borrow and later draws start with clean state`() {
+        RasterSurface(4, 4).use {
+            surface ->
+            val saved = ArrayList<Canvas>()
+            assertFailsWith<GraphicsException> {
+                surface.draw {
+                    canvas ->
+                    saved.add(canvas)
+                    canvas.save();
+                    canvas.translate(100.0, 100.0)
+                    throw GraphicsException("test painter failure")
+                }
+            }
+            assertFailsWith<IllegalStateException> { saved[0L].restore() }
+            surface.draw { canvas -> canvas.drawRect(Rect(0.0, 0.0, 4.0, 4.0), Paint(Color.White)) }
+            assertEquals(255, channel(surface.readPixels(), 4, 1, 1, 3))
+        }
+    }
+
+    @Test
+    fun `image decoding and surface snapshots have independent pixel ownership`() {
+        val pixels =
+            Array<Byte>(16L) {
+                index -> if (index % 4L == 0L || index % 4L == 3L)
+                    255.toByte()
+                else
+                    0.toByte()
+            }
+        Image.fromRgba(2, 2, pixels).use {
+            image -> RasterSurface(2, 2).use {
+                surface ->
+                surface.draw {
+                    canvas -> canvas.drawImage(
+                        image,
+                        Rect(0.0, 0.0, 2.0, 2.0),
+                        ImageSampling.Nearest
+                    )
+                }
+                surface.snapshot().use {
+                    snapshot ->
+                    surface.draw { canvas -> canvas.clear(Color.Black) }
+                    surface.draw { canvas -> canvas.drawImage(snapshot, Rect(0.0, 0.0, 2.0, 2.0)) }
+                    assertEquals(255, channel(surface.readPixels(), 2, 0, 0, 0))
+                }
+            }
+        }
+        Image.decode(includeBytes("data/pixels.png")).use {
+            image ->
+            assertEquals(2, image.width);
+            assertEquals(2, image.height)
+        }
+        Image.decode(includeBytes("data/pixels.jpg")).use {
+            image ->
+            assertEquals(2, image.width);
+            assertEquals(2, image.height)
+        }
+        assertFailsWith<GraphicsException> { Image.decode([1.toByte(), 2.toByte()]) }
+        assertFailsWith<IllegalArgumentException> { RasterSurface(0, 4) }
+    }
+}
+
+@Test
+private class PathTest {
+    @Test
+    fun `paths and measures survive builder mutation and resource closure`() {
+        val builder = PathBuilder()
+        builder.moveTo(Point(0.0, 0.0)).lineTo(Point(3.0, 4.0)).moveTo(Point(10.0, 0.0)).lineTo(
+            Point(10.0, 2.0)
+        )
+        val path = builder.build()
+        builder.reset().addRect(Rect(100.0, 100.0, 2.0, 2.0))
+        assertEquals(Rect(0.0, 0.0, 10.0, 4.0), path.bounds)
+        val measure = path.measure()
+        path.close();
+        builder.close()
+        assertEquals(7.0, measure.length)
+        val sample = measure.sample(6.0)!!
+        assertTrue(abs(sample.position.y - 1.0) < 0.001)
+        assertTrue(abs(sample.tangent.y - 1.0) < 0.001)
+        assertFailsWith<IllegalArgumentException> { measure.sample(8.0) }
+        measure.close()
+    }
+    @Test
+    fun `curves arcs winding and shape primitives form usable paths`() {
+        PathBuilder(FillRule.EvenOdd).use {
+            builder ->
+            builder.addRect(Rect(0.0, 0.0, 20.0, 20.0)).addOval(Rect(5.0, 5.0, 10.0, 10.0))
+            builder.build().use {
+                path ->
+                assertTrue(path.contains(Point(2.0, 2.0)));
+                assertFalse(path.contains(Point(10.0, 10.0)))
+            }
+            builder.reset().moveTo(Point(0.0, 0.0)).quadraticTo(Point(10.0, 20.0), Point(20.0, 0.0))
+            .cubicTo(Point(25.0, -10.0), Point(35.0, 10.0), Point(40.0, 0.0))
+            .arcTo(Rect(40.0, 0.0, 10.0, 10.0), 0.0, 3.141592653589793, true)
+            builder.build().use {
+                path -> path.measure().use { measure -> assertTrue(measure.length > 50.0) }
+            }
+        }
+    }
+}

@@ -7,7 +7,7 @@
 | 内容 | 状态 |
 | --- | --- |
 | window 鼠标序列取消、单调输入时间 | 已实现并验证 Darwin 两目标 |
-| 固定 Skia／HarfBuzz／ICU 依赖与绘图 Cone | 进行中 |
+| 固定 Skia／HarfBuzz／ICU 依赖与绘图 Cone | 已实现；CPU 与 Metal texture 验证通过 |
 | GUI 宿主、共享帧调度、macOS Metal 呈现 | 待完成 |
 | 字体、段落布局及索引／几何查询 | 待完成 |
 | 动画、输入区域、焦点和 IME 路由 | 待完成 |
@@ -24,3 +24,15 @@ Darwin ARM64 和 Rosetta x86_64 的 `scoop.window` 各 4 容器、12 测试通�
 Scoop 格式化、Cone check 及变更的 Objective-C 严格编译检查通过。验证全部使用 `scoop.test` 和普通测试 Cone，没有新增或执行 fixture；原始日志保存在仓库外。
 
 协议调用与通知测试不等同于实际用户拖动、外部窗口抢焦点、输入法候选交互或混合 DPI 硬件验证。GUI 的显示链路和桌面验收仍须随后续批次完成。
+
+## 绘图 Cone 与 native 资源
+
+`scoop.graphics` 已提供 Point／Size／Rect／Transform／Color、Canvas、Paint、线性／径向渐变、不可变 Path 与 builder、PathMeasure、Image、RasterSurface。Canvas 的变换与 clip 由同一个 Skia 状态生成绘图和命中快照；快照保留独立 Path 引用，DPI 根缩放不进入逻辑几何。draw 回调结束或抛错时结束 Canvas 借用，恢复完整状态；跨线程、嵌套借用和借用中 close 均明确拒绝。
+
+公开 `scoop.graphics.native` 提供 RenderTarget 和 CanvasGeometry，macOS 的 MetalContext 接收不透明 device／queue／texture，通过普通 C ABI 接入 Ganesh。目标独立保留 context，普通 submit 不等待 GPU；readPixels 和 drain 显式同步。窗口安装、CAMetalDisplayLink 与 present 仍属于后续 GUI 宿主批次。
+
+固定 Skia revision `f326a1e25fc736704063922b9ce76b527b1c5efe` 及 DEPS 对应 HarfBuzz／ICU／libpng／libjpeg-turbo 源码、许可和 macOS 部署补丁已纳入 vendor。`build_skia.py` 显式构建两目标的 `libscoop_skia.a` 与头文件；依赖源自固定归档，命中先检查更新，普通应用不联网或运行 GN。系统 zlib 来自 Xcode SDK。发行准备与组装已接入这些资源。
+
+macOS ARM64 和 Rosetta x86_64 的 graphics Cone 各 3 容器、10 测试通过：真实像素读回验证组透明度、描边端点、渐变、裁剪、PNG／JPEG 解码和图像快照；路径长度／曲线／多 contour 与资源生命周期使用同一 Skia 实现；独立 test-native Cone 创建真实 Metal texture，验证 Ganesh 提交、上下文复用、读回与一次 DPI 根转换。测试不需要 Application，尚不等于窗口呈现验收。
+
+Scoop fmt／check、C++ 与 Objective-C 严格检查，以及 5 项既有发行维护脚本测试通过。两目标依赖实际从归档准备，后续相同输入直接复用；开发 SDK 为 macOS 27.2，最低部署仍为发行配置的 27.0.1。原始构建与测试日志留在仓库外。

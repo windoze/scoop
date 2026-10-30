@@ -1,6 +1,6 @@
 # Scoop GUI 基础库规范
 
-状态：实施中。日期：2026-10-31。本文件规定第一期共享基础层及 macOS 后端的目标合同，window 输入前置能力已实现，graphics／gui 的交付状态见 [实施记录](../gui/PROGRESS.md)。架构、平台接入和实施顺序见 [GUI 设计](../gui/DESIGN.md)。
+状态：实施中。日期：2026-10-31。本文件规定第一期共享基础层及 macOS 后端的目标合同。window 输入前置与 graphics 绘图／native target 已实现；文本、GUI 宿主等后续能力的交付状态见 [实施记录](../gui/PROGRESS.md)。架构、平台接入和实施顺序见 [GUI 设计](../gui/DESIGN.md)。
 
 ## 1. 范围与依赖
 

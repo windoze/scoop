@@ -1,0 +1,46 @@
+package scoop.graphics
+
+import scoop.platform.concurrent.currentThreadId
+
+/** A native graphics operation failed. Invalid values and closed resources use standard exceptions. */
+public class GraphicsException public constructor(message: String): Exception(Some(message))
+
+internal class GraphicsResource(pointer: Ptr<Unit>): Closeable {
+    private val thread = currentThreadId()
+    private var pointer: Ptr<Unit>? = Some(pointer)
+    val isClosed: Boolean get() = pointer == None
+    fun checkThread() {
+        if (thread != currentThreadId())
+            throw IllegalStateException(Some("graphics resource requires its owner thread"))
+    }
+    fun get(): Ptr<Unit> {
+        checkThread()
+        return pointer ?: throw IllegalStateException(Some("graphics resource is closed"))
+    }
+    public override fun close() {
+        checkThread()
+        when (pointer) {
+            case Some(value) -> {
+                pointer = None;
+                @Unsafe
+                {
+                    graphicsDrop(value)
+                }
+            }
+            case None -> {}
+        }
+    }
+}
+
+internal fun ownedGraphics(pointer: Ptr<Unit>?, operation: String): GraphicsResource =
+    GraphicsResource(pointer ?: throw GraphicsException(operation))
+
+internal fun graphicsResult(result: Int, operation: String) {
+    if (result < 0)
+        throw IllegalArgumentException(Some(operation))
+    if (result == 0)
+        throw GraphicsException(operation)
+}
+
+@Extern(name = "scoop_graphics_drop")
+internal fun graphicsDrop(pointer: Ptr<Unit>)

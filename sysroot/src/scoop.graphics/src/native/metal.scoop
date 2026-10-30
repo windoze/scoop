@@ -1,0 +1,53 @@
+package scoop.graphics.native.macos
+
+import scoop.graphics.*
+import scoop.graphics.native.RenderTarget
+
+/** Shared Ganesh state for Metal targets using the supplied device and command queue. */
+public class MetalContext private constructor(private val resource: GraphicsResource): Closeable {
+    /** The caller must supply a live BGRA8 drawable texture belonging to this device. */
+    @Unsafe
+    public fun target(texture: Ptr<Unit>, width: Int, height: Int, scale: Double): RenderTarget {
+        pixelBytes(width, height);
+        checkScalar(scale)
+        requireGraphics(scale > 0.0 && scale.toFloat() > 0.0, "invalid target scale")
+        return RenderTarget(
+            ownedGraphics(metalTarget(resource.get(), texture, width, height), "wrap Metal target"),
+            width,
+            height,
+            scale
+        )
+    }
+    /** Waits for this context's submitted GPU work; used for explicit teardown. */
+    public fun drain() {
+        @Unsafe
+        {
+            graphicsResult(metalDrain(resource.get()), "drain Metal context")
+        }
+    }
+    public override fun close() {
+        resource.checkThread()
+        if (resource.isClosed)
+            return
+        try {
+            drain()
+        } finally {
+            resource.close()
+        }
+    }
+    public companion object {
+        /** Both opaque objects are retained by Skia. All context operations use the creating thread. */
+        @Unsafe
+        public fun create(device: Ptr<Unit>, queue: Ptr<Unit>): MetalContext =
+            MetalContext(ownedGraphics(metalContext(device, queue), "create Ganesh Metal context"))
+    }
+}
+
+@Extern(name = "scoop_graphics_metal_context")
+private fun metalContext(device: Ptr<Unit>, queue: Ptr<Unit>): Ptr<Unit>?
+
+@Extern(name = "scoop_graphics_metal_target")
+private fun metalTarget(context: Ptr<Unit>, texture: Ptr<Unit>, width: Int, height: Int): Ptr<Unit>?
+
+@Extern(name = "scoop_graphics_metal_drain")
+private fun metalDrain(context: Ptr<Unit>): Int

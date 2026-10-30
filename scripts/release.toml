@@ -16,6 +16,7 @@ pcre2 = "10.49"
 zstd = "1.5.7"
 zlib-ng = "2.3.3"
 brotli = "1.2.0"
+skia = "f326a1e25fc736704063922b9ce76b527b1c5efe"
 
 [targets.aarch64-apple-darwin]
 cpu = "generic"
