@@ -92,7 +92,7 @@ impl NativeToolchain {
             windows_c: Self::needs_windows_c(target.c_bridge_toolchain(), manifest)?
                 .then(|| {
                     let key = crate::build_record::fingerprint(
-                        &crate::native_record::ResolvedRecord::from_target(target)?,
+                        &crate::native_record::ResolvedRecord::cache_configuration(target)?,
                     )?;
                     let record = crate::build_record::cached(
                         &cache.join("native-c-tools-v3"),

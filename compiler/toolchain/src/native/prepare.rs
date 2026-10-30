@@ -59,7 +59,13 @@ pub(super) fn prepare(
     let roots = InputRoots {
         cone: manifest.real_root().to_path_buf(),
         public: sysroot.join("include").canonicalize().map_err(error)?,
-        target: std::path::absolute(&target_root).map_err(error)?,
+        target: match target_root.canonicalize() {
+            Ok(path) => path,
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                std::path::absolute(&target_root).map_err(error)?
+            }
+            Err(err) => return Err(error(err)),
+        },
         system,
     };
     for (source, _) in &sources {

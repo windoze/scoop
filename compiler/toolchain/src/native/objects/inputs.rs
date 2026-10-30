@@ -80,6 +80,6 @@ pub(super) fn configuration(
             .then(|| HostPathCarrier::from_path(sysroot))
             .transpose()
             .map_err(error)?,
-        crate::native_record::ResolvedRecord::from_target(target)?,
+        crate::native_record::ResolvedRecord::cache_configuration(target)?,
     ))
 }

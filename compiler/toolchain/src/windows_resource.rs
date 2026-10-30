@@ -69,7 +69,7 @@ pub(crate) fn prepare(
         path_carrier(manifest.real_root())?,
         source,
         includes,
-        crate::native_record::ResolvedRecord::from_target(target)?,
+        crate::native_record::ResolvedRecord::cache_configuration(target)?,
         search.as_encoded_bytes(),
     ))?;
     let directory = cache.join("native-resources-v2");
