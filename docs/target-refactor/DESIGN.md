@@ -4,11 +4,11 @@
 
 初稿：2026-10-29。复审：2026-10-30。
 
-代码依据：主线 [`09be3315a85cfa9e50f79e49785bd23e0880f1f0`](https://github.com/windoze/scoop/tree/09be3315a85cfa9e50f79e49785bd23e0880f1f0)。Windows targets 经 `b0de037002`（#70）合入，随后 `2ae2534a1c`（#71）和 `09be3315a8`（#72）加入 macOS／Windows 窗口库及其实际需要的 native 支持。以下代码链接指向当前主线文件。
+复审基线：主线 [`09be3315a85cfa9e50f79e49785bd23e0880f1f0`](https://github.com/windoze/scoop/tree/09be3315a85cfa9e50f79e49785bd23e0880f1f0)。Windows targets 经 `b0de037002`（#70）合入，随后 `2ae2534a1c`（#71）和 `09be3315a8`（#72）加入 macOS／Windows 窗口库及其实际需要的 native 支持。以下代码链接已随重构更新，指向本分支的实现文件。
 
 Windows 的[实施记录][windows-progress]确认 W0～W4 完成，包括高层 HTTP 失败闭合、新版候选归档安装，以及 Linux／macOS 各交叉生成 18 个 Windows 程序、共 36 个程序在真实 Windows 上执行通过。这些结果是重构前的已有证据；[窗口库记录](../windowing/PROGRESS.md)分别说明后续 AppKit／Win32 骨架的验证范围，不扩大为当前主线全量测试已经重新通过。
 
-| 当前基线项 | 值 | 用途 |
+| 复审时基线项 | 值 | 用途 |
 | --- | --- | --- |
 | runtime ABI／metadata ABI | 30／9 | 配套 compiler、runtime 与目标库的机器合同 |
 | runtime index／开发 runtime cache | schema 7／`runtime-v8` | 可跨宿主消费的对象 locator／本机更新记录 |
@@ -44,7 +44,7 @@ Windows 的[实施记录][windows-progress]确认 W0～W4 完成，包括高层 
 
 M39 已把具体 ABI 算法移到 `scoop-abi-plan`，并通过 driver 完成 `prepare → plan_abi → complete`。问题主要不在前端，而在同一平台事实被多个消费者重新推导，以及原先只有一种组合时形成的隐含等价关系。
 
-| 现有位置 | 当前耦合 | 本轮处理 |
+| 实现位置 | 复审时发现的耦合 | 本轮处理 |
 | --- | --- | --- |
 | [target-data](../../compiler/target-data/targets.toml)、[registry](../../compiler/toolchain/src/registry.rs)、[manifest catalog](../../compiler/toolchain/src/manifest.rs)、准备脚本和 fixture runner | 完整 target、alias、os／arch／env、host 默认值重复列举 | 一份静态目录提供事实，各消费者仅适配自身数据类型 |
 | [ABI 选择](../../compiler/codegen/abi-plan/src/lib.rs)、Windows 的 [LIR contract][windows-contract] 和 [EH 签名][windows-machine-abi] | 完整 ID 反复映射 ABI；COFF 被用于选择 Win64 classifier 和 SEH personality | 过程 ABI、Scoop ABI 规则和 EH 合同分别显式绑定 |
@@ -290,7 +290,7 @@ probe 可以预处理或编译并读取目标对象，不在交叉编译时执�
 
 ### 8.1 runtime 按已有接口继续拆分
 
-Windows 已新增 POSIX／Win32 primitives、numeric、PE image 和 SEH frame，应复用这些接口。建议职责目录为：
+Windows 已新增 POSIX／Win32 primitives、numeric、PE image 和 SEH frame，本轮复用这些接口。实现后的职责目录为：
 
 ```text
 runtime/src/platform/
@@ -337,7 +337,7 @@ include = [
 ]
 ```
 
-拟定语义如下，实施前写入语言规范 12.2.1 和实现规范的 native 输入／更新合同：
+以下语义已写入语言规范 12.2.1 和实现规范的 native 输入／更新合同，并由 native 与 RC 调用方共同实现：
 
 1. 字符串及 `{ path = ... }` 支持绝对路径或以 Cone 为根的相对路径；`{ sysroot = ... }` 以本次已选择的 Scoop sysroot 下 `lib/<canonical-target>/` 为根。它不是 `--native-sysroot` 指定的操作系统 SDK。
 2. `path` 与 `sysroot` 互斥，均可使用现有 `when`；按声明顺序形成当前目标的 include 列表，未选项不进入输入集。
@@ -357,7 +357,7 @@ include = [
 
 维护脚本把当前 target 实际使用的目录投影作为配置输入，不把其他 target 的 SDK／工具探测加入本次更新判断。共用目录读取不启动编译器，也不提前解包或复制源码。
 
-现有 `cone_order` 的命中记录只跟踪 manifest、准备脚本和 target；接入外部目录后须把实际影响该目标及谓词解析的目录规则加入更新输入，避免仅修改目录却复用旧库顺序。目录配置的读取与源码读取分开，正常命中继续先于 manifest 正文解析。共用脚本依赖处理还要保留已修复的 CMake Makefile `link.d` 相对目录、空依赖规则，以及 Ninja／Microsoft 的既有路径解释。
+`cone_order` 的更新记录已加入实际影响所选目标及谓词解析的目录规则，目录变化会更新派生库顺序。目录配置的读取与源码读取分开，正常命中继续先于 manifest 正文解析。共用脚本依赖处理保留已修复的 CMake Makefile `link.d` 相对目录、空依赖规则，以及 Ninja／Microsoft 的既有路径解释。
 
 新增同 ABI 的架构／OS 组合时，只在确实使用新参数的 recipe 中登记映射。C++ 标准库、MSVC flags、LLVM-MinGW 两个 prefix 继续明确；不为每个库再复制一套 host／target 解析。
 
@@ -369,7 +369,7 @@ LLVM／LLDB 补丁作为实际构建输入保留，尤其是 Windows statepoint 
 
 ## 10. 新 target 的预期增量
 
-下表是完成重构后的移植清单，不是注册表。名称及 OpenHarmony source condition 是本设计建议，正式加入前同步规范并确认 SDK 拼写。ARM64 统一使用 canonical `aarch64`，AMD64 使用 `x86_64`。
+下表记录本阶段 Darwin x86_64 的实际增量与后续目标的移植清单，不作为支持注册表。Darwin x86_64 已实现；其余名称及 OpenHarmony source condition 仍是后续建议，正式加入前同步规范并确认 SDK 拼写。ARM64 统一使用 canonical `aarch64`，AMD64 使用 `x86_64`。
 
 | 目标 | 可直接复用的部分 | 实际新增／必须确认的部分 |
 | --- | --- | --- |
@@ -387,7 +387,7 @@ Darwin x86_64 使用本机 SDK 和 Rosetta 执行环境进行本阶段验证，�
 
 ## 11. 实施顺序与规范同步
 
-Windows 已完成并合入，本轮可以直接从当前主线按小批次实施。本次复审完成了基线和差异核对；下面各批的规范调整与代码重构仍待实施，不需要重新执行 Windows 收尾项目才开始 R1。
+Windows 完成并合入后，本轮从上述主线基线按以下批次实施。R0～R6 的规范、代码与本机验证已完成；R7 负责远端与跨宿主验收，实际结果见[实施记录](PROGRESS.md)。下表保留各批职责及验收出口，后续新增目标沿用这些边界。
 
 | 批次 | 改动与交付 | 验收出口 |
 | --- | --- | --- |
@@ -402,7 +402,7 @@ Windows 已完成并合入，本轮可以直接从当前主线按小批次实施
 
 R3／R4 在 R1／R2 的公共数据稳定后可分别实施；R5 的 manifest 语义先单独落地，再迁移库。每批都删除被替代的旧入口，避免长期保留两套生产路径。
 
-| 权威文档 | 实施前需要明确的内容 |
+| 权威文档 | 本轮同步的内容与后续边界 |
 | --- | --- |
 | 实现规范 1、2.4、2.5 | 六目标基线、目录与实现的所有权；保留现有 ABI 规划交接；显式 ABI／EH／frame 数据 |
 | 实现规范的对象、runtime index、native、链接和调试章节 | machine／格式区别、真实 relocation、Windows SEH／COFF／PDB／RC、可搬迁 locator、导入顺序／framework／selector stub、producer 与 host／target 分工 |

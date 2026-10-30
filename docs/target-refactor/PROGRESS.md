@@ -128,3 +128,9 @@ musl 通过显式 Clang／SDK 构建系统库；该机 SDK 补齐已有 musl 头
 配套 LLVM／LLDB 下，Linux workspace 的 6,331 项 Rust／文档测试全部闭合。LLVM 补丁问题修复后，剩余失败来自 linker 单测仍断言旧 ELF 诊断文案；已改为实际目标相关文案，并完成本机格式化、workspace Clippy 和 linker 测试后在 Linux 复验。GNU 的 32 项、musl 的 28 项受影响正式 fixture 全部通过，两者各 14 个普通／consumer／native 文本 Cone 通过。GNU 的完整 DAP launch、sourceMap、离线 formatter、终端与 attach，以及 musl 的 launch、sourceMap、formatter 和静态 TLS 检查通过。两个目标均已用最终配套工具准备 25 个系统 Cone 和四种 runtime 配置。
 
 musl 首轮的三项 fixture 失败属于 companion 适配：两项 callback 用例把 GCC 生成的对象字节数固定在整份链接计划快照中；进程环境用例的 C 启动器默认尝试动态链接。callback 用例保留依赖关系、直接构建与 artifact-only 重链接的计划指纹一致性，以及两种产物的真实运行断言，删除重复对象大小快照。环境启动器改用 Python `execve`，继续传递原始 POSIX 参数和环境字节。Ruff 0.16.10 与 79 项 fixture 规则测试通过（本机 3 项宿主不适用）；三个用例在本机两种 Darwin 架构与 Linux GNU／musl 全部通过。
+
+### R7 发行组装与安装
+
+发行入口复核发现完整 manifest 用于目标筛选后，包元数据仍按旧的 Cone 字段结构读取。归档测试补入实际 `Cone.toml` 和发行坐标断言，在修复前稳定报 `KeyError: group`，修复后通过。Ruff 0.16.10 与本机、Linux 的 23 项维护脚本测试通过（分别跳过 3／2 项宿主不适用测试）。
+
+本机使用最终配套 CLI、LLVM／LLDB 和预编译资源调用正式组装、归档流程，生成包含两种 Darwin 目标、27 个系统 Cone 的安装包。归档解到含中文和空格的新目录后，包内 CLI 使用安装目录中的目标库完成两种架构各 2 项 C++／crypto／TLS 正式 fixture（各 3 个模式组合、7 次进程调用）。实际来源和原工具保持可用，验证安装目录下的真实调用、链接与运行。
