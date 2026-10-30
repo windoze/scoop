@@ -12,7 +12,8 @@
 | 字体、段落布局及索引／几何查询 | 已实现；Darwin 两目标离屏验证通过 |
 | 动画与窗口帧时钟 | 已实现；Darwin 两目标确定性测试通过 |
 | 输入区域、焦点和 IME 路由 | 已实现；Darwin 两目标离屏测试通过，原生会话待桌面验收 |
-| 组合示例、两目标集成验收 | 待完成 |
+| 组合示例 | 已实现；两目标构建与编辑模型测试通过 |
+| 实际桌面集成验收 | 待解锁会话后完成 |
 
 ## window 前置能力
 
@@ -93,3 +94,13 @@ InputArea 提供窗口持有的稳定身份；FrameContext.place 从真实 Canva
 Scoop fmt／check 与 Objective-C 两目标严格检查通过。ARM64、Rosetta x86_64 的 InputAreaTest／InputFocusTest 各 13 项通过，覆盖真实 Skia 路径孔洞、变换／clip、父关系、冒泡、提交／中止、拖动、静止 hover、滚轮单位、焦点／IME 切换、caret、线程和异常关闭。测试调用生产路由与实际 RasterSurface，没有替代 renderer。
 
 独立 `tests-cones/input` 使用真实输入 view 的 AppKit 鼠标与 NSTextInputClient 协议，组合两帧动画、区域焦点、preedit／commit 排队、候选窗位置及回调内关闭；两目标均通过 `scoop test --no-run` 完成构建和链接。它不注入全局输入，也不替代实际用户操作；真实执行与宿主／asyncio／异常测试一同等待已解锁桌面。
+
+## 组合示例与当前验收边界
+
+`scoop.gui/examples/basics` 是独立 executable Cone，直接组合 Path、Canvas、TextLayout、Animatable 和 InputArea。星形边旋转边响应精确形状命中，hover 改颜色，拖动使用窗口坐标，松开后以 spring 返回。文本区应用 IME 批次，显示 selection／marked range 与 caret；退格和左右移动按 grapheme 处理，文字或宽度变化才重排，候选窗使用同一布局几何。
+
+示例与所属两项 scoop.test 在 ARM64／Rosetta x86_64 均编译、链接成功，编辑模型测试全部通过；两个目标的演示可执行文件已生成。它只实现短文本演示所需编辑行为，没有引入组件、滚动或完整编辑器抽象。
+
+本阶段已通过的共同范围为：每目标 graphics 19 项、动画 7 项、区域输入 13 项、示例编辑模型 2 项，另有穷尽性编译器回归 Cone 1 项。GUI 的宿主、asyncio、异常及原生输入会话测试程序均已具备两目标构建结果；`--no-run` 只表示编译链接成功。
+
+当前 Mac 会话锁定，真实窗口重绘被 AppKit 遮挡状态阻止。仍需在已解锁桌面执行宿主／asyncio／异常／原生输入会话测试，并运行示例验证窗口呈现、实际拖动与输入法候选交互。跨屏混合 DPI 与外部抢焦点也仍须按实际桌面条件验证。本阶段保持“实施中”，不把离屏、协议测试或构建成功计作这些验收通过。本轮 GUI 测试日志、临时缓存与演示可执行文件保存在仓库外。

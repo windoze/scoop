@@ -813,6 +813,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - [架构与 macOS 设计](gui/DESIGN.md)及 [GUI 规范](specs/SCOOP-GUI-SPEC.md)将第一期划分为普通 `scoop.graphics` 与 `scoop.gui` Cone：Skia 绘图／Path、SkParagraph + HarfBuzz 文本布局、动画与 InputArea，为后续 component 提供基础。
 - 帧调度、动画、文本和事件路由共用平台无关实现；surface、原生帧通知、呈现及系统字体适配由各平台独立完成。本轮实施 Darwin 两目标的 Ganesh Metal／CAMetalDisplayLink 接入，不以其他平台 renderer 完成作为交付条件。
 - window 已先行补齐鼠标序列取消和有来源标记的单调输入时间，见[窗口规范第 11 节](specs/SCOOP-WINDOW-SPEC.md#11-gui-基础层所需输入扩展)。沿用现有 Application／asyncio 宿主、native lease、普通 FFI 和构建合同；全部功能与验证使用普通 Cone 和 scoop.test，实际交付范围见[实施记录](gui/PROGRESS.md)。
+- 基础 API 与 [组合示例](../sysroot/src/scoop.gui/examples/basics/README.md)已交付；两目标的绘图／文本、动画、区域输入与示例编辑模型测试通过。真实窗口、主循环组合与 IME 桌面验收因会话锁定待完成，未据离屏测试标记本阶段完成。
 
 ### `scoop example` 外部子命令（首批 24 个主题已实现）
 
