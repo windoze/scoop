@@ -922,7 +922,7 @@ JSON／CLI 浮点解析后备返回的 `Option<Float>`／`Option<Double>` 同样
 
 严格解码 helper 接受非零字节指针和非负 Long 长度，返回普通 `(String?, Long)`：成功为 `(Some(string), -1L)`，失败为 `(None, byteOffset)`。该 tuple 的 storage 为 16 bytes、alignment 8，Option<String> 使用 nullable managed pointer niche，字段 offsets 为 0/8；按完整 Scoop ABI 传递。core 的安全 Array 重载通过 3.4 的作用域借用调用同一 helper，pointer 重载在进入 helper 前检查负长度；不为这些函数增加编译器异常角色。lossy 复用有边界的单步校验器，先计算实际输出长度，再分配和转换，整个过程保持输入稳定。
 
-Option<Char> 的 storage 为 16 bytes、alignment 8，tag offset 0、Char offset 8；Option<(Long, Long)> 为 24 bytes、alignment 8，tag offset 0、Long offsets 8/16。实际 core 的 Some/None tag 为 0/1。前者按 GC-free 小值分类使用 DirectParts，后者仍间接返回：Darwin/AArch64 经 x8；Linux/amd64 经 RDI，并在 RAX 返回同一地址。这些 helper 使用普通 Scoop 调用发射，无专用 native shim。
+Option<Char> 的 storage 为 16 bytes、alignment 8，tag offset 0、Char offset 8；Option<(Long, Long)> 为 24 bytes、alignment 8，tag offset 0、Long offsets 8/16。实际 core 的 Some/None tag 为 0/1。前者按 GC-free 小值分类使用 DirectParts，后者仍间接返回：Darwin/AArch64 经 x8；Darwin/amd64 与 Linux/amd64 经 RDI，并在 RAX 返回同一地址。这些 helper 使用普通 Scoop 调用发射，无专用 native shim。
 
 数组后备使用显式目标 TD 分配和浅复制，保持新对象头、logical size 和 canonical padding。ZST 不复制 payload；不能从来源名称或布局猜测目标 exact type。源码 bounds check 与异常构造由 managed 代码承担，受检 helper 收到越界 index 属于内部 invariant error。
 

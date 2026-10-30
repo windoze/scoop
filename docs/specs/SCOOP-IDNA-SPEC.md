@@ -50,7 +50,7 @@ URL 从已解析的 host 组件调用 IDNA；百分号解码和 IP 识别属于 
 
 ## 5. 构建与验收
 
-维护脚本从固定 Rust package 与锁定依赖准备 Darwin、Linux GNU／musl、Windows MSVC UCRT／LLVM-MinGW MSVCRT／LLVM-MinGW UCRT 六个目标的 `libscoop_text_backend.a` 和 C 头文件；源码及许可沿 M52 布局交付。Windows 使用发行配置固定的 Rust 版本，分别映射到 `x86_64-pc-windows-msvc`、`x86_64-pc-windows-gnu`、`x86_64-pc-windows-gnullvm`，Microsoft COFF archive 以相同的 `.a` 名称发布，各目标产物独立。Windows 原生系统依赖为 kernel32、ntdll、userenv、ws2_32、dbghelp；CRT 与 Scoop 展开辅助库沿完整目标的普通链接配置提供，不另带 GCC DLL 或第二套展开实现。
+维护脚本从固定 Rust package 与锁定依赖，为[实现规范](SCOOP-IMPL-SPEC.md)所列的当前完整 target 分别准备 `libscoop_text_backend.a` 和 C 头文件；源码及许可沿 M52 布局交付。目标选择共用静态目录，Darwin AArch64／amd64 的资源分别构建。Windows 使用发行配置固定的 Rust 版本，分别映射到 `x86_64-pc-windows-msvc`、`x86_64-pc-windows-gnu`、`x86_64-pc-windows-gnullvm`，Microsoft COFF archive 以相同的 `.a` 名称发布，各目标产物独立。Windows 原生系统依赖为 kernel32、ntdll、userenv、ws2_32、dbghelp；CRT 与 Scoop 展开辅助库沿完整目标的普通链接配置提供，不另带 GCC DLL 或第二套展开实现。
 
 `idna` 使用 MIT／Apache-2.0，ICU4X 与 Unicode 数据使用 Unicode-3.0。普通应用只消费 `.slib` 和静态归档，不执行 Cargo 或探测 Rust 工具链。共同归档复用现有 native library 闭包去重与目标链接规则，见实现规范 §2.8。
 

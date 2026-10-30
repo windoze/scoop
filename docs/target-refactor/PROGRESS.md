@@ -137,7 +137,7 @@ musl 首轮的三项 fixture 失败属于 companion 适配：两项 callback 用
 
 ### R7 宿主路径与运行时测试边界
 
-Windows 未保存源码原先把宿主反斜杠路径直接作为 logical path，现复用 `NormalizedSourcePath::from_relative_path`，与正常源码选择保持相同身份规则。原有工作区测试在 Windows 复验通过。本机的 analysis／codegen 共 405 项测试通过；Linux 的工作区分析与 codegen 共 405 项复验通过。Windows 的工作区分析 6 项、codegen 311 项通过，三台机器的格式化与 workspace Clippy 通过，配套 LSP 已重建。
+Windows 未保存源码原先把宿主反斜杠路径直接作为 logical path，现复用 `NormalizedSourcePath::from_relative_path`，与正常源码选择保持相同身份规则。原有工作区测试在 Windows 复验通过。本机的 analysis／codegen 共 405 项测试通过；Linux 的工作区分析与 codegen 共 405 项复验通过。Windows 的工作区分析 5 项、codegen 311 项通过，三台机器的格式化与 workspace Clippy 通过，配套 LSP 已重建。
 
 独立 C harness 的 pthread／fork／mmap／Itanium unwinder 用例显式限定 Unix；通用 runtime 源码边界检查保留在全部宿主。原生指针资格检查从目标目录选取 profile，C harness 输出按宿主 CRT 换行处理。Windows 的真实 runtime／GC／SEH 覆盖由本机 toolchain、正式 CLI fixture 和调试验收承担，不把 POSIX harness 的排除算作 Windows 执行通过。Microsoft linker 与 GNU dlltool 专测补齐已有工具路径后，PE 导入、Unicode startup、PDB 和 GNU import archive 组合复验通过。
 

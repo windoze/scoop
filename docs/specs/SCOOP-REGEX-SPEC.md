@@ -121,6 +121,6 @@ C 适配不访问 Scoop 对象头。编译、匹配和替换使用 NativeSafe，
 
 一次查询／iterator 的 byte↔scalar 定位按需建立并复用；不为每个捕获重新扫描输入，不用逐字符下标定位。Boolean 查询不建立结果索引表。复制捕获直接使用有效字节端点，不经反复的标量 slice。
 
-PCRE2 作为独立 C 静态库交付，只构建 8-bit 引擎及所需 JIT，覆盖 Darwin/AArch64、Linux/x86_64 GNU／musl 和 Windows/x86_64 的三个完整 target。Windows 按所选 Microsoft／LLVM-MinGW 环境及 CRT 分别构建；Microsoft 环境使用动态 UCRT（`/MD`），C 适配显式声明 `PCRE2_STATIC`。维护脚本将上游静态 archive 安装为该 target 下的 `libpcre2-8.a`，保留实际 COFF 内容，不与其他环境共用。普通应用使用已有 sysroot 与 native.libraries，不下载或重建依赖；已验证范围见 Windows 实施进度。
+PCRE2 作为独立 C 静态库交付，只构建 8-bit 引擎及所需 JIT，按[实现规范](SCOOP-IMPL-SPEC.md)的当前完整 target 目录准备，包括 Darwin 的 AArch64／amd64。Windows 按所选 Microsoft／LLVM-MinGW 环境及 CRT 分别构建；Microsoft 环境使用动态 UCRT（`/MD`），C 适配显式声明 `PCRE2_STATIC`。维护脚本将上游静态 archive 安装为该 target 下的 `libpcre2-8.a`，保留实际 COFF 内容，不与其他环境共用。普通应用使用已有 sysroot 与 native.libraries，不下载或重建依赖；已验证范围见[目标扩展实施记录](../target-refactor/PROGRESS.md)。
 
 测试使用所属 Cone 的 release scoop.test；覆盖本库选项、索引、快照、迭代、替换、分割、异常映射和生命周期。禁止新 fixture、底层补缺的正反例、上游 Unicode 兼容性／完备性测试、无关 HTTP 组合、全量回归或普通功能 GC stress。实际底层缺口先在对应层修复并独立提交，再继续本库；不在库中绕过。
