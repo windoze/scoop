@@ -1,0 +1,48 @@
+package scoop.tests.gui
+
+/** Observes the existing input view and layer without replacing a production renderer. */
+public class ViewProbe public constructor(view: Ptr<Unit>): Closeable {
+    private var native: Ptr<Unit>? = None
+    init {
+        @Unsafe
+        {
+            native = Some(create(view))
+        }
+    }
+    public fun matches(width: Int, height: Int, scale: Double): Boolean {
+        @Unsafe
+        {
+            return check(native!!, width, height, scale)
+        }
+    }
+    public fun restored(): Boolean {
+        @Unsafe
+        {
+            return isRestored(native!!)
+        }
+    }
+    public override fun close() {
+        when (native) {
+            case Some(value) -> {
+                native = None
+                @Unsafe
+                {
+                    drop(value)
+                }
+            }
+            case None -> {}
+        }
+    }
+}
+
+@Extern(name = "scoop_gui_test_view_create")
+private fun create(view: Ptr<Unit>): Ptr<Unit>
+
+@Extern(name = "scoop_gui_test_view_check")
+private fun check(probe: Ptr<Unit>, width: Int, height: Int, scale: Double): Boolean
+
+@Extern(name = "scoop_gui_test_view_restored")
+private fun isRestored(probe: Ptr<Unit>): Boolean
+
+@Extern(name = "scoop_gui_test_view_drop")
+private fun drop(probe: Ptr<Unit>)

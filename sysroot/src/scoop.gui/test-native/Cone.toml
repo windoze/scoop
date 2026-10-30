@@ -1,0 +1,25 @@
+schema = 1
+[cone]
+group = "scoop.tests"
+name = "gui-native"
+version = "0.1.0"
+kind = "library"
+
+[[sources]]
+path = "src"
+when = { os = "darwin" }
+
+[native]
+objc_flags = ["-Wall", "-Wextra", "-Werror"]
+[[native.sources]]
+path = "native/view.m"
+when = { os = "darwin" }
+[[native.libraries]]
+name = "AppKit"
+kind = "framework"
+[[native.libraries]]
+name = "QuartzCore"
+kind = "framework"
+[[native.libraries]]
+name = "Metal"
+kind = "framework"

@@ -8,7 +8,7 @@
 | --- | --- |
 | window 鼠标序列取消、单调输入时间 | 已实现并验证 Darwin 两目标 |
 | 固定 Skia／HarfBuzz／ICU 依赖与绘图 Cone | 已实现；CPU 与 Metal texture 验证通过 |
-| GUI 宿主、共享帧调度、macOS Metal 呈现 | 待完成 |
+| GUI 宿主、共享帧调度、macOS Metal 呈现 | 已接入；桌面呈现测试待解锁会话后完成 |
 | 字体、段落布局及索引／几何查询 | 待完成 |
 | 动画、输入区域、焦点和 IME 路由 | 待完成 |
 | 组合示例、两目标集成验收 | 待完成 |
@@ -36,3 +36,11 @@ Scoop 格式化、Cone check 及变更的 Objective-C 严格编译检查通过�
 macOS ARM64 和 Rosetta x86_64 的 graphics Cone 各 3 容器、10 测试通过：真实像素读回验证组透明度、描边端点、渐变、裁剪、PNG／JPEG 解码和图像快照；路径长度／曲线／多 contour 与资源生命周期使用同一 Skia 实现；独立 test-native Cone 创建真实 Metal texture，验证 Ganesh 提交、上下文复用、读回与一次 DPI 根转换。测试不需要 Application，尚不等于窗口呈现验收。
 
 Scoop fmt／check、C++ 与 Objective-C 严格检查，以及 5 项既有发行维护脚本测试通过。两目标依赖实际从归档准备，后续相同输入直接复用；开发 SDK 为 macOS 27.2，最低部署仍为发行配置的 27.0.1。原始构建与测试日志留在仓库外。
+
+## GUI 宿主与呈现接入
+
+共享 GuiHost／GuiWindow 已接入 ApplicationHandler、按需帧调度、配置变化及 Closing／Exiting。平台边界为 RendererHost、WindowRenderer 和 RenderFrame；共享代码不包含 AppKit／Metal 类型。回调中关闭先停用需求，退出借用后中止帧并释放；绘制中 resize 会在提交前重新配置，退休旧目标。
+
+macOS 安装 CAMetalLayer 到既有输入 view，保存并在卸载时恢复原 layer；同 host 的窗口共用 device／queue／Ganesh context。CAMetalDisplayLink 在 common modes 提供 drawable，经 ApplicationProxy 请求共享层绘制；普通帧只提交有序 GPU 工作，关闭时排空后退休回调和 lease。全部窗口卸载后释放 context，host 可再附着窗口。
+
+已添加宿主、asyncio 和异常收尾三个普通 scoop.test Cone，Scoop 语义检查及 Darwin 两目标的 Objective-C 严格检查通过，两目标生产 `.slib` 构建成功。首次真实窗口测试停在首帧等待：系统显示休眠，唤醒后桌面工具仍明确报告 Mac 锁定，AppKit 将窗口报告为遮挡。此结果不计为呈现测试通过；待解锁后继续实际帧、空闲、多窗口、modal／menu 及异常验证。没有为测试绕过遮挡判断或启用定时器后备。

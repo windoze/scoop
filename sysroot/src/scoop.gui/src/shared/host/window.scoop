@@ -1,0 +1,164 @@
+package scoop.gui
+
+import scoop.graphics.Size
+import scoop.platform.time.MonotonicTimeSource
+import scoop.window.*
+
+public enum GuiWindowState {
+    Open, Closing, Closed
+}
+
+/** Shared owner of painting, frame demand and the renderer's explicit window lease. */
+public class GuiWindow internal constructor(
+    private val host: GuiHost,
+    public val nativeWindow: Window,
+    private val painter: (FrameContext) -> Unit,
+    private val renderer: WindowRenderer
+): Closeable {
+    private var phase = GuiWindowState.Open
+    private var depth = 0
+    private var configured: WindowMetrics? = None
+    private val scheduler = FrameScheduler()
+    public val state: GuiWindowState get() {
+        host.checkThread();
+        return phase
+    }
+
+    public fun requestFrame() {
+        host.checkThread()
+        if (phase != GuiWindowState.Open)
+            throw IllegalStateException(Some("GUI window is closing"))
+        scheduler.request()
+        refresh()
+    }
+    internal fun refresh() {
+        host.checkThread()
+        if (phase != GuiWindowState.Open)
+            return
+        if (nativeWindow.state != WindowState.Open) {
+            close();
+            return
+        }
+        when (nativeWindow.metrics) {
+            case Some(metrics) -> {
+                if (configured != Some(metrics)) {
+                    renderer.configure(metrics)
+                    configured = Some(metrics)
+                    scheduler.request()
+                }
+                renderer.setFrameDemand(
+                    scheduler.dirty &&
+                        metrics.physicalSize.isDrawable &&
+                        nativeWindow.isVisible &&
+                        !nativeWindow.isOccluded
+                )
+            }
+            case None -> renderer.setFrameDemand(false)
+        }
+    }
+    internal fun event(event: WindowEvent) {
+        host.checkThread()
+        if (phase != GuiWindowState.Open)
+            return
+        callback {
+            when (event) {
+                case Closing -> close()
+                case Destroyed -> close()
+                case RedrawRequested -> {
+                    scheduler.request();
+                    render()
+                }
+                case GeometryChanged(_) -> refresh()
+                case Occluded(_) -> {
+                    scheduler.request();
+                    refresh()
+                }
+                case ThemeChanged(_) -> requestFrame()
+                else -> {}
+            }
+        }
+    }
+    private fun render() {
+        refresh()
+        if (phase != GuiWindowState.Open)
+            return
+        val metrics = configured ?: return
+        if (!metrics.physicalSize.isDrawable || !nativeWindow.isVisible || nativeWindow.isOccluded)
+            return
+        when (renderer.acquire()) {
+            case Deferred -> {
+                scheduler.request();
+                refresh()
+            }
+            case Ready(frame) -> {
+                val accepted =
+                    frame.use {
+                        current ->
+                        scheduler.begin()
+                        val time = MonotonicTimeSource.markNow()
+                        current.draw {
+                            canvas -> painter(
+                                FrameContext(
+                                    this,
+                                    canvas,
+                                    Size(metrics.logicalSize.width, metrics.logicalSize.height),
+                                    time
+                                )
+                            )
+                        }
+                        // A painter can resize or close its native window synchronously.
+                        refresh()
+                        if (
+                            phase !=
+                                GuiWindowState.Open ||
+                                nativeWindow.state !=
+                                WindowState.Open ||
+                                !nativeWindow.isVisible ||
+                                nativeWindow.isOccluded
+                        )
+                            false
+                        else
+                            current.submit()
+                    }
+                if (!accepted)
+                    scheduler.request()
+                refresh()
+            }
+        }
+    }
+    private fun callback(block: () -> Unit) {
+        depth += 1
+        var failure: Throwable? = None
+        try {
+            block()
+        } catch (error: Throwable) {
+            failure = Some(error)
+        }
+        depth -= 1
+        when (failure) {
+            case Some(_) -> failure = cleanupFailure(failure) { close() }
+            case None -> {}
+        }
+        if (phase == GuiWindowState.Closing && depth == 0)
+            failure = cleanupFailure(failure) { retire() }
+        throwFailure(failure)
+    }
+    public override fun close() {
+        host.checkThread()
+        if (phase != GuiWindowState.Open)
+            return
+        phase = GuiWindowState.Closing
+        val failure = cleanupFailure(None) { renderer.setFrameDemand(false) }
+        if (depth == 0)
+            throwFailure(cleanupFailure(failure) { retire() })
+        else
+            throwFailure(failure)
+    }
+    private fun retire() {
+        if (phase == GuiWindowState.Closed)
+            return
+        phase = GuiWindowState.Closed
+        val failure = cleanupFailure(None) { renderer.close() }
+        throwFailure(cleanupFailure(failure) { host.detached(this) })
+    }
+}

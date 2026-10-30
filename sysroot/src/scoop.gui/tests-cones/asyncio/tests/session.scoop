@@ -1,0 +1,151 @@
+package scoop.tests.gui.asyncio
+
+import scoop.asyncio.*
+import scoop.graphics.*
+import scoop.gui.*
+import scoop.platform.concurrent.currentThreadId
+import scoop.platform.time.MonotonicTimeSource
+import scoop.test.*
+import scoop.tests.gui.ViewProbe
+import scoop.tests.window.*
+import scoop.time.Duration
+import scoop.window.*
+import scoop.window.native.*
+import scoop.window.asyncio.*
+
+@Test
+private class GuiAsyncioTest {
+    @Test
+    fun `display links and GUI callbacks share asyncio and native common modes`() {
+        val application = Application()
+        val probe = AsyncProbe()
+        val host = GuiHost { owner, active, event -> probe.event(owner, active, event) }
+        try {
+            application.runWithAsyncio(host)
+            assertTrue(host.isClosed)
+            assertTrue(probe.childFinished)
+            assertTrue(probe.modalFrames > 0)
+            assertTrue(probe.menuFrames > 0)
+            assertTrue(probe.view!!.restored())
+            assertEquals(GuiWindowState.Closed, probe.gui!!.state)
+            assertEquals(WindowState.Destroyed, probe.window!!.state)
+        } finally {
+            host.close()
+            probe.view?.close()
+        }
+    }
+}
+
+private class AsyncProbe {
+    val thread = currentThreadId()
+    var window: Window? = None
+    var gui: GuiWindow? = None
+    var view: ViewProbe? = None
+    var frames = 0
+    var modalFrames = 0
+    var menuFrames = 0
+    var childFinished = false
+    var closing = false
+
+    fun event(host: GuiHost, application: ActiveApplication, event: ApplicationEvent) {
+        assertEquals(thread, currentThreadId())
+        when (event) {
+            case Resumed -> start(host, application)
+            case NewEvents(StartCause.Deadline) -> fail(Some("GUI asyncio deadline expired"))
+            case Window(_, WindowEvent.Closing) -> {
+                closing = true
+                assertEquals(GuiWindowState.Closed, gui!!.state)
+            }
+            else -> {}
+        }
+    }
+    private fun start(host: GuiHost, application: ActiveApplication) {
+        val first =
+            application.createWindow(
+                WindowAttributes("Scoop GUI asyncio", LogicalSize(320.0, 180.0))
+            )
+        window = Some(first)
+        first.setWindowLevel(WindowLevel.AlwaysOnTop)
+        first.requestFocus()
+        @Unsafe
+        {
+            first.acquireNativeWindow().use {
+                lease -> @Unsafe
+                {
+                    when (lease.handle) {
+                        case AppKit(_, nativeView) -> view = Some(ViewProbe(nativeView))
+                    }
+                }
+            }
+        }
+        gui =
+            Some(
+                host.attach(first) {
+                    frame ->
+                    assertEquals(thread, currentThreadId())
+                    frames += 1
+                    frame.canvas.clear(Color(0.1, 0.2, 0.4))
+                    @Unsafe
+                    {
+                        val mode = activeNativeMode()
+                        if (mode == 1)
+                            modalFrames += 1
+                        if (mode == 2)
+                            menuFrames += 1
+                    }
+                    frame.window.requestFrame()
+                }
+            )
+        application.setControlFlow(
+            ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(10L))
+        )
+        val scope = currentApplicationScope()
+        val loop = currentEventLoop()
+        scope.launch suspend {
+            try {
+                loop.sleep(Duration.seconds(20L))
+            } finally {
+                nonCancellableScope<Unit> suspend {
+                    _ ->
+                    loop.sleep(Duration.milliseconds(10L))
+                    assertTrue(closing)
+                    assertEquals(GuiWindowState.Closed, gui!!.state)
+                    childFinished = true
+                }
+            }
+        }
+        scope.launch suspend {
+            while (frames < 3)
+                loop.sleep(Duration.milliseconds(10L))
+            schedule(first, 1)
+            var menuStarted = false
+            while (true) {
+                loop.sleep(Duration.milliseconds(10L))
+                @Unsafe
+                {
+                    val completed = completedNativeModes()
+                    if (completed == 2)
+                        break
+                    if (completed == 1 && !menuStarted) {
+                        menuStarted = true
+                        schedule(first, 2)
+                    }
+                }
+            }
+            scope.job.cancel()
+        }
+    }
+    private fun schedule(window: Window, kind: Int) {
+        @Unsafe
+        {
+            window.acquireNativeWindow().use {
+                lease -> @Unsafe
+                {
+                    when (lease.handle) {
+                        case AppKit(nativeWindow, _) -> scheduleNativeMode(nativeWindow, kind, 0.25)
+                    }
+                }
+            }
+        }
+    }
+}
