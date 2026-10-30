@@ -10,7 +10,8 @@
 | 固定 Skia／HarfBuzz／ICU 依赖与绘图 Cone | 已实现；CPU 与 Metal texture 验证通过 |
 | GUI 宿主、共享帧调度、macOS Metal 呈现 | 已接入；桌面呈现测试待解锁会话后完成 |
 | 字体、段落布局及索引／几何查询 | 已实现；Darwin 两目标离屏验证通过 |
-| 动画、输入区域、焦点和 IME 路由 | 待完成 |
+| 动画与窗口帧时钟 | 已实现；Darwin 两目标确定性测试通过 |
+| 输入区域、焦点和 IME 路由 | 待完成 |
 | 组合示例、两目标集成验收 | 待完成 |
 
 ## window 前置能力
@@ -54,3 +55,11 @@ graphics 已接入 FontCollection、TextStyle、Paragraph 与 TextLayout。共�
 Darwin ARM64 与 Rosetta x86_64 的 graphics Cone 各 4 容器、19 测试全部通过，其中 9 项文本测试覆盖固定字体测量、登记快照、独立重排、CJK／variable font、组合字符／emoji／CRLF、系统 fallback／混合 bidi、affinity、ellipsis、富文本像素、空文字／零宽及生命周期。测试字体从固定 Skia 资源提取，并保留相应 Apache／OFL 许可。
 
 Scoop fmt／check、C++ 严格检查与 5 项发行维护脚本测试通过。依赖发布补齐了 SkUnicode 公共头实际引用的 `src/core/SkUTF.h`，两目标均由维护脚本重新准备。上述离屏与 Metal texture 验证不依赖桌面解锁，也不替代待完成的窗口呈现验收。
+
+## 动画
+
+AnimationTimeline 统一采样、调度和所有权，GuiWindow 将它接入同一帧 TimeMark、按需帧请求和关闭路径。Animatable 支持 Double／Point／Size／Color 和自定义向量转换，提供 tween／cubic Bézier、三种阻尼区间的解析 spring、改目标、暂停／恢复、取消、反向及重复。spring 以位移与速度包络决定结束时间，跳帧直接计算当前状态。
+
+完成回调在全体采样之后交付，回调内操作共享当前帧时间；新动画进入后续帧。取消、重新定向或关闭后旧完成回调不会再次调用业务处理器。窗口隐藏时停用有效帧请求，时间默认继续推进，显式 pause 才冻结。
+
+Scoop fmt／check 通过；ARM64 与 Rosetta x86_64 的 AnimationTest 各 7 项通过，覆盖同帧时间、跳帧、暂停、反向、无限重复、大步推进、spring 三种阻尼与速度连续性、约束值、零时长、安全回调边界、时间源／线程及关闭。窗口呈现仍待桌面解锁后集成验证。

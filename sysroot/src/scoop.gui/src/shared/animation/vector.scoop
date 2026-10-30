@@ -1,0 +1,111 @@
+package scoop.gui
+
+import scoop.graphics.*
+import scoop.math.abs
+import scoop.math.max
+import scoop.math.min
+
+/** Four scalar lanes cover the built-in scalar, geometry and RGBA animation values. */
+public struct AnimationVector(
+    val x: Double = 0.0,
+    val y: Double = 0.0,
+    val z: Double = 0.0,
+    val w: Double = 0.0
+) {
+    internal fun add(other: AnimationVector): AnimationVector =
+        AnimationVector(x + other.x, y + other.y, z + other.z, w + other.w)
+    internal fun subtract(other: AnimationVector): AnimationVector =
+        AnimationVector(x - other.x, y - other.y, z - other.z, w - other.w)
+    internal fun scale(factor: Double): AnimationVector =
+        AnimationVector(x * factor, y * factor, z * factor, w * factor)
+    internal fun maximum(): Double = max(max(abs(x), abs(y)), max(abs(z), abs(w)))
+    internal fun check() {
+        requireAnimation(
+            x.isFinite() && y.isFinite() && z.isFinite() && w.isFinite(),
+            "animation vector overflow"
+        )
+    }
+}
+
+public interface AnimationConverter<T> {
+    public fun toVector(value: T): AnimationVector
+    public fun fromVector(value: AnimationVector): T
+}
+
+public object AnimationConverters {
+    public object DoubleValue: AnimationConverter<Double> {
+        public override fun toVector(value: Double): AnimationVector {
+            requireAnimation(value.isFinite(), "non-finite animation value")
+            return AnimationVector(value)
+        }
+        public override fun fromVector(value: AnimationVector): Double {
+            value.check();
+            return value.x
+        }
+    }
+    public object PointValue: AnimationConverter<Point> {
+        public override fun toVector(value: Point): AnimationVector {
+            val vector = AnimationVector(value.x, value.y)
+            vector.check()
+            return vector
+        }
+        public override fun fromVector(value: AnimationVector): Point {
+            value.check();
+            return Point(value.x, value.y)
+        }
+    }
+    public object SizeValue: AnimationConverter<Size> {
+        public override fun toVector(value: Size): AnimationVector {
+            requireAnimation(value.width >= 0.0 && value.height >= 0.0, "negative animated size")
+            val vector = AnimationVector(value.width, value.height)
+            vector.check()
+            return vector
+        }
+        public override fun fromVector(value: AnimationVector): Size {
+            value.check();
+            return Size(max(0.0, value.x), max(0.0, value.y))
+        }
+    }
+    public object ColorValue: AnimationConverter<Color> {
+        public override fun toVector(value: Color): AnimationVector {
+            val vector = AnimationVector(value.red, value.green, value.blue, value.alpha)
+            vector.check()
+            requireAnimation(
+                value.red >=
+                    0.0 &&
+                    value.red <=
+                    1.0 &&
+                    value.green >=
+                    0.0 &&
+                    value.green <=
+                    1.0 &&
+                    value.blue >=
+                    0.0 &&
+                    value.blue <=
+                    1.0 &&
+                    value.alpha >=
+                    0.0 &&
+                    value.alpha <=
+                    1.0,
+                "invalid animated color"
+            )
+            return vector
+        }
+        public override fun fromVector(value: AnimationVector): Color {
+            value.check()
+            return Color(
+                clampColor(value.x),
+                clampColor(value.y),
+                clampColor(value.z),
+                clampColor(value.w)
+            )
+        }
+    }
+}
+
+private fun clampColor(value: Double): Double = min(1.0, max(0.0, value))
+
+internal fun requireAnimation(condition: Boolean, message: String) {
+    if (!condition)
+        throw IllegalArgumentException(Some(message))
+}

@@ -19,6 +19,7 @@ public class GuiWindow internal constructor(
     private var depth = 0
     private var configured: WindowMetrics? = None
     private val scheduler = FrameScheduler()
+    public val animations: AnimationTimeline = windowAnimations(nativeWindow)
     public val state: GuiWindowState get() {
         host.checkThread();
         return phase
@@ -47,7 +48,7 @@ public class GuiWindow internal constructor(
                     scheduler.request()
                 }
                 renderer.setFrameDemand(
-                    scheduler.dirty &&
+                    (scheduler.dirty || animations.hasWork) &&
                         metrics.physicalSize.isDrawable &&
                         nativeWindow.isVisible &&
                         !nativeWindow.isOccluded
@@ -96,15 +97,22 @@ public class GuiWindow internal constructor(
                         current ->
                         scheduler.begin()
                         val time = MonotonicTimeSource.markNow()
-                        current.draw {
-                            canvas -> painter(
-                                FrameContext(
-                                    this,
-                                    canvas,
-                                    Size(metrics.logicalSize.width, metrics.logicalSize.height),
-                                    time
-                                )
-                            )
+                        animations.withFrame<Unit>(time) {
+                            if (phase == GuiWindowState.Open) {
+                                current.draw {
+                                    canvas -> painter(
+                                        FrameContext(
+                                            this,
+                                            canvas,
+                                            Size(
+                                                metrics.logicalSize.width,
+                                                metrics.logicalSize.height
+                                            ),
+                                            time
+                                        )
+                                    )
+                                }
+                            }
                         }
                         // A painter can resize or close its native window synchronously.
                         refresh()
@@ -148,7 +156,8 @@ public class GuiWindow internal constructor(
         if (phase != GuiWindowState.Open)
             return
         phase = GuiWindowState.Closing
-        val failure = cleanupFailure(None) { renderer.setFrameDemand(false) }
+        var failure = cleanupFailure(None) { renderer.setFrameDemand(false) }
+        failure = cleanupFailure(failure) { animations.close() }
         if (depth == 0)
             throwFailure(cleanupFailure(failure) { retire() })
         else
@@ -162,3 +171,9 @@ public class GuiWindow internal constructor(
         throwFailure(cleanupFailure(failure) { host.detached(this) })
     }
 }
+
+private fun windowAnimations(window: Window): AnimationTimeline =
+    AnimationTimeline(MonotonicTimeSource) {
+        if (window.state == WindowState.Open)
+            window.requestRedraw()
+    }
