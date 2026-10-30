@@ -5,15 +5,13 @@ use scoop_pm::lockfile::LockedSource;
 use super::support::*;
 
 pub(super) fn git(path: &Path, args: &[&str]) -> String {
-    success(
-        Command::new("git")
-            .current_dir(path)
-            .args(args)
-            .output()
-            .unwrap(),
-    )
-    .trim()
-    .into()
+    let mut command = Command::new("git");
+    if cfg!(windows) {
+        command.args(["-c", "core.longpaths=true"]);
+    }
+    success(command.current_dir(path).args(args).output().unwrap())
+        .trim()
+        .into()
 }
 
 pub(super) fn init(path: &Path) {

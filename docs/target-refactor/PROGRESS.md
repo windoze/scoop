@@ -134,3 +134,21 @@ musl 首轮的三项 fixture 失败属于 companion 适配：两项 callback 用
 发行入口复核发现完整 manifest 用于目标筛选后，包元数据仍按旧的 Cone 字段结构读取。归档测试补入实际 `Cone.toml` 和发行坐标断言，在修复前稳定报 `KeyError: group`，修复后通过。Ruff 0.16.10 与本机、Linux 的 23 项维护脚本测试通过（分别跳过 3／2 项宿主不适用测试）。
 
 本机使用最终配套 CLI、LLVM／LLDB 和预编译资源调用正式组装、归档流程，生成包含两种 Darwin 目标、27 个系统 Cone 的安装包。归档解到含中文和空格的新目录后，包内 CLI 使用安装目录中的目标库完成两种架构各 2 项 C++／crypto／TLS 正式 fixture（各 3 个模式组合、7 次进程调用）。实际来源和原工具保持可用，验证安装目录下的真实调用、链接与运行。
+
+### R7 宿主路径与运行时测试边界
+
+Windows 未保存源码原先把宿主反斜杠路径直接作为 logical path，现复用 `NormalizedSourcePath::from_relative_path`，与正常源码选择保持相同身份规则。原有工作区测试在 Windows 复验通过。本机的 analysis／codegen 共 405 项测试通过；Linux 的工作区分析与 codegen 共 405 项复验通过。Windows 的工作区分析 6 项、codegen 311 项通过，三台机器的格式化与 workspace Clippy 通过，配套 LSP 已重建。
+
+独立 C harness 的 pthread／fork／mmap／Itanium unwinder 用例显式限定 Unix；通用 runtime 源码边界检查保留在全部宿主。原生指针资格检查从目标目录选取 profile，C harness 输出按宿主 CRT 换行处理。Windows 的真实 runtime／GC／SEH 覆盖由本机 toolchain、正式 CLI fixture 和调试验收承担，不把 POSIX harness 的排除算作 Windows 执行通过。Microsoft linker 与 GNU dlltool 专测补齐已有工具路径后，PE 导入、Unicode startup、PDB 和 GNU import archive 组合复验通过。
+
+### R7 跨宿主与 Windows 桌面
+
+macOS 和 Linux 各交叉生成 18 个 Windows 程序，共 36 个程序全部在真实 Windows 上执行通过。三个目标复用同一份 Windows 准备的目标库、runtime 与 unwind，覆盖 debug／release C++、移动 GC 接口快照、Throwable 栈回溯、PDB、GUI subsystem 与 RC payload，并核对各目标实际 CRT 导入。源码和输出路径包含中文与空格。Linux 上的 Microsoft SDK 副本为头文件的实际 include 拼写补齐大小写别名；编译器实现及原 SDK 不受此调整影响。
+
+Windows 三种目标环境各完成 `scoop.window`、`scoop.window.asyncio` 与 DXGI renderer 三个 Cone 的真实桌面运行，共九组通过。测试在交互桌面串行执行；SSH 的 session 0 只收集桌面结果。验收使用的临时计划任务已删除。
+
+### R7 包管理宿主路径
+
+PM 在缓存路径入口使用普通 Windows 路径形式，避免系统 Git 无法消费扩展路径写法；源码输入定位目录仍保留原有职责。回归继续使用真实 Git 源、共享缓存、离线获取与子模块。metadata 测试统一进程工作目录的路径写法，直接 Git 调用使用已有 file URL，缓存位置断言取实际配置根；深层目录测试仅为测试子进程打开 Git 的长路径支持。
+
+本机与 Linux 的 PM 各 59 项测试、Windows 的 58 项测试全部通过，三端格式化与 workspace Clippy 通过。重构中的包协议为版本 4，规范中遗漏的两处旧版交叉引用已同步。路径与运行时测试边界批次已推送，获取远端 main 后无新增提交。

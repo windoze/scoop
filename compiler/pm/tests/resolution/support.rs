@@ -44,6 +44,12 @@ pub fn pm(root: &Path, directory: &Path, args: &[&str]) -> Output {
         .env("GIT_CONFIG_COUNT", "1")
         .env("GIT_CONFIG_KEY_0", "protocol.file.allow")
         .env("GIT_CONFIG_VALUE_0", "always");
+    if cfg!(windows) {
+        command
+            .env("GIT_CONFIG_COUNT", "2")
+            .env("GIT_CONFIG_KEY_1", "core.longpaths")
+            .env("GIT_CONFIG_VALUE_1", "true");
+    }
     for name in [
         "HTTP_PROXY",
         "http_proxy",

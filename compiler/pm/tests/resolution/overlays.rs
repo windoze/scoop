@@ -72,7 +72,8 @@ fn source<'a>(
 
 #[test]
 fn metadata_uses_unsaved_workspace_and_path_manifests_without_persisting_them() {
-    let directory = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
+    let directory =
+        tempfile::tempdir_in(dunce::canonicalize(std::env::temp_dir()).unwrap()).unwrap();
     let root = directory.path();
     core(root);
     let workspace = root.join("Cone.toml");
