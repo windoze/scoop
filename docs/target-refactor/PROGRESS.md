@@ -22,8 +22,8 @@
 | R3 | 完成 | 对象 machine／格式与 runtime frame 边界；713 项 Rust 测试通过，配套 core／runtime 的真实链接回归通过 |
 | R4 | 本地完成 | Darwin 配置与 Linux GCC／Clang producer、C++ family 已拆开；本机 489 项测试通过，远端验收在 R7 闭合 |
 | R5 | 本地完成 | target sysroot include、架构参数与交叉编译 fixture 流程已验证；RC-only 实机检查在 R7 闭合 |
-| R6 | 进行中 | macOS x86_64 资源、33 个普通／consumer Cone 和 3 个 GUI Cone 通过；调试工具修复完成，完整本机回归收尾 |
-| R7 | 待实施 | 七目标回归与完成记录 |
+| R6 | 完成 | 两种 macOS 目标各 4,301 项正式 fixture、33 个普通／consumer Cone 与 3 个 GUI Cone 通过；调试与配套资源验证完成，Rosetta 终端调试保留已知限制 |
+| R7 | 进行中 | Linux／Windows 及跨宿主的受影响范围回归与完成记录 |
 
 ### R1 验证范围
 
@@ -102,3 +102,9 @@ AArch64 全量回归暴露 LLVM SelectionDAG 的另一个问题：入口的 PHI 
 两种 Darwin 目标各完成 33 个普通／consumer Cone 与 3 个 GUI Cone 的运行验证。AArch64 首轮唯一未完成项是 TLS 关闭测试：OpenSSL 的首次 `SSL_shutdown` 返回零后，wrapper 直接请求网络输入，忽略已进入 BIO 的应用密文，使两端相互等待。现在继续推进接收半程，再按实际 WANT_READ／WANT_WRITE 请求传输；未消费应用数据仍报告原有错误并关闭。
 
 新增 TLS 1.2／1.3 的纯内存引擎测试在修复前稳定失败，修复后通过；两种架构各 29 项同步 TLS 测试、22 项异步 TLS 测试及两组预编译 consumer 全部通过，原先阻塞的 TCP 关闭用例也已完成。C 变更通过 clang-format 检查。更新后的 LLVM SDK 下，两种架构的完整 DAP launch、sourceMap 和离线 formatter 再次通过，AArch64 的终端调试再次通过；Rosetta 终端调试仍保留上述限制。
+
+两种 macOS 目标的 27 个系统 Cone 与四种 runtime 配置已用最终配套工具重新准备完成；TLS 修复批次已推送，获取远端 main 后无新增提交。全部本机验证结束后，开始 R7 远端验证。
+
+### R7 Linux 工具选择
+
+Linux GNU／musl 的真实 C ABI 双向调用、GCC／Clang PIC 与 TLS、独立 C／C++ producer 和 LLVM unwind 链接运行通过。早期遗留失败是 Linux 专属单测仍读取旧版 final-tools 缓存目录；该测试现与实现共用目录常量，更新判断和目录版本不变。本机格式化、workspace Clippy 与 toolchain 测试通过后，在 Linux 完成同批检查，toolchain 全部 61 项测试通过。

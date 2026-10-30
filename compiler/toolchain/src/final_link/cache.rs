@@ -5,6 +5,8 @@ use scoop_protocol::HostPathCarrier;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
+const CACHE_DIRECTORY: &str = "final-tools-v6";
+
 #[cfg(all(test, target_os = "linux", target_arch = "x86_64"))]
 mod tests;
 
@@ -53,7 +55,7 @@ pub(super) fn resolve(
         cxx,
     ))?;
     let record = build_record::cached(
-        &cache.join("final-tools-v6"),
+        &cache.join(CACHE_DIRECTORY),
         key,
         |_| Ok(true),
         || {
