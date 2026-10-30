@@ -8,7 +8,6 @@ support = [
     "../../../../sysroot/src/scoop.tls/native/system.h",
     "../../../../sysroot/src/scoop.tls/native/verification_darwin.h",
     "../../../../sysroot/src/scoop.crypto/native/common.h",
-    "../../../../sysroot/src/scoop.crypto/native/target.h",
     "../../../../sysroot/src/scoop.tls/tests/identity_peer_script.scoop",
 ]
 tools = ["scoop", "scoopc"]
@@ -25,10 +24,8 @@ files = [
     {copy = {from = "${repo}/sysroot/src/scoop.tls/native/system.h", to = "${work}/support/src/scoop.tls/native/system.h"}},
     {copy = {from = "${repo}/sysroot/src/scoop.tls/native/verification_darwin.h", to = "${work}/support/src/scoop.tls/native/verification_darwin.h"}},
     {copy = {from = "${repo}/sysroot/src/scoop.crypto/native/common.h", to = "${work}/support/src/scoop.crypto/native/common.h"}},
-    {copy = {from = "${repo}/sysroot/src/scoop.crypto/native/target.h", to = "${work}/support/src/scoop.crypto/native/target.h"}},
     {copy = {from = "${repo}/sysroot/src/scoop.tls/tests/identity_peer_script.scoop", to = "${work}/consumer/src/peer_script.scoop"}},
     {"replace" = {"path" = "${work}/consumer/src/peer_script.scoop", "old" = "package scoop.tls\n", "new" = "package scoop.tests.scoop.tls\n"}},
-    {symlink = {from = "${sysroot}/lib", to = "${work}/support/lib"}},
 ]
 
 [[steps]]

@@ -276,7 +276,7 @@ driver 消费的是 lock 的精确图和本次已准备好的本地输入。port
 - SourceCone：完整 coordinate、kind、本地 Cone 根、已展开的 manifest 生产配置、所选根需要的测试配置、manifest 诊断来源，以及已绑定的精确 direct 边和测试边。配置含现有源码选择、native 声明、Windows executable 的 subsystem／RC 设置和文档元数据，不含源码正文或完整输入镜像。Windows 设置按语言规范 12.2 解析，保留到单 Cone 编译配置；PM 不读取 RC 内容或发现资源工具。
 - PrebuiltCone：完整 coordinate、本地 `.slib` 位置和精确依赖记录；sysroot 和 artifact 来源均落实为该形式。PM 提取过的必要摘要可随结果交付，但不能作为跳过实际 reader 所需格式/ABI 检查的授权凭据。
 
-版本 1 的共享数据类型位于 `scoop-protocol`，不依赖 PM 的求解或获取实现。请求字段为 `version/cwd/input/members/purpose/target/sysroot/artifact_roots/package_cache/lockfile/locked/offline`；`members` 区分 `default`、`all` 和 `packages`，purpose 为 `production/test`。响应使用 `version/workspace/lockfile/resolutions`，每个 resolution 包含根相对路径、根 coordinate、purpose、target 和 nodes。节点包含 `cone`、精确 `dependencies` 与 `test_dependencies`；`cone.input` 区分 `source/prebuilt`。source 交付完整 `ParsedConeManifest`、本地根、原清单路径与文本、展开的文档 metadata。原清单文本仅服务诊断，不作为再次解析的输入；继承条目的诊断 span 指向成员的继承声明。prebuilt 交付本地路径和已有 `ArtifactManifestSummaryV1` 的 canonical CBOR 字节表示，复用既有摘要格式。
+版本 4 的共享数据类型位于 `scoop-protocol`，不依赖 PM 的求解或获取实现。请求字段为 `version/cwd/input/members/purpose/target/sysroot/artifact_roots/package_cache/lockfile/locked/offline`；`members` 区分 `default`、`all` 和 `packages`，purpose 为 `production/test`。响应使用 `version/workspace/lockfile/resolutions`，每个 resolution 包含根相对路径、根 coordinate、purpose、target 和 nodes。节点包含 `cone`、精确 `dependencies` 与 `test_dependencies`；`cone.input` 区分 `source/prebuilt`。source 的 native include 保留普通路径／target sysroot 相对路径种类；交付完整 `ParsedConeManifest`、本地根、原清单路径与文本、展开的文档 metadata。原清单文本仅服务诊断，不作为再次解析的输入；继承条目的诊断 span 指向成员的继承声明。prebuilt 交付本地路径和已有 `ArtifactManifestSummaryV1` 的 canonical CBOR 字节表示，复用既有摘要格式。
 
 生产配置只包含生产依赖；仅所选测试根绑定测试配置，传递依赖不携带可激活的测试边。源码配置中的原始 locator 不再参与 driver 发现：所有声明都已绑定到该解析单位内的精确 coordinate。隐式 core 保留在图的精确边中，不伪造原清单中的声明位置。协议边界检查版本、host path、节点/边对应关系及完整引用；不重做版本要求、workspace 继承和来源选择。
 
@@ -308,11 +308,11 @@ single-file build/run 和 artifact-only `scoop link` 保持现有精确输入方
 
 LSP使用同一已展开数据模型；已有本地准备结果可直接消费，缺少结果时可执行PM的`metadata --offline`读取，不修改lock。缺少锁定源码提示fetch，缺少适用lock则提示resolve；仍可展示本地members和语法诊断。文档编辑或补全不自动触发网络。formatter只需本地成员发现和源码清单展开，使用PM的members输出，不要求先成功求解依赖。
 
-`members --overlays-stdin` 与 `metadata --offline --overlays-stdin` 为编辑器接收未保存的清单文本。stdin 是版本 1 JSON：`version` 与 `manifests` 数组，每项含无损绝对 host `path` 及 UTF-8 `text`；路径必须指向 `Cone.toml` 且不重复。PM 对这些本地 workspace/path/Git 清单使用同一解析、继承和锁定匹配规则，关闭 buffer 后恢复磁盘输入。覆盖文本不写回清单、lock、共享源码或持久准备记录；未覆盖的输入继续复用既有缓存。metadata 的此模式强制离线，只接受现有锁定选择；新增或改变依赖导致 lock 不适用时提示保存后 resolve。成员发现仍可在无 lock 时工作，新增但未保存的成员清单沿普通本地路径参与发现。原路径与覆盖文本保留给诊断，不生成临时源码树。
+`members --overlays-stdin` 与 `metadata --offline --overlays-stdin` 为编辑器接收未保存的清单文本。stdin 是版本 4 JSON：`version` 与 `manifests` 数组，每项含无损绝对 host `path` 及 UTF-8 `text`；路径必须指向 `Cone.toml` 且不重复。PM 对这些本地 workspace/path/Git 清单使用同一解析、继承和锁定匹配规则，关闭 buffer 后恢复磁盘输入。覆盖文本不写回清单、lock、共享源码或持久准备记录；未覆盖的输入继续复用既有缓存。metadata 的此模式强制离线，只接受现有锁定选择；新增或改变依赖导致 lock 不适用时提示保存后 resolve。成员发现仍可在无 lock 时工作，新增但未保存的成员清单沿普通本地路径参与发现。原路径与覆盖文本保留给诊断，不生成临时源码树。
 
 LSP 在 workspace 根打开时发现全部成员，并为各成员独立取得所选 target/purpose 的锁定图；显式成员目录只选择该成员。一个成员缺少适用 lock 或本地依赖时，仅该成员的依赖语义不可用，本地源码、语法诊断和 workspace 符号仍可使用，不能以猜测的版本或空依赖图冒充已解析项目。已安装系统库的源码导航也使用 members 提供的源码选择，不为导航解析依赖。`Cone.lock` 与清单、源码和产物共同参与文件监听；依赖准备只由用户显式 resolve/fetch/build 触发。LSP 的 `packageManager` 默认取实际 scoop-lsp 同目录的 scoop-pm，`packageCacheDir` 与 `lockfile` 可显式配置，均沿配置根解析相对路径。
 
-`members --json` 的格式 1 同样由 `scoop-protocol` 定义：返回 workspace root、所有成员的 coordinate/kind/相对路径/本地目录/清单路径、selected 标记及生产/测试 SourceSelection；本地路径使用无损 host path 载体。formatter 消费所选成员的源码集合，clean 使用 workspace root 定位统一 target；两者不调用 prepare，不创建或读取 lock。JSON 失败使用与 prepare 相同的结构化诊断记录。`fmt` 支持 `--workspace` 和可重复 `-p`，成员选择只接受一个 workspace 输入；多个显式文件仍可合并格式化。显式 `.scoop` 文件模式独立于 PM。
+`members --json` 的格式 4 同样由 `scoop-protocol` 定义：返回 workspace root、所有成员的 coordinate/kind/相对路径/本地目录/清单路径、selected 标记及生产/测试 SourceSelection；本地路径使用无损 host path 载体。formatter 消费所选成员的源码集合，clean 使用 workspace root 定位统一 target；两者不调用 prepare，不创建或读取 lock。JSON 失败使用与 prepare 相同的结构化诊断记录。`fmt` 支持 `--workspace` 和可重复 `-p`，成员选择只接受一个 workspace 输入；多个显式文件仍可合并格式化。显式 `.scoop` 文件模式独立于 PM。
 
 ## 8. 源码 registry
 

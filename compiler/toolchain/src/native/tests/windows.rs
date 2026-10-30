@@ -80,7 +80,7 @@ path = "wrapper.cpp"
         let manifest =
             crate::load_cone_manifest(&ManifestRootLocator::cone_directory(&root)).unwrap();
         let native = NativeToolchain::resolve_with(&c, &manifest, selected, None).unwrap();
-        let public = crate::development_runtime_root().join("include");
+        let public = crate::development_runtime_root();
         let prepared = native
             .prepare(&manifest, OptimizationMode::Debug, &public)
             .unwrap();

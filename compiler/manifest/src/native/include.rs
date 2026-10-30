@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 use toml::Spanned;
@@ -8,8 +8,29 @@ use crate::{ManifestParseError, ManifestParseErrorKind, SourceTarget, TargetPred
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(super) struct ConditionalInclude {
-    pub path: PathBuf,
+    pub path: NativeIncludePath,
     pub predicate: TargetPredicate,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum NativeIncludePath {
+    Path(PathBuf),
+    Sysroot(PathBuf),
+}
+
+impl NativeIncludePath {
+    pub fn path(&self) -> &Path {
+        match self {
+            Self::Path(path) | Self::Sysroot(path) => path,
+        }
+    }
+
+    pub fn resolve(&self, cone_root: &Path, target_root: &Path) -> PathBuf {
+        match self {
+            Self::Path(path) => cone_root.join(path),
+            Self::Sysroot(path) => target_root.join(path),
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -17,7 +38,8 @@ pub(super) struct ConditionalInclude {
 pub(super) enum RawInclude {
     Path(String),
     Conditional {
-        path: String,
+        path: Option<String>,
+        sysroot: Option<String>,
         when: Option<BTreeMap<String, toml::Value>>,
         #[serde(flatten)]
         extra: BTreeMap<String, toml::Value>,
@@ -35,18 +57,46 @@ pub(super) fn parse(
             Some(span.clone()),
         )
     };
-    let (path, when) = match raw.into_inner() {
-        RawInclude::Path(path) => (path, None),
-        RawInclude::Conditional { path, when, extra } => {
+    let (path, sysroot, when) = match raw.into_inner() {
+        RawInclude::Path(path) => (path, false, None),
+        RawInclude::Conditional {
+            path,
+            sysroot,
+            when,
+            extra,
+        } => {
             if let Some(field) = extra.keys().next() {
                 return Err(invalid(format!("unknown native include field {field:?}")));
             }
-            (path, when)
+            match (path, sysroot) {
+                (Some(path), None) => (path, false, when),
+                (None, Some(path)) => (path, true, when),
+                _ => {
+                    return Err(invalid(
+                        "native include requires exactly one of path or sysroot".into(),
+                    ));
+                }
+            }
         }
     };
+    let path = super::parse::native_path(&path)
+        .map_err(|reason| invalid(format!("invalid native option {path:?}: {reason}")))?;
+    if sysroot
+        && path.components().any(|part| {
+            matches!(
+                part,
+                std::path::Component::RootDir | std::path::Component::Prefix(_)
+            )
+        })
+    {
+        return Err(invalid("native sysroot include must be relative".into()));
+    }
     Ok(ConditionalInclude {
-        path: super::parse::native_path(&path)
-            .map_err(|reason| invalid(format!("invalid native option {path:?}: {reason}")))?,
+        path: if sysroot {
+            NativeIncludePath::Sysroot(path)
+        } else {
+            NativeIncludePath::Path(path)
+        },
         predicate: crate::selection::parse_predicate(
             when.map(|entries| {
                 entries
@@ -78,8 +128,8 @@ mod tests {
                 manifest
                     .semantic()
                     .native()
-                    .include_paths(target)
-                    .map(|p| p.to_str().unwrap())
+                    .includes(target)
+                    .map(|p| p.path().to_str().unwrap())
                     .collect::<Vec<_>>(),
                 expected
             );
@@ -93,6 +143,9 @@ mod tests {
             "{path = 'headers', when = {env = 'invalid'}}",
             "{path = 'headers', extra = true}",
             "{when = {os = 'linux'}}",
+            "{sysroot = ''}",
+            "{sysroot = '/absolute'}",
+            "{path = 'ordinary', sysroot = 'backend/include'}",
             "42",
         ] {
             assert!(
@@ -100,5 +153,43 @@ mod tests {
                 "{entry}"
             );
         }
+    }
+
+    #[test]
+    fn target_sysroot_paths_keep_their_kind_and_share_condition_ordering() {
+        use std::path::Path;
+        let manifest = parse_cone_manifest(&format!("{CONE}include = [{{sysroot = 'backend/include'}}, {{sysroot = 'linux/include', when = {{os = 'linux'}}}}, '../shared']")).unwrap();
+        let config = manifest.semantic().native();
+        assert!(matches!(
+            config.includes(DARWIN_AARCH64_ID).next(),
+            Some(super::NativeIncludePath::Sysroot(_))
+        ));
+        assert_eq!(
+            config
+                .include_paths(
+                    DARWIN_AARCH64_ID,
+                    Path::new("cone"),
+                    Path::new("selected-target")
+                )
+                .collect::<Vec<_>>(),
+            [
+                Path::new("selected-target/backend/include"),
+                Path::new("cone/../shared")
+            ]
+        );
+        assert_eq!(
+            config
+                .include_paths(
+                    LINUX_X86_64_GNU_ID,
+                    Path::new("cone"),
+                    Path::new("gnu-target")
+                )
+                .collect::<Vec<_>>(),
+            [
+                Path::new("gnu-target/backend/include"),
+                Path::new("gnu-target/linux/include"),
+                Path::new("cone/../shared")
+            ]
+        );
     }
 }

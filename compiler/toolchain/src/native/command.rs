@@ -71,12 +71,13 @@ pub(super) fn configure_preprocessor(
     target: TargetProfileId,
     language: NativeSourceLanguage,
     root: &Path,
+    target_root: &Path,
     kind: NativeDriverKind,
 ) -> Result<(), ToolchainError> {
-    for include in config.include_paths(target) {
+    for include in config.include_paths(target, root, target_root) {
         command
             .arg(if kind.microsoft() { "/I" } else { "-I" })
-            .arg(dunce::simplified(&root.join(include.as_path())));
+            .arg(dunce::simplified(&include));
     }
     for flag in config.flags(language) {
         match flag {

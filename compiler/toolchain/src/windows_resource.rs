@@ -36,7 +36,10 @@ pub(crate) fn source<'a>(
     purpose: CompilationPurpose,
 ) -> Option<&'a ConeRelativePath> {
     if purpose != CompilationPurpose::Production
-        || target.lir_target().native_object_format() != scoop_lir::NativeObjectFormat::Coff64
+        || !target
+            .c_bridge_toolchain()
+            .native_environment()
+            .is_windows()
     {
         return None;
     }
@@ -47,17 +50,19 @@ pub(crate) fn prepare(
     manifest: &LoadedConeManifest,
     target: &ResolvedTargetProfile,
     purpose: CompilationPurpose,
+    sysroot: &Path,
     cache: &Path,
 ) -> Result<Option<PreparedResource>, ToolchainError> {
     let Some(source) = source(manifest, target, purpose) else {
         return Ok(None);
     };
+    let target_root = crate::target_library_root(sysroot, target.lir_target());
     let includes: Vec<_> = manifest
         .parsed()
         .semantic()
         .native()
-        .include_paths(target.id())
-        .map(|path| path_carrier(&manifest.real_root().join(path)))
+        .include_paths(target.id(), manifest.real_root(), &target_root)
+        .map(|path| path_carrier(&path))
         .collect::<Result<_, _>>()?;
     let search = std::env::var_os("PATH").unwrap_or_default();
     let key = fingerprint(&(
@@ -67,7 +72,7 @@ pub(crate) fn prepare(
         crate::native_record::ResolvedRecord::from_target(target)?,
         search.as_encoded_bytes(),
     ))?;
-    let directory = cache.join("native-resources-v1");
+    let directory = cache.join("native-resources-v2");
     let record = cached(
         &directory,
         key,
@@ -84,7 +89,8 @@ pub(crate) fn prepare(
                 .prefix("resource-")
                 .tempdir_in(&directory)
                 .map_err(error)?;
-            let (object, paths) = compile(manifest, target, source, temporary.path())?;
+            let (object, paths) =
+                compile(manifest, target, source, &target_root, temporary.path())?;
             let inputs = paths
                 .iter()
                 .map(|path| Input::read(path))
@@ -107,6 +113,7 @@ fn compile(
     manifest: &LoadedConeManifest,
     target: &ResolvedTargetProfile,
     source: &ConeRelativePath,
+    target_root: &Path,
     directory: &Path,
 ) -> Result<(PathBuf, BTreeSet<PathBuf>), ToolchainError> {
     let invocation = target.c_bridge_toolchain();
@@ -155,14 +162,11 @@ fn compile(
         dunce::simplified(&dependencies).as_os_str(),
     ));
     let mut includes = vec![manifest.real_root().to_path_buf()];
-    includes.extend(
-        manifest
-            .parsed()
-            .semantic()
-            .native()
-            .include_paths(target.id())
-            .map(|path| manifest.real_root().join(path)),
-    );
+    includes.extend(manifest.parsed().semantic().native().include_paths(
+        target.id(),
+        manifest.real_root(),
+        target_root,
+    ));
     includes.extend(environment.includes.iter().cloned());
     if let Some(prefix) = &environment.native_sysroot {
         if target.id() != scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID {

@@ -17,14 +17,14 @@ impl NativeToolchain {
         &self,
         manifest: &LoadedConeManifest,
         optimization: OptimizationMode,
-        public_include: &Path,
+        sysroot: &Path,
     ) -> Result<PreparedNativeInputs, ToolchainError> {
         prepare::prepare(
             manifest,
             self.c.profile().contract().target().id(),
             self,
             optimization,
-            public_include,
+            sysroot,
         )
     }
 

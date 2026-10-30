@@ -2918,7 +2918,9 @@ manifest Cone 可在 `[native]` 中配置 `include`、`c_flags`、`cxx_flags`、
 
 native 预处理除编译器的目标宏外，还定义当前 target 对应的 `SCOOP_TARGET_OS_DARWIN`／`SCOOP_TARGET_OS_LINUX`／`SCOOP_TARGET_OS_WINDOWS`、`SCOOP_TARGET_ARCH_AARCH64`／`SCOOP_TARGET_ARCH_X86_64` 及 `SCOOP_TARGET_ENV_NONE`／`SCOOP_TARGET_ENV_GNU`／`SCOOP_TARGET_ENV_MUSL`／`SCOOP_TARGET_ENV_MSVC_UCRT`／`SCOOP_TARGET_ENV_LLVM_MINGW_MSVCRT`／`SCOOP_TARGET_ENV_LLVM_MINGW_UCRT`；每组只定义匹配项，值为 `1`。
 
-`native.include` 的每个元素可为路径字符串，或 `{ path = "...", when = { ... } }` 表；表中的 `path` 必需，`when` 使用 12.2.2 的现有目标条件，省略时无条件。全部条目先检查字段、路径和条件，选中条目按声明顺序交给所选 C/C++ 编译器。字符串等价于只有 `path` 的表；路径仍按普通文件系统规则解析，不作变量展开。这样多个目标可分别使用匹配的生成配置头文件。
+`native.include` 的每个元素可为路径字符串、`{ path = "...", when = { ... } }` 或 `{ sysroot = "...", when = { ... } }` 表。表必须且只能提供 `path`、`sysroot` 之一；字符串等价于只有 `path` 的表。`path` 支持普通绝对路径或相对 Cone 根的路径；`sysroot` 必须是非空相对路径，以本次所选 Scoop sysroot 的 `lib/<canonical-target>/` 为基准，例如 `{ sysroot = "openssl/include" }`。这里的 sysroot 不是 `--native-sysroot` 指定的操作系统 SDK。路径保留分量供实际文件系统解析，不作变量展开，不增加来源或符号链接审计。
+
+`when` 使用 12.2.2 的现有目标条件，省略时无条件。全部条目先检查字段、路径和条件，选中条目按声明顺序供 C／C++／Objective-C 预处理和 Windows RC 的预处理及资源搜索使用，显式目录先于隐式系统目录。只有 RC、没有 native 源码时同样适用。库只取得自己声明的 backend include，不自动注入其他目标资源目录；没有相关编译步骤时不探测这些目录。
 
 include 搜索目录允许不存在，直接交给所选 C/C++ 编译器按搜索顺序处理；这不影响实际源码、被引用头文件及显式 forced include 缺失时的正常诊断。未选中的 include 不参与当前目标的搜索和 native 对象更新判断。
 

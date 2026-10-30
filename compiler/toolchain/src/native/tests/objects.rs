@@ -15,7 +15,7 @@ fn object_records_reuse_outputs_and_follow_actual_header_changes() {
             &manifest,
             target(),
             OptimizationMode::Debug,
-            &crate::development_runtime_root().join("include"),
+            &crate::development_runtime_root(),
             &cache,
             scoop_protocol::CompilationPurpose::Production,
         )
@@ -64,7 +64,7 @@ fn quoted_macro_include_observes_its_own_directory() {
             &manifest,
             target(),
             OptimizationMode::Debug,
-            &crate::development_runtime_root().join("include"),
+            &crate::development_runtime_root(),
             &cache,
             scoop_protocol::CompilationPurpose::Production,
         )
@@ -93,14 +93,14 @@ fn native_compilation_failure_does_not_publish_a_record() {
             &manifest,
             target(),
             OptimizationMode::Debug,
-            &crate::development_runtime_root().join("include"),
+            &crate::development_runtime_root(),
             &cache,
             scoop_protocol::CompilationPurpose::Production,
         )
         .is_err()
     );
     assert!(
-        std::fs::read_dir(cache.join("native-objects-v1"))
+        std::fs::read_dir(cache.join("native-objects-v2"))
             .unwrap()
             .all(|entry| entry
                 .unwrap()

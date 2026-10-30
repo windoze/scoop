@@ -447,5 +447,5 @@ GUI 回归按现有窗口库记录，在各自原生桌面串行执行，避免�
 [windows-native]: ../../compiler/toolchain/src/windows_native.rs
 [windows-environment]: ../../compiler/toolchain/src/windows_c/environment.rs
 [windows-crypto]: ../../sysroot/src/scoop.crypto/Cone.toml
-[windows-crypto-target]: ../../sysroot/src/scoop.crypto/native/target.h
+[windows-crypto-target]: ../../sysroot/src/scoop.crypto/native/common.h
 [windows-statepoint-patch]: ../../sysroot/vendor/llvm-project/22.1.8/patches/llvm-windows-statepoint-return-pc.patch

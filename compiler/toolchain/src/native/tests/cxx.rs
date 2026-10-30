@@ -63,7 +63,7 @@ extern "C" int answer(void) {
         .prepare(
             &manifest,
             OptimizationMode::Debug,
-            &crate::development_runtime_root().join("include"),
+            &crate::development_runtime_root(),
         )
         .unwrap();
     assert_eq!(prepared.units().len(), 2);
@@ -124,11 +124,8 @@ extern "C" int answer(void) {
         .prepare(
             &manifest,
             OptimizationMode::Debug,
-            &crate::development_runtime_root().join("include"),
+            &crate::development_runtime_root(),
         )
         .unwrap();
-    assert_ne!(
-        scoop_wire::encode(&prepared).unwrap(),
-        scoop_wire::encode(&changed).unwrap()
-    );
+    assert_ne!(prepared.units().to_vec(), changed.units().to_vec());
 }

@@ -3,7 +3,7 @@ use std::path::Path;
 
 use crate::native_driver::NativeDriverKind;
 use scoop_lir::{OptimizationMode, TargetProfileId};
-use scoop_manifest::{LoadedConeManifest, NativeCompileFlag, NativeConfig, NativeSourceLanguage};
+use scoop_manifest::{LoadedConeManifest, NativeCompileFlag, NativeSourceLanguage};
 
 use super::paths::{InputRoots, normalize_line_markers};
 use super::{
@@ -15,11 +15,9 @@ pub(super) fn prepare(
     target: TargetProfileId,
     compiler: &NativeToolchain,
     optimization: OptimizationMode,
-    public_include: &Path,
+    sysroot: &Path,
 ) -> Result<PreparedNativeInputs, ToolchainError> {
     let config = manifest.parsed().semantic().native();
-    let libraries = config.library_requirements(target).map_err(error)?;
-    let cxx = compiler.cxx_fingerprint();
     let mut sources: Vec<_> = config
         .sources()
         .iter()
@@ -36,11 +34,7 @@ pub(super) fn prepare(
         )));
     }
     if sources.is_empty() {
-        return Ok(PreparedNativeInputs {
-            libraries,
-            cxx,
-            ..PreparedNativeInputs::default()
-        });
+        return Ok(PreparedNativeInputs::default());
     }
     let target_facts = crate::manifest::source_target(target)?;
     let sources = sources
@@ -61,9 +55,11 @@ pub(super) fn prepare(
             }
         }
     }
+    let target_root = crate::target_library_root(sysroot, compiler.c().target());
     let roots = InputRoots {
         cone: manifest.real_root().to_path_buf(),
-        public: public_include.canonicalize().map_err(error)?,
+        public: sysroot.join("include").canonicalize().map_err(error)?,
+        target: std::path::absolute(&target_root).map_err(error)?,
         system,
     };
     for (source, _) in &sources {
@@ -73,18 +69,10 @@ pub(super) fn prepare(
         .prefix("scoop-preprocess-")
         .tempdir()
         .map_err(error)?;
-    let mut result = PreparedNativeInputs {
-        libraries: libraries.clone(),
-        cxx,
-        ..PreparedNativeInputs::default()
-    };
+    let mut result = PreparedNativeInputs::default();
     let mut search = vec![roots.cone.clone(), roots.public.clone()];
     search.extend(roots.system.clone());
-    search.extend(
-        config
-            .include_paths(target)
-            .map(|p| roots.cone.join(p.as_path())),
-    );
+    search.extend(config.include_paths(target, &roots.cone, &target_root));
     for language in &languages {
         for flag in config.flags(*language) {
             if let NativeCompileFlag::Include { kind, path } = flag {
@@ -126,6 +114,7 @@ pub(super) fn prepare(
             target,
             *language,
             &roots.cone,
+            &target_root,
             kind,
         )?;
         command
@@ -181,15 +170,6 @@ pub(super) fn prepare(
             preprocessed.into(),
         ));
     }
-    if languages.contains(&NativeSourceLanguage::C) {
-        result.flags = flags(config, target, NativeSourceLanguage::C);
-    }
-    if languages.contains(&NativeSourceLanguage::Cxx) {
-        result.cxx_flags = flags(config, target, NativeSourceLanguage::Cxx);
-    }
-    if languages.contains(&NativeSourceLanguage::ObjectiveC) {
-        result.objc_flags = flags(config, target, NativeSourceLanguage::ObjectiveC);
-    }
     Ok(result)
 }
 
@@ -218,24 +198,4 @@ fn observe_msvc_search(
         }
     }
     Ok(())
-}
-
-fn flags(
-    config: &NativeConfig,
-    target: TargetProfileId,
-    language: NativeSourceLanguage,
-) -> Vec<String> {
-    config
-        .include_paths(target)
-        .flat_map(|path| ["-I".to_owned(), path.to_string_lossy().into_owned()])
-        .chain(config.flags(language).iter().flat_map(|flag| match flag {
-            NativeCompileFlag::Argument(argument) => vec![argument.clone()],
-            NativeCompileFlag::Include { kind, path } => {
-                vec![
-                    kind.argument().to_owned(),
-                    path.to_string_lossy().into_owned(),
-                ]
-            }
-        }))
-        .collect()
 }

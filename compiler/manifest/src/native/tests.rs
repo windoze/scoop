@@ -14,9 +14,10 @@ fn native_sources_do_not_change_the_default_scoop_source_set() {
     let native = parsed.semantic().native();
     assert_eq!(
         native
-            .include_paths(scoop_target_data::DARWIN_AARCH64_ID)
+            .includes(scoop_target_data::DARWIN_AARCH64_ID)
             .next()
             .unwrap()
+            .path()
             .to_str()
             .unwrap(),
         "native/include"
@@ -280,8 +281,8 @@ fn native_header_paths_follow_normal_filesystem_resolution() {
     let native = parsed.semantic().native();
     assert_eq!(
         native
-            .include_paths(scoop_target_data::DARWIN_AARCH64_ID)
-            .cloned()
+            .includes(scoop_target_data::DARWIN_AARCH64_ID)
+            .map(|entry| entry.path().to_owned())
             .collect::<Vec<_>>(),
         vec![
             PathBuf::from("../shared"),

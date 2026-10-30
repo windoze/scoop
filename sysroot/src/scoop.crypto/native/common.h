@@ -1,7 +1,7 @@
 #ifndef SCOOP_CRYPTO_COMMON_H
 #define SCOOP_CRYPTO_COMMON_H
 
-#include "target.h"
+#include <openssl/opensslconf.h>
 #include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>

@@ -6,6 +6,7 @@ use super::{ToolchainError, error};
 pub(super) struct InputRoots {
     pub(super) cone: PathBuf,
     pub(super) public: PathBuf,
+    pub(super) target: PathBuf,
     pub(super) system: Vec<PathBuf>,
 }
 
@@ -28,6 +29,7 @@ impl InputRoots {
         [
             (&*self.cone, "/scoop-native/cone".to_owned()),
             (&*self.public, "/scoop-native/runtime".to_owned()),
+            (&*self.target, "/scoop-native/target".to_owned()),
         ]
         .into_iter()
         .chain(
