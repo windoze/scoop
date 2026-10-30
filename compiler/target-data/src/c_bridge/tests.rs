@@ -56,8 +56,11 @@ fn compiler_identity_rejects_ambiguous_build_spelling() {
 
 #[test]
 fn linux_c_profile_separates_libc_and_tracks_consumed_inputs() {
-    let identity =
-        |bytes: &[u8]| GccCompilerIdentityV1::new("15.2.0", scoop_wire::sha256(bytes)).unwrap();
+    let identity = |bytes: &[u8]| {
+        LinuxCCompilerIdentityV1::Gcc(
+            GccCompilerIdentityV1::new("15.2.0", scoop_wire::sha256(bytes)).unwrap(),
+        )
+    };
     let gnu =
         crate::linux_c_bridge_profile(crate::LINUX_X86_64_GNU, identity(b"compiler and headers"))
             .unwrap();
@@ -111,7 +114,7 @@ fn c_bridge_toolchain_contract_and_fingerprints_match_fixed_vectors() {
 #[test]
 fn windows_c_profiles_separate_environments_and_preserve_seh_flags() {
     let compiler =
-        WindowsClangCompilerIdentityV1::new([22, 1, 8], scoop_wire::sha256(b"selected headers"));
+        ClangCompilerIdentityV1::new([22, 1, 8], scoop_wire::sha256(b"selected headers"));
     let profiles = [
         crate::WINDOWS_X86_64_MSVC_UCRT,
         crate::WINDOWS_X86_64_MINGW_MSVCRT,

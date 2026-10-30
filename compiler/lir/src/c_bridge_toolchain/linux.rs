@@ -59,3 +59,28 @@ impl fmt::Display for GccCompilerIdentityError {
 }
 
 impl std::error::Error for GccCompilerIdentityError {}
+
+/// The producer family is independent of the target's libc environment.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum LinuxCCompilerIdentityV1 {
+    Gcc(GccCompilerIdentityV1),
+    Clang(super::ClangCompilerIdentityV1),
+}
+
+impl LinuxCCompilerIdentityV1 {
+    pub const fn inputs(&self) -> Digest256 {
+        match self {
+            Self::Gcc(compiler) => compiler.inputs(),
+            Self::Clang(compiler) => compiler.inputs(),
+        }
+    }
+}
+
+impl WireEncode for LinuxCCompilerIdentityV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        match self {
+            Self::Gcc(compiler) => compiler.encode(encoder),
+            Self::Clang(compiler) => compiler.encode(encoder),
+        }
+    }
+}

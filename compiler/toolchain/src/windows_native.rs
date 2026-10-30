@@ -233,6 +233,11 @@ pub(crate) fn discover(
             driver: scoop_protocol::HostPathCarrier::from_path(&driver).map_err(error)?,
             configuration: *scoop_wire::sha256(data).as_array(),
             kind,
+            family: if kind == NativeDriverKind::Msvc {
+                crate::native_driver::NativeCompilerFamily::Msvc
+            } else {
+                crate::native_driver::NativeCompilerFamily::Clang
+            },
         },
     })
 }

@@ -4,11 +4,10 @@ use std::ffi::OsStr;
 use std::process::Output;
 
 pub(super) fn driver_program(
-    startup: &ValidatedCBridgeToolchainInvocation,
+    mut command: Command,
     name: &str,
     observed: &mut Vec<PathBuf>,
 ) -> Result<PathBuf, ToolchainError> {
-    let mut command = startup.driver_command();
     let path = command
         .get_envs()
         .find(|(key, _)| *key == OsStr::new("PATH"))
@@ -24,25 +23,35 @@ pub(super) fn driver_program(
 }
 
 pub(super) fn search_paths(
-    startup: &ValidatedCBridgeToolchainInvocation,
-    linker: &Path,
+    profile: &LinuxFinalLinkProfile,
 ) -> Result<Vec<PathBuf>, ToolchainError> {
-    let output = run(startup.driver_command().arg("-print-search-dirs"))?;
+    let command = || profile.data.runtime.command(&profile.startup);
+    let output = run(command().arg("-print-search-dirs"))?;
     let text = String::from_utf8(output.stdout).map_err(error)?;
     let paths = text
         .lines()
         .find_map(|line| line.strip_prefix("libraries: ="))
         .ok_or_else(|| error("C driver did not report library search directories"))?;
     let mut paths: Vec<_> = std::env::split_paths(paths).collect();
-    let sysroot = run(startup.driver_command().arg("-print-sysroot"))?;
-    let sysroot = String::from_utf8(sysroot.stdout).map_err(error)?;
-    let sysroot = Path::new(if sysroot.trim().is_empty() {
-        "/"
+    let sysroot = if profile.data.runtime.family(&profile.startup)
+        == crate::native_driver::NativeCompilerFamily::Gcc
+    {
+        let sysroot =
+            String::from_utf8(run(command().arg("-print-sysroot"))?.stdout).map_err(error)?;
+        PathBuf::from(if sysroot.trim().is_empty() {
+            "/"
+        } else {
+            sysroot.trim()
+        })
     } else {
-        sysroot.trim()
-    });
-    // GCC's -L directories precede the selected linker's default SEARCH_DIRs.
-    let script = run(Command::new(linker).arg("--verbose"))?;
+        profile
+            .startup
+            .native_sysroot()
+            .unwrap_or(Path::new("/"))
+            .to_owned()
+    };
+    // Driver library directories precede the selected linker's SEARCH_DIRs.
+    let script = run(Command::new(&profile.data.linker).arg("--verbose"))?;
     let script = String::from_utf8(script.stdout).map_err(error)?;
     for item in script.split("SEARCH_DIR(\"").skip(1) {
         let (directory, _) = item
@@ -88,10 +97,16 @@ pub(super) fn check(
     profile.append_system_libraries(&mut command);
     let result = run(&mut command)?;
     let trace = String::from_utf8(result.stdout).map_err(error)?;
-    let mut paths = BTreeSet::from([
-        profile.data.linker.clone(),
-        driver_program(&profile.startup, "collect2", observed)?,
-    ]);
+    let mut paths = BTreeSet::from([profile.data.linker.clone()]);
+    if profile.data.runtime.family(&profile.startup)
+        == crate::native_driver::NativeCompilerFamily::Gcc
+    {
+        paths.insert(driver_program(
+            profile.data.runtime.command(&profile.startup),
+            "collect2",
+            observed,
+        )?);
+    }
     if let Some(prefix) = profile.unwind_prefix() {
         paths.insert(prefix.join("lib/libunwind.a"));
     }

@@ -203,6 +203,24 @@ impl ValidatedCBridgeToolchainInvocation {
 
     /// Use a paired native driver with the same target and environment.
     pub fn driver_command_with(&self, driver: &Path) -> Command {
+        self.driver_command_for(driver, self.compiler_family())
+    }
+
+    pub(crate) fn compiler_family(&self) -> crate::native_driver::NativeCompilerFamily {
+        use crate::native_driver::NativeCompilerFamily;
+        match self.profile.contract().platform() {
+            scoop_lir::CBridgePlatformContractV1::Linux {
+                compiler: scoop_lir::LinuxCCompilerIdentityV1::Gcc(_),
+            } => NativeCompilerFamily::Gcc,
+            _ => NativeCompilerFamily::Clang,
+        }
+    }
+
+    pub(crate) fn driver_command_for(
+        &self,
+        driver: &Path,
+        family: crate::native_driver::NativeCompilerFamily,
+    ) -> Command {
         if let CBridgeCommandParameters::Windows(environment) = &self.parameters {
             return environment.command(
                 driver,
@@ -231,7 +249,20 @@ impl ValidatedCBridgeToolchainInvocation {
                     .arg(format!("-mmacosx-version-min={minimum_os}"));
             }
             CBridgeCommandParameters::Linux { native_sysroot, .. } => {
-                command.arg("-march=x86-64");
+                if family == crate::native_driver::NativeCompilerFamily::Clang {
+                    command.arg(format!(
+                        "--target={}",
+                        scoop_target_data::definition(self.target.id())
+                            .expect("validated target")
+                            .llvm_triple
+                    ));
+                }
+                command.args(
+                    crate::linux_target::LinuxTarget::select(self.target.id())
+                        .expect("validated Linux target")
+                        .machine
+                        .compiler_flags(),
+                );
                 if let Some(root) = native_sysroot {
                     command.arg("--sysroot").arg(root);
                 }

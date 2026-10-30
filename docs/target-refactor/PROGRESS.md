@@ -6,6 +6,7 @@
 - 起点：`09be3315a85cfa9e50f79e49785bd23e0880f1f0`，包含 Windows targets 与 AppKit／Win32 窗口库合入。
 - 本阶段完成目标边界重构并加入 `x86_64-apple-darwin`；Linux ARM64 GNU／musl、OpenHarmony AMD64／ARM64 留待后续。
 - 每批完成格式化／lint 和相应验证后提交、推送，再获取并合并远端 `main` 的新增提交。原始日志与临时构建放在 Git 忽略的 `tmp/target-refactor/`，测试设置 `TMPDIR` 为仓库的 `tmp`。
+- 验证顺序按用户要求：全部实现及本机验证完成后，再统一验证 Linux 和 Windows；连接显式使用 `/usr/bin/ssh nuc12` 与 `/usr/bin/ssh 192.168.2.67`。
 
 ## 环境
 
@@ -19,7 +20,7 @@
 | R1 | 完成 | 独立 target-data 与 Rust／Python 共用目录；PM／选库更新输入；585 项 Rust 测试通过，22 项脚本测试与 70 项 fixture 规则各跳过 3 项宿主不适用测试，其余通过 |
 | R2 | 完成 | 显式 ABI／backend／EH／frame 与 codegen 调优数据；1033 项测试通过，配套 LLVM 构建后的 Windows 返回 PC 测试也已通过 |
 | R3 | 完成 | 对象 machine／格式与 runtime frame 边界；713 项 Rust 测试通过，配套 core／runtime 的真实链接回归通过 |
-| R4 | 实施中 | Darwin 工具发现、SDK、部署与链接已显式传入 target；Linux Clang 接入待完成 |
+| R4 | 本地完成 | Darwin 配置与 Linux GCC／Clang producer、C++ family 已拆开；本机 489 项测试通过，远端验收在 R7 闭合 |
 | R5 | 待实施 | native／RC 的 target sysroot include 与维护流程 |
 | R6 | 待实施 | macOS x86_64 实现、资源与本机运行 |
 | R7 | 待实施 | 七目标回归与完成记录 |
@@ -45,3 +46,7 @@ Mach-O envelope 显式保存目标，容器／符号／section 命名去除 arm6
 ### R4 工具选择与 Darwin 配置
 
 `cargo fmt --all` 与 workspace／all-targets Clippy 通过，toolchain、target-data、linker 的 77 项测试通过。Darwin 真实 probe 同时覆盖 Xcode 默认发现和显式 Apple Clang／SDK，所得 producer 合同相同。目录的 native 环境用于 C producer、C++、unwind 与最终链接选择；Darwin 的 target、SDK、部署版本和 linker 架构独立传递，各目标默认部署版本从发行配置编入。工具发现缓存键随配置语义更新，命中流程保持先判断更新。R3 推送后已获取远端 main，无新增提交。
+
+Linux generated-C 接入 GCC／Clang，C++ 独立记录 compiler family，GNU 方言不等同于 GCC；GCC 专用的前端、wrapper 环境、collect2 和 sysroot 查询按实际 producer 使用。compiler protocol 升至 25，工具记录直接更新。新增真实 C ABI 双向调用、Clang PIC／TLS、LLVM unwind 链接及 C／C++ 混合 family 测试。本机 LIR 379、protocol 47、target-data 10、toolchain 53 项通过，格式化和 workspace lint 通过。原有 AArch64 系统 Cone 全部准备成功；runtime builder 曾读到开发中的中间状态，完成修改后单独补跑四种 runtime 配置，全部成功。
+
+用户调整验证顺序前已启动的 Linux 小批检查中，lint 通过、测试返回失败，未继续排查或扩大远端测试。工作副本与日志保留于该机仓库 `tmp/target-refactor/`，将在全部本机验证完成后的 R7 一并闭合。Darwin 配置批次推送后已获取远端 main，无新增提交。

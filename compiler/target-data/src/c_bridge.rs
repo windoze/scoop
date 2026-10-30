@@ -34,7 +34,7 @@ pub fn darwin_c_bridge_profile(
 
 pub fn linux_c_bridge_profile(
     target: LirTargetProfile,
-    compiler: GccCompilerIdentityV1,
+    compiler: LinuxCCompilerIdentityV1,
 ) -> Result<CBridgeToolchainProfileV1, CBridgeToolchainBuildError> {
     if !matches!(
         crate::definition(target.id()).map(|definition| definition.native_environment),
@@ -45,10 +45,14 @@ pub fn linux_c_bridge_profile(
         ));
     }
     let id = c_bridge_toolchain_id(target.id()).expect("registered Linux C producer");
+    let flags = match &compiler {
+        LinuxCCompilerIdentityV1::Gcc(_) => CanonicalCBridgeFlagContractV1::LinuxGcc,
+        LinuxCCompilerIdentityV1::Clang(_) => CanonicalCBridgeFlagContractV1::LinuxClang,
+    };
     let contract = CBridgeToolchainContractV1::new(
         target,
         CBridgePlatformContractV1::Linux { compiler },
-        CanonicalCBridgeFlagContractV1::LINUX_GCC,
+        flags,
     )
     .map_err(CBridgeToolchainBuildError::Hash)?;
     CBridgeToolchainProfileV1::new(id, contract).map_err(CBridgeToolchainBuildError::Hash)
@@ -62,7 +66,7 @@ pub fn c_bridge_toolchain_id(target: TargetProfileId) -> Option<CBridgeToolchain
 
 pub fn windows_c_bridge_profile(
     target: LirTargetProfile,
-    compiler: WindowsClangCompilerIdentityV1,
+    compiler: ClangCompilerIdentityV1,
 ) -> Result<CBridgeToolchainProfileV1, CBridgeToolchainBuildError> {
     if !matches!(
         crate::definition(target.id()).map(|definition| definition.native_environment),

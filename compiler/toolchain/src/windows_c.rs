@@ -5,10 +5,11 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 use object::{Object, ObjectKind};
-use scoop_lir::{LirTargetProfile, TargetProfileId, WindowsClangCompilerIdentityV1};
+use scoop_lir::{ClangCompilerIdentityV1, LirTargetProfile, TargetProfileId};
 use scoop_process::CommandExt;
 use scoop_wire::sha256;
 
+use crate::native_driver::macro_number;
 use crate::{ToolchainError, ValidatedCBridgeToolchainInvocation};
 
 mod environment;
@@ -118,7 +119,7 @@ pub(crate) fn probe(
         macro_number(macros_text, "__clang_minor__")?,
         macro_number(macros_text, "__clang_patchlevel__")?,
     ];
-    let identity = WindowsClangCompilerIdentityV1::new(version, sha256(&macros.stdout));
+    let identity = ClangCompilerIdentityV1::new(version, sha256(&macros.stdout));
     let profile = scoop_target_data::windows_c_bridge_profile(target, identity).map_err(error)?;
     let invocation =
         ValidatedCBridgeToolchainInvocation::new_windows(target, profile, compiler, environment)
@@ -134,15 +135,6 @@ pub(crate) fn probe(
         return Err(error("Clang did not emit the selected AMD64 COFF C object"));
     }
     Ok((invocation, inputs.into_iter().collect()))
-}
-
-fn macro_number(macros: &str, name: &str) -> Result<u32, ToolchainError> {
-    let prefix = format!("#define {name} ");
-    macros
-        .lines()
-        .find_map(|line| line.strip_prefix(&prefix))
-        .and_then(|value| value.parse().ok())
-        .ok_or_else(|| error(format!("Clang did not define numeric {name}")))
 }
 
 const PROBE: &str = r#"

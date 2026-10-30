@@ -18,7 +18,7 @@ pub(crate) use inputs::{header_candidates, program_candidates};
 use invocation::InvocationRecord;
 
 // Changes to discovery semantics must also invalidate callers' build keys.
-const CACHE_VERSION: &str = "native-tools-v3";
+const CACHE_VERSION: &str = "native-tools-v4";
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct ResolvedRecord {

@@ -1,13 +1,13 @@
 use scoop_wire::{Digest256, Encoder, WireEncode};
 
-/// Clang and header configuration used by the Windows generated-C producer.
+/// Clang and header configuration used by a Clang generated-C producer.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct WindowsClangCompilerIdentityV1 {
+pub struct ClangCompilerIdentityV1 {
     version: [u32; 3],
     inputs: Digest256,
 }
 
-impl WindowsClangCompilerIdentityV1 {
+impl ClangCompilerIdentityV1 {
     pub const fn new(version: [u32; 3], inputs: Digest256) -> Self {
         Self { version, inputs }
     }
@@ -21,7 +21,7 @@ impl WindowsClangCompilerIdentityV1 {
     }
 }
 
-impl WireEncode for WindowsClangCompilerIdentityV1 {
+impl WireEncode for ClangCompilerIdentityV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(3)?;
         encoder.field(1)?;

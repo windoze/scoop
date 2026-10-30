@@ -11,6 +11,11 @@ pub(crate) enum LinuxMachine {
 }
 
 impl LinuxMachine {
+    pub(crate) fn compiler_flags(self) -> &'static [&'static str] {
+        match self {
+            Self::X86_64 => &["-march=x86-64"],
+        }
+    }
     pub(crate) fn object_architecture(self) -> object::Architecture {
         match self {
             Self::X86_64 => object::Architecture::X86_64,

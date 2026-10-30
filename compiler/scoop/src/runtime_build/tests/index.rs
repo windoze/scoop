@@ -61,7 +61,7 @@ fn compatible_consumer(target: &ResolvedTargetProfile) -> CBridgeToolchainProfil
         scoop_lir::CBridgePlatformContractV1::Windows { compiler } => {
             scoop_target_data::windows_c_bridge_profile(
                 target.lir_target(),
-                scoop_lir::WindowsClangCompilerIdentityV1::new(
+                scoop_lir::ClangCompilerIdentityV1::new(
                     compiler.version(),
                     scoop_wire::sha256(b"different compiler"),
                 ),
@@ -94,8 +94,13 @@ fn compatible_consumer(target: &ResolvedTargetProfile) -> CBridgeToolchainProfil
         }
         CBridgePlatformContractV1::Linux { .. } => scoop_target_data::linux_c_bridge_profile(
             target.lir_target(),
-            GccCompilerIdentityV1::new("99.1.0", scoop_wire::sha256(b"different compiler inputs"))
+            scoop_lir::LinuxCCompilerIdentityV1::Gcc(
+                GccCompilerIdentityV1::new(
+                    "99.1.0",
+                    scoop_wire::sha256(b"different compiler inputs"),
+                )
                 .unwrap(),
+            ),
         )
         .unwrap(),
     }

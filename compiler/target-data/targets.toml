@@ -39,7 +39,7 @@ exception_handling = "Dwarf"
 tuning = "X86_64"
 backend = "LLVM_22_1_LINUX_X86_64"
 native_environment = "LinuxGnu"
-c_bridge_profile = "linux-x86-64-gnu-gcc"
+c_bridge_profile = "linux-x86-64-gnu-c"
 native_rust_target = "x86_64-unknown-linux-gnu"
 
 [[targets]]
@@ -60,7 +60,7 @@ exception_handling = "Dwarf"
 tuning = "X86_64"
 backend = "LLVM_22_1_LINUX_X86_64"
 native_environment = "LinuxMusl"
-c_bridge_profile = "linux-x86-64-musl-gcc"
+c_bridge_profile = "linux-x86-64-musl-c"
 native_rust_target = "x86_64-unknown-linux-musl"
 
 [[targets]]

@@ -1,17 +1,20 @@
-//! GCC discovery for ELF targets. C compilation does not require an unwinder.
+//! GCC/Clang discovery for ELF targets. C compilation does not require an unwinder.
 use std::collections::BTreeSet;
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 use crate::ValidatedCBridgeToolchainInvocation;
+use crate::native_driver::{NativeCompilerFamily, macro_number};
 use object::{BinaryFormat, Object, ObjectKind};
-use scoop_lir::{GccCompilerIdentityV1, LirTargetProfile};
+use scoop_lir::{
+    ClangCompilerIdentityV1, GccCompilerIdentityV1, LinuxCCompilerIdentityV1, LirTargetProfile,
+};
 use scoop_process::{CommandExt, parse_make_dependencies};
 use scoop_wire::sha256;
 
 use crate::ToolchainError;
-use crate::linux_target::{LinuxLibc, LinuxTarget};
+use crate::linux_target::LinuxTarget;
 use crate::paths::find_program;
 
 pub fn resolve_linux_c_toolchain(
@@ -36,10 +39,9 @@ pub(crate) fn probe_linux_c_toolchain(
             .as_os_str(),
         &search_path,
     )?;
-    // REALGCC is a musl wrapper input. A direct GCC invocation already names
-    // its actual compiler and must not require a second, architecture-named GCC.
+    // Only a wrapper that actually reads REALGCC receives this environment input.
     let real_gcc = underlying_compiler(
-        selected.libc,
+        uses_real_gcc(&driver)?,
         &search_path,
         std::env::var_os("REALGCC").as_deref(),
     )?;
@@ -51,13 +53,22 @@ pub(crate) fn probe_linux_c_toolchain(
         .prefix("scoop-linux-c-")
         .tempdir()
         .map_err(error)?;
-    let paths = CompilerPaths {
+    let mut paths = CompilerPaths {
+        target,
+        family: NativeCompilerFamily::Gcc,
         driver,
         real_gcc,
         search_path,
         sysroot,
         temporary: directory.path().to_owned(),
     };
+    let predefined = run(paths
+        .bare_command()
+        .args(["-dM", "-E", "-x", "c", "-"])
+        .stdin(std::process::Stdio::null()))?;
+    paths.family = NativeCompilerFamily::from_gnu_macros(
+        std::str::from_utf8(&predefined.stdout).map_err(error)?,
+    )?;
     let source = directory.path().join("probe.c");
     let object = directory.path().join("probe.o");
     let libc_check = selected.libc.header_probe();
@@ -66,14 +77,13 @@ pub(crate) fn probe_linux_c_toolchain(
         format!("{PROBE_PREFIX}{libc_check}\nint scoop_linux_c_probe(void) {{ return 0; }}\n"),
     )
     .map_err(error)?;
-    let version = command_text(paths.command().arg("-dumpfullversion"))?;
     let dependencies = run(paths
         .command()
         .args(["-v", "-M", "-MT", "c-probe"])
         .arg(&source))?;
     let dependency_text = std::str::from_utf8(&dependencies.stdout).map_err(error)?;
     let mut inputs: BTreeSet<PathBuf> = parse_make_dependencies(dependency_text, "c-probe")
-        .ok_or_else(|| error("GCC returned an invalid header dependency list"))?
+        .ok_or_else(|| error("C driver returned an invalid header dependency list"))?
         .into_iter()
         .filter(|path| path != &source)
         .collect();
@@ -85,7 +95,7 @@ pub(crate) fn probe_linux_c_toolchain(
         &paths.search_path,
         &mut inputs,
     );
-    if selected.libc == LinuxLibc::Musl {
+    if paths.real_gcc.is_some() {
         crate::native_record::program_candidates(
             std::env::var_os("REALGCC")
                 .as_deref()
@@ -95,28 +105,56 @@ pub(crate) fn probe_linux_c_toolchain(
         );
     }
     inputs.insert(paths.driver.clone());
-    for program in ["cc1", "as"] {
-        let resolved = command_text(paths.command().arg(format!("-print-prog-name={program}")))?;
-        crate::native_record::program_candidates(
-            OsStr::new(&resolved),
-            &paths.search_path,
-            &mut inputs,
-        );
-    }
-    for line in String::from_utf8_lossy(&dependencies.stderr).lines() {
-        if let Some(specs) = line.strip_prefix("Reading specs from ") {
-            inputs.insert(PathBuf::from(specs));
-        }
-        if let Some(compiler) = line.strip_prefix("COLLECT_GCC=") {
+    if paths.family == NativeCompilerFamily::Gcc {
+        for program in ["cc1", "as"] {
+            let resolved =
+                command_text(paths.command().arg(format!("-print-prog-name={program}")))?;
             crate::native_record::program_candidates(
-                OsStr::new(compiler),
+                OsStr::new(&resolved),
                 &paths.search_path,
                 &mut inputs,
             );
         }
+        for line in String::from_utf8_lossy(&dependencies.stderr).lines() {
+            if let Some(specs) = line.strip_prefix("Reading specs from ") {
+                inputs.insert(PathBuf::from(specs));
+            }
+            if let Some(compiler) = line.strip_prefix("COLLECT_GCC=") {
+                crate::native_record::program_candidates(
+                    OsStr::new(compiler),
+                    &paths.search_path,
+                    &mut inputs,
+                );
+            }
+        }
     }
     let macros = run(paths.command().args(["-dM", "-E"]).arg(&source))?;
-    let compiler = GccCompilerIdentityV1::new(&version, sha256(&macros.stdout)).map_err(error)?;
+    let macros_text = std::str::from_utf8(&macros.stdout).map_err(error)?;
+    let configuration = sha256(&macros.stdout);
+    let compiler = match paths.family {
+        NativeCompilerFamily::Gcc => {
+            let version = format!(
+                "{}.{}.{}",
+                macro_number(macros_text, "__GNUC__")?,
+                macro_number(macros_text, "__GNUC_MINOR__")?,
+                macro_number(macros_text, "__GNUC_PATCHLEVEL__")?
+            );
+            LinuxCCompilerIdentityV1::Gcc(
+                GccCompilerIdentityV1::new(&version, configuration).map_err(error)?,
+            )
+        }
+        NativeCompilerFamily::Clang => {
+            LinuxCCompilerIdentityV1::Clang(ClangCompilerIdentityV1::new(
+                [
+                    macro_number(macros_text, "__clang_major__")?,
+                    macro_number(macros_text, "__clang_minor__")?,
+                    macro_number(macros_text, "__clang_patchlevel__")?,
+                ],
+                configuration,
+            ))
+        }
+        NativeCompilerFamily::Msvc => return Err(error("Linux requires a GNU-style C driver")),
+    };
     let profile = scoop_target_data::linux_c_bridge_profile(target, compiler).map_err(error)?;
     let invocation = ValidatedCBridgeToolchainInvocation::new_linux(
         target,
@@ -137,16 +175,18 @@ pub(crate) fn probe_linux_c_toolchain(
         || !file.is_64()
         || file.symbol_by_name("scoop_linux_c_probe").is_none()
     {
-        return Err(error("GCC did not emit the selected ELF64 C object"));
+        return Err(error("C driver did not emit the selected ELF64 C object"));
     }
     Ok((invocation, inputs.into_iter().collect()))
 }
 
 const PROBE_PREFIX: &str = "#include <features.h>\n#include <stdint.h>\n#include <stddef.h>\n#include <stdlib.h>\n#include <limits.h>\n\
-#if !defined(__GNUC__) || defined(__clang__)\n#error this Linux C driver requires GCC\n#endif\n\
+#if !defined(__GNUC__) && !defined(__clang__)\n#error this Linux C driver requires GCC or Clang\n#endif\n\
 _Static_assert(CHAR_BIT == 8 && sizeof(void *) == 8 && sizeof(long) == 8, \"LP64 required\");\n";
 
 struct CompilerPaths {
+    target: LirTargetProfile,
+    family: NativeCompilerFamily,
     driver: PathBuf,
     real_gcc: Option<PathBuf>,
     search_path: OsString,
@@ -156,6 +196,25 @@ struct CompilerPaths {
 
 impl CompilerPaths {
     fn command(&self) -> Command {
+        let mut command = self.bare_command();
+        if self.family == NativeCompilerFamily::Clang {
+            command.arg(format!(
+                "--target={}",
+                scoop_target_data::definition(self.target.id())
+                    .expect("selected target")
+                    .llvm_triple
+            ));
+        }
+        command.args(
+            LinuxTarget::select(self.target.id())
+                .expect("selected Linux target")
+                .machine
+                .compiler_flags(),
+        );
+        command
+    }
+
+    fn bare_command(&self) -> Command {
         let mut command = Command::new(&self.driver);
         command
             .env_clear()
@@ -175,16 +234,30 @@ impl CompilerPaths {
 }
 
 fn underlying_compiler(
-    libc: LinuxLibc,
+    wrapper: bool,
     search_path: &OsStr,
     real_gcc: Option<&OsStr>,
 ) -> Result<Option<PathBuf>, ToolchainError> {
-    match libc {
-        LinuxLibc::Gnu => Ok(None),
-        LinuxLibc::Musl => {
-            find_program(real_gcc.unwrap_or_else(|| OsStr::new("gcc")), search_path).map(Some)
+    if wrapper {
+        find_program(real_gcc.unwrap_or_else(|| OsStr::new("gcc")), search_path).map(Some)
+    } else {
+        Ok(None)
+    }
+}
+
+fn uses_real_gcc(driver: &Path) -> Result<bool, ToolchainError> {
+    use std::io::{BufRead, Read};
+    let mut file = std::fs::File::open(driver).map_err(error)?;
+    let mut prefix = [0; 2];
+    if file.read(&mut prefix).map_err(error)? != 2 || &prefix != b"#!" {
+        return Ok(false);
+    }
+    for line in std::io::BufReader::new(file).lines() {
+        if line.map_err(error)?.contains("REALGCC") {
+            return Ok(true);
         }
     }
+    Ok(false)
 }
 
 #[cfg(test)]
