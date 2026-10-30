@@ -1,6 +1,6 @@
 # Scoop 桌面窗口库规范
 
-状态：基础架构与 macOS／Windows GUI 骨架已实现。日期：2026-10-30。本文件描述普通 Cone `scoop.window` 与 `scoop.window.asyncio` 的当前合同及后续平台设计方向；实际交付与验证范围见[窗口库实施记录](../windowing/PROGRESS.md)与[目标扩展实施记录](../target-refactor/PROGRESS.md)。依据 [设计](../windowing/DESIGN.md)与 [winit 能力映射](../windowing/WINIT-MAPPING.md)。
+状态：基础架构与 macOS／Windows GUI 骨架已实现。实现基线日期：2026-10-30；第 11 节于 2026-10-31 增加，为尚未实施的 GUI 输入扩展设计。本文件描述普通 Cone `scoop.window` 与 `scoop.window.asyncio` 的当前合同及后续平台设计方向；实际交付与验证范围见[窗口库实施记录](../windowing/PROGRESS.md)与[目标扩展实施记录](../target-refactor/PROGRESS.md)。依据 [设计](../windowing/DESIGN.md)与 [winit 能力映射](../windowing/WINIT-MAPPING.md)。
 
 ## 1. 分层与目标
 
@@ -129,3 +129,25 @@ Windows 窗口使用 Unicode HWND，创建前确认 Per-Monitor V2；已声明�
 键盘的物理位置来自扩展 scan code，NumLock 与 Pause 按 Win32 的扩展位区分；Lang1／Lang2 不混同 Kana／转换键，当前键集合没有对应项时保留 WindowsScanCode。同值的 VK_KANA／VK_HANGUL 只在 scan code 明确识别 Kana 时命名，否则保留 WindowsVirtualKey。逻辑文字查询当前布局且不改变系统 dead-key 状态。普通文字仅由 WM_CHAR／WM_UNICHAR 交付；IMM32 result 和 preedit 以一次 WM_IME_COMPOSITION 为批次，UTF-16 选区转换为 UTF-8 字节位置。CS_INSERTCHAR 作为临时 preedit，最终 result 才提交；只有 GCS_CURSORPOS 变化时仍交付当前 preedit 与新选区；没有 GCS 状态的组合消息撤销先前已发布的 preedit。同批结果与组合必须整体有效，非法 UTF-16 或 surrogate 中间的 cursor 拒绝整批并撤销旧组合。确认结果不再通过 WM_IME_CHAR 重复提交；失焦／禁用取消组合并补发已交付按下键的 synthetic release。候选窗使用内容像素坐标，native 同步查询不进入用户 handler。surrounding 文档与 TSF 文档存储不属于当前基础 IME。
 
 宿主使用 MsgWaitForMultipleObjectsEx 与 owner HWND。线程池 wait 一次只投递一个 HWND 就绪消息，owner 回调退出后重新监听；remove 停止 native wait 并等候 worker 退出，在 owner 排队消息和活动 ready 退休后报告完成，HANDLE 始终由 asyncio loop 持有。截止时间只安装所需原生 timer，Wait 不做周期轮询。真实系统 dialog、menu、move／size 循环继续派发 HWND 消息，因此能推进 asyncio；会进入模态的操作排在当前业务回调和 session pump 返回后。
+
+## 11. GUI 基础层所需输入扩展（设计目标）
+
+本节是 [GUI 基础架构](../gui/DESIGN.md)所需的拟议合同，当前 PointerEvent、PointerState 与 KeyEvent 尚未提供以下接口。实施时同步共享表示、已有平台后端和所属 Cone 测试，不把下述设计当作已发布行为。绘图、段落布局、动画、区域命中和帧源仍属于 graphics／gui，边界见 [GUI 规范](SCOOP-GUI-SPEC.md)。
+
+### 11.1 鼠标序列取消
+
+新增 PointerEvent.Cancelled，携带 PointerCancelReason 与 InputTime。当前窗口鼠标模型只有一个聚合指针序列，取消结束该窗口已经交付的整个按下按钮集合，不伪造未知位置、按钮 Up 或 touch contact id。理由覆盖 FocusLost 与 CaptureLost；窗口 Closing 的上层清理由 GUI 生命周期通知处理，不在 Closing 后另发业务输入事件。
+
+失焦或原生侧确认捕获／跟踪中断时，先取消仍活动的鼠标序列，再交付相应的后续状态通知。正常最后一个 Up 已结束序列时不重复取消；原生取消和失焦归一只结束一次。PointerEvent.Left 仅表示离开内容区，滚轮 ScrollPhase.Cancelled 仅结束滚轮相位，两者均不替代鼠标序列取消。
+
+AppKit 至少覆盖窗口／应用失焦；对系统可观察的原生跟踪中断报告 CaptureLost。mouseDragged 与正常 mouseUp 继续原按下序列，不能用 mouseExited 代替中断。Win32 将 WM_CAPTURECHANGED／WM_CANCELMODE 中的异常丢失映射为取消；正常 ReleaseCapture 也会触发消息，必须区分正常结束，避免抢在最后一个 Up 前取消。这里不增加 Confined／Locked 光标能力，也不把鼠标序列固定目标的 GUI 路由移入 window。
+
+### 11.2 输入单调时间
+
+新增 InputTime，区分 `Event(TimeMark)` 与 `Observed(TimeMark)`：前者是可靠映射到 MonotonicTimeSource 的原生事件时间，后者是原生接收边界采样的同源时间。两者均可与该单调源的 TimeMark 比较，但调用方可以识别其来源；Event 不等于保证硬件采样精度。
+
+PointerState 与 KeyEvent 均携带 InputTime，取消事件独立携带；平台缺少时间信息、无法可靠归一或生成 synthetic 事件时使用 Observed。不能用晚到业务 handler 的处理时刻替代原生接收时间，不用墙上时钟，也不把预测呈现时间当作输入时间。
+
+原生秒／纳秒读数通过既有 Duration、TimeMark 与 MonotonicTimeSource 构造，不新增 runtime 时钟或窗口专用 TimeSource。NSEvent.timestamp、Windows 消息时间等只有完成来源与原点转换后才能成为 Event；不能把外观相似的计数直接互减，不能假定系统睡眠前后仍使用同一未经验证的偏移。首批后端明确交付 Observed 也符合合同。
+
+输入时间随原始 payload 保存；合并连续移动时保留最终被交付样本的位置、scale 与时间，不跨按钮／焦点／取消等顺序边界合并。相关验证覆盖来源标记、同源运算和排队延迟，不以精确计时断言替代事件顺序验收。
