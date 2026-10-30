@@ -1,8 +1,8 @@
 # Windows MSVCRT／UCRT target 与工具链设计
 
-状态：实施中，W0 关键路线实验通过，三个 Windows target 已接入开发 CLI；W1～W4 尚未完成全部验收，不声明正式发行支持。日期：2026-10-28。本文覆盖 MSVCRT、UCRT 两种 CRT，并按 native 工具链环境区分完整 target。实施与验收记录见 [进度](PROGRESS.md)。
+状态：W0～W4 实现与约定验收已完成，已随 `b0de037002`（#70）合入主线。初稿日期：2026-10-28；完成状态更新：2026-10-30。本文覆盖 MSVCRT、UCRT 两种 CRT，并按 native 工具链环境区分三个完整 target；跨宿主回归及候选归档安装结果见 [进度](PROGRESS.md)。项目仍处于未发布阶段，后续 target 重构见[独立设计](../target-refactor/DESIGN.md)。
 
-依据：[语言规范](../specs/SCOOP-SPEC.md) 12～14、[实现规范](../specs/SCOOP-IMPL-SPEC.md) 1、2.4～2.10，以及[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md) 3～7。实施时先将本文对应阶段的精确合同纳入这些规范，再改实现；当前三个已实现目标的合同保持有效。
+依据：[语言规范](../specs/SCOOP-SPEC.md) 12～14、[实现规范](../specs/SCOOP-IMPL-SPEC.md) 1、2.4～2.10，以及[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md) 3～7。后续修改先将对应合同纳入这些规范，再改实现；配套工具与资源按当前需要同步更新和重建。
 
 ## 1. 决策
 

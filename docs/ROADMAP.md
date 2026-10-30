@@ -786,11 +786,11 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 各里程碑"涵盖但只实现了部分"的事项，按来源里程碑整理。标注→的为目标里程碑（已知时）；未标注的待排期。
 
-### Target 边界重构（设计完成，待实施）
+### Target 边界重构与 macOS x86_64（实施中）
 
-- [设计](target-refactor/DESIGN.md)承接 M39，以进行中的 `codex/windows-targets` 合入后的六个 target 为回归基线，统一静态目标目录，分开 ABI／frame／对象格式、native 环境和宿主工具；保留现有完整 LIR 交接及 Windows 的 SEH、COFF／PE、PDB、RC 和 C++ 支持。
-- 收口 runtime 平台组件、target sysroot include、资源准备／打包及 fixture 的目标选择；新增路径语义先同步规范，不引入任意 target 插件或缓存复核。
-- 后续按 Linux ARM64 GNU／musl、OpenHarmony AMD64／ARM64 分批移植；Darwin x86_64 在对象和工具链边界就绪后可独立推进。本文仅完成设计，不登记未实现目标，不扩大 Windows 分支已有验收结论。
+- [设计](target-refactor/DESIGN.md)已按 `09be3315a8` 复审（2026-10-30）：Windows targets 已完成并合入，六目标重构可从当前主线开始。统一静态目标目录，分开 ABI／frame／对象格式、native 环境和宿主工具，保留现有完整 LIR 交接。
+- 纳入跨宿主 runtime locator、clang-cl 文件参数、COFF 导入顺序，以及后续窗口库带来的 Objective-C／framework 和按目标选择系统库。新的 target sysroot include 由 native 与 RC 共用，覆盖 RC-only 程序；准备、文档与 fixture 共用目标事实。
+- 遵循未发布阶段直接演进，按实际需要同步规范、数据、调用方和配套重建，不保留旧编码／指纹的兼容层。按 R0～R7 分批实施，本阶段完成重构并加入 macOS x86_64，使用本机 Rosetta 执行验证；Linux ARM64 GNU／musl、OpenHarmony AMD64／ARM64 留待后续。实际进度与验证范围见[实施记录](target-refactor/PROGRESS.md)。
 
 ### 编译期文件／环境 intrinsic（已实现）
 

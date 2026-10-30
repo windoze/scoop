@@ -1,10 +1,21 @@
 # Target 边界重构设计
 
-状态：设计完成，待实施。本文参考进行中的 Windows 支持，以其合入后的六个 target 为重构基线；不声明新增 target 已经支持。
+状态：实施中。Windows 完成后的设计复审已完成；本阶段在 `codex/target-refactor-macos-x86-64` 分支完成目标边界重构并加入 macOS x86_64。实施与验证进度见[实施记录](PROGRESS.md)。
 
-日期：2026-10-29。
+初稿：2026-10-29。复审：2026-10-30。
 
-代码依据：主线 `7aff531f00871551a2265a2202d3690c198d0629`；`codex/windows-targets` 的已推送快照 [`0fa053fd11c11e641e2f17212ce4948d5d52447a`](https://github.com/windoze/scoop/tree/0fa053fd11c11e641e2f17212ce4948d5d52447a)。该快照已包含上述主线。Windows 的[设计][windows-design]与[进度][windows-progress]记录了三个 native 环境、ABI 30、协议 23，以及尚未完成的 HTTP 资源更新和跨宿主回归；实施时应重新对齐实际合入提交，不能把历史通过记录扩大为新版本的完整验收。
+代码依据：主线 [`09be3315a85cfa9e50f79e49785bd23e0880f1f0`](https://github.com/windoze/scoop/tree/09be3315a85cfa9e50f79e49785bd23e0880f1f0)。Windows targets 经 `b0de037002`（#70）合入，随后 `2ae2534a1c`（#71）和 `09be3315a8`（#72）加入 macOS／Windows 窗口库及其实际需要的 native 支持。以下代码链接指向当前主线文件。
+
+Windows 的[实施记录][windows-progress]确认 W0～W4 完成，包括高层 HTTP 失败闭合、新版候选归档安装，以及 Linux／macOS 各交叉生成 18 个 Windows 程序、共 36 个程序在真实 Windows 上执行通过。这些结果是重构前的已有证据；[窗口库记录](../windowing/PROGRESS.md)分别说明后续 AppKit／Win32 骨架的验证范围，不扩大为当前主线全量测试已经重新通过。
+
+| 当前基线项 | 值 | 用途 |
+| --- | --- | --- |
+| runtime ABI／metadata ABI | 30／9 | 配套 compiler、runtime 与目标库的机器合同 |
+| runtime index／开发 runtime cache | schema 7／`runtime-v8` | 可跨宿主消费的对象 locator／本机更新记录 |
+| compiler machine protocol | 24 | 包含独立 `objc_flags` 的展开配置 |
+| package protocol | 3 | 配套 PM 的 manifest 数据传输 |
+
+这些版本用于复现本次审查，后续按实际数据变化同步更新，不设为历史兼容边界。
 
 权威依据：[语言规范](../specs/SCOOP-SPEC.md)、[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)、[实现规范](../specs/SCOOP-IMPL-SPEC.md)。本设计承接 [M39](../milestone39/DESIGN.md)，保留其已经实现的 ABI 规划与完整 LIR 交接，继续整理尚未收口的登记、对象、工具链、runtime 和系统库职责。
 
@@ -12,7 +23,7 @@
 
 重构的目标是：增加一个 target 时，只登记完整目标、实现其实际新增的机器／系统差异、准备配套资源并验收；共享编译流程不再逐处增加完整 target 名称的分支。
 
-本轮重构先保持以下六个 target 的现有合同，随后再分别移植 Linux ARM64、OpenHarmony AMD64／ARM64、Darwin x86_64。后者是需求中 Darwin X64_64 对应的规范架构拼写。
+本轮重构以以下六个 target 的现有功能为回归基线，并在边界拆分后加入 `x86_64-apple-darwin`。Linux ARM64 GNU／musl 与 OpenHarmony AMD64／ARM64 留待后续阶段，不提前登记。
 
 | 完整 Scoop target | 过程 ABI／对象格式 | native 环境 |
 | --- | --- | --- |
@@ -24,6 +35,8 @@
 | `x86_64-w64-windows-llvm-mingw-ucrt` | Win64／COFF、PE | LLVM-MinGW、UCRT、libc++／libc++abi |
 
 “彻底分离”是职责边界要求：通用代码消费明确的数据和计划，具体实现位于有名字的模块。它不要求删除所有平台分支，也不要求把整个编译器搬进一个 `targets/` 目录。对象 reader、链接器和 runtime 各自保留其实际平台实现。
+
+遵循 [AGENTS.md](../../AGENTS.md) 的“未发布阶段直接演进”：允许为本轮职责分离修改内部 API、profile 表达、wire 编码、ABI 和构建记录，并同步规范、实现、调用方与必要重建。回归检查当前功能和同次构建的相容性，不要求旧产物、旧指纹或旧 API 继续可用；不增加兼容别名、转发层、双格式 reader 或双轨实现。此原则不扩大本轮语言与库功能范围。
 
 本轮不重新设计语法、类型系统、泛型、GC 算法、协程模型或 `.slib` 的整体结构；不增加任意 target 组合、用户插件、32 位／大端支持或新的产物信任体系。未来目标只写入移植计划，不提前注册空实现。
 
@@ -42,15 +55,25 @@ M39 已把具体 ABI 算法移到 `scoop-abi-plan`，并通过 driver 完成 `pr
 | Windows 的 [NativeDriver][windows-driver]、[native command][windows-native] 和 [SDK environment][windows-environment] | 已区分 GNU／clang-cl／cl，但通用调用仍需识别 Windows／具体 target | 延续这些实现，按明确的 native 环境和工具角色选择 |
 | [crypto manifest][windows-crypto]、[生成头文件选择][windows-crypto-target]及其他 native 系统库 | 每个库重复六套 target 路径；按 os／env 选路径会在新增 arch 后选错目录 | 增加所选 target sysroot 的明确路径形式，移除 C 头文件中的 target 路径表 |
 | [emission](../../compiler/codegen/src/emission.rs)、[card regions](../../compiler/codegen/src/statepoint/bounded_loops/card_regions.rs) | 以 LLVM target 名称决定接口复用、TLAB、卡表等优化 | 抽为 codegen 内的目标调优数据，迁移时保持既有默认值 |
-| [fixture CLI](../../tests/fixture_runner/cli.py)、[维护脚本](../../scripts/README.md) | host 可运行集合同时限制交叉编译；脚本有各自的 target 表 | 分开宿主、编译目标和执行环境，共用目录 |
+| [fixture CLI](../../tests/fixture_runner/cli.py)、[sysroot 准备](../../scripts/prepare_sysroot.py)、[维护脚本](../../scripts/README.md) | host 可运行集合同时限制交叉编译；准备脚本新增的 `TARGET_FACTS` 又复制了一份目标事实 | 分开宿主、编译目标、库适用目标和执行环境，共用目录 |
 
-### 2.1 Windows 分支已经证明必须保留的区别
+### 2.1 Windows 实现已经证明的区别
 
 完整 Scoop target 不等于 LLVM triple。Microsoft target 使用 `x86_64-pc-windows-msvc` 发射机器代码；两个 LLVM-MinGW target 都使用 `x86_64-w64-windows-gnu`，却不能合并 CRT、native C++ 环境、sysroot 或缓存。Microsoft UCRT 与 MinGW UCRT 同样不能互换。
 
-编译器品牌也不决定 native 环境。`cl` 和 `clang-cl` 可以生产同一个 Microsoft target；GNU 风格 Clang 可以服务不同 SDK。generated-C、用户 native C／C++、runtime、startup、最终链接可能使用不同可执行文件，不能缩成一个 `cc` 路径。
+编译器品牌也不决定 native 环境。`cl` 和 `clang-cl` 可以生产同一个 Microsoft target；GNU 风格 Clang 可以服务不同 SDK。generated-C、用户 native C／C++／Objective-C、runtime、startup、最终链接可能使用不同可执行文件，不能缩成一个 `cc` 路径。
 
 Windows 的 Win64 caller-copy、接口间接返回、SEH、COFF／bigobj／COMDAT、import library、PDB、Unicode 启动、RC 和 subsystem 都是现有实现，应直接纳入重构。Windows 宿主的进程、路径和命令部署支持则属于另一条边界，不应因输出 ELF 而失效。
+
+### 2.2 合入后已完成的能力与重构要求
+
+| 已完成的实际能力 | 重构要求 |
+| --- | --- |
+| [runtime index](../../compiler/linker/src/runtime/index.rs) 使用 UTF-8 相对路径和 `/`，同一份 Windows 目标资源已被两个 Unix 宿主消费 | 区分可搬迁产物 locator 与本机 `HostPathCarrier`，复用现有格式与普通更新记录 |
+| [native 文件参数][windows-native]统一处理 clang-cl 的 `/Users/...` 误识别 | 参数方言适配覆盖预处理、编译、probe 和最终链接，不退回裸 `.arg(path)` |
+| [Objective-C 源码](../../compiler/manifest/src/native/language.rs)与独立 `objc_flags` 已服务 AppKit／Metal | native 工具角色包含 `.m`／ARC；条件未选中的源码不探测，C++ 需求仍独立 |
+| [COFF imports](../../compiler/linker/src/namespace/coff.rs)、[PE 输入顺序](../../compiler/linker/src/link/pe.rs)、[Darwin re-export](../../compiler/linker/src/dynamic/exports.rs)与 selector stub 已修正 | 对象分层保留真实惰性导入、输入顺序及最终 provider 语义，不统一为“同名即重复强定义” |
+| 系统库准备和文档生成已按目标的生产 `sources` 条件选择 Cone | 复用选择流程、合并其目标事实；编译器支持某 target 不表示所有窗口／系统库也支持它 |
 
 ## 3. 总体结构与所有者
 
@@ -138,11 +161,11 @@ runtime = "windows-x86-64"
 | native 环境 | SDK、CRT、C++ ABI／标准库和链接约定 | LLVM-MinGW UCRT |
 | native Rust target | Rust 文本后端等实际外部生产器 | 上述 target 映射 `x86_64-pc-windows-gnullvm` |
 | host Rust target | Scoop 工具自身的构建和部署 | Windows 分支也使用 `x86_64-pc-windows-gnullvm` |
-| source condition | 用户 manifest 选择目标源码 | `os = "windows"`、`arch = "x86_64"`、`env = "llvm-mingw-ucrt"` |
+| source condition | 用户 manifest 选择目标源码、内置库准备和文档选择 | `os = "windows"`、`arch = "x86_64"`、`env = "llvm-mingw-ucrt"` |
 
 native Rust target 映射由该后端的构建配置明确提供，不能以“不是 Windows 就原样传 Scoop triple”作为长期规则。外部生产器的 target 拼写和版本不改变 Scoop target 身份。
 
-现有 canonical target、profile ID、alias 和版本化 Darwin 拼写的既有语义保持。SDK 版本与 deployment target 属于具体构建配置；不得因 alias 中出现版本而悄悄建立另一种兼容性语义。
+目标名称、profile ID 和 alias 按当前实际调用需要收口，允许同步改名或移除冗余入口；不为兼容旧拼写保留别名层。三个 Windows native 环境的区别是当前 ABI／资源相容性要求，不能因名称简化而丢失。SDK 版本与 deployment target 属于具体构建配置，版本化 Darwin 输入的处理在同一入口明确，不在多个 consumer 中重新解释。
 
 manifest 继续由目录投影获得 `SourceTarget`，保留未知键／值诊断、同键取“或”、不同键取“与”的规则。当前 parser 会将谓词展开为目标集合，目录扩展时 PM 的派生解析记录必须随配套工具更新，不得复用旧集合而漏选新目标；本轮不另建一种条件语言。
 
@@ -154,6 +177,8 @@ manifest 继续由目录投影获得 `SourceTarget`，保留未知键／值诊�
 
 target 目录查询是纯选择，位于缓存更新判断之前；SDK、compiler、linker 探测只在实际缺少结果且该步骤需要它们时执行。现有 `ResolvedTargetProfile` 和子进程传递已发现工具的方式可以沿用，但不要让静态目标选择隐式触发所有工具的准备。
 
+同宿主 parent／child 的工具和文件路径仍使用 `HostPathCarrier` 表达本机原始路径。可搬迁目标资源使用自身的相对 locator：runtime index schema 7 已使用 UTF-8 与 `/`，不再保存生产宿主的路径编码。不能因共享一个 target 描述就把这两种路径合并，也不能要求消费预编译 runtime 的宿主使用生产方相同的 compiler、SDK 路径或版本。
+
 ### 4.4 显式字段替代平台继承
 
 共用 `ScalarLayout`、64 位指针和对齐常量，但停止以 `..DARWIN`、`..LINUX_BACKEND` 继承整个另一平台。各目标明确绑定 data layout、对象格式、符号归一化、Scoop ABI classifier、EH、frame recovery 和 backend。
@@ -164,13 +189,13 @@ target 目录查询是纯选择，位于缓存更新判断之前；SDK、compile
 
 ### 5.1 保留完整签名分类
 
-现有 `ProcedureAbi` 的 Darwin AArch64、SysV AMD64 和 Windows 分支的 Win64 保留，选择来源改为目标描述。新 AAPCS64 只在实际实现时加入，不提前放入空分支。
+现有 `ProcedureAbi` 的 Darwin AArch64、SysV AMD64 和 Win64 选择来源改为目标描述。新 AAPCS64 只在实际实现时加入，不提前放入空分支。
 
 参数／结果分类继续使用完整签名，覆盖隐藏 sret、前序参数造成的寄存器耗尽、aggregate 整组回退、byval／caller-copy、接口参数和返回值。定义、调用、adapter 和跨 Cone 导出复用同一计划；通用 LIR lowering 不按 ABI 再猜一次存储方式。
 
 Windows 必须保留 LLP64、Win64 caller-copy 和接口间接返回。Scoop `Long` 仍固定 64 位，不映射为 Windows C `long`。接口作为参数的 object／itab carrier 和作为结果的 scanned indirect storage 不能被一个“接口都是两个寄存器”的统一规则覆盖。
 
-`TargetProfileContract::scoop_abi_classifier` 改为读取显式字段；EH personality 的机器签名来自明确 EH 合同。不能再通过 `NativeObjectFormat::Coff64` 决定这两件事。现有 wire 字段编码的事实不变时，移动选择逻辑不改变编码。
+`TargetProfileContract::scoop_abi_classifier` 改为读取显式字段；EH personality 的机器签名来自明确 EH 合同。不能再通过 `NativeObjectFormat::Coff64` 决定这两件事。数据模型直接表达当前需要的事实，编码随之同步，不为维持旧 wire 布局增加适配层。
 
 ### 5.2 AArch64 必须区分 Darwin 与 AAPCS64
 
@@ -186,7 +211,7 @@ AAPCS64 移植需要独立验证窄整数、Boolean、HFA、小／大 aggregate�
 
 Windows 继续由 `RtlVirtualUnwind` 恢复实际 RSP／RBP，再定位精确根。artifact reader 检查其负责的 stackmap 结构、寄存器、slot 对齐与配对；它不解析 SEH 来提前猜 FP。runtime 使用实际 frame 和线程栈边界检查地址，不重演 reader 的全部对象检查。
 
-Linux／OHOS AArch64 的首选方案是利用配套 unwinder／CFI 恢复真实帧上下文，避免依赖栈大小推出 FP。具体所需上下文、anchor 保存和跨帧接口要先由真实 statepoint call／invoke、callee-saved 寄存器、大栈帧和多层调用实验确定，再写入 backend／runtime 规范。若采用受约束的固定帧方案，必须由 LLVM 发射约束和同组实验支撑，不能沿用上述 Darwin 公式或仅依据普通 C 汇编决定。
+本轮只收口三种已实现的恢复方式。Linux／OHOS AArch64 在后续移植时，先以真实 statepoint call／invoke、callee-saved 寄存器、大栈帧和多层调用确定所需上下文与 anchor；再选择受 LLVM 约束且能验证的固定帧方案，或配套 unwinder／CFI 的实际上下文恢复。第 5.2 节的普通 C 探测只能否定套用 Darwin 公式，尚不能证明哪种新实现最小、可行，因此本轮不预建通用 CFI 层。
 
 新 frame model 需要的少量描述可以扩充 IR 数据，但不能把 unwinder、机器指令解释或 ABI 算法搬入 LIR。只在真实新路径需要时增加该模型。
 
@@ -198,7 +223,7 @@ CPU／features、frame／EH 必需设置和性能调优分开。`emission.rs` �
 
 LLVM 全局初始化及命令行开关保持一次初始化；不能在同进程切换 target 时反复解析全局选项。能随 TargetMachine／函数表达的设置放在相应层，必须全局生效的配套约束集中说明并测试多目标生产顺序。
 
-Windows 分支的 [statepoint return-PC 补丁][windows-statepoint-patch]属于所有生产 Windows 代码的 LLVM 构建，不能被归入仅 Windows host 的脚本分支。runtime 继续精确匹配 return PC，不以邻近 PC 容错掩盖补丁缺失。
+现有 [statepoint return-PC 补丁][windows-statepoint-patch]属于所有生产 Windows 代码的 LLVM 构建，不能被归入仅 Windows host 的脚本分支。runtime 继续精确匹配 return PC，不以邻近 PC 容错掩盖补丁缺失。
 
 ## 6. 对象格式、产物与链接
 
@@ -210,11 +235,17 @@ Windows 分支的 [statepoint return-PC 补丁][windows-statepoint-patch]属于�
 | ELF reader／writer、native ELF、system namespace、动态映像 | ELF 容器与已选目标的 machine／ABI 约束 | AArch64 relocation、PLT／GOT／TLS、EH／stackmap 与动态指针修复 |
 | Windows COFF／PE、bigobj、COMDAT、import library | 已实现的 COFF 结构、关联 section、导入与 PE 链接 | 本轮迁移选择入口，保留分支已完成能力 |
 
-`DarwinArm64`／`ElfX86_64Rela` 一类内部容器命名要拆开“格式”和“机器”的职责；已有 wire tag 不因 Rust 类型重命名而更换。读入对象时用选中目标核对 machine，不能接受“只要是 ELF 就是本次目标”。
+`DarwinArm64`／`ElfX86_64Rela` 一类内部容器命名要拆开“格式”和“机器”的职责；允许同步调整内部类型和 wire 表达、重建旧产物，不保留旧枚举的转发包装。读入对象时用选中目标核对 machine，不能接受“只要是 ELF 就是本次目标”。
 
 `codegen`、`slib` 和 `linker` 的对象边界分别消费共享的机器描述。relocation 语义先在现有 `slib` 对象模块内共用，其他边界复用已经提取的事实；不要仅为消除几个 `match` 再建平行 reader。AArch64 的 PAGE／LO12 等配对、Mach-O subtractor 等必须按实际语义处理，不能统一为“写若干字节”。只增加当前发射、runtime 和 native 依赖实际用到的类型。
 
 Windows generated-C 的 `.pdata`／`.xdata` 及其 relocation 继续作为真实 native 对象内容保留，不要求每项都具有 Scoop definition atom。Scoop 自己发射的 unwind atom 仍按其已有计划关联。保留 CRT helper 的 weak／COMDAT 合并规则和 runtime 强符号的一致性要求。
+
+保留当前 native 链接中已经由窗口库验证的三条规则：
+
+- COFF import library 的条目是惰性导入候选。默认 namespace 中同名条目按 native 输入顺序选择，最终 PE linker 使用相同顺序；显式 library 仍限定来源，普通对象的 Strong 冲突照常诊断。
+- Darwin framework 的多条 re-export 路径如果到达同一最终 provider 和原始符号，按同一定义处理；不同最终定义仍可能冲突。
+- Darwin 的非空 `_objc_msgSend$selector` 是 native linker 生成的 selector stub，需要解析实际 `_objc_msgSend` dispatcher；这条规则留在 Darwin native 链接实现，不扩散为通用未解析符号豁免。
 
 调试格式和最终伴随文件同样显式选择：Darwin 的 DWARF／dSYM、ELF 分离调试文件、Windows 的 CodeView／PDB 继续接入现有发布流程。Windows 的 PE 只记录相邻 PDB 名称、LLDB 对匹配 PDB 的优先规则、RC／subsystem 和 Unicode startup 都纳入回归。
 
@@ -226,16 +257,19 @@ library 生产不要求无关的最终 linker 或启动资源；artifact-only �
 
 保留 Windows 已有 `NativeDriverKind::{Gnu, ClangCl, Msvc}`，其中 `Gnu` 表示命令行方言，不能用于断言程序一定是 GCC。compiler family、版本与 driver 方言分别记录，SDK／CRT 则由完整 target 的 native 环境决定。
 
-通用构建代码提出已有操作需要的源文件、输出、语言、include／define、优化和调试要求，由对应 driver 构造真实参数。沿用已有 `Command`／`OsString` 路径处理、depfile／`sourceDependencies` 读取和缓存记录，不增加 shell 拼接或一层通用任务 DSL。
+通用构建代码提出已有操作需要的源文件、输出、语言、include／define、优化和调试要求，由对应 driver 构造真实参数。沿用已有 `Command`／`OsString` 路径处理、depfile／`sourceDependencies` 读取和缓存记录，不增加 shell 拼接或一层通用任务 DSL。文件输入也由 driver 适配：clang-cl 现有 `/clang:<path>` 通道覆盖 Unix 绝对路径，必须用于实际 source、object、archive 输入及 probe；输出路径继续使用对应 driver 的输出参数。
 
 | 工具角色 | 保留的区别 |
 | --- | --- |
 | generated-C bridge | 使用实际受支持的 producer；Microsoft 环境可由配套 Clang 生产，不被用户选择的 `cl` 覆盖 |
 | 用户 native C／C++ | 采用 `--cc`／C++ 配置及相应环境；`cl`、clang-cl、GNU 风格 driver 各用本身参数和依赖输出 |
+| Darwin native Objective-C | 选中的 `.m` 使用 Apple Clang、ARC 和独立 `objc_flags`；不要求 `native.cxx`，不混用 C／C++ flags |
 | runtime／startup／unwind | 使用相应源码、CRT、ABI flags 和真实构建 recipe；不强求与用户 C++ 同一个可执行文件 |
 | final link／debug／resource | 根据目标输出与实际可执行工具选择；可分别使用 LLD、LINK、GNU ld、Darwin 工具和资源编译器 |
 
 native C++ 环境继续由完整 target 决定，依赖传播沿用 `native_cxx`。不再添加一套可与 target 相矛盾的公开 C++ profile。Microsoft `/MD`、MinGW 的 libc++／compiler-rt、当前 GNU 环境和现有 musl C++ 支持边界分别保持；Scoop debug 不自动切换 debug CRT。
+
+Objective-C 的支持选择取决于构建 target，不能取决于 host。现有语义先筛选 `when`，再检查选中源码的语言与目标；非 Darwin 选中 `.m` 报错，未选中时不读取或探测它，`.mm` 仍不在当前范围。`objc_flags` 在 manifest、native 更新输入、compiler／PM 传输中同步，generated-C 和 runtime 继续按 C 编译。
 
 ### 7.2 消除限制未来移植的硬编码
 
@@ -272,7 +306,9 @@ collector、对象表示、roots 配对、线程握手、pin／handle、callback
 
 ### 8.2 系统库是新增 OS 的实际工作量
 
-`scoop.platform`、`scoop.asyncio`、`scoop.terminal`、TLS 系统信任源等继续维护自身 native 后端。共享 POSIX 函数可以抽取，但“不是 Darwin 就是 Linux”“不是 ARM64 就是 x86_64”的 fallback 应改为明确选择，未知组合在选择入口诊断。
+`scoop.platform`、`scoop.asyncio`、`scoop.terminal`、TLS 系统信任源、`scoop.window`／`scoop.window.asyncio` 等继续维护自身 native 后端。共享 POSIX 函数可以抽取，但“不是 Darwin 就是 Linux”“不是 ARM64 就是 x86_64”的 fallback 应改为明确选择，未知组合在选择入口诊断。
+
+窗口库现已支持 AppKit 与 Win32，普通 Cone 的 source conditions 表达其适用目标。维护脚本仅为所选目标准备和生成适用库的文档；当前 Linux 不准备窗口库。保留共享 Application／Window／asyncio 逻辑与各 OS 后端的分工，不把全部库能力收进编译器 target 目录，也不要求新增 Linux ARM64 或 OpenHarmony 的编译器支持同时完成新的窗口后端。
 
 OpenHarmony 不伪装成 Linux GNU 或普通 Linux musl：
 
@@ -298,21 +334,25 @@ include = [
 
 拟定语义如下，实施前写入语言规范 12.2.1 和实现规范的 native 输入／更新合同：
 
-1. 字符串及 `{ path = ... }` 保持以 Cone 为根的既有行为；`{ sysroot = ... }` 以本次已选择的 Scoop sysroot 下 `lib/<canonical-target>/` 为根。它不是 `--native-sysroot` 指定的操作系统 SDK。
+1. 字符串及 `{ path = ... }` 支持绝对路径或以 Cone 为根的相对路径；`{ sysroot = ... }` 以本次已选择的 Scoop sysroot 下 `lib/<canonical-target>/` 为根。它不是 `--native-sysroot` 指定的操作系统 SDK。
 2. `path` 与 `sysroot` 互斥，均可使用现有 `when`；按声明顺序形成当前目标的 include 列表，未选项不进入输入集。
 3. 只支持这一明确的相对路径形式，不支持 `${target}` 字符串插值、准备 callback、任意变量或依赖搜索插件。路径按正常 I/O 规则处理，不增加文件系统来源／symlink 审计。
-4. driver 在实际需要 native 编译时解析路径并沿已有 include 参数传入，显式 include 先于编译器隐式系统目录。库没有声明的 backend include 不会被全部自动注入。
+4. toolchain 为实际消费者解析所选 include：native C／C++／Objective-C 的预处理与编译，以及 Windows RC 的预处理和资源查找。只有 RC、没有 native 源码的 executable 也使用同一解析结果；无相关编译步骤时不探测这些目录。显式 include 先于编译器隐式系统目录，库没有声明的 backend include 不会被全部自动注入；C／C++／Objective-C flags 不自动传给 RC。
 5. OpenSSL wrapper 改为普通 `#include <openssl/opensslconf.h>`，selected backend include 位于其共用／SDK include 之前；删除 `native/target.h` 内所有完整 target 路径分支。头文件找不到时报告普通编译错误，不回退到另一 target 的包。
-6. manifest 保存路径种类与相对路径；实际解析后的目录及读到的头文件沿已有预处理／depfile 输入记录参与更新。缓存命中先判断输入更新，不为解析此形式重新读取源码、预处理或探测工具。
+6. manifest 保存路径种类及对应路径；实际解析后的目录和使用的头文件／RC 资源沿已有预处理、depfile 与资源输入记录参与更新。缓存命中先判断输入更新，不为解析此形式重新读取源码、预处理或探测工具。
 7. 开发准备与发行包消费使用同一形式；准备脚本在构建这些 Cone 之前准备声明的 native backend。普通应用继续消费预编译资源，不隐式构建第三方依赖。
 
-这是一个有现有消费者的 manifest 路径扩展，需要同步 parser、manifest 语义投影、PM／子进程数据和更新判断；仅路径表达式改变不自动改变 runtime ABI。不能只改七个库的清单，却让驱动把新字段当成普通相对路径。
+这是一个有现有消费者的 manifest 路径扩展，需要同步 parser、manifest 语义投影、PM／子进程数据、native 与 [RC 调用方](../../compiler/toolchain/src/windows_resource.rs)及其更新判断。相应协议和构建记录可以直接演进、重新生成；runtime ABI 仅在实际机器合同变化时调整。不能只改库清单，遗漏独立 RC 消费或仍将新字段当成普通相对路径。
 
 ### 9.2 脚本共用目标事实，保留库自己的 recipe
 
 `prepare_sysroot.py`、runtime builder、OpenSSL／PCRE2／压缩／HTTP／文本后端、fixture runner 共用静态目录。删除各自的完整 `TARGETS` 副本，保留确有差异的第三方构建参数，例如 OpenSSL Configure 平台、CMake toolchain、Rust target 和 CRT。
 
+`prepare_sysroot.py::has_target_sources`／`cone_order` 和文档生成已经共用目标筛选后的库顺序，本轮直接接入公共目标事实，不再另做一套库支持清单。显式非空生产 sources 全未选中时跳过该库；缺省／显式空 sources 按普通编译规则处理；选中库依赖该目标不可用的库仍报缺失依赖。来源条件属于库清单，目标事实属于公共目录。
+
 维护脚本把当前 target 实际使用的目录投影作为配置输入，不把其他 target 的 SDK／工具探测加入本次更新判断。共用目录读取不启动编译器，也不提前解包或复制源码。
+
+现有 `cone_order` 的命中记录只跟踪 manifest、准备脚本和 target；接入外部目录后须把实际影响该目标及谓词解析的目录规则加入更新输入，避免仅修改目录却复用旧库顺序。目录配置的读取与源码读取分开，正常命中继续先于 manifest 正文解析。共用脚本依赖处理还要保留已修复的 CMake Makefile `link.d` 相对目录、空依赖规则，以及 Ninja／Microsoft 的既有路径解释。
 
 新增同 ABI 的架构／OS 组合时，只在确实使用新参数的 recipe 中登记映射。C++ 标准库、MSVC flags、LLVM-MinGW 两个 prefix 继续明确；不为每个库再复制一套 host／target 解析。
 
@@ -330,75 +370,77 @@ LLVM／LLDB 补丁作为实际构建输入保留，尤其是 Windows statepoint 
 | `aarch64-unknown-linux-musl` | 上一行的 ABI／机器实现、已有 Linux musl 构建流程 | ARM64 musl SDK／loader、静态与显式动态链接、配套 unwind 和 native 依赖；不顺带承诺新的 musl C++ 能力 |
 | `x86_64-unknown-linux-ohos` | SysV AMD64 基础、x86_64 ELF、共享 POSIX 部分 | OpenHarmony SDK／API baseline／native 环境、系统库后端、loader／TLS／unwind 的实际兼容性 |
 | `aarch64-unknown-linux-ohos` | Linux ARM64 验证后的 AAPCS64／ELF 机器路径、上一行的系统接入 | SDK 的 ARM64 差异、实际 frame／unwind 与两种架构各自资源 |
-| `x86_64-apple-darwin` | SysV AMD64 中相容的分类代码、Mach-O 容器、Darwin OS／框架与系统库 | Darwin x86_64 ABI 差异、Mach-O x86_64 relocation／TLS／EH、fat／TBD slice、汇编与 frame、SDK／deployment、调试和 native 依赖 |
+| `x86_64-apple-darwin` | SysV AMD64 中相容的分类代码、Mach-O 容器、Darwin OS／框架与系统库、Objective-C 管线 | Darwin x86_64 ABI 差异、Mach-O x86_64 relocation／TLS／EH、fat／TBD slice、汇编与 frame、SDK／deployment、调试和 native 依赖；分别验证适用的窗口与 renderer |
 
-建议顺序：完成六目标重构 → Linux ARM64 GNU → Linux ARM64 musl → OpenHarmony SDK／系统能力探测 → 两个 OpenHarmony target。Darwin x86_64 可以在对象与 Darwin 工具链边界拆开后独立推进，不依赖 OpenHarmony。
+本阶段顺序：完成六目标重构 → Darwin x86_64 → 七目标回归。后续阶段再推进 Linux ARM64 GNU → Linux ARM64 musl → OpenHarmony SDK／系统能力探测 → 两个 OpenHarmony target。
 
-Linux ARM64 GNU 是第一项实际验收抽象是否成立的移植：同时组合已有 Linux／ELF 与另一种 ARM64 ABI。OpenHarmony 的两个架构应共用一套 OS 接入，但各自运行验收。Darwin x86_64 则验证 Mach-O 已不再等于 AArch64。
+Darwin x86_64 是本阶段第一项验证抽象是否成立的移植：复用 x86_64 机器和 Darwin OS，同时验证 Mach-O 已不再等于 AArch64。后续 Linux ARM64 GNU 再组合已有 Linux／ELF 与另一种 ARM64 ABI；OpenHarmony 的两个架构共用 OS 接入，但各自运行验收。
 
-Darwin x86_64 的最低系统版本、可提供 x86_64 slice 的 SDK 和真实运行环境必须先确定，不能照搬当前 ARM64 发行的最低版本。OpenHarmony 也需明确 SDK 版本、API level、设备／模拟器架构和执行方式；这些是后续移植的环境输入，不阻塞本轮六目标代码重构。
+Darwin x86_64 使用本机 SDK 和 Rosetta 执行环境进行本阶段验证，分别记录实际 SDK、部署版本与系统版本；先通过真实编译检查 SDK slice 和 API，不从 ARM64 设置推定 Intel 机器的最低系统承诺。Rosetta 运行与真实 Intel 硬件验证分开记录。OpenHarmony 的 SDK、API level 和执行方式在后续移植时确定。
 
 ## 11. 实施顺序与规范同步
 
-先等待并对齐 Windows 的实际合入结果，再以可独立验收的小批次推进。不要在主线再实现一份 Windows，也不要只摘取 COFF 文件而遗漏其 ABI／runtime／工具链合同。
+Windows 已完成并合入，本轮可以直接从当前主线按小批次实施。本次复审完成了基线和差异核对；下面各批的规范调整与代码重构仍待实施，不需要重新执行 Windows 收尾项目才开始 R1。
 
 | 批次 | 改动与交付 | 验收出口 |
 | --- | --- | --- |
-| R0 基线与规范 | 记录 Windows 最终合入 SHA、版本和已有验证；按下表修订实际涉及的规范 | 六个目标合同及 Windows 剩余验收边界明确 |
-| R1 静态目录 | 移动 `scoop-target-data`，统一 target／alias／source condition／脚本元数据，分开 host；保持原实现 | 现有选择与 profile 固定向量不变，源码条件及脚本无重复目录 |
-| R2 ABI／backend 数据 | 显式 procedure／Scoop ABI、EH、frame 和调优选择，清除格式推 ABI 与整个平台继承 | 六目标物理调用、roots、异常与既有调优不变 |
-| R3 对象与 runtime | 清除 ELF=x86_64、Mach-O=arm64 的入口假设；整理格式／机器／frame 模块，保留 COFF／PE | 真实对象、native archive、跨产物链接、GC／EH 定向回归通过 |
-| R4 工具链 | 复用 NativeDriver，分开工具角色、SDK、架构参数和链接模式；接通可验证的 Linux Clang 路径 | 现有 native 工具组合、交叉编译和对应机器运行通过 |
-| R5 sysroot／维护 | 实现 `native.include` 的 sysroot 形式；迁移实际库和头文件；统一准备、打包与 fixture 配置 | 六目标资源准备／预编译消费、安装及普通更新／缓存复用通过 |
-| R6 回归与后续移植入口 | 完成六目标回归，记录可运行与仅交叉构建的边界；保留下一目标的具体移植清单 | 重构验收完成，未实现目标仍不出现在支持目录 |
+| R0 基线与规范 | 本次已核对主线与验收范围；实施各批前按下表同步对应规范 | 六目标及现有窗口消费者有清楚基线，数据演进和必要重建范围明确 |
+| R1 静态目录 | 移动 `scoop-target-data`，统一 target／实际需要的 alias／source condition／脚本元数据，分开 host | 六目标选择和条件语义正确；目录变化使相关派生记录更新；无重复权威目录 |
+| R2 ABI／backend 数据 | 显式 procedure／Scoop ABI、EH、frame 和调优选择，清除格式推 ABI 与整个平台继承；同步当前编码与生产消费方 | 六目标真实物理调用、roots、异常与调优选择正确，不以旧指纹相等代替验证 |
+| R3 对象与 runtime | 清除 ELF=x86_64、Mach-O=arm64 的入口假设；整理格式／机器／frame，保持相对 UTF-8 locator、COFF 惰性导入与 Darwin native 链接语义 | 真实对象、native archive、跨宿主 runtime 消费、跨产物链接、GC／EH 定向回归通过 |
+| R4 工具链 | 复用 NativeDriver，分开 C／C++／Objective-C 等工具角色、输入路径方言、SDK、架构参数和链接模式；接通可验证的 Linux Clang 路径 | 现有 native 工具组合、Objective-C、交叉编译和对应机器运行通过 |
+| R5 sysroot／维护 | 实现 native／RC 共用的 sysroot include；迁移实际库和头文件；统一准备、打包、文档与 fixture 配置 | 六目标的适用库与资源准备／消费、安装及普通更新／缓存复用通过；RC-only 场景完整 |
+| R6 macOS x86_64 | 完成 Darwin AMD64 ABI／Mach-O／frame／工具链与资源，接入静态目录和宿主默认选择 | 本机执行源码、预编译库消费、GC／EH、native C／C++／Objective-C 与链接／调试验收 |
+| R7 回归与后续入口 | 完成七目标受影响范围的回归，记录可运行与仅交叉构建的边界；保留后续目标移植清单 | 重构和 macOS x86_64 验收完成，未实现目标仍不出现在支持目录 |
 
 R3／R4 在 R1／R2 的公共数据稳定后可分别实施；R5 的 manifest 语义先单独落地，再迁移库。每批都删除被替代的旧入口，避免长期保留两套生产路径。
 
 | 权威文档 | 实施前需要明确的内容 |
 | --- | --- |
 | 实现规范 1、2.4、2.5 | 六目标基线、目录与实现的所有权；保留现有 ABI 规划交接；显式 ABI／EH／frame 数据 |
-| 实现规范的对象、runtime index、native、链接和调试章节 | machine／格式区别、真实 relocation、Windows SEH／COFF／PDB／RC、producer 与 host／target 分工 |
-| 语言规范 12.2.1 及实现规范 native 输入／更新章节 | 新 sysroot include 形式、所选目标的解析、搜索顺序、输入跟踪；现有 `when` 行为不变 |
+| 实现规范的对象、runtime index、native、链接和调试章节 | machine／格式区别、真实 relocation、Windows SEH／COFF／PDB／RC、可搬迁 locator、导入顺序／framework／selector stub、producer 与 host／target 分工 |
+| 语言规范 12.2、12.2.1 及实现规范 native 输入／更新章节 | 新 sysroot include 形式、C／C++／Objective-C／RC 共用的所选路径、搜索顺序与输入跟踪；配套 compiler／PM 数据一起演进 |
 | 运行时规范的机器帧、GC、EH 和平台章节 | 现有三种 frame 恢复的数据合同和检查边界；新 AAPCS64 路径在实证后追加 |
 | 后续 OpenHarmony 移植涉及的库规范 | OS 枚举、事件循环和系统接口的实际可用行为，不把 Linux 库合同整份继承 |
 
-纯目录移动、内部命名和分派调整不自动提升 schema／runtime ABI。实际编码、物理 ABI 或可消费合同变化时，只升级受影响部分并明确诊断旧产物；以 Windows 最终合入版本为起点，不回退或预占 ABI 编号。已有 profile fingerprint 的变化必须能对应实际合同变化，不能用全量换号掩盖重构回归。
+实施采用当前模型直接演进：必要的 schema、profile、协议与构建记录同步更新，配套 compiler／PM／runtime／系统库重新生成，旧且不相容的输入正常拒绝，不提供兼容 reader 或转换服务。无需为没有变化的机器 ABI 换号，也不为保持旧编码而扭曲新数据结构。验收核对实际参数／返回、布局、GC、对象和链接行为，固定向量随新的当前格式更新；版本或指纹变化本身不证明重构正确。
 
 ## 12. 验证与完成标准
 
-本设计完成了主线与 Windows 快照的静态对照，以及第 5.2 节的 Clang 22.1.8 组件探测。没有在本设计任务中重新执行 Windows 验收，也没有据此宣称新平台可用。以下是实施验收要求。
+设计复审完成了当前主线、Windows 完成记录及后续窗口库实现的静态对照；第 5.2 节保留初稿时的 Clang 22.1.8 组件探测结论。以下为本阶段验收要求，实际执行结果和环境限制记入实施记录，已有验收记录按各自提交和实际范围引用。
 
 | 层次 | 必要验证 |
 | --- | --- |
-| 目录和 stage 边界 | 六目标、既有 alias／非法组合、manifest 的目标选择；正常依赖图中 IR 不依赖 target 实现、artifact-only linker 不依赖 LLVM |
+| 目录和 stage 边界 | 六目标、当前支持的输入拼写／非法组合、manifest 及内置库的目标选择、目录变化后的派生记录更新；正常依赖图中 IR 不依赖 target 实现、artifact-only linker 不依赖 LLVM |
 | ABI／C bridge | 标量扩展、HFA、小／大 aggregate、寄存器耗尽、sret／caller-copy、接口参数／结果；真实 C↔Scoop、callback、跨 Cone 组合 |
-| 对象／链接 | ELF／Mach-O／COFF 的 machine 与 relocation、TLS、archive／COMDAT／import library、native C++、动态依赖；完整 `.slib` 生产、消费与 CLI 重链接 |
+| 对象／链接 | ELF／Mach-O／COFF 的 machine 与 relocation、TLS、archive／COMDAT／import library、native C++、Objective-C／framework；COFF 导入顺序、Darwin re-export 与 selector stub；完整 `.slib` 生产、消费与 CLI 重链接 |
 | frame／GC／EH | statepoint call／invoke、多层／大栈帧、scanned return、移动根更新、callback／线程切换、throw／catch／finally；GC stress 仅用于这些正确性测试 |
-| 平台附属产物 | dSYM／ELF debug／PDB、源码行号；Windows Unicode argv、RC、subsystem、精确输出路径和安装名 |
-| 构建复用 | 输入不变直接复用；选中头文件、target、SDK／工具配置的真实变化触发对应更新；失败不发布，保留普通并发协调 |
-| 系统库／发行 | 普通库行为使用所属 Cone tests，准备一次后共享预编译资源；五种 Windows native 组合及三种 CRT／C++ 环境继续按分支已有覆盖验收 |
+| 平台附属产物 | dSYM／ELF debug／PDB、源码行号；Windows Unicode argv、RC、subsystem、精确输出路径和安装名；同一份目标 runtime 的跨宿主消费和目录迁移 |
+| native include／构建复用 | C／C++／Objective-C 与 RC-only 使用所选 sysroot include；未选中条件不触发读取；输入不变直接复用；实际头文件／RC 资源、target、SDK／工具配置变化触发对应更新；失败不发布和普通并发协调 |
+| 系统库／发行 | 普通库行为使用所属 Cone tests，准备一次后共享预编译资源；五种 Windows 链接组合及三个 native 环境；当前适用目标上的 window／window.asyncio 和 renderer 代表用例 |
 
 fixture runner 分开“可编译”和“可在本机执行”：交叉编译用例允许指定目标及 SDK，只执行宿主工具并检查真实目标产物；需要运行的用例在目标机器执行，或在尚无对应环境时明确记录未完成。禁止把未执行的运行断言算作通过，也不为本轮建立通用远程执行插件。
 
-交叉编译回归至少保留 Windows 设计规定的 macOS／Linux → 三个 Windows target，并在 Windows 运行产物。其余既有目标在对应系统完成源码编译、预编译库消费和运行；新增 ARM64／OpenHarmony／Darwin x86_64 时分别追加真实环境的运行和调试验证。
+交叉编译回归沿用已完成的 macOS／Linux → 三个 Windows target，并在 Windows 运行产物，覆盖 C++、接口移动 GC、Throwable 与 GUI／RC。保留复用同一份 Windows 准备的目标库／runtime／unwind、Unix 绝对路径和中文／空格路径的实际调用。其余既有目标在对应系统完成源码编译、预编译库消费和运行；本阶段 Darwin x86_64 使用本机 Rosetta 执行并验证调试产物，后续 ARM64／OpenHarmony 分别追加对应环境的运行和调试验证。
+
+GUI 回归按现有窗口库记录，在各自原生桌面串行执行，避免多个目标争用同一前台窗口。选择实际受本批变更影响的窗口／asyncio／renderer 测试，不把混合 DPI、所有实体键盘或输入法人工验收加入 target 重构的完成门槛，也不把 Windows 上的通过视作 AppKit 已复测。
 
 每批 Rust 代码变更先 `cargo fmt --all`、`cargo clippy --workspace --all-targets`，再运行受影响的 ABI／对象／工具链／runtime 测试。Python 按仓库指定 Ruff 版本先格式化和检查。最终执行配套 sysroot 下的 workspace 测试、fixture runner 规则测试、正式 CLI fixture 与相关 Cone tests；文档记录范围、结果和未闭合项，原始日志置于仓库外。
 
 完成标准：
 
-- 六个既有目标的支持身份、源码条件、ABI、产物与运行能力保持，Windows 的实际合入功能没有被遗漏；无关库失败单独记录，不能伪称回归完成。
+- 七个目标及当前适用的系统库功能正确，配套新数据、ABI 和产物相容，Windows／窗口库的实际合入能力没有被遗漏；不要求旧产物继续可用，无关库失败单独记录。
 - 在共享 parser／HIR／MIR／LIR lowering、构建编排和库 wrapper 中增加新完整 target 时，不再要求逐处复制名称分支；OS 与机器差异只进入其所有者模块。
 - 对于全部复用现有实现的组合，增量集中于目录、实际 SDK／资源 recipe 和验收；遇到新 ABI／OS 能力时，只扩充相应局部实现与必要数据合同。
-- 系统库的 native include 不再枚举 canonical target 路径；准备、打包、fixture 不再各维护一份完整 target 列表。
+- native 与 RC 共用的 include 不再枚举 canonical target 路径；准备、打包、文档、fixture 不再各维护一份完整 target 事实；库自己的适用条件继续由其 manifest 表达。
 - 缓存仍只判断更新，不新增内容验真、重放检查、输入隐藏或来源审计；所有新登记的 target 均有完整实现，没有空 handler。
 
-[windows-design]: https://github.com/windoze/scoop/blob/0fa053fd11c11e641e2f17212ce4948d5d52447a/docs/windows-targets/DESIGN.md
-[windows-progress]: https://github.com/windoze/scoop/blob/0fa053fd11c11e641e2f17212ce4948d5d52447a/docs/windows-targets/PROGRESS.md
-[windows-contract]: https://github.com/windoze/scoop/blob/0fa053fd11c11e641e2f17212ce4948d5d52447a/compiler/lir/src/target/contract.rs
-[windows-machine-abi]: https://github.com/windoze/scoop/blob/0fa053fd11c11e641e2f17212ce4948d5d52447a/compiler/lir/src/runtime_abi/machine.rs
-[windows-driver]: https://github.com/windoze/scoop/blob/0fa053fd11c11e641e2f17212ce4948d5d52447a/compiler/toolchain/src/native_driver.rs
-[windows-native]: https://github.com/windoze/scoop/blob/0fa053fd11c11e641e2f17212ce4948d5d52447a/compiler/toolchain/src/windows_native.rs
-[windows-environment]: https://github.com/windoze/scoop/blob/0fa053fd11c11e641e2f17212ce4948d5d52447a/compiler/toolchain/src/windows_c/environment.rs
-[windows-crypto]: https://github.com/windoze/scoop/blob/0fa053fd11c11e641e2f17212ce4948d5d52447a/sysroot/src/scoop.crypto/Cone.toml
-[windows-crypto-target]: https://github.com/windoze/scoop/blob/0fa053fd11c11e641e2f17212ce4948d5d52447a/sysroot/src/scoop.crypto/native/target.h
-[windows-statepoint-patch]: https://github.com/windoze/scoop/blob/0fa053fd11c11e641e2f17212ce4948d5d52447a/sysroot/vendor/llvm-project/22.1.8/patches/llvm-windows-statepoint-return-pc.patch
+[windows-progress]: ../windows-targets/PROGRESS.md
+[windows-contract]: ../../compiler/lir/src/target/contract.rs
+[windows-machine-abi]: ../../compiler/lir/src/runtime_abi/machine.rs
+[windows-driver]: ../../compiler/toolchain/src/native_driver.rs
+[windows-native]: ../../compiler/toolchain/src/windows_native.rs
+[windows-environment]: ../../compiler/toolchain/src/windows_c/environment.rs
+[windows-crypto]: ../../sysroot/src/scoop.crypto/Cone.toml
+[windows-crypto-target]: ../../sysroot/src/scoop.crypto/native/target.h
+[windows-statepoint-patch]: ../../sysroot/vendor/llvm-project/22.1.8/patches/llvm-windows-statepoint-return-pc.patch
