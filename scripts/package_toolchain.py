@@ -178,7 +178,7 @@ def assemble(root, targets, binaries, args, release, extension):
             shutil.copy2(version / "README.md", destination / VERSION / "README.md")
         else:
             shutil.copytree(vendor, destination)
-    cones = [
+    cone_manifests = [
         tomllib.loads(path.read_text(encoding="utf-8"))
         for path in sorted((sysroot / "src").glob("*/Cone.toml"))
     ]
@@ -186,7 +186,7 @@ def assemble(root, targets, binaries, args, release, extension):
         source = sysroot / "lib" / target
         destination = root / "lib" / target
         destination.mkdir(parents=True)
-        for manifest in cones:
+        for manifest in cone_manifests:
             if has_target_sources(manifest, target):
                 shutil.copy2(source / f"{manifest['cone']['name']}.slib", destination)
         (destination / "include").mkdir()
@@ -312,7 +312,8 @@ def assemble(root, targets, binaries, args, release, extension):
         manifest += [
             f"{key} = {json.dumps(value)}" for key, value in release["targets"][target].items()
         ]
-    for cone in cones:
+    for cone_manifest in cone_manifests:
+        cone = cone_manifest["cone"]
         manifest += [
             "",
             "[[cones]]",
