@@ -90,23 +90,52 @@ private class InputSession: Closeable {
                 motion = Some(value)
                 value.animateTo(
                     100.0,
-                    AnimationSpec.Tween(Duration.seconds(30L)),
+                    AnimationSpec.Tween(Duration.seconds(60L)),
                     onFinished = Some { _ -> animationFinished = true }
                 )
                 application.setControlFlow(
-                    ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(5L))
+                    ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(30L))
                 )
             }
             case AboutToWait -> {
                 if (phase == InputPhase.Frames && frames >= 2 && window!!.isFocused) {
                     assertTrue(motion!!.value > 0.0)
                     phase = InputPhase.FirstEnabled
+                    application.setControlFlow(
+                        ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(5L))
+                    )
                     assertTrue(first!!.requestFocus())
                     assertTrue(view!!.button(10.0, 10.0, true))
                     assertTrue(view!!.button(10.0, 10.0, false))
                 }
             }
-            case NewEvents(StartCause.Deadline) -> fail(Some("native GUI input deadline expired"))
+            case NewEvents(StartCause.Deadline) -> {
+                val stage =
+                    when (phase) {
+                        case Frames -> "frames"
+                        case FirstEnabled -> "first enabled"
+                        case Preedit -> "preedit"
+                        case Switching -> "switching"
+                        case SecondEdit -> "second edit"
+                        case Done -> "done"
+                    }
+                fail(
+                    Some(
+                        "native GUI input deadline expired: stage=" +
+                            stage +
+                            ", frames=" +
+                            frames.toString() +
+                            ", focused=" +
+                            window!!.isFocused.toString() +
+                            ", downs=" +
+                            downs.toString() +
+                            ", ups=" +
+                            ups.toString() +
+                            ", oldDisabled=" +
+                            oldDisabled.toString()
+                    )
+                )
+            }
             case Exiting -> finished = phase == InputPhase.Done
             else -> {}
         }

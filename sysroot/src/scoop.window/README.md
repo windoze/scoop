@@ -78,6 +78,8 @@ target/debug/scoop test sysroot/src/scoop.window/examples/metal/app --release
 
 这些测试使用 `scoop.test`，包括真实 AppKit 窗口、NSEvent 与 NSTextInputClient 协议调用、UTF 范围／编辑批次、跨线程投递和 lease、真实 modal／menu tracking 中的 I/O，以及实际 Metal drawable 提交。Metal 验收需要可用图形设备。
 
+macOS 桌面测试须串行执行。AppKitApplicationTest 等待真实窗口焦点再验证输入协议；系统可以拒绝后台 activate 请求，此时须把测试应用置于前台。准备期为 30 秒，得到实际焦点后用独立的 5 秒期限验证事件与收尾，不能仅凭 requestFocus 返回 Requested 判断焦点成功。
+
 显示器热插拔、混合 DPI、不同键盘布局、系统输入法候选交互和真实用户拖动仍需实际桌面／硬件验收；协议调用测试不等同于这些手工验证。实现与验证记录见 [PROGRESS.md](../../../docs/windowing/PROGRESS.md)。
 
 ## Windows

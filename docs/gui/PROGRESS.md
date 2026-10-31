@@ -8,12 +8,12 @@
 | --- | --- |
 | window 鼠标序列取消、单调输入时间 | 已实现并验证 Darwin 两目标 |
 | 固定 Skia／HarfBuzz／ICU 依赖与绘图 Cone | 已实现；CPU 与 Metal texture 验证通过 |
-| GUI 宿主、共享帧调度、macOS Metal 呈现 | 两目标宿主实窗测试通过；主循环组合仍待验证 |
+| GUI 宿主、共享帧调度、macOS Metal 呈现 | 两目标宿主、主循环组合与异常收尾测试通过 |
 | 字体、段落布局及索引／几何查询 | 已实现；Darwin 两目标离屏验证通过 |
 | 动画与窗口帧时钟 | 已实现；Darwin 两目标确定性测试通过 |
-| 输入区域、焦点和 IME 路由 | 已实现；Darwin 两目标离屏测试通过，原生会话待桌面验收 |
+| 输入区域、焦点和 IME 路由 | Darwin 两目标离屏与原生会话测试通过 |
 | 组合示例 | 已实现；两目标构建与编辑模型测试通过 |
-| 实际桌面集成验收 | 会话已解锁，宿主实窗已通过，继续组合与交互验收 |
+| 实际桌面集成验收 | 两目标原生组合测试通过，继续示例交互验收 |
 
 ## window 前置能力
 
@@ -23,11 +23,11 @@
 
 Darwin ARM64 和 Rosetta x86_64 的 `scoop.window` 各 4 容器、12 测试通过，包括真实 AppKit 输入方法、通知、IME、跨线程 lease 与关闭。`scoop.window.asyncio` 各 1 容器、1 测试覆盖原生 modal／menu 循环内的 I/O、根取消与 lease 收尾。x86_64 初次执行在 modal 观察断言失败、空闲复跑通过；测试辅助程序随后将短观察期的起点移至真正进入对应原生循环，避免 AppKit 冷启动消耗观察期。
 
-更新配套工具后的 x86_64 复验有 11 项通过，AppKitApplicationTest 因 `redraws=0, occluded=true` 达到原生重绘期限。此时桌面锁定，不能把早前的通过结果当成本轮显示链路复验通过；这项及 GUI 的真实呈现一并待解锁后继续。
+本轮解锁后使用当前工具与产物重新验证。后台 `activate` 请求未必使窗口获得实际焦点，原生测试现将帧／焦点准备与功能验证分开：30 秒内等待实际焦点，再用独立的 5 秒期限验证输入和收尾。没有强制激活或伪造焦点；通过访达启动已构建测试程序的普通 `.app` 包装，仍运行原来的 scoop.test 用例。两目标各 12 项窗口测试、1 项 window.asyncio 测试全部通过，原始结构化记录在仓库外。
 
 Scoop 格式化、Cone check 及变更的 Objective-C 严格编译检查通过。验证全部使用 `scoop.test` 和普通测试 Cone，没有新增或执行 fixture；原始日志保存在仓库外。
 
-协议调用与通知测试不等同于实际用户拖动、外部窗口抢焦点、输入法候选交互或混合 DPI 硬件验证。GUI 的显示链路和桌面验收仍须随后续批次完成。
+协议调用与通知测试不等同于实际用户拖动、外部窗口抢焦点、输入法候选交互或混合 DPI 硬件验证；这些交互通过组合示例继续验收。
 
 ## 绘图 Cone 与 native 资源
 
@@ -49,7 +49,7 @@ macOS 安装 CAMetalLayer 到既有输入 view，保存并在卸载时恢复原 
 
 已添加宿主、asyncio 和异常收尾三个普通 scoop.test Cone；区域批次另加入原生输入会话 Cone。Scoop 语义检查及 Darwin 两目标的 Objective-C 严格检查通过，两目标生产 `.slib` 构建成功。解锁后真实帧暴露了 CAMetalDisplayLink drawable 拒绝定时 present 的问题；后端改用有序队列上的普通 presentDrawable，由 display link 控制呈现节奏，移除无用预测时间缓存。
 
-宿主原生探针现在保存原有视图层级，不假定输入 view 等于 contentView；卸载同时验证无原层与有自定义原层。AppKit 可在恢复 wantsLayer=false 后自动创建 backing layer，该情况检查 GUI 的 CAMetalLayer 已移除；自定义原层仍严格检查身份。ARM64 与 Rosetta x86_64 的 GuiHostTest 各 1 项通过，覆盖帧合并、空闲停帧、隐藏恢复、尺寸变化、多窗口、卸载重挂及绘制回调中关闭。主循环组合、异常与原生输入会话继续单独验证。
+宿主原生探针现在保存原有视图层级，不假定输入 view 等于 contentView；卸载同时验证无原层与有自定义原层。AppKit 可在恢复 wantsLayer=false 后自动创建 backing layer，该情况检查 GUI 的 CAMetalLayer 已移除；自定义原层仍严格检查身份。ARM64 与 Rosetta x86_64 的 GuiHostTest 各 1 项通过，覆盖帧合并、空闲停帧、隐藏恢复、尺寸变化、多窗口、卸载重挂及绘制回调中关闭。两目标的 GUI asyncio 与异常收尾 Cone 各 1 项通过，确认 modal／menu common modes 内继续绘制，根任务取消与 painter 抛错均释放全部 surface 和 lease。
 
 ## 文本布局
 
@@ -95,7 +95,7 @@ InputArea 提供窗口持有的稳定身份；FrameContext.place 从真实 Canva
 
 Scoop fmt／check 与 Objective-C 两目标严格检查通过。ARM64、Rosetta x86_64 的 InputAreaTest／InputFocusTest 各 13 项通过，覆盖真实 Skia 路径孔洞、变换／clip、父关系、冒泡、提交／中止、拖动、静止 hover、滚轮单位、焦点／IME 切换、caret、线程和异常关闭。测试调用生产路由与实际 RasterSurface，没有替代 renderer。
 
-独立 `tests-cones/input` 使用真实输入 view 的 AppKit 鼠标与 NSTextInputClient 协议，组合两帧动画、区域焦点、preedit／commit 排队、候选窗位置及回调内关闭；两目标均通过 `scoop test --no-run` 完成构建和链接。它不注入全局输入，也不替代实际用户操作；真实执行与宿主／asyncio／异常测试一同等待已解锁桌面。
+独立 `tests-cones/input` 使用真实输入 view 的 AppKit 鼠标与 NSTextInputClient 协议，组合两帧动画、区域焦点、preedit／commit 排队、候选窗位置及回调内关闭。两目标均在取得真实系统焦点后执行通过；后台启动被拒绝激活时，通过访达打开相同的测试应用，结构化结果确认正文与清理均成功。它不注入全局输入，也不替代实际用户操作。与 window 测试一样，焦点准备有独立期限，超时报告当前阶段、帧数和输入计数。
 
 ## 组合示例与当前验收边界
 
@@ -103,6 +103,6 @@ Scoop fmt／check 与 Objective-C 两目标严格检查通过。ARM64、Rosetta 
 
 示例与所属两项 scoop.test 在 ARM64／Rosetta x86_64 均编译、链接成功，编辑模型测试全部通过；两个目标的演示可执行文件已生成。它只实现短文本演示所需编辑行为，没有引入组件、滚动或完整编辑器抽象。
 
-本阶段已通过的共同范围为：每目标 graphics 19 项、动画 7 项、区域输入 13 项、示例编辑模型 2 项，另有穷尽性编译器回归 Cone 1 项。GUI 的宿主、asyncio、异常及原生输入会话测试程序均已具备两目标构建结果；`--no-run` 只表示编译链接成功。
+本阶段已通过的共同范围为：每目标 graphics 19 项、动画 7 项、区域输入 13 项、示例编辑模型 2 项，另有穷尽性编译器回归 Cone 1 项；每目标另有 GUI 宿主、asyncio、异常及原生输入会话各 1 项实际执行通过。window 12 项和 window.asyncio 1 项也完成本轮两目标复验。
 
-当前 Mac 会话已解锁，两目标宿主实窗测试通过。仍需执行 asyncio／异常／原生输入会话测试，并运行示例验证实际拖动、输入法候选及外部窗口焦点切换。当前硬件只连接一块 2× 显示器，跨屏混合 DPI 暂无真实硬件条件。本阶段保持“实施中”，不把离屏、协议测试或构建成功计作桌面交互通过。本轮 GUI 测试日志、临时缓存与演示可执行文件保存在仓库外。
+当前 Mac 会话已解锁，两目标原生组合测试已通过。仍需运行示例验证实际拖动、输入法候选及外部窗口焦点切换。当前硬件只连接一块 2× 显示器，跨屏混合 DPI 暂无真实硬件条件。本阶段保持“实施中”，不把离屏、协议测试或构建成功计作桌面交互通过。本轮 GUI 测试日志、临时缓存与演示可执行文件保存在仓库外。
