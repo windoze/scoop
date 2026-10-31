@@ -26,8 +26,15 @@ impl WorkspaceLoader {
             active_configuration,
             ..WorkspaceInputs::default()
         };
+        let mut missing_lockfiles = BTreeSet::new();
         for configuration in configurations {
-            if let Err(error) = self.configuration(host, overlays, configuration, &mut inputs) {
+            if let Err(error) = self.configuration(
+                host,
+                overlays,
+                configuration,
+                &mut missing_lockfiles,
+                &mut inputs,
+            ) {
                 self.report(host, overlays, configuration, error, &mut inputs);
             }
         }
@@ -39,6 +46,7 @@ impl WorkspaceLoader {
         host: &mut AnalysisHost,
         overlays: &BTreeSet<PathBuf>,
         configuration: &ProjectConfiguration,
+        missing_lockfiles: &mut BTreeSet<PathBuf>,
         inputs: &mut WorkspaceInputs,
     ) -> Result<(), LoadError> {
         let package = PackageInputs::new(configuration, host, overlays)?;
@@ -52,11 +60,24 @@ impl WorkspaceLoader {
         } else {
             &configuration.root
         };
-        let all = normalize_path(root).map_err(|error| LoadError::new(root, error))?
-            == members
-                .root
-                .to_path_buf()
-                .map_err(|error| LoadError::new(root, error))?;
+        let workspace_root = members
+            .root
+            .to_path_buf()
+            .map_err(|error| LoadError::new(root, error))?;
+        let all =
+            normalize_path(root).map_err(|error| LoadError::new(root, error))? == workspace_root;
+        let lockfile = configuration
+            .lockfile
+            .clone()
+            .unwrap_or_else(|| workspace_root.join("Cone.lock"));
+        let initialize_lockfile = missing_lockfiles.contains(&lockfile)
+            || !lockfile
+                .try_exists()
+                .map_err(|error| LoadError::new(&lockfile, error))?;
+        if initialize_lockfile {
+            // All members and configurations in this load need their own lock records.
+            missing_lockfiles.insert(lockfile);
+        }
         for member in members
             .members
             .iter()
@@ -68,26 +89,25 @@ impl WorkspaceLoader {
                 .map_err(|error| LoadError::new(root, error))?;
             let mut member_configuration = configuration.clone();
             member_configuration.root = directory.clone();
-            let result =
-                package
-                    .metadata(&directory, &member.coordinate)
-                    .and_then(|mut prepared| {
-                        if prepared.resolutions.len() != 1
-                            || prepared.resolutions[0].coordinate != member.coordinate
-                        {
-                            return Err(LoadError::new(
-                                &directory,
-                                "package manager returned a different member selection",
-                            ));
-                        }
-                        ProjectBuilder::load(
-                            self,
-                            host,
-                            overlays,
-                            member_configuration.clone(),
-                            prepared.resolutions.remove(0),
-                        )
-                    });
+            let result = package
+                .load_member(&directory, &member.coordinate, initialize_lockfile)
+                .and_then(|mut prepared| {
+                    if prepared.resolutions.len() != 1
+                        || prepared.resolutions[0].coordinate != member.coordinate
+                    {
+                        return Err(LoadError::new(
+                            &directory,
+                            "package manager returned a different member selection",
+                        ));
+                    }
+                    ProjectBuilder::load(
+                        self,
+                        host,
+                        overlays,
+                        member_configuration.clone(),
+                        prepared.resolutions.remove(0),
+                    )
+                });
             match result {
                 Ok((project, errors)) => {
                     inputs.projects.push(project);
