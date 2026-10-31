@@ -9,7 +9,6 @@ pub type DecodedConeProductionSectionV2 =
 
 #[derive(Debug)]
 pub struct DecodedConeProductionSection<R> {
-    pub(super) canonical_definitions: DecodedObjectSymbolSurfaceV1,
     pub(super) registration_production: R,
     pub(super) image_plan: DecodedConeImagePlanV1,
     pub(super) entry_plan: DecodedEntryProductionPlanV1,
@@ -17,9 +16,7 @@ pub struct DecodedConeProductionSection<R> {
 
 impl<R: WireEncode> WireEncode for DecodedConeProductionSection<R> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
-        encoder.field(2)?;
-        self.canonical_definitions.encode(encoder)?;
+        encoder.map(3)?;
         encoder.field(5)?;
         self.registration_production.encode(encoder)?;
         encoder.field(6)?;
@@ -31,9 +28,8 @@ impl<R: WireEncode> WireEncode for DecodedConeProductionSection<R> {
 
 impl<R: WireDecode> WireDecode for DecodedConeProductionSection<R> {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(4)?;
+        decoder.expect_map(3)?;
         Ok(Self {
-            canonical_definitions: decoder.field(2, DecodedObjectSymbolSurfaceV1::decode)?,
             registration_production: decoder.field(5, R::decode)?,
             image_plan: decoder.field(6, DecodedConeImagePlanV1::decode)?,
             entry_plan: decoder.field(7, DecodedEntryProductionPlanV1::decode)?,

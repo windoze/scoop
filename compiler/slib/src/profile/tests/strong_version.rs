@@ -42,12 +42,14 @@ fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every
         (
             lir_link_identity_closure_capability(),
             &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC][..],
-            &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15][..],
+            &[
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+            ][..],
         ),
         (
             lir_cone_production_capability(),
             &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC][..],
-            &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12][..],
+            &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15][..],
         ),
         (
             lir_cross_cone_layout_abi_capability(),

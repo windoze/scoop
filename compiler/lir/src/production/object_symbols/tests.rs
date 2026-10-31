@@ -7,7 +7,7 @@ use scoop_identity::{
     RuntimeIdentityRecord, SourceDeclarationKey, SourceDeclarationSite,
     StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
 };
-use scoop_wire::{decode_canonical, encode};
+use scoop_wire::encode;
 
 use super::*;
 use crate::CanonicalLirFoundation;
@@ -53,26 +53,22 @@ fn derives_primary_and_every_atom_boundary_from_typed_plans() {
 }
 
 #[test]
-fn wire_reader_rejects_non_closed_definition_and_boundary_records() {
+fn consumer_projection_preserves_complete_definition_symbols() {
     let fixture = fixture(true);
-    let surface = ObjectSymbolSurfaceV1::from_foundation(&fixture.foundation).unwrap();
-    let encoded = encode(&surface).unwrap();
-    assert_eq!(encoded[0], 0x81);
-    assert_eq!(encoded[1], 0xa6);
-
-    let mut missing_definition_field = encoded.clone();
-    missing_definition_field[1] = 0xa5;
-    assert!(decode_canonical::<DecodedObjectSymbolSurfaceV1>(&missing_definition_field,).is_err());
-
-    let boundary_map = encoded
-        .windows(2)
-        .position(|window| window == [0x06, 0x82])
-        .map(|index| index + 2)
-        .unwrap();
-    assert_eq!(encoded[boundary_map], 0xa4);
-    let mut extra_boundary_field = encoded;
-    extra_boundary_field[boundary_map] = 0xa5;
-    assert!(decode_canonical::<DecodedObjectSymbolSurfaceV1>(&extra_boundary_field,).is_err());
+    let expected = ObjectSymbolSurfaceV1::from_foundation(&fixture.foundation).unwrap();
+    let actual = ObjectSymbolSurfaceV1::read_foundation(&fixture.foundation).unwrap();
+    assert_eq!(actual, expected);
+    let link = fixture.foundation.link_definitions().unwrap();
+    let plan = &expected.plans()[0];
+    let definition = &link[&plan.definition_plan()];
+    assert_eq!(definition.owner, plan.definition_owner());
+    assert_eq!(definition.entity, plan.owner());
+    assert_eq!(definition.role, plan.definition_role());
+    let atoms = [fixture.primary.id(), fixture.eh_frame.id()];
+    assert_eq!(
+        fixture.foundation.link_trap_symbols(atoms).unwrap(),
+        atoms.map(|atom| expected.atom_boundary(atom).unwrap().start())
+    );
 }
 
 #[test]

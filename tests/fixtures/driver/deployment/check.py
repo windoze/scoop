@@ -1,6 +1,7 @@
 """Check the selected minimum OS in real Scoop, C, runtime and executable objects."""
 
 import struct
+import subprocess
 import sys
 from pathlib import Path
 
@@ -20,7 +21,7 @@ def check_object(data, version):
     raise AssertionError("Mach-O has no LC_BUILD_VERSION")
 
 
-def check_archive(path, version):
+def check_archive(path, version, zstd):
     data = path.read_bytes()
     assert data[:8] == b"!<arch>\n"
     offset = 8
@@ -31,6 +32,13 @@ def check_archive(path, version):
         payload = data[offset + 60 : offset + 60 + size]
         if header.startswith(b"#1/"):
             payload = payload[int(header[3:16]) :]
+        if payload.startswith(b"\x28\xb5\x2f\xfd"):
+            payload = subprocess.run(
+                [zstd, "--decompress", "--stdout", "--quiet"],
+                input=payload,
+                capture_output=True,
+                check=True,
+            ).stdout
         count += check_object(payload, version)
         offset += 60 + size + size % 2
     assert count >= 2, "fixture must include Scoop and generated/native C objects"
@@ -39,7 +47,7 @@ def check_archive(path, version):
 parts = [int(part) for part in sys.argv[1].split(".")]
 parts += [0] * (3 - len(parts))
 expected = parts[0] << 16 | parts[1] << 8 | parts[2]
-check_archive(Path(sys.argv[2]), expected)
+check_archive(Path(sys.argv[2]), expected, sys.argv[5])
 assert check_object(Path(sys.argv[3]).read_bytes(), expected)
 runtime = list((Path(sys.argv[4]).parent / "objects").glob("*.o"))
 assert runtime

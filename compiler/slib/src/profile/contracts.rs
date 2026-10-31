@@ -193,13 +193,13 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::LIR,
             ),
-            ("org.scoop-lang.lir", "strong-production", 25)
-            | ("org.scoop-lang.lir", "cone-production", 15) => (
+            ("org.scoop-lang.lir", "strong-production", 26)
+            | ("org.scoop-lang.lir", "cone-production", 16) => (
                 SectionLocation::Lir,
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::CODE.union(FingerprintSinkSet::RUNTIME_IMAGE),
             ),
-            ("org.scoop-lang.lir", "link-identity-closure", 19) => (
+            ("org.scoop-lang.lir", "link-identity-closure", 20) => (
                 SectionLocation::Lir,
                 MemberPurposeSet::LINK,
                 FingerprintSinkSet::LINK_VALIDATION_ONLY,

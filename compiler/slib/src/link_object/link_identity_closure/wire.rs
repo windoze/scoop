@@ -8,7 +8,7 @@ use crate::link_object::{
 use scoop_identity::{DecodedPersistentId, ObjectDefinitionPlanId, PersistentId};
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 mod read;
-use super::SymbolUse;
+use super::SymbolUseGroup;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum DecodedLinkObjectMaterializationV1 {
@@ -80,18 +80,18 @@ impl WireDecode for DecodedLinkObjectMaterializationV1 {
 pub struct DecodedLinkIdentityClosureSectionV1 {
     materializations: Vec<DecodedLinkObjectMaterializationV1>,
     defined_symbols: DecodedCanonicalDefinedLinkSymbolOwnerSetV1,
-    symbol_uses: Vec<SymbolUse>,
+    symbol_uses: Vec<SymbolUseGroup>,
 }
 
 impl DecodedLinkIdentityClosureSectionV1 {
     pub(crate) fn read_defined_symbols(
         &self,
-        producer: scoop_identity::ConeIdentity,
+        foundation: &scoop_lir::ConeLirFoundation,
         identities: &mut scoop_identity::ValidatedIdentityGraph,
         normalization: scoop_lir::NativeSymbolNormalization,
     ) -> Result<CanonicalDefinedLinkSymbolOwnerSetV1, String> {
         self.defined_symbols
-            .read(producer, identities, normalization)
+            .read(foundation, identities, normalization)
     }
 }
 
@@ -118,20 +118,8 @@ impl WireDecode for DecodedLinkIdentityClosureSectionV1 {
             defined_symbols: decoder
                 .field(4, DecodedCanonicalDefinedLinkSymbolOwnerSetV1::decode)?,
             symbol_uses: decoder.field(5, |decoder| {
-                decoder.decode_array(|decoder, _| SymbolUse::decode(decoder))
+                decoder.decode_array(|decoder, _| SymbolUseGroup::decode(decoder))
             })?,
-        })
-    }
-}
-
-impl WireDecode for SymbolUse {
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(2)?;
-        let member: DecodedFixedBytesV1<SlibMemberId> =
-            decoder.field(1, DecodedFixedBytesV1::decode)?;
-        Ok(Self {
-            member: SlibMemberId::from_array(*member.bytes()),
-            symbol: decoder.field(2, Decoder::owned_bytes)?,
         })
     }
 }

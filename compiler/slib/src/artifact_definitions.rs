@@ -19,9 +19,10 @@ impl ArtifactDefinitionData {
         manifest: &BootstrapManifest,
         identities: &mut ValidatedIdentityGraph,
         target: scoop_lir::ValidatedLirTargetSelection,
+        foundation: &scoop_lir::ConeLirFoundation,
     ) -> Result<Self, String> {
         let defined = link.link_identity_closure_wire().read_defined_symbols(
-            manifest.cone().identity(),
+            foundation,
             identities,
             target.target().contract().native_symbol_normalization(),
         )?;

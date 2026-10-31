@@ -66,9 +66,10 @@ fn removing_codegen_records_updates_boundary_queries_without_changing_wire() {
     let expected = ObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap();
     assert_eq!(encode(&surface).unwrap(), encode(&expected).unwrap());
     assert_eq!(surface, expected);
-    let decoded: DecodedObjectSymbolSurfaceV1 =
-        decode_canonical(&encode(&surface).unwrap()).unwrap();
-    assert_eq!(encode(&decoded).unwrap(), encode(&surface).unwrap());
+    assert_eq!(
+        ObjectSymbolSurfaceV1::read_foundation(&foundation).unwrap(),
+        expected
+    );
 
     surface.remove_codegen_records(&BTreeSet::from([fixture.plan.id()]), &BTreeSet::new());
     assert!(surface.plans().is_empty());

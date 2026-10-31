@@ -211,9 +211,15 @@ def environment(repo, work, fixtures, args):
         "ar",
         "llc",
         "python",
+        "zstd",
     }
     if unknown:
         raise ConfigurationError(f"unknown required tools: {sorted(unknown)}")
+    if "zstd" in needed:
+        located = shutil.which("zstd")
+        if located is None:
+            raise EnvironmentError("required compression tool is missing: zstd")
+        common["zstd"] = located
     if "llc" in needed:
         configured = args.llc or os.environ.get("SCOOP_TEST_PAIRED_LLC")
         prefix = os.environ.get("LLVM_SYS_221_PREFIX")

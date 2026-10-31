@@ -5,6 +5,7 @@
 所有被扫描的 `.scoop` 必须归属于声明的 `inputs` 或 `support`，支持文件不单独计为通过。
 缺少工具、期望文件、未知字段、嵌套类型错误、重复载体与前向步骤引用均报配置／环境错误。
 Python 3.11+ 只用标准库；Python peer 和辅助进程统一使用 `${python}`（本次 runner 的解释器），避免 PATH 中另一个旧版本。格式化／lint 使用 `tests/requirements-dev.txt` 固定的 Ruff。
+需要解压 `.slib` 成员的产物检查声明 `tools = ["zstd", ...]`，通过 `${zstd}` 使用 PATH 中的 Zstandard 命令；只在所选用例需要时查找该工具。
 默认最多并行运行四个用例，可用 `--jobs N` 调整，`--jobs 1` 顺序运行。
 大型 HTTP 客户端集成用例及 WebSocket 生命周期用例的编译步骤显式使用 900 秒时限，以覆盖较慢宿主上的完整编译；运行、诊断和缓存断言仍按各用例原有规则执行。
 正式 CLI 验证使用按 [准备脚本说明](../../scripts/README.md) 事先准备的开发 sysroot；

@@ -7,12 +7,12 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use crate::{
     ConeLirFoundation, DecodedConeImagePlanV1, DecodedEntryProductionPlanV1,
-    DecodedObjectSymbolSurfaceV1, DecodedStrongRegistrationProductionSurfaceV1,
-    DigestFinalizationPlanV1, DigestPlanError, EntryProductionPlanBuildError,
-    EntryProductionPlanV1, EntryProductionSourceV1, GeneratedBridgePlanBuildError,
-    GeneratedBridgePlanSetV1, ObjectDefinitionPlanBuildError, ObjectDefinitionPlanSurfaceV1,
-    ObjectSymbolSurfaceBuildError, ObjectSymbolSurfaceV1, ParamFreeShapeSupportBuildError,
-    ParamFreeShapeSupportPlanSetV1, StrongRegistrationProductionSurfaceV1,
+    DecodedStrongRegistrationProductionSurfaceV1, DigestFinalizationPlanV1, DigestPlanError,
+    EntryProductionPlanBuildError, EntryProductionPlanV1, EntryProductionSourceV1,
+    GeneratedBridgePlanBuildError, GeneratedBridgePlanSetV1, ObjectDefinitionPlanBuildError,
+    ObjectDefinitionPlanSurfaceV1, ObjectSymbolSurfaceBuildError, ObjectSymbolSurfaceV1,
+    ParamFreeShapeSupportBuildError, ParamFreeShapeSupportPlanSetV1,
+    StrongRegistrationProductionSurfaceV1,
 };
 
 use crate::{ConeImagePlanBuildError, ConeImagePlanV1};
@@ -202,9 +202,7 @@ impl<D: crate::StrongDescriptorReference, C: Clone + WireEncode, I: WireEncode> 
     for ConeProductionSection<D, C, I>
 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
-        encoder.field(2)?;
-        self.canonical_definitions.encode(encoder)?;
+        encoder.map(3)?;
         encoder.field(5)?;
         self.registration_production.encode(encoder)?;
         encoder.field(6)?;

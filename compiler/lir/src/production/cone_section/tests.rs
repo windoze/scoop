@@ -14,7 +14,7 @@ use crate::DigestNodeV1;
 pub(in crate::production) use complete_image::attach_image;
 
 #[test]
-fn strong_section_has_four_persisted_fields_and_round_trips() {
+fn strong_section_has_three_persisted_fields_and_round_trips() {
     let coordinate = ConeCoordinate::new("test", "strong-section", "0.0.0").unwrap();
     let (foundation, digests) = fixture(&coordinate);
 
@@ -37,7 +37,7 @@ fn strong_section_has_four_persisted_fields_and_round_trips() {
     )
     .unwrap();
     let encoded = encode(&section).unwrap();
-    assert_eq!(encoded[0], 0xa4);
+    assert_eq!(encoded[0], 0xa3);
 
     let decoded: DecodedConeProductionSectionV1 = decode_canonical(&encoded).unwrap();
     assert_eq!(encode(&decoded).unwrap(), encoded);
@@ -45,7 +45,7 @@ fn strong_section_has_four_persisted_fields_and_round_trips() {
 
 #[test]
 fn strong_section_reader_rejects_old_or_extended_top_level_shapes() {
-    for bytes in [vec![0xa3], vec![0xa5], vec![0xaa], vec![0xab]] {
+    for bytes in [vec![0xa2], vec![0xa4], vec![0xaa], vec![0xab]] {
         assert!(decode_canonical::<DecodedConeProductionSectionV1>(&bytes).is_err());
     }
 }

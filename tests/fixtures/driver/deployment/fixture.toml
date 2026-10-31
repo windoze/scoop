@@ -1,7 +1,7 @@
 schema = 1
 name = "deployment"
 inputs = ["cone", "check.py"]
-tools = ["scoop", "scoopc", "cc", "python"]
+tools = ["scoop", "scoopc", "cc", "python", "zstd"]
 when = { os = "darwin" }
 tags = ["deployment", "native", "cache", "driver"]
 [vars]
@@ -25,7 +25,7 @@ stderr = ""
 
 [[steps]]
 name = "check_default"
-argv = ["${python}", "${fixture}/check.py", "${deployment}", "${default.result.root.path}", "${default.result.output}", "${default.result.runtime_index}"]
+argv = ["${python}", "${fixture}/check.py", "${deployment}", "${default.result.root.path}", "${default.result.output}", "${default.result.runtime_index}", "${zstd}"]
 exit = 0
 stdout = "deployment matches\n"
 stderr = ""
@@ -43,7 +43,7 @@ checks = [{actual = "${changed.result.observations.child_invocations.length}", e
 
 [[steps]]
 name = "check_changed"
-argv = ["${python}", "${fixture}/check.py", "27.0.2", "${changed.result.root.path}", "${changed.result.output}", "${changed.result.runtime_index}"]
+argv = ["${python}", "${fixture}/check.py", "27.0.2", "${changed.result.root.path}", "${changed.result.output}", "${changed.result.runtime_index}", "${zstd}"]
 exit = 0
 stdout = "deployment matches\n"
 stderr = ""

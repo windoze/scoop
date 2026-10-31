@@ -32,6 +32,8 @@ fn saved_uses_include_current_cone_and_external_callable_references() {
     let local = fixture_named("localTarget");
     let source = fixture_named("localCaller");
     let external = fixture_named("externalCaller");
+    let second_source = fixture_named("secondLocalCaller");
+    let second_external = fixture_named("secondExternalCaller");
     let target = local
         .symbols
         .symbols()
@@ -61,17 +63,41 @@ fn saved_uses_include_current_cone_and_external_callable_references() {
         verified_member_without_relocations(&local),
         verified_member_with_undefined(&source, target),
         verified_member_with_undefined(&external, foreign_target),
+        verified_member_with_undefined(&second_source, target),
+        verified_member_with_undefined(&second_external, foreign_target),
     ])
     .unwrap();
-    let uses = symbol_uses(&closure);
+    let defined = CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&closure)
+        .unwrap()
+        .published();
+    let uses = symbol_uses(&closure, &defined);
     assert_eq!(uses.len(), 2);
+    assert!(
+        uses.iter()
+            .any(|usage| matches!(usage.target, uses::SymbolUseTarget::Defined(_)))
+    );
+    assert!(
+        uses.iter()
+            .any(|usage| matches!(usage.target, uses::SymbolUseTarget::External(_)))
+    );
+    for group in &uses {
+        let bytes = encode(group).unwrap();
+        let decoded: SymbolUseGroup = scoop_wire::decode_canonical(&bytes).unwrap();
+        assert_eq!(&decoded, group);
+        assert!(group.members.windows(2).all(|pair| pair[0] < pair[1]));
+    }
+    assert!(
+        uses::SymbolUseTarget::Defined(u64::MAX)
+            .symbol(&defined)
+            .is_err()
+    );
     for (member, symbol) in [
         (source.symbols.member(), target),
         (external.symbols.member(), foreign_target),
+        (second_source.symbols.member(), target),
+        (second_external.symbols.member(), foreign_target),
     ] {
-        assert!(
-            uses.iter()
-                .any(|usage| usage.member == member && usage.symbol == symbol)
-        );
+        assert!(uses.iter().any(|usage| usage.members.contains(&member)
+            && usage.target.symbol(&defined).unwrap() == symbol));
     }
 }

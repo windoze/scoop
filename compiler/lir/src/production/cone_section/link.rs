@@ -29,13 +29,9 @@ impl DecodedConeProductionSectionV2 {
         identities: &mut ValidatedIdentityGraph,
     ) -> Result<ProgramLinkProduction, LinkDataError> {
         let (image_symbol, trap_atoms) = self.image_plan.link_symbols(identities)?;
-        let trap_symbols = self
-            .canonical_definitions
-            .link_trap_symbols(trap_atoms, identities)?;
+        let trap_symbols = foundation.link_trap_symbols(trap_atoms)?;
         Ok(ProgramLinkProduction {
-            definitions: self
-                .canonical_definitions
-                .link_definitions(foundation, identities)?,
+            definitions: foundation.link_definitions()?,
             image_symbol,
             trap_symbols,
             entry_symbol: self.entry_plan.link_symbol(identities)?,

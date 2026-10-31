@@ -18,8 +18,14 @@ impl<'input> LirDependenciesResolvedCrossConeLayoutClosure<'input> {
             let link = parts.link_sections.ok_or_else(|| {
                 SharedLirPhysicalError::DefinitionData("missing definition metadata".to_owned())
             })?;
-            ArtifactDefinitionData::read(link, parts.manifest, parts.identities, selection)
-                .map_err(SharedLirPhysicalError::DefinitionData)
+            ArtifactDefinitionData::read(
+                link,
+                parts.manifest,
+                parts.identities,
+                selection,
+                parts.lir_foundation,
+            )
+            .map_err(SharedLirPhysicalError::DefinitionData)
         })?;
         let odr_definitions = merge_cross_cone_odr_definitions(
             physical

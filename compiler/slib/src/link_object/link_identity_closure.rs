@@ -8,7 +8,9 @@ use super::{
 use crate::SlibMemberId;
 use scoop_wire::{Encoder, WireEncode};
 
+mod uses;
 mod wire;
+use uses::{SymbolUseGroup, symbol_uses};
 pub use wire::DecodedLinkIdentityClosureSectionV1;
 
 #[cfg(test)]
@@ -67,7 +69,7 @@ impl WireEncode for LinkObjectMaterializationV1 {
 pub struct LinkIdentityClosureSectionV1 {
     materializations: Vec<LinkObjectMaterializationV1>,
     defined_symbols: CanonicalDefinedLinkSymbolOwnerSetV1,
-    symbol_uses: Vec<SymbolUse>,
+    symbol_uses: Vec<SymbolUseGroup>,
 }
 
 impl LinkIdentityClosureSectionV1 {
@@ -96,10 +98,12 @@ impl LinkIdentityClosureSectionV1 {
         C: Clone,
     {
         let builtins = objects.final_objects().entry().builtins();
+        let defined_symbols = defined_symbols.published();
+        let symbol_uses = symbol_uses(builtins.strong_relocations(), &defined_symbols);
         Self {
             materializations: materializations(builtins.member_plan()),
-            defined_symbols: defined_symbols.published(),
-            symbol_uses: symbol_uses(builtins.strong_relocations()),
+            defined_symbols,
+            symbol_uses,
         }
     }
 }
@@ -114,42 +118,6 @@ impl WireEncode for LinkIdentityClosureSectionV1 {
         encoder.field(5)?;
         encode_array(encoder, &self.symbol_uses)
     }
-}
-
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-struct SymbolUse {
-    member: SlibMemberId,
-    symbol: Vec<u8>,
-}
-
-impl WireEncode for SymbolUse {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
-        encoder.field(1)?;
-        self.member.encode(encoder)?;
-        encoder.field(2)?;
-        encoder.bytes(&self.symbol)
-    }
-}
-
-fn symbol_uses(relocations: &VerifiedCurrentConeStrongRelocationClosureV1) -> Vec<SymbolUse> {
-    let mut uses = relocations
-        .bindings()
-        .iter()
-        .filter(|binding| {
-            !matches!(
-                binding.resolution(),
-                StrongRelocationResolutionV1::ObjectLocalStrong { .. }
-            )
-        })
-        .map(|binding| SymbolUse {
-            member: binding.source_member(),
-            symbol: binding.symbol().to_vec(),
-        })
-        .collect::<Vec<_>>();
-    uses.sort_unstable();
-    uses.dedup();
-    uses
 }
 
 fn materializations(plan: &PlannedLinkObjectMemberSetV1) -> Vec<LinkObjectMaterializationV1> {

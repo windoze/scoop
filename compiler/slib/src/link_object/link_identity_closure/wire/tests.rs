@@ -44,13 +44,14 @@ fn closure() -> LinkIdentityClosureSectionV1 {
     let defined_symbols =
         CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&strong).unwrap();
 
+    let symbol_uses = super::super::symbol_uses(&strong, &defined_symbols);
     LinkIdentityClosureSectionV1 {
         materializations: vec![super::super::LinkObjectMaterializationV1::ScoopLir {
             member: member_id,
             units: CanonicalScoopLirObjectUnitSetV1::new(vec![definition_id]).unwrap(),
         }],
         defined_symbols,
-        symbol_uses: super::super::symbol_uses(&strong),
+        symbol_uses,
     }
 }
 

@@ -33,7 +33,7 @@ fn section(fixture: &Fixture) -> ConeProductionSectionV2 {
 fn compact_section_round_trips_production_with_foreign_type_references() {
     let fixture = complete_fixture();
     let bytes = encode(&section(&fixture)).unwrap();
-    assert_eq!(bytes[0], 0xa4);
+    assert_eq!(bytes[0], 0xa3);
     let decoded: DecodedConeProductionSectionV2 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
 }

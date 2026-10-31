@@ -63,7 +63,11 @@ fn resolves_odr_callable_descriptor_and_release_subjects_through_typed_records()
     let expected_wire = encode(&canonical).unwrap();
     let foundation = ConeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
     assert_eq!(encode(&foundation).unwrap(), expected_wire);
-    for (plan, (_, entity, role)) in plans.iter().zip(subjects) {
+    for (plan, (member, entity, role)) in plans.iter().zip(subjects) {
+        assert_eq!(
+            foundation.odr_definition_symbol(member),
+            entity.primary_symbol_key(role)
+        );
         assert_eq!(foundation.definition_subject(plan), Some((entity, role)));
         assert_eq!(
             foundation.clone().definition_subject(plan),
