@@ -60,11 +60,21 @@ pub fn verify_cross_cone_layout_production_code_projection_v1(
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CrossConeLayoutProductionManifestV1 {
     code: CodeFingerprintDataV2,
+    odr_members: crate::CanonicalOdrMemberDirectoryV1,
 }
 
 impl CrossConeLayoutProductionManifestV1 {
-    pub const fn from_verified_code(code: CodeFingerprintDataV2) -> Self {
-        Self { code }
+    pub fn from_verified_code(code: CodeFingerprintDataV2) -> Self {
+        let odr_members = code.production().projection().odr_members().clone();
+        Self { code, odr_members }
+    }
+
+    pub(crate) fn omit_imported_registrations(
+        mut self,
+        defined: &crate::CanonicalDefinedLinkSymbolOwnerSetV1,
+    ) -> Self {
+        self.odr_members.retain_registration_definitions(defined);
+        self
     }
 
     pub const fn code_proof(&self) -> &CodeFingerprintDataV2 {
@@ -76,7 +86,7 @@ impl CrossConeLayoutProductionManifestV1 {
     }
 
     pub const fn odr_members(&self) -> &crate::CanonicalOdrMemberDirectoryV1 {
-        self.projection().odr_members()
+        &self.odr_members
     }
 
     pub const fn code_fingerprint(&self) -> CodeFingerprint {

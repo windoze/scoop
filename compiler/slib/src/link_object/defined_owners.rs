@@ -256,6 +256,18 @@ impl CanonicalDefinedLinkSymbolOwnerSetV1 {
         &self.owners
     }
 
+    pub(crate) fn without_members(&self, removed: &BTreeSet<SlibMemberId>) -> Self {
+        Self {
+            producer: self.producer,
+            owners: self
+                .owners
+                .iter()
+                .filter(|entry| !removed.contains(&entry.member))
+                .cloned()
+                .collect(),
+        }
+    }
+
     pub(super) fn published(&self) -> Self {
         Self {
             producer: self.producer,

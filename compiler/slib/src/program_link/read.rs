@@ -33,15 +33,16 @@ pub fn read_program_link_closure(
         artifacts.push(artifact);
         symbols.push(symbol);
     }
-    let odr = crate::merge_cross_cone_odr_definitions(
-        artifacts
-            .iter()
-            .map(|artifact| &artifact.identities)
-            .zip(&symbols)
-            .map(|(identities, symbols)| {
-                (identities, symbols.defined_symbols(), symbols.odr_members())
-            }),
-    )
+    let odr = crate::merge_cross_cone_odr_definitions(artifacts.iter().zip(&symbols).map(
+        |(artifact, symbols)| {
+            (
+                &artifact.identities,
+                symbols.defined_symbols(),
+                symbols.odr_members(),
+                artifact.manifest.direct_dependencies(),
+            )
+        },
+    ))
     .map_err(error)?;
     Ok(ProgramLinkClosure {
         root: graph.current,

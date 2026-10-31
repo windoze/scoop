@@ -60,4 +60,8 @@ impl ValidatedCrossConeStrongLinkArtifact {
     pub fn definition_data(&self) -> &ArtifactDefinitionData {
         &self.symbols
     }
+
+    pub(crate) fn member_records(&self) -> &[crate::SlibMemberRecord] {
+        self.artifact.manifest().members()
+    }
 }

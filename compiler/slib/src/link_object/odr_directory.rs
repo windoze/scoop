@@ -1,4 +1,4 @@
-//! The manifest directory of physical ODR definitions emitted by one Cone.
+//! The manifest directory of ODR definitions and implementation requirements.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -195,6 +195,55 @@ impl CanonicalOdrMemberDirectoryV1 {
 
     pub fn groups(&self) -> &[OdrMemberDirectoryGroupV1] {
         &self.groups
+    }
+
+    pub(crate) fn retain_registration_definitions(
+        &mut self,
+        defined: &super::CanonicalDefinedLinkSymbolOwnerSetV1,
+    ) {
+        let local = defined
+            .owners()
+            .iter()
+            .filter_map(|definition| match definition.owner() {
+                super::LinkDefinitionOwnerV1::OdrDefinition(member) => Some(member),
+                _ => None,
+            })
+            .collect::<BTreeSet<_>>();
+        for group in &mut self.groups {
+            group.members.retain(|entry| {
+                entry.role != OdrMemberRole::RegistrationRecord || local.contains(&entry.member)
+            });
+        }
+        self.groups.retain(|group| !group.members.is_empty());
+    }
+
+    pub(crate) fn encode_implementation_abis(
+        &self,
+        encoder: &mut Encoder,
+    ) -> Result<(), scoop_wire::cbor::EncodeError> {
+        let public =
+            |entry: &&OdrMemberDirectoryEntryV1| entry.role != OdrMemberRole::RegistrationRecord;
+        encoder.array(
+            self.groups
+                .iter()
+                .filter(|group| group.members.iter().any(|entry| public(&entry)))
+                .count() as u64,
+        )?;
+        for group in &self.groups {
+            let count = group.members.iter().filter(public).count();
+            if count == 0 {
+                continue;
+            }
+            encoder.map(2)?;
+            encoder.field(1)?;
+            group.group.encode(encoder)?;
+            encoder.field(2)?;
+            encoder.array(count as u64)?;
+            for entry in group.members.iter().filter(public) {
+                entry.encode(encoder)?;
+            }
+        }
+        Ok(())
     }
 
     fn from_members(

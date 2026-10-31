@@ -100,4 +100,23 @@ fn saved_uses_include_current_cone_and_external_callable_references() {
         assert!(uses.iter().any(|usage| usage.members.contains(&member)
             && usage.target.symbol(&defined).unwrap() == symbol));
     }
+    let mut saved = LinkIdentityClosureSectionV1 {
+        materializations: Vec::new(),
+        defined_symbols: defined,
+        symbol_uses: uses,
+    };
+    saved.remove_members(&std::collections::BTreeSet::from([
+        local.symbols.member(),
+        source.symbols.member(),
+        external.symbols.member(),
+        second_external.symbols.member(),
+    ]));
+    assert_eq!(saved.symbol_uses.len(), 1);
+    let usage = &saved.symbol_uses[0];
+    assert_eq!(usage.members, [second_source.symbols.member()]);
+    assert!(matches!(usage.target, SymbolUseTarget::External(_)));
+    assert_eq!(
+        usage.target.symbol(saved.defined_symbols()).unwrap(),
+        target
+    );
 }

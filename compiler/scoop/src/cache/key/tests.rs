@@ -236,7 +236,7 @@ fn compile_cache_key_has_a_fixed_canonical_vector() {
     // The vector includes the directory-input cache domain, runtime ABI, artifact profile and machine protocol.
     assert_eq!(
         input.key().unwrap().to_string(),
-        "c585d90faf2c6812068e5bff5501b7c39be9f3c61e4cbca1454c8551da7e4dfe"
+        "dcb949be8ad444a3d8bf685496f83fcfdd1e8aba9f086ac8db60cdb590b283d8"
     );
     assert_eq!(encode(&input).unwrap().first(), Some(&0xb0));
 }

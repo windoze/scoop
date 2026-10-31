@@ -10,6 +10,7 @@ use crate::{
 };
 
 mod encoding;
+mod odr;
 use encoding::{
     CanonicalSemanticContribution, LayerFingerprintContext, LayerFingerprintInput, SupportEdges,
 };

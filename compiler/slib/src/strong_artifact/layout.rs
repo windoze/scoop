@@ -26,6 +26,7 @@ mod error;
 pub use error::CrossConeLayoutArtifactWriteError;
 mod sections;
 use sections::{LayoutMetadataInput, assemble_metadata};
+mod odr_reuse;
 
 /// Complete typed input for one `CrossConeLayoutStrong` archive.
 ///
@@ -49,11 +50,20 @@ pub struct CrossConeLayoutArtifactInputV1<'ir> {
     layout_code: CrossConeLayoutCodeDataV1,
     link_objects: Vec<SlibMember>,
     test_directory: Option<crate::TestDirectory>,
+    dependencies: Option<&'ir crate::ValidatedCrossConeArtifactClosure>,
 }
 
 impl<'ir> CrossConeLayoutArtifactInputV1<'ir> {
     pub fn with_test_directory(mut self, directory: Option<crate::TestDirectory>) -> Self {
         self.test_directory = directory;
+        self
+    }
+
+    pub fn with_dependencies(
+        mut self,
+        dependencies: Option<&'ir crate::ValidatedCrossConeArtifactClosure>,
+    ) -> Self {
+        self.dependencies = dependencies;
         self
     }
 
@@ -94,6 +104,7 @@ impl<'ir> CrossConeLayoutArtifactInputV1<'ir> {
             layout_code,
             link_objects,
             test_directory: None,
+            dependencies: None,
         }
     }
 }
@@ -125,8 +136,9 @@ impl AssembledCrossConeLayoutArtifactV1 {
             lir_cross_cone,
             lir_layout_abi,
             layout_code,
-            link_objects,
+            mut link_objects,
             test_directory,
+            dependencies,
         } = input;
         let identity = cone.identity();
         let (code, link_support) = layout_code.into_parts();
@@ -137,7 +149,19 @@ impl AssembledCrossConeLayoutArtifactV1 {
             ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         )
         .map_err(CrossConeLayoutArtifactWriteError::Compatibility)?;
-        let link_identity_closure = LinkIdentityClosureSectionV1::from_verified_layout_code(&code);
+        let mut link_identity_closure =
+            LinkIdentityClosureSectionV1::from_verified_layout_code(&code);
+        if let Some(dependencies) = dependencies {
+            let removed = odr_reuse::select(
+                &link_objects,
+                &link_identity_closure,
+                code.production().projection().odr_members(),
+                lir_layout_abi.exports(),
+                dependencies,
+            );
+            link_objects.retain(|object| !removed.contains(&object.record().id()));
+            link_identity_closure.remove_members(&removed);
+        }
 
         let metadata = assemble_metadata(LayoutMetadataInput {
             hir_foundation,
@@ -156,7 +180,8 @@ impl AssembledCrossConeLayoutArtifactV1 {
             link_support: &link_support,
         })?;
 
-        let production_manifest = CrossConeLayoutProductionManifestV1::from_verified_code(code);
+        let production_manifest = CrossConeLayoutProductionManifestV1::from_verified_code(code)
+            .omit_imported_registrations(link_identity_closure.defined_symbols());
         let foundation_fingerprints = SemanticFingerprintRecord::from_metadata_sections(
             &compatibility,
             &direct_dependencies,
@@ -164,6 +189,9 @@ impl AssembledCrossConeLayoutArtifactV1 {
             &metadata.mir.sections,
             &metadata.lir.sections,
         )
+        .and_then(|fingerprints| {
+            fingerprints.with_odr_implementations(production_manifest.odr_members())
+        })
         .map_err(CrossConeLayoutArtifactWriteError::SemanticFingerprints)?;
         let semantic_fingerprints = SemanticFingerprintRecord::from_layout_production_manifest(
             foundation_fingerprints.hir(),

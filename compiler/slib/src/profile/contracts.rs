@@ -146,7 +146,7 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
             ),
-            ("org.scoop-lang.manifest", "single-cone-production", 9) => (
+            ("org.scoop-lang.manifest", "single-cone-production", 10) => (
                 SectionLocation::Manifest,
                 MemberPurposeSet::LINK,
                 FingerprintSinkSet::CODE

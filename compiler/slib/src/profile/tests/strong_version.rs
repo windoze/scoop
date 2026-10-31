@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn production_manifest_v9_uses_consumed_fields_in_every_profile() {
+fn production_manifest_v10_requires_the_definition_and_import_directory() {
     let current = manifest_single_cone_production_capability();
-    assert_eq!(current.major_version(), 9);
-    let old = CapabilityId::new(current.namespace(), current.name(), 8).unwrap();
+    assert_eq!(current.major_version(), 10);
+    let old = CapabilityId::new(current.namespace(), current.name(), 9).unwrap();
     assert!(CapabilityContractRegistry::contract(&old).is_none());
     let profile = ArtifactCapabilityProfile::CROSS_CONE_GENERIC;
 

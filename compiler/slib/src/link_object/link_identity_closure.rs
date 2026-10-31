@@ -10,7 +10,7 @@ use scoop_wire::{Encoder, WireEncode};
 
 mod uses;
 mod wire;
-use uses::{SymbolUseGroup, symbol_uses};
+use uses::{SymbolUseGroup, SymbolUseTarget, symbol_uses};
 pub use wire::DecodedLinkIdentityClosureSectionV1;
 
 #[cfg(test)]
@@ -79,6 +79,31 @@ impl LinkIdentityClosureSectionV1 {
 
     pub const fn defined_symbols(&self) -> &CanonicalDefinedLinkSymbolOwnerSetV1 {
         &self.defined_symbols
+    }
+
+    pub(crate) fn remove_members(&mut self, removed: &std::collections::BTreeSet<SlibMemberId>) {
+        if removed.is_empty() {
+            return;
+        }
+        let defined = self.defined_symbols.without_members(removed);
+        self.materializations
+            .retain(|entry| !removed.contains(&entry.member()));
+        for group in &mut self.symbol_uses {
+            group.members.retain(|member| !removed.contains(member));
+            let symbol = group
+                .target
+                .symbol(&self.defined_symbols)
+                .expect("producer symbol uses refer to their original definition directory");
+            group.target = match defined
+                .owners()
+                .binary_search_by(|entry| entry.symbol().cmp(symbol))
+            {
+                Ok(index) => SymbolUseTarget::Defined(index as u64),
+                Err(_) => SymbolUseTarget::External(symbol.to_vec()),
+            };
+        }
+        self.symbol_uses.retain(|group| !group.members.is_empty());
+        self.defined_symbols = defined;
     }
 
     pub fn from_verified_code(code: &CodeFingerprintDataV1) -> Self {

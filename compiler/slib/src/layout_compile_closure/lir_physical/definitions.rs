@@ -27,17 +27,21 @@ impl<'input> LirDependenciesResolvedCrossConeLayoutClosure<'input> {
             )
             .map_err(SharedLirPhysicalError::DefinitionData)
         })?;
-        let odr_definitions = merge_cross_cone_odr_definitions(
-            physical
-                .dependency_first()
-                .map(|artifact| artifact.identity_graph())
-                .zip(&symbols)
-                .map(|(identities, data)| (identities, data.defined_symbols(), data.odr_members())),
-        )
-        .map_err(|source| CrossConeLayoutLirPhysicalError {
-            provider: source.provider(),
-            source: Box::new(SharedLirPhysicalError::OdrDefinitions(Box::new(source))),
-        })?;
+        let odr_definitions =
+            merge_cross_cone_odr_definitions(physical.dependency_first().zip(&symbols).map(
+                |(artifact, data)| {
+                    (
+                        artifact.identity_graph(),
+                        data.defined_symbols(),
+                        data.odr_members(),
+                        artifact.manifest().direct_dependencies(),
+                    )
+                },
+            ))
+            .map_err(|source| CrossConeLayoutLirPhysicalError {
+                provider: source.provider(),
+                source: Box::new(SharedLirPhysicalError::OdrDefinitions(Box::new(source))),
+            })?;
         Ok(CrossConeLayoutArtifactData {
             physical,
             symbols,

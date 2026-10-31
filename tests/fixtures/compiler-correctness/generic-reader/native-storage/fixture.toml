@@ -92,5 +92,6 @@ stderr = ""
 name = "provider_members"
 argv = ["${ar}", "t", "${work}/artifacts/dev.example/native-storage-provider/0.1.0/cone.slib"]
 exit = 0
-stdout = {snapshot = "provider_members.${target}.txt"}
+# ODR sharing changes object counts; native ar must still read the complete member listing.
+stdout = {regex = 'manifest[.]zst/?\nm00000000/?\nm00000001/?\nm00000002/?\n(?:m[0-9]{8}/?\n)+'}
 stderr = ""

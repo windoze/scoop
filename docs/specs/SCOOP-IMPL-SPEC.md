@@ -696,13 +696,13 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 
 未知 optional capability 按目录跳过，不读取或计算其内容 hash，不进入语义 view。ExtensionBlob.required_for 只允许 0 或 Link bit；未知 Link-required capability 或 LinkObject verifier 阻止 Link 消费。blob 不成为第二种对象入口，已知 Link contribution 只能表示规范化 native library requirements，不能注入 raw linker argv、脚本或未检查对象。
 
-完整生产 profile 为 `org.scoop-lang.slib-profile/cross-cone-generic/8`。descriptor 是五字段 map：`1=id, 2=required_manifest, 3=required_hir, 4=required_mir, 5=required_lir`；各列表按 capability 排序。其必需 section 为：
+完整生产 profile 为 `org.scoop-lang.slib-profile/cross-cone-generic/9`。descriptor 是五字段 map：`1=id, 2=required_manifest, 3=required_hir, 4=required_mir, 5=required_lir`；各列表按 capability 排序。其必需 section 为：
 
 早期 `single-cone-strong` 与 `cross-cone-semantics-strong` profile 不再是生产或消费入口，不随当前 section 版本维护正向 descriptor／fingerprint 矩阵。旧 profile 按不支持的产物 profile 报错，当前 profile 的 required inventory 和版本兼容检查保留。
 
 | 位置 / namespace | section 与 major |
 | --- | --- |
-| Manifest / `org.scoop-lang.manifest` | `single-cone-production/9` |
+| Manifest / `org.scoop-lang.manifest` | `single-cone-production/10` |
 | HIR / `org.scoop-lang.hir` | `identity-foundation/10`、`core-bootstrap-interface/17`、`cross-cone-interface/87`、`cross-cone-type-semantics/31` |
 | MIR / `org.scoop-lang.mir` | `identity-foundation/8`、`core-bootstrap-bridge/2`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/20` |
 | LIR / `org.scoop-lang.lir` | `identity-foundation/11`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/18`、`cone-production/16`、`link-identity-closure/20`、`link-support/1` |
@@ -759,7 +759,15 @@ operator equals 的成员签名、operator 标记、已绑定调用及必要的�
 
 接口方法与实际 metadata 内容的变化按既有 semantic／ABI fingerprints、section profiles 和缓存兼容规则演进。实现迁移时同步更新受影响的格式与 core 产物；M41 删除 core Equality/equalTo，改为普通 Equals/operator equals，旧依赖须按既有失效规则重建。不为库接口迁移增加 runtime 比较 ABI。
 
-`single-cone-production/9` 只保存 field 11 的物理 ODR member 目录。field 1～10、12～14 不再写入；distribution、output、image owner、typed registration projection、OptimizationMode 副本、重复的 RuntimeImage／Code fingerprint、native contract／library／C++ 和 C bridge production 投影不再作为后续复核材料持久化。RuntimeImage 与 Code fingerprint 使用顶层 manifest 已保存的值，native requirements 使用 LIR foundation，入口使用实际语义与 production 数据。ODR directory 的 member 保存实际 role 与 OdrAbiFingerprint，field 4 保留不用；纯语义 member 不产生空物理条目。删除 production section 的 C bridge 与全量投影重建比较 API；对象生产阶段的实际 Code 输入与指纹公式保留。
+`single-cone-production/10` 只保存 field 11 的 ODR member 目录。field 1～10、12～14 不再写入；distribution、output、image owner、typed registration projection、OptimizationMode 副本、重复的 RuntimeImage／Code fingerprint、native contract／library／C++ 和 C bridge production 投影不再作为后续复核材料持久化。RuntimeImage 与 Code fingerprint 使用顶层 manifest 已保存的值，native requirements 使用 LIR foundation，入口使用实际语义与 production 数据。ODR directory 的 member 保存实际 role 与 OdrAbiFingerprint，field 4 保留不用；纯语义 member 不产生空物理条目。删除 production section 的 C bridge 与全量投影重建比较 API；对象生产阶段的实际 Code 输入与指纹公式保留。
+
+ODR 目录中的条目同时表达定义和对已有定义的需求：有本产物 primary defined owner 的条目提供物理候选，没有本地 primary 的条目必须由实际依赖闭包中的候选满足。Compile 与 Link 按依赖先序合并完整 key、role 和 shared ABI；每个需求都必须有真实物理定义，不能由无依赖关系的兄弟产物补足。RegistrationRecord 只登记实际本地定义，不为省去的副本保存独立导入要求；GC／EH 与注册记录随最终选中的完整对象消费，不要求不同优化模式产生相同的私有 safepoint 集合。输出的合并目录总是包含至少一个完整候选，不保存空候选或递归转发条目。
+
+ODR 实现的可用性属于实际编译依赖。生产端将目录中除 RegistrationRecord 以外的 group、member、role 和 shared ABI 与原 LIR 语义摘要共同计算 LIR 指纹，不增加目录副本。新增或移除实现时，消费方沿既有依赖更新规则重新编译；只改变机器字节、调试信息或私有 GC／EH 记录而保持这些实现及 ABI 时，不因此重编译消费方。该投影同时包含由依赖满足的实现需求，使实际定义可沿既有依赖边传递；不读取命中产物、不在缓存判断时扫描对象，也不新增另一套更新机制。
+
+归档组装可省去依赖已有的完整 ODR 对象。选择使用现有目录的 member 集合、role、shared ABI、存储长度与摘要；只复用存储内容相同的完整对象，不读取依赖机器对象或重新计算其摘要。函数正文与私有 GC／EH／注册记录、共享 dispatch 数组及别名必须作为整个物理对象处理。含 Strong、generated-C 或 Cone image 定义的对象，以及当前导出中明确绑定本 provider 的物理定义继续保留。省去副本时，同步移除实际成员目录、defined owners 和来自该成员的 symbol uses；保留其他成员对这些 ODR 符号的使用及其 typed ABI 需求。foundation 中用于这些需求和导出语义的身份不变，不能把省去的对象伪装成本地物理定义。最终链接照常从实际候选构建所选对象与 runtime 注册表。
+
+这项存储去重不改变已生成的机器内容、Code／RuntimeImage 指纹公式或 debug／release 互通；实际归档及 metadata 目录变化进入对应指纹。`cross-cone-generic` profile 升至 9，旧 profile 按现有版本规则重建，容器、压缩算法与 runtime ABI 不变。
 
 `link-identity-closure/16` 只保存三个字段：field 1 为物理成员目录（Scoop member 保留 typed definition 分配，generated-C member 只保存 member id，不复制已无消费者的 unit 列表），field 4 为 defined symbol owners，field 5 为 undefined symbol uses。不再写入只服务消费者重放的 definition atom ranges、patch sites、对象目录副本及 image／entry owner 投影（原 field 2、3、6、7、8）。实际机器对象的生成、重定位和内容摘要仍使用生产端数据，不为生成此 section 再构造上述索引或对象投影。两个 section 的旧格式按版本规则重建；runtime ABI 不变。
 
