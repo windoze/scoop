@@ -1,108 +1,65 @@
 # GUI 基础层实施记录
 
-日期：2026-10-31。分支：`codex/gui-macos`。范围为共享架构和 macOS 两个目标；其他平台 renderer 留待后续。合同见 [设计](DESIGN.md)与 [规范](../specs/SCOOP-GUI-SPEC.md)。
+日期：2026-10-31。分支：`codex/gui-macos`。第一期共享架构与 macOS 部分已交付；其他平台 renderer 留待后续。公共合同见 [GUI 规范](../specs/SCOOP-GUI-SPEC.md)，架构与调研依据见 [设计](DESIGN.md)。
 
-## 当前状态
+## 交付范围
 
-| 内容 | 状态 |
+| 内容 | 已交付能力 |
 | --- | --- |
-| window 鼠标序列取消、单调输入时间 | 已实现并验证 Darwin 两目标 |
-| 固定 Skia／HarfBuzz／ICU 依赖与绘图 Cone | 已实现；CPU 与 Metal texture 验证通过 |
-| GUI 宿主、共享帧调度、macOS Metal 呈现 | 两目标宿主、主循环组合与异常收尾测试通过 |
-| 字体、段落布局及索引／几何查询 | 已实现；Darwin 两目标离屏验证通过 |
-| 动画与窗口帧时钟 | 已实现；Darwin 两目标确定性测试通过 |
-| 输入区域、焦点和 IME 路由 | Darwin 两目标离屏与原生会话测试通过 |
-| 组合示例 | 已实现；两目标构建与编辑模型测试通过 |
-| 实际桌面集成验收 | 两目标原生组合测试通过，继续示例交互验收 |
+| `scoop.window` 前置 | 鼠标序列取消、有来源标记的单调输入时间 |
+| `scoop.graphics` | 几何、Canvas、Paint／渐变、Path／PathMeasure、图像、离屏 surface 与 Metal target |
+| 文本 | FontCollection、Paragraph、TextLayout；SkParagraph + HarfBuzz + SkUnicode／ICU；字体 fallback、段落重排、caret／selection／命中查询 |
+| `scoop.gui` 宿主 | GuiHost／GuiWindow、按需帧调度、共享 renderer 合同、macOS Metal 呈现及有序关闭 |
+| 动画 | 统一帧时间、Animatable、tween／Bézier／spring、改目标、暂停／恢复、重复／反向和取消 |
+| 区域输入 | 稳定 InputArea、真实 Canvas 变换／clip、Rect／Path 命中、冒泡、鼠标序列、hover、焦点与 IME 路由 |
+| 组合示例 | 独立 executable Cone：旋转 Path、悬停颜色、拖动回弹、短文本布局与输入 |
 
-## window 前置能力
+共享层不包含 AppKit／Metal 类型。平台入口通过 RendererHost、WindowRenderer 和 RenderFrame 连接原生 surface、帧通知与呈现；字体发现由目标适配。离屏绘图、文本、动画求值与区域算法不要求另建 Application。macOS 使用现有 window 输入 view 与 NativeWindowLease，安装 CAMetalLayer，通过 common modes 的 CAMetalDisplayLink 和既有 proxy／redraw 接通；同 host 共用 device／queue／Ganesh context。
 
-`InputTime.Event`／`Observed` 明确区分事件时间和接收时间，两者使用既有 `MonotonicTimeSource`。原生事件排队前保存秒／纳秒，键盘补发 release 重新采样，业务回调不重读时间。当前 AppKit 和 Win32 映射使用 Observed。
+Canvas 只在回调内借用；Path、文本布局和已发布几何保留所需原生引用。绘制成功提交后才发布区域场景，鼠标序列固定按下时的路径，拖动使用最新局部几何。逻辑焦点与 OS 活动焦点分开；IME 切换以旧 Disabled 为边界，已排队编辑保留原归属。关闭先停止新工作，退出业务回调与 Canvas 借用后再释放；普通帧不等待 GPU，显式读回和最终收尾才同步。
 
-`PointerEvent.Cancelled` 结束窗口聚合的按下按钮集合，携带 FocusLost 或 CaptureLost 及独立时间，不伪造位置和正常 Up。AppKit 覆盖窗口／应用失焦及菜单跟踪，重复取消和取消后的迟到 Up 不重复交付；Left 继续正常拖动。为保持现有后端与共享 ABI 一致，Win32 同步字段、WM_CAPTURECHANGED／WM_CANCELMODE 和正常 ReleaseCapture 顺序；本轮没有执行 Windows 验证。
+Skia 固定为 `f326a1e25fc736704063922b9ce76b527b1c5efe`，配套 HarfBuzz／ICU／图像 codec、许可及部署补丁纳入 vendor。维护脚本显式准备两目标的库与头文件，普通应用消费预编译 Cone 和 native 资源。文本对外统一使用 UTF-8 Long 字节索引，native 边界处理 UTF-16 与 grapheme 映射。
 
-Darwin ARM64 和 Rosetta x86_64 的 `scoop.window` 各 4 容器、12 测试通过，包括真实 AppKit 输入方法、通知、IME、跨线程 lease 与关闭。`scoop.window.asyncio` 各 1 容器、1 测试覆盖原生 modal／menu 循环内的 I/O、根取消与 lease 收尾。x86_64 初次执行在 modal 观察断言失败、空闲复跑通过；测试辅助程序随后将短观察期的起点移至真正进入对应原生循环，避免 AppKit 冷启动消耗观察期。
+## 验证环境与结果
 
-本轮解锁后使用当前工具与产物重新验证。后台 `activate` 请求未必使窗口获得实际焦点，原生测试现将帧／焦点准备与功能验证分开：30 秒内等待实际焦点，再用独立的 5 秒期限验证输入和收尾。没有强制激活或伪造焦点；通过访达启动已构建测试程序的普通 `.app` 包装，仍运行原来的 scoop.test 用例。两目标各 12 项窗口测试、1 项 window.asyncio 测试全部通过，原始结构化记录在仓库外。
+执行环境为 Apple M3 Ultra、macOS 27.0.1（26A434）；开发 SDK 27.2，最低部署 27.0.1。ARM64 原生运行，x86_64 通过 Rosetta 运行。以下均为 release 下实际执行成功的 `scoop.test`，没有把仅构建成功计为通过，也没有新增或运行 fixture。
 
-Scoop 格式化、Cone check 及变更的 Objective-C 严格编译检查通过。验证全部使用 `scoop.test` 和普通测试 Cone，没有新增或执行 fixture；原始日志保存在仓库外。
+| 测试范围 | ARM64 | Rosetta x86_64 | 关键覆盖 |
+| --- | ---: | ---: | --- |
+| graphics | 19／19 | 19／19 | Skia 像素读回、Path、clip、alpha、图像、真实 Metal texture；9 项文本测试覆盖固定字体、CJK／bidi／emoji、换行、ellipsis、索引与资源生命周期 |
+| AnimationTest | 7／7 | 7／7 | 同帧时间、跳帧、三种阻尼、速度连续性、暂停／反向／重复、完成回调边界与关闭 |
+| InputAreaTest／InputFocusTest | 13／13 | 13／13 | 真实 Skia 几何、变换／clip、路径孔洞、冒泡、拖动、静止 hover、焦点／IME、caret、线程及异常 |
+| GuiHostTest | 1／1 | 1／1 | 真实窗口帧、合并、空闲停帧、隐藏恢复、resize、多窗口、原 layer 恢复、重新 attach、绘制回调内关闭 |
+| GUI asyncio Cone | 1／1 | 1／1 | 原生 modal／menu common modes 内帧与 I/O、根任务取消和 lease 收尾 |
+| GUI errors Cone | 1／1 | 1／1 | painter 抛错后的多 surface／lease 清理 |
+| GUI native input Cone | 1／1 | 1／1 | 两帧动画、真实输入 view、区域鼠标、preedit／commit 排队、IME 切换、候选窗坐标与回调内关闭 |
+| 示例编辑模型 | 2／2 | 2／2 | IME 批次、selection／marked range、按 grapheme 移动和删除 |
+| window | 12／12 | 12／12 | 原生输入方法、通知、IME、跨线程 lease、关闭 |
+| window.asyncio | 1／1 | 1／1 | 原生循环中的 I/O、根取消及收尾 |
+| 穷尽性回归 Cone | 1／1 | 1／1 | 忽略嵌套 product 字段后的完整匹配、分支关联与真实编译运行 |
 
-协议调用与通知测试不等同于实际用户拖动、外部窗口抢焦点、输入法候选交互或混合 DPI 硬件验证；这些交互通过组合示例继续验收。
+Scoop fmt／check、变更的 C++／Objective-C 严格编译检查通过；编译器前置修复通过完整工作区 Clippy、2,097 项 HIR 测试和 56 项工具链单测。固定依赖实际从归档准备；发行维护的定向测试通过。合并远端 main 的发行修复后，3 个相关脚本测试模块共执行 7 项，5 项通过、2 项按平台跳过。
 
-## 绘图 Cone 与 native 资源
+原生显示测试串行执行。macOS 可以拒绝后台 activate 请求；window 和 GUI 输入测试把准备期与功能验证分开，30 秒内等待真实窗口焦点，再用独立的 5 秒期限验证输入和收尾。桌面入口使用普通 `.app` 包装已构建的原 scoop.test 二进制，从访达启动后记录其原有结构化结果，没有强制激活或伪造焦点。命令、启动条件见 [GUI README](../../sysroot/src/scoop.gui/README.md)。
 
-`scoop.graphics` 已提供 Point／Size／Rect／Transform／Color、Canvas、Paint、线性／径向渐变、不可变 Path 与 builder、PathMeasure、Image、RasterSurface。Canvas 的变换与 clip 由同一个 Skia 状态生成绘图和命中快照；快照保留独立 Path 引用，DPI 根缩放不进入逻辑几何。draw 回调结束或抛错时结束 Canvas 借用，恢复完整状态；跨线程、嵌套借用和借用中 close 均明确拒绝。
+## 桌面交互
 
-公开 `scoop.graphics.native` 提供 RenderTarget 和 CanvasGeometry，macOS 的 MetalContext 接收不透明 device／queue／texture，通过普通 C ABI 接入 Ganesh。目标独立保留 context，普通 submit 不等待 GPU；readPixels 和 drain 显式同步。窗口安装、CAMetalDisplayLink 与 present 仍属于后续 GUI 宿主批次。
+ARM64 与 Rosetta 示例都已运行，观察到正确的 Skia 路径、旋转、阴影、中英文字与彩色 emoji。使用系统“简体拼音”逐键输入，显示带下划线的组合态，空格确认后得到“你好”；用户另确认系统候选窗位于文字光标附近。ARM64 示例还验证左右移动、退格删除完整 emoji，以及恢复焦点后继续进入中文组合态。
 
-固定 Skia revision `f326a1e25fc736704063922b9ce76b527b1c5efe` 及 DEPS 对应 HarfBuzz／ICU／libpng／libjpeg-turbo 源码、许可和 macOS 部署补丁已纳入 vendor。`build_skia.py` 显式构建两目标的 `libscoop_skia.a` 与头文件；依赖源自固定归档，命中先检查更新，普通应用不联网或运行 GN。系统 zlib 来自 Xcode SDK。发行准备与组装已接入这些资源。
+系统窗口放大使文字从两行重排为一行，还原后重新换行，caret 随同一布局更新。激活另一示例后，旧窗口保留正文和逻辑焦点，隐藏 caret；返回时恢复活动边框和 caret。Rosetta 示例关闭后进程退出，另一个示例继续工作。
 
-macOS ARM64 和 Rosetta x86_64 的 graphics Cone 各 3 容器、10 测试通过：真实像素读回验证组透明度、描边端点、渐变、裁剪、PNG／JPEG 解码和图像快照；路径长度／曲线／多 contour 与资源生命周期使用同一 Skia 实现；独立 test-native Cone 创建真实 Metal texture，验证 Ganesh 提交、上下文复用、读回与一次 DPI 根转换。测试不需要 Application，尚不等于窗口呈现验收。
+桌面工具执行了星形命中、hover、拖动与释放。为区分拖动未发生和截图时回弹已结束，另在仓库外构造普通测试 Cone，复用原示例和生产库，仅在窗口标题记录实际区域事件。一次普通拖动收到按下、移动、释放；另一次拖至标题栏，在窗口内容坐标 `(650, -17)` 仍收到移动和释放，取消计数保持 0，随后星形回到原位。该记录来自桌面工具驱动的原生应用交互，不声称替代人工鼠标长时间操作。
 
-Scoop fmt／check、C++ 与 Objective-C 严格检查，以及 5 项既有发行维护脚本测试通过。两目标依赖实际从归档准备，后续相同输入直接复用；开发 SDK 为 macOS 27.2，最低部署仍为发行配置的 27.0.1。原始构建与测试日志留在仓库外。
+## 发现的问题与修复
 
-## GUI 宿主与呈现接入
+- **输入缺口**：window 新增 `InputTime.Event`／`Observed` 及 `PointerEvent.Cancelled`。在原生接收处保存单调时间；失焦或原生捕获取消结束聚合按钮序列，迟到 Up 不再重复交付。正常离开内容区继续拖动。现有 Win32 后端同步共享字段和捕获事件，未增加新的 Windows renderer。
+- **穷尽性分析耗时**：嵌套输入枚举匹配触发了对全部 wildcard product 字段的指数级展开。HIR 先检查共享 wildcard 列后的尾部矩阵，仅在确有缺失时构造合法 witness，保留行关联与诊断顺序；没有给 GUI 特判、跳过诊断或增加预算。
+- **原生对象缓存串架构**：工具发现记录漏掉外层目标，同一 Apple Clang 下 ARM64／x86_64 误用同一 native 对象缓存键。现将 canonical triple 纳入既有更新键，真实 C 对象回归验证两个架构及各自复用；目标 include 重定位同时处理已存在目录的逻辑路径与物理路径差异。
+- **display link 首帧异常**：CAMetalDisplayLink drawable 拒绝 `presentAtTime`。后端改为同一有序队列上的普通 `presentDrawable`，由 display link 控制节奏，移除预测时间缓存；两目标真实宿主测试随后通过。
+- **测试对 AppKit 的假设**：输入 view 是 contentView 内的子 view；恢复原 nil layer 时，AppKit 可能自动建立 backing layer。探针现验证实际原层级、wantsLayer 和 GUI layer 移除，自定义原 layer 仍严格核对对象身份。焦点准备及原生 modal 观察起点也改为实际进入对应状态之后，不改生产激活或调度行为迁就测试。
 
-共享 GuiHost／GuiWindow 已接入 ApplicationHandler、按需帧调度、配置变化及 Closing／Exiting。平台边界为 RendererHost、WindowRenderer 和 RenderFrame；共享代码不包含 AppKit／Metal 类型。回调中关闭先停用需求，退出借用后中止帧并释放；绘制中 resize 会在提交前重新配置，退休旧目标。
+## 本期边界
 
-macOS 安装 CAMetalLayer 到既有输入 view，保存并在卸载时恢复原 layer；同 host 的窗口共用 device／queue／Ganesh context。CAMetalDisplayLink 在 common modes 提供 drawable，经 ApplicationProxy 请求共享层绘制；普通帧只提交有序 GPU 工作，关闭时排空后退休回调和 lease。全部窗口卸载后释放 context，host 可再附着窗口。
+本机只连接一块 2×、60 Hz 显示器，跨屏混合 DPI 尚无真实硬件验证；坐标与 scale 转换已有离屏／原生测试。x86_64 的结果来自 Rosetta，不等同于 Intel Mac 硬件验证。本轮没有执行 Windows／Linux GUI 验证，其他平台 renderer 仍留待独立实现。
 
-已添加宿主、asyncio 和异常收尾三个普通 scoop.test Cone；区域批次另加入原生输入会话 Cone。Scoop 语义检查及 Darwin 两目标的 Objective-C 严格检查通过，两目标生产 `.slib` 构建成功。解锁后真实帧暴露了 CAMetalDisplayLink drawable 拒绝定时 present 的问题；后端改用有序队列上的普通 presentDrawable，由 display link 控制呈现节奏，移除无用预测时间缓存。
-
-宿主原生探针现在保存原有视图层级，不假定输入 view 等于 contentView；卸载同时验证无原层与有自定义原层。AppKit 可在恢复 wantsLayer=false 后自动创建 backing layer，该情况检查 GUI 的 CAMetalLayer 已移除；自定义原层仍严格检查身份。ARM64 与 Rosetta x86_64 的 GuiHostTest 各 1 项通过，覆盖帧合并、空闲停帧、隐藏恢复、尺寸变化、多窗口、卸载重挂及绘制回调中关闭。两目标的 GUI asyncio 与异常收尾 Cone 各 1 项通过，确认 modal／menu common modes 内继续绘制，根任务取消与 painter 抛错均释放全部 surface 和 lease。
-
-## 文本布局
-
-graphics 已接入 FontCollection、TextStyle、Paragraph 与 TextLayout。共享 C++ 使用 SkParagraph／HarfBuzz／ICU；Darwin 文件只创建 CoreText font manager。显式字体数据、family 别名、fallback 开关、富文本 run、字距／词距、行高、方向／对齐、maxLines／ellipsis 及 OpenType feature／variation 均通过同一段落实现。Paragraph 保存字体集合快照，独立 layout 保留其完整来源，来源关闭不使结果失效。
-
-文本快照构建 UTF-8／UTF-16 映射与 ICU grapheme 边界。行指标的 UTF-16 和 SkParagraph 可见范围的 UTF-8 在桥接处分别转换，对外统一为 Long 字节偏移。hitTest、caret、selection 和 Canvas.drawText 使用同一 native layout；软换行 affinity、bidi 多矩形及截断位置有明确结果。
-
-Darwin ARM64 与 Rosetta x86_64 的 graphics Cone 各 4 容器、19 测试全部通过，其中 9 项文本测试覆盖固定字体测量、登记快照、独立重排、CJK／variable font、组合字符／emoji／CRLF、系统 fallback／混合 bidi、affinity、ellipsis、富文本像素、空文字／零宽及生命周期。测试字体从固定 Skia 资源提取，并保留相应 Apache／OFL 许可。
-
-Scoop fmt／check、C++ 严格检查与 5 项发行维护脚本测试通过。依赖发布补齐了 SkUnicode 公共头实际引用的 `src/core/SkUTF.h`，两目标均由维护脚本重新准备。上述离屏与 Metal texture 验证不依赖桌面解锁，也不替代待完成的窗口呈现验收。
-
-## 动画
-
-AnimationTimeline 统一采样、调度和所有权，GuiWindow 将它接入同一帧 TimeMark、按需帧请求和关闭路径。Animatable 支持 Double／Point／Size／Color 和自定义向量转换，提供 tween／cubic Bézier、三种阻尼区间的解析 spring、改目标、暂停／恢复、取消、反向及重复。spring 以位移与速度包络决定结束时间，跳帧直接计算当前状态。
-
-完成回调在全体采样之后交付，回调内操作共享当前帧时间；新动画进入后续帧。取消、重新定向或关闭后旧完成回调不会再次调用业务处理器。窗口隐藏时停用有效帧请求，时间默认继续推进，显式 pause 才冻结。
-
-Scoop fmt／check 通过；ARM64 与 Rosetta x86_64 的 AnimationTest 各 7 项通过，覆盖同帧时间、跳帧、暂停、反向、无限重复、大步推进、spring 三种阻尼与速度连续性、约束值、零时长、安全回调边界、时间源／线程及关闭。窗口呈现仍待桌面解锁后集成验证。
-
-## 区域输入发现的编译器前置修复
-
-对嵌套输入事件进行完整模式匹配时，原 HIR 穷尽性算法会展开全部分支都忽略的 PointerState 字段，再检查后面的按钮状态。多个修饰键 Boolean 使这一过程产生指数级组合。采样确认耗时集中在 missing_witness 的 constructor 展开。
-
-算法现先检查全部行共享 wildcard 列之后的尾部矩阵，保留每一行的关联；仅在尾部确有缺失时，按原顺序补一个合法头部 witness。没有增加预算、跳过诊断或修改 GUI 的匹配写法。
-
-完整工作区 Clippy 和 2,097 项 HIR 测试通过，新增测试覆盖 32 个独立 Boolean、尾部关联、缺失示例顺序和空类型 product。普通 `tests/cones/pattern-columns` 的 Scoop 源码已在 ARM64 和 Rosetta x86_64 编译、链接和运行通过。没有使用 fixture。
-
-## 双目标原生构建前置修复
-
-更新配套工具后重建系统库时，x86_64 的 Scoop 测试链接发现 `.slib` 内误用了 ARM64 的 C 对象。原生对象缓存只保存 driver／SDK／部署信息，漏掉外层请求的目标；同一 Apple Clang 下两个架构因此得到相同更新键。
-
-所有使用这份记录的 native 对象、C/C++ 工具发现、资源及最终链接配置现在把 canonical triple 一起纳入缓存键。沿用普通输入更新和对象消费检查，不增加产物验证层或 GUI 特殊处理。既有目标 include 重定位测试还暴露了 macOS 目录别名与物理路径不一致的问题；预处理现在用解析后的已存在目标根做逻辑位置映射，仍允许未使用的目标资源目录不存在。
-
-完整工作区 Clippy 和工具链全部 56 项单测通过。新增回归在同一缓存依次构建 ARM64／x86_64 的真实 C 对象，核对架构并验证各自复用；C++ 缓存发现与对应目标的实际发现结果一致。重新准备 x86_64 系统库后，Scoop 回归程序链接和运行通过；同一共享缓存下两目标的 graphics 各 19 项、区域输入各 13 项再次通过。ARM64 的既有产物格式与 ABI 未变，GUI 本体及受影响的消费者按实际输入更新。
-
-## 输入区域与焦点
-
-InputArea 提供窗口持有的稳定身份；FrameContext.place 从真实 Canvas 捕获 Rect／Path、变换、clip 和父关系，成功提交后整体替换命中场景。逆放置顺序选择唯一目标，普通事件沿固定路径冒泡；变换不可逆、区域注销或必要祖先禁用会退出交互。已捕获的 Path 几何不依赖调用方包装继续存活。
-
-首次按钮按下固定整次多按钮序列，包括未命中的空路径；区域变化取消后，剩余按钮不会改投新目标。拖动使用最新几何转换，离开内容区只改变 hover。发布新几何会更新静止鼠标的 hover。终结通知在派发安全边界交付，处理器内关闭或抛错仍释放所有场景和原生快照。
-
-逻辑焦点在 OS 失焦时保留，活动焦点暂停；键盘与文字保持独立通道。IME 切换以旧 Disabled 为边界，排队 Edit 保留旧归属。caret 只保存局部矩形值，随新 placement 转换为系统候选窗坐标；相同 caret 或重复请求当前焦点不持续触发重绘。
-
-Scoop fmt／check 与 Objective-C 两目标严格检查通过。ARM64、Rosetta x86_64 的 InputAreaTest／InputFocusTest 各 13 项通过，覆盖真实 Skia 路径孔洞、变换／clip、父关系、冒泡、提交／中止、拖动、静止 hover、滚轮单位、焦点／IME 切换、caret、线程和异常关闭。测试调用生产路由与实际 RasterSurface，没有替代 renderer。
-
-独立 `tests-cones/input` 使用真实输入 view 的 AppKit 鼠标与 NSTextInputClient 协议，组合两帧动画、区域焦点、preedit／commit 排队、候选窗位置及回调内关闭。两目标均在取得真实系统焦点后执行通过；后台启动被拒绝激活时，通过访达打开相同的测试应用，结构化结果确认正文与清理均成功。它不注入全局输入，也不替代实际用户操作。与 window 测试一样，焦点准备有独立期限，超时报告当前阶段、帧数和输入计数。
-
-## 组合示例与当前验收边界
-
-`scoop.gui/examples/basics` 是独立 executable Cone，直接组合 Path、Canvas、TextLayout、Animatable 和 InputArea。星形边旋转边响应精确形状命中，hover 改颜色，拖动使用窗口坐标，松开后以 spring 返回。文本区应用 IME 批次，显示 selection／marked range 与 caret；退格和左右移动按 grapheme 处理，文字或宽度变化才重排，候选窗使用同一布局几何。
-
-示例与所属两项 scoop.test 在 ARM64／Rosetta x86_64 均编译、链接成功，编辑模型测试全部通过；两个目标的演示可执行文件已生成。它只实现短文本演示所需编辑行为，没有引入组件、滚动或完整编辑器抽象。
-
-本阶段已通过的共同范围为：每目标 graphics 19 项、动画 7 项、区域输入 13 项、示例编辑模型 2 项，另有穷尽性编译器回归 Cone 1 项；每目标另有 GUI 宿主、asyncio、异常及原生输入会话各 1 项实际执行通过。window 12 项和 window.asyncio 1 项也完成本轮两目标复验。
-
-当前 Mac 会话已解锁，两目标原生组合测试已通过。仍需运行示例验证实际拖动、输入法候选及外部窗口焦点切换。当前硬件只连接一块 2× 显示器，跨屏混合 DPI 暂无真实硬件条件。本阶段保持“实施中”，不把离屏、协议测试或构建成功计作桌面交互通过。本轮 GUI 测试日志、临时缓存与演示可执行文件保存在仓库外。
+示例只承担短文本编辑与基础能力组合；组件、容器布局、滚动、剪贴板、撤销、完整编辑器与完整 OS 文档镜像均属于后续范围。原始日志、逐次结构化结果、临时测试程序、缓存和演示可执行文件保存在仓库外，本文件只保留验证范围、结果与必要限制。

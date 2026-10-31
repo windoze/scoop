@@ -1,6 +1,6 @@
 # GUI 基础架构与 macOS 设计
 
-日期：2026-10-31。状态：实施中。公共合同见 [GUI 基础库规范](../specs/SCOOP-GUI-SPEC.md)；window 的输入与生命周期合同见 [窗口库规范](../specs/SCOOP-WINDOW-SPEC.md)。实际交付和验证范围见 [实施记录](PROGRESS.md)，下文同时包含尚待交付的目标接口。
+日期：2026-10-31。状态：第一期共享架构与 macOS 后端已实现。公共合同见 [GUI 基础库规范](../specs/SCOOP-GUI-SPEC.md)；window 的输入与生命周期合同见 [窗口库规范](../specs/SCOOP-WINDOW-SPEC.md)。实际交付、验证环境和未测边界见 [实施记录](PROGRESS.md)。
 
 ## 1. 本期决定
 
@@ -318,13 +318,13 @@ native 只保存复制的数据、原生引用或已有 ForeignCallback 的有�
 | 4. 动画与输入区域 | Animatable、Area placement、命中／传播／focus；window Cancel 与 InputTime | 变帧率和跳帧、改目标连续性；变换／clip／重叠／移动 hover；拖出窗口释放、失焦取消、区域移除和 IME caret |
 | 5. 基础使用示例 | 一份自绘演示：路径、动画、段落、可拖动区域、文本输入接收 | 证明这些能力无需 component 即可组合；明确示例只实现所需编辑行为 |
 
-这些是建议的交付批次，不是假定已存在的里程碑状态。可以让不同平台后端在共享合同稳定后分别推进，但不把其他平台 GPU 实现混入本轮 macOS 验收。
+上述能力已分批交付。后续平台可以沿同一共享合同分别推进，其 GPU 实现不属于本轮 macOS 验收范围。
 
 graphics／gui 的纯值和路由行为归所属 Cone 的 scoop.test；窗口与 GPU 行为使用真实 AppKit／Metal 的 Cone 测试及示例；需要独立进程的启动／退出和链接验证使用独立测试 Cone。本次实施不使用 fixture。共享动画求值直接传入采样时间测试，不因测试需求增加假的平台 renderer 或生产用时钟工厂。
 
-实际桌面验收包括跨屏混合 DPI、实时 resize／系统模态循环、外部窗口抢焦点、拖到内容区外释放、候选窗位置、多窗口关闭与 GPU 使用结束。自动合成事件不能冒充这些结果。两种 Darwin 目标分别编译／运行，x86_64 使用 Rosetta 时明确记录限制。
+桌面验证覆盖窗口缩放、系统模态循环、外部窗口焦点变化、拖到内容区外释放、文本输入与候选窗位置、多窗口关闭与 GPU 使用结束。协议调用、自动桌面操作和人工观察分别记录，不互相冒充。两种 Darwin 目标分别编译／运行，x86_64 使用 Rosetta。跨屏混合 DPI 需要不同缩放的多块显示器；本机只有一块 2× 显示器，该硬件场景保留为未测项。
 
-实现前先做小范围真实接入验证：CAMetalDisplayLink → 现有 proxy／redraw 的时序、Ganesh flush 与 present 的顺序、普通 run 与 asyncio 下的异常关闭。若这三处要求调整，先更新对应接口合同，不用临时的固定帧 timer 或每帧 GPU 等待掩盖问题。当前文档没有宣称这些集成验证已经通过。
+两目标的真实接入已验证 CAMetalDisplayLink → 现有 proxy／redraw 的时序、Ganesh flush 与 present 的队列顺序，以及普通 run、asyncio 和 painter 异常下的关闭。CAMetalDisplayLink 提供的 drawable 使用普通 presentDrawable，由 display link 控制节奏；不使用显式呈现时间、固定帧 timer 或普通帧的 GPU 等待。
 
 ## 12. 调研来源
 

@@ -1,6 +1,6 @@
 # Scoop 桌面窗口库规范
 
-状态：基础架构与 macOS／Windows GUI 骨架已实现。实现基线日期：2026-10-30；第 11 节于 2026-10-31 增加，为尚未实施的 GUI 输入扩展设计。本文件描述普通 Cone `scoop.window` 与 `scoop.window.asyncio` 的当前合同及后续平台设计方向；实际交付与验证范围见[窗口库实施记录](../windowing/PROGRESS.md)与[目标扩展实施记录](../target-refactor/PROGRESS.md)。依据 [设计](../windowing/DESIGN.md)与 [winit 能力映射](../windowing/WINIT-MAPPING.md)。
+状态：基础架构与 macOS／Windows GUI 骨架已实现。实现基线日期：2026-10-30；第 11 节的 GUI 输入扩展于 2026-10-31 实现，Darwin 两目标验证通过，Win32 同步共享合同但本轮未执行 Windows 验证。本文件描述普通 Cone `scoop.window` 与 `scoop.window.asyncio` 的当前合同及后续平台设计方向；实际交付与验证范围见[窗口库实施记录](../windowing/PROGRESS.md)、[目标扩展实施记录](../target-refactor/PROGRESS.md)和 [GUI 实施记录](../gui/PROGRESS.md)。依据 [设计](../windowing/DESIGN.md)与 [winit 能力映射](../windowing/WINIT-MAPPING.md)。
 
 ## 1. 分层与目标
 
