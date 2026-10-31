@@ -2,8 +2,10 @@ use scoop_wire::encode;
 
 use super::*;
 use crate::{
-    hir_identity_foundation_capability, lir_identity_foundation_capability,
-    lir_strong_production_capability, manifest_single_cone_production_capability,
+    hir_core_bootstrap_interface_capability, hir_identity_foundation_capability,
+    lir_identity_foundation_capability, lir_strong_production_capability,
+    manifest_single_cone_production_capability, mir_core_bootstrap_bridge_capability,
+    mir_identity_foundation_capability,
 };
 
 fn capability(name: &str) -> CapabilityId {
@@ -13,8 +15,8 @@ fn capability(name: &str) -> CapabilityId {
 #[test]
 fn empty_outer_envelopes_have_distinct_fixed_magic() {
     for (location, expected) in [
-        (MetadataLocation::Hir, "a3014853434f4f5048495202030380"),
-        (MetadataLocation::Mir, "a3014853434f4f504d495202030380"),
+        (MetadataLocation::Hir, "a4014853434f4f50484952020403800440"),
+        (MetadataLocation::Mir, "a4014853434f4f504d4952020403800440"),
         (MetadataLocation::Lir, "a4014853434f4f504c4952020403800440"),
     ] {
         let envelope = MetadataEnvelope::new(location, Vec::new()).unwrap();
@@ -24,7 +26,7 @@ fn empty_outer_envelopes_have_distinct_fixed_magic() {
 
 #[test]
 fn foundation_section_round_trips_without_copying_payload() {
-    let payload = vec![0x55; 65];
+    let payload = vec![0x18, 42];
     let envelope = MetadataEnvelope::new(
         MetadataLocation::Hir,
         vec![
@@ -80,6 +82,10 @@ fn decoder_rejects_wrong_magic_schema_and_wire_order() {
     assert_eq!(
         unvalidated.validate(MetadataLocation::Hir),
         Err(MetadataReadError::UnsupportedSchema { actual: 1 })
+    );
+    assert_eq!(
+        MetadataReadError::UnsupportedSchema { actual: 1 }.to_string(),
+        "metadata outer schema must be 4, found 1"
     );
 
     let mut unvalidated =
@@ -163,42 +169,61 @@ fn hex(bytes: &[u8]) -> String {
 }
 
 #[test]
-fn lir_storage_shares_ids_across_sections_and_preserves_opaque_extensions() {
+fn storage_shares_ids_across_sections_and_preserves_opaque_extensions() {
     let digest = scoop_wire::sha256(b"one persistent identity");
     let payload = encode(&digest).unwrap();
-    let sections = vec![
-        MetadataSection::new(
+    for (location, capabilities) in [
+        (
+            MetadataLocation::Hir,
+            [
+                hir_identity_foundation_capability(),
+                hir_core_bootstrap_interface_capability(),
+            ],
+        ),
+        (
+            MetadataLocation::Mir,
+            [
+                mir_identity_foundation_capability(),
+                mir_core_bootstrap_bridge_capability(),
+            ],
+        ),
+        (
             MetadataLocation::Lir,
-            lir_identity_foundation_capability(),
-            MemberPurposeSet::COMPILE_AND_LINK,
-            payload.clone(),
-        )
-        .unwrap(),
-        MetadataSection::new(
-            MetadataLocation::Lir,
-            lir_strong_production_capability(),
-            MemberPurposeSet::COMPILE_AND_LINK,
-            payload.clone(),
-        )
-        .unwrap(),
-        MetadataSection::new(
-            MetadataLocation::Lir,
-            capability("opaque"),
-            MemberPurposeSet::NONE,
-            b"not CBOR".to_vec(),
-        )
-        .unwrap(),
-    ];
-    let encoded = encode(&MetadataEnvelope::new(MetadataLocation::Lir, sections).unwrap()).unwrap();
-    let raw = decode_canonical_borrowed::<UnvalidatedMetadataEnvelope<'_>>(&encoded).unwrap();
-    assert_eq!(raw.id_table, digest.as_array());
-    let decoded = raw.validate(MetadataLocation::Lir).unwrap();
-    for section in decoded.sections() {
-        if section.capability().namespace() == "org.scoop-lang.test" {
-            assert_eq!(section.payload(), b"not CBOR");
-        } else {
-            assert_eq!(section.payload(), &[0]);
-            assert_eq!(section.decode::<scoop_wire::Digest256>().unwrap(), digest);
+            [
+                lir_identity_foundation_capability(),
+                lir_strong_production_capability(),
+            ],
+        ),
+    ] {
+        let mut sections = capabilities
+            .into_iter()
+            .map(|capability| {
+                let purpose = CapabilityContractRegistry::contract(&capability)
+                    .unwrap()
+                    .required_for();
+                MetadataSection::new(location, capability, purpose, payload.clone()).unwrap()
+            })
+            .collect::<Vec<_>>();
+        sections.push(
+            MetadataSection::new(
+                location,
+                capability("opaque"),
+                MemberPurposeSet::NONE,
+                b"not CBOR".to_vec(),
+            )
+            .unwrap(),
+        );
+        let encoded = encode(&MetadataEnvelope::new(location, sections).unwrap()).unwrap();
+        let raw = decode_canonical_borrowed::<UnvalidatedMetadataEnvelope<'_>>(&encoded).unwrap();
+        assert_eq!(raw.id_table, digest.as_array());
+        let decoded = raw.validate(location).unwrap();
+        for section in decoded.sections() {
+            if section.capability().namespace() == "org.scoop-lang.test" {
+                assert_eq!(section.payload(), b"not CBOR");
+            } else {
+                assert_eq!(section.payload(), &[0]);
+                assert_eq!(section.decode::<scoop_wire::Digest256>().unwrap(), digest);
+            }
         }
     }
     // Storage interning must not enter semantic identity hashing.
@@ -206,37 +231,43 @@ fn lir_storage_shares_ids_across_sections_and_preserves_opaque_extensions() {
 }
 
 #[test]
-fn lir_storage_rejects_invalid_tables_and_out_of_range_references() {
+fn storage_rejects_invalid_tables_and_out_of_range_references() {
     let digest = scoop_wire::sha256(b"identity");
-    let section = MetadataSection::new(
-        MetadataLocation::Lir,
-        lir_identity_foundation_capability(),
-        MemberPurposeSet::COMPILE_AND_LINK,
-        encode(&digest).unwrap(),
-    )
-    .unwrap();
-    let encoded =
-        encode(&MetadataEnvelope::new(MetadataLocation::Lir, vec![section]).unwrap()).unwrap();
-    for table in [&[0u8; 31][..], &[0u8; 64][..]] {
+    for (location, capability) in [
+        (MetadataLocation::Hir, hir_identity_foundation_capability()),
+        (MetadataLocation::Mir, mir_identity_foundation_capability()),
+        (MetadataLocation::Lir, lir_identity_foundation_capability()),
+    ] {
+        let section = MetadataSection::new(
+            location,
+            capability,
+            MemberPurposeSet::COMPILE_AND_LINK,
+            encode(&digest).unwrap(),
+        )
+        .unwrap();
+        let encoded = encode(&MetadataEnvelope::new(location, vec![section]).unwrap()).unwrap();
+        for table in [&[0u8; 31][..], &[0u8; 64][..]] {
+            let mut raw =
+                decode_canonical_borrowed::<UnvalidatedMetadataEnvelope<'_>>(&encoded).unwrap();
+            raw.id_table = table;
+            assert_eq!(
+                raw.validate(location),
+                Err(MetadataReadError::InvalidIdTable)
+            );
+        }
         let mut raw =
             decode_canonical_borrowed::<UnvalidatedMetadataEnvelope<'_>>(&encoded).unwrap();
-        raw.id_table = table;
-        assert_eq!(
-            raw.validate(MetadataLocation::Lir),
-            Err(MetadataReadError::InvalidIdTable)
-        );
+        raw.sections[0].payload = &[1];
+        let decoded = raw.validate(location).unwrap();
+        assert!(matches!(
+            decoded.sections()[0]
+                .decode::<scoop_wire::Digest256>()
+                .unwrap_err()
+                .kind(),
+            scoop_wire::WireErrorKind::InvalidIndex {
+                index: 1,
+                length: 1
+            }
+        ));
     }
-    let mut raw = decode_canonical_borrowed::<UnvalidatedMetadataEnvelope<'_>>(&encoded).unwrap();
-    raw.sections[0].payload = &[1];
-    let decoded = raw.validate(MetadataLocation::Lir).unwrap();
-    assert!(matches!(
-        decoded.sections()[0]
-            .decode::<scoop_wire::Digest256>()
-            .unwrap_err()
-            .kind(),
-        scoop_wire::WireErrorKind::InvalidIndex {
-            index: 1,
-            length: 1
-        }
-    ));
 }
