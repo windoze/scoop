@@ -135,20 +135,20 @@ private class HostProbe {
         b.setWindowLevel(WindowLevel.AlwaysOnTop)
         a.requestFocus()
         firstView = Some(observe(a))
-        secondView = Some(observe(b))
+        secondView = Some(observe(b, true))
         guiFirst = Some(host.attach(a) { frame -> paintFirst(frame) })
         guiSecond = Some(host.attach(b) { frame -> paintSecond(frame) })
         assertFailsWith<IllegalStateException> { host.attach(a) { _ -> fail() } }
         waitFor(application, 5000L)
     }
-    private fun observe(window: Window): ViewProbe {
+    private fun observe(window: Window, customLayer: Boolean = false): ViewProbe {
         @Unsafe
         {
             return window.acquireNativeWindow().use {
                 lease -> @Unsafe
                 {
                     return@use when (lease.handle) {
-                        case AppKit(_, view) -> ViewProbe(view)
+                        case AppKit(_, view) -> ViewProbe(view, customLayer)
                     }
                 }
             }

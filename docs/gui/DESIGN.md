@@ -253,21 +253,21 @@ Keyboard／ModifiersChanged 可用于快捷键与编辑命令；文本仅由 Tex
 
 1. owner 上取得 NativeWindowLease，读取 NSWindow／NSView；保存安装前的 layer 与 wantsLayer。
 2. GuiHost 首次需要 GPU 时创建 Metal device、command queue 与 Ganesh context。每个窗口创建独立 CAMetalLayer，设置 device、BGRA8、sRGB、与窗口透明策略一致的 opaque／alpha 行为；允许 Skia 所需的 texture 用途，初期使用 framebufferOnly = false。
-3. 在现有 NSView 安装 layer，不替换 contentView、输入 view 或 NSTextInputClient，不抢 first responder。沿用原有坐标、IME 与窗口属性实现。
+3. 在现有 NSView 安装 layer，不替换 contentView、输入 view 或 NSTextInputClient，不抢 first responder。lease 的 NSView 可以是 contentView 内的输入／呈现宿主，不能假定与 contentView 相同；测试记录安装前的窗口、contentView 和父视图，验证安装后层级不变。沿用原有坐标、IME 与窗口属性实现。
 4. 用 WindowMetrics 的 physicalSize 设置 drawableSize，scaleFactor 设置 contentsScale，layer 几何跟随 view bounds；不能再自行按另一个 scale 计算一套像素尺寸。
 5. 创建 CAMetalDisplayLink，加入主线程 NSRunLoop 的 common modes，初始暂停。现有 AppKit 主循环已经覆盖 tracking／modal modes；原生通知只记录帧机会并投递，不递归绘图。
 
-任何步骤失败均回滚已经取得的资源并关闭 lease。GuiWindow 卸载时只恢复自己安装的 layer 状态；若调用方已经违反独占使用约定替换 layer，清理不能覆盖该新 layer。
+任何步骤失败均回滚已经取得的资源并关闭 lease。GuiWindow 卸载时只恢复自己安装的 layer 状态；若调用方已经违反独占使用约定替换 layer，清理不能覆盖该新 layer。恢复原为空的 layer 与 wantsLayer=false 后，AppKit 可以随父视图的 backing 状态自动创建 NSViewBackingLayer；不能要求 view.layer 永久为空。验收分别覆盖无原层和有自定义原层，前者检查恢复 wantsLayer 并移除 CAMetalLayer，后者还检查原层身份。
 
 ### 9.3 帧通知、取帧和提交
 
-共享层产生帧需求后解除 display link 暂停。delegate 在 owner 收到 Update，保留至多一个待用 drawable 与配套时间，合并后续通知；通过既有 ForeignCallback 进入内部通知，再经 ApplicationProxy 请求窗口 redraw。这里不调用用户 painter，也不依赖固定 16 ms timer。
+共享层产生帧需求后解除 display link 暂停。delegate 在 owner 收到 Update，保留至多一个待用 drawable，合并后续通知；通过既有 ForeignCallback 进入内部通知，再经 ApplicationProxy 请求窗口 redraw。这里不调用用户 painter，也不依赖固定 16 ms timer。
 
 RedrawRequested 到达时消费待用机会。尚无 drawable、目标已过期或尺寸不匹配则返回 Deferred，释放不再使用的引用，保留 dirty。隐藏／遮挡／零尺寸期间暂停有效帧请求并释放待用目标；恢复后的配置／可见性通知重新请求一帧。平台适配负责把可恢复状态通知共享层，不要求动画轮询窗口。
 
 drawable texture 交给 graphics.native，包装为尺寸与格式一致、top-left origin 的 Skia surface。Canvas 根部施加一次逻辑到像素的缩放，之后用户绘制和 Area 使用逻辑坐标；不因 Metal texture 的坐标约定再次翻转 pointer 的 y。
 
-绘图完成后 flush／submit Skia 工作；使用与 Ganesh 同一 Metal queue，在其已提交命令之后提交 present，紧邻实际呈现调用前执行 Window.prePresentNotify。drawable 及 texture 引用保留到相应 GPU 使用结束。预测呈现时间保留给 macOS 的呈现策略，FrameClock 仍按第 6 节定义。
+绘图完成后 flush／submit Skia 工作；使用与 Ganesh 同一 Metal queue，在其已提交命令之后提交普通 presentDrawable，紧邻实际呈现调用前执行 Window.prePresentNotify。CAMetalDisplayLink 自行安排其 drawable 的呈现节奏，不能把 targetPresentationTimestamp 传给 atTime 或 afterMinimumDuration 变体；系统会拒绝该组合。drawable 及 texture 引用保留到相应 GPU 使用结束，FrameClock 仍按第 6 节定义。
 
 普通帧不调用 waitUntilCompleted。现有 [Metal 示例](../../sysroot/src/scoop.window/examples/metal/renderer/native/metal.m)的 layer 安装和 lease 用法可参考，但其逐帧等待只是简单示例的做法，不成为正式 GUI 管线。GPU 完成回调只访问原生持有状态；需要报告业务错误时在仍运行期间排回 owner，关闭则在收尾过程中收集结果。
 

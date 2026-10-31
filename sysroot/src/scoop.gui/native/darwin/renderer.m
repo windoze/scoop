@@ -26,7 +26,6 @@ typedef struct {
 @property(nonatomic, strong) CAMetalDisplayLink *link;
 @property(nonatomic, strong) id<CAMetalDrawable> pending;
 @property(nonatomic, strong) id<MTLCommandBuffer> lastCommand;
-@property(nonatomic) CFTimeInterval presentationTime;
 @property(nonatomic) int32_t width;
 @property(nonatomic) int32_t height;
 @property(nonatomic) double scale;
@@ -46,7 +45,6 @@ typedef struct {
 @property(nonatomic, weak) SGUSurface *surface;
 @property(nonatomic, strong) id<CAMetalDrawable> drawable;
 @property(nonatomic) uint64_t generation;
-@property(nonatomic) CFTimeInterval presentationTime;
 @end
 @implementation SGUFrame
 @end
@@ -65,7 +63,6 @@ typedef struct {
   if (self.closed || !self.required)
     return;
   self.pending = update.drawable;
-  self.presentationTime = update.targetPresentationTimestamp;
   if (!self.notified) {
     self.notified = YES;
     if (!self.callback(self.context, 1))
@@ -227,7 +224,6 @@ SGUAcquired scoop_gui_metal_surface_acquire(void *pointer) {
       frame.surface = surface;
       frame.drawable = drawable;
       frame.generation = surface.generation;
-      frame.presentationTime = surface.presentationTime;
       return (SGUAcquired){(__bridge_retained void *)frame, 1};
     } @catch (NSException *exception) {
       return (SGUAcquired){NULL, -1};
@@ -250,10 +246,8 @@ int32_t scoop_gui_metal_frame_present(void *pointer) {
       id<MTLCommandBuffer> command = [surface.device.queue commandBuffer];
       if (!command)
         return -1;
-      if (frame.presentationTime > CACurrentMediaTime())
-        [command presentDrawable:frame.drawable atTime:frame.presentationTime];
-      else
-        [command presentDrawable:frame.drawable];
+      // CAMetalDisplayLink schedules its drawables and rejects timed present.
+      [command presentDrawable:frame.drawable];
       __weak SGUSurface *weakSurface = surface;
       [command addCompletedHandler:^(id<MTLCommandBuffer> completed) {
         frame.drawable = nil;

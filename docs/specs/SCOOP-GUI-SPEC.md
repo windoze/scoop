@@ -112,9 +112,9 @@ native 薄层复制跨调用存活的数据，或取得明确的原生引用；�
 
 ## 8. macOS 实现与交付
 
-macOS 使用 AppKit lease 中的 NSView 安装 CAMetalLayer，保持原有输入 view 和 NSTextInputClient；图形后端为 Skia Ganesh Metal。通过 CAMetalDisplayLink 接入现有主线程 common modes，按需提供 drawable 与帧机会。主线程外的 GPU 完成工作仅释放其原生持有数据，不调用 GUI 业务。
+macOS 使用 AppKit lease 中的 NSView 安装 CAMetalLayer，保持原有输入 view 和 NSTextInputClient；图形后端为 Skia Ganesh Metal。lease 的 NSView 是输入／呈现宿主，可以位于原 contentView 内；renderer 不假定两者相同，不改变原视图层级或 first responder。卸载恢复原有 layer 与 wantsLayer 设置；原 layer 为空时，允许 AppKit 随视图层级自动创建 backing layer，但不得保留 GUI 安装的 CAMetalLayer。通过 CAMetalDisplayLink 接入现有主线程 common modes，按需提供 drawable 与帧机会。主线程外的 GPU 完成工作仅释放其原生持有数据，不调用 GUI 业务。
 
-采用 BGRA8、sRGB 与一致的预乘 alpha 配置，按 WindowMetrics 同步 contentsScale 和 drawableSize，以 top-left surface origin 绘制。Skia flush／submit 与 present 使用有序的 Metal command queue，普通帧不 waitUntilCompleted；关闭时排空实际资源使用。
+采用 BGRA8、sRGB 与一致的预乘 alpha 配置，按 WindowMetrics 同步 contentsScale 和 drawableSize，以 top-left surface origin 绘制。Skia flush／submit 与 present 使用有序的 Metal command queue；CAMetalDisplayLink 的 drawable 使用普通 presentDrawable，由 display link 决定呈现节奏，不调用 atTime 或 afterMinimumDuration 变体。普通帧不 waitUntilCompleted；关闭时排空实际资源使用。
 
 系统字体由 Skia 的 CoreText font manager 提供，段落算法和 HarfBuzz shaping 继续使用共享实现。Objective-C `.m` 负责 AppKit／QuartzCore／Metal 对象，C++ `.cpp` 负责 Skia；经 C ABI 的不透明句柄连接，不要求 Cone 新增 `.mm` 支持。
 

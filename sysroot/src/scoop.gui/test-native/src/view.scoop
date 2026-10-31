@@ -1,12 +1,15 @@
 package scoop.tests.gui
 
-/** Observes the existing input view and layer without replacing a production renderer. */
-public class ViewProbe public constructor(view: Ptr<Unit>): Closeable {
+/** Captures the input view, optionally installing a custom layer before GUI attachment. */
+public class ViewProbe public constructor(
+    view: Ptr<Unit>,
+    customLayer: Boolean = false
+): Closeable {
     private var native: Ptr<Unit>? = None
     init {
         @Unsafe
         {
-            native = Some(create(view))
+            native = Some(create(view, customLayer))
         }
     }
     public fun matches(width: Int, height: Int, scale: Double): Boolean {
@@ -60,7 +63,7 @@ public class ViewProbe public constructor(view: Ptr<Unit>): Closeable {
 }
 
 @Extern(name = "scoop_gui_test_view_create")
-private fun create(view: Ptr<Unit>): Ptr<Unit>
+private fun create(view: Ptr<Unit>, customLayer: Boolean): Ptr<Unit>
 
 @Extern(name = "scoop_gui_test_view_check")
 private fun check(probe: Ptr<Unit>, width: Int, height: Int, scale: Double): Boolean

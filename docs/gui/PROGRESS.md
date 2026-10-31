@@ -8,12 +8,12 @@
 | --- | --- |
 | window 鼠标序列取消、单调输入时间 | 已实现并验证 Darwin 两目标 |
 | 固定 Skia／HarfBuzz／ICU 依赖与绘图 Cone | 已实现；CPU 与 Metal texture 验证通过 |
-| GUI 宿主、共享帧调度、macOS Metal 呈现 | 已接入；桌面呈现测试待解锁会话后完成 |
+| GUI 宿主、共享帧调度、macOS Metal 呈现 | 两目标宿主实窗测试通过；主循环组合仍待验证 |
 | 字体、段落布局及索引／几何查询 | 已实现；Darwin 两目标离屏验证通过 |
 | 动画与窗口帧时钟 | 已实现；Darwin 两目标确定性测试通过 |
 | 输入区域、焦点和 IME 路由 | 已实现；Darwin 两目标离屏测试通过，原生会话待桌面验收 |
 | 组合示例 | 已实现；两目标构建与编辑模型测试通过 |
-| 实际桌面集成验收 | 待解锁会话后完成 |
+| 实际桌面集成验收 | 会话已解锁，宿主实窗已通过，继续组合与交互验收 |
 
 ## window 前置能力
 
@@ -47,7 +47,9 @@ Scoop fmt／check、C++ 与 Objective-C 严格检查，以及 5 项既有发行�
 
 macOS 安装 CAMetalLayer 到既有输入 view，保存并在卸载时恢复原 layer；同 host 的窗口共用 device／queue／Ganesh context。CAMetalDisplayLink 在 common modes 提供 drawable，经 ApplicationProxy 请求共享层绘制；普通帧只提交有序 GPU 工作，关闭时排空后退休回调和 lease。全部窗口卸载后释放 context，host 可再附着窗口。
 
-已添加宿主、asyncio 和异常收尾三个普通 scoop.test Cone；区域批次另加入原生输入会话 Cone。Scoop 语义检查及 Darwin 两目标的 Objective-C 严格检查通过，两目标生产 `.slib` 构建成功。首次真实窗口测试停在首帧等待：系统显示休眠，唤醒后桌面工具仍明确报告 Mac 锁定，AppKit 将窗口报告为遮挡。此结果不计为呈现测试通过；待解锁后继续实际帧、空闲、多窗口、modal／menu 及异常验证。没有为测试绕过遮挡判断或启用定时器后备。
+已添加宿主、asyncio 和异常收尾三个普通 scoop.test Cone；区域批次另加入原生输入会话 Cone。Scoop 语义检查及 Darwin 两目标的 Objective-C 严格检查通过，两目标生产 `.slib` 构建成功。解锁后真实帧暴露了 CAMetalDisplayLink drawable 拒绝定时 present 的问题；后端改用有序队列上的普通 presentDrawable，由 display link 控制呈现节奏，移除无用预测时间缓存。
+
+宿主原生探针现在保存原有视图层级，不假定输入 view 等于 contentView；卸载同时验证无原层与有自定义原层。AppKit 可在恢复 wantsLayer=false 后自动创建 backing layer，该情况检查 GUI 的 CAMetalLayer 已移除；自定义原层仍严格检查身份。ARM64 与 Rosetta x86_64 的 GuiHostTest 各 1 项通过，覆盖帧合并、空闲停帧、隐藏恢复、尺寸变化、多窗口、卸载重挂及绘制回调中关闭。主循环组合、异常与原生输入会话继续单独验证。
 
 ## 文本布局
 
@@ -103,4 +105,4 @@ Scoop fmt／check 与 Objective-C 两目标严格检查通过。ARM64、Rosetta 
 
 本阶段已通过的共同范围为：每目标 graphics 19 项、动画 7 项、区域输入 13 项、示例编辑模型 2 项，另有穷尽性编译器回归 Cone 1 项。GUI 的宿主、asyncio、异常及原生输入会话测试程序均已具备两目标构建结果；`--no-run` 只表示编译链接成功。
 
-当前 Mac 会话锁定，真实窗口重绘被 AppKit 遮挡状态阻止。仍需在已解锁桌面执行宿主／asyncio／异常／原生输入会话测试，并运行示例验证窗口呈现、实际拖动与输入法候选交互。跨屏混合 DPI 与外部抢焦点也仍须按实际桌面条件验证。本阶段保持“实施中”，不把离屏、协议测试或构建成功计作这些验收通过。本轮 GUI 测试日志、临时缓存与演示可执行文件保存在仓库外。
+当前 Mac 会话已解锁，两目标宿主实窗测试通过。仍需执行 asyncio／异常／原生输入会话测试，并运行示例验证实际拖动、输入法候选及外部窗口焦点切换。当前硬件只连接一块 2× 显示器，跨屏混合 DPI 暂无真实硬件条件。本阶段保持“实施中”，不把离屏、协议测试或构建成功计作桌面交互通过。本轮 GUI 测试日志、临时缓存与演示可执行文件保存在仓库外。
