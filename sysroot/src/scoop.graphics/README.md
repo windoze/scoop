@@ -1,6 +1,6 @@
 # scoop.graphics
 
-普通 Scoop Cone，提供与窗口无关的 Skia 2D 绘图。共享接口使用左上原点的 Double 逻辑坐标；当前发行资源覆盖 macOS ARM64 与 x86_64，CPU 离屏使用不要求启动 Application。
+普通 Scoop Cone，提供与窗口无关的 Skia 2D 绘图。共享接口使用左上原点的 Double 逻辑坐标；目标资源覆盖 macOS ARM64／x86_64 和 Windows x64 的 Microsoft UCRT、LLVM-MinGW UCRT／MSVCRT。CPU 离屏使用不要求启动 Application。
 
 ```toml
 [dependencies]
@@ -32,7 +32,9 @@ Path、PathBuilder、PathMeasure、Image、RasterSurface 与底层目标均显�
 
 颜色采用 sRGB，绘制内部为预乘 alpha；RGBA8 输入和 `readPixels()` 返回值采用紧密排列的直通 alpha 字节。PNG／JPEG decode 会复制输入并实际解码；surface snapshot 保留独立图像内容，后续绘制不会修改旧快照。
 
-GUI renderer 通过 `scoop.graphics.native` 的 RenderTarget 和 geometry 捕获接入；macOS 的 Unsafe `scoop.graphics.native.macos.MetalContext` 只接受所属 device／queue 和 BGRA8 texture。DPI 缩放由目标根部施加一次，geometry 快照仍使用逻辑坐标。普通 submit 不等待 GPU；显式读回和 drain 是同步点。
+GUI renderer 通过 `scoop.graphics.native` 的 RenderTarget 和 geometry 捕获接入。macOS 的 Unsafe `scoop.graphics.native.macos.MetalContext` 接受所属 device／queue 和 BGRA8 texture；Windows 的 Unsafe `scoop.graphics.native.windows.D3DContext` 接受 adapter／device／direct queue，以及同设备的单采样 BGRA8 render target。D3D12 resource 在包装前须处于 PRESENT／COMMON 状态，submit 和读回结束后恢复 PRESENT。绑定保留所需 COM 引用，原生对象仍由调用方按 GPU 使用顺序管理。
+
+DPI 缩放由目标根部施加一次，geometry 快照仍使用逻辑坐标。普通 submit 不等待 GPU；显式读回、drain 和 context 关闭是同步点。系统字体发现分别使用 CoreText 与 DirectWrite，文本布局和查询共用同一套 SkParagraph／HarfBuzz／ICU 实现。
 
 文本使用 `FontCollection`、`TextStyle`、`Paragraph` 和 `TextLayout`。FontCollection 默认启用系统 fallback，也可以关闭后使用 `register(bytes, family)` 登记自有字体。Paragraph 在构造时保存文字、run 与字体来源快照，`layout(width)` 和 `layoutUnwrapped()` 每次返回独立结果；旧结果不受重新布局、字体登记或来源关闭影响。
 

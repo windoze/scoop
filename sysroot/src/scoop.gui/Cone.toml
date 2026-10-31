@@ -7,10 +7,13 @@ kind = "library"
 
 [[sources]]
 path = "src/shared"
-when = { os = "darwin" }
+when = { os = ["darwin", "windows"] }
 [[sources]]
 path = "src/platform/darwin"
 when = { os = "darwin" }
+[[sources]]
+path = "src/platform/windows"
+when = { os = "windows" }
 
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
@@ -25,13 +28,27 @@ when = { os = "darwin" }
 
 [[test.sources]]
 path = "tests"
-when = { os = "darwin" }
+when = { os = ["darwin", "windows"] }
 
 [native]
+cxx = true
+cxx_flags = ["-Wmost", "-Wextra", "-Werror", "-Wno-unused-parameter"]
 objc_flags = ["-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter"]
 [[native.sources]]
 path = "native/darwin/renderer.m"
 when = { os = "darwin" }
+[[native.sources]]
+path = "native/windows/device.cpp"
+when = { os = "windows" }
+[[native.sources]]
+path = "native/windows/notifications.cpp"
+when = { os = "windows" }
+[[native.sources]]
+path = "native/windows/surface.cpp"
+when = { os = "windows" }
+[[native.sources]]
+path = "native/windows/frame.cpp"
+when = { os = "windows" }
 [[native.libraries]]
 name = "AppKit"
 kind = "framework"
@@ -44,3 +61,15 @@ when = { os = "darwin" }
 name = "Metal"
 kind = "framework"
 when = { os = "darwin" }
+[[native.libraries]]
+name = "d3d12"
+when = { os = "windows" }
+[[native.libraries]]
+name = "dxgi"
+when = { os = "windows" }
+[[native.libraries]]
+name = "dcomp"
+when = { os = "windows" }
+[[native.libraries]]
+name = "user32"
+when = { os = "windows" }

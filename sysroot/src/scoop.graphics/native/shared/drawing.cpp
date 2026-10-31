@@ -2,6 +2,7 @@
 #include "include/core/SkPixmap.h"
 #include "include/core/SkRRect.h"
 #include "include/effects/SkGradient.h"
+#include "include/gpu/ganesh/SkSurfaceGanesh.h"
 
 extern "C" {
 SGPaint *scoop_graphics_paint_create(SGColor color, int32_t style, double width,
@@ -76,11 +77,12 @@ SGCanvas *scoop_graphics_target_canvas(SGTarget *target, double scale) {
 }
 int32_t scoop_graphics_target_submit(SGTarget *target, bool wait) {
   try {
-    return !target->context ||
-           target->context
-               ->flushAndSubmit(target->surface.get(),
-                                wait ? GrSyncCpu::kYes : GrSyncCpu::kNo)
-               .fSuccess;
+    if (!target->context)
+      return 1;
+    auto flushed = target->context->flush(
+        target->surface.get(), SkSurfaces::BackendSurfaceAccess::kPresent, {});
+    return flushed.fSuccess &&
+           target->context->submit(wait ? GrSyncCpu::kYes : GrSyncCpu::kNo);
   } catch (...) {
     return 0;
   }
@@ -91,7 +93,9 @@ int32_t scoop_graphics_target_read(SGTarget *target, uint8_t *bytes) {
       return 0;
     auto info = sg_info(target->surface->width(), target->surface->height(),
                         kUnpremul_SkAlphaType);
-    return target->surface->readPixels(info, bytes, info.minRowBytes(), 0, 0);
+    bool read =
+        target->surface->readPixels(info, bytes, info.minRowBytes(), 0, 0);
+    return scoop_graphics_target_submit(target, true) && read;
   } catch (...) {
     return 0;
   }
@@ -103,6 +107,8 @@ SGImage *scoop_graphics_target_snapshot(SGTarget *target) {
       if (!scoop_graphics_target_submit(target, true))
         return nullptr;
       result = result->makeRasterImage(target->context.get());
+      if (!scoop_graphics_target_submit(target, true))
+        return nullptr;
     }
     return result ? new SGImage(std::move(result)) : nullptr;
   } catch (...) {

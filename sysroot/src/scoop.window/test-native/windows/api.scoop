@@ -37,3 +37,7 @@ public fun nativeCaretMatches(window: Ptr<Unit>): Int
 @Unsafe
 @Extern(name = "scoop_window_test_input")
 public fun nativeInputSequence(window: Ptr<Unit>)
+
+@Unsafe
+@Extern(name = "scoop_window_test_pointer_cancellation")
+public fun nativePointerCancellation(window: Ptr<Unit>)

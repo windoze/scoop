@@ -1,0 +1,49 @@
+package scoop.tests.graphics
+
+/** Real hardware D3D12 resources for the public graphics target bridge. */
+public class TestD3DSurface private constructor(private var handle: Ptr<Unit>?): Closeable {
+    @Unsafe
+    public fun adapter(): Ptr<Unit> = d3dObject(handle!!, 0)
+    @Unsafe
+    public fun device(): Ptr<Unit> = d3dObject(handle!!, 1)
+    @Unsafe
+    public fun queue(): Ptr<Unit> = d3dObject(handle!!, 2)
+    @Unsafe
+    public fun texture(): Ptr<Unit> = d3dObject(handle!!, 3)
+    public override fun close() {
+        when (handle) {
+            case Some(value) -> {
+                handle = None
+                @Unsafe
+                {
+                    d3dDestroy(value)
+                }
+            }
+            case None -> {}
+        }
+    }
+    public companion object {
+        public fun create(width: Int, height: Int): TestD3DSurface {
+            @Unsafe
+            {
+                return TestD3DSurface(
+                    Some(
+                        d3dCreate(width, height) ?:
+                            throw IllegalStateException(
+                                Some("D3D12 device or texture creation failed")
+                            )
+                    )
+                )
+            }
+        }
+    }
+}
+
+@Extern(name = "scoop_graphics_test_d3d_create")
+private fun d3dCreate(width: Int, height: Int): Ptr<Unit>?
+
+@Extern(name = "scoop_graphics_test_d3d_object")
+private fun d3dObject(owner: Ptr<Unit>, kind: Int): Ptr<Unit>
+
+@Extern(name = "scoop_graphics_test_d3d_destroy")
+private fun d3dDestroy(owner: Ptr<Unit>)

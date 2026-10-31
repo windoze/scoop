@@ -1,0 +1,117 @@
+package scoop.graphics
+
+import scoop.graphics.native.*
+import scoop.graphics.native.windows.D3DContext
+import scoop.tests.graphics.TestD3DSurface
+import scoop.test.*
+
+@Test
+private class D3DGraphicsTest {
+    @Test
+    fun `Ganesh draws with alpha and one DPI root then reuses the D3D12 resource after readback`() {
+        val snapshots = ArrayList<Image>()
+        TestD3DSurface.create(32, 32).use {
+            objects -> @Unsafe
+            {
+                D3DContext.create(objects.adapter(), objects.device(), objects.queue()).use {
+                    context ->
+                    @Unsafe
+                    {
+                        context.target(objects.texture(), 32, 32, 2.0).use {
+                            target ->
+                            val geometry =
+                                target.draw {
+                                    canvas ->
+                                    canvas.clear(Color.Transparent)
+                                    canvas.translate(2.0, 3.0)
+                                    canvas.drawRect(
+                                        Rect(0.0, 0.0, 4.0, 4.0),
+                                        Paint(Color(1.0, 0.0, 0.0, 0.5))
+                                    )
+                                    @Unsafe
+                                    {
+                                        return@draw captureGeometry(
+                                            canvas,
+                                            Rect(0.0, 0.0, 4.0, 4.0)
+                                        )
+                                    }
+                                }
+                            target.submit()
+                            val pixels = target.readPixels()
+                            assertEquals(255, channel(pixels, 32, 5, 7, 0))
+                            assertTrue(
+                                channel(pixels, 32, 5, 7, 3) >=
+                                    127 &&
+                                    channel(pixels, 32, 5, 7, 3) <=
+                                    128
+                            )
+                            assertEquals(0, channel(pixels, 32, 2, 3, 3))
+                            assertTrue(geometry.hitTest(Point(3.0, 4.0)))
+                            assertEquals(Some(Point(1.0, 1.0)), geometry.toLocal(Point(3.0, 4.0)))
+                            geometry.close()
+                            snapshots.add(target.snapshot())
+                        }
+                        context.target(objects.texture(), 32, 32, 1.0).use {
+                            target ->
+                            target.draw { canvas -> canvas.clear(Color(0.0, 1.0, 0.0)) }
+                            target.submit()
+                            assertEquals(255, channel(target.readPixels(), 32, 2, 3, 1))
+                        }
+                    }
+                    context.drain()
+                }
+            }
+        }
+        snapshots[0L].use {
+            image -> RasterSurface(32, 32).use {
+                surface ->
+                surface.draw { canvas -> canvas.drawImage(image, Rect(0.0, 0.0, 32.0, 32.0)) }
+                assertEquals(255, channel(surface.readPixels(), 32, 5, 7, 0))
+            }
+        }
+    }
+
+    @Test
+    fun `D3D12 targets retain their context and end Canvas borrows on failure`() {
+        TestD3DSurface.create(16, 16).use {
+            objects -> @Unsafe
+            {
+                val context =
+                    D3DContext.create(objects.adapter(), objects.device(), objects.queue())
+                try {
+                    @Unsafe
+                    {
+                        assertFailsWith<GraphicsException> {
+                            @Unsafe
+                            {
+                                context.target(objects.texture(), 15, 16, 1.0)
+                            }
+                        }
+                        context.target(objects.texture(), 16, 16, 1.0).use {
+                            target ->
+                            val escaped = ArrayList<Canvas>()
+                            assertFailsWith<IllegalStateException> {
+                                target.draw {
+                                    canvas ->
+                                    escaped.add(canvas)
+                                    canvas.clear(Color.White)
+                                    target.close()
+                                }
+                            }
+                            assertFailsWith<IllegalStateException> {
+                                escaped[0L].clear(Color.White)
+                            }
+                            context.close()
+                            target.draw { canvas -> canvas.clear(Color(0.0, 0.0, 1.0)) }
+                            target.submit()
+                            assertEquals(255, channel(target.readPixels(), 16, 3, 3, 2))
+                        }
+                    }
+                    assertFailsWith<IllegalStateException> { context.drain() }
+                } finally {
+                    context.close()
+                }
+            }
+        }
+    }
+}

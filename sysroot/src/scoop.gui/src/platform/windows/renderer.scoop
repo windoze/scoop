@@ -1,0 +1,326 @@
+package scoop.gui
+
+import scoop.graphics.*
+import scoop.graphics.native.RenderTarget
+import scoop.graphics.native.windows.D3DContext
+import scoop.window.*
+import scoop.window.native.*
+
+internal fun createRendererHost(): RendererHost {
+    @Unsafe
+    {
+        val native = d3dPointer(d3dHostCreate(), "create D3D12 device and queue")
+        try {
+            return D3DRendererHost(
+                native,
+                D3DContext.create(
+                    d3dHostObject(native, 0),
+                    d3dHostObject(native, 1),
+                    d3dHostObject(native, 2)
+                )
+            )
+        } catch (error: Throwable) {
+            d3dHostClose(native)
+            throw error
+        }
+    }
+}
+
+private class D3DRendererHost(
+    private val native: Ptr<Unit>,
+    private val context: D3DContext
+): RendererHost {
+    private var closed = false
+    public override fun create(window: Window, proxy: ApplicationProxy): WindowRenderer {
+        if (closed)
+            throw IllegalStateException(Some("renderer host is closed"))
+        @Unsafe
+        {
+            val lease = window.acquireNativeWindow()
+            try {
+                val hwnd =
+                    when (lease.handle) {
+                        case Win32(hwnd, _) -> hwnd
+                    }
+                val renderer = D3DWindowRenderer(window, proxy, lease, context)
+                renderer.install(native, hwnd)
+                return renderer
+            } catch (error: Throwable) {
+                lease.close()
+                throw error
+            }
+        }
+    }
+    public override fun close() {
+        if (closed)
+            return
+        closed = true
+        val failure = cleanupFailure(None) { context.close() }
+        @Unsafe
+        {
+            d3dHostClose(native)
+        }
+        throwFailure(failure)
+    }
+}
+
+private class D3DWindowRenderer(
+    private val window: Window,
+    private val proxy: ApplicationProxy,
+    private val lease: NativeWindowLease,
+    private val context: D3DContext
+): WindowRenderer {
+    private var native: Ptr<Unit>? = None
+    private var callback: ForeignCallback<(Ptr<Unit>, Int) -> Int>? = None
+    private var metrics: WindowMetrics? = None
+    private var wanted = false
+    private var needsDrain = false
+
+    @Unsafe
+    fun install(host: Ptr<Unit>, hwnd: Ptr<Unit>) {
+        val registration =
+            foreignCallback<(Ptr<Unit>, Int) -> Int>(
+                { _: Int -> notify() },
+                0,
+                ForeignCallbackMode.Reusable
+            )
+        try {
+            native =
+                Some(
+                    d3dPointer(
+                        d3dSurfaceCreate(host, hwnd, registration.function, registration.context),
+                        "attach DirectComposition surface"
+                    )
+                )
+            callback = Some(registration)
+        } catch (error: Throwable) {
+            releaseForeignCallback(registration)
+            throw error
+        }
+    }
+    private fun notify(): Int {
+        if (native == None)
+            return 0
+        val accepted =
+            proxy.post {
+                _ -> if (native != None && wanted && window.state == WindowState.Open)
+                    window.requestRedraw()
+            }
+        return if (accepted)
+            1
+        else
+            0
+    }
+    private fun checkCallback() {
+        @Unsafe
+        {
+            when (callback) {
+                case Some(value) -> throwFailure(foreignCallbackFailure(value))
+                case None -> throw IllegalStateException(Some("window renderer is closed"))
+            }
+        }
+    }
+    private fun pointer(): Ptr<Unit> {
+        checkCallback()
+        return native ?: throw IllegalStateException(Some("window renderer is closed"))
+    }
+    public override fun configure(value: WindowMetrics) {
+        when (metrics) {
+            case Some(previous) -> if (previous.physicalSize != value.physicalSize)
+                needsDrain = true
+            case None -> {}
+        }
+        @Unsafe
+        {
+            d3dResult(
+                d3dSurfaceConfigure(
+                    pointer(),
+                    value.physicalSize.width,
+                    value.physicalSize.height,
+                    value.scaleFactor
+                ),
+                "configure DXGI surface"
+            )
+        }
+        metrics = Some(value)
+    }
+    public override fun setFrameDemand(required: Boolean) {
+        wanted = required
+        when (native) {
+            case Some(value) -> @Unsafe
+            {
+                d3dResult(d3dSurfaceDemand(value, required), "set DXGI frame demand")
+            }
+            case None -> if (required)
+                throw IllegalStateException(Some("window renderer is closed"))
+        }
+        if (required)
+            checkCallback()
+    }
+    public override fun acquire(): FrameAcquisition {
+        val configuration = metrics ?: return FrameAcquisition.Deferred
+        val surface = pointer()
+        if (needsDrain) {
+            // The previous RenderFrame has ended; Ganesh must release submitted backbuffers.
+            context.drain()
+            needsDrain = false
+        }
+        @Unsafe
+        {
+            val result = d3dSurfaceAcquire(surface)
+            d3dResult(result.status, "acquire DXGI backbuffer")
+            val frame = result.pointer ?: return FrameAcquisition.Deferred
+            try {
+                val target =
+                    context.target(
+                        d3dFrameTexture(frame),
+                        configuration.physicalSize.width,
+                        configuration.physicalSize.height,
+                        configuration.scaleFactor
+                    )
+                return FrameAcquisition.Ready(D3DFrame(window, frame, target, configuration))
+            } catch (error: Throwable) {
+                d3dFrameClose(frame)
+                throw error
+            }
+        }
+    }
+    public override fun close() {
+        val previous = native
+        native = None
+        wanted = false
+        var failure: Throwable? = None
+        when (previous) {
+            case Some(value) -> {
+                failure = cleanupFailure(failure) { context.drain() }
+                failure =
+                    cleanupFailure(failure) {
+                        @Unsafe
+                        {
+                            d3dResult(d3dSurfaceClose(value), "close DXGI surface")
+                        }
+                    }
+            }
+            case None -> {}
+        }
+        @Unsafe
+        {
+            when (callback) {
+                case Some(value) -> {
+                    callback = None
+                    failure =
+                        cleanupFailure(failure) {
+                            @Unsafe
+                            {
+                                throwFailure(foreignCallbackFailure(value))
+                            }
+                        }
+                    releaseForeignCallback(value)
+                }
+                case None -> {}
+            }
+        }
+        failure = cleanupFailure(failure) { lease.close() }
+        throwFailure(failure)
+    }
+}
+
+private class D3DFrame(
+    private val window: Window,
+    private val native: Ptr<Unit>,
+    private val target: RenderTarget,
+    private val configuration: WindowMetrics
+): RenderFrame {
+    private var submitted = false
+    private var closed = false
+    private fun checkOpen() {
+        if (closed || submitted)
+            throw IllegalStateException(Some("frame has ended"))
+    }
+    public override fun draw(block: (Canvas) -> Unit) {
+        checkOpen()
+        target.draw(block)
+    }
+    public override fun submit(): Boolean {
+        checkOpen()
+        if (window.state != WindowState.Open || window.metrics != Some(configuration))
+            return false
+        target.submit()
+        window.prePresentNotify()
+        @Unsafe
+        {
+            val status = d3dFramePresent(native)
+            d3dResult(status, "present DXGI frame")
+            submitted = true
+            return status == 0
+        }
+    }
+    public override fun close() {
+        if (closed)
+            return
+        closed = true
+        var failure: Throwable? = None
+        if (!submitted)
+            failure = cleanupFailure(failure) { target.abort() }
+        failure = cleanupFailure(failure) { target.close() }
+        failure =
+            cleanupFailure(failure) {
+                @Unsafe
+                {
+                    d3dResult(d3dFrameClose(native), "retire DXGI frame")
+                }
+            }
+        throwFailure(failure)
+    }
+}
+
+private fun d3dResult(status: Int, operation: String) {
+    if (status < 0)
+        throw GraphicsException(operation + " (D3D12/DXGI HRESULT=" + status.toString() + ")")
+}
+
+private fun d3dPointer(result: D3DResult, operation: String): Ptr<Unit> {
+    d3dResult(result.status, operation)
+    return result.pointer ?: throw GraphicsException(operation + " returned no resource")
+}
+
+@CLayout
+private struct D3DResult(val pointer: Ptr<Unit>?, val status: Int)
+
+@Extern(name = "scoop_gui_d3d_host_create")
+private fun d3dHostCreate(): D3DResult
+
+@Extern(name = "scoop_gui_d3d_host_object")
+private fun d3dHostObject(host: Ptr<Unit>, kind: Int): Ptr<Unit>
+
+@Extern(name = "scoop_gui_d3d_host_close")
+private fun d3dHostClose(host: Ptr<Unit>)
+
+@Extern(name = "scoop_gui_d3d_surface_create")
+private fun d3dSurfaceCreate(
+    host: Ptr<Unit>,
+    hwnd: Ptr<Unit>,
+    callback: FunPtr<(Ptr<Unit>, Int) -> Int>,
+    context: Ptr<Unit>
+): D3DResult
+
+@Extern(name = "scoop_gui_d3d_surface_configure")
+private fun d3dSurfaceConfigure(surface: Ptr<Unit>, width: Int, height: Int, scale: Double): Int
+
+@Extern(name = "scoop_gui_d3d_surface_demand")
+private fun d3dSurfaceDemand(surface: Ptr<Unit>, required: Boolean): Int
+
+@Extern(name = "scoop_gui_d3d_surface_acquire")
+private fun d3dSurfaceAcquire(surface: Ptr<Unit>): D3DResult
+
+@Extern(name = "scoop_gui_d3d_surface_close")
+private fun d3dSurfaceClose(surface: Ptr<Unit>): Int
+
+@Extern(name = "scoop_gui_d3d_frame_texture")
+private fun d3dFrameTexture(frame: Ptr<Unit>): Ptr<Unit>
+
+@Extern(name = "scoop_gui_d3d_frame_present")
+private fun d3dFramePresent(frame: Ptr<Unit>): Int
+
+@Extern(name = "scoop_gui_d3d_frame_close")
+private fun d3dFrameClose(frame: Ptr<Unit>): Int

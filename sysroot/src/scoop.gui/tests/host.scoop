@@ -4,10 +4,9 @@ import scoop.graphics.*
 import scoop.platform.concurrent.currentThreadId
 import scoop.platform.time.MonotonicTimeSource
 import scoop.test.*
-import scoop.tests.gui.ViewProbe
+import scoop.tests.gui.*
 import scoop.time.Duration
 import scoop.window.*
-import scoop.window.native.*
 
 @Test
 private class GuiHostTest {
@@ -22,6 +21,7 @@ private class GuiHostTest {
             assertTrue(probe.firstFrames >= 2)
             assertTrue(probe.secondFrames >= 2)
             assertTrue(probe.repainted)
+            assertTrue(probe.rejectedGeometry)
             assertTrue(host.isClosed)
             assertEquals(WindowState.Destroyed, probe.first!!.state)
             assertEquals(WindowState.Destroyed, probe.second!!.state)
@@ -47,7 +47,7 @@ private fun printFailure(error: Throwable) {
 }
 
 private enum HostPhase {
-    Start, Settle, Idle, Hidden, Resize, Closing, Reattach, Done
+    Start, Settle, Idle, Hidden, Minimized, Resize, PaintingResize, Closing, Reattach, Done
 }
 
 private class HostProbe {
@@ -65,6 +65,8 @@ private class HostProbe {
     var idleSecond = 0
     var secondAfterClose = false
     var repainted = false
+    var resizedArea: InputArea? = None
+    var rejectedGeometry = false
     var finished = false
 
     fun event(host: GuiHost, application: ActiveApplication, event: ApplicationEvent) {
@@ -73,6 +75,10 @@ private class HostProbe {
             case Resumed -> start(host, application)
             case NewEvents(StartCause.Deadline) -> deadline(application)
             case AboutToWait -> {
+                if (phase == HostPhase.PaintingResize) {
+                    assertFalse(resizedArea!!.requestFocus())
+                    rejectedGeometry = true
+                }
                 if (phase == HostPhase.Start && firstFrames >= 2 && secondFrames >= 1) {
                     phase = HostPhase.Settle
                     waitFor(application, 200L)
@@ -134,25 +140,13 @@ private class HostProbe {
         a.setWindowLevel(WindowLevel.AlwaysOnTop)
         b.setWindowLevel(WindowLevel.AlwaysOnTop)
         a.requestFocus()
-        firstView = Some(observe(a))
-        secondView = Some(observe(b, true))
+        firstView = Some(observeWindow(a))
+        secondView = Some(observeWindow(b, true))
         guiFirst = Some(host.attach(a) { frame -> paintFirst(frame) })
+        resizedArea = Some(guiFirst!!.createArea(focusable = true) { _, _ -> InputResult.Ignored })
         guiSecond = Some(host.attach(b) { frame -> paintSecond(frame) })
         assertFailsWith<IllegalStateException> { host.attach(a) { _ -> fail() } }
         waitFor(application, 5000L)
-    }
-    private fun observe(window: Window, customLayer: Boolean = false): ViewProbe {
-        @Unsafe
-        {
-            return window.acquireNativeWindow().use {
-                lease -> @Unsafe
-                {
-                    return@use when (lease.handle) {
-                        case AppKit(_, view) -> ViewProbe(view, customLayer)
-                    }
-                }
-            }
-        }
     }
     private fun paintFirst(frame: FrameContext) {
         assertEquals(thread, currentThreadId())
@@ -165,11 +159,17 @@ private class HostProbe {
             frame.window.requestFrame()
         }
         if (phase == HostPhase.Resize && frame.size == Size(360.0, 200.0)) {
-            phase = HostPhase.Closing
-            frame.window.close()
-            assertEquals(GuiWindowState.Closing, frame.window.state)
-            guiSecond!!.requestFrame()
-        }
+            frame.place(resizedArea!!, Rect(0.0, 0.0, 80.0, 80.0))
+            phase = HostPhase.PaintingResize
+            first!!.requestSize(LogicalSize(380.0, 220.0))
+            frame.window.requestFrame()
+        } else
+            if (phase == HostPhase.PaintingResize && frame.size == Size(380.0, 220.0)) {
+                phase = HostPhase.Closing
+                frame.window.close()
+                assertEquals(GuiWindowState.Closing, frame.window.state)
+                guiSecond!!.requestFrame()
+            }
     }
     private fun paintSecond(frame: FrameContext) {
         secondFrames += 1
@@ -206,9 +206,18 @@ private class HostProbe {
             }
             case Hidden -> {
                 assertEquals(idleFirst, firstFrames)
-                phase = HostPhase.Resize
-                first!!.requestSize(LogicalSize(360.0, 200.0))
                 first!!.setVisible(true)
+                first!!.requestMinimized(true)
+                guiFirst!!.requestFrame()
+                phase = HostPhase.Minimized
+                waitFor(application, 300L)
+            }
+            case Minimized -> {
+                assertEquals(Some(true), first!!.isMinimized)
+                assertEquals(idleFirst, firstFrames)
+                phase = HostPhase.Resize
+                first!!.requestMinimized(false)
+                first!!.requestSize(LogicalSize(360.0, 200.0))
                 first!!.requestFocus()
                 waitFor(application, 5000L)
             }

@@ -1,0 +1,66 @@
+package scoop.tests.window.input
+
+import scoop.platform.time.MonotonicTimeSource
+import scoop.test.*
+import scoop.tests.window.nativePointerCancellation
+import scoop.time.TimeMark
+import scoop.window.*
+import scoop.window.native.*
+
+/** Runs inside the input Cone's single application, after its keyboard and IME batch. */
+internal class PointerCancellationProbe {
+    var started = false
+    var sequence = ""
+    var before: TimeMark? = None
+    var after: TimeMark? = None
+
+    fun start(lease: NativeWindowLease) {
+        before = Some(MonotonicTimeSource.markNow())
+        started = true
+        @Unsafe
+        {
+            when (lease.handle) {
+                case Win32(hwnd, _) -> nativePointerCancellation(hwnd)
+            }
+        }
+        after = Some(MonotonicTimeSource.markNow())
+    }
+
+    fun pointer(event: PointerEvent) {
+        when (event) {
+            case Moved(state) -> {
+                assertEquals(PhysicalPosition(-17.0, -19.0), state.physicalPosition)
+                observe(state.time)
+                sequence += "m"
+            }
+            case Left(_) -> {
+                if (sequence == "dm")
+                    sequence += "l"
+            }
+            case Button(state, button, action, _) -> {
+                observe(state.time)
+                sequence += when (action) {
+                    case Pressed -> if (button == MouseButton.Left)
+                        "d"
+                    else
+                        "r"
+                    case Released -> "u"
+                }
+            }
+            case Cancelled(reason, time) -> {
+                observe(time)
+                sequence += when (reason) {
+                    case FocusLost -> "f"
+                    case CaptureLost -> "x"
+                }
+            }
+            else -> {}
+        }
+    }
+
+    private fun observe(time: InputTime) {
+        assertTrue(time.mark().source === MonotonicTimeSource)
+        assertTrue(time.mark() >= before!!)
+        assertTrue(time.mark() <= after!!)
+    }
+}

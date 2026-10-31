@@ -10,7 +10,7 @@
 - `scoop.gui` 是普通 Cone，依赖 graphics、window 及实际使用的 core／std／math／platform，提供 GuiHost、GuiWindow、帧调度、动画、InputArea 与区域焦点。两库的几何与动画所需数学函数复用 scoop.math。
 - window 继续拥有原生窗口、输入归一、IME 协议、事件循环和 native lease；GUI 的平台适配拥有 surface 与呈现。共享层不依赖 AppKit、Metal 或其他窗口／GPU API。
 
-当前实施目标为 `aarch64-apple-darwin` 与 `x86_64-apple-darwin`。后续平台实现同一共享合同、按 target 选择自己的源码和原生依赖，不复制共享状态机，不为未实施平台加入空后端。采用现有语言、FFI、native 编译及资源释放规则，不新增编译器或 runtime 的 GUI 特殊通道。
+当前实施目标为 `aarch64-apple-darwin`、`x86_64-apple-darwin`，以及 Windows x64 的 `x86_64-pc-windows-msvc-ucrt`、`x86_64-w64-windows-llvm-mingw-ucrt`、`x86_64-w64-windows-llvm-mingw-msvcrt`。Windows 阶段实现同一共享合同，Linux 留待后续；按 target 选择源码和原生依赖，不复制共享状态机，不为未实施平台加入空后端。采用现有语言、FFI、native 编译及资源释放规则，不新增编译器或 runtime 的 GUI 特殊通道。
 
 ## 2. 几何与绘制
 
@@ -121,3 +121,15 @@ macOS 使用 AppKit lease 中的 NSView 安装 CAMetalLayer，保持原有输入
 支持基线沿用 [发行配置](../../scripts/release.toml)。当前配置为 macOS 27.0.1／SDK 27.0，满足 CAMetalDisplayLink 的 macOS 14 API 要求；本设计不据此宣称支持 macOS 14，也不新增旧系统定时器后备实现。
 
 Skia 与其 HarfBuzz／ICU 等依赖固定配套输入，由维护脚本显式准备为目标原生资源；普通应用使用预编译 Cone 和声明的链接依赖，不自动联网、下载或构建依赖。库行为测试归所属 Cone；实际 Metal 呈现、IME、拖动、混合 DPI 与主循环收尾另行验证并记录，不能用离屏测试代替。
+
+## 9. Windows 实现与交付
+
+Windows 使用现有 Win32 NativeWindowLease 的 HWND；Skia Ganesh Direct3D 12 负责绘制，DXGI flip swapchain 负责呈现，系统字体由 Skia DirectWrite font manager 提供。文本布局、UTF 索引、动画、区域输入和焦点继续使用共享实现。graphics 暴露目标专用 Unsafe `scoop.graphics.native.windows.D3DContext`，只接受同一设备、direct queue 和 BGRA8 resource；C++ 对象及 Skia ABI 不跨 Cone。
+
+GUI 在 owner 上创建并使用 GPU context、swapchain 和呈现资源；不替换窗口、窗口过程、输入接收者或 IME context。目标使用 BGRA8、sRGB、top-left origin，与窗口透明策略一致的预乘 alpha；WindowMetrics 的物理尺寸及 scale 决定唯一的 DPI 根变换。DirectComposition 只承担需要的窗口合成，不成为共享层的组件或图层系统。
+
+帧机会来自 DXGI frame-latency waitable object，按需求单次等待并合并 owner 通知。原生后台等待只投递通知，不读取托管 GUI 状态、不执行绘制。通知复用现有 Win32 消息循环，普通 run、asyncio 和系统嵌套循环遵守相同 owner 边界；不使用固定周期 timer、忙轮询或普通帧的 CPU fence 等待模拟帧时钟。隐藏、最小化和零尺寸停止帧需求；恢复后保留的 dirty 重新取帧。
+
+Skia 对目标的提交必须完成 D3D12 resource state 到 PRESENT 的转换，再在同一 direct queue 的有序工作之后 Present。过期尺寸、暂不可呈现或未就绪返回 Deferred；设备移除及其他确定的 HRESULT 失败报告 GraphicsException，不能静默重试或切换 renderer。resize 退休旧 backbuffer，并在其实际 GPU 使用结束后重新配置；普通提交保持异步，显式读回、resize 和关闭才同步相关 GPU 使用。
+
+关闭先解除原生等待和消息通知，结束正在使用的 frame，再排空相关 GPU 工作、卸载自己的合成目标、释放 swapchain／context，最后关闭 lease。已排队通知不能访问已释放 surface；关闭不依赖 ApplicationProxy 再执行业务闭包。三个目标分别构建相容的 C++／CRT 资源，并用所属 Cone 的 scoop.test 运行离屏、真实 D3D12、窗口、IME 与收尾测试；Linux 不进入本阶段的发布或验收。

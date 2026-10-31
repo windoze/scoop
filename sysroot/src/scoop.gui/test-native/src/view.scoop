@@ -1,6 +1,6 @@
 package scoop.tests.gui
 
-/** Captures the input view, optionally installing a custom layer before GUI attachment. */
+/** Captures the input host, optionally adding a native layer or child before GUI attachment. */
 public class ViewProbe public constructor(
     view: Ptr<Unit>,
     customLayer: Boolean = false
@@ -9,7 +9,11 @@ public class ViewProbe public constructor(
     init {
         @Unsafe
         {
-            native = Some(create(view, customLayer))
+            native =
+                Some(
+                    create(view, customLayer) ?:
+                        throw IllegalStateException(Some("cannot capture native input host"))
+                )
         }
     }
     public fun matches(width: Int, height: Int, scale: Double): Boolean {
@@ -63,7 +67,7 @@ public class ViewProbe public constructor(
 }
 
 @Extern(name = "scoop_gui_test_view_create")
-private fun create(view: Ptr<Unit>, customLayer: Boolean): Ptr<Unit>
+private fun create(view: Ptr<Unit>, customLayer: Boolean): Ptr<Unit>?
 
 @Extern(name = "scoop_gui_test_view_check")
 private fun check(probe: Ptr<Unit>, width: Int, height: Int, scale: Double): Boolean

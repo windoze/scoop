@@ -1,22 +1,38 @@
 schema = 1
 [cone]
 group = "scoop.tests"
-name = "graphics-metal-native"
+name = "graphics-native"
 version = "0.1.0"
 kind = "library"
 
 [[sources]]
-path = "src"
+path = "src/metal.scoop"
 when = { os = "darwin" }
+[[sources]]
+path = "src/d3d.scoop"
+when = { os = "windows" }
 
 [native]
+cxx = true
+cxx_flags = ["-Wmost", "-Wextra", "-Werror"]
 objc_flags = ["-Wall", "-Wextra", "-Werror"]
 [[native.sources]]
 path = "native/metal.m"
 when = { os = "darwin" }
+[[native.sources]]
+path = "native/d3d.cpp"
+when = { os = "windows" }
 [[native.libraries]]
 name = "Foundation"
 kind = "framework"
+when = { os = "darwin" }
 [[native.libraries]]
 name = "Metal"
 kind = "framework"
+when = { os = "darwin" }
+[[native.libraries]]
+name = "d3d12"
+when = { os = "windows" }
+[[native.libraries]]
+name = "dxgi"
+when = { os = "windows" }

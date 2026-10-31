@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare the fixed Skia, HarfBuzz and ICU libraries for a Darwin Scoop target."""
+"""Prepare the fixed Skia, HarfBuzz and ICU libraries for a supported GUI target."""
 
 import argparse
 import json
@@ -11,6 +11,7 @@ import tarfile
 import tomllib
 from pathlib import Path
 
+import build_skia_windows
 from build_support import (
     RELEASE_CONFIG,
     ROOT,
@@ -22,10 +23,10 @@ from build_support import (
     save_record,
     source_patch_environment,
 )
-from target_catalog import native_configuration
+from target_catalog import WINDOWS_TARGETS, native_configuration
 
 REVISION = "f326a1e25fc736704063922b9ce76b527b1c5efe"
-TARGETS = ("aarch64-apple-darwin", "x86_64-apple-darwin")
+TARGETS = ("aarch64-apple-darwin", "x86_64-apple-darwin", *WINDOWS_TARGETS)
 LIBRARY = "libscoop_skia.a"
 PACKAGES = (
     (f"skia-{REVISION}", f"skia-{REVISION}", "."),
@@ -99,13 +100,23 @@ OPTIONS = {
 
 def prepare(args):
     vendor = ROOT / "sysroot/vendor/skia"
-    patch = vendor / "patches/macos-deployment.patch"
-    archives = [vendor / f"{name}.tar.xz" for name, _, _ in PACKAGES]
+    windows = args.target in WINDOWS_TARGETS
+    patch = (
+        vendor / "patches" / ("windows-toolchain.patch" if windows else "macos-deployment.patch")
+    )
+    packages = (*PACKAGES, *build_skia_windows.PACKAGES) if windows else PACKAGES
+    archives = [vendor / f"{name}.tar.xz" for name, _, _ in packages]
     sources = [metadata(path) for path in (*archives, patch)]
     inputs = {
         "sources": sources,
         "scripts": [
-            metadata(path) for path in (__file__, RELEASE_CONFIG, ROOT / "scripts/build_support.py")
+            metadata(path)
+            for path in (
+                __file__,
+                build_skia_windows.__file__,
+                RELEASE_CONFIG,
+                ROOT / "scripts/build_support.py",
+            )
         ],
         "target": args.target,
         "configuration": native_configuration(args.target),
@@ -117,7 +128,16 @@ def prepare(args):
         "options": OPTIONS,
         "environment": {
             name: os.environ.get(name)
-            for name in ("PATH", "DEVELOPER_DIR", "SDKROOT", "MACOSX_DEPLOYMENT_TARGET")
+            for name in (
+                "PATH",
+                "DEVELOPER_DIR",
+                "SDKROOT",
+                "MACOSX_DEPLOYMENT_TARGET",
+                "VCINSTALLDIR",
+                "WINDOWSSDKDIR",
+                "INCLUDE",
+                "LIB",
+            )
         },
     }
     record = args.build_dir / "inputs.json"
@@ -126,19 +146,21 @@ def prepare(args):
         print(f"Reusing {args.target} Skia {REVISION}: {args.prefix}", flush=True)
         return
 
-    tools = [shutil.which(name) for name in (args.gn, args.cc, args.cxx, "ninja", "xcrun", "git")]
+    tools = [shutil.which(name) for name in (args.gn, "ninja", "git")]
     if any(tool is None for tool in tools):
-        raise ValueError("Skia preparation requires GN, Ninja, Apple Clang, Xcode and Git")
-    gn, cc, cxx, ninja, xcrun, git = tools
+        raise ValueError("Skia preparation requires GN, Ninja and Git")
+    gn, ninja, git = tools
     release = tomllib.loads(RELEASE_CONFIG.read_text())["targets"][args.target]
-    sdk = subprocess.check_output([xcrun, "--sdk", args.sdk, "--show-sdk-path"], text=True).strip()
-    libtool = subprocess.check_output([xcrun, "--find", "libtool"], text=True).strip()
+    if windows:
+        platform_options, platform_tools = build_skia_windows.configuration(args, release)
+    else:
+        platform_options, platform_tools = darwin_configuration(args, release)
     source = args.build_dir / "source"
     source_record = args.build_dir / "source.json"
     if not source_record.exists() or json.loads(source_record.read_text()) != sources:
         if source.exists():
             shutil.rmtree(source)
-        for archive, (_, root, destination) in zip(archives, PACKAGES, strict=True):
+        for archive, (_, root, destination) in zip(archives, packages, strict=True):
             output = source / destination
             if root:
                 with tarfile.open(archive) as package:
@@ -154,21 +176,7 @@ def prepare(args):
         )
         source_record.write_text(json.dumps(sources) + "\n")
 
-    architecture = inputs["configuration"]["arch"]
-    deployment = inputs["environment"]["MACOSX_DEPLOYMENT_TARGET"] or release["minimum_os"]
-    triple = f"{apple_architecture(architecture)}-apple-macos{deployment}"
-    flags = ["-target", triple, "-isysroot", sdk]
-    options = dict(
-        OPTIONS,
-        target_cpu="arm64" if architecture == "aarch64" else "x64",
-        cc=cc,
-        cxx=cxx,
-        mac_min_target=deployment,
-        xcode_sysroot=sdk,
-        extra_cflags=[*flags, cpu_flag(architecture, release["cpu"])],
-        extra_asmflags=flags,
-        extra_ldflags=flags,
-    )
+    options = dict(OPTIONS, **platform_options)
     objects = args.build_dir / "objects"
     objects.mkdir(parents=True, exist_ok=True)
     (objects / "args.gn").write_text(
@@ -177,16 +185,21 @@ def prepare(args):
     subprocess.run([gn, "gen", str(objects)], cwd=source, check=True)
     subprocess.run([ninja, "-C", str(objects), "-j", str(args.jobs), *GN_TARGETS], check=True)
     staged = args.build_dir / LIBRARY
-    subprocess.run(
-        [
-            libtool,
-            "-static",
-            "-o",
-            str(staged),
-            *(str(objects / f"lib{name}.a") for name in ARCHIVES),
-        ],
-        check=True,
-    )
+    if windows:
+        build_skia_windows.combine(
+            args, objects, staged, (*ARCHIVES, *build_skia_windows.ARCHIVES), platform_tools[-1]
+        )
+    else:
+        subprocess.run(
+            [
+                platform_tools[-1],
+                "-static",
+                "-o",
+                str(staged),
+                *(str(objects / f"lib{name}.a") for name in ARCHIVES),
+            ],
+            check=True,
+        )
     args.prefix.mkdir(parents=True, exist_ok=True)
     headers = args.prefix / "include/skia"
     for relative in HEADERS:
@@ -200,8 +213,34 @@ def prepare(args):
     temporary = args.prefix / (LIBRARY + ".new")
     shutil.copy2(staged, temporary)
     temporary.replace(args.prefix / LIBRARY)
-    save_record(record, inputs, objects, tools=[*tools, libtool])
+    save_record(record, inputs, objects, tools=[*tools, *platform_tools])
     print(f"Prepared {args.target} Skia {REVISION}: {args.prefix}", flush=True)
+
+
+def darwin_configuration(args, release):
+    tools = [
+        shutil.which(name)
+        for name in (args.cc or "/usr/bin/clang", args.cxx or "/usr/bin/clang++", "xcrun")
+    ]
+    if any(tool is None for tool in tools):
+        raise ValueError("Darwin Skia preparation requires Apple Clang and Xcode")
+    cc, cxx, xcrun = tools
+    sdk = subprocess.check_output([xcrun, "--sdk", args.sdk, "--show-sdk-path"], text=True).strip()
+    libtool = subprocess.check_output([xcrun, "--find", "libtool"], text=True).strip()
+    architecture = native_configuration(args.target)["arch"]
+    deployment = os.environ.get("MACOSX_DEPLOYMENT_TARGET") or release["minimum_os"]
+    triple = f"{apple_architecture(architecture)}-apple-macos{deployment}"
+    flags = ["-target", triple, "-isysroot", sdk]
+    return {
+        "target_cpu": "arm64" if architecture == "aarch64" else "x64",
+        "cc": cc,
+        "cxx": cxx,
+        "mac_min_target": deployment,
+        "xcode_sysroot": sdk,
+        "extra_cflags": [*flags, cpu_flag(architecture, release["cpu"])],
+        "extra_asmflags": flags,
+        "extra_ldflags": flags,
+    }, [*tools, libtool]
 
 
 def main():
@@ -210,13 +249,14 @@ def main():
     parser.add_argument("--build-dir", type=Path, required=True)
     parser.add_argument("--prefix", type=Path)
     parser.add_argument("--gn", default="gn")
-    parser.add_argument("--cc", default="/usr/bin/clang")
-    parser.add_argument("--cxx", default="/usr/bin/clang++")
+    parser.add_argument("--cc")
+    parser.add_argument("--cxx")
     parser.add_argument("--sdk", default="macosx")
     parser.add_argument("--jobs", type=int, default=min(os.cpu_count() or 1, 6))
     args = parser.parse_args()
-    if platform.system() != "Darwin":
-        parser.error("prepare Darwin Skia resources on a macOS host")
+    host = "Windows" if args.target in WINDOWS_TARGETS else "Darwin"
+    if platform.system() != host:
+        parser.error(f"prepare {args.target} Skia resources on a {host} host")
     if args.jobs < 1:
         parser.error("--jobs must be positive")
     args.build_dir = args.build_dir.resolve()
