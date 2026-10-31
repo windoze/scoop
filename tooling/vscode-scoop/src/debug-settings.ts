@@ -3,11 +3,31 @@ import { access, constants } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
+import type { RunnableTarget } from "./runnables.ts";
+
+export interface TestCaseSelection {
+  path: string;
+  container: string;
+  name: string;
+}
+
+export interface TestDirectory {
+  containers: {
+    name: string;
+    cases: { name: string; location: { path: string } }[];
+  }[];
+}
+
+export interface BuiltProgram {
+  program: string;
+  testDirectory?: TestDirectory;
+}
 
 export interface DebugBuild {
   input?: string;
   tests?: boolean;
   filter?: string;
+  testCase?: TestCaseSelection;
   profile?: "debug" | "release";
   args?: string[];
 }
@@ -50,10 +70,86 @@ export function buildArguments(build: DebugBuild, sysroot: string): string[] {
   ];
 }
 
-export function testArguments(build: DebugBuild): string[] {
+export function testArguments(
+  build: DebugBuild,
+  result?: BuiltProgram,
+): string[] {
+  if (build.tests && build.testCase) {
+    if (!result?.testDirectory)
+      throw new Error("Scoop build did not return a test directory.");
+    const selected = build.testCase;
+    let index = 0;
+    const matches: number[] = [];
+    for (const container of result.testDirectory.containers) {
+      for (const test of container.cases) {
+        if (
+          container.name === selected.container &&
+          test.name === selected.name &&
+          test.location.path === selected.path
+        )
+          matches.push(index);
+        index++;
+      }
+    }
+    if (matches.length !== 1)
+      throw new Error(
+        `Cannot find one test ${selected.container}::${selected.name} in ${selected.path}. Refresh the CodeLens and try again.`,
+      );
+    return ["--scoop-test-cases", String(matches[0])];
+  }
   return build.tests && build.filter !== undefined
     ? ["--scoop-test-filter", build.filter]
     : [];
+}
+
+export async function sourceBuildInput(file: string): Promise<{
+  input: string;
+  cwd: string;
+  manifest: boolean;
+}> {
+  let directory = path.dirname(file);
+  while (true) {
+    try {
+      await access(path.join(directory, "Cone.toml"));
+      return { input: directory, cwd: directory, manifest: true };
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+    const parent = path.dirname(directory);
+    if (directory === parent)
+      return { input: file, cwd: path.dirname(file), manifest: false };
+    directory = parent;
+  }
+}
+
+export async function sourceLaunchConfiguration(
+  file: string,
+  target?: RunnableTarget,
+  noDebug = false,
+) {
+  const source = await sourceBuildInput(file);
+  if (target?.kind === "test" && !source.manifest)
+    throw new Error(
+      "Scoop tests require a Cone.toml beside the source or in a parent directory.",
+    );
+  const build: DebugBuild = { input: source.input };
+  if (target?.kind === "test") {
+    build.tests = true;
+    build.testCase = {
+      path: path.relative(source.cwd, file).split(path.sep).join("/"),
+      container: target.container,
+      name: target.name,
+    };
+  }
+  return {
+    type: "scoop",
+    request: "launch",
+    name: `Scoop: ${noDebug ? "Run" : "Debug"} ${target?.kind === "test" ? `${target.container}::${target.name}` : path.basename(file)}`,
+    cwd: source.cwd,
+    build,
+    console: "integratedTerminal",
+    noDebug,
+  };
 }
 
 export function formatterCommand(file: string): string {
@@ -68,9 +164,10 @@ export function buildProgram(
   cwd: string,
   output: (line: string) => void,
   signal?: AbortSignal,
-): Promise<string> {
+): Promise<BuiltProgram> {
   return new Promise((resolve, reject) => {
     const executables: string[] = [];
+    let testDirectory: TestDirectory | undefined;
     const child = spawn(command, args, {
       cwd,
       stdio: ["ignore", "pipe", "pipe"],
@@ -87,6 +184,7 @@ export function buildProgram(
           typeof record.output === "string"
         ) {
           executables.push(record.output);
+          testDirectory = record.test_directory;
         }
       } catch {
         // Compiler/tool diagnostics can include ordinary text as well as JSON.
@@ -107,7 +205,7 @@ export function buildProgram(
           ),
         );
       } else {
-        resolve(executables[0]);
+        resolve({ program: executables[0], testDirectory });
       }
     });
   });

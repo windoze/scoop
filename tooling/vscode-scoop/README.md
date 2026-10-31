@@ -5,6 +5,8 @@
   工作区符号、引用、重命名、选择范围和缺失标点的快速修复。
 - Tree-sitter：语法高亮、代码折叠、输入时缩进以及文档／选区重新缩进。重新缩进
   只调整行首空白，保留 raw 字符串和块注释内部文本，遵守空格／tab 设置。
+- CodeLens：在顶层 `main` 和测试容器的 `@Test` 方法上显示 Run／Debug，支持限定注解名、
+  import alias 和被忽略用例的显式执行。
 
 高亮通过 VS Code semantic token API 接入主题，分类依据为语法树。扩展默认启用
 Scoop 文件的 semantic highlighting 和输入时格式化；显式关闭
@@ -12,8 +14,9 @@ Scoop 文件的 semantic highlighting 和输入时格式化；显式关闭
 
 支持本地及远程工作区中的桌面 VS Code 1.100 及更新版本。扩展内含 parser、runtime
 WASM 和语言客户端；语法功能可独立运行。LSP 使用工作区所在机器上的 `scoop-lsp`，
-完整语义分析还需要与服务器匹配的 sysroot。扩展不会自动编译项目、准备 sysroot
-或运行生成器；不属于 Cone 的文件及未保存的新文件仍有 LSP 语法诊断和结构查询。
+完整语义分析还需要与服务器匹配的 sysroot。编辑和显示 CodeLens 不触发编译；点击
+Run／Debug 后才调用普通构建入口。扩展不自动准备 sysroot；不属于 Cone 的文件及
+未保存的新文件仍有 LSP 语法诊断和结构查询。
 
 ## 安装和配置
 
@@ -67,7 +70,7 @@ code --install-extension "$HOME"/.scoop/tooling/scoop-language-support-*.vsix
 sysroot。普通单元测试不需要服务器；真实扩展宿主测试需要 release 服务器和预编译库：
 
 ```sh
-cargo build --release -p scoop-lsp -p scoop-pm
+cargo build --release -p scoop -p scoopc -p scoop-linker -p scoop-lsp -p scoop-pm --bins
 cd tooling
 npm ci
 npm run format
@@ -84,9 +87,12 @@ code --install-extension vscode-scoop/scoop-language-support-0.3.0.vsix
 `tooling/vscode-scoop/`，按 F5 启动开发宿主；开发宿主沿正常设置选择服务器与 sysroot。
 
 `test:vscode` 默认使用仓库的 `target/release/scoop-lsp` 和 `sysroot/`，可通过
-`SCOOP_TEST_LSP`、`SCOOP_SYSROOT` 覆盖。测试使用独立工作区、用户配置和扩展目录，
+`SCOOP_TEST_LSP`、`SCOOP_SYSROOT` 覆盖；Run／Debug 验证使用同目录的 `scoop`，可通过
+`SCOOP_TEST_COMPILER` 指定。测试使用独立工作区、用户配置和扩展目录，
 验证离线语法功能及真实 LSP 的补全、文档、签名、导航、引用、重命名、诊断、修复、
-配置更新、文件监听、重启与启动失败后的恢复，不隐式构建服务器或准备系统库。
+配置更新、文件监听、重启与启动失败后的恢复；CodeLens 验证实际调用编译器并运行
+本次生成的程序，检查自动启动配置、用例精确选择及构建失败处理。测试不隐式构建
+编译器／服务器或准备系统库，也不要求宿主授予原生调试权限。
 默认下载稳定版 VS Code；可设置 `VSCODE_EXECUTABLE_PATH` 使用已有可执行文件。
 
 VSIX 包含语言客户端和运行依赖及许可，无需用户安装 npm 依赖。打包只生成 VSIX，
@@ -94,6 +100,18 @@ VSIX 包含语言客户端和运行依赖及许可，无需用户安装 npm 依�
 会一并构建 `scoop-lsp` 和扩展，分别放入 `bin/` 与 `tooling/`。
 
 ## 原生调试
+
+打开源码，在 `main` 或测试用例上方点击 **Run** 或 **Debug** 即可启动。扩展自动生成
+本次 launch profile，无需先创建 `.vscode/launch.json`。Run 忽略断点，Debug 启用断点、
+单步和变量查看；两者均先保存并以 debug profile、full 调试信息编译，再启动本次程序。
+构建失败或取消时不启动程序，错误及构建输出可通过 `Scoop: Show Debug Output` 查看。
+
+构建输入和默认工作目录取源文件最近的父级 `Cone.toml`，因此多 Cone 工作区会选择
+当前文件所属的成员。没有 manifest 的 `main` 按单文件编译；测试需要 manifest Cone。
+测试 CodeLens 根据本次编译返回的完整测试目录精确选择所点方法，包含其构造与
+BeforeTest／AfterTest 生命周期，不会连带运行同名前缀的其他用例。显式点击被
+`@Ignore` 标记的用例仍会执行该用例。CodeLens 使用本地语法树，LSP 关闭时也可显示；
+最终入口和测试声明仍由编译器验证。`editor.codeLens` 控制这些源码标记的显示。
 
 安装本发行包的 `scoop-lldb-dap`（LLVM 22，启用 Python），按 F5 选择 Scoop，或运行
 `Scoop: Debug Current File`。默认发现 `~/.scoop/bin/scoop` 和
@@ -125,6 +143,8 @@ Cone 的最小 `.vscode/launch.json` 配置：
 
 `build.tests: true` 使用 `scoop test --no-run`，直接启动生成的测试 executable；
 可用 `build.filter` 按完整测试名称的子串选择用例。未指定过滤器时运行非 ignored 用例。
+CodeLens 自动填写的 `build.testCase` 使用源码相对路径、容器名及方法名精确选择，
+优先于 `build.filter`。
 额外构建选项放入 `build.args`，程序选项放入顶层 `args`。`scoop.sysroot` 同时用于调试构建。
 多 Cone workspace 应通过 `build.input` 选择一个具体 executable Cone。
 

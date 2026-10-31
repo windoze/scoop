@@ -6,14 +6,53 @@ import {
   buildProgram,
   type DebugBuild,
   formatterCommand,
+  sourceBuildInput,
+  sourceLaunchConfiguration,
   testArguments,
   toolCommand,
 } from "./debug-settings.ts";
+import type { RunnableTarget } from "./runnables.ts";
 
 // biome-ignore lint/suspicious/noTemplateCurlyInString: VS Code resolves launch variables.
 const workspaceVariable = "${workspaceFolder}";
 // biome-ignore lint/suspicious/noTemplateCurlyInString: VS Code resolves launch variables.
 const fileVariable = "${file}";
+
+export async function launchSource(
+  uri: vscode.Uri,
+  target?: RunnableTarget,
+  noDebug = false,
+): Promise<boolean> {
+  if (!vscode.workspace.isTrusted) {
+    void vscode.window.showErrorMessage(
+      "Scoop execution requires a trusted workspace.",
+    );
+    return false;
+  }
+  if (uri.scheme !== "file") {
+    void vscode.window.showErrorMessage(
+      "Save the Scoop source file before running or debugging.",
+    );
+    return false;
+  }
+  try {
+    const document = await vscode.workspace.openTextDocument(uri);
+    if (document.isDirty && !(await document.save())) return false;
+    // Save first so a newly created Cone.toml participates in input discovery.
+    if (!(await vscode.workspace.saveAll(false))) return false;
+    const config = await sourceLaunchConfiguration(uri.fsPath, target, noDebug);
+    return await vscode.debug.startDebugging(
+      vscode.workspace.getWorkspaceFolder(uri),
+      config,
+      { noDebug },
+    );
+  } catch (error) {
+    void vscode.window.showErrorMessage(
+      error instanceof Error ? error.message : String(error),
+    );
+    return false;
+  }
+}
 
 export function registerDebugging(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel("Scoop Debug");
@@ -56,7 +95,8 @@ export function registerDebugging(context: vscode.ExtensionContext): void {
           folder?.uri,
         );
         const active = vscode.window.activeTextEditor?.document;
-        const cwd =
+        const explicitCwd = config.cwd !== undefined;
+        let cwd =
           config.cwd ??
           folder?.uri.fsPath ??
           (active?.uri.scheme === "file"
@@ -80,21 +120,27 @@ export function registerDebugging(context: vscode.ExtensionContext): void {
           const build: DebugBuild =
             typeof config.build === "object" ? { ...config.build } : {};
           if (!build.input) {
-            try {
-              await access(path.join(cwd, "Cone.toml"));
-              build.input = cwd;
-            } catch (error) {
-              if ((error as NodeJS.ErrnoException).code !== "ENOENT")
-                throw error;
-              if (
-                active?.languageId !== "scoop" ||
-                active.uri.scheme !== "file"
-              ) {
+            if (
+              active?.languageId === "scoop" &&
+              active.uri.scheme === "file"
+            ) {
+              const source = await sourceBuildInput(active.uri.fsPath);
+              build.input = source.input;
+              if (!explicitCwd) {
+                cwd = source.cwd;
+                config.cwd = cwd;
+              }
+            } else {
+              try {
+                await access(path.join(cwd, "Cone.toml"));
+                build.input = cwd;
+              } catch (error) {
+                if ((error as NodeJS.ErrnoException).code !== "ENOENT")
+                  throw error;
                 throw new Error(
                   "Set build.input to a Cone directory or saved .scoop file.",
                 );
               }
-              build.input = active.uri.fsPath;
             }
           }
           const command = await toolCommand(
@@ -106,10 +152,13 @@ export function registerDebugging(context: vscode.ExtensionContext): void {
           output.appendLine(
             [command, ...args].map((arg) => JSON.stringify(arg)).join(" "),
           );
-          config.program = await vscode.window.withProgress(
+          const buildCwd = cwd;
+          const result = await vscode.window.withProgress(
             {
               location: vscode.ProgressLocation.Notification,
-              title: "Building Scoop debug target",
+              title: config.noDebug
+                ? "Building Scoop run target"
+                : "Building Scoop debug target",
               cancellable: true,
             },
             async (_progress, token) => {
@@ -126,7 +175,7 @@ export function registerDebugging(context: vscode.ExtensionContext): void {
                 return await buildProgram(
                   command,
                   args,
-                  cwd,
+                  buildCwd,
                   (line) => output.appendLine(line),
                   abort.signal,
                 );
@@ -135,7 +184,11 @@ export function registerDebugging(context: vscode.ExtensionContext): void {
               }
             },
           );
-          config.args = [...testArguments(build), ...(config.args ?? [])];
+          config.program = result.program;
+          config.args = [
+            ...testArguments(build, result),
+            ...(config.args ?? []),
+          ];
         }
         delete config.build;
         return cancellation?.isCancellationRequested ? undefined : config;
@@ -174,10 +227,7 @@ export function registerDebugging(context: vscode.ExtensionContext): void {
         );
         return;
       }
-      await vscode.debug.startDebugging(
-        vscode.workspace.getWorkspaceFolder(document.uri),
-        initial(document.uri.fsPath),
-      );
+      return launchSource(document.uri);
     }),
     vscode.commands.registerCommand("scoop.showDebugOutput", () =>
       output.show(),

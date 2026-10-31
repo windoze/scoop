@@ -45,6 +45,32 @@ diagnostics = []
 checks = [{actual = "${ignored-list.result.observations.child_invocations.length}", equals = 0}]
 
 [[steps]]
+name = "build-for-debugger"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--lockfile", "${work}/source-lock-0.lock", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--no-run", "--filter", "no-match", "--ignored", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+    {actual = "${build-for-debugger.result.test_directory.containers.length}", equals = 3},
+    {actual = "${build-for-debugger.result.test_directory.containers.0.name}", equals = "dev.m43.Cases"},
+    {actual = "${build-for-debugger.result.test_directory.containers.0.cases.0.name}", equals = "检查::名字"},
+    {actual = "${build-for-debugger.result.test_directory.containers.0.cases.0.location.path}", equals = "tests/a.scoop"},
+    {actual = "${build-for-debugger.result.test_directory.containers.0.cases.1.name}", equals = "skipped"},
+    {actual = "${build-for-debugger.result.test_directory.containers.0.cases.1.ignore_reason}", equals = "needs a resource"},
+    {actual = "${build-for-debugger.result.test_directory.containers.1.cases.length}", equals = 0},
+    {actual = "${build-for-debugger.result.test_directory.containers.2.cases.0.location.path}", equals = "tests/z.scoop"},
+]
+
+[[steps]]
+name = "exact-test-program"
+argv = ["${build-for-debugger.result.output}", "--scoop-test-cases", "0"]
+exit = 0
+stdout = "initializer must not run\n"
+stderr = ""
+
+[[steps]]
 name = "empty-cone"
 files = [
     {copy = {from = "${fixture}/program", to = "${work}/empty"}},

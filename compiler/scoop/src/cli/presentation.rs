@@ -133,6 +133,10 @@ impl Reporter {
             record["kind"] = json!("executable");
             record["runtime_index"] = path_value(runtime_index);
             record["link_plan_fingerprint"] = json!(link_plan_fingerprint.to_string());
+            if let Some(directory) = root.artifact().summary().test_directory() {
+                record["test_directory"] =
+                    json!({ "containers": test_list::containers(directory) });
+            }
         }
         write_json(&record)
     }
