@@ -25,6 +25,7 @@ import package_windows
 from build_llvm import VERSION
 from build_rust_text import HEADER as RUST_TEXT_HEADER
 from build_rust_text import LIBRARY as RUST_TEXT_LIBRARY
+from build_skia import LIBRARY as SKIA_LIBRARY
 from build_support import RELEASE_CONFIG, ROOT
 from compression_backends import PACKAGES as COMPRESSION_PACKAGES
 from prepare_sysroot import cone_order
@@ -79,6 +80,21 @@ def prepare_targets(args, targets, environment):
                     "--jobs",
                     args.jobs,
                     *native,
+                ],
+                environment,
+            )
+        if facts["os"] == "darwin":
+            run_script(
+                "build_skia.py",
+                [
+                    "--target",
+                    target,
+                    "--build-dir",
+                    args.work_dir / "skia" / target,
+                    "--gn",
+                    args.gn,
+                    "--jobs",
+                    args.jobs,
                 ],
                 environment,
             )
@@ -225,6 +241,9 @@ def assemble(root, targets, binaries, args, release, extension):
         shutil.copy2(source / RUST_TEXT_LIBRARY, destination / RUST_TEXT_LIBRARY)
         shutil.copy2(source / "liburiparser.a", destination / "liburiparser.a")
         shutil.copy2(source / "libpcre2-8.a", destination / "libpcre2-8.a")
+        if TARGETS[target]["os"] == "darwin":
+            shutil.copy2(source / SKIA_LIBRARY, destination / SKIA_LIBRARY)
+            shutil.copytree(source / "include/skia", destination / "include/skia")
         for package in COMPRESSION_PACKAGES:
             for library in package["libraries"]:
                 shutil.copy2(source / library, destination / library)
@@ -311,6 +330,8 @@ def assemble(root, targets, binaries, args, release, extension):
         manifest += [
             f"{name} = {json.dumps(release[name])}" for name in ("rust_windows", "llvm_mingw")
         ]
+    if any(TARGETS[target]["os"] == "darwin" for target in targets):
+        manifest.append(f"skia = {json.dumps(release['skia'])}")
     manifest += [
         f"{name} = {json.dumps(release[name])}"
         for name in ("text_backend", "encoding_rs", "idna", "icu4x", "unicode", "unicode-width")
@@ -382,6 +403,9 @@ def main():
         help="Use a local LLVM source archive instead of downloading the fixed release",
     )
     parser.add_argument("--llvm-prefix", type=Path, help="Reuse an installed matching LLVM version")
+    parser.add_argument(
+        "--gn", default="gn", help="GN executable used to prepare Darwin Skia resources"
+    )
     parser.add_argument(
         "--prepared-sysroot",
         type=Path,

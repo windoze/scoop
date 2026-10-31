@@ -1,0 +1,15 @@
+package scoop.gui
+
+/** Dirty work survives missing frame opportunities; invalidations during painting are retained. */
+internal class FrameScheduler {
+    var dirty = true
+    private set(value) {
+        field = value
+    }
+    fun request() {
+        dirty = true
+    }
+    fun begin() {
+        dirty = false
+    }
+}

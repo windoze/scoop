@@ -287,6 +287,8 @@ C-FFI-safe、Scoop ABI、GC-free 与 release-safe 是不同合同。C 参数不�
 
 when 的前端决议遵守语言规范第 5 章：普通条件保存已解析 Boolean 求值及其局部 setup，case 保存 typed pattern；多条件组合为现有有序短路 Boolean 求值，其局部 setup 保留在同一条件内。无 subject 不伪造 Unit subject。subject 声明复用不可失败 binding planner，初始化、快照及解构各按规则执行一次，并继续匹配完整快照。fallback 明确区分源码 else、语句正常落空及已检查的不可达。路径类型事实在当前作用域合并，普通表达式不进入模式名字解析。
 
+模式矩阵的当前列若在全部剩余行中均为不可失败模式，先按原行关联检查剩余列，不枚举该列内部的字段组合。仅在确有未覆盖尾部时，按既有 constructor／值顺序求当前列的一个合法 witness；当前列无可构造值时整个 product 仍为空。这样鼠标状态等未参与匹配的聚合字段不会产生指数级组合，也不改变穷尽性结论、缺失示例顺序或运行期 first-match 语义。
+
 有 subject 与无 subject 的 when 使用不同的完整分支；只有前者携带 case 条件与依赖 subject 的覆盖信息，subject 及其实际类型不由独立可空字段拼接。 arm 的 guard、正文及位置可共享表示；纯条件分支的主条件只包含 Boolean 谓词或后备条件，其末端仅允许 else 或正常落空。覆盖结果记录实际选用的穷尽性类别，类型从当前 subject 取得，不再另存需要后续比对的 subject 类型或 enum 身份。导出模板的既有 wire 标签和可选 subject 编码保持不变；解码绑定在这一格式边界一次选定完整分支，后续具体化和 MIR 转换直接消费已选形态。语义 Return 必填结果表达式，正常 Unit 返回携带真实 Unit 值；源码 bare return 在 HIR 转换为这一完整形式。结果表达式的副作用先于清理执行，Nothing 路径没有正常返回值。
 
 已解析的导出正文／默认模板 Return 同样必含结果表达式。现有 wire 的可空返回字段仅用于编码兼容：旧的空字段在解码绑定时形成该语句定义位置的 Unit 常量，新产物写入完整表达式；不将这个 wire 选择传播回语义 IR，也不改变字段编号或 section 版本。
@@ -1038,6 +1040,10 @@ Apple Clang native 对象中的 `_objc_msgSend$<selector>` 未定义引用由 Da
 LIR foundation 以必需的 Boolean `native_cxx` 保存当前 Cone 的显式 C++ 运行库需求；该字段与普通 native library 表一起进入 Code。foundation wire 为 8；production/8 不再复制这一数据，读取方采用同一份 foundation。需求不依赖是否选中 C++ 文件，也不从机器符号推断。C++ 编译器沿已选择 C driver 的配套位置解析，保留相同 target、sysroot 和环境；以实际目标 headers、对象和链接配置判断相容性，不要求 C/C++ driver 的完整版本文本相等；缺失配套 driver、标准库或 ABI 配置直接诊断。
 
 native 与 runtime 的真实编译保存源码、depfile 中实际使用的头文件（含 scoop_rt.h）、include 配置、工具输入及影响 include 选择的目录状态。后续先检查这些输入的 metadata；全部未变化时不调用预处理器、不读取全部头文件。增加、删除或改变 include 搜索输入后重新发现并编译必要部分；所选 target、宏、SDK、C/C++ 配置与诊断位置沿正常工具调用传递。不为构建中外部替换输入建立稳定性检测、重试或不可变预处理镜像。
+
+共享 native 对象、C/C++ 工具发现和最终链接配置的更新键显式包含已选目标的 canonical triple。同一 driver、SDK、部署版本和头文件输入不能使不同目标的记录共用；即使未预处理源码或两目标选中相同源码，也必须先按目标区分记录。parent/child 传输继续由外层 target request 携带目标，不为缓存增加产物字段或重复工具探测。
+
+实际预处理时，已存在的目标 include 根和选中的头文件使用一致的路径解析后映射为逻辑位置，避免系统目录别名使行标记残留安装路径。未使用目标资源的普通 native 源码不要求目标资源目录存在；其他实际 I/O 错误照常报告。
 
 全局构建缓存由 scoop 管理。同一工作区、Cone、Production/Test、target、profile 可直接定位普通构建记录；本机路径可参与记录定位，不进入语言身份。记录保存已解析的有效配置、选中输入的逻辑名／修改时间／大小、工具与协议版本、实际依赖输入键／必要语义摘要、生成物及用户输出位置。更新判定先于源码读取、输入复制、预处理、能力查询和链接准备。输入内容在确需编译时读一次，供 parser 与必要语义计算共用。
 

@@ -131,6 +131,7 @@ static void key(SWView *view, NSEvent *native, BOOL down) {
     key(self, event, down);
 }
 - (void)resetInput {
+  [self cancelPointer:0];
   [self cancelComposition];
   NSEventModifierFlags locks = self.modifiers & NSEventModifierFlagCapsLock;
   for (NSNumber *code in [[self.pressedKeys allKeys]
@@ -138,6 +139,7 @@ static void key(SWView *view, NSEvent *native, BOOL down) {
     SWEvent *original = self.pressedKeys[code];
     SWEvent *event = sw_event(self.owner, SWKeyboard);
     SWEventData data = original.data;
+    sw_stamp_input(&data);
     data.flags = 4;
     data.b = (int64_t)locks;
     event.data = data;

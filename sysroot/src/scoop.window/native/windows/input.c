@@ -84,6 +84,7 @@ static void key(SWWindow *window, UINT msg, WPARAM vk, LPARAM lp) {
     window->key_down[code] = true;
   } else {
     event->data = window->pressed[code];
+    sw_stamp_input(&event->data);
     event->data.flags &= 8;
     event->data.b = (int64_t)mods;
     window->pressed[code].text = NULL;
@@ -92,7 +93,22 @@ static void key(SWWindow *window, UINT msg, WPARAM vk, LPARAM lp) {
   sw_enqueue(window->application, event);
 }
 
+static void cancel_pointer(SWWindow *window, int reason) {
+  if (!window->pressed_buttons)
+    return;
+  window->pressed_buttons = 0;
+  SWEvent *event = sw_event(window, 12);
+  if (event) {
+    event->data.flags = 7;
+    event->data.a = reason;
+    sw_enqueue(window->application, event);
+  }
+  if (GetCapture() == window->hwnd)
+    ReleaseCapture();
+}
+
 void sw_reset_input(SWWindow *window) {
+  cancel_pointer(window, 0);
   sw_cancel_composition(window);
   uint64_t locks = sw_modifiers() & 112;
   for (int n = 0; n < 512; ++n) {
@@ -101,6 +117,7 @@ void sw_reset_input(SWWindow *window) {
     SWEvent *event = sw_event(window, 10);
     if (event) {
       event->data = window->pressed[n];
+      sw_stamp_input(&event->data);
       event->data.flags = (event->data.flags & 8) | 4;
       event->data.b = (int64_t)locks;
       window->pressed[n].text = NULL;
@@ -136,6 +153,10 @@ bool sw_input(SWWindow *window, UINT msg, WPARAM wp, LPARAM lp,
   *result = 0;
   POINT position = {GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
   switch (msg) {
+  case WM_CAPTURECHANGED:
+  case WM_CANCELMODE:
+    cancel_pointer(window, 1);
+    return false;
   case WM_KEYDOWN:
   case WM_KEYUP:
   case WM_SYSKEYDOWN:
@@ -188,13 +209,21 @@ bool sw_input(SWWindow *window, UINT msg, WPARAM wp, LPARAM lp,
                  : msg >= WM_MBUTTONDOWN ? 2
                  : msg >= WM_RBUTTONDOWN ? 1
                                          : 0;
-    if (!up)
+    if (button >= 32)
+      return false;
+    uint32_t mask = UINT32_C(1) << button;
+    if (up && !(window->pressed_buttons & mask)) {
+      *result = TRUE;
+      return true;
+    }
+    if (!up) {
+      window->pressed_buttons |= mask;
       SetCapture(window->hwnd);
-    else if (!(LOWORD(wp) & (MK_LBUTTON | MK_RBUTTON | MK_MBUTTON |
-                             MK_XBUTTON1 | MK_XBUTTON2)) &&
-             GetCapture() == window->hwnd)
-      ReleaseCapture();
+    } else
+      window->pressed_buttons &= ~mask;
     pointer(window, up ? 4 : 3, position, button, twice ? 2 : 1, 0, 0);
+    if (!window->pressed_buttons && GetCapture() == window->hwnd)
+      ReleaseCapture();
     *result = TRUE;
     return true;
   }

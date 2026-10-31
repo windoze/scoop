@@ -213,6 +213,20 @@ void sw_enqueue(SWApplication *app, SWEvent *event) {
   app->tail = event;
   sw_wake(app);
 }
+void sw_stamp_input(SWEventData *data) {
+  LARGE_INTEGER counter, frequency;
+  if (!QueryPerformanceFrequency(&frequency) ||
+      !QueryPerformanceCounter(&counter)) {
+    data->time_seconds = 0;
+    data->time_nanoseconds = -1;
+    return;
+  }
+  data->time_seconds = counter.QuadPart / frequency.QuadPart;
+  data->time_nanoseconds =
+      (int64_t)((double)(counter.QuadPart % frequency.QuadPart) * 1000000000.0 /
+                (double)frequency.QuadPart);
+}
+
 SWEvent *sw_event(SWWindow *window, int32_t kind) {
   SWEvent *event = calloc(1, sizeof(*event));
   if (!event) {
@@ -221,6 +235,8 @@ SWEvent *sw_event(SWWindow *window, int32_t kind) {
   }
   event->data.window = window->identity;
   event->data.kind = kind;
+  if (kind == 10 || kind == 12)
+    sw_stamp_input(&event->data);
   return event;
 }
 void *scoop_window_next_event(SWApplication *app) {

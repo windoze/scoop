@@ -48,6 +48,14 @@ static void deadline(CFRunLoopTimerRef timer, void *context) {
   event.data = data;
   [self enqueue:event];
 }
+- (void)applicationDidResignActive:(NSNotification *)notification {
+  for (SWWindow *window in self.windows.allValues)
+    [window.view resetInput];
+}
+- (void)menuDidBeginTracking:(NSNotification *)notification {
+  for (SWWindow *window in self.windows.allValues)
+    [window.view cancelPointer:1];
+}
 @end
 
 int32_t scoop_window_is_main_thread(void) {
@@ -76,6 +84,11 @@ SWResult scoop_window_application_create(SWCallback callback, void *context,
                            (__bridge CFStringRef)NSModalPanelRunLoopMode);
     CFRunLoopAddSource(CFRunLoopGetMain(), owner.source, kCFRunLoopCommonModes);
     app.delegate = owner;
+    [NSNotificationCenter.defaultCenter
+        addObserver:owner
+           selector:@selector(menuDidBeginTracking:)
+               name:NSMenuDidBeginTrackingNotification
+             object:nil];
     [app setActivationPolicy:(NSApplicationActivationPolicy)policy];
     [app finishLaunching];
     return (SWResult){(__bridge_retained void *)owner, 0};
@@ -129,6 +142,7 @@ void scoop_window_application_stop(void *pointer) {
 
 void scoop_window_application_destroy(void *pointer) {
   SWApplication *owner = (__bridge_transfer SWApplication *)pointer;
+  [NSNotificationCenter.defaultCenter removeObserver:owner];
   NSApp.delegate = nil;
   if (owner.timer) {
     CFRunLoopTimerInvalidate(owner.timer);

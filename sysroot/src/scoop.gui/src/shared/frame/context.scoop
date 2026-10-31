@@ -1,0 +1,20 @@
+package scoop.gui
+
+import scoop.graphics.*
+import scoop.time.TimeMark
+
+/** One owner-thread frame; its Canvas is valid only while the painter runs. */
+public class FrameContext internal constructor(
+    public val window: GuiWindow,
+    public val canvas: Canvas,
+    public val size: Size,
+    public val time: TimeMark,
+    private val input: InputFrame
+) {
+    public fun place(area: InputArea, shape: Rect, parent: InputArea? = None) {
+        input.place(canvas, area, shape, parent)
+    }
+    public fun place(area: InputArea, shape: Path, parent: InputArea? = None) {
+        input.place(canvas, area, shape, parent)
+    }
+}

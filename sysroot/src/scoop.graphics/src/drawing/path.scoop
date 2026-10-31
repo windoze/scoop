@@ -1,0 +1,181 @@
+package scoop.graphics
+
+/** The winding rule used consistently by drawing, clipping and contains. */
+public enum FillRule {
+    NonZero, EvenOdd
+}
+
+/** An immutable native path. Builder changes and builder closure do not change it. */
+public class Path internal constructor(internal val resource: GraphicsResource): Closeable {
+    public val isClosed: Boolean get() = resource.isClosed
+    public val bounds: Rect get() {
+        @Unsafe
+        {
+            val result = pathBounds(resource.get());
+            checkRect(result);
+            return result
+        }
+    }
+    public fun contains(point: Point): Boolean {
+        checkPoint(point)
+        @Unsafe
+        {
+            return pathContains(resource.get(), point) != 0
+        }
+    }
+    public fun measure(): PathMeasure {
+        @Unsafe
+        {
+            return PathMeasure(ownedGraphics(pathMeasure(resource.get()), "measure path"))
+        }
+    }
+    public override fun close() {
+        resource.close()
+    }
+}
+
+/** Mutable path construction. build returns a snapshot and preserves the builder. */
+public class PathBuilder public constructor(fillRule: FillRule = FillRule.NonZero): Closeable {
+    private val resource: GraphicsResource = createPathBuilder(fillRule)
+    public fun moveTo(point: Point): PathBuilder = command(0, point)
+    public fun lineTo(point: Point): PathBuilder = command(1, point)
+    public fun quadraticTo(control: Point, end: Point): PathBuilder = command(2, control, end)
+    public fun cubicTo(control1: Point, control2: Point, end: Point): PathBuilder =
+        command(3, control1, control2, end)
+    public fun closeContour(): PathBuilder = command(4)
+    public fun addRect(rect: Rect): PathBuilder {
+        checkRect(rect)
+        @Unsafe
+        {
+            graphicsResult(pathAddRect(resource.get(), rect, 0), "add rectangle")
+        }
+        return this
+    }
+    public fun addOval(rect: Rect): PathBuilder {
+        checkRect(rect)
+        @Unsafe
+        {
+            graphicsResult(pathAddRect(resource.get(), rect, 1), "add oval")
+        }
+        return this
+    }
+    /** Adds a clockwise arc in radians, optionally starting a new contour. */
+    public fun arcTo(
+        oval: Rect,
+        start: Double,
+        sweep: Double,
+        moveToStart: Boolean = false
+    ): PathBuilder {
+        checkRect(oval);
+        checkScalar(start);
+        checkScalar(sweep)
+        @Unsafe
+        {
+            graphicsResult(pathArc(resource.get(), oval, start, sweep, moveToStart), "add arc")
+        }
+        return this
+    }
+    public fun build(): Path {
+        @Unsafe
+        {
+            return Path(ownedGraphics(pathBuild(resource.get()), "build path"))
+        }
+    }
+    public fun reset(): PathBuilder = command(5)
+    private fun command(
+        kind: Int,
+        first: Point = Point(0.0, 0.0),
+        second: Point = Point(0.0, 0.0),
+        third: Point = Point(0.0, 0.0)
+    ): PathBuilder {
+        checkPoint(first);
+        checkPoint(second);
+        checkPoint(third)
+        @Unsafe
+        {
+            graphicsResult(pathCommand(resource.get(), kind, first, second, third), "path command")
+        }
+        return this
+    }
+    public override fun close() {
+        resource.close()
+    }
+}
+
+/** Position and unit tangent at a distance along the path's contours. */
+public struct PathSample(val position: Point, val tangent: Point)
+
+/** A measurement snapshot that remains valid after closing the original path. */
+public class PathMeasure internal constructor(private val resource: GraphicsResource): Closeable {
+    public val length: Double get() {
+        @Unsafe
+        {
+            return measureLength(resource.get())
+        }
+    }
+    public fun sample(distance: Double): PathSample? {
+        requireGraphics(
+            distance.isFinite() && distance >= 0.0 && distance <= length,
+            "distance outside path"
+        )
+        @Unsafe
+        {
+            val value = measureSample(resource.get(), distance)
+            return if (value.found == 0)
+                None
+            else
+                Some(PathSample(value.position, value.tangent))
+        }
+    }
+    public override fun close() {
+        resource.close()
+    }
+}
+
+private fun createPathBuilder(rule: FillRule): GraphicsResource {
+    @Unsafe
+    {
+        return ownedGraphics(
+            pathBuilder(
+                if (rule == FillRule.EvenOdd)
+                    1
+                else
+                    0
+            ),
+            "create path builder"
+        )
+    }
+}
+
+@CLayout
+internal struct NativePathSample(val found: Int, val position: Point, val tangent: Point)
+
+@Extern(name = "scoop_graphics_path_builder")
+private fun pathBuilder(rule: Int): Ptr<Unit>?
+
+@Extern(name = "scoop_graphics_path_command")
+private fun pathCommand(path: Ptr<Unit>, kind: Int, first: Point, second: Point, third: Point): Int
+
+@Extern(name = "scoop_graphics_path_rect")
+private fun pathAddRect(path: Ptr<Unit>, rect: Rect, oval: Int): Int
+
+@Extern(name = "scoop_graphics_path_arc")
+private fun pathArc(path: Ptr<Unit>, oval: Rect, start: Double, sweep: Double, move: Boolean): Int
+
+@Extern(name = "scoop_graphics_path_build")
+private fun pathBuild(path: Ptr<Unit>): Ptr<Unit>?
+
+@Extern(name = "scoop_graphics_path_bounds")
+private fun pathBounds(path: Ptr<Unit>): Rect
+
+@Extern(name = "scoop_graphics_path_contains")
+private fun pathContains(path: Ptr<Unit>, point: Point): Int
+
+@Extern(name = "scoop_graphics_path_measure")
+private fun pathMeasure(path: Ptr<Unit>): Ptr<Unit>?
+
+@Extern(name = "scoop_graphics_measure_length")
+private fun measureLength(measure: Ptr<Unit>): Double
+
+@Extern(name = "scoop_graphics_measure_sample")
+private fun measureSample(measure: Ptr<Unit>, distance: Double): NativePathSample

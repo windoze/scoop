@@ -1,0 +1,24 @@
+package scoop.window
+
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.*
+
+/** Native occurrence time, or receipt time when the original clock is unavailable. */
+public enum InputTime {
+    Event(TimeMark), Observed(TimeMark)
+}
+
+/** Both variants use MonotonicTimeSource; the variant preserves their provenance. */
+public fun InputTime.mark(): TimeMark =
+    when (this) {
+        case Event(value) -> value
+        case Observed(value) -> value
+    }
+
+internal fun copyInputTime(event: NativeEvent): InputTime {
+    if (event.timeNanoseconds < 0L || event.timeNanoseconds >= 1000000000L)
+        throw WindowException("native input clock failed", WindowErrorKind.NativeFailure)
+    return InputTime.Observed(
+        TimeMark(MonotonicTimeSource, Duration.seconds(event.timeSeconds, event.timeNanoseconds))
+    )
+}

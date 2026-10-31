@@ -17,7 +17,9 @@ internal struct NativeEvent(
     val dx: Double,
     val dy: Double,
     val text: Ptr<UInt8>?,
-    val textLength: Long
+    val textLength: Long,
+    val timeSeconds: Long,
+    val timeNanoseconds: Long
 )
 
 @CLayout

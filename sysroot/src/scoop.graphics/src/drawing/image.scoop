@@ -1,0 +1,77 @@
+package scoop.graphics
+
+public enum ImageSampling {
+    Nearest, Linear
+}
+
+/** Owned immutable sRGB image pixels. Decoding copies input data and eagerly verifies it. */
+public class Image internal constructor(internal val resource: GraphicsResource): Closeable {
+    public val width: Int get() {
+        @Unsafe
+        {
+            return imageDimension(resource.get(), false)
+        }
+    }
+    public val height: Int get() {
+        @Unsafe
+        {
+            return imageDimension(resource.get(), true)
+        }
+    }
+    public val isClosed: Boolean get() = resource.isClosed
+    public override fun close() {
+        resource.close()
+    }
+    public companion object {
+        /** Copies tightly packed, straight-alpha RGBA8 input. */
+        public fun fromRgba(width: Int, height: Int, pixels: Array<Byte>): Image {
+            requireGraphics(
+                pixels.size == pixelBytes(width, height),
+                "RGBA byte length does not match image size"
+            )
+            @Unsafe
+            {
+                return pixels.withDataPointer {
+                    bytes,
+                    _ -> @Unsafe
+                    {
+                        return@withDataPointer Image(
+                            ownedGraphics(imageRgba(width, height, bytes), "create RGBA image")
+                        )
+                    }
+                }
+            }
+        }
+        /** Decodes PNG or JPEG; malformed data reports GraphicsException. */
+        public fun decode(encoded: Array<Byte>): Image {
+            @Unsafe
+            {
+                return encoded.withDataPointer {
+                    bytes,
+                    count -> @Unsafe
+                    {
+                        return@withDataPointer Image(
+                            ownedGraphics(imageDecode(bytes, count), "decode image")
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+internal fun pixelBytes(width: Int, height: Int): Long {
+    requireGraphics(width > 0 && height > 0, "image dimensions must be positive")
+    val pixels = width.toLong() * height.toLong()
+    requireGraphics(pixels <= Long.MAX_VALUE / 4L, "pixel allocation size overflow")
+    return pixels * 4L
+}
+
+@Extern(name = "scoop_graphics_image_dimension")
+private fun imageDimension(image: Ptr<Unit>, height: Boolean): Int
+
+@Extern(name = "scoop_graphics_image_rgba")
+private fun imageRgba(width: Int, height: Int, pixels: Ptr<Byte>): Ptr<Unit>?
+
+@Extern(name = "scoop_graphics_image_decode")
+private fun imageDecode(bytes: Ptr<Byte>, count: Long): Ptr<Unit>?

@@ -6,6 +6,7 @@ public struct PointerState(
     val physicalPosition: PhysicalPosition,
     val scaleFactor: Double,
     val modifiers: Modifiers,
+    val time: InputTime,
     val deviceId: DeviceId? = None
 )
 
@@ -24,11 +25,17 @@ public enum ScrollPhase {
     None, MayBegin, Began, Stationary, Changed, Ended, Cancelled
 }
 
+/** Ends the aggregate mouse-button sequence without synthesizing a successful release. */
+public enum PointerCancelReason {
+    FocusLost, CaptureLost
+}
+
 /** Window-relative pointer events, with independent wheel and momentum phases. */
 public enum PointerEvent {
     Entered(PointerState), Left(PointerState), Moved(PointerState),
     Button(PointerState, MouseButton, ElementState, Int),
-    Wheel(PointerState, ScrollDelta, ScrollPhase, ScrollPhase)
+    Wheel(PointerState, ScrollDelta, ScrollPhase, ScrollPhase),
+    Cancelled(PointerCancelReason, InputTime)
 }
 
 /** System cursors available without owning a custom image or capture session. */

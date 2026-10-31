@@ -3,6 +3,8 @@ package scoop.window
 import scoop.test.*
 import scoop.window.native.*
 import scoop.tests.window.exerciseNativeInput
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.TimeMark
 
 @Test
 private class InputValueTest {
@@ -38,24 +40,42 @@ internal class InputProbe {
     var lineWheel = false
     var pixelWheel = false
     var momentum = false
+    var pointerSequence = ""
+    var receivedAfter: TimeMark? = None
+    var receivedBefore: TimeMark? = None
 
     fun start(window: Window, lease: NativeWindowLease) {
         window.setCursorIcon(CursorIcon.Text)
         window.setCursorVisible(false)
         started = true
+        receivedAfter = Some(MonotonicTimeSource.markNow())
         @Unsafe
         {
             when (lease.handle) {
                 case AppKit(_, view) -> assertEquals(0, exerciseNativeInput(view))
             }
         }
+        receivedBefore = Some(MonotonicTimeSource.markNow())
         window.setCursorVisible(true)
         window.setCursorIcon(CursorIcon.Default)
         gcCollect()
     }
     fun key(value: KeyEvent) {
-        if (started)
+        if (started) {
+            observe(value.time)
             keys.add(value)
+        }
+    }
+    private fun observe(time: InputTime) {
+        when (time) {
+            case Observed(value) -> {
+                assertTrue(value.source === MonotonicTimeSource)
+                assertTrue(value >= receivedAfter!!)
+                assertTrue(value <= receivedBefore!!)
+                assertEquals(value, time.mark())
+            }
+            case Event(_) -> fail(Some("AppKit currently reports receipt time"))
+        }
     }
     fun edit(batch: TextInputBatch) {
         if (!started)
@@ -71,8 +91,22 @@ internal class InputProbe {
         if (!started)
             return
         when (event) {
+            case Cancelled(reason, time) -> {
+                observe(time)
+                pointerSequence += when (reason) {
+                    case FocusLost -> "c"
+                    case CaptureLost -> "x"
+                }
+            }
+            case Left(state) -> {
+                if (state.logicalPosition == LogicalPosition(-17.0, -19.0)) {
+                    observe(state.time)
+                    pointerSequence += "l"
+                }
+            }
             case Moved(state) -> {
                 if (state.logicalPosition == LogicalPosition(20.0, 30.0)) {
+                    observe(state.time)
                     moved = true
                     assertEquals(
                         PhysicalPosition(20.0 * state.scaleFactor, 30.0 * state.scaleFactor),
@@ -81,11 +115,17 @@ internal class InputProbe {
                     assertEquals(None, state.deviceId)
                 }
             }
-            case Button(state, MouseButton.Left, _, count) -> {
+            case Button(state, MouseButton.Left, action, count) -> {
+                observe(state.time)
                 if (count == 2) {
                     buttons += 1;
                     assertEquals(LogicalPosition(20.0, 30.0), state.logicalPosition)
                 }
+                if (count == 7)
+                    pointerSequence += if (action == ElementState.Pressed)
+                        "d"
+                    else
+                        "u"
             }
             case Wheel(_, ScrollDelta.LineDelta(x, y), ScrollPhase.None, ScrollPhase.None) -> {
                 assertEquals(3.0, x);
@@ -160,5 +200,7 @@ internal class InputProbe {
         assertTrue(synthetic && shiftLeftReleasedWithRightHeld && unknown)
         assertTrue(moved && lineWheel && pixelWheel && momentum)
         assertEquals(2, buttons)
+        assertEquals("dlcdcdxdu", pointerSequence)
+        started = false
     }
 }

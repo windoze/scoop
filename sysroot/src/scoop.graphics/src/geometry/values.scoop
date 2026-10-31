@@ -1,0 +1,144 @@
+package scoop.graphics
+
+import scoop.math.*
+
+/** A point in logical coordinates, with positive y directed downward. */
+@CLayout
+public struct Point(val x: Double, val y: Double)
+
+/** A nonnegative logical size, checked at operation boundaries. */
+public struct Size(val width: Double, val height: Double)
+
+/** A logical rectangle. Parent relationships do not imply clipping to this rectangle. */
+@CLayout
+public struct Rect(val x: Double, val y: Double, val width: Double, val height: Double) {
+    public val origin: Point get() = Point(x, y)
+    public val size: Size get() = Size(width, height)
+    public fun contains(point: Point): Boolean {
+        checkRect(this)
+        checkPoint(point)
+        return point.x >= x && point.x < x + width && point.y >= y && point.y < y + height
+    }
+}
+
+/** Maps (x,y) to (a*x+c*y+tx,b*x+d*y+ty). */
+@CLayout
+public struct Transform(
+    val a: Double = 1.0,
+    val b: Double = 0.0,
+    val c: Double = 0.0,
+    val d: Double = 1.0,
+    val tx: Double = 0.0,
+    val ty: Double = 0.0
+) {
+    public fun map(point: Point): Point {
+        checkTransform(this)
+        checkPoint(point)
+        val result = Point(a * point.x + c * point.y + tx, b * point.x + d * point.y + ty)
+        checkPoint(result)
+        return result
+    }
+    /** Applies this transform, followed by other. */
+    public fun then(other: Transform): Transform {
+        checkTransform(this)
+        checkTransform(other)
+        val result =
+            Transform(
+                other.a * a + other.c * b,
+                other.b * a + other.d * b,
+                other.a * c + other.c * d,
+                other.b * c + other.d * d,
+                other.a * tx + other.c * ty + other.tx,
+                other.b * tx + other.d * ty + other.ty
+            )
+        checkTransform(result)
+        return result
+    }
+    public fun inverse(): Transform? {
+        checkTransform(this)
+        val determinant = a * d - b * c
+        if (determinant == 0.0)
+            return None
+        val result =
+            Transform(
+                d / determinant,
+                -b / determinant,
+                -c / determinant,
+                a / determinant,
+                (c * ty - d * tx) / determinant,
+                (b * tx - a * ty) / determinant
+            )
+        if (!finiteTransform(result))
+            return None
+        return Some(result)
+    }
+    public companion object {
+        public fun translation(x: Double, y: Double): Transform = Transform(tx = x, ty = y)
+        public fun scale(x: Double, y: Double): Transform = Transform(a = x, d = y)
+        /** Angles are radians; positive rotation is clockwise in the logical coordinate system. */
+        public fun rotation(radians: Double): Transform {
+            requireGraphics(radians.isFinite(), "non-finite angle")
+            val s = sin(radians)
+            val c = cos(radians)
+            return Transform(c, s, -s, c)
+        }
+    }
+}
+
+/** Straight sRGB components in 0..1; surfaces use premultiplied alpha internally. */
+@CLayout
+public struct Color(val red: Double, val green: Double, val blue: Double, val alpha: Double = 1.0) {
+    public fun withAlpha(value: Double): Color = Color(red, green, blue, value)
+    public companion object {
+        public val Transparent: Color get() = Color(0.0, 0.0, 0.0, 0.0)
+        public val Black: Color get() = Color(0.0, 0.0, 0.0)
+        public val White: Color get() = Color(1.0, 1.0, 1.0)
+    }
+}
+
+internal fun requireGraphics(condition: Boolean, message: String) {
+    if (!condition)
+        throw IllegalArgumentException(Some(message))
+}
+
+internal fun checkScalar(value: Double) {
+    requireGraphics(value.isFinite() && value.toFloat().isFinite(), "graphics scalar overflow")
+}
+
+internal fun checkPoint(point: Point) {
+    checkScalar(point.x);
+    checkScalar(point.y)
+}
+
+internal fun checkSize(size: Size) {
+    checkScalar(size.width);
+    checkScalar(size.height)
+    requireGraphics(size.width >= 0.0 && size.height >= 0.0, "negative graphics size")
+}
+
+internal fun checkRect(rect: Rect) {
+    checkPoint(rect.origin);
+    checkSize(rect.size)
+    checkScalar(rect.x + rect.width);
+    checkScalar(rect.y + rect.height)
+}
+
+internal fun finiteTransform(value: Transform): Boolean =
+    value.a.isFinite() &&
+        value.b.isFinite() &&
+        value.c.isFinite() &&
+        value.d.isFinite() &&
+        value.tx.isFinite() &&
+        value.ty.isFinite()
+
+internal fun checkTransform(value: Transform) {
+    requireGraphics(finiteTransform(value), "non-finite transform")
+}
+
+internal fun checkColor(value: Color) {
+    for (component in [value.red, value.green, value.blue, value.alpha])
+        requireGraphics(
+            component.isFinite() && component >= 0.0 && component <= 1.0,
+            "invalid sRGB color"
+        )
+}

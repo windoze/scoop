@@ -1,0 +1,159 @@
+package scoop.graphics
+
+import scoop.collections.*
+
+public enum PaintingStyle {
+    Fill, Stroke
+}
+
+public enum StrokeCap {
+    Butt, Round, Square
+}
+
+public enum StrokeJoin {
+    Miter, Round, Bevel
+}
+
+public struct GradientStop(val offset: Double, val color: Color)
+
+/** An immutable copied set of color stops. */
+public class Gradient private constructor(
+    internal val kind: Int,
+    internal val start: Point,
+    internal val end: Point,
+    internal val radius: Double,
+    internal val stops: List<GradientStop>
+) {
+    public companion object {
+        public fun linear(start: Point, end: Point, stops: List<GradientStop>): Gradient {
+            checkPoint(start);
+            checkPoint(end)
+            requireGraphics(start != end, "gradient endpoints must differ")
+            return Gradient(0, start, end, 0.0, copyStops(stops))
+        }
+        public fun radial(center: Point, radius: Double, stops: List<GradientStop>): Gradient {
+            checkPoint(center);
+            checkScalar(radius)
+            requireGraphics(radius > 0.0, "gradient radius must be positive")
+            return Gradient(1, center, center, radius, copyStops(stops))
+        }
+    }
+}
+
+/** Drawing values; gradients copy their inputs and do not own a closeable native handle. */
+public class Paint public constructor(
+    public val color: Color = Color.Black,
+    public val style: PaintingStyle = PaintingStyle.Fill,
+    public val strokeWidth: Double = 1.0,
+    public val cap: StrokeCap = StrokeCap.Butt,
+    public val join: StrokeJoin = StrokeJoin.Miter,
+    public val miterLimit: Double = 4.0,
+    public val gradient: Gradient? = None,
+    public val antiAlias: Boolean = true
+) {
+    internal fun <T> withNative(block: (Ptr<Unit>) -> T): T {
+        checkColor(color);
+        checkScalar(strokeWidth);
+        checkScalar(miterLimit)
+        requireGraphics(strokeWidth >= 0.0 && miterLimit >= 0.0, "invalid stroke")
+        val capCode =
+            when (cap) {
+                case Butt -> 0;
+                case Round -> 1;
+                case Square -> 2
+            }
+        val joinCode =
+            when (join) {
+                case Miter -> 0;
+                case Round -> 1;
+                case Bevel -> 2
+            }
+        @Unsafe
+        {
+            val pointer =
+                paintCreate(
+                    color,
+                    if (style == PaintingStyle.Fill)
+                        0
+                    else
+                        1,
+                    strokeWidth,
+                    capCode,
+                    joinCode,
+                    miterLimit,
+                    antiAlias
+                ) ?:
+                    throw GraphicsException("create paint")
+            try {
+                when (gradient) {
+                    case Some(value) -> {
+                        for (stop in value.stops)
+                            graphicsResult(
+                                paintStop(pointer, stop.offset, stop.color),
+                                "copy gradient stop"
+                            )
+                        graphicsResult(
+                            paintGradient(
+                                pointer,
+                                value.kind,
+                                value.start,
+                                value.end,
+                                value.radius
+                            ),
+                            "create gradient"
+                        )
+                    }
+                    case None -> {}
+                }
+                return block(pointer)
+            } finally {
+                graphicsDrop(pointer)
+            }
+        }
+    }
+}
+
+private fun copyStops(stops: List<GradientStop>): List<GradientStop> {
+    requireGraphics(stops.size >= 2L, "a gradient needs at least two stops")
+    var previous = -1.0
+    val result = ArrayList<GradientStop>()
+    for (stop in stops) {
+        requireGraphics(
+            stop.offset.isFinite() &&
+                stop.offset >=
+                0.0 &&
+                stop.offset <=
+                1.0 &&
+                stop.offset >
+                previous,
+            "invalid gradient stops"
+        )
+        checkColor(stop.color)
+        previous = stop.offset
+        result.add(stop)
+    }
+    return result
+}
+
+@Extern(name = "scoop_graphics_paint_create")
+private fun paintCreate(
+    color: Color,
+    style: Int,
+    width: Double,
+    cap: Int,
+    join: Int,
+    miter: Double,
+    aa: Boolean
+): Ptr<Unit>?
+
+@Extern(name = "scoop_graphics_paint_stop")
+private fun paintStop(paint: Ptr<Unit>, offset: Double, color: Color): Int
+
+@Extern(name = "scoop_graphics_paint_gradient")
+private fun paintGradient(
+    paint: Ptr<Unit>,
+    kind: Int,
+    start: Point,
+    end: Point,
+    radius: Double
+): Int

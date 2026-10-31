@@ -1,0 +1,87 @@
+package scoop.graphics.native
+
+import scoop.graphics.*
+
+/** A renderer-owned target. Canvas borrows end on every normal and exceptional callback exit. */
+public class RenderTarget internal constructor(
+    internal val resource: GraphicsResource,
+    public val pixelWidth: Int,
+    public val pixelHeight: Int,
+    public val scale: Double
+): Closeable {
+    private var borrowed = false
+    public val isClosed: Boolean get() = resource.isClosed
+    public fun <T> draw(block: (Canvas) -> T): T {
+        val pointer = available()
+        @Unsafe
+        {
+            val canvas = Canvas(ownedGraphics(targetCanvas(pointer, scale), "borrow canvas"))
+            borrowed = true
+            try {
+                return block(canvas)
+            }
+            finally {
+                borrowed = false;
+                canvas.resource.close()
+            }
+        }
+    }
+    /** Submits recorded GPU work without waiting for completion. */
+    public fun submit() {
+        @Unsafe
+        {
+            graphicsResult(targetSubmit(available(), false), "submit graphics target")
+        }
+    }
+    /** Ends use of this target; already recorded GPU work is safely submitted without presentation. */
+    public fun abort() {
+        submit()
+    }
+    /** Explicit readback is a synchronization point and returns straight RGBA8. */
+    public fun readPixels(): Array<Byte> {
+        val pointer = available()
+        val result = MutableArray<Byte>(pixelBytes(pixelWidth, pixelHeight)) { _ -> 0.toByte() }
+        @Unsafe
+        {
+            result.withDataPointer {
+                bytes,
+                _ -> @Unsafe
+                {
+                    graphicsResult(targetRead(pointer, bytes), "read pixels")
+                }
+            }
+        }
+        return result.toArray()
+    }
+    /** Returns an independent CPU-readable image; GPU targets perform explicit readback. */
+    public fun snapshot(): Image {
+        @Unsafe
+        {
+            return Image(ownedGraphics(targetSnapshot(available()), "snapshot image"))
+        }
+    }
+    private fun available(): Ptr<Unit> {
+        val pointer = resource.get()
+        if (borrowed)
+            throw IllegalStateException(Some("render target is borrowed"))
+        return pointer
+    }
+    public override fun close() {
+        resource.checkThread()
+        if (borrowed)
+            throw IllegalStateException(Some("cannot close a borrowed render target"))
+        resource.close()
+    }
+}
+
+@Extern(name = "scoop_graphics_target_canvas")
+private fun targetCanvas(target: Ptr<Unit>, scale: Double): Ptr<Unit>?
+
+@Extern(name = "scoop_graphics_target_submit")
+internal fun targetSubmit(target: Ptr<Unit>, wait: Boolean): Int
+
+@Extern(name = "scoop_graphics_target_read")
+private fun targetRead(target: Ptr<Unit>, bytes: Ptr<Byte>): Int
+
+@Extern(name = "scoop_graphics_target_snapshot")
+private fun targetSnapshot(target: Ptr<Unit>): Ptr<Unit>?

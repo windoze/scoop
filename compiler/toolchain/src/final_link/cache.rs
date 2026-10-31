@@ -45,7 +45,7 @@ pub(super) fn resolve(
     .map(path)
     .transpose()?;
     let key = build_record::fingerprint(&(
-        crate::native_record::ResolvedRecord::from_target(target)?,
+        crate::native_record::ResolvedRecord::cache_configuration(target)?,
         options.mode,
         options.sysroot.as_deref().map(path).transpose()?,
         options.unwind_prefix.as_deref().map(path).transpose()?,

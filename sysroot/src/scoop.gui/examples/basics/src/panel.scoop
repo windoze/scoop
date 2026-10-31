@@ -1,0 +1,199 @@
+package scoop.examples.gui
+
+import scoop.graphics.*
+import scoop.gui.*
+import scoop.math.max
+import scoop.time.Duration
+import scoop.window.*
+
+internal class DemoPanel(
+    private val star: Path,
+    private val title: TextLayout,
+    private val hint: TextLayout,
+    private val editor: DemoEditor
+) {
+    private var gui: GuiWindow? = None
+    private var shape: InputArea? = None
+    private var text: InputArea? = None
+    private var position: Animatable<Point>? = None
+    private var angle: Animatable<Double>? = None
+    private var color: Animatable<Color>? = None
+    private var drag: DemoDrag? = None
+    private val home = Point(180.0, 184.0)
+
+    fun attach(window: GuiWindow) {
+        gui = Some(window)
+        position = Some(window.animations.value(home))
+        drag = Some(DemoDrag(position!!, home))
+        angle = Some(window.animations.value(0.0))
+        color = Some(window.animations.value(Color(0.15, 0.43, 0.72)))
+        angle!!.animateTo(
+            6.283185307179586,
+            AnimationSpec.Tween(Duration.seconds(16L)),
+            Some(Repeat())
+        )
+        shape = Some(window.createArea { _, event -> shapeEvent(event) })
+        text = Some(window.createArea(textInput = true) { area, event -> textEvent(area, event) })
+    }
+
+    fun paint(frame: FrameContext) {
+        val canvas = frame.canvas
+        canvas.clear(Color(0.95, 0.96, 0.97))
+        canvas.drawText(title, Point(32.0, 26.0))
+        canvas.drawText(hint, Point(32.0, 74.0))
+        val point = position!!.value
+        canvas.save()
+        canvas.translate(point.x, point.y)
+        canvas.rotate(angle!!.value)
+        canvas.save()
+        canvas.translate(3.0, 4.0)
+        canvas.saveLayer(0.16)
+        canvas.drawPath(star, Paint(Color.Black))
+        canvas.restore()
+        canvas.restore()
+        canvas.drawPath(star, Paint(color!!.value))
+        frame.place(shape!!, star)
+        canvas.restore()
+
+        val width = max(120.0, frame.size.width - 64.0)
+        val height = max(70.0, frame.size.height - 302.0)
+        canvas.save()
+        canvas.translate(32.0, 270.0)
+        val border =
+            if (text!!.isFocusActive)
+                Color(0.15, 0.43, 0.72)
+            else
+                Color(0.78, 0.81, 0.85)
+        canvas.drawRoundRect(Rect(0.0, 0.0, width, height), 12.0, 12.0, Paint(border))
+        canvas.drawRoundRect(
+            Rect(2.0, 2.0, width - 4.0, height - 4.0),
+            10.0,
+            10.0,
+            Paint(Color.White)
+        )
+        frame.place(text!!, Rect(0.0, 0.0, width, height))
+        canvas.translate(12.0, 12.0)
+        canvas.clipRect(Rect(0.0, 0.0, width - 24.0, height - 24.0))
+        val layout = editor.layout(width - 24.0)
+        val selection = editor.state.selection.range
+        for (box in layout.selection(TextRange(selection.start, selection.end)))
+            canvas.drawRect(box.rect, Paint(Color(0.75, 0.86, 0.98)))
+        canvas.drawText(layout)
+        when (editor.state.markedRange) {
+            case Some(range) -> {
+                for (box in layout.selection(TextRange(range.start, range.end)))
+                    canvas.drawRect(
+                        Rect(box.rect.x, box.rect.y + box.rect.height - 2.0, box.rect.width, 2.0),
+                        Paint(Color(0.15, 0.43, 0.72))
+                    )
+            }
+            case None -> {}
+        }
+        val caret = editor.caret()
+        if (text!!.isFocusActive)
+            canvas.drawRect(caret, Paint(Color.Black))
+        text!!.setCaret(Rect(caret.x + 12.0, caret.y + 12.0, caret.width, caret.height))
+        canvas.restore()
+    }
+
+    private fun shapeEvent(event: AreaEvent): InputResult {
+        when (event) {
+            case Pointer(AreaPointerEvent.Entered(_)) -> {
+                if (isOpen()) {
+                    color!!.animateTo(
+                        Color(0.84, 0.34, 0.19),
+                        AnimationSpec.Tween(Duration.milliseconds(120L))
+                    )
+                    gui!!.nativeWindow.setCursorIcon(CursorIcon.Grab)
+                }
+            }
+            case Pointer(AreaPointerEvent.Left(_)) -> {
+                if (isOpen()) {
+                    color!!.animateTo(
+                        Color(0.15, 0.43, 0.72),
+                        AnimationSpec.Tween(Duration.milliseconds(120L))
+                    )
+                    gui!!.nativeWindow.setCursorIcon(CursorIcon.Default)
+                }
+            }
+            case Pointer(
+                AreaPointerEvent.Button(pointer, MouseButton.Left, ElementState.Pressed, _)
+            ) -> {
+                drag!!.press(
+                    Point(pointer.state.logicalPosition.x, pointer.state.logicalPosition.y)
+                )
+                gui!!.nativeWindow.setCursorIcon(CursorIcon.Grabbing)
+            }
+            case Pointer(AreaPointerEvent.Moved(pointer)) -> {
+                drag!!.move(Point(pointer.state.logicalPosition.x, pointer.state.logicalPosition.y))
+            }
+            case Pointer(
+                AreaPointerEvent.Button(_, MouseButton.Left, ElementState.Released, _)
+            ) -> {
+                drag!!.release()
+                gui!!.nativeWindow.setCursorIcon(CursorIcon.Grab)
+            }
+            case Pointer(AreaPointerEvent.Cancelled(_, _)) -> {
+                drag!!.cancel(gui!!.state)
+                if (isOpen())
+                    gui!!.nativeWindow.setCursorIcon(CursorIcon.Default)
+            }
+            else -> {}
+        }
+        return InputResult.Handled
+    }
+
+    private fun textEvent(area: InputArea, event: AreaEvent): InputResult {
+        when (event) {
+            case Pointer(AreaPointerEvent.Entered(_)) -> {
+                if (isOpen())
+                    gui!!.nativeWindow.setCursorIcon(CursorIcon.Text)
+            }
+            case Pointer(AreaPointerEvent.Left(_)) -> {
+                if (isOpen())
+                    gui!!.nativeWindow.setCursorIcon(CursorIcon.Default)
+            }
+            case Pointer(
+                AreaPointerEvent.Button(pointer, MouseButton.Left, ElementState.Pressed, _)
+            ) -> {
+                if (area.requestFocus())
+                    editor.choose(
+                        Point(pointer.localPosition.x - 12.0, pointer.localPosition.y - 12.0)
+                    )
+                repaint()
+            }
+            case TextInput(TextInputEvent.Edit(batch)) -> {
+                editor.apply(batch);
+                repaint()
+            }
+            case Keyboard(key) -> {
+                if (
+                    key.state ==
+                        ElementState.Pressed &&
+                        !key.modifiers.control &&
+                        !key.modifiers.superKey
+                ) {
+                    when (key.logicalKey) {
+                        case Named(NamedKey.Backspace) -> editor.backspace()
+                        case Named(NamedKey.ArrowLeft) -> editor.moveCursor(false)
+                        case Named(NamedKey.ArrowRight) -> editor.moveCursor(true)
+                        else -> {}
+                    }
+                    repaint()
+                }
+            }
+            case FocusChanged(_) -> repaint()
+            else -> {}
+        }
+        return InputResult.Handled
+    }
+    private fun isOpen(): Boolean =
+        when (gui) {
+            case Some(window) -> window.state == GuiWindowState.Open;
+            case None -> false
+        }
+    private fun repaint() {
+        if (isOpen())
+            gui!!.requestFrame()
+    }
+}

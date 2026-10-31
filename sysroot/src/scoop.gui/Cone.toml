@@ -1,0 +1,46 @@
+schema = 1
+[cone]
+group = "scoop"
+name = "scoop.gui"
+version = "0.1.0"
+kind = "library"
+
+[[sources]]
+path = "src/shared"
+when = { os = "darwin" }
+[[sources]]
+path = "src/platform/darwin"
+when = { os = "darwin" }
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+"scoop:scoop.math" = "0.1.0"
+"scoop:scoop.platform" = "0.1.0"
+"scoop:scoop.graphics" = "0.1.0"
+"scoop:scoop.window" = "0.1.0"
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"
+"scoop.tests:gui-native" = { version = "0.1.0", path = "test-native" }
+
+[[test.sources]]
+path = "tests"
+when = { os = "darwin" }
+
+[native]
+objc_flags = ["-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter"]
+[[native.sources]]
+path = "native/darwin/renderer.m"
+when = { os = "darwin" }
+[[native.libraries]]
+name = "AppKit"
+kind = "framework"
+when = { os = "darwin" }
+[[native.libraries]]
+name = "QuartzCore"
+kind = "framework"
+when = { os = "darwin" }
+[[native.libraries]]
+name = "Metal"
+kind = "framework"
+when = { os = "darwin" }

@@ -44,6 +44,7 @@ Windows 使用 `build_windows_unwind.py --target <完整目标> --source <LLVM-2
 python3 scripts/build_nghttp2.py --target aarch64-apple-darwin
 python3 scripts/build_text_backends.py --target aarch64-apple-darwin --build-dir ../scoop-work/text/aarch64-apple-darwin
 python3 scripts/build_uriparser.py --target aarch64-apple-darwin --build-dir ../scoop-work/uriparser/aarch64-apple-darwin
+python3 scripts/build_skia.py --target aarch64-apple-darwin --build-dir ../scoop-work/skia/aarch64-apple-darwin --gn /path/to/gn
 python3 scripts/build_compression.py --target aarch64-apple-darwin --build-dir ../scoop-work/compression/aarch64-apple-darwin
 python3 scripts/build_pcre2.py --target aarch64-apple-darwin --build-dir ../scoop-work/regex/pcre2-darwin
 python3 scripts/prepare_sysroot.py \
@@ -71,6 +72,8 @@ Windows 文本后端使用 `release.toml` 固定的 Rust 1.99.1，先用 `rustup
 `build_compression.py` 使用 CMake 依次准备 Zstandard 1.5.7、zlib-ng 2.3.3 和 Brotli 1.2.0；参数与目录布局同上。只发布静态库和头文件，不构建命令行程序、测试、benchmark 或并行压缩线程池；zlib-ng 保留原生命名前缀和运行时 CPU 检测。内存、同步与异步 API 共用同一个 `scoop.compression` Cone 和同一套后端。Windows 的目标编译器、Ninja、动态 CRT 与 E: 工作目录配置同 nghttp2；zstd 的 C++ 探测使用同一个编译器 prefix。zlib-ng 补丁在 Windows 通过 Git 应用，Unix 使用 patch。所有后端均先检查更新，命中时不启动工具；同一工作目录的并发准备使用已有文件锁串行协调。
 
 `build_pcre2.py` 从固定 PCRE2 10.49 源码准备 `libpcre2-8.a` 和 `include/pcre2.h`，启用 Unicode 与 JIT，只构建 8-bit 静态引擎；不构建 POSIX wrapper、工具、上游测试或 benchmark。必须显式指定仓库外 `--build-dir`，目标和 C 编译器参数同上。输入未变化且输出存在时直接复用；PCRE2 和 SLJIT 许可随现有 vendor／发行流程收集。该 C 库独立于 Rust 文本后端。
+
+`build_skia.py` 为两个 Darwin 目标准备 `libscoop_skia.a` 和 `include/skia`，使用固定 Skia 及配套 HarfBuzz、ICU、PNG／JPEG 依赖。需要 GN、Ninja、Xcode 和 Apple Clang；`--gn` 选择已有 GN，`--sdk` 可指定 Xcode SDK 名称，默认 macosx。CPU 与最低部署系统来自发行配置；工作目录和目标资源按其他 native 准备脚本的方式显式选择。当前开发验证使用 Xcode macOS 27.2 SDK、最低部署 27.0.1。源码、选项及必要部署补丁见 [vendor 说明](../sysroot/vendor/skia/README.md)。普通应用只消费预编译 Cone 和资源；完整 Darwin 发行准备同样接受 `package_toolchain.py --gn ...`，并包含所需静态库、头文件及许可。
 
 PCRE2 的三个 Windows target 在 Windows 构建，使用原生 Ninja；Microsoft 环境以 `--cc` 选择 clang-cl 或 cl，并在所选 x64 SDK／MSVC 开发环境运行，使用 `/MD`。两个 MinGW target 分别传入对应 CRT 的 LLVM-MinGW `bin/clang.exe`，不能共用另一 CRT 的 prefix。构建目录可放到其他盘，例如 `--build-dir E:/scoop-work/pcre2-msvc`。PCRE2 的生成头和静态 archive 发布到完整 target 的 sysroot 目录，普通 Cone 不执行准备脚本。Windows 构建与脚本测试使用支持 UTF-8 build file 的 Ninja；可用 `ninja -t wincodepage` 确认。
 

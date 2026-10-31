@@ -39,7 +39,7 @@ impl ValidatedCxxToolchain {
         cache: &Path,
     ) -> Result<Self, ToolchainError> {
         let key = crate::build_record::fingerprint(
-            &crate::native_record::ResolvedRecord::from_target(target)?,
+            &crate::native_record::ResolvedRecord::cache_configuration(target)?,
         )?;
         let record = crate::build_record::cached(
             &cache.join("cxx-tools-v4"),

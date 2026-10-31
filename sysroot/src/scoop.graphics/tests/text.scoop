@@ -1,0 +1,303 @@
+package scoop.graphics
+
+import scoop.compiler.includeBytes
+import scoop.math.abs
+import scoop.platform.concurrent.Thread
+import scoop.test.*
+
+private fun testFonts(fallback: Boolean = false): FontCollection {
+    val result = FontCollection(fallback)
+    try {
+        result.register(includeBytes("data/Roboto-Regular.ttf"), "Test Sans")
+        result.register(includeBytes("data/NotoSansCJK-VF-subset.otf.ttc"), "Test CJK")
+        return result
+    } catch (error: Throwable) {
+        result.close();
+        throw error
+    }
+}
+
+private fun textStyle(size: Double = 20.0): TextStyle = TextStyle(["Test Sans", "Test CJK"], size)
+
+@Test
+private class TextLayoutTest {
+    @Test
+    fun `paragraphs snapshot font registrations before later collection changes`() {
+        FontCollection(false).use {
+            fonts ->
+            fonts.register(includeBytes("data/Roboto-Regular.ttf"), "Test Sans")
+            val style = textStyle()
+            Paragraph(fonts, "是", style).use {
+                old ->
+                fonts.register(includeBytes("data/NotoSansCJK-VF-subset.otf.ttc"), "Test CJK")
+                old.layout(100.0).use { layout -> assertTrue(layout.unresolvedGlyphCount > 0) }
+                Paragraph(fonts, "是", style).use {
+                    fresh -> fresh.layout(100.0).use {
+                        layout -> assertEquals(0, layout.unresolvedGlyphCount)
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `fixed font measurement and independent layouts retain font sources`() {
+        val layouts = ArrayList<TextLayout>()
+        testFonts().use {
+            fonts -> Paragraph(fonts, "HHHH", textStyle()).use {
+                paragraph ->
+                val wide = paragraph.layoutUnwrapped()
+                layouts.add(wide)
+                assertEquals(0, wide.unresolvedGlyphCount)
+                assertEquals(1L, wide.lines.size)
+                assertTrue(abs(wide.maxIntrinsicWidth - 57.03125) < 0.01)
+                val caret = wide.caret(TextPosition(2L))!!
+                fonts.close()
+                paragraph.layout(20.0).use {
+                    narrow ->
+                    assertTrue(narrow.lines.size > 1L)
+                    assertEquals(1L, wide.lines.size)
+                    assertEquals(caret, wide.caret(TextPosition(2L))!!)
+                }
+            }
+        }
+        layouts[0L].use {
+            layout -> RasterSurface(100, 50).use {
+                surface ->
+                surface.draw {
+                    canvas ->
+                    canvas.clear(Color.Transparent)
+                    canvas.drawText(layout, Point(3.0, 4.0))
+                }
+                assertTrue(hasInk(surface.readPixels()))
+                assertTrue(layout.selection(TextRange(0L, 4L)).size > 0L)
+            }
+        }
+    }
+
+    @Test
+    fun `CJK lines expose byte indices and variable fonts share paint metrics`() {
+        testFonts().use {
+            fonts ->
+            val style = TextStyle(["Test CJK"], 20.0, variations = [FontVariation("wght", 600.0)])
+            Paragraph(fonts, "是是是是是", style).use {
+                paragraph -> paragraph.layout(41.0).use {
+                    layout ->
+                    assertEquals(0, layout.unresolvedGlyphCount)
+                    assertEquals(3L, layout.lines.size)
+                    assertEquals(TextRange(0L, 6L), layout.lines[0L].range)
+                    assertEquals(TextRange(6L, 12L), layout.lines[1L].range)
+                    assertEquals(TextRange(12L, 15L), layout.lines[2L].range)
+                    assertEquals(TextPosition(0L), layout.hitTest(Point(0.0, 2.0)))
+                    assertFailsWith<IllegalArgumentException> {
+                        layout.selection(TextRange(1L, 3L))
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `ICU graphemes preserve combining sequences emoji and CRLF`() {
+        testFonts(true).use {
+            fonts ->
+            val text = "Aé👨‍👩‍👧‍👦\r\n是"
+            Paragraph(fonts, text, textStyle()).use {
+                paragraph -> paragraph.layout(400.0).use {
+                    layout ->
+                    assertEquals(34L, text.byteLength)
+                    val expected: Array<Long> = [0L, 1L, 4L, 29L, 31L, 34L]
+                    assertEquals(expected.size, layout.graphemeBoundaries.size)
+                    for (index in 0L ..< expected.size)
+                        assertEquals(expected[index], layout.graphemeBoundaries[index])
+                    assertEquals(2L, layout.lines.size)
+                    assertEquals(31L, layout.lines[1L].range.start)
+                    assertTrue(layout.lines[0L].hardBreak)
+                    assertFailsWith<IllegalArgumentException> { layout.caret(TextPosition(2L)) }
+                    assertFailsWith<IllegalArgumentException> { layout.caret(TextPosition(3L)) }
+                    for (index in 0 ..< 80) {
+                        val hit = layout.hitTest(Point(index.toDouble() * 3.0, 10.0))
+                        assertTrue(containsOffset(expected, hit.byteOffset))
+                    }
+                    assertTrue(layout.caret(TextPosition(34L))!!.y > 0.0)
+                    assertEquals(0, layout.unresolvedGlyphCount)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `mixed bidi selection keeps visual runs and caret affinity`() {
+        testFonts(true).use {
+            fonts ->
+            Paragraph(fonts, "abc אבג xyz مرحبا", textStyle()).use {
+                paragraph -> paragraph.layout(400.0).use {
+                    layout ->
+                    val boxes = layout.selection(TextRange(0L, paragraph.text.byteLength))
+                    var rtl = false
+                    var ltr = false
+                    for (box in boxes) {
+                        if (box.direction == TextDirection.Rtl)
+                            rtl = true
+                        if (box.direction == TextDirection.Ltr)
+                            ltr = true
+                    }
+                    assertTrue(rtl && ltr && boxes.size >= 3L)
+                    assertEquals(0, layout.unresolvedGlyphCount)
+                    val start = layout.caret(TextPosition(4L, TextAffinity.Downstream))!!
+                    val end = layout.caret(TextPosition(10L, TextAffinity.Upstream))!!
+                    assertTrue(start.x > end.x)
+                }
+            }
+            Paragraph(fonts, "Hello Hello Hello", textStyle()).use {
+                paragraph -> paragraph.layout(60.0).use {
+                    layout ->
+                    assertTrue(layout.lines.size >= 2L)
+                    val boundary = layout.lines[1L].range.start
+                    val before = layout.caret(TextPosition(boundary, TextAffinity.Upstream))!!
+                    val after = layout.caret(TextPosition(boundary, TextAffinity.Downstream))!!
+                    assertTrue(before.y < after.y)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `ellipsis reports visible ranges and excludes elided caret positions`() {
+        testFonts().use {
+            fonts -> Paragraph(
+                fonts,
+                "Hello world Hello world",
+                textStyle(),
+                ParagraphStyle(maxLines = Some(1L))
+            ).use {
+                paragraph -> paragraph.layout(90.0).use {
+                    layout ->
+                    assertTrue(layout.didExceedMaxLines)
+                    assertEquals(1L, layout.lines.size)
+                    val end = layout.lines[0L].visibleRange.end
+                    assertTrue(end < paragraph.text.byteLength)
+                    assertEquals(None, layout.caret(TextPosition(paragraph.text.byteLength)))
+                    assertTrue(layout.hitTest(Point(1000.0, 10.0)).byteOffset <= end)
+                    assertTrue(layout.caret(TextPosition(end, TextAffinity.Upstream)) != None)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `rich runs and line height draw with their own colors`() {
+        testFonts().use {
+            fonts ->
+            val red =
+                TextStyle(
+                    ["Test Sans"],
+                    20.0,
+                    Color(1.0, 0.0, 0.0),
+                    features = [FontFeature("liga", 0)]
+                )
+            val green = TextStyle(["Test Sans"], 32.0, Color(0.0, 1.0, 0.0), lineHeight = Some(2.0))
+            Paragraph(fonts, [TextRun("HH", red), TextRun("HH", green)]).use {
+                paragraph -> paragraph.layout(180.0).use {
+                    layout ->
+                    assertTrue(layout.size.height >= 60.0)
+                    RasterSurface(200, 100).use {
+                        surface ->
+                        surface.draw {
+                            canvas ->
+                            canvas.clear(Color.Transparent)
+                            canvas.drawText(layout)
+                        }
+                        val pixels = surface.readPixels()
+                        var redPixels = 0
+                        var greenPixels = 0
+                        for (index in 0L ..< 20000L) {
+                            if (pixels[index * 4L + 3L].toUByte().toInt() > 128) {
+                                if (pixels[index * 4L].toUByte().toInt() > 200)
+                                    redPixels += 1
+                                if (pixels[index * 4L + 1L].toUByte().toInt() > 200)
+                                    greenPixels += 1
+                            }
+                        }
+                        assertTrue(redPixels > 20 && greenPixels > 20)
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `empty paragraphs terminal newlines and zero width keep defined caret geometry`() {
+        testFonts().use {
+            fonts ->
+            Paragraph(fonts, "", textStyle()).use {
+                paragraph -> paragraph.layout(100.0).use {
+                    layout ->
+                    assertEquals(1L, layout.lines.size)
+                    assertTrue(layout.size.height > 0.0)
+                    assertEquals(0L, layout.hitTest(Point(30.0, 20.0)).byteOffset)
+                    assertEquals(0.0, layout.caret(TextPosition(0L))!!.x)
+                    assertEquals(0L, layout.selection(TextRange(0L, 0L)).size)
+                }
+            }
+            Paragraph(fonts, "Hi\n", textStyle()).use {
+                paragraph ->
+                paragraph.layout(100.0).use {
+                    layout ->
+                    assertEquals(2L, layout.lines.size)
+                    assertTrue(
+                        layout.caret(TextPosition(3L))!!.y > layout.caret(TextPosition(0L))!!.y
+                    )
+                }
+                paragraph.layout(0.0).use { layout -> assertTrue(layout.size.height >= 0.0) }
+            }
+        }
+    }
+
+    @Test
+    fun `text resources reject invalid inputs foreign threads and expired queries`() {
+        testFonts().use {
+            fonts ->
+            assertFailsWith<IllegalArgumentException> { fonts.register([0, 1, 2], "broken") }
+            assertFailsWith<IllegalArgumentException> {
+                Paragraph(fonts, "a", TextStyle(fontSize = -1.0))
+            }
+            assertFailsWith<IllegalArgumentException> {
+                Paragraph(fonts, "a", TextStyle(features = [FontFeature("bad")]))
+            }
+            Paragraph(fonts, "abc", textStyle()).use {
+                paragraph ->
+                assertFailsWith<IllegalArgumentException> { paragraph.layout(-1.0) }
+                paragraph.layout(100.0).use {
+                    layout ->
+                    Thread.start {
+                        assertFailsWith<IllegalStateException> { layout.hitTest(Point(0.0, 0.0)) }
+                    }.use { thread -> thread.join() }
+                    assertFailsWith<IllegalArgumentException> {
+                        layout.selection(TextRange(0L, 4L))
+                    }
+                    assertFailsWith<IllegalArgumentException> { layout.caret(TextPosition(-1L)) }
+                    layout.close()
+                    assertFailsWith<IllegalStateException> { layout.hitTest(Point(0.0, 0.0)) }
+                }
+            }
+        }
+    }
+}
+
+private fun containsOffset(values: Array<Long>, wanted: Long): Boolean {
+    for (value in values)
+        if (value == wanted)
+            return true
+    return false
+}
+
+private fun hasInk(pixels: Array<Byte>): Boolean {
+    var index = 3L
+    while (index < pixels.size) {
+        if (pixels[index].toUByte().toInt() > 0)
+            return true
+        index += 4L
+    }
+    return false
+}

@@ -1,5 +1,6 @@
 #import "window.h"
 #include <math.h>
+#include <time.h>
 
 @interface SWAppKitWindow : NSWindow
 @end
@@ -45,11 +46,24 @@ SWSnapshot sw_snapshot(SWWindow *owner) {
   return result;
 }
 
+void sw_stamp_input(SWEventData *data) {
+  struct timespec time;
+  if (clock_gettime(CLOCK_MONOTONIC, &time) != 0) {
+    data->time_seconds = 0;
+    data->time_nanoseconds = -1;
+    return;
+  }
+  data->time_seconds = time.tv_sec;
+  data->time_nanoseconds = time.tv_nsec;
+}
+
 SWEvent *sw_event(SWWindow *window, int32_t kind) {
   SWEvent *event = [SWEvent new];
   SWEventData data = {0};
   data.window = window.identity;
   data.kind = kind;
+  if (kind == SWKeyboard || kind == SWPointer)
+    sw_stamp_input(&data);
   event.data = data;
   return event;
 }
@@ -159,6 +173,7 @@ SWResult scoop_window_create(void *application, int64_t identity,
     owner.view = [[SWView alloc] initWithFrame:NSMakeRect(0, 0, width, height)];
     owner.view.owner = owner;
     owner.view.pressedKeys = [NSMutableDictionary new];
+    owner.view.pressedButtons = [NSMutableSet new];
     owner.view.cursor = NSCursor.arrowCursor;
     owner.view.cursorVisible = YES;
     owner.window.acceptsMouseMovedEvents = YES;

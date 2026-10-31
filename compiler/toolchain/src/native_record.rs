@@ -31,6 +31,13 @@ pub(crate) struct ResolvedRecord {
 }
 
 impl ResolvedRecord {
+    pub(crate) fn cache_configuration(
+        target: &ResolvedTargetProfile,
+    ) -> Result<(&'static str, Self), ToolchainError> {
+        // Transport gets its target from the enclosing request; caches need it too.
+        Ok((target.canonical_triple(), Self::from_target(target)?))
+    }
+
     pub(crate) fn from_target(target: &ResolvedTargetProfile) -> Result<Self, ToolchainError> {
         Ok(Self {
             invocation: InvocationRecord::from_invocation(target.c_bridge_toolchain())?,

@@ -79,6 +79,19 @@ impl Lowerer {
             return None;
         }
 
+        // Every row accepts the entire head domain. Preserve their tails as
+        // one matrix instead of enumerating an ignored aggregate's fields
+        // (for example, a pointer state followed by a matched button state).
+        // Only a missing tail needs a concrete head witness. This also keeps
+        // empty head domains exhaustive and preserves witness ordering.
+        if !matrix.is_empty() && matrix.iter().all(|row| super::is_irrefutable(&row[0])) {
+            let tails = matrix.iter().map(|row| row[1..].to_vec()).collect();
+            let tail = self.missing_witness(&types[1..], &tails)?;
+            let mut result = self.missing_witness(&types[..1], &Matrix::new())?;
+            result.extend(tail);
+            return Some(result);
+        }
+
         let subject_ty = types[0];
         if let Some(kind) = self.float_kind(subject_ty) {
             // Float literal syntax cannot express NaN. Only wildcard heads can cover

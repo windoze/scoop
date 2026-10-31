@@ -808,6 +808,13 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - Linux 新后端以 6.1 为支持基线并实际探测能力；明确取消请求与原生完成的区别、迟到资源处理、宿主回调注销和不支持环境的启动错误。
 - 共享层、Darwin、Linux、调用方与发行资源已分批交付；三目标公共行为、Linux 6.1 基线、宿主接入与定向移动 GC 验收通过，见[实施记录](asyncio-backends/PROGRESS.md)。同机对照及实测回退见[性能记录](asyncio-backends/PERFORMANCE.md)；具体窗口系统的接入仍由后续 GUI 库验证。
 
+### GUI 基础层与 macOS renderer（已实现）
+
+- [架构与 macOS 设计](gui/DESIGN.md)及 [GUI 规范](specs/SCOOP-GUI-SPEC.md)将第一期划分为普通 `scoop.graphics` 与 `scoop.gui` Cone：Skia 绘图／Path、SkParagraph + HarfBuzz 文本布局、动画与 InputArea，为后续 component 提供基础。
+- 帧调度、动画、文本和事件路由共用平台无关实现；surface、原生帧通知、呈现及系统字体适配由各平台独立完成。本轮实施 Darwin 两目标的 Ganesh Metal／CAMetalDisplayLink 接入，不以其他平台 renderer 完成作为交付条件。
+- window 已先行补齐鼠标序列取消和有来源标记的单调输入时间，见[窗口规范第 11 节](specs/SCOOP-WINDOW-SPEC.md#11-gui-基础层所需输入扩展)。沿用现有 Application／asyncio 宿主、native lease、普通 FFI 和构建合同；全部功能与验证使用普通 Cone 和 scoop.test，实际交付范围见[实施记录](gui/PROGRESS.md)。
+- 基础 API 与 [组合示例](../sysroot/src/scoop.gui/examples/basics/README.md)已交付；Darwin ARM64 和 Rosetta x86_64 的绘图／文本、动画、区域输入、宿主呈现、主循环组合、异常收尾及原生 IME 会话测试通过。两架构示例均验证简体拼音组合与提交；窗口缩放后的重排及应用失焦／恢复已观察。跨屏混合 DPI 缺少多显示器硬件条件，具体桌面验证范围见实施记录。
+
 ### `scoop example` 外部子命令（首批 24 个主题已实现）
 
 - [设计](scoop-example/DESIGN.md)沿用现有 `commands/scoop-example` 分发，不修改编译器；离线列出、搜索并展示配套示例、说明及运行方式。

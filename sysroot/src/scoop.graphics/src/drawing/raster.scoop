@@ -1,0 +1,34 @@
+package scoop.graphics
+
+import scoop.graphics.native.RenderTarget
+
+/** A CPU surface usable without an Application or GPU. */
+public class RasterSurface public constructor(
+    public val width: Int,
+    public val height: Int
+): Closeable {
+    private val target: RenderTarget = createRaster(width, height)
+    public val isClosed: Boolean get() = target.isClosed
+    public fun <T> draw(block: (Canvas) -> T): T = target.draw(block)
+    public fun readPixels(): Array<Byte> = target.readPixels()
+    public fun snapshot(): Image = target.snapshot()
+    public override fun close() {
+        target.close()
+    }
+}
+
+private fun createRaster(width: Int, height: Int): RenderTarget {
+    pixelBytes(width, height)
+    @Unsafe
+    {
+        return RenderTarget(
+            ownedGraphics(rasterCreate(width, height), "create raster surface"),
+            width,
+            height,
+            1.0
+        )
+    }
+}
+
+@Extern(name = "scoop_graphics_raster_create")
+private fun rasterCreate(width: Int, height: Int): Ptr<Unit>?

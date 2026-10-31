@@ -1,0 +1,82 @@
+package scoop.graphics.native
+
+import scoop.graphics.*
+
+/** Independent shape, transform and clip snapshot of the same state used for drawing. */
+public class CanvasGeometry internal constructor(
+    private val resource: GraphicsResource
+): Closeable {
+    public fun hitTest(windowPoint: Point): Boolean {
+        checkPoint(windowPoint)
+        @Unsafe
+        {
+            return geometryHit(resource.get(), windowPoint) != 0
+        }
+    }
+    public fun toLocal(windowPoint: Point): Point? {
+        checkPoint(windowPoint)
+        @Unsafe
+        {
+            val result = geometryPoint(resource.get(), windowPoint, true)
+            return if (result.found == 0)
+                None
+            else
+                Some(result.position)
+        }
+    }
+    public fun toWindow(localPoint: Point): Point {
+        checkPoint(localPoint)
+        @Unsafe
+        {
+            val result = geometryPoint(resource.get(), localPoint, false)
+            requireGraphics(result.found != 0, "point transformation overflow")
+            return result.position
+        }
+    }
+    public fun toWindow(rect: Rect): Rect {
+        checkRect(rect)
+        @Unsafe
+        {
+            val result = geometryRectMap(resource.get(), rect);
+            checkRect(result);
+            return result
+        }
+    }
+    public override fun close() {
+        resource.close()
+    }
+}
+
+/** Captures a rectangle in the current logical coordinate system, excluding the target DPI root. */
+@Unsafe
+public fun captureGeometry(canvas: Canvas, shape: Rect): CanvasGeometry {
+    checkRect(shape)
+    return CanvasGeometry(
+        ownedGraphics(geometryRect(canvas.resource.get(), shape), "capture rectangle geometry")
+    )
+}
+
+/** Copies the path's native data so the snapshot survives closing the public Path. */
+@Unsafe
+public fun captureGeometry(canvas: Canvas, shape: Path): CanvasGeometry =
+    CanvasGeometry(
+        ownedGraphics(
+            geometryPath(canvas.resource.get(), shape.resource.get()),
+            "capture path geometry"
+        )
+    )
+
+@Extern(name = "scoop_graphics_geometry_rect")
+private fun geometryRect(canvas: Ptr<Unit>, rect: Rect): Ptr<Unit>?
+
+@Extern(name = "scoop_graphics_geometry_path")
+private fun geometryPath(canvas: Ptr<Unit>, path: Ptr<Unit>): Ptr<Unit>?
+
+@Extern(name = "scoop_graphics_geometry_hit")
+private fun geometryHit(geometry: Ptr<Unit>, point: Point): Int
+
+@Extern(name = "scoop_graphics_geometry_point")
+private fun geometryPoint(geometry: Ptr<Unit>, point: Point, inverse: Boolean): NativePathSample
+
+@Extern(name = "scoop_graphics_geometry_rect_map")
+private fun geometryRectMap(geometry: Ptr<Unit>, rect: Rect): Rect

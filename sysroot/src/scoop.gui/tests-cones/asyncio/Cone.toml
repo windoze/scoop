@@ -1,0 +1,22 @@
+schema = 1
+[cone]
+group = "scoop.tests"
+name = "gui-asyncio"
+version = "0.1.0"
+kind = "library"
+
+[[test.sources]]
+path = "tests"
+when = { os = "darwin" }
+
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+"scoop:scoop.platform" = "0.1.0"
+"scoop:scoop.graphics" = "0.1.0"
+"scoop:scoop.gui" = { version = "0.1.0", path = "../.." }
+"scoop:scoop.window" = "0.1.0"
+"scoop:scoop.window.asyncio" = "0.1.0"
+"scoop:scoop.asyncio" = "0.1.0"
+"scoop.tests:window-native" = { version = "0.1.0", path = "../../../scoop.window/test-native" }
+"scoop.tests:gui-native" = { version = "0.1.0", path = "../../test-native" }

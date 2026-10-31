@@ -116,6 +116,11 @@ class ToolchainArchiveTests(unittest.TestCase):
                 ]
                 if not host.endswith("darwin"):
                     target_files += ["unwind/include/unwind.h", "unwind/lib/libunwind.a"]
+                else:
+                    target_files += [
+                        package_toolchain.SKIA_LIBRARY,
+                        "include/skia/include/core/SkCanvas.h",
+                    ]
                 for relative in target_files:
                     path = target_root / relative
                     path.parent.mkdir(parents=True, exist_ok=True)
@@ -277,12 +282,13 @@ class ToolchainArchiveTests(unittest.TestCase):
 
     def test_packaging_prepares_only_native_resources_and_runtime(self):
         with tempfile.TemporaryDirectory() as temporary:
-            args = SimpleNamespace(work_dir=Path(temporary), jobs=2)
+            args = SimpleNamespace(work_dir=Path(temporary), jobs=2, gn="gn")
             with patch.object(package_toolchain, "run_script") as run:
                 package_toolchain.prepare_targets(args, ["aarch64-apple-darwin"], {})
             scripts = [call.args[0] for call in run.call_args_list]
             self.assertIn("build_openssl.py", scripts)
             self.assertIn("build_text_backends.py", scripts)
+            self.assertIn("build_skia.py", scripts)
             self.assertEqual(scripts[-1], "prepare_sysroot.py")
             self.assertIn("--runtime-only", run.call_args.args[1])
             self.assertNotIn("--scoop", run.call_args.args[1])

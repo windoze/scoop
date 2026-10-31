@@ -2,6 +2,15 @@
 
 static void pointer(SWView *view, NSEvent *native, int32_t kind) {
   sw_modifiers(view, native.modifierFlags);
+  if (kind == 3 || kind == 4) {
+    NSNumber *button = @(native.buttonNumber);
+    if (kind == 4 && ![view.pressedButtons containsObject:button])
+      return;
+    if (kind == 3)
+      [view.pressedButtons addObject:button];
+    else
+      [view.pressedButtons removeObject:button];
+  }
   SWEvent *event = sw_event(view.owner, SWPointer);
   SWEventData data = event.data;
   NSPoint logical = [view convertPoint:native.locationInWindow fromView:nil];
@@ -33,6 +42,17 @@ static void pointer(SWView *view, NSEvent *native, int32_t kind) {
 }
 
 @implementation SWView (Pointer)
+- (void)cancelPointer:(int32_t)reason {
+  if (!self.pressedButtons.count)
+    return;
+  [self.pressedButtons removeAllObjects];
+  SWEvent *event = sw_event(self.owner, SWPointer);
+  SWEventData data = event.data;
+  data.flags = 7;
+  data.a = reason;
+  event.data = data;
+  [self.owner.application enqueue:event];
+}
 - (void)updateTrackingAreas {
   [super updateTrackingAreas];
   if (self.tracking)

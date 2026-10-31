@@ -1,0 +1,69 @@
+schema = 1
+
+[cone]
+group = "scoop"
+name = "scoop.graphics"
+version = "0.1.0"
+kind = "library"
+
+[[sources]]
+path = "src"
+when = { os = "darwin" }
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+"scoop:scoop.math" = "0.1.0"
+"scoop:scoop.platform" = "0.1.0"
+
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"
+"scoop.tests:graphics-metal-native" = { version = "0.1.0", path = "test-native" }
+
+[native]
+cxx = true
+include = [{ sysroot = "include/skia" }]
+cxx_flags = ["-std=c++20", "-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter", "-DSK_GANESH", "-DSK_METAL", "-DSK_SHAPER_HARFBUZZ_AVAILABLE", "-DSK_UNICODE_ICU_IMPLEMENTATION"]
+
+[[native.sources]]
+path = "native/shared/path.cpp"
+[[native.sources]]
+path = "native/shared/drawing.cpp"
+[[native.sources]]
+path = "native/shared/geometry.cpp"
+[[native.sources]]
+path = "native/shared/text.cpp"
+[[native.sources]]
+path = "native/shared/text_layout.cpp"
+[[native.sources]]
+path = "native/shared/text_queries.cpp"
+[[native.sources]]
+path = "native/darwin/fonts.cpp"
+when = { os = "darwin" }
+[[native.sources]]
+path = "native/darwin/metal.cpp"
+when = { os = "darwin" }
+
+[[native.libraries]]
+name = "scoop_skia"
+kind = "static"
+[[native.libraries]]
+name = "z"
+[[native.libraries]]
+name = "CoreFoundation"
+kind = "framework"
+[[native.libraries]]
+name = "CoreGraphics"
+kind = "framework"
+[[native.libraries]]
+name = "CoreText"
+kind = "framework"
+[[native.libraries]]
+name = "Foundation"
+kind = "framework"
+[[native.libraries]]
+name = "Metal"
+kind = "framework"
+[[native.libraries]]
+name = "IOSurface"
+kind = "framework"

@@ -87,7 +87,9 @@ private class LifecycleHandler(val proxy: ApplicationProxy): ApplicationHandler 
                         "native redraw deadline expired: redraws=" +
                             redraws.toString() +
                             ", occluded=" +
-                            window!!.isOccluded.toString()
+                            window!!.isOccluded.toString() +
+                            ", focused=" +
+                            window!!.isFocused.toString()
                     )
                 )
                 case Window(identity, WindowEvent.GeometryChanged(value)) -> {
@@ -102,6 +104,15 @@ private class LifecycleHandler(val proxy: ApplicationProxy): ApplicationHandler 
                     }
                 }
                 case Window(_, WindowEvent.RedrawRequested) -> {
+                    // Native focus requests are cooperative; wait for actual activation.
+                    if (redraws == 0 && !window!!.isFocused)
+                        return
+                    if (redraws == 0)
+                        application.setControlFlow(
+                            ControlFlow.WaitUntil(
+                                MonotonicTimeSource.markNow() + Duration.seconds(5L)
+                            )
+                        )
                     redraws += 1
                     assertTrue(window!!.metrics!!.physicalSize.isDrawable)
                     window!!.prePresentNotify()
@@ -120,6 +131,10 @@ private class LifecycleHandler(val proxy: ApplicationProxy): ApplicationHandler 
                             ime.verify()
                             window!!.requestDestroy()
                         }
+                }
+                case Window(identity, WindowEvent.Focused(true)) -> {
+                    if (identity == window!!.id && redraws == 0)
+                        window!!.requestRedraw()
                 }
                 case Window(_, WindowEvent.Keyboard(value)) -> {
                     if (ime.started)
@@ -265,7 +280,7 @@ private class LifecycleHandler(val proxy: ApplicationProxy): ApplicationHandler 
                 }
             )
         application.setControlFlow(
-            ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(5L))
+            ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(30L))
         )
     }
 }

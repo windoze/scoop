@@ -1,0 +1,356 @@
+package scoop.gui
+
+import scoop.graphics.*
+import scoop.platform.concurrent.Thread
+import scoop.test.*
+import scoop.window.*
+
+@Test
+private class InputAreaTest {
+    @Test
+    fun `path holes remain precise after the path wrapper closes`() {
+        InputRig().use {
+            rig ->
+            val area = rig.area("ring")
+            PathBuilder(FillRule.EvenOdd).use {
+                builder ->
+                builder.addOval(Rect(0.0, 0.0, 80.0, 80.0))
+                builder.addOval(Rect(20.0, 20.0, 40.0, 40.0))
+                builder.build().use {
+                    path -> rig.frame {
+                        frame, canvas ->
+                        frame.place(canvas, area, path, None)
+                        path.close()
+                    }
+                }
+            }
+            rig.move(10.0, 40.0)
+            assertEquals("ring/enter,ring/move", rig.log.trace())
+            rig.log.events.clear()
+            rig.move(40.0, 40.0)
+            assertEquals("ring/leave", rig.log.trace())
+            rig.log.events.clear()
+            rig.move(79.0, 1.0)
+            assertEquals("", rig.log.trace())
+        }
+    }
+
+    @Test
+    fun `topmost transformed clipped regions bubble to parents without implicit clipping`() {
+        InputRig().use {
+            rig ->
+            val bottom = rig.area("bottom")
+            val parent = rig.area("parent")
+            val child = rig.area("child")
+            rig.frame {
+                frame, canvas ->
+                frame.place(canvas, bottom, Rect(0.0, 0.0, 300.0, 200.0), None)
+                frame.place(canvas, parent, Rect(0.0, 0.0, 5.0, 5.0), None)
+                canvas.translate(40.0, 20.0)
+                canvas.scale(2.0, 2.0)
+                canvas.clipRect(Rect(0.0, 0.0, 20.0, 20.0))
+                frame.place(canvas, child, Rect(0.0, 0.0, 40.0, 40.0), Some(parent))
+            }
+            rig.move(50.0, 30.0)
+            assertEquals("parent/enter,child/enter,child/move,parent/move", rig.log.trace())
+            when (rig.log.events[2L].event) {
+                case Pointer(AreaPointerEvent.Moved(value)) -> {
+                    assertEquals(Point(5.0, 5.0), value.localPosition)
+                    assertTrue(value.target === child)
+                }
+                else -> fail(Some("expected move"))
+            }
+            child.handler =
+                {
+                    _, event ->
+                    rig.log.record("child", event);
+                    InputResult.Handled
+                }
+            rig.log.events.clear()
+            rig.button(50.0, 30.0, ElementState.Pressed)
+            assertEquals("child/down", rig.log.trace())
+            rig.button(50.0, 30.0, ElementState.Released)
+            rig.log.events.clear()
+            rig.move(90.0, 30.0)
+            assertEquals("child/leave,parent/leave,bottom/enter,bottom/move", rig.log.trace())
+            parent.ignoreSelf = true
+            rig.log.events.clear()
+            rig.move(50.0, 30.0)
+            assertEquals("bottom/leave,parent/enter,child/enter,child/move", rig.log.trace())
+        }
+    }
+
+    @Test
+    fun `only published frames change hit geometry and stationary hover`() {
+        InputRig().use {
+            rig ->
+            val area = rig.area("area")
+            rig.frame {
+                frame,
+                canvas -> frame.place(canvas, area, Rect(0.0, 0.0, 30.0, 30.0), None)
+            }
+            rig.move(10.0, 10.0)
+            rig.log.events.clear()
+            assertFailsWith<IllegalArgumentException> {
+                rig.frame {
+                    frame, canvas ->
+                    canvas.translate(100.0, 0.0)
+                    frame.place(canvas, area, Rect(0.0, 0.0, 30.0, 30.0), None)
+                    throw IllegalArgumentException(Some("abort painting"))
+                }
+            }
+            rig.move(10.0, 10.0)
+            assertEquals("area/move", rig.log.trace())
+            rig.log.events.clear()
+            rig.frame {
+                frame, canvas ->
+                canvas.translate(100.0, 0.0)
+                frame.place(canvas, area, Rect(0.0, 0.0, 30.0, 30.0), None)
+            }
+            assertEquals("area/leave", rig.log.trace())
+            rig.log.events.clear()
+            rig.frame {
+                frame,
+                canvas -> frame.place(canvas, area, Rect(0.0, 0.0, 30.0, 30.0), None)
+            }
+            assertEquals("area/enter", rig.log.trace())
+        }
+    }
+
+    @Test
+    fun `all buttons keep the initial drag path through leaving and moving geometry`() {
+        InputRig().use {
+            rig ->
+            val a = rig.area("a")
+            val b = rig.area("b")
+            rig.frame {
+                frame, canvas ->
+                frame.place(canvas, a, Rect(0.0, 0.0, 40.0, 40.0), None)
+                frame.place(canvas, b, Rect(100.0, 0.0, 50.0, 50.0), None)
+            }
+            rig.move(10.0, 10.0)
+            rig.button(10.0, 10.0, ElementState.Pressed)
+            rig.move(120.0, 10.0)
+            rig.pointer(PointerEvent.Left(inputPointer(320.0, 10.0)))
+            rig.log.events.clear()
+            rig.button(320.0, 10.0, ElementState.Pressed, MouseButton.Right)
+            rig.button(320.0, 10.0, ElementState.Released)
+            assertEquals("a/down,a/up", rig.log.trace())
+            rig.frame {
+                frame, canvas ->
+                frame.place(canvas, b, Rect(100.0, 0.0, 50.0, 50.0), None)
+                canvas.translate(40.0, 0.0)
+                frame.place(canvas, a, Rect(0.0, 0.0, 40.0, 40.0), None)
+            }
+            rig.log.events.clear()
+            rig.move(120.0, 10.0)
+            assertEquals("b/enter,a/move", rig.log.trace())
+            when (rig.log.events[1L].event) {
+                case Pointer(AreaPointerEvent.Moved(value)) -> assertEquals(
+                    Point(80.0, 10.0),
+                    value.localPosition
+                )
+                else -> fail(Some("expected drag move"))
+            }
+            rig.log.events.clear()
+            rig.button(120.0, 10.0, ElementState.Released, MouseButton.Right)
+            rig.move(120.0, 10.0)
+            assertEquals("a/up,b/move", rig.log.trace())
+        }
+    }
+
+    @Test
+    fun `empty and cancelled presses cannot retarget before the last release`() {
+        InputRig().use {
+            rig ->
+            val a = rig.area("a")
+            val b = rig.area("b")
+            rig.frame {
+                frame, canvas ->
+                frame.place(canvas, a, Rect(0.0, 0.0, 40.0, 40.0), None)
+                frame.place(canvas, b, Rect(100.0, 0.0, 50.0, 50.0), None)
+            }
+            rig.button(290.0, 190.0, ElementState.Pressed)
+            rig.move(10.0, 10.0)
+            rig.log.events.clear()
+            rig.button(10.0, 10.0, ElementState.Pressed, MouseButton.Right)
+            rig.button(10.0, 10.0, ElementState.Released)
+            rig.button(10.0, 10.0, ElementState.Released, MouseButton.Right)
+            assertEquals("", rig.log.trace())
+            rig.button(10.0, 10.0, ElementState.Pressed)
+            rig.log.events.clear()
+            a.close()
+            assertEquals("a/cancel,a/leave", rig.log.trace())
+            rig.move(120.0, 10.0)
+            rig.log.events.clear()
+            rig.button(120.0, 10.0, ElementState.Pressed, MouseButton.Right)
+            rig.button(120.0, 10.0, ElementState.Released)
+            rig.button(120.0, 10.0, ElementState.Released, MouseButton.Right)
+            assertEquals("", rig.log.trace())
+            rig.button(120.0, 10.0, ElementState.Pressed)
+            assertEquals("b/down", rig.log.trace())
+            rig.log.events.clear()
+            rig.pointer(PointerEvent.Cancelled(PointerCancelReason.CaptureLost, inputObservation()))
+            rig.button(120.0, 10.0, ElementState.Released)
+            assertEquals("b/cancel", rig.log.trace())
+        }
+    }
+
+    @Test
+    fun `focus loss after leaving the window cancels once and drops a late release`() {
+        InputRig().use {
+            rig ->
+            val area = rig.area("a")
+            rig.frame {
+                frame,
+                canvas -> frame.place(canvas, area, Rect(0.0, 0.0, 40.0, 40.0), None)
+            }
+            rig.move(10.0, 10.0)
+            rig.log.events.clear()
+            rig.button(10.0, 10.0, ElementState.Pressed)
+            rig.pointer(PointerEvent.Left(inputPointer(-20.0, -10.0)))
+            rig.move(-60.0, -30.0)
+            rig.router.event(WindowEvent.Focused(false))
+            rig.pointer(PointerEvent.Cancelled(PointerCancelReason.FocusLost, inputObservation()))
+            rig.button(-60.0, -30.0, ElementState.Released)
+            assertEquals("a/down,a/leave,a/move,a/cancel", rig.log.trace())
+
+            rig.router.event(WindowEvent.Focused(true))
+            rig.move(10.0, 10.0)
+            rig.log.events.clear()
+            rig.button(10.0, 10.0, ElementState.Pressed)
+            rig.button(10.0, 10.0, ElementState.Released)
+            assertEquals("a/down,a/up", rig.log.trace())
+        }
+    }
+
+    @Test
+    fun `closing an ancestor inside a handler defers terminal delivery and skips its business event`() {
+        InputRig().use {
+            rig ->
+            val parent = rig.area("parent")
+            val child = rig.area("child")
+            child.handler =
+                {
+                    _, event ->
+                    val result = rig.log.record("child", event)
+                    when (event) {
+                        case Pointer(AreaPointerEvent.Button(_, _, ElementState.Pressed, _)) -> {
+                            parent.close()
+                            assertEquals("child/down", rig.log.trace())
+                        }
+                        else -> {}
+                    }
+                    result
+                }
+            rig.frame {
+                frame, canvas ->
+                frame.place(canvas, parent, Rect(0.0, 0.0, 100.0, 100.0), None)
+                frame.place(canvas, child, Rect(0.0, 0.0, 30.0, 30.0), Some(parent))
+            }
+            rig.move(10.0, 10.0)
+            rig.log.events.clear()
+            rig.button(10.0, 10.0, ElementState.Pressed)
+            assertEquals(
+                "child/down,child/cancel,parent/cancel,child/leave,parent/leave",
+                rig.log.trace()
+            )
+            rig.log.events.clear()
+            rig.button(10.0, 10.0, ElementState.Released)
+            assertEquals("", rig.log.trace())
+        }
+    }
+
+    @Test
+    fun `changing ancestry cancels a press and scroll keeps the event scale and unit`() {
+        InputRig().use {
+            rig ->
+            val parent = rig.area("parent")
+            val child = rig.area("child")
+            rig.frame {
+                frame, canvas ->
+                frame.place(canvas, parent, Rect(0.0, 0.0, 100.0, 100.0), None)
+                frame.place(canvas, child, Rect(0.0, 0.0, 30.0, 30.0), Some(parent))
+            }
+            rig.move(10.0, 10.0)
+            rig.button(10.0, 10.0, ElementState.Pressed)
+            rig.log.events.clear()
+            rig.frame {
+                frame,
+                canvas -> frame.place(canvas, child, Rect(0.0, 0.0, 30.0, 30.0), None)
+            }
+            assertEquals("child/cancel,parent/cancel,parent/leave", rig.log.trace())
+            rig.button(10.0, 10.0, ElementState.Released)
+            rig.log.events.clear()
+            rig.pointer(
+                PointerEvent.Wheel(
+                    inputPointer(10.0, 10.0, 2.0),
+                    ScrollDelta.PixelDelta(8.0, -6.0),
+                    ScrollPhase.Changed,
+                    ScrollPhase.None
+                )
+            )
+            rig.pointer(
+                PointerEvent.Wheel(
+                    inputPointer(10.0, 10.0, 3.0),
+                    ScrollDelta.LineDelta(2.0, -1.0),
+                    ScrollPhase.None,
+                    ScrollPhase.None
+                )
+            )
+            when (rig.log.events[0L].event) {
+                case Pointer(AreaPointerEvent.Wheel(_, delta, _, _)) -> assertEquals(
+                    AreaScrollDelta.Pixels(4.0, -3.0),
+                    delta
+                )
+                else -> fail(Some("expected wheel"))
+            }
+            when (rig.log.events[1L].event) {
+                case Pointer(AreaPointerEvent.Wheel(_, delta, _, _)) -> assertEquals(
+                    AreaScrollDelta.Lines(2.0, -1.0),
+                    delta
+                )
+                else -> fail(Some("expected wheel"))
+            }
+        }
+    }
+
+    @Test
+    fun `placement identity ownership lifetime and invertibility are enforced`() {
+        InputRig().use {
+            rig -> InputRig().use {
+                other ->
+                val area = rig.area("area")
+                val parent = rig.area("parent")
+                val foreign = other.area("foreign")
+                rig.frame {
+                    frame, canvas ->
+                    assertFailsWith<IllegalArgumentException> {
+                        frame.place(canvas, area, Rect(0.0, 0.0, 30.0, 30.0), Some(parent))
+                    }
+                    assertFailsWith<IllegalArgumentException> {
+                        frame.place(canvas, foreign, Rect(0.0, 0.0, 30.0, 30.0), None)
+                    }
+                    canvas.scale(0.0, 0.0)
+                    frame.place(canvas, area, Rect(0.0, 0.0, 30.0, 30.0), None)
+                    assertFailsWith<IllegalArgumentException> {
+                        frame.place(canvas, area, Rect(0.0, 0.0, 30.0, 30.0), None)
+                    }
+                }
+                rig.move(0.0, 0.0)
+                assertEquals("", rig.log.trace())
+                Thread.start { assertFailsWith<IllegalStateException> { area.close() } }.use {
+                    thread -> thread.join()
+                }
+                area.close()
+                assertFailsWith<IllegalStateException> { area.enabled = false }
+                assertFailsWith<IllegalStateException> {
+                    rig.frame {
+                        frame,
+                        canvas -> frame.place(canvas, area, Rect(0.0, 0.0, 30.0, 30.0), None)
+                    }
+                }
+            }
+        }
+    }
+}

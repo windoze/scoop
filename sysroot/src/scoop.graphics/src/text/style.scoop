@@ -1,0 +1,166 @@
+package scoop.graphics
+
+public enum FontSlant {
+    Upright, Italic, Oblique
+}
+
+public enum TextDirection {
+    Rtl, Ltr
+}
+
+public enum TextAlignment {
+    Left, Right, Center, Justify, Start, End
+}
+
+public enum TextAffinity {
+    Upstream, Downstream
+}
+
+public struct FontFeature(val tag: String, val value: Int = 1)
+
+public struct FontVariation(val tag: String, val value: Double)
+
+/** Immutable shaping and painting settings; family order also controls explicit fallback. */
+public class TextStyle public constructor(
+    public val families: Array<String> = ["sans-serif"],
+    public val fontSize: Double = 14.0,
+    public val color: Color = Color.Black,
+    public val weight: Int = 400,
+    public val width: Int = 5,
+    public val slant: FontSlant = FontSlant.Upright,
+    public val locale: String = "",
+    public val letterSpacing: Double = 0.0,
+    public val wordSpacing: Double = 0.0,
+    public val lineHeight: Double? = None,
+    public val features: Array<FontFeature> = [],
+    public val variations: Array<FontVariation> = []
+) {
+    internal fun <T> withNative(block: (Ptr<Unit>) -> T): T {
+        checkScalar(fontSize)
+        checkScalar(letterSpacing)
+        checkScalar(wordSpacing)
+        checkColor(color)
+        requireGraphics(
+            fontSize > 0.0 && weight >= 1 && weight <= 1000 && width >= 1 && width <= 9,
+            "invalid font size, weight or width"
+        )
+        val height = lineHeight ?: 1.0
+        checkScalar(height)
+        requireGraphics(height > 0.0, "line height must be positive")
+        val value =
+            NativeTextStyleData(
+                color,
+                fontSize,
+                height,
+                letterSpacing,
+                wordSpacing,
+                weight,
+                width,
+                when (slant) {
+                    case Upright -> 0;
+                    case Italic -> 1;
+                    case Oblique -> 2
+                },
+                if (lineHeight == None)
+                    0
+                else
+                    1
+            )
+        return makeTextStyle(value).use {
+            resource ->
+            val pointer = resource.get()
+            for (family in families) {
+                requireGraphics(family.byteLength > 0L, "font family must not be empty")
+                setStyleString(pointer, family, false)
+            }
+            setStyleString(pointer, locale, true)
+            for (feature in features) {
+                requireGraphics(feature.value >= 0, "negative OpenType feature value")
+                setStyleFeature(pointer, feature.tag, feature.value.toDouble(), false)
+            }
+            for (variation in variations) {
+                checkScalar(variation.value)
+                setStyleFeature(pointer, variation.tag, variation.value, true)
+            }
+            block(pointer)
+        }
+    }
+}
+
+public class ParagraphStyle public constructor(
+    public val alignment: TextAlignment = TextAlignment.Start,
+    public val direction: TextDirection = TextDirection.Ltr,
+    public val maxLines: Long? = None,
+    public val ellipsis: String = "…"
+)
+
+public struct TextRun(val text: String, val style: TextStyle = TextStyle())
+
+private fun makeTextStyle(value: NativeTextStyleData): GraphicsResource {
+    @Unsafe
+    {
+        return ownedGraphics(textStyleCreate(value), "create text style")
+    }
+}
+
+private fun setStyleString(style: Ptr<Unit>, value: String, locale: Boolean) {
+    @Unsafe
+    {
+        value.withUtf8Bytes {
+            bytes,
+            count -> @Unsafe
+            {
+                graphicsResult(
+                    textStyleString(style, bytes, count, locale),
+                    "set font family or locale"
+                )
+            }
+        }
+    }
+}
+
+private fun setStyleFeature(style: Ptr<Unit>, tag: String, value: Double, variation: Boolean) {
+    requireGraphics(tag.byteLength == 4L, "OpenType tags require four ASCII bytes")
+    for (character in tag)
+        requireGraphics(character.code >= 32 && character.code <= 126, "invalid OpenType tag")
+    @Unsafe
+    {
+        tag.withUtf8Bytes {
+            bytes,
+            _ -> @Unsafe
+            {
+                graphicsResult(
+                    textStyleFeature(style, bytes, value, variation),
+                    "set OpenType feature or variation"
+                )
+            }
+        }
+    }
+}
+
+@CLayout
+private struct NativeTextStyleData(
+    val color: Color,
+    val size: Double,
+    val height: Double,
+    val letter: Double,
+    val word: Double,
+    val weight: Int,
+    val width: Int,
+    val slant: Int,
+    val hasHeight: Int
+)
+
+@Extern(name = "scoop_graphics_text_style_create")
+private fun textStyleCreate(value: NativeTextStyleData): Ptr<Unit>?
+
+@Extern(name = "scoop_graphics_text_style_string")
+private fun textStyleString(style: Ptr<Unit>, value: Ptr<UInt8>, length: Long, locale: Boolean): Int
+
+@Extern(name = "scoop_graphics_text_style_feature")
+private fun textStyleFeature(
+    style: Ptr<Unit>,
+    tag: Ptr<UInt8>,
+    value: Double,
+    variation: Boolean
+): Int

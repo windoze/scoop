@@ -10,6 +10,8 @@ use crate::ResolvedTargetProfile;
 
 #[cfg(not(target_env = "musl"))]
 mod cxx;
+#[cfg(target_os = "macos")]
+mod darwin_targets;
 mod objects;
 mod target_include;
 #[cfg(windows)]

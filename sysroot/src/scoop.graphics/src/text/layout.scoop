@@ -1,0 +1,238 @@
+package scoop.graphics
+
+/** Half-open UTF-8 byte range, checked against the text by layout queries. */
+@CLayout
+public struct TextRange(val start: Long, val end: Long)
+
+public struct TextPosition(
+    val byteOffset: Long,
+    val affinity: TextAffinity = TextAffinity.Downstream
+)
+
+public struct TextBox(val rect: Rect, val direction: TextDirection)
+
+public struct TextLine(
+    val range: TextRange,
+    val contentRange: TextRange,
+    val visibleRange: TextRange,
+    val rect: Rect,
+    val baseline: Double,
+    val ascent: Double,
+    val descent: Double,
+    val hardBreak: Boolean
+)
+
+/** One immutable layout snapshot; all geometry is local logical coordinates. */
+public class TextLayout internal constructor(
+    internal val resource: GraphicsResource,
+    public val text: String
+): Closeable {
+    private val info = readLayoutInfo(resource.get())
+    public val size: Size = Size(info.width, info.height)
+    public val minIntrinsicWidth: Double = info.minimum
+    public val maxIntrinsicWidth: Double = info.maximum
+    public val alphabeticBaseline: Double = info.alphabetic
+    public val ideographicBaseline: Double = info.ideographic
+    public val didExceedMaxLines: Boolean = info.exceeded != 0
+    public val unresolvedGlyphCount: Int = info.unresolved
+    public val lines: Array<TextLine> = readLines(resource.get(), info.lines)
+    public val graphemeBoundaries: Array<Long> = readGraphemes(resource.get(), info.graphemes)
+    public val isClosed: Boolean get() = resource.isClosed
+
+    public fun hitTest(point: Point): TextPosition {
+        checkPoint(point)
+        @Unsafe
+        {
+            val value = textHit(resource.get(), point)
+            graphicsResult(value.status, "text position hit test")
+            return TextPosition(
+                value.byteOffset,
+                if (value.affinity == 0)
+                    TextAffinity.Upstream
+                else
+                    TextAffinity.Downstream
+            )
+        }
+    }
+    /** Requires a grapheme boundary; elided text has no caret geometry. */
+    public fun caret(position: TextPosition, thickness: Double = 1.0): Rect? {
+        checkScalar(thickness)
+        requireGraphics(thickness >= 0.0, "negative caret thickness")
+        @Unsafe
+        {
+            val value =
+                textCaret(
+                    resource.get(),
+                    position.byteOffset,
+                    if (position.affinity == TextAffinity.Upstream)
+                        0
+                    else
+                        1,
+                    thickness
+                )
+            if (value.status == -1)
+                throw IllegalArgumentException(Some("caret must be a grapheme boundary"))
+            if (value.status == -2)
+                throw GraphicsException("query caret geometry")
+            return if (value.status == 0)
+                None
+            else
+                Some(value.rect)
+        }
+    }
+    /** A logical selection can have several visual rectangles in bidirectional text. */
+    public fun selection(range: TextRange): Array<TextBox> {
+        val pointer = resource.get()
+        @Unsafe
+        {
+            val selected = textSelection(pointer, range.start, range.end)
+            graphicsResult(selected.status, "selection range must use UTF-8 scalar boundaries")
+            return ownedGraphics(selected.pointer, "query text selection").use {
+                boxes -> @Unsafe
+                {
+                    return@use readBoxes(boxes.get(), textBoxesCount(boxes.get()))
+                }
+            }
+        }
+    }
+    public override fun close() {
+        resource.close()
+    }
+}
+
+/** Paints the same shaped runs used by hit testing and caret queries. */
+public fun Canvas.drawText(layout: TextLayout, origin: Point = Point(0.0, 0.0)) {
+    checkPoint(origin)
+    @Unsafe
+    {
+        graphicsResult(
+            textPaint(layout.resource.get(), resource.get(), origin),
+            "paint text layout"
+        )
+    }
+}
+
+private fun readLayoutInfo(pointer: Ptr<Unit>): NativeLayoutInfo {
+    @Unsafe
+    {
+        return textInfo(pointer)
+    }
+}
+
+private fun readLines(pointer: Ptr<Unit>, count: Long): Array<TextLine> =
+    Array<TextLine>(count) {
+        index -> @Unsafe
+        {
+            val value = textLine(pointer, index)
+            return@Array TextLine(
+                value.range,
+                value.content,
+                value.visible,
+                value.rect,
+                value.baseline,
+                value.ascent,
+                value.descent,
+                value.hardBreak != 0
+            )
+        }
+    }
+
+private fun readGraphemes(pointer: Ptr<Unit>, count: Long): Array<Long> {
+    val result = MutableArray<Long>(count) { _ -> 0L }
+    @Unsafe
+    {
+        result.withDataPointer {
+            data,
+            _ -> @Unsafe
+            {
+                textGraphemes(pointer, data)
+            }
+        }
+    }
+    return result.toArray()
+}
+
+private fun readBoxes(pointer: Ptr<Unit>, count: Long): Array<TextBox> =
+    Array<TextBox>(count) {
+        index -> @Unsafe
+        {
+            val value = textBox(pointer, index)
+            return@Array TextBox(
+                value.rect,
+                if (value.direction == 1)
+                    TextDirection.Ltr
+                else
+                    TextDirection.Rtl
+            )
+        }
+    }
+
+@CLayout
+private struct NativeLayoutInfo(
+    val width: Double,
+    val height: Double,
+    val minimum: Double,
+    val maximum: Double,
+    val alphabetic: Double,
+    val ideographic: Double,
+    val lines: Long,
+    val graphemes: Long,
+    val exceeded: Int,
+    val unresolved: Int
+)
+
+@CLayout
+private struct NativeTextLine(
+    val range: TextRange,
+    val content: TextRange,
+    val visible: TextRange,
+    val rect: Rect,
+    val baseline: Double,
+    val ascent: Double,
+    val descent: Double,
+    val hardBreak: Int
+)
+
+@CLayout
+private struct NativeTextHit(val byteOffset: Long, val affinity: Int, val status: Int)
+
+@CLayout
+private struct NativeCaret(val rect: Rect, val status: Int)
+
+@CLayout
+private struct NativeTextBox(val rect: Rect, val direction: Int)
+
+@CLayout
+private struct NativeSelection(val pointer: Ptr<Unit>?, val status: Int)
+
+@Extern(name = "scoop_graphics_text_info")
+private fun textInfo(layout: Ptr<Unit>): NativeLayoutInfo
+
+@Extern(name = "scoop_graphics_text_line")
+private fun textLine(layout: Ptr<Unit>, index: Long): NativeTextLine
+
+@Extern(name = "scoop_graphics_text_graphemes")
+private fun textGraphemes(layout: Ptr<Unit>, output: Ptr<Long>)
+
+@Extern(name = "scoop_graphics_text_hit")
+private fun textHit(layout: Ptr<Unit>, point: Point): NativeTextHit
+
+@Extern(name = "scoop_graphics_text_caret")
+private fun textCaret(
+    layout: Ptr<Unit>,
+    byteOffset: Long,
+    affinity: Int,
+    thickness: Double
+): NativeCaret
+
+@Extern(name = "scoop_graphics_text_selection")
+private fun textSelection(layout: Ptr<Unit>, start: Long, end: Long): NativeSelection
+
+@Extern(name = "scoop_graphics_text_boxes_count")
+private fun textBoxesCount(boxes: Ptr<Unit>): Long
+
+@Extern(name = "scoop_graphics_text_box")
+private fun textBox(boxes: Ptr<Unit>, index: Long): NativeTextBox
+
+@Extern(name = "scoop_graphics_text_paint")
+private fun textPaint(layout: Ptr<Unit>, canvas: Ptr<Unit>, origin: Point): Int
