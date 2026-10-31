@@ -8,6 +8,8 @@
 
 宿主 Rust 命令保留 rustc 对应目标的默认 CPU 基线，Darwin/AArch64 使用 Apple Silicon 平台特性，Linux/amd64 使用 x86-64；Scoop backend 的 generic CPU 设置不传给宿主 Cargo 构建，以免移除 Apple 平台依赖所需的 AES／SHA2 等特性。
 
+OpenSSL 的 Darwin/AArch64 构建也保留 Apple Clang 的平台特性，不传 `-mcpu=generic`；x86-64 仍显式使用对应 CPU 基线。Windows 打包在 MSVC 开发环境中运行，Rust build script／proc macro 的 linker 使用 `VCToolsInstallDir` 下的 x64 `link.exe`，避免 Git／MSYS 的同名工具。Linux 收集共享库时保留已有 `LD_LIBRARY_PATH`，同时优先查找选定 LLVM 的库；随包 Python 等依赖仍复制进发行包并改写为相对加载路径。
+
 五个命令（`scoop`、`scoopc`、`scoop-link`、`scoop-lsp`、`scoop-pm`）的 `--version` 显示相同发行版本与源码 revision。开发构建读取默认版本和当前 Git revision；发行构建显式设置 `SCOOP_RELEASE_VERSION` 与 `SCOOP_SOURCE_REVISION`，不在运行时读取 Git 或发行清单。
 
 Windows 安装包将主驱动命名为 `sco.exe`，其版本信息使用 `sco`；其他可执行程序保持原名，macOS／Linux 仍用 `scoop`。Cargo package 和内部输出名继续为 `scoop`／`scoop.exe`，`package_toolchain.py` 组装时只重命名 Windows 主驱动。维护脚本的 `--scoop` 接受实际路径：开发构建可传 `.../release/scoop.exe`，安装包验证传 `.../bin/sco.exe`；外部命令仍以 `scoop-` 开头。

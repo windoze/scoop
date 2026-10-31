@@ -106,7 +106,10 @@ def linux(root, binaries, llvm_lib, additional=None):
     queue = list(files)
     libraries = {}
     edits = []
-    environment = dict(os.environ, LC_ALL="C", LD_LIBRARY_PATH=str(llvm_lib))
+    search = [str(llvm_lib)]
+    if inherited := os.environ.get("LD_LIBRARY_PATH"):
+        search.append(inherited)
+    environment = dict(os.environ, LC_ALL="C", LD_LIBRARY_PATH=os.pathsep.join(search))
     while queue:
         source = queue.pop(0)
         needed = output("patchelf", "--print-needed", str(source)).splitlines()

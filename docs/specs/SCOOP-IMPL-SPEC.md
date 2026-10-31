@@ -70,6 +70,8 @@ MinGW 的 native sysroot 是对应 CRT 的完整 LLVM-MinGW prefix。Microsoft �
 
 宿主 Rust 命令使用 rustc 对应目标的默认 CPU 基线，不使用构建机器的 native CPU，也不以 Scoop backend 的 `generic` 配置覆盖平台必需特性；Darwin/AArch64 因而保留 Apple Silicon 的 AES／SHA2 等平台特性，Linux/amd64 仍使用 x86-64 基线。
 
+OpenSSL 的 Darwin/AArch64 构建同样保留上游目标配置与 Apple Clang 的平台特性，不将 Scoop backend 的 `generic` 映射为 `-mcpu=generic`，以便编译其 AES／SHA 汇编；最低部署版本仍使用上述发行配置。Windows 发行使用 MSVC Rust 宿主工具链构建 build script／proc macro 时，按已选 MSVC 开发环境的绝对路径指定宿主 linker，避免 Git／MSYS 的同名 `link.exe` 干扰；最终 GNU LLVM 目标继续使用已选 LLVM-MinGW compiler。
+
 三个宿主命令的 `--version` 使用同一份构建版本与源码 revision。维护脚本显式设置发行版本和 revision，普通开发构建使用仓库默认版本及当前 Git revision；源码归档没有 Git 信息时明确显示 revision 未提供。版本文本不替代配套工具的协议协商或产物兼容判断。
 
 Windows 发行包按宿主 PE 的实际 imports 收集非系统 DLL，递归包含其依赖，并放在对应宿主 executable 的相邻目录；内置外部命令遵守相同的加载规则。Windows 基线自带的系统 DLL 与 API-set 不复制。LLVM 的 DLL 优先从本次选定的 LLVM 安装取得，宿主命令启动不依赖开发机 PATH 中的另一份 LLVM 或 MinGW DLL。目标开发资源及 SDK／toolset 的选择仍由各 target 的 native 构建合同负责。
@@ -2097,6 +2099,8 @@ generated-C 桥没有用户源码映射，继续使用 `-g0`，通过实际符�
 最终结果缓存同时记录程序及请求的调试结果。请求外置文件时，最终 executable basename 进入结果键并用于内部生成文件名，保证换输出目录可复用、换 basename 时重新生成匹配的 debuglink／dSYM；上游 Cone 不因此重编译。命中只检查输入更新与所需结果存在，不读取／哈希调试文件内容，不启动调试工具或重新准备链接输入。dSYM 目录按普通暂存、复制及 rename 发布；工具失败不发布部分新结果。UUID／debuglink 仅承担平台文件关联。
 
 编辑器复用官方 lldb-dap，scoop-lsp 保持语言服务职责。VS Code 提供源码 breakpoints、构建到 executable 的启动配置、attach、参数／cwd／环境／终端及 sourceMap，按需导入只读 Python formatter。发行包包含匹配平台的 lldb、lldb-dap、LLDB library、Python 支持及实际所需附加文件。Darwin 的开发安装与发行加工完成后重新签名 debugserver，保留其原生调试 entitlements，避免安装时调整加载路径使签名失效。不得把 C 兼容 evaluator、通用异常筛选或硬件 watchpoint 宣称为完整 Scoop 求值、Scoop 异常过滤或 GC 感知数据断点。
+
+Linux 打包时查找实际共享依赖，优先使用选定 LLVM 的 library 目录，并保留构建环境已有的 `LD_LIBRARY_PATH`，以找到配套 Python 等非系统安装的库。收集后的非系统库随包发布，最终加载路径仍改写为相对安装目录，不依赖构建环境路径。
 
 所有宿主的发行包在公开 `bin` 目录中为 LLVM／LLDB 命令统一增加 `scoop-` 前缀：`scoop-lldb`、`scoop-lldb-dap`、`scoop-dsymutil`、`scoop-llvm-objcopy`、`scoop-llvm-strip`、`scoop-llvm-symbolizer`、`scoop-llvm-nm` 与 `scoop-llvm-readobj`；Windows 附加 `.exe`。不在该目录保留无前缀别名，避免加入 PATH 后与其他 LLVM 安装冲突。编译器查找同目录的调试工具、编辑器的默认 adapter 与性能分析命令使用发行名称；显式选择外部 LLVM 时仍使用其上游名称。私有 `libexec` 布局保留上游工具名。
 
