@@ -13,6 +13,7 @@ mod initialization;
 pub(crate) use initialization::initialization_unit_globals_from_pairs;
 use initialization::{declare_initialization_unit_globals, initialization_unit_globals};
 
+mod metadata_object;
 mod metadata_partition;
 mod objects;
 mod storage;

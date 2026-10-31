@@ -121,7 +121,7 @@ pub(super) fn emit_object_set_with_production<
             let path = backing
                 .path()
                 .join(format!("{}.o", units.definition_plans()[0]));
-            write_object(&machine, &llvm, &path)?;
+            metadata_object::write(&machine, &llvm, &path)?;
             atom_boundaries::materialize_global_linkages_v1(
                 &path,
                 module.meta.target_profile,
