@@ -644,11 +644,11 @@ Mach-O／ELF 对象按实际目标格式读取 section、符号及 relocation，
 
 ### 2.6 `.slib` 格式与指纹
 
-`.slib` 是 target-specific、bitwise reproducible 的 normal、self-contained ar archive。容器 schema 与 manifest schema 的格式版本为 4，mangling schema 为 1；persistent identity schema 为 2，HIR／MIR／LIR metadata outer schema 均为 4。函数声明 key 增加规范化条件集合及 companion 存在条件，签名类型增加固定 companion 投影，binder 增加负向接口集合与独立 companion 条件；默认表达式保存依赖 companion 值访问。空集合在 wire 中省略对应字段，解码后仍是完整集合，无条件声明保持原身份。旧产物按格式版本拒绝，重建得到新产物。它不允许 thin archive、外部成员引用或相邻文件 payload。
+`.slib` 是 target-specific、bitwise reproducible 的 self-contained indexed container。容器 schema 与 manifest schema 的格式版本为 5，mangling schema 为 1；persistent identity schema 为 2，HIR／MIR／LIR metadata outer schema 均为 4。函数声明 key 增加规范化条件集合及 companion 存在条件，签名类型增加固定 companion 投影，binder 增加负向接口集合与独立 companion 条件；默认表达式保存依赖 companion 值访问。空集合在 wire 中省略对应字段，解码后仍是完整集合，无条件声明保持原身份。旧产物按格式版本拒绝，重建得到新产物。它不使用外部成员引用或相邻文件 payload。
 
-归档 magic 为 `!<arch>\n`，首项固定为 `manifest.zst`，内容为 deterministic CBOR manifest 的单个 Zstandard frame。其余 payload 按 manifest 中的 SlibMemberId bytes 严格排序，物理短名为从 0 开始的 ordinal：`m` 加 8 位零填充十进制。header 使用 SysV/GNU short-name encoding：名称后为 `/` 与空格填充，mtime/uid/gid 为十进制 0，mode 为八进制 `100644`，size 为无多余前导零的十进制，trailer 为 `` `\n``，奇数 payload 后补 `0x0A`。
+容器固定头为 16 bytes：前 8 bytes 是 ASCII `SCOOPSLB`，后 8 bytes 是 little-endian u64，保存紧随其后的压缩 manifest 长度。manifest 为 deterministic CBOR 的单个 Zstandard frame；其后按目录中的 SlibMemberId bytes 严格升序连续保存各成员的实际存储 payload。成员起点由 manifest 末尾和此前成员的 stored length checked 累加得到，不再保存物理名称、mtime、uid、gid、mode、第二份长度或对齐 padding。普通 native `.a` 文件仍使用自己的标准 ar 格式。
 
-writer 按上述目录与 header 规则生成归档。普通 reader 根据目录按需定位 section，不重读全部成员来验证归档生成过程或对照内容 hash；payload 不因自身 magic 而递归作为归档解释。实际解码与 I/O 错误照常传播，长度转换和索引保持内存安全。
+writer 按上述目录与固定头规则生成容器。普通 reader 根据目录按需定位 section，不重读全部成员来验证归档生成过程或对照内容 hash；payload 不因自身 magic 而递归作为归档解释。实际解码与 I/O 错误照常传播，长度转换和索引保持内存安全。
 
 每个非 manifest 成员为四字段 record：`1=id, 3=role, 4=byte_length, 5=sha256`，字段 2 不再保存 stable key。生产端继续用 ConeIdentity 与完整的稳定 member key 生成 SlibMemberId；物理名、扩展名和生成顺序不参与身份。metadata 角色、Scoop／generated-C unit-set key 与扩展的逻辑 key 在目录 ID 生成后没有消费方，不重复落盘，也不在读取时重算成员 ID。普通 Native 对象的规范化源路径是实际链接输入，保存在独立的 NativeObject 角色中。
 
@@ -664,9 +664,9 @@ writer 按上述目录与 header 规则生成归档。普通 reader 根据目录
 
 三种 metadata 各恰有一个成员，目录读取在这一边界检查角色的唯一性；完整生产产物具有非空对象集合。LinkObject 角色为无额外字段的 tag 4，表示由 LIR 物理目录描述的 Scoop／generated-C 对象；NativeObject 保存完整的规范化源路径。对象目标与格式使用 manifest compatibility 已确定的目标契约，不为每个成员重复保存 target、object-format 和已无消费方的 verifier capability。成员由目录身份识别，不由物理名、ordinal 或数量推断 producer。
 
-Manifest、三层 metadata、LinkObject、NativeObject 和 DiagnosticAttachment 各自使用单个、无字典且带原始长度的 Zstandard frame；writer 统一使用标准 compression level `3`，不设置压缩开关或按压缩率选择编码。ExtensionBlob 保存原始 bytes。LinkObject／NativeObject 解压后仍是原生可重定位对象，编译依赖发现不读取对象，program-link 仅在实际提取所选对象时解压；对象缓存保存原生 bytes，并使用现有成员存储摘要定位。成员 record 的 byte_length 与 sha256 描述实际存储 bytes，ar header 的 size 也使用存储长度；成员身份和三层语义指纹仍由既有逻辑内容确定。依赖发现只解压 manifest；成员首次实际使用时解压并缓存结果，后续请求复用该缓冲区。frame 解码只承担长度、截断和格式等局部正确性检查，不复核成员摘要或重放语义。此前 level `-3` 生成的 frame 仍是相同格式的合法输入；压缩参数调整不递增容器／metadata schema，不要求重建未变化的预编译库。
+Manifest、三层 metadata、LinkObject、NativeObject 和 DiagnosticAttachment 各自使用单个、无字典且带原始长度的 Zstandard frame；writer 统一使用标准 compression level `3`，不设置压缩开关或按压缩率选择编码。ExtensionBlob 保存原始 bytes。LinkObject／NativeObject 解压后仍是原生可重定位对象，编译依赖发现不读取对象，program-link 仅在实际提取所选对象时解压；对象缓存保存原生 bytes，并使用现有成员存储摘要定位。成员 record 的 byte_length 与 sha256 描述实际存储 bytes；成员身份和三层语义指纹仍由既有逻辑内容确定。依赖发现只解压 manifest；成员首次实际使用时解压并缓存结果，后续请求复用该缓冲区。frame 解码只承担长度、截断和格式等局部正确性检查，不复核成员摘要或重放语义。此前 level `-3` 生成的 frame 仍是相同格式的合法输入；压缩参数调整不递增容器／metadata schema，不要求重建未变化的预编译库。
 
-容器／manifest 1～3 和旧 profile 不提供兼容读取，必须重建。压缩库是编译器宿主依赖，与 sysroot 中面向目标平台的 Zstandard 库分开。方案、测量依据和最小验证范围见 [存储精简与压缩方案](../slib-storage/DESIGN.md)。
+容器／manifest 1～4 和旧 profile 不提供兼容读取，必须重建。压缩库是编译器宿主依赖，与 sysroot 中面向目标平台的 Zstandard 库分开。方案、测量依据和最小验证范围见 [存储精简与压缩方案](../slib-storage/DESIGN.md)。
 
 三层 metadata 的 outer schema 4 均使用字段 `1=magic, 2=schema, 3=sections, 4=id_table`：每个成员的表是按原始 bytes 严格升序、无重复的 32-byte 值连续拼接成的 byte string，同一成员中的 section 共用该表。section 使用四字段记录，字段 1～3 为 capability、purpose 和 payload，字段 `4=storage` 中 `0` 为原始 opaque payload，`1` 为使用该成员 ID 表的 Wire CBOR。writer 将已知 section 中的 32-byte byte-string 字段统一替换为零起始 unsigned 表索引；其他整数、字符串、容器和嵌套 opaque bytes 保持原语义。未知扩展 section 使用 storage 0，不扫描其内容。三层采用同一编码与读取实现，旧 HIR／MIR outer schema 3 按普通格式兼容规则拒绝，配套重建。
 
@@ -697,7 +697,7 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 
 未知 optional capability 按目录跳过，不读取或计算其内容 hash，不进入语义 view。ExtensionBlob.required_for 只允许 0 或 Link bit；未知 Link-required capability 阻止 Link 消费。blob 不成为第二种对象入口，已知 Link contribution 只能表示规范化 native library requirements，不能注入 raw linker argv、脚本或未检查对象。
 
-完整生产 profile 为 `org.scoop-lang.slib-profile/cross-cone-generic/12`。descriptor 是五字段 map：`1=id, 2=required_manifest, 3=required_hir, 4=required_mir, 5=required_lir`；各列表按 capability 排序。其必需 section 为：
+完整生产 profile 为 `org.scoop-lang.slib-profile/cross-cone-generic/13`。descriptor 是五字段 map：`1=id, 2=required_manifest, 3=required_hir, 4=required_mir, 5=required_lir`；各列表按 capability 排序。其必需 section 为：
 
 早期 `single-cone-strong` 与 `cross-cone-semantics-strong` profile 不再是生产或消费入口，不随当前 section 版本维护正向 descriptor／fingerprint 矩阵。旧 profile 按不支持的产物 profile 报错，当前 profile 的 required inventory 和版本兼容检查保留。
 

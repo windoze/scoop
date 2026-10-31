@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use scoop_lir::ValidatedLirTargetSelection;
 
-use crate::archive::{HEADER_LENGTH, MemberPosition, member_positions, read_member_header};
+use crate::archive::{MemberPosition, member_positions};
 use crate::{
     ArchiveReadError, ArtifactManifestSummaryV1, BootstrapManifest, SlibMemberId, SlibReadError,
 };
@@ -89,16 +89,10 @@ impl ArtifactFile {
         if let Some(bytes) = cached.get() {
             return Ok(Some(bytes));
         }
-        file.seek(SeekFrom::Start(position.header))
+        file.seek(SeekFrom::Start(position.offset))
             .map_err(SlibReadError::Io)?;
-        let mut header = [0; HEADER_LENGTH as usize];
-        file.read_exact(&mut header).map_err(SlibReadError::Io)?;
-        let name = position.name().map_err(SlibReadError::Container)?;
-        let length = read_member_header(&header, &name, position.ordinal())
-            .map_err(SlibReadError::Container)?;
-        position
-            .check_length(length)
-            .map_err(SlibReadError::Container)?;
+        let length = usize::try_from(position.length)
+            .map_err(|_| SlibReadError::Container(ArchiveReadError::LengthOverflow))?;
         let mut bytes = Vec::new();
         file.by_ref()
             .take(length as u64)
@@ -109,15 +103,6 @@ impl ArtifactFile {
                 io::ErrorKind::UnexpectedEof,
                 "incomplete slib member",
             )));
-        }
-        if length & 1 == 1 {
-            let mut padding = [0];
-            file.read_exact(&mut padding).map_err(SlibReadError::Io)?;
-            if padding != *b"\n" {
-                return Err(SlibReadError::Container(ArchiveReadError::InvalidPadding {
-                    member: position.ordinal(),
-                }));
-            }
         }
         let bytes = if position.compressed {
             crate::archive::decompress_member(&bytes, position.ordinal())

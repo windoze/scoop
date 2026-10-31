@@ -2,6 +2,24 @@ use super::*;
 use crate::{DecodedSlibEnvelope, SlibMemberRole};
 
 #[test]
+fn truncated_file_keeps_complete_members_readable_and_reports_the_missing_payload() {
+    let bytes = crate::link_decode::complete_strong_artifact_for_test();
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("truncated.slib");
+    std::fs::write(&path, &bytes[..bytes.len() - 1]).unwrap();
+    let file = ArtifactFile::open(&path, scoop_target_data::DARWIN_AARCH64_LLVM_22_1).unwrap();
+    let saved = file.directory().unwrap();
+    let first = saved.manifest.members().first().unwrap().id();
+    let last = saved.manifest.members().last().unwrap().id();
+    assert_ne!(first, last);
+    assert!(file.member(saved, first).unwrap().is_some());
+    assert!(matches!(
+        file.member(saved, last),
+        Err(SlibReadError::Io(error)) if error.kind() == io::ErrorKind::UnexpectedEof
+    ));
+}
+
+#[test]
 fn source_declarations_leave_unused_machine_members_unread() {
     let directory = tempfile::tempdir().unwrap();
     let target = scoop_target_data::DARWIN_AARCH64_LLVM_22_1;
