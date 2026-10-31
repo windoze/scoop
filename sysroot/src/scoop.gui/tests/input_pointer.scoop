@@ -197,6 +197,34 @@ private class InputAreaTest {
     }
 
     @Test
+    fun `focus loss after leaving the window cancels once and drops a late release`() {
+        InputRig().use {
+            rig ->
+            val area = rig.area("a")
+            rig.frame {
+                frame,
+                canvas -> frame.place(canvas, area, Rect(0.0, 0.0, 40.0, 40.0), None)
+            }
+            rig.move(10.0, 10.0)
+            rig.log.events.clear()
+            rig.button(10.0, 10.0, ElementState.Pressed)
+            rig.pointer(PointerEvent.Left(inputPointer(-20.0, -10.0)))
+            rig.move(-60.0, -30.0)
+            rig.router.event(WindowEvent.Focused(false))
+            rig.pointer(PointerEvent.Cancelled(PointerCancelReason.FocusLost, inputObservation()))
+            rig.button(-60.0, -30.0, ElementState.Released)
+            assertEquals("a/down,a/leave,a/move,a/cancel", rig.log.trace())
+
+            rig.router.event(WindowEvent.Focused(true))
+            rig.move(10.0, 10.0)
+            rig.log.events.clear()
+            rig.button(10.0, 10.0, ElementState.Pressed)
+            rig.button(10.0, 10.0, ElementState.Released)
+            assertEquals("a/down,a/up", rig.log.trace())
+        }
+    }
+
+    @Test
     fun `closing an ancestor inside a handler defers terminal delivery and skips its business event`() {
         InputRig().use {
             rig ->
