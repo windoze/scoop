@@ -1,0 +1,3 @@
+link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
+native library m23_math requirement=f7c478a79d5776baf2d1b94cf8c391cc48d482c39b820e8d65a14393d64edb18 input=$NATIVE_INPUT_0 origins=dev.programlink:direct:0.1.0
+native object $NATIVE_INPUT_0 slice=0..1032

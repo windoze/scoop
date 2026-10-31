@@ -1,6 +1,7 @@
 """Validate discovery and shared criteria without compiling language fixtures."""
 
 import copy
+import json
 import sys
 import tempfile
 import unittest
@@ -96,6 +97,31 @@ class CriteriaTests(unittest.TestCase):
         step["checks"] = [{"actual": "${build.result.target}", "equals": "target"}]
         with self.assertRaisesRegex(ConfigurationError, "diagnostic"):
             validate(self.data)
+
+    def test_compiler_specific_diagnostics_resolve_after_tool_selection(self):
+        target = "x86_64-unknown-linux-musl"
+        self.data.update(targets=[target], tools=["cc"])
+        expected = {"file": "${cc_family}/diagnostics.${target}.json"}
+        self.data["steps"][0].update(json="stderr", diagnostics=expected)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for family in ("gcc", "clang"):
+                directory = root / family
+                directory.mkdir()
+                diagnostic = [{"code": "SCOOP_BUILD_FAILED", "message": family + " error"}]
+                (directory / f"diagnostics.{target}.json").write_text(json.dumps(diagnostic))
+                data = copy.deepcopy(self.data)
+                validate(data, root, target)
+                self.assertEqual(data["steps"][0]["diagnostics"], expected)
+                validate(data, root, target, family)
+                self.assertEqual(data["steps"][0]["diagnostics"], diagnostic)
+            (root / "clang" / f"diagnostics.{target}.json").write_text('["invalid record"]')
+            validate(copy.deepcopy(self.data), root, target, "gcc")
+            with self.assertRaisesRegex(ConfigurationError, "complete records"):
+                validate(copy.deepcopy(self.data), root, target, "clang")
+            self.data["tools"] = []
+            with self.assertRaisesRegex(ConfigurationError, "require the cc tool"):
+                validate(self.data, root, target)
 
     def test_references_and_background_must_be_resolved(self):
         self.data["steps"][0]["argv"] = ["${future.result.output}"]

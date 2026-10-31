@@ -82,7 +82,10 @@ BUILTINS = {
     "scoop-pm",
     "terminal-host",
     "cc",
+    "cc_family",
     "cc_args",
+    "cc_link_args",
+    "native_sysroot_args",
     "compile_args",
     "link_args",
     "ar",
@@ -126,7 +129,7 @@ def variables(value, where):
         values.require(key not in BUILTINS, f"{where}: reserved variable {key}")
 
 
-def validate(data, base=None, target=None):
+def validate(data, base=None, target=None, cc_family=None):
     fields(data, TOP, {"schema", "name", "inputs", "steps"}, "fixture")
     if type(data["schema"]) is not int or data["schema"] != 1:
         raise ConfigurationError("fixture schema must be 1")
@@ -169,12 +172,21 @@ def validate(data, base=None, target=None):
                     if parameters:
                         targets = data.get("targets", [])
                         values.require(
-                            parameters == {"target"} and targets,
-                            "diagnostics file parameters require ${target} and declared targets",
+                            parameters <= {"target", "cc_family"} and targets,
+                            "diagnostics file parameters require ${target}/${cc_family} and declared targets",
+                        )
+                        values.require(
+                            "cc_family" not in parameters or "cc" in data.get("tools", []),
+                            "compiler-specific diagnostics require the cc tool",
                         )
                         selected = target if target in targets else targets[0]
-                        expected = expand(expected, {"target": selected})
-                step["diagnostics"] = json_value(expected, base)
+                        expected = (
+                            None
+                            if "cc_family" in parameters and cc_family is None
+                            else expand(expected, {"target": selected, "cc_family": cc_family})
+                        )
+                if expected is not None:
+                    step["diagnostics"] = json_value(expected, base)
             except (OSError, ValueError) as error:
                 raise ConfigurationError(f"diagnostics expectation: {error}") from error
         validate_step(step)

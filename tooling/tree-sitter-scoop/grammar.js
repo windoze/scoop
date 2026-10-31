@@ -61,7 +61,6 @@ module.exports = grammar({
     [$.modifiers, $.enum_variant],
     [$.qualified_identifier, $.user_type, $._expression],
     [$.qualified_identifier, $.user_type, $.variant_pattern],
-    [$.qualified_identifier, $._expression],
     [$.qualified_identifier, $.user_type, $.variant_pattern, $._expression],
     [$.modifier, $.anonymous_function],
     [$.unary_expression, $.infix_expression, $.call_expression],

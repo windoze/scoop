@@ -1,0 +1,5 @@
+link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
+native library m23_math requirement=5efff7f6f6024613bdade487eebc6e75566a06c1a1374a241d67ce46a63faa19 input=$NATIVE_INPUT_0 origins=dev.programlink:same:0.1.0
+native archive $NATIVE_INPUT_0 members=2
+  member 0 header=8 payload=68..1100 name="same.o" digest=$NATIVE_MEMBER_0 selected=true
+  member 1 header=1100 payload=1160..2192 name="same.o" digest=$NATIVE_MEMBER_0 selected=false

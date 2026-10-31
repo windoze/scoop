@@ -22,6 +22,9 @@ class EnvironmentTests(unittest.TestCase):
         self.addCleanup(environment.stop)
         os.environ.pop("SCOOP_SYSROOT", None)
         os.environ.pop("SCOOP_CACHE_DIR", None)
+        for name in list(os.environ):
+            if name.startswith("SCOOP_TEST_PAIRED_"):
+                os.environ.pop(name)
 
     @patch("fixture_runner.cli.platform.machine", return_value="x86_64")
     @patch("fixture_runner.cli.platform.system", return_value="Linux")
@@ -149,7 +152,10 @@ class EnvironmentTests(unittest.TestCase):
                 ["/opt/musl-gcc", "-dM", "-E", "-x", "c", "-"], input=b""
             )
             self.assertEqual(common["cc"], "/opt/musl-gcc")
+            self.assertEqual(common["cc_family"], "gcc")
             self.assertEqual(common["cc_args"], ["-fPIC", "-pthread"])
+            self.assertEqual(common["cc_link_args"], ["-static"])
+            self.assertEqual(common["native_sysroot_args"], [])
             self.assertEqual(common["compile_args"], ["--target", "x86_64-unknown-linux-musl"])
             self.assertEqual(
                 common["link_args"],
@@ -264,8 +270,10 @@ class EnvironmentTests(unittest.TestCase):
                 discover.assert_not_called()
             self.assertEqual(common["cc"], str(cc))
             self.assertEqual(common["sdk"], str(sdk))
+            self.assertEqual(common["cc_family"], "clang")
             self.assertIn(str(cc), common["compile_args"])
             self.assertIn(str(sdk), common["cc_args"])
+            self.assertEqual(common["cc_link_args"], [])
 
     @patch("fixture_runner.cli.platform.machine", return_value="x86_64")
     @patch("fixture_runner.cli.platform.system", return_value="Linux")
@@ -277,14 +285,34 @@ class EnvironmentTests(unittest.TestCase):
                 patch("fixture_runner.cli.shutil.which", return_value=str(cc)),
                 patch("fixture_runner.cli.tool_output", return_value="#define __clang__ 1\n"),
             ):
-                common = environment(
-                    repo,
-                    work,
-                    [SimpleNamespace(data={"tools": ["cc"]})],
-                    arguments(["--cc", str(cc), "--native-sysroot", str(sdk)]),
-                )
-            self.assertIn("--target=x86_64-unknown-linux-gnu", common["cc_args"])
-            self.assertIn("--sysroot=" + str(sdk), common["cc_args"])
+                for target, linking in (
+                    ("x86_64-unknown-linux-gnu", []),
+                    ("x86_64-unknown-linux-musl", ["-static"]),
+                ):
+                    with self.subTest(target=target):
+                        common = environment(
+                            repo,
+                            work,
+                            [SimpleNamespace(data={"tools": ["cc"]})],
+                            arguments(
+                                [
+                                    "--target",
+                                    target,
+                                    "--cc",
+                                    str(cc),
+                                    "--native-sysroot",
+                                    str(sdk),
+                                ]
+                            ),
+                        )
+                        self.assertIn("--target=" + target, common["cc_args"])
+                        self.assertEqual(common["cc_family"], "clang")
+                        self.assertIn("--sysroot=" + str(sdk), common["cc_args"])
+                        self.assertNotIn("-static", common["cc_args"])
+                        self.assertEqual(common["cc_link_args"], linking)
+                        self.assertEqual(
+                            common["native_sysroot_args"], ["--native-sysroot", str(sdk)]
+                        )
 
     @patch("fixture_runner.cli.platform.machine", return_value="arm64")
     @patch("fixture_runner.cli.platform.system", return_value="Darwin")
@@ -372,6 +400,7 @@ class EnvironmentTests(unittest.TestCase):
                             fixtures,
                             arguments(["--target", target, "--native-sysroot", str(root)]),
                         )
+                    self.assertEqual(common["cc_family"], "clang")
                     if target == WINDOWS_TARGETS[0]:
                         self.assertEqual(common["cc"], str(repo / "llvm/bin/clang.exe"))
                         self.assertIn(str(root / "vc/include"), common["cc_args"])

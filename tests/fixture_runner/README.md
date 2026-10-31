@@ -34,8 +34,17 @@ Microsoft companion 使用动态 CRT；GNU driver 的额外静态 CRT 默认参�
 Linux 的链接参数包含所选 `${sysroot}/lib/<target>/unwind`，供普通程序链接使用。
 显式 `--cc` 也传给 Linux Scoop 工具；用例保留其实际源码、sysroot 和工具。
 需要固定自定义 `--cc` 的工具链诊断专测直接传 `--target ${target}`，不展开包含环境 `--cc` 的公共参数数组。
+使用 C 编译器包装脚本的用例可另传 `{each = "${native_sysroot_args}"}`，保留所选 SDK；
+该数组只包含显式配置的 `--native-sysroot`，未配置时为空。
 native companion 用 `{each = "${cc_args}"}` 传平台编译参数：Darwin 为实际 target、
 SDK 和 deployment，Linux 为 PIC/pthread；源码自己的标准、优化和告警参数保留。
+声明 `cc` 工具后，`${cc_family}` 为所选 companion 的 `gcc` 或 `clang`。
+依赖 C 诊断文字或对象字节布局的专测按该值选择完整期望，保留精确诊断与成员范围；
+Linux 复用已有预定义宏探测，Darwin／Windows 使用其配套 Clang。
+诊断文件路径可组合 `${cc_family}` 与 `${target}`；须声明 `cc` 和适用目标。
+所选文件在工具确定后、执行步骤前加载并校验，未使用的 compiler 期望不参与本次运行。
+直接链接 C 辅助可执行程序时，再传 `{each = "${cc_link_args}"}`；musl 使用 `-static`，
+避免依赖宿主的动态 libc 或 GCC runtime，其他目标为空。对象和共享库只使用 `${cc_args}`。
 Darwin deployment 采用 `MACOSX_DEPLOYMENT_TARGET` 或 `scripts/release.toml` 的明确基线，
 与开发工具保持一致，不读取宿主系统版本。
 `${target_facts.os}`、`${target_facts.arch}` 和 `${target_facts.env}` 来自共享目标目录，适合按 OS／架构／环境检查源码选择，不必在 fixture 中复制完整目标名单。

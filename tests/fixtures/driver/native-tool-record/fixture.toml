@@ -12,13 +12,13 @@ options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "$
 name = "prepare"
 files = [
   {copy = {from = "${fixture}/../build-record/library/cone", to = "${work}/cone"}},
-  {write = {path = "${work}/cc", data = "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"${work}/calls.log\"\nif [ \"$1\" = -dumpfullversion ]; then printf 'probe\\n' >> \"${work}/versions.log\"; fi\nexec \"${cc}\" \"$@\"\n"}},
+  {write = {path = "${work}/cc", data = "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"${work}/calls.log\"\ncase \" $* \" in *\" -dM -E -x c - \"*) printf 'probe\\n' >> \"${work}/probes.log\";; esac\nexec \"${cc}\" \"$@\"\n"}},
   {chmod = {path = "${work}/cc", mode = "755"}},
 ]
 
 [[steps]]
 name = "cold"
-argv = ["${scoop}", "build", "--release", "${work}/cone", {"each" = "${options}"}]
+argv = ["${scoop}", "build", "--release", "${work}/cone", {each = "${native_sysroot_args}"}, {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
@@ -26,7 +26,7 @@ json = "stderr"
 diagnostics = []
 checks = [
   {actual = "${cold.result.observations.child_invocations.length}", equals = 1},
-  {file = "${work}/versions.log", equals = "probe\n"},
+  {file = "${work}/probes.log", equals = "probe\n"},
 ]
 
 [[steps]]
@@ -35,7 +35,7 @@ files = [{copy = {from = "${work}/calls.log", to = "${work}/cold.log"}}]
 
 [[steps]]
 name = "warm"
-argv = ["${scoop}", "build", "--release", "${work}/cone", {"each" = "${options}"}]
+argv = ["${scoop}", "build", "--release", "${work}/cone", {each = "${native_sysroot_args}"}, {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
@@ -52,7 +52,7 @@ files = [{concat = {path = "${work}/cc", parts = [{file = "${work}/cc"}, "# upda
 
 [[steps]]
 name = "changed"
-argv = ["${scoop}", "build", "--release", "${work}/cone", {"each" = "${options}"}]
+argv = ["${scoop}", "build", "--release", "${work}/cone", {each = "${native_sysroot_args}"}, {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
@@ -61,7 +61,7 @@ diagnostics = []
 checks = [
   {actual = "${changed.result.observations.child_invocations.length}", equals = 1},
   {file = "${work}/calls.log", different_from = "${work}/cold.log"},
-  {file = "${work}/versions.log", equals = "probe\nprobe\n"},
+  {file = "${work}/probes.log", equals = "probe\nprobe\n"},
 ]
 
 [[steps]]
@@ -70,7 +70,7 @@ files = [{copy = {from = "${work}/calls.log", to = "${work}/changed.log"}}]
 
 [[steps]]
 name = "warm_again"
-argv = ["${scoop}", "build", "--release", "${work}/cone", {"each" = "${options}"}]
+argv = ["${scoop}", "build", "--release", "${work}/cone", {each = "${native_sysroot_args}"}, {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""

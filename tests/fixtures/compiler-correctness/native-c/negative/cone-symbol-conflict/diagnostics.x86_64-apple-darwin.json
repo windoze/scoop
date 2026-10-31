@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_LINK_FAILED",
-    "message": "native object 5c4c84aebb5df15a98c35622b989f7089658c3253608eca827abf984d3dfd8fa selected by direct input (dev.m33:native-right:0.1.0:native.c) conflicts with dev.m33:native-left:0.1.0:native.c at _m33_duplicate",
+    "message": "native object $NATIVE_INPUT_0 selected by direct input (dev.m33:native-right:0.1.0:native.c) conflicts with dev.m33:native-left:0.1.0:native.c at _m33_duplicate",
     "notes": [],
     "origin": {
       "kind": "none"

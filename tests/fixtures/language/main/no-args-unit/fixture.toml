@@ -8,7 +8,7 @@ tags = ["ffi", "process", "language"]
 variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
 [[steps]]
 name = "launcher"
-argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-Wall", "-Wextra", "-Werror", "${fixture}/launcher.c", "-o", "${work}/launcher"]
+argv = ["${cc}", {each = "${cc_args}"}, {each = "${cc_link_args}"}, "-std=c11", "-Wall", "-Wextra", "-Werror", "${fixture}/launcher.c", "-o", "${work}/launcher"]
 exit = 0
 stdout = ""
 stderr = ""

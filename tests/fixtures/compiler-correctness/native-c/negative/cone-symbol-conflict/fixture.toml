@@ -16,3 +16,4 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {file = "diagnostics.${target}.json"}
+diagnostics_normalize = ["native-digests"]

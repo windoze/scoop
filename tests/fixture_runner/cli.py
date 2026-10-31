@@ -26,8 +26,10 @@ from .cores import (
 )
 from .discovery import discover
 from .model import ConfigurationError, EnvironmentError
+from .schema import validate
 from .suite import run_suite
 from .targets import applicable as target_applicable
+from .values import references
 
 
 def arguments(argv):
@@ -167,11 +169,14 @@ def environment(repo, work, fixtures, args):
         "python": sys.executable,
         "compile_args": ["--target", target],
         "cc_args": [],
+        "cc_link_args": ["-static"] if TARGETS[target]["env"] == "musl" else [],
+        "native_sysroot_args": ["--native-sysroot", str(args.native_sysroot.resolve())]
+        if args.native_sysroot
+        else [],
     }
     if args.cc:
         common["compile_args"] += ["--cc", str(args.cc.resolve())]
-    if args.native_sysroot:
-        common["compile_args"] += ["--native-sysroot", str(args.native_sysroot.resolve())]
+    common["compile_args"] += common["native_sysroot_args"]
     common["link_args"] = list(common["compile_args"])
     if TARGETS[target]["os"] != "darwin":
         unwind = (
@@ -227,6 +232,7 @@ def environment(repo, work, fixtures, args):
         common["llc"] = located
     if needed & {"cc", "ar"} and TARGETS[target]["os"] == "darwin":
         common.update(
+            cc_family="clang",
             cc=str(args.cc.resolve())
             if args.cc
             else tool_output(["/usr/bin/xcrun", "--find", "clang"]),
@@ -249,6 +255,8 @@ def environment(repo, work, fixtures, args):
         from .windows_tools import companions
 
         common.update(companions(target, args, sysroot, needed))
+        if "cc" in needed:
+            common["cc_family"] = "clang"
     elif needed & {"cc", "ar"}:
         common["cc_args"] = ["-fPIC", "-pthread"]
         for name, program in {
@@ -262,7 +270,8 @@ def environment(repo, work, fixtures, args):
                 common[name] = located
         if "cc" in needed:
             macros = tool_output([common["cc"], "-dM", "-E", "-x", "c", "-"], input=b"")
-            if "#define __clang__ " in macros:
+            common["cc_family"] = "clang" if "#define __clang__ " in macros else "gcc"
+            if common["cc_family"] == "clang":
                 common["cc_args"].append("--target=" + TARGETS[target]["llvm_triple"])
             if args.native_sysroot:
                 common["cc_args"].append("--sysroot=" + str(args.native_sysroot.resolve()))
@@ -272,6 +281,12 @@ def environment(repo, work, fixtures, args):
         common["llvm_target"] = (
             TARGETS[target]["llvm_triple"].replace("-darwin", "-macosx") + common["deployment"]
         )
+    for fixture in applicable:
+        if any(
+            "cc_family" in references(step.get("diagnostics", []))
+            for step in fixture.data.get("steps", [])
+        ):
+            validate(fixture.data, fixture.base, target, common["cc_family"])
     if any("${test_core}" in json.dumps(fixture.data) for fixture in applicable):
         prepare_test_core(repo, work, sysroot)
     if any("${class_core}" in json.dumps(fixture.data) for fixture in applicable):
