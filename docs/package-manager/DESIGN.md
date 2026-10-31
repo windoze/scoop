@@ -147,7 +147,7 @@ PM 的 library 入口供自身命令与单元测试使用；构建 driver 通过
 | 生产/测试 | 只启用根测试依赖、正确源码角色 | 普通构建不下载测试包，测试配置修改不失效生产结果 |
 | 产物与缓存 | 精确 prebuilt 约束、实际输入更新 | 旧 slib 不能重绑定；未变化不重复读取摘要/探测/复制 |
 | 发布（下一阶段） | 清单展开、path 转换、Git 固定、归档文件集 | 归档解包后普通编译；HTTP 消费 native vendor 包 |
-| 工具与发行 | members/deps/metadata 输出与诊断 | LSP 不联网、doc 多根、分发含 PM，single-file/link 不依赖 PM |
+| 工具与发行 | members/deps/metadata 输出与诊断 | LSP 缺 lock 时自动 resolve、已有 lock 时离线读取，doc 多根、分发含 PM，single-file/link 不依赖 PM |
 
 验证以真实调用次数、输出与结果为证据；不删除/移走源码、工具或原产物要求缓存仍可用。不新增 GC stress 或与包管理无关的语言组合测试。原始日志放仓库外，后续验收记录仅保存范围、结论和必要限制。
 

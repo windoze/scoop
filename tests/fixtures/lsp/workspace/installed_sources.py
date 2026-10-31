@@ -34,8 +34,9 @@ def main():
     text = source.read_text()
     manifest = root / "Cone.toml"
     original_manifest = manifest.read_text()
+    lock = root / "Cone.lock"
+    assert not lock.exists()
     peer = Peer(server, package_manager, sysroot, target, root.parent / "pm-cache")
-    peer.resolve(root)
     options = {
         "target": target,
         "sysroot": str(sysroot),
@@ -127,12 +128,15 @@ def main():
             },
         )
         core_navigation(sysroot)
+        initial_lock = (lock.read_bytes(), lock.stat().st_mtime_ns)
         std_navigation(sysroot)
         signature = query("hover", 3, "toString")
         assert signature["contents"]["value"] == "fun toString(): String", signature
         symbols = peer.request("workspace/symbol", {"query": "Duration"})
         assert {item["name"] for item in symbols} == {"durationText", "durationSeconds"}, symbols
         assert all(item["location"]["uri"] == source.as_uri() for item in symbols), symbols
+        assert (lock.read_bytes(), lock.stat().st_mtime_ns) == initial_lock
+        assert not (root / "target").exists()
 
         # An explicit locator into this sysroot uses the same source attachment.
         change_dependency(sysroot / "lib" / target / "scoop.std.slib", 1)

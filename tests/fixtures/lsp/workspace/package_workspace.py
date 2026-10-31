@@ -1,4 +1,4 @@
-"""Workspace members consume separate locked graphs, including cached Git sources."""
+"""Initialize missing locks and retain separate graphs, including cached Git sources."""
 
 import subprocess
 import sys
@@ -68,28 +68,52 @@ def main():
         "other/Cone.toml",
         manifest("other") + '[dependencies]\n"test:shared" = {path = "../../path"}\n',
     )
-    write(root, "missing/Cone.toml", manifest("missing"))
+    write(
+        root,
+        "missing/Cone.toml",
+        manifest("missing") + '[dependencies]\n"test:absent" = {path = "../../absent"}\n',
+    )
     source_text = "import shared.selected\nfun use() { val item = selected(); item. }\n"
     source_paths = [write(root, f"{prefix}src/use.scoop", source_text) for prefix in ("", "other/")]
     missing = write(root, "missing/src/local.scoop", "fun localOnly(): Boolean = true\n")
     cache = work / "packages"
-    for member in ("test:root", "test:other"):
-        run(
-            [
-                package_manager,
-                "resolve",
-                str(root),
-                "-p",
-                member,
-                "--target",
-                target,
-                "--sysroot",
-                sysroot,
-                "--package-cache-dir",
-                str(cache),
-            ]
-        )
     lock = root / "Cone.lock"
+    assert not lock.exists()
+
+    def initialize(peer):
+        peer.request(
+            "initialize",
+            {
+                "processId": None,
+                "workspaceFolders": [{"name": "workspace", "uri": root.as_uri()}],
+                "initializationOptions": {
+                    "target": target,
+                    "sysroot": sysroot,
+                    "packageManager": package_manager,
+                    "packageCacheDir": str(cache),
+                },
+                "capabilities": {
+                    "textDocument": {"documentSymbol": {"hierarchicalDocumentSymbolSupport": True}}
+                },
+            },
+        )
+        peer.notify("initialized", {})
+
+    peer = Peer(server, package_manager, sysroot, target, cache)
+    try:
+        initialize(peer)
+        symbols = peer.request("workspace/symbol", {"query": "localOnly"})
+        assert any(item["name"] == "localOnly" for item in symbols), symbols
+        diagnostics = peer.diagnostics[(root / "missing/Cone.toml").as_uri()]["diagnostics"]
+        assert any("absent" in item["message"] for item in diagnostics), diagnostics
+        assert lock.exists()
+        assert not (root / "other/Cone.lock").exists()
+        assert not (root / "target").exists()
+        peer.finish()
+    finally:
+        if peer.process.poll() is None:
+            peer.process.kill()
+            peer.process.wait(timeout=10)
     before = (lock.read_bytes(), lock.stat().st_mtime_ns)
     # Moving the branch must not change what the editor sees from the locked checkout.
     library.write_text('package shared\npublic fun selected(): String = "new branch"\n')
@@ -111,23 +135,7 @@ def main():
     )
     peer = Peer(server, package_manager, sysroot, target, cache)
     try:
-        peer.request(
-            "initialize",
-            {
-                "processId": None,
-                "workspaceFolders": [{"name": "workspace", "uri": root.as_uri()}],
-                "initializationOptions": {
-                    "target": target,
-                    "sysroot": sysroot,
-                    "packageManager": package_manager,
-                    "packageCacheDir": str(cache),
-                },
-                "capabilities": {
-                    "textDocument": {"documentSymbol": {"hierarchicalDocumentSymbolSupport": True}}
-                },
-            },
-        )
-        peer.notify("initialized", {})
+        initialize(peer)
         for path in [*source_paths, missing]:
             peer.notify(
                 "textDocument/didOpen",
