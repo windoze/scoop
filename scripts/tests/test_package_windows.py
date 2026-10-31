@@ -54,6 +54,8 @@ class WindowsHostTests(unittest.TestCase):
                 cwd=work,
                 env=environment,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 capture_output=True,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
