@@ -156,7 +156,6 @@ impl AssembledCrossConeLayoutArtifactV1 {
                 &link_objects,
                 &link_identity_closure,
                 code.production().projection().odr_members(),
-                lir_layout_abi.exports(),
                 dependencies,
             );
             link_objects.retain(|object| !removed.contains(&object.record().id()));

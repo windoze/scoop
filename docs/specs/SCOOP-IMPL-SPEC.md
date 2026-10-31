@@ -765,7 +765,9 @@ ODR 目录中的条目同时表达定义和对已有定义的需求：有本产�
 
 ODR 实现的可用性属于实际编译依赖。生产端将目录中除 RegistrationRecord 以外的 group、member、role 和 shared ABI 与原 LIR 语义摘要共同计算 LIR 指纹，不增加目录副本。新增或移除实现时，消费方沿既有依赖更新规则重新编译；只改变机器字节、调试信息或私有 GC／EH 记录而保持这些实现及 ABI 时，不因此重编译消费方。该投影同时包含由依赖满足的实现需求，使实际定义可沿既有依赖边传递；不读取命中产物、不在缓存判断时扫描对象，也不新增另一套更新机制。
 
-归档组装可省去依赖已有的完整 ODR 对象。选择使用现有目录的 member 集合、role、shared ABI、存储长度与摘要；只复用存储内容相同的完整对象，不读取依赖机器对象或重新计算其摘要。函数正文与私有 GC／EH／注册记录、共享 dispatch 数组及别名必须作为整个物理对象处理。含 Strong、generated-C 或 Cone image 定义的对象，以及当前导出中明确绑定本 provider 的物理定义继续保留。省去副本时，同步移除实际成员目录、defined owners 和来自该成员的 symbol uses；保留其他成员对这些 ODR 符号的使用及其 typed ABI 需求。foundation 中用于这些需求和导出语义的身份不变，不能把省去的对象伪装成本地物理定义。最终链接照常从实际候选构建所选对象与 runtime 注册表。
+归档组装可省去依赖已有的完整 ODR 对象。选择使用现有目录的 member 集合、role、shared ABI、存储长度与摘要；只复用存储内容相同的完整对象，不读取依赖机器对象或重新计算其摘要。函数正文与私有 GC／EH／注册记录、共享 dispatch 数组及别名必须作为整个物理对象处理。含 Strong、generated-C 或 Cone image 定义的对象继续保留。ODR definition plan 的身份仅由共享 OdrMemberId 与固定 primary role 确定，不包含 producer；导出记录的 provider 表达所选语义／ABI 记录来自哪个 Cone，不为这一共享 definition 指定唯一物理副本。导出的 ODR 定义同样可由实际依赖提供，继续使用原 definition、symbol 与 ABI，无须重写导出、建立转发层或添加目录。
+
+省去副本时，同步移除实际成员目录、defined owners 和来自该成员的 symbol uses；保留其他成员对这些 ODR 符号的使用及其 typed ABI 需求。foundation 中用于这些需求和导出语义的身份不变；本地物理提供关系只由实际 Link 成员及 defined owner 目录表达，不能因 foundation 中有共享 plan 就推断本产物仍提供物理副本。最终链接照常从实际候选构建所选对象与 runtime 注册表。
 
 这项存储去重不改变已生成的机器内容、Code／RuntimeImage 指纹公式或 debug／release 互通；实际归档及 metadata 目录变化进入对应指纹。`cross-cone-generic` profile 升至 9，旧 profile 按现有版本规则重建，容器、压缩算法与 runtime ABI 不变。
 

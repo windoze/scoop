@@ -1,5 +1,5 @@
 use super::*;
-use scoop_identity::OdrMemberRole;
+use scoop_identity::{ObjectDefinitionPlanKey, ObjectDefinitionPlanOwner, OdrMemberRole};
 use scoop_lir::DebugInfoLevel;
 use scoop_slib::{ArtifactFile, LinkDefinitionOwnerV1};
 use std::collections::BTreeSet;
@@ -114,9 +114,69 @@ fn dependency_odr_reuse_preserves_physical_bundles_and_debug_info() {
         )
         .unwrap();
         let (artifact, current) = closure.artifact(identity).unwrap();
-        let (_, first) = closure
+        let (first_artifact, first) = closure
             .artifact(first_coordinate.identity().unwrap())
             .unwrap();
+        let exports = first_artifact.lir_exports();
+        let mut imported_exports = 0;
+        for definition in exports
+            .layouts()
+            .records()
+            .iter()
+            .map(|record| record.identity().physical_definition())
+            .chain(
+                exports
+                    .descriptors()
+                    .records()
+                    .iter()
+                    .map(|record| record.physical_definition()),
+            )
+            .chain(
+                exports
+                    .callables()
+                    .records()
+                    .iter()
+                    .map(|record| record.physical_definition()),
+            )
+        {
+            let key = first_artifact
+                .identity_graph()
+                .canonical_key::<_, ObjectDefinitionPlanKey>(definition.definition())
+                .unwrap();
+            let ObjectDefinitionPlanOwner::Odr { member } = key.owner() else {
+                continue;
+            };
+            let owner = LinkDefinitionOwnerV1::OdrDefinition(member);
+            if first
+                .defined_symbols()
+                .owners()
+                .iter()
+                .any(|entry| entry.owner() == owner)
+            {
+                continue;
+            }
+            imported_exports += 1;
+            assert_eq!(definition.provider(), first_artifact.identity());
+            assert!(closure.dependency_first().any(|(dependency, symbols)| {
+                dependency.identity() != first_artifact.identity()
+                    && symbols
+                        .defined_symbols()
+                        .owners()
+                        .iter()
+                        .any(|entry| entry.owner() == owner)
+                    && dependency
+                        .lir_foundation()
+                        .resolve_definition_atom(
+                            definition.definition(),
+                            scoop_identity::DefinitionAtomRole::Primary,
+                        )
+                        .is_ok()
+            }));
+        }
+        assert!(
+            imported_exports > 0,
+            "exported ODR plans must reuse dependency objects while retaining their shared IDs"
+        );
         let required_bodies = current
             .odr_members()
             .groups()
