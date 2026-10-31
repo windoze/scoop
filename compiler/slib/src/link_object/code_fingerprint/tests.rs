@@ -2,10 +2,9 @@ use scoop_identity::{
     CanonicalCAbiFunctionSignature, CanonicalCAbiReturn, CanonicalIdentifier,
     CanonicalNativeLibraryName, CapabilityId, CborIdentityRecord, ConeIdentity, DeclarationScope,
     DefinitionOwnerChain, NativeExternalContract, NativeExternalContractRecord,
-    NativeExternalSymbolKey, NativeLibraryBinding, NativeLinkRequirementKey, ObjectFormatId,
-    PackagePath, PersistentSourceNativeExternalContractId, SourceDeclarationKey,
-    SourceDeclarationSite, SourceNativeExternalContractKey, SourceNativeSymbol,
-    TargetProfileWireId,
+    NativeExternalSymbolKey, NativeLibraryBinding, NativeLinkRequirementKey, PackagePath,
+    PersistentSourceNativeExternalContractId, SourceDeclarationKey, SourceDeclarationSite,
+    SourceNativeExternalContractKey, SourceNativeSymbol,
 };
 use scoop_lir::{
     CanonicalLirFoundation, CanonicalNativeExternalRequirementSurfaceV1, ConeLirFoundation,
@@ -287,11 +286,7 @@ fn object_record(logical_key: &str, payload: &[u8]) -> SlibMemberRecord {
             verifier_capability: capability.clone(),
             logical_key: LogicalMemberKey::new(logical_key.as_bytes().to_vec()).unwrap(),
         },
-        SlibMemberRole::LinkObject {
-            target_profile: TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
-            object_format: ObjectFormatId::macho_relocatable(),
-            verifier_capability: capability,
-        },
+        SlibMemberRole::LinkObject,
         payload,
     )
     .unwrap()

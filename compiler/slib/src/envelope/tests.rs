@@ -89,11 +89,11 @@ fn bootstrap_writer_is_reproducible_and_rejects_directory_mismatch() {
     assert_eq!(forward, reverse);
 
     let mut changed = members;
-    let member = changed.pop().unwrap();
+    changed.pop().unwrap();
     let replacement = SlibMember::new(
         manifest.cone().identity(),
-        member.record().stable_key().clone(),
-        member.record().role().clone(),
+        MemberStableKey::LirMetadata,
+        SlibMemberRole::LirMetadata,
         b"different payload".to_vec(),
     )
     .unwrap();

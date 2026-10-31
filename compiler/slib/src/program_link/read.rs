@@ -100,7 +100,7 @@ fn read_artifact(
         selection,
     )
     .map_err(error)?;
-    let native_objects = super::native::read(&mut graph, selection.target())?;
+    let native_objects = super::native::read(&mut graph)?;
     Ok((
         ProgramLinkArtifact {
             manifest: graph.envelope.into_manifest(),

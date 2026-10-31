@@ -1,8 +1,7 @@
 use scoop_wire::WirePath;
 
 use crate::{
-    ConeRecordValidationError, DependencyRecordValidationError, MemberStableKeyValidationError,
-    SlibMemberRecordValidationError, SlibMemberRoleValidationError,
+    ConeRecordValidationError, DependencyRecordValidationError, SlibMemberRoleValidationError,
 };
 
 use super::{SlibDiagnostic, SlibDiagnosticRecord, SlibErrorCode, SlibPrimaryOrigin};
@@ -86,40 +85,21 @@ pub(super) fn dependency_record_diagnostic(
 
 pub(super) fn member_record_diagnostic(
     index: usize,
-    error: &SlibMemberRecordValidationError,
+    error: &SlibMemberRoleValidationError,
 ) -> SlibDiagnosticRecord {
     let path = WirePath::root()
         .field(8)
-        .index(u64::try_from(index).unwrap_or(u64::MAX));
+        .index(u64::try_from(index).unwrap_or(u64::MAX))
+        .field(3);
     let code = match error {
-        SlibMemberRecordValidationError::Resource(error) => {
-            return error.diagnostic().with_origin(SlibPrimaryOrigin::Manifest);
+        SlibMemberRoleValidationError::UnsupportedWireSchema { .. } => {
+            SlibErrorCode::CompatibilitySchema
         }
-        SlibMemberRecordValidationError::StableKey(MemberStableKeyValidationError::Capability(
-            _,
-        )) => SlibErrorCode::CapabilityInvalid,
-        SlibMemberRecordValidationError::StableKey(MemberStableKeyValidationError::LogicalKey(
-            _,
-        ))
-        | SlibMemberRecordValidationError::KeyRole(_) => SlibErrorCode::DirectoryMismatch,
-        SlibMemberRecordValidationError::Role(
-            SlibMemberRoleValidationError::UnsupportedWireSchema { .. },
-        ) => SlibErrorCode::CompatibilitySchema,
-        SlibMemberRecordValidationError::Role(SlibMemberRoleValidationError::Capability(_)) => {
+        SlibMemberRoleValidationError::Capability(_)
+        | SlibMemberRoleValidationError::InvalidExtensionRequirement { .. } => {
             SlibErrorCode::CapabilityInvalid
         }
-        SlibMemberRecordValidationError::Role(
-            SlibMemberRoleValidationError::TargetProfile(_)
-            | SlibMemberRoleValidationError::ObjectFormat(_),
-        ) => SlibErrorCode::CompatibilityProfile,
-        SlibMemberRecordValidationError::Role(
-            SlibMemberRoleValidationError::InvalidExtensionRequirement { .. },
-        ) => SlibErrorCode::CapabilityInvalid,
-        SlibMemberRecordValidationError::Hash(_) => SlibErrorCode::FingerprintMismatch,
-        SlibMemberRecordValidationError::IdMismatch { expected, .. } => {
-            return SlibDiagnosticRecord::new(SlibErrorCode::IdentityMismatch, path.field(1))
-                .with_origin(SlibPrimaryOrigin::Member(*expected));
-        }
+        SlibMemberRoleValidationError::NativeSource(_) => SlibErrorCode::ReferenceInvalid,
     };
     SlibDiagnosticRecord::new(code, path).with_origin(SlibPrimaryOrigin::Manifest)
 }

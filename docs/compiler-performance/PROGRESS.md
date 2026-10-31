@@ -152,13 +152,33 @@ macOS 首次完整 CLI 验收为 4,295 项通过、25 项平台不适用、6 项
 
 release workspace all-targets Clippy、257 项 slib 测试、4 项真实泛型／ODR 测试、1 项实际 core 导出与依赖链接测试通过。7 项缓存 key 检查完成，版本变化对应的固定向量更新后只复测该项；profile descriptor 也使用独立 CBOR 与域分隔 SHA-256 同步核对。新增目录字段缺失／错误字段号检查，真实非空目录往返与旧 capability 拒绝继续覆盖。修复原有 manifest／container 诊断仍硬编码 schema 1 的错误，改为报告当前格式版本。正式 CLI 的 11 个定向 fixture、13 个 variant、91 次进程调用全部通过；29 库准备成功、四种 runtime 复用，没有运行全量 fixture。
 
+## 第七轮：成员目录删除重复 key 与对象目标字段
+
+成员目录从五字段精简为 ID、角色、存储长度和摘要四字段，生产端仍使用完整 stable key 生成同一个 SlibMemberId。Scoop／generated-C 对象的角色不再重复保存 target、object format 和已无消费方的 verifier capability，统一使用 manifest 已确定的目标契约。普通 Native 对象使用独立角色保存后续链接确实需要的规范化源路径；三种 metadata 各唯一一份的要求在目录读取边界检查。容器／manifest 更新为 4，profile 为 `cross-cone-generic/12`，三层 metadata outer 仍为 4。
+
+| 产物 | 优化前 | 优化后 | 缩减 |
+| --- | ---: | ---: | ---: |
+| `scoop.core` | 17,735,026 bytes | 17,261,458 bytes | 2.7% |
+| `scoop.std` | 9,038,934 bytes | 8,886,662 bytes | 1.7% |
+| `scoop.http.client` | 63,694,368 bytes | 62,608,680 bytes | 1.7% |
+| `scoop.http.server` | 36,168,704 bytes | 35,605,210 bytes | 1.6% |
+| 全部 29 个系统库 | 326,130,108 bytes | 320,272,772 bytes | 1.8% |
+
+实际再省 5,857,336 bytes（5.59 MiB），全部来自 manifest，后者从 17,311,716 降至 11,454,380 bytes。独立 CBOR／Zstd 对照确认全部 165,574 个成员的 ID 与存储 payload 不变，包括 165,487 个原生对象及其解压后的 296,503,136 bytes、87 个 metadata payload；133 条 Native 源路径完整保留，230,044 条 ODR 记录与物理 bundle 不变。HIR／MIR／LIR／RuntimeImage 指纹相同，Code 指纹按更新后的成员目录编码正常变化。相对尺寸阶段原始 439,479,908 bytes，累计减少 113.68 MiB（27.1%）。
+
+单组回退检查中，标准库源码重编译 12.594 → 10.645 s，HTTP 客户端 84.204 → 85.026 s；最大单进程 RSS 分别为 1,448,804,352 → 1,409,400,832 bytes、11,506,401,280 → 11,368,710,144 bytes。缓存命中为 20.87 → 20.78 ms、24.26 → 27.29 ms。HTTP 源码耗时基本持平，本轮不据单组结果宣称稳定提速；多组交替对照仍留到速度阶段。
+
+release workspace all-targets Clippy、258 项 slib 测试、4 项真实泛型／ODR 测试和 7 项缓存 key 检查完成。格式变化的 Link／member／profile 固定向量已用独立 CBOR 与域分隔 SHA-256 核对；修复一个不完整 CBOR 测试样本，更新缓存 key 向量后只复测失败项。正式 CLI 的 15 个定向 fixture、18 个 variant、110 次进程调用全部通过，增加了 Native 产物消费、源路径、诊断与缓存覆盖。29 库准备成功，四种 runtime 复用，没有运行全量 fixture。
+
+Windows 的正式 LLVM 22.1.8 SDK 已按仓库四个补丁构建完成，`612b41a79a` 的五个 release 命令在该 SDK 下编译并成功启动；不再需要的 LLVM 源码和构建中间目录已清理。这是后续平台验收的环境准备，尚未作为本轮 Windows 原生功能通过的依据。
+
 ## 后续优先级
 
 尺寸优化按用户补充要求，优先精简结构、删除不必要或重复的信息；压缩只作为最后的补充，且不采用 CPU／内存消耗过大的算法。
 
-1. 成员目录仍保存机器对象消费不使用的逻辑 key；在当前 165,487 对象基线上，保留 Native 源路径、删除其他重复 key 的 manifest 投影约省 5.46 MiB。下一轮用实际 writer 验证，生产阶段生成稳定 member ID 的 key 仍保留。
-2. 当前完整 29 库的 HIR／MIR／LIR 字符串表投影仅省约 1.05～1.06 MiB；其中 LIR 只有约 0.04～0.08 MiB，先前未精简符号表的旧投影已不代表当前数据。注册记录 ABI 去掉重复的 group／member hash 输入、保留 role 与真实布局的单项投影约省 1.93 MiB；该投影暂保留旧索引且未规范化重复表值，只用于排序候选。此类小项后置。manifest 的全量 ID 表此前反而增加约 2.10 MiB，不采用。
-3. 按用户补充，格式大项完成后实施共享对象压缩字典，再做尺寸阶段的统一全量 fixture。既有离线投影使用 Zstd level 3 和每库 64 KiB 字典，标准库对象存储 4,328,545 → 2,466,108 bytes，HTTP 客户端 35,465,193 → 21,513,353 bytes，已计入字典自身；这是此前对象集合的投影，不能当作落地收益。实施时实际测量压缩、解压耗时与峰值内存，避免高开销算法；同时让现有对象内容摘要独立于字典编码，维持跨库 ODR 内容复用，不另存一份重复摘要。
+1. 重新检查最终成员集合，ar header 与 padding 仍占约 9.55 MiB。其名称、时间、权限及长度都是固定值或与 manifest 目录重复，可改为固定文件头、manifest 与连续 payload；成员按需定位继续使用已有存储长度。先实施这项结构精简，普通 native `.a` 的处理独立保留。
+2. 随后实施共享对象压缩字典，再做尺寸阶段的统一全量 fixture。以当前 165,487 个对象重新投影，Zstd level 3、每库 64 KiB 字典总计约省 49.24 MiB，已计入字典本身；标准库对象存储 3,368,672 → 2,061,493 bytes，HTTP 客户端 29,336,881 → 19,283,723 bytes。这仍是投影，不能当作落地收益。样本按成员顺序均匀选取，最多 2,048 个，每个不超过 4 KiB；27 库达到训练阈值，两个小库保留普通 frame。实施时实际测量训练、压缩、解压耗时与峰值内存，保持 level 3；在 ODR 去重后一次编码，让对象内容摘要独立于字典，维持跨库 ODR 与对象缓存复用，不另存重复摘要。
+3. 当前完整 29 库的 HIR／MIR／LIR 字符串表投影仅省约 1.05～1.06 MiB，其中 LIR 约 0.04～0.08 MiB。注册记录 ABI 去掉重复 group／member hash 输入的投影约省 1.93 MiB，该估算尚保留旧索引，仅用于候选排序。跨三层 metadata 的重复 ID 原始字节上限为 7.03 MiB，尚未扣映射开销；全局 union 会让只请求 HIR 的读取载入大量 LIR 专用 ID，先保留阶段局部读取。这些候选后置。manifest 的全量 ID 表此前反而增加约 2.10 MiB，不采用。
 
 已排除直接复用 LLVM 22.1 的对象发射 pass manager：即使 AsmPrinter／MCStreamer／MachineModuleInfo 有逐模块收尾，带 GC statepoint 与异常展开的第二个函数模块仍残留前一模块的栈映射记录；仅数据流水线在 COFF debug → 无 debug 切换时也残留字符串表空间。独立的连续模块字节对照发现两者，实验实现均已撤下，未进入生产。本轮仅补齐数据发射入口自身的 LLVM pass 注册，并将测试顺序调整为先调用数据入口，避免测试依赖完整代码生成的先行初始化。格式检查、workspace all-targets Clippy 和七目标两配置的数据对象对照通过；不为撤下的实验记录性能收益。
 

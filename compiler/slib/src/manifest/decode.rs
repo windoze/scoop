@@ -21,10 +21,10 @@ use super::{
     ArtifactFingerprint, BootstrapManifest, BootstrapManifestError, CanonicalManifestRecords,
     ProducerRecord, ProducerRecordError,
 };
-use crate::{DecodedSlibMemberRecord, SlibMemberRecordValidationError};
+use crate::{DecodedSlibMemberRecord, SlibMemberRoleValidationError};
 
 const MANIFEST_MAGIC: &[u8; 9] = b"SCOOPSLIB";
-const CURRENT_SCHEMA: u32 = 3;
+const CURRENT_SCHEMA: u32 = 4;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedBootstrapManifest {
@@ -64,7 +64,6 @@ impl DecodedBootstrapManifest {
             .cone
             .validate()
             .map_err(BootstrapManifestValidationError::Cone)?;
-        let cone_identity = cone.identity();
 
         let mut dependencies = Vec::new();
         let dependency_path = WirePath::root().field(7);
@@ -93,7 +92,7 @@ impl DecodedBootstrapManifest {
         scoop_wire::allocation::try_reserve_count(&mut members, member_count, &member_path)
             .map_err(BootstrapManifestValidationError::Wire)?;
         for (index, member) in self.members.into_iter().enumerate() {
-            members.push(member.validate(cone_identity).map_err(|error| {
+            members.push(member.validate().map_err(|error| {
                 BootstrapManifestValidationError::Member {
                     index,
                     error: Box::new(error),
@@ -253,7 +252,7 @@ pub enum BootstrapManifestValidationError {
     },
     Member {
         index: usize,
-        error: Box<SlibMemberRecordValidationError>,
+        error: Box<SlibMemberRoleValidationError>,
     },
     NonIncreasingMember {
         first_index: usize,

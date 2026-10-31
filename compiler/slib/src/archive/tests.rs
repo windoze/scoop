@@ -33,13 +33,7 @@ fn object_storage_is_compressed_while_cache_outputs_and_readers_use_native_bytes
                 verifier_capability: capability.clone(),
                 logical_key: crate::LogicalMemberKey::new(bytes.to_vec()).unwrap(),
             },
-            SlibMemberRole::LinkObject {
-                target_profile: scoop_identity::TargetProfileWireId::new(
-                    scoop_target_data::DARWIN_AARCH64_ID,
-                ),
-                object_format: scoop_identity::ObjectFormatId::macho_relocatable(),
-                verifier_capability: capability.clone(),
-            },
+            SlibMemberRole::LinkObject,
             bytes.to_vec(),
         )
         .unwrap();
@@ -55,7 +49,7 @@ fn object_storage_is_compressed_while_cache_outputs_and_readers_use_native_bytes
     records.extend(
         members
             .iter()
-            .filter(|member| !matches!(member.record().role(), SlibMemberRole::LinkObject { .. }))
+            .filter(|member| !member.record().role().is_object())
             .map(|member| member.record().clone()),
     );
     records.sort_unstable_by_key(SlibMemberRecord::id);

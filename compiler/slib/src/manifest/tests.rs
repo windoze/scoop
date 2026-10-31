@@ -76,6 +76,50 @@ fn manifest(members: &[SlibMember]) -> BootstrapManifest {
 }
 
 #[test]
+fn metadata_roles_are_unique_even_for_distinct_member_ids() {
+    for (key, role, kind) in [
+        (
+            MemberStableKey::HirMetadata,
+            SlibMemberRole::HirMetadata,
+            MetadataKind::Hir,
+        ),
+        (
+            MemberStableKey::MirMetadata,
+            SlibMemberRole::MirMetadata,
+            MetadataKind::Mir,
+        ),
+        (
+            MemberStableKey::LirMetadata,
+            SlibMemberRole::LirMetadata,
+            MetadataKind::Lir,
+        ),
+    ] {
+        let mut members = metadata_members();
+        members.push(
+            SlibMember::new(
+                scoop_identity::ConeIdentity::SINGLE_FILE,
+                key,
+                role,
+                b"other".to_vec(),
+            )
+            .unwrap(),
+        );
+        let result = BootstrapManifest::new(
+            ProducerRecord::new("dev").unwrap(),
+            compatibility(),
+            cone(),
+            Vec::new(),
+            &members,
+            fingerprints(0x11),
+            Vec::new(),
+        );
+        assert!(
+            matches!(result, Err(BootstrapManifestError::DuplicateMetadata { kind: actual }) if actual == kind)
+        );
+    }
+}
+
+#[test]
 fn manifest_sorts_the_directory_and_is_byte_reproducible() {
     let mut members = metadata_members();
     let first = manifest(&members);
@@ -107,13 +151,7 @@ fn directory_accepts_zero_one_and_multiple_link_objects() {
                     verifier_capability: verifier.clone(),
                     logical_key: LogicalMemberKey::new(logical_key.to_vec()).unwrap(),
                 },
-                SlibMemberRole::LinkObject {
-                    target_profile: scoop_identity::TargetProfileWireId::new(
-                        scoop_target_data::DARWIN_AARCH64_ID,
-                    ),
-                    object_format: scoop_identity::ObjectFormatId::macho_relocatable(),
-                    verifier_capability: verifier.clone(),
-                },
+                SlibMemberRole::LinkObject,
                 logical_key.to_vec(),
             )
             .unwrap(),

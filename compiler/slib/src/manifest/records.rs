@@ -10,7 +10,7 @@ use super::{
 use crate::{CompatibilityRecord, MemberPurposeSet, SlibMember, SlibMemberId, SlibMemberRecord};
 
 const MANIFEST_MAGIC: &[u8; 9] = b"SCOOPSLIB";
-const CURRENT_SCHEMA: u64 = 3;
+const CURRENT_SCHEMA: u64 = 4;
 const ARTIFACT_FINGERPRINT_DOMAIN: &[u8] = b"scoop-artifact-v1";
 const MAX_PRODUCER_BYTES: usize = 255;
 
@@ -633,7 +633,7 @@ impl WireEncode for BootstrapManifest {
 pub enum BootstrapManifestError {
     DuplicateDependency { identity: ConeIdentity },
     DuplicateMember { id: SlibMemberId },
-
+    DuplicateMetadata { kind: MetadataKind },
     MissingMetadata { kind: MetadataKind },
     DuplicateSection { capability: CapabilityId },
     Hash(HashError),
@@ -647,7 +647,9 @@ impl fmt::Display for BootstrapManifestError {
                 write!(formatter, "duplicate direct dependency {identity}")
             }
             Self::DuplicateMember { id } => write!(formatter, "duplicate member {id}"),
-
+            Self::DuplicateMetadata { kind } => {
+                write!(formatter, "duplicate {kind} metadata member")
+            }
             Self::MissingMetadata { kind } => write!(formatter, "missing {kind} metadata member"),
             Self::DuplicateSection { capability } => write!(
                 formatter,
@@ -779,26 +781,22 @@ fn reject_duplicate_members(members: &[SlibMemberRecord]) -> Result<(), Bootstra
 }
 
 fn require_foundation_metadata(members: &[SlibMemberRecord]) -> Result<(), BootstrapManifestError> {
-    for (kind, present) in [
-        (
-            MetadataKind::Hir,
-            members
-                .iter()
-                .any(|member| matches!(member.stable_key(), crate::MemberStableKey::HirMetadata)),
-        ),
-        (
-            MetadataKind::Mir,
-            members
-                .iter()
-                .any(|member| matches!(member.stable_key(), crate::MemberStableKey::MirMetadata)),
-        ),
-        (
-            MetadataKind::Lir,
-            members
-                .iter()
-                .any(|member| matches!(member.stable_key(), crate::MemberStableKey::LirMetadata)),
-        ),
-    ] {
+    let mut present = [false; 3];
+    for member in members {
+        let (kind, index) = match member.role() {
+            crate::SlibMemberRole::HirMetadata => (MetadataKind::Hir, 0),
+            crate::SlibMemberRole::MirMetadata => (MetadataKind::Mir, 1),
+            crate::SlibMemberRole::LirMetadata => (MetadataKind::Lir, 2),
+            _ => continue,
+        };
+        if std::mem::replace(&mut present[index], true) {
+            return Err(BootstrapManifestError::DuplicateMetadata { kind });
+        }
+    }
+    for (kind, present) in [MetadataKind::Hir, MetadataKind::Mir, MetadataKind::Lir]
+        .into_iter()
+        .zip(present)
+    {
         if !present {
             return Err(BootstrapManifestError::MissingMetadata { kind });
         }

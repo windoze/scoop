@@ -1,6 +1,14 @@
 use super::*;
 
 pub(in super::super) fn complete_artifact() -> Vec<u8> {
+    let (manifest, members) = complete_artifact_parts();
+    CanonicalSlibArchive::write_bootstrap(&manifest, members)
+        .unwrap()
+        .as_bytes()
+        .to_vec()
+}
+
+pub(super) fn complete_artifact_parts() -> (BootstrapManifest, Vec<SlibMember>) {
     let mut hir_foundation = scoop_hir::CanonicalHirFoundation::empty();
     hir_foundation
         .set_types(vec![
@@ -37,7 +45,7 @@ pub(in super::super) fn complete_artifact() -> Vec<u8> {
     let link_member = SlibMember::new(
         cone().identity(),
         member_plan.stable_key().clone(),
-        member_plan.role().clone(),
+        crate::SlibMemberRole::LinkObject,
         final_objects.objects()[0].bytes().to_vec(),
     )
     .unwrap();
@@ -138,7 +146,7 @@ pub(in super::super) fn complete_artifact() -> Vec<u8> {
             code.production().projection().runtime_image_fingerprint(),
         ),
     );
-    let mut members = vec![
+    let members = vec![
         SlibMember::new(
             cone().identity(),
             MemberStableKey::HirMetadata,
@@ -172,10 +180,7 @@ pub(in super::super) fn complete_artifact() -> Vec<u8> {
         Vec::new(),
     )
     .unwrap();
-    CanonicalSlibArchive::write_bootstrap(&manifest, std::mem::take(&mut members))
-        .unwrap()
-        .as_bytes()
-        .to_vec()
+    (manifest, members)
 }
 
 fn known_sections(sections: &[MetadataSection]) -> Vec<MetadataSection> {

@@ -9,7 +9,6 @@ use scoop_identity::{
 use scoop_wire::{decode_canonical, encode};
 
 use super::*;
-use scoop_identity::{ObjectFormatId, TargetProfileWireId};
 
 #[test]
 fn scoop_lir_units_are_nonempty_unique_and_canonical() {
@@ -46,16 +45,6 @@ fn generated_bridge_units_use_a_distinct_domain_and_capability() {
     assert_ne!(
         generated.logical_key().unit_set_digest().as_array(),
         lir.logical_key().unit_set_digest().as_array()
-    );
-    assert_eq!(
-        generated
-            .logical_key()
-            .member_role(scoop_target_data::DARWIN_AARCH64),
-        SlibMemberRole::LinkObject {
-            target_profile: TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
-            object_format: ObjectFormatId::macho_relocatable(),
-            verifier_capability: generated_c_bridge_link_object_capability(),
-        }
     );
     let MemberStableKey::LinkObject {
         verifier_capability,
@@ -125,25 +114,21 @@ fn member_plan_freezes_identity_before_object_bytes_exist() {
     let second = definition_plan(21);
     let forward = PlannedScoopLirObjectMemberV1::new(
         ConeIdentity::SINGLE_FILE,
-        scoop_target_data::DARWIN_AARCH64,
         CanonicalScoopLirObjectUnitSetV1::new(vec![first, second]).unwrap(),
     )
     .unwrap();
     let reversed = PlannedScoopLirObjectMemberV1::new(
         ConeIdentity::SINGLE_FILE,
-        scoop_target_data::DARWIN_AARCH64,
         CanonicalScoopLirObjectUnitSetV1::new(vec![second, first]).unwrap(),
     )
     .unwrap();
     let split = PlannedScoopLirObjectMemberV1::new(
         ConeIdentity::SINGLE_FILE,
-        scoop_target_data::DARWIN_AARCH64,
         CanonicalScoopLirObjectUnitSetV1::new(vec![first]).unwrap(),
     )
     .unwrap();
     let other_cone = PlannedScoopLirObjectMemberV1::new(
         ConeIdentity::CORE,
-        scoop_target_data::DARWIN_AARCH64,
         CanonicalScoopLirObjectUnitSetV1::new(vec![first, second]).unwrap(),
     )
     .unwrap();
@@ -152,13 +137,6 @@ fn member_plan_freezes_identity_before_object_bytes_exist() {
     assert_ne!(forward.member_id(), split.member_id());
     assert_ne!(forward.member_id(), other_cone.member_id());
     assert_eq!(forward.stable_key(), reversed.stable_key());
-    assert_eq!(
-        forward.role(),
-        &forward
-            .units()
-            .logical_key()
-            .member_role(scoop_target_data::DARWIN_AARCH64)
-    );
 }
 
 fn definition_plan(seed: u8) -> ObjectDefinitionPlanId {

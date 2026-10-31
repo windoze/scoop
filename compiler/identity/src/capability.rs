@@ -231,7 +231,7 @@ impl ArtifactCapabilityProfileId {
         Self(CapabilityId {
             namespace: "org.scoop-lang.slib-profile".to_owned(),
             name: "cross-cone-generic".to_owned(),
-            major_version: 11,
+            major_version: 12,
         })
     }
 

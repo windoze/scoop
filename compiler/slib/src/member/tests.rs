@@ -1,4 +1,4 @@
-use scoop_identity::{CapabilityId, ConeIdentity, ObjectFormatId, TargetProfileWireId};
+use scoop_identity::{CapabilityId, ConeIdentity};
 
 use super::*;
 
@@ -61,7 +61,7 @@ fn metadata_record_has_fixed_wire_id_and_fingerprint() {
 
     assert_eq!(
         hex(&scoop_wire::encode(&record).unwrap()),
-        "a5015820d2be1585afd5800d1d66522762f35b9d89eaa15cc43dcf9e0e299503e6d292b802a1000103a20001010104030558205e308bbe57debf9cc46cf2588f41a55fd820d26f1bf98c7a8c0dcf17b8e9262f"
+        "a4015820d2be1585afd5800d1d66522762f35b9d89eaa15cc43dcf9e0e299503e6d292b803a20001010104030558205e308bbe57debf9cc46cf2588f41a55fd820d26f1bf98c7a8c0dcf17b8e9262f"
     );
     assert_eq!(
         record.id().to_string(),
@@ -69,7 +69,7 @@ fn metadata_record_has_fixed_wire_id_and_fingerprint() {
     );
     assert_eq!(
         record.fingerprint().unwrap().to_string(),
-        "ff5ae48ebf8612348229d20cdca9084c45d477daaff04cc5b23ca2e9ac83b3f3"
+        "ff5c2b5e86f23d6ae56bf7036d1576f261f01d96407c3a70a1b9f9f1ae5364b7"
     );
     assert_eq!(record.byte_length(), 3);
     assert_eq!(record.sha256(), scoop_wire::sha256(b"hir"));
@@ -85,11 +85,7 @@ fn only_link_inputs_can_form_link_fingerprints() {
             verifier_capability: verifier.clone(),
             logical_key: logical_key(b"unit"),
         },
-        SlibMemberRole::LinkObject {
-            target_profile: TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
-            object_format: ObjectFormatId::macho_relocatable(),
-            verifier_capability: verifier,
-        },
+        SlibMemberRole::LinkObject,
         b"object",
     )
     .unwrap();
@@ -126,7 +122,7 @@ fn only_link_inputs_can_form_link_fingerprints() {
             .fingerprint()
             .unwrap()
             .to_string(),
-        "e5d1dcce52fcffc04dfd840fcef111454a7820509c5f04b8ed3f52ba3b31a502"
+        "54a136c5c74539b9f148d2f274ed981ad50dcdf2076d76e6cd0b21ca35717499"
     );
     assert_eq!(
         required
@@ -135,7 +131,7 @@ fn only_link_inputs_can_form_link_fingerprints() {
             .fingerprint()
             .unwrap()
             .to_string(),
-        "427bde8532ebf7f4aec5abae2dbce525e394655342b78d52686de016c5850de0"
+        "cbbf5c52e6d607150764790d47c2d86d938bb65ece58dd55a1bf1c95136e6047"
     );
     assert!(optional.as_link_member().is_none());
     assert!(required.as_link_member().is_some());

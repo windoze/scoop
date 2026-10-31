@@ -7,7 +7,7 @@ pub(super) fn project_directory_records(
     let mut members = Vec::new();
     for record in directory {
         match record.role() {
-            SlibMemberRole::LinkObject { .. } => {
+            SlibMemberRole::LinkObject | SlibMemberRole::NativeObject { .. } => {
                 members.push(CodeObjectMemberFingerprintV1 {
                     member: record.id(),
                     fingerprint: record

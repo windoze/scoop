@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_identity::{ConeIdentity, ObjectFormatId, TargetProfileWireId};
+use scoop_identity::{ConeIdentity, NormalizedNativeSourcePath};
 use scoop_wire::{
     CanonicalHashStream, Digest256, Encoder, HashError, WireEncode, domain_separated_cbor_hash,
     sha256,
@@ -165,11 +165,7 @@ pub enum SlibMemberRole {
     HirMetadata,
     MirMetadata,
     LirMetadata,
-    LinkObject {
-        target_profile: TargetProfileWireId,
-        object_format: ObjectFormatId,
-        verifier_capability: scoop_identity::CapabilityId,
-    },
+    LinkObject,
     DiagnosticAttachment {
         capability: scoop_identity::CapabilityId,
     },
@@ -177,16 +173,24 @@ pub enum SlibMemberRole {
         capability: scoop_identity::CapabilityId,
         requirement: ExtensionRequirement,
     },
+    NativeObject {
+        source: NormalizedNativeSourcePath,
+    },
 }
 
 impl SlibMemberRole {
+    pub const fn is_object(&self) -> bool {
+        matches!(self, Self::LinkObject | Self::NativeObject { .. })
+    }
+
     pub(crate) const fn is_compressed(&self) -> bool {
         matches!(
             self,
             Self::HirMetadata
                 | Self::MirMetadata
                 | Self::LirMetadata
-                | Self::LinkObject { .. }
+                | Self::LinkObject
+                | Self::NativeObject { .. }
                 | Self::DiagnosticAttachment { .. }
         )
     }
@@ -197,7 +201,7 @@ impl SlibMemberRole {
             Self::LirMetadata => {
                 MemberPurposeSet(MemberPurposeSet::COMPILE.bits() | MemberPurposeSet::LINK.bits())
             }
-            Self::LinkObject { .. } => MemberPurposeSet::LINK,
+            Self::LinkObject | Self::NativeObject { .. } => MemberPurposeSet::LINK,
             Self::DiagnosticAttachment { .. } => MemberPurposeSet::DIAGNOSTICS,
             Self::ExtensionBlob { requirement, .. } => requirement.purpose_set(),
         }
@@ -210,19 +214,12 @@ impl WireEncode for SlibMemberRole {
             Self::HirMetadata => encode_schema_role(encoder, 1),
             Self::MirMetadata => encode_schema_role(encoder, 2),
             Self::LirMetadata => encode_schema_role(encoder, 3),
-            Self::LinkObject {
-                target_profile,
-                object_format,
-                verifier_capability,
-            } => {
-                encoder.map(4)?;
-                encode_tag(encoder, 4)?;
+            Self::LinkObject => encode_empty_sum(encoder, 4),
+            Self::NativeObject { source } => {
+                encoder.map(2)?;
+                encode_tag(encoder, 7)?;
                 encoder.field(1)?;
-                target_profile.encode(encoder)?;
-                encoder.field(2)?;
-                object_format.encode(encoder)?;
-                encoder.field(3)?;
-                verifier_capability.encode(encoder)
+                encoder.text(source.as_str())
             }
             Self::DiagnosticAttachment { capability } => {
                 encoder.map(2)?;
@@ -248,7 +245,6 @@ impl WireEncode for SlibMemberRole {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SlibMemberRecord {
     id: SlibMemberId,
-    stable_key: MemberStableKey,
     role: SlibMemberRole,
     byte_length: u64,
     sha256: Digest256,
@@ -273,7 +269,7 @@ impl SlibMember {
         let (payload, object_payload) = if role.is_compressed() {
             let compressed = crate::compression::compress(&payload)
                 .map_err(SlibMemberRecordError::Compression)?;
-            let object = matches!(role, SlibMemberRole::LinkObject { .. }).then_some(payload);
+            let object = role.is_object().then_some(payload);
             (compressed, object)
         } else {
             (payload, None)
@@ -313,7 +309,6 @@ impl SlibMemberRecord {
             .map_err(SlibMemberRecordError::Hash)?;
         Ok(Self {
             id,
-            stable_key,
             role,
             byte_length,
             sha256: sha256(payload),
@@ -322,10 +317,6 @@ impl SlibMemberRecord {
 
     pub const fn id(&self) -> SlibMemberId {
         self.id
-    }
-
-    pub const fn stable_key(&self) -> &MemberStableKey {
-        &self.stable_key
     }
 
     pub const fn role(&self) -> &SlibMemberRole {
@@ -347,7 +338,8 @@ impl SlibMemberRecord {
 
     pub fn as_link_member(&self) -> Option<LinkMemberRecord<'_>> {
         match self.role {
-            SlibMemberRole::LinkObject { .. }
+            SlibMemberRole::LinkObject
+            | SlibMemberRole::NativeObject { .. }
             | SlibMemberRole::ExtensionBlob {
                 requirement: ExtensionRequirement::Link,
                 ..
@@ -359,11 +351,9 @@ impl SlibMemberRecord {
 
 impl WireEncode for SlibMemberRecord {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(5)?;
+        encoder.map(4)?;
         encoder.field(1)?;
         self.id.encode(encoder)?;
-        encoder.field(2)?;
-        self.stable_key.encode(encoder)?;
         encoder.field(3)?;
         self.role.encode(encoder)?;
         encoder.field(4)?;
@@ -443,15 +433,23 @@ fn validate_key_role(
         | (MemberStableKey::LirMetadata, SlibMemberRole::LirMetadata) => Ok(()),
         (
             MemberStableKey::LinkObject {
-                verifier_capability: key_capability,
+                verifier_capability,
                 ..
             },
-            SlibMemberRole::LinkObject {
-                verifier_capability: role_capability,
-                ..
+            SlibMemberRole::LinkObject,
+        ) if verifier_capability != &crate::native_link_object_capability() => Ok(()),
+        (
+            MemberStableKey::LinkObject {
+                verifier_capability,
+                logical_key,
             },
-        )
-        | (
+            SlibMemberRole::NativeObject { source },
+        ) if verifier_capability == &crate::native_link_object_capability()
+            && logical_key.as_bytes() == source.as_str().as_bytes() =>
+        {
+            Ok(())
+        }
+        (
             MemberStableKey::DiagnosticAttachment {
                 capability: key_capability,
                 ..

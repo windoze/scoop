@@ -102,7 +102,7 @@ fn complete_file_reads_only_requested_members_and_reuses_their_buffers() {
                 );
                 metadata += 1;
             }
-            SlibMemberRole::LinkObject { .. } => {
+            SlibMemberRole::LinkObject | SlibMemberRole::NativeObject { .. } => {
                 assert!(cached.get().is_none());
                 let payload = envelope.member(record.id()).unwrap().unwrap();
                 assert_eq!(payload, memory.member(record.id()).unwrap().unwrap());

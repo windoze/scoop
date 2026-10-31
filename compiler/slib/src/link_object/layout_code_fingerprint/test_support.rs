@@ -45,7 +45,7 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
     let link_member = SlibMember::new(
         producer,
         member_plan.stable_key().clone(),
-        member_plan.role().clone(),
+        crate::SlibMemberRole::LinkObject,
         objects.final_objects().objects()[0].bytes().to_vec(),
     )
     .unwrap();

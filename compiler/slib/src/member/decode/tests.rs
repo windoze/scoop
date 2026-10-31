@@ -1,4 +1,5 @@
-use scoop_identity::{CapabilityId, ConeIdentity, ObjectFormatId, TargetProfileWireId};
+use crate::{LogicalMemberKey, MemberStableKey};
+use scoop_identity::{CapabilityId, ConeIdentity};
 use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
@@ -13,8 +14,8 @@ fn logical_key(bytes: &[u8]) -> LogicalMemberKey {
 
 fn validate_member(
     decoded: DecodedSlibMemberRecord,
-) -> Result<SlibMemberRecord, SlibMemberRecordValidationError> {
-    decoded.validate(ConeIdentity::CORE)
+) -> Result<SlibMemberRecord, SlibMemberRoleValidationError> {
+    decoded.validate()
 }
 
 #[test]
@@ -26,11 +27,7 @@ fn member_record_round_trips_through_untrusted_validation() {
             verifier_capability: verifier.clone(),
             logical_key: logical_key(b"unit"),
         },
-        SlibMemberRole::LinkObject {
-            target_profile: TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
-            object_format: ObjectFormatId::macho_relocatable(),
-            verifier_capability: verifier,
-        },
+        SlibMemberRole::LinkObject,
         b"object",
     )
     .unwrap();
@@ -40,22 +37,30 @@ fn member_record_round_trips_through_untrusted_validation() {
 }
 
 #[test]
-fn decoded_record_recomputes_member_id() {
-    let record = SlibMemberRecord::new(
-        ConeIdentity::CORE,
-        MemberStableKey::HirMetadata,
-        SlibMemberRole::HirMetadata,
-        b"hir",
-    )
-    .unwrap();
-    let mut decoded =
-        decode_canonical::<DecodedSlibMemberRecord>(&encode(&record).unwrap()).unwrap();
-    decoded.id.0[0] ^= 1;
-
+fn native_record_preserves_its_normalized_source_without_a_duplicate_key() {
+    let source = NormalizedNativeSourcePath::new("../shared/原生.c").unwrap();
+    let member =
+        crate::native_link_object_member(ConeIdentity::CORE, &source, b"object".to_vec()).unwrap();
+    let record = member.record();
+    let decoded = decode_canonical::<DecodedSlibMemberRecord>(&encode(record).unwrap()).unwrap();
+    assert_eq!(validate_member(decoded).unwrap(), *record);
+    assert_eq!(record.role(), &SlibMemberRole::NativeObject { source });
+    assert!(record.as_link_member().is_some());
+    let invalid = DecodedSlibMemberRole::NativeObject {
+        source: "native//wrong.c".to_owned(),
+    };
     assert!(matches!(
-        validate_member(decoded),
-        Err(SlibMemberRecordValidationError::IdMismatch { .. })
+        invalid.validate(),
+        Err(SlibMemberRoleValidationError::NativeSource(_))
     ));
+    let missing = decode_canonical::<DecodedSlibMemberRole>(b"\xa1\x00\x07").unwrap_err();
+    assert_eq!(
+        missing.kind(),
+        &WireErrorKind::InvalidLength {
+            expected: 2,
+            actual: 1
+        }
+    );
 }
 
 #[test]
@@ -87,16 +92,35 @@ fn decoded_extension_role_rejects_other_purpose_bits() {
 
 #[test]
 fn closed_member_sums_reject_unknown_tags_and_shapes() {
-    let unknown = decode_canonical::<DecodedMemberStableKey>(b"\xa1\x00\x07").unwrap_err();
-    assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 7 });
+    let old_record = decode_canonical::<DecodedSlibMemberRecord>(
+        b"\xa5\x01\x00\x02\x00\x03\x00\x04\x00\x05\x00",
+    )
+    .unwrap_err();
+    assert_eq!(
+        old_record.kind(),
+        &WireErrorKind::InvalidLength {
+            expected: 4,
+            actual: 5
+        }
+    );
+    let short_id = decode_canonical::<SlibMemberId>(b"\x40").unwrap_err();
+    assert_eq!(
+        short_id.kind(),
+        &WireErrorKind::InvalidLength {
+            expected: 32,
+            actual: 0
+        }
+    );
+    let unknown = decode_canonical::<DecodedSlibMemberRole>(b"\xa1\x00\x08").unwrap_err();
+    assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 8 });
 
     let extra_field =
-        decode_canonical::<DecodedMemberStableKey>(b"\xa2\x00\x01\x01\x00").unwrap_err();
+        decode_canonical::<DecodedSlibMemberRole>(b"\xa3\x00\x01\x01\x01\x02\x00").unwrap_err();
     assert_eq!(
         extra_field.kind(),
         &WireErrorKind::InvalidLength {
-            expected: 1,
-            actual: 2,
+            expected: 2,
+            actual: 3,
         }
     );
 }

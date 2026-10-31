@@ -20,7 +20,7 @@ pub(in crate::object_production) fn final_members(
         let member = SlibMember::new(
             producer,
             plan.stable_key().clone(),
-            plan.role().clone(),
+            scoop_slib::SlibMemberRole::LinkObject,
             scoop_slib::remove_production_end_symbols(object.bytes())
                 .map_err(BuiltinObjectProductionError::ProductionSymbols)?,
         )
@@ -32,7 +32,7 @@ pub(in crate::object_production) fn final_members(
         let member = SlibMember::new(
             producer,
             object.plan.stable_key().clone(),
-            object.plan.role().clone(),
+            scoop_slib::SlibMemberRole::LinkObject,
             scoop_slib::remove_production_end_symbols(&object.bytes)
                 .map_err(BuiltinObjectProductionError::ProductionSymbols)?,
         )

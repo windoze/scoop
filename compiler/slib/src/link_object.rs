@@ -9,9 +9,7 @@ use scoop_wire::{
     domain_separated_cbor_hash, encode,
 };
 
-use crate::{
-    LogicalMemberKey, LogicalMemberKeyError, MemberStableKey, SlibMemberId, SlibMemberRole,
-};
+use crate::{LogicalMemberKey, LogicalMemberKeyError, MemberStableKey, SlibMemberId};
 
 mod wire;
 pub(crate) use wire::DecodedFixedBytesV1;
@@ -237,14 +235,12 @@ impl CanonicalGeneratedBridgeObjectUnitSetV1 {
 pub struct PlannedScoopLirObjectMemberV1 {
     member_id: SlibMemberId,
     stable_key: MemberStableKey,
-    role: SlibMemberRole,
     units: CanonicalScoopLirObjectUnitSetV1,
 }
 
 impl PlannedScoopLirObjectMemberV1 {
     pub fn new(
         cone: scoop_identity::ConeIdentity,
-        target: scoop_lir::LirTargetProfile,
         units: CanonicalScoopLirObjectUnitSetV1,
     ) -> Result<Self, LinkObjectMemberPlanError> {
         let stable_key = units
@@ -256,7 +252,6 @@ impl PlannedScoopLirObjectMemberV1 {
         Ok(Self {
             member_id,
             stable_key,
-            role: units.logical_key().member_role(target),
             units,
         })
     }
@@ -267,10 +262,6 @@ impl PlannedScoopLirObjectMemberV1 {
 
     pub const fn stable_key(&self) -> &MemberStableKey {
         &self.stable_key
-    }
-
-    pub const fn role(&self) -> &SlibMemberRole {
-        &self.role
     }
 
     pub const fn units(&self) -> &CanonicalScoopLirObjectUnitSetV1 {
@@ -282,14 +273,12 @@ impl PlannedScoopLirObjectMemberV1 {
 pub struct PlannedGeneratedBridgeObjectMemberV1 {
     member_id: SlibMemberId,
     stable_key: MemberStableKey,
-    role: SlibMemberRole,
     units: CanonicalGeneratedBridgeObjectUnitSetV1,
 }
 
 impl PlannedGeneratedBridgeObjectMemberV1 {
     pub fn new(
         cone: scoop_identity::ConeIdentity,
-        target: scoop_lir::LirTargetProfile,
         units: CanonicalGeneratedBridgeObjectUnitSetV1,
     ) -> Result<Self, LinkObjectMemberPlanError> {
         let stable_key = units
@@ -301,7 +290,6 @@ impl PlannedGeneratedBridgeObjectMemberV1 {
         Ok(Self {
             member_id,
             stable_key,
-            role: units.logical_key().member_role(target),
             units,
         })
     }
@@ -312,10 +300,6 @@ impl PlannedGeneratedBridgeObjectMemberV1 {
 
     pub const fn stable_key(&self) -> &MemberStableKey {
         &self.stable_key
-    }
-
-    pub const fn role(&self) -> &SlibMemberRole {
-        &self.role
     }
 
     pub const fn units(&self) -> &CanonicalGeneratedBridgeObjectUnitSetV1 {
@@ -343,10 +327,6 @@ impl ScoopLirObjectLogicalKeyV1 {
             verifier_capability: scoop_lir_link_object_capability(),
             logical_key,
         })
-    }
-
-    pub fn member_role(self, target: scoop_lir::LirTargetProfile) -> SlibMemberRole {
-        link_object_role(target, scoop_lir_link_object_capability())
     }
 }
 
@@ -376,10 +356,6 @@ impl GeneratedBridgeObjectLogicalKeyV1 {
             verifier_capability: generated_c_bridge_link_object_capability(),
             logical_key,
         })
-    }
-
-    pub fn member_role(self, target: scoop_lir::LirTargetProfile) -> SlibMemberRole {
-        link_object_role(target, generated_c_bridge_link_object_capability())
     }
 }
 
@@ -469,17 +445,6 @@ pub fn scoop_lir_link_object_capability() -> CapabilityId {
 pub fn generated_c_bridge_link_object_capability() -> CapabilityId {
     CapabilityId::new("org.scoop-lang.link-object", "generated-c-bridge", 1)
         .expect("built-in generated C bridge object capability is valid")
-}
-
-fn link_object_role(
-    target: scoop_lir::LirTargetProfile,
-    verifier_capability: CapabilityId,
-) -> SlibMemberRole {
-    SlibMemberRole::LinkObject {
-        target_profile: target.wire_id(),
-        object_format: target.native_object_format().wire_id(),
-        verifier_capability,
-    }
 }
 
 struct CanonicalUnitSequence<'units, I>(&'units [I]);

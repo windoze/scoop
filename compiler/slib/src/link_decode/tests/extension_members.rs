@@ -5,9 +5,13 @@ use crate::{DecodedSlibEnvelope, ExtensionRequirement, LogicalMemberKey};
 
 #[test]
 fn optional_members_round_trip_without_changing_link_objects_or_semantic_fingerprints() {
-    let baseline_bytes = complete_artifact();
+    let (manifest, members) = super::archive::complete_artifact_parts();
+    let baseline_bytes = CanonicalSlibArchive::write_bootstrap(&manifest, members.clone())
+        .unwrap()
+        .as_bytes()
+        .to_vec();
     let baseline = DecodedSlibEnvelope::open(&baseline_bytes, selection()).unwrap();
-    let extended_bytes = extend(&baseline, ExtensionRequirement::Optional);
+    let extended_bytes = extend(&manifest, members, ExtensionRequirement::Optional);
     let extended = DecodedSlibEnvelope::open(&extended_bytes, selection()).unwrap();
     assert_ne!(baseline_bytes, extended_bytes);
     assert_ne!(
@@ -36,9 +40,8 @@ fn optional_members_round_trip_without_changing_link_objects_or_semantic_fingerp
 
 #[test]
 fn link_required_member_is_rejected_after_valid_archive_readback() {
-    let bytes = complete_artifact();
-    let baseline = DecodedSlibEnvelope::open(&bytes, selection()).unwrap();
-    let extended_bytes = extend(&baseline, ExtensionRequirement::Link);
+    let (manifest, members) = super::archive::complete_artifact_parts();
+    let extended_bytes = extend(&manifest, members, ExtensionRequirement::Link);
     let extended = DecodedSlibEnvelope::open(&extended_bytes, selection()).unwrap();
     let extension = extended
         .manifest()
@@ -61,21 +64,11 @@ fn extension_capability() -> CapabilityId {
     CapabilityId::new("org.scoop-lang.test", "opaque-member", 1).unwrap()
 }
 
-fn extend(baseline: &DecodedSlibEnvelope<'_>, requirement: ExtensionRequirement) -> Vec<u8> {
-    let original = baseline.manifest();
-    let mut members: Vec<_> = original
-        .members()
-        .iter()
-        .map(|record| {
-            SlibMember::new(
-                original.cone().identity(),
-                record.stable_key().clone(),
-                record.role().clone(),
-                baseline.member(record.id()).unwrap().unwrap().to_vec(),
-            )
-            .unwrap()
-        })
-        .collect();
+fn extend(
+    original: &BootstrapManifest,
+    mut members: Vec<SlibMember>,
+    requirement: ExtensionRequirement,
+) -> Vec<u8> {
     members.push(
         SlibMember::new(
             original.cone().identity(),

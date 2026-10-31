@@ -67,7 +67,6 @@ pub(super) fn compile(
             let source = NormalizedNativeSourcePath::new(source.as_str()).map_err(error)?;
             scoop_slib::native_link_object_member(
                 cone,
-                target.lir_target(),
                 &source,
                 std::fs::read(object).map_err(error)?,
             )

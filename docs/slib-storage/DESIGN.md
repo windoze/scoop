@@ -2,6 +2,8 @@
 
 本次改动减少大库产物的磁盘占用与读写量，同时控制压缩 CPU 成本。先缩减没有下游消费者的持久化数据，再在 ar 容器内压缩 Scoop 自用成员。格式合同以 [实现规范 2.6](../specs/SCOOP-IMPL-SPEC.md) 为准。
 
+2026-11-01 的后续结构精简已统一三层 metadata 的成员内 ID 表，并将 ODR 目录移入 LIR。当前容器／manifest 为 4、profile 为 `cross-cone-generic/12`、三层 metadata outer schema 均为 4；成员目录只保存 ID、角色、存储长度和摘要。生产端仍用完整 key 生成稳定 ID；Native 源路径保存在对应角色中，对象目标与格式复用 manifest 的契约。逐轮固定输入的测量与验证见 [编译器优化报告](../compiler-performance/PROGRESS.md)。下文保留 2026-10-31 各轮的历史记录。
+
 2026-10-31 的后续实施扩展到逐对象压缩、LIR 成员内 ID 表以及发布前结束边界符号清理。基线为 25 个当前格式 Darwin 库、772.16 MiB；其中对象 378.29 MiB、LIR 287.60 MiB。离线测量中逐对象 Zstd level 3 为 165.46 MiB，LIR ID 索引投影为 123.80 MiB，合计估算约 395.53 MiB。该估算包含 ID 表，不是正式 writer 的验收结果。
 
 本次容器／manifest 升至 3，profile 升至 `cross-cone-generic/7`，LIR outer schema 升至 4。身份计算和 runtime ABI 保持；旧产物正常重建，不增加兼容分支。LIR 在已有 primitive wire reader 上直接解析 ID 索引，未知扩展保持 opaque。结束边界只在生产完成后从原生符号表和 Link 导出目录移除，保留实际被引用的起始边界；原生重定位和调试数据继续按原对象格式处理。具体 wire 字段与消费职责见实现规范 2.6。
