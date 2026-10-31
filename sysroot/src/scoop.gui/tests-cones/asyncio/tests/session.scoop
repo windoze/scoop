@@ -6,17 +6,16 @@ import scoop.gui.*
 import scoop.platform.concurrent.currentThreadId
 import scoop.platform.time.MonotonicTimeSource
 import scoop.test.*
-import scoop.tests.gui.ViewProbe
+import scoop.tests.gui.*
 import scoop.tests.window.*
 import scoop.time.Duration
 import scoop.window.*
-import scoop.window.native.*
 import scoop.window.asyncio.*
 
 @Test
 private class GuiAsyncioTest {
     @Test
-    fun `display links and GUI callbacks share asyncio and native common modes`() {
+    fun `native frame notifications and GUI callbacks share asyncio and modal loops`() {
         val application = Application()
         val probe = AsyncProbe()
         val host = GuiHost { owner, active, event -> probe.event(owner, active, event) }
@@ -26,6 +25,8 @@ private class GuiAsyncioTest {
             assertTrue(probe.childFinished)
             assertTrue(probe.modalFrames > 0)
             assertTrue(probe.menuFrames > 0)
+            if (guiNativeModeCount() == 3)
+                assertTrue(probe.resizeFrames > 0)
             assertTrue(probe.view!!.restored())
             assertEquals(GuiWindowState.Closed, probe.gui!!.state)
             assertEquals(WindowState.Destroyed, probe.window!!.state)
@@ -44,6 +45,7 @@ private class AsyncProbe {
     var frames = 0
     var modalFrames = 0
     var menuFrames = 0
+    var resizeFrames = 0
     var childFinished = false
     var closing = false
 
@@ -67,17 +69,7 @@ private class AsyncProbe {
         window = Some(first)
         first.setWindowLevel(WindowLevel.AlwaysOnTop)
         first.requestFocus()
-        @Unsafe
-        {
-            first.acquireNativeWindow().use {
-                lease -> @Unsafe
-                {
-                    when (lease.handle) {
-                        case AppKit(_, nativeView) -> view = Some(ViewProbe(nativeView))
-                    }
-                }
-            }
-        }
+        view = Some(observeWindow(first))
         gui =
             Some(
                 host.attach(first) {
@@ -92,6 +84,8 @@ private class AsyncProbe {
                             modalFrames += 1
                         if (mode == 2)
                             menuFrames += 1
+                        if (mode == 3)
+                            resizeFrames += 1
                     }
                     frame.window.requestFrame()
                 }
@@ -117,35 +111,22 @@ private class AsyncProbe {
         scope.launch suspend {
             while (frames < 3)
                 loop.sleep(Duration.milliseconds(10L))
-            schedule(first, 1)
-            var menuStarted = false
+            scheduleGuiNativeMode(first, 1)
+            var scheduled = 1
             while (true) {
                 loop.sleep(Duration.milliseconds(10L))
                 @Unsafe
                 {
                     val completed = completedNativeModes()
-                    if (completed == 2)
+                    if (completed == guiNativeModeCount())
                         break
-                    if (completed == 1 && !menuStarted) {
-                        menuStarted = true
-                        schedule(first, 2)
+                    if (completed == scheduled) {
+                        scheduled += 1
+                        scheduleGuiNativeMode(first, scheduled)
                     }
                 }
             }
             scope.job.cancel()
-        }
-    }
-    private fun schedule(window: Window, kind: Int) {
-        @Unsafe
-        {
-            window.acquireNativeWindow().use {
-                lease -> @Unsafe
-                {
-                    when (lease.handle) {
-                        case AppKit(nativeWindow, _) -> scheduleNativeMode(nativeWindow, kind, 0.25)
-                    }
-                }
-            }
         }
     }
 }

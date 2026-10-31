@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import package_toolchain
 from package_toolchain import archive, assemble
-from target_catalog import host_definition
+from target_catalog import WINDOWS_TARGETS, host_definition
 
 
 class ToolchainArchiveTests(unittest.TestCase):
@@ -116,7 +116,7 @@ class ToolchainArchiveTests(unittest.TestCase):
                 ]
                 if not host.endswith("darwin"):
                     target_files += ["unwind/include/unwind.h", "unwind/lib/libunwind.a"]
-                else:
+                if not host.endswith("linux-gnu"):
                     target_files += [
                         package_toolchain.SKIA_LIBRARY,
                         "include/skia/include/core/SkCanvas.h",
@@ -214,6 +214,17 @@ class ToolchainArchiveTests(unittest.TestCase):
                     "libscoop_text_backend.a",
                 )
                 self.assertEqual(metadata["liburing"], "2.15")
+                if not host.endswith("linux-gnu"):
+                    self.assertEqual(metadata["skia"], release["skia"])
+                    self.assertEqual(
+                        (installed / "lib" / target / package_toolchain.SKIA_LIBRARY).read_text(),
+                        package_toolchain.SKIA_LIBRARY,
+                    )
+                    self.assertTrue(
+                        (
+                            installed / "lib" / target / "include/skia/include/core/SkCanvas.h"
+                        ).is_file()
+                    )
                 for name in ("rust_windows", "llvm_mingw"):
                     if "windows" in host:
                         self.assertEqual(metadata[name], release[name])
@@ -281,17 +292,40 @@ class ToolchainArchiveTests(unittest.TestCase):
                     self.assertEqual(list(commands.iterdir()), [])
 
     def test_packaging_prepares_only_native_resources_and_runtime(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            args = SimpleNamespace(work_dir=Path(temporary), jobs=2, gn="gn")
-            with patch.object(package_toolchain, "run_script") as run:
-                package_toolchain.prepare_targets(args, ["aarch64-apple-darwin"], {})
-            scripts = [call.args[0] for call in run.call_args_list]
-            self.assertIn("build_openssl.py", scripts)
-            self.assertIn("build_text_backends.py", scripts)
-            self.assertIn("build_skia.py", scripts)
-            self.assertEqual(scripts[-1], "prepare_sysroot.py")
-            self.assertIn("--runtime-only", run.call_args.args[1])
-            self.assertNotIn("--scoop", run.call_args.args[1])
+        for target in ("aarch64-apple-darwin", *WINDOWS_TARGETS):
+            with self.subTest(target=target), tempfile.TemporaryDirectory() as temporary:
+                work = Path(temporary)
+                args = SimpleNamespace(
+                    work_dir=work,
+                    jobs=2,
+                    gn="gn",
+                    llvm_prefix=work / "llvm",
+                    llvm_source=work / "llvm-source",
+                    mingw_ucrt=work / "ucrt",
+                    mingw_msvcrt=work / "msvcrt",
+                    windows_perl="perl",
+                    msys_perl="perl",
+                    msys_make="make",
+                    msys_shell="sh",
+                )
+                with patch.object(package_toolchain, "run_script") as run:
+                    package_toolchain.prepare_targets(args, [target], {})
+                scripts = [call.args[0] for call in run.call_args_list]
+                self.assertIn("build_openssl.py", scripts)
+                self.assertIn("build_text_backends.py", scripts)
+                self.assertIn("build_skia.py", scripts)
+                self.assertEqual(scripts[-1], "prepare_sysroot.py")
+                self.assertIn("--runtime-only", run.call_args.args[1])
+                self.assertNotIn("--scoop", run.call_args.args[1])
+                skia = next(
+                    call.args[1] for call in run.call_args_list if call.args[0] == "build_skia.py"
+                )
+                self.assertEqual(skia[skia.index("--target") + 1], target)
+                if target in WINDOWS_TARGETS:
+                    self.assertEqual(
+                        skia[skia.index("--cc") + 1],
+                        package_toolchain.package_windows.compiler(args, target),
+                    )
 
     def test_extract_directly_into_installation_root(self):
         with tempfile.TemporaryDirectory() as temporary:

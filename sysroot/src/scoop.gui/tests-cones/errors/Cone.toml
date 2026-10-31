@@ -7,7 +7,7 @@ kind = "library"
 
 [[test.sources]]
 path = "tests"
-when = { os = "darwin" }
+when = { os = ["darwin", "windows"] }
 
 [test-dependencies]
 "scoop:scoop.test" = "0.1.0"

@@ -83,7 +83,7 @@ def prepare_targets(args, targets, environment):
                 ],
                 environment,
             )
-        if facts["os"] == "darwin":
+        if facts["os"] in ("darwin", "windows"):
             run_script(
                 "build_skia.py",
                 [
@@ -95,6 +95,7 @@ def prepare_targets(args, targets, environment):
                     args.gn,
                     "--jobs",
                     args.jobs,
+                    *native,
                 ],
                 environment,
             )
@@ -241,7 +242,7 @@ def assemble(root, targets, binaries, args, release, extension):
         shutil.copy2(source / RUST_TEXT_LIBRARY, destination / RUST_TEXT_LIBRARY)
         shutil.copy2(source / "liburiparser.a", destination / "liburiparser.a")
         shutil.copy2(source / "libpcre2-8.a", destination / "libpcre2-8.a")
-        if TARGETS[target]["os"] == "darwin":
+        if TARGETS[target]["os"] in ("darwin", "windows"):
             shutil.copy2(source / SKIA_LIBRARY, destination / SKIA_LIBRARY)
             shutil.copytree(source / "include/skia", destination / "include/skia")
         for package in COMPRESSION_PACKAGES:
@@ -330,7 +331,7 @@ def assemble(root, targets, binaries, args, release, extension):
         manifest += [
             f"{name} = {json.dumps(release[name])}" for name in ("rust_windows", "llvm_mingw")
         ]
-    if any(TARGETS[target]["os"] == "darwin" for target in targets):
+    if any(TARGETS[target]["os"] in ("darwin", "windows") for target in targets):
         manifest.append(f"skia = {json.dumps(release['skia'])}")
     manifest += [
         f"{name} = {json.dumps(release[name])}"

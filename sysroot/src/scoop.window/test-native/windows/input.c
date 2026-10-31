@@ -23,6 +23,8 @@ void scoop_window_test_text_batch(HWND hwnd, int32_t sample) {
     sw_composition(window, NULL, 0, chinese, 3, 3);
   else if (sample == 7)
     sw_composition(window, commit, 2, NULL, 0, -1);
+  else if (sample == 8)
+    sw_composition(window, L"A", 1, NULL, 0, -1);
 }
 
 int32_t scoop_window_test_caret(HWND hwnd) {
@@ -73,4 +75,28 @@ void scoop_window_test_input(HWND hwnd) {
   SendMessageW(hwnd, WM_MOUSEHWHEEL, MAKEWPARAM(0, -120),
                MAKELPARAM(screen.x, screen.y));
   SendMessageW(hwnd, WM_MOUSELEAVE, 0, 0);
+}
+
+void scoop_window_test_pointer_cancellation(HWND hwnd) {
+  const LPARAM inside = MAKELPARAM(24, 36);
+  const LPARAM outside = MAKELPARAM(-17, -19);
+  SendMessageW(hwnd, WM_LBUTTONDOWN, MK_LBUTTON, inside);
+  SendMessageW(hwnd, WM_MOUSEMOVE, MK_LBUTTON, outside);
+  SendMessageW(hwnd, WM_MOUSELEAVE, 0, 0);
+  SendMessageW(hwnd, WM_KILLFOCUS, 0, 0);
+  SendMessageW(hwnd, WM_CANCELMODE, 0, 0);
+  SendMessageW(hwnd, WM_LBUTTONUP, 0, outside);
+
+  SendMessageW(hwnd, WM_LBUTTONDOWN, MK_LBUTTON, inside);
+  SendMessageW(hwnd, WM_RBUTTONDOWN, MK_LBUTTON | MK_RBUTTON, inside);
+  SendMessageW(hwnd, WM_CANCELMODE, 0, 0);
+  SendMessageW(hwnd, WM_LBUTTONUP, MK_RBUTTON, inside);
+  SendMessageW(hwnd, WM_RBUTTONUP, 0, inside);
+
+  SendMessageW(hwnd, WM_LBUTTONDOWN, MK_LBUTTON, inside);
+  ReleaseCapture();
+  SendMessageW(hwnd, WM_LBUTTONUP, 0, inside);
+
+  SendMessageW(hwnd, WM_LBUTTONDOWN, MK_LBUTTON, inside);
+  SendMessageW(hwnd, WM_LBUTTONUP, 0, inside);
 }

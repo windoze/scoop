@@ -1,0 +1,55 @@
+package scoop.graphics.native.windows
+
+import scoop.graphics.*
+import scoop.graphics.native.RenderTarget
+
+/** Ganesh state shared by D3D12 targets on one device and direct command queue. */
+public class D3DContext private constructor(private val resource: GraphicsResource): Closeable {
+    /** The resource must be a BGRA8, single-sample render target in PRESENT/COMMON state. */
+    @Unsafe
+    public fun target(texture: Ptr<Unit>, width: Int, height: Int, scale: Double): RenderTarget {
+        pixelBytes(width, height)
+        checkScalar(scale)
+        requireGraphics(scale > 0.0 && scale.toFloat() > 0.0, "invalid target scale")
+        return RenderTarget(
+            ownedGraphics(d3dTarget(resource.get(), texture, width, height), "wrap D3D12 target"),
+            width,
+            height,
+            scale
+        )
+    }
+    /** Waits for submitted GPU work; used for explicit resource teardown. */
+    public fun drain() {
+        @Unsafe
+        {
+            graphicsResult(d3dDrain(resource.get()), "drain D3D12 context")
+        }
+    }
+    public override fun close() {
+        resource.checkThread()
+        if (resource.isClosed)
+            return
+        try {
+            drain()
+        } finally {
+            resource.close()
+        }
+    }
+    public companion object {
+        /** Retains the supplied COM objects. Use and close this context on its creating thread. */
+        @Unsafe
+        public fun create(adapter: Ptr<Unit>, device: Ptr<Unit>, queue: Ptr<Unit>): D3DContext =
+            D3DContext(
+                ownedGraphics(d3dContext(adapter, device, queue), "create Ganesh D3D12 context")
+            )
+    }
+}
+
+@Extern(name = "scoop_graphics_d3d_context")
+private fun d3dContext(adapter: Ptr<Unit>, device: Ptr<Unit>, queue: Ptr<Unit>): Ptr<Unit>?
+
+@Extern(name = "scoop_graphics_d3d_target")
+private fun d3dTarget(context: Ptr<Unit>, texture: Ptr<Unit>, width: Int, height: Int): Ptr<Unit>?
+
+@Extern(name = "scoop_graphics_d3d_drain")
+private fun d3dDrain(context: Ptr<Unit>): Int

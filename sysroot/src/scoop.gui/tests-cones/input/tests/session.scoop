@@ -4,10 +4,9 @@ import scoop.graphics.*
 import scoop.gui.*
 import scoop.platform.time.MonotonicTimeSource
 import scoop.test.*
-import scoop.tests.gui.ViewProbe
+import scoop.tests.gui.*
 import scoop.time.Duration
 import scoop.window.*
-import scoop.window.native.*
 
 @Test
 private class NativeInputTest {
@@ -67,7 +66,7 @@ private class InputSession: Closeable {
                 window = Some(native)
                 native.setWindowLevel(WindowLevel.AlwaysOnTop)
                 native.requestFocus()
-                view = Some(observeInput(native))
+                view = Some(observeWindow(native))
                 val attached = host.attach(native) { frame -> paint(frame) }
                 gui = Some(attached)
                 first =
@@ -212,20 +211,6 @@ private class InputSession: Closeable {
         when (view) {
             case Some(value) -> value.close();
             case None -> {}
-        }
-    }
-}
-
-private fun observeInput(window: Window): ViewProbe {
-    @Unsafe
-    {
-        return window.acquireNativeWindow().use {
-            lease -> @Unsafe
-            {
-                return@use when (lease.handle) {
-                    case AppKit(_, view) -> ViewProbe(view)
-                }
-            }
         }
     }
 }

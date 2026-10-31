@@ -4,10 +4,9 @@ import scoop.graphics.*
 import scoop.gui.*
 import scoop.platform.time.MonotonicTimeSource
 import scoop.test.*
-import scoop.tests.gui.ViewProbe
+import scoop.tests.gui.*
 import scoop.time.Duration
 import scoop.window.*
-import scoop.window.native.*
 
 @Test
 private class GuiErrorTest {
@@ -43,17 +42,7 @@ private class ErrorProbe {
                     )
                 first.setWindowLevel(WindowLevel.AlwaysOnTop)
                 first.requestFocus()
-                @Unsafe
-                {
-                    first.acquireNativeWindow().use {
-                        lease -> @Unsafe
-                        {
-                            when (lease.handle) {
-                                case AppKit(_, nativeView) -> view = Some(ViewProbe(nativeView))
-                            }
-                        }
-                    }
-                }
+                view = Some(observeWindow(first))
                 host.attach(first) {
                     frame ->
                     painted = true

@@ -1,6 +1,8 @@
-# GUI 基础架构与 macOS 设计
+# GUI 基础架构与平台实现设计
 
 日期：2026-10-31。状态：第一期共享架构与 macOS 后端已实现。公共合同见 [GUI 基础库规范](../specs/SCOOP-GUI-SPEC.md)；window 的输入与生命周期合同见 [窗口库规范](../specs/SCOOP-WINDOW-SPEC.md)。实际交付、验证环境和未测边界见 [实施记录](PROGRESS.md)。
+
+当前进入 Windows 阶段，方案与验收见第 13 节；第 1～12 节的“本期／第一期”保留为已交付的共享架构与 macOS 范围。Linux 留待后续。
 
 ## 1. 本期决定
 
@@ -338,3 +340,22 @@ graphics／gui 的纯值和路由行为归所属 Cone 的 scoop.test；窗口与
 - HarfBuzz：[职责与不承担的工作](https://github.com/harfbuzz/harfbuzz/blob/main/docs/usermanual-what-is-harfbuzz.xml)。
 - Skia：[Paragraph API](https://github.com/google/skia/blob/f326a1e25fc736704063922b9ce76b527b1c5efe/modules/skparagraph/include/Paragraph.h)、[HarfBuzz shaping](https://github.com/google/skia/blob/f326a1e25fc736704063922b9ce76b527b1c5efe/modules/skparagraph/src/OneLineShaper.cpp)、[ICU4X 适配](https://github.com/google/skia/blob/f326a1e25fc736704063922b9ce76b527b1c5efe/modules/skunicode/src/SkUnicode_icu4x.cpp)、[Metal context](https://github.com/google/skia/blob/f326a1e25fc736704063922b9ce76b527b1c5efe/include/gpu/ganesh/mtl/GrMtlBackendContext.h)、[Metal 句柄](https://github.com/google/skia/blob/f326a1e25fc736704063922b9ce76b527b1c5efe/include/gpu/ganesh/mtl/GrMtlTypes.h)。
 - Apple：[CAMetalDisplayLink](https://developer.apple.com/documentation/quartzcore/cametaldisplaylink)、[CAMetalDisplayLinkUpdate](https://developer.apple.com/documentation/quartzcore/cametaldisplaylinkupdate)、[CAMetalLayer](https://developer.apple.com/documentation/quartzcore/cametallayer)。API 形状另以本机 Xcode 的 macOS SDK 头文件复核。
+
+## 13. Windows 阶段
+
+Windows 沿用共享架构，增加 Ganesh Direct3D 12、DXGI swapchain 与 DirectWrite 字体适配。固定 Skia revision 已包含这些入口；D3D12MemoryAllocator 和 SPIRV-Cross 使用该 revision 的 DEPS 配套版本。Microsoft UCRT 和 LLVM-MinGW 的 UCRT／MSVCRT 分别准备原生资源，保持各自 C++ ABI 和 CRT；普通 Cone 构建不运行 GN／Ninja 或下载依赖。
+
+graphics 在 `native/windows` 内封装 Skia D3D context、backbuffer 和字体发现；GUI 在 `native/windows` 内拥有设备／queue、窗口交换链、DirectComposition 呈现、DXGI 原生帧机会及有序关闭。Scoop 的平台 adapter 实现已有 RendererHost／WindowRenderer／RenderFrame，不复制帧、动画、文本和区域算法。输入时间、鼠标捕获及 IME 缺口须在 scoop.window 修复，再由 GUI 消费。
+
+DXGI frame-latency waitable object 只在有帧需求时等待一次；原生等待向 owner 消息窗口投递，owner 通过现有 ForeignCallback／ApplicationProxy 请求 redraw。暂停、关闭和无有效尺寸时解除等待；后台线程不调用用户 painter、不读取托管可变状态。取到的 backbuffer 以当前 WindowMetrics 配置包装，Skia 提交后转换到 PRESENT，再由同一 direct queue 呈现。读回、resize 和关闭同步真实 GPU 使用；普通帧不阻塞等待 fence。
+
+按以下批次实施，每批格式化、检查和验证后提交并推送，再 fetch／合并有更新的 origin/main：
+
+| 批次 | 实现 | 验收证据 |
+| --- | --- | --- |
+| 原生资源与 graphics | 三目标 Skia 构建、DirectWrite、D3DContext／RenderTarget | 共享绘图／文本 scoop.test，真实 D3D12 像素与 alpha／DPI 读回、资源释放 |
+| 窗口呈现与宿主 | DXGI 原生帧、resize、隐藏恢复、多窗口、异常与关闭 | 真实窗口 scoop.test，空闲停帧、回调内关闭、重新 attach、run 与 runWithAsyncio |
+| 输入与示例 | Win32 指针／IME 接入、示例和测试 Cone 平台选择 | 原生捕获取消、文本会话切换、caret、拖动回弹、示例实际构建运行 |
+| 交付 | 维护／打包资源、使用说明及精简实施记录 | 三目标 release Cone 测试；桌面观察与硬件未测项分别记录 |
+
+本阶段不实现 Linux、component 或另一套软件窗口 renderer。底层发现的问题先补对应规范、实现与必要回归，再继续 GUI；不能通过库内特判绕过编译器、runtime 或 window 合同。

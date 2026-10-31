@@ -42,6 +42,7 @@ private class WindowsInputTest {
         assertEquals("中文中文😀", handler.text.surroundingText)
         assertEquals(None, handler.text.markedRange)
         assertEquals(11L, handler.text.revision)
+        assertEquals("dmlfdrxdxdu", handler.cancellation.sequence)
         assertTrue(handler.destroyed)
     }
 }
@@ -57,12 +58,18 @@ private class InputHandler: ApplicationHandler {
     var disabled = 0
     var batches = 0
     var destroyed = false
+    val cancellation = PointerCancellationProbe()
     public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
         when (event) {
             case Resumed -> start(application)
             case NewEvents(StartCause.Deadline) -> fail(Some("input protocol timed out"))
             case Window(_, WindowEvent.Keyboard(key)) -> keys.add(key)
-            case Window(_, WindowEvent.Pointer(pointer)) -> checkPointer(pointer)
+            case Window(_, WindowEvent.Pointer(pointer)) -> {
+                if (cancellation.started)
+                    cancellation.pointer(pointer)
+                else
+                    checkPointer(pointer)
+            }
             case Window(_, WindowEvent.TextInput(TextInputEvent.Enabled)) -> enabled += 1
             case Window(_, WindowEvent.TextInput(TextInputEvent.Disabled)) -> disabled += 1
             case Window(_, WindowEvent.TextInput(TextInputEvent.Edit(batch))) -> {
@@ -83,8 +90,12 @@ private class InputHandler: ApplicationHandler {
                 }
             }
             case AboutToWait -> {
-                if (keys.size >= 11L && batches >= 11 && wheels >= 2)
-                    application.requestExit()
+                if (keys.size >= 11L && batches >= 11 && wheels >= 2) {
+                    if (cancellation.started)
+                        application.requestExit()
+                    else
+                        cancellation.start(lease!!)
+                }
             }
             case Window(_, WindowEvent.Closing) -> lease!!.close()
             case Window(_, WindowEvent.Destroyed) -> destroyed = true

@@ -1,0 +1,54 @@
+package scoop.tests.gui
+
+import scoop.window.*
+import scoop.window.native.*
+import scoop.tests.window.scheduleNativeMode
+
+public fun observeWindow(window: Window, customContent: Boolean = false): ViewProbe {
+    @Unsafe
+    {
+        return window.acquireNativeWindow().use {
+            lease -> @Unsafe
+            {
+                return@use when (lease.handle) {
+                    case Win32(hwnd, _) -> ViewProbe(hwnd, customContent)
+                }
+            }
+        }
+    }
+}
+
+public fun guiNativeModeCount(): Int = 3
+
+/** Reads the composed desktop at a logical point inside this window. */
+public fun sampleWindowPixel(window: Window, x: Double, y: Double): Long {
+    @Unsafe
+    {
+        return window.acquireNativeWindow().use {
+            lease -> @Unsafe
+            {
+                return@use when (lease.handle) {
+                    case Win32(hwnd, _) -> desktopPixel(hwnd, x, y)
+                }
+            }
+        }
+    }
+}
+
+@Extern(name = "scoop_gui_test_desktop_pixel")
+private fun desktopPixel(window: Ptr<Unit>, x: Double, y: Double): Long
+
+public fun scheduleGuiNativeMode(window: Window, kind: Int) {
+    @Unsafe
+    {
+        window.acquireNativeWindow().use {
+            lease -> @Unsafe
+            {
+                when (lease.handle) {
+                    case Win32(hwnd, _) -> if (scheduleNativeMode(hwnd, kind, 250) != 1)
+                        throw IllegalStateException(Some("cannot enter native modal loop"))
+                }
+            }
+        }
+    }
+}

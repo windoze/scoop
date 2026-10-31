@@ -1,0 +1,454 @@
+--- a/gn/BUILDCONFIG.gn
++++ b/gn/BUILDCONFIG.gn
+@@ -27,6 +27,8 @@
+ 
+   win_vc = ""
+   win_toolchain_version = ""
++
++  is_mingw = false
+ 
+   clang_win = ""
+   clang_win_version = ""
+@@ -70,6 +72,7 @@
+ is_mac = current_os == "mac"
+ is_wasm = current_os == "wasm"
+ is_win = current_os == "win"
++is_msvc = is_win && !is_mingw
+ 
+ # Dawn has references to fuchsia, but Skia's GN rules do not
+ is_fuchsia = false
+@@ -94,7 +97,7 @@
+   current_cpu = target_cpu
+ }
+ 
+-is_clang = is_android || is_ios || is_mac || is_wasm ||
++is_clang = is_mingw || is_android || is_ios || is_mac || is_wasm ||
+            (cc == "clang" && cxx == "clang++") || clang_win != ""
+ if (!is_clang && !is_win) {
+   is_clang = exec_script("//gn/is_clang.py",
+@@ -159,7 +162,7 @@
+   }
+ }
+ 
+-if (target_os == "win") {
++if (target_os == "win" && !is_mingw) {
+   # By default we look for 2017 (Enterprise, Pro, and Community), then 2015. If MSVC is installed in a
+   # non-default location, you can set win_vc to inform us where it is.
+ 
+@@ -170,7 +173,7 @@
+                         # directory.
+ }
+ 
+-if (target_os == "win") {
++if (target_os == "win" && !is_mingw) {
+   if (win_toolchain_version == "") {
+     win_toolchain_version = exec_script("//gn/highest_version_dir.py",
+                                         [
+@@ -270,7 +273,7 @@
+       [ "//gn/skia:warnings_for_public_headers" ]
+ }
+ 
+-if (is_win) {
++if (is_msvc) {
+   # Windows tool chain
+   set_default_toolchain("//gn/toolchain:msvc")
+   default_toolchain_name = "msvc"
+--- a/gn/skia/BUILD.gn
++++ b/gn/skia/BUILD.gn
+@@ -59,7 +59,7 @@
+   # Disable warnings about unknown attributes.
+   # (These unknown attribute warnings are on by default, so we don't make
+   # disabling them part of :warnings, as some targets remove :warnings.)
+-  if (is_win && !is_clang) {
++  if (is_msvc && !is_clang) {
+     cflags += [
+       "/wd5030",
+       "/wd5051",
+@@ -68,13 +68,13 @@
+     cflags += [ "-Wno-attributes" ]
+   }
+ 
+-  if (is_clang && !is_win) {
++  if (is_clang && !is_msvc) {
+     # In Clang 14, this default was changed. We turn this off to (hopefully) make our
+     # GMs more consistent in the transition.
+     cflags += [ "-ffp-contract=off" ]
+   }
+ 
+-  if (is_win) {
++  if (is_msvc) {
+     if (is_clang && current_cpu == "arm64") {
+       cflags += [ "--target=arm64-windows" ]
+     }
+@@ -138,7 +138,7 @@
+       "-mfpu=neon",
+       "-mthumb",
+     ]
+-  } else if (current_cpu == "x86" && !is_win) {
++  } else if (current_cpu == "x86" && !is_msvc) {
+     asmflags += [ "-m32" ]
+     cflags += [
+       "-m32",
+@@ -153,7 +153,7 @@
+     ]
+   }
+ 
+-  if (malloc != "" && !is_win) {
++  if (malloc != "" && !is_msvc) {
+     cflags += [
+       "-fno-builtin-malloc",
+       "-fno-builtin-calloc",
+@@ -170,7 +170,7 @@
+ 
+   if (show_includes) {
+     assert(is_clang, "show_includes requires clang to build.")
+-    if (is_win) {
++    if (is_msvc) {
+       cflags += [
+         "/clang:-H",
+         "/clang:-fshow-skipped-includes",
+@@ -314,7 +314,7 @@
+     sanitize = ""
+   }
+ 
+-  if (is_win && !is_clang && sanitize == "ASAN") {
++  if (is_msvc && !is_clang && sanitize == "ASAN") {
+     sanitizers = "address"
+     cflags += [ "/fsanitize=$sanitizers" ]
+   } else if (sanitize != "" && sanitize != "MSVC") {
+@@ -350,7 +350,7 @@
+       cflags += [ "-fno-sanitize=function" ]
+     }
+ 
+-    if (is_win) {
++    if (is_msvc) {
+       cflags += [
+         # On Release builds, we get strange warnings about string literals.
+         "/GF-",
+@@ -377,7 +377,7 @@
+       ldflags += [ "-fsanitize=$sanitizers" ]
+     }
+ 
+-    if (is_win && sanitize == "ASAN") {
++    if (is_msvc && sanitize == "ASAN") {
+       copy("copy_asan_runtime") {
+         sources = [ "$clang_win/lib/clang/$clang_win_version/lib/windows/clang_rt.asan_dynamic-x86_64.dll" ]
+         outputs = [ "$root_out_dir/clang_rt.asan_dynamic-x86_64.dll" ]
+@@ -402,14 +402,14 @@
+ 
+ # See skbug.com/40041063.
+ config("recover_pointer_overflow") {
+-  if (sanitize == "ASAN" && !(is_win && !is_clang)) {
++  if (sanitize == "ASAN" && !(is_msvc && !is_clang)) {
+     cflags = [ "-fsanitize-recover=pointer-overflow" ]
+   }
+ }
+ 
+ config("no_exceptions") {
+   # Exceptions are disabled by default on Windows.  (Use /EHsc to enable them.)
+-  if (!is_win) {
++  if (!is_msvc) {
+     cflags_cc = [ "-fno-exceptions" ]
+     cflags_objcc = cflags_cc
+   }
+@@ -422,14 +422,14 @@
+   cflags_objcc = []
+ 
+   if (werror) {
+-    if (is_win) {
++    if (is_msvc) {
+       cflags += [ "/WX" ]
+     } else {
+       cflags += [ "-Werror" ]
+     }
+   }
+ 
+-  if (is_win) {
++  if (is_msvc) {
+     cflags += [
+       "/W3",  # Turn on lots of warnings.
+ 
+@@ -503,7 +503,7 @@
+     #   - clang-cl doesn't recognize the flag
+     #   - The (old) Mac/iOS SDK used on the bots breaks this rule in various headers
+     #     TODO: Re-enable on Apple when we update XCode
+-    if (!is_win && !is_apple && current_cpu != "loong64") {
++    if (!is_msvc && !is_apple && current_cpu != "loong64") {
+       cflags += [ "-fno-lax-vector-conversions" ]
+     }
+ 
+@@ -669,7 +669,7 @@
+   }
+ 
+   # !is_clang is a proxy for gcc.
+-  if (!is_clang && !is_win) {
++  if (!is_clang && !is_msvc) {
+     cflags += [
+       "-Wno-unreachable-code",  # Causes false positives in old GCC; removed
+                                 # from modern GCC entirely
+@@ -713,7 +713,7 @@
+       "-gline-tables-only",
+       "-funwind-tables",  # Helps make in-process backtraces fuller.
+     ]
+-  } else if (is_win) {
++  } else if (is_msvc) {
+     cflags = [ "/Z7" ]
+     if (is_clang) {
+       cflags += [ "-gcodeview-ghash" ]
+@@ -733,7 +733,7 @@
+   # -fsanitize=vptr requires RTTI which is enabled as a part of
+   # -fsanitize=undefined
+   if (sanitize != "ASAN") {
+-    if (is_win) {
++    if (is_msvc) {
+       cflags_cc = [ "/GR-" ]
+     } else {
+       cflags_cc = [ "-fno-rtti" ]
+@@ -744,7 +744,7 @@
+ 
+ config("optimize") {
+   ldflags = []
+-  if (is_win) {
++  if (is_msvc) {
+     cflags = [
+       "/O2",
+       "/Zc:inline",
+@@ -799,12 +799,12 @@
+ #
+ # As of 2024, only GCC is aggressive about strict aliasing. Clang isn't.
+ config("strict_aliasing") {
+-  if (!is_win) {
++  if (!is_msvc) {
+     cflags = [ "-fstrict-aliasing" ]
+   }
+ }
+ config("no_strict_aliasing") {
+-  if (!is_win) {
++  if (!is_msvc) {
+     cflags = [ "-fno-strict-aliasing" ]
+   }
+ }
+@@ -822,7 +822,7 @@
+       "-rdynamic",
+       "-Wl,-rpath,\$ORIGIN",
+     ]
+-  } else if (is_win) {
++  } else if (is_msvc) {
+     ldflags = [
+       "/SUBSYSTEM:CONSOLE",  # Quiet "no subsystem specified; CONSOLE assumed".
+       "/INCREMENTAL:NO",  # Quiet warnings about failing to incrementally link
+--- a/gn/portable/BUILD.gn
++++ b/gn/portable/BUILD.gn
+@@ -4,7 +4,7 @@
+ # found in the LICENSE file.
+ 
+ config("add_exceptions") {
+-  if (is_win) {
++  if (is_msvc) {
+     cflags_cc = [ "/EHsc" ]
+   } else {
+     cflags_cc = [ "-fexceptions" ]
+@@ -12,7 +12,7 @@
+ }
+ 
+ config("add_rtti") {
+-  if (is_win) {
++  if (is_msvc) {
+     cflags_cc = [ "/GR" ]
+   } else {
+     cflags_cc = [ "-frtti" ]
+--- a/third_party/third_party.gni
++++ b/third_party/third_party.gni
+@@ -13,7 +13,7 @@
+     if (enabled) {
+       forward_variables_from(invoker, "*", [ "include_dirs" ])
+       cflags = []
+-      if (is_win) {
++      if (is_msvc) {
+         include_dirs = invoker.include_dirs
+         if (is_clang) {
+           foreach(dir, invoker.include_dirs) {
+@@ -92,7 +92,7 @@
+       if (!defined(cflags)) {
+         cflags = []
+       }
+-      if (is_win) {
++      if (is_msvc) {
+         cflags += [ "/w" ]
+       } else {
+         cflags += [ "-w" ]
+--- a/modules/skcms/BUILD.gn
++++ b/modules/skcms/BUILD.gn
+@@ -33,7 +33,7 @@
+ arch("skcms_TransformHsw") {
+   enabled = current_cpu == "x64" && target_os != "android"
+   sources = skcms_TransformHsw
+-  if (is_win) {
++  if (is_msvc) {
+     if (is_clang) {
+       cflags = [
+         "/clang:-mavx2",
+@@ -55,7 +55,7 @@
+ arch("skcms_TransformSkx") {
+   enabled = current_cpu == "x64" && target_os != "android"
+   sources = skcms_TransformSkx
+-  if (is_win) {
++  if (is_msvc) {
+     if (is_clang) {
+       cflags = [
+         "/clang:-mavx512f",
+@@ -82,7 +82,7 @@
+ 
+ static_library("skcms") {
+   cflags = []
+-  if (!is_win || is_clang) {
++  if (!is_msvc || is_clang) {
+     cflags += [ "-std=c11" ]
+   }
+   if (target_cpu != "x64" || target_os == "android") {
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -180,7 +180,7 @@
+ opts("ml3") {
+   enabled = is_x86
+   sources = skia_opts.ml3_sources
+-  if (is_win) {
++  if (is_msvc) {
+     cflags = [ "/arch:AVX2" ]
+   } else if (current_cpu == "x86") {
+     cflags = [ "-march=haswell" ]
+@@ -192,7 +192,7 @@
+ opts("ml4") {
+   enabled = is_x86
+   sources = skia_opts.ml4_sources
+-  if (is_win) {
++  if (is_msvc) {
+     cflags = [ "/arch:AVX512" ]
+   } else if (current_cpu == "x86") {
+     cflags = [ "-march=skylake-avx512" ]
+--- a/third_party/icu/BUILD.gn
++++ b/third_party/icu/BUILD.gn
+@@ -13,7 +13,7 @@
+     defines = [ "U_USING_ICU_NAMESPACE=0" ]
+   }
+ } else {
+-  if (target_cpu == "wasm") {
++  if (target_cpu == "wasm" || is_win) {
+     data_assembly = "$target_gen_dir/icudtl_dat.cpp"
+   } else {
+     data_assembly = "$target_gen_dir/icudtl_dat.S"
+@@ -31,7 +31,7 @@
+     data_dir += "common"
+   }
+   action("make_data_assembly") {
+-    if (target_cpu == "wasm") {
++    if (target_cpu == "wasm" || is_win) {
+       _u_icu_version_major_num =
+           "78"  # defined in source/common/unicode/uvernum.h
+       script = "make_data_cpp.py"
+@@ -94,20 +94,13 @@
+       defines += [ "__i386__" ]
+     }
+     sources = icu_sources
++    sources += [ "$data_assembly" ]
++    deps = [ ":make_data_assembly" ]
+     if (is_win) {
+-      deps = [ ":icudata" ]
+       public_defines += [
+-        "U_NOEXCEPT=",
+         "U_STATIC_IMPLEMENTATION",
++        "SK_ICU_STATIC_DATA",
+       ]
+-      libs = [ "Advapi32.lib" ]
+-      sources += [
+-        "../externals/icu/source/stubdata/stubdata.cpp",
+-        "SkLoadICU.cpp",
+-      ]
+-    } else {
+-      sources += [ "$data_assembly" ]
+-      deps = [ ":make_data_assembly" ]
+     }
+   }
+ 
+--- a/src/ports/SkTypeface_win_dw.cpp
++++ b/src/ports/SkTypeface_win_dw.cpp
+@@ -1224,8 +1224,13 @@
+     }
+ 
+     SkTScopedComPtr<IDWriteFontFaceReference> fontFaceReference;
++#if defined(__MINGW32__)
++    HRN(factory3->CreateFontFaceReference_(
++            fontFile.get(), ttcIndex, simulations, &fontFaceReference));
++#else
+     HRN(factory3->CreateFontFaceReference(
+             fontFile.get(), ttcIndex, simulations, &fontFaceReference));
++#endif
+ 
+     // DirectWrite applies simulations even to faces that are already bold or italic, as
+     // onMakeClone relies on, so failure here means a bad file or an out-of-range index.
+--- a/src/ports/SkScalerContext_win_dw.cpp
++++ b/src/ports/SkScalerContext_win_dw.cpp
+@@ -51,6 +51,14 @@
+ #include <dwrite_3.h>
+ 
+ namespace {
++static HRESULT glyph_image_formats(IDWriteFontFace4* face, UINT16 glyph,
++                                   DWRITE_GLYPH_IMAGE_FORMATS* formats) {
++#if defined(__MINGW32__)
++    return face->GetGlyphImageFormats_(glyph, 0, UINT32_MAX, formats);
++#else
++    return face->GetGlyphImageFormats(glyph, 0, UINT32_MAX, formats);
++#endif
++}
+ static inline const constexpr bool kSkShowTextBlitCoverage = false;
+ 
+ /* Note:
+@@ -1731,7 +1739,7 @@
+     }
+ 
+     DWRITE_GLYPH_IMAGE_FORMATS imageFormats;
+-    HRBM(fontFace4->GetGlyphImageFormats(glyph.getGlyphID(), 0, UINT32_MAX, &imageFormats),
++    HRBM(glyph_image_formats(fontFace4, glyph.getGlyphID(), &imageFormats),
+          "Cannot get glyph image formats.");
+     if (!(imageFormats & DWRITE_GLYPH_IMAGE_FORMATS_PNG)) {
+         return false;
+@@ -2279,7 +2287,7 @@
+     }
+ 
+     DWRITE_GLYPH_IMAGE_FORMATS imageFormats;
+-    HRBM(fontFace4->GetGlyphImageFormats(glyph.getGlyphID(), 0, UINT32_MAX, &imageFormats),
++    HRBM(glyph_image_formats(fontFace4, glyph.getGlyphID(), &imageFormats),
+          "Cannot get glyph image formats.");
+     if (!(imageFormats & DWRITE_GLYPH_IMAGE_FORMATS_SVG)) {
+         return false;
+--- a/third_party/icu/SkLoadICU.h
++++ b/third_party/icu/SkLoadICU.h
+@@ -7,7 +7,7 @@
+ #ifndef load_icu_DEFINED
+ #define load_icu_DEFINED
+ 
+-#if defined(_WIN32) && defined(SK_USING_THIRD_PARTY_ICU)
++#if defined(_WIN32) && defined(SK_USING_THIRD_PARTY_ICU) && !defined(SK_ICU_STATIC_DATA)
+ bool SkLoadICU();
+ #else
+ static inline bool SkLoadICU() { return true; }
+--- a/include/private/SkFloatingPoint.h
++++ b/include/private/SkFloatingPoint.h
+@@ -152,7 +152,7 @@
+ 
+ // IEEE defines how float divide behaves for non-finite values and zero-denoms, but C does not,
+ // so we have a helper that suppresses the possible undefined-behavior warnings.
+-#ifdef SK_BUILD_FOR_WIN
++#ifdef _MSC_VER
+ #pragma warning(push)
+ #pragma warning(disable : 4723)
+ #endif
+@@ -165,7 +165,7 @@
+ static constexpr double sk_ieee_double_divide(double numer, double denom) {
+     return numer / denom;
+ }
+-#ifdef SK_BUILD_FOR_WIN
++#ifdef _MSC_VER
+ #pragma warning( pop )
+ #endif
+ 
